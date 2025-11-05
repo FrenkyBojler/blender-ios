@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Beta (b'702691150287')\n"
+"Project-Id-Version: Blender 5.0.0 Beta (b'6cf0458fdf00')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-13 16:12+0000\n"
+"POT-Creation-Date: 2025-11-03 10:44+0000\n"
 "PO-Revision-Date: 2025-07-23 15:08+0000\n"
 "Last-Translator: Bartosz <gang65@poczta.onet.pl>\n"
 "Language-Team: Ukrainian <https://translate.blender.org/projects/blender-ui/ui/uk/>\n"
@@ -14884,10 +14884,6 @@ msgid "Amount of random elements that are going to be affected by the brush"
 msgstr "Кількість випадкових елементів, на які буде впливати пензель"
 
 
-msgid "Direction"
-msgstr "Напрям"
-
-
 msgid "Add effect of brush"
 msgstr "Додати ефект пензля"
 
@@ -21208,10 +21204,6 @@ msgid "Sync to audio playback, dropping frames"
 msgstr "Синхронізація з відтворенням звуку пропуском кадрів"
 
 
-msgid "Second"
-msgstr "Секунда"
-
-
 msgid "Timeline Markers"
 msgstr "Мітки шкали часу"
 
@@ -23388,6 +23380,10 @@ msgstr "Ctrl"
 
 msgid "Control key pressed"
 msgstr "Натиснуто Control"
+
+
+msgid "Direction"
+msgstr "Напрям"
 
 
 msgid "North"
@@ -26382,6 +26378,10 @@ msgid "Material slot name"
 msgstr "Назва гнізда матеріалу"
 
 
+msgid "Select More/Less"
+msgstr "Вибрати більше/менше"
+
+
 msgid "Metaball"
 msgstr "Метакуля"
 
@@ -26446,6 +26446,10 @@ msgid "Hooks"
 msgstr "Гачки"
 
 
+msgid "Layout"
+msgstr "Розстановка"
+
+
 msgid "Vertex Group Locks"
 msgstr "Блокування Груп Вершин"
 
@@ -26456,10 +26460,6 @@ msgstr "Ліплення Задати Опертя"
 
 msgid "Face Sets Init"
 msgstr "Ініціація Наборів Граней"
-
-
-msgid "Layout"
-msgstr "Розстановка"
 
 
 msgid "Clear Transform"
@@ -26474,8 +26474,24 @@ msgid "Propagate"
 msgstr "Поширити"
 
 
+msgid "Keying"
+msgstr "Ключування"
+
+
+msgid "Tracking"
+msgstr "Стеження"
+
+
 msgid "Names"
 msgstr "Назви"
+
+
+msgid "Utilities"
+msgstr "Утиліти"
+
+
+msgid "Math"
+msgstr "Математика"
 
 
 msgid "Toggle Bone Options"
@@ -26490,28 +26506,12 @@ msgid "Disable Bone Options"
 msgstr "Відключити параметри кісток"
 
 
-msgid "Keying"
-msgstr "Ключування"
-
-
 msgid "Mesh Select Mode"
 msgstr "Режим Вибору Сіті"
 
 
-msgid "Tracking"
-msgstr "Стеження"
-
-
-msgid "Utilities"
-msgstr "Утиліти"
-
-
 msgid "Face Data"
 msgstr "Дані граней"
-
-
-msgid "Math"
-msgstr "Математика"
 
 
 msgid "Select by Face Strength"
@@ -26542,6 +26542,14 @@ msgid "Bone Roll"
 msgstr "Прокручення Кістки"
 
 
+msgid "Sample"
+msgstr "Вибірка"
+
+
+msgid "Primitives"
+msgstr "Примітиви"
+
+
 msgid "Pivot Point"
 msgstr "Точка Опертя"
 
@@ -26566,20 +26574,12 @@ msgid "Face Sets Edit"
 msgstr "Редагування Наборів Граней"
 
 
-msgid "Sample"
-msgstr "Вибірка"
-
-
-msgid "Primitives"
-msgstr "Примітиви"
+msgid "Import"
+msgstr "Імпортувати"
 
 
 msgid "Mirror"
 msgstr "Дзеркалення"
-
-
-msgid "Import"
-msgstr "Імпортувати"
 
 
 msgid "UV Mapping"
@@ -26588,6 +26588,10 @@ msgstr "Розкладання UV"
 
 msgid "Local View"
 msgstr "Огляд Локально"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Viewpoint"
@@ -26610,20 +26614,12 @@ msgid "View Regions"
 msgstr "Регіони Огляду"
 
 
-msgid "Select More/Less"
-msgstr "Вибрати більше/менше"
-
-
 msgid "Select Similar"
 msgstr "Вибрати подібні"
 
 
 msgid "Select All by Trait"
 msgstr "Вибрати все за рисою"
-
-
-msgid "UV"
-msgstr "UV"
 
 
 msgid "Select Linked"
@@ -26634,12 +26630,12 @@ msgid "Select Loops"
 msgstr "Виділити петлі"
 
 
-msgid "Basic"
-msgstr "Основний"
-
-
 msgid "Assign Material"
 msgstr "Призначити Матеріал"
+
+
+msgid "Basic"
+msgstr "Основний"
 
 
 msgid "Assets"
@@ -71347,18 +71343,6 @@ msgid "Method for controlling how the strip combines with other strips"
 msgstr "Метод керування поєднанням смужки з іншими смужками"
 
 
-msgid "Cross"
-msgstr "Перетин"
-
-
-msgid "Alpha Under"
-msgstr "Альфа під"
-
-
-msgid "Gamma Cross"
-msgstr "Гамма перетин"
-
-
 msgid "Y position of the sequence strip"
 msgstr "Позиція Y у смужки послідовності"
 
@@ -76630,10 +76614,6 @@ msgid "External shader script must have .osl or .oso extension, or be a module n
 msgstr "Зовнішній скрипт шейдера повинен мати розширення .osl чи .oso, або бути іменем модуля"
 
 
-msgid "Failed to write .oso file next to external .osl file at "
-msgstr "Збій запису файлу .oso поряд із зовнішнім файлом .osl у"
-
-
 msgid "Noise Threshold"
 msgstr "Поріг Шуму"
 
@@ -78576,6 +78556,10 @@ msgstr "Скорість Лінеарно"
 
 msgid "This object is part of a compound shape"
 msgstr "Цей об'єкт є частиною складеної форми"
+
+
+msgid "Second"
+msgstr "Секунда"
 
 
 msgid "X Stiffness"
@@ -87964,6 +87948,10 @@ msgid "Unable to create socket"
 msgstr "Неможливо створити роз'єм"
 
 
+msgid "Anisotropic"
+msgstr "Анізотропія"
+
+
 msgid "Same input/output direction of sockets"
 msgstr "Однаковий напрям вводу/виводу роз'ємів"
 
@@ -88584,10 +88572,6 @@ msgstr "Коефіцієнт зникання стрічок"
 
 msgid "Fac"
 msgstr "Коеф."
-
-
-msgid "Anisotropic"
-msgstr "Анізотропія"
 
 
 msgid "Eccentricity"

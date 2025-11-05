@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Beta (b'702691150287')\n"
+"Project-Id-Version: Blender 5.0.0 Beta (b'6cf0458fdf00')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-13 16:12+0000\n"
+"POT-Creation-Date: 2025-11-03 10:44+0000\n"
 "PO-Revision-Date: 2025-07-23 15:31+0000\n"
 "Last-Translator: Balázs Füvesi <fuvesib@gmail.com>\n"
 "Language-Team: Hungarian <https://translate.blender.org/projects/blender-ui/ui/hu/>\n"
@@ -4135,10 +4135,6 @@ msgid "Constant"
 msgstr "Konstans"
 
 
-msgid "Direction"
-msgstr "Irány"
-
-
 msgid "Draw"
 msgstr "Rajz (szabadkézi)"
 
@@ -5660,6 +5656,10 @@ msgid "Control key pressed"
 msgstr "Control billentyű lenyomása"
 
 
+msgid "Direction"
+msgstr "Irány"
+
+
 msgid "North"
 msgstr "Észak"
 
@@ -6621,16 +6621,20 @@ msgid "Text"
 msgstr "Szöveg"
 
 
-msgid "Mirror"
-msgstr "Tükrözés"
-
-
 msgid "Import"
 msgstr "Importálás"
 
 
+msgid "Mirror"
+msgstr "Tükrözés"
+
+
 msgid "Local View"
 msgstr "Helyi nézet"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Navigation"
@@ -6639,10 +6643,6 @@ msgstr "Navigáció"
 
 msgid "Align View"
 msgstr "Nézet igazítása"
-
-
-msgid "UV"
-msgstr "UV"
 
 
 msgctxt "MovieClip"
@@ -14399,18 +14399,6 @@ msgstr "Hangszóró"
 
 msgid "Show lattices"
 msgstr "Rácsok mutatása"
-
-
-msgid "Cross"
-msgstr "Keresztezés"
-
-
-msgid "Alpha Under"
-msgstr "Alfa takarás"
-
-
-msgid "Gamma Cross"
-msgstr "Gamma keresztezés"
 
 
 msgid "The length of the contents of this strip after the handles are applied"
