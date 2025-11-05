@@ -559,12 +559,6 @@ void BKE_sound_init_once()
   }
 }
 
-void BKE_sound_exit()
-{
-  std::lock_guard lock(g_state.sound_device_mutex);
-  sound_device_close_no_lock();
-}
-
 void BKE_sound_exit_once()
 {
   g_state.exit_threads();
@@ -652,32 +646,6 @@ void BKE_sound_refresh_callback_bmain(Main *bmain)
   std::lock_guard lock(g_state.sound_device_mutex);
   if (g_state.sound_device) {
     AUD_setSynchronizerCallback(sound_sync_callback, bmain);
-  }
-}
-
-void BKE_sound_cache(bSound *sound)
-{
-  sound_verify_evaluated_id(&sound->id);
-
-  if (sound->cache) {
-    AUD_Sound_free(sound->cache);
-  }
-
-  sound->cache = AUD_Sound_cache(sound->handle);
-  if (sound->cache) {
-    sound->playback_handle = sound->cache;
-  }
-  else {
-    sound->playback_handle = sound->handle;
-  }
-}
-
-void BKE_sound_delete_cache(bSound *sound)
-{
-  if (sound->cache) {
-    AUD_Sound_free(sound->cache);
-    sound->cache = nullptr;
-    sound->playback_handle = sound->handle;
   }
 }
 
@@ -1525,10 +1493,7 @@ void BKE_sound_set_scene_sound_time_stretch_constant_range(void *handle,
 void BKE_sound_force_device(const char * /*device*/) {}
 void BKE_sound_init_once() {}
 void BKE_sound_init(Main * /*bmain*/) {}
-void BKE_sound_exit() {}
 void BKE_sound_exit_once() {}
-void BKE_sound_cache(bSound * /*sound*/) {}
-void BKE_sound_delete_cache(bSound * /*sound*/) {}
 void BKE_sound_load(Main * /*bmain*/, bSound * /*sound*/) {}
 void BKE_sound_create_scene(Scene * /*scene*/) {}
 void BKE_sound_destroy_scene(Scene * /*scene*/) {}
