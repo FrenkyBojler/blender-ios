@@ -3099,7 +3099,7 @@ static void do_version_texture_gradient_clamp(bNodeTree *node_tree)
 
     if (is_factor_output_linked) {
       /* Output socket can be connected to multiple nodes, so consider all links. */
-      LISTBASE_FOREACH_MUTABLE (bNodeLink *, link, &node_tree->links) {
+      LISTBASE_FOREACH_BACKWARD_MUTABLE (bNodeLink *, link, &node_tree->links) {
         if (link->fromsock == factor_output) {
           version_node_add_link(
               *node_tree, *gradient_node, *gradient_socket, *link->tonode, *link->tosock);
@@ -3134,7 +3134,7 @@ static void do_version_texture_gradient_clamp(bNodeTree *node_tree)
 
       static_cast<bNodeSocketValueFloat *>(combine_alpha.default_value)->value = 1.0f;
 
-      LISTBASE_FOREACH_MUTABLE (bNodeLink *, link, &node_tree->links) {
+      LISTBASE_FOREACH_BACKWARD_MUTABLE (bNodeLink *, link, &node_tree->links) {
         if (link->fromsock == color_output) {
           version_node_add_link(*node_tree, combine, combine_output, *link->tonode, *link->tosock);
           node_remove_link(node_tree, *link);
