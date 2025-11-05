@@ -4,3 +4,4 @@ Referenced by issue #147036, Shade Auto Smooth crashes Blender
 Referenced by issue #147162, Curves Sculpt: Invalid library for 'BRComb'
 Referenced by issue #147214, Asset import option "Append (reuse data)" is gone.
 Referenced by issue #147541, node groups created in 5.0 is Broken when imported as a modifier
+Referenced by issue #149365, Blender 5.0 Beta : Asset Browser Bug when Drag & Drop objects in 3D viewport (  #149268 not fully resolved, reopen for Bugs)
