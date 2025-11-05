@@ -697,10 +697,13 @@ static void wm_xr_controller_viewfinder_draw_overlays(const rctf viewfinder_rect
   GPU_matrix_scale_1f(0.01f);
   BLI_rctf_mul(&background_rect, 100);
   BLI_rctf_mul(&outline_rect, 100);
+  /* Prevent other XR UI elements (like locomotion rays) from drawing through the viewfinder. */
+  GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
 
   UI_draw_roundbox_3fv_alpha(&background_rect, true, 16, background_col, 1.0f);
   UI_draw_roundbox_3fv_alpha(&outline_rect, true, 12, outline_col, 0.2f);
 
+  GPU_depth_test(GPU_DEPTH_NONE);
   GPU_matrix_pop();
 }
 
