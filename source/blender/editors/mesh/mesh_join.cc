@@ -648,7 +648,6 @@ wmOperatorStatus join_objects_exec(bContext *C, wmOperator *op)
                           corner_ranges,
                           *dst_mesh);
 
-  /* Copy default and active color attribute names from the active mesh to the out-of-main mesh. */
   BKE_id_attributes_active_color_set(&dst_mesh->id,
                                      BKE_id_attributes_active_color_name(&active_mesh->id));
   BKE_id_attributes_default_color_set(&dst_mesh->id,
