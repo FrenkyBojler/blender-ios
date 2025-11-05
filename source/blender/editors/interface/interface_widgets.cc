@@ -5952,7 +5952,7 @@ void ui_draw_menu_item(const uiFontStyle *fstyle,
   int ys = rect->ymin + 0.1f * BLI_rcti_size_y(rect);
   uchar icon_color[4];
   copy_v4_v4_uchar(icon_color, wt->wcol.text);
-  icon_color[3] = 160;
+  icon_color[3] = 200;
   if (id) {
     float aspect = ICON_DEFAULT_HEIGHT / ICON_SIZE_FROM_BUTRECT(rect);
     GPU_blend(GPU_BLEND_ALPHA);
