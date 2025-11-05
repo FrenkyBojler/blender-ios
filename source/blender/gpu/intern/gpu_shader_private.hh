@@ -159,7 +159,7 @@ class ShaderCompiler {
     ShaderCompiler *compiler = nullptr;
     ShaderCompiler::Batch *batch = nullptr;
     int shader_index = 0;
-    work_id id = 0;
+    WorkID id = 0;
   };
 
   struct Batch {

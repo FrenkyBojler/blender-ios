@@ -17,8 +17,8 @@
 
 namespace blender::gpu {
 
-using WorkCB = void (*)(void *);
-using work_id = uint64_t;
+using WorkCallback = void (*)(void *);
+using WorkID = uint64_t;
 
 /**
  * Abstracts the creation and management of secondary threads with GPU contexts.
@@ -29,7 +29,7 @@ class GPUWorker {
  private:
   Vector<std::unique_ptr<std::thread>> threads_;
   ThreadQueue *work_queue_;
-  WorkCB callback;
+  WorkCallback callback;
 
  public:
   enum class ContextType {
@@ -45,11 +45,11 @@ class GPUWorker {
    * \param do_work: The callback function that will be called for each acquired work
    *                 (passed as a void pointer).
    */
-  GPUWorker(uint32_t threads_count, ContextType context_type, WorkCB callback);
+  GPUWorker(uint32_t threads_count, ContextType context_type, WorkCallback callback);
   ~GPUWorker();
 
-  work_id push_work(void *work, ThreadQueueWorkPriority priority);
-  void cancel_work(work_id id);
+  WorkID push_work(void *work, ThreadQueueWorkPriority priority);
+  void cancel_work(WorkID id);
   bool is_empty();
 
  private:

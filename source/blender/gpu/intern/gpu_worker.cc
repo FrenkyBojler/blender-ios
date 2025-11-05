@@ -6,7 +6,7 @@
 
 namespace blender::gpu {
 
-GPUWorker::GPUWorker(uint32_t threads_count, ContextType context_type, WorkCB callback)
+GPUWorker::GPUWorker(uint32_t threads_count, ContextType context_type, WorkCallback callback)
     : callback(callback)
 {
   work_queue_ = BLI_thread_queue_init();
@@ -30,12 +30,12 @@ GPUWorker::~GPUWorker()
   BLI_thread_queue_free(work_queue_);
 }
 
-work_id GPUWorker::push_work(void *work, ThreadQueueWorkPriority priority)
+WorkID GPUWorker::push_work(void *work, ThreadQueueWorkPriority priority)
 {
   return BLI_thread_queue_push(work_queue_, work, priority);
 }
 
-void GPUWorker::cancel_work(work_id id)
+void GPUWorker::cancel_work(WorkID id)
 {
   BLI_thread_queue_cancel_work(work_queue_, id);
 }
