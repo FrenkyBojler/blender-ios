@@ -246,7 +246,7 @@ void GPU_shader_compiler_resume()
 void GPU_shader_compile_static()
 {
   printf("Compiling all static GPU shaders. This process takes a while.\n");
-  gpu_shader_create_info_compile("");
+  gpu_shader_create_info_compile_all("");
 }
 
 void GPU_shader_cache_dir_clear_old()

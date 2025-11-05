@@ -615,7 +615,7 @@ void gpu_shader_create_info_exit()
   delete g_interfaces;
 }
 
-bool gpu_shader_create_info_compile(const char *name_starts_with_filter)
+bool gpu_shader_create_info_compile_all(const char *name_starts_with_filter)
 {
   using namespace blender;
   using namespace blender::gpu;
