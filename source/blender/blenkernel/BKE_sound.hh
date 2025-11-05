@@ -1,4 +1,5 @@
 /* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
+ * SPDX-FileCopyrightText: 2025 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 #pragma once
@@ -7,10 +8,14 @@
  * \ingroup bke
  */
 
+#include "BLI_vector.hh"
+
 #define SOUND_WAVE_SAMPLES_PER_SECOND 250
 
 #if defined(WITH_AUDASPACE)
-#  include <AUD_Device.h>
+#  include <AUD_Types.h>
+#else
+typedef void AUD_Sound;
 #endif
 
 struct Depsgraph;
@@ -18,11 +23,6 @@ struct Main;
 struct Scene;
 struct Strip;
 struct bSound;
-
-typedef struct SoundWaveform {
-  int length;
-  float *data;
-} SoundWaveform;
 
 void BKE_sound_init_once();
 void BKE_sound_exit_once();
@@ -169,8 +169,6 @@ void BKE_sound_seek_scene(Main *bmain, Scene *scene);
 
 double BKE_sound_sync_scene(Scene *scene);
 
-void BKE_sound_free_waveform(bSound *sound);
-
 void BKE_sound_read_waveform(Main *bmain, bSound *sound, bool *stop);
 
 void BKE_sound_update_scene(Depsgraph *depsgraph, Scene *scene);
@@ -189,3 +187,18 @@ void BKE_sound_jack_scene_update(Scene *scene, int mode, double time);
 void BKE_sound_evaluate(Depsgraph *depsgraph, Main *bmain, bSound *sound);
 
 void *BKE_sound_ensure_time_stretch_effect(void *sound_handle, void *sequence_handle, float fps);
+
+void BKE_sound_runtime_state_get_and_clear(const bSound *sound,
+                                           AUD_Sound **r_cache,
+                                           AUD_Sound **r_playback_handle,
+                                           blender::Vector<float> **r_waveform);
+void BKE_sound_runtime_state_set(const bSound *sound,
+                                 AUD_Sound *cache,
+                                 AUD_Sound *playback_handle,
+                                 blender::Vector<float> *waveform);
+
+AUD_Sound *BKE_sound_playback_handle_get(const bSound *sound);
+
+void BKE_sound_runtime_clear_waveform_loading_tag(bSound *sound);
+bool BKE_sound_runtime_start_waveform_loading(bSound *sound);
+const blender::Vector<float> *BKE_sound_runtime_get_waveform(const bSound *sound);
