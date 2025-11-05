@@ -67,7 +67,7 @@ bool operator_asset_reference_props_is_set(PointerRNA &ptr)
  * #AssetLibrary::resolve_asset_weak_reference_to_full_path() currently does not support local
  * assets.
  */
-static const asset_system::AssetRepresentation *get_local_asset_from_relative_identifier(
+static const asset_system::AssetRepresentation *get_local_asset_from_weak_ref(
     const bContext &C, const AssetWeakReference &weak_ref, ReportList *reports)
 {
   AssetLibraryReference library_ref{};
@@ -99,7 +99,7 @@ const asset_system::AssetRepresentation *find_asset_from_weak_ref(
     const bContext &C, const AssetWeakReference &weak_ref, ReportList *reports)
 {
   if (weak_ref.asset_library_type == ASSET_LIBRARY_LOCAL) {
-    return get_local_asset_from_relative_identifier(C, weak_ref, reports);
+    return get_local_asset_from_weak_ref(C, weak_ref, reports);
   }
 
   const AssetLibraryReference library_ref = asset_system::all_library_reference();
