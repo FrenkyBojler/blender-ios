@@ -70,48 +70,52 @@ class LSystemParser {
 
   std::optional<Symbol> parse_symbol()
   {
-    if (this->is_end()) {
+    const std::optional<SymbolId> variable_id = this->parse_variable_id();
+    if (!variable_id) {
+      if (this->is_end()) {
+        return std::nullopt;
+      }
+      const char first_c = full_str_[i_];
+      switch (first_c) {
+        case '+':
+        case '-':
+        case '&':
+        case '^':
+        case '\\':
+        case '/': {
+          this->consume_next();
+          const SymbolId id = symbol_id_map_.ensure(StringRef(&first_c, 1));
+          if (const std::optional<ParamsId> params_id = this->parse_params_id_angle()) {
+            return Symbol{id, *params_id};
+          }
+          return std::nullopt;
+        }
+      }
       return std::nullopt;
     }
-    const char first_c = full_str_[i_];
-    switch (first_c) {
-      case 'F': {
-        this->consume_next();
-        const SymbolId id = symbol_id_map_.ensure("F");
-        if (const std::optional<ParamsId> params_id = this->parse_params_id_F()) {
-          return Symbol{id, *params_id};
+    if (!this->next_is('(')) {
+      return Symbol{*variable_id, -1};
+    }
+    const StringRef name = symbol_id_map_.symbols[*variable_id];
+    if (name.size() == 1) {
+      const char first_c = name[0];
+      switch (first_c) {
+        case 'F': {
+          this->consume_next();
+          const SymbolId id = symbol_id_map_.ensure("F");
+          if (const std::optional<ParamsId> params_id = this->parse_params_id_F()) {
+            return Symbol{id, *params_id};
+          }
+          return std::nullopt;
         }
-        return std::nullopt;
-      }
-      case 'f': {
-        this->consume_next();
-        const SymbolId id = symbol_id_map_.ensure("f");
-        if (const std::optional<ParamsId> params_id = this->parse_params_id_f()) {
-          return Symbol{id, *params_id};
+        case 'f': {
+          this->consume_next();
+          const SymbolId id = symbol_id_map_.ensure("f");
+          if (const std::optional<ParamsId> params_id = this->parse_params_id_f()) {
+            return Symbol{id, *params_id};
+          }
+          return std::nullopt;
         }
-        return std::nullopt;
-      }
-      case '+':
-      case '-':
-      case '&':
-      case '^':
-      case '\\':
-      case '/': {
-        this->consume_next();
-        const SymbolId id = symbol_id_map_.ensure(StringRef(&first_c, 1));
-        if (const std::optional<ParamsId> params_id = this->parse_params_id_angle()) {
-          return Symbol{id, *params_id};
-        }
-        return std::nullopt;
-      }
-      case 'A':
-      case 'B':
-      case 'X':
-      case 'Y':
-      case 'Z': {
-        this->consume_next();
-        const SymbolId id = symbol_id_map_.ensure(StringRef(&first_c, 1));
-        return Symbol{id, -1};
       }
     }
 
