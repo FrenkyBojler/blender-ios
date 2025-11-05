@@ -88,8 +88,7 @@ using AsyncCompilationHandle = int64_t;
  * `GPU_shader_async_compilation_finalize` has returned.
  */
 AsyncCompilationHandle GPU_shader_async_compilation(
-    blender::Span<const GPUShaderCreateInfo *> infos,
-    CompilationPriority priority = CompilationPriority::High);
+    const GPUShaderCreateInfo *info, CompilationPriority priority = CompilationPriority::High);
 /**
  * Returns true if the shader has already been compiled.
  */
@@ -100,8 +99,7 @@ bool GPU_shader_async_compilation_is_ready(AsyncCompilationHandle handle);
  * ready. Shaders with compilation errors are returned as null pointers.
  * WARNING: The handle will be invalidated by this call, you can't request the same shader twice.
  */
-blender::Vector<blender::gpu::Shader *> GPU_shader_async_compilation_finalize(
-    AsyncCompilationHandle &handle);
+blender::gpu::Shader *GPU_shader_async_compilation_finalize(AsyncCompilationHandle &handle);
 /**
  * Cancel the compilation of the shader.
  * WARNING: The handle will be invalidated by this call.
@@ -295,7 +293,7 @@ struct ShaderSpecialization {
  * WARNING: Binding a specialization before the batch finishes will fail.
  */
 AsyncSpecializationHandle GPU_shader_async_specialization(
-    blender::Span<ShaderSpecialization> specializations,
+    const ShaderSpecialization *specialization,
     CompilationPriority priority = CompilationPriority::High);
 
 /**
@@ -495,7 +493,7 @@ class StaticShader : NonCopyable {
 
     if (compilation_handle_) {
       if (GPU_shader_async_compilation_is_ready(compilation_handle_)) {
-        shader_ = GPU_shader_async_compilation_finalize(compilation_handle_)[0];
+        shader_ = GPU_shader_async_compilation_finalize(compilation_handle_);
         failed_ = shader_ == nullptr;
       }
       return;
@@ -504,7 +502,7 @@ class StaticShader : NonCopyable {
     if (!shader_ && !failed_ && !compilation_handle_) {
       BLI_assert(!info_name_.empty());
       const GPUShaderCreateInfo *create_info = GPU_shader_create_info_get(info_name_.c_str());
-      compilation_handle_ = GPU_shader_async_compilation({&create_info, 1});
+      compilation_handle_ = GPU_shader_async_compilation(create_info);
     }
   }
 
@@ -523,7 +521,7 @@ class StaticShader : NonCopyable {
 
     if (!shader_ && !failed_) {
       if (compilation_handle_) {
-        shader_ = GPU_shader_async_compilation_finalize(compilation_handle_)[0];
+        shader_ = GPU_shader_async_compilation_finalize(compilation_handle_);
       }
       else {
         BLI_assert(!info_name_.empty());

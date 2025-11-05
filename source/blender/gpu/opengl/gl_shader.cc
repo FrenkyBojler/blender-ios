@@ -1709,7 +1709,7 @@ GLSourcesBaked GLShader::get_sources()
 /** \name GLShaderCompiler
  * \{ */
 
-void GLShaderCompiler::specialize_shader(ShaderSpecialization &specialization)
+void GLShaderCompiler::specialize_shader(const ShaderSpecialization &specialization)
 {
   dynamic_cast<GLShader *>(specialization.shader)->program_get(&specialization.constants);
 }
@@ -1934,7 +1934,7 @@ Shader *GLSubprocessShaderCompiler::compile_shader(const shader::ShaderCreateInf
   return shader;
 }
 
-void GLSubprocessShaderCompiler::specialize_shader(ShaderSpecialization &specialization)
+void GLSubprocessShaderCompiler::specialize_shader(const ShaderSpecialization &specialization)
 {
   static std::mutex mutex;
 

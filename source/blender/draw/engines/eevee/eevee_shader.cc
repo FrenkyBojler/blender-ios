@@ -65,9 +65,11 @@ ShaderModule::~ShaderModule()
 
   /* Specializations first, to avoid releasing the base shader while the specialization compilation
    * is still in flight. */
-  for (AsyncSpecializationHandle &handle : specialization_handles_.values()) {
-    if (handle) {
-      GPU_shader_async_specialization_cancel(handle);
+  for (Vector<AsyncSpecialization> &specializations : specializations_.values()) {
+    for (AsyncSpecialization &specialization : specializations) {
+      if (specialization.handle) {
+        GPU_shader_async_specialization_cancel(specialization.handle);
+      }
     }
   }
 }
@@ -276,14 +278,14 @@ bool ShaderModule::request_specializations(bool block_until_ready,
 {
   std::lock_guard lock(mutex_);
 
-  AsyncSpecializationHandle &specialization_handle = specialization_handles_.lookup_or_add_cb(
+  Vector<AsyncSpecialization> &specializations = specializations_.lookup_or_add_cb(
       {render_buffers_shadow_id,
        shadow_ray_count,
        shadow_ray_step_count,
        use_split_indirect,
        use_lightprobe_eval},
       [&]() {
-        Vector<ShaderSpecialization> specializations;
+        Vector<AsyncSpecialization> specializations;
         for (int i : IndexRange(3)) {
           gpu::Shader *sh = static_shader_get(eShaderType(DEFERRED_LIGHT_SINGLE + i));
           int render_pass_shadow_id_index = GPU_shader_get_constant(sh, "render_pass_shadow_id");
@@ -293,7 +295,13 @@ bool ShaderModule::request_specializations(bool block_until_ready,
           int shadow_ray_count_index = GPU_shader_get_constant(sh, "shadow_ray_count");
           int shadow_ray_step_count_index = GPU_shader_get_constant(sh, "shadow_ray_step_count");
 
-          gpu::shader::SpecializationConstants sp = GPU_shader_get_default_constant_state(sh);
+          specializations.append({});
+          AsyncSpecialization &async_specialization = specializations.last();
+          async_specialization.specialization = std::make_unique<ShaderSpecialization>();
+          async_specialization.specialization->shader = sh;
+          gpu::shader::SpecializationConstants &sp =
+              async_specialization.specialization->constants;
+          sp = GPU_shader_get_default_constant_state(sh);
 
           for (bool use_transmission : {false, true}) {
             sp.set_value(render_pass_shadow_id_index, render_buffers_shadow_id);
@@ -302,21 +310,27 @@ bool ShaderModule::request_specializations(bool block_until_ready,
             sp.set_value(use_transmission_index, use_transmission);
             sp.set_value(shadow_ray_count_index, shadow_ray_count);
             sp.set_value(shadow_ray_step_count_index, shadow_ray_step_count);
-
-            specializations.append({sh, sp});
           }
+
+          specializations.last().handle = GPU_shader_async_specialization(
+              async_specialization.specialization.get());
         }
 
-        return GPU_shader_async_specialization(specializations);
+        return specializations;
       });
 
-  if (specialization_handle) {
-    while (!GPU_shader_async_specialization_is_ready(specialization_handle) && block_until_ready) {
+  bool is_ready = true;
+  for (AsyncSpecialization &specialization : specializations) {
+    while (!GPU_shader_async_specialization_is_ready(specialization.handle) && block_until_ready) {
       /* Block until ready. */
+    }
+    if (specialization.handle != 0) {
+      is_ready = false;
+      break;
     }
   }
 
-  return specialization_handle == 0;
+  return is_ready;
 }
 
 const char *ShaderModule::static_shader_create_info_name_get(eShaderType shader_type)

@@ -211,7 +211,7 @@ class GLShaderCompiler : public ShaderCompiler {
       : ShaderCompiler(GPU_max_parallel_compilations(), GPUWorker::ContextType::PerThread, true) {
         };
 
-  virtual void specialize_shader(ShaderSpecialization &specialization) override;
+  virtual void specialize_shader(const ShaderSpecialization &specialization) override;
 };
 
 #if BLI_SUBPROCESS_SUPPORT
@@ -266,7 +266,7 @@ class GLSubprocessShaderCompiler : public ShaderCompiler {
   virtual ~GLSubprocessShaderCompiler() override;
 
   virtual Shader *compile_shader(const shader::ShaderCreateInfo &info) override;
-  virtual void specialize_shader(ShaderSpecialization &specialization) override;
+  virtual void specialize_shader(const ShaderSpecialization &specialization) override;
 };
 
 #else

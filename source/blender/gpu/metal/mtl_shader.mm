@@ -1109,7 +1109,7 @@ Shader *MTLShaderCompiler::compile_shader(const shader::ShaderCreateInfo &info)
   return shader;
 }
 
-void MTLShaderCompiler::specialize_shader(ShaderSpecialization &specialization)
+void MTLShaderCompiler::specialize_shader(const ShaderSpecialization &specialization)
 {
   MTLShader *shader = static_cast<MTLShader *>(specialization.shader);
 

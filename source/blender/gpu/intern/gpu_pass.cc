@@ -74,8 +74,7 @@ struct GPUPass {
     GPUShaderCreateInfo *base_info = reinterpret_cast<GPUShaderCreateInfo *>(create_info);
 
     if (deferred_compilation) {
-      compilation_handle = GPU_shader_async_compilation(Span<GPUShaderCreateInfo *>(&base_info, 1),
-                                                        compilation_priority());
+      compilation_handle = GPU_shader_async_compilation(base_info, compilation_priority());
     }
     else {
       shader = GPU_shader_create_from_info(base_info);
@@ -105,7 +104,7 @@ struct GPUPass {
     BLI_assert_msg(create_info, "GPUPass::finalize_compilation() called more than once.");
 
     if (compilation_handle) {
-      shader = GPU_shader_async_compilation_finalize(compilation_handle).first();
+      shader = GPU_shader_async_compilation_finalize(compilation_handle);
     }
 
     compilation_timestamp = ++compilation_counts;
@@ -138,8 +137,7 @@ struct GPUPass {
     {
       BLI_assert(is_optimization_pass);
       GPUShaderCreateInfo *base_info = reinterpret_cast<GPUShaderCreateInfo *>(create_info);
-      compilation_handle = GPU_shader_async_compilation(Span<GPUShaderCreateInfo *>(&base_info, 1),
-                                                        compilation_priority());
+      compilation_handle = GPU_shader_async_compilation(base_info, compilation_priority());
     }
   }
 

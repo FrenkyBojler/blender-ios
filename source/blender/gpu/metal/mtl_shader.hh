@@ -285,7 +285,7 @@ class MTLShaderCompiler : public ShaderCompiler {
   MTLShaderCompiler();
 
   Shader *compile_shader(const shader::ShaderCreateInfo &info) override;
-  void specialize_shader(ShaderSpecialization &specialization) override;
+  void specialize_shader(const ShaderSpecialization &specialization) override;
 };
 
 /* Vertex format conversion.

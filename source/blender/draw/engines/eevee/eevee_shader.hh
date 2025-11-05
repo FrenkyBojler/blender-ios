@@ -243,7 +243,12 @@ class ShaderModule {
     }
   };
 
-  Map<SpecializationsKey, AsyncSpecializationHandle> specialization_handles_;
+  struct AsyncSpecialization {
+    AsyncSpecializationHandle handle;
+    std::unique_ptr<ShaderSpecialization> specialization;
+  };
+
+  Map<SpecializationsKey, Vector<AsyncSpecialization>> specializations_;
 
   static gpu::StaticShaderCache<ShaderModule> &get_static_cache()
   {
