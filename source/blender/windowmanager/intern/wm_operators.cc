@@ -1080,10 +1080,8 @@ void WM_operator_view3d_unit_defaults(bContext *C, wmOperator *op)
           /* We don't support arrays yet. */
           BLI_assert(RNA_property_array_check(prop) == false);
           /* Initialize. */
-          if (!RNA_property_is_set_ex(op->ptr, prop, false)) {
-            const float value = RNA_property_float_get_default(op->ptr, prop) * dia;
-            RNA_property_float_set(op->ptr, prop, value);
-          }
+          const float value = RNA_property_float_get_default(op->ptr, prop) * dia;
+          RNA_property_float_set(op->ptr, prop, value);
         }
       }
     }
