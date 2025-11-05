@@ -522,7 +522,6 @@ class RENDER_PT_encoding_video(RenderOutputButtonsPanel, Panel):
             'MPEG4',
             'WEBM',
         }
-
         if needs_codec:
             layout.prop(ffmpeg, "codec")
 
