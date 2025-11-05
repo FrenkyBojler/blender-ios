@@ -9,6 +9,8 @@
 
 #include "BLI_map.hh"
 #include "BLI_math_base.hh"
+#include "BLI_task.hh"
+#include "BLI_timeit.hh"
 
 #include "CLG_log.h"
 
@@ -79,6 +81,7 @@ void evaluate_and_apply_action(PointerRNA &animated_id_ptr,
                                const AnimationEvalContext &anim_eval_context,
                                const bool flush_to_original)
 {
+  SCOPED_TIMER_ROLLING_AVERAGED("eval and apply", 100);
   EvaluationResult evaluation_result = evaluate_action(
       animated_id_ptr, action, slot_handle, anim_eval_context);
   if (!evaluation_result) {
@@ -151,15 +154,29 @@ static EvaluationResult evaluate_keyframe_data(PointerRNA &animated_id_ptr,
     return {};
   }
 
-  EvaluationResult evaluation_result;
-  for (FCurve *fcu : channelbag_for_slot->fcurves()) {
-    /* Blatant copy of animsys_evaluate_fcurves(). */
+  Span<FCurve *> fcurves = channelbag_for_slot->fcurves();
+  Vector<float> results;
+  results.resize(fcurves.size());
 
-    if (!is_fcurve_evaluatable(fcu)) {
-      continue;
+  threading::parallel_for(fcurves.index_range(), 512, [&](const IndexRange range) {
+    for (const int i : range) {
+      /* Blatant copy of animsys_evaluate_fcurves(). */
+      FCurve *fcu = fcurves[i];
+      if (!is_fcurve_evaluatable(fcu)) {
+        return;
+      }
+      BLI_assert(fcu->driver == nullptr);
+      /* Not using calculate_fcurve because FCurves of channelbags are not drivers. */
+      results[i] = evaluate_fcurve(fcu, offset_eval_context.eval_time);
+      ;
     }
+  });
 
+  EvaluationResult evaluation_result;
+  for (const int i : fcurves.index_range()) {
+    /* This part is not threadsafe. */
     PathResolvedRNA anim_rna;
+    FCurve *fcu = fcurves[i];
     if (!BKE_animsys_rna_path_resolve(
             &animated_id_ptr, fcu->rna_path, fcu->array_index, &anim_rna))
     {
@@ -172,9 +189,7 @@ static EvaluationResult evaluate_keyframe_data(PointerRNA &animated_id_ptr,
                  animated_id_ptr.owner_id->name);
       continue;
     }
-
-    const float curval = calculate_fcurve(&anim_rna, fcu, &offset_eval_context);
-    evaluation_result.store(fcu->rna_path, fcu->array_index, curval, anim_rna);
+    evaluation_result.store(fcu->rna_path, fcu->array_index, results[i], anim_rna);
   }
 
   return evaluation_result;
