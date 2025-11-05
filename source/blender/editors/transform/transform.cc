@@ -519,7 +519,6 @@ static void viewRedrawForce(const bContext *C, TransInfo *t)
           SpaceImage *sima = (SpaceImage *)area->spacedata.first;
           if (sima->flag & SI_DRAW_STRETCH) {
             WM_event_add_notifier(C, NC_SPACE | ND_SPACE_IMAGE, nullptr);
-            break;
           }
         }
       }
