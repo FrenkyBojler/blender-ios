@@ -239,7 +239,7 @@ static float view3d_ndof_calc_leveling_angle(const float view_x_axis[3],
     /* Find the interection vector between horizon (XY) plane
      * and view plane. */
     const float horizon_normal[3] = {0, 0, 1};
-    isect_plane_plane_v3(horizon_normal, view_z_axis, isect_pt, isect_vec);
+    BLI_assert(isect_plane_plane_v3(horizon_normal, view_z_axis, isect_pt, isect_vec));
     normalize_v3(isect_vec);
 
     /* Invert the direction of intersection vector if view
