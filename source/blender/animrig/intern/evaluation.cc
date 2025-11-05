@@ -10,7 +10,6 @@
 #include "BLI_map.hh"
 #include "BLI_math_base.hh"
 #include "BLI_task.hh"
-#include "BLI_timeit.hh"
 
 #include "CLG_log.h"
 
@@ -81,7 +80,6 @@ void evaluate_and_apply_action(PointerRNA &animated_id_ptr,
                                const AnimationEvalContext &anim_eval_context,
                                const bool flush_to_original)
 {
-  SCOPED_TIMER_ROLLING_AVERAGED("eval and apply", 100);
   EvaluationResult evaluation_result = evaluate_action(
       animated_id_ptr, action, slot_handle, anim_eval_context);
   if (!evaluation_result) {
