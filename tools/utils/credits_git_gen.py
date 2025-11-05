@@ -328,6 +328,29 @@ def argparse_create() -> argparse.ArgumentParser:
     return parser
 
 
+def parse_organizations(authors_file: str):
+    """Parse the organizations section from the AUTHORS file."""
+    orgs = []
+    in_section = False
+
+    with open(authors_file, "r", encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line.startswith("# BEGIN organizations section"):
+                in_section = True
+                continue
+            elif line.startswith("# END organizations section"):
+                break
+
+            if in_section and line and not line.startswith("#"):
+                # Extract organization name before '<'
+                org_name = line.split("<")[0].strip()
+                # Expected result: "<b>Blender Foundation</b>"
+                orgs.append(f"<b>{org_name}</b>")
+
+    return sorted(set(orgs))
+
+
 def main() -> None:
 
     # ----------
@@ -335,20 +358,9 @@ def main() -> None:
 
     args = argparse_create().parse_args()
 
-    # TODO, there are for sure more companies then are currently listed.
-    # 1 liners for in HTML syntax.
-    contrib_companies = (
-        "<b>Adidas</b> - Principled BSDF shader in Cycles",
-        "<b>AMD</b> - Cycles HIP GPU rendering, CPU optimizations, Hydra integration",
-        "<b>Apple</b> - Metal GPU backends, USD integration",
-        "<b>AutoCRC</b> - Improvements to fluid particles, vertex color baking",
-        "<b>BioSkill GmbH</b> - H3D compatibility for X3D Exporter, OBJ Nurbs Import/Export",
-        "<b>Facebook</b> - Cycles subsurface scattering improvements",
-        "<b>Intel</b> - Cycles oneAPI GPU rendering, CPU optimizations",
-        "<b>NVIDIA</b> - Cycles OptiX GPU rendering, USD integration",
-        "<b>Sony Interactive Entertainment</b> - Deployment improvements",
-        "<b>Unity Technologies</b> - FBX Exporter",
-    )
+    # Get organizations in HTML <b> tags
+    authors_file = os.path.join(args.source_dir, "AUTHORS")
+    contrib_companies = parse_organizations(authors_file)
 
     credits = Credits()
     # commit_range = "HEAD~10..HEAD"
