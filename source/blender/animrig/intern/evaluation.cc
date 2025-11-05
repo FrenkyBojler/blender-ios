@@ -155,41 +155,41 @@ static EvaluationResult evaluate_keyframe_data(PointerRNA &animated_id_ptr,
   }
 
   Span<FCurve *> fcurves = channelbag_for_slot->fcurves();
+  /* Stores a 1 for FCurves that have been evaluated. Not using BitVector because I (christoph)
+   * don't know how threadsafe that is.*/
+  Vector<int8_t> valid(fcurves.size());
+  valid.fill(0);
   Vector<float> results(fcurves.size());
+  Vector<PathResolvedRNA> resolved_rna(fcurves.size());
 
   threading::parallel_for(fcurves.index_range(), 512, [&](const IndexRange range) {
     for (const int i : range) {
-      /* Blatant copy of animsys_evaluate_fcurves(). */
       FCurve *fcu = fcurves[i];
       if (!is_fcurve_evaluatable(fcu)) {
+        continue;
+      }
+      /* Even though it is not used here, resolving the path in a threaded loop is faster. */
+      PathResolvedRNA &anim_rna = resolved_rna[i];
+      if (!BKE_animsys_rna_path_resolve(
+              &animated_id_ptr, fcu->rna_path, fcu->array_index, &anim_rna))
+      {
         continue;
       }
       BLI_assert(fcu->driver == nullptr);
       /* Not using calculate_fcurve because FCurves of channelbags are not drivers. */
       results[i] = evaluate_fcurve(fcu, offset_eval_context.eval_time);
+      valid[i] = 1;
     }
   });
 
   EvaluationResult evaluation_result;
   for (const int i : fcurves.index_range()) {
     /* This part is not threadsafe. */
-    PathResolvedRNA anim_rna;
+    if (valid[i] == 0) {
+      continue;
+    }
     FCurve *fcu = fcurves[i];
-    if (!is_fcurve_evaluatable(fcu)) {
-      continue;
-    }
-    if (!BKE_animsys_rna_path_resolve(
-            &animated_id_ptr, fcu->rna_path, fcu->array_index, &anim_rna))
-    {
-      /* Log this at quite a high level, because it can get _very_ noisy when playing back
-       * animation. */
-      CLOG_DEBUG(&LOG,
-                 "Cannot resolve RNA path %s[%d] on ID %s\n",
-                 fcu->rna_path,
-                 fcu->array_index,
-                 animated_id_ptr.owner_id->name);
-      continue;
-    }
+    PathResolvedRNA &anim_rna = resolved_rna[i];
     evaluation_result.store(fcu->rna_path, fcu->array_index, results[i], anim_rna);
   }
 
