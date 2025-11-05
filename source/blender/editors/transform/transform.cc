@@ -510,6 +510,20 @@ static void viewRedrawForce(const bContext *C, TransInfo *t)
         WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, nullptr);
       }
     }
+
+    /* Refresh UV Editor if UV Stretch overlay is visible. */
+    if (t->obedit_type == OB_MESH) {
+      const bScreen *screen = CTX_wm_screen(C);
+      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        if (area->spacetype == SPACE_IMAGE) {
+          SpaceImage *sima = (SpaceImage *)area->spacedata.first;
+          if (sima->flag & SI_DRAW_STRETCH) {
+            WM_event_add_notifier(C, NC_SPACE | ND_SPACE_IMAGE, nullptr);
+            break;
+          }
+        }
+      }
+    }
   }
   else if (t->spacetype == SPACE_ACTION) {
     // SpaceAction *saction = (SpaceAction *)t->area->spacedata.first;
@@ -2211,11 +2225,6 @@ void transformApply(bContext *C, TransInfo *t)
 
   if (t->redraw & TREDRAW_SOFT) {
     viewRedrawForce(C, t);
-  }
-
-  /* When editing a mesh in the 3D View, also refresh the UV Editor. */
-  if (t->spacetype == SPACE_VIEW3D && t->obedit_type == OB_MESH) {
-    WM_event_add_notifier(C, NC_SPACE | ND_SPACE_IMAGE, nullptr);
   }
 
   t->redraw = TREDRAW_NOTHING;
