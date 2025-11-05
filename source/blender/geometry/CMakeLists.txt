@@ -22,6 +22,8 @@ set(SRC
   intern/foreach_geometry.cc
   intern/interpolate_curves.cc
   intern/join_geometries.cc
+  intern/lsystem.cc
+  intern/lsystem.hh
   intern/merge_curves.cc
   intern/merge_layers.cc
   intern/mesh_boolean.cc
@@ -148,6 +150,7 @@ if(WITH_GTESTS)
   set(TEST_INC
   )
   set(TEST_SRC
+    intern/lsystem_test.cc
     tests/GEO_interpolate_curves_test.cc
     tests/GEO_merge_curves_test.cc
     tests/GEO_realize_instances_test.cc
