@@ -1,10 +1,10 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Beta (b'702691150287')\n"
+"Project-Id-Version: Blender 5.0.0 Beta (b'6cf0458fdf00')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-13 16:12+0000\n"
-"PO-Revision-Date: 2025-09-09 13:59+0000\n"
+"POT-Creation-Date: 2025-11-03 10:44+0000\n"
+"PO-Revision-Date: 2025-10-30 01:59+0000\n"
 "Last-Translator: Alessandro Vecchio <alessandrovecchio1907@gmail.com>\n"
 "Language-Team: Italian <https://translate.blender.org/projects/blender-ui/ui/it/>\n"
 "Language: it\n"
@@ -14577,10 +14577,6 @@ msgid "Amount of random elements that are going to be affected by the brush"
 msgstr "Ammontare di elementi casuali che saranno interessati dal pennello"
 
 
-msgid "Direction"
-msgstr "Direzione"
-
-
 msgid "Add effect of brush"
 msgstr "Aggiunge l'effetto del pennello"
 
@@ -19925,10 +19921,6 @@ msgid "Sync to audio playback, dropping frames"
 msgstr "Sincronizza alla riproduzione audio, scartando fotogrammi"
 
 
-msgid "Second"
-msgstr "Secondi"
-
-
 msgid "Timeline Markers"
 msgstr "Marcatori Timeline"
 
@@ -21925,6 +21917,10 @@ msgstr "Ctrl"
 
 msgid "Control key pressed"
 msgstr "Tasto Ctrl premuto"
+
+
+msgid "Direction"
+msgstr "Direzione"
 
 
 msgid "North"
@@ -24554,6 +24550,10 @@ msgid "Material slot name"
 msgstr "Nome dello slot materiale"
 
 
+msgid "Select More/Less"
+msgstr "Seleziona Più/Meno"
+
+
 msgid "Metaball"
 msgstr "Metaball"
 
@@ -24618,6 +24618,10 @@ msgid "Hooks"
 msgstr "Ganci"
 
 
+msgid "Layout"
+msgstr "Layout"
+
+
 msgid "Vertex Group Locks"
 msgstr "Blocchi del Gruppo di Vertici"
 
@@ -24630,8 +24634,8 @@ msgid "Random Mask"
 msgstr "Maschera Casuale"
 
 
-msgid "Layout"
-msgstr "Layout"
+msgid "Adjust"
+msgstr "Regola"
 
 
 msgid "Clear Transform"
@@ -24646,16 +24650,28 @@ msgid "Propagate"
 msgstr "Propaga"
 
 
+msgid "Keying"
+msgstr "Keying"
+
+
 msgid "Bone Collections"
 msgstr "Raccolte di Ossa"
+
+
+msgid "Tracking"
+msgstr "Tracciamento"
 
 
 msgid "Names"
 msgstr "Nomi"
 
 
-msgid "Adjust"
-msgstr "Regola"
+msgid "Utilities"
+msgstr "Utilità"
+
+
+msgid "Math"
+msgstr "Matematica"
 
 
 msgid "Toggle Bone Options"
@@ -24670,28 +24686,12 @@ msgid "Disable Bone Options"
 msgstr "Disabilita Opzioni Osso"
 
 
-msgid "Keying"
-msgstr "Keying"
-
-
 msgid "Mesh Select Mode"
 msgstr "Modalità Selezione Mesh"
 
 
-msgid "Tracking"
-msgstr "Tracciamento"
-
-
-msgid "Utilities"
-msgstr "Utilità"
-
-
 msgid "Face Data"
 msgstr "Dati Faccia"
-
-
-msgid "Math"
-msgstr "Matematica"
 
 
 msgid "Select by Face Strength"
@@ -24722,6 +24722,22 @@ msgid "Bone Roll"
 msgstr "Rollio Osso"
 
 
+msgid "Read"
+msgstr "Lettura"
+
+
+msgid "Sample"
+msgstr "Campione"
+
+
+msgid "Write"
+msgstr "Scrittura"
+
+
+msgid "Primitives"
+msgstr "Primitive"
+
+
 msgid "Pivot Point"
 msgstr "Punto di Perno"
 
@@ -24742,36 +24758,20 @@ msgid "Automasking"
 msgstr "Automascheramento"
 
 
-msgid "Read"
-msgstr "Lettura"
-
-
 msgid "Face Sets Edit"
 msgstr "Modifica Sets di Facce"
-
-
-msgid "Sample"
-msgstr "Campione"
-
-
-msgid "Write"
-msgstr "Scrittura"
-
-
-msgid "Primitives"
-msgstr "Primitive"
 
 
 msgid "Instances"
 msgstr "Istanze"
 
 
-msgid "Mirror"
-msgstr "Specchia"
-
-
 msgid "Import"
 msgstr "Importa"
+
+
+msgid "Mirror"
+msgstr "Specchia"
 
 
 msgid "UV Mapping"
@@ -24780,6 +24780,10 @@ msgstr "Mappatura UV"
 
 msgid "Local View"
 msgstr "Vista Locale"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Viewpoint"
@@ -24802,20 +24806,12 @@ msgid "View Regions"
 msgstr "Regione Vista"
 
 
-msgid "Select More/Less"
-msgstr "Seleziona Più/Meno"
-
-
 msgid "Select Similar"
 msgstr "Seleziona Simili"
 
 
 msgid "Select All by Trait"
 msgstr "Seleziona Tutto per Caratteristica"
-
-
-msgid "UV"
-msgstr "UV"
 
 
 msgid "Select Linked"
@@ -24826,16 +24822,16 @@ msgid "Select Loops"
 msgstr "Seleziona Anelli"
 
 
-msgid "Basic"
-msgstr "Di Base"
-
-
 msgid "Assign Material"
 msgstr "Assegna Materiale"
 
 
 msgid "Keyframe Insert Pie"
 msgstr "Torta Inserisci Keyframe"
+
+
+msgid "Basic"
+msgstr "Di Base"
 
 
 msgid "Bone Collection Specials"
@@ -28389,14 +28385,6 @@ msgstr "Mantieni Confini"
 
 msgid "Nodes Modifier"
 msgstr "Modificatore Nodi"
-
-
-msgid "Bake Target"
-msgstr "Target Precalcolo"
-
-
-msgid "Packed"
-msgstr "Compresso"
 
 
 msgid "Pack the baked data into the .blend file"
@@ -49780,6 +49768,10 @@ msgid "Textures Directory"
 msgstr "Cartella Texture"
 
 
+msgid "Packed"
+msgstr "Compresso"
+
+
 msgid "All Custom"
 msgstr "Tutto Personalizzato"
 
@@ -56841,18 +56833,6 @@ msgid "Stereo Mode"
 msgstr "Modalità Stereo"
 
 
-msgid "Cross"
-msgstr "Croce"
-
-
-msgid "Alpha Under"
-msgstr "Sotto Trasparenza"
-
-
-msgid "Gamma Cross"
-msgstr "Incrocio Gamma"
-
-
 msgid "Y position of the sequence strip"
 msgstr "Posizione Y dello spezzone sequenza"
 
@@ -60308,12 +60288,16 @@ msgid "Image path {!r} not found, image may be packed or unsaved"
 msgstr "Percorso dell'immagine {!r} non trovato, forse l'immagine è incorporata o non salvata"
 
 
+msgid "No nodes selected."
+msgstr "Nessuno nodo selezionato."
+
+
 msgid "Active camera is not in this scene"
 msgstr "La camera attiva non è in questa scena"
 
 
-msgid "Modifiers cannot be added to object: "
-msgstr "Non possono essere aggiunti modificatori all'oggetto: "
+msgid "Modifiers cannot be added to object: {:s}"
+msgstr "Non è possibile aggiungere modificatori all'oggetto: {:s}"
 
 
 msgid "Fur Material"
@@ -60477,8 +60461,8 @@ msgid "User Communities"
 msgstr "Comunità Utenti"
 
 
-msgid "Failed to assign value: "
-msgstr "Impossibile impostare il valore: "
+msgid "Failed to assign value: {:s}"
+msgstr "Impossibile impostare il valore: {:s}"
 
 
 msgid "Strip(s)"
@@ -61270,6 +61254,10 @@ msgstr "Minuscolo"
 
 msgid "Fuel"
 msgstr "Combustibile"
+
+
+msgid "Second"
+msgstr "Secondi"
 
 
 msgid "X Lower"
@@ -62261,6 +62249,11 @@ msgstr "Cambia Percorso/Files"
 msgctxt "Operator"
 msgid "Swap Data"
 msgstr "Scambia Dati"
+
+
+msgctxt "Operator"
+msgid "Copy to Selected Strips..."
+msgstr "Copia agli Spezzoni Selezionati..."
 
 
 msgctxt "Operator"
@@ -67895,6 +67888,10 @@ msgid "Unable to create socket"
 msgstr "Impossibile creare il connettore"
 
 
+msgid "Anisotropic"
+msgstr "Anisotropico"
+
+
 msgid "Unable to locate socket '%s' in node"
 msgstr "Impossibile trovare il connettore '%s' nel nodo"
 
@@ -68111,6 +68108,11 @@ msgid "Flaps"
 msgstr "Lembi"
 
 
+msgctxt "Color"
+msgid "Spill Channel"
+msgstr "Canale Dispersione"
+
+
 msgid "Correction for shadows"
 msgstr "Correzione per le ombre"
 
@@ -68185,10 +68187,6 @@ msgstr "Modulazione Colore"
 
 msgid "Fac"
 msgstr "Fatt"
-
-
-msgid "Anisotropic"
-msgstr "Anisotropico"
 
 
 msgid "Uniformity"
@@ -68819,6 +68817,10 @@ msgstr "Orlo"
 
 msgid "Blender File View"
 msgstr "Visualizza File di Blender"
+
+
+msgid "Failed to open file browser!"
+msgstr "Impossibile aprire il file browser!"
 
 
 msgid "To make changes to Preferences permanent, use \"Save Preferences\""

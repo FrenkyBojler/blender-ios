@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Beta (b'702691150287')\n"
+"Project-Id-Version: Blender 5.0.0 Beta (b'6cf0458fdf00')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-13 16:12+0000\n"
+"POT-Creation-Date: 2025-11-03 10:44+0000\n"
 "PO-Revision-Date: 2025-07-23 14:57+0000\n"
 "Last-Translator: Michael Tribayu Jatnika Natawiria <mike.natawiria@gmail.com>\n"
 "Language-Team: Indonesian <https://translate.blender.org/projects/blender-ui/ui/id/>\n"
@@ -11715,10 +11715,6 @@ msgid "Cloth Simulation"
 msgstr "Simulasi Kain"
 
 
-msgid "Direction"
-msgstr "Arah"
-
-
 msgid "Add effect of brush"
 msgstr "Tambah efek kuas"
 
@@ -13251,10 +13247,6 @@ msgid "Sync Mode"
 msgstr "Mode Sinkronisasi"
 
 
-msgid "Second"
-msgstr "Kedua"
-
-
 msgid "Use Preview Range"
 msgstr "Partikel"
 
@@ -13741,6 +13733,10 @@ msgstr "Apa saja"
 
 msgid "Ctrl"
 msgstr "Ctrl"
+
+
+msgid "Direction"
+msgstr "Arah"
 
 
 msgid "North"
@@ -15286,12 +15282,12 @@ msgid "Layout"
 msgstr "Tata Letak"
 
 
-msgid "Names"
-msgstr "Nama"
-
-
 msgid "Tracking"
 msgstr "Pelacakan"
+
+
+msgid "Names"
+msgstr "Nama"
 
 
 msgid "Utilities"
@@ -15310,12 +15306,12 @@ msgid "Text"
 msgstr "Teks"
 
 
-msgid "Snap"
-msgstr "Jepret"
-
-
 msgid "Sample"
 msgstr "Sampel"
+
+
+msgid "Snap"
+msgstr "Jepret"
 
 
 msgid "Gizmo"
@@ -15326,20 +15322,20 @@ msgid "Instances"
 msgstr "Contoh-contoh"
 
 
-msgid "Mirror"
-msgstr "Cermin"
-
-
 msgid "Import"
 msgstr "Impor"
 
 
-msgid "Navigation"
-msgstr "Navigasi"
+msgid "Mirror"
+msgstr "Cermin"
 
 
 msgid "UV"
 msgstr "UV"
+
+
+msgid "Navigation"
+msgstr "Navigasi"
 
 
 msgid "Select Linked"
@@ -27248,10 +27244,6 @@ msgid "Unable to remove default presets"
 msgstr "Tidak dapat menghapus preset default"
 
 
-msgid "Failed to execute the preset: "
-msgstr "Gagal mengeksekusi preset: "
-
-
 msgid "No other objects selected"
 msgstr "Tidak ada objek lain yang terseleksi"
 
@@ -28017,6 +28009,10 @@ msgstr "Bahan Bakar"
 
 msgid "Guide Mode"
 msgstr "Mode Panduan"
+
+
+msgid "Second"
+msgstr "Kedua"
 
 
 msgid "X Stiffness"

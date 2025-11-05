@@ -414,6 +414,13 @@ if(TEST_SRC_DIR_EXISTS)
     --python ${TEST_PYTHON_DIR}/mesh_join.py
   )
 
+  add_blender_test_allow_error(
+    mesh_validate
+    --python ${TEST_PYTHON_DIR}/mesh_validate.py
+    --
+    --testdir "${TEST_SRC_DIR}"
+  )
+
   add_blender_test(
     object_edit
     --python ${TEST_PYTHON_DIR}/object_edit.py
