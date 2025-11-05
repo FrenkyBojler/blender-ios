@@ -1172,9 +1172,9 @@ class NODE_AST_compositor(bpy.types.AssetShelf):
         if asset.id_type != 'NODETREE' or asset.metadata.get("type") != compositing_type.value:
             return False
 
-        # Don't display these node groups from the essentials, they are meant for the "Add" menu, and are a bit
-        # too low level for the Asset Shelf. They are just implemented as assets.
-        # Could use a nicer solution, like a special flag or tag.
+        # Don't display these node groups from the essentials. They will be displayed in the "Add" menu, but are a bit
+        # too low level for the Asset Shelf. The fact that they are assets is more of an implementation detail.
+        # Could use a nicer solution, like a flag or tag on the asset. Not worth if it's just these few assets though.
         ignored_essentials = {
             "Combine Cylindrical",
             "Combine Spherical",
