@@ -6,11 +6,10 @@
 
 namespace blender::geometry::lsystem {
 
-void apply_rules(const RuleSet &rules, Span<Symbol> symbols, Vector<Symbol> &r_symbols)
+void apply_rules(const LSystem &lsystem, Span<Symbol> symbols, Vector<Symbol> &r_symbols)
 {
   for (const Symbol &symbol : symbols) {
-    const Rule *rule = rules.lookup(symbol.symbol_id);
-    if (rule) {
+    if (const Rule *rule = lsystem.lookup_rule(symbol.symbol_id)) {
       r_symbols.extend(rule->replacement);
     }
     else {

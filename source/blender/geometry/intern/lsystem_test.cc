@@ -10,15 +10,13 @@ namespace blender::geometry::lsystem::tests {
 
 TEST(lsystem, ApplyRules)
 {
-  const int F_id = 'F';
+  LSystem lsystem;
+  const SymbolId F_id = lsystem.ensure_symbol_id("F");
   const Symbol F{F_id};
-  RuleSet rules;
-  rules.rules.append(Rule{F_id, {F, F}});
-  Vector<Symbol> symbols;
-  symbols.append(F);
+  lsystem.add_rule(Rule{F_id, {F, F}});
 
   Vector<Symbol> new_symbols;
-  apply_rules(rules, symbols, new_symbols);
+  apply_rules(lsystem, {F}, new_symbols);
   EXPECT_EQ_SPAN<Symbol>(new_symbols, {F, F});
 }
 
