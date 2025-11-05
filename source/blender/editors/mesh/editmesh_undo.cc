@@ -508,28 +508,12 @@ static void um_arraystore_compact_ex(UndoMesh *um, const UndoMesh *um_ref, bool 
                                  &um->store.vdata);
       },
       [&]() {
-        um_arraystore_cd_compact(&mesh->edge_data,
-                                 mesh->edges_num,
-                                 create,
-                                 ARRAY_STORE_INDEX_EDGE,
-                                 um_ref ? um_ref->store.edata : nullptr,
-                                 &um->store.edata);
-      },
-      [&]() {
         um_arraystore_cd_compact(&mesh->corner_data,
                                  mesh->corners_num,
                                  create,
                                  ARRAY_STORE_INDEX_LOOP,
                                  um_ref ? um_ref->store.ldata : nullptr,
                                  &um->store.ldata);
-      },
-      [&]() {
-        um_arraystore_cd_compact(&mesh->face_data,
-                                 mesh->faces_num,
-                                 create,
-                                 ARRAY_STORE_INDEX_POLY,
-                                 um_ref ? um_ref->store.pdata : nullptr,
-                                 &um->store.pdata);
       },
       [&]() {
         if (mesh->face_offset_indices) {
