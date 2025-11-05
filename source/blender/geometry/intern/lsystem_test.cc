@@ -8,16 +8,25 @@
 
 namespace blender::geometry::lsystem::tests {
 
+static void expect_generation_eq(const LSystem &lsystem,
+                                 const int generation,
+                                 const StringRef expected)
+{
+  const Vector<Symbol> symbols = lsystem.compute_nth_generation(generation);
+  const std::string symbols_str = lsystem.symbols_to_string(symbols);
+  EXPECT_EQ(symbols_str, expected);
+}
+
 TEST(lsystem, ApplyRules)
 {
-  LSystem lsystem;
-  const SymbolId F_id = lsystem.ensure_symbol_id("F");
-  const Symbol F{F_id};
-  lsystem.add_rule(Rule{F_id, {F, F}});
+  LSystemBuilder builder;
+  builder.set_axiom("F");
+  builder.add_rule("F=FF");
+  const LSystem lsystem = builder.build();
 
-  Vector<Symbol> new_symbols;
-  apply_rules(lsystem, {F}, new_symbols);
-  EXPECT_EQ_SPAN<Symbol>(new_symbols, {F, F});
+  expect_generation_eq(lsystem, 0, "F");
+  expect_generation_eq(lsystem, 1, "FF");
+  expect_generation_eq(lsystem, 2, "FFFF");
 }
 
 }  // namespace blender::geometry::lsystem::tests
