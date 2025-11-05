@@ -14,6 +14,7 @@
 
 #include "DNA_collection_types.h"
 #include "DNA_node_types.h"
+#include "DNA_sequence_types.h"
 #include "DNA_texture_types.h"
 
 #include "BLI_easing.h"
@@ -51,6 +52,10 @@
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 #include "RNA_prototypes.hh"
+
+#include "SEQ_modifier.hh"
+#include "SEQ_relations.hh"
+#include "SEQ_select.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -1878,6 +1883,45 @@ void NODE_OT_new_compositor_sequencer_node_group(wmOperatorType *operator_type)
                  MAX_ID_NAME - 2,
                  "Name",
                  "");
+}
+
+static wmOperatorStatus new_compositor_sequencer_modifier_exec(bContext *C, wmOperator *op)
+{
+
+  Scene *scene = CTX_data_scene(C);
+  Strip *strip = seq::select_active_get(scene);
+
+  /* Add modifier. */
+  StripModifierData *smd = seq::modifier_new(strip, nullptr, eSeqModifierType_Compositor);
+  seq::modifier_persistent_uid_init(*strip, *smd);
+
+
+  /* Add node group. */
+  bNodeTree *ntree = new_node_tree_impl(C, "Sequencer Compositor Nodes", "CompositorNodeTree");
+  initialize_compositor_sequencer_node_group(C, *ntree);
+
+  /* Assign node group to modifier. */
+  SequencerCompositorModifierData *modifier_data =
+      reinterpret_cast<SequencerCompositorModifierData *>(smd);
+  modifier_data->node_group = ntree;
+
+  seq::relations_invalidate_cache(scene, strip);
+  // WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
+  BKE_ntree_update_after_single_tree_change(*CTX_data_main(C), *ntree);
+  WM_event_add_notifier(C, NC_NODE | NA_ADDED | NC_SCENE | ND_SEQUENCER, scene);
+
+  return OPERATOR_FINISHED;
+}
+
+void NODE_OT_new_compositor_sequencer_modifier(wmOperatorType *operator_type)
+{
+  operator_type->name = "New Compositor Sequencer Modifier";
+  operator_type->idname = "NODE_OT_new_compositor_sequencer_modifier";
+  operator_type->description = "Create a new compositor Modifier for strip";
+
+  operator_type->exec = new_compositor_sequencer_modifier_exec;
+
+  operator_type->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
 /** \} */
