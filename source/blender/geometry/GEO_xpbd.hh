@@ -21,8 +21,10 @@ namespace blender::xpbd {
  * Reference to the data that is actually being simulated.
  */
 struct GeometryRef {
-  /** The position of each points. */
+  /** The position of each point. */
   MutableSpan<float3> positions;
+  /** The linear velocity of each point. */
+  MutableSpan<float3> velocities;
   /** Positions before time integration. */
   Span<float3> prev_positions;
   /* Inverse mass of each point. This is expected to be zero for pinned points. */
@@ -30,6 +32,8 @@ struct GeometryRef {
 
   /** Optional rotation data. */
   MutableSpan<math::Quaternion> rotations;
+  /** Optional angular_velocity data. */
+  MutableSpan<float3> angular_velocities;
   /** Rotations before time integration. */
   Span<math::Quaternion> prev_rotations;
   Span<float3> inertias;
@@ -50,11 +54,15 @@ class ConstraintSetParams {
   const math::Quaternion &rotation(int geo_i, int point_i) const;
   const float3 &prev_position(int geo_i, int point_i) const;
   const math::Quaternion &prev_rotation(int geo_i, int point_i) const;
+  const float3 &velocity(int geo_i, int point_i) const;
+  const float3 &angular_velocity(int geo_i, int point_i) const;
 
   Span<float3> positions(int geo_i) const;
   Span<math::Quaternion> rotations(int geo_i) const;
   Span<float3> prev_positions(int geo_i) const;
   Span<math::Quaternion> prev_rotations(int geo_i) const;
+  Span<float3> velocities(int geo_i) const;
+  Span<float3> angular_velocities(int geo_i) const;
 
   float inverse_mass(int geo_i, int point_i) const;
   Span<float> inverse_masses(int geo_i) const;
@@ -113,6 +121,18 @@ class NonDeterministicJacobianUpdater {
   void update_rotation(const int geo_i, const int point_i, const math::Quaternion &offset);
 
   void apply();
+};
+/**
+ * Updater that writes the changes directly to the simulated points.
+ */
+class VelocityUpdater {
+ private:
+  Span<GeometryRef> geometry_refs_;
+
+ public:
+  VelocityUpdater(Span<GeometryRef> geometry_refs);
+  void update_velocity(const int geo_i, const int point_i, const float3 &offset);
+  void update_angular_velocity(const int geo_i, const int point_i, const float3 &offset);
 };
 
 using UpdaterVariant = std::variant<GaussSeidelUpdater, NonDeterministicJacobianUpdater>;
@@ -240,6 +260,25 @@ inline void GaussSeidelUpdater::update_rotation(const int geo_i,
   rotation = apply_rotation_offset(rotation, float4(offset));
 }
 
+inline VelocityUpdater::VelocityUpdater(Span<GeometryRef> geometry_refs)
+    : geometry_refs_(geometry_refs)
+{
+}
+
+inline void VelocityUpdater::update_velocity(const int geo_i,
+                                             const int point_i,
+                                             const float3 &offset)
+{
+  geometry_refs_[geo_i].velocities[point_i] += offset;
+}
+
+inline void VelocityUpdater::update_angular_velocity(const int geo_i,
+                                                     const int point_i,
+                                                     const float3 &offset)
+{
+  geometry_refs_[geo_i].angular_velocities[point_i] += offset;
+}
+
 inline UpdaterVariant &SolveStrategy::updater()
 {
   return *updater_;
@@ -277,6 +316,17 @@ inline const math::Quaternion &ConstraintSetParams::prev_rotation(const int geo_
   return geometry_refs_[geo_i].prev_rotations[point_i];
 }
 
+inline const float3 &ConstraintSetParams::velocity(const int geo_i, const int point_i) const
+{
+  return geometry_refs_[geo_i].velocities[point_i];
+}
+
+inline const float3 &ConstraintSetParams::angular_velocity(const int geo_i,
+                                                           const int point_i) const
+{
+  return geometry_refs_[geo_i].angular_velocities[point_i];
+}
+
 inline Span<float3> ConstraintSetParams::positions(const int geo_i) const
 {
   return geometry_refs_[geo_i].positions;
@@ -295,6 +345,16 @@ inline Span<float3> ConstraintSetParams::prev_positions(const int geo_i) const
 inline Span<math::Quaternion> ConstraintSetParams::prev_rotations(const int geo_i) const
 {
   return geometry_refs_[geo_i].prev_rotations;
+}
+
+inline Span<float3> ConstraintSetParams::velocities(const int geo_i) const
+{
+  return geometry_refs_[geo_i].velocities;
+}
+
+inline Span<float3> ConstraintSetParams::angular_velocities(const int geo_i) const
+{
+  return geometry_refs_[geo_i].angular_velocities;
 }
 
 inline float ConstraintSetParams::inverse_mass(const int geo_i, const int point_i) const

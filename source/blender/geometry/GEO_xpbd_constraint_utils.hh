@@ -93,6 +93,43 @@ class CurveLocalConstraintSets : public ConstraintSet {
   void solve_step(SolveStrategy &strategy, const ConstraintSetParams &params) override;
 };
 
+class VelocityConstraintSet {
+ protected:
+  int geo_i_;
+
+ public:
+  VelocityConstraintSet(const int geo_i) : geo_i_(geo_i) {}
+  virtual ~VelocityConstraintSet() = default;
+
+  virtual void reset_forces(IndexRange points_range) = 0;
+  virtual void solve_step(VelocityUpdater &updater,
+                          const ConstraintSetParams &params,
+                          IndexRange points_range) = 0;
+
+  int affected_geo_i() const;
+};
+
+template<typename Child> class TemplatedVelocityConstraintSet : public VelocityConstraintSet {
+ public:
+  TemplatedVelocityConstraintSet(const int geo_i);
+
+  void reset_forces(IndexRange points_range) override;
+  void solve_step(VelocityUpdater &updater,
+                  const ConstraintSetParams &params,
+                  IndexRange points_range) override;
+
+  StringRef debug_name() const
+  {
+    return Child::debug_name;
+  }
+
+ private:
+  template<bool use_debug>
+  void solve_step_with_debug(VelocityUpdater &updater,
+                             const ConstraintSetParams &params,
+                             IndexRange points_range);
+};
+
 Vector<IndexMask> unary_constraints_to_independent_masks(const Span<int> affected_points,
                                                          IndexMaskMemory &memory);
 Vector<IndexMask> binary_constraints_to_independent_masks(const Span<int2> affected_points,
@@ -108,6 +145,7 @@ class ConstraintSetCollector {
  public:
   Vector<ConstraintSet *> general;
   Vector<CurveLocalConstraintSet *> curve_local;
+  Vector<VelocityConstraintSet *> velocity;
 
   static Vector<ConstraintSet *> combine(ResourceScope &scope,
                                          const Span<const ConstraintSetCollector *> collectors);
@@ -280,6 +318,64 @@ void TemplatedCurveLocalConstraintSet<Child>::solve_step(SolveStrategy &strategy
       }
       break;
     }
+  }
+}
+
+inline int VelocityConstraintSet::affected_geo_i() const
+{
+  return geo_i_;
+}
+
+template<typename Child>
+inline TemplatedVelocityConstraintSet<Child>::TemplatedVelocityConstraintSet(const int geo_i)
+    : VelocityConstraintSet(geo_i)
+{
+}
+
+template<typename Child>
+void TemplatedVelocityConstraintSet<Child>::reset_forces(const IndexRange points_range)
+{
+  Child &self = static_cast<Child &>(*this);
+  for (const int point_i : points_range) {
+    self.reset_force(point_i);
+  }
+}
+
+template<typename Child>
+void TemplatedVelocityConstraintSet<Child>::solve_step(VelocityUpdater &updater,
+                                                       const ConstraintSetParams &params,
+                                                       IndexRange points_range)
+{
+  if (params.use_debug()) {
+    solve_step_with_debug<true>(updater, params, points_range);
+  }
+  else {
+    solve_step_with_debug<false>(updater, params, points_range);
+  }
+}
+
+template<typename Child>
+template<bool use_debug>
+void TemplatedVelocityConstraintSet<Child>::solve_step_with_debug(
+    VelocityUpdater &updater, const ConstraintSetParams &params, IndexRange points_range)
+{
+  Child &self = static_cast<Child &>(*this);
+
+  bke::GeometrySet debug_geometry;
+  Vector<bke::GSpanAttributeWriter> debug_attribute_writers;
+  if constexpr (use_debug) {
+    debug_geometry = self.as_debug_geometry(debug_attribute_writers);
+  }
+
+  for (const int point_i : points_range) {
+    self.evaluate_single(updater, params, point_i);
+  }
+
+  if constexpr (use_debug) {
+    for (bke::GSpanAttributeWriter &writer : debug_attribute_writers) {
+      writer.finish();
+    }
+    params.debug_stage(this->debug_name(), {geo_i_}, std::move(debug_geometry));
   }
 }
 

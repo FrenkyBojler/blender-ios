@@ -191,8 +191,6 @@ struct SimPointsWorldProperties {
   Span<float> frictions;
   Span<float3> inertias;
   Span<float3> inverse_inertias;
-  float linear_damping;
-  float angular_damping;
 };
 
 struct PositionConstraintGoals {
@@ -562,6 +560,13 @@ struct PressureConstraintData {
   float pressure;
 };
 
+struct DampingConstraintData {
+  int geo_key_i;
+  int constraints_key_i;
+  float linear_stiffness_term;
+  float angular_stiffness_term;
+};
+
 struct ForceFieldsData {
   struct Item {
     fn::FieldEvaluator *evaluator;
@@ -643,6 +648,8 @@ struct WorldPreprocessData {
   Vector<AttachUVSurfaceConstraintData> attach_uv_surface_constraints;
   Vector<DistanceBasedEdgeBendingConstraintData> distance_based_edge_bending_constraints;
   Vector<PressureConstraintData> pressure_constraints;
+
+  Vector<DampingConstraintData> damping_constraints;
 
   Vector<InfinitePlaneColliderData> infinite_plane_colliders;
   Vector<SphericalSelfCollisionData> spherical_self_collisions;
@@ -805,16 +812,13 @@ PROFILE_FUNCTION static void integrate_linear_velocities(const float delta_time,
                                                          const IndexRange range,
                                                          const Span<float3> old_positions,
                                                          const Span<float3> accelerations,
-                                                         const SimPointsWorldProperties &props,
                                                          MutableSpan<float3> new_positions,
                                                          MutableSpan<float3> velocities)
 {
-  const float linear_damping_factor = std::max(1.0f - props.linear_damping * delta_time, 0.0f);
   for (const int i : range.index_range()) {
     const int point_i = range[i];
     const float3 &acceleration = accelerations[point_i];
     velocities[i] += acceleration * delta_time;
-    velocities[i] *= linear_damping_factor;
     new_positions[i] = old_positions[i] + velocities[i] * delta_time;
   }
 }
@@ -828,9 +832,6 @@ PROFILE_FUNCTION static void integrate_angular_velocities(
     MutableSpan<math::Quaternion> new_rotations,
     MutableSpan<float3> angular_velocities)
 {
-  /* Approximation of exponential decay. */
-  const float angular_damping_factor = std::max(1.0f - props.angular_damping * delta_time, 0.0f);
-
   for (const int i : range.index_range()) {
     const int point_i = range[i];
     const float3 &external_torque = torques.has_value() ? (*torques)[point_i] : float3(0.0f);
@@ -842,7 +843,6 @@ PROFILE_FUNCTION static void integrate_angular_velocities(
     float3 &angular_velocity = angular_velocities[i];
     const float3 precession = math::cross(angular_velocity, angular_velocity * inertia);
     angular_velocity += delta_time * (external_torque - precession) * inverse_inertia;
-    angular_velocity *= angular_damping_factor;
     const math::Quaternion &old_rotation = old_rotations[i];
     const math::Quaternion direction = old_rotation * math::Quaternion(0, angular_velocity);
     new_rotations[i] = math::normalize(
@@ -1269,22 +1269,11 @@ compute_sim_point_world_properties(const WorldBundles &world_bundles,
           });
     }
 
-    const Vector damping_bundles = filter_bundles_for_path<DampingBundle>(world_bundles.dampings,
-                                                                          key.path);
-    float linear_damping = 0.0f;
-    float angular_damping = 0.0f;
-    for (const DampingBundle *damping_bundle : damping_bundles) {
-      linear_damping += damping_bundle->linear_damping;
-      angular_damping += damping_bundle->angular_damping;
-    }
-
     properties_map.add_new(key,
                            {props_info.inverse_masses,
                             props_info.frictions,
                             props_info.inertias,
-                            props_info.inverse_inertias,
-                            linear_damping,
-                            angular_damping});
+                            props_info.inverse_inertias});
   }
   return properties_map;
 }
@@ -2313,6 +2302,30 @@ PROFILE_FUNCTION static void prepare_evaluation__pressure_constraints(
   }
 }
 
+PROFILE_FUNCTION static void prepare_evaluation__damping_constraints(
+    WorldPreprocessData &world_info,
+    const WorldBundles &world_bundles,
+    const VectorSet<SimPointsKey> &keys,
+    const float delta_time)
+{
+  for (const int key_i : keys.index_range()) {
+    const SimPointsKey &key = keys[key_i];
+    const Vector constraint_bundles = filter_bundles_for_path<DampingBundle>(
+        world_bundles.dampings, key.path);
+    for (const DampingBundle *constraint_bundle : constraint_bundles) {
+      const int constraints_key_i = world_info.constraints_keys.index_of_or_add(
+          SimConstraintsKey{constraint_bundle->self_path, key});
+      const float linear_factor = constraint_bundle->linear_damping * delta_time;
+      const float angular_factor = constraint_bundle->angular_damping * delta_time;
+      world_info.damping_constraints.append(
+          {key_i,
+           constraints_key_i,
+           std::max(math::safe_divide(linear_factor, 1.0f - linear_factor), 0.0f),
+           std::max(math::safe_divide(angular_factor, 1.0f - angular_factor), 0.0f)});
+    }
+  }
+}
+
 PROFILE_FUNCTION static void prepare_evaluation__infinite_plane_colliders(
     WorldPreprocessData &world_info,
     const WorldBundles &world_bundles,
@@ -2562,6 +2575,8 @@ PROFILE_FUNCTION static WorldPreprocessData preprocess_world(
   prepare_evaluation__infinite_plane_colliders(world_info, world_bundles, keys);
   prepare_evaluation__spherical_self_collisions(world_info, world_bundles, keys);
   prepare_evaluation__colliders(world_info, world_bundles, keys);
+
+  prepare_evaluation__damping_constraints(world_info, world_bundles, keys, delta_time);
 
   evaluate_world_info_fields(world_info);
 
@@ -3014,6 +3029,62 @@ gather_distance_based_edge_bending_constraints(ResourceScope &scope,
   return result;
 }
 
+PROFILE_FUNCTION static Vector<xpbd::LinearDampingConstraintSet *>
+gather_linear_damping_constraints(ResourceScope &scope,
+                                  XPBDState &state,
+                                  const WorldPreprocessData &world_info,
+                                  const WorldBundles &world_bundles,
+                                  const Span<GeometrySet> applied_geometries)
+{
+  Vector<xpbd::LinearDampingConstraintSet *> result;
+  for (const DampingConstraintData &constraint : world_info.damping_constraints) {
+    const SimConstraintsKey &key = world_info.constraints_keys[constraint.constraints_key_i];
+    const int geometry_bundle_i = world_bundles.geometries.index_of_as(key.points_key.path);
+    const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
+    const bke::GeometryComponent *component = applied_geometry.get_component(key.points_key.type);
+    if (!component) {
+      continue;
+    }
+    const int constraints_num = component->attribute_domain_size(AttrDomain::Point);
+    if (constraints_num == 0) {
+      continue;
+    }
+
+    MutableSpan lambdas = state.ensure_constraint_lambdas<float>(key, constraints_num);
+    result.append(&scope.construct<xpbd::LinearDampingConstraintSet>(
+        constraint.geo_key_i, constraint.linear_stiffness_term, lambdas));
+  }
+  return result;
+}
+
+PROFILE_FUNCTION static Vector<xpbd::AngularDampingConstraintSet *>
+gather_angular_damping_constraints(ResourceScope &scope,
+                                   XPBDState &state,
+                                   const WorldPreprocessData &world_info,
+                                   const WorldBundles &world_bundles,
+                                   const Span<GeometrySet> applied_geometries)
+{
+  Vector<xpbd::AngularDampingConstraintSet *> result;
+  for (const DampingConstraintData &constraint : world_info.damping_constraints) {
+    const SimConstraintsKey &key = world_info.constraints_keys[constraint.constraints_key_i];
+    const int geometry_bundle_i = world_bundles.geometries.index_of_as(key.points_key.path);
+    const GeometrySet &applied_geometry = applied_geometries[geometry_bundle_i];
+    const bke::GeometryComponent *component = applied_geometry.get_component(key.points_key.type);
+    if (!component) {
+      continue;
+    }
+    const int constraints_num = component->attribute_domain_size(AttrDomain::Point);
+    if (constraints_num == 0) {
+      continue;
+    }
+
+    MutableSpan lambdas = state.ensure_constraint_lambdas<float>(key, constraints_num);
+    result.append(&scope.construct<xpbd::AngularDampingConstraintSet>(
+        constraint.geo_key_i, constraint.angular_stiffness_term, lambdas));
+  }
+  return result;
+}
+
 PROFILE_FUNCTION static Vector<xpbd::RodStretchAndShearCurveLocalConstraintSet *>
 gather_curve_rod_stretch_and_shear_constraints(ThreadLocalStorage &tls,
                                                XPBDState &state,
@@ -3157,6 +3228,17 @@ static xpbd::ConstraintSetCollector gather_static_constraints(
     static_constraint_sets.general.append(constraint_set);
   }
 
+  for (xpbd::LinearDampingConstraintSet *constraint_set : gather_linear_damping_constraints(
+           scope, state, world_info, world_bundles, applied_geometries))
+  {
+    static_constraint_sets.velocity.append(constraint_set);
+  }
+  for (xpbd::AngularDampingConstraintSet *constraint_set : gather_angular_damping_constraints(
+           scope, state, world_info, world_bundles, applied_geometries))
+  {
+    static_constraint_sets.velocity.append(constraint_set);
+  }
+
   return static_constraint_sets;
 }
 
@@ -3227,51 +3309,6 @@ PROFILE_FUNCTION static void solve_constraints(const SolverType solver_type,
   }
 }
 
-// PROFILE_FUNCTION static void apply_static_plane_contact_friction(
-//     const StaticPlaneContacts &plane_contacts,
-//     const Span<float3> prev_positions,
-//     const int prev_positions_offset,
-//     const MutableSpan<float3> new_positions)
-// {
-//   for (const int contact_i : plane_contacts.indices.index_range()) {
-//     const int point_i = plane_contacts.indices[contact_i];
-//     const float3 &axis = plane_contacts.separating_axes[contact_i];
-//     const float static_friction = plane_contacts.static_frictions[contact_i];
-//     const float dynamic_friction = plane_contacts.dynamic_frictions[contact_i];
-//     const float depth = plane_contacts.depths[contact_i];
-//     const float3 pos_diff = new_positions[point_i] -
-//                             prev_positions[point_i - prev_positions_offset];
-//     const float axis_distance = math::dot(pos_diff, axis);
-//     if (axis_distance >= 0.0f) {
-//       continue;
-//     }
-//     const float3 tangential_pos_diff = pos_diff -
-//                                        axis * axis_distance / math::length_squared(axis);
-//     float3 offset = tangential_pos_diff;
-//     const float tangential_dist = math::length(tangential_pos_diff);
-//     if (tangential_dist >= static_friction * depth) {
-//       offset *= std::min(dynamic_friction * depth / tangential_dist, 1.0f);
-//     }
-//     new_positions[point_i] -= offset;
-//   }
-// }
-
-// PROFILE_FUNCTION static void apply_friction(const Span<int> key_group,
-//                                             const Contacts &contacts,
-//                                             const XPBDState &state,
-//                                             const VectorSet<SimPointsKey> &keys,
-//                                             const Span<Array<float3>> all_prev_positions,
-//                                             const Span<xpbd::GeometryRef> geometry_refs)
-// {
-//   for (const auto item : contacts.static_plane_contacts.items()) {
-//     const int key_i = keys.index_of(item.key.points_key);
-//     const int key_in_group_i = key_group.first_index(key_i);
-//     const Span<float3> prev_positions = all_prev_positions[key_in_group_i];
-//     apply_static_plane_contact_friction(
-//         item.value, prev_positions, 0, geometry_refs[key_i].positions);
-//   }
-// }
-
 PROFILE_FUNCTION static void update_linear_velocities(const float delta_time,
                                                       const IndexRange range,
                                                       const Span<float3> prev_positions,
@@ -3318,9 +3355,11 @@ PROFILE_FUNCTION static Vector<xpbd::GeometryRef> prepare_geometry_refs_for_solv
     const SimPointsWorldProperties &props = sim_points_props.lookup(key);
     xpbd::GeometryRef geometry_ref;
     geometry_ref.positions = sim_points.positions;
+    geometry_ref.velocities = sim_points.velocities;
     geometry_ref.inverse_masses = props.inverse_masses;
     if (sim_points.has_rotation) {
       geometry_ref.rotations = sim_points.rotations;
+      geometry_ref.angular_velocities = sim_points.angular_velocities;
       geometry_ref.inertias = props.inertias;
       geometry_ref.inverse_inertias = props.inverse_inertias;
     }
@@ -3554,7 +3593,9 @@ PROFILE_FUNCTION static void interpolate_pinned_rotations(
 
 PROFILE_FUNCTION static void intialize_constraint_forces(
     const xpbd::ConstraintSetCollector &constraint_sets,
-    const std::optional<IndexRange> curves_range)
+    const Span<xpbd::GeometryRef> geometry_refs,
+    const std::optional<IndexRange> curves_range,
+    const std::optional<IndexRange> points_range)
 {
   /* Cold-start constraints. */
   for (xpbd::ConstraintSet *constraint_set : constraint_sets.general) {
@@ -3564,6 +3605,12 @@ PROFILE_FUNCTION static void intialize_constraint_forces(
     const IndexRange range = curves_range ? *curves_range :
                                             curve_constraint_set->points_by_curve().index_range();
     curve_constraint_set->reset_forces(range);
+  }
+  for (xpbd::VelocityConstraintSet *velocity_constraint_set : constraint_sets.velocity) {
+    const IndexRange range =
+        points_range ? *points_range :
+                       IndexRange(geometry_refs[velocity_constraint_set->affected_geo_i()].size());
+    velocity_constraint_set->reset_forces(range);
   }
 }
 
@@ -3586,7 +3633,7 @@ static void pre_solve_per_point_steps(const IndexRange range,
   prev_rotations.copy_from(rotations);
   if (delta_time > 0.0f) {
     integrate_linear_velocities(
-        delta_time, range, prev_positions, accelerations, props, positions, velocities);
+        delta_time, range, prev_positions, accelerations, positions, velocities);
     if (!rotations.is_empty()) {
       integrate_angular_velocities(
           delta_time, range, torques, props, prev_rotations, rotations, angular_velocities);
@@ -3668,60 +3715,82 @@ PROFILE_FUNCTION static void simulate_key_group_global(
   /* Instead of doing various stages like remembering old positions and updating velocities one
    * after another, interleave them to improve cache locality and thread utilization. This is
    * possible because each point is processed independently here. */
-  auto run_per_point_updates = [&](const float substep_factor,
-                                   const bool do_pre_solve,
-                                   const bool do_post_solve) {
-    threading::parallel_for(IndexRange(keys_in_group_num), 1, [&](const IndexRange range) {
-      for (const int key_in_group_i : range) {
-        const int key_i = key_group[key_in_group_i];
-        const SimPointsKey &key = keys[key_i];
-        SimPoints &sim_points = state.sim_points.lookup(keys[key_i]);
-        const Span<float3> accelerations = accelerations_map.lookup(key);
-        const std::optional<Span<float3>> torques = torques_map.lookup_try(key);
-        const SimPointsWorldProperties &props = sim_points_props.lookup(key);
-        const PinnedPositions *pinned_positions = constraint_init.pinned_positions_map.lookup_ptr(
-            key);
-        const PinnedRotations *pinned_rotations = constraint_init.pinned_rotations_map.lookup_ptr(
-            key);
+  auto run_per_point_updates =
+      [&](const Span<xpbd::VelocityConstraintSet *> dynamic_velocity_constraint_sets,
+          const float substep_factor,
+          const bool do_pre_solve,
+          const bool do_post_solve) {
+        threading::parallel_for(IndexRange(keys_in_group_num), 1, [&](const IndexRange range) {
+          for (const int key_in_group_i : range) {
+            const int key_i = key_group[key_in_group_i];
+            const SimPointsKey &key = keys[key_i];
+            SimPoints &sim_points = state.sim_points.lookup(keys[key_i]);
+            const Span<float3> accelerations = accelerations_map.lookup(key);
+            const std::optional<Span<float3>> torques = torques_map.lookup_try(key);
+            const SimPointsWorldProperties &props = sim_points_props.lookup(key);
+            const PinnedPositions *pinned_positions =
+                constraint_init.pinned_positions_map.lookup_ptr(key);
+            const PinnedRotations *pinned_rotations =
+                constraint_init.pinned_rotations_map.lookup_ptr(key);
 
-        threading::parallel_for(
-            IndexRange(sim_points.points_num), 256, [&](const IndexRange range) {
-              /* The post-solve steps are run first here, because this code runs at the end of
-               * the time-step after the constraints are solved. */
-              if (do_post_solve) {
-                post_solve_per_point_steps(
-                    sub_delta_time,
-                    range,
-                    all_prev_positions[key_in_group_i].as_span().slice(range),
-                    all_prev_rotations[key_in_group_i].as_span().slice_safe(range),
-                    sim_points.positions.as_span().slice(range),
-                    sim_points.rotations.as_span().slice_safe(range),
-                    sim_points.velocities.as_mutable_span().slice(range),
-                    sim_points.angular_velocities.as_mutable_span().slice_safe(range));
-              }
-              if (do_pre_solve) {
-                pre_solve_per_point_steps(
-                    range,
-                    all_prev_positions[key_in_group_i].as_mutable_span().slice(range),
-                    all_prev_rotations[key_in_group_i].as_mutable_span().slice_safe(range),
-                    sim_points.positions.as_mutable_span().slice(range),
-                    sim_points.velocities.as_mutable_span().slice(range),
-                    sim_points.rotations.as_mutable_span().slice_safe(range),
-                    sim_points.angular_velocities.as_mutable_span().slice_safe(range),
-                    props,
-                    accelerations,
-                    torques,
-                    pinned_positions,
-                    pinned_rotations,
-                    substep_factor,
-                    sub_delta_time);
-              }
-            });
-      }
-    });
+            threading::parallel_for(
+                IndexRange(sim_points.points_num), 256, [&](const IndexRange range) {
+                  /* The post-solve steps are run first here, because this code runs at the end of
+                   * the time-step after the constraints are solved. */
+                  if (do_post_solve) {
+                    post_solve_per_point_steps(
+                        sub_delta_time,
+                        range,
+                        all_prev_positions[key_in_group_i].as_span().slice(range),
+                        all_prev_rotations[key_in_group_i].as_span().slice_safe(range),
+                        sim_points.positions.as_span().slice(range),
+                        sim_points.rotations.as_span().slice_safe(range),
+                        sim_points.velocities.as_mutable_span().slice(range),
+                        sim_points.angular_velocities.as_mutable_span().slice_safe(range));
 
-    intialize_constraint_forces(filtered_static_constraint_sets, std::nullopt);
-  };
+                    /* Velocity constraint solve. */
+                    {
+                      const xpbd::ConstraintSetParams params = {geometry_refs_local,
+                                                                constraint_solver_debug_fn};
+                      xpbd::VelocityUpdater velocity_updater{geometry_refs_local};
+                      for (xpbd::VelocityConstraintSet *velocity_constraint_set :
+                           filtered_static_constraint_sets.velocity)
+                      {
+                        velocity_constraint_set->solve_step(velocity_updater, params, range);
+                      }
+                      for (xpbd::VelocityConstraintSet *velocity_constraint_set :
+                           dynamic_velocity_constraint_sets)
+                      {
+                        velocity_constraint_set->solve_step(velocity_updater, params, range);
+                      }
+                    }
+                  }
+                  if (do_pre_solve) {
+                    pre_solve_per_point_steps(
+                        range,
+                        all_prev_positions[key_in_group_i].as_mutable_span().slice(range),
+                        all_prev_rotations[key_in_group_i].as_mutable_span().slice_safe(range),
+                        sim_points.positions.as_mutable_span().slice(range),
+                        sim_points.velocities.as_mutable_span().slice(range),
+                        sim_points.rotations.as_mutable_span().slice_safe(range),
+                        sim_points.angular_velocities.as_mutable_span().slice_safe(range),
+                        props,
+                        accelerations,
+                        torques,
+                        pinned_positions,
+                        pinned_rotations,
+                        substep_factor,
+                        sub_delta_time);
+                  }
+                });
+          }
+        });
+
+        if (do_pre_solve) {
+          intialize_constraint_forces(
+              filtered_static_constraint_sets, geometry_refs_local, std::nullopt, std::nullopt);
+        }
+      };
 
   for (const int substep_i : IndexRange(substeps)) {
     const float substep_factor = substeps <= 1 ? 1.0f : float(substep_i) / (substeps - 1);
@@ -3731,44 +3800,35 @@ PROFILE_FUNCTION static void simulate_key_group_global(
     /* In all other substeps, this is done at the end of the previous step already to improve
      * parallelism and cache locality. */
     if (is_first_substep) {
-      run_per_point_updates(substep_factor, true, false);
+      run_per_point_updates({}, substep_factor, true, false);
     }
 
-    Contacts contacts;
+    /* Find current collisions and generate constraints to resolve them. */
+    Contacts contacts = gather_contacts_global(key_group,
+                                               state,
+                                               world_info,
+                                               world_bundles,
+                                               applied_geometries,
+                                               keys,
+                                               sim_points_props,
+                                               substep_factor,
+                                               sub_delta_time);
+    xpbd::ConstraintSetCollector dynamic_constraint_sets;
+    generate_collision_constraint_sets(
+        scope, state, contacts, keys, sub_delta_time, dynamic_constraint_sets);
+    /* Combine static and dynamic constraint sets. */
+    const Vector<xpbd::ConstraintSet *> current_constraint_sets =
+        xpbd::ConstraintSetCollector::combine(
+            scope, {&filtered_static_constraint_sets, &dynamic_constraint_sets});
+
+    /* Actually solve the constraints. */
     for ([[maybe_unused]] const int constraint_iter : IndexRange(constraint_iterations)) {
-      /* Find current collisions and generate constraints to resolve them. */
-      contacts = gather_contacts_global(key_group,
-                                        state,
-                                        world_info,
-                                        world_bundles,
-                                        applied_geometries,
-                                        keys,
-                                        sim_points_props,
-                                        substep_factor,
-                                        sub_delta_time);
-      xpbd::ConstraintSetCollector dynamic_constraint_sets;
-      generate_collision_constraint_sets(
-          scope, state, contacts, keys, sub_delta_time, dynamic_constraint_sets);
-
-      /* Combine static and dynamic constraint sets. */
-      const Vector<xpbd::ConstraintSet *> current_constraint_sets =
-          xpbd::ConstraintSetCollector::combine(
-              scope, {&filtered_static_constraint_sets, &dynamic_constraint_sets});
-
-      /* Actually solve the constraints. */
-      for ([[maybe_unused]] const int constraint_iter : IndexRange(constraint_iterations)) {
-        solve_constraints(solver_type, geometry_refs_local, current_constraint_sets);
-      }
+      solve_constraints(solver_type, geometry_refs_local, current_constraint_sets);
     }
-
-    // if (sub_delta_time > 0.0f) {
-    //   /* Apply friction by updating current positions before the new velocity is computed. */
-    //   apply_friction(key_group, contacts, state, keys, all_prev_positions, geometry_refs);
-    // }
 
     /* Does remaining per-point updates at the end of this time step (like updating velocities) and
      * also does the beginning of the next timestep already unless this is the last substep. */
-    run_per_point_updates(substep_factor, !is_last_substep, true);
+    run_per_point_updates(dynamic_constraint_sets.velocity, substep_factor, !is_last_substep, true);
   }
 }
 
@@ -3848,22 +3908,24 @@ PROFILE_FUNCTION static void simulate_curve_local(
               pinned_rotations,
               substep_factor,
               sub_delta_time);
-          intialize_constraint_forces(filtered_static_constraint_sets, curves_range);
+          intialize_constraint_forces(
+              filtered_static_constraint_sets, geometry_refs_local, curves_range, points_range);
 
-          Contacts contacts;
+          Contacts contacts = gather_contacts_curve_local(key_i,
+                                                          curves_range,
+                                                          points_by_curve,
+                                                          state,
+                                                          world_info,
+                                                          keys,
+                                                          props,
+                                                          substep_factor,
+                                                          sub_delta_time);
+          xpbd::ConstraintSetCollector dynamic_constraint_sets;
+          generate_collision_constraint_sets(
+              scope, state, contacts, keys, sub_delta_time, dynamic_constraint_sets);
+
           for ([[maybe_unused]] const int constraint_iter : IndexRange(constraint_iterations)) {
-            contacts = gather_contacts_curve_local(key_i,
-                                                   curves_range,
-                                                   points_by_curve,
-                                                   state,
-                                                   world_info,
-                                                   keys,
-                                                   props,
-                                                   substep_factor,
-                                                   sub_delta_time);
-            xpbd::ConstraintSetCollector dynamic_constraint_sets;
-            generate_collision_constraint_sets(
-                scope, state, contacts, keys, sub_delta_time, dynamic_constraint_sets);
+            start_debug_constraint_iteration(debug_recorder, debug_key_group);
 
             xpbd::SolveStrategy solve_strategy{
                 get_solve_strategy_type(solver_type), geometry_refs_local, key_i, points_range};
@@ -3878,16 +3940,6 @@ PROFILE_FUNCTION static void simulate_curve_local(
             solve_strategy.apply();
           }
 
-          // if (sub_delta_time > 0.0f) {
-          //   /* Apply friction by updating current positions before the new velocity is
-          //   computed.*/ for (const auto &item : contacts.static_plane_contacts.items()) {
-          //     if (item.key.points_key == key) {
-          //       apply_static_plane_contact_friction(
-          //           item.value, prev_positions, points_range.start(), sim_points.positions);
-          //     }
-          //   }
-          // }
-
           post_solve_per_point_steps(
               sub_delta_time,
               points_range,
@@ -3897,6 +3949,14 @@ PROFILE_FUNCTION static void simulate_curve_local(
               sim_points.rotations.as_span().slice_safe(points_range),
               sim_points.velocities.as_mutable_span().slice(points_range),
               sim_points.angular_velocities.as_mutable_span().slice_safe(points_range));
+
+          /* Velocity constraint solve. */
+          xpbd::VelocityUpdater velocity_updater{geometry_refs_local};
+          for (xpbd::VelocityConstraintSet *velocity_constraint_set :
+               filtered_static_constraint_sets.velocity)
+          {
+            velocity_constraint_set->solve_step(velocity_updater, params, points_range);
+          }
         }
       },
       threading::accumulated_task_sizes(
@@ -3961,6 +4021,11 @@ PROFILE_FUNCTION static void simulate_key_group(
   for (xpbd::CurveLocalConstraintSet *constraint_set : static_constraint_sets.curve_local) {
     if (key_group.contains(constraint_set->affected_geo_i())) {
       filtered_constraint_sets.curve_local.append(constraint_set);
+    }
+  }
+  for (xpbd::VelocityConstraintSet *constraint_set : static_constraint_sets.velocity) {
+    if (key_group.contains(constraint_set->affected_geo_i())) {
+      filtered_constraint_sets.velocity.append(constraint_set);
     }
   }
 

@@ -893,4 +893,98 @@ class AttachUVSurfaceConstraintSet : public TemplatedConstraintSet<AttachUVSurfa
   }
 };
 
+class LinearDampingConstraintSet
+    : public TemplatedVelocityConstraintSet<LinearDampingConstraintSet> {
+ private:
+  int geo_i_;
+  /* Damping constraints typically have very high compliance, so using stiffness (1/compliance)
+   * instead leads to better conditioning. */
+  float stiffness_term_;
+  MutableSpan<float> lambdas_;
+
+ public:
+  static constexpr StringRefNull debug_name = "Linear Damping";
+
+  LinearDampingConstraintSet(const int geo_i,
+                             const float stiffness_term,
+                             MutableSpan<float> lambdas)
+      : TemplatedVelocityConstraintSet<LinearDampingConstraintSet>(geo_i),
+        geo_i_(geo_i),
+        stiffness_term_(stiffness_term),
+        lambdas_(lambdas)
+  {
+  }
+
+  void reset_force(const int point_i) const
+  {
+    lambdas_[point_i] = 0.0f;
+  }
+
+  template<typename UpdaterT>
+  void evaluate_single(UpdaterT &updater,
+                       const ConstraintSetParams &params,
+                       const int point_i) const
+  {
+    const float3 &velocity = params.velocity(geo_i_, point_i);
+    float residual;
+    const float3 gradient = math::normalize_and_get_length(velocity, residual);
+    const float delta_lambda = (-residual * stiffness_term_ - lambdas_[point_i]) /
+                               (stiffness_term_ + 1.0f);
+    const float3 offset = gradient * delta_lambda;
+    lambdas_[point_i] += delta_lambda;
+    updater.update_velocity(geo_i_, point_i, offset);
+  }
+
+  bke::GeometrySet as_debug_geometry(Vector<bke::GSpanAttributeWriter> & /*r_attributes*/) const
+  {
+    return {};
+  }
+};
+
+class AngularDampingConstraintSet
+    : public TemplatedVelocityConstraintSet<AngularDampingConstraintSet> {
+ private:
+  int geo_i_;
+  float stiffness_term_;
+  MutableSpan<float> lambdas_;
+
+ public:
+  static constexpr StringRefNull debug_name = "Angular Damping";
+
+  AngularDampingConstraintSet(const int geo_i,
+                              const float stiffness_term,
+                              MutableSpan<float> lambdas)
+      : TemplatedVelocityConstraintSet<AngularDampingConstraintSet>(geo_i),
+        geo_i_(geo_i),
+        stiffness_term_(stiffness_term),
+        lambdas_(lambdas)
+  {
+  }
+
+  void reset_force(const int point_i) const
+  {
+    lambdas_[point_i] = 0.0f;
+  }
+
+  template<typename UpdaterT>
+  void evaluate_single(UpdaterT &updater,
+                       const ConstraintSetParams &params,
+                       const int point_i) const
+  {
+    const float3 &angular_velocity = params.angular_velocity(geo_i_, point_i);
+    float residual;
+    const float3 gradient = math::normalize_and_get_length(angular_velocity, residual);
+    const float delta_lambda = (-residual * stiffness_term_ - lambdas_[point_i]) /
+                               (stiffness_term_ + 1.0f);
+    const float3 offset = gradient * delta_lambda;
+    lambdas_[point_i] += delta_lambda;
+    updater.update_angular_velocity(geo_i_, point_i, offset);
+  }
+
+  bke::GeometrySet as_debug_geometry(Vector<bke::GSpanAttributeWriter> & /*r_attributes*/) const
+  {
+    return {};
+  }
+};
+
 }  // namespace blender::xpbd
