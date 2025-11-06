@@ -378,6 +378,7 @@ std::variant<bke::CurvesGeometry, std::string> lsystem_to_curves(LSystemParams &
   }
 
   Turtle root_turtle;
+  root_turtle.angle = params.angle;
   const std::optional<Vector<Symbol>> symbols = lsystem.compute_nth_generation(
       scope, root_turtle, params.generations);
   if (!symbols) {

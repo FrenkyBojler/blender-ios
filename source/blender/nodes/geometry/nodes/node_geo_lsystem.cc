@@ -11,14 +11,23 @@ namespace blender::nodes::node_geo_lsystem_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::String>("Axiom");
+  b.add_input<decl::String>("Rule 1");
+  b.add_input<decl::Float>("Generations").min(0);
+  b.add_input<decl::Float>("Angle").subtype(PROP_ANGLE).default_value(DEG2RAD(90.0f));
   b.add_output<decl::Geometry>("Geometry");
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
   const std::string axiom = params.extract_input<std::string>("Axiom");
+  const std::string rule_1 = params.extract_input<std::string>("Rule 1");
   geometry::lsystem::LSystemParams lsystem_params;
+  lsystem_params.generations = std::max(0.0f, params.extract_input<float>("Generations"));
+  lsystem_params.angle = params.extract_input<float>("Angle");
   lsystem_params.axiom = axiom;
+  if (!rule_1.empty()) {
+    lsystem_params.rules.append(rule_1);
+  }
 
   std::variant<bke::CurvesGeometry, std::string> result = geometry::lsystem::lsystem_to_curves(
       lsystem_params);
