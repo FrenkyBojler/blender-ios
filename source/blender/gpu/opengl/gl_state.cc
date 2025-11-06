@@ -552,7 +552,16 @@ void GLStateManager::texture_bind_apply()
 
 void GLStateManager::texture_unpack_row_length_set(uint len)
 {
+  if (texture_unpack_row_length_ == len) {
+    return;
+  }
+  texture_unpack_row_length_ = len;
   glPixelStorei(GL_UNPACK_ROW_LENGTH, len);
+}
+
+uint GLStateManager::texture_unpack_row_length_get() const
+{
+  return texture_unpack_row_length_;
 }
 
 uint64_t GLStateManager::bound_texture_slots()
