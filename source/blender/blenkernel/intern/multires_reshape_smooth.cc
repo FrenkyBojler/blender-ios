@@ -428,6 +428,46 @@ static void foreach_toplevel_grid_coord(
   });
 }
 
+static void foreach_reshape_ptex_face(
+    MultiresReshapeSmoothContext *reshape_smooth_context,
+    blender::FunctionRef<void(const PTexCoord *, int, int)> callback)
+{
+  using namespace blender;
+  const MultiresReshapeContext *reshape_context = reshape_smooth_context->reshape_context;
+  const OffsetIndices<int> faces = reshape_smooth_context->geometry.faces();
+
+  const int inner_grid_size = 3;
+  const float inner_grid_size_1_inv = 0.5f;
+
+  threading::parallel_for(faces.index_range(), 1, [&](const IndexRange range) {
+    for (const int face_index : range) {
+      IndexRange face = faces[face_index];
+      const int corner = get_face_grid_index(reshape_smooth_context, face);
+      std::array<std::optional<GridCoord>, 4> face_grid_coords = grid_coords_from_face_verts(
+          reshape_smooth_context, face);
+
+      for (int y = 0; y < inner_grid_size; ++y) {
+        const float ptex_v = float(y) * inner_grid_size_1_inv;
+        for (int x = 0; x < inner_grid_size; ++x) {
+          const float ptex_u = float(x) * inner_grid_size_1_inv;
+
+          PTexCoord ptex_coord;
+          ptex_coord.ptex_face_index = face_index;
+          ptex_coord.u = ptex_u;
+          ptex_coord.v = ptex_v;
+
+          const GridCoord grid_coord = interpolate_grid_coord(
+              blender::Span(face_grid_coords), ptex_u, ptex_v);
+
+          const int elem_idx = multires_index_for_grid_coord(reshape_context, &grid_coord);
+
+          callback(&ptex_coord, elem_idx, corner);
+        }
+      }
+    }
+  });
+}
+
 static void foreach_reshape_ptex_face_single_threaded(
     MultiresReshapeSmoothContext *reshape_smooth_context,
     blender::FunctionRef<void(const PTexCoord *, int, int)> callback)
@@ -1439,6 +1479,44 @@ static void evaluate_higher_grid_positions(MultiresReshapeSmoothContext *reshape
 static void evaluate_reshape_faces(MultiresReshapeSmoothContext *reshape_smooth_context,
                                    blender::MutableSpan<blender::float3> delta_storage,
                                    blender::MutableSpan<blender::float3x3> tangent_matrix_storage)
+{
+  CLOG_DEBUG(&LOG, "evaluate_reshape_faces: %ld", delta_storage.size());
+  foreach_reshape_ptex_face(
+      reshape_smooth_context, [&](const PTexCoord *ptex_coord, int idx, int corner) {
+        blender::bke::subdiv::Subdiv *reshape_subdiv = reshape_smooth_context->reshape_subdiv;
+
+        /* Surface. */
+        blender::float3 dPdu;
+        blender::float3 dPdv;
+        blender::float3 P;
+        blender::bke::subdiv::eval_limit_point_and_derivatives(reshape_subdiv,
+                                                               ptex_coord->ptex_face_index,
+                                                               ptex_coord->u,
+                                                               ptex_coord->v,
+                                                               P,
+                                                               dPdu,
+                                                               dPdv);
+
+        delta_storage[idx] = P;
+        CLOG_TRACE(&LOG,
+                   "(%d, %f %f) -> (%d, %d)-> (%f, %f, %f)",
+                   ptex_coord->ptex_face_index,
+                   ptex_coord->u,
+                   ptex_coord->v,
+                   corner,
+                   idx,
+                   P.x,
+                   P.y,
+                   P.z);
+        /* TODO: Is this corner calculation correct? */
+        BKE_multires_construct_tangent_matrix(tangent_matrix_storage[idx], dPdu, dPdv, corner % 4);
+      });
+}
+
+static void evaluate_reshape_faces_single_threaded(
+    MultiresReshapeSmoothContext *reshape_smooth_context,
+    blender::MutableSpan<blender::float3> delta_storage,
+    blender::MutableSpan<blender::float3x3> tangent_matrix_storage)
 {
   CLOG_DEBUG(&LOG, "evaluate_reshape_faces: %ld", delta_storage.size());
   blender::BitVector<> tagged_elements(delta_storage.size(), false);
