@@ -223,6 +223,7 @@ class NODE_MT_gn_geometry_base(node_add_menu.NodeMenu):
         layout.separator()
         self.node_operator(layout, "GeometryNodeGeometryToInstance")
         self.node_operator(layout, "GeometryNodeJoinGeometry", search_weight=1.0)
+        self.node_operator(layout, "GeometryNodeLSystem")
 
         self.draw_assets_for_catalog(layout, self.bl_label)
 
