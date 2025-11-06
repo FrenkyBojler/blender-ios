@@ -42,7 +42,7 @@ class GPUWorker {
   /**
    * \param threads_count: Number of threads to span.
    * \param context_type: The type of context each thread uses.
-   * \param do_work: The callback function that will be called for each acquired work
+   * \param callback: The callback function that will be called for each acquired work
    *                 (passed as a void pointer).
    */
   GPUWorker(uint32_t threads_count, ContextType context_type, WorkCallback callback);
