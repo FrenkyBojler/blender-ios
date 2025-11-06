@@ -497,6 +497,8 @@ static void find_intersections_between_curve_and_curves(const int curve_i,
   }
 }
 
+/* TODO: This method of finding intersections is O(N^2) and should replaced with something faster.
+ */
 static void find_intersections_between_all_curves(const Span<float2> screen_space_positions,
                                                   const Span<rcti> screen_space_curve_bounds,
                                                   const OffsetIndices<int> points_by_curve,
