@@ -197,6 +197,14 @@ static void seq_strip_free_ex(Scene *scene,
     id_us_min((ID *)strip->sound);
   }
 
+  if (strip->clip && do_id_user) {
+    id_us_min(&strip->clip->id);
+  }
+
+  if (strip->mask && do_id_user) {
+    id_us_min(&strip->mask->id);
+  }
+
   if (strip->stereo3d_format) {
     MEM_freeN(strip->stereo3d_format);
   }
