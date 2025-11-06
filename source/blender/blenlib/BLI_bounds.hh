@@ -359,7 +359,7 @@ inline void Bounds<T>::pad(const PaddingT &padding)
   this->max = this->max + padding;
 }
 
-template<typename T> inline bool Bounds<T>::intersects(const T &point)
+template<typename T> inline bool Bounds<T>::contains(const T &point)
 {
   if (detail::any_less_than(point, this->min)) {
     return false;
@@ -368,52 +368,6 @@ template<typename T> inline bool Bounds<T>::intersects(const T &point)
     return false;
   }
   return true;
-}
-
-template<typename T> inline bool Bounds<T>::intersects_any(const Span<T> points)
-{
-  if (points.is_empty()) {
-    return false;
-  }
-  return threading::parallel_reduce(
-      points.index_range(),
-      8126,
-      false,
-      [&](const IndexRange range, const bool init) {
-        if (init) {
-          return true;
-        }
-        for (const int i : range) {
-          if (this->intersects(points[i])) {
-            return true;
-          }
-        }
-        return false;
-      },
-      std::logical_or());
-}
-
-template<typename T> inline bool Bounds<T>::intersects_all(const Span<T> points)
-{
-  if (points.is_empty()) {
-    return false;
-  }
-  return threading::parallel_reduce(
-      points.index_range(),
-      8126,
-      true,
-      [&](const IndexRange range, const bool init) {
-        if (!init) {
-          return false;
-        }
-        for (const int i : range) {
-          if (!this->intersects(points[i])) {
-            return false;
-          }
-        }
-        return true;
-      },
-      std::logical_and());
 }
 
 }  // namespace blender

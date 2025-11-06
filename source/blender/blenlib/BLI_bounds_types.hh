@@ -70,15 +70,7 @@ template<typename T> struct Bounds {
    * Returns true if \a point is inside the bounds.
    * This matches the behavior of #BLI_rctf_isect_pt/#BLI_rcti_isect_pt.
    */
-  bool intersects(const T &point);
-  /**
-   * Returns true if any of the \a points is inside the bounds.
-   */
-  bool intersects_any(const Span<T> points);
-  /**
-   * Returns true if all of the \a points are inside the bounds.
-   */
-  bool intersects_all(const Span<T> points);
+  bool contains(const T &point);
 };
 
 }  // namespace blender
