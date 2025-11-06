@@ -238,9 +238,7 @@ static void calc_grids(const Depsgraph &depsgraph,
   translations_from_offset_and_factors(offset, factors, tls.translations);
 
   clip_and_lock_translations(sd, ss, positions, tls.translations);
-  apply_translations(tls.translations,
-                     grids,
-                     subdiv_ccg);
+  apply_translations(tls.translations, grids, subdiv_ccg);
 }
 
 static void calc_bmesh(const Depsgraph &depsgraph,
