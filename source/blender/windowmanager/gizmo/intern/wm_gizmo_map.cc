@@ -643,16 +643,8 @@ static int gizmo_find_intersected_3d_intern(wmGizmo **visible_gizmos,
       co_screen[2] = float(double(hit_result.depth) / double(UINT_MAX));
       GPU_matrix_unproject_3fv(co_screen, rv3d->viewinv, rv3d->winmat, viewport, co_3d);
       float select_bias = gz->select_bias;
-      /* Use the gizmo's final on screen scale normally.
-       * If scale becomes too small(eg. tiny objects in ortho view) then
-       * fall back to the gizmo's base scale so selection still works properly.
-       * see #100321 */
       if ((gz->flag & WM_GIZMO_DRAW_NO_SCALE) == 0) {
-        float scale = gz->scale_final;
-        if (scale < 1e-2f) {
-          scale = gz->scale_basis;
-        }
-        select_bias *= scale;
+        select_bias *= gz->scale_final;
       }
       sub_v3_v3(co_3d, co_3d_origin);
       const float dot_test = dot_v3v3(co_3d, co_direction) - select_bias;
