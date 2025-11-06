@@ -169,7 +169,7 @@ class NODE_HT_header(Header):
                         "node_group",
                         new="node.new_compositor_sequencer_node_group")
                 elif active_strip and active_strip.type != 'SOUND':
-                    row.template_ID(snode, "node_tree", new="node.new_compositor_sequencer_modifier")
+                    row.template_ID(snode, "node_tree", new="node.new_compositor_sequencer_node_group")
                 else:
                     row.enabled = False
 

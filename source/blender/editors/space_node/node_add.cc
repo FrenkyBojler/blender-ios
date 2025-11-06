@@ -41,6 +41,7 @@
 #include "IMB_colormanagement.hh"
 
 #include "DEG_depsgraph_build.hh"
+#include "DEG_depsgraph.hh"
 
 #include "ED_asset.hh"
 #include "ED_asset_menu_utils.hh"
@@ -56,6 +57,7 @@
 #include "SEQ_modifier.hh"
 #include "SEQ_relations.hh"
 #include "SEQ_select.hh"
+#include "SEQ_sequencer.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -1861,6 +1863,27 @@ static wmOperatorStatus new_compositor_sequencer_node_group_exec(bContext *C, wm
   bNodeTree *ntree = new_node_tree_impl(C, tree_name, "CompositorNodeTree");
   initialize_compositor_sequencer_node_group(C, *ntree);
 
+  Scene *scene = CTX_data_scene(C);
+  Strip *strip = seq::select_active_get(scene);
+  StripModifierData *active_smd = seq::modifier_get_active(strip);
+
+  /* Add modifier and assign node tree when the strip has no active compositor modifier. */
+  if (!active_smd || active_smd->type != eSeqModifierType_Compositor) {
+    StripModifierData *smd = seq::modifier_new(strip, nullptr, eSeqModifierType_Compositor);
+    seq::modifier_persistent_uid_init(*strip, *smd);
+
+    SequencerCompositorModifierData *modifier_data =
+        reinterpret_cast<SequencerCompositorModifierData *>(smd);
+    modifier_data->node_group = ntree;
+    seq::relations_invalidate_cache(scene, strip);
+
+    /* Tag depsgraph relations for an update since the modifier should now be referencing a
+     * different node tree. */
+    Main *bmain = CTX_data_main(C);
+    DEG_relations_tag_update(bmain);
+    WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
+  }
+
   BKE_ntree_update_after_single_tree_change(*CTX_data_main(C), *ntree);
   WM_event_add_notifier(C, NC_NODE | NA_ADDED, nullptr);
 
@@ -1883,44 +1906,6 @@ void NODE_OT_new_compositor_sequencer_node_group(wmOperatorType *operator_type)
                  MAX_ID_NAME - 2,
                  "Name",
                  "");
-}
-
-static wmOperatorStatus new_compositor_sequencer_modifier_exec(bContext *C, wmOperator *op)
-{
-
-  Scene *scene = CTX_data_scene(C);
-  Strip *strip = seq::select_active_get(scene);
-
-  /* Add modifier. */
-  StripModifierData *smd = seq::modifier_new(strip, nullptr, eSeqModifierType_Compositor);
-  seq::modifier_persistent_uid_init(*strip, *smd);
-
-
-  /* Add node group. */
-  bNodeTree *ntree = new_node_tree_impl(C, "Sequencer Compositor Nodes", "CompositorNodeTree");
-  initialize_compositor_sequencer_node_group(C, *ntree);
-
-  /* Assign node group to modifier. */
-  SequencerCompositorModifierData *modifier_data =
-      reinterpret_cast<SequencerCompositorModifierData *>(smd);
-  modifier_data->node_group = ntree;
-
-  seq::relations_invalidate_cache(scene, strip);
-  BKE_ntree_update_after_single_tree_change(*CTX_data_main(C), *ntree);
-  WM_event_add_notifier(C, NC_NODE | NA_ADDED | NC_SCENE | ND_SEQUENCER, scene);
-
-  return OPERATOR_FINISHED;
-}
-
-void NODE_OT_new_compositor_sequencer_modifier(wmOperatorType *operator_type)
-{
-  operator_type->name = "New Compositor Sequencer Modifier";
-  operator_type->idname = "NODE_OT_new_compositor_sequencer_modifier";
-  operator_type->description = "Create a new compositor Modifier for strip";
-
-  operator_type->exec = new_compositor_sequencer_modifier_exec;
-
-  operator_type->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
 /** \} */
