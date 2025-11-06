@@ -153,6 +153,21 @@ static void node_geo_exec(GeoNodeExecParams params)
     params.set_default_remaining_outputs();
     return;
   }
+  if (list->cpp_type().is<bke::SocketValueVariant>()) {
+    if (!index.is_single()) {
+      params.set_default_remaining_outputs();
+      return;
+    }
+    index.convert_to_single();
+    const int index_int = index.get<int>();
+    const VArray<bke::SocketValueVariant> varray = list->varray().typed<bke::SocketValueVariant>();
+    if (!varray.index_range().contains(index_int)) {
+      params.set_default_remaining_outputs();
+      return;
+    }
+    params.set_output("Value", varray[index_int]);
+    return;
+  }
 
   std::string error_message;
   bke::SocketValueVariant output_value;
