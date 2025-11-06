@@ -422,7 +422,7 @@ void VKTexture::update_sub(int mip,
       size_t src_row_stride = texture_unpack_row_length * to_bytesize(format_, format);
       uint8_t *dst_ptr = static_cast<uint8_t *>(staging_buffer.mapped_memory_get());
       const uint8_t *src_ptr = static_cast<const uint8_t *>(data);
-      for (int x = 0; x < extent.x; x++) {
+      for (int y = 0; y < extent.y; y++) {
         convert_host_to_device(dst_ptr, src_ptr, extent.x, format, format_, device_format_);
         src_ptr += src_row_stride;
         dst_ptr += dst_row_stride;
