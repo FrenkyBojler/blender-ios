@@ -168,4 +168,26 @@ TEST(bounds, Large)
   EXPECT_EQ(result->max, int2(9999, 9999));
 }
 
+TEST(bounds, Intersect)
+{
+  Bounds<int2> bounds1(int2(-3, -5), int2(2, 4));
+  Array<int2> data1 = {int2(0, 1), int2(3, -1), int2(-3, -2), int2(-1, 1)};
+  Array<bool> expected1 = {true, false, false, true};
+
+  for (const int i : data1.index_range()) {
+    EXPECT_EQ(bounds1.intersects(data1[i]), expected1[i]);
+  }
+  EXPECT_TRUE(bounds1.intersects_any(data1.as_span()));
+  EXPECT_FALSE(bounds1.intersects_all(data1.as_span()));
+
+  Bounds<float2> bounds2(float2(-2, -1), float2(4, 5));
+  Array<float2> data2 = {float2(-2, -2), float2(-3, -1), float2(4, 6), float2(5, 5)};
+  Array<bool> expected2 = {false, false, false, false};
+  for (const int i : data2.index_range()) {
+    EXPECT_EQ(bounds2.intersects(data2[i]), expected2[i]);
+  }
+  EXPECT_FALSE(bounds2.intersects_any(data2.as_span()));
+  EXPECT_TRUE(!bounds2.intersects_all(data2.as_span()));
+}
+
 }  // namespace blender::tests

@@ -7,7 +7,7 @@
 /** \file
  * \ingroup bli
  *
- * Generic algorithms for finding the largest and smallest elements in a span.
+ * Generic algorithms for bounds.
  */
 
 #include <optional>
@@ -16,6 +16,7 @@
 #include "BLI_index_mask.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.hh"
+#include "BLI_span.hh"
 #include "BLI_task.hh"
 #include "BLI_virtual_array.hh"
 
@@ -244,8 +245,30 @@ inline Bounds<VecBase<T, 3>> transform_bounds(const MatBase<T, D, D> &matrix,
 namespace detail {
 
 template<typename T, int Size>
-[[nodiscard]] inline bool any_less_or_equal_than(const VecBase<T, Size> &a,
-                                                 const VecBase<T, Size> &b)
+[[nodiscard]] inline bool any_less_than_v(const VecBase<T, Size> &a, const VecBase<T, Size> &b)
+{
+  for (int i = 0; i < Size; i++) {
+    if (a[i] < b[i]) {
+      return true;
+    }
+  }
+  return false;
+}
+
+template<typename T, int Size>
+[[nodiscard]] inline bool any_greater_than_v(const VecBase<T, Size> &a, const VecBase<T, Size> &b)
+{
+  for (int i = 0; i < Size; i++) {
+    if (a[i] > b[i]) {
+      return true;
+    }
+  }
+  return false;
+}
+
+template<typename T, int Size>
+[[nodiscard]] inline bool any_less_or_equal_than_v(const VecBase<T, Size> &a,
+                                                   const VecBase<T, Size> &b)
 {
   for (int i = 0; i < Size; i++) {
     if (a[i] <= b[i]) {
@@ -255,16 +278,41 @@ template<typename T, int Size>
   return false;
 }
 
+template<typename T> [[nodiscard]] inline bool any_less_than(const T &a, const T &b)
+{
+  if constexpr (std::is_integral_v<T> || std::is_floating_point_v<T>) {
+    return a < b;
+  }
+  else {
+    return detail::any_less_than_v(a, b);
+  }
+}
+
+template<typename T> [[nodiscard]] inline bool any_greater_than(const T &a, const T &b)
+{
+  if constexpr (std::is_integral_v<T> || std::is_floating_point_v<T>) {
+    return a > b;
+  }
+  else {
+    return detail::any_greater_than_v(a, b);
+  }
+}
+
+template<typename T> [[nodiscard]] inline bool any_less_or_equal_than(const T &a, const T &b)
+{
+  if constexpr (std::is_integral_v<T> || std::is_floating_point_v<T>) {
+    return a <= b;
+  }
+  else {
+    return detail::any_less_or_equal_than_v(a, b);
+  }
+}
+
 }  // namespace detail
 
 template<typename T> inline bool Bounds<T>::is_empty() const
 {
-  if constexpr (std::is_integral_v<T> || std::is_floating_point_v<T>) {
-    return this->max <= this->min;
-  }
-  else {
-    return detail::any_less_or_equal_than(this->max, this->min);
-  }
+  return detail::any_less_or_equal_than(this->max, this->min);
 }
 
 template<typename T> inline T Bounds<T>::center() const
@@ -309,6 +357,57 @@ inline void Bounds<T>::pad(const PaddingT &padding)
 {
   this->min = this->min - padding;
   this->max = this->max + padding;
+}
+
+template<typename T> inline bool Bounds<T>::intersects(const T &point)
+{
+  if (detail::any_less_than(point, this->min)) {
+    return false;
+  }
+  if (detail::any_greater_than(point, this->max)) {
+    return false;
+  }
+  return true;
+}
+
+template<typename T> inline bool Bounds<T>::intersects_any(const Span<T> points)
+{
+  if (points.is_empty()) {
+    return false;
+  }
+  return threading::parallel_reduce(
+      points.index_range(),
+      8126,
+      false,
+      [&](const IndexRange range) {
+        for (const int i : range) {
+          if (this->intersects(points[i])) {
+            return true;
+          }
+        }
+        return false;
+      },
+      [](const bool a, const bool b) { return a || b; });
+}
+
+template<typename T> inline bool Bounds<T>::intersects_all(const Span<T> points)
+{
+  if (points.is_empty()) {
+    return false;
+  }
+  return threading::parallel_reduce(
+      points.index_range(),
+      8126,
+      true,
+      [&](const IndexRange range) {
+        for (const int i : range) {
+          if (!this->intersects(points[i])) {
+            return false;
+          }
+        }
+        return true;
+      },
+      [](const bool a, const bool b) { return a && b; });
 }
 
 }  // namespace blender
