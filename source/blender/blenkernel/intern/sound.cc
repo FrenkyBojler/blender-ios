@@ -1199,15 +1199,9 @@ void BKE_sound_read_waveform(Main *bmain, bSound *sound, bool *stop)
     int length = info.length * SOUND_WAVE_SAMPLES_PER_SECOND;
 
     waveform->resize(3 * length);
-    /* Ideally this would take a boolean argument. */
-    short stop_i16 = *stop;
-    length = AUD_readSound(runtime->playback_handle,
-                           waveform->data(),
-                           length,
-                           SOUND_WAVE_SAMPLES_PER_SECOND,
-                           &stop_i16);
+    length = AUD_readSound(
+        runtime->playback_handle, waveform->data(), length, SOUND_WAVE_SAMPLES_PER_SECOND, stop);
     waveform->resize(3 * length);
-    *stop = stop_i16 != 0;
   }
 
   if (*stop) {
