@@ -6216,16 +6216,16 @@ static void rna_def_userdef_system(BlenderRNA *brna)
                            "(OpenGL only)");
 
   static const EnumPropertyItem ocio_config_source_items[] = {
-      {USER_OCIO_CONFIG_SOURCE_BLENDER,
-       "BLENDER",
-       0,
-       "Blender config",
-       "Use the OpenColorIO configuration bundled with Blender"},
       {USER_OCIO_CONFIG_SOURCE_SYSTEM,
        "SYSTEM",
        0,
        "System config",
        "Use the OpenColorIO configuration installed on the system"},
+      {USER_OCIO_CONFIG_SOURCE_BLENDER,
+       "BLENDER",
+       0,
+       "Blender config",
+       "Use the OpenColorIO configuration bundled with Blender"},
       {USER_OCIO_CONFIG_SOURCE_USER,
        "USER",
        0,
@@ -6237,7 +6237,7 @@ static void rna_def_userdef_system(BlenderRNA *brna)
   prop = RNA_def_property(srna, "ocio_config_source", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "ocio_config_source");
   RNA_def_property_enum_items(prop, ocio_config_source_items);
-  RNA_def_property_enum_default(prop, USER_OCIO_CONFIG_SOURCE_BLENDER);
+  RNA_def_property_enum_default(prop, USER_OCIO_CONFIG_SOURCE_SYSTEM);
   RNA_def_property_ui_text(
       prop, "OCIO Config Source", "Select which OpenColorIO configuration Blender should load");
   RNA_def_property_update(prop, 0, "rna_userdef_update");

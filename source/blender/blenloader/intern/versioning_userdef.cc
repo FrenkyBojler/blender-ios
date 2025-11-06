@@ -1734,7 +1734,7 @@ void blo_do_versions_userdef(UserDef *userdef)
   }
 
   if (!USER_VERSION_ATLEAST(501, 5)) {
-    userdef->ocio_config_source = USER_OCIO_CONFIG_SOURCE_BLENDER;
+    userdef->ocio_config_source = USER_OCIO_CONFIG_SOURCE_SYSTEM;
     userdef->ocio_user_config_path[0] = '\0';
   }
 
