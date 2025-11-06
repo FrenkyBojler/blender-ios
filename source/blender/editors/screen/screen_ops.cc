@@ -1938,9 +1938,9 @@ static int area_snap_calc_location(sAreaMoveData *md, const int delta)
       snaps.append(m_min);
 
       /* Extra snaps for Timeline and Graph Editor. */
-      const bool area2_scrub = md->area2 &&
-                               ELEM(md->area2->spacetype, SPACE_ACTION, SPACE_GRAPH, SPACE_NLA);
-      if (area2_scrub && md->dir_axis == SCREEN_AXIS_H) {
+      if (md->dir_axis == SCREEN_AXIS_H && md->area2 &&
+          ELEM(md->area2->spacetype, SPACE_ACTION, SPACE_GRAPH, SPACE_NLA))
+      {
         snaps.append(m_min + UI_TIME_SCRUB_MARGIN_Y);
         ARegion *region = BKE_area_find_region_type(md->area2, RGN_TYPE_FOOTER);
         const bool anim_footer = (region && region->runtime->visible);
@@ -1950,9 +1950,12 @@ static int area_snap_calc_location(sAreaMoveData *md, const int delta)
           snaps.append(m_min + UI_TIME_SCRUB_MARGIN_Y + ED_area_footersize());
         }
       }
+
       const bool area1_scrub = md->area1 &&
                                ELEM(md->area1->spacetype, SPACE_ACTION, SPACE_GRAPH, SPACE_NLA);
-      if (area1_scrub && md->dir_axis == SCREEN_AXIS_H) {
+      if (md->dir_axis == SCREEN_AXIS_H && md->area1 &&
+          ELEM(md->area1->spacetype, SPACE_ACTION, SPACE_GRAPH, SPACE_NLA))
+      {
         ARegion *region = BKE_area_find_region_type(md->area1, RGN_TYPE_FOOTER);
         const bool anim_footer = (region && region->runtime->visible);
         region = BKE_area_find_region_type(md->area1, RGN_TYPE_HEADER);
@@ -1961,6 +1964,17 @@ static int area_snap_calc_location(sAreaMoveData *md, const int delta)
           snaps.append(md->origval + md->bigger - (UI_TIME_SCRUB_MARGIN_Y + ED_area_footersize()));
         }
         snaps.append(md->origval + md->bigger - UI_TIME_SCRUB_MARGIN_Y);
+      }
+
+      /* Extra snap for Console. */
+      if (md->dir_axis == SCREEN_AXIS_H && md->area2 && md->area2->spacetype == SPACE_CONSOLE) {
+        SpaceConsole *console = static_cast<SpaceConsole *>(md->area2->spacedata.first);
+        snaps.append(m_min + int(float(console->lheight) * UI_SCALE_FAC * 1.5f));
+      }
+      if (md->dir_axis == SCREEN_AXIS_H && md->area1 && md->area1->spacetype == SPACE_CONSOLE) {
+        SpaceConsole *console = static_cast<SpaceConsole *>(md->area1->spacedata.first);
+        snaps.append(md->origval + md->bigger -
+                     int(float(console->lheight) * UI_SCALE_FAC * 1.5f));
       }
 
       snaps.append(md->origval + md->bigger);
