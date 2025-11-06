@@ -67,19 +67,16 @@ template<typename T> struct Bounds {
   template<typename PaddingT> void pad(const PaddingT &padding);
 
   /**
-   * Returns true if \a point is inside the bounds. This is exclusive, e.g. a point
-   * touching the bounds doesn't count as intersecting.
+   * Returns true if \a point is inside the bounds.
    * This matches the behavior of #BLI_rctf_isect_pt/#BLI_rcti_isect_pt.
    */
   bool intersects(const T &point);
   /**
-   * Returns true if any of the \a points is inside the bounds. This is exclusive, e.g. a point
-   * touching the bounds doesn't count as intersecting.
+   * Returns true if any of the \a points is inside the bounds.
    */
   bool intersects_any(const Span<T> points);
   /**
-   * Returns true if all of the \a points are inside the bounds. This is exclusive, e.g. a point
-   * touching the bounds doesn't count as intersecting.
+   * Returns true if all of the \a points are inside the bounds.
    */
   bool intersects_all(const Span<T> points);
 };
