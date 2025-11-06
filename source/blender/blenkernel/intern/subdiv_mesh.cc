@@ -311,6 +311,19 @@ static float3 mix_normals(const Span<float3> src,
   return math::normalize(math::interpolate(src[src_indices[0]], src[src_indices[1]], factor));
 }
 
+static bool mix_bools(const Span<bool> src, const Span<int> indices, const Span<float> weights)
+{
+  for (const int i : indices.index_range()) {
+    if (weights[i] == 0.0f) {
+      continue;
+    }
+    if (src[indices[i]]) {
+      return true;
+    }
+  }
+  return false;
+}
+
 static void mix_attrs(const Span<GSpan> src,
                       const std::array<int, 2> &src_indices,
                       const float factor,
@@ -322,8 +335,13 @@ static void mix_attrs(const Span<GSpan> src,
       using T = decltype(dummy);
       const Span<T> src_attr = src[attr].typed<T>();
       MutableSpan<T> dst_attr = dst[attr].typed<T>();
-      dst_attr[dst_index] = attribute_math::mix2(
-          factor, src_attr[src_indices[0]], src_attr[src_indices[1]]);
+      if constexpr (std::is_same_v<T, bool>) {
+        dst_attr[dst_index] = mix_bools(src_attr, src_indices, {1.0f - factor, factor});
+      }
+      else {
+        dst_attr[dst_index] = attribute_math::mix2(
+            factor, src_attr[src_indices[0]], src_attr[src_indices[1]]);
+      }
     });
   }
 }
@@ -339,11 +357,16 @@ static void mix_attrs(const Span<GSpan> src,
       using T = decltype(dummy);
       const Span<T> src_attr = src[attr].typed<T>();
       MutableSpan<T> dst_attr = dst[attr].typed<T>();
-      dst_attr[dst_index] = attribute_math::mix4(weights,
-                                                 src_attr[src_indices[0]],
-                                                 src_attr[src_indices[1]],
-                                                 src_attr[src_indices[2]],
-                                                 src_attr[src_indices[3]]);
+      if constexpr (std::is_same_v<T, bool>) {
+        dst_attr[dst_index] = mix_bools(src_attr, src_indices, {&weights.x, 4});
+      }
+      else {
+        dst_attr[dst_index] = attribute_math::mix4(weights,
+                                                   src_attr[src_indices[0]],
+                                                   src_attr[src_indices[1]],
+                                                   src_attr[src_indices[2]],
+                                                   src_attr[src_indices[3]]);
+      }
     });
   }
 }
@@ -352,7 +375,7 @@ template<typename T>
 static T mix_attr(const Span<T> src, const Span<int> src_indices, const Span<float> weights)
 {
   T dst;
-  attribute_math::DefaultMixer<T> mixer({&dst, 1});
+  attribute_math::DefaultPropagationMixer<T> mixer({&dst, 1});
   for (const int i : src_indices.index_range()) {
     mixer.mix_in(0, src[src_indices[i]], weights[i]);
   }
@@ -1344,21 +1367,22 @@ static void subdiv_mesh_vert_of_loose_edge_interpolate(SubdivMeshContext *ctx,
                                                        const float u,
                                                        const int subdiv_vert_index)
 {
-  const Mesh *coarse_mesh = ctx->coarse_mesh;
-  Mesh *subdiv_mesh = ctx->subdiv_mesh;
   /* This is never used for end-points (which are copied from the original). */
   BLI_assert(u > 0.0f);
   BLI_assert(u < 1.0f);
-  const float interpolation_weights[2] = {1.0f - u, u};
-  const int coarse_vert_indices[2] = {coarse_edge[0], coarse_edge[1]};
-  CustomData_interp(&coarse_mesh->vert_data,
-                    &subdiv_mesh->vert_data,
-                    coarse_vert_indices,
-                    interpolation_weights,
-                    2,
-                    subdiv_vert_index);
+  const std::array<int, 2> coarse_vert_indices{coarse_edge[0], coarse_edge[1]};
+  mix_attrs(ctx->coarse_vert_attr_spans,
+            coarse_vert_indices,
+            u,
+            subdiv_vert_index,
+            ctx->subdiv_vert_attr_spans);
   if (!ctx->coarse_vert_origindex.is_empty()) {
     ctx->subdiv_vert_origindex[subdiv_vert_index] = ORIGINDEX_NONE;
+  }
+  if (!ctx->coarse_dverts.is_empty()) {
+    MDeformWeightSet dvert_mix_buffer;
+    ctx->subdiv_dverts[subdiv_vert_index] = mix_deform_verts(
+        ctx->coarse_dverts, coarse_vert_indices, {1.0f - u, u}, dvert_mix_buffer);
   }
 }
 
