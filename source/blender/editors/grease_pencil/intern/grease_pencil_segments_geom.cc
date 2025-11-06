@@ -710,7 +710,7 @@ static void cut_caps(bke::CurvesGeometry &dst,
       dst_attributes.lookup_or_add_for_write_span<int8_t>("end_cap", bke::AttrDomain::Curve);
 
   for (const int curve_i : segment_offsets.index_range()) {
-    /* If the curve connects back to it's self, don't cut it. */
+    /* If the curve is cyclic, don't cut it. */
     if (cyclic[curve_i]) {
       continue;
     }
