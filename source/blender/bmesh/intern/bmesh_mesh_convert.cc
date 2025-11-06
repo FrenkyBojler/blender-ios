@@ -1080,7 +1080,7 @@ struct BMeshToMeshLayerInfo {
   eCustomDataType type;
   /** The layer's position in the BMesh element's data block. */
   int bmesh_offset;
-  /** The mesh's #CustomDataLayer::data. When null, the BMesh block is set to its default value. */
+  /** The array data in the mesh. */
   void *mesh_data;
   /** The size of every custom data element. */
   size_t elem_size;
@@ -1095,13 +1095,13 @@ static Vector<BMeshToMeshLayerInfo> bm_to_mesh_copy_info_calc(
     blender::bke::AttributeStorage &storage,
     CustomData &mesh_data)
 {
+  using namespace blender;
   Vector<BMeshToMeshLayerInfo> infos;
   std::array<int, CD_NUMTYPES> per_type_index;
   per_type_index.fill(0);
   for (const int i : IndexRange(mesh_data.totlayer)) {
     const CustomDataLayer &mesh_layer = mesh_data.layers[i];
     const eCustomDataType type = eCustomDataType(mesh_layer.type);
-    // if ()
     const int bm_layer_index =
         mesh_layer.name[0] == '\0' ?
             CustomData_get_layer_index_n(&bm_data, type, per_type_index[type]) :
@@ -1126,6 +1126,26 @@ static Vector<BMeshToMeshLayerInfo> bm_to_mesh_copy_info_calc(
 
     per_type_index[type]++;
   }
+  storage.foreach([&](bke::Attribute &attr) {
+    if (attr.domain() != domain) {
+      return;
+    }
+    const eCustomDataType cd_type = *bke::attr_type_to_custom_data_type(attr.data_type());
+    const int bm_layer_index = CustomData_get_named_layer_index(&bm_data, cd_type, attr.name());
+    if (bm_layer_index == -1) {
+      return;
+    }
+    const CustomDataLayer &bm_layer = bm_data.layers[bm_layer_index];
+    if (bm_layer.flag & CD_FLAG_NOCOPY) {
+      return;
+    }
+    BMeshToMeshLayerInfo info{};
+    info.type = cd_type;
+    info.bmesh_offset = bm_layer.offset;
+    info.mesh_data = std::get<bke::Attribute::ArrayData>(attr.data_for_write()).data;
+    info.elem_size = bke::attribute_type_to_cpp_type(attr.data_type()).size;
+    infos.append(info);
+  });
   return infos;
 }
 
