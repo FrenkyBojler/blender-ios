@@ -856,7 +856,6 @@ static void follow_segment_connections(const Span<Segment> all_segments,
     }
   }
 
-  /* Get the first unprocessed segment. */
   start_segment = get_next_unprocessed_segment();
 
   while (start_segment != -1) {
