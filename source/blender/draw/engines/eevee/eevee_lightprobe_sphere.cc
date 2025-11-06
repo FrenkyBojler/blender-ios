@@ -261,8 +261,8 @@ void SphereProbeModule::remap_to_octahedral_projection(const SphereProbeAtlasCoo
     instance_.manager->submit(sum_sun_ps_);
   }
   if (extract_spherical_harmonics || extract_sun_) {
-    // instance_.lookdev.store_world_probe_data(
-    //     probes_tx_, atlas_coord, spherical_harmonics_, instance_.world.sunlight);
+    instance_.lookdev.store_world_probe_data(
+        probes_tx_, atlas_coord, spherical_harmonics_, instance_.world.sunlight);
   }
 
   /* Sync with atlas usage for shading. */
