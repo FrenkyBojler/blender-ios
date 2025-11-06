@@ -109,13 +109,23 @@ blender::Vector<blender::gpu::Shader *> GPU_shader_batch_finalize(BatchHandle &h
  */
 void GPU_shader_batch_cancel(BatchHandle &handle);
 /**
- *  Returns true if there's any batch still being compiled.
+ * Returns true if there's any batch still being compiled.
+ * NOTE: This returs true as long as there are batches in the compilation queue.
+ * It doesn't take into account if compilation is paused.
  */
 bool GPU_shader_batch_is_compiling();
 /**
  *  Wait until all the requested batches have been compiled.
  */
 void GPU_shader_batch_wait_for_all();
+/**
+ *  Pauses all shader compilations.
+ */
+void GPU_shader_batch_pause_compilations();
+/**
+ *  Resumes compilations after being paused.
+ */
+void GPU_shader_batch_resume_compilations();
 
 /** \} */
 
@@ -309,30 +319,6 @@ void GPU_shader_batch_specializations_cancel(SpecializationBatchHandle &handle);
  * All of this section is deprecated and should be ported to use the API described above.
  * \{ */
 
-blender::gpu::Shader *GPU_shader_create(std::optional<blender::StringRefNull> vertcode,
-                                        std::optional<blender::StringRefNull> fragcode,
-                                        std::optional<blender::StringRefNull> geomcode,
-                                        std::optional<blender::StringRefNull> libcode,
-                                        std::optional<blender::StringRefNull> defines,
-                                        blender::StringRefNull shname);
-blender::gpu::Shader *GPU_shader_create_compute(std::optional<blender::StringRefNull> computecode,
-                                                std::optional<blender::StringRefNull> libcode,
-                                                std::optional<blender::StringRefNull> defines,
-                                                blender::StringRefNull shname);
-blender::gpu::Shader *GPU_shader_create_from_python(std::optional<blender::StringRefNull> vertcode,
-                                                    std::optional<blender::StringRefNull> fragcode,
-                                                    std::optional<blender::StringRefNull> geomcode,
-                                                    std::optional<blender::StringRefNull> libcode,
-                                                    std::optional<blender::StringRefNull> defines,
-                                                    std::optional<blender::StringRefNull> name);
-blender::gpu::Shader *GPU_shader_create_ex(std::optional<blender::StringRefNull> vertcode,
-                                           std::optional<blender::StringRefNull> fragcode,
-                                           std::optional<blender::StringRefNull> geomcode,
-                                           std::optional<blender::StringRefNull> computecode,
-                                           std::optional<blender::StringRefNull> libcode,
-                                           std::optional<blender::StringRefNull> defines,
-                                           blender::StringRefNull shname);
-
 /**
  * Shader cache warming.
  * For each shader, rendering APIs perform a two-step compilation:
@@ -358,7 +344,7 @@ blender::gpu::Shader *GPU_shader_create_ex(std::optional<blender::StringRefNull>
  * prime compilations.
  *
  * Shaders do not necessarily have to be similar in functionality to be used as a parent, so long
- * as the #GPUVertFormt and #GPUFrameBuffer which they are used with remain the same.
+ * as the #GPUVertFormat and #gpu::FrameBuffer which they are used with remain the same.
  * Other bindings such as textures, uniforms and UBOs are all assigned independently as dynamic
  * state.
  *
@@ -395,13 +381,14 @@ enum GPUUniformBuiltin {
   GPU_UNIFORM_NORMAL,     /* mat3 NormalMatrix */
   GPU_UNIFORM_CLIPPLANES, /* vec4 WorldClipPlanes[] */
 
-  GPU_UNIFORM_COLOR,          /* vec4 color */
-  GPU_UNIFORM_BASE_INSTANCE,  /* int baseInstance */
-  GPU_UNIFORM_RESOURCE_CHUNK, /* int resourceChunk */
-  GPU_UNIFORM_RESOURCE_ID,    /* int resourceId */
-  GPU_UNIFORM_SRGB_TRANSFORM, /* bool srgbTarget */
+  GPU_UNIFORM_COLOR,              /* vec4 color */
+  GPU_UNIFORM_BASE_INSTANCE,      /* int baseInstance */
+  GPU_UNIFORM_RESOURCE_CHUNK,     /* int resourceChunk */
+  GPU_UNIFORM_RESOURCE_ID,        /* int resourceId */
+  GPU_UNIFORM_SRGB_TRANSFORM,     /* bool srgbTarget */
+  GPU_UNIFORM_SCENE_LINEAR_XFORM, /* float3x3 gpu_scene_linear_to_xyz */
 };
-#define GPU_NUM_UNIFORMS (GPU_UNIFORM_SRGB_TRANSFORM + 1)
+#define GPU_NUM_UNIFORMS (GPU_UNIFORM_SCENE_LINEAR_XFORM + 1)
 
 /**
  * TODO: To be moved as private API. Not really used outside of gpu_matrix.cc and doesn't really
@@ -431,9 +418,6 @@ enum GPUUniformBlockBuiltin {
 
   GPU_NUM_UNIFORM_BLOCKS, /* Special value, denotes number of builtin uniforms block. */
 };
-
-/** DEPRECATED: Use hard-coded buffer location instead. */
-int GPU_shader_get_builtin_block(blender::gpu::Shader *shader, int builtin);
 
 /** DEPRECATED: Kept only because of Python GPU API. */
 int GPU_shader_get_uniform_block(blender::gpu::Shader *shader, const char *name);

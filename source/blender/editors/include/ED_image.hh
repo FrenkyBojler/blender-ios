@@ -192,17 +192,27 @@ bool ED_image_save_all_modified(const bContext *C, ReportList *reports);
 struct ImageFrameRange {
   ImageFrameRange *next, *prev;
 
-  /** Absolute file path of the first file in the range. */
+  /**
+   * File path of the first file in the range.
+   * May be relative to `G_MAIN->filepath`.
+   */
   char filepath[FILE_MAX];
   /* Sequence parameters. */
-  int length;
+  int length; /* Does not include placeholders, stops at gaps in sequence. */
   int offset;
+  int max_framenr; /* Allows for calculating length including placeholders. */
+
   /* UDIM tiles. */
   bool udims_detected;
   ListBase udim_tiles;
 
   /* Temporary data. */
-  ListBase frames;
+  ListBase frames; /* ImageFrame. */
+};
+
+struct ImageFrame {
+  ImageFrame *next, *prev;
+  int framenr;
 };
 
 /**

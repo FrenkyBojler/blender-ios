@@ -42,9 +42,17 @@
   "``IMAGE``\n" \
   "   :Attributes: vec3 pos, vec2 texCoord\n" \
   "   :Uniforms: sampler2D image\n" \
+  "``IMAGE_SCENE_LINEAR_TO_REC709_SRGB``\n" \
+  "   :Attributes: vec3 pos, vec2 texCoord\n" \
+  "   :Uniforms: sampler2D image\n" \
+  "   :Note: Expect texture to be in scene linear color space\n" \
   "``IMAGE_COLOR``\n" \
   "   :Attributes: vec3 pos, vec2 texCoord\n" \
   "   :Uniforms: sampler2D image, vec4 color\n" \
+  "``IMAGE_COLOR_SCENE_LINEAR_TO_REC709_SRGB``\n" \
+  "   :Attributes: vec3 pos, vec2 texCoord\n" \
+  "   :Uniforms: sampler2D image, vec4 color\n" \
+  "   :Note: Expect texture to be in scene linear color space\n" \
   "``SMOOTH_COLOR``\n" \
   "   :Attributes: vec3 pos, vec4 color\n" \
   "   :Uniforms: none\n" \
@@ -70,7 +78,10 @@
 static const PyC_StringEnumItems pygpu_shader_builtin_items[] = {
     {GPU_SHADER_3D_FLAT_COLOR, "FLAT_COLOR"},
     {GPU_SHADER_3D_IMAGE, "IMAGE"},
+    {GPU_SHADER_3D_IMAGE_SCENE_LINEAR_TO_REC709_SRGB, "IMAGE_SCENE_LINEAR_TO_REC709_SRGB"},
     {GPU_SHADER_3D_IMAGE_COLOR, "IMAGE_COLOR"},
+    {GPU_SHADER_3D_IMAGE_COLOR_SCENE_LINEAR_TO_REC709_SRGB,
+     "IMAGE_COLOR_SCENE_LINEAR_TO_REC709_SRGB"},
     {GPU_SHADER_3D_SMOOTH_COLOR, "SMOOTH_COLOR"},
     {GPU_SHADER_3D_UNIFORM_COLOR, "UNIFORM_COLOR"},
     {GPU_SHADER_3D_POLYLINE_FLAT_COLOR, "POLYLINE_FLAT_COLOR"},
@@ -802,7 +813,7 @@ PyDoc_STRVAR(
     pygpu_shader_name_doc,
     "The name of the shader object for debugging purposes (read-only).\n"
     "\n"
-    ":type: str");
+    ":type: str\n");
 static PyObject *pygpu_shader_name(BPyGPUShader *self, void * /*closure*/)
 {
   return PyUnicode_FromString(GPU_shader_get_name(self->shader));
@@ -814,7 +825,7 @@ PyDoc_STRVAR(
     "The name of the program object for use by the OpenGL API (read-only).\n"
     "This is deprecated and will always return -1.\n"
     "\n"
-    ":type: int");
+    ":type: int\n");
 static PyObject *pygpu_shader_program_get(BPyGPUShader * /*self*/, void * /*closure*/)
 {
   PyErr_WarnEx(
@@ -913,7 +924,7 @@ static PyObject *pygpu_shader_unbind(BPyGPUShader * /*self*/)
 PyDoc_STRVAR(
     /* Wrap. */
     pygpu_shader_from_builtin_doc,
-    ".. function:: from_builtin(shader_name, config='DEFAULT')\n"
+    ".. function:: from_builtin(shader_name, *, config='DEFAULT')\n"
     "\n"
     "   Shaders that are embedded in the blender internal code (see :ref:`built-in-shaders`).\n"
     "   They all read the uniform ``mat4 ModelViewProjectionMatrix``,\n"
@@ -961,11 +972,10 @@ static PyObject *pygpu_shader_from_builtin(PyObject * /*self*/, PyObject *args, 
   }
 
   blender::gpu::Shader *shader = GPU_shader_get_builtin_shader_with_config(
-      eGPUBuiltinShader(pygpu_bultinshader.value_found),
-      eGPUShaderConfig(pygpu_config.value_found));
+      GPUBuiltinShader(pygpu_bultinshader.value_found), GPUShaderConfig(pygpu_config.value_found));
 
   if (shader == nullptr) {
-    PyErr_Format(PyExc_ValueError, "Builtin shader doesn't exist in the requested config");
+    PyErr_SetString(PyExc_ValueError, "Builtin shader doesn't exist in the requested config");
     return nullptr;
   }
 
@@ -1050,6 +1060,11 @@ PyDoc_STRVAR(
     "All built-in shaders have the ``mat4 ModelViewProjectionMatrix`` uniform.\n"
     "\n"
     "Its value must be modified using the :class:`gpu.matrix` module.\n"
+    "\n"
+    ".. important::\n"
+    "\n"
+    "   Shader uniforms must be explicitly initialized to avoid retaining values from previous "
+    "executions.\n"
     "\n" PYDOC_BUILTIN_SHADER_DESCRIPTION);
 static PyModuleDef pygpu_shader_module_def = {
     /*m_base*/ PyModuleDef_HEAD_INIT,

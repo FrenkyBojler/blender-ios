@@ -10,17 +10,25 @@
 
 #include "DNA_world_types.h"
 
+#include "draw_pass.hh"
+
 #include "eevee_lightprobe.hh"
-#include "eevee_shader_shared.hh"
+#include "eevee_lightprobe_shared.hh"
 
 namespace blender::eevee {
 
+using namespace draw;
+
 class Instance;
 class CaptureView;
+class LookdevModule;
 
 /* -------------------------------------------------------------------- */
 /** \name Reflection Probe Module
  * \{ */
+
+using SphereProbeDataBuf = draw::UniformArrayBuffer<SphereProbeData, SPHERE_PROBE_MAX>;
+using SphereProbeDisplayDataBuf = draw::StorageArrayBuffer<SphereProbeDisplayData>;
 
 class SphereProbeModule {
   friend LightProbeModule;
@@ -105,13 +113,13 @@ class SphereProbeModule {
   PassSimple viewport_display_ps_ = {"ProbeSphereModule.Viewport Display"};
 
  public:
-  SphereProbeModule(Instance &instance) : instance_(instance){};
+  SphereProbeModule(Instance &instance) : instance_(instance) {};
 
   void init();
   void begin_sync();
   void end_sync();
 
-  void viewport_draw(View &view, GPUFrameBuffer *view_fb);
+  void viewport_draw(View &view, gpu::FrameBuffer *view_fb);
 
   template<typename PassType> void bind_resources(PassType &pass)
   {
@@ -135,6 +143,13 @@ class SphereProbeModule {
   StorageBuffer<SphereProbeHarmonic, true> &spherical_harmonics_buf()
   {
     return spherical_harmonics_;
+  }
+
+  const SphereProbe &world_sphere_probe() const;
+
+  Texture &octahedral_probes_texture()
+  {
+    return probes_tx_;
   }
 
  private:

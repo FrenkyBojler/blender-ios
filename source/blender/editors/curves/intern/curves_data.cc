@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_curves.hh"
+#include "BKE_curves_utils.hh"
 
 #include "DNA_object_types.h"
 
@@ -43,8 +44,17 @@ void transverts_from_curves_positions_create(bke::CurvesGeometry &curves,
 
   IndexMaskMemory memory;
   std::array<IndexMask, 3> selection;
-  for (const int i : selection_names.index_range()) {
-    selection[i] = ed::curves::retrieve_selected_points(curves, selection_names[i], memory);
+  if (selection_names.size() == 1) {
+    selection[0] = ed::curves::retrieve_selected_points(curves, memory);
+  }
+  else {
+    const IndexMask bezier_points = bke::curves::curve_type_point_selection(
+        curves, CURVE_TYPE_BEZIER, memory);
+
+    for (const int i : selection_names.index_range()) {
+      selection[i] = ed::curves::retrieve_selected_points(
+          curves, selection_names[i], bezier_points, memory);
+    }
   }
 
   if (skip_handles) {
@@ -82,7 +92,7 @@ float (*point_normals_array_create(const Curves *curves_id))[3]
   const int size = curves.points_num();
   float3 *data = MEM_malloc_arrayN<float3>(size, __func__);
   bke::curves_normals_point_domain_calc(curves, {data, size});
-  return reinterpret_cast<float(*)[3]>(data);
+  return reinterpret_cast<float (*)[3]>(data);
 }
 
 }  // namespace blender::ed::curves
