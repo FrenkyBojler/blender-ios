@@ -2007,6 +2007,7 @@ blender::Vector<blender::StringRef> ui_but_textbox_wrap_lines(uiButTextBox *text
   using blender::StringRef;
   uiFontStyle fstyle = UI_style_get()->widget;
   StringRef text = textbox->drawstr;
+  width = std::max(width, 0);
 #ifdef WITH_INPUT_IME
   const wmIMEData *ime_data = ui_but_ime_data_get(textbox);
   if (ime_data && ime_data->composite.size() > 0) {
@@ -2069,7 +2070,10 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
 #endif
   const rcti src_rect = *rect;
   const int text_padding = but_text_padding(but);
-  rect->xmax = std::max(rect->xmin, rect->xmax - text_padding);
+  const int scrollbar_pad = round_fl_to_int(2.0f / but->block->aspect);
+  const int caret_width = std::max(round_fl_to_int(2.0f * U.pixelsize), 1);
+
+  rect->xmax = std::max<int>(rect->xmin, rect->xmax - text_padding - scrollbar_pad);
   BLI_assert(but->type == ButType::TextBox);
 
   uiButTextBox *textbox_but = static_cast<uiButTextBox *>(but);
@@ -2147,11 +2151,10 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
 
   int scissor[4];
   GPU_scissor_get(scissor);
-  GPU_scissor(
-      src_rect.xmin,
-      src_rect.ymin,
-      std::max<int>(BLI_rcti_size_x(&src_rect) - 2.0f / but->block->aspect - text_padding, 0),
-      BLI_rcti_size_y(&src_rect));
+  GPU_scissor(rect->xmin - caret_width,
+              rect->ymin,
+              std::max<int>(BLI_rcti_size_x(rect) + caret_width, 0),
+              BLI_rcti_size_y(rect));
 
   /* Text button selection, cursor, composite underline. */
   if (but->editstr) {
@@ -2267,7 +2270,7 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
                                        lines[line_cursor].begin(),
                                        UI_MAX_DRAW_STR,
                                        but_pos - (lines[line_cursor].begin() - raw_begin),
-                                       max_ii(1, int(U.pixelsize * 2)));
+                                       caret_width);
 
       /* We are drawing on top of widget bases. Flush cache. */
       GPU_blend(GPU_BLEND_ALPHA);
@@ -2284,7 +2287,7 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
       immRectf(pos,
                rect->xmin + t,
                y - line_height + U.pixelsize,
-               rect->xmin + t + int(2.0f * U.pixelsize),
+               rect->xmin + t + caret_width,
                y - U.pixelsize);
 
       immUnbindProgram();
@@ -2314,7 +2317,7 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
   params.word_clip = false;
   rect->ymin = rect->ymax - line_height;
   for (blender::StringRef line : lines.as_span().slice_safe(scroll, visible_lines)) {
-    if (rect->xmin > src_rect.xmax - 2.0f / but->block->aspect - text_padding) {
+    if (rect->xmin > src_rect.xmax - scrollbar_pad - text_padding) {
       break;
     }
     UI_fontstyle_draw_ex(
@@ -2334,7 +2337,7 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
   bTheme *btheme = UI_GetTheme();
 
   rcti scroll_rect = src_rect;
-  BLI_rcti_pad(&scroll_rect, -2.0f / but->block->aspect, -2.0f / but->block->aspect);
+  BLI_rcti_pad(&scroll_rect, -scrollbar_pad, -scrollbar_pad);
   scroll_rect.xmin = scroll_rect.xmax - text_padding;
   scroll_rect.ymin += UI_UNIT_Y * 0.65f / but->block->aspect;
 

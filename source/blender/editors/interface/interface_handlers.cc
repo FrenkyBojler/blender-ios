@@ -3143,7 +3143,9 @@ static blender::Vector<blender::StringRef> ui_but_textbox_wrap_lines(const ARegi
   uiFontStyle fstyle = UI_style_get()->widget;
   ui_fontscale(&fstyle.points, textbox->block->aspect);
   UI_fontstyle_set(&fstyle);
-  return ui_but_textbox_wrap_lines(textbox, BLI_rcti_size_x(&rect) - text_padding * 2);
+  return ui_but_textbox_wrap_lines(textbox,
+                                   BLI_rcti_size_x(&rect) - (2 * text_padding) -
+                                       round_fl_to_int(2.0f / textbox->block->aspect));
 }
 
 static void ui_but_textbox_add_scroll(const ARegion *region, uiButTextBox *textbox, int step)
