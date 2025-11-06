@@ -12,6 +12,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::String>("Axiom");
   b.add_input<decl::String>("Rule 1");
+  b.add_input<decl::String>("Rule 2");
+  b.add_input<decl::String>("Rule 3");
   b.add_input<decl::Float>("Generations").min(0);
   b.add_input<decl::Float>("Angle").subtype(PROP_ANGLE).default_value(DEG2RAD(90.0f));
   b.add_input<decl::Float>("Step Size").default_value(1.0f).subtype(PROP_DISTANCE);
@@ -24,6 +26,8 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
   const std::string axiom = params.extract_input<std::string>("Axiom");
   const std::string rule_1 = params.extract_input<std::string>("Rule 1");
+  const std::string rule_2 = params.extract_input<std::string>("Rule 2");
+  const std::string rule_3 = params.extract_input<std::string>("Rule 3");
   geometry::lsystem::LSystemParams lsystem_params;
   lsystem_params.generations = std::max(0.0f, params.extract_input<float>("Generations"));
   lsystem_params.angle = params.extract_input<float>("Angle");
@@ -33,6 +37,12 @@ static void node_geo_exec(GeoNodeExecParams params)
   lsystem_params.axiom = axiom;
   if (!rule_1.empty()) {
     lsystem_params.rules.append(rule_1);
+  }
+  if (!rule_2.empty()) {
+    lsystem_params.rules.append(rule_2);
+  }
+  if (!rule_3.empty()) {
+    lsystem_params.rules.append(rule_3);
   }
 
   std::variant<bke::CurvesGeometry, std::string> result = geometry::lsystem::lsystem_to_curves(
