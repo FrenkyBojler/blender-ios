@@ -2794,6 +2794,7 @@ enum eFontStyle_Align {
 struct uiFontStyleDraw_Params {
   eFontStyle_Align align;
   uint word_wrap : 1;
+  bool word_clip = true;
 };
 
 /* Styled text draw */

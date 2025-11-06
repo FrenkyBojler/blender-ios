@@ -2144,6 +2144,18 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
   else {
     align = UI_STYLE_TEXT_CENTER;
   }
+  GPU_blend(GPU_BLEND_ALPHA);
+  UI_widgetbase_draw_cache_flush();
+  GPU_blend(GPU_BLEND_NONE);
+  BLF_batch_draw_flush();
+
+  int scissor[4];
+  GPU_scissor_get(scissor);
+  GPU_scissor(
+      src_rect.xmin,
+      src_rect.ymin,
+      std::max<int>(BLI_rcti_size_x(&src_rect) - 2.0f / but->block->aspect - text_padding, 0),
+      BLI_rcti_size_y(&src_rect));
 
   /* Text button selection, cursor, composite underline. */
   if (but->editstr) {
@@ -2303,12 +2315,23 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
 
   uiFontStyleDraw_Params params{};
   params.align = align;
+  params.word_clip = false;
   rect->ymin = rect->ymax - line_height;
   for (blender::StringRef line : lines.as_span().slice_safe(scroll, visible_lines)) {
+    if (rect->xmin > src_rect.xmax - 2.0f / but->block->aspect - text_padding) {
+      break;
+    }
     UI_fontstyle_draw_ex(
         fstyle, rect, line.begin(), line.size(), wcol->text, &params, nullptr, nullptr, nullptr);
     BLI_rcti_translate(rect, 0, -line_height);
   }
+
+  BLF_batch_draw_flush();
+  GPU_blend(GPU_BLEND_ALPHA);
+  UI_widgetbase_draw_cache_flush();
+  GPU_blend(GPU_BLEND_NONE);
+
+  GPU_scissor(scissor[0], scissor[1], scissor[2], scissor[3]);
   if (lines.size() <= visible_lines) {
     return;
   }
@@ -2325,9 +2348,19 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
 
   slider_rect.ymax -= std::ceil(factor * textbox_but->line_scroll);
   slider_rect.ymin = slider_rect.ymax - std::ceil(factor * visible_lines);
-
+  if (BLI_rcti_size_y(&slider_rect) < (10.0f / but->block->aspect)) {
+    float center = BLI_rcti_cent_y_fl(&slider_rect);
+    slider_rect.ymin = center - (5.0f / but->block->aspect);
+    slider_rect.ymax = center + (5.0f / but->block->aspect);
+  }
+  const int pad = slider_rect.ymax > scroll_rect.ymax ? -(slider_rect.ymax - scroll_rect.ymax) :
+                  slider_rect.ymin < scroll_rect.ymin ? (scroll_rect.ymin - slider_rect.ymin) :
+                                                        0;
+  BLI_rcti_translate(&slider_rect, 0, pad);
   uiWidgetColors wscroll = btheme->tui.wcol_scroll;
-  UI_draw_widget_scroll(&wscroll, &scroll_rect, &slider_rect, 0);
+  if (BLI_rcti_isect(&scroll_rect, &src_rect, nullptr)) {
+    UI_draw_widget_scroll(&wscroll, &scroll_rect, &slider_rect, 0);
+  }
 }
 
 static void widget_draw_text(const uiFontStyle *fstyle,
