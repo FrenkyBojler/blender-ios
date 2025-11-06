@@ -30,8 +30,6 @@
 /** \name Reshape from object
  * \{ */
 
-#define USE_STROKE_FILTERING 0
-
 static CLG_LogRef LOG = {"multires.prototype"};
 
 static bool multiresModifier_reshapeFromVertcos(Depsgraph *depsgraph,
@@ -167,8 +165,7 @@ static void multires_clear_delta_storage(Object &object, const int level)
 }
 
 static void multires_level_calc_object_delta(blender::Span<blender::float3> &old_positions,
-                                             blender::MutableSpan<blender::float3> object_delta,
-                                             blender::BitSpan modified_grids)
+                                             blender::MutableSpan<blender::float3> object_delta)
 {
   /* TODO: Calculate object space delta for all vertices of higher_subdiv_ccg and store into
    * object_delta */
@@ -176,28 +173,6 @@ static void multires_level_calc_object_delta(blender::Span<blender::float3> &old
   BLI_assert(old_positions.size() == object_delta.size());
   for (const int i : old_positions.index_range()) {
     const blender::float3 limit_surf_position = object_delta[i];
-#if USE_STROKE_FILTERING
-    if (modified_grids[i]) {
-      object_delta[i] = higher_subdiv_ccg.positions[i] - limit_surf_position;
-      CLOG_TRACE(&LOG,
-                 "M - (%d) (%f %f %f) - (%f %f %f) = (%f %f %f) (%f)",
-                 i,
-                 higher_subdiv_ccg.positions[i].x,
-                 higher_subdiv_ccg.positions[i].y,
-                 higher_subdiv_ccg.positions[i].z,
-                 limit_surf_position.x,
-                 limit_surf_position.y,
-                 limit_surf_position.z,
-                 object_delta[i].x,
-                 object_delta[i].y,
-                 object_delta[i].z,
-                 blender::math::length(object_delta[i]));
-    }
-    else {
-      object_delta[i] = blender::float3(0.0f);
-      CLOG_TRACE(&LOG, "U - (%d)", i);
-    }
-#else
     object_delta[i] = old_positions[i] - limit_surf_position;
     CLOG_TRACE(&LOG,
                "M - (%d) (%f %f %f) - (%f %f %f) = (%f %f %f) (%f)",
@@ -212,7 +187,6 @@ static void multires_level_calc_object_delta(blender::Span<blender::float3> &old
                object_delta[i].y,
                object_delta[i].z,
                blender::math::length(object_delta[i]));
-#endif
   }
 }
 
@@ -314,10 +288,7 @@ bool multiresModifier_storeHigherLevelDelta(Object &object,
                blender::math::length(delta_storage[i]));
   }
   /* Delta = (MV - LV) * LMat */
-  multires_level_calc_object_delta(
-      old_positions,
-      delta_storage,
-      object.sculpt->multires.runtime.modified_at_level[reshape_context.top.level - 1]);
+  multires_level_calc_object_delta(old_positions, delta_storage);
   CLOG_DEBUG(&LOG, "STORED HIGHER POS - LIMIT POS");
 
   multires_level_object_delta_to_tangent_delta(tmat_storage, delta_storage);
@@ -411,6 +382,8 @@ bool multiresModifier_applyHigherLevelDelta(Object &object,
 
   /* Convert them to object space */
   multires_level_tangent_delta_to_object_delta(delta_storage, tmat_storage);
+
+  /* TODO: Maybe this only should apply to odd vertices of the new level?
 
   /* Re-add them to the new subdiv CCG */
   multires_level_apply_object_delta(position_storage, delta_storage, subdiv_ccg);
@@ -560,9 +533,6 @@ void multiresModifier_subdivide_to_level_v2(Object *object,
   }
   if (top_level > multires_runtime.positions_at_level.size()) {
     multires_runtime.positions_at_level.resize(top_level);
-  }
-  if (top_level > multires_runtime.modified_at_level.size()) {
-    multires_runtime.modified_at_level.resize(top_level);
   }
 
   /* NOTE: Subdivision happens from the top level of the existing multires modifier. If it is set

@@ -7298,30 +7298,6 @@ void apply_translations(const Span<float3> translations,
   }
 }
 
-void apply_translations(const Span<float3> translations,
-                        const Span<int> grids,
-                        SubdivCCG &subdiv_ccg,
-                        MutableBitSpan modified_grids)
-{
-  const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
-  MutableSpan<float3> positions = subdiv_ccg.positions;
-  BLI_assert(modified_grids.size() == positions.size());
-  BLI_assert(grids.size() * key.grid_area == translations.size());
-  BLI_assert(!contains_nan(translations.cast<float>()));
-
-  for (const int i : grids.index_range()) {
-    const Span<float3> grid_translations = translations.slice(bke::ccg::grid_range(key, i));
-    MutableSpan<float3> grid_positions = positions.slice(bke::ccg::grid_range(key, grids[i]));
-    MutableBitSpan grid_flags = modified_grids.slice(bke::ccg::grid_range(key, grids[i]));
-    for (const int offset : grid_positions.index_range()) {
-      grid_positions[offset] += grid_translations[offset];
-      if (!blender::math::is_zero(grid_translations[offset])) {
-        grid_flags[offset].set();
-      }
-    }
-  }
-}
-
 void apply_translations(const Span<float3> translations, const Set<BMVert *, 0> &verts)
 {
   BLI_assert(verts.size() == translations.size());
