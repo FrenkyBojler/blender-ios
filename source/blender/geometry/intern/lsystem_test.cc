@@ -12,17 +12,18 @@ static void expect_generation_eq(const LSystem &lsystem,
                                  const int generation,
                                  const StringRef expected)
 {
-  const Vector<Symbol> symbols = lsystem.compute_nth_generation(generation);
+  ResourceScope scope;
+  Turtle root_turtle;
+  const Vector<Symbol> symbols = lsystem.compute_nth_generation(scope, root_turtle, generation);
   const std::string symbols_str = lsystem.symbols_to_string(symbols);
   EXPECT_EQ(symbols_str, expected);
 }
 
 TEST(lsystem, DoubleF)
 {
-  LSystemBuilder builder;
-  builder.set_axiom("F");
-  builder.add_rule("F=FF");
-  const LSystem lsystem = builder.build();
+  LSystem lsystem;
+  lsystem.set_axiom("F");
+  lsystem.add_rule("F=FF");
 
   expect_generation_eq(lsystem, 0, "F");
   expect_generation_eq(lsystem, 1, "FF");
@@ -31,10 +32,9 @@ TEST(lsystem, DoubleF)
 
 TEST(lsystem, FPlusA)
 {
-  LSystemBuilder builder;
-  builder.set_axiom("F+A");
-  builder.add_rule("A=F+A");
-  const LSystem lsystem = builder.build();
+  LSystem lsystem;
+  lsystem.set_axiom("F+A");
+  lsystem.add_rule("A=F+A");
 
   expect_generation_eq(lsystem, 0, "F+A");
   expect_generation_eq(lsystem, 1, "F+F+A");

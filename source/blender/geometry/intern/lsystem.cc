@@ -3,29 +3,28 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "lsystem.hh"
+#include "BLI_resource_scope.hh"
 
 namespace blender::geometry::lsystem {
 
 class LSystemParser {
  private:
+  ResourceScope &scope_;
   StringRef full_str_;
   int64_t i_ = 0;
   SymbolIdMap &symbol_id_map_;
-  SymbolParamsVector &params_vector_;
 
  public:
-  LSystemParser(const StringRef full_str,
-                SymbolIdMap &symbol_id_map,
-                SymbolParamsVector &params_vector)
-      : full_str_(full_str), symbol_id_map_(symbol_id_map), params_vector_(params_vector)
+  LSystemParser(ResourceScope &scope, const StringRef full_str, SymbolIdMap &symbol_id_map)
+      : scope_(scope), full_str_(full_str), symbol_id_map_(symbol_id_map)
   {
   }
 
-  std::optional<Vector<Symbol>> parse_symbols()
+  std::optional<Vector<SymbolExpr>> parse_symbol_expressions()
   {
-    Vector<Symbol> symbols;
-    while (const std::optional<Symbol> symbol = this->parse_symbol()) {
-      symbols.append(*symbol);
+    Vector<SymbolExpr> symbols;
+    while (const std::optional<SymbolExpr> symbol_expr = this->parse_symbol_expression()) {
+      symbols.append(*symbol_expr);
     }
     return symbols;
   }
@@ -39,7 +38,7 @@ class LSystemParser {
     if (!this->consume_next_if('=')) {
       return std::nullopt;
     }
-    const std::optional<Vector<Symbol>> replacement = this->parse_symbols();
+    const std::optional<Vector<SymbolExpr>> replacement = this->parse_symbol_expressions();
     if (!replacement) {
       return std::nullopt;
     }
@@ -68,109 +67,49 @@ class LSystemParser {
     return std::nullopt;
   }
 
-  std::optional<Symbol> parse_symbol()
+  std::optional<SymbolId> parse_symbol_id()
   {
-    const std::optional<SymbolId> variable_id = this->parse_variable_id();
-    if (!variable_id) {
-      if (this->is_end()) {
-        return std::nullopt;
-      }
-      const char first_c = full_str_[i_];
-      switch (first_c) {
-        case '+':
-        case '-':
-        case '&':
-        case '^':
-        case '\\':
-        case '/': {
-          this->consume_next();
-          const SymbolId id = symbol_id_map_.ensure(StringRef(&first_c, 1));
-          if (const std::optional<ParamsId> params_id = this->parse_params_id_angle()) {
-            return Symbol{id, *params_id};
-          }
-          return std::nullopt;
-        }
-      }
+    if (this->is_end()) {
       return std::nullopt;
     }
-    if (!this->next_is('(')) {
-      return Symbol{*variable_id, -1};
-    }
-    const StringRef name = symbol_id_map_.symbols[*variable_id];
-    if (name.size() == 1) {
-      const char first_c = name[0];
-      switch (first_c) {
-        case 'F': {
-          this->consume_next();
-          const SymbolId id = symbol_id_map_.ensure("F");
-          if (const std::optional<ParamsId> params_id = this->parse_params_id_F()) {
-            return Symbol{id, *params_id};
-          }
-          return std::nullopt;
-        }
-        case 'f': {
-          this->consume_next();
-          const SymbolId id = symbol_id_map_.ensure("f");
-          if (const std::optional<ParamsId> params_id = this->parse_params_id_f()) {
-            return Symbol{id, *params_id};
-          }
-          return std::nullopt;
-        }
+    const char first_c = full_str_[i_];
+    switch (first_c) {
+      case 'F':
+      case 'f':
+      case 'A':
+      case 'B':
+      case 'X':
+      case 'Y':
+      case 'Z':
+      case '+':
+      case '-':
+      case '&':
+      case '^':
+      case '\\':
+      case '/': {
+        this->consume_next();
+        return symbol_id_map_.ensure(StringRef(&first_c, 1));
       }
     }
-
-    return {};
-  }
-
-  std::optional<ParamsId> parse_params_id_F()
-  {
-    if (std::optional<Params_F> params = this->parse_params_F()) {
-      return params_vector_.add(*params);
-    }
-    return {};
-  }
-
-  std::optional<Params_F> parse_params_F()
-  {
-    if (!this->next_is('(')) {
-      return Params_F{};
-    }
-    /* TODO: Parse explicit args. */
     return std::nullopt;
   }
 
-  std::optional<ParamsId> parse_params_id_f()
+  std::optional<SymbolExpr> parse_symbol_expression()
   {
-    if (std::optional<Params_f> params = this->parse_params_f()) {
-      return params_vector_.add(*params);
+    const std::optional<SymbolId> symbol_id = this->parse_symbol_id();
+    if (!symbol_id) {
+      return std::nullopt;
     }
-    return {};
+    std::optional<Vector<ParamExpr>> params = this->parse_params();
+    if (!params) {
+      return std::nullopt;
+    }
+    return SymbolExpr{*symbol_id, std::move(*params)};
   }
 
-  std::optional<Params_f> parse_params_f()
+  std::optional<Vector<ParamExpr>> parse_params()
   {
-    if (!this->next_is('(')) {
-      return Params_f{};
-    }
-    /* TODO: Parse explicit args. */
-    return std::nullopt;
-  }
-
-  std::optional<ParamsId> parse_params_id_angle()
-  {
-    if (std::optional<Params_Angle> params = this->parse_params_angle()) {
-      return params_vector_.add(*params);
-    }
-    return {};
-  }
-
-  std::optional<Params_Angle> parse_params_angle()
-  {
-    if (!this->next_is('(')) {
-      return Params_Angle{};
-    }
-    /* TODO: Parse explicit args. */
-    return std::nullopt;
+    return Vector<ParamExpr>();
   }
 
   bool is_end() const
@@ -215,52 +154,114 @@ class LSystemParser {
   }
 };
 
-bool LSystemBuilder::set_axiom(const StringRef axiom_str)
+bool LSystem::set_axiom(const StringRef axiom_str)
 {
-  LSystemParser parser{axiom_str, lsystem_.symbol_id_map_, lsystem_.params_vector_};
-  if (const std::optional<Vector<Symbol>> symbols = parser.parse_symbols()) {
-    lsystem_.axiom_ = std::move(*symbols);
+  LSystemParser parser{global_scope_, axiom_str, symbol_id_map_};
+  if (const std::optional<Vector<SymbolExpr>> symbols = parser.parse_symbol_expressions()) {
+    axiom_ = std::move(*symbols);
     return true;
   }
   return false;
 }
 
-bool LSystemBuilder::add_rule(StringRef rule_str)
+bool LSystem::add_rule(StringRef rule_str)
 {
-  LSystemParser parser{rule_str, lsystem_.symbol_id_map_, lsystem_.params_vector_};
+  LSystemParser parser{global_scope_, rule_str, symbol_id_map_};
   if (const std::optional<Rule> rule = parser.parse_rule()) {
-    lsystem_.rules_.add(rule->variable_id, std::move(*rule));
+    rules_.add(rule->variable_id, std::move(*rule));
     return true;
   }
   return false;
 }
 
-LSystem LSystemBuilder::build()
+Vector<Symbol> LSystem::compute_nth_generation(ResourceScope &scope,
+                                               const Turtle &root_turtle,
+                                               const int generations) const
 {
-  return std::move(lsystem_);
-}
+  Vector<Symbol> symbols;
+  {
+    Turtle turtle = root_turtle;
+    for (const SymbolExpr &symbol_expr : axiom_) {
+      const Symbol symbol = this->eval_symbol_expr(scope, symbol_expr, turtle);
+      this->update_turtle(turtle, symbol);
+      symbols.append(symbol);
+    }
+  }
 
-Vector<Symbol> LSystem::compute_nth_generation(const int generations) const
-{
-  Vector<Symbol> symbols = this->axiom();
   for (int i = 0; i < generations; i++) {
-    symbols = this->apply_single_generation(symbols);
+    Vector<Symbol> new_symbols;
+    Turtle turtle = root_turtle;
+    for (const Symbol &symbol : symbols) {
+      if (const Rule *rule = this->lookup_rule(symbol)) {
+        for (const SymbolExpr &expr : rule->replacement) {
+          const Symbol new_symbol = this->eval_symbol_expr(scope, expr, turtle);
+          new_symbols.append(new_symbol);
+          this->update_turtle(turtle, new_symbol);
+        }
+      }
+      else {
+        new_symbols.append(symbol);
+        this->update_turtle(turtle, symbol);
+      }
+    }
+    symbols = std::move(new_symbols);
   }
   return symbols;
 }
 
-Vector<Symbol> LSystem::apply_single_generation(const Span<Symbol> symbols) const
+// Vector<Symbol> LSystem::apply_single_generation(const Span<SymbolExpr> symbols) const
+// {
+//   Vector<Symbol> r_symbols;
+//   for (const SymbolExpr &symbol : symbols) {
+//     if (const Rule *rule = this->lookup_rule(symbol.symbol_id)) {
+//       r_symbols.extend(rule->replacement);
+//     }
+//     else {
+//       r_symbols.append(symbol);
+//     }
+//   }
+//   return r_symbols;
+// }
+
+LSystem::LSystem()
 {
-  Vector<Symbol> r_symbols;
-  for (const Symbol &symbol : symbols) {
-    if (const Rule *rule = this->lookup_rule(symbol.symbol_id)) {
-      r_symbols.extend(rule->replacement);
+  for (const BuiltinSymbol &symbol : builtin_symbols) {
+    const SymbolId id = symbol_id_map_.ensure(StringRef(&symbol.name, 1));
+    BLI_assert(id == symbol.id);
+  }
+}
+
+Symbol LSystem::eval_symbol_expr(ResourceScope &scope,
+                                 const SymbolExpr &symbol_expr,
+                                 const Turtle &turtle) const
+{
+  switch (symbol_expr.symbol_id) {
+    case symbol_id_F.id:
+    case symbol_id_f.id: {
+      return Symbol{
+          symbol_expr.symbol_id,
+          scope.allocator().construct_array_copy<ParamValue>({{turtle.step}, {turtle.radius}})};
     }
-    else {
-      r_symbols.append(symbol);
+    default: {
+      return Symbol{symbol_expr.symbol_id, {}};
     }
   }
-  return r_symbols;
+}
+
+void LSystem::update_turtle(Turtle &turtle, const Symbol &symbol) const
+{
+  switch (symbol.symbol_id) {
+    case symbol_id_F.id:
+    case symbol_id_f.id: {
+      const float3 offset = math::transform_direction(turtle.orientation,
+                                                      float3(0, 0, turtle.step));
+      turtle.position += offset;
+      break;
+    }
+    default: {
+      break;
+    }
+  }
 }
 
 std::string LSystem::symbols_to_string(const Span<Symbol> symbols) const
