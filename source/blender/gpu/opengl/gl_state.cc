@@ -552,9 +552,6 @@ void GLStateManager::texture_bind_apply()
 
 void GLStateManager::texture_unpack_row_length_set(uint len)
 {
-  if (texture_unpack_row_length_ == len) {
-    return;
-  }
   texture_unpack_row_length_ = len;
 }
 

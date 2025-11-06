@@ -37,6 +37,8 @@ class GLStateManager : public StateManager {
   GPUStateMutable current_mutable_;
   /** Limits. */
   float line_width_range_[2];
+  /** Pixel storage modes. */
+  uint texture_unpack_row_length_ = 0;
 
   /**
    * Texture state:
@@ -54,9 +56,6 @@ class GLStateManager : public StateManager {
   GLuint images_[8] = {0};
   GLenum formats_[8] = {0};
   uint8_t dirty_image_binds_ = 0;
-
-  // Cache for texture_unpack_row_length_set/get
-  uint texture_unpack_row_length_ = 0;
 
  public:
   GLStateManager();
