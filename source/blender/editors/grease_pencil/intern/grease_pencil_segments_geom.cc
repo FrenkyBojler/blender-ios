@@ -973,14 +973,14 @@ static void check_segments_in_lasso(const Span<float2> screen_space_positions,
                                     const Span<rcti> screen_space_curve_bounds,
                                     const Span<int2> mcoords,
                                     const Span<Segment> all_segments,
-                                    const IndexMask &curve_selection,
+                                    const IndexMask &editable_curves,
                                     const Span<IndexRange> segments_by_curve,
                                     MutableSpan<bool> segments_to_keep)
 {
   rcti bbox_lasso;
   BLI_lasso_boundbox(&bbox_lasso, mcoords);
 
-  curve_selection.foreach_index(GrainSize(128), [&](const int curve_i) {
+  editable_curves.foreach_index(GrainSize(128), [&](const int curve_i) {
     /* To speed things up: do a bounding box check on the curve and the lasso area. */
     if (!BLI_rcti_isect(&bbox_lasso, &screen_space_curve_bounds[curve_i], nullptr)) {
       return;
@@ -1068,7 +1068,7 @@ bke::CurvesGeometry trim_curve_segments(const bke::CurvesGeometry &src,
                                         const Span<float2> screen_space_positions,
                                         const Span<rcti> screen_space_curve_bounds,
                                         const Span<int2> mcoords,
-                                        const IndexMask &curve_selection,
+                                        const IndexMask &editable_curves,
                                         const IndexMask &visible_curves,
                                         const bool keep_caps)
 {
@@ -1107,7 +1107,7 @@ bke::CurvesGeometry trim_curve_segments(const bke::CurvesGeometry &src,
                           screen_space_curve_bounds,
                           mcoords,
                           all_segments,
-                          curve_selection,
+                          editable_curves,
                           segments_by_curve,
                           segments_to_keep.as_mutable_span());
 
@@ -1148,7 +1148,7 @@ bke::CurvesGeometry trim_curve_segments(const bke::CurvesGeometry &src,
 bke::CurvesGeometry trim_curve_segment_ends(const bke::CurvesGeometry &src,
                                             const Span<float2> screen_space_positions,
                                             const Span<rcti> screen_space_curve_bounds,
-                                            const IndexMask &curve_selection,
+                                            const IndexMask &editable_curves,
                                             const IndexMask &visible_curves,
                                             const bool keep_caps)
 {
@@ -1179,7 +1179,7 @@ bke::CurvesGeometry trim_curve_segment_ends(const bke::CurvesGeometry &src,
   /* -------------------- */
 
   Array<bool> segments_to_keep(all_segments.size(), true);
-  curve_selection.foreach_index(GrainSize(128), [&](const int curve_i) {
+  editable_curves.foreach_index(GrainSize(128), [&](const int curve_i) {
     const IndexRange segment_range = segments_by_curve[curve_i];
 
     if (segment_range.size() > 2) {
