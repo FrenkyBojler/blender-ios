@@ -82,12 +82,12 @@ struct BuiltinSymbol {
   SymbolId id;
 };
 
-static constexpr BuiltinSymbol symbol_id_F{'F', 0};
-static constexpr BuiltinSymbol symbol_id_f{'f', 1};
+static constexpr BuiltinSymbol symbol_F{'F', 0};
+static constexpr BuiltinSymbol symbol_f{'f', 1};
 
 static constexpr std::array builtin_symbols = {
-    symbol_id_F,
-    symbol_id_f,
+    symbol_F,
+    symbol_f,
 };
 
 class LSystem {

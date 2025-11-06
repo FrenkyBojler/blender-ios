@@ -236,8 +236,8 @@ Symbol LSystem::eval_symbol_expr(ResourceScope &scope,
                                  const Turtle &turtle) const
 {
   switch (symbol_expr.symbol_id) {
-    case symbol_id_F.id:
-    case symbol_id_f.id: {
+    case symbol_F.id:
+    case symbol_f.id: {
       return Symbol{
           symbol_expr.symbol_id,
           scope.allocator().construct_array_copy<ParamValue>({{turtle.step}, {turtle.radius}})};
@@ -251,8 +251,8 @@ Symbol LSystem::eval_symbol_expr(ResourceScope &scope,
 void LSystem::update_turtle(Turtle &turtle, const Symbol &symbol) const
 {
   switch (symbol.symbol_id) {
-    case symbol_id_F.id:
-    case symbol_id_f.id: {
+    case symbol_F.id:
+    case symbol_f.id: {
       const float3 offset = math::transform_direction(turtle.orientation,
                                                       float3(0, 0, turtle.step));
       turtle.position += offset;
