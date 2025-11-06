@@ -6,8 +6,6 @@
 
 /** \file
  * \ingroup bli
- *
- * Generic algorithms for bounds.
  */
 
 #include <optional>
