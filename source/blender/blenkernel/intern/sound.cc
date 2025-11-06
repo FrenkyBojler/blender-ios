@@ -447,6 +447,16 @@ static void sound_device_use_end()
  */
 static bool sound_use_close_thread()
 {
+  /* No point starting a thread if sound is disabled and we're running headless. */
+  if (g_state.force_device && STREQ(g_state.force_device, "None")) {
+#  if defined(WITH_PYTHON_MODULE) || defined(WITH_HEADLESS)
+    return false;
+#  endif
+    if (G.background) {
+      return false;
+    }
+  }
+
 #  if OS_MAC
   /* Closing audio device on macOS prior to 15.2 could lead to interference with other software.
    * See #121911 for details. */
@@ -1233,11 +1243,8 @@ void BKE_sound_read_waveform(Main *bmain, bSound *sound, bool *stop)
     int length = info.length * SOUND_WAVE_SAMPLES_PER_SECOND;
 
     waveform->data = MEM_malloc_arrayN<float>(3 * size_t(length), "SoundWaveform.samples");
-    /* Ideally this would take a boolean argument. */
-    short stop_i16 = *stop;
     waveform->length = AUD_readSound(
-        sound->playback_handle, waveform->data, length, SOUND_WAVE_SAMPLES_PER_SECOND, &stop_i16);
-    *stop = stop_i16 != 0;
+        sound->playback_handle, waveform->data, length, SOUND_WAVE_SAMPLES_PER_SECOND, stop);
   }
   else {
     /* Create an empty waveform here if the sound couldn't be
