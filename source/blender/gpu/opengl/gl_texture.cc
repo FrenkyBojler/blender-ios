@@ -198,33 +198,73 @@ void GLTexture::update_sub(
     return;
   }
 
+  // TODO remove and RAAAAAAAHHHHH
+  glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+
+  /* If this is 0, rows of pixel data are sequentially stored. When larger than 0, we first gather
+   * relevant data into a staging block, so the float-to-half conversion below happens on a small
+   * block and not the full input.
+   * This is similar to the staging approach in the vk backend.
+   */
+  const uint texture_unpack_row_length =
+      GLContext::state_manager_active_get()->texture_unpack_row_length_get();
+
+  // If data has stride; unpack with `texture_unpack_row_length` as stride
+  std::unique_ptr<uint8_t, MEM_freeN_smart_ptr_deleter> unpack_block = nullptr;
+  if (!ELEM(texture_unpack_row_length, 0, extent[0])) {
+    BLI_assert_msg(!(format_flag_ & GPU_FORMAT_COMPRESSED),
+                   "Compressed data with texture_unpack_row_length != 0 is not supported.");
+    BLI_assert_msg(extent[2] <= 1,
+                   "3D texture data with texture_unpack_row_length != 0 is not supported.");
+    
+    size_t src_row_stride = texture_unpack_row_length * to_bytesize(format_, type);
+    size_t dst_row_stride = max_ii(extent[0], 1) * to_bytesize(format_, type);
+    size_t dst_total_count = dst_row_stride * max_ii(extent[1], 1) * max_ii(extent[2], 1);
+    
+    // Allocate `unpack_block` to exact size necessary
+    unpack_block.reset((uint8_t *) MEM_mallocN_aligned(dst_total_count, 128, __func__));
+
+    // Strided loop; we advance source and destination pointers separately during a gather
+    const uint8_t *src_ptr = static_cast<const uint8_t *>(data);
+    uint8_t *dst_ptr = unpack_block.get();
+    for (int y = 0; y < max_ii(extent[1], 1); ++y) {
+      std::memcpy(dst_ptr, src_ptr, dst_row_stride);
+      src_ptr += src_row_stride;
+      dst_ptr += dst_row_stride;
+    }
+
+    // Replace the 'data' ptr with the now unpacked data block ptr,
+    // which has lifetime in the function scope
+    data = unpack_block.get();
+  }
+
   std::unique_ptr<uint16_t, MEM_freeN_smart_ptr_deleter> clamped_half_buffer = nullptr;
 
-  if (data != nullptr && type == GPU_DATA_FLOAT && is_half_float(format_)) {
-    size_t pixel_count = max_ii(extent[0], 1) * max_ii(extent[1], 1) * max_ii(extent[2], 1);
-    size_t total_component_count = to_component_len(format_) * pixel_count;
+  // if (data != nullptr && type == GPU_DATA_FLOAT && is_half_float(format_)) {
+  //   size_t pixel_count = max_ii(extent[0], 1) * max_ii(extent[1], 1) * max_ii(extent[2], 1);
+  //   size_t total_component_count = to_component_len(format_) * pixel_count;
 
-    clamped_half_buffer.reset(
-        (uint16_t *)MEM_mallocN_aligned(sizeof(uint16_t) * total_component_count, 128, __func__));
+  //   clamped_half_buffer.reset(
+  //       (uint16_t *)MEM_mallocN_aligned(sizeof(uint16_t) * total_component_count, 128, __func__));
 
-    Span<float> src(static_cast<const float *>(data), total_component_count);
-    MutableSpan<uint16_t> dst(static_cast<uint16_t *>(clamped_half_buffer.get()),
-                              total_component_count);
+  //   Span<float> src(static_cast<const float *>(data), total_component_count);
+  //   MutableSpan<uint16_t> dst(static_cast<uint16_t *>(clamped_half_buffer.get()),
+  //                             total_component_count);
 
-    constexpr int64_t chunk_size = 4 * 1024 * 1024;
+  //   constexpr int64_t chunk_size = 4 * 1024 * 1024;
 
-    threading::parallel_for(
-        IndexRange(total_component_count), chunk_size, [&](const IndexRange range) {
-          /* Doing float to half conversion manually to avoid implementation specific behavior
-           * regarding Inf and NaNs. Use make finite version to avoid unexpected black pixels on
-           * certain implementation. For platform parity we clamp these infinite values to finite
-           * values. */
-          blender::math::float_to_half_make_finite_array(
-              src.slice(range).data(), dst.slice(range).data(), range.size());
-        });
-    data = clamped_half_buffer.get();
-    type = GPU_DATA_HALF_FLOAT;
-  }
+  //   threading::parallel_for(
+  //       IndexRange(total_component_count), chunk_size, [&](const IndexRange range) {
+  //         /* Doing float to half conversion manually to avoid implementation specific behavior
+  //          * regarding Inf and NaNs. Use make finite version to avoid unexpected black pixels on
+  //          * certain implementation. For platform parity we clamp these infinite values to finite
+  //          * values. */
+  //         blender::math::float_to_half_make_finite_array(
+  //             src.slice(range).data(), dst.slice(range).data(), range.size());
+  //       });
+  //   data = clamped_half_buffer.get();
+  //   type = GPU_DATA_HALF_FLOAT;
+  // }
 
   const int dimensions = this->dimensions_count();
   GLenum gl_format = to_gl_data_format(format_);

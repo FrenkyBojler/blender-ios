@@ -556,7 +556,6 @@ void GLStateManager::texture_unpack_row_length_set(uint len)
     return;
   }
   texture_unpack_row_length_ = len;
-  glPixelStorei(GL_UNPACK_ROW_LENGTH, len);
 }
 
 uint GLStateManager::texture_unpack_row_length_get() const
