@@ -592,22 +592,6 @@ static bool notifier_refreshes_node_group_operators(const wmNotifier &note)
       return true;
     }
   }
-  else if (note.category == NC_ID) {
-    if (note.action == NA_RENAME) {
-      if (!note.reference) {
-        return true;
-      }
-      const ID &id = *static_cast<const ID *>(note.reference);
-      if (GS(id.name) == ID_NT) {
-        const auto &group = blender::id_cast<const bNodeTree &>(id);
-        if (group.geometry_node_asset_traits) {
-          if (group.geometry_node_asset_traits->flag & GEO_NODE_ASSET_TOOL) {
-            return true;
-          }
-        }
-      }
-    }
-  }
   return false;
 }
 

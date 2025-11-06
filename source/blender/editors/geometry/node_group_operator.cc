@@ -116,8 +116,8 @@ struct OperatorTypeData : public wmOperatorType::TypeData {
   static std::optional<OperatorTypeData> from_group(const bNodeTree &group, ReportList &reports);
 };
 
-static std::optional<std::string> operator_idname_for_custom(const StringRefNull custom_idname,
-                                                             ReportList *reports)
+static std::optional<std::string> operator_idname_get(const StringRefNull custom_idname,
+                                                      ReportList *reports)
 {
   if (!WM_operator_idname_ok_or_report(reports, custom_idname.c_str())) {
     return std::nullopt;
@@ -127,33 +127,15 @@ static std::optional<std::string> operator_idname_for_custom(const StringRefNull
   return idname_buf;
 }
 
-static std::string operator_idname_fallback(const StringRefNull name)
-{
-  std::string name_str = "GEOMETRY_OT_";
-  for (char c : name) {
-    c = tolower(c);
-    if ((c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || c == '_') {
-      name_str.push_back(c);
-    }
-    else {
-      const bool last_is_underscore = name_str[name_str.size() - 1] == '_';
-      if (!last_is_underscore) {
-        name_str.push_back('_');
-      }
-    }
-  }
-  return name_str;
-}
-
 static std::optional<std::string> operator_idname_for_asset(const AssetRepresentation &asset,
                                                             ReportList *reports)
 {
   const AssetMetaData &metadata = asset.get_metadata();
   const IDProperty *id_property = BKE_asset_metadata_idprop_find(&metadata, "node_tool_idname");
-  if (id_property && id_property->type == IDP_STRING) {
-    return operator_idname_for_custom(IDP_string_get(id_property), reports);
+  if (!id_property || id_property->type != IDP_STRING) {
+    return std::nullopt;
   }
-  return operator_idname_fallback(asset.get_name());
+  return operator_idname_get(IDP_string_get(id_property), reports);
 }
 
 std::optional<OperatorTypeData> OperatorTypeData::from_asset(
@@ -187,10 +169,11 @@ std::optional<OperatorTypeData> OperatorTypeData::from_asset(
 static std::optional<std::string> operator_idname_for_group(const bNodeTree &group,
                                                             ReportList *reports)
 {
-  if (const char *idname = group.geometry_node_asset_traits->node_tool_idname) {
-    return operator_idname_for_custom(idname, reports);
+  const char *idname = group.geometry_node_asset_traits->node_tool_idname;
+  if (!idname) {
+    return std::nullopt;
   }
-  return operator_idname_fallback(BKE_id_name(group.id));
+  return operator_idname_get(idname, reports);
 }
 
 std::optional<OperatorTypeData> OperatorTypeData::from_group(const bNodeTree &group,
@@ -225,10 +208,8 @@ static const bNodeTree *get_asset_or_local_node_group(const bContext &C,
       [&](const auto &value) -> const bNodeTree * {
         using T = std::decay_t<decltype(value)>;
         if constexpr (std::is_same_v<T, OperatorTypeData::LocalRef>) {
-          if (value.session_uid != 0) {
-            return id_cast<const bNodeTree *>(
-                BKE_libblock_find_session_uid(&bmain, ID_NT, value.session_uid));
-          }
+          return id_cast<const bNodeTree *>(
+              BKE_libblock_find_session_uid(&bmain, ID_NT, value.session_uid));
         }
         else if constexpr (std::is_same_v<T, OperatorTypeData::AssetRef>) {
           AssetWeakReference weak_ref{};

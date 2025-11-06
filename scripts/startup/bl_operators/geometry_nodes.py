@@ -44,6 +44,8 @@ def geometry_node_group_empty_tool_new(context):
     group.use_fake_user = True
     group.is_tool = True
 
+    group.node_tool_idname = "geometry." + group.name.replace(" ", "_").replace(".", "_").lower().strip()
+
     ob = context.object
     ob_type = ob.type if ob else 'MESH'
     if ob_type == 'CURVES':
