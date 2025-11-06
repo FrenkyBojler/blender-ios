@@ -290,27 +290,27 @@ static void update_turtle_rotation(Turtle &turtle, const float angle)
 static void update_turtle_rotate_symbol(Turtle &turtle, const Symbol &symbol)
 {
   switch (symbol.symbol_id) {
-    case symbol_plus.id: {
+    case symbol_turn_right.id: {
       update_turtle_rotation<math::AxisSigned::X_POS>(turtle, turtle.angle);
       break;
     }
-    case symbol_minus.id: {
+    case symbol_turn_left.id: {
       update_turtle_rotation<math::AxisSigned::X_NEG>(turtle, turtle.angle);
       break;
     }
-    case symbol_ampersand.id: {
+    case symbol_pitch_down.id: {
       update_turtle_rotation<math::AxisSigned::Y_POS>(turtle, turtle.angle);
       break;
     }
-    case symbol_carret.id: {
+    case symbol_pitch_up.id: {
       update_turtle_rotation<math::AxisSigned::Y_NEG>(turtle, turtle.angle);
       break;
     }
-    case symbol_backslash.id: {
+    case symbol_roll_clockwise.id: {
       update_turtle_rotation<math::AxisSigned::Z_POS>(turtle, turtle.angle);
       break;
     }
-    case symbol_slash.id: {
+    case symbol_roll_counter_clockwise.id: {
       update_turtle_rotation<math::AxisSigned::Z_NEG>(turtle, turtle.angle);
       break;
     }
@@ -328,12 +328,12 @@ bool LSystem::update_turtle_stack(TurtleStack &turtle_stack, const Symbol &symbo
       update_turtle_f(turtle_stack.peek(), symbol);
       break;
     }
-    case symbol_plus.id:
-    case symbol_minus.id:
-    case symbol_ampersand.id:
-    case symbol_carret.id:
-    case symbol_backslash.id:
-    case symbol_slash.id: {
+    case symbol_turn_right.id:
+    case symbol_turn_left.id:
+    case symbol_pitch_down.id:
+    case symbol_pitch_up.id:
+    case symbol_roll_clockwise.id:
+    case symbol_roll_counter_clockwise.id: {
       update_turtle_rotate_symbol(turtle_stack.peek(), symbol);
       break;
     }
@@ -413,12 +413,12 @@ std::variant<bke::CurvesGeometry, std::string> lsystem_to_curves(LSystemParams &
         update_turtle_f(turtle, symbol);
         break;
       }
-      case symbol_plus.id:
-      case symbol_minus.id:
-      case symbol_ampersand.id:
-      case symbol_carret.id:
-      case symbol_backslash.id:
-      case symbol_slash.id: {
+      case symbol_turn_right.id:
+      case symbol_turn_left.id:
+      case symbol_pitch_down.id:
+      case symbol_pitch_up.id:
+      case symbol_roll_clockwise.id:
+      case symbol_roll_counter_clockwise.id: {
         update_turtle_rotate_symbol(stack.peek(), symbol);
         break;
       }

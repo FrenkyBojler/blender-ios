@@ -88,24 +88,24 @@ static constexpr BuiltinSymbol symbol_F{"F", 0};
 static constexpr BuiltinSymbol symbol_f{"f", 1};
 static constexpr BuiltinSymbol symbol_branch_start{"[", 2};
 static constexpr BuiltinSymbol symbol_branch_end{"]", 3};
-static constexpr BuiltinSymbol symbol_plus{"+", 4};
-static constexpr BuiltinSymbol symbol_minus{"-", 5};
-static constexpr BuiltinSymbol symbol_ampersand{"&", 6};
-static constexpr BuiltinSymbol symbol_carret{"^", 7};
-static constexpr BuiltinSymbol symbol_backslash{"\\\\", 8};
-static constexpr BuiltinSymbol symbol_slash{"/", 9};
+static constexpr BuiltinSymbol symbol_turn_right{"+", 4};
+static constexpr BuiltinSymbol symbol_turn_left{"-", 5};
+static constexpr BuiltinSymbol symbol_pitch_down{"&", 6};
+static constexpr BuiltinSymbol symbol_pitch_up{"^", 7};
+static constexpr BuiltinSymbol symbol_roll_clockwise{"\\\\", 8};
+static constexpr BuiltinSymbol symbol_roll_counter_clockwise{"/", 9};
 
 static constexpr std::array builtin_symbols = {
     symbol_F,
     symbol_f,
     symbol_branch_start,
     symbol_branch_end,
-    symbol_plus,
-    symbol_minus,
-    symbol_ampersand,
-    symbol_carret,
-    symbol_backslash,
-    symbol_slash,
+    symbol_turn_right,
+    symbol_turn_left,
+    symbol_pitch_down,
+    symbol_pitch_up,
+    symbol_roll_clockwise,
+    symbol_roll_counter_clockwise,
 };
 
 struct TurtleStack {
