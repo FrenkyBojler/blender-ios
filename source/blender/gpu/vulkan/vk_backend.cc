@@ -168,6 +168,9 @@ static Vector<StringRefNull> missing_capabilities_get(VkPhysicalDevice vk_physic
   if (features.features.fragmentStoresAndAtomics == VK_FALSE) {
     missing_capabilities.append("fragment stores and atomics");
   }
+  if (features.features.vertexPipelineStoresAndAtomics == VK_FALSE) {
+    missing_capabilities.append("vertex pipeline stores and atomics");
+  }
   if (features_11.shaderDrawParameters == VK_FALSE) {
     missing_capabilities.append("shader draw parameters");
   }
@@ -576,9 +579,9 @@ Batch *VKBackend::batch_alloc()
   return new VKBatch();
 }
 
-Fence *VKBackend::fence_alloc(const char *name)
+Fence *VKBackend::fence_alloc()
 {
-  return new VKFence(name);
+  return new VKFence();
 }
 
 FrameBuffer *VKBackend::framebuffer_alloc(const char *name)

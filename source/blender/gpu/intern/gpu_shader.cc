@@ -32,7 +32,7 @@ extern "C" char datatoc_gpu_shader_colorspace_lib_glsl[];
 
 namespace blender::gpu {
 
-std::string Shader::defines_declare(const shader::ShaderCreateInfo &info) const
+std::string Shader::defines_declare(const shader::ShaderCreateInfo &info)
 {
   std::string defines;
   for (const auto &def : info.defines_) {
@@ -232,6 +232,16 @@ bool GPU_shader_batch_is_compiling()
 void GPU_shader_batch_wait_for_all()
 {
   GPUBackend::get()->get_compiler()->wait_for_all();
+}
+
+void GPU_shader_batch_pause_compilations()
+{
+  GPUBackend::get()->get_compiler()->pause_all();
+}
+
+void GPU_shader_batch_resume_compilations()
+{
+  GPUBackend::get()->get_compiler()->continue_all();
 }
 
 void GPU_shader_compile_static()
@@ -662,33 +672,37 @@ void Shader::set_framebuffer_srgb_target(int use_srgb_to_linear)
 /** \name ShaderCompiler
  * \{ */
 
-Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_batch_compilation)
+Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info,
+                                bool is_batch_compilation)
 {
   using Clock = std::chrono::steady_clock;
   using TimePoint = Clock::time_point;
 
   using namespace blender::gpu::shader;
-  const_cast<ShaderCreateInfo &>(info).finalize();
-  BLI_assert(info.do_static_compilation_ || info.is_generated_);
+  const_cast<ShaderCreateInfo &>(orig_info).finalize();
+  BLI_assert(orig_info.do_static_compilation_ || orig_info.is_generated_);
 
   TimePoint start_time;
 
   if (Context::get()) {
     /* Context can be null in Vulkan compilation threads. */
     GPU_debug_group_begin(GPU_DEBUG_SHADER_COMPILATION_GROUP);
-    GPU_debug_group_begin(info.name_.c_str());
+    GPU_debug_group_begin(orig_info.name_.c_str());
   }
   else if (G.profile_gpu) {
     start_time = Clock::now();
   }
 
-  const std::string error = info.check_error();
+  const std::string error = orig_info.check_error();
   if (!error.empty()) {
     std::cerr << error << "\n";
     BLI_assert(false);
   }
 
-  Shader *shader = GPUBackend::get()->shader_alloc(info.name_.c_str());
+  Shader *shader = GPUBackend::get()->shader_alloc(orig_info.name_.c_str());
+
+  const shader::ShaderCreateInfo &info = shader->patch_create_info(orig_info);
+
   /* Needs to be called before init as GL uses the default specialization constants state to insert
    * default shader inside a map. */
   shader->specialization_constants_init(info);
@@ -702,7 +716,7 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_ba
   std::string defines = shader->defines_declare(info);
   std::string resources = shader->resources_declare(info);
 
-  info.resource_guard_defines(defines);
+  defines += info.resource_guard_defines();
 
   defines += "#define USE_GPU_SHADER_CREATE_INFO\n";
 
@@ -742,7 +756,7 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_ba
       sources.append("(); }\n");
     }
 
-    shader->vertex_shader_from_glsl(sources);
+    shader->vertex_shader_from_glsl(info, sources);
   }
 
   if (!info.fragment_source_.is_empty()) {
@@ -769,7 +783,7 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_ba
       sources.append("(); }\n");
     }
 
-    shader->fragment_shader_from_glsl(sources);
+    shader->fragment_shader_from_glsl(info, sources);
   }
 
   if (!info.geometry_source_.is_empty()) {
@@ -795,7 +809,7 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_ba
       sources.append("(); }\n");
     }
 
-    shader->geometry_shader_from_glsl(sources);
+    shader->geometry_shader_from_glsl(info, sources);
   }
 
   if (!info.compute_source_.is_empty()) {
@@ -819,7 +833,7 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_ba
       sources.append("(); }\n");
     }
 
-    shader->compute_shader_from_glsl(sources);
+    shader->compute_shader_from_glsl(info, sources);
   }
 
   if (!shader->finalize(&info)) {
@@ -906,27 +920,23 @@ BatchHandle ShaderCompiler::batch_compile(Span<const shader::ShaderCreateInfo *>
 
 void ShaderCompiler::batch_cancel(BatchHandle &handle)
 {
-  std::unique_lock lock(mutex_);
+  {
+    std::unique_lock lock(mutex_);
 
-  Batch *batch = batches_.pop(handle);
-  compilation_queue_.remove_batch(batch);
+    Batch *batch = batches_.pop(handle);
+    compilation_queue_.remove_batch(batch);
 
-  if (batch->is_specialization_batch()) {
-    /* For specialization batches, we block until ready, since base shader compilation may be
-     * cancelled afterwards, leaving the specialization with a deleted base shader. */
+    /* If it was already being compiled, wait until it's ready so the calling thread can safely
+     * delete the ShaderCreateInfos. */
     compilation_finished_notification_.wait(lock, [&]() { return batch->is_ready(); });
-  }
-
-  if (batch->is_ready()) {
     batch->free_shaders();
     MEM_delete(batch);
-  }
-  else {
-    /* If it's currently compiling, the compilation thread makes the cleanup. */
-    batch->is_cancelled = true;
+
+    handle = 0;
   }
 
-  handle = 0;
+  /* Count this as a finished compilation, since wait_for_all might be waiting. */
+  compilation_finished_notification_.notify_all();
 }
 
 bool ShaderCompiler::batch_is_ready(BatchHandle handle)
@@ -1016,15 +1026,16 @@ void ShaderCompiler::do_work(void *work_payload)
   }
 
   {
-    std::lock_guard lock(mutex_);
+    std::unique_lock lock(mutex_);
     batch->pending_compilations--;
-    if (batch->is_ready() && batch->is_cancelled) {
-      batch->free_shaders();
-      MEM_delete(batch);
-    }
   }
 
   compilation_finished_notification_.notify_all();
+
+  /* Pause must happen after the work has finished and before more work is requested,
+   * otherwise we can run into deadlocks due to notifications desync. */
+  std::unique_lock lock(mutex_);
+  pause_finished_notification_.wait(lock, [&]() { return !is_paused_; });
 }
 
 bool ShaderCompiler::is_compiling_impl()
@@ -1054,7 +1065,25 @@ bool ShaderCompiler::is_compiling()
 void ShaderCompiler::wait_for_all()
 {
   std::unique_lock lock(mutex_);
+  BLI_assert(!is_paused_);
   compilation_finished_notification_.wait(lock, [&]() { return !is_compiling_impl(); });
+}
+
+void ShaderCompiler::pause_all()
+{
+  std::unique_lock lock(mutex_);
+  BLI_assert(!is_paused_);
+  is_paused_ = true;
+}
+
+void ShaderCompiler::continue_all()
+{
+  {
+    std::unique_lock lock(mutex_);
+    BLI_assert(is_paused_);
+    is_paused_ = false;
+  }
+  pause_finished_notification_.notify_all();
 }
 
 /** \} */
