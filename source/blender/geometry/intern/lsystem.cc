@@ -93,7 +93,8 @@ class LSystemParser {
       case '/':
       case '"':
       case '[':
-      case ']': {
+      case ']':
+      case ';': {
         this->consume_next();
         return symbol_id_map_.ensure(StringRef(&first_c, 1));
       }
@@ -280,6 +281,20 @@ static void update_turtle_f(Turtle &turtle, const Symbol &symbol)
   update_turtle_F(turtle, symbol);
 }
 
+static void update_turtle_scale_step_size(Turtle &turtle,
+                                          const Symbol & /*symbol*/,
+                                          const ParamDefaults &defaults)
+{
+  turtle.step_size *= defaults.step_size_scale;
+}
+
+static void update_turtle_scale_angle(Turtle &turtle,
+                                      const Symbol & /*symbol*/,
+                                      const ParamDefaults &defaults)
+{
+  turtle.angle *= defaults.angle_scale;
+}
+
 template<math::AxisSigned::Value Axis>
 static void update_turtle_rotation(Turtle &turtle, const float angle)
 {
@@ -337,6 +352,14 @@ bool LSystem::update_turtle_stack(TurtleStack &turtle_stack, const Symbol &symbo
       update_turtle_rotate_symbol(turtle_stack.peek(), symbol);
       break;
     }
+    case symbol_step_scale.id: {
+      update_turtle_scale_step_size(turtle_stack.peek(), symbol, defaults_);
+      break;
+    }
+    case symbol_angle_scale.id: {
+      update_turtle_scale_angle(turtle_stack.peek(), symbol, defaults_);
+      break;
+    }
     case symbol_branch_start.id: {
       turtle_stack.stack.push(turtle_stack.peek());
       break;
@@ -377,6 +400,10 @@ std::variant<bke::CurvesGeometry, std::string> lsystem_to_curves(LSystemParams &
   for (const StringRef rule : params.rules) {
     lsystem.add_rule(rule);
   }
+  ParamDefaults defaults;
+  defaults.step_size_scale = params.step_size_scale;
+  defaults.angle_scale = params.angle_scale;
+  lsystem.set_defaults(defaults);
 
   Turtle root_turtle;
   root_turtle.angle = params.angle;
@@ -420,6 +447,14 @@ std::variant<bke::CurvesGeometry, std::string> lsystem_to_curves(LSystemParams &
       case symbol_roll_clockwise.id:
       case symbol_roll_counter_clockwise.id: {
         update_turtle_rotate_symbol(stack.peek(), symbol);
+        break;
+      }
+      case symbol_step_scale.id: {
+        update_turtle_scale_step_size(stack.peek(), symbol, defaults);
+        break;
+      }
+      case symbol_angle_scale.id: {
+        update_turtle_scale_angle(stack.peek(), symbol, defaults);
         break;
       }
       case symbol_branch_start.id: {

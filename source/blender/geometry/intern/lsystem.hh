@@ -64,11 +64,9 @@ struct SymbolIdMap {
 };
 
 struct ParamDefaults {
-  float step_size = 1.0f;
-  float angle = DEG2RAD(90.0f);
   float step_size_scale = 0.5f;
-  float default_radius_scale = 0.5f;
   float angle_scale = 0.5f;
+  float default_radius_scale = 0.5f;
 };
 
 struct Turtle {
@@ -94,6 +92,8 @@ static constexpr BuiltinSymbol symbol_pitch_down{"&", 6};
 static constexpr BuiltinSymbol symbol_pitch_up{"^", 7};
 static constexpr BuiltinSymbol symbol_roll_clockwise{"\\\\", 8};
 static constexpr BuiltinSymbol symbol_roll_counter_clockwise{"/", 9};
+static constexpr BuiltinSymbol symbol_step_scale{"\"", 10};
+static constexpr BuiltinSymbol symbol_angle_scale{";", 11};
 
 static constexpr std::array builtin_symbols = {
     symbol_F,
@@ -106,6 +106,8 @@ static constexpr std::array builtin_symbols = {
     symbol_pitch_up,
     symbol_roll_clockwise,
     symbol_roll_counter_clockwise,
+    symbol_step_scale,
+    symbol_angle_scale,
 };
 
 struct TurtleStack {

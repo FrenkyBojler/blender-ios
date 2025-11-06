@@ -15,6 +15,8 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Float>("Generations").min(0);
   b.add_input<decl::Float>("Angle").subtype(PROP_ANGLE).default_value(DEG2RAD(90.0f));
   b.add_input<decl::Float>("Step Size").default_value(1.0f).subtype(PROP_DISTANCE);
+  b.add_input<decl::Float>("Step Size Scale").default_value(0.5f);
+  b.add_input<decl::Float>("Angle Scale").default_value(0.5f);
   b.add_output<decl::Geometry>("Geometry");
 }
 
@@ -25,6 +27,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   geometry::lsystem::LSystemParams lsystem_params;
   lsystem_params.generations = std::max(0.0f, params.extract_input<float>("Generations"));
   lsystem_params.angle = params.extract_input<float>("Angle");
+  lsystem_params.step_size_scale = params.extract_input<float>("Step Size Scale");
+  lsystem_params.angle_scale = params.extract_input<float>("Angle Scale");
   lsystem_params.step_size = params.extract_input<float>("Step Size");
   lsystem_params.axiom = axiom;
   if (!rule_1.empty()) {
