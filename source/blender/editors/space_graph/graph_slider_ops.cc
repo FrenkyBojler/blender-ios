@@ -387,6 +387,7 @@ static wmOperatorStatus graph_slider_invoke(bContext *C, wmOperator *op, const w
   tGraphSliderOp *gso;
 
   WM_cursor_modal_set(CTX_wm_window(C), WM_CURSOR_EW_SCROLL);
+  ED_area_status_text(CTX_wm_area(C), "");
 
   /* Init slide-op data. */
   gso = static_cast<tGraphSliderOp *>(
