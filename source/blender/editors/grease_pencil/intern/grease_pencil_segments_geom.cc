@@ -634,8 +634,6 @@ static void create_segments_from_intersections(const Span<Vector<int>> inters_pe
 
     all_segments_by_curve[curve_k] = all_segments.index_range().drop_front(start_size);
   }
-
-  store_segment_map_on_intersections(all_segments, intersections);
 }
 
 static bool check_and_join_segments(Segment &first, const Segment &second)
@@ -1099,6 +1097,7 @@ bke::CurvesGeometry trim_curve_segments(const bke::CurvesGeometry &src,
                                      is_cyclic,
                                      all_segments,
                                      segments_by_curve);
+  store_segment_map_on_intersections(all_segments, intersections);
 
   /* -------------------- */
 
@@ -1175,6 +1174,7 @@ bke::CurvesGeometry trim_curve_segment_ends(const bke::CurvesGeometry &src,
                                      is_cyclic,
                                      all_segments,
                                      segments_by_curve);
+  store_segment_map_on_intersections(all_segments, intersections);
 
   /* -------------------- */
 
