@@ -298,10 +298,12 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
 
   Array<int> old_by_new_map(dst_points_by_curve.size());
 
-  for (const int i : dst_points_by_curve.index_range()) {
-    const IndexRange segment_range = segment_offsets[i];
-    old_by_new_map[i] = segments[segment_range.first()].curve;
-  }
+  threading::parallel_for(dst_points_by_curve.index_range(), 4096, [&](const IndexRange points) {
+    for (const int i : points) {
+      const IndexRange segment_range = segment_offsets[i];
+      old_by_new_map[i] = segments[segment_range.first()].curve;
+    }
+  });
 
   bke::gather_attributes(src_attributes,
                          bke::AttrDomain::Curve,
