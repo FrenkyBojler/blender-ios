@@ -21,8 +21,11 @@ GPUWorker::GPUWorker(uint32_t threads_count, ContextType context_type, WorkCallb
 
 GPUWorker::~GPUWorker()
 {
+  /* Any work left should have been cancelled at this point. */
   BLI_assert(BLI_thread_queue_is_empty(work_queue_));
+  /* Signal background threads to stop waiting for new tasks if none are left. */
   BLI_thread_queue_nowait(work_queue_);
+  /* But we still wait, in case the above assert fails. */
   BLI_thread_queue_wait_finish(work_queue_);
   for (std::unique_ptr<std::thread> &thread : threads_) {
     thread->join();
