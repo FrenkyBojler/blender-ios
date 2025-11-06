@@ -402,7 +402,7 @@ bool multiresModifier_applyHigherLevelDelta(Object &object,
         &LOG, "(%d) - %f %f %f", i, old_positions[i].x, old_positions[i].y, old_positions[i].z);
   }
 
-  multires_reshape_store_tangent_matrices(
+  multires_reshape_store_positions_and_matrices(
       &reshape_context,
       MultiresSubdivideModeType::CatmullClark,
       object.sculpt->multires.runtime.positions_at_level[lower_subdiv_ccg.level - 1],

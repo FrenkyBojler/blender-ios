@@ -360,7 +360,7 @@ void multires_reshape_store_limit_positions(
     blender::MutableSpan<blender::float3> deltas,
     blender::MutableSpan<blender::float3x3> tangent_matrices);
 
-void multires_reshape_store_tangent_matrices(
+void multires_reshape_store_positions_and_matrices(
     const MultiresReshapeContext *reshape_context,
     MultiresSubdivideModeType mode,
     blender::MutableSpan<blender::float3> positions,
