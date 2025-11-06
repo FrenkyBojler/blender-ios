@@ -198,7 +198,6 @@ const char *no_procedural_access_message = N_(
 
 bool allow_procedural_attribute_access(StringRef attribute_name)
 {
-  return true;
   if (attribute_name.startswith(".corner")) {
     return false;
   }
