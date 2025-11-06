@@ -148,7 +148,7 @@ static void subdiv_mesh_ctx_cache_uv_layers(SubdivMeshContext *ctx)
 
 static void subdiv_mesh_ctx_cache_custom_data_layers(SubdivMeshContext *ctx)
 {
-  const Mesh *coarse_mesh = ctx->coarse_mesh;
+  const Mesh &coarse_mesh = *ctx->coarse_mesh;
   Mesh *subdiv_mesh = ctx->subdiv_mesh;
   ctx->subdiv_positions = subdiv_mesh->vert_positions_for_write();
   ctx->subdiv_edges = subdiv_mesh->edges_for_write();
@@ -156,23 +156,23 @@ static void subdiv_mesh_ctx_cache_custom_data_layers(SubdivMeshContext *ctx)
   ctx->subdiv_corner_verts = subdiv_mesh->corner_verts_for_write();
   ctx->subdiv_corner_edges = subdiv_mesh->corner_edges_for_write();
 
-  ctx->coarse_dverts = coarse_mesh->deform_verts();
+  ctx->coarse_dverts = coarse_mesh.deform_verts();
   if (!ctx->coarse_dverts.is_empty()) {
     ctx->subdiv_dverts = subdiv_mesh->deform_verts_for_write();
   }
   if (const auto *src = static_cast<const float3 *>(
-          CustomData_get_layer(&coarse_mesh->corner_data, CD_NORMAL)))
+          CustomData_get_layer(&coarse_mesh.corner_data, CD_NORMAL)))
   {
-    ctx->coarse_CD_NORMAL = {src, coarse_mesh->corners_num};
+    ctx->coarse_CD_NORMAL = {src, coarse_mesh.corners_num};
     ctx->subdiv_CD_NORMAL = {
         static_cast<float3 *>(CustomData_add_layer(
             &subdiv_mesh->corner_data, CD_NORMAL, CD_CONSTRUCT, subdiv_mesh->corners_num)),
         subdiv_mesh->corners_num};
   }
   if (const auto *src = static_cast<const float2 *>(
-          CustomData_get_layer(&coarse_mesh->corner_data, CD_ORIGSPACE_MLOOP)))
+          CustomData_get_layer(&coarse_mesh.corner_data, CD_ORIGSPACE_MLOOP)))
   {
-    ctx->coarse_CD_ORIGSPACE_MLOOP = {src, coarse_mesh->corners_num};
+    ctx->coarse_CD_ORIGSPACE_MLOOP = {src, coarse_mesh.corners_num};
     ctx->subdiv_CD_ORIGSPACE_MLOOP = {
         static_cast<float2 *>(CustomData_add_layer(&subdiv_mesh->corner_data,
                                                    CD_ORIGSPACE_MLOOP,
@@ -181,27 +181,27 @@ static void subdiv_mesh_ctx_cache_custom_data_layers(SubdivMeshContext *ctx)
         subdiv_mesh->corners_num};
   }
   if (const auto *src = static_cast<const int *>(
-          CustomData_get_layer(&coarse_mesh->vert_data, CD_ORIGINDEX)))
+          CustomData_get_layer(&coarse_mesh.vert_data, CD_ORIGINDEX)))
   {
-    ctx->coarse_vert_origindex = {src, coarse_mesh->verts_num};
+    ctx->coarse_vert_origindex = {src, coarse_mesh.verts_num};
     ctx->subdiv_vert_origindex = {
         static_cast<int *>(CustomData_add_layer(
             &subdiv_mesh->vert_data, CD_ORIGINDEX, CD_CONSTRUCT, subdiv_mesh->verts_num)),
         subdiv_mesh->verts_num};
   }
   if (const auto *src = static_cast<const int *>(
-          CustomData_get_layer(&coarse_mesh->edge_data, CD_ORIGINDEX)))
+          CustomData_get_layer(&coarse_mesh.edge_data, CD_ORIGINDEX)))
   {
-    ctx->coarse_edge_origindex = {src, coarse_mesh->edges_num};
+    ctx->coarse_edge_origindex = {src, coarse_mesh.edges_num};
     ctx->subdiv_edge_origindex = {
         static_cast<int *>(CustomData_add_layer(
             &subdiv_mesh->edge_data, CD_ORIGINDEX, CD_CONSTRUCT, subdiv_mesh->edges_num)),
         subdiv_mesh->edges_num};
   }
   if (const auto *src = static_cast<const int *>(
-          CustomData_get_layer(&coarse_mesh->face_data, CD_ORIGINDEX)))
+          CustomData_get_layer(&coarse_mesh.face_data, CD_ORIGINDEX)))
   {
-    ctx->coarse_face_origindex = {src, coarse_mesh->faces_num};
+    ctx->coarse_face_origindex = {src, coarse_mesh.faces_num};
     ctx->subdiv_face_origindex = {
         static_cast<int *>(CustomData_add_layer(
             &subdiv_mesh->face_data, CD_ORIGINDEX, CD_CONSTRUCT, subdiv_mesh->faces_num)),
@@ -210,11 +210,11 @@ static void subdiv_mesh_ctx_cache_custom_data_layers(SubdivMeshContext *ctx)
   /* UV layers interpolation. */
   subdiv_mesh_ctx_cache_uv_layers(ctx);
   /* Orco interpolation. */
-  if (CustomData_has_layer(&coarse_mesh->vert_data, CD_ORCO)) {
+  if (CustomData_has_layer(&coarse_mesh.vert_data, CD_ORCO)) {
     ctx->orco = static_cast<float (*)[3]>(CustomData_add_layer(
         &subdiv_mesh->vert_data, CD_ORCO, CD_CONSTRUCT, subdiv_mesh->verts_num));
   }
-  if (CustomData_has_layer(&coarse_mesh->vert_data, CD_CLOTH_ORCO)) {
+  if (CustomData_has_layer(&coarse_mesh.vert_data, CD_CLOTH_ORCO)) {
     ctx->cloth_orco = static_cast<float (*)[3]>(CustomData_add_layer(
         &subdiv_mesh->vert_data, CD_CLOTH_ORCO, CD_CONSTRUCT, subdiv_mesh->verts_num));
   }
@@ -414,13 +414,12 @@ static void copy_attrs(const Span<GSpan> src,
  * exception cases all over the code. */
 
 struct VerticesForInterpolation {
-  /* This field points to a vertex data which is to be used for interpolation.
-   * The idea is to avoid unnecessary allocations for regular faces, where
-   * we can simply use corner vertices. */
+  /* This field points to a vertex data which is to be used for interpolation. The idea is to avoid
+   * unnecessary copies for regular faces, where we can simply use base vertices. */
   Span<GSpan> vert_data;
   Span<MDeformVert> dverts_data;
   /* Vertices data calculated for ptex corners. There are always 4 elements
-   * in this custom data, aligned the following way:
+   * in these arrays, aligned the following way:
    *
    *   index 0 -> uv (0, 0)
    *   index 1 -> uv (0, 1)
@@ -433,7 +432,7 @@ struct VerticesForInterpolation {
   Array<GSpan> storage_spans;
   std::array<MDeformVert, 4> dverts_storage = {};
   /* Indices within vert_data to interpolate for. The indices are aligned
-   * with uv coordinates in a similar way as indices in corner_data_storage. */
+   * with uv coordinates in a similar way as indices in storage_spans. */
   std::array<int, 4> vert_indices;
 
   MDeformWeightSet dvert_mix_buffer;
@@ -560,14 +559,13 @@ static void vert_interpolation_from_corner(const SubdivMeshContext *ctx,
  * \{ */
 
 struct LoopsForInterpolation {
-  /* This field points to a loop data which is to be used for interpolation.
-   * The idea is to avoid unnecessary allocations for regular faces, where
-   * we can simply interpolate corner vertices. */
+  /* This field points to a loop data which is to be used for interpolation. The idea is to avoid
+   * unnecessary copies for regular faces, where we can simply interpolate base corners. */
   Span<GSpan> corner_data;
   Span<float3> CD_NORMAL_data;
   Span<float2> CD_ORIGSPACE_MLOOP_data;
   /* Loops data calculated for ptex corners. There are always 4 elements
-   * in this custom data, aligned the following way:
+   * in these arrays, aligned the following way:
    *
    *   index 0 -> uv (0, 0)
    *   index 1 -> uv (0, 1)
@@ -582,7 +580,7 @@ struct LoopsForInterpolation {
   std::array<float2, 4> CD_ORIGSPACE_MLOOP_storage;
 
   /* Indices within corner_data to interpolate for. The indices are aligned with
-   * uv coordinates in a similar way as indices in corner_data_storage. */
+   * uv coordinates in a similar way as indices in storage_spans. */
   std::array<int, 4> loop_indices;
 
   LoopsForInterpolation(const SubdivMeshContext &ctx)
