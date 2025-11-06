@@ -141,7 +141,6 @@ struct TurtleStack {
 
 class LSystem {
  private:
-  ResourceScope global_scope_;
   SymbolIdMap symbol_id_map_;
   MultiValueMap<SymbolId, Rule> rules_;
   Vector<SymbolExpr> axiom_;

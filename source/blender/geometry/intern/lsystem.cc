@@ -16,14 +16,13 @@ namespace blender::geometry::lsystem {
 
 class LSystemParser {
  private:
-  ResourceScope &scope_;
   StringRef full_str_;
   int64_t i_ = 0;
   SymbolIdMap &symbol_id_map_;
 
  public:
-  LSystemParser(ResourceScope &scope, const StringRef full_str, SymbolIdMap &symbol_id_map)
-      : scope_(scope), full_str_(full_str), symbol_id_map_(symbol_id_map)
+  LSystemParser(const StringRef full_str, SymbolIdMap &symbol_id_map)
+      : full_str_(full_str), symbol_id_map_(symbol_id_map)
   {
   }
 
@@ -222,7 +221,7 @@ class LSystemParser {
 
 bool LSystem::set_axiom(const StringRef axiom_str)
 {
-  LSystemParser parser{global_scope_, axiom_str, symbol_id_map_};
+  LSystemParser parser{axiom_str, symbol_id_map_};
   if (const std::optional<Vector<SymbolExpr>> symbols = parser.parse_symbol_expressions()) {
     axiom_ = std::move(*symbols);
     return true;
@@ -232,7 +231,7 @@ bool LSystem::set_axiom(const StringRef axiom_str)
 
 bool LSystem::add_rule(StringRef rule_str)
 {
-  LSystemParser parser{global_scope_, rule_str, symbol_id_map_};
+  LSystemParser parser{rule_str, symbol_id_map_};
   if (const std::optional<Rule> rule = parser.parse_rule()) {
     rules_.add(rule->variable_id, std::move(*rule));
     return true;
