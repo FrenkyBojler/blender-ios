@@ -38,8 +38,7 @@ static int node_shader_gpu_light_path(GPUMaterial *mat,
       out[6].hasoutput ||  /* Is Transmission Ray. */
       out[10].hasoutput || /* Diffuse Depth. */
       out[11].hasoutput || /* Glossy Depth. */
-      out[13].hasoutput || /* Transmission Depth. */
-      false /* For style. */)
+      out[13].hasoutput)   /* Transmission Depth. */
   {
     /* Used to detect that the world has a specific look for diffuse path. */
     GPU_material_flag_set(mat, GPU_MATFLAG_IS_DIFFUSE_OR_GLOSSY_RAY_FLAG);
