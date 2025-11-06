@@ -948,7 +948,7 @@ static void check_segments_in_lasso(const Span<float2> screen_space_positions,
   rcti bbox_lasso;
   BLI_lasso_boundbox(&bbox_lasso, mcoords);
 
-  curve_selection.foreach_index([&](const int curve_i) {
+  curve_selection.foreach_index(GrainSize(128), [&](const int curve_i) {
     /* To speed things up: do a bounding box check on the curve and the lasso area. */
     if (!BLI_rcti_isect(&bbox_lasso, &screen_space_curve_bounds[curve_i], nullptr)) {
       return;
