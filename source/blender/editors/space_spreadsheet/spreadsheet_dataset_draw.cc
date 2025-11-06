@@ -525,6 +525,25 @@ class InstancesViewItem : public DataSetViewItem {
   }
 };
 
+class GeometryBundleViewItem : public DataSetViewItem {
+ private:
+  bool has_bundle_items_;
+
+ public:
+  GeometryBundleViewItem(bool has_bundle_items) : has_bundle_items_(has_bundle_items)
+  {
+    label_ = IFACE_("Bundle");
+  }
+
+  void build_row(uiLayout &row) override
+  {
+    if (!has_bundle_items_) {
+      row.active_set(false);
+    }
+    row.label(label_, ICON_NONE);
+  }
+};
+
 class GeometryDataSetTreeView : public ui::AbstractTreeView {
  private:
   bke::GeometrySet geometry_set_;
@@ -565,6 +584,9 @@ class GeometryDataSetTreeView : public ui::AbstractTreeView {
 
     const bke::Instances *instances = geometry.get_instances();
     this->build_tree_for_instances(instances, parent);
+
+    const nodes::Bundle *bundle = geometry.bundle();
+    this->build_tree_for_bundle(bundle, parent);
   }
 
   void build_tree_for_mesh(const Mesh *mesh, ui::TreeViewItemContainer &parent)
@@ -635,6 +657,12 @@ class GeometryDataSetTreeView : public ui::AbstractTreeView {
   void build_tree_for_instances(const bke::Instances *instances, ui::TreeViewItemContainer &parent)
   {
     parent.add_tree_item<InstancesViewItem>(instances);
+  }
+
+  void build_tree_for_bundle(const nodes::Bundle *bundle, ui::TreeViewItemContainer &parent)
+  {
+    const bool has_bundle_items = bundle && !bundle->items().is_empty();
+    parent.add_tree_item<GeometryBundleViewItem>(has_bundle_items);
   }
 };
 
