@@ -2051,10 +2051,6 @@ blender::Vector<blender::StringRef> ui_but_textbox_wrap_lines(uiButTextBox *text
   if (text.endswith("\n")) {
     lines.append(StringRef(text.end(), text.end()));
   }
-  /* Remove trailing null terminator. */
-  if (lines.last().endswith(blender::StringRefNull("\0"))) {
-    lines.last() = lines.last().drop_suffix(1);
-  }
   textbox->last_total_lines = lines.size();
   if (textbox->wrap_cache) {
     textbox->wrap_cache->wrapped_lines = lines;
