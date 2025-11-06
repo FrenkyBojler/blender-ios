@@ -301,9 +301,6 @@ static void region_draw_azones(ScrArea *area, ARegion *region)
           }
         }
       }
-      else if (az->type == AZONE_REGION_QUAD) {
-        /* Pass. */
-      }
       else if (az->type == AZONE_FULLSCREEN) {
         if (az->alpha > 0.0f) {
           area_draw_azone_fullscreen(az->x1, az->y1, az->x2, az->y2, az->alpha);
@@ -2197,7 +2194,7 @@ void ED_area_init(bContext *C, const wmWindow *win, ScrArea *area)
   /* clear all azones, add the area triangle widgets */
   area_azone_init(win, screen, area);
 
-  /* Only one quad view gets AZONE_REGION_QUAD*/
+  /* Only one quad view gets AZONE_REGION_QUAD. */
   char quad_view_index = 0;
 
   /* region windows, default and own handlers */
@@ -3582,9 +3579,9 @@ void ED_region_panels_draw(const bContext *C, ARegion *region)
   UI_blocklist_update_window_matrix(C, &region->runtime->uiblocks);
 
   /* draw panels if they are large enough. */
-  const bool has_catgories = (region->panels_category_active.first != nullptr);
-  const short min_draw_size = has_catgories ? short(UI_PANEL_CATEGORY_MIN_WIDTH) + 20 :
-                                              std::min(region->runtime->type->prefsizex, 20);
+  const bool has_categories = (region->panels_category_active.first != nullptr);
+  const short min_draw_size = has_categories ? short(UI_PANEL_CATEGORY_MIN_WIDTH) + 20 :
+                                               std::min(region->runtime->type->prefsizex, 20);
   if (region->winx >= (min_draw_size * UI_SCALE_FAC / aspect)) {
     UI_panels_draw(C, region);
   }

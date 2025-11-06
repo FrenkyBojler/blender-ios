@@ -47,7 +47,7 @@
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
-#include "BKE_sound.h"
+#include "BKE_sound.hh"
 #include "BKE_workspace.hh"
 
 #include "WM_api.hh"
@@ -1162,7 +1162,7 @@ static wmOperatorStatus actionzone_invoke(bContext *C, wmOperator *op, const wmE
   sad->y = event->xy[1];
   sad->modifier = RNA_int_get(op->ptr, "modifier");
 
-  /* region azone directly reacts on mouse clicks */
+  /* Region azones directly react on mouse clicks. */
   if (ELEM(sad->az->type, AZONE_REGION, AZONE_FULLSCREEN, AZONE_REGION_QUAD)) {
     actionzone_apply(C, op, sad->az->type);
     actionzone_exit(op);
@@ -1862,6 +1862,7 @@ static bool area_move_init(bContext *C, wmOperator *op)
   /* required properties */
   int x = RNA_int_get(op->ptr, "x");
   int y = RNA_int_get(op->ptr, "y");
+  bool snap_prop = RNA_boolean_get(op->ptr, "snap");
 
   /* setup */
   ScrEdge *actedge = screen_geom_find_active_scredge(win, screen, x, y);
@@ -1900,7 +1901,12 @@ static bool area_move_init(bContext *C, wmOperator *op)
   area_move_set_limits(
       win, screen, md->dir_axis, &md->bigger, &md->smaller, &use_bigger_smaller_snap);
 
-  md->snap_type = use_bigger_smaller_snap ? SNAP_BIGGER_SMALLER_ONLY : SNAP_AREAGRID;
+  if (snap_prop) {
+    md->snap_type = SNAP_FRACTION_AND_ADJACENT;
+  }
+  else {
+    md->snap_type = use_bigger_smaller_snap ? SNAP_BIGGER_SMALLER_ONLY : SNAP_AREAGRID;
+  }
 
   md->screen = screen;
   md->start_time = BLI_time_now_seconds();
@@ -2229,6 +2235,8 @@ static wmOperatorStatus area_move_modal(bContext *C, wmOperator *op, const wmEve
 
 static void SCREEN_OT_area_move(wmOperatorType *ot)
 {
+  PropertyRNA *prop;
+
   /* identifiers */
   ot->name = "Move Area Edges";
   ot->description = "Move selected area edges";
@@ -2247,6 +2255,9 @@ static void SCREEN_OT_area_move(wmOperatorType *ot)
   RNA_def_int(ot->srna, "x", 0, INT_MIN, INT_MAX, "X", "", INT_MIN, INT_MAX);
   RNA_def_int(ot->srna, "y", 0, INT_MIN, INT_MAX, "Y", "", INT_MIN, INT_MAX);
   RNA_def_int(ot->srna, "delta", 0, INT_MIN, INT_MAX, "Delta", "", INT_MIN, INT_MAX);
+
+  prop = RNA_def_boolean(ot->srna, "snap", false, "Snapping", "Enable snapping");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 /** \} */
@@ -3202,8 +3213,9 @@ static void SCREEN_OT_region_scale(wmOperatorType *ot)
 struct QuadViewSizeData {
   ScrArea *area;
   ARegion *region;
+  /* Combined bounds of the four regions. */
   rcti bounds;
-  float orig_ratio[2];
+  float original_ratio[2];
 };
 
 static void quadview_size_exit(wmOperator *op)
@@ -3236,10 +3248,10 @@ static wmOperatorStatus quadview_size_invoke(bContext *C, wmOperator *op, const 
       }
     }
 
-    qsd->orig_ratio[0] = float(BLI_rcti_size_x(&sad->az->region->winrct)) /
-                         float(BLI_rcti_size_x(&qsd->bounds));
-    qsd->orig_ratio[1] = float(BLI_rcti_size_y(&sad->az->region->winrct)) /
-                         float(BLI_rcti_size_y(&qsd->bounds));
+    qsd->original_ratio[0] = float(BLI_rcti_size_x(&sad->az->region->winrct)) /
+                             float(BLI_rcti_size_x(&qsd->bounds));
+    qsd->original_ratio[1] = float(BLI_rcti_size_y(&sad->az->region->winrct)) /
+                             float(BLI_rcti_size_y(&qsd->bounds));
 
     WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
 
@@ -3268,11 +3280,9 @@ static wmOperatorStatus quadview_size_modal(bContext *C, wmOperator *op, const w
                      float(BLI_rcti_size_y(&qsd->bounds) + 1);
 
       /* Snap to middle. */
-      const float snap_threshold = 0.05f;
-      if (fabsf(quad_x - 0.5f) < snap_threshold) {
+      const float snap_threshold = 0.04f;
+      if ((fabsf(quad_x - 0.5f) < snap_threshold) && (fabsf(quad_y - 0.5f) < snap_threshold)) {
         quad_x = 0.5f;
-      }
-      if (fabsf(quad_y - 0.5f) < snap_threshold) {
         quad_y = 0.5f;
       }
 
@@ -3294,8 +3304,8 @@ static wmOperatorStatus quadview_size_modal(bContext *C, wmOperator *op, const w
       break;
 
     case EVT_ESCKEY:
-      qsd->area->quadview_ratio[0] = qsd->orig_ratio[0];
-      qsd->area->quadview_ratio[1] = qsd->orig_ratio[1];
+      qsd->area->quadview_ratio[0] = qsd->original_ratio[0];
+      qsd->area->quadview_ratio[1] = qsd->original_ratio[1];
       ED_area_tag_redraw(qsd->area);
       WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
       quadview_size_exit(op);
@@ -3323,7 +3333,6 @@ static void SCREEN_OT_quadview_size(wmOperatorType *ot)
   ot->invoke = quadview_size_invoke;
   ot->modal = quadview_size_modal;
   ot->cancel = quadview_size_cancel;
-
   ot->poll = ED_operator_areaactive;
 
   /* flags */
@@ -3513,8 +3522,12 @@ static void SCREEN_OT_frame_jump(wmOperatorType *ot)
 /* function to be called outside UI context, or for redo */
 static wmOperatorStatus frame_jump_delta_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_wm_space_seq(C) != nullptr ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
   const bool backward = RNA_boolean_get(op->ptr, "backward");
+
+  if (scene == nullptr) {
+    return OPERATOR_CANCELLED;
+  }
 
   float delta = scene->r.time_jump_delta;
 
@@ -3542,6 +3555,7 @@ static wmOperatorStatus frame_jump_delta_exec(bContext *C, wmOperator *op)
   }
 
   ED_areas_do_frame_follow(C, true);
+  blender::ed::vse::sync_active_scene_and_time_with_scene_strip(*C);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_FRAME_CHANGE);
 
@@ -3607,10 +3621,9 @@ static void keylist_from_graph_editor(bContext &C, AnimKeylist &keylist)
 }
 
 /* This is used for all editors where a more specific function isn't implemented. */
-static void keylist_fallback_for_keyframe_jump(bContext &C, AnimKeylist &keylist)
+static void keylist_fallback_for_keyframe_jump(bContext &C, Scene *scene, AnimKeylist &keylist)
 {
   bDopeSheet ads = {nullptr};
-  Scene *scene = CTX_data_scene(&C);
 
   /* Speed up dummy dope-sheet context with flags to perform necessary filtering. */
   if ((scene->flag & SCE_KEYS_NO_SELONLY) == 0) {
@@ -3620,6 +3633,12 @@ static void keylist_fallback_for_keyframe_jump(bContext &C, AnimKeylist &keylist
 
   /* populate tree with keyframe nodes */
   scene_to_keylist(&ads, scene, &keylist, 0, {-FLT_MAX, FLT_MAX});
+
+  /* Return early when invoked from sequencer with sequencer scene. Objects may belong to different
+   * scenes and are irrelevant. */
+  if (CTX_wm_space_seq(&C) != nullptr && scene == CTX_data_sequencer_scene(&C)) {
+    return;
+  }
 
   Object *ob = CTX_data_active_object(&C);
   if (ob) {
@@ -3644,7 +3663,7 @@ static void keylist_fallback_for_keyframe_jump(bContext &C, AnimKeylist &keylist
 /* function to be called outside UI context, or for redo */
 static wmOperatorStatus keyframe_jump_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_wm_space_seq(C) != nullptr ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
   const bool next = RNA_boolean_get(op->ptr, "next");
   bool done = false;
 
@@ -3667,7 +3686,7 @@ static wmOperatorStatus keyframe_jump_exec(bContext *C, wmOperator *op)
       break;
 
     default:
-      keylist_fallback_for_keyframe_jump(*C, *keylist);
+      keylist_fallback_for_keyframe_jump(*C, scene, *keylist);
       break;
   }
 
@@ -3715,6 +3734,7 @@ static wmOperatorStatus keyframe_jump_exec(bContext *C, wmOperator *op)
   }
 
   ED_areas_do_frame_follow(C, true);
+  blender::ed::vse::sync_active_scene_and_time_with_scene_strip(*C);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_FRAME_CHANGE);
 
