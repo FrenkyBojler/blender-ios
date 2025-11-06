@@ -2592,7 +2592,7 @@ static bool is_valid_selected_chain(Vector<bNode *> &selected_nodes,
   return false;
 }
 
-static int get_socket_priority(const bNodeSocket *socket)
+static int get_socket_priority(const bNodeSocket *socket, const bNodeTree &ntree)
 {
   switch (eNodeSocketDatatype(socket->type)) {
     case SOCK_CUSTOM:
@@ -2602,7 +2602,6 @@ static int get_socket_priority(const bNodeSocket *socket)
     case SOCK_INT:
     case SOCK_FLOAT:
     case SOCK_VECTOR:
-    case SOCK_RGBA:
     case SOCK_STRING:
     case SOCK_OBJECT:
     case SOCK_IMAGE:
@@ -2614,6 +2613,8 @@ static int get_socket_priority(const bNodeSocket *socket)
     case SOCK_BUNDLE:
     case SOCK_CLOSURE:
       return 1;
+    case SOCK_RGBA:
+      return (ntree.type == NTREE_COMPOSIT) ? 2 : 1;
     case SOCK_SHADER:
     case SOCK_GEOMETRY:
       return 2;
@@ -2623,10 +2624,19 @@ static int get_socket_priority(const bNodeSocket *socket)
 
 static bNodeSocket *get_compatible_socket_input(bNodeTree &ntree, bNode &node, bNodeLink &link)
 {
-  // ! 合并字符串有问题,多个同类型找 默认;如果有优先级更高的接口,除非低优先级同时有输入输出,或者高优先级不是第一个接口,或者只有一边有?
+  bNodeSocket *default_socket = get_default_link_socket(ntree, node, SOCK_IN);
+  if (default_socket && default_socket->type == link.fromsock->type) {
+    return default_socket;
+  }
+  // 如果有优先级更高的接口,除非低优先级同时有输入输出(或者是inline的?),或者高优先级不是第一个接口,或者只有一边有?
   for (bNodeSocket *sock : node.input_sockets()) {
-    if (sock->is_visible() && link.fromsock->type == sock->type) {
-      return sock;
+    if (sock->is_visible()) {
+      if (get_socket_priority(sock, ntree) > get_socket_priority(link.fromsock, ntree)) {
+        return nullptr;
+      }
+      if (sock->type == link.fromsock->type) {
+        return sock;
+      }
     }
   }
   if (!ntree.typeinfo->validate_link) {
@@ -2673,6 +2683,7 @@ static NodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &tree, b
   Vector<bNode *> end_candidates;
   // VectorSet<bNode *> selected_nodes = transform::get_transformed_nodes(tree, false);
   Vector<bNode *> selected_nodes = transform::get_transformed_nodes(tree, false).extract_vector();
+  result.selected_count = selected_nodes.size();
 
   bool find_first = false;
   for (bNode *node : selected_nodes) {
@@ -2695,18 +2706,17 @@ static NodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &tree, b
       end_candidates.append(node);
     }
   }
-  result.selected_count = selected_nodes.size();
 
   /* Handle no link between zone input and zone output */
   if (end_candidates.size() == 2) {
     // 不确定是否要始终把区域输入和输出之间当做有连线.
     // 目前无法处理同时选中了无连接区域输入输出,但只有一个在候选里
     for (bNode *end_node : end_candidates) {
+      if (!bke::all_zone_output_node_types().contains(end_node->type_legacy)) {
+        continue;
+      }
       if (const bke::bNodeZoneType *zone_type = bke::zone_type_by_node_type(end_node->type_legacy))
       {
-        if (zone_type->output_type != end_node->type_legacy) {
-          continue;
-        }
         // 找到了区域输出节点. 查找它配对的输入节点是否也被选中了.
         bNode *paired_input = zone_type->get_corresponding_input(tree, *end_node);
         if (paired_input && selected_nodes.contains(paired_input)) {
@@ -2714,7 +2724,7 @@ static NodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &tree, b
             return {};
           }
           for (const bNodeSocket *socket : paired_input->input_sockets()) {
-            if (socket->is_directly_linked()) {
+            if (!is_new_node && socket->is_directly_linked()) {
               return {};
             }
           }
@@ -2738,7 +2748,7 @@ static NodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &tree, b
     int max_sk_priority = INT_MIN;
     Map<int, Vector<bNodeSocket *>> inputs_by_priority;
     for (bNodeSocket *socket : node->input_sockets()) {
-      const int sk_priority = get_socket_priority(socket);
+      const int sk_priority = get_socket_priority(socket, tree);
       inputs_by_priority.lookup_or_add_default(sk_priority).append(socket);
       max_sk_priority = max_ii(max_sk_priority, sk_priority);
     }
@@ -3049,7 +3059,7 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
 /** \name Node Insert Offset Operator
  * \{ */
 
-bNodeSocket *get_main_socket(bNodeTree &ntree, bNode &node, eNodeSocketInOut in_out)
+bNodeSocket *get_default_link_socket(bNodeTree &ntree, bNode &node, eNodeSocketInOut in_out)
 {
   ListBase *sockets = (in_out == SOCK_IN) ? &node.inputs : &node.outputs;
 
@@ -3069,20 +3079,29 @@ bNodeSocket *get_main_socket(bNodeTree &ntree, bNode &node, eNodeSocketInOut in_
       }
     }
   }
+  return nullptr;
+}
 
+bNodeSocket *get_main_socket(bNodeTree &ntree, bNode &node, eNodeSocketInOut in_out)
+{
+  if (bNodeSocket *socket = get_default_link_socket(ntree, node, in_out)) {
+    return socket;
+  }
+
+  ListBase *sockets = (in_out == SOCK_IN) ? &node.inputs : &node.outputs;
   /* Find priority range. */
   int maxpriority = -1;
   LISTBASE_FOREACH (bNodeSocket *, sock, sockets) {
     if (sock->flag & SOCK_UNAVAIL) {
       continue;
     }
-    maxpriority = max_ii(get_socket_priority(sock), maxpriority);
+    maxpriority = max_ii(get_socket_priority(sock, ntree), maxpriority);
   }
 
   /* Try all priorities, starting from 'highest'. */
   for (int priority = maxpriority; priority >= 0; priority--) {
     LISTBASE_FOREACH (bNodeSocket *, sock, sockets) {
-      if (!!sock->is_visible() && priority == get_socket_priority(sock)) {
+      if (!!sock->is_visible() && priority == get_socket_priority(sock, ntree)) {
         return sock;
       }
     }

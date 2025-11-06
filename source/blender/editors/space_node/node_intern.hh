@@ -330,6 +330,8 @@ void NODE_OT_default_group_width_set(wmOperatorType *ot);
 
 void update_multi_input_indices_for_removed_links(bNode &node);
 bool all_links_muted(const bNodeSocket &socket);
+/* Get the socket based on the node declaration, maybe not exist */
+bNodeSocket *get_default_link_socket(bNodeTree &ntree, bNode &node, eNodeSocketInOut in_out);
 /** Get the "main" socket based on the node declaration or an heuristic. */
 bNodeSocket *get_main_socket(bNodeTree &ntree, bNode &node, eNodeSocketInOut in_out);
 
