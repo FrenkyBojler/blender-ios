@@ -418,6 +418,8 @@ void VKTexture::update_sub(int mip,
     else {
       BLI_assert_msg(!is_compressed,
                      "Compressed data with texture_unpack_row_length != 0 is not supported.");
+      BLI_assert_msg(extent[2] <= 1,
+                     "3D texture data with texture_unpack_row_length != 0 is not supported.");
       size_t dst_row_stride = extent.x * to_bytesize(device_format_);
       size_t src_row_stride = texture_unpack_row_length * to_bytesize(format_, format);
       uint8_t *dst_ptr = static_cast<uint8_t *>(staging_buffer.mapped_memory_get());
