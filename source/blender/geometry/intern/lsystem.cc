@@ -10,6 +10,8 @@
 
 #include "lsystem.hh"
 
+#include <fast_float.h>
+
 namespace blender::geometry::lsystem {
 
 class LSystemParser {
@@ -124,7 +126,50 @@ class LSystemParser {
 
   std::optional<Vector<ParamExpr>> parse_params()
   {
-    return Vector<ParamExpr>();
+    if (!this->consume_next_if('(')) {
+      return Vector<ParamExpr>();
+    }
+    if (this->consume_next_if(')')) {
+      return Vector<ParamExpr>();
+    }
+    Vector<ParamExpr> params;
+    while (true) {
+      std::optional<ParamExpr> param = this->parse_param();
+      if (!param) {
+        return std::nullopt;
+      }
+      params.append(std::move(*param));
+      if (this->consume_next_if(')')) {
+        return params;
+      }
+      if (!this->consume_next_if(',')) {
+        return std::nullopt;
+      }
+    }
+  }
+
+  std::optional<ParamExpr> parse_param()
+  {
+    if (this->is_end()) {
+      return std::nullopt;
+    }
+    const char first_c = full_str_[i_];
+    if (!this->is_digit(first_c)) {
+      return std::nullopt;
+    }
+    float value;
+    fast_float::from_chars_result result = fast_float::from_chars(
+        full_str_.begin() + i_, full_str_.end(), value);
+    if (result.ec != std::errc()) {
+      return std::nullopt;
+    }
+    i_ = result.ptr - full_str_.begin();
+    return ParamExpr{value};
+  }
+
+  bool is_digit(const char c) const
+  {
+    return c >= '0' && c <= '9';
   }
 
   bool is_end() const
@@ -253,15 +298,24 @@ LSystem::LSystem()
 
 Symbol LSystem::eval_symbol_expr(ResourceScope &scope,
                                  const SymbolExpr &symbol_expr,
-                                 const TurtleStack &turtle_stack) const
+                                 const TurtleStack & /*turtle_stack*/) const
 {
-  const Turtle &turtle = turtle_stack.peek();
   switch (symbol_expr.symbol_id) {
     case symbol_F.id:
     case symbol_f.id: {
-      return Symbol{symbol_expr.symbol_id,
-                    scope.allocator().construct_array_copy<ParamValue>(
-                        {{turtle.step_size}, {turtle.radius}})};
+      switch (symbol_expr.params.size()) {
+        case 0: {
+          return Symbol{symbol_expr.symbol_id, {}};
+        }
+        default: {
+          Vector<ParamValue> values;
+          for (const ParamExpr &param : symbol_expr.params) {
+            values.append(ParamValue{param.value});
+          }
+          return Symbol{symbol_expr.symbol_id,
+                        scope.allocator().construct_array_copy<ParamValue>(values)};
+        }
+      }
     }
     default: {
       return Symbol{symbol_expr.symbol_id, {}};
@@ -269,10 +323,10 @@ Symbol LSystem::eval_symbol_expr(ResourceScope &scope,
   }
 }
 
-static void update_turtle_F(Turtle &turtle, const Symbol & /*symbol*/)
+static void update_turtle_F(Turtle &turtle, const Symbol &symbol)
 {
-  const float3 offset = math::transform_direction(turtle.orientation,
-                                                  float3(0, 0, turtle.step_size));
+  const float step_size = symbol.param_value(0, turtle.step_size);
+  const float3 offset = math::transform_direction(turtle.orientation, float3(0, 0, step_size));
   turtle.position += offset;
 }
 

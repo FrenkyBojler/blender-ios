@@ -38,9 +38,19 @@ struct Symbol {
   Symbol(SymbolId symbol_id, Span<ParamValue> params) : symbol_id(symbol_id), params(params) {}
 
   BLI_STRUCT_EQUALITY_OPERATORS_2(Symbol, symbol_id, params)
+
+  float param_value(const int index, const float fallback) const
+  {
+    if (index < params.size()) {
+      return params[index].value;
+    }
+    return fallback;
+  }
 };
 
-struct ParamExpr {};
+struct ParamExpr {
+  float value;
+};
 
 struct SymbolExpr {
   SymbolId symbol_id;
