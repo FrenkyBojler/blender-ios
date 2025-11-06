@@ -530,6 +530,10 @@ static int treesort_eval_time(const void *v1, const void *v2)
   const TreeElementDepsgraphIDNode *tx1 = tree_element_cast<TreeElementDepsgraphIDNode>(x1->te);
   const TreeElementDepsgraphIDNode *tx2 = tree_element_cast<TreeElementDepsgraphIDNode>(x2->te);
 
+  if (!tx1 || !tx2) {
+    return 0;
+  }
+
   const std::optional<double> t1 = tx1->node_evaluation_time();
   const std::optional<double> t2 = tx2->node_evaluation_time();
 

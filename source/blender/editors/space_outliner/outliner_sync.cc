@@ -287,6 +287,11 @@ static void outliner_sync_selection_from_outliner(WorkSpace *workspace,
         outliner_select_sync_to_object(view_layer, te, tselem, selected_items->objects);
       }
     }
+    else if ((tselem->type == TSE_DEPSGRAPH_ID_NODE) && (te->idcode == ID_OB)) {
+      if (sync_types->object) {
+        outliner_select_sync_to_object(view_layer, te, tselem, selected_items->objects);
+      }
+    }
     else if (tselem->type == TSE_EBONE) {
       if (sync_types->edit_bone) {
         outliner_select_sync_to_edit_bone(
@@ -320,8 +325,7 @@ void ED_outliner_select_sync_from_outliner(bContext *C, SpaceOutliner *space_out
                                                        SO_LIBRARIES,
                                                        SO_OVERRIDES_LIBRARY,
                                                        SO_DATA_API,
-                                                       SO_ID_ORPHANS,
-                                                       SO_EVALUATION_TIME))
+                                                       SO_ID_ORPHANS))
   {
     return;
   }
@@ -471,6 +475,11 @@ static void outliner_sync_selection_to_outliner(const Scene *scene,
     TreeStoreElem *tselem = TREESTORE(te);
 
     if ((tselem->type == TSE_SOME_ID) && te->idcode == ID_OB) {
+      if (sync_types->object) {
+        outliner_select_sync_from_object(scene, view_layer, active_data->object, te, tselem);
+      }
+    }
+    else if ((tselem->type == TSE_DEPSGRAPH_ID_NODE) && te->idcode == ID_OB) {
       if (sync_types->object) {
         outliner_select_sync_from_object(scene, view_layer, active_data->object, te, tselem);
       }

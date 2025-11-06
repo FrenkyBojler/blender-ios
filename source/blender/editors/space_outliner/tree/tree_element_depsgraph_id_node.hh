@@ -10,6 +10,8 @@
 
 #include "tree_element.hh"
 
+struct Depsgraph;
+
 namespace blender::ed::outliner {
 
 struct DepsgraphIDNodeData {

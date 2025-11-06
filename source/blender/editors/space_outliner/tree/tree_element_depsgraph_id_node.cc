@@ -7,6 +7,7 @@
  */
 
 #include "BKE_collection.hh"
+#include "BKE_layer.hh"
 
 #include "DNA_ID.h"
 #include "DNA_outliner_types.h"
@@ -33,13 +34,17 @@ TreeElementDepsgraphIDNode::TreeElementDepsgraphIDNode(TreeElement &legacy_te,
   else {
     legacy_te.name = data.orig_id->name + 2;
     legacy_te.idcode = GS(data.orig_id->name);
+    if (legacy_te.idcode == ID_OB) {
+      legacy_te.directdata = BKE_view_layer_base_find(DEG_get_input_view_layer(data.depsgraph),
+                                                      (Object *)data.orig_id);
+    }
   }
 }
 
 void TreeElementDepsgraphIDNode::expand(SpaceOutliner & /*soops*/) const
 {
   if (!orig_id_) {
-    DEG_foreach_ID(depsgraph_, [&](ID *orig_id){
+    DEG_foreach_ID(depsgraph_, [&](ID *orig_id) {
       DepsgraphIDNodeData data{depsgraph_, orig_id};
       add_element(&legacy_te_.subtree, orig_id, &data, &legacy_te_, TSE_DEPSGRAPH_ID_NODE, 0);
     });
