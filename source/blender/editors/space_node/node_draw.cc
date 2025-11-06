@@ -2888,17 +2888,22 @@ static ColorTheme4f node_header_color_get(const bNodeTree &ntree,
                                           const int color_id)
 {
   ColorTheme4f color_header;
-
+  /* Use node backdrop alpha to control header*/
+  ColorTheme4f color_alpha;
+  UI_GetThemeColor4fv(TH_NODE, color_alpha);
+  const float alpha = std::clamp(color_alpha.a, 0.4f, 1.0f);
+  
   /* The base color of the node header. */
   if (node_undefined_or_unsupported(ntree, node)) {
     /* Use warning color to indicate undefined types. */
     UI_GetThemeColorBlendShade4fv(TH_REDALERT, color_id, 0.1f, -40, color_header);
   }
   else if ((node.flag & NODE_COLLAPSED) && (node.flag & NODE_CUSTOM_COLOR)) {
-    rgba_float_args_set(color_header, node.color[0], node.color[1], node.color[2], 1.0f);
+    rgba_float_args_set(color_header, node.color[0], node.color[1], node.color[2], alpha);
   }
   else {
     UI_GetThemeColor4fv(color_id, color_header);
+    color_header.a = alpha;
   }
 
   /* Draw selected nodes fully opaque. */
