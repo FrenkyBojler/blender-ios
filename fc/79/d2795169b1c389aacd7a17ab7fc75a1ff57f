@@ -1,2 +1,2 @@
-Referenced by issue #71471, Assign Shortcuts: creates shortcut in the "wrong" space
+Referenced by issue #71471, Assign Shortcuts: Shortcuts are always created in "Window" context
 Referenced by issue #71452, When you delete an instance, the collection disappears
