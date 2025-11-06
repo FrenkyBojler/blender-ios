@@ -2564,6 +2564,16 @@ static bool sculpt_modifiers_active(const Scene *scene, const Sculpt *sd, Object
   return false;
 }
 
+static void sculpt_ensure_multires_runtime_data(Object *ob) {
+  SculptSession &ss = *ob->sculpt;
+  if (ss.multires.runtime.disp_at_level.size() < ss.multires.level) {
+    ss.multires.runtime.disp_at_level.resize(ss.multires.level);
+  }
+  if (ss.multires.runtime.positions_at_level.size() < ss.multires.level) {
+    ss.multires.runtime.positions_at_level.resize(ss.multires.level);
+  }
+}
+
 static void sculpt_update_object(Depsgraph *depsgraph,
                                  Object *ob,
                                  Object *ob_eval,
@@ -2603,6 +2613,7 @@ static void sculpt_update_object(Depsgraph *depsgraph,
     ss.multires.level = mmd->sculptlvl;
 
     /* TODO: This is maybe running too frequently */
+    sculpt_ensure_multires_runtime_data(ob);
     BKE_sculpt_copy_multires_positions(ob);
   }
   else {
