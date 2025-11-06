@@ -14,8 +14,14 @@ static void expect_generation_eq(const LSystem &lsystem,
 {
   ResourceScope scope;
   Turtle root_turtle;
-  const Vector<Symbol> symbols = lsystem.compute_nth_generation(scope, root_turtle, generation);
-  const std::string symbols_str = lsystem.symbols_to_string(symbols);
+  const std::optional<Vector<Symbol>> symbols = lsystem.compute_nth_generation(
+      scope, root_turtle, generation);
+  if (!symbols) {
+    FAIL() << fmt::format("Failed to generate lsystem result. Expected: {}", expected);
+    return;
+  }
+
+  const std::string symbols_str = lsystem.symbols_to_string(*symbols);
   EXPECT_EQ(symbols_str, expected);
 }
 

@@ -174,34 +174,47 @@ bool LSystem::add_rule(StringRef rule_str)
   return false;
 }
 
-Vector<Symbol> LSystem::compute_nth_generation(ResourceScope &scope,
-                                               const Turtle &root_turtle,
-                                               const int generations) const
+bool LSystem::add_evaluated_symbols(ResourceScope &scope,
+                                    Span<SymbolExpr> symbol_exprs,
+                                    TurtleStack &turtle_stack,
+                                    Vector<Symbol> &r_symbols) const
+{
+  for (const SymbolExpr &symbol_expr : symbol_exprs) {
+    const Symbol symbol = this->eval_symbol_expr(scope, symbol_expr, turtle_stack);
+    if (!this->update_turtle_stack(turtle_stack, symbol)) {
+      return false;
+    }
+    r_symbols.append(symbol);
+  }
+  return true;
+}
+
+std::optional<Vector<Symbol>> LSystem::compute_nth_generation(ResourceScope &scope,
+                                                              const Turtle &root_turtle,
+                                                              const int generations) const
 {
   Vector<Symbol> symbols;
   {
-    Turtle turtle = root_turtle;
-    for (const SymbolExpr &symbol_expr : axiom_) {
-      const Symbol symbol = this->eval_symbol_expr(scope, symbol_expr, turtle);
-      this->update_turtle(turtle, symbol);
-      symbols.append(symbol);
+    TurtleStack turtle_stack(root_turtle);
+    if (!this->add_evaluated_symbols(scope, axiom_, turtle_stack, symbols)) {
+      return std::nullopt;
     }
   }
 
   for (int i = 0; i < generations; i++) {
     Vector<Symbol> new_symbols;
-    Turtle turtle = root_turtle;
+    TurtleStack turtle_stack(root_turtle);
     for (const Symbol &symbol : symbols) {
       if (const Rule *rule = this->lookup_rule(symbol)) {
-        for (const SymbolExpr &expr : rule->replacement) {
-          const Symbol new_symbol = this->eval_symbol_expr(scope, expr, turtle);
-          new_symbols.append(new_symbol);
-          this->update_turtle(turtle, new_symbol);
+        if (!this->add_evaluated_symbols(scope, rule->replacement, turtle_stack, new_symbols)) {
+          return std::nullopt;
         }
       }
       else {
         new_symbols.append(symbol);
-        this->update_turtle(turtle, symbol);
+        if (!this->update_turtle_stack(turtle_stack, symbol)) {
+          return std::nullopt;
+        }
       }
     }
     symbols = std::move(new_symbols);
@@ -233,8 +246,9 @@ LSystem::LSystem()
 
 Symbol LSystem::eval_symbol_expr(ResourceScope &scope,
                                  const SymbolExpr &symbol_expr,
-                                 const Turtle &turtle) const
+                                 const TurtleStack &turtle_stack) const
 {
+  const Turtle &turtle = turtle_stack.stack.peek();
   switch (symbol_expr.symbol_id) {
     case symbol_F.id:
     case symbol_f.id: {
@@ -248,20 +262,35 @@ Symbol LSystem::eval_symbol_expr(ResourceScope &scope,
   }
 }
 
-void LSystem::update_turtle(Turtle &turtle, const Symbol &symbol) const
+bool LSystem::update_turtle_stack(TurtleStack &turtle_stack, const Symbol &symbol) const
 {
   switch (symbol.symbol_id) {
     case symbol_F.id:
     case symbol_f.id: {
+      Turtle &turtle = turtle_stack.stack.peek();
       const float3 offset = math::transform_direction(turtle.orientation,
                                                       float3(0, 0, turtle.step));
       turtle.position += offset;
+      break;
+    }
+    case symbol_branch_start.id: {
+      turtle_stack.stack.push(turtle_stack.stack.peek());
+      break;
+    }
+    case symbol_branch_end.id: {
+      if (turtle_stack.stack.size() > 1) {
+        turtle_stack.stack.pop();
+      }
+      else {
+        return false;
+      }
       break;
     }
     default: {
       break;
     }
   }
+  return true;
 }
 
 std::string LSystem::symbols_to_string(const Span<Symbol> symbols) const

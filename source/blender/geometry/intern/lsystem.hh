@@ -15,6 +15,7 @@
 #include "BLI_math_matrix.hh"
 #include "BLI_multi_value_map.hh"
 #include "BLI_resource_scope.hh"
+#include "BLI_stack.hh"
 #include "BLI_struct_equality_utils.hh"
 #include "BLI_vector.hh"
 #include "BLI_vector_set.hh"
@@ -84,10 +85,23 @@ struct BuiltinSymbol {
 
 static constexpr BuiltinSymbol symbol_F{'F', 0};
 static constexpr BuiltinSymbol symbol_f{'f', 1};
+static constexpr BuiltinSymbol symbol_branch_start{'[', 2};
+static constexpr BuiltinSymbol symbol_branch_end{']', 3};
 
 static constexpr std::array builtin_symbols = {
     symbol_F,
     symbol_f,
+    symbol_branch_start,
+    symbol_branch_end,
+};
+
+struct TurtleStack {
+  Stack<Turtle> stack;
+
+  TurtleStack(Turtle initial_turtle)
+  {
+    stack.push(initial_turtle);
+  }
 };
 
 class LSystem {
@@ -124,15 +138,20 @@ class LSystem {
     return nullptr;
   }
 
-  Vector<Symbol> compute_nth_generation(ResourceScope &scope,
-                                        const Turtle &root_turtle,
-                                        const int generations) const;
+  std::optional<Vector<Symbol>> compute_nth_generation(ResourceScope &scope,
+                                                       const Turtle &root_turtle,
+                                                       const int generations) const;
 
   Symbol eval_symbol_expr(ResourceScope &scope,
                           const SymbolExpr &symbol_expr,
-                          const Turtle &turtle) const;
+                          const TurtleStack &turtle_stack) const;
 
-  void update_turtle(Turtle &turtle, const Symbol &symbol) const;
+  [[nodiscard]] bool update_turtle_stack(TurtleStack &turtle_stack, const Symbol &symbol) const;
+
+  [[nodiscard]] bool add_evaluated_symbols(ResourceScope &scope,
+                                           Span<SymbolExpr> symbol_exprs,
+                                           TurtleStack &turtle_stack,
+                                           Vector<Symbol> &r_symbols) const;
 
   std::string symbols_to_string(Span<Symbol> symbols) const;
 };
