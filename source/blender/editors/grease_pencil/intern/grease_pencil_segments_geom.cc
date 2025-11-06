@@ -59,7 +59,7 @@ class Segment {
    * - [start point] and [start point + 1]
    * - [end point] and [end point + 1]
    */
-  float alpha[2] = {0.0f, 0.0f};
+  float intersection_factor[2] = {0.0f, 0.0f};
 
   int intersection_index[2] = {-1, -1};
 
@@ -70,17 +70,17 @@ class Segment {
   {
     /* If both intersection points are the same, then it's a full loop. */
     if (points[Side::Start] == points[Side::End]) {
-      if (alpha[Side::Start] == alpha[Side::End]) {
+      if (intersection_factor[Side::Start] == intersection_factor[Side::End]) {
         return true;
       }
     }
 
-    return alpha[Side::End] == 1.0f;
+    return intersection_factor[Side::End] == 1.0f;
   }
 
   bool has_intersection(const Side side) const
   {
-    return alpha[side] != 0.0f && alpha[side] != 1.0f;
+    return intersection_factor[side] != 0.0f && intersection_factor[side] != 1.0f;
   }
 
   int2 edge(const Side side) const
@@ -110,7 +110,7 @@ class Segment {
     /* If both intersection points are on the same edge, there's ether no points between or
      * all of the points are. */
     if (points[Side::Start] == points[Side::End]) {
-      if (alpha[Side::Start] >= alpha[Side::End]) {
+      if (intersection_factor[Side::Start] >= intersection_factor[Side::End]) {
         return src_points.shift(points[Side::Start] - src_points.first() + 1);
       }
       return IndexRange(0);
@@ -156,8 +156,8 @@ class Segment {
     segment.points[Side::Start] = points.first();
     segment.points[Side::End] = points.last();
 
-    segment.alpha[Side::Start] = 0.0f;
-    segment.alpha[Side::End] = cyclical ? 1.0f : 0.0f;
+    segment.intersection_factor[Side::Start] = 0.0f;
+    segment.intersection_factor[Side::End] = cyclical ? 1.0f : 0.0f;
 
     return segment;
   }
@@ -175,11 +175,11 @@ class Segment {
 
     if (parameter_start) {
       segment.points[Side::Start] = int(math::floor(*parameter_start));
-      segment.alpha[Side::Start] = math::fract(*parameter_start);
+      segment.intersection_factor[Side::Start] = math::fract(*parameter_start);
     }
     else {
       segment.points[Side::Start] = points.first();
-      segment.alpha[Side::Start] = 0.0f;
+      segment.intersection_factor[Side::Start] = 0.0f;
     }
 
     if (inter_index_start) {
@@ -188,11 +188,11 @@ class Segment {
 
     if (parameter_end) {
       segment.points[Side::End] = int(math::floor(*parameter_end));
-      segment.alpha[Side::End] = math::fract(*parameter_end);
+      segment.intersection_factor[Side::End] = math::fract(*parameter_end);
     }
     else {
       segment.points[Side::End] = points.last();
-      segment.alpha[Side::End] = 0.0f;
+      segment.intersection_factor[Side::End] = 0.0f;
     }
 
     if (inter_index_end) {
@@ -332,11 +332,11 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
           if (reversed ? segment.has_intersection(Side::End) :
                          segment.has_intersection(Side::Start) && !segment.is_loop())
           {
-            const float start_alpha = reversed ? segment.alpha[Side::End] :
-                                                 segment.alpha[Side::Start];
+            const float start_factor = reversed ? segment.intersection_factor[Side::End] :
+                                                  segment.intersection_factor[Side::Start];
             const int2 start_edge = reversed ? segment.edge(Side::End) : segment.edge(Side::Start);
             dst_attr[i++] = bke::attribute_math::mix2<T>(
-                start_alpha, src_attr[start_edge.x], src_attr[start_edge.y]);
+                start_factor, src_attr[start_edge.x], src_attr[start_edge.y]);
           }
 
           segment.foreach_point(
@@ -353,11 +353,11 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
                           segment.has_intersection(Side::End)) &&
               !cyclic[curve_i])
           {
-            const float end_alpha = reversed ? segment.alpha[Side::Start] :
-                                               segment.alpha[Side::End];
+            const float end_factor = reversed ? segment.intersection_factor[Side::Start] :
+                                                segment.intersection_factor[Side::End];
             const int2 end_edge = reversed ? segment.edge(Side::Start) : segment.edge(Side::End);
             dst_attr[i++] = bke::attribute_math::mix2<T>(
-                end_alpha, src_attr[end_edge.x], src_attr[end_edge.y]);
+                end_factor, src_attr[end_edge.x], src_attr[end_edge.y]);
           }
         }
       }
@@ -372,8 +372,8 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
 struct IntersectionPoint {
   int point_i = -1;
   int point_j = -1;
-  float alpha_i = -1.0f;
-  float alpha_j = -1.0f;
+  float factor_i = -1.0f;
+  float factor_j = -1.0f;
   int curve_i = -1;
   int curve_j = -1;
 
@@ -385,22 +385,22 @@ struct IntersectionPoint {
   float parameter_for_curve(const int curve) const
   {
     BLI_assert(curve == curve_i || curve == curve_j);
-    return curve == curve_i ? point_i + alpha_i : point_j + alpha_j;
+    return curve == curve_i ? point_i + factor_i : point_j + factor_j;
   }
 };
 
 static IntersectionPoint create_intersection(const int point_i,
                                              const int point_j,
-                                             const float alpha_i,
-                                             const float alpha_j,
+                                             const float factor_i,
+                                             const float factor_j,
                                              const int curve_i,
                                              const int curve_j)
 {
   IntersectionPoint inter_point;
   inter_point.point_i = point_i;
   inter_point.point_j = point_j;
-  inter_point.alpha_i = alpha_i;
-  inter_point.alpha_j = alpha_j;
+  inter_point.factor_i = factor_i;
+  inter_point.factor_j = factor_j;
   inter_point.curve_i = curve_i;
   inter_point.curve_j = curve_j;
 
@@ -484,13 +484,13 @@ static void find_intersections_between_curve_and_curves(const int curve_i,
         /* Check for intersection. */
         const auto isect = math::isect_seg_seg(padded_i1, padded_i2, padded_j1, padded_j2);
         if (ELEM(isect.kind, isect.LINE_LINE_CROSS, isect.LINE_LINE_EXACT)) {
-          const float alpha_i = get_intersection_distance_of_segments(co_i1, co_i2, co_j1, co_j2);
-          const float alpha_j = get_intersection_distance_of_segments(co_j1, co_j2, co_i1, co_i2);
+          const float factor_i = get_intersection_distance_of_segments(co_i1, co_i2, co_j1, co_j2);
+          const float factor_j = get_intersection_distance_of_segments(co_j1, co_j2, co_i1, co_i2);
 
           r_inters_per_curves[curve_i].append(r_intersections.size());
           r_inters_per_curves[curve_j].append(r_intersections.size());
           r_intersections.append(
-              create_intersection(point_i1, point_j1, alpha_i, alpha_j, curve_i, curve_j));
+              create_intersection(point_i1, point_j1, factor_i, factor_j, curve_i, curve_j));
         }
       }
     });
@@ -614,7 +614,7 @@ static bool check_and_join_segments(Segment &first, const Segment &second)
       first.intersection_index[Side::End] != -1)
   {
     first.points[Side::End] = second.points[Side::End];
-    first.alpha[Side::End] = second.alpha[Side::End];
+    first.intersection_factor[Side::End] = second.intersection_factor[Side::End];
     first.intersection_index[Side::End] = second.intersection_index[Side::End];
 
     return true;
@@ -623,7 +623,7 @@ static bool check_and_join_segments(Segment &first, const Segment &second)
       first.intersection_index[Side::Start] != -1)
   {
     first.points[Side::Start] = second.points[Side::Start];
-    first.alpha[Side::Start] = second.alpha[Side::Start];
+    first.intersection_factor[Side::Start] = second.intersection_factor[Side::Start];
     first.intersection_index[Side::Start] = second.intersection_index[Side::Start];
 
     return true;
@@ -953,15 +953,15 @@ static void check_segments_in_lasso(const Span<float2> screen_space_positions,
       const IndexRange point_range = segment.point_range();
 
       if (point_range.is_empty()) {
-        const float start_alpha = segment.alpha[Side::Start];
+        const float start_factor = segment.intersection_factor[Side::Start];
         const int2 start_edge = segment.edge(Side::Start);
-        const float end_alpha = segment.alpha[Side::End];
+        const float end_factor = segment.intersection_factor[Side::End];
         const int2 end_edge = segment.edge(Side::End);
         const float2 pos_1 = math::interpolate(screen_space_positions[start_edge.x],
                                                screen_space_positions[start_edge.y],
-                                               start_alpha);
+                                               start_factor);
         const float2 pos_2 = math::interpolate(
-            screen_space_positions[end_edge.x], screen_space_positions[end_edge.y], end_alpha);
+            screen_space_positions[end_edge.x], screen_space_positions[end_edge.y], end_factor);
 
         if (check_line_segment_lasso_intersection(int2(pos_1), int2(pos_2), mcoords)) {
           segments_to_keep[segment_i] = false;
@@ -994,11 +994,11 @@ static void check_segments_in_lasso(const Span<float2> screen_space_positions,
       }
       else {
         if (segment.has_intersection(Side::Start)) {
-          const float start_alpha = segment.alpha[Side::Start];
+          const float start_factor = segment.intersection_factor[Side::Start];
           const int2 start_edge = segment.edge(Side::Start);
           const float2 pos_1 = math::interpolate(screen_space_positions[start_edge.x],
                                                  screen_space_positions[start_edge.y],
-                                                 start_alpha);
+                                                 start_factor);
           const float2 pos_2 = screen_space_positions[segment.wrap_index(point_range.first())];
 
           if (check_line_segment_lasso_intersection(int2(pos_1), int2(pos_2), mcoords)) {
@@ -1008,11 +1008,11 @@ static void check_segments_in_lasso(const Span<float2> screen_space_positions,
         }
 
         if (segment.has_intersection(Side::End)) {
-          const float end_alpha = segment.alpha[Side::End];
+          const float end_factor = segment.intersection_factor[Side::End];
           const int2 end_edge = segment.edge(Side::End);
           const float2 pos_1 = screen_space_positions[segment.wrap_index(point_range.last())];
           const float2 pos_2 = math::interpolate(
-              screen_space_positions[end_edge.x], screen_space_positions[end_edge.y], end_alpha);
+              screen_space_positions[end_edge.x], screen_space_positions[end_edge.y], end_factor);
 
           if (check_line_segment_lasso_intersection(int2(pos_1), int2(pos_2), mcoords)) {
             segments_to_keep[segment_i] = false;
