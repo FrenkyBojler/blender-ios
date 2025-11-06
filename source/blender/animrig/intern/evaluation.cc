@@ -10,6 +10,8 @@
 #include "BLI_map.hh"
 #include "BLI_math_base.hh"
 
+#include "DNA_anim_types.h"
+
 #include "CLG_log.h"
 
 #include "evaluation_internal.hh"

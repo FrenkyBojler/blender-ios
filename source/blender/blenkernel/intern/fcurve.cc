@@ -62,6 +62,7 @@ static CLG_LogRef LOG = {"anim.fcurve"};
 FCurve *BKE_fcurve_create()
 {
   FCurve *fcu = MEM_callocN<FCurve>(__func__);
+  fcu->runtime = MEM_callocN<FCurveRuntime>(__func__);
   return fcu;
 }
 
@@ -80,6 +81,7 @@ void BKE_fcurve_free(FCurve *fcu)
   /* Free curve data. */
   MEM_SAFE_FREE(fcu->bezt);
   MEM_SAFE_FREE(fcu->fpt);
+  MEM_SAFE_FREE(fcu->runtime);
 
   /* Free RNA-path, as this were allocated when getting the path string. */
   MEM_SAFE_FREE(fcu->rna_path);
@@ -133,6 +135,7 @@ FCurve *BKE_fcurve_copy(const FCurve *fcu)
   /* Copy curve data. */
   fcu_d->bezt = static_cast<BezTriple *>(MEM_dupallocN(fcu_d->bezt));
   fcu_d->fpt = static_cast<FPoint *>(MEM_dupallocN(fcu_d->fpt));
+  fcu_d->runtime = MEM_callocN<FCurveRuntime>(__func__);
 
   /* Copy rna-path. */
   fcu_d->rna_path = static_cast<char *>(MEM_dupallocN(fcu_d->rna_path));
@@ -487,22 +490,114 @@ static int BKE_fcurve_bezt_binarysearch_index_ex(const BezTriple array[],
     if (frame > midfra) {
       start = mid + 1;
     }
-    else if (frame < midfra) {
+    else {
       end = mid - 1;
     }
   }
 
-  /* Print error if loop-limit exceeded. */
-  if (loopbreaker == (maxloop - 1)) {
-    CLOG_ERROR(&LOG, "search taking too long");
+  /* Not found, so return where to place it. */
+  return start;
+}
 
-    /* Include debug info. */
-    CLOG_ERROR(&LOG,
-               "\tround = %d: start = %d, end = %d, arraylen = %d",
-               loopbreaker,
-               start,
-               end,
-               arraylen);
+static void BKE_fcurve_runtime_ensure_eval(FCurve *fcu)
+{
+  if (!fcu->runtime) {
+    BLI_assert_unreachable();
+    return;
+  }
+  FCurveRuntime *rt = fcu->runtime;
+  if (!(rt->flags & FCU_RUNTIME_DIRTY) && (rt->flags & FCU_RUNTIME_EVAL)) {
+    /* Dirty flag not set and already evaluated. */
+    return;
+  }
+
+  MEM_SAFE_FREE(rt->key_x);
+  MEM_SAFE_FREE(rt->key_y);
+  if (!fcu->bezt) {
+    /* fcu->fpt not implemented */
+    return;
+  }
+
+  rt->key_x = MEM_calloc_arrayN<float>(fcu->totvert, __func__);
+  rt->key_y = MEM_calloc_arrayN<float>(fcu->totvert, __func__);
+  for (int i = 0; i < fcu->totvert; i++) {
+    const BezTriple *bezt = &fcu->bezt[i];
+    rt->key_x[i] = bezt->vec[1][0];
+    rt->key_y[i] = bezt->vec[1][1];
+  }
+
+  rt->flags |= FCU_RUNTIME_EVAL;
+  rt->flags &= ~FCU_RUNTIME_DIRTY;
+}
+
+int BKE_fcurve_binarysearch_index_runtime(FCurve *fcu, const float frame, bool *r_replace)
+{
+  if (!fcu->runtime) {
+    fcu->runtime = MEM_callocN<FCurveRuntime>(__func__);
+  }
+
+  BKE_fcurve_runtime_ensure_eval(fcu);
+
+  int start = 0, end = fcu->totvert;
+
+  /* Initialize replace-flag first. */
+  *r_replace = false;
+
+  /* Sneaky optimizations (don't go through searching process if...):
+   * - Keyframe to be added is to be added out of current bounds.
+   * - Keyframe to be added would replace one of the existing ones on bounds.
+   */
+  if (fcu->totvert <= 0) {
+    return 0;
+  }
+
+  /* Check whether to add before/after/on. */
+  /* 'First' Keyframe (when only one keyframe, this case is used) */
+  float *array = fcu->runtime->key_x;
+  float framenum = array[0];
+  constexpr float threshold = 0.0001;
+  if (IS_EQT(frame, framenum, threshold)) {
+    *r_replace = true;
+    return 0;
+  }
+  if (frame < framenum) {
+    return 0;
+  }
+  const int arraylen = fcu->totvert;
+  /* 'Last' Keyframe */
+  framenum = array[arraylen - 1];
+  if (IS_EQT(frame, framenum, threshold)) {
+    *r_replace = true;
+    return (arraylen - 1);
+  }
+  if (frame > framenum) {
+    return arraylen;
+  }
+
+  /* Most of the time, this loop is just to find where to put it
+   * 'loopbreaker' is just here to prevent infinite loops.
+   */
+  while (start <= end) {
+    /* Compute and get midpoint. */
+
+    /* We calculate the midpoint this way to avoid int overflows... */
+    const int mid = start + ((end - start) / 2);
+
+    const float midfra = array[mid];
+
+    /* Check if exactly equal to midpoint. */
+    if (IS_EQT(frame, midfra, threshold)) {
+      *r_replace = true;
+      return mid;
+    }
+
+    /* Repeat in upper/lower half. */
+    if (frame > midfra) {
+      start = mid + 1;
+    }
+    else {
+      end = mid - 1;
+    }
   }
 
   /* Not found, so return where to place it. */
@@ -2031,6 +2126,7 @@ static float fcurve_eval_keyframes_interpolate(const FCurve *fcu,
    *   This lower bound was established in b888a32eee8147b028464336ad2404d8155c64dd.
    */
   a = BKE_fcurve_bezt_binarysearch_index_ex(bezts, evaltime, fcu->totvert, 0.0001, &exact);
+  // a = BKE_fcurve_binarysearch_index_runtime(const_cast<FCurve *>(fcu), evaltime, &exact);
   const BezTriple *bezt = bezts + a;
 
   if (exact) {

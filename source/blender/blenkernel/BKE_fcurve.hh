@@ -344,6 +344,7 @@ int BKE_fcurve_bezt_binarysearch_index(const BezTriple array[],
                                        int arraylen,
                                        bool *r_replace);
 
+int BKE_fcurve_binarysearch_index_runtime(FCurve *fcu, float frame, bool *r_replace);
 /* `fcurve_cache.cc` */
 
 /**

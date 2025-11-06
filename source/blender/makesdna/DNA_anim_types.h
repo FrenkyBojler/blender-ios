@@ -325,6 +325,19 @@ typedef struct FPoint {
   char _pad[4];
 } FPoint;
 
+enum FCurveRuntimeFlags {
+  FCU_RUNTIME_DIRTY = 1 << 0,
+  FCU_RUNTIME_EVAL = 1 << 1,
+};
+
+typedef struct FCurveRuntime {
+  float *key_x;
+  float *key_y;
+  // float bounds[4];
+  int8_t flags;
+  char _pad[7];
+} FCurveRuntime;
+
 /** 'Function-Curve' - defines values over time for a given setting (fcu). */
 typedef struct FCurve {
   struct FCurve *next, *prev;
@@ -391,6 +404,7 @@ typedef struct FCurve {
   float color[3];
 
   float prev_norm_factor, prev_offset;
+  FCurveRuntime *runtime;
 } FCurve;
 
 /* ************************************************ */
