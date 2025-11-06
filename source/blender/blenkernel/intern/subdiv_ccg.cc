@@ -463,8 +463,10 @@ Mesh *BKE_subdiv_to_ccg_mesh(Object &object,
   SubdivCCGMaskEvaluator mask_evaluator;
   bool has_mask = BKE_subdiv_ccg_mask_init_from_paint(&mask_evaluator, &coarse_mesh);
 
-  /* TODO: Possibly remove the displacement? MDisp is only correct once we've flushed again or we
-   * return to top level. */
+  bool mdisp_valid = delta != 0;
+  if  (!mdisp_valid) {
+    displacement_detach(&subdiv);
+  }
 
   std::unique_ptr<SubdivCCG> subdiv_ccg = BKE_subdiv_to_ccg(
       subdiv, settings, coarse_mesh, has_mask ? &mask_evaluator : nullptr);

@@ -30,6 +30,8 @@
 /** \name Reshape from object
  * \{ */
 
+#define USE_STROKE_FILTERING 0
+
 static CLG_LogRef LOG = {"multires.prototype"};
 
 static bool multiresModifier_reshapeFromVertcos(Depsgraph *depsgraph,
@@ -170,13 +172,14 @@ static void multires_level_calc_object_delta(SubdivCCG &higher_subdiv_ccg,
 {
   /* TODO: Calculate object space delta for all vertices of higher_subdiv_ccg and store into
    * object_delta */
-  CLOG_DEBUG(&LOG, "(ELEM) SUBDIV - LIMIT = DELTA:\n");
+  CLOG_DEBUG(&LOG, "(ELEM) SUBDIV - LIMIT = DELTA:");
   BLI_assert(higher_subdiv_ccg.positions.size() == object_delta.size());
   for (const int i : higher_subdiv_ccg.positions.index_range()) {
     const blender::float3 limit_surf_position = object_delta[i];
+#if USE_STROKE_FILTERING
     if (modified_grids[i]) {
       object_delta[i] = higher_subdiv_ccg.positions[i] - limit_surf_position;
-      CLOG_DEBUG(&LOG, "M - (%d) (%f %f %f) - (%f %f %f) = (%f %f %f) (%f)\n",
+      CLOG_DEBUG(&LOG, "M - (%d) (%f %f %f) - (%f %f %f) = (%f %f %f) (%f)",
              i,
              higher_subdiv_ccg.positions[i].x,
              higher_subdiv_ccg.positions[i].y,
@@ -191,8 +194,24 @@ static void multires_level_calc_object_delta(SubdivCCG &higher_subdiv_ccg,
     }
     else {
       object_delta[i] = blender::float3(0.0f);
-      CLOG_DEBUG(&LOG, "U - (%d) \n", i);
+      CLOG_DEBUG(&LOG, "U - (%d)", i);
     }
+#else
+    object_delta[i] = higher_subdiv_ccg.positions[i] - limit_surf_position;
+    CLOG_DEBUG(&LOG,
+               "M - (%d) (%f %f %f) - (%f %f %f) = (%f %f %f) (%f)",
+               i,
+               higher_subdiv_ccg.positions[i].x,
+               higher_subdiv_ccg.positions[i].y,
+               higher_subdiv_ccg.positions[i].z,
+               limit_surf_position.x,
+               limit_surf_position.y,
+               limit_surf_position.z,
+               object_delta[i].x,
+               object_delta[i].y,
+               object_delta[i].z,
+               blender::math::length(object_delta[i]));
+#endif
   }
 }
 
@@ -237,25 +256,25 @@ bool multiresModifier_storeHigherLevelDelta(Object &object,
     return false;
   }
 
-  CLOG_DEBUG(&LOG, "SIZES -> HIGHER: %ld, LOWER: %ld, Storage: %ld\n",
+  CLOG_DEBUG(&LOG, "SIZES -> HIGHER: %ld, LOWER: %ld, Storage: %ld",
          higher_subdiv_ccg.positions.size(),
          subdiv_ccg.positions.size(),
          delta_storage.size());
 
   multires_reshape_store_limit_positions(
       &reshape_context, MultiresSubdivideModeType::CatmullClark, delta_storage, tmat_storage);
-  CLOG_DEBUG(&LOG, "STORED LIMIT POS\n");
+  CLOG_DEBUG(&LOG, "STORED LIMIT POS");
   for (const int i : delta_storage.index_range()) {
-    CLOG_DEBUG(&LOG, "%d - (%f, %f, %f) - %f\n", i, delta_storage[i].x, delta_storage[i].y, delta_storage[i].z, blender::math::length(delta_storage[i]));
+    CLOG_DEBUG(&LOG, "%d - (%f, %f, %f) - %f", i, delta_storage[i].x, delta_storage[i].y, delta_storage[i].z, blender::math::length(delta_storage[i]));
   }
   multires_level_calc_object_delta(higher_subdiv_ccg, delta_storage, object.sculpt->multires.runtime.modified_at_level[reshape_context.top.level - 1]);
-  CLOG_DEBUG(&LOG, "STORED HIGHER POS - LIMIT POS\n");
+  CLOG_DEBUG(&LOG, "STORED HIGHER POS - LIMIT POS");
 
   multires_level_object_delta_to_tangent_delta(tmat_storage, delta_storage);
   for (const int i : delta_storage.index_range()) {
-    CLOG_DEBUG(&LOG, "%d - (%f, %f, %f) - %f\n", i, delta_storage[i].x, delta_storage[i].y, delta_storage[i].z, blender::math::length(delta_storage[i]));
+    CLOG_DEBUG(&LOG, "%d - (%f, %f, %f) - %f", i, delta_storage[i].x, delta_storage[i].y, delta_storage[i].z, blender::math::length(delta_storage[i]));
   }
-  CLOG_DEBUG(&LOG, "CONVERTED TO TANGENT SPACE\n");
+  CLOG_DEBUG(&LOG, "CONVERTED TO TANGENT SPACE");
 
   multires_reshape_context_free(&reshape_context);
 
@@ -281,10 +300,10 @@ static void multires_level_apply_object_delta(blender::Span<blender::float3> pos
   BLI_assert(subdiv_ccg.positions.size() == delta_storage.size());
   BLI_assert(subdiv_ccg.positions.size() == position_storage.size());
 
-  CLOG_DEBUG(&LOG, "APPLY OBJ DELTA\n");
+  CLOG_DEBUG(&LOG, "APPLY OBJ DELTA");
   for (const int i : subdiv_ccg.positions.index_range()) {
     subdiv_ccg.positions[i] = position_storage[i] + delta_storage[i];
-    CLOG_DEBUG(&LOG, "(%d) (%f %f %f) = (%f %f %f) + (%f %f %f)\n",
+    CLOG_DEBUG(&LOG, "(%d) (%f %f %f) = (%f %f %f) + (%f %f %f)",
            i,
            subdiv_ccg.positions[i].x,
            subdiv_ccg.positions[i].y,
@@ -319,10 +338,10 @@ bool multiresModifier_applyHigherLevelDelta(Object &object,
     return false;
   }
 
-  CLOG_DEBUG(&LOG, "Retrieving old positions: \n");
+  CLOG_DEBUG(&LOG, "Retrieving old positions:");
   blender::Span<blender::float3> old_positions = object.sculpt->multires.runtime.positions_at_level[lower_subdiv_ccg.level - 1];
   for (const int i : old_positions.index_range()) {
-    CLOG_DEBUG(&LOG, "(%d) - %f %f %f\n", i, old_positions[i].x, old_positions[i].y, old_positions[i].z);
+    CLOG_DEBUG(&LOG, "(%d) - %f %f %f", i, old_positions[i].x, old_positions[i].y, old_positions[i].z);
   }
 
   multires_reshape_store_tangent_matrices(
@@ -338,7 +357,7 @@ bool multiresModifier_applyHigherLevelDelta(Object &object,
   /* Re-add them to the new subdiv CCG */
   multires_level_apply_object_delta(position_storage, delta_storage, subdiv_ccg);
   for (const int i : subdiv_ccg.positions.index_range()) {
-    CLOG_DEBUG(&LOG, "(%d) - %f %f %f\n", i, subdiv_ccg.positions[i].x, subdiv_ccg.positions[i].y, subdiv_ccg.positions[i].z);
+    CLOG_DEBUG(&LOG, "(%d) - %f %f %f", i, subdiv_ccg.positions[i].x, subdiv_ccg.positions[i].y, subdiv_ccg.positions[i].z);
   }
 
   BKE_subdiv_ccg_recalc_normals(subdiv_ccg);
@@ -501,7 +520,7 @@ void multiresModifier_subdivide_to_level_v2(Object *object,
   /* TODO: Have this write to `multires_runtime` in tangent space of the base mesh. */
   /* TODO: Potentially write the object space positions too. */
   multires_flush_sculpt_updates(object);
-  CLOG_DEBUG(&LOG, "Flush updates to tangent displacements\n");
+  CLOG_DEBUG(&LOG, "Flush updates to tangent displacements");
 
   if (!multires_reshape_context_create_from_modifier(&reshape_context, object, mmd, top_level)) {
     return;
@@ -509,7 +528,7 @@ void multiresModifier_subdivide_to_level_v2(Object *object,
 
   multires_reshape_store_original_grids(&reshape_context);
   multires_reshape_ensure_grids(coarse_mesh, reshape_context.top.level);
-  CLOG_DEBUG(&LOG, "Allocate grids\n");
+  CLOG_DEBUG(&LOG, "Allocate grids");
   /* The refine CCG should be the "current" / flushed displacements. These are *object space*
    * locations of the grid elements.*/
   /* TODO: Implement a "multires_reshape_assign_base_coords_from_runtime" */
@@ -524,13 +543,13 @@ void multiresModifier_subdivide_to_level_v2(Object *object,
    */
   multires_reshape_assign_final_elements_from_orig_mdisps(&reshape_context);
   multires_reshape_free_original_grids(&reshape_context);
-  CLOG_DEBUG(&LOG, "Stored tangent displacements as object coordinates\n");
+  CLOG_DEBUG(&LOG, "Stored tangent displacements as object coordinates");
 
   /* Smooth the reshape CCG and use that to get the new tangent displacments */
   /* TODO: Have this read from the runtime data */
   multires_reshape_smooth_object_grids_v2(&reshape_context, mode);
   multires_reshape_object_grids_to_tangent_displacement(&reshape_context);
-  CLOG_DEBUG(&LOG, "Assign from MDisps\n");
+  CLOG_DEBUG(&LOG, "Assign from MDisps");
 
   /* At this point, the "canonical" MDisp data should be updated so that later when the subdiv CCG
    * is created it can use that to create the new object space positions */
