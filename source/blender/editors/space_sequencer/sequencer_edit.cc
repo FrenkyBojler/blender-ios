@@ -209,6 +209,7 @@ bool sequencer_strip_has_path_poll(bContext *C)
 {
   Scene *scene = CTX_data_sequencer_scene(C);
   if (!scene) {
+    CTX_wm_operator_poll_msg_set(C, "Context missing sequencer scene");
     return false;
   }
   Editing *ed = seq::editing_get(scene);
@@ -3379,8 +3380,7 @@ void SEQUENCER_OT_change_effect_type(wmOperatorType *ot)
 
 static wmOperatorStatus sequencer_change_path_exec(bContext *C, wmOperator *op)
 {
-  if (!sequencer_strip_has_path_poll(C)) {
-    BKE_report(op->reports, RPT_ERROR, "Context is invalid");
+  if (!WM_operator_poll(C, op->type)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -3664,27 +3664,9 @@ static bool strip_get_text_strip_cb(Strip *strip, void *user_data)
   return true;
 }
 
-static bool sequencer_strip_is_text_poll(bContext *C)
-{
-  Scene *scene = CTX_data_sequencer_scene(C);
-  if (!scene) {
-    return false;
-  }
-  Editing *ed = seq::editing_get(scene);
-  if (!ed) {
-    return false;
-  }
-  Strip *strip = ed->act_strip;
-  if (!strip) {
-    return false;
-  }
-  return strip->type == STRIP_TYPE_TEXT;
-}
-
 static wmOperatorStatus sequencer_export_subtitles_exec(bContext *C, wmOperator *op)
 {
-  if (!sequencer_strip_is_text_poll(C)) {
-    BKE_report(op->reports, RPT_ERROR, "Context is invalid");
+  if (!WM_operator_poll(C, op->type)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -3765,6 +3747,24 @@ static wmOperatorStatus sequencer_export_subtitles_exec(bContext *C, wmOperator 
   fclose(file);
 
   return OPERATOR_FINISHED;
+}
+
+static bool sequencer_strip_is_text_poll(bContext *C)
+{
+  Scene *scene = CTX_data_sequencer_scene(C);
+  if (!scene) {
+    CTX_wm_operator_poll_msg_set(C, "Context missing sequencer scene");
+    return false;
+  }
+  Editing *ed = seq::editing_get(scene);
+  if (!ed) {
+    return false;
+  }
+  Strip *strip = ed->act_strip;
+  if (!strip) {
+    return false;
+  }
+  return strip->type == STRIP_TYPE_TEXT;
 }
 
 void SEQUENCER_OT_export_subtitles(wmOperatorType *ot)

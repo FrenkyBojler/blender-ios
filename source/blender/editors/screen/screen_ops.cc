@@ -220,7 +220,12 @@ bool ED_operator_scene_editable(bContext *C)
 bool ED_operator_sequencer_scene_editable(bContext *C)
 {
   Scene *scene = CTX_data_sequencer_scene(C);
-  if (scene == nullptr || !BKE_id_is_editable(CTX_data_main(C), &scene->id)) {
+  if (scene == nullptr) {
+    CTX_wm_operator_poll_msg_set(C, "Context missing sequencer scene");
+    return false;
+  }
+
+  if (!BKE_id_is_editable(CTX_data_main(C), &scene->id)) {
     return false;
   }
   return true;

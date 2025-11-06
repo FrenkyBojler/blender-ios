@@ -1366,8 +1366,7 @@ static bool sequencer_add_movie_single_strip(bContext *C,
 
 static wmOperatorStatus sequencer_add_movie_strip_exec(bContext *C, wmOperator *op)
 {
-  if (!ED_operator_sequencer_active_editable(C)) {
-    BKE_report(op->reports, RPT_ERROR, "Context is invalid");
+  if (!WM_operator_poll(C, op->type)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1566,8 +1565,7 @@ static bool sequencer_add_sound_single_strip(bContext *C, wmOperator *op, seq::L
 
 static wmOperatorStatus sequencer_add_sound_strip_exec(bContext *C, wmOperator *op)
 {
-  if (!ED_operator_sequencer_active_editable(C)) {
-    BKE_report(op->reports, RPT_ERROR, "Context is invalid");
+  if (!WM_operator_poll(C, op->type)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -1781,8 +1779,7 @@ static bool sequencer_add_image_sequence_force(bContext *C,
                                                wmOperator *op,
                                                seq::LoadData &load_data)
 {
-  if (!ED_operator_sequencer_active_editable(C)) {
-    BKE_report(op->reports, RPT_ERROR, "Context is invalid");
+  if (!WM_operator_poll(C, op->type)) {
     return OPERATOR_CANCELLED;
   }
 
