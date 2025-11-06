@@ -227,7 +227,7 @@ static float get_intersection_distance_of_segments(const float2 &co_a,
     return 0.0f;
   }
 
-  float2 isect((b2 * c1 - b1 * c2) / det, (a1 * c2 - a2 * c1) / det);
+  const float2 isect((b2 * c1 - b1 * c2) / det, (a1 * c2 - a2 * c1) / det);
 
   /* Get normalized distance from point a to intersection point. */
   const float length_ab = math::length(co_b - co_a);
