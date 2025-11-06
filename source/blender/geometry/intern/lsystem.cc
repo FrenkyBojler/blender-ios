@@ -231,20 +231,6 @@ std::optional<Vector<Symbol>> LSystem::compute_nth_generation(ResourceScope &sco
   return symbols;
 }
 
-// Vector<Symbol> LSystem::apply_single_generation(const Span<SymbolExpr> symbols) const
-// {
-//   Vector<Symbol> r_symbols;
-//   for (const SymbolExpr &symbol : symbols) {
-//     if (const Rule *rule = this->lookup_rule(symbol.symbol_id)) {
-//       r_symbols.extend(rule->replacement);
-//     }
-//     else {
-//       r_symbols.append(symbol);
-//     }
-//   }
-//   return r_symbols;
-// }
-
 LSystem::LSystem()
 {
   for (const BuiltinSymbol &symbol : builtin_symbols) {
