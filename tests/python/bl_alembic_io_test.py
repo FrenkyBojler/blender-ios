@@ -476,7 +476,7 @@ class AlembicImportComparisonTests(unittest.TestCase):
 
             with self.subTest(input_file_path.stem):
                 bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "empty.blend"))
-                ok = report.generate_and_check(
+                ok = report.import_and_check(
                     input_file, lambda filepath, params: bpy.ops.wm.alembic_import(
                         filepath=str(input_file), **params))
                 if not ok:

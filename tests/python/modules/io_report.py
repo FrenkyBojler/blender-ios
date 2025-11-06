@@ -864,6 +864,9 @@ integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw
         desc.close()
         return text
 
+    def import_and_check(self, input_file: pathlib.Path, import_func: Callable[[str, dict], None]) -> bool:
+        return self.generate_and_check(input_file=input_file, generate_func=import_func)
+
     def generate_and_check(self, input_file: pathlib.Path, generate_func: Callable[[
             str, dict], None], output_filepath: Optional[pathlib.Path] = None) -> bool:
         """
