@@ -48,4 +48,18 @@ TEST(lsystem, FPlusA)
   expect_generation_eq(lsystem, 3, "F+F+F+F+A");
 }
 
+TEST(lsystem, FFFA)
+{
+  LSystem lsystem;
+  lsystem.set_axiom("FFFA");
+  lsystem.add_rule("A=\" [&FFFA] //// [&FFFA] //// [&FFFA]");
+
+  expect_generation_eq(lsystem, 0, "FFFA");
+  expect_generation_eq(lsystem, 1, "FFF\"[&FFFA]////[&FFFA]////[&FFFA]");
+  expect_generation_eq(lsystem,
+                       2,
+                       "FFF\"[&FFF\"[&FFFA]////[&FFFA]////[&FFFA]]////[&FFF\"[&FFFA]////[&FFFA]///"
+                       "/[&FFFA]]////[&FFF\"[&FFFA]////[&FFFA]////[&FFFA]]");
+}
+
 }  // namespace blender::geometry::lsystem::tests

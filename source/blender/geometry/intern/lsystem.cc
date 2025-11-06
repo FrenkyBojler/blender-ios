@@ -86,7 +86,10 @@ class LSystemParser {
       case '&':
       case '^':
       case '\\':
-      case '/': {
+      case '/':
+      case '"':
+      case '[':
+      case ']': {
         this->consume_next();
         return symbol_id_map_.ensure(StringRef(&first_c, 1));
       }
@@ -150,6 +153,7 @@ class LSystemParser {
       if (!ELEM(c, ' ', '\t', '\r')) {
         break;
       }
+      i_++;
     }
   }
 };
