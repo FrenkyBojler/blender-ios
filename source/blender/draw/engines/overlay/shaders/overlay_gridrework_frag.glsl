@@ -63,7 +63,7 @@ void main()
   };
 
   // out_color.rgb = mix(float3(1, 0, 0), float3(0, 1, 0), frag_level);
-  // out_color.rgb = debug_rgb[debug_grid_lvl % 5];
-  out_color.rgb = float3(fade, 0, 0); // float3(1, 0, 1); 
+  out_color.rgb = debug_rgb[debug_grid_lvl % 5];
+  // out_color.rgb = float3(fade, 0, 0); // float3(1, 0, 1); 
   out_color.a = 1.0;
 }
