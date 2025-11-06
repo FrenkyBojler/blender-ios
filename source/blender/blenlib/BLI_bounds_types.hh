@@ -10,9 +10,6 @@
 
 namespace blender {
 
-/* Forward declaration. */
-template<typename T> class Span;
-
 template<typename T> struct Bounds {
   T min;
   T max;
