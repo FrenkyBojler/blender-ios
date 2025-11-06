@@ -87,6 +87,8 @@ struct SoundRuntime {
   /* Spin-lock for asynchronous loading of sounds. */
   SpinLock spinlock;
 
+  /* Note: not by-value since #sound_foreach_cache can only
+   * save/restore a pointer. */
   Vector<float> *waveform = nullptr;
   SoundTags tags = SoundTags::None;
 };
