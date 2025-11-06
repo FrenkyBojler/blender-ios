@@ -216,11 +216,13 @@ class Credits:
     ) -> None:
         commit_word = "commit", "commits"
 
-        sorted_authors = sorted(self.users.items())
         if sort == "commit":
-            # Sort by number of commits, then by author name.
-            sorted_authors = sorted(sorted_authors, key=lambda item: item[1].commit_total)
-        sorted_authors = dict(sorted_authors)
+            sorted_authors = dict(sorted(
+                self.users.items(),
+                key=lambda item: (item[1].commit_total, item[0]),
+            ))
+        else:
+            sorted_authors = dict(sorted(self.users.items()))
 
         fh.write("<h3>Individual Contributors</h3>\n\n")
         for author, cu in sorted_authors.items():
