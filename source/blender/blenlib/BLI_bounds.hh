@@ -379,7 +379,10 @@ template<typename T> inline bool Bounds<T>::intersects_any(const Span<T> points)
       points.index_range(),
       8126,
       false,
-      [&](const IndexRange range) {
+      [&](const IndexRange range, const bool init) {
+        if (init) {
+          return true;
+        }
         for (const int i : range) {
           if (this->intersects(points[i])) {
             return true;
@@ -387,7 +390,7 @@ template<typename T> inline bool Bounds<T>::intersects_any(const Span<T> points)
         }
         return false;
       },
-      [](const bool a, const bool b) { return a || b; });
+      std::logical_or());
 }
 
 template<typename T> inline bool Bounds<T>::intersects_all(const Span<T> points)
@@ -399,7 +402,10 @@ template<typename T> inline bool Bounds<T>::intersects_all(const Span<T> points)
       points.index_range(),
       8126,
       true,
-      [&](const IndexRange range) {
+      [&](const IndexRange range, const bool init) {
+        if (!init) {
+          return false;
+        }
         for (const int i : range) {
           if (!this->intersects(points[i])) {
             return false;
@@ -407,7 +413,7 @@ template<typename T> inline bool Bounds<T>::intersects_all(const Span<T> points)
         }
         return true;
       },
-      [](const bool a, const bool b) { return a && b; });
+      std::logical_and());
 }
 
 }  // namespace blender
