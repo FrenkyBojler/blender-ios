@@ -76,23 +76,36 @@ struct Turtle {
   float3 position = float3(0.0f, 0.0f, 0.0f);
   float radius = 1.0f;
   float step = 1.0f;
+  float angle = DEG2RAD(90.0f);
 };
 
 struct BuiltinSymbol {
-  char name;
+  StringRef name;
   SymbolId id;
 };
 
-static constexpr BuiltinSymbol symbol_F{'F', 0};
-static constexpr BuiltinSymbol symbol_f{'f', 1};
-static constexpr BuiltinSymbol symbol_branch_start{'[', 2};
-static constexpr BuiltinSymbol symbol_branch_end{']', 3};
+static constexpr BuiltinSymbol symbol_F{"F", 0};
+static constexpr BuiltinSymbol symbol_f{"f", 1};
+static constexpr BuiltinSymbol symbol_branch_start{"[", 2};
+static constexpr BuiltinSymbol symbol_branch_end{"]", 3};
+static constexpr BuiltinSymbol symbol_plus{"+", 4};
+static constexpr BuiltinSymbol symbol_minus{"-", 5};
+static constexpr BuiltinSymbol symbol_ampersand{"&", 6};
+static constexpr BuiltinSymbol symbol_carret{"^", 7};
+static constexpr BuiltinSymbol symbol_backslash{"\\\\", 8};
+static constexpr BuiltinSymbol symbol_slash{"/", 9};
 
 static constexpr std::array builtin_symbols = {
     symbol_F,
     symbol_f,
     symbol_branch_start,
     symbol_branch_end,
+    symbol_plus,
+    symbol_minus,
+    symbol_ampersand,
+    symbol_carret,
+    symbol_backslash,
+    symbol_slash,
 };
 
 struct TurtleStack {

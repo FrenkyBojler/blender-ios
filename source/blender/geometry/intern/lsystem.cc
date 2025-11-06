@@ -90,13 +90,19 @@ class LSystemParser {
       case '-':
       case '&':
       case '^':
-      case '\\':
       case '/':
       case '"':
       case '[':
       case ']': {
         this->consume_next();
         return symbol_id_map_.ensure(StringRef(&first_c, 1));
+      }
+      case '\\': {
+        this->consume_next_only();
+        if (this->consume_next_if('\\')) {
+          return symbol_id_map_.ensure("\\\\");
+        }
+        return std::nullopt;
       }
     }
     return std::nullopt;
@@ -142,9 +148,14 @@ class LSystemParser {
     return false;
   }
 
-  void consume_next()
+  void consume_next_only()
   {
     i_++;
+  }
+
+  void consume_next()
+  {
+    this->consume_next_only();
     this->consume_whitespace();
   }
 
@@ -158,7 +169,7 @@ class LSystemParser {
       if (!ELEM(c, ' ', '\t', '\r')) {
         break;
       }
-      i_++;
+      this->consume_next_only();
     }
   }
 };
@@ -234,7 +245,7 @@ std::optional<Vector<Symbol>> LSystem::compute_nth_generation(ResourceScope &sco
 LSystem::LSystem()
 {
   for (const BuiltinSymbol &symbol : builtin_symbols) {
-    const SymbolId id = symbol_id_map_.ensure(StringRef(&symbol.name, 1));
+    const SymbolId id = symbol_id_map_.ensure(symbol.name);
     BLI_assert(id == symbol.id);
   }
 }
@@ -268,6 +279,43 @@ static void update_turtle_f(Turtle &turtle, const Symbol &symbol)
   update_turtle_F(turtle, symbol);
 }
 
+template<math::AxisSigned::Value Axis>
+static void update_turtle_rotation(Turtle &turtle, const float angle)
+{
+  const float3x3 rotation = math::from_rotation<float3x3>(math::AxisAngle(Axis, angle));
+  turtle.orientation = turtle.orientation * rotation;
+}
+
+static void update_turtle_rotate_symbol(Turtle &turtle, const Symbol &symbol)
+{
+  switch (symbol.symbol_id) {
+    case symbol_plus.id: {
+      update_turtle_rotation<math::AxisSigned::X_POS>(turtle, turtle.angle);
+      break;
+    }
+    case symbol_minus.id: {
+      update_turtle_rotation<math::AxisSigned::X_NEG>(turtle, turtle.angle);
+      break;
+    }
+    case symbol_ampersand.id: {
+      update_turtle_rotation<math::AxisSigned::Y_POS>(turtle, turtle.angle);
+      break;
+    }
+    case symbol_carret.id: {
+      update_turtle_rotation<math::AxisSigned::Y_NEG>(turtle, turtle.angle);
+      break;
+    }
+    case symbol_backslash.id: {
+      update_turtle_rotation<math::AxisSigned::Z_POS>(turtle, turtle.angle);
+      break;
+    }
+    case symbol_slash.id: {
+      update_turtle_rotation<math::AxisSigned::Z_NEG>(turtle, turtle.angle);
+      break;
+    }
+  }
+}
+
 bool LSystem::update_turtle_stack(TurtleStack &turtle_stack, const Symbol &symbol) const
 {
   switch (symbol.symbol_id) {
@@ -277,6 +325,15 @@ bool LSystem::update_turtle_stack(TurtleStack &turtle_stack, const Symbol &symbo
     }
     case symbol_f.id: {
       update_turtle_f(turtle_stack.peek(), symbol);
+      break;
+    }
+    case symbol_plus.id:
+    case symbol_minus.id:
+    case symbol_ampersand.id:
+    case symbol_carret.id:
+    case symbol_backslash.id:
+    case symbol_slash.id: {
+      update_turtle_rotate_symbol(turtle_stack.peek(), symbol);
       break;
     }
     case symbol_branch_start.id: {
@@ -351,6 +408,15 @@ std::variant<bke::CurvesGeometry, std::string> lsystem_to_curves(LSystemParams &
         }
         Turtle &turtle = stack.peek();
         update_turtle_f(turtle, symbol);
+        break;
+      }
+      case symbol_plus.id:
+      case symbol_minus.id:
+      case symbol_ampersand.id:
+      case symbol_carret.id:
+      case symbol_backslash.id:
+      case symbol_slash.id: {
+        update_turtle_rotate_symbol(stack.peek(), symbol);
         break;
       }
       case symbol_branch_start.id: {
