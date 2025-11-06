@@ -102,6 +102,16 @@ struct TurtleStack {
   {
     stack.push(initial_turtle);
   }
+
+  Turtle &peek()
+  {
+    return stack.peek();
+  }
+
+  const Turtle &peek() const
+  {
+    return stack.peek();
+  }
 };
 
 class LSystem {

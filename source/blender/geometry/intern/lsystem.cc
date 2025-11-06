@@ -2,8 +2,13 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "lsystem.hh"
 #include "BLI_resource_scope.hh"
+
+#include "BLT_translation.hh"
+
+#include "GEO_lsystem.hh"
+
+#include "lsystem.hh"
 
 namespace blender::geometry::lsystem {
 
@@ -252,7 +257,7 @@ Symbol LSystem::eval_symbol_expr(ResourceScope &scope,
                                  const SymbolExpr &symbol_expr,
                                  const TurtleStack &turtle_stack) const
 {
-  const Turtle &turtle = turtle_stack.stack.peek();
+  const Turtle &turtle = turtle_stack.peek();
   switch (symbol_expr.symbol_id) {
     case symbol_F.id:
     case symbol_f.id: {
@@ -266,19 +271,30 @@ Symbol LSystem::eval_symbol_expr(ResourceScope &scope,
   }
 }
 
+static void update_turtle_F(Turtle &turtle, const Symbol & /*symbol*/)
+{
+  const float3 offset = math::transform_direction(turtle.orientation, float3(0, 0, turtle.step));
+  turtle.position += offset;
+}
+
+static void update_turtle_f(Turtle &turtle, const Symbol &symbol)
+{
+  update_turtle_F(turtle, symbol);
+}
+
 bool LSystem::update_turtle_stack(TurtleStack &turtle_stack, const Symbol &symbol) const
 {
   switch (symbol.symbol_id) {
-    case symbol_F.id:
+    case symbol_F.id: {
+      update_turtle_F(turtle_stack.peek(), symbol);
+      break;
+    }
     case symbol_f.id: {
-      Turtle &turtle = turtle_stack.stack.peek();
-      const float3 offset = math::transform_direction(turtle.orientation,
-                                                      float3(0, 0, turtle.step));
-      turtle.position += offset;
+      update_turtle_f(turtle_stack.peek(), symbol);
       break;
     }
     case symbol_branch_start.id: {
-      turtle_stack.stack.push(turtle_stack.stack.peek());
+      turtle_stack.stack.push(turtle_stack.peek());
       break;
     }
     case symbol_branch_end.id: {
@@ -307,6 +323,107 @@ std::string LSystem::symbols_to_string(const Span<Symbol> symbols) const
     fmt::format_to(buf, "{}", name);
   }
   return std::string(buffer.data(), buffer.size());
+}
+
+std::variant<bke::CurvesGeometry, std::string> lsystem_to_curves(LSystemParams &params)
+{
+  ResourceScope scope;
+  LSystem lsystem;
+  lsystem.set_axiom(params.axiom);
+  for (const StringRef rule : params.rules) {
+    lsystem.add_rule(rule);
+  }
+
+  Turtle root_turtle;
+  const std::optional<Vector<Symbol>> symbols = lsystem.compute_nth_generation(
+      scope, root_turtle, params.generations);
+  if (!symbols) {
+    return TIP_("Failed to generate lsystem result.");
+  }
+
+  Vector<Vector<float3>> gathered_curve_points;
+  Stack<Vector<float3>> current_curves;
+  current_curves.push(Vector<float3>());
+
+  TurtleStack stack(root_turtle);
+  for (const Symbol &symbol : *symbols) {
+    switch (symbol.symbol_id) {
+      case symbol_F.id: {
+        Turtle &turtle = stack.peek();
+        Vector<float3> &current_curve = current_curves.peek();
+        if (current_curve.is_empty()) {
+          current_curve.append(turtle.position);
+        }
+        update_turtle_F(turtle, symbol);
+        current_curve.append(turtle.position);
+        break;
+      }
+      case symbol_f.id: {
+        Vector<float3> &current_curve = current_curves.peek();
+        if (!current_curve.is_empty()) {
+          gathered_curve_points.append(std::move(current_curve));
+        }
+        Turtle &turtle = stack.peek();
+        update_turtle_f(turtle, symbol);
+        break;
+      }
+      case symbol_branch_start.id: {
+        stack.stack.push(stack.peek());
+        current_curves.push(Vector<float3>());
+        break;
+      }
+      case symbol_branch_end.id: {
+        stack.stack.pop();
+        if (stack.stack.is_empty()) {
+          return TIP_("More branches are closed than opened.");
+        }
+        Vector<float3> curve = current_curves.pop();
+        if (!curve.is_empty()) {
+          gathered_curve_points.append(std::move(curve));
+        }
+        break;
+      }
+    }
+  }
+
+  while (!stack.stack.is_empty()) {
+    stack.stack.pop();
+    Vector<float3> curve = current_curves.pop();
+    if (!curve.is_empty()) {
+      gathered_curve_points.append(std::move(curve));
+    }
+  }
+
+  int curves_num = gathered_curve_points.size();
+  int points_num = 0;
+  for (const Span<float3> curve : gathered_curve_points) {
+    points_num += curve.size();
+  }
+
+  bke::CurvesGeometry curves(points_num, curves_num);
+  if (curves_num == 0) {
+    return curves;
+  }
+
+  MutableSpan<int> offsets = curves.offsets_for_write();
+  for (const int i : gathered_curve_points.index_range()) {
+    const Span<float3> curve = gathered_curve_points[i];
+    offsets[i] = curve.size();
+  }
+  offset_indices::accumulate_counts_to_offsets(offsets);
+  OffsetIndices<int> points_by_curve = curves.points_by_curve();
+
+  MutableSpan<float3> positions = curves.positions_for_write();
+  threading::parallel_for(gathered_curve_points.index_range(), 512, [&](const IndexRange range) {
+    for (const int curve_i : range) {
+      const IndexRange points = points_by_curve[curve_i];
+      const Span<float3> curve = gathered_curve_points[curve_i];
+      positions.slice(points).copy_from(curve);
+    }
+  });
+
+  curves.fill_curve_types(CURVE_TYPE_POLY);
+  return curves;
 }
 
 }  // namespace blender::geometry::lsystem
