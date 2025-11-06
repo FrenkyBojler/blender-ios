@@ -289,7 +289,8 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
       sculpt_session->multires.modifier = mmd;
       sculpt_session->multires.level = mmd->sculptlvl;
 
-      sculpt_session->multires.runtime.modified_at_level[mmd->sculptlvl - 1].resize(sculpt_session->subdiv_ccg->positions.size());
+      sculpt_session->multires.runtime.modified_at_level[mmd->sculptlvl - 1].resize(
+          sculpt_session->subdiv_ccg->positions.size());
       sculpt_session->multires.runtime.modified_at_level[mmd->sculptlvl - 1].fill(false);
     }
     // blender::bke::subdiv::stats_print(&subdiv->stats);

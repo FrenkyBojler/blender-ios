@@ -692,7 +692,8 @@ static void foreach_loop(const blender::bke::subdiv::ForeachContext *foreach_con
 
   const int first_grid_index = reshape_context->face_start_grid_index[coarse_face_index];
   corner->grid_index = first_grid_index + coarse_corner;
-  //CLOG_DEBUG(&LOG, "FOREACH_LOOP: COARSE: %d, %d, PTEX: %d, VERT_IDX: %d, GRID_IDX: %d", coarse_face_index, coarse_corner, ptex_face_index, corner->vert_index, corner->grid_index);
+  // CLOG_DEBUG(&LOG, "FOREACH_LOOP: COARSE: %d, %d, PTEX: %d, VERT_IDX: %d, GRID_IDX: %d",
+  // coarse_face_index, coarse_corner, ptex_face_index, corner->vert_index, corner->grid_index);
 }
 
 static void foreach_poly(const blender::bke::subdiv::ForeachContext *foreach_context,
@@ -1145,14 +1146,15 @@ static void reshape_subdiv_refine_final_P(
   }
 
   const int idx = multires_index_for_grid_coord_for_reshape(reshape_context, grid_coord);
-  CLOG_TRACE(&LOG, "CB: %d (%f %f) -> %d -> %f %f %f",
-         grid_coord->grid_index,
-         grid_coord->u,
-         grid_coord->v,
-         idx,
-         storage[idx].x,
-         storage[idx].y,
-         storage[idx].z);
+  CLOG_TRACE(&LOG,
+             "CB: %d (%f %f) -> %d -> %f %f %f",
+             grid_coord->grid_index,
+             grid_coord->u,
+             grid_coord->v,
+             idx,
+             storage[idx].x,
+             storage[idx].y,
+             storage[idx].z);
 
   /* NOTE: At this point in reshape/propagate pipeline grid displacement is actually storing object
    * vertices coordinates. */
@@ -1434,14 +1436,14 @@ static void evaluate_higher_grid_positions(MultiresReshapeSmoothContext *reshape
       });
 }
 
-static void evaluate_reshape_faces(
-    MultiresReshapeSmoothContext *reshape_smooth_context,
-    blender::MutableSpan<blender::float3> delta_storage,
-    blender::MutableSpan<blender::float3x3> tangent_matrix_storage)
+static void evaluate_reshape_faces(MultiresReshapeSmoothContext *reshape_smooth_context,
+                                   blender::MutableSpan<blender::float3> delta_storage,
+                                   blender::MutableSpan<blender::float3x3> tangent_matrix_storage)
 {
   CLOG_DEBUG(&LOG, "evaluate_reshape_faces: %ld", delta_storage.size());
   blender::BitVector<> tagged_elements(delta_storage.size(), false);
-  foreach_reshape_ptex_face_single_threaded(reshape_smooth_context, [&](const PTexCoord *ptex_coord, int idx, int corner) {
+  foreach_reshape_ptex_face_single_threaded(
+      reshape_smooth_context, [&](const PTexCoord *ptex_coord, int idx, int corner) {
         blender::bke::subdiv::Subdiv *reshape_subdiv = reshape_smooth_context->reshape_subdiv;
 
         tagged_elements[idx].set();
@@ -1458,10 +1460,19 @@ static void evaluate_reshape_faces(
                                                                dPdv);
 
         delta_storage[idx] = P;
-        CLOG_TRACE(&LOG, "(%d, %f %f) -> (%d, %d)-> (%f, %f, %f)", ptex_coord->ptex_face_index, ptex_coord->u, ptex_coord->v, corner, idx, P.x, P.y, P.z);
+        CLOG_TRACE(&LOG,
+                   "(%d, %f %f) -> (%d, %d)-> (%f, %f, %f)",
+                   ptex_coord->ptex_face_index,
+                   ptex_coord->u,
+                   ptex_coord->v,
+                   corner,
+                   idx,
+                   P.x,
+                   P.y,
+                   P.z);
         /* TODO: Is this corner calculation correct? */
         BKE_multires_construct_tangent_matrix(tangent_matrix_storage[idx], dPdu, dPdv, corner % 4);
-  });
+      });
 
   for (const int i : tagged_elements.index_range()) {
     BLI_assert(tagged_elements[i].test());

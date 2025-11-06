@@ -80,6 +80,7 @@
 
 #include "IMB_colormanagement.hh"
 
+#include "CLG_log.h"
 #include "bmesh.hh"
 
 using blender::float3;
@@ -87,6 +88,8 @@ using blender::MutableSpan;
 using blender::Span;
 using blender::Vector;
 using blender::bke::AttrDomain;
+
+static CLG_LogRef LOG = {"multires.prototype"};
 
 static void palette_init_data(ID *id)
 {
@@ -2598,6 +2601,9 @@ static void sculpt_update_object(Depsgraph *depsgraph,
     ss.multires.active = true;
     ss.multires.modifier = mmd;
     ss.multires.level = mmd->sculptlvl;
+
+    /* TODO: This is maybe running too frequently */
+    BKE_sculpt_copy_multires_positions(ob);
   }
   else {
     ss.multires.active = false;
@@ -2738,8 +2744,6 @@ void BKE_sculpt_update_object_before_eval(Object *ob_eval)
 
     /* In vertex/weight paint, force maps to be rebuilt. */
     BKE_sculptsession_free_vwpaint_data(ss);
-
-    BKE_sculpt_copy_multires_positions(ob_orig);
   }
   else if (pbvh) {
     IndexMaskMemory memory;
@@ -2989,6 +2993,7 @@ void BKE_sculpt_copy_multires_positions(Object *object)
   }
 
   if (ss->subdiv_ccg) {
+    CLOG_DEBUG(&LOG, "COPYING MULTIRES POSITIONS: LEVEL: %d\n", ss->subdiv_ccg->level);
     ss->multires.runtime.positions_at_level[ss->subdiv_ccg->level - 1].reinitialize(
         ss->subdiv_ccg->positions.size());
     blender::array_utils::copy(

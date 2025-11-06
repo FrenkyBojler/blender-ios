@@ -365,7 +365,10 @@ void calc_brush_texture_factors(const SculptSession &ss,
  */
 void apply_translations(Span<float3> translations, Span<int> verts, MutableSpan<float3> positions);
 void apply_translations(Span<float3> translations, Span<int> grids, SubdivCCG &subdiv_ccg);
-void apply_translations(Span<float3> translations, Span<int> grids, SubdivCCG &subdiv_ccg, MutableBitSpan modified_grids);
+void apply_translations(Span<float3> translations,
+                        Span<int> grids,
+                        SubdivCCG &subdiv_ccg,
+                        MutableBitSpan modified_grids);
 void apply_translations(Span<float3> translations, const Set<BMVert *, 0> &verts);
 
 /** Align the translations with plane normal. */
