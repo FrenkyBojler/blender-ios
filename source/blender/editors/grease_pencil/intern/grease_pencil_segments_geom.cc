@@ -769,53 +769,56 @@ static void create_connections_from_curves(const Span<IndexRange> segments_by_cu
                                            const VArray<bool> is_cyclic,
                                            MutableSpan<SegmentConnections> segment_connections)
 {
-  for (const int curve_i : segments_by_curve.index_range()) {
-    const IndexRange segment_range = segments_by_curve[curve_i];
 
-    if (segment_range.size() == 1) {
-      if (segments_to_keep[segment_range.first()]) {
-        segment_connections[segment_range.first()][Side::Start] = SEGMENT_CONNECTION_NULL;
-        segment_connections[segment_range.first()][Side::End] = SEGMENT_CONNECTION_NULL;
-      }
-      continue;
-    }
+  threading::parallel_for(segments_by_curve.index_range(), 4096, [&](const IndexRange curves) {
+    for (const int curve_i : curves) {
+      const IndexRange segment_range = segments_by_curve[curve_i];
 
-    for (const int segment_i : segment_range.drop_back(1)) {
-      if (!segments_to_keep[segment_i]) {
+      if (segment_range.size() == 1) {
+        if (segments_to_keep[segment_range.first()]) {
+          segment_connections[segment_range.first()][Side::Start] = SEGMENT_CONNECTION_NULL;
+          segment_connections[segment_range.first()][Side::End] = SEGMENT_CONNECTION_NULL;
+        }
         continue;
       }
 
-      if (segments_to_keep[segment_i + 1]) {
-        segment_connections[segment_i][Side::End] = encode_index_and_side(segment_i + 1,
-                                                                          Side::Start);
-        segment_connections[segment_i + 1][Side::Start] = encode_index_and_side(segment_i,
-                                                                                Side::End);
+      for (const int segment_i : segment_range.drop_back(1)) {
+        if (!segments_to_keep[segment_i]) {
+          continue;
+        }
+
+        if (segments_to_keep[segment_i + 1]) {
+          segment_connections[segment_i][Side::End] = encode_index_and_side(segment_i + 1,
+                                                                            Side::Start);
+          segment_connections[segment_i + 1][Side::Start] = encode_index_and_side(segment_i,
+                                                                                  Side::End);
+        }
+        else {
+          segment_connections[segment_i][Side::End] = SEGMENT_CONNECTION_NULL;
+        }
+      }
+
+      if (!segments_to_keep[segment_range.last()]) {
+        continue;
+      }
+
+      if (!is_cyclic[curve_i]) {
+        segment_connections[segment_range.first()][Side::Start] = SEGMENT_CONNECTION_NULL;
+        segment_connections[segment_range.last()][Side::End] = SEGMENT_CONNECTION_NULL;
+        continue;
+      }
+
+      if (segments_to_keep[segment_range.first()]) {
+        segment_connections[segment_range.first()][Side::Start] = encode_index_and_side(
+            segment_range.last(), Side::End);
+        segment_connections[segment_range.last()][Side::End] = encode_index_and_side(
+            segment_range.first(), Side::Start);
       }
       else {
-        segment_connections[segment_i][Side::End] = SEGMENT_CONNECTION_NULL;
+        segment_connections[segment_range.last()][Side::End] = SEGMENT_CONNECTION_NULL;
       }
     }
-
-    if (!segments_to_keep[segment_range.last()]) {
-      continue;
-    }
-
-    if (!is_cyclic[curve_i]) {
-      segment_connections[segment_range.first()][Side::Start] = SEGMENT_CONNECTION_NULL;
-      segment_connections[segment_range.last()][Side::End] = SEGMENT_CONNECTION_NULL;
-      continue;
-    }
-
-    if (segments_to_keep[segment_range.first()]) {
-      segment_connections[segment_range.first()][Side::Start] = encode_index_and_side(
-          segment_range.last(), Side::End);
-      segment_connections[segment_range.last()][Side::End] = encode_index_and_side(
-          segment_range.first(), Side::Start);
-    }
-    else {
-      segment_connections[segment_range.last()][Side::End] = SEGMENT_CONNECTION_NULL;
-    }
-  }
+  });
 }
 
 static void follow_segment_connections(const Span<Segment> all_segments,
