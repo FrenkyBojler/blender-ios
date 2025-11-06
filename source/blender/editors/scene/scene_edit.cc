@@ -63,7 +63,7 @@ static Scene *scene_add(Main *bmain, Scene *scene_old, eSceneCopyMethod method)
     scene_new = BKE_scene_duplicate(bmain,
                                     scene_old,
                                     method,
-                                    (eDupli_ID_Flags)(U.dupflag | USER_DUP_OBJECT),
+                                    static_cast<eDupli_ID_Flags>(U.dupflag | USER_DUP_OBJECT),
                                     LIB_ID_DUPLICATE_IS_ROOT_ID);
   }
 

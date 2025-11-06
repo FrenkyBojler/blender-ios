@@ -1851,10 +1851,11 @@ Scene *BKE_scene_duplicate(Main *bmain,
   const int copy_flags = LIB_ID_COPY_DEFAULT;
 
   if (is_subprocess) {
-    sce_copy = (Scene *)BKE_id_copy_for_duplicate(bmain, (ID *)sce, duplicate_flags, copy_flags);
+    sce_copy = blender::id_cast<Scene *>(
+        BKE_id_copy_for_duplicate(bmain, (ID *)sce, duplicate_flags, copy_flags));
   }
   else {
-    sce_copy = (Scene *)BKE_id_copy(bmain, (ID *)sce);
+    sce_copy = blender::id_cast<Scene *>(BKE_id_copy(bmain, (ID *)sce));
   }
 
   id_us_min(&sce_copy->id);
