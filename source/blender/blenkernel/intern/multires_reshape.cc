@@ -273,19 +273,17 @@ bool multiresModifier_storeHigherLevelDelta(Object &object,
     return false;
   }
 
-  /* At this point, the subdiv_ccg has the correct positions of M(n - 1) */
   CLOG_DEBUG(&LOG, "Retrieving old positions:");
   blender::Span<blender::float3> old_positions =
       object.sculpt->multires.runtime.positions_at_level[higher_subdiv_ccg.level - 1];
   multires_copy_from_old_ccg(higher_subdiv_ccg, old_positions, subdiv_ccg);
+  /* At this point, the subdiv_ccg has the correct positions of M(n - 1) */
 
   blender::MutableSpan<blender::float3> delta_storage = multires_ensure_delta_storage(
       object, higher_subdiv_ccg, reshape_context.top.level);
   blender::Array<blender::float3x3> tmat_storage(delta_storage.size());
   BLI_assert(delta_storage.size() == higher_subdiv_ccg.positions.size());
 
-  /* Construct an evaluator from this subdiv ccg. */
-  /* Use the evaluator get the limit surface positions and the tangent matrices */
   if (!multires_reshape_assign_final_coords_from_ccg(&reshape_context, &subdiv_ccg, delta_storage))
   {
     multires_reshape_context_free(&reshape_context);
@@ -297,6 +295,9 @@ bool multiresModifier_storeHigherLevelDelta(Object &object,
              higher_subdiv_ccg.positions.size(),
              subdiv_ccg.positions.size(),
              delta_storage.size());
+
+  /* TODO: Try changing the tangent matrix to be based on the higher positions instead of the lower
+   * positions */
 
   /* For each vertex, V of N, MV = SubdivCCG position (object space), LV = Limit position (object
    * space) */
