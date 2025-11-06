@@ -258,9 +258,9 @@ Symbol LSystem::eval_symbol_expr(ResourceScope &scope,
   switch (symbol_expr.symbol_id) {
     case symbol_F.id:
     case symbol_f.id: {
-      return Symbol{
-          symbol_expr.symbol_id,
-          scope.allocator().construct_array_copy<ParamValue>({{turtle.step}, {turtle.radius}})};
+      return Symbol{symbol_expr.symbol_id,
+                    scope.allocator().construct_array_copy<ParamValue>(
+                        {{turtle.step_size}, {turtle.radius}})};
     }
     default: {
       return Symbol{symbol_expr.symbol_id, {}};
@@ -270,7 +270,8 @@ Symbol LSystem::eval_symbol_expr(ResourceScope &scope,
 
 static void update_turtle_F(Turtle &turtle, const Symbol & /*symbol*/)
 {
-  const float3 offset = math::transform_direction(turtle.orientation, float3(0, 0, turtle.step));
+  const float3 offset = math::transform_direction(turtle.orientation,
+                                                  float3(0, 0, turtle.step_size));
   turtle.position += offset;
 }
 
@@ -379,6 +380,7 @@ std::variant<bke::CurvesGeometry, std::string> lsystem_to_curves(LSystemParams &
 
   Turtle root_turtle;
   root_turtle.angle = params.angle;
+  root_turtle.step_size = params.step_size;
   const std::optional<Vector<Symbol>> symbols = lsystem.compute_nth_generation(
       scope, root_turtle, params.generations);
   if (!symbols) {

@@ -13,6 +13,7 @@ struct LSystemParams {
   Vector<std::string> rules;
   float generations = 0.0f;
   float angle = DEG2RAD(90.0f);
+  float step_size = 1.0f;
 };
 
 std::variant<bke::CurvesGeometry, std::string> lsystem_to_curves(LSystemParams &params);

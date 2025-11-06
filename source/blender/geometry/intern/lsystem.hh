@@ -75,7 +75,7 @@ struct Turtle {
   float3x3 orientation = float3x3::identity();
   float3 position = float3(0.0f, 0.0f, 0.0f);
   float radius = 1.0f;
-  float step = 1.0f;
+  float step_size = 1.0f;
   float angle = DEG2RAD(90.0f);
 };
 
