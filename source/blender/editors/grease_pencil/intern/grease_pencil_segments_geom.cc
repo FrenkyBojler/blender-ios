@@ -742,28 +742,32 @@ static void cut_caps(bke::CurvesGeometry &dst,
   dst_end_caps.finish();
 }
 
-static constexpr int SEGMENT_CONNECTION_NULL = 0;
-
 /* We store the side as sign, but because a segment with index zero is valid, we shift by one. */
-static int encode_index_and_side(const int index, const Side side)
+using EncodedConnection = int;
+static constexpr EncodedConnection SEGMENT_CONNECTION_NULL = 0;
+
+static EncodedConnection encode_index_and_side(const int index, const Side side)
 {
   return side == Side::Start ? index + 1 : -(index + 1);
 }
 
-static int decode_index(const int encoded)
+static int decode_index(const EncodedConnection encoded)
 {
   return math::abs(encoded) - 1;
 }
 
-static Side decode_side(const int encoded)
+static Side decode_side(const EncodedConnection encoded)
 {
   return encoded < 0 ? Side::End : Side::Start;
 }
 
+/* Both the start and end of the segment are connected to two other segments*/
+using SegmentConnections = VecBase<EncodedConnection, 2>;
+
 static void create_connections_from_curves(const Span<IndexRange> segments_by_curve,
                                            const Span<bool> segments_to_keep,
                                            const VArray<bool> is_cyclic,
-                                           MutableSpan<int2> segment_connections)
+                                           MutableSpan<SegmentConnections> segment_connections)
 {
   for (const int curve_i : segments_by_curve.index_range()) {
     const IndexRange segment_range = segments_by_curve[curve_i];
@@ -816,7 +820,7 @@ static void create_connections_from_curves(const Span<IndexRange> segments_by_cu
 
 static void follow_segment_connections(const Span<Segment> all_segments,
                                        const Span<bool> segments_to_keep,
-                                       const Span<int2> segment_connections,
+                                       const Span<SegmentConnections> segment_connections,
                                        Vector<Segment> &segments,
                                        Vector<int> &segment_offset_data)
 {
@@ -874,7 +878,7 @@ static void follow_segment_connections(const Span<Segment> all_segments,
         segments.append(current_segment);
       }
 
-      const int next_encoded =
+      const EncodedConnection next_encoded =
           segment_connections[current_i][current_backwards ? Side::Start : Side::End];
 
       const int next_segment = decode_index(next_encoded);
@@ -1108,7 +1112,8 @@ bke::CurvesGeometry trim_curve_segments(const bke::CurvesGeometry &src,
 
   /* -------------------- */
 
-  Array<int2> segment_connections(all_segments.size(), int2(SEGMENT_CONNECTION_NULL));
+  Array<SegmentConnections> segment_connections(all_segments.size(),
+                                                SegmentConnections(SEGMENT_CONNECTION_NULL));
   create_connections_from_curves(
       segments_by_curve, segments_to_keep, is_cyclic, segment_connections.as_mutable_span());
   store_segment_map_on_intersections(all_segments, intersections);
@@ -1189,7 +1194,8 @@ bke::CurvesGeometry trim_curve_segment_ends(const bke::CurvesGeometry &src,
 
   /* -------------------- */
 
-  Array<int2> segment_connections(all_segments.size(), int2(SEGMENT_CONNECTION_NULL));
+  Array<SegmentConnections> segment_connections(all_segments.size(),
+                                                SegmentConnections(SEGMENT_CONNECTION_NULL));
   create_connections_from_curves(
       segments_by_curve, segments_to_keep, is_cyclic, segment_connections.as_mutable_span());
   store_segment_map_on_intersections(all_segments, intersections);
