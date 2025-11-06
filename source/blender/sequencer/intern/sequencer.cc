@@ -514,19 +514,19 @@ static void seq_duplicate_postprocess(Main *bmain,
     for (Scene *scene_src : ctx.scenes) {
       BLI_assert(scene_src);
       if (scene_src->id.newid) {
-        BKE_libblock_relink_to_newid(bmain, &scene_src->id, remap_flag);
+        BKE_libblock_relink_to_newid(bmain, scene_src->id.newid, remap_flag);
       }
     }
     for (MovieClip *movieclip_src : ctx.movieclips) {
       BLI_assert(movieclip_src);
       if (movieclip_src->id.newid) {
-        BKE_libblock_relink_to_newid(bmain, &movieclip_src->id, remap_flag);
+        BKE_libblock_relink_to_newid(bmain, movieclip_src->id.newid, remap_flag);
       }
     }
     for (Mask *mask_src : ctx.masks) {
       BLI_assert(mask_src);
       if (mask_src->id.newid) {
-        BKE_libblock_relink_to_newid(bmain, &mask_src->id, remap_flag);
+        BKE_libblock_relink_to_newid(bmain, mask_src->id.newid, remap_flag);
       }
     }
 
@@ -640,7 +640,6 @@ static Strip *strip_duplicate(Main *bmain,
                                              eDupli_ID_Flags(U.dupflag | USER_DUP_OBJECT),
                                              LIB_ID_DUPLICATE_IS_ROOT_ID |
                                                  LIB_ID_DUPLICATE_IS_SUBPROCESS);
-      id_us_ensure_real(&strip_new->scene->id);
     }
     strip_new->data->stripdata = nullptr;
     if (strip->scene_sound) {
@@ -653,9 +652,9 @@ static Strip *strip_duplicate(Main *bmain,
       ctx.movieclips.add(clip_old);
       strip_new->clip = reinterpret_cast<MovieClip *>(BKE_id_copy_for_duplicate(
           bmain, reinterpret_cast<ID *>(clip_old), USER_DUP_LINKED_ID, LIB_ID_COPY_DEFAULT));
-      if (flag & LIB_ID_CREATE_NO_USER_REFCOUNT) {
-        id_us_min(&strip_new->clip->id);
-      }
+    }
+    if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
+      id_us_plus(&strip_new->clip->id);
     }
   }
   else if (strip->type == STRIP_TYPE_MASK) {
@@ -664,9 +663,9 @@ static Strip *strip_duplicate(Main *bmain,
       ctx.masks.add(mask_old);
       strip_new->mask = reinterpret_cast<Mask *>(BKE_id_copy_for_duplicate(
           bmain, reinterpret_cast<ID *>(mask_old), USER_DUP_LINKED_ID, LIB_ID_COPY_DEFAULT));
-      if (flag & LIB_ID_CREATE_NO_USER_REFCOUNT) {
-        id_us_min(&strip_new->mask->id);
-      }
+    }
+    if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
+      id_us_plus(&strip_new->mask->id);
     }
   }
   else if (strip->type == STRIP_TYPE_MOVIE) {

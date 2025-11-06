@@ -1853,16 +1853,6 @@ Scene *BKE_scene_duplicate(Main *bmain,
   const bool is_root_id = (duplicate_options & LIB_ID_DUPLICATE_IS_ROOT_ID) != 0;
   const int copy_flags = LIB_ID_COPY_DEFAULT;
 
-  if (is_subprocess) {
-    sce_copy = blender::id_cast<Scene *>(
-        BKE_id_copy_for_duplicate(bmain, (ID *)sce, duplicate_flags, copy_flags));
-  }
-  else {
-    sce_copy = blender::id_cast<Scene *>(BKE_id_copy(bmain, (ID *)sce));
-    id_us_min(&sce_copy->id);
-  }
-  id_us_ensure_real(&sce_copy->id);
-
   if (!is_subprocess) {
     BKE_main_id_newptr_and_tag_clear(bmain);
   }
@@ -1875,8 +1865,21 @@ Scene *BKE_scene_duplicate(Main *bmain,
     }
   }
 
-  /* Usages of the duplicated scene also need to be remapped in new duplicated IDs. */
-  ID_NEW_SET(sce, sce_copy);
+  if (is_subprocess) {
+    if (sce->id.newid != nullptr) {
+      return blender::id_cast<Scene *>(sce->id.newid);
+    }
+    sce_copy = blender::id_cast<Scene *>(
+        BKE_id_copy_for_duplicate(bmain, (ID *)sce, duplicate_flags, copy_flags));
+  }
+  else {
+    BLI_assert(sce->id.newid == nullptr);
+    sce_copy = blender::id_cast<Scene *>(BKE_id_copy(bmain, (ID *)sce));
+    id_us_min(&sce_copy->id);
+    /* Usages of the duplicated scene also need to be remapped in new duplicated IDs. */
+    ID_NEW_SET(sce, sce_copy);
+  }
+  id_us_ensure_real(&sce_copy->id);
 
   /* Extra actions, most notably SCE_FULL_COPY also duplicates several 'children' datablocks. */
 
