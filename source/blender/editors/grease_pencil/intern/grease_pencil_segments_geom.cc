@@ -1028,8 +1028,6 @@ bke::CurvesGeometry trim_curve_segments(const bke::CurvesGeometry &src,
   Array<IndexRange> segments_by_curve(src_points_by_curve.size());
   Vector<Segment> all_segments;
 
-  /* -------------------- */
-
   Array<Vector<int>> inters_per_curves(src_points_by_curve.size());
   find_intersections_between_all_curves(screen_space_positions,
                                         screen_space_curve_bounds,
@@ -1046,8 +1044,6 @@ bke::CurvesGeometry trim_curve_segments(const bke::CurvesGeometry &src,
                                      segments_by_curve);
   store_segment_map_on_intersections(all_segments, intersections);
 
-  /* -------------------- */
-
   Array<bool> segments_to_keep(all_segments.size(), true);
   check_segments_in_lasso(screen_space_positions,
                           screen_space_curve_bounds,
@@ -1057,14 +1053,10 @@ bke::CurvesGeometry trim_curve_segments(const bke::CurvesGeometry &src,
                           segments_by_curve,
                           segments_to_keep.as_mutable_span());
 
-  /* -------------------- */
-
   Array<SegmentConnections> segment_connections(all_segments.size(),
                                                 SegmentConnections(SEGMENT_CONNECTION_NULL));
   create_connections_from_curves(
       segments_by_curve, segments_to_keep, is_cyclic, segment_connections.as_mutable_span());
-
-  /* -------------------- */
 
   Vector<Segment> segments;
   Vector<int> segment_offset_data;
@@ -1081,8 +1073,6 @@ bke::CurvesGeometry trim_curve_segments(const bke::CurvesGeometry &src,
 
   bke::CurvesGeometry dst = create_curves_from_segments(
       src, segments, segment_reversed, cyclic, segment_offsets);
-
-  /* -------------------- */
 
   if (!keep_caps) {
     cut_caps(dst, segments, segment_reversed, cyclic, segment_offsets);
@@ -1105,8 +1095,6 @@ bke::CurvesGeometry trim_curve_segment_ends(const bke::CurvesGeometry &src,
   Array<IndexRange> segments_by_curve(src_points_by_curve.size());
   Vector<Segment> all_segments;
 
-  /* -------------------- */
-
   Array<Vector<int>> inters_per_curves(src_points_by_curve.size());
   find_intersections_between_all_curves(screen_space_positions,
                                         screen_space_curve_bounds,
@@ -1123,8 +1111,6 @@ bke::CurvesGeometry trim_curve_segment_ends(const bke::CurvesGeometry &src,
                                      segments_by_curve);
   store_segment_map_on_intersections(all_segments, intersections);
 
-  /* -------------------- */
-
   Array<bool> segments_to_keep(all_segments.size(), true);
   editable_curves.foreach_index(GrainSize(128), [&](const int curve_i) {
     const IndexRange segment_range = segments_by_curve[curve_i];
@@ -1135,14 +1121,10 @@ bke::CurvesGeometry trim_curve_segment_ends(const bke::CurvesGeometry &src,
     }
   });
 
-  /* -------------------- */
-
   Array<SegmentConnections> segment_connections(all_segments.size(),
                                                 SegmentConnections(SEGMENT_CONNECTION_NULL));
   create_connections_from_curves(
       segments_by_curve, segments_to_keep, is_cyclic, segment_connections.as_mutable_span());
-
-  /* -------------------- */
 
   Vector<Segment> segments;
   Vector<int> segment_offset_data;
@@ -1157,12 +1139,8 @@ bke::CurvesGeometry trim_curve_segment_ends(const bke::CurvesGeometry &src,
                              cyclic);
   const OffsetIndices<int> segment_offsets = OffsetIndices<int>(segment_offset_data);
 
-  /* -------------------- */
-
   bke::CurvesGeometry dst = create_curves_from_segments(
       src, segments, segment_reversed, cyclic, segment_offsets);
-
-  /* -------------------- */
 
   if (!keep_caps) {
     cut_caps(dst, segments, segment_reversed, cyclic, segment_offsets);
