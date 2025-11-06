@@ -27,11 +27,11 @@ void main()
     /* Some sun-lights are reserved for world light. Perform copy from dedicated buffer. */
     bool is_world_sun_light = light.color.r < 0.0f;
     if (is_world_sun_light) {
-      light.color = sunlight_buf[0].color;
-      light.object_to_world = sunlight_buf[0].object_to_world;
+      light.color = sunlight_buf[l_idx].color;
+      light.object_to_world = sunlight_buf[l_idx].object_to_world;
 
       LightSunData sun_data = light_sun_data_get(light);
-      sun_data.direction = transform_z_axis(sunlight_buf[0].object_to_world);
+      sun_data.direction = transform_z_axis(sunlight_buf[l_idx].object_to_world);
       light = light_sun_data_set(light, sun_data);
       /* NOTE: Use the radius from UI instead of auto sun size for now. */
     }

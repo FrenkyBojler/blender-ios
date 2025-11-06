@@ -400,6 +400,18 @@ void LightModule::begin_sync()
 
   sun_lights_len_ = 0;
   local_lights_len_ = 0;
+
+  if (use_sun_lights_ && inst_.world.sun_threshold() > 0.0f) {
+    /* use_lightpath_node is valid after WorldPipeline::sync. */
+    if (inst_.pipelines.world.use_lightpath_node()) {
+      /* Note: The order must match the one in `CaptureView::render_world()`. */
+      add_world_sun_light(world_sunlight_key_[0], true, false);
+      add_world_sun_light(world_sunlight_key_[1], false, true);
+    }
+    else {
+      add_world_sun_light(world_sunlight_key_[0], true, true);
+    }
+  }
 }
 
 void LightModule::sync_light(const Object *ob, ObjectHandle &handle)
@@ -432,16 +444,9 @@ void LightModule::sync_light(const Object *ob, ObjectHandle &handle)
 
 void LightModule::end_sync()
 {
-  if (use_sun_lights_ && inst_.world.sun_threshold() > 0.0f) {
-    // if (inst_.pipelines.world.use_lightpath_node()) {
-    //   /* Note: The order must match the one in `CaptureView::render_world()`. */
-    //   // add_world_sun_light(world_sunlight_key_[0], true, false);
-    //   // add_world_sun_light(world_sunlight_key_[1], false, true);
-    // }
-    // else {
-    // }
-    add_world_sun_light(world_sunlight_key_[0], true, true);
-  }
+  /** IMPORTANT: We cannot add new lights here since the shadow module already executed its
+   * `end_sync`. Doing so ends up in very bad data access since the shadow data of the new light
+   * will not exists on the GPU. */
 
   /* NOTE: We resize this buffer before removing deleted lights. */
   int lights_allocated = ceil_to_multiple_u(max_ii(light_map_.size(), 1), LIGHT_CHUNK);
@@ -487,7 +492,6 @@ void LightModule::end_sync()
   culling_light_buf_.resize(lights_allocated);
 
   {
-
     int2 render_extent = inst_.film.render_extent_get();
     int2 probe_extent = int2(inst_.sphere_probes.probe_render_extent());
     int2 max_extent = math::max(render_extent, probe_extent);
