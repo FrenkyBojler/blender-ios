@@ -47,7 +47,7 @@
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
-#include "BKE_sound.h"
+#include "BKE_sound.hh"
 #include "BKE_workspace.hh"
 
 #include "WM_api.hh"
@@ -1857,6 +1857,7 @@ static bool area_move_init(bContext *C, wmOperator *op)
   /* required properties */
   int x = RNA_int_get(op->ptr, "x");
   int y = RNA_int_get(op->ptr, "y");
+  bool snap_prop = RNA_boolean_get(op->ptr, "snap");
 
   /* setup */
   ScrEdge *actedge = screen_geom_find_active_scredge(win, screen, x, y);
@@ -1898,7 +1899,12 @@ static bool area_move_init(bContext *C, wmOperator *op)
   area_move_set_limits(
       win, screen, md->dir_axis, &md->bigger, &md->smaller, &use_bigger_smaller_snap);
 
-  md->snap_type = use_bigger_smaller_snap ? SNAP_BIGGER_SMALLER_ONLY : SNAP_AREAGRID;
+  if (snap_prop) {
+    md->snap_type = SNAP_FRACTION_AND_ADJACENT;
+  }
+  else {
+    md->snap_type = use_bigger_smaller_snap ? SNAP_BIGGER_SMALLER_ONLY : SNAP_AREAGRID;
+  }
 
   md->win = win;
   md->screen = screen;
@@ -1916,7 +1922,6 @@ static int area_snap_calc_location(sAreaMoveData *md, const int delta)
   const int m_cursor = md->origval + delta;
   const int m_span = float(md->bigger + md->smaller);
   const int m_min = md->origval - md->smaller;
-  // const int axis_max = axis_min + m_span;
 
   switch (md->snap_type) {
     case SNAP_AREAGRID: {
@@ -1939,22 +1944,27 @@ static int area_snap_calc_location(sAreaMoveData *md, const int delta)
         snaps.append(m_min + UI_TIME_SCRUB_MARGIN_Y);
         ARegion *region = BKE_area_find_region_type(md->area2, RGN_TYPE_FOOTER);
         const bool anim_footer = (region && region->runtime->visible);
-        if (anim_footer) {
+        region = BKE_area_find_region_type(md->area2, RGN_TYPE_HEADER);
+        const bool anim_header = (region && region->runtime->visible);
+        if (anim_footer && anim_header) {
           snaps.append(m_min + UI_TIME_SCRUB_MARGIN_Y + ED_area_footersize());
         }
       }
       const bool area1_scrub = md->area1 &&
                                ELEM(md->area1->spacetype, SPACE_ACTION, SPACE_GRAPH, SPACE_NLA);
       if (area1_scrub && md->dir_axis == SCREEN_AXIS_H) {
-        ARegion *region = BKE_area_find_region_type(md->area2, RGN_TYPE_FOOTER);
+        ARegion *region = BKE_area_find_region_type(md->area1, RGN_TYPE_FOOTER);
         const bool anim_footer = (region && region->runtime->visible);
-        if (anim_footer) {
+        region = BKE_area_find_region_type(md->area1, RGN_TYPE_HEADER);
+        const bool anim_header = (region && region->runtime->visible);
+        if (anim_footer && anim_header) {
           snaps.append(md->origval + md->bigger - (UI_TIME_SCRUB_MARGIN_Y + ED_area_footersize()));
         }
         snaps.append(md->origval + md->bigger - UI_TIME_SCRUB_MARGIN_Y);
       }
 
       snaps.append(md->origval + md->bigger);
+
       for (int i = 0; i < snaps.size(); i++) {
         if (abs(m_cursor_final - snaps[i]) < snap_threshold) {
           m_cursor_final = snaps[i];
@@ -2254,6 +2264,8 @@ static wmOperatorStatus area_move_modal(bContext *C, wmOperator *op, const wmEve
 
 static void SCREEN_OT_area_move(wmOperatorType *ot)
 {
+  PropertyRNA *prop;
+
   /* identifiers */
   ot->name = "Move Area Edges";
   ot->description = "Move selected area edges";
@@ -2272,6 +2284,9 @@ static void SCREEN_OT_area_move(wmOperatorType *ot)
   RNA_def_int(ot->srna, "x", 0, INT_MIN, INT_MAX, "X", "", INT_MIN, INT_MAX);
   RNA_def_int(ot->srna, "y", 0, INT_MIN, INT_MAX, "Y", "", INT_MIN, INT_MAX);
   RNA_def_int(ot->srna, "delta", 0, INT_MIN, INT_MAX, "Delta", "", INT_MIN, INT_MAX);
+
+  prop = RNA_def_boolean(ot->srna, "snap", false, "Snapping", "Enable snapping");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 /** \} */
@@ -3477,8 +3492,12 @@ static void SCREEN_OT_frame_jump(wmOperatorType *ot)
 /* function to be called outside UI context, or for redo */
 static wmOperatorStatus frame_jump_delta_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_wm_space_seq(C) != nullptr ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
   const bool backward = RNA_boolean_get(op->ptr, "backward");
+
+  if (scene == nullptr) {
+    return OPERATOR_CANCELLED;
+  }
 
   float delta = scene->r.time_jump_delta;
 
@@ -3506,6 +3525,7 @@ static wmOperatorStatus frame_jump_delta_exec(bContext *C, wmOperator *op)
   }
 
   ED_areas_do_frame_follow(C, true);
+  blender::ed::vse::sync_active_scene_and_time_with_scene_strip(*C);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_FRAME_CHANGE);
 
@@ -3571,10 +3591,9 @@ static void keylist_from_graph_editor(bContext &C, AnimKeylist &keylist)
 }
 
 /* This is used for all editors where a more specific function isn't implemented. */
-static void keylist_fallback_for_keyframe_jump(bContext &C, AnimKeylist &keylist)
+static void keylist_fallback_for_keyframe_jump(bContext &C, Scene *scene, AnimKeylist &keylist)
 {
   bDopeSheet ads = {nullptr};
-  Scene *scene = CTX_data_scene(&C);
 
   /* Speed up dummy dope-sheet context with flags to perform necessary filtering. */
   if ((scene->flag & SCE_KEYS_NO_SELONLY) == 0) {
@@ -3584,6 +3603,12 @@ static void keylist_fallback_for_keyframe_jump(bContext &C, AnimKeylist &keylist
 
   /* populate tree with keyframe nodes */
   scene_to_keylist(&ads, scene, &keylist, 0, {-FLT_MAX, FLT_MAX});
+
+  /* Return early when invoked from sequencer with sequencer scene. Objects may belong to different
+   * scenes and are irrelevant. */
+  if (CTX_wm_space_seq(&C) != nullptr && scene == CTX_data_sequencer_scene(&C)) {
+    return;
+  }
 
   Object *ob = CTX_data_active_object(&C);
   if (ob) {
@@ -3608,7 +3633,7 @@ static void keylist_fallback_for_keyframe_jump(bContext &C, AnimKeylist &keylist
 /* function to be called outside UI context, or for redo */
 static wmOperatorStatus keyframe_jump_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_wm_space_seq(C) != nullptr ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
   const bool next = RNA_boolean_get(op->ptr, "next");
   bool done = false;
 
@@ -3631,7 +3656,7 @@ static wmOperatorStatus keyframe_jump_exec(bContext *C, wmOperator *op)
       break;
 
     default:
-      keylist_fallback_for_keyframe_jump(*C, *keylist);
+      keylist_fallback_for_keyframe_jump(*C, scene, *keylist);
       break;
   }
 
@@ -3679,6 +3704,7 @@ static wmOperatorStatus keyframe_jump_exec(bContext *C, wmOperator *op)
   }
 
   ED_areas_do_frame_follow(C, true);
+  blender::ed::vse::sync_active_scene_and_time_with_scene_strip(*C);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_FRAME_CHANGE);
 
