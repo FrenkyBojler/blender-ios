@@ -12,6 +12,9 @@
 
 #include "BKE_ccg.hh"
 #include "BKE_subdiv_ccg.hh"
+#include "CLG_log.h"
+
+static CLG_LogRef LOG = {"multires.prototype"};
 
 bool multires_reshape_assign_final_coords_from_ccg(const MultiresReshapeContext *reshape_context,
                                                    SubdivCCG *subdiv_ccg)
@@ -87,7 +90,7 @@ bool multires_reshape_assign_final_coords_from_ccg(const MultiresReshapeContext 
 
   const Span<float3> positions = subdiv_ccg->positions;
 
-  printf("ASSIGN TO STORAGE FROM LOWER CCG\n");
+  CLOG_DEBUG(&LOG, "ASSIGN TO STORAGE FROM LOWER CCG\n");
   int num_grids = subdiv_ccg->grids_num;
   for (int grid_index = 0; grid_index < num_grids; ++grid_index) {
     for (int y = 0; y < reshape_grid_size; ++y) {
@@ -95,7 +98,7 @@ bool multires_reshape_assign_final_coords_from_ccg(const MultiresReshapeContext 
         const int vert = bke::ccg::grid_xy_to_vert(reshape_level_key, grid_index, x, y);
 
         storage[vert] = positions[vert];
-        printf("(%d) %f, %f, %f\n", vert, storage[vert].x, storage[vert].y, storage[vert].z);
+        CLOG_DEBUG(&LOG, "(%d) %f, %f, %f\n", vert, storage[vert].x, storage[vert].y, storage[vert].z);
       }
     }
   }

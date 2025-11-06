@@ -34,10 +34,13 @@
 #endif
 #include "opensubdiv_evaluator_capi.hh"
 
+#include "CLG_log.h"
 #include "atomic_ops.h"
 #include "subdiv_converter.hh"
 
 #ifdef WITH_OPENSUBDIV
+
+static CLG_LogRef LOG = {"multires.prototype"};
 
 /* -------------------------------------------------------------------- */
 /** \name Local Structs
@@ -437,7 +440,7 @@ static void foreach_reshape_ptex_face_single_threaded(
   const float inner_grid_size_1_inv = 0.5f;
 
   for (const int face_index : faces.index_range()) {
-    printf("<-------------------->\n");
+    CLOG_DEBUG(&LOG, "<-------------------->\n");
     IndexRange face = faces[face_index];
     const int corner = get_face_grid_index(reshape_smooth_context, face);
     std::array<std::optional<GridCoord>, 4> face_grid_coords = grid_coords_from_face_verts(
@@ -668,7 +671,7 @@ static void foreach_vert_every_edge(const blender::bke::subdiv::ForeachContext *
 
 static void foreach_loop(const blender::bke::subdiv::ForeachContext *foreach_context,
                          void * /*tls*/,
-                         const int ptex_face_index,
+                         const int /*ptex_face_index*/,
                          const float /*ptex_face_u*/,
                          const float /*ptex_face_v*/,
                          const int /*coarse_loop_index*/,
@@ -689,7 +692,7 @@ static void foreach_loop(const blender::bke::subdiv::ForeachContext *foreach_con
 
   const int first_grid_index = reshape_context->face_start_grid_index[coarse_face_index];
   corner->grid_index = first_grid_index + coarse_corner;
-  printf("FOREACH_LOOP: COARSE: %d, %d, PTEX: %d, VERT_IDX: %d, GRID_IDX: %d\n", coarse_face_index, coarse_corner, ptex_face_index, corner->vert_index, corner->grid_index);
+  //CLOG_DEBUG(&LOG, "FOREACH_LOOP: COARSE: %d, %d, PTEX: %d, VERT_IDX: %d, GRID_IDX: %d\n", coarse_face_index, coarse_corner, ptex_face_index, corner->vert_index, corner->grid_index);
 }
 
 static void foreach_poly(const blender::bke::subdiv::ForeachContext *foreach_context,
@@ -1023,12 +1026,12 @@ static void reshape_subdiv_refine(const MultiresReshapeSmoothContext *reshape_sm
   /* TODO(sergey): For non-trivial coarse_position_cb we should multi-thread this loop. */
 
   const int num_vertices = reshape_smooth_context->geometry.vertices.size();
-  printf("SETTING %d VERTS\n", num_vertices);
+  CLOG_DEBUG(&LOG, "SETTING %d VERTS\n", num_vertices);
   for (int i = 0; i < num_vertices; ++i) {
     const Vertex *vertex = &reshape_smooth_context->geometry.vertices[i];
     blender::float3 P;
     coarse_position_cb(reshape_smooth_context, storage, vertex, P);
-    printf("(%d) %f, %f, %f\n", i, P.x, P.y, P.z);
+    CLOG_DEBUG(&LOG, "(%d) %f, %f, %f\n", i, P.x, P.y, P.z);
     reshape_subdiv->evaluator->eval_output->setCoarsePositions(P, i, 1);
   }
   reshape_subdiv->evaluator->eval_output->refine();
@@ -1133,7 +1136,7 @@ static void reshape_subdiv_refine_final_P(
     blender::float3 &r_P)
 {
   const MultiresReshapeContext *reshape_context = reshape_smooth_context->reshape_context;
-  const GridCoord *grid_coord = reshape_subdiv_refine_vertex_grid_coord(vertex);
+  const GridCoord *grid_coord = reshape_subdiv_refine_vert_grid_coord(vertex);
 
   /* Check whether this is a loose vertex. */
   if (grid_coord == nullptr) {
@@ -1142,7 +1145,7 @@ static void reshape_subdiv_refine_final_P(
   }
 
   const int idx = multires_index_for_grid_coord_for_reshape(reshape_context, grid_coord);
-  printf("CB: %d (%f %f) -> %d -> %f %f %f\n",
+  CLOG_DEBUG(&LOG, "CB: %d (%f %f) -> %d -> %f %f %f\n",
          grid_coord->grid_index,
          grid_coord->u,
          grid_coord->v,
@@ -1159,7 +1162,7 @@ static void reshape_subdiv_refine_final_P(
 static void reshape_subdiv_refine_final(const MultiresReshapeSmoothContext *reshape_smooth_context,
                                         blender::Span<blender::float3> storage)
 {
-  printf("SETTING SUBDIV COARSE VERTS\n");
+  CLOG_DEBUG(&LOG, "SETTING SUBDIV COARSE VERTS\n");
   reshape_subdiv_refine(reshape_smooth_context, storage, reshape_subdiv_refine_final_P);
 }
 
@@ -1436,7 +1439,7 @@ static void evaluate_reshape_faces(
     blender::MutableSpan<blender::float3> delta_storage,
     blender::MutableSpan<blender::float3x3> tangent_matrix_storage)
 {
-  printf("evaluate_reshape_faces: %ld\n", delta_storage.size());
+  CLOG_DEBUG(&LOG, "evaluate_reshape_faces: %ld\n", delta_storage.size());
   blender::BitVector<> tagged_elements(delta_storage.size(), false);
   foreach_reshape_ptex_face_single_threaded(reshape_smooth_context, [&](const PTexCoord *ptex_coord, int idx, int corner) {
         blender::bke::subdiv::Subdiv *reshape_subdiv = reshape_smooth_context->reshape_subdiv;
@@ -1455,7 +1458,7 @@ static void evaluate_reshape_faces(
                                                                dPdv);
 
         delta_storage[idx] = P;
-        printf("(%d, %f %f) -> (%d, %d)-> (%f, %f, %f)\n", ptex_coord->ptex_face_index, ptex_coord->u, ptex_coord->v, corner, idx, P.x, P.y, P.z);
+        CLOG_DEBUG(&LOG, "(%d, %f %f) -> (%d, %d)-> (%f, %f, %f)\n", ptex_coord->ptex_face_index, ptex_coord->u, ptex_coord->v, corner, idx, P.x, P.y, P.z);
         /* TODO: Is this corner calculation correct? */
         BKE_multires_construct_tangent_matrix(tangent_matrix_storage[idx], dPdu, dPdv, corner % 4);
   });

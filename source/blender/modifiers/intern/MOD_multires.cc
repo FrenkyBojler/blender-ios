@@ -49,6 +49,10 @@
 
 #include "opensubdiv_evaluator_capi.hh"
 
+#include "CLG_log.h"
+
+static CLG_LogRef LOG = {"multires.prototype"};
+
 struct MultiresRuntimeData {
   /* Cached subdivision surface descriptor, with topology and settings. */
   blender::bke::subdiv::Subdiv *subdiv;
@@ -199,11 +203,12 @@ static Mesh *multires_as_ccg(MultiresModifierData *mmd,
   if (mmd->runtime->previous_level) {
     const int old_lvl = mmd->runtime->previous_level.value();
     delta = mmd->sculptlvl - old_lvl;
-    printf("(%p) multires_as_ccg: old: %d, delta: %d, new: %d\n",
-           mmd,
-           old_lvl,
-           delta,
-           mmd->sculptlvl);
+    CLOG_DEBUG(&LOG,
+               "(%p) multires_as_ccg: old: %d, delta: %d, new: %d\n",
+               mmd,
+               old_lvl,
+               delta,
+               mmd->sculptlvl);
   }
 
   blender::bke::subdiv::Subdiv *temp_subdiv = nullptr;

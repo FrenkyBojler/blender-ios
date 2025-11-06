@@ -144,6 +144,7 @@ set(LIB
   PRIVATE bf::functions
   PRIVATE bf::geometry
   PRIVATE bf::intern::guardedalloc
+  PRIVATE bf::intern::clog
   PRIVATE bf::extern::fmtlib
   bf_intern_opensubdiv  # Uses stub when disabled.
   PRIVATE bf::extern::xxhash
