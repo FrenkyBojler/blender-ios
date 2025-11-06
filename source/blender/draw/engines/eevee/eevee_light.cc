@@ -348,6 +348,33 @@ LightModule::~LightModule()
   }
 };
 
+void LightModule::add_world_sun_light(const ObjectKey &key, bool use_diffuse, bool use_glossy)
+{
+  /* Create a placeholder light to be fed by the GPU after sunlight extraction.
+   * Sunlight is disabled if power is zero. */
+  ::Light la = blender::dna::shallow_copy(
+      *(const ::Light *)DNA_default_table[dna::sdna_struct_id_get<::Light>()]);
+  la.type = LA_SUN;
+  /* Set on the GPU. */
+  la.r = la.g = la.b = -1.0f; /* Tag as world sun light. */
+  la.energy = 1.0f;
+  la.sun_angle = inst_.world.sun_angle();
+  la.shadow_filter_radius = inst_.world.sun_shadow_filter_radius();
+  la.shadow_jitter_overblur = inst_.world.sun_shadow_jitter_overblur();
+  la.shadow_maximum_resolution = inst_.world.sun_shadow_max_resolution();
+  SET_FLAG_FROM_TEST(la.mode, inst_.world.use_sun_shadow(), LA_SHADOW);
+  SET_FLAG_FROM_TEST(la.mode, inst_.world.use_sun_shadow_jitter(), LA_SHADOW_JITTER);
+  int visibility_flag = 0;
+  SET_FLAG_FROM_TEST(visibility_flag, !use_diffuse, OB_HIDE_DIFFUSE);
+  SET_FLAG_FROM_TEST(visibility_flag, !use_glossy, OB_HIDE_GLOSSY);
+
+  Light &light = light_map_.lookup_or_add_default(key);
+  light.used = true;
+  light.sync(inst_.shadows, float4x4::identity(), visibility_flag, &la, nullptr, light_threshold_);
+
+  sun_lights_len_ += 1;
+}
+
 void LightModule::begin_sync()
 {
   if (assign_if_different(use_scene_lights_, inst_.use_scene_lights())) {
@@ -373,29 +400,6 @@ void LightModule::begin_sync()
 
   sun_lights_len_ = 0;
   local_lights_len_ = 0;
-
-  if (use_sun_lights_ && inst_.world.sun_threshold() > 0.0f) {
-    /* Create a placeholder light to be fed by the GPU after sunlight extraction.
-     * Sunlight is disabled if power is zero. */
-    ::Light la = blender::dna::shallow_copy(
-        *(const ::Light *)DNA_default_table[dna::sdna_struct_id_get<::Light>()]);
-    la.type = LA_SUN;
-    /* Set on the GPU. */
-    la.r = la.g = la.b = -1.0f; /* Tag as world sun light. */
-    la.energy = 1.0f;
-    la.sun_angle = inst_.world.sun_angle();
-    la.shadow_filter_radius = inst_.world.sun_shadow_filter_radius();
-    la.shadow_jitter_overblur = inst_.world.sun_shadow_jitter_overblur();
-    la.shadow_maximum_resolution = inst_.world.sun_shadow_max_resolution();
-    SET_FLAG_FROM_TEST(la.mode, inst_.world.use_sun_shadow(), LA_SHADOW);
-    SET_FLAG_FROM_TEST(la.mode, inst_.world.use_sun_shadow_jitter(), LA_SHADOW_JITTER);
-
-    Light &light = light_map_.lookup_or_add_default(world_sunlight_key);
-    light.used = true;
-    light.sync(inst_.shadows, float4x4::identity(), 0, &la, nullptr, light_threshold_);
-
-    sun_lights_len_ += 1;
-  }
 }
 
 void LightModule::sync_light(const Object *ob, ObjectHandle &handle)
@@ -428,6 +432,17 @@ void LightModule::sync_light(const Object *ob, ObjectHandle &handle)
 
 void LightModule::end_sync()
 {
+  if (use_sun_lights_ && inst_.world.sun_threshold() > 0.0f) {
+    // if (inst_.pipelines.world.use_lightpath_node()) {
+    //   /* Note: The order must match the one in `CaptureView::render_world()`. */
+    //   // add_world_sun_light(world_sunlight_key_[0], true, false);
+    //   // add_world_sun_light(world_sunlight_key_[1], false, true);
+    // }
+    // else {
+    // }
+    add_world_sun_light(world_sunlight_key_[0], true, true);
+  }
+
   /* NOTE: We resize this buffer before removing deleted lights. */
   int lights_allocated = ceil_to_multiple_u(max_ii(light_map_.size(), 1), LIGHT_CHUNK);
   light_buf_.resize(lights_allocated);

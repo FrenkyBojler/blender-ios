@@ -425,6 +425,15 @@ class ObjectKey {
  public:
   ObjectKey() = default;
 
+  /* Special handles that will have nullptr object.
+   * Used for inserting helper items inside the hash-maps without creating a dummy #Object. */
+  explicit ObjectKey(int key)
+  {
+    sub_key_ = key;
+    hash_value_ = get_default_hash(ob_);
+    hash_value_ = get_default_hash(hash_value_, get_default_hash(sub_key_));
+  }
+
   ObjectKey(const ObjectRef &ob_ref, int sub_key = 0)
   {
     ob_ = DEG_get_original(ob_ref.object);

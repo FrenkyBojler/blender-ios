@@ -80,6 +80,7 @@ void SphereProbeModule::begin_sync()
     PassSimple &pass = sum_sun_ps_;
     pass.init();
     pass.shader_set(instance_.shaders.static_shader_get(SPHERE_PROBE_SUNLIGHT));
+    pass.push_constant("sun_id", &extract_sun_index_);
     pass.push_constant("probe_remap_dispatch_size", &dispatch_probe_pack_);
     pass.bind_ssbo("in_sun", &tmp_sunlight_);
     pass.bind_ssbo("sunlight_buf", &instance_.world.sunlight);
@@ -223,7 +224,7 @@ std::optional<SphereProbeModule::UpdateInfo> SphereProbeModule::probe_update_inf
 void SphereProbeModule::remap_to_octahedral_projection(const SphereProbeAtlasCoord &atlas_coord,
                                                        bool convolve_octahedral,
                                                        bool extract_spherical_harmonics,
-                                                       bool extract_sun)
+                                                       int extract_sun_index)
 {
   /* Update shader parameters that change per dispatch. */
   probe_sampling_coord_ = atlas_coord.as_sampling_coord();
@@ -232,7 +233,7 @@ void SphereProbeModule::remap_to_octahedral_projection(const SphereProbeAtlasCoo
   dispatch_probe_pack_ = int3(
       int2(math::divide_ceil(int2(resolution), int2(SPHERE_PROBE_REMAP_GROUP_SIZE))), 1);
   extract_sh_ = extract_spherical_harmonics;
-  extract_sun_ = extract_sun;
+  extract_sun_ = extract_sun_index != -1;
   do_remap_mip0_ = convolve_octahedral;
   instance_.manager->submit(remap_ps_);
 
@@ -254,10 +255,14 @@ void SphereProbeModule::remap_to_octahedral_projection(const SphereProbeAtlasCoo
   /* This is only true for the world probe. */
   if (extract_spherical_harmonics) {
     instance_.manager->submit(sum_sh_ps_);
+  }
+  if (extract_sun_) {
+    extract_sun_index_ = extract_sun_index;
     instance_.manager->submit(sum_sun_ps_);
-
-    instance_.lookdev.store_world_probe_data(
-        probes_tx_, atlas_coord, spherical_harmonics_, instance_.world.sunlight);
+  }
+  if (extract_spherical_harmonics || extract_sun_) {
+    // instance_.lookdev.store_world_probe_data(
+    //     probes_tx_, atlas_coord, spherical_harmonics_, instance_.world.sunlight);
   }
 
   /* Sync with atlas usage for shading. */

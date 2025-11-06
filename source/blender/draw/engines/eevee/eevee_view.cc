@@ -324,19 +324,16 @@ void CaptureView::render_world()
     };
 
     if (inst_.pipelines.world.use_lightpath_node()) {
+      /* Must match order in `LightModule::begin_sync()`. */
       render_cubemap(RAY_TYPE_DIFFUSE);
-      inst_.sphere_probes.remap_to_octahedral_projection(
-          update_info->atlas_coord, false, true, false);
-      /* TODO(fclem): Note, we extract the sun only from glossy capture. Ideally we would split the
-       * contribution into 2 suns with different visibility flag. */
+      inst_.sphere_probes.remap_to_octahedral_projection(update_info->atlas_coord, false, true, 0);
+
       render_cubemap(RAY_TYPE_GLOSSY);
-      inst_.sphere_probes.remap_to_octahedral_projection(
-          update_info->atlas_coord, true, false, true);
+      inst_.sphere_probes.remap_to_octahedral_projection(update_info->atlas_coord, true, false, 1);
     }
     else {
       render_cubemap(RAY_TYPE_GLOSSY);
-      inst_.sphere_probes.remap_to_octahedral_projection(
-          update_info->atlas_coord, true, true, true);
+      inst_.sphere_probes.remap_to_octahedral_projection(update_info->atlas_coord, true, true, 0);
     }
 
     /* All volume probe that needs to composite the world probe need to be updated. */
@@ -403,8 +400,7 @@ void CaptureView::render_probes()
     inst_.render_buffers.release();
     inst_.gbuffer.release();
     GPU_debug_group_end();
-    inst_.sphere_probes.remap_to_octahedral_projection(
-        update_info->atlas_coord, true, false, false);
+    inst_.sphere_probes.remap_to_octahedral_projection(update_info->atlas_coord, true, false);
   }
 
   if (assign_if_different(inst_.pipelines.data.ray_type, RAY_TYPE_CAMERA)) {
