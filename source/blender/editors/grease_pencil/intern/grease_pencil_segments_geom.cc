@@ -664,68 +664,6 @@ static bool check_and_join_segments(Segment &first, const Segment &second)
   return false;
 }
 
-static void calculate_cyclical_curves(const Span<Segment> segments,
-                                      const OffsetIndices<int> segment_offsets,
-                                      const Span<bool> segment_reversed,
-                                      MutableSpan<bool> cyclic)
-{
-  for (const int curve_i : segment_offsets.index_range()) {
-    const IndexRange segment_range = segment_offsets[curve_i];
-
-    if (segment_range.size() == 1) {
-      cyclic[curve_i] = segments[segment_range.first()].is_loop();
-      continue;
-    }
-
-    const int segment_index_first = segment_range.first();
-    const bool reversed_first = segment_reversed[segment_index_first];
-    const Segment &segment_first = segments[segment_index_first];
-    const Side direction_first = reversed_first ? Side::End : Side::Start;
-    const int inter_index_first = segment_first.intersection_index[direction_first];
-
-    const int segment_index_last = segment_range.last();
-    const bool reversed_last = segment_reversed[segment_index_last];
-    const Segment &segment_last = segments[segment_index_last];
-    const Side direction_last = reversed_last ? Side::Start : Side::End;
-    const int inter_index_last = segment_last.intersection_index[direction_last];
-
-    /* Check if there is no intersection and therefor the segment has ends. */
-    if (inter_index_first == -1 || inter_index_last == -1) {
-      cyclic[curve_i] = false;
-      continue;
-    }
-
-    /* Check if the segments end were they start. */
-    cyclic[curve_i] = inter_index_first == inter_index_last;
-  }
-}
-
-static void calculate_segment_directions(const Span<Segment> segments,
-                                         const OffsetIndices<int> segment_offsets,
-                                         MutableSpan<bool> segment_reversed)
-{
-  for (const int curve_i : segment_offsets.index_range()) {
-    const IndexRange segment_range = segment_offsets[curve_i];
-
-    segment_reversed[segment_range.first()] = false;
-    for (const int segment_i : segment_range.drop_front(1)) {
-      const bool reversed_prev = segment_reversed[segment_i - 1];
-      const Segment &segment_prev = segments[segment_i - 1];
-      const Segment &segment = segments[segment_i];
-      const Side direction_prev = reversed_prev ? Side::Start : Side::End;
-      const int inter_index_prev = segment_prev.intersection_index[direction_prev];
-
-      if (segment.intersection_index[Side::Start] == inter_index_prev) {
-        segment_reversed[segment_i] = false;
-      }
-      else {
-        BLI_assert(segment.intersection_index[Side::End] == inter_index_prev);
-        segment_reversed[segment_i] = true;
-      }
-    }
-  }
-}
-
 static void cut_caps(bke::CurvesGeometry &dst,
                      const Span<Segment> segments,
                      const Span<bool> segment_reversed,
@@ -855,7 +793,9 @@ static void follow_segment_connections(const Span<Segment> all_segments,
                                        const Span<bool> segments_to_keep,
                                        const Span<SegmentConnections> segment_connections,
                                        Vector<Segment> &segments,
-                                       Vector<int> &segment_offset_data)
+                                       Vector<int> &segment_offset_data,
+                                       Vector<bool> &segment_reversed,
+                                       Vector<bool> &cyclic)
 {
   BLI_assert(all_segments.size() == segments_to_keep.size());
   BLI_assert(all_segments.size() == segment_connections.size());
@@ -893,6 +833,7 @@ static void follow_segment_connections(const Span<Segment> all_segments,
     int current_i = start_segment;
 
     bool curve_done = false;
+    bool curve_closed = false;
     while (!curve_done) {
       if (processed_segments[current_i] == true) {
         BLI_assert_unreachable();
@@ -904,10 +845,12 @@ static void follow_segment_connections(const Span<Segment> all_segments,
 
       if (segments.size() == 0) {
         segments.append(current_segment);
+        segment_reversed.append(current_backwards);
       }
       /* Check if the last segment can be joined with this one. */
       else if (!check_and_join_segments(segments.last(), current_segment)) {
         segments.append(current_segment);
+        segment_reversed.append(current_backwards);
       }
 
       const EncodedConnection next_encoded =
@@ -918,11 +861,13 @@ static void follow_segment_connections(const Span<Segment> all_segments,
 
       if (next_encoded == SEGMENT_CONNECTION_NULL) {
         curve_done = true;
+        curve_closed = false;
         break;
       }
 
       if (next_segment == start_segment) {
         curve_done = true;
+        curve_closed = true;
 
         BLI_assert(next_side == Side::Start);
 
@@ -932,6 +877,7 @@ static void follow_segment_connections(const Span<Segment> all_segments,
         {
           if (check_and_join_segments(segments[segment_offset_data.last()], segments.last())) {
             segments.remove_last();
+            segment_reversed.remove_last();
           }
         }
 
@@ -942,6 +888,7 @@ static void follow_segment_connections(const Span<Segment> all_segments,
       current_backwards = next_side == Side::End;
     }
     segment_offset_data.append(segments.size());
+    cyclic.append(curve_closed);
 
     /* Get the next unprocessed segment. */
     start_segment = get_next_unprocessed_segment();
@@ -1121,16 +1068,16 @@ bke::CurvesGeometry trim_curve_segments(const bke::CurvesGeometry &src,
 
   Vector<Segment> segments;
   Vector<int> segment_offset_data;
-  follow_segment_connections(
-      all_segments, segments_to_keep, segment_connections, segments, segment_offset_data);
-  Array<bool> segment_reversed(segments.size());
+  Vector<bool> segment_reversed;
+  Vector<bool> cyclic;
+  follow_segment_connections(all_segments,
+                             segments_to_keep,
+                             segment_connections,
+                             segments,
+                             segment_offset_data,
+                             segment_reversed,
+                             cyclic);
   const OffsetIndices<int> segment_offsets = OffsetIndices<int>(segment_offset_data);
-  Array<bool> cyclic(segment_offsets.size());
-
-  /* -------------------- */
-
-  calculate_segment_directions(segments, segment_offsets, segment_reversed.as_mutable_span());
-  calculate_cyclical_curves(segments, segment_offsets, segment_reversed, cyclic.as_mutable_span());
 
   bke::CurvesGeometry dst = create_curves_from_segments(
       src, segments, segment_reversed, cyclic, segment_offsets);
@@ -1199,16 +1146,18 @@ bke::CurvesGeometry trim_curve_segment_ends(const bke::CurvesGeometry &src,
 
   Vector<Segment> segments;
   Vector<int> segment_offset_data;
-  follow_segment_connections(
-      all_segments, segments_to_keep, segment_connections, segments, segment_offset_data);
-  Array<bool> segment_reversed(segments.size());
+  Vector<bool> segment_reversed;
+  Vector<bool> cyclic;
+  follow_segment_connections(all_segments,
+                             segments_to_keep,
+                             segment_connections,
+                             segments,
+                             segment_offset_data,
+                             segment_reversed,
+                             cyclic);
   const OffsetIndices<int> segment_offsets = OffsetIndices<int>(segment_offset_data);
-  Array<bool> cyclic(segment_offsets.size());
 
   /* -------------------- */
-
-  calculate_segment_directions(segments, segment_offsets, segment_reversed.as_mutable_span());
-  calculate_cyclical_curves(segments, segment_offsets, segment_reversed, cyclic.as_mutable_span());
 
   bke::CurvesGeometry dst = create_curves_from_segments(
       src, segments, segment_reversed, cyclic, segment_offsets);
