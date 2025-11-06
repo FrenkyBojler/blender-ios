@@ -355,6 +355,20 @@ PyDoc_STRVAR(
     "\n"
     ":type: bool\n");
 
+PyDoc_STRVAR(
+    /* Wrap. */
+    bpy_app_autoexec_fail_doc,
+    "Boolean, True when auto-execution of scripts failed (read-only).\n"
+    "\n"
+    ":type: bool\n");
+PyDoc_STRVAR(
+    /* Wrap. */
+    bpy_app_autoexec_fail_quiet_doc,
+    "Boolean, True when auto-execution failure should be quiet, set after the warning is shown "
+    "once for the current blend file (read-only).\n"
+    "\n"
+    ":type: bool\n");
+
 static PyObject *bpy_app_global_flag_get(PyObject * /*self*/, void *closure)
 {
   const int flag = POINTER_AS_INT(closure);
@@ -461,6 +475,13 @@ static PyObject *bpy_app_preview_render_size_get(PyObject * /*self*/, void *clos
   return PyLong_FromLong(
       long(UI_icon_preview_to_render_size(eIconSizes(POINTER_AS_INT(closure)))));
 }
+
+PyDoc_STRVAR(
+    /* Wrap. */
+    bpy_app_autoexec_fail_message_doc,
+    "String, message describing the auto-execution failure (read-only).\n"
+    "\n"
+    ":type: str\n");
 
 static PyObject *bpy_app_autoexec_fail_message_get(PyObject * /*self*/, void * /*closure*/)
 {
@@ -623,14 +644,18 @@ static PyGetSetDef bpy_app_getsets[] = {
     {"autoexec_fail",
      bpy_app_global_flag_get,
      nullptr,
-     nullptr,
+     bpy_app_autoexec_fail_doc,
      (void *)G_FLAG_SCRIPT_AUTOEXEC_FAIL},
     {"autoexec_fail_quiet",
      bpy_app_global_flag_get,
      nullptr,
-     nullptr,
+     bpy_app_autoexec_fail_quiet_doc,
      (void *)G_FLAG_SCRIPT_AUTOEXEC_FAIL_QUIET},
-    {"autoexec_fail_message", bpy_app_autoexec_fail_message_get, nullptr, nullptr, nullptr},
+    {"autoexec_fail_message",
+     bpy_app_autoexec_fail_message_get,
+     nullptr,
+     bpy_app_autoexec_fail_message_doc,
+     nullptr},
 
     {"python_args", bpy_app_python_args_get, nullptr, bpy_app_python_args_doc, nullptr},
 
