@@ -168,11 +168,10 @@ class NODE_HT_header(Header):
                         active_modifier,
                         "node_group",
                         new="node.new_compositor_sequencer_node_group")
-                elif active_strip.type != 'SOUND':
+                elif active_strip and active_strip.type != 'SOUND':
                     row.template_ID(snode, "node_tree", new="node.new_compositor_sequencer_modifier")
                 else:
                     row.enabled = False
-                    row.template_ID(snode, "node_tree", new="node.new_compositor_sequencer_modifier")
 
         elif snode.tree_type == 'GeometryNodeTree':
             layout.prop(snode, "node_tree_sub_type", text="")
