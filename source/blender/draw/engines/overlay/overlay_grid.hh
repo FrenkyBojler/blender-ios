@@ -54,8 +54,9 @@ public:
 
     {
       // Number of lines in a quadtree of n levels
-      const uint n_lines = 0x55555555 & ~(0xFFFFFFFF << 2 * grid_ubo_.num_levels);
-      const uint n_verts = n_lines
+      const uint n_verts 
+        = grid_ubo_.num_lines 
+        * grid_ubo_.num_levels
         * 2  // nr of directions (x, y)
         * 2; // nr of verts per line
 
@@ -93,8 +94,8 @@ private:
       v3d_clip_end = v3d->clip_end;
     }
 
-    grid_ubo_.num_lines = 1 + static_cast<uint>(0.33f * v3d_clip_end);
-    grid_ubo_.num_levels = 5;
+    grid_ubo_.num_lines = 1 + 200; // static_cast<uint>(0.33f * v3d_clip_end);
+    grid_ubo_.num_levels = 3;
     grid_ubo_.distance = 0.5f * v3d_clip_end;
 
     return true;

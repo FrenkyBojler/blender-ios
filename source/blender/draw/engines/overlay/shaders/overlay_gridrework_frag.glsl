@@ -29,18 +29,18 @@ void main()
   // size *= size;
   // fade *= size;
 
-  /* // Fade at angle
+  // Fade at angle
   float angle = V.z;
   angle = 1.0f - abs(angle);
   angle *= angle;
-  fade *= (1.f - angle * angle); */
+  fade *= (1.f - angle * angle);
 
   // Fade towards draw distance
-  /* fade *= 1.0f - smoothstep(0.0f, grid_buf.distance, dist - grid_buf.distance);
- */
+  fade *= 1.0f - smoothstep(0.0f, grid_buf.distance, dist - grid_buf.distance);
 
-  // Fade towards edge of current level's lines
-  float length_fade = length(frag_xy);
+
+  // Fade towards edge of current level's lines by squared distance
+  float length_fade = dot(frag_xy, frag_xy);
   fade *= (1.f - length_fade);
 
   // Fade at level switch
@@ -49,9 +49,8 @@ void main()
   //   edge_fade *= edge_fade;
   //   fade *= mix(frag_level, 1.0f, 1.0f - edge_fade);
   // } else {
-    // fade *= frag_level;
   // }
-    // fade *= frag_level;
+  fade *= frag_level;
 
 
   float3 debug_rgb[5] = {
@@ -65,5 +64,5 @@ void main()
   // out_color.rgb = mix(float3(1, 0, 0), float3(0, 1, 0), frag_level);
   out_color.rgb = debug_rgb[debug_grid_lvl % 5];
   // out_color.rgb = float3(fade, 0, 0); // float3(1, 0, 1); 
-  out_color.a = 1.0;
+  out_color.a = fade;
 }
