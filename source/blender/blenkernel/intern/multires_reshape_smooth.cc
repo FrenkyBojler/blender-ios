@@ -440,7 +440,7 @@ static void foreach_reshape_ptex_face_single_threaded(
   const float inner_grid_size_1_inv = 0.5f;
 
   for (const int face_index : faces.index_range()) {
-    CLOG_DEBUG(&LOG, "<-------------------->");
+    CLOG_TRACE(&LOG, "<-------------------->");
     IndexRange face = faces[face_index];
     const int corner = get_face_grid_index(reshape_smooth_context, face);
     std::array<std::optional<GridCoord>, 4> face_grid_coords = grid_coords_from_face_verts(
@@ -1031,7 +1031,7 @@ static void reshape_subdiv_refine(const MultiresReshapeSmoothContext *reshape_sm
     const Vertex *vertex = &reshape_smooth_context->geometry.vertices[i];
     blender::float3 P;
     coarse_position_cb(reshape_smooth_context, storage, vertex, P);
-    CLOG_DEBUG(&LOG, "(%d) %f, %f, %f", i, P.x, P.y, P.z);
+    CLOG_TRACE(&LOG, "(%d) %f, %f, %f", i, P.x, P.y, P.z);
     reshape_subdiv->evaluator->eval_output->setCoarsePositions(P, i, 1);
   }
   reshape_subdiv->evaluator->eval_output->refine();
@@ -1145,7 +1145,7 @@ static void reshape_subdiv_refine_final_P(
   }
 
   const int idx = multires_index_for_grid_coord_for_reshape(reshape_context, grid_coord);
-  CLOG_DEBUG(&LOG, "CB: %d (%f %f) -> %d -> %f %f %f",
+  CLOG_TRACE(&LOG, "CB: %d (%f %f) -> %d -> %f %f %f",
          grid_coord->grid_index,
          grid_coord->u,
          grid_coord->v,
@@ -1458,7 +1458,7 @@ static void evaluate_reshape_faces(
                                                                dPdv);
 
         delta_storage[idx] = P;
-        CLOG_DEBUG(&LOG, "(%d, %f %f) -> (%d, %d)-> (%f, %f, %f)", ptex_coord->ptex_face_index, ptex_coord->u, ptex_coord->v, corner, idx, P.x, P.y, P.z);
+        CLOG_TRACE(&LOG, "(%d, %f %f) -> (%d, %d)-> (%f, %f, %f)", ptex_coord->ptex_face_index, ptex_coord->u, ptex_coord->v, corner, idx, P.x, P.y, P.z);
         /* TODO: Is this corner calculation correct? */
         BKE_multires_construct_tangent_matrix(tangent_matrix_storage[idx], dPdu, dPdv, corner % 4);
   });

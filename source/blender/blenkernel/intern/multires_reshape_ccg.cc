@@ -98,7 +98,7 @@ bool multires_reshape_assign_final_coords_from_ccg(const MultiresReshapeContext 
         const int vert = bke::ccg::grid_xy_to_vert(reshape_level_key, grid_index, x, y);
 
         storage[vert] = positions[vert];
-        CLOG_DEBUG(&LOG, "(%d) %f, %f, %f\n", vert, storage[vert].x, storage[vert].y, storage[vert].z);
+        CLOG_TRACE(&LOG, "(%d) %f, %f, %f\n", vert, storage[vert].x, storage[vert].y, storage[vert].z);
       }
     }
   }

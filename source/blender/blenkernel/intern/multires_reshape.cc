@@ -179,7 +179,7 @@ static void multires_level_calc_object_delta(SubdivCCG &higher_subdiv_ccg,
 #if USE_STROKE_FILTERING
     if (modified_grids[i]) {
       object_delta[i] = higher_subdiv_ccg.positions[i] - limit_surf_position;
-      CLOG_DEBUG(&LOG, "M - (%d) (%f %f %f) - (%f %f %f) = (%f %f %f) (%f)",
+      CLOG_TRACE(&LOG, "M - (%d) (%f %f %f) - (%f %f %f) = (%f %f %f) (%f)",
              i,
              higher_subdiv_ccg.positions[i].x,
              higher_subdiv_ccg.positions[i].y,
@@ -194,11 +194,11 @@ static void multires_level_calc_object_delta(SubdivCCG &higher_subdiv_ccg,
     }
     else {
       object_delta[i] = blender::float3(0.0f);
-      CLOG_DEBUG(&LOG, "U - (%d)", i);
+      CLOG_TRACE(&LOG, "U - (%d)", i);
     }
 #else
     object_delta[i] = higher_subdiv_ccg.positions[i] - limit_surf_position;
-    CLOG_DEBUG(&LOG,
+    CLOG_TRACE(&LOG,
                "M - (%d) (%f %f %f) - (%f %f %f) = (%f %f %f) (%f)",
                i,
                higher_subdiv_ccg.positions[i].x,
@@ -224,19 +224,36 @@ static void multires_level_object_delta_to_tangent_delta(
   }
 }
 
+static void multires_copy_from_old_ccg(const SubdivCCG &higher_subdiv_ccg, blender::Span<blender::float3> old_positions, SubdivCCG &subdiv_ccg)
+{
+  BLI_assert(higher_subdiv_ccg.positions.size() == old_positions.size());
+  const float higher_grid_1 = higher_subdiv_ccg.grid_size - 1;
+  const float grid_1_inv = 1.0f / (subdiv_ccg.grid_size - 1);
+  for (const int i : blender::IndexRange(subdiv_ccg.grids_num))
+  {
+    for (const int y : blender::IndexRange(subdiv_ccg.grid_size))
+    {
+      for (const int x : blender::IndexRange(subdiv_ccg.grid_size)) {
+        blender::float2 uv(float(x) * grid_1_inv, float(y) * grid_1_inv);
+        const int new_x = (int)(uv.x * higher_grid_1);
+        const int new_y = (int)(uv.y * higher_grid_1);
+
+        const int curr_idx = i * subdiv_ccg.grid_area + y * subdiv_ccg.grid_size + x;
+        const int higher_idx = i * higher_subdiv_ccg.grid_area + new_y * higher_subdiv_ccg.grid_size + new_x;
+        CLOG_TRACE(&LOG, "Assigning %d: %d %d (%d) to %d %d (%d)", i, new_x, new_y, higher_idx, x, y, curr_idx);
+
+        subdiv_ccg.positions[curr_idx] = old_positions[higher_idx];
+      }
+    }
+  }
+}
+
 bool multiresModifier_storeHigherLevelDelta(Object &object,
                                             Mesh &coarse_mesh,
                                             SubdivCCG &higher_subdiv_ccg,
                                             SubdivCCG &subdiv_ccg)
 {
   /* When switching to lower levels... */
-  /* Evaluate this twice, once for M(n - 1) and once for M(n)
-  /* At this point, the subdiv_ccg has the correct positions of M(n - 1) */
-  /* Construct an evaluator from this subdiv ccg. */
-  /* Use the evaluator get the limit surface positions and the tangent matrices */
-  /* For each vertex, V of N, MV = SubdivCCG position (object space), LV = Limit position (object
-   * space) */
-  /* Delta = (MV - LV) * LMat */
 
   MultiresReshapeContext reshape_context;
   if (!multires_reshape_context_create_from_ccg(
@@ -245,11 +262,18 @@ bool multiresModifier_storeHigherLevelDelta(Object &object,
     return false;
   }
 
+  /* At this point, the subdiv_ccg has the correct positions of M(n - 1) */
+  CLOG_DEBUG(&LOG, "Retrieving old positions:");
+  blender::Span<blender::float3> old_positions = object.sculpt->multires.runtime.positions_at_level[higher_subdiv_ccg.level - 1];
+  multires_copy_from_old_ccg(higher_subdiv_ccg, old_positions, subdiv_ccg);
+
   blender::MutableSpan<blender::float3> delta_storage = multires_ensure_delta_storage(
       object, higher_subdiv_ccg, reshape_context.top.level);
   blender::Array<blender::float3x3> tmat_storage(delta_storage.size());
   BLI_assert(delta_storage.size() == higher_subdiv_ccg.positions.size());
 
+  /* Construct an evaluator from this subdiv ccg. */
+  /* Use the evaluator get the limit surface positions and the tangent matrices */
   if (!multires_reshape_assign_final_coords_from_ccg(&reshape_context, &subdiv_ccg, delta_storage))
   {
     multires_reshape_context_free(&reshape_context);
@@ -261,18 +285,21 @@ bool multiresModifier_storeHigherLevelDelta(Object &object,
          subdiv_ccg.positions.size(),
          delta_storage.size());
 
+  /* For each vertex, V of N, MV = SubdivCCG position (object space), LV = Limit position (object
+   * space) */
   multires_reshape_store_limit_positions(
       &reshape_context, MultiresSubdivideModeType::CatmullClark, delta_storage, tmat_storage);
   CLOG_DEBUG(&LOG, "STORED LIMIT POS");
   for (const int i : delta_storage.index_range()) {
-    CLOG_DEBUG(&LOG, "%d - (%f, %f, %f) - %f", i, delta_storage[i].x, delta_storage[i].y, delta_storage[i].z, blender::math::length(delta_storage[i]));
+    CLOG_TRACE(&LOG, "%d - (%f, %f, %f) - %f", i, delta_storage[i].x, delta_storage[i].y, delta_storage[i].z, blender::math::length(delta_storage[i]));
   }
+  /* Delta = (MV - LV) * LMat */
   multires_level_calc_object_delta(higher_subdiv_ccg, delta_storage, object.sculpt->multires.runtime.modified_at_level[reshape_context.top.level - 1]);
   CLOG_DEBUG(&LOG, "STORED HIGHER POS - LIMIT POS");
 
   multires_level_object_delta_to_tangent_delta(tmat_storage, delta_storage);
   for (const int i : delta_storage.index_range()) {
-    CLOG_DEBUG(&LOG, "%d - (%f, %f, %f) - %f", i, delta_storage[i].x, delta_storage[i].y, delta_storage[i].z, blender::math::length(delta_storage[i]));
+    CLOG_TRACE(&LOG, "%d - (%f, %f, %f) - %f", i, delta_storage[i].x, delta_storage[i].y, delta_storage[i].z, blender::math::length(delta_storage[i]));
   }
   CLOG_DEBUG(&LOG, "CONVERTED TO TANGENT SPACE");
 
@@ -303,7 +330,7 @@ static void multires_level_apply_object_delta(blender::Span<blender::float3> pos
   CLOG_DEBUG(&LOG, "APPLY OBJ DELTA");
   for (const int i : subdiv_ccg.positions.index_range()) {
     subdiv_ccg.positions[i] = position_storage[i] + delta_storage[i];
-    CLOG_DEBUG(&LOG, "(%d) (%f %f %f) = (%f %f %f) + (%f %f %f)",
+    CLOG_TRACE(&LOG, "(%d) (%f %f %f) = (%f %f %f) + (%f %f %f)",
            i,
            subdiv_ccg.positions[i].x,
            subdiv_ccg.positions[i].y,
@@ -341,7 +368,7 @@ bool multiresModifier_applyHigherLevelDelta(Object &object,
   CLOG_DEBUG(&LOG, "Retrieving old positions:");
   blender::Span<blender::float3> old_positions = object.sculpt->multires.runtime.positions_at_level[lower_subdiv_ccg.level - 1];
   for (const int i : old_positions.index_range()) {
-    CLOG_DEBUG(&LOG, "(%d) - %f %f %f", i, old_positions[i].x, old_positions[i].y, old_positions[i].z);
+    CLOG_TRACE(&LOG, "(%d) - %f %f %f", i, old_positions[i].x, old_positions[i].y, old_positions[i].z);
   }
 
   multires_reshape_store_tangent_matrices(
@@ -357,7 +384,7 @@ bool multiresModifier_applyHigherLevelDelta(Object &object,
   /* Re-add them to the new subdiv CCG */
   multires_level_apply_object_delta(position_storage, delta_storage, subdiv_ccg);
   for (const int i : subdiv_ccg.positions.index_range()) {
-    CLOG_DEBUG(&LOG, "(%d) - %f %f %f", i, subdiv_ccg.positions[i].x, subdiv_ccg.positions[i].y, subdiv_ccg.positions[i].z);
+    CLOG_TRACE(&LOG, "(%d) - %f %f %f", i, subdiv_ccg.positions[i].x, subdiv_ccg.positions[i].y, subdiv_ccg.positions[i].z);
   }
 
   BKE_subdiv_ccg_recalc_normals(subdiv_ccg);
