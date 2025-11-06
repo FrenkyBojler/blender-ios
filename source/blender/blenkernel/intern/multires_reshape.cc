@@ -221,7 +221,8 @@ static void multires_level_object_delta_to_tangent_delta(
     blender::MutableSpan<blender::float3> delta_storage)
 {
   for (const int i : delta_storage.index_range()) {
-    delta_storage[i] = blender::math::transform_direction(tmat_storage[i], delta_storage[i]);
+    delta_storage[i] = blender::math::transform_direction(blender::math::invert(tmat_storage[i]),
+                                                          delta_storage[i]);
   }
 }
 
@@ -341,8 +342,7 @@ static void multires_level_tangent_delta_to_object_delta(
 {
   for (const int i : delta_storage.index_range()) {
     if (!blender::math::is_zero(delta_storage[i])) {
-      delta_storage[i] = blender::math::transform_direction(blender::math::invert(tmat_storage[i]),
-                                                            delta_storage[i]);
+      delta_storage[i] = blender::math::transform_direction(tmat_storage[i], delta_storage[i]);
     }
   }
 }
