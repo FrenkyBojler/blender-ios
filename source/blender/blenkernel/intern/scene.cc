@@ -340,13 +340,16 @@ static void scene_copy_data(Main *bmain,
     scene_dst->ed->show_missing_media_flag = scene_src->ed->show_missing_media_flag;
     scene_dst->ed->proxy_storage = scene_src->ed->proxy_storage;
     STRNCPY(scene_dst->ed->proxy_dir, scene_src->ed->proxy_dir);
-    blender::seq::seqbase_duplicate_recursive(bmain,
-                                              scene_src,
-                                              scene_dst,
-                                              &scene_dst->ed->seqbase,
-                                              &scene_src->ed->seqbase,
-                                              blender::seq::StripDuplicate::All,
-                                              flag_subdata);
+    blender::seq::seqbase_duplicate_recursive(
+        bmain,
+        scene_src,
+        scene_dst,
+        &scene_dst->ed->seqbase,
+        &scene_src->ed->seqbase,
+        /* NOTE: Never use #StripDuplicate::Data here (would generate recursive ID duplication not,
+         * supported at all here). */
+        blender::seq::StripDuplicate::All,
+        flag_subdata);
     BLI_duplicatelist(&scene_dst->ed->channels, &scene_src->ed->channels);
   }
 
@@ -1856,9 +1859,8 @@ Scene *BKE_scene_duplicate(Main *bmain,
   }
   else {
     sce_copy = blender::id_cast<Scene *>(BKE_id_copy(bmain, (ID *)sce));
+    id_us_min(&sce_copy->id);
   }
-
-  id_us_min(&sce_copy->id);
   id_us_ensure_real(&sce_copy->id);
 
   if (!is_subprocess) {

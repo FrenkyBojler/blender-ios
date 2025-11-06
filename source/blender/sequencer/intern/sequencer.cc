@@ -501,28 +501,56 @@ struct StripDuplicateContext {
 
 static void seq_duplicate_postprocess(Main *bmain,
                                       StripDuplicateContext &ctx,
-                                      blender::Map<Strip *, Strip *> &strip_map)
+                                      blender::Map<Strip *, Strip *> &strip_map,
+                                      const StripDuplicate dupe_flag)
 {
   const int remap_flag = ID_REMAP_FORCE_OBDATA_IN_EDITMODE | ID_REMAP_SKIP_USER_CLEAR;
 
-  /* Ensure that these old references are properly remapped on all newly created datablocks. */
-  for (Scene *scene_src : ctx.scenes) {
-    BLI_assert(scene_src && scene_src->id.newid);
-    BKE_libblock_relink_to_newid(bmain, &scene_src->id, remap_flag);
-  }
-  for (MovieClip *movieclip_src : ctx.movieclips) {
-    BLI_assert(movieclip_src && movieclip_src->id.newid);
-    BKE_libblock_relink_to_newid(bmain, &movieclip_src->id, remap_flag);
-  }
-  for (Mask *mask_src : ctx.masks) {
-    BLI_assert(mask_src && mask_src->id.newid);
-    BKE_libblock_relink_to_newid(bmain, &mask_src->id, remap_flag);
-  }
+  if (int(dupe_flag & StripDuplicate::Data) != 0) {
+    /* Ensure that these old references are properly remapped on all newly created datablocks.
+     *
+     * NOTE: Some of these IDs may be processed as part of dependencies when relinking another ID,
+     * so they may have already been remapped, and their `newid` pointer, reset to nullptr. */
+    for (Scene *scene_src : ctx.scenes) {
+      BLI_assert(scene_src);
+      if (scene_src->id.newid) {
+        BKE_libblock_relink_to_newid(bmain, &scene_src->id, remap_flag);
+      }
+    }
+    for (MovieClip *movieclip_src : ctx.movieclips) {
+      BLI_assert(movieclip_src);
+      if (movieclip_src->id.newid) {
+        BKE_libblock_relink_to_newid(bmain, &movieclip_src->id, remap_flag);
+      }
+    }
+    for (Mask *mask_src : ctx.masks) {
+      BLI_assert(mask_src);
+      if (mask_src->id.newid) {
+        BKE_libblock_relink_to_newid(bmain, &mask_src->id, remap_flag);
+      }
+    }
 
-  if (bmain != nullptr) {
-    /* Clear temporary `newid` for potentially copied datablocks (scene, mask, and movieclip). */
-    BKE_main_id_newptr_and_tag_clear(bmain);
-    BKE_main_collection_sync(bmain);
+    if (bmain != nullptr) {
+#ifndef NDEBUG
+      /* Calls to `BKE_libblock_relink_to_newid` above are supposed to have cleared all these
+       * flags.
+       */
+      ID *id_iter;
+      FOREACH_MAIN_ID_BEGIN (bmain, id_iter) {
+        BLI_assert((id_iter->tag & ID_TAG_NEW) == 0);
+      }
+      FOREACH_MAIN_ID_END;
+#endif
+
+      /* Clear temporary `newid` for potentially copied datablocks (scene, mask, and movieclip). */
+      BKE_main_id_newptr_and_tag_clear(bmain);
+      BKE_main_collection_sync(bmain);
+    }
+  }
+  else {
+    BLI_assert(ctx.scenes.is_empty());
+    BLI_assert(ctx.movieclips.is_empty());
+    BLI_assert(ctx.masks.is_empty());
   }
 
   /* Fix effect, modifier, and connected strip links. */
@@ -609,9 +637,10 @@ static Strip *strip_duplicate(Main *bmain,
       strip_new->scene = BKE_scene_duplicate(bmain,
                                              scene_old,
                                              SCE_COPY_FULL,
-                                             (eDupli_ID_Flags)(U.dupflag | USER_DUP_OBJECT),
+                                             eDupli_ID_Flags(U.dupflag | USER_DUP_OBJECT),
                                              LIB_ID_DUPLICATE_IS_ROOT_ID |
                                                  LIB_ID_DUPLICATE_IS_SUBPROCESS);
+      id_us_ensure_real(&strip_new->scene->id);
     }
     strip_new->data->stripdata = nullptr;
     if (strip->scene_sound) {
@@ -725,7 +754,7 @@ Strip *strip_duplicate_recursive(Main *bmain,
   Strip *strip_new = strip_duplicate_recursive_impl(
       bmain, scene_src, scene_dst, new_seq_list, strip, dupe_flag, strip_map, ctx);
 
-  seq_duplicate_postprocess(bmain, ctx, strip_map);
+  seq_duplicate_postprocess(bmain, ctx, strip_map, dupe_flag);
 
   return strip_new;
 }
@@ -779,7 +808,7 @@ void seqbase_duplicate_recursive(Main *bmain,
   seqbase_dupli_recursive(
       bmain, scene_src, scene_dst, nseqbase, seqbase, dupe_flag, flag, strip_map, ctx);
 
-  seq_duplicate_postprocess(bmain, ctx, strip_map);
+  seq_duplicate_postprocess(bmain, ctx, strip_map, dupe_flag);
 }
 
 bool is_valid_strip_channel(const Strip *strip)
