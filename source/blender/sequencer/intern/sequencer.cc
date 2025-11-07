@@ -515,7 +515,9 @@ static void seq_duplicate_postprocess(Main *bmain,
   const int remap_flag = ID_REMAP_FORCE_OBDATA_IN_EDITMODE | ID_REMAP_SKIP_USER_CLEAR;
 
   if (int(dupe_flag & StripDuplicate::Data) != 0) {
-    /* Ensure that these old references are properly remapped on all newly created datablocks.
+    /* Newly created datablocks may reference IDs that themselves have also been duplicated in the
+     * "current duplication". E.g. a scene may have a custom property that refers to itself; when
+     * it is duplicated, we should ensure that these references are properly remapped.
      *
      * NOTE: Some of these IDs may be processed as part of dependencies when relinking another ID,
      * so they may have already been remapped, and their `newid` pointer, reset to nullptr. */
@@ -550,8 +552,10 @@ static void seq_duplicate_postprocess(Main *bmain,
       FOREACH_MAIN_ID_END;
 #endif
 
-      /* Clear temporary `newid` for potentially copied datablocks (scene, mask, and movieclip). */
+      /* Clear temporary `newid` for potentially copied datablocks (scene, mask, and movieclip)
+       * to indicate that we have finished processing them. */
       BKE_main_id_newptr_and_tag_clear(bmain);
+
       BKE_main_collection_sync(bmain);
     }
   }

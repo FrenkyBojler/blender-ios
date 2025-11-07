@@ -1878,12 +1878,13 @@ Scene *BKE_scene_duplicate(Main *bmain,
     id_us_min(&sce_copy->id);
     /* Usages of the duplicated scene also need to be remapped in new duplicated IDs. */
     ID_NEW_SET(sce, sce_copy);
+
+    /* In subprocesses, action data is duplicated in `BKE_id_copy_for_duplicate`, match that: */
+    BKE_animdata_duplicate_id_action(bmain, &sce_copy->id, duplicate_flags);
   }
   id_us_ensure_real(&sce_copy->id);
 
   /* Extra actions, most notably SCE_FULL_COPY also duplicates several 'children' datablocks. */
-
-  BKE_animdata_duplicate_id_action(bmain, &sce_copy->id, duplicate_flags);
 
   /* Exception for the compositor; Before 5.0, creating a linked copy of the scene created a new
    * compositing node tree with a Render Layers node that referred to the new scene.
