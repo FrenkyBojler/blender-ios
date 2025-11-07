@@ -132,14 +132,35 @@ struct OVERLAY_GridData {
 };
 BLI_STATIC_ASSERT_ALIGN(OVERLAY_GridData, 16)
 
-struct OVERLAY_GridReworkData {
-  uint num_lines;
-  uint num_levels;
-  float distance;
-  uint _pad0[1];
-};
-BLI_STATIC_ASSERT_ALIGN(OVERLAY_GridReworkData, 16)
+/* Packing/unpacking functions for 4 uint8_t's to single uint.
+ * Used for hierarchy data in `OVERLAY_GridReworkData` below. */
+#ifdef GPU_SHADER
+inline
+uint4 unpackUint8x4(uint32_t p) {
+  uint4 v;
+  v[0] = (p & 0xFF);
+  v[1] = ((p >> 8u) & 0xFF);
+  v[2] = ((p >> 16u) & 0xFF);
+  v[3] = ((p >> 24u) & 0xFF);
+  return v;
+}
+#else
+inline
+uint32_t packUint8x4(uint4 v) {
+  return (v[0] & 0xFF) | ((v[1] & 0xFF) << 8u) | ((v[2] & 0xFF) << 16u) | ((v[3] & 0xFF) << 24u);;
+}
+#endif
 
+struct OVERLAY_GridReworkData {
+  /* Hierarchy line count over 4 levels, packed with equivalent of packUnorm4x8. */
+  uint num_lines_per_level_pack;
+  /* Draw distance, which lies below the camera clip distance. */ 
+  float distance;      
+  /* Alignment padding. */
+  float _pad0;
+  float _pad1;
+};
+BLI_STATIC_ASSERT_ALIGN(OVERLAY_GridReworkData, 8)
 
 #ifdef GPU_SHADER
 /* Keep the same values as in `draw_cache_impl_curves.cc` */

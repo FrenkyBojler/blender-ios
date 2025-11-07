@@ -33,6 +33,7 @@ private:
 
   float3 grid_axes_ = float3(0.0f);
   float3 zplane_axes_ = float3(0.0f);
+  uint4 num_lines_per_level_;
 
 public:
   void begin_sync(Resources &res, const State &state) final
@@ -53,12 +54,10 @@ public:
     grid_ps_.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA);
 
     {
-      // Number of lines in a quadtree of n levels
       const uint n_verts 
-        = grid_ubo_.num_lines 
-        * grid_ubo_.num_levels
-        * 2  // nr of directions (x, y)
-        * 2; // nr of verts per line
+        = reduce_add(num_lines_per_level_) /* Sum of lines across all levels. */
+        * 2                                /* Count of directions (x, y). */
+        * 2;                               /* Count of verts per line. */
 
       auto &sub = grid_ps_.sub("grid");
       sub.shader_set(res.shaders->gridrework.get());
@@ -84,7 +83,7 @@ private:
     const View3D *v3d = state.v3d;
     const RegionView3D *rv3d = state.rv3d;
 
-    // Get far clip distance
+    /* Get far clip distance from camera/viewport */
     float v3d_clip_end;
     if (rv3d->persp == RV3D_CAMOB && v3d->camera && v3d->camera->type == OB_CAMERA) {
       Object *camera_object = DEG_get_evaluated(state.depsgraph, v3d->camera);
@@ -93,9 +92,15 @@ private:
     else {
       v3d_clip_end = v3d->clip_end;
     }
-
-    grid_ubo_.num_lines = 1 + 200; // static_cast<uint>(0.33f * v3d_clip_end);
-    grid_ubo_.num_levels = 3;
+    
+    /* Configure line count per level. Hardcoded, but suffices in general cases.
+     * Note; different line counts per level show a slight visual "pop" when
+     * levels switch over when zooming, at very steep angles. */
+    num_lines_per_level_[0] = static_cast<uchar>(200 + 1);
+    num_lines_per_level_[1] = static_cast<uchar>(175 + 1);
+    num_lines_per_level_[2] = static_cast<uchar>(150 + 1); 
+    num_lines_per_level_[3] = static_cast<uchar>(125 + 1); 
+    grid_ubo_.num_lines_per_level_pack = packUint8x4(num_lines_per_level_);
     grid_ubo_.distance = 0.5f * v3d_clip_end;
 
     return true;

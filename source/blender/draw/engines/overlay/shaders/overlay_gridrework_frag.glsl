@@ -11,58 +11,31 @@ FRAGMENT_SHADER_CREATE_INFO(overlay_gridrework_next)
 
 void main()
 {
-  // Compute normalized view vector
+  /* Compute normalized view vector. */
   float3 P = local_pos;
   float3 V = drw_view_position() - P;
   float dist = length(V);
   V /= dist;
 
-  // Output alpha
+  /* Output alpha value. Modified below */
   float fade = 1.f;
 
-  // Fade for fragment size
-  // float3 dFdxPos = gpu_dfdx(P);
-  // float3 dFdyPos = gpu_dfdy(P);
-  // // float3 fwidthPos = abs(dFdxPos) + abs(dFdyPos);
-  // float fsizePos = length(dFdxPos + dFdyPos); // 1.f - length(fwidthPos.xy); // dot(fwidthPos.xy, fwidthPos.xy);
-  // fsizePos *= fsizePos;
-  // size *= size;
-  // fade *= size;
-
-  // Fade at angle
+  /* Add fade at steep angles. */
   float angle = V.z;
   angle = 1.0f - abs(angle);
   angle *= angle;
   fade *= (1.f - angle * angle);
 
-  // Fade towards draw distance
+  /* Add stepped fade towards clip distance. */
   fade *= 1.0f - smoothstep(0.0f, grid_buf.distance, dist - grid_buf.distance);
 
+  /* Add fade towards edge of current level's edge. */
+  float length_fade = 1.f - min(1.f, dot(frag_xy, frag_xy));
+  fade *= length_fade * length_fade;
 
-  // Fade towards edge of current level's lines by squared distance
-  float length_fade = dot(frag_xy, frag_xy);
-  fade *= (1.f - length_fade);
-
-  // Fade at level switch
-  // if (debug_grid_lvl == 2) {
-  //   float edge_fade = length(frag_xy);
-  //   edge_fade *= edge_fade;
-  //   fade *= mix(frag_level, 1.0f, 1.0f - edge_fade);
-  // } else {
-  // }
+  /* Add fade at level switch. This is computed in the vertex stage. */
   fade *= frag_level;
 
-
-  float3 debug_rgb[5] = {
-    float3(1, 0, 0),
-    float3(0, 1, 0),
-    float3(0, 0, 1),
-    float3(1, 0, 1),
-    float3(1, 1, 1),
-  };
-
-  // out_color.rgb = mix(float3(1, 0, 0), float3(0, 1, 0), frag_level);
-  out_color.rgb = debug_rgb[debug_grid_lvl % 5];
-  // out_color.rgb = float3(fade, 0, 0); // float3(1, 0, 1); 
+  out_color.rgb = float3(1, 0, 1); 
   out_color.a = fade;
 }
