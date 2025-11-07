@@ -876,6 +876,7 @@ void DataSetViewItem::on_activate(bContext &C)
 
   bScreen &screen = *CTX_wm_screen(&C);
   SpaceSpreadsheet &sspreadsheet = *CTX_wm_space_spreadsheet(&C);
+  PointerRNA ptr = RNA_pointer_create_discrete(&screen.id, &RNA_SpaceSpreadsheet, &sspreadsheet);
 
   if (const auto *domain_data_id = std::get_if<GeometryDomainDataId>(&data_id->id)) {
     sspreadsheet.geometry_id.geometry_item_type = SPREADSHEET_GEOMETRY_ITEM_TYPE_DOMAIN;
@@ -887,7 +888,7 @@ void DataSetViewItem::on_activate(bContext &C)
     if (domain_data_id->layer_index) {
       sspreadsheet.geometry_id.layer_index = *domain_data_id->layer_index;
     }
-    PointerRNA ptr = RNA_pointer_create_discrete(&screen.id, &RNA_SpaceSpreadsheet, &sspreadsheet);
+
     /* These updates also make sure that the attribute domain is set properly based on the
      * component type. */
     RNA_property_update(&C, &ptr, RNA_struct_find_property(&ptr, "attribute_domain"));
@@ -898,6 +899,7 @@ void DataSetViewItem::on_activate(bContext &C)
     Vector<StringRef> keys = bundle_item_id->keys.as_span();
     spreadsheet_bundle_path_init_from(
         keys, bundle_item_id->closure_in_out, sspreadsheet.geometry_id.geometry_bundle_path);
+    RNA_property_update(&C, &ptr, RNA_struct_find_property(&ptr, "geometry_component_type"));
   }
 }
 
