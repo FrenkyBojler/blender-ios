@@ -2078,7 +2078,7 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
 
   /* Close gaps. */
   VectorSet<Strip *> transformed_strips;
-  VectorSet<Strip *> strips_connected;
+  VectorSet<Strip *> connected_strips;
   if (remove_gaps) {
     int offset = rect_frames[0] - rect_frames[1];
     /* Cap offset. */
@@ -2100,17 +2100,12 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
       {
         seq::transform_translate_strip(scene, strip, offset);
         transformed_strips.add(strip);
-        /* Also offset connected strips, this is important for the case that for example audio gets
-         * cut -> cut gets propageded to connected video -> audio on the same channel moves to the
-         * left to close the gap(video not). When not offsetting connected strips in this case the
-         * connected audio and video would not match anymore because the video stays in place and
-         * the audio gets offset. */
-        strips_connected.add_multiple(seq::connected_strips_get(strip));
+        /* Also offset connected strips. Also get effect strips to later run the overlap handeling
+         * on them. */
+        seq::query_strip_connected_and_effect_chain(scene, strip, &ed->seqbase, connected_strips);
       }
     }
-    /* I don't offset and add the connected strips directly in the FOREACH above to the
-     * transformed_strips for now because it lead to some bugs. Might investigate this later. */
-    for (Strip *strip : strips_connected) {
+    for (Strip *strip : connected_strips) {
       if (transformed_strips.contains(strip)) {
         continue;
       }
