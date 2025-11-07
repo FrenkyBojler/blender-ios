@@ -165,7 +165,9 @@ class NODE_HT_header(Header):
                 is_compositor_modifier_active = active_modifier and active_modifier.type == 'COMPOSITOR'
                 if is_compositor_modifier_active and not snode.pin:
                     if active_modifier.node_group:
-                        row.template_ID(active_modifier, "node_group", new="node.duplicate_compositing_node_group")
+                        row.template_ID(active_modifier,
+                                        "node_group",
+                                        new="node.duplicate_compositing_modifier_node_group")
                     else:
                         row.template_ID(
                             active_modifier,

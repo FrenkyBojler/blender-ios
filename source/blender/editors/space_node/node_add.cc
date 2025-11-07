@@ -1760,6 +1760,8 @@ void NODE_OT_new_compositing_node_group(wmOperatorType *ot)
   RNA_def_string(ot->srna, "name", nullptr, MAX_ID_NAME - 2, "Name", "");
 }
 
+/** \} */
+
 /* -------------------------------------------------------------------- */
 /** \name Duplicate Compositing Node Tree Operator
  * \{ */
@@ -1781,26 +1783,8 @@ static wmOperatorStatus duplicate_and_assign_node_tree(bContext *C, bNodeTree *s
 
 static wmOperatorStatus duplicate_compositing_node_group_exec(bContext *C, wmOperator * /*op*/)
 {
-  SpaceNode *snode = CTX_wm_space_node(C);
-
-  if (snode->node_tree_sub_type == SNODE_COMPOSITOR_SEQUENCER) {
-    Scene *scene = CTX_data_sequencer_scene(C);
-    Strip *strip = seq::select_active_get(scene);
-    if (strip == nullptr) {
-      return OPERATOR_CANCELLED;
-    }
-    StripModifierData *smd = seq::modifier_get_active(strip);
-
-    if (!(smd && smd->type == eSeqModifierType_Compositor)) {
-      return OPERATOR_CANCELLED;
-    }
-
-    SequencerCompositorModifierData *nmd = (SequencerCompositorModifierData *)smd;
-    return duplicate_and_assign_node_tree(C, nmd->node_group);
-  }
-
+  PointerRNA ptr;
   Scene *scene = CTX_data_scene(C);
-
   return duplicate_and_assign_node_tree(C, scene->compositing_node_group);
 }
 
@@ -1811,6 +1795,42 @@ void NODE_OT_duplicate_compositing_node_group(wmOperatorType *ot)
   ot->description = "Duplicate the currently assigned compositing node group.";
 
   ot->exec = duplicate_compositing_node_group_exec;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Duplicate Compositing Modifier Node Tree Operator
+ * \{ */
+static wmOperatorStatus duplicate_compositing_modifier_node_group_exec(bContext *C,
+                                                                       wmOperator * /*op*/)
+{
+  Scene *scene = CTX_data_sequencer_scene(C);
+  Strip *strip = seq::select_active_get(scene);
+
+  if (strip == nullptr) {
+    return OPERATOR_CANCELLED;
+  }
+
+  StripModifierData *smd = seq::modifier_get_active(strip);
+
+  if (!(smd && smd->type == eSeqModifierType_Compositor)) {
+    return OPERATOR_CANCELLED;
+  }
+
+  SequencerCompositorModifierData *nmd = (SequencerCompositorModifierData *)smd;
+  return duplicate_and_assign_node_tree(C, nmd->node_group);
+}
+
+void NODE_OT_duplicate_compositing_modifier_node_group(wmOperatorType *ot)
+{
+  ot->name = "New Compositing Node Group";
+  ot->idname = "NODE_OT_duplicate_compositing_modifier_node_group";
+  ot->description = "Duplicate the currently assigned compositing node group.";
+
+  ot->exec = duplicate_compositing_modifier_node_group_exec;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
