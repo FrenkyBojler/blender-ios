@@ -7,7 +7,7 @@
 namespace blender::gpu {
 
 GPUWorker::GPUWorker(uint32_t threads_count, ContextType context_type, WorkCallback callback)
-    : callback(callback)
+    : callback_(callback)
 {
   work_queue_ = BLI_thread_queue_init();
 
@@ -56,7 +56,7 @@ void GPUWorker::run(std::shared_ptr<GPUSecondaryContext> context)
 
   /* Loop until the queue is cancelled. */
   while (void *work = BLI_thread_queue_pop(work_queue_)) {
-    callback(work);
+    callback_(work);
   }
 }
 

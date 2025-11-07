@@ -29,7 +29,7 @@ class GPUWorker {
  private:
   Vector<std::unique_ptr<std::thread>> threads_;
   ThreadQueue *work_queue_;
-  WorkCallback callback;
+  WorkCallback callback_;
 
  public:
   enum class ContextType {
