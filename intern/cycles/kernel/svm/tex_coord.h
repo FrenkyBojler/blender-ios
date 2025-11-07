@@ -354,7 +354,8 @@ ccl_device_noinline void svm_node_normal_map(KernelGlobals kg,
 
     /* first try to get tangent attribute */
     const AttributeDescriptor attr = find_attribute(kg, sd, node.z);
-    const AttributeDescriptor attr_sign = find_attribute(kg, sd, node.w & ~NODE_NORMAL_MAP_GREEN_DIRECTX);
+    const AttributeDescriptor attr_sign = find_attribute(
+        kg, sd, node.w & ~NODE_NORMAL_MAP_GREEN_DIRECTX);
 
     if (attr.offset == ATTR_STD_NOT_FOUND || attr_sign.offset == ATTR_STD_NOT_FOUND) {
       /* Fall back to unperturbed normal. */
