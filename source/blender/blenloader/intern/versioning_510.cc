@@ -18,6 +18,8 @@
 #include "BLI_string.h"
 #include "BLI_sys_types.h"
 
+#include "BKE_asset.hh"
+#include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_node.hh"
@@ -250,6 +252,11 @@ static void init_node_tool_operator_idnames(Main &bmain)
     }
     group->geometry_node_asset_traits->node_tool_idname = BLI_strdupn(name_str.c_str(),
                                                                       name_str.size());
+    if (group->id.asset_data) {
+      auto property = bke::idprop::create(
+          "node_tool_idname", StringRefNull(group->geometry_node_asset_traits->node_tool_idname));
+      BKE_asset_metadata_idprop_ensure(group->id.asset_data, property.release());
+    }
   }
 }
 
