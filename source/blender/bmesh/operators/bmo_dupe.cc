@@ -503,7 +503,7 @@ void bmo_split_exec(BMesh *bm, BMOperator *op)
 
         /* NOTE: `boundary_map.out` can't use #BMO_slot_copy because some of the "source"
          * geometry has been removed. In this case the (source -> destination) map doesn't work.
-         * In this case there is isn't an especially good option.
+         * In this case there isn't an especially good option.
          * The geometry needs to be included so the boundary is accessible.
          * Use the "destination" as the key and the value since it avoids adding freed
          * geometry into the map and can be easily detected by other operators.
@@ -613,12 +613,14 @@ void bmo_spin_exec(BMesh *bm, BMOperator *op)
                    "geom=%S "
                    "use_keep_orig=%b "
                    "use_normal_flip=%b "
-                   "use_normal_from_adjacent=%b",
+                   "use_normal_from_adjacent=%b "
+                   "skip_input_flip=%b",
                    op,
                    "geom_last.out",
                    use_merge,
                    use_normal_flip && (a == 0),
-                   (a != 0));
+                   (a != 0),
+                   true);
       BMO_op_exec(bm, &extop);
       if ((use_merge && (a == steps - 1)) == false) {
         BMO_op_callf(bm,

@@ -10,7 +10,6 @@
  */
 
 #include "BKE_paint.hh"
-#include "DNA_particle_types.h"
 #include "DRW_engine.hh"
 #include "DRW_render.hh"
 
@@ -18,6 +17,7 @@
 
 #include "BLT_translation.hh"
 
+#include "DNA_particle_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_view3d_types.h"
 
@@ -161,10 +161,14 @@ class Prepass {
         geom_single = pointcloud_sub_pass_setup(*pointcloud_ps_, ob_ref.object);
         pass = pointcloud_ps_;
         break;
-      case OB_CURVES:
-        geom_single = curves_sub_pass_setup(*curves_ps_, draw_ctx.scene, ob_ref.object);
+      case OB_CURVES: {
+        const char *error = nullptr;
+        /* We choose to ignore the error here as the external engine can display them properly.
+         * The overlays can still be broken but it should be detected in solid mode. */
+        geom_single = curves_sub_pass_setup(*curves_ps_, draw_ctx.scene, ob_ref.object, error);
         pass = curves_ps_;
         break;
+      }
       default:
         break;
     }
@@ -482,9 +486,14 @@ void DRW_engine_external_free(RegionView3D *rv3d)
   if (rv3d->view_render) {
     /* Free engine with DRW context enabled, as this may clean up per-context
      * resources like VAOs. */
-    DRW_gpu_context_enable_ex(true);
+    bool swap_context = !DRW_gpu_context_is_enabled();
+    if (swap_context) {
+      DRW_gpu_context_enable_ex(true);
+    }
     RE_FreeViewRender(rv3d->view_render);
     rv3d->view_render = nullptr;
-    DRW_gpu_context_disable_ex(true);
+    if (swap_context) {
+      DRW_gpu_context_disable_ex(true);
+    }
   }
 }

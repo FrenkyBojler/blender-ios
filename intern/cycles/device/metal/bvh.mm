@@ -35,6 +35,14 @@ CCL_NAMESPACE_BEGIN
 #    define bvh_throttle_printf(...)
 #  endif
 
+/* This flag didn't exist until Xcode 26.0, so we ensure that it is defined for
+ * forward-compatibility.
+ */
+#  ifndef MAC_OS_VERSION_26_0
+#    define MTLAccelerationStructureUsagePreferFastIntersection \
+      MTLAccelerationStructureUsage(1 << 4)
+#  endif
+
 /* Limit the number of concurrent BVH builds so that we don't approach unsafe GPU working set
  * sizes. */
 struct BVHMetalBuildThrottler {
@@ -292,11 +300,9 @@ bool BVHMetal::build_BLAS_mesh(Progress &progress,
       accelDesc.usage |= (MTLAccelerationStructureUsageRefit |
                           MTLAccelerationStructureUsagePreferFastBuild);
     }
-#  if defined(MAC_OS_VERSION_26_0)
     else if (@available(macos 26.0, *)) {
       accelDesc.usage |= MTLAccelerationStructureUsagePreferFastIntersection;
     }
-#  endif
 
     MTLAccelerationStructureSizes accelSizes = [mtl_device
         accelerationStructureSizesWithDescriptor:accelDesc];
@@ -445,8 +451,10 @@ bool BVHMetal::build_BLAS_hair(Progress &progress,
           int segCount = curve.num_segments();
           int firstKey = curve.first_key;
           uint64_t idxBase = cpData.size();
-          cpData.push_back(keys[firstKey]);
-          radiusData.push_back(radiuses[firstKey]);
+          if (hair->curve_shape != CURVE_THICK_LINEAR) {
+            cpData.push_back(keys[firstKey]);
+            radiusData.push_back(radiuses[firstKey]);
+          }
           for (int s = 0; s < segCount; ++s) {
             if (step == 0) {
               idxData.push_back(idxBase + s);
@@ -455,9 +463,11 @@ bool BVHMetal::build_BLAS_hair(Progress &progress,
             radiusData.push_back(radiuses[firstKey + s]);
           }
           cpData.push_back(keys[firstKey + curve.num_keys - 1]);
-          cpData.push_back(keys[firstKey + curve.num_keys - 1]);
           radiusData.push_back(radiuses[firstKey + curve.num_keys - 1]);
-          radiusData.push_back(radiuses[firstKey + curve.num_keys - 1]);
+          if (hair->curve_shape != CURVE_THICK_LINEAR) {
+            cpData.push_back(keys[firstKey + curve.num_keys - 1]);
+            radiusData.push_back(radiuses[firstKey + curve.num_keys - 1]);
+          }
         }
       }
 
@@ -496,17 +506,24 @@ bool BVHMetal::build_BLAS_hair(Progress &progress,
       geomDescCrv.radiusBuffers = [NSArray arrayWithObjects:radius_ptrs.data()
                                                       count:radius_ptrs.size()];
 
-      geomDescCrv.controlPointCount = cpData.size();
+      /* controlPointCount should specify the *per-step* control point count. */
+      geomDescCrv.controlPointCount = cpData.size() / num_motion_steps;
       geomDescCrv.controlPointStride = sizeof(float3);
       geomDescCrv.controlPointFormat = MTLAttributeFormatFloat3;
       geomDescCrv.radiusStride = sizeof(float);
       geomDescCrv.radiusFormat = MTLAttributeFormatFloat;
       geomDescCrv.segmentCount = idxData.size();
-      geomDescCrv.segmentControlPointCount = 4;
+      geomDescCrv.segmentControlPointCount = (hair->curve_shape == CURVE_THICK_LINEAR) ? 2 : 4;
       geomDescCrv.curveType = (hair->curve_shape == CURVE_RIBBON) ? MTLCurveTypeFlat :
                                                                     MTLCurveTypeRound;
-      geomDescCrv.curveBasis = MTLCurveBasisCatmullRom;
-      geomDescCrv.curveEndCaps = MTLCurveEndCapsDisk;
+      if (hair->curve_shape == CURVE_THICK_LINEAR) {
+        geomDescCrv.curveBasis = MTLCurveBasisLinear;
+        geomDescCrv.curveEndCaps = MTLCurveEndCapsSphere;
+      }
+      else {
+        geomDescCrv.curveBasis = MTLCurveBasisCatmullRom;
+        geomDescCrv.curveEndCaps = MTLCurveEndCapsDisk;
+      }
       geomDescCrv.indexType = MTLIndexTypeUInt32;
       geomDescCrv.indexBuffer = idxBuffer;
       geomDescCrv.intersectionFunctionTableOffset = 1;
@@ -537,18 +554,22 @@ bool BVHMetal::build_BLAS_hair(Progress &progress,
         const Hair::Curve curve = hair->get_curve(c);
         int segCount = curve.num_segments();
         int firstKey = curve.first_key;
-        radiusData.push_back(radiuses[firstKey]);
         uint64_t idxBase = cpData.size();
-        cpData.push_back(keys[firstKey]);
+        if (hair->curve_shape != CURVE_THICK_LINEAR) {
+          cpData.push_back(keys[firstKey]);
+          radiusData.push_back(radiuses[firstKey]);
+        }
         for (int s = 0; s < segCount; ++s) {
           idxData.push_back(idxBase + s);
           cpData.push_back(keys[firstKey + s]);
           radiusData.push_back(radiuses[firstKey + s]);
         }
         cpData.push_back(keys[firstKey + curve.num_keys - 1]);
-        cpData.push_back(keys[firstKey + curve.num_keys - 1]);
         radiusData.push_back(radiuses[firstKey + curve.num_keys - 1]);
-        radiusData.push_back(radiuses[firstKey + curve.num_keys - 1]);
+        if (hair->curve_shape != CURVE_THICK_LINEAR) {
+          cpData.push_back(keys[firstKey + curve.num_keys - 1]);
+          radiusData.push_back(radiuses[firstKey + curve.num_keys - 1]);
+        }
       }
 
       /* Allocate and populate MTLBuffers for geometry. */
@@ -571,11 +592,17 @@ bool BVHMetal::build_BLAS_hair(Progress &progress,
       geomDescCrv.controlPointFormat = MTLAttributeFormatFloat3;
       geomDescCrv.controlPointBufferOffset = 0;
       geomDescCrv.segmentCount = idxData.size();
-      geomDescCrv.segmentControlPointCount = 4;
+      geomDescCrv.segmentControlPointCount = (hair->curve_shape == CURVE_THICK_LINEAR) ? 2 : 4;
       geomDescCrv.curveType = (hair->curve_shape == CURVE_RIBBON) ? MTLCurveTypeFlat :
                                                                     MTLCurveTypeRound;
-      geomDescCrv.curveBasis = MTLCurveBasisCatmullRom;
-      geomDescCrv.curveEndCaps = MTLCurveEndCapsDisk;
+      if (hair->curve_shape == CURVE_THICK_LINEAR) {
+        geomDescCrv.curveBasis = MTLCurveBasisLinear;
+        geomDescCrv.curveEndCaps = MTLCurveEndCapsSphere;
+      }
+      else {
+        geomDescCrv.curveBasis = MTLCurveBasisCatmullRom;
+        geomDescCrv.curveEndCaps = MTLCurveEndCapsDisk;
+      }
       geomDescCrv.indexType = MTLIndexTypeUInt32;
       geomDescCrv.indexBuffer = idxBuffer;
       geomDescCrv.intersectionFunctionTableOffset = 1;
@@ -617,11 +644,9 @@ bool BVHMetal::build_BLAS_hair(Progress &progress,
       accelDesc.usage |= (MTLAccelerationStructureUsageRefit |
                           MTLAccelerationStructureUsagePreferFastBuild);
     }
-#    if defined(MAC_OS_VERSION_26_0)
     else if (@available(macos 26.0, *)) {
       accelDesc.usage |= MTLAccelerationStructureUsagePreferFastIntersection;
     }
-#    endif
 
     MTLAccelerationStructureSizes accelSizes = [mtl_device
         accelerationStructureSizesWithDescriptor:accelDesc];
@@ -853,11 +878,9 @@ bool BVHMetal::build_BLAS_pointcloud(Progress &progress,
       accelDesc.usage |= (MTLAccelerationStructureUsageRefit |
                           MTLAccelerationStructureUsagePreferFastBuild);
     }
-#  if defined(MAC_OS_VERSION_26_0)
     else if (@available(macos 26.0, *)) {
       accelDesc.usage |= MTLAccelerationStructureUsagePreferFastIntersection;
     }
-#  endif
 
     MTLAccelerationStructureSizes accelSizes = [mtl_device
         accelerationStructureSizesWithDescriptor:accelDesc];
@@ -1331,11 +1354,9 @@ bool BVHMetal::build_TLAS(Progress &progress,
       accelDesc.usage |= (MTLAccelerationStructureUsageRefit |
                           MTLAccelerationStructureUsagePreferFastBuild);
     }
-#  if defined(MAC_OS_VERSION_26_0)
     else if (@available(macos 26.0, *)) {
       accelDesc.usage |= MTLAccelerationStructureUsagePreferFastIntersection;
     }
-#  endif
 
     MTLAccelerationStructureSizes accelSizes = [mtl_device
         accelerationStructureSizesWithDescriptor:accelDesc];

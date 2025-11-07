@@ -23,6 +23,7 @@
  */
 
 #include "BLI_listbase.h"
+#include "BLI_math_base.h"
 #include "BLI_string_utf8.h"
 
 #include "DNA_camera_types.h"
@@ -55,6 +56,7 @@
 #include "ED_node_preview.hh"
 #include "ED_render.hh"
 #include "ED_screen.hh"
+
 #include "node_intern.hh"
 
 namespace blender::ed::space_node {
@@ -612,9 +614,7 @@ static void preview_render(ShaderNodesPreviewJob &job_data)
   scene->r.size = 100;
 
   if (job_data.tree_previews->previews_render == nullptr) {
-    char name[32];
-    SNPRINTF_UTF8(name, "Preview %p", &job_data.tree_previews);
-    job_data.tree_previews->previews_render = RE_NewRender(name);
+    job_data.tree_previews->previews_render = RE_NewRender(&job_data.tree_previews);
   }
   Render *re = job_data.tree_previews->previews_render;
 
@@ -792,7 +792,7 @@ static void ensure_nodetree_previews(const bContext &C,
   wmJob *wm_job = WM_jobs_get(CTX_wm_manager(&C),
                               CTX_wm_window(&C),
                               CTX_wm_space_node(&C),
-                              "Shader Previews",
+                              "Generating shader previews...",
                               WM_JOB_EXCL_RENDER,
                               WM_JOB_TYPE_RENDER_PREVIEW);
   ShaderNodesPreviewJob *job_data = MEM_new<ShaderNodesPreviewJob>(__func__);

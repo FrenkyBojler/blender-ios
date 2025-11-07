@@ -105,8 +105,15 @@ static void joined_armature_fix_links_constraints(Main *bmain,
       bActionConstraint *data = static_cast<bActionConstraint *>(con->data);
 
       if (data->act) {
-        BKE_action_fix_paths_rename(
-            &tarArm->id, data->act, "pose.bones[", pchan->name, curbone->name, 0, 0, false);
+        BKE_action_fix_paths_rename(&tarArm->id,
+                                    data->act,
+                                    data->action_slot_handle,
+                                    "pose.bones[",
+                                    pchan->name,
+                                    curbone->name,
+                                    0,
+                                    0,
+                                    false);
 
         DEG_id_tag_update_ex(bmain, &data->act->id, ID_RECALC_SYNC_TO_EVAL);
       }
@@ -651,9 +658,7 @@ static void separate_armature_bones(Main *bmain, Object *ob, const bool is_selec
     curbone = ED_armature_ebone_find_name(arm->edbo, pchan->name);
 
     /* check if bone needs to be removed */
-    if (is_select == (blender::animrig::bone_is_visible_editbone(arm, curbone) &&
-                      (curbone->flag & BONE_SELECTED)))
-    {
+    if (is_select == blender::animrig::bone_is_selected(arm, curbone)) {
 
       /* Clear the bone->parent var of any bone that had this as its parent. */
       LISTBASE_FOREACH (EditBone *, ebo, arm->edbo) {
@@ -716,7 +721,7 @@ static wmOperatorStatus separate_armature_exec(bContext *C, wmOperator *op)
       bool has_selected_bone = false;
       bool has_selected_any = false;
       LISTBASE_FOREACH (EditBone *, ebone, arm_old->edbo) {
-        if (blender::animrig::bone_is_visible_editbone(arm_old, ebone)) {
+        if (blender::animrig::bone_is_visible(arm_old, ebone)) {
           if (ebone->flag & BONE_SELECTED) {
             has_selected_bone = true;
             break;
@@ -1141,7 +1146,7 @@ static wmOperatorStatus armature_parent_clear_invoke(bContext *C,
 
   uiLayout *row_disconnect = &layout->row(false);
   row_disconnect->enabled_set(enable_disconnect);
-  op_ptr = row_clear->op("ARMATURE_OT_parent_clear", IFACE_("Disconnect Bone"), ICON_NONE);
+  op_ptr = row_disconnect->op("ARMATURE_OT_parent_clear", IFACE_("Disconnect Bone"), ICON_NONE);
   RNA_enum_set(&op_ptr, "type", ARM_PAR_CLEAR_DISCONNECT);
 
   UI_popup_menu_end(C, pup);

@@ -59,6 +59,10 @@ class Report:
         'update_templates',
     )
 
+    context_lines = 3
+    side_to_print_single_line = 5
+    side_to_print_multi_line = 3
+
     def __init__(
         self,
         title: str,
@@ -211,7 +215,7 @@ integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw
     def _colored_diff(a: str, b: str):
         a_lines = a.splitlines()
         b_lines = b.splitlines()
-        diff = difflib.unified_diff(a_lines, b_lines, lineterm='')
+        diff = difflib.unified_diff(a_lines, b_lines, lineterm='', n=Report.context_lines)
         html = []
         for line in diff:
             if line.startswith('+++') or line.startswith('---'):
@@ -262,6 +266,8 @@ integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw
             return f"({fmtf(val.vector[0])}, {fmtf(val.vector[1])})"
         if isinstance(val, bpy.types.FloatColorAttributeValue) or isinstance(val, bpy.types.ByteColorAttributeValue):
             return f"({val.color[0]:.3f}, {val.color[1]:.3f}, {val.color[2]:.3f}, {val.color[3]:.3f})"
+        if isinstance(val, bpy.types.QuaternionAttributeValue):
+            return f"({val.value[0]:.3f}, {val.value[1]:.3f}, {val.value[2]:.3f}, {val.value[3]:.3f})"
         if isinstance(val, bpy.types.Int2AttributeValue) or isinstance(val, bpy.types.Short2AttributeValue):
             return f"({val.value[0]}, {val.value[1]})"
         if isinstance(val, bpy.types.ID):
@@ -291,7 +297,7 @@ integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw
     @staticmethod
     def _write_collection_single(col, desc: StringIO) -> None:
         desc.write(f"    - ")
-        side_to_print = 5
+        side_to_print = Report.side_to_print_single_line
         if len(col) <= side_to_print * 2:
             for val in col:
                 desc.write(f"{Report._val_to_str(val)} ")
@@ -306,7 +312,7 @@ integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw
     # multi-line dump of head/tail
     @staticmethod
     def _write_collection_multi(col, desc: StringIO) -> None:
-        side_to_print = 3
+        side_to_print = Report.side_to_print_multi_line
         if len(col) <= side_to_print * 2:
             for val in col:
                 desc.write(f"    - {Report._val_to_str(val)}\n")
@@ -523,6 +529,27 @@ integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw
                     Report._write_collection_single(curve.materials, desc)
                 Report._write_animdata_desc(curve.animation_data, desc)
                 Report._write_custom_props(curve, desc)
+                desc.write(f"\n")
+
+        # pointclouds
+        if len(bpy.data.pointclouds):
+            desc.write(f"==== Point Clouds: {len(bpy.data.pointclouds)}\n")
+            for pointcloud in bpy.data.pointclouds:
+                # overview
+                desc.write(
+                    f"- PointCloud '{pointcloud.name}' "
+                    f"points:{len(pointcloud.points)}\n"
+                )
+                # attributes
+                for attr in sorted(pointcloud.attributes, key=lambda x: x.name):
+                    if not attr.is_internal:
+                        Report._write_attr(attr, desc)
+                # materials
+                if pointcloud.materials:
+                    desc.write(f"  - {len(pointcloud.materials)} materials\n")
+                    Report._write_collection_single(pointcloud.materials, desc)
+                Report._write_animdata_desc(pointcloud.animation_data, desc)
+                Report._write_custom_props(pointcloud, desc)
                 desc.write(f"\n")
 
         # objects

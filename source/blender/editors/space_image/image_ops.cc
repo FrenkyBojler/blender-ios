@@ -39,7 +39,7 @@
 #include "BKE_colortools.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
-#include "BKE_icons.h"
+#include "BKE_icons.hh"
 #include "BKE_image.hh"
 #include "BKE_image_format.hh"
 #include "BKE_image_save.hh"
@@ -1383,6 +1383,7 @@ static wmOperatorStatus image_open_exec(bContext *C, wmOperator *op)
     }
 
     BLI_freelistN(&range->udim_tiles);
+    BLI_freelistN(&range->frames);
   }
   BLI_freelistN(&ranges);
 
@@ -1615,15 +1616,14 @@ static wmOperatorStatus image_file_browse_exec(bContext *C, wmOperator *op)
   char filepath[FILE_MAX];
   RNA_string_get(op->ptr, "filepath", filepath);
   if (BLI_path_is_rel(filepath)) {
-    /* Relative path created by the file-browser are always relative to the current blendfile, need
-     * to be made relative to the library blendfile path in case image is an editable linked data.
-     */
-    BLI_path_abs(filepath, BKE_main_blendfile_path(CTX_data_main(C)));
-    /* TODO: make this a BKE_lib_id helper (already a static function in BKE_image too), we likely
-     * need this in more places in the future. ~~mont29 */
-    BLI_path_rel(filepath,
-                 ID_IS_LINKED(&ima->id) ? ima->id.lib->runtime->filepath_abs :
-                                          BKE_main_blendfile_path(CTX_data_main(C)));
+    Main *bmain = CTX_data_main(C);
+    /* Relative path created by the file-browser are always relative to the current blend-file,
+     * need to be made relative to the library blend-file path in case image is an editable
+     * linked data. */
+    BLI_path_abs(filepath, BKE_main_blendfile_path(bmain));
+    /* TODO(@mont29): make this a BKE_lib_id helper (already a static function in BKE_image too),
+     * we likely need this in more places in the future. */
+    BLI_path_rel(filepath, ID_BLEND_PATH(bmain, &ima->id));
   }
 
   /* If loading into a tiled texture, ensure that the filename is tokenized. */
@@ -1648,11 +1648,10 @@ static wmOperatorStatus image_file_browse_invoke(bContext *C, wmOperator *op, co
     return OPERATOR_CANCELLED;
   }
 
+  Main *bmain = CTX_data_main(C);
   char filepath[FILE_MAX];
   STRNCPY(filepath, ima->filepath);
-  BLI_path_abs(filepath,
-               ID_IS_LINKED(&ima->id) ? ima->id.lib->runtime->filepath_abs :
-                                        BKE_main_blendfile_path(CTX_data_main(C)));
+  BLI_path_abs(filepath, ID_BLEND_PATH(bmain, &ima->id));
 
   /* Shift+Click to open the file, Alt+Click to browse a folder in the OS's browser. */
   if (event->modifier & (KM_SHIFT | KM_ALT)) {
@@ -2038,7 +2037,7 @@ static bool image_save_as_draw_check_prop(PointerRNA *ptr, PropertyRNA *prop, vo
            (STREQ(prop_id, "save_as_render") && isd->image->source == IMA_SRC_VIEWER));
 }
 
-static void image_save_as_draw(bContext * /*C*/, wmOperator *op)
+static void image_save_as_draw(bContext *C, wmOperator *op)
 {
   uiLayout *layout = op->layout;
   ImageSaveData *isd = static_cast<ImageSaveData *>(op->customdata);
@@ -2062,7 +2061,7 @@ static void image_save_as_draw(bContext * /*C*/, wmOperator *op)
   /* Image format settings. */
   PointerRNA imf_ptr = RNA_pointer_create_discrete(
       nullptr, &RNA_ImageFormatSettings, &isd->opts.im_format);
-  uiTemplateImageSettings(layout, &imf_ptr, save_as_render);
+  uiTemplateImageSettings(layout, C, &imf_ptr, save_as_render);
 
   if (!save_as_render) {
     PointerRNA linear_settings_ptr = RNA_pointer_get(&imf_ptr, "linear_colorspace_settings");
@@ -2088,7 +2087,7 @@ static bool image_save_as_poll(bContext *C)
     Image *ima = image_from_context(C);
 
     if (ima->source == IMA_SRC_VIEWER) {
-      CTX_wm_operator_poll_msg_set(C, "can't save image while rendering");
+      CTX_wm_operator_poll_msg_set(C, "Cannot save image while rendering");
       return false;
     }
   }
@@ -2411,7 +2410,7 @@ int ED_image_save_all_modified_info(const Main *bmain, ReportList *reports)
         else {
           BKE_reportf(reports,
                       RPT_WARNING,
-                      "Packed library image can't be saved: \"%s\" from \"%s\"",
+                      "Packed library image cannot be saved: \"%s\" from \"%s\"",
                       ima->id.name + 2,
                       ima->id.lib->filepath);
         }
@@ -2419,7 +2418,7 @@ int ED_image_save_all_modified_info(const Main *bmain, ReportList *reports)
       else if (!is_format_writable) {
         BKE_reportf(reports,
                     RPT_WARNING,
-                    "Image can't be saved, use a different file format: \"%s\"",
+                    "Image cannot be saved, use a different file format: \"%s\"",
                     ima->id.name + 2);
       }
       else {
@@ -2428,7 +2427,7 @@ int ED_image_save_all_modified_info(const Main *bmain, ReportList *reports)
           if (unique_paths.contains_as(ima->filepath)) {
             BKE_reportf(reports,
                         RPT_WARNING,
-                        "Multiple images can't be saved to an identical path: \"%s\"",
+                        "Multiple images cannot be saved to an identical path: \"%s\"",
                         ima->filepath);
           }
           else {
@@ -2438,7 +2437,7 @@ int ED_image_save_all_modified_info(const Main *bmain, ReportList *reports)
         else {
           BKE_reportf(reports,
                       RPT_WARNING,
-                      "Image can't be saved, no valid file path: \"%s\"",
+                      "Image cannot be saved, no valid file path: \"%s\"",
                       ima->filepath);
         }
       }
@@ -3295,7 +3294,7 @@ static wmOperatorStatus image_scale_exec(bContext *C, wmOperator *op)
     ED_image_undo_push_end();
   }
   else {
-    // Ensure that an image buffer can be aquired for all UDIM tiles
+    // Ensure that an image buffer can be acquired for all UDIM tiles
     LISTBASE_FOREACH (ImageTile *, current_tile, &ima->tiles) {
       iuser.tile = current_tile->tile_number;
 
