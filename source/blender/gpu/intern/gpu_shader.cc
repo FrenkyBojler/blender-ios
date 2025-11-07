@@ -720,18 +720,6 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info,
 
   defines += "#define USE_GPU_SHADER_CREATE_INFO\n";
 
-  Vector<StringRefNull> typedefs;
-  if (!info.typedef_sources_.is_empty() || !info.typedef_source_generated.empty()) {
-    typedefs.append(gpu_shader_dependency_get_source("GPU_shader_shared_utils.hh").c_str());
-  }
-  if (!info.typedef_source_generated.empty()) {
-    typedefs.append(info.typedef_source_generated);
-  }
-  for (auto filename : info.typedef_sources_) {
-    typedefs.extend_non_duplicates(
-        gpu_shader_dependency_get_resolved_source(filename, info.generated_sources, info.name_));
-  }
-
   if (!info.vertex_source_.is_empty()) {
     Vector<StringRefNull> code = gpu_shader_dependency_get_resolved_source(
         info.vertex_source_, info.generated_sources, info.name_);
@@ -744,7 +732,6 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info,
       sources.append("#define USE_GEOMETRY_SHADER\n");
     }
     sources.append(defines);
-    sources.extend(typedefs);
     sources.append(resources);
     sources.append(interface);
     sources.extend(code);
@@ -771,7 +758,6 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info,
       sources.append("#define USE_GEOMETRY_SHADER\n");
     }
     sources.append(defines);
-    sources.extend(typedefs);
     sources.append(resources);
     sources.append(interface);
     sources.extend(code);
@@ -796,7 +782,6 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info,
     standard_defines(sources);
     sources.append("#define GPU_GEOMETRY_SHADER\n");
     sources.append(defines);
-    sources.extend(typedefs);
     sources.append(resources);
     sources.append(layout);
     sources.append(interface);
@@ -822,7 +807,6 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info,
     sources.append("#define GPU_COMPUTE_SHADER\n");
     sources.append(defines);
     sources.append(layout);
-    sources.extend(typedefs);
     sources.append(resources);
     sources.extend(code);
     sources.append(info.compute_source_generated);
