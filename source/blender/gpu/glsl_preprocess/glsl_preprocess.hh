@@ -850,7 +850,7 @@ class Preprocessor {
       if (tokens[1].str() != "include") {
         return;
       }
-      const string dependency_name = tokens[2].str_exclusive();
+      string dependency_name = tokens[2].str_exclusive();
 
       if (dependency_name.find("defines.hh") != string::npos) {
         /* Dependencies between create infos are not needed for reflections.
@@ -868,16 +868,16 @@ class Preprocessor {
         parser.erase(tokens.front(), tokens.back());
         return;
       }
-      if (dependency_name.find("infos.hh") != std::string::npos) {
-        /* Skip info files. They are only for IDE linting. */
-        parser.erase(tokens.front(), tokens.back());
-        return;
-      }
       if (dependency_name.find("gpu_shader_create_info.hh") != std::string::npos) {
         /* Skip info files. They are only for IDE linting. */
         parser.erase(tokens.front(), tokens.back());
         return;
       }
+
+      if (dependency_name.find("infos/") != std::string::npos) {
+        dependency_name = dependency_name.substr(6);
+      }
+
       metadata.dependencies.emplace_back(dependency_name);
       parser.erase(tokens.front(), tokens.back());
     });
@@ -1488,6 +1488,7 @@ class Preprocessor {
   void parse_builtins(const std::string &str, const std::string &filename)
   {
     const bool skip_drw_debug = filename.find("draw_debug_draw_lib.glsl") != std::string::npos ||
+                                filename.find("draw_debug_infos.hh") != std::string::npos ||
                                 filename.find("draw_debug_draw_display_vert.glsl") !=
                                     std::string::npos ||
                                 filename.find("draw_shader_shared.hh") != std::string::npos;
