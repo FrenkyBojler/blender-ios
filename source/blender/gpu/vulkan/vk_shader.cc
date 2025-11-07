@@ -363,9 +363,6 @@ static void print_resource(std::ostream &os,
   }
   os << ") ";
 
-  int64_t array_offset;
-  StringRef name_no_array;
-
   switch (res.bind_type) {
     case ShaderCreateInfo::Resource::BindType::SAMPLER:
       os << "uniform ";
@@ -379,13 +376,13 @@ static void print_resource(std::ostream &os,
       os << res.image.name << ";";
       break;
     case ShaderCreateInfo::Resource::BindType::UNIFORM_BUFFER:
-      os << "uniform _" << name_no_array.str_no_array() << " { " << res.uniformbuf.type_name << " "
-         << res.uniformbuf.name << "; };";
+      os << "uniform _" << res.uniformbuf.name.str_no_array() << " { " << res.uniformbuf.type_name
+         << " " << res.uniformbuf.name << "; };";
       break;
     case ShaderCreateInfo::Resource::BindType::STORAGE_BUFFER:
       print_qualifier(os, res.storagebuf.qualifiers);
-      os << "buffer _" << name_no_array.str_no_array() << " { " << res.storagebuf.type_name << " "
-         << res.storagebuf.name << "; };";
+      os << "buffer _" << res.storagebuf.name.str_no_array() << " { " << res.storagebuf.type_name
+         << " " << res.storagebuf.name << "; };";
       break;
   }
 }
@@ -405,10 +402,10 @@ static void print_resource(std::ostream &os,
                            StringRefNull &active_info_name)
 {
   if (assign_if_different(active_info_name, res.info_name)) {
-    os << "#define CREATE_INFO_RES_" << res_frequency << "_" << res.info_name << "\\\n";
+    os << "#define CREATE_INFO_RES_" << res_frequency << "_" << res.info_name << " \\\n";
   }
   print_resource(os, shader_interface, res);
-  os << "\\\n";
+  os << " \\\n";
 }
 
 inline int get_location_count(const Type &type)
@@ -790,21 +787,21 @@ std::string VKShader::resources_declare(const shader::ShaderCreateInfo &info) co
   {
     StringRefNull active_info = "";
     for (const ShaderCreateInfo::Resource &res : info.pass_resources_) {
-      print_resource(ss, res, info.auto_resource_location_, "PASS", active_info);
+      print_resource(ss, vk_interface, res, "PASS", active_info);
     }
     ss << "\n";
   }
   {
     StringRefNull active_info = "";
     for (const ShaderCreateInfo::Resource &res : info.batch_resources_) {
-      print_resource(ss, res, info.auto_resource_location_, "BATCH", active_info);
+      print_resource(ss, vk_interface, res, "BATCH", active_info);
     }
     ss << "\n";
   }
   {
     StringRefNull active_info = "";
     for (const ShaderCreateInfo::Resource &res : info.geometry_resources_) {
-      print_resource(ss, res, info.auto_resource_location_, "GEOMETRY", active_info);
+      print_resource(ss, vk_interface, res, "GEOMETRY", active_info);
     }
     ss << "\n";
   }
