@@ -9,11 +9,6 @@ COMPUTE_SHADER_CREATE_INFO(compositor_convert_float2_to_color)
 #include "gpu_shader_compositor_texture_utilities.glsl"
 #include "gpu_shader_compositor_type_conversion.glsl"
 
-float3 luma_coef_get()
-{
-  return push_constant_get(compositor_convert_color_to_int, luminance_coefficients_u);
-}
-
 void convert_float_to_int()
 {
   auto &sampler_in = sampler_get(compositor_convert_float_to_int, input_tx);
@@ -271,7 +266,9 @@ void convert_color_to_float()
   int2 texel = int2(gl_GlobalInvocationID.xy);
   float4 value = texture_load(input_tx, texel);
   auto &image_out = image_get(compositor_convert_color_to_float, output_img);
-  imageStore(image_out, texel, float4(color_to_float(value, luma_coef_get())));
+  auto &luma_coefs = push_constant_get(compositor_convert_color_to_float,
+                                       luminance_coefficients_u);
+  imageStore(image_out, texel, float4(color_to_float(value, luma_coefs)));
 }
 
 void convert_color_to_int()
@@ -279,7 +276,8 @@ void convert_color_to_int()
   int2 texel = int2(gl_GlobalInvocationID.xy);
   float4 value = texture_load(input_tx, texel);
   auto &image_out = image_get(compositor_convert_color_to_int, output_img);
-  imageStore(image_out, texel, int4(color_to_int(value, luma_coef_get())));
+  auto &luma_coefs = push_constant_get(compositor_convert_color_to_int, luminance_coefficients_u);
+  imageStore(image_out, texel, int4(color_to_int(value, luma_coefs)));
 }
 
 void convert_color_to_int2()
@@ -319,7 +317,8 @@ void convert_color_to_bool()
   int2 texel = int2(gl_GlobalInvocationID.xy);
   float4 value = texture_load(input_tx, texel);
   auto &image_out = image_get(compositor_convert_color_to_bool, output_img);
-  imageStore(image_out, texel, int4(color_to_bool(value, luma_coef_get())));
+  auto &luma_coefs = push_constant_get(compositor_convert_color_to_bool, luminance_coefficients_u);
+  imageStore(image_out, texel, int4(color_to_bool(value, luma_coefs)));
 }
 
 void convert_color_to_alpha()
