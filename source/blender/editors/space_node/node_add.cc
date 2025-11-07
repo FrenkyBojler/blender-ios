@@ -40,8 +40,8 @@
 
 #include "IMB_colormanagement.hh"
 
-#include "DEG_depsgraph_build.hh"
 #include "DEG_depsgraph.hh"
+#include "DEG_depsgraph_build.hh"
 
 #include "ED_asset.hh"
 #include "ED_asset_menu_utils.hh"
@@ -1865,23 +1865,25 @@ static wmOperatorStatus new_compositor_sequencer_node_group_exec(bContext *C, wm
 
   Scene *scene = CTX_data_scene(C);
   Strip *strip = seq::select_active_get(scene);
-  StripModifierData *active_smd = seq::modifier_get_active(strip);
 
   /* Add modifier and assign node tree when the strip has no active compositor modifier. */
-  if (!active_smd || active_smd->type != eSeqModifierType_Compositor) {
-    StripModifierData *smd = seq::modifier_new(strip, nullptr, eSeqModifierType_Compositor);
-    seq::modifier_persistent_uid_init(*strip, *smd);
+  if (strip != nullptr) {
+    StripModifierData *active_smd = seq::modifier_get_active(strip);
+    if (!active_smd || active_smd->type != eSeqModifierType_Compositor) {
+      StripModifierData *smd = seq::modifier_new(strip, nullptr, eSeqModifierType_Compositor);
+      seq::modifier_persistent_uid_init(*strip, *smd);
 
-    SequencerCompositorModifierData *modifier_data =
-        reinterpret_cast<SequencerCompositorModifierData *>(smd);
-    modifier_data->node_group = ntree;
-    seq::relations_invalidate_cache(scene, strip);
+      SequencerCompositorModifierData *modifier_data =
+          reinterpret_cast<SequencerCompositorModifierData *>(smd);
+      modifier_data->node_group = ntree;
+      seq::relations_invalidate_cache(scene, strip);
 
-    /* Tag depsgraph relations for an update since the modifier should now be referencing a
-     * different node tree. */
-    Main *bmain = CTX_data_main(C);
-    DEG_relations_tag_update(bmain);
-    WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
+      /* Tag depsgraph relations for an update since the modifier should now be referencing a
+       * different node tree. */
+      Main *bmain = CTX_data_main(C);
+      DEG_relations_tag_update(bmain);
+      WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
+    }
   }
 
   BKE_ntree_update_after_single_tree_change(*CTX_data_main(C), *ntree);
