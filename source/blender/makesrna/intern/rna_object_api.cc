@@ -237,17 +237,14 @@ static Base *rna_Object_local_view_property_helper(bScreen *screen,
   return base;
 }
 
-static bool rna_Object_local_view_get(Object *ob, bContext *C, ReportList *reports, View3D *v3d)
+static bool rna_Object_local_view_get(Object *ob, ReportList *reports, View3D *v3d)
 {
   if (v3d->localvd == nullptr) {
     BKE_report(reports, RPT_ERROR, "Viewport not in local view");
     return false;
   }
 
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  const Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
-
-  return ((ob_eval->base_local_view_bits & v3d->local_view_uid) != 0);
+  return ((ob->base_local_view_bits & v3d->local_view_uid) != 0);
 }
 
 static void rna_Object_local_view_set(Object *ob,
@@ -273,12 +270,9 @@ static void rna_Object_local_view_set(Object *ob,
   }
 }
 
-static bool rna_Object_visible_in_viewport_get(Object *ob, bContext *C, View3D *v3d)
+static bool rna_Object_visible_in_viewport_get(Object *ob, View3D *v3d)
 {
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  const Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
-
-  return BKE_object_is_visible_in_viewport(v3d, ob_eval);
+  return BKE_object_is_visible_in_viewport(v3d, ob);
 }
 
 /* Convert a given matrix from a space to another (using the object and/or a bone as
@@ -894,7 +888,7 @@ void RNA_api_object(StructRNA *srna)
   /* Local View */
   func = RNA_def_function(srna, "local_view_get", "rna_Object_local_view_get");
   RNA_def_function_ui_description(func, "Get the local view state for this object");
-  RNA_def_function_flag(func, FUNC_USE_CONTEXT | FUNC_USE_REPORTS);
+  RNA_def_function_flag(func, FUNC_USE_REPORTS);
   parm = RNA_def_pointer(func, "viewport", "SpaceView3D", "", "Viewport in local view");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_boolean(func, "result", false, "", "Object local view state");
@@ -912,7 +906,6 @@ void RNA_api_object(StructRNA *srna)
   func = RNA_def_function(srna, "visible_in_viewport_get", "rna_Object_visible_in_viewport_get");
   RNA_def_function_ui_description(
       func, "Check for local view and local collections for this viewport and object");
-  RNA_def_function_flag(func, FUNC_USE_CONTEXT);
   parm = RNA_def_pointer(func, "viewport", "SpaceView3D", "", "Viewport in local collections");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_boolean(func, "result", false, "", "Object viewport visibility");
