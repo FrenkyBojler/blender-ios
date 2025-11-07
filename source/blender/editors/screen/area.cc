@@ -4050,20 +4050,17 @@ ScrArea *ED_screen_find_maximized_area(const bScreen *screen)
     return nullptr;
   }
 
-  ScrArea *maximized_area = nullptr;
-
   /* To find the currently maximized area, manually itereate the screen area list since it may
    * not always be the current context area (e.g. when opening a new space from the topbar). */
   LISTBASE_FOREACH (ScrArea *, screen_area, &screen->areabase) {
     if (screen_area->full) {
-      maximized_area = screen_area;
+      return screen_area;
     }
   }
 
-  /* A maximized screen should *always* contain a maximized area. */
-  BLI_assert(maximized_area != nullptr);
-
-  return maximized_area;
+  /* A maximized screen should *always* contain a maximized area, assert if we exited the loop. */
+  BLI_assert_unreachable();
+  return nullptr;
 }
 
 int ED_region_global_size_y()
