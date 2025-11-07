@@ -1082,11 +1082,11 @@ class NWCopySettings(Operator, NWBase):
             # Report nodes that are not valid
             valid_node_names = [n.name for n in valid_nodes]
             invalid_names = set(selected_node_names) - set(valid_node_names)
-            self.report(
-                {'INFO'},
-                rpt_("Ignored {} (not of the same type as {})").format(", ".join(sorted(invalid_names)),
-                                                                       node_active.name),
+            message = rpt_("Ignored {} (not of the same type as {})").format(
+                ", ".join(sorted(invalid_names)),
+                node_active.name,
             )
+            self.report({'INFO'}, message)
 
         # Reference original
         orig = node_active
@@ -1429,7 +1429,7 @@ class NWAddPrincipledSetup(Operator, NWBase, ImportHelper):
         match_files_to_socket_names(self.files, socketnames)
         # Remove socketnames without found files
         socketnames = [s for s in socketnames if s[2]
-                       and path.exists(self.directory + s[2])]
+                       and path.exists(bpy.path.abspath(self.directory) + s[2])]
         if not socketnames:
             self.report({'INFO'}, 'No matching images found')
             print('No matching images found')
