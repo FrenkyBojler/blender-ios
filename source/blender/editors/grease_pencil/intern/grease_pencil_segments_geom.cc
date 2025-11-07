@@ -561,7 +561,7 @@ static void create_segments_from_intersections(const Span<Vector<int>> inters_pe
       all_segments.append(Segment::from_curve(curve_k, points_k, cyclic[curve_k]));
       all_segments_by_curve[curve_k] = all_segments.index_range().drop_front(start_size);
 
-      return;
+      continue;
     }
 
     Array<int> inter_sorted_ids = Array<int>(inters.size());
