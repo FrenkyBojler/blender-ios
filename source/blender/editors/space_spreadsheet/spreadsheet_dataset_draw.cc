@@ -544,6 +544,35 @@ class GeometryBundleViewItem : public DataSetViewItem {
   }
 };
 
+class GeometryBundleItemViewItem : public DataSetViewItem {
+ public:
+  GeometryBundleItemViewItem(const StringRef key)
+  {
+    label_ = key;
+  }
+
+  void build_row(uiLayout &row) override
+  {
+    row.label(label_, ICON_NONE);
+  }
+};
+
+class GeometryBundleClosureInOutViewItem : public DataSetViewItem {
+ private:
+  SpreadsheetClosureInputOutput in_out_;
+
+ public:
+  GeometryBundleClosureInOutViewItem(const SpreadsheetClosureInputOutput in_out) : in_out_(in_out)
+  {
+    label_ = in_out_ == SPREADSHEET_CLOSURE_INPUT ? IFACE_("Inputs") : IFACE_("Outputs");
+  }
+
+  void build_row(uiLayout &row) override
+  {
+    row.label(label_, ICON_NONE);
+  }
+};
+
 class GeometryDataSetTreeView : public ui::AbstractTreeView {
  private:
   bke::GeometrySet geometry_set_;
@@ -662,7 +691,54 @@ class GeometryDataSetTreeView : public ui::AbstractTreeView {
   void build_tree_for_bundle(const nodes::Bundle *bundle, ui::TreeViewItemContainer &parent)
   {
     const bool has_bundle_items = bundle && !bundle->items().is_empty();
-    parent.add_tree_item<GeometryBundleViewItem>(has_bundle_items);
+    auto &bundle_view_item = parent.add_tree_item<GeometryBundleViewItem>(has_bundle_items);
+    if (!has_bundle_items) {
+      return;
+    }
+    this->build_bundle_children(*bundle, bundle_view_item);
+  }
+
+  void build_bundle_children(const nodes::Bundle &bundle, ui::TreeViewItemContainer &parent)
+  {
+    for (const nodes::Bundle::StoredItem &item : bundle.items()) {
+      auto &child_item = parent.add_tree_item<GeometryBundleItemViewItem>(item.key);
+      const auto *stored_value = std::get_if<nodes::BundleItemSocketValue>(&item.value.value);
+      if (!stored_value) {
+        continue;
+      }
+      this->build_socket_value(stored_value->value, child_item);
+    }
+  }
+
+  void build_closure_children(const nodes::Closure &closure, ui::TreeViewItemContainer &parent)
+  {
+    const nodes::ClosureSignature &signature = closure.signature();
+    if (!signature.inputs.is_empty()) {
+      parent.add_tree_item<GeometryBundleClosureInOutViewItem>(SPREADSHEET_CLOSURE_INPUT);
+    }
+    if (!signature.outputs.is_empty()) {
+      parent.add_tree_item<GeometryBundleClosureInOutViewItem>(SPREADSHEET_CLOSURE_OUTPUT);
+    }
+  }
+
+  void build_socket_value(const bke::SocketValueVariant &value, ui::TreeViewItemContainer &parent)
+  {
+    if (!value.is_single()) {
+      return;
+    }
+    const GPointer single_value = value.get_single_ptr();
+    if (single_value.is_type<nodes::BundlePtr>()) {
+      const nodes::BundlePtr &bundle_ptr = *single_value.get<nodes::BundlePtr>();
+      if (bundle_ptr) {
+        this->build_bundle_children(*bundle_ptr, parent);
+      }
+    }
+    if (single_value.is_type<nodes::ClosurePtr>()) {
+      const nodes::ClosurePtr &closure_ptr = *single_value.get<nodes::ClosurePtr>();
+      if (closure_ptr) {
+        this->build_closure_children(*closure_ptr, parent);
+      }
+    }
   }
 };
 
@@ -1102,11 +1178,11 @@ class ViewerNodeItem : public ViewerDataTreeItem {
   }
 };
 
-class BundleItem : public ViewerDataTreeItem {
+class BundleViewerTreeItem : public ViewerDataTreeItem {
   friend ViewerDataPath;
 
  public:
-  BundleItem(const StringRef key)
+  BundleViewerTreeItem(const StringRef key)
   {
     label_ = key;
   }
@@ -1117,14 +1193,14 @@ class BundleItem : public ViewerDataTreeItem {
   }
 };
 
-class ClosureInputOutputItem : public ViewerDataTreeItem {
+class ClosureInOutViewerTreeItem : public ViewerDataTreeItem {
  private:
   SpreadsheetClosureInputOutput in_out_;
 
   friend ViewerDataPath;
 
  public:
-  ClosureInputOutputItem(const SpreadsheetClosureInputOutput in_out) : in_out_(in_out)
+  ClosureInOutViewerTreeItem(const SpreadsheetClosureInputOutput in_out) : in_out_(in_out)
   {
     label_ = in_out_ == SPREADSHEET_CLOSURE_INPUT ? IFACE_("Inputs") : IFACE_("Outputs");
   }
@@ -1141,10 +1217,10 @@ ViewerDataPath::ViewerDataPath(const Span<const ViewerDataTreeItem *> tree_items
     if (const auto *viewer_node_item = dynamic_cast<const ViewerNodeItem *>(item)) {
       this->viewer_item = viewer_node_item->item_.identifier;
     }
-    else if (const auto *bundle_item = dynamic_cast<const BundleItem *>(item)) {
+    else if (const auto *bundle_item = dynamic_cast<const BundleViewerTreeItem *>(item)) {
       this->bundles.append(bundle_item->label_);
     }
-    else if (const auto *bundle_item = dynamic_cast<const ClosureInputOutputItem *>(item)) {
+    else if (const auto *bundle_item = dynamic_cast<const ClosureInOutViewerTreeItem *>(item)) {
       this->closure_input_output = bundle_item->in_out_;
     }
   }
@@ -1195,7 +1271,7 @@ class ViewerDataTreeView : public ui::AbstractTreeView {
   void build_bundle_children(ui::AbstractTreeViewItem &parent, const nodes::Bundle &bundle)
   {
     for (const nodes::Bundle::StoredItem &item : bundle.items()) {
-      auto &child_item = parent.add_tree_item<BundleItem>(item.key);
+      auto &child_item = parent.add_tree_item<BundleViewerTreeItem>(item.key);
       const auto *stored_value = std::get_if<nodes::BundleItemSocketValue>(&item.value.value);
       if (!stored_value) {
         continue;
@@ -1208,10 +1284,10 @@ class ViewerDataTreeView : public ui::AbstractTreeView {
   {
     const nodes::ClosureSignature &signature = closure->signature();
     if (!signature.inputs.is_empty()) {
-      parent.add_tree_item<ClosureInputOutputItem>(SPREADSHEET_CLOSURE_INPUT);
+      parent.add_tree_item<ClosureInOutViewerTreeItem>(SPREADSHEET_CLOSURE_INPUT);
     }
     if (!signature.outputs.is_empty()) {
-      parent.add_tree_item<ClosureInputOutputItem>(SPREADSHEET_CLOSURE_OUTPUT);
+      parent.add_tree_item<ClosureInOutViewerTreeItem>(SPREADSHEET_CLOSURE_OUTPUT);
     }
   }
 };
