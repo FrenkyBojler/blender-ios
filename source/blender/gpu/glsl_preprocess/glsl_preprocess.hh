@@ -753,8 +753,14 @@ class Preprocessor {
 
     auto get_placeholder = [](const string &name) {
       string placeholder;
-      placeholder += "#ifdef CREATE_INFO_" + name + "\n";
-      placeholder += "CREATE_INFO_" + name + "_RESOURCES\n";
+      placeholder += "#ifdef CREATE_INFO_RES_PASS_" + name + "\n";
+      placeholder += "CREATE_INFO_RES_PASS_" + name + "\n";
+      placeholder += "#endif\n";
+      placeholder += "#ifdef CREATE_INFO_RES_BATCH_" + name + "\n";
+      placeholder += "CREATE_INFO_RES_BATCH_" + name + "\n";
+      placeholder += "#endif\n";
+      placeholder += "#ifdef CREATE_INFO_RES_GEOMETRY_" + name + "\n";
+      placeholder += "CREATE_INFO_RES_GEOMETRY_" + name + "\n";
       placeholder += "#endif\n";
       return placeholder;
     };
