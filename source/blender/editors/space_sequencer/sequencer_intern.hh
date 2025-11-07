@@ -61,8 +61,6 @@ struct SpaceSeq_Runtime : public NonCopyable {
 
   SeqScopes scopes;
 
-  float draw_time;
-
   std::shared_ptr<asset::AssetItemTree> assets_for_menu;
 
   SpaceSeq_Runtime() = default;
