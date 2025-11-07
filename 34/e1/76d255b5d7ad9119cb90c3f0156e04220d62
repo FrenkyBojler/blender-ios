@@ -1,2 +1,3 @@
 Referenced by issue #149496, EEVEE: Bump node bump strength in EEVEE is stronger than in Cycles
 Referenced by pull request #149518, Fix #149496: EEVEE: Bump node bump strength varies with pixel size
+Referenced by commit cc44dffdf8a31c43009015e115fdfa490622ba97, Fix #149496: EEVEE: Bump node bump strength varies with pixel size
