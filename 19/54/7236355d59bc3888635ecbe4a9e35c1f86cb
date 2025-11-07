@@ -1,1 +1,2 @@
 Referenced by issue #95197, Regression: object.local_view_get and object.visible_in_viewport_get() always returns False
+Referenced by commit b2f7056d1c9b3a196e2c9ae3c0bc387642807ac4, Fix #95197: object.local_view_get & visible_in_viewport_get always fail
