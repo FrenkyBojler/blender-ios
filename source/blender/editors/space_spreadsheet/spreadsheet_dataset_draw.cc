@@ -41,6 +41,7 @@
 #include "spreadsheet_data_source_geometry.hh"
 #include "spreadsheet_dataset_draw.hh"
 #include "spreadsheet_intern.hh"
+#include "spreadsheet_table.hh"
 
 namespace blender::ed::spreadsheet {
 
@@ -55,7 +56,7 @@ struct GeometryDomainDataId {
 
 struct GeometryBundleItemId {
   Vector<std::string> keys;
-  std::optional<SpreadsheetClosureInputOutput> closure_in_out;
+  SpreadsheetClosureInputOutput closure_in_out = SPREADSHEET_CLOSURE_NONE;
 };
 
 struct GeometryDataIdentifier {
@@ -68,9 +69,8 @@ struct GeometryDataIdentifier {
   {
   }
 
-  GeometryDataIdentifier(
-      Vector<std::string> bundle_keys,
-      std::optional<SpreadsheetClosureInputOutput> closure_in_out = std::nullopt)
+  GeometryDataIdentifier(Vector<std::string> bundle_keys,
+                         SpreadsheetClosureInputOutput closure_in_out)
       : id(GeometryBundleItemId{std::move(bundle_keys), closure_in_out})
   {
   }
@@ -568,7 +568,7 @@ class GeometryBundleViewItem : public DataSetViewItem {
 
   std::optional<GeometryDataIdentifier> get_geometry_data_id() const override
   {
-    return GeometryDataIdentifier(Vector<std::string>());
+    return GeometryDataIdentifier(Vector<std::string>(), SPREADSHEET_CLOSURE_NONE);
   }
 };
 
@@ -597,7 +597,7 @@ class GeometryBundleItemViewItem : public DataSetViewItem {
       }
     });
     std::reverse(keys.begin(), keys.end());
-    return GeometryDataIdentifier(std::move(keys));
+    return GeometryDataIdentifier(std::move(keys), SPREADSHEET_CLOSURE_NONE);
   }
 };
 
@@ -878,6 +878,8 @@ void DataSetViewItem::on_activate(bContext &C)
   SpaceSpreadsheet &sspreadsheet = *CTX_wm_space_spreadsheet(&C);
 
   if (const auto *domain_data_id = std::get_if<GeometryDomainDataId>(&data_id->id)) {
+    sspreadsheet.geometry_id.geometry_item_type = SPREADSHEET_GEOMETRY_ITEM_TYPE_DOMAIN;
+    spreadsheet_bundle_path_clear(sspreadsheet.geometry_id.geometry_bundle_path);
     sspreadsheet.geometry_id.geometry_component_type = uint8_t(domain_data_id->component_type);
     if (domain_data_id->domain) {
       sspreadsheet.geometry_id.attribute_domain = uint8_t(*domain_data_id->domain);
@@ -892,7 +894,10 @@ void DataSetViewItem::on_activate(bContext &C)
     RNA_property_update(&C, &ptr, RNA_struct_find_property(&ptr, "geometry_component_type"));
   }
   else if (const auto *bundle_item_id = std::get_if<GeometryBundleItemId>(&data_id->id)) {
-    // TODO
+    sspreadsheet.geometry_id.geometry_item_type = SPREADSHEET_GEOMETRY_ITEM_TYPE_BUNDLE;
+    Vector<StringRef> keys = bundle_item_id->keys.as_span();
+    spreadsheet_bundle_path_init_from(
+        keys, bundle_item_id->closure_in_out, sspreadsheet.geometry_id.geometry_bundle_path);
   }
 }
 
@@ -906,6 +911,9 @@ std::optional<bool> DataSetViewItem::should_be_active() const
     return false;
   }
   if (const auto *domain_data_id = std::get_if<GeometryDomainDataId>(&data_id->id)) {
+    if (sspreadsheet.geometry_id.geometry_item_type != SPREADSHEET_GEOMETRY_ITEM_TYPE_DOMAIN) {
+      return false;
+    }
     if (bke::GeometryComponent::Type(sspreadsheet.geometry_id.geometry_component_type) !=
         domain_data_id->component_type)
     {
@@ -924,6 +932,27 @@ std::optional<bool> DataSetViewItem::should_be_active() const
     return true;
   }
   if (const auto *bundle_item_id = std::get_if<GeometryBundleItemId>(&data_id->id)) {
+    if (sspreadsheet.geometry_id.geometry_item_type != SPREADSHEET_GEOMETRY_ITEM_TYPE_BUNDLE) {
+      return false;
+    }
+    if (sspreadsheet.geometry_id.geometry_bundle_path.closure_input_output !=
+        bundle_item_id->closure_in_out)
+    {
+      return false;
+    }
+    if (sspreadsheet.geometry_id.geometry_bundle_path.bundle_path_num !=
+        bundle_item_id->keys.size())
+    {
+      return false;
+    }
+    for (const int i : IndexRange(bundle_item_id->keys.size())) {
+      if (sspreadsheet.geometry_id.geometry_bundle_path.bundle_path[i].identifier !=
+          bundle_item_id->keys[i])
+      {
+        return false;
+      }
+    }
+    return true;
   }
   return false;
 }
@@ -1210,20 +1239,8 @@ struct ViewerDataPath {
   void store(SpreadsheetTableIDGeometry &table_id)
   {
     table_id.viewer_item_identifier = this->viewer_item;
-    if (table_id.viewer_item_bundle_path.bundle_path) {
-      for (const int i : IndexRange(table_id.viewer_item_bundle_path.bundle_path_num)) {
-        MEM_freeN(table_id.viewer_item_bundle_path.bundle_path[i].identifier);
-      }
-      MEM_freeN(table_id.viewer_item_bundle_path.bundle_path);
-    }
-    table_id.viewer_item_bundle_path.bundle_path = MEM_calloc_arrayN<SpreadsheetBundlePathElem>(
-        this->bundles.size(), __func__);
-    table_id.viewer_item_bundle_path.bundle_path_num = this->bundles.size();
-    for (const int i : this->bundles.index_range()) {
-      table_id.viewer_item_bundle_path.bundle_path[i].identifier = BLI_strdupn(
-          this->bundles[i].data(), this->bundles[i].size());
-    }
-    table_id.viewer_item_bundle_path.closure_input_output = int8_t(this->closure_input_output);
+    spreadsheet_bundle_path_init_from(
+        this->bundles, this->closure_input_output, table_id.viewer_item_bundle_path);
   }
 };
 

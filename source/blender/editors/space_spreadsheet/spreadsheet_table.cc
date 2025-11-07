@@ -61,12 +61,34 @@ SpreadsheetTableID *spreadsheet_table_id_copy(const SpreadsheetTableID &src_tabl
   return nullptr;
 }
 
-static void free_bundle_path(SpreadsheetBundleTreeViewPath &bundle_path)
+void spreadsheet_bundle_path_clear(SpreadsheetBundleTreeViewPath &bundle_path)
 {
   for (const int i : IndexRange(bundle_path.bundle_path_num)) {
     MEM_SAFE_FREE(bundle_path.bundle_path[i].identifier);
   }
   MEM_SAFE_FREE(bundle_path.bundle_path);
+  bundle_path.bundle_path_num = 0;
+  bundle_path.closure_input_output = SPREADSHEET_CLOSURE_NONE;
+}
+
+void spreadsheet_bundle_path_init_from(
+    const Span<StringRef> keys,
+    const std::optional<SpreadsheetClosureInputOutput> closure_input_output,
+    SpreadsheetBundleTreeViewPath &r_bundle_path)
+{
+  spreadsheet_bundle_path_clear(r_bundle_path);
+  r_bundle_path.bundle_path = MEM_calloc_arrayN<SpreadsheetBundlePathElem>(keys.size(), __func__);
+  r_bundle_path.bundle_path_num = keys.size();
+  for (const int i : keys.index_range()) {
+    const StringRef key = keys[i];
+    r_bundle_path.bundle_path[i].identifier = BLI_strdupn(key.data(), key.size());
+  }
+  r_bundle_path.closure_input_output = closure_input_output.value_or(SPREADSHEET_CLOSURE_NONE);
+}
+
+static void free_bundle_path(SpreadsheetBundleTreeViewPath &bundle_path)
+{
+  spreadsheet_bundle_path_clear(bundle_path);
 }
 
 void spreadsheet_table_id_free_content(SpreadsheetTableID *table_id)
