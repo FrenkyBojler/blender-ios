@@ -129,6 +129,7 @@ void OperatorTypeData::ensure_hash()
   XXH3_128bits_reset(hash_state);
   XXH3_128bits_update(hash_state, this->name.data(), this->name.size());
   XXH3_128bits_update(hash_state, this->description.data(), this->description.size());
+  XXH3_128bits_update(hash_state, &this->flag, sizeof(this->flag));
   std::visit(
       [&](const auto &value) {
         using T = std::decay_t<decltype(value)>;
@@ -1187,16 +1188,14 @@ void ui_template_node_operator_registration_errors(uiLayout &layout)
   for (const StringRefNull idname : errors.builtin_operator_replacement_attempts) {
     char idname_py[OP_MAX_TYPENAME];
     WM_operator_py_idname(idname_py, idname.c_str());
-    const std::string message = fmt::format(
-        fmt::runtime(TIP_("Cannot replace builtin operator '{}'")), idname_py);
-    col.label(message, ICON_ERROR);
+    col.label(fmt::format(fmt::runtime(TIP_("Cannot replace builtin operator '{}'")), idname_py),
+              ICON_ERROR);
   }
   for (const MapItem<std::string, int> &item : errors.duplicate_node_tool_idnames.items()) {
     char idname_py[OP_MAX_TYPENAME];
     WM_operator_py_idname(idname_py, item.key.c_str());
-    const std::string message = fmt::format(
-        fmt::runtime(TIP_("{} duplicate(s) of '{}'")), item.value, idname_py);
-    col.label(message, ICON_ERROR);
+    col.label(fmt::format(fmt::runtime(TIP_("{} duplicate(s) of '{}'")), item.value, idname_py),
+              ICON_ERROR);
   }
 }
 
@@ -1269,12 +1268,13 @@ void register_node_group_operators(const bContext &C)
   OperatorRegisterErrors &errors = get_registration_errors();
   errors.clear();
 
-  Vector<std::unique_ptr<OperatorTypeData>> all_types = get_node_tools_type_data(C, bmain, errors);
+  Vector<std::unique_ptr<OperatorTypeData>> node_tool_types = get_node_tools_type_data(
+      C, bmain, errors);
 
   Vector<std::unique_ptr<OperatorTypeData>> types_to_register;
   Set<wmOperatorType *> handled_types;
   Set<wmOperatorType *> types_to_remove;
-  for (std::unique_ptr<OperatorTypeData> &type : all_types) {
+  for (std::unique_ptr<OperatorTypeData> &type : node_tool_types) {
     if (wmOperatorType *ot = WM_operatortype_find(type->idname.c_str(), true)) {
       if ((ot->flag & OPTYPE_NODE_TOOL) == 0) {
         errors.builtin_operator_replacement_attempts.add(type->idname);
@@ -1286,25 +1286,19 @@ void register_node_group_operators(const bContext &C)
       }
       const OperatorTypeData &type_data = static_cast<const OperatorTypeData &>(*ot->custom_data);
       if (type_data.hash == type->hash) {
-        types_to_remove.add(ot);
+        continue;
       }
+      types_to_remove.add(ot);
     }
     types_to_register.append(std::move(type));
   }
 
-  /* Remove types registered for old idnames that are no longer used. */
-  for (wmOperatorType *ot : WM_operatortypes_registered_get()) {
-    if ((ot->flag & OPTYPE_NODE_TOOL) == 0) {
-      continue;
-    }
-    if (handled_types.contains(ot)) {
-      continue;
-    }
-    types_to_remove.add_new(ot);
-  }
+  /* NOTE: This leaves operator types registered for old idnames that are no longer used (e.g. the
+   * user has changed the idname or the asset file was deleted). That's because we currently don't
+   * distinguish the case where all assets are loaded from the case where the loading is
+   * incomplete. */
 
   if (!types_to_remove.is_empty()) {
-    printf("Removing %d types\n", int(types_to_remove.size()));
     WM_operator_stack_clear(&wm, types_to_remove);
     WM_operator_handlers_clear(&wm, types_to_remove);
     for (wmOperatorType *ot : types_to_remove) {
