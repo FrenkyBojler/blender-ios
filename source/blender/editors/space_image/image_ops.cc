@@ -122,7 +122,8 @@ static void sima_zoom_set(
       sima->zoom < oldzoom)
     sima->zoom = oldzoom;
   /* Stop when max relative screen bounds is smaller than apparent pixel size. */
-  else if (comp_screen * sima_maxzoom_pixel_over_screen <= sima->zoom)
+  else if (comp_screen * sima_maxzoom_pixel_over_screen <= sima->zoom &&
+      sima->zoom > oldzoom)
     sima->zoom = oldzoom;
 
   if (zoom_to_pos && location) {
