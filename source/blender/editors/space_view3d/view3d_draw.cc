@@ -10,6 +10,7 @@
 #include <fmt/format.h>
 
 #include "BLI_listbase.h"
+#include "BLI_math_color.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_half.hh"
 #include "BLI_math_matrix.h"
@@ -665,7 +666,7 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *region, 
   /* safety border */
   if (ca && (v3d->flag2 & V3D_SHOW_CAMERA_GUIDES)) {
     GPU_blend(GPU_BLEND_ALPHA);
-    immUniformThemeColorAlpha(TH_VIEW_OVERLAY, 0.75f);
+    immUniformColor4fv(ca->composition_guide_color);
 
     if (ca->dtx & CAM_DTX_CENTER) {
       float x3, y3;
@@ -726,6 +727,9 @@ static void drawviewborder(Scene *scene, Depsgraph *depsgraph, ARegion *region, 
       margins_rect.xmax = x2;
       margins_rect.ymin = y1;
       margins_rect.ymax = y2;
+
+      /* draw */
+      immUniformThemeColorAlpha(TH_VIEW_OVERLAY, 0.75f);
 
       UI_draw_safe_areas(
           shdr_pos, &margins_rect, scene->safe_areas.title, scene->safe_areas.action);
@@ -1465,7 +1469,7 @@ static void draw_selected_name(
     if (blender::animrig::id_frame_has_keyframe((ID *)ob,
                                                 /* BKE_scene_ctime_get(scene) */ float(cfra)))
     {
-      UI_FontThemeColor(font_id, TH_TIME_KEYFRAME);
+      UI_FontThemeColor(font_id, TH_KEYTYPE_KEYFRAME_SELECT);
     }
   }
 
@@ -1905,6 +1909,7 @@ void ED_view3d_draw_offscreen_simple(Depsgraph *depsgraph,
                                      const float winmat[4][4],
                                      float clip_start,
                                      float clip_end,
+                                     float vignette_aperture,
                                      bool is_xr_surface,
                                      bool is_image_render,
                                      bool draw_background,
@@ -1986,6 +1991,7 @@ void ED_view3d_draw_offscreen_simple(Depsgraph *depsgraph,
   v3d.clip_end = clip_end;
   /* Actually not used since we pass in the projection matrix. */
   v3d.lens = 0;
+  v3d.vignette_aperture = vignette_aperture;
 
   /* WORKAROUND: Disable overscan because it is not supported for arbitrary input matrices.
    * The proper fix to this would be to support arbitrary matrices in `eevee::Camera::sync()`. */
@@ -2048,7 +2054,7 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(Depsgraph *depsgraph,
     ofs = nullptr;
   }
 
-  GPUFrameBuffer *old_fb = GPU_framebuffer_active_get();
+  blender::gpu::FrameBuffer *old_fb = GPU_framebuffer_active_get();
 
   if (old_fb) {
     GPU_framebuffer_restore();
@@ -2380,7 +2386,7 @@ static void view3d_gpu_read_Z_pixels(GPUViewport *viewport, rcti *rect, void *da
 {
   blender::gpu::Texture *depth_tx = GPU_viewport_depth_texture(viewport);
 
-  GPUFrameBuffer *depth_read_fb = nullptr;
+  blender::gpu::FrameBuffer *depth_read_fb = nullptr;
   GPU_framebuffer_ensure_config(&depth_read_fb,
                                 {
                                     GPU_ATTACHMENT_TEXTURE(depth_tx),
@@ -2408,7 +2414,7 @@ void ED_view3d_select_id_validate(const ViewContext *vc)
 
 int ED_view3d_backbuf_sample_size_clamp(ARegion *region, const float dist)
 {
-  return int(min_ff(ceilf(dist), float(max_ii(region->winx, region->winx))));
+  return int(min_ff(ceilf(dist), float(max_ii(region->winx, region->winy))));
 }
 
 /** \} */
@@ -2474,7 +2480,7 @@ static ViewDepths *view3d_depths_create(ARegion *region)
   return d;
 }
 
-float view3d_depth_near(ViewDepths *d)
+float view3d_depth_near_ex(ViewDepths *d, int r_xy[2])
 {
   /* Convert to float for comparisons. */
   const float near = float(d->depth_range[0]);
@@ -2482,19 +2488,39 @@ float view3d_depth_near(ViewDepths *d)
   float far = far_real;
 
   const float *depths = d->depths;
-  float depth = FLT_MAX;
-  int i = int(d->w) * int(d->h); /* Cast to avoid short overflow. */
+  const int depth_num = int(d->w) * int(d->h); /* Cast to avoid short overflow. */
 
   /* Far is both the starting 'far' value
    * and the closest value found. */
-  while (i--) {
-    depth = *depths++;
-    if ((depth < far) && (depth > near)) {
-      far = depth;
+  if (r_xy != nullptr) {
+    int index_found = -1;
+    for (int i = 0; i < depth_num; i++) {
+      const float depth = *depths++;
+      if ((depth < far) && (depth > near)) {
+        far = depth;
+        index_found = i;
+      }
+    }
+    if (index_found != -1) {
+      r_xy[0] = d->x + (index_found % int(d->w));
+      r_xy[1] = d->y + (index_found / int(d->w));
+    }
+  }
+  else {
+    for (int i = 0; i < depth_num; i++) {
+      const float depth = depths[i];
+      if ((depth < far) && (depth > near)) {
+        far = depth;
+      }
     }
   }
 
   return far == far_real ? FLT_MAX : far;
+}
+
+float view3d_depth_near(ViewDepths *d)
+{
+  return view3d_depth_near_ex(d, nullptr);
 }
 
 void ED_view3d_depth_override(Depsgraph *depsgraph,
