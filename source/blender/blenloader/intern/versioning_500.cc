@@ -3029,7 +3029,9 @@ static void do_version_texture_gradient_clamp(bNodeTree *node_tree)
         bNodeSocket &max_output = version_node_add_socket(
             *node_tree, max, SOCK_OUT, "NodeSocketFloat", "Value");
 
-        copy_v2_v2(max.location, node->location);
+        max.location[0] = separate.location[0] + 20.0f;
+        max.location[1] = separate.location[1];
+
         max.custom1 = NODE_MATH_MAXIMUM;
 
         version_node_add_link(*node_tree, separate, separate_x_output, max, max_input_a);
@@ -3046,7 +3048,8 @@ static void do_version_texture_gradient_clamp(bNodeTree *node_tree)
         bNodeSocket &multiply_output = version_node_add_socket(
             *node_tree, multiply, SOCK_OUT, "NodeSocketFloat", "Value");
 
-        copy_v2_v2(multiply.location, node->location);
+        multiply.location[0] = max.location[0] + 20.0f;
+        multiply.location[1] = max.location[1];
         multiply.custom1 = NODE_MATH_MULTIPLY;
 
         version_node_add_link(*node_tree, max, max_output, multiply, multiply_input_a);
@@ -3068,7 +3071,8 @@ static void do_version_texture_gradient_clamp(bNodeTree *node_tree)
         bNodeSocket &add_output = version_node_add_socket(
             *node_tree, add, SOCK_OUT, "NodeSocketFloat", "Value");
 
-        copy_v2_v2(add.location, node->location);
+        add.location[0] = separate.location[0] + 20.0f;
+        add.location[1] = separate.location[1];
         add.custom1 = NODE_MATH_ADD;
 
         version_node_add_link(*node_tree, separate, separate_x_output, add, add_input_a);
@@ -3085,6 +3089,9 @@ static void do_version_texture_gradient_clamp(bNodeTree *node_tree)
             *node_tree, multiply, SOCK_OUT, "NodeSocketFloat", "Value");
 
         copy_v2_v2(multiply.location, node->location);
+        multiply.location[0] = add.location[0] + 20.0f;
+        multiply.location[1] = add.location[1];
+
         multiply.custom1 = NODE_MATH_MULTIPLY;
 
         version_node_add_link(*node_tree, add, add_output, multiply, multiply_input_a);
@@ -3126,7 +3133,8 @@ static void do_version_texture_gradient_clamp(bNodeTree *node_tree)
       storage->mode = NODE_COMBSEP_COLOR_RGB;
       combine.storage = storage;
 
-      copy_v2_v2(combine.location, node->location);
+      combine.location[0] = gradient_node->location[0] + 20.0f;
+      combine.location[1] = gradient_node->location[1];
 
       version_node_add_link(*node_tree, *gradient_node, *gradient_socket, combine, combine_red);
       version_node_add_link(*node_tree, *gradient_node, *gradient_socket, combine, combine_green);
@@ -3156,13 +3164,13 @@ static void do_version_texture_gradient_clamp(bNodeTree *node_tree)
     else {
       /* Gradient texture's input in geometry nodes defaults to using Input Positon if it's not
        * connected. */
-      bNode *position = node_add_node(nullptr, *node_tree, "GeometryNodeInputPosition");
-      copy_v2_v2(position->location, node->location);
-      version_node_add_link(*node_tree,
-                            *position,
-                            *node_find_socket(*position, SOCK_OUT, "Position"),
-                            separate,
-                            separate_input);
+      bNode &position = version_node_add_empty(*node_tree, "GeometryNodeInputPosition");
+      bNodeSocket &position_output = version_node_add_socket(
+          *node_tree, position, SOCK_OUT, "NodeSocketVector", "Position");
+      position.location[0] = separate.location[0] - 20.0f;
+      position.location[1] = separate.location[1] - 20.0f;
+
+      version_node_add_link(*node_tree, position, position_output, separate, separate_input);
     }
 
     node_tree_set_type(*node_tree);
