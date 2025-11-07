@@ -450,7 +450,7 @@ static void gizmo_area_light_prop_matrix_get(const wmGizmo * /*gz*/,
 {
   BLI_assert(gz_prop->type->array_length == 16);
   float (*matrix)[4] = static_cast<float (*)[4]>(value_p);
-  Light *la = static_cast<Light *>(gz_prop->custom_func.user_data);
+  const Light *la = static_cast<const Light *>(gz_prop->custom_func.user_data);
 
   matrix[0][0] = la->area_size;
   matrix[1][1] = ELEM(la->area_shape, LA_AREA_RECT, LA_AREA_ELLIPSE) ? la->area_sizey :
