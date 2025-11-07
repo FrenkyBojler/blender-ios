@@ -47,10 +47,33 @@ namespace blender::ed::spreadsheet {
 class GeometryDataSetTreeView;
 class GeometryInstancesTreeView;
 
-struct GeometryDataIdentifier {
+struct GeometryDomainDataId {
   bke::GeometryComponent::Type component_type;
   std::optional<int> layer_index;
   std::optional<bke::AttrDomain> domain;
+};
+
+struct GeometryBundleItemId {
+  Vector<std::string> keys;
+  std::optional<SpreadsheetClosureInputOutput> closure_in_out;
+};
+
+struct GeometryDataIdentifier {
+  std::variant<GeometryDomainDataId, GeometryBundleItemId> id;
+
+  GeometryDataIdentifier(bke::GeometryComponent::Type component_type,
+                         std::optional<int> layer_index,
+                         std::optional<bke::AttrDomain> domain)
+      : id(GeometryDomainDataId{component_type, layer_index, domain})
+  {
+  }
+
+  GeometryDataIdentifier(
+      Vector<std::string> bundle_keys,
+      std::optional<SpreadsheetClosureInputOutput> closure_in_out = std::nullopt)
+      : id(GeometryBundleItemId{std::move(bundle_keys), closure_in_out})
+  {
+  }
 };
 
 static void draw_row_suffix(ui::AbstractTreeViewItem &view_item, const StringRefNull str)
@@ -542,18 +565,39 @@ class GeometryBundleViewItem : public DataSetViewItem {
     }
     row.label(label_, ICON_NONE);
   }
+
+  std::optional<GeometryDataIdentifier> get_geometry_data_id() const override
+  {
+    return GeometryDataIdentifier(Vector<std::string>());
+  }
 };
 
 class GeometryBundleItemViewItem : public DataSetViewItem {
+ private:
+  std::string key_;
+
  public:
-  GeometryBundleItemViewItem(const StringRef key)
+  GeometryBundleItemViewItem(const StringRef key) : key_(key)
   {
-    label_ = key;
+    label_ = key_;
   }
 
   void build_row(uiLayout &row) override
   {
     row.label(label_, ICON_NONE);
+  }
+
+  std::optional<GeometryDataIdentifier> get_geometry_data_id() const override
+  {
+    Vector<std::string> keys;
+    keys.append(key_);
+    this->foreach_parent([&](const AbstractTreeViewItem &parent) {
+      if (const auto *bundle_item = dynamic_cast<const GeometryBundleItemViewItem *>(&parent)) {
+        keys.append(bundle_item->key_);
+      }
+    });
+    std::reverse(keys.begin(), keys.end());
+    return GeometryDataIdentifier(std::move(keys));
   }
 };
 
@@ -570,6 +614,16 @@ class GeometryBundleClosureInOutViewItem : public DataSetViewItem {
   void build_row(uiLayout &row) override
   {
     row.label(label_, ICON_NONE);
+  }
+
+  std::optional<GeometryDataIdentifier> get_geometry_data_id() const override
+  {
+    std::optional<GeometryDataIdentifier> data_id =
+        dynamic_cast<const GeometryBundleItemViewItem &>(*parent_).get_geometry_data_id();
+    BLI_assert(data_id);
+    GeometryBundleItemId &bundle_item_id = std::get<GeometryBundleItemId>(data_id->id);
+    bundle_item_id.closure_in_out = in_out_;
+    return data_id;
   }
 };
 
@@ -823,18 +877,23 @@ void DataSetViewItem::on_activate(bContext &C)
   bScreen &screen = *CTX_wm_screen(&C);
   SpaceSpreadsheet &sspreadsheet = *CTX_wm_space_spreadsheet(&C);
 
-  sspreadsheet.geometry_id.geometry_component_type = uint8_t(data_id->component_type);
-  if (data_id->domain) {
-    sspreadsheet.geometry_id.attribute_domain = uint8_t(*data_id->domain);
+  if (const auto *domain_data_id = std::get_if<GeometryDomainDataId>(&data_id->id)) {
+    sspreadsheet.geometry_id.geometry_component_type = uint8_t(domain_data_id->component_type);
+    if (domain_data_id->domain) {
+      sspreadsheet.geometry_id.attribute_domain = uint8_t(*domain_data_id->domain);
+    }
+    if (domain_data_id->layer_index) {
+      sspreadsheet.geometry_id.layer_index = *domain_data_id->layer_index;
+    }
+    PointerRNA ptr = RNA_pointer_create_discrete(&screen.id, &RNA_SpaceSpreadsheet, &sspreadsheet);
+    /* These updates also make sure that the attribute domain is set properly based on the
+     * component type. */
+    RNA_property_update(&C, &ptr, RNA_struct_find_property(&ptr, "attribute_domain"));
+    RNA_property_update(&C, &ptr, RNA_struct_find_property(&ptr, "geometry_component_type"));
   }
-  if (data_id->layer_index) {
-    sspreadsheet.geometry_id.layer_index = *data_id->layer_index;
+  else if (const auto *bundle_item_id = std::get_if<GeometryBundleItemId>(&data_id->id)) {
+    // TODO
   }
-  PointerRNA ptr = RNA_pointer_create_discrete(&screen.id, &RNA_SpaceSpreadsheet, &sspreadsheet);
-  /* These updates also make sure that the attribute domain is set properly based on the
-   * component type. */
-  RNA_property_update(&C, &ptr, RNA_struct_find_property(&ptr, "attribute_domain"));
-  RNA_property_update(&C, &ptr, RNA_struct_find_property(&ptr, "geometry_component_type"));
 }
 
 std::optional<bool> DataSetViewItem::should_be_active() const
@@ -846,22 +905,27 @@ std::optional<bool> DataSetViewItem::should_be_active() const
   if (!data_id) {
     return false;
   }
-  if (bke::GeometryComponent::Type(sspreadsheet.geometry_id.geometry_component_type) !=
-      data_id->component_type)
-  {
-    return false;
-  }
-  if (data_id->domain) {
-    if (bke::AttrDomain(sspreadsheet.geometry_id.attribute_domain) != data_id->domain) {
+  if (const auto *domain_data_id = std::get_if<GeometryDomainDataId>(&data_id->id)) {
+    if (bke::GeometryComponent::Type(sspreadsheet.geometry_id.geometry_component_type) !=
+        domain_data_id->component_type)
+    {
       return false;
     }
-  }
-  if (data_id->layer_index) {
-    if (sspreadsheet.geometry_id.layer_index != *data_id->layer_index) {
-      return false;
+    if (domain_data_id->domain) {
+      if (bke::AttrDomain(sspreadsheet.geometry_id.attribute_domain) != domain_data_id->domain) {
+        return false;
+      }
     }
+    if (domain_data_id->layer_index) {
+      if (sspreadsheet.geometry_id.layer_index != *domain_data_id->layer_index) {
+        return false;
+      }
+    }
+    return true;
   }
-  return true;
+  if (const auto *bundle_item_id = std::get_if<GeometryBundleItemId>(&data_id->id)) {
+  }
+  return false;
 }
 
 class ViewerPathTreeViewItem : public ui::AbstractTreeViewItem {
