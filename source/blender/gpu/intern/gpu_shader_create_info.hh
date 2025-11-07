@@ -21,7 +21,9 @@
 #  include "BLI_vector.hh"
 #  include "GPU_common_types.hh"
 #  include "GPU_material.hh"
+#  include "GPU_primitive.hh"
 #  include "GPU_texture.hh"
+#  include "gpu_state_private.hh"
 
 #  include <iostream>
 #endif
@@ -1035,6 +1037,29 @@ struct ShaderCreateInfo {
    */
   Vector<StringRefNull> additional_infos_;
 
+  /**
+   * \brief Description of a graphical pipeline to warm up as part of the shader compilation.
+   */
+  struct PipelineState {
+    struct AttributeBinding {
+      uint32_t location;
+      uint32_t binding;
+      GPUVertFormat format;
+      uint32_t offset;
+      uint32_t stride;
+    };
+
+    GPUState state;
+    GPUPrimType primitive;
+    Vector<AttributeBinding> vertex_inputs;
+    uint32_t viewport_count;
+    Vector<SpecializationConstant::Value> specialization_constants;
+    TextureFormat depth_attachment_format;
+    TextureFormat stencil_attachment_format;
+    Vector<TextureFormat> color_attachment_formats;
+  };
+  Vector<PipelineState, 0> pipelines_;
+
   /* API-specific parameters. */
 #  ifdef WITH_METAL_BACKEND
   ushort mtl_max_threads_per_threadgroup_ = 0;
@@ -1641,6 +1666,24 @@ struct ShaderCreateInfo {
       }
     }
     return slot;
+  }
+
+  /** \} */
+
+  /* -------------------------------------------------------------------- */
+  /** \name Pipeline warm-up
+   * \{ */
+
+  /**
+   * \brief Create a new pipeline state.
+   *
+   * \note return pipeline state is only guaranteed to be valid until the next call to this
+   * function.
+   */
+  PipelineState &new_pipeline_state()
+  {
+    pipelines_.append({});
+    return pipelines_.last();
   }
 
   /** \} */
