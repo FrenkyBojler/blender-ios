@@ -377,6 +377,9 @@ void GLStateManager::set_blend(const GPUBlend value)
       dst_alpha = GL_ONE;
       break;
     }
+    /* Factors are not use in min or max mode, but avoid uninitialized values. */;
+    case GPU_BLEND_MIN:
+    case GPU_BLEND_MAX:
     case GPU_BLEND_SUBTRACT:
     case GPU_BLEND_ADDITIVE_PREMULT: {
       /* Let alpha accumulate. */
@@ -437,7 +440,13 @@ void GLStateManager::set_blend(const GPUBlend value)
     }
   }
 
-  if (value == GPU_BLEND_SUBTRACT) {
+  if (value == GPU_BLEND_MIN) {
+    glBlendEquation(GL_MIN);
+  }
+  else if (value == GPU_BLEND_MAX) {
+    glBlendEquation(GL_MAX);
+  }
+  else if (value == GPU_BLEND_SUBTRACT) {
     glBlendEquation(GL_FUNC_REVERSE_SUBTRACT);
   }
   else {
@@ -552,7 +561,12 @@ void GLStateManager::texture_bind_apply()
 
 void GLStateManager::texture_unpack_row_length_set(uint len)
 {
-  glPixelStorei(GL_UNPACK_ROW_LENGTH, len);
+  texture_unpack_row_length_ = len;
+}
+
+uint GLStateManager::texture_unpack_row_length_get() const
+{
+  return texture_unpack_row_length_;
 }
 
 uint64_t GLStateManager::bound_texture_slots()

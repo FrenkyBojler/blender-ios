@@ -208,6 +208,7 @@ class AbstractViewItem {
   bool is_activatable_ = true;
   bool is_interactive_ = true;
   bool is_active_ = false;
+  /** Only change using #set_selected() so overrides can sync changes to data. */
   bool is_selected_ = false;
   bool is_renaming_ = false;
   /** See #is_search_highlight(). */
@@ -370,6 +371,7 @@ class AbstractViewItem {
   void rename_apply(const bContext &C);
 
   virtual void delete_item(bContext *C);
+  virtual void on_filter();
 
  protected:
   AbstractViewItem() = default;
