@@ -1158,14 +1158,19 @@ typedef enum SpreadsheetClosureInputOutput {
   SPREADSHEET_CLOSURE_OUTPUT = 2,
 } SpreadsheetClosureInputOutput;
 
-typedef struct BundleTreeViewPath {
+typedef struct SpreadsheetBundleTreeViewPath {
   SpreadsheetBundlePathElem *bundle_path;
   int bundle_path_num;
 
   /** #SpreadsheetClosureInputOutput. */
   int8_t closure_input_output;
   char _pad[3];
-} BundleTreeViewPath;
+} SpreadsheetBundleTreeViewPath;
+
+typedef enum SpreadsheetGeometryItemType {
+  SPREADSHEET_GEOMETRY_ITEM_TYPE_DOMAIN = 0,
+  SPREADSHEET_GEOMETRY_ITEM_TYPE_BUNDLE = 1,
+} SpreadsheetGeometryItemType;
 
 typedef struct SpreadsheetTableIDGeometry {
   SpreadsheetTableID base;
@@ -1180,7 +1185,7 @@ typedef struct SpreadsheetTableIDGeometry {
   int viewer_item_identifier;
   char _pad3[4];
 
-  BundleTreeViewPath viewer_item_bundle_path;
+  SpreadsheetBundleTreeViewPath viewer_item_bundle_path;
 
   /**
    * The "path" to the currently active instance reference. This is needed when viewing nested
@@ -1194,7 +1199,10 @@ typedef struct SpreadsheetTableIDGeometry {
   uint8_t attribute_domain;
   /** #eSpaceSpreadsheet_ObjectEvalState. */
   uint8_t object_eval_state;
-  char _pad1[5];
+  /** #SpreadsheetGeometryItemType. */
+  uint8_t geometry_item_type;
+  SpreadsheetBundleTreeViewPath geometry_bundle_path;
+  char _pad1[4];
   /** Grease Pencil layer index for grease pencil component. */
   int layer_index;
 } SpreadsheetTableIDGeometry;

@@ -24,6 +24,16 @@ SpreadsheetTableIDGeometry *spreadsheet_table_id_new_geometry()
   return table_id;
 }
 
+static void copy_bundle_path(SpreadsheetBundleTreeViewPath &dst,
+                             const SpreadsheetBundleTreeViewPath &src)
+{
+  dst.bundle_path = MEM_calloc_arrayN<SpreadsheetBundlePathElem>(src.bundle_path_num, __func__);
+  dst.bundle_path_num = src.bundle_path_num;
+  for (const int i : IndexRange(src.bundle_path_num)) {
+    dst.bundle_path[i].identifier = BLI_strdup_null(src.bundle_path[i].identifier);
+  }
+}
+
 void spreadsheet_table_id_copy_content_geometry(SpreadsheetTableIDGeometry &dst,
                                                 const SpreadsheetTableIDGeometry &src)
 {
@@ -34,13 +44,8 @@ void spreadsheet_table_id_copy_content_geometry(SpreadsheetTableIDGeometry &dst,
   dst.layer_index = src.layer_index;
   dst.instance_ids = static_cast<SpreadsheetInstanceID *>(MEM_dupallocN(src.instance_ids));
   dst.instance_ids_num = src.instance_ids_num;
-  dst.viewer_item_bundle_path.bundle_path = MEM_calloc_arrayN<SpreadsheetBundlePathElem>(
-      src.viewer_item_bundle_path.bundle_path_num, __func__);
-  for (const int i : IndexRange(src.viewer_item_bundle_path.bundle_path_num)) {
-    dst.viewer_item_bundle_path.bundle_path[i].identifier = BLI_strdup_null(
-        src.viewer_item_bundle_path.bundle_path[i].identifier);
-  }
-  dst.viewer_item_bundle_path.bundle_path_num = src.viewer_item_bundle_path.bundle_path_num;
+  copy_bundle_path(dst.viewer_item_bundle_path, src.viewer_item_bundle_path);
+  copy_bundle_path(dst.geometry_bundle_path, src.geometry_bundle_path);
 }
 
 SpreadsheetTableID *spreadsheet_table_id_copy(const SpreadsheetTableID &src_table_id)
@@ -56,6 +61,14 @@ SpreadsheetTableID *spreadsheet_table_id_copy(const SpreadsheetTableID &src_tabl
   return nullptr;
 }
 
+static void free_bundle_path(SpreadsheetBundleTreeViewPath &bundle_path)
+{
+  for (const int i : IndexRange(bundle_path.bundle_path_num)) {
+    MEM_SAFE_FREE(bundle_path.bundle_path[i].identifier);
+  }
+  MEM_SAFE_FREE(bundle_path.bundle_path);
+}
+
 void spreadsheet_table_id_free_content(SpreadsheetTableID *table_id)
 {
   switch (eSpreadsheetTableIDType(table_id->type)) {
@@ -63,10 +76,8 @@ void spreadsheet_table_id_free_content(SpreadsheetTableID *table_id)
       auto *table_id_ = reinterpret_cast<SpreadsheetTableIDGeometry *>(table_id);
       BKE_viewer_path_clear(&table_id_->viewer_path);
       MEM_SAFE_FREE(table_id_->instance_ids);
-      for (const int i : IndexRange(table_id_->viewer_item_bundle_path.bundle_path_num)) {
-        MEM_SAFE_FREE(table_id_->viewer_item_bundle_path.bundle_path[i].identifier);
-      }
-      MEM_SAFE_FREE(table_id_->viewer_item_bundle_path.bundle_path);
+      free_bundle_path(table_id_->viewer_item_bundle_path);
+      free_bundle_path(table_id_->geometry_bundle_path);
       break;
     }
   }
@@ -78,19 +89,24 @@ void spreadsheet_table_id_free(SpreadsheetTableID *table_id)
   MEM_freeN(table_id);
 }
 
+static void write_bundle_path(BlendWriter *writer,
+                              const SpreadsheetBundleTreeViewPath &bundle_path)
+{
+  BLO_write_struct_array(
+      writer, SpreadsheetBundlePathElem, bundle_path.bundle_path_num, bundle_path.bundle_path);
+  for (const int i : IndexRange(bundle_path.bundle_path_num)) {
+    BLO_write_string(writer, bundle_path.bundle_path[i].identifier);
+  }
+}
+
 void spreadsheet_table_id_blend_write_content_geometry(BlendWriter *writer,
                                                        const SpreadsheetTableIDGeometry *table_id)
 {
   BKE_viewer_path_blend_write(writer, &table_id->viewer_path);
   BLO_write_struct_array(
       writer, SpreadsheetInstanceID, table_id->instance_ids_num, table_id->instance_ids);
-  BLO_write_struct_array(writer,
-                         SpreadsheetBundlePathElem,
-                         table_id->viewer_item_bundle_path.bundle_path_num,
-                         table_id->viewer_item_bundle_path.bundle_path);
-  for (const int i : IndexRange(table_id->viewer_item_bundle_path.bundle_path_num)) {
-    BLO_write_string(writer, table_id->viewer_item_bundle_path.bundle_path[i].identifier);
-  }
+  write_bundle_path(writer, table_id->viewer_item_bundle_path);
+  write_bundle_path(writer, table_id->geometry_bundle_path);
 }
 
 void spreadsheet_table_id_blend_write(BlendWriter *writer, const SpreadsheetTableID *table_id)
@@ -105,6 +121,15 @@ void spreadsheet_table_id_blend_write(BlendWriter *writer, const SpreadsheetTabl
   }
 }
 
+static void read_bundle_path(BlendDataReader *reader, SpreadsheetBundleTreeViewPath &bundle_path)
+{
+  BLO_read_struct_array(
+      reader, SpreadsheetBundlePathElem, bundle_path.bundle_path_num, &bundle_path.bundle_path);
+  for (const int i : IndexRange(bundle_path.bundle_path_num)) {
+    BLO_read_string(reader, &bundle_path.bundle_path[i].identifier);
+  }
+}
+
 void spreadsheet_table_id_blend_read(BlendDataReader *reader, SpreadsheetTableID *table_id)
 {
   switch (eSpreadsheetTableIDType(table_id->type)) {
@@ -113,13 +138,8 @@ void spreadsheet_table_id_blend_read(BlendDataReader *reader, SpreadsheetTableID
       BKE_viewer_path_blend_read_data(reader, &table_id_->viewer_path);
       BLO_read_struct_array(
           reader, SpreadsheetInstanceID, table_id_->instance_ids_num, &table_id_->instance_ids);
-      BLO_read_struct_array(reader,
-                            SpreadsheetBundlePathElem,
-                            table_id_->viewer_item_bundle_path.bundle_path_num,
-                            &table_id_->viewer_item_bundle_path.bundle_path);
-      for (const int i : IndexRange(table_id_->viewer_item_bundle_path.bundle_path_num)) {
-        BLO_read_string(reader, &table_id_->viewer_item_bundle_path.bundle_path[i].identifier);
-      }
+      read_bundle_path(reader, table_id_->viewer_item_bundle_path);
+      read_bundle_path(reader, table_id_->geometry_bundle_path);
       break;
     }
   }
@@ -148,6 +168,13 @@ void spreadsheet_table_id_foreach_id(SpreadsheetTableID &table_id, LibraryForeac
   }
 }
 
+static bool bundle_path_match(const SpreadsheetBundleTreeViewPath &a,
+                              const SpreadsheetBundleTreeViewPath &b)
+{
+  return Span<const SpreadsheetBundlePathElem>(a.bundle_path, a.bundle_path_num) ==
+         Span<const SpreadsheetBundlePathElem>(b.bundle_path, b.bundle_path_num);
+}
+
 bool spreadsheet_table_id_match(const SpreadsheetTableID &a, const SpreadsheetTableID &b)
 {
   if (a.type != b.type) {
@@ -165,10 +192,8 @@ bool spreadsheet_table_id_match(const SpreadsheetTableID &a, const SpreadsheetTa
              a_.object_eval_state == b_.object_eval_state && a_.layer_index == b_.layer_index &&
              blender::Span(a_.instance_ids, a_.instance_ids_num) ==
                  blender::Span(b_.instance_ids, b_.instance_ids_num) &&
-             blender::Span(a_.viewer_item_bundle_path.bundle_path,
-                           a_.viewer_item_bundle_path.bundle_path_num) ==
-                 blender::Span(b_.viewer_item_bundle_path.bundle_path,
-                               b_.viewer_item_bundle_path.bundle_path_num);
+             bundle_path_match(a_.viewer_item_bundle_path, b_.viewer_item_bundle_path) &&
+             bundle_path_match(a_.geometry_bundle_path, b_.geometry_bundle_path);
     }
   }
   return true;
