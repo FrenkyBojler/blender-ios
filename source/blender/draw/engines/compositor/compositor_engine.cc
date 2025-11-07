@@ -83,14 +83,12 @@ class Context : public compositor::Context {
   /* We limit the compositing region to the camera region if in camera view, while we use the
    * entire viewport otherwise. We also use the entire viewport when doing viewport rendering since
    * the viewport is already the camera region in that case. */
-  Bounds<int2> get_compositing_region() const override
+  compositor::Domain get_compositing_domain() const override
   {
     const DRWContext *draw_ctx = DRW_context_get();
-    const int2 viewport_size = int2(draw_ctx->viewport_size_get());
-    const Bounds<int2> render_region = Bounds<int2>(int2(0), viewport_size);
 
     if (draw_ctx->rv3d->persp != RV3D_CAMOB || draw_ctx->is_viewport_image_render()) {
-      return render_region;
+      return compositor::Domain(int2(draw_ctx->viewport_size_get()));
     }
 
     rctf camera_border;
@@ -106,8 +104,36 @@ class Context : public compositor::Context {
         int2(int(camera_border.xmin), int(camera_border.ymin)),
         int2(int(camera_border.xmax), int(camera_border.ymax)));
 
-    return blender::bounds::intersect(render_region, camera_region)
-        .value_or(Bounds<int2>(int2(0)));
+    const Bounds<int2> render_region = Bounds<int2>(int2(0), int2(draw_ctx->viewport_size_get()));
+    const std::optional<Bounds<int2>> border_region = blender::bounds::intersect(render_region,
+                                                                                 camera_region);
+    if (!border_region.has_value()) {
+      return compositor::Domain(int2(0));
+    }
+    compositor::Domain domain = compositor::Domain(camera_region.size());
+    domain.size = border_region.value().size();
+    domain.data_offset = border_region.value().min - camera_region.min;
+    return domain;
+  }
+
+  int2 get_output_offset() const override
+  {
+    const DRWContext *draw_ctx = DRW_context_get();
+
+    if (draw_ctx->rv3d->persp != RV3D_CAMOB || draw_ctx->is_viewport_image_render()) {
+      return int2(0);
+    }
+
+    rctf camera_border;
+    ED_view3d_calc_camera_border(draw_ctx->scene,
+                                 draw_ctx->depsgraph,
+                                 draw_ctx->region,
+                                 draw_ctx->v3d,
+                                 draw_ctx->rv3d,
+                                 false,
+                                 &camera_border);
+
+    return int2(int(camera_border.xmin), int(camera_border.ymin));
   }
 
   compositor::Result get_output(compositor::Domain /*domain*/) override

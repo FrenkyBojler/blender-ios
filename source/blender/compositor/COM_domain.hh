@@ -144,8 +144,12 @@ struct RealizationOptions {
  * and is irrelevant, because the output will be a domain-less single value. */
 class Domain {
  public:
-  /* The size of the domain in pixels. */
+  /* The size of the data window in pixels. */
   int2 size;
+  /* The size of the display window in pixels. */
+  int2 display_size;
+  /* The offset between the data and display windows in pixels. */
+  int2 data_offset = int2(0);
   /* The 2D transformation of the domain defining its translation in pixels, rotation, and scale in
    * the virtual compositing space. */
   float3x3 transformation;

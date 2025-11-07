@@ -65,7 +65,12 @@ class Context {
    * render region. In other cases, the compositing region might be a subset of the render region.
    * Callers should check the validity of the region through is_valid_compositing_region(), since
    * the region can be zero sized. */
-  virtual Bounds<int2> get_compositing_region() const = 0;
+  virtual Domain get_compositing_domain() const = 0;
+
+  virtual int2 get_output_offset() const
+  {
+    return int2(0);
+  }
 
   /* Get the result where the result of the compositor should be written. */
   virtual Result get_output(Domain domain) = 0;

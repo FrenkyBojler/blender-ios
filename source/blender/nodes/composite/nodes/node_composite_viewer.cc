@@ -147,7 +147,9 @@ class ViewerOperation : public NodeOperation {
     if (this->context().treat_viewer_as_compositor_output() &&
         this->context().use_context_bounds_for_input_output())
     {
-      return this->context().get_compositing_region();
+      const Domain compositing_domain = this->context().get_compositing_domain();
+      return Bounds<int2>(compositing_domain.data_offset,
+                          compositing_domain.data_offset + compositing_domain.size);
     }
 
     /* Otherwise, use the bounds of the input as is. */

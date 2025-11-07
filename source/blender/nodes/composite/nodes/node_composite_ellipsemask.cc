@@ -70,38 +70,39 @@ template<CMPNodeMaskType MaskType>
 static void ellipse_mask(const Result &base_mask,
                          const Result &value_mask,
                          Result &output_mask,
-                         const int2 &texel,
-                         const int2 &domain_size,
+                         const Domain &domain,
                          const float2 &location,
                          const float2 &radius,
                          const float cos_angle,
                          const float sin_angle)
 {
-  float2 uv = float2(texel) / float2(domain_size - int2(1));
-  uv -= location;
-  uv.y *= float(domain_size.y) / float(domain_size.x);
-  uv = float2x2(float2(cos_angle, -sin_angle), float2(sin_angle, cos_angle)) * uv;
-  bool is_inside = math::length(uv / radius) < 1.0f;
+  parallel_for(domain.size, [&](const int2 texel) {
+    float2 uv = float2(texel + domain.data_offset) / float2(domain.display_size - int2(1));
+    uv -= location;
+    uv.y *= float(domain.display_size.y) / float(domain.display_size.x);
+    uv = float2x2(float2(cos_angle, -sin_angle), float2(sin_angle, cos_angle)) * uv;
+    bool is_inside = math::length(uv / radius) < 1.0f;
 
-  float base_mask_value = base_mask.load_pixel<float, true>(texel);
-  float value = value_mask.load_pixel<float, true>(texel);
+    float base_mask_value = base_mask.load_pixel<float, true>(texel);
+    float value = value_mask.load_pixel<float, true>(texel);
 
-  float output_mask_value = 0.0f;
-  if constexpr (MaskType == CMP_NODE_MASKTYPE_ADD) {
-    output_mask_value = is_inside ? math::max(base_mask_value, value) : base_mask_value;
-  }
-  else if constexpr (MaskType == CMP_NODE_MASKTYPE_SUBTRACT) {
-    output_mask_value = is_inside ? math::clamp(base_mask_value - value, 0.0f, 1.0f) :
-                                    base_mask_value;
-  }
-  else if constexpr (MaskType == CMP_NODE_MASKTYPE_MULTIPLY) {
-    output_mask_value = is_inside ? base_mask_value * value : 0.0f;
-  }
-  else if constexpr (MaskType == CMP_NODE_MASKTYPE_NOT) {
-    output_mask_value = is_inside ? (base_mask_value > 0.0f ? 0.0f : value) : base_mask_value;
-  }
+    float output_mask_value = 0.0f;
+    if constexpr (MaskType == CMP_NODE_MASKTYPE_ADD) {
+      output_mask_value = is_inside ? math::max(base_mask_value, value) : base_mask_value;
+    }
+    else if constexpr (MaskType == CMP_NODE_MASKTYPE_SUBTRACT) {
+      output_mask_value = is_inside ? math::clamp(base_mask_value - value, 0.0f, 1.0f) :
+                                      base_mask_value;
+    }
+    else if constexpr (MaskType == CMP_NODE_MASKTYPE_MULTIPLY) {
+      output_mask_value = is_inside ? base_mask_value * value : 0.0f;
+    }
+    else if constexpr (MaskType == CMP_NODE_MASKTYPE_NOT) {
+      output_mask_value = is_inside ? (base_mask_value > 0.0f ? 0.0f : value) : base_mask_value;
+    }
 
-  output_mask.store_pixel(texel, output_mask_value);
+    output_mask.store_pixel(texel, output_mask_value);
+  });
 }
 
 class EllipseMaskOperation : public NodeOperation {
@@ -139,7 +140,8 @@ class EllipseMaskOperation : public NodeOperation {
 
     const Domain domain = compute_domain();
 
-    GPU_shader_uniform_2iv(shader, "domain_size", domain.size);
+    GPU_shader_uniform_2iv(shader, "display_size", domain.display_size);
+    GPU_shader_uniform_2iv(shader, "data_offset", domain.data_offset);
 
     GPU_shader_uniform_2fv(shader, "location", get_location());
     GPU_shader_uniform_2fv(shader, "radius", get_size() / 2.0f);
@@ -189,7 +191,6 @@ class EllipseMaskOperation : public NodeOperation {
     const Domain domain = this->compute_domain();
     output_mask.allocate_texture(domain);
 
-    const int2 domain_size = domain.size;
     const float2 location = this->get_location();
     const float2 radius = this->get_size() / 2.0f;
     const float cos_angle = math::cos(this->get_angle());
@@ -197,76 +198,31 @@ class EllipseMaskOperation : public NodeOperation {
 
     switch (this->get_operation()) {
       case CMP_NODE_MASKTYPE_ADD:
-        parallel_for(domain_size, [&](const int2 texel) {
-          ellipse_mask<CMP_NODE_MASKTYPE_ADD>(base_mask,
-                                              value_mask,
-                                              output_mask,
-                                              texel,
-                                              domain_size,
-                                              location,
-                                              radius,
-                                              cos_angle,
-                                              sin_angle);
-        });
+        ellipse_mask<CMP_NODE_MASKTYPE_ADD>(
+            base_mask, value_mask, output_mask, domain, location, radius, cos_angle, sin_angle);
         return;
       case CMP_NODE_MASKTYPE_SUBTRACT:
-        parallel_for(domain_size, [&](const int2 texel) {
-          ellipse_mask<CMP_NODE_MASKTYPE_SUBTRACT>(base_mask,
-                                                   value_mask,
-                                                   output_mask,
-                                                   texel,
-                                                   domain_size,
-                                                   location,
-                                                   radius,
-                                                   cos_angle,
-                                                   sin_angle);
-        });
+        ellipse_mask<CMP_NODE_MASKTYPE_SUBTRACT>(
+            base_mask, value_mask, output_mask, domain, location, radius, cos_angle, sin_angle);
         return;
       case CMP_NODE_MASKTYPE_MULTIPLY:
-        parallel_for(domain_size, [&](const int2 texel) {
-          ellipse_mask<CMP_NODE_MASKTYPE_MULTIPLY>(base_mask,
-                                                   value_mask,
-                                                   output_mask,
-                                                   texel,
-                                                   domain_size,
-                                                   location,
-                                                   radius,
-                                                   cos_angle,
-                                                   sin_angle);
-        });
+        ellipse_mask<CMP_NODE_MASKTYPE_MULTIPLY>(
+            base_mask, value_mask, output_mask, domain, location, radius, cos_angle, sin_angle);
         return;
       case CMP_NODE_MASKTYPE_NOT:
-        parallel_for(domain_size, [&](const int2 texel) {
-          ellipse_mask<CMP_NODE_MASKTYPE_NOT>(base_mask,
-                                              value_mask,
-                                              output_mask,
-                                              texel,
-                                              domain_size,
-                                              location,
-                                              radius,
-                                              cos_angle,
-                                              sin_angle);
-        });
+        ellipse_mask<CMP_NODE_MASKTYPE_NOT>(
+            base_mask, value_mask, output_mask, domain, location, radius, cos_angle, sin_angle);
         return;
     }
 
-    parallel_for(domain_size, [&](const int2 texel) {
-      ellipse_mask<CMP_NODE_MASKTYPE_ADD>(base_mask,
-                                          value_mask,
-                                          output_mask,
-                                          texel,
-                                          domain_size,
-                                          location,
-                                          radius,
-                                          cos_angle,
-                                          sin_angle);
-    });
+    ellipse_mask<CMP_NODE_MASKTYPE_ADD>(
+        base_mask, value_mask, output_mask, domain, location, radius, cos_angle, sin_angle);
   }
 
   Domain compute_domain() override
   {
     if (get_input("Mask").is_single_value()) {
-      return Domain(context().get_compositing_region_size());
+      return Domain(context().get_compositing_domain());
     }
     return get_input("Mask").domain();
   }

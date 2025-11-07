@@ -78,7 +78,7 @@ class GroupInputOperation : public NodeOperation {
 
     /* The compositing space might be limited to a subset of the pass texture, so only read that
      * compositing region into an appropriately sized result. */
-    const int2 lower_bound = this->context().get_compositing_region().min;
+    const int2 lower_bound = this->context().get_compositing_domain().data_offset;
     GPU_shader_uniform_2iv(shader, "lower_bound", lower_bound);
 
     pass.bind_as_texture(shader, "input_tx");
@@ -124,7 +124,7 @@ class GroupInputOperation : public NodeOperation {
   {
     /* The compositing space might be limited to a subset of the pass texture, so only read that
      * compositing region into an appropriately sized result. */
-    const int2 lower_bound = this->context().get_compositing_region().min;
+    const int2 lower_bound = this->context().get_compositing_domain().data_offset;
 
     const int2 size = this->context().use_context_bounds_for_input_output() ?
                           this->context().get_compositing_region_size() :

@@ -96,9 +96,14 @@ class GroupOutputOperation : public NodeOperation {
                                                      output.precision());
     GPU_shader_bind(shader);
 
-    const Bounds<int2> bounds = this->context().get_compositing_region();
-    GPU_shader_uniform_2iv(shader, "lower_bound", bounds.min);
-    GPU_shader_uniform_2iv(shader, "upper_bound", bounds.max);
+    const Domain compositing_domain = this->context().get_compositing_domain();
+    const int2 output_offset = this->context().get_output_offset();
+
+    GPU_shader_uniform_2iv(shader, "lower_bound", compositing_domain.data_offset + output_offset);
+    GPU_shader_uniform_2iv(shader,
+                           "upper_bound",
+                           compositing_domain.data_offset + output_offset +
+                               compositing_domain.size);
 
     image.bind_as_texture(shader, "input_tx");
 
@@ -116,8 +121,11 @@ class GroupOutputOperation : public NodeOperation {
     const Domain domain = this->compute_domain();
     Result output = this->context().get_output(domain);
 
+    const Domain compositing_domain = this->context().get_compositing_domain();
     const Bounds<int2> bounds = this->context().use_context_bounds_for_input_output() ?
-                                    this->context().get_compositing_region() :
+                                    Bounds<int2>(compositing_domain.data_offset,
+                                                 compositing_domain.data_offset +
+                                                     compositing_domain.size) :
                                     Bounds<int2>(int2(0, 0), domain.size);
     parallel_for(domain.size, [&](const int2 texel) {
       const int2 output_texel = texel + bounds.min;

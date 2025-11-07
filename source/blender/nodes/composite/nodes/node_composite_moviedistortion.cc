@@ -94,11 +94,10 @@ class MovieDistortionOperation : public NodeOperation {
       return;
     }
 
-    const Domain domain = compute_domain();
     const Result &distortion_grid = context().cache_manager().distortion_grids.get(
         context(),
         get_movie_clip(),
-        domain.size,
+        input_image.domain(),
         get_distortion_type(),
         context().get_frame_number());
 

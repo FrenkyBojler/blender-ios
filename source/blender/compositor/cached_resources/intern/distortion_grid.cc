@@ -50,8 +50,11 @@ bool operator==(const DistortionGridKey &a, const DistortionGridKey &b)
  * Distortion Grid.
  */
 
-DistortionGrid::DistortionGrid(
-    Context &context, MovieClip *movie_clip, int2 size, DistortionType type, int2 calibration_size)
+DistortionGrid::DistortionGrid(Context &context,
+                               MovieClip *movie_clip,
+                               Domain domain,
+                               DistortionType type,
+                               int2 calibration_size)
     : result(context.create_result(ResultType::Float2, ResultPrecision::Full))
 {
   MovieDistortion *distortion = BKE_tracking_distortion_new(
@@ -63,7 +66,7 @@ DistortionGrid::DistortionGrid(
   int bottom_delta;
   int top_delta;
   BKE_tracking_distortion_bounds_deltas(distortion,
-                                        size,
+                                        domain.size,
                                         calibration_size,
                                         type == DistortionType::Undistort,
                                         &right_delta,
@@ -72,38 +75,39 @@ DistortionGrid::DistortionGrid(
                                         &top_delta);
 
   /* Clamp deltas to avoid excessive memory requirements in case of extreme distortion. */
-  right_delta = math::min(right_delta, size.x);
-  left_delta = math::min(left_delta, size.x);
-  bottom_delta = math::min(bottom_delta, size.y);
-  top_delta = math::min(top_delta, size.y);
+  right_delta = math::min(right_delta, domain.size.x);
+  left_delta = math::min(left_delta, domain.size.x);
+  bottom_delta = math::min(bottom_delta, domain.size.y);
+  top_delta = math::min(top_delta, domain.size.y);
 
-  /* Extend the size by the deltas of the bounds. */
-  const int2 extended_size = size + int2(right_delta + left_delta, bottom_delta + top_delta);
+  Domain output_domain = domain;
+  output_domain.size = domain.size + int2(right_delta + left_delta, bottom_delta + top_delta);
+  output_domain.data_offset = int2(left_delta, bottom_delta);
+  this->result.allocate_texture(output_domain, false, ResultStorageType::CPU);
 
-  this->result.allocate_texture(extended_size, false, ResultStorageType::CPU);
+  parallel_for(this->result.domain().size, [&](const int2 texel) {
+    const float2 display_coordinates = float2(texel - output_domain.data_offset) + 0.5f;
+    const float2 normalized_coordinates = display_coordinates / float2(domain.display_size);
+    const float2 calibrated_coordinates = normalized_coordinates * float2(calibration_size);
 
-  parallel_for(extended_size, [&](const int2 texel) {
-    /* The tracking distortion functions expect the coordinates to be in the space of the image
-     * where the tracking camera was calibrated. So we first remap the coordinates into that space,
-     * apply the distortion, then remap back to the original coordinates space. This is done by
-     * dividing by the size then multiplying by the calibration size, making sure to add 0.5 to
-     * evaluate at the center of pixels.
-     *
-     * Subtract the lower left bounds delta since we are looping over the extended domain. */
-    float2 coordinates = ((float2(texel - int2(left_delta, bottom_delta)) + 0.5f) / float2(size)) *
-                         float2(calibration_size);
-
+    float2 distorted_coordinates;
     if (type == DistortionType::Undistort) {
-      BKE_tracking_distortion_undistort_v2(distortion, coordinates, coordinates);
+      BKE_tracking_distortion_undistort_v2(
+          distortion, calibrated_coordinates, distorted_coordinates);
     }
     else {
-      BKE_tracking_distortion_distort_v2(distortion, coordinates, coordinates);
+      BKE_tracking_distortion_distort_v2(
+          distortion, calibrated_coordinates, distorted_coordinates);
     }
 
-    /* Note that we should remap the coordinates back into the original size by dividing by the
-     * calibration size and multiplying by the size, however, we skip the latter to store the
-     * coordinates in normalized form, since this is what the shader expects. */
-    this->result.store_pixel(texel, coordinates / float2(calibration_size));
+    const float2 distorted_normalized_coordinates = distorted_coordinates /
+                                                    float2(calibration_size);
+    const float2 distorted_display_coordinates = distorted_normalized_coordinates *
+                                                 float2(domain.display_size);
+    const float2 distorted_data_coordinates = distorted_display_coordinates +
+                                              float2(domain.data_offset);
+    const float2 sampling_coordinates = distorted_data_coordinates / float2(domain.size);
+    this->result.store_pixel(texel, sampling_coordinates);
   });
 
   BKE_tracking_distortion_free(distortion);
@@ -148,14 +152,14 @@ static int2 get_movie_clip_size(MovieClip *movie_clip, int frame_number)
 }
 
 Result &DistortionGridContainer::get(
-    Context &context, MovieClip *movie_clip, int2 size, DistortionType type, int frame_number)
+    Context &context, MovieClip *movie_clip, Domain domain, DistortionType type, int frame_number)
 {
   const int2 calibration_size = get_movie_clip_size(movie_clip, frame_number);
 
-  const DistortionGridKey key(movie_clip->tracking.camera, size, type, calibration_size);
+  const DistortionGridKey key(movie_clip->tracking.camera, domain.size, type, calibration_size);
 
   auto &distortion_grid = *map_.lookup_or_add_cb(key, [&]() {
-    return std::make_unique<DistortionGrid>(context, movie_clip, size, type, calibration_size);
+    return std::make_unique<DistortionGrid>(context, movie_clip, domain, type, calibration_size);
   });
 
   distortion_grid.needed = true;
