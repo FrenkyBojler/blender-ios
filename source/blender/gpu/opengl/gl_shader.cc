@@ -514,9 +514,6 @@ static void print_resource(std::ostream &os,
     os << "layout(std140) ";
   }
 
-  int64_t array_offset;
-  StringRef name_no_array;
-
   switch (res.bind_type) {
     case ShaderCreateInfo::Resource::BindType::SAMPLER:
       os << "uniform ";
@@ -549,7 +546,7 @@ static void print_resource(std::ostream &os,
                            StringRefNull &active_info_name)
 {
   if (assign_if_different(active_info_name, res.info_name)) {
-    os << "#define CREATE_INFO_RES_" << res_frequency << "_" << res.info_name << " \\\n";
+    os << "\n#define CREATE_INFO_RES_" << res_frequency << "_" << res.info_name << " \\\n";
   }
   print_resource(os, res, auto_resource_location);
   os << " \\\n";

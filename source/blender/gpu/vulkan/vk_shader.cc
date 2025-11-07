@@ -405,7 +405,7 @@ static void print_resource(std::ostream &os,
     os << "#define CREATE_INFO_RES_" << res_frequency << "_" << res.info_name << " \\\n";
   }
   print_resource(os, shader_interface, res);
-  os << " \\\n";
+  os << " \\\n\n";
 }
 
 inline int get_location_count(const Type &type)
