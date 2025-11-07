@@ -831,7 +831,7 @@ class Preprocessor {
                                                                   end_pos + end_str.size());
         metadata.create_infos_declarations.emplace_back(variant_decl);
 
-        // parser.erase(tokens.front().str_index_start(), end_pos + end_str.size());
+        parser.erase(tokens.front().str_index_start(), end_pos + end_str.size());
         return;
       }
     });
