@@ -3380,7 +3380,7 @@ void SEQUENCER_OT_change_effect_type(wmOperatorType *ot)
 
 static wmOperatorStatus sequencer_change_path_exec(bContext *C, wmOperator *op)
 {
-  if (!WM_operator_poll(C, op->type)) {
+  if ((op->flag & OP_IS_INVOKE) && !WM_operator_poll_or_report_error(C, op->type, op->reports)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -3666,7 +3666,7 @@ static bool strip_get_text_strip_cb(Strip *strip, void *user_data)
 
 static wmOperatorStatus sequencer_export_subtitles_exec(bContext *C, wmOperator *op)
 {
-  if (!WM_operator_poll(C, op->type)) {
+  if ((op->flag & OP_IS_INVOKE) && !WM_operator_poll_or_report_error(C, op->type, op->reports)) {
     return OPERATOR_CANCELLED;
   }
 
