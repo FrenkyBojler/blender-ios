@@ -1783,7 +1783,6 @@ static wmOperatorStatus duplicate_and_assign_node_tree(bContext *C, bNodeTree *s
 
 static wmOperatorStatus duplicate_compositing_node_group_exec(bContext *C, wmOperator * /*op*/)
 {
-  PointerRNA ptr;
   Scene *scene = CTX_data_scene(C);
   return duplicate_and_assign_node_tree(C, scene->compositing_node_group);
 }
