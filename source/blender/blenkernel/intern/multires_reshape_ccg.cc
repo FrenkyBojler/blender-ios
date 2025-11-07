@@ -90,7 +90,7 @@ bool multires_reshape_assign_final_coords_from_ccg(const MultiresReshapeContext 
 
   const Span<float3> positions = subdiv_ccg->positions;
 
-  CLOG_DEBUG(&LOG, "ASSIGN TO STORAGE FROM LOWER CCG\n");
+  CLOG_DEBUG(&LOG, "ASSIGN TO STORAGE FROM LOWER CCG");
   int num_grids = subdiv_ccg->grids_num;
   for (int grid_index = 0; grid_index < num_grids; ++grid_index) {
     for (int y = 0; y < reshape_grid_size; ++y) {

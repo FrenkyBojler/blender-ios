@@ -24,12 +24,15 @@
 #include "BKE_multires.hh"
 #include "BKE_subdiv.hh"
 #include "BKE_subdiv_eval.hh"
+#include "CLG_log.h"
 #include "DNA_modifier_types.h"
 #include "opensubdiv_evaluator_capi.hh"
 
 #ifdef WITH_OPENSUBDIV
 #  include "opensubdiv_topology_refiner.hh"
 #endif
+
+static CLG_LogRef LOG = {"multires.prototype"};
 
 using blender::Array;
 using blender::float3;
@@ -465,6 +468,7 @@ Mesh *BKE_subdiv_to_ccg_mesh(Object &object,
 
   bool mdisp_valid = delta != 0;
   if (!mdisp_valid) {
+    CLOG_DEBUG(&LOG, "Removing displacement evaluator");
     displacement_detach(&subdiv);
   }
 

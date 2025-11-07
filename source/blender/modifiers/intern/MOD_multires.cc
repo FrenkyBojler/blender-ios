@@ -204,7 +204,7 @@ static Mesh *multires_as_ccg(MultiresModifierData *mmd,
     const int old_lvl = mmd->runtime->previous_level.value();
     delta = mmd->sculptlvl - old_lvl;
     CLOG_DEBUG(&LOG,
-               "(%p) multires_as_ccg: old: %d, delta: %d, new: %d\n",
+               "(%p) multires_as_ccg: old: %d, delta: %d, new: %d",
                mmd,
                old_lvl,
                delta,

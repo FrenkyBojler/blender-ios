@@ -3004,7 +3004,7 @@ void BKE_sculpt_copy_multires_positions(Object *object)
   }
 
   if (ss->subdiv_ccg) {
-    CLOG_DEBUG(&LOG, "COPYING MULTIRES POSITIONS: LEVEL: %d\n", ss->subdiv_ccg->level);
+    CLOG_DEBUG(&LOG, "COPYING MULTIRES POSITIONS: LEVEL: %d", ss->subdiv_ccg->level);
     ss->multires.runtime.positions_at_level[ss->subdiv_ccg->level - 1].reinitialize(
         ss->subdiv_ccg->positions.size());
     blender::array_utils::copy(
