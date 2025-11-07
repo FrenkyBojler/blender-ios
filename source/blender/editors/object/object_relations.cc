@@ -3012,6 +3012,7 @@ static wmOperatorStatus drop_named_material_invoke(bContext *C,
   }
 
   int assign_type = BKE_MAT_ASSIGN_USERPREF;
+  /* When trying to assign to non-editable object data, assign to the object instead. */
   if (BKE_id_is_editable(bmain, &ob->id) && ob->data &&
       !BKE_id_is_editable(bmain, static_cast<ID *>(ob->data)))
   {
