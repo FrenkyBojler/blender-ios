@@ -930,7 +930,7 @@ void RE_prepare_viewlayer_cb(Render *re,
 
 void RE_display_init(Render *re, const bool use_gpu_context)
 {
-  re->display = std::make_unique<RenderDisplay>(use_gpu_context);
+  re->display = std::make_shared<RenderDisplay>(use_gpu_context);
 
   re->display->display_update_cb = result_rcti_nothing;
   re->display->current_scene_update_cb = current_scene_nothing;
@@ -946,7 +946,29 @@ void RE_display_init(Render *re, const bool use_gpu_context)
 
 void RE_display_clear(Render *re)
 {
-  re->display->clear();
+  if (!re->display_borrowed) {
+    re->display->clear();
+  }
+}
+
+void RE_display_borrow(Render *re, const Render *parent_re)
+{
+  /* Use for compositor and sequencer, which can render scenes recursively.
+   * It more efficient, and we can only create this context on the main thread. */
+  if (parent_re == nullptr || re == parent_re) {
+    return;
+  }
+
+  re->display_borrowed = true;
+  re->display = parent_re->display;
+}
+
+void RE_display_unborrow(Render *re, const Render * /*parent_re*/)
+{
+  if (re->display_borrowed) {
+    RE_display_init(re, false);
+    re->display_borrowed = false;
+  }
 }
 
 void *RE_system_gpu_context_get(Render *re)
@@ -1080,17 +1102,11 @@ static void do_render_compositor_scene(Render *re, Scene *sce, int cfra)
   resc->main = re->main;
   resc->scene = sce;
 
-  /* copy callbacks */
-  resc->display->display_update_cb = re->display->display_update_cb;
-  resc->display->duh = re->display->duh;
-  resc->display->test_break_cb = re->display->test_break_cb;
-  resc->display->tbh = re->display->tbh;
-  resc->display->stats_draw_cb = re->display->stats_draw_cb;
-  resc->display->sdh = re->display->sdh;
-  resc->display->current_scene_update_cb = re->display->current_scene_update_cb;
-  resc->display->suh = re->display->suh;
+  RE_display_borrow(resc, re);
 
   do_render_engine(resc);
+
+  RE_display_unborrow(resc, re);
 }
 
 /* Get the scene referenced by the given node if the node uses its render. Returns nullptr
