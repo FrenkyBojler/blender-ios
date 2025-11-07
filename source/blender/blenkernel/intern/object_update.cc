@@ -233,6 +233,7 @@ void BKE_object_sync_to_original(Depsgraph *depsgraph, Object *object)
   copy_m4_m4(object_orig->constinv, object->constinv);
   object_orig->transflag = object->transflag;
   object_orig->flag = object->flag;
+  object_orig->base_local_view_bits = object->base_local_view_bits;
 
   /* Copy back error messages from modifiers. */
   for (ModifierData *md = static_cast<ModifierData *>(object->modifiers.first),
@@ -410,9 +411,6 @@ void BKE_object_eval_eval_base_flags(Depsgraph *depsgraph,
     BLI_assert(base_orig != nullptr);
     BLI_assert(base_orig->object != nullptr);
     base_orig->flag = base->flag;
-    if (Object *object_orig = base_orig->object) {
-      object_orig->base_local_view_bits = object->base_local_view_bits;
-    }
   }
 }
 
