@@ -1009,7 +1009,7 @@ void DRWContext::sync(iter_callback_t iter_callback)
 void DRWContext::engines_init_and_sync(iter_callback_t iter_callback)
 {
   double start_time = BLI_time_now_seconds();
-  
+
   view_data_active->foreach_enabled_engine([&](DrawEngine &instance) { instance.init(); });
 
   view_data_active->manager->begin_sync(this->obact);
@@ -1544,8 +1544,8 @@ void DRW_draw_view(const bContext *C)
     drw_draw_render_loop_2d(draw_ctx);
   }
   if (v3d) {
-    v3d->runtime.sync_time = draw_ctx.last_sync_time();
-    v3d->runtime.submission_time = draw_ctx.last_submission_time();
+    v3d->runtime.last_sync_time = draw_ctx.last_sync_time();
+    v3d->runtime.last_submission_time = draw_ctx.last_submission_time();
   }
   draw_ctx.release_data();
 }
