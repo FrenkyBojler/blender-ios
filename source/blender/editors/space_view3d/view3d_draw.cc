@@ -1519,25 +1519,75 @@ static void draw_grid_unit_name(
   }
 }
 
-static void draw_render_stats(View3D *v3d, int xoffset, int *yoffset)
+static float4 get_low_fps_color()
 {
-  const float sync_time = v3d->runtime.sync_time;
-  const float draw_time = v3d->runtime.draw_time;
-  const float total_time = sync_time + draw_time;
+  float alert_rgb[4];
+  float alert_hsv[4];
+  UI_GetThemeColor4fv(TH_REDALERT, alert_rgb);
+  /* Brighten since we favor dark shadows to increase contrast.
+   * This gives similar results to the old hardcoded 225, 36, 36. */
+  rgb_to_hsv_v(alert_rgb, alert_hsv);
+  alert_hsv[2] = 1.0;
+  hsv_to_rgb_v(alert_hsv, alert_rgb);
+  return alert_rgb;
+}
 
-  std::string sync_time_info = fmt::format("Sync Time: {:.2f} ms", sync_time * 1000.0f);
-  *yoffset -= VIEW3D_OVERLAY_LINEHEIGHT;
-  BLF_draw_default(xoffset, *yoffset, 0.0f, sync_time_info.c_str(), sync_time_info.length());
+static void draw_performance_stats(Depsgraph *depsgraph,
+                                   Scene *scene,
+                                   View3D *v3d,
+                                   const float text_color[4],
+                                   const int xoffset,
+                                   int *yoffset,
+                                   const int line_height)
+{
+  using namespace blender;
+  const float fps_target = float(scene->frames_per_second());
+  const float target_time = 1.0f / fps_target;
 
-  std::string draw_time_info = fmt::format("Draw Time: {:.2f} ms", draw_time * 1000.0f);
-  *yoffset -= VIEW3D_OVERLAY_LINEHEIGHT;
-  BLF_draw_default(xoffset, *yoffset, 0.0f, draw_time_info.c_str(), draw_time_info.length());
+  std::optional<double> last_eval_time = DEG_get_total_evaluation_time(depsgraph);
+  const float sync_time = v3d->runtime.last_sync_time;
+  const float submission_time = v3d->runtime.last_submission_time;
+  const float total_time = (last_eval_time ? *last_eval_time : 0.0f) + sync_time + submission_time;
 
-  std::string total_time_info = fmt::format(
-      "Total Time: {:.2f} ms ({:.1f} fps)", total_time * 1000.0f, 1.0f / total_time);
-  *yoffset -= VIEW3D_OVERLAY_LINEHEIGHT;
-  BLF_draw_default(xoffset, *yoffset, 0.0f, total_time_info.c_str(), total_time_info.length());
-  *yoffset -= VIEW3D_OVERLAY_LINEHEIGHT;
+  /* Translated labels for each stat row. */
+  enum { EVAL_TIME, SYNC_TIME, SUBM_TIME, TOTAL, MAX_LABELS_COUNT };
+  std::string labels[MAX_LABELS_COUNT];
+  labels[EVAL_TIME] = IFACE_("Evaluation");
+  labels[SYNC_TIME] = IFACE_("Synchronization");
+  labels[SUBM_TIME] = IFACE_("Submission");
+  labels[TOTAL] = IFACE_("Total");
+
+  const int font_id = BLF_default();
+  float longest_label = 0;
+  for (int i = 0; i < MAX_LABELS_COUNT; ++i) {
+    longest_label = std::max(longest_label,
+                             BLF_width(font_id, labels[i].c_str(), labels[i].size()));
+  }
+
+  const int xoffset2 = xoffset + int(longest_label) + (0.5f * U.widget_unit);
+
+  const auto draw_time_stat = [&](const StringRef label, const std::optional<float> time_value) {
+    *yoffset -= line_height;
+    BLF_draw_default(xoffset, *yoffset, 0.0f, label.data(), label.size());
+    if (time_value) {
+      /* Draw time in red when its over the target time per frame. */
+      if (*time_value > target_time) {
+        float4 alert_rgb = get_low_fps_color();
+        BLF_color4fv(font_id, alert_rgb);
+      }
+      std::string value_string = fmt::format("{:.2f} ms", *time_value * 1000.0f);
+      BLF_draw_default(xoffset2, *yoffset, 0.0f, value_string.c_str(), value_string.size());
+      /* Reset the color. */
+      BLF_color4fv(font_id, text_color);
+    }
+  };
+
+  *yoffset -= line_height;
+  draw_time_stat(labels[EVAL_TIME], last_eval_time);
+  draw_time_stat(labels[SYNC_TIME], sync_time);
+  draw_time_stat(labels[SUBM_TIME], submission_time);
+  draw_time_stat(labels[TOTAL], total_time);
+  *yoffset -= line_height;
 }
 
 void view3d_draw_region_info(const bContext *C, ARegion *region)
@@ -1548,6 +1598,7 @@ void view3d_draw_region_info(const bContext *C, ARegion *region)
   wmWindowManager *wm = CTX_wm_manager(C);
   Main *bmain = CTX_data_main(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
+  Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
 
 #ifdef WITH_INPUT_NDOF
   if (U.ndof_flag & NDOF_SHOW_GUIDE_ORBIT_AXIS) {
@@ -1620,7 +1671,6 @@ void view3d_draw_region_info(const bContext *C, ARegion *region)
     BLF_shadow(font_id, FontShadowType::Outline, shadow_color);
 
     if ((v3d->overlay.flag & V3D_OVERLAY_HIDE_TEXT) == 0) {
-      draw_render_stats(v3d, xoffset, &yoffset);
       if ((U.uiflag & USER_SHOW_FPS) && ED_screen_animation_no_scrub(wm)) {
         ED_scene_draw_fps(scene, xoffset, &yoffset);
         BLF_color4fv(font_id, text_color);
@@ -1639,6 +1689,11 @@ void view3d_draw_region_info(const bContext *C, ARegion *region)
       if (v3d->gridflag & (V3D_SHOW_FLOOR | V3D_SHOW_X | V3D_SHOW_Y | V3D_SHOW_Z)) {
         /* draw below the viewport name */
         draw_grid_unit_name(scene, region, v3d, xoffset, &yoffset);
+      }
+
+      if (v3d->overlay.flag & V3D_OVERLAY_PERFORMANCE) {
+        draw_performance_stats(
+            depsgraph, scene, v3d, text_color, xoffset, &yoffset, VIEW3D_OVERLAY_LINEHEIGHT);
       }
 
       DRW_draw_region_engine_info(xoffset, &yoffset, VIEW3D_OVERLAY_LINEHEIGHT);
@@ -2801,14 +2856,7 @@ void ED_scene_draw_fps(const Scene *scene, int xoffset, int *yoffset)
   if (state.fps_average + 0.5f < state.fps_target) {
     /* Always show fractional when under performing. */
     show_fractional = true;
-    float alert_rgb[4];
-    float alert_hsv[4];
-    UI_GetThemeColor4fv(TH_REDALERT, alert_rgb);
-    /* Brighten since we favor dark shadows to increase contrast.
-     * This gives similar results to the old hardcoded 225, 36, 36. */
-    rgb_to_hsv_v(alert_rgb, alert_hsv);
-    alert_hsv[2] = 1.0;
-    hsv_to_rgb_v(alert_hsv, alert_rgb);
+    float4 alert_rgb = get_low_fps_color();
     BLF_color4fv(font_id, alert_rgb);
   }
 

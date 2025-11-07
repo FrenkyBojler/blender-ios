@@ -7024,6 +7024,9 @@ class VIEW3D_PT_overlay_guides(Panel):
         split = col.split()
         sub = split.column()
         sub.prop(overlay, "show_text", text="Text Info")
+        subrow = sub.row(align=True)
+        subrow.active = overlay.show_text
+        subrow.prop(overlay, "show_performance", text="Performance")
         sub.prop(overlay, "show_stats", text="Statistics")
         if view.region_3d.view_perspective == 'CAMERA':
             sub.prop(overlay, "show_camera_guides", text="Camera Guides")

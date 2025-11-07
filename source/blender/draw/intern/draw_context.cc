@@ -1022,7 +1022,7 @@ void DRWContext::engines_init_and_sync(iter_callback_t iter_callback)
 
   view_data_active->manager->end_sync();
 
-  sync_time_ = float(BLI_time_now_seconds() - start_time);
+  last_sync_time_ = float(BLI_time_now_seconds() - start_time);
 }
 
 void DRWContext::engines_draw_scene()
@@ -1051,7 +1051,7 @@ void DRWContext::engines_draw_scene()
     GPU_flush();
   }
 
-  draw_time_ = float(BLI_time_now_seconds() - start_time);
+  last_submission_time_ = float(BLI_time_now_seconds() - start_time);
 }
 
 void DRW_draw_region_engine_info(int xoffset, int *yoffset, int line_height)
@@ -1544,8 +1544,8 @@ void DRW_draw_view(const bContext *C)
     drw_draw_render_loop_2d(draw_ctx);
   }
   if (v3d) {
-    v3d->runtime.sync_time = draw_ctx.sync_time();
-    v3d->runtime.draw_time = draw_ctx.draw_time();
+    v3d->runtime.sync_time = draw_ctx.last_sync_time();
+    v3d->runtime.submission_time = draw_ctx.last_submission_time();
   }
   draw_ctx.release_data();
 }
@@ -2223,15 +2223,6 @@ bool DRWContext::is_viewport_compositor_enabled() const
   }
 
   return true;
-}
-
-float DRWContext::sync_time() const
-{
-  return sync_time_;
-}
-float DRWContext::draw_time() const
-{
-  return draw_time_;
 }
 
 /** \} */

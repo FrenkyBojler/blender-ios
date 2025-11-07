@@ -225,9 +225,9 @@ struct DRWContext {
  private:
   /** Render State: No persistent data between draw calls. */
   static thread_local DRWContext *g_context;
-
-  float sync_time_;
-  float draw_time_;
+  /** Timings recorded for performance overlay. */
+  float last_sync_time_;
+  float last_submission_time_;
 
   /* TODO(fclem): Private? */
  public:
@@ -418,6 +418,14 @@ struct DRWContext {
   {
     return ELEM(mode, VIEWPORT_RENDER);
   }
+  float last_sync_time() const
+  {
+    return last_sync_time_;
+  }
+  float last_submission_time() const
+  {
+    return last_submission_time_;
+  }
 
   /** True if current viewport is drawn during playback. */
   bool is_playback() const;
@@ -429,9 +437,6 @@ struct DRWContext {
   bool is_transforming() const;
   /** True if viewport compositor is enabled when drawing with this context. */
   bool is_viewport_compositor_enabled() const;
-
-  float sync_time() const;
-  float draw_time() const;
 };
 
 /** \} */

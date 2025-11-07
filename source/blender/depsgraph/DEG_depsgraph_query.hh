@@ -427,3 +427,11 @@ void DEG_foreach_dependent_ID_component(const Depsgraph *depsgraph,
 void DEG_foreach_ID(const Depsgraph *depsgraph, DEGForeachIDCallback callback);
 
 /** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name DEG query evaluation timings
+ * \{ */
+
+std::optional<double> DEG_get_total_evaluation_time(const Depsgraph *depsgraph);
+
+/** \} */
