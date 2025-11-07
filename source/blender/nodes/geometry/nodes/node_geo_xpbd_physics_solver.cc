@@ -2317,11 +2317,15 @@ PROFILE_FUNCTION static void prepare_evaluation__damping_constraints(
           SimConstraintsKey{constraint_bundle->self_path, key});
       const float linear_factor = constraint_bundle->linear_damping * delta_time;
       const float angular_factor = constraint_bundle->angular_damping * delta_time;
+      /* Stiffness k = d*t/(1-d*t) leads to an equivalent damping factor of d*t=-k/(1+k).
+       * This reduces velocity by the same factor when using the update rule for a compliant
+       * velocity constraint v(t) - v(0) = -v(0) * k/(1+k) = -v(0) * 1/(1 + alpha). */
+      const float linear_stiffness = std::max(
+          math::safe_divide(linear_factor, 1.0f - linear_factor), 0.0f);
+      const float angular_stiffness = std::max(
+          math::safe_divide(angular_factor, 1.0f - angular_factor), 0.0f);
       world_info.damping_constraints.append(
-          {key_i,
-           constraints_key_i,
-           std::max(math::safe_divide(linear_factor, 1.0f - linear_factor), 0.0f),
-           std::max(math::safe_divide(angular_factor, 1.0f - angular_factor), 0.0f)});
+          {key_i, constraints_key_i, linear_stiffness, angular_stiffness});
     }
   }
 }
