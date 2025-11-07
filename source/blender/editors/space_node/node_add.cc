@@ -1863,7 +1863,7 @@ static wmOperatorStatus new_compositor_sequencer_node_group_exec(bContext *C, wm
   bNodeTree *ntree = new_node_tree_impl(C, tree_name, "CompositorNodeTree");
   initialize_compositor_sequencer_node_group(C, *ntree);
 
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   Strip *strip = seq::select_active_get(scene);
 
   /* Add modifier and assign node tree when the strip has no active compositor modifier. */
