@@ -1,2 +1,3 @@
 Referenced by issue #141871, Blender LTS: Maintenance Task 4.5
 Referenced by issue #149463, Vulkan: Failing test `shader_texture_atomic` on Linux/NVIDIA
+Referenced by issue #149494, Regression: Workbench performance drop using Normal Map node and Curve Nodes
