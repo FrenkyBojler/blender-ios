@@ -30,10 +30,17 @@ class GridRework : Overlay {
 private:
   UniformBuffer<OVERLAY_GridReworkData> grid_ubo_;
   PassSimple grid_ps_ = {"grid_ps_"};
+  
+  /* Number of lines per level of the grid. The grid requires at most 4 levels. */ 
+  uint4 num_lines_per_level_;
 
+  /* General parameters */
+  bool is_3d_grid_ = false;  
   float3 grid_axes_ = float3(0.0f);
   float3 zplane_axes_ = float3(0.0f);
-  uint4 num_lines_per_level_;
+  int grid_flag_ = 0;
+  int zneg_flag_ = 0;
+  int zpos_flag_ = 0;
 
 public:
   void begin_sync(Resources &res, const State &state) final
@@ -62,6 +69,8 @@ public:
       auto &sub = grid_ps_.sub("grid");
       sub.shader_set(res.shaders->gridrework.get());
       sub.bind_ubo("grid_buf", &grid_ubo_);
+      sub.bind_texture("depth_tx", depth_tx, GPUSamplerState::default_sampler());
+      sub.bind_texture("depth_infront_tx", depth_infront_tx, GPUSamplerState::default_sampler());
       sub.draw_procedural(GPUPrimType::GPU_PRIM_LINES, -1, n_verts, 0);
     }
   }
@@ -96,10 +105,10 @@ private:
     /* Configure line count per level. Hardcoded, but suffices in general cases.
      * Note; different line counts per level show a slight visual "pop" when
      * levels switch over when zooming, at very steep angles. */
-    num_lines_per_level_[0] = static_cast<uchar>(200 + 1);
-    num_lines_per_level_[1] = static_cast<uchar>(175 + 1);
-    num_lines_per_level_[2] = static_cast<uchar>(150 + 1); 
-    num_lines_per_level_[3] = static_cast<uchar>(125 + 1); 
+    num_lines_per_level_[0] = static_cast<uchar>(250 + 1); /* 1m */
+    num_lines_per_level_[1] = static_cast<uchar>(250 + 1); /* 10m */
+    num_lines_per_level_[2] = static_cast<uchar>(250 + 1); /* 100m */
+    num_lines_per_level_[3] = static_cast<uchar>(1);       /* center lines */
     grid_ubo_.num_lines_per_level_pack = packUint8x4(num_lines_per_level_);
     grid_ubo_.distance = 0.5f * v3d_clip_end;
 

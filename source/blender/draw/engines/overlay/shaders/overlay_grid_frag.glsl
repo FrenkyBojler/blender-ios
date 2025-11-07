@@ -213,6 +213,5 @@ void main()
     fade *= linearstep(grid_depth, grid_depth + bias, scene_depth);
   }
 
-  out_color.rgb = float3(1, 0, 1);
   out_color.a *= fade;
 }

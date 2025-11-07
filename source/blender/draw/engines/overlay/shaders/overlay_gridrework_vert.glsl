@@ -10,8 +10,15 @@ VERTEX_SHADER_CREATE_INFO(overlay_gridrework_next)
 #include "gpu_shader_utildefines_lib.glsl"
 #include "gpu_shader_math_safe_lib.glsl"
 
-#define GRID_SUBDIVS    10 /* Subdivision is a factor of 10 between levels. */
-#define GRID_LEVELS      4 /* The grid supports 3 hardcoded levels of hierarchy. */
+/* Subdivision is a factor of 10 between levels. */
+#define GRID_SUBDIVS       10 
+
+/* The grid supports 4 hardcoded levels of hierarchy. */
+#define GRID_LEVELS         4 
+
+/* Enable to support infinite zoom-in. 
+ * Otherwise, the old grid behavior (10^{-2}) is reproduced. */
+#define GRID_INFINITE_ZOOM_IN    
 
 void main()
 {
@@ -60,13 +67,17 @@ void main()
 
   /* Then, determine the level adjustment. */
   float line_lvl_offset = log2(t) / log2(float(GRID_SUBDIVS)); /* log10(t) = log2(t) / log2(10) */
-  line_lvl_offset = max(-0.67f, line_lvl_offset - 2.f); /* Subtraction ensures we always show a sublevel. */
+#ifdef GRID_INFINITE_ZOOM_IN
+  line_lvl_offset = line_lvl_offset - 2.f; /* Subtraction ensures we always show a sublevel. */
+#else 
+  line_lvl_offset = max(-0.99f, line_lvl_offset - 2.f); /* Subtraction ensures we always show a sublevel. */
+#endif
 
-  /* To fade the grid levels in/out smoothly, we output a fade factor to fragment. */
-  if (line_lvl < GRID_LEVELS - 1) {
-    frag_level = (float(line_lvl) + 1.f - fract(line_lvl_offset)) / float(GRID_LEVELS - 1);
+  /* To fade the lowest grid level in/out smoothly, we output a fade factor to fragment. */
+  if (line_lvl == 0) {
+    frag_level = (float(line_lvl) + 1.f - fract(line_lvl_offset));
   } else {
-    frag_level = 1.f;
+    frag_level = 1.0f;
   }
 
   /* Finally, add the rounded-up level adjustment to the actual line level */
@@ -75,6 +86,7 @@ void main()
   /* Each level of the grid is an order of magnitude larger than the previous level */
   float line_scale = pow(float(GRID_SUBDIVS), float(line_lvl));
   vert_pos *= line_scale;
+  proj_xy = vert_pos.xy / t;
   
   /* The grid moves with the camera in increments so as to go unnoticed. */
   float3 pos_on_floor = float3(drw_view_position().xy + t * -drw_view_forward().xy, 0);
