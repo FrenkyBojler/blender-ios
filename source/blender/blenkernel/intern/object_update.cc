@@ -409,6 +409,7 @@ void BKE_object_eval_eval_base_flags(Depsgraph *depsgraph,
     Base *base_orig = base->base_orig;
     BLI_assert(base_orig != nullptr);
     BLI_assert(base_orig->object != nullptr);
+    base_orig->flag = base->flag;
     if (Object *object_orig = base_orig->object) {
       object_orig->base_local_view_bits = object->base_local_view_bits;
     }
