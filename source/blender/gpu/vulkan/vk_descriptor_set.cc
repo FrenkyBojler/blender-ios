@@ -25,13 +25,14 @@ void VKDescriptorSetTracker::update_descriptor_set(VKContext &context,
   VKStateManager &state_manager = context.state_manager_get();
 
   /* Can we reuse previous descriptor set. */
-  if (!state_manager.is_dirty &&
-      !assign_if_different(vk_descriptor_set_layout_, shader.vk_descriptor_set_layout_get()) &&
+  const VkDescriptorSetLayout shader_descriptor_set_layout = shader.vk_descriptor_set_layout_get();
+  if (!state_manager.is_dirty && vk_descriptor_set_layout_ == shader_descriptor_set_layout &&
       shader.push_constants.layout_get().storage_type_get() !=
           VKPushConstants::StorageType::UNIFORM_BUFFER)
   {
     return;
   }
+  vk_descriptor_set_layout_ = shader_descriptor_set_layout;
   state_manager.is_dirty = false;
 
   VKDevice &device = VKBackend::get().device;
@@ -536,8 +537,7 @@ void VKDescriptorBufferUpdator::allocate_new_descriptor_set(
     buffer->create(default_buffer_size,
                    VK_BUFFER_USAGE_SAMPLER_DESCRIPTOR_BUFFER_BIT_EXT |
                        VK_BUFFER_USAGE_RESOURCE_DESCRIPTOR_BUFFER_BIT_EXT,
-                   VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
-                   0,
+                   VMA_MEMORY_USAGE_AUTO,
                    VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT,
                    0.8f);
     debug::object_label(buffer->vk_handle(), "DescriptorBuffer");

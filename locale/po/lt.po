@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'ceca413bcbf8')\n"
+"Project-Id-Version: Blender 5.0.0 Beta (b'6cf0458fdf00')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-06 08:44+0000\n"
+"POT-Creation-Date: 2025-11-03 10:44+0000\n"
 "PO-Revision-Date: 2025-07-23 15:18+0000\n"
 "Last-Translator: Aras Pranckevičius <aras@nesnausk.org>\n"
 "Language-Team: Lithuanian <https://translate.blender.org/projects/blender-ui/ui/lt/>\n"
@@ -2364,10 +2364,6 @@ msgid "Add"
 msgstr "Pridėti"
 
 
-msgid "Direction"
-msgstr "Kryptis"
-
-
 msgid "Has unsaved changes"
 msgstr "Turi neišsaugotų pakeitimų"
 
@@ -2869,6 +2865,10 @@ msgid "Owner"
 msgstr "Savininkas/-ė"
 
 
+msgid "Direction"
+msgstr "Kryptis"
+
+
 msgid "North"
 msgstr "Šiaurė"
 
@@ -3089,16 +3089,8 @@ msgid "Dots"
 msgstr "Taškai"
 
 
-msgid "Import"
-msgstr "Importuoti"
-
-
 msgid "Apply"
 msgstr "Pritaikyti"
-
-
-msgid "Text"
-msgstr "Tekstas"
 
 
 msgid "Track"
@@ -3111,6 +3103,14 @@ msgstr "Rodyti/Slėpti"
 
 msgid "Layout"
 msgstr "Išdėstymas/Maketas"
+
+
+msgid "Text"
+msgstr "Tekstas"
+
+
+msgid "Import"
+msgstr "Importuoti"
 
 
 msgid "Animals"

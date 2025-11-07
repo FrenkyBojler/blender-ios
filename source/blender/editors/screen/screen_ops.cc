@@ -699,8 +699,11 @@ bool ED_operator_editfont(bContext *C)
 {
   Object *obedit = CTX_data_edit_object(C);
   if (obedit && obedit->type == OB_FONT) {
-    return nullptr != ((Curve *)obedit->data)->editfont;
+    if (((Curve *)obedit->data)->editfont) {
+      return true;
+    }
   }
+  CTX_wm_operator_poll_msg_set(C, "expected an active edit-font object");
   return false;
 }
 
@@ -945,7 +948,7 @@ static AZone *area_actionzone_refresh_xy(ScrArea *area, const int xy[2], const b
           }
           else {
             const int mouse_sq = square_i(xy[0] - az->x2) + square_i(xy[1] - az->y2);
-            const int spot_sq = square_i(UI_AZONESPOTW);
+            const int spot_sq = square_i(UI_AZONESPOTW_RIGHT);
             const int fadein_sq = square_i(AZONEFADEIN);
             const int fadeout_sq = square_i(AZONEFADEOUT);
 
@@ -3372,8 +3375,12 @@ static void SCREEN_OT_frame_jump(wmOperatorType *ot)
 /* function to be called outside UI context, or for redo */
 static wmOperatorStatus frame_jump_delta_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_wm_space_seq(C) != nullptr ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
   const bool backward = RNA_boolean_get(op->ptr, "backward");
+
+  if (scene == nullptr) {
+    return OPERATOR_CANCELLED;
+  }
 
   float delta = scene->r.time_jump_delta;
 
@@ -3401,6 +3408,7 @@ static wmOperatorStatus frame_jump_delta_exec(bContext *C, wmOperator *op)
   }
 
   ED_areas_do_frame_follow(C, true);
+  blender::ed::vse::sync_active_scene_and_time_with_scene_strip(*C);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_FRAME_CHANGE);
 
@@ -3458,7 +3466,7 @@ static void keylist_from_graph_editor(bContext &C, AnimKeylist &keylist)
       continue;
     }
 
-    const bool use_nla_mapping = true;
+    const bool use_nla_mapping = ANIM_nla_mapping_allowed(ale);
     fcurve_to_keylist(ale->adt, fcu, &keylist, 0, {-FLT_MAX, FLT_MAX}, use_nla_mapping);
   }
 
@@ -3466,10 +3474,9 @@ static void keylist_from_graph_editor(bContext &C, AnimKeylist &keylist)
 }
 
 /* This is used for all editors where a more specific function isn't implemented. */
-static void keylist_fallback_for_keyframe_jump(bContext &C, AnimKeylist &keylist)
+static void keylist_fallback_for_keyframe_jump(bContext &C, Scene *scene, AnimKeylist &keylist)
 {
   bDopeSheet ads = {nullptr};
-  Scene *scene = CTX_data_scene(&C);
 
   /* Speed up dummy dope-sheet context with flags to perform necessary filtering. */
   if ((scene->flag & SCE_KEYS_NO_SELONLY) == 0) {
@@ -3479,6 +3486,12 @@ static void keylist_fallback_for_keyframe_jump(bContext &C, AnimKeylist &keylist
 
   /* populate tree with keyframe nodes */
   scene_to_keylist(&ads, scene, &keylist, 0, {-FLT_MAX, FLT_MAX});
+
+  /* Return early when invoked from sequencer with sequencer scene. Objects may belong to different
+   * scenes and are irrelevant. */
+  if (CTX_wm_space_seq(&C) != nullptr && scene == CTX_data_sequencer_scene(&C)) {
+    return;
+  }
 
   Object *ob = CTX_data_active_object(&C);
   if (ob) {
@@ -3503,7 +3516,7 @@ static void keylist_fallback_for_keyframe_jump(bContext &C, AnimKeylist &keylist
 /* function to be called outside UI context, or for redo */
 static wmOperatorStatus keyframe_jump_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_wm_space_seq(C) != nullptr ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
   const bool next = RNA_boolean_get(op->ptr, "next");
   bool done = false;
 
@@ -3526,7 +3539,7 @@ static wmOperatorStatus keyframe_jump_exec(bContext *C, wmOperator *op)
       break;
 
     default:
-      keylist_fallback_for_keyframe_jump(*C, *keylist);
+      keylist_fallback_for_keyframe_jump(*C, scene, *keylist);
       break;
   }
 
@@ -3574,6 +3587,7 @@ static wmOperatorStatus keyframe_jump_exec(bContext *C, wmOperator *op)
   }
 
   ED_areas_do_frame_follow(C, true);
+  blender::ed::vse::sync_active_scene_and_time_with_scene_strip(*C);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_FRAME_CHANGE);
 
@@ -3741,6 +3755,10 @@ static wmOperatorStatus screen_maximize_area_exec(bContext *C, wmOperator *op)
   }
   else {
     if (!ELEM(screen->state, SCREENNORMAL, SCREENMAXIMIZED)) {
+      return OPERATOR_CANCELLED;
+    }
+    if (BLI_listbase_is_single(&screen->areabase) && screen->state == SCREENNORMAL) {
+      /* SCREENMAXIMIZED is not useful when a singleton. #144740. */
       return OPERATOR_CANCELLED;
     }
     ED_screen_state_toggle(C, CTX_wm_window(C), area, SCREENMAXIMIZED);
@@ -5646,8 +5664,11 @@ static bool match_region_with_redraws(const ScrArea *area,
     }
   }
   else if (regiontype == RGN_TYPE_HEADER) {
-    /* Since the timeline does not exist anymore, this doesn't need updating. */
-    return false;
+    /* The Timeline mode of the Dope Sheet shows playback controls in the header. */
+    if (spacetype == SPACE_ACTION) {
+      SpaceAction *saction = (SpaceAction *)area->spacedata.first;
+      return saction->mode == SACTCONT_TIMELINE;
+    }
   }
   else if (regiontype == RGN_TYPE_FOOTER) {
     /* The footer region in animation editors shows the current frame. */
@@ -6325,10 +6346,11 @@ static wmOperatorStatus userpref_show_exec(bContext *C, wmOperator *op)
   }
 
   /* changes context! */
-  if (WM_window_open_temp(C, nullptr, SPACE_USERPREF, false)) {
+  if (ScrArea *area = ED_screen_temp_space_open(
+          C, nullptr, SPACE_USERPREF, U.preferences_display_type, false))
+  {
     /* The header only contains the editor switcher and looks empty.
      * So hiding in the temp window makes sense. */
-    ScrArea *area = CTX_wm_area(C);
     ARegion *region_header = BKE_area_find_region_type(area, RGN_TYPE_HEADER);
 
     region_header->flag |= RGN_FLAG_HIDDEN;

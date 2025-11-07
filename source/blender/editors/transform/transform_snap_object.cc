@@ -378,6 +378,14 @@ static const ID *data_for_snap(Object *ob_eval, eSnapEditType edit_mode_type, bo
     }
   }
 
+  /* For curves and surfaces in edit mode, use their original data when snapping.
+   * Only use the evaluated mesh when snapping to the final geometry. */
+  if (ELEM(ob_eval->type, OB_CURVES_LEGACY, OB_SURF) && BKE_object_is_in_editmode(ob_eval) &&
+      edit_mode_type != SNAP_GEOM_FINAL)
+  {
+    return static_cast<const ID *>(ob_eval->data);
+  }
+
   /* Get evaluated mesh including subdivision. This may come from a mesh object,
    * or another object type that has modifiers producing a mesh. */
   if (Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval)) {
@@ -385,6 +393,21 @@ static const ID *data_for_snap(Object *ob_eval, eSnapEditType edit_mode_type, bo
   }
 
   return static_cast<const ID *>(ob_eval->data);
+}
+
+/**
+ * Mesh used for snapping (`dupli-list` instances).
+ *
+ * A version of #data_for_snap for instances.
+ */
+static const ID *data_for_snap_dupli(Object *ob_eval, ID *ob_data)
+{
+  /* For curve and surface objects, use the evaluated mesh so snapping
+   * works with the final geometry instead of the coarse cage, see: #143060. */
+  if (ELEM(ob_eval->type, OB_CURVES_LEGACY, OB_CURVES, OB_SURF)) {
+    return &BKE_object_get_evaluated_mesh(ob_eval)->id;
+  }
+  return ob_data;
 }
 
 /** \} */
@@ -409,9 +432,7 @@ static bool snap_object_is_snappable(const SnapObjectContext *sctx,
     return false;
   }
 
-  if ((snap_target_select == SCE_SNAP_TARGET_ALL) ||
-      (base->flag_legacy & BA_TRANSFORM_LOCKED_IN_PLACE))
-  {
+  if (snap_target_select == SCE_SNAP_TARGET_ALL) {
     return true;
   }
 
@@ -484,12 +505,10 @@ static eSnapMode iter_snap_objects(SnapObjectContext *sctx, IterSnapObjsCallback
       object_duplilist(sctx->runtime.depsgraph, sctx->scene, obj_eval, nullptr, duplilist);
       for (DupliObject &dupli_ob : duplilist) {
         BLI_assert(DEG_is_evaluated(dupli_ob.ob));
-        if ((tmp = sob_callback(sctx,
-                                dupli_ob.ob,
-                                dupli_ob.ob_data,
-                                float4x4(dupli_ob.mat),
-                                is_object_active,
-                                false)) != SCE_SNAP_TO_NONE)
+        const ID *ob_data = data_for_snap_dupli(dupli_ob.ob, dupli_ob.ob_data);
+        if ((tmp = sob_callback(
+                 sctx, dupli_ob.ob, ob_data, float4x4(dupli_ob.mat), is_object_active, false)) !=
+            SCE_SNAP_TO_NONE)
         {
           ret = tmp;
         }
@@ -581,6 +600,11 @@ static eSnapMode raycast_obj_fn(SnapObjectContext *sctx,
                                 bool use_hide)
 {
   bool retval = false;
+
+  if (ob_eval->visibility_flag & OB_HIDE_SURFACE_PICK) {
+    /* Do not snap it surface picking is disabled. */
+    return SCE_SNAP_TO_NONE;
+  }
 
   if (ob_data == nullptr) {
     if ((sctx->runtime.occlusion_test_edit == SNAP_OCCLUSION_AS_SEEM) &&

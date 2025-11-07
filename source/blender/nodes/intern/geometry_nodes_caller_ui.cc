@@ -541,16 +541,24 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
       break;
     }
     case SOCK_IMAGE: {
-      uiTemplateID(row,
-                   &ctx.C,
-                   ctx.properties_ptr,
-                   rna_path,
-                   "image.new",
-                   "image.open",
-                   nullptr,
-                   UI_TEMPLATE_ID_FILTER_ALL,
-                   false,
-                   name);
+      PropertyRNA *prop = RNA_struct_find_property(ctx.properties_ptr, rna_path.c_str());
+      if (prop && RNA_property_type(prop) == PROP_POINTER) {
+        uiTemplateID(row,
+                     &ctx.C,
+                     ctx.properties_ptr,
+                     rna_path,
+                     "image.new",
+                     "image.open",
+                     nullptr,
+                     UI_TEMPLATE_ID_FILTER_ALL,
+                     false,
+                     name);
+      }
+      else {
+        /* #uiTemplateID only supports pointer properties currently. Node tools store data-block
+         * pointers in strings currently. */
+        row->prop_search(ctx.properties_ptr, rna_path, ctx.bmain_ptr, "images", name, ICON_IMAGE);
+      }
       break;
     }
     case SOCK_MENU: {
@@ -804,9 +812,21 @@ static void draw_warnings(const bContext *C,
   });
 
   uiLayout *col = &panel.body->column(false);
+  uiBlock *block = col->block();
   for (const NodeWarning *warning : warnings) {
     const int icon = node_warning_type_icon(warning->type);
-    col->label(RPT_(warning->message), icon);
+    const StringRef message = RPT_(warning->message);
+    uiBut *but = uiDefIconTextBut(
+        block, ButType::Label, 0, icon, message, 0, 0, 1, UI_UNIT_Y, nullptr, std::nullopt);
+    /* Add tooltip containing the same message. This is helpful if the message is very long so that
+     * it doesn't fit in the panel. */
+    UI_but_func_tooltip_set(
+        but,
+        [](bContext * /*C*/, void *argN, blender::StringRef /*tip*/) -> std::string {
+          return *static_cast<std::string *>(argN);
+        },
+        MEM_new<std::string>(__func__, message),
+        [](void *arg) { MEM_delete(static_cast<std::string *>(arg)); });
   }
 }
 
@@ -1008,11 +1028,9 @@ void draw_geometry_nodes_modifier_ui(const bContext &C, PointerRNA *modifier_ptr
   }
 
   if (nmd.node_group != nullptr && nmd.settings.properties != nullptr) {
-    nmd.node_group->ensure_interface_cache();
-    ctx.input_usages.reinitialize(nmd.node_group->interface_inputs().size());
-    ctx.output_usages.reinitialize(nmd.node_group->interface_outputs().size());
-    nodes::socket_usage_inference::infer_group_interface_usage(
-        *nmd.node_group, ctx.properties, ctx.input_usages, ctx.output_usages);
+    nmd.runtime->usage_cache.ensure(nmd);
+    ctx.input_usages = nmd.runtime->usage_cache.inputs;
+    ctx.output_usages = nmd.runtime->usage_cache.outputs;
     draw_interface_panel_content(ctx, &layout, nmd.node_group->tree_interface.root_panel);
   }
 
