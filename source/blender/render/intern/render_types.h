@@ -197,11 +197,11 @@ struct Render : public BaseRender {
    * sequencer renders that we want to display in the same place.
    */
   std::shared_ptr<RenderDisplay> display;
-  bool display_borrowed = false;
+  bool display_shared = false;
 };
 
 struct RenderDisplay {
-  RenderDisplay(bool create_gpu_context = false);
+  explicit RenderDisplay(bool create_gpu_context = false);
   ~RenderDisplay();
 
   void *ensure_blender_gpu_context();
