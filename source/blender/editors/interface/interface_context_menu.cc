@@ -1293,7 +1293,7 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
 void ui_popup_context_menu_for_panel(bContext *C, ARegion *region, Panel *panel)
 {
   bScreen *screen = CTX_wm_screen(C);
-  const bool has_panel_category = UI_panel_category_is_visible(region);
+  const bool has_panel_category = UI_panel_category_tabs_is_visible(region);
   const bool any_item_visible = has_panel_category;
 
   if (!any_item_visible) {

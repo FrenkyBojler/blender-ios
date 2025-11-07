@@ -628,12 +628,6 @@ static const EnumPropertyItem spreadsheet_table_id_type_items[] = {
 
 };
 
-const EnumPropertyItem rna_enum_project_section_items[] = {
-    {PROJECT_SECTION_GENERAL, "GENERAL", 0, "General", ""},
-    {PROJECT_SECTION_VARIABLES, "VARIABLES", 0, "Variables", ""},
-    {0, NULL, 0, NULL, NULL},
-};
-
 #ifdef RNA_RUNTIME
 
 #  include <algorithm>
@@ -702,6 +696,8 @@ const EnumPropertyItem rna_enum_project_section_items[] = {
 #  include "SEQ_relations.hh"
 
 #  include "RE_engine.h"
+
+#  include "rna_screen_utils.hh"
 
 static StructRNA *rna_Space_refine(PointerRNA *ptr)
 {
@@ -3776,6 +3772,38 @@ static const EnumPropertyItem *rna_FileAssetSelectParams_import_method_itemf(
   RNA_enum_item_end(&items, &items_num);
   *r_free = true;
   return items;
+}
+
+static ARegion *rna_SpaceProject_main_region_get(PointerRNA *ptr)
+{
+  if (!ptr->owner_id || (GS(ptr->owner_id->name) != ID_SCR)) {
+    return nullptr;
+  }
+
+  const bScreen *screen = blender::id_cast<bScreen *>(ptr->owner_id);
+  const SpaceProject *space_project = static_cast<SpaceProject *>(ptr->data);
+
+  return BKE_screen_find_region_in_space(
+      screen, reinterpret_cast<const SpaceLink *>(space_project), RGN_TYPE_WINDOW);
+}
+
+static int rna_SpaceProject_active_section_get(PointerRNA *ptr)
+{
+  ARegion *main_region = rna_SpaceProject_main_region_get(ptr);
+  return rna_region_active_panel_category_get(main_region);
+}
+static void rna_SpaceProject_active_section_set(PointerRNA *ptr, int value)
+{
+  ARegion *main_region = rna_SpaceProject_main_region_get(ptr);
+  rna_region_active_panel_category_set(main_region, value);
+}
+const EnumPropertyItem *rna_SpaceProject_active_section_itemf(bContext * /*C*/,
+                                                              PointerRNA *ptr,
+                                                              PropertyRNA * /*prop*/,
+                                                              bool *r_free)
+{
+  ARegion *main_region = rna_SpaceProject_main_region_get(ptr);
+  return rna_region_active_panel_category_itemf(main_region, r_free);
 }
 
 #else
@@ -9125,7 +9153,11 @@ static void rna_def_space_project(BlenderRNA *brna)
   PropertyRNA *prop;
 
   prop = RNA_def_property(srna, "active_section", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_items(prop, rna_enum_project_section_items);
+  RNA_def_property_enum_items(prop, rna_enum_region_panel_category_items);
+  RNA_def_property_enum_funcs(prop,
+                              "rna_SpaceProject_active_section_get",
+                              "rna_SpaceProject_active_section_set",
+                              "rna_SpaceProject_active_section_itemf");
   RNA_def_property_ui_text(prop, "Active Section", "Choose the category of options to display");
 }
 

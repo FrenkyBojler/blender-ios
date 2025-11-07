@@ -2127,6 +2127,7 @@ bool UI_panel_matches_search_filter(const Panel *panel);
 bool UI_panel_can_be_pinned(const Panel *panel);
 
 bool UI_panel_category_is_visible(const ARegion *region);
+bool UI_panel_category_tabs_is_visible(const ARegion *region);
 void UI_panel_category_add(ARegion *region, const char *name);
 PanelCategoryDyn *UI_panel_category_find(const ARegion *region, const char *idname);
 int UI_panel_category_index_find(ARegion *region, const char *idname);
@@ -2140,7 +2141,7 @@ void UI_panel_category_clear_all(ARegion *region);
 /**
  * Draw vertical tabs on the left side of the region, one tab per category.
  */
-void UI_panel_category_draw_all(ARegion *region, const char *category_id_active);
+void UI_panel_category_tabs_draw_all(ARegion *region, const char *category_id_active);
 
 void UI_panel_stop_animation(const bContext *C, Panel *panel);
 
