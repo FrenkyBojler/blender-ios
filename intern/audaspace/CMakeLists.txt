@@ -17,11 +17,6 @@ set(INC_SYS
   ${AUDASPACE_PY_INCLUDE_DIRS}
 )
 
-set(SRC
-  intern/AUD_Set.cpp
-  intern/AUD_Set.h
-)
-
 set(LIB
 )
 

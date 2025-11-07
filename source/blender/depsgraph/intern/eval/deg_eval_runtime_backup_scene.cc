@@ -26,7 +26,7 @@ void SceneBackup::reset()
   sound_scene = nullptr;
   playback_handle = nullptr;
   sound_scrub_handle = nullptr;
-  speaker_handles = nullptr;
+  speaker_handles.clear();
   rigidbody_last_time = -1;
 }
 
@@ -38,7 +38,7 @@ void SceneBackup::init_from_scene(Scene *scene)
   sound_scene = audio.sound_scene;
   playback_handle = audio.playback_handle;
   sound_scrub_handle = audio.sound_scrub_handle;
-  speaker_handles = audio.speaker_handles;
+  std::swap(speaker_handles, audio.speaker_handles);
 
   if (scene->rigidbody_world != nullptr) {
     rigidbody_last_time = scene->rigidbody_world->ltime;
@@ -49,7 +49,7 @@ void SceneBackup::init_from_scene(Scene *scene)
   audio.sound_scene = nullptr;
   audio.playback_handle = nullptr;
   audio.sound_scrub_handle = nullptr;
-  audio.speaker_handles = nullptr;
+  audio.speaker_handles.clear();
 
   sequencer_backup.init_from_scene(scene);
 }
@@ -60,7 +60,7 @@ void SceneBackup::restore_to_scene(Scene *scene)
   audio.sound_scene = sound_scene;
   audio.playback_handle = playback_handle;
   audio.sound_scrub_handle = sound_scrub_handle;
-  audio.speaker_handles = speaker_handles;
+  std::swap(speaker_handles, audio.speaker_handles);
 
   if (scene->rigidbody_world != nullptr) {
     scene->rigidbody_world->ltime = rigidbody_last_time;

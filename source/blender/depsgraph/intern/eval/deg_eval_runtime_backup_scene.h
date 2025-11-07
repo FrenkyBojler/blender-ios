@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include "BLI_set.hh"
+
 #include "intern/eval/deg_eval_runtime_backup_sequencer.h"
 
 struct Scene;
@@ -34,7 +36,7 @@ class SceneBackup {
   void *sound_scene;
   void *playback_handle;
   void *sound_scrub_handle;
-  void *speaker_handles;
+  Set<void *> speaker_handles;
   float rigidbody_last_time;
 
   SequencerBackup sequencer_backup;

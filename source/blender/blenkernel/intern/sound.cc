@@ -42,7 +42,7 @@
 #include "DNA_userdef_types.h"
 
 #ifdef WITH_AUDASPACE
-#  include "../../../intern/audaspace/intern/AUD_Set.h"
+#  include "BLI_set.hh"
 #  include <AUD_Handle.h>
 #  include <AUD_Sequence.h>
 #  include <AUD_Sound.h>
@@ -744,7 +744,7 @@ void BKE_sound_create_scene(Scene *scene)
   AUD_Sequence_setDistanceModel(audio.sound_scene, AUD_DistanceModel(scene->audio.distance_model));
   audio.playback_handle = nullptr;
   audio.sound_scrub_handle = nullptr;
-  audio.speaker_handles = nullptr;
+  audio.speaker_handles.clear();
 }
 
 void BKE_sound_destroy_scene(Scene *scene)
@@ -756,15 +756,10 @@ void BKE_sound_destroy_scene(Scene *scene)
   if (audio.sound_scrub_handle) {
     AUD_Handle_stop(audio.sound_scrub_handle);
   }
-  if (audio.speaker_handles) {
-    void *handle;
-
-    while ((handle = AUD_getSet(audio.speaker_handles))) {
-      AUD_Sequence_remove(audio.sound_scene, handle);
-    }
-
-    AUD_destroySet(audio.speaker_handles);
+  for (void *handle : audio.speaker_handles) {
+    AUD_Sequence_remove(audio.sound_scene, handle);
   }
+  audio.speaker_handles.clear();
   if (audio.sound_scene) {
     AUD_Sequence_free(audio.sound_scene);
   }
@@ -1231,7 +1226,7 @@ void BKE_sound_read_waveform(Main *bmain, bSound *sound, bool *stop)
   }
 }
 
-static void sound_update_base(Scene *scene, Object *object, void *new_set)
+static void sound_update_base(Scene *scene, Object *object, blender::Set<void *> &new_set)
 {
   Speaker *speaker;
   float quat[4];
@@ -1250,7 +1245,7 @@ static void sound_update_base(Scene *scene, Object *object, void *new_set)
       }
       speaker = (Speaker *)object->data;
 
-      if (AUD_removeSet(scene->runtime->audio.speaker_handles, strip->speaker_handle)) {
+      if (scene->runtime->audio.speaker_handles.remove(strip->speaker_handle)) {
         if (speaker->sound) {
           AUD_SequenceEntry_move(strip->speaker_handle,
                                  double(strip->start) / scene->frames_per_second(),
@@ -1276,7 +1271,7 @@ static void sound_update_base(Scene *scene, Object *object, void *new_set)
 
       if (strip->speaker_handle) {
         const bool mute = ((strip->flag & NLASTRIP_FLAG_MUTED) || (speaker->flag & SPK_MUTED));
-        AUD_addSet(new_set, strip->speaker_handle);
+        new_set.add(strip->speaker_handle);
         AUD_SequenceEntry_setVolumeMaximum(strip->speaker_handle, speaker->volume_max);
         AUD_SequenceEntry_setVolumeMinimum(strip->speaker_handle, speaker->volume_min);
         AUD_SequenceEntry_setDistanceMaximum(strip->speaker_handle, speaker->distance_max);
@@ -1308,8 +1303,7 @@ void BKE_sound_update_scene(Depsgraph *depsgraph, Scene *scene)
 {
   sound_verify_evaluated_id(&scene->id);
 
-  void *new_set = AUD_createSet();
-  void *handle;
+  blender::Set<void *> new_set;
   float quat[4];
 
   /* cheap test to skip looping over all objects (no speakers is a common case) */
@@ -1326,9 +1320,10 @@ void BKE_sound_update_scene(Depsgraph *depsgraph, Scene *scene)
   }
 
   blender::bke::SceneAudioRuntime &audio = scene->runtime->audio;
-  while ((handle = AUD_getSet(audio.speaker_handles))) {
+  for (void *handle : audio.speaker_handles) {
     AUD_Sequence_remove(audio.sound_scene, handle);
   }
+  audio.speaker_handles.clear();
 
   if (scene->camera) {
     mat4_to_quat(quat, scene->camera->object_to_world().ptr());
@@ -1337,7 +1332,6 @@ void BKE_sound_update_scene(Depsgraph *depsgraph, Scene *scene)
     AUD_Sequence_setAnimationData(audio.sound_scene, AUD_AP_ORIENTATION, scene->r.cfra, quat, 1);
   }
 
-  AUD_destroySet(audio.speaker_handles);
   audio.speaker_handles = new_set;
 }
 

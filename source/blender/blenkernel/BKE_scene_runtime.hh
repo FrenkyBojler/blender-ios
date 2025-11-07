@@ -9,6 +9,7 @@
 #pragma once
 
 #include "BLI_map.hh"
+#include "BLI_set.hh"
 #include "BLI_timeit.hh"
 #include "BLI_utility_mixins.hh"
 
@@ -47,7 +48,7 @@ struct SceneAudioRuntime {
   void *sound_scene = nullptr;
   void *playback_handle = nullptr;
   void *sound_scrub_handle = nullptr;
-  void *speaker_handles = nullptr;
+  Set<void *> speaker_handles;
 };
 
 class SceneRuntime : NonCopyable, NonMovable {
