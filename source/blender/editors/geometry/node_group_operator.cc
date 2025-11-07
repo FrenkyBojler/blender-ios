@@ -81,6 +81,8 @@
 #include "AS_asset_library.hh"
 #include "AS_asset_representation.hh"
 
+#include <xxhash.h>
+
 #include "geometry_intern.hh"
 
 #include <fmt/format.h>
@@ -111,10 +113,43 @@ struct OperatorTypeData : public wmOperatorType::TypeData {
   };
   std::variant<AssetRef, LocalRef> group_ref;
 
+  std::array<int64_t, 2> hash;
+
   static std::optional<OperatorTypeData> from_asset(const AssetRepresentation &asset,
                                                     ReportList &reports);
   static std::optional<OperatorTypeData> from_group(const bNodeTree &group, ReportList &reports);
+
+  void ensure_hash();
 };
+
+void OperatorTypeData::ensure_hash()
+{
+  XXH3_state_t *hash_state = XXH3_createState();
+  BLI_SCOPED_DEFER([&hash_state]() -> void { XXH3_freeState(hash_state); })
+  XXH3_128bits_reset(hash_state);
+  XXH3_128bits_update(hash_state, this->name.data(), this->name.size());
+  XXH3_128bits_update(hash_state, this->description.data(), this->description.size());
+  std::visit(
+      [&](const auto &value) {
+        using T = std::decay_t<decltype(value)>;
+        if constexpr (std::is_same_v<T, AssetRef>) {
+          XXH3_128bits_update(hash_state, &value.library, sizeof(value.library));
+          XXH3_128bits_update(
+              hash_state, value.library_identifier.data(), value.library_identifier.size());
+          XXH3_128bits_update(hash_state,
+                              value.relative_asset_identifier.data(),
+                              value.relative_asset_identifier.size());
+        }
+        else if constexpr (std::is_same_v<T, LocalRef>) {
+          XXH3_128bits_update(hash_state, &value.session_uid, sizeof(value.session_uid));
+        }
+      },
+      this->group_ref);
+  static_assert(sizeof(this->hash) == sizeof(XXH128_hash_t));
+  const XXH128_hash_t xxh3_hash = XXH3_128bits_digest(hash_state);
+  this->hash[0] = xxh3_hash.low64;
+  this->hash[1] = xxh3_hash.high64;
+}
 
 static std::optional<std::string> operator_idname_get(const StringRefNull custom_idname,
                                                       ReportList *reports)
@@ -163,6 +198,7 @@ std::optional<OperatorTypeData> OperatorTypeData::from_asset(
   type_data.group_ref = OperatorTypeData::AssetRef{eAssetLibraryType(weak_ref.asset_library_type),
                                                    StringRef(weak_ref.asset_library_identifier),
                                                    StringRef(weak_ref.relative_asset_identifier)};
+  type_data.ensure_hash();
   return type_data;
 }
 
@@ -189,6 +225,7 @@ std::optional<OperatorTypeData> OperatorTypeData::from_group(const bNodeTree &gr
   type_data.description = group.description ? group.description : "";
   type_data.flag = GeometryNodeAssetTraitFlag(group.geometry_node_asset_traits->flag);
   type_data.group_ref = OperatorTypeData::LocalRef{group.id.session_uid};
+  type_data.ensure_hash();
   return type_data;
 }
 
@@ -1112,18 +1149,22 @@ static void register_node_tool(wmOperatorType *ot, void *user_data)
 }
 
 struct OperatorRegisterErrors : NonCopyable {
+  Map<std::string, int> duplicate_node_tool_idnames;
+  Set<std::string> builtin_operator_replacement_attempts;
   ReportList reports;
   OperatorRegisterErrors()
   {
-    BKE_reports_init(&reports, RPT_STORE | RPT_PRINT_HANDLED_BY_OWNER);
+    BKE_reports_init(&this->reports, RPT_STORE | RPT_PRINT_HANDLED_BY_OWNER);
   }
   ~OperatorRegisterErrors()
   {
-    BKE_reports_free(&reports);
+    BKE_reports_free(&this->reports);
   }
   void clear()
   {
-    BKE_reports_clear(&reports);
+    this->duplicate_node_tool_idnames.clear();
+    this->builtin_operator_replacement_attempts.clear();
+    BKE_reports_clear(&this->reports);
   }
 };
 
@@ -1136,55 +1177,33 @@ static OperatorRegisterErrors &get_registration_errors()
 void ui_template_node_operator_registration_errors(uiLayout &layout)
 {
   const OperatorRegisterErrors &errors = get_registration_errors();
-  if (BLI_listbase_is_empty(&errors.reports.list)) {
-    return;
-  }
   uiLayout &col = layout.column(false);
-  LISTBASE_FOREACH (Report *, report, &errors.reports.list) {
-    col.label(report->message, ICON_ERROR);
-  }
-}
-
-static void unregister_node_group_operators()
-{
-  Set<StringRefNull> idnames;
-  for (const wmOperatorType *ot : WM_operatortypes_registered_get()) {
-    if (ot->flag & OPTYPE_NODE_TOOL) {
-      idnames.add(ot->idname);
+  if (!BLI_listbase_is_empty(&errors.reports.list)) {
+    LISTBASE_FOREACH (Report *, report, &errors.reports.list) {
+      col.label(report->message, ICON_ERROR);
     }
   }
-  for (const StringRefNull idname : idnames) {
-    WM_operatortype_remove(idname.c_str());
-  }
-}
 
-void register_node_group_operators(const bContext &C)
-{
-  unregister_node_group_operators();
-
-  OperatorRegisterErrors &errors = get_registration_errors();
-  errors.clear();
-
-  Map<std::string, int> duplicate_node_tool_idnames;
-  Set<std::string> builtin_operator_replacement_attempts;
-  const auto check_for_duplicate = [&](const StringRefNull idname) -> bool {
-    const wmOperatorType *ot = WM_operatortype_find(idname.c_str(), true);
-    if (!ot) {
-      return true;
-    }
-    if (ot->flag & OPTYPE_NODE_TOOL) {
-      char idname_py[OP_MAX_TYPENAME];
-      WM_operator_py_idname(idname_py, idname.c_str());
-      duplicate_node_tool_idnames.lookup_or_add_as(idname_py, 0)++;
-      return false;
-    }
+  for (const StringRefNull idname : errors.builtin_operator_replacement_attempts) {
     char idname_py[OP_MAX_TYPENAME];
     WM_operator_py_idname(idname_py, idname.c_str());
-    builtin_operator_replacement_attempts.add_as(idname_py);
-    return false;
-  };
+    const std::string message = fmt::format(
+        fmt::runtime(TIP_("Cannot replace builtin operator '{}'")), idname_py);
+    col.label(message, ICON_ERROR);
+  }
+  for (const MapItem<std::string, int> &item : errors.duplicate_node_tool_idnames.items()) {
+    char idname_py[OP_MAX_TYPENAME];
+    WM_operator_py_idname(idname_py, item.key.c_str());
+    const std::string message = fmt::format(
+        fmt::runtime(TIP_("{} duplicate(s) of '{}'")), item.value, idname_py);
+    col.label(message, ICON_ERROR);
+  }
+}
 
-  Main &bmain = *CTX_data_main(&C);
+static Vector<std::unique_ptr<OperatorTypeData>> get_node_tools_type_data(
+    const bContext &C, Main &bmain, OperatorRegisterErrors &errors)
+{
+  Vector<std::unique_ptr<OperatorTypeData>> all_types;  // TODO: USE VECTORSET
   LISTBASE_FOREACH (bNodeTree *, ntree, &bmain.nodetrees) {
     if (ID_IS_ASSET(&ntree->id)) {
       continue;
@@ -1200,10 +1219,7 @@ void register_node_group_operators(const bContext &C)
     if (!type_data) {
       continue;
     }
-    if (!check_for_duplicate(type_data->idname)) {
-      continue;
-    }
-    WM_operatortype_append_ptr(register_node_tool, &type_data.value());
+    all_types.append(std::make_unique<OperatorTypeData>(std::move(*type_data)));
   }
 
   const AssetLibraryReference library_ref = asset_system::all_library_reference();
@@ -1215,37 +1231,89 @@ void register_node_group_operators(const bContext &C)
       }
       const AssetMetaData &meta_data = asset.get_metadata();
       const IDProperty *tree_type = BKE_asset_metadata_idprop_find(&meta_data, "type");
-      if (tree_type == nullptr || IDP_int_get(tree_type) != NTREE_GEOMETRY) {
+      if (tree_type == nullptr) {
+        return true;
+      }
+      if (IDP_int_get(tree_type) != NTREE_GEOMETRY) {
         return true;
       }
       const IDProperty *traits_flag = BKE_asset_metadata_idprop_find(
           &meta_data, "geometry_node_asset_traits_flag");
-      if (traits_flag) {
-        if (traits_flag->type != IDP_INT || (IDP_int_get(traits_flag) & GEO_NODE_ASSET_TOOL) == 0)
-        {
-          return true;
-        }
+      if (!traits_flag) {
+        return true;
+      }
+      if (traits_flag->type != IDP_INT) {
+        return true;
+      }
+      if ((IDP_int_get(traits_flag) & GEO_NODE_ASSET_TOOL) == 0) {
+        return true;
       }
       std::optional<OperatorTypeData> type_data = OperatorTypeData::from_asset(asset,
                                                                                errors.reports);
       if (!type_data) {
         return true;
       }
-      if (!check_for_duplicate(type_data->idname)) {
-        return true;
-      }
-      WM_operatortype_append_ptr(register_node_tool, &type_data.value());
+      all_types.append(std::make_unique<OperatorTypeData>(std::move(*type_data)));
       return true;
     });
   }
 
-  for (const StringRefNull idname : builtin_operator_replacement_attempts) {
-    BKE_reportf(&errors.reports, RPT_ERROR, "Cannot replace builtin operator '%s", idname.c_str());
+  return all_types;
+}
+
+void register_node_group_operators(const bContext &C)
+{
+  wmWindowManager &wm = *CTX_wm_manager(&C);
+  Main &bmain = *CTX_data_main(&C);
+
+  OperatorRegisterErrors &errors = get_registration_errors();
+  errors.clear();
+
+  Vector<std::unique_ptr<OperatorTypeData>> all_types = get_node_tools_type_data(C, bmain, errors);
+
+  Vector<std::unique_ptr<OperatorTypeData>> types_to_register;
+  Set<wmOperatorType *> handled_types;
+  Set<wmOperatorType *> types_to_remove;
+  for (std::unique_ptr<OperatorTypeData> &type : all_types) {
+    if (wmOperatorType *ot = WM_operatortype_find(type->idname.c_str(), true)) {
+      if ((ot->flag & OPTYPE_NODE_TOOL) == 0) {
+        errors.builtin_operator_replacement_attempts.add(type->idname);
+        continue;
+      }
+      if (!handled_types.add(ot)) {
+        errors.duplicate_node_tool_idnames.lookup_or_add(type->idname, 0)++;
+        continue;
+      }
+      const OperatorTypeData &type_data = static_cast<const OperatorTypeData &>(*ot->custom_data);
+      if (type_data.hash == type->hash) {
+        types_to_remove.add(ot);
+      }
+    }
+    types_to_register.append(std::move(type));
   }
-  for (const MapItem<std::string, int> &item : duplicate_node_tool_idnames.items()) {
-    char idname_py[OP_MAX_TYPENAME];
-    WM_operator_py_idname(idname_py, item.key.c_str());
-    BKE_reportf(&errors.reports, RPT_ERROR, "%d duplicate(s) of '%s'", item.value, idname_py);
+
+  /* Remove types registered for old idnames that are no longer used. */
+  for (wmOperatorType *ot : WM_operatortypes_registered_get()) {
+    if ((ot->flag & OPTYPE_NODE_TOOL) == 0) {
+      continue;
+    }
+    if (handled_types.contains(ot)) {
+      continue;
+    }
+    types_to_remove.add_new(ot);
+  }
+
+  if (!types_to_remove.is_empty()) {
+    printf("Removing %d types\n", int(types_to_remove.size()));
+    WM_operator_stack_clear(&wm, types_to_remove);
+    WM_operator_handlers_clear(&wm, types_to_remove);
+    for (wmOperatorType *ot : types_to_remove) {
+      WM_operatortype_remove_ptr(ot);
+    }
+  }
+
+  for (std::unique_ptr<OperatorTypeData> &type : types_to_register) {
+    WM_operatortype_append_ptr(register_node_tool, type.get());
   }
 }
 
@@ -1554,6 +1622,12 @@ static Set<std::string> get_builtin_menus(const ObjectType object_type, const eO
   return menus;
 }
 
+static void missing_tool_idname_error(uiLayout &layout, const StringRef name)
+{
+  layout.label(fmt::format(fmt::runtime(TIP_("Missing node tool identifier ({})")), name),
+               ICON_NONE);
+}
+
 static void catalog_assets_draw(const bContext *C, Menu *menu)
 {
   const Object *active_object = CTX_data_active_object(C);
@@ -1578,11 +1652,16 @@ static void catalog_assets_draw(const bContext *C, Menu *menu)
   bool add_separator = true;
 
   for (const asset_system::AssetRepresentation *asset : assets) {
+    const std::optional<std::string> operator_idname = operator_idname_for_asset(*asset, nullptr);
+    if (!operator_idname) {
+      missing_tool_idname_error(*layout, asset->get_name());
+      continue;
+    }
     if (add_separator) {
       layout->separator();
       add_separator = false;
     }
-    PointerRNA props_ptr = layout->op(operator_idname_for_asset(*asset, nullptr).value_or(""),
+    PointerRNA props_ptr = layout->op(*operator_idname,
                                       IFACE_(asset->get_name()),
                                       ICON_NONE,
                                       wm::OpCallContext::InvokeRegionWin,
@@ -1630,7 +1709,8 @@ static bool unassigned_local_poll(const bContext &C)
   }
   const GeometryNodeAssetTraitFlag flag = asset_flag_for_context(*active_object);
   LISTBASE_FOREACH (const bNodeTree *, group, &bmain.nodetrees) {
-    /* Assets are displayed in other menus, and non-local data-blocks aren't added to this menu. */
+    /* Assets are displayed in other menus, and non-local data-blocks aren't added to this menu.
+     */
     if (group->id.library_weak_reference || group->id.asset_data) {
       continue;
     }
@@ -1656,7 +1736,12 @@ static void catalog_assets_draw_unassigned(const bContext *C, Menu *menu)
   }
   uiLayout *layout = menu->layout;
   for (const asset_system::AssetRepresentation *asset : tree->unassigned_assets) {
-    layout->op(operator_idname_for_asset(*asset, nullptr).value_or(""),
+    const std::optional<std::string> operator_idname = operator_idname_for_asset(*asset, nullptr);
+    if (!operator_idname) {
+      missing_tool_idname_error(*layout, asset->get_name());
+      continue;
+    }
+    layout->op(*operator_idname,
                IFACE_(asset->get_name()),
                ICON_NONE,
                wm::OpCallContext::InvokeRegionWin,
@@ -1669,7 +1754,8 @@ static void catalog_assets_draw_unassigned(const bContext *C, Menu *menu)
   bool add_separator = !tree->unassigned_assets.is_empty();
   Main &bmain = *CTX_data_main(C);
   LISTBASE_FOREACH (const bNodeTree *, group, &bmain.nodetrees) {
-    /* Assets are displayed in other menus, and non-local data-blocks aren't added to this menu. */
+    /* Assets are displayed in other menus, and non-local data-blocks aren't added to this menu.
+     */
     if (group->id.library_weak_reference || group->id.asset_data) {
       continue;
     }
@@ -1678,7 +1764,11 @@ static void catalog_assets_draw_unassigned(const bContext *C, Menu *menu)
     {
       continue;
     }
-
+    const std::optional<std::string> operator_idname = operator_idname_for_group(*group, nullptr);
+    if (!operator_idname) {
+      missing_tool_idname_error(*layout, BKE_id_name(group->id));
+      continue;
+    }
     if (add_separator) {
       layout->separator();
       add_separator = false;
@@ -1687,8 +1777,7 @@ static void catalog_assets_draw_unassigned(const bContext *C, Menu *menu)
       layout->label(IFACE_("Non-Assets"), ICON_NONE);
       first = false;
     }
-
-    layout->op(operator_idname_for_group(*group, nullptr).value_or(""),
+    layout->op(*operator_idname,
                BKE_id_name(group->id),
                ICON_NONE,
                wm::OpCallContext::InvokeRegionWin,
