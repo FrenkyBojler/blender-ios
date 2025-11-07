@@ -466,7 +466,7 @@ Mesh *BKE_subdiv_to_ccg_mesh(Object &object,
   SubdivCCGMaskEvaluator mask_evaluator;
   bool has_mask = BKE_subdiv_ccg_mask_init_from_paint(&mask_evaluator, &coarse_mesh);
 
-  bool mdisp_valid = delta != 0;
+  bool mdisp_valid = delta == 0;
   if (!mdisp_valid) {
     CLOG_DEBUG(&LOG, "Removing displacement evaluator");
     displacement_detach(&subdiv);
