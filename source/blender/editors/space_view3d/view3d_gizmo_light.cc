@@ -432,11 +432,7 @@ static void gizmo_area_light_foreach_rna_prop(
     wmGizmoProperty *gz_prop,
     const blender::FunctionRef<void(PointerRNA &ptr, PropertyRNA *prop, int index)> callback)
 {
-  bContext *C = static_cast<bContext *>(gz_prop->custom_func.user_data);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  BKE_view_layer_synced_ensure(scene, view_layer);
-  Light *la = static_cast<Light *>(BKE_view_layer_active_object_get(view_layer)->data);
+  Light *la = static_cast<Light *>(gz_prop->custom_func.user_data);
   PointerRNA light_ptr = RNA_pointer_create_discrete(&la->id, &RNA_Light, la);
 
   PropertyRNA *area_size_prop = RNA_struct_find_property(&light_ptr, "size");
@@ -454,11 +450,7 @@ static void gizmo_area_light_prop_matrix_get(const wmGizmo * /*gz*/,
 {
   BLI_assert(gz_prop->type->array_length == 16);
   float (*matrix)[4] = static_cast<float (*)[4]>(value_p);
-  bContext *C = static_cast<bContext *>(gz_prop->custom_func.user_data);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  BKE_view_layer_synced_ensure(scene, view_layer);
-  Light *la = static_cast<Light *>(BKE_view_layer_active_object_get(view_layer)->data);
+  Light *la = static_cast<Light *>(gz_prop->custom_func.user_data);
 
   matrix[0][0] = la->area_size;
   matrix[1][1] = ELEM(la->area_shape, LA_AREA_RECT, LA_AREA_ELLIPSE) ? la->area_sizey :
@@ -471,11 +463,7 @@ static void gizmo_area_light_prop_matrix_set(const wmGizmo * /*gz*/,
 {
   const float (*matrix)[4] = static_cast<const float (*)[4]>(value_p);
   BLI_assert(gz_prop->type->array_length == 16);
-  bContext *C = static_cast<bContext *>(gz_prop->custom_func.user_data);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  BKE_view_layer_synced_ensure(scene, view_layer);
-  Light *la = static_cast<Light *>(BKE_view_layer_active_object_get(view_layer)->data);
+  Light *la = static_cast<Light *>(gz_prop->custom_func.user_data);
 
   if (ELEM(la->area_shape, LA_AREA_RECT, LA_AREA_ELLIPSE)) {
     la->area_size = len_v3(matrix[0]);
@@ -561,7 +549,7 @@ static void WIDGETGROUP_light_area_refresh(const bContext *C, wmGizmoGroup *gzgr
   params.value_set_fn = gizmo_area_light_prop_matrix_set;
   params.range_get_fn = nullptr;
   params.foreach_rna_prop_fn = gizmo_area_light_foreach_rna_prop;
-  params.user_data = (void *)C;
+  params.user_data = la;
   WM_gizmo_target_property_def_func(gz, "matrix", &params);
 }
 
