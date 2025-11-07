@@ -21,8 +21,6 @@
 #include "DNA_light_types.h"
 #include "DNA_object_types.h"
 
-#include "ANIM_keyframing.hh"
-
 #include "ED_gizmo_library.hh"
 
 #include "UI_resources.hh"
