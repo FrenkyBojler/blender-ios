@@ -65,7 +65,6 @@ void AbstractView::update_from_old(uiBlock &new_block)
   old_view->rename_buffer_ = nullptr;
 
   invert_sort_order = old_view->invert_sort_order;
-  filtering_collapsed_state = old_view->filtering_collapsed_state;
 
   this->update_children_from_old(*old_view);
 
@@ -273,21 +272,6 @@ void AbstractView::set_sort_order(bool value)
 uint8_t AbstractView::get_sort_order() const
 {
   return this->invert_sort_order;
-}
-
-void AbstractView::set_filtering_collapsed()
-{
-  this->filtering_collapsed_state = !this->filtering_collapsed_state;
-}
-
-void AbstractView::set_filtering_collapsed(bool value)
-{
-  this->filtering_collapsed_state = value;
-}
-
-bool AbstractView::is_filtering_collapsed() const
-{
-  return this->filtering_collapsed_state;
 }
 
 /** \} */

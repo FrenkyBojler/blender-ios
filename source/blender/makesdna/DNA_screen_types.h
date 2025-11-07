@@ -353,8 +353,7 @@ typedef struct uiViewState {
    */
   int scroll_offset;
   uint8_t invert_sort_order;
-  uint8_t filtering_collapsed_state;
-  char _pad[6];
+  char _pad[7];
 } uiViewState;
 
 /**

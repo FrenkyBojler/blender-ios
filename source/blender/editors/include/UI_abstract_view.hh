@@ -79,7 +79,6 @@ class AbstractView {
   bool is_multiselect_supported_ = false;
   /* See `TreeViewItemContainer::SortOrder` */
   uint8_t invert_sort_order = false;
-  bool filtering_collapsed_state = true;
 
  public:
   virtual ~AbstractView() = default;
@@ -162,10 +161,6 @@ class AbstractView {
   void set_sort_order();
   void set_sort_order(bool value);
   uint8_t get_sort_order() const;
-
-  void set_filtering_collapsed();
-  void set_filtering_collapsed(bool value);
-  bool is_filtering_collapsed() const;
 
  protected:
   AbstractView() = default;
