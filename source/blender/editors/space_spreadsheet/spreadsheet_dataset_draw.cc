@@ -1196,10 +1196,13 @@ struct ViewerDataPath {
   explicit ViewerDataPath(const SpreadsheetTableIDGeometry &table_id)
       : viewer_item(table_id.viewer_item_identifier)
   {
-    for (const auto &elem : Span(table_id.bundle_path, table_id.bundle_path_num)) {
+    for (const auto &elem : Span(table_id.viewer_item_bundle_path.bundle_path,
+                                 table_id.viewer_item_bundle_path.bundle_path_num))
+    {
       this->bundles.append(elem.identifier);
     }
-    this->closure_input_output = SpreadsheetClosureInputOutput(table_id.closure_input_output);
+    this->closure_input_output = SpreadsheetClosureInputOutput(
+        table_id.viewer_item_bundle_path.closure_input_output);
   }
 
   explicit ViewerDataPath(const Span<const ViewerDataTreeItem *> tree_items);
@@ -1207,20 +1210,20 @@ struct ViewerDataPath {
   void store(SpreadsheetTableIDGeometry &table_id)
   {
     table_id.viewer_item_identifier = this->viewer_item;
-    if (table_id.bundle_path) {
-      for (const int i : IndexRange(table_id.bundle_path_num)) {
-        MEM_freeN(table_id.bundle_path[i].identifier);
+    if (table_id.viewer_item_bundle_path.bundle_path) {
+      for (const int i : IndexRange(table_id.viewer_item_bundle_path.bundle_path_num)) {
+        MEM_freeN(table_id.viewer_item_bundle_path.bundle_path[i].identifier);
       }
-      MEM_freeN(table_id.bundle_path);
+      MEM_freeN(table_id.viewer_item_bundle_path.bundle_path);
     }
-    table_id.bundle_path = MEM_calloc_arrayN<SpreadsheetBundlePathElem>(this->bundles.size(),
-                                                                        __func__);
-    table_id.bundle_path_num = this->bundles.size();
+    table_id.viewer_item_bundle_path.bundle_path = MEM_calloc_arrayN<SpreadsheetBundlePathElem>(
+        this->bundles.size(), __func__);
+    table_id.viewer_item_bundle_path.bundle_path_num = this->bundles.size();
     for (const int i : this->bundles.index_range()) {
-      table_id.bundle_path[i].identifier = BLI_strdupn(this->bundles[i].data(),
-                                                       this->bundles[i].size());
+      table_id.viewer_item_bundle_path.bundle_path[i].identifier = BLI_strdupn(
+          this->bundles[i].data(), this->bundles[i].size());
     }
-    table_id.closure_input_output = int8_t(this->closure_input_output);
+    table_id.viewer_item_bundle_path.closure_input_output = int8_t(this->closure_input_output);
   }
 };
 

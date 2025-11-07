@@ -1158,6 +1158,15 @@ typedef enum SpreadsheetClosureInputOutput {
   SPREADSHEET_CLOSURE_OUTPUT = 2,
 } SpreadsheetClosureInputOutput;
 
+typedef struct BundleTreeViewPath {
+  SpreadsheetBundlePathElem *bundle_path;
+  int bundle_path_num;
+
+  /** #SpreadsheetClosureInputOutput. */
+  int8_t closure_input_output;
+  char _pad[3];
+} BundleTreeViewPath;
+
 typedef struct SpreadsheetTableIDGeometry {
   SpreadsheetTableID base;
   char _pad0[4];
@@ -1169,14 +1178,9 @@ typedef struct SpreadsheetTableIDGeometry {
   ViewerPath viewer_path;
 
   int viewer_item_identifier;
+  char _pad3[4];
 
-  int bundle_path_num;
-  SpreadsheetBundlePathElem *bundle_path;
-
-  /** #SpreadsheetClosureInputOutput. */
-  int8_t closure_input_output;
-
-  char _pad3[7];
+  BundleTreeViewPath viewer_item_bundle_path;
 
   /**
    * The "path" to the currently active instance reference. This is needed when viewing nested

@@ -1128,7 +1128,8 @@ bke::SocketValueVariant geometry_display_data_get(const SpaceSpreadsheet *ssprea
   }
 
   for (const SpreadsheetBundlePathElem &bundle_path_elem :
-       Span(table_id.bundle_path, table_id.bundle_path_num))
+       Span(table_id.viewer_item_bundle_path.bundle_path,
+            table_id.viewer_item_bundle_path.bundle_path_num))
   {
     if (!value.is_single()) {
       return {};
@@ -1248,7 +1249,7 @@ std::unique_ptr<DataSource> data_source_from_geometry(const bContext *C, Object 
   }
   if (ptr.is_type<nodes::ClosurePtr>()) {
     const auto in_out = SpreadsheetClosureInputOutput(
-        sspreadsheet->geometry_id.closure_input_output);
+        sspreadsheet->geometry_id.viewer_item_bundle_path.closure_input_output);
     const nodes::ClosurePtr closure_ptr = display_data.extract<nodes::ClosurePtr>();
     if (closure_ptr) {
       return std::make_unique<ClosureSignatureDataSource>(closure_ptr, in_out);

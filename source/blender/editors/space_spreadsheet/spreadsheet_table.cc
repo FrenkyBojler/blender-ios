@@ -34,11 +34,13 @@ void spreadsheet_table_id_copy_content_geometry(SpreadsheetTableIDGeometry &dst,
   dst.layer_index = src.layer_index;
   dst.instance_ids = static_cast<SpreadsheetInstanceID *>(MEM_dupallocN(src.instance_ids));
   dst.instance_ids_num = src.instance_ids_num;
-  dst.bundle_path = MEM_calloc_arrayN<SpreadsheetBundlePathElem>(src.bundle_path_num, __func__);
-  for (const int i : IndexRange(src.bundle_path_num)) {
-    dst.bundle_path[i].identifier = BLI_strdup_null(src.bundle_path[i].identifier);
+  dst.viewer_item_bundle_path.bundle_path = MEM_calloc_arrayN<SpreadsheetBundlePathElem>(
+      src.viewer_item_bundle_path.bundle_path_num, __func__);
+  for (const int i : IndexRange(src.viewer_item_bundle_path.bundle_path_num)) {
+    dst.viewer_item_bundle_path.bundle_path[i].identifier = BLI_strdup_null(
+        src.viewer_item_bundle_path.bundle_path[i].identifier);
   }
-  dst.bundle_path_num = src.bundle_path_num;
+  dst.viewer_item_bundle_path.bundle_path_num = src.viewer_item_bundle_path.bundle_path_num;
 }
 
 SpreadsheetTableID *spreadsheet_table_id_copy(const SpreadsheetTableID &src_table_id)
@@ -61,10 +63,10 @@ void spreadsheet_table_id_free_content(SpreadsheetTableID *table_id)
       auto *table_id_ = reinterpret_cast<SpreadsheetTableIDGeometry *>(table_id);
       BKE_viewer_path_clear(&table_id_->viewer_path);
       MEM_SAFE_FREE(table_id_->instance_ids);
-      for (const int i : IndexRange(table_id_->bundle_path_num)) {
-        MEM_SAFE_FREE(table_id_->bundle_path[i].identifier);
+      for (const int i : IndexRange(table_id_->viewer_item_bundle_path.bundle_path_num)) {
+        MEM_SAFE_FREE(table_id_->viewer_item_bundle_path.bundle_path[i].identifier);
       }
-      MEM_SAFE_FREE(table_id_->bundle_path);
+      MEM_SAFE_FREE(table_id_->viewer_item_bundle_path.bundle_path);
       break;
     }
   }
@@ -82,10 +84,12 @@ void spreadsheet_table_id_blend_write_content_geometry(BlendWriter *writer,
   BKE_viewer_path_blend_write(writer, &table_id->viewer_path);
   BLO_write_struct_array(
       writer, SpreadsheetInstanceID, table_id->instance_ids_num, table_id->instance_ids);
-  BLO_write_struct_array(
-      writer, SpreadsheetBundlePathElem, table_id->bundle_path_num, table_id->bundle_path);
-  for (const int i : IndexRange(table_id->bundle_path_num)) {
-    BLO_write_string(writer, table_id->bundle_path[i].identifier);
+  BLO_write_struct_array(writer,
+                         SpreadsheetBundlePathElem,
+                         table_id->viewer_item_bundle_path.bundle_path_num,
+                         table_id->viewer_item_bundle_path.bundle_path);
+  for (const int i : IndexRange(table_id->viewer_item_bundle_path.bundle_path_num)) {
+    BLO_write_string(writer, table_id->viewer_item_bundle_path.bundle_path[i].identifier);
   }
 }
 
@@ -109,10 +113,12 @@ void spreadsheet_table_id_blend_read(BlendDataReader *reader, SpreadsheetTableID
       BKE_viewer_path_blend_read_data(reader, &table_id_->viewer_path);
       BLO_read_struct_array(
           reader, SpreadsheetInstanceID, table_id_->instance_ids_num, &table_id_->instance_ids);
-      BLO_read_struct_array(
-          reader, SpreadsheetBundlePathElem, table_id_->bundle_path_num, &table_id_->bundle_path);
-      for (const int i : IndexRange(table_id_->bundle_path_num)) {
-        BLO_read_string(reader, &table_id_->bundle_path[i].identifier);
+      BLO_read_struct_array(reader,
+                            SpreadsheetBundlePathElem,
+                            table_id_->viewer_item_bundle_path.bundle_path_num,
+                            &table_id_->viewer_item_bundle_path.bundle_path);
+      for (const int i : IndexRange(table_id_->viewer_item_bundle_path.bundle_path_num)) {
+        BLO_read_string(reader, &table_id_->viewer_item_bundle_path.bundle_path[i].identifier);
       }
       break;
     }
@@ -159,8 +165,10 @@ bool spreadsheet_table_id_match(const SpreadsheetTableID &a, const SpreadsheetTa
              a_.object_eval_state == b_.object_eval_state && a_.layer_index == b_.layer_index &&
              blender::Span(a_.instance_ids, a_.instance_ids_num) ==
                  blender::Span(b_.instance_ids, b_.instance_ids_num) &&
-             blender::Span(a_.bundle_path, a_.bundle_path_num) ==
-                 blender::Span(b_.bundle_path, b_.bundle_path_num);
+             blender::Span(a_.viewer_item_bundle_path.bundle_path,
+                           a_.viewer_item_bundle_path.bundle_path_num) ==
+                 blender::Span(b_.viewer_item_bundle_path.bundle_path,
+                               b_.viewer_item_bundle_path.bundle_path_num);
     }
   }
   return true;
