@@ -920,7 +920,6 @@ namespace trim {
  *
  * \param src: Curves geometry for target curves.
  * \param screen_space_positions: Screen-space positions computed in advance.
- * \param screen_space_curve_bounds: Screen-space bound boxes computed in advance.
  * \param mcoords: Screen-space points that define the lasso region.
  * \param editable_curves: Mask of all curves that can be trimmed.
  * \param visible_curves: Mask of all curves that are visible.
@@ -928,7 +927,6 @@ namespace trim {
  */
 bke::CurvesGeometry trim_curve_segments(const bke::CurvesGeometry &src,
                                         Span<float2> screen_space_positions,
-                                        Span<rcti> screen_space_curve_bounds,
                                         Span<int2> mcoords,
                                         const IndexMask &editable_curves,
                                         const IndexMask &visible_curves,
@@ -942,14 +940,12 @@ bke::CurvesGeometry trim_curve_segments(const bke::CurvesGeometry &src,
  *
  * \param src: Curves geometry for target curves.
  * \param screen_space_positions: Screen-space positions computed in advance.
- * \param screen_space_curve_bounds: Screen-space bound boxes computed in advance.
  * \param editable_curves: Mask of all curves that can be trimmed.
  * \param visible_curves: Mask of all curves that are visible.
  * \param keep_caps: If the start and end cap attributes should *not* be set to `Flat`.
  */
 bke::CurvesGeometry trim_curve_segment_ends(const bke::CurvesGeometry &src,
                                             Span<float2> screen_space_positions,
-                                            Span<rcti> screen_space_curve_bounds,
                                             const IndexMask &editable_curves,
                                             const IndexMask &visible_curves,
                                             bool keep_caps);

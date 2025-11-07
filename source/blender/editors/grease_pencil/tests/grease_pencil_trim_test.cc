@@ -22,8 +22,6 @@
 
 namespace blender::ed::greasepencil::tests {
 
-static constexpr int BBOX_PADDING = 0;
-
 static bke::CurvesGeometry create_test_curves(const Span<int> offsets,
                                               const Span<float2> positions_2d,
                                               const Span<bool> cyclic)
@@ -45,28 +43,6 @@ static bke::CurvesGeometry create_test_curves(const Span<int> offsets,
   return curves;
 }
 
-static Array<rcti> calculate_curve_bounds(const OffsetIndices<int> src_offsets,
-                                          const Span<float2> positions_2d)
-{
-  Array<rcti> screen_space_curve_bounds(src_offsets.size());
-
-  for (const int i : src_offsets.index_range()) {
-    const IndexRange points = src_offsets[i];
-    auto bounds = bounds::min_max(positions_2d.slice(points));
-    rcti screen_space_bounds;
-    BLI_rcti_init(&screen_space_bounds,
-                  int(bounds->min.x),
-                  int(bounds->max.x),
-                  int(bounds->min.y),
-                  int(bounds->max.y));
-    BLI_rcti_pad(&screen_space_bounds, BBOX_PADDING, BBOX_PADDING);
-
-    screen_space_curve_bounds[i] = screen_space_bounds;
-  }
-
-  return screen_space_curve_bounds;
-}
-
 static void expect_near_positions(const blender::Span<float3> actual,
                                   const blender::Span<float2> expected)
 {
@@ -86,15 +62,8 @@ static bke::CurvesGeometry trim_curve(const bke::CurvesGeometry &src,
                                       const Span<int2> mcoords,
                                       const bool keep_caps)
 {
-  const Array<rcti> screen_space_bbox = calculate_curve_bounds(src.points_by_curve(),
-                                                               screen_space_positions);
-  return trim::trim_curve_segments(src,
-                                   screen_space_positions,
-                                   screen_space_bbox,
-                                   mcoords,
-                                   src.curves_range(),
-                                   src.curves_range(),
-                                   keep_caps);
+  return trim::trim_curve_segments(
+      src, screen_space_positions, mcoords, src.curves_range(), src.curves_range(), keep_caps);
 }
 
 TEST(grease_pencil_trim, trim_two_edges)

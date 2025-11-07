@@ -30,8 +30,6 @@
 
 namespace blender::ed::greasepencil {
 
-static constexpr int BBOX_PADDING = 2;
-
 /**
  * Apply the stroke trim to a drawing.
  */
@@ -45,7 +43,6 @@ static bool execute_trim_on_drawing(const int layer_index,
                                     bke::greasepencil::Drawing &drawing)
 {
   const bke::CurvesGeometry &src = drawing.strokes();
-  const OffsetIndices<int> src_points_by_curve = src.points_by_curve();
 
   /* Get evaluated geometry. */
   bke::crazyspace::GeometryDeformation deformation =
@@ -60,24 +57,6 @@ static bool execute_trim_on_drawing(const int layer_index,
     }
   });
 
-  /* Compute bounding boxes of curves in screen space. The bounding boxes are used to speed
-   * up the search for intersecting curves. */
-  Array<rcti> screen_space_bbox(src.curves_num());
-  threading::parallel_for(src.curves_range(), 512, [&](const IndexRange src_curves) {
-    for (const int src_curve : src_curves) {
-      rcti *bbox = &screen_space_bbox[src_curve];
-      BLI_rcti_init_minmax(bbox);
-
-      const IndexRange src_points = src_points_by_curve[src_curve];
-      for (const int src_point : src_points) {
-        BLI_rcti_do_minmax_v(bbox, int2(screen_space_positions[src_point]));
-      }
-
-      /* Add some padding, otherwise we could just miss intersections. */
-      BLI_rcti_pad(bbox, BBOX_PADDING, BBOX_PADDING);
-    }
-  });
-
   IndexMaskMemory memory;
   const IndexMask editable_strokes = blender::ed::greasepencil::retrieve_editable_strokes(
       obact, drawing, layer_index, memory);
@@ -86,13 +65,7 @@ static bool execute_trim_on_drawing(const int layer_index,
 
   /* Apply trim. */
   bke::CurvesGeometry cut_strokes = ed::greasepencil::trim::trim_curve_segments(
-      src,
-      screen_space_positions,
-      screen_space_bbox,
-      mcoords,
-      editable_strokes,
-      visible_strokes,
-      keep_caps);
+      src, screen_space_positions, mcoords, editable_strokes, visible_strokes, keep_caps);
 
   /* Set the new geometry. */
   drawing.strokes_for_write() = std::move(cut_strokes);
