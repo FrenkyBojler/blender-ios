@@ -1080,8 +1080,17 @@ void WM_operator_view3d_unit_defaults(bContext *C, wmOperator *op)
           /* We don't support arrays yet. */
           BLI_assert(RNA_property_array_check(prop) == false);
           /* Initialize. */
-          const float value = RNA_property_float_get_default(op->ptr, prop) * dia;
-          RNA_property_float_set(op->ptr, prop, value);
+          if (!RNA_property_is_set_ex(op->ptr, prop, true)) {
+            const float value = RNA_property_float_get_default(op->ptr, prop) * dia;
+            RNA_property_float_set(op->ptr, prop, value);
+
+            IDProperty **idprops_p = RNA_struct_idprops_p(op->ptr);
+            if (idprops_p) {
+              IDProperty *idp = IDP_GetPropertyFromGroup(*idprops_p,
+                                                         RNA_property_identifier(prop));
+              idp->flag |= IDP_FLAG_GHOST;
+            }
+          }
         }
       }
     }
