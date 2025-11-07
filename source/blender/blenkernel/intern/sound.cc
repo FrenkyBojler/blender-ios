@@ -56,6 +56,7 @@
 #include "BKE_lib_query.hh"
 #include "BKE_main.hh"
 #include "BKE_packedFile.hh"
+#include "BKE_scene_runtime.hh"
 #include "BKE_sound.hh"
 
 #include "DEG_depsgraph.hh"
@@ -69,6 +70,7 @@
 #include "CLG_log.h"
 
 namespace blender::bke {
+struct SceneAudioRuntime;
 
 enum class SoundTags {
   None = 0,
@@ -718,7 +720,7 @@ AUD_Device *BKE_sound_mixdown(const Scene *scene, AUD_DeviceSpecs specs, int sta
 {
   sound_verify_evaluated_id(&scene->id);
   return AUD_openMixdownDevice(specs,
-                               scene->sound_scene,
+                               scene->runtime->audio.sound_scene,
                                volume,
                                AUD_RESAMPLE_QUALITY_MEDIUM,
                                start / scene->frames_per_second());
@@ -733,36 +735,38 @@ void BKE_sound_create_scene(Scene *scene)
     scene->r.frs_sec_base = 1;
   }
 
-  scene->sound_scene = AUD_Sequence_create(scene->frames_per_second(),
-                                           scene->audio.flag & AUDIO_MUTE);
-  AUD_Sequence_setSpeedOfSound(scene->sound_scene, scene->audio.speed_of_sound);
-  AUD_Sequence_setDopplerFactor(scene->sound_scene, scene->audio.doppler_factor);
-  AUD_Sequence_setDistanceModel(scene->sound_scene,
-                                AUD_DistanceModel(scene->audio.distance_model));
-  scene->playback_handle = nullptr;
-  scene->sound_scrub_handle = nullptr;
-  scene->speaker_handles = nullptr;
+  blender::bke::SceneAudioRuntime &audio = scene->runtime->audio;
+
+  audio.sound_scene = AUD_Sequence_create(scene->frames_per_second(),
+                                          scene->audio.flag & AUDIO_MUTE);
+  AUD_Sequence_setSpeedOfSound(audio.sound_scene, scene->audio.speed_of_sound);
+  AUD_Sequence_setDopplerFactor(audio.sound_scene, scene->audio.doppler_factor);
+  AUD_Sequence_setDistanceModel(audio.sound_scene, AUD_DistanceModel(scene->audio.distance_model));
+  audio.playback_handle = nullptr;
+  audio.sound_scrub_handle = nullptr;
+  audio.speaker_handles = nullptr;
 }
 
 void BKE_sound_destroy_scene(Scene *scene)
 {
-  if (scene->playback_handle) {
-    AUD_Handle_stop(scene->playback_handle);
+  blender::bke::SceneAudioRuntime &audio = scene->runtime->audio;
+  if (audio.playback_handle) {
+    AUD_Handle_stop(audio.playback_handle);
   }
-  if (scene->sound_scrub_handle) {
-    AUD_Handle_stop(scene->sound_scrub_handle);
+  if (audio.sound_scrub_handle) {
+    AUD_Handle_stop(audio.sound_scrub_handle);
   }
-  if (scene->speaker_handles) {
+  if (audio.speaker_handles) {
     void *handle;
 
-    while ((handle = AUD_getSet(scene->speaker_handles))) {
-      AUD_Sequence_remove(scene->sound_scene, handle);
+    while ((handle = AUD_getSet(audio.speaker_handles))) {
+      AUD_Sequence_remove(audio.sound_scene, handle);
     }
 
-    AUD_destroySet(scene->speaker_handles);
+    AUD_destroySet(audio.speaker_handles);
   }
-  if (scene->sound_scene) {
-    AUD_Sequence_free(scene->sound_scene);
+  if (audio.sound_scene) {
+    AUD_Sequence_free(audio.sound_scene);
   }
 }
 
@@ -788,16 +792,16 @@ void BKE_sound_reset_scene_specs(Scene *scene)
 {
   sound_verify_evaluated_id(&scene->id);
 
-  if (scene->sound_scene) {
-    AUD_Sequence_setSpecs(scene->sound_scene, g_state.initialized_specs.specs);
+  if (scene->runtime->audio.sound_scene) {
+    AUD_Sequence_setSpecs(scene->runtime->audio.sound_scene, g_state.initialized_specs.specs);
   }
 }
 
 void BKE_sound_mute_scene(Scene *scene, int muted)
 {
   sound_verify_evaluated_id(&scene->id);
-  if (scene->sound_scene) {
-    AUD_Sequence_setMuted(scene->sound_scene, muted);
+  if (scene->runtime->audio.sound_scene) {
+    AUD_Sequence_setMuted(scene->runtime->audio.sound_scene, muted);
   }
 }
 
@@ -805,8 +809,8 @@ void BKE_sound_update_fps(Main *bmain, Scene *scene)
 {
   sound_verify_evaluated_id(&scene->id);
 
-  if (scene->sound_scene) {
-    AUD_Sequence_setFPS(scene->sound_scene, scene->frames_per_second());
+  if (scene->runtime->audio.sound_scene) {
+    AUD_Sequence_setFPS(scene->runtime->audio.sound_scene, scene->frames_per_second());
   }
 
   blender::seq::sound_update_length(bmain, scene);
@@ -816,10 +820,10 @@ void BKE_sound_update_scene_listener(Scene *scene)
 {
   sound_verify_evaluated_id(&scene->id);
 
-  AUD_Sequence_setSpeedOfSound(scene->sound_scene, scene->audio.speed_of_sound);
-  AUD_Sequence_setDopplerFactor(scene->sound_scene, scene->audio.doppler_factor);
-  AUD_Sequence_setDistanceModel(scene->sound_scene,
-                                AUD_DistanceModel(scene->audio.distance_model));
+  AUD_Sound *sound = scene->runtime->audio.sound_scene;
+  AUD_Sequence_setSpeedOfSound(sound, scene->audio.speed_of_sound);
+  AUD_Sequence_setDopplerFactor(sound, scene->audio.doppler_factor);
+  AUD_Sequence_setDistanceModel(sound, AUD_DistanceModel(scene->audio.distance_model));
 }
 
 void *BKE_sound_scene_add_scene_sound(
@@ -828,8 +832,8 @@ void *BKE_sound_scene_add_scene_sound(
   sound_verify_evaluated_id(&scene->id);
   if (sequence->scene && scene != sequence->scene) {
     const double fps = scene->frames_per_second();
-    return AUD_Sequence_add(scene->sound_scene,
-                            sequence->scene->sound_scene,
+    return AUD_Sequence_add(scene->runtime->audio.sound_scene,
+                            sequence->scene->runtime->audio.sound_scene,
                             startframe / fps,
                             endframe / fps,
                             frameskip / fps);
@@ -860,13 +864,13 @@ void *BKE_sound_add_scene_sound(
   const double offset_time = sequence->sound->offset_time + sequence->sound_offset -
                              frameskip / fps;
   if (offset_time >= 0.0f) {
-    return AUD_Sequence_add(scene->sound_scene,
+    return AUD_Sequence_add(scene->runtime->audio.sound_scene,
                             sequence->sound->runtime->playback_handle,
                             startframe / fps + offset_time,
                             endframe / fps,
                             0.0f);
   }
-  return AUD_Sequence_add(scene->sound_scene,
+  return AUD_Sequence_add(scene->runtime->audio.sound_scene,
                           sequence->sound->runtime->playback_handle,
                           startframe / fps,
                           endframe / fps,
@@ -884,7 +888,7 @@ void *BKE_sound_add_scene_sound_defaults(Scene *scene, Strip *sequence)
 
 void BKE_sound_remove_scene_sound(Scene *scene, void *handle)
 {
-  AUD_Sequence_remove(scene->sound_scene, handle);
+  AUD_Sequence_remove(scene->runtime->audio.sound_scene, handle);
 }
 
 void BKE_sound_mute_scene_sound(void *handle, bool mute)
@@ -948,10 +952,10 @@ void BKE_sound_update_sequence_handle(void *handle, void *sound_handle)
 void BKE_sound_set_scene_volume(Scene *scene, float volume)
 {
   sound_verify_evaluated_id(&scene->id);
-  if (scene->sound_scene == nullptr) {
+  if (scene->runtime->audio.sound_scene == nullptr) {
     return;
   }
-  AUD_Sequence_setAnimationData(scene->sound_scene,
+  AUD_Sequence_setAnimationData(scene->runtime->audio.sound_scene,
                                 AUD_AP_VOLUME,
                                 scene->r.cfra,
                                 &volume,
@@ -1011,15 +1015,16 @@ static void sound_start_play_scene(Scene *scene)
 {
   sound_verify_evaluated_id(&scene->id);
 
-  if (scene->playback_handle) {
-    AUD_Handle_stop(scene->playback_handle);
+  blender::bke::SceneAudioRuntime &audio = scene->runtime->audio;
+  if (audio.playback_handle) {
+    AUD_Handle_stop(audio.playback_handle);
   }
 
   BKE_sound_reset_scene_specs(scene);
 
-  scene->playback_handle = AUD_Device_play(g_state.sound_device, scene->sound_scene, 1);
-  if (scene->playback_handle) {
-    AUD_Handle_setLoopCount(scene->playback_handle, -1);
+  audio.playback_handle = AUD_Device_play(g_state.sound_device, audio.sound_scene, 1);
+  if (audio.playback_handle) {
+    AUD_Handle_setLoopCount(audio.playback_handle, -1);
   }
 }
 
@@ -1034,25 +1039,26 @@ void BKE_sound_play_scene(Scene *scene)
 
   AUD_Device_lock(g_state.sound_device);
 
-  if (scene->sound_scrub_handle &&
-      AUD_Handle_getStatus(scene->sound_scrub_handle) != AUD_STATUS_INVALID)
+  blender::bke::SceneAudioRuntime &audio = scene->runtime->audio;
+  if (audio.sound_scrub_handle &&
+      AUD_Handle_getStatus(audio.sound_scrub_handle) != AUD_STATUS_INVALID)
   {
     /* If the audio scrub handle is playing back, stop to make sure it is not active.
      * Otherwise, it will trigger a callback that will stop audio playback. */
-    AUD_Handle_stop(scene->sound_scrub_handle);
-    scene->sound_scrub_handle = nullptr;
+    AUD_Handle_stop(audio.sound_scrub_handle);
+    audio.sound_scrub_handle = nullptr;
     /* The scrub_handle started playback with playback_handle, stop it so we can
      * properly restart it. */
-    AUD_Handle_pause(scene->playback_handle);
+    AUD_Handle_pause(audio.playback_handle);
   }
 
-  status = scene->playback_handle ? AUD_Handle_getStatus(scene->playback_handle) :
-                                    AUD_STATUS_INVALID;
+  status = audio.playback_handle ? AUD_Handle_getStatus(audio.playback_handle) :
+                                   AUD_STATUS_INVALID;
 
   if (status == AUD_STATUS_INVALID) {
     sound_start_play_scene(scene);
 
-    if (!scene->playback_handle) {
+    if (!audio.playback_handle) {
       AUD_Device_unlock(g_state.sound_device);
       return;
     }
@@ -1062,8 +1068,8 @@ void BKE_sound_play_scene(Scene *scene)
     /* Seeking the synchronizer will also seek the playback handle.
      * Even if we don't have A/V sync on, keep the synchronizer and handle seek time in sync. */
     AUD_seekSynchronizer(cur_time);
-    AUD_Handle_setPosition(scene->playback_handle, cur_time);
-    AUD_Handle_resume(scene->playback_handle);
+    AUD_Handle_setPosition(audio.playback_handle, cur_time);
+    AUD_Handle_resume(audio.playback_handle);
   }
 
   if (scene->audio.flag & AUDIO_SYNC) {
@@ -1077,8 +1083,8 @@ void BKE_sound_stop_scene(Scene *scene)
 {
   std::lock_guard lock(g_state.sound_device_mutex);
   BLI_assert(g_state.sound_device);
-  if (scene->playback_handle) {
-    AUD_Handle_pause(scene->playback_handle);
+  if (scene->runtime->audio.playback_handle) {
+    AUD_Handle_pause(scene->runtime->audio.playback_handle);
 
     if (scene->audio.flag & AUDIO_SYNC) {
       AUD_stopSynchronizer();
@@ -1114,12 +1120,13 @@ void BKE_sound_seek_scene(Main *bmain, Scene *scene)
 
   AUD_Device_lock(g_state.sound_device);
 
-  AUD_Status status = scene->playback_handle ? AUD_Handle_getStatus(scene->playback_handle) :
-                                               AUD_STATUS_INVALID;
+  blender::bke::SceneAudioRuntime &audio = scene->runtime->audio;
+  AUD_Status status = audio.playback_handle ? AUD_Handle_getStatus(audio.playback_handle) :
+                                              AUD_STATUS_INVALID;
   if (status == AUD_STATUS_INVALID) {
     sound_start_play_scene(scene);
 
-    if (!scene->playback_handle) {
+    if (!audio.playback_handle) {
       AUD_Device_unlock(g_state.sound_device);
       if (do_audio_scrub) {
         sound_device_use_end();
@@ -1127,7 +1134,7 @@ void BKE_sound_seek_scene(Main *bmain, Scene *scene)
       return;
     }
 
-    AUD_Handle_pause(scene->playback_handle);
+    AUD_Handle_pause(audio.playback_handle);
   }
 
   const double one_frame = 1.0 / scene->frames_per_second() +
@@ -1136,18 +1143,18 @@ void BKE_sound_seek_scene(Main *bmain, Scene *scene)
 
   if (do_audio_scrub) {
     /* Playback one frame of audio without advancing the timeline. */
-    AUD_Handle_setPosition(scene->playback_handle, cur_time);
-    AUD_Handle_resume(scene->playback_handle);
-    if (scene->sound_scrub_handle &&
-        AUD_Handle_getStatus(scene->sound_scrub_handle) != AUD_STATUS_INVALID)
+    AUD_Handle_setPosition(audio.playback_handle, cur_time);
+    AUD_Handle_resume(audio.playback_handle);
+    if (audio.sound_scrub_handle &&
+        AUD_Handle_getStatus(audio.sound_scrub_handle) != AUD_STATUS_INVALID)
     {
-      AUD_Handle_setPosition(scene->sound_scrub_handle, 0);
+      AUD_Handle_setPosition(audio.sound_scrub_handle, 0);
     }
     else {
-      if (scene->sound_scrub_handle) {
-        AUD_Handle_stop(scene->sound_scrub_handle);
+      if (audio.sound_scrub_handle) {
+        AUD_Handle_stop(audio.sound_scrub_handle);
       }
-      scene->sound_scrub_handle = AUD_pauseAfter(scene->playback_handle, one_frame);
+      audio.sound_scrub_handle = AUD_pauseAfter(audio.playback_handle, one_frame);
     }
     sound_device_use_end_after(std::chrono::milliseconds(int(one_frame * 1000)));
   }
@@ -1157,7 +1164,7 @@ void BKE_sound_seek_scene(Main *bmain, Scene *scene)
      * seek time in sync.
      */
     AUD_seekSynchronizer(cur_time);
-    AUD_Handle_setPosition(scene->playback_handle, cur_time);
+    AUD_Handle_setPosition(audio.playback_handle, cur_time);
   }
 
   AUD_Device_unlock(g_state.sound_device);
@@ -1172,12 +1179,12 @@ double BKE_sound_sync_scene(Scene *scene)
     return NAN_FLT;
   }
 
-  if (scene->playback_handle) {
+  if (scene->runtime->audio.playback_handle) {
     if (scene->audio.flag & AUDIO_SYNC) {
       return AUD_getSynchronizerPosition();
     }
 
-    return AUD_Handle_getPosition(scene->playback_handle);
+    return AUD_Handle_getPosition(scene->runtime->audio.playback_handle);
   }
   return NAN_FLT;
 }
@@ -1243,7 +1250,7 @@ static void sound_update_base(Scene *scene, Object *object, void *new_set)
       }
       speaker = (Speaker *)object->data;
 
-      if (AUD_removeSet(scene->speaker_handles, strip->speaker_handle)) {
+      if (AUD_removeSet(scene->runtime->audio.speaker_handles, strip->speaker_handle)) {
         if (speaker->sound) {
           AUD_SequenceEntry_move(strip->speaker_handle,
                                  double(strip->start) / scene->frames_per_second(),
@@ -1251,13 +1258,13 @@ static void sound_update_base(Scene *scene, Object *object, void *new_set)
                                  0);
         }
         else {
-          AUD_Sequence_remove(scene->sound_scene, strip->speaker_handle);
+          AUD_Sequence_remove(scene->runtime->audio.sound_scene, strip->speaker_handle);
           strip->speaker_handle = nullptr;
         }
       }
       else {
         if (speaker->sound) {
-          strip->speaker_handle = AUD_Sequence_add(scene->sound_scene,
+          strip->speaker_handle = AUD_Sequence_add(scene->runtime->audio.sound_scene,
                                                    speaker->sound->runtime->playback_handle,
                                                    double(strip->start) /
                                                        scene->frames_per_second(),
@@ -1318,19 +1325,20 @@ void BKE_sound_update_scene(Depsgraph *depsgraph, Scene *scene)
     DEG_OBJECT_ITER_END;
   }
 
-  while ((handle = AUD_getSet(scene->speaker_handles))) {
-    AUD_Sequence_remove(scene->sound_scene, handle);
+  blender::bke::SceneAudioRuntime &audio = scene->runtime->audio;
+  while ((handle = AUD_getSet(audio.speaker_handles))) {
+    AUD_Sequence_remove(audio.sound_scene, handle);
   }
 
   if (scene->camera) {
     mat4_to_quat(quat, scene->camera->object_to_world().ptr());
     blender::float3 location = scene->camera->object_to_world().location();
-    AUD_Sequence_setAnimationData(scene->sound_scene, AUD_AP_LOCATION, scene->r.cfra, location, 1);
-    AUD_Sequence_setAnimationData(scene->sound_scene, AUD_AP_ORIENTATION, scene->r.cfra, quat, 1);
+    AUD_Sequence_setAnimationData(audio.sound_scene, AUD_AP_LOCATION, scene->r.cfra, location, 1);
+    AUD_Sequence_setAnimationData(audio.sound_scene, AUD_AP_ORIENTATION, scene->r.cfra, quat, 1);
   }
 
-  AUD_destroySet(scene->speaker_handles);
-  scene->speaker_handles = new_set;
+  AUD_destroySet(audio.speaker_handles);
+  audio.speaker_handles = new_set;
 }
 
 void *BKE_sound_get_factory(void *sound)
@@ -1607,17 +1615,9 @@ void BKE_sound_set_scene_sound_time_stretch_constant_range(void * /*handle*/,
 }
 #endif
 
-void BKE_sound_reset_scene_runtime(Scene *scene)
-{
-  scene->sound_scene = nullptr;
-  scene->playback_handle = nullptr;
-  scene->sound_scrub_handle = nullptr;
-  scene->speaker_handles = nullptr;
-}
-
 void BKE_sound_ensure_scene(Scene *scene)
 {
-  if (scene->sound_scene != nullptr) {
+  if (scene->runtime->audio.sound_scene != nullptr) {
     return;
   }
   BKE_sound_create_scene(scene);
@@ -1657,8 +1657,8 @@ void BKE_sound_jack_scene_update(Scene *scene, int mode, double time)
   else {
     BKE_sound_stop_scene(scene);
   }
-  if (scene->playback_handle != nullptr) {
-    AUD_Handle_setPosition(scene->playback_handle, time);
+  if (scene->runtime->audio.playback_handle != nullptr) {
+    AUD_Handle_setPosition(scene->runtime->audio.playback_handle, time);
   }
   AUD_Device_unlock(g_state.sound_device);
 #else

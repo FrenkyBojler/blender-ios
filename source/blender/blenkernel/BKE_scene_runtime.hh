@@ -42,11 +42,19 @@ class SequencerRuntime {
   ~SequencerRuntime();
 };
 
+/* Audio runtime data. */
+struct SceneAudioRuntime {
+  void *sound_scene = nullptr;
+  void *playback_handle = nullptr;
+  void *sound_scrub_handle = nullptr;
+  void *speaker_handles = nullptr;
+};
+
 class SceneRuntime : NonCopyable, NonMovable {
  public:
   CompositorRuntime compositor;
-
   SequencerRuntime sequencer;
+  SceneAudioRuntime audio;
 };
 
 }  // namespace blender::bke

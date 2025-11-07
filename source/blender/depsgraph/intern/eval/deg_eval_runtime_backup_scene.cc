@@ -8,6 +8,7 @@
 
 #include "intern/eval/deg_eval_runtime_backup_scene.h"
 
+#include "BKE_scene_runtime.hh"
 #include "BKE_sound.hh"
 
 #include "DNA_rigidbody_types.h"
@@ -33,10 +34,11 @@ void SceneBackup::init_from_scene(Scene *scene)
 {
   BKE_sound_lock();
 
-  sound_scene = scene->sound_scene;
-  playback_handle = scene->playback_handle;
-  sound_scrub_handle = scene->sound_scrub_handle;
-  speaker_handles = scene->speaker_handles;
+  bke::SceneAudioRuntime &audio = scene->runtime->audio;
+  sound_scene = audio.sound_scene;
+  playback_handle = audio.playback_handle;
+  sound_scrub_handle = audio.sound_scrub_handle;
+  speaker_handles = audio.speaker_handles;
 
   if (scene->rigidbody_world != nullptr) {
     rigidbody_last_time = scene->rigidbody_world->ltime;
@@ -44,20 +46,21 @@ void SceneBackup::init_from_scene(Scene *scene)
 
   /* Clear pointers stored in the scene, so they are not freed when copied-on-written datablock
    * is freed for re-allocation. */
-  scene->sound_scene = nullptr;
-  scene->playback_handle = nullptr;
-  scene->sound_scrub_handle = nullptr;
-  scene->speaker_handles = nullptr;
+  audio.sound_scene = nullptr;
+  audio.playback_handle = nullptr;
+  audio.sound_scrub_handle = nullptr;
+  audio.speaker_handles = nullptr;
 
   sequencer_backup.init_from_scene(scene);
 }
 
 void SceneBackup::restore_to_scene(Scene *scene)
 {
-  scene->sound_scene = sound_scene;
-  scene->playback_handle = playback_handle;
-  scene->sound_scrub_handle = sound_scrub_handle;
-  scene->speaker_handles = speaker_handles;
+  bke::SceneAudioRuntime &audio = scene->runtime->audio;
+  audio.sound_scene = sound_scene;
+  audio.playback_handle = playback_handle;
+  audio.sound_scrub_handle = sound_scrub_handle;
+  audio.speaker_handles = speaker_handles;
 
   if (scene->rigidbody_world != nullptr) {
     scene->rigidbody_world->ltime = rigidbody_last_time;
