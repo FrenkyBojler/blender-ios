@@ -2409,4 +2409,3 @@ const blender::Set<BMFace *, 0> &BKE_pbvh_bmesh_node_faces(blender::bke::pbvh::B
 {
   return node->bm_faces_;
 }
-
