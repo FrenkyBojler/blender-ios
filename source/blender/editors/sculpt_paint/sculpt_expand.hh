@@ -120,6 +120,11 @@ struct Cache {
   IndexMaskMemory node_mask_memory;
   IndexMask node_mask;
 
+  /* Previously affected nodes. Used to track nodes that were affected in the previous update
+   * iteration, so they can be tagged for visual update when the expand area shrinks. */
+  IndexMaskMemory previous_node_mask_memory;
+  IndexMask previous_node_mask;
+
   /* Expand state options. */
 
   /* Number of loops (times that the falloff is going to be repeated). */
