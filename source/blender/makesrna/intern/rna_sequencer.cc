@@ -3055,12 +3055,6 @@ static void rna_def_meta(BlenderRNA *brna)
   RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_USE_MAIN);
   RNA_def_function_ui_description(func, "Separate meta");
 
-  prop = RNA_def_property(srna, "sound", PROP_POINTER, PROP_NONE);
-  RNA_def_property_flag(prop, PROP_EDITABLE);
-  RNA_def_property_struct_type(prop, "Sound");
-  RNA_def_property_ui_text(prop, "Sound", "Sound data-block used by this strip");
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_sound_update");
-
   rna_def_audio_options(srna);
 
   rna_def_filter_video(srna);

@@ -830,7 +830,7 @@ class STRIP_PT_adjust_sound(StripButtonsPanel, Panel):
         layout = self.layout
 
         strip = context.active_strip
-        sound = strip.sound
+        sound = getattr(strip, "sound", None)
 
         layout.active = not strip.mute
 
