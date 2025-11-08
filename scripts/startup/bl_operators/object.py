@@ -500,26 +500,8 @@ class ShapeTransfer(Operator):
 
     @classmethod
     def poll(cls, context):
-        ob_active = context.active_object
-        if not ob_active or ob_active.mode == 'EDIT':
-            return False
-
-        # Exactly one other selected object
-        others = [ob for ob in context.selected_editable_objects if ob != ob_active]
-        if len(others) != 1:
-            return False
-
-        ob_from = others[0]
-        # Both source and destination must be Mesh objects.
-        if ob_from.type != 'MESH':
-            return False
-        if ob_active.type != 'MESH':
-            return False
-        # The source must have an active Shape Key to copy.
-        if ob_from.active_shape_key is None:
-            return False
-
-        return True
+        obj = context.active_object
+        return (obj and obj.type == 'MESH' and obj.mode != 'EDIT')
 
     def execute(self, context):
         ob_act = context.active_object
@@ -528,18 +510,18 @@ class ShapeTransfer(Operator):
             if ob != ob_act
         ]
 
-        if 1:  # swap from/to, means we can't copy to many at once.
-            if len(objects) != 1:
-                self.report({'ERROR'}, "Expected one other selected mesh object to copy from")
-                return {'CANCELLED'}
-            ob_act, objects = objects[0], [ob_act]
+        if len(objects) != 1:
+            self.report({'ERROR'}, "Expected one other selected mesh object to copy from")
+            return {'CANCELLED'}
 
-        if ob_act.type != 'MESH':
-            self.report({'ERROR'}, "Other object is not a mesh")
+        ob_act, objects = objects[0], [ob_act]
+
+        if ob_act.type != 'MESH' or objects[0].type != 'MESH':
+            self.report({'ERROR'}, "Both objects must be meshes")
             return {'CANCELLED'}
 
         if ob_act.active_shape_key is None:
-            self.report({'ERROR'}, "Other object has no shape key")
+            self.report({'ERROR'}, "Other object has no active shape key")
             return {'CANCELLED'}
         return self._main(ob_act, objects, self.mode, self.use_clamp)
 
