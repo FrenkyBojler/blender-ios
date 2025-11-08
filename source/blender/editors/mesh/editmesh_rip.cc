@@ -1024,8 +1024,14 @@ static wmOperatorStatus edbm_rip_exec(bContext *C, wmOperator *op)
       scene, view_layer, CTX_wm_view3d(C));
   const bool do_fill = RNA_boolean_get(op->ptr, "use_fill");
 
+  float ray_origin[3], ray_dir[3];
+  RNA_float_get_array(op->ptr, "ray_origin", ray_origin);
+  RNA_float_get_array(op->ptr, "ray_dir", ray_dir);
+
+  ARegion *region = CTX_wm_region(C);
   float fmval[2];
-  RNA_float_get_array(op->ptr, "mval", fmval);
+  /* Project the 3D ray origin into 2D screen space to get the mouse position. */
+  ED_view3d_project_v2(region, ray_origin, fmval);
 
   bool no_vertex_selected = true;
   bool error_face_selected = true;
@@ -1129,8 +1135,16 @@ static wmOperatorStatus edbm_rip_exec(bContext *C, wmOperator *op)
 
 static wmOperatorStatus edbm_rip_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
+  ARegion *region = CTX_wm_region(C);
   const float mval[2] = {float(event->mval[0]), float(event->mval[1])};
-  RNA_float_set_array(op->ptr, "mval", mval);
+
+  float ray_origin[3], ray_dir[3];
+  /* Convert the 2D mouse position into a 3D ray. */
+  ED_view3d_win_to_ray(region, mval, ray_origin, ray_dir);
+
+  RNA_float_set_array(op->ptr, "ray_origin", ray_origin);
+  RNA_float_set_array(op->ptr, "ray_dir", ray_dir);
+
   return edbm_rip_exec(C, op);
 }
 
@@ -1157,15 +1171,27 @@ void MESH_OT_rip(wmOperatorType *ot)
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_MESH);
 
   prop = RNA_def_float_vector(ot->srna,
-                              "mval",
-                              2,
+                              "ray_origin",
+                              3,
                               nullptr,
                               -FLT_MAX,
                               FLT_MAX,
-                              "Mouse",
-                              "Mouse position in region space at invoke time",
+                              "Ray Origin",
+                              "Ray start position in 3D space at invoke time",
                               -10000.0f,
                               10000.0f);
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+
+  prop = RNA_def_float_vector(ot->srna,
+                              "ray_dir",
+                              3,
+                              nullptr,
+                              -FLT_MAX,
+                              FLT_MAX,
+                              "Ray Direction",
+                              "Ray direction in 3D space at invoke time",
+                              -1.0f,
+                              1.0f);
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
