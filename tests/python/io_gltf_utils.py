@@ -3,7 +3,6 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 import sys
 import pathlib
-from os.path import join, dirname, isfile, normpath
 import struct
 import json
 import numpy as np
@@ -15,7 +14,7 @@ sys.path.append(str(pathlib.Path(__file__).parent.absolute()))
 
 
 def gltf_generate_descr(output_datafile: pathlib.Path) -> str:
-    gltf = glTFDataExtractor(str(output_datafile))
+    gltf = glTFDataExtractor(output_datafile)
     gltf.load()
 
     text = ""
@@ -46,7 +45,7 @@ class glTFDataExtractor:
         self.accessors_data = []
 
     def load(self):
-        if not isfile(self.filepath):
+        if not self.filepath.is_file():
             raise FileNotFoundError(f"File not found: {self.filepath}")
 
         with open(self.filepath, 'rb') as f:
@@ -70,7 +69,7 @@ class glTFDataExtractor:
                         self.buffers.append(memoryview(base64.b64decode(data)))
                 else:
                     # External .bin file
-                    bin_path = join(dirname(self.filepath), uri_to_path(uri))
+                    bin_path = self.filepath.parent / uri_to_path(uri)
                     with open(bin_path, 'rb') as bf:
                         self.buffers.append(memoryview(bf.read()))
 
@@ -242,7 +241,8 @@ class DataType:
 def uri_to_path(uri):
     uri = uri.replace('\\', '/')  # Some files come with \\ as dir separator
     uri = unquote(uri)
-    return normpath(uri)
+    return pathlib.Path(uri)
+
 
 
 def convert_float(x):

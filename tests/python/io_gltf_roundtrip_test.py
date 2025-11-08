@@ -7,8 +7,6 @@ import unittest
 import tempfile
 
 import bpy
-from os.path import join, basename, dirname, isfile
-from os import remove, listdir
 
 sys.path.append(str(pathlib.Path(__file__).parent.absolute()))
 
@@ -46,19 +44,12 @@ class GLTFRoundtripTest(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as tmp_dir:
             for input_file in input_files:
-                with self.subTest(pathlib.Path(input_file).stem):
-                    output_filepath = pathlib.Path(join(tmp_dir, basename(input_file))).with_suffix('.gltf')
+                with self.subTest(input_file.stem):
+                    output_filepath = (pathlib.Path(tmp_dir) / input_file.name).with_suffix('.gltf')
                     bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "../../empty.blend"))
                     ok = report.generate_and_check(
                         input_file,
-                        lambda filepath,
-                        output_filenpath,
-                        params_import,
-                        params_export: do_gltf_roundtrip(
-                            filepath,
-                            str(output_filepath),
-                            params_import,
-                            params_export),
+                        do_gltf_roundtrip,
                         output_filepath=output_filepath)
                     if not ok:
                         self.fail(f"{input_file.stem} import result does not match expectations")
