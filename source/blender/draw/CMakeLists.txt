@@ -492,6 +492,7 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_nodetree_closures_lib.glsl
   engines/eevee/shaders/eevee_nodetree_frag_lib.glsl
   engines/eevee/shaders/eevee_nodetree_lib.glsl
+  engines/eevee/shaders/eevee_nodetree_type_lib.glsl
   engines/eevee/shaders/eevee_nodetree_vert_lib.glsl
   engines/eevee/shaders/eevee_occupancy_convert_frag.glsl
   engines/eevee/shaders/eevee_occupancy_lib.glsl

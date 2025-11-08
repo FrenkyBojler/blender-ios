@@ -945,6 +945,9 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
              << attr_load.str();
   }
 
+  info.generated_sources.append(
+      {"eevee_nodetree_type_lib.glsl", {}, info.typedef_source_generated});
+
   {
     const bool use_vertex_displacement = !codegen.displacement.empty() &&
                                          (displacement_type != MAT_DISPLACEMENT_BUMP) &&

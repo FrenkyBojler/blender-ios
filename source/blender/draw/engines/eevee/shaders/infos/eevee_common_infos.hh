@@ -14,6 +14,8 @@
 #  include "eevee_shadow_shared.hh"
 #  include "eevee_uniform_infos.hh"
 #  include "eevee_uniform_shared.hh"
+
+#  include "eevee_nodetree_type_lib.glsl"
 #endif
 
 #ifdef GLSL_CPP_STUBS
@@ -22,14 +24,6 @@
 #  define PLANAR_PROBES
 #  define MAT_RENDER_PASS_SUPPORT
 #  define SHADOW_READ_ATOMIC
-
-/* Stub for C++ compilation. */
-struct NodeTree {
-  float crypto_hash;
-  float _pad0;
-  float _pad1;
-  float _pad2;
-};
 #endif
 
 #include "eevee_defines.hh"
