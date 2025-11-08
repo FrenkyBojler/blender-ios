@@ -110,7 +110,7 @@ class glTFDataExtractor:
                     # One XXXpp group is one stride's worth of data.
                     assert stride % bytes_per_elem == 0
                     elems_per_stride = stride // bytes_per_elem
-                    num_elems = (accessor.get(count) - 1) * elems_per_stride + component_nb
+                    num_elems = (accessor.get('count') - 1) * elems_per_stride + component_nb
                     array = np.frombuffer(
                         buffer_data,
                         dtype=np.dtype(dtype).newbyteorder('<'),
@@ -153,7 +153,7 @@ class glTFDataExtractor:
         self.magic = content[:4]
         self.version, self.file_size = struct.unpack_from('<II', content, offset=4)
         if self.version != 2:
-            raise ImportError("GLB version must be 2; got %d" % version)
+            raise ImportError("GLB version must be 2; got %d" % self.version)
         if self.file_size != len(content):
             raise ImportError("Bad GLB: file size doesn't match")
 
