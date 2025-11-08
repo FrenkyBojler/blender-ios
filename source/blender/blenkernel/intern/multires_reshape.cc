@@ -160,33 +160,39 @@ static blender::MutableSpan<blender::float3> multires_get_delta_storage(Object &
 
 static void multires_clear_delta_storage(Object &object, const int level)
 {
+  CLOG_DEBUG(&LOG, "Removing storage at level %d", level);
   SculptSession &ss = *object.sculpt;
   ss.multires.runtime.disp_at_level[level - 1].clear_and_shrink();
+  ss.multires.runtime.positions_at_level[level - 1].clear_and_shrink();
 }
 
 static void multires_level_calc_object_delta(blender::Span<blender::float3> &old_positions,
-                                             blender::MutableSpan<blender::float3> object_delta)
+                                             blender::MutableSpan<blender::float3> object_delta,
+                                             blender::Span<bool> odd_vertices)
 {
-  /* TODO: Calculate object space delta for all vertices of higher_subdiv_ccg and store into
-   * object_delta */
   CLOG_DEBUG(&LOG, "(ELEM) SUBDIV - LIMIT = DELTA:");
   BLI_assert(old_positions.size() == object_delta.size());
   for (const int i : old_positions.index_range()) {
     const blender::float3 limit_surf_position = object_delta[i];
-    object_delta[i] = old_positions[i] - limit_surf_position;
-    CLOG_TRACE(&LOG,
-               "M - (%d) (%f %f %f) - (%f %f %f) = (%f %f %f) (%f)",
-               i,
-               old_positions[i].x,
-               old_positions[i].y,
-               old_positions[i].z,
-               limit_surf_position.x,
-               limit_surf_position.y,
-               limit_surf_position.z,
-               object_delta[i].x,
-               object_delta[i].y,
-               object_delta[i].z,
-               blender::math::length(object_delta[i]));
+    if (odd_vertices[i]) {
+      object_delta[i] = old_positions[i] - limit_surf_position;
+      CLOG_TRACE(&LOG,
+                 "M - (%d) (%f %f %f) - (%f %f %f) = (%f %f %f) (%f)",
+                 i,
+                 old_positions[i].x,
+                 old_positions[i].y,
+                 old_positions[i].z,
+                 limit_surf_position.x,
+                 limit_surf_position.y,
+                 limit_surf_position.z,
+                 object_delta[i].x,
+                 object_delta[i].y,
+                 object_delta[i].z,
+                 blender::math::length(object_delta[i]));
+    }
+    else {
+      object_delta[i] = blender::float3(0.0f);
+    }
   }
 }
 
@@ -202,7 +208,8 @@ static void multires_level_object_delta_to_tangent_delta(
 
 static void multires_copy_from_old_ccg(const SubdivCCG &higher_subdiv_ccg,
                                        blender::Span<blender::float3> old_positions,
-                                       SubdivCCG &subdiv_ccg)
+                                       SubdivCCG &subdiv_ccg,
+                                       blender::MutableSpan<bool> odd_vertices)
 {
   BLI_assert(higher_subdiv_ccg.positions.size() == old_positions.size());
   const float higher_grid_1 = higher_subdiv_ccg.grid_size - 1;
@@ -228,6 +235,31 @@ static void multires_copy_from_old_ccg(const SubdivCCG &higher_subdiv_ccg,
                    curr_idx);
 
         subdiv_ccg.positions[curr_idx] = old_positions[higher_idx];
+        odd_vertices[higher_idx] = false;
+      }
+    }
+  }
+}
+
+static void multires_copy_from_limit_surface(const SubdivCCG &higher_subdiv_ccg,
+                                             blender::Span<blender::float3> limit_surface_positions,
+                                             SubdivCCG &subdiv_ccg)
+{
+  BLI_assert(higher_subdiv_ccg.positions.size() == limit_surface_positions.size());
+  const float higher_grid_1 = higher_subdiv_ccg.grid_size - 1;
+  const float grid_1_inv = 1.0f / (subdiv_ccg.grid_size - 1);
+  for (const int i : blender::IndexRange(subdiv_ccg.grids_num)) {
+    for (const int y : blender::IndexRange(subdiv_ccg.grid_size)) {
+      for (const int x : blender::IndexRange(subdiv_ccg.grid_size)) {
+        blender::float2 uv(float(x) * grid_1_inv, float(y) * grid_1_inv);
+        const int new_x = (int)(uv.x * higher_grid_1);
+        const int new_y = (int)(uv.y * higher_grid_1);
+
+        const int curr_idx = i * subdiv_ccg.grid_area + y * subdiv_ccg.grid_size + x;
+        const int higher_idx = i * higher_subdiv_ccg.grid_area +
+                               new_y * higher_subdiv_ccg.grid_size + new_x;
+
+        subdiv_ccg.positions[curr_idx] = limit_surface_positions[higher_idx];
       }
     }
   }
@@ -250,7 +282,8 @@ bool multiresModifier_storeHigherLevelDelta(Object &object,
   CLOG_DEBUG(&LOG, "Retrieving old positions:");
   blender::Span<blender::float3> old_positions =
       object.sculpt->multires.runtime.positions_at_level[higher_subdiv_ccg.level - 1];
-  multires_copy_from_old_ccg(higher_subdiv_ccg, old_positions, subdiv_ccg);
+  blender::Array<bool> odd_vertices(old_positions.size(), true);
+  multires_copy_from_old_ccg(higher_subdiv_ccg, old_positions, subdiv_ccg, odd_vertices);
   /* At this point, the subdiv_ccg has the correct positions of M(n - 1) */
 
   blender::MutableSpan<blender::float3> delta_storage = multires_ensure_delta_storage(
@@ -287,8 +320,9 @@ bool multiresModifier_storeHigherLevelDelta(Object &object,
                delta_storage[i].z,
                blender::math::length(delta_storage[i]));
   }
+  multires_copy_from_limit_surface(higher_subdiv_ccg, delta_storage, subdiv_ccg);
   /* Delta = (MV - LV) * LMat */
-  multires_level_calc_object_delta(old_positions, delta_storage);
+  multires_level_calc_object_delta(old_positions, delta_storage, odd_vertices);
   CLOG_DEBUG(&LOG, "STORED HIGHER POS - LIMIT POS");
 
   multires_level_object_delta_to_tangent_delta(tmat_storage, delta_storage);
