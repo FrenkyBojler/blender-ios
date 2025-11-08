@@ -853,7 +853,7 @@ static void follow_segment_connections(const Span<Segment> all_segments,
 
       if (next_encoded == SEGMENT_CONNECTION_NULL) {
         curve_done = true;
-        curve_closed = false;
+        curve_closed = current_segment.is_loop();
         break;
       }
 
