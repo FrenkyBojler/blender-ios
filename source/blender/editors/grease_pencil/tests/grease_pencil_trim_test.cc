@@ -57,15 +57,6 @@ static void expect_near_positions(const blender::Span<float3> actual,
   }
 }
 
-static bke::CurvesGeometry trim_curve(const bke::CurvesGeometry &src,
-                                      const Span<float2> screen_space_positions,
-                                      const Span<int2> mcoords,
-                                      const bool keep_caps)
-{
-  return trim::trim_curve_segments(
-      src, screen_space_positions, mcoords, src.curves_range(), src.curves_range(), keep_caps);
-}
-
 TEST(grease_pencil_trim, trim_two_edges)
 {
   using namespace bke::greasepencil;
@@ -83,7 +74,8 @@ TEST(grease_pencil_trim, trim_two_edges)
                                                 {0.0f, 40.0f},
                                                 {60.0f, 40.0f}};
   const CurvesGeometry src = create_test_curves(src_offsets, screen_space_positions, src_cyclic);
-  const CurvesGeometry dst = trim_curve(src, screen_space_positions, mcoords, true);
+  const CurvesGeometry dst = trim::trim_curve_segments(
+      src, screen_space_positions, mcoords, src.curves_range(), src.curves_range(), true);
 
   const Array<float2> expected_positions = {{20.0f, 20.0f},
                                             {20.0f, 60.0f},
@@ -113,7 +105,8 @@ TEST(grease_pencil_trim, trim_plus_intersection)
                                                 {40.0f, 30.0f},
                                                 {60.0f, 30.0f}};
   const CurvesGeometry src = create_test_curves(src_offsets, screen_space_positions, src_cyclic);
-  const CurvesGeometry dst = trim_curve(src, screen_space_positions, mcoords, true);
+  const CurvesGeometry dst = trim::trim_curve_segments(
+      src, screen_space_positions, mcoords, src.curves_range(), src.curves_range(), true);
 
   const Array<float2> expected_positions = {{30.0f, 30.0f},
                                             {30.0f, 40.0f},
@@ -141,7 +134,8 @@ TEST(grease_pencil_trim, trim_t_intersection)
                                                 {40.0f, 30.0f},
                                                 {60.0f, 30.0f}};
   const CurvesGeometry src = create_test_curves(src_offsets, screen_space_positions, src_cyclic);
-  const CurvesGeometry dst = trim_curve(src, screen_space_positions, mcoords, true);
+  const CurvesGeometry dst = trim::trim_curve_segments(
+      src, screen_space_positions, mcoords, src.curves_range(), src.curves_range(), true);
 
   const Array<float2> expected_positions = {{30.0f, 0.0f},
                                             {30.0f, 20.0f},
@@ -169,7 +163,8 @@ TEST(grease_pencil_trim, trim_figure_eight)
                                                 {30.0f, 30.0f},
                                                 {20.0f, 10.0f}};
   const CurvesGeometry src = create_test_curves(src_offsets, screen_space_positions, src_cyclic);
-  const CurvesGeometry dst = trim_curve(src, screen_space_positions, mcoords, true);
+  const CurvesGeometry dst = trim::trim_curve_segments(
+      src, screen_space_positions, mcoords, src.curves_range(), src.curves_range(), true);
 
   const Array<float2> expected_positions = {{25.0f, 20.0f},
                                             {20.0f, 10.0f},
@@ -191,7 +186,8 @@ TEST(grease_pencil_trim, trim_no_geometry)
   const Array<float2> screen_space_positions = {
       {10.0f, 10.0f}, {50.0f, 10.0f}, {10.0f, 50.0f}, {50.0f, 50.0f}};
   const CurvesGeometry src = create_test_curves(src_offsets, screen_space_positions, src_cyclic);
-  const CurvesGeometry dst = trim_curve(src, screen_space_positions, mcoords, true);
+  const CurvesGeometry dst = trim::trim_curve_segments(
+      src, screen_space_positions, mcoords, src.curves_range(), src.curves_range(), true);
 
   const Array<float2> expected_positions = {
       {10.0f, 10.0f}, {50.0f, 10.0f}, {10.0f, 50.0f}, {50.0f, 50.0f}};
