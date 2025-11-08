@@ -244,7 +244,6 @@ def uri_to_path(uri):
     return pathlib.Path(uri)
 
 
-
 def convert_float(x):
     if abs(x) < 0.0005:
         return "0.000"
