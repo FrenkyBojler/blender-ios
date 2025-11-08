@@ -8,6 +8,8 @@ set(INC_GLSL
   ../intern
 
   # WORKAROUND: gpu_shader_fullscreen_vert.glsl needs infos from all the engines that use it.
+  ../../draw/engines/eevee/shaders/infos
+  ../../draw/engines/gpencil/shaders/infos
   ../../draw/engines/workbench/shaders/infos
   ../../draw/engines/overlay/shaders/infos
 

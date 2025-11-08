@@ -7,6 +7,10 @@
 VERTEX_SHADER_CREATE_INFO(gpu_fullscreen)
 
 /* WORKAROUND: gpu_shader_fullscreen_vert.glsl needs infos from all the engines that use it. */
+#include "eevee_deferred_infos.hh"
+#include "eevee_film_infos.hh"
+#include "eevee_volume_infos.hh"
+#include "gpencil_vfx_infos.hh"
 #include "overlay_common_infos.hh"
 #include "workbench_composite_infos.hh"
 #include "workbench_effect_outline_infos.hh"
