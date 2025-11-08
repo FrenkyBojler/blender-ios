@@ -27,7 +27,6 @@
 namespace blender::ed::greasepencil::trim {
 
 enum Side : uint8_t { Start = 0, End = 1 };
-enum Distance : uint8_t { Min = 0, Max = 1 };
 
 /* When looking for intersections, we need a little padding, otherwise we could miss curves
  * that intersect for the eye, but not in hard numbers. */
