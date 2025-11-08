@@ -671,12 +671,19 @@ static struct IMBThumbLocks {
   GSet *locked_paths;
   int lock_counter;
   ThreadCondition cond;
-} thumb_locks = {nullptr};
+};
+
+static IMBThumbLocks &get_thumb_locks()
+{
+  static IMBThumbLocks thumb_locks{};
+  return thumb_locks;
+}
 
 void IMB_thumb_locks_acquire()
 {
   BLI_thread_lock(LOCK_IMAGE);
 
+  IMBThumbLocks &thumb_locks = get_thumb_locks();
   if (thumb_locks.lock_counter == 0) {
     BLI_assert(thumb_locks.locked_paths == nullptr);
     thumb_locks.locked_paths = BLI_gset_str_new(__func__);
@@ -691,6 +698,7 @@ void IMB_thumb_locks_acquire()
 
 void IMB_thumb_locks_release()
 {
+  IMBThumbLocks &thumb_locks = get_thumb_locks();
   BLI_thread_lock(LOCK_IMAGE);
   BLI_assert((thumb_locks.locked_paths != nullptr) && (thumb_locks.lock_counter > 0));
 
@@ -706,6 +714,7 @@ void IMB_thumb_locks_release()
 
 void IMB_thumb_path_lock(const char *path)
 {
+  IMBThumbLocks &thumb_locks = get_thumb_locks();
   void *key = BLI_strdup(path);
 
   BLI_thread_lock(LOCK_IMAGE);
@@ -722,6 +731,7 @@ void IMB_thumb_path_lock(const char *path)
 
 void IMB_thumb_path_unlock(const char *path)
 {
+  IMBThumbLocks &thumb_locks = get_thumb_locks();
   const void *key = path;
 
   BLI_thread_lock(LOCK_IMAGE);
