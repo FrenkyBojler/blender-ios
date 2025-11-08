@@ -729,7 +729,7 @@ using SegmentConnections = VecBase<EncodedConnection, 2>;
 
 static void create_connections_from_curves(const Span<IndexRange> segments_by_curve,
                                            const Span<bool> segments_to_keep,
-                                           const VArray<bool> is_cyclic,
+                                           const VArray<bool> &is_cyclic,
                                            MutableSpan<SegmentConnections> segment_connections)
 {
 
@@ -890,8 +890,8 @@ static void follow_segment_connections(const Span<Segment> all_segments,
   }
 }
 
-static bool check_line_segment_lasso_intersection(const int2 pos_a,
-                                                  const int2 pos_b,
+static bool check_line_segment_lasso_intersection(const int2 &pos_a,
+                                                  const int2 &pos_b,
                                                   const Span<int2> mcoords)
 {
   rcti bbox_ab;
