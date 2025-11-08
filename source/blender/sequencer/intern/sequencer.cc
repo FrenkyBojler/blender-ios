@@ -496,14 +496,14 @@ struct StripDuplicateContext {
 
   /* Sources of newly created datablocks when duplicating strips.
    * Processed with `seq_duplicate_postprocess`. */
-  blender::Set<Scene *> scenes;
-  blender::Set<MovieClip *> movieclips;
-  blender::Set<Mask *> masks;
+  Set<Scene *> scenes;
+  Set<MovieClip *> movieclips;
+  Set<Mask *> masks;
 };
 
 static void seq_duplicate_postprocess(Main *bmain,
                                       StripDuplicateContext &ctx,
-                                      blender::Map<Strip *, Strip *> &strip_map,
+                                      Map<Strip *, Strip *> &strip_map,
                                       const StripDuplicate dupe_flag)
 {
   const int remap_flag = ID_REMAP_FORCE_OBDATA_IN_EDITMODE | ID_REMAP_SKIP_USER_CLEAR;

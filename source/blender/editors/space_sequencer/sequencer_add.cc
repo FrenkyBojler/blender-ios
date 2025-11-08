@@ -65,10 +65,6 @@
 #include "UI_interface_layout.hh"
 #include "UI_view2d.hh"
 
-#ifdef WITH_AUDASPACE
-#  include <AUD_Sequence.h>
-#endif
-
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
 
