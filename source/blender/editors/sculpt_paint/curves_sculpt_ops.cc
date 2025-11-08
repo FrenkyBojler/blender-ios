@@ -128,9 +128,9 @@ static std::unique_ptr<CurvesSculptStrokeOperation> start_brush_operation(
   const CurvesSculpt &curves_sculpt = *scene.toolsettings->curves_sculpt;
   const Brush &brush = *BKE_paint_brush_for_read(&curves_sculpt.paint);
   
-  const auto brush_type = (mode == BRUSH_STROKE_SMOOTH) ?
-                             CURVES_SCULPT_BRUSH_TYPE_SMOOTH :
-                             brush.curves_sculpt_brush_type;
+  const eBrushCurvesSculptType brush_type = (mode == BRUSH_STROKE_SMOOTH) ?
+                                                CURVES_SCULPT_BRUSH_TYPE_SMOOTH :
+                                                eBrushCurvesSculptType(brush.curves_sculpt_brush_type);
   
   switch (brush_type) {
     case CURVES_SCULPT_BRUSH_TYPE_COMB:
