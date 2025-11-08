@@ -7,6 +7,10 @@ set(INC_GLSL
   ..
   ../intern
 
+  # WORKAROUND: gpu_shader_fullscreen_vert.glsl needs infos from all the engines that use it.
+  ../../draw/engines/workbench/shaders/infos
+  ../../draw/engines/overlay/shaders/infos
+
   common
   infos
 )

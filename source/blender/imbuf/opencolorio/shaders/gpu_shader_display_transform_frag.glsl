@@ -4,6 +4,8 @@
 
 /* Blender OpenColorIO implementation */
 
+#include "ocio_shader_shared.hh"
+
 /* -------------------------------------------------------------------- */
 /** \name Hardcoded color space conversion for fallback implementation
  *

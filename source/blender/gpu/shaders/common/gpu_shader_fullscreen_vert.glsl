@@ -6,6 +6,11 @@
 
 VERTEX_SHADER_CREATE_INFO(gpu_fullscreen)
 
+/* WORKAROUND: gpu_shader_fullscreen_vert.glsl needs infos from all the engines that use it. */
+#include "overlay_common_infos.hh"
+#include "workbench_composite_infos.hh"
+#include "workbench_effect_outline_infos.hh"
+
 void main()
 {
   int v = gl_VertexID % 3;
