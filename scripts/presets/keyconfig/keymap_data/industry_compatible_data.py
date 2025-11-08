@@ -63,6 +63,13 @@ def op_tool(tool, kmi_args):
 def op_tool_cycle(tool, kmi_args):
     return ("wm.tool_set_by_id", kmi_args, {"properties": [("name", tool), ("cycle", True)]})
 
+# Utility to select between an operator and a tool,
+# without having to duplicate key map item arguments.
+def op_tool_optional(op_args, tool_pair, params):
+    kmi_args = op_args[1]
+    op_tool_fn, tool_id = tool_pair
+    return op_tool_fn(tool_id, kmi_args)
+    return op_args
 
 # ------------------------------------------------------------------------------
 # Keymap Templates
@@ -2252,6 +2259,33 @@ def km_spreadsheet_generic(_params):
     return keymap
 
 # ------------------------------------------------------------------------------
+# Grease Pencil
+
+def km_grease_pencil_edit_mode(params, blender_default):
+    items = []
+    keymap = (
+        "Grease Pencil Edit Mode",
+        {"space_type": 'EMPTY', "region_type": 'WINDOW'},
+        {"items": items},
+    )
+
+    items.extend([
+        *_template_items_basic_tools(),
+    ])
+
+    if blender_default is not None:
+        existing_items = {i[0] for i in items}
+
+        # Mapped items from blender_default
+        blender_default_keymap = next(km for km in blender_default if km[0] == "Grease Pencil Edit Mode")
+        blender_default_keymap_items = blender_default_keymap[2].get("items", [])
+
+        items.extend([i for i in blender_default_keymap_items if i[0] not in existing_items])
+        
+    return keymap
+
+
+# ------------------------------------------------------------------------------
 # Animation
 
 
@@ -3743,7 +3777,7 @@ def km_generic_gizmo_maybe_drag(params):
 # ------------------------------------------------------------------------------
 # Full Configuration
 
-def generate_keymaps_impl(params=None):
+def generate_keymaps_impl(params=None, blender_default=None):
     if params is None:
         params = Params()
     return [
@@ -3791,6 +3825,9 @@ def generate_keymaps_impl(params=None):
         km_clip_graph_editor(params),
         km_clip_dopesheet_editor(params),
         km_spreadsheet_generic(params),
+
+        # Grease Pencil
+        km_grease_pencil_edit_mode(params, blender_default),
 
         # Animation.
         km_frames(params),
@@ -3882,7 +3919,6 @@ def keymap_transform_tool_mmb(keymap):
 def generate_keymaps(params=None):
     import os
     from bpy.utils import execfile
-    keymap = generate_keymaps_impl(params)
 
     # Combine the key-map to support manipulating it, so we don't need to manually
     # define key-map here just to manipulate them.
@@ -3897,6 +3933,8 @@ def generate_keymaps(params=None):
             use_fallback_tool=True,
         ),
     )
+    
+    keymap = generate_keymaps_impl(params, blender_default)
 
     keymap_existing_names = {km[0] for km in keymap}
     keymap.extend([km for km in blender_default if km[0] not in keymap_existing_names])
