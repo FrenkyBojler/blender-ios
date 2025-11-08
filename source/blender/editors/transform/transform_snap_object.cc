@@ -1481,7 +1481,7 @@ eSnapMode snap_object_project_view3d_ex(SnapObjectContext *sctx,
     }
 
     /* `snapObjectsRay` does 'Snap to Edge' instead of 'Snap to Edge Midpoint' or 'Snap to Edge
-     * Perpendicular'. These points will be tested in the `snap_edge_points` function.  */
+     * Perpendicular'. These points will be tested in the `snap_edge_points` function. */
     elem_test = snapObjectsRay(sctx);
     if (elem_test != SCE_SNAP_TO_NONE) {
       elem = elem_test;
