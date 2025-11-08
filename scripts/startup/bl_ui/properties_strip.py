@@ -843,47 +843,48 @@ class STRIP_PT_adjust_sound(StripButtonsPanel, Panel):
             split.label(text="Volume", text_ctxt=i18n_contexts.id_sound)
             split.prop(strip, "volume", text="")
 
-            # layout.use_property_split = False
-            # col = layout.column()
+        if sound is not None:
+            layout.use_property_split = False
+            col = layout.column()
 
-            # split = col.split(factor=0.4)
-            # split.label(text="")
-            # split.prop(sound, "use_mono")
+            split = col.split(factor=0.4)
+            split.label(text="")
+            split.prop(sound, "use_mono")
 
-            # layout.use_property_split = True
-            # col = layout.column()
+            layout.use_property_split = True
+            col = layout.column()
 
-            # audio_channels = context.sequencer_scene.render.ffmpeg.audio_channels
-            # pan_enabled = sound.use_mono and audio_channels != 'MONO'
-            # pan_text = "{:.2f}°".format(strip.pan * 90.0)
+            audio_channels = context.sequencer_scene.render.ffmpeg.audio_channels
+            pan_enabled = sound.use_mono and audio_channels != 'MONO'
+            pan_text = "{:.2f}°".format(strip.pan * 90.0)
 
-            # split = col.split(factor=0.4)
-            # split.alignment = 'RIGHT'
-            # split.label(text="Pan", text_ctxt=i18n_contexts.id_sound)
-            # split.prop(strip, "pan", text="")
-            # split.enabled = pan_enabled
+            split = col.split(factor=0.4)
+            split.alignment = 'RIGHT'
+            split.label(text="Pan", text_ctxt=i18n_contexts.id_sound)
+            split.prop(strip, "pan", text="")
+            split.enabled = pan_enabled
 
-            # if audio_channels not in {'MONO', 'STEREO'}:
-            #     split = col.split(factor=0.4)
-            #     split.alignment = 'RIGHT'
-            #     split.label(text="Pan Angle")
-            #     split.enabled = pan_enabled
-            #     subsplit = split.row()
-            #     subsplit.alignment = 'CENTER'
-            #     subsplit.label(text=pan_text)
-            #     subsplit.label(text=" ")  # Compensate for no decorate.
-            #     subsplit.enabled = pan_enabled
+            if audio_channels not in {'MONO', 'STEREO'}:
+                split = col.split(factor=0.4)
+                split.alignment = 'RIGHT'
+                split.label(text="Pan Angle")
+                split.enabled = pan_enabled
+                subsplit = split.row()
+                subsplit.alignment = 'CENTER'
+                subsplit.label(text=pan_text)
+                subsplit.label(text=" ")  # Compensate for no decorate.
+                subsplit.enabled = pan_enabled
 
-            # layout.use_property_split = False
-            # col = layout.column()
+            layout.use_property_split = False
+            col = layout.column()
 
-            # split = col.split(factor=0.4)
-            # split.label(text="")
-            # split.prop(strip, "pitch_correction")
+            split = col.split(factor=0.4)
+            split.label(text="")
+            split.prop(strip, "pitch_correction")
 
-            # split = col.split(factor=0.4)
-            # split.label(text="")
-            # split.prop(strip, "show_waveform")
+            split = col.split(factor=0.4)
+            split.label(text="")
+            split.prop(strip, "show_waveform")
 
 
 class STRIP_PT_adjust_comp(StripButtonsPanel, Panel):
