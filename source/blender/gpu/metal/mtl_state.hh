@@ -79,7 +79,6 @@ class MTLStateManager : public StateManager {
 
   /* METAL State utility functions. */
   void mtl_state_init();
-  void mtl_depth_range(float near, float far);
   void mtl_stencil_mask(uint mask);
   void mtl_stencil_set_func(GPUStencilTest stencil_func, int ref, uint mask);
   void mtl_clip_plane_enable(uint i);
@@ -99,7 +98,7 @@ class MTLFence : public Fence {
   uint64_t last_signalled_value_ = 0;
 
  public:
-  MTLFence() : Fence(){};
+  MTLFence() : Fence() {};
   ~MTLFence() override;
 
   void signal() override;

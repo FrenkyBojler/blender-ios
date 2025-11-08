@@ -121,6 +121,10 @@ if(WITH_UI_TESTS)
       # while this could be investigated, use windowed mode instead.
       # Use a window size that balances software GPU rendering with enough room to use the UI.
       --factory-startup
+      # Used so GHOST/Wayland doesn't attempt to load LIBDECOR
+      # which can fail on some systems, causing tests to fail.
+      # On other systems this is harmless.
+      --no-window-frame
       -p 0 0 800 600
       "${EXE_PARAMS}"
       "${ARGN}"
@@ -348,16 +352,12 @@ if(TEST_SRC_DIR_EXISTS)
     --output-dir ${TEST_OUT_DIR}/blendfile_io/
   )
 
-# This test is intermittently failing. Disable it for now to avoid other work
-# being incorrectly flagged as broken. Once issue #146221 is resolved this
-# test must be re-enabled.
-#
-#  add_blender_test(
-#    blendfile_library_overrides
-#    --python ${CMAKE_CURRENT_LIST_DIR}/bl_blendfile_library_overrides.py --
-#    --output-dir ${TEST_OUT_DIR}/blendfile_io/
-#    --test-dir "${TEST_SRC_DIR}/libraries_and_linking"
-#  )
+  add_blender_test(
+    blendfile_library_overrides
+    --python ${CMAKE_CURRENT_LIST_DIR}/bl_blendfile_library_overrides.py --
+    --output-dir ${TEST_OUT_DIR}/blendfile_io/
+    --test-dir "${TEST_SRC_DIR}/libraries_and_linking"
+  )
 
   add_blender_test(
     blendfile_header
@@ -412,6 +412,18 @@ if(TEST_SRC_DIR_EXISTS)
   add_blender_test(
     mesh_join
     --python ${TEST_PYTHON_DIR}/mesh_join.py
+  )
+
+  add_blender_test_allow_error(
+    mesh_validate
+    --python ${TEST_PYTHON_DIR}/mesh_validate.py
+    --
+    --testdir "${TEST_SRC_DIR}"
+  )
+
+  add_blender_test(
+    object_edit
+    --python ${TEST_PYTHON_DIR}/object_edit.py
   )
 
   add_blender_test(
@@ -605,6 +617,13 @@ if(TEST_SRC_DIR_EXISTS)
   add_blender_test(
     bl_rigging_symmetrize
     --python ${CMAKE_CURRENT_LIST_DIR}/bl_rigging_symmetrize.py
+    --
+    --testdir "${TEST_SRC_DIR}/animation"
+  )
+
+  add_blender_test(
+    vertex_group_painting
+    --python ${CMAKE_CURRENT_LIST_DIR}/vertex_group_painting.py
     --
     --testdir "${TEST_SRC_DIR}/animation"
   )
@@ -1103,7 +1122,7 @@ if(TEST_SRC_DIR_EXISTS)
   endif()
 
   if(WITH_OPENSUBDIV)
-    list(APPEND geo_node_tests mesh/subdivision_tests)
+    list(APPEND geo_node_tests mesh/subdivision)
   endif()
 
   foreach(geo_node_test ${geo_node_tests})
@@ -1181,6 +1200,7 @@ if(WITH_ALEMBIC AND TEST_SRC_DIR_EXISTS)
     --python ${CMAKE_CURRENT_LIST_DIR}/bl_alembic_io_test.py
     --
     --testdir "${TEST_SRC_DIR}/alembic"
+    --outdir "${TEST_OUT_DIR}/io_alembic"
   )
 endif()
 
