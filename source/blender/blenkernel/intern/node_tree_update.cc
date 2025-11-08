@@ -636,7 +636,7 @@ class NodeTreeMainUpdater {
         else if (node->is_undefined()) {
           /* If a node has become undefined (it generally was unregistered from Python), it does
            * not have a declaration anymore. */
-          delete node->runtime->declaration;
+          node->runtime->declaration.reset();
           node->runtime->declaration = nullptr;
           LISTBASE_FOREACH (bNodeSocket *, socket, &node->inputs) {
             socket->runtime->declaration = nullptr;

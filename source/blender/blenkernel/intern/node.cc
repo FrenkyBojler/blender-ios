@@ -168,6 +168,14 @@ static void ntree_copy_data(Main * /*bmain*/,
     bNode *new_node = node_copy_with_mapping(
         ntree_dst, *src_node, flag_subdata, src_node->name, src_node->identifier, socket_map);
     new_node->runtime->index_in_tree = i;
+
+    if (src_node->runtime->declaration) {
+      new_node->runtime->declaration = src_node->runtime->declaration;
+      node_socket_declarations_update(new_node);
+    }
+    else {
+      node_declaration_ensure(*ntree_dst, *new_node);
+    }
   }
 
   /* copy links */
@@ -188,10 +196,6 @@ static void ntree_copy_data(Main * /*bmain*/,
     if (node->parent) {
       node->parent = dst_runtime.nodes_by_id.lookup_key_as(node->parent->identifier);
     }
-  }
-
-  for (bNode *node : ntree_dst->all_nodes()) {
-    node_declaration_ensure(*ntree_dst, *node);
   }
 
   ntree_dst->tree_interface.copy_data(ntree_src->tree_interface, flag);
@@ -2404,8 +2408,7 @@ static void node_free_type(void *nodetype_v)
 
   /* Setting this to null is necessary for the case of static node types. When running tests,
    * they may be registered and unregistered multiple times. */
-  delete nodetype->static_declaration;
-  nodetype->static_declaration = nullptr;
+  nodetype->static_declaration.reset();
 
   /* Defer freeing the node type, because it may still be referenced by nodes in depsgraph
    * copies. We can't just remove these node types, because the depsgraph may exist completely
@@ -2427,7 +2430,7 @@ void node_register_type(bNodeType &nt)
   }
 
   if (nt.declare) {
-    nt.static_declaration = new nodes::NodeDeclaration();
+    nt.static_declaration = std::make_shared<nodes::NodeDeclaration>();
     nodes::build_node_declaration(nt, *nt.static_declaration, nullptr, nullptr);
   }
 
@@ -4351,14 +4354,6 @@ void node_free_node(bNodeTree *ntree, bNode &node)
     /* Remember, no ID user refcount management here! */
     IDP_FreePropertyContent_ex(node.system_properties, false);
     MEM_freeN(node.system_properties);
-  }
-
-  if (node.runtime->declaration) {
-    /* Only free if this declaration is not shared with the node type, which can happen if it does
-     * not depend on any context. */
-    if (node.runtime->declaration != node.typeinfo->static_declaration) {
-      delete node.runtime->declaration;
-    }
   }
 
   MEM_delete(node.runtime);

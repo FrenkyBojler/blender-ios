@@ -356,12 +356,8 @@ class bNodeRuntime : NonCopyable, NonMovable {
    * The declaration of a node can be recreated at any time when it is used. Caching it here is
    * just a bit more efficient when it is used a lot. To make sure that the cache is up-to-date,
    * call #node_declaration_ensure before using it.
-   *
-   * Currently, the declaration is the same for every node of the same type. Going forward, that is
-   * intended to change though. Especially when nodes become more dynamic with respect to how many
-   * sockets they have.
    */
-  nodes::NodeDeclaration *declaration = nullptr;
+  std::shared_ptr<nodes::NodeDeclaration> declaration;
 
   /** #eNodeTreeChangedFlag. */
   uint32_t changed_flag = 0;
@@ -938,7 +934,7 @@ inline blender::Span<bNode *> bNode::direct_children_in_frame() const
 
 inline const blender::nodes::NodeDeclaration *bNode::declaration() const
 {
-  return this->runtime->declaration;
+  return this->runtime->declaration.get();
 }
 
 inline blender::Span<bNodePanelState> bNode::panel_states() const
