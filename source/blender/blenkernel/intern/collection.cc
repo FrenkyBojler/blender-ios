@@ -2562,8 +2562,7 @@ void BKE_scene_objects_iterator_end(BLI_Iterator *iter)
   }
 }
 
-blender::Set<Object *> *BKE_scene_objects_as_gset(Scene *scene,
-                                                  blender::Set<Object *> *objects_set)
+blender::Set<Object *> *BKE_scene_objects_as_set(Scene *scene, blender::Set<Object *> *objects_set)
 {
   BLI_Iterator iter;
   scene_objects_iterator_begin(&iter, scene, objects_set);

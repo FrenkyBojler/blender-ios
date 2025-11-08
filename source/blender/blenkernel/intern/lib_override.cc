@@ -1491,7 +1491,7 @@ static void lib_override_library_create_post_process(Main *bmain,
   /* We create a set of all objects referenced into the scene by its hierarchy of collections.
    * NOTE: This is different that the list of bases, since objects in excluded collections etc.
    * won't have a base, but are still considered as instanced from our point of view. */
-  blender::Set<Object *> *all_objects_in_scene = BKE_scene_objects_as_gset(scene, nullptr);
+  blender::Set<Object *> *all_objects_in_scene = BKE_scene_objects_as_set(scene, nullptr);
 
   if (is_resync || id_root == nullptr || id_root->newid == nullptr) {
     /* Instantiating the root collection or object should never be needed in resync case, since the
@@ -1536,7 +1536,7 @@ static void lib_override_library_create_post_process(Main *bmain,
 
         BLI_assert(BKE_collection_is_in_scene(collection_new));
 
-        all_objects_in_scene = BKE_scene_objects_as_gset(scene, all_objects_in_scene);
+        all_objects_in_scene = BKE_scene_objects_as_set(scene, all_objects_in_scene);
         break;
       }
       case ID_OB: {
@@ -1544,7 +1544,7 @@ static void lib_override_library_create_post_process(Main *bmain,
         if (!all_objects_in_scene->contains(ob_new)) {
           BKE_collection_object_add_from(
               bmain, scene, reinterpret_cast<Object *>(id_root), ob_new);
-          all_objects_in_scene = BKE_scene_objects_as_gset(scene, all_objects_in_scene);
+          all_objects_in_scene = BKE_scene_objects_as_set(scene, all_objects_in_scene);
         }
         break;
       }
