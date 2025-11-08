@@ -914,6 +914,8 @@ void VolumeManager::initialize_octree(const Scene *scene, Progress &progress)
           vdb_map_[{geom, shader}] = mesh_to_sdf_grid(mesh, shader, 1.0f);
         }
       }
+#else
+      (void)progress;
 #endif
     }
   }
@@ -1102,7 +1104,9 @@ void VolumeManager::update_step_size(const Scene *scene, DeviceScene *dscene) co
 {
   assert(scene->integrator->get_volume_ray_marching());
 
-  if (!dscene->volume_step_size.is_modified() && last_algorithm == RAY_MARCHING) {
+  if (!dscene->volume_step_size.is_modified() &&
+      !scene->integrator->volume_step_rate_is_modified() && last_algorithm == RAY_MARCHING)
+  {
     return;
   }
 

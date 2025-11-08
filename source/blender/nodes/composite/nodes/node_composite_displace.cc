@@ -29,12 +29,14 @@ namespace blender::nodes::node_composite_displace_cc {
 static void cmp_node_displace_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
-
-  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
+  b.allow_any_socket_order();
 
   b.add_input<decl::Color>("Image")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
+      .hide_value()
       .structure_type(StructureType::Dynamic);
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic).align_with_previous();
+
   b.add_input<decl::Vector>("Displacement")
       .dimensions(2)
       .default_value({0.0f, 0.0f})
@@ -172,7 +174,7 @@ class DisplaceOperation : public NodeOperation {
       const float2 coordinates = this->compute_coordinates(base_texel, size, displacement);
       output.store_pixel(
           base_texel,
-          image.sample(coordinates, interpolation, extension_mode_x, extension_mode_y));
+          image.sample<Color>(coordinates, interpolation, extension_mode_x, extension_mode_y));
     });
   }
 
@@ -222,7 +224,8 @@ class DisplaceOperation : public NodeOperation {
                                            const float2 &y_gradient) {
         /* Sample the input using the displaced coordinates passing in the computed gradients in
          * order to utilize the anisotropic filtering capabilities of the sampler. */
-        output.store_pixel(texel, image.sample_ewa_zero(coordinates, x_gradient, y_gradient));
+        output.store_pixel(texel,
+                           Color(image.sample_ewa_zero(coordinates, x_gradient, y_gradient)));
       };
 
       compute_anisotropic_pixel(

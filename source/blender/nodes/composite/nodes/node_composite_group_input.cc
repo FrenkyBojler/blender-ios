@@ -30,7 +30,6 @@ class GroupInputOperation : public NodeOperation {
 
   void execute() override
   {
-    const Scene &scene = this->context().get_scene();
     for (const bNodeSocket *output : this->node()->output_sockets()) {
       if (!is_socket_available(output)) {
         continue;
@@ -41,9 +40,7 @@ class GroupInputOperation : public NodeOperation {
         continue;
       }
 
-      this->context().populate_meta_data_for_pass(&scene, 0, output->name, result.meta_data);
-
-      const Result pass = this->context().get_input(&scene, 0, output->name);
+      const Result pass = this->context().get_input(output->name);
       this->execute_pass(pass, result);
     }
   }
@@ -70,6 +67,7 @@ class GroupInputOperation : public NodeOperation {
     else {
       this->execute_pass_cpu(pass, result);
     }
+    result.set_transformation(pass.domain().transformation);
   }
 
   void execute_pass_gpu(const Result &pass, Result &result)
@@ -128,9 +126,12 @@ class GroupInputOperation : public NodeOperation {
      * compositing region into an appropriately sized result. */
     const int2 lower_bound = this->context().get_compositing_region().min;
 
-    result.allocate_texture(Domain(this->context().get_compositing_region_size()));
+    const int2 size = this->context().use_context_bounds_for_input_output() ?
+                          this->context().get_compositing_region_size() :
+                          pass.domain().size;
+    result.allocate_texture(size);
 
-    parallel_for(result.domain().size, [&](const int2 texel) {
+    parallel_for(size, [&](const int2 texel) {
       result.store_pixel_generic_type(texel, pass.load_pixel_generic_type(texel + lower_bound));
     });
   }

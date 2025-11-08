@@ -3,7 +3,9 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_array_utils.hh"
+
 #include "node_geometry_util.hh"
+#include "shader/node_shader_util.hh"
 
 #include "DNA_node_types.h"
 
@@ -25,6 +27,7 @@
 #include "RNA_enum_types.hh"
 #include "RNA_prototypes.hh"
 
+#include "BKE_node_tree_reference_lifetimes.hh"
 #include "BKE_screen.hh"
 
 #include "WM_api.hh"
@@ -70,8 +73,11 @@ static void node_declare(blender::nodes::NodeDeclarationBuilder &b)
   if (supports_fields) {
     output.dependent_field().reference_pass_all();
   }
-  else if (data_type == SOCK_GEOMETRY) {
+  if (bke::node_tree_reference_lifetimes::can_contain_referenced_data(data_type)) {
     output.propagate_all();
+  }
+  if (bke::node_tree_reference_lifetimes::can_contain_reference(data_type)) {
+    output.reference_pass_all();
   }
   output.structure_type(value_structure_type);
 
@@ -553,7 +559,7 @@ static void register_node()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_cmp_node_type_base(&ntype, "GeometryNodeMenuSwitch", GEO_NODE_MENU_SWITCH);
+  common_node_type_base(&ntype, "GeometryNodeMenuSwitch", GEO_NODE_MENU_SWITCH);
   ntype.ui_name = "Menu Switch";
   ntype.ui_description = "Select from multiple inputs by name";
   ntype.enum_name_legacy = "MENU_SWITCH";

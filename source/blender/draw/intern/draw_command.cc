@@ -291,7 +291,7 @@ void Clear::execute() const
 void ClearMulti::execute() const
 {
   gpu::FrameBuffer *fb = GPU_framebuffer_active_get();
-  GPU_framebuffer_multi_clear(fb, (const float(*)[4])colors);
+  GPU_framebuffer_multi_clear(fb, (const float (*)[4])colors);
 }
 
 void StateSet::execute(RecordingState &recording_state) const
@@ -327,17 +327,6 @@ void StateSet::execute(RecordingState &recording_state) const
 
   /* TODO: this should be part of shader state. */
   GPU_clip_distances(recording_state.clip_plane_count);
-
-  if (new_state & DRW_STATE_IN_FRONT_SELECT) {
-    /* XXX `GPU_depth_range` is not a perfect solution
-     * since very distant geometries can still be occluded.
-     * Also the depth test precision of these geometries is impaired.
-     * However, it solves the selection for the vast majority of cases. */
-    GPU_depth_range(0.0f, 0.01f);
-  }
-  else {
-    GPU_depth_range(0.0f, 1.0f);
-  }
 
   if (new_state & DRW_STATE_PROGRAM_POINT_SIZE) {
     GPU_program_point_size(true);
