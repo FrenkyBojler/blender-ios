@@ -20,21 +20,15 @@
 
 namespace blender::nodes {
 
-static void reset_declaration(NodeDeclaration &declaration)
+std::shared_ptr<const NodeDeclaration> build_node_declaration(const bke::bNodeType &typeinfo,
+                                                              const bNodeTree *ntree,
+                                                              const bNode *node)
 {
-  std::destroy_at(&declaration);
-  new (&declaration) NodeDeclaration();
-}
-
-void build_node_declaration(const bke::bNodeType &typeinfo,
-                            NodeDeclaration &r_declaration,
-                            const bNodeTree *ntree,
-                            const bNode *node)
-{
-  reset_declaration(r_declaration);
-  NodeDeclarationBuilder node_decl_builder{typeinfo, r_declaration, ntree, node};
+  auto node_decl = std::make_shared<NodeDeclaration>();
+  NodeDeclarationBuilder node_decl_builder{typeinfo, *node_decl, ntree, node};
   typeinfo.declare(node_decl_builder);
   node_decl_builder.finalize();
+  return node_decl;
 }
 
 void NodeDeclarationBuilder::build_remaining_anonymous_attribute_relations()

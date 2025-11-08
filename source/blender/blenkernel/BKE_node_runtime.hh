@@ -357,7 +357,7 @@ class bNodeRuntime : NonCopyable, NonMovable {
    * just a bit more efficient when it is used a lot. To make sure that the cache is up-to-date,
    * call #node_declaration_ensure before using it.
    */
-  std::shared_ptr<nodes::NodeDeclaration> declaration;
+  std::shared_ptr<const nodes::NodeDeclaration> declaration;
 
   /** #eNodeTreeChangedFlag. */
   uint32_t changed_flag = 0;

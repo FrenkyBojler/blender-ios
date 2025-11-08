@@ -497,7 +497,7 @@ static void refresh_node_sockets_and_panels(bNodeTree &ntree,
 
 static void refresh_node(bNodeTree &ntree,
                          bNode &node,
-                         blender::nodes::NodeDeclaration &node_decl,
+                         const blender::nodes::NodeDeclaration &node_decl,
                          bool do_id_user)
 {
   if (node_decl.skip_updating_sockets) {
@@ -513,10 +513,7 @@ void update_node_declaration_and_sockets(bNodeTree &ntree, bNode &node)
 {
   if (node.typeinfo->declare) {
     if (node.typeinfo->static_declaration->is_context_dependent) {
-      if (!node.runtime->declaration) {
-        node.runtime->declaration = std::make_shared<NodeDeclaration>();
-      }
-      build_node_declaration(*node.typeinfo, *node.runtime->declaration, &ntree, &node);
+      node.runtime->declaration = build_node_declaration(*node.typeinfo, &ntree, &node);
     }
   }
   refresh_node(ntree, node, *node.runtime->declaration, true);

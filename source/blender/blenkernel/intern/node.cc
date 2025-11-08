@@ -2430,8 +2430,7 @@ void node_register_type(bNodeType &nt)
   }
 
   if (nt.declare) {
-    nt.static_declaration = std::make_shared<nodes::NodeDeclaration>();
-    nodes::build_node_declaration(nt, *nt.static_declaration, nullptr, nullptr);
+    nt.static_declaration = nodes::build_node_declaration(nt, nullptr, nullptr);
   }
 
   get_node_type_map().add_new(&nt);

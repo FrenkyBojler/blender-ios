@@ -323,7 +323,7 @@ struct NodeLinkArg {
 
 static Vector<NodeLinkItem> ui_node_link_items(NodeLinkArg *arg,
                                                int in_out,
-                                               std::optional<NodeDeclaration> &r_node_decl)
+                                               std::shared_ptr<const NodeDeclaration> &r_node_decl)
 {
   Vector<NodeLinkItem> items;
 
@@ -367,8 +367,7 @@ static Vector<NodeLinkItem> ui_node_link_items(NodeLinkArg *arg,
     using namespace blender;
     using namespace blender::nodes;
 
-    r_node_decl.emplace(NodeDeclaration());
-    blender::nodes::build_node_declaration(*arg->node_type, *r_node_decl, nullptr, nullptr);
+    r_node_decl = blender::nodes::build_node_declaration(*arg->node_type, nullptr, nullptr);
     Span<SocketDeclaration *> socket_decls = (in_out == SOCK_IN) ? r_node_decl->inputs :
                                                                    r_node_decl->outputs;
     int index = 0;
@@ -524,7 +523,7 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
 
     arg->node_type = ntype;
 
-    std::optional<blender::nodes::NodeDeclaration> node_decl;
+    std::shared_ptr<const blender::nodes::NodeDeclaration> node_decl;
     Vector<NodeLinkItem> items = ui_node_link_items(arg, SOCK_OUT, node_decl);
 
     for (const NodeLinkItem &item : items) {

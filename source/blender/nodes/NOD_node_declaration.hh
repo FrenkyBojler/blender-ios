@@ -739,10 +739,9 @@ std::optional<ImplicitInputValueFn> get_implicit_input_value_fn(NodeDefaultInput
 bool socket_type_supports_default_input_type(const bke::bNodeSocketType &socket_type,
                                              NodeDefaultInputType input_type);
 
-void build_node_declaration(const bke::bNodeType &typeinfo,
-                            NodeDeclaration &r_declaration,
-                            const bNodeTree *ntree,
-                            const bNode *node);
+std::shared_ptr<const NodeDeclaration> build_node_declaration(const bke::bNodeType &typeinfo,
+                                                              const bNodeTree *ntree,
+                                                              const bNode *node);
 
 std::unique_ptr<SocketDeclaration> make_declaration_for_socket_type(
     eNodeSocketDatatype socket_type);

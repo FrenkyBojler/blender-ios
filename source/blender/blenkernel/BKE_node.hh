@@ -368,7 +368,7 @@ struct bNodeType {
    * the node. In this case, the static declaration is mostly just a hint, and does not have to
    * match with the final node.
    */
-  std::shared_ptr<nodes::NodeDeclaration> static_declaration;
+  std::shared_ptr<const nodes::NodeDeclaration> static_declaration;
 
   /**
    * Add to the list of search names and operations gathered by node link drag searching.
