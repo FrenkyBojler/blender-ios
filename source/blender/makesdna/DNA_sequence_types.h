@@ -412,7 +412,8 @@ typedef struct GlowVars {
   int bNoComp;
 } GlowVars;
 
-typedef struct TransformVars {
+/* Removed in 5.0. Only used in versioning and blend reading. */
+typedef struct TransformVarsLegacy {
   float ScalexIni;
   float ScaleyIni;
   float xIni;
@@ -422,7 +423,7 @@ typedef struct TransformVars {
   int interpolation;
   /** Preserve aspect/ratio when scaling. */
   int uniform_scale;
-} TransformVars;
+} TransformVarsLegacy;
 
 typedef struct SolidColorVars {
   float col[3];
@@ -565,7 +566,7 @@ typedef struct StripModifierData {
    * Bits that can be used for open-states of layout panels in the modifier.
    */
   uint16_t layout_panel_open_flag;
-  char _pad[2];
+  uint16_t ui_expand_flag;
 
   StripModifierDataRuntime runtime;
 } StripModifierData;
@@ -625,6 +626,11 @@ typedef enum eModTonemapType {
   SEQ_TONEMAP_RD_PHOTORECEPTOR = 1,
 } eModTonemapType;
 
+typedef struct SequencerCompositorModifierData {
+  StripModifierData modifier;
+  struct bNodeTree *node_group;
+} SequencerCompositorModifierData;
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -641,6 +647,28 @@ typedef struct SoundEqualizerModifierData {
   /* EQCurveMappingData */
   ListBase graphics;
 } SoundEqualizerModifierData;
+
+typedef enum ePitchMode {
+  PITCH_MODE_SEMITONES = 0,
+  PITCH_MODE_RATIO = 1,
+} ePitchMode;
+
+typedef enum ePitchQuality {
+  PITCH_QUALITY_HIGH = 0,
+  PITCH_QUALITY_FAST = 1,
+  PITCH_QUALITY_CONSISTENT = 2,
+} ePitchQuality;
+
+typedef struct PitchModifierData {
+  StripModifierData modifier;
+  int mode; /*ePitchMode*/
+  int semitones;
+  int cents;
+  float ratio;
+  char preserve_formant;
+  char _pad[3];
+  int quality; /*ePitchQuality*/
+} PitchModifierData;
 
 /** \} */
 
@@ -692,7 +720,6 @@ typedef enum eStripRuntimeFlag {
   STRIP_CLAMPED_LH = (1 << 0),
   STRIP_CLAMPED_RH = (1 << 1),
   STRIP_OVERLAP = (1 << 2),
-  STRIP_EFFECT_NOT_LOADED = (1 << 3), /* Set when reading blend file, cleared after. */
   STRIP_MARK_FOR_DELETE = (1 << 4),
   STRIP_IGNORE_CHANNEL_LOCK = (1 << 5), /* For #SEQUENCER_OT_duplicate_move macro. */
   STRIP_SHOW_OFFSETS = (1 << 6),        /* Set during #SEQUENCER_OT_slip. */
@@ -742,7 +769,7 @@ typedef enum eStripFlag {
   /* Access scene strips directly (like a meta-strip). */
   SEQ_SCENE_STRIPS = (1 << 30),
 
-  SEQ_UNUSED_31 = (1u << 31),
+  SEQ_AUDIO_PITCH_CORRECTION = (1u << 31)
 } eStripFlag;
 
 /** #StripProxy.storage */
@@ -817,10 +844,11 @@ typedef enum StripType {
   STRIP_TYPE_MUL = 14,
   /* Removed (behavior was the same as alpha-over), only used when reading old files. */
   STRIP_TYPE_OVERDROP_REMOVED = 15,
-  /* STRIP_TYPE_PLUGIN = 24, */ /* Removed */
+  /* STRIP_TYPE_PLUGIN = 24, */ /* Removed. */
   STRIP_TYPE_WIPE = 25,
   STRIP_TYPE_GLOW = 26,
-  STRIP_TYPE_TRANSFORM = 27,
+  /* Removed in 5.0, used only for versioning. */
+  STRIP_TYPE_TRANSFORM_LEGACY = 27,
   STRIP_TYPE_COLOR = 28,
   STRIP_TYPE_SPEED = 29,
   STRIP_TYPE_MULTICAM = 30,
@@ -888,6 +916,8 @@ typedef enum eStripModifierType {
   eSeqModifierType_WhiteBalance = 6,
   eSeqModifierType_Tonemap = 7,
   eSeqModifierType_SoundEqualizer = 8,
+  eSeqModifierType_Compositor = 9,
+  eSeqModifierType_Pitch = 10,
   /* Keep last. */
   NUM_STRIP_MODIFIER_TYPES,
 } eStripModifierType;

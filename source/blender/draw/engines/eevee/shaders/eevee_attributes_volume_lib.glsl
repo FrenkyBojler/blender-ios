@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "draw_object_infos_info.hh"
+#include "draw_object_infos_infos.hh"
 
 #ifdef GPU_LIBRARY_SHADER
 SHADER_LIBRARY_CREATE_INFO(draw_modelmat)
@@ -12,7 +12,7 @@ SHADER_LIBRARY_CREATE_INFO(draw_modelmat)
 
 #include "draw_model_lib.glsl"
 #include "draw_object_infos_lib.glsl"
-#include "eevee_nodetree_lib.glsl"
+#include "eevee_geom_types_lib.glsl"
 #include "gpu_shader_codegen_lib.glsl"
 
 #include "gpu_shader_math_vector_lib.glsl"
@@ -66,15 +66,15 @@ float4 attr_load_tangent(VolumePoint point, sampler3D tex, int index)
 {
   return float4(0);
 }
-float4 attr_load_vec4(VolumePoint point, sampler3D tex, int index)
+float4 attr_load_float4(VolumePoint point, sampler3D tex, int index)
 {
   return texture(tex, grid_coordinates(index));
 }
-float3 attr_load_vec3(VolumePoint point, sampler3D tex, int index)
+float3 attr_load_float3(VolumePoint point, sampler3D tex, int index)
 {
   return texture(tex, grid_coordinates(index)).rgb;
 }
-float2 attr_load_vec2(VolumePoint point, sampler3D tex, int index)
+float2 attr_load_float2(VolumePoint point, sampler3D tex, int index)
 {
   return texture(tex, grid_coordinates(index)).rg;
 }

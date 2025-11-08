@@ -4,16 +4,16 @@
 
 #pragma once
 
-#include "infos/eevee_material_info.hh"
+#include "infos/eevee_geom_infos.hh"
+
+#include "infos/eevee_uniform_infos.hh"
 
 SHADER_LIBRARY_CREATE_INFO(eevee_geom_mesh)
+SHADER_LIBRARY_CREATE_INFO(eevee_global_ubo)
 
-#include "draw_model_lib.glsl"
-#include "eevee_nodetree_lib.glsl"
-#include "eevee_sampling_lib.glsl"
+#include "draw_view_lib.glsl"
 #include "gpu_shader_codegen_lib.glsl"
 #include "gpu_shader_math_base_lib.glsl"
-#include "gpu_shader_math_vector_lib.glsl"
 #include "gpu_shader_math_vector_safe_lib.glsl"
 
 #if defined(USE_BARYCENTRICS) && defined(GPU_FRAGMENT_SHADER) && defined(MAT_GEOM_MESH)
@@ -86,9 +86,12 @@ void init_globals()
   g_data.barycentric_dists = float3(0.0f);
 
 #ifdef GPU_FRAGMENT_SHADER
-  g_data.N = (FrontFacing) ? g_data.N : -g_data.N;
-  g_data.Ni = (FrontFacing) ? g_data.Ni : -g_data.Ni;
+  g_data.N = (gl_FrontFacing) ? g_data.N : -g_data.N;
+  g_data.Ni = (gl_FrontFacing) ? g_data.Ni : -g_data.Ni;
   g_data.Ng = safe_normalize(cross(gpu_dfdx(g_data.P), gpu_dfdy(g_data.P)));
+  if (uniform_buf.pipeline.is_main_view_inverted) {
+    g_data.Ng = -g_data.Ng;
+  }
 #endif
 
 #if defined(MAT_GEOM_MESH)

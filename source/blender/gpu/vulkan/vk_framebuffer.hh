@@ -76,7 +76,7 @@ class VKFrameBuffer : public FrameBuffer {
                int dst_slot,
                int dst_offset_x,
                int dst_offset_y) override;
-
+  uint32_t viewport_size() const;
   void vk_viewports_append(Vector<VkViewport> &r_viewports) const;
   void vk_render_areas_append(Vector<VkRect2D> &r_render_areas) const;
   void render_area_update(VkRect2D &render_area) const;
@@ -147,7 +147,7 @@ class VKFrameBuffer : public FrameBuffer {
   void clear(render_graph::VKClearAttachmentsNode::CreateInfo &clear_attachments);
 };
 
-static inline VKFrameBuffer *unwrap(FrameBuffer *framebuffer)
+static inline VKFrameBuffer *unwrap(gpu::FrameBuffer *framebuffer)
 {
   return static_cast<VKFrameBuffer *>(framebuffer);
 }

@@ -10,10 +10,10 @@
 
 #include <algorithm>
 #include <cstring>
+#include <limits>
 
 #include "BLI_math_vector_types.hh"
 #include "BLO_readfile.hh"
-#include "BLO_writefile.hh"
 #include "MEM_guardedalloc.h"
 
 #include "ED_outliner.hh"
@@ -30,13 +30,11 @@
 
 #include "BKE_anim_data.hh"
 #include "BKE_appdir.hh"
-#include "BKE_blender_copybuffer.hh"
 #include "BKE_blendfile.hh"
 #include "BKE_context.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
-#include "BKE_lib_remap.hh"
 #include "BKE_main.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
@@ -157,7 +155,7 @@ static bool sequencer_write_copy_paste_file(Main *bmain_src,
   /* NOTE: Setting the same current file path as G_MAIN is necessary for now to get correct
    * external filepaths when writing the partial write context on disk. otherwise, filepaths from
    * the scene's sequencer strips (e.g. image ones) would also need to be remapped in this code. */
-  PartialWriteContext copy_buffer{bmain_src->filepath};
+  PartialWriteContext copy_buffer{*bmain_src};
   const char *scene_name = "copybuffer_vse_scene";
 
   /* Add a dummy empty scene to the temporary Main copy buffer. */
@@ -318,18 +316,18 @@ wmOperatorStatus sequencer_clipboard_copy_exec(bContext *C, wmOperator *op)
   Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
 
-  blender::VectorSet<Strip *> selected = seq::query_selected_strips(ed->current_strips());
+  VectorSet<Strip *> selected = seq::query_selected_strips(ed->current_strips());
 
   if (selected.is_empty()) {
     return OPERATOR_CANCELLED;
   }
 
-  blender::VectorSet<Strip *> effect_chain;
+  VectorSet<Strip *> effect_chain;
   effect_chain.add_multiple(selected);
   seq::iterator_set_expand(
       scene, ed->current_strips(), effect_chain, seq::query_strip_effect_chain);
 
-  blender::VectorSet<Strip *> expanded;
+  VectorSet<Strip *> expanded;
   for (Strip *strip : effect_chain) {
     if (!(strip->flag & SELECT)) {
       strip->flag |= SELECT;
@@ -464,7 +462,7 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
     ofs = scene_dst->r.cfra - scene_src->r.cfra;
   }
   else {
-    int min_seq_startdisp = INT_MAX;
+    int min_seq_startdisp = std::numeric_limits<int>::max();
     LISTBASE_FOREACH (Strip *, strip, &scene_src->ed->seqbase) {
       min_seq_startdisp = std::min(seq::time_left_handle_frame_get(scene_src, strip),
                                    min_seq_startdisp);
@@ -546,7 +544,7 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
 
   LISTBASE_FOREACH (Strip *, istrip, &nseqbase) {
     /* Place strips that generate an image at the mouse cursor. */
-    if (region->regiontype == RGN_TYPE_PREVIEW && !(RNA_boolean_get(op->ptr, "keep_offset")) &&
+    if (region->regiontype == RGN_TYPE_PREVIEW && !RNA_boolean_get(op->ptr, "keep_offset") &&
         istrip->type != STRIP_TYPE_SOUND_RAM &&
         seq::must_render_strip(seq::query_all_strips(&nseqbase), istrip))
     {
