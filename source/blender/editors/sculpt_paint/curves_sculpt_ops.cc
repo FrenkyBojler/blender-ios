@@ -27,7 +27,6 @@
 #include "WM_api.hh"
 #include "WM_message.hh"
 #include "WM_toolsystem.hh"
-#include "WM_types.hh"
 
 #include "ED_curves.hh"
 #include "ED_curves_sculpt.hh"
@@ -129,11 +128,9 @@ static std::unique_ptr<CurvesSculptStrokeOperation> start_brush_operation(
   const CurvesSculpt &curves_sculpt = *scene.toolsettings->curves_sculpt;
   const Brush &brush = *BKE_paint_brush_for_read(&curves_sculpt.paint);
   
-  wmWindow *win = CTX_wm_window(&C);
-  const bool shift_pressed = (win && win->eventstate && (win->eventstate->modifier & KM_SHIFT));
-  
-  const eCurvesSculptBrushType brush_type = shift_pressed ? CURVES_SCULPT_BRUSH_TYPE_SMOOTH :
-                                                             brush.curves_sculpt_brush_type;
+  const eCurvesSculptBrushType brush_type = (mode == BRUSH_STROKE_SMOOTH) ?
+                                                CURVES_SCULPT_BRUSH_TYPE_SMOOTH :
+                                                brush.curves_sculpt_brush_type;
   
   switch (brush_type) {
     case CURVES_SCULPT_BRUSH_TYPE_COMB:
