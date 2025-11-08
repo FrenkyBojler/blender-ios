@@ -548,7 +548,7 @@ static void create_segments_from_intersections(const Span<Vector<int>> inters_pe
                                                const Span<IntersectionPoint> &intersections,
                                                const VArray<bool> &cyclic,
                                                Vector<Segment> &all_segments,
-                                               MutableSpan<IndexRange> all_segments_by_curve)
+                                               MutableSpan<int> segments_num_per_curve)
 {
   for (const int curve_k : points_by_curve.index_range()) {
     const IndexRange points_k = points_by_curve[curve_k];
@@ -558,7 +558,7 @@ static void create_segments_from_intersections(const Span<Vector<int>> inters_pe
 
     if (inters.size() == 0) {
       all_segments.append(Segment::from_curve(curve_k, points_k, cyclic[curve_k]));
-      all_segments_by_curve[curve_k] = all_segments.index_range().drop_front(start_size);
+      segments_num_per_curve[curve_k] = 1;
 
       continue;
     }
@@ -627,7 +627,7 @@ static void create_segments_from_intersections(const Span<Vector<int>> inters_pe
                                                       std::nullopt));
     }
 
-    all_segments_by_curve[curve_k] = all_segments.index_range().drop_front(start_size);
+    segments_num_per_curve[curve_k] = all_segments.size() - start_size;
   }
 }
 
@@ -727,7 +727,7 @@ static Side decode_side(const EncodedConnection encoded)
 /* Both the start and end of the segment are connected to two other segments*/
 using SegmentConnections = VecBase<EncodedConnection, 2>;
 
-static void create_connections_from_curves(const Span<IndexRange> segments_by_curve,
+static void create_connections_from_curves(const OffsetIndices<int> segments_by_curve,
                                            const Span<bool> segments_to_keep,
                                            const VArray<bool> &is_cyclic,
                                            MutableSpan<SegmentConnections> segment_connections)
@@ -914,7 +914,7 @@ static void check_segments_in_lasso(const Span<float2> screen_space_positions,
                                     const Span<int2> mcoords,
                                     const Span<Segment> all_segments,
                                     const IndexMask &editable_curves,
-                                    const Span<IndexRange> segments_by_curve,
+                                    const OffsetIndices<int> segments_by_curve,
                                     MutableSpan<bool> segments_to_keep)
 {
   rcti bbox_lasso;
@@ -1045,7 +1045,7 @@ bke::CurvesGeometry trim_curve_segments(const bke::CurvesGeometry &src,
   compute_bounding_boxes(src_points_by_curve, screen_space_positions, screen_space_bbox);
 
   Vector<IntersectionPoint> intersections;
-  Array<IndexRange> segments_by_curve(src_points_by_curve.size());
+  Array<int> all_segment_offset_data(src_points_by_curve.size() + 1);
   Vector<Segment> all_segments;
 
   Array<Vector<int>> inters_per_curves(src_points_by_curve.size());
@@ -1061,8 +1061,10 @@ bke::CurvesGeometry trim_curve_segments(const bke::CurvesGeometry &src,
                                      intersections,
                                      is_cyclic,
                                      all_segments,
-                                     segments_by_curve);
+                                     all_segment_offset_data.as_mutable_span().drop_back(1));
   store_segment_map_on_intersections(all_segments, intersections);
+  const OffsetIndices<int> segments_by_curve = offset_indices::accumulate_counts_to_offsets(
+      all_segment_offset_data);
 
   Array<bool> segments_to_keep(all_segments.size(), true);
   check_segments_in_lasso(screen_space_positions,
@@ -1118,7 +1120,7 @@ bke::CurvesGeometry trim_curve_segment_ends(const bke::CurvesGeometry &src,
   compute_bounding_boxes(src_points_by_curve, screen_space_positions, screen_space_bbox);
 
   Vector<IntersectionPoint> intersections;
-  Array<IndexRange> segments_by_curve(src_points_by_curve.size());
+  Array<int> all_segment_offset_data(src_points_by_curve.size() + 1);
   Vector<Segment> all_segments;
 
   Array<Vector<int>> inters_per_curves(src_points_by_curve.size());
@@ -1134,8 +1136,10 @@ bke::CurvesGeometry trim_curve_segment_ends(const bke::CurvesGeometry &src,
                                      intersections,
                                      is_cyclic,
                                      all_segments,
-                                     segments_by_curve);
+                                     all_segment_offset_data.as_mutable_span().drop_back(1));
   store_segment_map_on_intersections(all_segments, intersections);
+  const OffsetIndices<int> segments_by_curve = offset_indices::accumulate_counts_to_offsets(
+      all_segment_offset_data);
 
   Array<bool> segments_to_keep(all_segments.size(), true);
   editable_curves.foreach_index(GrainSize(128), [&](const int curve_i) {
