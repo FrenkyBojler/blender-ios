@@ -1081,7 +1081,6 @@ void WM_operator_view3d_unit_defaults(bContext *C, wmOperator *op)
           BLI_assert(RNA_property_array_check(prop) == false);
 
           bool is_set = RNA_property_is_set_ex(op->ptr, prop, false);
-
           if (is_set) {
             IDProperty **idprops_p = RNA_struct_idprops_p(op->ptr);
             if (idprops_p) {
@@ -1092,7 +1091,6 @@ void WM_operator_view3d_unit_defaults(bContext *C, wmOperator *op)
               }
             }
           }
-
           if (!is_set) {
             const float value = RNA_property_float_get_default(op->ptr, prop) * dia;
             RNA_property_float_set(op->ptr, prop, value);
