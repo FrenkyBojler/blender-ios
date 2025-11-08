@@ -7,14 +7,14 @@
 
 #  include "gpu_shader_compat.hh"
 
-#  define GP_LIGHT
-
 #  include "gpencil_shader_shared.hh"
 
 #  include "draw_object_infos_infos.hh"
 #  include "draw_view_infos.hh"
 #  include "gpu_shader_fullscreen_infos.hh"
+#endif
 
+#ifdef GLSL_CPP_STUBS
 #  define SMAA_GLSL_3
 #  define SMAA_STAGE 1
 #  define SMAA_PRESET_HIGH
@@ -51,7 +51,6 @@ GPU_SHADER_NAMED_INTERFACE_END(gp_interp_noperspective)
 
 GPU_SHADER_CREATE_INFO(gpencil_geometry)
 DO_STATIC_COMPILATION()
-DEFINE("GP_LIGHT")
 TYPEDEF_SOURCE("gpencil_defines.hh")
 SAMPLER(2, sampler2D, gp_fill_tx)
 SAMPLER(3, sampler2D, gp_stroke_tx)

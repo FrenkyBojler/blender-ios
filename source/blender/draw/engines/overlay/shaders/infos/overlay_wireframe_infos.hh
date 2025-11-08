@@ -10,7 +10,9 @@
 #  include "draw_view_infos.hh"
 #  include "gpu_index_load_infos.hh"
 #  include "overlay_common_infos.hh"
+#endif
 
+#ifdef GLSL_CPP_STUBS
 #  define CUSTOM_DEPTH_BIAS_CONST
 #endif
 

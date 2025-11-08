@@ -14,7 +14,9 @@
 #  include "gpu_shader_create_info.hh"
 
 #  include "overlay_shader_shared.hh"
+#endif
 
+#ifdef GLSL_CPP_STUBS
 #  define CURVES_SHADER
 #  define DRW_HAIR_INFO
 

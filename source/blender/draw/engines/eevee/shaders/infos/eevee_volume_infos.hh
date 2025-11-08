@@ -16,7 +16,9 @@
 #  include "eevee_volume_resolved_infos.hh"
 #  include "eevee_volume_shared.hh"
 #  include "gpu_shader_fullscreen_infos.hh"
+#endif
 
+#ifdef GLSL_CPP_STUBS
 #  define SPHERE_PROBE
 #endif
 

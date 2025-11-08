@@ -14,7 +14,9 @@
 #  include "eevee_shadow_shared.hh"
 #  include "eevee_uniform_infos.hh"
 #  include "eevee_uniform_shared.hh"
+#endif
 
+#ifdef GLSL_CPP_STUBS
 #  define EEVEE_SAMPLING_DATA
 #  define MAT_CLIP_PLANE
 #  define PLANAR_PROBES

@@ -7,7 +7,9 @@
 #  include "gpu_shader_compat.hh"
 
 #  include "gpu_shader_fullscreen_infos.hh"
+#endif
 
+#ifdef GLSL_CPP_STUBS
 #  define SMAA_GLSL_3
 #  define SMAA_STAGE 1
 #  define SMAA_PRESET_HIGH

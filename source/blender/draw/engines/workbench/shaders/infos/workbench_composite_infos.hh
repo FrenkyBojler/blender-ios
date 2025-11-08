@@ -12,7 +12,9 @@
 
 #  include "draw_view_infos.hh"
 #  include "gpu_shader_fullscreen_infos.hh"
+#endif
 
+#ifdef GLSL_CPP_STUBS
 #  define WORKBENCH_LIGHTING_STUDIO
 #  define WORKBENCH_LIGHTING_MATCAP
 #  define WORKBENCH_LIGHTING_FLAT
