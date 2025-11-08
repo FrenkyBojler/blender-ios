@@ -1025,7 +1025,7 @@ static void strip_update_mix_sounds(Scene *scene, Strip *strip)
 
 static void strip_update_sound_properties(const Scene *scene, const Strip *strip)
 {
-  Strip *meta = lookup_meta_by_strip(editing_get(scene), strip);
+  const Strip *meta = lookup_meta_by_strip(editing_get(scene), strip);
   float output_volume = strip->volume;
   if (meta != nullptr){
     output_volume *= meta->volume;
