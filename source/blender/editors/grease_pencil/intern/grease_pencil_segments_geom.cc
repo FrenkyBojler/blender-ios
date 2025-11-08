@@ -11,6 +11,7 @@
 
 #include "BLI_array.hh"
 #include "BLI_array_utils.hh"
+#include "BLI_bounds.hh"
 #include "BLI_lasso_2d.hh"
 #include "BLI_math_base.hh"
 #include "BLI_math_vector_types.hh"
@@ -402,14 +403,15 @@ static IntersectionPoint create_intersection(const int point_i,
   return inter_point;
 }
 
-static void find_intersections_between_curve_and_curves(const int curve_i,
-                                                        const Span<float2> screen_space_positions,
-                                                        const Span<rcti> screen_space_bbox,
-                                                        const OffsetIndices<int> points_by_curve,
-                                                        const VArray<bool> &cyclic,
-                                                        const IndexMask &visible_curves,
-                                                        Array<Vector<int>> &r_inters_per_curves,
-                                                        Vector<IntersectionPoint> &r_intersections)
+static void find_intersections_between_curve_and_curves(
+    const int curve_i,
+    const Span<float2> screen_space_positions,
+    const Span<Bounds<float2>> screen_space_bbox,
+    const OffsetIndices<int> points_by_curve,
+    const VArray<bool> &cyclic,
+    const IndexMask &visible_curves,
+    Array<Vector<int>> &r_inters_per_curves,
+    Vector<IntersectionPoint> &r_intersections)
 {
   const bool cyclic_i = cyclic[curve_i];
   const IndexRange points_i = points_by_curve[curve_i];
@@ -421,11 +423,8 @@ static void find_intersections_between_curve_and_curves(const int curve_i,
     const float2 co_i1 = screen_space_positions[point_i1];
     const float2 co_i2 = screen_space_positions[point_i2];
 
-    rcti bbox_i;
-    BLI_rcti_init_minmax(&bbox_i);
-    BLI_rcti_do_minmax_v(&bbox_i, int2(co_i1));
-    BLI_rcti_do_minmax_v(&bbox_i, int2(co_i2));
-    BLI_rcti_pad(&bbox_i, BBOX_PADDING, BBOX_PADDING);
+    Bounds<float2> bbox_i{math::min(co_i1, co_i2), math::max(co_i1, co_i2)};
+    bbox_i.pad(BBOX_PADDING);
 
     /* Add some padding to the line segment i1-i2, otherwise we could just miss an
      * intersection. */
@@ -439,7 +438,7 @@ static void find_intersections_between_curve_and_curves(const int curve_i,
       }
 
       /* Bounding box check: skip curves that don't overlap segment i1-i2. */
-      if (!BLI_rcti_isect(&bbox_i, &screen_space_bbox[curve_j], nullptr)) {
+      if (!bounds::intersect(bbox_i, screen_space_bbox[curve_j]).has_value()) {
         return;
       }
 
@@ -460,13 +459,11 @@ static void find_intersections_between_curve_and_curves(const int curve_i,
         const float2 co_j1 = screen_space_positions[point_j1];
         const float2 co_j2 = screen_space_positions[point_j2];
 
+        Bounds<float2> bbox_j{math::min(co_j1, co_j2), math::max(co_j1, co_j2)};
+        bbox_j.pad(BBOX_PADDING);
+
         /* Skip when bounding boxes of i1-i2 and j1-j2 don't overlap. */
-        rcti bbox_j;
-        BLI_rcti_init_minmax(&bbox_j);
-        BLI_rcti_do_minmax_v(&bbox_j, int2(co_j1));
-        BLI_rcti_do_minmax_v(&bbox_j, int2(co_j2));
-        BLI_rcti_pad(&bbox_j, BBOX_PADDING, BBOX_PADDING);
-        if (!BLI_rcti_isect(&bbox_i, &bbox_j, nullptr)) {
+        if (!bounds::intersect(bbox_i, bbox_j).has_value()) {
           continue;
         }
 
@@ -495,7 +492,7 @@ static void find_intersections_between_curve_and_curves(const int curve_i,
 /* TODO: This method of finding intersections is O(N^2) and should replaced with something faster.
  */
 static void find_intersections_between_all_curves(const Span<float2> screen_space_positions,
-                                                  const Span<rcti> screen_space_bbox,
+                                                  const Span<Bounds<float2>> screen_space_bbox,
                                                   const OffsetIndices<int> points_by_curve,
                                                   const VArray<bool> &cyclic,
                                                   const IndexMask &visible_curves,
@@ -894,6 +891,7 @@ static bool check_line_segment_lasso_intersection(const int2 &pos_a,
                                                   const int2 &pos_b,
                                                   const Span<int2> mcoords)
 {
+  /* TODO: Use the new `Bounds<int2>` API. */
   rcti bbox_ab;
   BLI_rcti_init_minmax(&bbox_ab);
   BLI_rcti_do_minmax_v(&bbox_ab, pos_a);
@@ -910,19 +908,19 @@ static bool check_line_segment_lasso_intersection(const int2 &pos_a,
 }
 
 static void check_segments_in_lasso(const Span<float2> screen_space_positions,
-                                    const Span<rcti> screen_space_bbox,
+                                    const Span<Bounds<float2>> screen_space_bbox,
                                     const Span<int2> mcoords,
                                     const Span<Segment> all_segments,
                                     const IndexMask &editable_curves,
                                     const OffsetIndices<int> segments_by_curve,
                                     MutableSpan<bool> segments_to_keep)
 {
-  rcti bbox_lasso;
-  BLI_lasso_boundbox(&bbox_lasso, mcoords);
+  const Bounds<int2> bbox_lasso_int = *bounds::min_max(mcoords);
+  const Bounds<float2> bbox_lasso{float2(bbox_lasso_int.min), float2(bbox_lasso_int.max)};
 
   editable_curves.foreach_index(GrainSize(128), [&](const int curve_i) {
     /* To speed things up: do a bounding box check on the curve and the lasso area. */
-    if (!BLI_rcti_isect(&bbox_lasso, &screen_space_bbox[curve_i], nullptr)) {
+    if (!bounds::intersect(bbox_lasso, screen_space_bbox[curve_i]).has_value()) {
       return;
     }
 
@@ -1008,21 +1006,18 @@ static void check_segments_in_lasso(const Span<float2> screen_space_positions,
  * up the search for intersecting curves. */
 static void compute_bounding_boxes(const OffsetIndices<int> src_points_by_curve,
                                    const Span<float2> screen_space_positions,
-                                   MutableSpan<rcti> screen_space_bbox)
+                                   MutableSpan<Bounds<float2>> screen_space_bbox)
 {
   threading::parallel_for(
       src_points_by_curve.index_range(), 512, [&](const IndexRange src_curves) {
         for (const int src_curve : src_curves) {
-          rcti *bbox = &screen_space_bbox[src_curve];
-          BLI_rcti_init_minmax(bbox);
+          Bounds<float2> &bbox = screen_space_bbox[src_curve];
 
           const IndexRange src_points = src_points_by_curve[src_curve];
-          for (const int src_point : src_points) {
-            BLI_rcti_do_minmax_v(bbox, int2(screen_space_positions[src_point]));
-          }
+          bbox = *bounds::min_max(screen_space_positions.slice(src_points));
 
           /* Add some padding, otherwise we could just miss intersections. */
-          BLI_rcti_pad(bbox, BBOX_PADDING, BBOX_PADDING);
+          bbox.pad(BBOX_PADDING);
         }
       });
 }
@@ -1041,7 +1036,7 @@ bke::CurvesGeometry trim_curve_segments(const bke::CurvesGeometry &src,
   const OffsetIndices<int> src_points_by_curve = src.points_by_curve();
   const VArray<bool> is_cyclic = src.cyclic();
 
-  Array<rcti> screen_space_bbox(src.curves_num());
+  Array<Bounds<float2>> screen_space_bbox(src.curves_num());
   compute_bounding_boxes(src_points_by_curve, screen_space_positions, screen_space_bbox);
 
   Vector<IntersectionPoint> intersections;
@@ -1116,7 +1111,7 @@ bke::CurvesGeometry trim_curve_segment_ends(const bke::CurvesGeometry &src,
   const OffsetIndices<int> src_points_by_curve = src.points_by_curve();
   const VArray<bool> is_cyclic = src.cyclic();
 
-  Array<rcti> screen_space_bbox(src.curves_num());
+  Array<Bounds<float2>> screen_space_bbox(src.curves_num());
   compute_bounding_boxes(src_points_by_curve, screen_space_positions, screen_space_bbox);
 
   Vector<IntersectionPoint> intersections;
