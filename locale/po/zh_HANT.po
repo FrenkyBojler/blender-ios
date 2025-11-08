@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Beta (b'702691150287')\n"
+"Project-Id-Version: Blender 5.0.0 Beta (b'6cf0458fdf00')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-13 16:12+0000\n"
+"POT-Creation-Date: 2025-11-03 10:44+0000\n"
 "PO-Revision-Date: 2025-07-27 17:01+0000\n"
 "Last-Translator: Cheng-Chia Tseng <pswo10680@gmail.com>\n"
 "Language-Team: Chinese (Traditional Han script) <https://translate.blender.org/projects/blender-ui/ui/zh_Hant/>\n"
@@ -13387,10 +13387,6 @@ msgid "Cloth Simulation"
 msgstr "布料模擬"
 
 
-msgid "Direction"
-msgstr "方向"
-
-
 msgid "Add effect of brush"
 msgstr "新增筆刷的效果"
 
@@ -18138,10 +18134,6 @@ msgid "Sync to audio playback, dropping frames"
 msgstr "同步音訊播放，丟落影格"
 
 
-msgid "Second"
-msgstr "第二"
-
-
 msgid "Timeline Markers"
 msgstr "時間軸標記"
 
@@ -20069,6 +20061,10 @@ msgstr "Ctrl"
 
 msgid "Control key pressed"
 msgstr "按住 Ctrl 鍵"
+
+
+msgid "Direction"
+msgstr "方向"
 
 
 msgid "North"
@@ -22418,6 +22414,10 @@ msgid "Material slot name"
 msgstr "材質槽名稱"
 
 
+msgid "Select More/Less"
+msgstr "選取更多/更少"
+
+
 msgid "Metaball"
 msgstr "變幻球"
 
@@ -22478,6 +22478,10 @@ msgid "Hooks"
 msgstr "鉤"
 
 
+msgid "Layout"
+msgstr "配置"
+
+
 msgid "Sculpt Set Pivot"
 msgstr "設定樞紐點"
 
@@ -22486,8 +22490,8 @@ msgid "Random Mask"
 msgstr "隨機遮罩"
 
 
-msgid "Layout"
-msgstr "配置"
+msgid "Adjust"
+msgstr "調整"
 
 
 msgid "Clear Transform"
@@ -22502,16 +22506,28 @@ msgid "Propagate"
 msgstr "增生"
 
 
+msgid "Keying"
+msgstr "鍵處理"
+
+
 msgid "Bone Collections"
 msgstr "骨骼集盒"
+
+
+msgid "Tracking"
+msgstr "跟蹤"
 
 
 msgid "Names"
 msgstr "名稱"
 
 
-msgid "Adjust"
-msgstr "調整"
+msgid "Utilities"
+msgstr "效用"
+
+
+msgid "Math"
+msgstr "數學公式"
 
 
 msgid "Toggle Bone Options"
@@ -22526,28 +22542,12 @@ msgid "Disable Bone Options"
 msgstr "停用骨骼設定"
 
 
-msgid "Keying"
-msgstr "鍵處理"
-
-
 msgid "Mesh Select Mode"
 msgstr "網格選取模式"
 
 
-msgid "Tracking"
-msgstr "跟蹤"
-
-
-msgid "Utilities"
-msgstr "效用"
-
-
 msgid "Face Data"
 msgstr "面資料"
-
-
-msgid "Math"
-msgstr "數學公式"
 
 
 msgid "Merge"
@@ -22570,6 +22570,22 @@ msgid "Bone Roll"
 msgstr "骨骼滾動"
 
 
+msgid "Read"
+msgstr "讀取"
+
+
+msgid "Sample"
+msgstr "取樣"
+
+
+msgid "Write"
+msgstr "寫入"
+
+
+msgid "Primitives"
+msgstr "原形"
+
+
 msgid "Pivot Point"
 msgstr "樞紐點"
 
@@ -22586,36 +22602,20 @@ msgid "Automasking"
 msgstr "自動遮罩"
 
 
-msgid "Read"
-msgstr "讀取"
-
-
 msgid "Face Sets Edit"
 msgstr "面集編輯"
-
-
-msgid "Sample"
-msgstr "取樣"
-
-
-msgid "Write"
-msgstr "寫入"
-
-
-msgid "Primitives"
-msgstr "原形"
 
 
 msgid "Instances"
 msgstr "實例化"
 
 
-msgid "Mirror"
-msgstr "鏡像"
-
-
 msgid "Import"
 msgstr "匯入"
+
+
+msgid "Mirror"
+msgstr "鏡像"
 
 
 msgid "UV Mapping"
@@ -22624,6 +22624,10 @@ msgstr "UV 映射處理"
 
 msgid "Local View"
 msgstr "區域檢視"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Viewpoint"
@@ -22646,16 +22650,8 @@ msgid "View Regions"
 msgstr "檢視範圍"
 
 
-msgid "Select More/Less"
-msgstr "選取更多/更少"
-
-
 msgid "Select Similar"
 msgstr "選取相似者"
-
-
-msgid "UV"
-msgstr "UV"
 
 
 msgid "Select Linked"
@@ -25425,10 +25421,6 @@ msgstr "總等級"
 
 msgid "Number of subdivisions for which displacements are stored"
 msgstr "錯置儲藏的細分數"
-
-
-msgid "Packed"
-msgstr "打包"
 
 
 msgid "Normal Edit Modifier"
@@ -47973,6 +47965,10 @@ msgid "Import Textures"
 msgstr "匯入紋理"
 
 
+msgid "Packed"
+msgstr "打包"
+
+
 msgid "Import USD Preview"
 msgstr "匯入 USD 預覽"
 
@@ -56364,16 +56360,9 @@ msgid "Blend Opacity"
 msgstr "交混不透明度"
 
 
-msgid "Cross"
-msgstr "交叉"
-
-
-msgid "Alpha Under"
-msgstr "Alpha 下鋪"
-
-
-msgid "Gamma Cross"
-msgstr "伽瑪交錯"
+msgctxt "Color"
+msgid "Value"
+msgstr "明度"
 
 
 msgid "Y position of the sequence strip"
@@ -56553,11 +56542,6 @@ msgstr "動畫起始偏移"
 
 msgid "Animation start offset (trim start)"
 msgstr "動畫起始偏移 (修剪起始)"
-
-
-msgctxt "Color"
-msgid "Value"
-msgstr "明度"
 
 
 msgid "Color Strip"
@@ -60664,10 +60648,6 @@ msgid "External shader script must have .osl or .oso extension, or be a module n
 msgstr "外部著色器命令稿必須有 .osl 或 .oso 副檔名，或者是一個模組名稱"
 
 
-msgid "Failed to write .oso file next to external .osl file at "
-msgstr "無法在有外部 .osl 檔旁寫入 .oso 檔，位置於 "
-
-
 msgid "Multiplier"
 msgstr "乘數"
 
@@ -61056,10 +61036,6 @@ msgid "Nothing to bake"
 msgstr "沒有可以烘焙"
 
 
-msgid "Unexpected modifier type: "
-msgstr "未預期的修改器類型： "
-
-
 msgid "GeometryNodes"
 msgstr "幾何節點"
 
@@ -61072,20 +61048,12 @@ msgid "Active editor is not a node editor."
 msgstr "作用中編輯器不是一個節點編輯器。"
 
 
-msgid "Modifiers cannot be added to object: "
-msgstr "無法為物體新增修改器： "
-
-
 msgid "Active object is not a mesh"
 msgstr "作用中物體非網格"
 
 
 msgid "New Preset"
 msgstr "新增預設集"
-
-
-msgid "Failed to execute the preset: "
-msgstr "執行預設集失敗： "
 
 
 msgid "Select 2 sound strips"
@@ -61272,10 +61240,6 @@ msgstr "使用者社群"
 
 msgid "Python evaluation failed: "
 msgstr "Python 估算失敗： "
-
-
-msgid "Failed to assign value: "
-msgstr "無法指派數值： "
 
 
 msgid "Strip(s)"
@@ -61999,6 +61963,10 @@ msgstr "燃料"
 msgctxt "Simulation"
 msgid "Cache"
 msgstr "快取"
+
+
+msgid "Second"
+msgstr "第二"
 
 
 msgid "Upper"
@@ -69727,6 +69695,10 @@ msgid "Unable to copy item"
 msgstr "無法複製項目"
 
 
+msgid "Anisotropic"
+msgstr "各向異性"
+
+
 msgctxt "NodeTree"
 msgid "Functions"
 msgstr "函式"
@@ -70385,10 +70357,6 @@ msgstr "係數"
 
 msgid "ID value"
 msgstr "ID 值"
-
-
-msgid "Anisotropic"
-msgstr "各向異性"
 
 
 msgid "Uniformity"

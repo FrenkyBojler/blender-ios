@@ -14,6 +14,7 @@
 #include "DNA_sequence_types.h"
 #include "DNA_sound_types.h"
 
+#include "BLI_bounds.hh"
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_math_geom.h"
@@ -22,7 +23,7 @@
 #include "BLI_span.hh"
 #include "BLI_vector.hh"
 
-#include "BKE_sound.h"
+#include "BKE_sound.hh"
 
 #include "SEQ_iterator.hh"
 #include "SEQ_retiming.hh"
@@ -270,7 +271,7 @@ bool retiming_key_is_freeze_frame(const SeqRetimingKey *key)
 
 static bool strip_retiming_transition_is_linear(const Strip *strip, const SeqRetimingKey *key)
 {
-  const float prev_speed = retiming_key_speed_get(strip, key - 1);
+  const float prev_speed = retiming_key_speed_get(strip, key);
   const float next_speed = retiming_key_speed_get(strip, key + 2);
 
   return abs(prev_speed - next_speed) < 0.01f;
@@ -524,54 +525,86 @@ void retiming_remove_key(Strip *strip, SeqRetimingKey *key)
   strip_retiming_remove_key_ex(strip, key);
 }
 
-static float strip_retiming_clamp_create_offset(const Scene *scene,
-                                                const Strip *strip,
-                                                SeqRetimingKey *key,
-                                                int offset)
+static Bounds<float> strip_retiming_clamp_bounds_get(const Scene *scene,
+                                                     const Strip *strip,
+                                                     SeqRetimingKey *key)
 {
-  SeqRetimingKey *prev_key = key - 1;
-  SeqRetimingKey *next_key = key + 1;
-  const int prev_dist = retiming_key_timeline_frame_get(scene, strip, prev_key) -
-                        retiming_key_timeline_frame_get(scene, strip, key);
-  const int next_dist = retiming_key_timeline_frame_get(scene, strip, next_key) -
-                        retiming_key_timeline_frame_get(scene, strip, key);
-  return std::clamp(offset, prev_dist + 1, next_dist - 1);
+  Bounds<float> max_tml_frame_offset = {MINAFRAMEF, MAXFRAMEF};
+
+  if (key->strip_frame_index != 0) {
+    SeqRetimingKey *prev_key = key - 1;
+    max_tml_frame_offset.min = retiming_key_timeline_frame_get(scene, strip, prev_key) -
+                               retiming_key_timeline_frame_get(scene, strip, key);
+  }
+  if (!retiming_is_last_key(strip, key)) {
+    SeqRetimingKey *next_key = key + 1;
+    max_tml_frame_offset.max = retiming_key_timeline_frame_get(scene, strip, next_key) -
+                               retiming_key_timeline_frame_get(scene, strip, key);
+  }
+  return max_tml_frame_offset;
 }
 
+/* Create pair of retiming keys separated by offset. */
+static std::pair<SeqRetimingKey *, SeqRetimingKey *> freeze_key_pair_create(const Scene *scene,
+                                                                            Strip *strip,
+                                                                            SeqRetimingKey *key,
+                                                                            const int offset)
+{
+
+  Bounds<float> max_offset = strip_retiming_clamp_bounds_get(scene, strip, key);
+  const float tml_frame_offset = math::clamp(float(offset), max_offset.min, max_offset.max);
+  const int orig_timeline_frame = retiming_key_timeline_frame_get(scene, strip, key);
+
+  /* Offset last key first, then add a freeze start key before it, because it is not possible to
+   * add keys after last one. */
+  if (retiming_is_last_key(strip, key)) {
+    const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
+    const float frame_index_offset = tml_frame_offset *
+                                     time_media_playback_rate_factor_get(strip, scene_fps);
+    key->strip_frame_index += frame_index_offset;
+    SeqRetimingKey *freeze_start = retiming_add_key(scene, strip, orig_timeline_frame);
+
+    if (freeze_start == nullptr) {
+      key->strip_frame_index -= frame_index_offset;
+      return {nullptr, nullptr};
+    }
+    return {freeze_start, freeze_start + 1};
+  }
+
+  SeqRetimingKey *freeze_end = retiming_add_key(
+      scene, strip, orig_timeline_frame + tml_frame_offset);
+
+  if (freeze_end == nullptr) {
+    return {nullptr, nullptr};
+  }
+
+  return {freeze_end - 1, freeze_end};
+}
+
+/* This function tags previous key as freeze frame key. This is only a convenient way to prevent
+ * creating speed transitions. When freeze frame is deleted, this flag should be cleared. */
 SeqRetimingKey *retiming_add_freeze_frame(const Scene *scene,
                                           Strip *strip,
                                           SeqRetimingKey *key,
                                           const int offset)
 {
-  /* First offset old key, then add new key to original place with same fac
-   * This is not great way to do things, but it's done in order to be able to freeze last key. */
   if (retiming_key_is_transition_type(key)) {
     return nullptr;
   }
 
-  const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
-  const int clamped_offset = strip_retiming_clamp_create_offset(
-      scene, strip, key, offset * time_media_playback_rate_factor_get(strip, scene_fps));
-
-  const int orig_timeline_frame = retiming_key_timeline_frame_get(scene, strip, key);
   const float orig_retiming_factor = key->retiming_factor;
-  key->strip_frame_index += clamped_offset;
-  key->flag |= SEQ_FREEZE_FRAME_OUT;
+  std::pair<SeqRetimingKey *, SeqRetimingKey *> freeze_keys = freeze_key_pair_create(
+      scene, strip, key, offset);
 
-  SeqRetimingKey *new_key = retiming_add_key(scene, strip, orig_timeline_frame);
-
-  if (new_key == nullptr) {
-    key->strip_frame_index -= clamped_offset;
-    key->flag &= ~SEQ_FREEZE_FRAME_OUT;
+  if (freeze_keys.first == nullptr) {
     return nullptr;
   }
 
-  new_key->retiming_factor = orig_retiming_factor;
-  new_key->flag |= SEQ_FREEZE_FRAME_IN;
-
-  /* Tag previous key as freeze frame key. This is only a convenient way to prevent creating
-   * speed transitions. When freeze frame is deleted, this flag should be cleared. */
-  return new_key + 1;
+  freeze_keys.first->flag |= SEQ_FREEZE_FRAME_IN;
+  freeze_keys.second->flag |= SEQ_FREEZE_FRAME_OUT;
+  freeze_keys.first->retiming_factor = orig_retiming_factor;
+  freeze_keys.second->retiming_factor = orig_retiming_factor;
+  return freeze_keys.second;
 }
 
 SeqRetimingKey *retiming_add_transition(const Scene *scene,
@@ -593,7 +626,8 @@ SeqRetimingKey *retiming_add_transition(const Scene *scene,
     return nullptr;
   }
 
-  float clamped_offset = strip_retiming_clamp_create_offset(scene, strip, key, offset);
+  Bounds<float> max_offset = strip_retiming_clamp_bounds_get(scene, strip, key);
+  float clamped_offset = math::clamp(offset, max_offset.min, max_offset.max);
 
   const int orig_key_index = retiming_key_index_get(strip, key);
   const float orig_frame_index = key->strip_frame_index;
@@ -703,7 +737,7 @@ static void strip_retiming_fix_transitions(const Scene *scene, Strip *strip, Seq
     }
   }
 
-  if (!retiming_is_last_key(strip, key)) {
+  if (!retiming_is_last_key(strip, &retiming_keys_get(strip)[key_index])) {
     SeqRetimingKey *next_key = &retiming_keys_get(strip)[key_index + 1];
     if (retiming_key_is_transition_start(next_key)) {
       strip_retiming_fix_transition(scene, strip, next_key);
@@ -785,6 +819,7 @@ float retiming_key_speed_get(const Strip *strip, const SeqRetimingKey *key)
     return 1.0f;
   }
 
+  BLI_assert(retiming_key_index_get(strip, key) > 0);
   const SeqRetimingKey *key_prev = key - 1;
   const int frame_index_max = strip->len - 1;
   const float frame_index_start = round_fl_to_int(key_prev->retiming_factor * frame_index_max);
@@ -1064,10 +1099,11 @@ void retiming_sound_animation_data_set(const Scene *scene, const Strip *strip)
   correct_pitch = false;
 #endif
 
-  void *sound_handle = strip->sound ? strip->sound->playback_handle : nullptr;
+  void *sound_handle = BKE_sound_playback_handle_get(strip->sound);
   const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
   if (correct_pitch) {
-    sound_handle = BKE_sound_add_time_stretch_effect(sound_handle, scene_fps);
+    sound_handle = BKE_sound_ensure_time_stretch_effect(
+        sound_handle, strip->scene_sound, scene_fps);
     BKE_sound_set_scene_sound_pitch_constant_range(
         strip->scene_sound, 0, strip->start + strip->len, 1.0f);
   }
@@ -1100,8 +1136,9 @@ void retiming_sound_animation_data_set(const Scene *scene, const Strip *strip)
     }
     else {
       if (correct_pitch) {
+        const float speed = range.speed == 0.0f ? 1.0f : 1.0f / range.speed;
         BKE_sound_set_scene_sound_time_stretch_constant_range(
-            sound_handle, range.start - strip->start, range.end - strip->start, 1.0 / range.speed);
+            sound_handle, range.start - strip->start, range.end - strip->start, speed);
       }
       else {
         BKE_sound_set_scene_sound_pitch_constant_range(

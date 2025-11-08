@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Beta (b'702691150287')\n"
+"Project-Id-Version: Blender 5.0.0 Beta (b'6cf0458fdf00')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-13 16:12+0000\n"
+"POT-Creation-Date: 2025-11-03 10:44+0000\n"
 "PO-Revision-Date: 2025-07-23 15:10+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Serbian <https://translate.blender.org/projects/blender-ui/ui/sr/>\n"
@@ -5006,10 +5006,6 @@ msgid "Constant"
 msgstr "Константно"
 
 
-msgid "Direction"
-msgstr "Смер"
-
-
 msgid "Add effect of brush"
 msgstr "Додај ефекат четкице"
 
@@ -7968,6 +7964,10 @@ msgid "Control key pressed"
 msgstr "Тастер контрол је притиснут"
 
 
+msgid "Direction"
+msgstr "Смер"
+
+
 msgid "North"
 msgstr "Север"
 
@@ -8545,8 +8545,20 @@ msgid "Propagate"
 msgstr "Пренеси"
 
 
+msgid "Keying"
+msgstr "Збирка тастера"
+
+
+msgid "Tracking"
+msgstr "Праћење"
+
+
 msgid "Names"
 msgstr "Имена"
+
+
+msgid "Math"
+msgstr "Математика"
 
 
 msgid "Toggle Bone Options"
@@ -8561,20 +8573,8 @@ msgid "Disable Bone Options"
 msgstr "Онемогући опције костију"
 
 
-msgid "Keying"
-msgstr "Збирка тастера"
-
-
 msgid "Mesh Select Mode"
 msgstr "Мод избора мреже"
-
-
-msgid "Tracking"
-msgstr "Праћење"
-
-
-msgid "Math"
-msgstr "Математика"
 
 
 msgid "Merge"
@@ -8593,12 +8593,12 @@ msgid "Snap"
 msgstr "Лепљење"
 
 
-msgid "Mirror"
-msgstr "Огледало"
-
-
 msgid "Import"
 msgstr "Увоз"
+
+
+msgid "Mirror"
+msgstr "Огледало"
 
 
 msgid "UV Mapping"
@@ -8609,16 +8609,16 @@ msgid "Local View"
 msgstr "Локални поглед"
 
 
+msgid "UV"
+msgstr "UV"
+
+
 msgid "Navigation"
 msgstr "Навигација"
 
 
 msgid "Align View"
 msgstr "Поравнај поглед"
-
-
-msgid "UV"
-msgstr "UV"
 
 
 msgid "Select Linked"
@@ -21437,18 +21437,6 @@ msgstr "Стерео режим"
 
 msgid "Blend Opacity"
 msgstr "Провидност прелаза"
-
-
-msgid "Cross"
-msgstr "Укрштење"
-
-
-msgid "Alpha Under"
-msgstr "Провидност испод"
-
-
-msgid "Gamma Cross"
-msgstr "Укрштање гаме"
 
 
 msgctxt "Sequence"
