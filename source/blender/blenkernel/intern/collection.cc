@@ -2570,14 +2570,14 @@ blender::Set<Object *> *BKE_scene_objects_as_set(Scene *scene, blender::Set<Obje
     BKE_scene_objects_iterator_next(&iter);
   }
 
-  /* `return_gset` is either given `objects_gset` (if non-nullptr), or the GSet allocated by the
+  /* `return_set` is either given `objects_set` (if non-nullptr), or the Set allocated by the
    * iterator. Either way, we want to get it back, and prevent `BKE_scene_objects_iterator_end`
    * from freeing it. */
-  blender::Set<Object *> *return_gset = ((SceneObjectsIteratorData *)iter.data)->visited;
+  blender::Set<Object *> *return_set = ((SceneObjectsIteratorData *)iter.data)->visited;
   ((SceneObjectsIteratorData *)iter.data)->visited = nullptr;
   BKE_scene_objects_iterator_end(&iter);
 
-  return return_gset;
+  return return_set;
 }
 
 /** \} */
