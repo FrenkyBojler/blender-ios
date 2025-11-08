@@ -10,6 +10,7 @@
 
 #include "BLI_ghash.h"
 #include "BLI_iterator.h"
+#include "BLI_set.hh"
 #include "BLI_sys_types.h"
 
 #include "DNA_listBase.h"
@@ -487,7 +488,8 @@ void BKE_scene_objects_iterator_end_ex(BLI_Iterator *iter);
  * \note This will include objects without a base currently
  * (because they would belong to excluded collections only e.g.).
  */
-GSet *BKE_scene_objects_as_gset(Scene *scene, GSet *objects_gset);
+blender::Set<Object *> *BKE_scene_objects_as_gset(Scene *scene,
+                                                  blender::Set<Object *> *objects_set);
 
 #define FOREACH_SCENE_COLLECTION_BEGIN(scene, _instance) \
   ITER_BEGIN (BKE_scene_collections_iterator_begin, \
