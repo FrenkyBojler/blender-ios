@@ -133,9 +133,7 @@ static void seq_free_strip(StripData *data)
 
 Strip *strip_alloc(ListBase *lb, int timeline_frame, int channel, int type)
 {
-  Strip *strip;
-
-  strip = MEM_callocN<Strip>("addseq");
+  Strip *strip = MEM_callocN<Strip>("addseq");
   BLI_addtail(lb, strip);
 
   *((short *)strip->name) = ID_SEQ;
@@ -271,9 +269,9 @@ void strip_free(Scene *scene, Strip *strip)
 
 void seq_free_strip_recurse(Scene *scene, Strip *strip, const bool do_id_user)
 {
-  Strip *istrip, *istrip_next;
+  Strip *istrip_next;
 
-  for (istrip = static_cast<Strip *>(strip->seqbase.first); istrip; istrip = istrip_next) {
+  for (Strip *istrip = static_cast<Strip *>(strip->seqbase.first); istrip; istrip = istrip_next) {
     istrip_next = istrip->next;
     seq_free_strip_recurse(scene, istrip, do_id_user);
   }
@@ -289,9 +287,7 @@ Editing *editing_get(const Scene *scene)
 Editing *editing_ensure(Scene *scene)
 {
   if (scene->ed == nullptr) {
-    Editing *ed;
-
-    ed = scene->ed = MEM_callocN<Editing>("addseq");
+    Editing *ed = scene->ed = MEM_callocN<Editing>("addseq");
     ed->cache_flag = (SEQ_CACHE_PREFETCH_ENABLE | SEQ_CACHE_STORE_FINAL_OUT | SEQ_CACHE_STORE_RAW);
     ed->show_missing_media_flag = SEQ_EDIT_SHOW_MISSING_MEDIA;
     channels_ensure(&ed->channels);
