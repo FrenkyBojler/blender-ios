@@ -20,6 +20,8 @@
 
 #include "GPU_material.hh"
 
+#include "COM_result.hh"
+
 #include "node_composite_util.hh"
 
 namespace blender::nodes::node_composite_huecorrect_cc {
@@ -28,7 +30,11 @@ static void cmp_node_huecorrect_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
   b.add_input<decl::Color>("Image").default_value({1.0f, 1.0f, 1.0f, 1.0f});
-  b.add_input<decl::Float>("Fac").default_value(1.0f).min(0.0f).max(1.0f).subtype(PROP_FACTOR);
+  b.add_input<decl::Float>("Factor", "Fac")
+      .default_value(1.0f)
+      .min(0.0f)
+      .max(1.0f)
+      .subtype(PROP_FACTOR);
   b.add_output<decl::Color>("Image");
 }
 
@@ -42,7 +48,7 @@ static void node_composit_init_huecorrect(bNodeTree * /*ntree*/, bNode *node)
 
   for (int c = 0; c < 3; c++) {
     CurveMap *cuma = &cumapping->cm[c];
-    BKE_curvemap_reset(cuma, &cumapping->clipr, cumapping->preset, CURVEMAP_SLOPE_POSITIVE);
+    BKE_curvemap_reset(cuma, &cumapping->clipr, cumapping->preset, CurveMapSlopeType::Positive);
   }
   /* use wrapping for all hue correct nodes */
   cumapping->flag |= CUMA_USE_WRAPPING;
@@ -116,16 +122,18 @@ static float4 hue_correct(const float4 &color, const float factor, const CurveMa
   return math::interpolate(color, result, factor);
 }
 
+using blender::compositor::Color;
+
 static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &builder)
 {
   CurveMapping *curve_mapping = get_curve_mapping(builder.node());
   BKE_curvemapping_init(curve_mapping);
 
   builder.construct_and_set_matching_fn_cb([=]() {
-    return mf::build::SI2_SO<float4, float, float4>(
+    return mf::build::SI2_SO<Color, float, Color>(
         "Hue Correct",
-        [=](const float4 &color, const float factor) -> float4 {
-          return hue_correct(color, factor, curve_mapping);
+        [=](const Color &color, const float factor) -> Color {
+          return Color(hue_correct(float4(color), factor, curve_mapping));
         },
         mf::build::exec_presets::SomeSpanOrSingle<0>());
   });

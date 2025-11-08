@@ -192,7 +192,7 @@ static PyObject *Euler_to_matrix(EulerObject *self)
     return nullptr;
   }
 
-  eulO_to_mat3((float(*)[3])mat, self->eul, self->order);
+  eulO_to_mat3((float (*)[3])mat, self->eul, self->order);
 
   return Matrix_CreatePyObject(mat, 3, 3, nullptr);
 }
@@ -227,7 +227,7 @@ PyDoc_STRVAR(
     "   (no 720 degree pitches).\n"
     "\n"
     "   :arg axis: An axis string.\n"
-    "   :type axis: Literal['X, 'Y', 'Z']\n"
+    "   :type axis: Literal['X', 'Y', 'Z']\n"
     "   :arg angle: angle in radians.\n"
     "   :type angle: float\n");
 static PyObject *Euler_rotate_axis(EulerObject *self, PyObject *args)

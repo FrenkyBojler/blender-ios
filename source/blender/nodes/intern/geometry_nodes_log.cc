@@ -169,11 +169,17 @@ GeometryInfoLog::GeometryInfoLog(const bke::GeometrySet &geometry_set)
         break;
       }
       case bke::GeometryComponent::Type::Volume: {
+#ifdef WITH_OPENVDB
         const auto &volume_component = *static_cast<const bke::VolumeComponent *>(component);
         if (const Volume *volume = volume_component.get()) {
           VolumeInfo &info = this->volume_info.emplace();
-          info.grids_num = BKE_volume_num_grids(volume);
+          info.grids.resize(BKE_volume_num_grids(volume));
+          for (const int i : IndexRange(BKE_volume_num_grids(volume))) {
+            const bke::VolumeGridData *grid = BKE_volume_grid_get(volume, i);
+            info.grids[i] = {grid->name(), bke::volume_grid::get_type(*grid)};
+          }
         }
+#endif /* WITH_OPENVDB */
         break;
       }
       case bke::GeometryComponent::Type::GreasePencil: {
@@ -934,6 +940,10 @@ Map<const bNodeTreeZone *, ComputeContextHash> GeoNodesLog::
 
 static GeoNodesLog *get_root_log(const SpaceNode &snode)
 {
+  if (!ED_node_is_geometry(&snode)) {
+    return nullptr;
+  }
+
   switch (SpaceNodeGeometryNodesType(snode.node_tree_sub_type)) {
     case SNODE_GEOMETRY_MODIFIER: {
       std::optional<ed::space_node::ObjectAndModifier> object_and_modifier =

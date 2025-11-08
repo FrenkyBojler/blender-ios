@@ -94,6 +94,8 @@ class Cursor : Overlay {
      * So make sure it is set otherwise it can be in undefined state (see #136911). */
     pass.push_constant("gpu_attr_0_fetch_int", false);
     pass.push_constant("gpu_attr_1_fetch_unorm8", false);
+    pass.push_constant("gpu_attr_0_len", 3);
+    pass.push_constant("gpu_attr_1_len", 3);
     /* See `polyline_draw_workaround`. */
     int3 vert_stride_count_line = {2, 9999 /* Doesn't matter. */, 0};
     int3 vert_stride_count_circle = {1, 9999 /* Doesn't matter. */, 0};
@@ -108,13 +110,12 @@ class Cursor : Overlay {
       float4x4 mvp_lines = float4x4(state.rv3d->winmat) * float4x4(state.rv3d->viewmat) *
                            cursor_mat;
 
-      /* Render line first to avoid Z fighting. */
-      pass.push_constant("ModelViewProjectionMatrix", mvp_lines);
-      pass.push_constant("gpu_vert_stride_count_offset", vert_stride_count_line);
-      pass.draw_expand(res.shapes.cursor_lines.get(), GPU_PRIM_TRIS, 2, 1);
       pass.push_constant("ModelViewProjectionMatrix", mvp);
       pass.push_constant("gpu_vert_stride_count_offset", vert_stride_count_circle);
       pass.draw_expand(res.shapes.cursor_circle.get(), GPU_PRIM_TRIS, 2, 1);
+      pass.push_constant("ModelViewProjectionMatrix", mvp_lines);
+      pass.push_constant("gpu_vert_stride_count_offset", vert_stride_count_line);
+      pass.draw_expand(res.shapes.cursor_lines.get(), GPU_PRIM_TRIS, 2, 1);
     }
     else {
       pass.push_constant("ModelViewProjectionMatrix", mvp);

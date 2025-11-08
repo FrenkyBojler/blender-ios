@@ -13,25 +13,33 @@
 
 #include "GPU_material.hh"
 
+#include "COM_result.hh"
+
 #include "node_composite_util.hh"
 
 namespace blender::nodes::node_composite_distance_matte_cc {
 
 static const EnumPropertyItem color_space_items[] = {
-    {CMP_NODE_DISTANCE_MATTE_COLOR_SPACE_RGBA, "RGB", 0, "RGB", "RGB color space"},
-    {CMP_NODE_DISTANCE_MATTE_COLOR_SPACE_YCCA, "YCC", 0, "YCC", "YCbCr color space"},
+    {CMP_NODE_DISTANCE_MATTE_COLOR_SPACE_RGBA, "RGB", 0, N_("RGB"), N_("RGB color space")},
+    {CMP_NODE_DISTANCE_MATTE_COLOR_SPACE_YCCA, "YCC", 0, N_("YCC"), N_("YCbCr color space")},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
 static void cmp_node_distance_matte_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
   b.is_function_node();
-  b.add_input<decl::Color>("Image").default_value({1.0f, 1.0f, 1.0f, 1.0f});
+  b.add_input<decl::Color>("Image").default_value({1.0f, 1.0f, 1.0f, 1.0f}).hide_value();
+  b.add_output<decl::Color>("Image").align_with_previous();
+  b.add_output<decl::Float>("Matte");
+
   b.add_input<decl::Color>("Key Color").default_value({1.0f, 1.0f, 1.0f, 1.0f});
   b.add_input<decl::Menu>("Color Space")
       .default_value(CMP_NODE_DISTANCE_MATTE_COLOR_SPACE_RGBA)
       .static_items(color_space_items)
-      .expanded();
+      .expanded()
+      .optional_label();
   b.add_input<decl::Float>("Tolerance")
       .default_value(0.1f)
       .subtype(PROP_FACTOR)
@@ -48,9 +56,6 @@ static void cmp_node_distance_matte_declare(NodeDeclarationBuilder &b)
       .description(
           "If the distance between the color and the key color in the given color space is less "
           "than this threshold, it is partially keyed, otherwise, it is not keyed");
-
-  b.add_output<decl::Color>("Image");
-  b.add_output<decl::Float>("Matte");
 }
 
 static void node_composit_init_distance_matte(bNodeTree * /*ntree*/, bNode *node)
@@ -102,32 +107,36 @@ static void distance_key(const float4 color,
 
   float difference = math::distance(color_vector.xyz(), key_vector.xyz());
   bool is_opaque = difference > tolerance + falloff;
-  float alpha = is_opaque ? color.w : math::max(0.0f, difference - tolerance) / falloff;
+  float alpha = is_opaque ? color.w :
+                            math::safe_divide(math::max(0.0f, difference - tolerance), falloff);
   matte = math::min(alpha, color.w);
   result = color * matte;
 }
 
+using blender::compositor::Color;
+
 static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &builder)
 {
-  static auto function =
-      mf::build::SI5_SO2<float4, float4, MenuValue, float, float, float4, float>(
-          "Distance Key",
-          [=](const float4 &color,
-              const float4 &key_color,
-              const MenuValue &color_space,
-              const float &tolerance,
-              const float &falloff,
-              float4 &output_color,
-              float &matte) -> void {
-            distance_key(color,
-                         key_color,
-                         CMPNodeDistanceMatteColorSpace(color_space.value),
-                         tolerance,
-                         falloff,
-                         output_color,
-                         matte);
-          },
-          mf::build::exec_presets::SomeSpanOrSingle<0, 1>());
+  static auto function = mf::build::SI5_SO2<Color, Color, MenuValue, float, float, Color, float>(
+      "Distance Key",
+      [=](const Color &color,
+          const Color &key_color,
+          const MenuValue &color_space,
+          const float &tolerance,
+          const float &falloff,
+          Color &output_color,
+          float &matte) -> void {
+        float4 out_color;
+        distance_key(float4(color),
+                     float4(key_color),
+                     CMPNodeDistanceMatteColorSpace(color_space.value),
+                     tolerance,
+                     falloff,
+                     out_color,
+                     matte);
+        output_color = Color(out_color);
+      },
+      mf::build::exec_presets::SomeSpanOrSingle<0, 1>());
   builder.set_matching_fn(function);
 }
 
