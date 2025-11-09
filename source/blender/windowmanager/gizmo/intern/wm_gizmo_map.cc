@@ -644,8 +644,8 @@ static int gizmo_find_intersected_3d_intern(wmGizmo **visible_gizmos,
       GPU_matrix_unproject_3fv(co_screen, rv3d->viewinv, rv3d->winmat, viewport, co_3d);
       float select_bias = gz->select_bias;
       if ((gz->flag & WM_GIZMO_DRAW_NO_SCALE) == 0) {
-        /* Use the larger of the gizmo's final and base scale so that when scale final becomes very
-         * small, the selection bias doesn't disappear and the gizmo stays selectable. See #100321.
+        /* Use the larger of the gizmo's final and base scale so when scale final becomes very
+         * small, the gizmo stays selectable. See #100321.
          */
         const float scale = max_ff(gz->scale_final, gz->scale_basis);
         select_bias *= scale;
