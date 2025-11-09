@@ -42,11 +42,11 @@ class Segment {
   /* Curve index. */
   int curve = -1;
 
-  /* The start and end of the original curve is stored, because this segment may go past then end
+  /* The start and end of the original curve is stored, because this segment may go past the end
    * and have to loop. */
   IndexRange src_points;
 
-  /* Point range of the segment: starting point and end point. Matches the point offsets
+  /* Point range of the segment: Starting point and end point. Matches the point offsets
    * in a CurvesGeometry. */
   int points[2] = {-1, -1};
 
@@ -437,7 +437,7 @@ static void find_intersections_between_curve_and_curves(
         return;
       }
 
-      /* Bounding box check: skip curves that don't overlap segment i1-i2. */
+      /* Bounding box check: Skip curves that don't overlap segment i1-i2. */
       if (!bounds::intersect(bbox_i, screen_space_bbox[curve_j]).has_value()) {
         return;
       }
@@ -689,7 +689,7 @@ static void cut_caps(bke::CurvesGeometry &dst,
     const Side direction_last = reversed_last ? Side::Start : Side::End;
     const int inter_index_last = segment_last.intersection_index[direction_last];
 
-    /* Check if there is intersection and therefor the segment should be cut. */
+    /* Check if there is a intersection and therefor the curve should be cut. */
     if (inter_index_first != -1) {
       dst_start_caps.span[curve_i] = GP_STROKE_CAP_TYPE_FLAT;
     }
@@ -721,7 +721,7 @@ static Side decode_side(const EncodedConnection encoded)
   return encoded < 0 ? Side::End : Side::Start;
 }
 
-/* Both the start and end of the segment are connected to two other segments*/
+/* Both the start and end of every segment is connected to two other segments or null. */
 using SegmentConnections = VecBase<EncodedConnection, 2>;
 
 static void create_connections_from_curves(const OffsetIndices<int> segments_by_curve,
@@ -794,7 +794,6 @@ static void follow_segment_connections(const Span<Segment> all_segments,
 
   segment_offset_data.append(0);
 
-  /* Follow each segment until it loops or ends. */
   Array<bool> processed_segments(all_segments.size(), false);
   int start_segment = 0;
 
@@ -820,6 +819,7 @@ static void follow_segment_connections(const Span<Segment> all_segments,
 
   start_segment = get_next_unprocessed_segment();
 
+  /* Follow each segment until it loops or ends. */
   while (start_segment != -1) {
     Vector<Segment> curve_segments;
     Vector<bool> curve_segment_reversed;
@@ -837,11 +837,11 @@ static void follow_segment_connections(const Span<Segment> all_segments,
       }
     };
 
+    /* Check if the last segment can be joined to the first one. */
     auto join_last = [&]() {
       if (curve_segments.size() == 1) {
         return;
       }
-      /* Check if the last segment can be joined to the first one. */
       if (check_and_join_segments(curve_segments.first(), curve_segments.last())) {
         curve_segments.remove_last();
         curve_segment_reversed.remove_last();
@@ -902,6 +902,7 @@ static void follow_segment_connections(const Span<Segment> all_segments,
       const int next_segment = decode_index(next_encoded);
       const Side next_side = decode_side(next_encoded);
 
+      /* Check if we are back to the start. */
       if (next_segment == first_segment) {
         curve_done = true;
         curve_closed = true;
@@ -961,7 +962,7 @@ static void check_segments_in_lasso(const Span<float2> screen_space_positions,
   const Bounds<float2> bbox_lasso{float2(bbox_lasso_int.min), float2(bbox_lasso_int.max)};
 
   editable_curves.foreach_index(GrainSize(128), [&](const int curve_i) {
-    /* To speed things up: do a bounding box check on the curve and the lasso area. */
+    /* To speed things up: Do a bounding box check on the curve and the lasso area. */
     if (!bounds::intersect(bbox_lasso, screen_space_bbox[curve_i]).has_value()) {
       return;
     }
@@ -1179,6 +1180,7 @@ bke::CurvesGeometry trim_curve_segment_ends(const bke::CurvesGeometry &src,
       all_segment_offset_data);
 
   Array<bool> segments_to_keep(all_segments.size(), true);
+  /* Remove the end segments unless that would delete the whole curve. */
   editable_curves.foreach_index(GrainSize(128), [&](const int curve_i) {
     const IndexRange segment_range = segments_by_curve[curve_i];
 
