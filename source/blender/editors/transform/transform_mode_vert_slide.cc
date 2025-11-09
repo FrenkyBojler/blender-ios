@@ -289,8 +289,7 @@ static eRedrawFlag handleEventVertSlide(TransInfo *t, const wmEvent *event)
 
             if (slp->op) {
               if (PropertyRNA *pdir = RNA_struct_find_property(slp->op->ptr, "slide_direction")) {
-                float tmp[3] = {dir_unit.x, dir_unit.y, dir_unit.z};
-                RNA_property_float_set_array(slp->op->ptr, pdir, tmp);
+                RNA_property_float_set_array(slp->op->ptr, pdir, &dir_unit.x);
               }
             }
             slp->dir_3d = dir_unit;
