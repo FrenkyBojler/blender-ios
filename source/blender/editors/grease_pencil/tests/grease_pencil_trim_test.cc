@@ -230,8 +230,14 @@ TEST(grease_pencil_trim, trim_cyclical_corner)
   const CurvesGeometry dst = trim::trim_curve_segments(
       src, screen_space_positions, mcoords, src.curves_range(), src.curves_range(), true);
 
-  // const Array<float2> expected_positions = {{10.0f, 10.0f}, {50.0f, 10.0f}, {10.0f, 50.0f}};
-  // expect_near_positions(dst.positions(), expected_positions);
+  const Array<float2> expected_positions = {{40.0f, 10.0f},
+                                            {10.0f, 10.0f},
+                                            {10.0f, 40.0f},
+                                            {30.0f, 10.0f},
+                                            {30.0f, 0.0f},
+                                            {0.0f, 30.0f},
+                                            {10.f, 30.0f}};
+  expect_near_positions(dst.positions(), expected_positions);
 }
 
 }  // namespace blender::ed::greasepencil::tests
