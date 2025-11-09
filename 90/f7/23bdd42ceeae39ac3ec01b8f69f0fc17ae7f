@@ -1,0 +1,1 @@
+Referenced by issue #149578, Operator (object.modifier_set_active) now fails context poll in 5.0
