@@ -152,8 +152,8 @@ struct VertSlideParams {
   wmOperator *op;
   bool use_even;
   bool flipped;
-  float3 dir_3d;
-  bool have_dir;
+  /* Must never be zero length, otherwise should be nullopt. */
+  std::optional<float3> dir_3d;
 };
 
 static void vert_slide_update_input(TransInfo *t)
@@ -298,7 +298,6 @@ static eRedrawFlag handleEventVertSlide(TransInfo *t, const wmEvent *event)
               }
             }
             slp->dir_3d = dir3;
-            slp->have_dir = true;
           }
         }
         calcVertSlideCustomPoints(t);
@@ -631,7 +630,7 @@ static void initVertSlide_ex(
   t->mode = TFM_VERT_SLIDE;
 
   {
-    VertSlideParams *slp = MEM_callocN<VertSlideParams>(__func__);
+    VertSlideParams *slp = MEM_new<VertSlideParams>(__func__);
     slp->use_even = use_even;
     slp->flipped = flipped;
     slp->perc = 0.0f;
@@ -648,12 +647,11 @@ static void initVertSlide_ex(
         RNA_property_float_get_array(op->ptr, pdir, tmp);
         const float3 d(tmp[0], tmp[1], tmp[2]);
         slp->dir_3d = math::normalize(d);
-        slp->have_dir = true;
       }
     }
 
     t->custom.mode.data = slp;
-    t->custom.mode.use_free = true;
+    t->custom.mode.use_free = false;
   }
 
   bool ok = false;
@@ -665,8 +663,8 @@ static void initVertSlide_ex(
     VertSlideParams *slp_local = static_cast<VertSlideParams *>(t->custom.mode.data);
 
     float3 init_dir;
-    if (slp_local->have_dir) {
-      init_dir = slp_local->dir_3d;
+    if (slp_local->dir_3d.has_value()) {
+      init_dir = *slp_local->dir_3d;
     }
     else {
       const float2 delta = float2(t->mval) - t->mouse.imval;
