@@ -239,11 +239,6 @@ struct ExtractionGraph {
  public:
   TaskGraph *graph = BLI_task_graph_create();
 
- private:
-  /* WORKAROUND: BLI_gset_free is not allowing to pass a data pointer to the free function. */
-  static thread_local TaskGraph *task_graph_ptr_;
-
- public:
   ~ExtractionGraph()
   {
     BLI_assert_msg(graph == nullptr, "Missing call to work_and_wait");
@@ -258,8 +253,6 @@ struct ExtractionGraph {
     graph = nullptr;
   }
 };
-
-thread_local TaskGraph *ExtractionGraph::task_graph_ptr_ = nullptr;
 
 /** \} */
 
