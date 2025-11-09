@@ -227,6 +227,21 @@ static void freeVertSlideVerts(TransInfo * /*t*/,
   custom_data->data = nullptr;
 }
 
+static void freeVertSlideParams(TransInfo /*t*/,
+                                ,
+                                TransDataContainer * /*tc*/,
+                                TransCustomData *custom_data)
+{
+  VertSlideParams *slp = static_cast<VertSlideParams *>(custom_data->data);
+
+  if (!slp) {
+    return;
+  }
+
+  MEM_delete(slp);
+  custom_data->data = nullptr;
+}
+
 static eRedrawFlag handleEventVertSlide(TransInfo *t, const wmEvent *event)
 {
   if (t->redraw && event->type != MOUSEMOVE) {
@@ -635,6 +650,7 @@ static void initVertSlide_ex(
 
     t->custom.mode.data = slp;
     t->custom.mode.use_free = false;
+    t->custom.mode.free_cb = freeVertSlideParams;
   }
 
   bool ok = false;
