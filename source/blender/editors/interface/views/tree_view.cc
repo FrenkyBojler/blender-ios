@@ -156,7 +156,7 @@ std::optional<uiViewState> AbstractTreeView::persistent_state() const
   uiViewState state{};
 
   SET_FLAG_FROM_TEST(state.flag, show_display_options_, UI_VIEW_SHOW_FILTER_OPTIONS);
-  BLI_strncpy(state.search_string, search_string_.get(), sizeof(state.search_string));
+  STRNCPY(state.search_string, search_string_.get());
 
   if (!custom_height_ && !scroll_value_) {
     return {};
@@ -809,8 +809,10 @@ bool AbstractTreeViewItem::matches(const AbstractViewItem &other) const
   return true;
 }
 
-void AbstractTreeViewItem::on_filter_change()
+void AbstractTreeViewItem::on_filter()
 {
+  BLI_assert(this->get_tree_view().search_string_ && this->get_tree_view().search_string_[0]);
+
   if (is_filtered_visible_) {
     foreach_parent([&](AbstractTreeViewItem &item) {
       item.is_filtered_visible_ = true;
@@ -950,6 +952,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
                                                  ICON_DISCLOSURE_TRI_RIGHT;
     uiBut *but = uiDefIconBut(
         block, ButType::Toggle, 0, icon, 0, 0, UI_UNIT_X, UI_UNIT_Y * 0.3, nullptr, 0, 0, "");
+    UI_but_flag_disable(but, UI_BUT_UNDO);
     UI_but_func_set(but, set_filtering_collapsed_fn, nullptr, nullptr);
     UI_block_emboss_set(block, ui::EmbossType::Emboss);
     bottom->column(false);
@@ -982,7 +985,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
                             UI_MAX_NAME_STR,
                             "");
       UI_but_flag_enable(but, UI_BUT_TEXTEDIT_UPDATE | UI_BUT_VALUE_CLEAR);
-      UI_but_flag_enable(but, UI_BUT_UNDO);
+      UI_but_flag_disable(but, UI_BUT_UNDO);
       ui_def_but_icon(but, ICON_VIEWZOOM, UI_HAS_ICON);
     }
   }
