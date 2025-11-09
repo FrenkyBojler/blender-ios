@@ -512,9 +512,9 @@ static bool auto_track_initjob(bContext *C, AutoTrackJob *atj)
 
   atj->clip = clip;
 
-  atj->sfra = 1;
-  atj->lastfra = 1;
-  atj->efra = clip->len;
+  atj->sfra = BKE_movieclip_remap_scene_to_clip_frame(clip, clip->frame_offset);
+  atj->lastfra = atj->sfra;
+  atj->efra = BKE_movieclip_remap_scene_to_clip_frame(clip, scene->r.efra);
 
   atj->context = BKE_autotrack_context_new(clip, &sc->user, false);
 
@@ -543,6 +543,10 @@ static bool auto_track_callback(void *user_data_void, int frame) {
   user_data->worker_status->progress = float(frame - user_data->job->sfra) / (user_data->job->efra - user_data->job->sfra);
 
   user_data->job->lastfra = frame;
+
+  if (frame == user_data->job->efra) {
+    return false;
+  }
 
   if (user_data->worker_status->stop || auto_track_testbreak()) {
     return false;
