@@ -1143,7 +1143,7 @@ void freeCustomNormalArray(TransInfo *t, TransDataContainer *tc, TransCustomData
 bool checkUseAxisMatrix(TransInfo *t);
 
 /** Converts 2D mouse movement to a normalized 3D direction in world space. */
-float3 mouse_delta_to_world_dir(const TransInfo *t, const float2 &delta);
+std::optional<float3> mouse_delta_to_world_dir(const TransInfo *t, const float2 &delta);
 
 /** \} */
 

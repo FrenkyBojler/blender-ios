@@ -1519,23 +1519,33 @@ Object *transform_object_deform_pose_armature_get(const TransInfo *t, Object *ob
   return nullptr;
 }
 
-float3 mouse_delta_to_world_dir(const TransInfo *t, const float2 &delta)
+std::optional<float3> mouse_delta_to_world_dir(const TransInfo *t, const float2 &delta)
 {
+  if (math::is_zero(delta)) {
+    return std::nullopt;
+  }
+  float3 dir;
+
   if (t->spacetype == SPACE_VIEW3D) {
     if (!(t->region && t->region->regiondata)) {
-      return float3(0.0f, 0.0f, 0.0f);
+      return std::nullopt;
     }
 
     const RegionView3D *rv3d = static_cast<const RegionView3D *>(t->region->regiondata);
     float v[3] = {delta.x, delta.y, 0.0f};
     mul_mat3_m4_v3(const_cast<float (*)[4]>(rv3d->viewinv), v);
-    const float3 dir(v[0], v[1], v[2]);
-
-    return math::normalize(dir);
+    dir = float3(v[0], v[1], v[2]);
+  }
+  else {
+    /* In 2D views (UV Editor), use the mouse movement directly on the XY plane. */
+    dir = float3(delta.x, delta.y, 0.0f);
   }
 
-  /* In 2D views (UV Editor), use the mouse movement directly on the XY plane. */
-  const float3 dir(delta.x, delta.y, 0.0f);
+  /* Skip zero length results after transform. */
+  if (math::is_zero(dir)) {
+    return std::nullopt;
+  }
+
   return math::normalize(dir);
 }
 

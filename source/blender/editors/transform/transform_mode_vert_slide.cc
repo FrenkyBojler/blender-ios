@@ -269,8 +269,9 @@ static eRedrawFlag handleEventVertSlide(TransInfo *t, const wmEvent *event)
           VertSlideData *sld = static_cast<VertSlideData *>(tc->custom.mode.data);
 
           const float2 delta = float2(event->mval) - t->mouse.imval;
-          if (!(delta.x == 0.0f && delta.y == 0.0f)) {
-            const float3 dir3 = mouse_delta_to_world_dir(t, delta);
+
+          if (const std::optional<float3> dir3_opt = mouse_delta_to_world_dir(t, delta)) {
+            const float3 &dir3 = *dir3_opt;
             sld->update_active_edges(t, tc, dir3);
 
             if (slp->op) {
@@ -650,7 +651,13 @@ static void initVertSlide_ex(
     }
     else {
       const float2 delta = float2(t->mval) - t->mouse.imval;
-      init_dir = mouse_delta_to_world_dir(t, delta);
+      if (const std::optional<float3> dir_opt = mouse_delta_to_world_dir(t, delta)) {
+        init_dir = *dir_opt;
+      }
+      else {
+        /* Fallback direction so the operator initializes before any mouse movement. */
+        init_dir = float3(1.0f, 0.0f, 0.0f);
+      }
     }
 
     sld->update_active_edges(t, tc, init_dir);
