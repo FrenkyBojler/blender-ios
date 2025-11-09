@@ -93,7 +93,7 @@ struct VertSlideData {
                            const float3 &dir_world)
   {
     const float3 dir = math::normalize(dir_world);
-    const float4x4 obmat = tc->obedit->object_to_world();
+    const float4x4 &obmat = tc->obedit->object_to_world();
 
     for (TransDataVertSlideVert &sv : this->sv) {
       if (sv.co_link_orig_3d.size() <= 1) {
