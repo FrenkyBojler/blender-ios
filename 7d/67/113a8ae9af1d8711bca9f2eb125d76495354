@@ -3,3 +3,4 @@ Referenced by pull request #148106, Fix #147984: "Open Image" button always crea
 Referenced by commit 7bc7b7743bb14781aa864c1625e19192ad9a36fd, Fix #147984: "Open Image" button always creates absolute file path
 Referenced by issue #149566, Regression: Brushes can't load textures while texture path is set to relative path
 Referenced by pull request #149574, Fix #149566: Library brush textures can't load relative image
+Referenced by commit 504cdd714675979b46abd3d4559f6d38a0ce5116, Fix #149566: Library brush textures can't load relative image
