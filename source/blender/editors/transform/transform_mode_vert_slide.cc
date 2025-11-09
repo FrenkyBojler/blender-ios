@@ -227,12 +227,11 @@ static void freeVertSlideVerts(TransInfo * /*t*/,
   custom_data->data = nullptr;
 }
 
-static void freeVertSlideParams(TransInfo /*t*/,
+static void freeVertSlideParams(TransInfo * /*t*/,
                                 TransDataContainer * /*tc*/,
                                 TransCustomData *custom_data)
 {
   VertSlideParams *slp = static_cast<VertSlideParams *>(custom_data->data);
-
   if (!slp) {
     return;
   }
@@ -240,6 +239,7 @@ static void freeVertSlideParams(TransInfo /*t*/,
   MEM_delete(slp);
   custom_data->data = nullptr;
 }
+
 
 static eRedrawFlag handleEventVertSlide(TransInfo *t, const wmEvent *event)
 {
