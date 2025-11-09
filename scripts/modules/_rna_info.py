@@ -463,10 +463,17 @@ class InfoPropertyRNA:
                     case "pointer":
                         pass
                     case "enum":
-                        # Empty enums typically only occur for enums which are dynamically generated.
-                        # In that case showing a default isn't helpful.
-                        if self.default_str:
-                            type_str += ", default {:s}".format(literal_fmt.format(self.default_str))
+                        if self.is_enum_flag:
+                            # Can't use `self.default_str`, because need to reformat each item with `literal_fmt`.
+                            default_str = "{{{:s}}}".format(
+                                ", ".join(literal_fmt.format(s) for s in sorted(self.default))
+                            )
+                            type_str += ", default {:s}".format(default_str)
+                        else:
+                            # Empty enums typically only occur for enums which are dynamically generated.
+                            # In that case showing a default isn't helpful.
+                            if self.default:
+                                type_str += ", default {:s}".format(literal_fmt.format(self.default))
                     case _:
                         type_str += ", default {:s}".format(self.default_str)
 
