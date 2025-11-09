@@ -19,6 +19,7 @@
 
 #include "BKE_blender_user_menu.hh"
 #include "BKE_context.hh"
+#include "BKE_global.hh"
 #include "BKE_idprop.hh"
 #include "BKE_screen.hh"
 
@@ -227,9 +228,13 @@ static void screen_user_menu_draw(const bContext *C, Menu *menu)
             ui_name = CTX_IFACE_(ot->translation_context, ui_name->c_str());
           }
           if (umi_op->op_prop_enum[0] == '\0') {
+            int icon = ICON_NONE;
+            if (STREQ(ot->idname, "FILE_OT_autopack_toggle")) {
+              icon = (G.fileflags & G_FILE_AUTOPACK) ? ICON_CHECKBOX_HLT : ICON_CHECKBOX_DEHLT;
+            }
             PointerRNA ptr = menu->layout->op(ot,
                                               ui_name,
-                                              ICON_NONE,
+                                              icon,
                                               blender::wm::OpCallContext(umi_op->opcontext),
                                               UI_ITEM_NONE);
             if (umi_op->prop) {
