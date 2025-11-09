@@ -510,14 +510,11 @@ static bool auto_track_initjob(bContext *C, AutoTrackJob *atj)
   MovieClip *clip = ED_space_clip_get_clip(sc);
   Scene *scene = CTX_data_scene(C);
 
-  int framenr = ED_space_clip_get_clip_frame_number(sc);
-
   atj->clip = clip;
 
-  atj->sfra = framenr;
-  atj->lastfra = framenr;
-  atj->efra = scene->r.efra;
-  atj->efra = BKE_movieclip_remap_scene_to_clip_frame(clip, atj->efra);
+  atj->sfra = 1;
+  atj->lastfra = 1;
+  atj->efra = clip->len;
 
   atj->context = BKE_autotrack_context_new(clip, &sc->user, false);
 
@@ -586,7 +583,7 @@ static void auto_track_endjob(void *atv)
   AutoTrackJob *atj = (AutoTrackJob *)atv;
 
   atj->clip->tracking_context = nullptr;
-  atj->scene->r.cfra = BKE_movieclip_remap_clip_to_scene_frame(atj->clip, atj->lastfra);
+  atj->scene->r.cfra = BKE_movieclip_remap_clip_to_scene_frame(atj->clip, atj->efra);
 
   BKE_autotrack_context_sync(atj->context);
   BKE_autotrack_context_finish(atj->context);

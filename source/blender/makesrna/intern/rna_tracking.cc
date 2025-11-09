@@ -1053,7 +1053,7 @@ static void rna_def_trackingSettings(BlenderRNA *brna)
       prop, "Margin", "Default distance from image boundary at which marker stops tracking");
 
   /* default_detect_min_features */
-  prop = RNA_def_property(srna, "default_detect_min_features", PROP_INT, PROP_PIXEL);
+  prop = RNA_def_property(srna, "default_detect_min_features", PROP_INT, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_int_sdna(prop, nullptr, "default_detect_min_features");
   RNA_def_property_range(prop, 0, 300);
