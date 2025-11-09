@@ -31,7 +31,7 @@ static StructSplitName rna_split_namespace_struct_name(blender::StringRef full_n
 }
 
 void rna_write_struct_forward_declarations(std::ostringstream &stream,
-                                           blender::Vector<std::string> structs)
+                                           blender::Vector<blender::StringRef> structs)
 {
   std::stable_sort(
       structs.begin(), structs.end(), [](const blender::StringRef a, const blender::StringRef b) {

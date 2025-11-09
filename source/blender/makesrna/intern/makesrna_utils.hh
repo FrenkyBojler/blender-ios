@@ -5,9 +5,9 @@
 #pragma once
 
 #include <iosfwd>
-#include <string>
 
+#include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
 void rna_write_struct_forward_declarations(std::ostringstream &buffer,
-                                           blender::Vector<std::string> structs);
+                                           blender::Vector<blender::StringRef> structs);

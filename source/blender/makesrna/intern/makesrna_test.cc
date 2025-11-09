@@ -20,7 +20,7 @@ TEST(makesrna_test, forward_struct_declarations_empty_set)
 TEST(makesrna_test, forward_struct_declarations_unscoped_struct_set)
 {
   std::ostringstream stream;
-  blender::Vector<std::string> test_structs = {
+  blender::Vector<blender::StringRef> test_structs = {
       "bContext2",
       "PointerRNA2",
       "BContext",
@@ -48,7 +48,7 @@ TEST(makesrna_test, forward_struct_declarations_unscoped_struct_set)
 TEST(makesrna_test, forward_struct_declarations_scoped_struct_set)
 {
   std::ostringstream stream;
-  blender::Vector<std::string> test_structs = {
+  blender::Vector<blender::StringRef> test_structs = {
       "bContext2",
       "PointerRNA2",
       "BContext",

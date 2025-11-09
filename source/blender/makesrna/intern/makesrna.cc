@@ -3860,7 +3860,8 @@ static void rna_generate_function_prototypes(BlenderRNA *brna, StructRNA *srna, 
 
 static void rna_generate_struct_forward_declarations(FILE *f)
 {
-  blender::VectorSet<std::string> structs_set = {"ID", "PointerRNA", "StructRNA", "FunctionRNA"};
+  blender::VectorSet<blender::StringRef> structs_set = {
+      "ID", "PointerRNA", "StructRNA", "FunctionRNA"};
   LISTBASE_FOREACH (const StructDefRNA *, dsrna, &DefRNA.structs) {
     if (dsrna->dnaname) {
       structs_set.add(dsrna->dnaname);
