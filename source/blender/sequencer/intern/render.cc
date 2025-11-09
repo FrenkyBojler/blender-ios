@@ -475,16 +475,25 @@ static float3x3 calc_strip_transform_matrix(const Scene *scene,
   return mat_pivot;
 }
 
-static void sequencer_image_crop_init(const Strip *strip,
-                                      const ImBuf *in,
-                                      float crop_scale_factor,
-                                      rctf *r_crop)
+static void sequencer_image_crop_init(
+    const Scene *scene, const Strip *strip, const ImBuf *in, float crop_scale_factor, rctf *r_crop)
 {
   const StripCrop *c = strip->data->crop;
   const int left = c->left * crop_scale_factor;
   const int right = c->right * crop_scale_factor;
   const int top = c->top * crop_scale_factor;
   const int bottom = c->bottom * crop_scale_factor;
+
+  if (strip->type == STRIP_TYPE_TEXT) {
+    float2 image_center = {in->x / 2.0f, in->y / 2.0f};
+    float2 image_size = transform_image_raw_size_get(scene, strip);
+    BLI_rctf_init(r_crop,
+                  left + image_center.x - image_size.x / 2,
+                  image_center.x + image_size.x / 2 - right,
+                  bottom + image_center.y - image_size.y / 2,
+                  image_center.y + image_size.y / 2 - top);
+    return;
+  }
 
   BLI_rctf_init(r_crop, left, in->x - right, bottom, in->y - top);
 }
@@ -549,7 +558,7 @@ static void sequencer_preprocess_transform_crop(ImBuf *in,
    * Proxy scale factor always matches preview_scale_factor. */
   rctf source_crop;
   const float crop_scale_factor = scale_crop_values ? preview_scale_factor : 1.0f;
-  sequencer_image_crop_init(strip, in, crop_scale_factor, &source_crop);
+  sequencer_image_crop_init(context->scene, strip, in, crop_scale_factor, &source_crop);
 
   const StripTransform *transform = strip->data->transform;
   eIMBInterpolationFilterMode filter = IMB_FILTER_NEAREST;
