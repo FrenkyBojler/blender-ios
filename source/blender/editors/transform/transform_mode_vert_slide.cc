@@ -113,9 +113,7 @@ struct VertSlideData {
         mul_mat3_m4_v3(const_cast<float (*)[4]>(obmat.ptr()), ev);
         tdir = float3(ev[0], ev[1], ev[2]);
 
-        const float len2 = len_squared_v3(tdir);
-        tdir *= 1.0f / math::sqrt(len2);
-
+        tdir = math::normalize(tdir);
         const float dir_dot = math::dot(dir, tdir);
         if (dir_dot > dir_dot_best) {
           dir_dot_best = dir_dot;
