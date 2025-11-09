@@ -1409,6 +1409,7 @@ wmOperatorTypeMacro *WM_operatortype_macro_define(wmOperatorType *ot, const char
 
 std::string WM_operatortype_name(wmOperatorType *ot, PointerRNA *properties);
 std::string WM_operatortype_description(bContext *C, wmOperatorType *ot, PointerRNA *properties);
+int WM_operatortype_icon(bContext *C, wmOperatorType *ot, PointerRNA *properties);
 /**
  * Use when we want a label, preferring the description.
  */

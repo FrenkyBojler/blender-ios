@@ -19,7 +19,6 @@
 
 #include "BKE_blender_user_menu.hh"
 #include "BKE_context.hh"
-#include "BKE_global.hh"
 #include "BKE_idprop.hh"
 #include "BKE_screen.hh"
 
@@ -229,8 +228,16 @@ static void screen_user_menu_draw(const bContext *C, Menu *menu)
           }
           if (umi_op->op_prop_enum[0] == '\0') {
             int icon = ICON_NONE;
-            if (STREQ(ot->idname, "FILE_OT_autopack_toggle")) {
-              icon = (G.fileflags & G_FILE_AUTOPACK) ? ICON_CHECKBOX_HLT : ICON_CHECKBOX_DEHLT;
+            if (ot->get_icon && ot->srna) {
+              PointerRNA temp_ptr = RNA_pointer_create_discrete(
+                  nullptr, ot->srna, blender::bke::idprop::create_group("wmOperatorProperties").release());
+              if (umi_op->prop) {
+                IDP_CopyPropertyContent(temp_ptr.data_as<IDProperty>(), umi_op->prop);
+              }
+              icon = WM_operatortype_icon(C, ot, &temp_ptr);
+              if (temp_ptr.data) {
+                IDP_FreeProperty(static_cast<IDProperty *>(temp_ptr.data));
+              }
             }
             PointerRNA ptr = menu->layout->op(ot,
                                               ui_name,

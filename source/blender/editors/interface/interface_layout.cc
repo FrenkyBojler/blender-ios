@@ -1431,6 +1431,14 @@ static uiBut *uiItemFullO_ptr_ex(uiLayout *layout,
     PointerRNA *opptr = UI_but_operator_ptr_ensure(but);
     opptr->data = blender::bke::idprop::create_group("wmOperatorProperties").release();
     *r_opptr = *opptr;
+
+    if (ot && ot->get_icon) {
+      bContext *C = layout->context();
+      const int dynamic_icon = WM_operatortype_icon(C, ot, opptr);
+      if (dynamic_icon != ICON_NONE) {
+        but->icon = dynamic_icon;
+      }
+    }
   }
 
   return but;

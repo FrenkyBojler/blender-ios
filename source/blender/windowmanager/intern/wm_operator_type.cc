@@ -616,6 +616,17 @@ std::string WM_operatortype_description(bContext *C, wmOperatorType *ot, Pointer
   return "";
 }
 
+int WM_operatortype_icon(bContext *C, wmOperatorType *ot, PointerRNA *properties)
+{
+  if (ot->get_icon && properties) {
+    const int icon = ot->get_icon(C, ot, properties);
+    if (icon != ICON_NONE) {
+      return icon;
+    }
+  }
+  return ICON_NONE;
+}
+
 std::string WM_operatortype_description_or_name(bContext *C,
                                                 wmOperatorType *ot,
                                                 PointerRNA *properties)

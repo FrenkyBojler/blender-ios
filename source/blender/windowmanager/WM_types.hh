@@ -1131,6 +1131,12 @@ struct wmOperatorType {
    */
   std::string (*get_description)(bContext *C, wmOperatorType *ot, PointerRNA *ptr) = nullptr;
 
+  /**
+   * Return a different icon to use in the user interface, based on operator state.
+   * Return ICON_NONE to use the default icon.
+   */
+  int (*get_icon)(bContext *C, wmOperatorType *ot, PointerRNA *ptr) = nullptr;
+
   /** A dynamic version of #OPTYPE_DEPENDS_ON_CURSOR which can depend on operator properties. */
   bool (*depends_on_cursor)(bContext &C, wmOperatorType &ot, PointerRNA *ptr) = nullptr;
 

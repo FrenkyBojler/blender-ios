@@ -133,6 +133,11 @@ static wmOperatorStatus autopack_toggle_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
+static int autopack_toggle_get_icon(bContext * /*C*/, wmOperatorType * /*ot*/, PointerRNA * /*ptr*/)
+{
+  return (G.fileflags & G_FILE_AUTOPACK) ? ICON_CHECKBOX_HLT : ICON_CHECKBOX_DEHLT;
+}
+
 void FILE_OT_autopack_toggle(wmOperatorType *ot)
 {
   /* identifiers */
@@ -142,6 +147,7 @@ void FILE_OT_autopack_toggle(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->exec = autopack_toggle_exec;
+  ot->get_icon = autopack_toggle_get_icon;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
