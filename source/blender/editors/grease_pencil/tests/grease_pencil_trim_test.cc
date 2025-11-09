@@ -88,6 +88,41 @@ TEST(grease_pencil_trim, trim_two_edges)
   expect_near_positions(dst.positions(), expected_positions);
 }
 
+TEST(grease_pencil_trim, trim_sub_edges)
+{
+  using namespace bke::greasepencil;
+  using namespace bke;
+
+  const Array<int2> mcoords = {{10, 35}, {50, 35}, {50, 25}, {10, 25}};
+  const Array<int> src_offsets = {0, 2, 4, 6, 8};
+  const Array<bool> src_cyclic = {false, false, false, false};
+  const Array<float2> screen_space_positions = {{20.0f, 0.0f},
+                                                {20.0f, 60.0f},
+                                                {40.0f, 0.0f},
+                                                {40.0f, 60.0f},
+                                                {0.0f, 20.0f},
+                                                {60.0f, 20.0f},
+                                                {0.0f, 40.0f},
+                                                {60.0f, 40.0f}};
+  const CurvesGeometry src = create_test_curves(src_offsets, screen_space_positions, src_cyclic);
+  const CurvesGeometry dst = trim::trim_curve_segments(
+      src, screen_space_positions, mcoords, src.curves_range(), src.curves_range(), true);
+
+  const Array<float2> expected_positions = {{20.0f, 0.0f},
+                                            {20.0f, 20.0f},
+                                            {20.0f, 40.0f},
+                                            {20.0f, 60.0f},
+                                            {40.0f, 0.0f},
+                                            {40.0f, 20.0f},
+                                            {40.0f, 40.0f},
+                                            {40.0f, 60.0f},
+                                            {0.0f, 20.0f},
+                                            {60.0f, 20.0f},
+                                            {0.0f, 40.0f},
+                                            {60.0f, 40.0f}};
+  expect_near_positions(dst.positions(), expected_positions);
+}
+
 TEST(grease_pencil_trim, trim_plus_intersection)
 {
   using namespace bke::greasepencil;
