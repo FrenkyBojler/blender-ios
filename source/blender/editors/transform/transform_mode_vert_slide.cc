@@ -109,9 +109,7 @@ struct VertSlideData {
         const float3 &loc_dst = sv.co_link_orig_3d[j];
 
         float3 tdir = loc_dst - v_co_orig;
-        float ev[3] = {tdir.x, tdir.y, tdir.z};
-        mul_mat3_m4_v3(const_cast<float (*)[4]>(obmat.ptr()), ev);
-        tdir = float3(ev[0], ev[1], ev[2]);
+        mul_mat3_m4_v3(const_cast<float (*)[4]>(obmat.ptr()), tdir);
 
         tdir = math::normalize(tdir);
         const float dir_dot = math::dot(dir, tdir);
