@@ -240,7 +240,6 @@ static void freeVertSlideParams(TransInfo * /*t*/,
   custom_data->data = nullptr;
 }
 
-
 static eRedrawFlag handleEventVertSlide(TransInfo *t, const wmEvent *event)
 {
   if (t->redraw && event->type != MOUSEMOVE) {
@@ -285,16 +284,16 @@ static eRedrawFlag handleEventVertSlide(TransInfo *t, const wmEvent *event)
           const float2 delta = float2(event->mval) - t->mouse.imval;
 
           if (const std::optional<float3> dir3_opt = mouse_delta_to_world_dir(t, delta)) {
-            const float3 &dir3 = *dir3_opt;
-            sld->update_active_edges(t, tc, dir3);
+            const float3 &dir_unit = *dir3_opt;
+            sld->update_active_edges(t, tc, dir_unit);
 
             if (slp->op) {
               if (PropertyRNA *pdir = RNA_struct_find_property(slp->op->ptr, "slide_direction")) {
-                float tmp[3] = {dir3.x, dir3.y, dir3.z};
+                float tmp[3] = {dir_unit.x, dir_unit.y, dir_unit.z};
                 RNA_property_float_set_array(slp->op->ptr, pdir, tmp);
               }
             }
-            slp->dir_3d = dir3;
+            slp->dir_3d = dir_unit;
           }
         }
         calcVertSlideCustomPoints(t);
