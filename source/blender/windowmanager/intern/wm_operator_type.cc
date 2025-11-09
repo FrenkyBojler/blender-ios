@@ -37,6 +37,8 @@
 #include "WM_keymap.hh"
 #include "WM_types.hh"
 
+#include "UI_resources.hh"
+
 #include "wm.hh"
 #include "wm_event_system.hh"
 

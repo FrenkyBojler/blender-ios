@@ -1433,7 +1433,8 @@ static uiBut *uiItemFullO_ptr_ex(uiLayout *layout,
     *r_opptr = *opptr;
 
     if (ot && ot->get_icon) {
-      bContext *C = layout->context();
+      uiBlock *block = layout->block();
+      bContext *C = static_cast<bContext *>(block->evil_C);
       const int dynamic_icon = WM_operatortype_icon(C, ot, opptr);
       if (dynamic_icon != ICON_NONE) {
         but->icon = dynamic_icon;

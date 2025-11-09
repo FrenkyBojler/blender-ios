@@ -234,7 +234,7 @@ static void screen_user_menu_draw(const bContext *C, Menu *menu)
               if (umi_op->prop) {
                 IDP_CopyPropertyContent(temp_ptr.data_as<IDProperty>(), umi_op->prop);
               }
-              icon = WM_operatortype_icon(C, ot, &temp_ptr);
+              icon = WM_operatortype_icon(const_cast<bContext *>(C), ot, &temp_ptr);
               if (temp_ptr.data) {
                 IDP_FreeProperty(static_cast<IDProperty *>(temp_ptr.data));
               }
