@@ -821,10 +821,64 @@ static void follow_segment_connections(const Span<Segment> all_segments,
   start_segment = get_next_unprocessed_segment();
 
   while (start_segment != -1) {
-    bool current_backwards = false;
-    int current_i = start_segment;
+    Vector<Segment> curve_segments;
+    Vector<bool> curve_segment_reversed;
 
+    auto append_segment = [&](const Segment &current_segment, const bool current_backwards) {
+      if (curve_segments.size() == 0) {
+        curve_segments.append(current_segment);
+        curve_segment_reversed.append(current_backwards);
+        return;
+      }
+      /* Check if the last segment can be joined with this one. */
+      if (!check_and_join_segments(curve_segments.last(), current_segment)) {
+        curve_segments.append(current_segment);
+        curve_segment_reversed.append(current_backwards);
+      }
+    };
+
+    auto join_last = [&]() {
+      if (curve_segments.size() == 1) {
+        return;
+      }
+      /* Check if the last segment can be joined to the first one. */
+      if (check_and_join_segments(curve_segments.first(), curve_segments.last())) {
+        curve_segments.remove_last();
+        curve_segment_reversed.remove_last();
+      }
+    };
+
+    /* Loop backwards to find the first segment. */
+    bool current_backwards = true;
+    int current_i = start_segment;
     bool curve_done = false;
+    while (!curve_done) {
+      const EncodedConnection next_encoded =
+          segment_connections[current_i][current_backwards ? Side::Start : Side::End];
+
+      if (next_encoded == SEGMENT_CONNECTION_NULL) {
+        curve_done = true;
+        break;
+      }
+
+      const int next_segment = decode_index(next_encoded);
+      const Side next_side = decode_side(next_encoded);
+
+      current_i = next_segment;
+      current_backwards = next_side == Side::End;
+
+      if (next_segment == start_segment) {
+        curve_done = true;
+        break;
+      }
+    }
+
+    /* Reverse the direction. */
+    current_backwards = !current_backwards;
+    const int first_segment = current_i;
+
+    /* Loop through forwards, adding segments until ending or looping. */
+    curve_done = false;
     bool curve_closed = false;
     while (!curve_done) {
       if (processed_segments[current_i] == true) {
@@ -834,22 +888,10 @@ static void follow_segment_connections(const Span<Segment> all_segments,
 
       const Segment &current_segment = all_segments[current_i];
       processed_segments[current_i] = true;
-
-      if (segments.size() == 0) {
-        segments.append(current_segment);
-        segment_reversed.append(current_backwards);
-      }
-      /* Check if the last segment can be joined with this one. */
-      else if (!check_and_join_segments(segments.last(), current_segment)) {
-        segments.append(current_segment);
-        segment_reversed.append(current_backwards);
-      }
+      append_segment(current_segment, current_backwards);
 
       const EncodedConnection next_encoded =
           segment_connections[current_i][current_backwards ? Side::Start : Side::End];
-
-      const int next_segment = decode_index(next_encoded);
-      const Side next_side = decode_side(next_encoded);
 
       if (next_encoded == SEGMENT_CONNECTION_NULL) {
         curve_done = true;
@@ -857,32 +899,32 @@ static void follow_segment_connections(const Span<Segment> all_segments,
         break;
       }
 
-      if (next_segment == start_segment) {
+      const int next_segment = decode_index(next_encoded);
+      const Side next_side = decode_side(next_encoded);
+
+      if (next_segment == first_segment) {
         curve_done = true;
         curve_closed = true;
 
         BLI_assert(next_side == Side::Start);
-
-        /* Check if the last segment in this curve can be joined to the first one in this curve. */
-        if ((!segments.index_range().is_empty()) &&
-            segment_offset_data.last() != segments.index_range().last())
-        {
-          if (check_and_join_segments(segments[segment_offset_data.last()], segments.last())) {
-            segments.remove_last();
-            segment_reversed.remove_last();
-          }
-        }
+        join_last();
 
         break;
       }
 
+      BLI_assert(segments_to_keep[next_segment]);
+      BLI_assert(!processed_segments[next_segment]);
+
       current_i = next_segment;
       current_backwards = next_side == Side::End;
     }
+
+    segments.extend(curve_segments);
+    segment_reversed.extend(curve_segment_reversed);
+
     segment_offset_data.append(segments.size());
     cyclic.append(curve_closed);
 
-    /* Get the next unprocessed segment. */
     start_segment = get_next_unprocessed_segment();
   }
 }
