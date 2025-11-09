@@ -418,8 +418,7 @@ class TOPBAR_MT_file_external_data(Menu):
     def draw(self, _context):
         layout = self.layout
 
-        icon = 'CHECKBOX_HLT' if bpy.data.use_autopack else 'CHECKBOX_DEHLT'
-        layout.operator("file.autopack_toggle", icon=icon)
+        layout.operator("file.autopack_toggle")
 
         pack_all = layout.row()
         pack_all.operator("file.pack_all")
