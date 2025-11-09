@@ -275,4 +275,25 @@ TEST(grease_pencil_trim, trim_cyclical_corner)
   expect_near_positions(dst.positions(), expected_positions);
 }
 
+TEST(grease_pencil_trim, trim_no_geometry_edge_end_intersection)
+{
+  using namespace bke::greasepencil;
+  using namespace bke;
+
+  const Array<int2> mcoords = {{20, 10}, {20, 20}, {30, 20}, {30, 10}};
+  const Array<int> src_offsets = {0, 2, 5};
+  const Array<bool> src_cyclic = {false, false};
+  const Array<float2> screen_space_positions = {
+      {0.0f, 0.0f}, {20.0f, 0.0f}, {0.0f, 10.0f}, {10.0f, 20.0f}, {10.0f, 0.0f}};
+  const CurvesGeometry src = create_test_curves(src_offsets, screen_space_positions, src_cyclic);
+  const CurvesGeometry dst = trim::trim_curve_segments(
+      src, screen_space_positions, mcoords, src.curves_range(), src.curves_range(), true);
+
+  const Array<float2> expected_positions = {
+      {0.0f, 0.0f}, {20.0f, 0.0f}, {0.0f, 10.0f}, {10.0f, 20.0f}, {10.0f, 0.0f}};
+  expect_near_positions(dst.positions(), expected_positions);
+  EXPECT_EQ(dst.cyclic()[0], false);
+  EXPECT_EQ(dst.cyclic()[1], false);
+}
+
 }  // namespace blender::ed::greasepencil::tests
