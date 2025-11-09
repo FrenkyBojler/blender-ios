@@ -546,7 +546,10 @@ std::optional<std::string> RNA_property_string_path_filter(const bContext *C,
  * string, when a `get_transform` callback is defined).
  */
 int RNA_property_string_length(PointerRNA *ptr, PropertyRNA *prop);
-void RNA_property_string_get_default(PropertyRNA *prop, char *value, int value_maxncpy);
+void RNA_property_string_get_default(PointerRNA *ptr,
+                                     PropertyRNA *prop,
+                                     char *value,
+                                     int value_maxncpy);
 char *RNA_property_string_get_default_alloc(PointerRNA *ptr,
                                             PropertyRNA *prop,
                                             char *fixedbuf,
