@@ -194,7 +194,8 @@ struct ImageFrameRange {
 
   /**
    * File path of the first file in the range.
-   * May be relative to `G_MAIN->filepath`.
+   * May be relative to `G_MAIN->filepath` or the `root_path`
+   * passed in by #ED_image_filesel_detect_sequences.
    */
   char filepath[FILE_MAX];
   /* Sequence parameters. */
@@ -217,8 +218,12 @@ struct ImageFrame {
 
 /**
  * Used for both images and volume file loading.
+ *
+ * \param blendfile_path: For relative paths, the operator paths will be relative to this.
+ * \param root_path: The #ImageFrameRange::filepath will be made relative to this path.
  */
-ListBase ED_image_filesel_detect_sequences(blender::StringRefNull root_path,
+ListBase ED_image_filesel_detect_sequences(blender::StringRefNull blendfile_path,
+                                           blender::StringRefNull root_path,
                                            wmOperator *op,
                                            bool detect_udim);
 
