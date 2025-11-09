@@ -27,6 +27,7 @@
 #include "BKE_context.hh"
 #include "BKE_crazyspace.hh"
 #include "BKE_curve.hh"
+#include "BKE_curves_utils.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_global.hh"
 #include "BKE_grease_pencil.hh"
@@ -750,12 +751,28 @@ static int gizmo_3d_foreach_selected(const bContext *C,
         }
 
         IndexMaskMemory memory;
-        const IndexMask selected_points = ed::curves::retrieve_selected_points(curves, memory);
-        const Span<float3> positions = deformation.positions;
-        totsel += selected_points.size();
-        selected_points.foreach_index([&](const int point_i) {
-          run_coord_with_matrix(positions[point_i], use_mat_local, mat_local.ptr());
-        });
+        const IndexMask bezier_points = bke::curves::curve_type_point_selection(
+            curves, CURVE_TYPE_BEZIER, memory);
+
+        for (const StringRef selection_name :
+             ed::curves::get_curves_selection_attribute_names(curves))
+        {
+          const IndexMask selected_points = ed::curves::retrieve_selected_points(
+              curves, selection_name, bezier_points, memory);
+
+          Span<float3> positions = deformation.positions;
+          if (selection_name == ".selection_handle_left") {
+            positions = *curves.handle_positions_left();
+          }
+          else if (selection_name == ".selection_handle_right") {
+            positions = *curves.handle_positions_right();
+          }
+
+          totsel += selected_points.size();
+          selected_points.foreach_index([&](const int point_i) {
+            run_coord_with_matrix(positions[point_i], use_mat_local, mat_local.ptr());
+          });
+        }
       }
       FOREACH_EDIT_OBJECT_END();
     }
@@ -805,13 +822,32 @@ static int gizmo_3d_foreach_selected(const bContext *C,
                   mat_local * grease_pencil.layer(info.layer_index).to_object_space(*ob_iter);
 
               IndexMaskMemory memory;
-              const IndexMask selected_points = ed::curves::retrieve_selected_points(curves,
-                                                                                     memory);
-              const Span<float3> positions = deformation.positions;
-              totsel += selected_points.size();
-              selected_points.foreach_index([&](const int point_i) {
-                run_coord_with_matrix(positions[point_i], true, layer_transform.ptr());
-              });
+              const IndexMask editable_points = ed::greasepencil::retrieve_editable_points(
+                  *ob, info.drawing, info.layer_index, memory);
+              const IndexMask bezier_points = bke::curves::curve_type_point_selection(
+                  curves, CURVE_TYPE_BEZIER, memory);
+
+              for (const StringRef selection_name :
+                   ed::curves::get_curves_selection_attribute_names(curves))
+              {
+                const IndexMask selected_points = ed::curves::retrieve_selected_points(
+                    curves, selection_name, bezier_points, memory);
+                const IndexMask selected_editable_points = IndexMask::from_intersection(
+                    editable_points, selected_points, memory);
+
+                Span<float3> positions = deformation.positions;
+                if (selection_name == ".selection_handle_left") {
+                  positions = *curves.handle_positions_left();
+                }
+                else if (selection_name == ".selection_handle_right") {
+                  positions = *curves.handle_positions_right();
+                }
+
+                totsel += selected_editable_points.size();
+                selected_editable_points.foreach_index([&](const int point_i) {
+                  run_coord_with_matrix(positions[point_i], true, layer_transform.ptr());
+                });
+              }
             });
       }
       FOREACH_EDIT_OBJECT_END();
