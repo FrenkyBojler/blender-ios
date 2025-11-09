@@ -391,56 +391,28 @@ void bmo_region_extend_exec(BMesh *bm, BMOperator *op)
   for (int i = 0; i < repeat; i++) {
     if (constrict) {
       bmo_region_extend_contract(bm, op, use_faces, use_face_step);
-      {
-        BMIter iter;
-        BMVert *v;
-        BMEdge *e;
-        BMFace *f;
-
-        BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
-          if (BMO_vert_flag_test(bm, v, SEL_FLAG)) {
-            BMO_vert_flag_disable(bm, v, SEL_ORIG);
-          }
-        }
-        BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
-          if (BMO_edge_flag_test(bm, e, SEL_FLAG)) {
-            BMO_edge_flag_disable(bm, e, SEL_ORIG);
-          }
-        }
-        BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
-          if (BMO_face_flag_test(bm, f, SEL_FLAG)) {
-            BMO_face_flag_disable(bm, f, SEL_ORIG);
-          }
-        }
-      }
     }
     else {
       bmo_region_extend_expand(bm, op, use_faces, use_face_step);
-      {
-        BMIter iter;
-        BMVert *v;
-        BMEdge *e;
-        BMFace *f;
-
-        BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
-          if (BMO_vert_flag_test(bm, v, SEL_FLAG)) {
-            BMO_vert_flag_enable(bm, v, SEL_ORIG);
-          }
-        }
-        BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
-          if (BMO_edge_flag_test(bm, e, SEL_FLAG)) {
-            BMO_edge_flag_enable(bm, e, SEL_ORIG);
-          }
-        }
-        BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
-          if (BMO_face_flag_test(bm, f, SEL_FLAG)) {
-            BMO_face_flag_enable(bm, f, SEL_ORIG);
-          }
-        }
-      }
     }
 
-    BMO_slot_buffer_from_enabled_flag(bm, op, op->slots_in, "geom", BM_ALL_NOLOOP, SEL_ORIG);
+    if (i + 1 < repeat) {
+      BMO_slot_buffer_from_enabled_flag(
+          bm, op, op->slots_out, "geom.out", BM_ALL_NOLOOP, SEL_FLAG);
+
+      BMOIter oiter;
+      BMElem *ele;
+      BMO_ITER (ele, &oiter, op->slots_out, "geom.out", BM_ALL_NOLOOP) {
+        if (constrict) {
+          BMO_elem_flag_disable(bm, ele, SEL_ORIG);
+        }
+        else {
+          BMO_elem_flag_enable(bm, ele, SEL_ORIG);
+        }
+      }
+
+      BMO_slot_buffer_from_enabled_flag(bm, op, op->slots_in, "geom", BM_ALL_NOLOOP, SEL_ORIG);
+    }
   }
 
   BMO_slot_buffer_from_enabled_flag(bm, op, op->slots_out, "geom.out", BM_ALL_NOLOOP, SEL_FLAG);
