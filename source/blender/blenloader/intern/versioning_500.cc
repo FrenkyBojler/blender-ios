@@ -4050,6 +4050,12 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 113)) {
+    LISTBASE_FOREACH (Curve *, cu, &bmain->curves) {
+      cu->flag |= CU_LEGACY_CYCLIC_BEZIER_START;
+    }
+  }
+
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 2)) {
     LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
       LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {

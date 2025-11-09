@@ -40,6 +40,8 @@ enum {
   CU_FILL_CAPS = 1 << 14,
   /** map taper object to beveled area */
   CU_MAP_TAPER = 1 << 15,
+  /** Use legacy cyclic Bezier start point (last control point). */
+  CU_LEGACY_CYCLIC_BEZIER_START = 1 << 16,
 };
 
 /** #Curve.twist_mode */

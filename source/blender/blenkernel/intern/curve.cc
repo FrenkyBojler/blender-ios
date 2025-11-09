@@ -2687,8 +2687,14 @@ void BKE_curve_bevelList_make(Object *ob, const ListBase *nurbs, const bool for_
       bezt = nu->bezt;
       if (nu->flagu & CU_NURB_CYCLIC) {
         a = nu->pntsu;
-        prevbezt = bezt;
-        bezt++;
+        /* Legacy behavior starts from the last control point. */
+        if (cu->flag & CU_LEGACY_CYCLIC_BEZIER_START) {
+          prevbezt = nu->bezt + (nu->pntsu - 1);
+        }
+        else {
+          prevbezt = bezt;
+          bezt++;
+        }
       }
       else {
         a = nu->pntsu - 1;
