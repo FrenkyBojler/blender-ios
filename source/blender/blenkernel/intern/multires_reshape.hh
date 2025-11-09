@@ -376,6 +376,12 @@ void multires_reshape_store_positions_and_matrices(
     blender::MutableSpan<blender::float3> new_positions,
     blender::MutableSpan<blender::float3x3> tangent_matrices);
 
+void multires_reshape_store_higher_limit_surface_tangent_matrices(
+    const MultiresReshapeContext *reshape_context,
+    MultiresSubdivideModeType mode,
+    blender::Span<blender::float3> positions,
+    blender::MutableSpan<blender::float3x3> tangent_matrices);
+
 /* --------------------------------------------------------------------
  * Displacement, space conversion.
  */

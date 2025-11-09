@@ -436,6 +436,46 @@ static void foreach_reshape_ptex_face(
   const MultiresReshapeContext *reshape_context = reshape_smooth_context->reshape_context;
   const OffsetIndices<int> faces = reshape_smooth_context->geometry.faces();
 
+  const int grid_size = 2;
+  const float grid_size_1_inv = 1.0f;
+
+  threading::parallel_for(faces.index_range(), 1, [&](const IndexRange range) {
+    for (const int face_index : range) {
+      IndexRange face = faces[face_index];
+      const int corner = get_face_grid_index(reshape_smooth_context, face);
+      std::array<std::optional<GridCoord>, 4> face_grid_coords = grid_coords_from_face_verts(
+          reshape_smooth_context, face);
+
+      for (int y = 0; y < grid_size; ++y) {
+        const float ptex_v = float(y) * grid_size_1_inv;
+        for (int x = 0; x < grid_size; ++x) {
+          const float ptex_u = float(x) * grid_size_1_inv;
+
+          PTexCoord ptex_coord;
+          ptex_coord.ptex_face_index = face_index;
+          ptex_coord.u = ptex_u;
+          ptex_coord.v = ptex_v;
+
+          const GridCoord grid_coord = interpolate_grid_coord(
+              blender::Span(face_grid_coords), ptex_u, ptex_v);
+
+          const int elem_idx = multires_index_for_grid_coord_for_reshape(reshape_context, &grid_coord);
+
+          callback(&ptex_coord, elem_idx, corner);
+        }
+      }
+    }
+  });
+}
+
+static void foreach_reshape_ptex_face_subdivided(
+    MultiresReshapeSmoothContext *reshape_smooth_context,
+    blender::FunctionRef<void(const PTexCoord *, int, int)> callback)
+{
+  using namespace blender;
+  const MultiresReshapeContext *reshape_context = reshape_smooth_context->reshape_context;
+  const OffsetIndices<int> faces = reshape_smooth_context->geometry.faces();
+
   const int inner_grid_size = 3;
   const float inner_grid_size_1_inv = 0.5f;
 
@@ -468,7 +508,7 @@ static void foreach_reshape_ptex_face(
   });
 }
 
-static void foreach_reshape_ptex_face_single_threaded(
+static void foreach_reshape_ptex_face_subdivided_single_threaded(
     MultiresReshapeSmoothContext *reshape_smooth_context,
     blender::FunctionRef<void(const PTexCoord *, int, int)> callback)
 {
@@ -1204,7 +1244,7 @@ static void reshape_subdiv_refine_final_P(
 static void reshape_subdiv_refine_final(const MultiresReshapeSmoothContext *reshape_smooth_context,
                                         blender::Span<blender::float3> storage)
 {
-  CLOG_DEBUG(&LOG, "SETTING SUBDIV COARSE VERTS");
+  CLOG_DEBUG(&LOG, "SETTING SUBDIV COARSE VERTS: %ld", storage.size());
   reshape_subdiv_refine(reshape_smooth_context, storage, reshape_subdiv_refine_final_P);
 }
 
@@ -1476,12 +1516,51 @@ static void evaluate_higher_grid_positions(MultiresReshapeSmoothContext *reshape
       });
 }
 
+static void evaluate_higher_tangent_matrices(
+    MultiresReshapeSmoothContext *reshape_smooth_context,
+    blender::MutableSpan<blender::float3x3> tangent_matrix_storage)
+{
+  CLOG_DEBUG(&LOG, "evaluate_higher_tangent_matrices: %ld", tangent_matrix_storage.size());
+  blender::Array<bool> tangent_checker(tangent_matrix_storage.size(), false);
+  foreach_reshape_ptex_face(
+      reshape_smooth_context, [&](const PTexCoord *ptex_coord, int idx, int corner) {
+        blender::bke::subdiv::Subdiv *reshape_subdiv = reshape_smooth_context->reshape_subdiv;
+
+        /* Surface. */
+        blender::float3 dPdu;
+        blender::float3 dPdv;
+        blender::float3 dummy_P;
+        blender::bke::subdiv::eval_limit_point_and_derivatives(reshape_subdiv,
+                                                               ptex_coord->ptex_face_index,
+                                                               ptex_coord->u,
+                                                               ptex_coord->v,
+                                                               dummy_P,
+                                                               dPdu,
+                                                               dPdv);
+
+        tangent_checker[idx] = true;
+
+        CLOG_TRACE(&LOG,
+                   "(%d, %f %f) -> (%d, %d)",
+                   ptex_coord->ptex_face_index,
+                   ptex_coord->u,
+                   ptex_coord->v,
+                   corner,
+                   idx);
+
+        /* TODO: Is this corner calculation correct? */
+        BKE_multires_construct_tangent_matrix(tangent_matrix_storage[idx], dPdu, dPdv, corner % 4);
+      });
+  BLI_assert(std::all_of(
+      tangent_checker.begin(), tangent_checker.end(), [](const bool val) { return val; }));
+}
+
 static void evaluate_reshape_faces(MultiresReshapeSmoothContext *reshape_smooth_context,
                                    blender::MutableSpan<blender::float3> delta_storage,
                                    blender::MutableSpan<blender::float3x3> tangent_matrix_storage)
 {
   CLOG_DEBUG(&LOG, "evaluate_reshape_faces: %ld", delta_storage.size());
-  foreach_reshape_ptex_face(
+  foreach_reshape_ptex_face_subdivided(
       reshape_smooth_context, [&](const PTexCoord *ptex_coord, int idx, int corner) {
         blender::bke::subdiv::Subdiv *reshape_subdiv = reshape_smooth_context->reshape_subdiv;
 
@@ -1520,7 +1599,7 @@ static void evaluate_reshape_faces_single_threaded(
 {
   CLOG_DEBUG(&LOG, "evaluate_reshape_faces: %ld", delta_storage.size());
   blender::BitVector<> tagged_elements(delta_storage.size(), false);
-  foreach_reshape_ptex_face_single_threaded(
+  foreach_reshape_ptex_face_subdivided_single_threaded(
       reshape_smooth_context, [&](const PTexCoord *ptex_coord, int idx, int corner) {
         blender::bke::subdiv::Subdiv *reshape_subdiv = reshape_smooth_context->reshape_subdiv;
 
@@ -1677,6 +1756,26 @@ void multires_reshape_store_positions_and_matrices(
 
   reshape_subdiv_refine_final(&reshape_smooth_context, positions);
   evaluate_reshape_faces(&reshape_smooth_context, new_positions, tangent_matrices);
+#else
+  UNUSED_VARS(reshape_context, mode);
+#endif
+}
+
+void multires_reshape_store_higher_limit_surface_tangent_matrices(
+    const MultiresReshapeContext *reshape_context,
+    MultiresSubdivideModeType mode,
+    blender::Span<blender::float3> positions,
+    blender::MutableSpan<blender::float3x3> tangent_matrices)
+{
+
+#ifdef WITH_OPENSUBDIV
+  MultiresReshapeSmoothContext reshape_smooth_context(reshape_context, mode);
+  geometry_create(&reshape_smooth_context);
+
+  reshape_subdiv_create(&reshape_smooth_context);
+
+  reshape_subdiv_refine_final(&reshape_smooth_context, positions);
+  evaluate_higher_tangent_matrices(&reshape_smooth_context, tangent_matrices);
 #else
   UNUSED_VARS(reshape_context, mode);
 #endif

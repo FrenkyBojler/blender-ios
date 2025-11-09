@@ -141,6 +141,18 @@ bool multiresModifier_reshapeFromCCG(const int tot_level, Mesh *coarse_mesh, Sub
   return true;
 }
 
+/* TODO: This doesn't work at the moment, only kept in to avoid re-writing more code if further
+ * experimentation is needed */
+#define SAMPLE_HIGHER_LEVEL_LIMIT_SURFACE 0
+
+/* When lowering Sculpt subdivision levels, set the CCG positions to the limit surface of the
+ * lower level instead of using the higher level positions. Probably not needed */
+#define USE_LIMIT_SURFACE_POSITIONS 0
+
+/* Only store the object space delta for odd vertices when switching down levels. Results in
+ * shrinkage of the mesh when it has boundary elements. */
+#define ONLY_AFFECT_ODD_VERTICES 0
+
 static blender::MutableSpan<blender::float3> multires_ensure_delta_storage(
     Object &object, SubdivCCG &higher_subdiv_ccg, const int level)
 {
@@ -174,7 +186,9 @@ static void multires_level_calc_object_delta(blender::Span<blender::float3> &old
   BLI_assert(old_positions.size() == object_delta.size());
   for (const int i : old_positions.index_range()) {
     const blender::float3 limit_surf_position = object_delta[i];
+#if ONLY_AFFECT_ODD_VERTICES
     if (odd_vertices[i]) {
+#endif
       object_delta[i] = old_positions[i] - limit_surf_position;
       CLOG_TRACE(&LOG,
                  "M - (%d) (%f %f %f) - (%f %f %f) = (%f %f %f) (%f)",
@@ -189,10 +203,12 @@ static void multires_level_calc_object_delta(blender::Span<blender::float3> &old
                  object_delta[i].y,
                  object_delta[i].z,
                  blender::math::length(object_delta[i]));
+#if ONLY_AFFECT_ODD_VERTICES
     }
     else {
       object_delta[i] = blender::float3(0.0f);
     }
+#endif
   }
 }
 
@@ -265,6 +281,7 @@ static void multires_copy_from_limit_surface(const SubdivCCG &higher_subdiv_ccg,
   }
 }
 
+
 bool multiresModifier_storeHigherLevelDelta(Object &object,
                                             Mesh &coarse_mesh,
                                             SubdivCCG &higher_subdiv_ccg,
@@ -303,9 +320,6 @@ bool multiresModifier_storeHigherLevelDelta(Object &object,
              subdiv_ccg.positions.size(),
              delta_storage.size());
 
-  /* TODO: Try changing the tangent matrix to be based on the higher positions instead of the lower
-   * positions */
-
   /* For each vertex, V of N, MV = SubdivCCG position (object space), LV = Limit position (object
    * space) */
   multires_reshape_store_limit_positions(
@@ -320,10 +334,23 @@ bool multiresModifier_storeHigherLevelDelta(Object &object,
                delta_storage[i].z,
                blender::math::length(delta_storage[i]));
   }
+#if USE_LIMIT_SURFACE_POSITIONS
   multires_copy_from_limit_surface(higher_subdiv_ccg, delta_storage, subdiv_ccg);
+#endif
   /* Delta = (MV - LV) * LMat */
   multires_level_calc_object_delta(old_positions, delta_storage, odd_vertices);
   CLOG_DEBUG(&LOG, "STORED HIGHER POS - LIMIT POS");
+  multires_reshape_context_free(&reshape_context);
+#if SAMPLE_HIGHER_LEVEL_LIMIT_SURFACE
+  MultiresReshapeContext higher_reshape_context;
+  multires_reshape_context_create_from_ccg(
+      &higher_reshape_context, &higher_subdiv_ccg, &coarse_mesh, higher_subdiv_ccg.level + 1);
+
+  CLOG_DEBUG(&LOG, "Retrieving matrices");
+  multires_reshape_store_higher_limit_surface_tangent_matrices(
+      &higher_reshape_context, MultiresSubdivideModeType::CatmullClark, old_positions, tmat_storage);
+  multires_reshape_context_free(&higher_reshape_context);
+#endif
 
   multires_level_object_delta_to_tangent_delta(tmat_storage, delta_storage);
   for (const int i : delta_storage.index_range()) {
@@ -337,7 +364,6 @@ bool multiresModifier_storeHigherLevelDelta(Object &object,
   }
   CLOG_DEBUG(&LOG, "CONVERTED TO TANGENT SPACE");
 
-  multires_reshape_context_free(&reshape_context);
 
   return true;
 }
@@ -416,8 +442,6 @@ bool multiresModifier_applyHigherLevelDelta(Object &object,
 
   /* Convert them to object space */
   multires_level_tangent_delta_to_object_delta(delta_storage, tmat_storage);
-
-  /* TODO: Maybe this only should apply to odd vertices of the new level?
 
   /* Re-add them to the new subdiv CCG */
   multires_level_apply_object_delta(position_storage, delta_storage, subdiv_ccg);

@@ -58,6 +58,11 @@ struct MultiresRuntimeData {
   blender::bke::subdiv::Subdiv *subdiv;
 };
 
+static void blend_read(BlendDataReader */*reader*/, ModifierData *md) {
+  MultiresModifierData *mmd = reinterpret_cast<MultiresModifierData *>(md);
+  mmd->runtime = MEM_new<blender::MultiresModifierRuntime>(__func__);
+}
+
 static void init_data(ModifierData *md)
 {
   MultiresModifierData *mmd = reinterpret_cast<MultiresModifierData *>(md);
@@ -115,10 +120,6 @@ static MultiresRuntimeData *multires_ensure_runtime(MultiresModifierData *mmd)
 
 void BKE_multires_change_sculpt_level(MultiresModifierData *mmd, const int lvl)
 {
-  if (mmd->runtime == nullptr) {
-    /* FIXME: Hacky, this should be in a blend_load */
-    mmd->runtime = MEM_new<blender::MultiresModifierRuntime>(__func__);
-  }
   mmd->runtime->previous_level = mmd->sculptlvl;
   mmd->sculptlvl = lvl;
 }
@@ -554,7 +555,7 @@ ModifierTypeInfo modifierType_Multires = {
     /*free_runtime_data*/ free_runtime_data,
     /*panel_register*/ panel_register,
     /*blend_write*/ nullptr,
-    /*blend_read*/ nullptr,
+    /*blend_read*/ blend_read,
     /*foreach_cache*/ nullptr,
     /*foreach_working_space_color*/ nullptr,
 };
