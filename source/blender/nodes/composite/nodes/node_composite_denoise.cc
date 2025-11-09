@@ -81,14 +81,14 @@ static void cmp_node_denoise_declare(NodeDeclarationBuilder &b)
       .structure_type(StructureType::Dynamic);
   b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic).align_with_previous();
 
-  b.add_input<decl::Color>("Albedo")
-      .default_value({1.0f, 1.0f, 1.0f, 1.0f})
-      .hide_value()
-      .structure_type(StructureType::Dynamic);
   b.add_input<decl::Vector>("Normal")
       .default_value({0.0f, 0.0f, 0.0f})
       .min(-1.0f)
       .max(1.0f)
+      .hide_value()
+      .structure_type(StructureType::Dynamic);
+  b.add_input<decl::Color>("Albedo")
+      .default_value({1.0f, 1.0f, 1.0f, 1.0f})
       .hide_value()
       .structure_type(StructureType::Dynamic);
   b.add_input<decl::Bool>("HDR").default_value(true);
