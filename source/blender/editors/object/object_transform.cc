@@ -1838,6 +1838,20 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
+static bool object_origin_set_poll(bContext *C)
+{
+  if (!ED_operator_scene_editable(C)) {
+    return false;
+  }
+
+  Object *ob = CTX_data_active_object(C);
+  if (ob && ob->type == OB_EMPTY) {
+    CTX_wm_operator_poll_msg_set(C, "Set Origin not applicable to Empty objects");
+    return false;
+  }
+  return true;
+}
+
 void OBJECT_OT_origin_set(wmOperatorType *ot)
 {
   static const EnumPropertyItem prop_set_center_types[] = {
@@ -1889,7 +1903,7 @@ void OBJECT_OT_origin_set(wmOperatorType *ot)
   ot->invoke = WM_menu_invoke;
   ot->exec = object_origin_set_exec;
 
-  ot->poll = ED_operator_scene_editable;
+  ot->poll = object_origin_set_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
