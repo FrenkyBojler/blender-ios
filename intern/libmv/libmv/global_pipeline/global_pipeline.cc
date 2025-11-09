@@ -119,7 +119,6 @@ bool GlobalEstimateRotations(
 
   // solve
   ceres::Solver::Options options;
-  options.minimizer_progress_to_stdout = true;
   options.max_num_iterations = 100;
   options.linear_solver_type = ceres::SPARSE_NORMAL_CHOLESKY;
   options.num_threads = std::thread::hardware_concurrency();
@@ -275,7 +274,6 @@ bool GlobalPositioning(
 
   // solve
   ceres::Solver::Options options;
-  options.minimizer_progress_to_stdout = true;
 
   options.max_num_iterations = 100;
   options.function_tolerance = 1e-5;
