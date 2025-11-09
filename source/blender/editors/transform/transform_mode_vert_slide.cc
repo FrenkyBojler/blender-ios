@@ -228,7 +228,6 @@ static void freeVertSlideVerts(TransInfo * /*t*/,
 }
 
 static void freeVertSlideParams(TransInfo /*t*/,
-                                ,
                                 TransDataContainer * /*tc*/,
                                 TransCustomData *custom_data)
 {
