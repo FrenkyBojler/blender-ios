@@ -2918,10 +2918,6 @@ static wmOperatorStatus make_single_user_exec(bContext *C, wmOperator *op)
 
   BKE_main_id_newptr_and_tag_clear(bmain);
 
-  if (RNA_boolean_get(op->ptr, "animation") || RNA_boolean_get(op->ptr, "obdata_animation")) {
-    BKE_main_id_refcount_recompute(bmain, false);
-  }
-
   WM_event_add_notifier(C, NC_WINDOW, nullptr);
 
   if (update_deps) {
