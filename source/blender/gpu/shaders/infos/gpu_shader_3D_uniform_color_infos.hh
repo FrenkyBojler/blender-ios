@@ -48,5 +48,4 @@ VERTEX_SOURCE("gpu_shader_3D_clipped_uniform_color_vert.glsl")
 FRAGMENT_SOURCE("gpu_shader_uniform_color_frag.glsl")
 ADDITIONAL_INFO(gpu_srgb_to_framebuffer_space)
 DO_STATIC_COMPILATION()
-
 GPU_SHADER_CREATE_END()
