@@ -5,3 +5,4 @@ Referenced by issue #148481, UDIM detection doesn't work with relative paths in 
 Referenced by commit cb1235cd4660e21d5e271f4a4ee6a4bdd72a538f, Fix #148481: UDIM detection doesn't work with relative paths
 Referenced by pull request #148533, Fix #148481: UDIM detection doesn't work with relative paths in Blender 5.0
 Referenced by issue #149008, Node wrangler doesn't recognize texture files in 5 Beta
+Referenced by issue #149566, Regression: Brushes can't load textures while texture path is set to relative path
