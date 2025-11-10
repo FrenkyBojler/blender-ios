@@ -257,6 +257,9 @@ static void scene_init_data(ID *id)
   /* Master Collection */
   scene->master_collection = BKE_collection_master_add(scene);
 
+  /* For consistency with the versioning code. */
+  scene->display.shading.background_type = V3D_SHADING_BACKGROUND_WORLD;
+
   BKE_view_layer_add(scene, DATA_("ViewLayer"), nullptr, VIEWLAYER_ADD_NEW);
 
   scene->runtime = MEM_new<SceneRuntime>(__func__);
