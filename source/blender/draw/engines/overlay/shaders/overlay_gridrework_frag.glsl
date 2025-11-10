@@ -20,24 +20,20 @@ void main()
   float dist = length(V);
   V /= dist;
 
-  out_color = theme.colors.grid_emphasis;
-
-  /* Output color. */
-  {
-    
-  }
+  /* Output color is specified by theme. */
+  out_color = theme.colors.grid;
 
   /* Output alpha. */
   {
-    /* Add fade towards edge of grid level. */
-    float length_fade = 1.f - min(1.f, dot(frag_xy, frag_xy));
-    length_fade *= length_fade;
-    out_color.a *= length_fade * length_fade;
-
     /* Add fade at level switch. This is computed in the vertex stage. */
     out_color.a *= frag_level;
 
     if (drw_view_is_perspective()) {
+      /* Add fade towards edge of grid level. */
+      float length_fade = 1.f - min(1.f, dot(frag_xy, frag_xy));
+      length_fade = length_fade * length_fade * length_fade * length_fade * length_fade;
+      out_color.a *= length_fade;
+      
       /* Add fade at steep angles. */
       float angle = V.z;
       angle = 1.0f - abs(angle);

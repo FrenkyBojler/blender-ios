@@ -40,9 +40,10 @@ private:
   float3 zplane_axes_ = float3(0.0f);
 
   /* Flags passed to draw call. */
-  int grid_flag_ = 0;
-  int zneg_flag_ = 0;
-  int zpos_flag_ = 0;
+  int grid_flag_ = 0; /* Flag to select grid plane: x/y, y/z, x/z. */
+  int zaxs_flag_ = 0; /* Flag to configure draw of pos/neg z-axis. */
+  // int zneg_flag_ = 0; /* Flag to enable negative z-axis draw. */
+  // int zpos_flag_ = 0; /* Flag to enable positive z-axis draw. */
 
 public:
   void begin_sync(Resources &res, const State &state) final
@@ -63,10 +64,8 @@ public:
     grid_ps_.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA);
 
     {
-      const uint n_verts 
-        = 4 * num_lines_per_level_ /* Sum of lines across all levels. */
-        * 2                        /* Count of directions (x, y). */
-        * 2;                       /* Count of verts per line. */
+      /* Vertex count is 2 (x/y-direction) x 2 (verts per line) x 3 (levels) x N */
+      const uint n_verts = 12 * num_lines_per_level_;
 
       auto &sub = grid_ps_.sub("grid");
       sub.shader_set(res.shaders->gridrework.get());
@@ -94,21 +93,14 @@ private:
     const View3D *v3d = state.v3d;
     const RegionView3D *rv3d = state.rv3d;
 
-    /* Get far clip distance from camera/viewport */
-    float v3d_clip_end;
-    if (rv3d->persp == RV3D_CAMOB && v3d->camera && v3d->camera->type == OB_CAMERA) {
-      Object *camera_object = DEG_get_evaluated(state.depsgraph, v3d->camera);
-      v3d_clip_end = ((Camera *)(camera_object->data))->clip_end;
-    }
-    else {
-      v3d_clip_end = v3d->clip_end;
-    }
-    
-    num_lines_per_level_ = 301;
-    grid_ubo_.num_lines_per_level = num_lines_per_level_;
-    grid_ubo_.distance = 0.5f * v3d_clip_end;
+    /* Initialize flags to default value. */
+    grid_flag_ = zaxs_flag_ = 0;
 
-    return true;
+    
+    num_lines_per_level_ = 385; /* 2x192+1 suffices to cover a full orthographic square. */
+    grid_ubo_.num_lines_per_level = num_lines_per_level_;
+
+    return init_3d(state);
   }
 
   bool init_2d(const State &state)
@@ -120,7 +112,73 @@ private:
 
   bool init_3d(const State &state)
   {
-    /* ... */
+    const View3D *v3d = state.v3d;
+    const RegionView3D *rv3d = state.rv3d;
+    
+    /* Query different options from overlay state */
+    const bool show_axis_x = (state.v3d_gridflag & V3D_SHOW_X) != 0;
+    const bool show_axis_y = (state.v3d_gridflag & V3D_SHOW_Y) != 0;
+    const bool show_axis_z = (state.v3d_gridflag & V3D_SHOW_Z) != 0;
+    const bool show_floor = (state.v3d_gridflag & V3D_SHOW_FLOOR) != 0;
+    const bool show_ortho_grid = (state.v3d_gridflag & V3D_SHOW_ORTHO_GRID) != 0;
+    const bool show_any = show_axis_x || show_axis_y || show_axis_z || show_floor || show_ortho_grid;
+
+    /* Check if overlay or any of the grid options are enabled in the first place. */
+    if (state.hide_overlays || !show_any) {
+      return false;
+    }
+
+    if (rv3d->is_persp || rv3d->view == RV3D_VIEW_USER) {
+      /* If perspective or non-axis-aligned view are enabled, pass through options. */
+      grid_flag_ |= (show_axis_x ? PLANE_XY | SHOW_AXIS_X : OVERLAY_GridBits(0));
+      grid_flag_ |= (show_axis_y ? PLANE_XY | SHOW_AXIS_Y : OVERLAY_GridBits(0));
+      grid_flag_ |= (show_floor ? PLANE_XY | SHOW_GRID : OVERLAY_GridBits(0));
+    }
+    else {
+      /* If orthographic view, specify grid flags to draw relevant axes given
+       * a specific direction (top, right, left, etc.) is selected. */
+      int grid_x_flag = show_axis_x ? SHOW_AXIS_X : OVERLAY_GridBits(0);
+      int grid_y_flag = show_axis_y ? SHOW_AXIS_Y : OVERLAY_GridBits(0);
+      int grid_z_flag = show_axis_z ? SHOW_AXIS_Z : OVERLAY_GridBits(0);
+      if (ELEM(rv3d->view, RV3D_VIEW_RIGHT, RV3D_VIEW_LEFT)) {
+        grid_flag_ = PLANE_YZ | grid_y_flag | grid_z_flag;
+      }
+      else if (ELEM(rv3d->view, RV3D_VIEW_TOP, RV3D_VIEW_BOTTOM)) {
+        grid_flag_ = PLANE_XY | grid_x_flag | grid_y_flag;
+      }
+      else if (ELEM(rv3d->view, RV3D_VIEW_FRONT, RV3D_VIEW_BACK)) {
+        grid_flag_ = PLANE_XZ | grid_x_flag | grid_z_flag;
+      }
+
+      /* If orthographic view, specify grid flags to draw behind all objects. */
+      grid_flag_ |= (show_ortho_grid ? GRID_BACK | SHOW_GRID : 0);
+    }
+
+    /* Enable Z-axis, if requested. */
+    if (((rv3d->view == RV3D_VIEW_USER) || (rv3d->persp != RV3D_ORTHO)) && show_axis_z) {
+      zaxs_flag_ = SHOW_AXIS_Z;
+    }
+
+    /* Query far clip distance dependent on camera/viewport */
+    float v3d_clip_end;
+    if (rv3d->persp == RV3D_CAMOB && v3d->camera && v3d->camera->type == OB_CAMERA) {
+      Object *camera_object = DEG_get_evaluated(state.depsgraph, v3d->camera);
+      v3d_clip_end = ((Camera *)(camera_object->data))->clip_end;
+    }
+    else {
+      v3d_clip_end = v3d->clip_end;
+    }
+    grid_ubo_.distance = v3d_clip_end * 0.5f;
+    
+    /* Query grid scales (1e-3 to 1e4) in unit/scaling dependent fashion; this range
+     * should be satisfactory for user-visible grid levels. */
+    std::array<float, SI_GRID_STEPS_LEN> level_scales = {
+        1e-3f, 1e-2f, 1e-1f, 1e0f, 1e1f, 1e2f, 1e3f, 1e4f};
+    ED_view3d_grid_steps(state.scene, v3d, rv3d, level_scales.data());
+    for (int i = 0; i < level_scales.size(); ++i) {
+      grid_ubo_.level_scales[i][0] = level_scales[i];
+      std::printf("%d - %f\n", i, level_scales[i]);
+    }
 
     return true;
   }

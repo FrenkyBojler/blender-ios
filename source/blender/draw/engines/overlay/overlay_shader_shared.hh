@@ -152,10 +152,16 @@ uint32_t packUint8x4(uint4 v) {
 #endif
 
 struct OVERLAY_GridReworkData {
-  /* Hierarchy line count over 4 levels, packed with equivalent of packUnorm4x8. */
+  /* Per level scaling; uses float4 as float arrays are padded to float4 in std140. 
+   * This is only necessary if scaling deviates from a factor 10 on any level. */
+  float4 level_scales[OVERLAY_GRID_STEPS_LEN];
+
+  /* Per-level line count. */
   uint num_lines_per_level;
+  
   /* Draw distance, which lies below the camera clip distance. */ 
   float distance;      
+  
   /* Alignment padding. */
   float _pad0;
   float _pad1;

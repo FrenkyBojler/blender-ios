@@ -13,14 +13,17 @@ VERTEX_SHADER_CREATE_INFO(overlay_gridrework_next)
 /* Subdivision is a factor of 10 between levels. */
 #define GRID_SUBDIVS 10 
 
-/* The grid supports 4 hardcoded levels of hierarchy. */
-#define GRID_LEVELS 4 
+/* The grid supports 3 hardcoded levels of hierarchy. */
+#define GRID_LEVELS 3
 
 /* Specify orders of magnitude of grid-sublevels visible at normal scale. */
 #define GRID_LEVEL_OFFSET -2
 
 /* Disable support for infinite zoom-in. */
-#define GRID_FINITE_LEVELS
+// #define GRID_FINITE_LEVELS
+
+/** Keep in sync with `SI_GRID_STEPS_LEN` in `DNA_space_types.h`. */
+#define STEPS_LEN 8
 
 /* Helper struct; encodes specific information about an implicitly defined vertex.
  * See `init_grid_line_data()` below for construction. */
@@ -86,24 +89,10 @@ void main()
   /* This vertex is part of the infinite grid. We extract data from gl_VertexID. */
   GridLineData grid_data = init_grid_line_data(gl_VertexID);
 
-  // /* Check the grid_flag push constant; it determines on which plane place project our grid. */
-  // if (flag_test(grid_flag, PLANE_XY)) {
-  //   /* ... */
-  // }
-  // else if (flag_test(grid_flag, PLANE_XZ)) {
-  //   /* ... */
-  // }
-  // else if (flag_test(grid_flag, PLANE_YZ)) {
-  //   /* ... */
-  // }
-  // else {
-  //   /* ... */
-  // }
-
   /* We next calculate the vertex position at the start/end of a line as a value in [-1, 1]. */
-  float vert_x = -max(float(grid_buf.num_lines_per_level >> 1), 1.f);
-  float vert_y = vert_x + float(grid_data.idx);
-  float3 vert_pos = float3(vert_y, vert_x, 0.0f);
+  float vert_y = float(grid_buf.num_lines_per_level >> 1);
+  float vert_x = float(grid_data.idx) - vert_y;
+  float3 vert_pos = float3(vert_x, vert_y, 0.0f);
   /* If this isn't the start vertex, flip the y-coord to define the end vertex. */
   vert_pos.y = select(vert_pos.y, -vert_pos.y, grid_data.side);
   /* If this isn't the x-direction, flip coordinates to define the y-direction. */
@@ -125,18 +114,48 @@ void main()
   /* Fragment shader outputs for the alpha component:
    * - The vertex position as [-1, 1], so we can fade level boundaries.
    * - The level offset for the lowest level so we can fade it in/out. */
-  frag_xy = vert_pos.xy / vert_x;
+  frag_xy = vert_pos.xy / vert_y;
   frag_level = select(1.0f, float(grid_data.level + 1) - fract(level_offset), grid_data.level == 0);
 
+  /* Dependent on the grid flag, we place the grid on the correct plane. */
+  // if (flag_test(grid_flag, PLANE_XY)) {
+  //   vert_pos = float3(vert_pos.x, vert_pos.y, 0.0f);
+  // }
+  // else if (flag_test(grid_flag, PLANE_XZ)) {
+  //   vert_pos = float3(vert_pos.x, 0.0f, vert_pos.y);
+  // }
+  // else if (flag_test(grid_flag, PLANE_YZ)) {
+  //   vert_pos = float3(0.0f, vert_pos.x, vert_pos.y);
+  // }
+  // else { /* PLANE_IMAGE */ {
+  //   vert_pos = float3(vert_pos.xy * 0.5f + 0.5f, 0.0f);
+  // }
+
+  /* Grid levels can have different scales dependent on system units; we render these scales 
+   * dependent on which levels are active. We loop through the scales to find a relevant offset. */
+  int base_grid_level = 0;
+  for (; base_grid_level < STEPS_LEN; base_grid_level++) {
+    if (grid_buf.level_scales[base_grid_level].x > 1.0f) {
+      base_grid_level -= 1;
+      break;
+    }
+  }
   /* Round to the nearest upper level. */
-  grid_data.level = grid_data.level + int(ceil(level_offset));
+  grid_data.level += base_grid_level + int(ceil(level_offset));
   
-  /* Make each level of the grid an order of magnitude larger than the previous level. Additionally,
-   * move the grid with the camera in increments depending on the level. */
-  float vert_scale = pow(float(GRID_SUBDIVS), float(grid_data.level));
+  /* Make each level of the grid an order of magnitude larger than the previous level.
+   * Additionally, move the grid with the camera in increments depending on the level. */
+  float vert_scale = grid_buf.level_scales[grid_data.level].x;
   float3 vert_offset = float3(drw_view_position().xy + t * -drw_view_forward().xy, 0);
   vert_pos = (vert_pos + round(vert_offset / vert_scale)) * vert_scale;
 
+  /* Fragment output */
   local_pos = vert_pos;
-  gl_Position = drw_view().winmat * (drw_view().viewmat * float4(vert_pos, 1.0f));
+
+  /* We cull vertex scale below absurdist values; they are hard to draw with geometry for now. */
+  if (vert_scale < 1e-3f) {
+    gl_Position = float4(NAN_FLT);
+  } else {
+    gl_Position = drw_view().winmat * (drw_view().viewmat * float4(vert_pos, 1.0f));
+  }
 }
