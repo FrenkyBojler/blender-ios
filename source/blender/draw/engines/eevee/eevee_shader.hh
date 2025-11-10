@@ -245,7 +245,7 @@ class ShaderModule {
 
   struct AsyncSpecialization {
     AsyncSpecializationHandle handle;
-    std::unique_ptr<ShaderSpecialization> specialization;
+    std::unique_ptr<ShaderSpecialization> parameters;
   };
 
   Map<SpecializationsKey, Vector<AsyncSpecialization>> specializations_;

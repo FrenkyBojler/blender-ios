@@ -296,24 +296,23 @@ bool ShaderModule::request_specializations(bool block_until_ready,
           int shadow_ray_step_count_index = GPU_shader_get_constant(sh, "shadow_ray_step_count");
 
           specializations.append({});
-          AsyncSpecialization &async_specialization = specializations.last();
-          async_specialization.specialization = std::make_unique<ShaderSpecialization>();
-          async_specialization.specialization->shader = sh;
-          gpu::shader::SpecializationConstants &sp =
-              async_specialization.specialization->constants;
-          sp = GPU_shader_get_default_constant_state(sh);
+          AsyncSpecialization &specialization = specializations.last();
+          specialization.parameters = std::make_unique<ShaderSpecialization>();
+          specialization.parameters->shader = sh;
+          gpu::shader::SpecializationConstants &constants = specialization.parameters->constants;
+          constants = GPU_shader_get_default_constant_state(sh);
 
           for (bool use_transmission : {false, true}) {
-            sp.set_value(render_pass_shadow_id_index, render_buffers_shadow_id);
-            sp.set_value(use_split_indirect_index, use_split_indirect);
-            sp.set_value(use_lightprobe_eval_index, use_lightprobe_eval);
-            sp.set_value(use_transmission_index, use_transmission);
-            sp.set_value(shadow_ray_count_index, shadow_ray_count);
-            sp.set_value(shadow_ray_step_count_index, shadow_ray_step_count);
+            constants.set_value(render_pass_shadow_id_index, render_buffers_shadow_id);
+            constants.set_value(use_split_indirect_index, use_split_indirect);
+            constants.set_value(use_lightprobe_eval_index, use_lightprobe_eval);
+            constants.set_value(use_transmission_index, use_transmission);
+            constants.set_value(shadow_ray_count_index, shadow_ray_count);
+            constants.set_value(shadow_ray_step_count_index, shadow_ray_step_count);
           }
 
           specializations.last().handle = GPU_shader_async_specialization(
-              async_specialization.specialization.get());
+              specialization.parameters.get());
         }
 
         return specializations;
