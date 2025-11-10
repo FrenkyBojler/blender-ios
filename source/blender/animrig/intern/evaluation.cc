@@ -153,8 +153,8 @@ static EvaluationResult evaluate_keyframe_data(PointerRNA &animated_id_ptr,
   }
 
   Span<FCurve *> fcurves = channelbag_for_slot->fcurves();
-  /* Stores a 1 for FCurves that have been evaluated. Not using BitVector because I (christoph)
-   * don't know how threadsafe that is.*/
+  /* Stores true for FCurves that have been evaluated. Not using BitVector because writing to it
+   * from threads will introduce race conditions.*/
   Array<bool> valid(fcurves.size());
   valid.fill(false);
   Array<float> results(fcurves.size());
