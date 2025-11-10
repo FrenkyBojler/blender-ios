@@ -638,19 +638,20 @@ def llm_says_version_is_incorrect(
     if client is None:
         return False
 
-    user_prompt = f"""Using the information below, is Blender version {version_number} a {'Broken' if should_be_broken else 'Working'} version of Blender? Your output should be in a single word 'yes' or 'no'.
-
-    Information:
-    '''
-    Blender versions:
-    {version_info_from_report}
-    '''
-    """
+    user_prompt = [
+        f"Using the information below, is Blender version {version_number} a {'Broken' if should_be_broken else 'Working'} version of Blender?",
+        "Your output should be in a single word 'yes' or 'no'.",
+        "",
+        "Information:",
+        "```",
+        "Blender versions:",
+        f"{version_info_from_report}",
+        "```"]
 
     # TODO: Fix mypy complaining about a list of dicts being incorrect
     # TODO: Implement support for models that don't support reasoning
     # (Ask them to come to a decision, then ask them to extract their decision)
-    messages = [{"role": "user", "content": user_prompt}]
+    messages = [{"role": "user", "content": "\n".join(user_prompt)}]
     # Use a fixed seed for reproducability.
     response = client.chat.completions.create(model=llm_name, seed=2179, messages=messages)
     llm_choice = response.choices[0].message.content
