@@ -791,36 +791,42 @@ def gather_list_of_commits_to_print(title: str, dict_of_commits: dict[str, list[
     if number_of_commits != 0:
         return f"""{title} {number_of_commits}
         {commits_message}
-        {unknown_module_commit_message}
-
-
-        """
+        {unknown_module_commit_message}"""
     return ""
 
 
 # ---
 
 def print_release_notes(list_of_commits: list[CommitInfo]) -> None:
+    def print_with_spacer(info_to_print: str) -> None:
+        if len(info_to_print) > 0:
+            print(info_to_print)
+            # Print spacer
+            print("\n\n\n")
+
     dict_of_sorted_commits = organize_commits(list_of_commits)
 
-    print(gather_list_of_commits_to_print("Commits that fixed old issues:", dict_of_sorted_commits[FIXED_OLD_ISSUE]))
+    print_with_spacer(
+        gather_list_of_commits_to_print(
+            "Commits that fixed old issues:",
+            dict_of_sorted_commits[FIXED_OLD_ISSUE]))
 
-    print(
+    print_with_spacer(
         gather_list_of_commits_to_print(
             "Revert commits. Add overrides to https://projects.blender.org/blender/blender/issues/137983:",
             dict_of_sorted_commits[REVERT]))
 
-    print(
+    print_with_spacer(
         gather_list_of_commits_to_print(
             "Commits that need manual sorting:",
             dict_of_sorted_commits[NEEDS_MANUAL_SORTING]))
 
-    print(
+    print_with_spacer(
         gather_list_of_commits_to_print(
             "Commits that need a override in https://projects.blender.org/blender/blender/issues/137983 as they claim to fix a PR:",
             dict_of_sorted_commits[FIXED_PR]))
 
-    print(gather_list_of_commits_to_print("Ignored commits:", dict_of_sorted_commits[IGNORED]))
+    print_with_spacer(gather_list_of_commits_to_print("Ignored commits:", dict_of_sorted_commits[IGNORED]))
 
     # Currently disabled as this information isn't particularly useful.
     # print(gather_list_of_commits_to_print(dict_of_sorted_commits[FIXED_NEW_ISSUE]))
