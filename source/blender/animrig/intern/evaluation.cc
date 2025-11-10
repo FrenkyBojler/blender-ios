@@ -155,10 +155,10 @@ static EvaluationResult evaluate_keyframe_data(PointerRNA &animated_id_ptr,
   Span<FCurve *> fcurves = channelbag_for_slot->fcurves();
   /* Stores a 1 for FCurves that have been evaluated. Not using BitVector because I (christoph)
    * don't know how threadsafe that is.*/
-  Vector<int8_t> valid(fcurves.size());
-  valid.fill(0);
-  Vector<float> results(fcurves.size());
-  Vector<PathResolvedRNA> resolved_rna(fcurves.size());
+  Array<bool> valid(fcurves.size());
+  valid.fill(false);
+  Array<float> results(fcurves.size());
+  Array<PathResolvedRNA> resolved_rna(fcurves.size());
 
   threading::parallel_for(fcurves.index_range(), 512, [&](const IndexRange range) {
     for (const int i : range) {
@@ -176,14 +176,14 @@ static EvaluationResult evaluate_keyframe_data(PointerRNA &animated_id_ptr,
       BLI_assert(fcu->driver == nullptr);
       /* Not using calculate_fcurve because FCurves of channelbags are not drivers. */
       results[i] = evaluate_fcurve(fcu, offset_eval_context.eval_time);
-      valid[i] = 1;
+      valid[i] = true;
     }
   });
 
   EvaluationResult evaluation_result;
   for (const int i : fcurves.index_range()) {
     /* This part is not threadsafe. */
-    if (valid[i] == 0) {
+    if (!valid[i]) {
       continue;
     }
     FCurve *fcu = fcurves[i];
