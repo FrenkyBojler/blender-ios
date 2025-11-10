@@ -3,3 +3,4 @@ Referenced by commit a4c91939e7034fab5a99695fd7ae4ac1f7258866, Fix: Geometry Nod
 Referenced by issue #142308, Blender 4.5 Set Curve Radius node doesn't work.
 Referenced by issue #143051, Curve radius has no effect in Geometry Nodes (Blender 4.5)
 Referenced by issue #144678, When using geometry nodes in Blender 4.5, I cannot see the node working properly when setting the curve radius node operation, but it works properly in 4.4.
+Referenced by issue #149611, Geometry Nodes: Set Curve Radius is ignored by Curve to Mesh in Blender 4.5
