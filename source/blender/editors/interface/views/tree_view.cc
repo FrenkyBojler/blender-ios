@@ -926,20 +926,21 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
     uiLayout *bottom = &col->row(false);
     UI_block_emboss_set(block, ui::EmbossType::None);
 
-    int icon = *tree_view.show_display_options_ ? ICON_DISCLOSURE_TRI_DOWN : ICON_DISCLOSURE_TRI_RIGHT;
+    int icon = *tree_view.show_display_options_ ? ICON_DISCLOSURE_TRI_DOWN :
+                                                  ICON_DISCLOSURE_TRI_RIGHT;
     uiBut *but = uiDefIconButBitC(block,
-                              ButType::Toggle,
-                              1,
-                              0,
-                              icon,
-                              0,
-                              0,
-                              UI_UNIT_X,
-                              UI_UNIT_Y * 0.5,
-                              tree_view.show_display_options_.get(),
-                              0,
-                              0,
-                              TIP_(""));
+                                  ButType::Toggle,
+                                  1,
+                                  0,
+                                  icon,
+                                  0,
+                                  0,
+                                  UI_UNIT_X,
+                                  UI_UNIT_Y * 0.5,
+                                  tree_view.show_display_options_.get(),
+                                  0,
+                                  0,
+                                  TIP_(""));
     UI_but_flag_disable(but, UI_BUT_UNDO);
     UI_block_emboss_set(block, ui::EmbossType::Emboss);
     bottom->column(false);
