@@ -126,7 +126,7 @@ class CompositorContext : public compositor::Context {
     }
     std::memcpy(image_buffer_->float_buffer.data,
                 result.cpu_data().data(),
-                sizeof(4) * 4 * size.x * size.y);
+                sizeof(float) * 4 * size.x * size.y);
   }
 
   void write_viewer(const compositor::Result &result) override
