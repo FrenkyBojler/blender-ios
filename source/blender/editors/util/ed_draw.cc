@@ -462,6 +462,7 @@ tSlider *ED_slider_create(bContext *C)
       /* Keep logic in sync with ED_area_status_text. */
       if (region->regiontype == RGN_TYPE_HEADER && region->runtime->visible) {
         slider->region_header = region;
+        ED_area_status_text(slider->area, "");
       }
       else if (region->regiontype == RGN_TYPE_TOOL_HEADER && region->runtime->visible) {
         slider->region_header = region;
@@ -586,6 +587,7 @@ void ED_slider_destroy(bContext *C, tSlider *slider)
     ED_region_draw_cb_exit(slider->region_header->runtime->type, slider->draw_handle);
   }
 
+  ED_area_status_text(slider->area, nullptr);
   ED_workspace_status_text(C, nullptr);
   MEM_delete(slider);
 }
