@@ -1755,7 +1755,9 @@ class CyclesPreferences(bpy.types.AddonPreferences):
                         text=rpt_("Requires AMD GPU with Vega or RDNA architecture"),
                         icon='BLANK1',
                         translate=False)
-                    col.label(text=rpt_("and ROCm %s or newer") % rocm_version, icon='BLANK1', translate=False)
+                    col.label(
+                        text=rpt_("and ROCm HIP Runtime %s or newer") %
+                        rocm_version, icon='BLANK1', translate=False)
                     col.label(text=rpt_("or AMD driver version %s or newer") %
                               driver_version, icon='BLANK1', translate=False)
             elif device_type == 'ONEAPI':
