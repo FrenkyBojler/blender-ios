@@ -651,17 +651,15 @@ def llm_says_version_is_incorrect(
     # TODO: Implement support for models that don't support reasoning
     # (Ask them to come to a decision, then ask them to extract their decision)
     messages = [{"role": "user", "content": user_prompt}]
-    for i in range(3):
-        # Run the LLM over the reqeust 3 times in case the LLM makes a mistake in one of it's runs.
-        # Use a fixed seed for reproducability.
-        response = client.chat.completions.create(model=llm_name, seed=i, messages=messages)
-        llm_choice = response.choices[0].message.content
-        if llm_choice is not None:
-            # Response can be None according to mypy.
-            llm_choice = llm_choice.strip().lower()
-            if llm_choice == "no":
-                # The LLM disagreed with the previous statement.
-                return False
+    # Use a fixed seed for reproducability.
+    response = client.chat.completions.create(model=llm_name, seed=2179, messages=messages)
+    llm_choice = response.choices[0].message.content
+    if llm_choice is not None:
+        # Response can be None according to mypy.
+        llm_choice = llm_choice.strip().lower()
+        if llm_choice == "no":
+            # The LLM disagreed with the previous statement.
+            return False
 
     return True
 
