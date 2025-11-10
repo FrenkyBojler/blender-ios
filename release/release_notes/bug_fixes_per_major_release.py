@@ -1128,10 +1128,10 @@ def validate_arguments(args: argparse.Namespace) -> tuple[bool, bool]:
                 should_quit = True
 
     use_llm_judge = False
-    llm_url_is_none = args.large_language_model_url is not None
-    llm_key_is_none = args.large_language_model_key is not None
-    llm_name_is_none = len(args.large_language_model_name) > 0
-    if llm_url_is_none or llm_key_is_none or llm_name_is_none:
+    llm_url_is_none = args.large_language_model_url is None
+    llm_key_is_none = args.large_language_model_key is None
+    llm_name_is_none = len(args.large_language_model_name) == 0
+    if not llm_url_is_none or not llm_key_is_none or not llm_name_is_none:
         # First check to see if any of the LLM arguments are set.
         # And if they are, see if all the necessary arguments are set.
         if not llm_url_is_none and not llm_key_is_none and not llm_name_is_none:
