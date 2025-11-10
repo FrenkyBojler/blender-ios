@@ -584,7 +584,7 @@ def get_version_numbers(broken_lines: str, working_lines: str) -> tuple[list[str
     return broken_versions, working_versions
 
 
-def version_string_extraction(report_body: str) -> tuple[str, str, str]:
+def version_string_extraction(report_body: str) -> tuple[str, str]:
     broken_lines = ''
     working_lines = ''
     for line in report_body.splitlines():
@@ -601,7 +601,7 @@ def version_string_extraction(report_body: str) -> tuple[str, str, str]:
                 # which lead to incorrect information.
                 working_lines += f'{line}\n'
 
-    return broken_lines, working_lines, broken_lines + working_lines
+    return broken_lines, working_lines
 
 
 def compare_versions(comparing_version: str, reference_version: str) -> str:
@@ -633,7 +633,7 @@ def llm_says_version_is_incorrect(
         llm_name: str,
         llm_supports_reasoning: bool,
         version_number: str,
-        combined_lines: str,
+        version_info_from_report: str,
         should_be_broken: bool) -> bool:
     if client is None:
         return False
@@ -643,13 +643,13 @@ def llm_says_version_is_incorrect(
     Information:
     '''
     Blender versions:
-    {combined_lines}
+    {version_info_from_report}
     '''
     """
 
     # TODO: Fix mypy complaining about a list of dicts being incorrect
     # TODO: Implement support for models that don't support reasoning
-    #(Ask them to come to a decision, then ask them to extract their decision)
+    # (Ask them to come to a decision, then ask them to extract their decision)
     messages = [{"role": "user", "content": user_prompt}]
     for i in range(3):
         # Run the LLM over the reqeust 3 times in case the LLM makes a mistake in one of it's runs.
@@ -680,7 +680,7 @@ def classify_based_on_report(
     if "skip_for_bug_fix_release_notes" in report_body.lower():
         return IGNORED
     # Get a list of broken and working versions of Blender according to the report that was fixed.
-    broken_lines, working_lines, combined_lines = version_string_extraction(report_body)
+    broken_lines, working_lines = version_string_extraction(report_body)
     broken_versions, working_versions = get_version_numbers(broken_lines, working_lines)
 
     broken_is_current_or_newer = False
@@ -693,7 +693,7 @@ def classify_based_on_report(
                     llm_client,
                     llm_name,
                     llm_supports_reasoning,
-                    combined_lines,
+                    broken_lines,
                     broken_version,
                     should_be_broken=True):
                 return FLAGGED_BY_LLM
@@ -709,7 +709,7 @@ def classify_based_on_report(
                     llm_client,
                     llm_name,
                     llm_supports_reasoning,
-                    combined_lines,
+                    working_lines,
                     working_version,
                     should_be_broken=False):
                 return FLAGGED_BY_LLM
@@ -724,7 +724,7 @@ def classify_based_on_report(
                     llm_client,
                     llm_name,
                     llm_supports_reasoning,
-                    combined_lines,
+                    broken_lines,
                     broken_version,
                     should_be_broken=True):
                 return FLAGGED_BY_LLM
@@ -734,7 +734,7 @@ def classify_based_on_report(
                     llm_client,
                     llm_name,
                     llm_supports_reasoning,
-                    combined_lines,
+                    working_lines,
                     working_version,
                     should_be_broken=False):
                 return FLAGGED_BY_LLM
