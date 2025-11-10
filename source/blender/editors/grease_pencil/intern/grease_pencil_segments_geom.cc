@@ -698,8 +698,15 @@ static bool check_and_join_segments(Segment &first, const Segment &second)
     return false;
   }
 
-  if ((first.points[Side::End] + first.intersection_factor[Side::End] ==
-       second.points[Side::Start] + second.intersection_factor[Side::Start]) ||
+  const float parameter_first_start = first.points[Side::Start] +
+                                      first.intersection_factor[Side::Start];
+  const float parameter_first_end = first.points[Side::End] + first.intersection_factor[Side::End];
+  const float parameter_second_start = second.points[Side::Start] +
+                                       second.intersection_factor[Side::Start];
+  const float parameter_second_end = second.points[Side::End] +
+                                     second.intersection_factor[Side::End];
+
+  if ((parameter_first_end == parameter_second_start) ||
       (first.intersection_index[Side::End] == second.intersection_index[Side::Start] &&
        first.intersection_index[Side::End] != -1))
   {
@@ -709,8 +716,7 @@ static bool check_and_join_segments(Segment &first, const Segment &second)
 
     return true;
   }
-  if ((first.points[Side::Start] + first.intersection_factor[Side::Start] ==
-       second.points[Side::End] + second.intersection_factor[Side::End]) ||
+  if ((parameter_first_start == parameter_second_end) ||
       (first.intersection_index[Side::Start] == second.intersection_index[Side::End] &&
        first.intersection_index[Side::Start] != -1))
   {
