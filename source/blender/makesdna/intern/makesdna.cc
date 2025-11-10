@@ -1526,12 +1526,13 @@ static int make_structDNA(
   /* Check versioning errors which could cause duplicate names,
    * do last because names are stripped. */
   {
-    blender::Set<blender::StringRef> members_unique;
     for (int struct_index = 0; struct_index < structs_num; struct_index++) {
       const short *sp = structs[struct_index];
       const char *type = types[sp[0]];
       const int len = sp[1];
       sp += 2;
+      blender::Set<blender::StringRef> members_unique;
+      members_unique.reserve(len);
       for (int a = 0; a < len; a++, sp += 2) {
         char *member = members[sp[1]];
         DNA_member_id_strip(member);
@@ -1544,7 +1545,6 @@ static int make_structDNA(
           return 1;
         }
       }
-      members_unique.clear();
     }
   }
 
