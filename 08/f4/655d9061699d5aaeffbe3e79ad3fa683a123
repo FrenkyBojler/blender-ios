@@ -1,2 +1,3 @@
 Referenced by pull request #149040, Refactor: Move Image runtime data out of DNA
 Referenced by pull request #149676, Fix: Build error in lite build
+Referenced by commit e5fe505ec402516d478f862b95072235df70600a, Fix: Build error in lite build
