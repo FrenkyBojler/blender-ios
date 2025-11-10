@@ -11,7 +11,7 @@
 /* Fetch texel. Wrapping if above range. */
 float4 utility_tx_fetch(sampler2DArray util_tx, float2 texel, float layer)
 {
-  return texelFetch(util_tx, int3(int2(texel) % UTIL_TEX_SIZE, layer), 0);
+  return texelFetch(util_tx, int3(int2(texel) % UTIL_TEX_SIZE, int(layer)), 0);
 }
 
 /* Sample at uv position. Filtered & Wrapping enabled. */
