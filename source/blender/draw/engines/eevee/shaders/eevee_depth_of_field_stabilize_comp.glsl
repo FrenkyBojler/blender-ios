@@ -43,6 +43,9 @@ shared float coc_cache[gl_WorkGroupSize.x + 2][gl_WorkGroupSize.x + 2];
 /* Need 2 pixel border for depth. */
 shared float depth_cache[gl_WorkGroupSize.x + 4][gl_WorkGroupSize.x + 4];
 
+#define cache_size (gl_WorkGroupSize.x + 2)
+#define cache_depth_size (gl_WorkGroupSize.x + 4)
+
 void dof_cache_init()
 {
   /**

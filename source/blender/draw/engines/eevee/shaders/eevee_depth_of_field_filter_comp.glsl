@@ -26,6 +26,7 @@ struct FilterSample {
 
 shared float4 color_cache[gl_WorkGroupSize.x + 2][gl_WorkGroupSize.x + 2];
 shared float weight_cache[gl_WorkGroupSize.x + 2][gl_WorkGroupSize.x + 2];
+#define cache_size (gl_WorkGroupSize.x + 2)
 
 void cache_init()
 {
