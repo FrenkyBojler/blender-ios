@@ -1202,7 +1202,7 @@ void ui_template_node_operator_registration_errors(uiLayout &layout)
 static Vector<std::unique_ptr<OperatorTypeData>> get_node_tools_type_data(
     const bContext &C, Main &bmain, OperatorRegisterErrors &errors)
 {
-  Vector<std::unique_ptr<OperatorTypeData>> all_types;  // TODO: USE VECTORSET
+  Vector<std::unique_ptr<OperatorTypeData>> all_types;
   LISTBASE_FOREACH (bNodeTree *, ntree, &bmain.nodetrees) {
     if (ID_IS_ASSET(&ntree->id)) {
       continue;
