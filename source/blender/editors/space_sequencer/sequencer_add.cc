@@ -29,6 +29,7 @@
 
 #include "BKE_context.hh"
 #include "BKE_global.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_main.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
@@ -807,7 +808,12 @@ static Scene *sequencer_add_scene_asset(const bContext &C,
 
   if (asset.is_local_id()) {
     /* Local scene that needs to be duplicated. */
-    Scene *scene_copy = BKE_scene_duplicate(&bmain, scene_asset, SCE_COPY_FULL);
+    Scene *scene_copy = BKE_scene_duplicate(
+        &bmain,
+        scene_asset,
+        SCE_COPY_FULL,
+        static_cast<eDupli_ID_Flags>(U.dupflag | USER_DUP_OBJECT),
+        LIB_ID_DUPLICATE_IS_ROOT_ID);
     return scene_copy;
   }
   return scene_asset;
@@ -1754,7 +1760,8 @@ static wmOperatorStatus sequencer_add_image_strip_exec(bContext *C, wmOperator *
     return OPERATOR_CANCELLED;
   }
 
-  ListBase ranges = ED_image_filesel_detect_sequences(BKE_main_blendfile_path(bmain), op, false);
+  const char *blendfile_path = BKE_main_blendfile_path(bmain);
+  ListBase ranges = ED_image_filesel_detect_sequences(blendfile_path, blendfile_path, op, false);
   if (BLI_listbase_is_empty(&ranges)) {
     sequencer_add_free(C, op);
     return OPERATOR_CANCELLED;
