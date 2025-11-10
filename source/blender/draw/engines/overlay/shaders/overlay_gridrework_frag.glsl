@@ -29,29 +29,24 @@ void main()
 
   /* Output alpha. */
   {
-    /* Modulate perspective fade */
-    /* TODO: Have someone sanity check this, I'm uncertain if it is working (~Mark). */
-    float2 grid_fwidth_xy = fwidth(proj_xy.xy);
-    float grid_fwidth = 1.f - min(1.f, max(grid_fwidth_xy.x, grid_fwidth_xy.y));
-    grid_fwidth *= grid_fwidth;
-    out_color.a *= grid_fwidth;
-
-    /* Add fade at steep angles. */
-    float angle = V.z;
-    angle = 1.0f - abs(angle);
-    angle *= angle;
-    out_color.a *= (1.f - angle * angle);
-
-    /* Add stepped fade towards clip distance. */
-    out_color.a *= 1.0f - smoothstep(0.0f, grid_buf.distance, dist - grid_buf.distance);
-
-    /* Add fade towards edge of current level's edge. */
+    /* Add fade towards edge of grid level. */
     float length_fade = 1.f - min(1.f, dot(frag_xy, frag_xy));
     length_fade *= length_fade;
     out_color.a *= length_fade * length_fade;
 
     /* Add fade at level switch. This is computed in the vertex stage. */
     out_color.a *= frag_level;
+
+    if (drw_view_is_perspective()) {
+      /* Add fade at steep angles. */
+      float angle = V.z;
+      angle = 1.0f - abs(angle);
+      angle *= angle;
+      out_color.a *= (1.f - angle * angle);
+
+      /* Add fade towards clip distance. */
+      out_color.a *= 1.0f - smoothstep(0.0f, grid_buf.distance, dist - grid_buf.distance);
+    }
   }
 
   /* Depth testing. */
@@ -69,7 +64,7 @@ void main()
 
     /* Compute grid depth. As in old grid; a small bias places the grid below
      * a mesh with the same depth. */
-     float grid_depth = gl_FragCoord.z + GRID_DEPTH_BIAS;
+    float grid_depth = gl_FragCoord.z + GRID_DEPTH_BIAS;
 
     /* Manipulate alpha with scene depth */
     // if (scene_depth != 1.0f) {

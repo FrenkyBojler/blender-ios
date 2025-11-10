@@ -153,7 +153,7 @@ uint32_t packUint8x4(uint4 v) {
 
 struct OVERLAY_GridReworkData {
   /* Hierarchy line count over 4 levels, packed with equivalent of packUnorm4x8. */
-  uint num_lines_per_level_pack;
+  uint num_lines_per_level;
   /* Draw distance, which lies below the camera clip distance. */ 
   float distance;      
   /* Alignment padding. */

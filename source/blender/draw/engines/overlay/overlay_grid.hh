@@ -32,12 +32,14 @@ private:
   PassSimple grid_ps_ = {"grid_ps_"};
   
   /* Number of lines per level of the grid. The grid requires at most 4 levels. */ 
-  uint4 num_lines_per_level_;
+  uint num_lines_per_level_;
 
-  /* General parameters */
+  /* General parameters. */
   bool is_3d_grid_ = false;  
   float3 grid_axes_ = float3(0.0f);
   float3 zplane_axes_ = float3(0.0f);
+
+  /* Flags passed to draw call. */
   int grid_flag_ = 0;
   int zneg_flag_ = 0;
   int zpos_flag_ = 0;
@@ -62,9 +64,9 @@ public:
 
     {
       const uint n_verts 
-        = reduce_add(num_lines_per_level_) /* Sum of lines across all levels. */
-        * 2                                /* Count of directions (x, y). */
-        * 2;                               /* Count of verts per line. */
+        = 4 * num_lines_per_level_ /* Sum of lines across all levels. */
+        * 2                        /* Count of directions (x, y). */
+        * 2;                       /* Count of verts per line. */
 
       auto &sub = grid_ps_.sub("grid");
       sub.shader_set(res.shaders->gridrework.get());
@@ -102,14 +104,8 @@ private:
       v3d_clip_end = v3d->clip_end;
     }
     
-    /* Configure line count per level. Hardcoded, but suffices in general cases.
-     * Note; different line counts per level show a slight visual "pop" when
-     * levels switch over when zooming, at very steep angles. */
-    num_lines_per_level_[0] = static_cast<uchar>(250 + 1); /* 1m */
-    num_lines_per_level_[1] = static_cast<uchar>(250 + 1); /* 10m */
-    num_lines_per_level_[2] = static_cast<uchar>(250 + 1); /* 100m */
-    num_lines_per_level_[3] = static_cast<uchar>(1);       /* center lines */
-    grid_ubo_.num_lines_per_level_pack = packUint8x4(num_lines_per_level_);
+    num_lines_per_level_ = 301;
+    grid_ubo_.num_lines_per_level = num_lines_per_level_;
     grid_ubo_.distance = 0.5f * v3d_clip_end;
 
     return true;
@@ -192,7 +188,6 @@ class Grid : Overlay {
       if (zneg_flag_ & SHOW_AXIS_Z) {
         sub.push_constant("grid_flag", &zneg_flag_);
         sub.push_constant("plane_axes", &zplane_axes_);
-        // sub.state_set(DRWState::)
         sub.draw(res.shapes.grid.get());
       }
       if (grid_flag_) {
