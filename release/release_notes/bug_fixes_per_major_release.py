@@ -691,8 +691,8 @@ def classify_based_on_report(
                     llm_client,
                     llm_name,
                     llm_supports_reasoning,
-                    broken_lines,
                     broken_version,
+                    broken_lines,
                     should_be_broken=True):
                 return FLAGGED_BY_LLM
             return FIXED_OLD_ISSUE
@@ -707,8 +707,8 @@ def classify_based_on_report(
                     llm_client,
                     llm_name,
                     llm_supports_reasoning,
-                    working_lines,
                     working_version,
+                    working_lines,
                     should_be_broken=False):
                 return FLAGGED_BY_LLM
             return FIXED_NEW_ISSUE
@@ -722,8 +722,8 @@ def classify_based_on_report(
                     llm_client,
                     llm_name,
                     llm_supports_reasoning,
-                    broken_lines,
                     broken_version,
+                    broken_lines,
                     should_be_broken=True):
                 return FLAGGED_BY_LLM
 
@@ -732,8 +732,8 @@ def classify_based_on_report(
                     llm_client,
                     llm_name,
                     llm_supports_reasoning,
-                    working_lines,
                     working_version,
+                    working_lines,
                     should_be_broken=False):
                 return FLAGGED_BY_LLM
 
