@@ -1570,8 +1570,6 @@ char **BKE_sound_get_device_names()
   return names;
 }
 
-void BKE_sound_free_waveform(bSound * /*sound*/) {}
-
 bool BKE_sound_info_get(Main * /*main*/, bSound * /*sound*/, SoundInfo * /*sound_info*/)
 {
   return false;
