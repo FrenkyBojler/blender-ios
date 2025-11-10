@@ -452,6 +452,7 @@ static bool poselib_blend_init_data(bContext *C, wmOperator *op, const wmEvent *
     else {
       pbd->release_confirm_info.use_release_confirm = event->val != KM_RELEASE;
     }
+
     pbd->slider = ED_slider_create(C);
     ED_slider_init(pbd->slider, event);
     ED_slider_factor_set(pbd->slider, pbd->blend_factor);
