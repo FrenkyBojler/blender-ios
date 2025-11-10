@@ -45,7 +45,7 @@ static void zero_pad_gpu(Context &context,
                          const int2 size,
                          const PaddingMethod padding_method)
 {
-  GPUShader *shader = context.get_shader(get_shader_name(input.type(), padding_method));
+  gpu::Shader *shader = context.get_shader(get_shader_name(input.type(), padding_method));
   GPU_shader_bind(shader);
 
   GPU_shader_uniform_2iv(shader, "size", size);
@@ -78,7 +78,7 @@ static void zero_pad_cpu(const Result &input,
       switch (input.type()) {
         case ResultType::Color:
           parallel_for(extended_domain.size, [&](const int2 texel) {
-            output.store_pixel(texel, input.load_pixel_zero<float4>(texel - size));
+            output.store_pixel(texel, input.load_pixel_zero<Color>(texel - size));
           });
           break;
         default:

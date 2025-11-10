@@ -297,6 +297,7 @@ bool is_orthogonal_m4(const float m[4][4]);
 bool is_orthonormal_m3(const float m[3][3]);
 bool is_orthonormal_m4(const float m[4][4]);
 
+bool is_identity_m4(const float m[4][4]);
 bool is_uniform_scaled_m3(const float m[3][3]);
 bool is_uniform_scaled_m4(const float m[4][4]);
 
@@ -512,7 +513,7 @@ bool equals_m4m4(const float mat1[4][4], const float mat2[4][4]);
  * (where conversion can be represented by a matrix multiplication).
  *
  * A #SpaceTransform is initialized using:
- * - #BLI_SPACE_TRANSFORM_SETUP(&data,  ob1, ob2)
+ * - #BLI_SPACE_TRANSFORM_SETUP(&data, ob1, ob2)
  *
  * After that the following calls can be used:
  * - Converts a coordinate in ob1 space to the corresponding ob2 space:

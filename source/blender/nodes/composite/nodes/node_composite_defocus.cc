@@ -126,7 +126,7 @@ class DefocusOperation : public NodeOperation {
                    Result &output,
                    const int search_radius)
   {
-    GPUShader *shader = context().get_shader("compositor_defocus_blur");
+    gpu::Shader *shader = context().get_shader("compositor_defocus_blur");
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1i(shader, "search_radius", search_radius);
@@ -205,7 +205,7 @@ class DefocusOperation : public NodeOperation {
           }
 
           float4 weight = load_weight(int2(x, y), radius);
-          float4 input_color = input.load_pixel_extended<float4>(texel + int2(x, y));
+          float4 input_color = float4(input.load_pixel_extended<Color>(texel + int2(x, y)));
 
           accumulated_color += input_color * weight;
           accumulated_weight += weight;
@@ -214,7 +214,7 @@ class DefocusOperation : public NodeOperation {
 
       accumulated_color = math::safe_divide(accumulated_color, accumulated_weight);
 
-      output.store_pixel(texel, accumulated_color);
+      output.store_pixel(texel, Color(accumulated_color));
     });
   }
 
@@ -237,7 +237,7 @@ class DefocusOperation : public NodeOperation {
 
   Result compute_defocus_radius_from_scale_gpu()
   {
-    GPUShader *shader = context().get_shader("compositor_defocus_radius_from_scale");
+    gpu::Shader *shader = context().get_shader("compositor_defocus_radius_from_scale");
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1f(shader, "scale", node_storage(bnode()).scale);
@@ -319,7 +319,7 @@ class DefocusOperation : public NodeOperation {
 
   void compute_defocus_radius_from_depth_gpu(Result &output_radius)
   {
-    GPUShader *shader = context().get_shader("compositor_defocus_radius_from_depth");
+    gpu::Shader *shader = context().get_shader("compositor_defocus_radius_from_depth");
     GPU_shader_bind(shader);
 
     const float distance_to_image_of_focus = compute_distance_to_image_of_focus();

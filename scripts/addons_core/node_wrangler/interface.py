@@ -13,6 +13,18 @@ from .utils.constants import blend_types, geo_combine_operations, operations
 from .utils.nodes import get_nodes_links, NWBaseMenu
 
 
+def socket_to_icon(socket):
+    socket_type = socket.type
+
+    if socket_type == "CUSTOM":
+        return "RADIOBUT_OFF"
+
+    if socket_type == "VALUE":
+        socket_type = "FLOAT"
+
+    return "NODE_SOCKET_" + socket_type
+
+
 def drawlayout(context, layout, mode='non-panel'):
     tree_type = context.space_data.tree_type
 
@@ -64,6 +76,7 @@ def drawlayout(context, layout, mode='non-panel'):
 
     col = layout.column(align=True)
     col.operator(operators.NWAlignNodes.bl_idname, icon='CENTER_ONLY')
+    col.operator(operators.NWCenterNodes.bl_idname, icon='SNAP_FACE_CENTER')
     col.separator()
 
     col = layout.column(align=True)
@@ -84,7 +97,7 @@ class NodeWranglerPanel(Panel, NWBaseMenu):
     remove: StringProperty()
 
     def draw(self, context):
-        self.layout.label(text="(Quick access: Shift+W)")
+        self.layout.label(text="(Quick Access: Shift+W)")
         drawlayout(context, self.layout, mode='panel')
 
 
@@ -163,11 +176,14 @@ class NWMergeMixMenu(Menu, NWBaseMenu):
 
 class NWConnectionListOutputs(Menu, NWBaseMenu):
     bl_idname = "NODE_MT_nw_connection_list_out"
-    bl_label = "From Socket"
+    bl_label = ""
 
     def draw(self, context):
         layout = self.layout
         nodes, links = get_nodes_links(context)
+
+        layout.label(text="From Socket", icon='RADIOBUT_OFF')
+        layout.separator()
 
         n1 = nodes[context.scene.NWLazySource]
         for index, output in enumerate(n1.outputs):
@@ -177,17 +193,20 @@ class NWConnectionListOutputs(Menu, NWBaseMenu):
                     operators.NWCallInputsMenu.bl_idname,
                     text=output.name,
                     text_ctxt=i18n_contexts.default,
-                    icon="RADIOBUT_OFF",
+                    icon=socket_to_icon(output),
                 ).from_socket = index
 
 
 class NWConnectionListInputs(Menu, NWBaseMenu):
     bl_idname = "NODE_MT_nw_connection_list_in"
-    bl_label = "To Socket"
+    bl_label = ""
 
     def draw(self, context):
         layout = self.layout
         nodes, links = get_nodes_links(context)
+
+        layout.label(text="To Socket", icon='FORWARD')
+        layout.separator()
 
         n2 = nodes[context.scene.NWLazyTarget]
 
@@ -200,7 +219,7 @@ class NWConnectionListInputs(Menu, NWBaseMenu):
                 op = layout.operator(
                     operators.NWMakeLink.bl_idname, text=input.name,
                     text_ctxt=i18n_contexts.default,
-                    icon="FORWARD",
+                    icon=socket_to_icon(input),
                 )
                 op.from_socket = context.scene.NWSourceSocket
                 op.to_socket = index
@@ -280,7 +299,7 @@ class NWCopyLabelMenu(Menu, NWBaseMenu):
 class NWAddReroutesMenu(Menu, NWBaseMenu):
     bl_idname = "NODE_MT_nw_add_reroutes_menu"
     bl_label = "Add Reroutes"
-    bl_description = "Add Reroute Nodes to Selected Nodes' Outputs"
+    bl_description = "Add reroute nodes to selected nodes' outputs"
 
     def draw(self, context):
         layout = self.layout
@@ -334,7 +353,7 @@ class NWLinkUseNodeNameMenu(Menu, NWBaseMenu):
 
 class NWLinkUseOutputsNamesMenu(Menu, NWBaseMenu):
     bl_idname = "NODE_MT_nw_link_use_outputs_names_menu"
-    bl_label = "Use Outputs Names"
+    bl_label = "Use Output Names"
 
     def draw(self, context):
         layout = self.layout
@@ -390,15 +409,6 @@ class NWAttributeMenu(bpy.types.Menu):
             l.label(text="No attributes on objects with this material")
 
 
-class NWSwitchNodeTypeMenu(Menu, NWBaseMenu):
-    bl_idname = "NODE_MT_nw_switch_node_type_menu"
-    bl_label = "Switch Type to..."
-
-    def draw(self, context):
-        layout = self.layout
-        layout.label(text="This operator is removed due to the changes of node menus.", icon='ERROR')
-        layout.label(text="A native implementation of the function is expected in the future.")
-
 #
 #  APPENDAGES TO EXISTING UI
 #
@@ -406,9 +416,8 @@ class NWSwitchNodeTypeMenu(Menu, NWBaseMenu):
 
 def select_parent_children_buttons(self, context):
     layout = self.layout
-    layout.operator(operators.NWSelectParentChildren.bl_idname,
-                    text="Select frame's members (children)").option = 'CHILD'
-    layout.operator(operators.NWSelectParentChildren.bl_idname, text="Select parent frame").option = 'PARENT'
+    layout.operator(operators.NWSelectParentChildren.bl_idname, text="Select Frame Children").option = 'CHILD'
+    layout.operator(operators.NWSelectParentChildren.bl_idname, text="Select Parent Frame").option = 'PARENT'
 
 
 def attr_nodes_menu_func(self, context):
@@ -431,11 +440,12 @@ def bgreset_menu_func(self, context):
 def save_viewer_menu_func(self, context):
     space = context.space_data
     if (space.type == 'NODE_EDITOR'
+            and space.tree_type == 'CompositorNodeTree'
+            and space.node_tree_sub_type == 'SCENE'
             and space.node_tree is not None
             and space.node_tree.library is None
-            and space.tree_type == 'CompositorNodeTree'
-            and context.scene.compositing_node_group.nodes.active
-            and context.scene.compositing_node_group.nodes.active.type == "VIEWER"):
+            and space.edit_tree.nodes.active
+            and space.edit_tree.nodes.active.type == "VIEWER"):
         self.layout.operator(operators.NWSaveViewer.bl_idname, icon='FILE_IMAGE')
 
 
@@ -481,7 +491,6 @@ classes = (
     NWLinkUseNodeNameMenu,
     NWLinkUseOutputsNamesMenu,
     NWAttributeMenu,
-    NWSwitchNodeTypeMenu,
 )
 
 

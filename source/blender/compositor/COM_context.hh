@@ -7,11 +7,13 @@
 #include <cstdint>
 
 #include "BLI_bounds_types.hh"
+#include "BLI_enum_flags.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_string_ref.hh"
 
 #include "DNA_scene_types.h"
 
+#include "DNA_sequence_types.h"
 #include "GPU_shader.hh"
 
 #include "COM_domain.hh"
@@ -31,7 +33,7 @@ enum class OutputTypes : uint8_t {
   FileOutput = 1 << 2,
   Previews = 1 << 3,
 };
-ENUM_OPERATORS(OutputTypes, OutputTypes::Previews)
+ENUM_OPERATORS(OutputTypes)
 
 /* ------------------------------------------------------------------------------------------------
  * Context
@@ -57,16 +59,15 @@ class Context {
   /* Returns all output types that should be computed. */
   virtual OutputTypes needed_outputs() const = 0;
 
-  /* Get the rectangular region representing the area of the input that the compositor will operate
-   * on. Conversely, the compositor will only update the region of the output that corresponds to
-   * the compositing region. In the base case, the compositing region covers the entirety of the
-   * render region. In other cases, the compositing region might be a subset of the render region.
-   * Callers should check the validity of the region through is_valid_compositing_region(), since
-   * the region can be zero sized. */
+  /* Get the rectangular region representing to the area of the input that the compositor will
+   * operate on. Conversely, the compositor will only update the region of the output that
+   * corresponds to the compositing region. In the base case, the compositing region covers the
+   * entirety of the render region. In other cases, the compositing region might be a subset of the
+   * render region. */
   virtual Bounds<int2> get_compositing_region() const = 0;
 
   /* Get the result where the result of the compositor should be written. */
-  virtual Result get_output() = 0;
+  virtual Result get_output(Domain domain) = 0;
 
   /* Get the result where the result of the compositor viewer should be written, given the domain
    * of the result to be viewed, its precision, and whether the output is a non-color data image
@@ -74,10 +75,16 @@ class Context {
   virtual Result get_viewer_output(Domain domain, bool is_data, ResultPrecision precision) = 0;
 
   /* Get the result where the given input is stored. */
-  virtual Result get_input(const Scene *scene, int view_layer, const char *name) = 0;
+  virtual Result get_input(StringRef name) = 0;
 
   /* True if the compositor should use GPU acceleration. */
   virtual bool use_gpu() const = 0;
+
+  /* Get the strip that the compositing modifier is applied to. */
+  virtual const Strip *get_strip() const;
+
+  /* Get the result where the given pass is stored. */
+  virtual Result get_pass(const Scene *scene, int view_layer, const char *name);
 
   /* Get the render settings for compositing. This could be different from scene->r render settings
    * in case the render size or other settings needs to be overwritten. */
@@ -98,6 +105,12 @@ class Context {
   /* True if the compositor should treat viewers as composite outputs because it has no concept of
    * or support for viewers. */
   virtual bool treat_viewer_as_compositor_output() const;
+
+  /* True if the compositor input/output should use output region/bounds setup in the context. */
+  virtual bool use_context_bounds_for_input_output() const
+  {
+    return true;
+  }
 
   /* Populates the given meta data from the render stamp information of the given render pass. */
   virtual void populate_meta_data_for_pass(const Scene *scene,
@@ -126,14 +139,8 @@ class Context {
    * every evaluation. */
   void reset();
 
-  /* Get the size of the compositing region. See get_compositing_region(). The output size is
-   * sanitized such that it is at least 1 in both dimensions. However, the developer is expected to
-   * gracefully handled zero sizes regions by checking the is_valid_compositing_region method. */
+  /* Get the size of the compositing region. See get_compositing_region(). */
   int2 get_compositing_region_size() const;
-
-  /* Returns true if the compositing region has a valid size, that is, has at least one pixel in
-   * both dimensions, returns false otherwise. */
-  bool is_valid_compositing_region() const;
 
   /* Get the normalized render percentage of the active scene. */
   float get_render_percentage() const;
@@ -149,10 +156,10 @@ class Context {
   eCompositorDenoiseQaulity get_denoise_quality() const;
 
   /* Get a GPU shader with the given info name and precision. */
-  GPUShader *get_shader(const char *info_name, ResultPrecision precision);
+  gpu::Shader *get_shader(const char *info_name, ResultPrecision precision);
 
   /* Get a GPU shader with the given info name and context's precision. */
-  GPUShader *get_shader(const char *info_name);
+  gpu::Shader *get_shader(const char *info_name);
 
   /* Create a result of the given type and precision. */
   Result create_result(ResultType type, ResultPrecision precision);

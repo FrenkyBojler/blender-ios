@@ -24,6 +24,7 @@ __all__ = (
 )
 
 import collections
+import contextlib
 import dataclasses
 import enum
 import hashlib
@@ -31,11 +32,12 @@ import logging
 import multiprocessing
 import multiprocessing.connection
 import multiprocessing.process
+import sys
 import time
 import zlib  # For streaming gzip decompression.
 from collections.abc import Callable
 from pathlib import Path
-from typing import Protocol, TypeAlias, Any
+from typing import Protocol, TypeAlias, Any, Generator
 
 # To work around this error:
 # mypy   : Variable "multiprocessing.Event" is not valid as a type
@@ -119,7 +121,7 @@ class ConditionalDownloader:
         is renamed to the given path, overwriting any pre-existing file.
 
         Raises a HTTPRequestDownloadError for specific HTTP errors. Can also
-        raise other exceptions, for example when filesystem access fails. On any
+        raise other exceptions, for example when file-system access fails. On any
         exception, the `download_error()` function will be called on the
         reporter.
         """
@@ -511,7 +513,8 @@ class BackgroundDownloader:
             daemon=True,
         )
         self._logger.info("starting downloader process")
-        self._downloader_process.start()
+        with _cleanup_main_file_attribute():
+            self._downloader_process.start()
 
     @property
     def is_shutdown_requested(self) -> bool:
@@ -545,7 +548,11 @@ class BackgroundDownloader:
         self._shutdown_event.set()
 
         # Send the CANCEL message to shut down the background process.
-        self._connection.send(PipeMessage(PipeMsgType.CANCEL, None))
+        try:
+            self._connection.send(PipeMessage(PipeMsgType.CANCEL, None))
+        except BrokenPipeError:
+            # The other side is already shut down, which is fine.
+            pass
 
         # Keep receiving incoming messages, to avoid the background process
         # getting stuck on a send() call.
@@ -756,7 +763,13 @@ def _download_queued_items(
             # to prevent the remote end hanging on their send() call.
             # Only once that's done should we check the do_shutdown event.
             while connection.poll():
-                received_msg: PipeMessage = connection.recv()
+                try:
+                    received_msg: PipeMessage = connection.recv()
+                except EOFError:
+                    log.warning("Blender is no longer running, shutting down the downloader process")
+                    do_shutdown.set()
+                    return
+
                 log.info("received message: %s", received_msg)
                 rx_queue.put(received_msg)
 
@@ -775,7 +788,12 @@ def _download_queued_items(
                 payload=queued_call,
             )
             log.info("sending message %s", queued_msg)
-            connection.send(queued_msg)
+            try:
+                connection.send(queued_msg)
+            except BrokenPipeError:
+                log.warning("Blender is no longer running, shutting down the downloader process")
+                do_shutdown.set()
+                return
 
     rx_thread = threading.Thread(target=rx_thread_func)
     tx_thread = threading.Thread(target=tx_thread_func)
@@ -818,41 +836,46 @@ def _download_queued_items(
     downloader.periodic_check = periodic_check
     downloader.timeout = options.timeout
 
-    while periodic_check():
-        # Pop an item off the front of the queue.
-        try:
-            queued_download = download_queue.popleft()
-        except IndexError:
-            time.sleep(0.1)
-            continue
+    try:
+        while periodic_check():
+            # Pop an item off the front of the queue.
+            try:
+                queued_download = download_queue.popleft()
+            except IndexError:
+                time.sleep(0.1)
+                continue
 
-        http_req_descr, local_path = queued_download
+            http_req_descr, local_path = queued_download
 
-        # Try and download it.
-        try:
-            downloader.download_to_file(
-                http_req_descr.url,
-                local_path,
-                http_method=http_req_descr.http_method,
-            )
-        except DownloadCancelled:
-            # Can be logged at a lower level, because the caller did the
-            # cancelling, and can log/report things more loudly if necessary.
-            log.debug("download got cancelled: %s", http_req_descr)
-        except HTTPRequestDownloadError as ex:
-            # HTTP errors that were not an explicit cancellation. These are
-            # communicated to the main process via the messaging system, so they
-            # do not need much logging here.
-            log.debug("could not download: %s: %s", http_req_descr, ex)
-        except OSError as ex:
-            # Things like "disk full", "permission denied", shouldn't need a
-            # full stack trace. These are communicated to the main process via
-            # the messaging system, so they do not need much logging here.
-            log.debug("could not download: %s: %s", http_req_descr, ex)
-        except Exception as ex:
-            # Unexpected errors should really be logged here, as they may
-            # indicate bugs (typos, dependencies not found, etc).
-            log.exception("unexpected error downloading %s: %s", http_req_descr, ex)
+            # Try and download it.
+            try:
+                downloader.download_to_file(
+                    http_req_descr.url,
+                    local_path,
+                    http_method=http_req_descr.http_method,
+                )
+            except DownloadCancelled:
+                # Can be logged at a lower level, because the caller did the
+                # cancelling, and can log/report things more loudly if necessary.
+                log.debug("download got cancelled: %s", http_req_descr)
+            except HTTPRequestDownloadError as ex:
+                # HTTP errors that were not an explicit cancellation. These are
+                # communicated to the main process via the messaging system, so they
+                # do not need much logging here.
+                log.debug("could not download: %s: %s", http_req_descr, ex)
+            except OSError as ex:
+                # Things like "disk full", "permission denied", shouldn't need a
+                # full stack trace. These are communicated to the main process via
+                # the messaging system, so they do not need much logging here.
+                log.debug("could not download: %s: %s", http_req_descr, ex)
+            except Exception as ex:
+                # Unexpected errors should really be logged here, as they may
+                # indicate bugs (typos, dependencies not found, etc).
+                log.exception("unexpected error downloading %s: %s", http_req_descr, ex)
+
+    except KeyboardInterrupt:
+        log.warning("Keyboard interrupt received, shutting down the downloader process")
+        do_shutdown.set()
 
     try:
         rx_thread.join(timeout=1.0)
@@ -1299,3 +1322,47 @@ def http_session() -> requests.Session:
     session.mount("http://", http_adapter)
 
     return session
+
+
+@contextlib.contextmanager
+def _cleanup_main_file_attribute() -> Generator[None]:
+    """Context manager to ensure __main__.__file__ is not set.
+
+    `__main__.__file__` is set to "<blender string>" in `PyC_DefaultNameSpace()`
+    in `source/blender/python/generic/py_capi_utils.cc`. This is problematic for
+    Python's `multiprocessing` module, as it gets confused about what the entry
+    point into the Python program was. The easiest way (short of modifying
+    Blender itself) is to just temporarily erase the `__main__.__file__`
+    attribute.
+
+    See the `get_preparation_data(name)` function in Python's stdlib:
+    https://github.com/python/cpython/blob/180b3eb697bf5bb0088f3f35ef2d3675f9fff04f/Lib/multiprocessing/spawn.py#L197
+
+    This issue can be recognized by a failure to start a background process,
+    with an error like:
+
+        ``FileNotFoundError: [Errno 2] No such file or directory: '/path/to/blender/<blender string>'``
+
+    """
+
+    try:
+        main_module = sys.modules['__main__']
+    except KeyError:
+        # No __main__ is fine.
+        yield
+        return
+
+    # Be careful to only modify the property when we know it has a value
+    # that will cause problems. Python dunder variables like this can
+    # trigger all kinds of unknown magics, so they should be left alone
+    # as much as possible.
+    old_file = getattr(main_module, '__file__', None)
+    if old_file != "<blender string>":
+        yield
+        return
+
+    try:
+        del main_module.__file__
+        yield
+    finally:
+        main_module.__file__ = old_file

@@ -7,6 +7,7 @@
 #include "BKE_grease_pencil.hh"
 
 #include "GEO_fillet_curves.hh"
+#include "GEO_foreach_geometry.hh"
 
 #include "node_geometry_util.hh"
 
@@ -18,13 +19,13 @@ static EnumPropertyItem mode_items[] = {
     {GEO_NODE_CURVE_FILLET_BEZIER,
      "BEZIER",
      0,
-     "Bézier",
-     "Align Bézier handles to create circular arcs at each control point"},
+     N_("Bézier"),
+     N_("Align Bézier handles to create circular arcs at each control point")},
     {GEO_NODE_CURVE_FILLET_POLY,
      "POLY",
      0,
-     "Poly",
-     "Add control points along a circular arc (handle type is vector if Bézier Spline)"},
+     N_("Poly"),
+     N_("Add control points along a circular arc (handle type is vector if Bézier Spline)")},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -34,7 +35,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.allow_any_socket_order();
   b.add_input<decl::Geometry>("Curve")
       .supported_type({GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil})
-      .description("Curves to generated rounded corners on");
+      .description("Curves to generate rounded corners on");
   b.add_output<decl::Geometry>("Curve").propagate_all().align_with_previous();
   b.add_input<decl::Float>("Radius")
       .min(0.0f)
@@ -46,6 +47,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("Limit the maximum value of the radius in order to avoid overlapping fillets");
   b.add_input<decl::Menu>("Mode")
       .static_items(mode_items)
+      .optional_label()
       .description("How to choose number of vertices on fillet");
   b.add_input<decl::Int>("Count")
       .default_value(1)
@@ -142,7 +144,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   const NodeAttributeFilter &attribute_filter = params.get_attribute_filter("Curve");
 
-  geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+  geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     if (geometry_set.has_curves()) {
       const Curves &curves_id = *geometry_set.get_curves();
       const bke::CurvesGeometry &src_curves = curves_id.geometry.wrap();

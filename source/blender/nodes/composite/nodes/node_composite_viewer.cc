@@ -51,14 +51,6 @@ class ViewerOperation : public NodeOperation {
 
   void execute() override
   {
-    /* Viewers are treated as composite outputs that should be in the bounds of the compositing
-     * region, so do nothing if the compositing region is invalid. */
-    if (this->context().treat_viewer_as_compositor_output() &&
-        !this->context().is_valid_compositing_region())
-    {
-      return;
-    }
-
     const Result &image = this->get_input("Image");
     if (image.is_single_value()) {
       this->execute_clear();
@@ -72,7 +64,7 @@ class ViewerOperation : public NodeOperation {
   {
     const Result &image = this->get_input("Image");
 
-    float4 color = image.get_single_value<float4>();
+    Color color = image.get_single_value<Color>();
 
     const Domain domain = this->compute_domain();
     Result output = this->context().get_viewer_output(
@@ -102,7 +94,8 @@ class ViewerOperation : public NodeOperation {
     Result output = this->context().get_viewer_output(
         domain, image.meta_data.is_non_color_data, image.precision());
 
-    GPUShader *shader = this->context().get_shader("compositor_write_output", output.precision());
+    gpu::Shader *shader = this->context().get_shader("compositor_write_output",
+                                                     output.precision());
     GPU_shader_bind(shader);
 
     const Bounds<int2> bounds = this->get_output_bounds();
@@ -133,7 +126,7 @@ class ViewerOperation : public NodeOperation {
       if (output_texel.x > bounds.max.x || output_texel.y > bounds.max.y) {
         return;
       }
-      output.store_pixel(texel + bounds.min, image.load_pixel<float4>(texel));
+      output.store_pixel(texel + bounds.min, image.load_pixel<Color>(texel));
     });
   }
 
@@ -143,7 +136,9 @@ class ViewerOperation : public NodeOperation {
   {
     /* Viewers are treated as composite outputs that should be in the bounds of the compositing
      * region. */
-    if (this->context().treat_viewer_as_compositor_output()) {
+    if (this->context().treat_viewer_as_compositor_output() &&
+        this->context().use_context_bounds_for_input_output())
+    {
       return this->context().get_compositing_region();
     }
 
@@ -155,7 +150,9 @@ class ViewerOperation : public NodeOperation {
   {
     /* Viewers are treated as composite outputs that should be in the domain of the compositing
      * region. */
-    if (context().treat_viewer_as_compositor_output()) {
+    if (this->context().treat_viewer_as_compositor_output() &&
+        this->context().use_context_bounds_for_input_output())
+    {
       return Domain(context().get_compositing_region_size());
     }
 

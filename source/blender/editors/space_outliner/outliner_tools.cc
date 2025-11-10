@@ -36,6 +36,8 @@
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
+#include "BLT_translation.hh"
+
 #include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
 #include "BKE_armature.hh"
@@ -139,7 +141,6 @@ static void get_element_operation_type(
       case ID_SPK:
       case ID_MA:
       case ID_TE:
-      case ID_IP:
       case ID_IM:
       case ID_SO:
       case ID_KE:
@@ -437,6 +438,10 @@ static void unlink_object_fn(bContext *C,
                              TreeStoreElem *tselem)
 {
   if (tsep && tsep->id) {
+
+    if (!TSE_IS_REAL_ID(tsep)) {
+      return;
+    }
     Main *bmain = CTX_data_main(C);
     Object *ob = (Object *)tselem->id;
     const eSpaceOutliner_Mode outliner_mode = eSpaceOutliner_Mode(
@@ -2090,17 +2095,17 @@ static void pchan_fn(int event, TreeElement *te, TreeStoreElem * /*tselem*/, voi
   bPoseChannel *pchan = (bPoseChannel *)te->directdata;
 
   if (event == OL_DOP_SELECT) {
-    pchan->bone->flag |= BONE_SELECTED;
+    pchan->flag |= POSE_SELECTED;
   }
   else if (event == OL_DOP_DESELECT) {
-    pchan->bone->flag &= ~BONE_SELECTED;
+    pchan->flag &= ~POSE_SELECTED;
   }
   else if (event == OL_DOP_HIDE) {
-    pchan->bone->flag |= BONE_HIDDEN_P;
-    pchan->bone->flag &= ~BONE_SELECTED;
+    pchan->drawflag |= PCHAN_DRAW_HIDDEN;
+    pchan->flag &= ~POSE_SELECTED;
   }
   else if (event == OL_DOP_UNHIDE) {
-    pchan->bone->flag &= ~BONE_HIDDEN_P;
+    pchan->drawflag &= ~PCHAN_DRAW_HIDDEN;
   }
 }
 
@@ -2148,7 +2153,7 @@ static void sequence_fn(int event, TreeElement *te, TreeStoreElem * /*tselem*/, 
   Strip *strip = &te_strip->get_strip();
   Scene *scene = (Scene *)scene_ptr;
   Editing *ed = seq::editing_get(scene);
-  if (BLI_findindex(ed->seqbasep, strip) != -1) {
+  if (BLI_findindex(ed->current_strips(), strip) != -1) {
     if (event == OL_DOP_SELECT) {
       vse::select_strip_single(scene, strip, true);
     }
@@ -2510,7 +2515,7 @@ static wmOperatorStatus outliner_object_operation_exec(bContext *C, wmOperator *
         WM_window_set_active_scene(bmain, C, win, sce);
       }
 
-      str = "Select Objects";
+      str = CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Select Objects");
       selection_changed = true;
       break;
     }
@@ -2528,14 +2533,14 @@ static wmOperatorStatus outliner_object_operation_exec(bContext *C, wmOperator *
       if (scene != sce) {
         WM_window_set_active_scene(bmain, C, win, sce);
       }
-      str = "Select Object Hierarchy";
+      str = CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Select Object Hierarchy");
       selection_changed = true;
       break;
     }
     case OL_OP_DESELECT:
       outliner_do_object_operation(
           C, op->reports, scene, space_outliner, &space_outliner->tree, object_deselect_fn);
-      str = "Deselect Objects";
+      str = CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Deselect Objects");
       selection_changed = true;
       break;
     case OL_OP_REMAP:
@@ -2546,7 +2551,7 @@ static wmOperatorStatus outliner_object_operation_exec(bContext *C, wmOperator *
     case OL_OP_RENAME:
       outliner_do_object_operation(
           C, op->reports, scene, space_outliner, &space_outliner->tree, item_rename_fn);
-      str = "Rename Object";
+      str = CTX_N_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Rename Object");
       break;
     default:
       BLI_assert_unreachable();
@@ -3517,9 +3522,9 @@ static wmOperatorStatus outliner_data_operation_exec(bContext *C, wmOperator *op
       break;
     }
     case TSE_STRIP: {
-      Scene *scene = CTX_data_scene(C);
-      outliner_do_data_operation(space_outliner, datalevel, event, sequence_fn, scene);
-      WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER | NA_SELECTED, scene);
+      Scene *sequencer_scene = CTX_data_sequencer_scene(C);
+      outliner_do_data_operation(space_outliner, datalevel, event, sequence_fn, sequencer_scene);
+      WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER | NA_SELECTED, sequencer_scene);
       ED_undo_push(C, "Sequencer operation");
 
       break;

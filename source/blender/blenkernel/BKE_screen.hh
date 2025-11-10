@@ -11,6 +11,7 @@
 #include <string>
 
 #include "BLI_compiler_attrs.h"
+#include "BLI_enum_flags.hh"
 #include "BLI_map.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_string_ref.hh"
@@ -597,7 +598,7 @@ enum class MenuTypeFlag {
    */
   SearchOnKeyPress = (1 << 1),
 };
-ENUM_OPERATORS(MenuTypeFlag, MenuTypeFlag::ContextDependent)
+ENUM_OPERATORS(MenuTypeFlag)
 
 struct MenuType {
   MenuType *next, *prev;
@@ -641,12 +642,16 @@ enum AssetShelfTypeFlag {
   ASSET_SHELF_TYPE_FLAG_NO_ASSET_DRAG = (1 << 0),
   ASSET_SHELF_TYPE_FLAG_DEFAULT_VISIBLE = (1 << 1),
   ASSET_SHELF_TYPE_FLAG_STORE_CATALOGS_IN_PREFS = (1 << 2),
-
-  ASSET_SHELF_TYPE_FLAG_MAX
+  /**
+   * When spawning a context menu for an asset, activate the asset and call the activate operator
+   * (`bl_activate_operator`/#AssetShelfType.activate_operator) if present, rather than just
+   * highlighting the asset as active.
+   */
+  ASSET_SHELF_TYPE_FLAG_ACTIVATE_FOR_CONTEXT_MENU = (1 << 3),
 };
-ENUM_OPERATORS(AssetShelfTypeFlag, ASSET_SHELF_TYPE_FLAG_MAX);
+ENUM_OPERATORS(AssetShelfTypeFlag);
 
-#define ASSET_SHELF_PREVIEW_SIZE_DEFAULT 64
+#define ASSET_SHELF_PREVIEW_SIZE_DEFAULT 48
 
 struct AssetShelfType {
   /** Unique name. */
@@ -656,6 +661,8 @@ struct AssetShelfType {
 
   /** Operator to call when activating a grid view item. */
   std::string activate_operator;
+  /** Operator to call when dragging a grid view item. */
+  std::string drag_operator;
 
   AssetShelfTypeFlag flag;
 
