@@ -119,6 +119,8 @@ struct OperatorTypeData : public wmOperatorType::TypeData {
                                                     ReportList &reports);
   static std::optional<OperatorTypeData> from_group(const bNodeTree &group, ReportList &reports);
 
+ private:
+  /** Should be called after any data changes. */
   void ensure_hash();
 };
 
