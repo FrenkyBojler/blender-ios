@@ -253,6 +253,7 @@ static blender::VectorSet<BMEdgeLoopStorePair> bm_edgering_pair_calc(BMesh *bm,
           if (pair_test.first > pair_test.second) {
             std::swap(pair_test.first, pair_test.second);
           }
+          /* The pair may exist already. */
           eloop_pair_set.add(pair_test);
         }
       }
