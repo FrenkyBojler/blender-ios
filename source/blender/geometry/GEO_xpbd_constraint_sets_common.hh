@@ -319,32 +319,39 @@ class CollisionPlaneConstraintSet : public TemplatedConstraintSet<CollisionPlane
   Span<float3> contact_points_on_plane_;
   Span<float3> separating_axes_;
   Span<float> compliance_terms_;
+  Span<bool> active_states_;
   Span<float> static_frictions_;
   Span<float> dynamic_frictions_;
-  MutableSpan<bool> active_states_;
+  MutableSpan<float> lambdas_normal_;
 
+    IsStatic,
  public:
   CollisionPlaneConstraintSet(const int geo_i,
                               const Span<int> points,
                               const Span<float3> contact_points_on_plane,
                               const Span<float3> separating_axes,
                               const Span<float> compliance_terms,
+                              const Span<bool> active_states,
                               const Span<float> static_frictions,
                               const Span<float> dynamic_frictions,
-                              MutableSpan<bool> active_states)
+                              MutableSpan<float> lambdas_normal)
       : TemplatedConstraintSet<CollisionPlaneConstraintSet>(points.size(), {geo_i}),
         geo_i_(geo_i),
         points_(points),
         contact_points_on_plane_(contact_points_on_plane),
         separating_axes_(separating_axes),
         compliance_terms_(compliance_terms),
+        active_states_(active_states),
         static_frictions_(static_frictions),
         dynamic_frictions_(dynamic_frictions),
-        active_states_(active_states)
+        lambdas_normal_(lambdas_normal)
   {
   }
 
-  void reset_force(const int /*constraint_i*/) const {}
+  void reset_force(const int constraint_i) const
+  {
+    lambdas_normal_[constraint_i] = 0.0f;
+  }
 
   template<typename UpdaterT>
   void evaluate_single(UpdaterT &updater,
@@ -354,41 +361,40 @@ class CollisionPlaneConstraintSet : public TemplatedConstraintSet<CollisionPlane
     const int point_i = points_[constraint_i];
     const float3 &pos = params.position(geo_i_, point_i);
     const float3 &plane_pos = contact_points_on_plane_[constraint_i];
-    const float3 &axis = math::normalize(separating_axes_[constraint_i]);
+    const float3 &axis = separating_axes_[constraint_i];
     const float compliance_term = compliance_terms_[constraint_i];
 
-    const float3 diff = pos - plane_pos;
-    const float normal_distance = math::dot(diff, axis);
-    if (normal_distance >= 0.0f) {
-      active_states_[constraint_i] = false;
+    if (!active_states_[constraint_i]) {
       return;
     }
+    const float3 diff = pos - plane_pos;
+    const float normal_distance = math::dot(diff, axis);
     const float inv_m = params.inverse_mass(geo_i_, point_i);
     if (inv_m <= 0.0f) {
       /* Points with infinite mass are pinned and don't collide dynamically. */
-      active_states_[constraint_i] = false;
       return;
     }
-    active_states_[constraint_i] = true;
 
     /* Positional correction for penetration. */
-    const float lambda_normal = -normal_distance / (inv_m + compliance_term);
-    float3 offset = lambda_normal * inv_m * axis;
+    float3 offset = float3(0.0f);
+    float &lambda_normal = lambdas_normal_[constraint_i];
+    if (normal_distance < 0.0f) {
+      const float delta_lambda_normal = -normal_distance / (inv_m + compliance_term);
+      offset += delta_lambda_normal * inv_m * axis;
+      lambda_normal += delta_lambda_normal;
+    }
 
     /* Apply static friction as a direct positional update. */
-    const float static_friction = static_frictions_[constraint_i];
-    // const float dynamic_friction = dynamic_frictions_[constraint_i];
     const float3 &prev_pos = params.prev_position(geo_i_, point_i);
-    /* TODO Subtract collider velocity to get true relative velocity. */
     const float3 velocity = pos - prev_pos;
     const float3 velocity_tangent = velocity - math::dot(velocity, axis) * axis;
-    const float lambda_tangent = math::length(velocity_tangent) / (inv_m + compliance_term);
-    if (lambda_tangent < static_friction * lambda_normal) {
+    const float lambda_tangent_sq = math::length_squared(velocity_tangent /
+                                                         (inv_m + compliance_term));
+    const bool is_static = lambda_tangent_sq <
+                           math::square(static_frictions_[constraint_i] * lambda_normal);
+    updater.write_debug_attribute(DebugAttribute::IsStatic, constraint_i, is_static);
+    if (is_static) {
       offset -= velocity_tangent * inv_m / (inv_m + compliance_term);
-      // if (tangential_dist >= static_friction * depth) {
-      //   offset *= std::min(dynamic_friction * depth / tangential_dist, 1.0f);
-      // }
-      // new_positions[point_i] -= offset;
     }
 
     updater.update_position(geo_i_, point_i, offset);
@@ -398,6 +404,8 @@ class CollisionPlaneConstraintSet : public TemplatedConstraintSet<CollisionPlane
   {
     return unary_constraints_to_independent_masks(points_, memory);
   }
+    r_attributes[DebugAttribute::IsStatic] = attributes.lookup_or_add_for_write_only_span(
+        "is_static", bke::AttrDomain::Point, bke::AttrType::Bool);
 };
 
 class MinimumDistanceConstraintSet : public TemplatedConstraintSet<MinimumDistanceConstraintSet> {
