@@ -43,10 +43,6 @@ class GroupOutputOperation : public NodeOperation {
 
   void execute() override
   {
-    if (!this->context().is_valid_compositing_region()) {
-      return;
-    }
-
     /* Get the first input to be written to the output. The rest of the inputs are ignored. Only
      * color sockets are supported. */
     const bNodeSocket *input_socket = this->node()->input_sockets()[0];
@@ -65,7 +61,7 @@ class GroupOutputOperation : public NodeOperation {
 
   void execute_clear(const Result &image)
   {
-    float4 color = image.get_single_value<float4>();
+    Color color = image.get_single_value<Color>();
 
     const Domain domain = this->compute_domain();
     Result output = this->context().get_output(domain);
@@ -124,7 +120,7 @@ class GroupOutputOperation : public NodeOperation {
       if (output_texel.x > bounds.max.x || output_texel.y > bounds.max.y) {
         return;
       }
-      output.store_pixel(texel + bounds.min, image.load_pixel<float4>(texel));
+      output.store_pixel(texel + bounds.min, image.load_pixel<Color>(texel));
     });
   }
 
