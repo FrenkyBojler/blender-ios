@@ -6,6 +6,12 @@
 
 #include "ocio_shader_shared.hh"
 
+#include "gpu_shader_create_info.hh"
+
+/* Info is generated at runtime. */
+GPU_SHADER_CREATE_INFO(OCIO_Display)
+GPU_SHADER_CREATE_END()
+
 /* -------------------------------------------------------------------- */
 /** \name Hardcoded color space conversion for fallback implementation
  *

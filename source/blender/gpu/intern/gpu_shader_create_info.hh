@@ -744,7 +744,7 @@ using GeneratedSourceList = Vector<shader::GeneratedSource, 0>;
  */
 struct ShaderCreateInfo {
   /** Shader name for debugging. */
-  StringRefNull name_;
+  std::string name_;
   /** True if the shader is static and can be pre-compiled at compile time. */
   bool do_static_compilation_ = false;
   /** True if the shader is not part of gpu_shader_create_info_list. */
@@ -1045,7 +1045,8 @@ struct ShaderCreateInfo {
 #  endif
 
  public:
-  ShaderCreateInfo(const char *name) : name_(name) {};
+  ShaderCreateInfo(const char *name);
+
   ~ShaderCreateInfo() = default;
 
   using Self = ShaderCreateInfo;

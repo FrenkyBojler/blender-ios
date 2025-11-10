@@ -45,11 +45,9 @@ struct GPUCodegenCreateInfo : ShaderCreateInfo {
   /** Copy of the GPUMaterial name, to prevent dangling pointers. */
   std::string info_name_;
 
-  GPUCodegenCreateInfo(const char *name) : ShaderCreateInfo(name), info_name_(name)
-  {
-    /* Base class is always initialized first, so we need to update the name_ pointer here. */
-    name_ = info_name_.c_str();
-  };
+  GPUCodegenCreateInfo(const char *name)
+      : ShaderCreateInfo("eevee_node_tree"), info_name_(name) {};
+
   ~GPUCodegenCreateInfo()
   {
     MEM_delete(interface_generated);

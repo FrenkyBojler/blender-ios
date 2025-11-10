@@ -33,8 +33,6 @@
 /** \name Common
  * \{ */
 
-/* Stub for C++ compilation. */
-/* TODO(fclem): Use it for actual interface. */
 GPU_SHADER_CREATE_INFO(eevee_node_tree)
 UNIFORM_BUF(0 /*GPU_NODE_TREE_UBO_SLOT*/, NodeTree, node_tree)
 GPU_SHADER_CREATE_END()

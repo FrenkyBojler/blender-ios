@@ -57,6 +57,16 @@ using namespace blender::gpu;
 Shader::Shader(const char *sh_name)
 {
   STRNCPY(this->name, sh_name);
+
+  /* Escape the shader name to be able to use it inside an identifier. */
+  for (char &c : name) {
+    if (c == '\0') {
+      break;
+    }
+    if (!std::isalnum(c)) {
+      c = '_';
+    }
+  }
 }
 
 Shader::~Shader()
