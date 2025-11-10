@@ -1938,65 +1938,72 @@ static void update_for_vert(bContext *C, Object &ob, const std::optional<int> ve
 
   const BitVector<> enabled_verts = enabled_state_to_bitmap(depsgraph, ob, expand_cache);
 
-  /* Determine which nodes are currently affected (contain enabled vertices). */
-  IndexMask current_affected_nodes = bke::pbvh::search_nodes(
-      pbvh, expand_cache.previous_node_mask_memory, [&](const bke::pbvh::Node &node) {
-        switch (pbvh.type()) {
-          case bke::pbvh::Type::Mesh: {
-            const bke::pbvh::MeshNode &mesh_node = static_cast<const bke::pbvh::MeshNode &>(node);
-            const Span<int> verts = mesh_node.verts();
-            for (const int vert : verts) {
-              if (enabled_verts[vert]) {
-                return true;
-              }
-            }
-            return false;
-          }
-          case bke::pbvh::Type::Grids: {
-            const bke::pbvh::GridsNode &grids_node = static_cast<const bke::pbvh::GridsNode &>(node);
-            const SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
-            const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
-            for (const int grid : grids_node.grids()) {
-              for (const int vert : bke::ccg::grid_range(key, grid)) {
-                if (enabled_verts[vert]) {
-                  return true;
-                }
-              }
-            }
-            return false;
-          }
-          case bke::pbvh::Type::BMesh: {
-            bke::pbvh::BMeshNode &bmesh_node = const_cast<bke::pbvh::BMeshNode &>(
-                static_cast<const bke::pbvh::BMeshNode &>(node));
-            for (BMVert *vert : BKE_pbvh_bmesh_node_unique_verts(&bmesh_node)) {
-              const int vert_index = BM_elem_index_get(vert);
-              if (enabled_verts[vert_index]) {
-                return true;
-              }
-            }
-            return false;
-          }
-        }
-        BLI_assert_unreachable();
-        return false;
-      });
-
   switch (expand_cache.target) {
     case TargetType::Mask: {
+      IndexMaskMemory current_changed_nodes_memory;
+      IndexMask current_changed_nodes;
+
       switch (pbvh.type()) {
         case bke::pbvh::Type::Mesh: {
           const Span<float3> positions = bke::pbvh::vert_positions_eval(depsgraph, ob);
+          Array<bool> node_changed(node_mask.min_array_size(), false);
+
+          MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
+          Mesh &mesh = *static_cast<Mesh *>(ob.data);
+          bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
+          bke::SpanAttributeReader<float> mask_reader = attributes.lookup<float>(".sculpt_mask");
+          if (!mask_reader) {
+            break;
+          }
+          const Span<float> current_mask = mask_reader.span;
+
+          node_mask.foreach_index(GrainSize(1), [&](const int i) {
+            const bke::pbvh::MeshNode &node = nodes[i];
+            const Span<int> verts = node.verts();
+
+            bool any_changed = false;
+            for (const int vert : verts) {
+              const float old_mask = current_mask[vert];
+              float new_mask;
+
+              if (expand_cache.check_islands && !is_vert_in_active_component(ss, expand_cache, vert)) {
+                new_mask = old_mask;
+              }
+              else if (enabled_verts[vert]) {
+                new_mask = gradient_value_get(ss, expand_cache, positions[vert], vert);
+              }
+              else {
+                new_mask = 0.0f;
+              }
+
+              if (expand_cache.preserve) {
+                if (expand_cache.invert) {
+                  new_mask = min_ff(new_mask, expand_cache.original_mask[vert]);
+                }
+                else {
+                  new_mask = max_ff(new_mask, expand_cache.original_mask[vert]);
+                }
+              }
+
+              new_mask = clamp_f(new_mask, 0.0f, 1.0f);
+              if (new_mask != old_mask) {
+                any_changed = true;
+              }
+            }
+            node_changed[i] = any_changed;
+          });
+
           mask::update_mask_mesh(
               depsgraph, ob, node_mask, [&](const MutableSpan<float> mask, const Span<int> verts) {
                 calc_new_mask_mesh(ss, positions, enabled_verts, verts, mask);
               });
-          /* For Mesh type, mask::update_mask_mesh already tags changed nodes, but we also need
-           * to tag previously affected nodes that are no longer affected. */
+
+          current_changed_nodes = IndexMask::from_bools(node_changed, current_changed_nodes_memory);
+
+          /* mask::update_mask_mesh already tags changed nodes, so we only need to tag previously
+           * affected nodes that might need updating when the expand area shrinks. */
           if (!expand_cache.previous_node_mask.is_empty()) {
-            IndexMaskMemory tag_memory;
-            IndexMask nodes_to_tag = IndexMask::from_union(
-                {current_affected_nodes, expand_cache.previous_node_mask}, tag_memory);
-            pbvh.tag_masks_changed(nodes_to_tag);
+            pbvh.tag_masks_changed(expand_cache.previous_node_mask);
           }
           break;
         }
@@ -2008,13 +2015,16 @@ static void update_for_vert(bContext *C, Object &ob, const std::optional<int> ve
             node_changed[i] = update_mask_grids(ss, enabled_verts, nodes[i], *ss.subdiv_ccg);
           });
 
-          /* Tag both currently affected nodes and previously affected nodes. This ensures that
-           * nodes that were previously affected but are no longer affected get tagged for visual
-           * update. */
-          IndexMaskMemory tag_memory;
-          IndexMask nodes_to_tag = IndexMask::from_union(
-              {current_affected_nodes, expand_cache.previous_node_mask}, tag_memory);
-          pbvh.tag_masks_changed(nodes_to_tag);
+          current_changed_nodes = IndexMask::from_bools(node_changed, current_changed_nodes_memory);
+
+          /* Tag nodes that changed in this iteration, plus previously affected nodes that might
+           * need updating when the expand area shrinks. */
+          if (!current_changed_nodes.is_empty() || !expand_cache.previous_node_mask.is_empty()) {
+            IndexMaskMemory tag_memory;
+            IndexMask nodes_to_tag = IndexMask::from_union(
+                {current_changed_nodes, expand_cache.previous_node_mask}, tag_memory);
+            pbvh.tag_masks_changed(nodes_to_tag);
+          }
           break;
         }
         case bke::pbvh::Type::BMesh: {
@@ -2027,19 +2037,22 @@ static void update_for_vert(bContext *C, Object &ob, const std::optional<int> ve
             node_changed[i] = update_mask_bmesh(ss, enabled_verts, mask_offset, &nodes[i]);
           });
 
-          /* Tag both currently affected nodes and previously affected nodes. This ensures that
-           * nodes that were previously affected but are no longer affected get tagged for visual
-           * update. */
-          IndexMaskMemory tag_memory;
-          IndexMask nodes_to_tag = IndexMask::from_union(
-              {current_affected_nodes, expand_cache.previous_node_mask}, tag_memory);
-          pbvh.tag_masks_changed(nodes_to_tag);
+          current_changed_nodes = IndexMask::from_bools(node_changed, current_changed_nodes_memory);
+
+          /* Tag nodes that changed in this iteration, plus previously affected nodes that might
+           * need updating when the expand area shrinks. */
+          if (!current_changed_nodes.is_empty() || !expand_cache.previous_node_mask.is_empty()) {
+            IndexMaskMemory tag_memory;
+            IndexMask nodes_to_tag = IndexMask::from_union(
+                {current_changed_nodes, expand_cache.previous_node_mask}, tag_memory);
+            pbvh.tag_masks_changed(nodes_to_tag);
+          }
           break;
         }
       }
       /* Update previous_node_mask for next iteration. The IndexMask references data stored
        * in previous_node_mask_memory, which persists across iterations. */
-      expand_cache.previous_node_mask = current_affected_nodes;
+      expand_cache.previous_node_mask = current_changed_nodes;
       flush_update_step(C, UpdateType::Mask);
       break;
     }
