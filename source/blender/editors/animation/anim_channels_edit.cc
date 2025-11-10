@@ -5355,6 +5355,15 @@ static wmOperatorStatus channels_bake_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
+static bool channels_bake_poll_property(const bContext *C, wmOperator *op, const PropertyRNA *prop)
+{
+  const char *prop_id = RNA_property_identifier(prop);
+  if (STREQ(prop_id, "range")) {
+    return !RNA_boolean_get(op->ptr, "use_scene_range");
+  }
+  return true;
+}
+
 static void ANIM_OT_channels_bake(wmOperatorType *ot)
 {
   /* Identifiers */
@@ -5366,6 +5375,7 @@ static void ANIM_OT_channels_bake(wmOperatorType *ot)
   /* API callbacks */
   ot->exec = channels_bake_exec;
   ot->poll = channel_view_poll;
+  ot->poll_property = channels_bake_poll_property;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
   RNA_def_boolean(
