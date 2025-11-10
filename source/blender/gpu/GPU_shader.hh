@@ -293,7 +293,7 @@ struct ShaderSpecialization {
  * WARNING: Binding a specialization before the batch finishes will fail.
  */
 AsyncSpecializationHandle GPU_shader_async_specialization(
-    const ShaderSpecialization *specialization,
+    const ShaderSpecialization &specialization,
     CompilationPriority priority = CompilationPriority::High);
 
 /**

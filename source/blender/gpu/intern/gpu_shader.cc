@@ -377,7 +377,7 @@ void Shader::specialization_constants_init(const shader::ShaderCreateInfo &info)
 }
 
 AsyncSpecializationHandle GPU_shader_async_specialization(
-    const ShaderSpecialization *specialization, CompilationPriority priority)
+    const ShaderSpecialization &specialization, CompilationPriority priority)
 {
   return GPUBackend::get()->get_compiler()->async_specialization(specialization, priority);
 }
@@ -967,7 +967,7 @@ Shader *ShaderCompiler::async_compilation_finalize(AsyncCompilationHandle &handl
 }
 
 AsyncSpecializationHandle ShaderCompiler::async_specialization(
-    const ShaderSpecialization *specialization, CompilationPriority priority)
+    const ShaderSpecialization &specialization, CompilationPriority priority)
 {
   if (!compilation_worker_ || !support_specializations_) {
     return 0;
@@ -976,7 +976,7 @@ AsyncSpecializationHandle ShaderCompiler::async_specialization(
   std::lock_guard lock(mutex_);
 
   AsyncCompilation *compilation = MEM_new<AsyncCompilation>(__func__);
-  compilation->specialization = specialization;
+  compilation->specialization = std::make_unique<ShaderSpecialization>(specialization);
 
   AsyncCompilationHandle handle = next_handle_++;
   async_compilations_.add(handle, compilation);

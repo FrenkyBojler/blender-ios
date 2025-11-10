@@ -164,7 +164,7 @@ class ShaderCompiler {
     Shader *shader = nullptr;
     const shader::ShaderCreateInfo *info = nullptr;
 
-    const ShaderSpecialization *specialization = nullptr;
+    std::unique_ptr<ShaderSpecialization> specialization = nullptr;
 
     std::unique_ptr<ParallelWork> work;
 
@@ -218,7 +218,7 @@ class ShaderCompiler {
   bool async_compilation_is_ready(AsyncCompilationHandle handle);
   Shader *async_compilation_finalize(AsyncCompilationHandle &handle);
 
-  AsyncSpecializationHandle async_specialization(const ShaderSpecialization *specialization,
+  AsyncSpecializationHandle async_specialization(const ShaderSpecialization &specialization,
                                                  CompilationPriority priority);
   bool async_specialization_is_ready(AsyncSpecializationHandle &handle);
 
