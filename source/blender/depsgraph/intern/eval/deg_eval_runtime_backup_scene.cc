@@ -23,10 +23,7 @@ SceneBackup::SceneBackup(const Depsgraph *depsgraph) : sequencer_backup(depsgrap
 
 void SceneBackup::reset()
 {
-  sound_scene = nullptr;
-  playback_handle = nullptr;
-  sound_scrub_handle = nullptr;
-  speaker_handles.clear();
+  audio_runtime = {};
   rigidbody_last_time = -1;
 }
 
@@ -34,33 +31,19 @@ void SceneBackup::init_from_scene(Scene *scene)
 {
   BKE_sound_lock();
 
-  bke::SceneAudioRuntime &audio = scene->runtime->audio;
-  sound_scene = audio.sound_scene;
-  playback_handle = audio.playback_handle;
-  sound_scrub_handle = audio.sound_scrub_handle;
-  std::swap(speaker_handles, audio.speaker_handles);
-
   if (scene->rigidbody_world != nullptr) {
     rigidbody_last_time = scene->rigidbody_world->ltime;
   }
 
-  /* Clear pointers stored in the scene, so they are not freed when copied-on-written datablock
-   * is freed for re-allocation. */
-  audio.sound_scene = nullptr;
-  audio.playback_handle = nullptr;
-  audio.sound_scrub_handle = nullptr;
-  audio.speaker_handles.clear();
+  audio_runtime = std::move(scene->runtime->audio);
+  scene->runtime->audio = {};
 
   sequencer_backup.init_from_scene(scene);
 }
 
 void SceneBackup::restore_to_scene(Scene *scene)
 {
-  bke::SceneAudioRuntime &audio = scene->runtime->audio;
-  audio.sound_scene = sound_scene;
-  audio.playback_handle = playback_handle;
-  audio.sound_scrub_handle = sound_scrub_handle;
-  std::swap(speaker_handles, audio.speaker_handles);
+  scene->runtime->audio = std::move(audio_runtime);
 
   if (scene->rigidbody_world != nullptr) {
     scene->rigidbody_world->ltime = rigidbody_last_time;
