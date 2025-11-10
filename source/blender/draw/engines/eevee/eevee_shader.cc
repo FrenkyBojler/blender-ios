@@ -287,26 +287,24 @@ bool ShaderModule::request_specializations(bool block_until_ready,
       [&]() {
         Vector<AsyncSpecializationHandle> handles;
         for (int i : IndexRange(3)) {
-          gpu::Shader *sh = static_shader_get(eShaderType(DEFERRED_LIGHT_SINGLE + i));
-          int render_pass_shadow_id_index = GPU_shader_get_constant(sh, "render_pass_shadow_id");
-          int use_split_indirect_index = GPU_shader_get_constant(sh, "use_split_indirect");
-          int use_lightprobe_eval_index = GPU_shader_get_constant(sh, "use_lightprobe_eval");
-          int use_transmission_index = GPU_shader_get_constant(sh, "use_transmission");
-          int shadow_ray_count_index = GPU_shader_get_constant(sh, "shadow_ray_count");
-          int shadow_ray_step_count_index = GPU_shader_get_constant(sh, "shadow_ray_step_count");
+          gpu::Shader *shader = static_shader_get(eShaderType(DEFERRED_LIGHT_SINGLE + i));
 
           ShaderSpecialization specialization;
-          specialization.shader = sh;
+          specialization.shader = shader;
           gpu::shader::SpecializationConstants &constants = specialization.constants;
-          constants = GPU_shader_get_default_constant_state(sh);
+          constants = GPU_shader_get_default_constant_state(shader);
+
+          auto set_value = [&](const char *name, auto value) {
+            constants.set_value(GPU_shader_get_constant(shader, name), value);
+          };
 
           for (bool use_transmission : {false, true}) {
-            constants.set_value(render_pass_shadow_id_index, render_buffers_shadow_id);
-            constants.set_value(use_split_indirect_index, use_split_indirect);
-            constants.set_value(use_lightprobe_eval_index, use_lightprobe_eval);
-            constants.set_value(use_transmission_index, use_transmission);
-            constants.set_value(shadow_ray_count_index, shadow_ray_count);
-            constants.set_value(shadow_ray_step_count_index, shadow_ray_step_count);
+            set_value("render_pass_shadow_id", render_buffers_shadow_id);
+            set_value("use_split_indirect", use_split_indirect);
+            set_value("use_lightprobe_eval", use_lightprobe_eval);
+            set_value("use_transmission", use_transmission);
+            set_value("shadow_ray_count", shadow_ray_count);
+            set_value("shadow_ray_step_count", shadow_ray_step_count);
           }
 
           handles.append(GPU_shader_async_specialization(specialization));
