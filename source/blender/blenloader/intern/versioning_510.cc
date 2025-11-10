@@ -273,7 +273,7 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_END;
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 4)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 5)) {
     FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
       if (node_tree->type == NTREE_COMPOSIT) {
         LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
