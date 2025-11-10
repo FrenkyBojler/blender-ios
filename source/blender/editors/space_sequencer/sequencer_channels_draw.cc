@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
- * \ingroup sequencer
+ * \ingroup spseq
  */
 
 #include "MEM_guardedalloc.h"
@@ -34,7 +34,6 @@
 
 #include "WM_api.hh"
 
-/* Own include. */
 #include "sequencer_intern.hh"
 
 namespace blender::ed::vse {
@@ -90,7 +89,7 @@ static void displayed_channel_range_get(const SeqChannelDrawContext *context,
 
 static std::string draw_channel_widget_tooltip(bContext * /*C*/,
                                                void *argN,
-                                               const blender::StringRef /*tip*/)
+                                               const StringRef /*tip*/)
 {
   char *dyn_tooltip = static_cast<char *>(argN);
   return dyn_tooltip;

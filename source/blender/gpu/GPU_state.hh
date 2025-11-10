@@ -94,6 +94,10 @@ enum GPUBlend {
   /** Replace logic op: SRC * (1 - DST)
    * NOTE: Does not modify alpha. */
   GPU_BLEND_INVERT,
+  /** Stores min(SRC, DST) per component. */
+  GPU_BLEND_MIN,
+  /** Stores max(SRC, DST) per component. */
+  GPU_BLEND_MAX,
   /** Order independent transparency.
    * NOTE: Cannot be used as is. Needs special setup (frame-buffer, shader ...). */
   GPU_BLEND_OIT,
@@ -150,7 +154,6 @@ void GPU_depth_test(GPUDepthTest test);
 void GPU_stencil_test(GPUStencilTest test);
 void GPU_provoking_vertex(GPUProvokingVertex vert);
 void GPU_front_facing(bool invert);
-void GPU_depth_range(float near, float far);
 void GPU_scissor_test(bool enable);
 void GPU_line_smooth(bool enable);
 /**
