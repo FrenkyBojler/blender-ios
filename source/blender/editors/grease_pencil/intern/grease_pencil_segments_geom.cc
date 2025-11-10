@@ -50,6 +50,10 @@ class Segment {
    * in a CurvesGeometry. */
   int points[2] = {-1, -1};
 
+  /* If this segment is a full cyclical segment, note that the segment can start and end at some
+   * intersection point. */
+  bool full_wrap_loop = false;
+
   /* The normalized distance where the trim segment is intersected by another curve.
    * For the outer ends of the trim segment the intersection distance is given between:
    * - [start point] and [start point + 1]
@@ -64,19 +68,12 @@ class Segment {
 
   bool is_loop() const
   {
-    /* If both intersection points are the same, then it's a full loop. */
-    if (points[Side::Start] == points[Side::End]) {
-      if (intersection_factor[Side::Start] == intersection_factor[Side::End]) {
-        return true;
-      }
-    }
-
-    return intersection_factor[Side::End] == 1.0f;
+    return full_wrap_loop;
   }
 
   bool has_intersection(const Side side) const
   {
-    return intersection_factor[side] != 0.0f && intersection_factor[side] != 1.0f;
+    return intersection_index[side] != -1;
   }
 
   int2 edge(const Side side) const
@@ -106,7 +103,19 @@ class Segment {
     /* If both intersection points are on the same edge, there's ether no points between or
      * all of the points are. */
     if (points[Side::Start] == points[Side::End]) {
-      if (intersection_factor[Side::Start] >= intersection_factor[Side::End]) {
+
+      /* If both intersections points are the same, either the segment as nothing or the full
+       * range. */
+      if (intersection_factor[Side::Start] == intersection_factor[Side::End]) {
+        if (this->is_loop()) {
+          return src_points.shift(points[Side::Start] - src_points.first() + 1);
+        }
+        else {
+          return IndexRange(0);
+        }
+      }
+
+      if (intersection_factor[Side::Start] > intersection_factor[Side::End]) {
         return src_points.shift(points[Side::Start] - src_points.first() + 1);
       }
       return IndexRange(0);
@@ -155,13 +164,17 @@ class Segment {
     segment.intersection_factor[Side::Start] = 0.0f;
     segment.intersection_factor[Side::End] = cyclical ? 1.0f : 0.0f;
 
+    segment.full_wrap_loop = cyclical;
+
     return segment;
   }
 
   static Segment from_intersections(const int curve_i,
                                     const IndexRange points,
-                                    const std::optional<float> parameter_start,
-                                    const std::optional<float> parameter_end,
+                                    const std::optional<int> point_start,
+                                    const std::optional<int> point_end,
+                                    const std::optional<float> factor_start,
+                                    const std::optional<float> factor_end,
                                     const std::optional<int> inter_index_start,
                                     const std::optional<int> inter_index_end)
   {
@@ -169,9 +182,9 @@ class Segment {
     segment.curve = curve_i;
     segment.src_points = points;
 
-    if (parameter_start) {
-      segment.points[Side::Start] = int(math::floor(*parameter_start));
-      segment.intersection_factor[Side::Start] = math::fract(*parameter_start);
+    if (point_start) {
+      segment.points[Side::Start] = *point_start;
+      segment.intersection_factor[Side::Start] = *factor_start;
     }
     else {
       segment.points[Side::Start] = points.first();
@@ -182,9 +195,9 @@ class Segment {
       segment.intersection_index[Side::Start] = *inter_index_start;
     }
 
-    if (parameter_end) {
-      segment.points[Side::End] = int(math::floor(*parameter_end));
-      segment.intersection_factor[Side::End] = math::fract(*parameter_end);
+    if (point_end) {
+      segment.points[Side::End] = *point_end;
+      segment.intersection_factor[Side::End] = *factor_end;
     }
     else {
       segment.points[Side::End] = points.last();
@@ -194,6 +207,9 @@ class Segment {
     if (inter_index_end) {
       segment.intersection_index[Side::End] = *inter_index_end;
     }
+
+    BLI_assert(points.contains(segment.points[Side::Start]));
+    BLI_assert(points.contains(segment.points[Side::End]));
 
     return segment;
   }
@@ -378,10 +394,21 @@ struct IntersectionPoint {
 
   constexpr IntersectionPoint() = default;
 
-  float parameter_for_curve(const int curve) const
+  float point_for_curve(const int curve) const
   {
     BLI_assert(curve == curve_i || curve == curve_j);
-    return curve == curve_i ? point_i + factor_i : point_j + factor_j;
+    return curve == curve_i ? point_i : point_j;
+  }
+
+  float factor_for_curve(const int curve) const
+  {
+    BLI_assert(curve == curve_i || curve == curve_j);
+    return curve == curve_i ? factor_i : factor_j;
+  }
+
+  float parameter_for_curve(const int curve) const
+  {
+    return this->point_for_curve(curve) + this->factor_for_curve(curve);
   }
 };
 
@@ -479,6 +506,12 @@ static void find_intersections_between_curve_and_curves(
           const float factor_i = get_intersection_distance_of_segments(co_i1, co_i2, co_j1, co_j2);
           const float factor_j = get_intersection_distance_of_segments(co_j1, co_j2, co_i1, co_i2);
 
+          /* If the intersection is outside of the edge, skip it. Note that exactly on the edge is
+           * accepted. */
+          if (factor_i < 0.0f || factor_i > 1.0f || factor_j < 0.0f || factor_j > 1.0f) {
+            continue;
+          }
+
           r_inters_per_curves[curve_i].append(r_intersections.size());
           r_inters_per_curves[curve_j].append(r_intersections.size());
           r_intersections.append(
@@ -560,6 +593,25 @@ static void create_segments_from_intersections(const Span<Vector<int>> inters_pe
       continue;
     }
 
+    if (inters.size() == 1 && cyclic[curve_k]) {
+      const int int_p = inters.first();
+
+      const IntersectionPoint &inter = intersections[int_p];
+
+      all_segments.append(Segment::from_intersections(curve_k,
+                                                      points_k,
+                                                      inter.point_for_curve(curve_k),
+                                                      inter.point_for_curve(curve_k),
+                                                      inter.factor_for_curve(curve_k),
+                                                      inter.factor_for_curve(curve_k),
+                                                      int_p,
+                                                      int_p));
+      all_segments.last().full_wrap_loop = true;
+      segments_num_per_curve[curve_k] = 1;
+
+      continue;
+    }
+
     Array<int> inter_sorted_ids = Array<int>(inters.size());
     array_utils::fill_index_range<int>(inter_sorted_ids);
 
@@ -578,8 +630,10 @@ static void create_segments_from_intersections(const Span<Vector<int>> inters_pe
 
       all_segments.append(Segment::from_intersections(curve_k,
                                                       points_k,
-                                                      inter_last.parameter_for_curve(curve_k),
-                                                      inter_first.parameter_for_curve(curve_k),
+                                                      inter_last.point_for_curve(curve_k),
+                                                      inter_first.point_for_curve(curve_k),
+                                                      inter_last.factor_for_curve(curve_k),
+                                                      inter_first.factor_for_curve(curve_k),
                                                       int_p_2,
                                                       int_p_1));
     }
@@ -587,12 +641,16 @@ static void create_segments_from_intersections(const Span<Vector<int>> inters_pe
       const int int_p_1 = inters[inter_sorted_ids.first()];
       const IntersectionPoint &inter_first = intersections[int_p_1];
 
-      all_segments.append(Segment::from_intersections(curve_k,
-                                                      points_k,
-                                                      std::nullopt,
-                                                      inter_first.parameter_for_curve(curve_k),
-                                                      std::nullopt,
-                                                      int_p_1));
+      if (inter_first.parameter_for_curve(curve_k) != float(points_k.first())) {
+        all_segments.append(Segment::from_intersections(curve_k,
+                                                        points_k,
+                                                        std::nullopt,
+                                                        inter_first.point_for_curve(curve_k),
+                                                        std::nullopt,
+                                                        inter_first.factor_for_curve(curve_k),
+                                                        std::nullopt,
+                                                        int_p_1));
+      }
     }
 
     for (const int inter_id : inter_sorted_ids.index_range().drop_back(1)) {
@@ -605,23 +663,29 @@ static void create_segments_from_intersections(const Span<Vector<int>> inters_pe
       if (inter_first.parameter_for_curve(curve_k) != inter_last.parameter_for_curve(curve_k)) {
         all_segments.append(Segment::from_intersections(curve_k,
                                                         points_k,
-                                                        inter_first.parameter_for_curve(curve_k),
-                                                        inter_last.parameter_for_curve(curve_k),
+                                                        inter_first.point_for_curve(curve_k),
+                                                        inter_last.point_for_curve(curve_k),
+                                                        inter_first.factor_for_curve(curve_k),
+                                                        inter_last.factor_for_curve(curve_k),
                                                         int_p_1,
                                                         int_p_2));
       }
     }
 
-    if (!(cyclic[curve_k])) {
+    if (!cyclic[curve_k]) {
       const int int_p_2 = inters[inter_sorted_ids.last()];
       const IntersectionPoint &inter_last = intersections[int_p_2];
 
-      all_segments.append(Segment::from_intersections(curve_k,
-                                                      points_k,
-                                                      inter_last.parameter_for_curve(curve_k),
-                                                      std::nullopt,
-                                                      int_p_2,
-                                                      std::nullopt));
+      if (inter_last.parameter_for_curve(curve_k) != float(points_k.last())) {
+        all_segments.append(Segment::from_intersections(curve_k,
+                                                        points_k,
+                                                        inter_last.point_for_curve(curve_k),
+                                                        std::nullopt,
+                                                        inter_last.factor_for_curve(curve_k),
+                                                        std::nullopt,
+                                                        int_p_2,
+                                                        std::nullopt));
+      }
     }
 
     segments_num_per_curve[curve_k] = all_segments.size() - start_size;
@@ -634,8 +698,10 @@ static bool check_and_join_segments(Segment &first, const Segment &second)
     return false;
   }
 
-  if (first.intersection_index[Side::End] == second.intersection_index[Side::Start] &&
-      first.intersection_index[Side::End] != -1)
+  if ((first.points[Side::End] + first.intersection_factor[Side::End] ==
+       second.points[Side::Start] + second.intersection_factor[Side::Start]) ||
+      (first.intersection_index[Side::End] == second.intersection_index[Side::Start] &&
+       first.intersection_index[Side::End] != -1))
   {
     first.points[Side::End] = second.points[Side::End];
     first.intersection_factor[Side::End] = second.intersection_factor[Side::End];
@@ -643,8 +709,10 @@ static bool check_and_join_segments(Segment &first, const Segment &second)
 
     return true;
   }
-  if (first.intersection_index[Side::Start] == second.intersection_index[Side::End] &&
-      first.intersection_index[Side::Start] != -1)
+  if ((first.points[Side::Start] + first.intersection_factor[Side::Start] ==
+       second.points[Side::End] + second.intersection_factor[Side::End]) ||
+      (first.intersection_index[Side::Start] == second.intersection_index[Side::End] &&
+       first.intersection_index[Side::Start] != -1))
   {
     first.points[Side::Start] = second.points[Side::Start];
     first.intersection_factor[Side::Start] = second.intersection_factor[Side::Start];
@@ -840,6 +908,14 @@ static void follow_segment_connections(const Span<Segment> all_segments,
     /* Check if the last segment can be joined to the first one. */
     auto join_last = [&]() {
       if (curve_segments.size() == 1) {
+        Segment &segment = curve_segments.last();
+        if (segment.intersection_index[Side::End] == segment.intersection_index[Side::Start] &&
+            segment.intersection_index[Side::End] != -1)
+        {
+          if (segment.intersection_factor[Side::Start] == segment.intersection_factor[Side::End]) {
+            segment.full_wrap_loop = true;
+          }
+        }
         return;
       }
       if (check_and_join_segments(curve_segments.first(), curve_segments.last())) {
