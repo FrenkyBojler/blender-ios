@@ -5,3 +5,4 @@ Referenced by issue #147162, Curves Sculpt: Invalid library for 'BRComb'
 Referenced by issue #147214, Asset import option "Append (reuse data)" is gone.
 Referenced by issue #147541, node groups created in 5.0 is Broken when imported as a modifier
 Referenced by issue #149365, 5.0: Using objects from Asset Browser uses linking by default (no bounding box drawing or snapping while dragging)
+Referenced by issue #149617, Collection will be added to scene twice if it is appended, deleted, then linked under certain conditions
