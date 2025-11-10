@@ -402,10 +402,10 @@ static void print_resource(std::ostream &os,
                            StringRefNull &active_info_name)
 {
   if (assign_if_different(active_info_name, res.info_name)) {
-    os << "#define CREATE_INFO_RES_" << res_frequency << "_" << res.info_name << " \\\n";
+    os << "\n#define CREATE_INFO_RES_" << res_frequency << "_" << res.info_name << " \\\n";
   }
   print_resource(os, shader_interface, res);
-  os << " \\\n\n";
+  os << " \\\n";
 }
 
 inline int get_location_count(const Type &type)
@@ -413,7 +413,7 @@ inline int get_location_count(const Type &type)
   if (type == shader::Type::float4x4_t) {
     return 4;
   }
-  else if (type == shader::Type::float3x3_t) {
+  if (type == shader::Type::float3x3_t) {
     return 3;
   }
   return 1;
@@ -734,6 +734,8 @@ std::string VKShader::resources_declare(const shader::ShaderCreateInfo &info) co
   const VKShaderInterface &vk_interface = interface_get();
   std::stringstream ss;
 
+  ss << "\n#line " << __LINE__ << " \"" << __FILE__ << "\"\n";
+
   ss << "\n/* Specialization Constants (pass-through). */\n";
   uint constant_id = 0;
   for (const SpecializationConstant &sc : info.specialization_constants_) {
@@ -779,11 +781,17 @@ std::string VKShader::resources_declare(const shader::ShaderCreateInfo &info) co
     }
   }
 
-  ss << "\n/* Shared Variables. */\n";
-  for (const ShaderCreateInfo::SharedVariable &sv : info.shared_variables_) {
-    ss << "shared " << to_string(sv.type) << " " << sv.name << ";\n";
+  {
+    StringRefNull active_info = "";
+    for (const ShaderCreateInfo::SharedVariable &sv : info.shared_variables_) {
+      if (assign_if_different(active_info, sv.info_name)) {
+        ss << "\n#define CREATE_INFO_RES_SHARED_VARS_" << sv.info_name << " \\\n";
+      }
+      ss << "shared " << to_string(sv.type) << " " << sv.name << ";";
+      ss << " \\\n";
+    }
+    ss << "\n";
   }
-
   {
     StringRefNull active_info = "";
     for (const ShaderCreateInfo::Resource &res : info.pass_resources_) {
@@ -820,16 +828,13 @@ std::string VKShader::resources_declare(const shader::ShaderCreateInfo &info) co
     }
     ss << "{\n";
     for (const ShaderCreateInfo::PushConst &uniform : info.push_constants_) {
-      ss << "  " << to_string(uniform.type) << " pc_" << uniform.name;
+      ss << "  " << to_string(uniform.type) << " " << uniform.name;
       if (uniform.array_size > 0) {
         ss << "[" << uniform.array_size << "]";
       }
       ss << ";\n";
     }
-    ss << "} PushConstants;\n";
-    for (const ShaderCreateInfo::PushConst &uniform : info.push_constants_) {
-      ss << "#define " << uniform.name << " (PushConstants.pc_" << uniform.name << ")\n";
-    }
+    ss << "};\n";
   }
 
   ss << "\n";

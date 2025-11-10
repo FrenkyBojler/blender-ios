@@ -576,6 +576,8 @@ std::string GLShader::resources_declare(const ShaderCreateInfo &info) const
 {
   std::stringstream ss;
 
+  ss << "\n#line " << __LINE__ << " \"" << __FILE__ << "\"\n";
+
   ss << "\n/* Compilation Constants (pass-through). */\n";
   for (const CompilationConstant &sc : info.compilation_constants_) {
     ss << "const ";
@@ -594,9 +596,16 @@ std::string GLShader::resources_declare(const ShaderCreateInfo &info) const
         break;
     }
   }
-  ss << "\n/* Shared Variables. */\n";
-  for (const ShaderCreateInfo::SharedVariable &sv : info.shared_variables_) {
-    ss << "shared " << to_string(sv.type) << " " << sv.name << ";\n";
+  {
+    StringRefNull active_info = "";
+    for (const ShaderCreateInfo::SharedVariable &sv : info.shared_variables_) {
+      if (assign_if_different(active_info, sv.info_name)) {
+        ss << "\n#define CREATE_INFO_RES_SHARED_VARS_" << sv.info_name << " \\\n";
+      }
+      ss << "shared " << to_string(sv.type) << " " << sv.name << ";";
+      ss << " \\\n";
+    }
+    ss << "\n";
   }
   {
     StringRefNull active_info = "";

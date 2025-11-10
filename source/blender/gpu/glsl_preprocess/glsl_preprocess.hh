@@ -762,6 +762,9 @@ class Preprocessor {
       placeholder += "#ifdef CREATE_INFO_RES_GEOMETRY_" + name + "\n";
       placeholder += "CREATE_INFO_RES_GEOMETRY_" + name + "\n";
       placeholder += "#endif\n";
+      placeholder += "#ifdef CREATE_INFO_RES_SHARED_VARS_" + name + "\n";
+      placeholder += "CREATE_INFO_RES_SHARED_VARS_" + name + "\n";
+      placeholder += "#endif\n";
       return placeholder;
     };
 

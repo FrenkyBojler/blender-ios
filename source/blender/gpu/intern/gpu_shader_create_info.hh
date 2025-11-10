@@ -883,6 +883,7 @@ struct ShaderCreateInfo {
   struct SharedVariable {
     Type type;
     ResourceString name;
+    StringRefNull info_name;
   };
 
   Vector<SharedVariable, 0> shared_variables_;
@@ -1242,7 +1243,7 @@ struct ShaderCreateInfo {
 
   Self &shared_variable(Type type, StringRefNull name)
   {
-    shared_variables_.append({type, name});
+    shared_variables_.append({type, name, this->name_});
     return *(Self *)this;
   }
 
