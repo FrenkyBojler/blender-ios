@@ -1323,6 +1323,9 @@ struct Contacts {
   Map<SimConstraintsKey, DynamicSphereContacts> dynamic_sphere_contacts;
 };
 
+/* Distance threshold for applying friction at a contact point. */
+static constexpr float contact_active_threshold = 1e-6f;
+
 PROFILE_FUNCTION static void gather_ground_plane_contacts(
     const SimPoints &sim_points,
     const IndexRange points_range,
@@ -1349,10 +1352,12 @@ PROFILE_FUNCTION static void gather_ground_plane_contacts(
     if (distance >= max_search_distance) {
       continue;
     }
+    const bool is_active = (distance <= contact_active_threshold);
+
     r_contacts.indices.append(point_i);
     r_contacts.contact_points_on_plane.append(position - plane_normal * distance);
     r_contacts.separating_axes.append(plane_normal);
-    r_contacts.active_states.append(distance <= 0.0f);
+    r_contacts.active_states.append(is_active);
     const float point_friction = sim_points_frictions[point_i];
     const float friction = math::sqrt(point_friction * collider.friction);
     r_contacts.static_frictions.append(friction);
@@ -1418,10 +1423,12 @@ PROFILE_FUNCTION static void gather_mesh_contacts(const XPBDState &state,
                                                         float3(nearest.no) :
                                                     collision_axis);
       const float distance = math::dot(position_self - collision_point, valid_axis);
+      const bool is_active = (distance <= contact_active_threshold);
+
       r_contacts.indices.append(point_i);
       r_contacts.contact_points_on_plane.append(collision_point);
       r_contacts.separating_axes.append(valid_axis);
-      r_contacts.active_states.append(distance <= 0.0f);
+      r_contacts.active_states.append(is_active);
       r_contacts.static_frictions.append(friction);
       r_contacts.dynamic_frictions.append(friction);
       r_contacts.compliance_terms.append(
@@ -1462,14 +1469,15 @@ PROFILE_FUNCTION static void gather_mesh_contacts(const XPBDState &state,
                 (math::is_zero(collision_axis, 1e-6f)) ?
                     math::transpose(float3x3(mesh_transform_inv)) * normal_mesh :
                     collision_axis);
-
             const float point_friction = sim_points_frictions[point_i];
             const float friction = math::sqrt(point_friction * collider.friction);
+            const bool is_active = (distance <= contact_active_threshold);
+
             r_contacts.indices.append(point_i);
             r_contacts.contact_points_on_plane.append(
                 math::transform_point(mesh_transform, contact_on_plane_mesh));
             r_contacts.separating_axes.append(valid_axis);
-            r_contacts.active_states.append(is_inside);
+            r_contacts.active_states.append(is_active);
             r_contacts.static_frictions.append(friction);
             r_contacts.dynamic_frictions.append(friction);
             r_contacts.compliance_terms.append(
