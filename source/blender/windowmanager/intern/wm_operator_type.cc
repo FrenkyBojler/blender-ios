@@ -42,8 +42,6 @@
 
 #define UNDOCUMENTED_OPERATOR_TIP N_("(undocumented operator)")
 
-using namespace blender;
-
 static void wm_operatortype_free_macro(wmOperatorType *ot);
 
 /* -------------------------------------------------------------------- */
