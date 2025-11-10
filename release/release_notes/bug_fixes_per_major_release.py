@@ -698,14 +698,6 @@ def classify_based_on_report(
         relative_version = compare_versions(broken_version, current_version)
         if relative_version == OLDER_VERION:
             # Broken version is older than current release. So the issue is from a older version.
-            if llm_says_version_is_incorrect(
-                    llm_client,
-                    llm_name,
-                    llm_supports_reasoning,
-                    broken_version,
-                    broken_lines,
-                    should_be_broken=True):
-                return FLAGGED_BY_LLM
             return FIXED_OLD_ISSUE
         if relative_version in (SAME_VERION, NEWER_VERION):
             broken_is_current_or_newer = True
@@ -727,16 +719,6 @@ def classify_based_on_report(
     if broken_is_current_or_newer and (previous_version in working_versions):
         # Issue is in current release, but wasn't in previous release.
         # So it must of been introduced in the current release.
-
-        for broken_version in broken_versions:
-            if llm_says_version_is_incorrect(
-                    llm_client,
-                    llm_name,
-                    llm_supports_reasoning,
-                    broken_version,
-                    broken_lines,
-                    should_be_broken=True):
-                return FLAGGED_BY_LLM
 
         for working_version in working_versions:
             if llm_says_version_is_incorrect(
