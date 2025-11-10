@@ -92,6 +92,15 @@ def frames_matching(channelbag, data_path):
     return frames
 
 
+def _set_rotation_mode(bone, bone_prefix, order, channelbag):
+    rotation_mode_fcurve = channelbag.fcurves.find(bone_prefix + "rotation_mode")
+    if rotation_mode_fcurve:
+        # Remove any animation off the rotation_mode so the value we set is retained.
+        channelbag.fcurves.remove(rotation_mode_fcurve)
+
+    bone.rotation_mode = order
+
+
 def group_qe(_obj, channelbag, bone, bone_prefix, order):
     """Converts only one group/bone in one channelbag - Quaternion to euler."""
     # pose_bone = bone
@@ -106,7 +115,8 @@ def group_qe(_obj, channelbag, bone, bone_prefix, order):
         euler = quat.to_euler(order)
 
         add_keyframe_euler(channelbag, euler, fr, bone_prefix, bone.name)
-        bone.rotation_mode = order
+
+    _set_rotation_mode(bone, bone_prefix, order, channelbag)
 
 
 def group_eq(obj, channelbag, bone, bone_prefix, order):
@@ -123,7 +133,8 @@ def group_eq(obj, channelbag, bone, bone_prefix, order):
         quat = euler.to_quaternion()
 
         add_keyframe_quat(channelbag, quat, fr, bone_prefix, bone.name)
-        bone.rotation_mode = order
+
+    _set_rotation_mode(bone, bone_prefix, order, channelbag)
 
 
 def convert_curves_of_bone(obj, channelbag, bone, order):
