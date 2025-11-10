@@ -324,7 +324,6 @@ class CollisionPlaneConstraintSet : public TemplatedConstraintSet<CollisionPlane
   Span<float> dynamic_frictions_;
   MutableSpan<float> lambdas_normal_;
 
-    IsStatic,
  public:
   CollisionPlaneConstraintSet(const int geo_i,
                               const Span<int> points,
@@ -392,7 +391,6 @@ class CollisionPlaneConstraintSet : public TemplatedConstraintSet<CollisionPlane
                                                          (inv_m + compliance_term));
     const bool is_static = lambda_tangent_sq <
                            math::square(static_frictions_[constraint_i] * lambda_normal);
-    updater.write_debug_attribute(DebugAttribute::IsStatic, constraint_i, is_static);
     if (is_static) {
       offset -= velocity_tangent * inv_m / (inv_m + compliance_term);
     }
@@ -404,8 +402,6 @@ class CollisionPlaneConstraintSet : public TemplatedConstraintSet<CollisionPlane
   {
     return unary_constraints_to_independent_masks(points_, memory);
   }
-    r_attributes[DebugAttribute::IsStatic] = attributes.lookup_or_add_for_write_only_span(
-        "is_static", bke::AttrDomain::Point, bke::AttrType::Bool);
 };
 
 class MinimumDistanceConstraintSet : public TemplatedConstraintSet<MinimumDistanceConstraintSet> {
@@ -942,11 +938,6 @@ class LinearDampingConstraintSet
     lambdas_[point_i] += delta_lambda;
     updater.update_velocity(geo_i_, point_i, offset);
   }
-
-  bke::GeometrySet as_debug_geometry(Vector<bke::GSpanAttributeWriter> & /*r_attributes*/) const
-  {
-    return {};
-  }
 };
 
 class AngularDampingConstraintSet
@@ -987,11 +978,6 @@ class AngularDampingConstraintSet
     const float3 offset = gradient * delta_lambda;
     lambdas_[point_i] += delta_lambda;
     updater.update_angular_velocity(geo_i_, point_i, offset);
-  }
-
-  bke::GeometrySet as_debug_geometry(Vector<bke::GSpanAttributeWriter> & /*r_attributes*/) const
-  {
-    return {};
   }
 };
 

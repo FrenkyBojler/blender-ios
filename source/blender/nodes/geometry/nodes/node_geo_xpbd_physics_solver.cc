@@ -3727,7 +3727,6 @@ PROFILE_FUNCTION static void simulate_key_group_global(
     geometry_refs_local[key_i].prev_rotations = all_prev_rotations[key_in_group_i];
   }
 
-
   /* Instead of doing various stages like remembering old positions and updating velocities one
    * after another, interleave them to improve cache locality and thread utilization. This is
    * possible because each point is processed independently here. */
@@ -3766,8 +3765,7 @@ PROFILE_FUNCTION static void simulate_key_group_global(
 
                 /* Velocity constraint solve. */
                 {
-                  const xpbd::ConstraintSetParams params = {geometry_refs_local,
-                                                            constraint_solver_debug_fn};
+                  const xpbd::ConstraintSetParams params = {geometry_refs_local};
                   xpbd::VelocityUpdater velocity_updater{geometry_refs_local};
                   for (const xpbd::ConstraintSetCollector *constraint_sets : constraint_collectors)
                   {
@@ -3942,8 +3940,6 @@ PROFILE_FUNCTION static void simulate_curve_local(
               scope, state, contacts, keys, sub_delta_time, dynamic_constraint_sets);
 
           for ([[maybe_unused]] const int constraint_iter : IndexRange(constraint_iterations)) {
-            start_debug_constraint_iteration(debug_recorder, debug_key_group);
-
             xpbd::SolveStrategy solve_strategy{
                 get_solve_strategy_type(solver_type), geometry_refs_local, key_i, points_range};
             for (xpbd::CurveLocalConstraintSet *constraint_set :
