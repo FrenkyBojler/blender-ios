@@ -127,7 +127,6 @@ static std::unique_ptr<CurvesSculptStrokeOperation> start_brush_operation(
   const Scene &scene = *CTX_data_scene(&C);
   const CurvesSculpt &curves_sculpt = *scene.toolsettings->curves_sculpt;
   const Brush &brush = *BKE_paint_brush_for_read(&curves_sculpt.paint);
-  
   const eBrushCurvesSculptType brush_type = (mode == BRUSH_STROKE_SMOOTH) ?
                                                 CURVES_SCULPT_BRUSH_TYPE_SMOOTH :
                                                 eBrushCurvesSculptType(brush.curves_sculpt_brush_type);
