@@ -171,6 +171,11 @@ from time import time, sleep
 from typing import Any
 from pathlib import Path
 
+try:
+    from openai import OpenAI
+except:
+    pass
+
 
 # -----------------------------------------------------------------------------
 # Constants used throughout the script
@@ -376,6 +381,8 @@ class CommitInfo:
             *,
             current_version: str,
             previous_version: str,
+            llm_client: OpenAI | None,
+            llm_name: str,
     ) -> None:
         if not self.needs_update:
             # The data was loaded from cache, no need to reprocess it.
@@ -405,6 +412,8 @@ class CommitInfo:
                     report_information['body'],
                     current_version=current_version,
                     previous_version=previous_version,
+                    llm_client=llm_client,
+                    llm_name=llm_name,
                 )
                 if self.override_report_info(classification, report_title, module):
                     # The commit has been sorted. No need to process more reports.
@@ -614,6 +623,8 @@ def classify_based_on_report(
         *,
         current_version: str,
         previous_version: str,
+        llm_client: OpenAI | None,
+        llm_name: str,
 ) -> str:
     if "skip_for_bug_fix_release_notes" in report_body.lower():
         return IGNORED
@@ -711,6 +722,8 @@ def classify_commits(
         *,
         current_version: str,
         previous_version: str,
+        llm_client: OpenAI | None,
+        llm_name: str,
 ) -> None:
     number_of_commits = len(list_of_commits)
 
@@ -734,6 +747,8 @@ def classify_commits(
         commit.classify(
             current_version=current_version,
             previous_version=previous_version,
+            llm_client=llm_client,
+            llm_name=llm_name,
         )
         commit.get_backports(dict_of_backports)
 
@@ -1007,10 +1022,23 @@ def argparse_create() -> argparse.ArgumentParser:
         help="Silence some warnings.",
     )
 
+    parser.add_argument("-llm-url", "--large-language-model-url", help="URL of your Large Lanugage Model provider.")
+
+    parser.add_argument(
+        "-llm-key",
+        "--large-language-model-key",
+        help="The API key/acess token for your Large Lanugage Model provider.")
+
+    parser.add_argument("-llm-name", "--large-language-model-name", default="",
+                        help="The name of the Large Language Model that you want to use.")
+
+    parser.add_argument("-llm-reasoning", "--large-language-model-reasoning", action="store_true",
+                        help="Whether or not the model you're using supported reasoning.",)
+
     return parser
 
 
-def validate_arguments(args: argparse.Namespace) -> bool:
+def validate_arguments(args: argparse.Namespace) -> tuple[bool, bool]:
     def print_error(variable_name: str, argument_1: str, argument_2: str) -> None:
         print(f"ERROR: {variable_name} (defined with '{argument_1}' or '{argument_2}') is not defined.")
         print("This script can not proceed without this variable defined.\n")
@@ -1038,7 +1066,23 @@ def validate_arguments(args: argparse.Namespace) -> bool:
             if yes_no.lower() == "n":
                 should_quit = True
 
-    return not should_quit
+    use_llm_judge = False
+    llm_url_is_none = args.large_language_model_url is not None
+    llm_key_is_none = args.large_language_model_key is not None
+    llm_name_is_none = len(args.large_language_model_name) > 0
+    if llm_url_is_none or llm_key_is_none or llm_name_is_none:
+        # First check to see if any of the LLM arguments are set.
+        # And if they are, see if all the necessary arguments are set.
+        if not llm_url_is_none and not llm_key_is_none and not llm_name_is_none:
+            use_llm_judge = True
+        else:
+            print("WARNING: (Optional) It seems like you tried to define some of the LLM arguments, but didn't define all of them.")
+            if not (args.silence or should_quit):
+                yes_no = input("Do you want to proceed without it? (y/n)")
+                if yes_no.lower() == "n":
+                    should_quit = True
+
+    return not should_quit, use_llm_judge
 
 
 # -----------------------------------------------------------------------------
@@ -1053,6 +1097,8 @@ def gather_and_sort_commits(
         cache: bool = False,
         silence: bool = False,
         single_thread: bool = False,
+        llm_client: OpenAI | None = None,
+        llm_name: str = "",
 ) -> list[CommitInfo]:
     set_crawl_delay()
 
@@ -1078,6 +1124,8 @@ def gather_and_sort_commits(
         list_of_commits,
         current_version=current_version,
         previous_version=previous_version,
+        llm_client=llm_client,
+        llm_name=llm_name,
     )
 
     if cache:
@@ -1089,8 +1137,18 @@ def gather_and_sort_commits(
 def main() -> int:
     args = argparse_create().parse_args()
 
-    if not validate_arguments(args):
+    args_are_valid, use_llm_judge = validate_arguments(args)
+    if not args_are_valid:
         return 0
+
+    llm_client = None
+    if use_llm_judge:
+        try:
+            llm_client = OpenAI(base_url=args.large_language_model_url, api_key=args.large_language_model_key)
+        except Exception as e:
+            print("Failed to intialize LLM client. You likely do not have the OpenAI Python package installed.")
+            print(f"Atual error:\n{e}")
+            return 0
 
     list_of_commits = gather_and_sort_commits(
         args.current_release_tag,
@@ -1101,6 +1159,8 @@ def main() -> int:
         args.cache,
         args.silence,
         args.single_thread,
+        llm_client,
+        args.large_language_model_name,
     )
 
     print_release_notes(list_of_commits)
