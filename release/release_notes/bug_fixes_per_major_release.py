@@ -190,9 +190,17 @@ FIXED_OLD_ISSUE = "FIXED OLD"
 FIXED_PR = "FIXED PR"
 REVERT = "REVERT"
 IGNORED = "IGNORED"
+FLAGGED_BY_LLM = "FLAGGED BY LLM"
 
 SORTED_CLASSIFICATIONS = [FIXED_NEW_ISSUE, FIXED_OLD_ISSUE, IGNORED]
-VALID_CLASSIFICATIONS = [FIXED_NEW_ISSUE, NEEDS_MANUAL_SORTING, FIXED_OLD_ISSUE, FIXED_PR, REVERT, IGNORED]
+VALID_CLASSIFICATIONS = [
+    FIXED_NEW_ISSUE,
+    NEEDS_MANUAL_SORTING,
+    FIXED_OLD_ISSUE,
+    FIXED_PR,
+    REVERT,
+    IGNORED,
+    FLAGGED_BY_LLM]
 
 OLDER_VERION = "OLDER"
 NEWER_VERION = "NEWER"
@@ -355,12 +363,12 @@ class CommitInfo:
             self.module = new_module
             return True
 
-        if new_classification in (NEEDS_MANUAL_SORTING, FIXED_PR):
-            if (self.classification == UNKNOWN) or ((new_classification ==
-                                                     NEEDS_MANUAL_SORTING) and (self.classification == FIXED_PR)):
+        if new_classification in (NEEDS_MANUAL_SORTING, FIXED_PR, FLAGGED_BY_LLM):
+            if (self.classification == UNKNOWN) or ((new_classification == NEEDS_MANUAL_SORTING)
+                                                    and (self.classification == FIXED_PR or self.classification == FLAGGED_BY_LLM)):
                 # Only replace information if the previous classification was the default (UNKNOWN)
                 # or the new classification is NEEDS_MANUAL_SORTING and the old one was
-                # FIXED_PR (NEEDS_MANUAL_SORTING is more useful than FIXED_PR).
+                # FIXED_PR or FLAGGED_BY_LLM (NEEDS_MANUAL_SORTING is more useful than those two).
                 self.classification = new_classification
                 self.report_title = new_title
                 self.module = new_module
@@ -574,7 +582,7 @@ def get_version_numbers(broken_lines: str, working_lines: str) -> tuple[list[str
     return broken_versions, working_versions
 
 
-def version_string_extraction(report_body: str) -> tuple[str, str]:
+def version_string_extraction(report_body: str) -> tuple[str, str, str]:
     broken_lines = ''
     working_lines = ''
     for line in report_body.splitlines():
@@ -591,7 +599,7 @@ def version_string_extraction(report_body: str) -> tuple[str, str]:
                 # which lead to incorrect information.
                 working_lines += f'{line}\n'
 
-    return broken_lines, working_lines
+    return broken_lines, working_lines, broken_lines + working_lines
 
 
 def compare_versions(comparing_version: str, reference_version: str) -> str:
@@ -615,6 +623,22 @@ def compare_versions(comparing_version: str, reference_version: str) -> str:
 
     return NEWER_VERION
 
+# ---
+
+
+def llm_says_version_is_incorrect(
+        client: OpenAI | None,
+        llm_name: str,
+        version_number: str,
+        combined_lines: str,
+        should_be_broken: bool) -> bool:
+    if client is None:
+        return False
+
+    # TODO: Actually run LLM here
+
+    return False
+
 
 # ---
 
@@ -629,7 +653,7 @@ def classify_based_on_report(
     if "skip_for_bug_fix_release_notes" in report_body.lower():
         return IGNORED
     # Get a list of broken and working versions of Blender according to the report that was fixed.
-    broken_lines, working_lines = version_string_extraction(report_body)
+    broken_lines, working_lines, combined_lines = version_string_extraction(report_body)
     broken_versions, working_versions = get_version_numbers(broken_lines, working_lines)
 
     broken_is_current_or_newer = False
@@ -638,6 +662,13 @@ def classify_based_on_report(
         relative_version = compare_versions(broken_version, current_version)
         if relative_version == OLDER_VERION:
             # Broken version is older than current release. So the issue is from a older version.
+            if llm_says_version_is_incorrect(
+                    llm_client,
+                    llm_name,
+                    combined_lines,
+                    broken_version,
+                    should_be_broken=True):
+                return FLAGGED_BY_LLM
             return FIXED_OLD_ISSUE
         if relative_version in (SAME_VERION, NEWER_VERION):
             broken_is_current_or_newer = True
@@ -646,11 +677,37 @@ def classify_based_on_report(
         relative_version = compare_versions(working_version, current_version)
         if relative_version in (SAME_VERION, NEWER_VERION):
             # Working version is current version or newer. So the issue was introduced in this version.
+            if llm_says_version_is_incorrect(
+                    llm_client,
+                    llm_name,
+                    combined_lines,
+                    working_version,
+                    should_be_broken=False):
+                return FLAGGED_BY_LLM
             return FIXED_NEW_ISSUE
 
     if broken_is_current_or_newer and (previous_version in working_versions):
         # Issue is in current release, but wasn't in previous release.
         # So it must of been introduced in the current release.
+
+        for broken_version in broken_versions:
+            if llm_says_version_is_incorrect(
+                    llm_client,
+                    llm_name,
+                    combined_lines,
+                    broken_version,
+                    should_be_broken=True):
+                return FLAGGED_BY_LLM
+
+        for working_version in working_versions:
+            if llm_says_version_is_incorrect(
+                    llm_client,
+                    llm_name,
+                    combined_lines,
+                    working_version,
+                    should_be_broken=False):
+                return FLAGGED_BY_LLM
+
         return FIXED_NEW_ISSUE
 
     return NEEDS_MANUAL_SORTING
@@ -829,6 +886,10 @@ def print_release_notes(list_of_commits: list[CommitInfo]) -> None:
         dict_of_sorted_commits[FIXED_PR])
 
     print_list_of_commits("Ignored commits:", dict_of_sorted_commits[IGNORED])
+
+    print_list_of_commits(
+        "Commits flagged by LLM as having incorrect information:",
+        dict_of_sorted_commits[FLAGGED_BY_LLM])
 
     # Currently disabled as this information isn't particularly useful.
     # print_list_of_commits(dict_of_sorted_commits[FIXED_NEW_ISSUE])
