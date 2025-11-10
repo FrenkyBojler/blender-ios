@@ -391,6 +391,7 @@ class CommitInfo:
             previous_version: str,
             llm_client: OpenAI | None,
             llm_name: str,
+            llm_supports_reasoning: bool,
     ) -> None:
         if not self.needs_update:
             # The data was loaded from cache, no need to reprocess it.
@@ -422,6 +423,7 @@ class CommitInfo:
                     previous_version=previous_version,
                     llm_client=llm_client,
                     llm_name=llm_name,
+                    llm_supports_reasoning=llm_supports_reasoning,
                 )
                 if self.override_report_info(classification, report_title, module):
                     # The commit has been sorted. No need to process more reports.
@@ -629,6 +631,7 @@ def compare_versions(comparing_version: str, reference_version: str) -> str:
 def llm_says_version_is_incorrect(
         client: OpenAI | None,
         llm_name: str,
+        llm_supports_reasoning: bool,
         version_number: str,
         combined_lines: str,
         should_be_broken: bool) -> bool:
@@ -645,6 +648,8 @@ def llm_says_version_is_incorrect(
     """
 
     # TODO: Fix mypy complaining about a list of dicts being incorrect
+    # TODO: Implement support for models that don't support reasoning
+    #(Ask them to come to a decision, then ask them to extract their decision)
     messages = [{"role": "user", "content": user_prompt}]
     for i in range(3):
         # Run the LLM over the reqeust 3 times in case the LLM makes a mistake in one of it's runs.
@@ -670,6 +675,7 @@ def classify_based_on_report(
         previous_version: str,
         llm_client: OpenAI | None,
         llm_name: str,
+        llm_supports_reasoning: bool,
 ) -> str:
     if "skip_for_bug_fix_release_notes" in report_body.lower():
         return IGNORED
@@ -686,6 +692,7 @@ def classify_based_on_report(
             if llm_says_version_is_incorrect(
                     llm_client,
                     llm_name,
+                    llm_supports_reasoning,
                     combined_lines,
                     broken_version,
                     should_be_broken=True):
@@ -701,6 +708,7 @@ def classify_based_on_report(
             if llm_says_version_is_incorrect(
                     llm_client,
                     llm_name,
+                    llm_supports_reasoning,
                     combined_lines,
                     working_version,
                     should_be_broken=False):
@@ -715,6 +723,7 @@ def classify_based_on_report(
             if llm_says_version_is_incorrect(
                     llm_client,
                     llm_name,
+                    llm_supports_reasoning,
                     combined_lines,
                     broken_version,
                     should_be_broken=True):
@@ -724,6 +733,7 @@ def classify_based_on_report(
             if llm_says_version_is_incorrect(
                     llm_client,
                     llm_name,
+                    llm_supports_reasoning,
                     combined_lines,
                     working_version,
                     should_be_broken=False):
@@ -802,6 +812,7 @@ def classify_commits(
         previous_version: str,
         llm_client: OpenAI | None,
         llm_name: str,
+        llm_supports_reasoning: bool,
 ) -> None:
     number_of_commits = len(list_of_commits)
 
@@ -827,6 +838,7 @@ def classify_commits(
             previous_version=previous_version,
             llm_client=llm_client,
             llm_name=llm_name,
+            llm_supports_reasoning=llm_supports_reasoning
         )
         commit.get_backports(dict_of_backports)
 
@@ -1181,6 +1193,7 @@ def gather_and_sort_commits(
         single_thread: bool = False,
         llm_client: OpenAI | None = None,
         llm_name: str = "",
+        llm_supports_reasoning: bool = False,
 ) -> list[CommitInfo]:
     set_crawl_delay()
 
@@ -1208,6 +1221,7 @@ def gather_and_sort_commits(
         previous_version=previous_version,
         llm_client=llm_client,
         llm_name=llm_name,
+        llm_supports_reasoning=llm_supports_reasoning,
     )
 
     if cache:
@@ -1243,6 +1257,7 @@ def main() -> int:
         args.single_thread,
         llm_client,
         args.large_language_model_name,
+        args.large_language_model_reasoning,
     )
 
     print_release_notes(list_of_commits)
