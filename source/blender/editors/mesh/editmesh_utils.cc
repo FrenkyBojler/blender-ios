@@ -1171,6 +1171,9 @@ UvElementMap *BM_uv_element_map_create(BMesh *bm,
     element_map->vertex[ev_index] = newvlist;
   }
 
+  if (!use_seams) {
+    BLI_assert(seam_visited_set.is_empty());
+  }
   MEM_SAFE_FREE(winding);
 
   /* at this point, every UvElement in vert points to a UvElement sharing the same vertex.
