@@ -1072,11 +1072,14 @@ static wmOperatorStatus grease_pencil_set_uniform_opacity_exec(bContext *C, wmOp
     bke::curves::fill_points<float>(points_by_curve, strokes, opacity_stroke, opacities);
 
     if (SpanAttributeWriter<float> fill_opacities = attributes.lookup_or_add_for_write_span<float>(
-            "fill_opacity", AttrDomain::Curve))
+            "fill_opacity",
+            AttrDomain::Curve,
+            bke::AttributeInitVArray(VArray<float>::from_single(1.0f, curves.curves_num()))))
     {
       strokes.foreach_index(GrainSize(2048), [&](const int64_t curve) {
         fill_opacities.span[curve] = opacity_fill;
       });
+      fill_opacities.finish();
     }
 
     changed = true;
@@ -1931,9 +1934,12 @@ static wmOperatorStatus grease_pencil_move_to_layer_exec(bContext *C, wmOperator
       continue;
     }
 
-    if (!layer_dst.frames().lookup_ptr(info.frame_number)) {
+    bool is_key_inserted = false;
+    const bool has_active_key = ensure_active_keyframe(
+        *scene, grease_pencil, layer_dst, false, is_key_inserted);
+    if (has_active_key && is_key_inserted) {
       /* Move geometry to a new drawing in target layer. */
-      Drawing &drawing_dst = *grease_pencil.insert_frame(layer_dst, info.frame_number);
+      Drawing &drawing_dst = *grease_pencil.get_drawing_at(layer_dst, info.frame_number);
       drawing_dst.strokes_for_write() = bke::curves_copy_curve_selection(
           curves_src, selected_strokes, {});
 
