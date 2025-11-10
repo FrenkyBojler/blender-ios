@@ -641,6 +641,7 @@ def llm_says_version_is_incorrect(
     user_prompt = [
         f"Using the information below, is Blender version {version_number} a {'Broken' if should_be_broken else 'Working'} version of Blender?",
         "Your output should be in a single word 'yes' or 'no'.",
+        "You should ignore patch version numbers. For example 3.2 and 3.2.7 are considered the same in this situation because we're ignoring the patch number (.7).",
         "",
         "Information:",
         "```",
