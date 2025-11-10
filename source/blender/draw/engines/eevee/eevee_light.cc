@@ -402,14 +402,12 @@ void LightModule::begin_sync()
   local_lights_len_ = 0;
 
   if (use_sun_lights_ && inst_.world.sun_threshold() > 0.0f) {
-    /* use_lightpath_node is valid after WorldPipeline::sync. */
     if (inst_.pipelines.world.use_lightpath_node()) {
-      /* Note: The order must match the one in `CaptureView::render_world()`. */
-      add_world_sun_light(world_sunlight_key_[0], true, false);
-      add_world_sun_light(world_sunlight_key_[1], false, true);
+      add_world_sun_light(world_sunlight_key_[WORLD_SUN_DIFFUSE], true, false);
+      add_world_sun_light(world_sunlight_key_[WORLD_SUN_GLOSSY], false, true);
     }
     else {
-      add_world_sun_light(world_sunlight_key_[0], true, true);
+      add_world_sun_light(world_sunlight_key_[WORLD_SUN_COMBINED], true, true);
     }
   }
 }

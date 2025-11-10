@@ -324,16 +324,18 @@ void CaptureView::render_world()
     };
 
     if (inst_.pipelines.world.use_lightpath_node()) {
-      /* Must match order in `LightModule::begin_sync()`. */
       render_cubemap(RAY_TYPE_DIFFUSE);
-      inst_.sphere_probes.remap_to_octahedral_projection(update_info->atlas_coord, false, true, 0);
+      inst_.sphere_probes.remap_to_octahedral_projection(
+          update_info->atlas_coord, false, true, WORLD_SUN_DIFFUSE);
 
       render_cubemap(RAY_TYPE_GLOSSY);
-      inst_.sphere_probes.remap_to_octahedral_projection(update_info->atlas_coord, true, false, 1);
+      inst_.sphere_probes.remap_to_octahedral_projection(
+          update_info->atlas_coord, true, false, WORLD_SUN_GLOSSY);
     }
     else {
       render_cubemap(RAY_TYPE_GLOSSY);
-      inst_.sphere_probes.remap_to_octahedral_projection(update_info->atlas_coord, true, true, 0);
+      inst_.sphere_probes.remap_to_octahedral_projection(
+          update_info->atlas_coord, true, true, WORLD_SUN_COMBINED);
     }
 
     /* All volume probe that needs to composite the world probe need to be updated. */

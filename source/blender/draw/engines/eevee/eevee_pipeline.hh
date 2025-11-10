@@ -78,6 +78,7 @@ class WorldPipeline {
   void sync(GPUMaterial *gpumat);
   void render(View &view);
 
+  /* NOTE: Is valid after WorldPipeline::sync. */
   bool use_lightpath_node() const
   {
     return use_lightpath_node_;
