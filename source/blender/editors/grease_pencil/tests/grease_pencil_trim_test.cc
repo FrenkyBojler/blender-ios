@@ -153,7 +153,7 @@ TEST(grease_pencil_trim, trim_plus_intersection)
   expect_near_positions(dst.positions(), expected_positions);
 }
 
-TEST(grease_pencil_trim, trim_t_intersection)
+TEST(grease_pencil_trim, trim_t_intersection_to_corner)
 {
   using namespace bke::greasepencil;
   using namespace bke;
@@ -179,6 +179,40 @@ TEST(grease_pencil_trim, trim_t_intersection)
                                             {40.0f, 30.0f},
                                             {60.0f, 30.0f}};
   expect_near_positions(dst.positions(), expected_positions);
+}
+
+TEST(grease_pencil_trim, trim_t_intersection_line)
+{
+  using namespace bke::greasepencil;
+  using namespace bke;
+  const Array<int2> mcoords = {{20, -10}, {20, 10}, {40, 10}, {40, -10}};
+  const Array<bool> src_cyclic = {false, false};
+
+  /* Intersection at the start. */
+  {
+    const Array<int> src_offsets = {0, 2, 4};
+    const Array<float2> screen_space_positions = {
+        {30.0f, 30.0f}, {30.0f, 0.0f}, {0.0f, 30.0f}, {60.0f, 30.0f}};
+    const CurvesGeometry src = create_test_curves(src_offsets, screen_space_positions, src_cyclic);
+    const CurvesGeometry dst = trim::trim_curve_segments(
+        src, screen_space_positions, mcoords, src.curves_range(), src.curves_range(), true);
+
+    const Array<float2> expected_positions = {{0.0f, 30.0f}, {60.0f, 30.0f}};
+    expect_near_positions(dst.positions(), expected_positions);
+  }
+
+  /* Intersection at the end. */
+  {
+    const Array<int> src_offsets = {0, 2, 4};
+    const Array<float2> screen_space_positions = {
+        {30.0f, 0.0f}, {30.0f, 30.0f}, {0.0f, 30.0f}, {60.0f, 30.0f}};
+    const CurvesGeometry src = create_test_curves(src_offsets, screen_space_positions, src_cyclic);
+    const CurvesGeometry dst = trim::trim_curve_segments(
+        src, screen_space_positions, mcoords, src.curves_range(), src.curves_range(), true);
+
+    const Array<float2> expected_positions = {{0.0f, 30.0f}, {60.0f, 30.0f}};
+    expect_near_positions(dst.positions(), expected_positions);
+  }
 }
 
 TEST(grease_pencil_trim, trim_figure_eight)
@@ -294,6 +328,68 @@ TEST(grease_pencil_trim, trim_no_geometry_edge_end_intersection)
   expect_near_positions(dst.positions(), expected_positions);
   EXPECT_EQ(dst.cyclic()[0], false);
   EXPECT_EQ(dst.cyclic()[1], false);
+}
+
+TEST(grease_pencil_trim, trim_no_geometry_cyclical_loop)
+{
+  using namespace bke::greasepencil;
+  using namespace bke;
+
+  const Array<int2> mcoords = {{40, 50}, {40, 40}, {50, 40}, {50, 50}};
+  const Array<int> src_offsets = {0, 4, 6};
+  const Array<bool> src_cyclic = {true, false};
+  const Array<float2> screen_space_positions = {
+      {0.0f, 0.0f}, {20.0f, 0.0f}, {20.0f, 20.0f}, {0.0f, 20.0f}, {10.0f, 10.0f}, {30.0f, 0.0f}};
+  const CurvesGeometry src = create_test_curves(src_offsets, screen_space_positions, src_cyclic);
+  const CurvesGeometry dst = trim::trim_curve_segments(
+      src, screen_space_positions, mcoords, src.curves_range(), src.curves_range(), true);
+
+  const Array<float2> expected_positions = {
+      {0.0f, 0.0f}, {20.0f, 0.0f}, {20.0f, 20.0f}, {0.0f, 20.0f}, {10.0f, 10.0f}, {30.0f, 0.0f}};
+  expect_near_positions(dst.positions(), expected_positions);
+  EXPECT_EQ(dst.cyclic()[0], true);
+  EXPECT_EQ(dst.cyclic()[1], false);
+}
+
+TEST(grease_pencil_trim, trim_no_geometry_point_intersection)
+{
+  using namespace bke::greasepencil;
+  using namespace bke;
+
+  const Array<int2> mcoords = {{40, 50}, {40, 40}, {50, 40}, {50, 50}};
+  const Array<int> src_offsets = {0, 3, 6};
+  const Array<bool> src_cyclic = {false, false};
+  const Array<float2> screen_space_positions = {
+      {20.0f, 20.0f}, {10.0f, 10.0f}, {20.0f, 0.0f}, {0.0f, 20.0f}, {10.0f, 10.0f}, {0.0f, 0.0f}};
+  const CurvesGeometry src = create_test_curves(src_offsets, screen_space_positions, src_cyclic);
+  const CurvesGeometry dst = trim::trim_curve_segments(
+      src, screen_space_positions, mcoords, src.curves_range(), src.curves_range(), true);
+
+  const Array<float2> expected_positions = {
+      {20.0f, 20.0f}, {10.0f, 10.0f}, {20.0f, 0.0f}, {0.0f, 20.0f}, {10.0f, 10.0f}, {0.0f, 0.0f}};
+  expect_near_positions(dst.positions(), expected_positions);
+  EXPECT_EQ(dst.cyclic()[0], false);
+  EXPECT_EQ(dst.cyclic()[1], false);
+}
+
+TEST(grease_pencil_trim, trim_no_geometry_self_intersection_degeneracy)
+{
+  using namespace bke::greasepencil;
+  using namespace bke;
+
+  const Array<int2> mcoords = {{40, 50}, {40, 40}, {50, 40}, {50, 50}};
+  const Array<int> src_offsets = {0, 6};
+  const Array<bool> src_cyclic = {true};
+  const Array<float2> screen_space_positions = {
+      {0.0f, 20.0f}, {10.0f, 10.0f}, {0.0f, 0.0f}, {0.0f, 20.0f}, {10.0f, 10.0f}, {0.0f, 0.0f}};
+  const CurvesGeometry src = create_test_curves(src_offsets, screen_space_positions, src_cyclic);
+  const CurvesGeometry dst = trim::trim_curve_segments(
+      src, screen_space_positions, mcoords, src.curves_range(), src.curves_range(), true);
+
+  const Array<float2> expected_positions = {
+      {0.0f, 20.0f}, {10.0f, 10.0f}, {0.0f, 0.0f}, {0.0f, 20.0f}, {10.0f, 10.0f}, {0.0f, 0.0f}};
+  expect_near_positions(dst.positions(), expected_positions);
+  EXPECT_EQ(dst.cyclic()[0], true);
 }
 
 }  // namespace blender::ed::greasepencil::tests
