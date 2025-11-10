@@ -720,15 +720,14 @@ def classify_based_on_report(
         # Issue is in current release, but wasn't in previous release.
         # So it must of been introduced in the current release.
 
-        for working_version in working_versions:
-            if llm_says_version_is_incorrect(
-                    llm_client,
-                    llm_name,
-                    llm_supports_reasoning,
-                    working_version,
-                    working_lines,
-                    should_be_broken=False):
-                return FLAGGED_BY_LLM
+        if llm_says_version_is_incorrect(
+                llm_client,
+                llm_name,
+                llm_supports_reasoning,
+                previous_version,
+                working_lines,
+                should_be_broken=False):
+            return FLAGGED_BY_LLM
 
         return FIXED_NEW_ISSUE
 
