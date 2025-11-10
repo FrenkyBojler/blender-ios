@@ -565,7 +565,7 @@ def get_version_numbers(broken_lines: str, working_lines: str) -> tuple[list[str
     return broken_versions, working_versions
 
 
-def version_extraction(report_body: str) -> tuple[list[str], list[str]]:
+def version_string_extraction(report_body: str) -> tuple[str, str]:
     broken_lines = ''
     working_lines = ''
     for line in report_body.splitlines():
@@ -582,7 +582,7 @@ def version_extraction(report_body: str) -> tuple[list[str], list[str]]:
                 # which lead to incorrect information.
                 working_lines += f'{line}\n'
 
-    return get_version_numbers(broken_lines, working_lines)
+    return broken_lines, working_lines
 
 
 def compare_versions(comparing_version: str, reference_version: str) -> str:
@@ -618,7 +618,8 @@ def classify_based_on_report(
     if "skip_for_bug_fix_release_notes" in report_body.lower():
         return IGNORED
     # Get a list of broken and working versions of Blender according to the report that was fixed.
-    broken_versions, working_versions = version_extraction(report_body)
+    broken_lines, working_lines = version_string_extraction(report_body)
+    broken_versions, working_versions = get_version_numbers(broken_lines, working_lines)
 
     broken_is_current_or_newer = False
 
