@@ -1395,6 +1395,15 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
     bool do_inverse_offset = false;
     ob->flag |= OB_DONE;
 
+    if (OB_TYPE_NO_GEOMETRY_ORIGIN(ob->type)) {
+      ID *obdata = static_cast<ID *>(ob->data);
+      BKE_reportf(op->reports,
+                  RPT_INFO,
+                  "Set Origin not supported for %s object(s)",
+                  BKE_idtype_idcode_to_name(GS(obdata->name)));
+      continue;
+    }
+
     if (centermode == ORIGIN_TO_CURSOR) {
       copy_v3_v3(cent, cursor);
       invert_m4_m4(ob->runtime->world_to_object.ptr(), ob->object_to_world().ptr());
@@ -1838,20 +1847,6 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static bool object_origin_set_poll(bContext *C)
-{
-  if (!ED_operator_scene_editable(C)) {
-    return false;
-  }
-
-  Object *ob = CTX_data_active_object(C);
-  if (ob && ob->type == OB_EMPTY) {
-    CTX_wm_operator_poll_msg_set(C, "Set Origin not applicable to Empty objects");
-    return false;
-  }
-  return true;
-}
-
 void OBJECT_OT_origin_set(wmOperatorType *ot)
 {
   static const EnumPropertyItem prop_set_center_types[] = {
@@ -1903,7 +1898,7 @@ void OBJECT_OT_origin_set(wmOperatorType *ot)
   ot->invoke = WM_menu_invoke;
   ot->exec = object_origin_set_exec;
 
-  ot->poll = object_origin_set_poll;
+  ot->poll = ED_operator_scene_editable;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
