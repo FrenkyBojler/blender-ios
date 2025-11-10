@@ -1149,7 +1149,7 @@ static void register_node_tool(wmOperatorType *ot, void *user_data)
   RNA_def_property_flag(prop, PROP_HIDDEN);
 }
 
-struct OperatorRegisterErrors : NonCopyable {
+struct OperatorRegisterErrors : NonCopyable, NonMovable {
   Map<std::string, int> duplicate_node_tool_idnames;
   Set<std::string> builtin_operator_replacement_attempts;
   ReportList reports;
