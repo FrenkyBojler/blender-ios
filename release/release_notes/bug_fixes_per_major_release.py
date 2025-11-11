@@ -657,7 +657,7 @@ def llm_says_version_is_incorrect(
             "- Your output should be a single word 'yes' or 'no'. If you are uncertain, then your answer should be 'no'.")
     else:
         user_prompt.append(
-            "Make sure to write down your final answer at the end of your response. Your final answer should be a single word, 'yes' or 'no'. If you are uncertain, then your final answer should be 'no'.")
+            "- Make sure to write down your final answer at the end of your response. Your final answer should be a single word, 'yes' or 'no'. If you are uncertain, then your final answer should be 'no'.")
 
     user_prompt.extend(["",
                         "Information:",
