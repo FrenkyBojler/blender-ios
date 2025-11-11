@@ -457,6 +457,8 @@ static void find_intersections_between_curve_and_curves(
     const float2 padded_i2 = co_i2 + padding_i;
 
     visible_curves.foreach_index([&](const int curve_j) {
+      /* Because intersecting the curves i with j and j with i, we skip one half to avoid
+       * duplicating all the points. */
       if (curve_i > curve_j) {
         return;
       }
