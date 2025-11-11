@@ -409,6 +409,13 @@ PassMain::Sub *ForwardPipeline::prepass_transparent_add(const Object *ob,
   PassMain::Sub *pass = &transparent_ps_.sub(GPU_material_get_name(gpumat), sorting_value);
   pass->state_set(state);
   pass->material_set(*inst_.manager, gpumat, true);
+
+  if (GPU_material_flag_get(gpumat, GPU_MATFLAG_SHADER_TO_RGBA) &&
+      GPU_material_flag_get(gpumat, GPU_MATFLAG_TRANSPARENT))
+  {
+    pass->bind_texture(HIZ_PREV_TEX_SLOT, &inst_.hiz_buffer.back.ref_tx_);
+    pass->bind_texture(PREV_LAYER_RADIANCE_TEX_SLOT, &radiance_behind_tx_);
+  }
   return pass;
 }
 

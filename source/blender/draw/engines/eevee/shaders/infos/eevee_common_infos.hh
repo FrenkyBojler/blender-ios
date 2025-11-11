@@ -48,6 +48,11 @@ SAMPLER(HIZ_TEX_SLOT, sampler2D, hiz_tx)
 ADDITIONAL_INFO(eevee_global_ubo)
 GPU_SHADER_CREATE_END()
 
+GPU_SHADER_CREATE_INFO(eevee_hiz_prev_data)
+SAMPLER(HIZ_PREV_TEX_SLOT, sampler2D, hiz_prev_tx)
+ADDITIONAL_INFO(eevee_global_ubo)
+GPU_SHADER_CREATE_END()
+
 GPU_SHADER_CREATE_INFO(eevee_previous_layer_radiance)
 SAMPLER(PREV_LAYER_RADIANCE_TEX_SLOT, sampler2D, previous_layer_radiance_tx)
 GPU_SHADER_CREATE_END()
