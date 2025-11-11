@@ -664,8 +664,7 @@ def llm_says_version_is_incorrect(
                            "then you should consider 3.2 a working version of Blender in this situation.")
 
     if llm_supports_reasoning:
-        user_prompt.append("- Your output should be a single word 'yes' or 'no'. "
-                           "If you are uncertain, then your answer should be 'no'.")
+        output_format_instruction = "- Your output "
     else:
         # Non-reasoning models tend to perform better if they are given the freedom to write somewhat freely before they give their answer to a question.
         # So allow the model to do this, and then ask the LLM to extract it's final answer later on.
@@ -673,13 +672,16 @@ def llm_says_version_is_incorrect(
         # But in some situations this is actually faster as reasoning models tend
         # to ramble in their "Reasoning" stage, slowing them down, while
         # non-reasoning models tend not too.
-        user_prompt.extend(
-            ["- Include your reasoning for making your decision about whether ot not the information is correct.",
-                "- Make sure to write down your final answer at the end of your response. "
-                "Your final answer should be a single word, 'yes' or 'no'. "
-                "If you are uncertain, then your final answer should be 'no'."])
+        output_format_instruction = (
+            "- Include your reasoning for making your decision about whether ot not the information is correct.\n"
+            "- Make sure to write down your final answer at the end of your response. Your final answer ")
 
-    user_prompt.extend(["",
+    output_format_instruction += ("should be a single word, 'yes' or 'no'. "
+                                  "If you are uncertain, or vague terminology is used to describe the Blender version, "
+                                  "For example: 'Worked: Probably in 3.2', then your final answer should be 'no'.")
+
+    user_prompt.extend([output_format_instruction,
+                        "",
                         "Information:",
                         "```",
                         "Blender versions:",
