@@ -32,6 +32,7 @@ ADDITIONAL_INFO(eevee_surf_deferred_base)
 ADDITIONAL_INFO(eevee_light_data)
 ADDITIONAL_INFO(eevee_lightprobe_data)
 ADDITIONAL_INFO(eevee_shadow_data)
-ADDITIONAL_INFO(eevee_hiz_prev_data)           /* TODO(fclem): Optional. */
-ADDITIONAL_INFO(eevee_previous_layer_radiance) /* TODO(fclem): Optional. */
+/* Optionally added depending on the material. */
+// ADDITIONAL_INFO(eevee_hiz_prev_data)
+// ADDITIONAL_INFO(eevee_previous_layer_radiance)
 GPU_SHADER_CREATE_END()

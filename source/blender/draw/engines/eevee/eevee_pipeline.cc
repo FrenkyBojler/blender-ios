@@ -433,20 +433,30 @@ PassMain::Sub *ForwardPipeline::material_transparent_add(const Object *ob,
   PassMain::Sub *pass = &transparent_ps_.sub(GPU_material_get_name(gpumat), sorting_value);
   pass->state_set(state);
   pass->material_set(*inst_.manager, gpumat, true);
+
+  if (GPU_material_flag_get(gpumat, GPU_MATFLAG_SHADER_TO_RGBA) &&
+      GPU_material_flag_get(gpumat, GPU_MATFLAG_TRANSPARENT))
+  {
+    pass->bind_texture(HIZ_PREV_TEX_SLOT, &inst_.hiz_buffer.back.ref_tx_);
+    pass->bind_texture(PREV_LAYER_RADIANCE_TEX_SLOT, &radiance_behind_tx_);
+  }
   return pass;
 }
 
 void ForwardPipeline::render(View &view,
                              Framebuffer &prepass_fb,
                              Framebuffer &combined_fb,
-                             int2 extent)
+                             int2 extent,
+                             gpu::Texture *feedback_tx)
 {
   if (!has_transparent_ && !has_opaque_) {
     inst_.volume.draw_resolve(view);
     return;
   }
 
-  radiance_behind_tx_ = dummy_black;
+  inst_.hiz_buffer.swap_layer();
+
+  radiance_behind_tx_ = feedback_tx ? feedback_tx : dummy_black;
 
   GPU_debug_group_begin("Forward.Opaque");
 
@@ -454,6 +464,7 @@ void ForwardPipeline::render(View &view,
   inst_.manager->submit(prepass_ps_, view);
 
   inst_.hiz_buffer.set_dirty();
+  inst_.hiz_buffer.update();
 
   inst_.shadows.set_view(view, extent);
   inst_.volume_probes.set_view(view);
@@ -864,7 +875,7 @@ gpu::Texture *DeferredLayer::render(View &main_view,
                                     gpu::Texture *radiance_behind_tx)
 {
   if (closure_count_ == 0) {
-    return nullptr;
+    return radiance_behind_tx;
   }
 
   radiance_behind_tx_ = radiance_behind_tx ? radiance_behind_tx : dummy_black;
@@ -1036,14 +1047,14 @@ PassMain::Sub *DeferredPipeline::material_add(::Material *blender_mat, GPUMateri
   return opaque_layer_.material_add(blender_mat, gpumat);
 }
 
-void DeferredPipeline::render(View &main_view,
-                              View &render_view,
-                              Framebuffer &prepass_fb,
-                              Framebuffer &combined_fb,
-                              Framebuffer &gbuffer_fb,
-                              int2 extent,
-                              RayTraceBuffer &rt_buffer_opaque_layer,
-                              RayTraceBuffer &rt_buffer_refract_layer)
+gpu::Texture *DeferredPipeline::render(View &main_view,
+                                       View &render_view,
+                                       Framebuffer &prepass_fb,
+                                       Framebuffer &combined_fb,
+                                       Framebuffer &gbuffer_fb,
+                                       int2 extent,
+                                       RayTraceBuffer &rt_buffer_opaque_layer,
+                                       RayTraceBuffer &rt_buffer_refract_layer)
 {
   gpu::Texture *feedback_tx = nullptr;
 
@@ -1068,6 +1079,8 @@ void DeferredPipeline::render(View &main_view,
                                          rt_buffer_refract_layer,
                                          feedback_tx);
   GPU_debug_group_end();
+
+  return feedback_tx;
 }
 
 /** \} */

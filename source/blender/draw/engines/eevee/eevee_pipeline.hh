@@ -185,7 +185,11 @@ class ForwardPipeline {
                                           ::Material *blender_mat,
                                           GPUMaterial *gpumat);
 
-  void render(View &view, Framebuffer &prepass_fb, Framebuffer &combined_fb, int2 extent);
+  void render(View &view,
+              Framebuffer &prepass_fb,
+              Framebuffer &combined_fb,
+              int2 extent,
+              gpu::Texture *feedback_tx = nullptr);
 };
 
 /** \} */
@@ -389,14 +393,14 @@ class DeferredPipeline {
   PassMain::Sub *prepass_add(::Material *blender_mat, GPUMaterial *gpumat, bool has_motion);
   PassMain::Sub *material_add(::Material *blender_mat, GPUMaterial *gpumat);
 
-  void render(View &main_view,
-              View &render_view,
-              Framebuffer &prepass_fb,
-              Framebuffer &combined_fb,
-              Framebuffer &gbuffer_fb,
-              int2 extent,
-              RayTraceBuffer &rt_buffer_opaque_layer,
-              RayTraceBuffer &rt_buffer_refract_layer);
+  gpu::Texture *render(View &main_view,
+                       View &render_view,
+                       Framebuffer &prepass_fb,
+                       Framebuffer &combined_fb,
+                       Framebuffer &gbuffer_fb,
+                       int2 extent,
+                       RayTraceBuffer &rt_buffer_opaque_layer,
+                       RayTraceBuffer &rt_buffer_refract_layer);
 
   /* Return the maximum amount of gbuffer layer needed. */
   int header_layer_count() const

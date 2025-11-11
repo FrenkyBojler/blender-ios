@@ -36,7 +36,7 @@ float4 closure_to_rgba(Closure cl_unused)
   float closure_rand = fract(noise + sampling_rng_1D_get(SAMPLING_CLOSURE));
   closure_weights_reset(closure_rand);
 
-#ifdef MAT_TRANSPARENT
+#if defined(MAT_TRANSPARENT) && defined(MAT_SHADER_TO_RGBA)
   float3 V = -drw_world_incident_vector(g_data.P);
   LightProbeSample samp = lightprobe_load(g_data.P, g_data.Ng, V);
   float3 radiance_behind = lightprobe_spherical_sample_normalized_with_parallax(
