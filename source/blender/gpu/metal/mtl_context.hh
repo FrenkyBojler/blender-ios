@@ -151,6 +151,7 @@ struct MTLContextDepthStencilState {
   bool depth_write_enable;
   bool depth_test_enabled;
   MTLCompareFunction depth_function;
+  /** NOTE: All these depth bias properties are never used. */
   float depth_bias;
   float depth_slope_scale;
   bool depth_bias_enabled_for_points;
