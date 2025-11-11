@@ -1077,9 +1077,6 @@ void TreeViewBuilder::build_tree_view(const bContext &C,
                                       const bool add_box)
 {
   uiBlock &block = *layout.block();
-  if (!tree_view.show_display_options_) {
-    tree_view.show_display_options_ = std::make_unique<char>(0);
-  }
 
   const ARegion *region = CTX_wm_region_popup(&C) ? CTX_wm_region_popup(&C) : CTX_wm_region(&C);
   if (region) {
