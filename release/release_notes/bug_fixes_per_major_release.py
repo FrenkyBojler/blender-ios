@@ -661,8 +661,8 @@ def llm_says_version_is_incorrect(
         # This slow down non-reasoning models as two requests are being made.
         # But in some situations this is actually faster as reasoning models tend
         # to ramble in their "Reasoning" stage, which slows them down.
-        user_prompt.append(
-            "- Make sure to write down your final answer at the end of your response. Your final answer should be a single word, 'yes' or 'no'. If you are uncertain, then your final answer should be 'no'.")
+        user_prompt.extend(["- Include your reasoning for making your decision about whether ot not the information is correct.",
+                            "- Make sure to write down your final answer at the end of your response. Your final answer should be a single word, 'yes' or 'no'. If you are uncertain, then your final answer should be 'no'."])
 
     user_prompt.extend(["",
                         "Information:",
