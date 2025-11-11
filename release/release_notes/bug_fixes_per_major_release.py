@@ -749,6 +749,8 @@ def classify_based_on_report(
         # Issue is in current release, but wasn't in previous release.
         # So it must of been introduced in the current release.
 
+        # Only check to see if "Working: previous_version" is correct.
+        # All other working versions are irrelevant. And broken versions are assumed to be correct.
         if llm_says_version_is_incorrect(
                 llm_client,
                 llm_name,
