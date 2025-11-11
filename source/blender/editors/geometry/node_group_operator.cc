@@ -1274,16 +1274,16 @@ void register_node_group_operators(const bContext &C)
       C, bmain, errors);
 
   Vector<std::unique_ptr<OperatorTypeData>> types_to_register;
-  Set<wmOperatorType *> handled_types;
+  Set<StringRefNull> handled_types;
   Set<wmOperatorType *> types_to_remove;
   for (std::unique_ptr<OperatorTypeData> &type : node_tool_types) {
+    if (!handled_types.add(type->idname)) {
+      errors.duplicate_node_tool_idnames.lookup_or_add(type->idname, 0)++;
+      continue;
+    }
     if (wmOperatorType *ot = WM_operatortype_find(type->idname.c_str(), true)) {
       if ((ot->flag & OPTYPE_NODE_TOOL) == 0) {
         errors.builtin_operator_replacement_attempts.add(type->idname);
-        continue;
-      }
-      if (!handled_types.add(ot)) {
-        errors.duplicate_node_tool_idnames.lookup_or_add(type->idname, 0)++;
         continue;
       }
       const OperatorTypeData &type_data = static_cast<const OperatorTypeData &>(*ot->custom_data);
