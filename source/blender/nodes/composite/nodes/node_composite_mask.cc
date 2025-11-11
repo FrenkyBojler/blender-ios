@@ -97,9 +97,7 @@ class MaskOperation : public NodeOperation {
   void execute() override
   {
     Result &output_mask = this->get_result("Mask");
-    if (!this->get_mask() ||
-        (!this->is_fixed_size() && !this->context().is_valid_compositing_region()))
-    {
+    if (!this->get_mask()) {
       output_mask.allocate_invalid();
       return;
     }
@@ -108,7 +106,7 @@ class MaskOperation : public NodeOperation {
     Result &cached_mask = context().cache_manager().cached_masks.get(
         this->context(),
         this->get_mask(),
-        domain.size,
+        domain.data_size,
         this->get_aspect_ratio(),
         this->get_use_feather(),
         this->get_motion_blur_samples(),
