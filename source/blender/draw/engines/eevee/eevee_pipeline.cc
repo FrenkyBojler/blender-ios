@@ -503,7 +503,11 @@ void DeferredLayerBase::gbuffer_pass_sync(Instance &inst)
   gbuffer_ps_.bind_resources(inst.uniform_data);
   gbuffer_ps_.bind_resources(inst.sampling);
   gbuffer_ps_.bind_resources(inst.hiz_buffer.front);
+  gbuffer_ps_.bind_resources(inst.hiz_buffer.front);
   gbuffer_ps_.bind_resources(inst.cryptomatte);
+
+  gbuffer_ps_.bind_texture(HIZ_PREV_TEX_SLOT, &inst.hiz_buffer.back.ref_tx_);
+  gbuffer_ps_.bind_texture(PREV_LAYER_RADIANCE_TEX_SLOT, &radiance_behind_tx_);
 
   /* Bind light resources for the NPR materials that gets rendered first.
    * Non-NPR shaders will override these resource bindings. */
@@ -871,10 +875,8 @@ gpu::Texture *DeferredLayer::render(View &main_view,
   constexpr eGPUTextureUsage usage_write = GPU_TEXTURE_USAGE_SHADER_WRITE;
   constexpr eGPUTextureUsage usage_rw = usage_read | usage_write;
 
-  if (use_screen_transmission_) {
-    /* Update for refraction. */
-    inst_.hiz_buffer.update();
-  }
+  /* Update for refraction. */
+  inst_.hiz_buffer.update();
 
   GPU_framebuffer_bind(prepass_fb);
   inst_.manager->submit(prepass_ps_, render_view);

@@ -51,7 +51,7 @@ ADDITIONAL_INFO(eevee_utility_texture)
 ADDITIONAL_INFO(eevee_sampling_data)
 ADDITIONAL_INFO(eevee_shadow_data)
 ADDITIONAL_INFO(eevee_hiz_data)
-ADDITIONAL_INFO(eevee_hiz_prev_data)
-ADDITIONAL_INFO(eevee_previous_layer_radiance)
+ADDITIONAL_INFO(eevee_hiz_prev_data)           /* TODO(fclem): Optional. */
+ADDITIONAL_INFO(eevee_previous_layer_radiance) /* TODO(fclem): Optional. */
 ADDITIONAL_INFO(eevee_volume_lib)
 GPU_SHADER_CREATE_END()
