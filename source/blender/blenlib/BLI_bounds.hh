@@ -344,21 +344,6 @@ template<typename T, int Size>
   return t_exit >= 0.0 && t_enter <= 1.0;
 }
 
-template<typename T>
-[[nodiscard]] inline bool segment_enter_exit_bounds(const Bounds<T> &bounds,
-                                                    const T &start,
-                                                    const T &end)
-{
-  BLI_assert(start != end);
-  if constexpr (std::is_integral_v<T> || std::is_floating_point_v<T>) {
-    return math::max(math::min(start, end), bounds.min) <=
-           math::min(math::max(start, end), bounds.max);
-  }
-  else {
-    return detail::segment_enter_exit_bounds_v(bounds, start, end);
-  }
-}
-
 }  // namespace detail
 
 template<typename T> inline bool Bounds<T>::is_empty() const
@@ -438,8 +423,14 @@ template<typename T> inline bool Bounds<T>::intersects_segment(const T &start, c
   if (!this->intersects(detail::segment_bounds(start, end))) {
     return false;
   }
-  /* Check if the segment is entering and exiting the bounds. */
-  return detail::segment_enter_exit_bounds(*this, start, end);
+  if constexpr (std::is_integral_v<T> || std::is_floating_point_v<T>) {
+    /* In the 1-dimensional case the segment cannot "miss" the bounds. */
+    return true;
+  }
+  else {
+    /* Check if the segment is entering and exiting the bounds. */
+    return detail::segment_enter_exit_bounds_v(*this, start, end);
+  }
 }
 
 }  // namespace blender
