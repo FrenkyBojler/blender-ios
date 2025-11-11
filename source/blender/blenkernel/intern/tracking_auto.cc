@@ -953,15 +953,37 @@ void BKE_autotrack_context_detect_and_track(
   // convert markers
   for (int i = 0; i < num_markers; i++) {
     AutoTrackClip autotrack_clip = context->autotrack_clips[markers[i].clip];
-    MovieTrackingTrack *track;
+
+    MovieTrackingMarker marker = libmv_marker_to_dna_marker(markers[i], autotrack_clip.width, autotrack_clip.height);
+
     if (tracks.find(markers[i].track) != tracks.end()) {
-      track = tracks[markers[i].track];
+      BKE_tracking_marker_insert(tracks[markers[i].track], &marker);
     } else {
-      track = BKE_tracking_track_add_empty(&autotrack_clip.clip->tracking, &tracking_object->tracks);
+      const MovieTrackingSettings *settings = &autotrack_clip.clip->tracking.settings;
+
+      MovieTrackingTrack *track = MEM_callocN<MovieTrackingTrack>("add_marker_exec track");
+      STRNCPY_UTF8(track->name, CTX_DATA_(BLT_I18NCONTEXT_ID_MOVIECLIP, "Track"));
+
+      /* Fill track's settings from default settings. */
+      track->motion_model = settings->default_motion_model;
+      track->minimum_correlation = settings->default_minimum_correlation;
+      track->margin = settings->default_margin;
+      track->pattern_match = settings->default_pattern_match;
+      track->frames_limit = settings->default_frames_limit;
+      track->flag = settings->default_flag;
+      track->algorithm_flag = settings->default_algorithm_flag;
+      track->weight = settings->default_weight;
+      track->weight_stab = settings->default_weight;
+
+      track->markersnr = 1;
+      track->markers = MEM_callocN<MovieTrackingMarker>("MovieTracking markers");
+      track->markers[0] = marker;
+
+      BLI_addtail(&tracking_object->tracks, track);
+      BKE_tracking_track_unique_name(&tracking_object->tracks, track);
+
       tracks[markers[i].track] = track;
     }
-    MovieTrackingMarker marker = libmv_marker_to_dna_marker(markers[i], autotrack_clip.width, autotrack_clip.height);
-    BKE_tracking_marker_insert(track, &marker);
   }
 
   // setup disabled markers before and after track.
