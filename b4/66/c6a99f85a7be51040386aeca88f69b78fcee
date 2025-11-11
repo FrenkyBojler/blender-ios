@@ -2,3 +2,4 @@ Referenced by pull request #144535, Fix #145635: Tree view event handling change
 Referenced by issue #148707, Inconsistent Shape Keys selection when creation new Shape Keys
 Referenced by issue #149578, Operator (object.modifier_set_active) now fails context poll in 5.0
 Referenced by pull request #149623, Fix #149578: Failing modifier_set_active() poll
+Referenced by commit bc26e3c654e55d2b01079b837f05b005dcb43e87, Fix #149578: Failing modifier_set_active() poll
