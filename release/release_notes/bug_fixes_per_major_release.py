@@ -639,7 +639,7 @@ def llm_says_version_is_incorrect(
         return False
 
     user_prompt = [
-        f"Using the information below, is Blender version {version_number} a {'Broken' if should_be_broken else 'Working'} version of Blender?",
+        f"Using the information below, is Blender version '{version_number}' a {'Broken' if should_be_broken else 'Working'} version of Blender?",
         "**Important rules:**",
         "- You should ignore patch version numbers. For example 3.2 and 3.2.7 are considered the same in this situation because we're ignoring the patch number (.7).",
         "- The version number above refers to the entire family of versions from early development to stable release. So if a version number has additional version classifiers like Alpha, Beta, Release Candidate, Stable, LTS, etc, then these are not considered seperate versions. For example: 3.2 and 3.2 Beta are considered the same version in this situation as they are from the same family."]
@@ -653,14 +653,13 @@ def llm_says_version_is_incorrect(
             "- If a working field says something similar to 'Worked: N/A as it's a new feature in 3.2', then you should consider 3.2 a working version of Blender in this situation.")
 
     user_prompt.extend(
-        [
-            "- Your output should be a single word 'yes' or 'no'. If you are uncertain, then your answer should be 'no'.",
-            "",
-            "Information:",
-            "```",
-            "Blender versions:",
-            f"{version_info_from_report}",
-            "```"])
+        ["- Your output should be a single word 'yes' or 'no'. If you are uncertain, then your answer should be 'no'.",
+         "",
+         "Information:",
+         "```",
+         "Blender versions:",
+         f"{version_info_from_report}",
+         "```"])
 
     # TODO: Fix mypy complaining about a list of dicts being incorrect
     # TODO: Implement support for models that don't support reasoning
