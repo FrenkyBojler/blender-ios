@@ -1387,6 +1387,7 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
     }
   }
 
+  bool reported[INDEX_ID_MAX] = {false};
   for (Object *ob : objects) {
     if (ob->flag & OB_DONE) {
       continue;
@@ -1395,12 +1396,18 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
     bool do_inverse_offset = false;
     ob->flag |= OB_DONE;
 
-    if (OB_TYPE_NO_GEOMETRY_ORIGIN(ob->type)) {
+    if (!OB_TYPE_SUPPORT_ORIGIN_SET(ob->type)) {
       ID *obdata = static_cast<ID *>(ob->data);
-      BKE_reportf(op->reports,
-                  RPT_INFO,
-                  "Set Origin not supported for %s object(s)",
-                  BKE_idtype_idcode_to_name(GS(obdata->name)));
+      const short idcode = GS(obdata->name);
+      const int id_index = BKE_idtype_idcode_to_index(idcode);
+
+      if (!reported[id_index]) {
+        reported[id_index] = true;
+        BKE_reportf(op->reports,
+                    RPT_INFO,
+                    "Set Origin not supported for %s object(s)",
+                    BKE_idtype_idcode_to_name(GS(obdata->name)));
+      }
       continue;
     }
 

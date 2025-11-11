@@ -488,10 +488,21 @@ typedef enum ObjectType {
         OB_VOLUME, \
         OB_GREASE_PENCIL))
 /**
- * Object types that do not support Set Origin.
+ * Object types that support Set Origin.
  */
-#define OB_TYPE_NO_GEOMETRY_ORIGIN(_type) \
-  (ELEM(_type, OB_EMPTY, OB_LAMP, OB_CAMERA, OB_SPEAKER, OB_LIGHTPROBE))
+#define OB_TYPE_SUPPORT_ORIGIN_SET(_type) \
+  (ELEM(_type, \
+        OB_MESH, \
+        OB_SURF, \
+        OB_FONT, \
+        OB_MBALL, \
+        OB_CURVES_LEGACY, \
+        OB_CURVES, \
+        OB_LATTICE, \
+        OB_POINTCLOUD, \
+        OB_VOLUME, \
+        OB_GREASE_PENCIL, \
+        OB_ARMATURE))
 #define OB_TYPE_SUPPORT_VGROUP(_type) (ELEM(_type, OB_MESH, OB_LATTICE, OB_GREASE_PENCIL))
 #define OB_TYPE_SUPPORT_EDITMODE(_type) \
   (ELEM(_type, \
