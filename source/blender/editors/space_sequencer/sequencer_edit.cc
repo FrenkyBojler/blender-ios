@@ -2009,7 +2009,7 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
       strip_rectf(scene, strip, &rq);
       if (BLI_rctf_isect(&rq, &rectf, nullptr)) {
         gap_removal_left_boundary = math::min(gap_removal_left_boundary,
-                                    seq::time_left_handle_frame_get(scene, strip));
+                                              seq::time_left_handle_frame_get(scene, strip));
         const char *error_msg = nullptr;
         if (seq::edit_strip_split(bmain,
                                   scene,
@@ -2072,12 +2072,15 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
     /* Cap offset. */
     offset = math::max(offset, (gap_removal_left_boundary - rect_frames[1]));
 
-    LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
-      if (!ignore_selection && !selected_strips_from_context(C).contains(strip)) {
+    const ListBase *channels = seq::channels_displayed_get(ed);
+    const VectorSet<Strip *> strips = ignore_selection ? all_strips_from_context(C) :
+                                                         selected_strips_from_context(C);
+    for (Strip *strip : strips) {
+      if (seq::channel_is_locked(seq::channel_get_by_index(channels, strip->channel))) {
         continue;
       }
-      const float left_handle = seq::time_left_handle_frame_get(scene, strip);
 
+      const float left_handle = seq::time_left_handle_frame_get(scene, strip);
       if (left_handle == rect_frames[1] && strip->channel <= int(rectf.ymax) &&
           strip->channel >= int(rectf.ymin))
       {
