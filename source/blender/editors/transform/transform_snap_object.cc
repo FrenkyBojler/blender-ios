@@ -21,7 +21,6 @@
 #include "BKE_layer.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_wrapper.hh"
-#include "BKE_modifier.hh"
 #include "BKE_object.hh"
 
 #include "DEG_depsgraph_query.hh"
