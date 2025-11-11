@@ -705,7 +705,7 @@ def llm_says_version_is_incorrect(
     llm_choice = response.choices[0].message.content
 
     if llm_choice is None:
-        # Response can be None according to mypy so handle that case.
+        # Response can be None according to mypy, so handle that case.
         return False
 
     if not llm_supports_reasoning:
@@ -718,7 +718,7 @@ def llm_says_version_is_incorrect(
         llm_choice = response.choices[0].message.content
 
     if llm_choice is None:
-        # Response can be None according to mypy so handle that case.
+        # Response can be None according to mypy, so handle that case.
         return False
 
     llm_choice = llm_choice.strip().lower()
