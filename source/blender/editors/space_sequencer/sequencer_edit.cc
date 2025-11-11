@@ -2093,6 +2093,7 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
       if (left_handle == rect_frames[1]) {
         seq::transform_translate_strip(scene, strip, offset);
         transformed_strips.add(strip);
+        seq::query_strip_connected_and_effect_chain(scene, strip, &ed->seqbase, connected_strips);
       }
       /* Offset every strip on the same channel and right of the cut. */
       else if (left_handle > rect_frames[1] && strip->channel <= int(rectf.ymax) &&
