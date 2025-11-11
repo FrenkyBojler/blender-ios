@@ -2232,7 +2232,9 @@ ImBuf *ED_view3d_draw_offscreen_imbuf_simple(Depsgraph *depsgraph,
     v3d.gridflag |= V3D_SHOW_FLOOR | V3D_SHOW_X | V3D_SHOW_Y;
   }
 
-  v3d.shading.background_type = V3D_SHADING_BACKGROUND_WORLD;
+  if ((draw_flags & V3D_OFSDRAW_OVERRIDE_SCENE_SETTINGS) == 0) {
+    v3d.shading.background_type = V3D_SHADING_BACKGROUND_WORLD;
+  }
 
   rv3d.persp = RV3D_CAMOB;
 

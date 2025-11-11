@@ -273,6 +273,13 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_END;
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 5)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      /* Previously workbench would hardcode background to be world type for render. */
+      scene->display.shading.background_type = V3D_SHADING_BACKGROUND_WORLD;
+    }
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.

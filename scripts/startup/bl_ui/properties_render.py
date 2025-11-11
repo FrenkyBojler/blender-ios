@@ -1003,6 +1003,18 @@ class RENDER_PT_opengl_color(RenderButtonsPanel, Panel):
         VIEW3D_PT_shading_color._draw_color_type(self, context)
 
 
+class RENDER_PT_opengl_background(RenderButtonsPanel, Panel):
+    bl_label = "Background Color"
+    COMPAT_ENGINES = {'BLENDER_WORKBENCH'}
+
+    @classmethod
+    def poll(cls, context):
+        return (context.engine in cls.COMPAT_ENGINES)
+
+    def draw(self, context):
+        VIEW3D_PT_shading_color._draw_background_color(self, context)
+
+
 class RENDER_PT_opengl_options(RenderButtonsPanel, Panel):
     bl_label = "Options"
     COMPAT_ENGINES = {'BLENDER_WORKBENCH'}
@@ -1163,6 +1175,7 @@ classes = (
     RENDER_PT_opengl_sampling,
     RENDER_PT_opengl_lighting,
     RENDER_PT_opengl_color,
+    RENDER_PT_opengl_background,
     RENDER_PT_opengl_options,
     RENDER_PT_opengl_film,
     RENDER_PT_hydra_debug,

@@ -4,6 +4,10 @@
 
 #include "workbench_private.hh"
 
+#include "BLI_math_color.h"
+
+#include "UI_resources.hh"
+
 #include "DNA_userdef_types.h"
 
 #include "BKE_camera.h"
@@ -174,7 +178,14 @@ void SceneState::init(const DRWContext *context,
 
   background_color = float4(0.0f);
   if (is_render_mode && scene->r.alphamode != R_ALPHAPREMUL) {
-    if (World *w = scene->world) {
+    if (shading.background_type == V3D_SHADING_BACKGROUND_VIEWPORT) {
+      background_color = float4(UNPACK3(shading.background_color), 1.0f);
+    }
+    else if (shading.background_type == V3D_SHADING_BACKGROUND_THEME) {
+      UI_GetThemeColor4fv(TH_BACK, background_color);
+      srgb_to_linearrgb_v4(background_color, background_color);
+    }
+    else if (World *w = scene->world) {
       background_color = float4(w->horr, w->horg, w->horb, 1.0f);
     }
   }
