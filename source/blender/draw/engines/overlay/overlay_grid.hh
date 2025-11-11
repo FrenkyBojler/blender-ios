@@ -27,25 +27,27 @@ namespace blender::draw::overlay {
  * Grid draw rework; WIP.
  */
 class GridRework : Overlay {
-private:
+ private:
   UniformBuffer<OVERLAY_GridReworkData> grid_ubo_;
   PassSimple grid_ps_ = {"grid_ps_"};
-  
-  /* Number of lines per level of the grid. The grid requires at most 4 levels. */ 
+
+  /* Number of lines per level of the grid. The grid requires at most 4 levels. */
   uint num_lines_per_level_;
 
   /* General parameters. */
-  bool is_3d_grid_ = false;  
+  Array<float, OVERLAY_GRID_STEPS_LEN> level_scales_;
+  bool is_3d_grid_ = false;
   float3 grid_axes_ = float3(0.0f);
   float3 zplane_axes_ = float3(0.0f);
+  int base_level_offset_;
 
   /* Flags passed to draw call. */
   int grid_flag_ = 0; /* Flag to select grid plane: x/y, y/z, x/z. */
   int zaxs_flag_ = 0; /* Flag to configure draw of pos/neg z-axis. */
-  // int zneg_flag_ = 0; /* Flag to enable negative z-axis draw. */
-  // int zpos_flag_ = 0; /* Flag to enable positive z-axis draw. */
+                      // int zneg_flag_ = 0; /* Flag to enable negative z-axis draw. */
+                      // int zpos_flag_ = 0; /* Flag to enable positive z-axis draw. */
 
-public:
+ public:
   void begin_sync(Resources &res, const State &state) final
   {
     enabled_ = !state.is_space_node() && init(state);
@@ -63,15 +65,52 @@ public:
     grid_ps_.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
     grid_ps_.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA);
 
+    /* Camera computations; TODO document what's going on here */
     {
-      /* Vertex count is 2 (x/y-direction) x 2 (verts per line) x 3 (levels) x N */
-      const uint n_verts = 12 * num_lines_per_level_;
+      const View3D *v3d = state.v3d;
+      const RegionView3D *rv3d = state.rv3d;
+
+      /* Compute distance to relevant camera point. */
+      float dist;
+      if (rv3d->is_persp) {
+        float3 drw_view_position = rv3d->viewinv[3];
+        float3 drw_view_forward = rv3d->viewinv[2];
+
+        /* Scale depends on distance to a point on the floor plane; we interpolate between the
+         * point viewed by the camera and the point directly below it, dependent on azimuth. */
+        dist = interpolate(abs(drw_view_position.z / drw_view_forward.z),
+                           abs(drw_view_position.z),
+                           1.0f - abs(drw_view_forward.z));
+      }
+      else {
+        /* Scale is simply specified by orthographic view. */
+        dist = rv3d->dist;
+      }
+
+      /* Iterate to find the lowest relevant grid level. Note that upper levels can be identical
+       * due to output from `ED_view3d_grid_steps`, so we check for these explicitly. */
+      int level;
+      for (level = 0; level < OVERLAY_GRID_STEPS_LEN - 1; level++) {
+        float curr = level_scales_[level], next = level_scales_[level + 1];
+        if (curr >= dist || curr == next) {
+          break;
+        }
+      }
+      std::printf("dist: %f, lowest_level: %d\n", dist, level);
+    }
+
+    {
+      /* Vertex count is 2 (x/y-direction) x 2 (verts per line) x 4 (levels) x N */
+      const uint n_verts = 16 * num_lines_per_level_;
 
       auto &sub = grid_ps_.sub("grid");
       sub.shader_set(res.shaders->gridrework.get());
       sub.bind_ubo("grid_buf", &grid_ubo_);
       sub.bind_texture("depth_tx", depth_tx, GPUSamplerState::default_sampler());
       sub.bind_texture("depth_infront_tx", depth_infront_tx, GPUSamplerState::default_sampler());
+      sub.push_constant("grid_flag", grid_flag_);
+      sub.push_constant("base_level_offset", base_level_offset_);
+      sub.push_constant("grid_scale", state.scene->unit.scale_length);
       sub.draw_procedural(GPUPrimType::GPU_PRIM_LINES, -1, n_verts, 0);
     }
   }
@@ -87,8 +126,8 @@ public:
     manager.submit(grid_ps_, view);
   }
 
-private:
-  bool init(const State &state) 
+ private:
+  bool init(const State &state)
   {
     const View3D *v3d = state.v3d;
     const RegionView3D *rv3d = state.rv3d;
@@ -96,8 +135,7 @@ private:
     /* Initialize flags to default value. */
     grid_flag_ = zaxs_flag_ = 0;
 
-    
-    num_lines_per_level_ = 385; /* 2x192+1 suffices to cover a full orthographic square. */
+    num_lines_per_level_ = 511; /* This suffices for a full orthographic square for metric/imp. */
     grid_ubo_.num_lines_per_level = num_lines_per_level_;
 
     return init_3d(state);
@@ -114,14 +152,15 @@ private:
   {
     const View3D *v3d = state.v3d;
     const RegionView3D *rv3d = state.rv3d;
-    
+
     /* Query different options from overlay state */
     const bool show_axis_x = (state.v3d_gridflag & V3D_SHOW_X) != 0;
     const bool show_axis_y = (state.v3d_gridflag & V3D_SHOW_Y) != 0;
     const bool show_axis_z = (state.v3d_gridflag & V3D_SHOW_Z) != 0;
     const bool show_floor = (state.v3d_gridflag & V3D_SHOW_FLOOR) != 0;
     const bool show_ortho_grid = (state.v3d_gridflag & V3D_SHOW_ORTHO_GRID) != 0;
-    const bool show_any = show_axis_x || show_axis_y || show_axis_z || show_floor || show_ortho_grid;
+    const bool show_any = show_axis_x || show_axis_y || show_axis_z || show_floor ||
+                          show_ortho_grid;
 
     /* Check if overlay or any of the grid options are enabled in the first place. */
     if (state.hide_overlays || !show_any) {
@@ -169,21 +208,46 @@ private:
       v3d_clip_end = v3d->clip_end;
     }
     grid_ubo_.distance = v3d_clip_end * 0.5f;
-    
-    /* Query grid scales (1e-3 to 1e4) in unit/scaling dependent fashion; this range
-     * should be satisfactory for user-visible grid levels. */
-    std::array<float, SI_GRID_STEPS_LEN> level_scales = {
-        1e-3f, 1e-2f, 1e-1f, 1e0f, 1e1f, 1e2f, 1e3f, 1e4f};
-    ED_view3d_grid_steps(state.scene, v3d, rv3d, level_scales.data());
-    for (int i = 0; i < level_scales.size(); ++i) {
-      grid_ubo_.level_scales[i][0] = level_scales[i];
-      std::printf("%d - %f\n", i, level_scales[i]);
+
+    /* Query grid scales (1e-3 to 1e4) from unit/scaling; this range should be sufficient
+     * for user-visible levels. */
+    level_scales_ = {1e-3f, 1e-2f, 1e-1f, 1e0f, 1e1f, 1e2f, 1e3f, 1e4f};
+    ED_view3d_grid_steps(state.scene, v3d, rv3d, level_scales_.data());
+    for (int i = 0; i < level_scales_.size(); ++i) {
+      grid_ubo_.level_scales[i][0] = level_scales_[i];
+    }
+
+    /* We find the index of the grid level closest to `1.0`. This is used by the grid as an offset,
+     * as we only draw levels necessary for the current camera zoom. */
+    base_level_offset_ = 0;
+    float base_level_dist = std::abs(1.0f - level_scales_[base_level_offset_]);
+    for (int i = 1; i < level_scales_.size(); ++i) {
+      float new_dist = std::abs(1.0f - level_scales_[i]);
+      if (new_dist < base_level_dist) {
+        base_level_offset_ = i;
+      }
+    }
+    // for (base_level_offset_ = 0; base_level_offset_ < level_scales.size() - 1;
+    //      base_level_offset_++)
+    // {
+    //   float curr = level_scales[base_level_offset_];
+    //   float next = level_scales[base_level_offset_ + 1];
+    //   if (curr == next || next > 1.0f) {
+    //     break;
+    //   }
+    // }
+
+    for (int i = 1; i < level_scales_.size(); ++i) {
+      float prev = level_scales_[i - 1];
+      float curr = level_scales_[i];
+      float ratio = curr / prev;
+
+      std::printf("\t%d: %f %s\n", i, level_scales_[i], i == base_level_offset_ ? "<" : " ");
     }
 
     return true;
   }
 };
-
 
 /**
  * Draw 2D or 3D grid as well at global X, Y and Z axes.

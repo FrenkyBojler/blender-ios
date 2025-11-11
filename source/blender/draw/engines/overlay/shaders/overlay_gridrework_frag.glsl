@@ -30,10 +30,11 @@ void main()
 
     if (drw_view_is_perspective()) {
       /* Add fade towards edge of grid level. */
+      // float length_fade = 1.0f - min(1.f, length(frag_xy));
       float length_fade = 1.f - min(1.f, dot(frag_xy, frag_xy));
-      length_fade = length_fade * length_fade * length_fade * length_fade * length_fade;
+      length_fade = length_fade * length_fade;
       out_color.a *= length_fade;
-      
+
       /* Add fade at steep angles. */
       float angle = V.z;
       angle = 1.0f - abs(angle);
@@ -52,7 +53,7 @@ void main()
     float scene_depth = texture(depth_tx, uv, 0).r;
 
     /* Perform depth-infront texture lookup. If this value is set, an object is treated
-    * as if it is on the near-plane, always occluding the grid. */
+     * as if it is on the near-plane, always occluding the grid. */
     float scene_depth_infront = texture(depth_infront_tx, uv, 0).r;
     if (scene_depth_infront != 1.0f) {
       scene_depth = 0.0f;
@@ -66,7 +67,7 @@ void main()
     // if (scene_depth != 1.0f) {
     //   alpha = 0.0f;
     // }
-    
+
     /* Soft depth-test; progressively alpha the grid below occluders to
      * avoid popping visuals and flickering. This gives the grid a slight
      * see-through appearance. */

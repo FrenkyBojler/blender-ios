@@ -946,9 +946,8 @@ void Instance::draw_v3d(Manager &manager, View &view)
 #ifdef USE_GRID_REWORK
     grid_rework.draw_color_only(resources.overlay_color_only_fb, manager, view);
 #else
-  grid.draw_color_only(resources.overlay_color_only_fb, manager, view);
+    grid.draw_color_only(resources.overlay_color_only_fb, manager, view);
 #endif
-
 
     regular.meshes.draw_line(resources.overlay_line_fb, manager, view);
     infront.meshes.draw_line(resources.overlay_line_in_front_fb, manager, view);

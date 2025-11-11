@@ -135,8 +135,8 @@ BLI_STATIC_ASSERT_ALIGN(OVERLAY_GridData, 16)
 /* Packing/unpacking functions for 4 uint8_t's to single uint.
  * Used for hierarchy data in `OVERLAY_GridReworkData` below. */
 #ifdef GPU_SHADER
-inline
-uint4 unpackUint8x4(uint32_t p) {
+inline uint4 unpackUint8x4(uint32_t p)
+{
   uint4 v;
   v[0] = (p & 0xFF);
   v[1] = ((p >> 8u) & 0xFF);
@@ -145,23 +145,24 @@ uint4 unpackUint8x4(uint32_t p) {
   return v;
 }
 #else
-inline
-uint32_t packUint8x4(uint4 v) {
-  return (v[0] & 0xFF) | ((v[1] & 0xFF) << 8u) | ((v[2] & 0xFF) << 16u) | ((v[3] & 0xFF) << 24u);;
+inline uint32_t packUint8x4(uint4 v)
+{
+  return (v[0] & 0xFF) | ((v[1] & 0xFF) << 8u) | ((v[2] & 0xFF) << 16u) | ((v[3] & 0xFF) << 24u);
+  ;
 }
 #endif
 
 struct OVERLAY_GridReworkData {
-  /* Per level scaling; uses float4 as float arrays are padded to float4 in std140. 
+  /* Per level scaling; uses float4 as float arrays are padded to float4 in std140.
    * This is only necessary if scaling deviates from a factor 10 on any level. */
   float4 level_scales[OVERLAY_GRID_STEPS_LEN];
 
   /* Per-level line count. */
   uint num_lines_per_level;
-  
-  /* Draw distance, which lies below the camera clip distance. */ 
-  float distance;      
-  
+
+  /* Draw distance, which lies below the camera clip distance. */
+  float distance;
+
   /* Alignment padding. */
   float _pad0;
   float _pad1;
