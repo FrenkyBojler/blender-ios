@@ -21,6 +21,7 @@ COMPUTE_SHADER_CREATE_INFO(eevee_depth_of_field_resolve)
  * See #123052 */
 #if defined(GPU_METAL)
 shared float array_of_values[gl_WorkGroupSize.x * gl_WorkGroupSize.y];
+#  define threadgroup_size (gl_WorkGroupSize.x * gl_WorkGroupSize.y)
 
 /* Only works for 2D thread-groups where the size is a power of 2. */
 float parallelMax(const float value)
