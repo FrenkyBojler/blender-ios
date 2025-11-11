@@ -642,10 +642,10 @@ enum XrRaycastResult : uint8_t {
 };
 
 struct XrRaycastData {
-  /** Raycast results. */
-  XrRaycastResult hit_result;
-  blender::float3 controller_direction;
+  blender::float3 init_location;
+  blender::float3 init_direction;
 
+  XrRaycastResult hit_result;
   blender::Array<blender::float3> arc_points;
   int end_point_idx;
 
@@ -771,10 +771,9 @@ static void wm_xr_raycast_update(wmOperator *op,
 
   data->arc_batch = xr->runtime->session_state.raycast_arc_batch;
 
-  copy_v3_v3(data->arc_points.first(), actiondata->controller_loc);
-
   mul_qt_v3(actiondata->controller_rot, axis);
-  copy_v3_v3(data->controller_direction, axis);
+  copy_v3_v3(data->init_direction, axis);
+  copy_v3_v3(data->init_location, actiondata->controller_loc);
 }
 
 static void wm_xr_raycast(Scene *scene,
@@ -1409,9 +1408,14 @@ static XrRaycastResult wm_xr_navigation_compute_teleportation_arc(bContext *C,
   const float segment_length = ray_dist / XR_TELEPORTATION_ARC_CONTROL_POINTS;
 
   float3 normal = {0, 1, 0};
-  float3 segment_direction = data->controller_direction;
   const bool selectable_only = RNA_boolean_get(op->ptr, "selectable_only");
 
+  /* Initial values. */
+  float3 segment_direction = data->init_direction;
+  data->arc_points[0] = data->init_location;
+
+  /* Raycast at each control point until we hit an object, applying gravity at each step to create
+   * the arc. */
   for (int i = 1; i < XR_TELEPORTATION_ARC_CONTROL_POINTS; ++i) {
     float segment_ray_dist = segment_length;
 
