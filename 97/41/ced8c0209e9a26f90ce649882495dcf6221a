@@ -1,2 +1,3 @@
 Referenced by issue #138652, Crash editing UI text and undoing
 Referenced by pull request #149714, Fix #147539: Ctrl middle mouse wheel on search button crashes
+Referenced by commit c15f5acc20e4cec46fc84e56c80605eacab50b66, Fix #147539: Ctrl middle mouse wheel on search button crashes
