@@ -644,6 +644,14 @@ def llm_says_version_is_incorrect(
         "- You should ignore patch version numbers. For example 3.2 and 3.2.7 are considered the same in this situation because we're ignoring the patch number (.7).",
         "- The version number above refers to the entire family of versions from early development to stable release. So if a version number has additional version classifiers like Alpha, Beta, Release Candidate, Stable, LTS, etc, then these are not considered seperate versions. For example: 3.2 and 3.2 Beta are considered the same version in this situation as they are from the same family."]
 
+    # Ideas for improvements:
+    # - At the moment the LLM usually can't handle "Is 4.5 a working version? Worked: Before 4.5 HASH"
+    #   - This is a tricky case and I'm not sure who to best describe the steps to deal with it. Here's why it's a tricky case:
+    #   - "Worked: Before 4.5" probably means "Worked: 4.4"
+    #   - "Worked: Before 4.5 HASH" probably means "Worked: 4.5 HASH-1"
+    #   - "Worked: Before 4.5, branch: blender-v4.5-release, HASH" probably means "Worked: 4.4"
+    #   - At the moment the LLM usually flags these commits for triager review, and triagers can go clean it up.
+
     if not should_be_broken:
         # To allow the script to handle new features, triagers usually put "Worked: N/A as it's a new feature in X.Y" so the script sees:
         # Broken: X.Y, Worked: X.Y
