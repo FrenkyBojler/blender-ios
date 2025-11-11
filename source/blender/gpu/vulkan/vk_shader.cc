@@ -1288,11 +1288,27 @@ bool VKShader::ensure_graphics_pipelines(
 
     VKGraphicsInfo graphics_info = {};
     graphics_info.vertex_in.vk_topology = vk_topology;
-    /* TODO: Add vertex inputs */
-#if 0
-  graphics_info.vertex_in.attributes =;
-  graphics_info.vertex_in.bindings = vao.bindings;
-#endif
+    graphics_info.vertex_in.attributes.reserve(pipeline_state.vertex_inputs_.size());
+    graphics_info.vertex_in.bindings.reserve(pipeline_state.vertex_inputs_.size());
+    uint32_t binding = 0;
+    for (const shader::ShaderCreateInfo::PipelineState::AttributeBinding &attribute_binding :
+         pipeline_state.vertex_inputs_)
+    {
+      const GPUVertAttr::Type attribute_type = {attribute_binding.type};
+      int location_len = ceil_division(attribute_type.comp_len(), 4);
+      for (const uint32_t location_offset : IndexRange(location_len)) {
+        graphics_info.vertex_in.attributes.append({
+            attribute_binding.location + location_offset,
+            binding,
+            to_vk_format(
+                attribute_type.comp_type(), attribute_type.size(), attribute_type.fetch_mode()),
+            attribute_binding.offset + location_offset * sizeof(float4),
+        });
+        graphics_info.vertex_in.bindings.append(
+            {attribute_binding.binding, attribute_binding.stride, VK_VERTEX_INPUT_RATE_VERTEX});
+        binding++;
+      }
+    }
 
     graphics_info.shaders.vk_vertex_module = vertex_module.vk_shader_module;
     graphics_info.shaders.vk_geometry_module = geometry_module.vk_shader_module;

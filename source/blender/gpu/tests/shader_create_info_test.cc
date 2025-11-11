@@ -46,7 +46,7 @@ static void test_shader_create_info_pipeline()
   create_info.fragment_out(0, Type::int2_t, "out_value");
 
   create_info.pipeline_state()
-    .write_mask(GPU_WRITE_COLOR)
+      .write_mask(GPU_WRITE_COLOR)
       .primitive(GPU_PRIM_TRIS)
       .blend_mode(GPU_BLEND_NONE)
       .viewports(16)

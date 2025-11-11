@@ -1042,9 +1042,11 @@ struct ShaderCreateInfo {
    */
   struct PipelineState {
     struct AttributeBinding {
+      /** Shader binding location */
       uint32_t location;
+      /** Vertex input buffer index */
       uint32_t binding;
-      GPUVertFormat format;
+      VertAttrType type;
       uint32_t offset;
       uint32_t stride;
     };
@@ -1063,13 +1065,10 @@ struct ShaderCreateInfo {
 
     using Self = PipelineState;
 
-    Self &vertex_input(uint32_t location,
-                       uint32_t binding,
-                       GPUVertFormat format,
-                       uint32_t offset,
-                       uint32_t stride)
+    Self &vertex_input(
+        uint32_t location, uint32_t binding, VertAttrType type, uint32_t offset, uint32_t stride)
     {
-      vertex_inputs_.append({location, binding, format, offset, stride});
+      vertex_inputs_.append({location, binding, type, offset, stride});
       return *this;
     }
 
