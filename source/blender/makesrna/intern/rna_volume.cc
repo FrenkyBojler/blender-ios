@@ -258,7 +258,51 @@ static bool rna_Volume_save(Volume *volume, Main *bmain, ReportList *reports, co
   return BKE_volume_save(volume, bmain, reports, filepath);
 }
 
+static DummyOpenVDBGridPtr *rna_Volume_create_empty_float_grid(Volume *volume,
+                                                               const char *grid_name)
+{
+  if (!volume || !grid_name || !grid_name[0]) {
+    WM_global_reportf(RPT_ERROR, "Could not create empty grid - invalid parameters");
+    return nullptr;
+  }
+
+  auto res = BKE_volume_create_empty_float_grid(volume, grid_name);
+  if (!res) {
+    WM_global_reportf(RPT_ERROR, "Could not create empty grid");
+    return nullptr;
+  }
+
+  DEG_id_tag_update(&volume->id, ID_RECALC_SYNC_TO_EVAL);
+  WM_main_add_notifier(NC_GEOM | ND_DATA, volume);
+
+  return res;
+}
+
+static void rna_Volume_clear_all_grids(Volume *volume)
+{
+  if (!volume) {
+    WM_global_reportf(RPT_ERROR, "Could not remove grids from volume - invalid volume");
+    return;
+  }
+
+  BKE_volume_clear_all_grids(volume);
+
+  DEG_id_tag_update(&volume->id, ID_RECALC_SYNC_TO_EVAL);
+  WM_main_add_notifier(NC_GEOM | ND_DATA, volume);
+}
+
 #else
+
+static void rna_def_openvdb_grid_ptr(BlenderRNA *brna)
+{
+  StructRNA *srna;
+
+  srna = RNA_def_struct(brna, "DummyOpenVDBGridPtr", nullptr);
+  RNA_def_struct_sdna(srna, "DummyOpenVDBGridPtr");
+  RNA_def_struct_ui_text(
+      srna, "OpenVDB Grid Pointer", "Direct pointer to OpenVDB grid for external processing");
+  RNA_def_struct_ui_icon(srna, ICON_VOLUME_DATA);
+}
 
 static void rna_def_volume_grid(BlenderRNA *brna)
 {
@@ -387,6 +431,21 @@ static void rna_def_volume_grids(BlenderRNA *brna, PropertyRNA *cprop)
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_boolean(func, "success", false, "", "True if grid list was successfully loaded");
   RNA_def_function_return(func, parm);
+
+  func = RNA_def_function(srna, "create_empty_float_grid", "rna_Volume_create_empty_float_grid");
+  RNA_def_function_ui_description(
+      func, "Create an empty float grid that can be populated with custom data");
+  parm = RNA_def_string(func, "grid_name", nullptr, 0, "Grid Name", "Name for the new grid");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  parm = RNA_def_pointer(func,
+                         "grid_ptr",
+                         "DummyOpenVDBGridPtr",
+                         "Grid Pointer",
+                         "Pointer to the created OpenVDB grid for external processing");
+  RNA_def_function_return(func, parm);
+
+  func = RNA_def_function(srna, "clear_all_grids", "rna_Volume_clear_all_grids");
+  RNA_def_function_ui_description(func, "Clear all grids from the volume");
 }
 
 static void rna_def_volume_display(BlenderRNA *brna)
@@ -646,6 +705,12 @@ static void rna_def_volume(BlenderRNA *brna)
                                     nullptr);
   rna_def_volume_grids(brna, prop);
 
+  prop = RNA_def_property(srna, "can_be_simplified", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "can_be_simplified", 0);
+  RNA_def_property_boolean_default(prop, true);
+  RNA_def_property_ui_text(prop, "Can Be Simplified", "Whether this volume can be simplified");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+
   /* Materials */
   prop = RNA_def_property(srna, "materials", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_collection_sdna(prop, nullptr, "mat", "totcol");
@@ -734,6 +799,7 @@ void RNA_def_volume(BlenderRNA *brna)
   rna_def_volume_display(brna);
   rna_def_volume_render(brna);
   rna_def_volume(brna);
+  rna_def_openvdb_grid_ptr(brna);
 }
 
 #endif

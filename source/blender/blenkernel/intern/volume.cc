@@ -677,10 +677,15 @@ static void volume_update_simplify_level(Main *bmain, Volume *volume, const Deps
     VolumeGridVector &grids = *volume->runtime->grids;
     std::list<GVolumeGrid> new_grids;
     for (const GVolumeGrid &old_grid : grids) {
-      GVolumeGrid simple_grid = blender::bke::volume_grid::file_cache::get_grid_from_file(
-          grids.filepath, old_grid->name(), simplify_level);
-      BLI_assert(simple_grid);
-      new_grids.push_back(std::move(simple_grid));
+      if (volume->can_be_simplified) {
+        GVolumeGrid simple_grid = blender::bke::volume_grid::file_cache::get_grid_from_file(
+            grids.filepath, old_grid->name(), simplify_level);
+        BLI_assert(simple_grid);
+        new_grids.push_back(std::move(simple_grid));
+      }
+      else {
+        new_grids.push_back(std::move(old_grid));
+      }
     }
     grids.swap(new_grids);
   }
@@ -1165,6 +1170,35 @@ openvdb::GridBase::Ptr BKE_volume_grid_create_with_changed_resolution(
 {
   CreateGridWithChangedResolutionOp op{old_grid, resolution_factor};
   return BKE_volume_grid_type_operation(grid_type, op);
+}
+
+DummyOpenVDBGridPtr *BKE_volume_create_empty_float_grid(Volume *volume, const char *grid_name)
+{
+  openvdb::FloatGrid::Ptr new_grid = openvdb::FloatGrid::create(0);
+  new_grid->setName(grid_name);
+
+  openvdb::GridBase *raw_grid_ptr = new_grid.get();
+  blender::bke::VolumeGridData *grid_data = BKE_volume_grid_add_vdb(
+      *volume, grid_name, std::move(new_grid));
+  if (!grid_data) {
+    return nullptr;
+  }
+  return reinterpret_cast<DummyOpenVDBGridPtr *>(raw_grid_ptr);
+}
+
+void BKE_volume_clear_all_grids(Volume *volume)
+{
+  if (!volume) {
+    return;
+  }
+
+  int num_grids = BKE_volume_num_grids(volume);
+  for (int i = num_grids - 1; i >= 0; i--) {
+    const blender::bke::VolumeGridData *grid = BKE_volume_grid_get(volume, i);
+    if (grid) {
+      BKE_volume_grid_remove(volume, grid);
+    }
+  }
 }
 
 #endif

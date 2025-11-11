@@ -55,7 +55,8 @@ typedef struct Volume {
   /* Sequence */
   char is_sequence;
   char sequence_mode;
-  char _pad1[2];
+  char can_be_simplified;
+  char _pad1;
   int frame_start;
   int frame_duration;
   int frame_offset;
@@ -157,3 +158,9 @@ typedef enum SliceAxis {
 
 /* Only one material supported currently. */
 #define VOLUME_MATERIAL_NR 1
+
+/**
+ * Dummy type used as a stand-in for OpenVDB grid pointers. This allows returning
+ * direct pointers to OpenVDB grids for external processing while maintaining type safety.
+ */
+struct DummyOpenVDBGridPtr;

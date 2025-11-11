@@ -134,6 +134,10 @@ bool BKE_volume_save(const Volume *volume,
 
 void BKE_volume_count_memory(const Volume &volume, blender::MemoryCounter &memory);
 
+DummyOpenVDBGridPtr *BKE_volume_create_empty_float_grid(Volume *volume, const char *grid_name);
+
+void BKE_volume_clear_all_grids(Volume *volume);
+
 std::optional<blender::Bounds<blender::float3>> BKE_volume_min_max(const Volume *volume);
 
 namespace blender::bke {
