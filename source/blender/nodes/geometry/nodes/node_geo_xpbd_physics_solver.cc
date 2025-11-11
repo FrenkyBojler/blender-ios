@@ -3859,17 +3859,18 @@ PROFILE_FUNCTION static void simulate_key_group_global(
             });
       }
     });
-
-    if (do_pre_solve) {
-      intialize_constraint_forces(
-          constraint_collectors, geometry_refs_local, std::nullopt, std::nullopt);
-    }
   };
 
   for (const int substep_i : IndexRange(substeps)) {
     const float substep_factor = substeps <= 1 ? 1.0f : float(substep_i) / (substeps - 1);
     const bool is_first_substep = substep_i == 0;
     const bool is_last_substep = substep_i == substeps - 1;
+
+    /* In all other substeps, this is done at the end of the previous step already to improve
+     * parallelism and cache locality. */
+    if (is_first_substep) {
+      run_per_point_updates({&filtered_static_constraint_sets}, substep_factor, true, false);
+    }
 
     /* Find current collisions and generate constraints to resolve them. */
     Contacts contacts = gather_contacts_global(key_group,
@@ -3884,20 +3885,15 @@ PROFILE_FUNCTION static void simulate_key_group_global(
     xpbd::ConstraintSetCollector dynamic_constraint_sets;
     generate_collision_constraint_sets(
         scope, state, contacts, keys, sub_delta_time, dynamic_constraint_sets);
+
+    intialize_constraint_forces({&filtered_static_constraint_sets, &dynamic_constraint_sets},
+                                geometry_refs_local,
+                                std::nullopt,
+                                std::nullopt);
     /* Combine static and dynamic constraint sets. */
     const Vector<xpbd::ConstraintSet *> current_constraint_sets =
         xpbd::ConstraintSetCollector::combine(
             scope, {&filtered_static_constraint_sets, &dynamic_constraint_sets});
-
-    /* In all other substeps, this is done at the end of the previous step already to improve
-     * parallelism and cache locality. */
-    if (is_first_substep) {
-      run_per_point_updates({&filtered_static_constraint_sets, &dynamic_constraint_sets},
-                            substep_factor,
-                            true,
-                            false);
-    }
-
     /* Actually solve the constraints. */
     for ([[maybe_unused]] const int constraint_iter : IndexRange(constraint_iterations)) {
       solve_constraints(solver_type, geometry_refs_local, current_constraint_sets);
@@ -4001,11 +3997,11 @@ PROFILE_FUNCTION static void simulate_curve_local(
           xpbd::ConstraintSetCollector dynamic_constraint_sets;
           generate_collision_constraint_sets(
               scope, state, contacts, keys, sub_delta_time, dynamic_constraint_sets);
+
           intialize_constraint_forces({&filtered_static_constraint_sets, &dynamic_constraint_sets},
                                       geometry_refs_local,
                                       curves_range,
                                       points_range);
-
           for ([[maybe_unused]] const int constraint_iter : IndexRange(constraint_iterations)) {
             xpbd::SolveStrategy solve_strategy{
                 get_solve_strategy_type(solver_type), geometry_refs_local, key_i, points_range};
