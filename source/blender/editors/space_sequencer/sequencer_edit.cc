@@ -2002,7 +2002,6 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
 
   /* Make two split logic runs so the newly created strips can get split by the second run. */
   for (int cut_pos : {0, 1}) {
-    VectorSet<Strip *> strips_to_cut;
     const VectorSet<Strip *> strips = ignore_selection ? all_strips_from_context(C) :
                                                          selected_strips_from_context(C);
     for (Strip *strip : strips) {
@@ -2011,7 +2010,6 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
       if (BLI_rctf_isect(&rq, &rectf, nullptr)) {
         max_left_offset = math::min(max_left_offset,
                                     seq::time_left_handle_frame_get(scene, strip));
-        strips_to_cut.add(strip);
         const char *error_msg = nullptr;
         if (seq::edit_strip_split(bmain,
                                   scene,
@@ -2072,7 +2070,7 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
   if (remove_gaps) {
     int offset = rect_frames[0] - rect_frames[1];
     /* Cap offset. */
-    offset = std::max(offset, (max_left_offset - rect_frames[1]));
+    offset = math::max(offset, (max_left_offset - rect_frames[1]));
 
     LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
       if (!ignore_selection && !selected_strips_from_context(C).contains(strip)) {
