@@ -671,8 +671,9 @@ def llm_says_version_is_incorrect(
     # (Ask them to come to a decision, then ask them to extract their decision)
     messages = [{"role": "user", "content": "\n".join(user_prompt)}]
 
-    # Use a fixed seed for reproducability.
-    response = client.chat.completions.create(model=llm_name, seed=2179, messages=messages)
+    # Use a fixed seed for consistency. Seed number was picked at random.
+    seed = 2179
+    response = client.chat.completions.create(model=llm_name, seed=seed, messages=messages, stream=False)
     llm_choice = response.choices[0].message.content
 
     if llm_choice is None:
@@ -684,7 +685,7 @@ def llm_says_version_is_incorrect(
                                "content": "You will be given a piece of text. At the end will be a answer, either 'yes' or 'no'. You are to output that single word final answer. 'yes' or 'no'"},
                               {"role": "user",
                                "content": llm_choice}]
-        response = client.chat.completions.create(model=llm_name, seed=2179, messages=extraction_message)
+        response = client.chat.completions.create(model=llm_name, seed=seed, messages=extraction_message, stream=False)
         llm_choice = response.choices[0].message.content
 
     if llm_choice is None:
