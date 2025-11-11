@@ -306,6 +306,59 @@ template<typename T> [[nodiscard]] inline bool any_less_or_equal_than(const T &a
   }
 }
 
+template<typename T> [[nodiscard]] inline Bounds<T> segment_bounds(const T &start, const T &end)
+{
+  Bounds<T> bounds{start, start};
+  math::min_max(end, bounds.min, bounds.max);
+  return bounds;
+}
+
+/** Adaptation of Liang–Barsky for N dimensions. */
+template<typename T, int Size>
+[[nodiscard]] inline bool segment_enter_exit_bounds_v(const Bounds<VecBase<T, Size>> &bounds,
+                                                      const VecBase<T, Size> &start,
+                                                      const VecBase<T, Size> &end)
+{
+  double t_enter = 0.0;
+  double t_exit = 1.0;
+  for (int i = 0; i < Size; i++) {
+    const T di = end[i] - start[i];
+    if (di == T(0)) {
+      /* Line is parallel to i-th axis. */
+      if (start[i] < bounds.min[i] || start[i] > bounds.max[i]) {
+        return false;
+      }
+    }
+    else {
+      const double t1 = double(bounds.min[i] - start[i]) / double(di);
+      const double t2 = double(bounds.max[i] - start[i]) / double(di);
+      const double tmin = math::min(t1, t2);
+      const double tmax = math::max(t1, t2);
+      t_enter = math::max(t_enter, tmin);
+      t_exit = math::min(t_exit, tmax);
+      if (t_enter > t_exit) {
+        return false;
+      }
+    }
+  }
+  return t_exit >= 0.0 && t_enter <= 1.0;
+}
+
+template<typename T>
+[[nodiscard]] inline bool segment_enter_exit_bounds(const Bounds<T> &bounds,
+                                                    const T &start,
+                                                    const T &end)
+{
+  BLI_assert(start != end);
+  if constexpr (std::is_integral_v<T> || std::is_floating_point_v<T>) {
+    return math::max(math::min(start, end), bounds.min) <=
+           math::min(math::max(start, end), bounds.max);
+  }
+  else {
+    return detail::segment_enter_exit_bounds_v(bounds, start, end);
+  }
+}
+
 }  // namespace detail
 
 template<typename T> inline bool Bounds<T>::is_empty() const
@@ -366,6 +419,27 @@ template<typename T> inline bool Bounds<T>::contains(const T &point)
     return false;
   }
   return true;
+}
+
+template<typename T> inline bool Bounds<T>::intersects(const Bounds<T> &other)
+{
+  if (bounds::intersect(*this, other)) {
+    return true;
+  }
+  return false;
+}
+
+template<typename T> inline bool Bounds<T>::intersects_segment(const T &start, const T &end)
+{
+  /* Check end points first to properly handle degenerate case where the segment is a point. */
+  if (this->contains(start) || this->contains(end)) {
+    return true;
+  }
+  if (!this->intersects(detail::segment_bounds(start, end))) {
+    return false;
+  }
+  /* Check if the segment is entering and exiting the bounds. */
+  return detail::segment_enter_exit_bounds(*this, start, end);
 }
 
 }  // namespace blender
