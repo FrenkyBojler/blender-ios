@@ -737,10 +737,10 @@ static void cut_caps(bke::CurvesGeometry &dst,
 {
   bke::MutableAttributeAccessor dst_attributes = dst.attributes_for_write();
 
-  bke::SpanAttributeWriter<int8_t> dst_start_caps =
-      dst_attributes.lookup_or_add_for_write_span<int8_t>("start_cap", bke::AttrDomain::Curve);
-  bke::SpanAttributeWriter<int8_t> dst_end_caps =
-      dst_attributes.lookup_or_add_for_write_span<int8_t>("end_cap", bke::AttrDomain::Curve);
+  bke::SpanAttributeWriter dst_start_caps = dst_attributes.lookup_or_add_for_write_span<int8_t>(
+      "start_cap", bke::AttrDomain::Curve);
+  bke::SpanAttributeWriter dst_end_caps = dst_attributes.lookup_or_add_for_write_span<int8_t>(
+      "end_cap", bke::AttrDomain::Curve);
 
   for (const int curve_i : segment_offsets.index_range()) {
     /* If the curve is cyclic, don't cut it. */
