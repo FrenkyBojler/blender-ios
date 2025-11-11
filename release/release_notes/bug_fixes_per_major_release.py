@@ -652,28 +652,49 @@ def llm_says_version_is_incorrect(
         user_prompt.append(
             "- If a working field says something similar to 'Worked: N/A as it's a new feature in 3.2', then you should consider 3.2 a working version of Blender in this situation.")
 
-    user_prompt.extend(
-        ["- Your output should be a single word 'yes' or 'no'. If you are uncertain, then your answer should be 'no'.",
-         "",
-         "Information:",
-         "```",
-         "Blender versions:",
-         f"{version_info_from_report}",
-         "```"])
+    if llm_supports_reasoning:
+        user_prompt.append(
+            "- Your output should be a single word 'yes' or 'no'. If you are uncertain, then your answer should be 'no'.")
+    else:
+        user_prompt.append(
+            "Make sure to write down your final answer at the end of your response. Your final answer should be a single word, 'yes' or 'no'. If you are uncertain, then your final answer should be 'no'.")
+
+    user_prompt.extend(["",
+                        "Information:",
+                        "```",
+                        "Blender versions:",
+                        f"{version_info_from_report}",
+                        "```"])
 
     # TODO: Fix mypy complaining about a list of dicts being incorrect
     # TODO: Implement support for models that don't support reasoning
     # (Ask them to come to a decision, then ask them to extract their decision)
     messages = [{"role": "user", "content": "\n".join(user_prompt)}]
+
     # Use a fixed seed for reproducability.
     response = client.chat.completions.create(model=llm_name, seed=2179, messages=messages)
     llm_choice = response.choices[0].message.content
-    if llm_choice is not None:
-        # Response can be None according to mypy.
-        llm_choice = llm_choice.strip().lower()
-        if llm_choice == "no":
-            # The LLM disagreed with the previous statement.
-            return True
+
+    if llm_choice is None:
+        # Response can be None according to mypy so handle that case.
+        return False
+
+    if not llm_supports_reasoning:
+        extraction_message = [{"role": "system",
+                               "content": "You will be given a piece of text. At the end will be a answer, either 'yes' or 'no'. You are to output that single word final answer. 'yes' or 'no'"},
+                              {"role": "user",
+                               "content": llm_choice}]
+        response = client.chat.completions.create(model=llm_name, seed=2179, messages=extraction_message)
+        llm_choice = response.choices[0].message.content
+
+    if llm_choice is None:
+        # Response can be None according to mypy so handle that case.
+        return False
+
+    llm_choice = llm_choice.strip().lower()
+    if llm_choice == "no":
+        # The LLM disagreed with the previous statement.
+        return True
 
     return False
 
