@@ -37,10 +37,10 @@ namespace blender::gpu {
 class VertBuf;
 class Batch;
 }  // namespace blender::gpu
-using GPUAsyncHandle = blender::gpu::Batch;
+using GPUBatchHandle = blender::gpu::Batch;
 using GPUVertBufHandle = blender::gpu::VertBuf;
 #else
-typedef struct GPUAsyncHandle GPUAsyncHandle;
+typedef struct GPUBatchHandle GPUBatchHandle;
 typedef struct GPUVertBufHandle GPUVertBufHandle;
 #endif
 
@@ -115,8 +115,8 @@ typedef struct bMotionPath {
   char _pad2[4];
   /* Used for drawing. */
   GPUVertBufHandle *points_vbo;
-  GPUAsyncHandle *batch_line;
-  GPUAsyncHandle *batch_points;
+  GPUBatchHandle *batch_line;
+  GPUBatchHandle *batch_points;
   void *_pad;
 } bMotionPath;
 
