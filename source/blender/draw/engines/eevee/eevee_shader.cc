@@ -1232,6 +1232,7 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
               .write_mask(GPU_WRITE_COLOR)
               // Can we use GPU_DEPTH_NONE? there is no depth texture configured.
               .depth_test(GPU_DEPTH_ALWAYS)
+              .viewports(1)
               .color_format(gpu::TextureFormat::SFLOAT_16_16_16_16);
           break;
       }
