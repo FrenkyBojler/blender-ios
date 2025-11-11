@@ -1217,6 +1217,29 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
     /* Avoid assert in ShaderCreateInfo::finalize. */
     info.batch_resources_.clear();
   }
+
+  /* Pipeline states to compile during shader compilation. */
+  /* NOTE: Currently only world shaders are added due to missing knowledge of person behind the
+   * keyboard. */
+  switch (geometry_type) {
+    case MAT_GEOM_WORLD:
+      switch (pipeline_type) {
+        case MAT_PIPE_VOLUME_MATERIAL:
+          break;
+        default:
+          info.pipeline_state()
+              .primitive(GPU_PRIM_TRIS)
+              .write_mask(GPU_WRITE_COLOR)
+              // Can we use GPU_DEPTH_NONE? there is no depth texture configured.
+              .depth_test(GPU_DEPTH_ALWAYS)
+              .color_format(gpu::TextureFormat::SFLOAT_16_16_16_16);
+          break;
+      }
+      break;
+
+    default:
+      break;
+  }
 }
 
 struct CallbackThunk {
