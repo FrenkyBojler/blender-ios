@@ -1691,12 +1691,12 @@ void view3d_draw_region_info(const bContext *C, ARegion *region)
         draw_grid_unit_name(scene, region, v3d, xoffset, &yoffset);
       }
 
-      if (v3d->overlay.flag & V3D_OVERLAY_PERFORMANCE) {
-        draw_performance_stats(
-            depsgraph, scene, v3d, text_color, xoffset, &yoffset, VIEW3D_OVERLAY_LINEHEIGHT);
-      }
-
       DRW_draw_region_engine_info(xoffset, &yoffset, VIEW3D_OVERLAY_LINEHEIGHT);
+    }
+
+    if (v3d->overlay.flag & V3D_OVERLAY_PERFORMANCE) {
+      draw_performance_stats(
+          depsgraph, scene, v3d, text_color, xoffset, &yoffset, VIEW3D_OVERLAY_LINEHEIGHT);
     }
 
     if (v3d->overlay.flag & V3D_OVERLAY_STATS) {
