@@ -742,34 +742,36 @@ static void cut_caps(bke::CurvesGeometry &dst,
   bke::SpanAttributeWriter dst_end_caps = dst_attributes.lookup_or_add_for_write_span<int8_t>(
       "end_cap", bke::AttrDomain::Curve);
 
-  for (const int curve_i : segment_offsets.index_range()) {
-    /* If the curve is cyclic, don't cut it. */
-    if (cyclic[curve_i]) {
-      continue;
+  threading::parallel_for(segment_offsets.index_range(), 4096, [&](const IndexRange curves) {
+    for (const int curve_i : curves) {
+      /* If the curve is cyclic, don't cut it. */
+      if (cyclic[curve_i]) {
+        continue;
+      }
+
+      const IndexRange segment_range = segment_offsets[curve_i];
+
+      const int segment_index_first = segment_range.first();
+      const bool reversed_first = segment_reversed[segment_index_first];
+      const Segment &segment_first = segments[segment_index_first];
+      const Side direction_first = reversed_first ? Side::End : Side::Start;
+      const int inter_index_first = segment_first.intersection_index[direction_first];
+
+      const int segment_index_last = segment_range.last();
+      const bool reversed_last = segment_reversed[segment_index_last];
+      const Segment &segment_last = segments[segment_index_last];
+      const Side direction_last = reversed_last ? Side::Start : Side::End;
+      const int inter_index_last = segment_last.intersection_index[direction_last];
+
+      /* Check if there is a intersection and therefor the curve should be cut. */
+      if (inter_index_first != -1) {
+        dst_start_caps.span[curve_i] = GP_STROKE_CAP_TYPE_FLAT;
+      }
+      if (inter_index_last != -1) {
+        dst_end_caps.span[curve_i] = GP_STROKE_CAP_TYPE_FLAT;
+      }
     }
-
-    const IndexRange segment_range = segment_offsets[curve_i];
-
-    const int segment_index_first = segment_range.first();
-    const bool reversed_first = segment_reversed[segment_index_first];
-    const Segment &segment_first = segments[segment_index_first];
-    const Side direction_first = reversed_first ? Side::End : Side::Start;
-    const int inter_index_first = segment_first.intersection_index[direction_first];
-
-    const int segment_index_last = segment_range.last();
-    const bool reversed_last = segment_reversed[segment_index_last];
-    const Segment &segment_last = segments[segment_index_last];
-    const Side direction_last = reversed_last ? Side::Start : Side::End;
-    const int inter_index_last = segment_last.intersection_index[direction_last];
-
-    /* Check if there is a intersection and therefor the curve should be cut. */
-    if (inter_index_first != -1) {
-      dst_start_caps.span[curve_i] = GP_STROKE_CAP_TYPE_FLAT;
-    }
-    if (inter_index_last != -1) {
-      dst_end_caps.span[curve_i] = GP_STROKE_CAP_TYPE_FLAT;
-    }
-  }
+  });
 
   dst_start_caps.finish();
   dst_end_caps.finish();
