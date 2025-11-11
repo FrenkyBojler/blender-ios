@@ -1038,7 +1038,7 @@ struct ShaderCreateInfo {
   Vector<StringRefNull> additional_infos_;
 
   /**
-   * \brief Description of a graphical pipeline to warm up as part of the shader compilation.
+   * \brief Description of a graphical pipeline to pre-compile during shader creation.
    */
   struct PipelineState {
     struct AttributeBinding {
@@ -1049,14 +1049,125 @@ struct ShaderCreateInfo {
       uint32_t stride;
     };
 
-    GPUState state;
-    GPUPrimType primitive;
-    Vector<AttributeBinding> vertex_inputs;
-    uint32_t viewport_count;
-    Vector<SpecializationConstant::Value> specialization_constants;
-    TextureFormat depth_attachment_format;
-    TextureFormat stencil_attachment_format;
-    Vector<TextureFormat> color_attachment_formats;
+    /* Vertex input */
+    GPUPrimType primitive_;
+    Vector<AttributeBinding> vertex_inputs_;
+    /* Pre-fragment and Fragment stage*/
+    GPUState state_ = {GPU_WRITE_COLOR};
+    uint32_t viewport_count_;
+    Vector<SpecializationConstant::Value> specialization_constants_;
+    /* Attachment formats. */
+    TextureFormat depth_format_;
+    TextureFormat stencil_format_;
+    Vector<TextureFormat> color_formats_;
+
+    using Self = PipelineState;
+
+    Self &vertex_input(uint32_t location,
+                       uint32_t binding,
+                       GPUVertFormat format,
+                       uint32_t offset,
+                       uint32_t stride)
+    {
+      vertex_inputs_.append({location, binding, format, offset, stride});
+      return *this;
+    }
+
+    Self &write_mask(GPUWriteMask write_mask)
+    {
+      state_.write_mask = write_mask;
+      return *this;
+    }
+
+    Self &blend_mode(GPUBlend blend_mode)
+    {
+      state_.blend = blend_mode;
+      return *this;
+    }
+
+    Self &culling_test(GPUFaceCullTest culling_test)
+    {
+      state_.culling_test = culling_test;
+      return *this;
+    }
+
+    Self &depth_test(GPUDepthTest depth_test)
+    {
+      state_.depth_test = depth_test;
+      return *this;
+    }
+
+    Self &stencil_test(GPUStencilTest stencil_test)
+    {
+      state_.stencil_test = stencil_test;
+      return *this;
+    }
+
+    Self &stencil_op(GPUStencilOp stencil_op)
+    {
+      state_.stencil_op = stencil_op;
+      return *this;
+    }
+
+    Self &provoking_vert(GPUProvokingVertex provoking_vert)
+    {
+      state_.provoking_vert = provoking_vert;
+      return *this;
+    }
+
+    Self &logic_op_xor()
+    {
+      state_.logic_op_xor = 1;
+      return *this;
+    }
+
+    Self &invert_facing()
+    {
+      state_.invert_facing = 1;
+      return *this;
+    }
+
+    Self &shadow_bias()
+    {
+      state_.shadow_bias = 1;
+      return *this;
+    }
+
+    Self &primitive(GPUPrimType primitive_type)
+    {
+      primitive_ = primitive_type;
+      return *this;
+    }
+
+    Self &viewports(uint32_t viewport_count)
+    {
+      viewport_count_ = viewport_count;
+      return *this;
+    }
+
+    Self &add_specialization_constant(SpecializationConstant::Value specialization_constant)
+    {
+      specialization_constants_.append(specialization_constant);
+      return *this;
+    }
+
+    Self &depth_format(TextureFormat depth_format)
+    {
+      depth_format_ = depth_format;
+      return *this;
+    }
+
+    Self &stencil_format(TextureFormat stencil_format)
+    {
+      stencil_format_ = stencil_format;
+      return *this;
+    }
+
+    Self &color_format(TextureFormat color_format)
+    {
+      color_formats_.append(color_format);
+      return *this;
+    }
   };
   Vector<PipelineState, 0> pipelines_;
 
@@ -1677,10 +1788,13 @@ struct ShaderCreateInfo {
   /**
    * \brief Create a new pipeline state.
    *
+   * On Metal and Vulkan pipelines states will be precompiled when creating the shader to reduce
+   * compilation stuttering when using the shader.
+   *
    * \note return pipeline state is only guaranteed to be valid until the next call to this
    * function.
    */
-  PipelineState &new_pipeline_state()
+  PipelineState &pipeline_state()
   {
     pipelines_.append({});
     return pipelines_.last();
