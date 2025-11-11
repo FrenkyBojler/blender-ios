@@ -656,6 +656,11 @@ def llm_says_version_is_incorrect(
         user_prompt.append(
             "- Your output should be a single word 'yes' or 'no'. If you are uncertain, then your answer should be 'no'.")
     else:
+        # Non-reasoning models tend to perform better if they are given the freedom to write how they want before they give their answer.
+        # So allow the model to do this, and then ask the LLM to extract it's final answer later on.
+        # This slow down non-reasoning models as two requests are being made.
+        # But in some situations this is actually faster as reasoning models tend
+        # to ramble in their "Reasoning" stage, which slows them down.
         user_prompt.append(
             "- Make sure to write down your final answer at the end of your response. Your final answer should be a single word, 'yes' or 'no'. If you are uncertain, then your final answer should be 'no'.")
 
@@ -679,6 +684,7 @@ def llm_says_version_is_incorrect(
         return False
 
     if not llm_supports_reasoning:
+        # Extract the decision that the non-reasoning model came too.
         extraction_message = [{"role": "system",
                                "content": "You will be given a piece of text. At the end will be a answer, either 'yes' or 'no'. You are to output that single word final answer. 'yes' or 'no'"},
                               {"role": "user",
