@@ -337,7 +337,11 @@ void ED_screen_do_listen(bContext *C, const wmNotifier *note);
  * \returns if screen changing was successful.
  */
 bool ED_screen_change(bContext *C, bScreen *screen);
-void ED_screen_scene_change(bContext *C, wmWindow *win, Scene *scene, bool refresh_toolsystem);
+void ED_screen_scene_change(bContext *C,
+                            wmWindow *win,
+                            Scene *scene,
+                            bool refresh_toolsystem,
+                            bool update_modal_handler_scene_context);
 /**
  * Called in `wm_event_system.cc`. sets state vars in screen, cursors.
  * event type is mouse move.

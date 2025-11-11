@@ -340,8 +340,11 @@ Scene *WM_window_get_active_scene(const wmWindow *win) ATTR_NONNULL() ATTR_WARN_
 /**
  * \warning Only call outside of area/region loops.
  */
-void WM_window_set_active_scene(Main *bmain, bContext *C, wmWindow *win, Scene *scene)
-    ATTR_NONNULL();
+void WM_window_set_active_scene(Main *bmain,
+                                bContext *C,
+                                wmWindow *win,
+                                Scene *scene,
+                                bool update_modal_handler_scene_context = true) ATTR_NONNULL();
 WorkSpace *WM_window_get_active_workspace(const wmWindow *win)
     ATTR_NONNULL() ATTR_WARN_UNUSED_RESULT;
 void WM_window_set_active_workspace(bContext *C, wmWindow *win, WorkSpace *workspace)
@@ -710,6 +713,7 @@ void WM_event_free_ui_handler_all(bContext *C,
 wmEventHandler_Op *WM_event_add_modal_handler_ex(wmWindow *win,
                                                  ScrArea *area,
                                                  ARegion *region,
+                                                 Scene *scene,
                                                  wmOperator *op) ATTR_NONNULL(1, 4);
 wmEventHandler_Op *WM_event_add_modal_handler(bContext *C, wmOperator *op) ATTR_NONNULL(1, 2);
 void WM_event_remove_model_handler(ListBase *handlers, const wmOperator *op, bool postpone)

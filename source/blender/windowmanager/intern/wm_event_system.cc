@@ -2199,7 +2199,8 @@ static void wm_handler_op_context_get_if_valid(bContext *C,
                                                wmEventHandler_Op *handler,
                                                const wmEvent *event,
                                                ScrArea **r_area,
-                                               ARegion **r_region)
+                                               ARegion **r_region,
+                                               Scene **r_scene)
 {
   wmWindow *win = handler->context.win ? handler->context.win : CTX_wm_window(C);
   /* It's probably fine to always use #WM_window_get_active_screen() to get the screen. But this
@@ -2263,15 +2264,42 @@ static void wm_handler_op_context_get_if_valid(bContext *C,
       }
     }
   }
+
+  /* Ensure that the scene context is still valid by checking that the scene is still in bmain. */
+  if (handler->context.scene != nullptr) {
+    Main *bmain = CTX_data_main(C);
+    if (BLI_findindex(&bmain->scenes, handler->context.scene) == -1) {
+      handler->context.scene = nullptr;
+      *r_scene = nullptr;
+    }
+    else {
+      *r_scene = handler->context.scene;
+    }
+  }
+}
+
+static void wm_handler_switch_scene_context(bContext *C, wmWindow *win, Scene *new_scene)
+{
+  if (new_scene == nullptr) {
+    return;
+  }
+  if (win->scene != new_scene) {
+    ED_screen_scene_change(C, win, new_scene, true, false);
+  }
 }
 
 static void wm_handler_op_context(bContext *C, wmEventHandler_Op *handler, const wmEvent *event)
 {
+  wmWindow *win = CTX_wm_window(C);
+
   ScrArea *area = nullptr;
   ARegion *region = nullptr;
-  wm_handler_op_context_get_if_valid(C, handler, event, &area, &region);
+  Scene *scene = nullptr;
+  wm_handler_op_context_get_if_valid(C, handler, event, &area, &region, &scene);
   CTX_wm_area_set(C, area);
   CTX_wm_region_set(C, region);
+  wm_handler_switch_scene_context(C, win, scene);
+  CTX_data_scene_set(C, scene);
 }
 
 void WM_event_remove_handlers(bContext *C, ListBase *handlers)
@@ -2301,6 +2329,7 @@ void WM_event_remove_handlers(bContext *C, ListBase *handlers)
         if (handler->op->type->cancel) {
           ScrArea *area = CTX_wm_area(C);
           ARegion *region = CTX_wm_region(C);
+          Scene *scene = WM_window_get_active_scene(win);
 
           wm_handler_op_context(C, handler, win->eventstate);
 
@@ -2316,6 +2345,7 @@ void WM_event_remove_handlers(bContext *C, ListBase *handlers)
 
           CTX_wm_area_set(C, area);
           CTX_wm_region_set(C, region);
+          wm_handler_switch_scene_context(C, win, scene);
         }
 
         WM_cursor_grab_disable(win, nullptr);
@@ -2641,6 +2671,7 @@ static eHandlerActionFlag wm_handler_operator_call(bContext *C,
       wmWindow *win = CTX_wm_window(C);
       ScrArea *area = CTX_wm_area(C);
       ARegion *region = CTX_wm_region(C);
+      Scene *scene = WM_window_get_active_scene(win);
 
       wm_handler_op_context(C, handler, event);
       wm_region_mouse_co(C, event);
@@ -2723,6 +2754,8 @@ static eHandlerActionFlag wm_handler_operator_call(bContext *C,
           // retval &= ~OPERATOR_PASS_THROUGH;
         }
       }
+
+      wm_handler_switch_scene_context(C, win, scene);
     }
     else {
       CLOG_ERROR(WM_LOG_EVENTS, "Missing modal '%s'", op->idname);
@@ -4449,6 +4482,7 @@ void WM_event_add_fileselect(bContext *C, wmOperator *op)
   /* Determined later. */
   ScrArea *root_area = nullptr;
   ARegion *root_region = nullptr;
+  Scene *root_scene = nullptr;
 
   if (!CLG_quiet_get()) {
     /* Perform some sanity checks.
@@ -4522,7 +4556,7 @@ void WM_event_add_fileselect(bContext *C, wmOperator *op)
       }
 
       wm_handler_op_context_get_if_valid(
-          C, handler, ctx_win->eventstate, &root_area, &root_region);
+          C, handler, ctx_win->eventstate, &root_area, &root_region, &root_scene);
 
       ScrArea *file_area = ED_fileselect_handler_area_find(root_win, handler->op);
 
@@ -4545,6 +4579,9 @@ void WM_event_add_fileselect(bContext *C, wmOperator *op)
     root_area = CTX_wm_area(C);
     root_region = CTX_wm_region(C);
   }
+  if (!root_scene) {
+    root_scene = CTX_data_scene(C);
+  }
 
   wmEventHandler_Op *handler = MEM_callocN<wmEventHandler_Op>(__func__);
   handler->head.type = WM_HANDLER_TYPE_OP;
@@ -4554,6 +4591,7 @@ void WM_event_add_fileselect(bContext *C, wmOperator *op)
   handler->context.win = root_win;
   handler->context.area = root_area;
   handler->context.region = root_region;
+  handler->context.scene = root_scene;
 
   wm_handler_operator_insert(root_win, handler);
 
@@ -4634,10 +4672,8 @@ static void WM_event_set_handler_flag(wmEventHandler *handler, const int flag)
 }
 #endif
 
-wmEventHandler_Op *WM_event_add_modal_handler_ex(wmWindow *win,
-                                                 ScrArea *area,
-                                                 ARegion *region,
-                                                 wmOperator *op)
+wmEventHandler_Op *WM_event_add_modal_handler_ex(
+    wmWindow *win, ScrArea *area, ARegion *region, Scene *scene, wmOperator *op)
 {
   wmEventHandler_Op *handler = MEM_callocN<wmEventHandler_Op>(__func__);
   handler->head.type = WM_HANDLER_TYPE_OP;
@@ -4657,6 +4693,7 @@ wmEventHandler_Op *WM_event_add_modal_handler_ex(wmWindow *win,
   handler->context.region = region;
   handler->context.region_type = handler->context.region ? handler->context.region->regiontype :
                                                            -1;
+  handler->context.scene = scene;
 
   wm_handler_operator_insert(win, handler);
 
@@ -4672,7 +4709,8 @@ wmEventHandler_Op *WM_event_add_modal_handler(bContext *C, wmOperator *op)
   wmWindow *win = CTX_wm_window(C);
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = CTX_wm_region(C);
-  return WM_event_add_modal_handler_ex(win, area, region, op);
+  Scene *scene = CTX_data_scene(C);
+  return WM_event_add_modal_handler_ex(win, area, region, scene, op);
 }
 
 void WM_event_remove_model_handler(ListBase *handlers, const wmOperator *op, const bool postpone)

@@ -404,9 +404,14 @@ void sync_active_scene_and_time_with_scene_strip(bContext &C)
   wmWindow *win = CTX_wm_window(&C);
   const Strip *scene_strip = get_scene_strip_for_time_sync(sequencer_scene);
   if (!scene_strip || !scene_strip->scene) {
-    /* No scene strip with scene found. Switch to pinned scene. */
+    /* No scene strip with scene found. Switch to sequencer scene. */
     Main *bmain = CTX_data_main(&C);
-    WM_window_set_active_scene(bmain, &C, win, sequencer_scene);
+    /* Since we might be syncing the scene during playback, don't update the context for modal
+     * operators.
+     * FIXME: Operators should keep working even when the scene context changes! */
+    const bool update_modal_handler_scene_context = false;
+    WM_window_set_active_scene(
+        bmain, &C, win, sequencer_scene, update_modal_handler_scene_context);
     return;
   }
 
@@ -417,7 +422,12 @@ void sync_active_scene_and_time_with_scene_strip(bContext &C)
   if (active_scene != scene_strip->scene) {
     /* Sync active scene in window. */
     Main *bmain = CTX_data_main(&C);
-    WM_window_set_active_scene(bmain, &C, win, scene_strip->scene);
+    /* Since we might be syncing the scene during playback, don't update the context for modal
+     * operators.
+     * FIXME: Operators should keep working even when the scene context changes! */
+    const bool update_modal_handler_scene_context = false;
+    WM_window_set_active_scene(
+        bmain, &C, win, scene_strip->scene, update_modal_handler_scene_context);
     active_scene = scene_strip->scene;
   }
   Object *camera = [&]() -> Object * {

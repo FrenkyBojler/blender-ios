@@ -50,6 +50,7 @@
 
 #include "WM_message.hh"
 #include "WM_toolsystem.hh"
+#include "wm_event_system.hh"
 
 #include "DEG_depsgraph_query.hh"
 
@@ -1494,11 +1495,20 @@ static void screen_set_3dview_camera(Scene *scene,
 void ED_screen_scene_change(bContext *C,
                             wmWindow *win,
                             Scene *scene,
-                            const bool refresh_toolsystem)
+                            const bool refresh_toolsystem,
+                            const bool update_modal_handler_scene_context)
 {
 #if 0
   ViewLayer *view_layer_old = WM_window_get_active_view_layer(win);
 #endif
+
+  if (update_modal_handler_scene_context) {
+    LISTBASE_FOREACH (wmEventHandler_Op *, handler, &win->modalhandlers) {
+      if (handler->context.scene == win->scene) {
+        handler->context.scene = scene;
+      }
+    }
+  }
 
   /* Switch scene. */
   win->scene = scene;

@@ -128,6 +128,10 @@ struct wmEventHandler_Op {
     ScrArea *area;
     ARegion *region;
     short region_type;
+    /**
+     * TODO
+     */
+    Scene *scene;
   } context;
 };
 

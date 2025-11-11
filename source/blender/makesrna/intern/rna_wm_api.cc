@@ -133,7 +133,8 @@ static bool rna_event_modal_handler_add(bContext *C, ReportList *reports, wmOper
   }
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = CTX_wm_region(C);
-  return WM_event_add_modal_handler_ex(win, area, region, op) != nullptr;
+  Scene *scene = CTX_data_scene(C);
+  return WM_event_add_modal_handler_ex(win, area, region, scene, op) != nullptr;
 }
 
 static wmTimer *rna_event_timer_add(wmWindowManager *wm, float time_step, wmWindow *win)

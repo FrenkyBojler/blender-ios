@@ -1250,7 +1250,7 @@ wmWindow *WM_window_open(bContext *C,
   STRNCPY_UTF8(win->view_layer_name, view_layer->name);
   if (WM_window_get_active_scene(win) != scene) {
     /* No need to refresh the tool-system as the window has not yet finished being setup. */
-    ED_screen_scene_change(C, win, scene, false);
+    ED_screen_scene_change(C, win, scene, false, false);
   }
 
   screen->temp = temp;
@@ -3042,7 +3042,11 @@ Scene *WM_window_get_active_scene(const wmWindow *win)
   return win->scene;
 }
 
-void WM_window_set_active_scene(Main *bmain, bContext *C, wmWindow *win, Scene *scene)
+void WM_window_set_active_scene(Main *bmain,
+                                bContext *C,
+                                wmWindow *win,
+                                Scene *scene,
+                                const bool update_modal_handler_scene_context)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
   wmWindow *win_parent = (win->parent) ? win->parent : win;
@@ -3050,13 +3054,13 @@ void WM_window_set_active_scene(Main *bmain, bContext *C, wmWindow *win, Scene *
 
   /* Set scene in parent and its child windows. */
   if (win_parent->scene != scene) {
-    ED_screen_scene_change(C, win_parent, scene, true);
+    ED_screen_scene_change(C, win_parent, scene, true, update_modal_handler_scene_context);
     changed = true;
   }
 
   LISTBASE_FOREACH (wmWindow *, win_child, &wm->windows) {
     if (win_child->parent == win_parent && win_child->scene != scene) {
-      ED_screen_scene_change(C, win_child, scene, true);
+      ED_screen_scene_change(C, win_child, scene, true, update_modal_handler_scene_context);
       changed = true;
     }
   }
