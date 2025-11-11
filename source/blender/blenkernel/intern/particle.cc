@@ -3949,7 +3949,21 @@ static ModifierData *object_add_or_copy_particle_system(
 
   psmd = (ParticleSystemModifierData *)md;
   psmd->psys = psys;
-  BLI_addtail(&ob->modifiers, md);
+  ModifierData *pinned_md = nullptr;
+  LISTBASE_FOREACH_BACKWARD (ModifierData *, md, &ob->modifiers) {
+    if (md->flag & eModifierFlag_PinLast) {
+      pinned_md = md;
+    }
+    else {
+      break;
+    }
+  }
+  if (pinned_md) {
+    BLI_insertlinkbefore(&ob->modifiers, pinned_md, md);
+  }
+  else {
+    BLI_addtail(&ob->modifiers, md);
+  }
   BKE_object_modifier_set_active(ob, md);
   BKE_modifiers_persistent_uid_init(*ob, *md);
 
