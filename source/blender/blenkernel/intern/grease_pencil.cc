@@ -482,7 +482,6 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
                                               const OffsetIndices<int> points_by_curve,
                                               const IndexMask &shape_mask,
                                               const Span<IndexMask> &shapes,
-                                              const VArray<bool> is_holes,
                                               Vector<int3> &r_triangles,
                                               MutableSpan<int> r_triangle_offsets)
 {
@@ -598,7 +597,8 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
           input.face = faces;
           input.need_ids = true;
 
-          meshintersect::CDT_result<double> result = delaunay_2d_calc(input, CDT_INSIDE);
+          meshintersect::CDT_result<double> result = delaunay_2d_calc(input,
+                                                                      CDT_INSIDE_WITH_HOLES);
 
           auto vert_to_point = [&](const int vert) {
             /* If the points is a newly added intersection point return invalid. */
@@ -611,24 +611,6 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
           };
 
           for (const int i : result.face.index_range()) {
-            /* If this face does not exist in the original then is must be a hole. */
-            if (result.face_orig[i].is_empty()) {
-              continue;
-            }
-
-            if (is_holes) {
-              /* The last curve should be drawn on top of all others. */
-              const int highest_curve = og_face_to_curve_map[result.face_orig[i].last()];
-
-              /* Check if the highest face in the draw order is a hole. */
-              const bool is_hole = is_holes[highest_curve];
-
-              /* Holes are not rendered. */
-              if (is_hole) {
-                continue;
-              }
-            }
-
             BLI_assert(result.face[i].size() == 3);
             const int3 tri = int3(vert_to_point(result.face[i][0]),
                                   vert_to_point(result.face[i][1]),
@@ -670,8 +652,6 @@ static void ensure_triangle_and_offset_cache(const Drawing &drawing)
   const Vector<IndexMask> shapes = drawing.shapes(memory);
 
   const CurvesGeometry &curves = drawing.strokes();
-  const bke::AttributeAccessor attributes = curves.attributes();
-  const VArray<bool> is_holes = *attributes.lookup<bool>("is_hole", bke::AttrDomain::Curve);
 
   Vector<int3> r_triangle;
   Vector<int> r_triangle_offsets(shapes.size() + 1);
@@ -681,7 +661,6 @@ static void ensure_triangle_and_offset_cache(const Drawing &drawing)
                                     curves.evaluated_points_by_curve(),
                                     shapes.index_range(),
                                     shapes,
-                                    is_holes,
                                     r_triangle,
                                     r_triangle_offsets.as_mutable_span());
 
@@ -1068,7 +1047,6 @@ static void update_triangle_and_offsets_changed(const Span<float3> positions,
                                                 const OffsetIndices<int> dst_points_by_curve,
                                                 const IndexMask &changed_curves,
                                                 const Span<IndexMask> shapes,
-                                                const VArray<bool> is_holes,
                                                 const Span<int3> src_triangles,
                                                 const OffsetIndices<int> src_triangle_offsets,
                                                 Vector<int3> &r_triangles,
@@ -1090,7 +1068,6 @@ static void update_triangle_and_offsets_changed(const Span<float3> positions,
                                     dst_points_by_curve,
                                     changed_shapes,
                                     shapes,
-                                    is_holes,
                                     changed_triangles,
                                     changed_triangle_offsets_data.as_mutable_span());
 
@@ -1186,8 +1163,6 @@ void Drawing::tag_positions_changed(const IndexMask &changed_curves)
   Vector<int3> triangles_data;
 
   const CurvesGeometry &curves = this->strokes();
-  const bke::AttributeAccessor attributes = curves.attributes();
-  const VArray<bool> is_holes = *attributes.lookup<bool>("is_hole", bke::AttrDomain::Curve);
 
   update_triangle_and_offsets_changed(this->strokes().evaluated_positions(),
                                       this->curve_plane_normals(),
@@ -1195,7 +1170,6 @@ void Drawing::tag_positions_changed(const IndexMask &changed_curves)
                                       this->strokes().evaluated_points_by_curve(),
                                       changed_curves,
                                       shapes,
-                                      is_holes,
                                       this->triangles(),
                                       this->triangle_offsets().data(),
                                       triangles_data,
@@ -1255,8 +1229,6 @@ void Drawing::tag_topology_changed(const IndexMask &changed_curves,
     Vector<int3> triangles;
 
     const CurvesGeometry &curves = this->strokes();
-    const bke::AttributeAccessor attributes = curves.attributes();
-    const VArray<bool> is_holes = *attributes.lookup<bool>("is_hole", bke::AttrDomain::Curve);
 
     update_triangle_and_offsets_changed(this->strokes().evaluated_positions(),
                                         this->curve_plane_normals(),
@@ -1264,7 +1236,6 @@ void Drawing::tag_topology_changed(const IndexMask &changed_curves,
                                         this->strokes().evaluated_points_by_curve(),
                                         changed_curves,
                                         shapes,
-                                        is_holes,
                                         this->triangles(),
                                         this->triangle_offsets().data(),
                                         triangles,
