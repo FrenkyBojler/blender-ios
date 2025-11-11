@@ -645,6 +645,10 @@ def llm_says_version_is_incorrect(
         "- The version number above refers to the entire family of versions from early development to stable release. So if a version number has additional version classifiers like Alpha, Beta, Release Candidate, Stable, LTS, etc, then these are not considered seperate versions. For example: 3.2 and 3.2 Beta are considered the same version in this situation as they are from the same family."]
 
     if not should_be_broken:
+        # To allow the script to handle new features, triagers usually put "Worked: N/A as it's a new feature in X.Y" so the script sees:
+        # Broken: X.Y, Worked: X.Y
+        # And classifies the bug fix as a fix for a issue introduced in the current release.
+        # We need to let the LLM know about this behaviour so it doesn't flag these reports for manual review.
         user_prompt.append(
             "- If a working field says something similar to 'Worked: N/A as it's a new feature in 3.2', then you should consider 3.2 a working version of Blender in this situation.")
 
