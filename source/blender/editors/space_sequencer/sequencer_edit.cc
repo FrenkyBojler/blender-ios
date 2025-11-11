@@ -1998,7 +1998,7 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
   const int2 rect_frames = {round_fl_to_int(rectf.xmin), round_fl_to_int(rectf.xmax)};
 
   bool changed = false;
-  int max_left_offset = INT_MAX;
+  int gap_removal_left_boundary = INT_MAX;
 
   /* Make two split logic runs so the newly created strips can get split by the second run. */
   for (int cut_pos : {0, 1}) {
@@ -2008,7 +2008,7 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
       rctf rq;
       strip_rectf(scene, strip, &rq);
       if (BLI_rctf_isect(&rq, &rectf, nullptr)) {
-        max_left_offset = math::min(max_left_offset,
+        gap_removal_left_boundary = math::min(gap_removal_left_boundary,
                                     seq::time_left_handle_frame_get(scene, strip));
         const char *error_msg = nullptr;
         if (seq::edit_strip_split(bmain,
@@ -2070,7 +2070,7 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
   if (remove_gaps) {
     int offset = rect_frames[0] - rect_frames[1];
     /* Cap offset. */
-    offset = math::max(offset, (max_left_offset - rect_frames[1]));
+    offset = math::max(offset, (gap_removal_left_boundary - rect_frames[1]));
 
     LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
       if (!ignore_selection && !selected_strips_from_context(C).contains(strip)) {
