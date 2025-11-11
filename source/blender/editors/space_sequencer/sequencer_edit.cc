@@ -2009,12 +2009,7 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
       rctf rq;
       strip_rectf(scene, strip, &rq);
       if (BLI_rctf_isect(&rq, &rectf, nullptr)) {
-        if (max_left_offset == INT_MAX ||
-            seq::time_left_handle_frame_get(scene, strip) < max_left_offset)
-        {
-          max_left_offset = std::min(max_left_offset,
-                                     seq::time_left_handle_frame_get(scene, strip));
-        }
+        max_left_offset = math::min(max_left_offset, seq::time_left_handle_frame_get(scene, strip));
         /* Don't change the content of ed->current_strips() in LISTBASE_FOREACH. */
         strips_to_cut.add(strip);
       }
