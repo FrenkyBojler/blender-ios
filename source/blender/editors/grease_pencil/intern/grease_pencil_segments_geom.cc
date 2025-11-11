@@ -131,7 +131,7 @@ class Segment {
     return this->point_range().size();
   }
 
-  template<typename Fn> inline void foreach_point(Fn &&fn) const
+  template<typename Fn> void foreach_point(Fn &&fn) const
   {
     const IndexRange point_range = this->point_range();
 
