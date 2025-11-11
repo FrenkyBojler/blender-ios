@@ -577,48 +577,72 @@ gpu::Shader *ShaderModule::static_shader_get(eShaderType shader_type)
  * \{ */
 
 /* Helper class to get free sampler slots for materials. */
-class SamplerSlots {
-  uint64_t available_slots_ = ~uint64_t(0u);
+class SlotAllocator {
+  uint64_t available_samplers_ = ~uint64_t(0u);
+  uint32_t available_vertex_id_ = ~uint32_t(0u);
+  bool sampler_overflow_ = false;
+  bool vertex_id_overflow_ = false;
 
  public:
   void reserve_slots(const blender::gpu::shader::ShaderCreateInfo &info)
   {
     using namespace blender::gpu::shader;
+    for (const ShaderCreateInfo::VertIn &vert_in : info.vertex_inputs_) {
+      available_vertex_id_ &= ~(uint32_t(1) << vert_in.index);
+    }
     for (const ShaderCreateInfo::Resource &res : info.pass_resources_) {
       if (res.bind_type == ShaderCreateInfo::Resource::SAMPLER) {
-        available_slots_ &= ~(uint64_t(1) << res.slot);
+        available_samplers_ &= ~(uint64_t(1) << res.slot);
       }
     }
     for (const ShaderCreateInfo::Resource &res : info.batch_resources_) {
       if (res.bind_type == ShaderCreateInfo::Resource::SAMPLER) {
-        available_slots_ &= ~(uint64_t(1) << res.slot);
+        available_samplers_ &= ~(uint64_t(1) << res.slot);
       }
     }
     for (const ShaderCreateInfo::Resource &res : info.geometry_resources_) {
       if (res.bind_type == ShaderCreateInfo::Resource::SAMPLER) {
-        available_slots_ &= ~(uint64_t(1) << res.slot);
+        available_samplers_ &= ~(uint64_t(1) << res.slot);
       }
     }
   }
 
-  int get()
+  bool sampler_overflow() const
   {
-    if (available_slots_ == 0) {
+    return sampler_overflow_;
+  }
+
+  bool vertex_id_overflow() const
+  {
+    return vertex_id_overflow_;
+  }
+
+  int get_next_sampler()
+  {
+    if (available_samplers_ == 0) {
       /* Should result in compilation failure. */
+      sampler_overflow_ = true;
       return -1;
     }
-    return bitscan_forward_clear_uint64(&available_slots_);
+    return bitscan_forward_clear_uint64(&available_samplers_);
+  }
+
+  void set_vertex_input(int index)
+  {
+    if ((available_vertex_id_ & 0xFFFFu) == 0) {
+      /* Should result in compilation failure. */
+      vertex_id_overflow_ = true;
+    }
+    available_vertex_id_ &= ~(uint32_t(1) << index);
   }
 };
 
-static SamplerSlots add_pipeline_create_info(blender::gpu::shader::ShaderCreateInfo &info,
-                                             eMaterialPipeline pipeline_type,
-                                             eMaterialGeometry geometry_type,
-                                             const bool use_shader_to_rgba)
+static SlotAllocator add_pipeline_create_info(blender::gpu::shader::ShaderCreateInfo &info,
+                                              eMaterialPipeline pipeline_type,
+                                              eMaterialGeometry geometry_type,
+                                              const bool use_shader_to_rgba)
 {
   using namespace blender::gpu::shader;
-
-  SamplerSlots available_slots;
 
   StringRefNull pipeline_info_name;
   StringRefNull additional_info_name;
@@ -690,6 +714,29 @@ static SamplerSlots add_pipeline_create_info(blender::gpu::shader::ShaderCreateI
       }
       break;
   }
+
+  /* Geometry Info. */
+  StringRefNull geometry_info_name;
+  switch (geometry_type) {
+    case MAT_GEOM_WORLD:
+      geometry_info_name = "eevee_geom_world";
+      break;
+    case MAT_GEOM_CURVES:
+      geometry_info_name = "eevee_geom_curves";
+      break;
+    case MAT_GEOM_MESH:
+      geometry_info_name = "eevee_geom_mesh";
+      break;
+    case MAT_GEOM_POINTCLOUD:
+      geometry_info_name = "eevee_geom_pointcloud";
+      break;
+    case MAT_GEOM_VOLUME:
+      geometry_info_name = "eevee_geom_volume";
+      break;
+  }
+
+  SlotAllocator available_slots;
+
   if (!pipeline_info_name.is_empty()) {
     info.additional_info(pipeline_info_name);
     const ShaderCreateInfo *info = reinterpret_cast<const ShaderCreateInfo *>(
@@ -700,6 +747,12 @@ static SamplerSlots add_pipeline_create_info(blender::gpu::shader::ShaderCreateI
     info.additional_info(additional_info_name);
     const ShaderCreateInfo *info = reinterpret_cast<const ShaderCreateInfo *>(
         GPU_shader_create_info_get(additional_info_name.c_str()));
+    available_slots.reserve_slots(*info);
+  }
+  if (!geometry_info_name.is_empty()) {
+    info.additional_info(geometry_info_name);
+    const ShaderCreateInfo *info = reinterpret_cast<const ShaderCreateInfo *>(
+        GPU_shader_create_info_get(geometry_info_name.c_str()));
     available_slots.reserve_slots(*info);
   }
   return available_slots;
@@ -764,12 +817,12 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
     }
   }
 
-  SamplerSlots sampler_slots = add_pipeline_create_info(
+  SlotAllocator slots = add_pipeline_create_info(
       info, pipeline_type, geometry_type, use_shader_to_rgba);
 
   for (auto &resource : info.batch_resources_) {
     if (resource.bind_type == ShaderCreateInfo::Resource::BindType::SAMPLER) {
-      resource.slot = sampler_slots.get();
+      resource.slot = slots.get_next_sampler();
     }
   }
 
@@ -928,7 +981,7 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
         /* TODO(fclem): Eventually, we could add support for loading both. For now, remove the
          * vertex inputs after conversion (avoid name collision). */
         for (auto &input : info.vertex_inputs_) {
-          info.sampler(sampler_slots.get(), ImageType::Float3D, input.name, Frequency::BATCH);
+          info.sampler(slots.get_next_sampler(), ImageType::Float3D, input.name, Frequency::BATCH);
         }
         info.vertex_inputs_.clear();
         /* Volume materials require these for loading the grid attributes from smoke sims. */
@@ -944,7 +997,8 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
           global_vars << input.type << " " << input.name << ";\n";
         }
         else {
-          info.sampler(sampler_slots.get(), ImageType::FloatBuffer, input.name, Frequency::BATCH);
+          info.sampler(
+              slots.get_next_sampler(), ImageType::FloatBuffer, input.name, Frequency::BATCH);
         }
       }
       info.vertex_inputs_.clear();
@@ -954,7 +1008,7 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
         /* Even if world do not have grid attributes, we use dummy texture binds to pass correct
          * defaults. So we have to replace all attributes as samplers. */
         for (auto &input : info.vertex_inputs_) {
-          info.sampler(sampler_slots.get(), ImageType::Float3D, input.name, Frequency::BATCH);
+          info.sampler(slots.get_next_sampler(), ImageType::Float3D, input.name, Frequency::BATCH);
         }
         info.vertex_inputs_.clear();
       }
@@ -970,10 +1024,14 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
     case MAT_GEOM_VOLUME:
       /** Volume grid attributes come from 3D textures. Transfer attributes to samplers. */
       for (auto &input : info.vertex_inputs_) {
-        info.sampler(sampler_slots.get(), ImageType::Float3D, input.name, Frequency::BATCH);
+        info.sampler(slots.get_next_sampler(), ImageType::Float3D, input.name, Frequency::BATCH);
       }
       info.vertex_inputs_.clear();
       break;
+  }
+
+  for (auto &vert_in : info.vertex_inputs_) {
+    slots.set_vertex_input(vert_in.index);
   }
 
   const bool support_volume_attributes = ELEM(geometry_type, MAT_GEOM_MESH, MAT_GEOM_VOLUME);
@@ -1133,62 +1191,24 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
     info.generated_sources.append({"eevee_nodetree_frag_lib.glsl", dependencies, frag_gen.str()});
   }
 
-  int reserved_attr_slots = 0;
-
-  /* Geometry Info. */
-  switch (geometry_type) {
-    case MAT_GEOM_WORLD:
-      info.additional_info("eevee_geom_world");
-      break;
-    case MAT_GEOM_CURVES:
-      info.additional_info("eevee_geom_curves");
-      break;
-    case MAT_GEOM_MESH:
-      info.additional_info("eevee_geom_mesh");
-      reserved_attr_slots = 2; /* Number of vertex attributes inside eevee_geom_mesh. */
-      break;
-    case MAT_GEOM_POINTCLOUD:
-      info.additional_info("eevee_geom_pointcloud");
-      break;
-    case MAT_GEOM_VOLUME:
-      info.additional_info("eevee_geom_volume");
-      reserved_attr_slots = 1; /* Number of vertex attributes inside eevee_geom_mesh. */
-      break;
-  }
-
+  const char *material_name = (info.name_.c_str() + 2);
   /* Make shaders that have as too many attributes fail compilation and have correct error
    * report instead of raising an error. */
-  if (info.vertex_inputs_.size() > 0) {
-    const int last_attr_index = info.vertex_inputs_.last().index;
-    if (last_attr_index - reserved_attr_slots < 0) {
-      const char *material_name = (info.name_.c_str() + 2);
-      std::cerr << "Error: EEVEE: Material " << material_name << " uses too many attributes."
-                << std::endl;
-      /* Avoid assert in ShaderCreateInfo::finalize. */
-      info.vertex_inputs_.clear();
-    }
+  if (slots.vertex_id_overflow()) {
+    std::cerr << "Error: EEVEE: Material " << material_name << " uses too many attributes."
+              << std::endl;
+    /* Avoid assert in ShaderCreateInfo::finalize. */
+    info.vertex_inputs_.clear();
   }
-
   /* Make shaders that have as too many samplers fail compilation and have correct error
    * report instead of raising an error. */
-  {
-    bool out_of_sampler = false;
-    int index = 0;
-    for (const ShaderCreateInfo::Resource &res : info.batch_resources_) {
-      if (res.bind_type == ShaderCreateInfo::Resource::SAMPLER && res.slot == -1) {
-        info.batch_resources_.remove(index);
-        out_of_sampler = true;
-      }
-      index++;
-    }
-
-    if (out_of_sampler) {
-      /* We ran out of binding slots. Many systems inside the GPU backend assume a max amount of 64
-       * samplers. */
-      const char *material_name = (info.name_.c_str() + 2);
-      std::cerr << "Error: EEVEE: Material " << material_name << " uses too many samplers."
-                << std::endl;
-    }
+  if (slots.sampler_overflow()) {
+    /* We ran out of binding slots. Many systems inside the GPU backend assume a max amount of 64
+     * samplers. */
+    std::cerr << "Error: EEVEE: Material " << material_name << " uses too many samplers."
+              << std::endl;
+    /* Avoid assert in ShaderCreateInfo::finalize. */
+    info.batch_resources_.clear();
   }
 }
 
