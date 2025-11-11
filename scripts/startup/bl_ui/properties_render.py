@@ -1004,7 +1004,7 @@ class RENDER_PT_opengl_color(RenderButtonsPanel, Panel):
 
 
 class RENDER_PT_opengl_background(RenderButtonsPanel, Panel):
-    bl_label = "Background Color"
+    bl_label = "Background"
     COMPAT_ENGINES = {'BLENDER_WORKBENCH'}
 
     @classmethod
