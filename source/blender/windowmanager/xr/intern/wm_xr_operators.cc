@@ -1492,24 +1492,23 @@ static float wm_xr_navigation_determine_head_height(bContext *C, wmOperator *op,
 static bool wm_xr_navigation_arc_clip_to_ground_plane(blender::Array<blender::float3> &points,
                                                       int &end_point_idx)
 {
+  /* Truncate the arc to the ground plane (Z=0). */
   using namespace blender;
-
-  /* Truncate the arc to the ground plane (Z=0) by finding the first segment that crosses it,
-   * interpolating the intersection point, and terminating the arc by setting its index as the
-   * end point. */
 
   for (int i = 1; i < end_point_idx; ++i) {
     const float3 &startpoint = points[i - 1];
     const float3 &endpoint = points[i];
 
-    /* Skip if both points have the same sign to find the point where we cross the ground plane. */
-    if ((startpoint.z * endpoint.z) >= 0) {
+    /* Iterate until we find the point where we cross the ground plane downward. */
+    if (!(startpoint.z > 0 && endpoint.z < 0)) {
       continue;
     }
 
+    /* Adjust the last point to intersect with the ground plane. */
     const float alpha = math::safe_divide(startpoint.z, (startpoint.z - endpoint.z));
     points[i] = math::interpolate(startpoint, endpoint, alpha);
 
+    /* Terminate the arc at the adjusted point. */
     end_point_idx = i;
 
     return true;
