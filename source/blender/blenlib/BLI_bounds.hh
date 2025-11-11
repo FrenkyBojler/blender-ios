@@ -313,7 +313,7 @@ template<typename T> [[nodiscard]] inline Bounds<T> segment_bounds(const T &star
   return bounds;
 }
 
-/** Adaptation of Liang–Barsky for N dimensions. */
+/** Adaptation of Liang-Barsky for N dimensions. */
 template<typename T, int Size>
 [[nodiscard]] inline bool segment_enter_exit_bounds_v(const Bounds<VecBase<T, Size>> &bounds,
                                                       const VecBase<T, Size> &start,
