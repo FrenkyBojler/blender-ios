@@ -24,6 +24,45 @@ struct Strip;
 
 namespace blender::seq {
 
+struct SeqRenderState;
+struct RenderData;
+
+enum class StripEarlyOut {
+  NoInput = -1,  /* No input needed. */
+  DoEffect = 0,  /* No early out (do the effect). */
+  UseInput1 = 1, /* Output = input1. */
+  UseInput2 = 2, /* Output = input2. */
+};
+
+struct EffectHandle {
+  /* #init is only called on first creation, or when changing effect type. */
+  void (*init)(Strip *strip);
+
+  /* Number of input strips needed for this effect. */
+  int (*num_inputs)();
+
+  /* duplicate */
+  void (*copy)(Strip *dst, const Strip *src, int flag);
+
+  /* destruct */
+  void (*free)(Strip *strip, bool do_id_user);
+
+  StripEarlyOut (*early_out)(const Strip *strip, float fac);
+
+  /* execute the effect */
+  ImBuf *(*execute)(const RenderData *context,
+                    SeqRenderState *state,
+                    Strip *strip,
+                    float timeline_frame,
+                    float fac,
+                    ImBuf *ibuf1,
+                    ImBuf *ibuf2);
+};
+
+/** Get the effect handle for a given strip.
+ * If `strip` is not an effect strip, returns empty `EffectHandle`. */
+EffectHandle strip_effect_handle_get(Strip *strip);
+
 EffectHandle strip_blend_mode_handle_get(Strip *strip);
 /**
  * Build frame map when speed in mode #SEQ_SPEED_MULTIPLY is animated.
@@ -67,31 +106,13 @@ inline void store_premul_pixel(const float4 &pix, float *dst)
   *reinterpret_cast<float4 *>(dst) = pix;
 }
 
-inline void store_opaque_black_pixel(uchar *dst)
-{
-  dst[0] = 0;
-  dst[1] = 0;
-  dst[2] = 0;
-  dst[3] = 255;
-}
-
-inline void store_opaque_black_pixel(float *dst)
-{
-  dst[0] = 0.0f;
-  dst[1] = 0.0f;
-  dst[2] = 0.0f;
-  dst[3] = 1.0f;
-}
-
-StripEarlyOut early_out_mul_input1(const Strip * /*seq*/, float fac);
-StripEarlyOut early_out_mul_input2(const Strip * /*seq*/, float fac);
-StripEarlyOut early_out_fade(const Strip * /*seq*/, float fac);
-void get_default_fac_fade(const Scene *scene,
-                          const Strip *strip,
-                          float timeline_frame,
-                          float *fac);
+StripEarlyOut early_out_mul_input1(const Strip * /*strip*/, float fac);
+StripEarlyOut early_out_mul_input2(const Strip * /*strip*/, float fac);
+StripEarlyOut early_out_fade(const Strip * /*strip*/, float fac);
 
 EffectHandle effect_handle_get(StripType strip_type);
+
+float effect_fader_calc(Scene *scene, Strip *strip, float timeline_frame);
 
 void add_effect_get_handle(EffectHandle &rval);
 void adjustment_effect_get_handle(EffectHandle &rval);

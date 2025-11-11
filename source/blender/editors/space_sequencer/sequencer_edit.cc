@@ -34,7 +34,7 @@
 #include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_report.hh"
-#include "BKE_sound.h"
+#include "BKE_sound.hh"
 
 #include "SEQ_add.hh"
 #include "SEQ_animation.hh"
@@ -62,7 +62,6 @@
 #include "RNA_enum_types.hh"
 #include "RNA_prototypes.hh"
 
-/* For menu, popup, icons, etc. */
 #include "ED_fileselect.hh"
 #include "ED_numinput.hh"
 #include "ED_object.hh"
@@ -78,7 +77,6 @@
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
 
-/* Own include. */
 #include "sequencer_intern.hh"
 #include <cstddef>
 #include <fmt/format.h>
@@ -1981,22 +1979,35 @@ void SEQUENCER_OT_split(wmOperatorType *ot)
 
 static void sequencer_report_duplicates(wmOperator *op, ListBase *duplicated_strips)
 {
-  int num_scenes = 0, num_movieclips = 0, num_masks = 0;
+  blender::Set<Scene *> scenes;
+  blender::Set<MovieClip *> movieclips;
+  blender::Set<Mask *> masks;
+
   LISTBASE_FOREACH (Strip *, strip, duplicated_strips) {
     switch (strip->type) {
       case STRIP_TYPE_SCENE:
-        num_scenes++;
+        if (strip->scene) {
+          scenes.add(strip->scene);
+        }
         break;
       case STRIP_TYPE_MOVIECLIP:
-        num_movieclips++;
+        if (strip->clip) {
+          movieclips.add(strip->clip);
+        }
         break;
       case STRIP_TYPE_MASK:
-        num_masks++;
+        if (strip->mask) {
+          masks.add(strip->mask);
+        }
         break;
       default:
         break;
     }
   }
+
+  const int num_scenes = scenes.size();
+  const int num_movieclips = movieclips.size();
+  const int num_masks = masks.size();
 
   if (num_scenes == 0 && num_movieclips == 0 && num_masks == 0) {
     return;
@@ -2497,8 +2508,8 @@ static wmOperatorStatus sequencer_meta_make_exec(bContext *C, wmOperator * /*op*
 
   seq::prefetch_stop(scene);
 
-  int channel_max = 1, channel_min = INT_MAX, meta_start_frame = MAXFRAME,
-      meta_end_frame = MINFRAME;
+  int channel_max = 1, channel_min = std::numeric_limits<int>::max(), meta_start_frame = MAXFRAME,
+      meta_end_frame = std::numeric_limits<int>::min();
   Strip *strip_meta = seq::strip_alloc(active_seqbase, 1, 1, STRIP_TYPE_META);
 
   /* Remove all selected from main list, and put in meta.
@@ -3080,9 +3091,6 @@ static wmOperatorStatus sequencer_change_effect_type_exec(bContext *C, wmOperato
   const int old_type = strip->type;
   const int new_type = RNA_enum_get(op->ptr, "type");
 
-  /* Free previous effect and init new effect. */
-  seq::EffectHandle sh;
-
   if (!strip->is_effect()) {
     return OPERATOR_CANCELLED;
   }
@@ -3092,8 +3100,8 @@ static wmOperatorStatus sequencer_change_effect_type_exec(bContext *C, wmOperato
     return OPERATOR_CANCELLED;
   }
 
-  sh = seq::strip_effect_handle_get(strip);
-  sh.free(strip, true);
+  /* Free previous effect. */
+  seq::effect_free(strip);
 
   strip->type = new_type;
 
@@ -3107,8 +3115,8 @@ static wmOperatorStatus sequencer_change_effect_type_exec(bContext *C, wmOperato
     seq::ensure_unique_name(strip, scene);
   }
 
-  sh = seq::strip_effect_handle_get(strip);
-  sh.init(strip);
+  /* Init new effect. */
+  seq::effect_ensure_initialized(strip);
 
   seq::relations_invalidate_cache(scene, strip);
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);

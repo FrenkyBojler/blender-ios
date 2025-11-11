@@ -71,6 +71,8 @@ void ShadingView::sync()
   }
 
   main_view_.sync(viewmat, winmat);
+
+  inst_.uniform_data.data.pipeline.is_main_view_inverted = main_view_.is_inverted();
 }
 
 void ShadingView::render()
@@ -324,17 +326,16 @@ void CaptureView::render_world()
     if (inst_.pipelines.world.use_lightpath_node()) {
       render_cubemap(RAY_TYPE_DIFFUSE);
       inst_.sphere_probes.remap_to_octahedral_projection(
-          update_info->atlas_coord, false, true, false);
-      /* TODO(fclem): Note, we extract the sun only from glossy capture. Ideally we would split the
-       * contribution into 2 suns with different visibility flag. */
+          update_info->atlas_coord, false, true, WORLD_SUN_DIFFUSE);
+
       render_cubemap(RAY_TYPE_GLOSSY);
       inst_.sphere_probes.remap_to_octahedral_projection(
-          update_info->atlas_coord, true, false, true);
+          update_info->atlas_coord, true, false, WORLD_SUN_GLOSSY);
     }
     else {
       render_cubemap(RAY_TYPE_GLOSSY);
       inst_.sphere_probes.remap_to_octahedral_projection(
-          update_info->atlas_coord, true, true, true);
+          update_info->atlas_coord, true, true, WORLD_SUN_COMBINED);
     }
 
     /* All volume probe that needs to composite the world probe need to be updated. */
@@ -401,8 +402,7 @@ void CaptureView::render_probes()
     inst_.render_buffers.release();
     inst_.gbuffer.release();
     GPU_debug_group_end();
-    inst_.sphere_probes.remap_to_octahedral_projection(
-        update_info->atlas_coord, true, false, false);
+    inst_.sphere_probes.remap_to_octahedral_projection(update_info->atlas_coord, true, false);
   }
 
   if (assign_if_different(inst_.pipelines.data.ray_type, RAY_TYPE_CAMERA)) {
@@ -418,7 +418,7 @@ void CaptureView::render_probes()
 
 void LookdevView::render()
 {
-  if (!inst_.lookdev.enabled_) {
+  if (!inst_.lookdev.use_reference_spheres_) {
     return;
   }
   GPU_debug_group_begin("Lookdev");

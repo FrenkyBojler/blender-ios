@@ -136,6 +136,13 @@ class ScaleOperation : public NodeOperation {
 
   void execute_variable_size()
   {
+    const Result &input = this->get_input("Image");
+    if (input.is_single_value()) {
+      Result &output = this->get_result("Image");
+      output.share_data(input);
+      return;
+    }
+
     if (this->context().use_gpu()) {
       execute_variable_size_gpu();
     }
@@ -209,8 +216,8 @@ class ScaleOperation : public NodeOperation {
 
       output.store_pixel(
           texel,
-          Color(input.sample(
-              scaled_coordinates, interpolation, extension_mode_x, extension_mode_y)));
+          input.sample<Color>(
+              scaled_coordinates, interpolation, extension_mode_x, extension_mode_y));
     });
   }
 
@@ -317,10 +324,6 @@ class ScaleOperation : public NodeOperation {
 
   float2 get_scale_render_size()
   {
-    if (!context().is_valid_compositing_region()) {
-      return float2(1.0f);
-    }
-
     switch (get_frame_type()) {
       case CMP_NODE_SCALE_RENDER_SIZE_STRETCH:
         return get_scale_render_size_stretch();

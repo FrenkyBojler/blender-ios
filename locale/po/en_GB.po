@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Beta (b'6f9eadf7a433')\n"
+"Project-Id-Version: Blender 5.0.0 Beta (b'd29f9f6118e5')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-27 09:50+0000\n"
+"POT-Creation-Date: 2025-11-10 09:45+0000\n"
 "PO-Revision-Date: 2025-07-23 14:59+0000\n"
 "Last-Translator: Deniz Jones <sdfoakes@gmail.com>\n"
 "Language-Team: English (United Kingdom) <https://translate.blender.org/projects/blender-ui/ui/en_GB/>\n"
@@ -33995,168 +33995,20 @@ msgid "Editor menu containing buttons"
 msgstr "Editor menu containing buttons"
 
 
-msgid "Text"
-msgstr "Text"
-
-
-msgid "Metaball"
-msgstr "Metaball"
-
-
-msgid "Show/Hide"
-msgstr "Show/Hide"
-
-
-msgid "Names"
-msgstr "Names"
-
-
-msgid "Bone Roll"
-msgstr "Bone Roll"
-
-
-msgid "Clean Up"
-msgstr "Clean Up"
-
-
-msgid "Pivot Point"
-msgstr "Pivot Point"
-
-
-msgid "Snap"
-msgstr "Snap"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Proportional Editing Falloff"
-
-
-msgid "Mask Edit"
-msgstr "Mask Edit"
-
-
-msgid "Automasking"
-msgstr "Automasking"
-
-
-msgid "Face Sets Edit"
-msgstr "Face Sets Edit"
-
-
-msgid "Vertex Group Locks"
-msgstr "Vertex Group Locks"
-
-
-msgid "Layout"
-msgstr "Layout"
-
-
-msgid "Mirror"
-msgstr "Mirror"
-
-
-msgid "UV Mapping"
-msgstr "UV Mapping"
-
-
-msgid "Local View"
-msgstr "Local View"
-
-
-msgid "Viewpoint"
-msgstr "Viewpoint"
-
-
-msgid "Navigation"
-msgstr "Navigation"
-
-
-msgid "Align View"
-msgstr "Align View"
-
-
-msgid "Adjust"
-msgstr "Adjust"
-
-
-msgid "Align View to Active"
-msgstr "Align View to Active"
-
-
-msgid "View Regions"
-msgstr "View Regions"
-
-
-msgid "Select More/Less"
-msgstr "Select More/Less"
-
-
-msgid "Keying"
-msgstr "Keying"
-
-
-msgid "Tracking"
-msgstr "Tracking"
-
-
-msgid "Select Similar"
-msgstr "Select Similar"
-
-
-msgid "Select All by Trait"
-msgstr "Select All by Trait"
-
-
-msgid "Utilities"
-msgstr "Utilities"
-
-
-msgid "Select Linked"
-msgstr "Select Linked"
-
-
-msgid "Math"
-msgstr "Maths"
-
-
-msgid "Select Loops"
-msgstr "Select Loops"
-
-
-msgid "Assign Material"
-msgstr "Assign Material"
-
-
-msgid "Light"
-msgstr "Light"
-
-
-msgid "Light Probe"
-msgstr "Light Probe"
-
-
-msgid "Add Image"
-msgstr "Add Image"
-
-
-msgid "Relations"
-msgstr "Relations"
-
-
-msgid "Rigid Body"
-msgstr "Rigid Body"
-
-
-msgid "Apply"
-msgstr "Apply"
-
-
 msgid "Track"
 msgstr "Track"
 
 
 msgid "Quick Effects"
 msgstr "Quick Effects"
+
+
+msgid "Show/Hide"
+msgstr "Show/Hide"
+
+
+msgid "Clean Up"
+msgstr "Clean Up"
 
 
 msgid "Asset"
@@ -34179,20 +34031,8 @@ msgid "Hooks"
 msgstr "Hooks"
 
 
-msgid "Read"
-msgstr "Read"
-
-
-msgid "Sample"
-msgstr "Sample"
-
-
-msgid "Write"
-msgstr "Write"
-
-
-msgid "Primitives"
-msgstr "Primitives"
+msgid "Vertex Group Locks"
+msgstr "Vertex Group Locks"
 
 
 msgid "Trim/Add"
@@ -34219,24 +34059,20 @@ msgid "In-Betweens"
 msgstr "In-Betweens"
 
 
-msgid "Gizmo"
-msgstr "Gizmo"
-
-
 msgid "Propagate"
 msgstr "Propagate"
-
-
-msgid "Instances"
-msgstr "Instances"
 
 
 msgid "Bone Collections"
 msgstr "Bone Collections"
 
 
-msgid "Import"
-msgstr "Import"
+msgid "Names"
+msgstr "Names"
+
+
+msgid "Apply"
+msgstr "Apply"
 
 
 msgid "Toggle Bone Options"
@@ -34251,12 +34087,12 @@ msgid "Disable Bone Options"
 msgstr "Disable Bone Options"
 
 
+msgid "Layout"
+msgstr "Layout"
+
+
 msgid "Mesh Select Mode"
 msgstr "Mesh Select Mode"
-
-
-msgid "Deprecated"
-msgstr "Deprecated"
 
 
 msgid "Face Data"
@@ -34271,12 +34107,28 @@ msgid "Set Face Strength"
 msgstr "Set Face Strength"
 
 
-msgid "UV"
-msgstr "UV"
-
-
 msgid "Merge"
 msgstr "Merge"
+
+
+msgid "Adjust"
+msgstr "Adjust"
+
+
+msgid "Keying"
+msgstr "Keying"
+
+
+msgid "Tracking"
+msgstr "Tracking"
+
+
+msgid "Utilities"
+msgstr "Utilities"
+
+
+msgid "Math"
+msgstr "Maths"
 
 
 msgid "Special Characters"
@@ -34285,6 +34137,154 @@ msgstr "Special Characters"
 
 msgid "Kerning"
 msgstr "Kerning"
+
+
+msgid "Text"
+msgstr "Text"
+
+
+msgid "Metaball"
+msgstr "Metaball"
+
+
+msgid "Bone Roll"
+msgstr "Bone Roll"
+
+
+msgid "Pivot Point"
+msgstr "Pivot Point"
+
+
+msgid "Snap"
+msgstr "Snap"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "Proportional Editing Falloff"
+
+
+msgid "Mask Edit"
+msgstr "Mask Edit"
+
+
+msgid "Automasking"
+msgstr "Automasking"
+
+
+msgid "Face Sets Edit"
+msgstr "Face Sets Edit"
+
+
+msgid "Read"
+msgstr "Read"
+
+
+msgid "Sample"
+msgstr "Sample"
+
+
+msgid "Write"
+msgstr "Write"
+
+
+msgid "Primitives"
+msgstr "Primitives"
+
+
+msgid "Mirror"
+msgstr "Mirror"
+
+
+msgid "UV Mapping"
+msgstr "UV Mapping"
+
+
+msgid "Local View"
+msgstr "Local View"
+
+
+msgid "Viewpoint"
+msgstr "Viewpoint"
+
+
+msgid "Navigation"
+msgstr "Navigation"
+
+
+msgid "Align View"
+msgstr "Align View"
+
+
+msgid "Align View to Active"
+msgstr "Align View to Active"
+
+
+msgid "View Regions"
+msgstr "View Regions"
+
+
+msgid "Select More/Less"
+msgstr "Select More/Less"
+
+
+msgid "Gizmo"
+msgstr "Gizmo"
+
+
+msgid "Instances"
+msgstr "Instances"
+
+
+msgid "Select Similar"
+msgstr "Select Similar"
+
+
+msgid "Select All by Trait"
+msgstr "Select All by Trait"
+
+
+msgid "Select Linked"
+msgstr "Select Linked"
+
+
+msgid "Select Loops"
+msgstr "Select Loops"
+
+
+msgid "Import"
+msgstr "Import"
+
+
+msgid "Deprecated"
+msgstr "Deprecated"
+
+
+msgid "Assign Material"
+msgstr "Assign Material"
+
+
+msgid "UV"
+msgstr "UV"
+
+
+msgid "Light"
+msgstr "Light"
+
+
+msgid "Light Probe"
+msgstr "Light Probe"
+
+
+msgid "Add Image"
+msgstr "Add Image"
+
+
+msgid "Relations"
+msgstr "Relations"
+
+
+msgid "Rigid Body"
+msgstr "Rigid Body"
 
 
 msgid "Keyframe Insert Pie"
@@ -69782,10 +69782,6 @@ msgid "Collapse"
 msgstr "Collapse"
 
 
-msgid "Add bake item"
-msgstr "Add bake item"
-
-
 msgid "Remove an item from the index switch"
 msgstr "Remove an item from the index switch"
 
@@ -76526,10 +76522,6 @@ msgid "Add IK to Bone"
 msgstr "Add IK to Bone"
 
 
-msgid "Add IK Constraint to the active Bone"
-msgstr "Add IK Constraint to the active Bone"
-
-
 msgid "With Targets"
 msgstr "With Targets"
 
@@ -80339,17 +80331,9 @@ msgid "Add Scene Strip"
 msgstr "Add Scene Strip"
 
 
-msgid "Add a strip to the sequencer using a Blender scene as a source"
-msgstr "Add a strip to the sequencer using a Blender scene as a source"
-
-
 msgctxt "Operator"
 msgid "Add Strip with a new Scene"
 msgstr "Add Strip with a new Scene"
-
-
-msgid "Create a new Strip and assign a new Scene as source"
-msgstr "Create a new Strip and assign a new Scene as source"
 
 
 msgid "Add new Strip with a new empty Scene with default settings"
@@ -88009,6 +87993,30 @@ msgid "Panel containing UI elements"
 msgstr "Panel containing UI elements"
 
 
+msgid "VR"
+msgstr "VR"
+
+
+msgid "VR Info"
+msgstr "VR Info"
+
+
+msgid "glTF Variants"
+msgstr "glTF Variants"
+
+
+msgid "glTF Material Variants"
+msgstr "glTF Material Variants"
+
+
+msgid "glTF"
+msgstr "glTF"
+
+
+msgid "glTF Animations"
+msgstr "glTF Animations"
+
+
 msgid "Active Tool"
 msgstr "Active Tool"
 
@@ -88109,14 +88117,6 @@ msgid "Multi Frame"
 msgstr "Multi Frame"
 
 
-msgid "glTF Variants"
-msgstr "glTF Variants"
-
-
-msgid "glTF Material Variants"
-msgstr "glTF Material Variants"
-
-
 msgid "Auto-Masking"
 msgstr "Auto-Masking"
 
@@ -88135,22 +88135,6 @@ msgstr "Curves Grow/Shrink Scaling"
 
 msgid "Viewport Debug"
 msgstr "Viewport Debug"
-
-
-msgid "glTF"
-msgstr "glTF"
-
-
-msgid "glTF Animations"
-msgstr "glTF Animations"
-
-
-msgid "VR"
-msgstr "VR"
-
-
-msgid "VR Info"
-msgstr "VR Info"
 
 
 msgid "Import Settings"
@@ -115436,6 +115420,10 @@ msgid "No Action slot is assigned, so there is nothing to un-assign"
 msgstr "No Action slot is assigned, so there is nothing to un-assign"
 
 
+msgid "No objects selected"
+msgstr "No objects selected"
+
+
 msgid "Go to pose mode to copy pose bone colors"
 msgstr "Go to pose mode to copy pose bone colors"
 
@@ -128684,22 +128672,6 @@ msgid "Add IK"
 msgstr "Add IK"
 
 
-msgid "To Active Bone"
-msgstr "To Active Bone"
-
-
-msgid "To Active Object"
-msgstr "To Active Object"
-
-
-msgid "To New Empty Object"
-msgstr "To New Empty Object"
-
-
-msgid "Without Targets"
-msgstr "Without Targets"
-
-
 msgid "Could not find constraint data for Child-Of Set Inverse"
 msgstr "Could not find constraint data for Child-Of Set Inverse"
 
@@ -128822,10 +128794,6 @@ msgstr "Unexpected error, collection not found"
 
 msgid "Cannot add objects to a library override or linked collection"
 msgstr "Cannot add objects to a library override or linked collection"
-
-
-msgid "No objects selected"
-msgstr "No objects selected"
 
 
 msgid "%u object(s) hidden"

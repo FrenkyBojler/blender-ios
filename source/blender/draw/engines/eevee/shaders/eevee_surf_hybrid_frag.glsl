@@ -9,7 +9,8 @@
  * Some render-pass are written during this pass.
  */
 
-#include "infos/eevee_material_infos.hh"
+#include "infos/eevee_geom_infos.hh"
+#include "infos/eevee_surf_hybrid_infos.hh"
 
 FRAGMENT_SHADER_CREATE_INFO(eevee_node_tree)
 FRAGMENT_SHADER_CREATE_INFO(eevee_geom_mesh)
@@ -45,7 +46,7 @@ float4 closure_to_rgba(Closure cl_unused)
     radiance_behind = lightprobe_spherical_sample_normalized_with_parallax(samp, g_data.P, V, 0.0);
   }
   else {
-    radiance_behind = texelFetch(previous_layer_radiance_tx, int2(gl_FragCoord.xy), 0).xyz;
+    // radiance_behind = texelFetch(previous_layer_radiance_tx, int2(gl_FragCoord.xy), 0).xyz;
   }
 
   radiance += radiance_behind * saturate(transmittance);
