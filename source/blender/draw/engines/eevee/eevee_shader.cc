@@ -578,47 +578,139 @@ gpu::Shader *ShaderModule::static_shader_get(eShaderType shader_type)
 
 /* Helper class to get free sampler slots for materials. */
 class SamplerSlots {
-  int first_reserved_;
-  int last_reserved_;
-  int index_;
+  uint64_t available_slots_ = ~uint64_t(0u);
 
  public:
-  SamplerSlots(eMaterialPipeline pipeline_type,
-               eMaterialGeometry geometry_type,
-               bool has_shader_to_rgba)
+  void reserve_slots(const blender::gpu::shader::ShaderCreateInfo &info)
   {
-    index_ = 0;
-    if (ELEM(geometry_type, MAT_GEOM_POINTCLOUD, MAT_GEOM_CURVES)) {
-      index_ = 2;
+    using namespace blender::gpu::shader;
+    for (const ShaderCreateInfo::Resource &res : info.pass_resources_) {
+      if (res.bind_type == ShaderCreateInfo::Resource::SAMPLER) {
+        available_slots_ &= ~(uint64_t(1) << res.slot);
+      }
     }
-
-    first_reserved_ = MATERIAL_TEXTURE_RESERVED_SLOT_FIRST;
-    last_reserved_ = MATERIAL_TEXTURE_RESERVED_SLOT_LAST_NO_EVAL;
-    if (geometry_type == MAT_GEOM_WORLD) {
-      last_reserved_ = MATERIAL_TEXTURE_RESERVED_SLOT_LAST_WORLD;
+    for (const ShaderCreateInfo::Resource &res : info.batch_resources_) {
+      if (res.bind_type == ShaderCreateInfo::Resource::SAMPLER) {
+        available_slots_ &= ~(uint64_t(1) << res.slot);
+      }
     }
-    else if (pipeline_type == MAT_PIPE_DEFERRED && has_shader_to_rgba) {
-      last_reserved_ = MATERIAL_TEXTURE_RESERVED_SLOT_LAST_HYBRID;
-    }
-    else if (pipeline_type == MAT_PIPE_FORWARD) {
-      last_reserved_ = MATERIAL_TEXTURE_RESERVED_SLOT_LAST_FORWARD;
+    for (const ShaderCreateInfo::Resource &res : info.geometry_resources_) {
+      if (res.bind_type == ShaderCreateInfo::Resource::SAMPLER) {
+        available_slots_ &= ~(uint64_t(1) << res.slot);
+      }
     }
   }
 
   int get()
   {
-    if (index_ == first_reserved_) {
-      index_ = last_reserved_ + 1;
+    if (available_slots_ == 0) {
+      /* Should result in compilation failure. */
+      return -1;
     }
-    return index_++;
+    return bitscan_forward_clear_uint64(&available_slots_);
   }
 };
+
+static SamplerSlots add_pipeline_create_info(blender::gpu::shader::ShaderCreateInfo &info,
+                                             eMaterialPipeline pipeline_type,
+                                             eMaterialGeometry geometry_type,
+                                             const bool use_shader_to_rgba)
+{
+  using namespace blender::gpu::shader;
+
+  SamplerSlots available_slots;
+
+  StringRefNull pipeline_info_name;
+  StringRefNull additional_info_name;
+  /* Pipeline Info. */
+  switch (geometry_type) {
+    case MAT_GEOM_WORLD:
+      switch (pipeline_type) {
+        case MAT_PIPE_VOLUME_MATERIAL:
+          pipeline_info_name = "eevee_surf_volume";
+          break;
+        default:
+          pipeline_info_name = "eevee_surf_world";
+          break;
+      }
+      break;
+    default:
+      switch (pipeline_type) {
+        case MAT_PIPE_PREPASS_FORWARD_VELOCITY:
+        case MAT_PIPE_PREPASS_DEFERRED_VELOCITY:
+          pipeline_info_name = "eevee_surf_depth";
+          additional_info_name = "eevee_velocity_geom";
+          break;
+        case MAT_PIPE_PREPASS_OVERLAP:
+        case MAT_PIPE_PREPASS_FORWARD:
+        case MAT_PIPE_PREPASS_DEFERRED:
+          pipeline_info_name = "eevee_surf_depth";
+          break;
+        case MAT_PIPE_PREPASS_PLANAR:
+          pipeline_info_name = "eevee_surf_depth";
+          additional_info_name = "eevee_clip_plane";
+          break;
+        case MAT_PIPE_SHADOW:
+          /* Determine surface shadow shader depending on used update technique. */
+          switch (ShadowModule::shadow_technique) {
+            case ShadowTechnique::ATOMIC_RASTER: {
+              pipeline_info_name = "eevee_surf_shadow_atomic";
+            } break;
+            case ShadowTechnique::TILE_COPY: {
+              pipeline_info_name = "eevee_surf_shadow_tbdr";
+            } break;
+            default: {
+              BLI_assert_unreachable();
+            } break;
+          }
+          break;
+        case MAT_PIPE_VOLUME_OCCUPANCY:
+          pipeline_info_name = "eevee_surf_occupancy";
+          break;
+        case MAT_PIPE_VOLUME_MATERIAL:
+          pipeline_info_name = "eevee_surf_volume";
+          break;
+        case MAT_PIPE_CAPTURE:
+          pipeline_info_name = "eevee_surf_capture";
+          break;
+        case MAT_PIPE_DEFERRED:
+          if (use_shader_to_rgba) {
+            pipeline_info_name = "eevee_surf_deferred_hybrid";
+          }
+          else {
+            pipeline_info_name = "eevee_surf_deferred";
+          }
+          break;
+        case MAT_PIPE_FORWARD:
+          pipeline_info_name = "eevee_surf_forward";
+          break;
+        default:
+          BLI_assert_unreachable();
+          break;
+      }
+      break;
+  }
+  if (!pipeline_info_name.is_empty()) {
+    info.additional_info(pipeline_info_name);
+    const ShaderCreateInfo *info = reinterpret_cast<const ShaderCreateInfo *>(
+        GPU_shader_create_info_get(pipeline_info_name.c_str()));
+    available_slots.reserve_slots(*info);
+  }
+  if (!additional_info_name.is_empty()) {
+    info.additional_info(additional_info_name);
+    const ShaderCreateInfo *info = reinterpret_cast<const ShaderCreateInfo *>(
+        GPU_shader_create_info_get(additional_info_name.c_str()));
+    available_slots.reserve_slots(*info);
+  }
+  return available_slots;
+}
 
 void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOutput *codegen_)
 {
   using namespace blender::gpu::shader;
 
   uint64_t shader_uuid = GPU_material_uuid_get(gpumat);
+  const bool use_shader_to_rgba = GPU_material_flag_get(gpumat, GPU_MATFLAG_SHADER_TO_RGBA);
 
   eMaterialPipeline pipeline_type;
   eMaterialGeometry geometry_type;
@@ -652,15 +744,6 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
     info.define("UNI_ATTR(a)", "float4(0.0)");
   }
 
-  SamplerSlots sampler_slots(
-      pipeline_type, geometry_type, GPU_material_flag_get(gpumat, GPU_MATFLAG_SHADER_TO_RGBA));
-
-  for (auto &resource : info.batch_resources_) {
-    if (resource.bind_type == ShaderCreateInfo::Resource::BindType::SAMPLER) {
-      resource.slot = sampler_slots.get();
-    }
-  }
-
   bool use_ao_node = false;
 
   if (GPU_material_flag_get(gpumat, GPU_MATFLAG_AO) &&
@@ -678,6 +761,15 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
     /* Transparent material do not have any velocity specific pipeline. */
     if (pipeline_type == MAT_PIPE_PREPASS_FORWARD_VELOCITY) {
       pipeline_type = MAT_PIPE_PREPASS_FORWARD;
+    }
+  }
+
+  SamplerSlots sampler_slots = add_pipeline_create_info(
+      info, pipeline_type, geometry_type, use_shader_to_rgba);
+
+  for (auto &resource : info.batch_resources_) {
+    if (resource.bind_type == ShaderCreateInfo::Resource::BindType::SAMPLER) {
+      resource.slot = sampler_slots.get();
     }
   }
 
@@ -1077,71 +1169,26 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
     }
   }
 
-  /* Pipeline Info. */
-  switch (geometry_type) {
-    case MAT_GEOM_WORLD:
-      switch (pipeline_type) {
-        case MAT_PIPE_VOLUME_MATERIAL:
-          info.additional_info("eevee_surf_volume");
-          break;
-        default:
-          info.additional_info("eevee_surf_world");
-          break;
+  /* Make shaders that have as too many samplers fail compilation and have correct error
+   * report instead of raising an error. */
+  {
+    bool out_of_sampler = false;
+    int index = 0;
+    for (const ShaderCreateInfo::Resource &res : info.batch_resources_) {
+      if (res.bind_type == ShaderCreateInfo::Resource::SAMPLER && res.slot == -1) {
+        info.batch_resources_.remove(index);
+        out_of_sampler = true;
       }
-      break;
-    default:
-      switch (pipeline_type) {
-        case MAT_PIPE_PREPASS_FORWARD_VELOCITY:
-        case MAT_PIPE_PREPASS_DEFERRED_VELOCITY:
-          info.additional_info("eevee_surf_depth", "eevee_velocity_geom");
-          break;
-        case MAT_PIPE_PREPASS_OVERLAP:
-        case MAT_PIPE_PREPASS_FORWARD:
-        case MAT_PIPE_PREPASS_DEFERRED:
-          info.additional_info("eevee_surf_depth");
-          break;
-        case MAT_PIPE_PREPASS_PLANAR:
-          info.additional_info("eevee_surf_depth", "eevee_clip_plane");
-          break;
-        case MAT_PIPE_SHADOW:
-          /* Determine surface shadow shader depending on used update technique. */
-          switch (ShadowModule::shadow_technique) {
-            case ShadowTechnique::ATOMIC_RASTER: {
-              info.additional_info("eevee_surf_shadow_atomic");
-            } break;
-            case ShadowTechnique::TILE_COPY: {
-              info.additional_info("eevee_surf_shadow_tbdr");
-            } break;
-            default: {
-              BLI_assert_unreachable();
-            } break;
-          }
-          break;
-        case MAT_PIPE_VOLUME_OCCUPANCY:
-          info.additional_info("eevee_surf_occupancy");
-          break;
-        case MAT_PIPE_VOLUME_MATERIAL:
-          info.additional_info("eevee_surf_volume");
-          break;
-        case MAT_PIPE_CAPTURE:
-          info.additional_info("eevee_surf_capture");
-          break;
-        case MAT_PIPE_DEFERRED:
-          if (GPU_material_flag_get(gpumat, GPU_MATFLAG_SHADER_TO_RGBA)) {
-            info.additional_info("eevee_surf_deferred_hybrid");
-          }
-          else {
-            info.additional_info("eevee_surf_deferred");
-          }
-          break;
-        case MAT_PIPE_FORWARD:
-          info.additional_info("eevee_surf_forward");
-          break;
-        default:
-          BLI_assert_unreachable();
-          break;
-      }
-      break;
+      index++;
+    }
+
+    if (out_of_sampler) {
+      /* We ran out of binding slots. Many systems inside the GPU backend assume a max amount of 64
+       * samplers. */
+      const char *material_name = (info.name_.c_str() + 2);
+      std::cerr << "Error: EEVEE: Material " << material_name << " uses too many samplers."
+                << std::endl;
+    }
   }
 }
 
