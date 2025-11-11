@@ -3268,6 +3268,12 @@ static wmOperatorStatus quadview_size_invoke(bContext *C, wmOperator *op, const 
   return OPERATOR_FINISHED;
 }
 
+static void quadview_size_cancel(bContext *C, wmOperator *op)
+{
+  ED_workspace_status_text(C, nullptr);
+  quadview_size_exit(op);
+}
+
 static wmOperatorStatus quadview_size_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   QuadViewSizeData *qsd = static_cast<QuadViewSizeData *>(op->customdata);
@@ -3282,9 +3288,18 @@ static wmOperatorStatus quadview_size_modal(bContext *C, wmOperator *op, const w
       float quad_y = float((event->xy[1]) - (qsd->bounds.ymin)) /
                      float(BLI_rcti_size_y(&qsd->bounds) + 1);
 
+      if (event->modifier & KM_CTRL) {
+        quad_x = round(quad_x * 12.0f) / 12.0f;
+        quad_y = round(quad_y * 12.0f) / 12.0f;
+      }
+
       /* Clamp.*/
       qsd->area->quadview_ratio[0] = std::clamp(quad_x, 0.1f, 0.9f);
       qsd->area->quadview_ratio[1] = std::clamp(quad_y, 0.2f, 0.8f);
+
+      WorkspaceStatus status(C);
+      status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
+      status.item_bool(IFACE_("Snap"), event->modifier & KM_CTRL, ICON_EVENT_CTRL);
 
       ED_area_tag_redraw(qsd->area);
       WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
@@ -3294,7 +3309,7 @@ static wmOperatorStatus quadview_size_modal(bContext *C, wmOperator *op, const w
       if (event->val == KM_RELEASE) {
         ED_area_tag_redraw(qsd->area);
         WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
-        quadview_size_exit(op);
+        quadview_size_cancel(C, op);
         return OPERATOR_FINISHED;
       }
       break;
@@ -3304,7 +3319,7 @@ static wmOperatorStatus quadview_size_modal(bContext *C, wmOperator *op, const w
       qsd->area->quadview_ratio[1] = qsd->original_ratio[1];
       ED_area_tag_redraw(qsd->area);
       WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
-      quadview_size_exit(op);
+      quadview_size_cancel(C, op);
       return OPERATOR_CANCELLED;
     default: {
       break;
@@ -3312,11 +3327,6 @@ static wmOperatorStatus quadview_size_modal(bContext *C, wmOperator *op, const w
   }
 
   return OPERATOR_RUNNING_MODAL;
-}
-
-static void quadview_size_cancel(bContext * /*C*/, wmOperator *op)
-{
-  quadview_size_exit(op);
 }
 
 static void SCREEN_OT_quadview_size(wmOperatorType *ot)
