@@ -63,7 +63,6 @@ class Segment {
 
   int intersection_index[2] = {-1, -1};
 
- public:
   constexpr Segment() = default;
 
   bool is_loop() const
