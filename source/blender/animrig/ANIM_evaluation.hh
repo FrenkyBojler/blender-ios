@@ -58,20 +58,6 @@ class PropIdentifier {
   }
 };
 
-/**
- * The evaluated value for an animated property, along with its RNA pointer.
- */
-class AnimatedProperty {
- public:
-  float value;
-  PathResolvedRNA prop_rna;
-
-  AnimatedProperty(const float value, const PathResolvedRNA &prop_rna)
-      : value(value), prop_rna(prop_rna)
-  {
-  }
-};
-
 /* Result of FCurve evaluation for an action slot.
  * Mapping from property identifier to its float value.
  *
