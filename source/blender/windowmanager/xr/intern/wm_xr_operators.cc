@@ -13,8 +13,14 @@
 #include "BLI_kdopbvh.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
+#include "BLI_math_matrix.hh"
+#include "BLI_math_matrix_types.hh"
+#include "BLI_math_quaternion.hh"
+#include "BLI_math_quaternion_types.hh"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
+#include "BLI_math_vector.hh"
+#include "BLI_math_vector_types.hh"
 #include "BLI_time.h"
 
 #include "BLT_translation.hh"
@@ -636,23 +642,20 @@ enum XrRaycastResult : uint8_t {
 };
 
 struct XrRaycastData {
-  /** Raycast info */
-  bool from_viewer;
+  /** Raycast results. */
+  XrRaycastResult hit_result;
+  blender::float3 controller_direction;
 
-  /** Raycast results */
-  XrRaycastResult result;
-  int num_points;
-  float points[XR_MAX_RAYCASTS + 1][4];
-  float direction[3];
+  blender::Array<blender::float3> arc_points;
+  int end_point_idx;
 
-  /** Raycast visualization parameters */
-  float color[4];
-  float raycast_width;
-  float destination_size;
-  int sample_count;
+  /** Visualization parameters. */
+  float ray_color[4];
+  float ray_line_width;
+  float destination_sphere_width;
 
-  blender::gpu::Batch *raycast_model;
-
+  /** Drawing handles. */
+  blender::gpu::Batch *arc_batch;
   void *draw_handle;
 };
 
@@ -662,71 +665,52 @@ static void wm_xr_raycast_destination_draw(const XrRaycastData *data)
 
   blender::gpu::Batch *sphere = GPU_batch_preset_sphere(2);
   GPU_batch_program_set_builtin(sphere, GPU_SHADER_3D_UNIFORM_COLOR);
-  GPU_batch_uniform_4fv(sphere, "color", data->color);
+  GPU_batch_uniform_4fv(sphere, "color", data->ray_color);
 
   GPU_matrix_push();
-  GPU_matrix_translate_3fv(data->points[data->num_points - 1]);
-  GPU_matrix_scale_1f(data->destination_size);
+  GPU_matrix_translate_3fv(data->arc_points[data->end_point_idx]);
+  GPU_matrix_scale_1f(data->destination_sphere_width);
   GPU_batch_draw(sphere);
   GPU_matrix_pop();
 }
 
 static void wm_xr_raycast_draw(const bContext * /*C*/, ARegion * /*region*/, void *customdata)
 {
+  using namespace blender;
   const XrRaycastData *data = static_cast<const XrRaycastData *>(customdata);
 
-  if (data->result != XR_RAYCAST_MISS) {
+  if (data->hit_result != XR_RAYCAST_MISS) {
     wm_xr_raycast_destination_draw(data);
   }
 
-  GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
+  BLI_assert(data->arc_batch != nullptr);
 
-  if (data->from_viewer) {
-    immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
-    immUniformColor4fv(data->color);
+  const float3 forward = data->arc_points[data->end_point_idx] - data->arc_points.first();
+  const float3 right = math::normalize(float3{forward.y, -forward.x, 0.0f});
 
-    GPU_depth_test(GPU_DEPTH_NONE);
-    GPU_point_size(7.0f);
+  GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
 
-    immBegin(GPU_PRIM_POINTS, data->num_points - 1);
+  GPU_batch_program_set_builtin(data->arc_batch, GPU_SHADER_XR_RAYCAST);
 
-    for (int i = 1; i < data->num_points; ++i) {
-      immVertex3fv(pos, data->points[i]);
-    }
-
-    immEnd();
-    immUnbindProgram();
+  float batch_array[XR_TELEPORTATION_ARC_CONTROL_POINTS][4] = {{0}};
+  for (int i = 0; i < XR_TELEPORTATION_ARC_CONTROL_POINTS; i++) {
+    copy_v3_v3(batch_array[i], data->arc_points[i]);
   }
-  else {
-    BLI_assert(data->raycast_model != nullptr);
 
-    float forward[3];
-    float right[3];
-
-    sub_v3_v3v3(forward, data->points[data->num_points - 1], data->points[0]);
-    copy_v3_fl3(right, forward[1], -forward[0], 0.0f);
-    normalize_v3(right);
-
-    GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
-
-    GPU_batch_program_set_builtin(data->raycast_model, GPU_SHADER_XR_RAYCAST);
-    GPU_batch_uniform_4fv_array(
-        data->raycast_model, "control_points", XR_MAX_RAYCASTS + 1, data->points);
-    GPU_batch_uniform_4fv(data->raycast_model, "color", data->color);
-    GPU_batch_uniform_3fv(data->raycast_model, "right_vector", right);
-    GPU_batch_uniform_1f(data->raycast_model, "width", data->raycast_width);
-    GPU_batch_uniform_1i(data->raycast_model, "control_point_count", data->num_points);
-    GPU_batch_uniform_1i(data->raycast_model, "sample_count", data->sample_count);
-    GPU_batch_draw(data->raycast_model);
-  }
+  GPU_batch_uniform_4fv_array(
+      data->arc_batch, "control_points", XR_TELEPORTATION_ARC_CONTROL_POINTS, batch_array);
+  GPU_batch_uniform_4fv(data->arc_batch, "color", data->ray_color);
+  GPU_batch_uniform_3fv(data->arc_batch, "right_vector", right);
+  GPU_batch_uniform_1f(data->arc_batch, "line_width", data->ray_line_width);
+  GPU_batch_uniform_1i(data->arc_batch, "end_point_idx", data->end_point_idx);
+  GPU_batch_draw(data->arc_batch);
 }
 
 static void wm_xr_raycast_init(wmOperator *op)
 {
   BLI_assert(op->customdata == nullptr);
 
-  op->customdata = MEM_callocN<XrRaycastData>(__func__);
+  op->customdata = MEM_new<XrRaycastData>(__func__);
 
   SpaceType *st = BKE_spacetype_from_id(SPACE_VIEW3D);
   if (!st) {
@@ -759,7 +743,7 @@ static void wm_xr_raycast_uninit(wmOperator *op)
     }
   }
 
-  MEM_SAFE_FREE(data);
+  MEM_SAFE_DELETE(data);
   op->customdata = nullptr;
 }
 
@@ -768,34 +752,29 @@ static void wm_xr_raycast_update(wmOperator *op,
                                  const wmXrActionData *actiondata)
 {
   XrRaycastData *data = static_cast<XrRaycastData *>(op->customdata);
-  float axis[3], nav_scale;
 
+  float nav_scale;
   WM_xr_session_state_nav_scale_get(xr, &nav_scale);
 
-  data->from_viewer = RNA_boolean_get(op->ptr, "from_viewer");
-  data->raycast_width = RNA_float_get(op->ptr, "raycast_scale") * nav_scale;
-  data->sample_count = RNA_int_get(op->ptr, "sample_count");
+  data->ray_line_width = RNA_float_get(op->ptr, "raycast_line_width") * nav_scale;
+
+  data->arc_points = blender::Array<blender::float3>(XR_TELEPORTATION_ARC_CONTROL_POINTS);
+  data->end_point_idx = XR_TELEPORTATION_ARC_CONTROL_POINTS - 1;
+
+  float axis[3];
   RNA_float_get_array(op->ptr, "axis", axis);
 
-  if (data->from_viewer) {
-    float viewer_rot[4];
-    WM_xr_session_state_viewer_pose_location_get(xr, data->points[0]);
-    WM_xr_session_state_viewer_pose_rotation_get(xr, viewer_rot);
-    mul_qt_v3(viewer_rot, axis);
-  }
-  else {
-    if (!xr->runtime->session_state.raycast_model) {
-      xr->runtime->session_state.raycast_model = GPU_batch_create_procedural(
-          GPU_PRIM_TRI_STRIP, 2 * data->sample_count);
-    }
-
-    data->raycast_model = xr->runtime->session_state.raycast_model;
-
-    copy_v3_v3(data->points[0], actiondata->controller_loc);
-    mul_qt_v3(actiondata->controller_rot, axis);
+  if (!xr->runtime->session_state.raycast_arc_batch) {
+    xr->runtime->session_state.raycast_arc_batch = GPU_batch_create_procedural(
+        GPU_PRIM_TRI_STRIP, 2 * XR_TELEPORTATION_ARC_SAMPLES);
   }
 
-  copy_v3_v3(data->direction, axis);
+  data->arc_batch = xr->runtime->session_state.raycast_arc_batch;
+
+  copy_v3_v3(data->arc_points.first(), actiondata->controller_loc);
+
+  mul_qt_v3(actiondata->controller_rot, axis);
+  copy_v3_v3(data->controller_direction, axis);
 }
 
 static void wm_xr_raycast(Scene *scene,
@@ -1369,71 +1348,166 @@ static void WM_OT_xr_navigation_fly(wmOperatorType *ot)
  * Casts a ray from an XR controller's pose and teleports to any hit geometry.
  * \{ */
 
-static float wm_xr_navigation_teleport_pose_calc(wmXrData *xr,
-                                                 float nav_destination[3],
-                                                 const float destination[4],
-                                                 const float normal[3],
-                                                 const bool teleport_axes[3],
-                                                 float teleport_t,
-                                                 float teleport_ofs,
-                                                 float vertical_ofs)
+static float wm_xr_navigation_teleport_pose_calc(wmOperator *op,
+                                                 wmXrData *xr,
+                                                 blender::float3 &r_nav_destination,
+                                                 const blender::float3 &target_destination,
+                                                 const blender::float3 &normal,
+                                                 const float vertical_ofs)
 {
-  float nav_location[3], nav_rotation[4], viewer_location[3];
+  using namespace blender;
+
+  float nav_scale;
+  WM_xr_session_state_nav_scale_get(xr, &nav_scale);
+
+  bool teleport_axes[3];
+  RNA_boolean_get_array(op->ptr, "teleport_axes", teleport_axes);
+  const float teleport_t = RNA_float_get(op->ptr, "interpolation");
+  const float teleport_ofs = RNA_float_get(op->ptr, "offset") * nav_scale;
+
+  float3 nav_location, viewer_location;
   WM_xr_session_state_nav_location_get(xr, nav_location);
-  WM_xr_session_state_nav_rotation_get(xr, nav_rotation);
   WM_xr_session_state_viewer_pose_location_get(xr, viewer_location);
 
-  float nav_axes[3][3], projected[3], v0[3], v1[3], destination_with_ofs[3];
-
-  copy_v3_fl(nav_destination, 0.0f);
-  copy_v3_v3(destination_with_ofs, destination);
-  destination_with_ofs[2] += vertical_ofs;
-
+  float4 nav_rotation;
+  WM_xr_session_state_nav_rotation_get(xr, nav_rotation);
   wm_xr_basenav_rotation_calc(xr, nav_rotation, nav_rotation);
-  quat_to_mat3(nav_axes, nav_rotation);
+  const float3x3 nav_axes = math::from_rotation<float3x3>(math::Quaternion{nav_rotation});
 
   /* Project locations onto navigation axes. */
   for (int a = 0; a < 3; ++a) {
-    project_v3_v3v3_normalized(projected, nav_location, nav_axes[a]);
+    float3 projected = math::project(nav_location, nav_axes[a]);
     if (teleport_axes[a]) {
       /* Interpolate between projected locations. */
-      project_v3_v3v3_normalized(v0, destination_with_ofs, nav_axes[a]);
-      project_v3_v3v3_normalized(v1, viewer_location, nav_axes[a]);
-      sub_v3_v3(v0, v1);
-      madd_v3_v3fl(projected, v0, teleport_t);
-      /* Subtract offset. */
-      project_v3_v3v3_normalized(v0, normal, nav_axes[a]);
-      madd_v3_v3fl(projected, v0, teleport_ofs);
+      float3 destination_with_ofs = target_destination;
+      destination_with_ofs.z += vertical_ofs;
+
+      float3 v0 = math::project(destination_with_ofs, nav_axes[a]);
+      float3 v1 = math::project(viewer_location, nav_axes[a]);
+
+      v0 -= v1;
+      projected += (v0 * teleport_t);
+
+      v0 = math::project(normal, nav_axes[a]);
+      projected += (v0 * teleport_ofs);
     }
     /* Add to final location. */
-    add_v3_v3(nav_destination, projected);
+    r_nav_destination += projected;
   }
 
-  return len_v3v3(viewer_location, destination);
+  return math::distance(viewer_location, target_destination);
 }
 
-static bool wm_xr_navigation_teleport_ground_plane(float points[XR_MAX_RAYCASTS + 1][4],
-                                                   int *num_points,
-                                                   float *ray_dist)
+static XrRaycastResult wm_xr_navigation_compute_teleportation_arc(bContext *C,
+                                                                  wmOperator *op,
+                                                                  XrRaycastData *data,
+                                                                  blender::float3 &r_hit_normal)
 {
-  constexpr uint z = 2;
-  for (int i = 1; i < *num_points; ++i) {
-    float *startpoint = points[i - 1], *endpoint = points[i];
+  using namespace blender;
 
-    if ((startpoint[z] < 0) == (endpoint[z] < 0)) {
+  const float ray_dist = RNA_float_get(op->ptr, "distance");
+  const float segment_length = ray_dist / XR_TELEPORTATION_ARC_CONTROL_POINTS;
+
+  float3 normal = {0, 1, 0};
+  float3 segment_direction = data->controller_direction;
+  const bool selectable_only = RNA_boolean_get(op->ptr, "selectable_only");
+
+  for (int i = 1; i < XR_TELEPORTATION_ARC_CONTROL_POINTS; ++i) {
+    float segment_ray_dist = segment_length;
+
+    const Object *ob = nullptr;
+    wm_xr_raycast(CTX_data_scene(C),
+                  CTX_data_ensure_evaluated_depsgraph(C),
+                  data->arc_points[i - 1],
+                  segment_direction,
+                  &segment_ray_dist,
+                  selectable_only,
+                  data->arc_points[i],
+                  normal,
+                  nullptr,
+                  &ob,
+                  nullptr);
+
+    if (ob) {
+      /** Ensure normal faces the correct direction. */
+      if (math::dot(segment_direction, normal) > 0) {
+        normal *= -1.0f;
+      }
+
+      r_hit_normal = normal;
+      data->end_point_idx = i;
+
+      return XR_RAYCAST_HIT;
+    }
+
+    data->arc_points[i] = data->arc_points[i - 1] + (segment_direction * segment_length);
+
+    /* Apply gravity. */
+    const float gravity = RNA_float_get(op->ptr, "gravity");
+    segment_direction.z -= gravity;
+    segment_direction = math::normalize(segment_direction);
+  }
+
+  return XR_RAYCAST_MISS;
+}
+
+static float wm_xr_navigation_determine_head_height(bContext *C, wmOperator *op, wmXrData *xr)
+{
+  /* Raycast downward from the current XR virtual head position to find the floor. */
+
+  blender::float3 viewer_pos_loc;
+  WM_xr_session_state_viewer_pose_location_get(xr, viewer_pos_loc);
+
+  /* Using the global operator setting as a base. */
+  float ray_dist = RNA_float_get(op->ptr, "distance");
+  const bool selectable_only = RNA_boolean_get(op->ptr, "selectable_only");
+
+  blender::float3 dummy_dest = {};
+  const blender::float3 downward_direction = {0, 0, -1};
+  const Object *ob = nullptr;
+
+  wm_xr_raycast(CTX_data_scene(C),
+                CTX_data_ensure_evaluated_depsgraph(C),
+                viewer_pos_loc,
+                downward_direction,
+                &ray_dist,
+                selectable_only,
+                dummy_dest,
+                nullptr,
+                nullptr,
+                &ob,
+                nullptr);
+
+  if (ob) {
+    return ray_dist;
+  }
+
+  return viewer_pos_loc.z;
+}
+
+static bool wm_xr_navigation_arc_clip_to_ground_plane(blender::Array<blender::float3> &points,
+                                                      int &end_point_idx)
+{
+  using namespace blender;
+
+  /* Truncate the arc to the ground plane (Z=0) by finding the first segment that crosses it,
+   * interpolating the intersection point, and terminating the arc by setting its index as the
+   * end point. */
+
+  for (int i = 1; i < end_point_idx; ++i) {
+    const float3 &startpoint = points[i - 1];
+    const float3 &endpoint = points[i];
+
+    /* Skip if both points have the same sign to find the point where we cross the ground plane. */
+    if ((startpoint.z * endpoint.z) >= 0) {
       continue;
     }
 
-    if (startpoint[z] == endpoint[z]) {
-      break;
-    }
+    const float alpha = math::safe_divide(startpoint.z, (startpoint.z - endpoint.z));
+    points[i] = math::interpolate(startpoint, endpoint, alpha);
 
-    float segment_ray_dist = len_v3v3(startpoint, endpoint);
-    float alpha = startpoint[z] / (startpoint[z] - endpoint[z]);
-    interp_v3_v3v3(endpoint, startpoint, endpoint, alpha);
+    end_point_idx = i;
 
-    *ray_dist = segment_ray_dist * (i - 1) + len_v3v3(startpoint, endpoint);
-    *num_points = i + 1;
     return true;
   }
 
@@ -1441,147 +1515,37 @@ static bool wm_xr_navigation_teleport_ground_plane(float points[XR_MAX_RAYCASTS 
 }
 
 static XrRaycastResult wm_xr_navigation_teleport(bContext *C,
+                                                 wmOperator *op,
                                                  wmXrData *xr,
-                                                 float nav_destination[3],
-                                                 float points[XR_MAX_RAYCASTS + 1][4],
-                                                 const float direction[3],
-                                                 int *num_points,
-                                                 float *ray_dist,
-                                                 float *destination_dist,
-                                                 bool selectable_only,
-                                                 const bool teleport_axes[3],
-                                                 float teleport_t,
-                                                 float teleport_ofs,
-                                                 float gravity,
-                                                 float head_height)
+                                                 XrRaycastData *data,
+                                                 blender::float3 &r_destination,
+                                                 float &r_destination_dist)
 {
-  Scene *scene = CTX_data_scene(C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  int index;
-  const Object *ob = nullptr;
-  float obmat[4][4];
+  using namespace blender;
 
-  float normal[3], segment_direction[3];
-  float vertical_ofs = 0;
-  XrRaycastResult result = XR_RAYCAST_MISS;
+  const float head_height_offset = wm_xr_navigation_determine_head_height(C, op, xr);
 
-  copy_v3_v3(segment_direction, direction);
-  copy_v3_fl3(normal, 0, 1, 0);
+  float3 hit_normal = {};
+  /* Compute the initial arc using a series of points. */
+  XrRaycastResult result = wm_xr_navigation_compute_teleportation_arc(C, op, data, hit_normal);
 
-  /* When ray_dist == 0 or -1, the raycast is a line of infinite length. */
-  if (*ray_dist <= 0.0f) {
-    *num_points = 2;
-  }
-
-  const float segment_length = *ray_dist / (*num_points - 1);
-  float segment_ray_dist = 0.0f;
-  *ray_dist = 0.0f;
-
-  for (int i = 1; i < *num_points; ++i) {
-    segment_ray_dist = segment_length;
-    wm_xr_raycast(scene,
-                  depsgraph,
-                  points[i - 1],
-                  segment_direction,
-                  &segment_ray_dist,
-                  selectable_only,
-                  points[i],
-                  normal,
-                  &index,
-                  &ob,
-                  obmat);
-
-    *ray_dist += segment_ray_dist;
-
-    if (ob) {
-      *num_points = i + 1;
-
-      /** Ensure normal faces the correct direction */
-      if (dot_v3v3(segment_direction, normal) > 0) {
-        mul_v3_fl(normal, -1.0f);
-      }
-
-      result = XR_RAYCAST_HIT;
-      break;
-    }
-
-    madd_v3_v3v3fl(points[i], points[i - 1], segment_direction, segment_length);
-
-    /* Apply gravity */
-    segment_direction[2] -= gravity;
-    normalize_v3(segment_direction);
-  }
-
-  /** Fall back to raycast intersecting with the ground plane. */
   if (result == XR_RAYCAST_MISS) {
-    vertical_ofs = head_height;
-
-    if (wm_xr_navigation_teleport_ground_plane(points, num_points, ray_dist)) {
-      result = XR_RAYCAST_FALLBACK;
-    }
-  }
-
-  if (result != XR_RAYCAST_MISS) {
-    float origin[3], dummy_dest[3], dummy_normal[3];
-
-    /* Raycast downward to see if we're on the floor */
-    copy_v3_fl3(segment_direction, 0, 0, -1);
-
-    copy_v3_v3(origin, points[*num_points - 1]);
-    madd_v3_v3fl(origin, normal, teleport_ofs);
-    madd_v3_v3fl(origin, segment_direction, -vertical_ofs);
-
-    segment_ray_dist = head_height;
-    ob = nullptr;
-    wm_xr_raycast(scene,
-                  depsgraph,
-                  origin,
-                  segment_direction,
-                  &segment_ray_dist,
-                  selectable_only,
-                  dummy_dest,
-                  dummy_normal,
-                  &index,
-                  &ob,
-                  obmat);
-
-    /* Raycast upward to make sure we don't clip through the ceiling */
-    if (ob) {
-      vertical_ofs = head_height - segment_ray_dist;
-      copy_v3_fl3(segment_direction, 0, 0, 1);
-
-      copy_v3_v3(origin, points[*num_points - 1]);
-      madd_v3_v3fl(origin, normal, teleport_ofs);
-
-      segment_ray_dist = vertical_ofs;
-      ob = nullptr;
-      wm_xr_raycast(scene,
-                    depsgraph,
-                    origin,
-                    segment_direction,
-                    &segment_ray_dist,
-                    selectable_only,
-                    dummy_dest,
-                    dummy_normal,
-                    &index,
-                    &ob,
-                    obmat);
-
-      if (ob) {
-        vertical_ofs = max_ff(0.0f, segment_ray_dist - teleport_ofs);
-      }
+    /* Fall back to raycast intersecting with the ground plane. */
+    if (!wm_xr_navigation_arc_clip_to_ground_plane(data->arc_points, data->end_point_idx)) {
+      return XR_RAYCAST_MISS;
     }
 
-    /* Calculate teleportation destination in navigation space */
-    *destination_dist = wm_xr_navigation_teleport_pose_calc(xr,
-                                                            nav_destination,
-                                                            points[*num_points - 1],
-                                                            normal,
-                                                            teleport_axes,
-                                                            teleport_t,
-                                                            teleport_ofs,
-                                                            vertical_ofs);
+    hit_normal = {0, 0, 1};
+    result = XR_RAYCAST_FALLBACK;
   }
+
+  /* Calculate teleportation destination in navigation space. */
+  r_destination_dist = wm_xr_navigation_teleport_pose_calc(op,
+                                                           xr,
+                                                           r_destination,
+                                                           data->arc_points[data->end_point_idx],
+                                                           hit_normal,
+                                                           head_height_offset);
 
   return result;
 }
@@ -1632,59 +1596,42 @@ static wmOperatorStatus wm_xr_navigation_teleport_modal(bContext *C,
   wm_xr_raycast_update(op, xr, actiondata);
 
   XrRaycastData *data = static_cast<XrRaycastData *>(op->customdata);
-  float nav_scale, ray_dist, destination_dist, nav_destination[3];
-  bool teleport_axes[3];
 
-  WM_xr_session_state_nav_scale_get(xr, &nav_scale);
+  blender::float3 destination;
+  float destination_dist;
+  data->hit_result = wm_xr_navigation_teleport(C, op, xr, data, destination, destination_dist);
 
-  RNA_boolean_get_array(op->ptr, "teleport_axes", teleport_axes);
-  const float teleport_t = RNA_float_get(op->ptr, "interpolation");
-  const float teleport_ofs = RNA_float_get(op->ptr, "offset") * nav_scale;
-  const float gravity = RNA_float_get(op->ptr, "gravity");
-  const float head_height = xr->runtime->session_state.prev_local_pose.position[1] * nav_scale;
-  const bool selectable_only = RNA_boolean_get(op->ptr, "selectable_only");
-  ray_dist = RNA_float_get(op->ptr, "distance") * nav_scale;
-
-  data->num_points = XR_MAX_RAYCASTS + 1;
-  data->result = wm_xr_navigation_teleport(C,
-                                           xr,
-                                           nav_destination,
-                                           data->points,
-                                           data->direction,
-                                           &data->num_points,
-                                           &ray_dist,
-                                           &destination_dist,
-                                           selectable_only,
-                                           teleport_axes,
-                                           teleport_t,
-                                           teleport_ofs,
-                                           gravity,
-                                           head_height);
-
-  data->destination_size = RNA_float_get(op->ptr, "destination_scale") *
-                           sqrt(destination_dist / nav_scale) * nav_scale;
-
-  switch (data->result) {
+  /* Update ray color. */
+  switch (data->hit_result) {
     case XR_RAYCAST_MISS:
-      RNA_float_get_array(op->ptr, "miss_color", data->color);
+      RNA_float_get_array(op->ptr, "miss_color", data->ray_color);
       break;
     case XR_RAYCAST_HIT:
-      RNA_float_get_array(op->ptr, "hit_color", data->color);
+      RNA_float_get_array(op->ptr, "hit_color", data->ray_color);
       break;
     case XR_RAYCAST_FALLBACK:
-      RNA_float_get_array(op->ptr, "fallback_color", data->color);
+      RNA_float_get_array(op->ptr, "fallback_color", data->ray_color);
       break;
     default:
       BLI_assert_unreachable();
       break;
   }
 
+  if (data->hit_result != XR_RAYCAST_MISS) {
+    /* Update destination sphere width. */
+    float nav_scale;
+    WM_xr_session_state_nav_scale_get(xr, &nav_scale);
+    data->destination_sphere_width = RNA_float_get(op->ptr, "destination_sphere_width") *
+                                     sqrt(destination_dist / nav_scale) * nav_scale;
+  }
+
+  /* Apply teleportation on release. */
   switch (event->val) {
     case KM_PRESS:
       return OPERATOR_RUNNING_MODAL;
     case KM_RELEASE: {
-      if (data->result != XR_RAYCAST_MISS) {
-        WM_xr_session_state_nav_location_set(xr, nav_destination);
+      if (data->hit_result != XR_RAYCAST_MISS) {
+        WM_xr_session_state_nav_location_set(xr, destination);
       }
 
       xr->runtime->session_state.is_raycast_shown = false;
@@ -1765,34 +1712,23 @@ static void WM_OT_xr_navigation_teleport(wmOperatorType *ot)
                 0.0,
                 FLT_MAX);
   RNA_def_float(ot->srna,
-                "raycast_scale",
+                "raycast_line_width",
                 0.02f,
                 0.0f,
                 FLT_MAX,
-                "Raycast Scale",
-                "Width of the raycast visualization",
+                "Raycast Line Width",
+                "Width of the raycast visualization line",
                 0.0f,
                 FLT_MAX);
   RNA_def_float(ot->srna,
-                "destination_scale",
+                "destination_sphere_width",
                 0.05f,
                 0.0f,
                 FLT_MAX,
-                "Destination Scale",
-                "Width of the destination visualization",
+                "Destination Sphere Width",
+                "Width of the destination visualization sphere",
                 0.0f,
                 FLT_MAX);
-  RNA_def_int(ot->srna,
-              "sample_count",
-              48,
-              2,
-              INT_MAX,
-              "Sample Count",
-              "Number of interpolation samples for the raycast visualization",
-              2,
-              INT_MAX);
-  RNA_def_boolean(
-      ot->srna, "from_viewer", false, "From Viewer", "Use viewer pose as raycast origin");
   RNA_def_float_vector(ot->srna,
                        "axis",
                        3,

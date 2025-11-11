@@ -98,9 +98,9 @@ static void wm_xr_session_vignette_data_free(wmXrSessionState *state)
 
 static void wm_xr_session_raycast_model_free(wmXrSessionState *state)
 {
-  if (state->raycast_model) {
-    GPU_batch_discard(state->raycast_model);
-    state->raycast_model = nullptr;
+  if (state->raycast_arc_batch) {
+    GPU_batch_discard(state->raycast_arc_batch);
+    state->raycast_arc_batch = nullptr;
   }
 }
 

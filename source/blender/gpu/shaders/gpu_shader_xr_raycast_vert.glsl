@@ -16,7 +16,7 @@ vec3 catmull_rom(vec3 p0, vec3 p1, vec3 p2, vec3 p3, float t)
 
 vec3 get_control_point(int idx)
 {
-  idx = clamp(idx, 0, control_point_count - 1);
+  idx = clamp(idx, 0, end_point_idx);
   return control_points[idx].xyz;
 }
 
@@ -26,8 +26,8 @@ void main()
   float side = ((gl_VertexID & 1) != 0) ? -1.0 : 1.0;
 
   /** Interpolate within the range: [0, segment_count] */
-  float sample_value = float(sample_idx) * float(control_point_count - 1) /
-                       float(sample_count - 1);
+  float sample_count = XR_TELEPORTATION_ARC_SAMPLES;
+  float sample_value = (float(sample_idx) * float(end_point_idx)) / float(sample_count);
 
   int segment_idx = int(sample_value);
   float t = sample_value - float(segment_idx);
@@ -37,7 +37,7 @@ void main()
   vec3 p2 = get_control_point(segment_idx + 1);
   vec3 p3 = get_control_point(segment_idx + 2);
 
-  vec3 pos = catmull_rom(p0, p1, p2, p3, t) + 0.5 * width * side * right_vector;
+  vec3 pos = catmull_rom(p0, p1, p2, p3, t) + 0.5 * line_width * side * right_vector;
 
   gl_Position = ModelViewProjectionMatrix * vec4(pos, 1.0);
 }

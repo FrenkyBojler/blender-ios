@@ -17,17 +17,20 @@
 #include "gpu_shader_create_info.hh"
 
 GPU_SHADER_CREATE_INFO(gpu_shader_xr_raycast)
-DEFINE_VALUE("XR_MAX_RAYCASTS", STRINGIFY(XR_MAX_RAYCASTS))
+
 FRAGMENT_OUT(0, float4, fragColor)
-PUSH_CONSTANT_ARRAY(float4, control_points, XR_MAX_RAYCASTS + 1)
+DEFINE_VALUE("XR_TELEPORTATION_ARC_SAMPLES", STRINGIFY(XR_TELEPORTATION_ARC_SAMPLES))
+
+PUSH_CONSTANT_ARRAY(float4, control_points, XR_TELEPORTATION_ARC_CONTROL_POINTS)
 PUSH_CONSTANT(float4x4, ModelViewProjectionMatrix)
 PUSH_CONSTANT(float4, color)
 PUSH_CONSTANT(float3, right_vector)
-PUSH_CONSTANT(float, width)
-PUSH_CONSTANT(int, control_point_count)
-PUSH_CONSTANT(int, sample_count)
+PUSH_CONSTANT(float, line_width)
+PUSH_CONSTANT(int, end_point_idx)
+
 VERTEX_SOURCE("gpu_shader_xr_raycast_vert.glsl")
 FRAGMENT_SOURCE("gpu_shader_uniform_color_frag.glsl")
 ADDITIONAL_INFO(gpu_srgb_to_framebuffer_space)
 DO_STATIC_COMPILATION()
+
 GPU_SHADER_CREATE_END()
