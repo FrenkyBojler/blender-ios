@@ -2009,27 +2009,24 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
       rctf rq;
       strip_rectf(scene, strip, &rq);
       if (BLI_rctf_isect(&rq, &rectf, nullptr)) {
-        max_left_offset = math::min(max_left_offset, seq::time_left_handle_frame_get(scene, strip));
-        /* Don't change the content of ed->current_strips() in LISTBASE_FOREACH. */
+        max_left_offset = math::min(max_left_offset,
+                                    seq::time_left_handle_frame_get(scene, strip));
         strips_to_cut.add(strip);
-      }
-    }
-
-    const char *error_msg = nullptr;
-    for (Strip *cut_strip : strips_to_cut) {
-      if (seq::edit_strip_split(bmain,
-                                scene,
-                                ed->current_strips(),
-                                cut_strip,
-                                rect_frames[cut_pos],
-                                method,
-                                false,
-                                &error_msg) != nullptr)
-      {
-        if (error_msg != nullptr) {
-          BKE_report(op->reports, RPT_ERROR, error_msg);
+        const char *error_msg = nullptr;
+        if (seq::edit_strip_split(bmain,
+                                  scene,
+                                  ed->current_strips(),
+                                  strip,
+                                  rect_frames[cut_pos],
+                                  method,
+                                  false,
+                                  &error_msg) != nullptr)
+        {
+          if (error_msg != nullptr) {
+            BKE_report(op->reports, RPT_ERROR, error_msg);
+          }
+          changed = true;
         }
-        changed = true;
       }
     }
   }
