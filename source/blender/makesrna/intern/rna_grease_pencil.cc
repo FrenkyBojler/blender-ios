@@ -399,7 +399,7 @@ static PointerRNA rna_GreasePencilTreeNode_parent_layer_group_get(PointerRNA *pt
       *ptr, &RNA_GreasePencilLayerGroup, static_cast<void *>(node->parent));
 }
 
-static int rna_GreasePencilTreeNode_channel_color_editable(const PointerRNA *ptr,
+static int rna_GreasePencilTreeNode_channel_color_editable(const PointerRNA * /*ptr*/,
                                                            const char **r_info)
 {
   if (U.animation_flag & USER_ANIM_SHOW_CHANNEL_GROUP_COLORS) {
