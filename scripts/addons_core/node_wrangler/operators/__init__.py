@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2025 Blender Foundation
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
 import bpy
 
 from .add_attribute_node import *
