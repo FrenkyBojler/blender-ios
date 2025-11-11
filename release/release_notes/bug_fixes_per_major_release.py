@@ -667,8 +667,6 @@ def llm_says_version_is_incorrect(
                         "```"])
 
     # TODO: Fix mypy complaining about a list of dicts being incorrect
-    # TODO: Implement support for models that don't support reasoning
-    # (Ask them to come to a decision, then ask them to extract their decision)
     messages = [{"role": "user", "content": "\n".join(user_prompt)}]
 
     # Use a fixed seed for consistency. Seed number was picked at random.
