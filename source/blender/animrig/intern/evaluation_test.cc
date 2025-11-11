@@ -85,14 +85,13 @@ class AnimationEvaluationTest : public testing::Test {
                                                 const float eval_time)
   {
     anim_eval_context.eval_time = eval_time;
-    EvaluationResult result = evaluate_layer(
-        cube_rna_ptr, *action, *layer, slot->handle, anim_eval_context);
+    EvaluationResult result = evaluate_layer(*action, *layer, slot->handle, anim_eval_context);
 
-    const AnimatedProperty *loc0_result = result.lookup_ptr(PropIdentifier(rna_path, array_index));
+    const float *loc0_result = result.lookup_ptr(PropIdentifier(rna_path, array_index));
     if (!loc0_result) {
       return {};
     }
-    return loc0_result->value;
+    return *loc0_result;
   }
 
   /** Evaluate the layer, and test that the given property evaluates to the expected value. */
@@ -165,14 +164,13 @@ TEST_F(AnimationEvaluationTest, evaluate_layer__keyframes)
 
   /* Evaluate. */
   anim_eval_context.eval_time = 3.0f;
-  EvaluationResult result = evaluate_layer(
-      cube_rna_ptr, *action, *layer, slot->handle, anim_eval_context);
+  EvaluationResult result = evaluate_layer(*action, *layer, slot->handle, anim_eval_context);
 
   /* Check the result. */
   ASSERT_FALSE(result.is_empty());
-  AnimatedProperty *loc0_result = result.lookup_ptr(PropIdentifier("location", 0));
+  float *loc0_result = result.lookup_ptr(PropIdentifier("location", 0));
   ASSERT_NE(nullptr, loc0_result) << "location[0] should have been animated";
-  EXPECT_EQ(47.3f, loc0_result->value);
+  EXPECT_EQ(47.3f, *loc0_result);
 
   EXPECT_EQ(3.0f, cube->loc[0]) << "Evaluation should not modify the animated ID";
   EXPECT_EQ(2.0f, cube->loc[1]) << "Evaluation should not modify the animated ID";
@@ -301,21 +299,20 @@ TEST(AnimationEvaluationResultTest, prop_identifier_hashing)
   ASSERT_NE(rna_path_1, rna_path_2.c_str())
       << "This test requires different addresses for the RNA path strings";
 
-  PathResolvedRNA fake_resolved_rna;
-  result.store(rna_path_1, 0, 1.0f, fake_resolved_rna);
-  result.store(rna_path_2, 0, 2.0f, fake_resolved_rna);
+  result.store(rna_path_1, 0, 1.0f);
+  result.store(rna_path_2, 0, 2.0f);
   EXPECT_EQ(1, result.get_map().size())
       << "Storing a result for the same property twice should just overwrite the previous value";
 
   {
     PropIdentifier key(rna_path_1, 0);
-    AnimatedProperty *anim_prop = result.lookup_ptr(key);
-    EXPECT_EQ(2.0f, anim_prop->value) << "The last-stored result should survive.";
+    float *anim_prop = result.lookup_ptr(key);
+    EXPECT_EQ(2.0f, *anim_prop) << "The last-stored result should survive.";
   }
   {
     PropIdentifier key(rna_path_2, 0);
-    AnimatedProperty *anim_prop = result.lookup_ptr(key);
-    EXPECT_EQ(2.0f, anim_prop->value) << "The last-stored result should survive.";
+    float *anim_prop = result.lookup_ptr(key);
+    EXPECT_EQ(2.0f, *anim_prop) << "The last-stored result should survive.";
   }
 }
 

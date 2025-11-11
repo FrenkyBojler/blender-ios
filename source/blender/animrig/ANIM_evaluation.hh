@@ -84,7 +84,7 @@ class AnimatedProperty {
  */
 class EvaluationResult {
  protected:
-  using EvaluationMap = Map<PropIdentifier, AnimatedProperty>;
+  using EvaluationMap = Map<PropIdentifier, float>;
   EvaluationMap result_;
 
  public:
@@ -101,27 +101,23 @@ class EvaluationResult {
     return result_.is_empty();
   }
 
-  void store(const StringRefNull rna_path,
-             const int array_index,
-             const float value,
-             const PathResolvedRNA &prop_rna)
+  void store(const StringRefNull rna_path, const int array_index, const float value)
   {
     PropIdentifier key(rna_path, array_index);
-    AnimatedProperty anim_prop(value, prop_rna);
-    result_.add_overwrite(key, anim_prop);
+    result_.add_overwrite(key, value);
   }
 
-  AnimatedProperty value(const StringRefNull rna_path, const int array_index) const
+  float value(const StringRefNull rna_path, const int array_index) const
   {
     PropIdentifier key(rna_path, array_index);
     return result_.lookup(key);
   }
 
-  const AnimatedProperty *lookup_ptr(const PropIdentifier &key) const
+  const float *lookup_ptr(const PropIdentifier &key) const
   {
     return result_.lookup_ptr(key);
   }
-  AnimatedProperty *lookup_ptr(const PropIdentifier &key)
+  float *lookup_ptr(const PropIdentifier &key)
   {
     return result_.lookup_ptr(key);
   }
@@ -138,8 +134,7 @@ class EvaluationResult {
  * This does *not* apply the resulting values to the ID.  Instead, it returns
  * the resulting values in an `EvaluationResult`.
  */
-EvaluationResult evaluate_action(PointerRNA &animated_id_ptr,
-                                 Action &action,
+EvaluationResult evaluate_action(Action &action,
                                  slot_handle_t slot_handle,
                                  const AnimationEvalContext &anim_eval_context);
 

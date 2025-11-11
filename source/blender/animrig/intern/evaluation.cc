@@ -38,8 +38,7 @@ void apply_evaluation_result(const EvaluationResult &evaluation_result,
                              PointerRNA &animated_id_ptr,
                              bool flush_to_original);
 
-EvaluationResult evaluate_action(PointerRNA &animated_id_ptr,
-                                 Action &action,
+EvaluationResult evaluate_action(Action &action,
                                  const slot_handle_t slot_handle,
                                  const AnimationEvalContext &anim_eval_context)
 {
@@ -52,8 +51,7 @@ EvaluationResult evaluate_action(PointerRNA &animated_id_ptr,
       continue;
     }
 
-    auto layer_result = evaluate_layer(
-        animated_id_ptr, action, *layer, slot_handle, anim_eval_context);
+    auto layer_result = evaluate_layer(action, *layer, slot_handle, anim_eval_context);
     if (!layer_result) {
       continue;
     }
@@ -79,8 +77,7 @@ void evaluate_and_apply_action(PointerRNA &animated_id_ptr,
                                const AnimationEvalContext &anim_eval_context,
                                const bool flush_to_original)
 {
-  EvaluationResult evaluation_result = evaluate_action(
-      animated_id_ptr, action, slot_handle, anim_eval_context);
+  EvaluationResult evaluation_result = evaluate_action(action, slot_handle, anim_eval_context);
   if (!evaluation_result) {
     return;
   }
@@ -141,8 +138,7 @@ static void animsys_write_orig_anim_rna(PointerRNA *ptr,
   }
 }
 
-static EvaluationResult evaluate_keyframe_data(PointerRNA &animated_id_ptr,
-                                               StripKeyframeData &strip_data,
+static EvaluationResult evaluate_keyframe_data(StripKeyframeData &strip_data,
                                                const slot_handle_t slot_handle,
                                                const AnimationEvalContext &offset_eval_context)
 {
@@ -159,22 +155,9 @@ static EvaluationResult evaluate_keyframe_data(PointerRNA &animated_id_ptr,
       continue;
     }
 
-    PathResolvedRNA anim_rna;
-    if (!BKE_animsys_rna_path_resolve(
-            &animated_id_ptr, fcu->rna_path, fcu->array_index, &anim_rna))
-    {
-      /* Log this at quite a high level, because it can get _very_ noisy when playing back
-       * animation. */
-      CLOG_DEBUG(&LOG,
-                 "Cannot resolve RNA path %s[%d] on ID %s\n",
-                 fcu->rna_path,
-                 fcu->array_index,
-                 animated_id_ptr.owner_id->name);
-      continue;
-    }
-
-    const float curval = calculate_fcurve(&anim_rna, fcu, &offset_eval_context);
-    evaluation_result.store(fcu->rna_path, fcu->array_index, curval, anim_rna);
+    BLI_assert_msg(!fcu->driver, "Not expecting driver fcurves in a channelbag");
+    const float curval = evaluate_fcurve(fcu, offset_eval_context.eval_time);
+    evaluation_result.store(fcu->rna_path, fcu->array_index, curval);
   }
 
   return evaluation_result;
@@ -186,10 +169,14 @@ void apply_evaluation_result(const EvaluationResult &evaluation_result,
 {
   for (auto channel_result : evaluation_result.items()) {
     const PropIdentifier &prop_ident = channel_result.key;
-    const AnimatedProperty &anim_prop = channel_result.value;
-    const float animated_value = anim_prop.value;
-    PathResolvedRNA anim_rna = anim_prop.prop_rna;
+    const float animated_value = channel_result.value;
 
+    PathResolvedRNA anim_rna;
+    if (!BKE_animsys_rna_path_resolve(
+            &animated_id_ptr, prop_ident.rna_path.c_str(), prop_ident.array_index, &anim_rna))
+    {
+      continue;
+    }
     BKE_animsys_write_to_rna_path(&anim_rna, animated_value);
 
     if (flush_to_original) {
@@ -201,8 +188,7 @@ void apply_evaluation_result(const EvaluationResult &evaluation_result,
   }
 }
 
-static EvaluationResult evaluate_strip(PointerRNA &animated_id_ptr,
-                                       Action &owning_action,
+static EvaluationResult evaluate_strip(Action &owning_action,
                                        Strip &strip,
                                        const slot_handle_t slot_handle,
                                        const AnimationEvalContext &anim_eval_context)
@@ -215,7 +201,7 @@ static EvaluationResult evaluate_strip(PointerRNA &animated_id_ptr,
   switch (strip.type()) {
     case Strip::Type::Keyframe: {
       StripKeyframeData &strip_data = strip.data<StripKeyframeData>(owning_action);
-      return evaluate_keyframe_data(animated_id_ptr, strip_data, slot_handle, offset_eval_context);
+      return evaluate_keyframe_data(strip_data, slot_handle, offset_eval_context);
     }
   }
 
@@ -234,35 +220,32 @@ EvaluationResult blend_layer_results(const EvaluationResult &last_result,
 
   for (auto channel_result : current_result.items()) {
     const PropIdentifier &prop_ident = channel_result.key;
-    AnimatedProperty *last_prop = blend.lookup_ptr(prop_ident);
-    const AnimatedProperty &anim_prop = channel_result.value;
+    float *last_prop = blend.lookup_ptr(prop_ident);
+    const float anim_prop = channel_result.value;
 
     if (!last_prop) {
       /* Nothing to blend with, so just take (influence * value). */
-      blend.store(prop_ident.rna_path,
-                  prop_ident.array_index,
-                  anim_prop.value * current_layer.influence,
-                  anim_prop.prop_rna);
+      blend.store(
+          prop_ident.rna_path, prop_ident.array_index, anim_prop * current_layer.influence);
       continue;
     }
 
     /* TODO: move this to a separate function. And write more smartness for rotations. */
     switch (current_layer.mix_mode()) {
       case Layer::MixMode::Replace:
-        last_prop->value = anim_prop.value * current_layer.influence;
+        *last_prop = anim_prop * current_layer.influence;
         break;
       case Layer::MixMode::Offset:
-        last_prop->value = math::interpolate(
-            current_layer.influence, last_prop->value, anim_prop.value);
+        *last_prop = math::interpolate(current_layer.influence, *last_prop, anim_prop);
         break;
       case Layer::MixMode::Add:
-        last_prop->value += anim_prop.value * current_layer.influence;
+        *last_prop += anim_prop * current_layer.influence;
         break;
       case Layer::MixMode::Subtract:
-        last_prop->value -= anim_prop.value * current_layer.influence;
+        *last_prop -= anim_prop * current_layer.influence;
         break;
       case Layer::MixMode::Multiply:
-        last_prop->value *= anim_prop.value * current_layer.influence;
+        *last_prop *= anim_prop * current_layer.influence;
         break;
     };
   }
@@ -272,8 +255,7 @@ EvaluationResult blend_layer_results(const EvaluationResult &last_result,
 
 namespace internal {
 
-EvaluationResult evaluate_layer(PointerRNA &animated_id_ptr,
-                                Action &owning_action,
+EvaluationResult evaluate_layer(Action &owning_action,
                                 Layer &layer,
                                 const slot_handle_t slot_handle,
                                 const AnimationEvalContext &anim_eval_context)
@@ -292,7 +274,7 @@ EvaluationResult evaluate_layer(PointerRNA &animated_id_ptr,
     }
 
     const EvaluationResult strip_result = evaluate_strip(
-        animated_id_ptr, owning_action, *strip, slot_handle, anim_eval_context);
+        owning_action, *strip, slot_handle, anim_eval_context);
     if (!strip_result) {
       continue;
     }
