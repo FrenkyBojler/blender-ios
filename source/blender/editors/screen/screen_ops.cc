@@ -3282,13 +3282,6 @@ static wmOperatorStatus quadview_size_modal(bContext *C, wmOperator *op, const w
       float quad_y = float((event->xy[1]) - (qsd->bounds.ymin)) /
                      float(BLI_rcti_size_y(&qsd->bounds) + 1);
 
-      /* Snap to middle. */
-      const float snap_threshold = 0.04f;
-      if ((fabsf(quad_x - 0.5f) < snap_threshold) && (fabsf(quad_y - 0.5f) < snap_threshold)) {
-        quad_x = 0.5f;
-        quad_y = 0.5f;
-      }
-
       /* Clamp.*/
       qsd->area->quadview_ratio[0] = std::clamp(quad_x, 0.1f, 0.9f);
       qsd->area->quadview_ratio[1] = std::clamp(quad_y, 0.2f, 0.8f);
