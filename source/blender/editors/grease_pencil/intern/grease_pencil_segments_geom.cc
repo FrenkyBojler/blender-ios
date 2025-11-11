@@ -428,12 +428,12 @@ static IntersectionPoint create_intersection(const int point_i,
 }
 
 static void find_intersections_between_curve_and_curves(
-    const int curve_i,
     const Span<float2> screen_space_positions,
     const Span<Bounds<float2>> screen_space_bbox,
     const OffsetIndices<int> points_by_curve,
     const VArray<bool> &cyclic,
     const IndexMask &visible_curves,
+    const int curve_i,
     Array<Vector<int>> &r_inters_per_curves,
     Vector<IntersectionPoint> &r_intersections)
 {
@@ -532,12 +532,12 @@ static void find_intersections_between_all_curves(const Span<float2> screen_spac
                                                   Vector<IntersectionPoint> &r_intersections)
 {
   visible_curves.foreach_index([&](const int curve_i) {
-    find_intersections_between_curve_and_curves(curve_i,
-                                                screen_space_positions,
+    find_intersections_between_curve_and_curves(screen_space_positions,
                                                 screen_space_bbox,
                                                 points_by_curve,
                                                 cyclic,
                                                 visible_curves,
+                                                curve_i,
                                                 r_inters_per_curves,
                                                 r_intersections);
   });
