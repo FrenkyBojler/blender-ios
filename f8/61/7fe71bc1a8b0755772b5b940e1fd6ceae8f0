@@ -1,2 +1,3 @@
 Referenced by issue #109565, Regression: Array modifier change a merged Root vertex of Skin modifier
 Referenced by issue #108915, WIP: Fix #108880: Skin and Miffor modifiers cause mesh collapse
+Referenced by issue #149689, Regression: Skin modifier no longer works when Subdivision Surface is applied before it.
