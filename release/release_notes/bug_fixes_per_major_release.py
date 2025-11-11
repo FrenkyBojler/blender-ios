@@ -654,6 +654,14 @@ def llm_says_version_is_incorrect(
     #   - "Worked: Before 4.5 HASH" probably means "Worked: 4.5 HASH-1"
     #   - "Worked: Before 4.5, branch: blender-v4.5-release, HASH" probably means "Worked: 4.4"
     #   - At the moment the LLM usually flags these commits for triager review, and triagers can go clean it up.
+    # - The case of "Broken: 4.5 with Vulkan, Worked: 4.5 with OpenGL" is currently not flagged by the LLM as it's not provided with enough information to flag this.
+    #   - At the moment the LLM is provided JUST the Working field (Worked: 4.5 with OpenGL). So it can't see that there is a conflict in the Broken field.
+    #   - However, passing both the Broken and Working field to the LLM can cause confusion for much more common cases like "Broken: 5.0 HASH, Worked: 5.0 HASH-2 weeks".
+    #   - A multi-turn conversation approach may be neccesary to work through this issue.
+    #     Or a different set of intial questions may be useful.
+    #     ("E.g. Is there anything in the Broken/Working fields that's ambiguous?, then provide a description of what is and isn't considered ambiguous").
+    #     I (Alaska) have tried the "Is this information ambiguous" approach in the past, but it was difficult to get models to be consistent,
+    #     even at 100+ billion parameter, so I resorted to fine tuning a model for the task.
 
     if not should_be_broken:
         # To allow the script to handle new features, triagers usually put "Worked: N/A as it's a new feature in X.Y" so the script sees:
