@@ -1,1 +1,2 @@
 Referenced by issue #149604, Regression: Cannot subclass Vector anymore
+Referenced by pull request #149685, Fix #149604: Regression sub-classing mathutils types
