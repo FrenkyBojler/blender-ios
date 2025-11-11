@@ -1158,6 +1158,10 @@ def validate_arguments(args: argparse.Namespace) -> tuple[bool, bool]:
         # First check to see if any of the LLM arguments are set.
         # And if they are, see if all the necessary arguments are set.
         if not llm_url_is_none and not llm_key_is_none and not llm_name_is_none:
+            print(
+                "WARNING: You are using a LLM to judge if the bug reporting script is outputting accurate information. "
+                "The extra overhead of running a LLM will slow down the script. "
+                "This option is also experimental, and should be used with caution.")
             use_llm_judge = True
         else:
             print("WARNING: (Optional) It seems like you tried to define some of the LLM arguments, but didn't define all of them.")
