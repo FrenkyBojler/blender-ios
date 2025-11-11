@@ -2090,14 +2090,14 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
       const float left_handle = seq::time_left_handle_frame_get(scene, strip);
 
       if (left_handle == rect_frames[1]) {
+        /* Also offset connected strips. Also get effect strips to later run the overlap handeling
+         * on them. */
         seq::query_strip_connected_and_effect_chain(scene, strip, &ed->seqbase, offset_strips);
       }
       /* Offset every strip on the same channel and right of the cut. */
       else if (left_handle > rect_frames[1] && strip->channel <= int(rectf.ymax) &&
                strip->channel >= int(rectf.ymin))
       {
-        /* Also offset connected strips. Also get effect strips to later run the overlap handeling
-         * on them. */
         seq::query_strip_connected_and_effect_chain(scene, strip, &ed->seqbase, offset_strips);
       }
     }
