@@ -2089,7 +2089,9 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
       }
       const float left_handle = seq::time_left_handle_frame_get(scene, strip);
 
-      if (left_handle == rect_frames[1]) {
+      if (left_handle == rect_frames[1] && strip->channel <= int(rectf.ymax) &&
+          strip->channel >= int(rectf.ymin))
+      {
         /* Also offset connected strips. Also get effect strips to later run the overlap handeling
          * on them. */
         seq::query_strip_connected_and_effect_chain(scene, strip, &ed->seqbase, offset_strips);
@@ -2107,7 +2109,7 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
       seq::transform_translate_strip(scene, strip, offset);
     }
     /* Handle overlap by moving strip up. */
-    for (Strip *strip : offset_strips){
+    for (Strip *strip : offset_strips) {
       if (seq::transform_test_overlap(scene, ed->current_strips(), strip)) {
         seq::transform_seqbase_shuffle(ed->current_strips(), strip, scene);
       }
