@@ -69,6 +69,9 @@ def setup():
     for scene in bpy.data.scenes:
         scene.render.engine = 'BLENDER_EEVEE'
 
+        skip_hair_setup = scene.get("EEVEE_skip_hair_setup", False)
+        skip_shadow_setup = scene.get("EEVEE_skip_shadow_setup", False)
+
         # Enable Eevee features
         eevee = scene.eevee
 
@@ -84,10 +87,12 @@ def setup():
         eevee.light_threshold = 0.001
 
         # Hair
-        scene.render.hair_type = 'STRIP'
+        if not skip_hair_setup:
+            scene.render.hair_type = 'STRIP'
 
         # Shadow
-        eevee.shadow_step_count = 16
+        if not skip_shadow_setup:
+            eevee.shadow_step_count = 16
 
         # Volumetric
         eevee.volumetric_tile_size = '2'
@@ -114,7 +119,7 @@ def setup():
 
         # Only include the plane in probes
         for ob in scene.objects:
-            if ob.type == 'LIGHT':
+            if ob.type == 'LIGHT' and not skip_shadow_setup:
                 # Set maximum resolution
                 ob.data.shadow_maximum_resolution = 0.0
 
