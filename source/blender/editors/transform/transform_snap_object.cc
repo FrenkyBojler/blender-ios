@@ -20,6 +20,7 @@
 #include "BKE_geometry_set_instances.hh"
 #include "BKE_layer.hh"
 #include "BKE_mesh.hh"
+#include "BKE_modifier.hh"
 #include "BKE_object.hh"
 
 #include "DEG_depsgraph_query.hh"
@@ -402,6 +403,10 @@ static const ID *data_for_snap(Object *ob_eval, eSnapEditType edit_mode_type, bo
  */
 static const ID *data_for_snap_dupli(Object *ob_eval, ID *ob_data)
 {
+  if (BKE_modifiers_findby_type(ob_eval, eModifierType_Nodes)) {
+    return ob_data;
+  }
+
   /* For curve and surface objects, use the evaluated mesh so snapping
    * works with the final geometry instead of the coarse cage, see: #143060. */
   if (ELEM(ob_eval->type, OB_CURVES_LEGACY, OB_CURVES, OB_SURF)) {
