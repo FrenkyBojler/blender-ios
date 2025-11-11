@@ -15,7 +15,11 @@ struct Strip;
 
 namespace blender::seq {
 
-/** The active displayed channels list, either from the root sequence or from a meta-strip. */
+/**
+ * Get the active displayed channels list, either from the root seqbase or from a meta-strip.
+ * Channels do not exist unless there is a valid `ed`, so it must not be `nullptr`.
+ * \return pointer to channel list
+ */
 ListBase *channels_displayed_get(const Editing *ed);
 void channels_ensure(ListBase *channels);
 void channels_duplicate(ListBase *channels_dst, ListBase *channels_src);

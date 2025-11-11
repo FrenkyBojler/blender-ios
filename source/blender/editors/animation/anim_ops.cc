@@ -160,8 +160,11 @@ static void ensure_change_frame_keylist(bContext *C, FrameChangeModalData &op_da
     if (!scene) {
       return;
     }
-
-    ListBase *seqbase = blender::seq::active_seqbase_get(blender::seq::editing_get(scene));
+    Editing *ed = blender::seq::editing_get(scene);
+    if (!ed) {
+      return;
+    }
+    ListBase *seqbase = blender::seq::active_seqbase_get(ed);
     LISTBASE_FOREACH (Strip *, strip, seqbase) {
       sequencer_strip_to_keylist(*strip, *op_data.keylist, *scene);
     }
@@ -658,7 +661,7 @@ static bool use_playhead_snapping(bContext *C)
 static bool sequencer_is_mouse_over_handle(const bContext *C, const wmEvent *event)
 {
   Scene *scene = CTX_data_sequencer_scene(C);
-  if (!blender::seq::editing_get(scene)) {
+  if (!scene || !blender::seq::editing_get(scene)) {
     return false;
   }
 

@@ -652,14 +652,17 @@ static bool is_mouse_over_retiming_key(const Scene *scene,
 
 static void sequencer_main_cursor(wmWindow *win, ScrArea *area, ARegion *region)
 {
-  const WorkSpace *workspace = WM_window_get_active_workspace(win);
-  const Scene *scene = workspace->sequencer_scene;
-  const Editing *ed = seq::editing_get(scene);
-  const bToolRef *tref = area->runtime.tool;
-
   int wmcursor = WM_CURSOR_DEFAULT;
 
-  if (tref == nullptr || scene == nullptr || ed == nullptr) {
+  const WorkSpace *workspace = WM_window_get_active_workspace(win);
+  const Scene *scene = workspace->sequencer_scene;
+  if (!scene) {
+    return;
+  }
+
+  const Editing *ed = seq::editing_get(scene);
+  const bToolRef *tref = area->runtime.tool;
+  if (!ed || !tref) {
     WM_cursor_set(win, wmcursor);
     return;
   }

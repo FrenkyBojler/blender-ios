@@ -63,14 +63,24 @@ int tool_settings_snap_distance_get(Scene *scene);
 eSeqOverlapMode tool_settings_overlap_mode_get(Scene *scene);
 int tool_settings_pivot_point_get(Scene *scene);
 SequencerToolSettings *tool_settings_copy(SequencerToolSettings *tool_settings);
+/**
+ * Get the sequencer data of the scene.
+ * If the sequencer has not already been initialized, call `editing_ensure` instead.
+ *
+ * NOTE: `scene` must not be `nullptr`, but could be if it is the sequencer scene, so make
+ * sure to check it when necessary before calling this function.
+ *
+ * \return pointer to sequencer editor data
+ */
 Editing *editing_get(const Scene *scene);
 Editing *editing_ensure(Scene *scene);
 void editing_free(Scene *scene, bool do_id_user);
 /**
- * Get seqbase that is being viewed currently. This can be main seqbase or meta strip seqbase
+ * Get the seqbase (listing of strips on the current metastack "level") that is being viewed.
+ * This can be the top-level seqbase, or a meta-strip's seqbase.
  *
  * \param ed: sequence editor data
- * \return pointer to active seqbase. returns NULL if ed is NULL
+ * \return pointer to active seqbase. returns `nullptr` if ed is `nullptr`
  */
 ListBase *active_seqbase_get(const Editing *ed);
 Strip *strip_alloc(ListBase *lb, int timeline_frame, int channel, int type);

@@ -777,8 +777,12 @@ static void SOUND_OT_mixdown(wmOperatorType *ot)
 
 static bool sound_poll(bContext *C)
 {
-  Editing *ed = blender::seq::editing_get(CTX_data_sequencer_scene(C));
+  Scene *scene = CTX_data_sequencer_scene(C);
+  if (!scene) {
+    return false;
+  }
 
+  Editing *ed = blender::seq::editing_get(scene);
   if (!ed || !ed->act_strip || ed->act_strip->type != STRIP_TYPE_SOUND_RAM) {
     return false;
   }
@@ -790,7 +794,12 @@ static bool sound_poll(bContext *C)
 static wmOperatorStatus sound_pack_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
-  Editing *ed = blender::seq::editing_get(CTX_data_sequencer_scene(C));
+  Scene *scene = CTX_data_sequencer_scene(C);
+  if (!scene) {
+    return OPERATOR_CANCELLED;
+  }
+
+  Editing *ed = blender::seq::editing_get(scene);
   bSound *sound;
 
   if (!ed || !ed->act_strip || ed->act_strip->type != STRIP_TYPE_SOUND_RAM) {
@@ -863,7 +872,12 @@ static wmOperatorStatus sound_unpack_exec(bContext *C, wmOperator *op)
 
 static wmOperatorStatus sound_unpack_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
-  Editing *ed = blender::seq::editing_get(CTX_data_sequencer_scene(C));
+  Scene *scene = CTX_data_sequencer_scene(C);
+  if (!scene) {
+    return OPERATOR_CANCELLED;
+  }
+
+  Editing *ed = blender::seq::editing_get(scene);
   bSound *sound;
 
   if (RNA_struct_property_is_set(op->ptr, "id")) {

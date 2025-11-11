@@ -281,7 +281,7 @@ void seq_free_strip_recurse(Scene *scene, Strip *strip, const bool do_id_user)
 
 Editing *editing_get(const Scene *scene)
 {
-  return scene ? scene->ed : nullptr;
+  return scene->ed;
 }
 
 Editing *editing_ensure(Scene *scene)

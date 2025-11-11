@@ -94,7 +94,7 @@ Strip *special_preview_get()
 void special_preview_set(bContext *C, const int mval[2])
 {
   Scene *scene = CTX_data_sequencer_scene(C);
-  if (!seq::editing_get(scene)) {
+  if (!scene || !seq::editing_get(scene)) {
     return;
   }
 
