@@ -1433,7 +1433,7 @@ static XrRaycastResult wm_xr_navigation_compute_teleportation_arc(bContext *C,
                   nullptr);
 
     if (ob) {
-      /** Ensure normal faces the correct direction. */
+      /* Ensure normal face the correct direction. */
       if (math::dot(segment_direction, normal) > 0) {
         normal *= -1.0f;
       }
@@ -1444,12 +1444,12 @@ static XrRaycastResult wm_xr_navigation_compute_teleportation_arc(bContext *C,
       return XR_RAYCAST_HIT;
     }
 
-    data->arc_points[i] = data->arc_points[i - 1] + (segment_direction * segment_length);
-
-    /* Apply gravity. */
+    /* Miss, apply gravity and extend the arc in the current direction. */
     const float gravity = RNA_float_get(op->ptr, "gravity");
     segment_direction.z -= gravity;
     segment_direction = math::normalize(segment_direction);
+
+    data->arc_points[i] = data->arc_points[i - 1] + (segment_direction * segment_length);
   }
 
   return XR_RAYCAST_MISS;
