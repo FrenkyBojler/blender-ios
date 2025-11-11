@@ -2067,10 +2067,11 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
           seq::edit_flag_for_removal(scene, ed->current_strips(), c_strip);
         }
       }
-      seq::edit_remove_flagged_strips(scene, ed->current_strips());
       changed = true;
     }
   }
+
+  seq::edit_remove_flagged_strips(scene, ed->current_strips());
 
   if (!changed) {
     return OPERATOR_CANCELLED;
