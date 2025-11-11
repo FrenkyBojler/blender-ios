@@ -1458,12 +1458,10 @@ static XrRaycastResult wm_xr_navigation_compute_teleportation_arc(bContext *C,
 static float wm_xr_navigation_determine_head_height(bContext *C, wmOperator *op, wmXrData *xr)
 {
   /* Raycast downward from the current XR virtual head position to find the floor. */
-
   blender::float3 viewer_pos_loc;
   WM_xr_session_state_viewer_pose_location_get(xr, viewer_pos_loc);
 
-  /* Using the global operator setting as a base. */
-  float ray_dist = RNA_float_get(op->ptr, "distance");
+  float ray_dist = RNA_float_get(op->ptr, "distance"); /* Same as main raycast. */
   const bool selectable_only = RNA_boolean_get(op->ptr, "selectable_only");
 
   blender::float3 dummy_dest = {};
@@ -1517,23 +1515,23 @@ static bool wm_xr_navigation_arc_clip_to_ground_plane(blender::Array<blender::fl
   return false;
 }
 
-static XrRaycastResult wm_xr_navigation_teleport(bContext *C,
-                                                 wmOperator *op,
-                                                 wmXrData *xr,
-                                                 XrRaycastData *data,
-                                                 blender::float3 &r_destination,
-                                                 float &r_destination_dist)
+static XrRaycastResult wm_xr_navigation_arc_teleport(bContext *C,
+                                                     wmOperator *op,
+                                                     wmXrData *xr,
+                                                     XrRaycastData *data,
+                                                     blender::float3 &r_destination,
+                                                     float &r_destination_dist)
 {
   using namespace blender;
 
   const float head_height_offset = wm_xr_navigation_determine_head_height(C, op, xr);
 
   float3 hit_normal = {};
-  /* Compute the initial arc using a series of points. */
+  /* Compute the teleportation visual arc and destination using a serie of raycasts. */
   XrRaycastResult result = wm_xr_navigation_compute_teleportation_arc(C, op, data, hit_normal);
 
   if (result == XR_RAYCAST_MISS) {
-    /* Fall back to raycast intersecting with the ground plane. */
+    /* Fallback to intersecting with the world ground plane by truncating the obtained arc. */
     if (!wm_xr_navigation_arc_clip_to_ground_plane(data->arc_points, data->end_point_idx)) {
       return XR_RAYCAST_MISS;
     }
@@ -1542,7 +1540,7 @@ static XrRaycastResult wm_xr_navigation_teleport(bContext *C,
     result = XR_RAYCAST_FALLBACK;
   }
 
-  /* Calculate teleportation destination in navigation space. */
+  /* Calculate the teleportation destination in navigation space. */
   r_destination_dist = wm_xr_navigation_teleport_pose_calc(op,
                                                            xr,
                                                            r_destination,
@@ -1602,7 +1600,9 @@ static wmOperatorStatus wm_xr_navigation_teleport_modal(bContext *C,
 
   blender::float3 destination;
   float destination_dist;
-  data->hit_result = wm_xr_navigation_teleport(C, op, xr, data, destination, destination_dist);
+
+  /* Teleport using an arc, computing both the final destination and the visual curve. */
+  data->hit_result = wm_xr_navigation_arc_teleport(C, op, xr, data, destination, destination_dist);
 
   /* Update ray color. */
   switch (data->hit_result) {
