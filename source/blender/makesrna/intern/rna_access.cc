@@ -27,6 +27,7 @@
 #include "BLI_math_base.h"
 #include "BLI_mutex.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
@@ -1658,6 +1659,12 @@ int RNA_property_string_maxlength(PropertyRNA *prop)
 {
   StringPropertyRNA *sprop = (StringPropertyRNA *)rna_ensure_property(prop);
   return sprop->maxlength;
+}
+
+bool RNA_property_string_is_utf8(PropertyRNA *prop)
+{
+  const PropertySubType subtype = RNA_property_subtype(prop);
+  return !ELEM(subtype, PROP_FILEPATH, PROP_DIRPATH, PROP_FILENAME, PROP_BYTESTRING);
 }
 
 StructRNA *RNA_property_pointer_type(PointerRNA *ptr, PropertyRNA *prop)
@@ -4238,7 +4245,12 @@ void RNA_property_string_get_default(PointerRNA *ptr,
 
   if (sprop->get_default) {
     std::string default_value = sprop->get_default(ptr, prop);
-    BLI_strncpy(value, default_value.c_str(), value_maxncpy);
+    if (RNA_property_string_is_utf8(prop)) {
+      BLI_strncpy_utf8(value, default_value.c_str(), value_maxncpy);
+    }
+    else {
+      BLI_strncpy(value, default_value.c_str(), value_maxncpy);
+    }
     return;
   }
   strcpy(value, sprop->defaultvalue);
