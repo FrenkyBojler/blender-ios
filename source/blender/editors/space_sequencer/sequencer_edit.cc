@@ -2000,9 +2000,8 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
   bool changed = false;
   int max_left_offset = INT_MAX;
 
-  /* Make two split logic runs so the newly created strips can get split by the second foreach
-   * run.*/
-  for (int axis : {0, 1}) {
+  /* Make two split logic runs so the newly created strips can get split by the second run. */
+  for (int cut_pos : {0, 1}) {
     VectorSet<Strip *> strips_to_cut;
     LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
       if (!ignore_selection && !selected_strips_from_context(C).contains(strip)) {
@@ -2028,7 +2027,7 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
                                 scene,
                                 ed->current_strips(),
                                 cut_strip,
-                                rect_frames[axis],
+                                rect_frames[cut_pos],
                                 method,
                                 false,
                                 &error_msg) != nullptr)
