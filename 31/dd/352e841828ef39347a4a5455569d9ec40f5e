@@ -1,1 +1,2 @@
 Referenced by issue #149550, Crash rendering Victor benchmark scene
+Referenced by issue #149689, Regression: Skin modifier no longer works when Subdivision Surface is applied before it.
