@@ -2003,10 +2003,9 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
   /* Make two split logic runs so the newly created strips can get split by the second run. */
   for (int cut_pos : {0, 1}) {
     VectorSet<Strip *> strips_to_cut;
-    LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
-      if (!ignore_selection && !selected_strips_from_context(C).contains(strip)) {
-        continue;
-      }
+    const VectorSet<Strip *> strips = ignore_selection ? all_strips_from_context(C) :
+                                                         selected_strips_from_context(C);
+    for (Strip *strip : strips) {
       rctf rq;
       strip_rectf(scene, strip, &rq);
       if (BLI_rctf_isect(&rq, &rectf, nullptr)) {
