@@ -1478,7 +1478,8 @@ static ImBuf *seq_render_scene_strip_ex(const RenderData *context,
     uint draw_flags = V3D_OFSDRAW_NONE;
     draw_flags |= (use_gpencil) ? V3D_OFSDRAW_SHOW_ANNOTATION : 0;
     draw_flags |= (context->scene->r.seq_flag & R_SEQ_OVERRIDE_SCENE_SETTINGS) ?
-                      V3D_OFSDRAW_OVERRIDE_SCENE_SETTINGS :
+                      (V3D_OFSDRAW_OVERRIDE_SCENE_SETTINGS |
+                       V3D_OFSDRAW_NO_WORLD_BACKGROUND_OVERRIDE) :
                       0;
 
     /* for old scene this can be uninitialized,
