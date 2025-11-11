@@ -438,11 +438,11 @@ static void find_intersections_between_curve_and_curves(
     Vector<IntersectionPoint> &r_intersections)
 {
   const bool cyclic_i = cyclic[curve_i];
-  const IndexRange points_i = points_by_curve[curve_i];
+  const IndexRange curve_points_i = points_by_curve[curve_i];
 
-  for (const int i : points_i.index_range().drop_back(cyclic_i ? 0 : 1)) {
-    const int point_i1 = points_i[i];
-    const int point_i2 = points_i[(i + 1) % points_i.size()];
+  for (const int i : curve_points_i.index_range().drop_back(cyclic_i ? 0 : 1)) {
+    const int point_i1 = curve_points_i[i];
+    const int point_i2 = curve_points_i[(i + 1) % curve_points_i.size()];
 
     const float2 co_i1 = screen_space_positions[point_i1];
     const float2 co_i2 = screen_space_positions[point_i2];
@@ -469,11 +469,11 @@ static void find_intersections_between_curve_and_curves(
       }
 
       const bool cyclic_j = cyclic[curve_j];
-      const IndexRange points_j = points_by_curve[curve_j];
+      const IndexRange curve_points_j = points_by_curve[curve_j];
 
-      for (const int j : points_j.index_range().drop_back(cyclic_j ? 0 : 1)) {
-        const int point_j1 = points_j[j];
-        const int point_j2 = points_j[(j + 1) % points_j.size()];
+      for (const int j : curve_points_j.index_range().drop_back(cyclic_j ? 0 : 1)) {
+        const int point_j1 = curve_points_j[j];
+        const int point_j2 = curve_points_j[(j + 1) % curve_points_j.size()];
 
         /* Don't self check. */
         if (curve_i == curve_j && (point_i1 == point_j1 || point_i1 == point_j2 ||
