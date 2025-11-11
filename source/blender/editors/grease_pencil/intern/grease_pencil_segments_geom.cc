@@ -327,8 +327,8 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
   {
     bke::attribute_math::convert_to_static_type(attribute.dst.span.type(), [&](auto dummy) {
       using T = decltype(dummy);
-      auto src_attr = attribute.src.typed<T>();
-      auto dst_attr = attribute.dst.span.typed<T>();
+      const Span<T> src_attr = attribute.src.typed<T>();
+      MutableSpan<T> dst_attr = attribute.dst.span.typed<T>();
 
       int i = 0;
 
