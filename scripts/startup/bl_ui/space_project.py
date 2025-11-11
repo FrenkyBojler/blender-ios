@@ -19,13 +19,30 @@ class PROJECT_OP_NewProject(bpy.types.Operator):
     bl_idname = "project.new_project"
     bl_label = "New Project"
 
+    directory: bpy.props.StringProperty(
+        name="Project Root",
+        subtype='DIR_PATH',
+        default="",
+    )
+
+    filter_folder: bpy.props.BoolProperty(
+        name="Filter folders",
+        default=True,
+        options={'HIDDEN'},
+    )
+
     @classmethod
     def poll(cls, context):
         return context.project.data is None
 
     def execute(self, context):
-        context.project.init("New Project", "/my_project")
+        # TODO: validate `self.directory`.
+        context.project.init("New Project", self.directory)
         return {'FINISHED'}
+
+    def invoke(self, context, event):
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
 
 
 class PROJECT_OP_WriteProject(bpy.types.Operator):
