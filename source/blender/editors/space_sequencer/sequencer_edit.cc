@@ -2113,9 +2113,7 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
       /* This can lead strips to overlap when a strip is in front of the connected strip. */
       seq::transform_translate_strip(scene, strip, offset);
       transformed_strips.add(strip);
-    }
-    /* Handle overlap by moving strip up. */
-    for (Strip *strip : transformed_strips) {
+      /* Handle overlap by moving strip up. */
       if (seq::transform_test_overlap(scene, ed->current_strips(), strip)) {
         seq::transform_seqbase_shuffle(ed->current_strips(), strip, scene);
       }
