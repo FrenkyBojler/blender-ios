@@ -670,9 +670,9 @@ def llm_says_version_is_incorrect(
         llm_choice = llm_choice.strip().lower()
         if llm_choice == "no":
             # The LLM disagreed with the previous statement.
-            return False
+            return True
 
-    return True
+    return False
 
 
 # ---
