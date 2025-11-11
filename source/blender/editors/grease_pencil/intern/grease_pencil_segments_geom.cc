@@ -109,9 +109,7 @@ class Segment {
         if (this->is_loop()) {
           return src_points.shift(points[Side::Start] - src_points.first() + 1);
         }
-        else {
-          return IndexRange(0);
-        }
+        return IndexRange(0);
       }
 
       if (intersection_factor[Side::Start] > intersection_factor[Side::End]) {
