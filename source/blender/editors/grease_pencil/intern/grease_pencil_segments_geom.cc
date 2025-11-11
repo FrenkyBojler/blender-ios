@@ -239,8 +239,8 @@ static float get_intersection_distance_of_segments(const float2 &co_a,
   const float2 isect((b2 * c1 - b1 * c2) / det, (a1 * c2 - a2 * c1) / det);
 
   /* Get normalized distance from point a to intersection point. */
-  const float length_ab = math::length(co_b - co_a);
-  const float distance = math::safe_divide(math::length(isect - co_a), length_ab);
+  const float length_ab = math::distance(co_b, co_a);
+  const float distance = math::safe_divide(math::distance(isect, co_a), length_ab);
 
   /* Snap to the ends if very close. */
   if (math::abs(distance) < 0.0001f) {
