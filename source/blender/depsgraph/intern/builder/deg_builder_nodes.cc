@@ -1250,15 +1250,19 @@ void DepsgraphNodeBuilder::build_animdata(ID *id)
   (void)add_id_node(id);
   ID *id_cow = get_cow_id(id);
   if (adt->action != nullptr || !BLI_listbase_is_empty(&adt->nla_tracks)) {
+    AnimationComponentNode *comp = static_cast<AnimationComponentNode *>(
+        add_component_node(id, NodeType::ANIMATION, ""));
     OperationNode *operation_node;
     /* Explicit entry operation. */
     operation_node = add_operation_node(id, NodeType::ANIMATION, OperationCode::ANIMATION_ENTRY);
     operation_node->set_as_entry();
     /* All the evaluation nodes. */
-    add_operation_node(
-        id, NodeType::ANIMATION, OperationCode::ANIMATION_EVAL, [id_cow](::Depsgraph *depsgraph) {
-          BKE_animsys_eval_animdata(depsgraph, id_cow);
-        });
+    add_operation_node(id,
+                       NodeType::ANIMATION,
+                       OperationCode::ANIMATION_EVAL,
+                       [id_cow, comp](::Depsgraph *depsgraph) {
+                         BKE_animsys_eval_apply_cached(depsgraph, id_cow, comp->rna_lookup_map);
+                       });
     /* Explicit exit operation. */
     operation_node = add_operation_node(id, NodeType::ANIMATION, OperationCode::ANIMATION_EXIT);
     operation_node->set_as_exit();

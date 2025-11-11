@@ -188,7 +188,6 @@ struct ComponentNode : public Node {
     } \
   }
 
-DEG_COMPONENT_NODE_DECLARE_GENERIC(Animation);
 DEG_COMPONENT_NODE_DECLARE_NO_COW_TAG_ON_UPDATE(BatchCache);
 DEG_COMPONENT_NODE_DECLARE_GENERIC(Cache);
 DEG_COMPONENT_NODE_DECLARE_GENERIC(CopyOnWrite);
@@ -222,6 +221,12 @@ struct BoneComponentNode : public ComponentNode {
 
   struct bPoseChannel *pchan; /* the bone that this component represents */
 
+  DEG_COMPONENT_NODE_DECLARE;
+};
+
+struct AnimationComponentNode : public ComponentNode {
+  /** Cache RNA path lookups for this node. Speeds up animation evaluation. */
+  struct blender::Map<int, int> rna_lookup_map;
   DEG_COMPONENT_NODE_DECLARE;
 };
 

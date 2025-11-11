@@ -123,7 +123,7 @@ static void animsys_construct_orig_pointer_rna(const PointerRNA *ptr, PointerRNA
 }
 
 /* Copy of the same-named function in anim_sys.cc. */
-static void animsys_write_orig_anim_rna(PointerRNA *ptr,
+static void animsys_write_orig_anim_rna(const PointerRNA *ptr,
                                         const char *rna_path,
                                         const int array_index,
                                         const float value)

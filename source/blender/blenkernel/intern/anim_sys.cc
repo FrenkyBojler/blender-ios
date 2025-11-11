@@ -4169,6 +4169,11 @@ void BKE_animsys_eval_animdata(Depsgraph *depsgraph, ID *id)
   BKE_animsys_evaluate_animdata(id, adt, &anim_eval_context, ADT_RECALC_ANIM, flush_to_original);
 }
 
+void BKE_animsys_eval_apply_cached(Depsgraph *depsgraph, ID *id, blender::Map<int, int> &foo)
+{
+  BKE_animsys_eval_animdata(depsgraph, id);
+}
+
 void BKE_animsys_update_driver_array(ID *id)
 {
   AnimData *adt = BKE_animdata_from_id(id);
