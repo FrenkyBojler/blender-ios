@@ -642,7 +642,10 @@ def llm_says_version_is_incorrect(
         f"Using the information below, is Blender version '{version_number}' a {'Broken' if should_be_broken else 'Working'} version of Blender?",
         "**Important rules:**",
         "- You should ignore patch version numbers. For example 3.2 and 3.2.7 are considered the same in this situation because we're ignoring the patch number (.7).",
-        "- The version number above refers to the entire family of versions from early development to stable release. So if a version number has additional version classifiers like Alpha, Beta, Release Candidate, Stable, LTS, etc, then these are not considered seperate versions. For example: 3.2 and 3.2 Beta are considered the same version in this situation as they are from the same family."]
+        "- The version number above refers to the entire family of versions from early development to stable release. "
+        "So if a version number has additional version classifiers like Alpha, Beta, Release Candidate, Stable, LTS, etc, "
+        "then these are not considered seperate versions. "
+        "For example: 3.2 and 3.2 Beta are considered the same version in this situation as they are from the same family."]
 
     # Ideas for improvements:
     # - At the moment the LLM usually can't handle "Is 4.5 a working version? Worked: Before 4.5 HASH"
@@ -657,12 +660,12 @@ def llm_says_version_is_incorrect(
         # Broken: X.Y, Worked: X.Y
         # And classifies the bug fix as a fix for a issue introduced in the current release.
         # We need to let the LLM know about this behaviour so it doesn't flag these reports for manual review.
-        user_prompt.append(
-            "- If a working field says something similar to 'Worked: N/A as it's a new feature in 3.2', then you should consider 3.2 a working version of Blender in this situation.")
+        user_prompt.append("- If a working field says something similar to 'Worked: N/A as it's a new feature in 3.2', "
+                           "then you should consider 3.2 a working version of Blender in this situation.")
 
     if llm_supports_reasoning:
-        user_prompt.append(
-            "- Your output should be a single word 'yes' or 'no'. If you are uncertain, then your answer should be 'no'.")
+        user_prompt.append("- Your output should be a single word 'yes' or 'no'. "
+                           "If you are uncertain, then your answer should be 'no'.")
     else:
         # Non-reasoning models tend to perform better if they are given the freedom to write somewhat freely before they give their answer to a question.
         # So allow the model to do this, and then ask the LLM to extract it's final answer later on.
@@ -670,14 +673,17 @@ def llm_says_version_is_incorrect(
         # But in some situations this is actually faster as reasoning models tend
         # to ramble in their "Reasoning" stage, slowing them down, while
         # non-reasoning models tend not too.
-        user_prompt.extend(["- Include your reasoning for making your decision about whether ot not the information is correct.",
-                            "- Make sure to write down your final answer at the end of your response. Your final answer should be a single word, 'yes' or 'no'. If you are uncertain, then your final answer should be 'no'."])
+        user_prompt.extend(
+            ["- Include your reasoning for making your decision about whether ot not the information is correct.",
+                "- Make sure to write down your final answer at the end of your response. "
+                "Your final answer should be a single word, 'yes' or 'no'. "
+                "If you are uncertain, then your final answer should be 'no'."])
 
     user_prompt.extend(["",
                         "Information:",
                         "```",
                         "Blender versions:",
-                        f"{version_info_from_report}",
+                        version_info_from_report,
                         "```"])
 
     # TODO: Fix mypy complaining about a list of dicts being incorrect
