@@ -1406,7 +1406,7 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
         BKE_reportf(op->reports,
                     RPT_INFO,
                     "Set Origin not supported for %s object(s)",
-                    BKE_idtype_idcode_to_name(GS(obdata->name)));
+                    BKE_idtype_idcode_to_name(idcode));
       }
       continue;
     }
