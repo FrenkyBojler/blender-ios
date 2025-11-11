@@ -1285,9 +1285,6 @@ bool VKShader::ensure_graphics_pipelines(
   BLI_assert(!is_compute_shader_);
   for (const shader::ShaderCreateInfo::PipelineState &pipeline_state : pipeline_states) {
     const VkPrimitiveTopology vk_topology = to_vk_primitive_topology(pipeline_state.primitive_);
-    if (name_get() == "WOLookdev") {
-      printf("break;\n");
-    }
 
     VKGraphicsInfo graphics_info = {};
     graphics_info.vertex_in.vk_topology = vk_topology;
@@ -1366,9 +1363,6 @@ VkPipeline VKShader::ensure_and_get_graphics_pipeline(GPUPrimType primitive,
       "GPU_PRIM_POINTS is used with a shader that doesn't set point size before "
       "drawing fragments. Calling code should be adapted to use a shader that sets the "
       "gl_PointSize before entering the fragment stage. For example `GPU_SHADER_3D_POINT_*`.");
-  if (name_get() == "WOLookdev") {
-    printf("break;\n");
-  }
 
   const VkPrimitiveTopology vk_topology = to_vk_primitive_topology(primitive);
   const VkFormat depth_attachment_format = framebuffer.depth_attachment_format_get();
