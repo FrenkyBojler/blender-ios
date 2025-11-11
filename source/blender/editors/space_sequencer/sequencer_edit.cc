@@ -2077,8 +2077,7 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
   }
 
   /* Close gaps. */
-  VectorSet<Strip *> transformed_strips;
-  VectorSet<Strip *> connected_strips;
+  VectorSet<Strip *> offset_strips;
   if (remove_gaps) {
     int offset = rect_frames[0] - rect_frames[1];
     /* Cap offset. */
@@ -2091,29 +2090,24 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
       const float left_handle = seq::time_left_handle_frame_get(scene, strip);
 
       if (left_handle == rect_frames[1]) {
-        seq::transform_translate_strip(scene, strip, offset);
-        transformed_strips.add(strip);
-        seq::query_strip_connected_and_effect_chain(scene, strip, &ed->seqbase, connected_strips);
+        seq::query_strip_connected_and_effect_chain(scene, strip, &ed->seqbase, offset_strips);
       }
       /* Offset every strip on the same channel and right of the cut. */
       else if (left_handle > rect_frames[1] && strip->channel <= int(rectf.ymax) &&
                strip->channel >= int(rectf.ymin))
       {
-        seq::transform_translate_strip(scene, strip, offset);
-        transformed_strips.add(strip);
         /* Also offset connected strips. Also get effect strips to later run the overlap handeling
          * on them. */
-        seq::query_strip_connected_and_effect_chain(scene, strip, &ed->seqbase, connected_strips);
+        seq::query_strip_connected_and_effect_chain(scene, strip, &ed->seqbase, offset_strips);
       }
     }
-    for (Strip *strip : connected_strips) {
-      if (transformed_strips.contains(strip)) {
-        continue;
-      }
+
+    for (Strip *strip : offset_strips) {
       /* This can lead strips to overlap when a strip is in front of the connected strip. */
       seq::transform_translate_strip(scene, strip, offset);
-      transformed_strips.add(strip);
-      /* Handle overlap by moving strip up. */
+    }
+    /* Handle overlap by moving strip up. */
+    for (Strip *strip : offset_strips){
       if (seq::transform_test_overlap(scene, ed->current_strips(), strip)) {
         seq::transform_seqbase_shuffle(ed->current_strips(), strip, scene);
       }
