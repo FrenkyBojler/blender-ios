@@ -1196,19 +1196,19 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
       }
     }
 
+    bNodeLink *ngroup_input_link = nullptr;
     bNodeLink *composite_input_link = nullptr;
     LISTBASE_FOREACH_BACKWARD_MUTABLE (bNodeLink *, link, &temp_nodetree->links) {
       if (link->tosock && link->tosock == first_sock) {
-        printf("Found sock: %s\n", link->tosock->name);  // todo(habib): remove
-        composite_input_link = link;
+        ngroup_input_link = link;
         break;
       }
     }
-    if (composite_input_link) {
-      blender::bke::node_add_link(
+    if (ngroup_input_link) {
+      composite_input_link = &blender::bke::node_add_link(
           *temp_nodetree,
-          *composite_input_link->fromnode,
-          *composite_input_link->fromsock,
+          *ngroup_input_link->fromnode,
+          *ngroup_input_link->fromsock,
           *composite_node,
           *blender::bke::node_find_socket(*composite_node, SOCK_IN, "Image"));
     }
