@@ -1496,25 +1496,18 @@ static float wm_xr_navigation_teleport_pose_calc(wmOperator *op,
   wm_xr_basenav_rotation_calc(xr, nav_rotation, nav_rotation);
   const float3x3 nav_axes = math::from_rotation<float3x3>(math::Quaternion{nav_rotation});
 
-  /* Project locations onto navigation axes. */
+  r_nav_destination = nav_location;
+
   for (int a = 0; a < 3; ++a) {
-    float3 projected = math::project(nav_location, nav_axes[a]);
     if (teleport_axes[a]) {
-      /* Interpolate between projected locations. */
       float3 destination_with_ofs = target_destination;
       destination_with_ofs.z += vertical_ofs;
 
-      float3 v0 = math::project(destination_with_ofs, nav_axes[a]);
-      float3 v1 = math::project(viewer_location, nav_axes[a]);
+      float3 v0 = math::project(destination_with_ofs - viewer_location, nav_axes[a]);
+      float3 v1 = math::project(normal, nav_axes[a]);
 
-      v0 -= v1;
-      projected += (v0 * teleport_t);
-
-      v0 = math::project(normal, nav_axes[a]);
-      projected += (v0 * teleport_ofs);
+      r_nav_destination += (v0 * teleport_t) + (v1 * teleport_ofs);
     }
-    /* Add to final location. */
-    r_nav_destination += projected;
   }
 
   return math::distance(viewer_location, target_destination);
