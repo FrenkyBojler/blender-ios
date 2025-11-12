@@ -1456,9 +1456,7 @@ void MTLContext::ensure_depth_stencil_state(MTLPrimitiveType prim_type)
     }
 
     if (hasDepthTarget) {
-      [rec setDepthBias: 0
-             slopeScale: 0
-                  clamp: 0];
+      [rec setDepthBias:0 slopeScale:0 clamp:0];
     }
   }
 }
