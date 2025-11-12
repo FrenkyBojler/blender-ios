@@ -39,13 +39,15 @@ class GridRework : Overlay {
   bool is_3d_grid_ = false;
   float3 grid_axes_ = float3(0.0f);
   float3 zplane_axes_ = float3(0.0f);
-  float base_level_;
+  float3 grid_poi_ = float3(0.0f);
+  float grid_level_;
+
 
   /* Flags passed to draw call. */
   int grid_flag_ = 0; /* Flag to select grid plane: x/y, y/z, x/z. */
   int zaxs_flag_ = 0; /* Flag to configure draw of pos/neg z-axis. */
-                      // int zneg_flag_ = 0; /* Flag to enable negative z-axis draw. */
-                      // int zpos_flag_ = 0; /* Flag to enable positive z-axis draw. */
+  // int zneg_flag_ = 0; /* Flag to enable negative z-axis draw. */
+  // int zpos_flag_ = 0; /* Flag to enable positive z-axis draw. */
 
  public:
   void begin_sync(Resources &res, const State &state) final
@@ -65,43 +67,6 @@ class GridRework : Overlay {
     grid_ps_.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
     grid_ps_.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA);
 
-    const View3D *v3d = state.v3d;
-    const RegionView3D *rv3d = state.rv3d;
-
-    /* Determine the lowest grid level we should draw. This happens on a per-camera basis. */
-    {
-      /* Compute distance to a relevant floor point from the camera. */
-      float dist;
-      if (rv3d->is_persp) {
-        float3 drw_view_position = rv3d->viewinv[3], drw_view_forward = rv3d->viewinv[2];
-
-        /* Scale depends on distance to a point on the floor plane; we interpolate between the
-         * point viewed by the camera and the point directly below it, dependent on azimuth. */
-        dist = interpolate(abs(drw_view_position.z / drw_view_forward.z),
-                           abs(drw_view_position.z),
-                           1.0f - abs(drw_view_forward.z));
-      }
-      else {
-        /* Scale is simply specified by orthographic view. */
-        dist = rv3d->dist;
-      }
-
-      /* Find the lowest relevant grid level + fractional, dependent on camera distance.
-       * Explicitly check if levels are identical due to output from `ED_view3d_grid_steps`. */
-      for (int i = 0; i < OVERLAY_GRID_STEPS_LEN - 1; i++) {
-        float curr = level_scales_[i], next = level_scales_[i + 1];
-        // std::printf("\t%d: %f\n", i, curr);
-        if (next >= dist || curr == next) {
-          base_level_ = static_cast<float>(i) + safe_divide(dist - curr, next - curr);
-          break;
-        }
-      }
-      std::printf("dist: %f, level: %d, fade %f:\n",
-                  dist,
-                  static_cast<int>(base_level_),
-                  1.0f - fract(base_level_));
-    }
-
     {
       /* Vertex count is 2 (x/y-direction) x 2 (verts per line) x 4 (levels) x N */
       const uint n_verts = 12 * num_lines_per_level_;
@@ -112,8 +77,8 @@ class GridRework : Overlay {
       sub.bind_texture("depth_tx", depth_tx, GPUSamplerState::default_sampler());
       sub.bind_texture("depth_infront_tx", depth_infront_tx, GPUSamplerState::default_sampler());
       sub.push_constant("grid_flag", grid_flag_);
-      sub.push_constant("base_level", base_level_);
-      // sub.push_constant("grid_scale", state.scene->unit.scale_length);
+      sub.push_constant("grid_level", grid_level_);
+      sub.push_constant("grid_poi", grid_poi_);
       sub.draw_procedural(GPUPrimType::GPU_PRIM_LINES, -1, n_verts, 0);
     }
   }
@@ -206,6 +171,7 @@ class GridRework : Overlay {
     if (rv3d->persp == RV3D_CAMOB && v3d->camera && v3d->camera->type == OB_CAMERA) {
       Object *camera_object = DEG_get_evaluated(state.depsgraph, v3d->camera);
       v3d_clip_end = ((Camera *)(camera_object->data))->clip_end;
+      grid_flag_ |= GRID_CAMERA;
     }
     else {
       v3d_clip_end = v3d->clip_end;
@@ -218,6 +184,64 @@ class GridRework : Overlay {
     for (int i = 0; i < level_scales_.size(); ++i) {
       grid_ubo_.level_scales[i][0] = level_scales_[i];
     }
+
+    /* Compute distance to a relevant floor point-of-interest from the camera. The grid translates
+     * with this point and is only drawn around it. */
+    float dist;
+    float3 drw_view_position = rv3d->viewinv[3], drw_view_forward = rv3d->viewinv[2];
+    if (rv3d->is_persp) {
+      /* Scale depends on distance to a point on the floor plane; we interpolate between the
+       * point viewed by the camera and the point directly below it, dependent on azimuth. */
+      dist = interpolate(abs(drw_view_position.z / drw_view_forward.z),
+                         abs(drw_view_position.z),
+                         1.0f - abs(drw_view_forward.z));
+      grid_poi_ = float3(drw_view_position.xy() - dist * drw_view_forward.xy(), 0.0f);
+    }
+    else {
+      /* Scale is simply specified by orthographic view. */
+      dist = rv3d->dist;
+      grid_poi_ = drw_view_position - dist * drw_view_forward;
+    }
+
+    /* for (int i = 0; i < level_scales_.size() - 1; i++) {
+      float curr = level_scales_[i];
+      float next = i < level_scales_.size() - 1 ? level_scales_[i + 1] : 10 * level_scales_[i];
+      std::printf("\t%d - %f\n", i, curr);
+      if (next >= dist || next == curr) {
+        grid_level_ = static_cast<float>(i) + safe_divide(dist - curr, next - curr);
+        // break;
+      }
+    } */
+
+    /* Find the lowest relevant grid level + fractional, dependent on camera distance. We
+     * fake a order of magnitude extra level, as in orthographic cameras the maximum zoom
+     * barely exceeds the largest specified grid scale in unit systems. */
+    for (int i = 0; i < level_scales_.size(); i++) {
+      float curr = level_scales_[i];
+      float next = i < level_scales_.size() - 1 ? level_scales_[i + 1] : 10.0f * curr;
+      if (next >= dist || i == level_scales_.size() - 1) {
+        grid_level_ = static_cast<float>(i) + safe_divide(dist - curr, next - curr);
+        break;
+      }
+    }
+
+    // for (level_scale_i = 0; level_scale_i < level_scales_.size() - 1; level_scale_i++) {
+    //   curr = level_scales_[level_scale_i], next = level_scales_[level_scale_i + 1];
+
+    //   if (next == curr) {
+    //     next = 10.0f * curr;
+    //     break;  
+    //   }
+
+    //   // float curr = level_scales_[i], prev = level_scales_[i - 1];
+    //   if (next >= dist || next == curr) {
+    //     // grid_level_ = static_cast<float>(i - 1) + safe_divide(dist - prev, curr - prev);
+    //     break;
+    //   }
+    // }
+    // grid_level_ = static_cast<float>(level_scale_i) + safe_divide(dist - curr, next - curr);
+
+    // std::printf("curr %f - dist %f - next %f\n", curr, dist, next);
 
     return true;
   }

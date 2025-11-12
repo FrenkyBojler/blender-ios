@@ -15,15 +15,11 @@ VERTEX_SHADER_CREATE_INFO(overlay_gridrework_next)
 #define GRID_LEVELS_TOTAL 8
 /** The grid renders N hardcoded levels of hierarchy. */
 #define GRID_LEVELS_DRAW 3
-/** The grid renders N sublevels, given visibility of the current level. */
-#define GRID_LEVEL_OFFSET -1
 
-/* Helper struct; encodes specific information about an implicitly defined vertex.
- * See `get_line_data()` and `get_line_vertex()` below. */
+/* Helper struct: a vertex as part of a line is defined by its 2D position, 
+ * and the grid level it belongs on. See `get_line_data()` below. */
 struct LineData {
-  uint idx;
-  uint side;
-  uint direction;
+  float2 P;
   int level;
 };
 
@@ -32,108 +28,93 @@ LineData get_line_data(in uint vertex_id)
   LineData line;
 
   /* Every pair of consecutive vertices forms a line, indicated by bit 0. */
-  line.side = vertex_id & 0x1;
-  vertex_id = vertex_id >> 1;
+  uint side = vertex_id & 0x1u;
+  vertex_id = vertex_id >> 1u;
 
   /* Every pair of consecutive lines alternates x/y direction, indicated by bit 1. */
-  line.direction = vertex_id & 0x1;
-  vertex_id = vertex_id >> 1;
+  uint dir = vertex_id & 0x1u;
+  vertex_id = vertex_id >> 1u;
 
-  /* Find a line's actual level and index using a cumulative sum. */
-  line.idx = vertex_id;
-  for (line.level = 0; line.level < GRID_LEVELS_DRAW; line.level++) {
-    if (line.idx < grid_buf.num_lines_per_level) {
-      break;
-    }
-    line.idx -= int(grid_buf.num_lines_per_level);
-  }
+  /* The index/level of a line are implicitly encoded by the 30 remaining bits. */
+  line.level = int(vertex_id / grid_buf.num_lines_per_level);
+  vertex_id = vertex_id % grid_buf.num_lines_per_level;
+
+  /* From the index, generate 2*N+1 points equidistantly spaced on [-N/2, N/2]. */
+  line.P.x = float(grid_buf.num_lines_per_level >> 1u);
+  line.P.y = float(vertex_id) - line.P.x;
+
+  /* If this isn't the start of the line, flip the x-coord to define the end. */
+  line.P.x = select(line.P.x, -line.P.x, side);
+
+  /* If this isn't the x-direction, flip x/y-coords to define the y-direction. */
+  line.P.xy = select(line.P.xy, line.P.yx, dir);
 
   return line;
 }
 
-float2 get_line_vertex(in LineData line)
-{
-  float2 vertex;
-
-  /* Generate a set of N+1 points equidistantly spaced between [-N/2, N/2]. */
-  vertex.y = float(grid_buf.num_lines_per_level >> 1);
-  vertex.x = float(line.idx) - vertex.y;
-
-  /* If this isn't the start vertex, flip the y-coord to define the end vertex. */
-  vertex.y = select(vertex.y, -vertex.y, line.side);
-
-  /* If this isn't the x-direction, flip x/y-coords to define the y-direction. */
-  vertex.xy = select(vertex.xy, vertex.yx, line.direction);
-
-  return vertex;
-}
-
-float get_camera_distance()
-{
-  float t;
-  if (drw_view_is_perspective()) {
-    /* Scale depends on distance to a point on the floor plane; we interpolate between the point
-     * viewed by the camera and the point directly below it, dependent on azimuth. */
-    t = mix(abs(drw_view_position().z / drw_view_forward().z),
-            abs(drw_view_position().z),
-            1.0f - abs(drw_view_forward().z));
-  }
-  else {
-    /* Scale simply depends on x/y-scaling of the orthographic camera */
-    t = 1.0f / min(drw_view().winmat[0][0], drw_view().winmat[1][1]);
-  }
-  return t;
-}
-
 void main()
 {
-  /* We extract a vertex - part of an infinite grid - from gl_VertexID. */
-  // TODO; identify if we are drawing an infinite grid, or a bounded set of lines
   LineData line = get_line_data(gl_VertexID);
-  float2 line_vert = get_line_vertex(line);
 
-  /* First, get the camera distance/zoom and determine `t_pos`; the point on the floor plane
-   * visible to the camera center. */
-  float t = get_camera_distance();
-  float2 t_pos = drw_view_position().xy - t * drw_view_forward().xy;
-
-  /* Next, set several fragment shader outputs used for smoothly fading visible grid levels:
+  /* Set several fragment stage outputs fed into the alpha component:
    * - The vertex position as [-1, 1], so we can fade level boundaries.
-   * - The offset for the **lowest** level, which we fade in/out.*/
-  frag_xy = line_vert / float(grid_buf.num_lines_per_level >> 1);
-  frag_level = line.level == 0 ? 1.0f - square(fract(base_level)) : 1.0f;
+   * - The fade for the *lowest* level, fitted to a quadratic curve. */
+  frag_xy = line.P / float(grid_buf.num_lines_per_level >> 1);
+  frag_level = line.level > 0 ? 1.0f : 1.0f - square(fract(grid_level));
 
-  /* Compute actual level of drawn grid data, offset negatively to focus on sub-levels. */
-  line.level = int(base_level) + line.level + GRID_LEVEL_OFFSET;
+  // if (line.level == 1 /* > 0 && line.level < GRID_LEVELS_DRAW - 1 */) {
+  //   if 
+  //   gl_Position = float4(NAN_FLT);
+  //   return;
+  // }
+
+  /* Compute the actual level of grid data, offset negatively to always show one sub-level */
+  line.level = int(grid_level) + line.level - 1;
   line.level = clamp(line.level, 0, GRID_LEVELS_TOTAL - 1);
 
-  /* Dependent on the grid flag, we now swap the grid on the correct plane. */
-  // if (flag_test(grid_flag, PLANE_XY)) {
-  //   line_vert = float3(line_vert.x, line_vert.y, 0.0f);
-  // }
-  // else if (flag_test(grid_flag, PLANE_XZ)) {
-  //   line_vert = float3(line_vert.x, 0.0f, line_vert.y);
-  // }
-  // else if (flag_test(grid_flag, PLANE_YZ)) {
-  //   line_vert = float3(0.0f, line_vert.x, line_vert.y);
-  // }
-  // else { /* PLANE_IMAGE */ {
-  //   line_vert = float3(line_vert.xy * 0.5f + 0.5f, 0.0f);
-  // }
 
-  /* Make each level of the grid a scale larger than the previous level.
-   * Additionally, move the grid with the camera in increments depending on the level. */
-  //  TODO; this is a source of float imprecision
-  float scale = grid_buf.level_scales[clamp(line.level, 0, GRID_LEVELS_TOTAL - 1)].x;
-  float3 vertex = float3((line_vert + round(t_pos / scale)) * scale, 0.0f);
+  /* Dependent on flags, we now put the grid on the correct plane. */
+  float3 P;
+  float3 P_offset;
+  if (flag_test(grid_flag, PLANE_XY)) {
+    P = float3(line.P.x, line.P.y, 0.0f);
+    P_offset = float3(grid_poi.x, grid_poi.y, 0.0f);
+  }
+  else if (flag_test(grid_flag, PLANE_XZ)) {
+    P = float3(line.P.x, 0.0f, line.P.y);
+    P_offset = float3(grid_poi.x, 0.0f, grid_poi.y);
+  }
+  else if (flag_test(grid_flag, PLANE_YZ)) {
+    P = float3(0.0f, line.P.x, line.P.y);
+    P_offset = float3(0.0f, grid_poi.x, grid_poi.y);
+  }
+  else { /* PLANE_IMAGE */
+    P = float3(line.P.xy * 0.5f + 0.5f, 0.0f);
+  }
+
+  /* Scale the grid based on level. Additionally, translate the grid with the point of interest,
+   * in increments dependent on the level's scaling. */
+  float scale = grid_buf.level_scales[line.level].x;
+  P = (P + round(P_offset / scale)) * scale;
+
+  /* For the in-between levels, we discard lines that overlap with the higher-up levels. */
+  /* If there exists an integer, such that with the scaling of the level above we can draw
+   * the current line, we can safely clip the current line. */
+  /* if (line.level < GRID_LEVELS_DRAW - 1) {
+    float2 nearest = P.xy / grid_buf.level_scales[line.level + 1].x;
+    if (any(equal(nearest - round(nearest), float2(0)))) {
+      gl_Position = float4(NAN_FLT);
+      return;
+    }
+  } */
 
   /* Output the world-space position to the fragment stage, and cull minute scales; they are
    * hard to draw without a much larger amount of geometry. This mirrors old grid behavior. */
-  local_pos = vertex;
-  if (scale < 1e-3f) {
+  local_pos = P;
+  if (scale <= 1e-3f) {
     gl_Position = float4(NAN_FLT);
   }
   else {
-    gl_Position = drw_view().winmat * (drw_view().viewmat * float4(vertex, 1.0f));
+    gl_Position = drw_view().winmat * (drw_view().viewmat * float4(P, 1.0f));
   }
 }

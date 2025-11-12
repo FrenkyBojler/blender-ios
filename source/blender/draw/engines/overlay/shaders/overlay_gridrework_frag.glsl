@@ -9,7 +9,6 @@ FRAGMENT_SHADER_CREATE_INFO(overlay_gridrework_next)
 #include "draw_view_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
 
-#define GRID_DEPTH_BIAS 4.8e-7f
 #define linearstep(p0, p1, v) (clamp(((v) - (p0)) / abs((p1) - (p0)), 0.0f, 1.0f))
 
 void main()
@@ -29,8 +28,7 @@ void main()
     out_color.a *= frag_level;
 
     if (drw_view_is_perspective()) {
-      /* Add fade towards edge of grid level. */
-      // float length_fade = 1.0f - min(1.f, length(frag_xy));
+      /* Add fade at edge of grid level. */
       float length_fade = 1.f - min(1.f, dot(frag_xy, frag_xy));
       length_fade = length_fade * length_fade;
       out_color.a *= length_fade;
@@ -58,19 +56,13 @@ void main()
     if (scene_depth_infront != 1.0f) {
       scene_depth = 0.0f;
     }
-
-    /* Compute grid depth. As in old grid; a small bias places the grid below
+    
+    /* Compute grid depth. As in 5.0, a small bias places the grid below
      * a mesh with the same depth. */
-    float grid_depth = gl_FragCoord.z + GRID_DEPTH_BIAS;
+    float grid_depth = gl_FragCoord.z + 4.8e-7f;
 
-    /* Manipulate alpha with scene depth */
-    // if (scene_depth != 1.0f) {
-    //   alpha = 0.0f;
-    // }
-
-    /* Soft depth-test; progressively alpha the grid below occluders to
-     * avoid popping visuals and flickering. This gives the grid a slight
-     * see-through appearance. */
+    /* Soft depth-test as in 5.0, progressively alpha the grid below occluders to
+     * avoid popping and flickering. This gives the grid a see-through appearance. */
     float bias = max(gpu_fwidth(gl_FragCoord.z), 2.4e-7f);
     out_color.a *= linearstep(grid_depth, grid_depth + bias, scene_depth);
   }
