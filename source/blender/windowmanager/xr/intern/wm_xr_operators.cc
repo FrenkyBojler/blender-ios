@@ -1344,7 +1344,8 @@ static void wm_xr_navigation_teleport_raycast(Scene *scene,
   blender::ed::transform::snap_object_context_destroy(sctx);
 }
 
-static float wm_xr_navigation_teleport_get_ray_distance(wmOperator *op, wmXrData *xr) {
+static float wm_xr_navigation_teleport_get_ray_distance(wmOperator *op, wmXrData *xr)
+{
   float nav_scale;
   WM_xr_session_state_nav_scale_get(xr, &nav_scale);
 
@@ -1408,7 +1409,7 @@ static XrTeleportRayResult wm_xr_navigation_teleport_compute_arc(
 }
 
 static bool wm_xr_navigation_teleport_clip_arc_to_ground(blender::Array<blender::float3> &points,
-                                                      int &end_point_idx)
+                                                         int &end_point_idx)
 {
   /* Truncate the arc to the ground plane (Z=0). */
   using namespace blender;
@@ -1435,7 +1436,9 @@ static bool wm_xr_navigation_teleport_clip_arc_to_ground(blender::Array<blender:
   return false;
 }
 
-static float wm_xr_navigation_teleport_determine_head_height(bContext *C, wmOperator *op, wmXrData *xr)
+static float wm_xr_navigation_teleport_determine_head_height(bContext *C,
+                                                             wmOperator *op,
+                                                             wmXrData *xr)
 {
   /* Raycast downward from the current XR virtual head position to find the floor. */
   blender::float3 viewer_pos_loc;
@@ -1518,11 +1521,11 @@ static float wm_xr_navigation_teleport_pose_calc(wmOperator *op,
 }
 
 static XrTeleportRayResult wm_xr_navigation_teleport_main(bContext *C,
-                                                         wmOperator *op,
-                                                         wmXrData *xr,
-                                                         XrTeleportData *data,
-                                                         blender::float3 &r_destination,
-                                                         float &r_destination_dist)
+                                                          wmOperator *op,
+                                                          wmXrData *xr,
+                                                          XrTeleportData *data,
+                                                          blender::float3 &r_destination,
+                                                          float &r_destination_dist)
 {
   using namespace blender;
 
