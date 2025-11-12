@@ -1,2 +1,3 @@
 Referenced by issue #149743, GPU compositor; Any interaction triggers crash dialog
 Referenced by pull request #149777, Fix: Crash rendering multiple frames from the command line
+Referenced by pull request #149780, Fix: Crash rendering multiple frames from the command line
