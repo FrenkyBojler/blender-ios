@@ -81,6 +81,36 @@ class Context : public compositor::Context {
     return true;
   }
 
+  compositor::Domain get_compositing_domain() const override
+  {
+    const DRWContext *draw_ctx = DRW_context_get();
+    if (draw_ctx->rv3d->persp != RV3D_CAMOB || draw_ctx->is_viewport_image_render()) {
+      return compositor::Domain(int2(draw_ctx->viewport_size_get()));
+    }
+
+    rctf camera_border;
+    ED_view3d_calc_camera_border(draw_ctx->scene,
+                                 draw_ctx->depsgraph,
+                                 draw_ctx->region,
+                                 draw_ctx->v3d,
+                                 draw_ctx->rv3d,
+                                 false,
+                                 &camera_border);
+
+    const Bounds<int2> camera_region = Bounds<int2>(
+        int2(int(camera_border.xmin), int(camera_border.ymin)),
+        int2(int(camera_border.xmax), int(camera_border.ymax)));
+
+    const Bounds<int2> render_region = Bounds<int2>(int2(0), int2(draw_ctx->viewport_size_get()));
+    const Bounds<int2> border_region =
+        blender::bounds::intersect(render_region, camera_region).value();
+
+    compositor::Domain domain = compositor::Domain(camera_region.size());
+    domain.data_size = border_region.size();
+    domain.data_offset = border_region.min - camera_region.min;
+    return domain;
+  }
+
   /* Get the bounds of the camera region in pixels relative to the viewport. In case the viewport
    * has no camera region or is an image render, return the bounds of the entire viewport. */
   Bounds<int2> get_camera_region() const

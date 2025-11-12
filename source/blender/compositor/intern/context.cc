@@ -77,11 +77,6 @@ void Context::reset()
   cache_manager_.reset();
 }
 
-int2 Context::get_compositing_region_size() const
-{
-  return this->get_input_region().size();
-}
-
 float Context::get_render_percentage() const
 {
   return get_render_data().size / 100.0f;

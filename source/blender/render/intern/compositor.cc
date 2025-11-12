@@ -151,6 +151,11 @@ class Context : public compositor::Context {
     return size;
   }
 
+  compositor::Domain get_compositing_domain() const override
+  {
+    return compositor::Domain(this->get_render_size());
+  }
+
   Bounds<int2> get_input_region() const override
   {
     return Bounds<int2>(int2(0), this->get_render_size());

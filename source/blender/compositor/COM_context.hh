@@ -59,6 +59,8 @@ class Context {
   /* Returns all output types that should be computed. */
   virtual OutputTypes needed_outputs() const = 0;
 
+  virtual Domain get_compositing_domain() const = 0;
+
   /* Get the rectangular region representing the area of the input that the compositor will operate
    * on. In the base case, the input region covers the entirety of the input. In other cases, the
    * input region might be a subset of the input. */
@@ -134,9 +136,6 @@ class Context {
   /* Resets the context's internal structures like the cache manager. This should be called before
    * every evaluation. */
   void reset();
-
-  /* Get the size of the compositing region. See get_compositing_region(). */
-  int2 get_compositing_region_size() const;
 
   /* Get the normalized render percentage of the active scene. */
   float get_render_percentage() const;
