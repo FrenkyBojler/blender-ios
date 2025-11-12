@@ -80,14 +80,14 @@ static void draw_current_frame(const Scene *scene,
                                bool display_seconds,
                                const View2D *v2d,
                                const rcti *scrub_region_rect,
-                               int current_frame,
+                               const float current_frame,
                                bool display_stalk = true)
 {
   const uiFontStyle *fstyle = UI_FSTYLE_WIDGET;
   const int frame_x = UI_view2d_view_to_region_x(v2d, current_frame);
   const float subframe_x = UI_view2d_view_to_region_x(v2d, BKE_scene_ctime_get(scene));
   char frame_str[64];
-  get_current_time_str(scene, display_seconds, current_frame, frame_str, sizeof(frame_str));
+  get_current_time_str(scene, display_seconds, int(current_frame), frame_str, sizeof(frame_str));
   const float text_width = UI_fontstyle_string_width(fstyle, frame_str);
   const float text_padding = 4.0f * UI_SCALE_FAC;
   const float box_min_width = 24.0f * UI_SCALE_FAC;
@@ -182,7 +182,7 @@ void ED_time_scrub_draw_current_frame(const ARegion *region,
   ED_time_scrub_region_rect_get(region, &scrub_region_rect);
 
   draw_current_frame(
-      scene, display_seconds, v2d, &scrub_region_rect, scene->r.cfra, display_stalk);
+      scene, display_seconds, v2d, &scrub_region_rect, BKE_scene_frame_get(scene), display_stalk);
   GPU_matrix_pop_projection();
 }
 
