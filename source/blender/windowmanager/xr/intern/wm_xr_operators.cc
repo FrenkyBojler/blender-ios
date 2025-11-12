@@ -1501,7 +1501,7 @@ static float wm_xr_navigation_teleport_pose_calc(wmOperator *op,
   float4 nav_rotation;
   WM_xr_session_state_nav_rotation_get(xr, nav_rotation);
   wm_xr_basenav_rotation_calc(xr, nav_rotation, nav_rotation);
-  const float3x3 nav_axes = math::from_rotation<float3x3>(math::Quaternion{nav_rotation});
+  const float3x3 nav_axes = math::from_rotation<float3x3>(math::Quaternion(nav_rotation));
 
   r_nav_destination = nav_location;
 
