@@ -78,6 +78,7 @@
 #include "BKE_lib_remap.hh"
 #include "BKE_main.hh"
 #include "BKE_mesh_types.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_paint.hh"
 #include "BKE_pointcache.h"
@@ -1181,7 +1182,46 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
     /* Set deprecated chunksize for forward compatibility. */
     temp_nodetree->chunksize = 256;
     BLO_write_struct_at_address(writer, bNodeTree, sce->nodetree, temp_nodetree);
+
+    bNodeSocket *first_sock = nullptr;
+    bNode *composite_node = nullptr;
+    LISTBASE_FOREACH_MUTABLE (bNode *, node, &temp_nodetree->nodes) {
+      if (node->is_type("NodeGroupOutput") && (node->flag & NODE_DO_OUTPUT)) {
+        composite_node = blender::bke::node_add_node(
+            nullptr, *temp_nodetree, "CompositorNodeComposite");
+        composite_node->location[0] = node->location[0];
+        composite_node->location[1] = node->location[1] - 20.0f;
+        first_sock = (bNodeSocket *)(node->inputs.first);
+        break;
+      }
+    }
+
+    bNodeLink *composite_input_link = nullptr;
+    LISTBASE_FOREACH_BACKWARD_MUTABLE (bNodeLink *, link, &temp_nodetree->links) {
+      if (link->tosock && link->tosock == first_sock) {
+        printf("Found sock: %s\n", link->tosock->name);  // todo(habib): remove
+        composite_input_link = link;
+        break;
+      }
+    }
+    if (composite_input_link) {
+      blender::bke::node_add_link(
+          *temp_nodetree,
+          *composite_input_link->fromnode,
+          *composite_input_link->fromsock,
+          *composite_node,
+          *blender::bke::node_find_socket(*composite_node, SOCK_IN, "Image"));
+    }
+
     blender::bke::node_tree_blend_write(writer, temp_nodetree);
+
+    if (composite_input_link) {
+      blender::bke::node_remove_link(temp_nodetree, *composite_input_link);
+    }
+    if (composite_node) {
+      blender::bke::node_remove_node(nullptr, *temp_nodetree, *composite_node, true);
+    }
+
     MEM_freeN(reinterpret_cast<void *>(sce->nodetree));
     sce->nodetree = nullptr;
   }
