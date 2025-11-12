@@ -345,7 +345,7 @@ std::string ShaderCreateInfo::check_error() const
         error += "Shader " + this->name_ + " : \"" + interface->name + "." + inout.name + "\":";
         error += " Array types are not allowed in shader stage interfaces.\n";
       }
-      if (inout.type == Type::float3x3_t || inout.type == Type::float4x4_t) {
+      if (ELEM(inout.type, Type::float3x3_t, Type::float4x4_t)) {
         error += "Shader " + this->name_ + " : \"" + interface->name + "." + inout.name + "\":";
         error += " Matrix types are not allowed in shader stage interfaces.\n";
       }
@@ -573,6 +573,11 @@ void gpu_shader_create_info_init()
     info->builtins_ |= gpu_shader_dependency_get_builtins(info->fragment_source_);
     info->builtins_ |= gpu_shader_dependency_get_builtins(info->geometry_source_);
     info->builtins_ |= gpu_shader_dependency_get_builtins(info->compute_source_);
+
+    if (!info->compute_source_.is_empty()) {
+      info->shared_variables_.extend(
+          gpu_shader_dependency_get_shared_variables(info->compute_source_));
+    }
 
 #if GPU_SHADER_PRINTF_ENABLE
     const bool is_material_shader = info->name_.startswith("eevee_surf_");
