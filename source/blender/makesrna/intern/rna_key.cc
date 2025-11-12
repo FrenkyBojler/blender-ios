@@ -842,6 +842,8 @@ static std::optional<std::string> rna_ShapeKeyPoint_path(const PointerRNA *ptr)
   return std::nullopt; /* XXX: there's really no way to resolve this... */
 }
 
+/* Using a custom lookup so the function does not have to create a PointerRNA on every search step
+ * which is a performance issue. */
 static bool rna_KeyBlock_lookup_string(PointerRNA *ptr, const char *name, PointerRNA *r_ptr)
 {
   Key *key = rna_ShapeKey_find_key(ptr->owner_id);
