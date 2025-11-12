@@ -253,34 +253,6 @@ static float get_intersection_distance_of_segments(const float2 &co_a,
   return distance;
 }
 
-static void calculate_offsets_from_segments(const Span<Segment> segments,
-                                            const OffsetIndices<int> segment_offsets,
-                                            const Span<bool> cyclic,
-                                            MutableSpan<int> offsets)
-{
-  int offset = 0;
-
-  for (const int curve_i : segment_offsets.index_range()) {
-    offsets[curve_i] = offset;
-
-    const IndexRange segment_range = segment_offsets[curve_i];
-    for (const int seg_i : segment_range) {
-      const Segment &segment = segments[seg_i];
-
-      if (segment.has_intersection(Side::Start) && !segment.is_loop()) {
-        offset++;
-      }
-      offset += segment.points_num();
-      if (seg_i == segment_range.last() && segment.has_intersection(Side::End) && !cyclic[curve_i])
-      {
-        offset++;
-      }
-    }
-  }
-
-  offsets.last() = offset;
-}
-
 static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry &src,
                                                        const Span<Segment> segments,
                                                        const Span<bool> segment_reversed,
@@ -288,38 +260,6 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
                                                        const OffsetIndices<int> segment_offsets)
 {
   Array<int> point_offsets(segment_offsets.size() + 1);
-  calculate_offsets_from_segments(
-      segments, segment_offsets, cyclic, point_offsets.as_mutable_span());
-
-  const bke::AttributeAccessor src_attributes = src.attributes();
-
-  const OffsetIndices<int> dst_points_by_curve = OffsetIndices<int>(point_offsets);
-
-  if (dst_points_by_curve.total_size() == 0) {
-    return bke::CurvesGeometry();
-  }
-
-  bke::CurvesGeometry dst_curves(dst_points_by_curve.total_size(), dst_points_by_curve.size());
-  bke::MutableAttributeAccessor dst_attributes = dst_curves.attributes_for_write();
-
-  dst_curves.offsets_for_write().copy_from(dst_points_by_curve.data());
-  dst_curves.cyclic_for_write().copy_from(cyclic);
-
-  Array<int> old_by_new_map(dst_points_by_curve.size());
-
-  threading::parallel_for(dst_points_by_curve.index_range(), 4096, [&](const IndexRange points) {
-    for (const int i : points) {
-      const IndexRange segment_range = segment_offsets[i];
-      old_by_new_map[i] = segments[segment_range.first()].curve;
-    }
-  });
-
-  bke::gather_attributes(src_attributes,
-                         bke::AttrDomain::Curve,
-                         bke::AttrDomain::Curve,
-                         bke::attribute_filter_from_skip_ref({"cyclic"}),
-                         old_by_new_map,
-                         dst_attributes);
 
   struct InterpolatePoint {
     int src_point_1;
@@ -330,6 +270,8 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
   Vector<InterpolatePoint> point_to_interpolate;
 
   for (const int curve_i : segment_offsets.index_range()) {
+    point_offsets[curve_i] = point_to_interpolate.size();
+
     const IndexRange segment_range = segment_offsets[curve_i];
     for (const int seg_i : segment_range) {
       const Segment &segment = segments[seg_i];
@@ -366,6 +308,36 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
       }
     }
   }
+  point_offsets.last() = point_to_interpolate.size();
+
+  const bke::AttributeAccessor src_attributes = src.attributes();
+  const OffsetIndices<int> dst_points_by_curve = OffsetIndices<int>(point_offsets);
+
+  if (dst_points_by_curve.total_size() == 0) {
+    return bke::CurvesGeometry();
+  }
+
+  bke::CurvesGeometry dst_curves(dst_points_by_curve.total_size(), dst_points_by_curve.size());
+  bke::MutableAttributeAccessor dst_attributes = dst_curves.attributes_for_write();
+
+  dst_curves.offsets_for_write().copy_from(dst_points_by_curve.data());
+  dst_curves.cyclic_for_write().copy_from(cyclic);
+
+  Array<int> old_by_new_map(dst_points_by_curve.size());
+
+  threading::parallel_for(dst_points_by_curve.index_range(), 4096, [&](const IndexRange points) {
+    for (const int i : points) {
+      const IndexRange segment_range = segment_offsets[i];
+      old_by_new_map[i] = segments[segment_range.first()].curve;
+    }
+  });
+
+  bke::gather_attributes(src_attributes,
+                         bke::AttrDomain::Curve,
+                         bke::AttrDomain::Curve,
+                         bke::attribute_filter_from_skip_ref({"cyclic"}),
+                         old_by_new_map,
+                         dst_attributes);
 
   /* Copy/Interpolate point attributes. */
   for (auto &attribute : bke::retrieve_attributes_for_transfer(
