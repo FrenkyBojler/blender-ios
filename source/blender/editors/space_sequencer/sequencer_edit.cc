@@ -2037,11 +2037,6 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
     strip_rectf(scene, strip, &rq);
     const float left_handle = seq::time_left_handle_frame_get(scene, strip);
     const float right_handle = seq::time_right_handle_frame_get(scene, strip);
-    /* Invalidate cache of strips that could be effected by the deletion or transform by the box
-     * blade. Effect only strips with a right_handle right of the most left frame of the box. */
-    if (right_handle >= rect_frames[0]) {
-      seq::relations_invalidate_cache(scene, strip);
-    }
 
     if (BLI_rctf_isect(&rq, &rectf, nullptr)) {
       /* Check if left and right handle are in the rect. */
@@ -2100,6 +2095,7 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
     }
 
     for (Strip *strip : offset_strips) {
+      seq::relations_invalidate_cache(scene, strip);
       /* This can lead strips to overlap when a strip is in front of the connected strip. */
       seq::transform_translate_strip(scene, strip, offset);
     }
