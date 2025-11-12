@@ -376,20 +376,24 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
       const Span<T> src_attr = attribute.src.typed<T>();
       MutableSpan<T> dst_attr = attribute.dst.span.typed<T>();
 
-      for (const int i : point_to_interpolate.index_range()) {
-        const InterpolatePoint &int_point = point_to_interpolate[i];
+      threading::parallel_for(
+          point_to_interpolate.index_range(), 4096, [&](const IndexRange points) {
+            for (const int i : points) {
+              const InterpolatePoint &int_point = point_to_interpolate[i];
 
-        if (int_point.factor == 0.0f) {
-          dst_attr[i] = src_attr[int_point.src_point_1];
-        }
-        else if (int_point.factor == 1.0f) {
-          dst_attr[i] = src_attr[int_point.src_point_2];
-        }
-        else {
-          dst_attr[i] = bke::attribute_math::mix2<T>(
-              int_point.factor, src_attr[int_point.src_point_1], src_attr[int_point.src_point_2]);
-        }
-      }
+              if (int_point.factor == 0.0f) {
+                dst_attr[i] = src_attr[int_point.src_point_1];
+              }
+              else if (int_point.factor == 1.0f) {
+                dst_attr[i] = src_attr[int_point.src_point_2];
+              }
+              else {
+                dst_attr[i] = bke::attribute_math::mix2<T>(int_point.factor,
+                                                           src_attr[int_point.src_point_1],
+                                                           src_attr[int_point.src_point_2]);
+              }
+            }
+          });
     });
 
     attribute.dst.finish();
