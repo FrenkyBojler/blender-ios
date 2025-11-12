@@ -4131,11 +4131,16 @@ static Base *mesh_separate_tagged(
   // DAG_relations_tag_update(bmain);
 
   /* new in 2.5 */
-  BKE_object_material_array_assign(bmain,
-                                   base_new->object,
-                                   BKE_object_material_array_p(obedit),
-                                   *BKE_object_material_len_p(obedit),
-                                   false);
+  Material ***matar_obdata = BKE_object_material_array_p(obedit);
+  Material ***matar_object = &obedit->mat;
+  Material **matar = static_cast<Material **>(
+      MEM_callocN(sizeof(*matar) * size_t(obedit->totcol), __func__));
+  for (int i = obedit->totcol; i--;) {
+    matar[i] = obedit->matbits[i] ? (*matar_object)[i] : (*matar_obdata)[i];
+  }
+  BKE_object_material_array_assign(
+      bmain, base_new->object, &matar, *BKE_object_material_len_p(obedit), false);
+  MEM_freeN(matar);
 
   blender::ed::object::base_select(base_new, blender::ed::object::BA_SELECT);
 
@@ -4207,11 +4212,16 @@ static Base *mesh_separate_arrays(Main *bmain,
   // DAG_relations_tag_update(bmain);
 
   /* new in 2.5 */
-  BKE_object_material_array_assign(bmain,
-                                   base_new->object,
-                                   BKE_object_material_array_p(obedit),
-                                   *BKE_object_material_len_p(obedit),
-                                   false);
+  Material ***matar_obdata = BKE_object_material_array_p(obedit);
+  Material ***matar_object = &obedit->mat;
+  Material **matar = static_cast<Material **>(
+      MEM_callocN(sizeof(*matar) * size_t(obedit->totcol), __func__));
+  for (int i = obedit->totcol; i--;) {
+    matar[i] = obedit->matbits[i] ? (*matar_object)[i] : (*matar_obdata)[i];
+  }
+  BKE_object_material_array_assign(
+      bmain, base_new->object, &matar, *BKE_object_material_len_p(obedit), false);
+  MEM_freeN(matar);
 
   blender::ed::object::base_select(base_new, blender::ed::object::BA_SELECT);
 
