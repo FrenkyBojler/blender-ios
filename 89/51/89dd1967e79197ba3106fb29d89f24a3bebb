@@ -1,1 +1,2 @@
 Referenced by issue #141853, enum values are not correctly generated
+Referenced by pull request #149734, Python API docs: backport fixes for Enum values
