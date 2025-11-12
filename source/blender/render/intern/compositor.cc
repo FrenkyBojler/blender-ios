@@ -156,11 +156,6 @@ class Context : public compositor::Context {
     return compositor::Domain(this->get_render_size());
   }
 
-  Bounds<int2> get_input_region() const override
-  {
-    return Bounds<int2>(int2(0), this->get_render_size());
-  }
-
   void write_output(const compositor::Result &result) override
   {
     Render *render = RE_GetSceneRender(input_data_.scene);

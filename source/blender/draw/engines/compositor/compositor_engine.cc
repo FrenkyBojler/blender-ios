@@ -81,9 +81,15 @@ class Context : public compositor::Context {
     return true;
   }
 
+  /* In case the viewport has no camera region or is an image render, the domain covers the entire
+   * viewport. But in case the camera region is not entirely visible in the viewport, the data size
+   * of the domain will only cover the intersection of the viewport and the camera regions, while
+   * the display size will cover the virtual extension of the camera region. */
   compositor::Domain get_compositing_domain() const override
   {
     const DRWContext *draw_ctx = DRW_context_get();
+
+    /* No camera region or is a viewport render, the domain is the entire viewport. */
     if (draw_ctx->rv3d->persp != RV3D_CAMOB || draw_ctx->is_viewport_image_render()) {
       return compositor::Domain(int2(draw_ctx->viewport_size_get()));
     }
@@ -119,6 +125,7 @@ class Context : public compositor::Context {
     const int2 viewport_size = int2(draw_ctx->viewport_size_get());
     const Bounds<int2> render_region = Bounds<int2>(int2(0), viewport_size);
 
+    /* No camera region or is a viewport render, the domain is the entire viewport. */
     if (draw_ctx->rv3d->persp != RV3D_CAMOB || draw_ctx->is_viewport_image_render()) {
       return render_region;
     }
@@ -140,9 +147,6 @@ class Context : public compositor::Context {
         .value_or(Bounds<int2>(int2(0)));
   }
 
-  /* We limit the input region to the camera region if in camera view, while we use the entire
-   * viewport otherwise. We also use the entire viewport when doing viewport rendering since the
-   * viewport is already the camera region in that case. */
   Bounds<int2> get_input_region() const override
   {
     return this->get_camera_region();

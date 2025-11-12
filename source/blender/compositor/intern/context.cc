@@ -18,6 +18,11 @@
 
 namespace blender::compositor {
 
+Bounds<int2> Context::get_input_region() const
+{
+  return Bounds<int2>(int2(0), this->get_compositing_domain().display_size);
+}
+
 Result Context::get_pass(const Scene * /*scene*/, int /*view_layer*/, const char * /*name*/)
 {
   return this->create_result(compositor::ResultType::Color);
