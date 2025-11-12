@@ -17,6 +17,7 @@
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_quaternion.hh"
 #include "BLI_math_quaternion_types.hh"
+#include "BLI_math_rotation.hh"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
@@ -1342,7 +1343,7 @@ static void WM_OT_xr_navigation_fly(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name XR Navigation Teleport
+/** \name XR Navigation Raycast Arc Teleport
  *
  * Casts a ray from an XR controller's pose and teleports to any hit geometry.
  * \{ */
@@ -1527,11 +1528,12 @@ static XrRaycastResult wm_xr_navigation_arc_teleport(bContext *C,
   const float head_height_offset = wm_xr_navigation_determine_head_height(C, op, xr);
 
   float3 hit_normal = {};
-  /* Compute the teleportation visual arc and destination using a serie of raycasts. */
+  /* Compute the teleportation visual arc and destination using a series of raycasts. */
   XrRaycastResult result = wm_xr_navigation_compute_teleportation_arc(C, op, data, hit_normal);
 
   if (result == XR_RAYCAST_MISS) {
-    /* Fallback to intersecting with the world ground plane by truncating the obtained arc. */
+    /* If missed, fallback to intersecting with the world ground plane by clipping the obtained
+     * arc. */
     if (!wm_xr_navigation_arc_clip_to_ground_plane(data->arc_points, data->end_point_idx)) {
       return XR_RAYCAST_MISS;
     }
@@ -1598,8 +1600,8 @@ static wmOperatorStatus wm_xr_navigation_teleport_modal(bContext *C,
 
   XrRaycastData *data = static_cast<XrRaycastData *>(op->customdata);
 
-  blender::float3 destination;
-  float destination_dist;
+  blender::float3 destination = {};
+  float destination_dist = 0.0f;
 
   /* Teleport using an arc, computing both the final destination and the visual curve. */
   data->hit_result = wm_xr_navigation_arc_teleport(C, op, xr, data, destination, destination_dist);
@@ -1698,7 +1700,7 @@ static void WM_OT_xr_navigation_teleport(wmOperatorType *ot)
                   "Only allow selectable objects to influence raycast result");
   RNA_def_float(ot->srna,
                 "distance",
-                80.0,
+                40.0,
                 0.0,
                 BVH_RAYCAST_DIST_MAX,
                 "",
@@ -1707,7 +1709,7 @@ static void WM_OT_xr_navigation_teleport(wmOperatorType *ot)
                 BVH_RAYCAST_DIST_MAX);
   RNA_def_float(ot->srna,
                 "gravity",
-                0.1,
+                0.2,
                 0.0,
                 FLT_MAX,
                 "Gravity",
