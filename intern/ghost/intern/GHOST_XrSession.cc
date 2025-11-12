@@ -156,6 +156,18 @@ static void create_reference_spaces(OpenXRSessionData &oxr,
   XrResult result = xrCreateReferenceSpace(oxr.session, &create_info, &oxr.reference_space);
 
   if (XR_FAILED(result)) {
+    /* Some devices use local floor over stage space. */
+    if (result == XR_ERROR_REFERENCE_SPACE_UNSUPPORTED) {
+      if (isDebugMode) {
+        printf(
+            "Warning: XR runtime does not support stage reference space, attempting to use local "
+            "floor "
+            "reference space.\n");
+      }
+      create_info.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_LOCAL_FLOOR;
+      result = xrCreateReferenceSpace(oxr.session, &create_info, &oxr.reference_space);
+    }
+
     /* One of the rare cases where we don't want to immediately throw an exception on failure,
      * since runtimes are not required to support the stage reference space. If the runtime
      * doesn't support it then just fall back to the local space. */
@@ -186,14 +198,21 @@ static void create_reference_spaces(OpenXRSessionData &oxr,
             "space. To use the stage reference space, please define a tracking space via the XR "
             "runtime.\n");
       }
-      /* Fall back to local space. */
+
       if (oxr.reference_space != XR_NULL_HANDLE) {
         CHECK_XR(xrDestroySpace(oxr.reference_space), "Failed to destroy stage reference space.");
       }
 
-      create_info.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_LOCAL;
-      CHECK_XR(xrCreateReferenceSpace(oxr.session, &create_info, &oxr.reference_space),
-               "Failed to create local reference space.");
+      /* Try to use local floor reference space if bounds are unavailable. */
+      create_info.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_LOCAL_FLOOR;
+      result = xrCreateReferenceSpace(oxr.session, &create_info, &oxr.reference_space);
+
+      /* Fall back to local space. */
+      if (result != XR_SUCCESS) {
+        create_info.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_LOCAL;
+        CHECK_XR(xrCreateReferenceSpace(oxr.session, &create_info, &oxr.reference_space),
+                 "Failed to create local reference space.");
+      }
     }
   }
 
