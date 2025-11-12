@@ -327,6 +327,7 @@ class XPBDState {
   int update_counter = 0;
 
   Map<SimPointsKey, SimPoints> sim_points;
+  mutable Mutex sim_constraints_mutex;
   Map<SimConstraintsKey, SimConstraintsData> sim_constraints;
   Map<SimPointsKey, PositionConstraintGoals> old_position_constraint_goals;
   Map<SimPointsKey, RotationConstraintGoals> old_rotation_constraint_goals;
@@ -388,6 +389,7 @@ class XPBDState {
 
   MutableSpan<int> ensure_constraint_ids(const SimConstraintsKey &key, const int constraints_num)
   {
+    std::lock_guard<Mutex> lock(this->sim_constraints_mutex);
     SimConstraintsData &data = this->sim_constraints.lookup_or_add(key, {});
     if (data.persistent_ids.size() != constraints_num) {
       data.persistent_ids.reinitialize(constraints_num);
@@ -400,6 +402,7 @@ class XPBDState {
    * the need for an ID map. */
   void remove_constraint_ids(const SimConstraintsKey &key)
   {
+    std::lock_guard<Mutex> lock(this->sim_constraints_mutex);
     if (SimConstraintsData *data = this->sim_constraints.lookup_ptr(key)) {
       data->persistent_ids.reinitialize(0);
     }
@@ -410,6 +413,7 @@ class XPBDState {
                                            const int sub_key,
                                            const int constraints_num)
   {
+    std::lock_guard<Mutex> lock(this->sim_constraints_mutex);
     const CPPType &cpp_type = CPPType::get<T>();
     SimConstraintsData &data = this->sim_constraints.lookup_or_add(key, {});
     BLI_assert(data.persistent_ids.is_empty() || data.persistent_ids.size() == constraints_num);
@@ -438,6 +442,7 @@ class XPBDState {
                                         const int constraints_num,
                                         const StringRef name)
   {
+    std::lock_guard<Mutex> lock(this->sim_constraints_mutex);
     SimConstraintsData &data = this->sim_constraints.lookup_or_add(key, {});
     BLI_assert(data.persistent_ids.is_empty() || data.persistent_ids.size() == constraints_num);
     GArray<> &array = data.attributes.lookup_or_add(name, GArray(CPPType::get<T>()));
