@@ -1378,14 +1378,15 @@ static XrTeleportRayResult wm_xr_navigation_teleport_compute_arc(
    * the arc. */
   for (int i = 1; i < XR_TELEPORTATION_ARC_CONTROL_POINTS; ++i) {
     float3 segment_origin = data->arc_points[i - 1];
+    /* Extend the ray length in both directions to avoid raycast precision issues when
+     * raycasting very close to surfaces. */
+    const float ray_precision_margin = segment_length * 0.25f;
     if (i > 1) {
-      /* For points other than the initial location, back up the origin slightly along the ray
-       * direction to avoid raycast precision issues when starting very close to surfaces. */
-      segment_origin += segment_direction * (-segment_length * 0.5f);
+      segment_origin += segment_direction * -ray_precision_margin;
     }
 
     const Object *ob = nullptr;
-    float segment_ray_dist = segment_length;
+    float segment_ray_dist = segment_length + (ray_precision_margin * 2.0f);
     wm_xr_navigation_teleport_raycast(CTX_data_scene(C),
                                       CTX_data_ensure_evaluated_depsgraph(C),
                                       segment_origin,
