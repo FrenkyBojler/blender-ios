@@ -320,6 +320,7 @@ class CollisionPlaneConstraintSet : public TemplatedConstraintSet<CollisionPlane
   int geo_i_;
   Span<int> points_;
   Span<float3> contact_points_on_plane_;
+  Span<float3> contact_points_motion_;
   Span<float3> separating_axes_;
   Span<float> compliance_terms_;
   Span<float> static_frictions_;
@@ -331,6 +332,7 @@ class CollisionPlaneConstraintSet : public TemplatedConstraintSet<CollisionPlane
   CollisionPlaneConstraintSet(const int geo_i,
                               const Span<int> points,
                               const Span<float3> contact_points_on_plane,
+                              const Span<float3> contact_points_motion,
                               const Span<float3> separating_axes,
                               const Span<float> compliance_terms,
                               const Span<float> static_frictions,
@@ -341,6 +343,7 @@ class CollisionPlaneConstraintSet : public TemplatedConstraintSet<CollisionPlane
         geo_i_(geo_i),
         points_(points),
         contact_points_on_plane_(contact_points_on_plane),
+        contact_points_motion_(contact_points_motion),
         separating_axes_(separating_axes),
         compliance_terms_(compliance_terms),
         static_frictions_(static_frictions),
@@ -391,7 +394,8 @@ class CollisionPlaneConstraintSet : public TemplatedConstraintSet<CollisionPlane
 
     /* Apply static friction as a direct positional update. */
     const float3 &prev_pos = params.prev_position(geo_i_, point_i);
-    const float3 velocity = pos - prev_pos;
+    const float3 &collider_velocity = contact_points_motion_[constraint_i];
+    const float3 velocity = (pos - prev_pos) - collider_velocity;
     const float3 velocity_tangent = velocity - math::dot(velocity, axis) * axis;
     const float lambda_tangent_sq = math::length_squared(velocity_tangent /
                                                          (inv_m + compliance_term));
@@ -417,6 +421,7 @@ class FrictionConstraintSet : public TemplatedVelocityConstraintSet<FrictionCons
   Span<int> index_mapping_;
   /* True if the contact is in static friction. */
   Span<float3> separating_axes_;
+  Span<float3> contact_points_motion_;
   /* Constraint multiplier lambda for the normal displacement divided by time step. */
   Span<float> dynamic_friction_terms_;
   Span<float> lambdas_normal_;
@@ -426,6 +431,7 @@ class FrictionConstraintSet : public TemplatedVelocityConstraintSet<FrictionCons
   FrictionConstraintSet(const int geo_i,
                         const Span<int> index_mapping,
                         const Span<float3> separating_axes,
+                        const Span<float3> contact_points_motion,
                         const Span<float> dynamic_friction_terms,
                         const Span<float> lambdas_normal,
                         MutableSpan<float> lambdas)
@@ -433,6 +439,7 @@ class FrictionConstraintSet : public TemplatedVelocityConstraintSet<FrictionCons
         geo_i_(geo_i),
         index_mapping_(index_mapping),
         separating_axes_(separating_axes),
+        contact_points_motion_(contact_points_motion),
         dynamic_friction_terms_(dynamic_friction_terms),
         lambdas_normal_(lambdas_normal),
         lambdas_(lambdas)
@@ -460,7 +467,8 @@ class FrictionConstraintSet : public TemplatedVelocityConstraintSet<FrictionCons
     }
 
     const float3 &axis = separating_axes_[constraint_i];
-    const float3 &velocity = params.velocity(geo_i_, point_i);
+    const float3 &collider_velocity = contact_points_motion_[constraint_i];
+    const float3 &velocity = params.velocity(geo_i_, point_i) - collider_velocity;
     const float3 velocity_tangent = velocity - math::dot(velocity, axis) * axis;
     float residual;
     const float3 gradient = math::normalize_and_get_length(velocity_tangent, residual);

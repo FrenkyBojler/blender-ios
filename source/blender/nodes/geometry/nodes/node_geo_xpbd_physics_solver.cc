@@ -315,7 +315,8 @@ struct ExternalColliderKey {
 };
 
 struct ExternalColliderState {
-  float4x4 transform;
+  /* Transform of the collider at the beginning of the current full time step. */
+  float4x4 prev_transform;
 };
 
 class XPBDState {
@@ -622,6 +623,7 @@ struct ExternelMeshColliderData {
   int constraints_key_i;
   ExternalColliderKey collider_key;
   const Mesh *mesh;
+  /* Transform of the collider at the end of the full time step. */
   float4x4 transform;
   float friction;
   float compliance;
@@ -1325,6 +1327,7 @@ PROFILE_FUNCTION static Span<float> prepare_distance_constraint_lengths(
 struct StaticPlaneContacts {
   Vector<int> indices;
   Vector<float3> contact_points_on_plane;
+  Vector<float3> contact_points_motion;
   Vector<float3> separating_axes;
   Vector<float> static_frictions;
   Vector<float> dynamic_frictions;
@@ -1373,6 +1376,8 @@ PROFILE_FUNCTION static void gather_ground_plane_contacts(
 
     r_contacts.indices.append(point_i);
     r_contacts.contact_points_on_plane.append(position - plane_normal * distance);
+    /* Static plane does not move. */
+    r_contacts.contact_points_motion.append(float3(0.0f));
     r_contacts.separating_axes.append(plane_normal);
     const float point_friction = sim_points_frictions[point_i];
     const float friction = math::sqrt(point_friction * collider.friction);
@@ -1382,6 +1387,13 @@ PROFILE_FUNCTION static void gather_ground_plane_contacts(
   }
 }
 
+struct SubstepInterval {
+  /* Interpolation factor at the beginning of the substep. */
+  float prev_factor;
+  /* Interpolation factor at the end of the substep. */
+  float final_factor;
+};
+
 PROFILE_FUNCTION static void gather_mesh_contacts(const XPBDState &state,
                                                   const SimPoints &sim_points,
                                                   const IndexRange points_range,
@@ -1389,7 +1401,7 @@ PROFILE_FUNCTION static void gather_mesh_contacts(const XPBDState &state,
                                                   const float max_search_distance,
                                                   const Span<float> sim_points_frictions,
                                                   const Span<float> sim_points_inverse_masses,
-                                                  const float substep_factor,
+                                                  const SubstepInterval &substep,
                                                   const float delta_time,
                                                   StaticPlaneContacts &r_contacts)
 {
@@ -1397,11 +1409,16 @@ PROFILE_FUNCTION static void gather_mesh_contacts(const XPBDState &state,
       collider.collider_key);
   const float compliance_term_factor = compute_compliance_factor(delta_time);
 
-  float4x4 mesh_transform = collider.transform;
-  if (collider_state) {
-    mesh_transform = math::interpolate(
-        collider_state->transform, collider.transform, substep_factor);
-  }
+  const float4x4 mesh_transform = (collider_state ?
+                                       math::interpolate(collider_state->prev_transform,
+                                                         collider.transform,
+                                                         substep.final_factor) :
+                                       collider.transform);
+  const float4x4 prev_mesh_transform = (collider_state ?
+                                            math::interpolate(collider_state->prev_transform,
+                                                              collider.transform,
+                                                              substep.prev_factor) :
+                                            collider.transform);
   const float4x4 mesh_transform_inv = math::invert(mesh_transform);
 
   bke::BVHTreeFromMesh bvh = collider.mesh->bvh_corner_tris();
@@ -1431,6 +1448,8 @@ PROFILE_FUNCTION static void gather_mesh_contacts(const XPBDState &state,
       const float friction = math::sqrt(point_friction * collider.friction);
 
       const float3 collision_point = math::transform_point(mesh_transform, float3(nearest.co));
+      const float3 prev_collision_point = math::transform_point(prev_mesh_transform,
+                                                                float3(nearest.co));
       /* Separating axis to move self out of penetration. */
       const float3 collision_axis = is_inside ? collision_point - position_self :
                                                 position_self - collision_point;
@@ -1441,6 +1460,7 @@ PROFILE_FUNCTION static void gather_mesh_contacts(const XPBDState &state,
 
       r_contacts.indices.append(point_i);
       r_contacts.contact_points_on_plane.append(collision_point);
+      r_contacts.contact_points_motion.append(collision_point - prev_collision_point);
       r_contacts.separating_axes.append(valid_axis);
       r_contacts.static_frictions.append(friction);
       r_contacts.dynamic_frictions.append(friction);
@@ -1475,6 +1495,8 @@ PROFILE_FUNCTION static void gather_mesh_contacts(const XPBDState &state,
 
             const float3 collision_point = math::transform_point(mesh_transform,
                                                                  contact_on_plane_mesh);
+            const float3 prev_collision_point = math::transform_point(prev_mesh_transform,
+                                                                      contact_on_plane_mesh);
             /* Separating axis to move self out of penetration. */
             const float3 collision_axis = is_inside ? collision_point - position_self :
                                                       position_self - collision_point;
@@ -1488,6 +1510,7 @@ PROFILE_FUNCTION static void gather_mesh_contacts(const XPBDState &state,
             r_contacts.indices.append(point_i);
             r_contacts.contact_points_on_plane.append(
                 math::transform_point(mesh_transform, contact_on_plane_mesh));
+            r_contacts.contact_points_motion.append(collision_point - prev_collision_point);
             r_contacts.separating_axes.append(valid_axis);
             r_contacts.static_frictions.append(friction);
             r_contacts.dynamic_frictions.append(friction);
@@ -1557,7 +1580,7 @@ PROFILE_FUNCTION static Contacts gather_contacts_curve_local(
     const WorldPreprocessData &world_info,
     const Span<SimPointsKey> points_keys,
     const SimPointsWorldProperties &props,
-    const float substep_factor,
+    const SubstepInterval &substep,
     const float delta_time)
 {
   Contacts contacts;
@@ -1595,7 +1618,7 @@ PROFILE_FUNCTION static Contacts gather_contacts_curve_local(
                          get_max_search_distance(delta_time),
                          props.frictions,
                          props.inverse_masses,
-                         substep_factor,
+                         substep,
                          delta_time,
                          plane_contacts);
     if (!plane_contacts.indices.is_empty()) {
@@ -1614,7 +1637,7 @@ PROFILE_FUNCTION static Contacts gather_contacts_global(
     const Span<GeometrySet> applied_geometries,
     const Span<SimPointsKey> points_keys,
     const Map<SimPointsKey, SimPointsWorldProperties> &sim_points_props,
-    const float substep_factor,
+    const SubstepInterval &substep,
     const float delta_time)
 {
   const Span<SimConstraintsKey> constraints_keys = world_info.constraints_keys;
@@ -1661,7 +1684,7 @@ PROFILE_FUNCTION static Contacts gather_contacts_global(
                              get_max_search_distance(delta_time),
                              props.frictions,
                              props.inverse_masses,
-                             substep_factor,
+                             substep,
                              delta_time,
                              plane_contacts);
         if (!plane_contacts.indices.is_empty()) {
@@ -1742,6 +1765,7 @@ PROFILE_FUNCTION static void generate_collision_constraint_sets(
         &scope.construct<xpbd::CollisionPlaneConstraintSet>(key_i,
                                                             plane_contacts.indices,
                                                             plane_contacts.contact_points_on_plane,
+                                                            plane_contacts.contact_points_motion,
                                                             plane_contacts.separating_axes,
                                                             plane_contacts.compliance_terms,
                                                             plane_contacts.static_frictions,
@@ -1763,6 +1787,7 @@ PROFILE_FUNCTION static void generate_collision_constraint_sets(
         &scope.construct<xpbd::FrictionConstraintSet>(key_i,
                                                       index_mapping,
                                                       plane_contacts.separating_axes,
+                                                      plane_contacts.contact_points_motion,
                                                       dynamic_friction_terms,
                                                       lambdas_normal,
                                                       lambdas));
@@ -3629,17 +3654,19 @@ static IndexRange find_indices_in_range(const Span<T> indices, const IndexRange 
 PROFILE_FUNCTION static void interpolate_pinned_positions(
     const IndexRange range,
     const PinnedPositions &pinned_positions,
-    const float factor,
+    const SubstepInterval &substep,
     MutableSpan<float3> r_positions,
     MutableSpan<float3> r_soft_pinned_positions)
 {
   for (const int i : find_indices_in_range<int>(pinned_positions.hard_indices, range)) {
     const int point_i = pinned_positions.hard_indices[i];
-    const float3 current_position = pinned_positions.hard_animations[i].interpolate(factor);
+    const float3 current_position = pinned_positions.hard_animations[i].interpolate(
+        substep.final_factor);
     r_positions[point_i - range.start()] = current_position;
   }
   for (const int i : find_indices_in_range<int>(pinned_positions.soft_indices, range)) {
-    const float3 current_position = pinned_positions.soft_animations[i].interpolate(factor);
+    const float3 current_position = pinned_positions.soft_animations[i].interpolate(
+        substep.final_factor);
     r_soft_pinned_positions[i] = current_position;
   }
 }
@@ -3647,19 +3674,19 @@ PROFILE_FUNCTION static void interpolate_pinned_positions(
 PROFILE_FUNCTION static void interpolate_pinned_rotations(
     const IndexRange range,
     const PinnedRotations &pinned_rotations,
-    const float factor,
+    const SubstepInterval &substep,
     MutableSpan<math::Quaternion> r_rotations,
     MutableSpan<math::Quaternion> r_soft_pinned_rotations)
 {
   for (const int i : find_indices_in_range<int>(pinned_rotations.hard_indices, range)) {
     const int point_i = pinned_rotations.hard_indices[i];
     const math::Quaternion current_rotation = pinned_rotations.hard_animations[i].interpolate(
-        factor);
+        substep.final_factor);
     r_rotations[point_i - range.start()] = current_rotation;
   }
   for (const int i : find_indices_in_range<int>(pinned_rotations.soft_indices, range)) {
     const math::Quaternion current_rotation = pinned_rotations.soft_animations[i].interpolate(
-        factor);
+        substep.final_factor);
     r_soft_pinned_rotations[i] = current_rotation;
   }
 }
@@ -3703,7 +3730,7 @@ static void pre_solve_per_point_steps(const IndexRange range,
                                       const std::optional<Span<float3>> torques,
                                       const PinnedPositions *pinned_positions,
                                       const PinnedRotations *pinned_rotations,
-                                      const float substep_factor,
+                                      const SubstepInterval &substep,
                                       const float delta_time)
 {
   prev_positions.copy_from(positions);
@@ -3718,18 +3745,12 @@ static void pre_solve_per_point_steps(const IndexRange range,
   }
 
   if (pinned_positions) {
-    interpolate_pinned_positions(range,
-                                 *pinned_positions,
-                                 substep_factor,
-                                 positions,
-                                 pinned_positions->soft_pinned_positions);
+    interpolate_pinned_positions(
+        range, *pinned_positions, substep, positions, pinned_positions->soft_pinned_positions);
   }
   if (pinned_rotations) {
-    interpolate_pinned_rotations(range,
-                                 *pinned_rotations,
-                                 substep_factor,
-                                 rotations,
-                                 pinned_rotations->soft_pinned_rotations);
+    interpolate_pinned_rotations(
+        range, *pinned_rotations, substep, rotations, pinned_rotations->soft_pinned_rotations);
   }
 }
 
@@ -3793,7 +3814,7 @@ PROFILE_FUNCTION static void simulate_key_group_global(
    * possible because each point is processed independently here. */
   auto run_per_point_updates = [&](const Span<const xpbd::ConstraintSetCollector *>
                                        constraint_collectors,
-                                   const float substep_factor,
+                                   const SubstepInterval &substep,
                                    const bool do_pre_solve,
                                    const bool do_post_solve) {
     threading::parallel_for(IndexRange(keys_in_group_num), 1, [&](const IndexRange range) {
@@ -3852,7 +3873,7 @@ PROFILE_FUNCTION static void simulate_key_group_global(
                     torques,
                     pinned_positions,
                     pinned_rotations,
-                    substep_factor,
+                    substep,
                     sub_delta_time);
               }
             });
@@ -3861,14 +3882,14 @@ PROFILE_FUNCTION static void simulate_key_group_global(
   };
 
   for (const int substep_i : IndexRange(substeps)) {
-    const float substep_factor = substeps <= 1 ? 1.0f : float(substep_i) / (substeps - 1);
+    const SubstepInterval substep = {float(substep_i) / substeps, float(substep_i + 1) / substeps};
     const bool is_first_substep = substep_i == 0;
     const bool is_last_substep = substep_i == substeps - 1;
 
     /* In all other substeps, this is done at the end of the previous step already to improve
      * parallelism and cache locality. */
     if (is_first_substep) {
-      run_per_point_updates({&filtered_static_constraint_sets}, substep_factor, true, false);
+      run_per_point_updates({&filtered_static_constraint_sets}, substep, true, false);
     }
 
     /* Find current collisions and generate constraints to resolve them. */
@@ -3879,7 +3900,7 @@ PROFILE_FUNCTION static void simulate_key_group_global(
                                                applied_geometries,
                                                keys,
                                                sim_points_props,
-                                               substep_factor,
+                                               substep,
                                                sub_delta_time);
     xpbd::ConstraintSetCollector dynamic_constraint_sets;
     generate_collision_constraint_sets(
@@ -3901,7 +3922,7 @@ PROFILE_FUNCTION static void simulate_key_group_global(
     /* Does remaining per-point updates at the end of this time step (like updating velocities) and
      * also does the beginning of the next timestep already unless this is the last substep. */
     run_per_point_updates({&filtered_static_constraint_sets, &dynamic_constraint_sets},
-                          substep_factor,
+                          substep,
                           !is_last_substep,
                           true);
   }
@@ -3967,7 +3988,8 @@ PROFILE_FUNCTION static void simulate_curve_local(
 
         xpbd::ConstraintSetParams params{geometry_refs_local};
         for ([[maybe_unused]] const int substep_i : IndexRange(substeps)) {
-          const float substep_factor = substeps <= 1 ? 1.0f : float(substep_i) / (substeps - 1);
+          const SubstepInterval substep = {float(substep_i) / substeps,
+                                           float(substep_i + 1) / substeps};
           pre_solve_per_point_steps(
               points_range,
               prev_positions,
@@ -3981,7 +4003,7 @@ PROFILE_FUNCTION static void simulate_curve_local(
               torques,
               pinned_positions,
               pinned_rotations,
-              substep_factor,
+              substep,
               sub_delta_time);
 
           Contacts contacts = gather_contacts_curve_local(key_i,
@@ -3991,7 +4013,7 @@ PROFILE_FUNCTION static void simulate_curve_local(
                                                           world_info,
                                                           keys,
                                                           props,
-                                                          substep_factor,
+                                                          substep,
                                                           sub_delta_time);
           xpbd::ConstraintSetCollector dynamic_constraint_sets;
           generate_collision_constraint_sets(
@@ -4236,6 +4258,7 @@ PROFILE_FUNCTION static void update_and_step_xpbd_state(XPBDState &state,
         }
       });
 
+  /* Store final collider transform for next frame. */
   state.external_colliders.clear();
   for (const ExternelMeshColliderData &collider : world_info.mesh_colliders) {
     state.external_colliders.add(collider.collider_key, ExternalColliderState{collider.transform});
