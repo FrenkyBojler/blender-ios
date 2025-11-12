@@ -1225,6 +1225,7 @@ static void wm_xr_navigation_teleport_ray_draw(const bContext * /*C*/,
 
   GPU_batch_program_set_builtin(data->arc_batch, GPU_SHADER_XR_TELEPORTATION_RAY);
 
+  /* Sending points through vec4 due to uniform memory alignment constraints. */
   float batch_array[XR_TELEPORTATION_ARC_CONTROL_POINTS][4] = {{0}};
   for (int i = 0; i < XR_TELEPORTATION_ARC_CONTROL_POINTS; i++) {
     copy_v3_v3(batch_array[i], data->arc_points[i]);
@@ -1444,7 +1445,7 @@ static float wm_xr_navigation_teleport_determine_head_height(bContext *C,
   blender::float3 viewer_pos_loc;
   WM_xr_session_state_viewer_pose_location_get(xr, viewer_pos_loc);
 
-  const float ray_dist = wm_xr_navigation_teleport_get_ray_distance(op, xr);
+  float ray_dist = wm_xr_navigation_teleport_get_ray_distance(op, xr);
   const bool selectable_only = RNA_boolean_get(op->ptr, "selectable_only");
 
   blender::float3 dummy_dest = {};

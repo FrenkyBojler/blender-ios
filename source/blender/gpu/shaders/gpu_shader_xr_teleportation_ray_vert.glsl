@@ -25,7 +25,6 @@ void main()
   int sample_idx = gl_VertexID >> 1;
   float side = ((gl_VertexID & 1) != 0) ? -1.0 : 1.0;
 
-  /** Interpolate within the range: [0, segment_count] */
   float sample_count = XR_TELEPORTATION_ARC_SAMPLES;
   float sample_value = (float(sample_idx) * float(endpoint_idx)) / float(sample_count);
 
