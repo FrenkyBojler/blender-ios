@@ -225,11 +225,6 @@ typedef struct Strip {
   /** Effect strip inputs (`nullptr` if not an effect strip). */
   struct Strip *input1, *input2;
 
-  /* This strange padding is needed for compatibility with older versions
-   * that assumed `seqbasep` is at fixed offset. */
-  void *_pad7;
-  int _pad8[2];
-
   /** List of strips for meta-strips. */
   ListBase seqbase;
   /** List of channels for meta-strips. */
@@ -288,8 +283,6 @@ typedef struct Strip {
   struct SeqRetimingKey *retiming_keys;
   int retiming_keys_num;
   char _pad6[4];
-
-  void *_pad10;
 
   StripRuntime *runtime;
 
