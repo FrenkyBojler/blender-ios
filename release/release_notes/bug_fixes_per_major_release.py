@@ -638,6 +638,14 @@ def llm_says_version_is_incorrect(
     if client is None:
         return False
 
+    # TODO: This prompt was written and iterated on based on short comings seen when testing Qwen3-30B-A3B-2507 reasoning and instruct models.
+    # Testing other models show different short comings and quirks with this prompt that seems to work well with Qwen3-30B-A3B-2507.
+    # This implies that the prompt is not specific or clear enough. Further iterations refining it/re-writing it should be done in the future.
+    #
+    # For example, I add a point to the prompt saying "Worked: N/A, new feature in X.Y = Worked: X.Y".
+    # This could cause confusion for some models because it doesn't make much sense, and the reasoning behind this isn't explained to the model.
+    # Maybe that point could be seperated out into it's own prompt to reduce confusion?
+
     user_prompt = [
         f"Using the information below, is Blender version '{version_number}' a {'Broken' if should_be_broken else 'Working'} version of Blender?",
         "**Important rules:**",
@@ -649,7 +657,7 @@ def llm_says_version_is_incorrect(
 
     # Ideas for improvements:
     # - At the moment the LLM usually can't handle "Is 4.5 a working version? Worked: Before 4.5 HASH"
-    #   - This is a tricky case and I'm not sure who to best describe the steps to deal with it. Here's why it's a tricky case:
+    #   - This is a tricky case and I'm not sure how to best describe the steps to deal with it. Here's why it's a tricky case:
     #   - "Worked: Before 4.5" probably means "Worked: 4.4"
     #   - "Worked: Before 4.5 HASH" probably means "Worked: 4.5 HASH-1"
     #   - "Worked: Before 4.5, branch: blender-v4.5-release, HASH" probably means "Worked: 4.4"
@@ -657,11 +665,11 @@ def llm_says_version_is_incorrect(
     # - The case of "Broken: 4.5 with Vulkan, Worked: 4.5 with OpenGL" is currently not flagged by the LLM as it's not provided with enough information to flag this.
     #   - At the moment the LLM is provided JUST the Working field (Worked: 4.5 with OpenGL). So it can't see that there is a conflict in the Broken field.
     #   - However, passing both the Broken and Working field to the LLM can cause confusion for much more common cases like "Broken: 5.0 HASH, Worked: 5.0 HASH-2 weeks".
-    #   - A multi-turn conversation approach may be neccesary to work through this issue.
-    #     Or a different set of intial questions may be useful.
-    #     ("E.g. Is there anything in the Broken/Working fields that's ambiguous?, then provide a description of what is and isn't considered ambiguous").
-    #     I (Alaska) have tried the "Is this information ambiguous" approach in the past, but it was difficult to get models to be consistent,
-    #     even at 100+ billion parameter, so I resorted to fine tuning a model for the task.
+    #   - A multi-turn conversation approach may be neccesary to work through this issue. Or a different set of intial questions may be useful.
+    #     ("E.g. Is there anything in the Broken/Working fields that's ambiguous?", then provide a description of what is and isn't considered ambiguous).
+    #     I (Alaska) have tried the "Is this information ambiguous" approach in the past, but it was difficult to get models to be consistent with theirself.
+    #     A quick experiment fine tuning a model for the task greatly improved the consistency. But introduces complications related to
+    #     sharing the fine tuned model, and the capacity avaliable to the triaging model for running LLMs.
 
     if not should_be_broken:
         # To allow the script to handle new features, triagers usually put "Worked: N/A as it's a new feature in X.Y" so the script sees:
