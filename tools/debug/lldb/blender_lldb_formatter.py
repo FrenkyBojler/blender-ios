@@ -79,9 +79,35 @@ class math_matrix_SyntheticProvider:
 class bli_vector_SyntheticProvider:
     def __init__(self, valobj, internal_dict):
         self.valobj = valobj
+        self.begin = self.valobj.GetChildMemberWithName("begin_")
+        self.end = self.valobj.GetChildMemberWithName("end_")
+        self.capacity_end = self.valobj.GetChildMemberWithName("capacity_end_")
+        self.data_type = self.begin.GetType().GetPointeeType()
+        self.data_size = self.data_type.GetByteSize()
 
     def num_children(self):
-        return self.valobj.GetChildMemberWithName("debug_size_").GetValueAsUnsigned()
+        try:
+            start_val = self.begin.GetValueAsUnsigned(0)
+            end_val = self.end.GetValueAsUnsigned(0)
+            end_capacity_val = self.capacity_end.GetValueAsUnsigned(0)
+            # Make sure nothing is NULL
+            if start_val == 0 or end_val == 0 or end_capacity_val == 0:
+                return 0
+            # Make sure start is less than finish
+            if start_val >= end_val:
+                return 0
+            # Make sure finish is less than or equal to end of storage
+            if end_val > end_capacity_val:
+                return 0
+
+            num_children = (end_val - start_val)
+            if (num_children % self.data_size) != 0:
+                return 0
+            else:
+                num_children = (num_children // self.data_size)
+            return num_children
+        except:
+            return 0
 
     def get_child_at_index(self, index):
         begin = self.valobj.GetChildMemberWithName("begin_")
