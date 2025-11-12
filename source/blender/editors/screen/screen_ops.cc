@@ -1921,6 +1921,7 @@ static int area_snap_calc_location(sAreaMoveData *md, const int delta)
   const int m_cursor = md->origval + delta;
   const int m_span = float(md->bigger + md->smaller);
   const int m_min = md->origval - md->smaller;
+  // const int axis_max = axis_min + m_span;
 
   switch (md->snap_type) {
     case SNAP_AREAGRID: {
@@ -1938,7 +1939,6 @@ static int area_snap_calc_location(sAreaMoveData *md, const int delta)
       else if (m_cursor_final > (md->origval + md->bigger - snap_threshold)) {
         m_cursor_final = md->origval + md->bigger;
       }
-
     } break;
 
     case SNAP_BIGGER_SMALLER_ONLY:
@@ -2010,18 +2010,15 @@ static int area_snap_calc_location(sAreaMoveData *md, const int delta)
   return m_cursor_final;
 }
 
-/* moves selected screen edge amount of delta. */
-static void area_move_apply(bContext *C, wmOperator *op)
+static void area_move_apply_do(bContext *C, int delta, sAreaMoveData *md)
 {
-  sAreaMoveData *md = static_cast<sAreaMoveData *>(op->customdata);
-  int delta = RNA_int_get(op->ptr, "delta");
-  short final_loc = -1;
-  bool doredraw = false;
-
   WorkspaceStatus status(C);
   status.item(IFACE_("Confirm"), ICON_MOUSE_LMB);
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
   status.item_bool(IFACE_("Snap"), md->snap_type == SNAP_FRACTION_AND_ADJACENT, ICON_EVENT_CTRL);
+
+  short final_loc = -1;
+  bool doredraw = false;
 
   if (md->snap_type != SNAP_BIGGER_SMALLER_ONLY) {
     CLAMP(delta, -md->smaller, md->bigger);
@@ -2084,6 +2081,14 @@ static void area_move_apply(bContext *C, wmOperator *op)
     /* Update preview thumbnail */
     BKE_icon_changed(md->screen->id.icon_id);
   }
+}
+
+static void area_move_apply(bContext *C, wmOperator *op)
+{
+  sAreaMoveData *md = static_cast<sAreaMoveData *>(op->customdata);
+  int delta = RNA_int_get(op->ptr, "delta");
+
+  area_move_apply_do(C, delta, md);
 }
 
 static void area_move_exit(bContext *C, wmOperator *op)
