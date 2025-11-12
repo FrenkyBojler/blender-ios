@@ -489,7 +489,7 @@ static void view3d_ob_drop_copy_external_asset(bContext *C, wmDrag *drag, wmDrop
   if (WM_drag_asset_will_import_packed(drag)) {
     make_selected_objects_local(*bmain, *scene, *view_layer, *CTX_wm_view3d(C), false);
 
-    /* Making the IDs local might result in a new ID. */
+    /* Making the IDs local might result in a new, copied ID. */
     if (id->newid) {
       id = id->newid;
     }
@@ -597,8 +597,9 @@ static void view3d_collection_drop_copy_external_asset(bContext *C, wmDrag *drag
   if (WM_drag_asset_will_import_packed(drag) && !use_instance_collections) {
     make_selected_objects_local(*bmain, *scene, *view_layer, *CTX_wm_view3d(C), true);
 
-    /* Making the IDs local might result in a new ID. */
+    /* Making the IDs local might result in a new, copied ID. */
     collection = blender::id_cast<Collection *>(id->newid ? id->newid : id);
+    id = &collection->id;
   }
 
   ED_outliner_select_sync_from_object_tag(C);
