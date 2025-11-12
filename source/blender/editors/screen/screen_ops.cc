@@ -2010,6 +2010,7 @@ static int area_snap_calc_location(sAreaMoveData *md, const int delta)
   return m_cursor_final;
 }
 
+/* Moves selected screen edge amount of delta. */
 static void area_move_apply_do(bContext *C, int delta, sAreaMoveData *md)
 {
   WorkspaceStatus status(C);
