@@ -1,4 +1,4 @@
 Referenced by commit 5d1d447c2b1, Fix #114552: Copy material to selected crash on object lacking slot
 Referenced by issue #119161, Fix #114552: Copy material to selected crash on object lacking slot
 Referenced by issue #54544, "Copy Materials to Selected" only works when materials are defined on the mesh
-Referenced by pull request #149772, Fix #149761: Separate by Material wrong when these are linked to object
+Referenced by pull request #149772, Fix #149761: Separate by Material wrong with object linked materials
