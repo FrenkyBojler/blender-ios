@@ -10,6 +10,7 @@
 
 #include "BKE_context.hh"
 #include "BKE_grease_pencil.hh"
+#include "BKE_library.hh"
 
 #include "BLT_translation.hh"
 
@@ -212,6 +213,11 @@ class LayerViewItem : public AbstractTreeViewItem {
     this->label_ = layer.name();
   }
 
+  void set_interaction(bool /*value*/)
+  {
+    is_interactive_ = ID_IS_EDITABLE(&grease_pencil_);
+  }
+
   void build_row(uiLayout &row) override
   {
     build_layer_name(row);
@@ -379,6 +385,11 @@ class LayerGroupViewItem : public AbstractTreeViewItem {
 
     RNA_property_boolean_set(&group_ptr, prop, is_expanded);
     RNA_property_update(&C, &group_ptr, prop);
+  }
+
+  void set_interaction(bool /*value*/)
+  {
+    is_interactive_ = ID_IS_EDITABLE(&grease_pencil_);
   }
 
   void build_row(uiLayout &row) override

@@ -367,9 +367,9 @@ void AbstractViewItem::activate_for_context_menu_set()
   activate_for_context_menu_ = true;
 }
 
-void AbstractViewItem::disable_interaction()
+void AbstractViewItem::set_interaction(bool value)
 {
-  is_interactive_ = false;
+  is_interactive_ = value;
 }
 
 bool AbstractViewItem::is_interactive() const

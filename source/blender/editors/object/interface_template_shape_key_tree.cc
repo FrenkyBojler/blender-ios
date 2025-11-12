@@ -203,6 +203,11 @@ class ShapeKeyItem : public ui::AbstractTreeViewItem {
     shape_key_.index = index;
   };
 
+  void set_interaction(bool /*value*/) override
+  {
+    is_interactive_ = ID_IS_EDITABLE(&shape_key_.object->id);
+  }
+
   void build_row(uiLayout &row) override
   {
     uiItemL_ex(&row, this->label_, ICON_SHAPEKEY_DATA, false, false);

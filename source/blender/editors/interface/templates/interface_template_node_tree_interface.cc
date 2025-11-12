@@ -100,12 +100,13 @@ class NodeSocketViewItem : public BasicTreeViewItem {
     });
   }
 
+  void set_interaction(bool /*value*/)
+  {
+    is_interactive_ = ID_IS_EDITABLE(&nodetree_);
+  }
+
   void build_row(uiLayout &row) override
   {
-    if (ID_IS_LINKED(&nodetree_)) {
-      row.enabled_set(false);
-    }
-
     row.use_property_decorate_set(false);
 
     uiLayout *input_socket_layout = &row.row(true);
@@ -195,11 +196,13 @@ class NodePanelViewItem : public BasicTreeViewItem {
     is_always_collapsible_ = true;
   }
 
+  void set_interaction(bool /*value*/)
+  {
+    is_interactive_ = ID_IS_EDITABLE(&nodetree_);
+  }
+
   void build_row(uiLayout &row) override
   {
-    if (ID_IS_LINKED(&nodetree_)) {
-      row.enabled_set(false);
-    }
     /* Add boolean socket if panel has a toggle. */
     if (toggle_ != nullptr) {
       uiLayout *toggle_layout = &row.row(true);
@@ -333,9 +336,6 @@ class NodeTreeInterfaceView : public AbstractTreeView {
 
 std::unique_ptr<AbstractViewItemDragController> NodeSocketViewItem::create_drag_controller() const
 {
-  if (!ID_IS_EDITABLE(&nodetree_.id)) {
-    return nullptr;
-  }
   return std::make_unique<NodeTreeInterfaceDragController>(
       static_cast<NodeTreeInterfaceView &>(this->get_tree_view()), socket_.item, nodetree_);
 }
@@ -347,9 +347,6 @@ std::unique_ptr<TreeViewItemDropTarget> NodeSocketViewItem::create_drop_target()
 
 std::unique_ptr<AbstractViewItemDragController> NodePanelViewItem::create_drag_controller() const
 {
-  if (!ID_IS_EDITABLE(&nodetree_.id)) {
-    return nullptr;
-  }
   return std::make_unique<NodeTreeInterfaceDragController>(
       static_cast<NodeTreeInterfaceView &>(this->get_tree_view()), panel_.item, nodetree_);
 }

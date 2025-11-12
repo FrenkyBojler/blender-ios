@@ -62,7 +62,7 @@ class AssetCatalogSelectorTree : public ui::AbstractTreeView {
     if (catalog_tree_.is_empty()) {
       auto &item = add_tree_item<ui::BasicTreeViewItem>(RPT_("No applicable assets found"),
                                                         ICON_INFO);
-      item.disable_interaction();
+      item.set_interaction(false);
       return;
     }
 

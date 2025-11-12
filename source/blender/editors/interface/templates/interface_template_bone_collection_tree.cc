@@ -215,14 +215,16 @@ class BoneCollectionItem : public AbstractTreeViewItem {
     this->label_ = bone_collection_.name;
   }
 
+  void set_interaction(bool /*value*/) override
+  {
+    is_interactive_ = !ANIM_armature_bonecoll_is_editable(&armature_, &bone_collection_);
+  }
+
   void build_row(uiLayout &row) override
   {
     uiLayout *sub = &row.row(true);
 
     uiBut *name_label = uiItemL_ex(sub, bone_collection_.name, ICON_NONE, false, false);
-    if (!ANIM_armature_bonecoll_is_editable(&armature_, &bone_collection_)) {
-      UI_but_flag_enable(name_label, UI_BUT_INACTIVE);
-    }
 
     /* Contains Active Bone icon. */
     /* Performance note: this check potentially loops over all bone collections the active bone is
@@ -348,13 +350,9 @@ class BoneCollectionItem : public AbstractTreeViewItem {
     ANIM_armature_bonecoll_remove(&armature_, &bone_collection_);
     ED_undo_push(C, "Delete Bone Collection");
   }
+
   std::unique_ptr<AbstractViewItemDragController> create_drag_controller() const override
   {
-    /* Reject dragging linked (or otherwise uneditable) bone collections. */
-    if (!ANIM_armature_bonecoll_is_editable(&armature_, &bone_collection_)) {
-      return {};
-    }
-
     BoneCollectionTreeView &tree_view = static_cast<BoneCollectionTreeView &>(get_tree_view());
     return std::make_unique<BoneCollectionDragController>(tree_view, armature_, bcoll_index_);
   }
