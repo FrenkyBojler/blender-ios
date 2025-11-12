@@ -259,14 +259,13 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
                                                        const Span<bool> cyclic,
                                                        const OffsetIndices<int> segment_offsets)
 {
-  Array<int> point_offsets(segment_offsets.size() + 1);
-
   struct InterpolatePoint {
     int src_point_1;
     int src_point_2;
     float factor;
   };
 
+  Array<int> point_offsets(segment_offsets.size() + 1);
   Vector<InterpolatePoint> point_to_interpolate;
 
   for (const int curve_i : segment_offsets.index_range()) {
@@ -305,7 +304,6 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
   }
 
   point_offsets.last() = point_to_interpolate.size();
-
   const OffsetIndices<int> dst_points_by_curve = OffsetIndices<int>(point_offsets);
 
   if (dst_points_by_curve.total_size() == 0) {
