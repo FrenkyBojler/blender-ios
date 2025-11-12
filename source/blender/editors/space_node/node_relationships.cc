@@ -2506,30 +2506,7 @@ void NODE_OT_detach(wmOperatorType *ot)
 /** \name Automatic Node Insert on Dragging
  * \{ */
 
-// ! Unused Now !
-static bNode *get_selected_node_for_insertion(bNodeTree &node_tree)
-{
-  bNode *selected_node = nullptr;
-  int selected_node_count = 0;
-  for (bNode *node : node_tree.all_nodes()) {
-    if (node->flag & SELECT) {
-      selected_node = node;
-      selected_node_count++;
-    }
-    if (selected_node_count > 1) {
-      return nullptr;
-    }
-  }
-  if (!selected_node) {
-    return nullptr;
-  }
-  if (selected_node->input_sockets().is_empty() || selected_node->output_sockets().is_empty()) {
-    return nullptr;
-  }
-  return selected_node;
-}
-
-struct NodeEndpoint {
+struct NodeChainInfo {
   bNode *start_node = nullptr;
   bNode *end_node = nullptr;
   rctf bounds{};
@@ -2547,20 +2524,19 @@ struct NodeEndpoint {
   }
 };
 
-// static bool is_valid_selected_chain(VectorSet<bNode *> &selected_nodes,
-static bool is_valid_selected_chain(Vector<bNode *> &selected_nodes,
-                                    bNode &start_node,
-                                    bNode &end_node)
+static bool is_valid_selected_chain(Vector<bNode *> &selected_nodes, NodeChainInfo &chain)
 {
-  if (&start_node == &end_node) {
+  bNode *start_node = chain.start_node;
+  bNode *end_node = chain.end_node;
+  if (start_node == end_node) {
     return true;
   }
 
   Vector<bNode *> to_visit;
-  to_visit.append(&start_node);
+  to_visit.append(start_node);
 
   VectorSet<bNode *> visited;
-  visited.add(&start_node);
+  visited.add(start_node);
 
   while (!to_visit.is_empty()) {
     bNode *current_node = to_visit.pop_last();
@@ -2578,7 +2554,7 @@ static bool is_valid_selected_chain(Vector<bNode *> &selected_nodes,
         if (!selected_nodes.contains(&next_node)) {
           continue;
         }
-        if (&next_node == &end_node) {
+        if (&next_node == end_node) {
           return true;
         }
         /* Avoid cycles in the graph. */
@@ -2592,6 +2568,8 @@ static bool is_valid_selected_chain(Vector<bNode *> &selected_nodes,
   return false;
 }
 
+/* Find compatible socket with link, prioritizing an exact type match with link(default socket
+ * first), then any convertible type. */
 static int get_socket_priority(const bNodeSocket *socket, const bNodeTree &ntree)
 {
   switch (eNodeSocketDatatype(socket->type)) {
@@ -2628,7 +2606,7 @@ static bNodeSocket *get_compatible_socket_input(bNodeTree &ntree, bNode &node, b
   if (default_socket && default_socket->type == link.fromsock->type) {
     return default_socket;
   }
-  // 如果有优先级更高的接口,除非低优先级同时有输入输出(或者是inline的?),或者高优先级不是第一个接口,或者只有一边有?
+  // 有优先级更高的接口,除非低优先级有输入输出(或是inline?)或高优先级不是第一个,或只有一边有?如采样编号
   for (bNodeSocket *sock : node.input_sockets()) {
     if (sock->is_visible()) {
       if (get_socket_priority(sock, ntree) > get_socket_priority(link.fromsock, ntree)) {
@@ -2643,7 +2621,7 @@ static bNodeSocket *get_compatible_socket_input(bNodeTree &ntree, bNode &node, b
     return nullptr;
   }
   for (bNodeSocket *sock : node.input_sockets()) {
-    // ? 找类型最匹配的？ 整数找浮点，而不是矢量？ 没现成的就不做了
+    // ? 找类型最匹配的？ 整数找浮点，而不是矢量？ 没现成的代码就不做了
     if (sock->is_visible() &&
         ntree.typeinfo->validate_link(eNodeSocketDatatype(link.fromsock->type),
                                       eNodeSocketDatatype(sock->type)))
@@ -2677,22 +2655,21 @@ static bNodeSocket *get_compatible_socket_output(bNodeTree &ntree, bNode &node, 
   return nullptr;
 }
 
-static NodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &tree, bool is_new_node)
+static NodeChainInfo get_chain_info_for_insertion(bNodeTree &tree, bool is_new_node)
 {
-  NodeEndpoint result{};
+  NodeChainInfo chain{};
   Vector<bNode *> end_candidates;
-  // VectorSet<bNode *> selected_nodes = transform::get_transformed_nodes(tree, false);
   Vector<bNode *> selected_nodes = transform::get_transformed_nodes(tree, false).extract_vector();
-  result.selected_count = selected_nodes.size();
+  chain.selected_count = selected_nodes.size();
 
   bool find_first = false;
   for (bNode *node : selected_nodes) {
     if (!find_first) {
-      result.bounds = node->runtime->draw_bounds;
+      chain.bounds = node->runtime->draw_bounds;
       find_first = true;
     }
     else {
-      BLI_rctf_union(&result.bounds, &node->runtime->draw_bounds);
+      BLI_rctf_union(&chain.bounds, &node->runtime->draw_bounds);
     }
 
     bool all_output_not_linked = false;
@@ -2728,9 +2705,9 @@ static NodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &tree, b
               return {};
             }
           }
-          result.start_node = paired_input;
-          result.end_node = end_node;
-          return result;
+          chain.start_node = paired_input;
+          chain.end_node = end_node;
+          return chain;
         }
       }
     }
@@ -2787,34 +2764,28 @@ static NodeEndpoint get_selected_nodes_endpoint_for_insertion(bNodeTree &tree, b
   if (start_candidates_by_priority.is_empty()) {
     return {};
   }
-  const Vector<bNode *> &start_candidates = start_candidates_by_priority.lookup(
-      max_start_priority);
+  Vector<bNode *> &start_candidates = start_candidates_by_priority.lookup(max_start_priority);
   if (start_candidates.size() != 1) {
     return {};
   }
-
-  bNode *start_node = start_candidates[0];
-  if (!is_valid_selected_chain(selected_nodes, *start_node, *end_node)) {
+  chain.start_node = start_candidates[0];
+  chain.end_node = end_node;
+  if (!is_valid_selected_chain(selected_nodes, chain)) {
     return {};
   }
-
-  result.start_node = start_node;
-  result.end_node = end_node;
-  return result;
+  return chain;
 }
 
-static bool endpoint_is_compatible_to_link(bNodeTree &ntree,
-                                           NodeEndpoint &endpoint,
-                                           bNodeLink &link)
+static bool chain_is_compatible_to_link(bNodeTree &ntree, NodeChainInfo &chain, bNodeLink &link)
 {
-  if (endpoint.is_reroute()) {
+  if (chain.is_reroute()) {
     return true;
   }
-  // const bNodeSocket*main_input=get_compatible_socket_input(ntree,*endpoint.start_node,link);
-  if (get_compatible_socket_input(ntree, *endpoint.start_node, link)) {
+  // const bNodeSocket*main_input=get_compatible_socket_input(ntree,*chain.start_node,link);
+  if (get_compatible_socket_input(ntree, *chain.start_node, link)) {
     return true;
   }
-  if (get_compatible_socket_output(ntree, *endpoint.end_node, link)) {
+  if (get_compatible_socket_output(ntree, *chain.end_node, link)) {
     return true;
   }
   return false;
@@ -2824,44 +2795,39 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
                                    const ARegion &region,
                                    const bool attach_enabled,
                                    const bool is_new_node,
-                                   const int2 &cursor)
+                                   const int2 &mouse_xy)
 {
   bNodeTree &node_tree = *snode.edittree;
   node_tree.ensure_topology_cache();
 
   node_insert_on_link_flags_clear(node_tree);
 
-  NodeEndpoint endpoint = get_selected_nodes_endpoint_for_insertion(node_tree, is_new_node);
-  if (!endpoint.is_valid()) {
+  NodeChainInfo chain = get_chain_info_for_insertion(node_tree, is_new_node);
+  if (!chain.is_valid()) {
     return;
   }
 
   Vector<bNodeSocket *> already_linked_sockets;
-  for (bNodeSocket *socket : endpoint.start_node->input_sockets()) {
+  for (bNodeSocket *socket : chain.start_node->input_sockets()) {
     already_linked_sockets.extend(socket->directly_linked_sockets());
   }
-  for (bNodeSocket *socket : endpoint.end_node->output_sockets()) {
+  for (bNodeSocket *socket : chain.end_node->output_sockets()) {
     already_linked_sockets.extend(socket->directly_linked_sockets());
   }
 
+  float2 cursor;
+  UI_view2d_region_to_view(&region.v2d, mouse_xy.x, mouse_xy.y, &cursor.x, &cursor.y);
+  BLI_rctf_clamp_pt_v(&chain.bounds, cursor);
+  VectorSet<bNode *> nodes = transform::get_transformed_nodes(node_tree, false);
   /* Find link to select/highlight. */
   bNodeLink *selink = nullptr;
   float dist_best = FLT_MAX;
-
-  float2 local_cursor;
-  UI_view2d_region_to_view(&region.v2d, cursor.x, cursor.y, &local_cursor.x, &local_cursor.y);
-  float node_xy[2] = {local_cursor.x, local_cursor.y};
-  BLI_rctf_clamp_pt_v(&endpoint.bounds, node_xy);
-
-  VectorSet<bNode *> nodes = transform::get_transformed_nodes(node_tree, false);
   LISTBASE_FOREACH (bNodeLink *, link, &node_tree.links) {
     if (node_link_is_hidden_or_dimmed(region.v2d, *link)) {
       continue;
     }
-    /* Don't insert on a link that is connected to selected nodes already. */
-    if ((link->fromnode && nodes.contains(link->fromnode)) ||
-        (link->tonode && nodes.contains(link->tonode)))
-    {
+    if (nodes.contains(link->fromnode) || nodes.contains(link->tonode)) {
+      /* Don't insert on a link that is connected to transformed nodes already. */
       continue;
     }
     if (is_new_node && !already_linked_sockets.is_empty()) {
@@ -2883,17 +2849,15 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
     node_link_bezier_points_evaluated(*link, coords);
     float dist = FLT_MAX;
 
-    /* Loop over link coords to find shortest dist to cursor position clamp by nodes bounds of a
-     * intersected line segment. */
+    /* Loop over link coords to find shortest dist to cursor clamp by nodes bounds of a intersected
+     * line segment. */
     for (int i = 0; i < NODE_LINK_RESOL; i++) {
       /* Check if the nodes total bounds intersects the line from this point to next one. */
-      if (BLI_rctf_isect_segment(&endpoint.bounds, coords[i], coords[i + 1])) {
-        /* Store the shortest distance to the cursor position of all intersections found so
-         * far. */
-
-        /* To be precise coords should be clipped by `select->draw_bounds`, but not done since
+      if (BLI_rctf_isect_segment(&chain.bounds, coords[i], coords[i + 1])) {
+        /* Store the shortest distance to the cursor of all intersections found so far.
+         * To be precise coords should be clipped by `select->draw_bounds`, but not done since
          * there's no real noticeable difference. */
-        dist = min_ff(dist_squared_to_line_segment_v2(node_xy, coords[i], coords[i + 1]), dist);
+        dist = min_ff(dist_squared_to_line_segment_v2(cursor, coords[i], coords[i + 1]), dist);
       }
     }
 
@@ -2906,7 +2870,7 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
 
   if (selink) {
     selink->flag |= NODE_LINK_INSERT_TARGET;
-    if (!attach_enabled || !endpoint_is_compatible_to_link(node_tree, endpoint, *selink)) {
+    if (!attach_enabled || !chain_is_compatible_to_link(node_tree, chain, *selink)) {
       selink->flag |= NODE_LINK_INSERT_TARGET_INVALID;
     }
   }
@@ -2952,8 +2916,8 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
 {
   bNodeTree &node_tree = *snode.edittree;
   node_tree.ensure_topology_cache();
-  NodeEndpoint endpoint = get_selected_nodes_endpoint_for_insertion(node_tree, is_new_node);
-  if (!endpoint.is_valid()) {
+  NodeChainInfo chain = get_chain_info_for_insertion(node_tree, is_new_node);
+  if (!chain.is_valid()) {
     return;
   }
 
@@ -2975,7 +2939,7 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
 
   bNodeSocket *best_input = nullptr;
   if (is_new_node) {
-    for (bNodeSocket *socket : endpoint.start_node->input_sockets()) {
+    for (bNodeSocket *socket : chain.start_node->input_sockets()) {
       if (!socket->directly_linked_sockets().is_empty()) {
         best_input = socket;
         break;
@@ -2983,11 +2947,11 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
     }
   }
   if (!best_input) {
-    best_input = get_compatible_socket_input(ntree, *endpoint.start_node, *old_link);
+    best_input = get_compatible_socket_input(ntree, *chain.start_node, *old_link);
   }
   bNodeSocket *best_output = nullptr;
   if (is_new_node) {
-    for (bNodeSocket *socket : endpoint.end_node->output_sockets()) {
+    for (bNodeSocket *socket : chain.end_node->output_sockets()) {
       if (!socket->directly_linked_sockets().is_empty()) {
         best_output = socket;
         break;
@@ -2995,10 +2959,10 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
     }
   }
   if (!best_output) {
-    best_output = get_compatible_socket_output(ntree, *endpoint.end_node, *old_link);
+    best_output = get_compatible_socket_output(ntree, *chain.end_node, *old_link);
   }
 
-  if (!endpoint.is_reroute()) {
+  if (!chain.is_reroute()) {
     /* Ignore main sockets when the types don't match. */
     if (best_input != nullptr && ntree.typeinfo->validate_link != nullptr &&
         !ntree.typeinfo->validate_link(eNodeSocketDatatype(old_link->fromsock->type),
@@ -3022,7 +2986,7 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
 
   if (best_output != nullptr) {
     /* Relink the "start" of the existing link to the newly inserted node. */
-    old_link->fromnode = endpoint.end_node;
+    old_link->fromnode = chain.end_node;
     old_link->fromsock = best_output;
     BKE_ntree_update_tag_link_changed(&ntree);
   }
@@ -3031,7 +2995,7 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
     /* Don't change an existing link. */
     if (!best_input_is_linked) {
       /* Add a new link that connects the node on the left to the newly inserted node. */
-      bke::node_add_link(ntree, *from_node, *from_socket, *endpoint.start_node, *best_input);
+      bke::node_add_link(ntree, *from_node, *from_socket, *chain.start_node, *best_input);
     }
   }
 
@@ -3040,12 +3004,12 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
     BLI_assert(snode.runtime->iofsd == nullptr);
     NodeInsertOfsData *iofsd = MEM_callocN<NodeInsertOfsData>(__func__);
 
-    iofsd->insert = endpoint.end_node;
+    iofsd->insert = chain.end_node;
     iofsd->prev = from_node;
     iofsd->next = to_node;
-    iofsd->bound_width = endpoint.bounds.xmax - endpoint.bounds.xmin;
-    iofsd->is_insert_chain = endpoint.selected_count > 1;
-    iofsd->total_rct = endpoint.bounds;
+    iofsd->bound_width = chain.bounds.xmax - chain.bounds.xmin;
+    iofsd->is_insert_chain = chain.selected_count > 1;
+    iofsd->total_rct = chain.bounds;
 
     snode.runtime->iofsd = iofsd;
   }
