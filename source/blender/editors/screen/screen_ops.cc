@@ -1732,7 +1732,6 @@ struct sAreaMoveData {
   eScreenAxis dir_axis;
   AreaMoveSnapType snap_type;
   bScreen *screen;
-  ScrArea *area1, *area2;
   double start_time;
   double end_time;
   wmWindow *win;
@@ -1880,9 +1879,6 @@ static bool area_move_init(bContext *C, wmOperator *op)
   sAreaMoveData *md = MEM_callocN<sAreaMoveData>("sAreaMoveData");
   op->customdata = md;
 
-  const int xy[2] = {x, y};
-  screen_area_edge_from_cursor(C, xy, &md->area1, &md->area2);
-
   md->dir_axis = screen_geom_edge_is_horizontal(actedge) ? SCREEN_AXIS_H : SCREEN_AXIS_V;
   if (md->dir_axis == SCREEN_AXIS_H) {
     md->origval = actedge->v1->vec.y;
@@ -1936,57 +1932,11 @@ static int area_snap_calc_location(sAreaMoveData *md, const int delta)
 
       /* Slight snap to vertical minimum and maximum. */
       const int snap_threshold = int(float(ED_area_headersize()) * 0.6f);
-
-      blender::Vector<int> snaps;
-      snaps.append(m_min);
-
-      /* Extra snaps for Timeline and Graph Editor. */
-      if (md->dir_axis == SCREEN_AXIS_H && md->area2 &&
-          ELEM(md->area2->spacetype, SPACE_ACTION, SPACE_GRAPH, SPACE_NLA))
-      {
-        snaps.append(m_min + UI_TIME_SCRUB_MARGIN_Y);
-        ARegion *region = BKE_area_find_region_type(md->area2, RGN_TYPE_FOOTER);
-        const bool anim_footer = (region && region->runtime->visible);
-        region = BKE_area_find_region_type(md->area2, RGN_TYPE_HEADER);
-        const bool anim_header = (region && region->runtime->visible);
-        if (anim_footer && anim_header) {
-          snaps.append(m_min + UI_TIME_SCRUB_MARGIN_Y + ED_area_footersize());
-        }
+      if (m_cursor_final < (m_min + snap_threshold)) {
+        m_cursor_final = m_min;
       }
-
-      const bool area1_scrub = md->area1 &&
-                               ELEM(md->area1->spacetype, SPACE_ACTION, SPACE_GRAPH, SPACE_NLA);
-      if (md->dir_axis == SCREEN_AXIS_H && md->area1 &&
-          ELEM(md->area1->spacetype, SPACE_ACTION, SPACE_GRAPH, SPACE_NLA))
-      {
-        ARegion *region = BKE_area_find_region_type(md->area1, RGN_TYPE_FOOTER);
-        const bool anim_footer = (region && region->runtime->visible);
-        region = BKE_area_find_region_type(md->area1, RGN_TYPE_HEADER);
-        const bool anim_header = (region && region->runtime->visible);
-        if (anim_footer && anim_header) {
-          snaps.append(md->origval + md->bigger - (UI_TIME_SCRUB_MARGIN_Y + ED_area_footersize()));
-        }
-        snaps.append(md->origval + md->bigger - UI_TIME_SCRUB_MARGIN_Y);
-      }
-
-      /* Extra snap for Console. */
-      if (md->dir_axis == SCREEN_AXIS_H && md->area2 && md->area2->spacetype == SPACE_CONSOLE) {
-        SpaceConsole *console = static_cast<SpaceConsole *>(md->area2->spacedata.first);
-        snaps.append(m_min + int(float(console->lheight) * UI_SCALE_FAC * 1.5f));
-      }
-      if (md->dir_axis == SCREEN_AXIS_H && md->area1 && md->area1->spacetype == SPACE_CONSOLE) {
-        SpaceConsole *console = static_cast<SpaceConsole *>(md->area1->spacedata.first);
-        snaps.append(md->origval + md->bigger -
-                     int(float(console->lheight) * UI_SCALE_FAC * 1.5f));
-      }
-
-      snaps.append(md->origval + md->bigger);
-
-      for (int i = 0; i < snaps.size(); i++) {
-        if (abs(m_cursor_final - snaps[i]) < snap_threshold) {
-          m_cursor_final = snaps[i];
-          break;
-        }
+      else if (m_cursor_final > (md->origval + md->bigger - snap_threshold)) {
+        m_cursor_final = md->origval + md->bigger;
       }
 
     } break;
@@ -1999,42 +1949,24 @@ static int area_snap_calc_location(sAreaMoveData *md, const int delta)
       const int axis = (md->dir_axis == SCREEN_AXIS_V) ? 0 : 1;
       int snap_dist_best = INT_MAX;
       {
-        rcti screen_rect;
-        WM_window_screen_rect_calc(md->win, &screen_rect);
-
-        const int screen_size = (md->dir_axis == SCREEN_AXIS_V) ? BLI_rcti_size_x(&screen_rect) :
-                                                                  BLI_rcti_size_y(&screen_rect);
-        const int screen_min = (md->dir_axis == SCREEN_AXIS_V) ? screen_rect.xmin :
-                                                                 screen_rect.ymin;
-
-        /* Number of snap sections between the end-snap points. Minimum is 2, which
-         * results in a single extra position at 50%. Should be even and easily divisible. */
-        const int interior_snap_divisor = 24;
-        /* Minimum snap helps to cull any that are too close to the endpoint snaps. */
-        const int min_snap = int(float(screen_size) / float(interior_snap_divisor) / 4.0f);
-
-        blender::Vector<int> snaps(interior_snap_divisor + 1);
-        snaps[0] = m_min;
-        for (int i = 1; i < interior_snap_divisor; i++) {
-          snaps[i] = (screen_min + round_fl_to_int(screen_size * i / interior_snap_divisor));
-        }
-        snaps[interior_snap_divisor] = (m_min + m_span);
-
+        const float div_array[] = {
+            0.0f,
+            1.0f / 12.0f,
+            2.0f / 12.0f,
+            3.0f / 12.0f,
+            4.0f / 12.0f,
+            5.0f / 12.0f,
+            6.0f / 12.0f,
+            7.0f / 12.0f,
+            8.0f / 12.0f,
+            9.0f / 12.0f,
+            10.0f / 12.0f,
+            11.0f / 12.0f,
+            1.0f,
+        };
         /* Test the snap to the best division. */
-        for (int i = 0; i < snaps.size(); i++) {
-          const int m_cursor_test = snaps[i];
-          if (m_cursor_test < (m_min) ||
-              (m_cursor_test > m_min && m_cursor_test < (m_min + min_snap)))
-          {
-            /* Ignore snaps too close to the minimum snap position. */
-            continue;
-          }
-          if (m_cursor_test > (m_min + m_span) ||
-              (m_cursor_test < (m_min + m_span) && m_cursor_test > (m_min + m_span - min_snap)))
-          {
-            /* Ignore snaps too close to the maximum snap position. */
-            continue;
-          }
+        for (int i = 0; i < ARRAY_SIZE(div_array); i++) {
+          const int m_cursor_test = m_min + round_fl_to_int(m_span * div_array[i]);
           const int snap_dist_test = abs(m_cursor - m_cursor_test);
           if (snap_dist_best >= snap_dist_test) {
             snap_dist_best = snap_dist_test;
@@ -2043,7 +1975,6 @@ static int area_snap_calc_location(sAreaMoveData *md, const int delta)
         }
       }
 
-      /* Also snap to positions of neighboring areas. */
       LISTBASE_FOREACH (const ScrVert *, v1, &md->screen->vertbase) {
         if (!v1->editflag) {
           continue;
