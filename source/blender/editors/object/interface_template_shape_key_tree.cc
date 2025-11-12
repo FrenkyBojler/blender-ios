@@ -10,6 +10,7 @@
 
 #include "BKE_context.hh"
 #include "BKE_key.hh"
+#include "BKE_library.hh"
 #include "BKE_object.hh"
 
 #include "BLI_listbase.h"
@@ -205,7 +206,10 @@ class ShapeKeyItem : public ui::AbstractTreeViewItem {
 
   void build_row(uiLayout &row) override
   {
-    uiItemL_ex(&row, this->label_, ICON_SHAPEKEY_DATA, false, false);
+    uiBut *but = uiItemL_ex(&row, this->label_, ICON_SHAPEKEY_DATA, false, false);
+    if (!ID_IS_EDITABLE(&shape_key_.object->id)) {
+      UI_but_disable(but, "Cannot select linked shape keys");
+    }
     uiLayout *sub = &row.row(true);
     sub->use_property_decorate_set(false);
     PointerRNA shapekey_ptr = RNA_pointer_create_discrete(
