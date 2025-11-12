@@ -1183,7 +1183,6 @@ struct XrTeleportData {
   /** Visualization parameters. */
   float ray_color[4];
   float ray_line_width;
-  float destination_sphere_width;
 
   /** Drawing handles. */
   blender::gpu::Batch *arc_batch;
@@ -1200,7 +1199,7 @@ static void wm_xr_navigation_teleport_destination_draw(const XrTeleportData *dat
 
   GPU_matrix_push();
   GPU_matrix_translate_3fv(data->arc_points[data->endpoint_idx]);
-  GPU_matrix_scale_1f(data->destination_sphere_width);
+  GPU_matrix_scale_1f(0.15f);
   GPU_batch_draw(sphere);
   GPU_matrix_pop();
 }
@@ -1622,14 +1621,6 @@ static wmOperatorStatus wm_xr_navigation_teleport_modal(bContext *C,
     default:
       BLI_assert_unreachable();
       break;
-  }
-
-  if (data->ray_result != XR_TELEPORT_RAY_MISS) {
-    /* Update destination sphere width. */
-    float nav_scale;
-    WM_xr_session_state_nav_scale_get(xr, &nav_scale);
-    data->destination_sphere_width = RNA_float_get(op->ptr, "destination_sphere_width") *
-                                     sqrt(destination_dist / nav_scale) * nav_scale;
   }
 
   /* Apply teleportation on release. */
