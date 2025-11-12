@@ -54,6 +54,8 @@
 
 using namespace blender::draw::overlay;
 
+static void bonemat_rotate_for_bone_axes(float4x4 &bone_mat);
+
 /**
  * Container for either an #EditBone or a #bPoseChannel.
  */
@@ -1299,10 +1301,13 @@ static void draw_points(const Armatures::DrawContext *ctx,
 
   /* Draw root point if we are not connected to our parent */
 
+  float4x4 disp_mat_for_shape(bone.disp_mat());
+  bonemat_rotate_for_bone_axes(disp_mat_for_shape);
+
   if (!(bone.has_parent() && (boneflag & BONE_CONNECTED))) {
     if (is_envelope_draw) {
       drw_shgroup_bone_envelope(ctx,
-                                bone.disp_mat(),
+                                disp_mat_for_shape.ptr(),
                                 col_solid,
                                 col_hint_root,
                                 col_wire_root,
@@ -1311,15 +1316,19 @@ static void draw_points(const Armatures::DrawContext *ctx,
                                 select_id | BONESEL_ROOT);
     }
     else {
-      drw_shgroup_bone_sphere(
-          ctx, bone.disp_mat(), col_solid, col_hint_root, col_wire_root, select_id | BONESEL_ROOT);
+      drw_shgroup_bone_sphere(ctx,
+                              disp_mat_for_shape.ptr(),
+                              col_solid,
+                              col_hint_root,
+                              col_wire_root,
+                              select_id | BONESEL_ROOT);
     }
   }
 
   /* Draw tip point. */
   if (is_envelope_draw) {
     drw_shgroup_bone_envelope(ctx,
-                              bone.disp_mat(),
+                              disp_mat_for_shape.ptr(),
                               col_solid,
                               col_hint_tail,
                               col_wire_tail,
@@ -1328,8 +1337,11 @@ static void draw_points(const Armatures::DrawContext *ctx,
                               select_id | BONESEL_TIP);
   }
   else {
+    float4x4 disp_tail_mat_for_shape(bone.disp_tail_mat());
+    bonemat_rotate_for_bone_axes(disp_tail_mat_for_shape);
+
     drw_shgroup_bone_sphere(ctx,
-                            bone.disp_tail_mat(),
+                            disp_tail_mat_for_shape.ptr(),
                             col_solid,
                             col_hint_tail,
                             col_wire_tail,
