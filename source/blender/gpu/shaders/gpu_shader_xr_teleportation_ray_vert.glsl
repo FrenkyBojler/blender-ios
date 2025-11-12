@@ -2,9 +2,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/gpu_shader_xr_raycast_infos.hh"
+#include "infos/gpu_shader_xr_teleportation_ray_infos.hh"
 
-VERTEX_SHADER_CREATE_INFO(gpu_shader_xr_raycast)
+VERTEX_SHADER_CREATE_INFO(gpu_shader_xr_teleportation_ray)
 
 vec3 catmull_rom(vec3 p0, vec3 p1, vec3 p2, vec3 p3, float t)
 {
@@ -16,7 +16,7 @@ vec3 catmull_rom(vec3 p0, vec3 p1, vec3 p2, vec3 p3, float t)
 
 vec3 get_control_point(int idx)
 {
-  idx = clamp(idx, 0, end_point_idx);
+  idx = clamp(idx, 0, endpoint_idx);
   return control_points[idx].xyz;
 }
 
@@ -27,7 +27,7 @@ void main()
 
   /** Interpolate within the range: [0, segment_count] */
   float sample_count = XR_TELEPORTATION_ARC_SAMPLES;
-  float sample_value = (float(sample_idx) * float(end_point_idx)) / float(sample_count);
+  float sample_value = (float(sample_idx) * float(endpoint_idx)) / float(sample_count);
 
   int segment_idx = int(sample_value);
   float t = sample_value - float(segment_idx);

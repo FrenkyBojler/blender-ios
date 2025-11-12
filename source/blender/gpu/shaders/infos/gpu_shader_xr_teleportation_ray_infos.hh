@@ -16,7 +16,7 @@
 #include "GPU_xr_defines.hh"
 #include "gpu_shader_create_info.hh"
 
-GPU_SHADER_CREATE_INFO(gpu_shader_xr_raycast)
+GPU_SHADER_CREATE_INFO(gpu_shader_xr_teleportation_ray)
 
 FRAGMENT_OUT(0, float4, fragColor)
 DEFINE_VALUE("XR_TELEPORTATION_ARC_SAMPLES", STRINGIFY(XR_TELEPORTATION_ARC_SAMPLES))
@@ -26,9 +26,9 @@ PUSH_CONSTANT(float4x4, ModelViewProjectionMatrix)
 PUSH_CONSTANT(float4, color)
 PUSH_CONSTANT(float3, right_vector)
 PUSH_CONSTANT(float, line_width)
-PUSH_CONSTANT(int, end_point_idx)
+PUSH_CONSTANT(int, endpoint_idx)
 
-VERTEX_SOURCE("gpu_shader_xr_raycast_vert.glsl")
+VERTEX_SOURCE("gpu_shader_xr_teleportation_ray_vert.glsl")
 FRAGMENT_SOURCE("gpu_shader_uniform_color_frag.glsl")
 ADDITIONAL_INFO(gpu_srgb_to_framebuffer_space)
 DO_STATIC_COMPILATION()
