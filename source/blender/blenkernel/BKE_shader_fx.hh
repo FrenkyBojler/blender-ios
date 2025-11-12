@@ -59,7 +59,7 @@ typedef void (*ShaderFxTexWalkFunc)(void *user_data,
                                     ShaderFxData *fx,
                                     const char *propname);
 
-typedef struct ShaderFxTypeInfo {
+struct ShaderFxTypeInfo {
   /* The user visible name for this effect */
   char name[32];
 
@@ -131,7 +131,7 @@ typedef struct ShaderFxTypeInfo {
 
   /* Register the panel types for the effect's UI. */
   void (*panel_register)(ARegionType *region_type);
-} ShaderFxTypeInfo;
+};
 
 #define SHADERFX_TYPE_PANEL_PREFIX "FX_PT_"
 
