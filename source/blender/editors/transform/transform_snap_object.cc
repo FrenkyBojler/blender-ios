@@ -398,24 +398,15 @@ static const ID *data_for_snap(Object *ob_eval, eSnapEditType edit_mode_type, bo
 
 /**
  * Mesh used for snapping (`dupli-list` instances).
- *
- * Applies the subdivision wrapper so snapping works on the final
- * geometry instead of the coarse cage for curve objects. See #143060.
- * Also fixes snapping for Geometry Nodes instanced meshes by
- * using the mesh data provided by the duplicated instance itself
- * See #149712.
- *
  * A version of #data_for_snap for instances.
  */
 static const ID *data_for_snap_dupli(ID *ob_data)
 {
-  if (ob_data) {
-    Mesh *mesh = reinterpret_cast<Mesh *>(ob_data);
-    Mesh *final_mesh = BKE_mesh_wrapper_ensure_subdivision(mesh);
-    return &final_mesh->id;
+  if (GS(ob_data->name) == ID_ME) {
+    Mesh *mesh = blender::id_cast<Mesh *>(ob_data);
+    return reinterpret_cast<const ID *>(BKE_mesh_wrapper_ensure_subdivision(mesh));
   }
-
-  return nullptr;
+  return ob_data;
 }
 
 /** \} */
