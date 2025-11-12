@@ -1,2 +1,3 @@
 Referenced by issue #149735, Error when Exporting certain mesh as FBX
 Referenced by pull request #149758, Fix #149735: FBX export fails on objects without animations
+Referenced by commit b9353eb8e63b96a69a55e01f598152ad158d080d, Fix #149735: FBX export fails on objects without animations
