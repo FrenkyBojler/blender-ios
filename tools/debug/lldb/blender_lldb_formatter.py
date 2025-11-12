@@ -16,6 +16,9 @@ def __lldb_init_module(debugger, dict):
     debugger.HandleCommand(
         'type synthetic add -x "^blender::(float|double)(2|3|4)x(2|3|4)$" -l blender_lldb_formater.math_matrix_SyntheticProvider'
     )
+    debugger.HandleCommand(
+        'type synthetic add -x "^blender::Vector<" -l blender_lldb_formater.bli_vector_SyntheticProvider'
+    )
 
 
 def math_vector_SummaryProvider(valobj, internal_dict):
@@ -71,3 +74,18 @@ class math_matrix_SyntheticProvider:
         if index == 3:
             return self.valobj.GetChildMemberWithName('w').Cast(vec_type)
         return None
+
+
+class bli_vector_SyntheticProvider:
+    def __init__(self, valobj, internal_dict):
+        self.valobj = valobj
+
+    def num_children(self):
+        return self.valobj.GetChildMemberWithName("debug_size_").GetValueAsUnsigned()
+
+    def get_child_at_index(self, index):
+        begin = self.valobj.GetChildMemberWithName("begin_")
+        data_type = begin.GetType().GetPointeeType()
+        data_size = data_type.GetByteSize()
+        offset = index * data_size
+        return begin.CreateChildAtOffset(f"[{index}]", offset, data_type)
