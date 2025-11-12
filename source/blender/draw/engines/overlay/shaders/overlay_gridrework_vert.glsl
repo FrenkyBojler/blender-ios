@@ -11,10 +11,12 @@ VERTEX_SHADER_CREATE_INFO(overlay_gridrework_next)
 #include "gpu_shader_math_safe_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
 
-/** The grid uses N hardcoded levels of hierarchy. */
-#define GRID_LEVELS_DRAW 4
 /** Keep in sync with `SI_GRID_STEPS_LEN` in `DNA_space_types.h`. */
 #define GRID_LEVELS_TOTAL 8
+/** The grid renders N hardcoded levels of hierarchy. */
+#define GRID_LEVELS_DRAW 3
+/** The grid renders N sublevels, given visibility of the current level. */
+#define GRID_LEVEL_OFFSET -1
 
 /* Helper struct; encodes specific information about an implicitly defined vertex.
  * See `get_line_data()` and `get_line_vertex()` below. */
@@ -37,16 +39,13 @@ LineData get_line_data(in uint vertex_id)
   line.direction = vertex_id & 0x1;
   vertex_id = vertex_id >> 1;
 
-  /* Find a line's actual index/level by doing a cumulative sum. */
-  line.idx = vertex_id;  // TODO: Clean this up, can be simpler.
-  for (int i = 0; i < GRID_LEVELS_DRAW; ++i) {
+  /* Find a line's actual level and index using a cumulative sum. */
+  line.idx = vertex_id;
+  for (line.level = 0; line.level < GRID_LEVELS_DRAW; line.level++) {
     if (line.idx < grid_buf.num_lines_per_level) {
-      line.level = i;
       break;
     }
-    else {
-      line.idx -= int(grid_buf.num_lines_per_level);
-    }
+    line.idx -= int(grid_buf.num_lines_per_level);
   }
 
   return line;
@@ -93,41 +92,20 @@ void main()
   LineData line = get_line_data(gl_VertexID);
   float2 line_vert = get_line_vertex(line);
 
-  /* We now adjust grid levels dependent on camera zoom, using a base 10 scale. */
-  /* Next, get the camera distance/zoom. */
+  /* First, get the camera distance/zoom and determine `t_pos`; the point on the floor plane
+   * visible to the camera center. */
   float t = get_camera_distance();
-  /* We determine `t_level`; the level adjustment dependent on camera zoom. */
-  // float t_scale = grid_scale >= 1.0f ? 1.0f / grid_scale : grid_scale;
-  float t_level = log2(t) / log2(10); /* Camera zoom is base-10 logarithmic. */
-
-  /* We also determine `t_pos`; the point on the floor plane visible to the camera center. */
   float2 t_pos = drw_view_position().xy - t * drw_view_forward().xy;
 
   /* Next, set several fragment shader outputs used for smoothly fading visible grid levels:
    * - The vertex position as [-1, 1], so we can fade level boundaries.
-   * - The offset for the **lowest** level, which we fade in/out. */
+   * - The offset for the **lowest** level, which we fade in/out.*/
   frag_xy = line_vert / float(grid_buf.num_lines_per_level >> 1);
-  frag_level = line.level > 0 ? 1.0f : 1.0f - fract(t_level);
+  frag_level = line.level == 0 ? 1.0f - square(fract(base_level)) : 1.0f;
 
-  /* int base_offset = 0;
-  for (base_offset = 0; base_offset < GRID_LEVELS_TOTAL; ++base_offset) {
-
-  }*/
-
-  /* Compute actual level of grid data. Offset negatively to show 2 sublevels when available. */
-  line.level = line.level + base_level_offset +
-               int(floor(t_level)) /* int(ceil(t_level))  */ /* - 2 */;
+  /* Compute actual level of drawn grid data, offset negatively to focus on sub-levels. */
+  line.level = int(base_level) + line.level + GRID_LEVEL_OFFSET;
   line.level = clamp(line.level, 0, GRID_LEVELS_TOTAL - 1);
-
-  /* Make each level of the grid a scale larger than the previous level.
-   * Additionally, move the grid with the camera in increments depending on the level. */
-  float scale = grid_buf.level_scales[line.level].x;
-  float3 vertex = float3((line_vert + round(t_pos / scale)) * scale, 0.0f);
-  // float3 vertex = float3(line_vert * scale, 0.0f);
-
-  if (gl_VertexID == 0) {
-    printf("t: %f, level: %d, scale: %f\n", t, line.level, scale);
-  }
 
   /* Dependent on the grid flag, we now swap the grid on the correct plane. */
   // if (flag_test(grid_flag, PLANE_XY)) {
@@ -143,11 +121,15 @@ void main()
   //   line_vert = float3(line_vert.xy * 0.5f + 0.5f, 0.0f);
   // }
 
-  /* Fragment output */
-  local_pos = vertex;
+  /* Make each level of the grid a scale larger than the previous level.
+   * Additionally, move the grid with the camera in increments depending on the level. */
+  //  TODO; this is a source of float imprecision
+  float scale = grid_buf.level_scales[clamp(line.level, 0, GRID_LEVELS_TOTAL - 1)].x;
+  float3 vertex = float3((line_vert + round(t_pos / scale)) * scale, 0.0f);
 
-  /* We cull vertex scales below 1e-3 values; they are hard to draw without a large amount of
-   * geometry. */
+  /* Output the world-space position to the fragment stage, and cull minute scales; they are
+   * hard to draw without a much larger amount of geometry. This mirrors old grid behavior. */
+  local_pos = vertex;
   if (scale < 1e-3f) {
     gl_Position = float4(NAN_FLT);
   }

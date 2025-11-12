@@ -39,7 +39,7 @@ class GridRework : Overlay {
   bool is_3d_grid_ = false;
   float3 grid_axes_ = float3(0.0f);
   float3 zplane_axes_ = float3(0.0f);
-  int base_level_offset_;
+  float base_level_;
 
   /* Flags passed to draw call. */
   int grid_flag_ = 0; /* Flag to select grid plane: x/y, y/z, x/z. */
@@ -65,16 +65,15 @@ class GridRework : Overlay {
     grid_ps_.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
     grid_ps_.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA);
 
-    /* Camera computations; TODO document what's going on here */
-    {
-      const View3D *v3d = state.v3d;
-      const RegionView3D *rv3d = state.rv3d;
+    const View3D *v3d = state.v3d;
+    const RegionView3D *rv3d = state.rv3d;
 
-      /* Compute distance to relevant camera point. */
+    /* Determine the lowest grid level we should draw. This happens on a per-camera basis. */
+    {
+      /* Compute distance to a relevant floor point from the camera. */
       float dist;
       if (rv3d->is_persp) {
-        float3 drw_view_position = rv3d->viewinv[3];
-        float3 drw_view_forward = rv3d->viewinv[2];
+        float3 drw_view_position = rv3d->viewinv[3], drw_view_forward = rv3d->viewinv[2];
 
         /* Scale depends on distance to a point on the floor plane; we interpolate between the
          * point viewed by the camera and the point directly below it, dependent on azimuth. */
@@ -87,21 +86,25 @@ class GridRework : Overlay {
         dist = rv3d->dist;
       }
 
-      /* Iterate to find the lowest relevant grid level. Note that upper levels can be identical
-       * due to output from `ED_view3d_grid_steps`, so we check for these explicitly. */
-      int level;
-      for (level = 0; level < OVERLAY_GRID_STEPS_LEN - 1; level++) {
-        float curr = level_scales_[level], next = level_scales_[level + 1];
-        if (curr >= dist || curr == next) {
+      /* Find the lowest relevant grid level + fractional, dependent on camera distance.
+       * Explicitly check if levels are identical due to output from `ED_view3d_grid_steps`. */
+      for (int i = 0; i < OVERLAY_GRID_STEPS_LEN - 1; i++) {
+        float curr = level_scales_[i], next = level_scales_[i + 1];
+        // std::printf("\t%d: %f\n", i, curr);
+        if (next >= dist || curr == next) {
+          base_level_ = static_cast<float>(i) + safe_divide(dist - curr, next - curr);
           break;
         }
       }
-      std::printf("dist: %f, lowest_level: %d\n", dist, level);
+      std::printf("dist: %f, level: %d, fade %f:\n",
+                  dist,
+                  static_cast<int>(base_level_),
+                  1.0f - fract(base_level_));
     }
 
     {
       /* Vertex count is 2 (x/y-direction) x 2 (verts per line) x 4 (levels) x N */
-      const uint n_verts = 16 * num_lines_per_level_;
+      const uint n_verts = 12 * num_lines_per_level_;
 
       auto &sub = grid_ps_.sub("grid");
       sub.shader_set(res.shaders->gridrework.get());
@@ -109,8 +112,8 @@ class GridRework : Overlay {
       sub.bind_texture("depth_tx", depth_tx, GPUSamplerState::default_sampler());
       sub.bind_texture("depth_infront_tx", depth_infront_tx, GPUSamplerState::default_sampler());
       sub.push_constant("grid_flag", grid_flag_);
-      sub.push_constant("base_level_offset", base_level_offset_);
-      sub.push_constant("grid_scale", state.scene->unit.scale_length);
+      sub.push_constant("base_level", base_level_);
+      // sub.push_constant("grid_scale", state.scene->unit.scale_length);
       sub.draw_procedural(GPUPrimType::GPU_PRIM_LINES, -1, n_verts, 0);
     }
   }
@@ -209,40 +212,11 @@ class GridRework : Overlay {
     }
     grid_ubo_.distance = v3d_clip_end * 0.5f;
 
-    /* Query grid scales (1e-3 to 1e4) from unit/scaling; this range should be sufficient
-     * for user-visible levels. */
+    /* Query grid scales from unit/scaling; this range suffices for user-visible levels. */
     level_scales_ = {1e-3f, 1e-2f, 1e-1f, 1e0f, 1e1f, 1e2f, 1e3f, 1e4f};
     ED_view3d_grid_steps(state.scene, v3d, rv3d, level_scales_.data());
     for (int i = 0; i < level_scales_.size(); ++i) {
       grid_ubo_.level_scales[i][0] = level_scales_[i];
-    }
-
-    /* We find the index of the grid level closest to `1.0`. This is used by the grid as an offset,
-     * as we only draw levels necessary for the current camera zoom. */
-    base_level_offset_ = 0;
-    float base_level_dist = std::abs(1.0f - level_scales_[base_level_offset_]);
-    for (int i = 1; i < level_scales_.size(); ++i) {
-      float new_dist = std::abs(1.0f - level_scales_[i]);
-      if (new_dist < base_level_dist) {
-        base_level_offset_ = i;
-      }
-    }
-    // for (base_level_offset_ = 0; base_level_offset_ < level_scales.size() - 1;
-    //      base_level_offset_++)
-    // {
-    //   float curr = level_scales[base_level_offset_];
-    //   float next = level_scales[base_level_offset_ + 1];
-    //   if (curr == next || next > 1.0f) {
-    //     break;
-    //   }
-    // }
-
-    for (int i = 1; i < level_scales_.size(); ++i) {
-      float prev = level_scales_[i - 1];
-      float curr = level_scales_[i];
-      float ratio = curr / prev;
-
-      std::printf("\t%d: %f %s\n", i, level_scales_[i], i == base_level_offset_ ? "<" : " ");
     }
 
     return true;
