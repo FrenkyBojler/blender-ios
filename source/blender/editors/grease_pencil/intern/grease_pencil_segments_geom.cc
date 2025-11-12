@@ -276,13 +276,12 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
     for (const int seg_i : segment_range) {
       const Segment &segment = segments[seg_i];
       const bool reversed = segment_reversed[seg_i];
+      const Side start_side = reversed ? Side::End : Side::Start;
+      const Side end_side = reversed ? Side::Start : Side::End;
 
-      if (reversed ? segment.has_intersection(Side::End) :
-                     segment.has_intersection(Side::Start) && !segment.is_loop())
-      {
-        const float start_factor = reversed ? segment.intersection_factor[Side::End] :
-                                              segment.intersection_factor[Side::Start];
-        const int2 start_edge = reversed ? segment.edge(Side::End) : segment.edge(Side::Start);
+      if (segment.has_intersection(start_side) && !segment.is_loop()) {
+        const float start_factor = segment.intersection_factor[start_side];
+        const int2 start_edge = segment.edge(start_side);
 
         point_to_interpolate.append({start_edge.x, start_edge.y, start_factor});
       }
@@ -295,22 +294,18 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
         point_to_interpolate.as_mutable_span().take_back(segment.points_num()).reverse();
       }
 
-      if (seg_i == segment_range.last() &&
-          (reversed ? segment.has_intersection(Side::Start) :
-                      segment.has_intersection(Side::End)) &&
-          !cyclic[curve_i])
+      if (seg_i == segment_range.last() && segment.has_intersection(end_side) && !cyclic[curve_i])
       {
-        const float end_factor = reversed ? segment.intersection_factor[Side::Start] :
-                                            segment.intersection_factor[Side::End];
-        const int2 end_edge = reversed ? segment.edge(Side::Start) : segment.edge(Side::End);
+        const float end_factor = segment.intersection_factor[end_side];
+        const int2 end_edge = segment.edge(end_side);
 
         point_to_interpolate.append({end_edge.x, end_edge.y, end_factor});
       }
     }
   }
+
   point_offsets.last() = point_to_interpolate.size();
 
-  const bke::AttributeAccessor src_attributes = src.attributes();
   const OffsetIndices<int> dst_points_by_curve = OffsetIndices<int>(point_offsets);
 
   if (dst_points_by_curve.total_size() == 0) {
@@ -332,6 +327,7 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
     }
   });
 
+  const bke::AttributeAccessor src_attributes = src.attributes();
   bke::gather_attributes(src_attributes,
                          bke::AttrDomain::Curve,
                          bke::AttrDomain::Curve,
