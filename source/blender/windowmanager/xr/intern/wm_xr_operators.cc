@@ -1196,6 +1196,14 @@ static void wm_xr_navigation_teleport_destination_draw(const XrTeleportData *dat
   GPU_matrix_push();
   GPU_matrix_translate_3fv(data->arc_points[data->endpoint_idx]);
 
+  for (int i = 0; i < XR_TELEPORTATION_ARC_CONTROL_POINTS; i++) {
+    printf("point %d: ", i);
+    print_v3("", data->arc_points[i]);
+  }
+  printf("Endpoint idx: %d\n", data->endpoint_idx);
+  print_v3("Drawing at destination", data->arc_points[data->endpoint_idx]);
+  printf("\n");
+
   uint pos = GPU_vertformat_attr_add(
       immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
 
@@ -1377,12 +1385,18 @@ static XrTeleportRayResult wm_xr_navigation_teleport_compute_arc(
   /* Raycast at each control point until we hit an object, applying gravity at each step to create
    * the arc. */
   for (int i = 1; i < XR_TELEPORTATION_ARC_CONTROL_POINTS; ++i) {
-    float segment_ray_dist = segment_length;
+    float3 segment_origin = data->arc_points[i - 1];
+    if (i > 1) {
+      /* For points other than the initial location, back up the origin slightly along the ray
+       * direction to avoid raycast precision issues when starting very close to surfaces. */
+      segment_origin += segment_direction * (-segment_length * 0.25f);
+    }
 
     const Object *ob = nullptr;
+    float segment_ray_dist = segment_length;
     wm_xr_navigation_teleport_raycast(CTX_data_scene(C),
                                       CTX_data_ensure_evaluated_depsgraph(C),
-                                      data->arc_points[i - 1],
+                                      segment_origin,
                                       segment_direction,
                                       &segment_ray_dist,
                                       selectable_only,
