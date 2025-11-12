@@ -52,19 +52,20 @@ enum class StripDuplicate : uint8_t {
 };
 ENUM_OPERATORS(StripDuplicate);
 
-enum eStripRuntimeFlag {
-  STRIP_CLAMPED_LH = (1 << 0),
-  STRIP_CLAMPED_RH = (1 << 1),
-  STRIP_OVERLAP = (1 << 2),
-  STRIP_MARK_FOR_DELETE = (1 << 4),
-  STRIP_IGNORE_CHANNEL_LOCK = (1 << 5), /* For #SEQUENCER_OT_duplicate_move macro. */
-  STRIP_SHOW_OFFSETS = (1 << 6),        /* Set during #SEQUENCER_OT_slip. */
+enum class StripRuntimeFlag {
+  None = 0,
+  ClampedLH = (1 << 0),
+  ClampedRH = (1 << 1),
+  Overlap = (1 << 2),
+  MarkForDelete = (1 << 4),
+  IgnoreChannelLock = (1 << 5), /* For #SEQUENCER_OT_duplicate_move macro. */
+  ShowOffsets = (1 << 6),       /* Set during #SEQUENCER_OT_slip. */
 };
-ENUM_OPERATORS(eStripRuntimeFlag);
+ENUM_OPERATORS(StripRuntimeFlag);
 
 struct StripRuntime {
-  SessionUID session_uid;
-  eStripRuntimeFlag flag;
+  SessionUID session_uid = {};
+  StripRuntimeFlag flag = StripRuntimeFlag::None;
 };
 
 SequencerToolSettings *tool_settings_init();
