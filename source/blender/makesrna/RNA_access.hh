@@ -92,11 +92,6 @@ PointerRNA RNA_pointer_create_from_ancestor(const PointerRNA &ptr, const int anc
 
 bool RNA_pointer_is_null(const PointerRNA *ptr);
 
-bool RNA_path_resolved_create(PointerRNA *ptr,
-                              PropertyRNA *prop,
-                              int prop_index,
-                              PathResolvedRNA *r_anim_rna);
-
 PointerRNA RNA_blender_rna_pointer_create();
 PointerRNA RNA_pointer_recast(PointerRNA *ptr);
 

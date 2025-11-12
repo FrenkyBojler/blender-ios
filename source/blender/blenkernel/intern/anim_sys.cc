@@ -3982,8 +3982,76 @@ void BKE_animsys_evaluate_animdata(ID *id,
     if (!did_nla_evaluate_anything && adt->action) {
       blender::animrig::Action &action = adt->action->wrap();
       if (action.is_action_layered()) {
+        blender::Map<int64_t, PathResolvedRNA> foo;
         blender::animrig::evaluate_and_apply_action(
-            id_ptr, action, adt->slot_handle, *anim_eval_context, flush_to_original);
+            id_ptr, action, adt->slot_handle, *anim_eval_context, flush_to_original, foo);
+      }
+      else {
+        animsys_evaluate_action(
+            &id_ptr, adt->action, animrig::Slot::unassigned, anim_eval_context, flush_to_original);
+      }
+    }
+  }
+
+  /* recalculate drivers
+   * - Drivers need to be evaluated afterwards, as they can either override
+   *   or be layered on top of existing animation data.
+   * - Drivers should be in the appropriate order to be evaluated without problems...
+   */
+  if (recalc & ADT_RECALC_DRIVERS) {
+    animsys_evaluate_drivers(&id_ptr, adt, anim_eval_context);
+  }
+
+  /* always execute 'overrides'
+   * - Overrides allow editing, by overwriting the value(s) set from animation-data, with the
+   *   value last set by the user (and not keyframed yet).
+   * - Overrides are cleared upon frame change and/or keyframing
+   * - It is best that we execute this every time, so that no errors are likely to occur.
+   */
+  animsys_evaluate_overrides(&id_ptr, adt);
+}
+
+void BKE_animsys_evaluate_animdata_2(ID *id,
+                                     AnimData *adt,
+                                     const AnimationEvalContext *anim_eval_context,
+                                     eAnimData_Recalc recalc,
+                                     const bool flush_to_original,
+                                     blender::Map<int64_t, PathResolvedRNA> &rna_lookup_cache)
+{
+
+  /* sanity checks */
+  if (ELEM(nullptr, id, adt)) {
+    return;
+  }
+
+  /* get pointer to ID-block for RNA to use */
+  PointerRNA id_ptr = RNA_id_pointer_create(id);
+
+  /* recalculate keyframe data:
+   * - NLA before Active Action, as Active Action behaves as 'tweaking track'
+   *   that overrides 'rough' work in NLA
+   */
+  /* TODO: need to double check that this all works correctly */
+  if (recalc & ADT_RECALC_ANIM) {
+    /* evaluate NLA data */
+    bool did_nla_evaluate_anything = false;
+    if ((adt->nla_tracks.first) && !(adt->flag & ADT_NLA_EVAL_OFF)) {
+      /* evaluate NLA-stack
+       * - active action is evaluated as part of the NLA stack as the last item
+       */
+      did_nla_evaluate_anything = animsys_calculate_nla(
+          &id_ptr, adt, anim_eval_context, flush_to_original);
+    }
+
+    if (!did_nla_evaluate_anything && adt->action) {
+      blender::animrig::Action &action = adt->action->wrap();
+      if (action.is_action_layered()) {
+        blender::animrig::evaluate_and_apply_action(id_ptr,
+                                                    action,
+                                                    adt->slot_handle,
+                                                    *anim_eval_context,
+                                                    flush_to_original,
+                                                    rna_lookup_cache);
       }
       else {
         animsys_evaluate_action(
@@ -4169,9 +4237,21 @@ void BKE_animsys_eval_animdata(Depsgraph *depsgraph, ID *id)
   BKE_animsys_evaluate_animdata(id, adt, &anim_eval_context, ADT_RECALC_ANIM, flush_to_original);
 }
 
-void BKE_animsys_eval_apply_cached(Depsgraph *depsgraph, ID *id, blender::Map<int, int> &foo)
+void BKE_animsys_eval_apply_cached(Depsgraph *depsgraph,
+                                   ID *id,
+                                   blender::Map<int64_t, PathResolvedRNA> &rna_lookup_cache)
 {
-  BKE_animsys_eval_animdata(depsgraph, id);
+  float ctime = DEG_get_ctime(depsgraph);
+  AnimData *adt = BKE_animdata_from_id(id);
+  /* XXX: this is only needed for flushing RNA updates,
+   * which should get handled as part of the dependency graph instead. */
+  DEG_debug_print_eval_time(depsgraph, __func__, id->name, id, ctime);
+  const bool flush_to_original = DEG_is_active(depsgraph);
+
+  const AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(depsgraph,
+                                                                                    ctime);
+  BKE_animsys_evaluate_animdata_2(
+      id, adt, &anim_eval_context, ADT_RECALC_ANIM, flush_to_original, rna_lookup_cache);
 }
 
 void BKE_animsys_update_driver_array(ID *id)

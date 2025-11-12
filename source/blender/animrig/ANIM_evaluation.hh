@@ -131,11 +131,15 @@ EvaluationResult evaluate_action(Action &action,
  *
  * \param flush_to_original: when true, look up the original data-block (assuming
  * the given one is an evaluated copy) and update that too.
+ * \param rna_lookup_cache: Will be used to lookup the PathResolvedRNA instead of resolving it via
+ * the fcurve path and the given `animated_id_ptr`. This greatly increases performance for
+ * playback.
  */
 void evaluate_and_apply_action(PointerRNA &animated_id_ptr,
                                Action &action,
                                slot_handle_t slot_handle,
                                const AnimationEvalContext &anim_eval_context,
-                               bool flush_to_original);
+                               bool flush_to_original,
+                               blender::Map<int64_t, PathResolvedRNA> &rna_lookup_cache);
 
 }  // namespace blender::animrig

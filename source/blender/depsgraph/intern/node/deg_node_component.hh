@@ -19,6 +19,8 @@
 #include "BLI_map.hh"
 #include "BLI_vector.hh"
 
+#include "RNA_types.hh"
+
 struct ID;
 struct bPoseChannel;
 
@@ -226,7 +228,7 @@ struct BoneComponentNode : public ComponentNode {
 
 struct AnimationComponentNode : public ComponentNode {
   /** Cache RNA path lookups for this node. Speeds up animation evaluation. */
-  struct blender::Map<int, int> rna_lookup_map;
+  blender::Map<int64_t, PathResolvedRNA> rna_lookup_map;
   DEG_COMPONENT_NODE_DECLARE;
 };
 

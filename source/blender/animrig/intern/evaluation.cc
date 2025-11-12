@@ -36,7 +36,8 @@ EvaluationResult blend_layer_results(const EvaluationResult &last_result,
  */
 void apply_evaluation_result(const EvaluationResult &evaluation_result,
                              PointerRNA &animated_id_ptr,
-                             bool flush_to_original);
+                             bool flush_to_original,
+                             blender::Map<int64_t, PathResolvedRNA> &rna_lookup_cache);
 
 EvaluationResult evaluate_action(Action &action,
                                  const slot_handle_t slot_handle,
@@ -75,14 +76,15 @@ void evaluate_and_apply_action(PointerRNA &animated_id_ptr,
                                Action &action,
                                const slot_handle_t slot_handle,
                                const AnimationEvalContext &anim_eval_context,
-                               const bool flush_to_original)
+                               const bool flush_to_original,
+                               blender::Map<int64_t, PathResolvedRNA> &rna_lookup_cache)
 {
   EvaluationResult evaluation_result = evaluate_action(action, slot_handle, anim_eval_context);
   if (!evaluation_result) {
     return;
   }
 
-  apply_evaluation_result(evaluation_result, animated_id_ptr, flush_to_original);
+  apply_evaluation_result(evaluation_result, animated_id_ptr, flush_to_original, rna_lookup_cache);
 }
 
 /* Copy of the same-named function in anim_sys.cc, with the check on action groups removed. */
@@ -165,19 +167,27 @@ static EvaluationResult evaluate_keyframe_data(StripKeyframeData &strip_data,
 
 void apply_evaluation_result(const EvaluationResult &evaluation_result,
                              PointerRNA &animated_id_ptr,
-                             const bool flush_to_original)
+                             const bool flush_to_original,
+                             blender::Map<int64_t, PathResolvedRNA> &rna_lookup_cache)
 {
   for (auto channel_result : evaluation_result.items()) {
     const PropIdentifier &prop_ident = channel_result.key;
     const float animated_value = channel_result.value;
+    const int64_t key = (int64_t)(prop_ident.rna_path.c_str()) + prop_ident.array_index;
 
-    PathResolvedRNA anim_rna;
-    if (!BKE_animsys_rna_path_resolve(
-            &animated_id_ptr, prop_ident.rna_path.c_str(), prop_ident.array_index, &anim_rna))
-    {
-      continue;
+    PathResolvedRNA *anim_rna = rna_lookup_cache.lookup_ptr(key);
+    if (anim_rna) {
+      BKE_animsys_write_to_rna_path(anim_rna, animated_value);
     }
-    BKE_animsys_write_to_rna_path(&anim_rna, animated_value);
+    else {
+      PathResolvedRNA foo;
+      if (!BKE_animsys_rna_path_resolve(
+              &animated_id_ptr, prop_ident.rna_path.c_str(), prop_ident.array_index, &foo))
+      {
+        continue;
+      }
+      rna_lookup_cache.add(key, foo);
+    }
 
     if (flush_to_original) {
       /* Convert the StringRef to a `const char *`, as the rest of the RNA path handling code in

@@ -12,6 +12,7 @@
 #include "BLI_map.hh"
 #include "BLI_span.hh"
 #include "BLI_sys_types.h" /* for bool */
+#include "RNA_types.hh"
 
 struct AnimData;
 struct BlendDataReader;
@@ -316,6 +317,12 @@ void BKE_animsys_evaluate_animdata(struct ID *id,
                                    const struct AnimationEvalContext *anim_eval_context,
                                    eAnimData_Recalc recalc,
                                    bool flush_to_original);
+void BKE_animsys_evaluate_animdata_2(struct ID *id,
+                                     struct AnimData *adt,
+                                     const struct AnimationEvalContext *anim_eval_context,
+                                     eAnimData_Recalc recalc,
+                                     bool flush_to_original,
+                                     blender::Map<int64_t, PathResolvedRNA> &rna_lookup_cache);
 
 /**
  * Evaluation of all ID-blocks with Animation Data blocks - Animation Data Only
@@ -368,7 +375,9 @@ void animsys_evaluate_action_group(struct PointerRNA *ptr,
 struct Depsgraph;
 
 void BKE_animsys_eval_animdata(struct Depsgraph *depsgraph, struct ID *id);
-void BKE_animsys_eval_apply_cached(Depsgraph *depsgraph, ID *id, blender::Map<int, int> &foo);
+void BKE_animsys_eval_apply_cached(Depsgraph *depsgraph,
+                                   ID *id,
+                                   blender::Map<int64_t, PathResolvedRNA> &rna_lookup_cache);
 void BKE_animsys_eval_driver_unshare(Depsgraph *depsgraph, ID *id);
 void BKE_animsys_eval_driver(struct Depsgraph *depsgraph,
                              struct ID *id,

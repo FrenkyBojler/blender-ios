@@ -7436,23 +7436,6 @@ void _RNA_warning(const char *format, ...)
 #endif
 }
 
-bool RNA_path_resolved_create(PointerRNA *ptr,
-                              PropertyRNA *prop,
-                              const int prop_index,
-                              PathResolvedRNA *r_anim_rna)
-{
-  int array_len = RNA_property_array_length(ptr, prop);
-
-  if ((array_len == 0) || (prop_index < array_len)) {
-    r_anim_rna->ptr = *ptr;
-    r_anim_rna->prop = prop;
-    r_anim_rna->prop_index = array_len ? prop_index : -1;
-
-    return true;
-  }
-  return false;
-}
-
 static char rna_struct_state_owner[128];
 void RNA_struct_state_owner_set(const char *name)
 {
