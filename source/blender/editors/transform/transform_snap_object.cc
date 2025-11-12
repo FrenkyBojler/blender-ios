@@ -504,9 +504,7 @@ static eSnapMode iter_snap_objects(SnapObjectContext *sctx, IterSnapObjsCallback
       object_duplilist(sctx->runtime.depsgraph, sctx->scene, obj_eval, nullptr, duplilist);
       for (DupliObject &dupli_ob : duplilist) {
         BLI_assert(DEG_is_evaluated(dupli_ob.ob));
-        const ID *ob_data = data_for_snap_dupli(dupli_ob.ob_data) ?
-                                data_for_snap_dupli(dupli_ob.ob_data) :
-                                nullptr;
+        const ID *ob_data = dupli_ob.ob_data ? data_for_snap_dupli(dupli_ob.ob_data) : nullptr;
         if ((tmp = sob_callback(
                  sctx, dupli_ob.ob, ob_data, float4x4(dupli_ob.mat), is_object_active, false)) !=
             SCE_SNAP_TO_NONE)
