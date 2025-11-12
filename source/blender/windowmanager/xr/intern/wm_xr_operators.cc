@@ -1193,14 +1193,21 @@ static void wm_xr_navigation_teleport_destination_draw(const XrTeleportData *dat
 {
   GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
 
-  blender::gpu::Batch *sphere = GPU_batch_preset_sphere(2);
-  GPU_batch_program_set_builtin(sphere, GPU_SHADER_3D_UNIFORM_COLOR);
-  GPU_batch_uniform_4fv(sphere, "color", data->ray_color);
-
   GPU_matrix_push();
   GPU_matrix_translate_3fv(data->arc_points[data->endpoint_idx]);
-  GPU_matrix_scale_1f(0.15f);
-  GPU_batch_draw(sphere);
+
+  uint pos = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
+
+  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+  immUniformColor4fv(data->ray_color);
+
+  constexpr float width = 0.5f;
+  constexpr float height = 0.1f;
+  constexpr int resolution = 32;
+  imm_draw_cylinder_fill_3d(pos, width, width, height, resolution, 1);
+
+  immUnbindProgram();
   GPU_matrix_pop();
 }
 
