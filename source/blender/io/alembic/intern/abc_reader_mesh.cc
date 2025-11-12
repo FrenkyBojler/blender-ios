@@ -21,6 +21,7 @@
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_math_vector.h"
+#include "BLI_offset_indices.hh"
 #include "BLI_ordered_edge.hh"
 
 #include "BLT_translation.hh"
@@ -198,7 +199,6 @@ static void read_mpolys(CDStreamConfig &config, const AbcMeshData &mesh_data)
   uint loop_index = 0;
   uint rev_loop_index = 0;
   uint uv_index = 0;
-  bool seen_invalid_geometry = false;
 
   for (int i = 0; i < face_counts->size(); i++) {
     const int face_size = (*face_counts)[i];
@@ -216,13 +216,6 @@ static void read_mpolys(CDStreamConfig &config, const AbcMeshData &mesh_data)
       const int vert = (*face_indices)[loop_index];
       corner_verts[rev_loop_index] = vert;
 
-      if (f > 0 && vert == last_vertex_index) {
-        /* This face is invalid, as it has consecutive loops from the same vertex. This is caused
-         * by invalid geometry in the Alembic file, such as in #76514. */
-        seen_invalid_geometry = true;
-      }
-      last_vertex_index = vert;
-
       if (do_uvs) {
         uv_index = (*uvs_indices)[do_uvs_per_loop ? loop_index : last_vertex_index];
 
@@ -237,13 +230,38 @@ static void read_mpolys(CDStreamConfig &config, const AbcMeshData &mesh_data)
     }
   }
 
-  bke::mesh_calc_edges(*config.mesh, false, false);
-  if (seen_invalid_geometry) {
+  /* Check for faces with duplicate vertex indices. These will require a mesh validate to fix. */
+  const OffsetIndices<int> faces = config.mesh->faces();
+  const Span<int> corner_verts_span = config.mesh->corner_verts();
+  const bool all_faces_ok = threading::parallel_reduce(
+      faces.index_range(),
+      1024,
+      true,
+      [&](const IndexRange part, const bool ok_so_far) {
+        bool current_faces_ok = ok_so_far;
+        if (current_faces_ok) {
+          for (const int i : part) {
+            const IndexRange face_range = faces[i];
+            const Set<int, 32> used_verts(corner_verts_span.slice(face_range));
+            current_faces_ok = current_faces_ok && used_verts.size() == face_range.size();
+          }
+        }
+        return current_faces_ok;
+      },
+      std::logical_and<>());
+
+  /* If we detect bad faces it would be unsafe to continue beyond this point without first
+   * performing a destructive validate. Any operation requiring mesh connectivity information can
+   * assert or crash if the problem isn't addressed. Performing the check here, before most of the
+   * data has been loaded, unfortunately means any remaining data will be lost. */
+  if (!all_faces_ok) {
     if (config.modifier_error_message) {
-      *config.modifier_error_message = "Mesh hash invalid geometry; more details on the console";
+      *config.modifier_error_message = "Mesh hash invalid geometry";
     }
-    bke::mesh_validate(*config.mesh, true);
+    bke::mesh_validate(*config.mesh, false);
   }
+
+  bke::mesh_calc_edges(*config.mesh, false, false);
 }
 
 static void process_no_normals(CDStreamConfig & /*config*/)
