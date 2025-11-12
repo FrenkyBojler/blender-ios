@@ -10,8 +10,8 @@
 
 #include "BKE_context.hh"
 #include "BKE_key.hh"
-#include "BKE_object.hh"
 #include "BKE_library.hh"
+#include "BKE_object.hh"
 
 #include "BLI_listbase.h"
 #include "BLT_translation.hh"

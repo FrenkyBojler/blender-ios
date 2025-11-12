@@ -350,7 +350,6 @@ class BoneCollectionItem : public AbstractTreeViewItem {
     ANIM_armature_bonecoll_remove(&armature_, &bone_collection_);
     ED_undo_push(C, "Delete Bone Collection");
   }
-
   std::unique_ptr<AbstractViewItemDragController> create_drag_controller() const override
   {
     BoneCollectionTreeView &tree_view = static_cast<BoneCollectionTreeView &>(get_tree_view());
