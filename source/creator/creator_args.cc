@@ -2354,6 +2354,10 @@ static int arg_handle_render_frame(int argc, const char **argv, void *data)
         }
 
         for (int frame = frame_range_arr[i][0]; frame <= frame_range_arr[i][1]; frame++) {
+          /* Make sure the render display is initialized: the update callbacks are set, etc.
+           * This is needed because RE_RenderAnim() will clear the display, including the
+           * callbacks. */
+          RE_display_init(re);
           RE_RenderAnim(re, bmain, scene, nullptr, nullptr, frame, frame, scene->r.frame_step);
         }
       }
