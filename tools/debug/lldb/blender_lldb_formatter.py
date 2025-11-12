@@ -11,13 +11,13 @@ import lldb
 
 def __lldb_init_module(debugger, dict):
     debugger.HandleCommand(
-        'type summary add -x "^blender::VecBase<" -F blender_lldb_formater.math_vector_SummaryProvider'
+        'type summary add -x "^blender::VecBase<" -F blender_lldb_formatter.math_vector_SummaryProvider'
     )
     debugger.HandleCommand(
-        'type synthetic add -x "^blender::(float|double)(2|3|4)x(2|3|4)$" -l blender_lldb_formater.math_matrix_SyntheticProvider'
+        'type synthetic add -x "^blender::(float|double)(2|3|4)x(2|3|4)$" -l blender_lldb_formatter.math_matrix_SyntheticProvider'
     )
     debugger.HandleCommand(
-        'type synthetic add -x "^blender::Vector<" -l blender_lldb_formater.bli_vector_SyntheticProvider'
+        'type synthetic add -x "^blender::Vector<" -l blender_lldb_formatter.bli_vector_SyntheticProvider'
     )
 
 
