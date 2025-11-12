@@ -224,7 +224,7 @@ class BoneCollectionItem : public AbstractTreeViewItem {
   {
     uiLayout *sub = &row.row(true);
 
-    uiBut *name_label = uiItemL_ex(sub, bone_collection_.name, ICON_NONE, false, false);
+    uiItemL_ex(sub, bone_collection_.name, ICON_NONE, false, false);
 
     /* Contains Active Bone icon. */
     /* Performance note: this check potentially loops over all bone collections the active bone is
