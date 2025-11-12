@@ -240,8 +240,6 @@ typedef struct Strip {
 
   /** The linked "bSound" object. */
   struct bSound *sound;
-  /** Handle to #AUD_SequenceEntry. */
-  void *scene_sound;
   float volume;
 
   /** Pitch ranges from -0.1 to 10, replaced in 3.3 with #Strip::speed_factor on sound strips.

@@ -319,7 +319,6 @@ Strip *add_sound_strip(Main *bmain, Scene *scene, ListBase *seqbase, LoadData *l
   Strip *strip = strip_alloc(
       seqbase, load_data->start_frame, load_data->channel, STRIP_TYPE_SOUND_RAM);
   strip->sound = sound;
-  strip->scene_sound = nullptr;
 
   /* We round the frame duration as the audio sample lengths usually does not
    * line up with the video frames. Therefore we round this number to the

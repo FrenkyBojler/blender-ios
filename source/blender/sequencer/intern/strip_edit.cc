@@ -116,8 +116,8 @@ static void strip_update_muting_recursive(ListBase *channels,
       strip_update_muting_recursive(&strip->channels, &strip->seqbase, strip_meta, strip_mute);
     }
     else if (ELEM(strip->type, STRIP_TYPE_SOUND_RAM, STRIP_TYPE_SCENE)) {
-      if (strip->scene_sound) {
-        BKE_sound_mute_scene_sound(strip->scene_sound, strip_mute);
+      if (strip->runtime->scene_sound) {
+        BKE_sound_mute_scene_sound(strip->runtime->scene_sound, strip_mute);
       }
     }
   }

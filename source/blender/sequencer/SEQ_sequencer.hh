@@ -66,6 +66,7 @@ ENUM_OPERATORS(StripRuntimeFlag);
 struct StripRuntime {
   SessionUID session_uid = {};
   StripRuntimeFlag flag = StripRuntimeFlag::None;
+  void *scene_sound = nullptr; /* AUD_SequenceEntry */
 };
 
 SequencerToolSettings *tool_settings_init();

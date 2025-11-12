@@ -10,6 +10,8 @@
 
 #include "DNA_sequence_types.h"
 
+#include "SEQ_sequencer.hh"
+
 #include "BLI_listbase.h"
 
 namespace blender::deg {
@@ -68,7 +70,7 @@ void StripBackup::reset()
 
 void StripBackup::init_from_strip(Strip *strip)
 {
-  scene_sound = strip->scene_sound;
+  scene_sound = strip->runtime->scene_sound;
   anims = strip->anims;
 
   LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
@@ -79,13 +81,13 @@ void StripBackup::init_from_strip(Strip *strip)
     }
   }
 
-  strip->scene_sound = nullptr;
+  strip->runtime->scene_sound = nullptr;
   BLI_listbase_clear(&strip->anims);
 }
 
 void StripBackup::restore_to_strip(Strip *strip)
 {
-  strip->scene_sound = scene_sound;
+  strip->runtime->scene_sound = scene_sound;
   strip->anims = anims;
 
   LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {

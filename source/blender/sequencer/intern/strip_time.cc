@@ -118,7 +118,7 @@ static void strip_update_sound_bounds_recursive_impl(const Scene *scene,
                                                min_ii(end, metastrip_end_get(strip)));
     }
     else if (ELEM(strip->type, STRIP_TYPE_SOUND_RAM, STRIP_TYPE_SCENE)) {
-      if (strip->scene_sound) {
+      if (strip->runtime->scene_sound) {
         int startofs = strip->startofs;
         int endofs = strip->endofs;
         if (strip->startofs + strip->start < start) {
@@ -135,7 +135,7 @@ static void strip_update_sound_bounds_recursive_impl(const Scene *scene,
         }
 
         BKE_sound_move_scene_sound(scene,
-                                   strip->scene_sound,
+                                   strip->runtime->scene_sound,
                                    strip->start + startofs,
                                    strip->start + strip->len - endofs,
                                    startofs + strip->anim_startofs,
