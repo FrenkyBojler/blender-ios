@@ -37,11 +37,11 @@ class math_matrix_SyntheticProvider:
     def __init__(self, valobj, internal_dict):
         self.valobj = valobj
 
-        if valobj.GetChildMemberWithName('w').GetValue() is not None:
+        if valobj.GetChildMemberWithName('w') is not None:
             self.len = 4
-        elif valobj.GetChildMemberWithName('z').GetValue() is not None:
+        elif valobj.GetChildMemberWithName('z') is not None:
             self.len = 3
-        elif valobj.GetChildMemberWithName('y').GetValue() is not None:
+        elif valobj.GetChildMemberWithName('y') is not None:
             self.len = 2
 
     def num_children(self):
