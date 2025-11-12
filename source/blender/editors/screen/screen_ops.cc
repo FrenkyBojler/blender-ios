@@ -1937,11 +1937,58 @@ static int area_snap_calc_location(sAreaMoveData *md, const int delta)
 
       /* Slight snap to vertical minimum and maximum. */
       const int snap_threshold = int(float(ED_area_headersize()) * 0.6f);
-      if (m_cursor_final < (m_min + snap_threshold)) {
-        m_cursor_final = m_min;
+
+      blender::Vector<int> snaps;
+      /* Minimum. */
+      snaps.append(m_min);
+
+      /* Add minimal snaps for editors below with time scrub areas. */
+      if (md->dir_axis == SCREEN_AXIS_H && md->area2 &&
+          ELEM(md->area2->spacetype, SPACE_ACTION, SPACE_GRAPH, SPACE_NLA))
+      {
+        snaps.append(m_min + UI_TIME_SCRUB_MARGIN_Y);
+        ARegion *region = BKE_area_find_region_type(md->area2, RGN_TYPE_FOOTER);
+        const bool anim_footer = (region && region->runtime->visible);
+        region = BKE_area_find_region_type(md->area2, RGN_TYPE_HEADER);
+        const bool anim_header = (region && region->runtime->visible);
+        if (anim_footer && anim_header) {
+          snaps.append(m_min + UI_TIME_SCRUB_MARGIN_Y + ED_area_footersize());
+        }
       }
-      else if (m_cursor_final > (md->origval + md->bigger - snap_threshold)) {
-        m_cursor_final = md->origval + md->bigger;
+
+      /* Add maximal snaps for editors above with time scrub areas. */
+      if (md->dir_axis == SCREEN_AXIS_H && md->area1 &&
+          ELEM(md->area1->spacetype, SPACE_ACTION, SPACE_GRAPH, SPACE_NLA))
+      {
+        ARegion *region = BKE_area_find_region_type(md->area1, RGN_TYPE_FOOTER);
+        const bool anim_footer = (region && region->runtime->visible);
+        region = BKE_area_find_region_type(md->area1, RGN_TYPE_HEADER);
+        const bool anim_header = (region && region->runtime->visible);
+        if (anim_footer && anim_header) {
+          snaps.append(md->origval + md->bigger - (UI_TIME_SCRUB_MARGIN_Y + ED_area_footersize()));
+        }
+        snaps.append(md->origval + md->bigger - UI_TIME_SCRUB_MARGIN_Y);
+      }
+
+      /* Minimal snap for Console below. */
+      if (md->dir_axis == SCREEN_AXIS_H && md->area2 && md->area2->spacetype == SPACE_CONSOLE) {
+        SpaceConsole *console = static_cast<SpaceConsole *>(md->area2->spacedata.first);
+        snaps.append(m_min + int(float(console->lheight) * UI_SCALE_FAC * 1.5f));
+      }
+      /* Maximal snap for Console above. */
+      if (md->dir_axis == SCREEN_AXIS_H && md->area1 && md->area1->spacetype == SPACE_CONSOLE) {
+        SpaceConsole *console = static_cast<SpaceConsole *>(md->area1->spacedata.first);
+        snaps.append(md->origval + md->bigger -
+                     +int(float(console->lheight) * UI_SCALE_FAC * 1.5f));
+      }
+
+      snaps.append(md->origval + md->bigger);
+
+      for (int i = 0; i < snaps.size(); i++) {
+        if (abs(m_cursor_final - snaps[i]) < snap_threshold) {
+          m_cursor_final = snaps[i];
+          break;
+        }
       }
     } break;
 
