@@ -159,16 +159,9 @@ typedef struct SeqRetimingKey {
 /**
  * `Strip` is the basic struct used by any strip.
  * Each strip uses a different `Strip` struct.
- *
- * \warning The first part identical to ID (for use in ipo's)
- * the comment above is historic, probably we can drop the ID compatibility,
- * but take care making this change.
  */
 typedef struct Strip {
   struct Strip *next, *prev;
-  void *_pad;
-  /** Needed (to be like ipo), else it will raise libdata warnings, this should never be used. */
-  void *lib;
   /** Name, set by default and needs to be unique, for RNA paths. */
   char name[/*STRIP_NAME_MAXSTR*/ 64];
 
