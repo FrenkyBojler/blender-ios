@@ -3609,6 +3609,12 @@ void BKE_object_dimensions_set_ex(Object *ob,
         }
       }
     }
+
+    /* Reset the bounds, so will get the new ones*/
+    ob->runtime->bounds_eval.reset();
+
+    /* calculate local matrix so when getting bounds the scale match  */
+    BKE_object_to_mat4(ob, ob->runtime->object_to_world.ptr());
   }
 }
 
