@@ -136,6 +136,8 @@ static void seq_free_strip(StripData *data)
 Strip *strip_alloc(ListBase *lb, int timeline_frame, int channel, int type)
 {
   Strip *strip = MEM_callocN<Strip>("addseq");
+  strip->runtime = MEM_new<StripRuntime>(__func__);
+  relations_session_uid_generate(strip);
   BLI_addtail(lb, strip);
 
   *((short *)strip->name) = ID_SEQ;
@@ -168,8 +170,6 @@ Strip *strip_alloc(ListBase *lb, int timeline_frame, int channel, int type)
   if (strip->type == STRIP_TYPE_META) {
     channels_ensure(&strip->channels);
   }
-
-  relations_session_uid_generate(strip);
 
   return strip;
 }
@@ -261,6 +261,7 @@ static void seq_strip_free_ex(Scene *scene,
     strip->retiming_keys_num = 0;
   }
 
+  MEM_SAFE_DELETE(strip->runtime);
   MEM_freeN(strip);
 }
 
@@ -605,6 +606,9 @@ static void seq_duplicate_postprocess(StripDuplicateContext &ctx)
 static Strip *strip_duplicate(StripDuplicateContext &ctx, ListBase *seqbase_dst, Strip *strip)
 {
   Strip *strip_new = static_cast<Strip *>(MEM_dupallocN(strip));
+  strip_new->runtime = MEM_new<StripRuntime>(__func__);
+  *strip_new->runtime = *strip->runtime;
+
   ctx.strip_map.add(strip, strip_new);
 
   if ((ctx.copy_flag & LIB_ID_CREATE_NO_MAIN) == 0) {
@@ -937,6 +941,8 @@ void blend_write(BlendWriter *writer, ListBase *seqbase)
 static bool strip_read_data_cb(Strip *strip, void *user_data)
 {
   BlendDataReader *reader = (BlendDataReader *)user_data;
+
+  strip->runtime = MEM_new<StripRuntime>(__func__);
 
   /* Runtime data cleanup. */
   strip->scene_sound = nullptr;

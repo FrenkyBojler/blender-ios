@@ -17,8 +17,7 @@
 #include "DNA_color_types.h"
 #include "DNA_defs.h"
 #include "DNA_listBase.h"
-#include "DNA_session_uid_types.h" /* for #SessionUID */
-#include "DNA_vec_types.h"         /* for #rctf */
+#include "DNA_vec_types.h" /* for #rctf */
 
 struct MovieClip;
 struct Scene;
@@ -36,6 +35,7 @@ struct TextVarsRuntime;
 struct PrefetchJob;
 struct SourceImageCache;
 struct StripLookup;
+struct StripRuntime;
 }  // namespace blender::seq
 using FinalImageCache = blender::seq::FinalImageCache;
 using IntraFrameCache = blender::seq::IntraFrameCache;
@@ -46,6 +46,7 @@ using TextVarsRuntime = blender::seq::TextVarsRuntime;
 using PrefetchJob = blender::seq::PrefetchJob;
 using SourceImageCache = blender::seq::SourceImageCache;
 using StripLookup = blender::seq::StripLookup;
+using StripRuntime = blender::seq::StripRuntime;
 #else
 typedef struct FinalImageCache FinalImageCache;
 typedef struct IntraFrameCache IntraFrameCache;
@@ -56,6 +57,7 @@ typedef struct TextVarsRuntime TextVarsRuntime;
 typedef struct PrefetchJob PrefetchJob;
 typedef struct SourceImageCache SourceImageCache;
 typedef struct StripLookup StripLookup;
+typedef struct StripRuntime StripRuntime;
 #endif
 
 /* -------------------------------------------------------------------- */
@@ -153,13 +155,6 @@ typedef struct SeqRetimingKey {
   float original_retiming_factor;    /* Used for transition keys only. */
   char _pad[4];
 } SeqRetimingKey;
-
-typedef struct StripRuntime {
-  SessionUID session_uid;
-  /** eStripRuntimeFlag */
-  uint32_t flag;
-  char _pad[4];
-} StripRuntime;
 
 /**
  * `Strip` is the basic struct used by any strip.
@@ -298,7 +293,7 @@ typedef struct Strip {
 
   void *_pad10;
 
-  StripRuntime runtime;
+  StripRuntime *runtime;
 
 #ifdef __cplusplus
   bool is_effect() const;
@@ -714,16 +709,6 @@ typedef enum eSeqRetimingKeyFlag {
   SEQ_FREEZE_FRAME_OUT = (1 << 3),
   SEQ_KEY_SELECTED = (1 << 4),
 } eSeqRetimingKeyFlag;
-
-/** #StripRuntime::flag */
-typedef enum eStripRuntimeFlag {
-  STRIP_CLAMPED_LH = (1 << 0),
-  STRIP_CLAMPED_RH = (1 << 1),
-  STRIP_OVERLAP = (1 << 2),
-  STRIP_MARK_FOR_DELETE = (1 << 4),
-  STRIP_IGNORE_CHANNEL_LOCK = (1 << 5), /* For #SEQUENCER_OT_duplicate_move macro. */
-  STRIP_SHOW_OFFSETS = (1 << 6),        /* Set during #SEQUENCER_OT_slip. */
-} eStripRuntimeFlag;
 
 /* From: `DNA_object_types.h`, see it's doc-string there. */
 #define SELECT 1

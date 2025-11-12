@@ -474,7 +474,7 @@ bool proxy_rebuild_context(Main *bmain,
     context->depsgraph = depsgraph;
     context->scene = scene;
     context->orig_seq = strip;
-    context->orig_seq_uid = strip->runtime.session_uid;
+    context->orig_seq_uid = strip->runtime->session_uid;
     context->strip = strip_new;
 
     context->view_id = i; /* only for images */

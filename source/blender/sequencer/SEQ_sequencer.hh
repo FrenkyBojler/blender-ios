@@ -8,11 +8,11 @@
  * \ingroup sequencer
  */
 
+#include "BLI_enum_flags.hh"
 #include "BLI_map.hh"
 #include "BLI_vector_set.hh"
 #include "DNA_scene_types.h"
-
-#include "BLI_enum_flags.hh"
+#include "DNA_session_uid_types.h"
 
 struct BlendDataReader;
 struct BlendWriter;
@@ -51,6 +51,21 @@ enum class StripDuplicate : uint8_t {
   All = (1 << 3),
 };
 ENUM_OPERATORS(StripDuplicate);
+
+enum eStripRuntimeFlag {
+  STRIP_CLAMPED_LH = (1 << 0),
+  STRIP_CLAMPED_RH = (1 << 1),
+  STRIP_OVERLAP = (1 << 2),
+  STRIP_MARK_FOR_DELETE = (1 << 4),
+  STRIP_IGNORE_CHANNEL_LOCK = (1 << 5), /* For #SEQUENCER_OT_duplicate_move macro. */
+  STRIP_SHOW_OFFSETS = (1 << 6),        /* Set during #SEQUENCER_OT_slip. */
+};
+ENUM_OPERATORS(eStripRuntimeFlag);
+
+struct StripRuntime {
+  SessionUID session_uid;
+  eStripRuntimeFlag flag;
+};
 
 SequencerToolSettings *tool_settings_init();
 SequencerToolSettings *tool_settings_ensure(Scene *scene);

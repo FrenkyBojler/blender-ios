@@ -385,13 +385,13 @@ void relations_strip_free_anim(Strip *strip)
 
 void relations_session_uid_generate(Strip *strip)
 {
-  strip->runtime.session_uid = BLI_session_uid_generate();
+  strip->runtime->session_uid = BLI_session_uid_generate();
 }
 
 static bool get_uids_cb(Strip *strip, void *user_data)
 {
   Set<SessionUID> &used_uids = *static_cast<Set<SessionUID> *>(user_data);
-  const SessionUID &session_uid = strip->runtime.session_uid;
+  const SessionUID &session_uid = strip->runtime->session_uid;
   if (!BLI_session_uid_is_generated(&session_uid)) {
     printf("Sequence %s does not have UID generated.\n", strip->name);
     return true;
