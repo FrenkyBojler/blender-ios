@@ -1344,12 +1344,19 @@ static void wm_xr_navigation_teleport_raycast(Scene *scene,
   blender::ed::transform::snap_object_context_destroy(sctx);
 }
 
+static float wm_xr_navigation_teleport_get_ray_distance(wmOperator *op, wmXrData *xr) {
+  float nav_scale;
+  WM_xr_session_state_nav_scale_get(xr, &nav_scale);
+
+  return RNA_float_get(op->ptr, "distance") * nav_scale;
+}
+
 static XrTeleportRayResult wm_xr_navigation_teleport_compute_arc(
-    bContext *C, wmOperator *op, XrTeleportData *data, blender::float3 &r_hit_normal)
+    bContext *C, wmOperator *op, wmXrData *xr, XrTeleportData *data, blender::float3 &r_hit_normal)
 {
   using namespace blender;
 
-  const float ray_dist = RNA_float_get(op->ptr, "distance");
+  const float ray_dist = wm_xr_navigation_teleport_get_ray_distance(op, xr);
   const float segment_length = ray_dist / XR_TELEPORTATION_ARC_CONTROL_POINTS;
 
   float3 normal = {0, 1, 0};
@@ -1434,7 +1441,7 @@ static float wm_xr_navigation_teleport_determine_head_height(bContext *C, wmOper
   blender::float3 viewer_pos_loc;
   WM_xr_session_state_viewer_pose_location_get(xr, viewer_pos_loc);
 
-  float ray_dist = RNA_float_get(op->ptr, "distance"); /* Same as main raycast. */
+  const float ray_dist = wm_xr_navigation_teleport_get_ray_distance(op, xr);
   const bool selectable_only = RNA_boolean_get(op->ptr, "selectable_only");
 
   blender::float3 dummy_dest = {};
@@ -1523,7 +1530,7 @@ static XrTeleportRayResult wm_xr_navigation_teleport_main(bContext *C,
 
   float3 hit_normal = {};
   /* Compute the teleportation visual arc and destination using a series of raycasts. */
-  XrTeleportRayResult result = wm_xr_navigation_teleport_compute_arc(C, op, data, hit_normal);
+  XrTeleportRayResult result = wm_xr_navigation_teleport_compute_arc(C, op, xr, data, hit_normal);
 
   if (result == XR_TELEPORT_RAY_MISS) {
     /* If missed, fallback to intersecting with the world ground plane by clipping the obtained
