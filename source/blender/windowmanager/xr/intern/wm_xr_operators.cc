@@ -1411,12 +1411,12 @@ static XrTeleportRayResult wm_xr_navigation_teleport_compute_arc(
       return XR_TELEPORT_RAY_HIT;
     }
 
-    /* Miss, apply gravity and extend the arc in the current direction. */
+    /* Miss, apply gravity and extend the arc in the current direction by the ray hit length. */
     const float gravity = RNA_float_get(op->ptr, "gravity");
     segment_direction.z -= gravity;
     segment_direction = math::normalize(segment_direction);
 
-    data->arc_points[i] = data->arc_points[i - 1] + (segment_direction * segment_length);
+    data->arc_points[i] = data->arc_points[i - 1] + (segment_direction * segment_ray_dist);
   }
 
   return XR_TELEPORT_RAY_MISS;
