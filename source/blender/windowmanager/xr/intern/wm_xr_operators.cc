@@ -1204,8 +1204,10 @@ static void wm_xr_navigation_teleport_destination_draw(const XrTeleportData *dat
 
   constexpr float width = 0.5f;
   constexpr float height = 0.1f;
-  constexpr int resolution = 32;
+  constexpr int resolution = 64;
   imm_draw_cylinder_fill_3d(pos, width, width, height, resolution, 1);
+  GPU_matrix_translate_3f(0.0f, 0.0f, height * 0.4f);
+  imm_draw_circle_fill_3d(pos, 0, 0, width * 0.65f, resolution);
 
   immUnbindProgram();
   GPU_matrix_pop();
