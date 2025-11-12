@@ -1321,7 +1321,6 @@ struct StaticPlaneContacts {
   Vector<int> indices;
   Vector<float3> contact_points_on_plane;
   Vector<float3> separating_axes;
-  Vector<bool> active_states;
   Vector<float> static_frictions;
   Vector<float> dynamic_frictions;
   Vector<float> compliance_terms;
@@ -1366,12 +1365,10 @@ PROFILE_FUNCTION static void gather_ground_plane_contacts(
     if (distance >= max_search_distance) {
       continue;
     }
-    const bool is_active = (distance <= contact_active_threshold);
 
     r_contacts.indices.append(point_i);
     r_contacts.contact_points_on_plane.append(position - plane_normal * distance);
     r_contacts.separating_axes.append(plane_normal);
-    r_contacts.active_states.append(is_active);
     const float point_friction = sim_points_frictions[point_i];
     const float friction = math::sqrt(point_friction * collider.friction);
     r_contacts.static_frictions.append(friction);
@@ -1436,13 +1433,10 @@ PROFILE_FUNCTION static void gather_mesh_contacts(const XPBDState &state,
                                                     math::transpose(float3x3(mesh_transform_inv)) *
                                                         float3(nearest.no) :
                                                     collision_axis);
-      const float distance = math::dot(position_self - collision_point, valid_axis);
-      const bool is_active = (distance <= contact_active_threshold);
 
       r_contacts.indices.append(point_i);
       r_contacts.contact_points_on_plane.append(collision_point);
       r_contacts.separating_axes.append(valid_axis);
-      r_contacts.active_states.append(is_active);
       r_contacts.static_frictions.append(friction);
       r_contacts.dynamic_frictions.append(friction);
       r_contacts.compliance_terms.append(
@@ -1485,13 +1479,11 @@ PROFILE_FUNCTION static void gather_mesh_contacts(const XPBDState &state,
                     collision_axis);
             const float point_friction = sim_points_frictions[point_i];
             const float friction = math::sqrt(point_friction * collider.friction);
-            const bool is_active = (distance <= contact_active_threshold);
 
             r_contacts.indices.append(point_i);
             r_contacts.contact_points_on_plane.append(
                 math::transform_point(mesh_transform, contact_on_plane_mesh));
             r_contacts.separating_axes.append(valid_axis);
-            r_contacts.active_states.append(is_active);
             r_contacts.static_frictions.append(friction);
             r_contacts.dynamic_frictions.append(friction);
             r_contacts.compliance_terms.append(
@@ -1737,7 +1729,9 @@ PROFILE_FUNCTION static void generate_collision_constraint_sets(
     const StaticPlaneContacts &plane_contacts = item.value;
     const int constraints_num = plane_contacts.indices.size();
 
-    MutableSpan<float> lambdas_normal = state.ensure_constraint_lambdas<float>(
+    MutableSpan active_states = state.ensure_constraint_data<bool>(
+        item.key, constraints_num, "is_active");
+    MutableSpan lambdas_normal = state.ensure_constraint_lambdas<float>(
         item.key, 0, constraints_num);
     r_constraints.general.append(
         &scope.construct<xpbd::CollisionPlaneConstraintSet>(key_i,
@@ -1745,9 +1739,9 @@ PROFILE_FUNCTION static void generate_collision_constraint_sets(
                                                             plane_contacts.contact_points_on_plane,
                                                             plane_contacts.separating_axes,
                                                             plane_contacts.compliance_terms,
-                                                            plane_contacts.active_states,
                                                             plane_contacts.static_frictions,
                                                             plane_contacts.dynamic_frictions,
+                                                            active_states,
                                                             lambdas_normal));
     MutableSpan<float> dynamic_friction_terms = scope.allocator().allocate_array<float>(
         constraints_num);

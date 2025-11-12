@@ -322,9 +322,9 @@ class CollisionPlaneConstraintSet : public TemplatedConstraintSet<CollisionPlane
   Span<float3> contact_points_on_plane_;
   Span<float3> separating_axes_;
   Span<float> compliance_terms_;
-  Span<bool> active_states_;
   Span<float> static_frictions_;
   Span<float> dynamic_frictions_;
+  MutableSpan<bool> active_states_;
   MutableSpan<float> lambdas_normal_;
 
  public:
@@ -333,9 +333,9 @@ class CollisionPlaneConstraintSet : public TemplatedConstraintSet<CollisionPlane
                               const Span<float3> contact_points_on_plane,
                               const Span<float3> separating_axes,
                               const Span<float> compliance_terms,
-                              const Span<bool> active_states,
                               const Span<float> static_frictions,
                               const Span<float> dynamic_frictions,
+                              MutableSpan<bool> active_states,
                               MutableSpan<float> lambdas_normal)
       : TemplatedConstraintSet<CollisionPlaneConstraintSet>(points.size(), {geo_i}),
         geo_i_(geo_i),
@@ -343,15 +343,16 @@ class CollisionPlaneConstraintSet : public TemplatedConstraintSet<CollisionPlane
         contact_points_on_plane_(contact_points_on_plane),
         separating_axes_(separating_axes),
         compliance_terms_(compliance_terms),
-        active_states_(active_states),
         static_frictions_(static_frictions),
         dynamic_frictions_(dynamic_frictions),
+        active_states_(active_states),
         lambdas_normal_(lambdas_normal)
   {
   }
 
   void reset_force(const int constraint_i) const
   {
+    active_states_[constraint_i] = false;
     lambdas_normal_[constraint_i] = 0.0f;
   }
 
@@ -365,15 +366,17 @@ class CollisionPlaneConstraintSet : public TemplatedConstraintSet<CollisionPlane
     const float3 &plane_pos = contact_points_on_plane_[constraint_i];
     const float3 &axis = separating_axes_[constraint_i];
     const float compliance_term = compliance_terms_[constraint_i];
-
-    if (!active_states_[constraint_i]) {
-      return;
-    }
-    const float3 diff = pos - plane_pos;
-    const float normal_distance = math::dot(diff, axis);
     const float inv_m = params.inverse_mass(geo_i_, point_i);
     if (inv_m <= 0.0f) {
       /* Points with infinite mass are pinned and don't collide dynamically. */
+      return;
+    }
+
+    const float3 diff = pos - plane_pos;
+    const float normal_distance = math::dot(diff, axis);
+    const bool is_active = normal_distance < 0.0f;
+    active_states_[constraint_i] = is_active;
+    if (!is_active) {
       return;
     }
 
