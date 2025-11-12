@@ -3,7 +3,7 @@ LLDB pretty printer for Blender types
 
 Add to ~/.lldbinit:
 
-command script import {path-to-blender-source}/tools/debug/lldb/blender_lldb_formater.py
+command script import {path-to-blender-source}/tools/debug/lldb/blender_lldb_formatter.py
 """
 
 import lldb
@@ -11,7 +11,7 @@ import lldb
 
 def __lldb_init_module(debugger, dict):
     debugger.HandleCommand(
-        'type summary add -x "^blender::(char|uchar|short|ushort|int|uint|float|double)(2|3|4)$" -F blender_lldb_formater.math_vector_SummaryProvider'
+        'type summary add -x "^blender::VecBase<" -F blender_lldb_formater.math_vector_SummaryProvider'
     )
     debugger.HandleCommand(
         'type synthetic add -x "^blender::(float|double)(2|3|4)x(2|3|4)$" -l blender_lldb_formater.math_matrix_SyntheticProvider'
