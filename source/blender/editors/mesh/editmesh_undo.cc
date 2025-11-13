@@ -42,9 +42,9 @@
 
 #include "DEG_depsgraph.hh"
 
+#include "ED_edit_undo_scene_state.hh"
 #include "ED_mesh.hh"
 #include "ED_object.hh"
-#include "ED_scene_state.hh"
 #include "ED_undo.hh"
 #include "ED_util.hh"
 

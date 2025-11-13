@@ -6,7 +6,7 @@
  * \ingroup edtransform
  */
 
-#include "ED_scene_state.hh"
+#include "ED_edit_undo_scene_state.hh"
 
 #include <string.h>
 
