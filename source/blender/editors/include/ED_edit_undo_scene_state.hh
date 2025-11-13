@@ -10,6 +10,8 @@
 
 #include "DNA_scene_types.h"
 
+namespace blender::ed {
+
 typedef struct EditModeSceneState {
   /* Custom transform orientations. */
   ListBase transform_spaces;
@@ -28,3 +30,5 @@ void ED_scene_state_free(EditModeSceneState *state);
 /* Capture and restore scene state for undo. */
 void ED_scene_state_capture(EditModeSceneState *state, const Scene *scene);
 void ED_scene_state_restore(Scene *scene, const EditModeSceneState *state);
+
+}  // namespace blender::ed
