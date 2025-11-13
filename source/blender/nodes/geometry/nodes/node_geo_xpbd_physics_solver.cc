@@ -1956,7 +1956,6 @@ PROFILE_FUNCTION static void store_constraint_attributes(
 
 static void store_world_bundle_overrides(const WorldBundles &world_bundles,
                                          const Span<GeometrySet> applied_geometries,
-                                         const XPBDDebugRecorder &debug_recorder,
                                          Bundle &world_bundle)
 {
   for (const int bundle_i : world_bundles.geometries.index_range()) {
@@ -1989,10 +1988,6 @@ static void store_world_bundle_overrides(const WorldBundles &world_bundles,
           bundle.self_path + "/lambda",
           bke::AttributeFieldInput::from<float>(bundle.lambda_attribute_name));
     }
-  }
-
-  for (const auto &item : debug_recorder.steps().items()) {
-    world_bundle.add_path(item.key + "/debug_steps", item.value.store());
   }
 }
 
@@ -4391,7 +4386,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   apply_state_to_geometries(state, world_bundles, applied_geometries);
   store_constraint_attributes(state, world_bundles, applied_geometries);
-  store_world_bundle_overrides(world_bundles, applied_geometries, debug_recorder, world_bundle);
+  store_world_bundle_overrides(world_bundles, applied_geometries, world_bundle);
 
   params.set_output("State", std::move(new_state_bundle_ptr));
   params.set_output("World", std::move(world_bundle_ptr));
