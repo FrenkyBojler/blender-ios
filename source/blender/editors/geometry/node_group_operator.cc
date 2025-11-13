@@ -96,6 +96,10 @@ struct ErrorsForType {
   int duplicate_count = 0;
   bool is_builtin_operator = false;
   Vector<std::string> idname_validation_errors;
+  BLI_STRUCT_EQUALITY_OPERATORS_3(ErrorsForType,
+                                  duplicate_count,
+                                  is_builtin_operator,
+                                  idname_validation_errors);
 };
 using OperatorRegisterErrors = Map<std::string, ErrorsForType>;
 
@@ -1272,6 +1276,7 @@ void register_node_group_operators(const bContext &C)
   Main &bmain = *CTX_data_main(&C);
 
   OperatorRegisterErrors &errors = get_registration_errors();
+  OperatorRegisterErrors last_errors = errors;
   errors.clear();
 
   Vector<std::unique_ptr<OperatorTypeData>> node_tool_types = get_node_tools_type_data(
@@ -1316,7 +1321,9 @@ void register_node_group_operators(const bContext &C)
     WM_operatortype_append_ptr(register_node_tool, type.get());
   }
 
-  if (!errors.is_empty()) {
+  /* Don't display the same errors twice. That can be very noisy since this operator registration
+   * process runs so often. */
+  if (last_errors != errors) {
     ReportList *reports = CTX_wm_reports(&C);
     for (const OperatorRegisterErrors::Item &item : errors.items()) {
       if (item.value.is_builtin_operator) {
