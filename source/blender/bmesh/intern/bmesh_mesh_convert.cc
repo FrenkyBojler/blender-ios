@@ -281,7 +281,7 @@ static void mesh_attributes_copy_to_bmesh_block(CustomData &data,
 
 static CustomData get_mesh_to_bm_custom_data(const Mesh &mesh,
                                              const blender::bke::AttrDomain domain,
-                                             const uint64_t cd_type_mask_mask)
+                                             const uint64_t cd_type_mask)
 {
   using namespace blender;
   CustomData custom_data;
@@ -294,7 +294,7 @@ static CustomData get_mesh_to_bm_custom_data(const Mesh &mesh,
       return;
     }
     const eCustomDataType data_type = *bke::attr_type_to_custom_data_type(attr.data_type());
-    if ((CD_TYPE_AS_MASK(data_type) & cd_type_mask_mask) == 0) {
+    if ((CD_TYPE_AS_MASK(data_type) & cd_type_mask) == 0) {
       return;
     }
     CustomData_add_layer_named(&custom_data, data_type, CD_SET_DEFAULT, 0, attr.name());
