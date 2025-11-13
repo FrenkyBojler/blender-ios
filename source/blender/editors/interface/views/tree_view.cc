@@ -1010,11 +1010,11 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
         default:
           break;
       }
-      
+
       uiLayout &sortbut = filter_layout.column(false);
       sortbut.alignment_set(blender::ui::LayoutAlign::Right);
       but = uiDefIconBut(
-        block, ButType::IconToggle, icon, 0, 0, UI_UNIT_X, UI_UNIT_Y, nullptr, 0, 0, "");
+          block, ButType::IconToggle, icon, 0, 0, UI_UNIT_X, UI_UNIT_Y, nullptr, 0, 0, "");
       UI_but_func_set(but, set_sort_order_fn, nullptr, tree_view.sort_order_.get());
     }
   }
