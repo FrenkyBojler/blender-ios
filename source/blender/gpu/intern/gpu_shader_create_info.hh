@@ -1072,44 +1072,20 @@ struct ShaderCreateInfo {
       return *this;
     }
 
-    Self &write_mask(GPUWriteMask write_mask)
+    Self &state(GPUWriteMask write_mask,
+                GPUBlend blend,
+                GPUFaceCullTest culling_test,
+                GPUDepthTest depth_test,
+                GPUStencilTest stencil_test,
+                GPUStencilOp stencil_op,
+                GPUProvokingVertex provoking_vert)
     {
       state_.write_mask = write_mask;
-      return *this;
-    }
-
-    Self &blend_mode(GPUBlend blend_mode)
-    {
-      state_.blend = blend_mode;
-      return *this;
-    }
-
-    Self &culling_test(GPUFaceCullTest culling_test)
-    {
+      state_.blend = blend;
       state_.culling_test = culling_test;
-      return *this;
-    }
-
-    Self &depth_test(GPUDepthTest depth_test)
-    {
       state_.depth_test = depth_test;
-      return *this;
-    }
-
-    Self &stencil_test(GPUStencilTest stencil_test)
-    {
       state_.stencil_test = stencil_test;
-      return *this;
-    }
-
-    Self &stencil_op(GPUStencilOp stencil_op)
-    {
       state_.stencil_op = stencil_op;
-      return *this;
-    }
-
-    Self &provoking_vert(GPUProvokingVertex provoking_vert)
-    {
       state_.provoking_vert = provoking_vert;
       return *this;
     }

@@ -1229,9 +1229,13 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
         default:
           info.pipeline_state()
               .primitive(GPU_PRIM_TRIS)
-              .write_mask(GPU_WRITE_COLOR)
-              // Can we use GPU_DEPTH_NONE? there is no depth texture configured.
-              .depth_test(GPU_DEPTH_ALWAYS)
+              .state(GPU_WRITE_COLOR,
+                     GPU_BLEND_NONE,
+                     GPU_CULL_NONE,
+                     GPU_DEPTH_ALWAYS,
+                     GPU_STENCIL_NONE,
+                     GPU_STENCIL_OP_NONE,
+                     GPU_VERTEX_LAST)
               .viewports(1)
               .color_format(gpu::TextureFormat::SFLOAT_16_16_16_16);
           break;

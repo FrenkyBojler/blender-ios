@@ -51,9 +51,14 @@ static void test_shader_create_info_pipeline()
   create_info.fragment_out(0, Type::int2_t, "out_value");
 
   create_info.pipeline_state()
-      .write_mask(GPU_WRITE_COLOR)
+      .state(GPU_WRITE_COLOR,
+             GPU_BLEND_NONE,
+             GPU_CULL_NONE,
+             GPU_DEPTH_NONE,
+             GPU_STENCIL_NONE,
+             GPU_STENCIL_OP_NONE,
+             GPU_VERTEX_LAST)
       .primitive(GPU_PRIM_TRIS)
-      .blend_mode(GPU_BLEND_NONE)
       .viewports(16)
       .color_format(TextureFormat::SINT_32_32);
 
