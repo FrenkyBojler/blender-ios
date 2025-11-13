@@ -1491,42 +1491,6 @@ static XrTeleportRayResult wm_xr_navigation_arc_scene_intersect(bContext *C,
   return XR_TELEPORT_RAY_MISS;
 }
 
-static float wm_xr_navigation_teleport_determine_head_height(bContext *C,
-                                                             wmOperator *op,
-                                                             wmXrData *xr)
-{
-  /* Raycast downward from the current XR virtual head position to find the floor. */
-  blender::float3 viewer_pos_loc;
-  WM_xr_session_state_viewer_pose_location_get(xr, viewer_pos_loc);
-
-  float nav_scale;
-  WM_xr_session_state_nav_scale_get(xr, &nav_scale);
-  float ray_dist = 10.0f * nav_scale; /* TODO: Dummy value, function will be removed next */
-  const bool selectable_only = RNA_boolean_get(op->ptr, "selectable_only");
-
-  blender::float3 dummy_dest = {};
-  const blender::float3 downward_direction = {0, 0, -1};
-  const Object *ob = nullptr;
-
-  wm_xr_navigation_teleport_raycast(CTX_data_scene(C),
-                                    CTX_data_ensure_evaluated_depsgraph(C),
-                                    viewer_pos_loc,
-                                    downward_direction,
-                                    &ray_dist,
-                                    selectable_only,
-                                    dummy_dest,
-                                    nullptr,
-                                    nullptr,
-                                    &ob,
-                                    nullptr);
-
-  if (ob) {
-    return ray_dist;
-  }
-
-  return viewer_pos_loc.z;
-}
-
 static XrTeleportRayResult wm_xr_navigation_teleport_main(bContext *C,
                                                           wmOperator *op,
                                                           wmXrData *xr,
@@ -1534,8 +1498,6 @@ static XrTeleportRayResult wm_xr_navigation_teleport_main(bContext *C,
                                                           blender::float3 &r_nav_destination)
 {
   using namespace blender;
-
-  const float head_height_offset = wm_xr_navigation_teleport_determine_head_height(C, op, xr);
 
   /* Generate the initial parabolic arc. */
   wm_xr_navigation_teleport_generate_arc(op, xr, data);
@@ -1549,7 +1511,8 @@ static XrTeleportRayResult wm_xr_navigation_teleport_main(bContext *C,
   WM_xr_session_state_viewer_pose_location_get(xr, viewer_location);
 
   const float3 target_destination = data->arc_points[data->endpoint_idx];
-  const float3 destination = target_destination + float3(0.0f, 0.0f, head_height_offset);
+  constexpr float viewer_height_offset = 1.80f;
+  const float3 destination = target_destination + float3(0.0f, 0.0f, viewer_height_offset);
 
   r_nav_destination = nav_location + (destination - viewer_location);
   return result;
