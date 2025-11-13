@@ -8,6 +8,7 @@
 
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
+#include "BLI_math_base.h"
 #include "BLI_math_vector.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
@@ -1995,34 +1996,28 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
   const bool remove_gaps = RNA_boolean_get(op->ptr, "remove_gaps");
   const bool ignore_selection = RNA_boolean_get(op->ptr, "ignore_selection");
   const seq::eSplitMethod method = seq::eSplitMethod(RNA_enum_get(op->ptr, "type"));
-  const int2 rect_frames = {round_fl_to_int(rectf.xmin), round_fl_to_int(rectf.xmax)};
 
   bool changed = false;
   int gap_removal_left_boundary = INT_MAX;
 
-  /* Make two split logic runs so the newly created strips can get split by the second run. */
-  for (int cut_pos : {0, 1}) {
-    const VectorSet<Strip *> strips = ignore_selection ? all_strips_from_context(C) :
-                                                         selected_strips_from_context(C);
-    for (Strip *strip : strips) {
-      rctf rq;
-      strip_rectf(scene, strip, &rq);
-      if (BLI_rctf_isect(&rq, &rectf, nullptr)) {
-        gap_removal_left_boundary = math::min(gap_removal_left_boundary,
-                                              seq::time_left_handle_frame_get(scene, strip));
+  Vector<Strip *> strips = ignore_selection ? all_strips_from_context(C).extract_vector() :
+                                              selected_strips_from_context(C).extract_vector();
+  for (int i = 0; i < strips.size(); i++) {
+    rctf rq;
+    strip_rectf(scene, strips[i], &rq);
+    if (BLI_rctf_isect(&rq, &rectf, nullptr)) {
+      gap_removal_left_boundary = math::min(gap_removal_left_boundary,
+                                            seq::time_left_handle_frame_get(scene, strips[i]));
+
+      for (int frame : {rectf.xmin, rectf.xmax}) {
         const char *error_msg = nullptr;
-        if (seq::edit_strip_split(bmain,
-                                  scene,
-                                  ed->current_strips(),
-                                  strip,
-                                  rect_frames[cut_pos],
-                                  method,
-                                  false,
-                                  &error_msg) != nullptr)
-        {
-          if (error_msg != nullptr) {
-            BKE_report(op->reports, RPT_ERROR, error_msg);
-          }
+        Strip *new_strip = seq::edit_strip_split(
+            bmain, scene, ed->current_strips(), strips[i], frame, method, false, &error_msg);
+        if (error_msg != nullptr) {
+          BKE_report(op->reports, RPT_ERROR, error_msg);
+        }
+        if (new_strip != nullptr) {
+          strips.append(new_strip);
           changed = true;
         }
       }
@@ -2040,8 +2035,8 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
 
     if (BLI_rctf_isect(&rq, &rectf, nullptr)) {
       /* Check if left and right handle are in the rect. */
-      if (left_handle >= rect_frames[0] && left_handle <= rect_frames[1] &&
-          right_handle >= rect_frames[0] && right_handle <= rect_frames[1])
+      if (left_handle >= rectf.xmin && left_handle <= rectf.xmax &&
+          right_handle >= rectf.xmin && right_handle <= rectf.xmax)
       {
         seq::edit_flag_for_removal(scene, ed->current_strips(), strip);
         /* Propagate removal to connected strips. */
@@ -2063,9 +2058,9 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
   /* Close gaps. */
   VectorSet<Strip *> offset_strips;
   if (remove_gaps) {
-    int offset = rect_frames[0] - rect_frames[1];
+    int offset = rectf.xmin - rectf.xmax;
     /* Cap offset. */
-    offset = math::max(offset, (gap_removal_left_boundary - rect_frames[1]));
+    offset = math::max(offset, (gap_removal_left_boundary - round_fl_to_int(rectf.xmax)));
 
     const ListBase *channels = seq::channels_displayed_get(ed);
     const VectorSet<Strip *> strips = ignore_selection ? all_strips_from_context(C) :
@@ -2079,7 +2074,7 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
       }
 
       const float left_handle = seq::time_left_handle_frame_get(scene, strip);
-      if (left_handle == rect_frames[1] && strip->channel <= int(rectf.ymax) &&
+      if (left_handle == rectf.xmax && strip->channel <= int(rectf.ymax) &&
           strip->channel >= int(rectf.ymin))
       {
         /* Offset connected strips. Also get effect strips to later run the overlap handeling
@@ -2087,7 +2082,7 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
         seq::query_strip_connected_and_effect_chain(scene, strip, &ed->seqbase, offset_strips);
       }
       /* Offset every strip on the same channel and right of the cut. */
-      else if (left_handle > rect_frames[1] && strip->channel <= int(rectf.ymax) &&
+      else if (left_handle > rectf.xmax && strip->channel <= int(rectf.ymax) &&
                strip->channel >= int(rectf.ymin))
       {
         seq::query_strip_connected_and_effect_chain(scene, strip, &ed->seqbase, offset_strips);
