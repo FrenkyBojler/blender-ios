@@ -8,11 +8,10 @@
 
 #include "ED_edit_undo_scene_state.hh"
 
-#include <string.h>
-
 #include "BLI_listbase.h"
 #include "DNA_scene_types.h"
 #include "MEM_guardedalloc.h"
+#include <cstring>
 
 namespace blender::ed {
 
