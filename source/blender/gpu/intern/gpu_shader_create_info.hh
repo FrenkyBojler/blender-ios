@@ -24,6 +24,7 @@
 #  include "GPU_primitive.hh"
 #  include "GPU_texture.hh"
 #  include "gpu_state_private.hh"
+#  include "gpu_texture_private.hh"
 
 #  include <iostream>
 #endif
@@ -1059,9 +1060,9 @@ struct ShaderCreateInfo {
     uint32_t viewport_count_;
     Vector<SpecializationConstant::Value> specialization_constants_;
     /* Attachment formats. */
-    TextureFormat depth_format_;
-    TextureFormat stencil_format_;
-    Vector<TextureFormat> color_formats_;
+    TextureTargetFormat depth_format_;
+    TextureTargetFormat stencil_format_;
+    Vector<TextureTargetFormat> color_formats_;
 
     using Self = PipelineState;
 
@@ -1120,20 +1121,24 @@ struct ShaderCreateInfo {
       return *this;
     }
 
-    Self &depth_format(TextureFormat depth_format)
+    Self &depth_format(TextureTargetFormat depth_format)
     {
+      BLI_assert(bool(to_format_flag(to_texture_format(depth_format)) & GPU_FORMAT_DEPTH));
       depth_format_ = depth_format;
       return *this;
     }
 
-    Self &stencil_format(TextureFormat stencil_format)
+    Self &stencil_format(TextureTargetFormat stencil_format)
     {
+      BLI_assert(bool(to_format_flag(to_texture_format(stencil_format)) & GPU_FORMAT_STENCIL));
       stencil_format_ = stencil_format;
       return *this;
     }
 
-    Self &color_format(TextureFormat color_format)
+    Self &color_format(TextureTargetFormat color_format)
     {
+      BLI_assert(bool(to_format_flag(to_texture_format(color_format)) &
+                      (GPU_FORMAT_STENCIL | GPU_FORMAT_DEPTH)) == false);
       color_formats_.append(color_format);
       return *this;
     }
@@ -1760,7 +1765,7 @@ struct ShaderCreateInfo {
    * On Metal and Vulkan pipelines states will be precompiled when creating the shader to reduce
    * compilation stuttering when using the shader.
    *
-   * \note return pipeline state is only guaranteed to be valid until the next call to this
+   * \note returned pipeline state is only guaranteed to be valid until the next call to this
    * function.
    */
   PipelineState &pipeline_state()

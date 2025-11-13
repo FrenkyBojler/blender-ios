@@ -1329,14 +1329,15 @@ bool VKShader::ensure_graphics_pipelines(
     graphics_info.shaders.viewport_count = pipeline_state.viewport_count_;
     graphics_info.shaders.specialization_constants.extend(
         pipeline_state.specialization_constants_);
-    graphics_info.shaders.has_depth = pipeline_state.depth_format_ != TextureFormat::Invalid;
-    graphics_info.shaders.has_stencil = pipeline_state.stencil_format_ != TextureFormat::Invalid;
+    graphics_info.shaders.has_depth = pipeline_state.depth_format_ != TextureTargetFormat::Invalid;
+    graphics_info.shaders.has_stencil = pipeline_state.stencil_format_ !=
+                                        TextureTargetFormat::Invalid;
 
     graphics_info.fragment_out.depth_attachment_format = to_vk_format(
         pipeline_state.depth_format_);
     graphics_info.fragment_out.stencil_attachment_format = to_vk_format(
         pipeline_state.stencil_format_);
-    for (const TextureFormat color_format : pipeline_state.color_formats_) {
+    for (const TextureTargetFormat color_format : pipeline_state.color_formats_) {
       graphics_info.fragment_out.color_attachment_formats.append(to_vk_format(color_format));
     }
     graphics_info.fragment_out.state = pipeline_state.state_;

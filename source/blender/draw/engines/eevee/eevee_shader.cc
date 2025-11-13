@@ -1227,6 +1227,7 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
         case MAT_PIPE_VOLUME_MATERIAL:
           break;
         default:
+          /* World Pipeline */
           info.pipeline_state()
               .primitive(GPU_PRIM_TRIS)
               .state(GPU_WRITE_COLOR,
@@ -1237,7 +1238,23 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
                      GPU_STENCIL_OP_NONE,
                      GPU_VERTEX_LAST)
               .viewports(1)
-              .color_format(gpu::TextureFormat::SFLOAT_16_16_16_16);
+              .color_format(gpu::TextureTargetFormat::SFLOAT_16_16_16_16);
+
+          /* Background Pipeline */
+          info.pipeline_state()
+              .primitive(GPU_PRIM_TRIS)
+              .state(GPU_WRITE_COLOR,
+                     GPU_BLEND_NONE,
+                     GPU_CULL_NONE,
+                     GPU_DEPTH_EQUAL,
+                     GPU_STENCIL_NONE,
+                     GPU_STENCIL_OP_NONE,
+                     GPU_VERTEX_LAST)
+              .viewports(1)
+              .depth_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
+              .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
+              .color_format(gpu::TextureTargetFormat::SFLOAT_16_16_16_16);
+          ;
           break;
       }
       break;

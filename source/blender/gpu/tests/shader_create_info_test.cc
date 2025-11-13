@@ -60,7 +60,7 @@ static void test_shader_create_info_pipeline()
              GPU_VERTEX_LAST)
       .primitive(GPU_PRIM_TRIS)
       .viewports(16)
-      .color_format(TextureFormat::SINT_32_32);
+      .color_format(TextureTargetFormat::SINT_32_32);
 
   Shader *shader = GPU_shader_create_from_info(
       reinterpret_cast<GPUShaderCreateInfo *>(&create_info));
