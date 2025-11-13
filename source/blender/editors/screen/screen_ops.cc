@@ -47,7 +47,7 @@
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
-#include "BKE_sound.h"
+#include "BKE_sound.hh"
 #include "BKE_workspace.hh"
 
 #include "WM_api.hh"
@@ -1856,6 +1856,7 @@ static bool area_move_init(bContext *C, wmOperator *op)
   /* required properties */
   int x = RNA_int_get(op->ptr, "x");
   int y = RNA_int_get(op->ptr, "y");
+  bool snap_prop = RNA_boolean_get(op->ptr, "snap");
 
   /* setup */
   ScrEdge *actedge = screen_geom_find_active_scredge(win, screen, x, y);
@@ -1894,7 +1895,12 @@ static bool area_move_init(bContext *C, wmOperator *op)
   area_move_set_limits(
       win, screen, md->dir_axis, &md->bigger, &md->smaller, &use_bigger_smaller_snap);
 
-  md->snap_type = use_bigger_smaller_snap ? SNAP_BIGGER_SMALLER_ONLY : SNAP_AREAGRID;
+  if (snap_prop) {
+    md->snap_type = SNAP_FRACTION_AND_ADJACENT;
+  }
+  else {
+    md->snap_type = use_bigger_smaller_snap ? SNAP_BIGGER_SMALLER_ONLY : SNAP_AREAGRID;
+  }
 
   md->screen = screen;
   md->start_time = BLI_time_now_seconds();
@@ -2223,6 +2229,8 @@ static wmOperatorStatus area_move_modal(bContext *C, wmOperator *op, const wmEve
 
 static void SCREEN_OT_area_move(wmOperatorType *ot)
 {
+  PropertyRNA *prop;
+
   /* identifiers */
   ot->name = "Move Area Edges";
   ot->description = "Move selected area edges";
@@ -2241,6 +2249,9 @@ static void SCREEN_OT_area_move(wmOperatorType *ot)
   RNA_def_int(ot->srna, "x", 0, INT_MIN, INT_MAX, "X", "", INT_MIN, INT_MAX);
   RNA_def_int(ot->srna, "y", 0, INT_MIN, INT_MAX, "Y", "", INT_MIN, INT_MAX);
   RNA_def_int(ot->srna, "delta", 0, INT_MIN, INT_MAX, "Delta", "", INT_MIN, INT_MAX);
+
+  prop = RNA_def_boolean(ot->srna, "snap", false, "Snapping", "Enable snapping");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 /** \} */
@@ -2444,7 +2455,7 @@ static bool area_split_apply(bContext *C, wmOperator *op)
   BKE_icon_changed(screen->id.icon_id);
 
   /* We have more than one area now, so reset window title. */
-  WM_window_title(CTX_wm_manager(C), CTX_wm_window(C));
+  WM_window_title_refresh(CTX_wm_manager(C), CTX_wm_window(C));
 
   return true;
 }
@@ -3372,8 +3383,12 @@ static void SCREEN_OT_frame_jump(wmOperatorType *ot)
 /* function to be called outside UI context, or for redo */
 static wmOperatorStatus frame_jump_delta_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_wm_space_seq(C) != nullptr ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
   const bool backward = RNA_boolean_get(op->ptr, "backward");
+
+  if (scene == nullptr) {
+    return OPERATOR_CANCELLED;
+  }
 
   float delta = scene->r.time_jump_delta;
 
@@ -3401,6 +3416,7 @@ static wmOperatorStatus frame_jump_delta_exec(bContext *C, wmOperator *op)
   }
 
   ED_areas_do_frame_follow(C, true);
+  blender::ed::vse::sync_active_scene_and_time_with_scene_strip(*C);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_FRAME_CHANGE);
 
@@ -3466,10 +3482,9 @@ static void keylist_from_graph_editor(bContext &C, AnimKeylist &keylist)
 }
 
 /* This is used for all editors where a more specific function isn't implemented. */
-static void keylist_fallback_for_keyframe_jump(bContext &C, AnimKeylist &keylist)
+static void keylist_fallback_for_keyframe_jump(bContext &C, Scene *scene, AnimKeylist &keylist)
 {
   bDopeSheet ads = {nullptr};
-  Scene *scene = CTX_data_scene(&C);
 
   /* Speed up dummy dope-sheet context with flags to perform necessary filtering. */
   if ((scene->flag & SCE_KEYS_NO_SELONLY) == 0) {
@@ -3479,6 +3494,12 @@ static void keylist_fallback_for_keyframe_jump(bContext &C, AnimKeylist &keylist
 
   /* populate tree with keyframe nodes */
   scene_to_keylist(&ads, scene, &keylist, 0, {-FLT_MAX, FLT_MAX});
+
+  /* Return early when invoked from sequencer with sequencer scene. Objects may belong to different
+   * scenes and are irrelevant. */
+  if (CTX_wm_space_seq(&C) != nullptr && scene == CTX_data_sequencer_scene(&C)) {
+    return;
+  }
 
   Object *ob = CTX_data_active_object(&C);
   if (ob) {
@@ -3503,7 +3524,7 @@ static void keylist_fallback_for_keyframe_jump(bContext &C, AnimKeylist &keylist
 /* function to be called outside UI context, or for redo */
 static wmOperatorStatus keyframe_jump_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_wm_space_seq(C) != nullptr ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
   const bool next = RNA_boolean_get(op->ptr, "next");
   bool done = false;
 
@@ -3526,7 +3547,7 @@ static wmOperatorStatus keyframe_jump_exec(bContext *C, wmOperator *op)
       break;
 
     default:
-      keylist_fallback_for_keyframe_jump(*C, *keylist);
+      keylist_fallback_for_keyframe_jump(*C, scene, *keylist);
       break;
   }
 
@@ -3574,6 +3595,7 @@ static wmOperatorStatus keyframe_jump_exec(bContext *C, wmOperator *op)
   }
 
   ED_areas_do_frame_follow(C, true);
+  blender::ed::vse::sync_active_scene_and_time_with_scene_strip(*C);
 
   DEG_id_tag_update(&scene->id, ID_RECALC_FRAME_CHANGE);
 
@@ -3741,6 +3763,10 @@ static wmOperatorStatus screen_maximize_area_exec(bContext *C, wmOperator *op)
   }
   else {
     if (!ELEM(screen->state, SCREENNORMAL, SCREENMAXIMIZED)) {
+      return OPERATOR_CANCELLED;
+    }
+    if (BLI_listbase_is_single(&screen->areabase) && screen->state == SCREENNORMAL) {
+      /* SCREENMAXIMIZED is not useful when a singleton. #144740. */
       return OPERATOR_CANCELLED;
     }
     ED_screen_state_toggle(C, CTX_wm_window(C), area, SCREENMAXIMIZED);
@@ -3972,7 +3998,7 @@ static bool area_join_apply(bContext *C, wmOperator *op)
 
   if (BLI_listbase_is_single(&screen->areabase)) {
     /* Areas reduced to just one, so show nicer title. */
-    WM_window_title(CTX_wm_manager(C), CTX_wm_window(C));
+    WM_window_title_refresh(CTX_wm_manager(C), CTX_wm_window(C));
   }
 
   return true;
@@ -4700,10 +4726,10 @@ static wmOperatorStatus area_join_modal(bContext *C, wmOperator *op, const wmEve
 
         /* Areas changed, update window titles. */
         if (jd->win2 && jd->win2 != jd->win1) {
-          WM_window_title(CTX_wm_manager(C), jd->win2);
+          WM_window_title_refresh(CTX_wm_manager(C), jd->win2);
         }
         if (jd->win1 && !jd->close_win) {
-          WM_window_title(CTX_wm_manager(C), jd->win1);
+          WM_window_title_refresh(CTX_wm_manager(C), jd->win1);
         }
 
         const bool do_close_win = jd->close_win;
@@ -6328,10 +6354,11 @@ static wmOperatorStatus userpref_show_exec(bContext *C, wmOperator *op)
   }
 
   /* changes context! */
-  if (WM_window_open_temp(C, nullptr, SPACE_USERPREF, false)) {
+  if (ScrArea *area = ED_screen_temp_space_open(
+          C, nullptr, SPACE_USERPREF, U.preferences_display_type, false))
+  {
     /* The header only contains the editor switcher and looks empty.
      * So hiding in the temp window makes sense. */
-    ScrArea *area = CTX_wm_area(C);
     ARegion *region_header = BKE_area_find_region_type(area, RGN_TYPE_HEADER);
 
     region_header->flag |= RGN_FLAG_HIDDEN;

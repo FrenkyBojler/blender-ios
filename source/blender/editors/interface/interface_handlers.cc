@@ -708,10 +708,6 @@ static bool ui_but_dragedit_update_mval(uiHandleButtonData *data,
                                         int mx,
                                         blender::FunctionRef<int()> drag_threshold_fn)
 {
-  if (mx == data->draglastx) {
-    return false;
-  }
-
   if (data->draglock) {
     const int threshold = drag_threshold_fn();
     if (abs(mx - data->dragstartx) < threshold) {
@@ -3687,7 +3683,7 @@ static void ui_textedit_end(bContext *C, uiBut *but, uiHandleButtonData *data)
 
 #ifdef WITH_INPUT_IME
   /* See #wm_window_IME_end code-comments for details. */
-#  if defined(WIN32) || defined(__APPLE__)
+#  ifdef __APPLE__
   if (win->runtime->ime_data)
 #  endif
   {
@@ -6862,7 +6858,8 @@ static bool ui_numedit_but_HSVCUBE(uiBut *but,
   }
 #endif
 
-  ui_but_v3_get(but, rgb);
+  /* Always start from original value to avoid numerical drift. */
+  copy_v3_v3(rgb, data->origvec);
   ui_scene_linear_to_perceptual_space(but, rgb);
 
   ui_rgb_to_color_picker_HSVCUBE_compat_v(hsv_but, rgb, hsv);
@@ -7155,8 +7152,9 @@ static bool ui_numedit_but_HSVCIRCLE(uiBut *but,
   rcti rect;
   BLI_rcti_rctf_copy(&rect, &but->rect);
 
+  /* Always start from original value to avoid numerical drift. */
   float rgb[3];
-  ui_but_v3_get(but, rgb);
+  copy_v3_v3(rgb, data->origvec);
   ui_scene_linear_to_perceptual_space(but, rgb);
   ui_color_picker_rgb_to_hsv_compat(rgb, hsv);
 

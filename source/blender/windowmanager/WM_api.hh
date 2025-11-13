@@ -210,6 +210,8 @@ enum eWM_CapabilitiesFlag {
   WM_CAPABILITY_CURSOR_GENERATOR = (1 << 11),
   /** Ability to save/restore windows among multiple monitors. */
   WM_CAPABILITY_MULTIMONITOR_PLACEMENT = (1 << 12),
+  /** Support for the window to show a file-path (otherwise include in the title text). */
+  WM_CAPABILITY_WINDOW_PATH = (1 << 13),
   /** The initial value, indicates the value needs to be set by inspecting GHOST. */
   WM_CAPABILITY_INITIALIZED = (1u << 31),
 };
@@ -319,7 +321,7 @@ bool WM_window_is_main_top_level(const wmWindow *win);
 bool WM_window_is_fullscreen(const wmWindow *win);
 bool WM_window_is_maximized(const wmWindow *win);
 
-/*
+/**
  * Support for wide gamut and HDR colors.
  */
 bool WM_window_support_hdr_color(const wmWindow *win);
@@ -415,7 +417,13 @@ float WM_window_dpi_get_scale(const wmWindow *win);
  * Give a title to a window. With "Title" unspecified or nullptr, it is generated
  * automatically from window settings and areas. Only use custom title when really needed.
  */
-void WM_window_title(wmWindowManager *wm, wmWindow *win, const char *title = nullptr);
+void WM_window_title_set(wmWindow *win, const char *title);
+/**
+ * Generate a window title automatically from window settings and areas.
+ *
+ * Also refresh the modified-state (for main windows).
+ */
+void WM_window_title_refresh(wmWindowManager *wm, wmWindow *win);
 
 bool WM_stereo3d_enabled(wmWindow *win, bool skip_stereo3d_check);
 
