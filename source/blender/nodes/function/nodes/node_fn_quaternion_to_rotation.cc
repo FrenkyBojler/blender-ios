@@ -30,12 +30,15 @@ static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
 
 static void node_register()
 {
-  static bNodeType ntype;
-  fn_node_type_base(
-      &ntype, FN_NODE_QUATERNION_TO_ROTATION, "Quaternion to Rotation", NODE_CLASS_CONVERTER);
+  static blender::bke::bNodeType ntype;
+  fn_node_type_base(&ntype, "FunctionNodeQuaternionToRotation", FN_NODE_QUATERNION_TO_ROTATION);
+  ntype.ui_name = "Quaternion to Rotation";
+  ntype.ui_description = "Build a rotation from quaternion components";
+  ntype.enum_name_legacy = "QUATERNION_TO_ROTATION";
+  ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;
   ntype.build_multi_function = node_build_multi_function;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

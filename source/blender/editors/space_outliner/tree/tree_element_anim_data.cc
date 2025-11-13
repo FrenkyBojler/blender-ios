@@ -6,13 +6,12 @@
  * \ingroup spoutliner
  */
 
-#include "BLI_listbase_wrapper.hh"
-
 #include "DNA_anim_types.h"
-#include "DNA_listBase.h"
 #include "DNA_outliner_types.h"
 
-#include "BLT_translation.h"
+#include "BLI_listbase.h"
+
+#include "BLT_translation.hh"
 
 #include "../outliner_intern.hh"
 
@@ -31,20 +30,24 @@ TreeElementAnimData::TreeElementAnimData(TreeElement &legacy_te, AnimData &anim_
 
 void TreeElementAnimData::expand(SpaceOutliner & /*space_outliner*/) const
 {
-  if (!anim_data_.action) {
-    return;
-  }
 
-  /* Animation data-block itself. */
-  add_element(&legacy_te_.subtree,
-              reinterpret_cast<ID *>(anim_data_.action),
-              nullptr,
-              &legacy_te_,
-              TSE_SOME_ID,
-              0);
+  if (anim_data_.action) {
+    /* Animation data-block itself. */
+    add_element(&legacy_te_.subtree,
+                reinterpret_cast<ID *>(anim_data_.action),
+                nullptr,
+                &legacy_te_,
+                TSE_SOME_ID,
+                0);
+  }
 
   expand_drivers();
   expand_NLA_tracks();
+}
+
+animrig::slot_handle_t TreeElementAnimData::get_slot_handle() const
+{
+  return this->anim_data_.slot_handle;
 }
 
 void TreeElementAnimData::expand_drivers() const

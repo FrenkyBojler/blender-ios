@@ -6,13 +6,11 @@
  * \ingroup RNA
  */
 
-#include <cstdio>
 #include <cstdlib>
 
 #include "BLI_math_rotation.h"
-#include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
@@ -95,7 +93,7 @@ const EnumPropertyItem rna_enum_linestyle_geometry_modifier_type_items[] = {
      ICON_MODIFIER,
      "Backbone Stretcher",
      ""},
-    {LS_MODIFIER_BEZIER_CURVE, "BEZIER_CURVE", ICON_MODIFIER, "Bezier Curve", ""},
+    {LS_MODIFIER_BEZIER_CURVE, "BEZIER_CURVE", ICON_MODIFIER, "Bézier Curve", ""},
     {LS_MODIFIER_BLUEPRINT, "BLUEPRINT", ICON_MODIFIER, "Blueprint", ""},
     {LS_MODIFIER_GUIDING_LINES, "GUIDING_LINES", ICON_MODIFIER, "Guiding Lines", ""},
     {LS_MODIFIER_PERLIN_NOISE_1D, "PERLIN_NOISE_1D", ICON_MODIFIER, "Perlin Noise 1D", ""},
@@ -337,7 +335,8 @@ static void rna_LineStyleGeometryModifier_name_set(PointerRNA *ptr, const char *
 static void rna_LineStyle_mtex_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   FreestyleLineStyle *linestyle = (FreestyleLineStyle *)ptr->owner_id;
-  rna_iterator_array_begin(iter, (void *)linestyle->mtex, sizeof(MTex *), MAX_MTEX, 0, nullptr);
+  rna_iterator_array_begin(
+      iter, ptr, (void *)linestyle->mtex, sizeof(MTex *), MAX_MTEX, 0, nullptr);
 }
 
 static PointerRNA rna_LineStyle_active_texture_get(PointerRNA *ptr)
@@ -346,7 +345,7 @@ static PointerRNA rna_LineStyle_active_texture_get(PointerRNA *ptr)
   Tex *tex;
 
   tex = give_current_linestyle_texture(linestyle);
-  return rna_pointer_inherit_refine(ptr, &RNA_Texture, tex);
+  return RNA_id_pointer_create(reinterpret_cast<ID *>(tex));
 }
 
 static void rna_LineStyle_active_texture_set(PointerRNA *ptr,
@@ -406,7 +405,7 @@ static void rna_LineStyle_color_modifier_remove(FreestyleLineStyle *linestyle,
     return;
   }
 
-  RNA_POINTER_INVALIDATE(modifier_ptr);
+  modifier_ptr->invalidate();
 
   DEG_id_tag_update(&linestyle->id, 0);
   WM_main_add_notifier(NC_LINESTYLE, linestyle);
@@ -441,7 +440,7 @@ static void rna_LineStyle_alpha_modifier_remove(FreestyleLineStyle *linestyle,
     return;
   }
 
-  RNA_POINTER_INVALIDATE(modifier_ptr);
+  modifier_ptr->invalidate();
 
   DEG_id_tag_update(&linestyle->id, 0);
   WM_main_add_notifier(NC_LINESTYLE, linestyle);
@@ -477,7 +476,7 @@ static void rna_LineStyle_thickness_modifier_remove(FreestyleLineStyle *linestyl
     return;
   }
 
-  RNA_POINTER_INVALIDATE(modifier_ptr);
+  modifier_ptr->invalidate();
 
   DEG_id_tag_update(&linestyle->id, 0);
   WM_main_add_notifier(NC_LINESTYLE, linestyle);
@@ -512,7 +511,7 @@ static void rna_LineStyle_geometry_modifier_remove(FreestyleLineStyle *linestyle
     return;
   }
 
-  RNA_POINTER_INVALIDATE(modifier_ptr);
+  modifier_ptr->invalidate();
 
   DEG_id_tag_update(&linestyle->id, 0);
   WM_main_add_notifier(NC_LINESTYLE, linestyle);
@@ -616,6 +615,7 @@ static void rna_def_linestyle_mtex(BlenderRNA *brna)
   prop = RNA_def_property(srna, "texture_coords", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "texco");
   RNA_def_property_enum_items(prop, texco_items);
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_TEXTURE);
   RNA_def_property_ui_text(prop,
                            "Texture Coordinates",
                            "Texture coordinates used to map the texture onto the background");
@@ -1288,8 +1288,8 @@ static void rna_def_linestyle_modifiers(BlenderRNA *brna)
   srna = RNA_def_struct(
       brna, "LineStyleGeometryModifier_BezierCurve", "LineStyleGeometryModifier");
   RNA_def_struct_ui_text(srna,
-                         "Bezier Curve",
-                         "Replace stroke backbone geometry by a Bezier curve approximation of the "
+                         "Bézier Curve",
+                         "Replace stroke backbone geometry by a Bézier curve approximation of the "
                          "original backbone geometry");
   rna_def_geometry_modifier(srna);
 
@@ -1297,8 +1297,9 @@ static void rna_def_linestyle_modifiers(BlenderRNA *brna)
   RNA_def_property_float_sdna(prop, nullptr, "error");
   RNA_def_property_ui_text(prop,
                            "Error",
-                           "Maximum distance allowed between the new Bezier curve and the "
+                           "Maximum distance allowed between the new Bézier curve and the "
                            "original backbone geometry");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_AMOUNT);
   RNA_def_property_update(prop, NC_LINESTYLE, "rna_LineStyle_update");
 
   srna = RNA_def_struct(
@@ -1461,6 +1462,7 @@ static void rna_def_linestyle_modifiers(BlenderRNA *brna)
       prop,
       "Error",
       "Maximum distance between the original stroke and its polygonal approximation");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_AMOUNT);
   RNA_def_property_update(prop, NC_LINESTYLE, "rna_LineStyle_update");
 
   srna = RNA_def_struct(
@@ -1763,16 +1765,20 @@ static void rna_def_linestyle(BlenderRNA *brna)
   PropertyRNA *prop;
 
   static const EnumPropertyItem panel_items[] = {
-    {LS_PANEL_STROKES, "STROKES", 0, "Strokes", "Show the panel for stroke construction"},
-    {LS_PANEL_COLOR, "COLOR", 0, "Color", "Show the panel for line color options"},
-    {LS_PANEL_ALPHA, "ALPHA", 0, "Alpha", "Show the panel for alpha transparency options"},
-    {LS_PANEL_THICKNESS, "THICKNESS", 0, "Thickness", "Show the panel for line thickness options"},
-    {LS_PANEL_GEOMETRY, "GEOMETRY", 0, "Geometry", "Show the panel for stroke geometry options"},
-    {LS_PANEL_TEXTURE, "TEXTURE", 0, "Texture", "Show the panel for stroke texture options"},
+      {LS_PANEL_STROKES, "STROKES", 0, "Strokes", "Show the panel for stroke construction"},
+      {LS_PANEL_COLOR, "COLOR", 0, "Color", "Show the panel for line color options"},
+      {LS_PANEL_ALPHA, "ALPHA", 0, "Alpha", "Show the panel for alpha transparency options"},
+      {LS_PANEL_THICKNESS,
+       "THICKNESS",
+       0,
+       "Thickness",
+       "Show the panel for line thickness options"},
+      {LS_PANEL_GEOMETRY, "GEOMETRY", 0, "Geometry", "Show the panel for stroke geometry options"},
+      {LS_PANEL_TEXTURE, "TEXTURE", 0, "Texture", "Show the panel for stroke texture options"},
 #  if 0 /* hidden for now */
     {LS_PANEL_MISC, "MISC", 0, "Misc", "Show the panel for miscellaneous options"},
 #  endif
-    {0, nullptr, 0, nullptr, nullptr},
+      {0, nullptr, 0, nullptr, nullptr},
   };
   static const EnumPropertyItem chaining_items[] = {
       {LS_CHAINING_PLAIN, "PLAIN", 0, "Plain", "Plain chaining"},

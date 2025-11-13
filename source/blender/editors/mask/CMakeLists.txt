@@ -4,10 +4,7 @@
 
 set(INC
   ../include
-  ../../blenkernel
-  ../../gpu
   ../../makesrna
-  ../../windowmanager
 )
 
 set(INC_SYS
@@ -24,15 +21,19 @@ set(SRC
   mask_select.cc
   mask_shapekey.cc
 
-  mask_intern.h
+  mask_intern.hh
 )
 
 set(LIB
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blentranslation
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::gpu
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::animrig
+  PRIVATE bf::windowmanager
 )
 
 

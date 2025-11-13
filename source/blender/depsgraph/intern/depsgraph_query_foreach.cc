@@ -8,12 +8,7 @@
  * Implementation of Querying and Filtering API's
  */
 
-#include "MEM_guardedalloc.h"
-
-#include "BLI_utildefines.h"
-
-#include "DNA_object_types.h"
-#include "DNA_scene_types.h"
+#include <deque>
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
@@ -32,7 +27,7 @@ namespace deg = blender::deg;
 namespace blender::deg {
 namespace {
 
-using TraversalQueue = deque<OperationNode *>;
+using TraversalQueue = std::deque<OperationNode *>;
 
 using DEGForeachOperation = void (*)(OperationNode *, void *);
 
@@ -203,7 +198,7 @@ void deg_foreach_ancestor_ID(const Depsgraph *graph, const ID *id, DEGForeachIDC
       ComponentNode *comp_node = op_node->owner;
       IDNode *id_node = comp_node->owner;
       if (!visited.contains(id_node)) {
-        /* TODO(sergey): Is it orig or CoW? */
+        /* TODO(sergey): Is it orig or evaluated? */
         callback(id_node->id_orig);
         visited.add_new(id_node);
       }

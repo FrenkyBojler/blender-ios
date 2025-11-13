@@ -8,19 +8,20 @@
 
 #pragma once
 
-#include "BLI_utildefines.h"
+#include <cstdint>
 
 #include "BLI_compiler_attrs.h"
 
 #include "rna_internal_types.hh"
 
-#include "UI_resources.hh"
+#include "UI_resources.hh" /* IWYU pragma: export */
 
 #define RNA_MAGIC ((int)~0)
 
+enum class AttributeOwnerType;
+
 struct FreestyleSettings;
 struct ID;
-struct IDOverrideLibrary;
 struct IDProperty;
 struct FreestyleLineSet;
 struct FreestyleModuleConfig;
@@ -67,7 +68,7 @@ struct PropertyDefRNA {
   int dnapointerlevel;
   /**
    * Offset in bytes within `dnastructname`.
-   * -1 when unusable (follows pointer for e.g.). */
+   * -1 when unusable (follows pointer for example). */
   int dnaoffset;
   int dnasize;
 
@@ -156,11 +157,8 @@ void RNA_def_curve(BlenderRNA *brna);
 void RNA_def_depsgraph(BlenderRNA *brna);
 void RNA_def_dynamic_paint(BlenderRNA *brna);
 void RNA_def_fcurve(BlenderRNA *brna);
-void RNA_def_gpencil(BlenderRNA *brna);
-#ifdef WITH_GREASE_PENCIL_V3
+void RNA_def_annotations(BlenderRNA *brna);
 void RNA_def_grease_pencil(BlenderRNA *brna);
-#endif
-void RNA_def_greasepencil_modifier(BlenderRNA *brna);
 void RNA_def_shader_fx(BlenderRNA *brna);
 void RNA_def_curves(BlenderRNA *brna);
 void RNA_def_image(BlenderRNA *brna);
@@ -168,6 +166,7 @@ void RNA_def_key(BlenderRNA *brna);
 void RNA_def_light(BlenderRNA *brna);
 void RNA_def_lattice(BlenderRNA *brna);
 void RNA_def_linestyle(BlenderRNA *brna);
+void RNA_def_blendfile_import(BlenderRNA *brna);
 void RNA_def_main(BlenderRNA *brna);
 void RNA_def_material(BlenderRNA *brna);
 void RNA_def_mesh(BlenderRNA *brna);
@@ -219,12 +218,21 @@ void RNA_def_xr(BlenderRNA *brna);
 
 /* Common Define functions */
 
-void rna_def_attributes_common(StructRNA *srna);
+/**
+ * Accessor to expose System IDProperties in structs that support it.
+ *
+ * See also #RNA_def_struct_system_idprops_func.
+ */
+struct IDPropertyGroup;
+IDPropertyGroup *rna_struct_system_properties_get_func(PointerRNA ptr, bool do_create);
+
+void rna_def_attributes_common(StructRNA *srna, AttributeOwnerType type);
 
 void rna_AttributeGroup_iterator_begin(CollectionPropertyIterator *iter, PointerRNA *ptr);
 void rna_AttributeGroup_iterator_next(CollectionPropertyIterator *iter);
 PointerRNA rna_AttributeGroup_iterator_get(CollectionPropertyIterator *iter);
 int rna_AttributeGroup_length(PointerRNA *ptr);
+bool rna_AttributeGroup_lookup_string(PointerRNA *ptr, const char *key, PointerRNA *r_ptr);
 
 void rna_AttributeGroup_color_iterator_begin(CollectionPropertyIterator *iter, PointerRNA *ptr);
 void rna_AttributeGroup_color_iterator_next(CollectionPropertyIterator *iter);
@@ -259,7 +267,7 @@ void rna_def_mtex_common(BlenderRNA *brna,
 void rna_def_texpaint_slots(BlenderRNA *brna, StructRNA *srna);
 void rna_def_view_layer_common(BlenderRNA *brna, StructRNA *srna, bool scene);
 
-int rna_AssetMetaData_editable(PointerRNA *ptr, const char **r_info);
+int rna_AssetMetaData_editable(const PointerRNA *ptr, const char **r_info);
 /**
  * \note the UI text and updating has to be set by the caller.
  */
@@ -283,6 +291,7 @@ int rna_ID_name_length(PointerRNA *ptr);
 void rna_ID_name_set(PointerRNA *ptr, const char *value);
 StructRNA *rna_ID_refine(PointerRNA *ptr);
 IDProperty **rna_ID_idprops(PointerRNA *ptr);
+IDProperty **rna_ID_system_idprops(PointerRNA *ptr);
 void rna_ID_fake_user_set(PointerRNA *ptr, bool value);
 void **rna_ID_instance(PointerRNA *ptr);
 IDProperty **rna_PropertyGroup_idprops(PointerRNA *ptr);
@@ -347,7 +356,7 @@ void rna_Scene_use_view_map_cache_update(Main *bmain, Scene *scene, PointerRNA *
 void rna_Scene_render_update(Main *bmain, Scene *scene, PointerRNA *ptr);
 void rna_Scene_freestyle_update(Main *bmain, Scene *scene, PointerRNA *ptr);
 void rna_ViewLayer_name_set(PointerRNA *ptr, const char *value);
-void rna_ViewLayer_material_override_update(Main *bmain, Scene *activescene, PointerRNA *ptr);
+void rna_ViewLayer_override_update(Main *bmain, Scene *activescene, PointerRNA *ptr);
 void rna_ViewLayer_pass_update(Main *bmain, Scene *activescene, PointerRNA *ptr);
 void rna_ViewLayer_active_aov_index_range(
     PointerRNA *ptr, int *min, int *max, int *softmin, int *softmax);
@@ -393,6 +402,12 @@ std::optional<std::string> rna_Node_ImageUser_path(const PointerRNA *ptr);
 std::optional<std::string> rna_CameraBackgroundImage_image_or_movieclip_user_path(
     const PointerRNA *ptr);
 
+std::optional<std::string> rna_ColorManagedDisplaySettings_path(const PointerRNA *ptr);
+std::optional<std::string> rna_ColorManagedViewSettings_path(const PointerRNA *ptr);
+std::optional<std::string> rna_ColorManagedInputColorspaceSettings_path(const PointerRNA *ptr);
+
+std::optional<std::string> rna_Channelbag_path(const PointerRNA *ptr);
+
 /* Node socket subtypes for group interface. */
 void rna_def_node_socket_interface_subtypes(BlenderRNA *brna);
 
@@ -408,6 +423,11 @@ void rna_userdef_is_dirty_update_impl();
  */
 void rna_userdef_is_dirty_update(Main *bmain, Scene *scene, PointerRNA *ptr);
 
+const EnumPropertyItem *rna_WorkSpaceTool_brush_type_itemf(bContext *C,
+                                                           PointerRNA *ptr,
+                                                           PropertyRNA *prop,
+                                                           bool *r_free);
+
 /* API functions */
 
 void RNA_api_action(StructRNA *srna);
@@ -417,6 +437,7 @@ void RNA_api_bone(StructRNA *srna);
 void RNA_api_bonecollection(StructRNA *srna);
 void RNA_api_camera(StructRNA *srna);
 void RNA_api_curve(StructRNA *srna);
+void RNA_api_curves(StructRNA *srna);
 void RNA_api_curve_nurb(StructRNA *srna);
 void RNA_api_fcurves(StructRNA *srna);
 void RNA_api_drivers(StructRNA *srna);
@@ -427,6 +448,11 @@ void RNA_api_operator(StructRNA *srna);
 void RNA_api_macro(StructRNA *srna);
 void RNA_api_gizmo(StructRNA *srna);
 void RNA_api_gizmogroup(StructRNA *srna);
+void RNA_api_grease_pencil_drawing(StructRNA *srna);
+void RNA_api_grease_pencil_frames(StructRNA *srna);
+void RNA_api_grease_pencil_layer(StructRNA *srna);
+void RNA_api_grease_pencil_layers(StructRNA *srna);
+void RNA_api_grease_pencil_layer_groups(StructRNA *srna);
 void RNA_api_keyconfig(StructRNA *srna);
 void RNA_api_keyconfigs(StructRNA *srna);
 void RNA_api_keyingset(StructRNA *srna);
@@ -443,7 +469,7 @@ void RNA_api_pose(StructRNA *srna);
 void RNA_api_pose_channel(StructRNA *srna);
 void RNA_api_scene(StructRNA *srna);
 void RNA_api_scene_render(StructRNA *srna);
-void RNA_api_sequence_strip(StructRNA *srna);
+void RNA_api_strip(StructRNA *srna);
 void RNA_api_text(StructRNA *srna);
 void RNA_api_ui_layout(StructRNA *srna);
 void RNA_api_window(StructRNA *srna);
@@ -453,9 +479,9 @@ void RNA_api_space_text(StructRNA *srna);
 void RNA_api_space_filebrowser(StructRNA *srna);
 void RNA_api_region_view3d(StructRNA *srna);
 void RNA_api_texture(StructRNA *srna);
-void RNA_api_sequences(BlenderRNA *brna, PropertyRNA *cprop, bool metastrip);
-void RNA_api_sequence_elements(BlenderRNA *brna, PropertyRNA *cprop);
-void RNA_api_sequence_retiming_keys(BlenderRNA *brna, PropertyRNA *cprop);
+void RNA_api_strips(StructRNA *srna, bool metastrip);
+void RNA_api_strip_elements(BlenderRNA *brna, PropertyRNA *cprop);
+void RNA_api_strip_retiming_keys(BlenderRNA *brna);
 void RNA_api_sound(StructRNA *srna);
 void RNA_api_vfont(StructRNA *srna);
 void RNA_api_workspace(StructRNA *srna);
@@ -488,10 +514,8 @@ void RNA_def_main_armatures(BlenderRNA *brna, PropertyRNA *cprop);
 void RNA_def_main_actions(BlenderRNA *brna, PropertyRNA *cprop);
 void RNA_def_main_particles(BlenderRNA *brna, PropertyRNA *cprop);
 void RNA_def_main_palettes(BlenderRNA *brna, PropertyRNA *cprop);
-void RNA_def_main_gpencil_legacy(BlenderRNA *brna, PropertyRNA *cprop);
-#ifdef WITH_GREASE_PENCIL_V3
+void RNA_def_main_annotations(BlenderRNA *brna, PropertyRNA *cprop);
 void RNA_def_main_grease_pencil(BlenderRNA *brna, PropertyRNA *cprop);
-#endif
 void RNA_def_main_movieclips(BlenderRNA *brna, PropertyRNA *cprop);
 void RNA_def_main_masks(BlenderRNA *brna, PropertyRNA *cprop);
 void RNA_def_main_linestyles(BlenderRNA *brna, PropertyRNA *cprop);
@@ -515,12 +539,6 @@ extern StructRNA RNA_PropertyGroup;
  * or NULL (in case IDProp could not be found, or prop is a real RNA property).
  */
 IDProperty *rna_idproperty_check(PropertyRNA **prop, PointerRNA *ptr) ATTR_WARN_UNUSED_RESULT;
-/**
- * This function always return the valid, real data pointer, be it a regular RNA property one,
- * or an #IDProperty one.
- */
-PropertyRNA *rna_ensure_property_realdata(PropertyRNA **prop,
-                                          PointerRNA *ptr) ATTR_WARN_UNUSED_RESULT;
 PropertyRNA *rna_ensure_property(PropertyRNA *prop) ATTR_WARN_UNUSED_RESULT;
 
 /* Override default callbacks. */
@@ -552,11 +570,12 @@ void rna_builtin_properties_begin(CollectionPropertyIterator *iter, PointerRNA *
 void rna_builtin_properties_next(CollectionPropertyIterator *iter);
 PointerRNA rna_builtin_properties_get(CollectionPropertyIterator *iter);
 PointerRNA rna_builtin_type_get(PointerRNA *ptr);
-int rna_builtin_properties_lookup_string(PointerRNA *ptr, const char *key, PointerRNA *r_ptr);
+bool rna_builtin_properties_lookup_string(PointerRNA *ptr, const char *key, PointerRNA *r_ptr);
 
 /* Iterators */
 
 void rna_iterator_listbase_begin(CollectionPropertyIterator *iter,
+                                 PointerRNA *ptr,
                                  ListBase *lb,
                                  IteratorSkipFunc skip);
 void rna_iterator_listbase_next(CollectionPropertyIterator *iter);
@@ -565,9 +584,10 @@ void rna_iterator_listbase_end(CollectionPropertyIterator *iter);
 PointerRNA rna_listbase_lookup_int(PointerRNA *ptr, StructRNA *type, ListBase *lb, int index);
 
 void rna_iterator_array_begin(CollectionPropertyIterator *iter,
-                              void *ptr,
-                              int itemsize,
-                              int length,
+                              PointerRNA *ptr,
+                              void *data,
+                              size_t itemsize,
+                              int64_t length,
                               bool free_ptr,
                               IteratorSkipFunc skip);
 void rna_iterator_array_next(CollectionPropertyIterator *iter);
@@ -575,13 +595,13 @@ void *rna_iterator_array_get(CollectionPropertyIterator *iter);
 void *rna_iterator_array_dereference_get(CollectionPropertyIterator *iter);
 void rna_iterator_array_end(CollectionPropertyIterator *iter);
 PointerRNA rna_array_lookup_int(
-    PointerRNA *ptr, StructRNA *type, void *data, int itemsize, int length, int index);
+    PointerRNA *ptr, StructRNA *type, void *data, size_t itemsize, int64_t length, int64_t index);
 
 /* Duplicated code since we can't link in blenlib */
 
 #ifndef RNA_RUNTIME
-void *rna_alloc_from_buffer(const char *buffer, int buffer_len);
-void *rna_calloc(int buffer_len);
+void *rna_alloc_from_buffer(const char *buffer, int buffer_size);
+void *rna_calloc(int buffer_size);
 #endif
 
 void rna_addtail(ListBase *listbase, void *vlink);
@@ -596,7 +616,16 @@ PropertyDefRNA *rna_find_struct_property_def(StructRNA *srna, PropertyRNA *prop)
 
 /* Pointer Handling */
 
-PointerRNA rna_pointer_inherit_refine(PointerRNA *ptr, StructRNA *type, void *data);
+/**
+ * Internal implementation for #RNA_pointer_create_with_parent.
+ *
+ * Only exposed to RNA code because custom collection lookup functions get an existing PointerRNA
+ * data to modify, instead of returning a new one.
+ */
+void rna_pointer_create_with_ancestors(const PointerRNA &parent,
+                                       StructRNA *type,
+                                       void *data,
+                                       PointerRNA &r_ptr);
 
 /* Functions */
 
@@ -608,9 +637,9 @@ MTex *rna_mtex_texture_slots_add(ID *self, bContext *C, ReportList *reports);
 MTex *rna_mtex_texture_slots_create(ID *self, bContext *C, ReportList *reports, int index);
 void rna_mtex_texture_slots_clear(ID *self, bContext *C, ReportList *reports, int index);
 
-int rna_IDMaterials_assign_int(PointerRNA *ptr, int key, const PointerRNA *assign_ptr);
+bool rna_IDMaterials_assign_int(PointerRNA *ptr, int key, const PointerRNA *assign_ptr);
 
-const char *rna_translate_ui_text(
+std::optional<blender::StringRefNull> rna_translate_ui_text(
     const char *text, const char *text_ctxt, StructRNA *type, PropertyRNA *prop, bool translate);
 
 /* Internal functions that cycles uses so we need to declare (not ideal!). */

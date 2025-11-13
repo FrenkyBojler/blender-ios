@@ -14,12 +14,16 @@ namespace blender::nodes::node_geo_rotate_instances_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Instances").only_instances();
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+  b.add_input<decl::Geometry>("Instances")
+      .only_instances()
+      .description("Instances to rotate individually");
+  b.add_output<decl::Geometry>("Instances").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
   b.add_input<decl::Rotation>("Rotation").field_on_all();
   b.add_input<decl::Vector>("Pivot Point").subtype(PROP_TRANSLATION).field_on_all();
   b.add_input<decl::Bool>("Local Space").default_value(true).field_on_all();
-  b.add_output<decl::Geometry>("Instances").propagate_all();
 }
 
 static void rotate_instances(GeoNodeExecParams &params, bke::Instances &instances)
@@ -39,7 +43,7 @@ static void rotate_instances(GeoNodeExecParams &params, bke::Instances &instance
   const VArray<float3> pivots = evaluator.get_evaluated<float3>(1);
   const VArray<bool> local_spaces = evaluator.get_evaluated<bool>(2);
 
-  MutableSpan<float4x4> transforms = instances.transforms();
+  MutableSpan<float4x4> transforms = instances.transforms_for_write();
 
   selection.foreach_index(GrainSize(512), [&](const int64_t i) {
     const float3 pivot = pivots[i];
@@ -91,12 +95,16 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_ROTATE_INSTANCES, "Rotate Instances", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, "GeometryNodeRotateInstances", GEO_NODE_ROTATE_INSTANCES);
+  ntype.ui_name = "Rotate Instances";
+  ntype.ui_description = "Rotate geometry instances in local or global space";
+  ntype.enum_name_legacy = "ROTATE_INSTANCES";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

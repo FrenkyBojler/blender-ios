@@ -59,7 +59,12 @@ public:
 	/**
 	 * Returns the pointer to the ring buffer in memory.
 	 */
-	sample_t* getBuffer() const;
+	const sample_t* getBuffer() const;
+
+	/**
+	 * Returns the pointer to the ring buffer in memory.
+	 */
+	sample_t* getBuffer();
 
 	/**
 	 * Returns the size of the ring buffer in bytes.
@@ -73,6 +78,8 @@ public:
 	size_t read(data_t* target, size_t size);
 
 	size_t write(data_t* source, size_t size);
+
+	void clear();
 
 	/**
 	 * Resets the ring buffer to a state where nothing has been written or read.

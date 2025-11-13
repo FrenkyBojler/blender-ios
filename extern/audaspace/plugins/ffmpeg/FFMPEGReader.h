@@ -1,5 +1,5 @@
 /*******************************************************************************
- * Copyright 2009-2016 Jörg Müller
+ * Copyright 2009-2024 Jörg Müller
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -107,11 +107,6 @@ private:
 	std::shared_ptr<Buffer> m_membuffer;
 
 	/**
-	 * The buffer to read with.
-	 */
-	data_t* m_membuf;
-
-	/**
 	 * Reading position of the buffer.
 	 */
 	long long m_membufferpos;
@@ -154,7 +149,7 @@ public:
 	 * \exception Exception Thrown if the file specified does not exist or
 	 *            cannot be read with ffmpeg.
 	 */
-	FFMPEGReader(std::string filename, int stream = 0);
+	FFMPEGReader(const std::string &filename, int stream = 0);
 
 	/**
 	 * Creates a new reader.

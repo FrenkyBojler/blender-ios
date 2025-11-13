@@ -18,22 +18,26 @@
 
 namespace blender::imbuf {
 
-[[nodiscard]] inline uchar4 interpolate_nearest_byte(const ImBuf *in, float u, float v)
+/* Nearest sampling. */
+
+[[nodiscard]] inline uchar4 interpolate_nearest_border_byte(const ImBuf *in, float u, float v)
 {
-  return math::interpolate_nearest_byte(in->byte_buffer.data, in->x, in->y, u, v);
+  return math::interpolate_nearest_border_byte(in->byte_buffer.data, in->x, in->y, u, v);
 }
-[[nodiscard]] inline float4 interpolate_nearest_fl(const ImBuf *in, float u, float v)
+[[nodiscard]] inline float4 interpolate_nearest_border_fl(const ImBuf *in, float u, float v)
 {
-  return math::interpolate_nearest_fl(in->float_buffer.data, in->x, in->y, u, v);
+  return math::interpolate_nearest_border_fl(in->float_buffer.data, in->x, in->y, u, v);
 }
-inline void interpolate_nearest_byte(const ImBuf *in, uchar output[4], float u, float v)
+inline void interpolate_nearest_border_byte(const ImBuf *in, uchar output[4], float u, float v)
 {
-  math::interpolate_nearest_byte(in->byte_buffer.data, output, in->x, in->y, u, v);
+  math::interpolate_nearest_border_byte(in->byte_buffer.data, output, in->x, in->y, u, v);
 }
-inline void interpolate_nearest_fl(const ImBuf *in, float output[4], float u, float v)
+inline void interpolate_nearest_border_fl(const ImBuf *in, float output[4], float u, float v)
 {
-  math::interpolate_nearest_fl(in->float_buffer.data, output, in->x, in->y, 4, u, v);
+  math::interpolate_nearest_border_fl(in->float_buffer.data, output, in->x, in->y, 4, u, v);
 }
+
+/* Nearest sampling with UV wrapping. */
 
 [[nodiscard]] inline uchar4 interpolate_nearest_wrap_byte(const ImBuf *in, float u, float v)
 {
@@ -43,6 +47,8 @@ inline void interpolate_nearest_fl(const ImBuf *in, float output[4], float u, fl
 {
   return math::interpolate_nearest_wrap_fl(in->float_buffer.data, in->x, in->y, u, v);
 }
+
+/* Bilinear sampling. */
 
 [[nodiscard]] inline uchar4 interpolate_bilinear_byte(const ImBuf *in, float u, float v)
 {
@@ -63,6 +69,29 @@ inline void interpolate_bilinear_fl(const ImBuf *in, float output[4], float u, f
   memcpy(output, &col, sizeof(col));
 }
 
+/* Bilinear sampling, samples near edge blend into transparency. */
+
+[[nodiscard]] inline uchar4 interpolate_bilinear_border_byte(const ImBuf *in, float u, float v)
+{
+  return math::interpolate_bilinear_border_byte(in->byte_buffer.data, in->x, in->y, u, v);
+}
+[[nodiscard]] inline float4 interpolate_bilinear_border_fl(const ImBuf *in, float u, float v)
+{
+  return math::interpolate_bilinear_border_fl(in->float_buffer.data, in->x, in->y, u, v);
+}
+inline void interpolate_bilinear_border_byte(const ImBuf *in, uchar output[4], float u, float v)
+{
+  uchar4 col = math::interpolate_bilinear_border_byte(in->byte_buffer.data, in->x, in->y, u, v);
+  memcpy(output, &col, sizeof(col));
+}
+inline void interpolate_bilinear_border_fl(const ImBuf *in, float output[4], float u, float v)
+{
+  float4 col = math::interpolate_bilinear_border_fl(in->float_buffer.data, in->x, in->y, u, v);
+  memcpy(output, &col, sizeof(col));
+}
+
+/* Bilinear sampling with UV wrapping. */
+
 [[nodiscard]] inline uchar4 interpolate_bilinear_wrap_byte(const ImBuf *in, float u, float v)
 {
   return math::interpolate_bilinear_wrap_byte(in->byte_buffer.data, in->x, in->y, u, v);
@@ -71,6 +100,8 @@ inline void interpolate_bilinear_fl(const ImBuf *in, float output[4], float u, f
 {
   return math::interpolate_bilinear_wrap_fl(in->float_buffer.data, in->x, in->y, u, v);
 }
+
+/* Cubic B-Spline sampling. */
 
 [[nodiscard]] inline uchar4 interpolate_cubic_bspline_byte(const ImBuf *in, float u, float v)
 {
@@ -91,6 +122,8 @@ inline void interpolate_cubic_bspline_fl(const ImBuf *in, float output[4], float
   memcpy(output, &col, sizeof(col));
 }
 
+/* Cubic Mitchell sampling. */
+
 [[nodiscard]] inline uchar4 interpolate_cubic_mitchell_byte(const ImBuf *in, float u, float v)
 {
   return math::interpolate_cubic_mitchell_byte(in->byte_buffer.data, in->x, in->y, u, v);
@@ -106,5 +139,4 @@ inline void interpolate_cubic_mitchell_byte(const ImBuf *in, uchar output[4], fl
 /**
  * Sample pixel of image using NEAREST method.
  */
-void IMB_sampleImageAtLocation(
-    ImBuf *ibuf, float x, float y, bool make_linear_rgb, float color[4]);
+void IMB_sampleImageAtLocation(ImBuf *ibuf, float x, float y, float scene_linear_rgb[3]);

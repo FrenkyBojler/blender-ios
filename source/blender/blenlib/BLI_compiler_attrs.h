@@ -68,7 +68,7 @@
 #  define ATTR_PRINTF_FORMAT(format_param, dots_param)
 #endif
 
-/* Use to suppress '-Wimplicit-fallthrough' (in place of 'break'). */
+/* Use to suppress `-Wimplicit-fallthrough` (in place of `break`). */
 #ifndef ATTR_FALLTHROUGH
 #  ifdef __GNUC__
 #    define ATTR_FALLTHROUGH __attribute__((fallthrough))
@@ -86,7 +86,7 @@
 
 /* Alignment directive */
 #ifdef _WIN64
-#  define ALIGN_STRUCT __declspec(align(64))
+#  define BLI_ALIGN_STRUCT __declspec(align(64))
 #else
-#  define ALIGN_STRUCT
+#  define BLI_ALIGN_STRUCT
 #endif

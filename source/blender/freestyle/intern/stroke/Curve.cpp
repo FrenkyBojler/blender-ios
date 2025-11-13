@@ -13,7 +13,7 @@
 #include "CurveAdvancedIterators.h"
 #include "CurveIterators.h"
 
-#include "BKE_global.h"
+#include "BKE_global.hh"
 #include "BLI_utildefines.h"
 
 namespace Freestyle {
@@ -567,7 +567,8 @@ Curve::~Curve()
   }
 }
 
-/** iterators access */
+/* Iterators access. */
+
 Curve::point_iterator Curve::points_begin(float step)
 {
   vertex_container::iterator second = _Vertices.begin();

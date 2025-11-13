@@ -32,7 +32,12 @@ RingBuffer::RingBuffer(int size) :
 {
 }
 
-sample_t* RingBuffer::getBuffer() const
+const sample_t* RingBuffer::getBuffer() const
+{
+	return m_buffer.getBuffer();
+}
+
+sample_t* RingBuffer::getBuffer()
 {
 	return m_buffer.getBuffer();
 }
@@ -114,6 +119,11 @@ size_t RingBuffer::write(data_t* source, size_t size)
 	}
 
 	return size;
+}
+
+void RingBuffer::clear()
+{
+	m_read = m_write;
 }
 
 void RingBuffer::reset()

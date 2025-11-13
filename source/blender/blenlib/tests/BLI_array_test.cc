@@ -2,11 +2,13 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
+#include "testing/testing.h"
+
 #include "BLI_array.hh"
 #include "BLI_exception_safety_test_utils.hh"
-#include "BLI_strict_flags.h"
 #include "BLI_vector.hh"
-#include "testing/testing.h"
+
+#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 namespace blender::tests {
 
@@ -187,8 +189,8 @@ TEST(array, ReverseIterator)
     *it += 10;
   }
 
-  EXPECT_EQ_ARRAY(reversed_vec.data(), Span({6, 5, 4, 3}).data(), 4);
-  EXPECT_EQ_ARRAY(array.data(), Span({13, 14, 15, 16}).data(), 4);
+  EXPECT_EQ_SPAN<int>(reversed_vec, Span({6, 5, 4, 3}));
+  EXPECT_EQ_SPAN<int>(array, Span({13, 14, 15, 16}));
 }
 
 TEST(array, SpanConstructorExceptions)

@@ -9,22 +9,23 @@
 #include <cstdlib>
 
 #include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
-#include "BKE_context.hh"
 #include "BKE_unit.hh"
 
 #include "ED_screen.hh"
 
-#include "UI_interface.hh"
+#include "BLT_translation.hh"
 
-#include "BLT_translation.h"
+#include "UI_interface_types.hh"
 
 #include "transform.hh"
 #include "transform_convert.hh"
 #include "transform_snap.hh"
 
 #include "transform_mode.hh"
+
+namespace blender::ed::transform {
 
 /* -------------------------------------------------------------------- */
 /** \name Transform (Bone Envelope)
@@ -44,15 +45,15 @@ static void applyBoneEnvelope(TransInfo *t)
 
   t->values_final[0] = ratio;
 
-  /* header print for NumInput */
+  /* Header print for NumInput. */
   if (hasNumInput(&t->num)) {
     char c[NUM_STR_REP_LEN];
 
-    outputNumInput(&(t->num), c, &t->scene->unit);
-    SNPRINTF(str, RPT_("Envelope: %s"), c);
+    outputNumInput(&(t->num), c, t->scene->unit);
+    SNPRINTF_UTF8(str, IFACE_("Envelope: %s"), c);
   }
   else {
-    SNPRINTF(str, RPT_("Envelope: %3f"), ratio);
+    SNPRINTF_UTF8(str, IFACE_("Envelope: %3f"), ratio);
   }
 
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
@@ -63,7 +64,7 @@ static void applyBoneEnvelope(TransInfo *t)
       }
 
       if (td->val) {
-        /* if the old/original value was 0.0f, then just use ratio */
+        /* If the old/original value was 0.0f, then just use ratio. */
         if (td->ival) {
           *td->val = td->ival * ratio;
         }
@@ -85,10 +86,10 @@ static void initBoneEnvelope(TransInfo *t, wmOperator * /*op*/)
 
   t->idx_max = 0;
   t->num.idx_max = 0;
-  t->snap[0] = 0.1f;
-  t->snap[1] = t->snap[0] * 0.1f;
+  t->increment[0] = 0.1f;
+  t->increment_precision = 0.1f;
 
-  copy_v3_fl(t->num.val_inc, t->snap[0]);
+  copy_v3_fl(t->num.val_inc, t->increment[0]);
   t->num.unit_sys = t->scene->unit.system;
   t->num.unit_type[0] = B_UNIT_NONE;
 }
@@ -105,3 +106,5 @@ TransModeInfo TransMode_boneenvelope = {
     /*snap_apply_fn*/ nullptr,
     /*draw_fn*/ nullptr,
 };
+
+}  // namespace blender::ed::transform

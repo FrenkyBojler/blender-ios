@@ -11,12 +11,10 @@
 
 #include <cstdlib>
 
-#include "GPU_debug.h"
-#include "GPU_framebuffer.h"
+#include "GPU_debug.hh"
+#include "GPU_framebuffer.hh"
 #include "GPU_select.hh"
-#include "GPU_state.h"
-
-#include "MEM_guardedalloc.h"
+#include "GPU_state.hh"
 
 #include "BLI_rect.h"
 
@@ -26,7 +24,7 @@
 #include "gpu_backend.hh"
 #include "gpu_query.hh"
 
-#include "gpu_select_private.h"
+#include "gpu_select_private.hh"
 
 using namespace blender;
 using namespace blender::gpu;
@@ -41,22 +39,22 @@ struct GPUSelectQueryState {
   /** Cache on initialization. */
   GPUSelectBuffer *buffer;
   /** Mode of operation. */
-  eGPUSelectMode mode;
+  GPUSelectMode mode;
   uint index;
   int oldhits;
 
   /** Previous state to restore after drawing. */
   int viewport[4];
   int scissor[4];
-  eGPUWriteMask write_mask;
-  eGPUDepthTest depth_test;
+  GPUWriteMask write_mask;
+  GPUDepthTest depth_test;
 };
 
 static GPUSelectQueryState g_query_state = {false};
 
 void gpu_select_query_begin(GPUSelectBuffer *buffer,
                             const rcti *input,
-                            const eGPUSelectMode mode,
+                            const GPUSelectMode mode,
                             int oldhits)
 {
   GPU_debug_group_begin("Selection Queries");
@@ -84,7 +82,7 @@ void gpu_select_query_begin(GPUSelectBuffer *buffer,
    * get rejected before the depth test. Should probably cull rect against
    * the viewport but this is a rare case I think */
 
-  int viewport[4] = {
+  const int viewport[4] = {
       UNPACK2(g_query_state.viewport), BLI_rcti_size_x(input), BLI_rcti_size_y(input)};
 
   GPU_viewport(UNPACK4(viewport));

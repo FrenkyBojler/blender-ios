@@ -29,6 +29,12 @@ struct GHOST_XrCustomFuncs {
 
   /** Custom per-view draw function for Blender side drawing. */
   GHOST_XrDrawViewFn draw_view_fn = nullptr;
+
+  /** Function to check if passthrough is enabled. */
+  GHOST_XrPassthroughEnabledFn passthrough_enabled_fn = nullptr;
+
+  /** Function to force disable passthrough if not supported. */
+  GHOST_XrDisablePassthroughFn disable_passthrough_fn = nullptr;
 };
 
 /**
@@ -72,6 +78,8 @@ class GHOST_XrContext : public GHOST_IXrContext {
   void setGraphicsContextBindFuncs(GHOST_XrGraphicsContextBindFn bind_fn,
                                    GHOST_XrGraphicsContextUnbindFn unbind_fn) override;
   void setDrawViewFunc(GHOST_XrDrawViewFn draw_view_fn) override;
+  void setPassthroughEnabledFunc(GHOST_XrPassthroughEnabledFn passthrough_enabled_fn) override;
+  void setDisablePassthroughFunc(GHOST_XrDisablePassthroughFn disable_passthrough_fn) override;
   bool needsUpsideDownDrawing() const override;
 
   void handleSessionStateChange(const XrEventDataSessionStateChanged &lifecycle);
@@ -89,26 +97,26 @@ class GHOST_XrContext : public GHOST_IXrContext {
   static GHOST_XrErrorHandlerFn s_error_handler;
   static void *s_error_handler_customdata;
 
-  std::unique_ptr<OpenXRInstanceData> m_oxr;
+  std::unique_ptr<OpenXRInstanceData> oxr_;
 
-  GHOST_TXrOpenXRRuntimeID m_runtime_id = OPENXR_RUNTIME_UNKNOWN;
+  GHOST_TXrOpenXRRuntimeID runtime_id_ = OPENXR_RUNTIME_UNKNOWN;
 
   /* The active GHOST XR Session. Null while no session runs. */
-  std::unique_ptr<class GHOST_XrSession> m_session;
+  std::unique_ptr<class GHOST_XrSession> session_;
 
   /** Active graphics binding type. */
-  GHOST_TXrGraphicsBinding m_gpu_binding_type = GHOST_kXrGraphicsUnknown;
+  GHOST_TXrGraphicsBinding gpu_binding_type_ = GHOST_kXrGraphicsUnknown;
 
   /** Names of enabled extensions. */
-  std::vector<const char *> m_enabled_extensions;
+  std::vector<const char *> enabled_extensions_;
   /** Names of enabled API-layers. */
-  std::vector<const char *> m_enabled_layers;
+  std::vector<const char *> enabled_layers_;
 
-  GHOST_XrCustomFuncs m_custom_funcs;
+  GHOST_XrCustomFuncs custom_funcs_;
 
   /** Enable debug message prints and OpenXR API validation layers. */
-  bool m_debug = false;
-  bool m_debug_time = false;
+  bool debug_ = false;
+  bool debug_time_ = false;
 
   void createOpenXRInstance(const std::vector<GHOST_TXrGraphicsBinding> &graphics_binding_types);
   void storeInstanceProperties();

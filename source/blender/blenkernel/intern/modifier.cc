@@ -13,7 +13,6 @@
 
 #include <cfloat>
 #include <chrono>
-#include <cmath>
 #include <cstdarg>
 #include <cstddef>
 #include <cstdlib>
@@ -23,44 +22,48 @@
 
 #include "DNA_armature_types.h"
 #include "DNA_cloth_types.h"
+#include "DNA_colorband_types.h"
 #include "DNA_dynamicpaint_types.h"
 #include "DNA_fluid_types.h"
-#include "DNA_gpencil_modifier_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_object_fluidsim_types.h"
 #include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
+#include "DNA_particle_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 
 #include "BLI_linklist.h"
 #include "BLI_listbase.h"
-#include "BLI_path_util.h"
-#include "BLI_session_uid.h"
+#include "BLI_path_utils.hh"
+#include "BLI_rand.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
+#include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BKE_DerivedMesh.hh"
 #include "BKE_appdir.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_editmesh_cache.hh"
 #include "BKE_effect.h"
 #include "BKE_fluid.h"
-#include "BKE_global.h"
-#include "BKE_gpencil_modifier_legacy.h"
+#include "BKE_geometry_set.hh"
+#include "BKE_global.hh"
 #include "BKE_idtype.hh"
 #include "BKE_key.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
+#include "BKE_library.hh"
 #include "BKE_mesh.hh"
+#include "BKE_mesh_topology_state.hh"
 #include "BKE_mesh_wrapper.hh"
 #include "BKE_multires.hh"
 #include "BKE_object.hh"
 #include "BKE_pointcache.h"
+#include "BKE_report.hh"
 #include "BKE_screen.hh"
 
 /* may move these, only for BKE_modifier_path_relbase */
@@ -76,7 +79,7 @@
 
 #include "CLG_log.h"
 
-static CLG_LogRef LOG = {"bke.modifier"};
+static CLG_LogRef LOG = {"object.modifier"};
 static ModifierTypeInfo *modifier_types[NUM_MODIFIER_TYPES] = {nullptr};
 static VirtualModifierData virtualModifierCommonData;
 
@@ -161,16 +164,13 @@ static ModifierData *modifier_allocate_and_init(ModifierType type)
 ModifierData *BKE_modifier_new(int type)
 {
   ModifierData *md = modifier_allocate_and_init(ModifierType(type));
-
-  BKE_modifier_session_uid_generate(md);
-
   return md;
 }
 
 static void modifier_free_data_id_us_cb(void * /*user_data*/,
                                         Object * /*ob*/,
                                         ID **idpoin,
-                                        int cb_flag)
+                                        const LibraryForeachIDCallbackFlag cb_flag)
 {
   ID *id = *idpoin;
   if (id != nullptr && (cb_flag & IDWALK_CB_USER) != 0) {
@@ -220,11 +220,6 @@ void BKE_modifier_remove_from_list(Object *ob, ModifierData *md)
   BLI_remlink(&ob->modifiers, md);
 }
 
-void BKE_modifier_session_uid_generate(ModifierData *md)
-{
-  md->session_uid = BLI_session_uid_generate();
-}
-
 void BKE_modifier_unique_name(ListBase *modifiers, ModifierData *md)
 {
   if (modifiers && md) {
@@ -266,10 +261,10 @@ ModifierData *BKE_modifiers_findby_name(const Object *ob, const char *name)
       BLI_findstring(&(ob->modifiers), name, offsetof(ModifierData, name)));
 }
 
-ModifierData *BKE_modifiers_findby_session_uid(const Object *ob, const SessionUID *session_uid)
+ModifierData *BKE_modifiers_findby_persistent_uid(const Object *ob, const int persistent_uid)
 {
   LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
-    if (BLI_session_uid_is_equal(&md->session_uid, session_uid)) {
+    if (md->persistent_uid == persistent_uid) {
       return md;
     }
   }
@@ -312,7 +307,7 @@ ModifierData *BKE_modifier_copy_ex(const ModifierData *md, int flag)
 {
   ModifierData *md_dst = modifier_allocate_and_init(ModifierType(md->type));
 
-  STRNCPY(md_dst->name, md->name);
+  STRNCPY_UTF8(md_dst->name, md->name);
   BKE_modifier_copydata_ex(md, md_dst, flag);
 
   return md_dst;
@@ -343,7 +338,7 @@ void BKE_modifier_copydata_generic(const ModifierData *md_src,
 static void modifier_copy_data_id_us_cb(void * /*user_data*/,
                                         Object * /*ob*/,
                                         ID **idpoin,
-                                        int cb_flag)
+                                        const LibraryForeachIDCallbackFlag cb_flag)
 {
   ID *id = *idpoin;
   if (id != nullptr && (cb_flag & IDWALK_CB_USER) != 0) {
@@ -358,6 +353,7 @@ void BKE_modifier_copydata_ex(const ModifierData *md, ModifierData *target, cons
   target->mode = md->mode;
   target->flag = md->flag;
   target->ui_expand_flag = md->ui_expand_flag;
+  target->persistent_uid = md->persistent_uid;
 
   if (mti->copy_data) {
     mti->copy_data(md, target, flag);
@@ -367,17 +363,6 @@ void BKE_modifier_copydata_ex(const ModifierData *md, ModifierData *target, cons
     if (mti->foreach_ID_link) {
       mti->foreach_ID_link(target, nullptr, modifier_copy_data_id_us_cb, nullptr);
     }
-  }
-
-  if (flag & LIB_ID_CREATE_NO_MAIN) {
-    /* Make sure UID is the same between the source and the target.
-     * This is needed in the cases when UID is to be preserved and when there is no copy_data
-     * callback, or the copy_data does not do full byte copy of the modifier data. */
-    target->session_uid = md->session_uid;
-  }
-  else {
-    /* In the case copy_data made full byte copy force UID to be re-generated. */
-    BKE_modifier_session_uid_generate(target);
   }
 }
 
@@ -571,7 +556,7 @@ CDMaskLink *BKE_modifier_calc_data_masks(const Scene *scene,
   for (; md; md = md->next) {
     const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md->type));
 
-    curr = MEM_cnew<CDMaskLink>(__func__);
+    curr = MEM_callocN<CDMaskLink>(__func__);
 
     if (BKE_modifier_is_enabled(scene, md, required_mode)) {
       if (mti->type == ModifierTypeType::OnlyDeform) {
@@ -664,47 +649,35 @@ ModifierData *BKE_modifiers_get_virtual_modifierlist(const Object *ob,
 
 Object *BKE_modifiers_is_deformed_by_armature(Object *ob)
 {
-  if (ob->type == OB_GPENCIL_LEGACY) {
-    GpencilVirtualModifierData gpencilvirtualModifierData;
-    ArmatureGpencilModifierData *agmd = nullptr;
-    GpencilModifierData *gmd = BKE_gpencil_modifiers_get_virtual_modifierlist(
-        ob, &gpencilvirtualModifierData);
+  VirtualModifierData virtual_modifier_data;
+  ModifierData *md = BKE_modifiers_get_virtual_modifierlist(ob, &virtual_modifier_data);
 
-    /* return the first selected armature, this lets us use multiple armatures */
-    for (; gmd; gmd = gmd->next) {
-      if (gmd->type == eGpencilModifierType_Armature) {
-        agmd = (ArmatureGpencilModifierData *)gmd;
-        if (agmd->object && (agmd->object->base_flag & BASE_SELECTED)) {
-          return agmd->object;
+  Object *armature = nullptr;
+  /* return the first selected armature, this lets us use multiple armatures */
+  if (ob->type == OB_GREASE_PENCIL) {
+    for (; md; md = md->next) {
+      if (md->type == eModifierType_GreasePencilArmature) {
+        auto *amd = reinterpret_cast<GreasePencilArmatureModifierData *>(md);
+        armature = amd->object;
+        if (armature && (armature->base_flag & BASE_SELECTED)) {
+          return armature;
         }
       }
-    }
-    /* If we're still here then return the last armature. */
-    if (agmd) {
-      return agmd->object;
     }
   }
   else {
-    VirtualModifierData virtual_modifier_data;
-    ArmatureModifierData *amd = nullptr;
-    ModifierData *md = BKE_modifiers_get_virtual_modifierlist(ob, &virtual_modifier_data);
-
-    /* return the first selected armature, this lets us use multiple armatures */
     for (; md; md = md->next) {
       if (md->type == eModifierType_Armature) {
-        amd = (ArmatureModifierData *)md;
-        if (amd->object && (amd->object->base_flag & BASE_SELECTED)) {
-          return amd->object;
+        auto *amd = reinterpret_cast<ArmatureModifierData *>(md);
+        armature = amd->object;
+        if (armature && (armature->base_flag & BASE_SELECTED)) {
+          return armature;
         }
       }
     }
-    /* If we're still here then return the last armature. */
-    if (amd) {
-      return amd->object;
-    }
   }
-
-  return nullptr;
+  /* If we're still here then return the last armature. */
+  return armature;
 }
 
 Object *BKE_modifiers_is_deformed_by_meshdeform(Object *ob)
@@ -734,6 +707,24 @@ Object *BKE_modifiers_is_deformed_by_lattice(Object *ob)
 {
   VirtualModifierData virtual_modifier_data;
   ModifierData *md = BKE_modifiers_get_virtual_modifierlist(ob, &virtual_modifier_data);
+
+  if (ob->type == OB_GREASE_PENCIL) {
+    GreasePencilLatticeModifierData *gplmd = nullptr;
+    /* return the first selected lattice, this lets us use multiple lattices */
+    for (; md; md = md->next) {
+      if (md->type == eModifierType_GreasePencilLattice) {
+        gplmd = reinterpret_cast<GreasePencilLatticeModifierData *>(md);
+        if (gplmd->object && (gplmd->object->base_flag & BASE_SELECTED)) {
+          return gplmd->object;
+        }
+      }
+    }
+    if (gplmd) { /* if we're still here then return the last lattice */
+      return gplmd->object;
+    }
+    return nullptr;
+  }
+
   LatticeModifierData *lmd = nullptr;
 
   /* return the first selected lattice, this lets us use multiple lattices */
@@ -800,7 +791,14 @@ bool BKE_modifiers_uses_armature(Object *ob, bArmature *arm)
 
   for (; md; md = md->next) {
     if (md->type == eModifierType_Armature) {
-      ArmatureModifierData *amd = (ArmatureModifierData *)md;
+      ArmatureModifierData *amd = reinterpret_cast<ArmatureModifierData *>(md);
+      if (amd->object && amd->object->data == arm) {
+        return true;
+      }
+    }
+    else if (md->type == eModifierType_GreasePencilArmature) {
+      GreasePencilArmatureModifierData *amd = reinterpret_cast<GreasePencilArmatureModifierData *>(
+          md);
       if (amd->object && amd->object->data == arm) {
         return true;
       }
@@ -867,7 +865,7 @@ const char *BKE_modifier_path_relbase(Main *bmain, Object *ob)
 {
   /* - If the ID is from a library, return library path.
    * - Else if the file has been saved return the blend file path.
-   * - Else if the file isn't saved and the ID isn't from a library, return the temp dir.
+   * - Else if the file isn't saved and the ID isn't from a library, return the temp directory.
    */
   if ((bmain->filepath[0] != '\0') || ID_IS_LINKED(ob)) {
     return ID_BLEND_PATH(bmain, &ob->id);
@@ -890,19 +888,21 @@ void BKE_modifier_path_init(char *path, int path_maxncpy, const char *name)
 
 /**
  * Call when #ModifierTypeInfo.depends_on_normals callback requests normals.
+ * Necessary for BMesh normals when there is no separate #EditMeshData positions array,
+ * since they cannot be calculated lazily.
  */
-static void modwrap_dependsOnNormals(Mesh *mesh)
+static void ensure_non_lazy_normals(Mesh *mesh)
 {
   switch (mesh->runtime->wrapper_type) {
     case ME_WRAPPER_TYPE_BMESH: {
       blender::bke::EditMeshData &edit_data = *mesh->runtime->edit_data;
-      if (!edit_data.vertexCos.is_empty()) {
+      if (!edit_data.vert_positions.is_empty()) {
         /* Note that 'ensure' is acceptable here since these values aren't modified in-place.
          * If that changes we'll need to recalculate. */
-        BKE_editmesh_cache_ensure_vert_normals(*mesh->edit_mesh, edit_data);
+        BKE_editmesh_cache_ensure_vert_normals(*mesh->runtime->edit_mesh, edit_data);
       }
       else {
-        BM_mesh_normals_update(mesh->edit_mesh->bm);
+        BM_mesh_normals_update(mesh->runtime->edit_mesh->bm);
       }
       break;
     }
@@ -927,36 +927,67 @@ Mesh *BKE_modifier_modify_mesh(ModifierData *md, const ModifierEvalContext *ctx,
     }
   }
 
-  if (mti->depends_on_normals && mti->depends_on_normals(md)) {
-    modwrap_dependsOnNormals(mesh);
-  }
   return mti->modify_mesh(md, ctx, mesh);
 }
 
-void BKE_modifier_deform_verts(ModifierData *md,
+bool BKE_modifier_deform_verts(ModifierData *md,
                                const ModifierEvalContext *ctx,
                                Mesh *mesh,
                                blender::MutableSpan<blender::float3> positions)
 {
+  using namespace blender::bke;
   const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md->type));
-  if (mesh && mti->depends_on_normals && mti->depends_on_normals(md)) {
-    modwrap_dependsOnNormals(mesh);
+
+  if (mti->deform_verts) {
+    mti->deform_verts(md, ctx, mesh, positions);
+    if (mesh) {
+      mesh->tag_positions_changed();
+    }
+    return true;
   }
-  mti->deform_verts(md, ctx, mesh, positions);
-  if (mesh) {
-    mesh->tag_positions_changed();
+  /* Try to emulate #deform_verts by deforming a mesh. */
+  if (mti->modify_geometry_set) {
+    /* Prepare mesh with vertices at the given positions. */
+    GeometrySet geometry;
+    if (mesh) {
+      geometry = GeometrySet::from_mesh(mesh, GeometryOwnershipType::ReadOnly);
+    }
+    else {
+      geometry = GeometrySet::from_mesh(BKE_mesh_new_nomain(positions.size(), 0, 0, 0));
+    }
+    Mesh *mesh_to_deform = geometry.get_mesh_for_write();
+    mesh_to_deform->vert_positions_for_write().copy_from(positions);
+    mesh_to_deform->tag_positions_changed();
+
+    /* Remember the topology of the mesh before passing it to the modifier. */
+    const MeshTopologyState old_topology{*mesh_to_deform};
+
+    /* Call the modifier and "hope" that it just deforms the mesh. */
+    mti->modify_geometry_set(md, ctx, &geometry);
+
+    /* Extract the deformed vertex positions if the topology has not changed. */
+    if (const Mesh *deformed_mesh = geometry.get_mesh()) {
+      if (old_topology.same_topology_as(*deformed_mesh)) {
+        positions.copy_from(deformed_mesh->vert_positions());
+        if (mesh) {
+          mesh->tag_positions_changed();
+        }
+        return true;
+      }
+    }
   }
+  return false;
 }
 
 void BKE_modifier_deform_vertsEM(ModifierData *md,
                                  const ModifierEvalContext *ctx,
-                                 BMEditMesh *em,
+                                 const BMEditMesh *em,
                                  Mesh *mesh,
                                  blender::MutableSpan<blender::float3> positions)
 {
   const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md->type));
   if (mesh && mti->depends_on_normals && mti->depends_on_normals(md)) {
-    modwrap_dependsOnNormals(mesh);
+    ensure_non_lazy_normals(mesh);
   }
   mti->deform_verts_EM(md, ctx, em, mesh, positions);
 }
@@ -965,14 +996,21 @@ void BKE_modifier_deform_vertsEM(ModifierData *md,
 
 Mesh *BKE_modifier_get_evaluated_mesh_from_evaluated_object(Object *ob_eval)
 {
+  if (!DEG_object_geometry_is_evaluated(*ob_eval)) {
+    return nullptr;
+  }
+
   Mesh *mesh = nullptr;
 
   if ((ob_eval->type == OB_MESH) && (ob_eval->mode & OB_MODE_EDIT)) {
     /* In EditMode, evaluated mesh is stored in BMEditMesh, not the object... */
-    BMEditMesh *em = BKE_editmesh_from_object(ob_eval);
+    const BMEditMesh *em = BKE_editmesh_from_object(ob_eval);
     /* 'em' might not exist yet in some cases, just after loading a .blend file, see #57878. */
     if (em != nullptr) {
-      mesh = BKE_object_get_editmesh_eval_final(ob_eval);
+      mesh = const_cast<Mesh *>(BKE_object_get_editmesh_eval_final(ob_eval));
+      if (mesh != nullptr) {
+        mesh = BKE_mesh_wrapper_ensure_subdivision(mesh);
+      }
     }
   }
   if (mesh == nullptr) {
@@ -984,40 +1022,61 @@ Mesh *BKE_modifier_get_evaluated_mesh_from_evaluated_object(Object *ob_eval)
 
 ModifierData *BKE_modifier_get_original(const Object *object, ModifierData *md)
 {
-  const Object *object_orig = DEG_get_original_object((Object *)object);
-  return BKE_modifiers_findby_session_uid(object_orig, &md->session_uid);
+  const Object *object_orig = DEG_get_original((Object *)object);
+  return BKE_modifiers_findby_persistent_uid(object_orig, md->persistent_uid);
 }
 
 ModifierData *BKE_modifier_get_evaluated(Depsgraph *depsgraph, Object *object, ModifierData *md)
 {
-  Object *object_eval = DEG_get_evaluated_object(depsgraph, object);
+  Object *object_eval = DEG_get_evaluated(depsgraph, object);
   if (object_eval == object) {
     return md;
   }
-  return BKE_modifiers_findby_session_uid(object_eval, &md->session_uid);
+  return BKE_modifiers_findby_persistent_uid(object_eval, md->persistent_uid);
 }
 
-void BKE_modifier_check_uids_unique_and_report(const Object *object)
+void BKE_modifiers_persistent_uid_init(const Object &object, ModifierData &md)
 {
-  GSet *used_uids = BLI_gset_new(
-      BLI_session_uid_ghash_hash, BLI_session_uid_ghash_compare, "modifier used uids");
-
-  LISTBASE_FOREACH (ModifierData *, md, &object->modifiers) {
-    const SessionUID *session_uid = &md->session_uid;
-    if (!BLI_session_uid_is_generated(session_uid)) {
-      printf("Modifier %s -> %s does not have UID generated.\n", object->id.name + 2, md->name);
-      continue;
-    }
-
-    if (BLI_gset_lookup(used_uids, session_uid) != nullptr) {
-      printf("Modifier %s -> %s has duplicate UID generated.\n", object->id.name + 2, md->name);
-      continue;
-    }
-
-    BLI_gset_insert(used_uids, (void *)session_uid);
+  uint64_t hash = blender::get_default_hash(blender::StringRef(md.name));
+  if (ID_IS_LINKED(&object)) {
+    hash = blender::get_default_hash(hash,
+                                     blender::StringRef(object.id.lib->runtime->filepath_abs));
   }
+  if (ID_IS_OVERRIDE_LIBRARY_REAL(&object)) {
+    BLI_assert(ID_IS_LINKED(object.id.override_library->reference));
+    hash = blender::get_default_hash(
+        hash,
+        blender::StringRef(object.id.override_library->reference->lib->runtime->filepath_abs));
+  }
+  blender::RandomNumberGenerator rng{uint32_t(hash)};
+  while (true) {
+    const int new_uid = rng.get_int32();
+    if (new_uid <= 0) {
+      continue;
+    }
+    if (BKE_modifiers_findby_persistent_uid(&object, new_uid) != nullptr) {
+      continue;
+    }
+    md.persistent_uid = new_uid;
+    break;
+  }
+}
 
-  BLI_gset_free(used_uids, nullptr);
+bool BKE_modifiers_persistent_uids_are_valid(const Object &object)
+{
+  blender::Set<int> uids;
+  int modifiers_num = 0;
+  LISTBASE_FOREACH (const ModifierData *, md, &object.modifiers) {
+    if (md->persistent_uid <= 0) {
+      return false;
+    }
+    uids.add(md->persistent_uid);
+    modifiers_num++;
+  }
+  if (uids.size() != modifiers_num) {
+    return false;
+  }
+  return true;
 }
 
 void BKE_modifier_blend_write(BlendWriter *writer, const ID *id_owner, ListBase *modbase)
@@ -1083,9 +1142,7 @@ void BKE_modifier_blend_write(BlendWriter *writer, const ID *id_owner, ListBase 
       }
     }
     else if (md->type == eModifierType_Fluidsim) {
-      FluidsimModifierData *fluidmd = (FluidsimModifierData *)md;
-
-      BLO_write_struct(writer, FluidsimSettings, fluidmd->fss);
+      BLI_assert_unreachable(); /* Deprecated data, should never be written. */
     }
     else if (md->type == eModifierType_DynamicPaint) {
       DynamicPaintModifierData *pmd = (DynamicPaintModifierData *)md;
@@ -1156,8 +1213,11 @@ static ModifierData *modifier_replace_with_fluid(BlendDataReader *reader,
 
   if (old_modifier_data->type == eModifierType_Fluidsim) {
     FluidsimModifierData *old_fluidsim_modifier_data = (FluidsimModifierData *)old_modifier_data;
+    /* Only get access to the data, do not mark it as used, otherwise there will be memory leak
+     * since readfile code won't free it. */
     FluidsimSettings *old_fluidsim_settings = static_cast<FluidsimSettings *>(
-        BLO_read_get_new_data_address(reader, old_fluidsim_modifier_data->fss));
+        BLO_read_get_new_data_address_no_us(
+            reader, old_fluidsim_modifier_data->fss, sizeof(FluidsimSettings)));
     switch (old_fluidsim_settings->type) {
       case OB_FLUIDSIM_ENABLE:
         modifier_ensure_type(fluid_modifier_data, 0);
@@ -1242,11 +1302,9 @@ static ModifierData *modifier_replace_with_fluid(BlendDataReader *reader,
 
 void BKE_modifier_blend_read_data(BlendDataReader *reader, ListBase *lb, Object *ob)
 {
-  BLO_read_list(reader, lb);
+  BLO_read_struct_list(reader, ModifierData, lb);
 
   LISTBASE_FOREACH (ModifierData *, md, lb) {
-    BKE_modifier_session_uid_generate(md);
-
     md->error = nullptr;
     md->runtime = nullptr;
 
@@ -1296,8 +1354,8 @@ void BKE_modifier_blend_read_data(BlendDataReader *reader, ListBase *lb, Object 
       clmd->clothObject = nullptr;
       clmd->hairdata = nullptr;
 
-      BLO_read_data_address(reader, &clmd->sim_parms);
-      BLO_read_data_address(reader, &clmd->coll_parms);
+      BLO_read_struct(reader, ClothSimSettings, &clmd->sim_parms);
+      BLO_read_struct(reader, ClothCollSettings, &clmd->coll_parms);
 
       BKE_ptcache_blend_read_data(reader, &clmd->ptcaches, &clmd->point_cache, 0);
 
@@ -1308,7 +1366,7 @@ void BKE_modifier_blend_read_data(BlendDataReader *reader, ListBase *lb, Object 
 
         clmd->sim_parms->reset = 0;
 
-        BLO_read_data_address(reader, &clmd->sim_parms->effector_weights);
+        BLO_read_struct(reader, EffectorWeights, &clmd->sim_parms->effector_weights);
 
         if (!clmd->sim_parms->effector_weights) {
           clmd->sim_parms->effector_weights = BKE_effector_add_weights(nullptr);
@@ -1324,7 +1382,7 @@ void BKE_modifier_blend_read_data(BlendDataReader *reader, ListBase *lb, Object 
       if (fmd->type == MOD_FLUID_TYPE_DOMAIN) {
         fmd->flow = nullptr;
         fmd->effector = nullptr;
-        BLO_read_data_address(reader, &fmd->domain);
+        BLO_read_struct(reader, FluidDomainSettings, &fmd->domain);
         fmd->domain->fmd = fmd;
 
         fmd->domain->fluid = nullptr;
@@ -1340,9 +1398,9 @@ void BKE_modifier_blend_read_data(BlendDataReader *reader, ListBase *lb, Object 
         fmd->domain->tex_velocity_y = nullptr;
         fmd->domain->tex_velocity_z = nullptr;
         fmd->domain->tex_wt = nullptr;
-        BLO_read_data_address(reader, &fmd->domain->coba);
+        BLO_read_struct(reader, ColorBand, &fmd->domain->coba);
 
-        BLO_read_data_address(reader, &fmd->domain->effector_weights);
+        BLO_read_struct(reader, EffectorWeights, &fmd->domain->effector_weights);
         if (!fmd->domain->effector_weights) {
           fmd->domain->effector_weights = BKE_effector_add_weights(nullptr);
         }
@@ -1353,8 +1411,8 @@ void BKE_modifier_blend_read_data(BlendDataReader *reader, ListBase *lb, Object 
         /* Manta sim uses only one cache from now on, so store pointer convert */
         if (fmd->domain->ptcaches[1].first || fmd->domain->point_cache[1]) {
           if (fmd->domain->point_cache[1]) {
-            PointCache *cache = static_cast<PointCache *>(
-                BLO_read_get_new_data_address(reader, fmd->domain->point_cache[1]));
+            PointCache *cache = static_cast<PointCache *>(BLO_read_get_new_data_address_no_us(
+                reader, fmd->domain->point_cache[1], sizeof(PointCache)));
             if (cache->flag & PTCACHE_FAKE_SMOKE) {
               /* Manta-sim/smoke was already saved in "new format" and this cache is a fake one. */
             }
@@ -1363,7 +1421,6 @@ void BKE_modifier_blend_read_data(BlendDataReader *reader, ListBase *lb, Object 
                   "High resolution manta cache not available due to pointcache update. Please "
                   "reset the simulation.\n");
             }
-            BKE_ptcache_free(cache);
           }
           BLI_listbase_clear(&fmd->domain->ptcaches[1]);
           fmd->domain->point_cache[1] = nullptr;
@@ -1375,19 +1432,19 @@ void BKE_modifier_blend_read_data(BlendDataReader *reader, ListBase *lb, Object 
       else if (fmd->type == MOD_FLUID_TYPE_FLOW) {
         fmd->domain = nullptr;
         fmd->effector = nullptr;
-        BLO_read_data_address(reader, &fmd->flow);
+        BLO_read_struct(reader, FluidFlowSettings, &fmd->flow);
         fmd->flow->fmd = fmd;
         fmd->flow->mesh = nullptr;
         fmd->flow->verts_old = nullptr;
         fmd->flow->numverts = 0;
-        BLO_read_data_address(reader, &fmd->flow->psys);
+        BLO_read_struct(reader, ParticleSystem, &fmd->flow->psys);
 
         fmd->flow->flags &= ~FLUID_FLOW_NEEDS_UPDATE;
       }
       else if (fmd->type == MOD_FLUID_TYPE_EFFEC) {
         fmd->flow = nullptr;
         fmd->domain = nullptr;
-        BLO_read_data_address(reader, &fmd->effector);
+        BLO_read_struct(reader, FluidEffectorSettings, &fmd->effector);
         if (fmd->effector) {
           fmd->effector->fmd = fmd;
           fmd->effector->verts_old = nullptr;
@@ -1408,19 +1465,19 @@ void BKE_modifier_blend_read_data(BlendDataReader *reader, ListBase *lb, Object 
       DynamicPaintModifierData *pmd = (DynamicPaintModifierData *)md;
 
       if (pmd->canvas) {
-        BLO_read_data_address(reader, &pmd->canvas);
+        BLO_read_struct(reader, DynamicPaintCanvasSettings, &pmd->canvas);
         pmd->canvas->pmd = pmd;
         pmd->canvas->flags &= ~MOD_DPAINT_BAKING; /* just in case */
 
         if (pmd->canvas->surfaces.first) {
-          BLO_read_list(reader, &pmd->canvas->surfaces);
+          BLO_read_struct_list(reader, DynamicPaintSurface, &pmd->canvas->surfaces);
 
           LISTBASE_FOREACH (DynamicPaintSurface *, surface, &pmd->canvas->surfaces) {
             surface->canvas = pmd->canvas;
             surface->data = nullptr;
             BKE_ptcache_blend_read_data(reader, &(surface->ptcaches), &(surface->pointcache), 1);
 
-            BLO_read_data_address(reader, &surface->effector_weights);
+            BLO_read_struct(reader, EffectorWeights, &surface->effector_weights);
             if (surface->effector_weights == nullptr) {
               surface->effector_weights = BKE_effector_add_weights(nullptr);
             }
@@ -1428,11 +1485,11 @@ void BKE_modifier_blend_read_data(BlendDataReader *reader, ListBase *lb, Object 
         }
       }
       if (pmd->brush) {
-        BLO_read_data_address(reader, &pmd->brush);
+        BLO_read_struct(reader, DynamicPaintBrushSettings, &pmd->brush);
         pmd->brush->pmd = pmd;
-        BLO_read_data_address(reader, &pmd->brush->psys);
-        BLO_read_data_address(reader, &pmd->brush->paint_ramp);
-        BLO_read_data_address(reader, &pmd->brush->vel_ramp);
+        BLO_read_struct(reader, ParticleSystem, &pmd->brush->psys);
+        BLO_read_struct(reader, ColorBand, &pmd->brush->paint_ramp);
+        BLO_read_struct(reader, ColorBand, &pmd->brush->vel_ramp);
       }
     }
 

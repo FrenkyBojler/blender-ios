@@ -2,14 +2,14 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "usd_skel_root_utils.h"
+#include "usd_skel_root_utils.hh"
 
 #include <pxr/usd/usd/primRange.h>
 #include <pxr/usd/usdGeom/xform.h>
 #include <pxr/usd/usdSkel/bindingAPI.h>
 #include <pxr/usd/usdSkel/root.h>
 
-#include "BKE_report.h"
+#include "BKE_report.hh"
 
 #include "WM_types.hh"
 
@@ -103,8 +103,8 @@ void create_skel_roots(pxr::UsdStageRefPtr stage, const USDExportParams &params)
 
     if (pxr::UsdGeomXform xf = get_xform_ancestor(prim, skel.GetPrim())) {
       /* We found a common Xform ancestor, so we set its type to UsdSkelRoot. */
-      CLOG_INFO(
-          &LOG, 2, "Converting Xform prim %s to a SkelRoot", prim.GetPath().GetAsString().c_str());
+      CLOG_DEBUG(
+          &LOG, "Converting Xform prim %s to a SkelRoot", prim.GetPath().GetAsString().c_str());
 
       pxr::UsdSkelRoot::Define(stage, xf.GetPath());
       converted_to_usdskel = true;

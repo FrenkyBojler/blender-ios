@@ -3,10 +3,10 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
-  include
 )
 
 set(INC_SYS
+  PUBLIC include
 )
 
 set(SRC
@@ -20,3 +20,4 @@ set(LIB
 )
 
 blender_add_lib(extern_fmtlib "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+add_library(bf::extern::fmtlib ALIAS extern_fmtlib)

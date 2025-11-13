@@ -4,8 +4,9 @@
 
 #include "testing/testing.h"
 
-#include "GPU_storage_buffer.h"
+#include "GPU_storage_buffer.hh"
 
+#include "BLI_math_vector.hh"
 #include "BLI_vector.hh"
 
 #include "gpu_testing.hh"
@@ -26,8 +27,7 @@ static Vector<int32_t> test_data()
 
 static void test_storage_buffer_create_update_read()
 {
-  GPUStorageBuf *ssbo = GPU_storagebuf_create_ex(
-      SIZE_IN_BYTES, nullptr, GPU_USAGE_STATIC, __func__);
+  StorageBuf *ssbo = GPU_storagebuf_create_ex(SIZE_IN_BYTES, nullptr, GPU_USAGE_STATIC, __func__);
   EXPECT_NE(ssbo, nullptr);
 
   /* Upload some dummy data. */
@@ -51,8 +51,7 @@ GPU_TEST(storage_buffer_create_update_read);
 
 static void test_storage_buffer_clear_zero()
 {
-  GPUStorageBuf *ssbo = GPU_storagebuf_create_ex(
-      SIZE_IN_BYTES, nullptr, GPU_USAGE_STATIC, __func__);
+  StorageBuf *ssbo = GPU_storagebuf_create_ex(SIZE_IN_BYTES, nullptr, GPU_USAGE_STATIC, __func__);
   EXPECT_NE(ssbo, nullptr);
 
   /* Upload some dummy data. */
@@ -76,8 +75,7 @@ GPU_TEST(storage_buffer_clear_zero);
 
 static void test_storage_buffer_clear()
 {
-  GPUStorageBuf *ssbo = GPU_storagebuf_create_ex(
-      SIZE_IN_BYTES, nullptr, GPU_USAGE_STATIC, __func__);
+  StorageBuf *ssbo = GPU_storagebuf_create_ex(SIZE_IN_BYTES, nullptr, GPU_USAGE_STATIC, __func__);
   EXPECT_NE(ssbo, nullptr);
 
   GPU_storagebuf_clear(ssbo, 157255);
@@ -96,5 +94,110 @@ static void test_storage_buffer_clear()
 }
 
 GPU_TEST(storage_buffer_clear);
+
+static void test_storage_buffer_clear_byte_pattern()
+{
+  StorageBuf *ssbo = GPU_storagebuf_create_ex(SIZE_IN_BYTES, nullptr, GPU_USAGE_STATIC, __func__);
+  EXPECT_NE(ssbo, nullptr);
+
+  /* Tests a different clear command on Metal. */
+  GPU_storagebuf_clear(ssbo, 0xFCFCFCFCu);
+
+  /* Read back data from SSBO. */
+  Vector<int32_t> read_data;
+  read_data.resize(SIZE, 0);
+  GPU_storagebuf_read(ssbo, read_data.data());
+
+  /* Check if datatest_ is the same. */
+  for (int i : IndexRange(SIZE)) {
+    EXPECT_EQ(0xFCFCFCFCu, read_data[i]);
+  }
+
+  GPU_storagebuf_free(ssbo);
+}
+
+GPU_TEST(storage_buffer_clear_byte_pattern);
+
+static void test_storage_buffer_copy_from_vertex_buffer()
+{
+  StorageBuf *ssbo = GPU_storagebuf_create_ex(SIZE_IN_BYTES, nullptr, GPU_USAGE_STATIC, __func__);
+  EXPECT_NE(ssbo, nullptr);
+
+  /* Create vertex buffer. */
+  GPUVertFormat format = {0};
+  GPU_vertformat_attr_add(&format, "pos", gpu::VertAttrType::SFLOAT_32_32);
+  GPU_vertformat_attr_add(&format, "color", gpu::VertAttrType::SFLOAT_32_32_32_32);
+
+  VertBuf *vbo = GPU_vertbuf_create_with_format(format);
+  GPU_vertbuf_data_alloc(*vbo, 4);
+
+  struct Vert {
+    float2 pos;
+    float4 color;
+  };
+  Vert data[4] = {
+      {float2(-1.0, -1.0), float4(0.0, 0.0, 0.0, 1.0)},
+      {float2(1.0, -1.0), float4(1.0, 0.0, 0.0, 1.0)},
+      {float2(1.0, 1.0), float4(1.0, 1.0, 0.0, 1.0)},
+      {float2(-1.0, 1.0), float4(0.0, 1.0, 0.0, 1.0)},
+  };
+  for (int i : IndexRange(4)) {
+    GPU_vertbuf_vert_set(vbo, i, &data[i]);
+  }
+  Span<float> expected_data(static_cast<float *>(static_cast<void *>(&data)), 24);
+
+  Vector<float> read_data;
+  read_data.resize(SIZE, 0);
+
+  /* Copy vertex buffer to storage buffer. */
+  {
+    GPU_storagebuf_clear_to_zero(ssbo);
+    GPU_storagebuf_copy_sub_from_vertbuf(ssbo, vbo, 0, 0, sizeof(data));
+
+    /* Validate content of SSBO. */
+    GPU_storagebuf_read(ssbo, read_data.data());
+    EXPECT_EQ_SPAN<float>(expected_data, read_data.as_span().slice(IndexRange(24)));
+    for (int i : IndexRange(24, SIZE - 24)) {
+      EXPECT_EQ(0.0, read_data[i]);
+    }
+  }
+
+  /* Copy vertex buffer to storage buffer with 16 bytes of offset. */
+  {
+    GPU_storagebuf_clear_to_zero(ssbo);
+    GPU_storagebuf_copy_sub_from_vertbuf(ssbo, vbo, 16, 0, sizeof(data));
+
+    /* Validate content of SSBO. */
+    GPU_storagebuf_read(ssbo, read_data.data());
+    for (int i : IndexRange(4)) {
+      EXPECT_EQ(0.0, read_data[i]);
+    }
+    EXPECT_EQ_SPAN(expected_data, read_data.as_span().slice(4, 24));
+    for (int i : IndexRange(28, SIZE - 28)) {
+      EXPECT_EQ(0.0, read_data[i]);
+    }
+  }
+
+  /* Partially Copy vertex buffer to storage buffer with 16 bytes of offset. */
+  {
+    GPU_storagebuf_clear_to_zero(ssbo);
+    GPU_storagebuf_copy_sub_from_vertbuf(ssbo, vbo, 16, sizeof(Vert), sizeof(data) / 2);
+
+    /* Validate content of SSBO. */
+    GPU_storagebuf_read(ssbo, read_data.data());
+    for (int i : IndexRange(4)) {
+      EXPECT_EQ(0.0, read_data[i]);
+    }
+    EXPECT_EQ_SPAN(expected_data.slice(6, 12), read_data.as_span().slice(4, 12));
+    for (int i : IndexRange(16, SIZE - 16)) {
+      EXPECT_EQ(0.0, read_data[i]);
+    }
+  }
+
+  GPU_vertbuf_discard(vbo);
+  GPU_storagebuf_free(ssbo);
+}
+
+GPU_TEST(storage_buffer_copy_from_vertex_buffer);
 
 }  // namespace blender::gpu::tests

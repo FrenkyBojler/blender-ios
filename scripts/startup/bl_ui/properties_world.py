@@ -7,6 +7,7 @@ from bpy.types import Panel
 from bpy.app.translations import contexts as i18n_contexts
 from rna_prop_ui import PropertyPanel
 from bpy_extras.node_utils import find_node_input
+from bl_ui.space_properties import PropertiesAnimationMixin
 
 
 class WorldButtonsPanel:
@@ -26,7 +27,6 @@ class WORLD_PT_context_world(WorldButtonsPanel, Panel):
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
         'BLENDER_EEVEE',
-        'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
     }
 
@@ -50,7 +50,7 @@ class WORLD_PT_context_world(WorldButtonsPanel, Panel):
 class EEVEE_WORLD_PT_mist(WorldButtonsPanel, Panel):
     bl_label = "Mist Pass"
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT'}
+    COMPAT_ENGINES = {'BLENDER_EEVEE'}
 
     @classmethod
     def poll(cls, context):
@@ -71,11 +71,35 @@ class EEVEE_WORLD_PT_mist(WorldButtonsPanel, Panel):
         col.prop(world.mist_settings, "falloff")
 
 
+class WORLD_PT_animation(WorldButtonsPanel, PropertiesAnimationMixin, PropertyPanel, Panel):
+    COMPAT_ENGINES = {
+        'BLENDER_RENDER',
+        'BLENDER_EEVEE',
+        'BLENDER_WORKBENCH',
+    }
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        # WorldButtonsPanel.poll ensures this is not None.
+        world = context.world
+
+        col = layout.column(align=True)
+        col.label(text="World")
+        self.draw_action_and_slot_selector(context, col, world)
+
+        if node_tree := world.node_tree:
+            col = layout.column(align=True)
+            col.label(text="Shader Node Tree")
+            self.draw_action_and_slot_selector(context, col, node_tree)
+
+
 class WORLD_PT_custom_props(WorldButtonsPanel, PropertyPanel, Panel):
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
         'BLENDER_EEVEE',
-        'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
     }
     _context_path = "world"
@@ -84,7 +108,7 @@ class WORLD_PT_custom_props(WorldButtonsPanel, PropertyPanel, Panel):
 
 class EEVEE_WORLD_PT_surface(WorldButtonsPanel, Panel):
     bl_label = "Surface"
-    COMPAT_ENGINES = {'BLENDER_EEVEE', 'BLENDER_EEVEE_NEXT'}
+    COMPAT_ENGINES = {'BLENDER_EEVEE'}
 
     @classmethod
     def poll(cls, context):
@@ -96,25 +120,21 @@ class EEVEE_WORLD_PT_surface(WorldButtonsPanel, Panel):
 
         world = context.world
 
-        layout.prop(world, "use_nodes", icon='NODETREE')
         layout.separator()
 
         layout.use_property_split = True
 
-        if world.use_nodes:
-            ntree = world.node_tree
-            node = ntree.get_output_node('EEVEE')
+        ntree = world.node_tree
+        node = ntree.get_output_node('EEVEE')
 
-            if node:
-                input = find_node_input(node, "Surface")
-                if input:
-                    layout.template_node_view(ntree, node, input)
-                else:
-                    layout.label(text="Incompatible output node")
+        if node:
+            input = find_node_input(node, "Surface")
+            if input:
+                layout.template_node_view(ntree, node, input)
             else:
-                layout.label(text="No output node")
+                layout.label(text="Incompatible output node")
         else:
-            layout.prop(world, "color")
+            layout.label(text="No output node")
 
 
 class EEVEE_WORLD_PT_volume(WorldButtonsPanel, Panel):
@@ -127,7 +147,7 @@ class EEVEE_WORLD_PT_volume(WorldButtonsPanel, Panel):
     def poll(cls, context):
         engine = context.engine
         world = context.world
-        return world and world.use_nodes and (engine in cls.COMPAT_ENGINES)
+        return world and (engine in cls.COMPAT_ENGINES)
 
     def draw(self, context):
         layout = self.layout
@@ -137,6 +157,9 @@ class EEVEE_WORLD_PT_volume(WorldButtonsPanel, Panel):
         node = ntree.get_output_node('EEVEE')
 
         layout.use_property_split = True
+
+        if world.use_eevee_finite_volume:
+            layout.operator("world.convert_volume_to_mesh", icon='WORLD', text="Convert Volume")
 
         if node:
             input = find_node_input(node, "Volume")
@@ -148,11 +171,10 @@ class EEVEE_WORLD_PT_volume(WorldButtonsPanel, Panel):
             layout.label(text="No output node")
 
 
-class EEVEE_WORLD_PT_probe(WorldButtonsPanel, Panel):
-    bl_label = "Light Probe"
-    bl_translation_context = i18n_contexts.id_id
+class EEVEE_WORLD_PT_settings(WorldButtonsPanel, Panel):
+    bl_label = "Settings"
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_EEVEE_NEXT'}
+    COMPAT_ENGINES = {'BLENDER_EEVEE'}
 
     @classmethod
     def poll(cls, context):
@@ -161,12 +183,67 @@ class EEVEE_WORLD_PT_probe(WorldButtonsPanel, Panel):
         return world and (engine in cls.COMPAT_ENGINES)
 
     def draw(self, context):
+        pass
+
+
+class EEVEE_WORLD_PT_lightprobe(WorldButtonsPanel, Panel):
+    bl_label = "Light Probe"
+    bl_parent_id = "EEVEE_WORLD_PT_settings"
+    COMPAT_ENGINES = {'BLENDER_EEVEE'}
+
+    def draw(self, context):
         layout = self.layout
 
         world = context.world
 
         layout.use_property_split = True
-        layout.prop(world, "probe_resolution")
+        layout.prop(world, "probe_resolution", text="Resolution")
+
+
+class EEVEE_WORLD_PT_sun(WorldButtonsPanel, Panel):
+    bl_label = "Sun"
+    bl_parent_id = "EEVEE_WORLD_PT_settings"
+    COMPAT_ENGINES = {'BLENDER_EEVEE'}
+
+    def draw(self, context):
+        layout = self.layout
+
+        world = context.world
+
+        layout.use_property_split = True
+        layout.prop(world, "sun_threshold", text="Threshold")
+        layout.prop(world, "sun_angle", text="Angle")
+
+
+class EEVEE_WORLD_PT_sun_shadow(WorldButtonsPanel, Panel):
+    bl_label = "Shadow"
+    bl_parent_id = "EEVEE_WORLD_PT_sun"
+    bl_options = {'DEFAULT_CLOSED'}
+    COMPAT_ENGINES = {'BLENDER_EEVEE'}
+
+    def draw_header(self, context):
+        world = context.world
+        self.layout.prop(world, "use_sun_shadow", text="")
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+
+        world = context.world
+
+        col = layout.column(align=False, heading="Jitter")
+        row = col.row(align=True)
+        sub = row.row(align=True)
+        sub.prop(world, "use_sun_shadow_jitter", text="")
+        sub = sub.row(align=True)
+        sub.active = world.use_sun_shadow_jitter
+        sub.prop(world, "sun_shadow_jitter_overblur", text="Overblur")
+
+        col.separator()
+
+        col = layout.column()
+        col.prop(world, "sun_shadow_filter_radius", text="Filter")
+        col.prop(world, "sun_shadow_maximum_resolution", text="Resolution Limit")
 
 
 class WORLD_PT_viewport_display(WorldButtonsPanel, Panel):
@@ -190,8 +267,12 @@ classes = (
     EEVEE_WORLD_PT_surface,
     EEVEE_WORLD_PT_volume,
     EEVEE_WORLD_PT_mist,
-    EEVEE_WORLD_PT_probe,
+    EEVEE_WORLD_PT_settings,
+    EEVEE_WORLD_PT_lightprobe,
+    EEVEE_WORLD_PT_sun,
+    EEVEE_WORLD_PT_sun_shadow,
     WORLD_PT_viewport_display,
+    WORLD_PT_animation,
     WORLD_PT_custom_props,
 )
 

@@ -8,14 +8,23 @@
 
 #pragma once
 
-struct BLI_Buffer;
+#include "DNA_listBase.h"
+
+#include "WM_gizmo_types.hh"
+
+#include "BLI_vector.hh"
+
 struct wmGizmoMap;
+struct wmGizmoGroupType;
+struct wmGizmoMapType;
+struct wmGizmoType;
 struct wmKeyConfig;
+struct wmWindowManager;
 
 #include "wm_gizmo_fn.hh"
 
 /* -------------------------------------------------------------------- */
-/* wmGizmo */
+/* #wmGizmo. */
 
 /**
  * Add/Remove \a gizmo to selection.
@@ -37,7 +46,7 @@ enum {
 };
 
 /* -------------------------------------------------------------------- */
-/* wmGizmoGroup */
+/* #wmGizmoGroup. */
 
 enum {
   TWEAK_MODAL_CANCEL = 1,
@@ -71,7 +80,7 @@ wmGizmo *wm_gizmogroup_find_intersected_gizmo(wmWindowManager *wm,
 void wm_gizmogroup_intersectable_gizmos_to_list(wmWindowManager *wm,
                                                 const wmGizmoGroup *gzgroup,
                                                 int event_modifier,
-                                                BLI_Buffer *visible_gizmos);
+                                                blender::Vector<wmGizmo *, 128> *r_visible_gizmos);
 bool wm_gizmogroup_is_visible_in_drawstep(const wmGizmoGroup *gzgroup,
                                           eWM_GizmoFlagMapDrawStep drawstep);
 
@@ -80,7 +89,7 @@ void wm_gizmogrouptype_setup_keymap(wmGizmoGroupType *gzgt, wmKeyConfig *keyconf
 wmKeyMap *wm_gizmogroup_tweak_modal_keymap(wmKeyConfig *keyconf);
 
 /* -------------------------------------------------------------------- */
-/* wmGizmoMap */
+/* #wmGizmoMap. */
 
 struct wmGizmoMapSelectState {
   struct wmGizmo **items;
@@ -89,9 +98,9 @@ struct wmGizmoMapSelectState {
 
 struct wmGizmoMap {
   wmGizmoMapType *type;
-  ListBase groups; /* wmGizmoGroup */
+  ListBase groups; /* #wmGizmoGroup. */
 
-  /* private, update tagging (enum defined in C source). */
+  /* Private, update tagging (enum defined in C source). */
   char update_flag[WM_GIZMOMAP_DRAWSTEP_MAX];
 
   /** Private, true when not yet used. */
@@ -100,6 +109,9 @@ struct wmGizmoMap {
   /** When set, one of the items in 'groups' has #wmGizmoGroup.tag_remove set. */
   bool tag_remove_group;
 
+  /** When set, the event system re-calculates highlight even without cursor motion. */
+  bool tag_highlight_pending;
+
   /**
    * \brief Gizmo map runtime context
    *
@@ -107,16 +119,16 @@ struct wmGizmoMap {
    * highlighted gizmo, currently selected gizmos, ...
    */
   struct {
-    /* we redraw the gizmo-map when this changes */
+    /** We redraw the gizmo-map when this changes. */
     wmGizmo *highlight;
-    /* User has clicked this gizmo and it gets all input. */
+    /** User has clicked this gizmo and it gets all input. */
     wmGizmo *modal;
-    /* array for all selected gizmos */
+    /** Array for all selected gizmos. */
     wmGizmoMapSelectState select;
-    /* cursor location at point of entering modal (see: WM_GIZMO_MOVE_CURSOR) */
+    /** Cursor location at point of entering modal (see: #WM_GIZMO_MOVE_CURSOR). */
     int event_xy[2];
     short event_grabcursor;
-    /* until we have nice cursor push/pop API. */
+    /** Until we have nice cursor push/pop API. */
     int last_cursor;
   } gzmap_context;
 };
@@ -130,10 +142,10 @@ struct wmGizmoMap {
 struct wmGizmoMapType {
   wmGizmoMapType *next, *prev;
   short spaceid, regionid;
-  /* types of gizmo-groups for this gizmo-map type */
+  /* Types of gizmo-groups for this gizmo-map type. */
   ListBase grouptype_refs;
 
-  /* eGizmoMapTypeUpdateFlags */
+  /* #eGizmoMapTypeUpdateFlags. */
   eWM_GizmoFlagMapTypeUpdateFlag type_update_flag;
 };
 

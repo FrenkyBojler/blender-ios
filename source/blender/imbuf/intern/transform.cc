@@ -9,9 +9,10 @@
 
 #include <type_traits>
 
-#include "BLI_math_color_blend.h"
+#include "BLI_math_color.h"
 #include "BLI_math_interp.hh"
 #include "BLI_math_matrix.hh"
+#include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector.h"
 #include "BLI_rect.h"
 #include "BLI_task.hh"
@@ -38,13 +39,16 @@ struct TransformContext {
   /* Source UV step delta, when moving along one destination pixel in Y axis. */
   float2 add_y;
 
+  /* Source corners in destination pixel space, counter-clockwise. */
+  float2 src_corners[4];
+
   IndexRange dst_region_x_range;
   IndexRange dst_region_y_range;
 
   /* Cropping region in source image pixel space. */
   rctf src_crop;
 
-  void init(const float4x4 &transform_matrix, const bool has_source_crop)
+  void init(const float3x3 &transform_matrix, const bool has_source_crop)
   {
     start_uv = transform_matrix.location().xy();
     add_x = transform_matrix.x_axis().xy();
@@ -53,7 +57,7 @@ struct TransformContext {
   }
 
  private:
-  void init_destination_region(const float4x4 &transform_matrix, const bool has_source_crop)
+  void init_destination_region(const float3x3 &transform_matrix, const bool has_source_crop)
   {
     if (!has_source_crop) {
       dst_region_x_range = IndexRange(dst->x);
@@ -65,15 +69,16 @@ struct TransformContext {
     const int2 margin(2);
     rcti rect;
     BLI_rcti_init_minmax(&rect);
-    float4x4 inverse = math::invert(transform_matrix);
-    for (const int2 &src_coords : {
-             int2(src_crop.xmin, src_crop.ymin),
-             int2(src_crop.xmax, src_crop.ymin),
-             int2(src_crop.xmin, src_crop.ymax),
-             int2(src_crop.xmax, src_crop.ymax),
-         })
-    {
-      float3 dst_co = math::transform_point(inverse, float3(src_coords.x, src_coords.y, 0.0f));
+    float3x3 inverse = math::invert(transform_matrix);
+    const int2 src_coords[4] = {int2(src_crop.xmin, src_crop.ymin),
+                                int2(src_crop.xmax, src_crop.ymin),
+                                int2(src_crop.xmax, src_crop.ymax),
+                                int2(src_crop.xmin, src_crop.ymax)};
+    for (int i = 0; i < 4; i++) {
+      int2 src_co = src_coords[i];
+      float2 dst_co = math::transform_point(inverse, float2(src_co));
+      src_corners[i] = float2(dst_co.x, dst_co.y);
+
       BLI_rcti_do_minmax_v(&rect, int2(dst_co) + margin);
       BLI_rcti_do_minmax_v(&rect, int2(dst_co) - margin);
     }
@@ -136,7 +141,7 @@ static void sample_image(const ImBuf *source, float u, float v, T *r_sample)
   }
   else if constexpr (Filter == IMB_FILTER_NEAREST && std::is_same_v<T, uchar> && NumChannels == 4)
   {
-    interpolate_nearest_byte(source, r_sample, u, v);
+    interpolate_nearest_border_byte(source, r_sample, u, v);
   }
   else if constexpr (Filter == IMB_FILTER_BILINEAR && std::is_same_v<T, uchar> && NumChannels == 4)
   {
@@ -144,15 +149,15 @@ static void sample_image(const ImBuf *source, float u, float v, T *r_sample)
   }
   else if constexpr (Filter == IMB_FILTER_BILINEAR && std::is_same_v<T, float>) {
     if constexpr (WrapUV) {
-      math::interpolate_bilinear_wrap_fl(source->float_buffer.data,
-                                         r_sample,
-                                         source->x,
-                                         source->y,
-                                         NumChannels,
-                                         u,
-                                         v,
-                                         true,
-                                         true);
+      math::interpolate_bilinear_wrapmode_fl(source->float_buffer.data,
+                                             r_sample,
+                                             source->x,
+                                             source->y,
+                                             NumChannels,
+                                             u,
+                                             v,
+                                             math::InterpWrapMode::Repeat,
+                                             math::InterpWrapMode::Repeat);
     }
     else {
       math::interpolate_bilinear_fl(
@@ -160,7 +165,7 @@ static void sample_image(const ImBuf *source, float u, float v, T *r_sample)
     }
   }
   else if constexpr (Filter == IMB_FILTER_NEAREST && std::is_same_v<T, float>) {
-    math::interpolate_nearest_fl(
+    math::interpolate_nearest_border_fl(
         source->float_buffer.data, r_sample, source->x, source->y, NumChannels, u, v);
   }
   else if constexpr (Filter == IMB_FILTER_CUBIC_BSPLINE && std::is_same_v<T, float>) {
@@ -227,7 +232,7 @@ template<int SrcChannels> static void store_sample(const float *sample, float *d
     copy_v4_fl4(dst, sample[0], sample[1], 0.0f, 1.0f);
   }
   else if constexpr (SrcChannels == 1) {
-    /* Note: single channel sample is stored as grayscale. */
+    /* NOTE: single channel sample is stored as grayscale. */
     copy_v4_fl4(dst, sample[0], sample[0], sample[0], 1.0f);
   }
   else {
@@ -251,10 +256,8 @@ static void process_scanlines(const TransformContext &ctx, IndexRange y_range)
      *
      * Do a box filter: for each destination pixel, accumulate XxY samples from source,
      * based on scaling factors (length of X/Y pixel steps). Use at least 2 samples
-     * along each direction, so that in case of rotation the resulting edges get
-     * some anti-aliasing, to match previous Subsampled3x3 filter behavior. The
-     * "at least 2" can be removed once/if transform edge anti-aliasing is implemented
-     * in general way for all filters. Use at most 100 samples along each direction,
+     * along each direction, so that in case of rotation the image gets
+     * some anti-aliasing. Use at most 100 samples along each direction,
      * just as some way of clamping possible upper cost. Scaling something down by more
      * than 100x should rarely if ever happen, worst case they will get some aliasing.
      */
@@ -295,7 +298,8 @@ static void process_scanlines(const TransformContext &ctx, IndexRange y_range)
     }
   }
   else {
-    /* One sample per pixel. Note: sample at pixel center for proper filtering. */
+    /* One sample per pixel.
+     * NOTE: sample at pixel center for proper filtering. */
     float2 uv_start = ctx.start_uv + ctx.add_x * 0.5f + ctx.add_y * 0.5f;
     for (int yi : y_range) {
       T *output = init_pixel_pointer<T>(ctx.dst, ctx.dst_region_x_range.first(), yi);
@@ -336,8 +340,9 @@ template<eIMBInterpolationFilterMode Filter>
 static void transform_scanlines_filter(const TransformContext &ctx, IndexRange y_range)
 {
   int channels = ctx.src->channels;
+
   if (ctx.dst->float_buffer.data && ctx.src->float_buffer.data) {
-    /* Float images. */
+    /* Float pixels. */
     if (channels == 4) {
       transform_scanlines<Filter, float, 4>(ctx, y_range);
     }
@@ -351,10 +356,105 @@ static void transform_scanlines_filter(const TransformContext &ctx, IndexRange y
       transform_scanlines<Filter, float, 1>(ctx, y_range);
     }
   }
-  else if (ctx.dst->byte_buffer.data && ctx.src->byte_buffer.data) {
-    /* Byte images. */
+
+  if (ctx.dst->byte_buffer.data && ctx.src->byte_buffer.data) {
+    /* Byte pixels. */
     if (channels == 4) {
       transform_scanlines<Filter, uchar, 4>(ctx, y_range);
+    }
+  }
+}
+
+static float calc_coverage(float2 pos, int2 ipos, float2 delta, bool is_steep)
+{
+  /* Very approximate: just take difference from coordinate (x or y based on
+   * steepness) to the integer coordinate. Adjust based on directions
+   * of the edges. */
+  float cov;
+  if (is_steep) {
+    cov = fabsf(ipos.x - pos.x);
+    if (delta.y < 0) {
+      cov = 1.0f - cov;
+    }
+  }
+  else {
+    cov = fabsf(ipos.y - pos.y);
+    if (delta.x > 0) {
+      cov = 1.0f - cov;
+    }
+  }
+  cov = math::clamp(cov, 0.0f, 1.0f);
+  /* Resulting coverage is 0.5 .. 1.0 range, since we are only covering
+   * half of the pixels that should be AA'd (the other half is outside the
+   * quad and does not get rasterized). Square the coverage to get
+   * more range, and it looks a bit nicer that way. */
+  cov *= cov;
+  return cov;
+}
+
+static void edge_aa(const TransformContext &ctx)
+{
+  /* Rasterize along outer source edges into the destination image,
+   * reducing alpha based on pixel distance to the edge at each pixel.
+   * This is very approximate and not 100% correct "analytical AA",
+   * but simple to do and better than nothing. */
+  for (int line_idx = 0; line_idx < 4; line_idx++) {
+    float2 ptA = ctx.src_corners[line_idx];
+    float2 ptB = ctx.src_corners[(line_idx + 1) & 3];
+    float2 delta = ptB - ptA;
+    float2 abs_delta = math::abs(delta);
+    float length = math::max(abs_delta.x, abs_delta.y);
+    if (length < 1) {
+      continue;
+    }
+    bool is_steep = length == abs_delta.y;
+
+    /* It is very common to have non-rotated strips; check if edge line is
+     * horizontal or vertical and would not alter the coverage and can
+     * be skipped. */
+    constexpr float NO_ROTATION = 1.0e-6f;
+    constexpr float NO_AA_CONTRIB = 1.0e-2f;
+    if (is_steep) {
+      if ((abs_delta.x < NO_ROTATION) && (fabsf(ptA.x - roundf(ptA.x)) < NO_AA_CONTRIB)) {
+        continue;
+      }
+    }
+    else {
+      if ((abs_delta.y < NO_ROTATION) && (fabsf(ptA.y - roundf(ptA.y)) < NO_AA_CONTRIB)) {
+        continue;
+      }
+    }
+
+    /* DDA line raster: step one pixel along the longer direction. */
+    delta /= length;
+    if (ctx.dst->float_buffer.data != nullptr) {
+      /* Float pixels. */
+      float *dst = ctx.dst->float_buffer.data;
+      for (int i = 0; i < length; i++) {
+        float2 pos = ptA + i * delta;
+        int2 ipos = int2(pos);
+        if (ipos.x >= 0 && ipos.x < ctx.dst->x && ipos.y >= 0 && ipos.y < ctx.dst->y) {
+          float cov = calc_coverage(pos, ipos, delta, is_steep);
+          size_t idx = (size_t(ipos.y) * ctx.dst->x + ipos.x) * 4;
+          dst[idx + 0] *= cov;
+          dst[idx + 1] *= cov;
+          dst[idx + 2] *= cov;
+          dst[idx + 3] *= cov;
+        }
+      }
+    }
+    if (ctx.dst->byte_buffer.data != nullptr) {
+      /* Byte pixels. */
+      uchar *dst = ctx.dst->byte_buffer.data;
+      for (int i = 0; i < length; i++) {
+        float2 pos = ptA + i * delta;
+        int2 ipos = int2(pos);
+        if (ipos.x >= 0 && ipos.x < ctx.dst->x && ipos.y >= 0 && ipos.y < ctx.dst->y) {
+          float cov = calc_coverage(pos, ipos, delta, is_steep);
+          size_t idx = (size_t(ipos.y) * ctx.dst->x + ipos.x) * 4;
+          dst[idx + 3] *= cov;
+        }
+      }
     }
   }
 }
@@ -368,7 +468,7 @@ void IMB_transform(const ImBuf *src,
                    ImBuf *dst,
                    const eIMBTransformMode mode,
                    const eIMBInterpolationFilterMode filter,
-                   const float transform_matrix[4][4],
+                   const float3x3 &transform_matrix,
                    const rctf *src_crop)
 {
   BLI_assert_msg(mode != IMB_TRANSFORM_MODE_CROP_SRC || src_crop != nullptr,
@@ -384,7 +484,7 @@ void IMB_transform(const ImBuf *src,
   if (crop) {
     ctx.src_crop = *src_crop;
   }
-  ctx.init(blender::float4x4(transform_matrix), crop);
+  ctx.init(transform_matrix, crop);
 
   threading::parallel_for(ctx.dst_region_y_range, 8, [&](IndexRange y_range) {
     if (filter == IMB_FILTER_NEAREST) {
@@ -403,4 +503,8 @@ void IMB_transform(const ImBuf *src,
       transform_scanlines_filter<IMB_FILTER_BOX>(ctx, y_range);
     }
   });
+
+  if (crop && (filter != IMB_FILTER_NEAREST)) {
+    edge_aa(ctx);
+  }
 }

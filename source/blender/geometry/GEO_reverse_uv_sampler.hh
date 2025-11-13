@@ -4,10 +4,7 @@
 
 #pragma once
 
-#include <optional>
-
 #include "BLI_math_vector_types.hh"
-#include "BLI_multi_value_map.hh"
 #include "BLI_span.hh"
 
 namespace blender::geometry {
@@ -18,14 +15,18 @@ namespace blender::geometry {
  * \note this uses a trivial implementation currently that has to be replaced.
  */
 class ReverseUVSampler {
+ public:
+  struct LookupGrid;
+
  private:
   Span<float2> uv_map_;
   Span<int3> corner_tris_;
   int resolution_;
-  MultiValueMap<int2, int> corner_tris_by_cell_;
+  std::unique_ptr<LookupGrid> lookup_grid_;
 
  public:
   ReverseUVSampler(Span<float2> uv_map, Span<int3> corner_tris);
+  ~ReverseUVSampler();
 
   enum class ResultType {
     None,

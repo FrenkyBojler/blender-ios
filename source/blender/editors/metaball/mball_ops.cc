@@ -6,8 +6,6 @@
  * \ingroup edmeta
  */
 
-#include "DNA_scene_types.h"
-
 #include "RNA_access.hh"
 
 #include "WM_api.hh"
@@ -16,7 +14,7 @@
 #include "ED_mball.hh"
 #include "ED_screen.hh"
 
-#include "mball_intern.h"
+#include "mball_intern.hh"
 
 void ED_operatortypes_metaball()
 {

@@ -8,7 +8,6 @@
 
 #pragma once
 
-/* Struct members on own line. */
 /* clang-format off */
 
 /* -------------------------------------------------------------------- */
@@ -41,6 +40,7 @@
     .ortho_scale = 6.0, \
     .flag = CAM_SHOWPASSEPARTOUT, \
     .passepartalpha = 0.5f, \
+    .composition_guide_color = {0.5f, 0.5f, 0.5f, 1.0f}, \
  \
     .panorama_type = CAM_PANORAMA_FISHEYE_EQUISOLID,\
     .fisheye_fov = M_PI,\
@@ -55,6 +55,11 @@
     .fisheye_polynomial_k2 = -3.3525322965709175e-06f,\
     .fisheye_polynomial_k3 = 3.099275275886036e-06f,\
     .fisheye_polynomial_k4 = -2.6064646454854524e-08f,\
+    .central_cylindrical_range_u_min = DEG2RADF(-180.0f),\
+    .central_cylindrical_range_u_max = DEG2RADF(180.0f),\
+    .central_cylindrical_range_v_min = -1.0f,\
+    .central_cylindrical_range_v_max = 1.0f,\
+    .central_cylindrical_radius = 1.0f,\
  \
     .dof = _DNA_DEFAULT_CameraDOFSettings, \
  \

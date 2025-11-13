@@ -1,7 +1,7 @@
 ..
    This document is appended to the auto generated BMesh API doc to avoid clogging up the C files with details.
    to test this run:
-   ./blender.bin -b -noaudio -P doc/python_api/sphinx_doc_gen.py -- \
+   ./blender.bin -b -P doc/python_api/sphinx_doc_gen.py -- \
                  --partial bmesh* ; cd doc/python_api ; sphinx-build sphinx-in sphinx-out ; cd ../../
 
 
@@ -104,11 +104,11 @@ Here are some examples:
 
 .. code-block:: python
 
-   # in this example the active vertex group index is used,
-   # this is stored in the object, not the BMesh
+   # In this example the active vertex group index is used,
+   # this is stored in the object, not the `BMesh`.
    group_index = obj.vertex_groups.active_index
 
-   # only ever one deform weight layer
+   # Only ever one deform weight layer.
    dvert_lay = bm.verts.layers.deform.active
 
    for vert in bm.verts:

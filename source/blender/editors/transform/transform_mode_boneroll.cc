@@ -10,22 +10,23 @@
 
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
-#include "BKE_context.hh"
 #include "BKE_unit.hh"
 
 #include "ED_screen.hh"
 
-#include "UI_interface.hh"
+#include "BLT_translation.hh"
 
-#include "BLT_translation.h"
+#include "UI_interface_types.hh"
 
 #include "transform.hh"
 #include "transform_convert.hh"
 #include "transform_snap.hh"
 
 #include "transform_mode.hh"
+
+namespace blender::ed::transform {
 
 /* -------------------------------------------------------------------- */
 /** \name Transform (EditBone Roll)
@@ -49,15 +50,15 @@ static void applyBoneRoll(TransInfo *t)
   if (hasNumInput(&t->num)) {
     char c[NUM_STR_REP_LEN];
 
-    outputNumInput(&(t->num), c, &t->scene->unit);
+    outputNumInput(&(t->num), c, t->scene->unit);
 
-    SNPRINTF(str, RPT_("Roll: %s"), &c[0]);
+    SNPRINTF_UTF8(str, IFACE_("Roll: %s"), &c[0]);
   }
   else {
-    SNPRINTF(str, RPT_("Roll: %.2f"), RAD2DEGF(final));
+    SNPRINTF_UTF8(str, IFACE_("Roll: %.2f"), RAD2DEGF(final));
   }
 
-  /* set roll values */
+  /* Set roll values. */
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
     TransData *td = tc->data;
     for (i = 0; i < tc->data_len; i++, td++) {
@@ -82,10 +83,9 @@ static void initBoneRoll(TransInfo *t, wmOperator * /*op*/)
 
   t->idx_max = 0;
   t->num.idx_max = 0;
-  t->snap[0] = DEG2RAD(5.0);
-  t->snap[1] = DEG2RAD(1.0);
+  initSnapAngleIncrements(t);
 
-  copy_v3_fl(t->num.val_inc, t->snap[0]);
+  copy_v3_fl(t->num.val_inc, t->increment[0]);
   t->num.unit_sys = t->scene->unit.system;
   t->num.unit_use_radians = (t->scene->unit.system_rotation == USER_UNIT_ROT_RADIANS);
   t->num.unit_type[0] = B_UNIT_ROTATION;
@@ -103,3 +103,5 @@ TransModeInfo TransMode_boneroll = {
     /*snap_apply_fn*/ nullptr,
     /*draw_fn*/ nullptr,
 };
+
+}  // namespace blender::ed::transform

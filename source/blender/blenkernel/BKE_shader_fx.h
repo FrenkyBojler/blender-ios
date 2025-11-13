@@ -10,15 +10,13 @@
 #include "BLI_compiler_attrs.h"
 #include "DNA_shader_fx_types.h" /* Needed for all enum type definitions. */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "BKE_lib_query.hh" /* For LibraryForeachIDCallbackFlag enum. */
 
 struct ARegionType;
 struct BlendDataReader;
-struct BlendLibReader;
 struct BlendWriter;
 struct ID;
+struct IDTypeForeachColorFunctionCallback;
 struct ListBase;
 struct ModifierUpdateDepsgraphContext;
 struct Object;
@@ -55,7 +53,7 @@ typedef enum {
 typedef void (*ShaderFxIDWalkFunc)(void *user_data,
                                    struct Object *ob,
                                    struct ID **idpoin,
-                                   int cb_flag);
+                                   LibraryForeachIDCallbackFlag cb_flag);
 typedef void (*ShaderFxTexWalkFunc)(void *user_data,
                                     struct Object *ob,
                                     struct ShaderFxData *fx,
@@ -131,6 +129,10 @@ typedef struct ShaderFxTypeInfo {
                           ShaderFxIDWalkFunc walk,
                           void *user_data);
 
+  /* Should iterate over every working space color. */
+  void (*foreach_working_space_color)(ShaderFxData *fx,
+                                      const IDTypeForeachColorFunctionCallback &func);
+
   /* Register the panel types for the effect's UI. */
   void (*panel_register)(struct ARegionType *region_type);
 } ShaderFxTypeInfo;
@@ -138,7 +140,7 @@ typedef struct ShaderFxTypeInfo {
 #define SHADERFX_TYPE_PANEL_PREFIX "FX_PT_"
 
 /**
- * Initialize  global data (type info and some common global storage).
+ * Initialize global data (type info and some common global storage).
  */
 void BKE_shaderfx_init(void);
 
@@ -157,7 +159,7 @@ void BKE_shaderfx_free(struct ShaderFxData *fx);
 /**
  * Check unique name.
  */
-void BKE_shaderfx_unique_name(struct ListBase *shaderfx, struct ShaderFxData *fx);
+void BKE_shaderfx_unique_name(struct ListBase *shaders, struct ShaderFxData *fx);
 bool BKE_shaderfx_depends_ontime(struct ShaderFxData *fx);
 /**
  * Check whether given shaderfx is not local (i.e. from linked data) when the object is a library
@@ -184,7 +186,3 @@ void BKE_shaderfx_blend_write(struct BlendWriter *writer, struct ListBase *fxbas
 void BKE_shaderfx_blend_read_data(struct BlendDataReader *reader,
                                   struct ListBase *lb,
                                   struct Object *ob);
-
-#ifdef __cplusplus
-}
-#endif

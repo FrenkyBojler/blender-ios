@@ -2,10 +2,13 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
-#include "BLI_strict_flags.h"
 #include "BLI_string_ref.hh"
+#include "BLI_string_utf8_symbols.h"
 #include "BLI_vector.hh"
+
 #include "testing/testing.h"
+
+#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 namespace blender::tests {
 
@@ -30,6 +33,80 @@ TEST(string_ref_null, CStringLengthConstructor)
   StringRefNull ref(str, 5);
   EXPECT_EQ(ref.size(), 5);
   EXPECT_EQ(ref.data(), str);
+}
+
+TEST(string_ref_null, CompareEqual)
+{
+  StringRefNull ref1("test");
+  StringRefNull ref2("test");
+  StringRefNull ref3("other");
+  EXPECT_TRUE(ref1 == ref2);
+  EXPECT_FALSE(ref1 == ref3);
+  EXPECT_TRUE(ref1 != ref3);
+  EXPECT_FALSE(ref1 != ref2);
+}
+
+TEST(string_ref_null, CompareEqualCharPtr1)
+{
+  StringRefNull ref("test");
+  EXPECT_TRUE(ref == "test");
+  EXPECT_FALSE(ref == "other");
+  EXPECT_TRUE(ref != "other");
+  EXPECT_FALSE(ref != "test");
+}
+
+TEST(string_ref_null, CompareEqualCharPtr2)
+{
+  StringRefNull ref("test");
+  EXPECT_TRUE("test" == ref);
+  EXPECT_FALSE("other" == ref);
+  EXPECT_TRUE(ref != "other");
+  EXPECT_FALSE(ref != "test");
+}
+
+TEST(string_ref_null, CompareEqualString1)
+{
+  StringRefNull ref("test");
+  EXPECT_TRUE(ref == std::string("test"));
+  EXPECT_FALSE(ref == std::string("other"));
+  EXPECT_TRUE(ref != std::string("other"));
+  EXPECT_FALSE(ref != std::string("test"));
+}
+
+TEST(string_ref_null, CompareEqualString2)
+{
+  StringRefNull ref("test");
+  EXPECT_TRUE(std::string("test") == ref);
+  EXPECT_FALSE(std::string("other") == ref);
+  EXPECT_TRUE(std::string("other") != ref);
+  EXPECT_FALSE(std::string("test") != ref);
+}
+
+TEST(string_ref_null, CompareEqualStringRef1)
+{
+  StringRefNull ref("test");
+  EXPECT_TRUE(ref == StringRef("test"));
+  EXPECT_FALSE(ref == StringRef("other"));
+  EXPECT_TRUE(ref != StringRef("other"));
+  EXPECT_FALSE(ref != StringRef("test"));
+}
+
+TEST(string_ref_null, CompareEqualStringRef2)
+{
+  StringRefNull ref("test");
+  EXPECT_TRUE(StringRef("test") == ref);
+  EXPECT_FALSE(StringRef("other") == ref);
+  EXPECT_TRUE(StringRef("other") != ref);
+  EXPECT_FALSE(StringRef("test") != ref);
+}
+
+TEST(string_ref_null, Constexpr)
+{
+  constexpr StringRefNull sref("World", 5);
+  BLI_STATIC_ASSERT(sref[2] == 'r', "");
+  BLI_STATIC_ASSERT(sref.size() == 5, "");
+  std::array<int, std::size_t(sref.find_first_of('o'))> compiles = {1};
+  EXPECT_EQ(compiles[0], 1);
 }
 
 TEST(string_ref, DefaultConstructor)
@@ -84,6 +161,12 @@ TEST(string_ref, StdStringConstructor)
   StringRef ref(str);
   EXPECT_EQ(ref.size(), 4);
   EXPECT_EQ(ref.data(), str.data());
+}
+
+TEST(string_ref, SpanConstructor)
+{
+  EXPECT_EQ(StringRef(Span<char>("hello", 5)), "hello");
+  EXPECT_EQ(StringRef(Span<char>("hello", 2)), "he");
 }
 
 TEST(string_ref, SubscriptOperator)
@@ -329,15 +412,108 @@ TEST(string_ref, Substr)
   EXPECT_EQ(ref.substr(8, 100), "rld");
 }
 
-TEST(string_ref, Copy)
+TEST(string_ref, CopyUtf8Truncated)
 {
-  StringRef ref("hello");
-  char dst[10];
-  memset(dst, 0xFF, 10);
-  ref.copy(dst);
-  EXPECT_EQ(dst[5], '\0');
-  EXPECT_EQ(dst[6], 0xFF);
-  EXPECT_EQ(ref, dst);
+  {
+    StringRef ref("hello");
+    char dst[10];
+    memset(dst, 0xFF, 10);
+    ref.copy_utf8_truncated(dst);
+    EXPECT_EQ(dst[5], '\0');
+    EXPECT_EQ(dst[6], 0xFF);
+    EXPECT_EQ(ref, dst);
+  }
+  {
+    StringRef ref("0123456789");
+    char dst[4];
+    memset(dst, 0xFF, 4);
+    ref.copy_utf8_truncated(dst);
+    EXPECT_EQ(dst[0], '0');
+    EXPECT_EQ(dst[1], '1');
+    EXPECT_EQ(dst[2], '2');
+    EXPECT_EQ(dst[3], '\0');
+  }
+  {
+    /* #BLI_STR_UTF8_SUPERSCRIPT_2 is a two-byte code point. */
+    StringRef ref(BLI_STR_UTF8_SUPERSCRIPT_2 BLI_STR_UTF8_SUPERSCRIPT_2);
+    {
+      char dst[1];
+      ref.copy_utf8_truncated(dst);
+      EXPECT_EQ(dst[0], '\0');
+    }
+    {
+      char dst[2];
+      ref.copy_utf8_truncated(dst);
+      EXPECT_EQ(dst[0], '\0');
+    }
+    {
+      char dst[3];
+      ref.copy_utf8_truncated(dst);
+      EXPECT_EQ(StringRef(dst), BLI_STR_UTF8_SUPERSCRIPT_2);
+    }
+    {
+      char dst[4];
+      ref.copy_utf8_truncated(dst);
+      EXPECT_EQ(StringRef(dst), BLI_STR_UTF8_SUPERSCRIPT_2);
+    }
+    {
+      char dst[5];
+      ref.copy_utf8_truncated(dst);
+      EXPECT_EQ(StringRef(dst), BLI_STR_UTF8_SUPERSCRIPT_2 BLI_STR_UTF8_SUPERSCRIPT_2);
+    }
+  }
+}
+
+TEST(string_ref, CopyBytesTruncated)
+{
+  {
+    StringRef ref("hello");
+    char dst[10];
+    memset(dst, 0xFF, 10);
+    ref.copy_bytes_truncated(dst);
+    EXPECT_EQ(dst[5], '\0');
+    EXPECT_EQ(dst[6], 0xFF);
+    EXPECT_EQ(ref, dst);
+  }
+  {
+    StringRef ref("0123456789");
+    char dst[4];
+    memset(dst, 0xFF, 4);
+    ref.copy_bytes_truncated(dst);
+    EXPECT_EQ(dst[0], '0');
+    EXPECT_EQ(dst[1], '1');
+    EXPECT_EQ(dst[2], '2');
+    EXPECT_EQ(dst[3], '\0');
+  }
+  {
+    /* Simple 4 byte string. */
+    StringRef ref("01234");
+    {
+      char dst[1];
+      ref.copy_bytes_truncated(dst);
+      EXPECT_EQ(dst[0], '\0');
+    }
+    {
+      char dst[2];
+      ref.copy_bytes_truncated(dst);
+      EXPECT_EQ(dst[0], '0');
+    }
+    {
+      char dst[3];
+      ref.copy_bytes_truncated(dst);
+      EXPECT_EQ(StringRef(dst), "01");
+    }
+    {
+      char dst[4];
+      ref.copy_bytes_truncated(dst);
+      EXPECT_EQ(StringRef(dst), "012");
+    }
+    {
+      char dst[5];
+      ref.copy_bytes_truncated(dst);
+      EXPECT_EQ(StringRef(dst), "0123");
+    }
+  }
 }
 
 TEST(string_ref, FromStringView)

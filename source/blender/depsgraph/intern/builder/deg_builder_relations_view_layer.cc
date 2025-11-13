@@ -10,20 +10,13 @@
 
 #include "intern/builder/deg_builder_relations.h"
 
-#include <cstdio>
 #include <cstdlib>
 #include <cstring> /* required for STREQ later on. */
 
-#include "MEM_guardedalloc.h"
-
-#include "BLI_blenlib.h"
-#include "BLI_utildefines.h"
-
 #include "DNA_collection_types.h"
-#include "DNA_linestyle_types.h"
-#include "DNA_node_types.h"
-#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
+
+#include "BLI_listbase.h"
 
 #include "BKE_layer.hh"
 #include "BKE_main.hh"
@@ -33,14 +26,11 @@
 #include "DEG_depsgraph_build.hh"
 
 #include "intern/builder/deg_builder.h"
-#include "intern/builder/deg_builder_pchanmap.h"
 
 #include "intern/node/deg_node.hh"
 #include "intern/node/deg_node_component.hh"
 #include "intern/node/deg_node_id.hh"
 #include "intern/node/deg_node_operation.hh"
-
-#include "intern/depsgraph_type.hh"
 
 namespace blender::deg {
 
@@ -108,7 +98,7 @@ void DepsgraphRelationBuilder::build_view_layer(Scene *scene,
   scene_ = scene;
   BKE_view_layer_synced_ensure(scene, view_layer);
   /* Scene objects. */
-  /* NOTE: Nodes builder requires us to pass CoW base because it's being
+  /* NOTE: Nodes builder requires us to pass evaluated base because it's being
    * passed to the evaluation functions. During relations builder we only
    * do nullptr-pointer check of the base, so it's fine to pass original one. */
   LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
@@ -143,6 +133,10 @@ void DepsgraphRelationBuilder::build_view_layer(Scene *scene,
   /* Material override. */
   if (view_layer->mat_override != nullptr) {
     build_material(view_layer->mat_override);
+  }
+  /* World override */
+  if (view_layer->world_override != nullptr) {
+    build_world(view_layer->world_override);
   }
   /* Freestyle linesets. */
   LISTBASE_FOREACH (FreestyleLineSet *, fls, &view_layer->freestyle_config.linesets) {

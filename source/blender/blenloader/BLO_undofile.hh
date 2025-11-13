@@ -10,11 +10,21 @@
  */
 
 #include "BLI_filereader.h"
+#include "BLI_implicit_sharing.hh"
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
 
 struct Main;
 struct Scene;
+
+struct MemFileSharedStorage {
+  /**
+   * Maps the address id to the shared data and corresponding sharing info..
+   */
+  blender::Map<uint64_t, blender::ImplicitSharingInfoAndData> sharing_info_by_address_id;
+
+  ~MemFileSharedStorage();
+};
 
 struct MemFileChunk {
   void *next, *prev;
@@ -35,6 +45,11 @@ struct MemFileChunk {
 struct MemFile {
   ListBase chunks;
   size_t size;
+  /**
+   * Some data is not serialized into a new buffer because the undo-step can take ownership of it
+   * without making a copy. This is faster and requires less memory.
+   */
+  MemFileSharedStorage *shared_storage;
 };
 
 struct MemFileWriteData {
@@ -49,7 +64,7 @@ struct MemFileWriteData {
 };
 
 struct MemFileUndoData {
-  char filepath[1024]; /* FILE_MAX */
+  char filepath[/*FILE_MAX*/ 1024];
   MemFile memfile;
   size_t undo_size;
 };
@@ -94,11 +109,5 @@ void BLO_memfile_clear_future(MemFile *memfile);
 /* Utilities. */
 
 Main *BLO_memfile_main_get(MemFile *memfile, Main *bmain, Scene **r_scene);
-/**
- * Saves .blend using undo buffer.
- *
- * \return success.
- */
-bool BLO_memfile_write_file(MemFile *memfile, const char *filepath);
 
 FileReader *BLO_memfile_new_filereader(MemFile *memfile, int undo_direction);
