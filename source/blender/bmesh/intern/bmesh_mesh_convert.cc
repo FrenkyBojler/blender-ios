@@ -158,6 +158,46 @@ static BMFace *bm_face_create_from_mpoly(BMesh &bm,
   return BM_face_create(&bm, verts.data(), edges.data(), size, nullptr, BM_CREATE_SKIP_CD);
 }
 
+static const CustomData &get_bm_custom_data(const BMesh &bm, const blender::bke::AttrDomain domain)
+{
+  switch (domain) {
+    case blender::bke::AttrDomain::Point:
+      return bm.vdata;
+    case blender::bke::AttrDomain::Edge:
+      return bm.edata;
+    case blender::bke::AttrDomain::Face:
+      return bm.pdata;
+    case blender::bke::AttrDomain::Corner:
+      return bm.ldata;
+    default:
+      BLI_assert_unreachable();
+      return bm.vdata;
+  }
+}
+
+static const CustomData &get_mesh_custom_data(const Mesh &mesh,
+                                              const blender::bke::AttrDomain domain)
+{
+  switch (domain) {
+    case blender::bke::AttrDomain::Point:
+      return mesh.vert_data;
+    case blender::bke::AttrDomain::Edge:
+      return mesh.edge_data;
+    case blender::bke::AttrDomain::Face:
+      return mesh.face_data;
+    case blender::bke::AttrDomain::Corner:
+      return mesh.corner_data;
+    default:
+      BLI_assert_unreachable();
+      return mesh.vert_data;
+  }
+}
+
+static CustomData &get_mesh_custom_data(Mesh &mesh, const blender::bke::AttrDomain domain)
+{
+  return const_cast<CustomData &>(get_mesh_custom_data(const_cast<const Mesh &>(mesh), domain));
+}
+
 struct MeshToBMeshLayerInfo {
   eCustomDataType type;
   /** The layer's position in the BMesh element's data block. */
@@ -172,21 +212,24 @@ struct MeshToBMeshLayerInfo {
  * Calculate the necessary information to copy every data layer from the Mesh to the BMesh.
  */
 static Vector<MeshToBMeshLayerInfo> mesh_to_bm_copy_info_calc(
-    const blender::bke::AttributeStorage &storage,
-    const CustomData &mesh_data,
-    CustomData &bm_data)
+    const Mesh &mesh, const blender::bke::AttrDomain domain, CustomData &bm_data)
 {
+  using namespace blender;
+  const bke::AttributeStorage &storage = mesh.attribute_storage.wrap();
+  const CustomData &mesh_data = get_mesh_custom_data(mesh, domain);
+
   Vector<MeshToBMeshLayerInfo> infos;
   std::array<int, CD_NUMTYPES> per_type_index;
   per_type_index.fill(0);
   for (const int i : IndexRange(bm_data.totlayer)) {
     const CustomDataLayer &bm_layer = bm_data.layers[i];
+    const StringRef layer_name = bm_layer.name;
     const eCustomDataType type = eCustomDataType(bm_layer.type);
 
     MeshToBMeshLayerInfo info{};
     info.type = type;
     info.bmesh_offset = bm_layer.offset;
-    if (const blender::bke::Attribute *attr = storage.lookup(bm_layer.name)) {
+    if (const blender::bke::Attribute *attr = storage.lookup(layer_name)) {
       switch (attr->storage_type()) {
         case blender::bke::AttrStorageType::Array: {
           const auto &array_data = std::get<blender::bke::Attribute::ArrayData>(attr->data());
@@ -195,15 +238,16 @@ static Vector<MeshToBMeshLayerInfo> mesh_to_bm_copy_info_calc(
         }
         case blender::bke::AttrStorageType::Single: {
           BLI_assert_unreachable();
+          info.mesh_data = nullptr;
           break;
         }
       }
     }
     else {
       const int mesh_layer_index =
-          bm_layer.name[0] == '\0' ?
+          layer_name.is_empty() ?
               CustomData_get_layer_index_n(&mesh_data, type, per_type_index[type]) :
-              CustomData_get_named_layer_index(&mesh_data, type, bm_layer.name);
+              CustomData_get_named_layer_index(&mesh_data, type, layer_name);
       if (mesh_layer_index != -1) {
         BLI_assert((CD_TYPE_AS_MASK(type) & CD_MASK_PROP_ALL) == 0);
         info.mesh_data = mesh_data.layers[mesh_layer_index].data;
@@ -235,21 +279,27 @@ static void mesh_attributes_copy_to_bmesh_block(CustomData &data,
   }
 }
 
-static CustomData &get_bmesh_custom_data(BMesh &bm, const blender::bke::AttrDomain domain)
+static CustomData get_mesh_to_bm_custom_data(const Mesh &mesh,
+                                             const blender::bke::AttrDomain domain,
+                                             const uint64_t cd_type_mask_mask)
 {
-  switch (domain) {
-    case blender::bke::AttrDomain::Point:
-      return bm.vdata;
-    case blender::bke::AttrDomain::Edge:
-      return bm.edata;
-    case blender::bke::AttrDomain::Face:
-      return bm.pdata;
-    case blender::bke::AttrDomain::Corner:
-      return bm.ldata;
-    default:
-      BLI_assert_unreachable();
-      return bm.vdata;
-  }
+  using namespace blender;
+  CustomData custom_data;
+  CustomData_reset(&custom_data);
+  mesh.attribute_storage.wrap().foreach([&](const bke::Attribute &attr) {
+    if (attr.domain() != domain) {
+      return;
+    }
+    if (BM_attribute_stored_in_bmesh_builtin(attr.name())) {
+      return;
+    }
+    const eCustomDataType data_type = *bke::attr_type_to_custom_data_type(attr.data_type());
+    if ((CD_TYPE_AS_MASK(data_type) & cd_type_mask_mask) == 0) {
+      return;
+    }
+    CustomData_add_layer_named(&custom_data, data_type, CD_SET_DEFAULT, 0, attr.name());
+  });
+  return custom_data;
 }
 
 void BM_mesh_bm_from_me(BMesh *bm, const Mesh *mesh, const BMeshFromMeshParams *params)
@@ -266,21 +316,46 @@ void BM_mesh_bm_from_me(BMesh *bm, const Mesh *mesh, const BMeshFromMeshParams *
   CustomData_MeshMasks mask = CD_MASK_BMESH;
   CustomData_MeshMasks_update(&mask, &params->cd_mask_extra);
 
-  mesh->attribute_storage.wrap().foreach([&](const bke::Attribute &attr) {
-    const eCustomDataType data_type = *bke::attr_type_to_custom_data_type(attr.data_type());
-    CustomData &custom_data = get_bmesh_custom_data(*bm, attr.domain());
-    // TODO_MESH_ATTR CHECK IF LAYER ALREADY EXISTS
-    BLI_assert(is_new);
-    CustomData_add_layer_named(&custom_data, data_type, CD_SET_DEFAULT, 0, attr.name());
+  CustomData mesh_vdata = get_mesh_to_bm_custom_data(*mesh, bke::AttrDomain::Point, mask.vmask);
+  CustomData mesh_edata = get_mesh_to_bm_custom_data(*mesh, bke::AttrDomain::Edge, mask.emask);
+  CustomData mesh_pdata = get_mesh_to_bm_custom_data(*mesh, bke::AttrDomain::Face, mask.pmask);
+  CustomData mesh_ldata = get_mesh_to_bm_custom_data(*mesh, bke::AttrDomain::Corner, mask.lmask);
+
+  blender::Vector<std::string> temporary_layers_to_delete;
+
+  for (const int layer_index :
+       IndexRange(CustomData_number_of_layers(&mesh_ldata, CD_PROP_FLOAT2)))
+  {
+    char buffer[MAX_CUSTOMDATA_LAYER_NAME];
+    {
+      const StringRef name = BKE_uv_map_pin_name_get(
+          CustomData_get_layer_name(&mesh_ldata, CD_PROP_FLOAT2, layer_index), buffer);
+      if (CustomData_get_named_layer_index(&mesh_ldata, CD_PROP_BOOL, name) < 0) {
+        CustomData_add_layer_named(
+            &mesh_ldata, CD_PROP_BOOL, CD_SET_DEFAULT, mesh->corners_num, name);
+        temporary_layers_to_delete.append(std::string(name));
+      }
+    }
+  }
+
+  BLI_SCOPED_DEFER([&]() {
+    for (const std::string &name : temporary_layers_to_delete) {
+      CustomData_free_layer_named(&mesh_ldata, name);
+    }
+
+    MEM_SAFE_FREE(mesh_vdata.layers);
+    MEM_SAFE_FREE(mesh_edata.layers);
+    MEM_SAFE_FREE(mesh_pdata.layers);
+    MEM_SAFE_FREE(mesh_ldata.layers);
   });
 
   if (mesh->verts_num == 0) {
     if (is_new) {
       /* No verts? still copy custom-data layout. */
-      CustomData_init_layout_from(&mesh->vert_data, &bm->vdata, mask.vmask, CD_CONSTRUCT, 0);
-      CustomData_init_layout_from(&mesh->edge_data, &bm->edata, mask.emask, CD_CONSTRUCT, 0);
-      CustomData_init_layout_from(&mesh->face_data, &bm->pdata, mask.pmask, CD_CONSTRUCT, 0);
-      CustomData_init_layout_from(&mesh->corner_data, &bm->ldata, mask.lmask, CD_CONSTRUCT, 0);
+      CustomData_init_layout_from(&mesh_vdata, &bm->vdata, mask.vmask, CD_CONSTRUCT, 0);
+      CustomData_init_layout_from(&mesh_edata, &bm->edata, mask.emask, CD_CONSTRUCT, 0);
+      CustomData_init_layout_from(&mesh_pdata, &bm->pdata, mask.pmask, CD_CONSTRUCT, 0);
+      CustomData_init_layout_from(&mesh_ldata, &bm->ldata, mask.lmask, CD_CONSTRUCT, 0);
 
       CustomData_bmesh_init_pool(&bm->vdata, mesh->verts_num, BM_VERT);
       CustomData_bmesh_init_pool(&bm->edata, mesh->edges_num, BM_EDGE);
@@ -296,20 +371,20 @@ void BM_mesh_bm_from_me(BMesh *bm, const Mesh *mesh, const BMeshFromMeshParams *
   }
 
   if (is_new) {
-    CustomData_init_layout_from(&mesh->vert_data, &bm->vdata, mask.vmask, CD_SET_DEFAULT, 0);
-    CustomData_init_layout_from(&mesh->edge_data, &bm->edata, mask.emask, CD_SET_DEFAULT, 0);
-    CustomData_init_layout_from(&mesh->face_data, &bm->pdata, mask.pmask, CD_SET_DEFAULT, 0);
-    CustomData_init_layout_from(&mesh->corner_data, &bm->ldata, mask.lmask, CD_SET_DEFAULT, 0);
+    CustomData_init_layout_from(&mesh_vdata, &bm->vdata, mask.vmask, CD_SET_DEFAULT, 0);
+    CustomData_init_layout_from(&mesh_edata, &bm->edata, mask.emask, CD_SET_DEFAULT, 0);
+    CustomData_init_layout_from(&mesh_pdata, &bm->pdata, mask.pmask, CD_SET_DEFAULT, 0);
+    CustomData_init_layout_from(&mesh_ldata, &bm->ldata, mask.lmask, CD_SET_DEFAULT, 0);
   }
   else {
     CustomData_bmesh_merge_layout(
-        &mesh->vert_data, &bm->vdata, mask.vmask, CD_SET_DEFAULT, bm, BM_VERT);
+        &mesh_vdata, &bm->vdata, mask.vmask, CD_SET_DEFAULT, bm, BM_VERT);
     CustomData_bmesh_merge_layout(
-        &mesh->edge_data, &bm->edata, mask.emask, CD_SET_DEFAULT, bm, BM_EDGE);
+        &mesh_edata, &bm->edata, mask.emask, CD_SET_DEFAULT, bm, BM_EDGE);
     CustomData_bmesh_merge_layout(
-        &mesh->face_data, &bm->pdata, mask.pmask, CD_SET_DEFAULT, bm, BM_FACE);
+        &mesh_pdata, &bm->pdata, mask.pmask, CD_SET_DEFAULT, bm, BM_FACE);
     CustomData_bmesh_merge_layout(
-        &mesh->corner_data, &bm->ldata, mask.lmask, CD_SET_DEFAULT, bm, BM_LOOP);
+        &mesh_ldata, &bm->ldata, mask.lmask, CD_SET_DEFAULT, bm, BM_LOOP);
   }
 
   /* -------------------------------------------------------------------- */
@@ -398,13 +473,13 @@ void BM_mesh_bm_from_me(BMesh *bm, const Mesh *mesh, const BMeshFromMeshParams *
   }
 
   const Vector<MeshToBMeshLayerInfo> vert_info = mesh_to_bm_copy_info_calc(
-      mesh->attribute_storage.wrap(), mesh->vert_data, bm->vdata);
+      *mesh, bke::AttrDomain::Point, bm->vdata);
   const Vector<MeshToBMeshLayerInfo> edge_info = mesh_to_bm_copy_info_calc(
-      mesh->attribute_storage.wrap(), mesh->edge_data, bm->edata);
+      *mesh, bke::AttrDomain::Edge, bm->edata);
   const Vector<MeshToBMeshLayerInfo> poly_info = mesh_to_bm_copy_info_calc(
-      mesh->attribute_storage.wrap(), mesh->face_data, bm->pdata);
+      *mesh, bke::AttrDomain::Face, bm->pdata);
   const Vector<MeshToBMeshLayerInfo> loop_info = mesh_to_bm_copy_info_calc(
-      mesh->attribute_storage.wrap(), mesh->corner_data, bm->ldata);
+      *mesh, bke::AttrDomain::Corner, bm->ldata);
   if (is_new) {
     CustomData_bmesh_init_pool(&bm->vdata, mesh->verts_num, BM_VERT);
     CustomData_bmesh_init_pool(&bm->edata, mesh->edges_num, BM_EDGE);
@@ -1075,7 +1150,6 @@ static void bmesh_to_mesh_calc_object_remap(Main &bmain,
   }
 }
 
-// TODO_MESH_ATTR
 struct BMeshToMeshLayerInfo {
   eCustomDataType type;
   /** The layer's position in the BMesh element's data block. */
@@ -1090,12 +1164,11 @@ struct BMeshToMeshLayerInfo {
  * Calculate the necessary information to copy every data layer from the BMesh to the Mesh.
  */
 static Vector<BMeshToMeshLayerInfo> bm_to_mesh_copy_info_calc(
-    const CustomData &bm_data,
-    const blender::bke::AttrDomain domain,
-    blender::bke::AttributeStorage &storage,
-    CustomData &mesh_data)
+    const CustomData &bm_data, const blender::bke::AttrDomain domain, Mesh &mesh)
 {
   using namespace blender;
+  bke::AttributeStorage &storage = mesh.attribute_storage.wrap();
+  CustomData &mesh_data = get_mesh_custom_data(mesh, domain);
   Vector<BMeshToMeshLayerInfo> infos;
   std::array<int, CD_NUMTYPES> per_type_index;
   per_type_index.fill(0);
@@ -1281,7 +1354,7 @@ static void bm_to_mesh_verts(const BMesh &bm,
   CustomData_add_layer_named(
       &mesh.vert_data, CD_PROP_FLOAT3, CD_CONSTRUCT, mesh.verts_num, "position");
   const Vector<BMeshToMeshLayerInfo> info = bm_to_mesh_copy_info_calc(
-      bm.vdata, bke::AttrDomain::Point, mesh.attribute_storage.wrap(), mesh.vert_data);
+      bm.vdata, bke::AttrDomain::Point, mesh);
   MutableSpan<float3> dst_vert_positions = mesh.vert_positions_for_write();
 
   std::atomic<bool> any_loose_vert = false;
@@ -1324,7 +1397,7 @@ static void bm_to_mesh_edges(const BMesh &bm,
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   attributes.add<int2>(".edge_verts", bke::AttrDomain::Edge, bke::AttributeInitConstruct());
   const Vector<BMeshToMeshLayerInfo> info = bm_to_mesh_copy_info_calc(
-      bm.edata, bke::AttrDomain::Edge, mesh.attribute_storage.wrap(), mesh.edge_data);
+      bm.edata, bke::AttrDomain::Edge, mesh);
   MutableSpan<int2> dst_edges = mesh.edges_for_write();
 
   std::atomic<bool> any_loose_edge = false;
@@ -1377,13 +1450,12 @@ static void bm_to_mesh_faces(const BMesh &bm,
 {
   BKE_mesh_face_offsets_ensure_alloc(&mesh);
   const Vector<BMeshToMeshLayerInfo> info = bm_to_mesh_copy_info_calc(
-      bm.pdata, bke::AttrDomain::Face, mesh.attribute_storage.wrap(), mesh.face_data);
+      bm.pdata, bke::AttrDomain::Face, mesh);
   MutableSpan<int> dst_face_offsets = mesh.face_offsets_for_write();
   threading::parallel_for(bm_faces.index_range(), 1024, [&](const IndexRange range) {
     for (const int face_i : range) {
       const BMFace &src_face = *bm_faces[face_i];
       dst_face_offsets[face_i] = BM_elem_index_get(BM_FACE_FIRST_LOOP(&src_face));
-      // TODO_MESH_ATTR
       bmesh_block_copy_to_mesh_attributes(info, face_i, src_face.head.data);
     }
     if (!select_poly.is_empty()) {
@@ -1414,6 +1486,30 @@ static void bm_to_mesh_faces(const BMesh &bm,
   });
 }
 
+static void add_bm_cd_to_mesh(const BMesh &bm,
+                              const blender::bke::AttrDomain domain,
+                              const uint64_t cd_type_mask,
+                              Mesh &mesh)
+{
+  using namespace blender;
+  const CustomData &bm_data = get_bm_custom_data(bm, domain);
+  CustomData &mesh_data = get_mesh_custom_data(mesh, domain);
+  bke::MutableAttributeAccessor attrs = mesh.attributes_for_write();
+  for (const CustomDataLayer &layer : Span(bm_data.layers, bm_data.totlayer)) {
+    const eCustomDataType cd_type = eCustomDataType(layer.type);
+    if (const std::optional<bke::AttrType> attr_type = bke::custom_data_type_to_attr_type(cd_type))
+    {
+      attrs.add(layer.name, domain, *attr_type, bke::AttributeInitConstruct());
+    }
+    else {
+      if ((CD_TYPE_AS_MASK(cd_type) & cd_type_mask) == 0) {
+        continue;
+      }
+      CustomData_add_layer_named(&mesh_data, cd_type, CD_CONSTRUCT, 0, layer.name);
+    }
+  }
+}
+
 static void bm_to_mesh_loops(const BMesh &bm,
                              const Span<const BMLoop *> bm_loops,
                              Mesh &mesh,
@@ -1424,7 +1520,7 @@ static void bm_to_mesh_loops(const BMesh &bm,
   attributes.add<int>(".corner_vert", bke::AttrDomain::Corner, bke::AttributeInitConstruct());
   attributes.add<int>(".corner_edge", bke::AttrDomain::Corner, bke::AttributeInitConstruct());
   const Vector<BMeshToMeshLayerInfo> info = bm_to_mesh_copy_info_calc(
-      bm.ldata, bke::AttrDomain::Corner, mesh.attribute_storage.wrap(), mesh.corner_data);
+      bm.ldata, bke::AttrDomain::Corner, mesh);
 
   MutableSpan<int> dst_corner_verts = mesh.corner_verts_for_write();
   MutableSpan<int> dst_corner_edges = mesh.corner_edges_for_write();
@@ -1516,15 +1612,10 @@ void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *mesh, const BMeshToMeshParam
   {
     CustomData_MeshMasks mask = CD_MASK_MESH;
     CustomData_MeshMasks_update(&mask, &params->cd_mask_extra);
-    // TODO_MESH_ATTR
-    CustomData_init_layout_from(
-        &bm->vdata, &mesh->vert_data, mask.vmask, CD_CONSTRUCT, mesh->verts_num);
-    CustomData_init_layout_from(
-        &bm->edata, &mesh->edge_data, mask.emask, CD_CONSTRUCT, mesh->edges_num);
-    CustomData_init_layout_from(
-        &bm->ldata, &mesh->corner_data, mask.lmask, CD_CONSTRUCT, mesh->corners_num);
-    CustomData_init_layout_from(
-        &bm->pdata, &mesh->face_data, mask.pmask, CD_CONSTRUCT, mesh->faces_num);
+    add_bm_cd_to_mesh(*bm, bke::AttrDomain::Point, mask.vmask, *mesh);
+    add_bm_cd_to_mesh(*bm, bke::AttrDomain::Edge, mask.emask, *mesh);
+    add_bm_cd_to_mesh(*bm, bke::AttrDomain::Face, mask.pmask, *mesh);
+    add_bm_cd_to_mesh(*bm, bke::AttrDomain::Corner, mask.lmask, *mesh);
   }
 
   /* Add optional mesh attributes before parallel iteration. */
