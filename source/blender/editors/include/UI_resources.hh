@@ -183,6 +183,7 @@ enum ThemeColorID {
   TH_EMPTY,
 
   TH_NODE,
+  TH_NODE_OUTLINE,
   TH_NODE_INPUT,
   TH_NODE_OUTPUT,
   TH_NODE_COLOR,
@@ -243,6 +244,8 @@ enum ThemeColorID {
   TH_DOPESHEET_CHANNELOB,
   TH_DOPESHEET_CHANNELSUBOB,
   TH_DOPESHEET_IPOLINE,
+  TH_DOPESHEET_IPOCONST,
+  TH_DOPESHEET_IPOOTHER,
 
   TH_PREVIEW_BACK,
 
@@ -287,9 +290,10 @@ enum ThemeColorID {
 
   TH_SKIN_ROOT,
 
-  TH_ANIM_ACTIVE,        /* active action */
-  TH_ANIM_INACTIVE,      /* no active action */
-  TH_ANIM_PREVIEW_RANGE, /* preview range overlay */
+  TH_ANIM_ACTIVE,            /* active action */
+  TH_ANIM_INACTIVE,          /* no active action */
+  TH_ANIM_PREVIEW_RANGE,     /* preview range overlay */
+  TH_ANIM_SCENE_STRIP_RANGE, /* scene strip range overlay */
 
   TH_ICON_SCENE,
   TH_ICON_COLLECTION,

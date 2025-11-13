@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'ceca413bcbf8')\n"
+"Project-Id-Version: Blender 5.0.0 Beta (b'd29f9f6118e5')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-06 08:44+0000\n"
+"POT-Creation-Date: 2025-11-10 09:45+0000\n"
 "PO-Revision-Date: 2025-07-23 15:31+0000\n"
 "Last-Translator: Balázs Füvesi <fuvesib@gmail.com>\n"
 "Language-Team: Hungarian <https://translate.blender.org/projects/blender-ui/ui/hu/>\n"
@@ -4135,10 +4135,6 @@ msgid "Constant"
 msgstr "Konstans"
 
 
-msgid "Direction"
-msgstr "Irány"
-
-
 msgid "Draw"
 msgstr "Rajz (szabadkézi)"
 
@@ -5272,10 +5268,6 @@ msgid "Active Movie Clip"
 msgstr "Aktív Filmklip"
 
 
-msgid "Mirror Object"
-msgstr "Tükröző objektum"
-
-
 msgid "Distance Model"
 msgstr "Távolságmodell"
 
@@ -5662,6 +5654,10 @@ msgstr "Ctrl"
 
 msgid "Control key pressed"
 msgstr "Control billentyű lenyomása"
+
+
+msgid "Direction"
+msgstr "Irány"
 
 
 msgid "North"
@@ -6577,26 +6573,6 @@ msgid "Mask"
 msgstr "Maszk"
 
 
-msgid "Relations"
-msgstr "Kapcsolatok"
-
-
-msgid "Rigid Body"
-msgstr "Szilárd test"
-
-
-msgid "Import"
-msgstr "Importálás"
-
-
-msgid "Apply"
-msgstr "Elfogadás"
-
-
-msgid "Text"
-msgstr "Szöveg"
-
-
 msgid "Track"
 msgstr "Nyom"
 
@@ -6609,16 +6585,12 @@ msgid "Clean Up"
 msgstr "Tisztítás"
 
 
-msgid "UV"
-msgstr "UV"
+msgid "Apply"
+msgstr "Elfogadás"
 
 
 msgid "Merge"
 msgstr "Összefésülés"
-
-
-msgid "Metaball"
-msgstr "Meta test"
 
 
 msgid "Keying"
@@ -6627,6 +6599,14 @@ msgstr "Kulcsozás"
 
 msgid "Tracking"
 msgstr "Követés"
+
+
+msgid "Text"
+msgstr "Szöveg"
+
+
+msgid "Metaball"
+msgstr "Meta test"
 
 
 msgid "Mirror"
@@ -6645,8 +6625,24 @@ msgid "Align View"
 msgstr "Nézet igazítása"
 
 
+msgid "Import"
+msgstr "Importálás"
+
+
+msgid "UV"
+msgstr "UV"
+
+
 msgid "Light"
 msgstr "Fényforrás"
+
+
+msgid "Relations"
+msgstr "Kapcsolatok"
+
+
+msgid "Rigid Body"
+msgstr "Szilárd test"
 
 
 msgctxt "MovieClip"
@@ -7938,6 +7934,10 @@ msgstr "Tükrözés módosító"
 
 msgid "Mirroring modifier"
 msgstr "Tükrözés módosító"
+
+
+msgid "Mirror Object"
+msgstr "Tükröző objektum"
 
 
 msgid "Object to use as mirror"
@@ -11477,10 +11477,6 @@ msgid "Render"
 msgstr "Render"
 
 
-msgid "Render active scene"
-msgstr "Aktív jelenet renderelése"
-
-
 msgctxt "Curve"
 msgid "Mode"
 msgstr "Mód"
@@ -14405,18 +14401,6 @@ msgid "Show lattices"
 msgstr "Rácsok mutatása"
 
 
-msgid "Cross"
-msgstr "Keresztezés"
-
-
-msgid "Alpha Under"
-msgstr "Alfa takarás"
-
-
-msgid "Gamma Cross"
-msgstr "Gamma keresztezés"
-
-
 msgid "The length of the contents of this strip after the handles are applied"
 msgstr "A sáv hossza (a széleken lévő manipulátor fogantyúk alkalmazása után)"
 
@@ -16620,6 +16604,10 @@ msgstr "Vas"
 
 msgid "Steel"
 msgstr "Acél"
+
+
+msgid "Render active scene"
+msgstr "Aktív jelenet renderelése"
 
 
 msgid "3D Local View "

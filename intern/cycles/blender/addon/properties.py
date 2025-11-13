@@ -271,7 +271,7 @@ def enum_openimagedenoise_denoiser(self, context):
 
 
 def enum_optix_denoiser(self, context):
-    if not context or bool(context.preferences.addons[__package__].preferences.get_device_list('OPTIX')):
+    if not context or bool(context.preferences.addons[__package__].preferences.get_devices_for_type('OPTIX')):
         return [('OPTIX', "OptiX", n_(
             "Use the OptiX AI denoiser with GPU acceleration, only available on NVIDIA GPUs when configured in the system tab in the user preferences"), 2)]
     return []
@@ -383,6 +383,7 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         description="Device to use for rendering",
         items=enum_devices,
         default='CPU',
+        update=update_render_passes,
     )
     shading_system: BoolProperty(
         name="Open Shading Language",
@@ -1486,7 +1487,7 @@ class CyclesRenderLayerSettings(bpy.types.PropertyGroup):
     )
     pass_render_time: BoolProperty(
         name="Render Time",
-        description="Pass containing an estimate for how long each pixel took to render",
+        description="Reports time per pixel in milliseconds. Supported only on CPU render devices",
         default=False,
         update=update_render_passes,
     )
@@ -1623,9 +1624,8 @@ class CyclesPreferences(bpy.types.AddonPreferences):
     )
 
     use_hiprt: BoolProperty(
-        name="HIP RT (Unstable)",
-        description="HIP RT enables AMD hardware ray tracing on RDNA2 and above. This currently has known stability "
-        "issues, that are expected to be solved before the next release.",
+        name="HIP RT",
+        description="HIP RT enables AMD hardware ray tracing on RDNA2 and above",
         default=False,
     )
 
@@ -1823,8 +1823,8 @@ class CyclesPreferences(bpy.types.AddonPreferences):
             elif device_type == 'HIP':
                 import sys
                 if sys.platform[:3] == "win":
-                    adrenalin_driver_version = "24.6.1"
-                    pro_driver_version = "24.Q2"
+                    adrenalin_driver_version = "24.9.1"
+                    pro_driver_version = "24.Q4"
                     col.label(
                         text=rpt_("Requires AMD GPU with RDNA architecture"),
                         icon='BLANK1',
@@ -1834,17 +1834,21 @@ class CyclesPreferences(bpy.types.AddonPreferences):
                     col.label(text=rpt_("or AMD Radeon Pro %s driver or newer") %
                               pro_driver_version, icon='BLANK1', translate=False)
                 elif sys.platform.startswith("linux"):
+                    rocm_version = "6.0"
                     driver_version = "23.40"
                     col.label(
                         text=rpt_("Requires AMD GPU with RDNA architecture"),
                         icon='BLANK1',
                         translate=False)
-                    col.label(text=rpt_("and AMD driver version %s or newer") % driver_version, icon='BLANK1',
-                              translate=False)
+                    col.label(
+                        text=rpt_("and ROCm HIP Runtime %s or newer") %
+                        rocm_version, icon='BLANK1', translate=False)
+                    col.label(text=rpt_("or AMD driver version %s or newer") %
+                              driver_version, icon='BLANK1', translate=False)
             elif device_type == 'ONEAPI':
                 import sys
                 if sys.platform.startswith("win"):
-                    driver_version = "XX.X.101.6557"
+                    driver_version = "XX.X.101.8132"
                     col.label(text=rpt_("Requires Intel GPU with Xe-HPG architecture"), icon='BLANK1', translate=False)
                     col.label(text=rpt_("and Windows driver version %s or newer") % driver_version,
                               icon='BLANK1', translate=False)

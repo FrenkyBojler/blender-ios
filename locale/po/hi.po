@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'ceca413bcbf8')\n"
+"Project-Id-Version: Blender 5.0.0 Beta (b'd29f9f6118e5')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-06 08:44+0000\n"
+"POT-Creation-Date: 2025-11-10 09:45+0000\n"
 "PO-Revision-Date: 2025-07-23 15:34+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Hindi <https://translate.blender.org/projects/blender-ui/ui/hi/>\n"
@@ -621,14 +621,6 @@ msgstr "चयनयोग्य"
 
 msgid "Parent"
 msgstr "कारण"
-
-
-msgid "Select Head"
-msgstr "सिर का चयन करें"
-
-
-msgid "Select Tail"
-msgstr "पूंछ का चयन करें"
 
 
 msgid "Tail"
@@ -1675,10 +1667,6 @@ msgid "Sharp"
 msgstr "पैना"
 
 
-msgid "Direction"
-msgstr "दिशा"
-
-
 msgid "Draw"
 msgstr "चित्रण"
 
@@ -2452,6 +2440,10 @@ msgid "Ctrl"
 msgstr "नियंत्रण"
 
 
+msgid "Direction"
+msgstr "दिशा"
+
+
 msgid "North"
 msgstr "उत्तर"
 
@@ -2580,22 +2572,6 @@ msgid "Mask"
 msgstr "आवरण"
 
 
-msgid "Rigid Body"
-msgstr "कठोर-पदार्थ"
-
-
-msgid "Import"
-msgstr "आयात करें"
-
-
-msgid "Apply"
-msgstr "लागू करें"
-
-
-msgid "Text"
-msgstr "पाठ"
-
-
 msgid "Track"
 msgstr "ट्रैक"
 
@@ -2612,20 +2588,16 @@ msgid "Make Single User"
 msgstr "एकल प्रयोक्ता बनाएँ"
 
 
-msgid "Math"
-msgstr "गणित"
-
-
-msgid "UV"
-msgstr "यूवी"
-
-
 msgid "Hooks"
 msgstr "खूँटी"
 
 
 msgid "Names"
 msgstr "नाम"
+
+
+msgid "Apply"
+msgstr "लागू करें"
 
 
 msgid "Toggle Bone Options"
@@ -2640,6 +2612,18 @@ msgid "Merge"
 msgstr "विलय करें"
 
 
+msgid "Keying"
+msgstr "कुंजीयन"
+
+
+msgid "Math"
+msgstr "गणित"
+
+
+msgid "Text"
+msgstr "पाठ"
+
+
 msgid "Bone Roll"
 msgstr "हड्डी पंजी"
 
@@ -2648,16 +2632,24 @@ msgid "Snap"
 msgstr "स्नैप"
 
 
-msgid "Keying"
-msgstr "कुंजीयन"
-
-
 msgid "Mirror"
 msgstr "दर्पण"
 
 
+msgid "Import"
+msgstr "आयात करें"
+
+
+msgid "UV"
+msgstr "यूवी"
+
+
 msgid "Light"
 msgstr "प्रकाश"
+
+
+msgid "Rigid Body"
+msgstr "कठोर-पदार्थ"
 
 
 msgid "Basic"
@@ -4865,10 +4857,6 @@ msgid "Blend Opacity"
 msgstr "मिश्रण अपारदर्शिता"
 
 
-msgid "Cross"
-msgstr "पार"
-
-
 msgctxt "Sequence"
 msgid "Image"
 msgstr "छवि"
@@ -5107,10 +5095,6 @@ msgstr "कोई पाठ या संचिका निर्दिष्�
 
 msgid "External shader script must have .osl or .oso extension, or be a module name"
 msgstr "बाह्य shader स्क्रिप्ट .osl या .oso एक्सटेंशन होना चाहिए, या एक मॉड्यूल का नाम हो"
-
-
-msgid "Failed to write .oso file next to external .osl file at "
-msgstr ".Oso संचिका में बाह्य .oslसंचिकाल में आगे लिखने में विफल "
 
 
 msgctxt "Operator"
@@ -6121,10 +6105,6 @@ msgstr "अंतर्गत होने के लिए कोई अति�
 
 msgid "Add IK"
 msgstr "इक जोड़ें"
-
-
-msgid "To New Empty Object"
-msgstr "नया रिक्त ऑब्जेक्ट के लिए"
 
 
 msgid "Could not find scene"

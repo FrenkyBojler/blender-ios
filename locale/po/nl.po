@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'ceca413bcbf8')\n"
+"Project-Id-Version: Blender 5.0.0 Beta (b'd29f9f6118e5')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-06 08:44+0000\n"
+"POT-Creation-Date: 2025-11-10 09:45+0000\n"
 "PO-Revision-Date: 2025-07-23 14:52+0000\n"
 "Last-Translator: Lisa <blendergirl@tutanota.com>\n"
 "Language-Team: Dutch <https://translate.blender.org/projects/blender-ui/ui/nl/>\n"
@@ -2391,10 +2391,6 @@ msgid "Rotations"
 msgstr "Rotaties"
 
 
-msgid "Mirror Object"
-msgstr "Spiegel Object"
-
-
 msgid "Speed of Sound"
 msgstr "Snelheid van Geluid"
 
@@ -2686,26 +2682,6 @@ msgid "Mask"
 msgstr "Mask"
 
 
-msgid "Add Image"
-msgstr "Voeg Afbeelding Toe"
-
-
-msgid "Relations"
-msgstr "Relaties"
-
-
-msgid "Rigid Body"
-msgstr "Star Lichaam"
-
-
-msgid "Import"
-msgstr "Importeren"
-
-
-msgid "Text"
-msgstr "Tekst"
-
-
 msgid "Quick Effects"
 msgstr "Snelle Effecten"
 
@@ -2734,6 +2710,10 @@ msgid "Layout"
 msgstr "Indeling"
 
 
+msgid "Text"
+msgstr "Tekst"
+
+
 msgid "Mirror"
 msgstr "Spiegel"
 
@@ -2754,8 +2734,24 @@ msgid "Select Linked"
 msgstr "Selecteer Aaneengesloten"
 
 
+msgid "Import"
+msgstr "Importeren"
+
+
 msgid "Light"
 msgstr "Licht"
+
+
+msgid "Add Image"
+msgstr "Voeg Afbeelding Toe"
+
+
+msgid "Relations"
+msgstr "Relaties"
+
+
+msgid "Rigid Body"
+msgstr "Star Lichaam"
 
 
 msgctxt "MovieClip"
@@ -3007,6 +3003,10 @@ msgstr "Tijdsmodus"
 
 msgid "Mirror Modifier"
 msgstr "Spiegel Aanpasser"
+
+
+msgid "Mirror Object"
+msgstr "Spiegel Object"
 
 
 msgid "Mirror Axis"
@@ -5311,10 +5311,6 @@ msgid "Render"
 msgstr "Render"
 
 
-msgid "Render active scene"
-msgstr "Render actieve scene"
-
-
 msgid "Render Layer"
 msgstr "Renderlaag"
 
@@ -6771,14 +6767,6 @@ msgstr "3D"
 
 msgid "Color Value"
 msgstr "Kleurwaarde"
-
-
-msgid "Cross"
-msgstr "Kruisovergang"
-
-
-msgid "Alpha Under"
-msgstr "Alpha Onder"
 
 
 msgctxt "Sequence"
@@ -8764,22 +8752,6 @@ msgid "Error handling selected objects"
 msgstr "Fout afhandelen geselecteerde objecten"
 
 
-msgid "To Active Bone"
-msgstr "Naar Actief Bot"
-
-
-msgid "To Active Object"
-msgstr "Naar Actief Object"
-
-
-msgid "To New Empty Object"
-msgstr "Naar Nieuw Leeg Object"
-
-
-msgid "Without Targets"
-msgstr "Zonder Doelen"
-
-
 msgid "Brass"
 msgstr "Messing"
 
@@ -8810,6 +8782,10 @@ msgstr "Glas (Heel)"
 
 msgid "Gold"
 msgstr "Goud"
+
+
+msgid "Render active scene"
+msgstr "Render actieve scene"
 
 
 msgid "Blender Render"

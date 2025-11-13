@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'ceca413bcbf8')\n"
+"Project-Id-Version: Blender 5.0.0 Beta (b'd29f9f6118e5')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-06 08:44+0000\n"
+"POT-Creation-Date: 2025-11-10 09:45+0000\n"
 "PO-Revision-Date: 2025-07-23 14:57+0000\n"
 "Last-Translator: Michael Tribayu Jatnika Natawiria <mike.natawiria@gmail.com>\n"
 "Language-Team: Indonesian <https://translate.blender.org/projects/blender-ui/ui/id/>\n"
@@ -4312,14 +4312,6 @@ msgstr "Induk"
 
 msgid "Parent bone (in same Armature)"
 msgstr "Tulang induk (di Armatur sama)"
-
-
-msgid "Select Head"
-msgstr "Pilih Kepala"
-
-
-msgid "Select Tail"
-msgstr "Seleksi Ekor"
 
 
 msgid "Display Wire"
@@ -11723,10 +11715,6 @@ msgid "Cloth Simulation"
 msgstr "Simulasi Kain"
 
 
-msgid "Direction"
-msgstr "Arah"
-
-
 msgid "Add effect of brush"
 msgstr "Tambah efek kuas"
 
@@ -13235,10 +13223,6 @@ msgid "Size Deflect"
 msgstr "Seleksi"
 
 
-msgid "Mirror Object"
-msgstr "Sunting Objek"
-
-
 msgid "Distance Model"
 msgstr "Model Jarak"
 
@@ -13749,6 +13733,10 @@ msgstr "Apa saja"
 
 msgid "Ctrl"
 msgstr "Ctrl"
+
+
+msgid "Direction"
+msgstr "Arah"
 
 
 msgid "North"
@@ -15258,44 +15246,12 @@ msgid "Mask"
 msgstr "Masker"
 
 
-msgid "Add Image"
-msgstr "Tambah Gambar"
-
-
-msgid "Sample"
-msgstr "Sampel"
-
-
-msgid "Import"
-msgstr "Impor"
-
-
-msgid "Apply"
-msgstr "Tetapkan"
-
-
-msgid "Text"
-msgstr "Teks"
-
-
 msgid "Track"
 msgstr "Lacak"
 
 
-msgid "Utilities"
-msgstr "Utilitas"
-
-
 msgid "Asset"
 msgstr "Aset"
-
-
-msgid "Math"
-msgstr "Matematika"
-
-
-msgid "UV"
-msgstr "UV"
 
 
 msgid "Hooks"
@@ -15306,24 +15262,44 @@ msgid "Names"
 msgstr "Nama"
 
 
-msgid "Merge"
-msgstr "Menggabungkan"
-
-
-msgid "Metaball"
-msgstr "Metabola"
+msgid "Apply"
+msgstr "Tetapkan"
 
 
 msgid "Layout"
 msgstr "Tata Letak"
 
 
-msgid "Snap"
-msgstr "Jepret"
+msgid "Merge"
+msgstr "Menggabungkan"
 
 
 msgid "Tracking"
 msgstr "Pelacakan"
+
+
+msgid "Utilities"
+msgstr "Utilitas"
+
+
+msgid "Math"
+msgstr "Matematika"
+
+
+msgid "Text"
+msgstr "Teks"
+
+
+msgid "Metaball"
+msgstr "Metabola"
+
+
+msgid "Snap"
+msgstr "Jepret"
+
+
+msgid "Sample"
+msgstr "Sampel"
 
 
 msgid "Mirror"
@@ -15334,12 +15310,28 @@ msgid "Navigation"
 msgstr "Navigasi"
 
 
+msgid "Gizmo"
+msgstr "Gizmo"
+
+
+msgid "Instances"
+msgstr "Contoh-contoh"
+
+
 msgid "Select Linked"
 msgstr "Seleksi yang Terhubung"
 
 
+msgid "Import"
+msgstr "Impor"
+
+
 msgid "Assign Material"
 msgstr "Tugaskan Bahan"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Light"
@@ -15350,12 +15342,8 @@ msgid "Light Probe"
 msgstr "Probe Cahaya"
 
 
-msgid "Gizmo"
-msgstr "Gizmo"
-
-
-msgid "Instances"
-msgstr "Contoh-contoh"
+msgid "Add Image"
+msgstr "Tambah Gambar"
 
 
 msgctxt "MovieClip"
@@ -15607,10 +15595,6 @@ msgstr "Memotong"
 
 msgid "UV Pinned"
 msgstr "Sematan UV"
-
-
-msgid "UV Select"
-msgstr "Seleksi"
 
 
 msgid "UV pinned state in the UV editor"
@@ -16309,6 +16293,10 @@ msgstr "Mode Resoulsi"
 
 msgid "Distance within which mirrored vertices are merged"
 msgstr "Jarak dalam dimana simpul yang dicerminkan telah digabungkan"
+
+
+msgid "Mirror Object"
+msgstr "Sunting Objek"
 
 
 msgid "Prevent vertices from going through the mirror during transform"
@@ -27256,10 +27244,6 @@ msgid "Unable to remove default presets"
 msgstr "Tidak dapat menghapus preset default"
 
 
-msgid "Failed to execute the preset: "
-msgstr "Gagal mengeksekusi preset: "
-
-
 msgid "No other objects selected"
 msgstr "Tidak ada objek lain yang terseleksi"
 
@@ -29024,11 +29008,6 @@ msgstr "Render Gambar"
 msgctxt "Operator"
 msgid "Release Notes"
 msgstr "Catatan Rilis"
-
-
-msgctxt "Operator"
-msgid "Tutorials"
-msgstr "Tutorial"
 
 
 msgid "No active item"
@@ -31865,8 +31844,8 @@ msgid "Import-Export"
 msgstr "Impor-Ekspor"
 
 
-msgid "Surface UV Coordinate"
-msgstr "Koordinasi UV Permukaan"
+msgid "Snap to Surface"
+msgstr "Jepit ke Permukaan"
 
 
 msgid "Surface Normal"
@@ -31877,8 +31856,8 @@ msgid "Surface Rest Position"
 msgstr "Posisi Istirahat Permukaan"
 
 
-msgid "Snap to Surface"
-msgstr "Jepit ke Permukaan"
+msgid "Surface UV Coordinate"
+msgstr "Koordinasi UV Permukaan"
 
 
 msgid "Scale of the hair tie instance"
@@ -31887,10 +31866,6 @@ msgstr "Skala contoh ikat rambut"
 
 msgid "Surface UV"
 msgstr "UV Permukaan"
-
-
-msgid "Surface Normal Displacement"
-msgstr "Perpindahan Normal Permukaan"
 
 
 msgid "Surface Geometry"
