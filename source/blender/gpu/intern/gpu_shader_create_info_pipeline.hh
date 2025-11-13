@@ -8,8 +8,10 @@
 
 #pragma once
 
-#include "gpu_texture_private.hh"
+#include "GPU_primitive.hh"
+
 #include "gpu_state_private.hh"
+#include "gpu_texture_private.hh"
 
 namespace blender::gpu::shader {
   
