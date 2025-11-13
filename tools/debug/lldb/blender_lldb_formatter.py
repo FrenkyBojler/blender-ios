@@ -4,6 +4,10 @@ LLDB pretty printer for Blender types
 Add to ~/.lldbinit:
 
 command script import {path-to-blender-source}/tools/debug/lldb/blender_lldb_formatter.py
+
+If using CodeLLDB extension for VSCode this needs to be added to the user or workspace settings.json:
+
+"lldb.launch.initCommands": [ "command source ${env:HOME}/.lldbinit" ]
 """
 
 import lldb
