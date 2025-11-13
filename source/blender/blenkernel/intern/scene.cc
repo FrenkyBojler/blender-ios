@@ -1015,6 +1015,110 @@ static void scene_foreach_working_space_color(ID *id, const IDTypeForeachColorFu
   });
 }
 
+static bNode &version_node_add_empty_deprecated(bNodeTree &ntree,
+                                                const char *idname,
+                                                const int16_t legacy_type,
+                                                const std::string &ui_name,
+                                                const std::string &ui_description,
+                                                const std::string &enum_name_legacy,
+                                                const short nclass,
+                                                const bool no_muting = false)
+{
+  auto *ntype = MEM_new<blender::bke::bNodeType>(__func__);
+
+  blender::bke::node_type_base(*ntype, idname, legacy_type);
+  ntype->ui_name = ui_name;
+  ntype->ui_description = ui_description;
+  ntype->enum_name_legacy = enum_name_legacy.c_str();
+  ntype->nclass = nclass;
+  ntype->no_muting = no_muting;
+  ntype->ui_name = ui_name;
+
+  bNode *node = MEM_callocN<bNode>(__func__);
+  node->runtime = MEM_new<blender::bke::bNodeRuntime>(__func__);
+  BLI_addtail(&ntree.nodes, node);
+  blender::bke::node_unique_id(ntree, *node);
+  node->typeinfo = ntype;
+
+  STRNCPY(node->idname, idname);
+  DATA_(ntype->ui_name).copy_utf8_truncated(node->name);
+  blender::bke::node_unique_name(ntree, *node);
+
+  node->flag = NODE_SELECT | NODE_OPTIONS | NODE_INIT;
+  node->width = ntype->width;
+  node->height = ntype->height;
+  node->color[0] = node->color[1] = node->color[2] = 0.608;
+
+  node->type_legacy = ntype->type_legacy;
+
+  // BKE_ntree_update_tag_node_new(&ntree, node);
+  return *node;
+}
+
+static void version_node_remove(bNodeTree &ntree, bNode &node)
+{
+  blender::bke::node_unlink_node(ntree, node);
+  blender::bke::node_unlink_attached(&ntree, &node);
+
+  blender::bke::node_free_node(&ntree, node);
+  blender::bke::node_rebuild_id_vector(ntree);
+}
+
+static bNodeSocket &version_node_add_socket(bNodeTree &ntree,
+                                            bNode &node,
+                                            const eNodeSocketInOut in_out,
+                                            const char *idname,
+                                            const char *identifier)
+{
+  blender::bke::bNodeSocketType *stype = blender::bke::node_socket_type_find(idname);
+
+  bNodeSocket *socket = MEM_callocN<bNodeSocket>(__func__);
+  socket->runtime = MEM_new<blender::bke::bNodeSocketRuntime>(__func__);
+  socket->in_out = in_out;
+  socket->limit = (in_out == SOCK_IN ? 1 : 0xFFF);
+  socket->type = stype->type;
+
+  STRNCPY_UTF8(socket->idname, idname);
+  STRNCPY_UTF8(socket->identifier, identifier);
+  STRNCPY_UTF8(socket->name, identifier);
+
+  if (in_out == SOCK_IN) {
+    BLI_addtail(&node.inputs, socket);
+  }
+  else {
+    BLI_addtail(&node.outputs, socket);
+  }
+
+  // node_socket_init_default_value_data(stype->type, stype->subtype, &socket->default_value);
+
+  // BKE_ntree_update_tag_socket_new(&ntree, socket);
+  return *socket;
+}
+
+static bNodeLink &version_node_add_link(
+    bNodeTree &ntree, bNode &node_a, bNodeSocket &socket_a, bNode &node_b, bNodeSocket &socket_b)
+{
+  BLI_assert(socket_a.in_out != socket_b.in_out);
+  if (socket_a.in_out == SOCK_IN) {
+    return version_node_add_link(ntree, node_b, socket_b, node_a, socket_a);
+  }
+  bNode &node_from = node_a;
+  bNodeSocket &socket_from = socket_a;
+  bNode &node_to = node_b;
+  bNodeSocket &socket_to = socket_b;
+
+  bNodeLink *link = MEM_callocN<bNodeLink>(__func__);
+  link->fromnode = &node_from;
+  link->fromsock = &socket_from;
+  link->tonode = &node_to;
+  link->tosock = &socket_to;
+
+  BLI_addtail(&ntree.links, link);
+
+  // BKE_ntree_update_tag_link_added(&ntree, link);
+  return *link;
+}
+
 static void scene_foreach_cache(ID *id,
                                 IDTypeForeachCacheFunctionCallback function_callback,
                                 void *user_data)
@@ -1185,10 +1289,20 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
 
     bNodeSocket *first_sock = nullptr;
     bNode *composite_node = nullptr;
+    bNodeSocket *composite_input = nullptr;
     LISTBASE_FOREACH_MUTABLE (bNode *, node, &temp_nodetree->nodes) {
       if (node->is_type("NodeGroupOutput") && (node->flag & NODE_DO_OUTPUT)) {
-        composite_node = blender::bke::node_add_node(
-            nullptr, *temp_nodetree, "CompositorNodeComposite");
+        composite_node = &version_node_add_empty_deprecated(*temp_nodetree,
+                                                            "CompositorNodeComposite",
+                                                            CMP_NODE_COMPOSITE_DEPRECATED,
+                                                            "Composite",
+                                                            "Final render output",
+                                                            "COMPOSITE",
+                                                            NODE_CLASS_OUTPUT,
+                                                            false);
+        composite_input = &version_node_add_socket(
+            *temp_nodetree, *composite_node, SOCK_IN, "NodeSocketColor", "Image");
+
         composite_node->location[0] = node->location[0];
         composite_node->location[1] = node->location[1] - 20.0f;
         first_sock = (bNodeSocket *)(node->inputs.first);
@@ -1205,12 +1319,12 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
       }
     }
     if (ngroup_input_link) {
-      composite_input_link = &blender::bke::node_add_link(
-          *temp_nodetree,
-          *ngroup_input_link->fromnode,
-          *ngroup_input_link->fromsock,
-          *composite_node,
-          *blender::bke::node_find_socket(*composite_node, SOCK_IN, "Image"));
+
+      composite_input_link = &version_node_add_link(*temp_nodetree,
+                                                    *ngroup_input_link->fromnode,
+                                                    *ngroup_input_link->fromsock,
+                                                    *composite_node,
+                                                    *composite_input);
     }
 
     blender::bke::node_tree_blend_write(writer, temp_nodetree);
@@ -1219,7 +1333,7 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
       blender::bke::node_remove_link(temp_nodetree, *composite_input_link);
     }
     if (composite_node) {
-      blender::bke::node_remove_node(nullptr, *temp_nodetree, *composite_node, true);
+      version_node_remove(*temp_nodetree, *composite_node);
     }
 
     MEM_freeN(reinterpret_cast<void *>(sce->nodetree));
