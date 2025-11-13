@@ -4148,6 +4148,7 @@ static void proj_paint_layer_clone_init(ProjPaintState *ps, ProjPaintLayerClone 
 
   /* use clone mtface? */
   if (ps->do_layer_clone) {
+    // TODO_MESH_ATTR
     const int layer_num = CustomData_get_clone_layer(&((Mesh *)ps->ob->data)->corner_data,
                                                      CD_PROP_FLOAT2);
 

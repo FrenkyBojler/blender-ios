@@ -794,6 +794,7 @@ static int rna_CustomDataLayer_clone_get(PointerRNA *ptr, CustomData *data, int 
 {
   int n = ((CustomDataLayer *)ptr->data) - data->layers;
 
+  // TODO_MESH_ATTR
   return (n == CustomData_get_clone_layer_index(data, eCustomDataType(type)));
 }
 
