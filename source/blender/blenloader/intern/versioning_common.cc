@@ -47,8 +47,8 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLO_readfile.hh"
+#include "BLO_versioning_common.hh"
 #include "readfile.hh"
-#include "versioning_common.hh"
 
 using blender::Map;
 using blender::StringRef;
@@ -242,6 +242,46 @@ bNode &version_node_add_empty(bNodeTree &ntree, const char *idname)
   node->runtime = MEM_new<blender::bke::bNodeRuntime>(__func__);
   BLI_addtail(&ntree.nodes, node);
   blender::bke::node_unique_id(ntree, *node);
+
+  STRNCPY(node->idname, idname);
+  DATA_(ntype->ui_name).copy_utf8_truncated(node->name);
+  blender::bke::node_unique_name(ntree, *node);
+
+  node->flag = NODE_SELECT | NODE_OPTIONS | NODE_INIT;
+  node->width = ntype->width;
+  node->height = ntype->height;
+  node->color[0] = node->color[1] = node->color[2] = 0.608;
+
+  node->type_legacy = ntype->type_legacy;
+
+  BKE_ntree_update_tag_node_new(&ntree, node);
+  return *node;
+}
+
+bNode &version_node_add_empty(bNodeTree &ntree,
+                              const char *idname,
+                              const int16_t legacy_type,
+                              const std::string &ui_name,
+                              const std::string &ui_description,
+                              const std::string &enum_name_legacy,
+                              const short nclass,
+                              const bool no_muting = false)
+{
+  auto *ntype = MEM_new<blender::bke::bNodeType>(__func__);
+
+  blender::bke::node_type_base(*ntype, idname, legacy_type);
+  ntype->ui_name = ui_name;
+  ntype->ui_description = ui_description;
+  ntype->enum_name_legacy = enum_name_legacy.c_str();
+  ntype->nclass = nclass;
+  ntype->no_muting = no_muting;
+  ntype->ui_name = ui_name;
+
+  bNode *node = MEM_callocN<bNode>(__func__);
+  node->runtime = MEM_new<blender::bke::bNodeRuntime>(__func__);
+  BLI_addtail(&ntree.nodes, node);
+  blender::bke::node_unique_id(ntree, *node);
+  node->typeinfo = ntype;
 
   STRNCPY(node->idname, idname);
   DATA_(ntype->ui_name).copy_utf8_truncated(node->name);

@@ -115,6 +115,18 @@ blender::StringRef legacy_socket_idname_to_socket_type(blender::StringRef idname
 bNode &version_node_add_empty(bNodeTree &ntree, const char *idname);
 
 /**
+ * todo(habib): documentation
+ */
+bNode &version_node_add_empty(bNodeTree &ntree,
+                              const char *idname,
+                              const int16_t legacy_type,
+                              const std::string &ui_name,
+                              const std::string &ui_description,
+                              const std::string &enum_name_legacy,
+                              const short nclass,
+                              const bool no_muting);
+
+/**
  * Removes a node for versioning purposes:
  * - Animation data (#AnimData) are not removed, because they might be using #bAction.id which
  *   is not be available before linking.
