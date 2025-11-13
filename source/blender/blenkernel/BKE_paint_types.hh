@@ -95,7 +95,7 @@ struct PaintRuntime : NonCopyable, NonMovable {
   float initial_pixel_radius = 0.0f;
   float start_pixel_radius = 0.0f;
 
-  /** Drawing pressure. */
+  /** Evaluated size pressure value */
   float size_pressure_value = 0.0f;
 
   /** Position of mouse, used to sample the texture. */
@@ -107,6 +107,9 @@ struct PaintRuntime : NonCopyable, NonMovable {
   /** ColorSpace cache to avoid locking up during sampling. */
   bool do_linear_conversion = false;
   const blender::ocio::ColorSpace *colorspace = nullptr;
+
+  /** WM Paint cursor. */
+  void *paint_cursor = nullptr;
 
   PaintRuntime();
   ~PaintRuntime();

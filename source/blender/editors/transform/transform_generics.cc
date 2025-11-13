@@ -128,13 +128,21 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
   ToolSettings *ts = CTX_data_tool_settings(C);
   ARegion *region = CTX_wm_region(C);
   ScrArea *area = CTX_wm_area(C);
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  if (!is_sequencer) {
+    t->scene = sce;
+    t->view_layer = view_layer;
+  }
+  else {
+    t->scene = CTX_data_sequencer_scene(C);
+    t->view_layer = t->scene ? BKE_view_layer_default_render(t->scene) : nullptr;
+  }
 
   PropertyRNA *prop;
 
   t->mbus = CTX_wm_message_bus(C);
   t->depsgraph = CTX_data_depsgraph_pointer(C);
-  t->scene = sce;
-  t->view_layer = view_layer;
+
   t->area = area;
   t->region = region;
   t->settings = ts;
@@ -587,7 +595,9 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
           else if (t->options & CTX_MASK) {
             use_prop_edit = ts->proportional_mask;
           }
-          else if (obact && obact->mode == OB_MODE_OBJECT) {
+          else if (object_mode == OB_MODE_OBJECT) {
+            /* No active object means #TransConvertType_Object [see #convert_type_get()], so use
+             * toolsetting for *object*. */
             use_prop_edit = ts->proportional_objects;
           }
           else {
@@ -1304,7 +1314,9 @@ void calculatePropRatio(TransInfo *t)
               td->factor = dist * dist;
               break;
             case PROP_SMOOTH:
-              td->factor = 3.0f * dist * dist - 2.0f * dist * dist * dist;
+              /* Float imprecision can cause a `dist` approaching 1.0
+               * to assign `td->factor` exceeding 1.0. See #147530. */
+              td->factor = std::min(1.0f, 3.0f * dist * dist - 2.0f * dist * dist * dist);
               break;
             case PROP_ROOT:
               td->factor = sqrtf(dist);
@@ -1333,6 +1345,8 @@ void calculatePropRatio(TransInfo *t)
               td->factor = 1;
               break;
           }
+          /* An assert here likely means clamping is needed. */
+          BLI_assert(td->factor <= 1.0f);
         }
       }
     }

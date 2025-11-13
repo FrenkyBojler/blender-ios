@@ -96,7 +96,7 @@ static void compute_vertex_mask__armature_mode(const MDeformVert *dvert,
 
   LISTBASE_FOREACH (bDeformGroup *, def, &mesh->vertex_group_names) {
     bPoseChannel *pchan = BKE_pose_channel_find_name(armature_ob->pose, def->name);
-    bool bone_for_group_exists = pchan && pchan->bone && (pchan->bone->flag & BONE_SELECTED);
+    bool bone_for_group_exists = pchan && pchan->bone && (pchan->flag & POSE_SELECTED);
     selected_bone_uses_group.append(bone_for_group_exists);
   }
   const int64_t total_size = selected_bone_uses_group.size();
@@ -397,13 +397,8 @@ static void add_interp_verts_copy_edges_to_new_mesh(const Mesh &src_mesh,
           dvert, defgrp_index, threshold, e_src[0], e_src[1]);
 
       float weights[2] = {1.0f - fac, fac};
-      CustomData_interp(&src_mesh.vert_data,
-                        &dst_mesh.vert_data,
-                        (int *)&e_src[0],
-                        weights,
-                        nullptr,
-                        2,
-                        vert_index);
+      CustomData_interp(
+          &src_mesh.vert_data, &dst_mesh.vert_data, (int *)&e_src[0], weights, 2, vert_index);
       vert_index++;
     }
   }
@@ -547,7 +542,7 @@ static void add_interpolated_faces_to_new_mesh(const Mesh &src_mesh,
         float weights[2] = {1.0f - fac, fac};
         int indices[2] = {i_ml_src + last_index, i_ml_src + index};
         CustomData_interp(
-            &src_mesh.corner_data, &dst_mesh.corner_data, indices, weights, nullptr, 2, i_ml_dst);
+            &src_mesh.corner_data, &dst_mesh.corner_data, indices, weights, 2, i_ml_dst);
         dst_corner_edges[i_ml_dst] = edge_map[face_edges_src[last_index]];
         dst_corner_verts[i_ml_dst] = dst_edges[dst_corner_edges[i_ml_dst]][0];
         i_ml_dst++;
@@ -566,7 +561,7 @@ static void add_interpolated_faces_to_new_mesh(const Mesh &src_mesh,
         float weights[2] = {1.0f - fac, fac};
         int indices[2] = {i_ml_src + last_index, i_ml_src + index};
         CustomData_interp(
-            &src_mesh.corner_data, &dst_mesh.corner_data, indices, weights, nullptr, 2, i_ml_dst);
+            &src_mesh.corner_data, &dst_mesh.corner_data, indices, weights, 2, i_ml_dst);
         dst_corner_edges[i_ml_dst] = edge_index;
         dst_corner_verts[i_ml_dst] = dst_edges[edge_map[face_edges_src[last_index]]][0];
 
@@ -826,4 +821,5 @@ ModifierTypeInfo modifierType_Mask = {
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
     /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

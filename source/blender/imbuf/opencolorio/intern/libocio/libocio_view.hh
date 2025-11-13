@@ -8,31 +8,39 @@
 
 #  include "MEM_guardedalloc.h"
 
+#  include "BLI_string_ref.hh"
+
 #  include "OCIO_view.hh"
 
-#  include "BLI_string_ref.hh"
+#  include "libocio_colorspace.hh"
 
 namespace blender::ocio {
 
 class LibOCIOView : public View {
   StringRefNull name_;
+  StringRefNull description_;
   bool is_hdr_ = false;
-  bool is_wide_gamut_ = false;
-  bool is_srgb_ = false;
-  bool is_extended_ = false;
+  bool support_emulation_ = false;
+  Gamut gamut_ = Gamut::Unknown;
+  TransferFunction transfer_function_ = TransferFunction::Unknown;
+  const LibOCIOColorSpace *display_colorspace_ = nullptr;
 
  public:
   LibOCIOView(const int index,
               const StringRefNull name,
+              const StringRefNull description,
               const bool is_hdr,
-              const bool is_wide_gamut,
-              const bool is_srgb,
-              const bool is_extended)
+              const bool support_emulation,
+              const Gamut gamut,
+              const TransferFunction transfer_function,
+              const LibOCIOColorSpace *display_colorspace)
       : name_(name),
+        description_(description),
         is_hdr_(is_hdr),
-        is_wide_gamut_(is_wide_gamut),
-        is_srgb_(is_srgb),
-        is_extended_(is_extended)
+        support_emulation_(support_emulation),
+        gamut_(gamut),
+        transfer_function_(transfer_function),
+        display_colorspace_(display_colorspace)
   {
     this->index = index;
   }
@@ -42,26 +50,34 @@ class LibOCIOView : public View {
     return name_;
   }
 
+  StringRefNull description() const override
+  {
+    return description_;
+  }
+
   bool is_hdr() const override
   {
     return is_hdr_;
   }
 
-  bool is_wide_gamut() const override
+  bool support_emulation() const override
   {
-    return is_wide_gamut_;
+    return support_emulation_;
   }
 
-  /* Display space is exactly Rec.709 + sRGB piecewise transfer function. */
-  bool is_srgb() const
+  Gamut gamut() const override
   {
-    return is_srgb_;
+    return gamut_;
   }
 
-  /* Display space has values outside of 0..1 range. */
-  bool is_extended() const
+  TransferFunction transfer_function() const override
   {
-    return is_extended_;
+    return transfer_function_;
+  }
+
+  const ColorSpace *display_colorspace() const override
+  {
+    return display_colorspace_;
   }
 
   MEM_CXX_CLASS_ALLOC_FUNCS("LibOCIOView");

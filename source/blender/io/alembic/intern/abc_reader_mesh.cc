@@ -183,7 +183,7 @@ static void read_mpolys(CDStreamConfig &config, const AbcMeshData &mesh_data)
 {
   int *face_offsets = config.face_offsets;
   int *corner_verts = config.corner_verts;
-  float2 *mloopuvs = config.mloopuv;
+  float2 *uv_maps = config.uv_map;
 
   const Int32ArraySamplePtr &face_indices = mesh_data.face_indices;
   const Int32ArraySamplePtr &face_counts = mesh_data.face_counts;
@@ -192,7 +192,7 @@ static void read_mpolys(CDStreamConfig &config, const AbcMeshData &mesh_data)
 
   const UInt32ArraySamplePtr &uvs_indices = mesh_data.uvs_indices;
 
-  const bool do_uvs = (mloopuvs && uvs && uvs_indices);
+  const bool do_uvs = (uv_maps && uvs && uvs_indices);
   const bool do_uvs_per_loop = do_uvs && mesh_data.uv_scope == ABC_UV_SCOPE_LOOP;
   BLI_assert(!do_uvs || mesh_data.uv_scope != ABC_UV_SCOPE_NONE);
   uint loop_index = 0;
@@ -231,8 +231,8 @@ static void read_mpolys(CDStreamConfig &config, const AbcMeshData &mesh_data)
           continue;
         }
 
-        mloopuvs[rev_loop_index][0] = (*uvs)[uv_index][0];
-        mloopuvs[rev_loop_index][1] = (*uvs)[uv_index][1];
+        uv_maps[rev_loop_index][0] = (*uvs)[uv_index][0];
+        uv_maps[rev_loop_index][1] = (*uvs)[uv_index][1];
       }
     }
   }
@@ -242,7 +242,7 @@ static void read_mpolys(CDStreamConfig &config, const AbcMeshData &mesh_data)
     if (config.modifier_error_message) {
       *config.modifier_error_message = "Mesh hash invalid geometry; more details on the console";
     }
-    BKE_mesh_validate(config.mesh, true, true);
+    bke::mesh_validate(*config.mesh, true);
   }
 }
 
@@ -368,7 +368,7 @@ BLI_INLINE void read_uvs_params(CDStreamConfig &config,
   }
 
   void *cd_ptr = config.add_customdata_cb(config.mesh, name.c_str(), CD_PROP_FLOAT2);
-  config.mloopuv = static_cast<float2 *>(cd_ptr);
+  config.uv_map = static_cast<float2 *>(cd_ptr);
 }
 
 static void *add_customdata_cb(Mesh *mesh, const char *name, int data_type)
@@ -623,7 +623,7 @@ void AbcMeshReader::readObjectData(Main *bmain, const Alembic::Abc::ISampleSelec
   }
 
   if (m_settings->validate_meshes) {
-    BKE_mesh_validate(mesh, false, false);
+    bke::mesh_validate(*mesh, false);
   }
 
   readFaceSetsSample(bmain, mesh, sample_sel);
@@ -1070,7 +1070,7 @@ void AbcSubDReader::readObjectData(Main *bmain, const Alembic::Abc::ISampleSelec
   }
 
   if (m_settings->validate_meshes) {
-    BKE_mesh_validate(mesh, false, false);
+    bke::mesh_validate(*mesh, false);
   }
 
   if (m_settings->always_add_cache_reader || has_animations(m_schema, m_settings)) {

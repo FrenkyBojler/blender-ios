@@ -215,7 +215,8 @@ static bool subdiv_ccg_evaluate_grids(SubdivCCG &subdiv_ccg,
   using namespace blender;
   const blender::opensubdiv::TopologyRefinerImpl *topology_refiner = subdiv.topology_refiner;
   const int num_faces = topology_refiner->base_level().GetNumFaces();
-  const Span<int> face_ptex_offset(face_ptex_offset_get(&subdiv), subdiv_ccg.faces.size());
+  const Span<int> face_ptex_offset = face_ptex_offset_get(&subdiv);
+  BLI_assert(face_ptex_offset.size() == subdiv_ccg.faces.size() + 1);
   threading::parallel_for(IndexRange(num_faces), 1024, [&](const IndexRange range) {
     for (const int face_index : range) {
       if (subdiv_ccg.faces[face_index].size() == 4) {
@@ -396,11 +397,14 @@ std::unique_ptr<SubdivCCG> BKE_subdiv_to_ccg(Subdiv &subdiv,
   subdiv_ccg->faces = coarse_mesh.faces();
   subdiv_ccg->grids_num = subdiv_ccg->faces.total_size();
   subdiv_ccg->grid_to_face_map = coarse_mesh.corner_to_face_map();
-  subdiv_ccg_alloc_elements(*subdiv_ccg, subdiv, settings);
-  subdiv_ccg_init_faces_neighborhood(*subdiv_ccg);
-  if (!subdiv_ccg_evaluate_grids(*subdiv_ccg, subdiv, mask_evaluator)) {
-    stats_end(&subdiv.stats, SUBDIV_STATS_SUBDIV_TO_CCG);
-    return nullptr;
+  if (coarse_mesh.corners_num) {
+    BLI_assert(subdiv.topology_refiner);
+    subdiv_ccg_alloc_elements(*subdiv_ccg, subdiv, settings);
+    subdiv_ccg_init_faces_neighborhood(*subdiv_ccg);
+    if (!subdiv_ccg_evaluate_grids(*subdiv_ccg, subdiv, mask_evaluator)) {
+      stats_end(&subdiv.stats, SUBDIV_STATS_SUBDIV_TO_CCG);
+      return nullptr;
+    }
   }
   stats_end(&subdiv.stats, SUBDIV_STATS_SUBDIV_TO_CCG);
   return subdiv_ccg;
@@ -1554,7 +1558,7 @@ static void subdiv_ccg_coord_to_ptex_coord(const SubdivCCG &subdiv_ccg,
   const int face_index = BKE_subdiv_ccg_grid_to_face_index(subdiv_ccg, coord.grid_index);
   const OffsetIndices<int> faces = subdiv_ccg.faces;
   const IndexRange face = faces[face_index];
-  const int *face_ptex_offset = face_ptex_offset_get(subdiv);
+  const Span<int> face_ptex_offset = face_ptex_offset_get(subdiv);
   r_ptex_face_index = face_ptex_offset[face_index];
 
   const float corner = coord.grid_index - face.start();
