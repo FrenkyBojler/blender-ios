@@ -421,7 +421,7 @@ class FrictionConstraintSet : public TemplatedVelocityConstraintSet<FrictionCons
   Span<int> index_mapping_;
   /* True if the contact is in static friction. */
   Span<float3> separating_axes_;
-  Span<float3> contact_points_motion_;
+  Span<float3> contact_velocities_;
   /* Constraint multiplier lambda for the normal displacement divided by time step. */
   Span<float> dynamic_friction_terms_;
   Span<float> lambdas_normal_;
@@ -431,7 +431,7 @@ class FrictionConstraintSet : public TemplatedVelocityConstraintSet<FrictionCons
   FrictionConstraintSet(const int geo_i,
                         const Span<int> index_mapping,
                         const Span<float3> separating_axes,
-                        const Span<float3> contact_points_motion,
+                        const Span<float3> contact_velocities,
                         const Span<float> dynamic_friction_terms,
                         const Span<float> lambdas_normal,
                         MutableSpan<float> lambdas)
@@ -439,7 +439,7 @@ class FrictionConstraintSet : public TemplatedVelocityConstraintSet<FrictionCons
         geo_i_(geo_i),
         index_mapping_(index_mapping),
         separating_axes_(separating_axes),
-        contact_points_motion_(contact_points_motion),
+        contact_velocities_(contact_velocities),
         dynamic_friction_terms_(dynamic_friction_terms),
         lambdas_normal_(lambdas_normal),
         lambdas_(lambdas)
@@ -467,8 +467,8 @@ class FrictionConstraintSet : public TemplatedVelocityConstraintSet<FrictionCons
     }
 
     const float3 &axis = separating_axes_[constraint_i];
-    const float3 &collider_velocity = contact_points_motion_[constraint_i];
-    const float3 &velocity = params.velocity(geo_i_, point_i) - collider_velocity;
+    const float3 &contact_velocity = contact_velocities_[constraint_i];
+    const float3 &velocity = params.velocity(geo_i_, point_i) - contact_velocity;
     const float3 velocity_tangent = velocity - math::dot(velocity, axis) * axis;
     float residual;
     const float3 gradient = math::normalize_and_get_length(velocity_tangent, residual);

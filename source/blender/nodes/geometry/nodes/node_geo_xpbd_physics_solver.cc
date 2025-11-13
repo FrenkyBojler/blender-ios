@@ -1751,6 +1751,8 @@ PROFILE_FUNCTION static void generate_collision_constraint_sets(
     const float delta_time,
     xpbd::ConstraintSetCollector &r_constraints)
 {
+  const float inv_delta_time = math::safe_rcp(delta_time);
+
   for (auto item : contacts.static_plane_contacts.items()) {
     const int key_i = keys.index_of(item.key.points_key);
     const SimPoints &sim_points = state.sim_points.lookup(item.key.points_key);
@@ -1774,9 +1776,14 @@ PROFILE_FUNCTION static void generate_collision_constraint_sets(
                                                             lambdas_normal));
     MutableSpan<float> dynamic_friction_terms = scope.allocator().allocate_array<float>(
         constraints_num);
+    MutableSpan<float3> contact_velocities = scope.allocator().allocate_array<float3>(
+        constraints_num);
     for (const int constraint_i : IndexRange(constraints_num)) {
       dynamic_friction_terms[constraint_i] = plane_contacts.dynamic_frictions[constraint_i] /
                                              delta_time;
+      /* Contact velocity from motion vector. */
+      contact_velocities[constraint_i] = plane_contacts.contact_points_motion[constraint_i] *
+                                         inv_delta_time;
     }
     MutableSpan<float> lambdas = state.ensure_constraint_lambdas<float>(
         item.key, 1, constraints_num);
@@ -1787,7 +1794,7 @@ PROFILE_FUNCTION static void generate_collision_constraint_sets(
         &scope.construct<xpbd::FrictionConstraintSet>(key_i,
                                                       index_mapping,
                                                       plane_contacts.separating_axes,
-                                                      plane_contacts.contact_points_motion,
+                                                      contact_velocities,
                                                       dynamic_friction_terms,
                                                       lambdas_normal,
                                                       lambdas));
