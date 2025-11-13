@@ -439,11 +439,14 @@ namespace blender::bke::path_templates {
  * Sets up `dir_template` and `dir` fields based on the current directory.
  * Should be called when initializing file browser state.
  *
+ * NOTE: Caller must ensure variables is valid (non-null). Only call when template
+ * variables are available.
+ *
  * \param params: FileSelectParams structure to initialize.
- * \param variables: Variable map for template resolution.
+ * \param variables: Variable map for template resolution (must be valid).
  */
 void path_template_nav_initialize(FileSelectParams *params,
-                                  const blender::bke::path_templates::VariableMap *variables);
+                                  const blender::bke::path_templates::VariableMap &variables);
 
 /**
  * Handle user input of a path (potentially with template variables) via text.
@@ -451,13 +454,16 @@ void path_template_nav_initialize(FileSelectParams *params,
  * Processes user-entered paths that may contain template syntax (e.g., `//render/{fps}/`).
  * Resolves template variables and updates all path fields in FileSelectParams accordingly.
  *
+ * NOTE: Caller must ensure variables is valid (non-null). Only call when template
+ * variables are available.
+ *
  * \param params: FileSelectParams structure to update with new path information.
  * \param input_path: User-entered path string (may contain template variable syntax).
- * \param variables: Variable map for template resolution.
+ * \param variables: Variable map for template resolution (must be valid).
  */
 void path_template_nav_handle_text(FileSelectParams *params,
                                    const char *input_path,
-                                   const blender::bke::path_templates::VariableMap *variables);
+                                   const blender::bke::path_templates::VariableMap &variables);
 
 /**
  * Handle directory navigation in browser while preserving parent template variables.
@@ -465,13 +471,16 @@ void path_template_nav_handle_text(FileSelectParams *params,
  * Called when the file browser navigates to a new directory. Attempts to maintain template
  * variable syntax when navigating within template-based directory structures.
  *
+ * NOTE: Caller must ensure variables is valid (non-null). Only call when template
+ * variables are available.
+ *
  * \param params: FileSelectParams structure to update with new navigation state.
  * \param new_directory: Target directory path after navigation.
- * \param variables: Variable map for template resolution.
+ * \param variables: Variable map for template resolution (must be valid).
  */
 void path_template_nav_handle_browse(FileSelectParams *params,
                                      const char *new_directory,
-                                     const blender::bke::path_templates::VariableMap *variables);
+                                     const blender::bke::path_templates::VariableMap &variables);
 
 /**
  * Set an RNA string property on an operator with update notification.

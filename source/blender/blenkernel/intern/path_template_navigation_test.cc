@@ -61,21 +61,10 @@ TEST(path_template_navigation, Initialize_WithVariable)
   BLI_strncpy(params.dir, "/home/{project}/renders", sizeof(params.dir));
   VariableMap variables = create_test_variables();
 
-  path_template_nav_initialize(&params, &variables);
+  path_template_nav_initialize(&params, variables);
 
   EXPECT_STREQ(params.dir_template, "/home/{project}/renders");
   EXPECT_STREQ(params.dir, "/home/my_project/renders");
-}
-
-TEST(path_template_navigation, Initialize_WithoutVariable)
-{
-  FileSelectParams params = create_empty_params();
-  BLI_strncpy(params.dir, "/home/user/projects", sizeof(params.dir));
-
-  path_template_nav_initialize(&params, nullptr);
-
-  EXPECT_STREQ(params.dir_template, "/home/user/projects");
-  EXPECT_STREQ(params.dir, "/home/user/projects");
 }
 
 /** \} */
@@ -89,7 +78,7 @@ TEST(path_template_navigation, HandleText_WithSingleVariable)
   FileSelectParams params = create_empty_params();
   VariableMap variables = create_test_variables();
 
-  path_template_nav_handle_text(&params, "/home/{project}/renders", &variables);
+  path_template_nav_handle_text(&params, "/home/{project}/renders", variables);
 
   EXPECT_STREQ(params.dir_template, "/home/{project}/renders");
   EXPECT_STREQ(params.dir, "/home/my_project/renders");
@@ -101,40 +90,10 @@ TEST(path_template_navigation, HandleText_WithNestedVariable)
   VariableMap variables = create_test_variables();
   variables.add_filepath("nested_path", "scenes/sequence/01");
 
-  path_template_nav_handle_text(&params, "/project/{nested_path}/assets", &variables);
+  path_template_nav_handle_text(&params, "/project/{nested_path}/assets", variables);
 
   EXPECT_STREQ(params.dir_template, "/project/{nested_path}/assets");
   EXPECT_STREQ(params.dir, "/project/scenes/sequence/01/assets");
-}
-
-TEST(path_template_navigation, HandleText_WithoutVariable)
-{
-  FileSelectParams params = create_empty_params();
-
-  path_template_nav_handle_text(&params, "/home/user/projects", nullptr);
-
-  EXPECT_STREQ(params.dir_template, "/home/user/projects");
-  EXPECT_STREQ(params.dir, "/home/user/projects");
-}
-
-TEST(path_template_navigation, HandleText_Root)
-{
-  FileSelectParams params = create_empty_params();
-
-  path_template_nav_handle_text(&params, "/", nullptr);
-
-  EXPECT_STREQ(params.dir_template, "/");
-  EXPECT_STREQ(params.dir, "/");
-}
-
-TEST(path_template_navigation, HandleText_Empty)
-{
-  FileSelectParams params = create_empty_params();
-
-  path_template_nav_handle_text(&params, "", nullptr);
-
-  EXPECT_STREQ(params.dir_template, "");
-  EXPECT_STREQ(params.dir, "");
 }
 
 /** \} */
@@ -149,7 +108,7 @@ TEST(path_template_navigation, Browse_UpWithSingleVariable)
                                                      "/home/{project}/renders");
   VariableMap variables = create_test_variables();
 
-  path_template_nav_handle_browse(&params, "/home/my_project", &variables);
+  path_template_nav_handle_browse(&params, "/home/my_project", variables);
 
   EXPECT_STREQ(params.dir_template, "/home/{project}/");
   EXPECT_STREQ(params.dir, "/home/my_project/");
@@ -160,7 +119,7 @@ TEST(path_template_navigation, Browse_DownWithSingleVariable)
   FileSelectParams params = create_params_with_state("/home/my_project", "/home/{project}");
   VariableMap variables = create_test_variables();
 
-  path_template_nav_handle_browse(&params, "/home/my_project/renders", &variables);
+  path_template_nav_handle_browse(&params, "/home/my_project/renders", variables);
 
   EXPECT_STREQ(params.dir_template, "/home/{project}/renders");
   EXPECT_STREQ(params.dir, "/home/my_project/renders");
@@ -173,7 +132,7 @@ TEST(path_template_navigation, Browse_UpWithNestedVariable)
   VariableMap variables = create_test_variables();
   variables.add_filepath("nested_path", "scenes/sequence/01");
 
-  path_template_nav_handle_browse(&params, "/project/scenes/sequence/01", &variables);
+  path_template_nav_handle_browse(&params, "/project/scenes/sequence/01", variables);
 
   EXPECT_STREQ(params.dir_template, "/project/{nested_path}/");
   EXPECT_STREQ(params.dir, "/project/scenes/sequence/01/");
@@ -186,40 +145,10 @@ TEST(path_template_navigation, Browse_DownWithNestedVariable)
   VariableMap variables = create_test_variables();
   variables.add_filepath("nested_path", "scenes/sequence/01");
 
-  path_template_nav_handle_browse(&params, "/project/scenes/sequence/01/assets", &variables);
+  path_template_nav_handle_browse(&params, "/project/scenes/sequence/01/assets", variables);
 
   EXPECT_STREQ(params.dir_template, "/project/{nested_path}/assets");
   EXPECT_STREQ(params.dir, "/project/scenes/sequence/01/assets");
-}
-
-TEST(path_template_navigation, Browse_WithoutVariable)
-{
-  FileSelectParams params = create_params_with_state("/home/user/projects", "/home/user/projects");
-
-  path_template_nav_handle_browse(&params, "/home/user", nullptr);
-
-  EXPECT_STREQ(params.dir_template, "/home/user");
-  EXPECT_STREQ(params.dir, "/home/user");
-}
-
-TEST(path_template_navigation, Browse_Root)
-{
-  FileSelectParams params = create_params_with_state("/home", "/home");
-
-  path_template_nav_handle_browse(&params, "/", nullptr);
-
-  EXPECT_STREQ(params.dir_template, "/");
-  EXPECT_STREQ(params.dir, "/");
-}
-
-TEST(path_template_navigation, Browse_Empty)
-{
-  FileSelectParams params = create_params_with_state("/home/user/projects", "/home/user/projects");
-
-  path_template_nav_handle_browse(&params, "", nullptr);
-
-  EXPECT_STREQ(params.dir, "");
-  EXPECT_STREQ(params.dir_template, "");
 }
 
 /** \} */

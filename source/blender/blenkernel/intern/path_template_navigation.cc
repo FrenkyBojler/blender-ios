@@ -46,7 +46,7 @@ static void resolve_and_normalize_paths(const char *template_path,
                                         const VariableMap *variables)
 {
   BLI_strncpy(resolved_template, template_path, buffer_size);
-  if (BKE_path_contains_template_syntax(resolved_template) && variables) {
+  if (variables) {
     BKE_path_apply_template(resolved_template, buffer_size, *variables);
   }
   normalize_path(resolved_template);
@@ -61,19 +61,16 @@ static void resolve_and_normalize_paths(const char *template_path,
 /** \name Template Boundary and Navigation Helpers
  * \{ */
 
-/* Check if current path is within a resolved template directory */
+/* Check if current path is within a resolved template directory.
+ * NOTE: Assumes variables is non-null - caller must check before calling. */
 static bool is_within_template_bounds(const char *template_path,
                                       const char *current_path,
-                                      const VariableMap *variables)
+                                      const VariableMap &variables)
 {
-  if (!BKE_path_contains_template_syntax(template_path)) {
-    return false;
-  }
-
   char resolved_template[FILE_MAX];
   char normalized_current[FILE_MAX];
   resolve_and_normalize_paths(
-      template_path, current_path, resolved_template, normalized_current, FILE_MAX, variables);
+      template_path, current_path, resolved_template, normalized_current, FILE_MAX, &variables);
 
   const size_t resolved_len = strlen(resolved_template);
   const size_t current_len = strlen(normalized_current);
@@ -101,21 +98,19 @@ static bool is_within_template_bounds(const char *template_path,
  * - Exact match: Return original template unchanged
  * - Going deeper: Append extra path components to template
  * - Going up: Remove directory levels from template path
+ *
+ * NOTE: Assumes variables is non-null - caller must check before calling.
  */
 static bool update_template_on_navigation(const char *original_template,
                                           const char *current_path,
                                           char *result,
                                           size_t result_maxlen,
-                                          const VariableMap *variables)
+                                          const VariableMap &variables)
 {
-  if (!BKE_path_contains_template_syntax(original_template)) {
-    return false;
-  }
-
   char resolved_template[FILE_MAX];
   char normalized_current[FILE_MAX];
   resolve_and_normalize_paths(
-      original_template, current_path, resolved_template, normalized_current, FILE_MAX, variables);
+      original_template, current_path, resolved_template, normalized_current, FILE_MAX, &variables);
 
   const size_t resolved_len = strlen(resolved_template);
   const size_t current_len = strlen(normalized_current);
@@ -162,36 +157,23 @@ static bool update_template_on_navigation(const char *original_template,
 /** \name Public API
  * \{ */
 
-void path_template_nav_initialize(FileSelectParams *params, const VariableMap *variables)
+void path_template_nav_initialize(FileSelectParams *params, const VariableMap &variables)
 {
-  if (BKE_path_contains_template_syntax(params->dir)) {
-    char resolved_path[FILE_MAX];
-    BLI_strncpy(resolved_path, params->dir, sizeof(resolved_path));
-    if (variables) {
-      BKE_path_apply_template(resolved_path, sizeof(resolved_path), *variables);
-    }
+  char resolved_path[FILE_MAX];
+  BLI_strncpy(resolved_path, params->dir, sizeof(resolved_path));
+  BKE_path_apply_template(resolved_path, sizeof(resolved_path), variables);
 
-    BLI_strncpy(params->dir_template, params->dir, sizeof(params->dir_template));
-    BLI_strncpy(params->dir, resolved_path, sizeof(params->dir));
-  }
-  else {
-    /* No templates - initialize empty fields with current dir */
-    if (params->dir_template[0] == '\0') {
-      BLI_strncpy(params->dir_template, params->dir, sizeof(params->dir_template));
-    }
-  }
+  BLI_strncpy(params->dir_template, params->dir, sizeof(params->dir_template));
+  BLI_strncpy(params->dir, resolved_path, sizeof(params->dir));
 }
 
 void path_template_nav_handle_text(FileSelectParams *params,
                                    const char *input_path,
-                                   const VariableMap *variables)
+                                   const VariableMap &variables)
 {
   char resolved_path[FILE_MAX];
   BLI_strncpy(resolved_path, input_path, sizeof(resolved_path));
-
-  if (BKE_path_contains_template_syntax(resolved_path) && variables) {
-    BKE_path_apply_template(resolved_path, sizeof(resolved_path), *variables);
-  }
+  BKE_path_apply_template(resolved_path, sizeof(resolved_path), variables);
 
   /* Update both path fields:
    * - dir_template: stores the original input with template variables
@@ -202,12 +184,10 @@ void path_template_nav_handle_text(FileSelectParams *params,
 
 void path_template_nav_handle_browse(FileSelectParams *params,
                                      const char *new_directory,
-                                     const VariableMap *variables)
+                                     const VariableMap &variables)
 {
   /* Try to preserve template if we were using one */
-  if (BKE_path_contains_template_syntax(params->dir_template) &&
-      is_within_template_bounds(params->dir_template, new_directory, variables))
-  {
+  if (is_within_template_bounds(params->dir_template, new_directory, variables)) {
     char updated_template[FILE_MAX];
     if (update_template_on_navigation(params->dir_template,
                                       new_directory,
@@ -218,9 +198,7 @@ void path_template_nav_handle_browse(FileSelectParams *params,
       /* Resolve template for display */
       char resolved[FILE_MAX];
       BLI_strncpy(resolved, updated_template, sizeof(resolved));
-      if (BKE_path_contains_template_syntax(resolved) && variables) {
-        BKE_path_apply_template(resolved, sizeof(resolved), *variables);
-      }
+      BKE_path_apply_template(resolved, sizeof(resolved), variables);
 
       BLI_strncpy(params->dir_template, updated_template, sizeof(params->dir_template));
       BLI_strncpy(params->dir, resolved, sizeof(params->dir));

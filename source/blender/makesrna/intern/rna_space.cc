@@ -3094,8 +3094,9 @@ static PointerRNA rna_FileSelectParams_filter_id_get(PointerRNA *ptr)
 static void rna_FileSelectParams_directory_get(PointerRNA *ptr, char *value)
 {
   const FileSelectParams *params = static_cast<const FileSelectParams *>(ptr->data);
-  const bool has_template = BKE_path_contains_template_syntax(params->dir_template);
-  strcpy(value, has_template ? params->dir_template : params->dir);
+  const blender::bke::path_templates::VariableMap *template_vars =
+      ED_fileselect_params_get_template_vars(params);
+  strcpy(value, template_vars ? params->dir_template : params->dir);
 }
 
 static void rna_FileSelectParams_directory_set(PointerRNA *ptr, const char *value)
@@ -3103,14 +3104,22 @@ static void rna_FileSelectParams_directory_set(PointerRNA *ptr, const char *valu
   FileSelectParams *params = static_cast<FileSelectParams *>(ptr->data);
   const blender::bke::path_templates::VariableMap *template_vars =
       ED_fileselect_params_get_template_vars(params);
-  blender::bke::path_templates::path_template_nav_handle_text(params, value, template_vars);
+  if (template_vars) {
+    blender::bke::path_templates::path_template_nav_handle_text(params, value, *template_vars);
+  }
+  else {
+    /* No templates - simple path assignment */
+    BLI_strncpy(params->dir_template, value, sizeof(params->dir_template));
+    BLI_strncpy(params->dir, value, sizeof(params->dir));
+  }
 }
 
 static int rna_FileSelectParams_directory_length(PointerRNA *ptr)
 {
   const FileSelectParams *params = static_cast<const FileSelectParams *>(ptr->data);
-  const bool has_template = BKE_path_contains_template_syntax(params->dir_template);
-  return has_template ? strlen(params->dir_template) : strlen(params->dir);
+  const blender::bke::path_templates::VariableMap *template_vars =
+      ED_fileselect_params_get_template_vars(params);
+  return template_vars ? strlen(params->dir_template) : strlen(params->dir);
 }
 
 static int rna_FileAssetSelectParams_asset_library_get(PointerRNA *ptr)
