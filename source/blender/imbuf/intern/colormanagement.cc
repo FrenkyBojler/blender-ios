@@ -629,7 +629,8 @@ void colormanagement_init()
   if (ocio_env && ocio_env[0] != '\0') {
     g_config = ocio::Config::create_from_environment();
     if (g_config != nullptr) {
-      CLOG_INFO_NOCHECK(&LOG, "Using %s as a configuration file", ocio_env);
+      CLOG_INFO_NOCHECK(
+          &LOG, "Using %s=%s", (blender_ocio_env) ? "BLENDER_OCIO" : "OCIO", ocio_env);
       const bool ok = colormanage_load_config(*g_config);
 
       if (ok) {
@@ -1123,7 +1124,7 @@ void IMB_colormanagement_check_file_config(Main *bmain)
 
     /* Check sequencer strip input colorspace. */
     if (scene->ed != nullptr) {
-      blender::seq::for_each_callback(&scene->ed->seqbase, [&](Strip *strip) {
+      blender::seq::foreach_strip(&scene->ed->seqbase, [&](Strip *strip) {
         if (strip->data) {
           ok &= colormanage_check_colorspace_settings(&strip->data->colorspace_settings,
                                                       "sequencer strip");

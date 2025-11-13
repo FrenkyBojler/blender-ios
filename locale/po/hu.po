@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'7089def6cbcb')\n"
+"Project-Id-Version: Blender 5.0.0 Beta (b'd29f9f6118e5')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-09-29 09:33+0000\n"
+"POT-Creation-Date: 2025-11-10 09:45+0000\n"
 "PO-Revision-Date: 2025-07-23 15:31+0000\n"
 "Last-Translator: Balázs Füvesi <fuvesib@gmail.com>\n"
 "Language-Team: Hungarian <https://translate.blender.org/projects/blender-ui/ui/hu/>\n"
@@ -43,10 +43,6 @@ msgstr "Érték"
 
 msgid "F-Curves"
 msgstr "F-Görbék"
-
-
-msgid "Action F-Curves"
-msgstr "Akció F-Görbék"
 
 
 msgid "Action Group"
@@ -4065,10 +4061,6 @@ msgid "Frame Range"
 msgstr "Képkockasor"
 
 
-msgid "Groups"
-msgstr "Csoportok"
-
-
 msgid "Layers"
 msgstr "Rétegek"
 
@@ -4141,10 +4133,6 @@ msgstr "Lineáris"
 msgctxt "Curve"
 msgid "Constant"
 msgstr "Konstans"
-
-
-msgid "Direction"
-msgstr "Irány"
 
 
 msgid "Draw"
@@ -5280,10 +5268,6 @@ msgid "Active Movie Clip"
 msgstr "Aktív Filmklip"
 
 
-msgid "Mirror Object"
-msgstr "Tükröző objektum"
-
-
 msgid "Distance Model"
 msgstr "Távolságmodell"
 
@@ -5672,6 +5656,10 @@ msgid "Control key pressed"
 msgstr "Control billentyű lenyomása"
 
 
+msgid "Direction"
+msgstr "Irány"
+
+
 msgid "North"
 msgstr "Észak"
 
@@ -5982,6 +5970,10 @@ msgstr "Aktív kulcsozókészlet"
 
 msgid "Keying Sets"
 msgstr "Kulcsozókészletek"
+
+
+msgid "Groups"
+msgstr "Csoportok"
 
 
 msgid "Active Object"
@@ -6581,6 +6573,42 @@ msgid "Mask"
 msgstr "Maszk"
 
 
+msgid "Track"
+msgstr "Nyom"
+
+
+msgid "Show/Hide"
+msgstr "Mutat/Rejt"
+
+
+msgid "Clean Up"
+msgstr "Tisztítás"
+
+
+msgid "Apply"
+msgstr "Elfogadás"
+
+
+msgid "Merge"
+msgstr "Összefésülés"
+
+
+msgid "Keying"
+msgstr "Kulcsozás"
+
+
+msgid "Tracking"
+msgstr "Követés"
+
+
+msgid "Text"
+msgstr "Szöveg"
+
+
+msgid "Metaball"
+msgstr "Meta test"
+
+
 msgid "Mirror"
 msgstr "Tükrözés"
 
@@ -6597,20 +6625,16 @@ msgid "Align View"
 msgstr "Nézet igazítása"
 
 
-msgid "Metaball"
-msgstr "Meta test"
+msgid "Import"
+msgstr "Importálás"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Light"
 msgstr "Fényforrás"
-
-
-msgid "Keying"
-msgstr "Kulcsozás"
-
-
-msgid "Tracking"
-msgstr "Követés"
 
 
 msgid "Relations"
@@ -6619,38 +6643,6 @@ msgstr "Kapcsolatok"
 
 msgid "Rigid Body"
 msgstr "Szilárd test"
-
-
-msgid "Apply"
-msgstr "Elfogadás"
-
-
-msgid "Track"
-msgstr "Nyom"
-
-
-msgid "Show/Hide"
-msgstr "Mutat/Rejt"
-
-
-msgid "Clean Up"
-msgstr "Tisztítás"
-
-
-msgid "Merge"
-msgstr "Összefésülés"
-
-
-msgid "Text"
-msgstr "Szöveg"
-
-
-msgid "Import"
-msgstr "Importálás"
-
-
-msgid "UV"
-msgstr "UV"
 
 
 msgctxt "MovieClip"
@@ -7942,6 +7934,10 @@ msgstr "Tükrözés módosító"
 
 msgid "Mirroring modifier"
 msgstr "Tükrözés módosító"
+
+
+msgid "Mirror Object"
+msgstr "Tükröző objektum"
 
 
 msgid "Object to use as mirror"
@@ -9740,20 +9736,6 @@ msgid "Display files as a detailed list"
 msgstr "Fájlok megjelenítése részletes listaként"
 
 
-msgid "Set brush shape"
-msgstr "Ecsetforma beállítása"
-
-
-msgctxt "Curve"
-msgid "Mode"
-msgstr "Mód"
-
-
-msgctxt "Curve"
-msgid "Line"
-msgstr "Vonal"
-
-
 msgctxt "Operator"
 msgid "Image Aspect"
 msgstr "Képarány"
@@ -11495,8 +11477,14 @@ msgid "Render"
 msgstr "Render"
 
 
-msgid "Render active scene"
-msgstr "Aktív jelenet renderelése"
+msgctxt "Curve"
+msgid "Mode"
+msgstr "Mód"
+
+
+msgctxt "Curve"
+msgid "Line"
+msgstr "Vonal"
 
 
 msgctxt "Operator"
@@ -11993,11 +11981,6 @@ msgstr "Átúsztatás"
 msgctxt "Sequence"
 msgid "Glow"
 msgstr "Ragyogás"
-
-
-msgctxt "Sequence"
-msgid "Transform"
-msgstr "Átalakít"
 
 
 msgctxt "Sequence"
@@ -14418,18 +14401,6 @@ msgid "Show lattices"
 msgstr "Rácsok mutatása"
 
 
-msgid "Cross"
-msgstr "Keresztezés"
-
-
-msgid "Alpha Under"
-msgstr "Alfa takarás"
-
-
-msgid "Gamma Cross"
-msgstr "Gamma keresztezés"
-
-
 msgid "The length of the contents of this strip after the handles are applied"
 msgstr "A sáv hossza (a széleken lévő manipulátor fogantyúk alkalmazása után)"
 
@@ -15476,6 +15447,10 @@ msgid "Export to File"
 msgstr "Exportálás fájlba"
 
 
+msgid "Unpack"
+msgstr "Kicsomagolás"
+
+
 msgid "Match"
 msgstr "Összehangolás"
 
@@ -15712,10 +15687,6 @@ msgstr "Ragyogás"
 msgctxt "Operator"
 msgid "Reload Strips and Adjust Length"
 msgstr "Sáv(ok) újratöltése és hossz beállítása"
-
-
-msgid "Unpack"
-msgstr "Kicsomagolás"
 
 
 msgctxt "Text"
@@ -16257,10 +16228,6 @@ msgid "Choose active color stop"
 msgstr "Aktív színjelölő kiválasztása"
 
 
-msgid "Use Clipping"
-msgstr "Vágás használata"
-
-
 msgid "Min X:"
 msgstr "Min X:"
 
@@ -16301,16 +16268,8 @@ msgid "Zoom out"
 msgstr "Kicsinyítés"
 
 
-msgid "Clipping Options"
-msgstr "Vágás opciók"
-
-
 msgid "Delete points"
 msgstr "Pontok törlése"
-
-
-msgid "Reset Black/White point and curves"
-msgstr "Fekete/Fehér pont és a görbék alaphelyzetbe állítása"
 
 
 msgid "ID-Block:"
@@ -16647,6 +16606,10 @@ msgid "Steel"
 msgstr "Acél"
 
 
+msgid "Render active scene"
+msgstr "Aktív jelenet renderelése"
+
+
 msgid "3D Local View "
 msgstr "3D-s helyi nézet "
 
@@ -16930,10 +16893,6 @@ msgstr "Eredeti felülírása"
 
 msgid "Crease Edges"
 msgstr "Élek domborítása"
-
-
-msgid "Bright"
-msgstr "Fényerő"
 
 
 msgid "Image 1"

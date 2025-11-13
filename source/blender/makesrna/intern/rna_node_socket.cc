@@ -390,6 +390,18 @@ static void rna_NodeSocket_enabled_update(Main *bmain, Scene * /*scene*/, Pointe
   BKE_main_ensure_invariants(*bmain, ntree->id);
 }
 
+static void rna_NodeSocket_label_get(PointerRNA *ptr, char *value)
+{
+  bNodeSocket *sock = static_cast<bNodeSocket *>(ptr->data);
+  strcpy(value, blender::bke::node_socket_label(*sock).c_str());
+}
+
+static int rna_NodeSocket_label_length(PointerRNA *ptr)
+{
+  bNodeSocket *sock = static_cast<bNodeSocket *>(ptr->data);
+  return blender::bke::node_socket_label(*sock).size();
+}
+
 static bool rna_NodeSocket_is_output_get(PointerRNA *ptr)
 {
   bNodeSocket *sock = static_cast<bNodeSocket *>(ptr->data);
@@ -465,6 +477,17 @@ static void rna_NodeSocketStandard_draw_color_simple(StructRNA *type, float r_co
   const blender::bke::bNodeSocketType *typeinfo =
       static_cast<const blender::bke::bNodeSocketType *>(RNA_struct_blender_type_get(type));
   typeinfo->draw_color_simple(typeinfo, r_color);
+}
+
+static const char *rna_NodeSocketStandard_name_func(const PointerRNA *ptr,
+                                                    const PropertyRNA * /*prop*/,
+                                                    const bool do_translate)
+{
+  const bNodeSocket *socket = ptr->data_as<bNodeSocket>();
+  if (do_translate) {
+    return blender::ed::space_node::node_socket_get_label(socket);
+  }
+  return socket->name;
 }
 
 /* ******** Node Socket Subtypes ******** */
@@ -582,6 +605,16 @@ void rna_NodeSocketStandard_color_default(PointerRNA *ptr, PropertyRNA * /*prop*
 #  if defined(__GNUC__) && !defined(__clang__)
 #    pragma GCC diagnostic pop
 #  endif
+}
+
+std::string rna_NodeSocketStandard_string_default(PointerRNA *ptr, PropertyRNA * /*prop*/)
+{
+  bNodeSocket *sock = static_cast<bNodeSocket *>(ptr->data);
+  if (!sock->runtime->declaration) {
+    return "";
+  }
+  auto *decl = static_cast<const blender::nodes::decl::String *>(sock->runtime->declaration);
+  return decl->default_value;
 }
 
 int rna_NodeSocketStandard_menu_default(PointerRNA *ptr, PropertyRNA * /*prop*/)
@@ -710,9 +743,13 @@ static void rna_def_node_socket(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeSocket_update");
 
   prop = RNA_def_property(srna, "label", PROP_STRING, PROP_NONE);
-  RNA_def_property_string_sdna(prop, nullptr, "label");
+  RNA_def_property_string_funcs(
+      prop, "rna_NodeSocket_label_get", "rna_NodeSocket_label_length", nullptr);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-  RNA_def_property_ui_text(prop, "Label", "Custom dynamic defined socket label");
+  RNA_def_property_ui_text(prop,
+                           "Label",
+                           "Custom dynamic defined UI label for the socket. Can be translated if "
+                           "translation is enabled in the preferences");
 
   prop = RNA_def_property(srna, "identifier", PROP_STRING, PROP_NONE);
   RNA_def_property_string_sdna(prop, nullptr, "identifier");
@@ -1027,6 +1064,7 @@ static void rna_def_node_socket_float(BlenderRNA *brna,
   RNA_def_property_float_funcs(prop, nullptr, nullptr, "rna_NodeSocketStandard_float_range");
   RNA_def_property_float_default_func(prop, "rna_NodeSocketStandard_float_default");
   RNA_def_property_ui_text(prop, "Default Value", "Input value used for unconnected socket");
+  RNA_def_property_ui_name_func(prop, "rna_NodeSocketStandard_name_func");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeSocketStandard_value_update");
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
 
@@ -1131,6 +1169,7 @@ static void rna_def_node_socket_int(BlenderRNA *brna,
   RNA_def_property_int_funcs(prop, nullptr, nullptr, "rna_NodeSocketStandard_int_range");
   RNA_def_property_int_default_func(prop, "rna_NodeSocketStandard_int_default");
   RNA_def_property_ui_text(prop, "Default Value", "Input value used for unconnected socket");
+  RNA_def_property_ui_name_func(prop, "rna_NodeSocketStandard_name_func");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeSocketStandard_value_update");
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
 
@@ -1200,6 +1239,7 @@ static void rna_def_node_socket_bool(BlenderRNA *brna, const char *identifier)
   prop = RNA_def_property(srna, "default_value", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "value", 1);
   RNA_def_property_ui_text(prop, "Default Value", "Input value used for unconnected socket");
+  RNA_def_property_ui_name_func(prop, "rna_NodeSocketStandard_name_func");
   RNA_def_property_boolean_default_func(prop, "rna_NodeSocketStandard_boolean_default");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeSocketStandard_value_update");
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
@@ -1245,6 +1285,7 @@ static void rna_def_node_socket_rotation(BlenderRNA *brna, const char *identifie
   RNA_def_property_float_sdna(prop, nullptr, "value_euler");
   // RNA_def_property_array(prop, 3);
   RNA_def_property_ui_text(prop, "Default Value", "Input value used for unconnected socket");
+  RNA_def_property_ui_name_func(prop, "rna_NodeSocketStandard_name_func");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeSocketStandard_value_update");
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
 
@@ -1320,6 +1361,7 @@ static void rna_def_node_socket_vector(BlenderRNA *brna,
   RNA_def_property_float_default_func(prop, "rna_NodeSocketStandard_vector_default");
   RNA_def_property_float_funcs(prop, nullptr, nullptr, "rna_NodeSocketStandard_vector_range");
   RNA_def_property_ui_text(prop, "Default Value", "Input value used for unconnected socket");
+  RNA_def_property_ui_name_func(prop, "rna_NodeSocketStandard_name_func");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeSocketStandard_value_update");
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
 
@@ -1399,6 +1441,7 @@ static void rna_def_node_socket_color(BlenderRNA *brna, const char *identifier)
   prop = RNA_def_property(srna, "default_value", PROP_FLOAT, PROP_COLOR);
   RNA_def_property_float_sdna(prop, nullptr, "value");
   RNA_def_property_ui_text(prop, "Default Value", "Input value used for unconnected socket");
+  RNA_def_property_ui_name_func(prop, "rna_NodeSocketStandard_name_func");
   RNA_def_property_float_default_func(prop, "rna_NodeSocketStandard_color_default");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeSocketStandard_value_update");
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
@@ -1445,6 +1488,8 @@ static void rna_def_node_socket_string(BlenderRNA *brna,
   prop = RNA_def_property(srna, "default_value", PROP_STRING, subtype);
   RNA_def_property_string_sdna(prop, nullptr, "value");
   RNA_def_property_ui_text(prop, "Default Value", "Input value used for unconnected socket");
+  RNA_def_property_ui_name_func(prop, "rna_NodeSocketStandard_name_func");
+  RNA_def_property_string_default_func(prop, "rna_NodeSocketStandard_string_default");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeSocketStandard_value_update");
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
 
@@ -1509,6 +1554,7 @@ static void rna_def_node_socket_menu(BlenderRNA *brna, const char *identifier)
   RNA_def_property_enum_funcs(prop, nullptr, nullptr, "RNA_node_socket_menu_itemf");
   RNA_def_property_enum_default_func(prop, "rna_NodeSocketStandard_menu_default");
   RNA_def_property_ui_text(prop, "Default Value", "Input value used for unconnected socket");
+  RNA_def_property_ui_name_func(prop, "rna_NodeSocketStandard_name_func");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeSocketStandard_value_update");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
@@ -1577,6 +1623,7 @@ static void rna_def_node_socket_object(BlenderRNA *brna, const char *identifier)
   RNA_def_property_pointer_sdna(prop, nullptr, "value");
   RNA_def_property_struct_type(prop, "Object");
   RNA_def_property_ui_text(prop, "Default Value", "Input value used for unconnected socket");
+  RNA_def_property_ui_name_func(prop, "rna_NodeSocketStandard_name_func");
   RNA_def_property_update(
       prop, NC_NODE | NA_EDITED, "rna_NodeSocketStandard_value_and_relation_update");
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT | PROP_CONTEXT_UPDATE);
@@ -1621,6 +1668,7 @@ static void rna_def_node_socket_image(BlenderRNA *brna, const char *identifier)
   RNA_def_property_pointer_sdna(prop, nullptr, "value");
   RNA_def_property_struct_type(prop, "Image");
   RNA_def_property_ui_text(prop, "Default Value", "Input value used for unconnected socket");
+  RNA_def_property_ui_name_func(prop, "rna_NodeSocketStandard_name_func");
   RNA_def_property_update(
       prop, NC_NODE | NA_EDITED, "rna_NodeSocketStandard_value_and_relation_update");
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT | PROP_CONTEXT_UPDATE);
@@ -1728,6 +1776,7 @@ static void rna_def_node_socket_collection(BlenderRNA *brna, const char *identif
   RNA_def_property_pointer_sdna(prop, nullptr, "value");
   RNA_def_property_struct_type(prop, "Collection");
   RNA_def_property_ui_text(prop, "Default Value", "Input value used for unconnected socket");
+  RNA_def_property_ui_name_func(prop, "rna_NodeSocketStandard_name_func");
   RNA_def_property_update(
       prop, NC_NODE | NA_EDITED, "rna_NodeSocketStandard_value_and_relation_update");
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT | PROP_CONTEXT_UPDATE);
@@ -1772,6 +1821,7 @@ static void rna_def_node_socket_texture(BlenderRNA *brna, const char *identifier
   RNA_def_property_pointer_sdna(prop, nullptr, "value");
   RNA_def_property_struct_type(prop, "Texture");
   RNA_def_property_ui_text(prop, "Default Value", "Input value used for unconnected socket");
+  RNA_def_property_ui_name_func(prop, "rna_NodeSocketStandard_name_func");
   RNA_def_property_update(
       prop, NC_NODE | NA_EDITED, "rna_NodeSocketStandard_value_and_relation_update");
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT | PROP_CONTEXT_UPDATE);
@@ -1816,6 +1866,7 @@ static void rna_def_node_socket_material(BlenderRNA *brna, const char *identifie
   RNA_def_property_pointer_sdna(prop, nullptr, "value");
   RNA_def_property_struct_type(prop, "Material");
   RNA_def_property_ui_text(prop, "Default Value", "Input value used for unconnected socket");
+  RNA_def_property_ui_name_func(prop, "rna_NodeSocketStandard_name_func");
   RNA_def_property_update(
       prop, NC_NODE | NA_EDITED, "rna_NodeSocketStandard_value_and_relation_update");
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT | PROP_CONTEXT_UPDATE);

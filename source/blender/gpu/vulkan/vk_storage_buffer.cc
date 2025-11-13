@@ -36,6 +36,12 @@ void VKStorageBuffer::update(const void *data)
 {
   VKContext &context = *VKContext::get();
   ensure_allocated();
+  if (!buffer_.is_allocated()) {
+    CLOG_WARN(&LOG,
+              "Unable to upload data to storage buffer as the storage buffer could not be "
+              "allocated on GPU.");
+    return;
+  }
 
   if (usage_ == GPU_USAGE_STREAM) {
     const VKDevice &device = VKBackend::get().device;
@@ -77,12 +83,12 @@ void VKStorageBuffer::allocate()
                                                 VK_BUFFER_USAGE_TRANSFER_DST_BIT;
   buffer_.create(size_in_bytes_,
                  buffer_usage_flags,
-                 VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                 VkMemoryPropertyFlags(0),
+                 VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
                  VmaAllocationCreateFlags(0),
                  0.8f);
-  BLI_assert(buffer_.is_allocated());
-  debug::object_label(buffer_.vk_handle(), name_);
+  if (buffer_.is_allocated()) {
+    debug::object_label(buffer_.vk_handle(), name_);
+  }
 }
 
 void VKStorageBuffer::bind(int slot)

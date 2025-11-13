@@ -44,6 +44,7 @@
 
 #include "BKE_asset.hh"
 #include "BKE_asset_edit.hh"
+#include "BKE_attribute.h"
 #include "BKE_attribute.hh"
 #include "BKE_brush.hh"
 #include "BKE_ccg.hh"
@@ -720,6 +721,8 @@ bool BKE_paint_brush_set(Paint *paint, Brush *brush)
   if (brush != nullptr) {
     paint->brush_asset_reference = asset_reference_create_from_brush(brush);
   }
+
+  BKE_paint_invalidate_overlay_all();
 
   return true;
 }
@@ -1911,9 +1914,11 @@ void BKE_paint_copy(const Paint *src, Paint *dst, const int flag)
   }
 
   dst->runtime = MEM_new<blender::bke::PaintRuntime>(__func__);
-  dst->runtime->paint_mode = src->runtime->paint_mode;
-  dst->runtime->ob_mode = src->runtime->ob_mode;
-  dst->runtime->initialized = true;
+  if (src->runtime) {
+    dst->runtime->paint_mode = src->runtime->paint_mode;
+    dst->runtime->ob_mode = src->runtime->ob_mode;
+    dst->runtime->initialized = true;
+  }
 }
 
 void BKE_paint_settings_foreach_mode(ToolSettings *ts, blender::FunctionRef<void(Paint *paint)> fn)

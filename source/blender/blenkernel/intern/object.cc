@@ -122,9 +122,9 @@
 #include "BKE_preview_image.hh"
 #include "BKE_rigidbody.h"
 #include "BKE_scene.hh"
-#include "BKE_shader_fx.h"
+#include "BKE_shader_fx.hh"
 #include "BKE_softbody.h"
-#include "BKE_speaker.h"
+#include "BKE_speaker.hh"
 #include "BKE_subdiv_ccg.hh"
 #include "BKE_vfont.hh"
 #include "BKE_volume.hh"
@@ -637,13 +637,9 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   BLO_write_pointer_array(writer, ob->totcol, ob->mat);
   BLO_write_char_array(writer, ob->totcol, ob->matbits);
 
-  bArmature *arm = nullptr;
-  if (ob->type == OB_ARMATURE) {
-    arm = (bArmature *)ob->data;
-  }
-
   if (ob->pose) {
-    BKE_pose_blend_write(writer, ob->pose, arm);
+    BLI_assert(ob->type == OB_ARMATURE);
+    BKE_pose_blend_write(writer, ob->pose);
   }
   BKE_constraint_blend_write(writer, &ob->constraints);
   animviz_motionpath_blend_write(writer, ob->mpath);
