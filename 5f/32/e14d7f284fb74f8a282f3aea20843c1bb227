@@ -1,3 +1,4 @@
 Referenced by issue #149638, Dope Sheet - proportional editing indicator not drawn
 Referenced by pull request #149426, Refactor: GPU: Remove batch compilation
 Referenced by pull request #149709, Fix: `test_workspace.sanity_check_storyboarding`
+Referenced by commit cab24d57857c71562b8d46d4b4c8d8d8ea14e9cc, Fix: Failing test_workspace.sanity_check_storyboarding
