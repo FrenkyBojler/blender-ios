@@ -80,7 +80,7 @@ class VKShader : public Shader {
   void compute_shader_from_glsl(const shader::ShaderCreateInfo &info,
                                 MutableSpan<StringRefNull> sources) override;
   bool finalize(const shader::ShaderCreateInfo *info = nullptr) override;
-  bool finalize_post(Span<shader::ShaderCreateInfo::PipelineState> pipeline_states);
+  bool finalize_post(Span<shader::PipelineState> pipeline_states);
 
   void warm_cache(int limit) override;
 
@@ -99,7 +99,7 @@ class VKShader : public Shader {
 
   VkPipeline ensure_and_get_compute_pipeline(
       const shader::SpecializationConstants &constants_state);
-  bool ensure_graphics_pipelines(Span<shader::ShaderCreateInfo::PipelineState> pipeline_states);
+  bool ensure_graphics_pipelines(Span<shader::PipelineState> pipeline_states);
   VkPipeline ensure_and_get_graphics_pipeline(GPUPrimType primitive,
                                               VKVertexAttributeObject &vao,
                                               VKStateManager &state_manager,

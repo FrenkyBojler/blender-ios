@@ -610,7 +610,7 @@ bool VKShader::finalize(const shader::ShaderCreateInfo *info)
   return finalize_post(info->pipelines_.as_span());
 }
 
-bool VKShader::finalize_post(Span<ShaderCreateInfo::PipelineState> pipelines)
+bool VKShader::finalize_post(Span<PipelineState> pipelines)
 {
   bool result = finalize_shader_module(vertex_module, "vertex") &&
                 finalize_shader_module(geometry_module, "geometry") &&
@@ -1283,12 +1283,11 @@ VkPipeline VKShader::ensure_and_get_compute_pipeline(
   return vk_pipeline;
 }
 
-bool VKShader::ensure_graphics_pipelines(
-    Span<shader::ShaderCreateInfo::PipelineState> pipeline_states)
+bool VKShader::ensure_graphics_pipelines(Span<shader::PipelineState> pipeline_states)
 {
   BLI_assert(!is_compute_shader_);
   has_precompiled_pipelines_ = !pipeline_states.is_empty();
-  for (const shader::ShaderCreateInfo::PipelineState &pipeline_state : pipeline_states) {
+  for (const shader::PipelineState &pipeline_state : pipeline_states) {
     const VkPrimitiveTopology vk_topology = to_vk_primitive_topology(pipeline_state.primitive_);
 
     VKGraphicsInfo graphics_info = {};
@@ -1296,7 +1295,7 @@ bool VKShader::ensure_graphics_pipelines(
     graphics_info.vertex_in.attributes.reserve(pipeline_state.vertex_inputs_.size());
     graphics_info.vertex_in.bindings.reserve(pipeline_state.vertex_inputs_.size());
     uint32_t binding = 0;
-    for (const shader::ShaderCreateInfo::PipelineState::AttributeBinding &attribute_binding :
+    for (const shader::PipelineState::AttributeBinding &attribute_binding :
          pipeline_state.vertex_inputs_)
     {
       const GPUVertAttr::Type attribute_type = {attribute_binding.type};
