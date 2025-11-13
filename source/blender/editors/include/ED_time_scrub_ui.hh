@@ -17,10 +17,13 @@ struct rcti;
 struct wmEvent;
 struct wmWindow;
 
+void ED_time_scrub_draw_current_frame_line(const ARegion *region, const Scene *scene);
+
 void ED_time_scrub_draw_current_frame(const ARegion *region,
                                       const Scene *scene,
                                       bool display_seconds,
-                                      bool display_stalk = true);
+                                      bool display_stalk = true,
+                                      bool draw_line = true);
 /**
  * Draw the scrub area with numbers inside.
  * \param display_seconds: Defines if the display is in seconds or in frames.

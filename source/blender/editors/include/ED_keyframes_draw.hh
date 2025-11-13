@@ -45,10 +45,15 @@ struct KeyframeShaderBindings {
   uint flags_id;
 };
 
+enum KeyframeDrawFlags {
+  KEYFRAME_DRAW_SELECTED = 1 << 0,
+  KEYFRAME_DRAW_HIGHLIGHT = 1 << 1,
+};
+
 void draw_keyframe_shape(float x,
                          float y,
                          float size,
-                         bool sel,
+                         int8_t flag,
                          eBezTriple_KeyframeType key_type,
                          eKeyframeShapeDrawOpts mode,
                          float alpha,
@@ -160,6 +165,6 @@ void ED_add_mask_layer_channel(ChannelDrawList *channel_list,
 
 ChannelDrawList *ED_channel_draw_list_create();
 
-void ED_channel_list_flush(ChannelDrawList *channel_list, View2D *v2d);
+void ED_channel_list_flush(ChannelDrawList *channel_list, View2D *v2d, float cfra);
 
 void ED_channel_list_free(ChannelDrawList *channel_list);

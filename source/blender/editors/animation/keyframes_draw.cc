@@ -45,7 +45,7 @@ using namespace blender;
 void draw_keyframe_shape(const float x,
                          const float y,
                          float size,
-                         const bool sel,
+                         const int8_t flag,
                          const eBezTriple_KeyframeType key_type,
                          const eKeyframeShapeDrawOpts mode,
                          const float alpha,
@@ -87,6 +87,7 @@ void draw_keyframe_shape(const float x,
   uchar fill_col[4];
   uchar outline_col[4];
   uint flags = 0;
+  const bool sel = flag & KEYFRAME_DRAW_SELECTED;
 
   /* draw! */
   if (draw_fill) {
@@ -127,8 +128,14 @@ void draw_keyframe_shape(const float x,
 
   if (draw_outline) {
     /* exterior - black frame */
-    UI_GetThemeColor4ubv(sel ? TH_KEYBORDER_SELECT : TH_KEYBORDER, outline_col);
-    outline_col[3] *= alpha;
+    if (flag & KEYFRAME_DRAW_HIGHLIGHT) {
+      UI_GetThemeColor4ubv(TH_CFRAME, outline_col);
+      outline_col[3] = 255;
+    }
+    else {
+      UI_GetThemeColor4ubv(sel ? TH_KEYBORDER_SELECT : TH_KEYBORDER, outline_col);
+      outline_col[3] *= alpha;
+    }
 
     if (!draw_fill) {
       /* fill color needs to be (outline.rgb, 0) */
@@ -137,37 +144,37 @@ void draw_keyframe_shape(const float x,
       fill_col[2] = outline_col[2];
       fill_col[3] = 0;
     }
+  }
 
-    /* Handle type to outline shape. */
-    switch (handle_type) {
-      case KEYFRAME_HANDLE_AUTO_CLAMP:
-        flags = GPU_KEYFRAME_SHAPE_CIRCLE;
-        break; /* circle */
-      case KEYFRAME_HANDLE_AUTO:
-        flags = GPU_KEYFRAME_SHAPE_CIRCLE | GPU_KEYFRAME_SHAPE_INNER_DOT;
-        break; /* circle with dot */
-      case KEYFRAME_HANDLE_VECTOR:
-        flags = GPU_KEYFRAME_SHAPE_SQUARE;
-        break; /* square */
-      case KEYFRAME_HANDLE_ALIGNED:
-        flags = GPU_KEYFRAME_SHAPE_DIAMOND | GPU_KEYFRAME_SHAPE_CLIPPED_VERTICAL;
-        break; /* clipped diamond */
+  /* Handle type to outline shape. */
+  switch (handle_type) {
+    case KEYFRAME_HANDLE_AUTO_CLAMP:
+      flags = GPU_KEYFRAME_SHAPE_CIRCLE;
+      break; /* circle */
+    case KEYFRAME_HANDLE_AUTO:
+      flags = GPU_KEYFRAME_SHAPE_CIRCLE | GPU_KEYFRAME_SHAPE_INNER_DOT;
+      break; /* circle with dot */
+    case KEYFRAME_HANDLE_VECTOR:
+      flags = GPU_KEYFRAME_SHAPE_SQUARE;
+      break; /* square */
+    case KEYFRAME_HANDLE_ALIGNED:
+      flags = GPU_KEYFRAME_SHAPE_DIAMOND | GPU_KEYFRAME_SHAPE_CLIPPED_VERTICAL;
+      break; /* clipped diamond */
 
-      case KEYFRAME_HANDLE_FREE:
-      default:
-        flags = GPU_KEYFRAME_SHAPE_DIAMOND; /* diamond */
-    }
+    case KEYFRAME_HANDLE_FREE:
+    default:
+      flags = GPU_KEYFRAME_SHAPE_DIAMOND; /* diamond */
+  }
 
-    /* Extreme type to arrow-like shading. */
-    if (extreme_type & KEYFRAME_EXTREME_MAX) {
-      flags |= GPU_KEYFRAME_SHAPE_ARROW_END_MAX;
-    }
-    if (extreme_type & KEYFRAME_EXTREME_MIN) {
-      flags |= GPU_KEYFRAME_SHAPE_ARROW_END_MIN;
-    }
-    if (extreme_type & GPU_KEYFRAME_SHAPE_ARROW_END_MIXED) {
-      flags |= 0x400;
-    }
+  /* Extreme type to arrow-like shading. */
+  if (extreme_type & KEYFRAME_EXTREME_MAX) {
+    flags |= GPU_KEYFRAME_SHAPE_ARROW_END_MAX;
+  }
+  if (extreme_type & KEYFRAME_EXTREME_MIN) {
+    flags |= GPU_KEYFRAME_SHAPE_ARROW_END_MIN;
+  }
+  if (extreme_type & GPU_KEYFRAME_SHAPE_ARROW_END_MIXED) {
+    flags |= 0x400;
   }
 
   immAttr1f(sh_bindings->size_id, size);
@@ -381,7 +388,8 @@ static void draw_keylist_keys(const DrawKeylistUIData *ctx,
                               const ActKeyColumn *keys,
                               const int key_len,
                               float ypos,
-                              eSAction_Flag saction_flag)
+                              eSAction_Flag saction_flag,
+                              const float cfra)
 {
   short handle_type = KEYFRAME_HANDLE_NONE, extreme_type = KEYFRAME_EXTREME_NONE;
 
@@ -394,11 +402,19 @@ static void draw_keylist_keys(const DrawKeylistUIData *ctx,
       if (saction_flag & SACTION_SHOW_EXTREMES) {
         extreme_type = ak->extreme_type;
       }
+      int8_t draw_flag = 0;
+      if (abs(ak->cfra - cfra) < 0.001) {
+        draw_flag |= KEYFRAME_DRAW_HIGHLIGHT;
+      }
+
+      if (ak->sel & SELECT) {
+        draw_flag |= KEYFRAME_DRAW_SELECTED;
+      }
 
       draw_keyframe_shape(ak->cfra,
                           ypos,
                           ctx->icon_size,
-                          (ak->sel & SELECT),
+                          draw_flag,
                           eBezTriple_KeyframeType(ak->key_type),
                           KEYFRAME_SHAPE_BOTH,
                           ctx->alpha,
@@ -561,14 +577,15 @@ static void draw_channel_blocks(ChannelListElement *elem, View2D *v2d)
 
 static void draw_channel_keys(ChannelListElement *elem,
                               View2D *v2d,
-                              const KeyframeShaderBindings *sh_bindings)
+                              const KeyframeShaderBindings *sh_bindings,
+                              const float cfra)
 {
   DrawKeylistUIData ctx;
   channel_ui_data_init(&ctx, v2d, elem->yscale_fac, elem->channel_locked, elem->saction_flag);
 
   const int key_len = ED_keylist_array_len(elem->keylist);
   const ActKeyColumn *keys = ED_keylist_array(elem->keylist);
-  draw_keylist_keys(&ctx, v2d, sh_bindings, keys, key_len, elem->ypos, elem->saction_flag);
+  draw_keylist_keys(&ctx, v2d, sh_bindings, keys, key_len, elem->ypos, elem->saction_flag, cfra);
 }
 
 static void prepare_channel_for_drawing(ChannelListElement *elem)
@@ -629,7 +646,7 @@ static int channel_list_visible_key_len(const ChannelDrawList *channel_list, con
   return len;
 }
 
-static void channel_list_draw_keys(ChannelDrawList *channel_list, View2D *v2d)
+static void channel_list_draw_keys(ChannelDrawList *channel_list, View2D *v2d, const float cfra)
 {
   const int visible_key_len = channel_list_visible_key_len(channel_list, v2d);
   if (visible_key_len == 0) {
@@ -659,7 +676,7 @@ static void channel_list_draw_keys(ChannelDrawList *channel_list, View2D *v2d)
   immBegin(GPU_PRIM_POINTS, visible_key_len);
 
   LISTBASE_FOREACH (ChannelListElement *, elem, &channel_list->channels) {
-    draw_channel_keys(elem, v2d, &sh_bindings);
+    draw_channel_keys(elem, v2d, &sh_bindings, cfra);
   }
 
   immEnd();
@@ -669,16 +686,16 @@ static void channel_list_draw_keys(ChannelDrawList *channel_list, View2D *v2d)
   GPU_blend(GPU_BLEND_NONE);
 }
 
-static void channel_list_draw(ChannelDrawList *channel_list, View2D *v2d)
+static void channel_list_draw(ChannelDrawList *channel_list, View2D *v2d, const float cfra)
 {
   channel_list_draw_blocks(channel_list, v2d);
-  channel_list_draw_keys(channel_list, v2d);
+  channel_list_draw_keys(channel_list, v2d, cfra);
 }
 
-void ED_channel_list_flush(ChannelDrawList *channel_list, View2D *v2d)
+void ED_channel_list_flush(ChannelDrawList *channel_list, View2D *v2d, const float cfra)
 {
   channel_list_build_keylists(channel_list, {v2d->cur.xmin, v2d->cur.xmax});
-  channel_list_draw(channel_list, v2d);
+  channel_list_draw(channel_list, v2d, cfra);
 }
 
 void ED_channel_list_free(ChannelDrawList *channel_list)

@@ -27,6 +27,7 @@
 
 #include "BKE_bake_geometry_nodes_modifier.hh"
 #include "BKE_pointcache.h"
+#include "BKE_scene.hh"
 
 #include "ANIM_action.hh"
 
@@ -469,7 +470,7 @@ static void draw_keyframes(bAnimContext *ac,
   }
 
   /* Drawing happens in here. */
-  ED_channel_list_flush(draw_list, v2d);
+  ED_channel_list_flush(draw_list, v2d, BKE_scene_frame_get(ac->scene));
   ED_channel_list_free(draw_list);
 }
 

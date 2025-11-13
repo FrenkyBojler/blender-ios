@@ -81,7 +81,8 @@ static void draw_current_frame(const Scene *scene,
                                const View2D *v2d,
                                const rcti *scrub_region_rect,
                                int current_frame,
-                               bool display_stalk = true)
+                               const bool display_stalk,
+                               const bool draw_line)
 {
   const uiFontStyle *fstyle = UI_FSTYLE_WIDGET;
   const int frame_x = UI_view2d_view_to_region_x(v2d, current_frame);
@@ -123,18 +124,20 @@ static void draw_current_frame(const Scene *scene,
     immUnbindProgram();
 
     /* Vertical line. */
-    if (UI_SCALE_FAC < 0.91f) {
-      shadow_width = 1.0f;
-      rect.xmin = floor(subframe_x) - shadow_width;
-      rect.xmax = rect.xmin + U.pixelsize + shadow_width + shadow_width;
+    if (draw_line) {
+      if (UI_SCALE_FAC < 0.91f) {
+        shadow_width = 1.0f;
+        rect.xmin = floor(subframe_x) - shadow_width;
+        rect.xmax = rect.xmin + U.pixelsize + shadow_width + shadow_width;
+      }
+      else {
+        rect.xmin = floor(subframe_x) - shadow_width;
+        rect.xmax = floor(subframe_x + 1.0f) + shadow_width;
+      }
+      rect.ymin = 0.0f;
+      rect.ymax = ceil(scrub_region_rect->ymax - box_margin + shadow_width);
+      UI_draw_roundbox_4fv_ex(&rect, fg_color, nullptr, 1.0f, bg_color, shadow_width, 0.0f);
     }
-    else {
-      rect.xmin = floor(subframe_x - U.pixelsize) - shadow_width;
-      rect.xmax = floor(subframe_x + U.pixelsize + 1.0f) + shadow_width;
-    }
-    rect.ymin = 0.0f;
-    rect.ymax = ceil(scrub_region_rect->ymax - box_margin + shadow_width);
-    UI_draw_roundbox_4fv_ex(&rect, fg_color, nullptr, 1.0f, bg_color, shadow_width, 0.0f);
   }
 
   /* Box. */
@@ -172,7 +175,8 @@ static void draw_current_frame(const Scene *scene,
 void ED_time_scrub_draw_current_frame(const ARegion *region,
                                       const Scene *scene,
                                       bool display_seconds,
-                                      bool display_stalk)
+                                      const bool display_stalk,
+                                      const bool draw_line)
 {
   const View2D *v2d = &region->v2d;
   GPU_matrix_push_projection();
@@ -182,7 +186,37 @@ void ED_time_scrub_draw_current_frame(const ARegion *region,
   ED_time_scrub_region_rect_get(region, &scrub_region_rect);
 
   draw_current_frame(
-      scene, display_seconds, v2d, &scrub_region_rect, scene->r.cfra, display_stalk);
+      scene, display_seconds, v2d, &scrub_region_rect, scene->r.cfra, display_stalk, draw_line);
+  GPU_matrix_pop_projection();
+}
+
+void ED_time_scrub_draw_current_frame_line(const ARegion *region, const Scene *scene)
+{
+  GPU_matrix_push_projection();
+  wmOrtho2_region_pixelspace(region);
+
+  rcti scrub_region_rect;
+  ED_time_scrub_region_rect_get(region, &scrub_region_rect);
+
+  const float box_margin = 2.0f * UI_SCALE_FAC;
+
+  float fg_color[4];
+  UI_GetThemeColor4fv(TH_CFRAME, fg_color);
+  float bg_color[4];
+  UI_GetThemeColorShade4fv(TH_BACK, -20, bg_color);
+
+  rctf rect{};
+  float shadow_width = UI_SCALE_FAC;
+  const View2D *v2d = &region->v2d;
+
+  const float subframe_x = UI_view2d_view_to_region_x(v2d, BKE_scene_ctime_get(scene));
+  rect.xmin = floor(subframe_x - U.pixelsize) - shadow_width;
+  rect.xmax = floor(subframe_x + U.pixelsize + 1.0f) + shadow_width;
+
+  rect.ymin = 0.0f;
+  rect.ymax = ceil(scrub_region_rect.ymax - box_margin + shadow_width);
+  UI_draw_roundbox_4fv_ex(&rect, fg_color, nullptr, 1.0f, bg_color, shadow_width, 0.0f);
+
   GPU_matrix_pop_projection();
 }
 
