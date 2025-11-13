@@ -30,21 +30,6 @@ namespace blender::bke::path_templates {
 /** \name Internal Helper Functions
  * \{ */
 
-static void resolve_template_variables(char *path,
-                                       size_t path_maxlen,
-                                       const VariableMap *variables)
-{
-  if (!BKE_path_contains_template_syntax(path)) {
-    return;
-  }
-
-  if (!variables) {
-    return;
-  }
-
-  BKE_path_apply_template(path, path_maxlen, *variables);
-}
-
 /* Helper to normalize a path in place */
 static void normalize_path(char *path)
 {
@@ -61,7 +46,9 @@ static void resolve_and_normalize_paths(const char *template_path,
                                         const VariableMap *variables)
 {
   BLI_strncpy(resolved_template, template_path, buffer_size);
-  resolve_template_variables(resolved_template, buffer_size, variables);
+  if (BKE_path_contains_template_syntax(resolved_template) && variables) {
+    BKE_path_apply_template(resolved_template, buffer_size, *variables);
+  }
   normalize_path(resolved_template);
 
   BLI_strncpy(normalized_current, current_path, buffer_size);
@@ -180,7 +167,9 @@ void path_template_nav_initialize(FileSelectParams *params, const VariableMap *v
   if (BKE_path_contains_template_syntax(params->dir)) {
     char resolved_path[FILE_MAX];
     BLI_strncpy(resolved_path, params->dir, sizeof(resolved_path));
-    resolve_template_variables(resolved_path, sizeof(resolved_path), variables);
+    if (variables) {
+      BKE_path_apply_template(resolved_path, sizeof(resolved_path), *variables);
+    }
 
     BLI_strncpy(params->dir_template, params->dir, sizeof(params->dir_template));
     BLI_strncpy(params->dir, resolved_path, sizeof(params->dir));
@@ -200,8 +189,8 @@ void path_template_nav_handle_text(FileSelectParams *params,
   char resolved_path[FILE_MAX];
   BLI_strncpy(resolved_path, input_path, sizeof(resolved_path));
 
-  if (BKE_path_contains_template_syntax(resolved_path)) {
-    resolve_template_variables(resolved_path, sizeof(resolved_path), variables);
+  if (BKE_path_contains_template_syntax(resolved_path) && variables) {
+    BKE_path_apply_template(resolved_path, sizeof(resolved_path), *variables);
   }
 
   /* Update both path fields:
@@ -229,8 +218,8 @@ void path_template_nav_handle_browse(FileSelectParams *params,
       /* Resolve template for display */
       char resolved[FILE_MAX];
       BLI_strncpy(resolved, updated_template, sizeof(resolved));
-      if (BKE_path_contains_template_syntax(resolved)) {
-        resolve_template_variables(resolved, sizeof(resolved), variables);
+      if (BKE_path_contains_template_syntax(resolved) && variables) {
+        BKE_path_apply_template(resolved, sizeof(resolved), *variables);
       }
 
       BLI_strncpy(params->dir_template, updated_template, sizeof(params->dir_template));
