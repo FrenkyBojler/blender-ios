@@ -21,6 +21,7 @@ GPU_SHADER_INTERFACE_END()
 GPU_SHADER_INTERFACE_INFO(overlay_grid_debug)
 SMOOTH(float2, frag_xy)
 SMOOTH(float, frag_level)
+FLAT(int, debug_level)
 GPU_SHADER_INTERFACE_END()
 
 GPU_SHADER_CREATE_INFO(overlay_grid_next)

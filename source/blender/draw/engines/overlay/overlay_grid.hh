@@ -68,8 +68,8 @@ class GridRework : Overlay {
     grid_ps_.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA);
 
     {
-      /* Vertex count is 2 (x/y-direction) x 2 (verts per line) x 4 (levels) x N */
-      const uint n_verts = 12 * num_lines_per_level_;
+      /* Vertex count is 2 (x/y-direction) x 2 (verts per line) x levels x N */
+      const uint n_verts = 16 * num_lines_per_level_;
 
       auto &sub = grid_ps_.sub("grid");
       sub.shader_set(res.shaders->gridrework.get());
@@ -103,7 +103,8 @@ class GridRework : Overlay {
     /* Initialize flags to default value. */
     grid_flag_ = zaxs_flag_ = 0;
 
-    num_lines_per_level_ = 511; /* This suffices for a full orthographic square for metric/imp. */
+    // num_lines_per_level_ = 5;
+    num_lines_per_level_ = 255; /* This suffices for a full orthographic square for metric/imp. */
     grid_ubo_.num_lines_per_level = num_lines_per_level_;
 
     return init_3d(state);
@@ -176,13 +177,14 @@ class GridRework : Overlay {
     else {
       v3d_clip_end = v3d->clip_end;
     }
-    grid_ubo_.distance = v3d_clip_end * 0.5f;
+    grid_ubo_.distance = v3d_clip_end;
 
     /* Query grid scales from unit/scaling; this range suffices for user-visible levels. */
     level_scales_ = {1e-3f, 1e-2f, 1e-1f, 1e0f, 1e1f, 1e2f, 1e3f, 1e4f};
     ED_view3d_grid_steps(state.scene, v3d, rv3d, level_scales_.data());
     for (int i = 0; i < level_scales_.size(); ++i) {
       grid_ubo_.level_scales[i][0] = level_scales_[i];
+      std::printf("\t%d - %f\n", i, level_scales_[i]);
     }
 
     /* Compute distance to a relevant floor point-of-interest from the camera. The grid translates
@@ -223,6 +225,16 @@ class GridRework : Overlay {
         grid_level_ = static_cast<float>(i) + safe_divide(dist - curr, next - curr);
         break;
       }
+    }
+
+    std::printf("lvl: %d \t(%f)\n", static_cast<uint>(grid_level_), grid_level_);
+    for (int i = 0; i < level_scales_.size(); ++i) {
+      std::printf("\t%d - %f", i, level_scales_[i]);
+      if (i < level_scales_.size() - 1) {
+        uint ratio = static_cast<uint>(level_scales_[i + 1] / level_scales_[i]);
+        std::printf(" - %d", ratio);
+      }
+      std::printf("\n");
     }
 
     // for (level_scale_i = 0; level_scale_i < level_scales_.size() - 1; level_scale_i++) {

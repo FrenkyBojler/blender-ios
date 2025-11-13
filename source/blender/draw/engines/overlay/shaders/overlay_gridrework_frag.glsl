@@ -40,7 +40,7 @@ void main()
       out_color.a *= (1.f - angle * angle);
 
       /* Add fade towards clip distance. */
-      out_color.a *= 1.0f - smoothstep(0.0f, grid_buf.distance, dist - grid_buf.distance);
+      out_color.a *= 1.0f - smoothstep(0.0f, 0.5f * grid_buf.distance, dist - 0.5f * grid_buf.distance);
     }
   }
 
@@ -66,4 +66,13 @@ void main()
     float bias = max(gpu_fwidth(gl_FragCoord.z), 2.4e-7f);
     out_color.a *= linearstep(grid_depth, grid_depth + bias, scene_depth);
   }
+
+  float3 debug_colors[4] = {
+    float3(1, 0, 0),
+    float3(0, 1, 0),
+    float3(0, 0, 1),
+    float3(1, 1, 1)
+  };
+  out_color.rgb = debug_colors[debug_level];
+  // out_color.a = 1.0f;
 }
