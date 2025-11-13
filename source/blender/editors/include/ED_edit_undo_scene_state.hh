@@ -12,7 +12,7 @@
 
 namespace blender::ed {
 
-typedef struct EditModeSceneState {
+struct EditModeSceneState {
   /* Custom transform orientations. */
   ListBase transform_spaces;
   /* Active orientation slots. */
@@ -22,7 +22,7 @@ typedef struct EditModeSceneState {
   char proportional_edit;
   char prop_mode;
   float proportional_size;
-} EditModeSceneState;
+};
 
 /* Lifecycle */
 void ED_scene_state_free(EditModeSceneState *state);
