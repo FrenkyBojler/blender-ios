@@ -1491,6 +1491,31 @@ static XrTeleportRayResult wm_xr_navigation_arc_scene_intersect(bContext *C,
   return XR_TELEPORT_RAY_MISS;
 }
 
+static blender::float3 wm_xr_navigation_teleport_get_nav_destination(bContext *C,
+                                                                     wmXrData *xr,
+                                                                     XrTeleportData *data)
+{
+  using namespace blender;
+
+  float nav_scale;
+  WM_xr_session_state_nav_scale_get(xr, &nav_scale);
+
+  const float xr_head_height = xr->runtime->session_state.prev_local_pose.position[1];
+  const float scene_scale = CTX_data_scene(C)->unit.scale_length;
+  const float view_height_offset = xr_head_height * nav_scale * scene_scale;
+
+  const float3 ray_destination = data->arc_points[data->endpoint_idx];
+  const float3 view_destination = ray_destination + float3(0.0f, 0.0f, view_height_offset);
+
+  float3 nav_location, viewer_location;
+  WM_xr_session_state_nav_location_get(xr, nav_location);
+  WM_xr_session_state_viewer_pose_location_get(xr, viewer_location);
+
+  const float3 nav_destination = nav_location + (view_destination - viewer_location);
+
+  return nav_destination;
+}
+
 static XrTeleportRayResult wm_xr_navigation_teleport_main(bContext *C,
                                                           wmOperator *op,
                                                           wmXrData *xr,
@@ -1506,15 +1531,8 @@ static XrTeleportRayResult wm_xr_navigation_teleport_main(bContext *C,
   const XrTeleportRayResult result = wm_xr_navigation_arc_scene_intersect(C, op, data);
 
   /* Calculate the teleportation destination in navigation space. */
-  float3 nav_location, viewer_location;
-  WM_xr_session_state_nav_location_get(xr, nav_location);
-  WM_xr_session_state_viewer_pose_location_get(xr, viewer_location);
+  r_nav_destination = wm_xr_navigation_teleport_get_nav_destination(C, xr, data);
 
-  const float3 target_destination = data->arc_points[data->endpoint_idx];
-  constexpr float viewer_height_offset = 1.80f;
-  const float3 destination = target_destination + float3(0.0f, 0.0f, viewer_height_offset);
-
-  r_nav_destination = nav_location + (destination - viewer_location);
   return result;
 }
 
