@@ -103,7 +103,7 @@ static void node_geo_exec(GeoNodeExecParams params)
         }
       }
 
-      list->varray().materialize_to_uninitialized(offsets[i], dst.data());
+      list->varray().materialize_to_uninitialized(dst.data());
     }
     else {
       GMutablePointer src = inputs.values[i].get_single_ptr();
