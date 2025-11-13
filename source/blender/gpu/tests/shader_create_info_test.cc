@@ -103,6 +103,7 @@ static void test_shader_create_info_pipeline()
   GPU_render_end();
   GPU_batch_discard(batch);
   GPU_framebuffer_free(framebuffer);
+  GPU_texture_free(texture);
   GPU_shader_unbind();
   GPU_SHADER_FREE_SAFE(shader);
 }
