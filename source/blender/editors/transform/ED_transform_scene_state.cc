@@ -14,6 +14,8 @@
 #include "DNA_scene_types.h"
 #include "MEM_guardedalloc.h"
 
+namespace blender::ed {
+
 void ED_scene_state_free(EditModeSceneState *state)
 {
   BLI_freelistN(&state->transform_spaces);
@@ -60,3 +62,5 @@ void ED_scene_state_restore(Scene *scene, const EditModeSceneState *src)
   ts->prop_mode = src->prop_mode;
   ts->proportional_size = src->proportional_size;
 }
+
+}  // namespace blender::ed

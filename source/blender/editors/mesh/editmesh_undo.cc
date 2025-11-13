@@ -1060,7 +1060,7 @@ struct MeshUndoStep {
   MeshUndoStep_SceneData scene_data;
   MeshUndoStep_Elem *elems;
   uint elems_len;
-  EditModeSceneState scene_state;
+  blender::ed::EditModeSceneState scene_state;
 };
 
 static bool mesh_undosys_poll(bContext *C)
