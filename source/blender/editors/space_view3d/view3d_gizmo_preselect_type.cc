@@ -358,7 +358,7 @@ static int loopcut_tool_preview_cuts_from_toolsettings(const bContext *C)
     return default_cuts;
   }
   PointerRNA tool_props;
-  if (!WM_toolsystem_ref_properties_get_ex(tref, ot_slide->idname, ot_slide->srna, &tool_props)) {
+  if (!WM_toolsystem_ref_properties_get_from_operator(tref, ot_slide, &tool_props)) {
     return default_cuts;
   }
   PropertyRNA *prop_loopcut = RNA_struct_find_property(&tool_props, "MESH_OT_loopcut");
