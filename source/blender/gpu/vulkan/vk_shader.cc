@@ -1422,12 +1422,12 @@ VkPipeline VKShader::ensure_and_get_graphics_pipeline(GPUPrimType primitive,
   UNUSED_VARS_NDEBUG(pipeline_created);
 #ifndef NDEBUG
   if (has_precompiled_pipelines_ && pipeline_created) {
-    /* Sanity check: This warning is used to detect mismatches between shader create info
-     * states and actual used pipeline states.
+    /* Sanity check: Used to detect mismatches between shader create info states and actual used
+     * pipeline states.
      *
-     * NOTE: However this could also trigger false positives where input attributes are just
-     * different between objects which will result in a new pipeline state. */
-    CLOG_WARN(&LOG,
+     * NOTE: This could trigger false positives where input attributes are just different between
+     * objects that require a new pipeline state. */
+    CLOG_INFO(&LOG,
               "Pipeline states were compiled for `%s`, however a pipeline state triggered a new "
               "pipeline compilation.",
               name_get().c_str());
