@@ -157,7 +157,7 @@ static bool update_template_on_navigation(const char *original_template,
 /** \name Public API
  * \{ */
 
-void path_template_nav_initialize(FileSelectParams *params, const VariableMap &variables)
+void nav_initialize(FileSelectParams *params, const VariableMap &variables)
 {
   char resolved_path[FILE_MAX];
   BLI_strncpy(resolved_path, params->dir, sizeof(resolved_path));
@@ -167,9 +167,9 @@ void path_template_nav_initialize(FileSelectParams *params, const VariableMap &v
   BLI_strncpy(params->dir, resolved_path, sizeof(params->dir));
 }
 
-void path_template_nav_handle_text(FileSelectParams *params,
-                                   const char *input_path,
-                                   const VariableMap &variables)
+void nav_handle_text(FileSelectParams *params,
+                     const char *input_path,
+                     const VariableMap &variables)
 {
   char resolved_path[FILE_MAX];
   BLI_strncpy(resolved_path, input_path, sizeof(resolved_path));
@@ -182,9 +182,9 @@ void path_template_nav_handle_text(FileSelectParams *params,
   BLI_strncpy(params->dir, resolved_path, sizeof(params->dir));
 }
 
-void path_template_nav_handle_browse(FileSelectParams *params,
-                                     const char *new_directory,
-                                     const VariableMap &variables)
+void nav_handle_browse(FileSelectParams *params,
+                       const char *new_directory,
+                       const VariableMap &variables)
 {
   /* Try to preserve template if we were using one */
   if (is_within_template_bounds(params->dir_template, new_directory, variables)) {
@@ -211,10 +211,10 @@ void path_template_nav_handle_browse(FileSelectParams *params,
   BLI_strncpy(params->dir, new_directory, sizeof(params->dir));
 }
 
-void path_template_nav_set_operator_property(bContext *C,
-                                             wmOperator *op,
-                                             const char *prop_name,
-                                             const char *new_value)
+void nav_set_operator_property(bContext *C,
+                               wmOperator *op,
+                               const char *prop_name,
+                               const char *new_value)
 {
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, prop_name);
   if (!prop) {

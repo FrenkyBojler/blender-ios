@@ -216,8 +216,7 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
           STRNCPY(params->file, template_file);
 
           /* Use centralized template handling for directory paths */
-          blender::bke::path_templates::path_template_nav_handle_text(
-              params, template_dir, *template_vars);
+          blender::bke::path_templates::nav_handle_text(params, template_dir, *template_vars);
         }
         else {
           BLI_path_split_dir_file(
@@ -389,7 +388,7 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
   const blender::bke::path_templates::VariableMap *template_vars =
       ED_fileselect_params_get_template_vars(params);
   if (template_vars) {
-    blender::bke::path_templates::path_template_nav_initialize(params, *template_vars);
+    blender::bke::path_templates::nav_initialize(params, *template_vars);
   }
   else {
     /* No templates - initialize with simple copy */
@@ -1248,8 +1247,7 @@ void ED_file_change_dir_ex(bContext *C, ScrArea *area)
     const blender::bke::path_templates::VariableMap *template_vars =
         ED_fileselect_params_get_template_vars(params);
     if (template_vars) {
-      blender::bke::path_templates::path_template_nav_handle_browse(
-          params, params->dir, *template_vars);
+      blender::bke::path_templates::nav_handle_browse(params, params->dir, *template_vars);
     }
     else {
       /* No templates - simple path assignment */

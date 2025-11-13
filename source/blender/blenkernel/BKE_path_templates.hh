@@ -445,8 +445,8 @@ namespace blender::bke::path_templates {
  * \param params: FileSelectParams structure to initialize.
  * \param variables: Variable map for template resolution (must be valid).
  */
-void path_template_nav_initialize(FileSelectParams *params,
-                                  const blender::bke::path_templates::VariableMap &variables);
+void nav_initialize(FileSelectParams *params,
+                    const blender::bke::path_templates::VariableMap &variables);
 
 /**
  * Handle user input of a path (potentially with template variables) via text.
@@ -461,9 +461,9 @@ void path_template_nav_initialize(FileSelectParams *params,
  * \param input_path: User-entered path string (may contain template variable syntax).
  * \param variables: Variable map for template resolution (must be valid).
  */
-void path_template_nav_handle_text(FileSelectParams *params,
-                                   const char *input_path,
-                                   const blender::bke::path_templates::VariableMap &variables);
+void nav_handle_text(FileSelectParams *params,
+                     const char *input_path,
+                     const blender::bke::path_templates::VariableMap &variables);
 
 /**
  * Handle directory navigation in browser while preserving parent template variables.
@@ -478,9 +478,9 @@ void path_template_nav_handle_text(FileSelectParams *params,
  * \param new_directory: Target directory path after navigation.
  * \param variables: Variable map for template resolution (must be valid).
  */
-void path_template_nav_handle_browse(FileSelectParams *params,
-                                     const char *new_directory,
-                                     const blender::bke::path_templates::VariableMap &variables);
+void nav_handle_browse(FileSelectParams *params,
+                       const char *new_directory,
+                       const blender::bke::path_templates::VariableMap &variables);
 
 /**
  * Set an RNA string property on an operator with update notification.
@@ -492,10 +492,10 @@ void path_template_nav_handle_browse(FileSelectParams *params,
  * \param prop_name: Name of the string property to set.
  * \param new_value: New string value for the property.
  */
-void path_template_nav_set_operator_property(bContext *C,
-                                             wmOperator *op,
-                                             const char *prop_name,
-                                             const char *new_value);
+void nav_set_operator_property(bContext *C,
+                               wmOperator *op,
+                               const char *prop_name,
+                               const char *new_value);
 
 }  // namespace blender::bke::path_templates
 /** \} */
