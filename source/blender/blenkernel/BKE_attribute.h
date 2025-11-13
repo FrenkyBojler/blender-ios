@@ -24,6 +24,7 @@ class AttributeAccessor;
 class AttributeStorage;
 class MutableAttributeAccessor;
 }  // namespace blender::bke
+struct BMesh;
 struct CustomData;
 struct CustomDataLayer;
 struct ID;
@@ -88,6 +89,7 @@ class AttributeOwner {
  * Create a new attribute layer.
  */
 struct CustomDataLayer *BKE_attribute_new(Mesh &mesh,
+                                          BMesh &bm,
                                           blender::StringRef name,
                                           eCustomDataType type,
                                           blender::bke::AttrDomain domain,
@@ -96,20 +98,22 @@ bool BKE_attribute_remove(AttributeOwner &owner,
                           blender::StringRef name,
                           struct ReportList *reports);
 
-const struct CustomDataLayer *BKE_attribute_search(const AttributeOwner &owner,
+const struct CustomDataLayer *BKE_attribute_search(const Mesh &mesh,
+                                                   const BMesh &bm,
                                                    blender::StringRef name,
                                                    eCustomDataMask type,
                                                    AttrDomainMask domain_mask);
 
-struct CustomDataLayer *BKE_attribute_search_for_write(AttributeOwner &owner,
+struct CustomDataLayer *BKE_attribute_search_for_write(Mesh &mesh,
+                                                       BMesh &bm,
                                                        blender::StringRef name,
                                                        eCustomDataMask type,
                                                        AttrDomainMask domain_mask);
 
-blender::bke::AttrDomain BKE_attribute_domain(const AttributeOwner &owner,
+blender::bke::AttrDomain BKE_attribute_domain(const Mesh &mesh,
+                                              const BMesh &bm,
                                               const struct CustomDataLayer *layer);
 int BKE_attribute_domain_size(const AttributeOwner &owner, int domain);
-int BKE_attribute_data_length(AttributeOwner &owner, struct CustomDataLayer *layer);
 bool BKE_attribute_required(const AttributeOwner &owner, blender::StringRef name);
 bool BKE_attribute_rename(AttributeOwner &owner,
                           blender::StringRef old_name,
@@ -125,16 +129,14 @@ void BKE_attributes_active_set(AttributeOwner &owner, blender::StringRef name);
 void BKE_attributes_active_clear(AttributeOwner &owner);
 int *BKE_attributes_active_index_p(AttributeOwner &owner);
 
-CustomData *BKE_attributes_iterator_next_domain(AttributeOwner &owner,
-                                                struct CustomDataLayer *layers);
-CustomDataLayer *BKE_attribute_from_index(AttributeOwner &owner,
-                                          int lookup_index,
-                                          AttrDomainMask domain_mask,
-                                          eCustomDataMask layer_mask);
+std::optional<blender::StringRef> BKE_attribute_from_index(AttributeOwner &owner,
+                                                           int lookup_index,
+                                                           AttrDomainMask domain_mask,
+                                                           eCustomDataMask layer_mask);
 
 /** Layer is allowed to be nullptr; if so -1 (layer not found) will be returned. */
 int BKE_attribute_to_index(const AttributeOwner &owner,
-                           const CustomDataLayer *layer,
+                           const blender::StringRef name,
                            AttrDomainMask domain_mask,
                            eCustomDataMask layer_mask);
 
@@ -144,8 +146,7 @@ void BKE_id_attributes_active_color_set(struct ID *id, std::optional<blender::St
 void BKE_id_attributes_active_color_clear(struct ID *id);
 void BKE_id_attributes_default_color_set(struct ID *id, std::optional<blender::StringRef> name);
 
-const struct CustomDataLayer *BKE_id_attributes_color_find(const struct ID *id,
-                                                           blender::StringRef name);
+bool BKE_id_attributes_color_find(const struct ID *id, blender::StringRef name);
 bool BKE_color_attribute_supported(const struct Mesh &mesh, blender::StringRef name);
 
 std::string BKE_attribute_calc_unique_name(const AttributeOwner &owner, blender::StringRef name);

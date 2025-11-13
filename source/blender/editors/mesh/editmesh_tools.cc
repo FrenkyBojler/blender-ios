@@ -3138,13 +3138,13 @@ static wmOperatorStatus edbm_rotate_colors_exec(bContext *C, wmOperator *op)
     Mesh *mesh = BKE_object_get_original_mesh(ob);
     AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
     const CustomDataLayer *layer = BKE_attribute_search(
-        owner, mesh->active_color_attribute, CD_MASK_COLOR_ALL, ATTR_DOMAIN_MASK_CORNER);
+        *mesh, *em->bm, mesh->active_color_attribute, CD_MASK_COLOR_ALL, ATTR_DOMAIN_MASK_CORNER);
     if (!layer) {
       continue;
     }
 
     int color_index = BKE_attribute_to_index(
-        owner, layer, ATTR_DOMAIN_MASK_CORNER, CD_MASK_COLOR_ALL);
+        owner, layer->name, ATTR_DOMAIN_MASK_CORNER, CD_MASK_COLOR_ALL);
     EDBM_op_init(em,
                  &bmop,
                  op,
@@ -3187,7 +3187,7 @@ static wmOperatorStatus edbm_reverse_colors_exec(bContext *C, wmOperator *op)
     Mesh *mesh = BKE_object_get_original_mesh(obedit);
     AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
     const CustomDataLayer *layer = BKE_attribute_search(
-        owner, mesh->active_color_attribute, CD_MASK_COLOR_ALL, ATTR_DOMAIN_MASK_CORNER);
+        *mesh, *em->bm, mesh->active_color_attribute, CD_MASK_COLOR_ALL, ATTR_DOMAIN_MASK_CORNER);
     if (!layer) {
       continue;
     }
@@ -3195,7 +3195,7 @@ static wmOperatorStatus edbm_reverse_colors_exec(bContext *C, wmOperator *op)
     BMOperator bmop;
 
     int color_index = BKE_attribute_to_index(
-        owner, layer, ATTR_DOMAIN_MASK_CORNER, CD_MASK_COLOR_ALL);
+        owner, layer->name, ATTR_DOMAIN_MASK_CORNER, CD_MASK_COLOR_ALL);
     EDBM_op_init(
         em, &bmop, op, "reverse_colors faces=%hf color_index=%i", BM_ELEM_SELECT, color_index);
 

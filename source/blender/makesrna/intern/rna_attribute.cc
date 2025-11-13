@@ -514,16 +514,7 @@ static void rna_Attribute_data_begin(CollectionPropertyIterator *iter, PointerRN
   if (owner.type() == AttributeOwnerType::Mesh) {
     const Mesh *mesh = owner.get_mesh();
     if (mesh->runtime->edit_mesh) {
-      CustomDataLayer *layer = (CustomDataLayer *)ptr->data;
-      if (!(CD_TYPE_AS_MASK(eCustomDataType(layer->type)) & CD_MASK_PROP_ALL)) {
-        iter->valid = false;
-      }
-
-      const int length = BKE_attribute_data_length(owner, layer);
-      const size_t struct_size = CustomData_get_elem_size(layer);
-      CustomData_ensure_data_is_mutable(layer, length);
-
-      rna_iterator_array_begin(iter, ptr, layer->data, struct_size, length, 0, nullptr);
+      iter->valid = false;
       return;
     }
   }
@@ -554,8 +545,7 @@ static int rna_Attribute_data_length(PointerRNA *ptr)
   if (owner.type() == AttributeOwnerType::Mesh) {
     const Mesh *mesh = owner.get_mesh();
     if (mesh->runtime->edit_mesh) {
-      CustomDataLayer *layer = (CustomDataLayer *)ptr->data;
-      return BKE_attribute_data_length(owner, layer);
+      return 0;
     }
   }
 
@@ -803,9 +793,36 @@ static bool rna_Attributes_noncolor_layer_skip(CollectionPropertyIterator *iter,
          (layer->flag & CD_FLAG_TEMPORARY);
 }
 
+static CustomData *bmesh_attribute_iterator_next_domain(Mesh &mesh,
+                                                        BMesh &bmesh,
+                                                        CustomDataLayer *layers)
+{
+  const std::array<DomainInfo, ATTR_DOMAIN_NUM> info = get_domains(owner);
+
+  bool use_next = (layers == nullptr);
+
+  for (const int domain : IndexRange(ATTR_DOMAIN_NUM)) {
+    CustomData *customdata = info[domain].customdata;
+    if (customdata == nullptr) {
+      continue;
+    }
+    if (customdata->layers && customdata->totlayer) {
+      if (customdata->layers == layers) {
+        use_next = true;
+      }
+      else if (use_next) {
+        return customdata;
+      }
+    }
+  }
+
+  return nullptr;
+}
+
 /* Attributes are spread over multiple domains in separate CustomData, we use repeated
  * array iterators to loop over all. */
-static void rna_AttributeGroup_next_domain(AttributeOwner &owner,
+static void rna_AttributeGroup_next_domain(Mesh &mesh,
+                                           BMesh &bmesh,
                                            CollectionPropertyIterator *iter,
                                            PointerRNA *ptr,
                                            bool(skip)(CollectionPropertyIterator *iter,
@@ -816,7 +833,7 @@ static void rna_AttributeGroup_next_domain(AttributeOwner &owner,
                                        nullptr :
                                        (CustomDataLayer *)iter->internal.array.endptr -
                                            iter->internal.array.length;
-    CustomData *customdata = BKE_attributes_iterator_next_domain(owner, prev_layers);
+    CustomData *customdata = bmesh_attribute_iterator_next_domain(mesh, bmesh, prev_layers);
     if (customdata == nullptr) {
       return;
     }
@@ -831,9 +848,9 @@ void rna_AttributeGroup_iterator_begin(CollectionPropertyIterator *iter, Pointer
   memset(&iter->internal.array, 0, sizeof(iter->internal.array));
   AttributeOwner owner = owner_from_pointer_rna(ptr);
   if (owner.type() == AttributeOwnerType::Mesh) {
-    const Mesh *mesh = owner.get_mesh();
-    if (mesh->runtime->edit_mesh) {
-      rna_AttributeGroup_next_domain(owner, iter, ptr, rna_Attributes_layer_skip);
+    Mesh *mesh = owner.get_mesh();
+    if (BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
+      rna_AttributeGroup_next_domain(*mesh, *em->bm, iter, ptr, rna_Attributes_layer_skip);
       return;
     }
   }
@@ -851,10 +868,11 @@ void rna_AttributeGroup_iterator_next(CollectionPropertyIterator *iter)
   rna_iterator_array_next(iter);
   AttributeOwner owner = owner_from_pointer_rna(&iter->parent);
   if (owner.type() == AttributeOwnerType::Mesh) {
-    const Mesh *mesh = owner.get_mesh();
-    if (mesh->runtime->edit_mesh) {
+    Mesh *mesh = owner.get_mesh();
+    if (BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
       if (!iter->valid) {
-        rna_AttributeGroup_next_domain(owner, iter, &iter->parent, rna_Attributes_layer_skip);
+        rna_AttributeGroup_next_domain(
+            *mesh, *em->bm, iter, &iter->parent, rna_Attributes_layer_skip);
       }
       return;
     }
@@ -889,10 +907,11 @@ void rna_AttributeGroup_color_iterator_begin(CollectionPropertyIterator *iter, P
   using namespace blender;
   AttributeOwner owner = owner_from_pointer_rna(ptr);
   if (owner.type() == AttributeOwnerType::Mesh) {
-    const Mesh *mesh = owner.get_mesh();
-    if (mesh->runtime->edit_mesh) {
+    Mesh *mesh = owner.get_mesh();
+    if (BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
       memset(&iter->internal.array, 0, sizeof(iter->internal.array));
-      rna_AttributeGroup_next_domain(owner, iter, ptr, rna_Attributes_noncolor_layer_skip);
+      rna_AttributeGroup_next_domain(
+          *mesh, *em->bm, iter, ptr, rna_Attributes_noncolor_layer_skip);
       return;
     }
   }
@@ -921,10 +940,12 @@ void rna_AttributeGroup_color_iterator_next(CollectionPropertyIterator *iter)
   rna_iterator_array_next(iter);
   AttributeOwner owner = owner_from_pointer_rna(&iter->parent);
   if (owner.type() == AttributeOwnerType::Mesh) {
-    if (!iter->valid) {
-      AttributeOwner owner = owner_from_pointer_rna(&iter->parent);
-      rna_AttributeGroup_next_domain(
-          owner, iter, &iter->parent, rna_Attributes_noncolor_layer_skip);
+    Mesh *mesh = owner.get_mesh();
+    if (BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
+      if (!iter->valid) {
+        rna_AttributeGroup_next_domain(
+            *mesh, *em->bm, iter, &iter->parent, rna_Attributes_noncolor_layer_skip);
+      }
     }
     return;
   }
@@ -1000,14 +1021,11 @@ bool rna_AttributeGroup_lookup_string(PointerRNA *ptr, const char *key, PointerR
   AttributeOwner owner = owner_from_pointer_rna(ptr);
   if (owner.type() == AttributeOwnerType::Mesh) {
     const Mesh *mesh = owner.get_mesh();
-    if (mesh->runtime->edit_mesh) {
-      if (CustomDataLayer *layer = BKE_attribute_search_for_write(
-              owner, key, CD_MASK_PROP_ALL, ATTR_DOMAIN_MASK_ALL))
-      {
+    if (BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
+      if (const BMDataLayerLookup attr = BM_data_layer_lookup(*em->bm, key)) {
         rna_pointer_create_with_ancestors(*ptr, &RNA_Attribute, layer, *r_ptr);
         return true;
       }
-
       *r_ptr = PointerRNA_NULL;
       return false;
     }
@@ -1126,15 +1144,39 @@ static int rna_AttributeGroupID_domain_size(ID *id, const int domain)
 
 static PointerRNA rna_AttributeGroupMesh_active_color_get(PointerRNA *ptr)
 {
-  AttributeOwner owner = AttributeOwner::from_id(ptr->owner_id);
-  CustomDataLayer *layer = BKE_attribute_search_for_write(
-      owner,
-      BKE_id_attributes_active_color_name(ptr->owner_id).value_or(""),
-      CD_MASK_COLOR_ALL,
-      ATTR_DOMAIN_MASK_COLOR);
+  using namespace blender;
+  AttributeOwner owner = owner_from_pointer_rna(ptr);
+  const StringRef name = BKE_id_attributes_active_color_name(ptr->owner_id).value_or("");
+  if (owner.type() == AttributeOwnerType::Mesh) {
+    const Mesh *mesh = owner.get_mesh();
+    if (mesh->runtime->edit_mesh) {
+      if (CustomDataLayer *layer = BKE_attribute_search_for_write(*mesh,
+                                                                  *mesh->runtime->edit_mesh->bm,
+                                                                  name,
+                                                                  CD_MASK_COLOR_ALL,
+                                                                  ATTR_DOMAIN_MASK_COLOR))
+      {
+        rna_pointer_create_with_ancestors(*ptr, &RNA_Attribute, layer, *r_ptr);
+        return true;
+      }
 
-  PointerRNA attribute_ptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_Attribute, layer);
-  return attribute_ptr;
+      *r_ptr = PointerRNA_NULL;
+      return false;
+    }
+  }
+
+  bke::AttributeStorage &storage = *owner.get_storage();
+  bke::Attribute *attr = storage.lookup(name);
+  if (!attr) {
+    *r_ptr = PointerRNA_NULL;
+    return false;
+  }
+  if (!bke::mesh::is_color_attribute(bke::AttributeMetaData{attr->domain(), attr->type()})) {
+    *r_ptr = PointerRNA_NULL;
+    return false;
+  }
+  rna_pointer_create_with_ancestors(*ptr, &RNA_Attribute, attr, *r_ptr);
+  return true;
 }
 
 static void rna_AttributeGroupMesh_active_color_set(PointerRNA *ptr,
@@ -1154,27 +1196,22 @@ static void rna_AttributeGroupMesh_active_color_set(PointerRNA *ptr,
 static int rna_AttributeGroupMesh_active_color_index_get(PointerRNA *ptr)
 {
   AttributeOwner owner = AttributeOwner::from_id(ptr->owner_id);
-  const CustomDataLayer *layer = BKE_attribute_search(
-      owner,
-      BKE_id_attributes_active_color_name(ptr->owner_id).value_or(""),
-      CD_MASK_COLOR_ALL,
-      ATTR_DOMAIN_MASK_COLOR);
-
-  return BKE_attribute_to_index(owner, layer, ATTR_DOMAIN_MASK_COLOR, CD_MASK_COLOR_ALL);
+  return BKE_attribute_to_index(owner,
+                                BKE_id_attributes_active_color_name(ptr->owner_id).value_or(""),
+                                ATTR_DOMAIN_MASK_COLOR,
+                                CD_MASK_COLOR_ALL);
 }
 
 static void rna_AttributeGroupMesh_active_color_index_set(PointerRNA *ptr, int value)
 {
   AttributeOwner owner = AttributeOwner::from_id(ptr->owner_id);
-  CustomDataLayer *layer = BKE_attribute_from_index(
+  const std::optional<blender::StringRef> name = BKE_attribute_from_index(
       owner, value, ATTR_DOMAIN_MASK_COLOR, CD_MASK_COLOR_ALL);
-
-  if (!layer) {
+  if (!name) {
     fprintf(stderr, "%s: error setting active color index to %d\n", __func__, value);
     return;
   }
-
-  BKE_id_attributes_active_color_set(ptr->owner_id, layer->name);
+  BKE_id_attributes_active_color_set(ptr->owner_id, name);
 }
 
 static void rna_AttributeGroupMesh_active_color_index_range(
@@ -1191,24 +1228,22 @@ static void rna_AttributeGroupMesh_active_color_index_range(
 static int rna_AttributeGroupMesh_render_color_index_get(PointerRNA *ptr)
 {
   AttributeOwner owner = AttributeOwner::from_id(ptr->owner_id);
-  const CustomDataLayer *layer = BKE_id_attributes_color_find(
-      ptr->owner_id, BKE_id_attributes_default_color_name(ptr->owner_id).value_or(""));
-
-  return BKE_attribute_to_index(owner, layer, ATTR_DOMAIN_MASK_COLOR, CD_MASK_COLOR_ALL);
+  return BKE_attribute_to_index(owner,
+                                BKE_id_attributes_default_color_name(ptr->owner_id).value_or(""),
+                                ATTR_DOMAIN_MASK_COLOR,
+                                CD_MASK_COLOR_ALL);
 }
 
 static void rna_AttributeGroupMesh_render_color_index_set(PointerRNA *ptr, int value)
 {
   AttributeOwner owner = AttributeOwner::from_id(ptr->owner_id);
-  CustomDataLayer *layer = BKE_attribute_from_index(
+  const std::optional<blender::StringRef> name = BKE_attribute_from_index(
       owner, value, ATTR_DOMAIN_MASK_COLOR, CD_MASK_COLOR_ALL);
-
   if (!layer) {
     fprintf(stderr, "%s: error setting render color index to %d\n", __func__, value);
     return;
   }
-
-  BKE_id_attributes_default_color_set(ptr->owner_id, layer->name);
+  BKE_id_attributes_default_color_set(ptr->owner_id, name);
 }
 
 static void rna_AttributeGroupMesh_render_color_index_range(

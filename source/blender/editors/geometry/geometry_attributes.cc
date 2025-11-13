@@ -311,9 +311,8 @@ static wmOperatorStatus geometry_attribute_add_exec(bContext *C, wmOperator *op)
 
   if (owner.type() == AttributeOwnerType::Mesh) {
     Mesh *mesh = owner.get_mesh();
-    if (mesh->runtime->edit_mesh) {
-      CustomDataLayer *layer = BKE_attribute_new(*mesh, name, type, domain, op->reports);
-
+    if (BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
+      CustomDataLayer *layer = BKE_attribute_new(*mesh, *em->bm, name, type, domain, op->reports);
       if (layer == nullptr) {
         return OPERATOR_CANCELLED;
       }
@@ -466,24 +465,42 @@ static wmOperatorStatus geometry_color_attribute_add_exec(bContext *C, wmOperato
   RNA_string_get(op->ptr, "name", name);
   eCustomDataType type = eCustomDataType(RNA_enum_get(op->ptr, "data_type"));
   bke::AttrDomain domain = bke::AttrDomain(RNA_enum_get(op->ptr, "domain"));
-  CustomDataLayer *layer = BKE_attribute_new(
-      id_cast<Mesh &>(*id), name, type, domain, op->reports);
 
   float color[4];
   RNA_float_get_array(op->ptr, "color", color);
 
-  if (layer == nullptr) {
-    return OPERATOR_CANCELLED;
+  AttributeOwner owner = AttributeOwner::from_id(id);
+  const std::string unique_name = BKE_attribute_calc_unique_name(owner, name);
+
+  if (owner.type() == AttributeOwnerType::Mesh) {
+    Mesh *mesh = owner.get_mesh();
+    if (BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
+      CustomDataLayer *layer = BKE_attribute_new(*mesh, *em->bm, name, type, domain, op->reports);
+      if (layer == nullptr) {
+        return OPERATOR_CANCELLED;
+      }
+    }
+    BKE_id_attributes_active_color_set(id, unique_name);
+    if (!BKE_id_attributes_color_find(id, BKE_id_attributes_default_color_name(id).value_or(""))) {
+      BKE_id_attributes_default_color_set(id, unique_name);
+    }
+    sculpt_paint::object_active_color_fill(*ob, color, false);
+    DEG_id_tag_update(id, ID_RECALC_GEOMETRY);
+    WM_main_add_notifier(NC_GEOM | ND_DATA, id);
+    return OPERATOR_FINISHED;
   }
 
-  BKE_id_attributes_active_color_set(id, layer->name);
+  bke::MutableAttributeAccessor attributes = *owner.get_accessor();
+  attributes.add(unique_name,
+                 domain,
+                 *bke::custom_data_type_to_attr_type(type),
+                 bke::AttributeInitDefaultValue());
 
+  BKE_id_attributes_active_color_set(id, unique_name);
   if (!BKE_id_attributes_color_find(id, BKE_id_attributes_default_color_name(id).value_or(""))) {
-    BKE_id_attributes_default_color_set(id, layer->name);
+    BKE_id_attributes_default_color_set(id, unique_name);
   }
-
   sculpt_paint::object_active_color_fill(*ob, color, false);
-
   DEG_id_tag_update(id, ID_RECALC_GEOMETRY);
   WM_main_add_notifier(NC_GEOM | ND_DATA, id);
 
