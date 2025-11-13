@@ -8326,13 +8326,6 @@ static bool point_normals_init(bContext *C, wmOperator *op)
   BKE_editmesh_lnorspace_update(em);
   BMLoopNorEditDataArray *lnors_ed_arr = BM_loop_normal_editdata_array_init(bm, false);
 
-  if (lnors_ed_arr && lnors_ed_arr->totloop > 0) {
-    BMLoopNorEditData *ed = lnors_ed_arr->lnor_editdata;
-    for (int i = 0; i < lnors_ed_arr->totloop; i++, ed++) {
-      copy_v3_v3(ed->niloc, ed->nloc);
-    }
-  }
-
   op->customdata = lnors_ed_arr;
 
   return (lnors_ed_arr->totloop != 0);
