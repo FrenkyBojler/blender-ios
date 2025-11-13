@@ -1462,7 +1462,7 @@ class NWAddPrincipledSetup(Operator, NWBase, ImportHelper):
         match_files_to_socket_names(self.files, socketnames)
         # Remove socketnames without found files
         socketnames = [s for s in socketnames if s[2]
-                       and path.exists(self.directory + s[2])]
+                       and path.exists(bpy.path.abspath(self.directory) + s[2])]
         if not socketnames:
             self.report({'INFO'}, 'No matching images found')
             print('No matching images found')
@@ -1894,15 +1894,17 @@ class NWAlignNodes(Operator, NWBase):
         current_pos = 0
         for node in selection:
             current_margin = margin
-            current_margin = current_margin * 0.5 if node.hide else current_margin  # use a smaller margin for hidden nodes
+            current_margin = current_margin * 0.5 if node.hide else current_margin  # Use a smaller margin for hidden nodes
 
             if horizontal:
                 node.location.x = current_pos
                 current_pos += current_margin + node.dimensions.x
                 node.location.y = mid_y + (node.dimensions.y / 2)
             else:
-                node.location.y = current_pos
-                current_pos -= (current_margin * 0.3) + node.dimensions.y  # use half-margin for vertical alignment
+                # node.bl_height_min is the min size of a collapsed node, +6 for the outlines and margins
+                hide_offset = (node.dimensions.y - (node.bl_height_min + 6)) / 2 if node.hide else 0
+                node.location.y = current_pos - hide_offset # Hidden nodes center their sockets around the label instead of below
+                current_pos -= (current_margin * 0.3) + node.dimensions.y  # Use half-margin for vertical alignment
                 node.location.x = mid_x - (node.dimensions.x / 2)
 
         # If active node is selected, center nodes around it

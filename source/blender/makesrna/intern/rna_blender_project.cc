@@ -89,19 +89,6 @@ static int rna_BlenderProjectData_root_path_length(PointerRNA *ptr)
   return project_data->get_root_path().size();
 }
 
-static void rna_BlenderProjectData_root_path_set(PointerRNA *ptr, const char *value)
-{
-  bke::BlenderProjectData *project_data = static_cast<bke::BlenderProjectData *>(ptr->data);
-  BLI_assert(project_data != nullptr);
-  if (!project_data) {
-    return;
-  }
-
-  /* TODO: validate path. */
-
-  project_data->set_root_path(value);
-}
-
 static PointerRNA rna_BlenderProject_data_get(PointerRNA *ptr)
 {
   bke::BlenderProject *project = static_cast<bke::BlenderProject *>(ptr->data);
@@ -153,11 +140,12 @@ void rna_def_blender_project_data(BlenderRNA *brna)
   RNA_def_struct_name_property(srna, prop);
   RNA_def_property_update(prop, 0, "rna_BlenderProject_update");
 
-  prop = RNA_def_property(srna, "root_path", PROP_STRING, PROP_DIRPATH);
+  prop = RNA_def_property(srna, "root_path", PROP_STRING, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_string_funcs(prop,
                                 "rna_BlenderProjectData_root_path_get",
                                 "rna_BlenderProjectData_root_path_length",
-                                "rna_BlenderProjectData_root_path_set");
+                                nullptr);
   RNA_def_property_ui_text(prop, "Location", "The location of the project on disk");
 }
 
