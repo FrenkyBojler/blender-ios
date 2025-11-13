@@ -521,7 +521,7 @@ class ShapeTransfer(Operator):
             return {'CANCELLED'}
 
         if ob_act.active_shape_key is None:
-            self.report({'ERROR'}, "Other object has no active shape key")
+            self.report({'ERROR'}, "Other object has no shape key")
             return {'CANCELLED'}
         return self._main(ob_act, objects, self.mode, self.use_clamp)
 
