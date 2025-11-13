@@ -1947,6 +1947,48 @@ PROFILE_FUNCTION static void store_constraint_attributes(
   }
 }
 
+static void store_world_bundle_overrides(const WorldBundles &world_bundles,
+                                         const Span<GeometrySet> applied_geometries,
+                                         const XPBDDebugRecorder &debug_recorder,
+                                         Bundle &world_bundle)
+{
+  for (const int bundle_i : world_bundles.geometries.index_range()) {
+    const XPBDGeometryBundle &bundle = world_bundles.geometries[bundle_i];
+    GeometrySet applied_geometry = applied_geometries[bundle_i];
+    world_bundle.add_path_override(bundle.self_path + "/geometry", std::move(applied_geometry));
+  }
+
+  /* TODO Fields in bundles are currently lost when passing through the simulation zone output.
+   * These have to be accessed as directly as named attributes of the geometry in the meantime. */
+  for (const EdgeLengthXPBDConstraintBundle &bundle : world_bundles.edge_length_constraints) {
+    if (!bundle.lambda_attribute_name.empty()) {
+      world_bundle.add_path_override(
+          bundle.self_path + "/lambda",
+          bke::AttributeFieldInput::from<float>(bundle.lambda_attribute_name));
+    }
+  }
+  for (const CurveSegmentXPBDConstraintBundle &bundle : world_bundles.curve_segment_constraints) {
+    if (!bundle.lambda_attribute_name.empty()) {
+      world_bundle.add_path_override(
+          bundle.self_path + "/lambda",
+          bke::AttributeFieldInput::from<float>(bundle.lambda_attribute_name));
+    }
+  }
+  for (const DistanceBasedEdgeBendingConstraintBundle &bundle :
+       world_bundles.distance_based_bending_constraints)
+  {
+    if (!bundle.lambda_attribute_name.empty()) {
+      world_bundle.add_path_override(
+          bundle.self_path + "/lambda",
+          bke::AttributeFieldInput::from<float>(bundle.lambda_attribute_name));
+    }
+  }
+
+  for (const auto &item : debug_recorder.steps().items()) {
+    world_bundle.add_path(item.key + "/debug_steps", item.value.store());
+  }
+}
+
 namespace world_info {
 
 PROFILE_FUNCTION static void prepare_evaluation__forces(ResourceScope &scope,
@@ -4342,36 +4384,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   apply_state_to_geometries(state, world_bundles, applied_geometries);
   store_constraint_attributes(state, world_bundles, applied_geometries);
-  for (const int bundle_i : world_bundles.geometries.index_range()) {
-    const XPBDGeometryBundle &bundle = world_bundles.geometries[bundle_i];
-    GeometrySet &applied_geometry = applied_geometries[bundle_i];
-    world_bundle.add_path_override(bundle.self_path + "/geometry", std::move(applied_geometry));
-  }
-  /* TODO Fields in bundles are currently lost when passing through the simulation zone output.
-   * These have to be accessed as directly as named attributes of the geometry in the meantime. */
-  for (const EdgeLengthXPBDConstraintBundle &bundle : world_bundles.edge_length_constraints) {
-    if (!bundle.lambda_attribute_name.empty()) {
-      world_bundle.add_path_override(
-          bundle.self_path + "/lambda",
-          bke::AttributeFieldInput::from<float>(bundle.lambda_attribute_name));
-    }
-  }
-  for (const CurveSegmentXPBDConstraintBundle &bundle : world_bundles.curve_segment_constraints) {
-    if (!bundle.lambda_attribute_name.empty()) {
-      world_bundle.add_path_override(
-          bundle.self_path + "/lambda",
-          bke::AttributeFieldInput::from<float>(bundle.lambda_attribute_name));
-    }
-  }
-  for (const DistanceBasedEdgeBendingConstraintBundle &bundle :
-       world_bundles.distance_based_bending_constraints)
-  {
-    if (!bundle.lambda_attribute_name.empty()) {
-      world_bundle.add_path_override(
-          bundle.self_path + "/lambda",
-          bke::AttributeFieldInput::from<float>(bundle.lambda_attribute_name));
-    }
-  }
+  store_world_bundle_overrides(world_bundles, applied_geometries, debug_recorder, world_bundle);
 
   params.set_output("State", std::move(new_state_bundle_ptr));
   params.set_output("World", std::move(world_bundle_ptr));
