@@ -969,6 +969,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
       UI_but_retval_set(but, 1);
       UI_but_flag_enable(but, UI_BUT_TEXTEDIT_UPDATE | UI_BUT_VALUE_CLEAR);
       UI_but_flag_disable(but, UI_BUT_UNDO);
+      UI_but_placeholder_set(but, IFACE_("Search"));
     }
   }
 
