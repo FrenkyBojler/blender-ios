@@ -15,12 +15,6 @@
 
 namespace blender::ed {
 
-void ED_scene_state_free(EditModeSceneState &state)
-{
-  BLI_freelistN(&state.transform_spaces);
-  BLI_listbase_clear(&state.transform_spaces);
-}
-
 static void transform_orientations_copy(ListBase &dst, const ListBase &src)
 {
   BLI_freelistN(&dst);

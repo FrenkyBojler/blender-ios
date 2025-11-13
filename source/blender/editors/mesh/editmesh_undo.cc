@@ -1206,7 +1206,7 @@ static void mesh_undosys_step_free(UndoStep *us_p)
     undomesh_free_data(&elem->data);
   }
   MEM_freeN(us->elems);
-  ED_scene_state_free(us->scene_state);
+  us->scene_state.~EditModeSceneState();
 }
 
 static void mesh_undosys_foreach_ID_ref(UndoStep *us_p,

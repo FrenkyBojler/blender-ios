@@ -22,10 +22,12 @@ struct EditModeSceneState {
   char proportional_edit;
   char prop_mode;
   float proportional_size;
-};
 
-/* Lifecycle */
-void ED_scene_state_free(EditModeSceneState &state);
+  ~EditModeSceneState()
+  {
+    BLI_freelistN(&transform_spaces);
+  }
+};
 
 /* Store and restore scene state for undo. */
 void ED_scene_state_store(EditModeSceneState &state, const Scene &scene);
