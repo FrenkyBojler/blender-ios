@@ -180,6 +180,51 @@ void read_mverts(Mesh &mesh, const P3fArraySamplePtr positions, const N3fArraySa
   }
 }
 
+static void *add_customdata_cb(Mesh *mesh, const char *name, int data_type)
+{
+  eCustomDataType cd_data_type = eCustomDataType(data_type);
+
+  /* unsupported custom data type -- don't do anything. */
+  if (!ELEM(cd_data_type, CD_PROP_FLOAT2, CD_PROP_BYTE_COLOR)) {
+    return nullptr;
+  }
+
+  void *cd_ptr = CustomData_get_layer_named_for_write(
+      &mesh->corner_data, cd_data_type, name, mesh->corners_num);
+  if (cd_ptr != nullptr) {
+    /* layer already exists, so just return it. */
+    return cd_ptr;
+  }
+
+  /* Create a new layer. */
+  int numloops = mesh->corners_num;
+  cd_ptr = CustomData_add_layer_named(
+      &mesh->corner_data, cd_data_type, CD_SET_DEFAULT, numloops, name);
+  return cd_ptr;
+}
+
+/* Update references to mesh data. */
+static void config_reload_mesh(CDStreamConfig &config)
+{
+  config.positions = config.mesh->vert_positions_for_write().data();
+  config.corner_verts = config.mesh->corner_verts_for_write().data();
+  config.face_offsets = config.mesh->face_offsets_for_write().data();
+  config.totvert = config.mesh->verts_num;
+  config.totloop = config.mesh->corners_num;
+  config.faces_num = config.mesh->faces_num;
+  config.loopdata = &config.mesh->corner_data;
+}
+
+static CDStreamConfig get_config(Mesh *mesh)
+{
+  CDStreamConfig config;
+  config.mesh = mesh;
+  config.add_customdata_cb = add_customdata_cb;
+  config_reload_mesh(config);
+
+  return config;
+}
+
 static void read_mpolys(CDStreamConfig &config, const AbcMeshData &mesh_data)
 {
   int *face_offsets = config.face_offsets;
@@ -259,6 +304,8 @@ static void read_mpolys(CDStreamConfig &config, const AbcMeshData &mesh_data)
       *config.modifier_error_message = "Mesh hash invalid geometry";
     }
     bke::mesh_validate(*config.mesh, false);
+
+    config_reload_mesh(config);
   }
 
   bke::mesh_calc_edges(*config.mesh, false, false);
@@ -389,29 +436,6 @@ BLI_INLINE void read_uvs_params(CDStreamConfig &config,
   config.uv_map = static_cast<float2 *>(cd_ptr);
 }
 
-static void *add_customdata_cb(Mesh *mesh, const char *name, int data_type)
-{
-  eCustomDataType cd_data_type = eCustomDataType(data_type);
-
-  /* unsupported custom data type -- don't do anything. */
-  if (!ELEM(cd_data_type, CD_PROP_FLOAT2, CD_PROP_BYTE_COLOR)) {
-    return nullptr;
-  }
-
-  void *cd_ptr = CustomData_get_layer_named_for_write(
-      &mesh->corner_data, cd_data_type, name, mesh->corners_num);
-  if (cd_ptr != nullptr) {
-    /* layer already exists, so just return it. */
-    return cd_ptr;
-  }
-
-  /* Create a new layer. */
-  int numloops = mesh->corners_num;
-  cd_ptr = CustomData_add_layer_named(
-      &mesh->corner_data, cd_data_type, CD_SET_DEFAULT, numloops, name);
-  return cd_ptr;
-}
-
 template<typename SampleType>
 static bool samples_have_same_topology(const SampleType &sample, const SampleType &ceil_sample)
 {
@@ -497,22 +521,6 @@ static void read_mesh_sample(const std::string &iobject_full_name,
       read_velocity(velocities, config, settings->velocity_scale);
     }
   }
-}
-
-static CDStreamConfig get_config(Mesh *mesh)
-{
-  CDStreamConfig config;
-  config.mesh = mesh;
-  config.positions = mesh->vert_positions_for_write().data();
-  config.corner_verts = mesh->corner_verts_for_write().data();
-  config.face_offsets = mesh->face_offsets_for_write().data();
-  config.totvert = mesh->verts_num;
-  config.totloop = mesh->corners_num;
-  config.faces_num = mesh->faces_num;
-  config.loopdata = &mesh->corner_data;
-  config.add_customdata_cb = add_customdata_cb;
-
-  return config;
 }
 
 /* ************************************************************************** */
