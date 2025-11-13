@@ -1245,7 +1245,7 @@ bool BM_mesh_intersect(BMesh *bm,
     }
 
     splice_ls = static_cast<BMVert *(*)[2]>(
-        MEM_mallocN(s.wire_edges->size() * sizeof(*splice_ls), __func__));
+        MEM_mallocN(size_t(s.wire_edges->size()) * sizeof(*splice_ls), __func__));
     STACK_INIT(splice_ls, s.wire_edges->size());
 
     for (node = s.vert_dissolve; node; node = node->next) {
