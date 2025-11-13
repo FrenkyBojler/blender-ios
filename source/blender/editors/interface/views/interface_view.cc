@@ -26,7 +26,6 @@
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_rect.h"
-#include "BLI_time.h"
 
 #include "ED_screen.hh"
 
