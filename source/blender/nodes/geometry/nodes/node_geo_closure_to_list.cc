@@ -2,10 +2,12 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BKE_compute_contexts.hh"
 #include "BLO_read_write.hh"
 
 #include "NOD_geo_closure_to_list.hh"
 #include "NOD_geometry_nodes_closure_eval.hh"
+#include "NOD_geometry_nodes_closure_location.hh"
 #include "NOD_geometry_nodes_list.hh"
 #include "NOD_socket_items_blend.hh"
 #include "NOD_socket_items_ops.hh"
@@ -106,7 +108,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     params.set_default_remaining_outputs();
     return;
   }
-  const GeometryNodeClosureToList &storage = node_storage(params.node());
+  const bNode &node = params.node();
+  const GeometryNodeClosureToList &storage = node_storage(node);
   const Span<GeometryNodeClosureToListItem> items(storage.items, storage.items_num);
 
   ClosurePtr closure = params.extract_input<ClosurePtr>("Closure");
@@ -143,13 +146,18 @@ static void node_geo_exec(GeoNodeExecParams params)
     list_values[i] = {cpp_types[i], std::get<List::ArrayData>(lists[i]->data()).data, count};
   }
 
+  GeoNodesUserData user_data = *params.user_data();
+  bke::EvaluateClosureComputeContext closure_context(
+      user_data.compute_context, node.identifier, &node.owner_tree());
+  user_data.compute_context = &closure_context;
+
   /* The grain size is completely arbitrary since we don't know how expensive the closure is.
    * However since the closure evaluation itself has fairly high overhead, it makes to optimize for
    * the case where each task has a relatively high cost. */
   const bke::bNodeSocketType *int_type = bke::node_socket_type_find("NodeSocketInt");
   threading::parallel_for(IndexRange(count), 8, [&](const IndexRange range) {
     ClosureEagerEvalParams closure_params;
-    closure_params.user_data = params.user_data();
+    closure_params.user_data = &user_data;
     closure_params.inputs.append({"Index", int_type, bke::SocketValueVariant::From(0)});
 
     Array<bke::SocketValueVariant> closure_results(lists.size());
