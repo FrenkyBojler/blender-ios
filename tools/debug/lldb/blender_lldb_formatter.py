@@ -90,22 +90,20 @@ class bli_vector_SyntheticProvider:
             start_val = self.begin.GetValueAsUnsigned(0)
             end_val = self.end.GetValueAsUnsigned(0)
             end_capacity_val = self.capacity_end.GetValueAsUnsigned(0)
-            # Make sure nothing is NULL
+            # Make sure nothing is NULL.
             if start_val == 0 or end_val == 0 or end_capacity_val == 0:
                 return 0
-            # Make sure start is less than finish
+            # Make sure start is less than finish.
             if start_val >= end_val:
                 return 0
-            # Make sure finish is less than or equal to end of storage
+            # Make sure finish is less than or equal to end of storage.
             if end_val > end_capacity_val:
                 return 0
 
-            num_children = (end_val - start_val)
-            if (num_children % self.data_size) != 0:
+            size_in_bytes = (end_val - start_val)
+            if (size_in_bytes % self.data_size) != 0:
                 return 0
-            else:
-                num_children = (num_children // self.data_size)
-            return num_children
+            return (size_in_bytes // self.data_size)
         except:
             return 0
 
