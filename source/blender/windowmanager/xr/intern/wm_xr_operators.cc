@@ -1383,7 +1383,7 @@ static void wm_xr_navigation_teleport_generate_arc(wmOperator *op,
   }
 }
 
-static bool wm_xr_navigation_is_wall_hit(blender::float3 &hit_normal)
+static bool wm_xr_navigation_teleport_is_wall_hit(blender::float3 &hit_normal)
 {
   /* Check if the hit surface is a wall. */
   using namespace blender;
@@ -1426,9 +1426,9 @@ static bool wm_xr_navigation_teleport_arc_clip_to_ground(blender::Array<blender:
   return false;
 }
 
-static XrTeleportRayResult wm_xr_navigation_arc_scene_intersect(bContext *C,
-                                                                wmOperator *op,
-                                                                XrTeleportData *data)
+static XrTeleportRayResult wm_xr_navigation_teleport_arc_scene_intersect(bContext *C,
+                                                                         wmOperator *op,
+                                                                         XrTeleportData *data)
 {
   using namespace blender;
 
@@ -1473,7 +1473,7 @@ static XrTeleportRayResult wm_xr_navigation_arc_scene_intersect(bContext *C,
       data->endpoint_idx = i;
 
       /* Disallow wall hits. */
-      if (wm_xr_navigation_is_wall_hit(hit_normal)) {
+      if (wm_xr_navigation_teleport_is_wall_hit(hit_normal)) {
         return XR_TELEPORT_RAY_MISS;
       }
 
@@ -1528,7 +1528,7 @@ static XrTeleportRayResult wm_xr_navigation_teleport_main(bContext *C,
   wm_xr_navigation_teleport_generate_arc(op, xr, data);
 
   /* Find intersection between the arc and scene objects using raycast. */
-  const XrTeleportRayResult result = wm_xr_navigation_arc_scene_intersect(C, op, data);
+  const XrTeleportRayResult result = wm_xr_navigation_teleport_arc_scene_intersect(C, op, data);
 
   /* Calculate the teleportation destination in navigation space. */
   r_nav_destination = wm_xr_navigation_teleport_get_nav_destination(C, xr, data);
