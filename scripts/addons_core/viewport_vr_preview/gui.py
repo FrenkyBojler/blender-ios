@@ -59,6 +59,10 @@ class VIEW3D_PT_vr_session(Panel):
         col = layout.column(align=True, heading="Actions")
         col.prop(scene, "vr_actions_enable")
 
+        if is_session_running:
+            session_state = context.window_manager.xr_session_state
+            layout.prop(session_state, "navigation_scale")
+
 
 # View.
 class VIEW3D_PT_vr_session_view(Panel):

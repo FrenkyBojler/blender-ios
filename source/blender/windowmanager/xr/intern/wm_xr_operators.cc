@@ -1358,17 +1358,13 @@ static void wm_xr_navigation_teleport_raycast(Scene *scene,
 }
 
 static void wm_xr_navigation_teleport_generate_arc(wmOperator *op,
-                                                   const wmXrData *xr,
                                                    XrTeleportData *data)
 {
   using namespace blender;
 
-  float nav_scale;
-  WM_xr_session_state_nav_scale_get(xr, &nav_scale);
-
-  const float gravity = 9.81f * nav_scale;
-  const float time_step = RNA_float_get(op->ptr, "range") * nav_scale;
-  const float velocity = RNA_float_get(op->ptr, "force") * nav_scale;
+  const float gravity = 9.81f;
+  const float time_step = RNA_float_get(op->ptr, "range");
+  const float velocity = RNA_float_get(op->ptr, "force");
 
   data->arc_points[0] = data->init_location;
   const float3 direction = data->init_direction;
@@ -1496,8 +1492,7 @@ static XrTeleportRayResult wm_xr_navigation_teleport_arc_scene_intersect(bContex
   return XR_TELEPORT_RAY_MISS;
 }
 
-static blender::float3 wm_xr_navigation_teleport_get_nav_destination(bContext *C,
-                                                                     const wmXrData *xr,
+static blender::float3 wm_xr_navigation_teleport_get_nav_destination(const wmXrData *xr,
                                                                      XrTeleportData *data)
 {
   using namespace blender;
@@ -1506,8 +1501,7 @@ static blender::float3 wm_xr_navigation_teleport_get_nav_destination(bContext *C
   WM_xr_session_state_nav_scale_get(xr, &nav_scale);
 
   const float xr_head_height = xr->runtime->session_state.prev_local_pose.position[1];
-  const float scene_scale = CTX_data_scene(C)->unit.scale_length;
-  const float view_height_offset = xr_head_height * nav_scale * scene_scale;
+  const float view_height_offset = xr_head_height * nav_scale;
 
   const float3 ray_destination = data->arc_points[data->endpoint_idx];
   const float3 view_destination = ray_destination + float3(0.0f, 0.0f, view_height_offset);
@@ -1530,13 +1524,13 @@ static XrTeleportRayResult wm_xr_navigation_teleport_main(bContext *C,
   using namespace blender;
 
   /* Generate the initial parabolic arc. */
-  wm_xr_navigation_teleport_generate_arc(op, xr, data);
+  wm_xr_navigation_teleport_generate_arc(op, data);
 
   /* Find intersection between the arc and scene objects using raycast. */
   const XrTeleportRayResult result = wm_xr_navigation_teleport_arc_scene_intersect(C, op, data);
 
   /* Calculate the teleportation destination in navigation space. */
-  r_nav_destination = wm_xr_navigation_teleport_get_nav_destination(C, xr, data);
+  r_nav_destination = wm_xr_navigation_teleport_get_nav_destination(xr, data);
 
   return result;
 }
