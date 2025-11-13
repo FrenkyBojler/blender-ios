@@ -23,12 +23,15 @@ static bool target_socket_evaluates_closure(const SocketInContext &socket)
   if (!socket->is_input()) {
     return false;
   }
+  if (socket->index() == 0 && socket.owner_node()->is_type("NodeEvaluateClosure")) {
+    return true;
+  }
   if (const SocketDeclaration *decl = socket->runtime->declaration) {
     if (const auto *closure_decl = dynamic_cast<const decl::Closure *>(decl)) {
       return bool(closure_decl->signature);
     }
   }
-  return socket->index() == 0 && socket.owner_node()->is_type("NodeEvaluateClosure");
+  return false;
 }
 
 static bool is_closure_zone_output_socket(const SocketInContext &socket)
