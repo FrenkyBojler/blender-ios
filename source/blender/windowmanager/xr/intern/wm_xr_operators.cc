@@ -1472,6 +1472,11 @@ static XrTeleportRayResult wm_xr_navigation_teleport_arc_scene_intersect(bContex
       data->arc_points[i] = hit_location;
       data->endpoint_idx = i;
 
+      /* Ensure normal face the correct direction. */
+      if (math::dot(segment_direction, hit_normal) > 0) {
+        hit_normal *= -1.0f;
+      }
+
       /* Disallow wall hits. */
       if (wm_xr_navigation_teleport_is_wall_hit(hit_normal)) {
         return XR_TELEPORT_RAY_MISS;
