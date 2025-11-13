@@ -59,10 +59,10 @@ static void draw_vector(uiLayout &layout, const float3 &value)
 static void draw_color(uiLayout &layout, const ColorGeometry4f &value)
 {
   uiLayout &col = layout.column(true);
-  col.label(fmt::format("{}: {:.5f}", IFACE_("R"), value.r), ICON_NONE);
-  col.label(fmt::format("{}: {:.5f}", IFACE_("G"), value.g), ICON_NONE);
-  col.label(fmt::format("{}: {:.5f}", IFACE_("B"), value.b), ICON_NONE);
-  col.label(fmt::format("{}: {:.5f}", IFACE_("A"), value.a), ICON_NONE);
+  col.label(fmt::format("{}: {:.5f}", CTX_IFACE_(BLT_I18NCONTEXT_COLOR, "R"), value.r), ICON_NONE);
+  col.label(fmt::format("{}: {:.5f}", CTX_IFACE_(BLT_I18NCONTEXT_COLOR, "G"), value.g), ICON_NONE);
+  col.label(fmt::format("{}: {:.5f}", CTX_IFACE_(BLT_I18NCONTEXT_COLOR, "B"), value.b), ICON_NONE);
+  col.label(fmt::format("{}: {:.5f}", CTX_IFACE_(BLT_I18NCONTEXT_COLOR, "A"), value.a), ICON_NONE);
 }
 static void draw_string(uiLayout &layout, const StringRef value)
 {
@@ -287,7 +287,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
   const bNodeSocket &other_socket = params.other_socket();
   if (other_socket.in_out == SOCK_OUT) {
-    params.add_item("Value", [](LinkSearchOpParams &params) {
+    params.add_item(IFACE_("Value"), [](LinkSearchOpParams &params) {
       bNode &node = params.add_node("GeometryNodeViewer");
       const auto *item = socket_items::add_item_with_socket_type_and_name<GeoViewerItemsAccessor>(
           params.node_tree, node, params.socket.typeinfo->type, params.socket.name);

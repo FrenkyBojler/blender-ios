@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'ceca413bcbf8')\n"
+"Project-Id-Version: Blender 5.0.0 Beta (b'd29f9f6118e5')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-06 08:44+0000\n"
+"POT-Creation-Date: 2025-11-10 09:45+0000\n"
 "PO-Revision-Date: 2025-07-23 15:08+0000\n"
 "Last-Translator: Bartosz <gang65@poczta.onet.pl>\n"
 "Language-Team: Ukrainian <https://translate.blender.org/projects/blender-ui/ui/uk/>\n"
@@ -3336,14 +3336,6 @@ msgid "Parent bone (in same Armature)"
 msgstr "Кістка-предок (в тій же арматурі)"
 
 
-msgid "Select Head"
-msgstr "Вибрати початок"
-
-
-msgid "Select Tail"
-msgstr "Вибрати кінець"
-
-
 msgid "Display Wire"
 msgstr "Показати каркас"
 
@@ -6598,6 +6590,14 @@ msgstr "Вилучити викривлення"
 
 msgid "Parent to undistorted position of 2D track"
 msgstr "Зробити предком неспотворену позицію 2D-стежки"
+
+
+msgid "Attribute Name"
+msgstr "Назва атрибуту"
+
+
+msgid "Domain Type"
+msgstr "Тип домену"
 
 
 msgid "Kinematic Constraint"
@@ -11850,10 +11850,6 @@ msgid "Smoke Grid Resolution"
 msgstr "Роздільність сітки диму"
 
 
-msgid "Domain Type"
-msgstr "Тип домену"
-
-
 msgid "Change domain type of the simulation"
 msgstr "Змінити тип імітації для домену"
 
@@ -14886,10 +14882,6 @@ msgstr "Пензель деформує сіть шляхом деформува
 
 msgid "Amount of random elements that are going to be affected by the brush"
 msgstr "Кількість випадкових елементів, на які буде впливати пензель"
-
-
-msgid "Direction"
-msgstr "Напрям"
 
 
 msgid "Add effect of brush"
@@ -20976,10 +20968,6 @@ msgid "Active Movie Clip"
 msgstr "Активний відеокліп"
 
 
-msgid "Mirror Object"
-msgstr "Об'єкт дзеркалення"
-
-
 msgid "Distance Model"
 msgstr "Модель Відстані"
 
@@ -23392,6 +23380,10 @@ msgstr "Ctrl"
 
 msgid "Control key pressed"
 msgstr "Натиснуто Control"
+
+
+msgid "Direction"
+msgstr "Напрям"
 
 
 msgid "North"
@@ -26386,44 +26378,8 @@ msgid "Material slot name"
 msgstr "Назва гнізда матеріалу"
 
 
-msgid "Add Image"
-msgstr "Додати Зображення"
-
-
-msgid "Relations"
-msgstr "Зв'язки"
-
-
-msgid "Sample"
-msgstr "Вибірка"
-
-
-msgid "Primitives"
-msgstr "Примітиви"
-
-
-msgid "Rigid Body"
-msgstr "Тверде тіло"
-
-
-msgid "Import"
-msgstr "Імпортувати"
-
-
-msgid "Apply"
-msgstr "Застосувати"
-
-
-msgid "Text"
-msgstr "Текст"
-
-
 msgid "Track"
 msgstr "Стеження"
-
-
-msgid "Utilities"
-msgstr "Утиліти"
 
 
 msgid "Quick Effects"
@@ -26450,16 +26406,8 @@ msgid "Convert"
 msgstr "Конвертування"
 
 
-msgid "Math"
-msgstr "Математика"
-
-
 msgid "Link/Transfer Data"
 msgstr "Пов'язати/Перенести Дані"
-
-
-msgid "UV"
-msgstr "UV"
 
 
 msgid "Hooks"
@@ -26494,6 +26442,10 @@ msgid "Names"
 msgstr "Назви"
 
 
+msgid "Apply"
+msgstr "Застосувати"
+
+
 msgid "Toggle Bone Options"
 msgstr "Перемкнути параметри кісток"
 
@@ -26504,6 +26456,10 @@ msgstr "Увімкнути параметри кісток"
 
 msgid "Disable Bone Options"
 msgstr "Відключити параметри кісток"
+
+
+msgid "Layout"
+msgstr "Розстановка"
 
 
 msgid "Mesh Select Mode"
@@ -26526,6 +26482,22 @@ msgid "Merge"
 msgstr "Об'єднання"
 
 
+msgid "Keying"
+msgstr "Ключування"
+
+
+msgid "Tracking"
+msgstr "Стеження"
+
+
+msgid "Utilities"
+msgstr "Утиліти"
+
+
+msgid "Math"
+msgstr "Математика"
+
+
 msgid "Special Characters"
 msgstr "Спеціальні символи"
 
@@ -26534,16 +26506,16 @@ msgid "Kerning"
 msgstr "Кернінг"
 
 
+msgid "Text"
+msgstr "Текст"
+
+
 msgid "Metaball"
 msgstr "Метакуля"
 
 
 msgid "Bone Roll"
 msgstr "Прокручення Кістки"
-
-
-msgid "Layout"
-msgstr "Розстановка"
 
 
 msgid "Pivot Point"
@@ -26570,12 +26542,12 @@ msgid "Face Sets Edit"
 msgstr "Редагування Наборів Граней"
 
 
-msgid "Keying"
-msgstr "Ключування"
+msgid "Sample"
+msgstr "Вибірка"
 
 
-msgid "Tracking"
-msgstr "Стеження"
+msgid "Primitives"
+msgstr "Примітиви"
 
 
 msgid "Mirror"
@@ -26630,8 +26602,16 @@ msgid "Select Loops"
 msgstr "Виділити петлі"
 
 
+msgid "Import"
+msgstr "Імпортувати"
+
+
 msgid "Assign Material"
 msgstr "Призначити Матеріал"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Light"
@@ -26640,6 +26620,18 @@ msgstr "Слабко"
 
 msgid "Light Probe"
 msgstr "Проба Освітлення"
+
+
+msgid "Add Image"
+msgstr "Додати Зображення"
+
+
+msgid "Relations"
+msgstr "Зв'язки"
+
+
+msgid "Rigid Body"
+msgstr "Тверде тіло"
 
 
 msgid "Basic"
@@ -27273,10 +27265,6 @@ msgstr "Викривлення"
 
 msgid "UV Pinned"
 msgstr "UV пришпилено"
-
-
-msgid "UV Select"
-msgstr "Вибрати UV"
 
 
 msgid "Set the map as active for display and editing"
@@ -30356,6 +30344,10 @@ msgstr "Модифікатор віддзеркалення"
 
 msgid "Distance within which mirrored vertices are merged"
 msgstr "Відстань, у межах якої віддзеркалені вершини будуть об'єднані"
+
+
+msgid "Mirror Object"
+msgstr "Об'єкт дзеркалення"
 
 
 msgid "Object to use as mirror"
@@ -34671,10 +34663,6 @@ msgstr "Розглядати лише сам об'єкт при обчислен
 
 msgid "Number of rays to trace per shader evaluation"
 msgstr "Кількість променів для простеження на кожну оцінку відтінювача"
-
-
-msgid "Attribute Name"
-msgstr "Назва атрибуту"
 
 
 msgid "Attribute Type"
@@ -53387,10 +53375,6 @@ msgid "Add IK to Bone"
 msgstr "Додати ІК до кістки"
 
 
-msgid "Add IK Constraint to the active Bone"
-msgstr "Додати для активної кістки примус ІК"
-
-
 msgid "With Targets"
 msgstr "З цілями"
 
@@ -53868,14 +53852,6 @@ msgid "Render files from the animation range of this scene"
 msgstr "Рендерити файли з діапазону анімації цієї сцени"
 
 
-msgid "Render Keyframes Only"
-msgstr "Рендерити лише ключкадри"
-
-
-msgid "Render only those frames where selected objects have a key in their animation data. Only used when rendering animation"
-msgstr "Рендерити лише ті кадри, де вибрані об'єкти мають ключові кадри в даних анімації. Використовується тільки під час рендерингу анімації"
-
-
 msgid "Render using the sequencer's OpenGL display"
 msgstr "Рендер з використанням OpenGL-показу секвенсера"
 
@@ -53895,10 +53871,6 @@ msgstr "Запис зображення"
 msgctxt "Operator"
 msgid "Render"
 msgstr "Рендер"
-
-
-msgid "Render active scene"
-msgstr "Рендерити активну сцену"
 
 
 msgid "Render Layer"
@@ -71367,18 +71339,6 @@ msgid "Method for controlling how the strip combines with other strips"
 msgstr "Метод керування поєднанням смужки з іншими смужками"
 
 
-msgid "Cross"
-msgstr "Перетин"
-
-
-msgid "Alpha Under"
-msgstr "Альфа під"
-
-
-msgid "Gamma Cross"
-msgstr "Гамма перетин"
-
-
 msgid "Y position of the sequence strip"
 msgstr "Позиція Y у смужки послідовності"
 
@@ -76650,10 +76610,6 @@ msgid "External shader script must have .osl or .oso extension, or be a module n
 msgstr "Зовнішній скрипт шейдера повинен мати розширення .osl чи .oso, або бути іменем модуля"
 
 
-msgid "Failed to write .oso file next to external .osl file at "
-msgstr "Збій запису файлу .oso поряд із зовнішнім файлом .osl у"
-
-
 msgid "Noise Threshold"
 msgstr "Поріг Шуму"
 
@@ -76985,6 +76941,10 @@ msgstr "Тор"
 
 msgid "Nothing to bake"
 msgstr "Нічого запікати"
+
+
+msgid "No objects selected"
+msgstr "Жоден з об'єктів не вибрано"
 
 
 msgid "Selection pair not found"
@@ -80474,11 +80434,6 @@ msgstr "Пошук Оператора..."
 msgctxt "Operator"
 msgid "Release Notes"
 msgstr "Примітки щодо Випуску"
-
-
-msgctxt "Operator"
-msgid "Tutorials"
-msgstr "Навчальники"
 
 
 msgid "Sequence Strip Name"
@@ -84737,22 +84692,6 @@ msgid "Add IK"
 msgstr "Додати ІК"
 
 
-msgid "To Active Bone"
-msgstr "До активної кістки"
-
-
-msgid "To Active Object"
-msgstr "До активного об'єкта"
-
-
-msgid "To New Empty Object"
-msgstr "До нового об'єкта порожняка"
-
-
-msgid "Without Targets"
-msgstr "Без цілей"
-
-
 msgid "Could not find constraint data for Child-Of Set Inverse"
 msgstr "Не знайдено даних примусу для задання інверсії примусу нащадок"
 
@@ -84819,10 +84758,6 @@ msgstr "Жодну колекцію не вибрано"
 
 msgid "Unexpected error, collection not found"
 msgstr "Неочікувана помилка, колекцію не знайдено"
-
-
-msgid "No objects selected"
-msgstr "Жоден з об'єктів не вибрано"
 
 
 msgid "%s already in %s"
@@ -85451,6 +85386,10 @@ msgstr "Немає світу твердого тіла для експорту"
 
 msgid "Rigid Body World has no associated physics data to export"
 msgstr "Світ твердого тіла немає пов'язаних даних фізики для експорту"
+
+
+msgid "Render active scene"
+msgstr "Рендерити активну сцену"
 
 
 msgid "Cannot write a single file with an animation format selected"
@@ -87572,10 +87511,6 @@ msgid "Rip failed"
 msgstr "Збій розривання"
 
 
-msgid "Cannot split selection when sync selection is enabled"
-msgstr "Неможливо розділити вибране, коли увімкнена синхронізація вибору"
-
-
 msgid "Minimize Stretch. Blend %.2f"
 msgstr "Мінімізація Розтягу. Blend %.2f"
 
@@ -87991,6 +87926,10 @@ msgstr "Реєстрація класу роз'єму вузла: назва '%s
 
 msgid "Unable to create socket"
 msgstr "Неможливо створити роз'єм"
+
+
+msgid "Anisotropic"
+msgstr "Анізотропія"
 
 
 msgid "Same input/output direction of sockets"
@@ -88725,10 +88664,6 @@ msgstr "Випадкова Шорсткість"
 
 msgid "Subsurface Radius"
 msgstr "Радіус Підповерхні"
-
-
-msgid "Anisotropic"
-msgstr "Анізотропія"
 
 
 msgid "Anisotropic Rotation"

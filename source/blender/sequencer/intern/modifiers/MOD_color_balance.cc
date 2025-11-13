@@ -13,7 +13,6 @@
 #include "DNA_sequence_types.h"
 
 #include "SEQ_modifier.hh"
-#include "SEQ_modifiertypes.hh"
 
 #include "UI_interface.hh"
 #include "UI_interface_layout.hh"
@@ -254,18 +253,13 @@ static void colorBalance_init_data(StripModifierData *smd)
   }
 }
 
-static void colorBalance_apply(const RenderData * /*render_data*/,
-                               const Strip * /*strip*/,
-                               const float transform[3][3],
-                               StripModifierData *smd,
-                               ImBuf *ibuf,
-                               ImBuf *mask)
+static void colorBalance_apply(ModifierApplyContext &context, StripModifierData *smd, ImBuf *mask)
 {
   const ColorBalanceModifierData *cbmd = (const ColorBalanceModifierData *)smd;
 
   ColorBalanceApplyOp op;
-  op.init(*cbmd, ibuf->byte_buffer.data != nullptr);
-  apply_modifier_op(op, ibuf, mask, float3x3(transform));
+  op.init(*cbmd, context.image->byte_buffer.data != nullptr);
+  apply_modifier_op(op, context.image, mask, context.transform);
 }
 
 static void colorBalance_panel_draw(const bContext *C, Panel *panel)
@@ -288,33 +282,36 @@ static void colorBalance_panel_draw(const bContext *C, Panel *panel)
     {
       uiLayout &split = flow.column(false).split(0.35f, false);
       uiLayout &col = split.column(true);
-      col.label("Lift", ICON_NONE);
+      col.label(IFACE_("Lift"), ICON_NONE);
       col.separator();
       col.separator();
       col.prop(&color_balance, "lift", UI_ITEM_NONE, "", ICON_NONE);
-      col.prop(&color_balance, "invert_lift", UI_ITEM_NONE, "Invert", ICON_ARROW_LEFTRIGHT);
+      col.prop(
+          &color_balance, "invert_lift", UI_ITEM_NONE, IFACE_("Invert"), ICON_ARROW_LEFTRIGHT);
       uiTemplateColorPicker(&split, &color_balance, "lift", true, false, false, true);
       col.separator();
     }
     {
       uiLayout &split = flow.column(false).split(0.35f, false);
       uiLayout &col = split.column(true);
-      col.label("Gamma", ICON_NONE);
+      col.label(IFACE_("Gamma"), ICON_NONE);
       col.separator();
       col.separator();
       col.prop(&color_balance, "gamma", UI_ITEM_NONE, "", ICON_NONE);
-      col.prop(&color_balance, "invert_gamma", UI_ITEM_NONE, "Invert", ICON_ARROW_LEFTRIGHT);
+      col.prop(
+          &color_balance, "invert_gamma", UI_ITEM_NONE, IFACE_("Invert"), ICON_ARROW_LEFTRIGHT);
       uiTemplateColorPicker(&split, &color_balance, "gamma", true, false, true, true);
       col.separator();
     }
     {
       uiLayout &split = flow.column(false).split(0.35f, false);
       uiLayout &col = split.column(true);
-      col.label("Gain", ICON_NONE);
+      col.label(IFACE_("Gain"), ICON_NONE);
       col.separator();
       col.separator();
       col.prop(&color_balance, "gain", UI_ITEM_NONE, "", ICON_NONE);
-      col.prop(&color_balance, "invert_gain", UI_ITEM_NONE, "Invert", ICON_ARROW_LEFTRIGHT);
+      col.prop(
+          &color_balance, "invert_gain", UI_ITEM_NONE, IFACE_("Invert"), ICON_ARROW_LEFTRIGHT);
       uiTemplateColorPicker(&split, &color_balance, "gain", true, false, true, true);
     }
   }
@@ -322,33 +319,36 @@ static void colorBalance_panel_draw(const bContext *C, Panel *panel)
     {
       uiLayout &split = flow.column(false).split(0.35f, false);
       uiLayout &col = split.column(true);
-      col.label("Offset", ICON_NONE);
+      col.label(IFACE_("Offset"), ICON_NONE);
       col.separator();
       col.separator();
       col.prop(&color_balance, "offset", UI_ITEM_NONE, "", ICON_NONE);
-      col.prop(&color_balance, "invert_offset", UI_ITEM_NONE, "Invert", ICON_ARROW_LEFTRIGHT);
+      col.prop(
+          &color_balance, "invert_offset", UI_ITEM_NONE, IFACE_("Invert"), ICON_ARROW_LEFTRIGHT);
       uiTemplateColorPicker(&split, &color_balance, "offset", true, false, false, true);
       col.separator();
     }
     {
       uiLayout &split = flow.column(false).split(0.35f, false);
       uiLayout &col = split.column(true);
-      col.label("Power", ICON_NONE);
+      col.label(IFACE_("Power"), ICON_NONE);
       col.separator();
       col.separator();
       col.prop(&color_balance, "power", UI_ITEM_NONE, "", ICON_NONE);
-      col.prop(&color_balance, "invert_power", UI_ITEM_NONE, "Invert", ICON_ARROW_LEFTRIGHT);
+      col.prop(
+          &color_balance, "invert_power", UI_ITEM_NONE, IFACE_("Invert"), ICON_ARROW_LEFTRIGHT);
       uiTemplateColorPicker(&split, &color_balance, "power", true, false, false, true);
       col.separator();
     }
     {
       uiLayout &split = flow.column(false).split(0.35f, false);
       uiLayout &col = split.column(true);
-      col.label("Slope", ICON_NONE);
+      col.label(IFACE_("Slope"), ICON_NONE);
       col.separator();
       col.separator();
       col.prop(&color_balance, "slope", UI_ITEM_NONE, "", ICON_NONE);
-      col.prop(&color_balance, "invert_slope", UI_ITEM_NONE, "Invert", ICON_ARROW_LEFTRIGHT);
+      col.prop(
+          &color_balance, "invert_slope", UI_ITEM_NONE, IFACE_("Invert"), ICON_ARROW_LEFTRIGHT);
       uiTemplateColorPicker(&split, &color_balance, "slope", true, false, false, true);
     }
   }

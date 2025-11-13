@@ -29,6 +29,9 @@
 
 #include "CLG_log.h"
 
+#include "BLI_vector.hh"
+
+#include <algorithm>
 #include <array>
 #include <cassert>
 #include <cstdio>
@@ -149,8 +152,8 @@ void GHOST_Frame::destroy(VkDevice vk_device)
  * \{ */
 
 struct GHOST_ExtensionsVK {
-  vector<VkExtensionProperties> extensions;
-  vector<const char *> enabled;
+  blender::Vector<VkExtensionProperties> extensions;
+  blender::Vector<const char *> enabled;
 
   bool is_supported(const char *extension_name) const
   {
@@ -162,7 +165,7 @@ struct GHOST_ExtensionsVK {
     return false;
   }
 
-  bool is_supported(const vector<const char *> &extension_names)
+  bool is_supported(blender::Span<const char *> extension_names)
   {
     for (const char *extension_name : extension_names) {
       if (!is_supported(extension_name)) {
@@ -180,7 +183,7 @@ struct GHOST_ExtensionsVK {
                  "Vulkan: %s extension enabled: name=%s",
                  optional ? "optional" : "required",
                  extension_name);
-      enabled.push_back(extension_name);
+      enabled.append(extension_name);
       return true;
     }
 
@@ -193,7 +196,20 @@ struct GHOST_ExtensionsVK {
     return false;
   }
 
-  bool enable(const vector<const char *> &extension_names, bool optional = false)
+  bool disable(const char *extension_name)
+  {
+    bool is_extension_enabled = is_enabled(extension_name);
+    if (is_extension_enabled) {
+      CLOG_TRACE(
+          &LOG, "Vulkan: extension disabled for compatibility reasons: name=%s", extension_name);
+      enabled.remove(enabled.first_index_of(extension_name));
+      return true;
+    }
+
+    return false;
+  }
+
+  bool enable(const blender::Span<const char *> &extension_names, bool optional = false)
   {
     bool failure = false;
     for (const char *extension_name : extension_names) {
@@ -297,6 +313,7 @@ class GHOST_DeviceVK {
   void wait_idle()
   {
     if (vk_device) {
+      std::scoped_lock lock(queue_mutex);
       vkDeviceWaitIdle(vk_device);
     }
   }
@@ -410,7 +427,7 @@ struct GHOST_InstanceVK {
   }
 
   bool select_physical_device(const GHOST_GPUDevice &preferred_device,
-                              const vector<const char *> &required_extensions)
+                              const blender::Span<const char *> required_extensions)
   {
     VkPhysicalDevice best_physical_device = VK_NULL_HANDLE;
 
@@ -434,6 +451,7 @@ struct GHOST_InstanceVK {
       }
 
       if (!device_vk.features.features.geometryShader ||
+          !device_vk.features.features.vertexPipelineStoresAndAtomics ||
           !device_vk.features.features.dualSrcBlend || !device_vk.features.features.logicOp ||
           !device_vk.features.features.imageCubeArray)
       {
@@ -486,8 +504,8 @@ struct GHOST_InstanceVK {
   }
 
   bool create_device(const bool use_vk_ext_swapchain_maintenance1,
-                     vector<const char *> &required_device_extensions,
-                     vector<const char *> &optional_device_extensions)
+                     blender::Span<const char *> required_device_extensions,
+                     blender::Span<const char *> optional_device_extensions)
   {
     device.emplace(vk_physical_device, use_vk_ext_swapchain_maintenance1);
     GHOST_DeviceVK &device = *this->device;
@@ -514,6 +532,7 @@ struct GHOST_InstanceVK {
     device_features.multiViewport = VK_TRUE;
     device_features.shaderClipDistance = VK_TRUE;
     device_features.drawIndirectFirstInstance = VK_TRUE;
+    device_features.vertexPipelineStoresAndAtomics = VK_TRUE;
     device_features.fragmentStoresAndAtomics = VK_TRUE;
     device_features.samplerAnisotropy = device.features.features.samplerAnisotropy;
     device_features.wideLines = device.features.features.wideLines;
@@ -595,18 +614,6 @@ struct GHOST_InstanceVK {
     if (device.extensions.is_enabled(VK_EXT_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME)) {
       feature_struct_ptr.push_back(&swapchain_maintenance_1);
       device.use_vk_ext_swapchain_maintenance_1 = true;
-    }
-
-    /* Descriptor buffers */
-    VkPhysicalDeviceDescriptorBufferFeaturesEXT descriptor_buffer = {
-        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_FEATURES_EXT,
-        nullptr,
-        VK_TRUE,
-        VK_FALSE,
-        VK_FALSE,
-        VK_FALSE};
-    if (device.extensions.is_enabled(VK_EXT_DESCRIPTOR_BUFFER_EXTENSION_NAME)) {
-      feature_struct_ptr.push_back(&descriptor_buffer);
     }
 
     /* Query and enable Fragment Shader Barycentrics. */
@@ -715,7 +722,10 @@ GHOST_ContextVK::~GHOST_ContextVK()
     GHOST_InstanceVK &instance_vk = vulkan_instance.value();
     GHOST_DeviceVK &device_vk = instance_vk.device.value();
     device_vk.wait_idle();
-
+    for (VkFence fence : fence_pile_) {
+      vkDestroyFence(device_vk.vk_device, fence, nullptr);
+    }
+    fence_pile_.clear();
     destroySwapchain();
 
     if (surface_ != VK_NULL_HANDLE) {
@@ -759,6 +769,9 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferAcquire()
    * has been signaled and waited for. */
   if (submission_frame_data.submission_fence) {
     vkWaitForFences(vk_device, 1, &submission_frame_data.submission_fence, true, UINT64_MAX);
+  }
+  for (VkSwapchainKHR swapchain : submission_frame_data.discard_pile.swapchains) {
+    this->destroySwapchainPresentFences(swapchain);
   }
   submission_frame_data.discard_pile.destroy(vk_device);
 
@@ -842,6 +855,42 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferAcquire()
 
   return GHOST_kSuccess;
 }
+VkFence GHOST_ContextVK::getFence()
+{
+  if (!fence_pile_.empty()) {
+    VkFence fence = fence_pile_.back();
+    fence_pile_.pop_back();
+    return fence;
+  }
+  GHOST_DeviceVK &device_vk = vulkan_instance->device.value();
+  VkFence fence = VK_NULL_HANDLE;
+  const VkFenceCreateInfo fence_create_info = {VK_STRUCTURE_TYPE_FENCE_CREATE_INFO};
+  vkCreateFence(device_vk.vk_device, &fence_create_info, nullptr, &fence);
+  return fence;
+}
+
+void GHOST_ContextVK::setPresentFence(VkSwapchainKHR swapchain, VkFence present_fence)
+{
+  if (present_fence == VK_NULL_HANDLE) {
+    return;
+  }
+  present_fences_[swapchain].push_back(present_fence);
+  GHOST_DeviceVK &device_vk = vulkan_instance->device.value();
+  /** Recycle signaled fences. */
+  for (std::pair<const VkSwapchainKHR, std::vector<VkFence>> &item : present_fences_) {
+    std::vector<VkFence>::iterator end = item.second.end();
+    std::vector<VkFence>::iterator it = std::remove_if(
+        item.second.begin(), item.second.end(), [&](const VkFence fence) {
+          if (vkGetFenceStatus(device_vk.vk_device, fence) == VK_NOT_READY) {
+            return false;
+          }
+          vkResetFences(device_vk.vk_device, 1, &fence);
+          fence_pile_.push_back(fence);
+          return true;
+        });
+    item.second.erase(it, end);
+  }
+}
 
 GHOST_TSuccess GHOST_ContextVK::swapBufferRelease()
 {
@@ -894,7 +943,18 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferRelease()
   VkResult present_result = VK_SUCCESS;
   {
     std::scoped_lock lock(device_vk.queue_mutex);
+    VkSwapchainPresentFenceInfoEXT fence_info{VK_STRUCTURE_TYPE_SWAPCHAIN_PRESENT_FENCE_INFO_EXT};
+    VkFence present_fence = VK_NULL_HANDLE;
+    if (device_vk.use_vk_ext_swapchain_maintenance_1) {
+      present_fence = this->getFence();
+
+      fence_info.swapchainCount = 1;
+      fence_info.pFences = &present_fence;
+
+      present_info.pNext = &fence_info;
+    }
     present_result = vkQueuePresentKHR(device_vk.generic_queue, &present_info);
+    this->setPresentFence(swapchain_, present_fence);
   }
   acquired_swapchain_image_index_.reset();
 
@@ -1312,11 +1372,25 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain(bool use_hdr_swapchain)
   return GHOST_kSuccess;
 }
 
+void GHOST_ContextVK::destroySwapchainPresentFences(VkSwapchainKHR swapchain)
+{
+  GHOST_DeviceVK &device_vk = vulkan_instance.value().device.value();
+  const std::vector<VkFence> &fences = present_fences_[swapchain];
+  if (!fences.empty()) {
+    vkWaitForFences(device_vk.vk_device, fences.size(), fences.data(), VK_TRUE, UINT64_MAX);
+    for (VkFence fence : fences) {
+      vkDestroyFence(device_vk.vk_device, fence, nullptr);
+    }
+  }
+  present_fences_.erase(swapchain);
+}
+
 GHOST_TSuccess GHOST_ContextVK::destroySwapchain()
 {
   GHOST_DeviceVK &device_vk = vulkan_instance.value().device.value();
 
   if (swapchain_ != VK_NULL_HANDLE) {
+    this->destroySwapchainPresentFences(swapchain_);
     vkDestroySwapchainKHR(device_vk.vk_device, swapchain_, nullptr);
   }
   device_vk.wait_idle();
@@ -1325,6 +1399,9 @@ GHOST_TSuccess GHOST_ContextVK::destroySwapchain()
   }
   swapchain_images_.clear();
   for (GHOST_Frame &frame_data : frame_data_) {
+    for (VkSwapchainKHR swapchain : frame_data.discard_pile.swapchains) {
+      this->destroySwapchainPresentFences(swapchain);
+    }
     frame_data.destroy(device_vk.vk_device);
   }
   frame_data_.clear();
@@ -1383,8 +1460,8 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
   }
 #endif
 
-  vector<const char *> required_device_extensions;
-  vector<const char *> optional_device_extensions;
+  blender::Vector<const char *> required_device_extensions;
+  blender::Vector<const char *> optional_device_extensions;
 
   /* Initialize VkInstance */
   if (!vulkan_instance.has_value()) {
@@ -1408,13 +1485,13 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
       if (use_vk_ext_swapchain_maintenance1) {
         instance_vk.extensions.enable(VK_EXT_SURFACE_MAINTENANCE_1_EXTENSION_NAME);
         instance_vk.extensions.enable(VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME);
-        optional_device_extensions.push_back(VK_EXT_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME);
+        optional_device_extensions.append(VK_EXT_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME);
       }
 
       use_vk_ext_swapchain_colorspace = instance_vk.extensions.enable(
           VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME, true);
 
-      required_device_extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+      required_device_extensions.append(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
     }
 
     if (!instance_vk.create_instance(
@@ -1483,24 +1560,22 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
   if (!vulkan_instance->device.has_value()) {
     /* External memory extensions. */
 #ifdef _WIN32
-    optional_device_extensions.push_back(VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME);
+    optional_device_extensions.append(VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME);
 #else
-    optional_device_extensions.push_back(VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME);
+    optional_device_extensions.append(VK_KHR_EXTERNAL_MEMORY_FD_EXTENSION_NAME);
 #endif
 
-    required_device_extensions.push_back(VK_EXT_PROVOKING_VERTEX_EXTENSION_NAME);
-    required_device_extensions.push_back(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
-    optional_device_extensions.push_back(VK_KHR_DYNAMIC_RENDERING_LOCAL_READ_EXTENSION_NAME);
-    optional_device_extensions.push_back(
-        VK_EXT_DYNAMIC_RENDERING_UNUSED_ATTACHMENTS_EXTENSION_NAME);
-    optional_device_extensions.push_back(VK_EXT_SHADER_STENCIL_EXPORT_EXTENSION_NAME);
-    optional_device_extensions.push_back(VK_KHR_MAINTENANCE_4_EXTENSION_NAME);
-    optional_device_extensions.push_back(VK_KHR_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME);
-    optional_device_extensions.push_back(VK_EXT_ROBUSTNESS_2_EXTENSION_NAME);
-    optional_device_extensions.push_back(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
-    optional_device_extensions.push_back(VK_EXT_DESCRIPTOR_BUFFER_EXTENSION_NAME);
-    optional_device_extensions.push_back(VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME);
-    optional_device_extensions.push_back(VK_EXT_PAGEABLE_DEVICE_LOCAL_MEMORY_EXTENSION_NAME);
+    required_device_extensions.append(VK_EXT_PROVOKING_VERTEX_EXTENSION_NAME);
+    required_device_extensions.append(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
+    optional_device_extensions.append(VK_KHR_DYNAMIC_RENDERING_LOCAL_READ_EXTENSION_NAME);
+    optional_device_extensions.append(VK_EXT_DYNAMIC_RENDERING_UNUSED_ATTACHMENTS_EXTENSION_NAME);
+    optional_device_extensions.append(VK_EXT_SHADER_STENCIL_EXPORT_EXTENSION_NAME);
+    optional_device_extensions.append(VK_KHR_MAINTENANCE_4_EXTENSION_NAME);
+    optional_device_extensions.append(VK_KHR_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME);
+    optional_device_extensions.append(VK_EXT_ROBUSTNESS_2_EXTENSION_NAME);
+    optional_device_extensions.append(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
+    optional_device_extensions.append(VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME);
+    optional_device_extensions.append(VK_EXT_PAGEABLE_DEVICE_LOCAL_MEMORY_EXTENSION_NAME);
 
     if (!instance_vk.select_physical_device(preferred_device_, required_device_extensions)) {
       return GHOST_kFailure;

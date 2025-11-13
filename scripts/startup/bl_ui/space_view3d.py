@@ -1291,6 +1291,8 @@ class VIEW3D_MT_transform(VIEW3D_MT_transform_base, Menu):
             layout.operator("transform.skin_resize")
         elif context.mode in {'EDIT_CURVE', 'EDIT_GREASE_PENCIL', 'EDIT_CURVES', 'EDIT_POINTCLOUD'}:
             layout.operator("transform.transform", text="Radius").mode = 'CURVE_SHRINKFATTEN'
+        if context.mode == 'EDIT_GREASE_PENCIL':
+            layout.operator("transform.transform", text="Opacity").mode = 'GPENCIL_OPACITY'
 
         if context.mode != 'EDIT_CURVES' and context.mode != 'EDIT_GREASE_PENCIL':
             layout.separator()
@@ -1491,6 +1493,13 @@ class VIEW3D_MT_view(Menu):
             text="Render Playblast",
             icon='RENDER_ANIMATION',
         ).animation = True
+        props = layout.operator(
+            "render.opengl",
+            text="Render Playblast on Keyframes",
+            icon='RENDER_ANIMATION',
+        )
+        props.animation = True
+        props.render_keyed_only = True
 
         layout.separator()
 
@@ -2239,6 +2248,8 @@ class VIEW3D_MT_paint_vertex_grease_pencil(Menu):
         layout.operator("grease_pencil.vertex_color_levels", text="Levels")
         layout.operator("grease_pencil.vertex_color_hsv", text="Hue/Saturation/Value")
         layout.operator("grease_pencil.vertex_color_brightness_contrast", text="Brightness/Contrast")
+        layout.separator()
+        layout.operator("paint.sample_color").merged = False
 
 
 class VIEW3D_MT_select_paint_mask(Menu):
@@ -3066,21 +3077,24 @@ class VIEW3D_MT_object_context_menu(Menu):
                 if selected_objects_len > 1:
                     layout.operator("object.join")
 
-            if obj.type in {'MESH', 'CURVE', 'CURVES', 'SURFACE', 'POINTCLOUD',
-                            'META', 'FONT', 'GREASEPENCIL'}:
+            if obj.type in {
+                    'MESH', 'CURVE', 'CURVES', 'SURFACE', 'POINTCLOUD',
+                    'META', 'FONT', 'GREASEPENCIL'
+            }:
                 layout.operator_menu_enum("object.convert", "target")
 
-            if (obj.type in {'MESH',
-                             'CURVE',
-                             'CURVES',
-                             'SURFACE',
-                             'GREASEPENCIL',
-                             'LATTICE',
-                             'ARMATURE',
-                             'META',
-                             'FONT',
-                             'POINTCLOUD',
-                             } or (obj.type == 'EMPTY' and obj.instance_collection is not None)):
+            if (obj.type in {
+                'MESH',
+                'CURVE',
+                'CURVES',
+                'SURFACE',
+                'GREASEPENCIL',
+                'LATTICE',
+                'ARMATURE',
+                'META',
+                'FONT',
+                'POINTCLOUD',
+            } or (obj.type == 'EMPTY' and obj.instance_collection is not None)):
                 layout.operator_context = 'INVOKE_REGION_WIN'
                 layout.operator_menu_enum("object.origin_set", text="Set Origin", property="type")
                 layout.operator_context = 'INVOKE_DEFAULT'
@@ -3210,7 +3224,7 @@ class VIEW3D_MT_object_parent(Menu):
     bl_translation_context = i18n_contexts.operator_default
 
     def draw(self, _context):
-        from bl_ui_utils.layout import operator_context
+        from _bl_ui_utils.layout import operator_context
 
         layout = self.layout
 
@@ -6633,11 +6647,9 @@ class VIEW3D_PT_shading_lighting(Panel):
                 split = layout.split(factor=0.95)
                 col = split.column()
 
-                engine = context.scene.render.engine
-                row = col.row()
-                if engine == 'BLENDER_WORKBENCH':
-                    row.prop(shading, "use_studiolight_view_rotation", text="", icon='WORLD', toggle=True)
-                    row = row.row()
+                row = col.row(align=True)
+                row.prop(shading, "use_studiolight_view_rotation", text="", icon='WORLD', toggle=True)
+                row = row.row(align=True)
                 row.prop(shading, "studiolight_rotate_z", text="Rotation")
 
                 col.prop(shading, "studiolight_intensity")
@@ -8372,7 +8384,7 @@ class VIEW3D_MT_greasepencil_edit_context_menu(Menu):
 
             col.separator()
             col.operator_menu_enum("grease_pencil.convert_curve_type", text="Convert Type", property="type")
-            layout.operator("grease_pencil.set_curve_resolution", text="Convert Type")
+            col.operator("grease_pencil.set_curve_resolution", text="Set Curve Resolution")
         else:
             col = row.column(align=True)
             col.label(text="Point", icon='GP_SELECT_POINTS')
@@ -9015,7 +9027,8 @@ class VIEW3D_PT_curves_sculpt_parameter_falloff(Panel):
             brush.curves_sculpt_settings,
             "curve_parameter_falloff",
             brush=True,
-            show_presets=True)
+            show_presets=True,
+        )
 
 
 class VIEW3D_PT_curves_sculpt_grow_shrink_scaling(Panel):

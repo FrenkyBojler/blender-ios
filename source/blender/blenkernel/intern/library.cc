@@ -418,6 +418,11 @@ Library *blender::bke::library::search_filepath_abs(ListBase *libraries,
                                                     blender::StringRef filepath_abs)
 {
   LISTBASE_FOREACH (Library *, lib_iter, libraries) {
+    if (lib_iter->flag & LIBRARY_FLAG_IS_ARCHIVE) {
+      /* Skip archive libraries because there may be multiple of those for the same path and there
+       * should also be a non-archive one. */
+      continue;
+    }
     if (filepath_abs == lib_iter->runtime->filepath_abs) {
       return lib_iter;
     }
@@ -557,6 +562,11 @@ static void pack_linked_id(Main &bmain,
           BLI_assert(packed_id->lib == archive_lib);
           UNUSED_VARS_NDEBUG(archive_lib);
 
+          if (GS(packed_id->name) == ID_SCE) {
+            /* Like in #scene_blend_read_data. */
+            id_us_ensure_real(packed_id);
+          }
+
           packed_id->deep_hash = deep_hashes.hashes.lookup(linked_id);
           id_remapper.add(linked_id, packed_id);
           ids_to_remap.add(packed_id);
@@ -569,7 +579,7 @@ static void pack_linked_id(Main &bmain,
                                    std::nullopt,
                                    nullptr,
                                    LIB_ID_COPY_DEFAULT | LIB_ID_COPY_ID_NEW_SET |
-                                       LIB_ID_COPY_NO_ANIMDATA);
+                                       LIB_ID_COPY_NO_ANIMDATA | LIB_ID_COPY_ASSET_METADATA);
     id_us_min(packed_id);
     copied_id_process(linked_id, packed_id);
 
