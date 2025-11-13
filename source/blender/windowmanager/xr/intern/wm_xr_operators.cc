@@ -1301,11 +1301,11 @@ static void wm_xr_navigation_teleport_uninit(wmOperator *op)
 
 static void wm_xr_navigation_teleport_update(wmOperator *op,
                                              const wmXrData *xr,
+                                             XrTeleportData *data,
                                              const wmXrActionData *actiondata)
 {
   using namespace blender;
 
-  XrTeleportData *data = static_cast<XrTeleportData *>(op->customdata);
   data->arc_points = blender::Array<blender::float3>(XR_TELEPORTATION_ARC_CONTROL_POINTS);
   data->endpoint_idx = XR_TELEPORTATION_ARC_CONTROL_POINTS - 1;
 
@@ -1358,7 +1358,7 @@ static void wm_xr_navigation_teleport_raycast(Scene *scene,
 }
 
 static void wm_xr_navigation_teleport_generate_arc(wmOperator *op,
-                                                   wmXrData *xr,
+                                                   const wmXrData *xr,
                                                    XrTeleportData *data)
 {
   using namespace blender;
@@ -1492,7 +1492,7 @@ static XrTeleportRayResult wm_xr_navigation_arc_scene_intersect(bContext *C,
 }
 
 static blender::float3 wm_xr_navigation_teleport_get_nav_destination(bContext *C,
-                                                                     wmXrData *xr,
+                                                                     const wmXrData *xr,
                                                                      XrTeleportData *data)
 {
   using namespace blender;
@@ -1518,7 +1518,7 @@ static blender::float3 wm_xr_navigation_teleport_get_nav_destination(bContext *C
 
 static XrTeleportRayResult wm_xr_navigation_teleport_main(bContext *C,
                                                           wmOperator *op,
-                                                          wmXrData *xr,
+                                                          const wmXrData *xr,
                                                           XrTeleportData *data,
                                                           blender::float3 &r_nav_destination)
 {
@@ -1575,13 +1575,11 @@ static wmOperatorStatus wm_xr_navigation_teleport_modal(bContext *C,
   }
 
   const wmXrActionData *actiondata = static_cast<const wmXrActionData *>(event->customdata);
-  wmWindowManager *wm = CTX_wm_manager(C);
-  wmXrData *xr = &wm->xr;
 
-  xr->runtime->session_state.is_raycast_shown = true;
-  wm_xr_navigation_teleport_update(op, xr, actiondata);
-
+  wmXrData *xr = &CTX_wm_manager(C)->xr;
   XrTeleportData *data = static_cast<XrTeleportData *>(op->customdata);
+
+  wm_xr_navigation_teleport_update(op, xr, data, actiondata);
 
   /* Teleport using an arc, computing both the final destination and the visual curve. */
   blender::float3 nav_destination = {};
@@ -1612,9 +1610,7 @@ static wmOperatorStatus wm_xr_navigation_teleport_modal(bContext *C,
         WM_xr_session_state_nav_location_set(xr, nav_destination);
       }
 
-      xr->runtime->session_state.is_raycast_shown = false;
       wm_xr_navigation_teleport_uninit(op);
-
       return OPERATOR_FINISHED;
     }
     default:
