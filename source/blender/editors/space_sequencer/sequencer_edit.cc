@@ -1988,14 +1988,14 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
   scene->ed->runtime.use_preview_frame = 0;
 
   View2D *v2d = UI_view2d_fromcontext(C);
-  rctf rectf;
-  WM_operator_properties_border_to_rctf(op, &rectf);
-  UI_view2d_region_to_view_rctf(v2d, &rectf, &rectf);
+  rctf box_rect;
+  WM_operator_properties_border_to_rctf(op, &box_rect);
+  UI_view2d_region_to_view_rctf(v2d, &box_rect, &box_rect);
 
   const bool remove_gaps = RNA_boolean_get(op->ptr, "remove_gaps");
   const bool ignore_selection = RNA_boolean_get(op->ptr, "ignore_selection");
   const seq::eSplitMethod method = seq::eSplitMethod(RNA_enum_get(op->ptr, "type"));
-  const int2 rect_frames = {round_fl_to_int(rectf.xmin), round_fl_to_int(rectf.xmax)};
+  const int2 rect_frames = {round_fl_to_int(box_rect.xmin), round_fl_to_int(box_rect.xmax)};
 
   bool changed = false;
   int gap_removal_left_boundary = INT_MAX;
@@ -2003,9 +2003,9 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
   Vector<Strip *> strips = ignore_selection ? all_strips_from_context(C).extract_vector() :
                                               selected_strips_from_context(C).extract_vector();
   for (int i = 0; i < strips.size(); i++) {
-    rctf rq;
-    strip_rectf(scene, strips[i], &rq);
-    if (BLI_rctf_isect(&rq, &rectf, nullptr)) {
+    rctf strip_rect;
+    strip_rectf(scene, strips[i], &strip_rect);
+    if (BLI_rctf_isect(&strip_rect, &box_rect, nullptr)) {
       gap_removal_left_boundary = math::min(gap_removal_left_boundary,
                                             seq::time_left_handle_frame_get(scene, strips[i]));
 
@@ -2025,15 +2025,13 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
   }
   /* Remove strips that are in the cut area. */
   for (Strip *strip : strips) {
-    rctf rq;
-    strip_rectf(scene, strip, &rq);
     const float left_handle = seq::time_left_handle_frame_get(scene, strip);
     const float right_handle = seq::time_right_handle_frame_get(scene, strip);
 
     /* Check if strip is in the rect. */
     if (left_handle >= rect_frames[0] && left_handle <= rect_frames[1] &&
         right_handle >= rect_frames[0] && right_handle <= rect_frames[1] &&
-        strip->channel <= int(rectf.ymax) && strip->channel >= int(rectf.ymin))
+        strip->channel <= int(box_rect.ymax) && strip->channel >= int(box_rect.ymin))
     {
       seq::edit_flag_for_removal(scene, ed->current_strips(), strip);
       /* Propagate removal to connected strips. */
@@ -2068,16 +2066,16 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
       }
 
       const float left_handle = seq::time_left_handle_frame_get(scene, strip);
-      if (left_handle == rect_frames[1] && strip->channel <= int(rectf.ymax) &&
-          strip->channel >= int(rectf.ymin))
+      if (left_handle == rect_frames[1] && strip->channel <= int(box_rect.ymax) &&
+          strip->channel >= int(box_rect.ymin))
       {
         /* Offset connected strips. Also get effect strips to later run the overlap handeling
          * on them. */
         seq::query_strip_connected_and_effect_chain(scene, strip, &ed->seqbase, offset_strips);
       }
       /* Offset every strip on the same channel and right of the cut. */
-      else if (left_handle > rect_frames[1] && strip->channel <= int(rectf.ymax) &&
-               strip->channel >= int(rectf.ymin))
+      else if (left_handle > rect_frames[1] && strip->channel <= int(box_rect.ymax) &&
+               strip->channel >= int(box_rect.ymin))
       {
         seq::query_strip_connected_and_effect_chain(scene, strip, &ed->seqbase, offset_strips);
       }
