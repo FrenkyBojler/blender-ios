@@ -67,8 +67,9 @@ SequencerToolSettings *tool_settings_copy(SequencerToolSettings *tool_settings);
  * Get the sequencer data of the scene.
  * If the sequencer has not already been initialized, call `editing_ensure` instead.
  *
- * NOTE: `scene` must not be `nullptr`, but could be if it is the sequencer scene, so make
- * sure to check it when necessary before calling this function.
+ * NOTE: The `scene` input must not be `nullptr`, but `CTX_data_sequencer_scene` can return
+ * `nullptr` if it has not yet been set by the user, so make sure to check it when necessary
+ * before calling this function.
  *
  * \return pointer to sequencer editor data
  */
