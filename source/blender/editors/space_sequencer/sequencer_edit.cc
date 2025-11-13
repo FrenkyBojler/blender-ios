@@ -2030,17 +2030,16 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
     const float left_handle = seq::time_left_handle_frame_get(scene, strip);
     const float right_handle = seq::time_right_handle_frame_get(scene, strip);
 
-    if (BLI_rctf_isect(&rq, &rectf, nullptr)) {
-      /* Check if left and right handle are in the rect. */
-      if (left_handle >= rect_frames[0] && left_handle <= rect_frames[1] &&
-          right_handle >= rect_frames[0] && right_handle <= rect_frames[1])
-      {
-        seq::edit_flag_for_removal(scene, ed->current_strips(), strip);
-        /* Propagate removal to connected strips. */
-        blender::VectorSet<Strip *> connected_strips = seq::connected_strips_get(strip);
-        for (Strip *c_strip : connected_strips) {
-          seq::edit_flag_for_removal(scene, ed->current_strips(), c_strip);
-        }
+    /* Check if strip is in the rect. */
+    if (left_handle >= rect_frames[0] && left_handle <= rect_frames[1] &&
+        right_handle >= rect_frames[0] && right_handle <= rect_frames[1] &&
+        strip->channel <= int(rectf.ymax) && strip->channel >= int(rectf.ymin))
+    {
+      seq::edit_flag_for_removal(scene, ed->current_strips(), strip);
+      /* Propagate removal to connected strips. */
+      blender::VectorSet<Strip *> connected_strips = seq::connected_strips_get(strip);
+      for (Strip *c_strip : connected_strips) {
+        seq::edit_flag_for_removal(scene, ed->current_strips(), c_strip);
       }
       changed = true;
     }
