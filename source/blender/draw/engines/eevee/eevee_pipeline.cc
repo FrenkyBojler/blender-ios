@@ -318,7 +318,7 @@ void ForwardPipeline::sync()
     {
       /* Common resources. */
       opaque_ps_.bind_texture(RBUFS_UTILITY_TEX_SLOT, inst_.pipelines.utility_tx);
-      opaque_ps_.bind_texture(PREV_LAYER_RADIANCE_TEX_SLOT, &radiance_behind_tx_);
+      opaque_ps_.bind_texture(RADIANCE_PREVIOUS_LAYER_TEX_SLOT, &radiance_behind_tx_);
       opaque_ps_.bind_resources(inst_.uniform_data);
       opaque_ps_.bind_resources(inst_.lights);
       opaque_ps_.bind_resources(inst_.shadows);
@@ -347,7 +347,7 @@ void ForwardPipeline::sync()
 
     /* Textures. */
     sub.bind_texture(RBUFS_UTILITY_TEX_SLOT, inst_.pipelines.utility_tx);
-    sub.bind_texture(PREV_LAYER_RADIANCE_TEX_SLOT, &radiance_behind_tx_);
+    sub.bind_texture(RADIANCE_PREVIOUS_LAYER_TEX_SLOT, &radiance_behind_tx_);
 
     sub.bind_resources(inst_.uniform_data);
     sub.bind_resources(inst_.lights);
@@ -413,8 +413,8 @@ PassMain::Sub *ForwardPipeline::prepass_transparent_add(const Object *ob,
   if (GPU_material_flag_get(gpumat, GPU_MATFLAG_SHADER_TO_RGBA) &&
       GPU_material_flag_get(gpumat, GPU_MATFLAG_TRANSPARENT))
   {
-    pass->bind_texture(HIZ_PREV_TEX_SLOT, &inst_.hiz_buffer.back.ref_tx_);
-    pass->bind_texture(PREV_LAYER_RADIANCE_TEX_SLOT, &radiance_behind_tx_);
+    pass->bind_texture(HIZ_PREVIOUS_LAYER_TEX_SLOT, &inst_.hiz_buffer.back.ref_tx_);
+    pass->bind_texture(RADIANCE_PREVIOUS_LAYER_TEX_SLOT, &radiance_behind_tx_);
   }
   return pass;
 }
@@ -437,8 +437,8 @@ PassMain::Sub *ForwardPipeline::material_transparent_add(const Object *ob,
   if (GPU_material_flag_get(gpumat, GPU_MATFLAG_SHADER_TO_RGBA) &&
       GPU_material_flag_get(gpumat, GPU_MATFLAG_TRANSPARENT))
   {
-    pass->bind_texture(HIZ_PREV_TEX_SLOT, &inst_.hiz_buffer.back.ref_tx_);
-    pass->bind_texture(PREV_LAYER_RADIANCE_TEX_SLOT, &radiance_behind_tx_);
+    pass->bind_texture(HIZ_PREVIOUS_LAYER_TEX_SLOT, &inst_.hiz_buffer.back.ref_tx_);
+    pass->bind_texture(RADIANCE_PREVIOUS_LAYER_TEX_SLOT, &radiance_behind_tx_);
   }
   return pass;
 }
@@ -517,8 +517,8 @@ void DeferredLayerBase::gbuffer_pass_sync(Instance &inst)
   gbuffer_ps_.bind_resources(inst.hiz_buffer.front);
   gbuffer_ps_.bind_resources(inst.cryptomatte);
 
-  gbuffer_ps_.bind_texture(HIZ_PREV_TEX_SLOT, &inst.hiz_buffer.back.ref_tx_);
-  gbuffer_ps_.bind_texture(PREV_LAYER_RADIANCE_TEX_SLOT, &radiance_behind_tx_);
+  gbuffer_ps_.bind_texture(HIZ_PREVIOUS_LAYER_TEX_SLOT, &inst.hiz_buffer.back.ref_tx_);
+  gbuffer_ps_.bind_texture(RADIANCE_PREVIOUS_LAYER_TEX_SLOT, &radiance_behind_tx_);
 
   /* Bind light resources for the NPR materials that gets rendered first.
    * Non-NPR shaders will override these resource bindings. */
@@ -526,27 +526,27 @@ void DeferredLayerBase::gbuffer_pass_sync(Instance &inst)
   gbuffer_ps_.bind_resources(inst.shadows);
   gbuffer_ps_.bind_resources(inst.sphere_probes);
   gbuffer_ps_.bind_resources(inst.volume_probes);
-  gbuffer_ps_.bind_texture(PREV_LAYER_RADIANCE_TEX_SLOT, &radiance_behind_tx_);
+  gbuffer_ps_.bind_texture(RADIANCE_PREVIOUS_LAYER_TEX_SLOT, &radiance_behind_tx_);
 
   DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_EQUAL | DRW_STATE_WRITE_STENCIL |
                    DRW_STATE_CLIP_CONTROL_UNIT_RANGE | DRW_STATE_STENCIL_ALWAYS;
 
   gbuffer_single_sided_hybrid_ps_ = &gbuffer_ps_.sub("DoubleSided");
-  gbuffer_single_sided_hybrid_ps_->bind_texture(PREV_LAYER_RADIANCE_TEX_SLOT,
+  gbuffer_single_sided_hybrid_ps_->bind_texture(RADIANCE_PREVIOUS_LAYER_TEX_SLOT,
                                                 &radiance_behind_tx_);
   gbuffer_single_sided_hybrid_ps_->state_set(state | DRW_STATE_CULL_BACK);
 
   gbuffer_double_sided_hybrid_ps_ = &gbuffer_ps_.sub("SingleSided");
-  gbuffer_double_sided_hybrid_ps_->bind_texture(PREV_LAYER_RADIANCE_TEX_SLOT,
+  gbuffer_double_sided_hybrid_ps_->bind_texture(RADIANCE_PREVIOUS_LAYER_TEX_SLOT,
                                                 &radiance_behind_tx_);
   gbuffer_double_sided_hybrid_ps_->state_set(state);
 
   gbuffer_double_sided_ps_ = &gbuffer_ps_.sub("DoubleSided");
-  gbuffer_double_sided_ps_->bind_texture(PREV_LAYER_RADIANCE_TEX_SLOT, &radiance_behind_tx_);
+  gbuffer_double_sided_ps_->bind_texture(RADIANCE_PREVIOUS_LAYER_TEX_SLOT, &radiance_behind_tx_);
   gbuffer_double_sided_ps_->state_set(state);
 
   gbuffer_single_sided_ps_ = &gbuffer_ps_.sub("SingleSided");
-  gbuffer_single_sided_ps_->bind_texture(PREV_LAYER_RADIANCE_TEX_SLOT, &radiance_behind_tx_);
+  gbuffer_single_sided_ps_->bind_texture(RADIANCE_PREVIOUS_LAYER_TEX_SLOT, &radiance_behind_tx_);
   gbuffer_single_sided_ps_->state_set(state | DRW_STATE_CULL_BACK);
 
   closure_bits_ = CLOSURE_NONE;
