@@ -1585,7 +1585,6 @@ static void draw_performance_stats(Depsgraph *depsgraph,
   draw_time_stat(labels[EVAL_TIME], last_eval_time);
   draw_time_stat(labels[SYNC_TIME], sync_time);
   draw_time_stat(labels[TOTAL], total_time);
-  *yoffset -= line_height;
 }
 
 void view3d_draw_region_info(const bContext *C, ARegion *region)
