@@ -8,6 +8,10 @@
 #include "gpu_shader_create_info_private.hh"
 #include "gpu_testing.hh"
 
+#include "GPU_batch.hh"
+#include "GPU_context.hh"
+#include "GPU_framebuffer.hh"
+
 namespace blender::gpu::tests {
 
 using namespace blender::gpu::shader;
@@ -38,6 +42,7 @@ static void test_shader_create_info_pipeline()
     GTEST_SKIP() << "NVIDIA fails to compile workaround due to reserved names. Gladly it doesn't "
                     "need the workaround.";
   }
+  GPU_render_begin();
 
   ShaderCreateInfo create_info("gpu_framebuffer_layer_viewport_test");
   create_info.vertex_source("gpu_framebuffer_layer_viewport_test.glsl");
@@ -57,6 +62,43 @@ static void test_shader_create_info_pipeline()
 
   EXPECT_TRUE(shader != nullptr);
 
+  /* Setup framebuffer */
+  const int2 size(4, 4);
+  const int layers = 256;
+  eGPUTextureUsage usage = GPU_TEXTURE_USAGE_ATTACHMENT | GPU_TEXTURE_USAGE_HOST_READ;
+  blender::gpu::Texture *texture = GPU_texture_create_2d_array(
+      __func__, UNPACK2(size), layers, 1, TextureFormat::SINT_32_32, usage, nullptr);
+
+  gpu::FrameBuffer *framebuffer = GPU_framebuffer_create(__func__);
+  GPU_framebuffer_ensure_config(&framebuffer,
+                                {GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(texture)});
+  GPU_framebuffer_bind(framebuffer);
+
+  /* Setup viewports. */
+  int viewport_rects[16][4];
+  for (int i = 0; i < 16; i++) {
+    viewport_rects[i][0] = i % 4;
+    viewport_rects[i][1] = i / 4;
+    viewport_rects[i][2] = 1;
+    viewport_rects[i][3] = 1;
+  }
+  GPU_framebuffer_multi_viewports_set(framebuffer, viewport_rects);
+  int tri_count = size.x * size.y * layers;
+
+  Batch *batch = GPU_batch_create_procedural(GPU_PRIM_TRIS, tri_count * 3);
+  GPU_batch_set_shader(batch, shader);
+  /* On vulkan this triggers an assert when a new pipeline is created (`G.debug_value == 32`) */
+  {
+    GPUContext *context = GPU_context_active_get();
+    DebugScopePipelineCreation scope(context);
+    GPU_batch_draw(batch);
+  }
+  GPU_flush();
+
+  GPU_render_end();
+  GPU_batch_discard(batch);
+  GPU_framebuffer_free(framebuffer);
+  GPU_shader_unbind();
   GPU_SHADER_FREE_SAFE(shader);
 }
 GPU_TEST(shader_create_info_pipeline)

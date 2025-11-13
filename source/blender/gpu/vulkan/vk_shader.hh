@@ -42,6 +42,15 @@ class VKShader : public Shader {
   bool is_compute_shader_ = false;
   bool is_static_shader_ = false;
 
+  /**
+   * \brief Were there pipelines states precompiled during shader creation.
+   *
+   * Used to detect pipeline states that are missing and could be added. As the mechanism
+   * isn't fool-proof we only show the warning in debug builds and raise an assert when run
+   * using `context.debug_pipeline_creation == true`.
+   */
+  bool has_precompiled_pipelines_ = false;
+
  public:
   VKShaderModule vertex_module;
   VKShaderModule geometry_module;

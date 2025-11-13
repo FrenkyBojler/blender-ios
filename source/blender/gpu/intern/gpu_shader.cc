@@ -860,7 +860,6 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info, bool 
                                        start_time.time_since_epoch().count(),
                                        end_time.time_since_epoch().count());
   }
-  CLOG_TRACE(&LOG, "Compiling Shader \"%s\" Finished", orig_info.name_.c_str());
 
   return shader;
 }

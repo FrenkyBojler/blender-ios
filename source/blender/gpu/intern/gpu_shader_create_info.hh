@@ -1126,12 +1126,6 @@ struct ShaderCreateInfo {
       return *this;
     }
 
-    Self &shadow_bias()
-    {
-      state_.shadow_bias = 1;
-      return *this;
-    }
-
     Self &primitive(GPUPrimType primitive_type)
     {
       primitive_ = primitive_type;

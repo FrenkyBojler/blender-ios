@@ -24,7 +24,11 @@
 
 #include "BKE_global.hh"
 
+#include "CLG_log.h"
+
 #include <fmt/format.h>
+
+static CLG_LogRef LOG = {"gpu.vulkan"};
 
 using namespace blender::gpu::shader;
 
@@ -616,7 +620,7 @@ bool VKShader::finalize_post(Span<ShaderCreateInfo::PipelineState> pipelines)
   if (!result) {
     return result;
   }
-  /* Ensure that pipelines are already build. For compute shaders only the default state is
+  /* Ensure that pipelines are already built. For compute shaders only the default state is
    * compiled. For graphics shaders the pipeline state is read from the shader create info. */
   if (is_compute_shader_) {
     /* This is only done for the first shader compilation (not specialization).
@@ -1283,6 +1287,7 @@ bool VKShader::ensure_graphics_pipelines(
     Span<shader::ShaderCreateInfo::PipelineState> pipeline_states)
 {
   BLI_assert(!is_compute_shader_);
+  has_precompiled_pipelines_ = !pipeline_states.is_empty();
   for (const shader::ShaderCreateInfo::PipelineState &pipeline_state : pipeline_states) {
     const VkPrimitiveTopology vk_topology = to_vk_primitive_topology(pipeline_state.primitive_);
 
@@ -1334,15 +1339,21 @@ bool VKShader::ensure_graphics_pipelines(
     for (const TextureFormat color_format : pipeline_state.color_formats_) {
       graphics_info.fragment_out.color_attachment_formats.append(to_vk_format(color_format));
     }
-    graphics_info.fragment_out.color_attachment_size = pipeline_state.color_formats_.size();
     graphics_info.fragment_out.state = pipeline_state.state_;
 
     VKDevice &device = VKBackend::get().device;
+    bool pipeline_created = false;
     VkPipeline vk_pipeline = device.pipelines.get_or_create_graphics_pipeline(
-        graphics_info, is_static_shader_, vk_pipeline_base_, name_get());
+        graphics_info, is_static_shader_, vk_pipeline_base_, name_get(), pipeline_created);
+    UNUSED_VARS_NDEBUG(pipeline_created);
     if (vk_pipeline == VK_NULL_HANDLE) {
       return false;
     }
+    BLI_assert_msg(pipeline_created,
+                   "Sanity check: Pipeline state is precompiled during shader creation, but "
+                   "resulting pipeline was "
+                   "already present in VKPipelinePool. This should not happen and might indicate "
+                   "that the same pipeline state is added multiple times.");
     if (vk_pipeline_base_ == VK_NULL_HANDLE) {
       vk_pipeline_base_ = vk_pipeline;
     }
@@ -1403,9 +1414,25 @@ VkPipeline VKShader::ensure_and_get_graphics_pipeline(GPUPrimType primitive,
   graphics_info.fragment_out.state = state_manager.state;
 
   VKDevice &device = VKBackend::get().device;
-  /* Store result in local variable to ensure thread safety. */
+  bool pipeline_created = false;
   VkPipeline vk_pipeline = device.pipelines.get_or_create_graphics_pipeline(
-      graphics_info, is_static_shader_, vk_pipeline_base_, name_get());
+      graphics_info, is_static_shader_, vk_pipeline_base_, name_get(), pipeline_created);
+  UNUSED_VARS_NDEBUG(pipeline_created);
+  if (has_precompiled_pipelines_ && pipeline_created) {
+#ifndef NDEBUG
+    /* Sanity check: This warning is used to detect mismatches between shader create info states
+     * and actual used pipeline states.
+     *
+     * NOTE: However this could also trigger false positives where input attributes are just
+     * different between objects which will result in a new pipeline state. */
+    CLOG_WARN(&LOG,
+              "Pipeline states were compiled for `%s`, however a pipeline state triggered a new "
+              "pipeline compilation.",
+              name_get().c_str());
+    const VKContext &context = *VKContext::get();
+    BLI_assert(!context.debug_pipeline_creation);
+#endif
+  }
   if (vk_pipeline_base_ == VK_NULL_HANDLE) {
     vk_pipeline_base_ = vk_pipeline;
   }
