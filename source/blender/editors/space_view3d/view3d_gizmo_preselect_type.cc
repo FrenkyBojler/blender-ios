@@ -353,25 +353,23 @@ static int loopcut_tool_preview_cuts_from_toolsettings(const bContext *C)
   if (tref == nullptr) {
     return default_cuts;
   }
+
   wmOperatorType *ot_slide = WM_operatortype_find("MESH_OT_loopcut_slide", false);
   if (ot_slide == nullptr) {
     return default_cuts;
   }
+
   PointerRNA tool_props;
   if (!WM_toolsystem_ref_properties_get_from_operator(tref, ot_slide, &tool_props)) {
     return default_cuts;
   }
-  PropertyRNA *prop_loopcut = RNA_struct_find_property(&tool_props, "MESH_OT_loopcut");
-  if (prop_loopcut == nullptr) {
-    return default_cuts;
-  }
-  PointerRNA loopcut_ptr = RNA_property_pointer_get(&tool_props, prop_loopcut);
+
+  PointerRNA loopcut_ptr = RNA_pointer_get(&tool_props, "MESH_OT_loopcut");
   if (loopcut_ptr.data == nullptr) {
     return default_cuts;
   }
 
-  const int cuts = RNA_int_get(&loopcut_ptr, "number_cuts");
-  return cuts;
+  return RNA_int_get(&loopcut_ptr, "number_cuts");
 }
 
 static int gizmo_preselect_edgering_test_select(bContext *C, wmGizmo *gz, const int mval[2])
