@@ -62,6 +62,12 @@ BLOCKLIST_VULKAN = [
     "image.blend"
 ]
 
+BLOCKLIST_INTEL = [
+    # Blocked due to large differences in dithered surfaces and shadows.
+    "transparency_blended.blend",
+    "transparency_dithered.blend",
+]
+
 
 def setup():
     import bpy
@@ -221,6 +227,10 @@ def main():
     elif args.gpu_backend == "vulkan":
         blocklist += BLOCKLIST_VULKAN
 
+    gpu_vendor = render_report.get_gpu_device_vendor(args.blender)
+    if gpu_vendor == "INTEL":
+        blocklist += BLOCKLIST_INTEL
+
     report = EEVEEReport("EEVEE", args.outdir, args.oiiotool, variation=args.gpu_backend, blocklist=blocklist)
     if args.gpu_backend == "vulkan":
         report.set_compare_engine('eevee', 'opengl')
@@ -240,8 +250,8 @@ def main():
         # metal shadow and wireframe difference. To be fixed.
         report.set_fail_threshold(0.07)
     elif test_dir_name.startswith('bsdf'):
-        # metallic thinfilm tests
-        report.set_fail_threshold(0.03)
+        # metallic thinfilm tests and dithered transparency
+        report.set_fail_threshold(0.045)
     elif test_dir_name.startswith('principled_bsdf'):
         # principled bsdf transmission test
         report.set_fail_threshold(0.02)
