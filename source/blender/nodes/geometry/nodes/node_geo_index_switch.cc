@@ -165,7 +165,8 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
 
 static void NODE_OT_index_switch_item_add(wmOperatorType *ot)
 {
-  socket_items::ops::add_item<IndexSwitchItemsAccessor>(ot, "Add Item", __func__, "Add bake item");
+  socket_items::ops::add_item<IndexSwitchItemsAccessor>(
+      ot, "Add Item", __func__, "Add an item to the index switch");
 }
 
 static void NODE_OT_index_switch_item_remove(wmOperatorType *ot)
@@ -183,7 +184,7 @@ static void node_operators()
 static void node_init(bNodeTree *tree, bNode *node)
 {
   NodeIndexSwitch *data = MEM_callocN<NodeIndexSwitch>(__func__);
-  data->data_type = tree->type == NTREE_GEOMETRY ? SOCK_GEOMETRY : SOCK_RGBA;
+  data->data_type = tree->type == NTREE_GEOMETRY ? SOCK_FLOAT : SOCK_RGBA;
   data->next_identifier = 0;
 
   BLI_assert(data->items == nullptr);

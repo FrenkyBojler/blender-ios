@@ -71,18 +71,6 @@ const char *to_string(ShaderStage stage)
 MTLShader::MTLShader(MTLContext *ctx, const char *name) : Shader(name)
 {
   context_ = ctx;
-
-#ifndef NDEBUG
-  /* Remove invalid symbols from shader name to ensure debug entry-point function name is valid. */
-  for (uint i : IndexRange(strlen(this->name))) {
-    char c = this->name[i];
-    if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9')) {
-    }
-    else {
-      this->name[i] = '_';
-    }
-  }
-#endif
 }
 
 MTLShader::~MTLShader()
@@ -154,11 +142,6 @@ MTLShader::~MTLShader()
   valid_ = false;
 }
 
-void MTLShader::init(const shader::ShaderCreateInfo & /*info*/, bool is_batch_compilation)
-{
-  async_compilation_ = is_batch_compilation;
-}
-
 const shader::ShaderCreateInfo &MTLShader::patch_create_info(
     const shader::ShaderCreateInfo &original_info)
 {
@@ -185,13 +168,21 @@ const shader::ShaderCreateInfo &MTLShader::patch_create_info(
 
 std::string MTLShader::entry_point_name_get(const ShaderStage stage)
 {
+  std::string name = this->name_get();
+  /* Escape the shader name to be able to use it inside an identifier. */
+  for (char &c : name) {
+    if (!std::isalnum(c)) {
+      c = '_';
+    }
+  }
+
   switch (stage) {
     case ShaderStage::VERTEX:
-      return this->name_get() + "_vert";
+      return "_" + name + "_vert";
     case ShaderStage::FRAGMENT:
-      return this->name_get() + "_frag";
+      return "_" + name + "_frag";
     case ShaderStage::COMPUTE:
-      return this->name_get() + "_comp";
+      return "_" + name + "_comp";
     default:
       BLI_assert_unreachable();
       return "";
@@ -1113,7 +1104,7 @@ Shader *MTLShaderCompiler::compile_shader(const shader::ShaderCreateInfo &info)
   return shader;
 }
 
-void MTLShaderCompiler::specialize_shader(ShaderSpecialization &specialization)
+void MTLShaderCompiler::specialize_shader(const ShaderSpecialization &specialization)
 {
   MTLShader *shader = static_cast<MTLShader *>(specialization.shader);
 
