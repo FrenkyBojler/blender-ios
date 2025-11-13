@@ -526,6 +526,7 @@ struct ViewZoomData {
 
   /* */
   SpaceImage *sima;
+  ScrArea *area;
   ARegion *region;
 };
 
@@ -580,7 +581,7 @@ static void image_view_zoom_init(bContext *C, wmOperator *op, const wmEvent *eve
   }
 
   vpd->draw_callback = WM_draw_cb_activate(CTX_wm_window(C), image_view_zoom_draw_cb, op);
-
+  vpd->area = CTX_wm_area(C);
   vpd->origx = event->xy[0];
   vpd->origy = event->xy[1];
   vpd->zoom = sima->zoom;
@@ -609,7 +610,7 @@ static void image_view_zoom_exit(bContext *C, wmOperator *op, bool cancel)
   if (vpd->draw_callback) {
     WM_draw_cb_exit(CTX_wm_window(C), vpd->draw_callback);
   }
-
+  ED_area_status_text(vpd->area, nullptr);
   ED_workspace_status_text(C, nullptr);
 
   if (cancel) {
@@ -725,6 +726,10 @@ static void image_zoom_apply(ViewZoomData *vpd,
   if (snap) {
     zoom = round(zoom * 10.0f) / 10.0f;
   }
+
+  char str[5];
+  BLI_snprintf(str, sizeof(str), "%i%%", int(round(vpd->sima->zoom * 100.0f)));
+  ED_area_status_text(vpd->area, str);
 
   RNA_float_set(op->ptr, "factor", factor);
   sima_zoom_set(vpd->sima, vpd->region, zoom, vpd->location, zoom_to_pos);
