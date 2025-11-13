@@ -131,7 +131,6 @@ void node_behavior_add_string_search_button(const bContext & /*C*/,
   uiBlock *block = layout.block();
   uiBut *but = uiDefIconTextButR(block,
                                  ButType::SearchMenu,
-                                 0,
                                  ICON_NONE,
                                  "",
                                  0,
