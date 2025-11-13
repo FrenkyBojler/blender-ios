@@ -451,8 +451,13 @@ typedef struct FileSelectParams {
 
   /** Directory path with template variables (unresolved). */
   char dir_template[/*FILE_MAX_LIBEXTRA*/ 1282];
+  char _pad4[6]; /* Align to 8 bytes before pointers */
 
-  char _pad4[1286];
+  /** Pointer to template variables map for path resolution. */
+  void *template_vars;
+  void *_pad5; /* Padding pointer for 32-bit compatibility */
+
+  char _pad6[1264];
 } FileSelectParams;
 
 /**

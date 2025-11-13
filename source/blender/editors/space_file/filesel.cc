@@ -24,6 +24,7 @@
 
 #include "AS_asset_representation.hh"
 
+#include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
@@ -42,6 +43,7 @@
 
 #include "BKE_appdir.hh"
 #include "BKE_context.hh"
+#include "BKE_global.hh"
 #include "BKE_idtype.hh"
 #include "BKE_main.hh"
 #include "BKE_path_templates.hh"
@@ -211,7 +213,10 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
           STRNCPY(params->file, template_file);
 
           /* Use centralized template handling for directory paths */
-          blender::bke::path_templates::path_template_nav_handle_text(params, template_dir);
+          const blender::bke::path_templates::VariableMap *template_vars =
+              ED_fileselect_params_get_template_vars(params);
+          blender::bke::path_templates::path_template_nav_handle_text(
+              params, template_dir, template_vars);
         }
         else {
           BLI_path_split_dir_file(
@@ -374,7 +379,10 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
   }
 
   /* Initialize path template handler here since operator processing is complete */
-  blender::bke::path_templates::path_template_nav_initialize(params);
+  ED_fileselect_params_set_template_vars(params);
+  const blender::bke::path_templates::VariableMap *template_vars =
+      ED_fileselect_params_get_template_vars(params);
+  blender::bke::path_templates::path_template_nav_initialize(params, template_vars);
 
   fileselect_initialize_params_common(sfile, params);
 
@@ -426,6 +434,40 @@ FileSelectParams *ED_fileselect_get_file_params(const SpaceFile *sfile)
 FileAssetSelectParams *ED_fileselect_get_asset_params(const SpaceFile *sfile)
 {
   return (sfile->browse_mode == FILE_BROWSE_MODE_ASSETS) ? sfile->asset_params : nullptr;
+}
+
+void ED_fileselect_params_set_template_vars(FileSelectParams *params)
+{
+  if (!params) {
+    return;
+  }
+
+  /* Free any existing template vars */
+  ED_fileselect_params_free_template_vars(params);
+
+  /* Create new template variables map */
+  auto *template_vars = new blender::bke::path_templates::VariableMap();
+  const Scene *scene = G.main ? static_cast<const Scene *>(G.main->scenes.first) : nullptr;
+  BKE_add_template_variables_general(*template_vars, scene ? &scene->id : nullptr);
+  if (scene) {
+    BKE_add_template_variables_for_render_path(*template_vars, *scene);
+  }
+
+  params->template_vars = template_vars;
+}
+
+void ED_fileselect_params_free_template_vars(FileSelectParams *params)
+{
+  if (params->template_vars) {
+    delete static_cast<blender::bke::path_templates::VariableMap *>(params->template_vars);
+    params->template_vars = nullptr;
+  }
+}
+
+const blender::bke::path_templates::VariableMap *ED_fileselect_params_get_template_vars(
+    const FileSelectParams *params)
+{
+  return static_cast<const blender::bke::path_templates::VariableMap *>(params->template_vars);
 }
 
 bool ED_fileselect_is_local_asset_library(const SpaceFile *sfile)
@@ -1193,7 +1235,10 @@ void ED_file_change_dir_ex(bContext *C, ScrArea *area)
     }
 
     /* Update template paths when directory changes */
-    blender::bke::path_templates::path_template_nav_handle_browse(params, params->dir);
+    const blender::bke::path_templates::VariableMap *template_vars =
+        ED_fileselect_params_get_template_vars(params);
+    blender::bke::path_templates::path_template_nav_handle_browse(
+        params, params->dir, template_vars);
 
     filelist_setdir(sfile->files, params->dir);
 

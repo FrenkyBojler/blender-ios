@@ -122,6 +122,10 @@ static void file_free(SpaceLink *sl)
 
   folder_history_list_free(sfile);
 
+  if (sfile->params) {
+    ED_fileselect_params_free_template_vars(sfile->params);
+  }
+
   MEM_SAFE_FREE(sfile->params);
   MEM_SAFE_FREE(sfile->asset_params);
   if (sfile->runtime != nullptr) {

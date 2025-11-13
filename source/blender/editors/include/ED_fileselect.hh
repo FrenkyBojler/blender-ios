@@ -34,6 +34,9 @@ struct rcti;
 namespace blender::asset_system {
 class AssetLibrary;
 }
+namespace blender::bke::path_templates {
+class VariableMap;
+}
 
 #define FILE_LAYOUT_HOR 1
 #define FILE_LAYOUT_VER 2
@@ -116,6 +119,14 @@ FileSelectParams *ED_fileselect_get_active_params(const SpaceFile *sfile);
 FileSelectParams *ED_fileselect_get_file_params(const SpaceFile *sfile);
 FileAssetSelectParams *ED_fileselect_get_asset_params(const SpaceFile *sfile);
 bool ED_fileselect_is_local_asset_library(const SpaceFile *sfile);
+
+/** Allocate and set template variables map for FileSelectParams. */
+void ED_fileselect_params_set_template_vars(FileSelectParams *params);
+/** Free template variables map from FileSelectParams. */
+void ED_fileselect_params_free_template_vars(FileSelectParams *params);
+/** Get template variables map from FileSelectParams. Returns nullptr if not set. */
+const blender::bke::path_templates::VariableMap *ED_fileselect_params_get_template_vars(
+    const FileSelectParams *params);
 
 void ED_fileselect_set_params_from_userdef(SpaceFile *sfile);
 /**

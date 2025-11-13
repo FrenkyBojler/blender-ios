@@ -38,18 +38,11 @@ static void resolve_template_variables(char *path,
     return;
   }
 
-  if (variables) {
-    BKE_path_apply_template(path, path_maxlen, *variables);
+  if (!variables) {
     return;
   }
 
-  VariableMap vars;
-  const Scene *scene = G.main ? static_cast<const Scene *>(G.main->scenes.first) : nullptr;
-  BKE_add_template_variables_general(vars, scene ? &scene->id : nullptr);
-  if (scene) {
-    BKE_add_template_variables_for_render_path(vars, *scene);
-  }
-  BKE_path_apply_template(path, path_maxlen, vars);
+  BKE_path_apply_template(path, path_maxlen, *variables);
 }
 
 /* Helper to normalize a path in place */

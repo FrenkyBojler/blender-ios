@@ -440,11 +440,10 @@ namespace blender::bke::path_templates {
  * Should be called when initializing file browser state.
  *
  * \param params: FileSelectParams structure to initialize.
- * \param variables: Optional variable map for template resolution.
+ * \param variables: Variable map for template resolution.
  */
-void path_template_nav_initialize(
-    FileSelectParams *params,
-    const blender::bke::path_templates::VariableMap *variables = nullptr);
+void path_template_nav_initialize(FileSelectParams *params,
+                                  const blender::bke::path_templates::VariableMap *variables);
 
 /**
  * Handle user input of a path (potentially with template variables) via text.
@@ -454,12 +453,11 @@ void path_template_nav_initialize(
  *
  * \param params: FileSelectParams structure to update with new path information.
  * \param input_path: User-entered path string (may contain template variable syntax).
- * \param variables: Optional variable map for template resolution.
+ * \param variables: Variable map for template resolution.
  */
-void path_template_nav_handle_text(
-    FileSelectParams *params,
-    const char *input_path,
-    const blender::bke::path_templates::VariableMap *variables = nullptr);
+void path_template_nav_handle_text(FileSelectParams *params,
+                                   const char *input_path,
+                                   const blender::bke::path_templates::VariableMap *variables);
 
 /**
  * Handle directory navigation in browser while preserving parent template variables.
@@ -469,12 +467,11 @@ void path_template_nav_handle_text(
  *
  * \param params: FileSelectParams structure to update with new navigation state.
  * \param new_directory: Target directory path after navigation.
- * \param variables: Optional variable map for template resolution.
+ * \param variables: Variable map for template resolution.
  */
-void path_template_nav_handle_browse(
-    FileSelectParams *params,
-    const char *new_directory,
-    const blender::bke::path_templates::VariableMap *variables = nullptr);
+void path_template_nav_handle_browse(FileSelectParams *params,
+                                     const char *new_directory,
+                                     const blender::bke::path_templates::VariableMap *variables);
 
 /**
  * Set an RNA string property on an operator with update notification.
