@@ -1052,13 +1052,13 @@ struct ShaderCreateInfo {
       uint32_t stride;
     };
 
+    Vector<SpecializationConstant::Value> specialization_constants_;
     /* Vertex input */
     GPUPrimType primitive_;
     Vector<AttributeBinding> vertex_inputs_;
     /* Pre-fragment and Fragment stage*/
     GPUState state_ = {GPU_WRITE_COLOR};
     uint32_t viewport_count_;
-    Vector<SpecializationConstant::Value> specialization_constants_;
     /* Attachment formats. */
     TextureTargetFormat depth_format_;
     TextureTargetFormat stencil_format_;
