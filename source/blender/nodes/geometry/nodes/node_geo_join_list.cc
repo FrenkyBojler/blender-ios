@@ -21,7 +21,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   if (node != nullptr) {
     const eNodeSocketDatatype type = eNodeSocketDatatype(node->custom1);
-    b.add_input(type, "Value").multi_input().hide_value();
+    b.add_input(type, "Value").multi_input().hide_value().structure_type(StructureType::Dynamic);
   }
 
   if (node != nullptr) {
