@@ -55,7 +55,7 @@ void operatortypes_geometry();
  * unregisters old operators.
  */
 void register_node_group_operators(const bContext &C);
-void ui_template_node_operator_registration_errors(uiLayout &layout);
+void ui_template_node_operator_registration_errors(uiLayout &layout, StringRefNull idname_py);
 
 /**
  * Convert an attribute with the given name to a new type and domain.

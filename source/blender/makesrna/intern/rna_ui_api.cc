@@ -909,10 +909,14 @@ void rna_uiLayoutPanel(uiLayout *layout,
   *r_layout_body = panel_layout.body;
 }
 
-static void rna_uiLayout_template_node_operator_registration_errors(uiLayout *layout)
+static void rna_uiLayout_template_node_operator_registration_errors(uiLayout *layout,
+                                                                    const char *idname)
 {
   using namespace blender;
-  ed::geometry::ui_template_node_operator_registration_errors(*layout);
+  if (!idname) {
+    return;
+  }
+  ed::geometry::ui_template_node_operator_registration_errors(*layout, idname);
 }
 
 static void rna_uiLayout_template_node_asset_menu_items(uiLayout *layout,
@@ -2176,6 +2180,7 @@ void RNA_api_ui_layout(StructRNA *srna)
   func = RNA_def_function(srna,
                           "template_node_operator_registration_errors",
                           "rna_uiLayout_template_node_operator_registration_errors");
+  parm = RNA_def_string(func, "idname", nullptr, 0, "", "");
 
   func = RNA_def_function(
       srna, "template_node_asset_menu_items", "rna_uiLayout_template_node_asset_menu_items");

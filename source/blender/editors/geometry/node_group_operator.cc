@@ -10,7 +10,6 @@
 #include "BLI_index_mask.hh"
 #include "BLI_listbase.h"
 #include "BLI_rect.h"
-#include "BLI_string.h"
 #include "BLI_string_utf8.h"
 
 #include "DNA_key_types.h"
@@ -93,6 +92,19 @@ namespace blender::ed::geometry {
 
 using asset_system::AssetRepresentation;
 
+struct ErrorsForType {
+  int duplicate_count = 0;
+  bool is_builtin_operator = false;
+  Vector<std::string> idname_validation_errors;
+};
+using OperatorRegisterErrors = Map<std::string, ErrorsForType>;
+
+static OperatorRegisterErrors &get_registration_errors()
+{
+  static Map<std::string, ErrorsForType> errors_by_idname;
+  return errors_by_idname;
+}
+
 /**
  * Abstraction layer over local node groups and assets, so operators can be registered and
  * referenced regardless of that distinction.
@@ -100,24 +112,21 @@ using asset_system::AssetRepresentation;
 struct OperatorTypeData : public wmOperatorType::TypeData {
   std::string name;
   std::string idname;
+  StringRefNull custom_idname;
   std::string description;
   GeometryNodeAssetTraitFlag flag;
 
-  struct AssetRef {
-    eAssetLibraryType library;
-    std::string library_identifier;
-    std::string relative_asset_identifier;
-  };
   struct LocalRef {
     uint32_t session_uid;
   };
-  std::variant<AssetRef, LocalRef> group_ref;
+  std::variant<AssetWeakReference, LocalRef> group_ref;
 
   std::array<int64_t, 2> hash;
 
   static std::optional<OperatorTypeData> from_asset(const AssetRepresentation &asset,
-                                                    ReportList &reports);
-  static std::optional<OperatorTypeData> from_group(const bNodeTree &group, ReportList &reports);
+                                                    OperatorRegisterErrors &errors);
+  static std::optional<OperatorTypeData> from_group(const bNodeTree &group,
+                                                    OperatorRegisterErrors &errors);
 
  private:
   /** Should be called after any data changes. */
@@ -135,13 +144,14 @@ void OperatorTypeData::ensure_hash()
   std::visit(
       [&](const auto &value) {
         using T = std::decay_t<decltype(value)>;
-        if constexpr (std::is_same_v<T, AssetRef>) {
-          XXH3_128bits_update(hash_state, &value.library, sizeof(value.library));
+        if constexpr (std::is_same_v<T, AssetWeakReference>) {
           XXH3_128bits_update(
-              hash_state, value.library_identifier.data(), value.library_identifier.size());
+              hash_state, &value.asset_library_type, sizeof(value.asset_library_type));
+          XXH3_128bits_update(
+              hash_state, value.asset_library_identifier, strlen(value.asset_library_identifier));
           XXH3_128bits_update(hash_state,
-                              value.relative_asset_identifier.data(),
-                              value.relative_asset_identifier.size());
+                              value.relative_asset_identifier,
+                              strlen(value.relative_asset_identifier));
         }
         else if constexpr (std::is_same_v<T, LocalRef>) {
           XXH3_128bits_update(hash_state, &value.session_uid, sizeof(value.session_uid));
@@ -155,9 +165,18 @@ void OperatorTypeData::ensure_hash()
 }
 
 static std::optional<std::string> operator_idname_get(const StringRefNull custom_idname,
-                                                      ReportList *reports)
+                                                      OperatorRegisterErrors *errors)
 {
-  if (!WM_operator_idname_ok_or_report(reports, custom_idname.c_str())) {
+  ReportList reports;
+  BKE_reports_init(&reports, RPT_STORE | RPT_PRINT_HANDLED_BY_OWNER);
+  BLI_SCOPED_DEFER([&]() { BKE_reports_free(&reports); });
+  if (!WM_operator_idname_ok_or_report(&reports, custom_idname.c_str())) {
+    if (errors) {
+      ErrorsForType &errors_for_type = errors->lookup_or_add_default_as(custom_idname);
+      LISTBASE_FOREACH (Report *, report, &reports.list) {
+        errors_for_type.idname_validation_errors.append_as(report->message);
+      }
+    }
     return std::nullopt;
   }
   char idname_buf[OP_MAX_TYPENAME];
@@ -165,21 +184,33 @@ static std::optional<std::string> operator_idname_get(const StringRefNull custom
   return idname_buf;
 }
 
-static std::optional<std::string> operator_idname_for_asset(const AssetRepresentation &asset,
-                                                            ReportList *reports)
+static std::optional<StringRefNull> custom_idname_for_asset(const AssetRepresentation &asset)
 {
   const AssetMetaData &metadata = asset.get_metadata();
   const IDProperty *id_property = BKE_asset_metadata_idprop_find(&metadata, "node_tool_idname");
   if (!id_property || id_property->type != IDP_STRING) {
     return std::nullopt;
   }
-  return operator_idname_get(IDP_string_get(id_property), reports);
+  return IDP_string_get(id_property);
+}
+
+static std::optional<std::string> operator_idname_for_asset(const AssetRepresentation &asset)
+{
+  const std::optional<StringRefNull> custom_idname = custom_idname_for_asset(asset);
+  if (!custom_idname) {
+    return std::nullopt;
+  }
+  return operator_idname_get(*custom_idname, nullptr);
 }
 
 std::optional<OperatorTypeData> OperatorTypeData::from_asset(
-    const asset_system::AssetRepresentation &asset, ReportList &reports)
+    const asset_system::AssetRepresentation &asset, OperatorRegisterErrors &errors)
 {
-  std::optional<std::string> idname = operator_idname_for_asset(asset, &reports);
+  const std::optional<StringRefNull> custom_idname = custom_idname_for_asset(asset);
+  if (!custom_idname) {
+    return std::nullopt;
+  }
+  std::optional<std::string> idname = operator_idname_get(*custom_idname, &errors);
   if (!idname) {
     return std::nullopt;
   }
@@ -188,43 +219,52 @@ std::optional<OperatorTypeData> OperatorTypeData::from_asset(
   OperatorTypeData type_data;
   type_data.name = asset.get_name();
   type_data.idname = std::move(*idname);
+  type_data.custom_idname = *custom_idname;
   type_data.description = metadata.description ? metadata.description : "";
   const IDProperty *traits_flag = BKE_asset_metadata_idprop_find(
       &metadata, "geometry_node_asset_traits_flag");
-  if (traits_flag && traits_flag->type == IDP_INT) {
-    type_data.flag = GeometryNodeAssetTraitFlag(IDP_int_get(traits_flag));
+  if (!traits_flag || traits_flag->type != IDP_INT) {
+    return std::nullopt;
   }
-  else {
-    type_data.flag = GeometryNodeAssetTraitFlag(0);
-  }
-  const AssetWeakReference weak_ref = asset.make_weak_reference();
-  type_data.group_ref = OperatorTypeData::AssetRef{eAssetLibraryType(weak_ref.asset_library_type),
-                                                   StringRef(weak_ref.asset_library_identifier),
-                                                   StringRef(weak_ref.relative_asset_identifier)};
+  type_data.flag = GeometryNodeAssetTraitFlag(IDP_int_get(traits_flag));
+  type_data.group_ref = asset.make_weak_reference();
   type_data.ensure_hash();
   return type_data;
 }
 
-static std::optional<std::string> operator_idname_for_group(const bNodeTree &group,
-                                                            ReportList *reports)
+static std::optional<StringRefNull> custom_idname_for_group(const bNodeTree &group)
 {
   const char *idname = group.geometry_node_asset_traits->node_tool_idname;
   if (!idname) {
     return std::nullopt;
   }
-  return operator_idname_get(idname, reports);
+  return StringRefNull(idname);
+}
+
+static std::optional<std::string> operator_idname_for_group(const bNodeTree &group)
+{
+  const char *idname = group.geometry_node_asset_traits->node_tool_idname;
+  if (!idname) {
+    return std::nullopt;
+  }
+  return operator_idname_get(idname, nullptr);
 }
 
 std::optional<OperatorTypeData> OperatorTypeData::from_group(const bNodeTree &group,
-                                                             ReportList &reports)
+                                                             OperatorRegisterErrors &errors)
 {
-  std::optional<std::string> idname = operator_idname_for_group(group, &reports);
+  const std::optional<StringRefNull> custom_idname = custom_idname_for_group(group);
+  if (!custom_idname) {
+    return std::nullopt;
+  }
+  std::optional<std::string> idname = operator_idname_get(*custom_idname, &errors);
   if (!idname) {
     return std::nullopt;
   }
   OperatorTypeData type_data;
   type_data.name = BKE_id_name(group.id);
   type_data.idname = std::move(*idname);
+  type_data.custom_idname = *custom_idname;
   type_data.description = group.description ? group.description : "";
   type_data.flag = GeometryNodeAssetTraitFlag(group.geometry_node_asset_traits->flag);
   type_data.group_ref = OperatorTypeData::LocalRef{group.id.session_uid};
@@ -251,13 +291,9 @@ static const bNodeTree *get_asset_or_local_node_group(const bContext &C,
           return id_cast<const bNodeTree *>(
               BKE_libblock_find_session_uid(&bmain, ID_NT, value.session_uid));
         }
-        else if constexpr (std::is_same_v<T, OperatorTypeData::AssetRef>) {
-          AssetWeakReference weak_ref{};
-          weak_ref.asset_library_type = value.library;
-          weak_ref.asset_library_identifier = BLI_strdup(value.library_identifier.c_str());
-          weak_ref.relative_asset_identifier = BLI_strdup(value.relative_asset_identifier.c_str());
+        else if constexpr (std::is_same_v<T, AssetWeakReference>) {
           const asset_system::AssetRepresentation *asset = ed::asset::find_asset_from_weak_ref(
-              C, weak_ref, reports);
+              C, value, reports);
           if (!asset) {
             return nullptr;
           }
@@ -1151,53 +1187,23 @@ static void register_node_tool(wmOperatorType *ot, void *user_data)
   RNA_def_property_flag(prop, PROP_HIDDEN);
 }
 
-struct OperatorRegisterErrors : NonCopyable, NonMovable {
-  Map<std::string, int> duplicate_node_tool_idnames;
-  Set<std::string> builtin_operator_replacement_attempts;
-  ReportList reports;
-  OperatorRegisterErrors()
-  {
-    BKE_reports_init(&this->reports, RPT_STORE | RPT_PRINT_HANDLED_BY_OWNER);
-  }
-  ~OperatorRegisterErrors()
-  {
-    BKE_reports_free(&this->reports);
-  }
-  void clear()
-  {
-    this->duplicate_node_tool_idnames.clear();
-    this->builtin_operator_replacement_attempts.clear();
-    BKE_reports_clear(&this->reports);
-  }
-};
-
-static OperatorRegisterErrors &get_registration_errors()
-{
-  static OperatorRegisterErrors errors;
-  return errors;
-}
-
-void ui_template_node_operator_registration_errors(uiLayout &layout)
+void ui_template_node_operator_registration_errors(uiLayout &layout, const StringRefNull idname_py)
 {
   const OperatorRegisterErrors &errors = get_registration_errors();
+  const ErrorsForType *errors_for_type = errors.lookup_ptr(idname_py);
+  if (!errors_for_type) {
+    return;
+  }
   uiLayout &col = layout.column(false);
-  if (!BLI_listbase_is_empty(&errors.reports.list)) {
-    LISTBASE_FOREACH (Report *, report, &errors.reports.list) {
-      col.label(report->message, ICON_ERROR);
-    }
+  if (errors_for_type->is_builtin_operator) {
+    col.label(TIP_("Operator is built-in"), ICON_ERROR);
   }
-
-  for (const StringRefNull idname : errors.builtin_operator_replacement_attempts) {
-    char idname_py[OP_MAX_TYPENAME];
-    WM_operator_py_idname(idname_py, idname.c_str());
-    col.label(fmt::format(fmt::runtime(TIP_("Cannot replace builtin operator '{}'")), idname_py),
+  if (errors_for_type->duplicate_count != 0) {
+    col.label(fmt::format(fmt::runtime(TIP_("{} duplicate(s)")), errors_for_type->duplicate_count),
               ICON_ERROR);
   }
-  for (const MapItem<std::string, int> &item : errors.duplicate_node_tool_idnames.items()) {
-    char idname_py[OP_MAX_TYPENAME];
-    WM_operator_py_idname(idname_py, item.key.c_str());
-    col.label(fmt::format(fmt::runtime(TIP_("{} duplicate(s) of '{}'")), item.value, idname_py),
-              ICON_ERROR);
+  for (const std::string &error : errors_for_type->idname_validation_errors) {
+    col.label(error, ICON_ERROR);
   }
 }
 
@@ -1215,8 +1221,7 @@ static Vector<std::unique_ptr<OperatorTypeData>> get_node_tools_type_data(
     if ((ntree->geometry_node_asset_traits->flag & GEO_NODE_ASSET_TOOL) == 0) {
       continue;
     }
-    std::optional<OperatorTypeData> type_data = OperatorTypeData::from_group(*ntree,
-                                                                             errors.reports);
+    std::optional<OperatorTypeData> type_data = OperatorTypeData::from_group(*ntree, errors);
     if (!type_data) {
       continue;
     }
@@ -1249,8 +1254,7 @@ static Vector<std::unique_ptr<OperatorTypeData>> get_node_tools_type_data(
       if ((IDP_int_get(traits_flag) & GEO_NODE_ASSET_TOOL) == 0) {
         return true;
       }
-      std::optional<OperatorTypeData> type_data = OperatorTypeData::from_asset(asset,
-                                                                               errors.reports);
+      std::optional<OperatorTypeData> type_data = OperatorTypeData::from_asset(asset, errors);
       if (!type_data) {
         return true;
       }
@@ -1277,13 +1281,13 @@ void register_node_group_operators(const bContext &C)
   Set<StringRefNull> handled_types;
   Set<wmOperatorType *> types_to_remove;
   for (std::unique_ptr<OperatorTypeData> &type : node_tool_types) {
-    if (!handled_types.add(type->idname)) {
-      errors.duplicate_node_tool_idnames.lookup_or_add(type->idname, 0)++;
+    if (!handled_types.add_as(type->idname)) {
+      errors.lookup_or_add_default_as(type->custom_idname).duplicate_count++;
       continue;
     }
     if (wmOperatorType *ot = WM_operatortype_find(type->idname.c_str(), true)) {
       if ((ot->flag & OPTYPE_NODE_TOOL) == 0) {
-        errors.builtin_operator_replacement_attempts.add(type->idname);
+        errors.lookup_or_add_default(type->custom_idname).is_builtin_operator = true;
         continue;
       }
       const OperatorTypeData &type_data = static_cast<const OperatorTypeData &>(*ot->custom_data);
@@ -1310,6 +1314,33 @@ void register_node_group_operators(const bContext &C)
 
   for (std::unique_ptr<OperatorTypeData> &type : types_to_register) {
     WM_operatortype_append_ptr(register_node_tool, type.get());
+  }
+
+  if (!errors.is_empty()) {
+    ReportList *reports = CTX_wm_reports(&C);
+    for (const OperatorRegisterErrors::Item &item : errors.items()) {
+      if (item.value.is_builtin_operator) {
+        BKE_reportf(reports,
+                    RPT_ERROR,
+                    "Error registering node tool \"%s\", operator is already built-in",
+                    item.key.c_str());
+      }
+      if (item.value.duplicate_count != 0) {
+        BKE_reportf(reports,
+                    RPT_ERROR,
+                    "Error registering node tool \"%s\", %d duplicate(s)",
+                    item.key.c_str(),
+                    item.value.duplicate_count);
+      }
+      for (const std::string &error : item.value.idname_validation_errors) {
+        BKE_reportf(reports,
+                    RPT_ERROR,
+                    "Error registering node tool \"%s\", %s",
+                    item.key.c_str(),
+                    error.c_str());
+      }
+    }
+    WM_report_banner_show(&wm, nullptr);
   }
 }
 
@@ -1648,7 +1679,7 @@ static void catalog_assets_draw(const bContext *C, Menu *menu)
   bool add_separator = true;
 
   for (const asset_system::AssetRepresentation *asset : assets) {
-    const std::optional<std::string> operator_idname = operator_idname_for_asset(*asset, nullptr);
+    const std::optional<std::string> operator_idname = operator_idname_for_asset(*asset);
     if (!operator_idname) {
       missing_tool_idname_error(*layout, asset->get_name());
       continue;
@@ -1731,7 +1762,7 @@ static void catalog_assets_draw_unassigned(const bContext *C, Menu *menu)
   }
   uiLayout *layout = menu->layout;
   for (const asset_system::AssetRepresentation *asset : tree->unassigned_assets) {
-    const std::optional<std::string> operator_idname = operator_idname_for_asset(*asset, nullptr);
+    const std::optional<std::string> operator_idname = operator_idname_for_asset(*asset);
     if (!operator_idname) {
       missing_tool_idname_error(*layout, asset->get_name());
       continue;
@@ -1758,7 +1789,7 @@ static void catalog_assets_draw_unassigned(const bContext *C, Menu *menu)
     {
       continue;
     }
-    const std::optional<std::string> operator_idname = operator_idname_for_group(*group, nullptr);
+    const std::optional<std::string> operator_idname = operator_idname_for_group(*group);
     if (!operator_idname) {
       missing_tool_idname_error(*layout, BKE_id_name(group->id));
       continue;
