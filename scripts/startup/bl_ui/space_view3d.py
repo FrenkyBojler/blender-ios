@@ -7022,11 +7022,13 @@ class VIEW3D_PT_overlay_guides(Panel):
         subrow.prop(overlay, "show_axis_z", text="Z", toggle=True)
 
         split = col.split()
-
         sub = split.column()
         row = sub.row()
         row.prop(overlay, "show_cursor", text="3D Cursor")
         row.prop(overlay, "show_annotation", text="Annotations")
+
+        if view.region_3d.view_perspective == 'CAMERA':
+            sub.prop(overlay, "show_camera_guides", text="Camera Guides")
 
         if shading.type == 'MATERIAL':
             row = col.row()
