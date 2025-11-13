@@ -1544,7 +1544,7 @@ static void draw_performance_stats(Depsgraph *depsgraph,
   const float fps_target = float(scene->frames_per_second());
   const float target_time = 1.0f / fps_target;
 
-  std::optional<double> last_eval_time = DEG_get_total_evaluation_time(depsgraph);
+  std::optional<double> last_eval_time = DEG_get_last_evaluation_time(depsgraph);
   const float sync_time = v3d->runtime.last_sync_time;
   const float submission_time = v3d->runtime.last_submission_time;
   const float total_time = (last_eval_time ? *last_eval_time : 0.0f) + sync_time + submission_time;

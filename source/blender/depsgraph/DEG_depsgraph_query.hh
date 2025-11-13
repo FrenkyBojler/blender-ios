@@ -432,6 +432,10 @@ void DEG_foreach_ID(const Depsgraph *depsgraph, DEGForeachIDCallback callback);
 /** \name DEG query evaluation timings
  * \{ */
 
-std::optional<double> DEG_get_total_evaluation_time(const Depsgraph *depsgraph);
+/**
+ * Return the last evaluation time of \a depsgraph in seconds or std::nullopt if \a depsgraph
+ * hasn't been (fully) evaluated.
+ */
+std::optional<double> DEG_get_last_evaluation_time(const Depsgraph *depsgraph);
 
 /** \} */
