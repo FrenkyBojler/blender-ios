@@ -1645,7 +1645,7 @@ static void WM_OT_xr_navigation_teleport(wmOperatorType *ot)
   /* Teleportation arc parabola parameters. */
   RNA_def_float(ot->srna,
                 "force",
-                10.0f,
+                9.0f,
                 0.0f,
                 FLT_MAX,
                 "Force",
@@ -1674,7 +1674,7 @@ static void WM_OT_xr_navigation_teleport(wmOperatorType *ot)
                 1.0f);
   RNA_def_float(ot->srna,
                 "destination_indicator_width",
-                0.5f,
+                0.35f,
                 0.0f,
                 FLT_MAX,
                 "Destination Indicator Width",
