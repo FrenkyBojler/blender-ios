@@ -77,8 +77,6 @@ class AbstractView {
   /** See #set_popup_keep_open(). */
   bool popup_keep_open_ = false;
   bool is_multiselect_supported_ = false;
-  /* See `TreeViewItemContainer::SortOrder` */
-  uint8_t invert_sort_order = false;
 
  public:
   virtual ~AbstractView() = default;
@@ -157,10 +155,6 @@ class AbstractView {
   void clear_search_highlight();
   void allow_multiselect_items();
   bool is_multiselect_supported() const;
-
-  void set_sort_order();
-  void set_sort_order(bool value);
-  uint8_t get_sort_order() const;
 
  protected:
   AbstractView() = default;

@@ -174,7 +174,7 @@ std::optional<uiViewState> AbstractTreeView::persistent_state() const
   if (scroll_value_) {
     state.scroll_offset = *scroll_value_;
   }
-  state.invert_sort_order = get_sort_order();
+  state.sort_order = (uint8_t)*sort_order_;
   return state;
 }
 
@@ -190,7 +190,7 @@ void AbstractTreeView::persistent_state_apply(const uiViewState &state)
 
   *show_display_options_ = (state.flag & UI_VIEW_SHOW_FILTER_OPTIONS) != 0;
   BLI_strncpy(search_string_.get(), state.search_string, UI_MAX_NAME_STR);
-  set_sort_order(state.invert_sort_order);
+  *sort_order_ = SortOrder(state.sort_order);
 }
 
 int AbstractTreeView::count_visible_descendants(const AbstractTreeViewItem &parent) const
@@ -274,9 +274,9 @@ void AbstractTreeView::get_hierarchy_lines(const ARegion &region,
   }
 }
 
-void AbstractTreeView::sort_inverted()
+void AbstractTreeView::sort()
 {
-  SortOrder order = SortOrder(this->get_sort_order());
+  SortOrder order = *sort_order_;
   if (order == SortOrder::None) {
     return;
   }
@@ -352,6 +352,7 @@ void AbstractTreeView::update_children_from_old(const AbstractView &old_view)
   scroll_value_ = old_tree_view.scroll_value_;
   search_string_ = old_tree_view.search_string_;
   show_display_options_ = old_tree_view.show_display_options_;
+  sort_order_ = old_tree_view.sort_order_;
   update_children_from_old_recursive(*this, old_tree_view);
 }
 
@@ -883,11 +884,11 @@ static AbstractView *get_abstractview(bContext *C, const int pad = 0)
   return view;
 }
 
-static void set_sort_order_fn(bContext *C, void * /*but_arg1*/, void * /*arg2*/)
+static void set_sort_order_fn(bContext *C, void * /*but_arg1*/, void *arg2)
 {
-  if (AbstractView *view = get_abstractview(C, UI_UNIT_Y * 0.5)) {
-    view->set_sort_order();
-  }
+  using namespace blender::ui;
+  SortOrder &order = *static_cast<SortOrder *>(arg2);
+  order = SortOrder(((int)order + 1) % 3);
 }
 
 void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
@@ -1017,11 +1018,11 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
       ui_def_but_icon(but, ICON_VIEWZOOM, UI_HAS_ICON);
 
       int icon = ICON_SORT_DESC;
-      switch (AbstractTreeView::SortOrder(tree_view.get_sort_order())) {
-        case AbstractTreeView::SortOrder::Invert:
+      switch (*tree_view.sort_order_) {
+        case SortOrder::Invert:
           icon = ICON_DOWNARROW_HLT;
           break;
-        case AbstractTreeView::SortOrder::InvertNested:
+        case SortOrder::InvertNested:
           icon = ICON_SORT_ASC;
           break;
         default:
@@ -1032,7 +1033,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
       sortbut.alignment_set(blender::ui::LayoutAlign::Right);
       but = uiDefIconBut(
         block, ButType::IconToggle, icon, 0, 0, UI_UNIT_X, UI_UNIT_Y, nullptr, 0, 0, "");
-      UI_but_func_set(but, set_sort_order_fn, nullptr, nullptr);
+      UI_but_func_set(but, set_sort_order_fn, nullptr, tree_view.sort_order_.get());
     }
   }
 
@@ -1144,7 +1145,7 @@ void TreeViewBuilder::build_tree_view(const bContext &C,
   tree_view.build_tree();
   tree_view.update_from_old(block);
   tree_view.change_state_delayed();
-  tree_view.sort_inverted();
+  tree_view.sort();
   {
     /* Setup search string to filter out elements with matching characters. */
     char string[UI_MAX_NAME_STR];

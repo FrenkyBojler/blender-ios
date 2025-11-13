@@ -33,6 +33,12 @@ class AbstractTreeView;
 class AbstractTreeViewItem;
 class TreeViewItemDropTarget;
 
+enum class SortOrder : uint8_t {
+  None = 0,
+  Invert = 1,
+  InvertNested = 2,
+};
+
 /* ---------------------------------------------------------------------- */
 /** \name Tree-View Item Container
  *
@@ -73,11 +79,7 @@ class TreeViewItemContainer {
     SkipCollapsed = 1 << 0,
     SkipFiltered = 1 << 1,
   };
-  enum class SortOrder : uint8_t {
-    None = 0,
-    Invert = 1,
-    InvertNested = 2,
-  };
+
   using ItemIterFn = FunctionRef<void(AbstractTreeViewItem &)>;
 
   /**
@@ -141,6 +143,8 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
    * reconstruction that can be passed to buttons. */
   std::shared_ptr<char[]> search_string_{new char[256 /*UI_MAX_NAME_STR*/]{}};
 
+  std::shared_ptr<SortOrder> sort_order_ = std::make_shared<SortOrder>(SortOrder::None);
+
   friend class AbstractTreeViewItem;
   friend class TreeViewBuilder;
   friend class TreeViewLayoutBuilder;
@@ -198,7 +202,7 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
 
   int count_visible_descendants(const AbstractTreeViewItem &parent) const;
   void scroll_active_into_view();
-  void sort_inverted();
+  void sort();
 };
 
 /** \} */

@@ -64,8 +64,6 @@ void AbstractView::update_from_old(uiBlock &new_block)
   rename_buffer_ = std::move(old_view->rename_buffer_);
   old_view->rename_buffer_ = nullptr;
 
-  invert_sort_order = old_view->invert_sort_order;
-
   this->update_children_from_old(*old_view);
 
   /* Finished (re-)constructing the tree. */
@@ -264,21 +262,6 @@ void AbstractView::allow_multiselect_items()
 bool AbstractView::is_multiselect_supported() const
 {
   return is_multiselect_supported_;
-}
-
-void AbstractView::set_sort_order()
-{
-  this->invert_sort_order = (this->invert_sort_order + 1) % 3;
-}
-
-void AbstractView::set_sort_order(bool value)
-{
-  this->invert_sort_order = value;
-}
-
-uint8_t AbstractView::get_sort_order() const
-{
-  return this->invert_sort_order;
 }
 
 /** \} */
