@@ -1417,11 +1417,12 @@ VkPipeline VKShader::ensure_and_get_graphics_pipeline(GPUPrimType primitive,
   bool pipeline_created = false;
   VkPipeline vk_pipeline = device.pipelines.get_or_create_graphics_pipeline(
       graphics_info, is_static_shader_, vk_pipeline_base_, name_get(), pipeline_created);
+
   UNUSED_VARS_NDEBUG(pipeline_created);
-  if (has_precompiled_pipelines_ && pipeline_created) {
 #ifndef NDEBUG
-    /* Sanity check: This warning is used to detect mismatches between shader create info states
-     * and actual used pipeline states.
+  if (has_precompiled_pipelines_ && pipeline_created) {
+    /* Sanity check: This warning is used to detect mismatches between shader create info
+     * states and actual used pipeline states.
      *
      * NOTE: However this could also trigger false positives where input attributes are just
      * different between objects which will result in a new pipeline state. */
@@ -1431,8 +1432,9 @@ VkPipeline VKShader::ensure_and_get_graphics_pipeline(GPUPrimType primitive,
               name_get().c_str());
     const VKContext &context = *VKContext::get();
     BLI_assert(!context.debug_pipeline_creation);
-#endif
   }
+#endif
+
   if (vk_pipeline_base_ == VK_NULL_HANDLE) {
     vk_pipeline_base_ = vk_pipeline;
   }
