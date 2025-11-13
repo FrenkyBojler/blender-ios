@@ -131,14 +131,14 @@ void ShadingView::render()
   inst_.volume.draw_prepass(main_view_);
 
   /* TODO(Miguel Pozo): Deferred and forward prepass should happen before the GBuffer pass. */
-  gpu::Texture *feedback_tx = inst_.pipelines.deferred.render(main_view_,
-                                                              render_view_,
-                                                              prepass_fb_,
-                                                              combined_fb_,
-                                                              gbuffer_fb_,
-                                                              extent_,
-                                                              rt_buffer_opaque_,
-                                                              rt_buffer_refract_);
+  inst_.pipelines.deferred.render(main_view_,
+                                  render_view_,
+                                  prepass_fb_,
+                                  combined_fb_,
+                                  gbuffer_fb_,
+                                  extent_,
+                                  rt_buffer_opaque_,
+                                  rt_buffer_refract_);
 
   inst_.pipelines.background.render(render_view_, combined_fb_);
 
@@ -148,7 +148,7 @@ void ShadingView::render()
 
   inst_.ambient_occlusion.render_pass(render_view_);
 
-  inst_.pipelines.forward.render(render_view_, prepass_fb_, combined_fb_, extent_, feedback_tx);
+  inst_.pipelines.forward.render(render_view_, prepass_fb_, combined_fb_, extent_);
 
   render_transparent_pass(rbufs);
 
