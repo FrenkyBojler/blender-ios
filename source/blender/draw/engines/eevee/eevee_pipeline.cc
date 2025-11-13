@@ -963,11 +963,6 @@ gpu::Texture *DeferredLayer::render(View &main_view,
 
 void DeferredPipeline::begin_sync()
 {
-  Instance &inst = opaque_layer_.inst_;
-
-  const bool use_raytracing = (inst.scene->eevee.flag & SCE_EEVEE_SSR_ENABLED) != 0;
-  use_combined_lightprobe_eval = !use_raytracing;
-
   opaque_layer_.begin_sync();
   refraction_layer_.begin_sync();
 }
@@ -1033,7 +1028,7 @@ PassMain::Sub *DeferredPipeline::prepass_add(::Material *blender_mat,
                                              GPUMaterial *gpumat,
                                              bool has_motion)
 {
-  if (!use_combined_lightprobe_eval && (blender_mat->blend_flag & MA_BL_SS_REFRACTION)) {
+  if (blender_mat->blend_flag & MA_BL_SS_REFRACTION) {
     return refraction_layer_.prepass_add(blender_mat, gpumat, has_motion);
   }
   return opaque_layer_.prepass_add(blender_mat, gpumat, has_motion);
@@ -1041,7 +1036,7 @@ PassMain::Sub *DeferredPipeline::prepass_add(::Material *blender_mat,
 
 PassMain::Sub *DeferredPipeline::material_add(::Material *blender_mat, GPUMaterial *gpumat)
 {
-  if (!use_combined_lightprobe_eval && (blender_mat->blend_flag & MA_BL_SS_REFRACTION)) {
+  if (blender_mat->blend_flag & MA_BL_SS_REFRACTION) {
     return refraction_layer_.material_add(blender_mat, gpumat);
   }
   return opaque_layer_.material_add(blender_mat, gpumat);

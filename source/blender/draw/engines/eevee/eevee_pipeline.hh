@@ -16,6 +16,7 @@
 
 #include "DRW_render.hh"
 
+#include "eevee_defines.hh"
 #include "eevee_lut.hh"
 #include "eevee_material.hh"
 #include "eevee_raytrace.hh"
@@ -346,7 +347,8 @@ class DeferredLayer : DeferredLayerBase {
 
   bool has_transmission() const
   {
-    return closure_bits_ & CLOSURE_TRANSMISSION;
+    return (closure_bits_ & CLOSURE_TRANSMISSION) ||
+           ((closure_bits_ & CLOSURE_TRANSPARENCY) && (closure_bits_ & CLOSURE_SHADER_TO_RGBA));
   }
 
   /* Do we compute indirect lighting inside the light eval pass. */
@@ -376,8 +378,6 @@ class DeferredPipeline {
   DeferredLayer volumetric_layer_;
 
   PassSimple debug_draw_ps_ = {"debug_gbuffer"};
-
-  bool use_combined_lightprobe_eval;
 
  public:
   DeferredPipeline(Instance &inst)
