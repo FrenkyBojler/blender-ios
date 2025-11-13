@@ -130,7 +130,7 @@ struct VKGraphicsInfo {
     /* Dynamic rendering */
     VkFormat depth_attachment_format;
     VkFormat stencil_attachment_format;
-    Span<VkFormat> color_attachment_formats;
+    Vector<VkFormat> color_attachment_formats;
 
     bool operator==(const FragmentOut &other) const
     {
