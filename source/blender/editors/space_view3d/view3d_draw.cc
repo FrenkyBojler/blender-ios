@@ -1550,11 +1550,10 @@ static void draw_performance_stats(Depsgraph *depsgraph,
   const float total_time = (last_eval_time ? *last_eval_time : 0.0f) + sync_time + submission_time;
 
   /* Translated labels for each stat row. */
-  enum { EVAL_TIME, SYNC_TIME, SUBM_TIME, TOTAL, MAX_LABELS_COUNT };
+  enum { EVAL_TIME, SYNC_TIME, TOTAL, MAX_LABELS_COUNT };
   std::string labels[MAX_LABELS_COUNT];
   labels[EVAL_TIME] = IFACE_("Evaluation");
   labels[SYNC_TIME] = IFACE_("Synchronization");
-  labels[SUBM_TIME] = IFACE_("Submission");
   labels[TOTAL] = IFACE_("Total");
 
   const int font_id = BLF_default();
@@ -1585,7 +1584,6 @@ static void draw_performance_stats(Depsgraph *depsgraph,
   *yoffset -= line_height;
   draw_time_stat(labels[EVAL_TIME], last_eval_time);
   draw_time_stat(labels[SYNC_TIME], sync_time);
-  draw_time_stat(labels[SUBM_TIME], submission_time);
   draw_time_stat(labels[TOTAL], total_time);
   *yoffset -= line_height;
 }

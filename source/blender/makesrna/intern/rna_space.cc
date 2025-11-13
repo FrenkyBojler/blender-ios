@@ -4867,8 +4867,7 @@ static void rna_def_space_view3d_overlay(BlenderRNA *brna)
                            "Show Performance",
                            "Display viewport performance timings:\n"
                            " \u2022 Evaluation: Time to evaluate dependency graph.\n"
-                           " \u2022 Synchronization: Time to build the GPU buffers.\n"
-                           " \u2022 Submission: Time to send the GPU render commands.");
+                           " \u2022 Synchronization: Time to build the GPU buffers.");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
 
   /* show camera composition guides */
