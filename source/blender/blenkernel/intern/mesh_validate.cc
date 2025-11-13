@@ -63,7 +63,7 @@ class ErrorMessages {
     if (!verbose_) {
       return;
     }
-    this->add(fmt::format(fmt, args...));
+    this->add(fmt::format(fmt::runtime(fmt), args...));
   }
 };
 
@@ -128,7 +128,8 @@ static IndexMask find_edges_duplicates(const Mesh &mesh,
   mask.foreach_index([&](const int edge_i) {
     const int2 edge = edges[edge_i];
     if (!unique_edges.add(edge)) {
-      errors.add("Edge {} is a duplicate of {}", edge_i, unique_edges.index_of(edge));
+      errors.add(
+          fmt::runtime("Edge {} is a duplicate of {}"), edge_i, unique_edges.index_of(edge));
       duplicate_edges[edge_i].set();
     }
   });
@@ -855,12 +856,13 @@ static bool mesh_validate_impl(const Mesh &mesh, const bool verbose, Mesh *mesh_
       mesh, valid_faces, memory, verbose);
   valid_faces = IndexMask::from_difference(valid_faces, faces_duplicate_verts, memory);
 
-  const IndexMask faces_missing_edges = find_faces_missing_edges(
-      mesh, valid_faces, unique_edges, memory, verbose);
-  valid_faces = IndexMask::from_difference(valid_faces, faces_missing_edges, memory);
-
   const IndexMask duplicate_faces = find_duplicate_faces(mesh, valid_faces, memory, verbose);
   valid_faces = IndexMask::from_difference(valid_faces, duplicate_faces, memory);
+
+  const IndexMask faces_missing_edges = find_faces_missing_edges(
+      mesh, valid_faces, unique_edges, memory, verbose);
+  const IndexMask valid_and_missing_edge_faces = valid_faces;
+  valid_faces = IndexMask::from_difference(valid_faces, faces_missing_edges, memory);
 
   Vector<Vector<std::pair<int, int>>> corner_edge_fixes;
   find_faces_bad_edges(mesh, valid_faces, unique_edges, memory, verbose, corner_edge_fixes);
@@ -879,8 +881,8 @@ static bool mesh_validate_impl(const Mesh &mesh, const bool verbose, Mesh *mesh_
       }
     }
 
-    if (valid_faces.size() < mesh.faces_num) {
-      remove_invalid_faces(mesh, valid_faces);
+    if (valid_and_missing_edge_faces.size() < mesh.faces_num) {
+      remove_invalid_faces(mesh, valid_and_missing_edge_faces);
     }
 
     if (valid_edges.size() < mesh.edges_num) {
