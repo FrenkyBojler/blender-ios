@@ -263,7 +263,6 @@ bool AbstractView::is_multiselect_supported() const
 {
   return is_multiselect_supported_;
 }
-
 /** \} */
 
 }  // namespace blender::ui

@@ -276,11 +276,10 @@ void AbstractTreeView::get_hierarchy_lines(const ARegion &region,
 
 void AbstractTreeView::sort()
 {
-  SortOrder order = *sort_order_;
-  if (order == SortOrder::None) {
+  if (*sort_order_ == SortOrder::None) {
     return;
   }
-  this->foreach_sort_invert(order);
+  this->foreach_sort_invert(*sort_order_);
 }
 
 static uiButViewItem *find_first_view_item_but(const uiBlock &block, const AbstractTreeView &view)
@@ -868,27 +867,10 @@ static int count_visible_items(AbstractTreeView &tree_view)
   return item_count;
 }
 
-static AbstractView *get_abstractview(bContext *C, const int pad = 0)
+static void set_sort_order_fn(bContext * /*C*/, void * /*but_arg1*/, void *arg2)
 {
-  const wmWindow *win = CTX_wm_window(C);
-  if (!(win && win->eventstate)) {
-    return nullptr;
-  }
-
-  const ARegion *region = CTX_wm_region(C);
-  if (!region) {
-    return nullptr;
-  }
-
-  AbstractView *view = UI_region_view_find_at(region, win->eventstate->xy, UI_UNIT_Y + pad);
-  return view;
-}
-
-static void set_sort_order_fn(bContext *C, void * /*but_arg1*/, void *arg2)
-{
-  using namespace blender::ui;
   SortOrder &order = *static_cast<SortOrder *>(arg2);
-  order = SortOrder(((int)order + 1) % 3);
+  order = SortOrder(((uint8_t)order + 1) % 3);
 }
 
 void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)

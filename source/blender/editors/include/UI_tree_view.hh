@@ -105,6 +105,7 @@ class TreeViewItemContainer {
  protected:
   void foreach_item_recursive(ItemIterFn iter_fn, IterOptions options = IterOptions::None) const;
   void foreach_parent(ItemIterFn iter_fn) const;
+  /* Sort tree item list in reverse order. */
   void foreach_sort_invert(SortOrder order);
 };
 
