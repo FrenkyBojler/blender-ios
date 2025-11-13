@@ -15,16 +15,21 @@
 
 namespace blender::ed {
 
-static void transform_orientations_copy(ListBase &dst, const ListBase &src)
-{
-  BLI_freelistN(&dst);
-  BLI_duplicatelist(&dst, &src);
-}
-
 /* Store current scene settings used in edit mode. */
 void ED_scene_state_store(EditModeSceneState &dst, const Scene &scene)
 {
-  transform_orientations_copy(dst.transform_spaces, scene.transform_spaces);
+  for (TransformOrientation *old_ptr : dst.transform_spaces) {
+    MEM_freeN(old_ptr);
+  }
+  dst.transform_spaces.clear();
+
+  LISTBASE_FOREACH (TransformOrientation *, to, &scene.transform_spaces) {
+    TransformOrientation *copy = MEM_callocN<TransformOrientation>(__func__);
+    *copy = *to;
+    copy->next = copy->prev = nullptr;
+    dst.transform_spaces.append(copy);
+  }
+
   memcpy(dst.orientation_slots, scene.orientation_slots, sizeof(dst.orientation_slots));
 
   const ToolSettings *ts = scene.toolsettings;
@@ -43,7 +48,15 @@ void ED_scene_state_store(EditModeSceneState &dst, const Scene &scene)
 /* Restore stored scene settings after undo. */
 void ED_scene_state_restore(Scene &scene, const EditModeSceneState &src)
 {
-  transform_orientations_copy(scene.transform_spaces, src.transform_spaces);
+  BLI_freelistN(&scene.transform_spaces);
+
+  for (TransformOrientation *to_src : src.transform_spaces) {
+    TransformOrientation *to_dst = MEM_callocN<TransformOrientation>(__func__);
+    *to_dst = *to_src;
+    to_dst->next = to_dst->prev = nullptr;
+    BLI_addtail(&scene.transform_spaces, to_dst);
+  }
+
   memcpy(scene.orientation_slots, src.orientation_slots, sizeof(src.orientation_slots));
 
   ToolSettings *ts = scene.toolsettings;

@@ -1078,6 +1078,7 @@ static bool mesh_undosys_step_encode(bContext *C, Main *bmain, UndoStep *us_p)
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const ToolSettings *ts = scene->toolsettings;
   blender::Vector<Object *> objects = ED_undo_editmode_objects_from_view_layer(scene, view_layer);
+  new (&us->scene_state) blender::ed::EditModeSceneState();
 
   us->scene_ref.ptr = scene;
   us->elems = MEM_calloc_arrayN<MeshUndoStep_Elem>(objects.size(), __func__);

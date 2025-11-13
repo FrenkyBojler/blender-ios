@@ -8,13 +8,15 @@
 
 #pragma once
 
+#include "BLI_vector.hh"
 #include "DNA_scene_types.h"
+#include "DNA_screen_types.h"
 
 namespace blender::ed {
 
 struct EditModeSceneState {
   /* Custom transform orientations. */
-  ListBase transform_spaces;
+  blender::Vector<TransformOrientation *> transform_spaces;
   /* Active orientation slots. */
   TransformOrientationSlot orientation_slots[4];
 
@@ -25,7 +27,9 @@ struct EditModeSceneState {
 
   ~EditModeSceneState()
   {
-    BLI_freelistN(&transform_spaces);
+    for (TransformOrientation *to : transform_spaces) {
+      MEM_freeN(to);
+    }
   }
 };
 
