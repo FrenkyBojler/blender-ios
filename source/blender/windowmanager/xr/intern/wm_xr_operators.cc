@@ -1161,11 +1161,6 @@ static void WM_OT_xr_navigation_fly(wmOperatorType *ot)
  * Casts a ray from an XR controller's pose and teleports to any hit geometry.
  * \{ */
 
-static const float g_xr_default_teleport_ray_axis[3] = {0.0f, 0.0f, -1.0f};
-static const float g_xr_default_teleport_ray_hit_color[4] = {0.35f, 0.35f, 1.0f, 1.0f};
-static const float g_xr_default_teleport_ray_miss_color[4] = {1.0f, 0.35f, 0.35f, 1.0f};
-static const float g_xr_default_teleport_ray_fallback_color[4] = {0.35f, 0.35f, 1.0f, 1.0f};
-
 enum XrTeleportRayResult : uint8_t {
   XR_TELEPORT_RAY_MISS,
   XR_TELEPORT_RAY_HIT,
@@ -1173,18 +1168,21 @@ enum XrTeleportRayResult : uint8_t {
 };
 
 struct XrTeleportData {
-  blender::float3 init_location;
-  blender::float3 init_direction;
-
+  /* Teleportation arc ray. */
   XrTeleportRayResult ray_result;
   blender::Array<blender::float3> arc_points;
   int endpoint_idx;
 
-  /** Visualization parameters. */
+  /* Initial loc/rot from controller. */
+  blender::float3 init_location;
+  blender::float3 init_direction;
+
+  /* Visual parameters. */
   float ray_color[4];
   float ray_line_width;
+  float destination_indicator_width;
 
-  /** Drawing handles. */
+  /* Drawing handles. */
   blender::gpu::Batch *arc_batch;
   void *draw_handle;
 };
@@ -1196,8 +1194,8 @@ static void wm_xr_navigation_teleport_destination_draw(const XrTeleportData *dat
   GPU_matrix_push();
   GPU_matrix_translate_3fv(data->arc_points[data->endpoint_idx]);
 
-  constexpr float width = 0.5f;
-  constexpr float height = 0.1f;
+  const float width = data->destination_indicator_width;
+  const float height = width * 0.2f;
   constexpr int resolution = 64;
 
   if (data->ray_result == XR_TELEPORT_RAY_MISS) {
@@ -1305,29 +1303,23 @@ static void wm_xr_navigation_teleport_update(wmOperator *op,
                                              const wmXrData *xr,
                                              const wmXrActionData *actiondata)
 {
+  using namespace blender;
+
   XrTeleportData *data = static_cast<XrTeleportData *>(op->customdata);
-
-  float nav_scale;
-  WM_xr_session_state_nav_scale_get(xr, &nav_scale);
-
-  data->ray_line_width = RNA_float_get(op->ptr, "raycast_line_width") * nav_scale;
-
   data->arc_points = blender::Array<blender::float3>(XR_TELEPORTATION_ARC_CONTROL_POINTS);
   data->endpoint_idx = XR_TELEPORTATION_ARC_CONTROL_POINTS - 1;
 
-  float axis[3];
-  RNA_float_get_array(op->ptr, "axis", axis);
+  const math::Quaternion controller_quat(actiondata->controller_rot);
+  data->init_direction = transform_point(controller_quat, {0.0f, 0.0f, -1.0f});
+  data->init_location = actiondata->controller_loc;
 
   if (!xr->runtime->session_state.raycast_arc_batch) {
     xr->runtime->session_state.raycast_arc_batch = GPU_batch_create_procedural(
         GPU_PRIM_TRI_STRIP, 2 * XR_TELEPORTATION_ARC_SAMPLES);
   }
-
   data->arc_batch = xr->runtime->session_state.raycast_arc_batch;
-
-  mul_qt_v3(actiondata->controller_rot, axis);
-  copy_v3_v3(data->init_direction, axis);
-  copy_v3_v3(data->init_location, actiondata->controller_loc);
+  data->ray_line_width = RNA_float_get(op->ptr, "ray_line_width");
+  data->destination_indicator_width = RNA_float_get(op->ptr, "destination_indicator_width");
 }
 
 static void wm_xr_navigation_teleport_raycast(Scene *scene,
@@ -1365,18 +1357,18 @@ static void wm_xr_navigation_teleport_raycast(Scene *scene,
   blender::ed::transform::snap_object_context_destroy(sctx);
 }
 
-static void wm_xr_navigation_teleport_generate_arc(wmXrData *xr, XrTeleportData *data)
+static void wm_xr_navigation_teleport_generate_arc(wmOperator *op,
+                                                   wmXrData *xr,
+                                                   XrTeleportData *data)
 {
   using namespace blender;
 
-  constexpr float time_step = 0.15f;
-  constexpr float gravity = 9.81f;
-  constexpr float initial_velocity = 10.0f; /* Launch speed, m/s. */
-
   float nav_scale;
   WM_xr_session_state_nav_scale_get(xr, &nav_scale);
-  const float scaled_velocity = initial_velocity * nav_scale;
-  const float scaled_gravity = gravity * nav_scale;
+
+  const float gravity = 9.81f * nav_scale;
+  const float time_step = RNA_float_get(op->ptr, "range") * nav_scale;
+  const float velocity = RNA_float_get(op->ptr, "force") * nav_scale;
 
   data->arc_points[0] = data->init_location;
   const float3 direction = data->init_direction;
@@ -1384,8 +1376,8 @@ static void wm_xr_navigation_teleport_generate_arc(wmXrData *xr, XrTeleportData 
   for (int i = 1; i < XR_TELEPORTATION_ARC_CONTROL_POINTS; ++i) {
     const float t = i * time_step;
 
-    const float3 velocity_offset = direction * (scaled_velocity * t);
-    const float3 gravity_offset = float3(0, 0, -0.5f * scaled_gravity * t * t);
+    const float3 velocity_offset = direction * (velocity * t);
+    const float3 gravity_offset = float3(0, 0, -0.5f * gravity * t * t);
 
     data->arc_points[i] = data->arc_points[0] + velocity_offset + gravity_offset;
   }
@@ -1535,71 +1527,31 @@ static float wm_xr_navigation_teleport_determine_head_height(bContext *C,
   return viewer_pos_loc.z;
 }
 
-static float wm_xr_navigation_teleport_pose_calc(wmOperator *op,
-                                                 wmXrData *xr,
-                                                 blender::float3 &r_nav_destination,
-                                                 const blender::float3 &target_destination,
-                                                 const blender::float3 &normal,
-                                                 const float vertical_ofs)
-{
-  using namespace blender;
-
-  float nav_scale;
-  WM_xr_session_state_nav_scale_get(xr, &nav_scale);
-
-  bool teleport_axes[3];
-  RNA_boolean_get_array(op->ptr, "teleport_axes", teleport_axes);
-  const float teleport_t = RNA_float_get(op->ptr, "interpolation");
-  const float teleport_ofs = RNA_float_get(op->ptr, "offset") * nav_scale;
-
-  float3 nav_location, viewer_location;
-  WM_xr_session_state_nav_location_get(xr, nav_location);
-  WM_xr_session_state_viewer_pose_location_get(xr, viewer_location);
-
-  float4 nav_rotation;
-  WM_xr_session_state_nav_rotation_get(xr, nav_rotation);
-  wm_xr_basenav_rotation_calc(xr, nav_rotation, nav_rotation);
-  const float3x3 nav_axes = math::from_rotation<float3x3>(math::Quaternion(nav_rotation));
-
-  r_nav_destination = nav_location;
-
-  for (int a = 0; a < 3; ++a) {
-    if (teleport_axes[a]) {
-      float3 destination_with_ofs = target_destination;
-      destination_with_ofs.z += vertical_ofs;
-
-      float3 v0 = math::project(destination_with_ofs - viewer_location, nav_axes[a]);
-      float3 v1 = math::project(normal, nav_axes[a]);
-
-      r_nav_destination += (v0 * teleport_t) + (v1 * teleport_ofs);
-    }
-  }
-
-  return math::distance(viewer_location, target_destination);
-}
-
 static XrTeleportRayResult wm_xr_navigation_teleport_main(bContext *C,
                                                           wmOperator *op,
                                                           wmXrData *xr,
                                                           XrTeleportData *data,
-                                                          blender::float3 &r_destination,
-                                                          float &r_destination_dist)
+                                                          blender::float3 &r_nav_destination)
 {
   using namespace blender;
 
   const float head_height_offset = wm_xr_navigation_teleport_determine_head_height(C, op, xr);
 
   /* Generate the initial parabolic arc. */
-  wm_xr_navigation_teleport_generate_arc(xr, data);
+  wm_xr_navigation_teleport_generate_arc(op, xr, data);
 
   /* Find intersection between the arc and scene objects using raycast. */
   const XrTeleportRayResult result = wm_xr_navigation_arc_scene_intersect(C, op, data);
 
   /* Calculate the teleportation destination in navigation space. */
-  const float3 hit_normal = {0, 0, 1};
-  r_destination_dist = wm_xr_navigation_teleport_pose_calc(
-      op, xr, r_destination, data->arc_points[data->endpoint_idx], hit_normal, head_height_offset);
+  float3 nav_location, viewer_location;
+  WM_xr_session_state_nav_location_get(xr, nav_location);
+  WM_xr_session_state_viewer_pose_location_get(xr, viewer_location);
 
+  const float3 target_destination = data->arc_points[data->endpoint_idx];
+  const float3 destination = target_destination + float3(0.0f, 0.0f, head_height_offset);
+
+  r_nav_destination = nav_location + (destination - viewer_location);
   return result;
 }
 
@@ -1650,12 +1602,9 @@ static wmOperatorStatus wm_xr_navigation_teleport_modal(bContext *C,
 
   XrTeleportData *data = static_cast<XrTeleportData *>(op->customdata);
 
-  blender::float3 destination = {};
-  float destination_dist = 0.0f;
-
   /* Teleport using an arc, computing both the final destination and the visual curve. */
-  data->ray_result = wm_xr_navigation_teleport_main(
-      C, op, xr, data, destination, destination_dist);
+  blender::float3 nav_destination = {};
+  data->ray_result = wm_xr_navigation_teleport_main(C, op, xr, data, nav_destination);
 
   /* Update ray color. */
   switch (data->ray_result) {
@@ -1679,7 +1628,7 @@ static wmOperatorStatus wm_xr_navigation_teleport_modal(bContext *C,
       return OPERATOR_RUNNING_MODAL;
     case KM_RELEASE: {
       if (data->ray_result != XR_TELEPORT_RAY_MISS) {
-        WM_xr_session_state_nav_location_set(xr, destination);
+        WM_xr_session_state_nav_location_set(xr, nav_destination);
       }
 
       xr->runtime->session_state.is_raycast_shown = false;
@@ -1710,87 +1659,60 @@ static void WM_OT_xr_navigation_teleport(wmOperatorType *ot)
   ot->poll = wm_xr_operator_sessionactive;
 
   /* Properties. */
-  static const bool default_teleport_axes[3] = {true, true, true};
-
-  RNA_def_boolean_vector(ot->srna,
-                         "teleport_axes",
-                         3,
-                         default_teleport_axes,
-                         "Teleport Axes",
-                         "Enabled teleport axes in navigation space");
-  RNA_def_float(ot->srna,
-                "interpolation",
-                1.0f,
-                0.0f,
-                1.0f,
-                "Interpolation",
-                "Interpolation factor between viewer and hit locations",
-                0.0f,
-                1.0f);
-  RNA_def_float(ot->srna,
-                "offset",
-                0.25f,
-                0.0f,
-                FLT_MAX,
-                "Offset",
-                "Offset along hit normal to subtract from final location",
-                0.0f,
-                FLT_MAX);
   RNA_def_boolean(ot->srna,
                   "selectable_only",
                   true,
                   "Selectable Only",
                   "Only allow selectable objects to influence raycast result");
+
+  /* Teleportation arc parabola parameters. */
   RNA_def_float(ot->srna,
-                "distance",
-                40.0,
-                0.0,
-                BVH_RAYCAST_DIST_MAX,
-                "",
-                "Maximum teleportation ray distance",
-                0.0,
-                BVH_RAYCAST_DIST_MAX);
-  RNA_def_float(ot->srna,
-                "gravity",
-                0.2,
-                0.0,
+                "force",
+                10.0f,
+                0.0f,
                 FLT_MAX,
-                "Gravity",
-                "Downward curvature applied to raycast",
-                0.0,
-                FLT_MAX);
+                "Force",
+                "Velocity force controlling the teleportation arc parabola in m/s",
+                0.0f,
+                100.0f);
   RNA_def_float(ot->srna,
-                "raycast_line_width",
+                "range",
+                0.15f,
+                0.0f,
+                FLT_MAX,
+                "Range",
+                "Time step range controlling the teleportation arc parabola",
+                0.0f,
+                1.0f);
+
+  /* Visual parameters. */
+  RNA_def_float(ot->srna,
+                "ray_line_width",
                 0.02f,
                 0.0f,
                 FLT_MAX,
-                "Raycast Line Width",
-                "Width of the raycast visualization line",
+                "Ray Line Width",
+                "Visual width of the teleportation ray line",
                 0.0f,
-                FLT_MAX);
+                1.0f);
   RNA_def_float(ot->srna,
-                "destination_sphere_width",
-                0.05f,
+                "destination_indicator_width",
+                0.5f,
                 0.0f,
                 FLT_MAX,
-                "Destination Sphere Width",
-                "Width of the destination visualization sphere",
+                "Destination Indicator Width",
+                "Visual width of the hit destination indicator",
                 0.0f,
-                FLT_MAX);
-  RNA_def_float_vector(ot->srna,
-                       "axis",
-                       3,
-                       g_xr_default_teleport_ray_axis,
-                       -1.0f,
-                       1.0f,
-                       "Axis",
-                       "Raycast axis in controller/viewer space",
-                       -1.0f,
-                       1.0f);
+                5.0f);
+
+  /* Ray colors. */
+  static const float default_teleport_ray_hit_color[4] = {0.35f, 0.35f, 1.0f, 1.0f};
+  static const float default_teleport_ray_miss_color[4] = {1.0f, 0.35f, 0.35f, 1.0f};
+  static const float default_teleport_ray_fallback_color[4] = {0.35f, 0.35f, 1.0f, 1.0f};
   RNA_def_float_color(ot->srna,
                       "hit_color",
                       4,
-                      g_xr_default_teleport_ray_hit_color,
+                      default_teleport_ray_hit_color,
                       0.0f,
                       1.0f,
                       "Hit Color",
@@ -1800,7 +1722,7 @@ static void WM_OT_xr_navigation_teleport(wmOperatorType *ot)
   RNA_def_float_color(ot->srna,
                       "miss_color",
                       4,
-                      g_xr_default_teleport_ray_miss_color,
+                      default_teleport_ray_miss_color,
                       0.0f,
                       1.0f,
                       "Miss Color",
@@ -1810,7 +1732,7 @@ static void WM_OT_xr_navigation_teleport(wmOperatorType *ot)
   RNA_def_float_color(ot->srna,
                       "fallback_color",
                       4,
-                      g_xr_default_teleport_ray_fallback_color,
+                      default_teleport_ray_fallback_color,
                       0.0f,
                       1.0f,
                       "Fallback Color",
