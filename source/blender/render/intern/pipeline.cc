@@ -58,7 +58,7 @@
 #include "BKE_pointcache.h"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
-#include "BKE_sound.h"
+#include "BKE_sound.hh"
 
 #include "NOD_composite.hh"
 
@@ -398,8 +398,6 @@ void RE_AcquireResultImageViews(Render *re, RenderResult *rr)
       }
 
       rr->layers = re->result->layers;
-      rr->xof = re->disprect.xmin;
-      rr->yof = re->disprect.ymin;
       rr->stamp_data = re->result->stamp_data;
     }
   }
@@ -452,10 +450,6 @@ void RE_AcquireResultImage(Render *re, RenderResult *rr, const int view_id)
 
       rr->layers = re->result->layers;
       rr->views = re->result->views;
-
-      rr->xof = re->disprect.xmin;
-      rr->yof = re->disprect.ymin;
-
       rr->stamp_data = re->result->stamp_data;
     }
   }
@@ -958,7 +952,7 @@ void RE_display_share(Render *re, const Render *parent_re)
 {
   /* Use for compositor and sequencer, which can render scenes recursively.
    * It more efficient, and we can only create this context on the main thread. */
-  if (parent_re == nullptr || re == parent_re) {
+  if (ELEM(parent_re, nullptr, re)) {
     return;
   }
 
@@ -1047,11 +1041,6 @@ static void render_result_uncrop(Render *re)
       re->disprect = orig_disprect;
       re->rectx = orig_rectx;
       re->recty = orig_recty;
-    }
-    else {
-      /* set offset (again) for use in compositor, disprect was manipulated. */
-      re->result->xof = 0;
-      re->result->yof = 0;
     }
   }
 }
@@ -1498,6 +1487,8 @@ static void do_render_sequencer(Render *re)
         Editing *ed = re->pipeline_scene_eval->ed;
         if (ed) {
           blender::seq::relations_free_imbuf(re->pipeline_scene_eval, &ed->seqbase, true);
+          blender::seq::cache_cleanup(re->pipeline_scene_eval,
+                                      blender::seq::CacheCleanup::FinalAndIntra);
         }
       }
       IMB_freeImBuf(ibuf_arr[view_id]);
@@ -1541,9 +1532,9 @@ static void do_render_full_pipeline(Render *re)
 
   re->i.starttime = BLI_time_now_seconds();
 
-  /* ensure no images are in memory from previous animated sequences */
+  /* ensure no rendered results are cached from previous animated sequences */
   BKE_image_all_free_anim_ibufs(re->main, re->r.cfra);
-  blender::seq::cache_cleanup(re->scene);
+  blender::seq::cache_cleanup(re->scene, blender::seq::CacheCleanup::FinalAndIntra);
 
   if (RE_engine_render(re, true)) {
     /* in this case external render overrides all */

@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
- * \ingroup bke
+ * \ingroup sequencer
  */
 
 #include <algorithm>
@@ -17,7 +17,7 @@
 #include "BLI_math_base.h"
 
 #include "BKE_movieclip.h"
-#include "BKE_sound.h"
+#include "BKE_sound.hh"
 
 #include "DNA_sound_types.h"
 
@@ -182,7 +182,7 @@ void time_update_meta_strip_range(const Scene *scene, Strip *strip_meta)
   strip_meta->enddisp = strip_end; /* Only to make files usable in older versions. */
 
   strip_update_sound_bounds_recursive(scene, strip_meta);
-  blender::Span<Strip *> effects = SEQ_lookup_effects_by_strip(scene->ed, strip_meta);
+  Span<Strip *> effects = SEQ_lookup_effects_by_strip(scene->ed, strip_meta);
   strip_time_update_effects_strip_range(scene, effects);
   time_update_meta_strip_range(scene, lookup_meta_by_strip(scene->ed, strip_meta));
 }
@@ -218,8 +218,7 @@ void strip_time_effect_range_set(const Scene *scene, Strip *strip)
   strip->len = strip->enddisp - strip->startdisp;
 }
 
-void strip_time_update_effects_strip_range(const Scene *scene,
-                                           const blender::Span<Strip *> effects)
+void strip_time_update_effects_strip_range(const Scene *scene, const Span<Strip *> effects)
 {
   /* First pass: Update length of immediate effects. */
   for (Strip *strip : effects) {
@@ -229,7 +228,7 @@ void strip_time_update_effects_strip_range(const Scene *scene,
   /* Second pass: Recursive call to update effects in chain and in order, so they inherit length
    * correctly. */
   for (Strip *strip : effects) {
-    blender::Span<Strip *> effects_recurse = SEQ_lookup_effects_by_strip(scene->ed, strip);
+    Span<Strip *> effects_recurse = SEQ_lookup_effects_by_strip(scene->ed, strip);
     strip_time_update_effects_strip_range(scene, effects_recurse);
   }
 }
@@ -368,7 +367,7 @@ void timeline_boundbox(const Scene *scene, const ListBase *seqbase, rctf *r_rect
 }
 
 static bool strip_exists_at_frame(const Scene *scene,
-                                  blender::Span<Strip *> strips,
+                                  Span<Strip *> strips,
                                   const int timeline_frame)
 {
   for (Strip *strip : strips) {
@@ -392,7 +391,7 @@ void seq_time_gap_info_get(const Scene *scene,
   int timeline_frame = initial_frame;
   r_gap_info->gap_exists = false;
 
-  blender::VectorSet strips = query_all_strips(seqbase);
+  VectorSet strips = query_all_strips(seqbase);
 
   if (!strip_exists_at_frame(scene, strips, initial_frame)) {
     /* Search backward for gap_start_frame. */
@@ -467,7 +466,7 @@ float time_start_frame_get(const Strip *strip)
 void time_start_frame_set(const Scene *scene, Strip *strip, int timeline_frame)
 {
   strip->start = timeline_frame;
-  blender::Span<Strip *> effects = SEQ_lookup_effects_by_strip(scene->ed, strip);
+  Span<Strip *> effects = SEQ_lookup_effects_by_strip(scene->ed, strip);
   strip_time_update_effects_strip_range(scene, effects);
   time_update_meta_strip_range(scene, lookup_meta_by_strip(scene->ed, strip));
 }
@@ -517,7 +516,7 @@ void time_left_handle_frame_set(const Scene *scene, Strip *strip, int timeline_f
 
   strip->startdisp = timeline_frame; /* Only to make files usable in older versions. */
 
-  blender::Span<Strip *> effects = SEQ_lookup_effects_by_strip(scene->ed, strip);
+  Span<Strip *> effects = SEQ_lookup_effects_by_strip(scene->ed, strip);
   strip_time_update_effects_strip_range(scene, effects);
   time_update_meta_strip_range(scene, lookup_meta_by_strip(scene->ed, strip));
 }
@@ -533,7 +532,7 @@ void time_right_handle_frame_set(const Scene *scene, Strip *strip, int timeline_
   strip->endofs = time_content_end_frame_get(scene, strip) - timeline_frame;
   strip->enddisp = timeline_frame; /* Only to make files usable in older versions. */
 
-  blender::Span<Strip *> effects = SEQ_lookup_effects_by_strip(scene->ed, strip);
+  Span<Strip *> effects = SEQ_lookup_effects_by_strip(scene->ed, strip);
   strip_time_update_effects_strip_range(scene, effects);
   time_update_meta_strip_range(scene, lookup_meta_by_strip(scene->ed, strip));
 }
@@ -554,7 +553,7 @@ void strip_time_translate_handles(const Scene *scene, Strip *strip, const int of
   strip->startdisp += offset; /* Only to make files usable in older versions. */
   strip->enddisp -= offset;   /* Only to make files usable in older versions. */
 
-  blender::Span<Strip *> effects = SEQ_lookup_effects_by_strip(scene->ed, strip);
+  Span<Strip *> effects = SEQ_lookup_effects_by_strip(scene->ed, strip);
   strip_time_update_effects_strip_range(scene, effects);
   time_update_meta_strip_range(scene, lookup_meta_by_strip(scene->ed, strip));
 }
@@ -618,7 +617,7 @@ static void strip_time_slip_strip_ex(const Scene *scene,
   strip->startdisp = time_left_handle_frame_get(scene, strip);
   strip->enddisp = time_right_handle_frame_get(scene, strip);
 
-  blender::Span<Strip *> effects = SEQ_lookup_effects_by_strip(scene->ed, strip);
+  Span<Strip *> effects = SEQ_lookup_effects_by_strip(scene->ed, strip);
   strip_time_update_effects_strip_range(scene, effects);
 }
 

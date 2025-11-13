@@ -42,6 +42,7 @@
 #include "DNA_windowmanager_types.h"
 #include "DNA_world_types.h"
 
+#include "BLI_function_ref.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_base.h"
 #include "BLI_math_rotation.h"
@@ -85,7 +86,7 @@
 #include "BKE_scene.hh"
 #include "BKE_scene_runtime.hh"
 #include "BKE_screen.hh"
-#include "BKE_sound.h"
+#include "BKE_sound.hh"
 #include "BKE_unit.hh"
 #include "BKE_workspace.hh"
 
@@ -231,8 +232,6 @@ static void scene_init_data(ID *id)
   srv = static_cast<SceneRenderView *>(scene->r.views.last);
   STRNCPY(srv->suffix, STEREO_RIGHT_SUFFIX);
 
-  BKE_sound_reset_scene_runtime(scene);
-
   /* color management */
   colorspace_name = IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_DEFAULT_SEQUENCER);
 
@@ -330,8 +329,6 @@ static void scene_copy_data(Main *bmain,
   if (scene_src->display.shading.prop) {
     scene_dst->display.shading.prop = IDP_CopyProperty(scene_src->display.shading.prop);
   }
-
-  BKE_sound_reset_scene_runtime(scene_dst);
 
   /* Copy sequencer, this is local data! */
   if (scene_src->ed) {
@@ -884,8 +881,23 @@ static void scene_foreach_id(ID *id, LibraryForeachIDData *data)
               BKE_lib_query_idpropertiesForeachIDLink_callback(prop, data);
             }));
 
-    BKE_view_layer_synced_ensure(scene, view_layer);
-    LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_get(view_layer)) {
+    /* FIXME: Although ideally this should always have access to synced data, this is not always
+     * the case (FOREACH_ID can be called in context where re-syncing is blocked, while effectively
+     * modifying the view-layer or collections data, see e.g. #id_delete code which remaps all
+     * deleted ID usages to null).
+     *
+     * There is no obvious solution to this problem, so for now working around with some 'band-aid'
+     * special code and asserts.
+     *
+     * In the future, there may be need for a new `IDWALK_CB` flag to mark existing pointer values
+     * as unsafe to access in such cases. */
+    const bool is_synced = BKE_view_layer_synced_ensure(scene, view_layer);
+    if (!is_synced) {
+      BLI_assert_msg((flag & IDWALK_RECURSE) == 0,
+                     "foreach_id should never recurse in case it cannot ensure that all "
+                     "view-layers are in synced with their collections");
+    }
+    LISTBASE_FOREACH (Base *, base, BKE_view_layer_object_bases_unsynced_get(view_layer)) {
       BKE_LIB_FOREACHID_PROCESS_IDSUPER(
           data,
           base->object,
@@ -1246,8 +1258,6 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
 
   sce->customdata_mask = CustomData_MeshMasks{};
   sce->customdata_mask_modal = CustomData_MeshMasks{};
-
-  BKE_sound_reset_scene_runtime(sce);
 
   /* set users to one by default, not in lib-link, this will increase it for compo nodes */
   id_us_ensure_real(&sce->id);
@@ -1831,8 +1841,6 @@ Scene *BKE_scene_duplicate(Main *bmain,
     BKE_toolsettings_free(sce_copy->toolsettings);
     sce_copy->toolsettings = BKE_toolsettings_copy(sce->toolsettings, 0);
 
-    BKE_sound_reset_scene_runtime(sce_copy);
-
     /* grease pencil */
     sce_copy->gpd = nullptr;
 
@@ -1991,11 +1999,46 @@ bool BKE_scene_can_be_removed(const Main *bmain, const Scene *scene)
   }
   /* Local scenes can only be removed, when there is at least one local scene left. */
   LISTBASE_FOREACH (Scene *, other_scene, &bmain->scenes) {
-    if (other_scene != scene && !ID_IS_LINKED(other_scene)) {
+    if (ID_IS_LINKED(other_scene)) {
+      /* Once the first linked scene is reached, there is no more local ones to check, so at this
+       * point there is no other local scene and the given one cannot be deleted. */
+      break;
+    }
+    if (other_scene != scene) {
       return true;
     }
   }
   return false;
+}
+
+Scene *BKE_scene_find_replacement(const Main &bmain,
+                                  const Scene &scene,
+                                  blender::FunctionRef<bool(const Scene &scene)> scene_validate_cb)
+{
+  UNUSED_VARS_NDEBUG(bmain);
+  BLI_assert(BLI_findindex(&bmain.scenes, &scene) >= 0);
+
+  /* Simply return a closest neighbor scene, unless a validate callback is provided and it rejects
+   * the iterated scene. */
+  for (Scene *scene_iter = static_cast<Scene *>(scene.id.prev); scene_iter != nullptr;
+       scene_iter = static_cast<Scene *>(scene_iter->id.prev))
+  {
+    if (scene_validate_cb && !scene_validate_cb(*scene_iter)) {
+      continue;
+    }
+    return scene_iter;
+  }
+
+  for (Scene *scene_iter = static_cast<Scene *>(scene.id.next); scene_iter != nullptr;
+       scene_iter = static_cast<Scene *>(scene_iter->id.next))
+  {
+    if (scene_validate_cb && !scene_validate_cb(*scene_iter)) {
+      continue;
+    }
+    return scene_iter;
+  }
+
+  return nullptr;
 }
 
 Scene *BKE_scene_add(Main *bmain, const char *name)

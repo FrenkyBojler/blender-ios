@@ -153,11 +153,6 @@ void GLStateManager::set_mutable_state(const GPUStateMutable &state)
     glLineWidth(clamp_f(state.line_width, line_width_range_[0], line_width_range_[1]));
   }
 
-  if (float_as_uint(changed.depth_range[0]) != 0 || float_as_uint(changed.depth_range[1]) != 0) {
-    /* TODO: remove, should modify the projection matrix instead. */
-    glDepthRange(UNPACK2(state.depth_range));
-  }
-
   if (changed.stencil_compare_mask != 0 || changed.stencil_reference != 0 ||
       changed.stencil_write_mask != 0)
   {
@@ -377,6 +372,9 @@ void GLStateManager::set_blend(const GPUBlend value)
       dst_alpha = GL_ONE;
       break;
     }
+    /* Factors are not use in min or max mode, but avoid uninitialized values. */;
+    case GPU_BLEND_MIN:
+    case GPU_BLEND_MAX:
     case GPU_BLEND_SUBTRACT:
     case GPU_BLEND_ADDITIVE_PREMULT: {
       /* Let alpha accumulate. */
@@ -437,7 +435,13 @@ void GLStateManager::set_blend(const GPUBlend value)
     }
   }
 
-  if (value == GPU_BLEND_SUBTRACT) {
+  if (value == GPU_BLEND_MIN) {
+    glBlendEquation(GL_MIN);
+  }
+  else if (value == GPU_BLEND_MAX) {
+    glBlendEquation(GL_MAX);
+  }
+  else if (value == GPU_BLEND_SUBTRACT) {
     glBlendEquation(GL_FUNC_REVERSE_SUBTRACT);
   }
   else {

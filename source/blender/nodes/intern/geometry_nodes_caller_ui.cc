@@ -241,7 +241,6 @@ static void add_layer_name_search_button(DrawGroupInputsContext &ctx,
   uiBlock *block = prop_row->block();
   uiBut *but = uiDefIconTextButR(block,
                                  ButType::SearchMenu,
-                                 0,
                                  ICON_OUTLINER_DATA_GP_LAYER,
                                  "",
                                  0,
@@ -359,7 +358,6 @@ static void add_attribute_search_button(DrawGroupInputsContext &ctx,
   uiBlock *block = layout->block();
   uiBut *but = uiDefIconTextButR(block,
                                  ButType::SearchMenu,
-                                 0,
                                  ICON_NONE,
                                  "",
                                  0,
@@ -817,7 +815,7 @@ static void draw_warnings(const bContext *C,
     const int icon = node_warning_type_icon(warning->type);
     const StringRef message = RPT_(warning->message);
     uiBut *but = uiDefIconTextBut(
-        block, ButType::Label, 0, icon, message, 0, 0, 1, UI_UNIT_Y, nullptr, std::nullopt);
+        block, ButType::Label, icon, message, 0, 0, 1, UI_UNIT_Y, nullptr, std::nullopt);
     /* Add tooltip containing the same message. This is helpful if the message is very long so that
      * it doesn't fit in the panel. */
     UI_but_func_tooltip_set(
@@ -933,13 +931,13 @@ static void draw_named_attributes_panel(uiLayout *layout, NodesModifierData &nmd
 
     std::stringstream ss;
     Vector<std::string> usages;
-    if ((usage & geo_log::NamedAttributeUsage::Read) != geo_log::NamedAttributeUsage::None) {
+    if (flag_is_set(usage, geo_log::NamedAttributeUsage::Read)) {
       usages.append(IFACE_("Read"));
     }
-    if ((usage & geo_log::NamedAttributeUsage::Write) != geo_log::NamedAttributeUsage::None) {
+    if (flag_is_set(usage, geo_log::NamedAttributeUsage::Write)) {
       usages.append(IFACE_("Write"));
     }
-    if ((usage & geo_log::NamedAttributeUsage::Remove) != geo_log::NamedAttributeUsage::None) {
+    if (flag_is_set(usage, geo_log::NamedAttributeUsage::Remove)) {
       usages.append(CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Remove"));
     }
     for (const int i : usages.index_range()) {
