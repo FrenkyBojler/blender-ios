@@ -20,6 +20,8 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLF_api.hh"
+
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
@@ -515,6 +517,7 @@ struct ViewZoomData {
   float zoom;
   int launch_event;
   float location[2];
+  void *draw_callback;
 
   /* needed for continuous zoom */
   wmTimer *timer;
@@ -527,6 +530,39 @@ struct ViewZoomData {
 };
 
 }  // namespace
+
+static void image_view_zoom_draw_cb(const wmWindow *win, void *userdata)
+{
+  wmOperator *op = static_cast<wmOperator *>(userdata);
+  ViewZoomData *vpd = static_cast<ViewZoomData *>(op->customdata);
+
+  const uiFontStyle *fstyle = UI_FSTYLE_TOOLTIP;
+  const bTheme *btheme = UI_GetTheme();
+  const uiWidgetColors *wcol = &btheme->tui.wcol_tooltip;
+  float col_fg[4], col_bg[4];
+  rgba_uchar_to_float(col_fg, wcol->text);
+  rgba_uchar_to_float(col_bg, wcol->inner);
+  float scale = fstyle->points * UI_SCALE_FAC / UI_DEFAULT_TOOLTIP_POINTS;
+  BLF_size(fstyle->uifont_id, UI_DEFAULT_TOOLTIP_POINTS * scale);
+  char str[5];
+  BLI_snprintf(str, sizeof(str), "%i%%", int(round(vpd->sima->zoom * 100.0f)));
+
+  const float margin = scale * 4.0f;
+  const float width = margin + BLF_width(fstyle->uifont_id, str, sizeof(str)) + margin;
+  const float height = margin + BLF_height_max(fstyle->uifont_id) + margin;
+
+  /* Position of this hint relative to the mouse position. */
+  const int left = int(vpd->origx) - int(width / 2.0f);
+  const int top = int(vpd->origy) + int(height / 2.0f);
+
+  rctf rect = {left, left + width, top - height, top};
+  UI_draw_roundbox_corner_set(UI_CNR_ALL);
+  UI_draw_roundbox_4fv(&rect, true, 4.0f, col_bg);
+
+  BLF_color4fv(fstyle->uifont_id, col_fg);
+  BLF_position(fstyle->uifont_id, left + margin, top - height + (6.0f * scale), 0.0f);
+  BLF_draw(fstyle->uifont_id, str, sizeof(str));
+}
 
 static void image_view_zoom_init(bContext *C, wmOperator *op, const wmEvent *event)
 {
@@ -542,6 +578,8 @@ static void image_view_zoom_init(bContext *C, wmOperator *op, const wmEvent *eve
   if (vpd->own_cursor) {
     WM_cursor_modal_set(win, WM_CURSOR_NSEW_SCROLL);
   }
+
+  vpd->draw_callback = WM_draw_cb_activate(CTX_wm_window(C), image_view_zoom_draw_cb, op);
 
   vpd->origx = event->xy[0];
   vpd->origy = event->xy[1];
@@ -567,6 +605,12 @@ static void image_view_zoom_exit(bContext *C, wmOperator *op, bool cancel)
 {
   SpaceImage *sima = CTX_wm_space_image(C);
   ViewZoomData *vpd = static_cast<ViewZoomData *>(op->customdata);
+
+  if (vpd->draw_callback) {
+    WM_draw_cb_exit(CTX_wm_window(C), vpd->draw_callback);
+  }
+
+  ED_workspace_status_text(C, nullptr);
 
   if (cancel) {
     sima->zoom = vpd->zoom;
@@ -640,7 +684,8 @@ static void image_zoom_apply(ViewZoomData *vpd,
                              const int y,
                              const short viewzoom,
                              const short zoom_invert,
-                             const bool zoom_to_pos)
+                             const bool zoom_to_pos,
+                             const bool snap)
 {
   float factor;
   float delta;
@@ -676,8 +721,13 @@ static void image_zoom_apply(ViewZoomData *vpd,
     factor = 1.0f + delta / 300.0f;
   }
 
+  float zoom = vpd->zoom * factor;
+  if (snap) {
+    zoom = round(zoom * 10.0f) / 10.0f;
+  }
+
   RNA_float_set(op->ptr, "factor", factor);
-  sima_zoom_set(vpd->sima, vpd->region, vpd->zoom * factor, vpd->location, zoom_to_pos);
+  sima_zoom_set(vpd->sima, vpd->region, zoom, vpd->location, zoom_to_pos);
   ED_region_tag_redraw(vpd->region);
 }
 
@@ -686,6 +736,9 @@ static wmOperatorStatus image_view_zoom_modal(bContext *C, wmOperator *op, const
   ViewZoomData *vpd = static_cast<ViewZoomData *>(op->customdata);
   short event_code = VIEW_PASS;
   wmOperatorStatus ret = OPERATOR_RUNNING_MODAL;
+
+  WorkspaceStatus status(C);
+  status.item_bool(IFACE_("Snap"), event->modifier & KM_CTRL, ICON_EVENT_CTRL);
 
   /* Execute the events. */
   if (event->type == MOUSEMOVE) {
@@ -712,7 +765,8 @@ static wmOperatorStatus image_view_zoom_modal(bContext *C, wmOperator *op, const
                        event->xy[1],
                        U.viewzoom,
                        (U.uiflag & USER_ZOOM_INVERT) != 0,
-                       (use_cursor_init && (U.uiflag & USER_ZOOM_TO_MOUSEPOS)));
+                       (use_cursor_init && (U.uiflag & USER_ZOOM_TO_MOUSEPOS)),
+                       event->modifier & KM_CTRL);
       break;
     }
     case VIEW_CONFIRM: {
