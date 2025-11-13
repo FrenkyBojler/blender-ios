@@ -1489,12 +1489,8 @@ wmOperatorStatus paint_stroke_modal(bContext *C,
   PaintStroke *stroke = *stroke_p;
   const Brush *br = stroke->brush = BKE_paint_brush(paint);
   if (paint == nullptr || br == nullptr) {
-    /* TODO: This is a workaround to handle the state where the scene during modal operation due
-     * to the recently introduced Sequencer scene concept. A complete fix is very invasive, so this
-     * check is here only to avoid crashing.
-     *
-     * See #147544 and related issues for further information.
-     */
+    /* In some circumstances, the context may change during modal execution. In this case,
+     * we need to cancel the operator. See #147544 and related issues for further information. */
     stroke_done(C, op, stroke);
     return OPERATOR_CANCELLED;
   }
