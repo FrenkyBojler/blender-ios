@@ -12,11 +12,14 @@
 
 #include "DNA_space_types.h"
 
+#include "BKE_path_templates.hh"
+
 struct ScrArea;
 struct SpaceProperties;
 struct bContext;
 struct PointerRNA;
 struct uiLayout;
+struct wmOperator;
 
 /**
  * Fills an array with the tab context values for the properties editor. -1 signals a separator.
@@ -40,3 +43,11 @@ void ED_buttons_set_context(const bContext *C,
                             SpaceProperties *sbuts,
                             PointerRNA *ptr,
                             int context);
+
+/**
+ * Get template variables from file browse operator's custom data.
+ * Returns nullptr if operator is not a buttons browse operator or has no template variables.
+ * Supports both BUTTONS_OT_file_browse and BUTTONS_OT_directory_browse.
+ */
+const blender::bke::path_templates::VariableMap *ED_buttons_file_browse_get_template_vars(
+    const wmOperator *op);

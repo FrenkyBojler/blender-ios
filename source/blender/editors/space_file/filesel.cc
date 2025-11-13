@@ -53,6 +53,7 @@
 
 #include "BLF_api.hh"
 
+#include "ED_buttons.hh"
 #include "ED_fileselect.hh"
 #include "ED_screen.hh"
 
@@ -378,8 +379,13 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
     params->filter_glob[0] = '\0';
   }
 
-  /* Initialize path template handler here since operator processing is complete */
-  ED_fileselect_params_set_template_vars(params);
+  /* Check if operator has template variables in its custom data. */
+  const blender::bke::path_templates::VariableMap *template_vars_to_use = nullptr;
+  if (op) {
+    template_vars_to_use = ED_buttons_file_browse_get_template_vars(op);
+  }
+
+  ED_fileselect_params_set_template_vars(params, template_vars_to_use);
   const blender::bke::path_templates::VariableMap *template_vars =
       ED_fileselect_params_get_template_vars(params);
   blender::bke::path_templates::path_template_nav_initialize(params, template_vars);
@@ -436,7 +442,8 @@ FileAssetSelectParams *ED_fileselect_get_asset_params(const SpaceFile *sfile)
   return (sfile->browse_mode == FILE_BROWSE_MODE_ASSETS) ? sfile->asset_params : nullptr;
 }
 
-void ED_fileselect_params_set_template_vars(FileSelectParams *params)
+void ED_fileselect_params_set_template_vars(FileSelectParams *params,
+                                            const blender::bke::path_templates::VariableMap *vars)
 {
   if (!params) {
     return;
@@ -445,15 +452,10 @@ void ED_fileselect_params_set_template_vars(FileSelectParams *params)
   /* Free any existing template vars */
   ED_fileselect_params_free_template_vars(params);
 
-  /* Create new template variables map */
-  auto *template_vars = new blender::bke::path_templates::VariableMap();
-  const Scene *scene = G.main ? static_cast<const Scene *>(G.main->scenes.first) : nullptr;
-  BKE_add_template_variables_general(*template_vars, scene ? &scene->id : nullptr);
-  if (scene) {
-    BKE_add_template_variables_for_render_path(*template_vars, *scene);
+  /* Copy the provided variable map if it exists */
+  if (vars) {
+    params->template_vars = new blender::bke::path_templates::VariableMap(*vars);
   }
-
-  params->template_vars = template_vars;
 }
 
 void ED_fileselect_params_free_template_vars(FileSelectParams *params)

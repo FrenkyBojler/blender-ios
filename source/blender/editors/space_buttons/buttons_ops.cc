@@ -31,6 +31,7 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+#include "ED_buttons.hh"
 #include "ED_screen.hh"
 #include "ED_undo.hh"
 
@@ -179,7 +180,37 @@ struct FileBrowseOp {
   PropertyRNA *prop = nullptr;
   bool is_undo = false;
   bool is_userdef = false;
+  /* Template variables for the property being browsed, if applicable. */
+  std::optional<blender::bke::path_templates::VariableMap> template_vars = std::nullopt;
 };
+
+/* Get template variables from file browse operator's custom data, if available.
+ * Returns nullptr if operator is not a buttons browse operator or has no template variables. */
+const blender::bke::path_templates::VariableMap *ED_buttons_file_browse_get_template_vars(
+    const wmOperator *op)
+{
+  if (!op) {
+    return nullptr;
+  }
+
+  /* Both BUTTONS_OT_file_browse and BUTTONS_OT_directory_browse use FileBrowseOp */
+  if (!STREQ(op->type->idname, "BUTTONS_OT_file_browse") &&
+      !STREQ(op->type->idname, "BUTTONS_OT_directory_browse"))
+  {
+    return nullptr;
+  }
+
+  if (!op->customdata) {
+    return nullptr;
+  }
+
+  const FileBrowseOp *fbo = static_cast<const FileBrowseOp *>(op->customdata);
+  if (fbo->template_vars.has_value()) {
+    return &(*fbo->template_vars);
+  }
+
+  return nullptr;
+}
 
 static bool file_browse_operator_relative_paths_supported(wmOperator *op)
 {
@@ -304,17 +335,17 @@ static wmOperatorStatus file_browse_invoke(bContext *C, wmOperator *op, const wm
 
   path = RNA_property_string_get_alloc(&ptr, prop, nullptr, 0, nullptr);
 
+  std::optional<blender::bke::path_templates::VariableMap> template_variables = std::nullopt;
   if ((RNA_property_flag(prop) & PROP_PATH_SUPPORTS_TEMPLATES) != 0) {
-    const std::optional<blender::bke::path_templates::VariableMap> variables =
-        BKE_build_template_variables_for_prop(C, &ptr, prop);
-    BLI_assert(variables.has_value());
+    template_variables = BKE_build_template_variables_for_prop(C, &ptr, prop);
+    BLI_assert(template_variables.has_value());
 
     /* Validate template syntax by resolving to a temporary path */
     if (BKE_path_contains_template_syntax(path)) {
       char temp_path[FILE_MAX];
       BLI_strncpy(temp_path, path, FILE_MAX);
       const blender::Vector<blender::bke::path_templates::Error> errors = BKE_path_apply_template(
-          temp_path, FILE_MAX, *variables);
+          temp_path, FILE_MAX, *template_variables);
       if (!errors.is_empty()) {
         BKE_report_path_template_errors(op->reports, RPT_ERROR, path, errors);
         return OPERATOR_CANCELLED;
@@ -367,6 +398,7 @@ static wmOperatorStatus file_browse_invoke(bContext *C, wmOperator *op, const wm
   fbo->prop = prop;
   fbo->is_undo = is_undo;
   fbo->is_userdef = is_userdef;
+  fbo->template_vars = std::move(template_variables);
 
   op->customdata = fbo;
 
