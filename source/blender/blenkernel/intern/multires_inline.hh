@@ -9,9 +9,16 @@
 #pragma once
 
 #include "BKE_multires.hh"
+#include "BLI_math_constants.h"
+#include "BLI_math_matrix.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
+
+#define REVISED_TANGENT 1
+#define ORTHOGONALIZE 1
+#define NORMALIZE 0
+#define ANGLE_THRESHOLD 0.0f
 
 BLI_INLINE void BKE_multires_construct_tangent_matrix(blender::float3x3 &tangent_matrix,
                                                       const blender::float3 &dPdu,
@@ -37,13 +44,30 @@ BLI_INLINE void BKE_multires_construct_tangent_matrix(blender::float3x3 &tangent
   else {
     BLI_assert_msg(0, "Unhandled corner index");
   }
+#if REVISED_TANGENT
   tangent_matrix.z_axis() = blender::math::cross(tangent_matrix.x_axis(), tangent_matrix.y_axis());
+
+#  if NORMALIZE
+  tangent_matrix.x_axis() = blender::math::normalize(tangent_matrix.x_axis());
+  tangent_matrix.y_axis() = blender::math::normalize(tangent_matrix.y_axis());
+  tangent_matrix.z_axis() = blender::math::normalize(tangent_matrix.z_axis());
+#  else
   float geometric_mean = blender::math::sqrt(blender::math::length(dPdu) *
                                              blender::math::length(dPdv));
-
   tangent_matrix.x_axis() = tangent_matrix.x_axis();
   tangent_matrix.y_axis() = tangent_matrix.y_axis();
   tangent_matrix.z_axis() = blender::math::normalize(tangent_matrix.z_axis()) * geometric_mean;
+#  endif
+#  if ORTHOGONALIZE
+  const float dot_product = blender::math::dot(blender::math::normalize(dPdu),
+                                               blender::math::normalize(dPdv));
+  const float dist_from_90 = blender::math::abs(90.0f -
+                                                RAD2DEGF(blender::math::acos(dot_product)));
+  if (dist_from_90 > ANGLE_THRESHOLD) {
+    tangent_matrix = blender::math::orthogonalize(tangent_matrix, blender::math::Axis::Z);
+  }
+#  endif
+#endif
 }
 
 BLI_INLINE void BKE_multires_construct_tangent_matrix_for_versioning(

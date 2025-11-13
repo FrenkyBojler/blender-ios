@@ -25,7 +25,9 @@ namespace blender::math {
  * \a r_success is optional and set to true if the matrix was inverted successfully.
  */
 template<typename T, int Size>
-[[nodiscard]] MatBase<T, Size, Size> invert(const MatBase<T, Size, Size> &mat, bool &r_success);
+[[nodiscard]] MatBase<T, Size, Size> invert(const MatBase<T, Size, Size> &mat,
+                                            bool &r_success,
+                                            T epsilon = 0.0f);
 
 /**
  * Flip the matrix across its diagonal. Also flips dimensions for non square matrices.
@@ -640,11 +642,11 @@ template<typename T, int NumCol, int NumRow>
 }
 
 template<typename T, int Size>
-[[nodiscard]] MatBase<T, Size, Size> invert(const MatBase<T, Size, Size> &mat)
+[[nodiscard]] MatBase<T, Size, Size> invert(const MatBase<T, Size, Size> &mat, T epsilon = 0.0f)
 {
   bool success;
   /* Explicit template parameter to please MSVC. */
-  return invert<T, Size>(mat, success);
+  return invert<T, Size>(mat, success, epsilon);
 }
 
 template<typename T, int NumCol, int NumRow>

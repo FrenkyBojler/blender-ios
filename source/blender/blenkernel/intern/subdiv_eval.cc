@@ -321,6 +321,36 @@ void eval_limit_point_and_derivatives(Subdiv *subdiv,
    * Simplest thing to do: step inside of the face a little bit, where there is known patch at
    * which there must be proper derivatives. This might break continuity of normals, but is better
    * that giving totally unusable derivatives. */
+  if ((math::is_zero(r_dPdu) || math::is_zero(r_dPdv)) || math::is_equal(r_dPdu, r_dPdv)) {
+    subdiv->evaluator->eval_output->evaluateLimit(
+        ptex_face_index, u * 0.999f + 0.0005f, v * 0.999f + 0.0005f, r_P, r_dPdu, r_dPdv);
+  }
+#else
+  UNUSED_VARS(subdiv, ptex_face_index, u, v, r_P, r_dPdu, r_dPdv);
+#endif
+}
+
+void eval_limit_point_and_derivatives_verbose(Subdiv *subdiv,
+                                              const int ptex_face_index,
+                                              const float u,
+                                              const float v,
+                                              float3 &r_P,
+                                              float3 &r_dPdu,
+                                              float3 &r_dPdv)
+{
+#ifdef WITH_OPENSUBDIV
+  subdiv->evaluator->eval_output->evaluateLimit(ptex_face_index, u, v, r_P, r_dPdu, r_dPdv);
+
+  /* NOTE: In a very rare occasions derivatives are evaluated to zeros or are exactly equal.
+   * This happens, for example, in single vertex on Suzannne's nose (where two quads have 2 common
+   * edges).
+   *
+   * This makes tangent space displacement (such as multi-resolution) impossible to be used in
+   * those vertices, so those needs to be addressed in one way or another.
+   *
+   * Simplest thing to do: step inside of the face a little bit, where there is known patch at
+   * which there must be proper derivatives. This might break continuity of normals, but is better
+   * that giving totally unusable derivatives. */
 
   if ((math::is_zero(r_dPdu) || math::is_zero(r_dPdv)) || math::is_equal(r_dPdu, r_dPdv)) {
     subdiv->evaluator->eval_output->evaluateLimit(

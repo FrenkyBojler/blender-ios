@@ -41,6 +41,8 @@
 #ifdef WITH_OPENSUBDIV
 
 static CLG_LogRef LOG = {"multires.prototype"};
+static constexpr int bad_vertex_idx = -1;
+// static constexpr int bad_vertex_idx = 2524920;
 
 /* -------------------------------------------------------------------- */
 /** \name Local Structs
@@ -459,7 +461,8 @@ static void foreach_reshape_ptex_face(
           const GridCoord grid_coord = interpolate_grid_coord(
               blender::Span(face_grid_coords), ptex_u, ptex_v);
 
-          const int elem_idx = multires_index_for_grid_coord_for_reshape(reshape_context, &grid_coord);
+          const int elem_idx = multires_index_for_grid_coord_for_reshape(reshape_context,
+                                                                         &grid_coord);
 
           callback(&ptex_coord, elem_idx, corner);
         }
@@ -1589,6 +1592,38 @@ static void evaluate_reshape_faces(MultiresReshapeSmoothContext *reshape_smooth_
                    P.z);
         /* TODO: Is this corner calculation correct? */
         BKE_multires_construct_tangent_matrix(tangent_matrix_storage[idx], dPdu, dPdv, corner % 4);
+        if (idx == bad_vertex_idx) {
+          blender::float3x3 tangent_matrix = tangent_matrix_storage[idx];
+          CLOG_INFO(&LOG,
+                    "%d, (%f %f) %d",
+                    ptex_coord->ptex_face_index,
+                    ptex_coord->u,
+                    ptex_coord->v,
+                    corner);
+          CLOG_INFO(&LOG,
+                    "dPdu: (%f, %f, %f), dPdv: (%f, %f, %f)",
+                    dPdu.x,
+                    dPdu.y,
+                    dPdu.z,
+                    dPdv.x,
+                    dPdv.y,
+                    dPdv.z);
+          CLOG_INFO(&LOG,
+                    "%f %f %f",
+                    tangent_matrix.x_axis()[0],
+                    tangent_matrix.x_axis()[1],
+                    tangent_matrix.x_axis()[2]);
+          CLOG_INFO(&LOG,
+                    "%f %f %f",
+                    tangent_matrix.y_axis()[0],
+                    tangent_matrix.y_axis()[1],
+                    tangent_matrix.y_axis()[2]);
+          CLOG_INFO(&LOG,
+                    "%f %f %f",
+                    tangent_matrix.z_axis()[0],
+                    tangent_matrix.z_axis()[1],
+                    tangent_matrix.z_axis()[2]);
+        }
       });
 }
 

@@ -22,6 +22,8 @@
 
 #include "BKE_mesh_types.hh"
 #include "BKE_paint.hh"
+#include "BLI_array_utils.hh"
+#include "BLI_math_constants.h"
 #include "BLI_math_matrix.hh"
 #include "CLG_log.h"
 #include "mikk_float3.hh"
@@ -31,6 +33,14 @@
  * \{ */
 
 static CLG_LogRef LOG = {"multires.prototype"};
+
+static constexpr int bad_vertex_idx = -1;
+/* Left ear spike
+static constexpr int bad_vertex_idx = 2524920;
+*/
+/* Right ear "spike"
+static constexpr int bad_vertex_idx = 135949;
+*/
 
 static bool multiresModifier_reshapeFromVertcos(Depsgraph *depsgraph,
                                                 Object *object,
@@ -203,6 +213,21 @@ static void multires_level_calc_object_delta(blender::Span<blender::float3> &old
                  object_delta[i].y,
                  object_delta[i].z,
                  blender::math::length(object_delta[i]));
+      if (i == bad_vertex_idx) {
+        CLOG_INFO(&LOG,
+                  "M - (%d) (%f %f %f) - (%f %f %f) = (%f %f %f) (%f)",
+                  i,
+                  old_positions[i].x,
+                  old_positions[i].y,
+                  old_positions[i].z,
+                  limit_surf_position.x,
+                  limit_surf_position.y,
+                  limit_surf_position.z,
+                  object_delta[i].x,
+                  object_delta[i].y,
+                  object_delta[i].z,
+                  blender::math::length(object_delta[i]));
+      }
 #if ONLY_AFFECT_ODD_VERTICES
     }
     else {
@@ -212,14 +237,209 @@ static void multires_level_calc_object_delta(blender::Span<blender::float3> &old
   }
 }
 
+static void print_level_stats(blender::Span<float> data,
+                              blender::Span<int> sorted_indices,
+                              blender::StringRefNull label,
+                              const int elems_to_print = 3)
+{
+  float avg = 0.0f;
+  for (int i : data.index_range()) {
+    avg += data[i];
+  }
+  avg = avg / data.size();
+
+  int median = int(data.size() / 2);
+  int index_90th = int(data.size() * .90f);
+  int index_95th = int(data.size() * .95f);
+  int index_99th = int(data.size() * .99f);
+  int index_99_9th = int(data.size() * .999f);
+  int index_99_99th = int(data.size() * .9999f);
+
+  CLOG_INFO(&LOG,
+            "%s: MAX: (%ld) %.15f, MEAN: %.15f, MEDIAN: (%d) %.15f, 90th: (%d) %.15f, 95th: (%d) "
+            "%.15f, 99th: (%d) %.15f, 99.9th: (%d) %.15f, 99.99th: (%d) %.15f",
+            label.c_str(),
+            data.size() - 1,
+            data[sorted_indices[data.size() - 1]],
+            avg,
+            median,
+            data[sorted_indices[median]],
+            index_90th,
+            data[sorted_indices[index_90th]],
+            index_95th,
+            data[sorted_indices[index_95th]],
+            index_99th,
+            data[sorted_indices[index_99th]],
+            index_99_9th,
+            data[sorted_indices[index_99_9th]],
+            index_99_99th,
+            data[sorted_indices[index_99_99th]]);
+  for (int i = 0; i < elems_to_print; i++) {
+    const int idx = data.size() - 1 - i;
+    CLOG_INFO(&LOG, "%d - %.15f", sorted_indices[idx], data[sorted_indices[idx]]);
+  }
+}
+
+static float euclidean_norm(const blender::float3x3 mat)
+{
+  blender::Span<float> values(mat.base_ptr(), 9);
+  float sum = 0.0f;
+  for (int i = 0; i < 9; i++) {
+    sum += values[i] * values[i];
+  }
+  return sqrt(sum);
+}
+
+static float conditional_value(const blender::float3x3 mat)
+{
+  const float mat_val = euclidean_norm(mat);
+  const float inv_mat_val = euclidean_norm(blender::math::invert(mat));
+  return mat_val * inv_mat_val;
+}
+
+static void print_matrix(const blender::float3x3 &mat)
+{
+  CLOG_INFO(&LOG, "Matrix: ");
+  CLOG_INFO(&LOG, "%.15f %.15f %.15f", mat.x_axis()[0], mat.x_axis()[1], mat.x_axis()[2]);
+  CLOG_INFO(&LOG, "%.15f %.15f %.15f", mat.y_axis()[0], mat.y_axis()[1], mat.y_axis()[2]);
+  CLOG_INFO(&LOG, "%.15f %.15f %.15f", mat.z_axis()[0], mat.z_axis()[1], mat.z_axis()[2]);
+  float determinant = blender::math::determinant(mat);
+  CLOG_INFO(&LOG, "Determinant: %.15f, (%e)", determinant, determinant);
+
+  blender::float3x3 inv_mat = blender::math::invert(mat);
+
+  CLOG_INFO(&LOG, "Inverse Matrix: ");
+  CLOG_INFO(
+      &LOG, "%.15f %.15f %.15f", inv_mat.x_axis()[0], inv_mat.x_axis()[1], inv_mat.x_axis()[2]);
+  CLOG_INFO(
+      &LOG, "%.15f %.15f %.15f", inv_mat.y_axis()[0], inv_mat.y_axis()[1], inv_mat.y_axis()[2]);
+  CLOG_INFO(
+      &LOG, "%.15f %.15f %.15f", inv_mat.z_axis()[0], inv_mat.z_axis()[1], inv_mat.z_axis()[2]);
+  determinant = blender::math::determinant(inv_mat);
+  CLOG_INFO(&LOG, "Determinant: %.15f, (%e)", determinant, determinant);
+
+  blender::float3x3 result = mat * inv_mat;
+  CLOG_INFO(&LOG, "\"Identity\" :");
+  CLOG_INFO(&LOG, "%.15f %.15f %.15f", result.x_axis()[0], result.x_axis()[1], result.x_axis()[2]);
+  CLOG_INFO(&LOG, "%.15f %.15f %.15f", result.y_axis()[0], result.y_axis()[1], result.y_axis()[2]);
+  CLOG_INFO(&LOG, "%.15f %.15f %.15f", result.z_axis()[0], result.z_axis()[1], result.z_axis()[2]);
+  CLOG_INFO(&LOG, "Conditional Value: %.15f", conditional_value(mat));
+}
+
+#define DEBUG_STATS 0
+
 static void multires_level_object_delta_to_tangent_delta(
     blender::Span<blender::float3x3> tmat_storage,
     blender::MutableSpan<blender::float3> delta_storage)
 {
   for (const int i : delta_storage.index_range()) {
-    delta_storage[i] = blender::math::transform_direction(blender::math::invert(tmat_storage[i]),
-                                                          delta_storage[i]);
+    blender::float3 tangent_vector = delta_storage[i];
+    blender::double3x3 mat(tmat_storage[i]);
+    bool success;
+    delta_storage[i] = blender::math::transform_direction(
+        blender::float3x3(blender::math::invert(mat)), delta_storage[i]);
+    if (i == bad_vertex_idx) {
+      blender::float3x3 inv_mat = blender::math::invert(tmat_storage[i], success, 0.0f);
+      CLOG_INFO(&LOG, "(Store) Spike data: %d", bad_vertex_idx);
+      CLOG_INFO(
+          &LOG, "(Tangent) VEC: %f %f %f", tangent_vector.x, tangent_vector.y, tangent_vector.z);
+
+      print_matrix(tmat_storage[i]);
+
+      CLOG_INFO(
+          &LOG, "(Object): %f %f %f", delta_storage[i].x, delta_storage[i].y, delta_storage[i].z);
+
+      blender::float3x3 final_mat = inv_mat * tmat_storage[i];
+      CLOG_INFO(&LOG, "Final Matrix: ");
+      CLOG_INFO(
+          &LOG, "%f %f %f", final_mat.x_axis()[0], final_mat.x_axis()[1], final_mat.x_axis()[2]);
+      CLOG_INFO(
+          &LOG, "%f %f %f", final_mat.y_axis()[0], final_mat.y_axis()[1], final_mat.y_axis()[2]);
+      CLOG_INFO(
+          &LOG, "%f %f %f", final_mat.z_axis()[0], final_mat.z_axis()[1], final_mat.z_axis()[2]);
+    }
   }
+#if DEBUG_STATS
+  blender::Array<int> sorted_indices(tmat_storage.size());
+  blender::array_utils::fill_index_range(sorted_indices.as_mutable_span());
+
+  blender::Array<float> condition_values(tmat_storage.size());
+  for (const int i : tmat_storage.index_range()) {
+    condition_values[i] = conditional_value(tmat_storage[i]);
+  }
+  std::sort(sorted_indices.begin(), sorted_indices.end(), [&](int a, int b) {
+    return condition_values[a] < condition_values[b];
+  });
+  print_level_stats(condition_values, sorted_indices, "Condition Value");
+
+  {
+    blender::Array<float> determinants(tmat_storage.size());
+    for (const int i : tmat_storage.index_range()) {
+      determinants[i] = blender::math::determinant(tmat_storage[i]);
+    }
+    print_level_stats(determinants, sorted_indices, "Determinant");
+  }
+
+  {
+    blender::Array<float> angles(tmat_storage.size());
+    for (const int i : tmat_storage.index_range()) {
+      angles[i] = blender::math::dot(tmat_storage[i].x_axis(), tmat_storage[i].y_axis()) /
+                  (blender::math::length(tmat_storage[i].x_axis()) *
+                   blender::math::length(tmat_storage[i].y_axis()));
+      angles[i] = RAD2DEGF(blender::math::acos(angles[i]));
+    }
+    print_level_stats(angles, sorted_indices, "Angles");
+
+    int less_than_1 = 0;
+    int less_than_5 = 0;
+    int less_than_15 = 0;
+    int less_than_30 = 0;
+    int less_than_45 = 0;
+    for (const int i : tmat_storage.index_range()) {
+      float diff = blender::math::abs(90 - angles[i]);
+      if (diff < 1.0) {
+        less_than_1++;
+      }
+      if (diff < 5.0) {
+        less_than_5++;
+      }
+      if (diff < 15.0) {
+        less_than_15++;
+      }
+      if (diff < 30.0) {
+        less_than_30++;
+      }
+      if (diff < 45.0) {
+        less_than_45++;
+      }
+    }
+    auto to_percent = [&](int val) { return (float(val) / float(tmat_storage.size())) * 100.0f; };
+    printf(
+        "Angle Analysis: Total: %ld, <1: %d(%f), <5: %d(%f), <15: %d(%f), <30: %d(%f), <45: "
+        "%d(%f)\n",
+        tmat_storage.size(),
+        less_than_1,
+        to_percent(less_than_1),
+        less_than_5,
+        to_percent(less_than_5),
+        less_than_15,
+        to_percent(less_than_15),
+        less_than_30,
+        to_percent(less_than_30),
+        less_than_45,
+        to_percent(less_than_45));
+  }
+
+  {
+    blender::Array<float> tangent_lengths(delta_storage.size());
+    for (const int i : delta_storage.index_range()) {
+      tangent_lengths[i] = blender::math::length(delta_storage[i]);
+    }
+    print_level_stats(tangent_lengths, sorted_indices, "Tangent Length");
+  }
+  CLOG_INFO(&LOG, "Matrix @ %d", sorted_indices[sorted_indices.size() - 1]);
+  print_matrix(tmat_storage[sorted_indices[sorted_indices.size() - 1]]);
+#endif
 }
 
 static void multires_copy_from_old_ccg(const SubdivCCG &higher_subdiv_ccg,
@@ -257,9 +477,10 @@ static void multires_copy_from_old_ccg(const SubdivCCG &higher_subdiv_ccg,
   }
 }
 
-static void multires_copy_from_limit_surface(const SubdivCCG &higher_subdiv_ccg,
-                                             blender::Span<blender::float3> limit_surface_positions,
-                                             SubdivCCG &subdiv_ccg)
+static void multires_copy_from_limit_surface(
+    const SubdivCCG &higher_subdiv_ccg,
+    blender::Span<blender::float3> limit_surface_positions,
+    SubdivCCG &subdiv_ccg)
 {
   BLI_assert(higher_subdiv_ccg.positions.size() == limit_surface_positions.size());
   const float higher_grid_1 = higher_subdiv_ccg.grid_size - 1;
@@ -280,7 +501,6 @@ static void multires_copy_from_limit_surface(const SubdivCCG &higher_subdiv_ccg,
     }
   }
 }
-
 
 bool multiresModifier_storeHigherLevelDelta(Object &object,
                                             Mesh &coarse_mesh,
@@ -348,7 +568,10 @@ bool multiresModifier_storeHigherLevelDelta(Object &object,
 
   CLOG_DEBUG(&LOG, "Retrieving matrices");
   multires_reshape_store_higher_limit_surface_tangent_matrices(
-      &higher_reshape_context, MultiresSubdivideModeType::CatmullClark, old_positions, tmat_storage);
+      &higher_reshape_context,
+      MultiresSubdivideModeType::CatmullClark,
+      old_positions,
+      tmat_storage);
   multires_reshape_context_free(&higher_reshape_context);
 #endif
 
@@ -362,8 +585,8 @@ bool multiresModifier_storeHigherLevelDelta(Object &object,
                delta_storage[i].z,
                blender::math::length(delta_storage[i]));
   }
-  CLOG_DEBUG(&LOG, "CONVERTED TO TANGENT SPACE");
 
+  CLOG_DEBUG(&LOG, "CONVERTED TO TANGENT SPACE");
 
   return true;
 }
@@ -373,9 +596,39 @@ static void multires_level_tangent_delta_to_object_delta(
     blender::Span<blender::float3x3> tmat_storage)
 {
   for (const int i : delta_storage.index_range()) {
-    if (!blender::math::is_zero(delta_storage[i])) {
-      delta_storage[i] = blender::math::transform_direction(tmat_storage[i], delta_storage[i]);
+    if (i == bad_vertex_idx) {
+      blender::float3 tangent_vector = delta_storage[i];
+      blender::float3x3 tangent_matrix = tmat_storage[i];
+      CLOG_INFO(&LOG, "(Apply) Spike data: %d", bad_vertex_idx);
+      CLOG_INFO(&LOG,
+                "(Tangent) Vector: %f %f %f",
+                tangent_vector.x,
+                tangent_vector.y,
+                tangent_vector.z);
+
+      CLOG_INFO(&LOG, "Matrix: ");
+      CLOG_INFO(&LOG,
+                "%.15f %.15f %.15f",
+                tangent_matrix.x_axis()[0],
+                tangent_matrix.x_axis()[1],
+                tangent_matrix.x_axis()[2]);
+      CLOG_INFO(&LOG,
+                "%.15f %.15f %.15f",
+                tangent_matrix.y_axis()[0],
+                tangent_matrix.y_axis()[1],
+                tangent_matrix.y_axis()[2]);
+      CLOG_INFO(&LOG,
+                "%.15f %.15f %.15f",
+                tangent_matrix.z_axis()[0],
+                tangent_matrix.z_axis()[1],
+                tangent_matrix.z_axis()[2]);
+      CLOG_INFO(&LOG, "Determinant: %f", blender::math::determinant(tangent_matrix));
+
+      blender::float3 obj_vector = blender::math::transform_direction(tmat_storage[i],
+                                                                      delta_storage[i]);
+      CLOG_INFO(&LOG, "(Object) Vector: %f %f %f", obj_vector.x, obj_vector.y, obj_vector.z);
     }
+    delta_storage[i] = blender::math::transform_direction(tmat_storage[i], delta_storage[i]);
   }
 }
 
@@ -389,6 +642,10 @@ static void multires_level_apply_object_delta(blender::Span<blender::float3> pos
   CLOG_DEBUG(&LOG, "APPLY OBJ DELTA");
   for (const int i : subdiv_ccg.positions.index_range()) {
     subdiv_ccg.positions[i] = position_storage[i] + delta_storage[i];
+    float length = blender::math::length(delta_storage[i]);
+    if (length > 0.3f) {
+      CLOG_WARN(&LOG, "%d, %f", i, length);
+    }
     CLOG_TRACE(&LOG,
                "(%d) (%f %f %f) = (%f %f %f) + (%f %f %f)",
                i,
@@ -402,6 +659,47 @@ static void multires_level_apply_object_delta(blender::Span<blender::float3> pos
                delta_storage[i].y,
                delta_storage[i].z);
   }
+#if DEBUG_STATS
+  float avg = 0.0f;
+  blender::Array<float> lengths(delta_storage.size());
+  for (const int i : delta_storage.index_range()) {
+    lengths[i] = blender::math::length(delta_storage[i]);
+    avg += lengths[i];
+  }
+  avg /= lengths.size();
+  std::sort(lengths.begin(), lengths.end());
+
+  int median = int(lengths.size() / 2);
+  int index_90th = int(lengths.size() * .90f);
+  int index_95th = int(lengths.size() * .95f);
+  int index_99th = int(lengths.size() * .99f);
+  int index_99_9th = int(lengths.size() * .999f);
+  int index_99_99th = int(lengths.size() * .9999f);
+
+  CLOG_INFO(
+      &LOG,
+      "Object Space Delta: MAX: (%ld) %f, MEAN: %f, MEDIAN: (%d) %f, 90th: (%d) %f, 95th: (%d) "
+      "%f, 99th: (%d) %f, 99.9th: (%d) %f, 99.99th: (%d) %f",
+      lengths.size() - 1,
+      lengths[lengths.size() - 1],
+      avg,
+      median,
+      lengths[median],
+      index_90th,
+      lengths[index_90th],
+      index_95th,
+      lengths[index_95th],
+      index_99th,
+      lengths[index_99th],
+      index_99_9th,
+      lengths[index_99_9th],
+      index_99_99th,
+      lengths[index_99_99th]);
+
+  for (int i = 0; i < 10; i++) {
+    CLOG_INFO(&LOG, "%ld, %f", lengths.size() - 1 - i, lengths[lengths.size() - 1 - i]);
+  }
+#endif
 }
 
 bool multiresModifier_applyHigherLevelDelta(Object &object,
@@ -442,6 +740,50 @@ bool multiresModifier_applyHigherLevelDelta(Object &object,
 
   /* Convert them to object space */
   multires_level_tangent_delta_to_object_delta(delta_storage, tmat_storage);
+#if DEBUG_STATS
+  blender::Array<int> sorted_indices(tmat_storage.size());
+  blender::array_utils::fill_index_range(sorted_indices.as_mutable_span());
+
+  blender::Array<float> condition_values(tmat_storage.size());
+  for (const int i : tmat_storage.index_range()) {
+    condition_values[i] = conditional_value(tmat_storage[i]);
+  }
+  std::sort(sorted_indices.begin(), sorted_indices.end(), [&](int a, int b) {
+    return condition_values[a] < condition_values[b];
+  });
+  print_level_stats(condition_values, sorted_indices, "Condition Value");
+
+  {
+    blender::Array<float> determinants(tmat_storage.size());
+    for (const int i : tmat_storage.index_range()) {
+      determinants[i] = blender::math::determinant(tmat_storage[i]);
+    }
+    print_level_stats(determinants, sorted_indices, "Determinant");
+  }
+
+  {
+    blender::Array<float> angles(tmat_storage.size());
+    for (const int i : tmat_storage.index_range()) {
+      angles[i] = blender::math::dot(tmat_storage[i].x_axis(), tmat_storage[i].y_axis()) /
+                  (blender::math::length(tmat_storage[i].x_axis()) *
+                   blender::math::length(tmat_storage[i].y_axis()));
+      angles[i] = RAD2DEGF(blender::math::acos(angles[i]));
+    }
+    print_level_stats(angles, sorted_indices, "Angles");
+  }
+
+  {
+    blender::Array<float> tangent_lengths(delta_storage.size());
+    for (const int i : delta_storage.index_range()) {
+      tangent_lengths[i] = blender::math::length(delta_storage[i]);
+    }
+    print_level_stats(tangent_lengths, sorted_indices, "Object Length");
+  }
+
+  if (bad_vertex_idx < tmat_storage.size()) {
+    print_matrix(tmat_storage[bad_vertex_idx]);
+  }
+#endif
 
   /* Re-add them to the new subdiv CCG */
   multires_level_apply_object_delta(position_storage, delta_storage, subdiv_ccg);

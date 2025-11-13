@@ -58,7 +58,8 @@ struct MultiresRuntimeData {
   blender::bke::subdiv::Subdiv *subdiv;
 };
 
-static void blend_read(BlendDataReader */*reader*/, ModifierData *md) {
+static void blend_read(BlendDataReader * /*reader*/, ModifierData *md)
+{
   MultiresModifierData *mmd = reinterpret_cast<MultiresModifierData *>(md);
   mmd->runtime = MEM_new<blender::MultiresModifierRuntime>(__func__);
 }

@@ -2564,7 +2564,8 @@ static bool sculpt_modifiers_active(const Scene *scene, const Sculpt *sd, Object
   return false;
 }
 
-static void sculpt_ensure_multires_runtime_data(Object *ob) {
+static void sculpt_ensure_multires_runtime_data(Object *ob)
+{
   SculptSession &ss = *ob->sculpt;
   if (ss.multires.runtime.disp_at_level.size() < ss.multires.level) {
     ss.multires.runtime.disp_at_level.resize(ss.multires.level);

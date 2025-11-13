@@ -60,6 +60,13 @@ void eval_limit_point_and_derivatives(Subdiv *subdiv,
                                       float3 &r_P,
                                       float3 &r_dPdu,
                                       float3 &r_dPdv);
+void eval_limit_point_and_derivatives_verbose(Subdiv *subdiv,
+                                              int ptex_face_index,
+                                              float u,
+                                              float v,
+                                              float3 &r_P,
+                                              float3 &r_dPdu,
+                                              float3 &r_dPdv);
 void eval_limit_point_and_normal(
     Subdiv *subdiv, int ptex_face_index, float u, float v, float3 &r_P, float3 &r_N);
 

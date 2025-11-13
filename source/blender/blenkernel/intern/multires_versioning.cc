@@ -111,12 +111,11 @@ void multires_do_versions_tangent_space_conversion(Object *object, MultiresModif
   {
     blender::bke::subdiv::Settings subdiv_settings;
     BKE_multires_subdiv_settings_init(&subdiv_settings, mmd);
-    blender::bke::subdiv::Subdiv *subdiv = blender::bke::subdiv::new_from_mesh(&subdiv_settings, base_mesh);
+    blender::bke::subdiv::Subdiv *subdiv = blender::bke::subdiv::new_from_mesh(&subdiv_settings,
+                                                                               base_mesh);
     OpenSubdiv_EvaluatorSettings evaluator_settings = {0};
-    blender::bke::subdiv::eval_begin(subdiv,
-                                     blender::bke::subdiv::SUBDIV_EVALUATOR_TYPE_CPU,
-                                     nullptr,
-                                     &evaluator_settings);
+    blender::bke::subdiv::eval_begin(
+        subdiv, blender::bke::subdiv::SUBDIV_EVALUATOR_TYPE_CPU, nullptr, &evaluator_settings);
     blender::bke::subdiv::eval_refine_from_mesh(subdiv, base_mesh, {});
     MultiresReshapeContext reshape_context;
     if (!multires_reshape_context_create_from_subdiv(
