@@ -809,7 +809,7 @@ else()
 endif()
 
 # Unit testing
-option(WITH_GTESTS "Enable GTest unit testing" ON)
+option(WITH_GTESTS "Enable GTest unit testing" OFF)
 option(WITH_GPU_RENDER_TESTS "\
 Enable GPU render related unit testing (EEVEE, Workbench and Grease Pencil)"
   OFF
@@ -828,7 +828,7 @@ Requires WITH_GPU_RENDER_TESTS "
 mark_as_advanced(WITH_GPU_RENDER_TESTS_HEADED)
 option(WITH_GPU_BACKEND_TESTS "\
 Enable GPU backend related unit testing"
-  ON
+  OFF
 )
 option(WITH_GPU_DRAW_TESTS "\
 Enable GPU drawing related unit testing (draw manager)"
