@@ -109,8 +109,12 @@ static bool update_template_on_navigation(const char *original_template,
 {
   char resolved_template[FILE_MAX];
   char normalized_current[FILE_MAX];
-  resolve_and_normalize_paths(
-      original_template, current_path, resolved_template, normalized_current, FILE_MAX, &variables);
+  resolve_and_normalize_paths(original_template,
+                              current_path,
+                              resolved_template,
+                              normalized_current,
+                              FILE_MAX,
+                              &variables);
 
   const size_t resolved_len = strlen(resolved_template);
   const size_t current_len = strlen(normalized_current);
