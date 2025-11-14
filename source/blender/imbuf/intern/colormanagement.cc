@@ -738,7 +738,7 @@ static bool colormanage_compatible_look(const ocio::Look *look, const char *view
 static bool colormanage_use_look(const char *look_name, const char *view_name)
 {
   const ocio::Look *look = g_config->get_look_by_name(look_name);
-  return (look->is_noop == false && colormanage_compatible_look(look, view_name));
+  return (look && look->is_noop == false && colormanage_compatible_look(look, view_name));
 }
 
 void colormanage_cache_free(ImBuf *ibuf)
