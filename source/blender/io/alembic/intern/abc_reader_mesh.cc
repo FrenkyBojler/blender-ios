@@ -11,7 +11,6 @@
 #include "abc_customdata.h"
 #include "abc_util.h"
 
-#include "DNA_customdata_types.h"
 #include "DNA_material_types.h"
 #include "DNA_modifier_types.h"
 
