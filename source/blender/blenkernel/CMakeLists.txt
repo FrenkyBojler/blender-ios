@@ -547,7 +547,6 @@ set(SRC
   particle_private.h
   tracking_private.h
 
-  intern/attribute_access_intern.hh
   intern/attribute_storage_access.hh
   intern/data_transfer_intern.hh
   intern/lib_intern.hh
