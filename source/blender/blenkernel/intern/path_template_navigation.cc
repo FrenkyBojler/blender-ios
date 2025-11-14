@@ -20,10 +20,6 @@
 #include "DNA_scene_types.h"
 #include "DNA_space_types.h"
 
-#include "RNA_access.hh"
-
-#include "WM_types.hh"
-
 namespace blender::bke::path_templates {
 
 /* -------------------------------------------------------------------- */
@@ -213,25 +209,6 @@ void nav_handle_browse(FileSelectParams *params,
   /* Template not preserved - set both paths to the new directory */
   BLI_strncpy(params->dir_template, new_directory, sizeof(params->dir_template));
   BLI_strncpy(params->dir, new_directory, sizeof(params->dir));
-}
-
-void nav_set_operator_property(bContext *C,
-                               wmOperator *op,
-                               const char *prop_name,
-                               const char *new_value)
-{
-  PropertyRNA *prop = RNA_struct_find_property(op->ptr, prop_name);
-  if (!prop) {
-    return;
-  }
-
-  char value[FILE_MAX];
-  RNA_property_string_get(op->ptr, prop, value);
-  RNA_property_string_set(op->ptr, prop, new_value);
-
-  if (RNA_property_update_check(prop) && !STREQ(new_value, value)) {
-    RNA_property_update(C, op->ptr, prop);
-  }
 }
 
 /** \} */

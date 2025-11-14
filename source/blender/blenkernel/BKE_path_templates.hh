@@ -429,7 +429,6 @@ std::optional<std::string> BKE_path_template_format_int(blender::StringRef forma
  * \{ */
 
 struct FileSelectParams;
-struct wmOperator;
 
 namespace blender::bke::path_templates {
 
@@ -481,21 +480,6 @@ void nav_handle_text(FileSelectParams *params,
 void nav_handle_browse(FileSelectParams *params,
                        const char *new_directory,
                        const blender::bke::path_templates::VariableMap &variables);
-
-/**
- * Set an RNA string property on an operator with update notification.
- *
- * Sets a string property and triggers RNA update callbacks if the value changed.
- *
- * \param C: Blender context for property update notifications.
- * \param op: Operator whose property should be modified.
- * \param prop_name: Name of the string property to set.
- * \param new_value: New string value for the property.
- */
-void nav_set_operator_property(bContext *C,
-                               wmOperator *op,
-                               const char *prop_name,
-                               const char *new_value);
 
 }  // namespace blender::bke::path_templates
 /** \} */
