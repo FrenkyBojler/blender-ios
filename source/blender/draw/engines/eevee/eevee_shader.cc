@@ -1219,8 +1219,8 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
   }
 
   /* Pipeline states to compile during shader compilation. */
-  /* NOTE: Currently only world shaders are added due to missing knowledge of person behind the
-   * keyboard. */
+  /* NOTE: Currently only non-volume world shaders are added. Others will be added as well later
+   * on. */
   switch (geometry_type) {
     case MAT_GEOM_WORLD:
       switch (pipeline_type) {
