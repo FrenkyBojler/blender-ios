@@ -9,6 +9,7 @@
 #pragma once
 
 #include "BKE_multires.hh"
+#include "BLI_math_matrix.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
@@ -42,6 +43,7 @@ BLI_INLINE void BKE_multires_construct_tangent_matrix(blender::float3x3 &tangent
   tangent_matrix.z_axis() = blender::math::cross(tangent_matrix.x_axis(), tangent_matrix.y_axis());
 
   tangent_matrix.z_axis() = blender::math::normalize(tangent_matrix.z_axis()) * geometric_mean;
+  tangent_matrix = blender::math::orthogonalize(tangent_matrix, blender::math::Axis::Z);
 }
 
 BLI_INLINE void BKE_multires_construct_tangent_matrix_for_versioning(
