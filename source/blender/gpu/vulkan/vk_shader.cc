@@ -1306,7 +1306,7 @@ bool VKShader::ensure_graphics_pipelines(Span<shader::PipelineState> pipeline_st
             binding,
             to_vk_format(
                 attribute_type.comp_type(), attribute_type.size(), attribute_type.fetch_mode()),
-            attribute_binding.offset + location_offset * sizeof(float4),
+            attribute_binding.offset + location_offset * uint32_t(sizeof(float4)),
         });
         graphics_info.vertex_in.bindings.append(
             {attribute_binding.binding, attribute_binding.stride, VK_VERTEX_INPUT_RATE_VERTEX});
