@@ -279,9 +279,9 @@ void AbstractViewItem::build_context_menu(bContext & /*C*/, uiLayout & /*column*
 /** \name Filtering
  * \{ */
 
-bool AbstractViewItem::should_be_filtered_visible(const StringRefNull filter_string) const
+bool AbstractViewItem::should_be_filtered_visible(const StringRefNull /*filter_string*/) const
 {
-
+  return true;
 }
 
 bool AbstractViewItem::is_filtered_visible() const
