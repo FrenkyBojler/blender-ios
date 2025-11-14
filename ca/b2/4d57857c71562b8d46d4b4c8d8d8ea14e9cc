@@ -1,1 +1,2 @@
 Referenced by issue #149885, `print_undo_steps` crash in empty background mode session
+Referenced by issue #149890, Blender 5.0 undo system related crash
