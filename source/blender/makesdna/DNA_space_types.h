@@ -456,8 +456,6 @@ typedef struct FileSelectParams {
   /** Pointer to template variables map for path resolution. */
   void *template_vars;
   void *_pad5; /* Padding pointer for 32-bit compatibility */
-
-  char _pad6[1264];
 } FileSelectParams;
 
 /**
