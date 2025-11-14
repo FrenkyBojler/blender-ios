@@ -118,6 +118,9 @@ bNode &version_node_add_empty(bNodeTree &ntree, const char *idname);
  * Similar to #version_node_add_empty(bNodeTree &ntree, const char *idname) but doesn't require the
  * `idname` to be valid. This is typically needed to write a node in a blend file for forward
  * compatibility reasons, where the node was removed and has no RNA definition anymore.
+ * Because the `idname` does not have to be registered in RNA, the function allocates a #bNodeType
+ * pointer that must be freed manually, for example by setting `free_typeinfo=true` in
+ * #version_node_remove.
  *
  * The same rules defined in the overloaded function apply here as well (node placement, separate
  * socket and storage definition etc..).
@@ -141,8 +144,12 @@ bNode &version_node_add_empty(bNodeTree &ntree,
  * - Animation data (#AnimData) are not removed, because they might be using #bAction.id which
  *   is not be available before linking.
  * - User count is not updated. This is ensured after blend file reading is done.
+ *
+ * If #free_typeinfo is set to true, the #node->typeinfo is freed. This is typically needed when
+ * the typeinfo was created manually during the versioning process, e.g. #node->typeinfo->idname is
+ * not defined in RNA.
  */
-void version_node_remove(bNodeTree &ntree, bNode &node);
+void version_node_remove(bNodeTree &ntree, bNode &node, const bool free_typeinfo = false);
 bNodeSocket &version_node_add_socket(bNodeTree &ntree,
                                      bNode &node,
                                      eNodeSocketInOut in_out,

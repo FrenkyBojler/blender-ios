@@ -309,13 +309,18 @@ bNode &version_node_add_empty(bNodeTree &ntree,
   return *node;
 }
 
-void version_node_remove(bNodeTree &ntree, bNode &node)
+void version_node_remove(bNodeTree &ntree, bNode &node, const bool free_typeinfo)
 {
   blender::bke::node_unlink_node(ntree, node);
   blender::bke::node_unlink_attached(&ntree, &node);
 
+  blender::bke::bNodeType *ntype = node.typeinfo;
   blender::bke::node_free_node(&ntree, node);
   blender::bke::node_rebuild_id_vector(ntree);
+
+  if (ntype && free_typeinfo) {
+    MEM_delete(ntype);
+  }
 }
 
 bNodeSocket &version_node_add_socket(bNodeTree &ntree,
