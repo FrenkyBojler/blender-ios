@@ -123,7 +123,10 @@ static void file_free(SpaceLink *sl)
   folder_history_list_free(sfile);
 
   if (sfile->params) {
-    ED_fileselect_params_free_template_vars(sfile->params);
+    if (sfile->params->runtime) {
+      MEM_delete(sfile->params->runtime);
+      sfile->params->runtime = nullptr;
+    }
   }
 
   MEM_SAFE_FREE(sfile->params);
@@ -186,6 +189,8 @@ static SpaceLink *file_duplicate(SpaceLink *sl)
 
   if (sfileo->params) {
     sfilen->params = static_cast<FileSelectParams *>(MEM_dupallocN(sfileo->params));
+    /* Initialize runtime data for the new params */
+    sfilen->params->runtime = MEM_new<FileSelectParams_Runtime>(__func__);
   }
   if (sfileo->asset_params) {
     sfilen->asset_params = static_cast<FileAssetSelectParams *>(

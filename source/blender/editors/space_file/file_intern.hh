@@ -14,6 +14,10 @@
 
 #include "ED_fileselect.hh"
 
+#include "BKE_path_templates.hh"
+
+#include <optional>
+
 /* internal exports only */
 
 struct ARegion;
@@ -190,6 +194,13 @@ void file_params_renamefile_activate(SpaceFile *sfile, FileSelectParams *params)
 
 using onReloadFnData = void *;
 using onReloadFn = void (*)(SpaceFile *space_data, onReloadFnData custom_data);
+
+/** Runtime data for FileSelectParams (not saved to .blend files). */
+struct FileSelectParams_Runtime {
+  /** Template variables for path resolution. Set when file browser is launched. */
+  std::optional<blender::bke::path_templates::VariableMap> template_vars;
+};
+
 struct SpaceFile_Runtime {
   /* Called once after the file browser has reloaded. Reset to NULL after calling.
    * Use file_on_reload_callback_register() to register a callback. */

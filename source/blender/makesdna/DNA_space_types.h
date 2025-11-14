@@ -92,6 +92,7 @@ typedef struct SpreadsheetColumnRuntime SpreadsheetColumnRuntime;
 
 /** Defined in `file_intern.hh`. */
 typedef struct SpaceFile_Runtime SpaceFile_Runtime;
+typedef struct FileSelectParams_Runtime FileSelectParams_Runtime;
 
 /* -------------------------------------------------------------------- */
 /** \name SpaceLink (Base)
@@ -453,8 +454,8 @@ typedef struct FileSelectParams {
   char dir_template[/*FILE_MAX_LIBEXTRA*/ 1282];
   char _pad4[6]; /* Align to 8 bytes before pointers */
 
-  /** Pointer to template variables map for path resolution. */
-  void *template_vars;
+  /** Runtime data (template variables, etc). Not saved to .blend files. */
+  FileSelectParams_Runtime *runtime;
   void *_pad5; /* Padding pointer for 32-bit compatibility */
 } FileSelectParams;
 

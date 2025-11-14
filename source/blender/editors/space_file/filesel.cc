@@ -152,6 +152,8 @@ static FileSelectParams *fileselect_ensure_updated_file_params(SpaceFile *sfile)
   /* create new parameters if necessary */
   if (!sfile->params) {
     sfile->params = MEM_callocN<FileSelectParams>("fileselparams");
+    /* Initialize runtime data */
+    sfile->params->runtime = MEM_new<FileSelectParams_Runtime>(__func__);
     /* set path to most recently opened .blend */
     BLI_path_split_dir_file(blendfile_path,
                             sfile->params->dir,
@@ -450,31 +452,33 @@ FileAssetSelectParams *ED_fileselect_get_asset_params(const SpaceFile *sfile)
 void ED_fileselect_params_set_template_vars(FileSelectParams *params,
                                             const blender::bke::path_templates::VariableMap *vars)
 {
-  if (!params) {
+  if (!params || !params->runtime) {
     return;
   }
 
-  /* Free any existing template vars */
-  ED_fileselect_params_free_template_vars(params);
-
-  /* Copy the provided variable map if it exists */
+  /* Set the optional template vars */
   if (vars) {
-    params->template_vars = new blender::bke::path_templates::VariableMap(*vars);
+    params->runtime->template_vars = *vars;
+  }
+  else {
+    params->runtime->template_vars.reset();
   }
 }
 
 void ED_fileselect_params_free_template_vars(FileSelectParams *params)
 {
-  if (params->template_vars) {
-    delete static_cast<blender::bke::path_templates::VariableMap *>(params->template_vars);
-    params->template_vars = nullptr;
+  if (params->runtime) {
+    params->runtime->template_vars.reset();
   }
 }
 
 const blender::bke::path_templates::VariableMap *ED_fileselect_params_get_template_vars(
     const FileSelectParams *params)
 {
-  return static_cast<const blender::bke::path_templates::VariableMap *>(params->template_vars);
+  if (!params->runtime || !params->runtime->template_vars.has_value()) {
+    return nullptr;
+  }
+  return &(*params->runtime->template_vars);
 }
 
 bool ED_fileselect_is_local_asset_library(const SpaceFile *sfile)
