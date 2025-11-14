@@ -92,7 +92,6 @@ struct VKGraphicsInfo {
     VkPrimitiveTopology vk_topology;
     uint32_t viewport_count;
     GPUState state;
-    GPUStateMutable mutable_state;
     Vector<shader::SpecializationConstant::Value> specialization_constants;
     bool has_depth;
     bool has_stencil;
@@ -103,7 +102,6 @@ struct VKGraphicsInfo {
              vk_fragment_module == other.vk_fragment_module &&
              vk_pipeline_layout == other.vk_pipeline_layout && vk_topology == other.vk_topology &&
              viewport_count == other.viewport_count && state == other.state &&
-             mutable_state == other.mutable_state &&
              specialization_constants == other.specialization_constants &&
              has_depth == other.has_depth && has_stencil == other.has_stencil;
     }
@@ -117,8 +115,6 @@ struct VKGraphicsInfo {
       hash = hash * 33 ^ uint64_t(vk_pipeline_layout);
       hash = hash * 33 ^ uint64_t(vk_topology);
       hash = hash * 33 ^ state.data;
-      hash = hash * 33 ^ mutable_state.data[0];
-      hash = hash * 33 ^ mutable_state.data[1];
       hash = hash * 33 ^ specialization_constants.hash();
       hash = hash * 33 ^ (uint64_t(has_depth) << 1 | uint64_t(has_stencil));
       return hash;

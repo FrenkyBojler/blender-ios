@@ -439,13 +439,6 @@ struct VKGraphicsPipelineCreateInfoBuilder {
           break;
       }
 
-      vk_pipeline_depth_stencil_state_create_info.front.compareMask =
-          shaders_info.mutable_state.stencil_compare_mask;
-      vk_pipeline_depth_stencil_state_create_info.front.reference =
-          shaders_info.mutable_state.stencil_reference;
-      vk_pipeline_depth_stencil_state_create_info.front.writeMask =
-          shaders_info.mutable_state.stencil_write_mask;
-
       switch (shaders_info.state.stencil_op) {
         case GPU_STENCIL_OP_REPLACE:
           vk_pipeline_depth_stencil_state_create_info.front.failOp = VK_STENCIL_OP_KEEP;
