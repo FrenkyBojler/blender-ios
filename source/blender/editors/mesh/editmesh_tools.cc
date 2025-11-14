@@ -4282,6 +4282,7 @@ static void mesh_separate_material_assign_mat_nr(Main *bmain, Object *ob, const 
     BKE_id_material_clear(bmain, obdata);
     BKE_id_material_resize(bmain, obdata, 1, true);
     BKE_objects_materials_sync_length_all(bmain, obdata);
+
     ob->mat[0] = ma_ob;
     id_us_plus((ID *)ma_ob);
     ob->matbits[0] = matbit;
