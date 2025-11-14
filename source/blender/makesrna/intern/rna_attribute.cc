@@ -975,44 +975,14 @@ int rna_AttributeGroup_color_length(PointerRNA *ptr)
 {
   using namespace blender;
   AttributeOwner owner = owner_from_pointer_rna(ptr);
-  if (owner.type() == AttributeOwnerType::Mesh) {
-    const Mesh *mesh = owner.get_mesh();
-    if (mesh->runtime->edit_mesh) {
-      return BKE_attributes_length(owner, ATTR_DOMAIN_MASK_COLOR, CD_MASK_COLOR_ALL);
-    }
-  }
-
-  bke::AttributeStorage &storage = *owner.get_storage();
-  int count = 0;
-  storage.foreach([&](bke::Attribute &attr) {
-    if (!(ATTR_DOMAIN_AS_MASK(attr.domain()) & ATTR_DOMAIN_MASK_COLOR)) {
-      return;
-    }
-    if (!(CD_TYPE_AS_MASK(*bke::attr_type_to_custom_data_type(attr.data_type())) &
-          CD_MASK_COLOR_ALL))
-    {
-      return;
-    }
-    count++;
-  });
-  return count;
+  return BKE_attributes_length(owner, ATTR_DOMAIN_MASK_COLOR, CD_MASK_COLOR_ALL);
 }
 
 int rna_AttributeGroup_length(PointerRNA *ptr)
 {
   using namespace blender;
   AttributeOwner owner = owner_from_pointer_rna(ptr);
-  if (owner.type() == AttributeOwnerType::Mesh) {
-    const Mesh *mesh = owner.get_mesh();
-    if (mesh->runtime->edit_mesh) {
-      return BKE_attributes_length(owner, ATTR_DOMAIN_MASK_ALL, CD_MASK_PROP_ALL);
-    }
-  }
-
-  bke::AttributeStorage &storage = *owner.get_storage();
-  int count = 0;
-  storage.foreach([&](bke::Attribute & /*attr*/) { count++; });
-  return count;
+  return BKE_attributes_length(owner, ATTR_DOMAIN_MASK_ALL, CD_MASK_PROP_ALL);
 }
 
 bool rna_AttributeGroup_lookup_string(PointerRNA *ptr, const char *key, PointerRNA *r_ptr)
@@ -1204,8 +1174,9 @@ static int rna_AttributeGroupMesh_active_color_index_get(PointerRNA *ptr)
 
 static void rna_AttributeGroupMesh_active_color_index_set(PointerRNA *ptr, int value)
 {
+  using namespace blender;
   AttributeOwner owner = AttributeOwner::from_id(ptr->owner_id);
-  const std::optional<blender::StringRef> name = BKE_attribute_from_index(
+  const std::optional<StringRef> name = BKE_attribute_from_index(
       owner, value, ATTR_DOMAIN_MASK_COLOR, CD_MASK_COLOR_ALL);
   if (!name) {
     fprintf(stderr, "%s: error setting active color index to %d\n", __func__, value);
@@ -1236,10 +1207,11 @@ static int rna_AttributeGroupMesh_render_color_index_get(PointerRNA *ptr)
 
 static void rna_AttributeGroupMesh_render_color_index_set(PointerRNA *ptr, int value)
 {
+  using namespace blender;
   AttributeOwner owner = AttributeOwner::from_id(ptr->owner_id);
-  const std::optional<blender::StringRef> name = BKE_attribute_from_index(
+  const std::optional<StringRef> name = BKE_attribute_from_index(
       owner, value, ATTR_DOMAIN_MASK_COLOR, CD_MASK_COLOR_ALL);
-  if (!layer) {
+  if (!name) {
     fprintf(stderr, "%s: error setting render color index to %d\n", __func__, value);
     return;
   }

@@ -603,6 +603,9 @@ int BKE_attributes_length(const AttributeOwner &owner,
     }
   }
   const bke::AttributeStorage &storage = *owner.get_storage();
+  if (domain_mask == ATTR_DOMAIN_MASK_ALL && mask == CD_MASK_PROP_ALL) {
+    return storage.count();
+  }
   int length = 0;
   storage.foreach([&](const bke::Attribute &attr) {
     if (!(ATTR_DOMAIN_AS_MASK(attr.domain()) & domain_mask)) {
@@ -942,11 +945,6 @@ bool BKE_id_attributes_color_find(const ID *id, const StringRef name)
 {
   AttributeOwner owner = AttributeOwner::from_id(const_cast<ID *>(id));
   return BKE_attribute_to_index(owner, name, ATTR_DOMAIN_MASK_COLOR, CD_MASK_COLOR_ALL) != -1;
-}
-
-bool BKE_color_attribute_supported(const Mesh &mesh, const StringRef name)
-{
-  return blender::bke::mesh::is_color_attribute(mesh.attributes().lookup_meta_data(name));
 }
 
 StringRef BKE_uv_map_pin_name_get(const StringRef uv_map_name, char *buffer)
