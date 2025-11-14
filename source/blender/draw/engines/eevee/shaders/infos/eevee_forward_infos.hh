@@ -6,6 +6,7 @@
 #  pragma once
 #  include "gpu_shader_compat.hh"
 
+#  include "eevee_common_infos.hh"
 #  include "eevee_uniform_infos.hh"
 #  include "gpu_shader_fullscreen_infos.hh"
 #endif
@@ -24,4 +25,5 @@ SAMPLER(3, sampler2D, transparency_a_tx)
 FRAGMENT_SOURCE("eevee_transparency_resolve_frag.glsl")
 ADDITIONAL_INFO(gpu_fullscreen)
 ADDITIONAL_INFO(eevee_global_ubo)
+ADDITIONAL_INFO(eevee_render_pass_out)
 GPU_SHADER_CREATE_END()

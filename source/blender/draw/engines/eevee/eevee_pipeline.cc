@@ -368,6 +368,9 @@ void ForwardPipeline::sync()
     resolve_ps_.bind_texture("transparency_g_tx", &transp_buffer_.g_channel_tx);
     resolve_ps_.bind_texture("transparency_b_tx", &transp_buffer_.b_channel_tx);
     resolve_ps_.bind_texture("transparency_a_tx", &transp_buffer_.a_channel_tx);
+    resolve_ps_.bind_image("rp_color_img", &inst_.render_buffers.rp_color_tx);
+    resolve_ps_.bind_image("rp_value_img", &inst_.render_buffers.rp_value_tx);
+    resolve_ps_.bind_resources(inst_.uniform_data);
     resolve_ps_.draw_procedural(GPU_PRIM_TRIS, 1, 3);
   }
 }
