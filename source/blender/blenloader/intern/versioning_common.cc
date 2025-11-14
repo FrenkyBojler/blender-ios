@@ -269,7 +269,11 @@ bNode &version_node_add_empty(bNodeTree &ntree,
 {
   auto *ntype = MEM_new<blender::bke::bNodeType>(__func__);
 
-  blender::bke::node_type_base(*ntype, idname, legacy_type);
+  ntype->idname = idname;
+  ntype->type_legacy = legacy_type;
+  ntype->height = 100.0f;
+  ntype->width = 140.0f;
+
   ntype->ui_name = ui_name;
   ntype->ui_description = ui_description;
   ntype->enum_name_legacy = enum_name_legacy.c_str();
