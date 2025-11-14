@@ -85,7 +85,7 @@ struct VKPipelineDataGraphics {
   VKPipelineData pipeline_data;
   VKViewportData viewport;
   std::optional<float> line_width;
-  std::optional<StencilState> stencil_data;
+  std::optional<StencilState> stencil_state;
 };
 
 /** Resources bound for a compute/graphics pipeline. */
@@ -141,7 +141,7 @@ struct VKBoundPipelines {
     VKVertexBufferBindings vertex_buffers;
     VKViewportData viewport_state;
     std::optional<float> line_width;
-    std::optional<StencilState> stencil_data;
+    std::optional<StencilState> stencil_state;
   } graphics;
 };
 
@@ -170,7 +170,7 @@ static inline void vk_pipeline_data_copy(VKPipelineDataGraphics &dst,
 void vk_pipeline_dynamic_graphics_build_commands(VKCommandBufferInterface &command_buffer,
                                                  const VKViewportData &viewport,
                                                  const std::optional<float> line_width,
-                                                 const std::optional<StencilState> stencil_data,
+                                                 const std::optional<StencilState> stencil_state,
                                                  VKBoundPipelines &r_bound_pipelines);
 
 /**

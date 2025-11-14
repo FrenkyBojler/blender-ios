@@ -26,7 +26,7 @@ void vk_pipeline_data_copy(VKPipelineData &dst, const VKPipelineData &src)
 void vk_pipeline_dynamic_graphics_build_commands(VKCommandBufferInterface &command_buffer,
                                                  const VKViewportData &viewport,
                                                  const std::optional<float> line_width,
-                                                 const std::optional<StencilState> stencil_data,
+                                                 const std::optional<StencilState> stencil_state,
                                                  VKBoundPipelines &r_bound_pipelines)
 {
   if (assign_if_different(r_bound_pipelines.graphics.viewport_state, viewport)) {
@@ -38,9 +38,9 @@ void vk_pipeline_dynamic_graphics_build_commands(VKCommandBufferInterface &comma
       command_buffer.set_line_width(*line_width);
     }
   }
-  if (assign_if_different(r_bound_pipelines.graphics.stencil_data, stencil_data)) {
-    if (stencil_data.has_value()) {
-      const StencilState &s = *stencil_data;
+  if (assign_if_different(r_bound_pipelines.graphics.stencil_state, stencil_state)) {
+    if (stencil_state.has_value()) {
+      const StencilState &s = *stencil_state;
       command_buffer.set_stencil_compare_mask(s.compare_mask);
       command_buffer.set_stencil_write_mask(s.write_mask);
       command_buffer.set_stencil_reference(s.reference);

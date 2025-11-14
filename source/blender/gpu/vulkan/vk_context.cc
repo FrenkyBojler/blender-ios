@@ -325,12 +325,12 @@ void VKContext::update_pipeline_data(const VKFrameBuffer &framebuffer,
   if (framebuffer.stencil_attachment_format_get() != VK_FORMAT_UNDEFINED &&
       state_manager.state.stencil_op != GPU_STENCIL_OP_NONE)
   {
-    r_pipeline_data.stencil_data = {state_manager.mutable_state.stencil_compare_mask,
-                                    state_manager.mutable_state.stencil_reference,
-                                    state_manager.mutable_state.stencil_write_mask};
+    r_pipeline_data.stencil_state = {state_manager.mutable_state.stencil_compare_mask,
+                                     state_manager.mutable_state.stencil_reference,
+                                     state_manager.mutable_state.stencil_write_mask};
   }
   else {
-    r_pipeline_data.stencil_data.reset();
+    r_pipeline_data.stencil_state.reset();
   }
 
   update_pipeline_data(vk_shader,
