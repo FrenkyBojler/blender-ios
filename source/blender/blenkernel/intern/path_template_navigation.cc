@@ -156,27 +156,19 @@ static bool update_template_on_navigation(const char *original_template,
 
 void nav_initialize(FileSelectParams *params, const VariableMap &variables)
 {
-  char resolved_path[FILE_MAX];
-  BLI_strncpy(resolved_path, params->dir, sizeof(resolved_path));
-  BKE_path_apply_template(resolved_path, sizeof(resolved_path), variables);
-
+  /* Store original path as template */
   BLI_strncpy(params->dir_template, params->dir, sizeof(params->dir_template));
-  BLI_strncpy(params->dir, resolved_path, sizeof(params->dir));
+  BKE_path_apply_template(params->dir, sizeof(params->dir), variables);
 }
 
 void nav_handle_text(FileSelectParams *params,
                      const char *input_path,
                      const VariableMap &variables)
 {
-  char resolved_path[FILE_MAX];
-  BLI_strncpy(resolved_path, input_path, sizeof(resolved_path));
-  BKE_path_apply_template(resolved_path, sizeof(resolved_path), variables);
-
-  /* Update both path fields:
-   * - dir_template: stores the original input with template variables
-   * - dir: the resolved/evaluated path for display and file operations */
+  /* Store original input with template variables */
   BLI_strncpy(params->dir_template, input_path, sizeof(params->dir_template));
-  BLI_strncpy(params->dir, resolved_path, sizeof(params->dir));
+  BLI_strncpy(params->dir, input_path, sizeof(params->dir));
+  BKE_path_apply_template(params->dir, sizeof(params->dir), variables);
 }
 
 void nav_handle_browse(FileSelectParams *params,
@@ -192,13 +184,10 @@ void nav_handle_browse(FileSelectParams *params,
                                       sizeof(updated_template),
                                       variables))
     {
-      /* Resolve template for display */
-      char resolved[FILE_MAX];
-      BLI_strncpy(resolved, updated_template, sizeof(resolved));
-      BKE_path_apply_template(resolved, sizeof(resolved), variables);
-
+      /* Store updated template */
       BLI_strncpy(params->dir_template, updated_template, sizeof(params->dir_template));
-      BLI_strncpy(params->dir, resolved, sizeof(params->dir));
+      BLI_strncpy(params->dir, updated_template, sizeof(params->dir));
+      BKE_path_apply_template(params->dir, sizeof(params->dir), variables);
       return;
     }
   }
