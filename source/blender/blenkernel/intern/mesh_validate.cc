@@ -929,4 +929,10 @@ bool mesh_validate_material_indices(Mesh &mesh)
   return validate_material_indices(mesh, false, false, &mesh);
 }
 
+IndexMask mesh_find_faces_duplicate_verts(const Mesh &mesh, IndexMaskMemory &memory)
+{
+  const IndexMask valid_faces(mesh.faces().size());
+  return find_faces_duplicate_verts(mesh, valid_faces, memory, false);
+}
+
 }  // namespace blender::bke
