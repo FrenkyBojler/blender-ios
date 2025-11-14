@@ -5366,7 +5366,7 @@ void pie_menu_apply_page_scroll(const uiBlock *block)
 static void pie_menu_add_buts_to_page(PieMenuPage &page, const uiItem *item)
 {
   if (item->type() != ui::ItemType::Button) {
-    const uiLayout *litem = static_cast<const uiLayout *>(item);
+    const Layout *litem = static_cast<const Layout *>(item);
     for (const uiItem *subitem : litem->items()) {
       pie_menu_add_buts_to_page(page, subitem);
     }
@@ -5377,7 +5377,7 @@ static void pie_menu_add_buts_to_page(PieMenuPage &page, const uiItem *item)
   }
 }
 
-static void pie_menu_create_scroll_pages(uiBlock *block, uiLayout *layout)
+static void pie_menu_create_scroll_pages(uiBlock *block, Layout *layout)
 {
   BLI_assert(layout->root()->type == ui::LayoutType::PieMenu);
   const uiItem *const *pie_menu = std::find_if(
@@ -5390,7 +5390,7 @@ static void pie_menu_create_scroll_pages(uiBlock *block, uiLayout *layout)
   int current_page = -1;
   int i = 0;
   /* Adds every #PIE_PAGE_MAX_ITEMS sub-items as a pie menu page. */
-  for (const uiItem *subitem : static_cast<const uiLayout *>(*pie_menu)->items()) {
+  for (const uiItem *subitem : static_cast<const Layout *>(*pie_menu)->items()) {
     if (current_page != (i / PIE_PAGE_MAX_ITEMS)) {
       current_page++;
       block->pie_data.pages.append({});
