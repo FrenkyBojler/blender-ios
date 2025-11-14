@@ -948,6 +948,7 @@ static PointerRNA bool_layer_ensure(PointerRNA *ptr,
   if (index == -1) {
     return {};
   }
+  // TODO_MESH_ATTR
   CustomDataLayer *bool_layer = &mesh->corner_data.layers[index];
   return RNA_pointer_create_discrete(&mesh->id, &RNA_BoolAttribute, bool_layer);
 }

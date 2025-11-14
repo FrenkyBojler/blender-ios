@@ -51,6 +51,7 @@ using blender::MutableSpan;
 using blender::Span;
 using blender::StringRef;
 
+// TODO_MESH_ATTR
 static CustomData *mesh_customdata_get_type(Mesh *mesh, const char htype, int *r_tot)
 {
   CustomData *data;

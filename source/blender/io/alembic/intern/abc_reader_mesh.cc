@@ -373,6 +373,7 @@ BLI_INLINE void read_uvs_params(CDStreamConfig &config,
 
 static void *add_customdata_cb(Mesh *mesh, const char *name, int data_type)
 {
+  // TODO_MESH_ATTR
   eCustomDataType cd_data_type = eCustomDataType(data_type);
 
   /* unsupported custom data type -- don't do anything. */

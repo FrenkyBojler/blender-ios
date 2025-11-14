@@ -622,6 +622,7 @@ void BlenderStrokeRenderer::GenerateStrokeMesh(StrokeGroup *group, bool hasTex)
 
   if (hasTex) {
     // First UV layer
+    // TODO_MESH_ATTR
     loopsuv[0] = static_cast<blender::float2 *>(CustomData_add_layer_named(
         &mesh->corner_data, CD_PROP_FLOAT2, CD_SET_DEFAULT, mesh->corners_num, uvNames[0]));
     CustomData_set_layer_active(&mesh->corner_data, CD_PROP_FLOAT2, 0);
@@ -633,6 +634,7 @@ void BlenderStrokeRenderer::GenerateStrokeMesh(StrokeGroup *group, bool hasTex)
   }
 
   // colors and transparency (the latter represented by grayscale colors)
+  // TODO_MESH_ATTR
   MLoopCol *colors = (MLoopCol *)CustomData_add_layer_named(
       &mesh->corner_data, CD_PROP_BYTE_COLOR, CD_SET_DEFAULT, mesh->corners_num, "Color");
   MLoopCol *transp = (MLoopCol *)CustomData_add_layer_named(
