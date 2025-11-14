@@ -203,46 +203,47 @@ blender::gpu::Shader *GPU_shader_create_from_info_python(const GPUShaderCreateIn
   return result;
 }
 
-AsyncCompilationHandle GPU_shader_async_compilation(const GPUShaderCreateInfo *info,
-                                                    CompilationPriority priority)
+BatchHandle GPU_shader_batch_create_from_infos(Span<const GPUShaderCreateInfo *> infos,
+                                               CompilationPriority priority)
 {
   using namespace blender::gpu::shader;
-  const ShaderCreateInfo *info_ = reinterpret_cast<const ShaderCreateInfo *>(info);
-  return GPUBackend::get()->get_compiler()->async_compilation(info_, priority);
+  Span<const ShaderCreateInfo *> &infos_ = reinterpret_cast<Span<const ShaderCreateInfo *> &>(
+      infos);
+  return GPUBackend::get()->get_compiler()->batch_compile(infos_, priority);
 }
 
-bool GPU_shader_async_compilation_is_ready(AsyncCompilationHandle handle)
+bool GPU_shader_batch_is_ready(BatchHandle handle)
 {
-  return GPUBackend::get()->get_compiler()->async_compilation_is_ready(handle);
+  return GPUBackend::get()->get_compiler()->batch_is_ready(handle);
 }
 
-blender::gpu::Shader *GPU_shader_async_compilation_finalize(AsyncCompilationHandle &handle)
+Vector<blender::gpu::Shader *> GPU_shader_batch_finalize(BatchHandle &handle)
 {
-  Shader *result = GPUBackend::get()->get_compiler()->async_compilation_finalize(handle);
-  return reinterpret_cast<blender::gpu::Shader *>(result);
+  Vector<Shader *> result = GPUBackend::get()->get_compiler()->batch_finalize(handle);
+  return reinterpret_cast<Vector<blender::gpu::Shader *> &>(result);
 }
 
-void GPU_shader_async_compilation_cancel(AsyncCompilationHandle &handle)
+void GPU_shader_batch_cancel(BatchHandle &handle)
 {
-  GPUBackend::get()->get_compiler()->asyc_compilation_cancel(handle);
+  GPUBackend::get()->get_compiler()->batch_cancel(handle);
 }
 
-bool GPU_shader_compiler_has_pending_work()
+bool GPU_shader_batch_is_compiling()
 {
   return GPUBackend::get()->get_compiler()->is_compiling();
 }
 
-void GPU_shader_compiler_wait_for_all()
+void GPU_shader_batch_wait_for_all()
 {
   GPUBackend::get()->get_compiler()->wait_for_all();
 }
 
-void GPU_shader_compiler_pause()
+void GPU_shader_batch_pause_compilations()
 {
   GPUBackend::get()->get_compiler()->pause_all();
 }
 
-void GPU_shader_compiler_resume()
+void GPU_shader_batch_resume_compilations()
 {
   GPUBackend::get()->get_compiler()->continue_all();
 }
@@ -250,7 +251,7 @@ void GPU_shader_compiler_resume()
 void GPU_shader_compile_static()
 {
   printf("Compiling all static GPU shaders. This process takes a while.\n");
-  gpu_shader_create_info_compile_all("");
+  gpu_shader_create_info_compile("");
 }
 
 void GPU_shader_cache_dir_clear_old()
@@ -380,20 +381,20 @@ void Shader::specialization_constants_init(const shader::ShaderCreateInfo &info)
   constants = std::make_unique<const shader::SpecializationConstants>(std::move(constants_tmp));
 }
 
-AsyncSpecializationHandle GPU_shader_async_specialization(
-    const ShaderSpecialization &specialization, CompilationPriority priority)
+SpecializationBatchHandle GPU_shader_batch_specializations(
+    blender::Span<ShaderSpecialization> specializations, CompilationPriority priority)
 {
-  return GPUBackend::get()->get_compiler()->async_specialization(specialization, priority);
+  return GPUBackend::get()->get_compiler()->precompile_specializations(specializations, priority);
 }
 
-bool GPU_shader_async_specialization_is_ready(AsyncSpecializationHandle &handle)
+bool GPU_shader_batch_specializations_is_ready(SpecializationBatchHandle &handle)
 {
-  return GPUBackend::get()->get_compiler()->async_specialization_is_ready(handle);
+  return GPUBackend::get()->get_compiler()->specialization_batch_is_ready(handle);
 }
 
-void GPU_shader_async_specialization_cancel(AsyncSpecializationHandle &handle)
+void GPU_shader_batch_specializations_cancel(SpecializationBatchHandle &handle)
 {
-  GPUBackend::get()->get_compiler()->asyc_compilation_cancel(handle);
+  GPUBackend::get()->get_compiler()->batch_cancel(handle);
 }
 
 /** \} */
@@ -675,7 +676,8 @@ void Shader::set_framebuffer_srgb_target(int use_srgb_to_linear)
 /** \name ShaderCompiler
  * \{ */
 
-Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info, bool is_codegen_only)
+Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info,
+                                bool is_batch_compilation)
 {
   using Clock = std::chrono::steady_clock;
   using TimePoint = Clock::time_point;
@@ -710,7 +712,7 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info, bool 
   /* Needs to be called before init as GL uses the default specialization constants state to insert
    * default shader inside a map. */
   shader->specialization_constants_init(info);
-  shader->init(info, is_codegen_only);
+  shader->init(info, is_batch_compilation);
 
   shader->fragment_output_bits = 0;
   for (const shader::ShaderCreateInfo::FragOut &frag_out : info.fragment_outputs_) {
@@ -894,8 +896,8 @@ ShaderCompiler::~ShaderCompiler()
 {
   compilation_worker_.reset();
 
-  /* Ensure all the requested compilations have been retrieved. */
-  BLI_assert(async_compilations_.is_empty());
+  /* Ensure all the requested batches have been retrieved. */
+  BLI_assert(batches_.is_empty());
 }
 
 Shader *ShaderCompiler::compile_shader(const shader::ShaderCreateInfo &info)
@@ -903,45 +905,54 @@ Shader *ShaderCompiler::compile_shader(const shader::ShaderCreateInfo &info)
   return compile(info, false);
 }
 
-AsyncCompilationHandle ShaderCompiler::async_compilation(const shader::ShaderCreateInfo *info,
-                                                         CompilationPriority priority)
+BatchHandle ShaderCompiler::batch_compile(Span<const shader::ShaderCreateInfo *> &infos,
+                                          CompilationPriority priority)
 {
   std::unique_lock lock(mutex_);
 
-  AsyncCompilation *compilation = MEM_new<AsyncCompilation>(__func__);
-  compilation->info = info;
+  Batch *batch = MEM_new<Batch>(__func__);
+  batch->infos = infos;
+  batch->shaders.reserve(infos.size());
 
-  AsyncCompilationHandle handle = next_handle_++;
-  async_compilations_.add(handle, compilation);
+  BatchHandle handle = next_batch_handle_++;
+  batches_.add(handle, batch);
 
   if (compilation_worker_) {
-    compilation->work = std::make_unique<ParallelWork>(ParallelWork{this, compilation});
-    compilation->work->id = compilation_worker_->push_work(compilation->work.get(),
-                                                           to_work_priority(priority));
+    batch->shaders.resize(infos.size(), nullptr);
+    batch->works.reserve(infos.size());
+    batch->pending_compilations = infos.size();
+    for (int i : infos.index_range()) {
+      batch->works.append(std::make_unique<ParallelWork>(ParallelWork{this, batch, i}));
+      batch->works.last()->id = compilation_worker_->push_work(batch->works.last().get(),
+                                                               to_work_priority(priority));
+    }
   }
   else {
-    compilation->shader = compile(*info, false);
+    for (const shader::ShaderCreateInfo *info : infos) {
+      batch->shaders.append(compile(*info, false));
+    }
   }
 
   return handle;
 }
 
-void ShaderCompiler::asyc_compilation_cancel(AsyncCompilationHandle &handle)
+void ShaderCompiler::batch_cancel(BatchHandle &handle)
 {
   {
     std::unique_lock lock(mutex_);
 
-    AsyncCompilation *compilation = async_compilations_.pop(handle);
-    if (compilation_worker_->cancel_work(compilation->work->id)) {
-      compilation->is_ready = true;
+    Batch *batch = batches_.pop(handle);
+    for (std::unique_ptr<ParallelWork> &work : batch->works) {
+      if (compilation_worker_->cancel_work(work->id)) {
+        batch->pending_compilations--;
+      }
     }
 
     /* If it was already being compiled, wait until it's ready so the calling thread can safely
      * delete the ShaderCreateInfos. */
-    compilation_finished_notification_.wait(lock, [&]() { return compilation->is_ready == true; });
-    GPU_shader_free(compilation->shader);
-    compilation->shader = nullptr;
-    MEM_delete(compilation);
+    compilation_finished_notification_.wait(lock, [&]() { return batch->is_ready(); });
+    batch->free_shaders();
+    MEM_delete(batch);
 
     handle = 0;
   }
@@ -950,30 +961,30 @@ void ShaderCompiler::asyc_compilation_cancel(AsyncCompilationHandle &handle)
   compilation_finished_notification_.notify_all();
 }
 
-bool ShaderCompiler::async_compilation_is_ready(AsyncCompilationHandle handle)
+bool ShaderCompiler::batch_is_ready(BatchHandle handle)
 {
   std::lock_guard lock(mutex_);
 
-  return async_compilations_.lookup(handle)->is_ready;
+  return batches_.lookup(handle)->is_ready();
 }
 
-Shader *ShaderCompiler::async_compilation_finalize(AsyncCompilationHandle &handle)
+Vector<Shader *> ShaderCompiler::batch_finalize(BatchHandle &handle)
 {
   std::unique_lock lock(mutex_);
   /* TODO: Move to be first on the queue. */
-  compilation_finished_notification_.wait(
-      lock, [&]() { return async_compilations_.lookup(handle)->is_ready == true; });
+  compilation_finished_notification_.wait(lock,
+                                          [&]() { return batches_.lookup(handle)->is_ready(); });
 
-  AsyncCompilation *compilation = async_compilations_.pop(handle);
-  Shader *shader = compilation->shader;
-  MEM_delete(compilation);
+  Batch *batch = batches_.pop(handle);
+  Vector<Shader *> shaders = std::move(batch->shaders);
+  MEM_delete(batch);
   handle = 0;
 
-  return shader;
+  return shaders;
 }
 
-AsyncSpecializationHandle ShaderCompiler::async_specialization(
-    const ShaderSpecialization &specialization, CompilationPriority priority)
+SpecializationBatchHandle ShaderCompiler::precompile_specializations(
+    Span<ShaderSpecialization> specializations, CompilationPriority priority)
 {
   if (!compilation_worker_ || !support_specializations_) {
     return 0;
@@ -981,29 +992,30 @@ AsyncSpecializationHandle ShaderCompiler::async_specialization(
 
   std::lock_guard lock(mutex_);
 
-  AsyncCompilation *compilation = MEM_new<AsyncCompilation>(__func__);
-  compilation->specialization = std::make_unique<ShaderSpecialization>(specialization);
+  Batch *batch = MEM_new<Batch>(__func__);
+  batch->specializations = specializations;
+  batch->works.reserve(specializations.size());
+  batch->pending_compilations = specializations.size();
 
-  AsyncCompilationHandle handle = next_handle_++;
-  async_compilations_.add(handle, compilation);
+  BatchHandle handle = next_batch_handle_++;
+  batches_.add(handle, batch);
 
-  compilation->work = std::make_unique<ParallelWork>(ParallelWork{this, compilation});
-  compilation->work->id = compilation_worker_->push_work(compilation->work.get(),
-                                                         to_work_priority(priority));
+  for (int i : specializations.index_range()) {
+    batch->works.append(std::make_unique<ParallelWork>(ParallelWork{this, batch, i}));
+    batch->works.last()->id = compilation_worker_->push_work(batch->works.last().get(),
+                                                             to_work_priority(priority));
+  }
 
   return handle;
 }
 
-bool ShaderCompiler::async_specialization_is_ready(AsyncSpecializationHandle &handle)
+bool ShaderCompiler::specialization_batch_is_ready(SpecializationBatchHandle &handle)
 {
-  if (handle == 0) {
-    return true;
-  }
+  if (handle != 0 && batch_is_ready(handle)) {
+    std::lock_guard lock(mutex_);
 
-  std::lock_guard lock(mutex_);
-  if (async_compilations_.lookup(handle)->is_ready) {
-    AsyncCompilation *compilation = async_compilations_.pop(handle);
-    MEM_delete(compilation);
+    Batch *batch = batches_.pop(handle);
+    MEM_delete(batch);
     handle = 0;
   }
 
@@ -1018,19 +1030,20 @@ void ShaderCompiler::do_work_static_cb(void *payload)
 
 void ShaderCompiler::do_work(ParallelWork &work)
 {
-  AsyncCompilation *compilation = work.compilation;
+  Batch *batch = work.batch;
+  int shader_index = work.shader_index;
 
   /* Compile */
-  if (!compilation->is_specialization()) {
-    compilation->shader = compile_shader(*compilation->info);
+  if (!batch->is_specialization_batch()) {
+    batch->shaders[shader_index] = compile_shader(*batch->infos[shader_index]);
   }
   else {
-    specialize_shader(*compilation->specialization);
+    specialize_shader(batch->specializations[shader_index]);
   }
 
   {
     std::unique_lock lock(mutex_);
-    compilation->is_ready = true;
+    batch->pending_compilations--;
   }
 
   compilation_finished_notification_.notify_all();
@@ -1050,8 +1063,8 @@ bool ShaderCompiler::is_compiling_impl()
     return true;
   }
 
-  for (AsyncCompilation *compilation : async_compilations_.values()) {
-    if (!compilation->is_ready) {
+  for (Batch *batch : batches_.values()) {
+    if (!batch->is_ready()) {
       return true;
     }
   }

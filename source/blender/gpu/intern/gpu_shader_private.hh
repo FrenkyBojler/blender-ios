@@ -80,7 +80,8 @@ class Shader {
   Shader(const char *name);
   virtual ~Shader();
 
-  virtual void init(const shader::ShaderCreateInfo &info, bool is_codegen_only) = 0;
+  /* TODO: Remove `is_batch_compilation`. */
+  virtual void init(const shader::ShaderCreateInfo &info, bool is_batch_compilation) = 0;
 
   /* Patch create infos for any additional resources that could be needed. */
   virtual const shader::ShaderCreateInfo &patch_create_info(
@@ -153,29 +154,46 @@ class ShaderCompiler {
     std::string comp;
   };
 
-  struct AsyncCompilation;
+  struct Batch;
   struct ParallelWork {
     ShaderCompiler *compiler = nullptr;
-    ShaderCompiler::AsyncCompilation *compilation = nullptr;
+    ShaderCompiler::Batch *batch = nullptr;
+    int shader_index = 0;
     WorkID id = 0;
   };
 
-  struct AsyncCompilation {
-    Shader *shader = nullptr;
-    const shader::ShaderCreateInfo *info = nullptr;
+  struct Batch {
+    Vector<Shader *> shaders;
+    Vector<const shader::ShaderCreateInfo *> infos;
 
-    std::unique_ptr<ShaderSpecialization> specialization = nullptr;
+    Vector<ShaderSpecialization> specializations;
 
-    std::unique_ptr<ParallelWork> work;
+    Vector<std::unique_ptr<ParallelWork>> works;
 
-    std::atomic<bool> is_ready = false;
+    std::atomic<int> pending_compilations = 0;
 
-    bool is_specialization()
+    bool is_specialization_batch()
     {
-      return specialization != nullptr;
+      return !specializations.is_empty();
+    }
+
+    bool is_ready()
+    {
+      BLI_assert(pending_compilations >= 0);
+      return pending_compilations == 0;
+    }
+
+    void free_shaders()
+    {
+      for (Shader *shader : shaders) {
+        if (shader) {
+          GPU_shader_free(shader);
+        }
+      }
+      shaders.clear();
     }
   };
-  Map<AsyncCompilationHandle, AsyncCompilation *> async_compilations_;
+  Map<BatchHandle, Batch *> batches_;
   std::mutex mutex_;
   std::condition_variable compilation_finished_notification_;
 
@@ -186,7 +204,7 @@ class ShaderCompiler {
   static void do_work_static_cb(void *payload);
   void do_work(ParallelWork &work);
 
-  AsyncCompilationHandle next_handle_ = 1;
+  BatchHandle next_batch_handle_ = 1;
 
   bool is_compiling_impl();
 
@@ -207,20 +225,21 @@ class ShaderCompiler {
                  bool support_specializations = false);
   virtual ~ShaderCompiler();
 
-  Shader *compile(const shader::ShaderCreateInfo &info, bool is_codegen_only);
+  Shader *compile(const shader::ShaderCreateInfo &info, bool is_batch_compilation);
 
   virtual Shader *compile_shader(const shader::ShaderCreateInfo &info);
-  virtual void specialize_shader(const ShaderSpecialization & /*specialization*/) {};
+  virtual void specialize_shader(ShaderSpecialization & /*specialization*/) {};
 
-  AsyncCompilationHandle async_compilation(const shader::ShaderCreateInfo *info,
-                                           CompilationPriority priority);
-  void asyc_compilation_cancel(AsyncCompilationHandle &handle);
-  bool async_compilation_is_ready(AsyncCompilationHandle handle);
-  Shader *async_compilation_finalize(AsyncCompilationHandle &handle);
+  BatchHandle batch_compile(Span<const shader::ShaderCreateInfo *> &infos,
+                            CompilationPriority priority);
+  void batch_cancel(BatchHandle &handle);
+  bool batch_is_ready(BatchHandle handle);
+  Vector<Shader *> batch_finalize(BatchHandle &handle);
 
-  AsyncSpecializationHandle async_specialization(const ShaderSpecialization &specialization,
-                                                 CompilationPriority priority);
-  bool async_specialization_is_ready(AsyncSpecializationHandle &handle);
+  SpecializationBatchHandle precompile_specializations(Span<ShaderSpecialization> specializations,
+                                                       CompilationPriority priority);
+
+  bool specialization_batch_is_ready(SpecializationBatchHandle &handle);
 
   bool is_compiling();
   void wait_for_all();
