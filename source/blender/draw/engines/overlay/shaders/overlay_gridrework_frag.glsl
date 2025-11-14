@@ -27,12 +27,12 @@ void main()
     /* Add fade at level switch. This is computed in the vertex stage. */
     out_color.a *= frag_level;
 
+    /* Add fade at edge of grid level. */
+    float length_fade = 1.f - min(1.f, dot(frag_xy, frag_xy));
+    length_fade = length_fade * length_fade;
+    out_color.a *= length_fade;
+    
     if (drw_view_is_perspective()) {
-      /* Add fade at edge of grid level. */
-      float length_fade = 1.f - min(1.f, dot(frag_xy, frag_xy));
-      length_fade = length_fade * length_fade;
-      out_color.a *= length_fade;
-
       /* Add fade at steep angles. */
       float angle = V.z;
       angle = 1.0f - abs(angle);
@@ -41,6 +41,18 @@ void main()
 
       /* Add fade towards clip distance. */
       out_color.a *= 1.0f - smoothstep(0.0f, 0.5f * grid_buf.distance, dist - 0.5f * grid_buf.distance);
+    } else {
+      /* Avoid fading in +Z direction in camera view (see #70193).
+       * This is reproduced from the 5.0 grid line-for-line. */
+      float dist = gl_FragCoord.z * 2.0f - 1.0f;
+      dist = flag_test(grid_flag, GRID_CAMERA) ? clamp(dist, 0.0f, 1.0f) : abs(dist);
+      out_color.a *= (1.0f - smoothstep(0.0f, 0.5f, dist - 0.5f));
+
+      if (flag_test(grid_flag, PLANE_XY)) {
+        float angle = 1.0f - abs(drw_view().viewinv[2].z);
+        angle *= angle;
+        out_color.a *= (1.f - angle * angle);
+      }
     }
   }
 
@@ -73,6 +85,6 @@ void main()
     float3(0, 0, 1),
     float3(1, 1, 1)
   };
-  out_color.rgb = debug_colors[debug_level];
+  // out_color.rgb = debug_colors[debug_level];
   // out_color.a = 1.0f;
 }
