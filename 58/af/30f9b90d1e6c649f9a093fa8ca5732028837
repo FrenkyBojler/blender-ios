@@ -5,3 +5,4 @@ Referenced by pull request #141782, Fix #141780: Images rotate bacwards in VSE
 Referenced by commit cadbf9702b95b48547a80c22adcb825bcc0c13f3, Fix #141780: Images rotate bacwards in VSE
 Referenced by commit 98325a7a2109921e7b8390953c9b558462fce975, Fix #148292: Snap Base rotates in opposite direction
 Referenced by issue #149870, View aligned rotation gizmo seems to be inverted
+Referenced by pull request #149892, Fix #149870: Corrects inverted view aligned rotation gizmo
