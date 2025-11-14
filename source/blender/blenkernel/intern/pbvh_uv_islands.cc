@@ -1162,6 +1162,8 @@ std::optional<UVBorder> UVBorder::extract_from_edges(Vector<UVBorderEdge> &edges
       }
     }
     if (!edge_added) {
+      /* TODO Add a user-facing warning to notify users that the model's UVs are invalid for
+       * texture painting and should be fixed for optimal results. */
       break;
     }
   }
