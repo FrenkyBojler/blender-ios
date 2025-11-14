@@ -685,22 +685,35 @@ static bool mywrite_end(WriteData *wd)
   return err;
 }
 
-static uint64_t get_stable_pointer_hint_for_id(const ID &id)
+static uint64_t get_stable_pointer_hint_for_id(const ID &id, const bool is_undo)
 {
-  /* Make the stable pointer dependent on the data-block name. This is somewhat arbitrary but the
-   * name is at least something that doesn't really change automatically unexpectedly.
+  /* Make the stable pointer depend on a specific data of the ID.
+   * Note that this is different when writing blendfile on disk, and when writing an undo step in
+   * memory (memfile).
    *
-   * Note: Also using the session UID, as this should also be stable over time. Using only name can
-   * lead to generating the same hash for two different IDs (e.g. when a new ID is created with the
-   * same name as an older one). This could lead to wrongly reporting other IDs using it as
-   * unchanged, even though they are using a different ID in reality. See #149890. */
-  const uint64_t id_hash = XXH3_64bits(id.name, strlen(id.name)) ^
-                           XXH3_64bits(&id.session_uid, sizeof(id.session_uid));
-  if (id.lib) {
-    const uint64_t lib_hash = XXH3_64bits(id.lib->id.name, strlen(id.lib->id.name));
-    return id_hash ^ lib_hash;
+   * For the blendfile on disk, the ID name is used, together with its library if linked, as this
+   * is effectively the 'unique identifer' of IDs in blendfiles and accross linking, so if these
+   * change, it's also fine to get a different 'stable pointer'.
+   *
+   * For the undo memfile however, things are different: It is possible that a same ID name is
+   * reused for two different IDs in two different consecutive undo steps (see #149899). Getting
+   * the same stable pointer in this case can lead to falsely detecting other IDs using these as
+   * unchanged, leading to undo data corruption and crashes.
+   * In this case, using the session UID is a better source of info, as these are assumed unique
+   * during an editing session, and are extremely stable for a same ID (even if it is e.g.
+   * renamed).
+   *
+   * Note: Using the uint32_t session_uid also means that library data can be ignored (and ID made
+   * local always get a new session UID), and that there is no need to call the hashing code at
+   * all.
+   */
+  const uint64_t id_hash = is_undo ? id.session_uid : XXH3_64bits(id.name, strlen(id.name));
+  if (!id.lib | is_undo) {
+    return id_hash;
   }
-  return id_hash;
+
+  const uint64_t lib_hash = XXH3_64bits(id.lib->id.name, strlen(id.lib->id.name));
+  return id_hash ^ lib_hash;
 }
 
 /**
@@ -720,9 +733,11 @@ static void mywrite_id_begin(WriteData *wd, ID *id)
   BLI_assert_msg((id->flag & ID_FLAG_EMBEDDED_DATA) == 0 || id->deep_hash.is_null(),
                  "Embedded IDs should always have a null deep-hash data");
 
-  wd->stable_address_ids.next_id_hint = get_stable_pointer_hint_for_id(*id);
+  const bool is_undo = wd->use_memfile;
 
-  if (wd->use_memfile) {
+  wd->stable_address_ids.next_id_hint = get_stable_pointer_hint_for_id(*id, is_undo);
+
+  if (is_undo) {
     wd->mem.current_id_session_uid = id->session_uid;
 
     /* If current next memchunk does not match the ID we are about to write, or is not the _first_
@@ -1719,7 +1734,7 @@ static void prepare_stable_data_block_ids(WriteData &wd, Main &bmain)
 
     /* Derive the stable pointer from the id/library name which is independent of the write-order
      * of data-blocks. */
-    uint64_t hint = get_stable_pointer_hint_for_id(*id);
+    uint64_t hint = get_stable_pointer_hint_for_id(*id, wd.use_memfile);
     const uint64_t address_id = get_next_stable_address_id(wd, hint);
 
     /* Store the computed stable pointer so that it is used whenever the data-block is written or
