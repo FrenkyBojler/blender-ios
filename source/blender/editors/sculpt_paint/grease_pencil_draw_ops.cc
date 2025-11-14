@@ -992,6 +992,7 @@ static ed::greasepencil::ExtensionData grease_pencil_fill_get_extension_data(
     const bke::CurvesGeometry &curves = info.drawing.strokes();
     const OffsetIndices points_by_curve = curves.points_by_curve();
     const Span<float3> positions = curves.positions();
+    const VArray<float> radii = info.drawing.radii();
     const VArray<bool> cyclic = curves.cyclic();
     const float4x4 layer_to_world = grease_pencil.layer(info.layer_index).to_world_space(object);
 
@@ -1028,6 +1029,47 @@ static ed::greasepencil::ExtensionData grease_pencil_fill_get_extension_data(
           origin_drawings.append(i_drawing);
           /* Segment index is the start point. */
           origin_points.append(points.last() - 1);
+
+          /* Find points of high curvature and extend them. */
+          float3 tan1, tan2;
+          float d1, d2;
+          for (int i = 1; i < points.size(); i++) {
+            const float3 pt1 = math::transform_point(layer_to_world, positions[points[i - 1]]);
+            const float3 pt2 = math::transform_point(layer_to_world, positions[points[i]]);
+
+            if (i > 1) {
+              tan1 = tan2;
+              d1 = d2;
+            }
+
+            tan2 = pt2 - pt1;
+            d2 = math::length(tan2);
+            tan2 = math::normalize(tan2);
+
+            if (i > 1) {
+              float3 curvature = tan2 - tan1;
+              float k = math::length(curvature);
+              curvature = math::normalize(curvature);
+              k /= (d1 + d2) * 0.5f;
+              float radius_of_curvature = 1.0f / k;
+
+              /*
+               * The smaller the radius of curvature, the sharper the corner.
+               * The thicker the line, the larger the radius of curvature it
+               * takes to be visually indistinguishable from an endpoint.
+               */
+              float stroke_radius = radii[points[i - 1]];
+              float min_radius = stroke_radius;
+
+              if (radius_of_curvature < min_radius) {
+                /* Extend along direction of curvature. */
+                extension_data.lines.starts.append(pt1);
+                extension_data.lines.ends.append(pt1 + (-curvature * length));
+                origin_drawings.append(i_drawing);
+                origin_points.append(points[i - 1]);
+              }
+            }
+          }
           break;
         case GP_FILL_EMODE_RADIUS:
           extension_data.circles.centers.append(pos_head);
