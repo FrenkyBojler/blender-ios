@@ -276,24 +276,9 @@ static void read_mpolys(CDStreamConfig &config, const AbcMeshData &mesh_data)
   }
 
   /* Check for faces with duplicate vertex indices. These will require a mesh validate to fix. */
-  const OffsetIndices<int> faces = config.mesh->faces();
-  const Span<int> corner_verts_span = config.mesh->corner_verts();
-  const bool all_faces_ok = threading::parallel_reduce(
-      faces.index_range(),
-      1024,
-      true,
-      [&](const IndexRange part, const bool ok_so_far) {
-        bool current_faces_ok = ok_so_far;
-        if (current_faces_ok) {
-          for (const int i : part) {
-            const IndexRange face_range = faces[i];
-            const Set<int, 32> used_verts(corner_verts_span.slice(face_range));
-            current_faces_ok = current_faces_ok && used_verts.size() == face_range.size();
-          }
-        }
-        return current_faces_ok;
-      },
-      std::logical_and<>());
+  IndexMaskMemory memory;
+  const IndexMask bad_faces = bke::mesh_find_faces_duplicate_verts(*config.mesh, memory);
+  const bool all_faces_ok = bad_faces.is_empty();
 
   /* If we detect bad faces it would be unsafe to continue beyond this point without first
    * performing a destructive validate. Any operation requiring mesh connectivity information can
