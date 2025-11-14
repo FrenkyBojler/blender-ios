@@ -7,6 +7,7 @@
 FRAGMENT_SHADER_CREATE_INFO(overlay_gridrework_next)
 
 #include "draw_view_lib.glsl"
+#include "gpu_shader_math_base_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
 
 #define linearstep(p0, p1, v) (clamp(((v) - (p0)) / abs((p1) - (p0)), 0.0f, 1.0f))
@@ -24,20 +25,17 @@ void main()
 
   /* Output alpha. */
   {
-    /* Add fade at level switch. This is computed in the vertex stage. */
-    out_color.a *= frag_level;
+    /* Add fade from vertex stage. */
+    out_color.a *= local_alpha;
 
     /* Add fade at edge of grid level. */
-    float length_fade = 1.f - min(1.f, dot(frag_xy, frag_xy));
-    length_fade = length_fade * length_fade;
-    out_color.a *= length_fade;
+    float length_fade = 1.f - min(1.f, dot(local_coord, local_coord));
+    out_color.a *= pow2f(length_fade);
     
     if (drw_view_is_perspective()) {
       /* Add fade at steep angles. */
-      float angle = V.z;
-      angle = 1.0f - abs(angle);
-      angle *= angle;
-      out_color.a *= (1.f - angle * angle);
+      float angle = 1.0f - abs(V.z);
+      out_color.a *= (1.f - pow3f(angle));
 
       /* Add fade towards clip distance. */
       out_color.a *= 1.0f - smoothstep(0.0f, 0.5f * grid_buf.distance, dist - 0.5f * grid_buf.distance);
@@ -50,8 +48,7 @@ void main()
 
       if (flag_test(grid_flag, PLANE_XY)) {
         float angle = 1.0f - abs(drw_view().viewinv[2].z);
-        angle *= angle;
-        out_color.a *= (1.f - angle * angle);
+        out_color.a *= (1.f - pow3f(angle));
       }
     }
   }
@@ -79,12 +76,10 @@ void main()
     out_color.a *= linearstep(grid_depth, grid_depth + bias, scene_depth);
   }
 
-  float3 debug_colors[4] = {
-    float3(1, 0, 0),
-    float3(0, 1, 0),
-    float3(0, 0, 1),
-    float3(1, 1, 1)
-  };
+  // float3 debug_colors[3] = {
+  //   float3(1, 0, 0),
+  //   float3(0, 1, 0),
+  //   float3(0, 0, 1),
+  // };
   // out_color.rgb = debug_colors[debug_level];
-  // out_color.a = 1.0f;
 }

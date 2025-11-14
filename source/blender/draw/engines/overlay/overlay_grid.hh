@@ -103,8 +103,7 @@ class GridRework : Overlay {
     /* Initialize flags to default value. */
     grid_flag_ = zaxs_flag_ = 0;
 
-    // num_lines_per_level_ = 5;
-    num_lines_per_level_ = 511; /* This suffices for a full orthographic square for metric/imp. */
+    num_lines_per_level_ = 385; /* This suffices for most cases, and in others we fade to hide it. */
     grid_ubo_.num_lines_per_level = num_lines_per_level_;
 
     return init_3d(state);
@@ -176,6 +175,8 @@ class GridRework : Overlay {
     }
     else {
       v3d_clip_end = v3d->clip_end;
+      
+      std::printf("%f - %f -%f\n", 2.0f / rv3d->winmat[0][0], 2.0f / rv3d->winmat[1][1], 2.0f / rv3d->winmat[2][2]);
     }
     grid_ubo_.distance = v3d_clip_end;
 
@@ -184,7 +185,6 @@ class GridRework : Overlay {
     ED_view3d_grid_steps(state.scene, v3d, rv3d, level_scales_.data());
     for (int i = 0; i < level_scales_.size(); ++i) {
       grid_ubo_.level_scales[i][0] = level_scales_[i];
-      std::printf("\t%d - %f\n", i, level_scales_[i]);
     }
 
     /* Compute distance to a relevant floor point-of-interest from the camera. The grid translates
@@ -208,7 +208,7 @@ class GridRework : Overlay {
     /* Find the lowest relevant grid level + fractional, dependent on camera distance. We
      * fake a order of magnitude extra level, as in orthographic cameras the maximum zoom
      * barely exceeds the largest specified grid scale in unit systems. */
-    for (int i = 0; i < level_scales_.size(); i++) {
+    for (int i = 0; i < level_scales_.size() - 1; i++) {
       float curr = level_scales_[i];
       float next = i < level_scales_.size() - 1 ? level_scales_[i + 1] : 10.0f * curr;
       if (next >= dist || i == level_scales_.size() - 1) {
