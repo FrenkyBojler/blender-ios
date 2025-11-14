@@ -538,10 +538,10 @@ const CustomDataLayer *BKE_attribute_search(const Mesh &mesh,
 {
   BLI_assert(mesh.runtime->edit_mesh->bm == &bm);
   UNUSED_VARS_NDEBUG(mesh);
-  const std::array<DomainInfo, ATTR_DOMAIN_NUM> info = get_domains(&const_cast<BMesh &>(bm));
   if (name.is_empty()) {
     return nullptr;
   }
+  const std::array<DomainInfo, ATTR_DOMAIN_NUM> info = get_domains(&const_cast<BMesh &>(bm));
 
   for (AttrDomain domain = AttrDomain::Point; int(domain) < ATTR_DOMAIN_NUM;
        domain = AttrDomain(int(domain) + 1))
@@ -682,10 +682,10 @@ std::optional<blender::StringRefNull> BKE_attributes_active_name_get(AttributeOw
   if (owner.type() == AttributeOwnerType::Mesh) {
     const Mesh *mesh = owner.get_mesh();
     if (BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
-      const std::array<DomainInfo, ATTR_DOMAIN_NUM> info = get_domains(em->bm);
       if (active_index > BKE_attributes_length(owner, ATTR_DOMAIN_MASK_ALL, CD_MASK_PROP_ALL)) {
         active_index = 0;
       }
+      const std::array<DomainInfo, ATTR_DOMAIN_NUM> info = get_domains(em->bm);
       int index = 0;
       for (const int domain : IndexRange(ATTR_DOMAIN_NUM)) {
         CustomData *customdata = info[domain].customdata;
