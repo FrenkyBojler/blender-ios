@@ -429,14 +429,12 @@ static void read_custom_data_mcols(const std::string &iobject_full_name,
 
   for (const int i : faces.index_range()) {
     const IndexRange face = faces[i];
-    ColorGeometry4b *cface = &attr.span[face.start() + face.size()];
-    const int *face_verts = &corner_verts[face.start() + face.size()];
+    int corner = face.start() + face.size();
 
     for (int j = 0; j < face.size(); j++, face_index++) {
-      cface--;
-      face_verts--;
+      corner--;
 
-      color_index = is_facevarying ? face_index : *face_verts;
+      color_index = is_facevarying ? face_index : corner_verts[corner];
       if (use_dual_indexing) {
         color_index = (*indices)[color_index];
       }
@@ -452,10 +450,10 @@ static void read_custom_data_mcols(const std::string &iobject_full_name,
           continue;
         }
         const Imath::C3f &color = (*c3f_ptr)[color_index];
-        cface->r = unit_float_to_uchar_clamp(color[0]);
-        cface->g = unit_float_to_uchar_clamp(color[1]);
-        cface->b = unit_float_to_uchar_clamp(color[2]);
-        cface->a = 255;
+        attr.span[corner].r = unit_float_to_uchar_clamp(color[0]);
+        attr.span[corner].g = unit_float_to_uchar_clamp(color[1]);
+        attr.span[corner].b = unit_float_to_uchar_clamp(color[2]);
+        attr.span[corner].a = 255;
       }
       else {
         bool is_mcols_out_of_bounds = false;
@@ -469,10 +467,10 @@ static void read_custom_data_mcols(const std::string &iobject_full_name,
           continue;
         }
         const Imath::C4f &color = (*c4f_ptr)[color_index];
-        cface->r = unit_float_to_uchar_clamp(color[0]);
-        cface->g = unit_float_to_uchar_clamp(color[1]);
-        cface->b = unit_float_to_uchar_clamp(color[2]);
-        cface->a = unit_float_to_uchar_clamp(color[3]);
+        attr.span[corner].r = unit_float_to_uchar_clamp(color[0]);
+        attr.span[corner].g = unit_float_to_uchar_clamp(color[1]);
+        attr.span[corner].b = unit_float_to_uchar_clamp(color[2]);
+        attr.span[corner].a = unit_float_to_uchar_clamp(color[3]);
       }
     }
   }
