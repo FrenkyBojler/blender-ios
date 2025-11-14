@@ -200,7 +200,7 @@ static wmOperatorStatus similar_face_select_exec(bContext *C, wmOperator *op)
   for (Object *ob : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(ob);
     BMesh *bm = em->bm;
-    Material ***material_array = nullptr;
+    blender::Array<Material *> materials = {};
     invert_m4_m4(ob->runtime->world_to_object.ptr(), ob->object_to_world().ptr());
 
     if (bm->totfacesel == 0) {
@@ -216,7 +216,7 @@ static wmOperatorStatus similar_face_select_exec(bContext *C, wmOperator *op)
         if (ob->totcol == 0) {
           continue;
         }
-        material_array = BKE_object_material_array_p(ob);
+        materials = BKE_object_materials_get_eval(ob);
         break;
       }
       case SIMFACE_FREESTYLE: {
@@ -240,7 +240,7 @@ static wmOperatorStatus similar_face_select_exec(bContext *C, wmOperator *op)
             sides_set.add(face->len);
             break;
           case SIMFACE_MATERIAL: {
-            Material *material = (*material_array)[face->mat_nr];
+            Material *material = materials[face->mat_nr];
             if (material != nullptr) {
               materials_set.add(material);
             }
@@ -313,6 +313,7 @@ static wmOperatorStatus similar_face_select_exec(bContext *C, wmOperator *op)
     BMesh *bm = em->bm;
     bool changed = false;
     Material ***material_array = nullptr;
+    blender::Array<Material *> materials = {};
 
     float ob_m3[3][3];
     copy_m3_m4(ob_m3, ob->object_to_world().ptr());
@@ -323,7 +324,7 @@ static wmOperatorStatus similar_face_select_exec(bContext *C, wmOperator *op)
         if (ob->totcol == 0) {
           continue;
         }
-        material_array = BKE_object_material_array_p(ob);
+        materials = BKE_object_materials_get_eval(ob);
         break;
       }
       case SIMFACE_FREESTYLE: {
@@ -355,7 +356,7 @@ static wmOperatorStatus similar_face_select_exec(bContext *C, wmOperator *op)
             break;
           }
           case SIMFACE_MATERIAL: {
-            const Material *material = (*material_array)[face->mat_nr];
+            const Material *material = materials[face->mat_nr];
             if (material == nullptr) {
               continue;
             }

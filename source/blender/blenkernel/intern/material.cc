@@ -34,6 +34,7 @@
 #include "DNA_userdef_types.h"
 #include "DNA_volume_types.h"
 
+#include "BLI_array.hh"
 #include "BLI_array_utils.h"
 #include "BLI_enum_flags.hh"
 #include "BLI_listbase.h"
@@ -750,6 +751,38 @@ static const ID *get_evaluated_object_data_with_materials(const Object *ob)
   return data;
 }
 
+blender::Array<Material *> BKE_object_materials_get_eval(Object *ob)
+{
+  BLI_assert(DEG_is_evaluated(ob));
+
+  const int slots_num = BKE_object_material_count_eval(ob);
+  if (slots_num == 0) {
+    return {};
+  }
+
+  blender::Array<Material *> materials(slots_num, nullptr);
+
+  Material **materials_object = ob->mat;
+  const int slots_object_num = ob->totcol;
+
+  Material **materials_obdata = *BKE_object_material_array_p(ob);
+  const short *slots_obdata_num_ptr = BKE_object_material_len_p(ob);
+  const int slots_obdata_num = slots_obdata_num_ptr ? *slots_obdata_num_ptr : 0;
+
+  for (int i = slots_num; i--;) {
+    /* Check if slot is overwritten by object. */
+    if (ob->matbits && ob->matbits[i]) {
+      materials[i] = (i < slots_object_num) ? materials_object[i] : nullptr;
+    }
+    else {
+      /* Otherwise use material from object-data. */
+      materials[i] = (i < slots_obdata_num) ? materials_obdata[i] : nullptr;
+    }
+  }
+
+  return materials;
+}
+
 Material *BKE_object_material_get_eval(Object *ob, short act)
 {
   const ID *data = get_evaluated_object_data_with_materials(ob);
@@ -1342,8 +1375,11 @@ void BKE_object_material_from_eval_data(Main *bmain, Object *ob_orig, const ID *
   BKE_object_materials_sync_length(bmain, ob_orig, data_orig);
 }
 
-void BKE_object_material_array_assign(
-    Main *bmain, Object *ob, Material ***matar, int totcol, const bool to_object_only)
+void BKE_object_material_array_assign(Main *bmain,
+                                      Object *ob,
+                                      blender::Array<Material *> materials,
+                                      int totcol,
+                                      const bool to_object_only)
 {
   int actcol_orig = ob->actcol;
 
@@ -1359,7 +1395,7 @@ void BKE_object_material_array_assign(
     }
     BKE_object_material_assign(bmain,
                                ob,
-                               (*matar)[i],
+                               materials[i],
                                i + 1,
                                to_object_only ? BKE_MAT_ASSIGN_OBJECT : BKE_MAT_ASSIGN_USERPREF);
   }

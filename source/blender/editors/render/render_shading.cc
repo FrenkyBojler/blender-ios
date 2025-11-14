@@ -555,13 +555,7 @@ static wmOperatorStatus material_slot_copy_exec(bContext *C, wmOperator * /*op*/
 
   BLI_assert(ob->totcol == *BKE_object_material_len_p(ob));
 
-  Material ***matar_object = &ob->mat;
-
-  Material **matar = static_cast<Material **>(
-      MEM_callocN(sizeof(*matar) * size_t(ob->totcol), __func__));
-  for (int i = ob->totcol; i--;) {
-    matar[i] = ob->matbits[i] ? (*matar_object)[i] : (*matar_obdata)[i];
-  }
+  blender::Array<Material *> materials = BKE_object_materials_get_eval(ob);
 
   CTX_DATA_BEGIN (C, Object *, ob_iter, selected_editable_objects) {
     if (ob != ob_iter && BKE_object_material_array_p(ob_iter)) {
@@ -580,7 +574,8 @@ static wmOperatorStatus material_slot_copy_exec(bContext *C, wmOperator * /*op*/
         }
       }
 
-      BKE_object_material_array_assign(bmain, ob_iter, &matar, ob->totcol, is_same_obdata);
+      BKE_object_material_array_assign(
+          bmain, ob_iter, materials, materials.size(), is_same_obdata);
 
       if (ob_iter->totcol == ob->totcol) {
         ob_iter->actcol = ob->actcol;
@@ -590,8 +585,6 @@ static wmOperatorStatus material_slot_copy_exec(bContext *C, wmOperator * /*op*/
     }
   }
   CTX_DATA_END;
-
-  MEM_freeN(matar);
 
   return OPERATOR_FINISHED;
 }
