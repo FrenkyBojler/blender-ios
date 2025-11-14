@@ -290,6 +290,10 @@ static void applyRotation(TransInfo *t)
   float3 axis_final;
   transform_mode_rotation_axis_get(t, axis_final);
 
+  if (t->mode == TFM_ROTATION && (t->con.mode & CON_APPLY) == 0) {
+    axis_final = -axis_final;
+  }
+
   float final;
   if (applyNumInput(&t->num, &final)) {
     /* We have to limit the amount of turns to a reasonable number here,
