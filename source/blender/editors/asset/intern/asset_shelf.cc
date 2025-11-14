@@ -9,6 +9,7 @@
  */
 
 #include <algorithm>
+#include <cfloat>
 
 #include "AS_asset_catalog_path.hh"
 #include "AS_asset_library.hh"
@@ -781,7 +782,6 @@ static uiBut *add_tab_button(uiBlock &block, StringRefNull name)
   uiBut *but = uiDefBut(
       &block,
       ButType::Tab,
-      0,
       name,
       0,
       0,

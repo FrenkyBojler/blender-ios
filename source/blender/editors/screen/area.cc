@@ -46,6 +46,7 @@
 #include "GPU_immediate.hh"
 #include "GPU_immediate_util.hh"
 #include "GPU_matrix.hh"
+#include "GPU_platform.hh"
 #include "GPU_state.hh"
 
 #include "BLF_api.hh"
@@ -157,9 +158,20 @@ static void area_draw_azone_fullscreen(short /*x1*/, short /*y1*/, short x2, sho
 /**
  * \brief Corner widgets use for dragging and splitting the view.
  */
-static void area_draw_azone(short /*x1*/, short /*y1*/, short /*x2*/, short /*y2*/)
+static void area_draw_azone(ScrArea *area, ARegion *region, AZone *az)
 {
-  /* No drawing needed since all corners are action zone, and visually distinguishable. */
+  if (region->regiontype != RGN_TYPE_HEADER || !(U.uiflag & USER_AREA_CORNER_HANDLE)) {
+    return;
+  }
+
+  if (az->x1 < area->totrct.xmin + 1) {
+    if ((region->alignment == RGN_ALIGN_TOP && az->y2 > area->totrct.ymax - 1) ||
+        (region->alignment == RGN_ALIGN_BOTTOM && az->y1 < area->totrct.ymin + 1))
+    {
+      UI_icon_draw_alpha(
+          float(az->x1) + UI_SCALE_FAC, float(az->y1) + (6.0f * UI_SCALE_FAC), ICON_GRIP_V, 0.4f);
+    }
+  }
 }
 
 /**
@@ -279,7 +291,7 @@ static void region_draw_azones(ScrArea *area, ARegion *region)
 
     if (BLI_rcti_isect(&region->runtime->drawrct, &azrct, nullptr)) {
       if (az->type == AZONE_AREA) {
-        area_draw_azone(az->x1, az->y1, az->x2, az->y2);
+        area_draw_azone(area, region, az);
       }
       else if (az->type == AZONE_REGION) {
         if (az->region && !(az->region->flag & RGN_FLAG_POLL_FAILED)) {
@@ -502,7 +514,7 @@ void ED_region_do_draw(bContext *C, ARegion *region)
   ED_region_pixelspace(region);
 
   /* Remove sRGB override by rebinding the framebuffer. */
-  GPUFrameBuffer *fb = GPU_framebuffer_active_get();
+  blender::gpu::FrameBuffer *fb = GPU_framebuffer_active_get();
   GPU_framebuffer_bind(fb);
 
   ED_region_draw_cb_draw(C, region, REGION_DRAW_POST_PIXEL);
@@ -950,6 +962,11 @@ void WorkspaceStatus::item(std::string text, const int icon1, const int icon2)
   ed_workspace_status_text_item(workspace_, std::move(text));
 }
 
+void WorkspaceStatus::separator(float factor)
+{
+  ed_workspace_status_space(workspace_, factor);
+}
+
 void WorkspaceStatus::range(std::string text, const int icon1, const int icon2)
 {
   ed_workspace_status_item(workspace_, {}, icon1);
@@ -1044,20 +1061,20 @@ static void area_azone_init(const wmWindow *win, const bScreen *screen, ScrArea 
       /* Bottom-left. */
       {area->totrct.xmin - U.pixelsize,
        area->totrct.ymin - U.pixelsize,
-       area->totrct.xmin + UI_AZONESPOTW,
+       area->totrct.xmin + UI_AZONESPOTW_LEFT,
        float(area->totrct.ymin + ED_area_headersize())},
       /* Bottom-right. */
-      {area->totrct.xmax - UI_AZONESPOTW,
+      {area->totrct.xmax - UI_AZONESPOTW_RIGHT,
        area->totrct.ymin - U.pixelsize,
        area->totrct.xmax + U.pixelsize,
        area->totrct.ymin + UI_AZONESPOTH},
       /* Top-left. */
       {area->totrct.xmin - U.pixelsize,
        float(area->totrct.ymax - ED_area_headersize()),
-       area->totrct.xmin + UI_AZONESPOTW,
+       area->totrct.xmin + UI_AZONESPOTW_LEFT,
        area->totrct.ymax + U.pixelsize},
       /* Top-right. */
-      {area->totrct.xmax - UI_AZONESPOTW,
+      {area->totrct.xmax - UI_AZONESPOTW_RIGHT,
        area->totrct.ymax - UI_AZONESPOTH,
        area->totrct.xmax + U.pixelsize,
        area->totrct.ymax + U.pixelsize},
@@ -1224,6 +1241,10 @@ static bool region_azone_edge_poll(const ScrArea *area,
                                    const bool is_fullscreen)
 {
   if (region->flag & RGN_FLAG_POLL_FAILED) {
+    return false;
+  }
+
+  if (area->winy < int(float(ED_area_headersize()) * 1.5f)) {
     return false;
   }
 
@@ -1454,56 +1475,54 @@ static void region_overlap_fix(ScrArea *area, ARegion *region)
   }
 }
 
-bool ED_region_is_overlap(int spacetype, int regiontype)
+bool ED_region_is_overlap(const int spacetype, const int regiontype)
 {
   if (regiontype == RGN_TYPE_HUD) {
     return true;
   }
-  if (U.uiflag2 & USER_REGION_OVERLAP) {
-    if (spacetype == SPACE_NODE) {
-      if (ELEM(regiontype,
-               RGN_TYPE_TOOLS,
-               RGN_TYPE_UI,
-               RGN_TYPE_ASSET_SHELF,
-               RGN_TYPE_ASSET_SHELF_HEADER))
-      {
-        return true;
-      }
-    }
-    else if (spacetype == SPACE_VIEW3D) {
+  if ((U.uiflag2 & USER_REGION_OVERLAP) == 0) {
+    return false;
+  }
+
+  switch (spacetype) {
+    case SPACE_NODE:
+      return ELEM(regiontype,
+                  RGN_TYPE_TOOLS,
+                  RGN_TYPE_UI,
+                  RGN_TYPE_ASSET_SHELF,
+                  RGN_TYPE_ASSET_SHELF_HEADER);
+
+    case SPACE_VIEW3D:
       if (regiontype == RGN_TYPE_HEADER) {
-        /* Do not treat as overlapped if no transparency. */
+        /* Only treat as overlapped if there is transparency. */
         bTheme *theme = UI_GetTheme();
         return theme->space_view3d.header[3] != 255;
       }
-      if (ELEM(regiontype,
-               RGN_TYPE_TOOLS,
-               RGN_TYPE_UI,
-               RGN_TYPE_TOOL_PROPS,
-               RGN_TYPE_FOOTER,
-               RGN_TYPE_TOOL_HEADER,
-               RGN_TYPE_ASSET_SHELF,
-               RGN_TYPE_ASSET_SHELF_HEADER))
-      {
-        return true;
-      }
-    }
-    else if (spacetype == SPACE_IMAGE) {
-      if (ELEM(regiontype,
-               RGN_TYPE_TOOLS,
-               RGN_TYPE_UI,
-               RGN_TYPE_TOOL_PROPS,
-               RGN_TYPE_FOOTER,
-               RGN_TYPE_TOOL_HEADER,
-               RGN_TYPE_ASSET_SHELF,
-               RGN_TYPE_ASSET_SHELF_HEADER))
-      {
-        return true;
-      }
-    }
-  }
+      return ELEM(regiontype,
+                  RGN_TYPE_TOOLS,
+                  RGN_TYPE_UI,
+                  RGN_TYPE_TOOL_PROPS,
+                  RGN_TYPE_FOOTER,
+                  RGN_TYPE_TOOL_HEADER,
+                  RGN_TYPE_ASSET_SHELF,
+                  RGN_TYPE_ASSET_SHELF_HEADER);
 
-  return false;
+    case SPACE_IMAGE:
+      return ELEM(regiontype,
+                  RGN_TYPE_TOOLS,
+                  RGN_TYPE_UI,
+                  RGN_TYPE_TOOL_PROPS,
+                  RGN_TYPE_FOOTER,
+                  RGN_TYPE_TOOL_HEADER,
+                  RGN_TYPE_ASSET_SHELF,
+                  RGN_TYPE_ASSET_SHELF_HEADER);
+
+    default:
+      /* Most editors do not support any region overlap. It is fine if newly-added space types also
+       * default to not having region overlap; this 'switch' doesn't have to be religiously updated
+       * for every newly added type. */
+      return false;
+  }
 }
 
 static void region_rect_recursive(
@@ -1640,7 +1659,7 @@ static void region_rect_recursive(
   else if (ELEM(alignment, RGN_ALIGN_TOP, RGN_ALIGN_BOTTOM)) {
     rcti *winrct = (region->overlap) ? overlap_remainder : remainder;
 
-    if ((prefsizey == 0) || (rct_fits(winrct, SCREEN_AXIS_V, prefsizey) < 0)) {
+    if ((prefsizey == 0) || (rct_fits(winrct, SCREEN_AXIS_V, prefsizey) < (U.pixelsize * -2))) {
       region->flag |= RGN_FLAG_TOO_SMALL;
     }
     else {
@@ -1767,6 +1786,11 @@ static void region_rect_recursive(
   /* for speedup */
   region->winx = BLI_rcti_size_x(&region->winrct) + 1;
   region->winy = BLI_rcti_size_y(&region->winrct) + 1;
+
+  if (region->winy <= U.border_width && !(region->flag & RGN_FLAG_HIDDEN)) {
+    /* Don't draw when just a couple pixels tall. #143617. */
+    region->flag |= RGN_FLAG_TOO_SMALL;
+  }
 
   /* If region opened normally, we store this for hide/reveal usage. */
   /* Prevent rounding errors for UI_SCALE_FAC multiply and divide. */
@@ -1895,7 +1919,7 @@ static void area_calc_totrct(const bScreen *screen, ScrArea *area, const rcti *w
 /**
  * Update the `ARegion::visible` flag.
  */
-static void region_evaulate_visibility(ARegion *region)
+static void region_evaluate_visibility(ARegion *region)
 {
   bool hidden = (region->flag & (RGN_FLAG_POLL_FAILED | RGN_FLAG_HIDDEN | RGN_FLAG_TOO_SMALL)) !=
                 0;
@@ -2041,7 +2065,7 @@ void ED_area_update_region_sizes(wmWindowManager *wm, wmWindow *win, ScrArea *ar
     if (region->flag & RGN_FLAG_POLL_FAILED) {
       continue;
     }
-    region_evaulate_visibility(region);
+    region_evaluate_visibility(region);
 
     /* region size may have changed, init does necessary adjustments */
     if (region->runtime->type->init) {
@@ -2152,7 +2176,7 @@ void ED_area_init(bContext *C, const wmWindow *win, ScrArea *area)
 
   /* region windows, default and own handlers */
   LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-    region_evaulate_visibility(region);
+    region_evaluate_visibility(region);
 
     if (region->runtime->visible) {
       /* default region handlers */
@@ -2277,7 +2301,7 @@ void ED_region_floating_init(ARegion *region)
   BLI_assert(region->alignment == RGN_ALIGN_FLOAT);
 
   /* refresh can be called before window opened */
-  region_evaulate_visibility(region);
+  region_evaluate_visibility(region);
 
   region_update_rect(region);
 }
@@ -2335,7 +2359,7 @@ void region_toggle_hidden(bContext *C, ARegion *region, const bool do_fade)
 
   region->flag ^= RGN_FLAG_HIDDEN;
 
-  if (do_fade && region->overlap) {
+  if (do_fade && region->overlap && !(U.uiflag & USER_REDUCE_MOTION)) {
     /* starts a timer, and in end calls the stuff below itself (region_sblend_invoke()) */
     ED_region_visibility_change_update_animated(C, area, region);
   }
@@ -2800,7 +2824,7 @@ void ED_area_newspace(bContext *C, ScrArea *area, int type, const bool skip_regi
 
   if (BLI_listbase_is_single(&CTX_wm_screen(C)->areabase)) {
     /* If there is only one area update the window title. */
-    WM_window_title(CTX_wm_manager(C), CTX_wm_window(C));
+    WM_window_title_refresh(CTX_wm_manager(C), CTX_wm_window(C));
   }
 
   /* See #WM_capabilities_flag code-comments for details on the background check. */
@@ -2873,7 +2897,6 @@ int ED_area_header_switchbutton(const bContext *C, uiBlock *block, int yco)
 
   uiDefButR(block,
             ButType::Menu,
-            0,
             "",
             xco,
             yco,
@@ -3308,6 +3331,10 @@ void ED_region_panels_layout_ex(const bContext *C,
       {
         continue;
       }
+      if (!panel_add_check(C, workspace, contexts, category_override, panel->type)) {
+        continue;
+      }
+
       const int width = panel_draw_width_from_max_width_get(region, panel->type, max_panel_width);
 
       if (UI_panel_is_dragging(panel)) {
@@ -3384,7 +3411,9 @@ void ED_region_panels_layout_ex(const bContext *C,
   }
 }
 
-void ED_region_draw_overflow_indication(const ScrArea *area, ARegion *region, rcti *mask)
+void ED_region_draw_overflow_indication(const ScrArea *area,
+                                        const ARegion *region,
+                                        const rcti *mask)
 {
   if (!(region->flag & RGN_FLAG_INDICATE_OVERFLOW)) {
     return;
@@ -3394,7 +3423,7 @@ void ED_region_draw_overflow_indication(const ScrArea *area, ARegion *region, rc
   const bool is_header = ELEM(region->regiontype, RGN_TYPE_HEADER, RGN_TYPE_TOOL_HEADER);
   const bool narrow = region->v2d.scroll & (V2D_SCROLL_VERTICAL | V2D_SCROLL_HORIZONTAL);
   const float gradient_width = (narrow ? 4.0f : 16.0f) * UI_SCALE_FAC;
-  const float transition = 30.0f * UI_SCALE_FAC;
+  const float transition = 20.0f * UI_SCALE_FAC;
 
   float opaque[4];
   if (narrow) {
@@ -3449,12 +3478,20 @@ void ED_region_draw_overflow_indication(const ScrArea *area, ARegion *region, rc
   if (region->v2d.cur.xmin > region->v2d.tot.xmin) {
     /* Left Edge. */
     rect.xmin = offset_x;
-    rect.xmax = offset_x + gradient_width;
+    if (is_header && (U.uiflag & USER_AREA_CORNER_HANDLE)) {
+      rect.xmin += 12.0f * UI_SCALE_FAC;
+    }
+    rect.xmax = rect.xmin + gradient_width;
     rect.ymin = offset_y;
     rect.ymax = height;
     copy_v4_v4(grad_color, opaque);
     grad_color[3] *= std::min((region->v2d.cur.xmin - region->v2d.tot.xmin) / transition, 1.0f);
     UI_draw_roundbox_4fv_ex(&rect, transparent, grad_color, 0.0f, nullptr, 0.0f, 0.0f);
+    if (is_header && (U.uiflag & USER_AREA_CORNER_HANDLE)) {
+      rect.xmin = 0.0f;
+      rect.xmax = 12.0f * UI_SCALE_FAC;
+      UI_draw_roundbox_4fv_ex(&rect, grad_color, nullptr, 0.0f, nullptr, 0.0f, 0.0f);
+    }
   }
   if (region->v2d.cur.ymax < region->v2d.tot.ymax) {
     /* Top Edge. */
@@ -3511,9 +3548,9 @@ void ED_region_panels_draw(const bContext *C, ARegion *region)
   UI_blocklist_update_window_matrix(C, &region->runtime->uiblocks);
 
   /* draw panels if they are large enough. */
-  const bool has_catgories = (region->panels_category_active.first != nullptr);
-  const short min_draw_size = has_catgories ? short(UI_PANEL_CATEGORY_MIN_WIDTH) + 20 :
-                                              std::min(region->runtime->type->prefsizex, 20);
+  const bool has_categories = (region->panels_category_active.first != nullptr);
+  const short min_draw_size = has_categories ? short(UI_PANEL_CATEGORY_MIN_WIDTH) + 20 :
+                                               std::min(region->runtime->type->prefsizex, 20);
   if (region->winx >= (min_draw_size * UI_SCALE_FAC / aspect)) {
     UI_panels_draw(C, region);
   }
@@ -3764,13 +3801,16 @@ void ED_region_header_layout(const bContext *C, ARegion *region)
 {
   const uiStyle *style = UI_style_get_dpi();
   bool region_layout_based = region->flag & RGN_FLAG_DYNAMIC_SIZE;
+  const ScrArea *area = CTX_wm_area(C);
+  const bool is_global = area && ELEM(area->spacetype, SPACE_TOPBAR, SPACE_STATUSBAR);
+  const int offset = is_global ? 4.0f * UI_SCALE_FAC : int(UI_HEADER_OFFSET);
 
   /* Height of buttons and scaling needed to achieve it. */
   const int buttony = min_ii(UI_UNIT_Y, region->winy - 2 * UI_SCALE_FAC);
   const float buttony_scale = buttony / float(UI_UNIT_Y);
 
   /* Vertically center buttons. */
-  blender::int2 co = {int(UI_HEADER_OFFSET), buttony + (region->winy - buttony) / 2};
+  blender::int2 co = {offset, buttony + (region->winy - buttony) / 2};
   int maxco = co.x;
 
   /* set view2d view matrix for scrolling (without scrollers) */
@@ -3816,7 +3856,7 @@ void ED_region_header_layout(const bContext *C, ARegion *region)
     /* for view2d */
     maxco = std::max(co.x, maxco);
 
-    int new_sizex = (maxco + UI_HEADER_OFFSET) / UI_SCALE_FAC;
+    int new_sizex = (maxco + offset) / UI_SCALE_FAC;
 
     if (region_layout_based && (region->sizex != new_sizex)) {
       /* region size is layout based and needs to be updated */
@@ -3834,7 +3874,7 @@ void ED_region_header_layout(const bContext *C, ARegion *region)
   }
 
   if (!region_layout_based) {
-    maxco += UI_HEADER_OFFSET;
+    maxco += offset;
   }
 
   /* Always as last. */
@@ -3862,6 +3902,13 @@ void ED_region_header_draw(const bContext *C, ARegion *region)
 {
   /* clear */
   ED_region_clear(C, region, region_background_color_id(C, region));
+
+  if (GPU_type_matches_ex(GPU_DEVICE_ATI, GPU_OS_UNIX, GPU_DRIVER_OPENSOURCE, GPU_BACKEND_OPENGL))
+  {
+    /* WORKAROUND: Driver bug. Fixes invalid glyph being rendered (see #147168). */
+    BLF_batch_discard();
+  }
+
   region_draw_blocks_in_view2d(C, region);
   ED_region_draw_overflow_indication(CTX_wm_area(C), region);
 }

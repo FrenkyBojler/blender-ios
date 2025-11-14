@@ -650,6 +650,9 @@ void curve_populate_trans_data_structs(const TransInfo &t,
             td.val = value;
             td.ival = *value;
           }
+          else {
+            td.val = nullptr;
+          }
 
           if (deformation.deform_mats.is_empty()) {
             copy_m3_m3(td.smtx, smtx_base.ptr());

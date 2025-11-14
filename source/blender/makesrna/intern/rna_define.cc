@@ -1594,6 +1594,13 @@ void RNA_def_property_flag(PropertyRNA *prop, PropertyFlag flag)
   }
 }
 
+void RNA_def_property_flag_hide_from_ui_workaround(PropertyRNA *prop)
+{
+  /* Re-use the hidden flag.
+   * This function is mainly used so it's clear that this is a workaround. */
+  RNA_def_property_flag(prop, PROP_HIDDEN);
+}
+
 void RNA_def_property_clear_flag(PropertyRNA *prop, PropertyFlag flag)
 {
   prop->flag &= ~flag;
@@ -3216,6 +3223,18 @@ void RNA_def_property_override_funcs(PropertyRNA *prop,
   }
 }
 
+void RNA_def_property_ui_name_func(PropertyRNA *prop, const char *name_func)
+{
+  if (!DefRNA.preprocess) {
+    CLOG_ERROR(&LOG, "only during preprocessing.");
+    return;
+  }
+
+  if (name_func) {
+    prop->ui_name_func = (PropUINameFunc)name_func;
+  }
+}
+
 void RNA_def_property_update(PropertyRNA *prop, int noteflag, const char *func)
 {
   if (!DefRNA.preprocess) {
@@ -4013,6 +4032,29 @@ void RNA_def_property_enum_default_func(PropertyRNA *prop, const char *get_defau
     }
     default: {
       CLOG_ERROR(&LOG, "\"%s.%s\", type is not enum.", srna->identifier, prop->identifier);
+      DefRNA.error = true;
+      break;
+    }
+  }
+}
+
+void RNA_def_property_string_default_func(PropertyRNA *prop, const char *get_default)
+{
+  StructRNA *srna = DefRNA.laststruct;
+
+  if (!DefRNA.preprocess) {
+    CLOG_ERROR(&LOG, "only during preprocessing");
+    return;
+  }
+
+  switch (prop->type) {
+    case PROP_STRING: {
+      StringPropertyRNA *sprop = reinterpret_cast<StringPropertyRNA *>(prop);
+      sprop->get_default = (PropStringGetFuncEx)get_default;
+      break;
+    }
+    default: {
+      CLOG_ERROR(&LOG, "\"%s.%s\", type is not string.", srna->identifier, prop->identifier);
       DefRNA.error = true;
       break;
     }
