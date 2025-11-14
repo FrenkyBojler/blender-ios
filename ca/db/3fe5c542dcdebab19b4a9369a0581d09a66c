@@ -3,3 +3,4 @@ Referenced by issue #148032, Vertex / Weight Paint: Undo broken on first file lo
 Referenced by pull request #148144, Fix #148032: vertex/weight paint undo broken
 Referenced by commit 7ed85bfe17878d73700b213c840b487f1d250d40, Fix #148032: vertex/weight paint undo broken
 Referenced by pull request #149933, Fix #149890: Memfile undo can get corrupted and lead to crash.
+Referenced by issue #149890, Blender 5.0 undo system related crash
