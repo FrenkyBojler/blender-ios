@@ -8,7 +8,6 @@
 
 #include "BKE_context.hh"
 
-#include "BLI_fnmatch.h"
 #include "BLI_listbase.h"
 
 #include "WM_api.hh"
@@ -282,8 +281,7 @@ void AbstractViewItem::build_context_menu(bContext & /*C*/, uiLayout & /*column*
 
 bool AbstractViewItem::should_be_filtered_visible(const StringRefNull filter_string) const
 {
-  StringRef name = this->get_rename_string();
-  return fnmatch(filter_string.c_str(), name.data(), FNM_CASEFOLD) == 0;
+
 }
 
 bool AbstractViewItem::is_filtered_visible() const

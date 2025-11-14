@@ -131,6 +131,7 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
 
   bool scroll_active_into_view_on_draw_ = false;
   std::shared_ptr<char> show_display_options_ = std::make_shared<char>(0);
+  std::shared_ptr<char> invert_search_filter_ = std::make_shared<char>(0);
   /* `char[UI_MAX_NAME_STR]` wrapped in shared pointer, to keep a stable pointer over
    * reconstruction that can be passed to buttons. */
   std::shared_ptr<char[]> search_string_{new char[256 /*UI_MAX_NAME_STR*/]{}};
@@ -310,6 +311,7 @@ class AbstractTreeViewItem : public AbstractViewItem, public TreeViewItemContain
   /** See #AbstractViewItem::update_from_old(). */
   /* virtual */ void update_from_old(const AbstractViewItem &old) override;
 
+  bool should_be_filtered_visible(StringRefNull filter_string) const override;
   /**
    * Compare this item to \a other to check if they represent the same data.
    * Used to recognize an item from a previous redraw, to be able to keep its state (e.g.

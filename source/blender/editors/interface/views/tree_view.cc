@@ -12,6 +12,7 @@
 #include "BKE_context.hh"
 
 #include "BLT_translation.hh"
+#include "BLI_fnmatch.h"
 
 #include "GPU_immediate.hh"
 #include "GPU_state.hh"
@@ -151,6 +152,7 @@ std::optional<uiViewState> AbstractTreeView::persistent_state() const
   uiViewState state{};
 
   SET_FLAG_FROM_TEST(state.flag, *show_display_options_, UI_VIEW_SHOW_FILTER_OPTIONS);
+  SET_FLAG_FROM_TEST(state.flag, *invert_search_filter_, UI_VIEW_FILTER_INVERT);
   BLI_strncpy(state.search_string, search_string_.get(), sizeof(state.search_string));
 
   if (!custom_height_ && !scroll_value_) {
@@ -178,6 +180,7 @@ void AbstractTreeView::persistent_state_apply(const uiViewState &state)
   }
 
   *show_display_options_ = (state.flag & UI_VIEW_SHOW_FILTER_OPTIONS) != 0;
+  *invert_search_filter_ = (state.flag & UI_VIEW_FILTER_INVERT) != 0;
   BLI_strncpy(search_string_.get(), state.search_string, UI_MAX_NAME_STR);
 }
 
@@ -331,6 +334,7 @@ void AbstractTreeView::update_children_from_old(const AbstractView &old_view)
   scroll_value_ = old_tree_view.scroll_value_;
   search_string_ = old_tree_view.search_string_;
   show_display_options_ = old_tree_view.show_display_options_;
+  invert_search_filter_ = old_tree_view.invert_search_filter_;
   update_children_from_old_recursive(*this, old_tree_view);
 }
 
@@ -618,6 +622,12 @@ void AbstractTreeViewItem::update_from_old(const AbstractViewItem &old)
 
   const AbstractTreeViewItem &old_tree_item = dynamic_cast<const AbstractTreeViewItem &>(old);
   is_open_ = old_tree_item.is_open_;
+}
+
+bool AbstractTreeViewItem::should_be_filtered_visible(StringRefNull filter_string) const
+{
+  StringRef name = this->get_rename_string();
+  return fnmatch(filter_string.c_str(), name.data(), FNM_CASEFOLD) == *this->get_tree_view().invert_search_filter_;
 }
 
 bool AbstractTreeViewItem::matches_single(const AbstractTreeViewItem &other) const
@@ -954,13 +964,14 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
                   "");
 
     if (*tree_view.show_display_options_) {
-      block_layout_set_current(block, col);
+      col->row(true);
+      UI_block_emboss_set(block, ui::EmbossType::Emboss);
       uiBut *but = uiDefBut(block,
                             ButType::Text,
                             "",
                             0,
                             0,
-                            UI_TREEVIEW_INDENT,
+                            UI_UNIT_X * 10,
                             UI_UNIT_Y,
                             tree_view.search_string_.get(),
                             0,
@@ -970,6 +981,20 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
       UI_but_flag_enable(but, UI_BUT_TEXTEDIT_UPDATE | UI_BUT_VALUE_CLEAR);
       UI_but_flag_disable(but, UI_BUT_UNDO);
       ui_def_but_icon(but, ICON_VIEWZOOM, UI_HAS_ICON);
+
+    but = uiDefIconButBitC(block,
+                                  ButType::Toggle,
+                                  1,
+                                  ICON_ARROW_LEFTRIGHT,
+                                  0,
+                                  0,
+                                  UI_UNIT_X,
+                                  UI_UNIT_Y,
+                                  tree_view.invert_search_filter_.get(),
+                                  0,
+                                  0,
+                                  TIP_(""));
+    UI_but_flag_disable(but, UI_BUT_UNDO);
     }
   }
 
