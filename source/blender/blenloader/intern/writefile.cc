@@ -688,13 +688,19 @@ static bool mywrite_end(WriteData *wd)
 static uint64_t get_stable_pointer_hint_for_id(const ID &id)
 {
   /* Make the stable pointer dependent on the data-block name. This is somewhat arbitrary but the
-   * name is at least something that doesn't really change automatically unexpectedly. */
-  const uint64_t name_hash = XXH3_64bits(id.name, strlen(id.name));
+   * name is at least something that doesn't really change automatically unexpectedly.
+   *
+   * Note: Also using the session UID, as this should also be stable over time. Using only name can
+   * lead to generating the same hash for two different IDs (e.g. when a new ID is created with the
+   * same name as an older one). This could lead to wrongly reporting other IDs using it as
+   * unchanged, even though they are using a different ID in reality. See #149890. */
+  const uint64_t id_hash = XXH3_64bits(id.name, strlen(id.name)) ^
+                           XXH3_64bits(&id.session_uid, sizeof(id.session_uid));
   if (id.lib) {
     const uint64_t lib_hash = XXH3_64bits(id.lib->id.name, strlen(id.lib->id.name));
-    return name_hash ^ lib_hash;
+    return id_hash ^ lib_hash;
   }
-  return name_hash;
+  return id_hash;
 }
 
 /**
