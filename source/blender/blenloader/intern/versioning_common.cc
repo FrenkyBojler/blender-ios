@@ -265,14 +265,21 @@ bNode &version_node_add_empty(bNodeTree &ntree,
                               const std::string &ui_description,
                               const std::string &enum_name_legacy,
                               const short nclass,
-                              const bool no_muting = false)
+                              const float width,
+                              const float height,
+                              const bool no_muting)
 {
-  auto *ntype = MEM_new<blender::bke::bNodeType>(__func__);
+  using namespace blender::bke;
+
+  auto *ntype = MEM_new<bNodeType>(__func__);
 
   ntype->idname = idname;
   ntype->type_legacy = legacy_type;
-  ntype->height = 100.0f;
-  ntype->width = 140.0f;
+  ntype->height = height;
+  ntype->width = width;
+  node_type_size_preset(*ntype, eNodeSizePreset::Default);
+  ntype->minheight = 30;
+  ntype->maxheight = FLT_MAX;
 
   ntype->ui_name = ui_name;
   ntype->ui_description = ui_description;
@@ -282,14 +289,14 @@ bNode &version_node_add_empty(bNodeTree &ntree,
   ntype->ui_name = ui_name;
 
   bNode *node = MEM_callocN<bNode>(__func__);
-  node->runtime = MEM_new<blender::bke::bNodeRuntime>(__func__);
+  node->runtime = MEM_new<bNodeRuntime>(__func__);
   BLI_addtail(&ntree.nodes, node);
-  blender::bke::node_unique_id(ntree, *node);
+  node_unique_id(ntree, *node);
   node->typeinfo = ntype;
 
   STRNCPY(node->idname, idname);
   DATA_(ntype->ui_name).copy_utf8_truncated(node->name);
-  blender::bke::node_unique_name(ntree, *node);
+  node_unique_name(ntree, *node);
 
   node->flag = NODE_SELECT | NODE_OPTIONS | NODE_INIT;
   node->width = ntype->width;

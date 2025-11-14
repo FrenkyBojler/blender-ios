@@ -115,7 +115,15 @@ blender::StringRef legacy_socket_idname_to_socket_type(blender::StringRef idname
 bNode &version_node_add_empty(bNodeTree &ntree, const char *idname);
 
 /**
- * todo(habib): documentation
+ * Similar to #version_node_add_empty(bNodeTree &ntree, const char *idname) but doesn't require the
+ * `idname` to be valid. This is typically needed to write a node in a blend file for forward
+ * compatibility reasons, where the node was removed and has no RNA definition anymore.
+ *
+ * The same rules defined in the overloaded function apply here as well (node placement, separate
+ * socket and storage definition etc..).
+ *
+ * Parameters are needed to create a valid #bNodeType to set it as node->typeinfo. See also
+ * #bNodeType for detailed parameter description.
  */
 bNode &version_node_add_empty(bNodeTree &ntree,
                               const char *idname,
@@ -124,7 +132,9 @@ bNode &version_node_add_empty(bNodeTree &ntree,
                               const std::string &ui_description,
                               const std::string &enum_name_legacy,
                               const short nclass,
-                              const bool no_muting);
+                              const float width = 140.0f,
+                              const float height = 100.0f,
+                              const bool no_muting = false);
 
 /**
  * Removes a node for versioning purposes:
