@@ -1004,7 +1004,7 @@ struct FlatObjectRef {
     BKE_object_dimensions_get(ob, dim);
 
     /* Small epsilon relative to object size to handle float errors in flat axis detection after
-     rotation. See #139555. */
+     * rotation. See #139555. */
     const float max_dim = math::reduce_max(float3(dim));
     const float epsilon = max_dim * 1e-6f;
 
