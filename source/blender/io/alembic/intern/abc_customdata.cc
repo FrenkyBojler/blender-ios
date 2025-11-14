@@ -314,14 +314,13 @@ using Alembic::AbcGeom::IV2fGeomParam;
 using Alembic::AbcGeom::IV3fGeomParam;
 
 static void read_uvs(const CDStreamConfig &config,
-                     void *data,
+                     MutableSpan<float2> uv_map,
                      const AbcUvScope uv_scope,
                      const Alembic::AbcGeom::V2fArraySamplePtr &uvs,
                      const UInt32ArraySamplePtr &indices)
 {
   const OffsetIndices faces = config.mesh->faces();
   const int *corner_verts = config.corner_verts;
-  float2 *uv_map = static_cast<float2 *>(data);
 
   uint uv_index, loop_index, rev_loop_index;
 
@@ -412,9 +411,9 @@ static void read_custom_data_mcols(const std::string &iobject_full_name,
   BLI_assert(c3f_ptr || c4f_ptr);
 
   /* Read the vertex colors */
-  void *cd_data = config.add_customdata_cb(
-      config.mesh, prop_header.getName().c_str(), CD_PROP_BYTE_COLOR);
-  MCol *cfaces = static_cast<MCol *>(cd_data);
+  bke::MutableAttributeAccessor attributes = config.mesh->attributes_for_write();
+  bke::SpanAttributeWriter attr = attributes.lookup_or_add_for_write_span<ColorGeometry4b>(
+      prop_header.getName(), bke::AttrDomain::Corner);
   const OffsetIndices faces = config.mesh->faces();
   const int *corner_verts = config.corner_verts;
 
@@ -430,7 +429,7 @@ static void read_custom_data_mcols(const std::string &iobject_full_name,
 
   for (const int i : faces.index_range()) {
     const IndexRange face = faces[i];
-    MCol *cface = &cfaces[face.start() + face.size()];
+    ColorGeometry4b *cface = &attr.span[face.start() + face.size()];
     const int *face_verts = &corner_verts[face.start() + face.size()];
 
     for (int j = 0; j < face.size(); j++, face_index++) {
@@ -477,6 +476,8 @@ static void read_custom_data_mcols(const std::string &iobject_full_name,
       }
     }
   }
+
+  attr.finish();
 }
 
 static void read_custom_data_uvs(const ICompoundProperty &prop,
@@ -501,10 +502,13 @@ static void read_custom_data_uvs(const ICompoundProperty &prop,
     return;
   }
 
-  void *cd_data = config.add_customdata_cb(
-      config.mesh, prop_header.getName().c_str(), CD_PROP_FLOAT2);
+  bke::MutableAttributeAccessor attributes = config.mesh->attributes_for_write();
+  bke::SpanAttributeWriter uv_map = attributes.lookup_or_add_for_write_span<float2>(
+      prop_header.getName(), bke::AttrDomain::Corner);
 
-  read_uvs(config, cd_data, uv_scope, sample.getVals(), uvs_indices);
+  read_uvs(config, uv_map.span, uv_scope, sample.getVals(), uvs_indices);
+
+  uv_map.finish();
 }
 
 void read_velocity(const V3fArraySamplePtr &velocities,
