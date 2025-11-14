@@ -908,16 +908,8 @@ BLI_INLINE float4 _sample_rect(Sampler sampler, InterpWrapMode wrap_x, InterpWra
   }
 }
 
-/** unoptimized version */
-float4 sample_rect(const SamplerSource &source, float2 uv, float2 wh)
-{
-  return _sample_rect(source.sampler, source.wrap_x, source.wrap_y,
-                      source.buffer, source.width, source.height, source.components,
-                      uv, wh);
-}
-
 /** Optimized versions of sample_rect */
-static float4 sample_nearest(const SamplerSource &source, float2 uv, float2)
+static float4 sample_nearest(const SamplerSource &source, const float2 &uv, const float2 &)
 {
   float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
   interpolate_nearest_wrapmode_fl(source.buffer,
@@ -932,7 +924,7 @@ static float4 sample_nearest(const SamplerSource &source, float2 uv, float2)
   return pixel_value;
 }
 
-static float4 sample_bilinear(const SamplerSource &source, float2 uv, float2)
+static float4 sample_bilinear(const SamplerSource &source, const float2 &uv, const float2 &)
 {
   float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
   interpolate_bilinear_wrapmode_fl(source.buffer,
@@ -947,21 +939,21 @@ static float4 sample_bilinear(const SamplerSource &source, float2 uv, float2)
   return pixel_value;
 }
 
-static float4 sample_box(const SamplerSource &source, float2 uv, float2 wh)
+static float4 sample_box(const SamplerSource &source, const float2 &uv, const float2 &wh)
 {
   return _sample_rect(Sampler::Box, source.wrap_x, source.wrap_y,
                       source.buffer, source.width, source.height, source.components,
                       uv, wh);
 }
 
-static float4 sample_box4(const SamplerSource &source, float2 uv, float2 wh)
+static float4 sample_box4(const SamplerSource &source, const float2 &uv, const float2 &wh)
 {
   return _sample_rect(Sampler::Box, source.wrap_x, source.wrap_y,
                       source.buffer, source.width, source.height, 4,
                       uv, wh);
 }
 
-static float4 sample_bspline(const SamplerSource &source, float2 uv, float2 wh)
+static float4 sample_bspline(const SamplerSource &source, const float2 &uv, const float2 &wh)
 {
   return _sample_rect(Sampler::Bspline, source.wrap_x, source.wrap_y,
                       source.buffer, source.width, source.height, source.components,

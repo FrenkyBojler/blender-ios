@@ -391,48 +391,10 @@ void interpolate_cubic_mitchell_fl(
     const float *buffer, float *output, int width, int height, int components, float u, float v);
 
 /**
- * Sample using an arbitrary filter and orthogonal rectangular area.
- * Anisotropic sampler is same as Box, must use dPdx,dPdy to get actual filter.
- */
-float4 sample_rect(const SamplerSource &source, float2 uv, float2 wh);
-
-/** API matching sample_rect() when it is known nearest sampling will work */
-inline float4 sample_nearest(SamplerSource source, float2 uv)
-{
-  float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
-  interpolate_nearest_wrapmode_fl(source.buffer,
-                                  pixel_value,
-                                  source.width,
-                                  source.height,
-                                  source.components,
-                                  uv.x,
-                                  uv.y,
-                                  source.wrap_x,
-                                  source.wrap_y);
-  return pixel_value;
-}
-
-/** API matching sample_rect() when it is known bilinear sampling will work */
-inline float4 sample_bilinear(SamplerSource source, float2 uv)
-{
-  float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
-  interpolate_bilinear_wrapmode_fl(source.buffer,
-                                   pixel_value,
-                                   source.width,
-                                   source.height,
-                                   source.components,
-                                   uv.x - 0.5f,
-                                   uv.y - 0.5f,
-                                   source.wrap_x,
-                                   source.wrap_y);
-  return pixel_value;
-}
-
-/**
  * Lookup optimized versions of above function. The returned function assumes it is called with
  * the same arguments. If there is no optimized version sample_rect() is returned.
  */
-using SampleRect = float4 (*)(const SamplerSource &source, float2 uv, float2 wh);
+using SampleRect = float4 (*)(const SamplerSource &source, const float2 &uv, const float2 &wh);
 SampleRect sample_rect(const SamplerSource &source);
 
 }  // namespace blender::math
