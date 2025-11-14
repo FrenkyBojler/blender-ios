@@ -27,6 +27,7 @@
 #include "COM_domain.hh"
 #include "COM_evaluator.hh"
 #include "COM_result.hh"
+#include "COM_utilities.hh"
 
 #include "GPU_context.hh"
 #include "GPU_state.hh"
@@ -80,10 +81,9 @@ class Context : public compositor::Context {
     return true;
   }
 
-  /* We limit the compositing region to the camera region if in camera view, while we use the
-   * entire viewport otherwise. We also use the entire viewport when doing viewport rendering since
-   * the viewport is already the camera region in that case. */
-  Bounds<int2> get_compositing_region() const override
+  /* Get the bounds of the camera region in pixels relative to the viewport. In case the viewport
+   * has no camera region or is an image render, return the bounds of the entire viewport. */
+  Bounds<int2> get_camera_region() const
   {
     const DRWContext *draw_ctx = DRW_context_get();
     const int2 viewport_size = int2(draw_ctx->viewport_size_get());
@@ -110,35 +110,62 @@ class Context : public compositor::Context {
         .value_or(Bounds<int2>(int2(0)));
   }
 
-  compositor::Result get_output() override
+  /* We limit the input region to the camera region if in camera view, while we use the entire
+   * viewport otherwise. We also use the entire viewport when doing viewport rendering since the
+   * viewport is already the camera region in that case. */
+  Bounds<int2> get_input_region() const override
   {
-    compositor::Result result = this->create_result(compositor::ResultType::Color,
-                                                    compositor::ResultPrecision::Half);
-    result.wrap_external(DRW_context_get()->viewport_texture_list_get()->color);
-    return result;
+    return this->get_camera_region();
   }
 
-  compositor::Result get_viewer_output(compositor::Domain /*domain*/,
-                                       bool /*is_data*/,
-                                       compositor::ResultPrecision /*precision*/) override
+  void write_output(const compositor::Result &result) override
   {
-    compositor::Result result = this->create_result(compositor::ResultType::Color,
-                                                    compositor::ResultPrecision::Half);
-    result.wrap_external(DRW_context_get()->viewport_texture_list_get()->color);
-    return result;
+    gpu::Texture *output = DRW_context_get()->viewport_texture_list_get()->color;
+    if (result.is_single_value()) {
+      GPU_texture_clear(output, GPU_DATA_FLOAT, result.get_single_value<compositor::Color>());
+      return;
+    }
+
+    gpu::Shader *shader = this->get_shader("compositor_write_output",
+                                           compositor::ResultPrecision::Half);
+    GPU_shader_bind(shader);
+
+    const Bounds<int2> bounds = this->get_camera_region();
+    GPU_shader_uniform_2iv(shader, "lower_bound", bounds.min);
+    GPU_shader_uniform_2iv(shader, "upper_bound", bounds.max);
+
+    result.bind_as_texture(shader, "input_tx");
+
+    const int image_unit = GPU_shader_get_sampler_binding(shader, "output_img");
+    GPU_texture_image_bind(output, image_unit);
+
+    compositor::compute_dispatch_threads_at_least(shader, result.domain().data_size);
+
+    result.unbind_as_texture();
+    GPU_texture_image_unbind(output);
+    GPU_shader_unbind();
   }
 
-  compositor::Result get_input(const Scene *scene, int view_layer, const char *name) override
+  void write_viewer(const compositor::Result &result) override
+  {
+    /* Within compositor modifier, output and viewer output function the same. */
+    this->write_output(result);
+  }
+
+  compositor::Result get_pass(const Scene *scene, int view_layer_index, const char *name) override
   {
     /* Blender aliases the Image pass name to be the Combined pass, so we return the combined pass
      * in that case. */
     const char *pass_name = StringRef(name) == "Image" ? "Combined" : name;
 
-    if (DEG_get_original(scene) != DEG_get_original(scene_)) {
+    const Scene *original_scene = DEG_get_original(scene_);
+    if (DEG_get_original(scene) != original_scene) {
       return compositor::Result(*this);
     }
 
-    if (view_layer != 0) {
+    ViewLayer *view_layer = static_cast<ViewLayer *>(
+        BLI_findlink(&original_scene->view_layers, view_layer_index));
+    if (StringRef(view_layer->name) != DRW_context_get()->view_layer->name) {
       return compositor::Result(*this);
     }
 
@@ -160,6 +187,15 @@ class Context : public compositor::Context {
     }
 
     return compositor::Result(*this);
+  }
+
+  compositor::Result get_input(StringRef name) override
+  {
+    if (name == "Image") {
+      return this->get_pass(&this->get_scene(), 0, name.data());
+    }
+
+    return this->create_result(compositor::ResultType::Color);
   }
 
   StringRef get_view_name() const override
@@ -200,14 +236,18 @@ class Instance : public DrawEngine {
     return "Compositor";
   }
 
-  void init() final{};
-  void begin_sync() final{};
+  void init() final {};
+  void begin_sync() final {};
   void object_sync(blender::draw::ObjectRef & /*ob_ref*/,
-                   blender::draw::Manager & /*manager*/) final{};
-  void end_sync() final{};
+                   blender::draw::Manager & /*manager*/) final {};
+  void end_sync() final {};
 
   void draw(Manager & /*manager*/) final
   {
+    if (context_.get_camera_region().is_empty()) {
+      return;
+    }
+
     DRW_submission_start();
 
 #if defined(__APPLE__)
@@ -222,6 +262,7 @@ class Instance : public DrawEngine {
     /* Execute Compositor render commands. */
     {
       context_.set_scene(DRW_context_get()->scene);
+      context_.set_info_message("");
       compositor::Evaluator evaluator(context_);
       evaluator.evaluate();
     }

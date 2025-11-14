@@ -31,7 +31,8 @@
 #include "BKE_packedFile.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
-#include "BKE_sound.h"
+#include "BKE_scene_runtime.hh"
+#include "BKE_sound.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
@@ -39,6 +40,7 @@
 #include "RNA_prototypes.hh"
 
 #include "SEQ_iterator.hh"
+#include "SEQ_sequencer.hh"
 
 #include "UI_interface.hh"
 #include "UI_interface_layout.hh"
@@ -244,7 +246,7 @@ static void sound_update_animation_flags(Scene *scene)
   scene->id.tag |= ID_TAG_DOIT;
 
   if (scene->ed != nullptr) {
-    blender::seq::for_each_callback(&scene->ed->seqbase, sound_update_animation_flags_fn, scene);
+    blender::seq::foreach_strip(&scene->ed->seqbase, sound_update_animation_flags_fn, scene);
   }
 
   fcu = id_data_find_fcurve(&scene->id, scene, &RNA_Scene, "audio_volume", 0, &driven);
@@ -364,7 +366,7 @@ static wmOperatorStatus sound_mixdown_exec(bContext *C, wmOperator *op)
   const int end_frame = scene_eval->r.efra;
 
   if (split) {
-    result = AUD_mixdown_per_channel(scene_eval->sound_scene,
+    result = AUD_mixdown_per_channel(scene_eval->runtime->audio.sound_scene,
                                      start_frame * specs.rate / fps,
                                      (end_frame - start_frame + 1) * specs.rate / fps,
                                      accuracy,
@@ -380,7 +382,7 @@ static wmOperatorStatus sound_mixdown_exec(bContext *C, wmOperator *op)
                                      sizeof(error_message));
   }
   else {
-    result = AUD_mixdown(scene_eval->sound_scene,
+    result = AUD_mixdown(scene_eval->runtime->audio.sound_scene,
                          start_frame * specs.rate / fps,
                          (end_frame - start_frame + 1) * specs.rate / fps,
                          accuracy,
@@ -776,7 +778,7 @@ static void SOUND_OT_mixdown(wmOperatorType *ot)
 
 static bool sound_poll(bContext *C)
 {
-  Editing *ed = CTX_data_sequencer_scene(C)->ed;
+  Editing *ed = blender::seq::editing_get(CTX_data_sequencer_scene(C));
 
   if (!ed || !ed->act_strip || ed->act_strip->type != STRIP_TYPE_SOUND_RAM) {
     return false;
@@ -789,7 +791,7 @@ static bool sound_poll(bContext *C)
 static wmOperatorStatus sound_pack_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
-  Editing *ed = CTX_data_sequencer_scene(C)->ed;
+  Editing *ed = blender::seq::editing_get(CTX_data_sequencer_scene(C));
   bSound *sound;
 
   if (!ed || !ed->act_strip || ed->act_strip->type != STRIP_TYPE_SOUND_RAM) {
@@ -862,7 +864,7 @@ static wmOperatorStatus sound_unpack_exec(bContext *C, wmOperator *op)
 
 static wmOperatorStatus sound_unpack_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
-  Editing *ed = CTX_data_sequencer_scene(C)->ed;
+  Editing *ed = blender::seq::editing_get(CTX_data_sequencer_scene(C));
   bSound *sound;
 
   if (RNA_struct_property_is_set(op->ptr, "id")) {

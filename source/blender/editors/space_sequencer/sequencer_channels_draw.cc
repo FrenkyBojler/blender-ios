@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
- * \ingroup sequencer
+ * \ingroup spseq
  */
 
 #include "MEM_guardedalloc.h"
@@ -14,6 +14,7 @@
 #include "BKE_context.hh"
 #include "BKE_screen.hh"
 
+#include "BLI_math_base.h"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
@@ -33,7 +34,6 @@
 
 #include "WM_api.hh"
 
-/* Own include. */
 #include "sequencer_intern.hh"
 
 namespace blender::ed::vse {
@@ -89,7 +89,7 @@ static void displayed_channel_range_get(const SeqChannelDrawContext *context,
 
 static std::string draw_channel_widget_tooltip(bContext * /*C*/,
                                                void *argN,
-                                               const blender::StringRef /*tip*/)
+                                               const StringRef /*tip*/)
 {
   char *dyn_tooltip = static_cast<char *>(argN);
   return dyn_tooltip;
@@ -327,8 +327,12 @@ void channel_draw_context_init(const bContext *C,
 void draw_channels(const bContext *C, ARegion *region)
 {
   draw_background();
+  Scene *scene = CTX_data_sequencer_scene(C);
+  if (!scene) {
+    return;
+  }
 
-  Editing *ed = seq::editing_get(CTX_data_sequencer_scene(C));
+  Editing *ed = seq::editing_get(scene);
   if (ed == nullptr) {
     return;
   }

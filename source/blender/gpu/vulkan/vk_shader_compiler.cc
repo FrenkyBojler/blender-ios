@@ -19,6 +19,11 @@
 #include "vk_shader.hh"
 #include "vk_shader_compiler.hh"
 
+#include <filesystem>
+#include <fstream>
+#include <iostream>
+#include <string>
+
 namespace blender::gpu {
 
 static std::optional<std::string> cache_dir_get()
@@ -162,6 +167,17 @@ static StringRef to_stage_name(shaderc_shader_kind stage)
   return "unknown stage";
 }
 
+static std::string patch_line_directives(std::string source)
+{
+  /* Patch line directives so that we can make error reporting consistent. */
+  size_t start_pos = 0;
+  while ((start_pos = source.find("#line ", start_pos)) != std::string::npos) {
+    source[start_pos] = '/';
+    source[start_pos + 1] = '/';
+  }
+  return source;
+}
+
 static bool compile_ex(shaderc::Compiler &compiler,
                        VKShader &shader,
                        shaderc_shader_kind stage,
@@ -202,8 +218,28 @@ static bool compile_ex(shaderc::Compiler &compiler,
   }
 
   std::string full_name = shader.name_get() + "_" + to_stage_name(stage);
+
+  if (shader.name_get() == G.gpu_debug_shader_source_name) {
+    namespace fs = std::filesystem;
+    fs::path shader_dir = fs::current_path() / "Shaders";
+    fs::create_directories(shader_dir);
+    fs::path file_path = shader_dir / (full_name + ".glsl");
+
+    std::ofstream output_source_file(file_path);
+    if (output_source_file) {
+      output_source_file << shader_module.combined_sources;
+      output_source_file.close();
+    }
+    else {
+      std::cerr << "Shader Source Debug: Failed to open file: " << file_path << "\n";
+    }
+  }
+
+  /* Removes line directive. */
+  std::string sources = patch_line_directives(shader_module.combined_sources);
+
   shader_module.compilation_result = compiler.CompileGlslToSpv(
-      shader_module.combined_sources, stage, full_name.c_str(), options);
+      sources, stage, full_name.c_str(), options);
   bool compilation_succeeded = shader_module.compilation_result.GetCompilationStatus() ==
                                shaderc_compilation_status_success;
   if (compilation_succeeded) {

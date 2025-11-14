@@ -402,6 +402,7 @@ IDTypeInfo IDType_ID_GR = {
     /*foreach_id*/ collection_foreach_id,
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
     /*owner_pointer_get*/ collection_owner_pointer_get,
 
     /*blend_write*/ collection_blend_write,
@@ -769,7 +770,7 @@ Collection *BKE_collection_duplicate(Main *bmain,
     /* Unfortunate, but with some types (e.g. meshes), an object is considered in Edit mode if its
      * obdata contains edit mode runtime data. This can be the case of all newly duplicated
      * objects, as even though duplicate code move the object back in Object mode, they are still
-     * using the original obdata ID, leading to them being falsly detected as being in Edit mode,
+     * using the original obdata ID, leading to them being falsely detected as being in Edit mode,
      * and therefore not remapping their obdata to the newly duplicated one.
      * See #139715. */
     BKE_libblock_relink_to_newid(
@@ -2128,30 +2129,21 @@ bool BKE_collection_validate(Collection *collection)
   bool is_ok = true;
 
   /* Check that children have each collection used/referenced only once. */
-  GSet *processed_collections = BLI_gset_ptr_new(__func__);
+  blender::Set<Collection *> processed_collections;
   LISTBASE_FOREACH (CollectionChild *, child, &collection->children) {
-    void **r_key;
-    if (BLI_gset_ensure_p_ex(processed_collections, child->collection, &r_key)) {
+    if (!processed_collections.add(child->collection)) {
       is_ok = false;
-    }
-    else {
-      *r_key = child->collection;
     }
   }
 
   /* Check that parents have each collection used/referenced only once. */
-  BLI_gset_clear(processed_collections, nullptr);
+  processed_collections.clear();
   LISTBASE_FOREACH (CollectionParent *, parent, &collection->runtime->parents) {
-    void **r_key;
-    if (BLI_gset_ensure_p_ex(processed_collections, parent->collection, &r_key)) {
+    if (!processed_collections.add(parent->collection)) {
       is_ok = false;
-    }
-    else {
-      *r_key = parent->collection;
     }
   }
 
-  BLI_gset_free(processed_collections, nullptr);
   return is_ok;
 }
 

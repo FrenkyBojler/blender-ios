@@ -624,7 +624,9 @@ GHOST_TCapabilityFlag GHOST_SystemWin32::getCapabilities() const
            * it's possible another modifier could be optionally used in it's place. */
           GHOST_kCapabilityKeyboardHyperKey |
           /* No support yet for cursors generated on demand. */
-          GHOST_kCapabilityCursorGenerator));
+          GHOST_kCapabilityCursorGenerator |
+          /* No support for window path meta-data. */
+          GHOST_kCapabilityWindowPath));
 }
 
 GHOST_TSuccess GHOST_SystemWin32::init()
@@ -2361,6 +2363,7 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, uint msg, WPARAM wParam, 
            * another window-management function. */
         case WM_SETFOCUS: {
           /* The WM_SETFOCUS message is sent to a window after it has gained the keyboard focus. */
+          window->updateHDRInfo();
           break;
         }
         /* ============

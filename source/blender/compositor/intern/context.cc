@@ -18,6 +18,11 @@
 
 namespace blender::compositor {
 
+Result Context::get_pass(const Scene * /*scene*/, int /*view_layer*/, const char * /*name*/)
+{
+  return this->create_result(compositor::ResultType::Color);
+}
+
 const RenderData &Context::get_render_data() const
 {
   return this->get_scene().r;
@@ -74,12 +79,7 @@ void Context::reset()
 
 int2 Context::get_compositing_region_size() const
 {
-  return math::max(int2(1), this->get_compositing_region().size());
-}
-
-bool Context::is_valid_compositing_region() const
-{
-  return !this->get_compositing_region().is_empty();
+  return this->get_input_region().size();
 }
 
 float Context::get_render_percentage() const
@@ -134,6 +134,11 @@ Result Context::create_result(ResultType type)
 StaticCacheManager &Context::cache_manager()
 {
   return cache_manager_;
+}
+
+const Strip *Context::get_strip() const
+{
+  return nullptr;
 }
 
 }  // namespace blender::compositor
