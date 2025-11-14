@@ -235,11 +235,12 @@ static blender::VArray<bool> get_corner_boolean_attribute(const Mesh &mesh, cons
   return *attributes.lookup_or_default<bool>(name, blender::bke::AttrDomain::Corner, false);
 }
 
-blender::VArray<bool> ED_mesh_uv_map_pin_layer_get(const Mesh *mesh, const StringRef name)
+blender::VArray<bool> ED_mesh_uv_map_pin_layer_get(const Mesh *mesh, const int uv_index)
 {
   using namespace blender::bke;
   char buffer[MAX_CUSTOMDATA_LAYER_NAME];
-  return get_corner_boolean_attribute(*mesh, BKE_uv_map_pin_name_get(name, buffer));
+  const char *uv_name = mesh->uv_map_names()[uv_index].c_str();
+  return get_corner_boolean_attribute(*mesh, BKE_uv_map_pin_name_get(uv_name, buffer));
 }
 
 static blender::bke::AttributeWriter<bool> ensure_corner_boolean_attribute(Mesh &mesh,
@@ -250,12 +251,12 @@ static blender::bke::AttributeWriter<bool> ensure_corner_boolean_attribute(Mesh 
       name, blender::bke::AttrDomain::Corner, blender::bke::AttributeInitDefaultValue());
 }
 
-blender::bke::AttributeWriter<bool> ED_mesh_uv_map_pin_layer_ensure(Mesh *mesh,
-                                                                    const StringRef name)
+blender::bke::AttributeWriter<bool> ED_mesh_uv_map_pin_layer_ensure(Mesh *mesh, const int uv_index)
 {
   using namespace blender::bke;
   char buffer[MAX_CUSTOMDATA_LAYER_NAME];
-  return ensure_corner_boolean_attribute(*mesh, BKE_uv_map_pin_name_get(name, buffer));
+  const char *uv_name = mesh->uv_map_names()[uv_index].c_str();
+  return ensure_corner_boolean_attribute(*mesh, BKE_uv_map_pin_name_get(uv_name, buffer));
 }
 
 void ED_mesh_uv_ensure(Mesh *mesh, const char *name)

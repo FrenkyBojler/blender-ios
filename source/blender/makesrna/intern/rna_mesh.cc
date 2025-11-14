@@ -1652,17 +1652,13 @@ static std::optional<std::string> rna_MeshUVLoop_path(const PointerRNA *ptr)
  * find the associated bool layers. So we scan the available #float2 layers
  * to find into which layer the pointer we got passed points.
  */
-struct UVMapNameAndIndex {
-  StringRef name;
-  int index;
-};
-static std::optional<UVMapNameAndIndex> get_uv_index_and_layer(const PointerRNA *ptr)
+static std::optional<int> get_uv_index_and_layer(const PointerRNA *ptr)
 {
   using namespace blender;
   const Mesh *mesh = rna_mesh(ptr);
   const blender::float2 *uv_coord = static_cast<const blender::float2 *>(ptr->data);
 
-  std::optional<UVMapNameAndIndex> result;
+  std::optional<int> result;
 
   /* We don't know from which attribute the RNA pointer is from, so we need to scan them all. */
   mesh->attribute_storage.wrap().foreach_with_stop([&](const bke::Attribute &attr) {
@@ -1675,7 +1671,7 @@ static std::optional<UVMapNameAndIndex> get_uv_index_and_layer(const PointerRNA 
     }
     const ptrdiff_t index = uv_coord - static_cast<const float2 *>(array_data->data);
     if (index >= 0 && index < mesh->corners_num) {
-      result = {attr.name, index};
+      result = index;
       return false;
     }
     return true;
@@ -1687,8 +1683,8 @@ static bool rna_MeshUVLoop_pin_uv_get(PointerRNA *ptr)
 {
   const Mesh *mesh = rna_mesh(ptr);
   blender::VArray<bool> pin_uv;
-  if (std::optional<UVMapNameAndIndex> lookup = get_uv_index_and_layer(ptr)) {
-    pin_uv = ED_mesh_uv_map_pin_layer_get(mesh, lookup->name);
+  if (std::optional<int> lookup = get_uv_index_and_layer(ptr)) {
+    pin_uv = ED_mesh_uv_map_pin_layer_get(mesh, *lookup);
   }
   return pin_uv ? pin_uv[loop_index] : false;
 }
@@ -1696,9 +1692,8 @@ static bool rna_MeshUVLoop_pin_uv_get(PointerRNA *ptr)
 static void rna_MeshUVLoop_pin_uv_set(PointerRNA *ptr, const bool value)
 {
   Mesh *mesh = rna_mesh(ptr);
-  if (std::optional<UVMapNameAndIndex> lookup = get_uv_index_and_layer(ptr)) {
-    blender::bke::AttributeWriter<bool> pin_uv = ED_mesh_uv_map_pin_layer_ensure(mesh,
-                                                                                 lookup->name);
+  if (std::optional<int> lookup = get_uv_index_and_layer(ptr)) {
+    blender::bke::AttributeWriter<bool> pin_uv = ED_mesh_uv_map_pin_layer_ensure(mesh, *lookup);
     pin_uv.varray.set(loop_index, value);
     pin_uv.finish();
   }
