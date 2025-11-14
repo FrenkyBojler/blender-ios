@@ -646,7 +646,7 @@ static int gizmo_find_intersected_3d_intern(wmGizmo **visible_gizmos,
       if ((gz->flag & WM_GIZMO_DRAW_NO_SCALE) == 0) {
         /* Use the larger of the gizmo's final scale and a small minimum threshold to prevent the
          * selection bias from collapsing when the gizmo becomes extremely small. See #100321. */
-        const float scale = max_ff(gz->scale_final, 1e-2f);
+        const float scale = std::max(gz->scale_final, 1e-2f);
         select_bias *= scale;
       }
       sub_v3_v3(co_3d, co_3d_origin);
