@@ -69,7 +69,7 @@ class GridRework : Overlay {
 
     {
       /* Vertex count is 2 (x/y-direction) x 2 (verts per line) x levels x N */
-      const uint n_verts = 16 * num_lines_per_level_;
+      const uint n_verts = 12 * num_lines_per_level_;
 
       auto &sub = grid_ps_.sub("grid");
       sub.shader_set(res.shaders->gridrework.get());
@@ -104,7 +104,7 @@ class GridRework : Overlay {
     grid_flag_ = zaxs_flag_ = 0;
 
     // num_lines_per_level_ = 5;
-    num_lines_per_level_ = 255; /* This suffices for a full orthographic square for metric/imp. */
+    num_lines_per_level_ = 511; /* This suffices for a full orthographic square for metric/imp. */
     grid_ubo_.num_lines_per_level = num_lines_per_level_;
 
     return init_3d(state);
@@ -204,17 +204,7 @@ class GridRework : Overlay {
       dist = rv3d->dist;
       grid_poi_ = drw_view_position - dist * drw_view_forward;
     }
-
-    /* for (int i = 0; i < level_scales_.size() - 1; i++) {
-      float curr = level_scales_[i];
-      float next = i < level_scales_.size() - 1 ? level_scales_[i + 1] : 10 * level_scales_[i];
-      std::printf("\t%d - %f\n", i, curr);
-      if (next >= dist || next == curr) {
-        grid_level_ = static_cast<float>(i) + safe_divide(dist - curr, next - curr);
-        // break;
-      }
-    } */
-
+    
     /* Find the lowest relevant grid level + fractional, dependent on camera distance. We
      * fake a order of magnitude extra level, as in orthographic cameras the maximum zoom
      * barely exceeds the largest specified grid scale in unit systems. */
@@ -236,24 +226,6 @@ class GridRework : Overlay {
       }
       std::printf("\n");
     }
-
-    // for (level_scale_i = 0; level_scale_i < level_scales_.size() - 1; level_scale_i++) {
-    //   curr = level_scales_[level_scale_i], next = level_scales_[level_scale_i + 1];
-
-    //   if (next == curr) {
-    //     next = 10.0f * curr;
-    //     break;  
-    //   }
-
-    //   // float curr = level_scales_[i], prev = level_scales_[i - 1];
-    //   if (next >= dist || next == curr) {
-    //     // grid_level_ = static_cast<float>(i - 1) + safe_divide(dist - prev, curr - prev);
-    //     break;
-    //   }
-    // }
-    // grid_level_ = static_cast<float>(level_scale_i) + safe_divide(dist - curr, next - curr);
-
-    // std::printf("curr %f - dist %f - next %f\n", curr, dist, next);
 
     return true;
   }

@@ -14,7 +14,7 @@ VERTEX_SHADER_CREATE_INFO(overlay_gridrework_next)
 /** Keep in sync with `SI_GRID_STEPS_LEN` in `DNA_space_types.h`. */
 #define GRID_LEVELS_TOTAL 8
 /** The grid renders N hardcoded levels of hierarchy. */
-#define GRID_LEVELS_DRAW 4
+#define GRID_LEVELS_DRAW 3
 
 /* Helper struct: a vertex as part of a line is defined by its 2D position, 
  * and the grid level it belongs on. See `get_line_data()` below. */
@@ -36,7 +36,7 @@ LineData get_line_data(in uint vertex_id)
   vertex_id = vertex_id >> 1u;
 
   /* The index/level of a line are implicitly encoded by the 30 remaining bits. */
-  line.level = /* GRID_LEVELS_DRAW - 1 - */ int(vertex_id / grid_buf.num_lines_per_level);
+  line.level = int(vertex_id / grid_buf.num_lines_per_level);
   vertex_id = vertex_id % grid_buf.num_lines_per_level;
 
   /* From the index, generate 2*N+1 points equidistantly spaced on [-N/2, N/2]. */
@@ -63,11 +63,16 @@ void main()
    * - The vertex position as [-1, 1], so we can fade level boundaries.
    * - The fade for the *lowest* level, fitted to a quadratic curve. */
   frag_xy = line.P / float(grid_buf.num_lines_per_level >> 1);
-  frag_level = line.level > 0 ? 1.0f : 1.0f - fract(grid_level);
+  frag_level = line.level > 0 ? 1.0f : pow3f(1.0f - fract(grid_level));
 
-  /* Compute the actual level of grid data, offset negatively to always show one sub-level */
+  /* Compute the actual level of grid data, offset by -1 to always show a sub-level. */
   int level = int(grid_level) + line.level - 1;
-  level = clamp(level, 0, GRID_LEVELS_TOTAL - 1);
+
+  /* We clip a line if the level range is outside the specified unit system's data. */
+  if (level < 0 || level >= GRID_LEVELS_TOTAL) {
+    gl_Position = float4(NAN_FLT);
+    return;
+  }
 
   /* Dependent on flags, we now put the grid and auxiliary data on the correct plane. */
   float3 P;
@@ -96,12 +101,12 @@ void main()
   /* Scale the grid based on level. Additionally, translate the grid with the point of interest,
    * in increments dependent on the level's scaling. */
   float scale = grid_buf.level_scales[level].x;
-  P = scale * P + scale * round(P_offset / scale);
+  P = scale * (P + round(P_offset / scale));
 
   /* We do manual line clipping for lower levels, if a upper level overlaps this line. */
   /* If there exists an integer, such that with the scaling of the level above we can draw
    * the current line, we can safely clip the current line. */
-  if (line.level < GRID_LEVELS_DRAW - 1) {
+  if (line.level < GRID_LEVELS_DRAW - 1 && level < GRID_LEVELS_TOTAL - 1) {
     float scale_next = grid_buf.level_scales[min(level + 1, GRID_LEVELS_TOTAL - 1)][0];
     float2 P_offset_ = scale_next * round(P_offset.xy / scale_next);
     float2 P_div = P_offset_ + (P.xy - P_offset_) / scale_next;
@@ -112,18 +117,6 @@ void main()
       return;
     }
   }
-  
-  // TODO Testing code, remove
-  /* if (line.level != 2 && (P.x == 0.0f || P.y == 0.0f)) {
-    gl_Position = float4(NAN_FLT);
-    return;
-  } */
-
-  // TODO Testing code, remove
-  /* if (line.level != 0) {
-    gl_Position = float4(NAN_FLT);
-    return;
-  } */
 
   /* We do manual line clipping before perspective projection on the x/y plane. The projection
    * introduces precision problems for (absurdly) large lines, causing flickering artifacts. */
