@@ -2149,46 +2149,52 @@ static char *current_relpath_append(const FileListReadJob *job_params, const cha
 }
 
 #ifdef WIN32
-static int filelist_add_userfonts(const char *root, ListBase *entries)
+static int filelist_add_userfonts_registry(HKEY hKeyParent, LPCSTR subkeyName, ListBase *entries)
 {
   int font_num = 0;
   HKEY key = 0;
-  DWORD retCode = RegOpenKeyEx(HKEY_CURRENT_USER,
-                               "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Fonts",
-                               0,
-                               KEY_ALL_ACCESS,
-                               &key);
-
-  if (retCode == ERROR_SUCCESS) {
-    for (int i = 0;; i++) {
-      TCHAR KeyName[255];
-      DWORD KeyNameLen = 255;
-      TCHAR KeyValue[FILE_MAX];
-      DWORD KeyValueLen = FILE_MAX;
-      if (RegEnumValue(
-              key, i, (LPSTR)&KeyName, &KeyNameLen, NULL, NULL, (LPBYTE)&KeyValue, &KeyValueLen) !=
-          ERROR_SUCCESS)
-      {
-        break;
-      }
-      FileListInternEntry *entry = MEM_new<FileListInternEntry>(__func__);
-      const char *lslash_str = BLI_path_slash_rfind(KeyValue);
-      const size_t lslash = lslash_str ? (size_t)(lslash_str - KeyValue) + 1 : 0;
-      BLI_stat(KeyValue, &entry->st);
-      entry->relpath = BLI_strdup(KeyValue + lslash);
-      entry->name = BLF_display_name_from_file(KeyValue);
-      entry->free_name = true;
-      entry->attributes = FILE_ATTR_READONLY & FILE_ATTR_ALIAS;
-      entry->typeflag = FILE_TYPE_FTFONT;
-      entry->redirection_path = BLI_strdup(KeyValue);
-      BLI_addtail(entries, entry);
-      font_num++;
-    }
-    RegCloseKey(key);
+  if (RegOpenKeyEx(hKeyParent, subkeyName, 0, KEY_ALL_ACCESS, &key) != ERROR_SUCCESS) {
+    return 0;
   }
 
+  DWORD index = 0;
+  TCHAR KeyName[255];
+  DWORD KeyNameLen = 255;
+  TCHAR KeyValue[FILE_MAX];
+  DWORD KeyValueLen = FILE_MAX;
+
+  while (
+      RegEnumValue(
+          key, index, (LPSTR)&KeyName, &KeyNameLen, NULL, NULL, (LPBYTE)&KeyValue, &KeyValueLen) ==
+      ERROR_SUCCESS)
+  {
+    FileListInternEntry *entry = MEM_new<FileListInternEntry>(__func__);
+    const char *lslash_str = BLI_path_slash_rfind(KeyValue);
+    const size_t lslash = lslash_str ? (size_t)(lslash_str - KeyValue) + 1 : 0;
+    BLI_stat(KeyValue, &entry->st);
+    entry->relpath = BLI_strdup(KeyValue + lslash);
+    entry->name = BLF_display_name_from_file(KeyValue);
+    entry->free_name = true;
+    entry->attributes = FILE_ATTR_READONLY & FILE_ATTR_ALIAS;
+    entry->typeflag = FILE_TYPE_FTFONT;
+    entry->redirection_path = BLI_strdup(KeyValue);
+    BLI_addtail(entries, entry);
+    font_num++;
+    index++;
+  }
+
+  /* Enumerate subkeys and recurse. */
+
+  RegCloseKey(key);
   return font_num;
 }
+
+static int filelist_add_userfonts(ListBase *entries)
+{
+  return filelist_add_userfonts_registry(
+      HKEY_CURRENT_USER, "SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Fonts", entries);
+}
+
 #endif
 
 static int filelist_readjob_list_dir(FileListReadJob *job_params,
@@ -2204,12 +2210,12 @@ static int filelist_readjob_list_dir(FileListReadJob *job_params,
   /* Full path of the item. */
   char full_path[FILE_MAX];
 
- #ifdef WIN32
+#ifdef WIN32
   char fonts_path[FILE_MAXDIR] = {0};
   BKE_appdir_font_folder_default(fonts_path, sizeof(fonts_path));
   BLI_path_slash_ensure(fonts_path, sizeof(fonts_path));
   if (STREQ(root, fonts_path)) {
-    entries_num += filelist_add_userfonts(root, entries);
+    entries_num += filelist_add_userfonts(entries);
   }
 #endif
 
