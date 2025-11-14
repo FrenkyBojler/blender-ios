@@ -11,8 +11,8 @@
 
 #include "BKE_context.hh"
 
-#include "BLT_translation.hh"
 #include "BLI_fnmatch.h"
+#include "BLT_translation.hh"
 
 #include "GPU_immediate.hh"
 #include "GPU_state.hh"
@@ -627,7 +627,8 @@ void AbstractTreeViewItem::update_from_old(const AbstractViewItem &old)
 bool AbstractTreeViewItem::should_be_filtered_visible(StringRefNull filter_string) const
 {
   StringRef name = this->get_rename_string();
-  return fnmatch(filter_string.c_str(), name.data(), FNM_CASEFOLD) == *this->get_tree_view().invert_search_filter_;
+  return fnmatch(filter_string.c_str(), name.data(), FNM_CASEFOLD) ==
+         *this->get_tree_view().invert_search_filter_;
 }
 
 bool AbstractTreeViewItem::matches_single(const AbstractTreeViewItem &other) const
@@ -982,19 +983,19 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
       UI_but_flag_disable(but, UI_BUT_UNDO);
       ui_def_but_icon(but, ICON_VIEWZOOM, UI_HAS_ICON);
 
-    but = uiDefIconButBitC(block,
-                                  ButType::Toggle,
-                                  1,
-                                  ICON_ARROW_LEFTRIGHT,
-                                  0,
-                                  0,
-                                  UI_UNIT_X,
-                                  UI_UNIT_Y,
-                                  tree_view.invert_search_filter_.get(),
-                                  0,
-                                  0,
-                                  TIP_(""));
-    UI_but_flag_disable(but, UI_BUT_UNDO);
+      but = uiDefIconButBitC(block,
+                             ButType::Toggle,
+                             1,
+                             ICON_ARROW_LEFTRIGHT,
+                             0,
+                             0,
+                             UI_UNIT_X,
+                             UI_UNIT_Y,
+                             tree_view.invert_search_filter_.get(),
+                             0,
+                             0,
+                             TIP_(""));
+      UI_but_flag_disable(but, UI_BUT_UNDO);
     }
   }
 
