@@ -1114,7 +1114,7 @@ void SCULPT_OT_face_set_change_visibility(wmOperatorType *ot)
 {
   ot->name = "Face Sets Visibility";
   ot->idname = "SCULPT_OT_face_set_change_visibility";
-  ot->description = "Change the visibility of the Face Sets of the sculpt";
+  ot->description = "Change the visibility of the mesh based on the current active face set";
 
   ot->exec = change_visibility_exec;
   ot->invoke = change_visibility_invoke;
@@ -1126,8 +1126,8 @@ void SCULPT_OT_face_set_change_visibility(wmOperatorType *ot)
       {int(VisibilityMode::Toggle),
        "TOGGLE",
        0,
-       "Toggle Visibility",
-       "Hide all Face Sets except for the active one"},
+       "Isolate Active Face Set / Show All",
+       "Switch between showing only the current active face set and showing the entire mesh"},
       {int(VisibilityMode::ShowActive),
        "SHOW_ACTIVE",
        0,
@@ -1136,8 +1136,8 @@ void SCULPT_OT_face_set_change_visibility(wmOperatorType *ot)
       {int(VisibilityMode::HideActive),
        "HIDE_ACTIVE",
        0,
-       "Hide Active Face Sets",
-       "Hide Active Face Sets"},
+       "Hide Active Face Set",
+       "Hide Active Face Set"},
       {0, nullptr, 0, nullptr, nullptr},
   };
   RNA_def_enum(ot->srna, "mode", modes, int(VisibilityMode::Toggle), "Mode", "");
