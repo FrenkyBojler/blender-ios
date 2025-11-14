@@ -1114,6 +1114,11 @@ void IMB_colormanagement_check_file_config(Main *bmain)
     ok &= colormanage_check_view_settings(
         &scene->display_settings, &scene->view_settings, "scene");
 
+    ok &= colormanage_check_display_settings(
+        &scene->r.im_format.display_settings, "scene output", default_display);
+    ok &= colormanage_check_view_settings(
+        &scene->r.im_format.display_settings, &scene->r.im_format.view_settings, "scene output");
+
     sequencer_colorspace_settings = &scene->sequencer_colorspace_settings;
 
     ok &= colormanage_check_colorspace_settings(sequencer_colorspace_settings, "sequencer");
