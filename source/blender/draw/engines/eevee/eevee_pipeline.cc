@@ -436,7 +436,7 @@ PassMain::Sub *ForwardPipeline::material_transparent_add(const Object *ob,
                                                          ::Material *blender_mat,
                                                          GPUMaterial *gpumat)
 {
-  DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA_PREMUL |
+  DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_TRANSPARENCY |
                    DRW_STATE_CLIP_CONTROL_UNIT_RANGE | inst_.film.depth.test_state;
   if (blender_mat->blend_flag & MA_BL_CULL_BACKFACE) {
     state |= DRW_STATE_CULL_BACK;

@@ -75,18 +75,16 @@ void main()
 
   radiance *= 1.0f - g_holdout;
 
-  float3 alpha = saturate(1.0 - transmittance);
-
   /* There can be 2 framebuffer layout for forward transparency:
    * - Combined RGB radiance with Monochromatic transmittance.
    * - Channel split RGB radiance & RGB transmittance + Dedicated average alpha with holdout. */
   if (uniform_buf.pipeline.use_monochromatic_transmittance) {
-    out_radiance_r = float4(radiance.rgb, alpha.r);
+    out_radiance_r = float4(radiance.rgb, transmittance.r);
   }
   else {
-    out_radiance_r = float4(radiance.r, 0.0f, 0.0f, alpha.r);
-    out_radiance_g = float4(radiance.g, 0.0f, 0.0f, alpha.g);
-    out_radiance_b = float4(radiance.b, 0.0f, 0.0f, alpha.b);
-    out_radiance_a = float4(g_holdout, 0.0f, 0.0f, average(alpha));
+    out_radiance_r = float4(radiance.r, 0.0f, 0.0f, transmittance.r);
+    out_radiance_g = float4(radiance.g, 0.0f, 0.0f, transmittance.g);
+    out_radiance_b = float4(radiance.b, 0.0f, 0.0f, transmittance.b);
+    out_radiance_a = float4(g_holdout, 0.0f, 0.0f, average(transmittance));
   }
 }
