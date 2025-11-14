@@ -272,6 +272,14 @@ static int node_shader_gpu_tex_sky(GPUMaterial *mat,
                                              tex->air_density,
                                              tex->aerosol_density,
                                              tex->ozone_density);
+
+    /* The multi-scatter case takes care of rotation wrapping in the
+     * sky_simplify_multiscatter_elevation_rotation(). */
+    sun_rotation = fmodf(sun_rotation, 2.0f * M_PI);
+    if (sun_rotation < 0.0f) {
+      sun_rotation += 2.0f * M_PI;
+    }
+    sun_rotation = 2.0f * M_PI - sun_rotation;
   }
   else {
     float sun_elevation = tex->sun_elevation;
@@ -286,12 +294,6 @@ static int node_shader_gpu_tex_sky(GPUMaterial *mat,
                                                tex->aerosol_density,
                                                tex->ozone_density);
   }
-
-  sun_rotation = fmodf(sun_rotation, 2.0f * M_PI);
-  if (sun_rotation < 0.0f) {
-    sun_rotation += 2.0f * M_PI;
-  }
-  sun_rotation = 2.0f * M_PI - sun_rotation;
 
   XYZ_to_RGB xyz_to_rgb;
   get_XYZ_to_RGB_for_gpu(&xyz_to_rgb);
