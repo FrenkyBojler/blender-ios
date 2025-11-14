@@ -452,10 +452,10 @@ static void read_custom_data_mcols(const std::string &iobject_full_name,
           continue;
         }
         const Imath::C3f &color = (*c3f_ptr)[color_index];
-        cface->a = unit_float_to_uchar_clamp(color[0]);
-        cface->r = unit_float_to_uchar_clamp(color[1]);
-        cface->g = unit_float_to_uchar_clamp(color[2]);
-        cface->b = 255;
+        cface->r = unit_float_to_uchar_clamp(color[0]);
+        cface->g = unit_float_to_uchar_clamp(color[1]);
+        cface->b = unit_float_to_uchar_clamp(color[2]);
+        cface->a = 255;
       }
       else {
         bool is_mcols_out_of_bounds = false;
@@ -469,10 +469,10 @@ static void read_custom_data_mcols(const std::string &iobject_full_name,
           continue;
         }
         const Imath::C4f &color = (*c4f_ptr)[color_index];
-        cface->a = unit_float_to_uchar_clamp(color[0]);
-        cface->r = unit_float_to_uchar_clamp(color[1]);
-        cface->g = unit_float_to_uchar_clamp(color[2]);
-        cface->b = unit_float_to_uchar_clamp(color[3]);
+        cface->r = unit_float_to_uchar_clamp(color[0]);
+        cface->g = unit_float_to_uchar_clamp(color[1]);
+        cface->b = unit_float_to_uchar_clamp(color[2]);
+        cface->a = unit_float_to_uchar_clamp(color[3]);
       }
     }
   }
