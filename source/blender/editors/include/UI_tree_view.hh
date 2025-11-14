@@ -131,6 +131,9 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
 
   bool scroll_active_into_view_on_draw_ = false;
   std::shared_ptr<char> show_display_options_ = std::make_shared<char>(0);
+  /**
+   * When true, show elements that doesn't match with the search string.
+   */
   std::shared_ptr<char> invert_search_filter_ = std::make_shared<char>(0);
   /* `char[UI_MAX_NAME_STR]` wrapped in shared pointer, to keep a stable pointer over
    * reconstruction that can be passed to buttons. */
