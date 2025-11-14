@@ -313,7 +313,7 @@ static void um_arraystore_cd_compact(ArraysWithType &arrays,
           }
 
           const void *data_final = arrays.data[i];
-          size_t data_final_size = size_t(arrays.data_len) * stride;
+          size_t data_final_size = arrays.data_len * stride;
 
 #  ifdef USE_ARRAY_STORE_RLE
           const bool use_rle = um_customdata_layer_use_rle(bcd);
