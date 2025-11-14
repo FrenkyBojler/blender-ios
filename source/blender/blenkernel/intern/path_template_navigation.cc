@@ -10,14 +10,11 @@
 
 #include <cstring>
 
-#include "BKE_global.hh"
-#include "BKE_main.hh"
 #include "BKE_path_templates.hh"
 
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
-#include "DNA_scene_types.h"
 #include "DNA_space_types.h"
 
 namespace blender::bke::path_templates {

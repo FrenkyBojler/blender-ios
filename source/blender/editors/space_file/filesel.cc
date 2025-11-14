@@ -24,7 +24,6 @@
 
 #include "AS_asset_representation.hh"
 
-#include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
 #include "DNA_userdef_types.h"
@@ -43,7 +42,6 @@
 
 #include "BKE_appdir.hh"
 #include "BKE_context.hh"
-#include "BKE_global.hh"
 #include "BKE_idtype.hh"
 #include "BKE_main.hh"
 #include "BKE_path_templates.hh"
