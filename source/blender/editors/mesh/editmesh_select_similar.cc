@@ -312,7 +312,6 @@ static wmOperatorStatus similar_face_select_exec(bContext *C, wmOperator *op)
     BMEditMesh *em = BKE_editmesh_from_object(ob);
     BMesh *bm = em->bm;
     bool changed = false;
-    Material ***material_array = nullptr;
     blender::Array<Material *> materials = {};
 
     float ob_m3[3][3];
