@@ -100,7 +100,8 @@ enum class NodeAssetMenuOperatorType : int8_t {
 };
 
 namespace blender::ui {
-struct Layout : public uiItem, NonCopyable, blender::NonMovable {
+
+struct Layout : public uiItem, NonCopyable, NonMovable {
  protected:
   uiLayoutRoot *root_ = nullptr;
   bContextStore *context_ = nullptr;
