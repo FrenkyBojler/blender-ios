@@ -30,7 +30,7 @@ struct VKGraphicsPipelineCreateInfoBuilder {
   VkPipelineRasterizationStateCreateInfo vk_pipeline_rasterization_state_create_info;
   VkPipelineRasterizationProvokingVertexStateCreateInfoEXT
       vk_pipeline_rasterization_provoking_vertex_state_info;
-  Vector<VkDynamicState, 3> vk_dynamic_states;
+  Vector<VkDynamicState, 6> vk_dynamic_states;
   VkPipelineDynamicStateCreateInfo vk_pipeline_dynamic_state_create_info;
   VkPipelineViewportStateCreateInfo vk_pipeline_viewport_state_create_info;
   VkPipelineDepthStencilStateCreateInfo vk_pipeline_depth_stencil_state_create_info;
@@ -365,6 +365,11 @@ struct VKGraphicsPipelineCreateInfoBuilder {
                                        VK_PRIMITIVE_TOPOLOGY_LINE_STRIP);
     if (is_line_topology) {
       vk_dynamic_states.append(VK_DYNAMIC_STATE_LINE_WIDTH);
+    }
+    if (shaders_info.has_stencil && shaders_info.state.stencil_op != GPU_STENCIL_OP_NONE) {
+      vk_dynamic_states.append(VK_DYNAMIC_STATE_STENCIL_COMPARE_MASK);
+      vk_dynamic_states.append(VK_DYNAMIC_STATE_STENCIL_REFERENCE);
+      vk_dynamic_states.append(VK_DYNAMIC_STATE_STENCIL_WRITE_MASK);
     }
     vk_pipeline_dynamic_state_create_info = {VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
                                              nullptr,
