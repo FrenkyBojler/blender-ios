@@ -2541,15 +2541,13 @@ static bool is_valid_selected_chain(Vector<bNode *> &selected_nodes, NodeChainIn
   while (!to_visit.is_empty()) {
     bNode *current_node = to_visit.pop_last();
     for (bNodeSocket *out_sock : current_node->output_sockets()) {
-      // todo 奇怪，不判断好像也没问题啊
-      // !如果输出接口连到的输入接口不可见，如何做？
-      // if(!out_sock->is_visible()){
-      //   continue;
-      // }
+      if (!out_sock->is_visible()) {
+        continue;
+      }
       for (bNodeSocket *linked_sock : out_sock->directly_linked_sockets()) {
-        // if (!linked_sock->is_visible()) {
-        //   continue;
-        // }
+        if (!linked_sock->is_visible()) {
+          continue;
+        }
         bNode &next_node = linked_sock->owner_node();
         if (!selected_nodes.contains(&next_node)) {
           continue;
@@ -2568,9 +2566,7 @@ static bool is_valid_selected_chain(Vector<bNode *> &selected_nodes, NodeChainIn
   return false;
 }
 
-/* Find compatible socket with link, prioritizing an exact type match with link(default socket
- * first), then any convertible type. */
-static int get_socket_priority(const bNodeSocket *socket, const bNodeTree &ntree)
+static int get_socket_priority(const bNodeTree &ntree, const bNodeSocket *socket)
 {
   switch (eNodeSocketDatatype(socket->type)) {
     case SOCK_CUSTOM:
@@ -2600,6 +2596,8 @@ static int get_socket_priority(const bNodeSocket *socket, const bNodeTree &ntree
   return -1;
 }
 
+/* Find compatible socket with link, prioritizing an exact type match with link(default socket
+ * first), then any convertible type. */
 static bNodeSocket *get_compatible_socket_input(bNodeTree &ntree, bNode &node, bNodeLink &link)
 {
   bNodeSocket *default_socket = get_default_link_socket(ntree, node, SOCK_IN);
@@ -2609,7 +2607,7 @@ static bNodeSocket *get_compatible_socket_input(bNodeTree &ntree, bNode &node, b
   // 有优先级更高的接口,除非低优先级有输入输出(或是inline?)或高优先级不是第一个,或只有一边有?如采样编号
   for (bNodeSocket *sock : node.input_sockets()) {
     if (sock->is_visible()) {
-      if (get_socket_priority(sock, ntree) > get_socket_priority(link.fromsock, ntree)) {
+      if (get_socket_priority(ntree, sock) > get_socket_priority(ntree, link.fromsock)) {
         return nullptr;
       }
       if (sock->type == link.fromsock->type) {
@@ -2655,6 +2653,20 @@ static bNodeSocket *get_compatible_socket_output(bNodeTree &ntree, bNode &node, 
   return nullptr;
 }
 
+/* "unused", meaning either has no links, or all of its links are hidden. */
+static bool is_socket_unused(const bNodeSocket &socket)
+{
+  if (!socket.is_visible()) {
+    return true;
+  }
+  for (const bNodeLink *link : socket.directly_linked_links()) {
+    if (!bke::node_link_is_hidden(*link)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 static NodeChainInfo get_chain_info_for_insertion(bNodeTree &tree, bool is_new_node)
 {
   NodeChainInfo chain{};
@@ -2672,15 +2684,21 @@ static NodeChainInfo get_chain_info_for_insertion(bNodeTree &tree, bool is_new_n
       BLI_rctf_union(&chain.bounds, &node->runtime->draw_bounds);
     }
 
-    bool all_output_not_linked = false;
-    for (bNodeSocket *sock_out : node->output_sockets()) {
-      all_output_not_linked = sock_out->directly_linked_sockets().is_empty();
-      if (!all_output_not_linked) {
+    if (node->output_sockets().is_empty()) {
+      continue;
+    }
+    bool all_outputs_unused = true;
+    for (const bNodeSocket *socket : node->output_sockets()) {
+      if (!is_socket_unused(*socket)) {
+        all_outputs_unused = false;
         break;
       }
     }
-    if (all_output_not_linked) {
+    if (all_outputs_unused) {
       end_candidates.append(node);
+      if (end_candidates.size() > 2){
+        return {};
+      }
     }
   }
 
@@ -2713,19 +2731,21 @@ static NodeChainInfo get_chain_info_for_insertion(bNodeTree &tree, bool is_new_n
     }
   }
 
-  if (selected_nodes.is_empty() || end_candidates.size() != 1) {
+  if (end_candidates.size() != 1) {
     return {};
   }
 
   /* 这里只是预判定能不能当起点,至于起点接口选哪个，要在连线上判断 */
-  bNode *end_node = end_candidates[0];
-  Map<int, Vector<bNode *>> start_candidates_by_priority;
+  /* Map<int, Vector<bNode *>> start_candidates_by_priority;
   int max_start_priority = INT_MIN;
   for (bNode *node : selected_nodes) {
     int max_sk_priority = INT_MIN;
     Map<int, Vector<bNodeSocket *>> inputs_by_priority;
     for (bNodeSocket *socket : node->input_sockets()) {
-      const int sk_priority = get_socket_priority(socket, tree);
+      if (is_socket_unused(*socket)) {
+        continue;
+      }
+      const int sk_priority = get_socket_priority(tree, socket);
       inputs_by_priority.lookup_or_add_default(sk_priority).append(socket);
       max_sk_priority = max_ii(max_sk_priority, sk_priority);
     }
@@ -2736,22 +2756,48 @@ static NodeChainInfo get_chain_info_for_insertion(bNodeTree &tree, bool is_new_n
     }
     const Vector<bNodeSocket *> &top_sockets = inputs_by_priority.lookup(max_sk_priority);
     for (const bNodeSocket *socket : top_sockets) {
-      if (!is_new_node) {
-        /* 遍历节点的输入，判断优先级最高的那些接口中是否全没连线，如果全没连线，才是有效起点 */
-        // todo 优先级同为1,有连线的输入(旋转),
-        // 也有同级的同类型输入输出(矢量)未连线,也要允许当做起点?
-        // 预备起点里没更高优先级才行,预存,后面再重新判断?
-        if (socket->is_directly_linked()) {
+      for (const bNodeLink *link : socket->directly_linked_links()) {
+        if (selected_nodes.contains(link->fromnode)) {
           valid_start = false;
           break;
         }
       }
-      if (is_new_node) {
-        for (const bNodeLink *link : socket->directly_linked_links()) {
-          if (selected_nodes.contains(link->fromnode)) {
-            valid_start = false;
-            break;
-          }
+    }
+    if (valid_start) {
+      start_candidates_by_priority.lookup_or_add_default(max_sk_priority).append(node);
+      max_start_priority = max_ii(max_start_priority, max_sk_priority);
+    }
+  } */
+
+  bNode *end_node = end_candidates[0];
+  for (const bNodeSocket *sock_out : end_node->output_sockets()) {
+    // 如果存在高优先级接口,只判断高优先级,否则 存储全部低优先级
+    // all_output_not_used = sock_out->directly_linked_sockets().is_empty();
+  }
+  Map<int, Vector<bNode *>> start_candidates_by_priority;
+  int max_start_priority = INT_MIN;
+  for (bNode *node : selected_nodes) {
+    int max_sk_priority = INT_MIN;
+    Map<int, Vector<bNodeSocket *>> inputs_by_priority;
+    for (bNodeSocket *socket : node->input_sockets()) {
+      if (!socket->is_visible()) {
+        continue;
+      }
+      const int sk_priority = get_socket_priority(tree, socket);
+      inputs_by_priority.lookup_or_add_default(sk_priority).append(socket);
+      max_sk_priority = max_ii(max_sk_priority, sk_priority);
+    }
+    bool valid_start = true;
+    if (inputs_by_priority.is_empty()) {
+      valid_start = false;
+      continue;
+    }
+    const Vector<bNodeSocket *> &top_sockets = inputs_by_priority.lookup(max_sk_priority);
+    for (const bNodeSocket *socket : top_sockets) {
+      for (const bNodeLink *link : socket->directly_linked_links()) {
+        if (!bke::node_link_is_hidden(*link) && selected_nodes.contains(link->fromnode)) {
+          valid_start = false;
+          break;
         }
       }
     }
@@ -2791,6 +2837,46 @@ static bool chain_is_compatible_to_link(bNodeTree &ntree, NodeChainInfo &chain, 
   return false;
 }
 
+static float dist_from_bounds_to_link(const bNodeLink &link,
+                                      const rctf &bounds,
+                                      const float2 &clamped_cursor)
+{
+  float dist = FLT_MAX;
+  std::array<float2, NODE_LINK_RESOL + 1> coords;
+  node_link_bezier_points_evaluated(link, coords);
+
+  /* Loop over link coords to find shortest dist to cursor clamped by nodes bounds of a intersected
+   * line segment. */
+  for (int i = 0; i < NODE_LINK_RESOL; i++) {
+    /* Check if the nodes total bounds intersects the line from this point to next one. */
+    if (BLI_rctf_isect_segment(&bounds, coords[i], coords[i + 1])) {
+      /* Store the shortest distance to the cursor of all intersections found so far.
+       * To be precise coords should be clipped by `select->draw_bounds`, but not done since
+       * there's no real noticeable difference. */
+      dist = min_ff(dist_squared_to_line_segment_v2(clamped_cursor, coords[i], coords[i + 1]),
+                    dist);
+    }
+  }
+  return dist;
+}
+
+static bool only_can_attached_source(bNodeTree &ntree, NodeChainInfo &chain)
+{
+  const bNodeSocket *main_output = get_main_socket(ntree, *chain.end_node, SOCK_OUT);
+  if (main_output == nullptr || !ntree.typeinfo->validate_link) {
+    return false;
+  }
+  // 和最高优先级输出 兼容的输入全(第一个?)连了线,才需要限制,返回 true
+  for (bNodeSocket *socket : chain.start_node->input_sockets()) {
+    if (socket->is_visible() && ntree.typeinfo->validate_link(eNodeSocketDatatype(socket->type),
+                                            eNodeSocketDatatype(main_output->type)))
+    {
+      return socket->is_directly_linked();
+    }
+  }
+  return false;
+}
+
 void node_insert_on_link_flags_set(SpaceNode &snode,
                                    const ARegion &region,
                                    const bool attach_enabled,
@@ -2807,17 +2893,19 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
     return;
   }
 
-  Vector<bNodeSocket *> already_linked_sockets;
+  Vector<bNodeSocket *> already_linked_sockets; // 不可见连线如何应对
   for (bNodeSocket *socket : chain.start_node->input_sockets()) {
     already_linked_sockets.extend(socket->directly_linked_sockets());
   }
   for (bNodeSocket *socket : chain.end_node->output_sockets()) {
     already_linked_sockets.extend(socket->directly_linked_sockets());
   }
+  bool only_attach_soure = only_can_attached_source(node_tree, chain);
 
-  float2 cursor;
-  UI_view2d_region_to_view(&region.v2d, mouse_xy.x, mouse_xy.y, &cursor.x, &cursor.y);
-  BLI_rctf_clamp_pt_v(&chain.bounds, cursor);
+  float2 clamped_cursor;
+  UI_view2d_region_to_view(
+      &region.v2d, mouse_xy.x, mouse_xy.y, &clamped_cursor.x, &clamped_cursor.y);
+  BLI_rctf_clamp_pt_v(&chain.bounds, clamped_cursor);
   VectorSet<bNode *> nodes = transform::get_transformed_nodes(node_tree, false);
   /* Find link to select/highlight. */
   bNodeLink *selink = nullptr;
@@ -2830,7 +2918,7 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
       /* Don't insert on a link that is connected to transformed nodes already. */
       continue;
     }
-    if (is_new_node && !already_linked_sockets.is_empty()) {
+    if (only_attach_soure && !already_linked_sockets.is_empty()) {
       /* Only allow links coming from or going to the already linked socket after
        * link-drag-search. */
       bool is_linked_to_linked = false;
@@ -2844,24 +2932,8 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
         continue;
       }
     }
-
-    std::array<float2, NODE_LINK_RESOL + 1> coords;
-    node_link_bezier_points_evaluated(*link, coords);
-    float dist = FLT_MAX;
-
-    /* Loop over link coords to find shortest dist to cursor clamp by nodes bounds of a intersected
-     * line segment. */
-    for (int i = 0; i < NODE_LINK_RESOL; i++) {
-      /* Check if the nodes total bounds intersects the line from this point to next one. */
-      if (BLI_rctf_isect_segment(&chain.bounds, coords[i], coords[i + 1])) {
-        /* Store the shortest distance to the cursor of all intersections found so far.
-         * To be precise coords should be clipped by `select->draw_bounds`, but not done since
-         * there's no real noticeable difference. */
-        dist = min_ff(dist_squared_to_line_segment_v2(cursor, coords[i], coords[i + 1]), dist);
-      }
-    }
-
-    /* We want the link with the shortest distance to node center. */
+    float dist = dist_from_bounds_to_link(*link, chain.bounds, clamped_cursor);
+    /* We want the link with the shortest distance to cursor clamped by nodes bounds. */
     if (dist < dist_best) {
       dist_best = dist;
       selink = link;
@@ -2938,9 +3010,10 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
   }
 
   bNodeSocket *best_input = nullptr;
-  if (is_new_node) {
+  bool only_attach_soure = only_can_attached_source(node_tree, chain);
+  if (only_attach_soure) {
     for (bNodeSocket *socket : chain.start_node->input_sockets()) {
-      if (!socket->directly_linked_sockets().is_empty()) {
+      if (socket->is_visible() && socket->is_directly_linked()) {
         best_input = socket;
         break;
       }
@@ -2950,9 +3023,9 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
     best_input = get_compatible_socket_input(ntree, *chain.start_node, *old_link);
   }
   bNodeSocket *best_output = nullptr;
-  if (is_new_node) {
+  if (only_attach_soure) {
     for (bNodeSocket *socket : chain.end_node->output_sockets()) {
-      if (!socket->directly_linked_sockets().is_empty()) {
+      if (socket->is_visible() && socket->is_directly_linked()) {
         best_output = socket;
         break;
       }
@@ -3059,13 +3132,13 @@ bNodeSocket *get_main_socket(bNodeTree &ntree, bNode &node, eNodeSocketInOut in_
     if (sock->flag & SOCK_UNAVAIL) {
       continue;
     }
-    maxpriority = max_ii(get_socket_priority(sock, ntree), maxpriority);
+    maxpriority = max_ii(get_socket_priority(ntree, sock), maxpriority);
   }
 
   /* Try all priorities, starting from 'highest'. */
   for (int priority = maxpriority; priority >= 0; priority--) {
     LISTBASE_FOREACH (bNodeSocket *, sock, sockets) {
-      if (!!sock->is_visible() && priority == get_socket_priority(sock, ntree)) {
+      if (!!sock->is_visible() && priority == get_socket_priority(ntree, sock)) {
         return sock;
       }
     }

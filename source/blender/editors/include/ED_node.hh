@@ -64,7 +64,7 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
                                    const ARegion &region,
                                    bool attach_enabled,
                                    bool is_new_node,
-                                   const int2 &cursor);
+                                   const int2 &mouse_xy);
 
 /**
  * Tag the editor to highlight the frame that currently transformed nodes will be attached to.
