@@ -902,32 +902,6 @@ static void follow_segment_connections(const Span<Segment> all_segments,
       }
     };
 
-    /* Check if the last segment can be joined to the first one. */
-    auto join_last = [&]() {
-      if (curve_segments.size() == 1) {
-        Segment &segment = curve_segments.last();
-
-        const float parameter_start = segment.points[Side::Start] +
-                                      segment.intersection_factor[Side::Start];
-        const float parameter_end = segment.points[Side::End] +
-                                    segment.intersection_factor[Side::End];
-
-        if ((parameter_end == parameter_start) ||
-            (segment.intersection_index[Side::End] == segment.intersection_index[Side::Start] &&
-             segment.intersection_index[Side::End] != -1))
-        {
-          if (segment.intersection_factor[Side::Start] == segment.intersection_factor[Side::End]) {
-            segment.full_wrap_loop = true;
-          }
-        }
-        return;
-      }
-      if (check_and_join_segments(curve_segments.first(), curve_segments.last())) {
-        curve_segments.remove_last();
-        curve_segment_reversed.remove_last();
-      }
-    };
-
     /* Loop backwards to find the first segment. */
     bool current_backwards = true;
     int current_i = start_segment;
@@ -991,7 +965,31 @@ static void follow_segment_connections(const Span<Segment> all_segments,
         curve_closed = true;
 
         BLI_assert(next_side == Side::Start);
-        join_last();
+
+        /* Check if the last segment can be joined to the first one. */
+        if (curve_segments.size() == 1) {
+          Segment &segment = curve_segments.last();
+
+          const float parameter_start = segment.points[Side::Start] +
+                                        segment.intersection_factor[Side::Start];
+          const float parameter_end = segment.points[Side::End] +
+                                      segment.intersection_factor[Side::End];
+
+          if ((parameter_end == parameter_start) ||
+              (segment.intersection_index[Side::End] == segment.intersection_index[Side::Start] &&
+               segment.intersection_index[Side::End] != -1))
+          {
+            if (segment.intersection_factor[Side::Start] == segment.intersection_factor[Side::End])
+            {
+              segment.full_wrap_loop = true;
+            }
+          }
+          break;
+        }
+        if (check_and_join_segments(curve_segments.first(), curve_segments.last())) {
+          curve_segments.remove_last();
+          curve_segment_reversed.remove_last();
+        }
 
         break;
       }
