@@ -219,21 +219,7 @@ static bool compile_ex(shaderc::Compiler &compiler,
 
   std::string full_name = shader.name_get() + "_" + to_stage_name(stage);
 
-  if (shader.name_get() == G.gpu_debug_shader_source_name) {
-    namespace fs = std::filesystem;
-    fs::path shader_dir = fs::current_path() / "Shaders";
-    fs::create_directories(shader_dir);
-    fs::path file_path = shader_dir / (full_name + ".glsl");
-
-    std::ofstream output_source_file(file_path);
-    if (output_source_file) {
-      output_source_file << shader_module.combined_sources;
-      output_source_file.close();
-    }
-    else {
-      std::cerr << "Shader Source Debug: Failed to open file: " << file_path << "\n";
-    }
-  }
+  Shader::dump_source_to_disk(shader.name_get(), full_name, ".glsl", concat_source);
 
   /* Removes line directive. */
   std::string sources = patch_line_directives(shader_module.combined_sources);
