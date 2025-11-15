@@ -372,7 +372,7 @@ eSnapMode snap_polygon_mesh(SnapObjectContext *sctx,
 
   if (snap_to_flag & SCE_SNAP_TO_FACE_MIDPOINT) {
     float3 center(0.0f);
-    const int *face_verts = &nearest2d.corner_verts[face.start()];
+    const Span<int> face_verts = Span(nearest2d.corner_verts, mesh_eval->corners_num).slice(face);
     for (int i = 0; i < face.size(); i++) {
       center += float3(nearest2d.vert_positions[face_verts[i]]);
     }
