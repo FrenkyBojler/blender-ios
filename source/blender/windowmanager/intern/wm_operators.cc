@@ -1564,8 +1564,7 @@ static uiBlock *wm_block_dialog_create(bContext *C, ARegion *region, void *user_
 
   uiLayout *layout;
   if (data->icon != blender::ui::AlertIcon::None) {
-    layout = uiItemsAlertBox(
-        block, style, dialog_width + icon_size, blender::ui::AlertIcon(data->icon), icon_size);
+    layout = uiItemsAlertBox(block, style, dialog_width + icon_size, data->icon, icon_size);
   }
   else {
     layout = &blender::ui::block_layout(block,
@@ -1764,7 +1763,7 @@ wmOperatorStatus WM_operator_confirm_ex(bContext *C,
   data->title = (title == nullptr) ? WM_operatortype_name(op->type, op->ptr) : title;
   data->message = (message == nullptr) ? std::string() : message;
   data->confirm_text = (confirm_text == nullptr) ? IFACE_("OK") : confirm_text;
-  data->icon = blender::ui::AlertIcon(icon);
+  data->icon = icon;
   data->size = (message == nullptr) ? WM_POPUP_SIZE_SMALL : WM_POPUP_SIZE_LARGE;
   data->position = (message == nullptr) ? WM_POPUP_POSITION_MOUSE : WM_POPUP_POSITION_CENTER;
   data->cancel_default = cancel_default;
