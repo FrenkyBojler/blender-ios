@@ -343,7 +343,7 @@ struct BevelParams {
   blender::Map<BMVert *, BevVert *> vert_hash;
   /** Records new faces: key BMFace*, value one of {VERT/EDGE/RECON}_POLY. */
   GHash *face_hash;
-  /** Records `UVFace` made: key `BMFace*`, value `UVFace*`. */
+  /** Records `UVFace` made. */
   blender::Map<BMFace *, UVFace *> uv_face_hash;
   /** Container which keeps track of UV vert connectivity in different UV maps. */
   Vector<UVVertMap> uv_vert_maps;
