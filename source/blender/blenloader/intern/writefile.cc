@@ -702,13 +702,22 @@ static uint64_t get_stable_pointer_hint_for_id(const ID &id, const bool is_undo)
    * In this case, using the session UID is a better source of info, as these are assumed unique
    * during an editing session, and are extremely stable for a same ID (even if it is e.g.
    * renamed).
-   *
-   * Note: Using the uint32_t session_uid also means that library data can be ignored (and ID made
-   * local always get a new session UID), and that there is no need to call the hashing code at
-   * all.
    */
-  const uint64_t id_hash = is_undo ? id.session_uid : XXH3_64bits(id.name, strlen(id.name));
-  if (!id.lib | is_undo) {
+  if (is_undo) {
+    /* Note: Using the uint32_t session_uid also means that library data can be ignored (and ID
+     * made local always get a new session UID), and that there is no need to call the hashing code
+     * at all.
+     *
+     * However, to leave enough 'address space' for all the sub-data pointers, its value is shifted
+     * into higher significant bits of the returned value (only shift by 20 bits here, since
+     * #stable_id_from_hint also shifts further the generated values by 4, and some of the most
+     * significant bits are also reserved for flags, like the #implicit_sharing_address_id_flag
+     * one). */
+    return uint64_t(id.session_uid) << 20;
+  }
+
+  const uint64_t id_hash = XXH3_64bits(id.name, strlen(id.name));
+  if (!id.lib) {
     return id_hash;
   }
 
