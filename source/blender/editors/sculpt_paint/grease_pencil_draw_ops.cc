@@ -798,13 +798,14 @@ static void grease_pencil_fill_extension_cut(const bContext &C,
     /* Indices that may need to be ignored to avoid self-intersection. */
     int ignore_index1;
     int ignore_index2;
+    int ignore_index3;
   };
   BVHTree_RayCastCallback callback =
       [](void *userdata, int index, const BVHTreeRay *ray, BVHTreeRayHit *hit) {
         using Result = math::isect_result<float2>;
 
         const RaycastArgs &args = *static_cast<const RaycastArgs *>(userdata);
-        if (ELEM(index, args.ignore_index1, args.ignore_index2)) {
+        if (ELEM(index, args.ignore_index1, args.ignore_index2, args.ignore_index3)) {
           return;
         }
 
@@ -842,7 +843,14 @@ static void grease_pencil_fill_extension_cut(const bContext &C,
     const int origin_point = origin_points[i_line];
     const int bvh_origin_index = bvh_curve_offsets[origin_drawing][origin_point];
 
-    RaycastArgs args = {view_starts, view_ends, bvh_index, bvh_origin_index};
+    /* For curvature extensions (mid-stroke), also exclude the adjacent segment. */
+    int bvh_adjacent_index = -1;
+    if (origin_point > 0 && origin_point < bvh_curve_offsets[origin_drawing].size() - 1) {
+      /* This is a curvature extension, exclude the previous segment. */
+      bvh_adjacent_index = bvh_curve_offsets[origin_drawing][origin_point - 1];
+    }
+
+    RaycastArgs args = {view_starts, view_ends, bvh_index, bvh_origin_index, bvh_adjacent_index};
     BVHTreeRayHit hit;
     hit.index = -1;
     hit.dist = FLT_MAX;
