@@ -1275,7 +1275,7 @@ void transform_mode_rotation_axis_get(const TransInfo *t, float3 &r_axis)
   else {
     r_axis = t->spacemtx[t->orient_axis];
     /* For unconstrained rotation, flip the axis so the rotation direction
-     * matches the user's mouse movement in view space. */
+     * matches the mouse movement in view space. */
     if (t->mode == TFM_ROTATION && (t->con.mode & CON_APPLY) == 0) {
       r_axis = -r_axis;
     }
