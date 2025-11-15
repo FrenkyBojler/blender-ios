@@ -137,6 +137,21 @@ bool ED_operator_screenactive(bContext *C)
   return true;
 }
 
+bool ED_operator_screenactive_scene(bContext *C)
+{
+  if (CTX_wm_window(C) == nullptr) {
+    return false;
+  }
+  if (CTX_wm_screen(C) == nullptr) {
+    return false;
+  }
+  /* In case of sequencer, scene may not be set. */
+  if (CTX_wm_space_seq(C) != nullptr && CTX_data_sequencer_scene(C) == nullptr) {
+    return false;
+  }
+  return true;
+}
+
 bool ED_operator_screenactive_nobackground(bContext *C)
 {
   if (G.background) {
