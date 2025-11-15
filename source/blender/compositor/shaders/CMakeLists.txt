@@ -108,21 +108,21 @@ set(SRC_GLSL_COMP
 #   compositor_summed_area_table_compute_complete_x_prologues.glsl
 #   compositor_summed_area_table_compute_complete_y_prologues.glsl
 #   compositor_summed_area_table_compute_incomplete_prologues.glsl
-#   compositor_symmetric_blur_variable_size.glsl
-#   compositor_symmetric_blur.glsl
-#   compositor_symmetric_separable_blur_variable_size.glsl
-#   compositor_symmetric_separable_blur.glsl
-#   compositor_tone_map_photoreceptor.glsl
-#   compositor_tone_map_simple.glsl
-#   compositor_translate_wrapped.glsl
-#   compositor_van_vliet_gaussian_blur_sum.glsl
-#   compositor_van_vliet_gaussian_blur.glsl
-#   compositor_write_output.glsl
-#   compositor_z_combine_compute_mask.glsl
-#   compositor_z_combine_from_mask_depth.glsl
-#   compositor_z_combine_from_mask_image.glsl
-#   compositor_z_combine_simple_depth.glsl
-#   compositor_z_combine_simple_image.glsl
+  compositor_symmetric_blur_variable_size.glsl
+  compositor_symmetric_blur.glsl
+  compositor_symmetric_separable_blur_variable_size.glsl
+  compositor_symmetric_separable_blur.glsl
+  compositor_tone_map_photoreceptor.glsl
+  compositor_tone_map_simple.glsl
+  compositor_translate_wrapped.glsl
+  compositor_van_vliet_gaussian_blur_sum.glsl
+  compositor_van_vliet_gaussian_blur.glsl
+  compositor_write_output.glsl
+  compositor_z_combine_compute_mask.glsl
+  compositor_z_combine_from_mask_depth.glsl
+  compositor_z_combine_from_mask_image.glsl
+  compositor_z_combine_simple_depth.glsl
+  compositor_z_combine_simple_image.glsl
 )
 
 set(SRC_GLSL_LIB
