@@ -88,26 +88,26 @@ set(SRC_GLSL_COMP
 #   compositor_normalize.glsl
 #   compositor_pad.glsl
   compositor_parallel_reduction.glsl
-#   compositor_pixelate.glsl
-#   compositor_plane_deform_anisotropic.glsl
-#   compositor_plane_deform_mask.glsl
-#   compositor_plane_deform_motion_blur_mask.glsl
-#   compositor_plane_deform_motion_blur.glsl
-#   compositor_plane_deform.glsl
-#   compositor_premultiply_alpha.glsl
-#   compositor_radial_lens_distortion.glsl
-#   compositor_read_input.glsl
-#   compositor_realize_on_domain.glsl
-#   compositor_sample_pixel.glsl
-#   compositor_scale_variable.glsl
-#   compositor_smaa_blending_weight_calculation.glsl
-#   compositor_smaa_edge_detection.glsl
-#   compositor_smaa_neighborhood_blending.glsl
-#   compositor_split.glsl
-#   compositor_summed_area_table_compute_complete_blocks.glsl
-#   compositor_summed_area_table_compute_complete_x_prologues.glsl
-#   compositor_summed_area_table_compute_complete_y_prologues.glsl
-#   compositor_summed_area_table_compute_incomplete_prologues.glsl
+  compositor_pixelate.glsl
+  compositor_plane_deform_anisotropic.glsl
+  compositor_plane_deform_mask.glsl
+  compositor_plane_deform_motion_blur_mask.glsl
+  compositor_plane_deform_motion_blur.glsl
+  compositor_plane_deform.glsl
+  compositor_premultiply_alpha.glsl
+  compositor_radial_lens_distortion.glsl
+  compositor_read_input.glsl
+  compositor_realize_on_domain.glsl
+  compositor_sample_pixel.glsl
+  compositor_scale_variable.glsl
+  compositor_smaa_blending_weight_calculation.glsl
+  compositor_smaa_edge_detection.glsl
+  compositor_smaa_neighborhood_blending.glsl
+  compositor_split.glsl
+  compositor_summed_area_table_compute_complete_blocks.glsl
+  compositor_summed_area_table_compute_complete_x_prologues.glsl
+  compositor_summed_area_table_compute_complete_y_prologues.glsl
+  compositor_summed_area_table_compute_incomplete_prologues.glsl
   compositor_symmetric_blur_variable_size.glsl
   compositor_symmetric_blur.glsl
   compositor_symmetric_separable_blur_variable_size.glsl
