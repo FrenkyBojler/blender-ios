@@ -898,13 +898,14 @@ wmOperatorStatus WM_operator_confirm_or_exec(bContext *C, wmOperator *op, const 
 /**
  * Like WM_operator_confirm, but with more options and can't be used as an invoke directly.
  */
-wmOperatorStatus WM_operator_confirm_ex(bContext *C,
-                                        wmOperator *op,
-                                        const char *title = nullptr,
-                                        const char *message = nullptr,
-                                        const char *confirm_text = nullptr,
-                                        blender::ui::AlertIcon icon = {}, /* ALERT_ICON_WARNING. */
-                                        bool cancel_default = false);
+wmOperatorStatus WM_operator_confirm_ex(
+    bContext *C,
+    wmOperator *op,
+    const char *title = nullptr,
+    const char *message = nullptr,
+    const char *confirm_text = nullptr,
+    blender::ui::AlertIcon icon = blender::ui::AlertIcon{0}, /* blender::ui::AlertIcon::Warning. */
+    bool cancel_default = false);
 
 /**
  * Invoke callback, file selector "filepath" unset + exec.
