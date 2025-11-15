@@ -81,6 +81,10 @@ namespace blender::asset_system {
 class AssetRepresentation;
 }
 
+namespace blender::ui {
+enum class AlertIcon : int8_t;
+}
+
 /* General API. */
 
 /**
@@ -899,7 +903,7 @@ wmOperatorStatus WM_operator_confirm_ex(bContext *C,
                                         const char *title = nullptr,
                                         const char *message = nullptr,
                                         const char *confirm_text = nullptr,
-                                        int icon = 0, /* ALERT_ICON_WARNING. */
+                                        blender::ui::AlertIcon icon = {}, /* ALERT_ICON_WARNING. */
                                         bool cancel_default = false);
 
 /**
