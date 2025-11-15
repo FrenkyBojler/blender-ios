@@ -1,2 +1,3 @@
 Referenced by issue #146019, Benchmark: Victor fails on Intel GPU with memory error
 Referenced by pull request #149952, Fix: Wrong sculpt paint of byte attributes with wide gamut working space
+Referenced by pull request #149954, Fix: Wrong sculpt paint of byte attributes with wide gamut working space
