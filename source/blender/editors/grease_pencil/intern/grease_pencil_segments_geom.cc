@@ -767,10 +767,10 @@ static void cut_caps(bke::CurvesGeometry &dst,
   dst_end_caps.finish();
 }
 
-/* We store the side as sign, but because a segment with index zero is valid, we shift by one. */
 using EncodedConnection = int;
 static constexpr EncodedConnection SEGMENT_CONNECTION_NULL = 0;
 
+/* We store the side as sign, but because a segment with index zero is valid, we shift by one. */
 static EncodedConnection encode_index_and_side(const int index, const Side side)
 {
   return side == Side::Start ? index + 1 : -(index + 1);
