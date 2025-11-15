@@ -667,6 +667,22 @@ class BevelState {
     return uv_map_infos_[uv_map_index];
   }
 
+  const Vector<Array<float2>> &uv_attributes() const
+  {
+    return uv_attributes_;
+  }
+
+  /** Return the index of the UV map with the given attribute name, or -1 if not found. */
+  int find_uv_map_index(const std::string &attr_name) const
+  {
+    for (const int i : uv_map_infos_.index_range()) {
+      if (uv_map_infos_[i].uv_attr_name == attr_name) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
   /** Return the material index for face \a f. */
   int material(const int f) const
   {
@@ -957,9 +973,12 @@ static void print_anchor_newvert_positions(const BevelState &bs, const char *lab
     fmt::print("{}: ", epos);
     fmt::println(" be={}, meshe={}, end={}", be, mesh_e, be_end);
     if (bs.bevedge_is_beveled(be)) {
-      fmt::println(" BEV offsets=({},{})", bs.bevedge_offset(be, 2 * be_end), bs.bevedge_offset(be, 2 * be_end + 1));
+      fmt::println(" BEV offsets=({},{})",
+                   bs.bevedge_offset(be, 2 * be_end),
+                   bs.bevedge_offset(be, 2 * be_end + 1));
     }
-    fmt::println(" face_next={} attch_vert={}", faces[epos],bs.bevedge_attach_verts()[be][be_end]);
+    fmt::println(
+        " face_next={} attch_vert={}", faces[epos], bs.bevedge_attach_verts()[be][be_end]);
   }
   print_span(bevedges, "bevedges");
   print_span(bs.bevvert_faces()[bv], "faces");
@@ -1079,7 +1098,9 @@ static bool nearly_parallel_normalized(const float3 d1, const float3 d2)
 /** Return the angle between the two faces adjacent to the bevedge that
  * is at position \a edge_pos of bevvert \a bv.
  * If there are not two, return 0. */
-[[maybe_unused]] static float edge_face_angle(const int bv, const int edge_pos, const BevelState &bs)
+[[maybe_unused]] static float edge_face_angle(const int bv,
+                                              const int edge_pos,
+                                              const BevelState &bs)
 {
   const int face_next = bs.face_next(bv, edge_pos);
   const int face_prev = bs.face_prev(bv, edge_pos);
@@ -1219,10 +1240,10 @@ static float3 offset_bevedge(
  * vert v, as defined in the parameters of offset_meet.
  */
 [[maybe_unused]] static void offset_meet_lines_percent_or_absolute(const int /*bv*/,
-                                                  const int /*e1_pos*/,
-                                                  const int /*e2_pos*/,
-                                                  MutableSpan<float3> /*pts*/,
-                                                  const BevelState & /*bs*/)
+                                                                   const int /*e1_pos*/,
+                                                                   const int /*e2_pos*/,
+                                                                   MutableSpan<float3> /*pts*/,
+                                                                   const BevelState & /*bs*/)
 {
   /* Get points the specified distance along each leg.
    * The legs we need are:
@@ -1475,12 +1496,12 @@ static bool try_offset_meet_edge(const int bv,
  * angle.
  */
 [[maybe_unused]] static bool good_slide(const int bv,
-                       const int e1_pos,
-                       const int e2_pos,
-                       const int eslide_pos,
-                       const float e1_spec_r,
-                       const float e2_spec_l,
-                       const BevelState &bs)
+                                        const int e1_pos,
+                                        const int e2_pos,
+                                        const int eslide_pos,
+                                        const float e1_spec_r,
+                                        const float e2_spec_l,
+                                        const BevelState &bs)
 {
   return try_offset_meet_edge(bv, e1_pos, eslide_pos, e1_spec_r, 0.0f, nullptr, nullptr, bs) &&
          try_offset_meet_edge(bv, eslide_pos, e2_pos, 0.0f, e2_spec_l, nullptr, nullptr, bs);
@@ -3319,7 +3340,9 @@ namespace uv {
 
 /** Return true if all uv's in the given uv_map are contiguous at bevvert \a bv.
  * If \a uv_map_index is -1, return true if all uv_maps are contiguous there.  */
-[[maybe_unused]] static bool bevvert_is_uv_contiguous(const int bv, const int uv_map_index, const BevelState &bs)
+[[maybe_unused]] static bool bevvert_is_uv_contiguous(const int bv,
+                                                      const int uv_map_index,
+                                                      const BevelState &bs)
 {
   const int mesh_v = bs.bevvert_mesh_verts()[bv];
   for (const int i : IndexRange(bs.uvmaps_num)) {
@@ -3343,8 +3366,12 @@ namespace uv {
 
 /** Return a pair of bools, where says whether the edge at position \a epos of bevvert \a bv
  * has contiguous UVs for the UV map \a uv_map_index, at the near and far ends, respectively..
- * This means that the two faces (prev and next) have corners at corresponding end with equal UV values.  */
-static std::pair<bool, bool> uv_contiguousness(const int bv, const int epos, const int uv_map_index, const BevelState &bs)
+ * This means that the two faces (prev and next) have corners at corresponding end with equal UV
+ * values.  */
+static std::pair<bool, bool> uv_contiguousness(const int bv,
+                                               const int epos,
+                                               const int uv_map_index,
+                                               const BevelState &bs)
 {
   const int fprev = bs.face_prev(bv, epos);
   const int fnext = bs.face_next(bv, epos);
@@ -3362,8 +3389,10 @@ static std::pair<bool, bool> uv_contiguousness(const int bv, const int epos, con
   Span<int> corner_verts = bs.mesh_info.mesh.corner_verts();
   Array<bool, 2> ans(2);
   for (const int i : IndexRange(2)) {
-    const int cprev = bke::mesh::face_find_corner_from_vert(faces[fprev], corner_verts, mesh_vs[i]);
-    const int cnext = bke::mesh::face_find_corner_from_vert(faces[fnext], corner_verts, mesh_vs[i]);
+    const int cprev = bke::mesh::face_find_corner_from_vert(
+        faces[fprev], corner_verts, mesh_vs[i]);
+    const int cnext = bke::mesh::face_find_corner_from_vert(
+        faces[fnext], corner_verts, mesh_vs[i]);
     BLI_assert(cprev != -1 && cnext != -1);
     float2 uvprev = info.value(cprev);
     float2 uvnext = info.value(cnext);
@@ -3372,22 +3401,18 @@ static std::pair<bool, bool> uv_contiguousness(const int bv, const int epos, con
   return std::pair<bool, bool>(ans[0], ans[1]);
 }
 
-enum class UVGapKind {
-  NoGap,
-  WedgeGap,
-  WideGap,
-  UnknownGap
-};
+enum class UVGapKind { NoGap, WedgeGap, WideGap, UnknownGap };
 
 /** Find the kind of UV gap is there between the faces separated by each edge around bevvert \a bv.
  * Assuming there is a previous and next Face separated by bevedge, thre should be two corners
  * that share bevvert's mesh vertex. If the UV values are the same at those two corners, and if it
  * is the same at the other end of bevedge, then there is NoGap.
- * If they are the same at the bevvert end but not at the far end, and also the angle in UV space is is
- * not obtuse or straight, then this is a WedgeGap.
- * Otherwise this is a WideGap.
+ * If they are the same at the bevvert end but not at the far end, and also the angle in UV space
+ * is is not obtuse or straight, then this is a WedgeGap. Otherwise this is a WideGap.
  */
-static Array<UVGapKind, 20> bevvert_bevedge_uv_gaps(const int bv, const int uv_map_index, const BevelState &bs)
+static Array<UVGapKind, 20> bevvert_bevedge_uv_gaps(const int bv,
+                                                    const int uv_map_index,
+                                                    const BevelState &bs)
 {
   BLI_assert(uv_map_index != -1);
   Span<int> bevedges = bs.bevvert_bevedges()[bv];
@@ -3475,7 +3500,7 @@ static void find_over_faces(const float3 &pos,
     float2 p_2d;
     mul_v2_m3v3(p_2d, axis_mat.ptr(), projected_pos);
 
-    if (isect_point_poly_v2(p_2d, (const float(*)[2])poly_2d.data(), face_len)) {
+    if (isect_point_poly_v2(p_2d, (const float (*)[2])poly_2d.data(), face_len)) {
       const float dist_sq = math::distance_squared(pos, projected_pos);
       if (dist_sq < best_dist_sq) {
         if (*r_best_face != -1) {
@@ -3506,13 +3531,14 @@ static void calculate_adj_face_uvs(const int f,
                                    const int bv,
                                    const Array<UVGapKind, 20> &gaps,
                                    const int uv_map_index,
+                                   Vector<Array<float2>> &uv_attributes,
                                    const BevelState &bs)
 {
   const MeshPattern &pat = bs.bevvert_meshpatterns()[bv];
   std::pair<SmallIntArray, SmallIntArray> vs_and_es = pat.face_verts_and_edges(f, 0, 0);
   SmallIntArray &vs = vs_and_es.first;
   const int num_vs = vs.size();
-  //DEBUG!!
+  // DEBUG!!
   fmt::println("calculate_adj_face_uvs, bv={}, f={}", bv, f);
   print_span(vs.as_span(), "vs");
   const IndexRange newverts_range = bs.bevvert_newverts()[bv];
@@ -3524,18 +3550,114 @@ static void calculate_adj_face_uvs(const int f,
   Array<float3, 20> alt_over_pos(num_vs);
   for (const int i : vs.index_range()) {
     const float3 pos = vs_pos[i];
-    find_over_faces(pos, bv, bs, &best_over_face[i], &best_over_pos[i], &alt_over_face[i], &alt_over_pos[i]);
-    //DEBUG!!
-    fmt::println("i={}, over_f={}, over_pos=({},{},{})", i, best_over_face[i], best_over_pos[i][0], best_over_pos[i][1], best_over_pos[i][2]);
+    find_over_faces(
+        pos, bv, bs, &best_over_face[i], &best_over_pos[i], &alt_over_face[i], &alt_over_pos[i]);
+    // DEBUG!!
+    fmt::println("i={}, over_f={}, over_pos=({},{},{})",
+                 i,
+                 best_over_face[i],
+                 best_over_pos[i][0],
+                 best_over_pos[i][1],
+                 best_over_pos[i][2]);
+  }
+
+  const UVMapInfo &uv_info = bs.uv_map_info(uv_map_index);
+  const Mesh &mesh = bs.mesh_info.mesh;
+  const Span<float3> mesh_vert_positions = mesh.vert_positions();
+  const Span<int> mesh_corner_verts = mesh.corner_verts();
+  const OffsetIndices<int> mesh_faces = mesh.faces();
+
+  Array<float2, 20> face_uvs(num_vs);
+
+  for (const int i : vs.index_range()) {
+    const int over_f = best_over_face[i];
+    const float3 over_pos = best_over_pos[i];
+
+    if (over_f == -1) {
+      face_uvs[i] = float2(0.0f, 0.0f); /* Default UV. */
+      continue;
+    }
+
+    const IndexRange over_face_corners = mesh_faces[over_f];
+    const int num_over_face_corners = over_face_corners.size();
+
+    if (num_over_face_corners < 3) { /* Degenerate face. */
+      face_uvs[i] = float2(0.0f, 0.0f);
+      continue;
+    }
+
+    /* Get face normal for projection. */
+    const float3 face_normal = mesh.face_normals()[over_f];
+    float3x3 axis_mat;
+    axis_dominant_v3_to_m3(axis_mat.ptr(), face_normal);
+
+    Array<float2, 20> over_face_vert_pos_2d(num_over_face_corners);
+    Array<float2, 20> over_face_corner_uvs(num_over_face_corners);
+
+    for (const int j : over_face_corners.index_range()) {
+      const int corner_idx = over_face_corners[j];
+      const float3 vert_pos_3d = mesh_vert_positions[mesh_corner_verts[corner_idx]];
+      over_face_vert_pos_2d[j] = float2(transform_point(axis_mat, vert_pos_3d));
+      over_face_corner_uvs[j] = uv_info.value(corner_idx);
+    }
+
+    float2 over_pos_2d = float2(transform_point(axis_mat, over_pos));
+
+    if (num_over_face_corners == 3) { /* Triangle. */
+      float bary_weights[3];
+      barycentric_weights_v2(over_face_vert_pos_2d[0],
+                             over_face_vert_pos_2d[1],
+                             over_face_vert_pos_2d[2],
+                             over_pos_2d,
+                             bary_weights);
+      face_uvs[i] = bary_weights[0] * over_face_corner_uvs[0] +
+                    bary_weights[1] * over_face_corner_uvs[1] +
+                    bary_weights[2] * over_face_corner_uvs[2];
+    }
+    else if (num_over_face_corners == 4) { /* Quad. */
+      float bary_weights[4];
+      barycentric_weights_v2_quad(over_face_vert_pos_2d[0],
+                                  over_face_vert_pos_2d[1],
+                                  over_face_vert_pos_2d[2],
+                                  over_face_vert_pos_2d[3],
+                                  over_pos_2d,
+                                  bary_weights);
+      face_uvs[i] = bary_weights[0] * over_face_corner_uvs[0] +
+                    bary_weights[1] * over_face_corner_uvs[1] +
+                    bary_weights[2] * over_face_corner_uvs[2] +
+                    bary_weights[3] * over_face_corner_uvs[3];
+    }
+    else { /* N-gon, for now, use closest vertex UV. */
+      float min_dist_sq = FLT_MAX;
+      int closest_vert_idx = 0;
+      for (const int j : over_face_vert_pos_2d.index_range()) {
+        float dist_sq = math::distance_squared(over_pos_2d, over_face_vert_pos_2d[j]);
+        if (dist_sq < min_dist_sq) {
+          min_dist_sq = dist_sq;
+          closest_vert_idx = j;
+        }
+      }
+      face_uvs[i] = over_face_corner_uvs[closest_vert_idx];
+    }
+  }
+
+  const IndexRange newfaces = bs.bevvert_newfaces()[bv];
+  const IndexRange newface_corners_range = bs.newface_faces_face()[newfaces[f]];
+  for (const int i : vs.index_range()) {
+    const int newcorner_idx = newface_corners_range[i];
+    uv_attributes[uv_map_index][newcorner_idx] = face_uvs[i];
+    //! DEBUG
+    fmt::println(
+        "uv[{}][{}] = ({},{})", uv_map_index, newcorner_idx, face_uvs[i][0], face_uvs[i][1]);
   }
 }
 
-static void 
-calculate_vertex_mesh_face_uvs(const int bevvert,
+static void calculate_vertex_mesh_face_uvs(const int bevvert,
                                            const int uv_map_index,
+                                           Vector<Array<float2>> &uv_attributes,
                                            const BevelState &bs)
 {
-  //DEBUG!!
+  // DEBUG!!
   fmt::println("calculate vertex mesh uvs for bevvert {}, uv map {}", bevvert, uv_map_index);
   Array<UVGapKind, 20> gaps = bevvert_bevedge_uv_gaps(bevvert, uv_map_index, bs);
   const MeshPattern &pat = bs.bevvert_meshpatterns()[bevvert];
@@ -3543,7 +3665,7 @@ calculate_vertex_mesh_face_uvs(const int bevvert,
   switch (pat.kind) {
     case MeshKind::Adj: {
       for (const int f : IndexRange(nums[2])) {
-        calculate_adj_face_uvs(f, bevvert, gaps, uv_map_index, bs);
+        calculate_adj_face_uvs(f, bevvert, gaps, uv_map_index, uv_attributes, bs);
       }
       break;
     }
@@ -5549,11 +5671,11 @@ void BevelState::build_vertex_meshes()
                              newface_repfaces_.as_mutable_span(),
                              *this);
       }
-      //DEBUG!!
+      // DEBUG!!
       dump_bevvert(bv, *this);
       draw_bevvert(bv, *this);
       for (const int mapi : IndexRange(uvmaps_num)) {
-        uv::calculate_vertex_mesh_face_uvs(bv, mapi, *this);
+        uv::calculate_vertex_mesh_face_uvs(bv, mapi, this->uv_attributes_, *this);
       }
     }
   });
@@ -5968,10 +6090,18 @@ static std::optional<Mesh *> build_mesh(const BevelState &bs,
         break;
       }
       case bke::AttrDomain::Corner: {
-        Span<int> rep = bs.newcorner_repcorners();
-        for (const int nc : bs.newcorner_repcorners().index_range()) {
-          if (rep[nc] >= 0) {
-            src.varray.get(rep[nc], dst_span[new_corner_map(nc)]);
+        const int uv_map_index = bs.find_uv_map_index(iter.name);
+        if (uv_map_index != -1) {
+          const Array<float2> &uv_values = bs.uv_attributes()[uv_map_index];
+          GSpan uvspan(dst_span.type(), uv_values.data(), uv_values.size());
+          dst_span.copy_from(GSpan(uvspan));
+        }
+        else {
+          Span<int> rep = bs.newcorner_repcorners();
+          for (const int nc : bs.newcorner_repcorners().index_range()) {
+            if (rep[nc] >= 0) {
+              src.varray.get(rep[nc], dst_span[new_corner_map(nc)]);
+            }
           }
         }
         break;
