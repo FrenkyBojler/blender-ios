@@ -906,8 +906,15 @@ static void follow_segment_connections(const Span<Segment> all_segments,
     auto join_last = [&]() {
       if (curve_segments.size() == 1) {
         Segment &segment = curve_segments.last();
-        if (segment.intersection_index[Side::End] == segment.intersection_index[Side::Start] &&
-            segment.intersection_index[Side::End] != -1)
+
+        const float parameter_start = segment.points[Side::Start] +
+                                      segment.intersection_factor[Side::Start];
+        const float parameter_end = segment.points[Side::End] +
+                                    segment.intersection_factor[Side::End];
+
+        if ((parameter_end == parameter_start) ||
+            (segment.intersection_index[Side::End] == segment.intersection_index[Side::Start] &&
+             segment.intersection_index[Side::End] != -1))
         {
           if (segment.intersection_factor[Side::Start] == segment.intersection_factor[Side::End]) {
             segment.full_wrap_loop = true;
