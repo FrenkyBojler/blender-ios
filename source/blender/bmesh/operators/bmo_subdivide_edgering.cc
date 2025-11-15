@@ -430,8 +430,8 @@ struct LoopPairStore {
 
   /* since we don't have reliable index values into the array,
    * store a map (BMVert -> index) */
-  GHash *nors_gh_a;
-  GHash *nors_gh_b;
+  blender::Map<BMVert *, uint> *nors_gh_a;
+  blender::Map<BMVert *, uint> *nors_gh_b;
 };
 
 static LoopPairStore *bm_edgering_pair_store_create(BMesh *bm,
@@ -453,7 +453,7 @@ static LoopPairStore *bm_edgering_pair_store_create(BMesh *bm,
     BMEdgeLoopStore *el_store_pair[2] = {el_store_a, el_store_b};
     uint side_index;
     float (*nors_pair[2])[3];
-    GHash *nors_gh_pair[2];
+    blender::Map<BMVert *, uint> *nors_gh_pair[2];
 
     BM_edgeloop_edges_get(el_store_a, e_arr_a);
     BM_edgeloop_edges_get(el_store_b, e_arr_b);
@@ -466,8 +466,8 @@ static LoopPairStore *bm_edgering_pair_store_create(BMesh *bm,
     nors_pair[0] = lpair->nors_a;
     nors_pair[1] = lpair->nors_b;
 
-    lpair->nors_gh_a = BLI_ghash_ptr_new(__func__);
-    lpair->nors_gh_b = BLI_ghash_ptr_new(__func__);
+    lpair->nors_gh_a = MEM_new<blender::Map<BMVert *, uint>>(__func__);
+    lpair->nors_gh_b = MEM_new<blender::Map<BMVert *, uint>>(__func__);
 
     nors_gh_pair[0] = lpair->nors_gh_a;
     nors_gh_pair[1] = lpair->nors_gh_b;
@@ -487,7 +487,7 @@ static LoopPairStore *bm_edgering_pair_store_create(BMesh *bm,
       /* iter vars */
       BMEdgeLoopStore *el_store = el_store_pair[side_index];
       ListBase *lb = BM_edgeloop_verts_get(el_store);
-      GHash *nors_gh_iter = nors_gh_pair[side_index];
+      blender::Map<BMVert *, uint> *nors_gh_iter = nors_gh_pair[side_index];
       float (*nor)[3] = nors_pair[side_index];
 
       LinkData *v_iter;
@@ -496,7 +496,7 @@ static LoopPairStore *bm_edgering_pair_store_create(BMesh *bm,
       {
         BMVert *v = static_cast<BMVert *>(v_iter->data);
         bm_vert_calc_surface_tangent(bm, v, nor[i]);
-        BLI_ghash_insert(nors_gh_iter, v, POINTER_FROM_UINT(i));
+        nors_gh_iter->add(v, i);
       }
     }
 
@@ -517,8 +517,8 @@ static void bm_edgering_pair_store_free(LoopPairStore *lpair, const int interp_m
     MEM_freeN(lpair->nors_a);
     MEM_freeN(lpair->nors_b);
 
-    BLI_ghash_free(lpair->nors_gh_a, nullptr, nullptr);
-    BLI_ghash_free(lpair->nors_gh_b, nullptr, nullptr);
+    MEM_delete(lpair->nors_gh_a);
+    MEM_delete(lpair->nors_gh_b);
   }
   MEM_freeN(lpair);
 }
@@ -774,11 +774,8 @@ static void bm_edgering_pair_interpolate(BMesh *bm,
         bm_vert_calc_surface_tangent(bm, v_b, no_b);
 #else
         {
-          const uint index_a = POINTER_AS_UINT(BLI_ghash_lookup(lpair->nors_gh_a, v_a));
-          const uint index_b = POINTER_AS_UINT(BLI_ghash_lookup(lpair->nors_gh_b, v_b));
-
-          BLI_assert(BLI_ghash_haskey(lpair->nors_gh_a, v_a));
-          BLI_assert(BLI_ghash_haskey(lpair->nors_gh_b, v_b));
+          const uint index_a = lpair->nors_gh_a->lookup(v_a);
+          const uint index_b = lpair->nors_gh_b->lookup(v_b);
 
           copy_v3_v3(no_a, lpair->nors_a[index_a]);
           copy_v3_v3(no_b, lpair->nors_b[index_b]);
