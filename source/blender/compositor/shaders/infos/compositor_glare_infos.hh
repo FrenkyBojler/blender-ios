@@ -5,6 +5,8 @@
 #ifdef GPU_SHADER
 #  pragma once
 #  include "gpu_shader_compat.hh"
+
+#  define KARIS_AVERAGE
 #endif
 
 #include "gpu_shader_create_info.hh"
