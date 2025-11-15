@@ -2604,7 +2604,10 @@ static std::pair<int4, int4> face_vertices_and_edges(int f, int nv, int ns)
      * us return an ngon. */
     return std::pair<int4, int4>(int4(0, 1, 2, 3), int4(0, 1, 2, 3));
   }
-  auto [fr, fa, fo] = f_ring_anchor_offset(f, nv, ns);
+  const int3 rao = f_ring_anchor_offset(f, nv, ns);
+  const int fr = rao[0];
+  const int fa = rao[1];
+  const int fo = rao[2];
   int outer_r = face_outer_vertex_ring(f, nv, ns);
   int inner_r = outer_r - 1;
   int vr = outer_r;
@@ -5327,33 +5330,33 @@ void BevelState::determine_needed_new_elements()
     int32_t bevvert_tot_corners = 0;
     for (const int bv : range) {
       bevvert_meshpatterns_[bv] = topology::find_meshpattern(bv, *this);
-      auto [numv, nume, numf, numc] = bevvert_meshpatterns_[bv].num_elements();
+      const int4 nums = bevvert_meshpatterns_[bv].num_elements();
       /* In this loop, accumulate counts. Will covert to offsets later. */
-      newverts_offsets_[bv] = numv;
-      newedges_offsets_[bv] = nume;
-      newfaces_offsets_[bv] = numf;
-      bevvert_tot_corners += numc;
+      newverts_offsets_[bv] = nums[0];
+      newedges_offsets_[bv] = nums[1];
+      newfaces_offsets_[bv] = nums[2];
+      bevvert_tot_corners += nums[3];
     }
     atomic_add_and_fetch_int32(&total_corners, bevvert_tot_corners);
   });
   threading::parallel_for(IndexRange(this->bevedges_num), 20'000, [&](IndexRange range) {
     int32_t bevedge_tot_corners = 0;
     for (const int be : range) {
-      auto [numv, nume, numf, numc] = bevedge_num_elements(be, *this);
-      BLI_assert(numv == 0);
-      newedges_offsets_[bevverts_num + be] = nume;
-      newfaces_offsets_[bevverts_num + be] = numf;
-      bevedge_tot_corners += numc;
+      const int4 nums = bevedge_num_elements(be, *this);
+      BLI_assert(nums[0] == 0);
+      newedges_offsets_[bevverts_num + be] = nums[1];
+      newfaces_offsets_[bevverts_num + be] = nums[2];
+      bevedge_tot_corners += nums[3];
     }
     atomic_add_and_fetch_int32(&total_corners, bevedge_tot_corners);
   });
   threading::parallel_for(IndexRange(this->bevfaces_num), 20'000, [&](IndexRange range) {
     int32_t bevface_tot_corners = 0;
     for (const int bf : range) {
-      auto [numv, nume, numf, numc] = bevface_num_elements(bf, *this);
-      BLI_assert(numv == 0 && nume == 0);
-      newfaces_offsets_[bevverts_num + bevedges_num + bf] = numf;
-      bevface_tot_corners += numc;
+      const int4 nums = bevface_num_elements(bf, *this);
+      BLI_assert(nums[0] == 0 && nums[1] == 0);
+      newfaces_offsets_[bevverts_num + bevedges_num + bf] = nums[2];
+      bevface_tot_corners += nums[3];
     }
     atomic_add_and_fetch_int32(&total_corners, bevface_tot_corners);
   });
@@ -5688,16 +5691,16 @@ void BevelState::build_edge_meshes()
     for (const int be : range) {
       const int mesh_edge = bevedge_mesh_edges_[be];
       /* Get v0 and v1 to be in the same order as in the underlying mesh edge. */
-      auto [mesh_v0, mesh_v1] = mesh_info.mesh.edges()[mesh_edge];
-      int bv0 = vert_bevverts_[mesh_v0];
-      int bv1 = vert_bevverts_[mesh_v1];
-      auto [pos0, pos1] = bevedge_attach_verts_[be];
+      const int2 meshvs = mesh_info.mesh.edges()[mesh_edge];
+      int bv0 = vert_bevverts_[meshvs[0]];
+      int bv1 = vert_bevverts_[meshvs[1]];
+      const int2 poses = bevedge_attach_verts_[be];
       /* It is possible that one or the other end of be does not have a bv (it will be -1).
        * In that case, we encode the original mesh vertex index as a "new vertex index" by
        * adding one and negating.
        */
-      const int attach_nv0 = bv0 >= 0 ? bevvert_newverts_[bv0][pos0] : -(mesh_v0 + 1);
-      const int attach_nv1 = bv1 >= 0 ? bevvert_newverts_[bv1][pos1] : -(mesh_v1 + 1);
+      const int attach_nv0 = bv0 >= 0 ? bevvert_newverts_[bv0][poses[0]] : -(meshvs[0] + 1);
+      const int attach_nv1 = bv1 >= 0 ? bevvert_newverts_[bv1][poses[1]] : -(meshvs[1] + 1);
       if (!bevedge_is_beveled(be)) {
         /* Just a single edge, but with one or both ends attached to new vertices. */
         const int ne = bevedge_newedges_[be][0];
@@ -5715,8 +5718,8 @@ void BevelState::build_edge_meshes()
         const MeshPattern &pat1 = bevvert_meshpatterns_[bv1];
         /* Normally go clockwise (positively) from the attachment point, but for a Line
          * pattern we need to go the opposite way if the attachment point is at the end. */
-        const int u_dir = (pat0.kind != MeshKind::Line || pos0 == 0) ? 1 : -1;
-        const int l_dir = (pat1.kind != MeshKind::Line || pos1 == 0) ? 1 : -1;
+        const int u_dir = (pat0.kind != MeshKind::Line || poses[0] == 0) ? 1 : -1;
+        const int l_dir = (pat1.kind != MeshKind::Line || poses[1] == 0) ? 1 : -1;
         for (const int i : IndexRange(params.segments)) {
           /* Upper left and upper right vertices. */
           const int nv0 = pat0.next_boundary_vert(attach_nv0, i * u_dir, first_nv0);
@@ -6123,7 +6126,7 @@ static std::optional<Mesh *> build_mesh(const BevelState &bs,
   }
   /* TEMP: while developing, before we have attributes done properly. */
   bke::mesh_smooth_set(*dst_mesh, false, true);
-  BLI_assert(BKE_mesh_is_valid(dst_mesh));
+  BLI_assert(bke::mesh_is_valid(*dst_mesh));
 
   return dst_mesh;
 }
