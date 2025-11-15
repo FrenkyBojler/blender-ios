@@ -846,7 +846,7 @@ DEFINE_CUSTOMDATA_LAYER_COLLECTION_ACTIVEITEM(
 
 static std::optional<std::string> rna_MeshUVLoopLayer_path(const PointerRNA *ptr)
 {
-  const CustomDataLayer *cdl = static_cast<const CustomDataLayer *>(ptr->data);
+  const bke::Attribute *cdl = static_cast<const bke::Attribute *>(ptr->data);
   char name_esc[sizeof(cdl->name) * 2];
   BLI_str_escape(name_esc, cdl->name, sizeof(name_esc));
   return fmt::format("uv_layers[\"{}\"]", name_esc);
@@ -855,7 +855,7 @@ static std::optional<std::string> rna_MeshUVLoopLayer_path(const PointerRNA *ptr
 static void rna_MeshUVLoopLayer_data_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   Mesh *mesh = rna_mesh(ptr);
-  CustomDataLayer *layer = (CustomDataLayer *)ptr->data;
+  bke::Attribute *attr = (bke::Attribute *)ptr->data;
   const int length = (mesh->runtime->edit_mesh) ? 0 : mesh->corners_num;
   CustomData_ensure_data_is_mutable(layer, length);
   rna_iterator_array_begin(iter, ptr, layer->data, sizeof(float[2]), length, 0, nullptr);
@@ -871,14 +871,14 @@ static void bool_layer_begin(CollectionPropertyIterator *iter,
                              PointerRNA *ptr,
                              StringRef (*layername_func)(const StringRef uv_name, char *buffer))
 {
-  char buffer[MAX_CUSTOMDATA_LAYER_NAME];
   Mesh *mesh = rna_mesh(ptr);
-  CustomDataLayer *layer = (CustomDataLayer *)ptr->data;
-  const StringRef name = layername_func(layer->name, buffer);
   if (mesh->runtime->edit_mesh) {
     rna_iterator_array_begin(iter, ptr, nullptr, sizeof(MBoolProperty), 0, 0, nullptr);
     return;
   }
+  char buffer[MAX_CUSTOMDATA_LAYER_NAME];
+  bke::Attribute *attr = (bke::Attribute *)ptr->data;
+  const StringRef name = layername_func(layer->name, buffer);
   MBoolProperty *data = (MBoolProperty *)CustomData_get_layer_named_for_write(
       &mesh->corner_data, CD_PROP_BOOL, name, mesh->corners_num);
   if (!data) {
@@ -899,7 +899,7 @@ static bool bool_layer_lookup_int(PointerRNA *ptr,
   if (mesh->runtime->edit_mesh || index < 0 || index >= mesh->corners_num) {
     return 0;
   }
-  CustomDataLayer *layer = (CustomDataLayer *)ptr->data;
+  bke::Attribute *attr = (bke::Attribute *)ptr->data;
   const StringRef name = layername_func(layer->name, buffer);
   MBoolProperty *data = (MBoolProperty *)CustomData_get_layer_named_for_write(
       &mesh->corner_data, CD_PROP_BOOL, name, mesh->corners_num);
@@ -915,7 +915,7 @@ static int bool_layer_length(PointerRNA *ptr,
 {
   char buffer[MAX_CUSTOMDATA_LAYER_NAME];
   Mesh *mesh = rna_mesh(ptr);
-  CustomDataLayer *layer = (CustomDataLayer *)ptr->data;
+  bke::Attribute *attr = (bke::Attribute *)ptr->data;
   const StringRef name = layername_func(layer->name, buffer);
   if (mesh->runtime->edit_mesh) {
     return 0;
@@ -937,7 +937,7 @@ static PointerRNA bool_layer_ensure(PointerRNA *ptr,
   if (mesh->runtime->edit_mesh) {
     return {};
   }
-  CustomDataLayer *layer = (CustomDataLayer *)ptr->data;
+  bke::Attribute *attr = (bke::Attribute *)ptr->data;
   const StringRef name = layername_func(layer->name, buffer);
   int index = CustomData_get_named_layer_index(&mesh->corner_data, CD_PROP_BOOL, name);
   if (index == -1) {
@@ -949,7 +949,7 @@ static PointerRNA bool_layer_ensure(PointerRNA *ptr,
     return {};
   }
   // TODO_MESH_ATTR
-  CustomDataLayer *bool_layer = &mesh->corner_data.layers[index];
+  bke::Attribute *bool_layer = &mesh->corner_data.layers[index];
   return RNA_pointer_create_discrete(&mesh->id, &RNA_BoolAttribute, bool_layer);
 }
 
@@ -976,28 +976,7 @@ static PointerRNA rna_MeshUVLoopLayer_pin_ensure(PointerRNA ptr)
 
 static void rna_MeshUVLoopLayer_uv_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
-  Mesh *mesh = rna_mesh(ptr);
-  CustomDataLayer *layer = (CustomDataLayer *)ptr->data;
-
-  rna_iterator_array_begin(iter,
-                           ptr,
-                           layer->data,
-                           sizeof(float[2]),
-                           (mesh->runtime->edit_mesh) ? 0 : mesh->corners_num,
-                           0,
-                           nullptr);
-}
-
-bool rna_MeshUVLoopLayer_uv_lookup_int(PointerRNA *ptr, int index, PointerRNA *r_ptr)
-{
-  Mesh *mesh = rna_mesh(ptr);
-  if (mesh->runtime->edit_mesh || index < 0 || index >= mesh->corners_num) {
-    return 0;
-  }
-  CustomDataLayer *layer = (CustomDataLayer *)ptr->data;
-  rna_pointer_create_with_ancestors(
-      *ptr, &RNA_Float2AttributeValue, (float *)layer->data + 2 * index, *r_ptr);
-  return 1;
+  rna_Attribute_data_begin(iter, ptr);
 }
 
 static bool rna_MeshUVLoopLayer_active_render_get(PointerRNA *ptr)
@@ -2303,7 +2282,7 @@ static void rna_def_mloopuv(BlenderRNA *brna)
                                     "rna_iterator_array_end",
                                     "rna_iterator_array_get",
                                     "rna_MeshUVLoopLayer_data_length",
-                                    "rna_MeshUVLoopLayer_uv_lookup_int",
+                                    nullptr,
                                     nullptr,
                                     nullptr);
 

@@ -487,6 +487,14 @@ static int rna_Attribute_domain_get(PointerRNA *ptr)
 static bool rna_Attribute_is_internal_get(PointerRNA *ptr)
 {
   using namespace blender;
+  if (owner.type() == AttributeOwnerType::Mesh) {
+    const Mesh *mesh = owner.get_mesh();
+    if (mesh->runtime->edit_mesh) {
+      const CustomDataLayer *layer = (const CustomDataLayer *)ptr->data;
+      return !blender::bke::allow_procedural_attribute_access(layer->name);
+    }
+  }
+
   const bke::Attribute *attr = static_cast<const bke::Attribute *>(ptr->data);
   return !bke::allow_procedural_attribute_access(attr->name());
 }
@@ -507,7 +515,7 @@ static bool rna_Attribute_is_required_get(PointerRNA *ptr)
   return BKE_attribute_required(owner, attr->name());
 }
 
-static void rna_Attribute_data_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+void rna_Attribute_data_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   using namespace blender;
   AttributeOwner owner = owner_from_attribute_pointer_rna(ptr);
