@@ -371,12 +371,10 @@ eSnapMode snap_polygon_mesh(SnapObjectContext *sctx,
   const IndexRange face = mesh_eval->faces()[face_index];
 
   if (snap_to_flag & SCE_SNAP_TO_FACE_MIDPOINT) {
-    float3 center(0.0f);
     const Span<int> face_verts = Span(nearest2d.corner_verts, mesh_eval->corners_num).slice(face);
-    for (int i = 0; i < face.size(); i++) {
-      center += float3(nearest2d.vert_positions[face_verts[i]]);
-    }
-    center *= 1.0f / float(face.size());
+    const Span<float3> vert_positions_span = Span(nearest2d.vert_positions, mesh_eval->verts_num);
+    float3 center = bke::mesh::face_center_calc(vert_positions_span, face_verts);
+
     copy_v3_v3(nearest2d.nearest_point.co, center);
     copy_v3_v3(nearest2d.nearest_point.no, mesh_eval->face_normals()[face_index]);
     nearest2d.nearest_point.index = face_index;
