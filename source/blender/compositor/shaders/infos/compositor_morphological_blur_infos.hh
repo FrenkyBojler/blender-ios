@@ -5,6 +5,8 @@
 #ifdef GPU_SHADER
 #  pragma once
 #  include "gpu_shader_compat.hh"
+
+#  define OPERATOR(x, y) max(x, y)
 #endif
 
 #include "gpu_shader_create_info.hh"

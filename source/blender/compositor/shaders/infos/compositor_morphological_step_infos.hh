@@ -5,6 +5,9 @@
 #ifdef GPU_SHADER
 #  pragma once
 #  include "gpu_shader_compat.hh"
+
+#  define OPERATOR(a, b) max(a, b)
+#  define LIMIT -FLT_MAX
 #endif
 
 #include "gpu_shader_create_info.hh"

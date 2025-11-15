@@ -5,6 +5,8 @@
 #ifdef GPU_SHADER
 #  pragma once
 #  include "gpu_shader_compat.hh"
+
+#  define VARIABLE_SIZE
 #endif
 
 #include "gpu_shader_create_info.hh"

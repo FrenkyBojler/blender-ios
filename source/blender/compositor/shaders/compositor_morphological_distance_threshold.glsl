@@ -49,6 +49,10 @@
  * Since the erode/dilate distance is already signed appropriately as described before, we just add
  * it in both cases. */
 
+#include "infos/compositor_morphological_distance_threshold_infos.hh"
+
+COMPUTE_SHADER_CREATE_INFO(compositor_morphological_distance_threshold)
+
 #include "gpu_shader_compositor_texture_utilities.glsl"
 
 void main()
