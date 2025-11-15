@@ -149,7 +149,7 @@ class Segment {
 
   constexpr static Segment from_curve(const int curve_i,
                                       const IndexRange points,
-                                      const bool cyclical)
+                                      const bool cyclic)
   {
     Segment segment;
     segment.curve = curve_i;
@@ -159,9 +159,9 @@ class Segment {
     segment.points[Side::End] = points.last();
 
     segment.intersection_factor[Side::Start] = 0.0f;
-    segment.intersection_factor[Side::End] = cyclical ? 1.0f : 0.0f;
+    segment.intersection_factor[Side::End] = cyclic ? 1.0f : 0.0f;
 
-    segment.full_wrap_loop = cyclical;
+    segment.full_wrap_loop = cyclic;
 
     return segment;
   }
