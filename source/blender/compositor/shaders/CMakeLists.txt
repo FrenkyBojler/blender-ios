@@ -14,34 +14,33 @@ set(INC_GLSL
 )
 
 set(SRC_GLSL_COMP
-# TODO: Port to C++ compilation
-#   compositor_alpha_crop.glsl
-#   compositor_bilateral_blur.glsl
-#   compositor_bokeh_blur_variable_size.glsl
-#   compositor_bokeh_blur.glsl
-#   compositor_bokeh_image.glsl
-#   compositor_box_mask.glsl
-#   compositor_compute_preview.glsl
+  compositor_alpha_crop.glsl
+  compositor_bilateral_blur.glsl
+  compositor_bokeh_blur_variable_size.glsl
+  compositor_bokeh_blur.glsl
+  compositor_bokeh_image.glsl
+  compositor_box_mask.glsl
+  compositor_compute_preview.glsl
   compositor_convert.glsl
-#   compositor_cryptomatte_image.glsl
-#   compositor_cryptomatte_matte.glsl
-#   compositor_cryptomatte_pick.glsl
-#   compositor_defocus_blur.glsl
-#   compositor_defocus_radius_from_depth.glsl
-#   compositor_defocus_radius_from_scale.glsl
-#   compositor_deriche_gaussian_blur_sum.glsl
-#   compositor_deriche_gaussian_blur.glsl
-#   compositor_despeckle.glsl
-#   compositor_directional_blur.glsl
-#   compositor_displace_anisotropic.glsl
-#   compositor_displace.glsl
-#   compositor_double_edge_mask_compute_boundary.glsl
-#   compositor_double_edge_mask_compute_gradient.glsl
-#   compositor_edge_filter.glsl
-#   compositor_ellipse_mask.glsl
-#   compositor_filter.glsl
-#   compositor_flip.glsl
-#   compositor_gamma_correct.glsl
+  compositor_cryptomatte_image.glsl
+  compositor_cryptomatte_matte.glsl
+  compositor_cryptomatte_pick.glsl
+  compositor_defocus_blur.glsl
+  compositor_defocus_radius_from_depth.glsl
+  compositor_defocus_radius_from_scale.glsl
+  compositor_deriche_gaussian_blur_sum.glsl
+  compositor_deriche_gaussian_blur.glsl
+  compositor_despeckle.glsl
+  compositor_directional_blur.glsl
+  compositor_displace_anisotropic.glsl
+  compositor_displace.glsl
+  compositor_double_edge_mask_compute_boundary.glsl
+  compositor_double_edge_mask_compute_gradient.glsl
+  compositor_edge_filter.glsl
+  compositor_ellipse_mask.glsl
+  compositor_filter.glsl
+  compositor_flip.glsl
+  compositor_gamma_correct.glsl
 #   compositor_glare_bloom_downsample.glsl
 #   compositor_glare_bloom_upsample.glsl
 #   compositor_glare_ghost_accumulate.glsl
