@@ -214,7 +214,7 @@ static blender::VectorSet<BMEdgeLoopStorePair> bm_edgering_pair_calc(BMesh *bm,
    */
 
   blender::VectorSet<BMEdgeLoopStorePair> eloop_pair_set;
-  GHash *vert_eloop_gh = BLI_ghash_ptr_new(__func__);
+  blender::Map<BMVert *, BMEdgeLoopStore *> vert_eloop_map;
 
   BMEdgeLoopStore *el_store;
 
@@ -224,7 +224,7 @@ static blender::VectorSet<BMEdgeLoopStorePair> bm_edgering_pair_calc(BMesh *bm,
   {
     LinkData *node = static_cast<LinkData *>(BM_edgeloop_verts_get(el_store)->first);
     do {
-      BLI_ghash_insert(vert_eloop_gh, node->data, el_store);
+      vert_eloop_map.add(static_cast<BMVert *>(node->data), el_store);
     } while ((node = node->next));
   }
 
@@ -239,11 +239,10 @@ static blender::VectorSet<BMEdgeLoopStorePair> bm_edgering_pair_calc(BMesh *bm,
 
     BM_ITER_ELEM (e, &eiter, (BMVert *)v, BM_EDGES_OF_VERT) {
       if (BMO_edge_flag_test(bm, e, EDGE_RING)) {
-        BMEdgeLoopStore *el_store_other;
         BMVert *v_other = BM_edge_other_vert(e, v);
         BMEdgeLoopStorePair pair_test;
 
-        el_store_other = static_cast<BMEdgeLoopStore *>(BLI_ghash_lookup(vert_eloop_gh, v_other));
+        BMEdgeLoopStore *el_store_other = vert_eloop_map.lookup_default(v_other, nullptr);
 
         /* in rare cases we can't find a match */
         if (el_store_other) {
@@ -259,8 +258,6 @@ static blender::VectorSet<BMEdgeLoopStorePair> bm_edgering_pair_calc(BMesh *bm,
       }
     }
   }
-
-  BLI_ghash_free(vert_eloop_gh, nullptr, nullptr);
 
   return eloop_pair_set;
 }
