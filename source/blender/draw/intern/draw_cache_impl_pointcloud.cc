@@ -422,7 +422,7 @@ void DRW_pointcloud_batch_cache_create_requested(Object *ob)
 
   if (cache.eval_cache.surface != nullptr) {
     GPU_batch_init_procedural(
-        cache.eval_cache.surface, GPU_PRIM_TRI_STRIP, 10 * pointcloud.totpoint);
+        cache.eval_cache.surface, GPU_PRIM_TRI_STRIP, 8 * pointcloud.totpoint);
     DRW_vbo_request(nullptr, &cache.eval_cache.pos_rad);
   }
 
