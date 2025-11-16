@@ -178,6 +178,7 @@ void DRW_pointcloud_batch_cache_validate(PointCloud *pointcloud)
     pointcloud_batch_cache_init(*pointcloud);
   }
 }
+
 void DRW_pointcloud_batch_cache_free(PointCloud *pointcloud)
 {
   pointcloud_batch_cache_clear(*pointcloud);
