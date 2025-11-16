@@ -3537,27 +3537,28 @@ static void calculate_adj_face_uvs(const int f,
                                    Vector<Array<float2>> &uv_attributes,
                                    const BevelState &bs)
 {
-  const MeshPattern &pat = bs.bevvert_meshpatterns()[bv];
-  std::pair<SmallIntArray, SmallIntArray> vs_and_es = pat.face_verts_and_edges(f, 0, 0);
-  SmallIntArray &vs = vs_and_es.first;
-  const int num_vs = vs.size();
   // DEBUG!!
   fmt::println("calculate_adj_face_uvs, bv={}, f={}", bv, f);
-  print_span(vs.as_span(), "vs");
-  const IndexRange newverts_range = bs.bevvert_newverts()[bv];
-  const Span<float3> vs_pos = bs.newvert_positions().slice(newverts_range);
-  print_float3_span(vs_pos, "vs positions");
-  SmallIntArray best_over_face(num_vs);
-  SmallIntArray alt_over_face(num_vs);
-  Array<float3, 20> best_over_pos(num_vs);
-  Array<float3, 20> alt_over_pos(num_vs);
-  for (const int i : vs.index_range()) {
-    const float3 pos = vs_pos[i];
+  const IndexRange newfaces = bs.bevvert_newfaces()[bv];
+  const IndexRange newface_corners_range = bs.newface_faces_face()[newfaces[f]];
+  const Span<int> fverts = bs.newcorner_verts().slice(newface_corners_range);
+  print_span(fverts, "fverts");
+  const int num_fverts = fverts.size();
+  SmallIntArray best_over_face(num_fverts);
+  SmallIntArray alt_over_face(num_fverts);
+  Array<float3, 20> best_over_pos(num_fverts);
+  Array<float3, 20> alt_over_pos(num_fverts);
+  for (const int i : fverts.index_range()) {
+    const float3 pos = bs.newvert_positions()[fverts[i]];
     find_over_faces(
         pos, bv, bs, &best_over_face[i], &best_over_pos[i], &alt_over_face[i], &alt_over_pos[i]);
     // DEBUG!!
-    fmt::println("i={}, over_f={}, over_pos=({},{},{})",
+    fmt::println("i={}, nv={}, pos=({},{},{}), over_f={}, over_pos=({},{},{})",
                  i,
+                 fverts[i],
+                 pos[0],
+                 pos[1],
+                 pos[2],
                  best_over_face[i],
                  best_over_pos[i][0],
                  best_over_pos[i][1],
@@ -3570,9 +3571,9 @@ static void calculate_adj_face_uvs(const int f,
   const Span<int> mesh_corner_verts = mesh.corner_verts();
   const OffsetIndices<int> mesh_faces = mesh.faces();
 
-  Array<float2, 20> face_uvs(num_vs);
+  Array<float2, 20> face_uvs(num_fverts);
 
-  for (const int i : vs.index_range()) {
+  for (const int i : fverts.index_range()) {
     const int over_f = best_over_face[i];
     const float3 over_pos = best_over_pos[i];
 
@@ -3630,23 +3631,16 @@ static void calculate_adj_face_uvs(const int f,
                     bary_weights[2] * over_face_corner_uvs[2] +
                     bary_weights[3] * over_face_corner_uvs[3];
     }
-    else { /* N-gon, for now, use closest vertex UV. */
-      float min_dist_sq = FLT_MAX;
-      int closest_vert_idx = 0;
-      for (const int j : over_face_vert_pos_2d.index_range()) {
-        float dist_sq = math::distance_squared(over_pos_2d, over_face_vert_pos_2d[j]);
-        if (dist_sq < min_dist_sq) {
-          min_dist_sq = dist_sq;
-          closest_vert_idx = j;
-        }
-      }
-      face_uvs[i] = over_face_corner_uvs[closest_vert_idx];
+    else {
+      Array<float, 20> bary_weights(num_over_face_corners);
+      interp_weights_poly_v2(reinterpret_cast<float *>(bary_weights.data()),
+                             reinterpret_cast<float (*)[2]>(over_face_vert_pos_2d.data()),
+                             num_over_face_corners,
+                             reinterpret_cast<float *>(&face_uvs[i]));
     }
   }
 
-  const IndexRange newfaces = bs.bevvert_newfaces()[bv];
-  const IndexRange newface_corners_range = bs.newface_faces_face()[newfaces[f]];
-  for (const int i : vs.index_range()) {
+  for (const int i : fverts.index_range()) {
     const int newcorner_idx = newface_corners_range[i];
     uv_attributes[uv_map_index][newcorner_idx] = face_uvs[i];
     //! DEBUG
