@@ -49,6 +49,7 @@ static const EnumPropertyItem rna_enum_mesh_remesh_mode_items[] = {
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BKE_attribute.hh"
 #include "BKE_customdata.hh"
@@ -84,38 +85,33 @@ static Mesh *rna_mesh(const PointerRNA *ptr)
 /** \name Generic CustomData Layer Functions
  * \{ */
 
+static blender::StringRefNull rna_Attribute_name_get(const PointerRNA *ptr)
+{
+  using namespace blender;
+  ID *owner_id = ptr->owner_id;
+  const AttributeOwner owner = AttributeOwner::from_id(owner_id);
+  if (owner.type() == AttributeOwnerType::Mesh) {
+    const Mesh *mesh = owner.get_mesh();
+    if (mesh->runtime->edit_mesh) {
+      const CustomDataLayer *layer = ptr->data_as<CustomDataLayer>();
+      return layer->name;
+    }
+  }
+  const bke::Attribute *attr = ptr->data_as<bke::Attribute>();
+  return attr->name();
+}
+
 static void rna_MeshSkinVertexLayer_name_set(PointerRNA *ptr, const char *value)
 {
-  CustomDataLayer *layer = (CustomDataLayer *)ptr->data;
-
-  STRNCPY_UTF8(cdl->name, value);
-  CustomData_set_layer_unique_name(cdata, cdl - cdata->layers);
-  rna_cd_layer_name_set(rna_mesh_vdata(ptr), layer, value);
-}
-#if 0
-static void rna_MeshEdgeLayer_name_set(PointerRNA *ptr, const char *value)
-{
-  CustomDataLayer *layer = (CustomDataLayer *)ptr->data;
-
-  if (CD_TYPE_AS_MASK(eCustomDataType(layer->type)) & CD_MASK_PROP_ALL) {
-    AttributeOwner owner = AttributeOwner::from_id(ptr->owner_id);
-    BKE_attribute_rename(owner, layer->name, value, nullptr);
+  CustomDataLayer *layer = ptr->data_as<CustomDataLayer>();
+  Mesh *mesh = rna_mesh(ptr);
+  if (BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
+    STRNCPY_UTF8(layer->name, value);
+    CustomData_set_layer_unique_name(&em->bm->vdata, layer - em->bm->vdata.layers);
   }
   else {
-    rna_cd_layer_name_set(rna_mesh_edata(ptr), layer, value);
-  }
-}
-#endif
-static void rna_MeshLoopLayer_name_set(PointerRNA *ptr, const char *value)
-{
-  CustomDataLayer *layer = (CustomDataLayer *)ptr->data;
-
-  if (CD_TYPE_AS_MASK(eCustomDataType(layer->type)) & CD_MASK_PROP_ALL) {
-    AttributeOwner owner = AttributeOwner::from_id(ptr->owner_id);
-    BKE_attribute_rename(owner, layer->name, value, nullptr);
-  }
-  else {
-    rna_cd_layer_name_set(rna_mesh_ldata(ptr), layer, value);
+    STRNCPY_UTF8(layer->name, value);
+    CustomData_set_layer_unique_name(&mesh->vert_data, layer - mesh->vert_data.layers);
   }
 }
 
@@ -748,22 +744,6 @@ static void rna_MeshVertex_undeformed_co_get(PointerRNA *ptr, float values[3])
   }
 }
 
-static blender::StringRefNull rna_Attribute_name_get(const PointerRNA *ptr)
-{
-  using namespace blender;
-  ID *owner_id = ptr->owner_id;
-  const AttributeOwner owner = AttributeOwner::from_id(owner_id);
-  if (owner.type() == AttributeOwnerType::Mesh) {
-    const Mesh *mesh = owner.get_mesh();
-    if (mesh->runtime->edit_mesh) {
-      const CustomDataLayer *layer = ptr->data_as<CustomDataLayer>();
-      return layer->name;
-    }
-  }
-  const bke::Attribute *attr = ptr->data_as<bke::Attribute>();
-  return attr->name();
-}
-
 static int rna_CustomDataLayer_active_get(PointerRNA *ptr, CustomData *data, int type, bool render)
 {
   int n = ((CustomDataLayer *)ptr->data) - data->layers;
@@ -818,15 +798,171 @@ static void rna_CustomDataLayer_clone_set(PointerRNA *ptr, CustomData *data, int
 
 /* uv_layers */
 
-// DEFINE_CUSTOMDATA_LAYER_COLLECTION(uv_layer, ldata, CD_PROP_FLOAT2)
-// DEFINE_CUSTOMDATA_LAYER_COLLECTION_ACTIVEITEM(
-//     uv_layer, ldata, CD_PROP_FLOAT2, active, MeshUVLoopLayer)
+static bool rna_uv_layer_check(CollectionPropertyIterator *, void *data)
+{
+  CustomDataLayer *layer = (CustomDataLayer *)data;
+  return (blender ::bke ::attribute_name_is_anonymous(layer->name) ||
+          layer->type != CD_PROP_FLOAT2);
+}
+static void rna_Mesh_uv_layers_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+{
+  CustomData *data = rna_mesh_ldata(ptr);
+  if (data) {
+    rna_iterator_array_begin(iter,
+                             ptr,
+                             (void *)data->layers,
+                             sizeof(CustomDataLayer),
+                             data->totlayer,
+                             0,
+                             rna_uv_layer_check);
+  }
+  else {
+    rna_iterator_array_begin(iter, ptr, nullptr, 0, 0, 0, nullptr);
+  }
+}
+
+static int rna_Mesh_uv_layers_length(PointerRNA *ptr)
+{
+  CustomData *data = rna_mesh_ldata(ptr);
+  return data ? CustomData_number_of_layers(data, CD_PROP_FLOAT2) -
+                    CustomData_number_of_anonymous_layers(data, CD_PROP_FLOAT2) :
+                0;
+}
+
+static void rna_Mesh_uv_layer_index_range(PointerRNA *ptr, int *min, int *max, int *, int *)
+{
+  CustomData *data = rna_mesh_ldata(ptr);
+  *min = 0;
+  *max = data ? CustomData_number_of_layers(data, CD_PROP_FLOAT2) -
+                    CustomData_number_of_anonymous_layers(data, CD_PROP_FLOAT2) - 1 :
+                0;
+  *max = std ::max(0, *max);
+}
+
+static PointerRNA rna_Mesh_uv_layer_active_get(PointerRNA *ptr)
+{
+  CustomData *data = rna_mesh_ldata(ptr);
+  CustomDataLayer *layer;
+  if (data) {
+    int index = CustomData_get_active_layer_index(data, CD_PROP_FLOAT2);
+    layer = (index == -1) ? nullptr : &data->layers[index];
+  }
+  else {
+    layer = nullptr;
+  }
+  return RNA_pointer_create_with_parent(*ptr, &RNA_MeshUVLoopLayer, layer);
+}
+
+static void rna_Mesh_uv_layer_active_set(PointerRNA *ptr, PointerRNA value, ReportList *)
+{
+  Mesh *mesh = rna_mesh(ptr);
+  CustomData *data = rna_mesh_ldata(ptr);
+  int a;
+  if (data) {
+    CustomDataLayer *layer;
+    int layer_index = CustomData_get_layer_index(data, CD_PROP_FLOAT2);
+    for (layer = data->layers + layer_index, a = 0; layer_index + a < data->totlayer; layer++, a++)
+    {
+      if (value.data == layer) {
+        CustomData_set_layer_active(data, CD_PROP_FLOAT2, a);
+        BKE_mesh_tessface_clear(mesh);
+        return;
+      }
+    }
+  }
+}
+
+static int rna_Mesh_uv_layer_active_index_get(PointerRNA *ptr)
+{
+  CustomData *data = rna_mesh_ldata(ptr);
+  if (data) {
+    return CustomData_get_active_layer(data, CD_PROP_FLOAT2);
+  }
+  else {
+    return 0;
+  }
+}
+
+static void rna_Mesh_uv_layer_active_index_set(PointerRNA *ptr, int value)
+{
+  Mesh *mesh = rna_mesh(ptr);
+  CustomData *data = rna_mesh_ldata(ptr);
+  if (data) {
+    if (__builtin_expect(!!(value < 0), 0)) {
+      value = 0;
+    }
+    else if (value > 0) {
+      value = min_ii(value, CustomData_number_of_layers(data, CD_PROP_FLOAT2) - 1);
+    }
+    CustomData_set_layer_active(data, CD_PROP_FLOAT2, value);
+    BKE_mesh_tessface_clear(mesh);
+  }
+}
+
+static PointerRNA rna_Mesh_uv_layer_render_get(PointerRNA *ptr)
+{
+  CustomData *data = rna_mesh_ldata(ptr);
+  CustomDataLayer *layer;
+  if (data) {
+    int index = CustomData_get_render_layer_index(data, CD_PROP_FLOAT2);
+    layer = (index == -1) ? nullptr : &data->layers[index];
+  }
+  else {
+    layer = nullptr;
+  }
+  return RNA_pointer_create_with_parent(*ptr, &RNA_MeshUVLoopLayer, layer);
+}
+
+static void rna_Mesh_uv_layer_render_set(PointerRNA *ptr, PointerRNA value, ReportList *)
+{
+  Mesh *mesh = rna_mesh(ptr);
+  CustomData *data = rna_mesh_ldata(ptr);
+  int a;
+  if (data) {
+    CustomDataLayer *layer;
+    int layer_index = CustomData_get_layer_index(data, CD_PROP_FLOAT2);
+    for (layer = data->layers + layer_index, a = 0; layer_index + a < data->totlayer; layer++, a++)
+    {
+      if (value.data == layer) {
+        CustomData_set_layer_render(data, CD_PROP_FLOAT2, a);
+        BKE_mesh_tessface_clear(mesh);
+        return;
+      }
+    }
+  }
+}
+
+static int rna_Mesh_uv_layer_render_index_get(PointerRNA *ptr)
+{
+  CustomData *data = rna_mesh_ldata(ptr);
+  if (data) {
+    return CustomData_get_render_layer(data, CD_PROP_FLOAT2);
+  }
+  else {
+    return 0;
+  }
+}
+
+static void rna_Mesh_uv_layer_render_index_set(PointerRNA *ptr, int value)
+{
+  Mesh *mesh = rna_mesh(ptr);
+  CustomData *data = rna_mesh_ldata(ptr);
+  if (data) {
+    if (__builtin_expect(!!(value < 0), 0)) {
+      value = 0;
+    }
+    else if (value > 0) {
+      value = min_ii(value, CustomData_number_of_layers(data, CD_PROP_FLOAT2) - 1);
+    }
+    CustomData_set_layer_render(data, CD_PROP_FLOAT2, value);
+    BKE_mesh_tessface_clear(mesh);
+  }
+}
+
 // DEFINE_CUSTOMDATA_LAYER_COLLECTION_ACTIVEITEM(
 //     uv_layer, ldata, CD_PROP_FLOAT2, clone, MeshUVLoopLayer)
 // DEFINE_CUSTOMDATA_LAYER_COLLECTION_ACTIVEITEM(
 //     uv_layer, ldata, CD_PROP_FLOAT2, stencil, MeshUVLoopLayer)
-// DEFINE_CUSTOMDATA_LAYER_COLLECTION_ACTIVEITEM(
-//     uv_layer, ldata, CD_PROP_FLOAT2, render, MeshUVLoopLayer)
 
 /* MeshUVLoopLayer */
 
@@ -950,7 +1086,7 @@ static bool rna_MeshUVLoopLayer_active_get(PointerRNA *ptr)
 
 static bool rna_MeshUVLoopLayer_clone_get(PointerRNA *ptr)
 {
-  return rna_CustomDataLayer_clone_get(ptr, rna_mesh_ldata(ptr), CD_PROP_FLOAT2);
+  // return rna_CustomDataLayer_clone_get(ptr, rna_mesh_ldata(ptr), CD_PROP_FLOAT2);
 }
 
 static void rna_MeshUVLoopLayer_active_render_set(PointerRNA *ptr, bool value)
@@ -977,12 +1113,52 @@ static void rna_MeshUVLoopLayer_active_set(PointerRNA *ptr, bool value)
 
 static void rna_MeshUVLoopLayer_clone_set(PointerRNA *ptr, bool value)
 {
-  rna_CustomDataLayer_clone_set(ptr, rna_mesh_ldata(ptr), value, CD_PROP_FLOAT2);
+  // rna_CustomDataLayer_clone_set(ptr, rna_mesh_ldata(ptr), value, CD_PROP_FLOAT2);
 }
 
 /* vertex_color_layers */
 
-DEFINE_CUSTOMDATA_LAYER_COLLECTION(vertex_color, ldata, CD_PROP_BYTE_COLOR)
+static bool rna_vertex_color_check(CollectionPropertyIterator *, void *data)
+{
+  CustomDataLayer *layer = (CustomDataLayer *)data;
+  return (blender::bke::attribute_name_is_anonymous(layer->name) ||
+          layer->type != CD_PROP_BYTE_COLOR);
+}
+
+static void rna_Mesh_vertex_colors_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+{
+  CustomData *data = rna_mesh_ldata(ptr);
+  if (data) {
+    rna_iterator_array_begin(iter,
+                             ptr,
+                             (void *)data->layers,
+                             sizeof(CustomDataLayer),
+                             data->totlayer,
+                             0,
+                             rna_vertex_color_check);
+  }
+  else {
+    rna_iterator_array_begin(iter, ptr, nullptr, 0, 0, 0, nullptr);
+  }
+}
+
+static int rna_Mesh_vertex_colors_length(PointerRNA *ptr)
+{
+  CustomData *data = rna_mesh_ldata(ptr);
+  return data ? CustomData_number_of_layers(data, CD_PROP_BYTE_COLOR) -
+                    CustomData_number_of_anonymous_layers(data, CD_PROP_BYTE_COLOR) :
+                0;
+}
+
+static void rna_Mesh_vertex_color_index_range(PointerRNA *ptr, int *min, int *max, int *, int *)
+{
+  CustomData *data = rna_mesh_ldata(ptr);
+  *min = 0;
+  *max = data ? CustomData_number_of_layers(data, CD_PROP_BYTE_COLOR) -
+                    CustomData_number_of_anonymous_layers(data, CD_PROP_BYTE_COLOR) - 1 :
+                0;
+  *max = std ::max(0, *max);
+}
 
 static PointerRNA rna_Mesh_vertex_color_active_get(PointerRNA *ptr)
 {
@@ -1072,7 +1248,46 @@ static void rna_mesh_color_active_set(PointerRNA *ptr, bool value)
 }
 
 /* Skin vertices */
-DEFINE_CUSTOMDATA_LAYER_COLLECTION(skin_vertice, vdata, CD_MVERT_SKIN)
+[[maybe_unused]] static bool rna_skin_vertice_check(CollectionPropertyIterator *, void *data)
+{
+  CustomDataLayer *layer = (CustomDataLayer *)data;
+  return (blender ::bke ::attribute_name_is_anonymous(layer->name) ||
+          layer->type != CD_MVERT_SKIN);
+}
+[[maybe_unused]] static void rna_Mesh_skin_vertices_begin(CollectionPropertyIterator *iter,
+                                                          PointerRNA *ptr)
+{
+  CustomData *data = rna_mesh_vdata(ptr);
+  if (data) {
+    rna_iterator_array_begin(iter,
+                             ptr,
+                             (void *)data->layers,
+                             sizeof(CustomDataLayer),
+                             data->totlayer,
+                             0,
+                             rna_skin_vertice_check);
+  }
+  else {
+    rna_iterator_array_begin(iter, ptr, nullptr, 0, 0, 0, nullptr);
+  }
+}
+[[maybe_unused]] static int rna_Mesh_skin_vertices_length(PointerRNA *ptr)
+{
+  CustomData *data = rna_mesh_vdata(ptr);
+  return data ? CustomData_number_of_layers(data, CD_MVERT_SKIN) -
+                    CustomData_number_of_anonymous_layers(data, CD_MVERT_SKIN) :
+                0;
+}
+[[maybe_unused]] static void rna_Mesh_skin_vertice_index_range(
+    PointerRNA *ptr, int *min, int *max, int *, int *)
+{
+  CustomData *data = rna_mesh_vdata(ptr);
+  *min = 0;
+  *max = data ? CustomData_number_of_layers(data, CD_MVERT_SKIN) -
+                    CustomData_number_of_anonymous_layers(data, CD_MVERT_SKIN) - 1 :
+                0;
+  *max = std ::max(0, *max);
+}
 
 static std::optional<std::string> rna_MeshSkinVertexLayer_path(const PointerRNA *ptr)
 {
@@ -1082,12 +1297,28 @@ static std::optional<std::string> rna_MeshSkinVertexLayer_path(const PointerRNA 
   return fmt::format("skin_vertices[\"{}\"]", name_esc);
 }
 
-static std::optional<std::string> rna_VertCustomData_data_path(const PointerRNA *ptr,
-                                                               const char *collection,
-                                                               int type);
 static std::optional<std::string> rna_MeshSkinVertex_path(const PointerRNA *ptr)
 {
-  return rna_VertCustomData_data_path(ptr, "skin_vertices", CD_MVERT_SKIN);
+  const CustomDataLayer *cdl;
+  const Mesh *mesh = rna_mesh(ptr);
+  if (mesh->runtime->edit_mesh) {
+    return std::nullopt;
+  }
+  const CustomData *vdata = &mesh->vert_data;
+  int a, b, totvert = mesh->verts_num;
+
+  for (cdl = vdata->layers, a = 0; a < vdata->totlayer; cdl++, a++) {
+    if (cdl->type == CD_MVERT_SKIN) {
+      b = ((char *)ptr->data - ((char *)cdl->data)) / CustomData_sizeof(CD_MVERT_SKIN);
+      if (b >= 0 && b < totvert) {
+        char name_esc[sizeof(cdl->name) * 2];
+        BLI_str_escape(name_esc, cdl->name, sizeof(name_esc));
+        return fmt::format("skin_vertices[\"{}\"].data[{}]", name_esc, b);
+      }
+    }
+  }
+
+  return std::nullopt;
 }
 
 static void rna_MeshSkinVertexLayer_data_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
@@ -1146,17 +1377,6 @@ static void rna_MeshPoly_vertices_set(PointerRNA *ptr, const int *values)
   const int poly_size = *(poly_offset_p + 1) - poly_start;
   memcpy(&mesh->corner_verts_for_write()[poly_start], values, sizeof(int) * poly_size);
 }
-
-/* disabling, some importers don't know the total material count when assigning materials */
-#if 0
-static void rna_MeshPoly_material_index_range(
-    PointerRNA *ptr, int *min, int *max, int *softmin, int *softmax)
-{
-  Mesh *mesh = rna_mesh(ptr);
-  *min = 0;
-  *max = max_ii(0, mesh->totcol - 1);
-}
-#endif
 
 static bool rna_MeshEdge_hide_get(PointerRNA *ptr)
 {
@@ -1313,29 +1533,6 @@ static std::optional<std::string> rna_MeshLoop_path(const PointerRNA *ptr)
 static std::optional<std::string> rna_MeshVertex_path(const PointerRNA *ptr)
 {
   return fmt::format("vertices[{}]", rna_MeshVertex_index_get(const_cast<PointerRNA *>(ptr)));
-}
-
-static std::optional<std::string> rna_VertCustomData_data_path(const PointerRNA *ptr,
-                                                               const char *collection,
-                                                               int type)
-{
-  const CustomDataLayer *cdl;
-  const Mesh *mesh = rna_mesh(ptr);
-  const CustomData *vdata = rna_mesh_vdata(ptr);
-  int a, b, totvert = (mesh->runtime->edit_mesh) ? 0 : mesh->verts_num;
-
-  for (cdl = vdata->layers, a = 0; a < vdata->totlayer; cdl++, a++) {
-    if (cdl->type == type) {
-      b = ((char *)ptr->data - ((char *)cdl->data)) / CustomData_sizeof(eCustomDataType(type));
-      if (b >= 0 && b < totvert) {
-        char name_esc[sizeof(cdl->name) * 2];
-        BLI_str_escape(name_esc, cdl->name, sizeof(name_esc));
-        return fmt::format("{}[\"{}\"].data[{}]", collection, name_esc, b);
-      }
-    }
-  }
-
-  return std::nullopt;
 }
 
 static std::optional<std::string> rna_LoopCustomData_data_path(const PointerRNA *ptr,
@@ -2220,7 +2417,7 @@ static void rna_def_mloopuv(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
   RNA_def_struct_name_property(srna, prop);
-  RNA_def_property_string_funcs(prop, nullptr, nullptr, "rna_MeshLoopLayer_name_set");
+  RNA_def_property_string_funcs(prop, nullptr, nullptr, "rna_Attribute_name_set");
   RNA_def_property_string_maxlength(prop, MAX_CUSTOMDATA_LAYER_NAME_NO_PREFIX);
   RNA_def_property_ui_text(prop, "Name", "Name of UV map");
   RNA_def_property_update(prop, 0, "rna_Mesh_update_data_legacy_deg_tag_all");
@@ -2313,7 +2510,7 @@ static void rna_def_mloopcol(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
   RNA_def_struct_name_property(srna, prop);
-  RNA_def_property_string_funcs(prop, nullptr, nullptr, "rna_MeshLoopLayer_name_set");
+  RNA_def_property_string_funcs(prop, nullptr, nullptr, "rna_Attribute_name_set");
   RNA_def_property_string_maxlength(prop, MAX_CUSTOMDATA_LAYER_NAME_NO_PREFIX);
   RNA_def_property_ui_text(prop, "Name", "Name of Vertex color layer");
   RNA_def_property_update(prop, 0, "rna_Mesh_update_data_legacy_deg_tag_all");
