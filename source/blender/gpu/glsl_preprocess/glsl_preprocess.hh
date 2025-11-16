@@ -110,6 +110,132 @@ struct SharedVariable {
   std::string name;
 };
 
+struct ParsedResource {
+  /* Line this resource was defined. */
+  size_t line;
+
+  std::string var_type;
+  std::string var_name;
+  std::string var_array;
+
+  std::string res_type;
+  /* For images, storages, uniforms and samplers. */
+  std::string res_frequency;
+  /* For images, storages, uniforms and samplers. */
+  std::string res_slot;
+  /* For images & storages. */
+  std::string res_qualifier;
+  /* For specialization & compilation constants. */
+  std::string res_value;
+  /* For images. */
+  std::string res_format;
+  /* Optional condition to enable this resource. */
+  std::string res_condition;
+
+  std::string parse_attribute(parser::Scope attribute)
+  {
+    parser::Token attribute_id = attribute[0];
+    std::string type = attribute_id.str();
+    if (type == "sampler") {
+      res_type = type;
+      res_slot = attribute[2].str();
+    }
+    else if (type == "image") {
+      res_type = type;
+      res_slot = attribute[2].str();
+      res_qualifier = attribute[4].str();
+      res_format = attribute[6].str();
+    }
+    else if (type == "uniform") {
+      res_type = type;
+      res_slot = attribute[2].str();
+    }
+    else if (type == "storage") {
+      res_type = type;
+      res_slot = attribute[2].str();
+      res_qualifier = attribute[4].str();
+    }
+    else if (type == "push_constant") {
+      res_type = type;
+    }
+    else if (type == "compilation_constant") {
+      res_type = type;
+      res_value = attribute[2].str();
+    }
+    else if (type == "specialization_constant") {
+      res_type = type;
+      res_value = attribute[2].str();
+    }
+    else if (type == "condition") {
+      res_condition = attribute[1].scope().str();
+    }
+    else if (type == "frequency") {
+      res_frequency = attribute[2].str();
+    }
+    else {
+      return "Unrecognized attribute";
+    }
+    return "";
+  }
+
+  std::string serialize() const
+  {
+    std::stringstream ss;
+    if (res_type == "sampler") {
+      if (res_frequency.empty()) {
+        ss << "IMAGE(" << res_slot << ", " << var_type << ", " << var_name << ")";
+      }
+      else {
+        ss << "IMAGE_FREQ(" << res_slot << ", " << var_type << ", " << var_name << ")";
+      }
+    }
+    else if (res_type == "image") {
+      if (res_frequency.empty()) {
+        ss << "IMAGE(" << res_slot << ", " << res_format << ", " << res_qualifier << ", "
+           << var_type << ", " << var_name << ")";
+      }
+      else {
+        ss << "IMAGE_FREQ(" << res_slot << ", " << res_format << ", " << res_qualifier << ", "
+           << var_type << ", " << var_name << ")";
+      }
+    }
+    else if (res_type == "uniform") {
+      if (res_frequency.empty()) {
+        ss << "UNIFORM_BUF(" << res_slot << ", " << var_type << ", " << var_name << var_array
+           << ")";
+      }
+      else {
+        ss << "UNIFORM_BUF_FREQ(" << res_slot << ", " << var_type << ", " << var_name << var_array
+           << ", " << res_frequency << ")";
+      }
+    }
+    else if (res_type == "storage") {
+      if (res_frequency.empty()) {
+        ss << "STORAGE_BUF(" << res_slot << ", " << res_qualifier << ", " << var_type << ", "
+           << var_name << var_array << ")";
+      }
+      else {
+        ss << "STORAGE_BUF_FREQ(" << res_slot << ", " << res_qualifier << ", " << var_type << ", "
+           << var_name << var_array << ", " << res_frequency << ")";
+      }
+    }
+    else if (res_type == "push_constant") {
+      ss << "PUSH_CONSTANT(" << var_type << ", " << var_name << ")";
+    }
+    else if (res_type == "compilation_constant") {
+      ss << "COMPILATION_CONSTANT(" << var_type << ", " << var_name << ", " << res_value << ")";
+    }
+    else if (res_type == "specialization_constant") {
+      ss << "SPECIALIZATION_CONSTANT(" << var_type << ", " << var_name << ", " << res_value << ")";
+    }
+    return ss.str();
+  }
+};
+
+struct ResourceTable : std::vector<ParsedResource> {
+  std::string name;
+};
+
 struct Source {
   std::vector<Builtin> builtins;
   /* Note: Could be a set, but for now the order matters. */
@@ -121,6 +247,7 @@ struct Source {
   std::vector<std::string> create_infos_declarations;
   std::vector<std::string> create_infos_dependencies;
   std::vector<std::string> create_infos_defines;
+  std::vector<ResourceTable> resource_tables;
 
   std::string serialize(const std::string &function_name) const
   {
@@ -170,131 +297,20 @@ struct Source {
       ss << "#include \"" << dependency << "\"\n";
     }
     ss << "\n";
+    for (auto res_table : resource_tables) {
+      ss << "GPU_SHADER_CREATE_INFO(" << res_table.name << ")\n";
+      for (const auto &res : res_table) {
+        ss << res.serialize() << "\n";
+      }
+      ss << "GPU_SHADER_CREATE_END()\n";
+    }
+    ss << "\n";
     for (auto define : create_infos_defines) {
       ss << define;
     }
     ss << "\n";
     for (auto declaration : create_infos_declarations) {
       ss << declaration << "\n";
-    }
-    return ss.str();
-  }
-};
-
-struct ParsedResource {
-  /* Line this resource was defined. */
-  size_t line;
-
-  std::string var_type;
-  std::string var_name;
-  std::string var_array;
-
-  std::string res_type;
-  /* For images, storages, uniforms and samplers. */
-  std::string res_frequency;
-  /* For images, storages, uniforms and samplers. */
-  std::string res_slot;
-  /* For images & storages. */
-  std::string res_qualifier;
-  /* For specialization & compilation constants. */
-  std::string res_value;
-  /* For images. */
-  std::string res_format;
-  /* Optional condition to enable this resource. */
-  std::string res_condition;
-
-  void parse_attribute(parser::Scope attribute)
-  {
-    parser::Token attribute_id = attribute[0];
-    std::string type = attribute_id.str();
-    if (type == "sampler") {
-      res_type = type;
-      res_slot = attribute[2].str();
-    }
-    else if (type == "image") {
-      res_type = type;
-      res_slot = attribute[2].str();
-      res_qualifier = attribute[4].str();
-      res_format = attribute[6].str();
-    }
-    else if (type == "uniform") {
-      res_type = type;
-      res_slot = attribute[2].str();
-    }
-    else if (type == "storage") {
-      res_type = type;
-      res_slot = attribute[2].str();
-      res_qualifier = attribute[4].str();
-    }
-    else if (type == "push_constant") {
-      res_type = type;
-    }
-    else if (type == "compilation_constant") {
-      res_type = type;
-      res_value = attribute[2].str();
-    }
-    else if (type == "specialization_constant") {
-      res_type = type;
-      res_value = attribute[2].str();
-    }
-    else if (type == "condition") {
-      res_condition = attribute[1].scope().str();
-    }
-    else if (type == "frequency") {
-      res_frequency = attribute[2].str();
-    }
-  }
-
-  std::string serialize(const std::string &filename) const
-  {
-    std::stringstream ss;
-    ss << "#line " << std::to_string(line) << "\"" << filename << "\"\n";
-    if (res_type == "sampler") {
-      if (res_frequency.empty()) {
-        ss << "IMAGE(" << res_slot << ", " << var_type << ", " << var_name << ")";
-      }
-      else {
-        ss << "IMAGE_FREQ(" << res_slot << ", " << var_type << ", " << var_name << ")";
-      }
-    }
-    else if (res_type == "image") {
-      if (res_frequency.empty()) {
-        ss << "IMAGE(" << res_slot << ", " << res_format << ", " << res_qualifier << ", "
-           << var_type << ", " << var_name << ")";
-      }
-      else {
-        ss << "IMAGE_FREQ(" << res_slot << ", " << res_format << ", " << res_qualifier << ", "
-           << var_type << ", " << var_name << ")";
-      }
-    }
-    else if (res_type == "uniform") {
-      if (res_frequency.empty()) {
-        ss << "UNIFORM_BUF(" << res_slot << ", " << var_type << ", " << var_name << var_array
-           << ")";
-      }
-      else {
-        ss << "UNIFORM_BUF_FREQ(" << res_slot << ", " << var_type << ", " << var_name << var_array
-           << ", " << res_frequency << ")";
-      }
-    }
-    else if (res_type == "storage") {
-      if (res_frequency.empty()) {
-        ss << "STORAGE_BUF(" << res_slot << ", " << res_qualifier << ", " << var_type << ", "
-           << var_name << var_array << ")";
-      }
-      else {
-        ss << "STORAGE_BUF_FREQ(" << res_slot << ", " << res_qualifier << ", " << var_type << ", "
-           << var_name << var_array << ", " << res_frequency << ")";
-      }
-    }
-    else if (res_type == "push_constant") {
-      ss << "PUSH_CONSTANT(" << var_type << ", " << var_name << ")";
-    }
-    else if (res_type == "compilation_constant") {
-      ss << "COMPILATION_CONSTANT(" << var_type << ", " << var_name << ", " << res_value << ")";
-    }
-    else if (res_type == "specialization_constant") {
-      ss << "SPECIALIZATION_CONSTANT(" << var_type << ", " << var_name << ", " << res_value << ")";
     }
     return ss.str();
   }
@@ -1800,39 +1816,46 @@ class Preprocessor {
     using namespace shader::parser;
 
     parser.foreach_match("s[[..]]w{..};", [&](const std::vector<Token> &tokens) {
-      if (tokens[1].scope().str() == "[shader_resource_table]") {
+      if (tokens[2].scope().str_exclusive() == "shader_resource_table") {
         Token srt_name = tokens[7];
         Scope body = tokens[8].scope();
 
-        auto parse_resource =
-            [&](Scope attributes, bool /*is_static*/, Token type, Token name, Scope array) {
-              assert(attributes.type() == ScopeType::Attributes);
-              metadata::ParsedResource resource{
-                  type.line_number(), type.str(), name.str(), array.str()};
-              attributes.foreach_scope(ScopeType::Attribute, [&](const Scope &attribute) {
-                resource.parse_attribute(attribute);
-              });
+        auto parse_resource = [&](Scope attributes,
+                                  bool /*is_static*/,
+                                  Token type,
+                                  Token name,
+                                  Scope array) -> metadata::ParsedResource {
+          metadata::ParsedResource resource{
+              type.line_number(), type.str(), name.str(), array.str()};
+          attributes.foreach_scope(ScopeType::Attribute, [&](const Scope &attribute) {
+            std::string error = resource.parse_attribute(attribute);
+            if (!error.empty()) {
+              report_error(ERROR_TOK(attribute[0]), error.c_str());
+            }
+          });
+          return resource;
+        };
 
-              std::cout << "var_type " << resource.var_type << std::endl;
-              std::cout << "var_name " << resource.var_name << std::endl;
-              std::cout << "var_array " << resource.var_array << std::endl;
-              std::cout << "res_type " << resource.res_type << std::endl;
-              std::cout << "res_frequency " << resource.res_frequency << std::endl;
-              std::cout << "res_slot " << resource.res_slot << std::endl;
-              std::cout << "res_qualifier " << resource.res_qualifier << std::endl;
-              std::cout << "res_value " << resource.res_value << std::endl;
-              std::cout << "res_format " << resource.res_format << std::endl;
-              std::cout << "res_condition " << resource.res_condition << std::endl;
-            };
+        metadata::ResourceTable srt;
+        srt.name = srt_name.str();
 
-        body.foreach_match("[[..]]m?ww;", [&](const std::vector<Token> &tokens) {
-          parse_resource(
-              tokens[1].scope(), tokens[6].is_valid(), tokens[8], tokens[9], Scope::invalid());
+        body.foreach_match("[[..]]ww;", [&](const std::vector<Token> &tokens) {
+          auto res = parse_resource(
+              tokens[1].scope(), tokens[6].is_valid(), tokens[6], tokens[7], Scope::invalid());
+          srt.emplace_back(res);
         });
-        body.foreach_match("[[..]]m?ww[..];", [&](const std::vector<Token> &tokens) {
-          parse_resource(
-              tokens[1].scope(), tokens[6].is_valid(), tokens[8], tokens[9], tokens[10].scope());
+        body.foreach_match("[[..]]w&w;", [&](const std::vector<Token> &tokens) {
+          auto res = parse_resource(
+              tokens[1].scope(), tokens[6].is_valid(), tokens[6], tokens[8], Scope::invalid());
+          srt.emplace_back(res);
         });
+        body.foreach_match("[[..]]w(&w)[..];", [&](const std::vector<Token> &tokens) {
+          auto res = parse_resource(
+              tokens[1].scope(), tokens[6].is_valid(), tokens[6], tokens[9], tokens[11].scope());
+          srt.emplace_back(res);
+        });
+
+        metadata.resource_tables.emplace_back(srt);
       }
       /* Erase SRT definition. The resources are defined by the backend at runtime. */
       /* Note that this might change in the future. */
