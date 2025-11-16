@@ -22,6 +22,8 @@
 #include "BLI_threads.h"
 #include "BLI_vector.hh"
 
+#include "CLG_log.h"
+
 #include "DNA_userdef_types.h"
 
 #include "gpu_capabilities_private.hh"
@@ -30,6 +32,8 @@
 #include "gl_debug.hh"
 
 #include "gl_backend.hh"
+
+static CLG_LogRef LOG = {"gpu.opengl"};
 
 namespace blender::gpu {
 
@@ -701,6 +705,34 @@ void GLBackend::capabilities_init()
     GLContext::debug_layer_support = false;
     GLContext::debug_layer_workaround = false;
   }
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Log extensions
+ * \{ */
+
+void GLBackend::log_extensions()
+{
+  CLOG_DEBUG(&LOG,
+             "OpenGL Extensions\n"
+             " - [%c] Multi-bind\n"
+             " - [%c] Direct state access\n"
+             " - [%c] Anisotropic Texture Filtering\n"
+             " - [%c] Layered rendering\n"
+             " - [%c] Native barycentric coordinates\n"
+             " - [%c] Framebuffer fetch\n"
+             " - [%c] Texture barrier\n"
+             " - [%c] Shader stencil export\n",
+             GLContext::multi_bind_support ? 'X' : ' ',
+             GLContext::direct_state_access_support ? 'X' : ' ',
+             GLContext::texture_filter_anisotropic_support ? 'X' : ' ',
+             GLContext::layered_rendering_support ? 'X' : ' ',
+             GLContext::native_barycentric_support ? 'X' : ' ',
+             GLContext::framebuffer_fetch_support ? 'X' : ' ',
+             GLContext::texture_barrier_support ? 'X' : ' ',
+             GCaps.stencil_export_support ? 'X' : ' ');
 }
 
 /** \} */
