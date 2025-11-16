@@ -7,6 +7,8 @@
 #include "draw_model_lib.glsl"
 #include "draw_view_lib.glsl"
 
+#include "gpu_shader_utildefines_lib.glsl"
+
 #ifdef POINTCLOUD_SHADER
 #  define COMMON_POINTCLOUD_LIB
 
@@ -18,7 +20,7 @@ int pointcloud_get_point_id()
 {
 #  ifdef GPU_VERTEX_SHADER
   /* Remove shape indices. */
-  return gl_VertexID >> 3;
+  return gl_VertexID / 10;
 #  endif
   return 0;
 }
@@ -57,27 +59,43 @@ void pointcloud_get_pos_nor_radius(out float3 outpos, out float3 outnor, out flo
 
   uint vert_id = 0u;
 #  ifdef GPU_VERTEX_SHADER
-  /* Mask point indices. */
-  vert_id = uint(gl_VertexID) & ~(0xFFFFFFFFu << 3u);
+  vert_id = gl_VertexID % 10;
 #  endif
+
+  const float3 stop_vert = float3(NAN_FLT);
 
   float3 pos_inst = float3(0.0f);
 
   switch (vert_id) {
     case 0:
-      pos_inst.z = 1.0f;
+      pos_inst = float3(1.0, 0.0, 0.0);
       break;
     case 1:
-      pos_inst.x = 1.0f;
+      pos_inst = float3(0.0, 1.0, 0.0);
       break;
     case 2:
-      pos_inst.y = 1.0f;
+      pos_inst = float3(0.0, 0.0, 1.0);
       break;
     case 3:
-      pos_inst.x = -1.0f;
+      pos_inst = float3(-1.0, 0.0, 0.0);
       break;
     case 4:
-      pos_inst.y = -1.0f;
+      pos_inst = float3(0.0, -1.0, 0.0);
+      break;
+    case 5:
+      pos_inst = stop_vert;
+      break;
+    case 6:
+      pos_inst = float3(1.0, 0.0, 0.0);
+      break;
+    case 7:
+      pos_inst = float3(0.0, 0.0, 1.0);
+      break;
+    case 8:
+      pos_inst = float3(0.0, -1.0, 0.0);
+      break;
+    case 9:
+      pos_inst = stop_vert;
       break;
   }
 
