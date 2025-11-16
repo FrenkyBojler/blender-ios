@@ -1839,7 +1839,7 @@ class Preprocessor {
         metadata::ResourceTable srt;
         srt.name = srt_name.str();
 
-        body.foreach_match("[[..]]ww;", [&](const std::vector<Token> &tokens) {
+        body.foreach_match("[[..]]mww;", [&](const std::vector<Token> &tokens) {
           auto res = parse_resource(
               tokens[1].scope(), tokens[6].is_valid(), tokens[6], tokens[7], Scope::invalid());
           srt.emplace_back(res);
