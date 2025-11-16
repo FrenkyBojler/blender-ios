@@ -2002,6 +2002,7 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
 
   Vector<Strip *> strips = ignore_selection ? all_strips_from_context(C).extract_vector() :
                                               selected_strips_from_context(C).extract_vector();
+  /* Use vector and itterate using `i` to be able to also access the newly created strips. */
   for (int i = 0; i < strips.size(); i++) {
     rctf strip_rect;
     strip_rectf(scene, strips[i], &strip_rect);
