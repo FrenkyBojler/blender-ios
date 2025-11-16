@@ -236,6 +236,59 @@ struct ResourceTable : std::vector<ParsedResource> {
   std::string name;
 };
 
+struct ParsedAttribute {
+  /* Line this resource was defined. */
+  size_t line;
+
+  std::string var_type;
+  std::string var_name;
+
+  std::string interpolation_mode;
+
+  std::string serialize() const
+  {
+    std::stringstream ss;
+    if (interpolation_mode == "flat") {
+      ss << "FLAT(" << var_type << ", " << var_name << ")";
+    }
+    else if (interpolation_mode == "smooth") {
+      ss << "SMOOTH(" << var_type << ", " << var_name << ")";
+    }
+    else if (interpolation_mode == "smooth") {
+      ss << "NO_PERSPECTIVE(" << var_type << ", " << var_name << ")";
+    }
+    return ss.str();
+  }
+};
+
+struct StageInterface : std::vector<ParsedAttribute> {
+  std::string name;
+  std::string instance_name;
+
+  std::string serialize() const
+  {
+    std::stringstream ss;
+    if (instance_name.empty()) {
+      ss << "GPU_SHADER_INTERFACE_INFO(" << name << ")\n";
+    }
+    else {
+      ss << "GPU_SHADER_NAMED_INTERFACE_INFO(" << name << ", " << instance_name << ")\n";
+    }
+
+    for (const auto &res : *this) {
+      ss << res.serialize() << "\n";
+    }
+
+    if (instance_name.empty()) {
+      ss << "GPU_SHADER_INTERFACE_END()\n";
+    }
+    else {
+      ss << "GPU_SHADER_NAMED_INTERFACE_END(" << instance_name << ")\n";
+    }
+    return ss.str();
+  }
+};
+
 struct Source {
   std::vector<Builtin> builtins;
   /* Note: Could be a set, but for now the order matters. */
@@ -248,6 +301,7 @@ struct Source {
   std::vector<std::string> create_infos_dependencies;
   std::vector<std::string> create_infos_defines;
   std::vector<ResourceTable> resource_tables;
+  std::vector<StageInterface> stage_interfaces;
 
   std::string serialize(const std::string &function_name) const
   {
@@ -296,7 +350,11 @@ struct Source {
     for (auto dependency : create_infos_dependencies) {
       ss << "#include \"" << dependency << "\"\n";
     }
-    ss << "\n";
+    ss << "\n\n";
+    for (auto iface : stage_interfaces) {
+      ss << iface.serialize() << "\n";
+    }
+    ss << "\n\n";
     for (auto res_table : resource_tables) {
       ss << "GPU_SHADER_CREATE_INFO(" << res_table.name << ")\n";
       for (const auto &res : res_table) {
@@ -304,11 +362,11 @@ struct Source {
       }
       ss << "GPU_SHADER_CREATE_END()\n";
     }
-    ss << "\n";
+    ss << "\n\n";
     for (auto define : create_infos_defines) {
       ss << define;
     }
-    ss << "\n";
+    ss << "\n\n";
     for (auto declaration : create_infos_declarations) {
       ss << declaration << "\n";
     }
@@ -395,6 +453,7 @@ class Preprocessor {
       if (language == BLENDER_GLSL) {
         Parser parser(str, report_error);
         resource_table_parsing(parser, report_error);
+        stage_interface_parsing(parser, report_error);
         using_mutation(parser, report_error);
 
         namespace_mutation(parser, report_error);
@@ -1861,6 +1920,52 @@ class Preprocessor {
       /* Note that this might change in the future. */
       parser.erase(tokens[0], tokens.back());
     });
+    parser.apply_mutations();
+  }
+
+  /* Move all method definition outside of struct definition blocks. */
+  void stage_interface_parsing(Parser &parser, report_callback /*report_error*/)
+  {
+    using namespace std;
+    using namespace shader::parser;
+
+    auto parse_interface = [&](const std::vector<Token> &tokens) {
+      if (tokens[2].scope().str_exclusive() == "stage_interface") {
+        Token srt_name = tokens[7];
+        Scope body = tokens[8].scope();
+
+        metadata::StageInterface iface;
+        iface.name = srt_name.str();
+
+        if (tokens.back().prev().type() == TokenType::Word) {
+          iface.instance_name = srt_name.str();
+        }
+        else {
+          iface.instance_name = "";
+        }
+
+        body.foreach_match("[[..]]ww;", [&](const std::vector<Token> &tokens) {
+          Token interpolation_mode = tokens[1].scope()[1];
+          Token type = tokens[6];
+          Token name = tokens[7];
+
+          metadata::ParsedAttribute attr{
+              type.line_number(), type.str(), name.str(), interpolation_mode.str()};
+
+          iface.emplace_back(attr);
+        });
+
+        metadata.stage_interfaces.emplace_back(iface);
+      }
+      /* Erase SRT definition. The resources are defined by the backend at runtime. */
+      /* Note that this might change in the future. */
+      parser.erase(tokens[0], tokens.back());
+    };
+
+    parser.foreach_match("s[[..]]w{..};",
+                         [&](const std::vector<Token> &tokens) { parse_interface(tokens); });
+    parser.foreach_match("s[[..]]w{..}w;",
+                         [&](const std::vector<Token> &tokens) { parse_interface(tokens); });
     parser.apply_mutations();
   }
 
