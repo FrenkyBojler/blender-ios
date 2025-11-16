@@ -260,6 +260,21 @@ static void init_node_tool_operator_idnames(Main &bmain)
   }
 }
 
+static void version_realize_instances_to_curve_domain(Main &bmain)
+{
+  LISTBASE_FOREACH (bNodeTree *, node_tree, &bmain.nodetrees) {
+    if (node_tree->type != NTREE_GEOMETRY) {
+      continue;
+    }
+    LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
+      if (node->type_legacy != GEO_NODE_REALIZE_INSTANCES) {
+        continue;
+      }
+      node->custom1 |= GEO_NODE_REALIZE_TO_POINT_DOMAIN;
+    }
+  }
+}
+
 void do_versions_after_linking_510(FileData * /*fd*/, Main *bmain)
 {
   /* Some blend files were saved with an invalid active viewer key, possibly due to a bug that was
@@ -314,6 +329,10 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 5)) {
+    version_realize_instances_to_curve_domain(*bmain);
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 6)) {
     init_node_tool_operator_idnames(*bmain);
   }
 

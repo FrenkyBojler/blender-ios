@@ -1056,9 +1056,9 @@ static wmOperatorStatus run_node_group_invoke(bContext *C, wmOperator *op, const
 
 static void run_node_group_ui(bContext *C, wmOperator *op)
 {
-  uiLayout *layout = op->layout;
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
+  ui::Layout &layout = *op->layout;
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
   Main *bmain = CTX_data_main(C);
   PointerRNA bmain_ptr = RNA_main_pointer_create(bmain);
 
@@ -1191,14 +1191,15 @@ static void register_node_tool(wmOperatorType *ot, void *user_data)
   RNA_def_property_flag(prop, PROP_HIDDEN);
 }
 
-void ui_template_node_operator_registration_errors(uiLayout &layout, const StringRefNull idname_py)
+void ui_template_node_operator_registration_errors(ui::Layout &layout,
+                                                   const StringRefNull idname_py)
 {
   const OperatorRegisterErrors &errors = get_registration_errors();
   const ErrorsForType *errors_for_type = errors.lookup_ptr(idname_py);
   if (!errors_for_type) {
     return;
   }
-  uiLayout &col = layout.column(false);
+  ui::Layout &col = layout.column(false);
   if (errors_for_type->is_builtin_operator) {
     col.label(TIP_("Operator is built-in"), ICON_ERROR);
   }
@@ -1682,24 +1683,24 @@ static void catalog_assets_draw(const bContext *C, Menu *menu)
       menu_path->data());
   BLI_assert(catalog_item != nullptr);
 
-  uiLayout *layout = menu->layout;
+  ui::Layout &layout = *menu->layout;
   bool add_separator = true;
 
   for (const asset_system::AssetRepresentation *asset : assets) {
     const std::optional<std::string> operator_idname = operator_idname_for_asset(*asset);
     if (!operator_idname) {
-      missing_tool_idname_error(*layout, asset->get_name());
+      missing_tool_idname_error(layout, asset->get_name());
       continue;
     }
     if (add_separator) {
-      layout->separator();
+      layout.separator();
       add_separator = false;
     }
-    PointerRNA props_ptr = layout->op(*operator_idname,
-                                      IFACE_(asset->get_name()),
-                                      ICON_NONE,
-                                      wm::OpCallContext::InvokeRegionWin,
-                                      UI_ITEM_NONE);
+    PointerRNA props_ptr = layout.op(*operator_idname,
+                                     IFACE_(asset->get_name()),
+                                     ICON_NONE,
+                                     wm::OpCallContext::InvokeRegionWin,
+                                     UI_ITEM_NONE);
   }
 
   const Set<std::string> builtin_menus = get_builtin_menus(ObjectType(active_object->type),
@@ -1716,10 +1717,10 @@ static void catalog_assets_draw(const bContext *C, Menu *menu)
       return;
     }
     if (add_separator) {
-      layout->separator();
+      layout.separator();
       add_separator = false;
     }
-    asset::draw_menu_for_catalog(item, "GEO_MT_node_operator_catalog_assets", *layout);
+    asset::draw_menu_for_catalog(item, "GEO_MT_node_operator_catalog_assets", layout);
   });
 }
 
@@ -1767,18 +1768,18 @@ static void catalog_assets_draw_unassigned(const bContext *C, Menu *menu)
   if (!tree) {
     return;
   }
-  uiLayout *layout = menu->layout;
+  uiLayout &layout = *menu->layout;
   for (const asset_system::AssetRepresentation *asset : tree->unassigned_assets) {
     const std::optional<std::string> operator_idname = operator_idname_for_asset(*asset);
     if (!operator_idname) {
-      missing_tool_idname_error(*layout, asset->get_name());
+      missing_tool_idname_error(layout, asset->get_name());
       continue;
     }
-    layout->op(*operator_idname,
-               IFACE_(asset->get_name()),
-               ICON_NONE,
-               wm::OpCallContext::InvokeRegionWin,
-               UI_ITEM_NONE);
+    layout.op(*operator_idname,
+              IFACE_(asset->get_name()),
+              ICON_NONE,
+              wm::OpCallContext::InvokeRegionWin,
+              UI_ITEM_NONE);
   }
 
   const GeometryNodeAssetTraitFlag flag = asset_flag_for_context(*active_object);
@@ -1798,22 +1799,22 @@ static void catalog_assets_draw_unassigned(const bContext *C, Menu *menu)
     }
     const std::optional<std::string> operator_idname = operator_idname_for_group(*group);
     if (!operator_idname) {
-      missing_tool_idname_error(*layout, BKE_id_name(group->id));
+      missing_tool_idname_error(layout, BKE_id_name(group->id));
       continue;
     }
     if (add_separator) {
-      layout->separator();
+      layout.separator();
       add_separator = false;
     }
     if (first) {
-      layout->label(IFACE_("Non-Assets"), ICON_NONE);
+      layout.label(IFACE_("Non-Assets"), ICON_NONE);
       first = false;
     }
-    layout->op(*operator_idname,
-               BKE_id_name(group->id),
-               ICON_NONE,
-               wm::OpCallContext::InvokeRegionWin,
-               UI_ITEM_NONE);
+    layout.op(*operator_idname,
+              BKE_id_name(group->id),
+              ICON_NONE,
+              wm::OpCallContext::InvokeRegionWin,
+              UI_ITEM_NONE);
   }
 }
 
@@ -1832,7 +1833,7 @@ MenuType node_group_operator_assets_menu_unassigned()
   return type;
 }
 
-void ui_template_node_operator_asset_menu_items(uiLayout &layout,
+void ui_template_node_operator_asset_menu_items(ui::Layout &layout,
                                                 const bContext &C,
                                                 const StringRef catalog_path)
 {
@@ -1853,12 +1854,12 @@ void ui_template_node_operator_asset_menu_items(uiLayout &layout,
   if (!all_library) {
     return;
   }
-  uiLayout *col = &layout.column(false);
-  col->context_string_set("asset_catalog_path", item->catalog_path().str());
-  col->menu_contents("GEO_MT_node_operator_catalog_assets");
+  ui::Layout &col = layout.column(false);
+  col.context_string_set("asset_catalog_path", item->catalog_path().str());
+  col.menu_contents("GEO_MT_node_operator_catalog_assets");
 }
 
-void ui_template_node_operator_asset_root_items(uiLayout &layout, const bContext &C)
+void ui_template_node_operator_asset_root_items(ui::Layout &layout, const bContext &C)
 {
   const Object *active_object = CTX_data_active_object(&C);
   if (!active_object) {
