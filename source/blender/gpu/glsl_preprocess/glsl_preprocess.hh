@@ -1844,12 +1844,12 @@ class Preprocessor {
               tokens[1].scope(), tokens[6].is_valid(), tokens[6], tokens[7], Scope::invalid());
           srt.emplace_back(res);
         });
-        body.foreach_match("[[..]]w&w;", [&](const std::vector<Token> &tokens) {
+        body.foreach_match("[[..]]mw&w;", [&](const std::vector<Token> &tokens) {
           auto res = parse_resource(
               tokens[1].scope(), tokens[6].is_valid(), tokens[6], tokens[8], Scope::invalid());
           srt.emplace_back(res);
         });
-        body.foreach_match("[[..]]w(&w)[..];", [&](const std::vector<Token> &tokens) {
+        body.foreach_match("[[..]]mw(&w)[..];", [&](const std::vector<Token> &tokens) {
           auto res = parse_resource(
               tokens[1].scope(), tokens[6].is_valid(), tokens[6], tokens[9], tokens[11].scope());
           srt.emplace_back(res);
