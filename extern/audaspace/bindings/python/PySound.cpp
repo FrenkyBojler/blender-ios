@@ -1716,9 +1716,6 @@ static PyObject* Sound_echo(Sound* self, PyObject* args, PyObject* kwds)
 	{
 		try
 		{
-			printf("[Echo Debug] default delay_sec: %f\n", delay_sec);
-			printf("[Echo Debug] default feedback: %f\n", feedback);
-			printf("[Echo Debug] default mix: %f\n", mix);
 			auto input = *reinterpret_cast<std::shared_ptr<ISound>*>(self->sound);
 			auto echo = std::make_shared<Echo>(input, delay_sec, feedback, mix);
 			parent->sound = new std::shared_ptr<ISound>(echo);
