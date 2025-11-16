@@ -21,6 +21,7 @@
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_math_vector.h"
+#include "BLI_offset_indices.hh"
 #include "BLI_ordered_edge.hh"
 
 #include "BLT_translation.hh"
@@ -179,11 +180,56 @@ void read_mverts(Mesh &mesh, const P3fArraySamplePtr positions, const N3fArraySa
   }
 }
 
+static void *add_customdata_cb(Mesh *mesh, const char *name, int data_type)
+{
+  eCustomDataType cd_data_type = eCustomDataType(data_type);
+
+  /* unsupported custom data type -- don't do anything. */
+  if (!ELEM(cd_data_type, CD_PROP_FLOAT2, CD_PROP_BYTE_COLOR)) {
+    return nullptr;
+  }
+
+  void *cd_ptr = CustomData_get_layer_named_for_write(
+      &mesh->corner_data, cd_data_type, name, mesh->corners_num);
+  if (cd_ptr != nullptr) {
+    /* layer already exists, so just return it. */
+    return cd_ptr;
+  }
+
+  /* Create a new layer. */
+  int numloops = mesh->corners_num;
+  cd_ptr = CustomData_add_layer_named(
+      &mesh->corner_data, cd_data_type, CD_SET_DEFAULT, numloops, name);
+  return cd_ptr;
+}
+
+/* Update references to mesh data. */
+static void config_reload_mesh(CDStreamConfig &config)
+{
+  config.positions = config.mesh->vert_positions_for_write().data();
+  config.corner_verts = config.mesh->corner_verts_for_write().data();
+  config.face_offsets = config.mesh->face_offsets_for_write().data();
+  config.totvert = config.mesh->verts_num;
+  config.totloop = config.mesh->corners_num;
+  config.faces_num = config.mesh->faces_num;
+  config.loopdata = &config.mesh->corner_data;
+}
+
+static CDStreamConfig get_config(Mesh *mesh)
+{
+  CDStreamConfig config;
+  config.mesh = mesh;
+  config.add_customdata_cb = add_customdata_cb;
+  config_reload_mesh(config);
+
+  return config;
+}
+
 static void read_mpolys(CDStreamConfig &config, const AbcMeshData &mesh_data)
 {
   int *face_offsets = config.face_offsets;
   int *corner_verts = config.corner_verts;
-  float2 *mloopuvs = config.mloopuv;
+  float2 *uv_maps = config.uv_map;
 
   const Int32ArraySamplePtr &face_indices = mesh_data.face_indices;
   const Int32ArraySamplePtr &face_counts = mesh_data.face_counts;
@@ -192,13 +238,12 @@ static void read_mpolys(CDStreamConfig &config, const AbcMeshData &mesh_data)
 
   const UInt32ArraySamplePtr &uvs_indices = mesh_data.uvs_indices;
 
-  const bool do_uvs = (mloopuvs && uvs && uvs_indices);
+  const bool do_uvs = (uv_maps && uvs && uvs_indices);
   const bool do_uvs_per_loop = do_uvs && mesh_data.uv_scope == ABC_UV_SCOPE_LOOP;
   BLI_assert(!do_uvs || mesh_data.uv_scope != ABC_UV_SCOPE_NONE);
   uint loop_index = 0;
   uint rev_loop_index = 0;
   uint uv_index = 0;
-  bool seen_invalid_geometry = false;
 
   for (int i = 0; i < face_counts->size(); i++) {
     const int face_size = (*face_counts)[i];
@@ -216,13 +261,6 @@ static void read_mpolys(CDStreamConfig &config, const AbcMeshData &mesh_data)
       const int vert = (*face_indices)[loop_index];
       corner_verts[rev_loop_index] = vert;
 
-      if (f > 0 && vert == last_vertex_index) {
-        /* This face is invalid, as it has consecutive loops from the same vertex. This is caused
-         * by invalid geometry in the Alembic file, such as in #76514. */
-        seen_invalid_geometry = true;
-      }
-      last_vertex_index = vert;
-
       if (do_uvs) {
         uv_index = (*uvs_indices)[do_uvs_per_loop ? loop_index : last_vertex_index];
 
@@ -231,19 +269,31 @@ static void read_mpolys(CDStreamConfig &config, const AbcMeshData &mesh_data)
           continue;
         }
 
-        mloopuvs[rev_loop_index][0] = (*uvs)[uv_index][0];
-        mloopuvs[rev_loop_index][1] = (*uvs)[uv_index][1];
+        uv_maps[rev_loop_index][0] = (*uvs)[uv_index][0];
+        uv_maps[rev_loop_index][1] = (*uvs)[uv_index][1];
       }
     }
   }
 
-  bke::mesh_calc_edges(*config.mesh, false, false);
-  if (seen_invalid_geometry) {
+  /* Check for faces with duplicate vertex indices. These will require a mesh validate to fix. */
+  IndexMaskMemory memory;
+  const IndexMask bad_faces = bke::mesh_find_faces_duplicate_verts(*config.mesh, memory);
+  const bool all_faces_ok = bad_faces.is_empty();
+
+  /* If we detect bad faces it would be unsafe to continue beyond this point without first
+   * performing a destructive validate. Any operation requiring mesh connectivity information can
+   * assert or crash if the problem isn't addressed. Performing the check here, before most of the
+   * data has been loaded, unfortunately means any remaining data will be lost. */
+  if (!all_faces_ok) {
     if (config.modifier_error_message) {
-      *config.modifier_error_message = "Mesh hash invalid geometry; more details on the console";
+      *config.modifier_error_message = "Mesh hash invalid geometry";
     }
-    BKE_mesh_validate(config.mesh, true, true);
+    bke::mesh_validate(*config.mesh, false);
+
+    config_reload_mesh(config);
   }
+
+  bke::mesh_calc_edges(*config.mesh, false, false);
 }
 
 static void process_no_normals(CDStreamConfig & /*config*/)
@@ -368,30 +418,7 @@ BLI_INLINE void read_uvs_params(CDStreamConfig &config,
   }
 
   void *cd_ptr = config.add_customdata_cb(config.mesh, name.c_str(), CD_PROP_FLOAT2);
-  config.mloopuv = static_cast<float2 *>(cd_ptr);
-}
-
-static void *add_customdata_cb(Mesh *mesh, const char *name, int data_type)
-{
-  eCustomDataType cd_data_type = eCustomDataType(data_type);
-
-  /* unsupported custom data type -- don't do anything. */
-  if (!ELEM(cd_data_type, CD_PROP_FLOAT2, CD_PROP_BYTE_COLOR)) {
-    return nullptr;
-  }
-
-  void *cd_ptr = CustomData_get_layer_named_for_write(
-      &mesh->corner_data, cd_data_type, name, mesh->corners_num);
-  if (cd_ptr != nullptr) {
-    /* layer already exists, so just return it. */
-    return cd_ptr;
-  }
-
-  /* Create a new layer. */
-  int numloops = mesh->corners_num;
-  cd_ptr = CustomData_add_layer_named(
-      &mesh->corner_data, cd_data_type, CD_SET_DEFAULT, numloops, name);
-  return cd_ptr;
+  config.uv_map = static_cast<float2 *>(cd_ptr);
 }
 
 template<typename SampleType>
@@ -479,22 +506,6 @@ static void read_mesh_sample(const std::string &iobject_full_name,
       read_velocity(velocities, config, settings->velocity_scale);
     }
   }
-}
-
-static CDStreamConfig get_config(Mesh *mesh)
-{
-  CDStreamConfig config;
-  config.mesh = mesh;
-  config.positions = mesh->vert_positions_for_write().data();
-  config.corner_verts = mesh->corner_verts_for_write().data();
-  config.face_offsets = mesh->face_offsets_for_write().data();
-  config.totvert = mesh->verts_num;
-  config.totloop = mesh->corners_num;
-  config.faces_num = mesh->faces_num;
-  config.loopdata = &mesh->corner_data;
-  config.add_customdata_cb = add_customdata_cb;
-
-  return config;
 }
 
 /* ************************************************************************** */
@@ -623,7 +634,7 @@ void AbcMeshReader::readObjectData(Main *bmain, const Alembic::Abc::ISampleSelec
   }
 
   if (m_settings->validate_meshes) {
-    BKE_mesh_validate(mesh, false, false);
+    bke::mesh_validate(*mesh, false);
   }
 
   readFaceSetsSample(bmain, mesh, sample_sel);
@@ -1070,7 +1081,7 @@ void AbcSubDReader::readObjectData(Main *bmain, const Alembic::Abc::ISampleSelec
   }
 
   if (m_settings->validate_meshes) {
-    BKE_mesh_validate(mesh, false, false);
+    bke::mesh_validate(*mesh, false);
   }
 
   if (m_settings->always_add_cache_reader || has_animations(m_schema, m_settings)) {

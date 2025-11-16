@@ -120,8 +120,12 @@ void USDCameraWriter::do_write(HierarchyContext &context)
                   time,
                   usd_value_writer_);
   }
+  else {
+    set_attribute(usd_camera.CreateFStopAttr(pxr::VtValue(), true), 0.0f, time, usd_value_writer_);
+  }
 
   auto prim = usd_camera.GetPrim();
+  add_to_prim_map(prim.GetPath(), &camera->id);
   write_id_properties(prim, camera->id, time);
 }
 

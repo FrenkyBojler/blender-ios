@@ -67,6 +67,9 @@ namespace blender::draw {
 using namespace blender::draw;
 using namespace blender::draw::command;
 
+using DispatchIndirectBuf = draw::StorageBuffer<DispatchCommand>;
+using DrawIndirectBuf = draw::StorageBuffer<DrawCommand, true>;
+
 class Manager;
 
 namespace command {
@@ -159,7 +162,7 @@ class PassBase {
         sub_passes_(sub_passes),
         shader_(shader),
         debug_name(name),
-        use_custom_ids(false){};
+        use_custom_ids(false) {};
 
   /**
    * Reset the pass command pool.
@@ -228,7 +231,7 @@ class PassBase {
    * \note Changes the global GPU state (outside of DRW).
    * \note Capture reference to the framebuffer so it can be initialized later.
    */
-  void framebuffer_set(GPUFrameBuffer **framebuffer);
+  void framebuffer_set(gpu::FrameBuffer **framebuffer);
 
   /**
    * Start a new sub-pass and change framebuffer attachments status.
@@ -332,7 +335,7 @@ class PassBase {
   /**
    * Record a barrier call to synchronize arbitrary load/store operation between draw calls.
    */
-  void barrier(eGPUBarrier type);
+  void barrier(GPUBarrier type);
 
   /**
    * Bind a shader resource.
@@ -356,10 +359,12 @@ class PassBase {
                     GPUSamplerState state = sampler_auto);
   void bind_texture(const char *name, gpu::VertBuf *buffer);
   void bind_texture(const char *name, gpu::VertBuf **buffer);
+  void bind_texture(const char *name, gpu::VertBufPtr &buffer);
   void bind_texture(int slot, gpu::Texture *texture, GPUSamplerState state = sampler_auto);
   void bind_texture(int slot, gpu::Texture **texture, GPUSamplerState state = sampler_auto);
   void bind_texture(int slot, gpu::VertBuf *buffer);
   void bind_texture(int slot, gpu::VertBuf **buffer);
+  void bind_texture(int slot, gpu::VertBufPtr &buffer);
   void bind_ssbo(const char *name, gpu::StorageBuf *buffer);
   void bind_ssbo(const char *name, gpu::StorageBuf **buffer);
   void bind_ssbo(int slot, gpu::StorageBuf *buffer);
@@ -370,8 +375,10 @@ class PassBase {
   void bind_ssbo(int slot, gpu::UniformBuf **buffer);
   void bind_ssbo(const char *name, gpu::VertBuf *buffer);
   void bind_ssbo(const char *name, gpu::VertBuf **buffer);
+  void bind_ssbo(const char *name, gpu::VertBufPtr &buffer);
   void bind_ssbo(int slot, gpu::VertBuf *buffer);
   void bind_ssbo(int slot, gpu::VertBuf **buffer);
+  void bind_ssbo(int slot, gpu::VertBufPtr &buffer);
   void bind_ssbo(const char *name, gpu::IndexBuf *buffer);
   void bind_ssbo(const char *name, gpu::IndexBuf **buffer);
   void bind_ssbo(int slot, gpu::IndexBuf *buffer);
@@ -461,7 +468,7 @@ class PassBase {
 
   int push_constant_offset(const char *name);
 
-  void clear(eGPUFrameBufferBits planes, float4 color, float depth, uint8_t stencil);
+  void clear(GPUFrameBufferBits planes, float4 color, float depth, uint8_t stencil);
 
   gpu::Batch *procedural_batch_get(GPUPrimType primitive);
 
@@ -499,7 +506,7 @@ template<typename DrawCommandBufType> class Pass : public detail::PassBase<DrawC
 
  public:
   Pass(const char *name)
-      : detail::PassBase<DrawCommandBufType>(name, draw_commands_buf_main_, sub_passes_main_){};
+      : detail::PassBase<DrawCommandBufType>(name, draw_commands_buf_main_, sub_passes_main_) {};
 
   void init()
   {
@@ -549,7 +556,7 @@ class PassSortable : public PassMain {
   bool sorted_ = false;
 
  public:
-  PassSortable(const char *name_) : PassMain(name_){};
+  PassSortable(const char *name_) : PassMain(name_) {};
 
   void init()
   {
@@ -648,7 +655,7 @@ template<class T> inline command::Undetermined &PassBase<T>::create_command(comm
 }
 
 template<class T>
-inline void PassBase<T>::clear(eGPUFrameBufferBits planes,
+inline void PassBase<T>::clear(GPUFrameBufferBits planes,
                                float4 color,
                                float depth,
                                uint8_t stencil)
@@ -893,6 +900,7 @@ inline void PassBase<T>::draw(gpu::Batch *batch,
   if (instance_len == 0 || vertex_len == 0) {
     return;
   }
+  BLI_assert(batch);
   BLI_assert(shader_);
   draw_commands_buf_.append_draw(headers_,
                                  commands_,
@@ -1067,7 +1075,7 @@ inline void PassBase<T>::clear_color_depth_stencil(float4 color, float depth, ui
 /** \name Barrier Implementation
  * \{ */
 
-template<class T> inline void PassBase<T>::barrier(eGPUBarrier type)
+template<class T> inline void PassBase<T>::barrier(GPUBarrier type)
 {
   create_command(Type::Barrier).barrier = {type};
 }
@@ -1101,7 +1109,7 @@ template<class T> inline void PassBase<T>::shader_set(gpu::Shader *shader)
   create_command(Type::ShaderBind).shader_bind = {shader};
 }
 
-template<class T> inline void PassBase<T>::framebuffer_set(GPUFrameBuffer **framebuffer)
+template<class T> inline void PassBase<T>::framebuffer_set(gpu::FrameBuffer **framebuffer)
 {
   create_command(Type::FramebufferBind).framebuffer_bind = {framebuffer};
 }
@@ -1224,6 +1232,12 @@ template<class T> inline void PassBase<T>::bind_ssbo(const char *name, gpu::Vert
   this->bind_ssbo(GPU_shader_get_ssbo_binding(shader_, name), buffer);
 }
 
+template<class T> inline void PassBase<T>::bind_ssbo(const char *name, gpu::VertBufPtr &buffer)
+{
+  BLI_assert(buffer.get() != nullptr);
+  this->bind_ssbo(GPU_shader_get_ssbo_binding(shader_, name), buffer.get());
+}
+
 template<class T> inline void PassBase<T>::bind_ssbo(const char *name, gpu::IndexBuf *buffer)
 {
   BLI_assert(buffer != nullptr);
@@ -1261,6 +1275,12 @@ template<class T> inline void PassBase<T>::bind_texture(const char *name, gpu::V
 {
   BLI_assert(buffer != nullptr);
   this->bind_texture(GPU_shader_get_sampler_binding(shader_, name), buffer);
+}
+
+template<class T> inline void PassBase<T>::bind_texture(const char *name, gpu::VertBufPtr &buffer)
+{
+  BLI_assert(buffer.get() != nullptr);
+  this->bind_texture(GPU_shader_get_sampler_binding(shader_, name), buffer.get());
 }
 
 template<class T> inline void PassBase<T>::bind_image(const char *name, gpu::Texture *image)
@@ -1303,6 +1323,13 @@ template<class T> inline void PassBase<T>::bind_ssbo(int slot, gpu::VertBuf **bu
       slot, buffer, ResourceBind::Type::VertexAsStorageBuf};
 }
 
+template<class T> inline void PassBase<T>::bind_ssbo(int slot, gpu::VertBufPtr &buffer)
+{
+  BLI_assert(buffer.get() != nullptr);
+  create_command(Type::ResourceBind).resource_bind = {
+      slot, buffer.get(), ResourceBind::Type::VertexAsStorageBuf};
+}
+
 template<class T> inline void PassBase<T>::bind_ssbo(int slot, gpu::IndexBuf *buffer)
 {
   BLI_assert(buffer != nullptr);
@@ -1340,6 +1367,12 @@ template<class T> inline void PassBase<T>::bind_texture(int slot, gpu::VertBuf *
 {
   BLI_assert(buffer != nullptr);
   create_command(Type::ResourceBind).resource_bind = {slot, buffer};
+}
+
+template<class T> inline void PassBase<T>::bind_texture(int slot, gpu::VertBufPtr &buffer)
+{
+  BLI_assert(buffer.get() != nullptr);
+  create_command(Type::ResourceBind).resource_bind = {slot, buffer.get()};
 }
 
 template<class T> inline void PassBase<T>::bind_image(int slot, gpu::Texture *image)

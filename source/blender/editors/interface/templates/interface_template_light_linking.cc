@@ -201,7 +201,7 @@ class ItemDragController : public AbstractViewItemDragController {
   {
   }
 
-  eWM_DragDataType get_drag_type() const override
+  std::optional<eWM_DragDataType> get_drag_type() const override
   {
     return WM_DRAG_ID;
   }
@@ -298,7 +298,6 @@ class CollectionViewItem : public BasicTreeViewItem {
 
     uiBut *button = uiDefIconButR(block,
                                   ButType::But,
-                                  0,
                                   icon,
                                   0,
                                   0,

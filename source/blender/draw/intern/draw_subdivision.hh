@@ -100,10 +100,10 @@ struct DRWSubdivCache {
 
   /* Indices of faces adjacent to the vertices, ordered by vertex index, with no particular
    * winding. */
-  gpu::VertBuf *subdiv_vertex_face_adjacency;
+  gpu::VertBuf *subdiv_vert_face_adjacency;
   /* The difference between value (i + 1) and (i) gives the number of faces adjacent to vertex (i).
    */
-  gpu::VertBuf *subdiv_vertex_face_adjacency_offsets;
+  gpu::VertBuf *subdiv_vert_face_adjacency_offsets;
 
   /* Maps subdivision loop to original coarse vertex index, only really useful for edit mode. */
   gpu::VertBuf *verts_orig_index;
@@ -114,7 +114,7 @@ struct DRWSubdivCache {
 
   /* Owned by #Subdiv. Indexed by coarse face index, difference between value (i + 1) and (i)
    * gives the number of ptex faces for coarse face (i). */
-  int *face_ptex_offset;
+  Span<int> face_ptex_offset;
   /* Vertex buffer for face_ptex_offset. */
   gpu::VertBuf *face_ptex_offset_buffer;
 
@@ -174,6 +174,8 @@ gpu::VertBufPtr draw_subdiv_init_origindex_buffer(int32_t *vert_origindex,
                                                   uint loose_len);
 
 gpu::VertBuf *draw_subdiv_build_origindex_buffer(int *vert_origindex, uint num_loops);
+gpu::VertBufPtr draw_subdiv_init_origindex_buffer(Span<int32_t> vert_origindex, uint loose_len);
+gpu::VertBuf *draw_subdiv_build_origindex_buffer(Span<int> vert_origindex);
 
 /* Compute shader functions. */
 
@@ -186,7 +188,7 @@ void draw_subdiv_accumulate_normals(const DRWSubdivCache &cache,
                                     gpu::VertBuf *pos,
                                     gpu::VertBuf *face_adjacency_offsets,
                                     gpu::VertBuf *face_adjacency_lists,
-                                    gpu::VertBuf *vertex_loop_map,
+                                    gpu::VertBuf *vert_loop_map,
                                     gpu::VertBuf *vert_normals);
 
 void draw_subdiv_extract_pos(const DRWSubdivCache &cache, gpu::VertBuf *pos, gpu::VertBuf *orco);

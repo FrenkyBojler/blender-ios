@@ -102,9 +102,7 @@ static blender::float2 imapaint_pick_uv(const Mesh *mesh_eval,
   }
 
   if (uv_map.is_empty()) {
-    const char *active_name = CustomData_get_active_layer_name(&mesh_eval->corner_data,
-                                                               CD_PROP_FLOAT2);
-    uv_map = *attributes.lookup<float2>(active_name, bke::AttrDomain::Corner);
+    uv_map = *attributes.lookup<float2>(mesh_eval->active_uv_map_name(), bke::AttrDomain::Corner);
   }
 
   return bke::mesh_surface_sample::sample_corner_attribute_with_bary_coords(
@@ -183,25 +181,6 @@ static void paint_sample_color(
   SpaceImage *sima = CTX_wm_space_image(C);
   const View3D *v3d = CTX_wm_view3d(C);
 
-  bool is_data = false;
-
-  if (v3d) {
-    const ImagePaintSettings *imapaint = &scene->toolsettings->imapaint;
-    if (imapaint->mode == IMAGEPAINT_MODE_MATERIAL) {
-      ViewLayer *view_layer = CTX_data_view_layer(C);
-      Object *object = BKE_view_layer_active_object_get(view_layer);
-      const Material *material = BKE_object_material_get(object, object->actcol);
-      if (material && material->texpaintslot) {
-        const Image *image = material->texpaintslot[material->paint_active_slot].ima;
-        is_data = image && IMB_colormanagement_space_name_is_data(image->colorspace_settings.name);
-      }
-    }
-    else {
-      const Image *image = imapaint->canvas;
-      is_data = image && IMB_colormanagement_space_name_is_data(image->colorspace_settings.name);
-    }
-  }
-
   if (v3d && texpaint_proj) {
     /* first try getting a color directly from the mesh faces if possible */
     ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -217,7 +196,7 @@ static void paint_sample_color(
       const VArray material_indices = *attributes.lookup_or_default<int>(
           "material_index", bke::AttrDomain::Face, 0);
 
-      if (CustomData_has_layer(&mesh_eval->corner_data, CD_PROP_FLOAT2)) {
+      if (!mesh_eval->uv_map_names().is_empty()) {
         ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
 
         const int mval[2] = {x, y};
@@ -279,17 +258,9 @@ static void paint_sample_color(
                 rgba_f = math::clamp(rgba_f, 0.0f, 1.0f);
                 straight_to_premul_v4(rgba_f);
                 if (use_palette) {
-                  if (ibuf->colormanage_flag & IMB_COLORMANAGE_IS_DATA) {
-                    copy_v3_v3(color->rgb, rgba_f);
-                  }
-                  else {
-                    linearrgb_to_srgb_v3_v3(color->rgb, rgba_f);
-                  }
+                  BKE_palette_color_set(color, rgba_f);
                 }
                 else {
-                  if ((ibuf->colormanage_flag & IMB_COLORMANAGE_IS_DATA) == 0) {
-                    linearrgb_to_srgb_v3_v3(rgba_f, rgba_f);
-                  }
                   BKE_brush_color_set(paint, br, rgba_f);
                 }
               }
@@ -297,12 +268,18 @@ static void paint_sample_color(
                 uchar4 rgba = interp == SHD_INTERP_CLOSEST ?
                                   imbuf::interpolate_nearest_wrap_byte(ibuf, u, v) :
                                   imbuf::interpolate_bilinear_wrap_byte(ibuf, u, v);
+                float rgba_f[4];
+                rgba_uchar_to_float(rgba_f, rgba);
+
+                if ((ibuf->colormanage_flag & IMB_COLORMANAGE_IS_DATA) == 0) {
+                  IMB_colormanagement_colorspace_to_scene_linear_v3(rgba_f,
+                                                                    ibuf->byte_buffer.colorspace);
+                }
+
                 if (use_palette) {
-                  rgb_uchar_to_float(color->rgb, rgba);
+                  BKE_palette_color_set(color, rgba_f);
                 }
                 else {
-                  float rgba_f[3];
-                  rgb_uchar_to_float(rgba_f, rgba);
                   BKE_brush_color_set(paint, br, rgba_f);
                 }
               }
@@ -320,13 +297,10 @@ static void paint_sample_color(
     /* Sample from the active image buffer. The sampled color is in
      * Linear Scene Reference Space. */
     float rgba_f[3];
+    bool is_data;
     if (ED_space_image_color_sample(sima, region, blender::int2(x, y), rgba_f, &is_data)) {
-      if (!is_data) {
-        linearrgb_to_srgb_v3_v3(rgba_f, rgba_f);
-      }
-
       if (use_palette) {
-        copy_v3_v3(color->rgb, rgba_f);
+        BKE_palette_color_set(color, rgba_f);
       }
       else {
         BKE_brush_color_set(paint, br, rgba_f);
@@ -343,25 +317,13 @@ static void paint_sample_color(
                                  blender::int2(x + region->winrct.xmin, y + region->winrct.ymin),
                                  rgb_fl);
 
-    /* The sampled color is in display space, which is what it is supposed to be when painting on
-     * an image with known colorspace. When painting on non-color/data textures convert display to
-     * scene linear so that painting with the new color will produce the same color after the
-     * texture comes via rendering/color management. */
-    if (is_data) {
-      /* Note that the logic for the image sampling above uses hardcoded linear<->srgb conversion,
-       * as well does the do_projectpaint_draw(). For the consistency use hardcoded conversion here
-       * as well.
-       *
-       * Ideally it should become something like:
-       *   const ColorManagedDisplay *display = IMB_colormanagement_display_get_named(
-       *       scene->display_settings.display_device);
-       *   IMB_colormanagement_display_to_scene_linear_v3(rgb_fl, display);
-       */
-      srgb_to_linearrgb_v3_v3(rgb_fl, rgb_fl);
-    }
+    /* The sampled color is in display colorspace, convert to scene linear. */
+    const ColorManagedDisplay *display = IMB_colormanagement_display_get_named(
+        scene->display_settings.display_device);
+    IMB_colormanagement_display_to_scene_linear_v3(rgb_fl, display);
 
     if (use_palette) {
-      copy_v3_v3(color->rgb, rgb_fl);
+      BKE_palette_color_set(color, rgb_fl);
     }
     else {
       BKE_brush_color_set(paint, br, rgb_fl);
@@ -519,7 +481,8 @@ static wmOperatorStatus sample_color_modal(bContext *C, wmOperator *op, const wm
 static bool sample_color_poll(bContext *C)
 {
   return (image_paint_poll_ignore_tool(C) || vertex_paint_poll_ignore_tool(C) ||
-          blender::ed::greasepencil::grease_pencil_painting_poll(C));
+          blender::ed::greasepencil::grease_pencil_painting_poll(C) ||
+          blender::ed::greasepencil::grease_pencil_vertex_painting_poll(C));
 }
 
 void PAINT_OT_sample_color(wmOperatorType *ot)

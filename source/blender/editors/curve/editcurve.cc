@@ -665,7 +665,7 @@ static void calc_shapeKeys(Object *obedit, ListBase *newnurbs)
   Nurb *newnu;
   int totvert = BKE_keyblock_curve_element_count(&editnurb->nurbs);
 
-  float(*ofs)[3] = nullptr;
+  float (*ofs)[3] = nullptr;
   std::optional<blender::Array<bool>> dependent;
   const float *oldkey, *ofp;
   float *newkey;
@@ -4052,10 +4052,10 @@ void CURVE_OT_handle_type_set(wmOperatorType *ot)
 {
   /* keep in sync with graphkeys_handle_type_items */
   static const EnumPropertyItem editcurve_handle_type_items[] = {
-      {HD_AUTO, "AUTOMATIC", 0, "Automatic", ""},
-      {HD_VECT, "VECTOR", 0, "Vector", ""},
-      {5, "ALIGNED", 0, "Aligned", ""},
-      {6, "FREE_ALIGN", 0, "Free", ""},
+      {HD_AUTO, "AUTOMATIC", ICON_HANDLE_AUTO, "Automatic", ""},
+      {HD_VECT, "VECTOR", ICON_HANDLE_VECTOR, "Vector", ""},
+      {5, "ALIGNED", ICON_HANDLE_ALIGNED, "Aligned", ""},
+      {6, "FREE_ALIGN", ICON_HANDLE_FREE, "Free", ""},
       {3, "TOGGLE_FREE_ALIGN", 0, "Toggle Free/Align", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
@@ -5963,16 +5963,14 @@ static wmOperatorStatus toggle_cyclic_invoke(bContext *C,
 {
   Object *obedit = CTX_data_edit_object(C);
   ListBase *editnurb = object_editcurve_get(obedit);
-  uiPopupMenu *pup;
-  uiLayout *layout;
 
   if (obedit->type == OB_SURF) {
     LISTBASE_FOREACH (Nurb *, nu, editnurb) {
       if (nu->pntsu > 1 || nu->pntsv > 1) {
         if (nu->type == CU_NURBS) {
-          pup = UI_popup_menu_begin(C, IFACE_("Direction"), ICON_NONE);
-          layout = UI_popup_menu_layout(pup);
-          layout->op_enum(op->type->idname, "direction");
+          uiPopupMenu *pup = UI_popup_menu_begin(C, IFACE_("Direction"), ICON_NONE);
+          blender::ui::Layout &layout = *UI_popup_menu_layout(pup);
+          layout.op_enum(op->type->idname, "direction");
           UI_popup_menu_end(C, pup);
           return OPERATOR_INTERFACE;
         }
