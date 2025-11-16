@@ -5,7 +5,9 @@
 #ifdef GPU_SHADER
 #  pragma once
 #  include "gpu_shader_compat.hh"
+#endif
 
+#ifdef GLSL_CPP_STUBS
 #  define SMAA_GLSL_3
 #  define SMAA_RT_METRICS float4(1.0f)
 #  define SMAA_PRESET_LOW
