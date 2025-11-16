@@ -2057,6 +2057,8 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
     offset = math::max(offset, (gap_removal_left_boundary - rect_frames[1]));
 
     const ListBase *channels = seq::channels_displayed_get(ed);
+    const VectorSet<Strip *> strips = ignore_selection ? all_strips_from_context(C) :
+                                                         selected_strips_from_context(C);
     for (Strip *strip : strips) {
       if ((seq::channel_is_locked(seq::channel_get_by_index(channels, strip->channel)) &&
            ((strip->runtime.flag & STRIP_IGNORE_CHANNEL_LOCK) == 0)) ||
