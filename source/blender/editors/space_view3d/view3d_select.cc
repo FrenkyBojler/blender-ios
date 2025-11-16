@@ -29,7 +29,6 @@
 #include "BLI_listbase.h"
 #include "BLI_math_bits.h"
 #include "BLI_math_geom.h"
-#include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "BLI_rect.h"
 #include "BLI_span.hh"
@@ -4405,6 +4404,67 @@ static bool do_object_box_select(bContext *C,
   return changed;
 }
 
+
+/**
+ * Process GPU selection buffer hits and tag pose bones that are in the selection area.
+ * 
+ * \param bases: List of pose-mode bases to process
+ * \param buffer: GPU selection buffer containing hit results
+ * \param hits: Number of hits in the buffer
+ */
+static void pose_tag_bones_from_select_buffer(blender::MutableSpan<Base *> bases,
+                                               const GPUSelectBuffer &buffer,
+                                               const int hits)
+{
+  if (hits <= 0) {
+    return;
+  }
+
+  /* Sort hits by depth for consistent selection order. */
+  GPUSelectStorage buffer_sorted = buffer.storage;
+  buffer_sorted.resize(hits);
+  qsort(buffer_sorted.data(), hits, sizeof(GPUSelectResult), gpu_bone_select_buffer_cmp);
+
+  /* Process all hits from GPU selection buffer. */
+  for (const GPUSelectResult *buf_iter = buffer_sorted.data(), *buf_end = buf_iter + hits;
+       buf_iter < buf_end;
+       buf_iter++)
+  {
+    bPoseChannel *pose_bone;
+    Base *base = ED_armature_base_and_pchan_from_select_buffer(bases, buf_iter->id, &pose_bone);
+
+    if (base == nullptr) {
+      continue;
+    }
+
+    /* Loop over contiguous bone hits for 'base'. */
+    for (; buf_iter != buf_end; buf_iter++) {
+      if (pose_bone != nullptr) {
+        base->object->id.tag |= ID_TAG_DOIT;
+        pose_bone->runtime.flag |= POSE_RUNTIME_IN_SELECTION_AREA;
+      }
+
+      /* Select the next bone if we're not switching bases. */
+      if (buf_iter + 1 != buf_end) {
+        const GPUSelectResult *col_next = buf_iter + 1;
+        if ((base->object->runtime->select_id & 0x0000FFFF) != (col_next->id & 0x0000FFFF)) {
+          break;
+        }
+        if (base->object->pose != nullptr) {
+          const uint hit_bone = (col_next->id & ~BONESEL_ANY) >> 16;
+          bPoseChannel *next = static_cast<bPoseChannel *>(
+              BLI_findlink(&base->object->pose->chanbase, hit_bone));
+          pose_bone = next;
+        }
+        else {
+          pose_bone = nullptr;
+        }
+      }
+    }
+  }
+}
+
+
 static bool do_pose_box_select(bContext *C,
                                const ViewContext *vc,
                                const rcti *rect,
@@ -4425,50 +4485,8 @@ static bool do_pose_box_select(bContext *C,
    * and object pair, if not, just move to the next object,
    * keeping the same color until we have a hit. */
 
-  if (hits > 0) {
-    /* no need to loop if there's no hit */
-
-    /* The draw order doesn't always match the order we populate the engine, see: #51695. */
-    qsort(buffer.storage.data(), hits, sizeof(GPUSelectResult), gpu_bone_select_buffer_cmp);
-
-    for (const GPUSelectResult *buf_iter = buffer.storage.data(), *buf_end = buf_iter + hits;
-         buf_iter < buf_end;
-         buf_iter++)
-    {
-      bPoseChannel *pose_bone;
-      Base *base = ED_armature_base_and_pchan_from_select_buffer(bases, buf_iter->id, &pose_bone);
-
-      if (base == nullptr) {
-        continue;
-      }
-
-      /* Loop over contiguous bone hits for 'base'. */
-      for (; buf_iter != buf_end; buf_iter++) {
-        /* should never fail */
-        if (pose_bone != nullptr) {
-          base->object->id.tag |= ID_TAG_DOIT;
-          pose_bone->runtime.flag |= POSE_RUNTIME_IN_SELECTION_AREA;
-        }
-
-        /* Select the next bone if we're not switching bases. */
-        if (buf_iter + 1 != buf_end) {
-          const GPUSelectResult *col_next = buf_iter + 1;
-          if ((base->object->runtime->select_id & 0x0000FFFF) != (col_next->id & 0x0000FFFF)) {
-            break;
-          }
-          if (base->object->pose != nullptr) {
-            const uint hit_bone = (col_next->id & ~BONESEL_ANY) >> 16;
-            bPoseChannel *next = static_cast<bPoseChannel *>(
-                BLI_findlink(&base->object->pose->chanbase, hit_bone));
-            pose_bone = next;
-          }
-          else {
-            pose_bone = nullptr;
-          }
-        }
-      }
-    }
-  }
+  /* Process hits and tag bones in selection area. */
+  pose_tag_bones_from_select_buffer(bases, buffer, hits);
 
   const bool changed_multi = do_pose_tag_select_op_exec(bases, sel_op);
   if (changed_multi) {
@@ -5108,7 +5126,7 @@ static bool lattice_circle_select(const ViewContext *vc,
   if (SEL_OP_USE_PRE_DESELECT(sel_op)) {
     data.is_changed |= ED_lattice_flags_set(vc->obedit, 0);
   }
-  ED_view3d_init_mats_rv3d(vc->obedit, vc->rv3d); /* for foreach's screen/vert projection */
+  ED_view3d_init_mats_rv3d(vc->obedit, vc->rv3d); /* for foreach's screen/vert projection. */
 
   lattice_foreachScreenVert(vc, latticecurve_circle_doSelect, &data, V3D_PROJ_TEST_CLIP_DEFAULT);
 
@@ -5124,12 +5142,15 @@ static bool pose_circle_select(const ViewContext *vc,
 
   blender::Vector<Base *> bases = do_pose_tag_select_op_prepare(vc);
 
-  /* Use GPU selection buffer similar to box select */
+  /* Use GPU selection buffer similar to box select. */
   GPUSelectBuffer buffer;
   rcti rect;
 
-  /* Create a rectangle from the circle bounds for GPU selection */
-  BLI_rcti_init_pt_radius(&rect, mval, int(rad + 1.0f));
+  /* Create a rectangle inscribed in the circle for GPU selection.
+   * Use radius / sqrt(2) so rectangle corners stay within the circle.
+   * Scaled up a little bit so sides and top fill the circle a bit more. */
+  const float rect_radius = rad * 0.8f; /* 0.70710678118f with formula instead */
+  BLI_rcti_init_pt_radius(&rect, mval, int(rect_radius + 1.0f));
 
   const eV3DSelectObjectFilter select_filter = ED_view3d_select_filter_from_mode(vc->scene,
                                                                                  vc->obact);
@@ -5137,7 +5158,7 @@ static bool pose_circle_select(const ViewContext *vc,
 
   bool changed = false;
   if (SEL_OP_USE_PRE_DESELECT(sel_op)) {
-    /* Deselect all first if needed */
+    /* Deselect all first if needed. */
     for (Base *base : bases) {
       if (ED_pose_deselect_all(base->object, SEL_DESELECT, false)) {
         changed = true;
@@ -5145,55 +5166,13 @@ static bool pose_circle_select(const ViewContext *vc,
     }
   }
 
-  if (hits > 0) {
-    /* Sort hits by depth for consistent selection order */
-    qsort(buffer.storage.data(), hits, sizeof(GPUSelectResult), gpu_bone_select_buffer_cmp);
-
-    /* Process all hits from GPU selection - these already account for custom bone shapes */
-    for (const GPUSelectResult *buf_iter = buffer.storage.data(), *buf_end = buf_iter + hits;
-         buf_iter < buf_end;
-         buf_iter++)
-    {
-      bPoseChannel *pose_bone;
-      Base *base = ED_armature_base_and_pchan_from_select_buffer(bases, buf_iter->id, &pose_bone);
-
-      if (base == nullptr) {
-        continue;
-      }
-
-      /* Loop over contiguous bone hits for 'base'. */
-      for (; buf_iter != buf_end; buf_iter++) {
-        if (pose_bone != nullptr) {
-          /* Tag this bone as being in the selection area */
-          base->object->id.tag |= ID_TAG_DOIT;
-          pose_bone->runtime.flag |= POSE_RUNTIME_IN_SELECTION_AREA;
-        }
-
-        /* Select the next bone if we're not switching bases. */
-        if (buf_iter + 1 != buf_end) {
-          const GPUSelectResult *col_next = buf_iter + 1;
-          if ((base->object->runtime->select_id & 0x0000FFFF) != (col_next->id & 0x0000FFFF)) {
-            break;
-          }
-          if (base->object->pose != nullptr) {
-            const uint hit_bone = (col_next->id & ~BONESEL_ANY) >> 16;
-            bPoseChannel *next = static_cast<bPoseChannel *>(
-                BLI_findlink(&base->object->pose->chanbase, hit_bone));
-            pose_bone = next;
-          }
-          else {
-            pose_bone = nullptr;
-          }
-        }
-      }
-    }
-  }
+  /* Process hits and tag bones in selection area.
+   * The GPU already handled custom bone shapes and visibility.
+   * We trust the GPU buffer completely - no additional geometric tests. */
+  pose_tag_bones_from_select_buffer(bases, buffer, hits);
 
   const bool changed_multi = do_pose_tag_select_op_exec(bases, sel_op);
-  if (changed_multi || changed) {
-    return true;
-  }
-  return false;
+  return (changed_multi || changed);
 }
 
 /**
