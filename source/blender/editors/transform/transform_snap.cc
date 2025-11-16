@@ -371,6 +371,12 @@ eRedrawFlag handleSnapping(TransInfo *t, const wmEvent *event)
     status |= updateSelectedSnapPoint(t);
   }
 
+  /* Reset snap state after temporary snapping ends to prevent precision movement from being
+   * blocked. */
+  if (!(t->modifiers & (MOD_SNAP | MOD_SNAP_INVERT | MOD_SNAP_FORCED))) {
+    t->tsnap.status = SNAP_RESETTED;
+  }
+
   return status;
 }
 
