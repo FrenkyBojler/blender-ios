@@ -137,31 +137,16 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const int2 &size,
   const char *shader_name;
   switch (input.type()) {
     case ResultType::Float:
-      if (fast)
-        shader_name = "compositor_realize_on_domain_fast_float";
-      else if (options.sampler == math::Sampler::Bspline)
-        shader_name = "compositor_realize_on_domain_bspline_float";
-      else
-        shader_name = "compositor_realize_on_domain_box_float";
-      break;
-    case ResultType::Color:
+    case ResultType::Float2:
     case ResultType::Float3:
-      /* Float3 is internally stored in a float4 texture. */
+    case ResultType::Color:
     case ResultType::Float4:
       if (fast)
-        shader_name = "compositor_realize_on_domain_fast_float4";
+        shader_name = "compositor_realize_on_domain_float4";
       else if (options.sampler == math::Sampler::Bspline)
         shader_name = "compositor_realize_on_domain_bspline_float4";
       else
         shader_name = "compositor_realize_on_domain_box_float4";
-      break;
-    case ResultType::Float2:
-      if (fast)
-        shader_name = "compositor_realize_on_domain_fast_float2";
-      else if (options.sampler == math::Sampler::Bspline)
-        shader_name = "compositor_realize_on_domain_bspline_float2";
-      else
-        shader_name = "compositor_realize_on_domain_box_float2";
       break;
     case ResultType::Int:
       fast = nearest = true;
