@@ -7,6 +7,7 @@
 #  include "gpu_shader_compat.hh"
 
 #  define OPERATOR(x) x
+#  define FUNCTION(x) x
 #endif
 
 #include "gpu_shader_create_info.hh"

@@ -5,6 +5,10 @@
 #ifdef GPU_SHADER
 #  pragma once
 #  include "gpu_shader_compat.hh"
+
+#  define SMAA_GLSL_3
+#  define SMAA_RT_METRICS float4(1.0f)
+#  define SMAA_PRESET_LOW
 #endif
 
 #include "gpu_shader_create_info.hh"

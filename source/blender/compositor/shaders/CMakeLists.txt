@@ -72,21 +72,21 @@ set(SRC_GLSL_COMP
   compositor_keying_replace_chroma.glsl
   compositor_keying_screen.glsl
   compositor_keying_tweak_matte.glsl
-#   compositor_kuwahara_anisotropic_compute_structure_tensor.glsl
-#   compositor_kuwahara_anisotropic.glsl
-#   compositor_kuwahara_classic.glsl
-#   compositor_map_uv_anisotropic.glsl
-#   compositor_map_uv.glsl
-#   compositor_morphological_blur.glsl
-#   compositor_morphological_distance_feather.glsl
-#   compositor_morphological_distance_threshold.glsl
-#   compositor_morphological_distance.glsl
-#   compositor_morphological_step.glsl
-#   compositor_motion_blur_max_velocity_dilate.glsl
-#   compositor_motion_blur.glsl
-#   compositor_movie_distortion.glsl
-#   compositor_normalize.glsl
-#   compositor_pad.glsl
+  compositor_kuwahara_anisotropic_compute_structure_tensor.glsl
+  compositor_kuwahara_anisotropic.glsl
+  compositor_kuwahara_classic.glsl
+  compositor_map_uv_anisotropic.glsl
+  compositor_map_uv.glsl
+  compositor_morphological_blur.glsl
+  compositor_morphological_distance_feather.glsl
+  compositor_morphological_distance_threshold.glsl
+  compositor_morphological_distance.glsl
+  compositor_morphological_step.glsl
+  compositor_motion_blur_max_velocity_dilate.glsl
+  compositor_motion_blur.glsl
+  compositor_movie_distortion.glsl
+  compositor_normalize.glsl
+  compositor_pad.glsl
   compositor_parallel_reduction.glsl
   compositor_pixelate.glsl
   compositor_plane_deform_anisotropic.glsl
