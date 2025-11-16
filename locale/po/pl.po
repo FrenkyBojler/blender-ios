@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Beta (b'6f9eadf7a433')\n"
+"Project-Id-Version: Blender 5.0.0 Beta (b'd29f9f6118e5')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-27 09:50+0000\n"
+"POT-Creation-Date: 2025-11-10 09:45+0000\n"
 "PO-Revision-Date: 2025-07-23 15:14+0000\n"
 "Last-Translator: Kamil <uhkamil@gmail.com>\n"
 "Language-Team: Polish <https://translate.blender.org/projects/blender-ui/ui/pl/>\n"
@@ -11531,12 +11531,12 @@ msgid "Mask"
 msgstr "Maska"
 
 
-msgid "Text"
-msgstr "Tekst"
+msgid "Track"
+msgstr "Ścieżka"
 
 
-msgid "Metaball"
-msgstr "Metakula"
+msgid "Quick Effects"
+msgstr "Szybkie efekty"
 
 
 msgid "Show/Hide"
@@ -11547,6 +11547,54 @@ msgid "Clean Up"
 msgstr "Sprzątanie"
 
 
+msgid "Asset"
+msgstr "Prefabrykat"
+
+
+msgid "Convert"
+msgstr "Konwertuj"
+
+
+msgid "Bone Collections"
+msgstr "Kolekcja kości"
+
+
+msgid "Apply"
+msgstr "Zastosuj"
+
+
+msgid "Layout"
+msgstr "Układ"
+
+
+msgid "Face Data"
+msgstr "Dane ściany"
+
+
+msgid "Merge"
+msgstr "Scal"
+
+
+msgid "Keying"
+msgstr "Kluczowanie"
+
+
+msgid "Utilities"
+msgstr "Narzędzia"
+
+
+msgid "Math"
+msgstr "Matematyka"
+
+
+msgid "Text"
+msgstr "Tekst"
+
+
+msgid "Metaball"
+msgstr "Metakula"
+
+
 msgid "Snap"
 msgstr "Przyciągnij"
 
@@ -11555,8 +11603,12 @@ msgid "Proportional Editing Falloff"
 msgstr "Proporcjonalne edytowanie spadku"
 
 
-msgid "Layout"
-msgstr "Układ"
+msgid "Read"
+msgstr "Odczyt"
+
+
+msgid "Write"
+msgstr "Zapis"
 
 
 msgid "Mirror"
@@ -11575,20 +11627,20 @@ msgid "Navigation"
 msgstr "Nawigacja"
 
 
-msgid "Keying"
-msgstr "Kluczowanie"
-
-
-msgid "Utilities"
-msgstr "Narzędzia"
+msgid "Gizmo"
+msgstr "Gizmo"
 
 
 msgid "Select Linked"
 msgstr "Zaznacz powiązane"
 
 
-msgid "Math"
-msgstr "Matematyka"
+msgid "Import"
+msgstr "Importuj"
+
+
+msgid "Deprecated"
+msgstr "Przestarzałe"
 
 
 msgid "Assign Material"
@@ -11605,58 +11657,6 @@ msgstr "Sonda świetlna"
 
 msgid "Rigid Body"
 msgstr "Bryła sztywna"
-
-
-msgid "Apply"
-msgstr "Zastosuj"
-
-
-msgid "Track"
-msgstr "Ścieżka"
-
-
-msgid "Quick Effects"
-msgstr "Szybkie efekty"
-
-
-msgid "Asset"
-msgstr "Prefabrykat"
-
-
-msgid "Convert"
-msgstr "Konwertuj"
-
-
-msgid "Read"
-msgstr "Odczyt"
-
-
-msgid "Write"
-msgstr "Zapis"
-
-
-msgid "Gizmo"
-msgstr "Gizmo"
-
-
-msgid "Bone Collections"
-msgstr "Kolekcja kości"
-
-
-msgid "Import"
-msgstr "Importuj"
-
-
-msgid "Deprecated"
-msgstr "Przestarzałe"
-
-
-msgid "Face Data"
-msgstr "Dane ściany"
-
-
-msgid "Merge"
-msgstr "Scal"
 
 
 msgid "Catalog"
@@ -24852,22 +24852,6 @@ msgstr "Problem wypalenia obiektu \"%s\""
 
 msgid "Add IK"
 msgstr "Dodaj IK"
-
-
-msgid "To Active Bone"
-msgstr "Do aktywnej kości"
-
-
-msgid "To Active Object"
-msgstr "Do aktywnego obiektu"
-
-
-msgid "To New Empty Object"
-msgstr "Do nowego, pustego obiektu"
-
-
-msgid "Without Targets"
-msgstr "Bez celów"
 
 
 msgid "Could not find constraint data for Child-Of Set Inverse"

@@ -114,12 +114,12 @@ bool is_equal(float a, float b, const float epsilon)
 
 float sin_from_cos(float c)
 {
-  return sqrt(max(0.0, 1.0f - square(c)));
+  return sqrt(max(0.0f, 1.0f - square(c)));
 }
 
 float cos_from_sin(float s)
 {
-  return sqrt(max(0.0, 1.0f - square(s)));
+  return sqrt(max(0.0f, 1.0f - square(s)));
 }
 
 template<typename T> T inverse_mix(T from_min, T from_max, T value)

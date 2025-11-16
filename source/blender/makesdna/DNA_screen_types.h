@@ -26,7 +26,6 @@ struct Scene;
 struct SpaceLink;
 struct SpaceType;
 struct uiBlock;
-struct uiLayout;
 struct uiList;
 struct uiListType;
 struct wmDrawBuffer;
@@ -40,9 +39,15 @@ struct FileHandlerType;
 }  // namespace blender::bke
 using ARegionRuntimeHandle = blender::bke::ARegionRuntime;
 using FileHandlerTypeHandle = blender::bke::FileHandlerType;
+
+namespace blender::ui {
+struct Layout;
+}  // namespace blender::ui
+using uiLayoutHandle = blender::ui::Layout;
 #else
 typedef struct ARegionRuntimeHandle ARegionRuntimeHandle;
 typedef struct FileHandlerTypeHandle FileHandlerTypeHandle;
+typedef struct uiLayoutHandle uiLayoutHandle;
 #endif
 
 /* TODO: Doing this is quite ugly :)
@@ -167,7 +172,7 @@ typedef struct Panel {
   /** Runtime. */
   struct PanelType *type;
   /** Runtime for drawing. */
-  struct uiLayout *layout;
+  uiLayoutHandle *layout;
 
   char panelname[/*BKE_ST_MAXNAME*/ 64];
   /** Panel name is identifier for restoring location. */
@@ -191,7 +196,7 @@ typedef struct Panel {
   /**
    * List of #LayoutPanelState. This stores the open-close-state of layout-panels created with
    * `layout.panel(...)` in Python. For more information on layout-panels, see
-   * `uiLayout::panel_prop`.
+   * `blender::ui::Layout::panel_prop`.
    */
   ListBase layout_panel_states;
   /**
@@ -339,6 +344,10 @@ typedef struct uiList { /* some list UI data need to be saved in file */
   uiListDyn *dyn_data;
 } uiList;
 
+typedef enum uiViewStateFlag {
+  UI_VIEW_SHOW_FILTER_OPTIONS = (1 << 0),
+} uiViewStateFlag;
+
 /** See #uiViewStateLink. */
 typedef struct uiViewState {
   /**
@@ -352,6 +361,10 @@ typedef struct uiViewState {
    *   scrolled out of view).
    */
   int scroll_offset;
+  uint16_t flag; /* #uiViewStateFlag */
+  char _pad[6];
+
+  char search_string[/*UI_MAX_NAME_STR*/ 256];
 } uiViewState;
 
 /**

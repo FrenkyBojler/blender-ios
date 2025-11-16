@@ -67,7 +67,7 @@ void ShaderOperation::execute()
   bind_inputs(shader);
   bind_outputs(shader);
 
-  compute_dispatch_threads_at_least(shader, domain.size);
+  compute_dispatch_threads_at_least(shader, domain.data_size);
 
   GPU_texture_unbind_all();
   GPU_texture_image_unbind_all();
@@ -661,6 +661,8 @@ std::string ShaderOperation::generate_code_for_outputs(ShaderCreateInfo &shader_
   store_int2_function << store_int2_function_header << store_function_start;
   store_bool_function << store_bool_function_header << store_function_start;
   store_menu_function << store_menu_function_header << store_function_start;
+
+  shader_create_info.builtins(BuiltinBits::GLOBAL_INVOCATION_ID);
 
   int output_index = 0;
   for (StringRefNull output_identifier : output_sockets_to_output_identifiers_map_.values()) {
