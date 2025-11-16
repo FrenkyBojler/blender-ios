@@ -670,6 +670,14 @@ typedef struct PitchModifierData {
   int quality; /*ePitchQuality*/
 } PitchModifierData;
 
+typedef struct EchoModifierData {
+  StripModifierData modifier;
+  float delay;
+  float feedback;
+  float mix;
+  char _pad[4];
+} EchoModifierData;
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -919,6 +927,7 @@ typedef enum eStripModifierType {
   eSeqModifierType_SoundEqualizer = 8,
   eSeqModifierType_Compositor = 9,
   eSeqModifierType_Pitch = 10,
+  eSeqModifierType_Echo = 11,
   /* Keep last. */
   NUM_STRIP_MODIFIER_TYPES,
 } eStripModifierType;
