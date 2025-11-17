@@ -50,8 +50,8 @@
 #include "BKE_modifier.hh"
 #include "BKE_node.hh"
 #include "BKE_particle.h"
-#include "BKE_shader_fx.h"
-#include "BKE_sound.h"
+#include "BKE_shader_fx.hh"
+#include "BKE_sound.hh"
 #include "BKE_vfont.hh"
 #include "BKE_volume.hh"
 
