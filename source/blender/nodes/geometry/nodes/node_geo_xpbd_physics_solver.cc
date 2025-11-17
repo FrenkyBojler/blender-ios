@@ -8,7 +8,7 @@
 
 #include "BLI_array_utils.hh"
 #include "BLI_disjoint_set.hh"
-#include "BLI_kdtree.h"
+#include "BLI_kdtree.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_ordered_edge.hh"
