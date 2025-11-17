@@ -64,11 +64,6 @@ typedef struct StripRuntime StripRuntime;
 /** \name Strip & Editing Structs
  * \{ */
 
-typedef struct StripAnim {
-  struct StripAnim *next, *prev;
-  struct MovieReader *anim;
-} StripAnim;
-
 typedef struct StripElem {
   /** File name concatenated onto #StripData::dirpath. */
   char filename[/*FILE_MAXFILE*/ 256];
@@ -207,8 +202,6 @@ typedef struct Strip {
   struct MovieClip *clip;
   /** For MASK strips. */
   struct Mask *mask;
-  /** For MOVIE strips. */
-  ListBase anims; /* StripAnim */
 
   /** Only for transition effect strips. Allows keyframing custom fade progression over time. */
   float effect_fader;

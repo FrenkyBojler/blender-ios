@@ -10,6 +10,7 @@
 
 #include "BLI_enum_flags.hh"
 #include "BLI_map.hh"
+#include "BLI_vector.hh"
 #include "BLI_vector_set.hh"
 #include "DNA_scene_types.h"
 #include "DNA_session_uid_types.h"
@@ -20,6 +21,7 @@ struct Depsgraph;
 struct Editing;
 struct Main;
 struct MetaStack;
+struct MovieReader;
 struct Scene;
 struct SeqTimelineChannel;
 struct Strip;
@@ -67,6 +69,12 @@ struct StripRuntime {
   SessionUID session_uid = {};
   StripRuntimeFlag flag = StripRuntimeFlag::None;
   void *scene_sound = nullptr; /* AUD_SequenceEntry */
+  Vector<MovieReader *, 1> movie_readers;
+
+  [[nodiscard]] MovieReader *movie_reader_get() const
+  {
+    return movie_readers.is_empty() ? nullptr : movie_readers.first();
+  }
 };
 
 SequencerToolSettings *tool_settings_init();

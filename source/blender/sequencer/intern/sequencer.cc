@@ -183,7 +183,7 @@ static void seq_strip_free_ex(Scene *scene,
     seq_free_strip(strip->data);
   }
 
-  relations_strip_free_anim(strip);
+  strip_free_movie_readers(strip);
 
   if (strip->is_effect()) {
     EffectHandle sh = strip_effect_handle_get(strip);
@@ -606,12 +606,15 @@ static Strip *strip_duplicate(StripDuplicateContext &ctx, ListBase *seqbase_dst,
 {
   Strip *strip_new = static_cast<Strip *>(MEM_dupallocN(strip));
   strip_new->runtime = MEM_new<StripRuntime>(__func__);
-  *strip_new->runtime = *strip->runtime;
+  strip_new->runtime->flag = strip->runtime->flag;
 
   ctx.strip_map.add(strip, strip_new);
 
   if ((ctx.copy_flag & LIB_ID_CREATE_NO_MAIN) == 0) {
     relations_session_uid_generate(strip_new);
+  }
+  else {
+    strip_new->runtime->session_uid = strip->runtime->session_uid;
   }
 
   strip_new->data = static_cast<StripData *>(MEM_dupallocN(strip->data));
@@ -702,7 +705,6 @@ static Strip *strip_duplicate(StripDuplicateContext &ctx, ListBase *seqbase_dst,
   }
   else if (strip->type == STRIP_TYPE_MOVIE) {
     strip_new->data->stripdata = static_cast<StripElem *>(MEM_dupallocN(strip->data->stripdata));
-    BLI_listbase_clear(&strip_new->anims);
   }
   else if (strip->type == STRIP_TYPE_SOUND_RAM) {
     strip_new->data->stripdata = static_cast<StripElem *>(MEM_dupallocN(strip->data->stripdata));
@@ -943,10 +945,6 @@ static bool strip_read_data_cb(Strip *strip, void *user_data)
   BlendDataReader *reader = (BlendDataReader *)user_data;
 
   strip->runtime = MEM_new<StripRuntime>(__func__);
-
-  /* Runtime data cleanup. */
-  BLI_listbase_clear(&strip->anims);
-
   /* Do as early as possible, so that other parts of reading can rely on valid session UID. */
   relations_session_uid_generate(strip);
 

@@ -315,14 +315,11 @@ float time_strip_fps_get(Scene *scene, Strip *strip)
   switch (strip->type) {
     case STRIP_TYPE_MOVIE: {
       strip_open_anim_file(scene, strip, true);
-      if (BLI_listbase_is_empty(&strip->anims)) {
+      const MovieReader *anim = strip->runtime->movie_reader_get();
+      if (anim == nullptr) {
         return 0.0f;
       }
-      StripAnim *strip_anim = static_cast<StripAnim *>(strip->anims.first);
-      if (strip_anim->anim == nullptr) {
-        return 0.0f;
-      }
-      return MOV_get_fps(strip_anim->anim);
+      return MOV_get_fps(anim);
     }
     case STRIP_TYPE_MOVIECLIP:
       if (strip->clip != nullptr) {
