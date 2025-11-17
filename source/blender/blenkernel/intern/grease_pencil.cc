@@ -523,7 +523,7 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
           axis_dominant_v3_to_m3(axis_mat.ptr(), normals[shape.first()]);
           const int num_points = offset_indices::sum_group_sizes(points_by_curve, shape);
 
-          float(*projverts)[2] = static_cast<float(*)[2]>(
+          float (*projverts)[2] = static_cast<float (*)[2]>(
               BLI_memarena_alloc(pf_arena, sizeof(*projverts) * size_t(num_points)));
 
           int cur_p = 0;
@@ -544,7 +544,7 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
             BLI_polyfill_calc_arena(projverts,
                                     num_points,
                                     0,
-                                    reinterpret_cast<uint32_t(*)[3]>(r_tris.data()),
+                                    reinterpret_cast<uint32_t (*)[3]>(r_tris.data()),
                                     pf_arena);
             for (const int i : r_tris.index_range()) {
               r_tris[i] += points_by_curve[shape.first()].first();
@@ -576,7 +576,7 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
 
             /* Curve have to be in a counterclockwise order, so check if a flip is need.*/
             const bool flipped = cross_poly_v2(
-                                     reinterpret_cast<const float(*)[2]>(projpoints.data()),
+                                     reinterpret_cast<const float (*)[2]>(projpoints.data()),
                                      projpoints.size()) < 0.0;
 
             for (const int p_id : points.index_range()) {
