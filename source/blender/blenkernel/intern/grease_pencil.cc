@@ -1162,8 +1162,6 @@ void Drawing::tag_positions_changed(const IndexMask &changed_curves)
   Vector<int> triangle_offsets_data(shapes.size() + 1);
   Vector<int3> triangles_data;
 
-  const CurvesGeometry &curves = this->strokes();
-
   update_triangle_and_offsets_changed(this->strokes().evaluated_positions(),
                                       this->curve_plane_normals(),
                                       this->strokes().evaluated_points_by_curve(),
@@ -1227,8 +1225,6 @@ void Drawing::tag_topology_changed(const IndexMask &changed_curves,
   if (shapes.size() == this->triangle_offsets().size()) {
     Vector<int> triangle_offsets(shapes.size() + 1);
     Vector<int3> triangles;
-
-    const CurvesGeometry &curves = this->strokes();
 
     update_triangle_and_offsets_changed(this->strokes().evaluated_positions(),
                                         this->curve_plane_normals(),
