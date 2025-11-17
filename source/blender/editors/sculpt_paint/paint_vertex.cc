@@ -1065,11 +1065,6 @@ static bool vpaint_stroke_test_start(bContext *C, wmOperator *op, const float mo
     return false;
   }
 
-  if (bke::object::pbvh_get(ob)->type() != bke::pbvh::Type::Mesh) {
-    CLOG_WARN(&LOG, "Incorrect BVH type");
-    return false;
-  }
-
   ED_mesh_color_ensure(mesh, nullptr);
 
   const std::optional<bke::AttributeMetaData> meta_data = mesh->attributes().lookup_meta_data(
