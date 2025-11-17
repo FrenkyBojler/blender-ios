@@ -313,35 +313,85 @@ template<typename T> [[nodiscard]] inline Bounds<T> segment_bounds(const T &star
   return bounds;
 }
 
+template<typename T>
+[[nodiscard]] inline bool rational_greater_than(const T &p1, const T &q1, const T &p2, const T &q2)
+{
+  BLI_assert(q1 > T(0) && q2 > T(0));
+  return p1 * q2 > p2 * q1;
+}
+template<typename T>
+[[nodiscard]] inline bool rational_less_than(const T &p1, const T &q1, const T &p2, const T &q2)
+{
+  BLI_assert(q1 > T(0) && q2 > T(0));
+  return p1 * q2 < p2 * q1;
+}
+
 /** Adaptation of Liang-Barsky for N dimensions. */
 template<typename T, int Size>
 [[nodiscard]] inline bool segment_enter_exit_bounds_v(const Bounds<VecBase<T, Size>> &bounds,
                                                       const VecBase<T, Size> &start,
                                                       const VecBase<T, Size> &end)
 {
-  double t_enter = 0.0;
-  double t_exit = 1.0;
+  /* t_enter = p_enter / q_enter */
+  T p_enter = T(0);
+  T q_enter = T(1);
+  /* t_exit = p_exit / q_exit */
+  T p_exit = T(1);
+  T q_exit = T(1);
+
   for (int i = 0; i < Size; i++) {
     const T di = end[i] - start[i];
+    /* Line is parallel to i-th axis. */
     if (di == T(0)) {
-      /* Line is parallel to i-th axis. */
       if (start[i] < bounds.min[i] || start[i] > bounds.max[i]) {
         return false;
       }
+      continue;
     }
-    else {
-      const double t1 = double(bounds.min[i] - start[i]) / double(di);
-      const double t2 = double(bounds.max[i] - start[i]) / double(di);
-      const double tmin = math::min(t1, t2);
-      const double tmax = math::max(t1, t2);
-      t_enter = math::max(t_enter, tmin);
-      t_exit = math::min(t_exit, tmax);
-      if (t_enter > t_exit) {
-        return false;
+
+    const T p_low = bounds.min[i] - start[i];
+    const T p_high = bounds.max[i] - start[i];
+
+    if (di > T(0)) {
+      /* t_low = p_low / di */
+      /* t_high = p_high / di */
+
+      /* t_low > t_enter */
+      if (rational_greater_than(p_low, di, p_enter, q_enter)) {
+        p_enter = p_low;
+        q_enter = di;
+      }
+      /* t_high < t_exit */
+      if (rational_less_than(p_high, di, p_exit, q_exit)) {
+        p_exit = p_high;
+        q_exit = di;
       }
     }
+    /* di < 0 */
+    else {
+      /* t_low = p_high / di */
+      /* t_high = p_low / di */
+
+      /* t_low > t_enter */
+      if (rational_greater_than(-p_high, -di, p_enter, q_enter)) {
+        p_enter = -p_high;
+        q_enter = -di;
+      }
+      /* t_high < t_exit */
+      if (rational_less_than(-p_low, -di, p_enter, q_enter)) {
+        p_exit = -p_low;
+        q_exit = -di;
+      }
+    }
+
+    /* t_enter > t_exit */
+    if (rational_greater_than(p_enter, q_enter, p_exit, q_exit)) {
+      return false;
+    }
   }
-  return t_exit >= 0.0 && t_enter <= 1.0;
+
+  /* t_exit >= 0 and t_enter <= 1 */
+  return p_exit >= T(0) && p_enter <= q_enter;
 }
 
 }  // namespace detail
