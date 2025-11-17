@@ -6700,6 +6700,7 @@ class VIEW3D_PT_shading_color(Panel):
         layout = self.layout
         shading = VIEW3D_PT_shading.get_shading(context)
 
+        layout.row().label(text="Background")
         layout.row().prop(shading, "background_type", expand=True)
         if shading.background_type == 'VIEWPORT':
             layout.row().prop(shading, "background_color", text="")
@@ -6715,10 +6716,8 @@ class VIEW3D_PT_shading_color(Panel):
             layout.row().label(text="Object Color")
             self._draw_color_type(context)
             self.layout.separator()
-            self.layout.row().label(text="Background")
             self._draw_background_color(context)
         elif shading.type == 'WIREFRAME':
-            self.layout.row().label(text="Background")
             self._draw_background_color(context)
 
 

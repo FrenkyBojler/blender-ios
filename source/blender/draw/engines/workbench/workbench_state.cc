@@ -179,11 +179,9 @@ void SceneState::init(const DRWContext *context,
   background_color = float4(0.0f);
   if (is_render_mode && scene->r.alphamode != R_ALPHAPREMUL) {
     if (shading.background_type == V3D_SHADING_BACKGROUND_VIEWPORT) {
+      /* NOTE: Only there to support world color override from Sequencer Edit Scene override.
+       * (see #149656) */
       background_color = float4(UNPACK3(shading.background_color), 1.0f);
-    }
-    else if (shading.background_type == V3D_SHADING_BACKGROUND_THEME) {
-      UI_GetThemeColor4fv(TH_BACK, background_color);
-      srgb_to_linearrgb_v4(background_color, background_color);
     }
     else if (World *w = scene->world) {
       background_color = float4(w->horr, w->horg, w->horb, 1.0f);
