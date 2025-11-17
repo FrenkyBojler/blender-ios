@@ -28,6 +28,7 @@
 #include "gpu_shader_dependency_private.hh"
 #include "gpu_shader_private.hh"
 
+#include <filesystem>
 #include <string>
 
 extern "C" char datatoc_gpu_shader_colorspace_lib_glsl[];
