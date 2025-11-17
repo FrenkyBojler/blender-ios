@@ -357,6 +357,30 @@ void wm_xr_session_draw_data_update(wmXrSessionState *state,
   }
 }
 
+static void wm_xr_session_state_update_navigation_scale(wmXrSessionState *state,
+                                                        const wmXrDrawData *draw_data)
+{
+  /* Set the navigation from the scene unit scale. */
+  const float scene_scale = draw_data->scene->unit.scale_length;
+
+  /* Apply an offset on the navigation position to visually counteract the scaling change. */
+  if (state->nav_scale != scene_scale) {
+    /* Get the viewer matrix without navigation applied. */
+    blender::float3 view_scaling_offset = state->viewer_mat_base[3];
+
+    const float offset_val = state->nav_scale - scene_scale;
+    view_scaling_offset *= offset_val;
+
+    /* Only apply offset on the X/Y axes for the scaling to be visible. */
+    state->nav_pose.position[0] += view_scaling_offset.x;
+    state->nav_pose.position[1] += view_scaling_offset.y;
+  }
+
+  state->nav_scale = scene_scale;
+  /* Recalculate navigation transforms using offset. */
+  state->is_navigation_dirty = true;
+}
+
 void wm_xr_session_state_update(const XrSessionSettings *settings,
                                 const wmXrDrawData *draw_data,
                                 const GHOST_XrDrawViewInfo *draw_view,
@@ -408,6 +432,7 @@ void wm_xr_session_state_update(const XrSessionSettings *settings,
   state->force_reset_to_base_pose = false;
 
   WM_xr_session_state_vignette_update(state);
+  wm_xr_session_state_update_navigation_scale(state, draw_data);
 }
 
 wmXrSessionState *WM_xr_session_state_handle_get(const wmXrData *xr)
