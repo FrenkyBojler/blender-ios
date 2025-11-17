@@ -352,11 +352,8 @@ static void initShear(TransInfo *t, wmOperator *op)
   custom_data->update_status_bar = true;
   custom_data->op = op;
 
-  PropertyRNA *prop_angle = RNA_struct_find_property(op->ptr, "angle");
-  if (prop_angle && RNA_property_is_set(op->ptr, prop_angle)) {
-    const float angle = RNA_property_float_get(op->ptr, prop_angle);
-    t->values[0] = tanf(angle);
-  }
+  const float angle = RNA_float_get(op->ptr, "angle");
+  t->values[0] = tanf(angle);
 
   transform_mode_default_modal_orientation_set(t, V3D_ORIENT_VIEW);
 }
