@@ -966,7 +966,7 @@ void WM_cursor_progress(wmWindow *win, float progress_factor)
 static void wm_add_cursor(WMCursorType cursor,
                           const char *svg_source,
                           const blender::float2 &hotspot,
-                          bool can_invert = true)
+                          bool can_invert = false)
 {
   g_cursors[cursor].svg_source = svg_source;
   g_cursors[cursor].hotspot = hotspot;
@@ -977,27 +977,27 @@ static void wm_add_cursor(WMCursorType cursor,
 void wm_init_cursor_data()
 {
 #ifndef WITH_HEADLESS
-  wm_add_cursor(WM_CURSOR_DEFAULT, datatoc_cursor_pointer_svg, {0.0f, 0.0f});
-  wm_add_cursor(WM_CURSOR_NW_ARROW, datatoc_cursor_pointer_svg, {0.0f, 0.0f});
-  wm_add_cursor(WM_CURSOR_COPY, datatoc_cursor_pointer_svg, {0.0f, 0.0f});
-  wm_add_cursor(WM_CURSOR_MOVE, datatoc_cursor_pointer_svg, {0.0f, 0.0f});
+  wm_add_cursor(WM_CURSOR_DEFAULT, datatoc_cursor_pointer_svg, {0.0f, 0.0f}, true);
+  wm_add_cursor(WM_CURSOR_NW_ARROW, datatoc_cursor_pointer_svg, {0.0f, 0.0f}, true);
+  wm_add_cursor(WM_CURSOR_COPY, datatoc_cursor_pointer_svg, {0.0f, 0.0f}, true);
+  wm_add_cursor(WM_CURSOR_MOVE, datatoc_cursor_pointer_svg, {0.0f, 0.0f}, true);
   wm_add_cursor(WM_CURSOR_TEXT_EDIT, datatoc_cursor_text_edit_svg, {0.5f, 0.5f});
-  wm_add_cursor(WM_CURSOR_WAIT, datatoc_cursor_wait_svg, {0.5f, 0.5f}, false);
+  wm_add_cursor(WM_CURSOR_WAIT, datatoc_cursor_wait_svg, {0.5f, 0.5f});
   wm_add_cursor(WM_CURSOR_STOP, datatoc_cursor_stop_svg, {0.5f, 0.5f});
   wm_add_cursor(WM_CURSOR_EDIT, datatoc_cursor_crosshair_svg, {0.5f, 0.5f});
-  wm_add_cursor(WM_CURSOR_HAND, datatoc_cursor_hand_svg, {0.5f, 0.5f}, false);
-  wm_add_cursor(WM_CURSOR_HAND_CLOSED, datatoc_cursor_hand_closed_svg, {0.5f, 0.5f}, false);
-  wm_add_cursor(WM_CURSOR_HAND_POINT, datatoc_cursor_hand_point_svg, {0.5f, 0.5f}, false);
+  wm_add_cursor(WM_CURSOR_HAND, datatoc_cursor_hand_svg, {0.5f, 0.5f});
+  wm_add_cursor(WM_CURSOR_HAND_CLOSED, datatoc_cursor_hand_closed_svg, {0.5f, 0.5f});
+  wm_add_cursor(WM_CURSOR_HAND_POINT, datatoc_cursor_hand_point_svg, {0.5f, 0.5f});
   wm_add_cursor(WM_CURSOR_CROSS, datatoc_cursor_crosshair_svg, {0.5f, 0.5f});
   wm_add_cursor(WM_CURSOR_PAINT, datatoc_cursor_paint_svg, {0.5f, 0.5f});
   wm_add_cursor(WM_CURSOR_DOT, datatoc_cursor_dot_svg, {0.5f, 0.5f});
   wm_add_cursor(WM_CURSOR_CROSSC, datatoc_cursor_crossc_svg, {0.5f, 0.5f});
-  wm_add_cursor(WM_CURSOR_KNIFE, datatoc_cursor_knife_svg, {0.0f, 1.0f}, false);
-  wm_add_cursor(WM_CURSOR_BLADE, datatoc_cursor_blade_svg, {0.0f, 0.375f}, false);
+  wm_add_cursor(WM_CURSOR_KNIFE, datatoc_cursor_knife_svg, {0.0f, 1.0f});
+  wm_add_cursor(WM_CURSOR_BLADE, datatoc_cursor_blade_svg, {0.0f, 0.375f});
   wm_add_cursor(WM_CURSOR_VERTEX_LOOP, datatoc_cursor_vertex_loop_svg, {0.0f, 0.0f});
-  wm_add_cursor(WM_CURSOR_PAINT_BRUSH, datatoc_cursor_pencil_svg, {0.0f, 1.0f}, false);
-  wm_add_cursor(WM_CURSOR_ERASER, datatoc_cursor_eraser_svg, {0.0f, 1.0f}, false);
-  wm_add_cursor(WM_CURSOR_EYEDROPPER, datatoc_cursor_eyedropper_svg, {0.0f, 1.0f}, false);
+  wm_add_cursor(WM_CURSOR_PAINT_BRUSH, datatoc_cursor_pencil_svg, {0.0f, 1.0f});
+  wm_add_cursor(WM_CURSOR_ERASER, datatoc_cursor_eraser_svg, {0.0f, 1.0f});
+  wm_add_cursor(WM_CURSOR_EYEDROPPER, datatoc_cursor_eyedropper_svg, {0.0f, 1.0f});
   wm_add_cursor(WM_CURSOR_SWAP_AREA, datatoc_cursor_swap_area_svg, {0.5f, 0.5f});
   wm_add_cursor(WM_CURSOR_X_MOVE, datatoc_cursor_x_move_svg, {0.5f, 0.5f});
   wm_add_cursor(WM_CURSOR_EW_ARROW, datatoc_cursor_x_move_svg, {0.5f, 0.5f});
@@ -1012,8 +1012,8 @@ void wm_init_cursor_data()
   wm_add_cursor(WM_CURSOR_NSEW_SCROLL, datatoc_cursor_nsew_scroll_svg, {0.5f, 0.5f});
   wm_add_cursor(WM_CURSOR_EW_SCROLL, datatoc_cursor_ew_scroll_svg, {0.5f, 0.5f});
   wm_add_cursor(WM_CURSOR_NS_SCROLL, datatoc_cursor_ns_scroll_svg, {0.5f, 0.5f});
-  wm_add_cursor(WM_CURSOR_ZOOM_IN, datatoc_cursor_zoom_in_svg, {0.32f, 0.32f}, false);
-  wm_add_cursor(WM_CURSOR_ZOOM_OUT, datatoc_cursor_zoom_out_svg, {0.32f, 0.32f}, false);
+  wm_add_cursor(WM_CURSOR_ZOOM_IN, datatoc_cursor_zoom_in_svg, {0.32f, 0.32f});
+  wm_add_cursor(WM_CURSOR_ZOOM_OUT, datatoc_cursor_zoom_out_svg, {0.32f, 0.32f});
   wm_add_cursor(WM_CURSOR_MUTE, datatoc_cursor_mute_svg, {0.59f, 0.59f});
   wm_add_cursor(WM_CURSOR_PICK_AREA, datatoc_cursor_pick_area_svg, {0.5f, 0.5f});
   wm_add_cursor(WM_CURSOR_BOTH_HANDLES, datatoc_cursor_both_handles_svg, {0.5f, 0.5f});
