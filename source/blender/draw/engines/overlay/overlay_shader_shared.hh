@@ -33,11 +33,14 @@ enum OVERLAY_GridBits : uint32_t {
   SHOW_AXIS_Y = (1u << 1u),
   SHOW_AXIS_Z = (1u << 2u),
   SHOW_GRID = (1u << 3u),
+
   PLANE_XY = (1u << 4u),
   PLANE_XZ = (1u << 5u),
   PLANE_YZ = (1u << 6u),
+  
   CLIP_ZPOS = (1u << 7u),
   CLIP_ZNEG = (1u << 8u),
+  
   GRID_BACK = (1u << 9u),
   GRID_CAMERA = (1u << 10u),
   PLANE_IMAGE = (1u << 11u),

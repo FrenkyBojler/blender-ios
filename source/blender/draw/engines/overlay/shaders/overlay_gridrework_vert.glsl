@@ -23,8 +23,8 @@ VERTEX_SHADER_CREATE_INFO(overlay_gridrework_next)
  * and the level it is placed on. See `get_line_data()` below. */
 struct LineData {
   /* TODO (not_mark): remove if unnecessary */
-  /* uint dir;
-  uint side; */
+  /* uint side; */
+  uint dir;
   float2 P;
   int level;
 };
@@ -38,7 +38,7 @@ LineData get_line_data(in uint vertex_id)
   vertex_id = vertex_id >> 1u;
 
   /* Every pair of consecutive lines alternates x/y direction, indicated by bit 1. */
-  /* line. */ uint dir = vertex_id & 0x1u;
+  line.dir = vertex_id & 0x1u;
   vertex_id = vertex_id >> 1u;
 
   /* The index/level of a line are encoded by the 30 remaining bits. */
@@ -53,7 +53,7 @@ LineData get_line_data(in uint vertex_id)
   line.P.x = select(line.P.x, -line.P.x, /* line. */side);
 
   /* If this isn't the x-direction, flip x/y-coords to define the y-direction. */
-  line.P.xy = select(line.P.xy, line.P.yx, /* line. */dir);
+  line.P.xy = select(line.P.xy, line.P.yx, line.dir);
 
   return line;
 }
@@ -69,13 +69,13 @@ void main()
   local_alpha = line.level > 0 ? 1.0f : 1.0f - fract(grid_level);
 
   /* All values operate on the X, Y plane for simplicity. */
-  float2 P = line.P.xy;
+  float2 P = line.P;
   float2 P_offset = grid_poi;
-  
+
   /* Compute the actual level of grid data, offset by -1 to always draw a sub-level. Then
    * scale the grid line based on this level */
   int level = int(grid_level) + line.level - 1;
-  float scale = grid_buf.level_scales[level].x;
+  float scale = grid_buf.level_scales[level][line.dir];
   P *= scale;
 
   /* Modify fade based on pixel size for orthographic, as we lack proper dfdx/dfdy on lines. */

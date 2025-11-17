@@ -35,10 +35,13 @@ class GridRework : Overlay {
   uint num_lines_per_level_;
 
   /* General parameters. */
-  Array<float, OVERLAY_GRID_STEPS_LEN> level_scales_;
   bool is_3d_grid_ = false;
+  
+  /* TODO(not_mark): figure these guys out */
   float3 grid_axes_ = float3(0.0f);
   float3 zplane_axes_ = float3(0.0f);
+  
+  /* Draw information. */
   float2 grid_poi_ = float2(0.0f);
   float grid_level_;
 
@@ -51,7 +54,9 @@ class GridRework : Overlay {
  public:
   void begin_sync(Resources &res, const State &state) final
   {
+    is_3d_grid_ = state.is_space_v3d();
     enabled_ = !state.is_space_node() && init(state);
+
     if (!enabled_) {
       grid_ps_.init();
       return;
@@ -106,12 +111,55 @@ class GridRework : Overlay {
     num_lines_per_level_ = 255; 
     grid_ubo_.num_lines_per_level = num_lines_per_level_;
 
-    return init_3d(state);
+    return /* is_3d_grid_ ? */ init_3d(state) /* : init_2d(state) */;
   }
 
   bool init_2d(const State &state)
   {
-    /* ... */
+    const View2D *v2d = &state.region->v2d;
+    SpaceImage *sima = (SpaceImage *)state.space_data;
+
+    /* Check if overlay is enabled in the first place */
+    if (state.hide_overlays) {
+      return false;
+    }
+
+    /* Query different options from overlay/spaceimage state. Only UV edit has 
+     * overlay options for now. */
+    const bool is_uv_edit = sima->mode == SI_MODE_UV;
+    const bool background_enabled = is_uv_edit 
+      ? sima->overlay.flag & SI_OVERLAY_SHOW_GRID_BACKGROUND != 0 
+      : true;
+    const bool draw_grid = is_uv_edit || !ED_space_image_has_buffer(sima);
+    
+    /* Process grid flags. */
+    if (background_enabled) {
+      grid_flag_ = GRID_BACK | PLANE_IMAGE;
+      if (sima->flag & SI_GRID_OVER_IMAGE) {
+        grid_flag_ = PLANE_IMAGE;
+      }
+    }
+    if (background_enabled && draw_grid) {
+      grid_flag_ |= SHOW_GRID;
+      if (is_uv_edit && sima->grid_shape_source != SI_GRID_SHAPE_DYNAMIC) {
+        grid_flag_ |= CUSTOM_GRID;
+      }
+    }
+
+    /* Query grid step/level scalings; these can differ per axis. */
+    std::array<float, SI_GRID_STEPS_LEN> steps_x
+     = {1e-3f, 1e-2f, 1e-1f, 1e0f, 1e1f, 1e2f, 1e3f, 1e4f};
+    std::array<float, SI_GRID_STEPS_LEN> steps_y;
+    ED_space_image_grid_steps(sima, steps_x.data(), steps_y.data(), SI_GRID_STEPS_LEN);
+    for (int i = 0; i < SI_GRID_STEPS_LEN; ++i) {
+      grid_ubo_.level_scales[i].x = steps_x[i];
+      grid_ubo_.level_scales[i].y = steps_y[i];
+    }
+
+    /* TODO (not_mark): description here. */
+    grid_ubo_.distance = 1.0f;
+    // grid_level_ = /* ... */;
+    // grid_poi_ = /* ... */;
 
     return true;
   }
@@ -156,9 +204,9 @@ class GridRework : Overlay {
       else if (ELEM(rv3d->view, RV3D_VIEW_FRONT, RV3D_VIEW_BACK)) {
         grid_flag_ = PLANE_XZ | grid_x_flag | grid_z_flag;
       }
-
-      /* If orthographic view, specify grid flags to draw behind all objects. */
-      grid_flag_ |= (show_ortho_grid ? GRID_BACK | SHOW_GRID : 0);
+      if (show_ortho_grid) {
+        grid_flag_ |= GRID_BACK | SHOW_GRID;
+      }
     }
 
     /* Enable Z-axis, if requested. */
@@ -175,19 +223,16 @@ class GridRework : Overlay {
     }
     else {
       v3d_clip_end = v3d->clip_end;
-
-      std::printf("%f - %f -%f\n",
-                  2.0f / rv3d->winmat[0][0],
-                  2.0f / rv3d->winmat[1][1],
-                  2.0f / rv3d->winmat[2][2]);
     }
     grid_ubo_.distance = v3d_clip_end;
 
     /* Query grid scales from unit/scaling; this range suffices for user-visible levels. */
-    level_scales_ = {1e-3f, 1e-2f, 1e-1f, 1e0f, 1e1f, 1e2f, 1e3f, 1e4f};
-    ED_view3d_grid_steps(state.scene, v3d, rv3d, level_scales_.data());
-    for (int i = 0; i < level_scales_.size(); ++i) {
-      grid_ubo_.level_scales[i][0] = level_scales_[i];
+    Array<float, SI_GRID_STEPS_LEN> steps
+      = {1e-3f, 1e-2f, 1e-1f, 1e0f, 1e1f, 1e2f, 1e3f, 1e4f};
+    ED_view3d_grid_steps(state.scene, v3d, rv3d, steps.data());
+    for (int i = 0; i < SI_GRID_STEPS_LEN; ++i) {
+      grid_ubo_.level_scales[i].x = steps[i];
+      grid_ubo_.level_scales[i].y = steps[i];
     }
 
     /* Compute distance to a relevant floor point-of-interest from the camera. The grid translates
@@ -222,23 +267,17 @@ class GridRework : Overlay {
     /* Find the lowest relevant grid level + fractional, dependent on camera distance. We
      * fake a order of magnitude extra level, as in orthographic cameras the maximum zoom
      * barely exceeds the largest specified grid scale in unit systems. */
-    for (int i = 0; i < level_scales_.size() - 1; i++) {
-      float curr = level_scales_[i];
-      float next = i < level_scales_.size() - 1 ? level_scales_[i + 1] : 10.0f * curr;
-      if (next >= dist || i == level_scales_.size() - 1) {
+    /* TODO(not_mark): half of this loop is unreachable. Fix. */
+    for (int i = 0; i < OVERLAY_GRID_STEPS_LEN - 1; i++) {
+      float curr = std::min(grid_ubo_.level_scales[i].x, grid_ubo_.level_scales[i].y);
+      float next
+        = (i < OVERLAY_GRID_STEPS_LEN - 1)
+        ? std::min(grid_ubo_.level_scales[i + 1].x, grid_ubo_.level_scales[i + 1].y) 
+        : curr * 10.0f;
+      if (next >= dist || i == OVERLAY_GRID_STEPS_LEN - 1) {
         grid_level_ = static_cast<float>(i) + safe_divide(dist - curr, next - curr);
         break;
       }
-    }
-
-    std::printf("lvl: %d \t(%f)\n", static_cast<uint>(grid_level_), grid_level_);
-    for (int i = 0; i < level_scales_.size(); ++i) {
-      std::printf("\t%d - %f", i, level_scales_[i]);
-      if (i < level_scales_.size() - 1) {
-        uint ratio = static_cast<uint>(level_scales_[i + 1] / level_scales_[i]);
-        std::printf(" - %d", ratio);
-      }
-      std::printf("\n");
     }
 
     return true;

@@ -55,6 +55,12 @@ void main()
     }
   }
 
+  /* Primary axis colors/alphas. */
+  if (flag_test(grid_flag, (SHOW_AXIS_X | SHOW_AXIS_Y | SHOW_AXIS_Z))) {
+    
+
+  }
+
   /* Depth testing. */
   {
     /* Perform depth texture lookup */
