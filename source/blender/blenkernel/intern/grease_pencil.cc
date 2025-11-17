@@ -614,24 +614,21 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
             faces[pos].resize(points.size());
             og_face_to_curve_map[pos] = curve_i;
 
-            const Span<float2> projpoints = projverts_span.slice(shape_points);
-
-            /* Curve have to be in a counterclockwise order, so check if a flip is need.*/
-            const bool flipped = cross_poly_v2(
-                                     reinterpret_cast<const float (*)[2]>(projpoints.data()),
-                                     projpoints.size()) < 0.0;
-
             for (const int i : points.index_range()) {
               const int curve_p = points[i];
               const int shape_p = shape_points[i];
 
               og_vert_to_point_map[shape_p] = curve_p;
-              if (flipped) {
-                faces[pos][(points.size() - 1) - i] = shape_p;
-              }
-              else {
-                faces[pos][i] = shape_p;
-              }
+              faces[pos][i] = shape_p;
+            }
+
+            const Span<float2> projpoints = projverts_span.slice(shape_points);
+
+            /* Curve have to be in a counterclockwise order, so check if a flip is need.*/
+            if (cross_poly_v2(reinterpret_cast<const float (*)[2]>(projpoints.data()),
+                              projpoints.size()) < 0.0)
+            {
+              faces[pos].as_mutable_span().reverse();
             }
           });
 
