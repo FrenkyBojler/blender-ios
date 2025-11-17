@@ -183,6 +183,11 @@ static bool compile_ex(shaderc::Compiler &compiler,
                        shaderc_shader_kind stage,
                        VKShaderModule &shader_module)
 {
+  std::string full_name = shader.name_get() + "_" + to_stage_name(stage);
+
+  Shader::dump_source_to_disk(
+      shader.name_get(), full_name, ".glsl", shader_module.combined_sources);
+
   if (read_spirv_from_disk(shader_module)) {
     return true;
   }
@@ -216,11 +221,6 @@ static bool compile_ex(shaderc::Compiler &compiler,
   if (G.debug & G_DEBUG_GPU_SHADER_DEBUG_INFO) {
     options.SetGenerateDebugInfo();
   }
-
-  std::string full_name = shader.name_get() + "_" + to_stage_name(stage);
-
-  Shader::dump_source_to_disk(
-      shader.name_get(), full_name, ".glsl", shader_module.combined_sources);
 
   /* Removes line directive. */
   std::string sources = patch_line_directives(shader_module.combined_sources);
