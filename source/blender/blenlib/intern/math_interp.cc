@@ -46,6 +46,30 @@ BLI_INLINE int wrap_coord(float u, int size, InterpWrapMode wrap)
   }
 }
 
+BLI_INLINE void nearest_fl_impl(const float *buffer,
+                                float *output,
+                                int width,
+                                int height,
+                                int components,
+                                float u,
+                                float v,
+                                InterpWrapMode wrap_u,
+                                InterpWrapMode wrap_v)
+{
+  int x = wrap_coord(u, width, wrap_u);
+  int y = wrap_coord(v, height, wrap_v);
+  if (x < 0 || y < 0) {
+    for (int i = 0; i < components; i++) {
+      output[i] = 0.0f;
+    }
+    return;
+  }
+  const float *data = buffer + (int64_t(width) * y + x) * components;
+  for (int i = 0; i < components; i++) {
+    output[i] = data[i];
+  }
+}
+
 void interpolate_nearest_wrapmode_fl(const float *buffer,
                                      float *output,
                                      int width,
@@ -57,19 +81,7 @@ void interpolate_nearest_wrapmode_fl(const float *buffer,
                                      InterpWrapMode wrap_v)
 {
   BLI_assert(buffer);
-  int x = wrap_coord(u, width, wrap_u);
-  int y = wrap_coord(v, height, wrap_v);
-  if (x < 0 || y < 0) {
-    for (int i = 0; i < components; i++) {
-      output[i] = 0.0f;
-    }
-    return;
-  }
-
-  const float *data = buffer + (int64_t(width) * y + x) * components;
-  for (int i = 0; i < components; i++) {
-    output[i] = data[i];
-  }
+  nearest_fl_impl(buffer, output, width, height, components, u, v, wrap_u, wrap_v);
 }
 
 enum class eCubicFilter {
@@ -694,50 +706,6 @@ void interpolate_cubic_mitchell_fl(
 static const int MAX_PER_RADIUS = 8;
 static const int MAX_SAMPLES = 4 * MAX_PER_RADIUS + 1;
 
-/* Compute a 1-d nearest filter */
-BLI_INLINE int make_samples_nearest(int width,
-                                    InterpWrapMode wrap,
-                                    float u,
-                                    float, /* w */
-                                    int positions[MAX_SAMPLES],
-                                    float weights[MAX_SAMPLES])
-{
-  /* this is much simpler */
-  int y = wrap_coord(u, width, wrap);
-  if (y < 0) {
-    return 0;
-  }
-  positions[0] = y;
-  weights[0] = 1.0f;
-  return 1;
-}
-
-BLI_INLINE int make_samples_bilinear(int width,
-                                     InterpWrapMode wrap,
-                                     float u,
-                                     float, /* w */
-                                     int positions[MAX_SAMPLES],
-                                     float weights[MAX_SAMPLES])
-{
-  float f = u - floorf(u);
-  int n = 0;
-  int y = wrap_coord(u, width, wrap);
-  if (y >= 0) {
-    positions[0] = y;
-    weights[0] = 1.0f - f;
-    n = 1;
-  }
-  if (f) {
-    y = wrap_coord(u + 1, width, wrap);
-    if (y >= 0) {
-      positions[n] = y;
-      weights[n] = f;
-      n++;
-    }
-  }
-  return n;
-}
-
 /* Compute a 1-d box filter */
 BLI_INLINE int make_samples_box(int width,
                                 InterpWrapMode wrap,
@@ -818,16 +786,7 @@ BLI_INLINE float4 _sample_rect(Sampler sampler, InterpWrapMode wrap_x, InterpWra
   int positions_x[MAX_SAMPLES];
   float weights_x[MAX_SAMPLES];
   int nx;
-
   switch (sampler) {
-  case Sampler::Nearest:
-    ny = make_samples_nearest(height, wrap_y, uv.y, wh.y, positions_y, weights_y);
-    nx = make_samples_nearest(width, wrap_x, uv.x, wh.x, positions_x, weights_x);
-    break;
-  case Sampler::Bilinear:
-    ny = make_samples_bilinear(height, wrap_y, uv.y, wh.y, positions_y, weights_y);
-    nx = make_samples_bilinear(width, wrap_x, uv.x, wh.x, positions_x, weights_x);
-    break;
   default: //case Sampler::Box:
     ny = make_samples_box(height, wrap_y, uv.y, wh.y, positions_y, weights_y);
     nx = make_samples_box(width, wrap_x, uv.x, wh.x, positions_x, weights_x);
@@ -911,30 +870,20 @@ BLI_INLINE float4 _sample_rect(Sampler sampler, InterpWrapMode wrap_x, InterpWra
 static float4 sample_nearest(const SamplerSource &source, const float2 &uv, const float2 &)
 {
   float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
-  interpolate_nearest_wrapmode_fl(source.buffer,
-                                  pixel_value,
-                                  source.width,
-                                  source.height,
-                                  source.components,
-                                  uv.x,
-                                  uv.y,
-                                  source.wrap_x,
-                                  source.wrap_y);
+  nearest_fl_impl(source.buffer, pixel_value,
+                  source.width, source.height, source.components,
+                  uv.x, uv.y,
+                  source.wrap_x, source.wrap_y);
   return pixel_value;
 }
 
 static float4 sample_bilinear(const SamplerSource &source, const float2 &uv, const float2 &)
 {
   float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
-  interpolate_bilinear_wrapmode_fl(source.buffer,
-                                   pixel_value,
-                                   source.width,
-                                   source.height,
-                                   source.components,
-                                   uv.x - 0.5f,
-                                   uv.y - 0.5f,
-                                   source.wrap_x,
-                                   source.wrap_y);
+  bilinear_fl_impl(source.buffer, pixel_value,
+                   source.width, source.height, source.components,
+                   uv.x - 0.5f, uv.y - 0.5f,
+                   source.wrap_x, source.wrap_y);
   return pixel_value;
 }
 
@@ -942,13 +891,6 @@ static float4 sample_box(const SamplerSource &source, const float2 &uv, const fl
 {
   return _sample_rect(Sampler::Box, source.wrap_x, source.wrap_y,
                       source.buffer, source.width, source.height, source.components,
-                      uv, wh);
-}
-
-static float4 sample_box4(const SamplerSource &source, const float2 &uv, const float2 &wh)
-{
-  return _sample_rect(Sampler::Box, source.wrap_x, source.wrap_y,
-                      source.buffer, source.width, source.height, 4,
                       uv, wh);
 }
 
@@ -967,7 +909,7 @@ SampleRect sample_rect(const SamplerSource &source)
     case Sampler::Bilinear:
       return sample_bilinear;
     default: /* case Sampler::Box */
-      return source.components == 4 ? sample_box4 : sample_box;
+      return sample_box;
     case Sampler::Bspline:
       return sample_bspline;
   }
