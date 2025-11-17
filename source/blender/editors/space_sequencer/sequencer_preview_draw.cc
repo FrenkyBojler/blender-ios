@@ -989,7 +989,7 @@ static int sequencer_draw_get_transform_preview_frame(const Scene *scene)
 {
   int preview_frame;
 
-  if (!(scene->ed->runtime.flag & SEQ_SHOW_TRANSFORM_PREVIEW)) {
+  if (scene->ed->runtime.flag & SEQ_SHOW_TRANSFORM_PREVIEW) {
     preview_frame = scene->ed->runtime.vse_preview_frame;
     return preview_frame;
   }
