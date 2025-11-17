@@ -1432,7 +1432,6 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
             invert_m4_m4(ob->runtime->world_to_object.ptr(), ob->object_to_world().ptr());
             mul_m4_v3(ob->world_to_object().ptr(), cent);
           }
-          
           add_v3_v3(ob->instance_collection->instance_offset, cent);
 
           tot_change++;
