@@ -28,7 +28,8 @@
 
 #include "mask_intern.hh" /* own include */
 
-static void select_only_layer_shape(MaskLayer* mask_layer, MaskLayerShape* mask_layer_shape) {
+static void select_only_layer_shape(MaskLayer *mask_layer, MaskLayerShape *mask_layer_shape)
+{
   LISTBASE_FOREACH (MaskLayerShape *, mask_layer_shape_iter, &mask_layer->splines_shapes) {
     mask_layer_shape_iter->flag &= ~MASK_SHAPE_SELECT;
   }
