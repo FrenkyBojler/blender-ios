@@ -49,13 +49,11 @@ struct RecordingState {
   bool specialization_constants_in_use = false;
   /* True if the bound shader uses specialization. */
   bool shader_use_specialization = false;
-  GPUShader *shader = nullptr;
+  gpu::Shader *shader = nullptr;
   bool front_facing = true;
   bool inverted_view = false;
   DRWState pipeline_state = DRW_STATE_NO_DRAW;
   int clip_plane_count = 0;
-  /** Used for gl_BaseInstance workaround. */
-  GPUStorageBuf *resource_id_buf = nullptr;
   /** Used for pass simple resource ID. Starts at 1 as 0 is the identity handle. */
   int instance_offset = 1;
 
@@ -137,14 +135,14 @@ struct Header {
 };
 
 struct ShaderBind {
-  GPUShader *shader;
+  gpu::Shader *shader;
 
   void execute(RecordingState &state) const;
   std::string serialize() const;
 };
 
 struct FramebufferBind {
-  GPUFrameBuffer **framebuffer;
+  gpu::FrameBuffer **framebuffer;
 
   void execute() const;
   std::string serialize() const;
@@ -179,10 +177,10 @@ struct ResourceBind {
   union {
     /** TODO: Use draw::Texture|StorageBuffer|UniformBuffer as resources as they will give more
      * debug info. */
-    GPUUniformBuf *uniform_buf;
-    GPUUniformBuf **uniform_buf_ref;
-    GPUStorageBuf *storage_buf;
-    GPUStorageBuf **storage_buf_ref;
+    gpu::UniformBuf *uniform_buf;
+    gpu::UniformBuf **uniform_buf_ref;
+    gpu::StorageBuf *storage_buf;
+    gpu::StorageBuf **storage_buf_ref;
     /** NOTE: Texture is used for both Sampler and Image binds. */
     gpu::Texture *texture;
     gpu::Texture **texture_ref;
@@ -194,38 +192,38 @@ struct ResourceBind {
 
   ResourceBind() = default;
 
-  ResourceBind(int slot_, GPUUniformBuf *res)
-      : slot(slot_), is_reference(false), type(Type::UniformBuf), uniform_buf(res){};
-  ResourceBind(int slot_, GPUUniformBuf **res)
-      : slot(slot_), is_reference(true), type(Type::UniformBuf), uniform_buf_ref(res){};
-  ResourceBind(int slot_, GPUStorageBuf *res)
-      : slot(slot_), is_reference(false), type(Type::StorageBuf), storage_buf(res){};
-  ResourceBind(int slot_, GPUStorageBuf **res)
-      : slot(slot_), is_reference(true), type(Type::StorageBuf), storage_buf_ref(res){};
-  ResourceBind(int slot_, GPUUniformBuf *res, Type /*type*/)
-      : slot(slot_), is_reference(false), type(Type::UniformAsStorageBuf), uniform_buf(res){};
-  ResourceBind(int slot_, GPUUniformBuf **res, Type /*type*/)
-      : slot(slot_), is_reference(true), type(Type::UniformAsStorageBuf), uniform_buf_ref(res){};
+  ResourceBind(int slot_, gpu::UniformBuf *res)
+      : slot(slot_), is_reference(false), type(Type::UniformBuf), uniform_buf(res) {};
+  ResourceBind(int slot_, gpu::UniformBuf **res)
+      : slot(slot_), is_reference(true), type(Type::UniformBuf), uniform_buf_ref(res) {};
+  ResourceBind(int slot_, gpu::StorageBuf *res)
+      : slot(slot_), is_reference(false), type(Type::StorageBuf), storage_buf(res) {};
+  ResourceBind(int slot_, gpu::StorageBuf **res)
+      : slot(slot_), is_reference(true), type(Type::StorageBuf), storage_buf_ref(res) {};
+  ResourceBind(int slot_, gpu::UniformBuf *res, Type /*type*/)
+      : slot(slot_), is_reference(false), type(Type::UniformAsStorageBuf), uniform_buf(res) {};
+  ResourceBind(int slot_, gpu::UniformBuf **res, Type /*type*/)
+      : slot(slot_), is_reference(true), type(Type::UniformAsStorageBuf), uniform_buf_ref(res) {};
   ResourceBind(int slot_, gpu::VertBuf *res, Type /*type*/)
-      : slot(slot_), is_reference(false), type(Type::VertexAsStorageBuf), vertex_buf(res){};
+      : slot(slot_), is_reference(false), type(Type::VertexAsStorageBuf), vertex_buf(res) {};
   ResourceBind(int slot_, gpu::VertBuf **res, Type /*type*/)
-      : slot(slot_), is_reference(true), type(Type::VertexAsStorageBuf), vertex_buf_ref(res){};
+      : slot(slot_), is_reference(true), type(Type::VertexAsStorageBuf), vertex_buf_ref(res) {};
   ResourceBind(int slot_, gpu::IndexBuf *res, Type /*type*/)
-      : slot(slot_), is_reference(false), type(Type::IndexAsStorageBuf), index_buf(res){};
+      : slot(slot_), is_reference(false), type(Type::IndexAsStorageBuf), index_buf(res) {};
   ResourceBind(int slot_, gpu::IndexBuf **res, Type /*type*/)
-      : slot(slot_), is_reference(true), type(Type::IndexAsStorageBuf), index_buf_ref(res){};
+      : slot(slot_), is_reference(true), type(Type::IndexAsStorageBuf), index_buf_ref(res) {};
   ResourceBind(int slot_, draw::Image *res)
-      : slot(slot_), is_reference(false), type(Type::Image), texture(draw::as_texture(res)){};
+      : slot(slot_), is_reference(false), type(Type::Image), texture(draw::as_texture(res)) {};
   ResourceBind(int slot_, draw::Image **res)
-      : slot(slot_), is_reference(true), type(Type::Image), texture_ref(draw::as_texture(res)){};
+      : slot(slot_), is_reference(true), type(Type::Image), texture_ref(draw::as_texture(res)) {};
   ResourceBind(int slot_, gpu::Texture *res, GPUSamplerState state)
-      : sampler(state), slot(slot_), is_reference(false), type(Type::Sampler), texture(res){};
+      : sampler(state), slot(slot_), is_reference(false), type(Type::Sampler), texture(res) {};
   ResourceBind(int slot_, gpu::Texture **res, GPUSamplerState state)
-      : sampler(state), slot(slot_), is_reference(true), type(Type::Sampler), texture_ref(res){};
+      : sampler(state), slot(slot_), is_reference(true), type(Type::Sampler), texture_ref(res) {};
   ResourceBind(int slot_, gpu::VertBuf *res)
-      : slot(slot_), is_reference(false), type(Type::BufferSampler), vertex_buf(res){};
+      : slot(slot_), is_reference(false), type(Type::BufferSampler), vertex_buf(res) {};
   ResourceBind(int slot_, gpu::VertBuf **res)
-      : slot(slot_), is_reference(true), type(Type::BufferSampler), vertex_buf_ref(res){};
+      : slot(slot_), is_reference(true), type(Type::BufferSampler), vertex_buf_ref(res) {};
 
   void execute() const;
   std::string serialize() const;
@@ -270,42 +268,43 @@ struct PushConstant {
   PushConstant() = default;
 
   PushConstant(int loc, const float &val)
-      : location(loc), array_len(1), comp_len(1), type(Type::FloatValue), float1_value(val){};
+      : location(loc), array_len(1), comp_len(1), type(Type::FloatValue), float1_value(val) {};
   PushConstant(int loc, const float2 &val)
-      : location(loc), array_len(1), comp_len(2), type(Type::FloatValue), float2_value(val){};
+      : location(loc), array_len(1), comp_len(2), type(Type::FloatValue), float2_value(val) {};
   PushConstant(int loc, const float3 &val)
-      : location(loc), array_len(1), comp_len(3), type(Type::FloatValue), float3_value(val){};
+      : location(loc), array_len(1), comp_len(3), type(Type::FloatValue), float3_value(val) {};
   PushConstant(int loc, const float4 &val)
-      : location(loc), array_len(1), comp_len(4), type(Type::FloatValue), float4_value(val){};
+      : location(loc), array_len(1), comp_len(4), type(Type::FloatValue), float4_value(val) {};
 
   PushConstant(int loc, const int &val)
-      : location(loc), array_len(1), comp_len(1), type(Type::IntValue), int1_value(val){};
+      : location(loc), array_len(1), comp_len(1), type(Type::IntValue), int1_value(val) {};
   PushConstant(int loc, const int2 &val)
-      : location(loc), array_len(1), comp_len(2), type(Type::IntValue), int2_value(val){};
+      : location(loc), array_len(1), comp_len(2), type(Type::IntValue), int2_value(val) {};
   PushConstant(int loc, const int3 &val)
-      : location(loc), array_len(1), comp_len(3), type(Type::IntValue), int3_value(val){};
+      : location(loc), array_len(1), comp_len(3), type(Type::IntValue), int3_value(val) {};
   PushConstant(int loc, const int4 &val)
-      : location(loc), array_len(1), comp_len(4), type(Type::IntValue), int4_value(val){};
+      : location(loc), array_len(1), comp_len(4), type(Type::IntValue), int4_value(val) {};
 
   PushConstant(int loc, const float *val, int arr)
-      : location(loc), array_len(arr), comp_len(1), type(Type::FloatReference), float_ref(val){};
+      : location(loc), array_len(arr), comp_len(1), type(Type::FloatReference), float_ref(val) {};
   PushConstant(int loc, const float2 *val, int arr)
-      : location(loc), array_len(arr), comp_len(2), type(Type::FloatReference), float2_ref(val){};
+      : location(loc), array_len(arr), comp_len(2), type(Type::FloatReference), float2_ref(val) {};
   PushConstant(int loc, const float3 *val, int arr)
-      : location(loc), array_len(arr), comp_len(3), type(Type::FloatReference), float3_ref(val){};
+      : location(loc), array_len(arr), comp_len(3), type(Type::FloatReference), float3_ref(val) {};
   PushConstant(int loc, const float4 *val, int arr)
-      : location(loc), array_len(arr), comp_len(4), type(Type::FloatReference), float4_ref(val){};
+      : location(loc), array_len(arr), comp_len(4), type(Type::FloatReference), float4_ref(val) {};
   PushConstant(int loc, const float4x4 *val)
-      : location(loc), array_len(1), comp_len(16), type(Type::FloatReference), float4x4_ref(val){};
+      : location(loc), array_len(1), comp_len(16), type(Type::FloatReference), float4x4_ref(val) {
+        };
 
   PushConstant(int loc, const int *val, int arr)
-      : location(loc), array_len(arr), comp_len(1), type(Type::IntReference), int_ref(val){};
+      : location(loc), array_len(arr), comp_len(1), type(Type::IntReference), int_ref(val) {};
   PushConstant(int loc, const int2 *val, int arr)
-      : location(loc), array_len(arr), comp_len(2), type(Type::IntReference), int2_ref(val){};
+      : location(loc), array_len(arr), comp_len(2), type(Type::IntReference), int2_ref(val) {};
   PushConstant(int loc, const int3 *val, int arr)
-      : location(loc), array_len(arr), comp_len(3), type(Type::IntReference), int3_ref(val){};
+      : location(loc), array_len(arr), comp_len(3), type(Type::IntReference), int3_ref(val) {};
   PushConstant(int loc, const int4 *val, int arr)
-      : location(loc), array_len(arr), comp_len(4), type(Type::IntReference), int4_ref(val){};
+      : location(loc), array_len(arr), comp_len(4), type(Type::IntReference), int4_ref(val) {};
 
   void execute(RecordingState &state) const;
   std::string serialize() const;
@@ -313,7 +312,7 @@ struct PushConstant {
 
 struct SpecializeConstant {
   /* Shader to set the constant in. */
-  GPUShader *shader;
+  gpu::Shader *shader;
   /* Value of the constant or a reference to it. */
   union {
     int int_value;
@@ -341,22 +340,22 @@ struct SpecializeConstant {
 
   SpecializeConstant() = default;
 
-  SpecializeConstant(GPUShader *sh, int loc, const float &val)
-      : shader(sh), float_value(val), location(loc), type(Type::FloatValue){};
-  SpecializeConstant(GPUShader *sh, int loc, const int &val)
-      : shader(sh), int_value(val), location(loc), type(Type::IntValue){};
-  SpecializeConstant(GPUShader *sh, int loc, const uint &val)
-      : shader(sh), uint_value(val), location(loc), type(Type::UintValue){};
-  SpecializeConstant(GPUShader *sh, int loc, const bool &val)
-      : shader(sh), bool_value(val), location(loc), type(Type::BoolValue){};
-  SpecializeConstant(GPUShader *sh, int loc, const float *val)
-      : shader(sh), float_ref(val), location(loc), type(Type::FloatReference){};
-  SpecializeConstant(GPUShader *sh, int loc, const int *val)
-      : shader(sh), int_ref(val), location(loc), type(Type::IntReference){};
-  SpecializeConstant(GPUShader *sh, int loc, const uint *val)
-      : shader(sh), uint_ref(val), location(loc), type(Type::UintReference){};
-  SpecializeConstant(GPUShader *sh, int loc, const bool *val)
-      : shader(sh), bool_ref(val), location(loc), type(Type::BoolReference){};
+  SpecializeConstant(gpu::Shader *sh, int loc, const float &val)
+      : shader(sh), float_value(val), location(loc), type(Type::FloatValue) {};
+  SpecializeConstant(gpu::Shader *sh, int loc, const int &val)
+      : shader(sh), int_value(val), location(loc), type(Type::IntValue) {};
+  SpecializeConstant(gpu::Shader *sh, int loc, const uint &val)
+      : shader(sh), uint_value(val), location(loc), type(Type::UintValue) {};
+  SpecializeConstant(gpu::Shader *sh, int loc, const bool &val)
+      : shader(sh), bool_value(val), location(loc), type(Type::BoolValue) {};
+  SpecializeConstant(gpu::Shader *sh, int loc, const float *val)
+      : shader(sh), float_ref(val), location(loc), type(Type::FloatReference) {};
+  SpecializeConstant(gpu::Shader *sh, int loc, const int *val)
+      : shader(sh), int_ref(val), location(loc), type(Type::IntReference) {};
+  SpecializeConstant(gpu::Shader *sh, int loc, const uint *val)
+      : shader(sh), uint_ref(val), location(loc), type(Type::UintReference) {};
+  SpecializeConstant(gpu::Shader *sh, int loc, const bool *val)
+      : shader(sh), bool_ref(val), location(loc), type(Type::BoolReference) {};
 
   void execute(RecordingState &state) const;
   std::string serialize() const;
@@ -412,7 +411,7 @@ struct DrawMulti {
 
 struct DrawIndirect {
   gpu::Batch *batch;
-  GPUStorageBuf **indirect_buf;
+  gpu::StorageBuf **indirect_buf;
   ResourceIndex res_index;
 
   void execute(RecordingState &state) const;
@@ -428,29 +427,29 @@ struct Dispatch {
 
   Dispatch() = default;
 
-  Dispatch(int3 group_len) : is_reference(false), size(group_len){};
-  Dispatch(int3 *group_len) : is_reference(true), size_ref(group_len){};
+  Dispatch(int3 group_len) : is_reference(false), size(group_len) {};
+  Dispatch(int3 *group_len) : is_reference(true), size_ref(group_len) {};
 
   void execute(RecordingState &state) const;
   std::string serialize() const;
 };
 
 struct DispatchIndirect {
-  GPUStorageBuf **indirect_buf;
+  gpu::StorageBuf **indirect_buf;
 
   void execute(RecordingState &state) const;
   std::string serialize() const;
 };
 
 struct Barrier {
-  eGPUBarrier type;
+  GPUBarrier type;
 
   void execute() const;
   std::string serialize() const;
 };
 
 struct Clear {
-  uint8_t clear_channels; /* #eGPUFrameBufferBits. But want to save some bits. */
+  uint8_t clear_channels; /* #GPUFrameBufferBits. But want to save some bits. */
   uint8_t stencil;
   float depth;
   float4 color;

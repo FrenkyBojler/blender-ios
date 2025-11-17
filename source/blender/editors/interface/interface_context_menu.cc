@@ -820,13 +820,6 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
 
       if (but->flag & UI_BUT_OVERRIDDEN) {
         if (is_array_component) {
-#if 0 /* Disabled for now. */
-          ot = WM_operatortype_find("UI_OT_override_type_set_button", false);
-          op_ptr = layout->op(ot, "Overrides Type", ICON_NONE, blender::wm::OpCallContext::InvokeDefault, 0);
-          RNA_boolean_set(&op_ptr, "all", true);
-          op_ptr = layout->op(ot, "Single Override Type", ICON_NONE, blender::wm::OpCallContext::InvokeDefault, 0);
-          RNA_boolean_set(&op_ptr, "all", false);
-#endif
           PointerRNA op_ptr = layout->op(
               "UI_OT_override_remove_button",
               CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Remove Overrides"),
@@ -839,14 +832,6 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
           RNA_boolean_set(&op_ptr, "all", false);
         }
         else {
-#if 0 /* Disabled for now. */
-          op_ptr = layout->op("UI_OT_override_type_set_button",
-                              "Override Type",
-                              ICON_NONE,
-                              blender::wm::OpCallContext::InvokeDefault,
-                              0);
-          RNA_boolean_set(&op_ptr, "all", false);
-#endif
           PointerRNA op_ptr = layout->op(
               "UI_OT_override_remove_button",
               CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Remove Override"),
@@ -855,25 +840,24 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
         }
       }
       else {
+        ot = WM_operatortype_find("UI_OT_override_add_button", false);
         if (is_array_component) {
-          ot = WM_operatortype_find("UI_OT_override_type_set_button", false);
           op_ptr = layout->op(ot,
-                              CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Define Overrides"),
+                              CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Add Overrides"),
                               ICON_NONE,
                               blender::wm::OpCallContext::InvokeDefault,
                               UI_ITEM_NONE);
           RNA_boolean_set(&op_ptr, "all", true);
-          op_ptr = layout->op(
-              ot,
-              CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Define Single Override"),
-              ICON_NONE,
-              blender::wm::OpCallContext::InvokeDefault,
-              UI_ITEM_NONE);
+          op_ptr = layout->op(ot,
+                              CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Add Single Override"),
+                              ICON_NONE,
+                              blender::wm::OpCallContext::InvokeDefault,
+                              UI_ITEM_NONE);
           RNA_boolean_set(&op_ptr, "all", false);
         }
         else {
-          op_ptr = layout->op("UI_OT_override_type_set_button",
-                              CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Define Override"),
+          op_ptr = layout->op(ot,
+                              CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Add Override"),
                               ICON_NONE,
                               blender::wm::OpCallContext::InvokeDefault,
                               UI_ITEM_NONE);
@@ -1076,7 +1060,6 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
         uiBut *but2 = uiDefIconTextBut(
             block,
             ButType::But,
-            0,
             ICON_MENU_PANEL,
             CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Remove from Quick Favorites"),
             0,
@@ -1100,7 +1083,6 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
       uiBut *but2 = uiDefIconTextBut(
           block,
           ButType::But,
-          0,
           ICON_MENU_PANEL,
           CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Add to Quick Favorites"),
           0,
@@ -1149,7 +1131,6 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
         uiBut *but2 = uiDefIconTextBut(
             block,
             ButType::But,
-            0,
             ICON_HAND,
             CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Change Shortcut"),
             0,
@@ -1165,7 +1146,6 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
       else {
         uiBut *but2 = uiDefIconTextBut(block,
                                        ButType::But,
-                                       0,
                                        ICON_HAND,
                                        IFACE_("Non-Keyboard Shortcut"),
                                        0,
@@ -1181,7 +1161,6 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
       uiBut *but2 = uiDefIconTextBut(
           block,
           ButType::But,
-          0,
           ICON_BLANK1,
           CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Remove Shortcut"),
           0,
@@ -1197,7 +1176,6 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
       uiBut *but2 = uiDefIconTextBut(
           block,
           ButType::But,
-          0,
           ICON_HAND,
           CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Assign Shortcut"),
           0,

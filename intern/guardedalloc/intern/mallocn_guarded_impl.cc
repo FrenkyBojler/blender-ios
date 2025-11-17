@@ -363,7 +363,7 @@ void *MEM_guarded_dupallocN(const void *vmemh)
       }
       else {
         newp = MEM_guarded_mallocN_aligned(
-            memh->len, (size_t)memh->alignment, name, AllocationType::ALLOC_FREE);
+            memh->len, size_t(memh->alignment), name, AllocationType::ALLOC_FREE);
       }
 
       if (newp == nullptr)
@@ -1033,7 +1033,8 @@ void MEM_guarded_printmemlist_pydict()
 }
 void mem_guarded_clearmemlist()
 {
-  membase->first = membase->last = nullptr;
+  membase->first = nullptr;
+  membase->last = nullptr;
 }
 
 void MEM_guarded_freeN(void *vmemh, const AllocationType allocation_type)

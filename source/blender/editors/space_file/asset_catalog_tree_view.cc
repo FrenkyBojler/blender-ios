@@ -20,6 +20,7 @@
 #include "BLT_translation.hh"
 
 #include "ED_asset.hh"
+#include "ED_asset_catalog.hh"
 #include "ED_fileselect.hh"
 #include "ED_undo.hh"
 
@@ -88,6 +89,7 @@ class AssetCatalogTreeViewItem : public ui::BasicTreeViewItem {
 
   bool supports_renaming() const override;
   bool rename(const bContext &C, StringRefNull new_name) override;
+  void delete_item(bContext *C) override;
 
   /** Add drag support for catalog items. */
   std::unique_ptr<ui::AbstractViewItemDragController> create_drag_controller() const override;
@@ -102,9 +104,9 @@ class AssetCatalogDragController : public ui::AbstractViewItemDragController {
   explicit AssetCatalogDragController(AssetCatalogTreeView &tree_view,
                                       const AssetCatalogTreeItem &catalog_item);
 
-  eWM_DragDataType get_drag_type() const override;
+  std::optional<eWM_DragDataType> get_drag_type() const override;
   void *create_drag_data() const override;
-  void on_drag_start() override;
+  void on_drag_start(bContext &C) override;
 };
 
 class AssetCatalogDropTarget : public ui::TreeViewItemDropTarget {
@@ -277,7 +279,9 @@ void AssetCatalogTreeViewItem::on_activate(bContext & /*C*/)
 
 void AssetCatalogTreeViewItem::build_row(uiLayout &row)
 {
-  const std::string label_override = catalog_item_.has_unsaved_changes() ? (label_ + "*") : label_;
+  /* Show "*" to the left for consistency with unsaved files in the title bar. */
+  const std::string label_override = catalog_item_.has_unsaved_changes() ? ("* " + label_) :
+                                                                           label_;
   this->add_label(row, label_override);
 
   if (!is_hovered()) {
@@ -337,6 +341,13 @@ bool AssetCatalogTreeViewItem::rename(const bContext &C, StringRefNull new_name)
       this->get_tree_view());
   asset::catalog_rename(tree_view.asset_library_, catalog_item_.get_catalog_id(), new_name);
   return true;
+}
+
+void AssetCatalogTreeViewItem::delete_item(bContext * /*C*/)
+{
+  const AssetCatalogTreeView &tree_view = static_cast<const AssetCatalogTreeView &>(
+      this->get_tree_view());
+  ed::asset::catalog_remove(tree_view.asset_library_, catalog_item_.get_catalog_id());
 }
 
 std::unique_ptr<ui::TreeViewItemDropTarget> AssetCatalogTreeViewItem::create_drop_target()
@@ -544,7 +555,7 @@ AssetCatalogDragController::AssetCatalogDragController(AssetCatalogTreeView &tre
 {
 }
 
-eWM_DragDataType AssetCatalogDragController::get_drag_type() const
+std::optional<eWM_DragDataType> AssetCatalogDragController::get_drag_type() const
 {
   return WM_DRAG_ASSET_CATALOG;
 }
@@ -557,7 +568,7 @@ void *AssetCatalogDragController::create_drag_data() const
   return drag_catalog;
 }
 
-void AssetCatalogDragController::on_drag_start()
+void AssetCatalogDragController::on_drag_start(bContext & /*C*/)
 {
   AssetCatalogTreeView &tree_view_ = this->get_view<AssetCatalogTreeView>();
   tree_view_.activate_catalog_by_id(catalog_item_.get_catalog_id());

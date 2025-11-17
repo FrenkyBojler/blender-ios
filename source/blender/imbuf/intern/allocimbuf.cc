@@ -28,31 +28,11 @@
 
 #include "GPU_texture.hh"
 
+#include "CLG_log.h"
+
 #include "atomic_ops.h"
 
-#ifndef WIN32
-static SpinLock mmap_spin;
-
-void imb_mmap_lock_init()
-{
-  BLI_spin_init(&mmap_spin);
-}
-
-void imb_mmap_lock_exit()
-{
-  BLI_spin_end(&mmap_spin);
-}
-
-void imb_mmap_lock()
-{
-  BLI_spin_lock(&mmap_spin);
-}
-
-void imb_mmap_unlock()
-{
-  BLI_spin_unlock(&mmap_spin);
-}
-#endif
+static CLG_LogRef LOG = {"image.buffer"};
 
 /* Free the specified buffer storage, freeing memory when needed and restoring the state of the
  * buffer to its defaults. */
@@ -288,7 +268,7 @@ bool imb_enlargeencodedbufferImBuf(ImBuf *ibuf)
   }
 
   if (ibuf->encoded_buffer_size < ibuf->encoded_size) {
-    printf("%s: error in parameters\n", __func__);
+    CLOG_ERROR(&LOG, "%s: error in parameters\n", __func__);
     return false;
   }
 

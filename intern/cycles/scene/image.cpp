@@ -624,8 +624,14 @@ bool ImageManager::file_load_image(Image *img, const int texture_limit)
       img->metadata.colorspace != u_colorspace_srgb)
   {
     /* Convert to scene linear. */
-    ColorSpaceManager::to_scene_linear(
-        img->metadata.colorspace, pixels, num_pixels, is_rgba, img->metadata.compress_as_srgb);
+    const bool ignore_alpha = img->params.alpha_type == IMAGE_ALPHA_IGNORE ||
+                              img->params.alpha_type == IMAGE_ALPHA_CHANNEL_PACKED;
+    ColorSpaceManager::to_scene_linear(img->metadata.colorspace,
+                                       pixels,
+                                       num_pixels,
+                                       is_rgba,
+                                       img->metadata.compress_as_srgb,
+                                       ignore_alpha);
   }
 
   /* Make sure we don't have buggy values. */
@@ -662,8 +668,8 @@ bool ImageManager::file_load_image(Image *img, const int texture_limit)
     while (max_size * scale_factor > texture_limit) {
       scale_factor *= 0.5f;
     }
-    LOG_WORK << "Scaling image " << img->loader->name() << " by a factor of " << scale_factor
-             << ".";
+    LOG_DEBUG << "Scaling image " << img->loader->name() << " by a factor of " << scale_factor
+              << ".";
     vector<StorageType> scaled_pixels;
     size_t scaled_width;
     size_t scaled_height;

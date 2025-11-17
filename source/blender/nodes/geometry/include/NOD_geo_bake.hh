@@ -77,9 +77,9 @@ struct BakeItemsAccessor : public socket_items::SocketItemsAccessorDefaults {
     return &item.name;
   }
 
-  static bool supports_socket_type(const eNodeSocketDatatype socket_type)
+  static bool supports_socket_type(const eNodeSocketDatatype socket_type, const int ntree_type)
   {
-    return SimulationItemsAccessor::supports_socket_type(socket_type);
+    return SimulationItemsAccessor::supports_socket_type(socket_type, ntree_type);
   }
 
   static void init_with_socket_type_and_name(bNode &node,
@@ -121,9 +121,9 @@ struct BakeDrawContext {
 std::string get_baked_string(const BakeDrawContext &ctx);
 
 std::optional<std::string> get_bake_state_string(const BakeDrawContext &ctx);
-void draw_common_bake_settings(bContext *C, BakeDrawContext &ctx, uiLayout *layout);
+void draw_common_bake_settings(bContext *C, BakeDrawContext &ctx, ui::Layout *layout);
 void draw_bake_button_row(const BakeDrawContext &ctx,
-                          uiLayout *layout,
+                          ui::Layout *layout,
                           bool is_in_sidebar = false);
 
 }  // namespace blender::nodes

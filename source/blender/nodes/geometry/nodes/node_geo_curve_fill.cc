@@ -14,6 +14,8 @@
 
 #include "BLI_task.hh"
 
+#include "GEO_foreach_geometry.hh"
+
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_curve_fill_cc {
@@ -21,8 +23,8 @@ namespace blender::nodes::node_geo_curve_fill_cc {
 NODE_STORAGE_FUNCS(NodeGeometryCurveFill)
 
 static const EnumPropertyItem mode_items[] = {
-    {GEO_NODE_CURVE_FILL_MODE_TRIANGULATED, "TRIANGLES", 0, "Triangles", ""},
-    {GEO_NODE_CURVE_FILL_MODE_NGONS, "NGONS", 0, "N-gons", ""},
+    {GEO_NODE_CURVE_FILL_MODE_TRIANGULATED, "TRIANGLES", 0, N_("Triangles"), ""},
+    {GEO_NODE_CURVE_FILL_MODE_NGONS, "NGONS", 0, N_("N-gons"), ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -39,7 +41,8 @@ static void node_declare(NodeDeclarationBuilder &b)
           "An index used to group curves together. Filling is done separately for each group");
   b.add_input<decl::Menu>("Mode")
       .static_items(mode_items)
-      .default_value(GEO_NODE_CURVE_FILL_MODE_TRIANGULATED);
+      .default_value(GEO_NODE_CURVE_FILL_MODE_TRIANGULATED)
+      .optional_label();
   b.add_output<decl::Geometry>("Mesh").propagate_all_instance_attributes();
 }
 
@@ -310,8 +313,9 @@ static void node_geo_exec(GeoNodeExecParams params)
   Field<int> group_index = params.extract_input<Field<int>>("Group ID");
   const GeometryNodeCurveFillMode mode = params.extract_input<GeometryNodeCurveFillMode>("Mode");
 
-  geometry_set.modify_geometry_sets(
-      [&](GeometrySet &geometry_set) { curve_fill_calculate(geometry_set, mode, group_index); });
+  geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry) {
+    curve_fill_calculate(geometry, mode, group_index);
+  });
 
   params.set_output("Mesh", std::move(geometry_set));
 }
