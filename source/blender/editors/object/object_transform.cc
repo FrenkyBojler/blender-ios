@@ -1387,7 +1387,7 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
     }
   }
 
-  std::array<bool, INDEX_ID_MAX> reported{};
+  std::array<bool, INDEX_ID_MAX> reported{false};
   for (Object *ob : objects) {
     if (ob->flag & OB_DONE) {
       continue;
