@@ -92,7 +92,7 @@ void main()
 
   /* Add the erode/dilate distance and divide by the inset amount as described in the discussion,
    * then clamp to the [0, 1] range. */
-  float distance = push_constant_get(compositor_morphological_distance_threshold, distance);
+  const auto &distance = push_constant_get(compositor_morphological_distance_threshold, distance);
   float value = clamp((signed_minimum_distance + distance) / inset, 0.0f, 1.0f);
 
   imageStore(output_img, texel, float4(value));
