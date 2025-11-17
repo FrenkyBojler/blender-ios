@@ -19,53 +19,7 @@
 
 #include <cctype>
 
-static char32_t *utf8_to_utf32(const char *utf8_str, size_t *r_utf32_len)
-{
-  if (!utf8_str || utf8_str[0] == '\0') {
-    *r_utf32_len = 0;
-    return nullptr;
-  }
-
-  size_t utf8_len_bytes = strlen(utf8_str);
-  size_t utf32_len = BLI_strnlen_utf8(utf8_str, utf8_len_bytes);
-
-  char32_t *utf32_str = static_cast<char32_t *>(
-      MEM_mallocN(sizeof(char32_t) * (utf32_len + 1), __func__));
-
-  size_t utf8_idx = 0;
-  for (size_t i = 0; i < utf32_len; ++i) {
-    utf32_str[i] = BLI_str_utf8_as_unicode_step_safe(utf8_str, utf8_len_bytes, &utf8_idx);
-  }
-  utf32_str[utf32_len] = U'\0'; /* Null-terminate the UTF-32 string. */
-
-  *r_utf32_len = utf32_len;
-  return utf32_str;
-}
-
-static char *utf32_to_utf8(const char32_t *utf32_str)
-{
-  if (!utf32_str || utf32_str[0] == U'\0') {
-    return BLI_strdup("");
-  }
-
-  size_t utf32_len = 0;
-  for (const char32_t *p = utf32_str; *p != U'\0'; ++p) {
-    utf32_len++;
-  }
-
-  // Calculate required buffer size for UTF-8. Each UTF-32 char can be up to 4 bytes in UTF-8.
-  size_t utf8_max_len = utf32_len * BLI_UTF8_MAX + 1;
-  char *utf8_str = static_cast<char *>(MEM_mallocN(sizeof(char) * utf8_max_len, __func__));
-
-  size_t current_utf8_len = 0;
-  for (size_t i = 0; i < utf32_len; ++i) {
-    current_utf8_len += BLI_str_utf8_from_unicode(
-        utf32_str[i], utf8_str + current_utf8_len, utf8_max_len - current_utf8_len);
-  }
-  utf8_str[current_utf8_len] = '\0'; /* Null-terminate the UTF-8 string. */
-
-  return utf8_str;
-}
+#include "UI_string_search.hh"
 
 #include "../file_intern.hh"
 #include "../filelist.hh"
@@ -224,28 +178,6 @@ void prepare_filter_asset_library(const FileList *filelist, FileListFilter *filt
   file_ensure_updated_catalog_filter_data(filter->asset_catalog_filter, filelist->asset_library);
 }
 
-/**
- * Return whether at least one tag matches the search filter.
- * Tags are searched as "entire words", so instead of searching for "tag" in the
- * filter string, this function searches for " tag ". Assumes the search filter
- * starts and ends with a space.
- *
- * Here the tags on the asset are written in set notation:
- *
- * `asset_tag_matches_filter(" some tags ", {"some", "blue"})` -> true
- * `asset_tag_matches_filter(" some tags ", {"som", "tag"})` -> false
- * `asset_tag_matches_filter(" some tags ", {})` -> false
- */
-static bool asset_tag_matches_filter(const char *filter_search, const AssetMetaData *asset_data)
-{
-  LISTBASE_FOREACH (const AssetTag *, asset_tag, &asset_data->tags) {
-    if (BLI_strcasestr(asset_tag->name, filter_search) != nullptr) {
-      return true;
-    }
-  }
-  return false;
-}
-
 bool is_filtered_asset(FileListInternEntry *file, FileListFilter *filter)
 {
   const AssetMetaData *asset_data = filelist_file_internal_get_asset_data(file);
@@ -269,50 +201,24 @@ bool is_filtered_asset(FileListInternEntry *file, FileListFilter *filter)
   /* When doing a name comparison, get rid of the leading/trailing asterisks. */
   filter_search_buf[string_length - 1] = '\0';
   const char *search_str = filter_search_buf + 1;
-  const int search_str_len = strlen(search_str);
 
-  size_t search_str_utf32_len;
-  char32_t *search_str_utf32 = utf8_to_utf32(search_str, &search_str_utf32_len);
-
-  size_t file_name_utf32_len;
-  char32_t *file_name_utf32 = utf8_to_utf32(file->name, &file_name_utf32_len);
-
-  /* For case-insensitive search, convert both strings to lowercase. */
-  char32_t *search_str_lower_utf32 = static_cast<char32_t *>(
-      MEM_mallocN(sizeof(char32_t) * (search_str_utf32_len + 1), __func__));
-  for (size_t i = 0; i < search_str_utf32_len; ++i) {
-    search_str_lower_utf32[i] = BLI_str_utf32_char_to_lower(search_str_utf32[i]);
-  }
-  search_str_lower_utf32[search_str_utf32_len] = U'\0';
-
-  char32_t *file_name_lower_utf32 = static_cast<char32_t *>(
-      MEM_mallocN(sizeof(char32_t) * (file_name_utf32_len + 1), __func__));
-  for (size_t i = 0; i < file_name_utf32_len; ++i) {
-    file_name_lower_utf32[i] = BLI_str_utf32_char_to_lower(file_name_utf32[i]);
-  }
-  file_name_lower_utf32[file_name_utf32_len] = U'\0';
-
-  char *search_str_lower_utf8 = utf32_to_utf8(search_str_lower_utf32);
-  char *file_name_lower_utf8 = utf32_to_utf8(file_name_lower_utf32);
-
-  const int errors = blender::string_search::get_fuzzy_match_errors(search_str_lower_utf8,
-                                                                    file_name_lower_utf8);
-
-  MEM_freeN(search_str_utf32);
-  MEM_freeN(file_name_utf32);
-  MEM_freeN(search_str_lower_utf32);
-  MEM_freeN(file_name_lower_utf32);
-  MEM_freeN(search_str_lower_utf8);
-  MEM_freeN(file_name_lower_utf8);
-
-  if (errors != -1 && (errors < 3 || errors < search_str_len / 2)) {
-    return true;
-  }
+  blender::ui::string_search::StringSearch<FileListInternEntry> search;
 
   if (asset_data) {
-    return asset_tag_matches_filter(search_str, asset_data);
+    std::string searchable_string = file->name;
+    LISTBASE_FOREACH (const AssetTag *, asset_tag, &asset_data->tags) {
+      searchable_string += " ";
+      searchable_string += asset_tag->name;
+    }
+    search.add(searchable_string, file);
   }
-  return false;
+  else {
+    search.add(file->name, file);
+  }
+
+  const blender::Vector<FileListInternEntry *> results = search.query(search_str);
+
+  return !results.is_empty();
 }
 
 static bool is_filtered_lib_type(FileListInternEntry *file,
