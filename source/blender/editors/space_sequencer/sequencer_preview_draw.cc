@@ -971,7 +971,7 @@ static void update_cpu_scopes(const SpaceSeq &space_sequencer,
 
 static bool sequencer_draw_get_transform_preview(const SpaceSeq &sseq, const Scene &scene)
 {
-  if ((scene.ed->runtime.use_preview_frame == 1) && (sseq.draw_flag & SEQ_DRAW_TRANSFORM_PREVIEW)) {
+  if ((scene.ed->runtime.flag & SEQ_SHOW_TRANSFORM_PREVIEW) && (sseq.draw_flag & SEQ_DRAW_TRANSFORM_PREVIEW)) {
     return true;
   }
 
@@ -989,7 +989,7 @@ static int sequencer_draw_get_transform_preview_frame(const Scene *scene)
 {
   int preview_frame;
 
-  if (scene->ed->runtime.use_preview_frame == 1) {
+  if (!(scene->ed->runtime.flag & SEQ_SHOW_TRANSFORM_PREVIEW)) {
     preview_frame = scene->ed->runtime.vse_preview_frame;
     return preview_frame;
   }

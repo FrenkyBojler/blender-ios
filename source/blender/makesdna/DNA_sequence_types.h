@@ -340,8 +340,8 @@ typedef struct EditingRuntime {
   /** Used for rendering a different frame using sequencer_draw_get_transform_preview from the box
    * blade tool. */
   int vse_preview_frame;
-  /** Determines with 0 and 1 if vse_preview_frame should be used for transform preview. */
-  int use_preview_frame;
+  /** Determines if vse_preview_frame should be used for transform preview. */
+  uint32_t flag; /* eEditingRuntimeFlag */
 } EditingRuntime;
 
 typedef struct Editing {
@@ -997,5 +997,9 @@ typedef enum eSeqChannelFlag {
   SEQ_CHANNEL_LOCK = (1 << 0),
   SEQ_CHANNEL_MUTE = (1 << 1),
 } eSeqChannelFlag;
+
+typedef enum eEditingRuntimeFlag {
+  SEQ_SHOW_TRANSFORM_PREVIEW = (1 << 0),
+} eEditingRuntimeFlag;
 
 /** \} */
