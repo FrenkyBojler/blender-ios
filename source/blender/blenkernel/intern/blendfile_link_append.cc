@@ -406,25 +406,6 @@ static bool object_in_any_scene(Main *bmain, Object *ob)
   return false;
 }
 
-static bool object_in_any_collection(Main *bmain, Object *ob)
-{
-  LISTBASE_FOREACH (Collection *, collection, &bmain->collections) {
-    if (BKE_collection_has_object(collection, ob)) {
-      return true;
-    }
-  }
-
-  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-    if (scene->master_collection != nullptr &&
-        BKE_collection_has_object(scene->master_collection, ob))
-    {
-      return true;
-    }
-  }
-
-  return false;
-}
-
 static bool collection_instantiated_by_any_object(Main *bmain, Collection *collection)
 {
   LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
