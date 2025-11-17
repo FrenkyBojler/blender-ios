@@ -701,32 +701,29 @@ static PointerRNA rna_AttributeGroupID_new(
   using namespace blender;
   AttributeOwner owner = AttributeOwner::from_id(id);
   if (owner.type() == AttributeOwnerType::Mesh) {
-    Mesh *mesh = owner.get_mesh();
-    if (BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
-      CustomDataLayer *layer = BKE_attribute_new(
-          *mesh, *em->bm, name, eCustomDataType(type), AttrDomain(domain), reports);
-      if (!layer) {
-        return PointerRNA_NULL;
-      }
+    CustomDataLayer *layer = BKE_attribute_new(
+        owner, name, eCustomDataType(type), AttrDomain(domain), reports);
+    if (!layer) {
+      return PointerRNA_NULL;
+    }
 
-      if ((GS(id->name) == ID_ME)) {
-        if (ELEM(layer->type, CD_PROP_COLOR, CD_PROP_BYTE_COLOR)) {
-          Mesh *mesh = (Mesh *)id;
-          if (!mesh->active_color_attribute) {
-            mesh->active_color_attribute = BLI_strdup(layer->name);
-          }
-          if (!mesh->default_color_attribute) {
-            mesh->default_color_attribute = BLI_strdup(layer->name);
-          }
+    if ((GS(id->name) == ID_ME)) {
+      if (ELEM(layer->type, CD_PROP_COLOR, CD_PROP_BYTE_COLOR)) {
+        Mesh *mesh = (Mesh *)id;
+        if (!mesh->active_color_attribute) {
+          mesh->active_color_attribute = BLI_strdup(layer->name);
         }
-        else if (layer->type == CD_PROP_FLOAT2) {
-          Mesh *mesh = (Mesh *)id;
-          if (!mesh->active_uv_map_attribute) {
-            mesh->active_uv_map_attribute = BLI_strdup(layer->name);
-          }
-          if (!mesh->default_uv_map_attribute) {
-            mesh->default_uv_map_attribute = BLI_strdup(layer->name);
-          }
+        if (!mesh->default_color_attribute) {
+          mesh->default_color_attribute = BLI_strdup(layer->name);
+        }
+      }
+      else if (layer->type == CD_PROP_FLOAT2) {
+        Mesh *mesh = (Mesh *)id;
+        if (!mesh->active_uv_map_attribute) {
+          mesh->active_uv_map_attribute = BLI_strdup(layer->name);
+        }
+        if (!mesh->default_uv_map_attribute) {
+          mesh->default_uv_map_attribute = BLI_strdup(layer->name);
         }
       }
 
