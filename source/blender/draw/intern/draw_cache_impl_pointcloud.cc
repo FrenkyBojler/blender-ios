@@ -423,7 +423,7 @@ void DRW_pointcloud_batch_cache_create_requested(Object *ob)
   if (cache.eval_cache.surface != nullptr) {
     GPU_batch_init_procedural(
         cache.eval_cache.surface, GPU_PRIM_TRI_STRIP, 8 * pointcloud.totpoint);
-    DRW_vbo_request(nullptr, &cache.eval_cache.pos_rad);
+    DRW_vbo_request(cache.eval_cache.surface, &cache.eval_cache.pos_rad);
   }
 
   for (int i = 0; i < cache.eval_cache.mat_len; i++) {
@@ -432,7 +432,7 @@ void DRW_pointcloud_batch_cache_create_requested(Object *ob)
     }
   }
   for (const int j : cache.eval_cache.attr_used.index_range()) {
-    DRW_vbo_request(nullptr, &cache.eval_cache.attributes_buf[j]);
+    DRW_vbo_request(cache.eval_cache.surface, &cache.eval_cache.attributes_buf[j]);
 
     if (DRW_vbo_requested(cache.eval_cache.attributes_buf[j])) {
       pointcloud_extract_attribute(pointcloud, cache, cache.eval_cache.attr_used[j], j);
