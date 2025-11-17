@@ -8,7 +8,6 @@
 
 #include <cstdlib>
 
-#include "BKE_editmesh.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
