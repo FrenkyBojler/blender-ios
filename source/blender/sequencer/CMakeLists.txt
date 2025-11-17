@@ -76,6 +76,7 @@ set(SRC
   intern/modifiers/MOD_mask.cc
   intern/modifiers/MOD_none.cc
   intern/modifiers/MOD_sound_equalizer.cc
+  intern/modifiers/MOD_sound_pitch.cc
   intern/modifiers/MOD_tonemap.cc
   intern/modifiers/MOD_white_balance.cc
   intern/modifiers/modifier.cc
@@ -143,6 +144,9 @@ if(WITH_AUDASPACE)
 
   if(WITH_FFTW3)
     add_definitions(-DWITH_CONVOLUTION)
+  endif()
+  if(WITH_RUBBERBAND)
+    add_definitions(-DWITH_RUBBERBAND)
   endif()
 endif()
 

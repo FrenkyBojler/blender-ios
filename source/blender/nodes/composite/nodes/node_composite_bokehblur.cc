@@ -16,9 +16,14 @@ namespace blender::nodes::node_composite_bokehblur_cc {
 
 static void cmp_node_bokehblur_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
   b.add_input<decl::Color>("Image")
       .default_value({0.8f, 0.8f, 0.8f, 1.0f})
+      .hide_value()
       .structure_type(StructureType::Dynamic);
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic).align_with_previous();
+
   b.add_input<decl::Color>("Bokeh")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
       .compositor_realization_mode(CompositorInputRealizationMode::Transforms)
@@ -28,8 +33,6 @@ static void cmp_node_bokehblur_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Float>("Mask").default_value(1.0f).min(0.0f).max(1.0f).structure_type(
       StructureType::Dynamic);
   b.add_input<decl::Bool>("Extend Bounds").default_value(false);
-
-  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
 }
 
 using namespace blender::compositor;
@@ -121,7 +124,7 @@ class BokehBlurOperation : public NodeOperation {
     output_image.allocate_texture(domain);
     output_image.bind_as_image(shader, "output_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     GPU_shader_unbind();
     output_image.unbind_as_image();
@@ -142,12 +145,12 @@ class BokehBlurOperation : public NodeOperation {
 
     Result blur_kernel = this->compute_blur_kernel(radius);
 
-    parallel_for(domain.size, [&](const int2 texel) {
+    parallel_for(domain.data_size, [&](const int2 texel) {
       /* The mask input is treated as a boolean. If it is zero, then no blurring happens for this
        * pixel. Otherwise, the pixel is blurred normally and the mask value is irrelevant. */
       float mask = mask_image.load_pixel<float, true>(texel);
       if (mask == 0.0f) {
-        output.store_pixel(texel, input.load_pixel<float4>(texel));
+        output.store_pixel(texel, input.load_pixel<Color>(texel));
         return;
       }
 
@@ -157,13 +160,14 @@ class BokehBlurOperation : public NodeOperation {
       float4 accumulated_weight = float4(0.0f);
       for (int y = -radius; y <= radius; y++) {
         for (int x = -radius; x <= radius; x++) {
-          float4 weight = blur_kernel.load_pixel<float4>(int2(x, y) + radius);
-          accumulated_color += input.load_pixel_extended<float4>(texel + int2(x, y)) * weight;
+          float4 weight = float4(blur_kernel.load_pixel<Color>(int2(x, y) + radius));
+          accumulated_color += float4(input.load_pixel_extended<Color>(texel + int2(x, y))) *
+                               weight;
           accumulated_weight += weight;
         }
       }
 
-      output.store_pixel(texel, math::safe_divide(accumulated_color, accumulated_weight));
+      output.store_pixel(texel, Color(math::safe_divide(accumulated_color, accumulated_weight)));
     });
 
     blur_kernel.release();
@@ -203,7 +207,7 @@ class BokehBlurOperation : public NodeOperation {
     output_image.allocate_texture(domain);
     output_image.bind_as_image(shader, "output_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     GPU_shader_unbind();
     output_image.unbind_as_image();
@@ -253,12 +257,12 @@ class BokehBlurOperation : public NodeOperation {
           1.0f - ((float2(texel) + float2(radius + 0.5f)) / (radius * 2.0f + 1.0f)));
     };
 
-    parallel_for(domain.size, [&](const int2 texel) {
+    parallel_for(domain.data_size, [&](const int2 texel) {
       /* The mask input is treated as a boolean. If it is zero, then no blurring happens for this
        * pixel. Otherwise, the pixel is blurred normally and the mask value is irrelevant. */
       float mask = mask_image.load_pixel<float, true>(texel);
       if (mask == 0.0f) {
-        output.store_pixel(texel, input.load_pixel<float4>(texel));
+        output.store_pixel(texel, input.load_pixel<Color>(texel));
         return;
       }
 
@@ -284,12 +288,13 @@ class BokehBlurOperation : public NodeOperation {
           }
 
           float4 weight = load_weight(int2(x, y), size);
-          accumulated_color += input.load_pixel_extended<float4>(texel + int2(x, y)) * weight;
+          accumulated_color += float4(input.load_pixel_extended<Color>(texel + int2(x, y))) *
+                               weight;
           accumulated_weight += weight;
         }
       }
 
-      output.store_pixel(texel, math::safe_divide(accumulated_color, accumulated_weight));
+      output.store_pixel(texel, Color(math::safe_divide(accumulated_color, accumulated_weight)));
     });
   }
 
@@ -317,7 +322,7 @@ class BokehBlurOperation : public NodeOperation {
        * as mentioned above. */
       const float2 weight_coordinates = 1.0f - ((float2(texel) + 0.5f) / float2(kernel_size));
       float4 weight = bokeh.sample_bilinear_extended(weight_coordinates);
-      kernel.store_pixel(texel, weight);
+      kernel.store_pixel(texel, Color(weight));
     });
 
     return kernel;

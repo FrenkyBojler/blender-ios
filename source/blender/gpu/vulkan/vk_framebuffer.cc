@@ -69,6 +69,11 @@ void VKFrameBuffer::bind(bool enabled_srgb)
   attachment_states_.fill(GPU_ATTACHMENT_WRITE);
 }
 
+uint32_t VKFrameBuffer::viewport_size() const
+{
+  return this->multi_viewport_ ? GPU_MAX_VIEWPORTS : 1;
+}
+
 void VKFrameBuffer::vk_viewports_append(Vector<VkViewport> &r_viewports) const
 {
   BLI_assert(r_viewports.is_empty());
@@ -578,7 +583,7 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
   render_area_update(begin_rendering.node_data.vk_rendering_info.renderArea);
 
   color_attachment_formats_.clear();
-  uint32_t max_filled_slot_index = 0;
+  int32_t max_filled_slot_index = -1;
   for (int color_attachment_index :
        IndexRange(GPU_FB_COLOR_ATTACHMENT0, GPU_FB_MAX_COLOR_ATTACHMENT))
   {
@@ -646,13 +651,15 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
         {color_texture.vk_image_handle(),
          VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
          VK_IMAGE_ASPECT_COLOR_BIT,
-         layer_base});
+         {0, VK_REMAINING_MIP_LEVELS, layer_base, VK_REMAINING_ARRAY_LAYERS}});
     color_attachment_formats_.append(
         (!extensions.dynamic_rendering_unused_attachments && vk_image_view == VK_NULL_HANDLE) ?
             VK_FORMAT_UNDEFINED :
             vk_format);
   }
-  color_attachment_size = max_filled_slot_index + 1;
+  uint32_t color_attachment_size = uint32_t(max_filled_slot_index + 1);
+  color_attachment_formats_.resize(color_attachment_size);
+
   begin_rendering.node_data.vk_rendering_info.colorAttachmentCount = color_attachment_size;
   begin_rendering.node_data.vk_rendering_info.pColorAttachments =
       begin_rendering.node_data.color_attachments;
@@ -725,7 +732,7 @@ void VKFrameBuffer::rendering_ensure_dynamic_rendering(VKContext &context,
                                    static_cast<VkImageAspectFlags>(VK_IMAGE_ASPECT_DEPTH_BIT |
                                                                    VK_IMAGE_ASPECT_STENCIL_BIT) :
                                    static_cast<VkImageAspectFlags>(VK_IMAGE_ASPECT_DEPTH_BIT),
-                               0});
+                               {}});
     break;
   }
 
@@ -759,7 +766,7 @@ VkFormat VKFrameBuffer::stencil_attachment_format_get() const
 };
 Span<VkFormat> VKFrameBuffer::color_attachment_formats_get() const
 {
-  return color_attachment_formats_;
+  return color_attachment_formats_.as_span();
 }
 
 void VKFrameBuffer::rendering_end(VKContext &context)
