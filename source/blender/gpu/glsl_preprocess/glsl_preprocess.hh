@@ -132,52 +132,6 @@ struct ParsedResource {
   /* Optional condition to enable this resource. */
   std::string res_condition;
 
-  std::string parse_attribute(parser::Scope attribute)
-  {
-    parser::Token attribute_id = attribute[0];
-    std::string type = attribute_id.str();
-    if (type == "sampler") {
-      res_type = type;
-      res_slot = attribute[2].str();
-    }
-    else if (type == "image") {
-      res_type = type;
-      res_slot = attribute[2].str();
-      res_qualifier = attribute[4].str();
-      res_format = attribute[6].str();
-    }
-    else if (type == "uniform") {
-      res_type = type;
-      res_slot = attribute[2].str();
-    }
-    else if (type == "storage") {
-      res_type = type;
-      res_slot = attribute[2].str();
-      res_qualifier = attribute[4].str();
-    }
-    else if (type == "push_constant") {
-      res_type = type;
-    }
-    else if (type == "compilation_constant") {
-      res_type = type;
-      res_value = attribute[2].str();
-    }
-    else if (type == "specialization_constant") {
-      res_type = type;
-      res_value = attribute[2].str();
-    }
-    else if (type == "condition") {
-      res_condition = attribute[1].scope().str();
-    }
-    else if (type == "frequency") {
-      res_frequency = attribute[2].str();
-    }
-    else {
-      return "Unrecognized attribute";
-    }
-    return "";
-  }
-
   std::string serialize() const
   {
     std::stringstream ss;
@@ -289,6 +243,52 @@ struct StageInterface : std::vector<ParsedAttribute> {
   }
 };
 
+struct ParsedFragOuput {
+  /* Line this resource was defined. */
+  size_t line;
+
+  std::string var_type;
+  std::string var_name;
+
+  std::string slot;
+  std::string dual_source;
+  std::string raster_order_group;
+
+  std::string serialize() const
+  {
+    std::stringstream ss;
+    if (!dual_source.empty()) {
+      ss << "FRAGMENT_OUT_DUAL(" << slot << ", " << var_type << ", " << var_name << ", "
+         << dual_source << ")";
+    }
+    else if (!raster_order_group.empty()) {
+      ss << "FRAGMENT_OUT_ROG(" << slot << ", " << var_type << ", " << var_name << ", "
+         << raster_order_group << ")";
+    }
+    else {
+      ss << "FRAGMENT_OUT(" << slot << ", " << var_type << ", " << var_name << ")";
+    }
+    return ss.str();
+  }
+};
+
+struct FragmentOutputs : std::vector<ParsedFragOuput> {
+  std::string name;
+
+  std::string serialize() const
+  {
+    std::stringstream ss;
+    ss << "GPU_SHADER_CREATE_INFO(" << name << ")\n";
+
+    for (const auto &res : *this) {
+      ss << res.serialize() << "\n";
+    }
+
+    ss << "GPU_SHADER_CREATE_END()\n";
+    return ss.str();
+  }
+};
+
 struct Source {
   std::vector<Builtin> builtins;
   /* Note: Could be a set, but for now the order matters. */
@@ -302,6 +302,7 @@ struct Source {
   std::vector<std::string> create_infos_defines;
   std::vector<ResourceTable> resource_tables;
   std::vector<StageInterface> stage_interfaces;
+  std::vector<FragmentOutputs> fragment_outputs;
 
   std::string serialize(const std::string &function_name) const
   {
@@ -349,6 +350,10 @@ struct Source {
     ss << "\n";
     for (auto dependency : create_infos_dependencies) {
       ss << "#include \"" << dependency << "\"\n";
+    }
+    ss << "\n\n";
+    for (auto frag_outputs : fragment_outputs) {
+      ss << frag_outputs.serialize() << "\n";
     }
     ss << "\n\n";
     for (auto iface : stage_interfaces) {
@@ -454,6 +459,7 @@ class Preprocessor {
         Parser parser(str, report_error);
         resource_table_parsing(parser, report_error);
         stage_interface_parsing(parser, report_error);
+        fragment_out_parsing(parser, report_error);
         using_mutation(parser, report_error);
 
         namespace_mutation(parser, report_error);
@@ -1887,9 +1893,45 @@ class Preprocessor {
           metadata::ParsedResource resource{
               type.line_number(), type.str(), name.str(), array.str()};
           attributes.foreach_scope(ScopeType::Attribute, [&](const Scope &attribute) {
-            std::string error = resource.parse_attribute(attribute);
-            if (!error.empty()) {
-              report_error(ERROR_TOK(attribute[0]), error.c_str());
+            std::string type = attribute[0].str();
+            if (type == "sampler") {
+              resource.res_type = type;
+              resource.res_slot = attribute[2].str();
+            }
+            else if (type == "image") {
+              resource.res_type = type;
+              resource.res_slot = attribute[2].str();
+              resource.res_qualifier = attribute[4].str();
+              resource.res_format = attribute[6].str();
+            }
+            else if (type == "uniform") {
+              resource.res_type = type;
+              resource.res_slot = attribute[2].str();
+            }
+            else if (type == "storage") {
+              resource.res_type = type;
+              resource.res_slot = attribute[2].str();
+              resource.res_qualifier = attribute[4].str();
+            }
+            else if (type == "push_constant") {
+              resource.res_type = type;
+            }
+            else if (type == "compilation_constant") {
+              resource.res_type = type;
+              resource.res_value = attribute[2].str();
+            }
+            else if (type == "specialization_constant") {
+              resource.res_type = type;
+              resource.res_value = attribute[2].str();
+            }
+            else if (type == "condition") {
+              resource.res_condition = attribute[1].scope().str();
+            }
+            else if (type == "frequency") {
+              resource.res_frequency = attribute[2].str();
+            }
+            else {
+              report_error(ERROR_TOK(attribute[0]), "Unrecognized attribute");
             }
           });
           return resource;
@@ -1915,10 +1957,10 @@ class Preprocessor {
         });
 
         metadata.resource_tables.emplace_back(srt);
+        /* Erase SRT definition. The resources are defined by the backend at runtime. */
+        /* Note that this might change in the future. */
+        parser.erase(tokens[0], tokens.back());
       }
-      /* Erase SRT definition. The resources are defined by the backend at runtime. */
-      /* Note that this might change in the future. */
-      parser.erase(tokens[0], tokens.back());
     });
     parser.apply_mutations();
   }
@@ -1956,16 +1998,67 @@ class Preprocessor {
         });
 
         metadata.stage_interfaces.emplace_back(iface);
+        /* Erase SRT definition. The resources are defined by the backend at runtime. */
+        /* Note that this might change in the future. */
+        parser.erase(tokens[0], tokens.back());
       }
-      /* Erase SRT definition. The resources are defined by the backend at runtime. */
-      /* Note that this might change in the future. */
-      parser.erase(tokens[0], tokens.back());
     };
 
     parser.foreach_match("s[[..]]w{..};",
                          [&](const std::vector<Token> &tokens) { parse_interface(tokens); });
     parser.foreach_match("s[[..]]w{..}w;",
                          [&](const std::vector<Token> &tokens) { parse_interface(tokens); });
+    parser.apply_mutations();
+  }
+
+  void fragment_out_parsing(Parser &parser, report_callback report_error)
+  {
+    using namespace std;
+    using namespace shader::parser;
+
+    parser.foreach_match("s[[..]]w{..};", [&](const std::vector<Token> &tokens) {
+      if (tokens[2].scope().str_exclusive() == "fragment_stage_ouput") {
+        Token srt_name = tokens[7];
+        Scope body = tokens[8].scope();
+
+        metadata::FragmentOutputs iface;
+        iface.name = srt_name.str();
+
+        body.foreach_match("[[..]]ww;", [&](const std::vector<Token> &tokens) {
+          Scope attributes = tokens[1].scope();
+          Token type = tokens[6];
+          Token name = tokens[7];
+
+          metadata::ParsedFragOuput frag_out{type.line_number(), type.str(), name.str()};
+
+          attributes.foreach_scope(ScopeType::Attribute, [&](const Scope &attribute) {
+            std::string type = attribute[0].str();
+            if (type == "color") {
+              frag_out.slot = attribute[2].str();
+            }
+            else if (type == "raster_order_group") {
+              frag_out.raster_order_group = attribute[2].str();
+            }
+            else if (type == "color") {
+              frag_out.slot = attribute[2].str();
+            }
+            else if (type == "index") {
+              frag_out.dual_source = attribute[2].str();
+            }
+            else {
+              report_error(ERROR_TOK(attribute[0]), "Unrecognized attribute");
+            }
+          });
+
+          iface.emplace_back(frag_out);
+        });
+
+        metadata.fragment_outputs.emplace_back(iface);
+        /* Erase SRT definition. The resources are defined by the backend at runtime. */
+        /* Note that this might change in the future. */
+        parser.erase(tokens[0], tokens.back());
+      }
+    });
     parser.apply_mutations();
   }
 
