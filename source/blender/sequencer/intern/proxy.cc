@@ -452,7 +452,7 @@ bool proxy_rebuild_context(Main *bmain,
     /* Check if proxies are already built here, because actually opening anims takes a lot of
      * time. */
     strip_open_anim_file(scene, strip, false);
-    MovieReader *anim = strip->runtime->movie_readers[i];
+    MovieReader *anim = strip->runtime->movie_reader_get(i);
     if (anim && !seq_proxy_need_rebuild(strip, anim)) {
       continue;
     }
@@ -480,7 +480,7 @@ bool proxy_rebuild_context(Main *bmain,
 
     if (strip_new->type == STRIP_TYPE_MOVIE) {
       strip_open_anim_file(scene, strip_new, true);
-      anim = strip_new->runtime->movie_readers[i]; //@TODO: is this safe indexing in case it fails?
+      anim = strip_new->runtime->movie_reader_get(i);
       if (anim) {
         context->proxy_builder = MOV_proxy_builder_start(anim,
                                                          IMB_Timecode_Type(context->tc_flags),

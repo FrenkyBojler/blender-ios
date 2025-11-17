@@ -71,9 +71,12 @@ struct StripRuntime {
   void *scene_sound = nullptr; /* AUD_SequenceEntry */
   Vector<MovieReader *, 1> movie_readers;
 
-  [[nodiscard]] MovieReader *movie_reader_get() const
+  [[nodiscard]] MovieReader *movie_reader_get(int64_t index = 0) const
   {
-    return movie_readers.is_empty() ? nullptr : movie_readers.first();
+    if (index < 0 || index >= movie_readers.size()) {
+      return nullptr;
+    }
+    return movie_readers[index];
   }
 };
 
