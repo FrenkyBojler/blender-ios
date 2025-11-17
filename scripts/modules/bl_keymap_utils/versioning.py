@@ -36,7 +36,6 @@ def keyconfig_update(keyconfig_data, keyconfig_version):
             if km_name == "User Interface":
                 return km_items_data
 
-
     def remove_properties(op_prop_map):
         nonlocal keyconfig_data
         nonlocal has_copy
@@ -304,9 +303,9 @@ def keyconfig_update(keyconfig_data, keyconfig_version):
                 select_items = [
                     ("ui.view_item_select", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
                     ("ui.view_item_select", {"type": 'LEFTMOUSE', "value": 'PRESS', "ctrl": True},
-                    {"properties": [("extend", True)]}),
+                     {"properties": [("extend", True)]}),
                     ("ui.view_item_select", {"type": 'LEFTMOUSE', "value": 'PRESS', "shift": True},
-                    {"properties": [("range_select", True)]}),
+                     {"properties": [("range_select", True)]}),
                 ]
 
                 km_ui_items_data["items"].extend(select_items)
@@ -325,6 +324,5 @@ def keyconfig_update(keyconfig_data, keyconfig_version):
                 km_ui_items_data["items"].extend(scroll_items)
         else:
             print("Error versioning keymap: Missing \"User Interface\" keymap")
-
 
     return keyconfig_data
