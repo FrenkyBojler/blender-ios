@@ -34,7 +34,7 @@ struct PipelineState {
   GPUPrimType primitive_;
   Vector<AttributeBinding> vertex_inputs_;
   /* Pre-fragment and Fragment stage*/
-  GPUState state_ = {GPU_WRITE_COLOR};
+  GPUState state_ = {{GPU_WRITE_COLOR}};
   uint32_t viewport_count_;
   /* Attachment formats. */
   TextureTargetFormat depth_format_;
