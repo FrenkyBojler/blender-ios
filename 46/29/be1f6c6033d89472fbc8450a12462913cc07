@@ -1,1 +1,2 @@
 Referenced by issue #149368, Blender shows texture data preview as random pattern in the Texture Property preview panel when resize Properties Editor and using OpenGL backend.
+Referenced by issue #150050, EEVEE "Render animation" will render materials/lights differently on some frames
