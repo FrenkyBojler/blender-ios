@@ -7465,6 +7465,18 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
                            "Recompute all ID usercounts before saving to a blendfile. Allows to "
                            "work around invalid usercount handling in code that may lead to loss "
                            "of data due to wrongly detected unused data-blocks");
+
+  prop = RNA_def_property(srna, "use_multires_orthogonal_matrix", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "use_multires_orthogonal_matrix", 1);
+  RNA_def_property_ui_text(prop, "Multires - Ensure Orthogonal Tangent Matrix", "Ensure that the matrix used for calculating per-vertex tangent space has orthogonal basis vectors");
+
+  prop = RNA_def_property(srna, "use_multires_normalized_matrix", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "use_multires_normalized_matrix", 1);
+  RNA_def_property_ui_text(prop, "Multires - Ensure Normalized Tangent Matrix", "Ensure that the matrix used for calculating per-vertex tangent space has normalized basis vectors");
+
+  prop = RNA_def_property(srna, "use_multires_condition_number_filter", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "use_multires_condition_number_filter", 1);
+  RNA_def_property_ui_text(prop, "Multires - Filter Ill-formed Tangent Matrices", "Discard per-vertex tangent space data for ill-formed tangent space conversions");
 }
 
 static void rna_def_userdef_addon_collection(BlenderRNA *brna, PropertyRNA *cprop)
