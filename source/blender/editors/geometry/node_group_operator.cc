@@ -1110,11 +1110,11 @@ static bool run_node_group_poll(bContext *C, wmOperatorType *ot)
   return true;
 }
 
-static void register_node_tool(wmOperatorType *ot, void *user_data)
+static void register_node_tool(wmOperatorType *ot,
+                               std::unique_ptr<OperatorTypeData> &type_data_ptr)
 {
-  ot->custom_data = std::make_unique<OperatorTypeData>(
-      std::move(*static_cast<OperatorTypeData *>(user_data)));
-  OperatorTypeData &type_data = *static_cast<OperatorTypeData *>(ot->custom_data.get());
+  OperatorTypeData &type_data = *type_data_ptr;
+  ot->custom_data = std::move(type_data_ptr);
 
   PropertyRNA *prop;
   ot->name = type_data.name.c_str();
@@ -1324,7 +1324,11 @@ void register_node_group_operators(const bContext &C)
   }
 
   for (std::unique_ptr<OperatorTypeData> &type : types_to_register) {
-    WM_operatortype_append_ptr(register_node_tool, type.get());
+    WM_operatortype_append_ptr(
+        [](wmOperatorType *ot, void *user_data) {
+          register_node_tool(ot, *static_cast<std::unique_ptr<OperatorTypeData> *>(user_data));
+        },
+        &type);
   }
 
   /* Don't display the same errors twice. That can be very noisy since this operator registration
