@@ -1199,12 +1199,6 @@ bool ShadowModule::shadow_update_finished(int loop_count)
         "performance. ({} / {})",
         stats.page_used_count,
         shadow_page_len_);
-    std::string fmt_msg = fmt::format(
-        "Error: Shadow buffer full, may result in missing shadows and lower "
-        "performance. ({} / {})",
-        stats.page_used_count,
-        shadow_page_len_);
-    BLI_assert_msg(false, fmt_msg.c_str());
   }
 
   /* Rendering is finished if we rendered all the remaining pages. */
