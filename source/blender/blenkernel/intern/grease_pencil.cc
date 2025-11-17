@@ -583,9 +583,10 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
                                     reinterpret_cast<uint32_t (*)[3]>(r_tris.data()),
                                     pf_arena);
 
+            const int first_point = points_by_curve[shape.first()].first();
             threading::parallel_for(r_tris.index_range(), 512, [&](const IndexRange range) {
               for (const int i : range) {
-                r_tris[i] += points_by_curve[shape.first()].first();
+                r_tris[i] += first_point;
               }
             });
 
