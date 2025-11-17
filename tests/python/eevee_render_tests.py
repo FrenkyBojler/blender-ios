@@ -101,6 +101,7 @@ def setup():
         # Shadow
         if not skip_shadow_setup:
             eevee.shadow_step_count = 16
+            eevee.shadow_pool_size = '1024'
 
         # Volumetric
         eevee.volumetric_tile_size = '2'
