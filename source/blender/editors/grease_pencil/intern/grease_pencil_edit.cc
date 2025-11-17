@@ -4932,16 +4932,14 @@ static wmOperatorStatus grease_pencil_separate_shapes_exec(bContext *C, wmOperat
       return;
     }
 
-    /* Get the first id that does not already exist. */
-    const int new_shape_id = *std::max_element(shape_ids.span.begin(), shape_ids.span.end()) + 1;
-
     if (individual) {
       /* Each selected stroke becomes a new shape. */
-      strokes.foreach_index_optimized<int>(
-          GrainSize(4096),
-          [&](const int64_t i, const int64_t pos) { shape_ids.span[i] = pos + new_shape_id; });
+      index_mask::masked_fill(shape_ids.span, 0, strokes);
     }
     else {
+      /* Get the first id that does not already exist. */
+      const int new_shape_id = *std::max_element(shape_ids.span.begin(), shape_ids.span.end()) + 1;
+
       /* All selected stroke within a shape become a new shape. */
       strokes.foreach_index_optimized<int>(
           GrainSize(4096), [&](const int64_t i) { shape_ids.span[i] += new_shape_id; });
