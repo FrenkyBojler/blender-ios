@@ -333,7 +333,8 @@ blender::StringRefNull rna_Attribute_name_get(const PointerRNA &ptr)
   if (RNA_pointer_is_null(&ptr)) {
     return "";
   }
-  AttributeOwner owner = owner_from_attribute_pointer_rna(ptr);
+  ID *owner_id = ptr.owner_id;
+  const AttributeOwner owner = AttributeOwner::from_id(owner_id);
   if (owner.type() == AttributeOwnerType::Mesh) {
     const Mesh *mesh = owner.get_mesh();
     if (mesh->runtime->edit_mesh) {
@@ -801,12 +802,16 @@ void rna_AttributeGroup_iterator_begin(CollectionPropertyIterator *iter,
   if (owner.type() == AttributeOwnerType::Mesh) {
     Mesh *mesh = owner.get_mesh();
     if (BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
-      Vector<CustomDataLayer *> layers;
+      Vector<CustomDataLayer *, 16> layers;
       const auto add_layers = [&](CustomData &data) {
         for (CustomDataLayer &layer : MutableSpan(data.layers, data.totlayer)) {
-          if (layer.type & cd_type_mask) {
-            layers.append(&layer);
+          if (!(CD_TYPE_AS_MASK(eCustomDataType(layer.type)) & cd_type_mask)) {
+            continue;
           }
+          if (!include_anonymous && bke::attribute_name_is_anonymous(layer.name)) {
+            continue;
+          }
+          layers.append(&layer);
         }
       };
       if (domain_mask & ATTR_DOMAIN_MASK_POINT) {
@@ -829,7 +834,7 @@ void rna_AttributeGroup_iterator_begin(CollectionPropertyIterator *iter,
   }
 
   bke::AttributeStorage &storage = *owner.get_storage();
-  Vector<bke::Attribute *> attributes;
+  Vector<bke::Attribute *, 16> attributes;
   storage.foreach([&](bke::Attribute &attr) {
     if (!(ATTR_DOMAIN_AS_MASK(attr.domain()) & domain_mask)) {
       return;
@@ -857,10 +862,14 @@ PointerRNA rna_AttributeGroup_iterator_get(CollectionPropertyIterator *iter)
   using namespace blender;
   AttributeOwner owner = owner_from_pointer_rna(&iter->parent);
   if (owner.type() == AttributeOwnerType::Mesh) {
-    CustomDataLayer *layer = *static_cast<CustomDataLayer **>(rna_iterator_array_get(iter));
-    StructRNA *type = srna_by_custom_data_layer_type(eCustomDataType(layer->type));
-    if (type == nullptr) {
-      return PointerRNA_NULL;
+    Mesh *mesh = owner.get_mesh();
+    if (mesh->runtime->edit_mesh) {
+      CustomDataLayer *layer = *static_cast<CustomDataLayer **>(rna_iterator_array_get(iter));
+      StructRNA *type = srna_by_custom_data_layer_type(eCustomDataType(layer->type));
+      if (type == nullptr) {
+        return PointerRNA_NULL;
+      }
+      return RNA_pointer_create_with_parent(iter->parent, type, layer);
     }
   }
 
@@ -914,7 +923,6 @@ PointerRNA rna_AttributeGroup_lookup_string(const PointerRNA &ptr,
           ptr, &RNA_Attribute, const_cast<CustomDataLayer *>(attr.layer), result);
       return result;
     }
-    return PointerRNA_NULL;
   }
 
   bke::AttributeStorage &storage = *owner.get_storage();
@@ -949,7 +957,7 @@ static PointerRNA rna_AttributeGroupID_active_get(PointerRNA *ptr)
 {
   using namespace blender;
   AttributeOwner owner = AttributeOwner::from_id(ptr->owner_id);
-  const std::optional<blender::StringRefNull> name = BKE_attributes_active_name_get(owner);
+  const std::optional<blender::StringRef> name = BKE_attributes_active_name_get(owner);
   if (!name) {
     return PointerRNA_NULL;
   }

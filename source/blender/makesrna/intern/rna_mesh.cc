@@ -1151,28 +1151,12 @@ static std::optional<std::string> rna_MeshSkinVertexLayer_path(const PointerRNA 
   return fmt::format("skin_vertices[\"{}\"]", name_esc);
 }
 
+static std::optional<std::string> rna_VertCustomData_data_path(const PointerRNA *ptr,
+                                                               const char *collection,
+                                                               int type);
 static std::optional<std::string> rna_MeshSkinVertex_path(const PointerRNA *ptr)
 {
-  const CustomDataLayer *cdl;
-  const Mesh *mesh = rna_mesh(ptr);
-  if (mesh->runtime->edit_mesh) {
-    return std::nullopt;
-  }
-  const CustomData *vdata = &mesh->vert_data;
-  int a, b, totvert = mesh->verts_num;
-
-  for (cdl = vdata->layers, a = 0; a < vdata->totlayer; cdl++, a++) {
-    if (cdl->type == CD_MVERT_SKIN) {
-      b = ((char *)ptr->data - ((char *)cdl->data)) / CustomData_sizeof(CD_MVERT_SKIN);
-      if (b >= 0 && b < totvert) {
-        char name_esc[sizeof(cdl->name) * 2];
-        BLI_str_escape(name_esc, cdl->name, sizeof(name_esc));
-        return fmt::format("skin_vertices[\"{}\"].data[{}]", name_esc, b);
-      }
-    }
-  }
-
-  return std::nullopt;
+  return rna_VertCustomData_data_path(ptr, "skin_vertices", CD_MVERT_SKIN);
 }
 
 static void rna_MeshSkinVertexLayer_name_set(PointerRNA *ptr, const char *value)
@@ -1239,6 +1223,17 @@ static void rna_MeshPoly_vertices_set(PointerRNA *ptr, const int *values)
   const int poly_size = *(poly_offset_p + 1) - poly_start;
   memcpy(&mesh->corner_verts_for_write()[poly_start], values, sizeof(int) * poly_size);
 }
+
+/* disabling, some importers don't know the total material count when assigning materials */
+#  if 0
+static void rna_MeshPoly_material_index_range(
+    PointerRNA *ptr, int *min, int *max, int *softmin, int *softmax)
+{
+  Mesh *mesh = rna_mesh(ptr);
+  *min = 0;
+  *max = max_ii(0, mesh->totcol - 1);
+}
+#  endif
 
 static bool rna_MeshEdge_hide_get(PointerRNA *ptr)
 {
@@ -1395,6 +1390,29 @@ static std::optional<std::string> rna_MeshLoop_path(const PointerRNA *ptr)
 static std::optional<std::string> rna_MeshVertex_path(const PointerRNA *ptr)
 {
   return fmt::format("vertices[{}]", rna_MeshVertex_index_get(const_cast<PointerRNA *>(ptr)));
+}
+
+static std::optional<std::string> rna_VertCustomData_data_path(const PointerRNA *ptr,
+                                                               const char *collection,
+                                                               int type)
+{
+  const CustomDataLayer *cdl;
+  const Mesh *mesh = rna_mesh(ptr);
+  const CustomData *vdata = rna_mesh_vdata(ptr);
+  int a, b, totvert = (mesh->runtime->edit_mesh) ? 0 : mesh->verts_num;
+
+  for (cdl = vdata->layers, a = 0; a < vdata->totlayer; cdl++, a++) {
+    if (cdl->type == type) {
+      b = ((char *)ptr->data - ((char *)cdl->data)) / CustomData_sizeof(eCustomDataType(type));
+      if (b >= 0 && b < totvert) {
+        char name_esc[sizeof(cdl->name) * 2];
+        BLI_str_escape(name_esc, cdl->name, sizeof(name_esc));
+        return fmt::format("{}[\"{}\"].data[{}]", collection, name_esc, b);
+      }
+    }
+  }
+
+  return std::nullopt;
 }
 
 static void rna_Mesh_vertices_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
@@ -1697,8 +1715,8 @@ static void rna_MeshUVLoop_uv_set(PointerRNA *ptr, const float *value)
 
 static std::optional<std::string> rna_MeshLoopColorLayer_path(const PointerRNA *ptr)
 {
-  const auto *attr = static_cast<const blender::bke::Attribute *>(ptr->data);
-  return fmt::format("vertex_colors[\"{}\"]", BLI_str_escape(attr->name().c_str()));
+  return fmt::format("vertex_colors[\"{}\"]",
+                     BLI_str_escape(rna_Attribute_name_get(*ptr).c_str()));
 }
 
 static std::optional<std::string> rna_MeshColor_path(const PointerRNA *ptr)
