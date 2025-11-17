@@ -1994,6 +1994,7 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
 
   const bool remove_gaps = RNA_boolean_get(op->ptr, "remove_gaps");
   const bool ignore_selection = RNA_boolean_get(op->ptr, "ignore_selection");
+  const bool ignore_connections = RNA_boolean_get(op->ptr, "ignore_connections");
   const seq::eSplitMethod method = seq::eSplitMethod(RNA_enum_get(op->ptr, "type"));
   const int2 rect_frames = {round_fl_to_int(box_rect.xmin), round_fl_to_int(box_rect.xmax)};
 
@@ -2012,8 +2013,14 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
 
       for (int frame : {rect_frames[0], rect_frames[1]}) {
         const char *error_msg = nullptr;
-        Strip *new_strip = seq::edit_strip_split(
-            bmain, scene, ed->current_strips(), strips[i], frame, method, false, &error_msg);
+        Strip *new_strip = seq::edit_strip_split(bmain,
+                                                 scene,
+                                                 ed->current_strips(),
+                                                 strips[i],
+                                                 frame,
+                                                 method,
+                                                 ignore_connections,
+                                                 &error_msg);
         if (error_msg != nullptr) {
           BKE_report(op->reports, RPT_ERROR, error_msg);
         }
@@ -2036,9 +2043,11 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
     {
       seq::edit_flag_for_removal(scene, ed->current_strips(), strip);
       /* Propagate removal to connected strips. */
-      blender::VectorSet<Strip *> connected_strips = seq::connected_strips_get(strip);
-      for (Strip *c_strip : connected_strips) {
-        seq::edit_flag_for_removal(scene, ed->current_strips(), c_strip);
+      if (!ignore_connections) {
+        blender::VectorSet<Strip *> connected_strips = seq::connected_strips_get(strip);
+        for (Strip *c_strip : connected_strips) {
+          seq::edit_flag_for_removal(scene, ed->current_strips(), c_strip);
+        }
       }
       changed = true;
     }
@@ -2155,6 +2164,11 @@ void SEQUENCER_OT_box_blade(wmOperatorType *ot)
                   true,
                   "Ignore Selection",
                   "Make cut even if strip is not selected preserving selection state after cut");
+  RNA_def_boolean(ot->srna,
+                  "ignore_connections",
+                  false,
+                  "Ignore Connections",
+                  "Don't propagate split to connected strips");
   RNA_def_boolean(
       ot->srna, "remove_gaps", true, "Remove Gaps", "Close gaps between cutted strips");
 }
