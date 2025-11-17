@@ -151,11 +151,16 @@ void OperatorTypeData::ensure_hash()
         if constexpr (std::is_same_v<T, AssetWeakReference>) {
           XXH3_128bits_update(
               hash_state, &value.asset_library_type, sizeof(value.asset_library_type));
-          XXH3_128bits_update(
-              hash_state, value.asset_library_identifier, strlen(value.asset_library_identifier));
-          XXH3_128bits_update(hash_state,
-                              value.relative_asset_identifier,
-                              strlen(value.relative_asset_identifier));
+          if (value.asset_library_identifier) {
+            XXH3_128bits_update(hash_state,
+                                value.asset_library_identifier,
+                                strlen(value.asset_library_identifier));
+          }
+          if (value.relative_asset_identifier) {
+            XXH3_128bits_update(hash_state,
+                                value.relative_asset_identifier,
+                                strlen(value.relative_asset_identifier));
+          }
         }
         else if constexpr (std::is_same_v<T, LocalRef>) {
           XXH3_128bits_update(hash_state, &value.session_uid, sizeof(value.session_uid));
