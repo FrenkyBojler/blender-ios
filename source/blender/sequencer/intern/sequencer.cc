@@ -83,7 +83,7 @@ StripProxy *seq_strip_proxy_alloc()
   return strip_proxy;
 }
 
-static StripData *seq_strip_alloc(int type)
+static StripData *strip_data_alloc(StripType type)
 {
   StripData *data = MEM_callocN<StripData>("strip");
 
@@ -96,22 +96,11 @@ static StripData *seq_strip_alloc(int type)
     data->transform->filter = SEQ_TRANSFORM_FILTER_AUTO;
     data->crop = MEM_callocN<StripCrop>("StripCrop");
   }
-
-  data->us = 1;
   return data;
 }
 
-static void seq_free_strip(StripData *data)
+static void strip_data_free(StripData *data)
 {
-  data->us--;
-  if (data->us > 0) {
-    return;
-  }
-  if (data->us < 0) {
-    printf("error: negative users in strip\n");
-    return;
-  }
-
   if (data->stripdata) {
     MEM_freeN(data->stripdata);
   }
@@ -133,7 +122,7 @@ static void seq_free_strip(StripData *data)
   MEM_freeN(data);
 }
 
-Strip *strip_alloc(ListBase *lb, int timeline_frame, int channel, int type)
+Strip *strip_alloc(ListBase *lb, int timeline_frame, int channel, StripType type)
 {
   Strip *strip = MEM_callocN<Strip>("addseq");
   strip->runtime = MEM_new<StripRuntime>(__func__);
@@ -161,7 +150,7 @@ Strip *strip_alloc(ListBase *lb, int timeline_frame, int channel, int type)
     strip->blend_mode = STRIP_BLEND_ALPHAOVER;
   }
 
-  strip->data = seq_strip_alloc(type);
+  strip->data = strip_data_alloc(type);
   strip->stereo3d_format = MEM_callocN<Stereo3dFormat>("Sequence Stereo Format");
 
   strip->color_tag = STRIP_COLOR_NONE;
@@ -180,7 +169,8 @@ static void seq_strip_free_ex(Scene *scene,
                               const bool do_id_user)
 {
   if (strip->data) {
-    seq_free_strip(strip->data);
+    strip_data_free(strip->data);
+    strip->data = nullptr;
   }
 
   strip_free_movie_readers(strip);

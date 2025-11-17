@@ -13,6 +13,7 @@
 #include "BLI_vector.hh"
 #include "BLI_vector_set.hh"
 #include "DNA_scene_types.h"
+#include "DNA_sequence_types.h"
 #include "DNA_session_uid_types.h"
 
 struct BlendDataReader;
@@ -101,7 +102,7 @@ void editing_free(Scene *scene, bool do_id_user);
  * \return pointer to active seqbase. returns NULL if ed is NULL
  */
 ListBase *active_seqbase_get(const Editing *ed);
-Strip *strip_alloc(ListBase *lb, int timeline_frame, int channel, int type);
+Strip *strip_alloc(ListBase *lb, int timeline_frame, int channel, StripType type);
 void strip_free(Scene *scene, Strip *strip);
 /**
  * Get #MetaStack that corresponds to current level that is being viewed

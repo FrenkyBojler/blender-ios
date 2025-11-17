@@ -123,7 +123,6 @@ typedef struct StripProxy {
 
 typedef struct StripData {
   struct StripData *next, *prev;
-  int us, done;
   /**
    * Only used as an array in IMAGE sequences(!),
    * and as a 1-element array in MOVIE sequences,
@@ -139,6 +138,9 @@ typedef struct StripData {
 
   /* Color management */
   ColorManagedColorspaceSettings colorspace_settings;
+
+  int done;
+  int _pad;
 } StripData;
 
 typedef struct SeqRetimingKey {
