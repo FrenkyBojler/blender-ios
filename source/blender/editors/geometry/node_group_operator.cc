@@ -1209,7 +1209,7 @@ void ui_template_node_operator_registration_errors(ui::Layout &layout,
     col.label(TIP_("Operator is built-in"), ICON_ERROR);
   }
   if (errors_for_type->duplicate_count != 0) {
-    col.label(fmt::format(fmt::runtime(TIP_("{} duplicate(s)")), errors_for_type->duplicate_count),
+    col.label(fmt::format(fmt::runtime(TIP_("Duplicates: {}")), errors_for_type->duplicate_count),
               ICON_ERROR);
   }
   for (const std::string &error : errors_for_type->idname_validation_errors) {
