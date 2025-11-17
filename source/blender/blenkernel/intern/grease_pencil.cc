@@ -555,23 +555,20 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
 
           Array<int> shape_points_by_curve_data(shape.size() + 1);
           shape.foreach_index([&](const int64_t curve_i, const int64_t pos) {
-            const IndexRange points = points_by_curve[curve_i];
-            shape_points_by_curve_data[pos] = points.size();
+            shape_points_by_curve_data[pos] = points_by_curve[curve_i].size();
           });
 
           offset_indices::accumulate_counts_to_offsets(shape_points_by_curve_data);
-
           OffsetIndices<int> shape_points_by_curve = OffsetIndices<int>(
               shape_points_by_curve_data);
 
-          shape.foreach_index([&](const int64_t curve_i, const int64_t pos) {
+          shape.foreach_index(GrainSize(256), [&](const int64_t curve_i, const int64_t pos) {
             const IndexRange shape_points = shape_points_by_curve[pos];
             const IndexRange points = points_by_curve[curve_i];
             for (const int i : points.index_range()) {
-              const int p = points[i];
-              const int cur_p = shape_points[i];
-
-              mul_v2_m3v3(projverts[cur_p], axis_mat.ptr(), positions[p]);
+              const int curve_p = points[i];
+              const int shape_p = shape_points[i];
+              mul_v2_m3v3(projverts[shape_p], axis_mat.ptr(), positions[curve_p]);
             }
           });
 
@@ -610,7 +607,7 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
           const Span<float2> projverts_span = Span(reinterpret_cast<float2 *>(projverts),
                                                    num_points);
 
-          shape.foreach_index([&](const int64_t curve_i, const int64_t pos) {
+          shape.foreach_index(GrainSize(256), [&](const int64_t curve_i, const int64_t pos) {
             const IndexRange shape_points = shape_points_by_curve[pos];
             const IndexRange points = points_by_curve[curve_i];
             faces[pos].resize(points.size());
@@ -623,13 +620,16 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
                                      reinterpret_cast<const float (*)[2]>(projpoints.data()),
                                      projpoints.size()) < 0.0;
 
-            for (const int p_id : points.index_range()) {
-              og_vert_to_point_map[shape_points.first() + p_id] = points[p_id];
+            for (const int i : points.index_range()) {
+              const int curve_p = points[i];
+              const int shape_p = shape_points[i];
+
+              og_vert_to_point_map[shape_p] = curve_p;
               if (flipped) {
-                faces[pos][(points.size() - 1) - p_id] = shape_points.first() + p_id;
+                faces[pos][(points.size() - 1) - i] = shape_p;
               }
               else {
-                faces[pos][p_id] = shape_points.first() + p_id;
+                faces[pos][i] = shape_p;
               }
             }
           });
