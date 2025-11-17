@@ -4,10 +4,6 @@
 
 #include "workbench_private.hh"
 
-#include "BLI_math_color.h"
-
-#include "UI_resources.hh"
-
 #include "DNA_userdef_types.h"
 
 #include "BKE_camera.h"
