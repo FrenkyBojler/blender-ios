@@ -471,8 +471,30 @@ Vector<IndexMask, 4> Drawing::shapes(IndexMaskMemory &memory) const
     return shapes;
   }
 
-  VectorSet<int> shape_indexing;
-  const Vector<IndexMask> shapes = IndexMask::from_group_ids(shape_ids, memory, shape_indexing);
+  Vector<Vector<int>> indices_by_shape;
+  Map<int, int> shape_indexing;
+
+  /* Create shapes from indices, zero is a special value, every zero gets it's own shape. */
+  for (const int i : curves.curves_range()) {
+    const int shape_id = shape_ids[i];
+
+    if (shape_id == 0) {
+      indices_by_shape.append(Vector<int>({i}));
+      continue;
+    }
+
+    if (shape_indexing.add(shape_id, indices_by_shape.size())) {
+      indices_by_shape.append(Vector<int>({i}));
+    }
+    else {
+      indices_by_shape[shape_indexing.lookup(shape_id)].append(i);
+    }
+  }
+
+  Vector<IndexMask, 4> shapes(indices_by_shape.size());
+  for (const int64_t i : indices_by_shape.index_range()) {
+    shapes[i] = IndexMask::from_indices<int>(indices_by_shape[i], memory);
+  }
 
   return shapes;
 }
