@@ -147,7 +147,7 @@ bool ED_operator_active_screen_and_scene(bContext *C)
   }
   /* In case of sequencer, scene may not be set. */
   if (CTX_wm_space_seq(C) != nullptr) {
-    return CTX_data_sequencer_scene(C);
+    return CTX_data_sequencer_scene(C) != nullptr;
   }
   return true;
 }
