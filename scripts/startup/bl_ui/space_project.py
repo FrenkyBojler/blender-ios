@@ -204,75 +204,16 @@ class PROJECT_PT_main(Panel, CenterAlignMixIn):
             col.operator("project.write_project")
 
 
-class PROJECT_PT_variables(Panel):
-    bl_label = "Variables"
-    bl_space_type = 'PROJECT'
-    bl_region_type = 'WINDOW'
-    bl_category = "Variables"
-
-    def draw(self, context):
-        layout = self.layout
-        layout.label(text="[Insert Variables UI here]")
-
-
-class PROJECT_PT_test1(Panel):
-    bl_label = "A test"
-    bl_space_type = 'PROJECT'
-    bl_region_type = 'WINDOW'
-    bl_category = "Test 1"
-
-    @classmethod
-    def poll(cls, context):
-        return True
-
-    def draw(self, context):
-        layout = self.layout
-        layout.label(text="Hello World")
-
-
-class PROJECT_PT_test2(Panel):
-    bl_label = "Another test"
-    bl_space_type = 'PROJECT'
-    bl_region_type = 'WINDOW'
-    bl_category = "Test 1"
-
-    @classmethod
-    def poll(cls, context):
-        return True
-
-    def draw(self, context):
-        layout = self.layout
-        layout.label(text="Hello World")
-
-
-class PROJECT_PT_test3(Panel):
-    bl_label = "A test"
-    bl_space_type = 'PROJECT'
-    bl_region_type = 'WINDOW'
-    bl_category = "Test 2"
-
-    @classmethod
-    def poll(cls, context):
-        return True
-
-    def draw(self, context):
-        layout = self.layout
-        layout.label(text="Hello World")
-
-
 classes = (
     PROJECT_HT_header,
     PROJECT_MT_editor_menus,
     PROJECT_MT_view,
     PROJECT_PT_navigation_bar,
     PROJECT_PT_main,
-    PROJECT_PT_variables,
-    PROJECT_PT_test1,
-    PROJECT_PT_test2,
-    PROJECT_PT_test3,
     PROJECT_OP_NewProject,
     PROJECT_OP_WriteProject
 )
+
 
 # --------------------------------------------------------------
 # EVERYTHING BELOW SHOULD PROBABLY GO SOMEWHERE ELSE...?
