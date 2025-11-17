@@ -1387,7 +1387,7 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
     }
   }
 
-  bool reported[INDEX_ID_MAX] = {false};
+  std::array<bool, INDEX_ID_MAX> reported{};
   for (Object *ob : objects) {
     if (ob->flag & OB_DONE) {
       continue;
@@ -1396,17 +1396,25 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
     bool do_inverse_offset = false;
     ob->flag |= OB_DONE;
 
-    if (!OB_TYPE_SUPPORT_ORIGIN_SET(ob->type)) {
-      ID *obdata = static_cast<ID *>(ob->data);
-      const short idcode = GS(obdata->name);
-      const int id_index = BKE_idtype_idcode_to_index(idcode);
+    if (ELEM(ob->type, OB_EMPTY, OB_CAMERA, OB_LAMP, OB_SPEAKER, OB_LIGHTPROBE)) {
+      const char *type_name;
+      int report_index;
 
-      if (!reported[id_index]) {
-        reported[id_index] = true;
-        BKE_reportf(op->reports,
-                    RPT_INFO,
-                    "Set Origin not supported for %s object(s)",
-                    BKE_idtype_idcode_to_name(idcode));
+      if (ob->type == OB_EMPTY) {
+        type_name = "Empty";
+        report_index = 0;
+      }
+      else {
+        const ID *obdata = static_cast<const ID *>(ob->data);
+        const short idcode = GS(obdata->name);
+
+        type_name = BKE_idtype_idcode_to_name(idcode);
+        report_index = BKE_idtype_idcode_to_index(idcode);
+      }
+
+      if (!reported[report_index]) {
+        reported[report_index] = true;
+        BKE_reportf(op->reports, RPT_INFO, "Set Origin not supported for %s object(s)", type_name);
       }
       continue;
     }
