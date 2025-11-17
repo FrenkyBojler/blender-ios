@@ -56,7 +56,6 @@ BLI_INLINE void BKE_multires_construct_tangent_matrix(blender::float3x3 &tangent
   blender::float3 N = blender::float3(blender::math::normalize(blender::math::cross(
       blender::double3(tangent_matrix.x_axis()), blender::double3(tangent_matrix.y_axis()))));
 
-
   constexpr float eps = 0.000001f;
   /* Check for a bad cross product by inspecting the length, if within this arbitrary epislon,
    * return the null matrix. */
@@ -73,8 +72,9 @@ BLI_INLINE void BKE_multires_construct_tangent_matrix(blender::float3x3 &tangent
     tangent_matrix.z_axis() = blender::math::normalize(N);
   }
   else {
-    const float geometric_mean = blender::math::sqrt(blender::math::length(tangent_matrix.x_axis()) *
-                                                     blender::math::length(tangent_matrix.y_axis()));
+    const float geometric_mean = blender::math::sqrt(
+        blender::math::length(tangent_matrix.x_axis()) *
+        blender::math::length(tangent_matrix.y_axis()));
 
     tangent_matrix.x_axis() = tangent_matrix.x_axis();
     tangent_matrix.y_axis() = tangent_matrix.y_axis();
