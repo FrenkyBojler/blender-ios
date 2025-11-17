@@ -553,13 +553,25 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
           float (*projverts)[2] = static_cast<float (*)[2]>(
               BLI_memarena_alloc(pf_arena, sizeof(*projverts) * size_t(num_points)));
 
-          int cur_p = 0;
-
-          shape.foreach_index([&](const int64_t curve_i) {
+          Array<int> shape_points_by_curve_data(shape.size() + 1);
+          shape.foreach_index([&](const int64_t curve_i, const int64_t pos) {
             const IndexRange points = points_by_curve[curve_i];
-            for (const int p : points) {
+            shape_points_by_curve_data[pos] = points.size();
+          });
+
+          offset_indices::accumulate_counts_to_offsets(shape_points_by_curve_data);
+
+          OffsetIndices<int> shape_points_by_curve = OffsetIndices<int>(
+              shape_points_by_curve_data);
+
+          shape.foreach_index([&](const int64_t curve_i, const int64_t pos) {
+            const IndexRange shape_points = shape_points_by_curve[pos];
+            const IndexRange points = points_by_curve[curve_i];
+            for (const int i : points.index_range()) {
+              const int p = points[i];
+              const int cur_p = shape_points[i];
+
               mul_v2_m3v3(projverts[cur_p], axis_mat.ptr(), positions[p]);
-              cur_p++;
             }
           });
 
@@ -595,17 +607,16 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
             }
           });
 
-          cur_p = 0; /* Reuse. */
-
           const Span<float2> projverts_span = Span(reinterpret_cast<float2 *>(projverts),
                                                    num_points);
 
-          shape.foreach_index([&](const int64_t curve_i, const int64_t i) {
+          shape.foreach_index([&](const int64_t curve_i, const int64_t pos) {
+            const IndexRange shape_points = shape_points_by_curve[pos];
             const IndexRange points = points_by_curve[curve_i];
-            faces[i].resize(points.size());
-            og_face_to_curve_map[i] = curve_i;
+            faces[pos].resize(points.size());
+            og_face_to_curve_map[pos] = curve_i;
 
-            const Span<float2> projpoints = projverts_span.slice(IndexRange(cur_p, points.size()));
+            const Span<float2> projpoints = projverts_span.slice(shape_points);
 
             /* Curve have to be in a counterclockwise order, so check if a flip is need.*/
             const bool flipped = cross_poly_v2(
@@ -613,15 +624,13 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
                                      projpoints.size()) < 0.0;
 
             for (const int p_id : points.index_range()) {
-              og_vert_to_point_map[cur_p] = points[p_id];
+              og_vert_to_point_map[shape_points.first() + p_id] = points[p_id];
               if (flipped) {
-                faces[i][(points.size() - 1) - p_id] = cur_p;
+                faces[pos][(points.size() - 1) - p_id] = shape_points.first() + p_id;
               }
               else {
-                faces[i][p_id] = cur_p;
+                faces[pos][p_id] = shape_points.first() + p_id;
               }
-
-              cur_p++;
             }
           });
 
