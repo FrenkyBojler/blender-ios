@@ -138,9 +138,6 @@ typedef struct StripData {
 
   /* Color management */
   ColorManagedColorspaceSettings colorspace_settings;
-
-  int done;
-  int _pad;
 } StripData;
 
 typedef struct SeqRetimingKey {

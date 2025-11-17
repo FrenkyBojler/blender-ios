@@ -825,21 +825,11 @@ SequencerToolSettings *tool_settings_copy(SequencerToolSettings *tool_settings)
 
 /** \} */
 
-static bool seq_set_strip_done_cb(Strip *strip, void * /*userdata*/)
-{
-  if (strip->data) {
-    strip->data->done = false;
-  }
-  return true;
-}
-
 static bool strip_write_data_cb(Strip *strip, void *userdata)
 {
   BlendWriter *writer = (BlendWriter *)userdata;
   BLO_write_struct(writer, Strip, strip);
-  if (strip->data && strip->data->done == 0) {
-    /* Write strip with 'done' at 0 because read-file. */
-
+  if (strip->data) {
     /* TODO this doesn't depend on the `Strip` data to be present? */
     if (strip->effectdata) {
       switch (strip->type) {
@@ -893,8 +883,6 @@ static bool strip_write_data_cb(Strip *strip, void *userdata)
     else if (ELEM(strip->type, STRIP_TYPE_MOVIE, STRIP_TYPE_SOUND_RAM)) {
       BLO_write_struct(writer, StripElem, data->stripdata);
     }
-
-    data->done = true;
   }
 
   if (strip->prop) {
@@ -924,9 +912,6 @@ static bool strip_write_data_cb(Strip *strip, void *userdata)
 
 void blend_write(BlendWriter *writer, ListBase *seqbase)
 {
-  /* reset write flags */
-  foreach_strip(seqbase, seq_set_strip_done_cb, nullptr);
-
   foreach_strip(seqbase, strip_write_data_cb, writer);
 }
 
@@ -989,9 +974,7 @@ static bool strip_read_data_cb(Strip *strip, void *user_data)
   IDP_BlendDataRead(reader, &strip->system_properties);
 
   BLO_read_struct(reader, StripData, &strip->data);
-  if (strip->data && strip->data->done == 0) {
-    strip->data->done = true;
-
+  if (strip->data) {
     /* `STRIP_TYPE_SOUND_HD` case needs to be kept here, for backward compatibility. */
     if (ELEM(strip->type,
              STRIP_TYPE_IMAGE,
