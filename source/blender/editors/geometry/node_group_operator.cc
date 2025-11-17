@@ -1206,7 +1206,7 @@ void ui_template_node_operator_registration_errors(ui::Layout &layout,
   }
   ui::Layout &col = layout.column(false);
   if (errors_for_type->is_builtin_operator) {
-    col.label(TIP_("Operator is built-in"), ICON_ERROR);
+    col.label(TIP_("Operator is already registered"), ICON_ERROR);
   }
   if (errors_for_type->duplicate_count != 0) {
     col.label(fmt::format(fmt::runtime(TIP_("Duplicates: {}")), errors_for_type->duplicate_count),
