@@ -19,6 +19,54 @@
 
 #include <cctype>
 
+static char32_t *utf8_to_utf32(const char *utf8_str, size_t *r_utf32_len)
+{
+  if (!utf8_str || utf8_str[0] == '\0') {
+    *r_utf32_len = 0;
+    return nullptr;
+  }
+
+  size_t utf8_len_bytes = strlen(utf8_str);
+  size_t utf32_len = BLI_strnlen_utf8(utf8_str, utf8_len_bytes);
+
+  char32_t *utf32_str = static_cast<char32_t *>(
+      MEM_mallocN(sizeof(char32_t) * (utf32_len + 1), __func__));
+
+  size_t utf8_idx = 0;
+  for (size_t i = 0; i < utf32_len; ++i) {
+    utf32_str[i] = BLI_str_utf8_as_unicode_step_safe(utf8_str, utf8_len_bytes, &utf8_idx);
+  }
+  utf32_str[utf32_len] = U'\0'; /* Null-terminate the UTF-32 string. */
+
+  *r_utf32_len = utf32_len;
+  return utf32_str;
+}
+
+static char *utf32_to_utf8(const char32_t *utf32_str)
+{
+  if (!utf32_str || utf32_str[0] == U'\0') {
+    return BLI_strdup("");
+  }
+
+  size_t utf32_len = 0;
+  for (const char32_t *p = utf32_str; *p != U'\0'; ++p) {
+    utf32_len++;
+  }
+
+  // Calculate required buffer size for UTF-8. Each UTF-32 char can be up to 4 bytes in UTF-8.
+  size_t utf8_max_len = utf32_len * BLI_UTF8_MAX + 1;
+  char *utf8_str = static_cast<char *>(MEM_mallocN(sizeof(char) * utf8_max_len, __func__));
+
+  size_t current_utf8_len = 0;
+  for (size_t i = 0; i < utf32_len; ++i) {
+    current_utf8_len += BLI_str_utf8_from_unicode(
+        utf32_str[i], utf8_str + current_utf8_len, utf8_max_len - current_utf8_len);
+  }
+  utf8_str[current_utf8_len] = '\0'; /* Null-terminate the UTF-8 string. */
+
+  return utf8_str;
+}
+
 #include "../file_intern.hh"
 #include "../filelist.hh"
 #include "filelist_intern.hh"
@@ -215,30 +263,47 @@ bool is_filtered_asset(FileListInternEntry *file, FileListFilter *filter)
   }
 
   /* filter->filter_search contains "*the search text*". */
-  char filter_search[sizeof(FileListFilter::filter_search)];
-  const size_t string_length = STRNCPY_RLEN(filter_search, filter->filter_search);
+  char filter_search_buf[sizeof(FileListFilter::filter_search)];
+  const size_t string_length = STRNCPY_RLEN(filter_search_buf, filter->filter_search);
 
   /* When doing a name comparison, get rid of the leading/trailing asterisks. */
-  filter_search[string_length - 1] = '\0';
-  const char *search_str = filter_search + 1;
+  filter_search_buf[string_length - 1] = '\0';
+  const char *search_str = filter_search_buf + 1;
   const int search_str_len = strlen(search_str);
 
-  /* For case-insensitive search, convert both strings to lowercase. This is not fully UTF-8
-   * aware, but will work for ASCII characters, which is better than no case-insensitivity. */
-  char *search_str_lower = BLI_strdup(search_str);
-  for (char *p = search_str_lower; *p; p++) {
-    *p = tolower(*p);
-  }
-  char *file_name_lower = BLI_strdup(file->name);
-  for (char *p = file_name_lower; *p; p++) {
-    *p = tolower(*p);
-  }
+  size_t search_str_utf32_len;
+  char32_t *search_str_utf32 = utf8_to_utf32(search_str, &search_str_utf32_len);
 
-  const int errors = blender::string_search::get_fuzzy_match_errors(search_str_lower,
-                                                                    file_name_lower);
+  size_t file_name_utf32_len;
+  char32_t *file_name_utf32 = utf8_to_utf32(file->name, &file_name_utf32_len);
 
-  MEM_freeN(search_str_lower);
-  MEM_freeN(file_name_lower);
+  /* For case-insensitive search, convert both strings to lowercase. */
+  char32_t *search_str_lower_utf32 = static_cast<char32_t *>(
+      MEM_mallocN(sizeof(char32_t) * (search_str_utf32_len + 1), __func__));
+  for (size_t i = 0; i < search_str_utf32_len; ++i) {
+    search_str_lower_utf32[i] = BLI_str_utf32_char_to_lower(search_str_utf32[i]);
+  }
+  search_str_lower_utf32[search_str_utf32_len] = U'\0';
+
+  char32_t *file_name_lower_utf32 = static_cast<char32_t *>(
+      MEM_mallocN(sizeof(char32_t) * (file_name_utf32_len + 1), __func__));
+  for (size_t i = 0; i < file_name_utf32_len; ++i) {
+    file_name_lower_utf32[i] = BLI_str_utf32_char_to_lower(file_name_utf32[i]);
+  }
+  file_name_lower_utf32[file_name_utf32_len] = U'\0';
+
+  char *search_str_lower_utf8 = utf32_to_utf8(search_str_lower_utf32);
+  char *file_name_lower_utf8 = utf32_to_utf8(file_name_lower_utf32);
+
+  const int errors = blender::string_search::get_fuzzy_match_errors(search_str_lower_utf8,
+                                                                    file_name_lower_utf8);
+
+  MEM_freeN(search_str_utf32);
+  MEM_freeN(file_name_utf32);
+  MEM_freeN(search_str_lower_utf32);
+  MEM_freeN(file_name_lower_utf32);
+  MEM_freeN(search_str_lower_utf8);
+  MEM_freeN(file_name_lower_utf8);
 
   if (errors != -1 && (errors < 3 || errors < search_str_len / 2)) {
     return true;
