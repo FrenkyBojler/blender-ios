@@ -691,27 +691,27 @@ typedef enum eSeqRetimingKeyFlag {
 
 /** #Strip.flag */
 typedef enum eStripFlag {
-  /* `SELECT = (1 << 0)` */
+  /* Note: generic `SELECT` (1 << 0) bit is used. */
   SEQ_LEFTSEL = (1 << 1),
   SEQ_RIGHTSEL = (1 << 2),
-  SEQ_FLAG_UNUSED_3 = (1 << 3), /* Cleared. */
-  SEQ_FILTERY = (1 << 4),
+  /* Unused, was SEQ_OVERLAP = (1 << 3), now a runtime flag. */
+  SEQ_DEINTERLACE = (1 << 4),
   SEQ_MUTE = (1 << 5),
   SEQ_FLAG_TEXT_EDITING_ACTIVE = (1 << 6),
   SEQ_REVERSE_FRAMES = (1 << 7),
-  SEQ_IPO_FRAME_LOCKED = (1 << 8),
-  SEQ_FLAG_UNUSED_9 = (1 << 9),   /* Cleared. */
-  SEQ_FLAG_UNUSED_10 = (1 << 10), /* Potentially dirty, see #84057. */
+  /* Unused, was SEQ_IPO_FRAME_LOCKED = (1 << 8), */
+  /* Unused, was SEQ_EFFECT_NOT_LOADED = (1 << 9), */
+  /* Unused, was SEQ_FLAG_DELETE = (1 << 10), now a runtime flag. */
   SEQ_FLIPX = (1 << 11),
   SEQ_FLIPY = (1 << 12),
   SEQ_MAKE_FLOAT = (1 << 13),
   SEQ_LOCK = (1 << 14),
   SEQ_USE_PROXY = (1 << 15),
-  SEQ_FLAG_UNUSED_16 = (1 << 16), /* Cleared. */
+  /* Unused, was SEQ_IGNORE_CHANNEL_LOCK = (1 << 16), now a runtime flag. */
   SEQ_AUTO_PLAYBACK_RATE = (1 << 17),
   SEQ_SINGLE_FRAME_CONTENT = (1 << 18),
   SEQ_SHOW_RETIMING = (1 << 19),
-  SEQ_FLAG_UNUSED_20 = (1 << 20),
+  /* Unused, was SEQ_SHOW_OFFSETS = (1 << 20), now a runtime flag. */
   SEQ_MULTIPLY_ALPHA = (1 << 21),
 
   SEQ_USE_EFFECT_DEFAULT_FADE = (1 << 22),
