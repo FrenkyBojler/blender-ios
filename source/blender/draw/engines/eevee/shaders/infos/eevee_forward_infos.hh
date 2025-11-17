@@ -16,8 +16,8 @@
 
 GPU_SHADER_CREATE_INFO(eevee_transparency_resolve)
 DO_STATIC_COMPILATION()
-FRAGMENT_OUT(0, float4, out_radiance)
-FRAGMENT_OUT(1, float4, out_transmittance)
+FRAGMENT_OUT_DUAL(0, float4, out_radiance, SRC_0)
+FRAGMENT_OUT_DUAL(0, float4, out_transmittance, SRC_1)
 SAMPLER(0, sampler2D, transparency_r_tx)
 SAMPLER(1, sampler2D, transparency_g_tx)
 SAMPLER(2, sampler2D, transparency_b_tx)
