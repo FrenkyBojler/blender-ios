@@ -871,6 +871,17 @@ static void GREASE_PENCIL_OT_select_ends(wmOperatorType *ot)
               INT32_MAX);
 }
 
+static IndexMask curves_to_shapes_mask(const IndexMask &changed_curves,
+                                       const Span<IndexMask> shapes,
+                                       IndexMaskMemory &memory)
+{
+  return IndexMask::from_predicate(
+      shapes.index_range(), GrainSize(4096), memory, [&](const int64_t shape_index) {
+        const IndexMask &shape = shapes[shape_index];
+        return !IndexMask::from_intersection(changed_curves, shape, memory).is_empty();
+      });
+}
+
 static wmOperatorStatus select_shape_exec(bContext *C, wmOperator * /*op*/)
 {
   Scene *scene = CTX_data_scene(C);
@@ -884,8 +895,6 @@ static wmOperatorStatus select_shape_exec(bContext *C, wmOperator * /*op*/)
     IndexMaskMemory memory;
     const IndexMask selected_strokes = ed::greasepencil::retrieve_editable_and_selected_strokes(
         *object, info.drawing, info.layer_index, memory);
-    const IndexMask editable_strokes = ed::greasepencil::retrieve_editable_strokes(
-        *object, info.drawing, info.layer_index, memory);
     if (selected_strokes.is_empty()) {
       return;
     }
@@ -896,30 +905,45 @@ static wmOperatorStatus select_shape_exec(bContext *C, wmOperator * /*op*/)
 
     /* If the attribute does not exist then each curves is it's own shape. */
     if (!shape_ids) {
+      const IndexMask editable_strokes = ed::greasepencil::retrieve_editable_strokes(
+          *object, info.drawing, info.layer_index, memory);
       blender::ed::curves::select_linked(curves, editable_strokes);
       return;
     }
 
-    const OffsetIndices<int> points_by_curve = curves.points_by_curve();
-    bke::GSpanAttributeWriter selection = ed::curves::ensure_selection_attribute(
-        curves, selection_domain, bke::AttrType::Bool);
+    const Vector<IndexMask, 4> shapes = info.drawing.shapes(memory);
+    const IndexMask selected_shapes = curves_to_shapes_mask(selected_strokes, shapes, memory);
 
-    VectorSet<int> selected_shapes_ids;
-    selected_strokes.foreach_index_optimized<int64_t>(
-        [&](const int64_t curve_i) { selected_shapes_ids.add(shape_ids[curve_i]); });
-
-    editable_strokes.foreach_index(GrainSize(256), [&](const int64_t curve_i) {
-      if (!selected_shapes_ids.contains(shape_ids[curve_i])) {
-        return;
-      }
-
-      GMutableSpan selection_curve = selection.span.slice(
-          selection_domain == bke::AttrDomain::Point ? points_by_curve[curve_i] :
-                                                       IndexRange::from_single(curve_i));
-      ed::curves::fill_selection_true(selection_curve);
+    Array<bool> strokes_to_select(curves.curves_num(), false);
+    selected_shapes.foreach_index(GrainSize(256), [&](const int64_t shape_i) {
+      index_mask::masked_fill(strokes_to_select.as_mutable_span(), true, shapes[shape_i]);
     });
 
-    selection.finish();
+    const IndexMask strokes = IndexMask::from_bools(strokes_to_select, memory);
+    const OffsetIndices<int> points_by_curve = curves.points_by_curve();
+    const Span<StringRef> selection_attribute_names =
+        ed::curves::get_curves_selection_attribute_names(curves);
+
+    for (const int i : selection_attribute_names.index_range()) {
+      bke::GSpanAttributeWriter selection = ed::curves::ensure_selection_attribute(
+          curves, selection_domain, bke::AttrType::Bool, selection_attribute_names[i]);
+      switch (selection_domain) {
+        case bke::AttrDomain::Curve: {
+          ed::curves::fill_selection_true(selection.span.typed<bool>(), strokes);
+          break;
+        }
+        case bke::AttrDomain::Point: {
+          strokes.foreach_index([&](const int curve_index) {
+            const IndexRange points = points_by_curve[curve_index];
+            ed::curves::fill_selection_true(selection.span.slice(points));
+          });
+          break;
+        }
+        default:
+          BLI_assert_unreachable();
+      }
+      selection.finish();
+    }
   });
 
   /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a generic
