@@ -737,4 +737,30 @@ void GLBackend::log_extensions()
 
 /** \} */
 
+/* -------------------------------------------------------------------- */
+/** \name Log workarounds
+ * \{ */
+
+void GLBackend::log_workarounds()
+{
+  CLOG_DEBUG(&LOG,
+             "OpenGL Workarounds\n"
+             " - [%c] Debug layer workaround\n"
+             " - [%c] Generate mipmap workaround\n"
+             " - [%c] Unused framebuffer slot workaround\n"
+             " - [%c] Depth blitting workaround\n"
+             " - [%c] Qualcomm Snapdragon workaround\n"
+             " - [%c] High-quality normals\n"
+             " - [%c] Use main context\n",
+             GLContext::debug_layer_workaround ? 'X' : ' ',
+             GLContext::generate_mipmap_workaround ? 'X' : ' ',
+             GLContext::unused_fb_slot_workaround ? 'X' : ' ',
+             GCaps.depth_blitting_workaround ? 'X' : ' ',
+             GCaps.stencil_clasify_buffer_workaround ? 'X' : ' ',
+             GCaps.use_hq_normals_workaround ? 'X' : ' ',
+             GCaps.use_main_context_workaround ? 'X' : ' ');
+}
+
+/** \} */
+
 }  // namespace blender::gpu
