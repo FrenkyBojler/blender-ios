@@ -163,6 +163,9 @@ static std::array<DomainInfo, ATTR_DOMAIN_NUM> get_domains(BMesh *bm)
   return info;
 }
 
+CustomDataLayer *attribute_search_for_write(
+    Mesh &mesh, BMesh &bm, StringRef name, eCustomDataMask type_mask, AttrDomainMask domain_mask);
+
 static bool bke_attribute_rename_if_exists(AttributeOwner &owner,
                                            Mesh &mesh,
                                            BMesh &bm,
@@ -171,7 +174,7 @@ static bool bke_attribute_rename_if_exists(AttributeOwner &owner,
                                            ReportList *reports)
 {
   BLI_assert(mesh.runtime->edit_mesh->bm == &bm);
-  CustomDataLayer *layer = BKE_attribute_search_for_write(
+  CustomDataLayer *layer = attribute_search_for_write(
       mesh, bm, old_name, CD_MASK_PROP_ALL, ATTR_DOMAIN_MASK_ALL);
   if (layer == nullptr) {
     return false;
@@ -267,7 +270,7 @@ bool BKE_attribute_rename(AttributeOwner &owner,
         }
       }
 
-      CustomDataLayer *layer = BKE_attribute_search_for_write(
+      CustomDataLayer *layer = attribute_search_for_write(
           *mesh, *em->bm, old_name, CD_MASK_PROP_ALL, ATTR_DOMAIN_MASK_ALL);
       if (layer == nullptr) {
         BKE_report(reports, RPT_ERROR, "Attribute is not part of this geometry");
@@ -567,11 +570,11 @@ const CustomDataLayer *BKE_attribute_search(const Mesh &mesh,
   return nullptr;
 }
 
-CustomDataLayer *BKE_attribute_search_for_write(Mesh &mesh,
-                                                BMesh &bm,
-                                                const StringRef name,
-                                                const eCustomDataMask type_mask,
-                                                const AttrDomainMask domain_mask)
+CustomDataLayer *attribute_search_for_write(Mesh &mesh,
+                                            BMesh &bm,
+                                            const StringRef name,
+                                            const eCustomDataMask type_mask,
+                                            const AttrDomainMask domain_mask)
 {
   BLI_assert(mesh.runtime->edit_mesh->bm == &bm);
   /* Reuse the implementation of the const version. */

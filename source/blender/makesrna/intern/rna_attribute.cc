@@ -495,8 +495,7 @@ static int rna_Attribute_domain_get(PointerRNA *ptr)
   if (owner.type() == AttributeOwnerType::Mesh) {
     const Mesh *mesh = owner.get_mesh();
     if (BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
-      const CustomDataLayer *layer = ptr->data_as<CustomDataLayer>();
-      return int(BKE_attribute_domain(*mesh, *em->bm, layer));
+      return int(BKE_attribute_domain(owner, static_cast<const CustomDataLayer *>(ptr->data)));
     }
   }
   const bke::Attribute *attr = static_cast<const bke::Attribute *>(ptr->data);
@@ -700,15 +699,15 @@ static PointerRNA rna_AttributeGroupID_new(
   using namespace blender;
   AttributeOwner owner = AttributeOwner::from_id(id);
   if (owner.type() == AttributeOwnerType::Mesh) {
-    CustomDataLayer *layer = BKE_attribute_new(
-        owner, name, eCustomDataType(type), AttrDomain(domain), reports);
-    if (!layer) {
-      return PointerRNA_NULL;
-    }
+    Mesh *mesh = owner.get_mesh();
+    if (BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
+      CustomDataLayer *layer = BKE_attribute_new(
+          *mesh, *em->bm, name, eCustomDataType(type), AttrDomain(domain), reports);
+      if (!layer) {
+        return PointerRNA_NULL;
+      }
 
-    if ((GS(id->name) == ID_ME)) {
       if (ELEM(layer->type, CD_PROP_COLOR, CD_PROP_BYTE_COLOR)) {
-        Mesh *mesh = (Mesh *)id;
         if (!mesh->active_color_attribute) {
           mesh->active_color_attribute = BLI_strdup(layer->name);
         }
@@ -717,7 +716,6 @@ static PointerRNA rna_AttributeGroupID_new(
         }
       }
       else if (layer->type == CD_PROP_FLOAT2) {
-        Mesh *mesh = (Mesh *)id;
         if (!mesh->active_uv_map_attribute) {
           mesh->active_uv_map_attribute = BLI_strdup(layer->name);
         }

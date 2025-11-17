@@ -104,12 +104,6 @@ const struct CustomDataLayer *BKE_attribute_search(const Mesh &mesh,
                                                    eCustomDataMask type,
                                                    AttrDomainMask domain_mask);
 
-struct CustomDataLayer *BKE_attribute_search_for_write(Mesh &mesh,
-                                                       BMesh &bm,
-                                                       blender::StringRef name,
-                                                       eCustomDataMask type,
-                                                       AttrDomainMask domain_mask);
-
 blender::bke::AttrDomain BKE_attribute_domain(const Mesh &mesh,
                                               const BMesh &bm,
                                               const struct CustomDataLayer *layer);
