@@ -1387,6 +1387,7 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
     }
   }
 
+  bool reported_empty = false;
   std::array<bool, INDEX_ID_MAX> reported{false};
   for (Object *ob : objects) {
     if (ob->flag & OB_DONE) {
@@ -1396,29 +1397,6 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
     bool do_inverse_offset = false;
     ob->flag |= OB_DONE;
 
-    if (ELEM(ob->type, OB_EMPTY, OB_CAMERA, OB_LAMP, OB_SPEAKER, OB_LIGHTPROBE)) {
-      const char *type_name;
-      int report_index;
-
-      if (ob->type == OB_EMPTY) {
-        type_name = "Empty";
-        report_index = 0;
-      }
-      else {
-        const ID *obdata = static_cast<const ID *>(ob->data);
-        const short idcode = GS(obdata->name);
-
-        type_name = BKE_idtype_idcode_to_name(idcode);
-        report_index = BKE_idtype_idcode_to_index(idcode);
-      }
-
-      if (!reported[report_index]) {
-        reported[report_index] = true;
-        BKE_reportf(op->reports, RPT_INFO, "Set Origin not supported for %s object(s)", type_name);
-      }
-      continue;
-    }
-
     if (centermode == ORIGIN_TO_CURSOR) {
       copy_v3_v3(cent, cursor);
       invert_m4_m4(ob->runtime->world_to_object.ptr(), ob->object_to_world().ptr());
@@ -1426,6 +1404,14 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
     }
 
     if (ob->data == nullptr) {
+      if (ob->type == OB_EMPTY) {
+        if (!reported_empty) {
+          reported_empty = true;
+          BKE_report(op->reports, RPT_INFO, "Set Origin not supported for Empty object(s)");
+        }
+        continue;
+      }
+
       /* Special support for instanced collections. */
       if ((ob->transflag & OB_DUPLICOLLECTION) && ob->instance_collection &&
           (ob->instance_collection->id.tag & ID_TAG_DOIT) == 0)
@@ -1446,7 +1432,7 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
             invert_m4_m4(ob->runtime->world_to_object.ptr(), ob->object_to_world().ptr());
             mul_m4_v3(ob->world_to_object().ptr(), cent);
           }
-
+          
           add_v3_v3(ob->instance_collection->instance_offset, cent);
 
           tot_change++;
@@ -1766,6 +1752,19 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
       pointcloud.tag_positions_changed();
       pointcloud.id.tag |= ID_TAG_DOIT;
       do_inverse_offset = true;
+    }
+    else {
+      const ID *obdata = static_cast<const ID *>(ob->data);
+      const short idcode = GS(obdata->name);
+      const int id_index = BKE_idtype_idcode_to_index(idcode);
+
+      if (!reported[id_index]) {
+        reported[id_index] = true;
+        BKE_reportf(op->reports,
+                    RPT_INFO,
+                    "Set Origin not supported for %s object(s)",
+                    BKE_idtype_idcode_to_name(idcode));
+      }
     }
 
     /* offset other selected objects */
