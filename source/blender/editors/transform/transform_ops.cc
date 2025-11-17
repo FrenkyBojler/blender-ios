@@ -561,13 +561,8 @@ static wmOperatorStatus transform_invoke(bContext *C, wmOperator *op, const wmEv
   }
 
   /* When modal, allow 'value' to set initial offset. */
-  if (event == nullptr) {
-    if (transformops_mode(op) == TFM_SHEAR) {
-      PropertyRNA *prop_angle = RNA_struct_find_property(op->ptr, "angle");
-      if (prop_angle && RNA_property_is_set(op->ptr, prop_angle)) {
-        return transform_exec(C, op);
-      }
-    }
+  if ((event == nullptr) && RNA_struct_property_is_set(op->ptr, "value")) {
+    return transform_exec(C, op);
   }
 
   /* Add temp handler. */
