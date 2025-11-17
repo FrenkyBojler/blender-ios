@@ -66,8 +66,7 @@ typedef enum : uint32_t {
   DRW_STATE_BLEND_TRANSPARENCY = (12 << 11),
 
   /* See GPU_clip_control_unit_range. */
-  DRW_STATE_CLIP_CONTROL_UNIT_RANGE = (1 << 27),
-  DRW_STATE_SHADOW_OFFSET = (1 << 28),
+  DRW_STATE_CLIP_CONTROL_UNIT_RANGE = (1 << 28),
   DRW_STATE_CLIP_PLANES = (1 << 29),
   DRW_STATE_FIRST_VERTEX_CONVENTION = (1 << 30),
   /** DO NOT USE. Assumed always enabled. Only used internally. */
