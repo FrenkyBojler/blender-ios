@@ -10,6 +10,8 @@
 
 #ifdef _WIN32
 #  include <vulkan/vulkan_win32.h>
+#elif defined(__APPLE__)
+#  include <vulkan/vulkan_metal.h>
 #else /* X11/WAYLAND. */
 #  ifdef WITH_GHOST_X11
 #    include <vulkan/vulkan_xlib.h>
@@ -673,7 +675,7 @@ GHOST_ContextVK::GHOST_ContextVK(const GHOST_ContextParams &context_params,
 #ifdef _WIN32
                                  HWND hwnd,
 #elif defined(__APPLE__)
-                                 CAMetalLayer *metal_layer,
+                                 void *metal_layer,
 #else
                                  GHOST_TVulkanPlatformType platform,
                                  /* X11 */
@@ -1518,7 +1520,7 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
     info.sType = VK_STRUCTURE_TYPE_METAL_SURFACE_CREATE_INFO_EXT;
     info.pNext = nullptr;
     info.flags = 0;
-    info.pLayer = metal_layer_;
+    info.pLayer = static_cast<CAMetalLayer *>(metal_layer_) ;
     VK_CHECK(vkCreateMetalSurfaceEXT(instance_vk.vk_instance, &info, nullptr, &surface_),
              GHOST_kFailure);
 #else
