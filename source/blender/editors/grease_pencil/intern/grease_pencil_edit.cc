@@ -4961,28 +4961,33 @@ static wmOperatorStatus grease_pencil_join_shapes_exec(bContext *C, wmOperator *
     }
     bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-    bke::SpanAttributeWriter<int> shape_ids = attributes.lookup_for_write_span<int>("shape_id");
+    bke::SpanAttributeWriter<int> shape_ids = attributes.lookup_or_add_for_write_span<int>(
+        "shape_id", bke::AttrDomain::Curve);
 
-    /* If the attribute does not exist then default with index range. */
-    if (!shape_ids) {
-      shape_ids = attributes.lookup_or_add_for_write_span<int>("shape_id", bke::AttrDomain::Curve);
-
-      array_utils::fill_index_range<int>(shape_ids.span);
-    }
-
-    /* TODO: Get the active element index instead of the first. */
+    /* Currently Grease Pencil does not have a active element, so instead just use the first. */
     const int active_curve = strokes.first();
 
-    index_mask::masked_fill(shape_ids.span, shape_ids.span[active_curve], strokes);
+    int shape_id_to_set = shape_ids.span[active_curve];
+    if (shape_id_to_set == 0) {
+      /* Get the first id that does not already exist. */
+      shape_id_to_set = *std::max_element(shape_ids.span.begin(), shape_ids.span.end()) + 1;
+
+      if (shape_id_to_set == 0) {
+        shape_id_to_set++;
+      }
+    }
+
+    index_mask::masked_fill(shape_ids.span, shape_id_to_set, strokes);
     shape_ids.finish();
 
-    Set<std::string> attributes_to_skip{{"curve_type", "cyclic", "shape_id"}};
+    Set<std::string> attributes_to_set{
+        {"material_index", "fill_opacity", "uv_rotation", "uv_translation", "uv_scale"}};
     /* Copy curve attributes from the active to all other selected curves. */
     attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
       if (iter.domain != bke::AttrDomain::Curve) {
         return;
       }
-      if (attributes_to_skip.contains(iter.name)) {
+      if (!attributes_to_set.contains(iter.name)) {
         return;
       }
       bke::GSpanAttributeWriter attribute = attributes.lookup_for_write_span(iter.name);
