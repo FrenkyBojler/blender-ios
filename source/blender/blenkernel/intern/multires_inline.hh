@@ -15,10 +15,19 @@
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 
-#define REVISED_TANGENT 1
-#define ORTHOGONALIZE 1
+#define ORTHOGONALIZE 0
 #define NORMALIZE 0
-#define ANGLE_THRESHOLD 0.0f
+#define CHECK_COND_VALUE 1
+
+static float euclidean_norm_internal(const blender::float3x3 mat)
+{
+  blender::Span<float> values(mat.base_ptr(), 9);
+  float sum = 0.0f;
+  for (int i = 0; i < 9; i++) {
+    sum += values[i] * values[i];
+  }
+  return sqrt(sum);
+}
 
 BLI_INLINE void BKE_multires_construct_tangent_matrix(blender::float3x3 &tangent_matrix,
                                                       const blender::float3 &dPdu,
@@ -44,8 +53,19 @@ BLI_INLINE void BKE_multires_construct_tangent_matrix(blender::float3x3 &tangent
   else {
     BLI_assert_msg(0, "Unhandled corner index");
   }
-#if REVISED_TANGENT
-  tangent_matrix.z_axis() = blender::math::cross(tangent_matrix.x_axis(), tangent_matrix.y_axis());
+  /* Do cross product in double precision due to possibility of nearly parallel partial derivative
+   * tangent vectors */
+  blender::float3 N = blender::float3(blender::math::normalize(blender::math::cross(
+      blender::double3(tangent_matrix.x_axis()), blender::double3(tangent_matrix.y_axis()))));
+
+  /* Chosen arbitrarily */
+  constexpr float eps = 0.000001f;
+  if (blender::math::length_squared(N) < eps) {
+    tangent_matrix = blender::float3x3::zero();
+    return;
+  }
+
+  tangent_matrix.z_axis() = N;
 
 #  if NORMALIZE
   tangent_matrix.x_axis() = blender::math::normalize(tangent_matrix.x_axis());
@@ -59,14 +79,13 @@ BLI_INLINE void BKE_multires_construct_tangent_matrix(blender::float3x3 &tangent
   tangent_matrix.z_axis() = blender::math::normalize(tangent_matrix.z_axis()) * geometric_mean;
 #  endif
 #  if ORTHOGONALIZE
-  const float dot_product = blender::math::dot(blender::math::normalize(dPdu),
-                                               blender::math::normalize(dPdv));
-  const float dist_from_90 = blender::math::abs(90.0f -
-                                                RAD2DEGF(blender::math::acos(dot_product)));
-  if (dist_from_90 > ANGLE_THRESHOLD) {
-    tangent_matrix = blender::math::orthogonalize(tangent_matrix, blender::math::Axis::Z);
-  }
+  tangent_matrix = blender::math::orthogonalize(tangent_matrix, blender::math::Axis::Z);
 #  endif
+#if CHECK_COND_VALUE
+  const blender::float3x3 inv = blender::math::invert(tangent_matrix);
+  if (euclidean_norm_internal(tangent_matrix) * euclidean_norm_internal(inv) > 10) {
+    tangent_matrix = blender::float3x3::zero();
+  }
 #endif
 }
 

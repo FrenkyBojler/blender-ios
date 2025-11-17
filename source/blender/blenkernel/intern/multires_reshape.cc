@@ -326,7 +326,7 @@ static void print_matrix(const blender::float3x3 &mat)
   CLOG_INFO(&LOG, "Conditional Value: %.15f", conditional_value(mat));
 }
 
-#define DEBUG_STATS 0
+#define DEBUG_STATS 1
 
 static void multires_level_object_delta_to_tangent_delta(
     blender::Span<blender::float3x3> tmat_storage,
@@ -780,7 +780,7 @@ bool multiresModifier_applyHigherLevelDelta(Object &object,
     print_level_stats(tangent_lengths, sorted_indices, "Object Length");
   }
 
-  if (bad_vertex_idx < tmat_storage.size()) {
+  if (bad_vertex_idx != -1 && bad_vertex_idx < tmat_storage.size()) {
     print_matrix(tmat_storage[bad_vertex_idx]);
   }
 #endif
