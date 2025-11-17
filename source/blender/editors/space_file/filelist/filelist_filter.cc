@@ -12,6 +12,7 @@
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_string_search.hh"  // This is the only include for BLI_string_search.hh
 #include "BLI_string_utf8.h"
 
 #include "BKE_idtype.hh"
@@ -217,10 +218,18 @@ bool is_filtered_asset(FileListInternEntry *file, FileListFilter *filter)
 
   /* When doing a name comparison, get rid of the leading/trailing asterisks. */
   filter_search[string_length - 1] = '\0';
-  if (BLI_strcasestr(file->name, filter_search + 1) != nullptr) {
+  const char *search_str = filter_search + 1;
+  const int search_str_len = strlen(search_str);
+
+  const int errors = blender::string_search::get_fuzzy_match_errors(search_str, file->name);
+  if (errors != -1 && (errors < 3 || errors < search_str_len / 2)) {
     return true;
   }
-  return asset_tag_matches_filter(filter_search + 1, asset_data);
+
+  if (asset_data) {
+    return asset_tag_matches_filter(search_str, asset_data);
+  }
+  return false;
 }
 
 static bool is_filtered_lib_type(FileListInternEntry *file,
