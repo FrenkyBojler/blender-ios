@@ -158,6 +158,7 @@ void ED_spacetype_project()
   /* regions: main window */
   art = MEM_callocN<ARegionType>("spacetype project region");
   art->regionid = RGN_TYPE_WINDOW;
+  art->flag = ARegionTypeFlag::UsePanelCategories;
   art->init = project_main_region_init;
   art->layout = project_main_region_layout;
   art->draw = project_main_region_draw;

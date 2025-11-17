@@ -2272,7 +2272,7 @@ void UI_block_draw(const bContext *C, uiBlock *block)
                           &style,
                           block,
                           &rect,
-                          UI_panel_category_is_visible(region),
+                          UI_panel_category_tabs_is_visible(region),
                           UI_panel_should_show_background(region, block->panel->type),
                           region->flag & RGN_FLAG_SEARCH_FILTER_ACTIVE);
   }
