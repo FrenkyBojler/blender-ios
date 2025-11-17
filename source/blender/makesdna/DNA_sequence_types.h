@@ -686,12 +686,9 @@ typedef enum eSeqRetimingKeyFlag {
   SEQ_KEY_SELECTED = (1 << 4),
 } eSeqRetimingKeyFlag;
 
-/* From: `DNA_object_types.h`, see it's doc-string there. */
-#define SELECT 1
-
 /** #Strip.flag */
 typedef enum eStripFlag {
-  /* Note: generic `SELECT` (1 << 0) bit is used. */
+  SEQ_SELECT = (1 << 0),
   SEQ_LEFTSEL = (1 << 1),
   SEQ_RIGHTSEL = (1 << 2),
   /* Unused, was SEQ_OVERLAP = (1 << 3), now a runtime flag. */
@@ -740,7 +737,7 @@ typedef enum eStripProxyStorageFlag {
 } eStripProxyStorageFlag;
 
 /* Convenience define for all selection flags. */
-#define STRIP_ALLSEL (SELECT + SEQ_LEFTSEL + SEQ_RIGHTSEL)
+#define STRIP_ALLSEL (SEQ_SELECT + SEQ_LEFTSEL + SEQ_RIGHTSEL)
 
 typedef enum eModColorBalanceInverseFlag {
   SEQ_COLOR_BALANCE_INVERSE_GAIN = 1 << 0,
