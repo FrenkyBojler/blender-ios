@@ -1,1 +1,2 @@
 Referenced by pull request #150043, Fix compiler unresolved symbol `IMB_get_exr_display_window` using blender lite
+Referenced by commit 0b625ad0815c37af4ad33adfb8088df399848066, Fix compiler unresolved symbol `IMB_get_exr_display_window` using blender lite
