@@ -14,11 +14,16 @@ VERTEX_SHADER_CREATE_INFO(overlay_gridrework_next)
 /** Keep in sync with `SI_GRID_STEPS_LEN` in `DNA_space_types.h`. */
 #define GRID_LEVELS_TOTAL 8
 /** The grid renders N hardcoded levels of hierarchy. */
-#define GRID_LEVELS_DRAW 3
+#define GRID_LEVELS_DRAW 2
 
-/* Helper struct: a vertex as part of a line is defined by its 2D position, 
+/* Helper function; discard the current line vertex in top scope. */
+#define discard_line() { gl_Position = float4(NAN_FLT); return; }
+
+/* Helper struct: a vertex as part of a line is defined by its 2D position,
  * and the grid level it belongs on. See `get_line_data()` below. */
 struct LineData {
+  uint dir;
+  uint side;
   float2 P;
   int level;
 };
@@ -28,11 +33,11 @@ LineData get_line_data(in uint vertex_id)
   LineData line;
 
   /* Every pair of consecutive vertices forms a line, indicated by bit 0. */
-  uint side = vertex_id & 0x1u;
+  line.side = vertex_id & 0x1u;
   vertex_id = vertex_id >> 1u;
 
   /* Every pair of consecutive lines alternates x/y direction, indicated by bit 1. */
-  uint dir = vertex_id & 0x1u;
+  line.dir = vertex_id & 0x1u;
   vertex_id = vertex_id >> 1u;
 
   /* The index/level of a line are encoded by the 30 remaining bits. */
@@ -44,10 +49,10 @@ LineData get_line_data(in uint vertex_id)
   line.P.y = float(vertex_id) - line.P.x;               /* [0...N] - N/2 */
 
   /* If this isn't the start of the line, flip the x-coord to define the end. */
-  line.P.x = select(line.P.x, -line.P.x, side);
+  line.P.x = select(line.P.x, -line.P.x, line.side);
 
   /* If this isn't the x-direction, flip x/y-coords to define the y-direction. */
-  line.P.xy = select(line.P.xy, line.P.yx, dir);
+  line.P.xy = select(line.P.xy, line.P.yx, line.dir);
 
   return line;
 }
@@ -70,8 +75,7 @@ void main()
 
   /* We clip a line if the level range is outside the specified unit system's data. */
   if (level < 0 || level >= GRID_LEVELS_TOTAL) {
-    gl_Position = float4(NAN_FLT);
-    return;
+    discard_line();
   }
 
   /* Configure values on XY plane first. */
@@ -86,17 +90,14 @@ void main()
   else if (flag_test(grid_flag, PLANE_YZ)) {
     P_offset = grid_poi.yz;
   }
-  else { /* PLANE_IMAGE */ /* TODO (not_mark): test for PLANE_IMAGE */  
+  else { /* PLANE_IMAGE */ /* TODO (not_mark): test for PLANE_IMAGE */
     P_offset = grid_poi.xy;
   }
-  float2 P_clippl = drw_view_is_perspective()
-    ? float2(grid_buf.distance)
-    : float2(3.0 / drw_view().winmat[0][0], 3.0 / drw_view().winmat[1][1]);
 
   /* Scale the grid based on level. Additionally, translate the grid with the point of interest,
    * in increments dependent on the level's scaling. */
   float scale = grid_buf.level_scales[level].x;
-  P = scale * (P + round(P_offset / scale));
+  P *= scale;
 
   /* Modify fade based on pixel size for orthographic, as we lack proper dfdx/dfdy on lines. */
   if (!drw_view_is_perspective()) {
@@ -104,32 +105,31 @@ void main()
     local_alpha *= fade;
   }
 
-  /* We do manual line clipping for lower levels, if a upper level overlaps this line. */
-  /* If there exists an integer, such that with the scaling of the level above we can draw
-   * the current line, we can safely clip the current line. */
-  /* if (line.level < GRID_LEVELS_DRAW - 1 && level < GRID_LEVELS_TOTAL - 1) {
-    float scale_next = grid_buf.level_scales[min(level + 1, GRID_LEVELS_TOTAL - 1)][0];
-    float2 P_offset_ = scale_next * round(P_offset / scale_next);
-    float2 P_div = P_offset_ + (P.xy - P_offset_) / scale_next;
+  /* We do manual clipping/clamping to a reasonable range for float precision, as (absurdly) large
+   * lines can cause flickering/teleporting problems. */
+  float2 clip = drw_view_is_perspective()
+              ? float2(grid_buf.distance)
+              : float2(max(8.0 / drw_view().winmat[0][0], 8.0 / drw_view().winmat[1][1]));
+  if (all(greaterThan(abs(P), clip))) {
+    discard_line(); /* Both x, y lie outside the clip distance. */
+  } else {
+    P = clamp(P, -clip, clip);
+  }
 
-    bool cull = abs(fract(abs(P.x) > abs(P.y) ? P_div.y : P_div.x)) < 1e-4;
-    if (cull) {
-      gl_Position = float4(NAN_FLT);
-      return;
+  /* Add scaled camera offset. */
+  P += round(P_offset / scale) * scale;
+
+  /* If there exists an integer, such that with the scaling of the level *above* we can draw
+   * the current line, we can discard the current line on *any* sublevel as the superlevel
+   * is guaranteed to draw over it. */
+  if (line.level < GRID_LEVELS_DRAW - 1 && level < GRID_LEVELS_TOTAL - 1) {
+    float nscale = grid_buf.level_scales[min(level + 1, GRID_LEVELS_TOTAL - 1)][0];
+    float offset = round(select(P_offset.y, P_offset.x, line.dir) / nscale) * nscale;
+    float P_diff = offset + (select(P.y, P.x, line.dir) - offset) / nscale;
+    /* Accounting for rounding here. */
+    if (abs(fract(P_diff)) < 1e-4) {
+      discard_line();
     }
-  } */
-
-  /* We do manual clipping/clamping before projection, which can introduce precision problems for 
-   * (absurdly) large lines, causing flickering artifacts. */
-  {
-    /* If all vertices lie outside clipping distance, discard. */
-    if (all(greaterThan(abs(P - P_offset), P_clippl))) {
-      gl_Position = float4(NAN_FLT);
-      return;
-    }
-
-    /* Otherwise, clamp to clipping distance around the offset point. */
-    P = clamp(P, P_offset - P_clippl, P_offset + P_clippl);
   }
 
   /* Output the world-space position to the fragment stage.*/

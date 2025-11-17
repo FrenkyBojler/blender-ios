@@ -31,15 +31,17 @@ void main()
     /* Add fade at edge of grid level. */
     float length_fade = 1.f - min(1.f, dot(local_coord, local_coord));
     out_color.a *= pow2f(length_fade);
-    
+
     if (drw_view_is_perspective()) {
       /* Add fade at steep angles. */
       float angle = 1.0f - abs(V.z);
       out_color.a *= (1.f - pow3f(angle));
 
       /* Add fade towards clip distance. */
-      out_color.a *= 1.0f - smoothstep(0.0f, 0.5f * grid_buf.distance, dist - 0.5f * grid_buf.distance);
-    } else {
+      out_color.a *= 1.0f -
+                     smoothstep(0.0f, 0.5f * grid_buf.distance, dist - 0.5f * grid_buf.distance);
+    }
+    else {
       /* Avoid fading in +Z direction in camera view (see #70193).
        * This is reproduced from the 5.0 grid line-for-line. */
       float dist = gl_FragCoord.z * 2.0f - 1.0f;
@@ -65,7 +67,7 @@ void main()
     if (scene_depth_infront != 1.0f) {
       scene_depth = 0.0f;
     }
-    
+
     /* Compute grid depth. As in 5.0, a small bias places the grid below
      * a mesh with the same depth. */
     float grid_depth = gl_FragCoord.z + 4.8e-7f;
@@ -75,11 +77,4 @@ void main()
     float bias = max(gpu_fwidth(gl_FragCoord.z), 2.4e-7f);
     out_color.a *= linearstep(grid_depth, grid_depth + bias, scene_depth);
   }
-
-  // float3 debug_colors[3] = {
-  //   float3(1, 0, 0),
-  //   float3(0, 1, 0),
-  //   float3(0, 0, 1),
-  // };
-  // out_color.rgb = debug_colors[debug_level];
 }

@@ -42,12 +42,11 @@ class GridRework : Overlay {
   float3 grid_poi_ = float3(0.0f);
   float grid_level_;
 
-
   /* Flags passed to draw call. */
   int grid_flag_ = 0; /* Flag to select grid plane: x/y, y/z, x/z. */
   int zaxs_flag_ = 0; /* Flag to configure draw of pos/neg z-axis. */
-  // int zneg_flag_ = 0; /* Flag to enable negative z-axis draw. */
-  // int zpos_flag_ = 0; /* Flag to enable positive z-axis draw. */
+                      // int zneg_flag_ = 0; /* Flag to enable negative z-axis draw. */
+                      // int zpos_flag_ = 0; /* Flag to enable positive z-axis draw. */
 
  public:
   void begin_sync(Resources &res, const State &state) final
@@ -69,7 +68,7 @@ class GridRework : Overlay {
 
     {
       /* Vertex count is 2 (x/y-direction) x 2 (verts per line) x levels x N */
-      const uint n_verts = 12 * num_lines_per_level_;
+      const uint n_verts = 8 * num_lines_per_level_;
 
       auto &sub = grid_ps_.sub("grid");
       sub.shader_set(res.shaders->gridrework.get());
@@ -103,7 +102,8 @@ class GridRework : Overlay {
     /* Initialize flags to default value. */
     grid_flag_ = zaxs_flag_ = 0;
 
-    num_lines_per_level_ = 385; /* This suffices for most cases, and in others we fade to hide it. */
+    num_lines_per_level_ =
+        385; /* This suffices for most cases, and in others we fade to hide it. */
     grid_ubo_.num_lines_per_level = num_lines_per_level_;
 
     return init_3d(state);
@@ -175,8 +175,11 @@ class GridRework : Overlay {
     }
     else {
       v3d_clip_end = v3d->clip_end;
-      
-      std::printf("%f - %f -%f\n", 2.0f / rv3d->winmat[0][0], 2.0f / rv3d->winmat[1][1], 2.0f / rv3d->winmat[2][2]);
+
+      std::printf("%f - %f -%f\n",
+                  2.0f / rv3d->winmat[0][0],
+                  2.0f / rv3d->winmat[1][1],
+                  2.0f / rv3d->winmat[2][2]);
     }
     grid_ubo_.distance = v3d_clip_end;
 
@@ -204,7 +207,7 @@ class GridRework : Overlay {
       dist = rv3d->dist;
       grid_poi_ = drw_view_position - dist * drw_view_forward;
     }
-    
+
     /* Find the lowest relevant grid level + fractional, dependent on camera distance. We
      * fake a order of magnitude extra level, as in orthographic cameras the maximum zoom
      * barely exceeds the largest specified grid scale in unit systems. */
