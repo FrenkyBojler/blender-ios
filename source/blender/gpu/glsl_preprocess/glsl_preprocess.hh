@@ -289,6 +289,40 @@ struct FragmentOutputs : std::vector<ParsedFragOuput> {
   }
 };
 
+struct ParsedVertInput {
+  /* Line this resource was defined. */
+  size_t line;
+
+  std::string var_type;
+  std::string var_name;
+
+  std::string slot;
+
+  std::string serialize() const
+  {
+    std::stringstream ss;
+    ss << "VERTEX_IN(" << slot << ", " << var_type << ", " << var_name << ")";
+    return ss.str();
+  }
+};
+
+struct VertexInputs : std::vector<ParsedVertInput> {
+  std::string name;
+
+  std::string serialize() const
+  {
+    std::stringstream ss;
+    ss << "GPU_SHADER_CREATE_INFO(" << name << ")\n";
+
+    for (const auto &res : *this) {
+      ss << res.serialize() << "\n";
+    }
+
+    ss << "GPU_SHADER_CREATE_END()\n";
+    return ss.str();
+  }
+};
+
 struct Source {
   std::vector<Builtin> builtins;
   /* Note: Could be a set, but for now the order matters. */
@@ -303,6 +337,7 @@ struct Source {
   std::vector<ResourceTable> resource_tables;
   std::vector<StageInterface> stage_interfaces;
   std::vector<FragmentOutputs> fragment_outputs;
+  std::vector<VertexInputs> vertex_inputs;
 
   std::string serialize(const std::string &function_name) const
   {
@@ -351,15 +386,19 @@ struct Source {
     for (auto dependency : create_infos_dependencies) {
       ss << "#include \"" << dependency << "\"\n";
     }
-    ss << "\n\n";
+    ss << "\n";
+    for (auto vert_inputs : vertex_inputs) {
+      ss << vert_inputs.serialize() << "\n";
+    }
+    ss << "\n";
     for (auto frag_outputs : fragment_outputs) {
       ss << frag_outputs.serialize() << "\n";
     }
-    ss << "\n\n";
+    ss << "\n";
     for (auto iface : stage_interfaces) {
       ss << iface.serialize() << "\n";
     }
-    ss << "\n\n";
+    ss << "\n";
     for (auto res_table : resource_tables) {
       ss << "GPU_SHADER_CREATE_INFO(" << res_table.name << ")\n";
       for (const auto &res : res_table) {
@@ -367,11 +406,11 @@ struct Source {
       }
       ss << "GPU_SHADER_CREATE_END()\n";
     }
-    ss << "\n\n";
+    ss << "\n";
     for (auto define : create_infos_defines) {
       ss << define;
     }
-    ss << "\n\n";
+    ss << "\n";
     for (auto declaration : create_infos_declarations) {
       ss << declaration << "\n";
     }
@@ -460,6 +499,7 @@ class Preprocessor {
         resource_table_parsing(parser, report_error);
         stage_interface_parsing(parser, report_error);
         fragment_out_parsing(parser, report_error);
+        vertex_in_parsing(parser, report_error);
         using_mutation(parser, report_error);
 
         namespace_mutation(parser, report_error);
@@ -1881,7 +1921,7 @@ class Preprocessor {
     using namespace shader::parser;
 
     parser.foreach_match("s[[..]]w{..};", [&](const std::vector<Token> &tokens) {
-      if (tokens[2].scope().str_exclusive() == "shader_resource_table") {
+      if (tokens[2].scope().str_exclusive() == "resource_table") {
         Token srt_name = tokens[7];
         Scope body = tokens[8].scope();
 
@@ -1972,7 +2012,7 @@ class Preprocessor {
     using namespace shader::parser;
 
     auto parse_interface = [&](const std::vector<Token> &tokens) {
-      if (tokens[2].scope().str_exclusive() == "stage_interface") {
+      if (tokens[2].scope().str_exclusive() == "vertex_out") {
         Token srt_name = tokens[7];
         Scope body = tokens[8].scope();
 
@@ -2011,13 +2051,55 @@ class Preprocessor {
     parser.apply_mutations();
   }
 
+  void vertex_in_parsing(Parser &parser, report_callback report_error)
+  {
+    using namespace std;
+    using namespace shader::parser;
+
+    parser.foreach_match("s[[..]]w{..};", [&](const std::vector<Token> &tokens) {
+      if (tokens[2].scope().str_exclusive() == "vertex_in") {
+        Token srt_name = tokens[7];
+        Scope body = tokens[8].scope();
+
+        metadata::VertexInputs iface;
+        iface.name = srt_name.str();
+
+        body.foreach_match("[[..]]ww;", [&](const std::vector<Token> &tokens) {
+          Scope attributes = tokens[1].scope();
+          Token type = tokens[6];
+          Token name = tokens[7];
+
+          metadata::ParsedVertInput frag_out{type.line_number(), type.str(), name.str()};
+
+          attributes.foreach_scope(ScopeType::Attribute, [&](const Scope &attribute) {
+            std::string type = attribute[0].str();
+            if (type == "attribute") {
+              frag_out.slot = attribute[2].str();
+            }
+            else {
+              report_error(ERROR_TOK(attribute[0]), "Unrecognized attribute");
+            }
+          });
+
+          iface.emplace_back(frag_out);
+        });
+
+        metadata.vertex_inputs.emplace_back(iface);
+        /* Erase SRT definition. The resources are defined by the backend at runtime. */
+        /* Note that this might change in the future. */
+        parser.erase(tokens[0], tokens.back());
+      }
+    });
+    parser.apply_mutations();
+  }
+
   void fragment_out_parsing(Parser &parser, report_callback report_error)
   {
     using namespace std;
     using namespace shader::parser;
 
     parser.foreach_match("s[[..]]w{..};", [&](const std::vector<Token> &tokens) {
-      if (tokens[2].scope().str_exclusive() == "fragment_stage_ouput") {
+      if (tokens[2].scope().str_exclusive() == "fragment_out") {
         Token srt_name = tokens[7];
         Scope body = tokens[8].scope();
 
