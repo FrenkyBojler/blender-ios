@@ -17,6 +17,8 @@
 
 #include "BKE_idtype.hh"
 
+#include <cctype>
+
 #include "../file_intern.hh"
 #include "../filelist.hh"
 #include "filelist_intern.hh"
@@ -221,7 +223,23 @@ bool is_filtered_asset(FileListInternEntry *file, FileListFilter *filter)
   const char *search_str = filter_search + 1;
   const int search_str_len = strlen(search_str);
 
-  const int errors = blender::string_search::get_fuzzy_match_errors(search_str, file->name);
+  /* For case-insensitive search, convert both strings to lowercase. This is not fully UTF-8
+   * aware, but will work for ASCII characters, which is better than no case-insensitivity. */
+  char *search_str_lower = BLI_strdup(search_str);
+  for (char *p = search_str_lower; *p; p++) {
+    *p = tolower(*p);
+  }
+  char *file_name_lower = BLI_strdup(file->name);
+  for (char *p = file_name_lower; *p; p++) {
+    *p = tolower(*p);
+  }
+
+  const int errors = blender::string_search::get_fuzzy_match_errors(search_str_lower,
+                                                                    file_name_lower);
+
+  MEM_freeN(search_str_lower);
+  MEM_freeN(file_name_lower);
+
   if (errors != -1 && (errors < 3 || errors < search_str_len / 2)) {
     return true;
   }
