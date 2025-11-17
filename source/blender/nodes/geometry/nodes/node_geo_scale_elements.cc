@@ -17,6 +17,7 @@
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
+#include "GEO_foreach_geometry.hh"
 #include "GEO_mesh_selection.hh"
 
 #include "NOD_rna_define.hh"
@@ -29,13 +30,13 @@ static const EnumPropertyItem scale_mode_items[] = {
     {GEO_NODE_SCALE_ELEMENTS_UNIFORM,
      "UNIFORM",
      ICON_NONE,
-     "Uniform",
-     "Scale elements by the same factor in every direction"},
+     N_("Uniform"),
+     N_("Scale elements by the same factor in every direction")},
     {GEO_NODE_SCALE_ELEMENTS_SINGLE_AXIS,
      "SINGLE_AXIS",
      ICON_NONE,
-     "Single Axis",
-     "Scale elements in a single direction"},
+     N_("Single Axis"),
+     N_("Scale elements in a single direction")},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -59,7 +60,8 @@ static void node_declare(NodeDeclarationBuilder &b)
           "center is averaged");
   b.add_input<decl::Menu>("Scale Mode")
       .static_items(scale_mode_items)
-      .default_value(GEO_NODE_SCALE_ELEMENTS_UNIFORM);
+      .default_value(GEO_NODE_SCALE_ELEMENTS_UNIFORM)
+      .optional_label();
   b.add_input<decl::Vector>("Axis")
       .default_value({1.0f, 0.0f, 0.0f})
       .field_on_all()
@@ -474,7 +476,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const Field<float> scale_field = params.extract_input<Field<float>>("Scale");
   const Field<float3> center_field = params.extract_input<Field<float3>>("Center");
 
-  geometry.modify_geometry_sets([&](GeometrySet &geometry) {
+  geometry::foreach_real_geometry(geometry, [&](GeometrySet &geometry) {
     if (Mesh *mesh = geometry.get_mesh_for_write()) {
       const bke::MeshFieldContext context{*mesh, domain};
       FieldEvaluator evaluator{context, mesh->attributes().domain_size(domain)};

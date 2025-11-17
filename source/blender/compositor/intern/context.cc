@@ -18,6 +18,16 @@
 
 namespace blender::compositor {
 
+Bounds<int2> Context::get_input_region() const
+{
+  return Bounds<int2>(int2(0), this->get_compositing_domain().display_size);
+}
+
+Result Context::get_pass(const Scene * /*scene*/, int /*view_layer*/, const char * /*name*/)
+{
+  return this->create_result(compositor::ResultType::Color);
+}
+
 const RenderData &Context::get_render_data() const
 {
   return this->get_scene().r;
@@ -72,16 +82,6 @@ void Context::reset()
   cache_manager_.reset();
 }
 
-int2 Context::get_compositing_region_size() const
-{
-  return math::max(int2(1), this->get_compositing_region().size());
-}
-
-bool Context::is_valid_compositing_region() const
-{
-  return !this->get_compositing_region().is_empty();
-}
-
 float Context::get_render_percentage() const
 {
   return get_render_data().size / 100.0f;
@@ -111,12 +111,12 @@ eCompositorDenoiseQaulity Context::get_denoise_quality() const
       this->get_render_data().compositor_denoise_preview_quality);
 }
 
-GPUShader *Context::get_shader(const char *info_name, ResultPrecision precision)
+gpu::Shader *Context::get_shader(const char *info_name, ResultPrecision precision)
 {
   return cache_manager().cached_shaders.get(info_name, precision);
 }
 
-GPUShader *Context::get_shader(const char *info_name)
+gpu::Shader *Context::get_shader(const char *info_name)
 {
   return get_shader(info_name, get_precision());
 }
@@ -134,6 +134,11 @@ Result Context::create_result(ResultType type)
 StaticCacheManager &Context::cache_manager()
 {
   return cache_manager_;
+}
+
+const Strip *Context::get_strip() const
+{
+  return nullptr;
 }
 
 }  // namespace blender::compositor

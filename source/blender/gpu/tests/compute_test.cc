@@ -17,10 +17,10 @@
 namespace blender::gpu::tests {
 static void test_compute_direct()
 {
-  static constexpr uint SIZE = 32;
+  static constexpr uint SIZE = 4;
 
   /* Build compute shader. */
-  GPUShader *shader = GPU_shader_create_from_info_name("gpu_compute_2d_test");
+  gpu::Shader *shader = GPU_shader_create_from_info_name("gpu_compute_2d_test");
   EXPECT_NE(shader, nullptr);
 
   /* Create texture to store result and attach to shader. */
@@ -59,10 +59,10 @@ GPU_TEST(compute_direct)
 
 static void test_compute_indirect()
 {
-  static constexpr uint SIZE = 32;
+  static constexpr uint SIZE = 4;
 
   /* Build compute shader. */
-  GPUShader *shader = GPU_shader_create_from_info_name("gpu_compute_2d_test");
+  gpu::Shader *shader = GPU_shader_create_from_info_name("gpu_compute_2d_test");
   EXPECT_NE(shader, nullptr);
 
   /* Create texture to store result and attach to shader. */
@@ -83,7 +83,7 @@ static void test_compute_indirect()
   uint4 commands[1] = {
       {SIZE, SIZE, 1, 0},
   };
-  GPUStorageBuf *compute_commands = GPU_storagebuf_create_ex(
+  StorageBuf *compute_commands = GPU_storagebuf_create_ex(
       sizeof(commands), &commands, GPU_USAGE_STATIC, __func__);
 
   /* Dispatch compute task. */

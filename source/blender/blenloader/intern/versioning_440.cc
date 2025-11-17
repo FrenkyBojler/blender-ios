@@ -542,7 +542,7 @@ static bool versioning_convert_seq_text_anchor(Strip *strip, void * /*user_data*
 
   TextVars *data = static_cast<TextVars *>(strip->effectdata);
   data->anchor_x = data->align;
-  data->anchor_y = data->align_y;
+  data->anchor_y = data->align_y_legacy;
   data->align = SEQ_TEXT_ALIGN_X_LEFT;
 
   return true;
@@ -781,7 +781,7 @@ void blo_do_versions_440(FileData *fd, Library * /*lib*/, Main *bmain)
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       Editing *ed = blender::seq::editing_get(scene);
       if (ed != nullptr) {
-        blender::seq::for_each_callback(&ed->seqbase, versioning_convert_seq_text_anchor, nullptr);
+        blender::seq::foreach_strip(&ed->seqbase, versioning_convert_seq_text_anchor, nullptr);
       }
     }
   }
@@ -887,7 +887,7 @@ void blo_do_versions_440(FileData *fd, Library * /*lib*/, Main *bmain)
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       Editing *ed = blender::seq::editing_get(scene);
       if (ed != nullptr) {
-        blender::seq::for_each_callback(&ed->seqbase, versioning_clear_strip_unused_flag, scene);
+        blender::seq::foreach_strip(&ed->seqbase, versioning_clear_strip_unused_flag, scene);
       }
     }
   }

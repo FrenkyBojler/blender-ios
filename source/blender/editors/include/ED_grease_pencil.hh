@@ -72,6 +72,7 @@ void ED_operatortypes_grease_pencil_edit();
 void ED_operatortypes_grease_pencil_join();
 void ED_operatortypes_grease_pencil_material();
 void ED_operatortypes_grease_pencil_modes();
+void ED_operatortypes_grease_pencil_pen();
 void ED_operatortypes_grease_pencil_primitives();
 void ED_operatortypes_grease_pencil_weight_paint();
 void ED_operatortypes_grease_pencil_vertex_paint();
@@ -84,6 +85,7 @@ void ED_keymap_grease_pencil(wmKeyConfig *keyconf);
 void ED_primitivetool_modal_keymap(wmKeyConfig *keyconf);
 void ED_filltool_modal_keymap(wmKeyConfig *keyconf);
 void ED_interpolatetool_modal_keymap(wmKeyConfig *keyconf);
+void ED_grease_pencil_pentool_modal_keymap(wmKeyConfig *keyconf);
 
 void GREASE_PENCIL_OT_stroke_trim(wmOperatorType *ot);
 
@@ -411,14 +413,27 @@ IndexMask retrieve_visible_points(Object &object,
                                   const bke::greasepencil::Drawing &drawing,
                                   IndexMaskMemory &memory);
 
+IndexMask retrieve_visible_bezier_strokes(Object &object,
+                                          const bke::greasepencil::Drawing &drawing,
+                                          IndexMaskMemory &memory);
+IndexMask retrieve_visible_bezier_points(Object &object,
+                                         const bke::greasepencil::Drawing &drawing,
+                                         IndexMaskMemory &memory);
+
+IndexMask retrieve_visible_bezier_handle_strokes(Object &object,
+                                                 const bke::greasepencil::Drawing &drawing,
+                                                 int handle_display,
+                                                 IndexMaskMemory &memory);
 IndexMask retrieve_visible_bezier_handle_points(Object &object,
                                                 const bke::greasepencil::Drawing &drawing,
                                                 int layer_index,
+                                                int handle_display,
                                                 IndexMaskMemory &memory);
 IndexMask retrieve_visible_bezier_handle_elements(Object &object,
                                                   const bke::greasepencil::Drawing &drawing,
                                                   int layer_index,
                                                   bke::AttrDomain selection_domain,
+                                                  int handle_display,
                                                   IndexMaskMemory &memory);
 
 IndexMask retrieve_editable_and_selected_strokes(Object &grease_pencil_object,
@@ -438,6 +453,11 @@ IndexMask retrieve_editable_and_selected_elements(Object &object,
                                                   int layer_index,
                                                   bke::AttrDomain selection_domain,
                                                   IndexMaskMemory &memory);
+IndexMask retrieve_editable_and_all_selected_points(Object &object,
+                                                    const bke::greasepencil::Drawing &drawing,
+                                                    int layer_index,
+                                                    int handle_display,
+                                                    IndexMaskMemory &memory);
 bool has_editable_layer(const GreasePencil &grease_pencil);
 
 void create_blank(Main &bmain, Object &object, int frame_number);
@@ -892,12 +912,43 @@ bool apply_mask_as_segment_selection(bke::CurvesGeometry &curves,
                                      eSelectOp sel_op);
 
 namespace trim {
+
+/**
+ * Trim all segments of editable curves that are inside of a given lasso region.
+ *
+ * Note: All editable curves must also be visible.
+ *
+ * \param src: Curves geometry for target curves.
+ * \param screen_space_positions: Screen-space positions computed in advance.
+ * \param mcoords: Screen-space points that define the lasso region.
+ * \param editable_curves: Mask of all curves that can be trimmed.
+ * \param visible_curves: Mask of all curves that are visible.
+ * \param keep_caps: If the start and end cap attributes should *not* be set to `Flat`.
+ */
 bke::CurvesGeometry trim_curve_segments(const bke::CurvesGeometry &src,
                                         Span<float2> screen_space_positions,
-                                        Span<rcti> screen_space_curve_bounds,
-                                        const IndexMask &curve_selection,
-                                        const Vector<Vector<int>> &selected_points_in_curves,
+                                        Span<int2> mcoords,
+                                        const IndexMask &editable_curves,
+                                        const IndexMask &visible_curves,
                                         bool keep_caps);
+
+/**
+ * Trim the editable curves from the start and end until intersection or self-intersection.
+ * If a curve does not have intersection it will be unmodified.
+ *
+ * Note: All editable curves must also be visible.
+ *
+ * \param src: Curves geometry for target curves.
+ * \param screen_space_positions: Screen-space positions computed in advance.
+ * \param editable_curves: Mask of all curves that can be trimmed.
+ * \param visible_curves: Mask of all curves that are visible.
+ * \param keep_caps: If the start and end cap attributes should *not* be set to `Flat`.
+ */
+bke::CurvesGeometry trim_curve_segment_ends(const bke::CurvesGeometry &src,
+                                            Span<float2> screen_space_positions,
+                                            const IndexMask &editable_curves,
+                                            const IndexMask &visible_curves,
+                                            bool keep_caps);
 };  // namespace trim
 
 void merge_layers(const GreasePencil &src_grease_pencil,
