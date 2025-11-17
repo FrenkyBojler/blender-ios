@@ -12,7 +12,7 @@
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
-#include "BLI_string_search.hh"  // This is the only include for BLI_string_search.hh
+#include "BLI_string_search.hh"
 #include "BLI_string_utf8.h"
 
 #include "BKE_idtype.hh"
