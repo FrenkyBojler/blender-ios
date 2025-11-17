@@ -354,7 +354,6 @@ static void initShear(TransInfo *t, wmOperator *op)
 
   const float angle = RNA_float_get(op->ptr, "angle");
   t->values[0] = tanf(angle);
-
   transform_mode_default_modal_orientation_set(t, V3D_ORIENT_VIEW);
 }
 
