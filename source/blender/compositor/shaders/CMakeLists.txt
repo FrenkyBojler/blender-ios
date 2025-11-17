@@ -46,6 +46,7 @@ set(SRC_GLSL_COMP
   compositor_glare_ghost_accumulate.glsl
   compositor_glare_ghost_base.glsl
   compositor_glare_highlights.glsl
+  compositor_glare_kernel_downsample.glsl
   compositor_glare_mix.glsl
   compositor_glare_simple_star_anti_diagonal_pass.glsl
   compositor_glare_simple_star_diagonal_pass.glsl
