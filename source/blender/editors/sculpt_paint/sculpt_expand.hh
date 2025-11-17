@@ -8,6 +8,7 @@
 #pragma once
 
 #include "BLI_array.hh"
+#include "BLI_bit_vector.hh"
 #include "BLI_index_mask.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_set.hh"
@@ -120,10 +121,8 @@ struct Cache {
   IndexMaskMemory node_mask_memory;
   IndexMask node_mask;
 
-  /* Previously affected nodes. Used to track nodes that were affected in the previous update
-   * iteration, so they can be tagged for visual update when the expand area shrinks. */
-  IndexMaskMemory previous_node_mask_memory;
-  IndexMask previous_node_mask;
+  /* Bitmask of nodes that contained enabled vertices during the previous update iteration. */
+  BitVector<> previous_enabled_nodes;
 
   /* Expand state options. */
 
