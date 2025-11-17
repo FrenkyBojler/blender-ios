@@ -576,7 +576,7 @@ void mesh_remesh_reproject_attributes(const Mesh &src, Mesh &dst)
           src_positions, src_corner_verts, src_corner_tris, dst_positions, vert_nearest_tris, map);
       /* Copy vertex group names (otherwise `MeshVertexGroupsAttributeProvider` wont find them -
        * and these would show up as regular attributes afterwards). "vertex_group_active_index" is
-       * taken care of later via #BKE_mesh_copy_parameters(). */
+       * taken care of via #BKE_mesh_copy_parameters(). */
       BKE_defgroup_copy_list(&dst.vertex_group_names, &src.vertex_group_names);
       gather_attributes(point_ids, src_attributes, AttrDomain::Point, map, dst_attributes);
     }
