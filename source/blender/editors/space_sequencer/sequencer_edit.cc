@@ -2115,7 +2115,7 @@ static wmOperatorStatus sequencer_box_blade_modal(bContext *C,
   View2D *v2d = UI_view2d_fromcontext(C);
   int mouse_frame = UI_view2d_region_to_view_x(v2d, event->mval[0]);
   scene->ed->runtime.flag |= SEQ_SHOW_TRANSFORM_PREVIEW;
-  scene->ed->runtime.vse_preview_frame = mouse_frame;
+  scene->ed->runtime.transform_preview_frame = mouse_frame;
 
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
   wmOperatorStatus gesture_return = WM_gesture_box_modal(C, op, event);

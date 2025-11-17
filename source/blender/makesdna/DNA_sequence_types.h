@@ -339,8 +339,8 @@ typedef struct EditingRuntime {
   PreviewCache *preview_cache;
   /** Used for rendering a different frame using sequencer_draw_get_transform_preview from the box
    * blade tool. */
-  int vse_preview_frame;
-  /** Determines if vse_preview_frame should be used for transform preview. */
+  int transform_preview_frame;
+  /** Determines if transform_preview_frame should be used for transform preview. */
   uint32_t flag; /* eEditingRuntimeFlag */
 } EditingRuntime;
 
