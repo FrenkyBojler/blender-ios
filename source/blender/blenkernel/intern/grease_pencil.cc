@@ -463,10 +463,13 @@ Vector<IndexMask, 4> Drawing::shapes(IndexMaskMemory &memory) const
 
   if (!shape_ids) {
     /* If the attribute does not exist then the default is each shape containing one curve. */
-    Vector<IndexMask> shapes;
-    for (const int i : curves.curves_range()) {
-      shapes.append(IndexRange::from_single(i));
-    }
+    Vector<IndexMask> shapes(curves.curves_num());
+
+    threading::parallel_for(curves.curves_range(), 512, [&](const IndexRange range) {
+      for (const int i : range) {
+        shapes[i] = IndexRange::from_single(i);
+      }
+    });
 
     return shapes;
   }
@@ -492,9 +495,11 @@ Vector<IndexMask, 4> Drawing::shapes(IndexMaskMemory &memory) const
   }
 
   Vector<IndexMask, 4> shapes(indices_by_shape.size());
-  for (const int64_t i : indices_by_shape.index_range()) {
-    shapes[i] = IndexMask::from_indices<int>(indices_by_shape[i], memory);
-  }
+  threading::parallel_for(indices_by_shape.index_range(), 512, [&](const IndexRange range) {
+    for (const int i : range) {
+      shapes[i] = IndexMask::from_indices<int>(indices_by_shape[i], memory);
+    }
+  });
 
   return shapes;
 }
@@ -568,9 +573,13 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
                                     0,
                                     reinterpret_cast<uint32_t (*)[3]>(r_tris.data()),
                                     pf_arena);
-            for (const int i : r_tris.index_range()) {
-              r_tris[i] += points_by_curve[shape.first()].first();
-            }
+
+            threading::parallel_for(r_tris.index_range(), 512, [&](const IndexRange range) {
+              for (const int i : range) {
+                r_tris[i] += points_by_curve[shape.first()].first();
+              }
+            });
+
             BLI_memarena_clear(pf_arena);
             continue;
           }
@@ -580,9 +589,11 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
           Array<int> og_face_to_curve_map(shape.size());
           Array<int> og_vert_to_point_map(num_points);
 
-          for (const int i : IndexRange(num_points)) {
-            verts[i] = double2(projverts[i]);
-          }
+          threading::parallel_for(IndexRange(num_points), 512, [&](const IndexRange range) {
+            for (const int i : range) {
+              verts[i] = double2(projverts[i]);
+            }
+          });
 
           cur_p = 0; /* Reuse. */
 
@@ -647,19 +658,24 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
         }
       });
 
-  for (const int i : triangle_results.index_range()) {
-    r_triangle_offsets[i] = triangle_results[i].size();
-  }
+  threading::parallel_for(triangle_results.index_range(), 512, [&](const IndexRange range) {
+    for (const int i : range) {
+      r_triangle_offsets[i] = triangle_results[i].size();
+    }
+  });
+
   offset_indices::accumulate_counts_to_offsets(r_triangle_offsets);
 
   r_triangles.resize(r_triangle_offsets.last());
 
-  for (const int pos : shape_mask.index_range()) {
-    const IndexRange range = IndexRange::from_begin_end(r_triangle_offsets[pos],
-                                                        r_triangle_offsets[pos + 1]);
-    MutableSpan<int3> r_tris = r_triangles.as_mutable_span().slice(range);
-    array_utils::copy(triangle_results[pos].as_span(), r_tris);
-  }
+  threading::parallel_for(shape_mask.index_range(), 512, [&](const IndexRange range) {
+    for (const int pos : range) {
+      const IndexRange range = IndexRange::from_begin_end(r_triangle_offsets[pos],
+                                                          r_triangle_offsets[pos + 1]);
+      MutableSpan<int3> r_tris = r_triangles.as_mutable_span().slice(range);
+      array_utils::copy(triangle_results[pos].as_span(), r_tris);
+    }
+  });
 }
 
 static void ensure_triangle_and_offset_cache(const Drawing &drawing)
