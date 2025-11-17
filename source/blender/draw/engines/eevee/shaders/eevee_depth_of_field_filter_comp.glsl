@@ -9,7 +9,7 @@
  * cheaper.
  */
 
-#include "infos/eevee_depth_of_field_info.hh"
+#include "infos/eevee_depth_of_field_infos.hh"
 
 COMPUTE_SHADER_CREATE_INFO(eevee_depth_of_field_filter)
 
@@ -17,18 +17,16 @@ struct FilterSample {
   float4 color;
   float weight;
 
-#if defined(GPU_METAL) || defined(GLSL_CPP_STUBS)
-  inline FilterSample() = default;
-  inline FilterSample(float4 in_color, float in_weight) : color(in_color), weight(in_weight) {}
-#endif
+  METAL_CONSTRUCTOR_2(FilterSample, float4, color, float, weight)
 };
 
 /* -------------------------------------------------------------------- */
 /** \name Pixel cache.
  * \{ */
+
+shared float4 color_cache[gl_WorkGroupSize.x + 2][gl_WorkGroupSize.x + 2];
+shared float weight_cache[gl_WorkGroupSize.x + 2][gl_WorkGroupSize.x + 2];
 #define cache_size (gl_WorkGroupSize.x + 2)
-shared float4 color_cache[cache_size][cache_size];
-shared float weight_cache[cache_size][cache_size];
 
 void cache_init()
 {

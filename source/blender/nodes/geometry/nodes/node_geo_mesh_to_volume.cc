@@ -9,6 +9,7 @@
 
 #include "BKE_lib_id.hh"
 
+#include "GEO_foreach_geometry.hh"
 #include "GEO_mesh_to_volume.hh"
 
 #include "NOD_rna_define.hh"
@@ -24,13 +25,13 @@ static EnumPropertyItem resolution_mode_items[] = {
     {MESH_TO_VOLUME_RESOLUTION_MODE_VOXEL_AMOUNT,
      "VOXEL_AMOUNT",
      0,
-     "Amount",
-     "Desired number of voxels along one axis"},
+     CTX_N_(BLT_I18NCONTEXT_COUNTABLE, "Amount"),
+     N_("Desired number of voxels along one axis")},
     {MESH_TO_VOLUME_RESOLUTION_MODE_VOXEL_SIZE,
      "VOXEL_SIZE",
      0,
-     "Size",
-     "Desired voxel side length"},
+     CTX_N_(BLT_I18NCONTEXT_COUNTABLE, "Size"),
+     N_("Desired voxel side length")},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -42,7 +43,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Float>("Density").default_value(1.0f).min(0.01f).max(FLT_MAX);
   b.add_input<decl::Menu>("Resolution Mode")
       .static_items(resolution_mode_items)
-      .description("How the voxel size is specified");
+      .optional_label()
+      .description("How the voxel size is specified")
+      .translation_context(BLT_I18NCONTEXT_COUNTABLE);
   b.add_input<decl::Float>("Voxel Size")
       .default_value(0.3f)
       .min(0.01f)
@@ -127,11 +130,11 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
 #ifdef WITH_OPENVDB
   GeometrySet geometry_set(params.extract_input<GeometrySet>("Mesh"));
-  geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+  geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     if (geometry_set.has_mesh()) {
       Volume *volume = create_volume_from_mesh(*geometry_set.get_mesh(), params);
       geometry_set.replace_volume(volume);
-      geometry_set.keep_only_during_modify({GeometryComponent::Type::Volume});
+      geometry_set.keep_only({GeometryComponent::Type::Volume, GeometryComponent::Type::Edit});
     }
   });
   params.set_output("Volume", std::move(geometry_set));

@@ -958,7 +958,7 @@ static wmOperatorStatus connect_hair_exec(bContext *C, wmOperator *op)
   if (!any_connected) {
     BKE_report(op->reports,
                RPT_WARNING,
-               "No hair connected (can't connect hair if particle system modifier is disabled)");
+               "No hair connected (cannot connect hair if particle system modifier is disabled)");
     return OPERATOR_CANCELLED;
   }
 
@@ -1171,7 +1171,7 @@ static bool copy_particle_systems_to_object(const bContext *C,
   for (psys = psys_start, psys_from = PSYS_FROM_FIRST, i = 0; psys;
        psys = psys->next, psys_from = PSYS_FROM_NEXT(psys_from), i++)
   {
-    const float(*from_mat)[4], (*to_mat)[4];
+    const float (*from_mat)[4], (*to_mat)[4];
 
     switch (space) {
       case PAR_COPY_SPACE_OBJECT:

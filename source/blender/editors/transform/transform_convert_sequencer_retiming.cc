@@ -133,7 +133,7 @@ static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
 
       /* Ensure start transition key cannot pass the previous key, or linked end transition key
        * cannot pass the next key. This transform behavior is symmetrical and limited by the
-       * smallest distance between keys.*/
+       * smallest distance between keys. */
       const int max_offset = min_ii(key_start->strip_frame_index - key_prev->strip_frame_index - 1,
                                     key_next->strip_frame_index - key_end->strip_frame_index - 1);
 
@@ -218,6 +218,10 @@ static void recalcData_sequencer_retiming(TransInfo *t)
     const TransDataSeq *tdseq = static_cast<TransDataSeq *>(td->extra);
     Strip *strip = tdseq->strip;
 
+    if (!seq::retiming_data_is_editable(strip)) {
+      continue;
+    }
+
     float offset[2];
     float offset_clamped[2];
     sub_v2_v2v2(offset, td->loc, td->iloc);
@@ -239,7 +243,7 @@ static void recalcData_sequencer_retiming(TransInfo *t)
       seq::retiming_transition_key_frame_set(t->scene, strip, key, round_fl_to_int(new_frame));
     }
     else {
-      seq::retiming_key_timeline_frame_set(t->scene, strip, key, new_frame);
+      seq::retiming_key_timeline_frame_set(t->scene, strip, key, new_frame, true);
     }
 
     seq::relations_invalidate_cache(t->scene, strip);

@@ -13,9 +13,7 @@
 #include "DNA_listBase.h"
 #include "DNA_userdef_types.h"
 
-#include "BLI_utildefines.h"
-
-#include "BLI_utildefines.h"
+#include "BLI_enum_flags.hh"
 
 #ifdef __cplusplus
 #  include "BLI_span.hh"
@@ -27,12 +25,20 @@ class BoneColor;
 struct AnimData;
 struct BoneCollection;
 
-/* this system works on different transformation space levels;
+/* The Armature system works on different transformation space levels:
  *
- * 1) Bone Space;      with each Bone having its own (0,0,0) origin
- * 2) Armature Space;  the rest position, in Object space, Bones Spaces are applied hierarchical
- * 3) Pose Space;      the animation position, in Object space
- * 4) World Space;     Object matrix applied to Pose or Armature space
+ * 1) Bone Space:     In the orientation of the parent bone, position relative
+ *                    to the parent's tail. Same as Armature Space for bones
+ *                    without parent.
+ * 2) Armature Space: The bone's rest transform in Object space. This is the
+ *                    multiplication of the bone space matrices of the bone and
+ *                    all its ancestors.
+ * 3) Pose Space:     The bone's posed transform in Object space. This is the
+ *                    same space as Armature Space, except that it represents
+ *                    the current bone transform instead of the rest pose.
+ *                    See bPoseChannel::pose_mat
+ * 4) Channel Space:  The bone's local transform relative to its rest transform.
+ *                    See bPoseChannel::chan_mat
  */
 
 typedef struct BoneColor {
@@ -73,10 +79,14 @@ typedef struct Bone {
 
   /** Roll is input for edit-mode, length calculated. */
   float roll;
+  /** Head position in Bone Space (see top of this file). */
   float head[3];
-  /** Head/tail and roll in Bone Space. */
+  /** Tail position in Bone Space (see top of this file). */
   float tail[3];
-  /** Rotation derived from head/tail/roll. */
+  /**
+   * Bone matrix in Bone Space (see top of this file).
+   *
+   * bone.matrix in RNA. Computed in BKE_armature_where_is_bone(). */
   float bone_mat[3][3];
 
   int flag;
@@ -87,16 +97,19 @@ typedef struct Bone {
   char inherit_scale_mode;
   char _pad[3];
 
+  /** Head position in armature space. So should be the same as head in edit mode. */
   float arm_head[3];
-  /** Head/tail in Armature Space (rest pose). */
+  /** Tail position in armature space. So should be the same as tail in edit mode. */
   float arm_tail[3];
-  /** Matrix: `(bonemat(b)+head(b))*arm_mat(b-1)`, rest pose. */
+  /** Matrix: `(bone_mat(b)+head(b))*arm_mat(b-1)`, rest pose in armature space. */
   float arm_mat[4][4];
   /** Roll in Armature Space (rest pose). */
   float arm_roll;
 
-  /** dist, weight: for non-deformgroup deforms. */
-  float dist, weight;
+  /** Envelope distance, added to rad_head / rad_tail. */
+  float dist;
+  /** Weight: for non-deformgroup deforms. */
+  float weight;
   /**
    * The width for block bones. The final X/Z bone widths are double these values.
    *
@@ -416,8 +429,8 @@ typedef enum eBone_Flag {
    *
    * However the bone may not be visible to the user since the bones collection
    * may be hidden.
-   * In most cases `blender::animrig::bone_is_visible_editbone` or
-   * `blender::animrig::bone_is_visible_pchan` should be used to check if the bone is visible to
+   * In most cases `blender::animrig::bone_is_visible` or
+   * `blender::animrig::bone_is_visible` should be used to check if the bone is visible to
    * the user before operating on them.
    */
   BONE_SELECTED = (1 << 0),
@@ -451,10 +464,8 @@ typedef enum eBone_Flag {
 #ifdef DNA_DEPRECATED_ALLOW
   /** set to prevent destruction of its unkeyframed pose (after transform) */
   BONE_UNKEYED = (1 << 13),
-#endif
   /** set to prevent hinge child bones from influencing the transform center */
   BONE_HINGE_CHILD_TRANSFORM = (1 << 14),
-#ifdef DNA_DEPRECATED_ALLOW
   /** No parent scale */
   BONE_NO_SCALE = (1 << 15),
 #endif
@@ -464,8 +475,10 @@ typedef enum eBone_Flag {
   BONE_NO_CYCLICOFFSET = (1 << 18),
   /** bone transforms are locked in EditMode */
   BONE_EDITMODE_LOCKED = (1 << 19),
+#ifdef DNA_DEPRECATED_ALLOW
   /** Indicates that a parent is also being transformed */
   BONE_TRANSFORM_CHILD = (1 << 20),
+#endif
   /** bone cannot be selected */
   BONE_UNSELECTABLE = (1 << 21),
   /** bone location is in armature space */
@@ -481,7 +494,7 @@ typedef enum eBone_Flag {
   /** this bone is associated with a locked vertex group, ONLY USE FOR DRAWING */
   BONE_DRAW_LOCKED_WEIGHT = (1 << 26),
 } eBone_Flag;
-ENUM_OPERATORS(eBone_Flag, BONE_DRAW_LOCKED_WEIGHT)
+ENUM_OPERATORS(eBone_Flag)
 
 /* bone->inherit_scale_mode */
 typedef enum eBone_InheritScaleMode {
@@ -567,7 +580,7 @@ typedef enum eBoneCollection_Flag {
 
   BONE_COLLECTION_EXPANDED = (1 << 5), /* Expanded in the tree view. */
 } eBoneCollection_Flag;
-ENUM_OPERATORS(eBoneCollection_Flag, BONE_COLLECTION_EXPANDED)
+ENUM_OPERATORS(eBoneCollection_Flag)
 
 #ifdef __cplusplus
 

@@ -428,8 +428,11 @@ void bmo_extrude_face_region_exec(BMesh *bm, BMOperator *op)
     BMO_op_exec(bm, &delop);
   }
 
-  /* if not delorig, reverse loops of original face */
-  if (!delorig) {
+  const bool skip_input_flip = BMO_slot_bool_get(op->slots_in, "skip_input_flip");
+
+  /* Flip input faces only when originals are kept (!delorig)
+   * and the caller didn't request to skip flipping (!skip_input_flip).*/
+  if (!delorig && !skip_input_flip) {
     BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
       if (BMO_face_flag_test(bm, f, EXT_INPUT)) {
         BM_face_normal_flip(bm, f);
@@ -698,7 +701,7 @@ static void calc_solidify_normals(BMesh *bm)
 
   BM_ITER_MESH (e, &eiter, bm, BM_EDGES_OF_MESH) {
 
-    /* If the edge is not part of a the solidify region
+    /* If the edge is not part of the solidify region
      * its normal should not be considered */
     if (!BMO_edge_flag_test(bm, e, EDGE_MARK)) {
       continue;
