@@ -344,14 +344,14 @@ bke::crazyspace::GeometryDeformation get_drawing_deformation(
 Array<float2> view_positions_from_point_mask(const GreasePencilStrokeParams &params,
                                              const IndexMask &point_mask)
 {
-  bke::crazyspace::GeometryDeformation deformation = get_drawing_deformation(params);
+  const bke::crazyspace::GeometryDeformation deformation = get_drawing_deformation(params);
 
   Array<float2> view_positions(deformation.positions.size());
 
   /* Compute screen space positions. */
   const float4x4 transform = params.layer.to_world_space(params.ob_eval);
   point_mask.foreach_index(GrainSize(4096), [&](const int64_t point_i) {
-    eV3DProjStatus result = ED_view3d_project_float_global(
+    const eV3DProjStatus result = ED_view3d_project_float_global(
         &params.region,
         math::transform_point(transform, deformation.positions[point_i]),
         view_positions[point_i],
@@ -367,7 +367,7 @@ Array<float2> view_positions_from_point_mask(const GreasePencilStrokeParams &par
 Array<float2> view_positions_from_curve_mask(const GreasePencilStrokeParams &params,
                                              const IndexMask &curve_mask)
 {
-  bke::crazyspace::GeometryDeformation deformation = get_drawing_deformation(params);
+  const bke::crazyspace::GeometryDeformation deformation = get_drawing_deformation(params);
 
   Array<float2> view_positions(deformation.positions.size());
 
@@ -377,7 +377,7 @@ Array<float2> view_positions_from_curve_mask(const GreasePencilStrokeParams &par
   curve_mask.foreach_index(GrainSize(256), [&](const int64_t curve_i) {
     const IndexRange points = points_by_curve[curve_i];
     for (const int point_i : points) {
-      eV3DProjStatus result = ED_view3d_project_float_global(
+      const eV3DProjStatus result = ED_view3d_project_float_global(
           &params.region,
           math::transform_point(transform, deformation.positions[point_i]),
           view_positions[point_i],
