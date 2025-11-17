@@ -1310,10 +1310,16 @@ void register_node_group_operators(const bContext &C)
     types_to_register.append(std::move(type));
   }
 
-  /* NOTE: This leaves operator types registered for old idnames that are no longer used (e.g. the
-   * user has changed the idname or the asset file was deleted). That's because we currently don't
-   * distinguish the case where all assets are loaded from the case where the loading is
-   * incomplete. */
+  /* Also remove old operators for now-unused idnames. */
+  for (wmOperatorType *ot : WM_operatortypes_registered_get()) {
+    if ((ot->flag & OPTYPE_NODE_TOOL) == 0) {
+      continue;
+    }
+    if (handled_types.contains(ot->idname)) {
+      continue;
+    }
+    types_to_remove.add(ot);
+  }
 
   if (!types_to_remove.is_empty()) {
     WM_operator_stack_clear(&wm, types_to_remove);
