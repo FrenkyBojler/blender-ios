@@ -1820,6 +1820,8 @@ void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
     }
   }
 
+  /* Shear uses offset internally, but the operator property is angle.
+   * Convert offset to angle before saving. */
   if (t->mode == TFM_SHEAR) {
     if ((prop = RNA_struct_find_property(op->ptr, "angle"))) {
       const float angle_rad = atanf(t->values_final[0]);
