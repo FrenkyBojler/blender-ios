@@ -39,7 +39,7 @@ class GridRework : Overlay {
   bool is_3d_grid_ = false;
   float3 grid_axes_ = float3(0.0f);
   float3 zplane_axes_ = float3(0.0f);
-  float3 grid_poi_ = float3(0.0f);
+  float2 grid_poi_ = float2(0.0f);
   float grid_level_;
 
   /* Flags passed to draw call. */
@@ -68,7 +68,7 @@ class GridRework : Overlay {
 
     {
       /* Vertex count is 2 (x/y-direction) x 2 (verts per line) x levels x N */
-      const uint n_verts = 8 * num_lines_per_level_;
+      const uint n_verts = 12 * num_lines_per_level_;
 
       auto &sub = grid_ps_.sub("grid");
       sub.shader_set(res.shaders->gridrework.get());
@@ -102,8 +102,8 @@ class GridRework : Overlay {
     /* Initialize flags to default value. */
     grid_flag_ = zaxs_flag_ = 0;
 
-    num_lines_per_level_ =
-        385; /* This suffices for most cases, and in others we fade to hide it. */
+    /* This suffices for most cases, and in others we fade to hide it. */
+    num_lines_per_level_ = 255; 
     grid_ubo_.num_lines_per_level = num_lines_per_level_;
 
     return init_3d(state);
@@ -200,12 +200,23 @@ class GridRework : Overlay {
       dist = interpolate(abs(drw_view_position.z / drw_view_forward.z),
                          abs(drw_view_position.z),
                          1.0f - abs(drw_view_forward.z));
-      grid_poi_ = float3(drw_view_position.xy() - dist * drw_view_forward.xy(), 0.0f);
+      grid_poi_ = drw_view_position.xy() - dist * drw_view_forward.xy();
     }
     else {
       /* Scale is simply specified by orthographic view. */
       dist = rv3d->dist;
-      grid_poi_ = drw_view_position - dist * drw_view_forward;
+      float3 grid_poi = drw_view_position - dist * drw_view_forward;
+      if (ELEM(rv3d->view, RV3D_VIEW_RIGHT, RV3D_VIEW_LEFT)) {
+        grid_poi_ = grid_poi.yz();
+      }
+      else if (ELEM(rv3d->view, RV3D_VIEW_TOP, RV3D_VIEW_BOTTOM)) {
+        grid_poi_ = grid_poi.xy();
+      }
+      else if (ELEM(rv3d->view, RV3D_VIEW_FRONT, RV3D_VIEW_BACK)) {
+        grid_poi_ = float2(grid_poi.x, grid_poi.z);
+      } else {
+        grid_poi_ = grid_poi.xy();
+      }
     }
 
     /* Find the lowest relevant grid level + fractional, dependent on camera distance. We

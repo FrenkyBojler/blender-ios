@@ -50,7 +50,7 @@ VERTEX_OUT(overlay_grid_debug) /* TODO; move to overlay_grid_iface */
 FRAGMENT_OUT(0, float4, out_color)
 UNIFORM_BUF(3, OVERLAY_GridReworkData, grid_buf)
 PUSH_CONSTANT(float, grid_level)
-PUSH_CONSTANT(float3, grid_poi)
+PUSH_CONSTANT(float2, grid_poi)
 PUSH_CONSTANT(int, grid_flag)
 SAMPLER(0, sampler2DDepth, depth_tx)
 SAMPLER(1, sampler2DDepth, depth_infront_tx)
