@@ -197,9 +197,11 @@ const EnumPropertyItem rna_enum_attribute_curves_domain_items[] = {
 #  include "BLI_math_color.h"
 #  include "BLI_string.h"
 
+#  include "BKE_anonymous_attribute_id.hh"
 #  include "BKE_attribute_legacy_convert.hh"
 #  include "BKE_curves.hh"
 #  include "BKE_customdata.hh"
+#  include "BKE_editmesh.hh"
 #  include "BKE_mesh_types.hh"
 #  include "BKE_report.hh"
 
@@ -273,9 +275,7 @@ static AttributeOwner owner_from_pointer_rna(const PointerRNA *ptr)
 static std::optional<std::string> rna_Attribute_path(const PointerRNA *ptr)
 {
   using namespace blender;
-  bke::Attribute *attr = ptr->data_as<bke::Attribute>();
-  const std::string escaped_name = BLI_str_escape(attr->name().c_str());
-  return fmt::format("attributes[\"{}\"]", escaped_name);
+  return fmt::format("attributes[\"{}\"]", BLI_str_escape(rna_Attribute_name_get(*ptr).c_str()));
 }
 
 static StructRNA *srna_by_custom_data_layer_type(const eCustomDataType type)
@@ -315,41 +315,16 @@ static StructRNA *srna_by_custom_data_layer_type(const eCustomDataType type)
 static StructRNA *rna_Attribute_refine(PointerRNA *ptr)
 {
   using namespace blender;
+  if (GS(ptr->owner_id->name) == ID_ME) {
+    const Mesh *mesh = owner.get_mesh();
+    if (mesh->runtime->edit_mesh) {
+      CustomDataLayer *layer = static_cast<CustomDataLayer *>(ptr->data);
+      return srna_by_custom_data_layer_type(eCustomDataType(layer->type));
+    }
+  }
   bke::Attribute *attr = ptr->data_as<bke::Attribute>();
   const eCustomDataType data_type = *bke::attr_type_to_custom_data_type(attr->data_type());
   return srna_by_custom_data_layer_type(data_type);
-}
-
-void rna_Attribute_name_get(PointerRNA *ptr, char *value)
-{
-  using namespace blender;
-  AttributeOwner owner = owner_from_attribute_pointer_rna(ptr);
-  if (owner.type() == AttributeOwnerType::Mesh) {
-    const Mesh *mesh = owner.get_mesh();
-    if (mesh->runtime->edit_mesh) {
-      strcpy(value, ptr->data_as<CustomDataLayer>()->name);
-      return;
-    }
-  }
-
-  const bke::Attribute *attr = ptr->data_as<bke::Attribute>();
-  attr->name().copy_unsafe(value);
-}
-
-int rna_Attribute_name_length(PointerRNA *ptr)
-{
-  using namespace blender;
-  AttributeOwner owner = owner_from_attribute_pointer_rna(ptr);
-  const CustomDataLayer *layer = ptr->data_as<CustomDataLayer>();
-  if (owner.type() == AttributeOwnerType::Mesh) {
-    const Mesh *mesh = owner.get_mesh();
-    if (mesh->runtime->edit_mesh) {
-      return strlen(layer->name);
-    }
-  }
-
-  const bke::Attribute *attr = ptr->data_as<bke::Attribute>();
-  return attr->name().size();
 }
 
 blender::StringRefNull rna_Attribute_name_get(const PointerRNA &ptr)
@@ -358,8 +333,7 @@ blender::StringRefNull rna_Attribute_name_get(const PointerRNA &ptr)
   if (RNA_pointer_is_null(&ptr)) {
     return "";
   }
-  ID *owner_id = ptr.owner_id;
-  const AttributeOwner owner = AttributeOwner::from_id(owner_id);
+  AttributeOwner owner = owner_from_attribute_pointer_rna(ptr);
   if (owner.type() == AttributeOwnerType::Mesh) {
     const Mesh *mesh = owner.get_mesh();
     if (mesh->runtime->edit_mesh) {
@@ -369,6 +343,16 @@ blender::StringRefNull rna_Attribute_name_get(const PointerRNA &ptr)
   }
   const bke::Attribute *attr = ptr.data_as<bke::Attribute>();
   return attr->name();
+}
+
+void rna_Attribute_name_get(PointerRNA *ptr, char *value)
+{
+  rna_Attribute_name_get(*ptr).copy_unsafe(value);
+}
+
+int rna_Attribute_name_length(PointerRNA *ptr)
+{
+  return rna_Attribute_name_get(*ptr).size();
 }
 
 void rna_Attribute_name_set(PointerRNA *ptr, const char *value)
@@ -415,6 +399,14 @@ static int rna_Attribute_name_editable(const PointerRNA *ptr, const char **r_inf
 static int rna_Attribute_type_get(PointerRNA *ptr)
 {
   using namespace blender;
+  AttributeOwner owner = owner_from_attribute_pointer_rna(ptr);
+  if (owner.type() == AttributeOwnerType::Mesh) {
+    const Mesh *mesh = owner.get_mesh();
+    if (mesh->runtime->edit_mesh) {
+      CustomDataLayer *layer = static_cast<CustomDataLayer *>(ptr->data);
+      return layer->type;
+    }
+  }
   const bke::Attribute *attr = static_cast<const bke::Attribute *>(ptr->data);
   return *bke::attr_type_to_custom_data_type(attr->data_type());
 }
@@ -422,6 +414,13 @@ static int rna_Attribute_type_get(PointerRNA *ptr)
 static int rna_Attribute_storage_type_get(PointerRNA *ptr)
 {
   using namespace blender;
+  AttributeOwner owner = owner_from_attribute_pointer_rna(ptr);
+  if (owner.type() == AttributeOwnerType::Mesh) {
+    const Mesh *mesh = owner.get_mesh();
+    if (mesh->runtime->edit_mesh) {
+      return int(bke::AttrStorageType::Array);
+    }
+  }
   const bke::Attribute *attr = static_cast<const bke::Attribute *>(ptr->data);
   return int(attr->storage_type());
 }
@@ -500,7 +499,6 @@ static int rna_Attribute_domain_get(PointerRNA *ptr)
       return int(BKE_attribute_domain(*mesh, *em->bm, layer));
     }
   }
-
   const bke::Attribute *attr = static_cast<const bke::Attribute *>(ptr->data);
   return int(attr->domain());
 }
@@ -508,33 +506,13 @@ static int rna_Attribute_domain_get(PointerRNA *ptr)
 static bool rna_Attribute_is_internal_get(PointerRNA *ptr)
 {
   using namespace blender;
-  AttributeOwner owner = owner_from_attribute_pointer_rna(ptr);
-  if (owner.type() == AttributeOwnerType::Mesh) {
-    const Mesh *mesh = owner.get_mesh();
-    if (mesh->runtime->edit_mesh) {
-      const CustomDataLayer *layer = (const CustomDataLayer *)ptr->data;
-      return !blender::bke::allow_procedural_attribute_access(layer->name);
-    }
-  }
-
-  const bke::Attribute *attr = static_cast<const bke::Attribute *>(ptr->data);
-  return !bke::allow_procedural_attribute_access(attr->name());
+  return !bke::allow_procedural_attribute_access(rna_Attribute_name_get(*ptr));
 }
 
 static bool rna_Attribute_is_required_get(PointerRNA *ptr)
 {
-  using namespace blender;
   AttributeOwner owner = owner_from_attribute_pointer_rna(ptr);
-  if (owner.type() == AttributeOwnerType::Mesh) {
-    const Mesh *mesh = owner.get_mesh();
-    if (mesh->runtime->edit_mesh) {
-      const CustomDataLayer *layer = (const CustomDataLayer *)ptr->data;
-      return BKE_attribute_required(owner, layer->name);
-    }
-  }
-
-  const bke::Attribute *attr = static_cast<const bke::Attribute *>(ptr->data);
-  return BKE_attribute_required(owner, attr->name());
+  return BKE_attribute_required(owner, rna_Attribute_name_get(*ptr));
 }
 
 void rna_Attribute_data_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
@@ -813,8 +791,9 @@ static void rna_AttributeGroupID_remove(ID *id, ReportList *reports, PointerRNA 
 
 void rna_AttributeGroup_iterator_begin(CollectionPropertyIterator *iter,
                                        PointerRNA *ptr,
-                                       AttrDomainMask domain_mask,
-                                       eCustomDataMask cd_type_mask)
+                                       const AttrDomainMask domain_mask,
+                                       const eCustomDataMask cd_type_mask,
+                                       const bool include_anonymous)
 {
   using namespace blender;
   memset(&iter->internal.array, 0, sizeof(iter->internal.array));
@@ -858,6 +837,9 @@ void rna_AttributeGroup_iterator_begin(CollectionPropertyIterator *iter,
     if (!(CD_TYPE_AS_MASK(*bke::attr_type_to_custom_data_type(attr.data_type())) & cd_type_mask)) {
       return;
     }
+    if (!include_anonymous && bke::attribute_name_is_anonymous(attr.name())) {
+      return;
+    }
     attributes.append(&attr);
   });
   VectorData data = attributes.release();
@@ -867,7 +849,7 @@ void rna_AttributeGroup_iterator_begin(CollectionPropertyIterator *iter,
 
 void rna_AttributeGroup_iterator_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
-  rna_AttributeGroup_iterator_begin(iter, ptr, ATTR_DOMAIN_MASK_ALL, CD_MASK_PROP_ALL);
+  rna_AttributeGroup_iterator_begin(iter, ptr, ATTR_DOMAIN_MASK_ALL, CD_MASK_PROP_ALL, true);
 }
 
 PointerRNA rna_AttributeGroup_iterator_get(CollectionPropertyIterator *iter)
@@ -875,14 +857,10 @@ PointerRNA rna_AttributeGroup_iterator_get(CollectionPropertyIterator *iter)
   using namespace blender;
   AttributeOwner owner = owner_from_pointer_rna(&iter->parent);
   if (owner.type() == AttributeOwnerType::Mesh) {
-    const Mesh *mesh = owner.get_mesh();
-    if (mesh->runtime->edit_mesh) {
-      CustomDataLayer *layer = static_cast<CustomDataLayer *>(rna_iterator_array_get(iter));
-      StructRNA *type = srna_by_custom_data_layer_type(eCustomDataType(layer->type));
-      if (type == nullptr) {
-        return PointerRNA_NULL;
-      }
-      return RNA_pointer_create_with_parent(iter->parent, type, layer);
+    CustomDataLayer *layer = *static_cast<CustomDataLayer **>(rna_iterator_array_get(iter));
+    StructRNA *type = srna_by_custom_data_layer_type(eCustomDataType(layer->type));
+    if (type == nullptr) {
+      return PointerRNA_NULL;
     }
   }
 
@@ -894,26 +872,7 @@ PointerRNA rna_AttributeGroup_iterator_get(CollectionPropertyIterator *iter)
 
 void rna_AttributeGroup_color_iterator_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
-  rna_AttributeGroup_iterator_begin(iter, ptr, ATTR_DOMAIN_MASK_COLOR, CD_MASK_COLOR_ALL);
-}
-
-PointerRNA rna_AttributeGroup_color_iterator_get(CollectionPropertyIterator *iter)
-{
-  using namespace blender;
-  AttributeOwner owner = owner_from_pointer_rna(&iter->parent);
-  if (owner.type() == AttributeOwnerType::Mesh) {
-    CustomDataLayer *layer = static_cast<CustomDataLayer *>(rna_iterator_array_get(iter));
-    StructRNA *type = srna_by_custom_data_layer_type(eCustomDataType(layer->type));
-    if (type == nullptr) {
-      return PointerRNA_NULL;
-    }
-    return RNA_pointer_create_with_parent(iter->parent, type, layer);
-  }
-
-  bke::Attribute *attr = *static_cast<bke::Attribute **>(rna_iterator_array_get(iter));
-  const eCustomDataType data_type = *bke::attr_type_to_custom_data_type(attr->data_type());
-  StructRNA *type = srna_by_custom_data_layer_type(data_type);
-  return RNA_pointer_create_with_parent(iter->parent, type, attr);
+  rna_AttributeGroup_iterator_begin(iter, ptr, ATTR_DOMAIN_MASK_COLOR, CD_MASK_COLOR_ALL, true);
 }
 
 int rna_AttributeGroup_color_length(PointerRNA *ptr)
@@ -977,7 +936,7 @@ PointerRNA rna_AttributeGroup_lookup_string(const PointerRNA &ptr,
 bool rna_AttributeGroup_lookup_string(PointerRNA *ptr, const char *key, PointerRNA *r_ptr)
 {
   *r_ptr = rna_AttributeGroup_lookup_string(*ptr, key, ATTR_DOMAIN_MASK_ALL, CD_MASK_PROP_ALL);
-  return RNA_pointer_is_null(r_ptr);
+  return !RNA_pointer_is_null(r_ptr);
 }
 
 static int rna_AttributeGroupID_active_index_get(PointerRNA *ptr)
@@ -1072,8 +1031,11 @@ static int rna_AttributeGroupID_domain_size(ID *id, const int domain)
 
 static PointerRNA rna_AttributeGroupMesh_active_color_get(PointerRNA *ptr)
 {
-  const StringRef name = BKE_id_attributes_active_color_name(ptr->owner_id).value_or("");
-  return rna_AttributeGroup_lookup_string(*ptr, name, ATTR_DOMAIN_MASK_COLOR, CD_MASK_COLOR_ALL);
+  return rna_AttributeGroup_lookup_string(
+      *ptr,
+      BKE_id_attributes_active_color_name(ptr->owner_id).value_or(""),
+      ATTR_DOMAIN_MASK_COLOR,
+      CD_MASK_COLOR_ALL);
 }
 
 static void rna_AttributeGroupMesh_active_color_set(PointerRNA *ptr,
@@ -1084,8 +1046,7 @@ static void rna_AttributeGroupMesh_active_color_set(PointerRNA *ptr,
     BKE_id_attributes_active_color_clear(ptr->owner_id);
     return;
   }
-  const StringRef name = rna_Attribute_name_get(attribute_ptr);
-  BKE_id_attributes_active_color_set(ptr->owner_id, name);
+  BKE_id_attributes_active_color_set(ptr->owner_id, rna_Attribute_name_get(attribute_ptr));
 }
 
 static int rna_AttributeGroupMesh_active_color_index_get(PointerRNA *ptr)
@@ -2153,7 +2114,7 @@ void rna_def_attributes_common(StructRNA *srna, const AttributeOwnerType type)
                                     "rna_AttributeGroup_color_iterator_begin",
                                     "rna_iterator_array_next",
                                     "rna_iterator_array_end",
-                                    "rna_AttributeGroup_color_iterator_get",
+                                    "rna_AttributeGroup_iterator_get",
                                     "rna_AttributeGroup_color_length",
                                     nullptr,
                                     nullptr,
