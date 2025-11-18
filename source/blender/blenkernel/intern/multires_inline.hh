@@ -17,7 +17,7 @@
 
 #define ORTHOGONALIZE 0
 #define NORMALIZE 0
-#define CHECK_COND_VALUE 1
+#define CHECK_COND_VALUE 0
 
 static float euclidean_norm_internal(const blender::float3x3 mat)
 {
