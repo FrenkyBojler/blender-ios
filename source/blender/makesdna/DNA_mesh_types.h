@@ -317,6 +317,9 @@ typedef struct Mesh {
   /** The name of the default UV map (e.g. for rendering) attribute, if any. */
   blender::StringRefNull default_uv_map_name() const;
 
+  void uv_maps_active_set(blender::StringRef name);
+  void uv_maps_default_set(blender::StringRef name);
+
   /**
    * Vertex group data, encoded as an array of indices and weights for every vertex.
    * \warning: May be empty.

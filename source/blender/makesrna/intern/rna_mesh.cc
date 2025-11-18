@@ -739,27 +739,6 @@ static int rna_CustomDataLayer_clone_get(PointerRNA *ptr, CustomData *data, int 
   return (n == CustomData_get_clone_layer_index(data, eCustomDataType(type)));
 }
 
-static void rna_CustomDataLayer_active_set(
-    PointerRNA *ptr, CustomData *data, int value, int type, int render)
-{
-  Mesh *mesh = (Mesh *)ptr->owner_id;
-  int n = (((CustomDataLayer *)ptr->data) - data->layers) -
-          CustomData_get_layer_index(data, eCustomDataType(type));
-
-  if (value == 0) {
-    return;
-  }
-
-  if (render) {
-    CustomData_set_layer_render(data, eCustomDataType(type), n);
-  }
-  else {
-    CustomData_set_layer_active(data, eCustomDataType(type), n);
-  }
-
-  BKE_mesh_tessface_clear(mesh);
-}
-
 static void rna_CustomDataLayer_clone_set(PointerRNA *ptr, CustomData *data, int value, int type)
 {
   int n = ((CustomDataLayer *)ptr->data) - data->layers;
@@ -812,20 +791,8 @@ static PointerRNA rna_Mesh_uv_layer_active_get(PointerRNA *ptr)
 static void rna_Mesh_uv_layer_active_set(PointerRNA *ptr, PointerRNA value, ReportList *)
 {
   Mesh *mesh = rna_mesh(ptr);
-  CustomData *data = rna_mesh_ldata(ptr);
-  int a;
-  if (data) {
-    CustomDataLayer *layer;
-    int layer_index = CustomData_get_layer_index(data, CD_PROP_FLOAT2);
-    for (layer = data->layers + layer_index, a = 0; layer_index + a < data->totlayer; layer++, a++)
-    {
-      if (value.data == layer) {
-        CustomData_set_layer_active(data, CD_PROP_FLOAT2, a);
-        BKE_mesh_tessface_clear(mesh);
-        return;
-      }
-    }
-  }
+  mesh->active_uv_map_set(rna_Attribute_name_get(value));
+  BKE_mesh_tessface_clear(mesh);
 }
 
 static int rna_Mesh_uv_layer_active_index_get(PointerRNA *ptr)
@@ -840,18 +807,16 @@ static int rna_Mesh_uv_layer_active_index_get(PointerRNA *ptr)
 
 static void rna_Mesh_uv_layer_active_index_set(PointerRNA *ptr, int value)
 {
-  Mesh *mesh = rna_mesh(ptr);
-  CustomData *data = rna_mesh_ldata(ptr);
-  if (data) {
-    if (value < 0) {
-      value = 0;
-    }
-    else if (value > 0) {
-      value = min_ii(value, CustomData_number_of_layers(data, CD_PROP_FLOAT2) - 1);
-    }
-    CustomData_set_layer_active(data, CD_PROP_FLOAT2, value);
-    BKE_mesh_tessface_clear(mesh);
+  using namespace blender;
+  AttributeOwner owner = AttributeOwner::from_id(ptr->owner_id);
+  const std::optional<StringRef> name = BKE_attribute_from_index(
+      owner, value, ATTR_DOMAIN_MASK_CORNER, CD_MASK_PROP_FLOAT2, false);
+  if (!name) {
+    return;
   }
+  Mesh *mesh = rna_mesh(ptr);
+  mesh->active_uv_map_set(name);
+  BKE_mesh_tessface_clear(mesh);
 }
 
 static PointerRNA rna_Mesh_uv_layer_clone_get(PointerRNA *ptr)
@@ -1078,12 +1043,18 @@ static bool rna_MeshUVLoopLayer_clone_get(PointerRNA *ptr)
 
 static void rna_MeshUVLoopLayer_active_render_set(PointerRNA *ptr, bool value)
 {
-  rna_CustomDataLayer_active_set(ptr, rna_mesh_ldata(ptr), value, CD_PROP_FLOAT2, 1);
+  if (value) {
+    Mesh *mesh = rna_mesh(ptr);
+    mesh->default_uv_map_set(rna_Attribute_name_get(*ptr));
+  }
 }
 
 static void rna_MeshUVLoopLayer_active_set(PointerRNA *ptr, bool value)
 {
-  rna_CustomDataLayer_active_set(ptr, rna_mesh_ldata(ptr), value, CD_PROP_FLOAT2, 0);
+  if (value) {
+    Mesh *mesh = rna_mesh(ptr);
+    mesh->active_uv_map_set(rna_Attribute_name_get(*ptr));
+  }
 }
 
 static void rna_MeshUVLoopLayer_clone_set(PointerRNA *ptr, bool value)

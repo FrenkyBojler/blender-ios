@@ -336,23 +336,6 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
   mesh->totface_legacy = 0;
   mesh->fdata_legacy = CustomData{};
 
-  /* Convert from the format still used at runtime (flags on #CustomDataLayer) to the format
-   * reserved for future runtime use (names stored on #Mesh). */
-  if (const char *name = CustomData_get_active_layer_name(&mesh->corner_data, CD_PROP_FLOAT2)) {
-    mesh->active_uv_map_attribute = const_cast<char *>(
-        scope.allocator().copy_string(name).c_str());
-  }
-  else {
-    mesh->active_uv_map_attribute = nullptr;
-  }
-  if (const char *name = CustomData_get_render_layer_name(&mesh->corner_data, CD_PROP_FLOAT2)) {
-    mesh->default_uv_map_attribute = const_cast<char *>(
-        scope.allocator().copy_string(name).c_str());
-  }
-  else {
-    mesh->default_uv_map_attribute = nullptr;
-  }
-
   /* Do not store actual geometry data in case this is a library override ID. */
   if (ID_IS_OVERRIDE_LIBRARY(mesh) && !is_undo) {
     mesh->verts_num = 0;
@@ -1204,30 +1187,40 @@ blender::VectorSet<blender::StringRefNull> Mesh::uv_map_names() const
 
 blender::StringRefNull Mesh::active_uv_map_name() const
 {
-  /* Currently this information is stored in CustomData. Once it switches to using
-   * #Mesh::active_uv_map_attribute, this logic can be removed. This function's only purpose is to
-   * ease that transition. */
-  if (this->runtime->edit_mesh) {
-    const char *name = CustomData_get_active_layer_name(&this->runtime->edit_mesh->bm->ldata,
-                                                        CD_PROP_FLOAT2);
-    return name ? name : "";
-  }
-  const char *name = CustomData_get_active_layer_name(&this->corner_data, CD_PROP_FLOAT2);
-  return name ? name : "";
+  return this->active_uv_map_attribute ? this->active_uv_map_attribute : "";
 }
 
 blender::StringRefNull Mesh::default_uv_map_name() const
 {
-  /* Currently this information is stored in CustomData. Once it switches to using
-   * #Mesh::default_uv_map_attribute, this logic can be removed. This function's only purpose is to
-   * ease that transition. */
-  if (this->runtime->edit_mesh) {
-    const char *name = CustomData_get_render_layer_name(&this->runtime->edit_mesh->bm->ldata,
-                                                        CD_PROP_FLOAT2);
-    return name ? name : "";
+  return this->default_uv_map_attribute ? this->default_uv_map_attribute : "";
+}
+
+void Mesh::uv_maps_active_set(const StringRef name)
+{
+  MEM_SAFE_FREE(this->active_uv_map_attribute);
+  if (!name.is_empty()) {
+    this->active_color_attribute = BLI_strdupn(name.data(), name.size());
   }
-  const char *name = CustomData_get_render_layer_name(&this->corner_data, CD_PROP_FLOAT2);
-  return name ? name : "";
+  if (BMEditMesh *em = this->runtime->edit_mesh.get()) {
+    CustomData_set_layer_active_index(
+        &em->bm->ldata,
+        CD_PROP_FLOAT2,
+        CustomData_get_named_layer_index(&em->bm->ldata, CD_PROP_FLOAT2, name));
+  }
+}
+
+void Mesh::uv_maps_default_set(const StringRef name)
+{
+  MEM_SAFE_FREE(this->default_uv_map_attribute);
+  if (!name.is_empty()) {
+    this->default_color_attribute = BLI_strdupn(name.data(), name.size());
+  }
+  if (BMEditMesh *em = this->runtime->edit_mesh.get()) {
+    CustomData_set_layer_render_index(
+        &em->bm->ldata,
+        CD_PROP_FLOAT2,
+        CustomData_get_named_layer_index(&em->bm->ldata, CD_PROP_FLOAT2, name));
+  }
 }
 
 Mesh *BKE_mesh_new_nomain(const int verts_num,
@@ -1308,6 +1301,14 @@ static void copy_attribute_names(const Mesh &mesh_src, Mesh &mesh_dst)
   if (mesh_src.default_color_attribute) {
     MEM_SAFE_FREE(mesh_dst.default_color_attribute);
     mesh_dst.default_color_attribute = BLI_strdup(mesh_src.default_color_attribute);
+  }
+  if (mesh_src.active_uv_map_attribute) {
+    MEM_SAFE_FREE(mesh_dst.active_uv_map_attribute);
+    mesh_dst.active_uv_map_attribute = BLI_strdup(mesh_src.active_uv_map_attribute);
+  }
+  if (mesh_src.default_uv_map_attribute) {
+    MEM_SAFE_FREE(mesh_dst.default_uv_map_attribute);
+    mesh_dst.default_uv_map_attribute = BLI_strdup(mesh_src.default_uv_map_attribute);
   }
 }
 
