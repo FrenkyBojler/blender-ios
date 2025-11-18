@@ -341,8 +341,8 @@ template<typename T, int Size>
 
   for (int i = 0; i < Size; i++) {
     const T di = end[i] - start[i];
-    /* Line is parallel to i-th axis. */
     if (di == T(0)) {
+      /* Segment is parallel to i-th axis. */
       if (start[i] < bounds.min[i] || start[i] > bounds.max[i]) {
         return false;
       }
@@ -355,37 +355,37 @@ template<typename T, int Size>
     if (di > T(0)) {
       /* t_low = p_low / di */
       /* t_high = p_high / di */
-
-      /* t_low > t_enter */
       if (rational_greater_than(p_low, di, p_enter, q_enter)) {
+        /* t_low > t_enter */
         p_enter = p_low;
         q_enter = di;
       }
-      /* t_high < t_exit */
       if (rational_less_than(p_high, di, p_exit, q_exit)) {
+        /* t_high < t_exit */
         p_exit = p_high;
         q_exit = di;
       }
     }
     /* di < 0 */
     else {
-      /* t_low = p_high / di */
-      /* t_high = p_low / di */
-
-      /* t_low > t_enter */
+      /* Note: We flip the sign here to ensure the denominator is positive. This doesn't change the
+       * value of the rational number. */
+      /* t_low = -p_high / -di */
+      /* t_high = -p_low / -di */
       if (rational_greater_than(-p_high, -di, p_enter, q_enter)) {
+        /* t_low > t_enter */
         p_enter = -p_high;
         q_enter = -di;
       }
-      /* t_high < t_exit */
-      if (rational_less_than(-p_low, -di, p_enter, q_enter)) {
+      if (rational_less_than(-p_low, -di, p_exit, q_exit)) {
+        /* t_high < t_exit */
         p_exit = -p_low;
         q_exit = -di;
       }
     }
 
-    /* t_enter > t_exit */
     if (rational_greater_than(p_enter, q_enter, p_exit, q_exit)) {
+      /* t_enter > t_exit */
       return false;
     }
   }
