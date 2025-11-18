@@ -1,3 +1,4 @@
 Referenced by issue #142056, Grease Pencil: Assert on duplicating layer
 Referenced by pull request #142201, Fix #142056: Grease Pencil: Assert on duplicating layer
 Referenced by commit d2f4d80ac9a3bad92c7227ddfcce8939d594a85b, Fix #142056: Grease Pencil: Assert on duplicating layer
+Referenced by issue #150142, Blender 5.0 crashes randomly when duplicating and replacing grease pencil object frames
