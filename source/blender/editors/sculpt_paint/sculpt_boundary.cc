@@ -335,7 +335,6 @@ static void indices_init_mesh(Object &object,
                               const Span<bool> hide_vert,
                               const Span<bool> hide_poly,
                               const BitSpan boundary_verts,
-                              const Set<OrderedEdge> &boundary_edges,
                               const Span<float3> vert_positions,
                               const int initial_boundary_vert,
                               SculptBoundary &boundary)
@@ -3400,7 +3399,7 @@ std::unique_ptr<SculptBoundary> data_init_mesh(const Depsgraph &depsgraph,
       positions_eval,
       hide_vert,
       hide_poly,
-      ss.vertex_info.boundary,
+      ss.boundary_info.verts,
       initial_vert,
       radius);
 
@@ -3418,7 +3417,7 @@ std::unique_ptr<SculptBoundary> data_init_mesh(const Depsgraph &depsgraph,
                                          vert_to_face_map,
                                          hide_vert,
                                          hide_poly,
-                                         ss.vertex_info.boundary,
+                                         ss.boundary_info.verts,
                                          initial_vert))
   {
     return nullptr;
@@ -3437,8 +3436,7 @@ std::unique_ptr<SculptBoundary> data_init_mesh(const Depsgraph &depsgraph,
                     vert_to_face_map,
                     hide_vert,
                     hide_poly,
-                    ss.vertex_info.boundary,
-                    ss.edge_info.boundary,
+                    ss.boundary_info.verts,
                     positions_eval,
                     *boundary_initial_vert,
                     *boundary);
@@ -3478,8 +3476,8 @@ std::unique_ptr<SculptBoundary> data_init_grids(Object &object,
       faces,
       corner_verts,
       subdiv_ccg,
-      ss.vertex_info.boundary,
-      ss.edge_info.boundary,
+      ss.boundary_info.verts,
+      ss.boundary_info.edges,
       initial_vert,
       radius);
 
@@ -3492,8 +3490,8 @@ std::unique_ptr<SculptBoundary> data_init_grids(Object &object,
   if (!is_vert_in_editable_boundary_grids(faces,
                                           corner_verts,
                                           subdiv_ccg,
-                                          ss.vertex_info.boundary,
-                                          ss.edge_info.boundary,
+                                          ss.boundary_info.verts,
+                                          ss.boundary_info.edges,
                                           initial_vert))
   {
     return nullptr;
@@ -3511,8 +3509,8 @@ std::unique_ptr<SculptBoundary> data_init_grids(Object &object,
                      faces,
                      corner_verts,
                      subdiv_ccg,
-                     ss.vertex_info.boundary,
-                     ss.edge_info.boundary,
+                     ss.boundary_info.verts,
+                     ss.boundary_info.edges,
                      boundary_vert,
                      *boundary);
 

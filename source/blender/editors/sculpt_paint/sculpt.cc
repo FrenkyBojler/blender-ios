@@ -503,7 +503,7 @@ bool vert_is_boundary(const OffsetIndices<int> faces,
   /* TODO: Unlike the base mesh implementation this method does NOT take into account face
    * visibility. Either this should be noted as a intentional limitation or fixed. */
   return BKE_subdiv_ccg_coord_is_mesh_boundary(
-      faces, corner_verts, boundary_verts, boundary_edges, subdiv_ccg, vert)
+      faces, corner_verts, boundary_verts, boundary_edges, subdiv_ccg, vert);
 }
 
 bool vert_is_boundary(BMVert *vert)
@@ -3023,8 +3023,8 @@ static void dynamic_topology_update(const Depsgraph &depsgraph,
 
   /* Free index based vertex info as it will become invalid after modifying the topology during the
    * stroke. */
-  ss.vertex_info.boundary.clear();
-  ss.edge_info.boundary.clear();
+  ss.boundary_info.verts.clear();
+  ss.boundary_info.edges.clear();
 
   PBVHTopologyUpdateMode mode = PBVHTopologyUpdateMode(0);
 
@@ -6068,13 +6068,13 @@ namespace blender::ed::sculpt_paint::boundary {
 void ensure_boundary_info(Object &object)
 {
   SculptSession &ss = *object.sculpt;
-  if (!ss.vertex_info.boundary.is_empty()) {
+  if (!ss.boundary_info.verts.is_empty()) {
     return;
   }
 
   Mesh *base_mesh = BKE_mesh_from_object(&object);
 
-  ss.vertex_info.boundary.resize(base_mesh->verts_num);
+  ss.boundary_info.verts.resize(base_mesh->verts_num);
   Array<int> adjacent_faces_edge_count(base_mesh->edges_num, 0);
   array_utils::count_indices(base_mesh->corner_edges(), adjacent_faces_edge_count);
 
@@ -6082,9 +6082,9 @@ void ensure_boundary_info(Object &object)
   for (const int e : edges.index_range()) {
     if (adjacent_faces_edge_count[e] < 2) {
       const int2 &edge = edges[e];
-      ss.edge_info.boundary.add(edge);
-      ss.vertex_info.boundary[edge[0]].set();
-      ss.vertex_info.boundary[edge[1]].set();
+      ss.boundary_info.edges.add(edge);
+      ss.boundary_info.verts[edge[0]].set();
+      ss.boundary_info.verts[edge[1]].set();
     }
   }
 }

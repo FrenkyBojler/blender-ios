@@ -476,7 +476,7 @@ static IndexMask boundary_from_enabled(Object &object,
         }
 
         if (use_mesh_boundary &&
-            boundary::vert_is_boundary(vert_to_face_map, hide_poly, ss.vertex_info.boundary, vert))
+            boundary::vert_is_boundary(vert_to_face_map, hide_poly, ss.boundary_info.verts, vert))
         {
           return true;
         }
@@ -503,8 +503,8 @@ static IndexMask boundary_from_enabled(Object &object,
 
         if (use_mesh_boundary && boundary::vert_is_boundary(faces,
                                                             corner_verts,
-                                                            ss.vertex_info.boundary,
-                                                            ss.edge_info.boundary,
+                                                            ss.boundary_info.verts,
+                                                            ss.boundary_info.edges,
                                                             subdiv_ccg,
                                                             coord))
         {
@@ -2822,7 +2822,7 @@ static wmOperatorStatus sculpt_expand_invoke(bContext *C, wmOperator *op, const 
       const bke::AttributeAccessor attributes = mesh.attributes();
       const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
       if (boundary::vert_is_boundary(
-              vert_to_face_map, hide_poly, ss.vertex_info.boundary, initial_vert))
+              vert_to_face_map, hide_poly, ss.boundary_info.verts, initial_vert))
       {
         falloff_type = FalloffType::BoundaryTopology;
       }
@@ -2839,8 +2839,8 @@ static wmOperatorStatus sculpt_expand_invoke(bContext *C, wmOperator *op, const 
       const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
       if (boundary::vert_is_boundary(faces,
                                      corner_verts,
-                                     ss.vertex_info.boundary,
-                                     ss.edge_info.boundary,
+                                     ss.boundary_info.verts,
+                                     ss.boundary_info.edges,
                                      subdiv_ccg,
                                      SubdivCCGCoord::from_index(key, initial_vert)))
       {

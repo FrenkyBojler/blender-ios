@@ -333,13 +333,11 @@ struct SculptPoseIKChainPreview {
   blender::Array<blender::float3> initial_head_coords;
 };
 
-struct SculptVertexInfo {
-  /* Indexed by base mesh vertex index, stores if that vertex is a boundary. */
-  blender::BitVector<> boundary;
-};
+struct SculptBoundaryInfo {
+  /* Indexed by base mesh vertex index. */
+  blender::BitVector<> verts;
 
-struct SculptEdgeInfo {
-  blender::Set<blender::OrderedEdge> boundary;
+  blender::Set<blender::OrderedEdge> edges;
 };
 
 /* Data used for displaying extra visuals while using the Boundary brush. */
@@ -467,8 +465,7 @@ struct SculptSession : blender::NonCopyable, blender::NonMovable {
     int grid_size = -1;
   } persistent;
 
-  SculptVertexInfo vertex_info = {};
-  SculptEdgeInfo edge_info = {};
+  SculptBoundaryInfo boundary_info = {};
   SculptFakeNeighbors fake_neighbors = {};
 
   /* Transform operator */

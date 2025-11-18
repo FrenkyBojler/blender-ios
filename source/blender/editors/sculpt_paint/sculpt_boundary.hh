@@ -96,7 +96,7 @@ struct SculptBoundary {
 /**
  * Populates boundary information for a mesh.
  *
- * \see SculptVertexInfo
+ * \see SculptBoundaryInfo
  */
 void ensure_boundary_info(Object &object);
 
