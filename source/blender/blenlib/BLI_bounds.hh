@@ -332,13 +332,14 @@ template<typename T, int Size>
                                                       const VecBase<T, Size> &start,
                                                       const VecBase<T, Size> &end)
 {
-  /* t_enter = p_enter / q_enter */
+
   T p_enter = T(0);
   T q_enter = T(1);
-  /* t_exit = p_exit / q_exit */
   T p_exit = T(1);
   T q_exit = T(1);
 
+  /* t_enter = p_enter / q_enter */
+  /* t_exit = p_exit / q_exit */
   for (int i = 0; i < Size; i++) {
     const T di = end[i] - start[i];
     if (di == T(0)) {
@@ -349,39 +350,23 @@ template<typename T, int Size>
       continue;
     }
 
-    const T p_low = bounds.min[i] - start[i];
-    const T p_high = bounds.max[i] - start[i];
+    /* Note: We flip the sign here to ensure the denominator is positive. This doesn't change the
+     * value of the rational number. */
+    const T p_low = (di > T(0)) ? bounds.min[i] - start[i] : -(bounds.max[i] - start[i]);
+    const T p_high = (di > T(0)) ? bounds.max[i] - start[i] : -(bounds.min[i] - start[i]);
+    const T di_abs = (di > T(0)) ? di : -di;
 
-    if (di > T(0)) {
-      /* t_low = p_low / di */
-      /* t_high = p_high / di */
-      if (rational_greater_than(p_low, di, p_enter, q_enter)) {
-        /* t_low > t_enter */
-        p_enter = p_low;
-        q_enter = di;
-      }
-      if (rational_less_than(p_high, di, p_exit, q_exit)) {
-        /* t_high < t_exit */
-        p_exit = p_high;
-        q_exit = di;
-      }
+    /* t_low = p_low / di_abs */
+    /* t_high = p_high / di_abs */
+    if (rational_greater_than(p_low, di_abs, p_enter, q_enter)) {
+      /* t_low > t_enter */
+      p_enter = p_low;
+      q_enter = di_abs;
     }
-    /* di < 0 */
-    else {
-      /* Note: We flip the sign here to ensure the denominator is positive. This doesn't change the
-       * value of the rational number. */
-      /* t_low = -p_high / -di */
-      /* t_high = -p_low / -di */
-      if (rational_greater_than(-p_high, -di, p_enter, q_enter)) {
-        /* t_low > t_enter */
-        p_enter = -p_high;
-        q_enter = -di;
-      }
-      if (rational_less_than(-p_low, -di, p_exit, q_exit)) {
-        /* t_high < t_exit */
-        p_exit = -p_low;
-        q_exit = -di;
-      }
+    if (rational_less_than(p_high, di_abs, p_exit, q_exit)) {
+      /* t_high < t_exit */
+      p_exit = p_high;
+      q_exit = di_abs;
     }
 
     if (rational_greater_than(p_enter, q_enter, p_exit, q_exit)) {
