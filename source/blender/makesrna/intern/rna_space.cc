@@ -9174,6 +9174,8 @@ static void rna_def_space_project(BlenderRNA *brna)
   RNA_def_struct_sdna(srna, "SpaceProject");
   RNA_def_struct_ui_text(srna, "Space Project", "TODO: description");
 
+  rna_def_space_generic_show_region_toggles(srna, 1 << RGN_TYPE_UI);
+
   PropertyRNA *prop;
 
   prop = RNA_def_property(srna, "active_section", PROP_ENUM, PROP_NONE);

@@ -41,8 +41,7 @@ class PROJECT_MT_view(Menu):
         layout = self.layout
         project_space = context.space_data
 
-        # TODO: why doesn't this work?
-        # layout.prop(project_space, "show_region_ui")
+        layout.prop(project_space, "show_region_ui")
 
         layout.separator()
 
