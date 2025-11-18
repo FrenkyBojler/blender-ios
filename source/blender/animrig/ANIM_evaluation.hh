@@ -89,6 +89,12 @@ class EvaluationResult {
 
  public:
   EvaluationResult() = default;
+  /* When the expected count of entries is known, reserving with size instead of growing on demand
+   * is more performant. */
+  EvaluationResult(const int64_t size)
+  {
+    result_.reserve(size);
+  };
   EvaluationResult(const EvaluationResult &other) = default;
   ~EvaluationResult() = default;
 
