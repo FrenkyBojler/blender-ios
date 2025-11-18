@@ -50,7 +50,6 @@ const EnumPropertyItem rna_enum_operator_context_items[] = {
 const EnumPropertyItem rna_enum_uilist_layout_type_items[] = {
     {UILST_LAYOUT_DEFAULT, "DEFAULT", 0, "Default Layout", "Use the default, multi-rows layout"},
     {UILST_LAYOUT_COMPACT, "COMPACT", 0, "Compact Layout", "Use the compact, single-row layout"},
-    {UILST_LAYOUT_GRID, "GRID", 0, "Grid Layout", "Use the grid-based layout"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -1704,7 +1703,7 @@ static void rna_def_ui_layout(BlenderRNA *brna)
   /* layout */
 
   srna = RNA_def_struct(brna, "UILayout", nullptr);
-  RNA_def_struct_sdna(srna, "uiLayout");
+  RNA_def_struct_sdna(srna, "blender::ui::Layout");
   RNA_def_struct_ui_text(srna, "UI Layout", "User interface layout in a panel or header");
 
   prop = RNA_def_property(srna, "active", PROP_BOOLEAN, PROP_NONE);

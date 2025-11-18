@@ -12,10 +12,12 @@
 
 #include "BLI_array.hh"
 #include "BLI_bit_vector.hh"
+#include "BLI_enum_flags.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_shared_cache.hh"
+#include "BLI_string_ref.hh"
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector.hh"
 
@@ -92,7 +94,7 @@ enum ePaintOverlayControlFlags {
   PAINT_OVERLAY_OVERRIDE_PRIMARY = (1 << 5),
   PAINT_OVERLAY_OVERRIDE_SECONDARY = (1 << 6),
 };
-ENUM_OPERATORS(ePaintOverlayControlFlags, PAINT_OVERLAY_OVERRIDE_SECONDARY);
+ENUM_OPERATORS(ePaintOverlayControlFlags);
 
 #define PAINT_OVERRIDE_MASK \
   (PAINT_OVERLAY_OVERRIDE_SECONDARY | PAINT_OVERLAY_OVERRIDE_PRIMARY | \
@@ -110,7 +112,7 @@ enum ePaintSymmetryAreas {
   PAINT_SYMM_AREA_Y = (1 << 1),
   PAINT_SYMM_AREA_Z = (1 << 2),
 };
-ENUM_OPERATORS(ePaintSymmetryAreas, PAINT_SYMM_AREA_Z);
+ENUM_OPERATORS(ePaintSymmetryAreas);
 
 #define PAINT_SYMM_AREAS 8
 
@@ -597,6 +599,8 @@ void BKE_sculpt_update_object_after_eval(Depsgraph *depsgraph, Object *ob_eval);
  * it's the last modifier on the stack and it is not on the first level.
  */
 MultiresModifierData *BKE_sculpt_multires_active(const Scene *scene, Object *ob);
+int BKE_sculpt_get_grid_num_verts(const Object &object);
+int BKE_sculpt_get_grid_num_faces(const Object &object);
 
 /**
  * Ensures a mask layer exists. If depsgraph and bmain are non-null,
@@ -648,7 +652,8 @@ bool BKE_paint_canvas_image_get(PaintModeSettings *settings,
                                 Object *ob,
                                 Image **r_image,
                                 ImageUser **r_image_user);
-int BKE_paint_canvas_uvmap_layer_index_get(const PaintModeSettings *settings, Object *ob);
+std::optional<blender::StringRef> BKE_paint_canvas_uvmap_name_get(
+    const PaintModeSettings *settings, Object *ob);
 void BKE_sculpt_cavity_curves_ensure(Sculpt *sd);
 CurveMapping *BKE_sculpt_default_cavity_curve();
 CurveMapping *BKE_paint_default_curve();

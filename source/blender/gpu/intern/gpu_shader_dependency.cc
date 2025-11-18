@@ -10,6 +10,7 @@
  */
 
 #include <algorithm>
+#include <fmt/format.h>
 #include <iomanip>
 #include <iostream>
 #include <regex>
@@ -45,7 +46,7 @@ extern "C" {
 #undef SHADER_SOURCE
 }
 
-static CLG_LogRef LOG = {"gpu.shader_dependencies"};
+static CLG_LogRef LOG = {"shader.dependencies"};
 
 namespace blender::gpu {
 
@@ -65,6 +66,8 @@ struct GPUSource {
   /* True if this file content is supposed to be generated at runtime. */
   bool generated = false;
 
+  Vector<shader::ShaderCreateInfo::SharedVariable, 0> shared_variables;
+
   /* NOTE: The next few functions are needed to keep isolation of the preprocessor.
    * Eventually, this should be revisited and the preprocessor should output
    * GPU structures. */
@@ -76,10 +79,14 @@ struct GPUSource {
     switch (builtin) {
       case Builtin::FragCoord:
         return BuiltinBits::FRAG_COORD;
+      case Builtin::FragStencilRef:
+        return BuiltinBits::STENCIL_REF;
       case Builtin::FrontFacing:
         return BuiltinBits::FRONT_FACING;
       case Builtin::GlobalInvocationID:
         return BuiltinBits::GLOBAL_INVOCATION_ID;
+      case Builtin::InstanceIndex:
+      case Builtin::BaseInstance:
       case Builtin::InstanceID:
         return BuiltinBits::INSTANCE_ID;
       case Builtin::LocalInvocationID:
@@ -186,6 +193,11 @@ struct GPUSource {
   void add_dependency(StringRef line)
   {
     dependencies_names.append(line);
+  }
+
+  void add_shared_variable(const shader::Type type, const StringRefNull name)
+  {
+    shared_variables.append({type, name});
   }
 
   void add_printf_format(uint32_t format_hash, std::string format, GPUPrintFormatMap *format_map)
@@ -313,10 +325,10 @@ struct GPUSource {
 
     using namespace shader;
     /* Auto dependency injection for debug capabilities. */
-    if ((builtins & BuiltinBits::USE_PRINTF) == BuiltinBits::USE_PRINTF) {
+    if (flag_is_set(builtins, BuiltinBits::USE_PRINTF)) {
       dependencies.append_non_duplicates(dict.lookup("gpu_shader_print_lib.glsl"));
     }
-    if ((builtins & BuiltinBits::USE_DEBUG_DRAW) == BuiltinBits::USE_DEBUG_DRAW) {
+    if (flag_is_set(builtins, BuiltinBits::USE_DEBUG_DRAW)) {
       dependencies.append_non_duplicates(dict.lookup("draw_debug_draw_lib.glsl"));
     }
 
@@ -334,6 +346,8 @@ struct GPUSource {
         return 1;
       }
       dependencies.append_non_duplicates(dependency_source);
+
+      this->shared_variables.extend(dependency_source->shared_variables);
     }
     dependencies_names.clear();
     return 0;
@@ -345,18 +359,21 @@ struct GPUSource {
                   const GPUSource &from) const
   {
 #define CLOG_FILE_INCLUDE(_from, _include) \
-  if ((from).filename.c_str() != (_include).filename.c_str()) { \
+  if (CLOG_CHECK(&LOG, CLG_LEVEL_INFO) && (from).filename.c_str() != (_include).filename.c_str()) \
+  { \
     const char *from_filename = (_from).filename.c_str(); \
     const char *include_filename = (_include).filename.c_str(); \
     const int from_size = int((_from).source.size()); \
     const int include_size = int((_include).source.size()); \
-    CLOG_INFO(&LOG, "%s_%d --> %s_%d", from_filename, from_size, include_filename, include_size); \
-    CLOG_INFO(&LOG, \
-              "style %s_%d fill:#%x%x0", \
-              include_filename, \
-              include_size, \
-              min_uu(15, include_size / 1000), \
-              15 - min_uu(15, include_size / 1000)); \
+    std::string link = fmt::format( \
+        "{}_{} --> {}_{}\n", from_filename, from_size, include_filename, include_size); \
+    std::string style = fmt::format("style {}_{} fill:#{:x}{:x}0\n", \
+                                    include_filename, \
+                                    include_size, \
+                                    min_uu(15, include_size / 1000), \
+                                    15 - min_uu(15, include_size / 1000)); \
+    CLG_log_raw(LOG.type, link.c_str()); \
+    CLG_log_raw(LOG.type, style.c_str()); \
   }
 
     /* Check if this file was already included. */
@@ -370,7 +387,7 @@ struct GPUSource {
       }
     }
 
-    if (!bool(this->builtins & shader::BuiltinBits::RUNTIME_GENERATED)) {
+    if (!flag_is_set(this->builtins, shader::BuiltinBits::RUNTIME_GENERATED)) {
       for (const auto &dependency : this->dependencies) {
         /* WATCH: Recursive. */
         dependency->source_get(result, generated_sources, dict, *this);
@@ -509,7 +526,7 @@ void gpu_shader_dependency_init()
     /* Detect if there is any printf in node lib files.
      * See gpu_shader_dependency_force_gpu_print_injection(). */
     for (auto *value : g_sources->values()) {
-      if (bool(value->builtins & shader::BuiltinBits::USE_PRINTF)) {
+      if (flag_is_set(value->builtins, shader::BuiltinBits::USE_PRINTF)) {
         if (value->filename.startswith("gpu_shader_material_")) {
           force_printf_injection = true;
           break;
@@ -547,6 +564,7 @@ void gpu_material_library_use_function(blender::Set<blender::StringRefNull> &use
                                        const char *name)
 {
   GPUFunction *function = g_functions->lookup_default(name, nullptr);
+  BLI_assert_msg(function != nullptr, "Requested function not in the function library");
   GPUSource *source = reinterpret_cast<GPUSource *>(function->source);
   used_libraries.add(source->filename.c_str());
 }
@@ -585,18 +603,40 @@ BuiltinBits gpu_shader_dependency_get_builtins(const StringRefNull shader_source
   return source->builtins_get();
 }
 
+Span<ShaderCreateInfo::SharedVariable> gpu_shader_dependency_get_shared_variables(
+    const StringRefNull shader_source_name)
+{
+  if (shader_source_name.is_empty()) {
+    return {};
+  }
+  if (g_sources->contains(shader_source_name) == false) {
+    std::cerr << "Error: Could not find \"" << shader_source_name
+              << "\" in the list of registered source.\n";
+    BLI_assert(0);
+    return {};
+  }
+  GPUSource *source = g_sources->lookup(shader_source_name);
+  return source->shared_variables;
+}
+
 Vector<StringRefNull> gpu_shader_dependency_get_resolved_source(
-    const StringRefNull shader_source_name, const shader::GeneratedSourceList &generated_sources)
+    const StringRefNull shader_source_name,
+    const shader::GeneratedSourceList &generated_sources,
+    const StringRefNull shader_name)
 {
   Vector<StringRefNull> result;
   GPUSource *src = g_sources->lookup_default(shader_source_name, nullptr);
   if (src == nullptr) {
     std::cerr << "Error source not found : " << shader_source_name << std::endl;
   }
-  CLOG_INFO(&LOG, "Resolved Source Tree (Mermaid flowchart)");
-  CLOG_INFO(&LOG, "flowchart LR");
+  CLOG_INFO(&LOG, "Resolved Source Tree (Mermaid flowchart) %s", shader_name.c_str());
+  if (CLOG_CHECK(&LOG, CLG_LEVEL_INFO)) {
+    CLG_log_raw(LOG.type, "flowchart LR\n");
+  }
   src->build(result, generated_sources, *g_sources);
-  CLOG_INFO(&LOG, " ");
+  if (CLOG_CHECK(&LOG, CLG_LEVEL_INFO)) {
+    CLG_log_raw(LOG.type, "\n");
+  }
   return result;
 }
 

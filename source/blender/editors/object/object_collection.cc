@@ -446,8 +446,7 @@ void COLLECTION_OT_create(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  RNA_def_string(
-      ot->srna, "name", "Collection", MAX_ID_NAME - 2, "Name", "Name of the new collection");
+  RNA_def_string(ot->srna, "name", nullptr, MAX_ID_NAME - 2, "Name", "Name of the new collection");
 }
 
 static bool collection_exporter_common_check(const Collection *collection)
@@ -549,7 +548,7 @@ static wmOperatorStatus collection_exporter_remove_invoke(bContext *C,
                                                           const wmEvent * /*event*/)
 {
   return WM_operator_confirm_ex(
-      C, op, IFACE_("Remove exporter?"), nullptr, IFACE_("Delete"), ALERT_ICON_NONE, false);
+      C, op, IFACE_("Remove exporter?"), nullptr, IFACE_("Delete"), ui::AlertIcon::None, false);
 }
 
 static void COLLECTION_OT_exporter_remove(wmOperatorType *ot)

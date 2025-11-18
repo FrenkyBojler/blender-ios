@@ -23,7 +23,7 @@
 
 #include "BKE_context.hh"
 #include "BKE_global.hh"
-#include "BKE_icons.h"
+#include "BKE_icons.hh"
 #include "BKE_image.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
@@ -31,7 +31,7 @@
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
-#include "BKE_sound.h"
+#include "BKE_sound.hh"
 #include "BKE_workspace.hh"
 
 #include "WM_api.hh"
@@ -662,7 +662,7 @@ static void region_cursor_set(wmWindow *win, bool swin_changed)
 {
   bScreen *screen = WM_window_get_active_screen(win);
 
-  /* Don't touch cursor if something else is controling it, like button handling. See #51739. */
+  /* Don't touch cursor if something else is controlling it, like button handling. See #51739. */
   if (win->grabcursor) {
     return;
   }

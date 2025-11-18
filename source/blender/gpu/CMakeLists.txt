@@ -58,6 +58,10 @@ if(WITH_GPU_SHADER_ASSERT)
   add_definitions(-DWITH_GPU_SHADER_ASSERT)
 endif()
 
+if(WITH_XR_OPENXR)
+  add_definitions(-DWITH_XR_OPENXR)
+endif()
+
 set(INC_SYS
 )
 
@@ -155,6 +159,7 @@ set(SRC
   intern/gpu_query.hh
   intern/gpu_select_private.hh
   intern/gpu_shader_create_info.hh
+  intern/gpu_shader_create_info_pipeline.hh
   intern/gpu_shader_create_info_private.hh
   intern/gpu_shader_dependency_private.hh
   intern/gpu_shader_interface.hh
@@ -258,6 +263,7 @@ set(VULKAN_SRC
   vulkan/vk_staging_buffer.cc
   vulkan/vk_state_manager.cc
   vulkan/vk_storage_buffer.cc
+  vulkan/vk_streaming_buffer.cc
   vulkan/vk_texture.cc
   vulkan/vk_to_string.cc
   vulkan/vk_uniform_buffer.cc
@@ -278,6 +284,7 @@ set(VULKAN_SRC
   vulkan/vk_fence.hh
   vulkan/vk_framebuffer.hh
   vulkan/vk_ghost_api.hh
+  vulkan/vk_graphics_pipeline.hh
   vulkan/vk_image_view.hh
   vulkan/vk_immediate.hh
   vulkan/vk_index_buffer.hh
@@ -332,6 +339,7 @@ set(VULKAN_SRC
   vulkan/vk_staging_buffer.hh
   vulkan/vk_state_manager.hh
   vulkan/vk_storage_buffer.hh
+  vulkan/vk_streaming_buffer.hh
   vulkan/vk_texture.hh
   vulkan/vk_to_string.hh
   vulkan/vk_uniform_buffer.hh
@@ -349,9 +357,10 @@ set(METAL_SRC
   metal/mtl_immediate.mm
   metal/mtl_index_buffer.mm
   metal/mtl_memory.mm
+  metal/mtl_push_constant.cc
   metal/mtl_query.mm
   metal/mtl_shader.mm
-  metal/mtl_shader_generator.mm
+  metal/mtl_shader_generate.cc
   metal/mtl_shader_interface.mm
   metal/mtl_shader_log.mm
   metal/mtl_state.mm
@@ -364,6 +373,7 @@ set(METAL_SRC
   metal/mtl_backend.hh
   metal/mtl_batch.hh
   metal/mtl_capabilities.hh
+  metal/mtl_command_buffer.hh
   metal/mtl_common.hh
   metal/mtl_context.hh
   metal/mtl_debug.hh
@@ -373,9 +383,10 @@ set(METAL_SRC
   metal/mtl_memory.hh
   metal/mtl_primitive.hh
   metal/mtl_pso_descriptor_state.hh
+  metal/mtl_push_constant.hh
   metal/mtl_query.hh
   metal/mtl_shader.hh
-  metal/mtl_shader_generator.hh
+  metal/mtl_shader_generate.hh
   metal/mtl_shader_interface.hh
   metal/mtl_shader_interface_type.hh
   metal/mtl_shader_log.hh
@@ -448,6 +459,7 @@ endif()
 
 set(GLSL_SRC
   GPU_shader_shared.hh
+  GPU_xr_defines.hh
 
   shaders/infos/gpu_clip_planes_infos.hh
   shaders/infos/gpu_index_load_infos.hh
@@ -484,6 +496,7 @@ set(GLSL_SRC
   shaders/infos/gpu_shader_sequencer_infos.hh
   shaders/infos/gpu_shader_simple_lighting_infos.hh
   shaders/infos/gpu_shader_text_infos.hh
+  shaders/infos/gpu_shader_xr_raycast_infos.hh
   shaders/infos/gpu_srgb_to_framebuffer_space_infos.hh
 
   shaders/gpu_shader_depth_only_frag.glsl
@@ -538,6 +551,7 @@ set(GLSL_SRC
 
   shaders/gpu_shader_text_vert.glsl
   shaders/gpu_shader_text_frag.glsl
+  shaders/gpu_shader_xr_raycast_vert.glsl
   shaders/gpu_shader_keyframe_shape_vert.glsl
   shaders/gpu_shader_keyframe_shape_frag.glsl
 
@@ -646,6 +660,7 @@ set(GLSL_SRC
   shaders/material/gpu_shader_material_principled.glsl
   shaders/material/gpu_shader_material_ray_portal.glsl
   shaders/material/gpu_shader_material_refraction.glsl
+  shaders/material/gpu_shader_material_repeat_zone.glsl
   shaders/material/gpu_shader_material_rgb_to_bw.glsl
   shaders/material/gpu_shader_material_radial_tiling.glsl
   shaders/material/gpu_shader_material_radial_tiling_shared.glsl
@@ -722,6 +737,8 @@ set(GLSL_SRC_TEST
   tests/shaders/gpu_framebuffer_layer_viewport_test.glsl
   tests/shaders/gpu_framebuffer_subpass_input_test.glsl
   tests/shaders/gpu_push_constants_test.glsl
+  tests/shaders/gpu_texture_test.glsl
+  tests/shaders/gpu_texture_atomic_test.glsl
 )
 
 set(MTL_BACKEND_GLSL_SRC
@@ -742,8 +759,10 @@ set(MTL_BACKEND_GLSL_SRC
   shaders/gpu_shader_msl_matrix_legacy.msl
   shaders/gpu_shader_msl_matrix.msl
   shaders/gpu_shader_msl_sampler.msl
+  shaders/gpu_shader_msl_types.msl
   shaders/gpu_shader_msl_types_legacy.msl
   shaders/gpu_shader_msl_defines.msl
+  shaders/gpu_shader_msl_wrapper.msl
   shaders/gpu_shader_compat_msl.msl
 )
 
@@ -908,14 +927,6 @@ if(WITH_GTESTS)
       vulkan/render_graph/tests/vk_render_graph_test_transfer.cc
 
       vulkan/render_graph/tests/vk_render_graph_test_types.hh
-    )
-  endif()
-
-  # Enable shader validation on build-bot for Metal
-  if(WITH_METAL_BACKEND AND NOT WITH_GPU_DRAW_TESTS AND
-     NOT (WITH_GTESTS AND WITH_GPU_BACKEND_TESTS)) # Avoid duplicate source file
-    list(APPEND TEST_SRC
-      tests/shader_create_info_test.cc
     )
   endif()
 

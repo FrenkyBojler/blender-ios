@@ -21,14 +21,6 @@ def update_factory_startup_screens():
             space = area.spaces.active
             space.show_region_ui = True
 
-    # 2D Full Canvas.
-    screen = bpy.data.screens["2D Full Canvas"]
-    for area in screen.areas:
-        if area.type == 'VIEW_3D':
-            space = area.spaces.active
-            space.shading.type = 'MATERIAL'
-            space.shading.use_scene_world = True
-
 
 def update_factory_startup_scenes():
     for scene in bpy.data.scenes:
@@ -40,7 +32,7 @@ def update_factory_startup_scenes():
 
 
 def update_factory_startup_grease_pencils():
-    for grease_pencil in bpy.data.grease_pencils_v3:
+    for grease_pencil in bpy.data.grease_pencils:
         grease_pencil.onion_keyframe_type = 'ALL'
 
 

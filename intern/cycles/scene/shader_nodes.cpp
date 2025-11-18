@@ -24,6 +24,7 @@
 
 #include "util/log.h"
 #include "util/math_base.h"
+#include "util/string.h"
 #include "util/transform.h"
 
 #include "kernel/svm/color_util.h"
@@ -2339,6 +2340,9 @@ NODE_DEFINE(MetallicBsdfNode)
   SOCKET_IN_FLOAT(anisotropy, "Anisotropy", 0.0f);
   SOCKET_IN_FLOAT(rotation, "Rotation", 0.0f);
 
+  SOCKET_IN_FLOAT(thin_film_thickness, "Thin Film Thickness", 0.0f);
+  SOCKET_IN_FLOAT(thin_film_ior, "Thin Film IOR", 1.33f);
+
   SOCKET_OUT_CLOSURE(BSDF, "BSDF");
 
   return type;
@@ -2386,6 +2390,9 @@ void MetallicBsdfNode::compile(SVMCompiler &compiler)
                                      compiler.stack_assign(input("Extinction")) :
                                      compiler.stack_assign(input("Edge Tint"));
 
+  const int thin_film_thickness_offset = compiler.stack_assign(input("Thin Film Thickness"));
+  const int thin_film_ior_offset = compiler.stack_assign(input("Thin Film IOR"));
+
   ShaderInput *roughness_in = input("Roughness");
   ShaderInput *anisotropy_in = input("Anisotropy");
 
@@ -2404,7 +2411,7 @@ void MetallicBsdfNode::compile(SVMCompiler &compiler)
       normal_offset,
       compiler.encode_uchar4(
           base_color_ior_offset, edge_tint_k_offset, rotation_offset, tangent_offset),
-      distribution);
+      compiler.encode_uchar4(distribution, thin_film_thickness_offset, thin_film_ior_offset));
 }
 
 void MetallicBsdfNode::compile(OSLCompiler &compiler)
@@ -6008,6 +6015,24 @@ void AttributeNode::attributes(Shader *shader, AttributeRequestSet *attributes)
       !alpha_out->links.empty())
   {
     attributes->add_standard(attribute);
+
+    /* Request UV if we asked for one of the attributes computed from it.
+     * Ideally this would be handled at a more generic level. */
+    const AttributeStandard std = Attribute::name_standard(attribute.c_str());
+    if (std == ATTR_STD_UV_TANGENT || std == ATTR_STD_UV_TANGENT_SIGN ||
+        std == ATTR_STD_UV_TANGENT_UNDISPLACED || std == ATTR_STD_UV_TANGENT_SIGN_UNDISPLACED)
+    {
+      attributes->add(ATTR_STD_UV);
+    }
+    else {
+      const char *suffixes[] = {
+          ".tangent_sign", ".tangent", ".undisplaced_tangent", ".undisplaced_tangent_sign"};
+      for (const char *suffix : suffixes) {
+        if (string_endswith(attribute, suffix)) {
+          attributes->add(attribute.substr(0, attribute.size() - strlen(suffix)));
+        }
+      }
+    }
   }
 
   if (shader->has_volume) {

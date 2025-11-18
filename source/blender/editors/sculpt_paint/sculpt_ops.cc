@@ -430,14 +430,8 @@ void object_sculpt_mode_enter(Main &bmain,
       if (flag == 0) {
         /* pass */
       }
-      else if (flag & dyntopo::VDATA) {
-        message_unsupported = RPT_("vertex data");
-      }
-      else if (flag & dyntopo::EDATA) {
-        message_unsupported = RPT_("edge data");
-      }
-      else if (flag & dyntopo::LDATA) {
-        message_unsupported = RPT_("face data");
+      else if (flag & dyntopo::ATTRIBUTES) {
+        message_unsupported = RPT_("attributes");
       }
       else if (flag & dyntopo::MODIFIER) {
         message_unsupported = RPT_("constructive modifier");
@@ -1300,8 +1294,15 @@ static void mask_from_cavity_ui(bContext *C, wmOperator *op)
 
       if (sd && RNA_boolean_get(op->ptr, "use_curve")) {
         PointerRNA sculpt_ptr = RNA_pointer_create_discrete(&scene->id, &RNA_Sculpt, sd);
-        uiTemplateCurveMapping(
-            layout, &sculpt_ptr, "automasking_cavity_curve_op", 'v', false, false, false, false);
+        uiTemplateCurveMapping(layout,
+                               &sculpt_ptr,
+                               "automasking_cavity_curve_op",
+                               'v',
+                               false,
+                               false,
+                               false,
+                               false,
+                               false);
       }
       break;
     }

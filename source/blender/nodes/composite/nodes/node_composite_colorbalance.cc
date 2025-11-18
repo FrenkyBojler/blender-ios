@@ -7,7 +7,7 @@
  */
 
 #include "BLI_math_base.hh"
-#include "BLI_math_color.h"
+#include "BLI_math_color.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
@@ -27,24 +27,24 @@
 
 #include "IMB_colormanagement.hh"
 
-#include "BLI_math_color.hh"
+#include "COM_result.hh"
 
 #include "node_composite_util.hh"
 
 namespace blender::nodes::node_composite_colorbalance_cc {
 
 static const EnumPropertyItem type_items[] = {
-    {CMP_NODE_COLOR_BALANCE_LGG, "LIFT_GAMMA_GAIN", 0, "Lift/Gamma/Gain", ""},
+    {CMP_NODE_COLOR_BALANCE_LGG, "LIFT_GAMMA_GAIN", 0, N_("Lift/Gamma/Gain"), ""},
     {CMP_NODE_COLOR_BALANCE_ASC_CDL,
      "OFFSET_POWER_SLOPE",
      0,
-     "Offset/Power/Slope (ASC-CDL)",
-     "ASC-CDL standard color correction"},
+     N_("Offset/Power/Slope (ASC-CDL)"),
+     N_("ASC-CDL standard color correction")},
     {CMP_NODE_COLOR_BALANCE_WHITEPOINT,
      "WHITEPOINT",
      0,
-     "White Point",
-     "Chromatic adaption from a different white point"},
+     N_("White Point"),
+     N_("Chromatic adaption from a different white point")},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -52,15 +52,21 @@ static void cmp_node_colorbalance_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
   b.use_custom_socket_order();
+  b.allow_any_socket_order();
 
-  b.add_output<decl::Color>("Image");
+  b.add_input<decl::Color>("Image").default_value({1.0f, 1.0f, 1.0f, 1.0f}).hide_value();
+  b.add_output<decl::Color>("Image").align_with_previous();
 
-  b.add_input<decl::Color>("Image").default_value({1.0f, 1.0f, 1.0f, 1.0f});
-  b.add_input<decl::Float>("Fac").default_value(1.0f).min(0.0f).max(1.0f).subtype(PROP_FACTOR);
+  b.add_input<decl::Float>("Factor", "Fac")
+      .default_value(1.0f)
+      .min(0.0f)
+      .max(1.0f)
+      .subtype(PROP_FACTOR);
 
   b.add_input<decl::Menu>("Type")
       .default_value(CMP_NODE_COLOR_BALANCE_LGG)
-      .static_items(type_items);
+      .static_items(type_items)
+      .optional_label();
 
   b.add_input<decl::Float>("Lift", "Base Lift")
       .default_value(0.0f)
@@ -239,21 +245,14 @@ static float4 lift_gamma_gain(const float4 color,
                               const float base_gain,
                               const float4 color_gain)
 {
-  float3 srgb_color;
-  linearrgb_to_srgb_v3_v3(srgb_color, color);
-
   const float3 lift = base_lift + color_lift.xyz();
-  const float3 lift_balanced = ((srgb_color - 1.0f) * (2.0f - lift)) + 1.0f;
+  const float3 lift_balanced = ((color.xyz() - 1.0f) * (2.0f - lift)) + 1.0f;
 
   const float3 gain = base_gain * color_gain.xyz();
-  float3 gain_balanced = lift_balanced * gain;
-  gain_balanced = math::max(gain_balanced, float3(0.0f));
-
-  float3 linear_color;
-  srgb_to_linearrgb_v3_v3(linear_color, gain_balanced);
+  const float3 gain_balanced = math::max(float3(0.0f), lift_balanced * gain);
 
   const float3 gamma = base_gamma * color_gamma.xyz();
-  float3 gamma_balanced = math::pow(linear_color, 1.0f / math::max(gamma, float3(1e-6f)));
+  const float3 gamma_balanced = math::pow(gain_balanced, 1.0f / math::max(gamma, float3(1e-6f)));
 
   return float4(gamma_balanced, color.w);
 }
@@ -349,6 +348,8 @@ static float4 color_balance(const float4 color,
   return float4(math::interpolate(color.xyz(), result.xyz(), math::min(factor, 1.0f)), color.w);
 }
 
+using blender::compositor::Color;
+
 class ColorBalanceFunction : public mf::MultiFunction {
  public:
   ColorBalanceFunction()
@@ -356,30 +357,30 @@ class ColorBalanceFunction : public mf::MultiFunction {
     static const mf::Signature signature = []() {
       mf::Signature signature;
       mf::SignatureBuilder builder{"Color Balance", signature};
-      builder.single_input<float4>("Color");
+      builder.single_input<Color>("Color");
       builder.single_input<float>("Factor");
       builder.single_input<MenuValue>("Type");
 
       builder.single_input<float>("Base Lift");
-      builder.single_input<float4>("Color Lift");
+      builder.single_input<Color>("Color Lift");
       builder.single_input<float>("Base Gamma");
-      builder.single_input<float4>("Color Gamma");
+      builder.single_input<Color>("Color Gamma");
       builder.single_input<float>("Base Gain");
-      builder.single_input<float4>("Color Gain");
+      builder.single_input<Color>("Color Gain");
 
       builder.single_input<float>("Base Offset");
-      builder.single_input<float4>("Color Offset");
+      builder.single_input<Color>("Color Offset");
       builder.single_input<float>("Base Power");
-      builder.single_input<float4>("Color Power");
+      builder.single_input<Color>("Color Power");
       builder.single_input<float>("Base Slope");
-      builder.single_input<float4>("Color Slope");
+      builder.single_input<Color>("Color Slope");
 
       builder.single_input<float>("Input Temperature");
       builder.single_input<float>("Input Tint");
       builder.single_input<float>("Output Temperature");
       builder.single_input<float>("Output Tint");
 
-      builder.single_output<float4>("Result");
+      builder.single_output<Color>("Result");
       return signature;
     }();
     this->set_signature(&signature);
@@ -387,27 +388,24 @@ class ColorBalanceFunction : public mf::MultiFunction {
 
   void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
   {
-    const VArray<float4> color_array = params.readonly_single_input<float4>(0, "Color");
+    const VArray<Color> color_array = params.readonly_single_input<Color>(0, "Color");
     const VArray<float> factor_array = params.readonly_single_input<float>(1, "Factor");
     const VArray<MenuValue> type_array = params.readonly_single_input<MenuValue>(2, "Type");
 
     const VArray<float> base_lift_array = params.readonly_single_input<float>(3, "Base Lift");
-    const VArray<float4> color_lift_array = params.readonly_single_input<float4>(4, "Color Lift");
+    const VArray<Color> color_lift_array = params.readonly_single_input<Color>(4, "Color Lift");
     const VArray<float> base_gamma_array = params.readonly_single_input<float>(5, "Base Gamma");
-    const VArray<float4> color_gamma_array = params.readonly_single_input<float4>(6,
-                                                                                  "Color Gamma");
+    const VArray<Color> color_gamma_array = params.readonly_single_input<Color>(6, "Color Gamma");
     const VArray<float> base_gain_array = params.readonly_single_input<float>(7, "Base Gain");
-    const VArray<float4> color_gain_array = params.readonly_single_input<float4>(8, "Color Gain");
+    const VArray<Color> color_gain_array = params.readonly_single_input<Color>(8, "Color Gain");
 
     const VArray<float> base_offset_array = params.readonly_single_input<float>(9, "Base Offset");
-    const VArray<float4> color_offset_array = params.readonly_single_input<float4>(10,
-                                                                                   "Color Offset");
+    const VArray<Color> color_offset_array = params.readonly_single_input<Color>(10,
+                                                                                 "Color Offset");
     const VArray<float> base_power_array = params.readonly_single_input<float>(11, "Base Power");
-    const VArray<float4> color_power_array = params.readonly_single_input<float4>(12,
-                                                                                  "Color Power");
+    const VArray<Color> color_power_array = params.readonly_single_input<Color>(12, "Color Power");
     const VArray<float> base_slope_array = params.readonly_single_input<float>(13, "Base Slope");
-    const VArray<float4> color_slope_array = params.readonly_single_input<float4>(14,
-                                                                                  "Color Slope");
+    const VArray<Color> color_slope_array = params.readonly_single_input<Color>(14, "Color Slope");
 
     const VArray<float> input_temperature_array = params.readonly_single_input<float>(
         15, "Input Temperature");
@@ -416,7 +414,7 @@ class ColorBalanceFunction : public mf::MultiFunction {
         17, "Output Temperature");
     const VArray<float> output_tint_array = params.readonly_single_input<float>(18, "Output Tint");
 
-    MutableSpan<float4> result = params.uninitialized_single_output<float4>(19, "Result");
+    MutableSpan<Color> result = params.uninitialized_single_output<Color>(19, "Result");
 
     const std::optional<MenuValue> type_single = type_array.get_if_single();
     const std::optional<float> input_temperature_single = input_temperature_array.get_if_single();
@@ -438,7 +436,8 @@ class ColorBalanceFunction : public mf::MultiFunction {
                                                                  output_temperature_single.value(),
                                                                  output_tint_single.value());
       mask.foreach_index([&](const int64_t i) {
-        result[i] = white_point_constant(color_array[i], factor_array[i], white_point_matrix);
+        result[i] = Color(
+            white_point_constant(float4(color_array[i]), factor_array[i], white_point_matrix));
       });
     }
     else {
@@ -460,69 +459,69 @@ class ColorBalanceFunction : public mf::MultiFunction {
         const float factor = factor_array.get_internal_single();
         const float type = CMPNodeColorBalanceMethod(type_array.get_internal_single().value);
         const float base_lift = base_lift_array.get_internal_single();
-        const float4 color_lift = color_lift_array.get_internal_single();
+        const float4 color_lift = float4(color_lift_array.get_internal_single());
         const float base_gamma = base_gamma_array.get_internal_single();
-        const float4 color_gamma = color_gamma_array.get_internal_single();
+        const float4 color_gamma = float4(color_gamma_array.get_internal_single());
         const float base_gain = base_gain_array.get_internal_single();
-        const float4 color_gain = color_gain_array.get_internal_single();
+        const float4 color_gain = float4(color_gain_array.get_internal_single());
         const float base_offset = base_offset_array.get_internal_single();
-        const float4 color_offset = color_offset_array.get_internal_single();
+        const float4 color_offset = float4(color_offset_array.get_internal_single());
         const float base_power = base_power_array.get_internal_single();
-        const float4 color_power = color_power_array.get_internal_single();
+        const float4 color_power = float4(color_power_array.get_internal_single());
         const float base_slope = base_slope_array.get_internal_single();
-        const float4 color_slope = color_slope_array.get_internal_single();
+        const float4 color_slope = float4(color_slope_array.get_internal_single());
         const float input_temperature = input_temperature_array.get_internal_single();
         const float input_tint = input_tint_array.get_internal_single();
         const float output_temperature = output_temperature_array.get_internal_single();
         const float output_tint = output_tint_array.get_internal_single();
 
         mask.foreach_index([&](const int64_t i) {
-          result[i] = color_balance(color_array[i],
-                                    factor,
-                                    CMPNodeColorBalanceMethod(type),
-                                    base_lift,
-                                    color_lift,
-                                    base_gamma,
-                                    color_gamma,
-                                    base_gain,
-                                    color_gain,
-                                    base_offset,
-                                    color_offset,
-                                    base_power,
-                                    color_power,
-                                    base_slope,
-                                    color_slope,
-                                    input_temperature,
-                                    input_tint,
-                                    output_temperature,
-                                    output_tint,
-                                    scene_to_xyz,
-                                    xyz_to_scene);
+          result[i] = Color(color_balance(float4(color_array[i]),
+                                          factor,
+                                          CMPNodeColorBalanceMethod(type),
+                                          base_lift,
+                                          color_lift,
+                                          base_gamma,
+                                          color_gamma,
+                                          base_gain,
+                                          color_gain,
+                                          base_offset,
+                                          color_offset,
+                                          base_power,
+                                          color_power,
+                                          base_slope,
+                                          color_slope,
+                                          input_temperature,
+                                          input_tint,
+                                          output_temperature,
+                                          output_tint,
+                                          scene_to_xyz,
+                                          xyz_to_scene));
         });
       }
       else {
         mask.foreach_index([&](const int64_t i) {
-          result[i] = color_balance(color_array[i],
-                                    factor_array[i],
-                                    CMPNodeColorBalanceMethod(type_array[i].value),
-                                    base_lift_array[i],
-                                    color_lift_array[i],
-                                    base_gamma_array[i],
-                                    color_gamma_array[i],
-                                    base_gain_array[i],
-                                    color_gain_array[i],
-                                    base_offset_array[i],
-                                    color_offset_array[i],
-                                    base_power_array[i],
-                                    color_power_array[i],
-                                    base_slope_array[i],
-                                    color_slope_array[i],
-                                    input_temperature_array[i],
-                                    input_tint_array[i],
-                                    output_temperature_array[i],
-                                    output_tint_array[i],
-                                    scene_to_xyz,
-                                    xyz_to_scene);
+          result[i] = Color(color_balance(float4(color_array[i]),
+                                          factor_array[i],
+                                          CMPNodeColorBalanceMethod(type_array[i].value),
+                                          base_lift_array[i],
+                                          float4(color_lift_array[i]),
+                                          base_gamma_array[i],
+                                          float4(color_gamma_array[i]),
+                                          base_gain_array[i],
+                                          float4(color_gain_array[i]),
+                                          base_offset_array[i],
+                                          float4(color_offset_array[i]),
+                                          base_power_array[i],
+                                          float4(color_power_array[i]),
+                                          base_slope_array[i],
+                                          float4(color_slope_array[i]),
+                                          input_temperature_array[i],
+                                          input_tint_array[i],
+                                          output_temperature_array[i],
+                                          output_tint_array[i],
+                                          scene_to_xyz,
+                                          xyz_to_scene));
         });
       }
     }
