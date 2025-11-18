@@ -58,6 +58,11 @@ class DrawingRuntime {
    * Triangle cache for all the strokes in the drawing.
    */
   mutable SharedCache<Vector<int3>> triangles_cache;
+  /**
+   * Shape cache for the drawing.
+   */
+  mutable SharedCache<Vector<int>> shape_map_cache;
+  mutable SharedCache<Vector<int>> shape_offset_cache;
 
   /**
    * Normal vector cache for every stroke. Computed using Newell's method.
@@ -97,14 +102,14 @@ class Drawing : public ::GreasePencilDrawing {
   bke::CurvesGeometry &strokes_for_write();
 
   /**
+   * The curves in each shape.
+   */
+  GroupedSpan<int> shapes() const;
+
+  /**
    * The offset indices for each shape in the flat triangle cache.
    */
   OffsetIndices<int> triangle_offsets() const;
-
-  /**
-   * The all curve in each shape.
-   */
-  Vector<IndexMask, 4> shapes(IndexMaskMemory &memory) const;
 
   /**
    * The triangles for fill geometry. Grouped by each shape.

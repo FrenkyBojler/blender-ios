@@ -407,7 +407,7 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandleRange res_handle)
     IndexMaskMemory memory;
     const IndexMask visible_shapes = ed::greasepencil::retrieve_visible_shapes(
         *ob, info.drawing, memory);
-    const Vector<IndexMask> shapes = info.drawing.shapes(memory);
+    const GroupedSpan<int> shapes = info.drawing.shapes();
 
     /* Precompute all the triangle and vertex counts.
      * In case the drawing should not be rendered, we need to compute the offset where the next
@@ -417,19 +417,21 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandleRange res_handle)
     int total_num_triangles = 0;
     int total_num_vertices = 0;
     visible_shapes.foreach_index([&](const int shape_index) {
-      const IndexMask &shape = shapes[shape_index];
+      const Span<int> shape = shapes[shape_index];
 
       const int num_stroke_triangles = triangle_offsets[shape_index].size();
       num_triangles_per_shape[shape_index] = num_stroke_triangles;
       total_num_triangles += num_stroke_triangles;
 
-      shape.foreach_index([&](const int64_t curve_i) {
+      for (const int pos : shape.index_range()) {
+        const int curve_i = shape[pos];
+
         const IndexRange points = points_by_curve[curve_i];
         const int num_stroke_vertices = (points.size() +
                                          int(cyclic[curve_i] && (points.size() >= 3)));
         num_vertices_per_stroke[curve_i] = num_stroke_vertices;
         total_num_vertices += num_stroke_vertices;
-      });
+      }
     });
 
     bool is_layer_used_as_mask = false;
@@ -484,7 +486,7 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandleRange res_handle)
     const bool is_onion = info.onion_id != 0;
 
     visible_shapes.foreach_index([&](const int shape_index) {
-      const IndexMask &shape = shapes[shape_index];
+      const Span<int> shape = shapes[shape_index];
       const int stroke_i = shape.first();
 
       /* The material index is allowed to be negative as it's stored as a generic attribute. We
@@ -508,8 +510,10 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandleRange res_handle)
 
       if (skip_stroke) {
         t_offset += num_triangles_per_shape[shape_index];
-        shape.foreach_index(
-            [&](const int64_t curve_i) { t_offset += num_vertices_per_stroke[curve_i] * 2; });
+        for (const int pos : shape.index_range()) {
+          const int curve_i = shape[pos];
+          t_offset += num_vertices_per_stroke[curve_i] * 2;
+        }
         return;
       }
 
@@ -558,7 +562,8 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandleRange res_handle)
 
       t_offset += num_triangles_per_shape[shape_index];
 
-      shape.foreach_index([&](const int64_t curve_i) {
+      for (const int pos : shape.index_range()) {
+        const int curve_i = shape[pos];
         if (show_stroke) {
           const int v_first = t_offset * 3;
           const int v_count = num_vertices_per_stroke[curve_i] * 2 * 3;
@@ -566,7 +571,7 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandleRange res_handle)
         }
 
         t_offset += num_vertices_per_stroke[curve_i] * 2;
-      });
+      }
     });
   }
 
