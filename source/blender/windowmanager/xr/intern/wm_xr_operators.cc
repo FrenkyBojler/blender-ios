@@ -1284,12 +1284,14 @@ static void wm_xr_navigation_teleport_draw(const bContext * /*C*/,
                                            void *customdata)
 {
   GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
+  GPU_blend(GPU_BLEND_ALPHA);
 
   /* Draw the destination ring and computed arc spline. */
   const XrTeleportData *data = static_cast<const XrTeleportData *>(customdata);
   wm_xr_navigation_teleport_draw_destination(data);
   wm_xr_navigation_teleport_draw_ray(data);
 
+  GPU_blend(GPU_BLEND_NONE);
   GPU_depth_test(GPU_DEPTH_NONE);
 }
 
@@ -1710,9 +1712,9 @@ static void WM_OT_xr_navigation_teleport(wmOperatorType *ot)
                 5.0f);
 
   /* Ray colors. */
-  static const float default_teleport_ray_hit_color[4] = {0.35f, 0.35f, 1.0f, 1.0f};
+  static const float default_teleport_ray_hit_color[4] = {0.3f, 0.6f, 0.9f, 1.0f};
   static const float default_teleport_ray_miss_color[4] = {1.0f, 0.35f, 0.35f, 1.0f};
-  static const float default_teleport_ray_fallback_color[4] = {0.35f, 0.35f, 1.0f, 1.0f};
+  static const float default_teleport_ray_fallback_color[4] = {0.4f, 0.35f, 0.8f, 1.0f};
   RNA_def_float_color(ot->srna,
                       "hit_color",
                       4,
