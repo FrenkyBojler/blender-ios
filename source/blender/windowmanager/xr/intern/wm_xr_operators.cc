@@ -1182,6 +1182,7 @@ struct XrTeleportData {
   float ray_color[4];
   float ray_line_width;
   float destination_indicator_width;
+  float draw_scale;
 
   /* Drawing handle. */
   void *draw_handle;
@@ -1191,6 +1192,7 @@ static void wm_xr_navigation_teleport_draw_destination(const XrTeleportData *dat
 {
   GPU_matrix_push();
   GPU_matrix_translate_3fv(data->arc_points[data->endpoint_idx]);
+  GPU_matrix_scale_1f(data->draw_scale);
 
   const float dest_width = data->destination_indicator_width;
 
@@ -1211,7 +1213,6 @@ static void wm_xr_navigation_teleport_draw_destination(const XrTeleportData *dat
 
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
     immUniformColor4fv(data->ray_color);
-
 
     const float ring_rad_exter = dest_width;
     const float ring_rad_inner = dest_width * 0.85f;
@@ -1336,9 +1337,10 @@ static void wm_xr_navigation_teleport_uninit(wmOperator *op)
   op->customdata = nullptr;
 }
 
-static void wm_xr_navigation_teleport_update(wmOperator *op,
-                                             XrTeleportData *data,
-                                             const wmXrActionData *actiondata)
+static void wm_xr_navigation_teleport_data_update(wmOperator *op,
+                                                  const wmXrData *xr,
+                                                  XrTeleportData *data,
+                                                  const wmXrActionData *actiondata)
 {
   using namespace blender;
 
@@ -1351,6 +1353,10 @@ static void wm_xr_navigation_teleport_update(wmOperator *op,
 
   data->ray_line_width = RNA_float_get(op->ptr, "ray_line_width");
   data->destination_indicator_width = RNA_float_get(op->ptr, "destination_indicator_width");
+
+  float nav_scale;
+  WM_xr_session_state_nav_scale_get(xr, &nav_scale);
+  data->draw_scale = nav_scale;
 }
 
 static void wm_xr_navigation_teleport_raycast(Scene *scene,
@@ -1388,9 +1394,14 @@ static void wm_xr_navigation_teleport_raycast(Scene *scene,
   blender::ed::transform::snap_object_context_destroy(sctx);
 }
 
-static void wm_xr_navigation_teleport_generate_arc(wmOperator *op, XrTeleportData *data)
+static void wm_xr_navigation_teleport_generate_arc(wmOperator *op,
+                                                   const wmXrData *xr,
+                                                   XrTeleportData *data)
 {
   using namespace blender;
+
+  float nav_scale;
+  WM_xr_session_state_nav_scale_get(xr, &nav_scale);
 
   const float gravity = 9.81f;
   const float time_step = RNA_float_get(op->ptr, "range");
@@ -1405,7 +1416,9 @@ static void wm_xr_navigation_teleport_generate_arc(wmOperator *op, XrTeleportDat
     const float3 velocity_offset = direction * (velocity * t);
     const float3 gravity_offset = float3(0, 0, -0.5f * gravity * t * t);
 
-    data->arc_points[i] = data->init_location + velocity_offset + gravity_offset;
+    const float3 offset = (velocity_offset + gravity_offset) * nav_scale;
+
+    data->arc_points[i] = data->init_location + offset;
   }
 }
 
@@ -1554,7 +1567,7 @@ static XrTeleportRayResult wm_xr_navigation_teleport_main(bContext *C,
   using namespace blender;
 
   /* Generate the initial parabolic arc. */
-  wm_xr_navigation_teleport_generate_arc(op, data);
+  wm_xr_navigation_teleport_generate_arc(op, xr, data);
 
   /* Find intersection between the arc and scene objects using raycast. */
   const XrTeleportRayResult result = wm_xr_navigation_teleport_arc_scene_intersect(C, op, data);
@@ -1608,7 +1621,7 @@ static wmOperatorStatus wm_xr_navigation_teleport_modal(bContext *C,
   wmXrData *xr = &CTX_wm_manager(C)->xr;
   XrTeleportData *data = static_cast<XrTeleportData *>(op->customdata);
 
-  wm_xr_navigation_teleport_update(op, data, actiondata);
+  wm_xr_navigation_teleport_data_update(op, xr, data, actiondata);
 
   /* Teleport using an arc, computing both the final destination and the visual curve. */
   blender::float3 nav_destination = {};
