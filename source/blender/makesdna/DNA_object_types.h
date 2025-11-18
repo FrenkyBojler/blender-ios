@@ -188,6 +188,12 @@ typedef struct LightLinking {
   LightLinkingRuntime runtime;
 } LightLinking;
 
+typedef struct LodItem {
+    struct Object *target;
+    float distance;
+    int _pad;    /* explicit padding to satisfy 64-bit struct alignment */
+} LodItem;
+
 typedef struct Object {
 #ifdef __cplusplus
   DNA_DEFINE_CXX_METHODS(Object)
@@ -387,6 +393,12 @@ typedef struct Object {
 
   /** Light linking information. */
   LightLinking *light_linking;
+
+  LodItem *lod_items;  /* Dynamic array for LOD levels */
+  int lod_items_num;
+  // FIXME: Not required
+  // float cull_distance;  
+  int lod_items_index;
 
   /** Irradiance caches baked for this object (light-probes only). */
   struct LightProbeObjectCache *lightprobe_cache;

@@ -326,6 +326,9 @@ const EnumPropertyItem rna_enum_object_axis_items[] = {
 
 #  include "DEG_depsgraph_query.hh"
 
+// FIXME(Treata): 
+#  include "BKE_object.hh"
+
 static void rna_Object_internal_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
   DEG_id_tag_update(ptr->owner_id, ID_RECALC_TRANSFORM);
@@ -2287,6 +2290,23 @@ static void rna_LightLinking_collection_update(Main *bmain, Scene * /*scene*/, P
   WM_main_add_notifier(NC_OBJECT | ND_DRAW, ptr->owner_id);
 }
 
+
+static int rna_Object_lod_items_length(PointerRNA *prop)
+{
+    Object *ob = (Object *)prop->data;
+    return ob->lod_items_num;
+}
+
+// !!!: Rethink?
+// TODO: Same for remove() & clear()
+static void rna_Object_lod_items_add(ID *id, PropertyRNA *prop, ReportList *reports)
+{
+    Object *ob = (Object*)id;
+    BKE_object_lod_add(ob);
+    
+    WM_main_add_notifier(NC_OBJECT | ND_DRAW, ob);
+}
+
 #else
 
 static void rna_def_vertex_group(BlenderRNA *brna)
@@ -2954,6 +2974,54 @@ static void rna_def_object(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
+  // /* LOD Item struct RNA --------------------------------------- */
+
+  // // static const EnumPropertyItem lod_item_type_items[] = {  /* TODO: If enums are required for LOD types later */
+  // //   {0, nullptr, 0, nullptr, nullptr}
+  // // };
+
+  // StructRNA *lod_srna = RNA_def_struct(brna, "LodItem", NULL);
+  // RNA_def_struct_sdna(lod_srna, "LodItem");
+  // RNA_def_struct_ui_text(lod_srna, "LOD Item", "Single level of detail entry");
+
+  // /* LodItem.target */
+  // prop = RNA_def_property(lod_srna, "target", PROP_POINTER, PROP_NONE);
+  // RNA_def_property_pointer_sdna(prop, NULL, "target");
+  // RNA_def_property_struct_type(prop, "Object");
+  // RNA_def_property_ui_text(prop, "Target", "Object to swap to at this distance");
+  // RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  // /* LodItem.distance */
+  // prop = RNA_def_property(lod_srna, "distance", PROP_FLOAT, PROP_DISTANCE);
+  // RNA_def_property_float_sdna(prop, NULL, "distance");
+  // RNA_def_property_range(prop, 0.0f, FLT_MAX);
+  // RNA_def_property_ui_range(prop, 0.0f, 10000.0f, 10, 3);
+  // RNA_def_property_ui_text(prop, "Distance", "Camera distance to trigger swap (farthest first)");
+  // RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+
+  
+
+  /* --- LodItem RNA struct ---------------------------------------- */
+
+  StructRNA *srna_lod = RNA_def_struct(brna, "LodItem", NULL);
+  RNA_def_struct_sdna(srna_lod, "LodItem");
+  RNA_def_struct_ui_text(srna_lod, "LOD Item", "Level of detail entry");
+
+  /* target */
+  prop = RNA_def_property(srna_lod, "target", PROP_POINTER, PROP_NONE);
+  RNA_def_property_pointer_sdna(prop, NULL, "target");
+  RNA_def_property_struct_type(prop, "Object");
+  RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
+  RNA_def_property_ui_text(prop, "Target", "LOD mesh object");
+
+  /* distance */
+  prop = RNA_def_property(srna_lod, "distance", PROP_FLOAT, PROP_DISTANCE);
+  RNA_def_property_float_sdna(prop, NULL, "distance");
+  RNA_def_property_range(prop, 0.0f, FLT_MAX);
+  RNA_def_property_ui_text(prop, "Distance", "Switch at this distance");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, NULL);
+
   static int boundbox_dimsize[] = {8, 3};
 
   srna = RNA_def_struct(brna, "Object", "ID");
@@ -2962,6 +3030,35 @@ static void rna_def_object(BlenderRNA *brna)
   RNA_def_struct_ui_icon(srna, ICON_OBJECT_DATA);
 
   RNA_define_lib_overridable(true);
+
+  // /* LOD Item struct RNA --------------------------------------- */
+  // prop = RNA_def_property(srna, "lod_items", PROP_COLLECTION, PROP_NONE);
+  // RNA_def_property_collection_sdna(prop, NULL, "lod_items", "lod_items_num");
+  // RNA_def_property_struct_type(prop, "LodItem");
+  // RNA_def_property_ui_text(prop, "LOD Levels", "Collection of LOD levels");
+  // RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+  /* LOD Items collection */
+  prop = RNA_def_property(srna, "lod_items", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_collection_sdna(prop, NULL, "lod_items", "lod_items_num");
+  RNA_def_property_struct_type(prop, "LodItem");
+  RNA_def_property_ui_text(prop, "LOD Items", "List of LOD entries");
+
+  RNA_def_property_collection_funcs(
+      prop,
+      nullptr, nullptr, nullptr,
+      nullptr,
+      "rna_Object_lod_items_length",
+      nullptr, nullptr, nullptr
+  );
+
+  /* Active LOD index for UIList */
+  prop = RNA_def_property(srna, "lod_items_index", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, NULL, "lod_items_index");
+  RNA_def_property_ui_text(prop, "Active LOD Index", "Active LOD item for UI");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);
+
+
 
   prop = RNA_def_property(srna, "data", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "ID");
@@ -3805,6 +3902,28 @@ static void rna_def_object_light_linking(BlenderRNA *brna)
   RNA_define_lib_overridable(false);
 }
 
+// static void rna_def_lod_item(BlenderRNA *brna)
+// {
+//   StructRNA *srna;
+//   PropertyRNA *prop;
+
+//   srna = RNA_def_struct(brna, "LodItem", nullptr);
+//   RNA_def_struct_sdna(srna, "LodItem");
+//   RNA_def_struct_ui_text(srna, "LOD Item", "Level of Detail entry");
+
+//   /* target: Object pointer */
+//   prop = RNA_def_property(srna, "target", PROP_POINTER, PROP_NONE);
+//   RNA_def_property_struct_type(prop, "Object");
+//   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
+//   RNA_def_property_ui_text(prop, "Target", "LOD mesh object");
+
+//   /* distance: float */
+//   prop = RNA_def_property(srna, "distance", PROP_FLOAT, PROP_DISTANCE);
+//   RNA_def_property_range(prop, 0.0f, FLT_MAX);
+//   RNA_def_property_ui_text(prop, "Distance", "Switch to this LOD at distance");
+// }
+
+// TODO: Update
 void RNA_def_object(BlenderRNA *brna)
 {
   rna_def_object(brna);
