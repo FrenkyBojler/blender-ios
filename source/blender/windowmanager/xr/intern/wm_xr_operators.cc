@@ -27,6 +27,7 @@
 #include "BLT_translation.hh"
 
 #include "BKE_context.hh"
+#include "BKE_curves.hh"
 #include "BKE_global.hh"
 #include "BKE_idprop.hh"
 #include "BKE_main.hh"
@@ -1237,9 +1238,9 @@ static void wm_xr_navigation_teleport_ray_draw(const bContext * /*C*/,
   const int endpoint_idx = data->endpoint_idx;
 
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
+  uint pos = GPU_vertformat_attr_add(format, "pos", gpu::VertAttrType::SFLOAT_32_32_32);
 
-  blender::gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(*format);
+  gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(*format);
   GPU_vertbuf_data_alloc(*vbo, num_samples);
 
   /* Fill VBO by sampling the Catmull-Rom curve. */
@@ -1253,30 +1254,16 @@ static void wm_xr_navigation_teleport_ray_draw(const bContext * /*C*/,
       return data->arc_points[idx];
     };
 
-    const auto catmull_rom_sample = [](const float3 &p0,
-                                       const float3 &p1,
-                                       const float3 &p2,
-                                       const float3 &p3,
-                                       const float t) -> float3 {
-      const float t_squared = t * t;
-      const float t_cubed = t_squared * t;
-      return 0.5f * ((2.0f * p1) + (-p0 + p2) * t +
-                     (2.0f * p0 - 5.0f * p1 + 4.0f * p2 - p3) * t_squared +
-                     (-p0 + 3.0f * p1 - 3.0f * p2 + p3) * t_cubed);
-
-    };
-
     const float3 p0 = get_control_point(segment_idx - 1);
     const float3 p1 = get_control_point(segment_idx + 0);
     const float3 p2 = get_control_point(segment_idx + 1);
     const float3 p3 = get_control_point(segment_idx + 2);
 
-    const float3 point_pos = catmull_rom_sample(p0, p1, p2, p3, t);
+    const float3 point_pos = bke::curves::catmull_rom::interpolate(p0, p1, p2, p3, t);
     GPU_vertbuf_attr_set(vbo, pos, sample_idx, &point_pos);
   }
 
-  blender::gpu::Batch *batch = GPU_batch_create_ex(
-      GPU_PRIM_LINE_STRIP, vbo, nullptr, GPU_BATCH_OWNS_VBO);
+  gpu::Batch *batch = GPU_batch_create_ex(GPU_PRIM_LINE_STRIP, vbo, nullptr, GPU_BATCH_OWNS_VBO);
 
   GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
 
