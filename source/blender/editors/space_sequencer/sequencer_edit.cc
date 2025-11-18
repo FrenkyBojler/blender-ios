@@ -2031,6 +2031,7 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
       }
     }
   }
+  seq::prefetch_stop(scene);
   /* Remove strips that are in the cut area. */
   for (Strip *strip : strips) {
     const float left_handle = seq::time_left_handle_frame_get(scene, strip);
