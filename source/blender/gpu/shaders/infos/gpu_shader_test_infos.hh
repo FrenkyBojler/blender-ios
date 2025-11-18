@@ -13,8 +13,8 @@
 #  include "GPU_shader_shared.hh"
 #endif
 
-#include "gpu_interface_infos.hh"
 #include "gpu_shader_create_info.hh"
+#include "gpu_shader_fullscreen_infos.hh"
 
 GPU_SHADER_CREATE_INFO(gpu_shader_test)
 TYPEDEF_SOURCE("GPU_shader_shared.hh")
@@ -51,7 +51,7 @@ GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(gpu_compute_vbo_test)
 LOCAL_GROUP_SIZE(1)
-STORAGE_BUF(0, write, vec4, out_positions[])
+STORAGE_BUF(0, write, float4, out_positions[])
 COMPUTE_SOURCE("gpu_compute_vbo_test.glsl")
 DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()

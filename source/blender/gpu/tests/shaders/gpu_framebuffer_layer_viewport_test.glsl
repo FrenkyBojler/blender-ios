@@ -2,7 +2,18 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "gpu_shader_compat.hh"
+
+#include "gpu_shader_create_info.hh"
+
+/* Runtime create info. */
+GPU_SHADER_CREATE_INFO(gpu_framebuffer_layer_viewport_test)
+FRAGMENT_OUT(0, int2, out_value)
+GPU_SHADER_CREATE_END()
+
 #ifdef GPU_VERTEX_SHADER
+VERTEX_SHADER_CREATE_INFO(gpu_framebuffer_layer_viewport_test)
+
 void main()
 {
   /* Full-screen triangle. */
@@ -19,6 +30,8 @@ void main()
 #endif
 
 #ifdef GPU_FRAGMENT_SHADER
+FRAGMENT_SHADER_CREATE_INFO(gpu_framebuffer_layer_viewport_test)
+
 void main()
 {
   out_value = int2(gpu_Layer, gpu_ViewportIndex);
