@@ -213,3 +213,13 @@ TYPEDEF_SOURCE("eevee_defines.hh")
 ADDITIONAL_INFO(gpu_shader_test)
 DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
+
+/* Runtime create info. */
+GPU_SHADER_CREATE_INFO(gpu_framebuffer_subpass_input_test)
+FRAGMENT_OUT(0, int, out_value)
+GPU_SHADER_CREATE_END()
+
+/* Runtime create info. */
+GPU_SHADER_CREATE_INFO(gpu_framebuffer_layer_viewport_test)
+FRAGMENT_OUT(0, int2, out_value)
+GPU_SHADER_CREATE_END()

@@ -4,12 +4,7 @@
 
 #include "gpu_shader_compat.hh"
 
-#include "gpu_shader_create_info.hh"
-
-/* Runtime create info. */
-GPU_SHADER_CREATE_INFO(gpu_framebuffer_subpass_input_test)
-FRAGMENT_OUT(0, int, out_value)
-GPU_SHADER_CREATE_END()
+#include "infos/gpu_shader_test_infos.hh"
 
 #ifdef GPU_VERTEX_SHADER
 VERTEX_SHADER_CREATE_INFO(gpu_framebuffer_subpass_input_test)
