@@ -34,6 +34,8 @@
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
+#define LINE_WIDTH (3 * UI_SCALE_FAC + 1)
+
 void ED_time_scrub_region_rect_get(const ARegion *region, rcti *r_rect)
 {
   r_rect->xmin = 0;
@@ -76,6 +78,20 @@ static void get_current_time_str(
   }
 }
 
+static void draw_frame_line(const float subframe_x,
+                            const float region_height,
+                            const float *fg_color,
+                            const float *bg_color)
+{
+  const float line_width = LINE_WIDTH;
+  rctf line_rect{};
+  line_rect.xmin = floor(subframe_x - line_width / 2);
+  line_rect.xmax = ceil(subframe_x + line_width / 2);
+  line_rect.ymin = -UI_SCALE_FAC;
+  line_rect.ymax = ceil(region_height);
+  UI_draw_roundbox_4fv_ex(&line_rect, fg_color, nullptr, 1.0f, bg_color, UI_SCALE_FAC, 0.0f);
+}
+
 static void draw_current_frame(const Scene *scene,
                                bool display_seconds,
                                const View2D *v2d,
@@ -85,20 +101,30 @@ static void draw_current_frame(const Scene *scene,
                                const bool draw_line)
 {
   const uiFontStyle *fstyle = UI_FSTYLE_WIDGET;
-  const int frame_x = UI_view2d_view_to_region_x(v2d, current_frame);
   const float subframe_x = UI_view2d_view_to_region_x(v2d, BKE_scene_ctime_get(scene));
   char frame_str[64];
   get_current_time_str(scene, display_seconds, current_frame, frame_str, sizeof(frame_str));
   const float text_width = UI_fontstyle_string_width(fstyle, frame_str);
   const float text_padding = 4.0f * UI_SCALE_FAC;
+
   const float box_min_width = 24.0f * UI_SCALE_FAC;
   const float box_width = std::max(text_width + (2.0f * text_padding), box_min_width);
   const float box_margin = 2.0f * UI_SCALE_FAC;
-  float shadow_width = UI_SCALE_FAC;
-  const float tri_top = ceil(scrub_region_rect->ymin + box_margin);
-  const float tri_half_width = 6.0f * UI_SCALE_FAC;
-  const float tri_height = 6.0f * UI_SCALE_FAC;
-  rctf rect{};
+
+  const float shadow_width = UI_SCALE_FAC;
+
+  /* The stalk is a trapezoid which is thicker at the top and narrows down to the line width. */
+  const float stalk_top = ceil(scrub_region_rect->ymin + 4.0 * UI_SCALE_FAC);
+  const float stalk_bottom = scrub_region_rect->ymin;
+  const float stalk_half_width_top = 6.0f * UI_SCALE_FAC;
+  const float stalk_half_width_bottom = LINE_WIDTH / 2.0f;
+
+  rctf box_rect{};
+  box_rect.xmin = subframe_x - (box_width / 2.0f);
+  box_rect.xmax = subframe_x + (box_width / 2.0f) + 1.0f;
+  box_rect.ymin = floor(stalk_top - 1.0f * UI_SCALE_FAC);
+  box_rect.ymax = ceil(scrub_region_rect->ymax - box_margin + shadow_width);
+
   uint pos;
 
   float fg_color[4];
@@ -114,57 +140,55 @@ static void draw_current_frame(const Scene *scene,
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
     GPU_polygon_smooth(true);
     immUniformColor4fv(bg_color);
-    immBegin(GPU_PRIM_TRIS, 3);
+    immBegin(GPU_PRIM_TRI_STRIP, 4);
+    /* This constant ensures that the outline has the correct thickness despite the angle of the
+     * stalk. This could use trigonometry but since it's unlikely to change often it's easier to
+     * just set. */
     const float diag_offset = 0.4f * UI_SCALE_FAC;
-    immVertex2f(pos, floor(frame_x - tri_half_width - shadow_width - diag_offset), tri_top);
-    immVertex2f(pos, floor(frame_x + tri_half_width + shadow_width + 1.0f + diag_offset), tri_top);
-    immVertex2f(pos, frame_x + 0.5f, tri_top - tri_height - diag_offset - shadow_width);
+
+    /* Only draw the stalk outline within the scrub area. Otherwise we are running into layering
+     * issues here, where keys > line > stalk > keys. This is solved by carefully drawing to the
+     * exact place, instead of relying on layering. */
+    immVertex2f(pos, floor(subframe_x - stalk_half_width_top - diag_offset), stalk_top);
+    immVertex2f(pos, ceil(subframe_x + stalk_half_width_top + diag_offset), stalk_top);
+    immVertex2f(pos, floor(subframe_x - stalk_half_width_bottom) - diag_offset, stalk_bottom);
+    immVertex2f(pos, ceil(subframe_x + stalk_half_width_bottom + diag_offset), stalk_bottom);
+
     GPU_polygon_smooth(false);
     immEnd();
     immUnbindProgram();
 
     /* Vertical line. */
     if (draw_line) {
-      if (UI_SCALE_FAC < 0.91f) {
-        shadow_width = 1.0f;
-        rect.xmin = floor(subframe_x) - shadow_width;
-        rect.xmax = rect.xmin + U.pixelsize + shadow_width + shadow_width;
-      }
-      else {
-        rect.xmin = floor(subframe_x) - shadow_width;
-        rect.xmax = floor(subframe_x + 1.0f) + shadow_width;
-      }
-      rect.ymin = 0.0f;
-      rect.ymax = ceil(scrub_region_rect->ymax - box_margin + shadow_width);
-      UI_draw_roundbox_4fv_ex(&rect, fg_color, nullptr, 1.0f, bg_color, shadow_width, 0.0f);
+      draw_frame_line(subframe_x, scrub_region_rect->ymax, fg_color, bg_color);
     }
   }
 
   /* Box. */
   UI_draw_roundbox_corner_set(UI_CNR_ALL);
   const float box_corner_radius = 4.0f * UI_SCALE_FAC;
-  rect.xmin = frame_x - (box_width / 2.0f);
-  rect.xmax = frame_x + (box_width / 2.0f) + 1.0f;
-  rect.ymin = floor(scrub_region_rect->ymin + (box_margin - shadow_width));
-  rect.ymax = ceil(scrub_region_rect->ymax - box_margin + shadow_width);
+
   UI_draw_roundbox_4fv_ex(
-      &rect, fg_color, nullptr, 1.0f, bg_color, shadow_width, box_corner_radius);
+      &box_rect, fg_color, nullptr, 1.0f, bg_color, shadow_width, box_corner_radius);
 
   /* Frame number text. */
   uchar text_color[4];
   UI_GetThemeColor4ubv(TH_HEADER_TEXT_HI, text_color);
   const int y = BLI_rcti_cent_y(scrub_region_rect) - int(fstyle->points * UI_SCALE_FAC * 0.38f);
-  UI_fontstyle_draw_simple(fstyle, frame_x - (text_width / 2.0f), y, frame_str, text_color);
+  UI_fontstyle_draw_simple(fstyle, subframe_x - (text_width / 2.0f), y, frame_str, text_color);
 
   if (display_stalk) {
-    /* Triangular base under frame number. */
+    /* Trapezoid base under frame number. */
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
     GPU_polygon_smooth(true);
-    immBegin(GPU_PRIM_TRIS, 3);
+    immBegin(GPU_PRIM_TRI_STRIP, 4);
     immUniformColor4fv(fg_color);
-    immVertex2f(pos, frame_x - tri_half_width, tri_top);
-    immVertex2f(pos, frame_x + tri_half_width + 1, tri_top);
-    immVertex2f(pos, frame_x + 0.5f, tri_top - tri_height);
+
+    immVertex2f(pos, floor(subframe_x - stalk_half_width_top + shadow_width), stalk_top);
+    immVertex2f(pos, ceil(subframe_x + stalk_half_width_top - shadow_width), stalk_top);
+    immVertex2f(pos, floor(subframe_x - stalk_half_width_bottom + shadow_width), stalk_bottom);
+    immVertex2f(pos, ceil(subframe_x + stalk_half_width_bottom - shadow_width), stalk_bottom);
+
     immEnd();
     immUnbindProgram();
     GPU_polygon_smooth(false);
@@ -198,24 +222,13 @@ void ED_time_scrub_draw_current_frame_line(const ARegion *region, const Scene *s
   rcti scrub_region_rect;
   ED_time_scrub_region_rect_get(region, &scrub_region_rect);
 
-  const float box_margin = 2.0f * UI_SCALE_FAC;
-
   float fg_color[4];
   UI_GetThemeColor4fv(TH_CFRAME, fg_color);
   float bg_color[4];
   UI_GetThemeColorShade4fv(TH_BACK, -20, bg_color);
 
-  rctf rect{};
-  float shadow_width = UI_SCALE_FAC;
-  const View2D *v2d = &region->v2d;
-
-  const float subframe_x = UI_view2d_view_to_region_x(v2d, BKE_scene_ctime_get(scene));
-  rect.xmin = floor(subframe_x - U.pixelsize) - shadow_width;
-  rect.xmax = floor(subframe_x + U.pixelsize + 1.0f) + shadow_width;
-
-  rect.ymin = 0.0f;
-  rect.ymax = ceil(scrub_region_rect.ymax - box_margin + shadow_width);
-  UI_draw_roundbox_4fv_ex(&rect, fg_color, nullptr, 1.0f, bg_color, shadow_width, 0.0f);
+  const float subframe_x = UI_view2d_view_to_region_x(&region->v2d, BKE_scene_ctime_get(scene));
+  draw_frame_line(subframe_x, scrub_region_rect.ymax, fg_color, bg_color);
 
   GPU_matrix_pop_projection();
 }

@@ -259,8 +259,6 @@ static void action_main_region_draw(const bContext *C, ARegion *region)
     ANIM_draw_action_framerange(adt, ac.active_action, v2d, -FLT_MAX, FLT_MAX);
   }
 
-  ED_time_scrub_draw_current_frame_line(region, scene);
-
   /* data */
   if (has_anim_context) {
     draw_channel_strips(&ac, saction, region, &anim_data);

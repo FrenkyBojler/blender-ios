@@ -43,6 +43,7 @@
 
 #include "ED_anim_api.hh"
 #include "ED_keyframes_draw.hh"
+#include "ED_time_scrub_ui.hh"
 
 #include "MOD_nodes.hh"
 
@@ -497,6 +498,8 @@ void draw_channel_strips(bAnimContext *ac,
 
   /* first backdrop strips */
   draw_backdrops(ac, *anim_data, v2d, pos);
+
+  ED_time_scrub_draw_current_frame_line(region, ac->scene);
 
   GPU_blend(GPU_BLEND_NONE);
 
