@@ -115,7 +115,7 @@ class MaskedMaximumOperation : public NodeOperation {
 
     const Domain domain = compute_domain();
 
-    GPU_shader_uniform_2iv(shader, "domain_size", domain.size);
+    GPU_shader_uniform_2iv(shader, "domain_size", domain.data_size);
 
     input_mask.bind_as_texture(shader, "input_mask_tx");
 
@@ -137,7 +137,7 @@ class MaskedMaximumOperation : public NodeOperation {
     output_mask.allocate_texture(domain);
     output_mask.bind_as_image(shader, "output_mask_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     GPU_shader_unbind();
     input_mask.unbind_as_texture();
@@ -154,7 +154,7 @@ class MaskedMaximumOperation : public NodeOperation {
     Domain domain = this->compute_domain();
     output_mask.allocate_texture(domain);
 
-    parallel_for(domain.size, [&](const int2 texel) {
+    parallel_for(domain.data_size, [&](const int2 texel) {
       float2 size = get_input("Size").load_pixel_zero<float2, true>(texel);
       bool is_dilate = (size.x >= 0.0f) && (size.y >= 0.0f);
       float2 abs_size = math::abs(size);
@@ -210,7 +210,7 @@ class MaskedMaximumOperation : public NodeOperation {
       bounding_box_top_right_corner += texel;
       bounding_box_bottom_left_corner += texel;
       bounding_box_top_right_corner = math::min(bounding_box_top_right_corner,
-                                                domain.size - int2(1, 1));
+                                                domain.data_size - int2(1, 1));
       bounding_box_bottom_left_corner = math::max(bounding_box_bottom_left_corner, int2(0, 0));
       bounding_box_top_right_corner -= texel;
       bounding_box_bottom_left_corner -= texel;
