@@ -1169,22 +1169,18 @@ enum XrTeleportRayResult : uint8_t {
 };
 
 struct XrTeleportData {
-  /* Teleportation arc ray. */
   XrTeleportRayResult ray_result;
   blender::Array<blender::float3> arc_points;
   int endpoint_idx;
 
-  /* Initial loc/rot from controller. */
   blender::float3 init_location;
   blender::float3 init_direction;
+  float teleportation_scale;
 
-  /* Visual parameters. */
   float ray_color[4];
   float ray_line_width;
   float destination_indicator_width;
-  float draw_scale;
 
-  /* Drawing handle. */
   void *draw_handle;
 };
 
@@ -1192,7 +1188,7 @@ static void wm_xr_navigation_teleport_draw_destination(const XrTeleportData *dat
 {
   GPU_matrix_push();
   GPU_matrix_translate_3fv(data->arc_points[data->endpoint_idx]);
-  GPU_matrix_scale_1f(data->draw_scale);
+  GPU_matrix_scale_1f(data->teleportation_scale);
 
   const float dest_width = data->destination_indicator_width;
 
@@ -1356,7 +1352,7 @@ static void wm_xr_navigation_teleport_data_update(wmOperator *op,
 
   float nav_scale;
   WM_xr_session_state_nav_scale_get(xr, &nav_scale);
-  data->draw_scale = nav_scale;
+  data->teleportation_scale = (nav_scale > 1) ? math::sqrt(nav_scale) : nav_scale;
 }
 
 static void wm_xr_navigation_teleport_raycast(Scene *scene,
@@ -1394,14 +1390,9 @@ static void wm_xr_navigation_teleport_raycast(Scene *scene,
   blender::ed::transform::snap_object_context_destroy(sctx);
 }
 
-static void wm_xr_navigation_teleport_generate_arc(wmOperator *op,
-                                                   const wmXrData *xr,
-                                                   XrTeleportData *data)
+static void wm_xr_navigation_teleport_generate_arc(wmOperator *op, XrTeleportData *data)
 {
   using namespace blender;
-
-  float nav_scale;
-  WM_xr_session_state_nav_scale_get(xr, &nav_scale);
 
   const float gravity = 9.81f;
   const float time_step = RNA_float_get(op->ptr, "range");
@@ -1416,7 +1407,7 @@ static void wm_xr_navigation_teleport_generate_arc(wmOperator *op,
     const float3 velocity_offset = direction * (velocity * t);
     const float3 gravity_offset = float3(0, 0, -0.5f * gravity * t * t);
 
-    const float3 offset = (velocity_offset + gravity_offset) * nav_scale;
+    const float3 offset = (velocity_offset + gravity_offset) * data->teleportation_scale;
 
     data->arc_points[i] = data->init_location + offset;
   }
@@ -1567,7 +1558,7 @@ static XrTeleportRayResult wm_xr_navigation_teleport_main(bContext *C,
   using namespace blender;
 
   /* Generate the initial parabolic arc. */
-  wm_xr_navigation_teleport_generate_arc(op, xr, data);
+  wm_xr_navigation_teleport_generate_arc(op, data);
 
   /* Find intersection between the arc and scene objects using raycast. */
   const XrTeleportRayResult result = wm_xr_navigation_teleport_arc_scene_intersect(C, op, data);
