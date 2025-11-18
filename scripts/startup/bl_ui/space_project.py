@@ -23,7 +23,7 @@ class PROJECT_HT_header(Header):
         layout.separator_spacer()
 
 
-class PROJECT_MT_editor_menus(bpy.types.Menu):
+class PROJECT_MT_editor_menus(Menu):
     bl_idname = "PROJECT_MT_editor_menus"
     bl_label = ""
 
@@ -31,9 +31,10 @@ class PROJECT_MT_editor_menus(bpy.types.Menu):
         del context
         layout = self.layout
         layout.menu("PROJECT_MT_view")
+        layout.menu("PROJECT_MT_save_load", text="Project")
 
 
-class PROJECT_MT_view(bpy.types.Menu):
+class PROJECT_MT_view(Menu):
     bl_label = "View"
 
     def draw(self, context):
@@ -52,13 +53,48 @@ class PROJECT_MT_view(bpy.types.Menu):
         layout.menu("INFO_MT_area")
 
 
+class PROJECT_MT_save_load(Menu):
+    bl_label = "Save & Load"
+
+    def draw(self, context):
+        layout = self.layout
+        project_space = context.space_data
+
+        layout.label(text="Autosave Project")
+        layout.label(text="Save Project")
+
+        layout.separator()
+
+        layout.label(text="Foo")
+
+
+# -----------------------------------------------------------------------------
+# Execution area (shown when header is hidden).
+
+class PROJECT_PT_save_project(Panel):
+    bl_label = "Save Project"
+    bl_space_type = 'PROJECT'
+    bl_region_type = 'EXECUTE'
+    bl_options = {'HIDE_HEADER'}
+
+    @classmethod
+    def poll(cls, context):
+        return True
+
+    def draw(self, context):
+        layout = self.layout.row()
+        layout.operator_context = 'EXEC_AREA'
+
+        layout.menu("PROJECT_MT_save_load", text="", icon='COLLAPSEMENU')
+
+
 # -----------------------------------------------------------------------------
 # Navigation Bar
 
 class PROJECT_PT_navigation_bar(Panel):
     bl_label = "Project Navigation"
     bl_space_type = 'PROJECT'
-    bl_region_type = 'NAVIGATION_BAR'
+    bl_region_type = 'UI'
     bl_options = {'HIDE_HEADER'}
 
     @classmethod
@@ -153,7 +189,8 @@ classes = (
     PROJECT_HT_header,
     PROJECT_MT_editor_menus,
     PROJECT_MT_view,
+    PROJECT_MT_save_load,
     PROJECT_PT_navigation_bar,
+    PROJECT_PT_save_project,
     PROJECT_PT_main,
-    PROJECT_PT_sup
 )

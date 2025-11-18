@@ -42,15 +42,27 @@ static SpaceLink *project_create(const ScrArea * /*area*/, const Scene * /*scene
 
     BLI_addtail(&project_space->regionbase, region);
     region->regiontype = RGN_TYPE_HEADER;
-    region->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_BOTTOM : RGN_ALIGN_TOP;
+    /* Always on bottom for new windows. */
+    region->alignment = RGN_ALIGN_BOTTOM;
   }
 
   {
     /* Navigation region. */
     ARegion *region = BKE_area_region_new();
     BLI_addtail(&project_space->regionbase, region);
-    region->regiontype = RGN_TYPE_NAV_BAR;
+    region->regiontype = RGN_TYPE_UI;
     region->alignment = RGN_ALIGN_LEFT;
+    region->flag &= ~RGN_FLAG_HIDDEN;
+  }
+
+  {
+    /* Execution region. */
+    ARegion *region = BKE_area_region_new();
+
+    BLI_addtail(&project_space->regionbase, region);
+    region->regiontype = RGN_TYPE_EXECUTE;
+    region->alignment = RGN_ALIGN_BOTTOM | RGN_SPLIT_PREV;
+    region->flag |= RGN_FLAG_DYNAMIC_SIZE | RGN_FLAG_NO_USER_RESIZE;
   }
 
   {
@@ -106,6 +118,22 @@ static void project_main_region_draw(const bContext *C, ARegion *region)
 }
 
 static void project_main_region_listener(const wmRegionListenerParams * /*params*/) {}
+
+/* --------------------------------------------------------- */
+
+static bool project_execute_region_poll(const RegionPollParams *params)
+{
+  const ARegion *region_header = BKE_area_find_region_type(params->area, RGN_TYPE_HEADER);
+  return !region_header->runtime->visible;
+}
+
+static void project_execute_region_init(wmWindowManager *wm, ARegion *region)
+{
+  ED_region_panels_init(wm, region);
+  region->v2d.keepzoom |= V2D_LOCKZOOM_X | V2D_LOCKZOOM_Y;
+}
+
+static void project_execute_region_listener(const wmRegionListenerParams * /*params*/) {}
 
 /* --------------------------------------------------------- */
 
@@ -180,12 +208,25 @@ void ED_spacetype_project()
 
   /* regions: navigation window */
   art = MEM_callocN<ARegionType>("spacetype project region");
-  art->regionid = RGN_TYPE_NAV_BAR;
+  art->regionid = RGN_TYPE_UI;
   art->prefsizex = UI_NAVIGATION_REGION_WIDTH;
   art->init = project_navigation_region_init;
   art->draw = project_navigation_region_draw;
   art->listener = project_navigation_region_listener;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_NAVBAR;
+
+  BLI_addhead(&st->regiontypes, art);
+
+  /* regions: execution window */
+  art = MEM_callocN<ARegionType>("spacetype project region");
+  art->regionid = RGN_TYPE_EXECUTE;
+  art->prefsizey = HEADERY;
+  art->poll = project_execute_region_poll;
+  art->init = project_execute_region_init;
+  art->layout = ED_region_panels_layout;
+  art->draw = ED_region_panels_draw;
+  art->listener = project_execute_region_listener;
+  art->keymapflag = ED_KEYMAP_UI;
 
   BLI_addhead(&st->regiontypes, art);
 
