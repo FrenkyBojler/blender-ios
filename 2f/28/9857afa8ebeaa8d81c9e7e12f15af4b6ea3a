@@ -1,2 +1,3 @@
 Referenced by issue #121620, Regression: Weighted Normal + Auto Smooth gives broken shading
 Referenced by pull request #149722, Fix #149670: Particle system appears after pinned to last modifier
+Referenced by commit b5ccec2ceeefe6f369bf27f689d3cd8c061fb757, Fix #149670: Particle system appears after pinned to last modifier
