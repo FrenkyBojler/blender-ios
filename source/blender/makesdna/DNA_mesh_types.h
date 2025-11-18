@@ -177,12 +177,14 @@ typedef struct Mesh {
 
   /**
    * The UV map currently selected in the list and edited by a user.
-   * Currently only used for file reading/writing (see #AttributeStorage).
+   * \note While the edit BMesh (`edit_mesh.bm`) is non null, that is the source of truth instead.
+   * Typical access should be through #Mesh::active_uv_map_name() rather than direct.
    */
   char *active_uv_map_attribute;
   /**
    * The UV map used by default (i.e. for rendering) if no name is given explicitly.
-   * Currently only used for file reading/writing (see #AttributeStorage).
+   * \note While the edit BMesh (`edit_mesh.bm`) is non null, that is the source of truth instead.
+   * Typical access should be through #Mesh::default_uv_map_name() rather than direct.
    */
   char *default_uv_map_attribute;
 

@@ -1212,11 +1212,19 @@ blender::VectorSet<blender::StringRefNull> Mesh::uv_map_names() const
 
 blender::StringRefNull Mesh::active_uv_map_name() const
 {
+  if (BMEditMesh *em = this->runtime->edit_mesh.get()) {
+    const char *name = CustomData_get_active_layer_name(&em->bm->ldata, CD_PROP_FLOAT2);
+    return name ? name : "";
+  }
   return this->active_uv_map_attribute ? this->active_uv_map_attribute : "";
 }
 
 blender::StringRefNull Mesh::default_uv_map_name() const
 {
+  if (BMEditMesh *em = this->runtime->edit_mesh.get()) {
+    const char *name = CustomData_get_render_layer_name(&em->bm->ldata, CD_PROP_FLOAT2);
+    return name ? name : "";
+  }
   return this->default_uv_map_attribute ? this->default_uv_map_attribute : "";
 }
 
