@@ -474,7 +474,7 @@ template<typename T> inline bool Bounds<T>::intersects_segment(const T &start, c
     return false;
   }
   if constexpr (std::is_integral_v<T> || std::is_floating_point_v<T>) {
-    /* In the 1-dimensional case the segment cannot "miss" the bounds. */
+    /* In the 1-dimensional case, the bounding box check above covers the intersection check. */
     return true;
   }
   else {
