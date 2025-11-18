@@ -10,12 +10,11 @@
 #  include "draw_view_infos.hh"
 #  include "eevee_light_shared.hh"
 #  include "eevee_lightprobe_shared.hh"
+#  include "eevee_nodetree_infos.hh"
 #  include "eevee_sampling_shared.hh"
 #  include "eevee_shadow_shared.hh"
 #  include "eevee_uniform_infos.hh"
 #  include "eevee_uniform_shared.hh"
-
-#  include "eevee_nodetree_type_lib.glsl"
 #endif
 
 #ifdef GLSL_CPP_STUBS
@@ -32,10 +31,6 @@
 /* -------------------------------------------------------------------- */
 /** \name Common
  * \{ */
-
-GPU_SHADER_CREATE_INFO(eevee_node_tree)
-UNIFORM_BUF(0 /*GPU_NODE_TREE_UBO_SLOT*/, NodeTree, node_tree)
-GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(eevee_hiz_data)
 SAMPLER(HIZ_TEX_SLOT, sampler2D, hiz_tx)
