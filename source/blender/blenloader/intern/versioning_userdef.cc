@@ -1754,6 +1754,10 @@ void blo_do_versions_userdef(UserDef *userdef)
         userdef, "NODE_AST_compositor", "Utilities");
   }
 
+  if (!USER_VERSION_ATLEAST(501, 4)) {
+    userdef->pref_flag |= USER_PREF_FLAG_PROJECT_SAVE;
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a USER_VERSION_ATLEAST check.

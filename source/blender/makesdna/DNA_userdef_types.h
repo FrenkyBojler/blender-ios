@@ -727,6 +727,7 @@ typedef enum eUserpref_File_Preview_Type {
 
 typedef enum eUserPref_PrefFlag {
   USER_PREF_FLAG_SAVE = (1 << 0),
+  USER_PREF_FLAG_PROJECT_SAVE = (1 << 1),
 } eUserPref_PrefFlag;
 
 /** #bPathCompare.flag */

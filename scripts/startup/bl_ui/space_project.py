@@ -55,8 +55,10 @@ class PROJECT_MT_save_load(Menu):
         layout = self.layout
         project_space = context.space_data
 
-        layout.label(text="Autosave Project")
-        layout.label(text="Save Project")
+        prefs = context.preferences
+
+        layout.prop(prefs, "use_project_auto_save", text="Auto-Save Project")
+        layout.operator("project.write_project", text="Save Project")
 
         layout.separator()
 

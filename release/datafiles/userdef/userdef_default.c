@@ -26,7 +26,7 @@ const UserDef U_default = {
                USER_DUP_MBALL | USER_DUP_LAMP | USER_DUP_ARM | USER_DUP_CAMERA | USER_DUP_SPEAKER |
                USER_DUP_ACT | USER_DUP_LIGHTPROBE | USER_DUP_GPENCIL | USER_DUP_CURVES |
                USER_DUP_POINTCLOUD,
-    .pref_flag = USER_PREF_FLAG_SAVE,
+    .pref_flag = USER_PREF_FLAG_SAVE | USER_PREF_FLAG_PROJECT_SAVE,
     .savetime = 2,
     .tempdir = "",
     /* Overwritten by #BKE_appdir_font_folder_default(..)
