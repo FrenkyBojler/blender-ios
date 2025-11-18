@@ -254,7 +254,7 @@ static void UNUSED_FUNCTION(rna_Strip_invalidate_composite_update)(Main * /*bmai
 static void rna_Strip_scene_switch_update(bContext *C, PointerRNA *ptr)
 {
   Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   blender::ed::vse::sync_active_scene_and_time_with_scene_strip(*C);
   rna_Strip_invalidate_raw_update(bmain, scene, ptr);
   DEG_id_tag_update(&scene->id, ID_RECALC_AUDIO | ID_RECALC_SEQUENCER_STRIPS);
