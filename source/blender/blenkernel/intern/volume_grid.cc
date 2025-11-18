@@ -179,6 +179,16 @@ bool VolumeGridData::is_reloadable() const
   return bool(lazy_load_grid_);
 }
 
+bool VolumeGridData::is_dynamically_created() const
+{
+  return is_dynamically_created_;
+}
+
+void VolumeGridData::set_dynamically_created(bool value)
+{
+  is_dynamically_created_ = value;
+}
+
 void VolumeGridData::tag_tree_modified() const
 {
   active_voxels_mutex_.tag_dirty();
@@ -299,6 +309,7 @@ GVolumeGrid VolumeGridData::copy() const
   new_copy->tree_loaded_ = tree_loaded_;
   new_copy->transform_loaded_ = transform_loaded_;
   new_copy->meta_data_loaded_ = meta_data_loaded_;
+  new_copy->is_dynamically_created_ = is_dynamically_created_;
   return GVolumeGrid(new_copy);
 }
 

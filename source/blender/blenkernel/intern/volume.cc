@@ -677,7 +677,7 @@ static void volume_update_simplify_level(Main *bmain, Volume *volume, const Deps
     VolumeGridVector &grids = *volume->runtime->grids;
     std::list<GVolumeGrid> new_grids;
     for (const GVolumeGrid &old_grid : grids) {
-      if (volume->can_be_simplified) {
+      if (!old_grid->is_dynamically_created()) {
         GVolumeGrid simple_grid = blender::bke::volume_grid::file_cache::get_grid_from_file(
             grids.filepath, old_grid->name(), simplify_level);
         BLI_assert(simple_grid);
@@ -1172,18 +1172,25 @@ openvdb::GridBase::Ptr BKE_volume_grid_create_with_changed_resolution(
   return BKE_volume_grid_type_operation(grid_type, op);
 }
 
-DummyOpenVDBGridPtr *BKE_volume_create_empty_float_grid(Volume *volume, const char *grid_name)
+bool BKE_volume_add_new_empty_grid(Volume *volume, const char *grid_name, VolumeGridType grid_type)
 {
-  openvdb::FloatGrid::Ptr new_grid = openvdb::FloatGrid::create(0);
+  openvdb::GridBase::Ptr new_grid = BKE_volume_grid_type_operation(grid_type, CreateGridOp{});
+
+  if (!new_grid) {
+    return false;
+  }
+
   new_grid->setName(grid_name);
 
-  openvdb::GridBase *raw_grid_ptr = new_grid.get();
   blender::bke::VolumeGridData *grid_data = BKE_volume_grid_add_vdb(
       *volume, grid_name, std::move(new_grid));
   if (!grid_data) {
-    return nullptr;
+    return false;
   }
-  return reinterpret_cast<DummyOpenVDBGridPtr *>(raw_grid_ptr);
+  // TODO how to avoid this?
+  // same way as fog_volume_grid_add_from_mesh
+  grid_data->set_dynamically_created(true);
+  return grid_data != nullptr;
 }
 
 void BKE_volume_clear_all_grids(Volume *volume)

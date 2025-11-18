@@ -55,8 +55,7 @@ typedef struct Volume {
   /* Sequence */
   char is_sequence;
   char sequence_mode;
-  char can_be_simplified;
-  char _pad1;
+  char _pad1[2];
   int frame_start;
   int frame_duration;
   int frame_offset;
