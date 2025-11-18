@@ -1189,8 +1189,6 @@ struct XrTeleportData {
 
 static void wm_xr_navigation_teleport_destination_draw(const XrTeleportData *data)
 {
-  GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
-
   GPU_matrix_push();
   GPU_matrix_translate_3fv(data->arc_points[data->endpoint_idx]);
 
@@ -1232,40 +1230,31 @@ static void wm_xr_navigation_teleport_ray_draw(const bContext * /*C*/,
   using namespace blender;
   const XrTeleportData *data = static_cast<const XrTeleportData *>(customdata);
 
-  wm_xr_navigation_teleport_destination_draw(data);
+  /* Compute the Catmull-Rom spline, first get a span of the used arc control points. */
+  const int num_control_points = data->endpoint_idx + 1;
+  const Span<float3> arc_control_points = data->arc_points.as_span().take_front(
+      num_control_points);
 
-  const int num_samples = XR_TELEPORTATION_ARC_SAMPLES;
-  const int endpoint_idx = data->endpoint_idx;
+  /* Calculate the number of evaluated points that interpolation is expected to produce. */
+  constexpr int segment_samples = 6;
+  const int spline_size = bke::curves::catmull_rom::calculate_evaluated_num(
+      num_control_points, false, segment_samples);
+
+  /* Evaluate the interpolated spline into a new array. */
+  Array<float3> spline_points(spline_size);
+  bke::curves::catmull_rom::interpolate_to_evaluated(
+      arc_control_points, false, segment_samples, spline_points.as_mutable_span());
 
   GPUVertFormat *format = immVertexFormat();
   uint pos = GPU_vertformat_attr_add(format, "pos", gpu::VertAttrType::SFLOAT_32_32_32);
 
+  /* Allocate the VBO using the calculated size and fill it with the evaluated array. */
   gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(*format);
-  GPU_vertbuf_data_alloc(*vbo, num_samples);
+  GPU_vertbuf_data_alloc(*vbo, spline_size);
+  GPU_vertbuf_attr_fill(vbo, pos, spline_points.data());
 
-  /* Fill VBO by sampling the Catmull-Rom curve. */
-  for (int sample_idx = 0; sample_idx < num_samples; sample_idx++) {
-    float sample_value = (float(sample_idx) * float(endpoint_idx)) / float(num_samples - 1);
-    int segment_idx = int(sample_value);
-    float t = sample_value - float(segment_idx);
-
-    const auto get_control_point = [&](int idx) -> float3 {
-      idx = math::clamp(idx, 0, endpoint_idx);
-      return data->arc_points[idx];
-    };
-
-    const float3 p0 = get_control_point(segment_idx - 1);
-    const float3 p1 = get_control_point(segment_idx + 0);
-    const float3 p2 = get_control_point(segment_idx + 1);
-    const float3 p3 = get_control_point(segment_idx + 2);
-
-    const float3 point_pos = bke::curves::catmull_rom::interpolate(p0, p1, p2, p3, t);
-    GPU_vertbuf_attr_set(vbo, pos, sample_idx, &point_pos);
-  }
-
+  /* Build the batch using the evaluated spline VBO. */
   gpu::Batch *batch = GPU_batch_create_ex(GPU_PRIM_LINE_STRIP, vbo, nullptr, GPU_BATCH_OWNS_VBO);
-
-  GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
 
   GPU_batch_program_set_builtin(batch, GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR);
   GPU_batch_uniform_4fv(batch, "color", data->ray_color);
@@ -1276,8 +1265,14 @@ static void wm_xr_navigation_teleport_ray_draw(const bContext * /*C*/,
   GPU_batch_uniform_1f(batch, "lineWidth", data->ray_line_width);
   GPU_batch_uniform_1b(batch, "lineSmooth", true);
 
+  GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
+
+  /* Draw the destination ring and computed arc spline. */
+  wm_xr_navigation_teleport_destination_draw(data);
   GPU_batch_draw(batch);
   GPU_batch_discard(batch);
+
+  GPU_depth_test(GPU_DEPTH_NONE);
 }
 
 static void wm_xr_navigation_teleport_init(wmOperator *op)
