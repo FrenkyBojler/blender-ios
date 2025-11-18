@@ -422,11 +422,16 @@ static void recalcData_curve(TransInfo *t)
       }
     }
     else {
-      /* Apply clipping after so we never project past the clip plane #25423. */
-      transform_convert_clip_mirror_modifier_apply(tc);
+      const bool is_curve = ELEM(t->obedit_type, OB_CURVES, OB_CURVES_LEGACY);
+      const bool is_trackball = (t->mode == TFM_TRACKBALL);
 
-      /* Normal updating. */
-      BKE_curve_dimension_update(cu);
+      if (!(is_curve && is_trackball)) {
+        /* Apply clipping after so we never project past the clip plane #25423. */
+        transform_convert_clip_mirror_modifier_apply(tc);
+
+        /* Normal updating. */
+        BKE_curve_dimension_update(cu);
+      }
     }
   }
 }
