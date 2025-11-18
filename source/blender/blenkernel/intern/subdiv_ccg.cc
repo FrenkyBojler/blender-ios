@@ -1507,6 +1507,29 @@ SubdivCCGAdjacencyType BKE_subdiv_ccg_coarse_mesh_adjacency_info_get(
   return SubdivCCGAdjacencyType::None;
 }
 
+bool BKE_subdiv_ccg_coord_is_mesh_boundary(
+    const OffsetIndices<int> faces,
+    const Span<int> corner_verts,
+    const blender::BitSpan boundary_verts,
+    const blender::Set<blender::OrderedEdge> &boundary_edges,
+    const SubdivCCG &subdiv_ccg,
+    const SubdivCCGCoord coord)
+{
+  int v1, v2;
+  const SubdivCCGAdjacencyType adjacency = BKE_subdiv_ccg_coarse_mesh_adjacency_info_get(
+      subdiv_ccg, coord, corner_verts, faces, v1, v2);
+  switch (adjacency) {
+    case SubdivCCGAdjacencyType::Vertex:
+      return boundary_verts[v1];
+    case SubdivCCGAdjacencyType::Edge:
+      return boundary_edges.contains(blender::OrderedEdge(v1, v2));
+    case SubdivCCGAdjacencyType::None:
+      return false;
+  }
+  BLI_assert_unreachable();
+  return false;
+}
+
 blender::BitGroupVector<> &BKE_subdiv_ccg_grid_hidden_ensure(SubdivCCG &subdiv_ccg)
 {
   if (subdiv_ccg.grid_hidden.is_empty()) {

@@ -502,19 +502,8 @@ bool vert_is_boundary(const OffsetIndices<int> faces,
 {
   /* TODO: Unlike the base mesh implementation this method does NOT take into account face
    * visibility. Either this should be noted as a intentional limitation or fixed. */
-  int v1, v2;
-  const SubdivCCGAdjacencyType adjacency = BKE_subdiv_ccg_coarse_mesh_adjacency_info_get(
-      subdiv_ccg, vert, corner_verts, faces, v1, v2);
-  switch (adjacency) {
-    case SubdivCCGAdjacencyType::Vertex:
-      return boundary_verts[v1].test();
-    case SubdivCCGAdjacencyType::Edge:
-      return boundary_edges.contains(OrderedEdge(v1, v2));
-    case SubdivCCGAdjacencyType::None:
-      return false;
-  }
-  BLI_assert_unreachable();
-  return false;
+  return BKE_subdiv_ccg_coord_is_mesh_boundary(
+      faces, corner_verts, boundary_verts, boundary_edges, subdiv_ccg, vert)
 }
 
 bool vert_is_boundary(BMVert *vert)
