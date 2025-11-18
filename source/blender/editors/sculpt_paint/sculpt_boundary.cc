@@ -242,7 +242,6 @@ static std::optional<SubdivCCGCoord> get_closest_boundary_vert_grids(
           floodfill_steps[to_v_index] = floodfill_steps[from_v_index] + 1;
         }
 
-        /* TODO: This is incorrect */
         if (boundary::vert_is_boundary(
                 faces, corner_verts, boundary_verts, boundary_edges, subdiv_ccg, to_v))
         {
@@ -290,7 +289,6 @@ static std::optional<BMVert *> get_closest_boundary_vert_bmesh(Object &object,
 
     floodfill_steps[to_v_i] = floodfill_steps[from_v_i] + 1;
 
-    /* TODO: This is incorrect */
     if (boundary::vert_is_boundary(to_v)) {
       if (floodfill_steps[to_v_i] < boundary_initial_vert_steps) {
         boundary_initial_vert_steps = floodfill_steps[to_v_i];
