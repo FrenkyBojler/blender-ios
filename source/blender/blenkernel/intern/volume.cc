@@ -673,19 +673,15 @@ static void volume_update_simplify_level(Main *bmain, Volume *volume, const Deps
   const int simplify_level = BKE_volume_simplify_level(depsgraph);
 
   /* Replace grids with the new simplify level variants from the cache. */
-  if (BKE_volume_load(volume, bmain)) {
+  /* Only simplify volumes that were loaded from files */
+  if (volume->filepath[0] != '\0' && BKE_volume_load(volume, bmain)) {
     VolumeGridVector &grids = *volume->runtime->grids;
     std::list<GVolumeGrid> new_grids;
     for (const GVolumeGrid &old_grid : grids) {
-      if (!old_grid->is_dynamically_created()) {
-        GVolumeGrid simple_grid = blender::bke::volume_grid::file_cache::get_grid_from_file(
-            grids.filepath, old_grid->name(), simplify_level);
-        BLI_assert(simple_grid);
-        new_grids.push_back(std::move(simple_grid));
-      }
-      else {
-        new_grids.push_back(std::move(old_grid));
-      }
+      GVolumeGrid simple_grid = blender::bke::volume_grid::file_cache::get_grid_from_file(
+          grids.filepath, old_grid->name(), simplify_level);
+      BLI_assert(simple_grid);
+      new_grids.push_back(std::move(simple_grid));
     }
     grids.swap(new_grids);
   }
@@ -1182,15 +1178,7 @@ bool BKE_volume_add_new_empty_grid(Volume *volume, const char *grid_name, Volume
 
   new_grid->setName(grid_name);
 
-  blender::bke::VolumeGridData *grid_data = BKE_volume_grid_add_vdb(
-      *volume, grid_name, std::move(new_grid));
-  if (!grid_data) {
-    return false;
-  }
-  // TODO how to avoid this?
-  // same way as fog_volume_grid_add_from_mesh
-  grid_data->set_dynamically_created(true);
-  return grid_data != nullptr;
+  return BKE_volume_grid_add_vdb(*volume, grid_name, std::move(new_grid)) != nullptr;
 }
 
 void BKE_volume_clear_all_grids(Volume *volume)

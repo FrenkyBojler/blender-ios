@@ -119,13 +119,6 @@ class VolumeGridData : public ImplicitSharingMixin {
    */
   mutable std::string error_message_;
 
-  /**
-   * TODO. Add the doc.
-   * The grid can be created from 'fog_volume_grid_add_from_mesh' in same way, but it doesn't need
-   * to mark grid with 'can_be_simplified' or 'is_dynamically_created_'
-   */
-  bool is_dynamically_created_ = false;
-
   mutable CacheMutex active_voxels_mutex_;
   mutable int64_t active_voxels_ = 0;
   mutable CacheMutex active_leaf_voxels_mutex_;
@@ -257,16 +250,6 @@ class VolumeGridData : public ImplicitSharingMixin {
    * Tree if the tree can be loaded again after it has been unloaded.
    */
   bool is_reloadable() const;
-
-  /**
-   * TODO add doc
-   */
-  bool is_dynamically_created() const;
-
-  /**
-   * TODO add doc
-   */
-  void set_dynamically_created(bool value);
 
   void tag_tree_modified() const;
 
