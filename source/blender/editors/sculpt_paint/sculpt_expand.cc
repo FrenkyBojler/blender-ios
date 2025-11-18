@@ -475,7 +475,6 @@ static IndexMask boundary_from_enabled(Object &object,
           }
         }
 
-        /* TODO: This is possibly incorrect... */
         if (use_mesh_boundary &&
             boundary::vert_is_boundary(vert_to_face_map, hide_poly, ss.vertex_info.boundary, vert))
         {
