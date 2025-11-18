@@ -33,11 +33,11 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+#include "ED_mesh.hh"
 #include "ED_object.hh"
 #include "ED_screen.hh"
 #include "ED_sculpt.hh"
 #include "ED_undo.hh"
-#include "ED_mesh.hh"
 
 #include "bmesh_tools.hh"
 
