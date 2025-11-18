@@ -104,7 +104,12 @@ static int calculate_grid_step(const int base, const float pixel_width, const fl
   else {
     /* Grow the distance, doubling every time. */
     while (pixels_per_view_unit * distance < MIN_MAJOR_LINE_DISTANCE) {
-      distance *= 2;
+      if (distance > base * 10){
+        distance *= 2;
+      }
+      else{
+        distance *= 5;
+      }
     }
   }
   BLI_assert(distance != 0);
