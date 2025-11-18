@@ -67,15 +67,9 @@ void main()
    * - Vertex position [-1, 1], so we can fade level boundaries.
    * - The fade for the *lowest* level, as a linear line. */
   local_coord = line.P / float(grid_buf.num_lines_per_level >> 1);
-  // local_alpha = line.level > 0 ? 1.0f : 1.0f - fract(grid_level);
-
-  local_alpha 
-    = (line.level + 1.0f - fract(grid_level)) / float(GRID_LEVELS_DRAW);
+  local_alpha
+    = ((line.level + 1.0f - fract(grid_level)) / float(GRID_LEVELS_DRAW));
   local_alpha = 2.0f * local_alpha - square(local_alpha);
-  
-  if (gl_VertexID == 0) {
-    printf("local_alpha %f\n", local_alpha);
-  }
 
   /* All values operate on the X, Y plane for simplicity. */
   float2 P = line.P;
@@ -92,7 +86,9 @@ void main()
 
   /* Modify fade based on pixel size for orthographic, as we lack proper dfdx/dfdy on lines. */
   if (!drw_view_is_perspective()) {
-    float fade = smoothstep(scale * 0.25, scale * pow3f(0.25), uniform_buf.pixel_fac);
+    float fade = smoothstep(scale * 0.25f, scale * pow3f(0.25f), uniform_buf.pixel_fac);
+    if (gl_VertexID == 0) 
+      printf("fade: %f, scale: %f, fac: %f\n", fade, scale, uniform_buf.pixel_fac);
     local_alpha *= fade;
   }
 

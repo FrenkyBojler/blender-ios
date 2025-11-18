@@ -144,7 +144,7 @@ class GridRework : Overlay {
     grid_flag_ = zaxs_flag_ = 0;
 
     /* This suffices for most cases, and in others we fade to hide it. */
-    num_lines_per_level_ = 255;
+    num_lines_per_level_ = 301;
     grid_ubo_.num_lines_per_level = num_lines_per_level_;
 
     return is_3d_grid_ ? init_3d(state) : init_2d(state);
@@ -186,10 +186,8 @@ class GridRework : Overlay {
     std::array<float, SI_GRID_STEPS_LEN> steps_x, steps_y;
     ED_space_image_grid_steps(sima, steps_x.data(), steps_y.data(), SI_GRID_STEPS_LEN);
     for (int i = 0; i < SI_GRID_STEPS_LEN; ++i) {
-      /* NOTE (not_mark): I am uncertain where the discrepancy comes from, but the UV grid appears
-       * to be scaled by a factor .01 that I have to account for. */
-      grid_ubo_.level_scales[i].x = steps_x[i];
-      grid_ubo_.level_scales[i].y = steps_y[i];
+      grid_ubo_.level_scales[i].x = steps_x[i] * 2.0f;
+      grid_ubo_.level_scales[i].y = steps_y[i] * 2.0f;
     }
 
     /* Determine camera offset to center of v2d. */
@@ -198,7 +196,7 @@ class GridRework : Overlay {
 
     /* Query grid image zoom level. Then find the lowest relevant grid level + fractional,
      * dependent on zoom level. */
-    float dist = ED_space_image_zoom_level(v2d, SI_GRID_STEPS_LEN);
+    float dist = ED_space_image_zoom_level(v2d, SI_GRID_STEPS_LEN) * 4.0f;
     for (int i = 0; i < OVERLAY_GRID_STEPS_LEN + 1; i++) {
       float prev = (i > 0) ?
                        std::min(grid_ubo_.level_scales[i - 1].x, grid_ubo_.level_scales[i - 1].y) :

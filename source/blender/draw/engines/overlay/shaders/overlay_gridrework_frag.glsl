@@ -28,7 +28,7 @@ void main()
     /* Add fade from vertex stage. */
     out_color.a *= local_alpha;
 
-    /* Add fade at edge of grid level. */
+    /* Add fade at edge of grid level in the 3D viewport. */
     if (!flag_test(grid_flag, PLANE_IMAGE)) {
       float length_fade = 1.f - min(1.f, dot(local_coord, local_coord));
       out_color.a *= pow2f(length_fade);
@@ -87,4 +87,5 @@ void main()
 
   // float3 colors[3] = {float3(1, 0, 0), float3(0, 1, 0), float3(0, 0, 1)};
   // out_color.rgb = colors[debug_level];
+  // out_color.rgb = mix(vec3(1,0,0),vec3(0,0,1), local_alpha);
 }
