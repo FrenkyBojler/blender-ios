@@ -123,8 +123,6 @@ static const char *builtin_shader_create_info_name(GPUBuiltinShader shader)
       return "gpu_shader_index_2d_array_lines";
     case GPU_SHADER_INDEXBUF_TRIS:
       return "gpu_shader_index_2d_array_tris";
-    case GPU_SHADER_XR_TELEPORTATION_RAY:
-      return "gpu_shader_xr_teleportation_ray";
     default:
       BLI_assert_unreachable();
       return "";

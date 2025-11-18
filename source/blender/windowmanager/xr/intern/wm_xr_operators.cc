@@ -1182,8 +1182,7 @@ struct XrTeleportData {
   float ray_line_width;
   float destination_indicator_width;
 
-  /* Drawing handles. */
-  blender::gpu::Batch *arc_batch;
+  /* Drawing handle. */
   void *draw_handle;
 };
 
@@ -1234,28 +1233,64 @@ static void wm_xr_navigation_teleport_ray_draw(const bContext * /*C*/,
 
   wm_xr_navigation_teleport_destination_draw(data);
 
-  BLI_assert(data->arc_batch != nullptr);
+  const int num_samples = XR_TELEPORTATION_ARC_SAMPLES;
+  const int endpoint_idx = data->endpoint_idx;
 
-  const float3 forward = data->arc_points[data->endpoint_idx] - data->arc_points.first();
-  const float3 right = math::normalize(float3{forward.y, -forward.x, 0.0f});
+  GPUVertFormat *format = immVertexFormat();
+  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
+
+  blender::gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(*format);
+  GPU_vertbuf_data_alloc(*vbo, num_samples);
+
+  /* Fill VBO by sampling the Catmull-Rom curve. */
+  for (int sample_idx = 0; sample_idx < num_samples; sample_idx++) {
+    float sample_value = (float(sample_idx) * float(endpoint_idx)) / float(num_samples - 1);
+    int segment_idx = int(sample_value);
+    float t = sample_value - float(segment_idx);
+
+    const auto get_control_point = [&](int idx) -> float3 {
+      idx = math::clamp(idx, 0, endpoint_idx);
+      return data->arc_points[idx];
+    };
+
+    const auto catmull_rom_sample = [](const float3 &p0,
+                                       const float3 &p1,
+                                       const float3 &p2,
+                                       const float3 &p3,
+                                       const float t) -> float3 {
+      const float t_squared = t * t;
+      const float t_cubed = t_squared * t;
+      return 0.5f * ((2.0f * p1) + (-p0 + p2) * t +
+                     (2.0f * p0 - 5.0f * p1 + 4.0f * p2 - p3) * t_squared +
+                     (-p0 + 3.0f * p1 - 3.0f * p2 + p3) * t_cubed);
+
+    };
+
+    const float3 p0 = get_control_point(segment_idx - 1);
+    const float3 p1 = get_control_point(segment_idx + 0);
+    const float3 p2 = get_control_point(segment_idx + 1);
+    const float3 p3 = get_control_point(segment_idx + 2);
+
+    const float3 point_pos = catmull_rom_sample(p0, p1, p2, p3, t);
+    GPU_vertbuf_attr_set(vbo, pos, sample_idx, &point_pos);
+  }
+
+  blender::gpu::Batch *batch = GPU_batch_create_ex(
+      GPU_PRIM_LINE_STRIP, vbo, nullptr, GPU_BATCH_OWNS_VBO);
 
   GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
 
-  GPU_batch_program_set_builtin(data->arc_batch, GPU_SHADER_XR_TELEPORTATION_RAY);
+  GPU_batch_program_set_builtin(batch, GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR);
+  GPU_batch_uniform_4fv(batch, "color", data->ray_color);
 
-  /* Sending points through vec4 due to uniform memory alignment constraints. */
-  float control_points[XR_TELEPORTATION_ARC_CONTROL_POINTS][4] = {{0}};
-  for (int i = 0; i < XR_TELEPORTATION_ARC_CONTROL_POINTS; i++) {
-    copy_v3_v3(control_points[i], data->arc_points[i]);
-  }
+  float viewport[4];
+  GPU_viewport_size_get_f(viewport);
+  GPU_batch_uniform_2fv(batch, "viewportSize", &viewport[2]);
+  GPU_batch_uniform_1f(batch, "lineWidth", data->ray_line_width);
+  GPU_batch_uniform_1b(batch, "lineSmooth", true);
 
-  GPU_batch_uniform_4fv_array(
-      data->arc_batch, "control_points", XR_TELEPORTATION_ARC_CONTROL_POINTS, control_points);
-  GPU_batch_uniform_4fv(data->arc_batch, "color", data->ray_color);
-  GPU_batch_uniform_3fv(data->arc_batch, "right_vector", right);
-  GPU_batch_uniform_1f(data->arc_batch, "line_width", data->ray_line_width);
-  GPU_batch_uniform_1i(data->arc_batch, "endpoint_idx", data->endpoint_idx);
-  GPU_batch_draw(data->arc_batch);
+  GPU_batch_draw(batch);
+  GPU_batch_discard(batch);
 }
 
 static void wm_xr_navigation_teleport_init(wmOperator *op)
@@ -1300,7 +1335,6 @@ static void wm_xr_navigation_teleport_uninit(wmOperator *op)
 }
 
 static void wm_xr_navigation_teleport_update(wmOperator *op,
-                                             const wmXrData *xr,
                                              XrTeleportData *data,
                                              const wmXrActionData *actiondata)
 {
@@ -1313,11 +1347,6 @@ static void wm_xr_navigation_teleport_update(wmOperator *op,
   data->init_direction = transform_point(controller_quat, {0.0f, 0.0f, -1.0f});
   data->init_location = actiondata->controller_loc;
 
-  if (!xr->runtime->session_state.raycast_arc_batch) {
-    xr->runtime->session_state.raycast_arc_batch = GPU_batch_create_procedural(
-        GPU_PRIM_TRI_STRIP, 2 * XR_TELEPORTATION_ARC_SAMPLES);
-  }
-  data->arc_batch = xr->runtime->session_state.raycast_arc_batch;
   data->ray_line_width = RNA_float_get(op->ptr, "ray_line_width");
   data->destination_indicator_width = RNA_float_get(op->ptr, "destination_indicator_width");
 }
@@ -1357,8 +1386,7 @@ static void wm_xr_navigation_teleport_raycast(Scene *scene,
   blender::ed::transform::snap_object_context_destroy(sctx);
 }
 
-static void wm_xr_navigation_teleport_generate_arc(wmOperator *op,
-                                                   XrTeleportData *data)
+static void wm_xr_navigation_teleport_generate_arc(wmOperator *op, XrTeleportData *data)
 {
   using namespace blender;
 
@@ -1375,7 +1403,7 @@ static void wm_xr_navigation_teleport_generate_arc(wmOperator *op,
     const float3 velocity_offset = direction * (velocity * t);
     const float3 gravity_offset = float3(0, 0, -0.5f * gravity * t * t);
 
-    data->arc_points[i] = data->arc_points[0] + velocity_offset + gravity_offset;
+    data->arc_points[i] = data->init_location + velocity_offset + gravity_offset;
   }
 }
 
@@ -1578,7 +1606,7 @@ static wmOperatorStatus wm_xr_navigation_teleport_modal(bContext *C,
   wmXrData *xr = &CTX_wm_manager(C)->xr;
   XrTeleportData *data = static_cast<XrTeleportData *>(op->customdata);
 
-  wm_xr_navigation_teleport_update(op, xr, data, actiondata);
+  wm_xr_navigation_teleport_update(op, data, actiondata);
 
   /* Teleport using an arc, computing both the final destination and the visual curve. */
   blender::float3 nav_destination = {};
@@ -1664,13 +1692,13 @@ static void WM_OT_xr_navigation_teleport(wmOperatorType *ot)
   /* Visual parameters. */
   RNA_def_float(ot->srna,
                 "ray_line_width",
-                0.02f,
+                4.0f,
                 0.0f,
                 FLT_MAX,
                 "Ray Line Width",
                 "Visual width of the teleportation ray line",
-                0.0f,
-                1.0f);
+                0.5f,
+                8.0f);
   RNA_def_float(ot->srna,
                 "destination_indicator_width",
                 0.35f,
