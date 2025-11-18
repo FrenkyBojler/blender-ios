@@ -791,7 +791,7 @@ static PointerRNA rna_Mesh_uv_layer_active_get(PointerRNA *ptr)
 static void rna_Mesh_uv_layer_active_set(PointerRNA *ptr, PointerRNA value, ReportList *)
 {
   Mesh *mesh = rna_mesh(ptr);
-  mesh->active_uv_map_set(rna_Attribute_name_get(value));
+  mesh->uv_maps_active_set(rna_Attribute_name_get(value));
   BKE_mesh_tessface_clear(mesh);
 }
 
@@ -815,7 +815,7 @@ static void rna_Mesh_uv_layer_active_index_set(PointerRNA *ptr, int value)
     return;
   }
   Mesh *mesh = rna_mesh(ptr);
-  mesh->active_uv_map_set(name);
+  mesh->uv_maps_active_set(*name);
   BKE_mesh_tessface_clear(mesh);
 }
 
@@ -1045,7 +1045,7 @@ static void rna_MeshUVLoopLayer_active_render_set(PointerRNA *ptr, bool value)
 {
   if (value) {
     Mesh *mesh = rna_mesh(ptr);
-    mesh->default_uv_map_set(rna_Attribute_name_get(*ptr));
+    mesh->uv_maps_default_set(rna_Attribute_name_get(*ptr));
   }
 }
 
@@ -1053,7 +1053,7 @@ static void rna_MeshUVLoopLayer_active_set(PointerRNA *ptr, bool value)
 {
   if (value) {
     Mesh *mesh = rna_mesh(ptr);
-    mesh->active_uv_map_set(rna_Attribute_name_get(*ptr));
+    mesh->uv_maps_active_set(rna_Attribute_name_get(*ptr));
   }
 }
 
