@@ -84,7 +84,6 @@ class AnimatedProperty {
  */
 class EvaluationResult {
  protected:
-  /* Try splitting the map to float and PathResolvedRNA and to use int as a key. */
   using EvaluationMap = Map<PropIdentifier, AnimatedProperty>;
   EvaluationMap result_;
 
