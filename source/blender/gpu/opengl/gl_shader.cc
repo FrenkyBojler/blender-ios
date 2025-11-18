@@ -38,6 +38,7 @@
 
 #include <fmt/format.h>
 
+#include <chrono>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
@@ -1710,11 +1711,16 @@ void GLShaderCompiler::specialize_shader(const ShaderSpecialization &specializat
 
 GLCompilerWorker::GLCompilerWorker()
 {
+  using namespace std::chrono;
+
   static size_t pipe_id = 0;
   pipe_id++;
 
+  static size_t time_id =
+      duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
+
   std::string name = "BLENDER_SHADER_COMPILER_" + std::to_string(getpid()) + "_" +
-                     std::to_string(pipe_id);
+                     std::to_string(time_id) + "_" + std::to_string(pipe_id);
 
   shared_mem_ = std::make_unique<SharedMemory>(
       name, compilation_subprocess_shared_memory_size, true);
