@@ -30,7 +30,10 @@ class BlenderProjectData {
 class BlenderProject {
  public:
   /* If the project is not initialized, it has no data. */
-  std::optional<BlenderProjectData> data;
+  std::optional<BlenderProjectData> data = std::nullopt;
+
+  /* Whether the project has unsaved changes. */
+  bool is_dirty = false;
 
   /**
    * Initialize a new Blender Project.

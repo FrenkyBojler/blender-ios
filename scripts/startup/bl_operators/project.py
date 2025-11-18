@@ -73,6 +73,8 @@ class PROJECT_OP_WriteProject(Operator):
         with config_path.open(mode='w', encoding='utf-8') as f:
             f.write("name = \"{}\"\n".format(data.name))
 
+        context.project.is_dirty = False
+
         return {'FINISHED'}
 
 
@@ -99,6 +101,10 @@ def read_project_config(root_path: Path) -> dict | None:
 
 @bpy.app.handlers.persistent
 def on_blend_load(blend_path: str) -> None:
+    if bpy.context.project.data is not None and bpy.context.project.is_dirty:
+        # TODO: make this conditional on auto-save being enabled or not.
+        bpy.ops.project.write_project()
+
     bpy.context.project.clear()
 
     if blend_path == "":
@@ -128,11 +134,18 @@ def on_blend_load(blend_path: str) -> None:
 
     bpy.context.project.init(config["name"], str(root_path))
 
+    bpy.context.project.is_dirty = False
+
 
 @bpy.app.handlers.persistent
 def on_blend_save(blend_path: str) -> None:
-    # This is needed due to cases like a fresh new blend file being saved for
-    # the first time in a project.
+    """ This is needed due to cases like a fresh new blend file being saved for
+        the first time in a project.
+    """
+
+    if bpy.context.project.data is not None:
+        return
+
     on_blend_load(blend_path)
 
 
