@@ -1694,13 +1694,13 @@ static void WM_OT_xr_navigation_teleport(wmOperatorType *ot)
   /* Visual parameters. */
   RNA_def_float(ot->srna,
                 "ray_line_width",
-                4.0f,
+                6.0f,
                 0.0f,
                 FLT_MAX,
                 "Ray Line Width",
                 "Visual width of the teleportation ray line",
                 0.5f,
-                8.0f);
+                10.0f);
   RNA_def_float(ot->srna,
                 "destination_indicator_width",
                 0.35f,
