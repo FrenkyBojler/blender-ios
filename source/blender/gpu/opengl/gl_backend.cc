@@ -749,7 +749,7 @@ void GLBackend::log_workarounds()
              " - [%c] Generate mipmap workaround\n"
              " - [%c] Unused framebuffer slot workaround\n"
              " - [%c] Depth blitting workaround\n"
-             " - [%c] Qualcomm Snapdragon workaround\n"
+             " - [%c] Stencil classify buffer workaround\n"
              " - [%c] High-quality normals\n"
              " - [%c] Use main context\n",
              GLContext::debug_layer_workaround ? 'X' : ' ',
