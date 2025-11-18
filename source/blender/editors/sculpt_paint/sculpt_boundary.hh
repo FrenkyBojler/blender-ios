@@ -14,6 +14,8 @@
 #include "BLI_map.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_offset_indices.hh"
+#include "BLI_ordered_edge.hh"
+#include "BLI_set.hh"
 #include "BLI_span.hh"
 #include "BLI_vector.hh"
 
@@ -105,11 +107,13 @@ void ensure_boundary_info(Object &object);
  */
 bool vert_is_boundary(GroupedSpan<int> vert_to_face_map,
                       Span<bool> hide_poly,
-                      BitSpan boundary,
+                      BitSpan boundary_verts,
+                      const Set<OrderedEdge> &boundary_edges,
                       int vert);
 bool vert_is_boundary(OffsetIndices<int> faces,
                       Span<int> corner_verts,
-                      BitSpan boundary,
+                      BitSpan boundary_verts,
+                      const Set<OrderedEdge> &boundary_edges,
                       const SubdivCCG &subdiv_ccg,
                       SubdivCCGCoord vert);
 bool vert_is_boundary(BMVert *vert);

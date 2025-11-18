@@ -23,6 +23,7 @@
 #include "BKE_mesh.hh"
 #include "BKE_subdiv.hh"
 #include "BKE_subdiv_eval.hh"
+#include "BLI_ordered_edge.hh"
 
 #ifdef WITH_OPENSUBDIV
 #  include "opensubdiv_topology_refiner.hh"
@@ -1506,11 +1507,13 @@ SubdivCCGAdjacencyType BKE_subdiv_ccg_coarse_mesh_adjacency_info_get(
   return SubdivCCGAdjacencyType::None;
 }
 
-bool BKE_subdiv_ccg_coord_is_mesh_boundary(const OffsetIndices<int> faces,
-                                           const Span<int> corner_verts,
-                                           const blender::BitSpan boundary_verts,
-                                           const SubdivCCG &subdiv_ccg,
-                                           const SubdivCCGCoord coord)
+bool BKE_subdiv_ccg_coord_is_mesh_boundary(
+    const OffsetIndices<int> faces,
+    const Span<int> corner_verts,
+    const blender::BitSpan boundary_verts,
+    const blender::Set<blender::OrderedEdge> &boundary_edges,
+    const SubdivCCG &subdiv_ccg,
+    const SubdivCCGCoord coord)
 {
   int v1, v2;
   const SubdivCCGAdjacencyType adjacency = BKE_subdiv_ccg_coarse_mesh_adjacency_info_get(

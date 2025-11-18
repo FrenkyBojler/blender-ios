@@ -129,6 +129,7 @@ BLI_NOINLINE static void do_smooth_brush_mesh(const Depsgraph &depsgraph,
                                                                       corner_verts,
                                                                       vert_to_face_map,
                                                                       ss.vertex_info.boundary,
+                                                                      ss.edge_info.boundary,
                                                                       attribute_data.hide_poly,
                                                                       verts,
                                                                       node_factors,
@@ -159,6 +160,7 @@ static void calc_grids(const Depsgraph &depsgraph,
                        const OffsetIndices<int> faces,
                        const Span<int> corner_verts,
                        const BitSpan boundary_verts,
+                       const Set<OrderedEdge> &boundary_edges,
                        Object &object,
                        const Brush &brush,
                        const float strength,
@@ -177,8 +179,14 @@ static void calc_grids(const Depsgraph &depsgraph,
 
   tls.new_positions.resize(positions.size());
   const MutableSpan<float3> new_positions = tls.new_positions;
-  smooth::neighbor_position_average_interior_grids(
-      faces, corner_verts, boundary_verts, subdiv_ccg, grids, tls.factors, new_positions);
+  smooth::neighbor_position_average_interior_grids(faces,
+                                                   corner_verts,
+                                                   boundary_verts,
+                                                   boundary_edges,
+                                                   subdiv_ccg,
+                                                   grids,
+                                                   tls.factors,
+                                                   new_positions);
 
   tls.translations.resize(positions.size());
   const MutableSpan<float3> translations = tls.translations;
@@ -252,6 +260,7 @@ void do_smooth_brush(const Depsgraph &depsgraph,
                      faces,
                      corner_verts,
                      ss.vertex_info.boundary,
+                     ss.edge_info.boundary,
                      object,
                      brush,
                      strength,

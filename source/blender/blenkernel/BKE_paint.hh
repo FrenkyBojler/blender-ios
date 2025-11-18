@@ -16,6 +16,8 @@
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_offset_indices.hh"
+#include "BLI_ordered_edge.hh"
+#include "BLI_set.hh"
 #include "BLI_shared_cache.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_utility_mixins.hh"
@@ -336,6 +338,10 @@ struct SculptVertexInfo {
   blender::BitVector<> boundary;
 };
 
+struct SculptEdgeInfo {
+  blender::Set<blender::OrderedEdge> boundary;
+};
+
 /* Data used for displaying extra visuals while using the Boundary brush. */
 struct SculptBoundaryPreview {
   blender::Vector<std::pair<blender::float3, blender::float3>> edges;
@@ -462,6 +468,7 @@ struct SculptSession : blender::NonCopyable, blender::NonMovable {
   } persistent;
 
   SculptVertexInfo vertex_info = {};
+  SculptEdgeInfo edge_info = {};
   SculptFakeNeighbors fake_neighbors = {};
 
   /* Transform operator */

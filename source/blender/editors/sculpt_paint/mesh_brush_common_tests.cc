@@ -4,6 +4,7 @@
 #include "mesh_brush_common.hh"
 
 #include "BLI_bit_span.hh"
+#include "BLI_ordered_edge.hh"
 
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
@@ -55,12 +56,20 @@ TEST_F(MeshTests, calc_vert_neighbors_interior)
   }
 
   const BitVector boundary_verts(int64_t(cube_mesh->verts_num));
+  const Set<OrderedEdge> boundary_edges;
   const Vector<bool> hide_poly(cube_mesh->faces_num, false);
 
   Vector<int> offset_data;
   Vector<int> data;
-  const GroupedSpan<int> result = calc_vert_neighbors_interior(
-      faces, corner_verts, vert_to_face_map, boundary_verts, hide_poly, verts, offset_data, data);
+  const GroupedSpan<int> result = calc_vert_neighbors_interior(faces,
+                                                               corner_verts,
+                                                               vert_to_face_map,
+                                                               boundary_verts,
+                                                               boundary_edges,
+                                                               hide_poly,
+                                                               verts,
+                                                               offset_data,
+                                                               data);
 
   ASSERT_EQ(result.size(), 8);
   for (const int i : result.index_range()) {

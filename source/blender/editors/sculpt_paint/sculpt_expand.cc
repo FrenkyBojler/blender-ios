@@ -476,7 +476,8 @@ static IndexMask boundary_from_enabled(Object &object,
         }
 
         if (use_mesh_boundary &&
-            boundary::vert_is_boundary(vert_to_face_map, hide_poly, ss.vertex_info.boundary, vert))
+            boundary::vert_is_boundary(
+                vert_to_face_map, hide_poly, ss.vertex_info.boundary, ss.edge_info.boundary, vert))
         {
           return true;
         }
@@ -501,9 +502,12 @@ static IndexMask boundary_from_enabled(Object &object,
           }
         }
 
-        if (use_mesh_boundary &&
-            boundary::vert_is_boundary(
-                faces, corner_verts, ss.vertex_info.boundary, subdiv_ccg, coord))
+        if (use_mesh_boundary && boundary::vert_is_boundary(faces,
+                                                            corner_verts,
+                                                            ss.vertex_info.boundary,
+                                                            ss.edge_info.boundary,
+                                                            subdiv_ccg,
+                                                            coord))
         {
           return true;
         }
@@ -2818,8 +2822,11 @@ static wmOperatorStatus sculpt_expand_invoke(bContext *C, wmOperator *op, const 
       const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
       const bke::AttributeAccessor attributes = mesh.attributes();
       const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
-      if (boundary::vert_is_boundary(
-              vert_to_face_map, hide_poly, ss.vertex_info.boundary, initial_vert))
+      if (boundary::vert_is_boundary(vert_to_face_map,
+                                     hide_poly,
+                                     ss.vertex_info.boundary,
+                                     ss.edge_info.boundary,
+                                     initial_vert))
       {
         falloff_type = FalloffType::BoundaryTopology;
       }
@@ -2837,6 +2844,7 @@ static wmOperatorStatus sculpt_expand_invoke(bContext *C, wmOperator *op, const 
       if (boundary::vert_is_boundary(faces,
                                      corner_verts,
                                      ss.vertex_info.boundary,
+                                     ss.edge_info.boundary,
                                      subdiv_ccg,
                                      SubdivCCGCoord::from_index(key, initial_vert)))
       {
