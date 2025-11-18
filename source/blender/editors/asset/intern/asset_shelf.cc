@@ -132,9 +132,9 @@ bool type_asset_poll(const AssetShelfType &shelf_type,
                      const asset_system::AssetRepresentation &asset)
 {
 
-  if (shelf_type.id_types_filter != 0) {
+  if (shelf_type.id_types_prefilter != 0) {
     const uint64_t id_filter = BKE_idtype_idcode_to_idfilter(asset.get_id_type());
-    if ((shelf_type.id_types_filter & id_filter) == 0) {
+    if ((shelf_type.id_types_prefilter & id_filter) == 0) {
       return false;
     }
   }

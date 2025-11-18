@@ -666,13 +666,14 @@ struct AssetShelfType {
 
   /**
    * `FILTER_ID_` bit-flags to pre-filter ID types to include in the asset shelf, as if
-   * #asset_poll() returned false. If this isn't set (== 0), no pre-filtering will be done.
+   * #asset_poll() returned false for non-matching IDs. If this isn't set (== 0), no pre-filtering
+   * will be done.
    *
    * For bigger asset libraries, many assets can usually be excluded cheaply this way. Calling
    * #asset_poll() on many assets isn't cheap, so doing the ID type check only in there can cause
    * performance issues.
    */
-  uint64_t id_types_filter; /* rna_enum_id_type_filter_items */
+  uint64_t id_types_prefilter; /* rna_enum_id_type_filter_items */
 
   /** Operator to call when activating a grid view item. */
   std::string activate_operator;
