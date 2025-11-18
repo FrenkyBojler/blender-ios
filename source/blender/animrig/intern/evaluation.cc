@@ -202,7 +202,7 @@ void apply_evaluation_result(const EvaluationResult &evaluation_result,
     const PropIdentifier &prop_ident = channel_result.key;
     const AnimatedProperty &anim_prop = channel_result.value;
     const float animated_value = anim_prop.value;
-    PathResolvedRNA anim_rna = anim_prop.prop_rna;
+    PathResolvedRNA anim_rna = anim_prop.prop_rna.to_resolved_rna();
 
     BKE_animsys_write_to_rna_path(&anim_rna, animated_value);
 
@@ -253,10 +253,7 @@ EvaluationResult blend_layer_results(const EvaluationResult &last_result,
 
     if (!last_prop) {
       /* Nothing to blend with, so just take (influence * value). */
-      blend.store(prop_ident.rna_path,
-                  prop_ident.array_index,
-                  anim_prop.value * current_layer.influence,
-                  anim_prop.prop_rna);
+      blend.store(prop_ident.rna_path, prop_ident.array_index, anim_prop);
       continue;
     }
 

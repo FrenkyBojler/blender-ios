@@ -58,18 +58,47 @@ class PropIdentifier {
   }
 };
 
+/* Almost a copy of PathResolvedRNA except we don't pay the allocation price for PointerRNA. */
+struct RNAEvalResult {
+  ID *owner_id = nullptr;
+  StructRNA *type = nullptr;
+  void *data = nullptr;
+
+  PropertyRNA *prop = nullptr;
+  /** -1 for non-array access. */
+  int prop_index = -1;
+
+  RNAEvalResult(const PathResolvedRNA &resolved)
+      : owner_id(resolved.ptr.owner_id),
+        type(resolved.ptr.type),
+        data(resolved.ptr.data),
+        prop(resolved.prop),
+        prop_index(resolved.prop_index){};
+
+  RNAEvalResult(const PointerRNA &ptr, PropertyRNA *prop, const int index)
+      : prop(prop), prop_index(index), owner_id(ptr.owner_id), type(ptr.type), data(ptr.data){};
+
+  PointerRNA get_ptr_rna() const
+  {
+    return PointerRNA(owner_id, type, data);
+  }
+
+  PathResolvedRNA to_resolved_rna() const
+  {
+    return {get_ptr_rna(), prop, prop_index};
+  }
+};
+
 /**
  * The evaluated value for an animated property, along with its RNA pointer.
  */
 class AnimatedProperty {
  public:
   float value;
-  PathResolvedRNA prop_rna;
+  RNAEvalResult prop_rna;
 
-  AnimatedProperty(const float value, const PathResolvedRNA &prop_rna)
-      : value(value), prop_rna(prop_rna)
-  {
-  }
+  AnimatedProperty(const float value, const RNAEvalResult &prop_rna)
+      : value(value), prop_rna(prop_rna){};
 };
 
 /* Result of FCurve evaluation for an action slot.
@@ -112,6 +141,14 @@ class EvaluationResult {
   {
     PropIdentifier key(rna_path, array_index);
     AnimatedProperty anim_prop(value, prop_rna);
+    result_.add_overwrite(key, anim_prop);
+  }
+
+  void store(const StringRefNull rna_path,
+             const int array_index,
+             const AnimatedProperty &anim_prop)
+  {
+    PropIdentifier key(rna_path, array_index);
     result_.add_overwrite(key, anim_prop);
   }
 
