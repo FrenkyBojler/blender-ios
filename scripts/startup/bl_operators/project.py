@@ -144,6 +144,7 @@ classes = (
     PROJECT_OP_WriteProject
 )
 
+
 def register():
     bpy.app.handlers.load_pre.append(on_blend_load)
     bpy.app.handlers.save_post.append(on_blend_save)

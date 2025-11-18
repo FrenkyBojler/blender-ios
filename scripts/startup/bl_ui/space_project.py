@@ -6,6 +6,9 @@ import bpy
 from bpy.types import Header, Menu, Panel
 
 
+MAIN_SECTION_NAME = "General"
+
+
 # -----------------------------------------------------------------------------
 # Header
 
@@ -48,15 +51,19 @@ class PROJECT_MT_view(bpy.types.Menu):
 
         layout.menu("INFO_MT_area")
 
+
 # -----------------------------------------------------------------------------
 # Navigation Bar
-
 
 class PROJECT_PT_navigation_bar(Panel):
     bl_label = "Project Navigation"
     bl_space_type = 'PROJECT'
     bl_region_type = 'NAVIGATION_BAR'
     bl_options = {'HIDE_HEADER'}
+
+    @classmethod
+    def poll(cls, context):
+        return True
 
     def draw(self, context):
         layout = self.layout
@@ -65,9 +72,17 @@ class PROJECT_PT_navigation_bar(Panel):
 
         col = layout.column()
 
+        if context.project.data is None:
+            # If there's no project, we need to make sure the UI for creating a
+            # new project is visible. That UI is in the main section, so we
+            # ensure it's the active section.
+            space_data.active_section = MAIN_SECTION_NAME
+            col.enabled = False
+
         col.scale_x = 1.3
         col.scale_y = 1.3
         col.prop(space_data, "active_section", expand=True)
+
 
 # -----------------------------------------------------------------------------
 # Main Area
@@ -76,8 +91,6 @@ class PROJECT_PT_navigation_bar(Panel):
 #
 # TODO: we have this in at least two places now.  Should this be built-in UI
 # functionality?
-
-
 class CenterAlignMixIn:
     """
     Base class for panels to center align contents with some horizontal margin.
@@ -113,7 +126,7 @@ class PROJECT_PT_main(Panel, CenterAlignMixIn):
     bl_space_type = 'PROJECT'
     bl_region_type = 'WINDOW'
     bl_options = {'HIDE_HEADER'}
-    bl_category = "General"
+    bl_category = MAIN_SECTION_NAME
 
     @classmethod
     def poll(cls, context):
@@ -142,4 +155,5 @@ classes = (
     PROJECT_MT_view,
     PROJECT_PT_navigation_bar,
     PROJECT_PT_main,
+    PROJECT_PT_sup
 )
