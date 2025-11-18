@@ -259,6 +259,7 @@ bNode &version_node_add_empty(bNodeTree &ntree, const char *idname)
 }
 
 bNode &version_node_add_empty(bNodeTree &ntree,
+                              blender::bke::bNodeType &ntype,
                               const char *idname,
                               const int16_t legacy_type,
                               const std::string &ui_name,
@@ -271,56 +272,49 @@ bNode &version_node_add_empty(bNodeTree &ntree,
 {
   using namespace blender::bke;
 
-  auto *ntype = MEM_new<bNodeType>(__func__);
+  ntype.idname = idname;
+  ntype.type_legacy = legacy_type;
+  ntype.height = height;
+  ntype.width = width;
+  node_type_size_preset(ntype, eNodeSizePreset::Default);
+  ntype.minheight = 30;
+  ntype.maxheight = FLT_MAX;
 
-  ntype->idname = idname;
-  ntype->type_legacy = legacy_type;
-  ntype->height = height;
-  ntype->width = width;
-  node_type_size_preset(*ntype, eNodeSizePreset::Default);
-  ntype->minheight = 30;
-  ntype->maxheight = FLT_MAX;
-
-  ntype->ui_name = ui_name;
-  ntype->ui_description = ui_description;
-  ntype->enum_name_legacy = enum_name_legacy.c_str();
-  ntype->nclass = nclass;
-  ntype->no_muting = no_muting;
-  ntype->ui_name = ui_name;
+  ntype.ui_name = ui_name;
+  ntype.ui_description = ui_description;
+  ntype.enum_name_legacy = enum_name_legacy.c_str();
+  ntype.nclass = nclass;
+  ntype.no_muting = no_muting;
+  ntype.ui_name = ui_name;
 
   bNode *node = MEM_callocN<bNode>(__func__);
   node->runtime = MEM_new<bNodeRuntime>(__func__);
   BLI_addtail(&ntree.nodes, node);
   node_unique_id(ntree, *node);
-  node->typeinfo = ntype;
+  node->typeinfo = &ntype;
 
   STRNCPY(node->idname, idname);
-  DATA_(ntype->ui_name).copy_utf8_truncated(node->name);
+  DATA_(ntype.ui_name).copy_utf8_truncated(node->name);
   node_unique_name(ntree, *node);
 
   node->flag = NODE_SELECT | NODE_OPTIONS | NODE_INIT;
-  node->width = ntype->width;
-  node->height = ntype->height;
+  node->width = ntype.width;
+  node->height = ntype.height;
   node->color[0] = node->color[1] = node->color[2] = 0.608;
 
-  node->type_legacy = ntype->type_legacy;
+  node->type_legacy = ntype.type_legacy;
 
   BKE_ntree_update_tag_node_new(&ntree, node);
   return *node;
 }
 
-void version_node_remove(bNodeTree &ntree, bNode &node, const bool free_typeinfo)
+void version_node_remove(bNodeTree &ntree, bNode &node)
 {
   blender::bke::node_unlink_node(ntree, node);
   blender::bke::node_unlink_attached(&ntree, &node);
 
-  blender::bke::bNodeType *ntype = node.typeinfo;
   blender::bke::node_free_node(&ntree, node);
   blender::bke::node_rebuild_id_vector(ntree);
-
-  if (ntype && free_typeinfo) {
-    MEM_delete(ntype);
-  }
 }
 
 bNodeSocket &version_node_add_socket(bNodeTree &ntree,

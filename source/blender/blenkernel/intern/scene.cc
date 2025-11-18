@@ -1189,9 +1189,12 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
     bNodeSocket *first_sock = nullptr;
     bNode *composite_node = nullptr;
     bNodeSocket *composite_input = nullptr;
+    blender::bke::bNodeType *ntype = nullptr;
     LISTBASE_FOREACH_MUTABLE (bNode *, node, &temp_nodetree->nodes) {
       if (node->is_type("NodeGroupOutput") && (node->flag & NODE_DO_OUTPUT)) {
+        ntype = MEM_new<blender::bke::bNodeType>(__func__);
         composite_node = &version_node_add_empty(*temp_nodetree,
+                                                 *ntype,
                                                  "CompositorNodeComposite",
                                                  CMP_NODE_COMPOSITE_DEPRECATED,
                                                  "Composite",
@@ -1232,7 +1235,6 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
       blender::bke::node_remove_link(temp_nodetree, *composite_input_link);
     }
     if (composite_node) {
-      auto *ntype = composite_node->typeinfo;
       version_node_remove(*temp_nodetree, *composite_node);
       MEM_delete(ntype);
     }
