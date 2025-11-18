@@ -2,4 +2,4 @@ Referenced by issue #76428, GHOST/Wayland Support
 Referenced by issue #142871, Regression: Two cursors visible when panning area header while hovering over input field
 Referenced by issue #144112, Wayland: Continuous Grab Cursor jumps to initial pan start position
 Referenced by commit 0a9720a2280a2f1acf7e75dbd817e3f2fe49db05, Fix #142871: Two cursors visible when panning over a number button
-Referenced by pull request #144225, Fix #142871: Don't put the cursor into modal mode when hovering buttons
+Referenced by pull request #144225, Fix #144345: Don't put the cursor into modal mode when hovering buttons
