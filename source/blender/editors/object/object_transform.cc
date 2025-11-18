@@ -1404,14 +1404,6 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
     }
 
     if (ob->data == nullptr) {
-      if (ob->type == OB_EMPTY) {
-        if (!reported_empty) {
-          reported_empty = true;
-          BKE_report(op->reports, RPT_INFO, "Set Origin not supported for Empty object(s)");
-        }
-        continue;
-      }
-
       /* Special support for instanced collections. */
       if ((ob->transflag & OB_DUPLICOLLECTION) && ob->instance_collection &&
           (ob->instance_collection->id.tag & ID_TAG_DOIT) == 0)
@@ -1437,6 +1429,13 @@ static wmOperatorStatus object_origin_set_exec(bContext *C, wmOperator *op)
           tot_change++;
           ob->instance_collection->id.tag |= ID_TAG_DOIT;
           do_inverse_offset = true;
+        }
+      }
+      else {
+        BLI_assert(ob->type == OB_EMPTY);
+        if (!reported_empty) {
+          reported_empty = true;
+          BKE_report(op->reports, RPT_INFO, "Set Origin not supported for Empty object(s)");
         }
       }
     }
