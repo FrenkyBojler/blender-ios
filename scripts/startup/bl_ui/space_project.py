@@ -41,12 +41,8 @@ class PROJECT_MT_view(Menu):
         layout = self.layout
         project_space = context.space_data
 
-        layout.prop(project_space, "show_region_toolbar")
-        layout.prop(project_space, "show_region_ui")
-
-        layout.separator()
-
-        layout.prop(project_space, "show_internal_attributes", text="Internal Attributes")
+        # TODO: why doesn't this work?
+        # layout.prop(project_space, "show_region_ui")
 
         layout.separator()
 
@@ -95,6 +91,7 @@ class PROJECT_PT_navigation_bar(Panel):
     bl_label = "Project Navigation"
     bl_space_type = 'PROJECT'
     bl_region_type = 'UI'
+    bl_category = "Navigation"
     bl_options = {'HIDE_HEADER'}
 
     @classmethod
