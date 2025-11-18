@@ -1202,10 +1202,8 @@ void Mesh::uv_maps_active_set(const StringRef name)
     this->active_color_attribute = BLI_strdupn(name.data(), name.size());
   }
   if (BMEditMesh *em = this->runtime->edit_mesh.get()) {
-    CustomData_set_layer_active_index(
-        &em->bm->ldata,
-        CD_PROP_FLOAT2,
-        CustomData_get_named_layer_index(&em->bm->ldata, CD_PROP_FLOAT2, name));
+    const int index = CustomData_get_named_layer_index(&em->bm->ldata, CD_PROP_FLOAT2, name);
+    CustomData_set_layer_render_index(&em->bm->ldata, CD_PROP_FLOAT2, std::max(index, 0));
   }
 }
 
@@ -1216,10 +1214,8 @@ void Mesh::uv_maps_default_set(const StringRef name)
     this->default_color_attribute = BLI_strdupn(name.data(), name.size());
   }
   if (BMEditMesh *em = this->runtime->edit_mesh.get()) {
-    CustomData_set_layer_render_index(
-        &em->bm->ldata,
-        CD_PROP_FLOAT2,
-        CustomData_get_named_layer_index(&em->bm->ldata, CD_PROP_FLOAT2, name));
+    const int index = CustomData_get_named_layer_index(&em->bm->ldata, CD_PROP_FLOAT2, name);
+    CustomData_set_layer_render_index(&em->bm->ldata, CD_PROP_FLOAT2, std::max(index, 0));
   }
 }
 

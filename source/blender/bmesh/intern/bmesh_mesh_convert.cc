@@ -303,14 +303,16 @@ void BM_mesh_bm_from_me(BMesh *bm, const Mesh *mesh, const BMeshFromMeshParams *
         &mesh_ldata, &bm->ldata, mask.lmask, CD_SET_DEFAULT, bm, BM_LOOP);
   }
 
-  CustomData_set_layer_active_index(
-      &bm->ldata,
-      CD_PROP_FLOAT2,
-      CustomData_get_named_layer_index(&bm->ldata, CD_PROP_FLOAT2, mesh->active_uv_map_name()));
-  CustomData_set_layer_render_index(
-      &bm->ldata,
-      CD_PROP_FLOAT2,
-      CustomData_get_named_layer_index(&bm->ldata, CD_PROP_FLOAT2, mesh->default_uv_map_name()));
+  {
+    const StringRef name = mesh->active_uv_map_name();
+    const int index = CustomData_get_named_layer_index(&bm->ldata, CD_PROP_FLOAT2, name);
+    CustomData_set_layer_active_index(&bm->ldata, CD_PROP_FLOAT2, std::max(index, 0));
+  }
+  {
+    const StringRef name = mesh->default_uv_map_name();
+    const int index = CustomData_get_named_layer_index(&bm->ldata, CD_PROP_FLOAT2, name);
+    CustomData_set_layer_render_index(&bm->ldata, CD_PROP_FLOAT2, std::max(index, 0));
+  }
 
   /* -------------------------------------------------------------------- */
   /* Shape Key */
@@ -1496,14 +1498,16 @@ void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *mesh, const BMeshToMeshParam
         &bm->pdata, &mesh->face_data, mask.pmask, CD_CONSTRUCT, mesh->faces_num);
   }
 
-  CustomData_set_layer_active_index(
-      &bm->ldata,
-      CD_PROP_FLOAT2,
-      CustomData_get_named_layer_index(&bm->ldata, CD_PROP_FLOAT2, mesh->active_uv_map_name()));
-  CustomData_set_layer_render_index(
-      &bm->ldata,
-      CD_PROP_FLOAT2,
-      CustomData_get_named_layer_index(&bm->ldata, CD_PROP_FLOAT2, mesh->default_uv_map_name()));
+  {
+    const StringRef name = mesh->active_uv_map_name();
+    const int index = CustomData_get_named_layer_index(&bm->ldata, CD_PROP_FLOAT2, name);
+    CustomData_set_layer_active_index(&bm->ldata, CD_PROP_FLOAT2, std::max(index, 0));
+  }
+  {
+    const StringRef name = mesh->default_uv_map_name();
+    const int index = CustomData_get_named_layer_index(&bm->ldata, CD_PROP_FLOAT2, name);
+    CustomData_set_layer_render_index(&bm->ldata, CD_PROP_FLOAT2, std::max(index, 0));
+  }
 
   /* Add optional mesh attributes before parallel iteration. */
   assert_bmesh_has_no_mesh_only_attributes(*bm);
