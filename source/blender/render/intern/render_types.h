@@ -78,6 +78,13 @@ struct BaseRender {
 
   /* Guard for drawing render result using engine's `draw()` callback. */
   ThreadMutex engine_draw_mutex = BLI_MUTEX_INITIALIZER;
+
+  /**
+   * GPU context and callbacks. This can be shared for recursive compositor and
+   * sequencer renders that we want to display in the same place.
+   */
+  std::shared_ptr<RenderDisplay> display;
+  bool display_shared = false;
 };
 
 struct ViewRender : public BaseRender {
@@ -191,13 +198,6 @@ struct Render : public BaseRender {
 
   blender::Vector<MovieWriter *> movie_writers;
   char viewname[MAX_NAME] = "";
-
-  /**
-   * GPU context and callbacks. This can be shared for recursive compositor and
-   * sequencer renders that we want to display in the same place.
-   */
-  std::shared_ptr<RenderDisplay> display;
-  bool display_shared = false;
 };
 
 struct RenderDisplay {
@@ -205,7 +205,6 @@ struct RenderDisplay {
 
   void ensure_system_gpu_context();
   void *ensure_blender_gpu_context();
-  void clear();
 
   void display_update(RenderResult *render_result, rcti *rect);
   void current_scene_update(struct Scene *scene);
