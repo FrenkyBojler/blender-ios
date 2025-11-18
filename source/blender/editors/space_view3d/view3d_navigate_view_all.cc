@@ -8,11 +8,11 @@
 
 #include "BKE_armature.hh"
 #include "BKE_context.hh"
-#include "BKE_gpencil_geom_legacy.h"
 #include "BKE_layer.hh"
 #include "BKE_library.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
+#include "BKE_paint_types.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
 
@@ -318,7 +318,7 @@ std::optional<blender::Bounds<float3>> view3d_calc_minmax_selected(Depsgraph *de
     {
       const std::optional<blender::Bounds<float3>> bounds = BKE_pose_minmax(ob_eval_iter, true);
       if (bounds) {
-        const blender::Bounds<float3> world_bounds = blender::bounds::transform_bounds(
+        const blender::Bounds<float3> world_bounds = blender::bounds::transform_bounds<float, 4>(
             ob_eval->object_to_world(), *bounds);
         minmax_v3v3_v3(min, max, world_bounds.min);
         minmax_v3v3_v3(min, max, world_bounds.max);
@@ -344,7 +344,21 @@ std::optional<blender::Bounds<float3>> view3d_calc_minmax_selected(Depsgraph *de
   else if (ob_eval && (ob_eval->mode & (OB_MODE_SCULPT | OB_MODE_VERTEX_PAINT |
                                         OB_MODE_WEIGHT_PAINT | OB_MODE_TEXTURE_PAINT)))
   {
-    BKE_paint_stroke_get_average(scene, ob_eval, min);
+    PaintMode mode = PaintMode::Invalid;
+    if (ob_eval->mode & OB_MODE_SCULPT) {
+      mode = PaintMode::Sculpt;
+    }
+    else if (ob_eval->mode & OB_MODE_VERTEX_PAINT) {
+      mode = PaintMode::Vertex;
+    }
+    else if (ob_eval->mode & OB_MODE_WEIGHT_PAINT) {
+      mode = PaintMode::Weight;
+    }
+    else if (ob_eval->mode & OB_MODE_TEXTURE_PAINT) {
+      mode = PaintMode::Texture3D;
+    }
+    Paint *paint = BKE_paint_get_active_from_paintmode(scene, mode);
+    BKE_paint_stroke_get_average(paint, ob_eval, min);
     copy_v3_v3(max, min);
     changed = true;
     *r_do_zoom = false;
@@ -483,7 +497,7 @@ void VIEW3D_OT_view_all(wmOperatorType *ot)
   ot->description = "View all objects in scene";
   ot->idname = "VIEW3D_OT_view_all";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = view3d_all_exec;
   ot->poll = ED_operator_region_view3d_active;
 
@@ -543,7 +557,7 @@ void VIEW3D_OT_view_selected(wmOperatorType *ot)
   ot->description = "Move the view to the selection center";
   ot->idname = "VIEW3D_OT_view_selected";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = viewselected_exec;
   ot->poll = view3d_zoom_or_dolly_poll;
 

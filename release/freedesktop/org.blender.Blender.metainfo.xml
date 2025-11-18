@@ -48,6 +48,42 @@
         </screenshot>
     </screenshots>
     <releases>
+        <release version="5.0" date="2025-11-18">
+            <description>
+                <p>New features:</p>
+                <ul>
+                    <li>Completely overhauled color management pipeline now natively supports wide-gamut and HDR color spaces</li>
+                    <li>Cycles: unbiased volume rendering, multi bounce SSS</li>
+                    <li>Video Sequencer: added a compositor strip modifier</li>
+                </ul>
+                <p>Enhancements:</p>
+                <ul>
+                    <li>EEVEE: material compilation speed has been improved</li>
+                    <li>Geometry Nodes: support for Bundles, Closures and new volume nodes</li>
+                    <li>Grease Pencil: motion blur support</li>
+                    <li>Rendering: new multiple scattering mode for Sky node and a new Radial Tiling node</li>
+                    <li>Several improvements for virtual reality</li>
+                </ul>
+            </description>
+        </release>
+        <release version="4.5" date="2025-07-15">
+            <description>
+                <p>New features:</p>
+                <ul>
+                    <li>Vulkan backend with support for OpenXR, Subdivision, USD/Hydra and more</li>
+                    <li>New Manifold boolean solver</li>
+                    <li>New Geometry Nodes for mesh normals, file import, Grease Pencil and more</li>
+                </ul>
+                <p>Enhancements:</p>
+                <ul>
+                    <li>Grease Pencil: Added a new supersampling anti-aliasing (SSAA) method for rendering</li>
+                    <li>File I/O: New experimental FBX importer and improvements to USD, glTF, OBJ and SVG</li>
+                    <li>Cycles: Improvements to Adaptive Subdivision, Bump Mapping and new custom cameras</li>
+                    <li>Compositor: New nodes and most options are exposed as single value inputs now</li>
+                    <li>Sculpt: Pen Tablet Tilt Support, brush and performance improvements</li>
+                </ul>
+            </description>
+        </release>
         <release version="4.4" date="2025-03-18">
             <description>
                 <p>New features:</p>

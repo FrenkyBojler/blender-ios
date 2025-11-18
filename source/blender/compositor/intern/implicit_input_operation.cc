@@ -19,11 +19,11 @@ static ResultType get_implicit_input_result_type(const ImplicitInput implicit_in
     case ImplicitInput::None:
       break;
     case ImplicitInput::TextureCoordinates:
-      return ResultType::Float3;
+      return ResultType::Float2;
   }
 
   BLI_assert_unreachable();
-  return ResultType::Float3;
+  return ResultType::Float2;
 }
 
 ImplicitInputOperation::ImplicitInputOperation(Context &context,
@@ -43,9 +43,9 @@ void ImplicitInputOperation::execute()
       BLI_assert_unreachable();
       break;
     case ImplicitInput::TextureCoordinates:
-      const int2 size = this->context().get_compositing_region_size();
-      result.wrap_external(
-          this->context().cache_manager().texture_coordinates.get(this->context(), size));
+      const int2 size = this->context().get_compositing_domain().data_size;
+      result.wrap_external(this->context().cache_manager().image_coordinates.get(
+          this->context(), size, CoordinatesType::Uniform));
   }
 }
 

@@ -242,7 +242,7 @@ static void curve_to_displist(const Curve *cu,
       dl->charidx = nu->charidx;
       dl->type = (is_cyclic && (dl->nr != 2)) ? DL_POLY : DL_SEGM;
 
-      float(*coords)[3] = (float(*)[3])dl->verts;
+      float (*coords)[3] = (float (*)[3])dl->verts;
       for (int i = 0; i < len; i++) {
         const BPoint *bp = &nu->bp[i];
         copy_v3_v3(coords[i], bp->vec);
@@ -1281,12 +1281,18 @@ static blender::bke::GeometrySet evaluate_curve_type_object(Depsgraph *depsgraph
 
             if ((cu->flag & CU_FILL_CAPS) && !(nu->flagu & CU_NURB_CYCLIC)) {
               if (a == 1) {
-                fillBevelCap(nu, dlb, cur_data - 3 * dlb->nr, &bottom_capbase);
-                copy_v3_v3(bottom_no, bevp->dir);
+                /* Can occur when the `bevp->vec` is NAN, see: #141612. */
+                if (len_squared_v3(bevp->dir) > 0.0f) {
+                  fillBevelCap(nu, dlb, cur_data - 3 * dlb->nr, &bottom_capbase);
+                  copy_v3_v3(bottom_no, bevp->dir);
+                }
               }
               if (a == steps - 1) {
-                fillBevelCap(nu, dlb, cur_data, &top_capbase);
-                negate_v3_v3(top_no, bevp->dir);
+                /* Can occur when the `bevp->vec` is NAN, see: #141612. */
+                if (len_squared_v3(bevp->dir) > 0.0f) {
+                  fillBevelCap(nu, dlb, cur_data, &top_capbase);
+                  negate_v3_v3(top_no, bevp->dir);
+                }
               }
             }
           }
@@ -1297,8 +1303,10 @@ static blender::bke::GeometrySet evaluate_curve_type_object(Depsgraph *depsgraph
 
         if (bottom_capbase.first) {
           BKE_displist_fill(&bottom_capbase, r_dispbase, bottom_no, false);
-          BKE_displist_fill(&top_capbase, r_dispbase, top_no, false);
           BKE_displist_free(&bottom_capbase);
+        }
+        if (top_capbase.first) {
+          BKE_displist_fill(&top_capbase, r_dispbase, top_no, false);
           BKE_displist_free(&top_capbase);
         }
       }

@@ -29,6 +29,13 @@ set(SRC
   intern/versioning_290.cc
   intern/versioning_300.cc
   intern/versioning_400.cc
+  intern/versioning_410.cc
+  intern/versioning_420.cc
+  intern/versioning_430.cc
+  intern/versioning_440.cc
+  intern/versioning_450.cc
+  intern/versioning_500.cc
+  intern/versioning_510.cc
   intern/versioning_common.cc
   intern/versioning_defaults.cc
   intern/versioning_dna.cc
@@ -48,6 +55,7 @@ set(SRC
 
 set(LIB
   PRIVATE bf::animrig
+  PRIVATE bf::asset_system
   PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
   PUBLIC bf::blenloader_core
@@ -67,6 +75,7 @@ set(LIB
   PRIVATE bf::render
   PRIVATE bf::sequencer
   PRIVATE bf::windowmanager
+  PRIVATE bf::extern::xxhash
 )
 
 if(WITH_BUILDINFO)

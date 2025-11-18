@@ -97,14 +97,8 @@ typedef enum eIDPropertyFlag {
  * The tags represent types! This is a dirty way of enabling RTTI. The
  * sig_byte end endian defines aren't really used much.
  */
-
-#ifdef __BIG_ENDIAN__
-/* big endian */
-#  define MAKE_ID2(c, d) ((c) << 8 | (d))
-#else
-/* little endian */
-#  define MAKE_ID2(c, d) ((d) << 8 | (c))
-#endif
+/* NOTE: this is endianness-sensitive. */
+#define MAKE_ID2(c, d) ((d) << 8 | (c))
 
 /**
  * ID from database.
@@ -132,7 +126,6 @@ typedef enum ID_Type {
   ID_LT = MAKE_ID2('L', 'T'),        /* Lattice */
   ID_LA = MAKE_ID2('L', 'A'),        /* Light */
   ID_CA = MAKE_ID2('C', 'A'),        /* Camera */
-  ID_IP = MAKE_ID2('I', 'P'),        /* Ipo (depreciated, replaced by FCurves) */
   ID_KE = MAKE_ID2('K', 'E'),        /* Key (shape key) */
   ID_WO = MAKE_ID2('W', 'O'),        /* World */
   ID_SCR = MAKE_ID2('S', 'R'),       /* bScreen */

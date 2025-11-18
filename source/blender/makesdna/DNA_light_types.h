@@ -16,7 +16,6 @@
 #endif
 
 struct AnimData;
-struct Ipo;
 struct bNodeTree;
 
 typedef struct Light {
@@ -34,9 +33,11 @@ typedef struct Light {
   short type, flag;
   int mode;
 
-  /* Color and energy. */
+  /* Color, temperature and energy. */
   float r, g, b;
+  float temperature;
   float energy;
+  float exposure;
 
   /* Point light. */
   float radius;
@@ -85,7 +86,6 @@ typedef struct Light {
   struct bNodeTree *nodetree;
 
   /* Deprecated. */
-  struct Ipo *ipo DNA_DEPRECATED; /* Old animation system. */
   float energy_deprecated DNA_DEPRECATED;
   float _pad2;
 } Light;
@@ -142,6 +142,8 @@ enum {
   /** Use absolute resolution clamping instead of relative. */
   LA_SHAD_RES_ABSOLUTE = 1 << 22,
   LA_SHADOW_JITTER = 1 << 23,
+  LA_USE_TEMPERATURE = 1 << 24,
+  LA_UNNORMALIZED = 1 << 25,
 };
 
 /** #Light::falloff_type */

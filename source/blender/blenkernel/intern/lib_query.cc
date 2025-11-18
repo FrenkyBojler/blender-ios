@@ -26,7 +26,7 @@
 #include "BKE_main.hh"
 #include "BKE_node.hh"
 
-static CLG_LogRef LOG = {"bke.lib_query"};
+static CLG_LogRef LOG = {"lib.query"};
 
 /* status */
 enum {
@@ -66,7 +66,8 @@ struct LibraryForeachIDData {
   int status;
 
   /* To handle recursion. */
-  GSet *ids_handled; /* All IDs that are either already done, or still in ids_todo stack. */
+  /* All IDs that are either already done, or still in ids_todo stack. */
+  blender::Set<ID *> *ids_handled;
   BLI_LINKSTACK_DECLARE(ids_todo, ID *);
 };
 
@@ -115,7 +116,7 @@ void BKE_lib_query_foreachid_process(LibraryForeachIDData *data,
   }
 
   if (old_id && (flag & IDWALK_RECURSE)) {
-    if (BLI_gset_add((data)->ids_handled, old_id)) {
+    if (data->ids_handled->add(old_id)) {
       if (!(callback_return & IDWALK_RET_STOP_RECURSION)) {
         BLI_LINKSTACK_PUSH(data->ids_todo, old_id);
       }
@@ -191,7 +192,7 @@ void BKE_library_foreach_ID_embedded(LibraryForeachIDData *data, ID **id_pp)
   else if (flag & IDWALK_RECURSE) {
     /* Defer handling into main loop, recursively calling BKE_library_foreach_ID_link in
      * IDWALK_RECURSE case is troublesome, see #49553. */
-    if (BLI_gset_add(data->ids_handled, id)) {
+    if (data->ids_handled->add(id)) {
       BLI_LINKSTACK_PUSH(data->ids_todo, id);
     }
   }
@@ -208,7 +209,7 @@ void BKE_library_foreach_ID_embedded(LibraryForeachIDData *data, ID **id_pp)
 static void library_foreach_ID_data_cleanup(LibraryForeachIDData *data)
 {
   if (data->ids_handled != nullptr) {
-    BLI_gset_free(data->ids_handled, nullptr);
+    MEM_delete(data->ids_handled);
     BLI_LINKSTACK_FREE(data->ids_todo);
   }
 }
@@ -243,10 +244,10 @@ static bool library_foreach_ID_link(Main *bmain,
      * see also comments in #BKE_library_foreach_ID_embedded.
      * This is why we can always create this data here, and do not need to try and re-use it from
      * `inherit_data`. */
-    data.ids_handled = BLI_gset_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, __func__);
+    data.ids_handled = MEM_new<blender::Set<ID *>>(__func__);
     BLI_LINKSTACK_INIT(data.ids_todo);
 
-    BLI_gset_add(data.ids_handled, id);
+    data.ids_handled->add(id);
   }
   else {
     data.ids_handled = nullptr;
@@ -386,6 +387,14 @@ static bool library_foreach_ID_link(Main *bmain,
     }
 
     IDP_foreach_property(id->properties, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
+      BKE_lib_query_idpropertiesForeachIDLink_callback(prop, &data);
+    });
+    if (BKE_lib_query_foreachid_iter_stop(&data)) {
+      library_foreach_ID_data_cleanup(&data);
+      return false;
+    }
+
+    IDP_foreach_property(id->system_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
       BKE_lib_query_idpropertiesForeachIDLink_callback(prop, &data);
     });
     if (BKE_lib_query_foreachid_iter_stop(&data)) {

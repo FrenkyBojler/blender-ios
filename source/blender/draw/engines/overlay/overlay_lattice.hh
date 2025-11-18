@@ -29,12 +29,12 @@ class Lattices : Overlay {
  public:
   void begin_sync(Resources &res, const State &state) final
   {
-    enabled_ = state.is_space_v3d() && state.has_lattice;
+    enabled_ = state.is_space_v3d();
     if (!enabled_) {
       return;
     }
 
-    auto create_sub_pass = [&](const char *name, GPUShader *shader, bool add_weight_tex) {
+    auto create_sub_pass = [&](const char *name, gpu::Shader *shader, bool add_weight_tex) {
       PassMain::Sub &sub_pass = ps_.sub(name);
       sub_pass.shader_set(shader);
       if (add_weight_tex) {
@@ -65,7 +65,7 @@ class Lattices : Overlay {
       return;
     }
 
-    ResourceHandle res_handle = manager.unique_handle(ob_ref);
+    ResourceHandleRange res_handle = manager.unique_handle(ob_ref);
     {
       gpu::Batch *geom = DRW_cache_lattice_wire_get(ob_ref.object, true);
       edit_lattice_wire_ps_->draw(geom, res_handle, res.select_id(ob_ref).get());
@@ -97,7 +97,8 @@ class Lattices : Overlay {
         draw_mat[i][3] = color[i];
       }
       draw_mat[3][3] = 0.0f /* No stipples. */;
-      ResourceHandle res_handle = manager.resource_handle(ob_ref, &draw_mat, nullptr, nullptr);
+      ResourceHandleRange res_handle = manager.resource_handle(
+          ob_ref, &draw_mat, nullptr, nullptr);
       lattice_ps_->draw(geom, res_handle, res.select_id(ob_ref).get());
     }
   }

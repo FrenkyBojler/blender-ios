@@ -62,7 +62,7 @@ class Wireframe : Overlay {
     const bool is_transform = (G.moving & G_TRANSFORM_OBJ) != 0;
     const float wire_threshold = wire_discard_threshold_get(state.overlay.wireframe_threshold);
 
-    GPUTexture **depth_tex = (state.xray_enabled) ? &res.depth_tx : &tmp_depth_tx_;
+    gpu::Texture **depth_tex = (state.xray_enabled) ? &res.depth_tx : &tmp_depth_tx_;
     if (is_selection) {
       depth_tex = &res.dummy_depth_tx;
     }
@@ -81,7 +81,7 @@ class Wireframe : Overlay {
       res.select_bind(pass);
 
       auto shader_pass =
-          [&](GPUShader *shader, const char *name, bool use_coloring, float wire_threshold) {
+          [&](gpu::Shader *shader, const char *name, bool use_coloring, float wire_threshold) {
             auto &sub = pass.sub(name);
             if (res.shaders->wireframe_mesh.get() == shader) {
               sub.specialize_constant(shader, "use_custom_depth_bias", do_smooth_lines);
@@ -100,22 +100,10 @@ class Wireframe : Overlay {
 
       auto coloring_pass = [&](ColoringPass &ps, bool use_color) {
         overlay::ShaderModule &sh = *res.shaders;
-        ps.mesh_ps_ = nullptr;
-        if (state.has_mesh) {
-          ps.mesh_ps_ = shader_pass(sh.wireframe_mesh.get(), "Mesh", use_color, wire_threshold);
-        }
-        ps.mesh_all_edges_ps_ = nullptr;
-        if (state.has_mesh || state.has_volume) {
-          ps.mesh_all_edges_ps_ = shader_pass(sh.wireframe_mesh.get(), "Wire", use_color, 1.0f);
-        }
-        ps.pointcloud_ps_ = nullptr;
-        if (state.has_ptcloud || state.has_volume || state.has_mesh) {
-          ps.pointcloud_ps_ = shader_pass(sh.wireframe_points.get(), "PtCloud", use_color, 1.0f);
-        }
-        ps.curves_ps_ = nullptr;
-        if (state.has_curve) {
-          ps.curves_ps_ = shader_pass(sh.wireframe_curve.get(), "Curve", use_color, 1.0f);
-        }
+        ps.mesh_ps_ = shader_pass(sh.wireframe_mesh.get(), "Mesh", use_color, wire_threshold);
+        ps.mesh_all_edges_ps_ = shader_pass(sh.wireframe_mesh.get(), "Wire", use_color, 1.0f);
+        ps.pointcloud_ps_ = shader_pass(sh.wireframe_points.get(), "PtCloud", use_color, 1.0f);
+        ps.curves_ps_ = shader_pass(sh.wireframe_curve.get(), "Curve", use_color, 1.0f);
       };
 
       coloring_pass(non_colored, false);
@@ -189,7 +177,7 @@ class Wireframe : Overlay {
 
         if (show_surface_wire) {
           if (BKE_sculptsession_use_pbvh_draw(ob_ref.object, state.rv3d)) {
-            ResourceHandle handle = manager.unique_handle(ob_ref);
+            ResourceHandleRange handle = manager.unique_handle(ob_ref);
 
             for (SculptBatch &batch : sculpt_batches_get(ob_ref.object, SCULPT_BATCH_WIREFRAME)) {
               coloring.mesh_all_edges_ps_->draw(batch.batch, handle);
@@ -272,7 +260,7 @@ class Wireframe : Overlay {
 
     eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT;
     int2 render_size = int2(depth_tx.size());
-    tmp_depth_tx_.acquire(render_size, GPU_DEPTH24_STENCIL8, usage);
+    tmp_depth_tx_.acquire(render_size, gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8, usage);
 
     /* WORKAROUND: Nasty framebuffer copy.
      * We should find a way to have nice wireframe without this. */

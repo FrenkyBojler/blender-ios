@@ -312,7 +312,7 @@ static float densfunc(const MetaElem *ball, float x, float y, float z)
   float dist2;
   float dvec[3] = {x, y, z};
 
-  mul_m4_v3((const float(*)[4])ball->imat, dvec);
+  mul_m4_v3((const float (*)[4])ball->imat, dvec);
 
   switch (ball->type) {
     case MB_BALL:
@@ -444,7 +444,7 @@ static void make_face(PROCESS *process, int i1, int i2, int i3, int i4)
 
   if (UNLIKELY(process->totindex == process->curindex)) {
     process->totindex = process->totindex ? (process->totindex * 2) : MBALL_ARRAY_LEN_INIT;
-    process->indices = static_cast<int(*)[4]>(
+    process->indices = static_cast<int (*)[4]>(
         MEM_reallocN(process->indices, sizeof(int[4]) * process->totindex));
   }
 
@@ -1278,9 +1278,9 @@ static void init_meta(Depsgraph *depsgraph, PROCESS *process, Scene *scene, Obje
        *   rotation ->
        *   ml local space
        */
-      mul_m4_series((float(*)[4])new_ml->mat, obinv, bob->object_to_world().ptr(), pos, rot);
+      mul_m4_series((float (*)[4])new_ml->mat, obinv, bob->object_to_world().ptr(), pos, rot);
       /* ml local space -> basis object space */
-      invert_m4_m4((float(*)[4])new_ml->imat, (float(*)[4])new_ml->mat);
+      invert_m4_m4((float (*)[4])new_ml->imat, (float (*)[4])new_ml->mat);
 
       /* rad2 is inverse of squared radius */
       new_ml->rad2 = 1 / (ml->rad * ml->rad);
@@ -1323,7 +1323,7 @@ static void init_meta(Depsgraph *depsgraph, PROCESS *process, Scene *scene, Obje
 
       /* Transformation of meta-elem bounding-box. */
       for (uint i = 0; i < 8; i++) {
-        mul_m4_v3((float(*)[4])new_ml->mat, new_ml->bb->vec[i]);
+        mul_m4_v3((float (*)[4])new_ml->mat, new_ml->bb->vec[i]);
       }
 
       /* Find max and min of transformed bounding-box. */
@@ -1410,15 +1410,20 @@ Mesh *BKE_mball_polygonize(Depsgraph *depsgraph, Scene *scene, Object *ob)
 
   build_bvh_spatial(&process, &process.metaball_bvh, 0, process.totelem, &process.allbb);
 
-  /* Don't polygonize meta-balls with too high resolution (base meta-ball too small).
-   * NOTE: Epsilon was 0.0001f but this was giving problems for blood animation for
-   * the open movie "Sintel", using 0.00001f. */
-  if (ob->scale[0] < 0.00001f * (process.allbb.max[0] - process.allbb.min[0]) ||
-      ob->scale[1] < 0.00001f * (process.allbb.max[1] - process.allbb.min[1]) ||
-      ob->scale[2] < 0.00001f * (process.allbb.max[2] - process.allbb.min[2]))
   {
-    freepolygonize(&process);
-    return nullptr;
+    /* Don't polygonize meta-balls with too high resolution (base meta-ball too small).
+     * NOTE: Epsilon was 0.0001f but this was giving problems for blood animation for
+     * the open movie "Sintel", using 0.00001f. */
+    const float eps = 0.00001f;
+    const blender::float4x4 &object_to_world = ob->object_to_world();
+    for (int i = 0; i < 3; i++) {
+      if (blender::math::length_squared(object_to_world[i].xyz()) <
+          blender::math::square(eps * (process.allbb.max[i] - process.allbb.min[i])))
+      {
+        freepolygonize(&process);
+        return nullptr;
+      }
+    }
   }
 
   polygonize(&process);

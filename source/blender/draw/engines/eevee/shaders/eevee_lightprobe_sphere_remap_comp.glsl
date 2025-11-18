@@ -4,7 +4,7 @@
 
 /* Shader to convert cube-map to octahedral projection. */
 
-#include "infos/eevee_lightprobe_sphere_info.hh"
+#include "infos/eevee_lightprobe_sphere_infos.hh"
 
 COMPUTE_SHADER_CREATE_INFO(eevee_lightprobe_sphere_remap)
 
@@ -121,7 +121,7 @@ void main()
   float3 radiance_sun = radiance - radiance_clamped;
   radiance = radiance_clamped;
 
-  if (!any(greaterThanEqual(local_texel, int2(write_coord.extent)))) {
+  if (do_remap_mip0 && !any(greaterThanEqual(local_texel, int2(write_coord.extent)))) {
     float clamp_indirect = uniform_buf.clamp.surface_indirect;
     float3 out_radiance = colorspace_brightness_clamp_max(radiance, clamp_indirect);
 
@@ -137,13 +137,15 @@ void main()
     /* OpenGL/Intel drivers have known issues where it isn't able to compile barriers inside for
      * loops. Unroll is needed as driver might decide to not unroll in shaders with more
      * complexity. */
-    [[gpu::unroll(10)]] for (uint stride = group_size / 2; stride > 0; stride /= 2)
+    [[gpu::unroll]] for (uint i = 0; i < 10; i++)
     {
       barrier();
+      uint stride = group_size >> (i + 1u);
       if (local_index < stride) {
         local_radiance[local_index] += local_radiance[local_index + stride];
       }
     }
+    barrier();
 
     if (gl_LocalInvocationIndex == 0u) {
       out_sun[work_group_index].radiance = local_radiance[0].xyz;
@@ -158,9 +160,10 @@ void main()
     /* OpenGL/Intel drivers have known issues where it isn't able to compile barriers inside for
      * loops. Unroll is needed as driver might decide to not unroll in shaders with more
      * complexity. */
-    [[gpu::unroll(10)]] for (uint stride = group_size / 2; stride > 0; stride /= 2)
+    [[gpu::unroll]] for (uint i = 0; i < 10; i++)
     {
       barrier();
+      uint stride = group_size >> (i + 1u);
       if (local_index < stride) {
         local_direction[local_index] += local_direction[local_index + stride];
       }
@@ -179,13 +182,15 @@ void main()
     /* OpenGL/Intel drivers have known issues where it isn't able to compile barriers inside for
      * loops. Unroll is needed as driver might decide to not unroll in shaders with more
      * complexity. */
-    [[gpu::unroll(10)]] for (uint stride = group_size / 2; stride > 0; stride /= 2)
+    [[gpu::unroll]] for (uint i = 0; i < 10; i++)
     {
       barrier();
+      uint stride = group_size >> (i + 1u);
       if (local_index < stride) {
         local_radiance[local_index] += local_radiance[local_index + stride];
       }
     }
+    barrier();
 
     if (gl_LocalInvocationIndex == 0u) {
       /* Find the middle point of the whole thread-group. Use it as light vector.

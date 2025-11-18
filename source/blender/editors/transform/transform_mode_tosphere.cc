@@ -10,7 +10,7 @@
 
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_task.hh"
 
 #include "MEM_guardedalloc.h"
@@ -19,9 +19,9 @@
 
 #include "ED_screen.hh"
 
-#include "UI_interface.hh"
-
 #include "BLT_translation.hh"
+
+#include "UI_interface_types.hh"
 
 #include "transform.hh"
 #include "transform_convert.hh"
@@ -166,11 +166,11 @@ static void applyToSphere(TransInfo *t)
 
     outputNumInput(&(t->num), c, t->scene->unit);
 
-    SNPRINTF(str, IFACE_("To Sphere: %s %s"), c, t->proptext);
+    SNPRINTF_UTF8(str, IFACE_("To Sphere: %s %s"), c, t->proptext);
   }
   else {
     /* Default header print. */
-    SNPRINTF(str, IFACE_("To Sphere: %.4f %s"), ratio, t->proptext);
+    SNPRINTF_UTF8(str, IFACE_("To Sphere: %.4f %s"), ratio, t->proptext);
   }
 
   const ToSphereInfo *to_sphere_info = static_cast<const ToSphereInfo *>(t->custom.mode.data);
@@ -203,10 +203,10 @@ static void initToSphere(TransInfo *t, wmOperator * /*op*/)
 
   t->idx_max = 0;
   t->num.idx_max = 0;
-  t->snap[0] = 0.1f;
-  t->snap[1] = t->snap[0] * 0.1f;
+  t->increment[0] = 0.1f;
+  t->increment_precision = 0.1f;
 
-  copy_v3_fl(t->num.val_inc, t->snap[0]);
+  copy_v3_fl(t->num.val_inc, t->increment[0]);
   t->num.unit_sys = t->scene->unit.system;
   t->num.unit_type[0] = B_UNIT_NONE;
 

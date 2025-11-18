@@ -14,7 +14,7 @@
 #include "DNA_object_force_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_kdtree.h"
+#include "BLI_kdtree.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_base_safe.h"
 #include "BLI_math_rotation.h"
@@ -1667,10 +1667,10 @@ BoidState *boid_new_state(BoidSettings *boids)
 
   state->id = boids->last_state_id++;
   if (state->id) {
-    SNPRINTF(state->name, "State %i", state->id);
+    SNPRINTF_UTF8(state->name, "State %i", state->id);
   }
   else {
-    STRNCPY(state->name, "State");
+    STRNCPY_UTF8(state->name, "State");
   }
 
   state->rule_fuzziness = 0.5;

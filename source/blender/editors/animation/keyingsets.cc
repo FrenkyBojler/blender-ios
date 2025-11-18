@@ -28,6 +28,7 @@
 #include "ED_screen.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "WM_api.hh"
@@ -427,13 +428,10 @@ static wmOperatorStatus keyingset_active_menu_invoke(bContext *C,
                                                      wmOperator *op,
                                                      const wmEvent * /*event*/)
 {
-  uiPopupMenu *pup;
-  uiLayout *layout;
-
   /* Call the menu, which will call this operator again, hence the canceled. */
-  pup = UI_popup_menu_begin(C, op->type->name, ICON_NONE);
-  layout = UI_popup_menu_layout(pup);
-  uiItemsEnumO(layout, "ANIM_OT_keying_set_active_set", "type");
+  uiPopupMenu *pup = UI_popup_menu_begin(C, op->type->name, ICON_NONE);
+  blender::ui::Layout &layout = *UI_popup_menu_layout(pup);
+  layout.op_enum("ANIM_OT_keying_set_active_set", "type");
   UI_popup_menu_end(C, pup);
 
   return OPERATOR_INTERFACE;

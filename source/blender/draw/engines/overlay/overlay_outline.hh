@@ -69,43 +69,37 @@ class Outline : Overlay {
       pass.clear_color_depth_stencil(float4(0.0f), 1.0f, 0x0);
       pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL,
                      state.clipping_plane_count);
-      prepass_curves_ps_ = nullptr;
-      if (state.has_curve) {
+      {
         auto &sub = pass.sub("Curves");
         sub.shader_set(res.shaders->outline_prepass_curves.get());
         sub.push_constant("is_transform", is_transform);
         prepass_curves_ps_ = &sub;
       }
-      prepass_pointcloud_ps_ = nullptr;
-      if (state.has_ptcloud) {
+      {
         auto &sub = pass.sub("PointCloud");
         sub.shader_set(res.shaders->outline_prepass_pointcloud.get());
         sub.push_constant("is_transform", is_transform);
         prepass_pointcloud_ps_ = &sub;
       }
-      prepass_gpencil_ps_ = nullptr;
-      if (state.has_gpencil) {
+      {
         auto &sub = pass.sub("GreasePencil");
         sub.shader_set(res.shaders->outline_prepass_gpencil.get());
         sub.push_constant("is_transform", is_transform);
         prepass_gpencil_ps_ = &sub;
       }
-      prepass_mesh_ps_ = nullptr;
-      if (state.has_mesh) {
+      {
         auto &sub = pass.sub("Mesh");
         sub.shader_set(res.shaders->outline_prepass_mesh.get());
         sub.push_constant("is_transform", is_transform);
         prepass_mesh_ps_ = &sub;
       }
-      prepass_volume_ps_ = nullptr;
-      if (state.has_volume) {
+      {
         auto &sub = pass.sub("Volume");
         sub.shader_set(res.shaders->outline_prepass_mesh.get());
         sub.push_constant("is_transform", is_transform);
         prepass_volume_ps_ = &sub;
       }
-      prepass_wire_ps_ = nullptr;
-      if (state.has_mesh) {
+      {
         auto &sub = pass.sub("Wire");
         sub.shader_set(res.shaders->outline_prepass_wire.get());
         sub.push_constant("is_transform", is_transform);
@@ -147,10 +141,14 @@ class Outline : Overlay {
 
     gpu::Batch *geom;
     switch (ob_ref.object->type) {
-      case OB_CURVES:
-        geom = curves_sub_pass_setup(*prepass_curves_ps_, state.scene, ob_ref.object);
+      case OB_CURVES: {
+        const char *error = nullptr;
+        /* The error string will always have been printed by the engine already.
+         * No need to display it twice. */
+        geom = curves_sub_pass_setup(*prepass_curves_ps_, state.scene, ob_ref.object, error);
         prepass_curves_ps_->draw(geom, manager.unique_handle(ob_ref));
         break;
+      }
       case OB_GREASE_PENCIL:
         GreasePencil::draw_grease_pencil(
             res, *prepass_gpencil_ps_, state.scene, ob_ref.object, manager.unique_handle(ob_ref));
@@ -216,8 +214,8 @@ class Outline : Overlay {
 
       for (FlatObjectRef flag_ob_ref : flat_objects_) {
         flag_ob_ref.if_flat_axis_orthogonal_to_view(
-            manager, view, [&](gpu::Batch *geom, ResourceHandle handle) {
-              pass.draw_expand(geom, GPU_PRIM_LINES, 1, 1, handle);
+            manager, view, [&](gpu::Batch *geom, ResourceIndex resource_index) {
+              pass.draw_expand(geom, GPU_PRIM_LINES, 1, 1, resource_index);
             });
       }
     }
@@ -245,8 +243,8 @@ class Outline : Overlay {
     int2 render_size = int2(res.depth_tx.size());
 
     eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT;
-    tmp_depth_tx_.acquire(render_size, GPU_DEPTH24_STENCIL8, usage);
-    object_id_tx_.acquire(render_size, GPU_R16UI, usage);
+    tmp_depth_tx_.acquire(render_size, gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8, usage);
+    object_id_tx_.acquire(render_size, gpu::TextureFormat::UINT_16, usage);
 
     prepass_fb_.ensure(GPU_ATTACHMENT_TEXTURE(tmp_depth_tx_),
                        GPU_ATTACHMENT_TEXTURE(object_id_tx_));

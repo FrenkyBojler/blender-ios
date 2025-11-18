@@ -25,6 +25,7 @@ float closure_apparent_roughness_get(ClosureUndetermined cl)
     case CLOSURE_NONE_ID:
       return 0.0f;
   }
+  return 0.0f;
 }
 
 float closure_evaluate_pdf(ClosureUndetermined cl, float3 L, float3 V, float thickness)
@@ -50,7 +51,7 @@ float closure_evaluate_pdf(ClosureUndetermined cl, float3 L, float3 V, float thi
     case CLOSURE_NONE_ID:
       break;
   }
-  assert(0);
+  assert(false);
   return 0.0f;
 }
 
@@ -66,7 +67,7 @@ LightProbeRay bxdf_lightprobe_ray(ClosureUndetermined cl, float3 P, float3 V, fl
     case CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID:
       break;
     case CLOSURE_NONE_ID:
-      assert(0);
+      assert(false);
       break;
   }
 
@@ -81,15 +82,13 @@ LightProbeRay bxdf_lightprobe_ray(ClosureUndetermined cl, float3 P, float3 V, fl
     case CLOSURE_BSDF_MICROFACET_GGX_REFRACTION_ID:
       return bxdf_ggx_lightprobe_transmission(to_closure_refraction(cl), V, thickness);
     case CLOSURE_NONE_ID:
-      assert(0);
+      assert(false);
       break;
   }
 
   LightProbeRay ray;
   return ray;
 }
-
-#ifdef EEVEE_UTILITY_TX
 
 ClosureLight closure_light_new_ex(ClosureUndetermined cl,
                                   float3 V,
@@ -148,5 +147,3 @@ ClosureLight closure_light_new(ClosureUndetermined cl, float3 V)
 {
   return closure_light_new_ex(cl, V, 0.0f, false);
 }
-
-#endif

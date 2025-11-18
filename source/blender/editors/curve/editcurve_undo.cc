@@ -40,7 +40,7 @@
 using blender::Vector;
 
 /** We only need this locally. */
-static CLG_LogRef LOG = {"ed.undo.curve"};
+static CLG_LogRef LOG = {"undo.curve"};
 
 /* -------------------------------------------------------------------- */
 /** \name Undo Conversion
@@ -51,7 +51,7 @@ namespace {
 struct UndoCurve {
   ListBase nubase;
   int actvert;
-  GHash *undoIndex;
+  CVKeyIndexMap *undoIndex;
 
   /* Historical note: Once upon a time, this code also made a backup of F-Curves, in an attempt to
    * enable undo of animation changes. This was very limited, as it only backed up the animation

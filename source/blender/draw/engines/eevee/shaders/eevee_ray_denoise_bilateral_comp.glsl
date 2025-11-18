@@ -15,14 +15,15 @@
  * https://www.ea.com/seed/news/seed-dd18-presentation-slides-raytracing
  */
 
-#include "infos/eevee_tracing_info.hh"
+#include "infos/eevee_tracing_infos.hh"
 
 COMPUTE_SHADER_CREATE_INFO(eevee_ray_denoise_bilateral)
 
 #include "draw_view_lib.glsl"
 #include "eevee_closure_lib.glsl"
 #include "eevee_filter_lib.glsl"
-#include "eevee_gbuffer_lib.glsl"
+#include "eevee_gbuffer_read_lib.glsl"
+#include "eevee_reverse_z_lib.glsl"
 #include "eevee_sampling_lib.glsl"
 #include "gpu_shader_codegen_lib.glsl"
 #include "gpu_shader_math_vector_lib.glsl"
@@ -31,11 +32,11 @@ COMPUTE_SHADER_CREATE_INFO(eevee_ray_denoise_bilateral)
 /* In order to remove some more fireflies, "tone-map" the color samples during the accumulation. */
 float3 to_accumulation_space(float3 color)
 {
-  return color / (1.0f + reduce_add(color));
+  return color / (1.0f + reduce_max(color));
 }
 float3 from_accumulation_space(float3 color)
 {
-  return color / (1.0f - reduce_add(color));
+  return color / (1.0f - reduce_max(color));
 }
 
 void main()
@@ -45,11 +46,10 @@ void main()
   int2 texel_fullres = int2(gl_LocalInvocationID.xy + tile_coord * tile_size);
   float2 center_uv = (float2(texel_fullres) + 0.5f) * uniform_buf.raytrace.full_resolution_inv;
 
-  float center_depth = texelFetch(depth_tx, texel_fullres, 0).r;
+  float center_depth = reverse_z::read(texelFetch(depth_tx, texel_fullres, 0).r);
   float3 center_P = drw_point_screen_to_world(float3(center_uv, center_depth));
 
-  ClosureUndetermined center_closure = gbuffer_read_bin(
-      gbuf_header_tx, gbuf_closure_tx, gbuf_normal_tx, texel_fullres, closure_index);
+  ClosureUndetermined center_closure = gbuffer::read_bin(texel_fullres, closure_index);
 
   if (center_closure.type == CLOSURE_NONE_ID) {
     /* Output nothing. This shouldn't even be loaded. */
@@ -77,7 +77,7 @@ void main()
     return;
   }
 
-  float2 noise = interlieved_gradient_noise(
+  float2 noise = interleaved_gradient_noise(
       float2(texel_fullres) + 0.5f, float2(3, 5), float2(0.0f));
   noise += sampling_rng_2D_get(SAMPLING_RAYTRACE_W);
 
@@ -97,7 +97,7 @@ void main()
       continue;
     }
 
-    float sample_depth = texelFetch(depth_tx, sample_texel, 0).r;
+    float sample_depth = reverse_z::read(texelFetch(depth_tx, sample_texel, 0).r);
     float2 sample_uv = (float2(sample_texel) + 0.5f) * uniform_buf.raytrace.full_resolution_inv;
     float3 sample_P = drw_point_screen_to_world(float3(sample_uv, sample_depth));
 
@@ -113,8 +113,7 @@ void main()
       continue;
     }
 
-    ClosureUndetermined sample_closure = gbuffer_read_bin(
-        gbuf_header_tx, gbuf_closure_tx, gbuf_normal_tx, sample_texel, closure_index);
+    ClosureUndetermined sample_closure = gbuffer::read_bin(sample_texel, closure_index);
 
     if (sample_closure.type == CLOSURE_NONE_ID) {
       continue;

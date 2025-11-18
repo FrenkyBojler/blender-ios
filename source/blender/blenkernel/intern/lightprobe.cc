@@ -68,6 +68,7 @@ IDTypeInfo IDType_ID_LP = {
     /*foreach_id*/ lightprobe_foreach_id,
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ lightprobe_blend_write,
@@ -107,7 +108,7 @@ LightProbe *BKE_lightprobe_add(Main *bmain, const char *name)
 {
   LightProbe *probe;
 
-  probe = static_cast<LightProbe *>(BKE_id_new(bmain, ID_LP, name));
+  probe = BKE_id_new<LightProbe>(bmain, name);
 
   return probe;
 }

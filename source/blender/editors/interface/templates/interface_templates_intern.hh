@@ -15,12 +15,12 @@
 #include "RNA_access.hh"
 #include "RNA_types.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 struct bContext;
 
 #define CURVE_ZOOM_MAX (1.0f / 25.0f)
-#define ERROR_LIBDATA_MESSAGE N_("Can't edit external library data")
+#define ERROR_LIBDATA_MESSAGE N_("Cannot edit external library data")
 
 /* Defines for templateID/TemplateSearch. */
 #define TEMPLATE_SEARCH_TEXTBUT_MIN_WIDTH (UI_UNIT_X * 4)
@@ -52,7 +52,7 @@ int template_search_textbut_height();
  * Add a block button for the search menu for templateID and templateSearch.
  */
 void template_add_button_search_menu(const bContext *C,
-                                     uiLayout *layout,
+                                     blender::ui::Layout *layout,
                                      uiBlock *block,
                                      PointerRNA *ptr,
                                      PropertyRNA *prop,

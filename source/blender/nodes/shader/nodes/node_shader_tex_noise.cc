@@ -13,7 +13,7 @@
 
 #include "RNA_access.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 namespace blender::nodes::node_shader_tex_noise_cc {
@@ -23,7 +23,7 @@ NODE_STORAGE_FUNCS(NodeTexNoise)
 static void sh_node_tex_noise_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
-  b.add_input<decl::Vector>("Vector").implicit_field(implicit_field_inputs::position);
+  b.add_input<decl::Vector>("Vector").implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD);
   b.add_input<decl::Float>("W").min(-1000.0f).max(1000.0f).make_available([](bNode &node) {
     /* Default to 1 instead of 4, because it is much faster. */
     node_storage(node).dimensions = 1;
@@ -67,16 +67,16 @@ static void sh_node_tex_noise_declare(NodeDeclarationBuilder &b)
       .max(1000.0f)
       .default_value(0.0f)
       .description("Amount of distortion");
-  b.add_output<decl::Float>("Fac").no_muted_links();
+  b.add_output<decl::Float>("Factor", "Fac").no_muted_links();
   b.add_output<decl::Color>("Color").no_muted_links();
 }
 
 static void node_shader_buts_tex_noise(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "noise_dimensions", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-  uiItemR(layout, ptr, "noise_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout->prop(ptr, "noise_dimensions", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout->prop(ptr, "noise_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
   if (ELEM(RNA_enum_get(ptr, "noise_type"), SHD_NOISE_FBM)) {
-    uiItemR(layout, ptr, "normalize", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+    layout->prop(ptr, "normalize", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
   }
 }
 
@@ -439,16 +439,16 @@ NODE_SHADER_MATERIALX_BEGIN
   NodeItem scale = get_input_value("Scale", NodeItem::Type::Float);
   NodeItem detail = get_input_default("Detail", NodeItem::Type::Float);
   NodeItem lacunarity = get_input_value("Lacunarity", NodeItem::Type::Float);
+  /* Empirically, higher octaves lead to NaNs on e.g. Metal and NVIDIA. */
+  const int octaves = int(math::clamp(detail.value->asA<float>(), 1.0f, 13.0f));
 
   NodeItem position = create_node("position", NodeItem::Type::Vector3);
   position = position * scale;
 
-  return create_node("fractal3d",
-                     STREQ(socket_out_->identifier, "Fac") ? NodeItem::Type::Float :
-                                                             NodeItem::Type::Color3,
-                     {{"position", position},
-                      {"octaves", val(int(detail.value->asA<float>()))},
-                      {"lacunarity", lacunarity}});
+  return create_node(
+      "fractal3d",
+      STREQ(socket_out_->identifier, "Fac") ? NodeItem::Type::Float : NodeItem::Type::Color3,
+      {{"position", position}, {"octaves", val(octaves)}, {"lacunarity", lacunarity}});
 }
 #endif
 NODE_SHADER_MATERIALX_END
@@ -475,6 +475,7 @@ void register_node_type_sh_tex_noise()
   ntype.updatefunc = file_ns::node_shader_update_tex_noise;
   ntype.build_multi_function = file_ns::sh_node_noise_build_multi_function;
   ntype.materialx_fn = file_ns::node_shader_materialx;
+  blender::bke::node_type_size(ntype, 145, 140, NODE_DEFAULT_MAX_WIDTH);
 
   blender::bke::node_register_type(ntype);
 }

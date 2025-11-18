@@ -18,6 +18,7 @@
 #include "BKE_action.hh"
 #include "BKE_anim_data.hh"
 
+#include "BLI_enum_flags.hh"
 #include "BLI_span.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
@@ -647,13 +648,6 @@ class Strip : public ::ActionStrip {
    */
   template<typename T> const T &data(const Action &owning_action) const;
   template<typename T> T &data(Action &owning_action);
-
-  /**
-   * Remove all data belonging to the given slot.
-   *
-   * This is typically only called from #Layer::slot_data_remove().
-   */
-  void slot_data_remove(Action &owning_action, slot_handle_t slot_handle);
 };
 static_assert(sizeof(Strip) == sizeof(::ActionStrip),
               "DNA struct and its C++ wrapper must have the same size");
@@ -697,7 +691,6 @@ class Layer : public ::ActionLayer {
   enum class Flags : uint8_t {
     /* Set by default, cleared to mute. */
     Enabled = (1 << 0),
-    /* When adding/removing a flag, also update the ENUM_OPERATORS() invocation below. */
   };
 
   Flags flags() const
@@ -748,13 +741,6 @@ class Layer : public ::ActionLayer {
    */
   bool strip_remove(Action &owning_action, Strip &strip);
 
-  /**
-   * Remove all data belonging to the given slot.
-   *
-   * This is typically only called from #Action::slot_remove().
-   */
-  void slot_data_remove(Action &owning_action, slot_handle_t slot_handle);
-
  protected:
   /**
    * Return the index of `strip` in this layer's strip array, or -1 if not found
@@ -765,7 +751,7 @@ class Layer : public ::ActionLayer {
 static_assert(sizeof(Layer) == sizeof(::ActionLayer),
               "DNA struct and its C++ wrapper must have the same size");
 
-ENUM_OPERATORS(Layer::Flags, Layer::Flags::Enabled);
+ENUM_OPERATORS(Layer::Flags);
 
 /**
  * Identifier for a sub-set of the animation data inside an Action.
@@ -888,8 +874,6 @@ class Slot : public ::ActionSlot {
     Selected = (1 << 1),
     /** The active Slot for this Action. Set via a method on the Action. */
     Active = (1 << 2),
-    /* When adding/removing a flag, also update the ENUM_OPERATORS() invocation,
-     * all the way below the Slot class. */
   };
   Flags flags() const;
   bool is_expanded() const;
@@ -975,7 +959,7 @@ class Slot : public ::ActionSlot {
 };
 static_assert(sizeof(Slot) == sizeof(::ActionSlot),
               "DNA struct and its C++ wrapper must have the same size");
-ENUM_OPERATORS(Slot::Flags, Slot::Flags::Active);
+ENUM_OPERATORS(Slot::Flags);
 
 /**
  * Keyframe animation data for a keyframe strip.
@@ -1036,8 +1020,6 @@ class StripKeyframeData : public ::ActionStripKeyframeData {
 
   /**
    * Remove all strip data for the given slot.
-   *
-   * Typically only called from #Strip::slot_data_remove().
    */
   void slot_data_remove(slot_handle_t slot_handle);
 

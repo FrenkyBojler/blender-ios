@@ -11,6 +11,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
+#include "BLI_math_base.h"
 #include "BLI_rect.h"
 
 #include "DNA_anim_types.h"
@@ -127,8 +128,8 @@ void get_graph_keyframe_extents(bAnimContext *ac,
         *xmax += 0.0005f;
       }
       if ((ymin && ymax) && (fabsf(*ymax - *ymin) < 0.001f)) {
-        *ymin -= 0.0005f;
-        *ymax += 0.0005f;
+        *ymin -= 0.05f;
+        *ymax += 0.05f;
       }
     }
     else {

@@ -39,10 +39,11 @@ class ImagePrepass : Overlay {
     ps_.init();
     ps_.state_set(DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_ALWAYS);
     ps_.shader_set(res.shaders->mesh_edit_depth.get());
+    ps_.push_constant("retopology_offset", 0.0f);
     ps_.draw(res.shapes.image_quad.get());
   }
 
-  void draw_on_render(GPUFrameBuffer *framebuffer, Manager &manager, View &view) final
+  void draw_on_render(gpu::FrameBuffer *framebuffer, Manager &manager, View &view) final
   {
     if (!enabled_) {
       return;
@@ -78,11 +79,8 @@ class Prepass : Overlay {
       /* Not used. But release the data. */
       ps_.init();
       mesh_ps_ = nullptr;
-      mesh_flat_ps_ = nullptr;
-      hair_ps_ = nullptr;
       curves_ps_ = nullptr;
       pointcloud_ps_ = nullptr;
-      grease_pencil_ps_ = nullptr;
       return;
     }
 
@@ -97,39 +95,33 @@ class Prepass : Overlay {
     ps_.state_set(DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL | backface_cull_state,
                   state.clipping_plane_count);
     res.select_bind(ps_);
-    mesh_ps_ = nullptr;
-    if (state.has_mesh || state.has_volume) {
+    {
       auto &sub = ps_.sub("Mesh");
       sub.shader_set(res.is_selection() ? res.shaders->depth_mesh_conservative.get() :
                                           res.shaders->depth_mesh.get());
       mesh_ps_ = &sub;
     }
-    mesh_flat_ps_ = nullptr;
-    if (state.has_mesh) {
+    {
       auto &sub = ps_.sub("MeshFlat");
       sub.shader_set(res.shaders->depth_mesh.get());
       mesh_flat_ps_ = &sub;
     }
-    hair_ps_ = nullptr;
-    if (state.has_particles) {
+    {
       auto &sub = ps_.sub("Hair");
       sub.shader_set(res.shaders->depth_mesh.get());
       hair_ps_ = &sub;
     }
-    curves_ps_ = nullptr;
-    if (state.has_curve) {
+    {
       auto &sub = ps_.sub("Curves");
       sub.shader_set(res.shaders->depth_curves.get());
       curves_ps_ = &sub;
     }
-    pointcloud_ps_ = nullptr;
-    if (state.has_ptcloud) {
+    {
       auto &sub = ps_.sub("PointCloud");
       sub.shader_set(res.shaders->depth_pointcloud.get());
       pointcloud_ps_ = &sub;
     }
-    grease_pencil_ps_ = nullptr;
-    if (state.has_gpencil) {
+    {
       auto &sub = ps_.sub("GreasePencil");
       sub.shader_set(res.shaders->depth_grease_pencil.get());
       grease_pencil_ps_ = &sub;
@@ -138,9 +130,13 @@ class Prepass : Overlay {
 
   void particle_sync(Manager &manager, const ObjectRef &ob_ref, Resources &res, const State &state)
   {
+    if (state.skip_particles) {
+      return;
+    }
+
     Object *ob = ob_ref.object;
 
-    ResourceHandle handle = {0};
+    ResourceHandleRange handle = {};
 
     LISTBASE_FOREACH (ParticleSystem *, psys, &ob->particlesystem) {
       if (!DRW_object_is_visible_psys_in_active_context(ob, psys)) {
@@ -154,9 +150,8 @@ class Prepass : Overlay {
           if ((state.is_wireframe_mode == false) && (part->draw_as == PART_DRAW_REND)) {
             /* Case where the render engine should have rendered it, but we need to draw it for
              * selection purpose. */
-            if (handle.raw == 0u) {
-              handle = manager.resource_handle_for_psys(ob_ref,
-                                                        DRW_particles_dupli_matrix_get(ob_ref));
+            if (!handle.is_valid()) {
+              handle = manager.resource_handle_for_psys(ob_ref, ob_ref.particles_matrix());
             }
 
             select::ID select_id = use_material_slot_selection_ ?
@@ -164,7 +159,7 @@ class Prepass : Overlay {
                                        res.select_id(ob_ref);
 
             gpu::Batch *geom = DRW_cache_particles_get_hair(ob, psys, nullptr);
-            hair_ps_->draw(geom, handle, select_id.get());
+            mesh_ps_->draw(geom, handle, select_id.get());
             break;
           }
           break;
@@ -177,7 +172,7 @@ class Prepass : Overlay {
 
   void sculpt_sync(Manager &manager, const ObjectRef &ob_ref, Resources &res)
   {
-    ResourceHandle handle = manager.resource_handle_for_sculpt(ob_ref);
+    ResourceHandleRange handle = manager.unique_handle_for_sculpt(ob_ref);
 
     for (SculptBatch &batch : sculpt_batches_get(ob_ref.object, SCULPT_BATCH_DEFAULT)) {
       select::ID select_id = use_material_slot_selection_ ?
@@ -260,10 +255,14 @@ class Prepass : Overlay {
         geom_single = pointcloud_sub_pass_setup(*pointcloud_ps_, ob_ref.object);
         pass = pointcloud_ps_;
         break;
-      case OB_CURVES:
-        geom_single = curves_sub_pass_setup(*curves_ps_, state.scene, ob_ref.object);
+      case OB_CURVES: {
+        const char *error = nullptr;
+        /* The error string will always have been printed by the engine already.
+         * No need to display it twice. */
+        geom_single = curves_sub_pass_setup(*curves_ps_, state.scene, ob_ref.object, error);
         pass = curves_ps_;
         break;
+      }
       case OB_GREASE_PENCIL:
         if (!res.is_selection() && state.is_render_depth_available) {
           /* Disable during display, only enable for selection.
@@ -285,13 +284,19 @@ class Prepass : Overlay {
       return;
     }
 
-    ResourceHandle res_handle = manager.unique_handle(ob_ref);
+    ResourceHandleRange res_handle = manager.unique_handle(ob_ref);
 
     for (int material_id : geom_list.index_range()) {
+      /* Meshes with more than 16 materials can have nullptr in the geometry list as materials are
+       * not filled for unused materials indices. We should actually use `material_indices_used`
+       * but these are only available for meshes. */
+      if (geom_list[material_id] == nullptr) {
+        continue;
+      }
+
       select::ID select_id = use_material_slot_selection_ ?
                                  res.select_id(ob_ref, (material_id + 1) << 16) :
                                  res.select_id(ob_ref);
-
       if (res.is_selection() && (pass == mesh_ps_)) {
         /* Conservative shader needs expanded draw-call. */
         pass->draw_expand(

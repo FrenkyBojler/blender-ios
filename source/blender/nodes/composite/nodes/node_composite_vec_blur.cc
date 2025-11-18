@@ -13,7 +13,6 @@
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 
-#include "UI_interface.hh"
 #include "UI_resources.hh"
 
 #include "GPU_compute.hh"
@@ -34,37 +33,27 @@ namespace blender::nodes::node_composite_vec_blur_cc {
 
 static void cmp_node_vec_blur_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
   b.add_input<decl::Color>("Image")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
-      .compositor_domain_priority(0);
-  b.add_input<decl::Float>("Z").default_value(0.0f).min(0.0f).compositor_domain_priority(2);
+      .hide_value()
+      .structure_type(StructureType::Dynamic);
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic).align_with_previous();
+
   b.add_input<decl::Vector>("Speed")
+      .dimensions(4)
       .default_value({0.0f, 0.0f, 0.0f})
       .min(0.0f)
       .max(1.0f)
       .subtype(PROP_VELOCITY)
-      .compositor_domain_priority(1);
-  b.add_input<decl::Int>("Samples")
-      .default_value(32)
-      .min(1)
-      .max(256)
-      .description("The number of samples used to approximate the motion blur")
-      .compositor_expects_single_value();
-  b.add_input<decl::Float>("Shutter")
-      .default_value(0.5f)
-      .min(0.0f)
-      .description("Time between shutter opening and closing in frames")
-      .compositor_expects_single_value();
-
-  b.add_output<decl::Color>("Image");
-}
-
-static void node_composit_init_vecblur(bNodeTree * /*ntree*/, bNode *node)
-{
-  /* All members are deprecated and needn't be set, but the data is still allocated for forward
-   * compatibility. */
-  NodeBlurData *nbd = MEM_callocN<NodeBlurData>(__func__);
-  node->storage = nbd;
+      .structure_type(StructureType::Dynamic);
+  b.add_input<decl::Float>("Z").default_value(0.0f).min(0.0f).structure_type(
+      StructureType::Dynamic);
+  b.add_input<decl::Int>("Samples").default_value(32).min(1).max(256).description(
+      "The number of samples used to approximate the motion blur");
+  b.add_input<decl::Float>("Shutter").default_value(0.5f).min(0.0f).description(
+      "Time between shutter opening and closing in frames");
 }
 
 using namespace blender::compositor;
@@ -113,7 +102,7 @@ static Result compute_max_tile_velocity_cpu(Context &context, const Result &velo
   }
 
   const int2 tile_size = int2(MOTION_BLUR_TILE_SIZE);
-  const int2 velocity_size = velocity_image.domain().size;
+  const int2 velocity_size = velocity_image.domain().data_size;
   const int2 tiles_count = math::divide_ceil(velocity_size, tile_size);
   Result output = context.create_result(ResultType::Float4);
   output.allocate_texture(Domain(tiles_count));
@@ -204,7 +193,7 @@ static Result dilate_max_velocity_cpu(Context &context,
     return output;
   }
 
-  const int2 size = max_tile_velocity.domain().size;
+  const int2 size = max_tile_velocity.domain().data_size;
   Result output = context.create_result(ResultType::Float4);
   output.allocate_texture(Domain(size));
 
@@ -429,7 +418,7 @@ static void motion_blur_cpu(const Result &input_image,
                             const int samples_count,
                             const float shutter_speed)
 {
-  const int2 size = input_image.domain().size;
+  const int2 size = input_image.domain().data_size;
   threading::parallel_for(IndexRange(size.y), 1, [&](const IndexRange sub_y_range) {
     for (const int64_t y : sub_y_range) {
       for (const int64_t x : IndexRange(size.x)) {
@@ -441,7 +430,7 @@ static void motion_blur_cpu(const Result &input_image,
         float4 center_motion = input_velocity.load_pixel<float4, true>(texel);
         float2 center_previous_motion = center_motion.xy() * shutter_speed;
         float2 center_next_motion = center_motion.zw() * -shutter_speed;
-        float4 center_color = input_image.load_pixel<float4>(texel);
+        float4 center_color = float4(input_image.load_pixel<Color>(texel));
 
         /* Randomize tile boundary to avoid ugly discontinuities. Randomize 1/4th of the tile.
          * Note this randomize only in one direction but in practice it's enough. */
@@ -505,7 +494,7 @@ static void motion_blur_cpu(const Result &input_image,
         float blend_fac = math::clamp(1.0f - accum.weight.y / accum.weight.z, 0.0f, 1.0f);
         float4 out_color = (accum.fg / accum.weight.z) + center_color * blend_fac;
 
-        output.store_pixel(texel, out_color);
+        output.store_pixel(texel, Color(out_color));
       }
     }
   });
@@ -513,10 +502,7 @@ static void motion_blur_cpu(const Result &input_image,
 
 class VectorBlurOperation : public NodeOperation {
  public:
-  VectorBlurOperation(Context &context, DNode node) : NodeOperation(context, node)
-  {
-    this->get_input_descriptor("Speed").type = ResultType::Float4;
-  }
+  using NodeOperation::NodeOperation;
 
   void execute() override
   {
@@ -538,7 +524,7 @@ class VectorBlurOperation : public NodeOperation {
   void execute_gpu()
   {
     Result max_tile_velocity = this->compute_max_tile_velocity();
-    GPUStorageBuf *tile_indirection_buffer = this->dilate_max_velocity(max_tile_velocity);
+    gpu::StorageBuf *tile_indirection_buffer = this->dilate_max_velocity(max_tile_velocity);
     this->compute_motion_blur(max_tile_velocity, tile_indirection_buffer);
     max_tile_velocity.release();
     GPU_storagebuf_free(tile_indirection_buffer);
@@ -548,7 +534,7 @@ class VectorBlurOperation : public NodeOperation {
    * Each of the previous and next velocities are reduces independently. */
   Result compute_max_tile_velocity()
   {
-    GPUShader *shader = context().get_shader("compositor_max_velocity");
+    gpu::Shader *shader = context().get_shader("compositor_max_velocity");
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1b(shader, "is_initial_reduction", true);
@@ -557,7 +543,7 @@ class VectorBlurOperation : public NodeOperation {
     input.bind_as_texture(shader, "input_tx");
 
     Result output = context().create_result(ResultType::Float4);
-    const int2 tiles_count = math::divide_ceil(input.domain().size, int2(32));
+    const int2 tiles_count = math::divide_ceil(input.domain().data_size, int2(32));
     output.allocate_texture(Domain(tiles_count));
     output.bind_as_image(shader, "output_img");
 
@@ -576,9 +562,9 @@ class VectorBlurOperation : public NodeOperation {
    * the output will be an indirection buffer that points to a particular tile in the original max
    * tile velocity image. This is done as a form of performance optimization, see the shader for
    * more information. */
-  GPUStorageBuf *dilate_max_velocity(Result &max_tile_velocity)
+  gpu::StorageBuf *dilate_max_velocity(Result &max_tile_velocity)
   {
-    GPUShader *shader = context().get_shader("compositor_motion_blur_max_velocity_dilate");
+    gpu::Shader *shader = context().get_shader("compositor_motion_blur_max_velocity_dilate");
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1f(shader, "shutter_speed", this->get_shutter());
@@ -589,13 +575,13 @@ class VectorBlurOperation : public NodeOperation {
      * composed of blocks of 32, we get 16k / 32 = 512. So the table is 512x512, but we store two
      * tables for the previous and next velocities, so we double that. */
     const int size = sizeof(uint32_t) * 512 * 512 * 2;
-    GPUStorageBuf *tile_indirection_buffer = GPU_storagebuf_create_ex(
+    gpu::StorageBuf *tile_indirection_buffer = GPU_storagebuf_create_ex(
         size, nullptr, GPU_USAGE_DEVICE_ONLY, __func__);
     GPU_storagebuf_clear_to_zero(tile_indirection_buffer);
     const int slot = GPU_shader_get_ssbo_binding(shader, "tile_indirection_buf");
     GPU_storagebuf_bind(tile_indirection_buffer, slot);
 
-    compute_dispatch_threads_at_least(shader, max_tile_velocity.domain().size);
+    compute_dispatch_threads_at_least(shader, max_tile_velocity.domain().data_size);
 
     GPU_shader_unbind();
     max_tile_velocity.unbind_as_texture();
@@ -604,9 +590,9 @@ class VectorBlurOperation : public NodeOperation {
     return tile_indirection_buffer;
   }
 
-  void compute_motion_blur(Result &max_tile_velocity, GPUStorageBuf *tile_indirection_buffer)
+  void compute_motion_blur(Result &max_tile_velocity, gpu::StorageBuf *tile_indirection_buffer)
   {
-    GPUShader *shader = context().get_shader("compositor_motion_blur");
+    gpu::Shader *shader = context().get_shader("compositor_motion_blur");
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1i(shader, "samples_count", this->get_samples_count());
@@ -632,7 +618,7 @@ class VectorBlurOperation : public NodeOperation {
     output.allocate_texture(domain);
     output.bind_as_image(shader, "output_img");
 
-    compute_dispatch_threads_at_least(shader, output.domain().size);
+    compute_dispatch_threads_at_least(shader, output.domain().data_size);
 
     GPU_shader_unbind();
     input.unbind_as_texture();
@@ -689,7 +675,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_vec_blur_cc
 
-void register_node_type_cmp_vecblur()
+static void register_node_type_cmp_vecblur()
 {
   namespace file_ns = blender::nodes::node_composite_vec_blur_cc;
 
@@ -701,10 +687,8 @@ void register_node_type_cmp_vecblur()
   ntype.enum_name_legacy = "VECBLUR";
   ntype.nclass = NODE_CLASS_OP_FILTER;
   ntype.declare = file_ns::cmp_node_vec_blur_declare;
-  ntype.initfunc = file_ns::node_composit_init_vecblur;
-  blender::bke::node_type_storage(
-      ntype, "NodeBlurData", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_vecblur)

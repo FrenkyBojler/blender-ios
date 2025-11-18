@@ -145,6 +145,8 @@ static void WIDGETGROUP_camera_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 
   PointerRNA camera_ptr = RNA_pointer_create_discrete(&ca->id, &RNA_Camera, ca);
 
+  const bool is_modal = WM_gizmo_group_is_modal(gzgroup);
+
   negate_v3_v3(dir, ob->object_to_world().ptr()[2]);
 
   if ((ca->flag & CAM_SHOWLIMITS) && (v3d->gizmo_show_camera & V3D_GIZMO_SHOW_CAMERA_DOF_DIST)) {
@@ -215,8 +217,11 @@ static void WIDGETGROUP_camera_refresh(const bContext *C, wmGizmoGroup *gzgroup)
     WM_gizmo_set_matrix_offset_location(widget, offset);
   }
 
-  /* define & update properties */
-  {
+  /* Define & update properties.
+   *
+   * Check modal to prevent feedback loop for orthographic cameras,
+   * where the range is based on the scale, see: #141667. */
+  if (!is_modal) {
     const char *propname = is_ortho ? "ortho_scale" : "lens";
     PropertyRNA *prop = RNA_struct_find_property(&camera_ptr, propname);
     const wmGizmoPropertyType *gz_prop_type = WM_gizmotype_target_property_find(widget->type,
@@ -336,7 +341,7 @@ static void gizmo_render_border_prop_matrix_get(const wmGizmo * /*gz*/,
                                                 wmGizmoProperty *gz_prop,
                                                 void *value_p)
 {
-  float(*matrix)[4] = static_cast<float(*)[4]>(value_p);
+  float (*matrix)[4] = static_cast<float (*)[4]>(value_p);
   BLI_assert(gz_prop->type->array_length == 16);
   CameraViewWidgetGroup *viewgroup = static_cast<CameraViewWidgetGroup *>(
       gz_prop->custom_func.user_data);
@@ -353,7 +358,7 @@ static void gizmo_render_border_prop_matrix_set(const wmGizmo * /*gz*/,
                                                 wmGizmoProperty *gz_prop,
                                                 const void *value_p)
 {
-  const float(*matrix)[4] = static_cast<const float(*)[4]>(value_p);
+  const float (*matrix)[4] = static_cast<const float (*)[4]>(value_p);
   CameraViewWidgetGroup *viewgroup = static_cast<CameraViewWidgetGroup *>(
       gz_prop->custom_func.user_data);
   rctf *border = viewgroup->state.edit_border;
