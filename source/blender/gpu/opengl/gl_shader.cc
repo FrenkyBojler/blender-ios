@@ -1713,8 +1713,8 @@ GLCompilerWorker::GLCompilerWorker()
 {
   using namespace std::chrono;
 
-  static size_t pipe_id = 0;
-  pipe_id++;
+  static std::atomic<size_t> g_pipe_id = 0;
+  size_t pipe_id = g_pipe_id++;
 
   static size_t time_id =
       duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
