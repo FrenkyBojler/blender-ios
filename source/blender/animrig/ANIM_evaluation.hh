@@ -76,7 +76,7 @@ struct RNAEvalResult {
         prop_index(resolved.prop_index){};
 
   RNAEvalResult(const PointerRNA &ptr, PropertyRNA *prop, const int index)
-      : prop(prop), prop_index(index), owner_id(ptr.owner_id), type(ptr.type), data(ptr.data){};
+      : owner_id(ptr.owner_id), type(ptr.type), data(ptr.data), prop(prop), prop_index(index){};
 
   PointerRNA get_ptr_rna() const
   {
@@ -118,10 +118,6 @@ class EvaluationResult {
 
  public:
   EvaluationResult() = default;
-  EvaluationResult(const int size)
-  {
-    result_.reserve(size);
-  };
   EvaluationResult(const EvaluationResult &other) = default;
   ~EvaluationResult() = default;
 

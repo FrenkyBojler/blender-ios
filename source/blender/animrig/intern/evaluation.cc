@@ -180,7 +180,7 @@ static EvaluationResult evaluate_keyframe_data(PointerRNA &animated_id_ptr,
     }
   });
 
-  EvaluationResult evaluation_result(fcurves.size());
+  EvaluationResult evaluation_result;
   for (const int i : fcurves.index_range()) {
     if (!valid[i]) {
       continue;
