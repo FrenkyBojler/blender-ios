@@ -318,6 +318,7 @@ set(GLSL_SRC
   intern/shaders/draw_object_infos_infos.hh
   intern/shaders/draw_view_infos.hh
   intern/shaders/subdiv_infos.hh
+  intern/shaders/subdiv_patch_eval_infos.hh
 
   engines/eevee/shaders/infos/eevee_ambient_occlusion_infos.hh
   engines/eevee/shaders/infos/eevee_common_infos.hh
