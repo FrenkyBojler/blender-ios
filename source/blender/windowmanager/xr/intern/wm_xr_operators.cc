@@ -1192,9 +1192,7 @@ static void wm_xr_navigation_teleport_draw_destination(const XrTeleportData *dat
   GPU_matrix_push();
   GPU_matrix_translate_3fv(data->arc_points[data->endpoint_idx]);
 
-  const float width = data->destination_indicator_width;
-  const float height = width * 0.2f;
-  constexpr int resolution = 64;
+  const float dest_width = data->destination_indicator_width;
 
   if (data->ray_result == XR_TELEPORT_RAY_MISS) {
     /* Draw a simple sphere. */
@@ -1202,7 +1200,8 @@ static void wm_xr_navigation_teleport_draw_destination(const XrTeleportData *dat
     GPU_batch_program_set_builtin(sphere_batch, GPU_SHADER_3D_UNIFORM_COLOR);
     GPU_batch_uniform_4fv(sphere_batch, "color", data->ray_color);
 
-    GPU_matrix_scale_1f(height * 2.0f);
+    const float sphere_width = dest_width * 0.4f;
+    GPU_matrix_scale_1f(sphere_width);
     GPU_batch_draw(sphere_batch);
   }
   else {
@@ -1213,9 +1212,23 @@ static void wm_xr_navigation_teleport_draw_destination(const XrTeleportData *dat
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
     immUniformColor4fv(data->ray_color);
 
-    imm_draw_cylinder_fill_3d(pos, width, width, height, resolution, 1);
-    GPU_matrix_translate_3f(0.0f, 0.0f, height * 0.4f);
-    imm_draw_circle_fill_3d(pos, 0, 0, width * 0.65f, resolution);
+
+    const float ring_rad_exter = dest_width;
+    const float ring_rad_inner = dest_width * 0.85f;
+    const float circle_rad = dest_width * 0.65f;
+
+    const float top_height = dest_width * 0.2f;
+    const float bottom_height = top_height * 0.4f;
+    constexpr int resolution = 64;
+
+    /* Outer ring. */
+    imm_draw_cylinder_fill_3d(pos, dest_width, dest_width, top_height, resolution, 1);
+    imm_draw_disk_partial_fill_3d(
+        pos, 0.0f, 0.0f, bottom_height, ring_rad_exter, ring_rad_inner, resolution, 0.0f, 360.0f);
+
+    /* Inner circle. */
+    GPU_matrix_translate_3f(0.0f, 0.0f, bottom_height);
+    imm_draw_circle_fill_3d(pos, 0.0f, 0.0f, circle_rad, resolution);
 
     immUnbindProgram();
   }
