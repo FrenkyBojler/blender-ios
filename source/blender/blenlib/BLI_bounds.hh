@@ -332,7 +332,6 @@ template<typename T, int Size>
                                                       const VecBase<T, Size> &start,
                                                       const VecBase<T, Size> &end)
 {
-
   T p_enter = T(0);
   T q_enter = T(1);
   T p_exit = T(1);
