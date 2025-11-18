@@ -15,6 +15,7 @@
 #endif
 
 #ifdef GLSL_CPP_STUBS
+#  undef SMAA_RT_METRICS
 #  define SMAA_GLSL_3
 #  define SMAA_STAGE 1
 #  define SMAA_PRESET_HIGH
