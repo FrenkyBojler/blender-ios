@@ -66,7 +66,7 @@ void pointcloud_get_pos_nor_radius(out float3 outpos, out float3 outnor, out flo
 
   switch (vert_id) {
     case 0:
-      pos_inst = float3(1.0, 0.0, 0.0);
+      pos_inst = float3(-1.0, 0.0, 0.0);
       break;
     case 1:
       pos_inst = float3(0.0, -1.0, 0.0);
@@ -75,7 +75,7 @@ void pointcloud_get_pos_nor_radius(out float3 outpos, out float3 outnor, out flo
       pos_inst = float3(0.0, 0.0, 1.0);
       break;
     case 3:
-      pos_inst = float3(-1.0, 0.0, 0.0);
+      pos_inst = float3(1.0, 0.0, 0.0);
       break;
     case 4:
       pos_inst = float3(0.0, 0.0, 1.0);
@@ -84,7 +84,7 @@ void pointcloud_get_pos_nor_radius(out float3 outpos, out float3 outnor, out flo
       pos_inst = float3(0.0, 1.0, 0.0);
       break;
     case 6:
-      pos_inst = float3(1.0, 0.0, 0.0);
+      pos_inst = float3(-1.0, 0.0, 0.0);
       break;
     case 7:
       pos_inst = float3(NAN_FLT);
