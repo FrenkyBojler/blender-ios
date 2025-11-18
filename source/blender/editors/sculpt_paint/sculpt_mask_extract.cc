@@ -37,12 +37,11 @@
 #include "ED_screen.hh"
 #include "ED_sculpt.hh"
 #include "ED_undo.hh"
+#include "ED_mesh.hh"
 
 #include "bmesh_tools.hh"
 
 #include "MEM_guardedalloc.h"
-
-#include "mesh_intern.hh" /* own include */
 
 namespace blender::ed::sculpt_paint {
 
@@ -126,7 +125,7 @@ static wmOperatorStatus geometry_extract_apply(bContext *C,
     BM_ITER_MESH (ed, &iter, bm, BM_EDGES_OF_MESH) {
       BM_elem_flag_set(ed, BM_ELEM_TAG, BM_edge_is_boundary(ed));
     }
-    edbm_extrude_edges_indiv(em, op, BM_ELEM_TAG, false);
+    EDBM_extrude_edges_indiv(em, op, BM_ELEM_TAG, false);
 
     for (int repeat = 0; repeat < params->num_smooth_iterations; repeat++) {
       BM_mesh_elem_hflag_disable_all(bm, BM_VERT | BM_EDGE | BM_FACE, BM_ELEM_TAG, false);

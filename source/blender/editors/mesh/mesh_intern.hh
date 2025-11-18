@@ -40,7 +40,7 @@ struct ViewLayer;
  * the BMEditMesh structure. */
 
 /** Calls a bmesh op, reporting errors to the user, etc. */
-bool EDBM_op_callf(BMEditMesh *em, wmOperator *op, const char *fmt, ...);
+
 bool EDBM_op_call_and_selectf(BMEditMesh *em,
                               wmOperator *op,
                               const char *select_slot_out,
@@ -93,11 +93,6 @@ BMElem *EDBM_elem_from_index_any_multi(const Scene *scene,
                                        uint object_index,
                                        uint elem_index,
                                        Object **r_obedit);
-
-/**
- * Extrudes individual edges.
- */
-bool edbm_extrude_edges_indiv(BMEditMesh *em, wmOperator *op, char hflag, bool use_normal_flip);
 
 /* *** `editmesh_add.cc` *** */
 
