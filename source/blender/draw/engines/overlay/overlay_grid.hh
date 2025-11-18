@@ -29,6 +29,7 @@ namespace blender::draw::overlay {
 class GridRework : Overlay {
  private:
   UniformBuffer<OVERLAY_GridReworkData> grid_ubo_;
+  StorageVectorBuffer<float4> tile_pos_buf_;
   PassSimple grid_ps_ = {"grid_ps_"};
 
   /* Number of lines per level of the grid. The grid requires at most 4 levels. */
@@ -36,11 +37,11 @@ class GridRework : Overlay {
 
   /* General parameters. */
   bool is_3d_grid_ = false;
-  
+
   /* TODO(not_mark): figure these guys out */
   float3 grid_axes_ = float3(0.0f);
   float3 zplane_axes_ = float3(0.0f);
-  
+
   /* Draw information. */
   float2 grid_poi_ = float2(0.0f);
   float grid_level_;
@@ -71,6 +72,19 @@ class GridRework : Overlay {
     grid_ps_.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
     grid_ps_.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA);
 
+    /* Draw a quad behind the grid, specifically in the 2D/uv image editor. This is retained
+     * from the 5.0 grid. */
+    if (state.is_space_image()) {
+      auto &sub = grid_ps_.sub("grid_background");
+      sub.shader_set(res.shaders->grid_background.get());
+      const float4 color_back = math::interpolate(
+          res.theme.colors.background, res.theme.colors.grid, 0.5);
+      sub.push_constant("ucolor", color_back);
+      sub.push_constant("tile_scale", float3(grid_ubo_.size));
+      sub.bind_texture("depth_buffer", depth_tx);
+      sub.draw(res.shapes.quad_solid.get());
+    }
+
     {
       /* Vertex count is 2 (x/y-direction) x 2 (verts per line) x levels x N */
       const uint n_verts = 12 * num_lines_per_level_;
@@ -84,6 +98,28 @@ class GridRework : Overlay {
       sub.push_constant("grid_level", grid_level_);
       sub.push_constant("grid_poi", grid_poi_);
       sub.draw_procedural(GPUPrimType::GPU_PRIM_LINES, -1, n_verts, 0);
+    }
+
+    /* Draw an outline around the grid, specifically in the 2D/UV image editor. This is retained
+     * from the 5.0 grid. */
+    if (state.is_space_image()) {
+      float4 theme_color;
+      UI_GetThemeColorShade4fv(TH_BACK, 60, theme_color);
+      srgb_to_linearrgb_v4(theme_color, theme_color);
+
+      /* Add wire border. */
+      auto &sub = grid_ps_.sub("wire_border");
+      sub.shader_set(res.shaders->grid_image.get());
+      sub.push_constant("ucolor", theme_color);
+      tile_pos_buf_.clear();
+      for (const int x : IndexRange(grid_ubo_.size[0])) {
+        for (const int y : IndexRange(grid_ubo_.size[1])) {
+          tile_pos_buf_.append(float4(x, y, 0.0f, 0.0f));
+        }
+      }
+      tile_pos_buf_.push_update();
+      sub.bind_ssbo("tile_pos_buf", &tile_pos_buf_);
+      sub.draw(res.shapes.quad_wire.get(), tile_pos_buf_.size());
     }
   }
 
@@ -108,10 +144,10 @@ class GridRework : Overlay {
     grid_flag_ = zaxs_flag_ = 0;
 
     /* This suffices for most cases, and in others we fade to hide it. */
-    num_lines_per_level_ = 255; 
+    num_lines_per_level_ = 255;
     grid_ubo_.num_lines_per_level = num_lines_per_level_;
 
-    return /* is_3d_grid_ ? */ init_3d(state) /* : init_2d(state) */;
+    return is_3d_grid_ ? init_3d(state) : init_2d(state);
   }
 
   bool init_2d(const State &state)
@@ -124,14 +160,14 @@ class GridRework : Overlay {
       return false;
     }
 
-    /* Query different options from overlay/spaceimage state. Only UV edit has 
+    /* Query different options from overlay/spaceimage state. Only UV edit has
      * overlay options for now. */
     const bool is_uv_edit = sima->mode == SI_MODE_UV;
-    const bool background_enabled = is_uv_edit 
-      ? sima->overlay.flag & SI_OVERLAY_SHOW_GRID_BACKGROUND != 0 
-      : true;
+    const bool background_enabled = is_uv_edit ?
+                                        sima->overlay.flag & SI_OVERLAY_SHOW_GRID_BACKGROUND != 0 :
+                                        true;
     const bool draw_grid = is_uv_edit || !ED_space_image_has_buffer(sima);
-    
+
     /* Process grid flags. */
     if (background_enabled) {
       grid_flag_ = GRID_BACK | PLANE_IMAGE;
@@ -147,19 +183,42 @@ class GridRework : Overlay {
     }
 
     /* Query grid step/level scalings; these can differ per axis. */
-    std::array<float, SI_GRID_STEPS_LEN> steps_x
-     = {1e-3f, 1e-2f, 1e-1f, 1e0f, 1e1f, 1e2f, 1e3f, 1e4f};
-    std::array<float, SI_GRID_STEPS_LEN> steps_y;
+    std::array<float, SI_GRID_STEPS_LEN> steps_x, steps_y;
     ED_space_image_grid_steps(sima, steps_x.data(), steps_y.data(), SI_GRID_STEPS_LEN);
     for (int i = 0; i < SI_GRID_STEPS_LEN; ++i) {
+      /* NOTE (not_mark): I am uncertain where the discrepancy comes from, but the UV grid appears
+       * to be scaled by a factor .01 that I have to account for. */
       grid_ubo_.level_scales[i].x = steps_x[i];
       grid_ubo_.level_scales[i].y = steps_y[i];
     }
 
-    /* TODO (not_mark): description here. */
+    /* Determine camera offset to center of v2d. */
     grid_ubo_.distance = 1.0f;
-    // grid_level_ = /* ... */;
-    // grid_poi_ = /* ... */;
+    grid_poi_ = float2(v2d->cur.xmax + v2d->cur.xmin, v2d->cur.ymax + v2d->cur.ymin) - 1.0f;
+
+    /* Query grid image zoom level. Then find the lowest relevant grid level + fractional,
+     * dependent on zoom level. */
+    float dist = ED_space_image_zoom_level(v2d, SI_GRID_STEPS_LEN);
+    for (int i = 0; i < OVERLAY_GRID_STEPS_LEN + 1; i++) {
+      float prev = (i > 0) ?
+                       std::min(grid_ubo_.level_scales[i - 1].x, grid_ubo_.level_scales[i - 1].y) :
+                       0.0f;
+      float curr = (i < OVERLAY_GRID_STEPS_LEN) ?
+                       std::min(grid_ubo_.level_scales[i].x, grid_ubo_.level_scales[i].y) :
+                       std::numeric_limits<float>::infinity();
+
+      if (curr >= dist || i == OVERLAY_GRID_STEPS_LEN) {
+        grid_level_ = static_cast<float>(i) + safe_divide(dist - prev, curr - prev);
+        break;
+      }
+    }
+
+    /* TODO (not_mark): detail what's being stored here. Grid res basically. */
+    grid_ubo_.size = float4(1.0f);
+    if (is_uv_edit) {
+      grid_ubo_.size[0] = float(sima->tile_grid_shape[0]);
+      grid_ubo_.size[1] = float(sima->tile_grid_shape[1]);
+    }
 
     return true;
   }
@@ -227,12 +286,12 @@ class GridRework : Overlay {
     grid_ubo_.distance = v3d_clip_end;
 
     /* Query grid scales from unit/scaling; this range suffices for user-visible levels. */
-    Array<float, SI_GRID_STEPS_LEN> steps
-      = {1e-3f, 1e-2f, 1e-1f, 1e0f, 1e1f, 1e2f, 1e3f, 1e4f};
+    Array<float, SI_GRID_STEPS_LEN> steps = {1e-3f, 1e-2f, 1e-1f, 1e0f, 1e1f, 1e2f, 1e3f, 1e4f};
     ED_view3d_grid_steps(state.scene, v3d, rv3d, steps.data());
     for (int i = 0; i < SI_GRID_STEPS_LEN; ++i) {
       grid_ubo_.level_scales[i].x = steps[i];
       grid_ubo_.level_scales[i].y = steps[i];
+      std::printf("\t%d - %f, %f\n", i, steps[i], steps[i]);
     }
 
     /* Compute distance to a relevant floor point-of-interest from the camera. The grid translates
@@ -259,10 +318,12 @@ class GridRework : Overlay {
       }
       else if (ELEM(rv3d->view, RV3D_VIEW_FRONT, RV3D_VIEW_BACK)) {
         grid_poi_ = float2(grid_poi.x, grid_poi.z);
-      } else {
+      }
+      else {
         grid_poi_ = grid_poi.xy();
       }
     }
+    std::printf("Zoom factor: %f\n", dist);
 
     /* Find the lowest relevant grid level + fractional, dependent on camera distance. We
      * fake a order of magnitude extra level, as in orthographic cameras the maximum zoom
@@ -270,10 +331,9 @@ class GridRework : Overlay {
     /* TODO(not_mark): half of this loop is unreachable. Fix. */
     for (int i = 0; i < OVERLAY_GRID_STEPS_LEN - 1; i++) {
       float curr = std::min(grid_ubo_.level_scales[i].x, grid_ubo_.level_scales[i].y);
-      float next
-        = (i < OVERLAY_GRID_STEPS_LEN - 1)
-        ? std::min(grid_ubo_.level_scales[i + 1].x, grid_ubo_.level_scales[i + 1].y) 
-        : curr * 10.0f;
+      float next = (i < OVERLAY_GRID_STEPS_LEN - 1) ?
+                       std::min(grid_ubo_.level_scales[i + 1].x, grid_ubo_.level_scales[i + 1].y) :
+                       curr * 10.0f;
       if (next >= dist || i == OVERLAY_GRID_STEPS_LEN - 1) {
         grid_level_ = static_cast<float>(i) + safe_divide(dist - curr, next - curr);
         break;
@@ -325,6 +385,10 @@ class Grid : Overlay {
     grid_ps_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
     grid_ps_.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
     grid_ps_.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA);
+
+    /* NOTE(not_mark): this does a fullscreen color draw, with the same color
+     * as the theme.uv.grid settings. Seems... redundant? Also inconsistent with
+     * the 3D viewport. */
     if (state.is_space_image()) {
       /* Add quad background. */
       auto &sub = grid_ps_.sub("grid_background");
@@ -336,6 +400,12 @@ class Grid : Overlay {
       sub.bind_texture("depth_buffer", depth_tx);
       sub.draw(res.shapes.quad_solid.get());
     }
+
+    /* NOTE(not_mark):
+     * - Draws axis lines, zneg and zpos, 3d only
+     * - Draws grid lines, 2d or 3d
+     * - Draws axis lines, zneg and zpos, 3d only
+     */
     {
       auto &sub = grid_ps_.sub("grid");
       sub.shader_set(res.shaders->grid.get());
@@ -358,6 +428,8 @@ class Grid : Overlay {
         sub.draw(res.shapes.grid.get());
       }
     }
+
+    /* NOTE(not_mark): Draws grid outline wire border. Bit more clever than just that though. */
     if (state.is_space_image()) {
       float4 theme_color;
       ui::theme::get_color_shade_4fv(TH_BACK, 60, theme_color);

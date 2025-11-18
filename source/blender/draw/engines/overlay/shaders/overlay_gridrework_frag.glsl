@@ -29,8 +29,10 @@ void main()
     out_color.a *= local_alpha;
 
     /* Add fade at edge of grid level. */
-    float length_fade = 1.f - min(1.f, dot(local_coord, local_coord));
-    out_color.a *= pow2f(length_fade);
+    if (!flag_test(grid_flag, PLANE_IMAGE)) {
+      float length_fade = 1.f - min(1.f, dot(local_coord, local_coord));
+      out_color.a *= pow2f(length_fade);
+    }
 
     if (drw_view_is_perspective()) {
       /* Add fade at steep angles. */
@@ -57,8 +59,7 @@ void main()
 
   /* Primary axis colors/alphas. */
   if (flag_test(grid_flag, (SHOW_AXIS_X | SHOW_AXIS_Y | SHOW_AXIS_Z))) {
-    
-
+    /* ... */
   }
 
   /* Depth testing. */
@@ -83,4 +84,7 @@ void main()
     float bias = max(gpu_fwidth(gl_FragCoord.z), 2.4e-7f);
     out_color.a *= linearstep(grid_depth, grid_depth + bias, scene_depth);
   }
+
+  // float3 colors[3] = {float3(1, 0, 0), float3(0, 1, 0), float3(0, 0, 1)};
+  // out_color.rgb = colors[debug_level];
 }

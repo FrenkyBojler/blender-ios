@@ -37,10 +37,10 @@ enum OVERLAY_GridBits : uint32_t {
   PLANE_XY = (1u << 4u),
   PLANE_XZ = (1u << 5u),
   PLANE_YZ = (1u << 6u),
-  
+
   CLIP_ZPOS = (1u << 7u),
   CLIP_ZNEG = (1u << 8u),
-  
+
   GRID_BACK = (1u << 9u),
   GRID_CAMERA = (1u << 10u),
   PLANE_IMAGE = (1u << 11u),
@@ -156,9 +156,11 @@ inline uint32_t packUint8x4(uint4 v)
 #endif
 
 struct OVERLAY_GridReworkData {
-  /* Per level scaling; uses float4 as float arrays are padded to float4 in std140.
-   * This is only necessary if scaling deviates from a factor 10 on any level. */
-  float4 level_scales[OVERLAY_GRID_STEPS_LEN];
+  /* Per level scaling, based on selected unit system and zoom. */
+  float4 level_scales[OVERLAY_GRID_STEPS_LEN]; /* float3 padded to float4 in std140. */
+
+  /* Nr. of grid lines per level, for 2D grid */
+  float4 size; /* float3 padded to float4 in std140. */
 
   /* Per-level line count. */
   uint num_lines_per_level;
@@ -170,7 +172,7 @@ struct OVERLAY_GridReworkData {
   float _pad0;
   float _pad1;
 };
-BLI_STATIC_ASSERT_ALIGN(OVERLAY_GridReworkData, 8)
+BLI_STATIC_ASSERT_ALIGN(OVERLAY_GridReworkData, 16)
 
 #ifdef GPU_SHADER
 /* Keep the same values as in `draw_cache_impl_curves.cc` */

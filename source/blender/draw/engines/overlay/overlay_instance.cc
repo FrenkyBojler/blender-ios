@@ -407,7 +407,18 @@ void Resources::update_theme_settings(const DRWContext *ctx, const State &state)
     } while (++size <= size_end);
   }
 
-  gb.pixel_fac = (state.rv3d) ? state.rv3d->pixsize : 1.0f;
+  /* Pixel fraction. Use orthographic size in 3d, visible region size in 2D. */
+  if (state.rv3d) {
+    gb.pixel_fac = state.rv3d->pixsize;
+  }
+  else if (state.region) {
+    const View2D *v2d = &state.region->v2d;
+    gb.pixel_fac = (v2d->cur.xmax - v2d->cur.xmin) / float(v2d->mask.xmax - v2d->mask.xmin);
+  }
+  else {
+    gb.pixel_fac = 1.0f;
+  }
+
   gb.size_viewport = ctx->viewport_size_get();
   gb.size_viewport_inv = 1.0f / gb.size_viewport;
 
