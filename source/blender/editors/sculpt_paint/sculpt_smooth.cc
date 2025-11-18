@@ -20,6 +20,7 @@
 
 #include "mesh_brush_common.hh"
 #include "sculpt_automask.hh"
+#include "sculpt_boundary.hh"
 #include "sculpt_color.hh"
 #include "sculpt_face_set.hh"
 #include "sculpt_hide.hh"
@@ -148,7 +149,7 @@ static void neighbor_position_average_interior_grids_impl(const OffsetIndices<in
         SubdivCCGNeighbors neighbors;
         BKE_subdiv_ccg_neighbor_coords_get(subdiv_ccg, coord, false, neighbors);
 
-        if (BKE_subdiv_ccg_coord_is_mesh_boundary(
+        if (boundary::vert_is_boundary(
                 faces, corner_verts, boundary_verts, boundary_edges, subdiv_ccg, coord))
         {
           if (neighbors.coords.size() == 2) {
@@ -158,7 +159,7 @@ static void neighbor_position_average_interior_grids_impl(const OffsetIndices<in
           else {
             /* Only include other boundary vertices as neighbors of boundary vertices. */
             neighbors.coords.remove_if([&](const SubdivCCGCoord coord) {
-              return !BKE_subdiv_ccg_coord_is_mesh_boundary(
+              return !boundary::vert_is_boundary(
                   faces, corner_verts, boundary_verts, boundary_edges, subdiv_ccg, coord);
             });
           }
@@ -532,10 +533,10 @@ void calc_relaxed_translations_faces(const Span<float3> vert_positions,
       continue;
     }
 
-    /* TODO: Fix me */
     const bool is_boundary = boundary_verts[verts[i]];
     if (is_boundary) {
-      neighbors.remove_if([&](const int vert) { return !boundary_verts[vert]; });
+      neighbors.remove_if(
+          [&](const int vert) { return !boundary_edges.contains(OrderedEdge(vert, verts[i])); });
     }
 
     if (filter_boundary_face_sets) {
@@ -615,12 +616,12 @@ void calc_relaxed_translations_grids(const SubdivCCG &subdiv_ccg,
           continue;
         }
 
-        const bool is_boundary = BKE_subdiv_ccg_coord_is_mesh_boundary(
+        const bool is_boundary = boundary::vert_is_boundary(
             faces, corner_verts, boundary_verts, boundary_edges, subdiv_ccg, coord);
 
         if (is_boundary) {
           neighbors.remove_if([&](const SubdivCCGCoord neighbor) {
-            return !BKE_subdiv_ccg_coord_is_mesh_boundary(
+            return !boundary::vert_is_boundary(
                 faces, corner_verts, boundary_verts, boundary_edges, subdiv_ccg, neighbor);
           });
         }

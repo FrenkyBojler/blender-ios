@@ -1369,9 +1369,7 @@ static void edit_fairing(const Depsgraph &depsgraph,
 
   Array<bool> fair_verts(positions.size(), false);
   for (const int vert : positions.index_range()) {
-    if (boundary::vert_is_boundary(
-            vert_to_face_map, hide_poly, boundary_verts, ss.edge_info.boundary, vert))
-    {
+    if (boundary::vert_is_boundary(vert_to_face_map, hide_poly, boundary_verts, vert)) {
       continue;
     }
     if (!vert_has_face_set(vert_to_face_map, face_sets, vert, active_face_set_id)) {

@@ -419,7 +419,9 @@ Span<BMVert *> vert_neighbors_get_interior_bmesh(BMVert &vert, BMeshNeighborVert
     }
     else {
       /* Only include other boundary vertices as neighbors of boundary vertices. */
-      r_neighbors.remove_if([&](const BMVert *vert) { return !BM_vert_is_boundary(vert); });
+      r_neighbors.remove_if([&](const BMVert *neighbor) {
+        return !BM_edge_is_boundary(BM_edge_exists(&vert, const_cast<BMVert *>(neighbor)));
+      });
     }
   }
 
@@ -483,7 +485,6 @@ namespace boundary {
 bool vert_is_boundary(const GroupedSpan<int> vert_to_face_map,
                       const Span<bool> hide_poly,
                       const BitSpan boundary_verts,
-                      const Set<OrderedEdge> &boundary_edges,
                       const int vert)
 {
   if (!hide::vert_all_faces_visible_get(hide_poly, vert_to_face_map, vert)) {
@@ -508,7 +509,7 @@ bool vert_is_boundary(const OffsetIndices<int> faces,
     case SubdivCCGAdjacencyType::Vertex:
       return boundary_verts[v1].test();
     case SubdivCCGAdjacencyType::Edge:
-      return boundary_verts[v1].test() && boundary_verts[v2].test();
+      return boundary_edges.contains(OrderedEdge(v1, v2));
     case SubdivCCGAdjacencyType::None:
       return false;
   }
@@ -7799,7 +7800,7 @@ void calc_vert_neighbors_interior(const OffsetIndices<int> faces,
         SubdivCCGNeighbors neighbors;
         BKE_subdiv_ccg_neighbor_coords_get(subdiv_ccg, coord, false, neighbors);
 
-        if (BKE_subdiv_ccg_coord_is_mesh_boundary(
+        if (boundary::vert_is_boundary(
                 faces, corner_verts, boundary_verts, boundary_edges, subdiv_ccg, coord))
         {
           if (neighbors.coords.size() == 2) {
@@ -7809,7 +7810,7 @@ void calc_vert_neighbors_interior(const OffsetIndices<int> faces,
           else {
             /* Only include other boundary vertices as neighbors of boundary vertices. */
             neighbors.coords.remove_if([&](const SubdivCCGCoord coord) {
-              return !BKE_subdiv_ccg_coord_is_mesh_boundary(
+              return !boundary::vert_is_boundary(
                   faces, corner_verts, boundary_verts, boundary_edges, subdiv_ccg, coord);
             });
           }

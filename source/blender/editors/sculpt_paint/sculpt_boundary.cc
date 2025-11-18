@@ -67,7 +67,6 @@ static bool is_vert_in_editable_boundary_mesh(const OffsetIndices<int> faces,
                                               const Span<bool> hide_vert,
                                               const Span<bool> hide_poly,
                                               const BitSpan boundary_verts,
-                                              const Set<OrderedEdge> &boundary_edges,
                                               const int initial_vert)
 {
   if (!hide_vert.is_empty() && hide_vert[initial_vert]) {
@@ -83,9 +82,7 @@ static bool is_vert_in_editable_boundary_mesh(const OffsetIndices<int> faces,
   {
     if (hide_vert.is_empty() || !hide_vert[neighbor]) {
       neighbor_count++;
-      if (boundary::vert_is_boundary(
-              vert_to_face, hide_poly, boundary_verts, boundary_edges, neighbor))
-      {
+      if (boundary::vert_is_boundary(vert_to_face, hide_poly, boundary_verts, neighbor)) {
         boundary_vertex_count++;
       }
     }
@@ -162,13 +159,10 @@ static std::optional<int> get_closest_boundary_vert_mesh(Object &object,
                                                          const Span<bool> hide_vert,
                                                          const Span<bool> hide_poly,
                                                          const BitSpan boundary_verts,
-                                                         const Set<OrderedEdge> boundary_edges,
                                                          const int initial_vert,
                                                          const float radius)
 {
-  if (boundary::vert_is_boundary(
-          vert_to_face, hide_poly, boundary_verts, boundary_edges, initial_vert))
-  {
+  if (boundary::vert_is_boundary(vert_to_face, hide_poly, boundary_verts, initial_vert)) {
     return initial_vert;
   }
 
@@ -189,8 +183,7 @@ static std::optional<int> get_closest_boundary_vert_mesh(Object &object,
 
     floodfill_steps[to_v] = floodfill_steps[from_v] + 1;
 
-    if (boundary::vert_is_boundary(vert_to_face, hide_poly, boundary_verts, boundary_edges, to_v))
-    {
+    if (boundary::vert_is_boundary(vert_to_face, hide_poly, boundary_verts, to_v)) {
       if (floodfill_steps[to_v] < boundary_initial_vert_steps) {
         boundary_initial_vert_steps = floodfill_steps[to_v];
         boundary_initial_vert = to_v;
@@ -249,6 +242,7 @@ static std::optional<SubdivCCGCoord> get_closest_boundary_vert_grids(
           floodfill_steps[to_v_index] = floodfill_steps[from_v_index] + 1;
         }
 
+        /* TODO: This is incorrect */
         if (boundary::vert_is_boundary(
                 faces, corner_verts, boundary_verts, boundary_edges, subdiv_ccg, to_v))
         {
@@ -296,6 +290,7 @@ static std::optional<BMVert *> get_closest_boundary_vert_bmesh(Object &object,
 
     floodfill_steps[to_v_i] = floodfill_steps[from_v_i] + 1;
 
+    /* TODO: This is incorrect */
     if (boundary::vert_is_boundary(to_v)) {
       if (floodfill_steps[to_v_i] < boundary_initial_vert_steps) {
         boundary_initial_vert_steps = floodfill_steps[to_v_i];
@@ -357,8 +352,7 @@ static void indices_init_mesh(Object &object,
     const float3 from_v_co = vert_positions[from_v];
     const float3 to_v_co = vert_positions[to_v];
 
-    if (!boundary::vert_is_boundary(vert_to_face, hide_poly, boundary_verts, boundary_edges, to_v))
-    {
+    if (!boundary::vert_is_boundary(vert_to_face, hide_poly, boundary_verts, to_v)) {
       return false;
     }
     const float edge_len = len_v3v3(from_v_co, to_v_co);
@@ -366,14 +360,8 @@ static void indices_init_mesh(Object &object,
                                            edge_len;
     add_index(boundary, to_v, distance_boundary_to_dst, included_verts);
     boundary.edges.append({from_v_co, to_v_co});
-    return is_vert_in_editable_boundary_mesh(faces,
-                                             corner_verts,
-                                             vert_to_face,
-                                             hide_vert,
-                                             hide_poly,
-                                             boundary_verts,
-                                             boundary_edges,
-                                             to_v);
+    return is_vert_in_editable_boundary_mesh(
+        faces, corner_verts, vert_to_face, hide_vert, hide_poly, boundary_verts, to_v);
   });
 }
 
@@ -3415,7 +3403,6 @@ std::unique_ptr<SculptBoundary> data_init_mesh(const Depsgraph &depsgraph,
       hide_vert,
       hide_poly,
       ss.vertex_info.boundary,
-      ss.edge_info.boundary,
       initial_vert,
       radius);
 
@@ -3434,7 +3421,6 @@ std::unique_ptr<SculptBoundary> data_init_mesh(const Depsgraph &depsgraph,
                                          hide_vert,
                                          hide_poly,
                                          ss.vertex_info.boundary,
-                                         ss.edge_info.boundary,
                                          initial_vert))
   {
     return nullptr;

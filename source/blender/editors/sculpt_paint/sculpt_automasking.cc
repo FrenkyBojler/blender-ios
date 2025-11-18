@@ -699,9 +699,7 @@ void calc_vert_factors(const Depsgraph &depsgraph,
     }
 
     if (automasking.settings.flags & BRUSH_AUTOMASKING_BOUNDARY_EDGES) {
-      if (boundary::vert_is_boundary(
-              vert_to_face_map, hide_poly, boundary_verts, ss.edge_info.boundary, vert))
-      {
+      if (boundary::vert_is_boundary(vert_to_face_map, hide_poly, boundary_verts, vert)) {
         factors[i] = 0.0f;
         continue;
       }
@@ -810,9 +808,7 @@ void calc_face_factors(const Depsgraph &depsgraph,
       }
 
       if (automasking.settings.flags & BRUSH_AUTOMASKING_BOUNDARY_EDGES) {
-        if (boundary::vert_is_boundary(
-                vert_to_face_map, hide_poly, boundary_verts, ss.edge_info.boundary, vert))
-        {
+        if (boundary::vert_is_boundary(vert_to_face_map, hide_poly, boundary_verts, vert)) {
           factor = 0.0f;
           continue;
         }
@@ -1335,9 +1331,7 @@ static void init_boundary_masking_mesh(Object &object,
   for (const int i : IndexRange(num_verts)) {
     switch (mode) {
       case BoundaryAutomaskMode::Edges:
-        if (boundary::vert_is_boundary(
-                vert_to_face_map, hide_poly, ss.vertex_info.boundary, ss.edge_info.boundary, i))
-        {
+        if (boundary::vert_is_boundary(vert_to_face_map, hide_poly, ss.vertex_info.boundary, i)) {
           edge_distance[i] = 0;
         }
         break;
