@@ -1,1 +1,2 @@
 Referenced by issue #150125, API bpy.ops.render.render() uses wrong frame range
+Referenced by pull request #150133, Fix #150125: bpy.ops.render.render() uses wrong frame range
