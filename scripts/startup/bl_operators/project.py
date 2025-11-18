@@ -12,6 +12,43 @@ from bpy.types import Operator
 PROJECT_DIR = ".blender_project"
 PROJECT_CONFIG = "project.toml"
 
+# --------------------------------------------------------------
+
+
+class ProjectSaveException(Exception):
+    pass
+
+
+def save_project(project):
+    data = project.data
+    root_path = Path(data.root_path)
+
+    if not root_path.is_absolute():
+        raise ProjectSaveException("Can't write project to non-absolute path.")
+
+    if not root_path.is_dir():
+        raise ProjectSaveException("Project root directory does not exist.")
+
+    config_dir_path = root_path.joinpath(PROJECT_DIR)
+
+    try:
+        config_dir_path.mkdir(parents=True, exist_ok=True)
+    except FileExistsError:
+        raise ProjectSaveException(
+            "A file named '{}' already exists, but it needs to be a directory.".format(PROJECT_DIR))
+    except PermissionError:
+        raise ProjectSaveException("Cannot create '{}' directory due to filesystem permissions.".format(PROJECT_DIR))
+
+    config_path = root_path.joinpath(PROJECT_DIR, PROJECT_CONFIG)
+    try:
+        with config_path.open(mode='w', encoding='utf-8') as f:
+            # The actual project file writing.
+            f.write("name = \"{}\"\n".format(data.name))
+    except PermissionError:
+        raise ProjectSaveException("Cannot write to '{}' due to filesystem permissions.".format(PROJECT_CONFIG))
+
+
+# --------------------------------------------------------------
 
 class PROJECT_OP_NewProject(Operator):
     """Create a new project"""
@@ -54,24 +91,11 @@ class PROJECT_OP_WriteProject(Operator):
         return context.project.data is not None
 
     def execute(self, context):
-        # TODO: this is just a quick-and-dirty version of this. No proper error
-        # handling, etc.
-
-        data = context.project.data
-        root_path = Path(data.root_path)
-
-        if not root_path.is_absolute():
-            print("Can't write project to non-absolute path.")
+        try:
+            save_project(context.project)
+        except ProjectSaveException as e:
+            self.report({'ERROR'}, "Failed to save project: {}".format(e))
             return {'CANCELLED'}
-
-        root_path.mkdir(parents=True, exist_ok=True)
-
-        config_dir_path = root_path.joinpath(PROJECT_DIR)
-        config_dir_path.mkdir(parents=True, exist_ok=True)
-
-        config_path = root_path.joinpath(PROJECT_DIR, PROJECT_CONFIG)
-        with config_path.open(mode='w', encoding='utf-8') as f:
-            f.write("name = \"{}\"\n".format(data.name))
 
         context.project.is_dirty = False
 
