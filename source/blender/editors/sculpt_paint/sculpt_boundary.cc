@@ -203,7 +203,7 @@ static std::optional<SubdivCCGCoord> get_closest_boundary_vert_grids(
     const Span<int> corner_verts,
     const SubdivCCG &subdiv_ccg,
     const BitSpan boundary_verts,
-    const Set<OrderedEdge> boundary_edges,
+    const Set<OrderedEdge> &boundary_edges,
     const SubdivCCGCoord initial_vert,
     const float radius)
 {
