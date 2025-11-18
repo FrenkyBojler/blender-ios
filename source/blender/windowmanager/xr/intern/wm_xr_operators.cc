@@ -1187,7 +1187,7 @@ struct XrTeleportData {
   void *draw_handle;
 };
 
-static void wm_xr_navigation_teleport_destination_draw(const XrTeleportData *data)
+static void wm_xr_navigation_teleport_draw_destination(const XrTeleportData *data)
 {
   GPU_matrix_push();
   GPU_matrix_translate_3fv(data->arc_points[data->endpoint_idx]);
@@ -1223,12 +1223,9 @@ static void wm_xr_navigation_teleport_destination_draw(const XrTeleportData *dat
   GPU_matrix_pop();
 }
 
-static void wm_xr_navigation_teleport_ray_draw(const bContext * /*C*/,
-                                               ARegion * /*region*/,
-                                               void *customdata)
+static void wm_xr_navigation_teleport_draw_ray(const XrTeleportData *data)
 {
   using namespace blender;
-  const XrTeleportData *data = static_cast<const XrTeleportData *>(customdata);
 
   /* Compute the Catmull-Rom spline, first get a span of the used arc control points. */
   const int num_control_points = data->endpoint_idx + 1;
@@ -1265,12 +1262,20 @@ static void wm_xr_navigation_teleport_ray_draw(const bContext * /*C*/,
   GPU_batch_uniform_1f(batch, "lineWidth", data->ray_line_width);
   GPU_batch_uniform_1b(batch, "lineSmooth", true);
 
+  GPU_batch_draw(batch);
+  GPU_batch_discard(batch);
+}
+
+static void wm_xr_navigation_teleport_draw(const bContext * /*C*/,
+                                           ARegion * /*region*/,
+                                           void *customdata)
+{
   GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
 
   /* Draw the destination ring and computed arc spline. */
-  wm_xr_navigation_teleport_destination_draw(data);
-  GPU_batch_draw(batch);
-  GPU_batch_discard(batch);
+  const XrTeleportData *data = static_cast<const XrTeleportData *>(customdata);
+  wm_xr_navigation_teleport_draw_destination(data);
+  wm_xr_navigation_teleport_draw_ray(data);
 
   GPU_depth_test(GPU_DEPTH_NONE);
 }
@@ -1293,7 +1298,7 @@ static void wm_xr_navigation_teleport_init(wmOperator *op)
 
   XrTeleportData *data = static_cast<XrTeleportData *>(op->customdata);
   data->draw_handle = ED_region_draw_cb_activate(
-      art, wm_xr_navigation_teleport_ray_draw, op->customdata, REGION_DRAW_POST_VIEW);
+      art, wm_xr_navigation_teleport_draw, op->customdata, REGION_DRAW_POST_VIEW);
 }
 
 static void wm_xr_navigation_teleport_uninit(wmOperator *op)
