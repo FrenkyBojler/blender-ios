@@ -769,7 +769,7 @@ blender::Array<Material *> BKE_object_materials_get_eval(Object *ob)
   const short *slots_obdata_num_ptr = BKE_object_material_len_p(ob);
   const int slots_obdata_num = slots_obdata_num_ptr ? *slots_obdata_num_ptr : 0;
 
-  for (int i = slots_num; i--;) {
+  for (const int i : materials.index_range()) {
     /* Check if slot is overwritten by object. */
     if (ob->matbits && ob->matbits[i]) {
       materials[i] = (i < slots_object_num) ? materials_object[i] : nullptr;
@@ -1377,7 +1377,7 @@ void BKE_object_material_from_eval_data(Main *bmain, Object *ob_orig, const ID *
 
 void BKE_object_material_array_assign(Main *bmain,
                                       Object *ob,
-                                      blender::Array<Material *> materials,
+                                      blender::Span<Material *> materials,
                                       int totcol,
                                       const bool to_object_only)
 {
