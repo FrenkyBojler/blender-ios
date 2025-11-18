@@ -1146,6 +1146,8 @@ void BKE_mesh_nomain_to_mesh(Mesh *mesh_src, Mesh *mesh_dst, Object *ob, bool pr
   /* Make sure attribute names are moved. */
   std::swap(mesh_dst->active_color_attribute, mesh_src->active_color_attribute);
   std::swap(mesh_dst->default_color_attribute, mesh_src->default_color_attribute);
+  std::swap(mesh_dst->active_uv_map_attribute, mesh_src->active_uv_map_attribute);
+  std::swap(mesh_dst->default_uv_map_attribute, mesh_src->default_uv_map_attribute);
   std::swap(mesh_dst->vertex_group_names, mesh_src->vertex_group_names);
 
   BKE_mesh_copy_parameters(mesh_dst, mesh_src);
