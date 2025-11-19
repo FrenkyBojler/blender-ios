@@ -14,7 +14,6 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::String>("Path")
       .subtype(PROP_FILEPATH)
       .path_filter("*.*")
-      .hide_label()
       .description("Path to Folder");
   b.add_input<decl::String>("File Last Name");
   b.add_input<decl::Bool>("Deep Search");
