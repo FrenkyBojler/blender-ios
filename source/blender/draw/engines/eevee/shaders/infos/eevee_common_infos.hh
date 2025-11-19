@@ -10,7 +10,6 @@
 #  include "draw_view_infos.hh"
 #  include "eevee_light_shared.hh"
 #  include "eevee_lightprobe_shared.hh"
-#  include "eevee_nodetree_infos.hh"
 #  include "eevee_sampling_shared.hh"
 #  include "eevee_shadow_shared.hh"
 #  include "eevee_uniform_infos.hh"
