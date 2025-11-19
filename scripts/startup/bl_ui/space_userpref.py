@@ -245,14 +245,22 @@ class USERPREF_PT_interface_text(InterfacePanel, CenterAlignMixIn, Panel):
 
         flow = layout.grid_flow(row_major=False, columns=0, even_columns=True, even_rows=False, align=False)
 
+        flow.prop(view, "font_path_ui")
+        flow.prop(view, "font_path_ui_mono")
+
         flow.prop(view, "use_text_antialiasing", text="Anti-Aliasing")
         sub = flow.column()
         sub.active = view.use_text_antialiasing
         sub.prop(view, "use_text_render_subpixelaa", text="Subpixel Anti-Aliasing")
-        sub.prop(view, "text_hinting", text="Hinting")
-
-        flow.prop(view, "font_path_ui")
-        flow.prop(view, "font_path_ui_mono")
+        flow.prop(view, "use_text_kerning", text="Kerning")
+        flow.prop(view, "use_text_slashed_zero", text="Slashed Zero")
+        flow.prop(view, "use_text_disambiguation", text="Disambiguation")
+        flow.prop(view, "use_text_open_digits", text="Open Digits")
+        flow.prop(view, "use_text_discretionary_ligatures", text="Discretionary Ligatures")
+        flow.prop(view, "use_text_tabular_numbers", text="Tabular Numbers")
+        flow.prop(view, "use_text_contextual_alternates", text="Contexual Alternates")
+        flow.prop(view, "use_text_case_alternates", text="Case Alternates")
+        flow.prop(view, "text_hinting", text="Hinting")
 
 
 class USERPREF_PT_interface_translation(InterfacePanel, CenterAlignMixIn, Panel):
