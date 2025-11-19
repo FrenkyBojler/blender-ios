@@ -189,6 +189,8 @@ struct bContext_PyState {
 void CTX_py_state_push(bContext *C, bContext_PyState *pystate, void *value);
 void CTX_py_state_pop(bContext *C, bContext_PyState *pystate);
 
+void CTX_py_rna_disallow_write_set(bContext *C, const bool *rna_disallow_writes);
+
 /* Window Manager Context */
 
 wmWindowManager *CTX_wm_manager(const bContext *C);
@@ -481,3 +483,8 @@ void CTX_member_logging_set(bContext *C, bool enable);
  * Check if logging is enabled of context members.
  */
 bool CTX_member_logging_get(const bContext *C);
+
+/**
+ * Check if writing to RNA is allowed.
+ */
+bool CTX_member_rna_write_check(const bContext *C);

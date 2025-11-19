@@ -103,6 +103,8 @@ struct bContext {
     void *py_context_orig;
     /** True if logging is enabled for context members (can be set programmatically). */
     bool log_access;
+    /** True if writing via RNA is disallowed. */
+    const bool *py_rna_disallow_writes;
   } data;
 };
 
@@ -276,6 +278,11 @@ void CTX_py_state_pop(bContext *C, bContext_PyState *pystate)
 {
   C->data.py_context = pystate->py_context;
   C->data.py_context_orig = pystate->py_context_orig;
+}
+
+void CTX_py_rna_disallow_write_set(bContext *C, const bool *rna_disallow_writes)
+{
+  C->data.py_rna_disallow_writes = rna_disallow_writes;
 }
 
 /* data context utility functions */
@@ -1737,6 +1744,10 @@ Depsgraph *CTX_data_expect_evaluated_depsgraph(const bContext *C)
 Depsgraph *CTX_data_ensure_evaluated_depsgraph(const bContext *C)
 {
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+  if (!CTX_member_rna_write_check(C)) {
+    return depsgraph;
+  }
+
   Main *bmain = CTX_data_main(C);
   BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
   return depsgraph;
@@ -1757,4 +1768,9 @@ void CTX_member_logging_set(bContext *C, bool enable)
 bool CTX_member_logging_get(const bContext *C)
 {
   return C->data.log_access;
+}
+
+bool CTX_member_rna_write_check(const bContext *C)
+{
+  return C->data.py_rna_disallow_writes ? !(*C->data.py_rna_disallow_writes) : true;
 }
