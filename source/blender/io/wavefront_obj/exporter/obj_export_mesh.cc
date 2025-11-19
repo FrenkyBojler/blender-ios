@@ -33,6 +33,7 @@
 
 #include "bmesh.hh"
 #include "bmesh_tools.hh"
+#include <iostream>
 
 namespace blender::io::obj {
 OBJMesh::OBJMesh(Depsgraph *depsgraph, const OBJExportParams &export_params, Object *mesh_object)
@@ -273,6 +274,7 @@ StringRef OBJMesh::get_object_mesh_name() const
 void OBJMesh::store_uv_coords_and_indices()
 {
   const StringRef active_uv_name = export_mesh_->active_uv_map_name();
+  std::cout << "ACTIVE_UV_MAP_NAME: " << active_uv_name << std::endl;
   if (active_uv_name.is_empty()) {
     uv_coords_.clear();
     return;
