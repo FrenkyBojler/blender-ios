@@ -126,7 +126,6 @@ struct VKGraphicsInfo {
   };
   struct FragmentOut {
     GPUState state;
-    uint32_t color_attachment_size;
 
     /* Dynamic rendering */
     VkFormat depth_attachment_format;
@@ -140,15 +139,7 @@ struct VKGraphicsInfo {
 #else
       if (state != other.state || depth_attachment_format != other.depth_attachment_format ||
           stencil_attachment_format != other.stencil_attachment_format ||
-          color_attachment_size != other.color_attachment_size ||
-          color_attachment_formats.size() != other.color_attachment_formats.size())
-      {
-        return false;
-      }
-
-      if (memcmp(color_attachment_formats.data(),
-                 other.color_attachment_formats.data(),
-                 color_attachment_size * sizeof(VkFormat)) != 0)
+          color_attachment_formats != other.color_attachment_formats)
       {
         return false;
       }
@@ -162,7 +153,7 @@ struct VKGraphicsInfo {
       uint64_t hash = uint64_t(depth_attachment_format);
       hash = hash * 33 ^ uint64_t(stencil_attachment_format);
       hash = hash * 33 ^ XXH3_64bits(color_attachment_formats.data(),
-                                     color_attachment_size * sizeof(VkFormat));
+                                     color_attachment_formats.size() * sizeof(VkFormat));
       hash = hash * 33 ^ state.data;
       return hash;
     }
@@ -217,10 +208,12 @@ template<typename PipelineInfo> class VKPipelineMap {
   VkPipeline get_or_create(const PipelineInfo &pipeline_info,
                            VkPipelineCache vk_pipeline_cache,
                            VkPipeline vk_pipeline_base,
-                           StringRefNull name)
+                           StringRefNull name,
+                           bool &r_created)
   {
     bool do_wait_for_pipeline = false;
     bool do_compile_pipeline = false;
+    r_created = false;
     {
       std::scoped_lock lock(mutex_);
       const VkPipeline *found_pipeline = pipelines_.lookup_ptr(pipeline_info);
@@ -243,6 +236,7 @@ template<typename PipelineInfo> class VKPipelineMap {
     }
     if (do_compile_pipeline) {
       VkPipeline pipeline = create(pipeline_info, vk_pipeline_cache, vk_pipeline_base, name);
+      r_created = true;
       /* Store result in the compute pipelines map. */
       {
         std::scoped_lock lock(mutex_);
@@ -404,12 +398,15 @@ class VKPipelinePool : public NonCopyable {
    * \param vk_pipeline_base: An already existing pipeline that can be used as a base when
    *                          compiling the pipeline.
    * \param name:             Name to give as a debug label when creating a pipeline.
+   * \param r_created:        Is set to true when this call has compiled a new pipeline. Otherwise
+   *                          it is set to false.
    * \returns The handle of the compiled pipeline.
    */
   VkPipeline get_or_create_graphics_pipeline(const VKGraphicsInfo &graphics_info,
                                              bool is_static_shader,
                                              VkPipeline vk_pipeline_base,
-                                             StringRefNull name);
+                                             StringRefNull name,
+                                             bool &r_created);
 
   /**
    * Discard all pipelines that uses the given pipeline_layout.
