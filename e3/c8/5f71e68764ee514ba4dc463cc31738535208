@@ -1,1 +1,2 @@
 Referenced by pull request #148904, Fix #148788: Crash after selecting measure tool and snapping it on vertices
+Referenced by issue #150150, scene.ray_cast in 5.0 no longer considers scene when in mesh edit mode
