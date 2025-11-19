@@ -118,6 +118,7 @@ Shader::Shader() : Node(get_node_type())
   need_update_uvs = true;
   need_update_attribute = true;
   need_update_displacement = true;
+  need_update_shadow_transparency = true;
   shadow_transparency_needs_realloc = true;
 }
 
@@ -394,6 +395,7 @@ void Shader::tag_update(Scene *scene)
   if (has_displacement) {
     if (displacement_method == DISPLACE_BOTH) {
       attributes.add(ATTR_STD_POSITION_UNDISPLACED);
+      attributes.add(ATTR_STD_NORMAL_UNDISPLACED);
     }
     if (displacement_method_is_modified()) {
       need_update_displacement = true;
@@ -414,6 +416,8 @@ void Shader::tag_update(Scene *scene)
     prev_has_surface_shadow_transparency = !prev_has_surface_shadow_transparency;
     shadow_transparency_needs_realloc = true;
   }
+
+  need_update_shadow_transparency = prev_has_surface_shadow_transparency;
 
   if (has_volume != prev_has_volume || volume_step_rate != prev_volume_step_rate) {
     scene->geometry_manager->need_flags_update = true;

@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Beta (b'6f9eadf7a433')\n"
+"Project-Id-Version: Blender 5.0.0 Beta (b'd29f9f6118e5')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-27 09:50+0000\n"
+"POT-Creation-Date: 2025-11-10 09:45+0000\n"
 "PO-Revision-Date: 2025-10-14 21:59+0000\n"
 "Last-Translator: Hoang Duy Tran <hoangduytran1960@googlemail.com>\n"
 "Language-Team: Vietnamese <https://translate.blender.org/projects/blender-ui/ui/vi/>\n"
@@ -34329,176 +34329,20 @@ msgid "Editor menu containing buttons"
 msgstr "Trình đơn của trình biên soạn có chứa các nút"
 
 
-msgid "Text"
-msgstr "Văn Bản"
-
-
-msgid "Metaball"
-msgstr "Siêu Cầu"
-
-
-msgid "Show/Hide"
-msgstr "Hiện/Ẩn Giấu"
-
-
-msgid "Names"
-msgstr "Tên"
-
-
-msgid "Bone Roll"
-msgstr "Lăn Xương"
-
-
-msgid "Clean Up"
-msgstr "Dọn Dẹp"
-
-
-msgid "Pivot Point"
-msgstr "Điểm Tựa"
-
-
-msgid "Snap"
-msgstr "Bám Dính"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Suy Giảm Dần trong Biên Soạn Cân Đối"
-
-
-msgid "Mask Edit"
-msgstr "Biên Soạn Màn Chắn Lọc"
-
-
-msgid "Automasking"
-msgstr "Tự Động Chắn Lọc"
-
-
-msgid "Face Sets Edit"
-msgstr "Biên Soạn các Mặt Ấn Định"
-
-
-msgid "Vertex Group Locks"
-msgstr "Khóa của Nhóm Điểm Đỉnh"
-
-
-msgid "Layout"
-msgstr "Bố Trí"
-
-
-msgid "Mirror"
-msgstr "Phản Chiếu Đối Xứng"
-
-
-msgid "UV Mapping"
-msgstr "Ánh Xạ UV"
-
-
-msgid "Local View"
-msgstr "Góc Nhìn Cục Bộ"
-
-
-msgid "Viewpoint"
-msgstr "Điểm Nhìn"
-
-
-msgid "Navigation"
-msgstr "Điều Hướng"
-
-
-msgid "Align View"
-msgstr "Căn Chỉnh Góc Nhìn"
-
-
-msgid "Adjust"
-msgstr "Điều Chỉnh"
-
-
-msgid "Align View to Active"
-msgstr "Căn Chỉnh Góc Nhìn vào cái đang Hoạt Động"
-
-
-msgid "View Regions"
-msgstr "Vùng Góc Nhìn"
-
-
-msgid "Select More/Less"
-msgstr "Tăng/Giảm Lựa Chọn"
-
-
-msgid "Keying"
-msgstr "Khóa Hóa"
-
-
-msgid "Tracking"
-msgstr "Giám Sát"
-
-
-msgid "Select Similar"
-msgstr "Chọn Tương Tự"
-
-
-msgid "Select All by Trait"
-msgstr "Chọn Toàn Bộ theo Đặc Điểm"
-
-
-msgid "Utilities"
-msgstr "Thường Trình"
-
-
-msgid "Select Linked"
-msgstr "Chọn cái Kết Nối"
-
-
-msgid "Math"
-msgstr "Toán"
-
-
-msgid "Select Loops"
-msgstr "Chọn Vòng Mạch"
-
-
-msgid "Creative"
-msgstr "Kiến Tạo"
-
-
-msgid "Assign Material"
-msgstr "Ấn Định Nguyên Vật Liệu"
-
-
-msgid "Render Preview"
-msgstr "Góc Nhìn Kết Xuất"
-
-
-msgid "Light"
-msgstr "Nguồn/Ánh Sáng/Đèn"
-
-
-msgid "Light Probe"
-msgstr "Đầu Dò Ánh Sáng"
-
-
-msgid "Add Image"
-msgstr "Thêm Hình Ảnh"
-
-
-msgid "Relations"
-msgstr "Mối Quan Hệ"
-
-
-msgid "Rigid Body"
-msgstr "Thân Cứng"
-
-
-msgid "Apply"
-msgstr "Áp Dụng"
-
-
 msgid "Track"
 msgstr "Giám Sát"
 
 
 msgid "Quick Effects"
 msgstr "Hiệu Ứng Nhanh"
+
+
+msgid "Show/Hide"
+msgstr "Hiện/Ẩn Giấu"
+
+
+msgid "Clean Up"
+msgstr "Dọn Dẹp"
 
 
 msgid "Asset"
@@ -34521,20 +34365,8 @@ msgid "Hooks"
 msgstr "Móc"
 
 
-msgid "Read"
-msgstr "Đọc"
-
-
-msgid "Sample"
-msgstr "Lấy Mẫu Vật"
-
-
-msgid "Write"
-msgstr "Viết"
-
-
-msgid "Primitives"
-msgstr "Hình Cơ Bản"
+msgid "Vertex Group Locks"
+msgstr "Khóa của Nhóm Điểm Đỉnh"
 
 
 msgid "Trim/Add"
@@ -34561,24 +34393,20 @@ msgid "In-Betweens"
 msgstr "Bước Trung Gian"
 
 
-msgid "Gizmo"
-msgstr "Dụng Cụ"
-
-
 msgid "Propagate"
 msgstr "Lan Truyền"
-
-
-msgid "Instances"
-msgstr "Thực Thể"
 
 
 msgid "Bone Collections"
 msgstr "Bộ Sưu Tập Xương"
 
 
-msgid "Import"
-msgstr "Nhập Khẩu"
+msgid "Names"
+msgstr "Tên"
+
+
+msgid "Apply"
+msgstr "Áp Dụng"
 
 
 msgid "Toggle Bone Options"
@@ -34593,12 +34421,12 @@ msgid "Disable Bone Options"
 msgstr "Tắt các Tùy Chọn về Xương"
 
 
+msgid "Layout"
+msgstr "Bố Trí"
+
+
 msgid "Mesh Select Mode"
 msgstr "Chế Độ Chọn Khung Lưới"
-
-
-msgid "Deprecated"
-msgstr "Lỗi Thời"
 
 
 msgid "Face Data"
@@ -34613,6 +34441,170 @@ msgid "Set Face Strength"
 msgstr "Đặt Cường Độ Mặt"
 
 
+msgid "Merge"
+msgstr "Hợp Nhất"
+
+
+msgid "Adjust"
+msgstr "Điều Chỉnh"
+
+
+msgid "Keying"
+msgstr "Khóa Hóa"
+
+
+msgid "Tracking"
+msgstr "Giám Sát"
+
+
+msgid "Utilities"
+msgstr "Thường Trình"
+
+
+msgid "Math"
+msgstr "Toán"
+
+
+msgid "Special Characters"
+msgstr "Các Ký Tự Đặc Biệt"
+
+
+msgid "Creative"
+msgstr "Kiến Tạo"
+
+
+msgid "Kerning"
+msgstr "Tinh Chỉnh Khoảng Cách Ký Tự"
+
+
+msgid "Text"
+msgstr "Văn Bản"
+
+
+msgid "Metaball"
+msgstr "Siêu Cầu"
+
+
+msgid "Bone Roll"
+msgstr "Lăn Xương"
+
+
+msgid "Render Preview"
+msgstr "Góc Nhìn Kết Xuất"
+
+
+msgid "Pivot Point"
+msgstr "Điểm Tựa"
+
+
+msgid "Snap"
+msgstr "Bám Dính"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "Suy Giảm Dần trong Biên Soạn Cân Đối"
+
+
+msgid "Mask Edit"
+msgstr "Biên Soạn Màn Chắn Lọc"
+
+
+msgid "Automasking"
+msgstr "Tự Động Chắn Lọc"
+
+
+msgid "Face Sets Edit"
+msgstr "Biên Soạn các Mặt Ấn Định"
+
+
+msgid "Read"
+msgstr "Đọc"
+
+
+msgid "Sample"
+msgstr "Lấy Mẫu Vật"
+
+
+msgid "Write"
+msgstr "Viết"
+
+
+msgid "Primitives"
+msgstr "Hình Cơ Bản"
+
+
+msgid "Mirror"
+msgstr "Phản Chiếu Đối Xứng"
+
+
+msgid "UV Mapping"
+msgstr "Ánh Xạ UV"
+
+
+msgid "Local View"
+msgstr "Góc Nhìn Cục Bộ"
+
+
+msgid "Viewpoint"
+msgstr "Điểm Nhìn"
+
+
+msgid "Navigation"
+msgstr "Điều Hướng"
+
+
+msgid "Align View"
+msgstr "Căn Chỉnh Góc Nhìn"
+
+
+msgid "Align View to Active"
+msgstr "Căn Chỉnh Góc Nhìn vào cái đang Hoạt Động"
+
+
+msgid "View Regions"
+msgstr "Vùng Góc Nhìn"
+
+
+msgid "Select More/Less"
+msgstr "Tăng/Giảm Lựa Chọn"
+
+
+msgid "Gizmo"
+msgstr "Dụng Cụ"
+
+
+msgid "Instances"
+msgstr "Thực Thể"
+
+
+msgid "Select Similar"
+msgstr "Chọn Tương Tự"
+
+
+msgid "Select All by Trait"
+msgstr "Chọn Toàn Bộ theo Đặc Điểm"
+
+
+msgid "Select Linked"
+msgstr "Chọn cái Kết Nối"
+
+
+msgid "Select Loops"
+msgstr "Chọn Vòng Mạch"
+
+
+msgid "Import"
+msgstr "Nhập Khẩu"
+
+
+msgid "Deprecated"
+msgstr "Lỗi Thời"
+
+
+msgid "Assign Material"
+msgstr "Ấn Định Nguyên Vật Liệu"
+
+
 msgid "List"
 msgstr "Nâng"
 
@@ -34621,16 +34613,24 @@ msgid "UV"
 msgstr "UV"
 
 
-msgid "Merge"
-msgstr "Hợp Nhất"
+msgid "Light"
+msgstr "Nguồn/Ánh Sáng/Đèn"
 
 
-msgid "Special Characters"
-msgstr "Các Ký Tự Đặc Biệt"
+msgid "Light Probe"
+msgstr "Đầu Dò Ánh Sáng"
 
 
-msgid "Kerning"
-msgstr "Tinh Chỉnh Khoảng Cách Ký Tự"
+msgid "Add Image"
+msgstr "Thêm Hình Ảnh"
+
+
+msgid "Relations"
+msgstr "Mối Quan Hệ"
+
+
+msgid "Rigid Body"
+msgstr "Thân Cứng"
 
 
 msgid "Keyframe Insert Pie"
@@ -70774,10 +70774,6 @@ msgid "Toggle collapsing of selected nodes"
 msgstr "Bật/tắt giải hoạt các nút đã chọn"
 
 
-msgid "Add bake item"
-msgstr "Thêm mục nướng"
-
-
 msgid "Remove an item from the index switch"
 msgstr "Xóa một mục khỏi đổi chỉ số"
 
@@ -77676,10 +77672,6 @@ msgid "Add IK to Bone"
 msgstr "Thêm IK cho Xương"
 
 
-msgid "Add IK Constraint to the active Bone"
-msgstr "Thêm Ràng Buộc IK vào Xương đang hoạt động"
-
-
 msgid "With Targets"
 msgstr "Với Mục Tiêu"
 
@@ -81574,17 +81566,9 @@ msgid "Add Scene Strip"
 msgstr "Thêm Dải về Cảnh"
 
 
-msgid "Add a strip to the sequencer using a Blender scene as a source"
-msgstr "Thêm một dải cho trình phối hình dùng một cảnh của Blender làm nguồn"
-
-
 msgctxt "Operator"
 msgid "Add Strip with a new Scene"
 msgstr "Thêm Dải với một Cảnh mới"
-
-
-msgid "Create a new Strip and assign a new Scene as source"
-msgstr "Kiến Tạo một Dải mới và ấn định một Cảnh mới làm nguồn"
 
 
 msgid "Add new Strip with a new empty Scene with default settings"
@@ -89507,6 +89491,26 @@ msgid "Panel containing UI elements"
 msgstr "Bảng có chứa các phần tử Giao Diện Người Dùng (UI)"
 
 
+msgid "VR"
+msgstr "Virtual Reality: Thực Tế Ảo"
+
+
+msgid "VR Info"
+msgstr "Thông Tin VR"
+
+
+msgid "glTF Variants"
+msgstr "Biến Thể glTF"
+
+
+msgid "glTF Material Variants"
+msgstr "Biến Thể Nguyên Vật Liệu glTF"
+
+
+msgid "glTF Animations"
+msgstr "Hoạt Họa glTF"
+
+
 msgid "Active Tool"
 msgstr "Công Cụ đang Hoạt Động"
 
@@ -89611,14 +89615,6 @@ msgid "Multi Frame"
 msgstr "Đa Khung Hình"
 
 
-msgid "glTF Variants"
-msgstr "Biến Thể glTF"
-
-
-msgid "glTF Material Variants"
-msgstr "Biến Thể Nguyên Vật Liệu glTF"
-
-
 msgid "Auto-Masking"
 msgstr "Tự Động Chắn Lọc"
 
@@ -89637,18 +89633,6 @@ msgstr "Tỷ Lệ Phình Ra/Thu Lại của Đường Cong"
 
 msgid "Viewport Debug"
 msgstr "Hiệu Chỉnh Lỗi Cổng Nhìn"
-
-
-msgid "glTF Animations"
-msgstr "Hoạt Họa glTF"
-
-
-msgid "VR"
-msgstr "Virtual Reality: Thực Tế Ảo"
-
-
-msgid "VR Info"
-msgstr "Thông Tin VR"
 
 
 msgid "Import Settings"
@@ -118026,6 +118010,10 @@ msgid "No Action slot is assigned, so there is nothing to un-assign"
 msgstr "Không có khe Hành Động nào đã được ấn định, vì vậy không có gì để hủy ấn định cả"
 
 
+msgid "No objects selected"
+msgstr "Không có đối tượng nào được chọn cả"
+
+
 msgid "Go to pose mode to copy pose bone colors"
 msgstr "Chuyển sang chế độ tư thế sao chép các màu xương tư thế"
 
@@ -131920,22 +131908,6 @@ msgid "Add IK"
 msgstr "Thêm IK (Nghịch Động Học)"
 
 
-msgid "To Active Bone"
-msgstr "Tới Xương đang Hoạt Động"
-
-
-msgid "To Active Object"
-msgstr "Tới Đối Tượng đang Hoạt Động"
-
-
-msgid "To New Empty Object"
-msgstr "Tới Đối Tượng Rỗng Mới"
-
-
-msgid "Without Targets"
-msgstr "Không có Mục Tiêu"
-
-
 msgid "Could not find constraint data for Child-Of Set Inverse"
 msgstr "Không tìm thấy dữ liệu ràng buộc cho thao tác Đảo Nghịch của Con Cái Của"
 
@@ -132082,10 +132054,6 @@ msgstr "Lỗi không lường trước được đã xảy ra, không tìm thấ
 
 msgid "Cannot add objects to a library override or linked collection"
 msgstr "Không thể cho thêm đối tượng vào một vượt quyền thư viện hoặc bộ sưu tập liên kết được"
-
-
-msgid "No objects selected"
-msgstr "Không có đối tượng nào được chọn cả"
 
 
 msgid "Unable to change object mode while transforming"
@@ -136257,10 +136225,6 @@ msgid "Empty Scene"
 msgstr "Không Gian Trống"
 
 
-msgid "Scenes..."
-msgstr "Cảnh..."
-
-
 msgid ""
 "Scene assets not assigned to a catalog.\n"
 "Catalogs can be assigned in the Asset Browser"
@@ -136976,11 +136940,6 @@ msgstr "hình/giây: %i"
 
 msgid "Create object instance from object-data"
 msgstr "Thực thể hóa đối tượng từ dữ liệu-đối tượng"
-
-
-msgctxt "Operator"
-msgid "Collection_Drop"
-msgstr "Bộ Sưu Tập"
 
 
 msgid "X-Ray not available in current mode"

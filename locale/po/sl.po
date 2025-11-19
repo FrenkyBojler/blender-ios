@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Beta (b'6f9eadf7a433')\n"
+"Project-Id-Version: Blender 5.0.0 Beta (b'd29f9f6118e5')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-27 09:50+0000\n"
+"POT-Creation-Date: 2025-11-10 09:45+0000\n"
 "PO-Revision-Date: 2025-10-17 15:15+0000\n"
 "Last-Translator: Gorazd Gorup <gorupgorazd@gmail.com>\n"
 "Language-Team: Slovenian <https://translate.blender.org/projects/blender-ui/ui/sl/>\n"
@@ -25536,6 +25536,126 @@ msgid "Mask"
 msgstr "Maska"
 
 
+msgid "Track"
+msgstr "Obriši"
+
+
+msgid "Quick Effects"
+msgstr "Učinki na hitro"
+
+
+msgid "Show/Hide"
+msgstr "Pokaži / skrij"
+
+
+msgid "Clean Up"
+msgstr "Počisti"
+
+
+msgid "Asset"
+msgstr "Sredstvo"
+
+
+msgid "Make Single User"
+msgstr "Naredi edinstveno uporabniku"
+
+
+msgid "Convert"
+msgstr "Pretvori"
+
+
+msgid "Link/Transfer Data"
+msgstr "Poveži / prenesi podatke"
+
+
+msgid "Hooks"
+msgstr "Kavlji"
+
+
+msgid "Trim/Add"
+msgstr "Poreži / dodaj"
+
+
+msgid "Random Mask"
+msgstr "Naključna maska"
+
+
+msgid "Clear Transform"
+msgstr "Počisti transformacijo"
+
+
+msgid "In-Betweens"
+msgstr "Vmesni okvirji"
+
+
+msgid "Propagate"
+msgstr "Razširjanje"
+
+
+msgid "Bone Collections"
+msgstr "Zbirke kosti"
+
+
+msgid "Names"
+msgstr "Imena"
+
+
+msgid "Apply"
+msgstr "Uveljavi"
+
+
+msgid "Layout"
+msgstr "Ureditev"
+
+
+msgid "Face Data"
+msgstr "Podatki lic"
+
+
+msgid "Select by Face Strength"
+msgstr "Izberi glede na krepkost lica"
+
+
+msgid "Set Face Strength"
+msgstr "Nastavi krepkost lica"
+
+
+msgid "Merge"
+msgstr "Združi"
+
+
+msgid "Adjust"
+msgstr "Prilagoditev"
+
+
+msgid "Keying"
+msgstr "Ključenje"
+
+
+msgid "Tracking"
+msgstr "Sledenje"
+
+
+msgid "Utilities"
+msgstr "Pripomočki"
+
+
+msgid "Math"
+msgstr "Matematika"
+
+
+msgid "Special Characters"
+msgstr "Posebni znaki"
+
+
+msgid "Creative"
+msgstr "Ustvarjanje"
+
+
+msgid "Kerning"
+msgstr "Spodsekavanje"
+
+
 msgid "Text"
 msgstr "Besedilo"
 
@@ -25544,20 +25664,12 @@ msgid "Metaball"
 msgstr "Metažoga"
 
 
-msgid "Show/Hide"
-msgstr "Pokaži / skrij"
-
-
-msgid "Names"
-msgstr "Imena"
-
-
 msgid "Bone Roll"
 msgstr "Zasukaj kost"
 
 
-msgid "Clean Up"
-msgstr "Počisti"
+msgid "Render Preview"
+msgstr "Predogled upodobitve"
 
 
 msgid "Pivot Point"
@@ -25580,8 +25692,20 @@ msgid "Automasking"
 msgstr "Samodejno maskiranje"
 
 
-msgid "Layout"
-msgstr "Ureditev"
+msgid "Read"
+msgstr "Branje"
+
+
+msgid "Sample"
+msgstr "Vzorčenje"
+
+
+msgid "Write"
+msgstr "Zapiši"
+
+
+msgid "Primitives"
+msgstr "Primitivi"
 
 
 msgid "Mirror"
@@ -25608,10 +25732,6 @@ msgid "Align View"
 msgstr "Poravnava pogleda"
 
 
-msgid "Adjust"
-msgstr "Prilagoditev"
-
-
 msgid "Align View to Active"
 msgstr "Poravnaj pogled na aktivno"
 
@@ -25624,12 +25744,12 @@ msgid "Select More/Less"
 msgstr "Izberi več / manj"
 
 
-msgid "Keying"
-msgstr "Ključenje"
+msgid "Gizmo"
+msgstr "Manipulator"
 
 
-msgid "Tracking"
-msgstr "Sledenje"
+msgid "Instances"
+msgstr "Primerki"
 
 
 msgid "Select Similar"
@@ -25640,32 +25760,32 @@ msgid "Select All by Trait"
 msgstr "Izberi vse po značilnosti"
 
 
-msgid "Utilities"
-msgstr "Pripomočki"
-
-
 msgid "Select Linked"
 msgstr "Izberi povezano"
-
-
-msgid "Math"
-msgstr "Matematika"
 
 
 msgid "Select Loops"
 msgstr "Izberi zanke"
 
 
-msgid "Creative"
-msgstr "Ustvarjanje"
+msgid "Import"
+msgstr "Uvozi"
+
+
+msgid "Deprecated"
+msgstr "Zastarelo"
 
 
 msgid "Assign Material"
 msgstr "Dodeli material"
 
 
-msgid "Render Preview"
-msgstr "Predogled upodobitve"
+msgid "List"
+msgstr "Seznam"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Light"
@@ -25686,126 +25806,6 @@ msgstr "Razmerja"
 
 msgid "Rigid Body"
 msgstr "Togo telo"
-
-
-msgid "Apply"
-msgstr "Uveljavi"
-
-
-msgid "Track"
-msgstr "Obriši"
-
-
-msgid "Quick Effects"
-msgstr "Učinki na hitro"
-
-
-msgid "Asset"
-msgstr "Sredstvo"
-
-
-msgid "Make Single User"
-msgstr "Naredi edinstveno uporabniku"
-
-
-msgid "Convert"
-msgstr "Pretvori"
-
-
-msgid "Link/Transfer Data"
-msgstr "Poveži / prenesi podatke"
-
-
-msgid "Hooks"
-msgstr "Kavlji"
-
-
-msgid "Read"
-msgstr "Branje"
-
-
-msgid "Sample"
-msgstr "Vzorčenje"
-
-
-msgid "Write"
-msgstr "Zapiši"
-
-
-msgid "Primitives"
-msgstr "Primitivi"
-
-
-msgid "Trim/Add"
-msgstr "Poreži / dodaj"
-
-
-msgid "Random Mask"
-msgstr "Naključna maska"
-
-
-msgid "Clear Transform"
-msgstr "Počisti transformacijo"
-
-
-msgid "In-Betweens"
-msgstr "Vmesni okvirji"
-
-
-msgid "Gizmo"
-msgstr "Manipulator"
-
-
-msgid "Propagate"
-msgstr "Razširjanje"
-
-
-msgid "Instances"
-msgstr "Primerki"
-
-
-msgid "Bone Collections"
-msgstr "Zbirke kosti"
-
-
-msgid "Import"
-msgstr "Uvozi"
-
-
-msgid "Deprecated"
-msgstr "Zastarelo"
-
-
-msgid "Face Data"
-msgstr "Podatki lic"
-
-
-msgid "Select by Face Strength"
-msgstr "Izberi glede na krepkost lica"
-
-
-msgid "Set Face Strength"
-msgstr "Nastavi krepkost lica"
-
-
-msgid "List"
-msgstr "Seznam"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Merge"
-msgstr "Združi"
-
-
-msgid "Special Characters"
-msgstr "Posebni znaki"
-
-
-msgid "Kerning"
-msgstr "Spodsekavanje"
 
 
 msgid "Animals"
@@ -49282,6 +49282,22 @@ msgid "Panel containing UI elements"
 msgstr "Plošča, ki vsebuje elemente uporabniškega vmesnika"
 
 
+msgid "VR"
+msgstr "VR"
+
+
+msgid "VR Info"
+msgstr "Informacije VR"
+
+
+msgid "glTF"
+msgstr "glTF"
+
+
+msgid "glTF Animations"
+msgstr "Animacije glTF"
+
+
 msgid "Active Tool"
 msgstr "Aktivno orodje"
 
@@ -49392,22 +49408,6 @@ msgstr "Samodejno maskiranje"
 
 msgid "Viewport Debug"
 msgstr "Razhroščevanje 3D pogleda"
-
-
-msgid "glTF"
-msgstr "glTF"
-
-
-msgid "glTF Animations"
-msgstr "Animacije glTF"
-
-
-msgid "VR"
-msgstr "VR"
-
-
-msgid "VR Info"
-msgstr "Informacije VR"
 
 
 msgid "Import Settings"
@@ -73125,22 +73125,6 @@ msgid "Add IK"
 msgstr "Dodaj IK"
 
 
-msgid "To Active Bone"
-msgstr "Na aktivno kost"
-
-
-msgid "To Active Object"
-msgstr "Na aktivni objekt"
-
-
-msgid "To New Empty Object"
-msgstr "Na nov prazni objekt"
-
-
-msgid "Without Targets"
-msgstr "Brez tarč"
-
-
 msgid "Skipping object '%s', linked or override data '%s' cannot be modified"
 msgstr "Preskakujem objekt '%s', povezanih ali povoženih podatkov '%s' ni mogoče spreminjati"
 
@@ -74773,10 +74757,6 @@ msgstr "Datoteke '%s' ni bilo mogoče naložiti"
 
 msgid "Empty Scene"
 msgstr "Prazna scena"
-
-
-msgid "Scenes..."
-msgstr "Scene ..."
 
 
 msgid "No strips to paste"
