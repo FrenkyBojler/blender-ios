@@ -1243,7 +1243,7 @@ static void wm_xr_navigation_teleport_draw_ray(const XrTeleportData *data)
       num_control_points);
 
   /* Calculate the number of evaluated points that interpolation is expected to produce. */
-  constexpr int segment_samples = 6;
+  constexpr int segment_samples = 8;
   const int spline_size = bke::curves::catmull_rom::calculate_evaluated_num(
       num_control_points, false, segment_samples);
 
@@ -1352,7 +1352,7 @@ static void wm_xr_navigation_teleport_data_update(wmOperator *op,
 
   float nav_scale;
   WM_xr_session_state_nav_scale_get(xr, &nav_scale);
-  data->teleportation_scale = (nav_scale > 1) ? math::sqrt(nav_scale) : nav_scale;
+  data->teleportation_scale = nav_scale;
 }
 
 static void wm_xr_navigation_teleport_raycast(Scene *scene,
@@ -1707,7 +1707,7 @@ static void WM_OT_xr_navigation_teleport(wmOperatorType *ot)
                 10.0f);
   RNA_def_float(ot->srna,
                 "destination_indicator_width",
-                0.35f,
+                0.18f,
                 0.0f,
                 FLT_MAX,
                 "Destination Indicator Width",
@@ -1716,7 +1716,7 @@ static void WM_OT_xr_navigation_teleport(wmOperatorType *ot)
                 5.0f);
 
   /* Ray colors. */
-  static const float default_teleport_ray_hit_color[4] = {0.4f, 0.6f, 0.8f, 1.0f};
+  static const float default_teleport_ray_hit_color[4] = {0.4f, 0.6f, 0.9f, 1.0f};
   static const float default_teleport_ray_miss_color[4] = {1.0f, 0.35f, 0.35f, 1.0f};
   static const float default_teleport_ray_fallback_color[4] = {0.5f, 0.45f, 0.8f, 1.0f};
   RNA_def_float_color(ot->srna,
