@@ -1934,6 +1934,10 @@ static wmOperatorStatus grease_pencil_move_to_layer_exec(bContext *C, wmOperator
       continue;
     }
 
+    if (layer_dst.frames().is_empty()) {
+      grease_pencil.insert_frame(layer_dst, scene->r.cfra);
+    }
+
     bool is_key_inserted = false;
     const bool has_active_key = ensure_active_keyframe(
         *scene, grease_pencil, layer_dst, false, is_key_inserted);
