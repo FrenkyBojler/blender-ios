@@ -334,8 +334,15 @@ gpu::Batch **pointcloud_surface_shaded_get(PointCloud *pointcloud,
 
 gpu::Batch *pointcloud_surface_get(PointCloud *pointcloud)
 {
-  PointCloudBatchCache *cache = pointcloud_batch_cache_get(*pointcloud);
-  return DRW_batch_request(&cache->eval_cache.surface);
+  PointCloudBatchCache &cache = *pointcloud_batch_cache_get(*pointcloud);
+  if (cache.eval_cache.surface != nullptr) {
+    return cache.eval_cache.surface;
+  }
+
+  cache.eval_cache.surface = GPU_batch_create_procedural(GPU_PRIM_TRI_STRIP,
+                                                         8 * pointcloud->totpoint);
+  DRW_vbo_request(cache.eval_cache.surface, &cache.eval_cache.pos_rad);
+  return cache.eval_cache.surface;
 }
 
 /** \} */
@@ -418,12 +425,6 @@ void DRW_pointcloud_batch_cache_create_requested(Object *ob)
   if (DRW_batch_requested(cache.edit_selection, GPU_PRIM_POINTS)) {
     DRW_ibo_request(cache.edit_selection, &cache.edit_selection_indices);
     DRW_vbo_request(cache.edit_selection, &cache.eval_cache.pos_rad);
-  }
-
-  if (cache.eval_cache.surface != nullptr) {
-    GPU_batch_init_procedural(
-        cache.eval_cache.surface, GPU_PRIM_TRI_STRIP, 8 * pointcloud.totpoint);
-    DRW_vbo_request(cache.eval_cache.surface, &cache.eval_cache.pos_rad);
   }
 
   for (int i = 0; i < cache.eval_cache.mat_len; i++) {

@@ -135,10 +135,6 @@ blender::gpu::Batch *GPU_batch_create_ex(GPUPrimType primitive_type,
 
 blender::gpu::Batch *GPU_batch_create_procedural(GPUPrimType primitive_type, int32_t vertex_count);
 
-void GPU_batch_init_procedural(blender::gpu::Batch *batch,
-                               GPUPrimType primitive_type,
-                               int32_t vertex_count);
-
 /**
  * Creates a #blender::gpu::Batch without buffer ownership.
  */
