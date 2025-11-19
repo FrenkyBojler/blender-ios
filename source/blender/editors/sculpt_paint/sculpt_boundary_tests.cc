@@ -1,16 +1,17 @@
 /* SPDX-FileCopyrightText: 2025 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
+#include "sculpt_boundary.hh"
+
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
+
+#include "CLG_log.h"
 
 #include "DNA_mesh_types.h"
 
 #include "GEO_mesh_primitive_cuboid.hh"
-
-#include "CLG_log.h"
 #include "GEO_mesh_primitive_grid.hh"
-#include "sculpt_boundary.hh"
 
 #include "testing/testing.h"
 

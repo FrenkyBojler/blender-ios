@@ -3,19 +3,18 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 #include "mesh_brush_common.hh"
 
-#include "BLI_bit_span.hh"
-#include "BLI_ordered_edge.hh"
-
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
+
 #include "BLI_array_utils.hh"
+
+#include "CLG_log.h"
 
 #include "DNA_mesh_types.h"
 
 #include "GEO_mesh_primitive_cuboid.hh"
-
-#include "CLG_log.h"
 #include "GEO_mesh_primitive_grid.hh"
+
 #include "sculpt_boundary.hh"
 
 #include "testing/testing.h"

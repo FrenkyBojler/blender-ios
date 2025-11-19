@@ -7,7 +7,6 @@
  */
 #pragma once
 
-#include "BKE_paint.hh"
 
 #include <memory>
 
@@ -20,6 +19,9 @@
 #include "BLI_set.hh"
 #include "BLI_span.hh"
 #include "BLI_vector.hh"
+
+#include "BKE_paint.hh"
+
 #include "DNA_mesh_types.h"
 
 struct Brush;
