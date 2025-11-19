@@ -66,8 +66,7 @@ template<> float4 to_float(const MLoopCol &src)
 {
   float4 dst;
   rgba_uchar_to_float(dst, reinterpret_cast<const uchar *>(&src));
-  srgb_to_linearrgb_v3_v3(dst, dst);
-  IMB_colormanagement_rec709_to_scene_linear(dst, dst);
+  IMB_colormanagement_srgb_to_scene_linear_v3(dst, dst);
   return dst;
 }
 template<> float4 to_float(const MPropCol &src)
@@ -80,8 +79,7 @@ template<typename T> void from_float(const float4 &src, T &dst);
 template<> void from_float(const float4 &src, MLoopCol &dst)
 {
   float4 temp;
-  IMB_colormanagement_scene_linear_to_rec709(temp, src);
-  linearrgb_to_srgb_v3_v3(temp, temp);
+  IMB_colormanagement_scene_linear_to_srgb_v3(temp, src);
   temp[3] = src[3];
   rgba_float_to_uchar(reinterpret_cast<uchar *>(&dst), temp);
 }
