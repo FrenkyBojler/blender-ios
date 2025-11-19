@@ -3438,6 +3438,13 @@ static wmOperatorStatus frame_jump_delta_exec(bContext *C, wmOperator *op)
     scene->r.subframe -= subframe_offset;
   }
 
+  if (!(scene->r.flag & SCER_SHOW_SUBFRAME)) {
+    scene->r.cfra = round_fl_to_int(scene->r.cfra + scene->r.subframe);
+    scene->r.subframe = 0.0f;
+  }
+
+  FRAMENUMBER_MIN_CLAMP(scene->r.cfra);
+
   ED_areas_do_frame_follow(C, true);
   blender::ed::vse::sync_active_scene_and_time_with_scene_strip(*C);
 
