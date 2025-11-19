@@ -14,21 +14,23 @@
 #include "overlay_common_infos.hh"
 
 /* We use the normalized local position to avoid precision loss during interpolation. */
-GPU_SHADER_INTERFACE_INFO(overlay_grid_iface)
+GPU_SHADER_INTERFACE_INFO(overlay_grid_vert_out)
 SMOOTH(float3, local_pos)
 GPU_SHADER_INTERFACE_END()
 
-GPU_SHADER_INTERFACE_INFO(overlay_grid_debug)
+GPU_SHADER_INTERFACE_INFO(overlay_gridrework_vert_out)
 SMOOTH(float2, local_coord)
 FLAT(float, local_alpha)
 FLAT(int, debug_level)
+FLAT(float2, edge_start)
+NO_PERSPECTIVE(float2, edge_pos)
 GPU_SHADER_INTERFACE_END()
 
 GPU_SHADER_CREATE_INFO(overlay_grid_next)
 DO_STATIC_COMPILATION()
 TYPEDEF_SOURCE("overlay_shader_shared.hh")
 VERTEX_IN(0, float3, pos)
-VERTEX_OUT(overlay_grid_iface)
+VERTEX_OUT(overlay_grid_vert_out)
 FRAGMENT_OUT(0, float4, out_color)
 SAMPLER(0, sampler2DDepth, depth_tx)
 SAMPLER(1, sampler2DDepth, depth_infront_tx)
@@ -45,9 +47,10 @@ GPU_SHADER_CREATE_INFO(overlay_gridrework_next)
 DO_STATIC_COMPILATION()
 TYPEDEF_SOURCE("overlay_shader_shared.hh")
 VERTEX_IN(0, float3, pos)
-VERTEX_OUT(overlay_grid_iface)
-VERTEX_OUT(overlay_grid_debug) /* TODO; move to overlay_grid_iface */
+VERTEX_OUT(overlay_grid_vert_out)
+VERTEX_OUT(overlay_gridrework_vert_out) /* TODO; move to overlay_grid_vert_out */
 FRAGMENT_OUT(0, float4, out_color)
+FRAGMENT_OUT(1, float4, line_output)
 UNIFORM_BUF(3, OVERLAY_GridReworkData, grid_buf)
 PUSH_CONSTANT(float, grid_level)
 PUSH_CONSTANT(float2, grid_poi)

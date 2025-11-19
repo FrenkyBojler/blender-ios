@@ -16,7 +16,7 @@ VERTEX_SHADER_CREATE_INFO(overlay_gridrework_next)
 /** The grid renders N hardcoded levels of hierarchy. */
 #define GRID_LEVELS_DRAW 3
 
-/* Helper function; discard the current line vertex in top scope. */
+/* Helper function; discard the current line vertex in top scope; it will be clipped. */
 #define discard_line() \
   { \
     gl_Position = float4(NAN_FLT); \
@@ -36,7 +36,7 @@ LineData get_line_data(in uint vertex_id)
   LineData line;
 
   /* Every pair of consecutive vertices forms a line, indicated by bit 0.
-   * Every pair of consecutive lines alternates x/y direction, indicated by bit 1. */
+   * Every pair of consecutive lines alternates x/y, indicated by bit 1. */
   uint side = vertex_id & 0x1u;
   vertex_id = vertex_id >> 1u;
   line.dir = vertex_id & 0x1u; /* Stored for later lookup. */
@@ -50,10 +50,9 @@ LineData get_line_data(in uint vertex_id)
   line.P.x = float(grid_buf.num_lines_per_level >> 1u); /* N/2 */
   line.P.y = float(vertex_id) - line.P.x;               /* [0...N] - N/2 */
 
-  /* If this isn't the start of the line, flip the x-coord to define the end. */
+  /* If this isn't the start of the line, flip the x-component to the end. Likewise,
+   * if this isn't the x-direction, flip components to define the y-direction. */
   line.P.x = select(line.P.x, -line.P.x, side);
-
-  /* If this isn't the x-direction, flip x/y-coords to define the y-direction. */
   line.P.xy = select(line.P.xy, line.P.yx, line.dir);
 
   return line;
@@ -63,33 +62,30 @@ void main()
 {
   LineData line = get_line_data(gl_VertexID);
 
-  /* Set stage outputs. */
-  {
-    /* Vertex position, [-1,1], which we use to fade level boundaries. */
-    local_coord = line.P / float(grid_buf.num_lines_per_level >> 1);
-
-    /* Level alpha, [0, 1], which we use to smoothly transition levels in/out. */
-    local_alpha
-      = saturate((line.level + 1.0f - fract(grid_level)) / float(GRID_LEVELS_DRAW - 1));
-    local_alpha = 2.0f * local_alpha - square(local_alpha); /* Slight elliptic curve. */
-  }
-  
-  /* Compute the actual level of grid data, offset by -1 to draw a sub-level in the 3D viewport. 
-   * Then scale the grid line based on this level */
+  /* Compute the actual level of grid data, offset by -1 to draw a sub-level in the 3D viewport. */
   int level = int(grid_level) + line.level - (flag_test(grid_flag, PLANE_IMAGE) ? 0 : 1);
   float scale = grid_buf.level_scales[level][line.dir];
-  line.P *= scale;
 
+  /* Clipping; discard lines outside of the level range. */
+  if (level < 0 || level >= GRID_LEVELS_TOTAL) {
+    discard_line();
+  }
+
+  /* Stage output: vertex position in [-1,1], which we use to fade level boundaries. */
+  local_coord = line.P / float(grid_buf.num_lines_per_level >> 1);
+
+  /* Stage output:  level fade in [0, 1], which we use to smoothly transition grid levels, */
+  local_alpha = (line.level + 1.0f - fract(grid_level)) / float(GRID_LEVELS_DRAW - 1);
+  local_alpha = saturate(local_alpha);
+  local_alpha = 2.0f * local_alpha - square(local_alpha); /* Slight elliptic curve. */
   /* Modify fade based on pixel size for orthographic, as we lack proper dfdx/dfdy on lines. */
   if (!drw_view_is_perspective()) {
     float fade = smoothstep(scale * 0.25f, scale * pow3f(0.25f), uniform_buf.pixel_fac);
     local_alpha *= fade;
   }
 
-  /* Clipping; discard lines outside of the level range. */
-  if (level < 0 || level >= GRID_LEVELS_TOTAL) {
-    discard_line();
-  }
+  /* Scale lines appropriately based on level scaling. */
+  line.P *= scale;
 
   /* Clipping; restrict lines to a reasonable range for float precision, as (absurdly) large
    * lines can cause flickering/teleporting problems. */
@@ -114,13 +110,15 @@ void main()
   /* Clipping; if there exists an integer, s.t. with the scaling of the level *above* we can draw
    * the current line, we can discard the current line on *any* sublevel as the superlevel
    * is guaranteed to draw over it. */
-  /* TODO (not_mark): fix the weird cases during [orthographic+imperial+`thou`] and re-enable. */
-  /* if (line.level < GRID_LEVELS_DRAW - 1 && level < GRID_LEVELS_TOTAL - 1) {
-    float nscale = grid_buf.level_scales[min(level + 1, GRID_LEVELS_TOTAL - 1)][0];
-    float offset = round(select(P_offset.y, P_offset.x, line.dir) / nscale) * nscale;
-    float P_diff = offset + (select(P.y, P.x, line.dir) - offset) / nscale;
-    if (abs(fract(P_diff)) < 1e-4) {
-      discard_line();
+  /* TODO(not_mark): disabled until I can identify popping issues. */
+  /* if (!flag_test(grid_flag, PLANE_IMAGE)) {
+    if (line.level < GRID_LEVELS_DRAW - 1 && level < GRID_LEVELS_TOTAL - 1) {
+      float nscale = grid_buf.level_scales[min(level + 1, GRID_LEVELS_TOTAL - 1)][0];
+      float offset = round(select(grid_poi.y, grid_poi.x, line.dir) / nscale) * nscale;
+      float P_diff = offset + (select(line.P.y, line.P.x, line.dir) - offset) / nscale;
+      if (abs(fract(P_diff)) < 1e-4) {
+        discard_line();
+      }
     }
   } */
 
@@ -137,6 +135,9 @@ void main()
   else { /* PLANE_IMAGE */
     local_pos = float3(line.P.xy * 0.5f + 0.5f, 0.0f);
   }
-
   gl_Position = drw_view().winmat * (drw_view().viewmat * float4(local_pos, 1.0f));
+
+  /* Output for viewport antialiasing. */
+  edge_start = edge_pos 
+    = ((gl_Position.xy / gl_Position.w) * 0.5f + 0.5f) * uniform_buf.size_viewport;
 }

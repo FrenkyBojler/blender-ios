@@ -9,17 +9,12 @@ FRAGMENT_SHADER_CREATE_INFO(overlay_gridrework_next)
 #include "draw_view_lib.glsl"
 #include "gpu_shader_math_base_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
+#include "overlay_common_lib.glsl"
 
 #define linearstep(p0, p1, v) (clamp(((v) - (p0)) / abs((p1) - (p0)), 0.0f, 1.0f))
 
 void main()
 {
-  /* Compute normalized view vector. */
-  float3 P = local_pos;
-  float3 V = drw_view_position() - P;
-  float dist = length(V);
-  V /= dist;
-
   /* Fragment color. */
   {
     /* Base color is a mix of [grid, grid_emphasis] by vertex alpha, which incorporates level
@@ -27,10 +22,13 @@ void main()
     out_color = mix(theme.colors.grid, theme.colors.grid_emphasis, local_alpha);
     out_color.a *= local_alpha;
 
-    /* Query for axis lines */
-    /* Primary axis colors/alphas. */
+    /* Primary axis colors. Note that we ignore vertex alpha. */
     if (flag_test(grid_flag, (SHOW_AXIS_X | SHOW_AXIS_Y | SHOW_AXIS_Z))) {
-      /* ... */
+      if (abs(local_pos.x) < 1e-4f) {
+        out_color = theme.colors.grid_axis_x;
+      } else if (abs(local_pos.y) < 1e-4f) {
+        out_color = theme.colors.grid_axis_y;
+      }
     }
   }
 
@@ -43,9 +41,14 @@ void main()
     }
 
     if (drw_view_is_perspective()) {
+      /* Compute normalized view vector. */
+      float3 P = local_pos;
+      float3 V = drw_view_position() - P;
+      float dist = length(V);
+      V /= dist;
+      
       /* Add fade at steep angles. */
-      float angle = 1.0f - abs(V.z);
-      out_color.a *= (1.f - pow3f(angle));
+      out_color.a *= 1.0f - pow3f(1.0f - abs(V.z));
 
       /* Add fade towards clip distance. */
       out_color.a *= 1.0f -
@@ -86,5 +89,10 @@ void main()
      * avoid popping and flickering. This gives the grid a see-through appearance. */
     float bias = max(gpu_fwidth(gl_FragCoord.z), 2.4e-7f);
     out_color.a *= linearstep(grid_depth, grid_depth + bias, scene_depth);
+  }
+
+  /* Output for viewport antialiasing. */
+  if (out_color.a != 0.0f) {
+    line_output = pack_line_data(gl_FragCoord.xy, edge_start, edge_pos);
   }
 }

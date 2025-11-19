@@ -74,7 +74,7 @@ class GridRework : Overlay {
 
     /* Draw a quad behind the grid, specifically in the 2D/uv image editor. This is retained
      * from the 5.0 grid. */
-    if (state.is_space_image()) {
+    /* if (state.is_space_image()) {
       auto &sub = grid_ps_.sub("grid_background");
       sub.shader_set(res.shaders->grid_background.get());
       const float4 color_back = math::interpolate(
@@ -83,7 +83,7 @@ class GridRework : Overlay {
       sub.push_constant("tile_scale", float3(grid_ubo_.size));
       sub.bind_texture("depth_buffer", depth_tx);
       sub.draw(res.shapes.quad_solid.get());
-    }
+    } */
 
     {
       /* Vertex count is 2 (x/y-direction) x 2 (verts per line) x levels x N */
@@ -102,28 +102,28 @@ class GridRework : Overlay {
 
     /* Draw an outline around the grid, specifically in the 2D/UV image editor. This is retained
      * from the 5.0 grid. */
-    if (state.is_space_image()) {
-      float4 theme_color;
-      UI_GetThemeColorShade4fv(TH_BACK, 60, theme_color);
-      srgb_to_linearrgb_v4(theme_color, theme_color);
+    // if (state.is_space_image()) {
+    //   float4 theme_color;
+    //   UI_GetThemeColorShade4fv(TH_BACK, 60, theme_color);
+    //   srgb_to_linearrgb_v4(theme_color, theme_color);
 
-      /* Add wire border. */
-      auto &sub = grid_ps_.sub("wire_border");
-      sub.shader_set(res.shaders->grid_image.get());
-      sub.push_constant("ucolor", theme_color);
-      tile_pos_buf_.clear();
-      for (const int x : IndexRange(grid_ubo_.size[0])) {
-        for (const int y : IndexRange(grid_ubo_.size[1])) {
-          tile_pos_buf_.append(float4(x, y, 0.0f, 0.0f));
-        }
-      }
-      tile_pos_buf_.push_update();
-      sub.bind_ssbo("tile_pos_buf", &tile_pos_buf_);
-      sub.draw(res.shapes.quad_wire.get(), tile_pos_buf_.size());
-    }
+    //   /* Add wire border. */
+    //   auto &sub = grid_ps_.sub("wire_border");
+    //   sub.shader_set(res.shaders->grid_image.get());
+    //   sub.push_constant("ucolor", theme_color);
+    //   tile_pos_buf_.clear();
+    //   for (const int x : IndexRange(grid_ubo_.size[0])) {
+    //     for (const int y : IndexRange(grid_ubo_.size[1])) {
+    //       tile_pos_buf_.append(float4(x, y, 0.0f, 0.0f));
+    //     }
+    //   }
+    //   tile_pos_buf_.push_update();
+    //   sub.bind_ssbo("tile_pos_buf", &tile_pos_buf_);
+    //   sub.draw(res.shapes.quad_wire.get(), tile_pos_buf_.size());
+    // }
   }
 
-  void draw_color_only(Framebuffer &framebuffer, Manager &manager, View &view) final
+  void draw_line_only(Framebuffer &framebuffer, Manager &manager, View &view) final
   {
     if (!enabled_) {
       return;

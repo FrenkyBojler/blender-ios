@@ -823,7 +823,7 @@ void Instance::draw_v2d(Manager &manager, View &view)
 
   background.draw_output(resources.overlay_output_color_only_fb, manager, view);
 #ifdef USE_GRID_REWORK
-  grid_rework.draw_color_only(resources.overlay_output_color_only_fb, manager, view);
+  grid_rework.draw_line_only(resources.overlay_output_color_only_fb, manager, view);
 #else
   grid.draw_color_only(resources.overlay_output_color_only_fb, manager, view);
 #endif
@@ -955,10 +955,11 @@ void Instance::draw_v3d(Manager &manager, View &view)
     motion_paths.draw_color_only(resources.overlay_color_only_fb, manager, view);
     xray_fade.draw_color_only(resources.overlay_color_only_fb, manager, view);
 #ifdef USE_GRID_REWORK
-    grid_rework.draw_color_only(resources.overlay_color_only_fb, manager, view);
+    grid_rework.draw_line_only(resources.overlay_line_only_fb, manager, view);
 #else
     grid.draw_color_only(resources.overlay_color_only_fb, manager, view);
 #endif
+
 
     regular.meshes.draw_line(resources.overlay_line_fb, manager, view);
     infront.meshes.draw_line(resources.overlay_line_in_front_fb, manager, view);
