@@ -51,7 +51,7 @@
 
 #include "readfile.hh"
 
-#include "BLO_versioning_common.hh"
+#include "versioning_common.hh"
 
 /**
  * Change animation/drivers from "collections[..." to "collections_all[..." so

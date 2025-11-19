@@ -114,8 +114,8 @@
 
 #include "IMB_colormanagement.hh"
 
-#include "BLO_versioning_common.hh"
 #include "readfile.hh"
+#include "versioning_common.hh"
 
 /* Make preferences read-only. */
 #define U (*((const UserDef *)&U))

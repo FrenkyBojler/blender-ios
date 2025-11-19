@@ -106,7 +106,6 @@
 #include "SEQ_sequencer.hh"
 
 #include "BLO_read_write.hh"
-#include "BLO_versioning_common.hh"
 
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"
@@ -114,6 +113,7 @@
 #include "DRW_engine.hh"
 
 #include "bmesh.hh"
+#include "versioning_common.hh"
 
 using blender::bke::CompositorRuntime;
 using blender::bke::SceneRuntime;

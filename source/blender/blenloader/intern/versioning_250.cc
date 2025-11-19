@@ -74,7 +74,7 @@
 
 #include "readfile.hh"
 
-#include "BLO_versioning_common.hh"
+#include "versioning_common.hh"
 
 #include <algorithm>
 #include <cerrno>

@@ -51,7 +51,7 @@
 
 #include "readfile.hh"
 
-#include "BLO_versioning_common.hh"
+#include "versioning_common.hh"
 
 /* The Threshold, Mix, and Size properties of the node were converted into node inputs, and
  * two new outputs were added.

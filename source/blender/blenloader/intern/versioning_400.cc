@@ -62,7 +62,7 @@
 
 #include "readfile.hh"
 
-#include "BLO_versioning_common.hh"
+#include "versioning_common.hh"
 
 static void version_composite_nodetree_null_id(bNodeTree *ntree, Scene *scene)
 {

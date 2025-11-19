@@ -48,7 +48,7 @@
 
 #include "readfile.hh"
 
-#include "BLO_versioning_common.hh"
+#include "versioning_common.hh"
 
 /**
  * Exit NLA tweakmode when the AnimData struct has insufficient information.

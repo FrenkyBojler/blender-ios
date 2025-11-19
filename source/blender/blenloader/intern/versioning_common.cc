@@ -47,8 +47,8 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLO_readfile.hh"
-#include "BLO_versioning_common.hh"
 #include "readfile.hh"
+#include "versioning_common.hh"
 
 using blender::Map;
 using blender::StringRef;

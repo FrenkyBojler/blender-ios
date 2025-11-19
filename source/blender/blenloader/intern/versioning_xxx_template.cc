@@ -30,7 +30,7 @@
 
 #include "readfile.hh"
 
-#include "BLO_versioning_common.hh"
+#include "versioning_common.hh"
 
 // #include "CLG_log.h"
 // static CLG_LogRef LOG = {"blend.doversion"};

@@ -69,7 +69,7 @@
 
 #include "BLT_translation.hh"
 
-#include "BLO_versioning_common.hh"
+#include "versioning_common.hh"
 
 /* Make preferences read-only, use `versioning_userdef.cc`. */
 #define U (*((const UserDef *)&U))

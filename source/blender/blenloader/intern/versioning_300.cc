@@ -102,7 +102,7 @@
 #include "SEQ_sequencer.hh"
 #include "SEQ_time.hh"
 
-#include "BLO_versioning_common.hh"
+#include "versioning_common.hh"
 
 static CLG_LogRef LOG = {"blend.doversion"};
 

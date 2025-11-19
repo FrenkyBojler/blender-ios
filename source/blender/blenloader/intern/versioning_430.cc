@@ -40,7 +40,7 @@
 
 #include "readfile.hh"
 
-#include "BLO_versioning_common.hh"
+#include "versioning_common.hh"
 
 void do_versions_after_linking_430(FileData * /*fd*/, Main *bmain)
 {
