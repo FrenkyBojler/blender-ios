@@ -10,5 +10,5 @@ VERTEX_SHADER_CREATE_INFO(overlay_fullscreen)
 
 void main()
 {
-  fullscreen_vertex(gl_VertexID, gl_Position);
+  fullscreen_vertex(gl_VertexID, gl_Position, screen_uv);
 }
