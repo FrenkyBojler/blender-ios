@@ -569,7 +569,8 @@ class NODE_MT_gn_input_import_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeImportSTL", label="STL (.stl)")
         self.node_operator(layout, "GeometryNodeImportText", label="Text (.txt)")
         self.node_operator(layout, "GeometryNodeImportVDB", label="OpenVDB (.vdb)")
-        self.node_operator(layout, "GeometryNodeSearchInFolder"，label="Folder")
+        self.node_operator(layout, "GeometryNodeSearchInFolder", label="Folder")
+                           
         self.draw_assets_for_catalog(layout, self.menu_path)
 
 
