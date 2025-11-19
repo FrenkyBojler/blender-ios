@@ -88,19 +88,19 @@ static const EnumPropertyItem rna_enum_image_import_type_items[] = {
      "DETECT",
      0,
      "Auto Detect",
-     "Automatically detects sequences. Images are added as individual strips unless their "
-     "filenames match Blender's sequence filename pattern, in which case they are grouped into a "
-     "single image sequence"},
+     "Add images as individual strips, unless their filenames match Blender's numbered sequence "
+     "pattern, in which case they are grouped into a single image sequence"},
     {int(ImageImport::Sequence),
      "SEQUENCE",
      0,
      "Image Sequence",
-     "Imports all selected images as a single image sequence"},
+     "Import all selected images as a single image sequence. The sequence of images does not have "
+     "to match Blender's numbered sequence pattern, so placeholders cannot be inferred"},
     {int(ImageImport::Individual),
      "INDIVIDUAL",
      0,
      "Individual Images",
-     "Adds each selected image as its own strip"},
+     "Add each selected image as an individual strip"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -171,11 +171,7 @@ static void sequencer_add_draw(bContext * /*C*/, wmOperator *op)
   if (!RNA_boolean_get(op->ptr, "move_strips") || is_redo_panel) {
     uiLayout &col = layout->column(true);
     col.prop(op->ptr, "frame_start", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    if (RNA_struct_find_property(op->ptr, "length")) {
-      col.prop(op->ptr, "length", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    }
     layout->prop(op->ptr, "channel", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    layout->separator();
     layout->prop(op->ptr, "replace_sel", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
@@ -187,6 +183,13 @@ static void sequencer_add_draw(bContext * /*C*/, wmOperator *op)
                    nullptr,
                    UI_BUT_LABEL_ALIGN_NONE,
                    false);
+
+  /* There is no effect strip add UI, so assume an image is being imported if "length" is found. */
+  if (RNA_struct_find_property(op->ptr, "length") &&
+      ImageImport(RNA_enum_get(op->ptr, "image_import_type")) != ImageImport::Sequence)
+  {
+    layout->prop(op->ptr, "length", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
 
   layout->separator();
 
@@ -1888,6 +1891,7 @@ static wmOperatorStatus sequencer_add_image_strip_exec(bContext *C, wmOperator *
     }
   }
   else {
+    /* Note that `use_sequence_detection` is false for `ImageImport::Individual`.*/
     RNA_boolean_set(op->ptr, "use_sequence_detection", import_type == ImageImport::Detect);
     if (!sequencer_add_images(C, op, load_data)) {
       return OPERATOR_CANCELLED;
@@ -1985,7 +1989,7 @@ void SEQUENCER_OT_image_strip_add(wmOperatorType *ot)
                "Mode for importing selected images");
 
   /* Required for `ED_image_filesel_detect_sequences`, but not shown in UI.
-   * Set to true on SequenceDetection::Detect. */
+   * Set to true on ImageImport::Detect. */
   RNA_def_boolean(
       ot->srna,
       "use_sequence_detection",
