@@ -7,6 +7,7 @@
 #include "BKE_lib_id.hh"
 
 #include "BLI_array_utils.hh"
+#include "BLI_map.hh"
 
 #include "CLG_log.h"
 
@@ -76,7 +77,7 @@ TEST_F(MeshTests, calc_vert_neighbors_interior__cube)
   Map<int, int> calculated_counts;
   for (const int i : result.index_range()) {
     calculated_counts.add_or_modify(
-        result[i].size(), *[](int *value) { (*value) = 1; }, *[](int *value) { (*value)++; });
+        result[i].size(), [](int *value) { *value = 1; }, [](int *value) { (*value)++; });
   }
   for (const int key : expected_counts.keys()) {
     ASSERT_EQ(calculated_counts.lookup_default(key, -1), expected_counts.lookup_default(key, -2));
@@ -116,7 +117,7 @@ TEST_F(MeshTests, calc_vert_neighbors_interior__1D_strip)
   Map<int, int> calculated_counts;
   for (const int i : result.index_range()) {
     calculated_counts.add_or_modify(
-        result[i].size(), *[](int *value) { (*value) = 1; }, *[](int *value) { (*value)++; });
+        result[i].size(), [](int *value) { *value = 1; }, [](int *value) { (*value)++; });
   }
   for (const int key : expected_counts.keys()) {
     ASSERT_EQ(calculated_counts.lookup_default(key, -1), expected_counts.lookup_default(key, -2));
