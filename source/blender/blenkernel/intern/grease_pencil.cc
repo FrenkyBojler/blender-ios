@@ -468,6 +468,19 @@ static void ensure_shape_map_and_offset_cache(const Drawing &drawing)
   const bke::AttributeAccessor attributes = curves.attributes();
   const VArray<int> shape_ids = *attributes.lookup<int>("shape_id", bke::AttrDomain::Curve);
 
+  if (!shape_ids) {
+    drawing.runtime->shape_map_cache.ensure([&](Vector<int> &r_shape_map_data) {
+      r_shape_map_data.resize(curves.curves_num());
+      array_utils::fill_index_range(r_shape_map_data.as_mutable_span());
+    });
+    drawing.runtime->shape_offset_cache.ensure([&](Vector<int> &r_shape_offsets_data) {
+      r_shape_offsets_data.resize(curves.curves_num() + 1);
+      array_utils::fill_index_range(r_shape_offsets_data.as_mutable_span());
+    });
+
+    return;
+  }
+
   Vector<Vector<int>> indices_by_shape;
   Map<int, int> shape_indexing;
 
