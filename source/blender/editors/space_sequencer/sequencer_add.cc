@@ -136,6 +136,69 @@ static void sequencer_add_free(bContext * /*C*/, wmOperator *op)
   }
 }
 
+static bool sequencer_add_draw_check_fn(PointerRNA *ptr, PropertyRNA *prop, void * /*user_data*/)
+{
+  const char *prop_id = RNA_property_identifier(prop);
+
+  /* Only show placeholders option if image sequence creation is not forced. */
+  if (STREQ(prop_id, "use_placeholders")) {
+    return ImageImport(RNA_enum_get(ptr, "image_import_type")) == ImageImport::Detect;
+  }
+
+  return !STR_ELEM(prop_id,
+                   "filepath",
+                   "directory",
+                   "filename",
+                   "frame_start",
+                   "channel",
+                   "length",
+                   "move_strips",
+                   "replace_sel",
+                   "use_sequence_detection");
+}
+
+static void sequencer_add_draw(bContext * /*C*/, wmOperator *op)
+{
+  uiLayout *layout = op->layout;
+  SequencerAddData *sad = static_cast<SequencerAddData *>(op->customdata);
+  ImageFormatData *imf = &sad->im_format;
+
+  bool is_redo_panel = sad == nullptr;
+
+  if (!is_redo_panel) {
+    layout->prop(op->ptr, "move_strips", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
+  if (!RNA_boolean_get(op->ptr, "move_strips") || is_redo_panel) {
+    uiLayout &col = layout->column(true);
+    col.prop(op->ptr, "frame_start", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    if (RNA_struct_find_property(op->ptr, "length")) {
+      col.prop(op->ptr, "length", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    }
+    layout->prop(op->ptr, "channel", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout->separator();
+    layout->prop(op->ptr, "replace_sel", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
+
+  /* Main draw call. */
+  uiDefAutoButsRNA(layout,
+                   op->ptr,
+                   sequencer_add_draw_check_fn,
+                   nullptr,
+                   nullptr,
+                   UI_BUT_LABEL_ALIGN_NONE,
+                   false);
+
+  layout->separator();
+
+  /* Image template. */
+  PointerRNA imf_ptr = RNA_pointer_create_discrete(nullptr, &RNA_ImageFormatSettings, imf);
+
+  /* Multiview template. */
+  if (RNA_boolean_get(op->ptr, "show_multiview")) {
+    uiTemplateImageFormatViews(layout, &imf_ptr, op->ptr);
+  }
+}
+
 static void sequencer_generic_props__internal(wmOperatorType *ot, int flag)
 {
   PropertyRNA *prop;
@@ -1409,69 +1472,6 @@ static wmOperatorStatus sequencer_add_movie_strip_invoke(bContext *C,
 
   WM_event_add_fileselect(C, op);
   return OPERATOR_RUNNING_MODAL;
-}
-
-static bool sequencer_add_draw_check_fn(PointerRNA *ptr, PropertyRNA *prop, void * /*user_data*/)
-{
-  const char *prop_id = RNA_property_identifier(prop);
-
-  /* Only show placeholders option if image sequence creation is not forced. */
-  if (STREQ(prop_id, "use_placeholders")) {
-    return ImageImport(RNA_enum_get(ptr, "image_import_type")) == ImageImport::Detect;
-  }
-
-  return !STR_ELEM(prop_id,
-                   "filepath",
-                   "directory",
-                   "filename",
-                   "frame_start",
-                   "channel",
-                   "length",
-                   "move_strips",
-                   "replace_sel",
-                   "use_sequence_detection");
-}
-
-static void sequencer_add_draw(bContext * /*C*/, wmOperator *op)
-{
-  uiLayout *layout = op->layout;
-  SequencerAddData *sad = static_cast<SequencerAddData *>(op->customdata);
-  ImageFormatData *imf = &sad->im_format;
-
-  bool is_redo_panel = sad == nullptr;
-
-  if (!is_redo_panel) {
-    layout->prop(op->ptr, "move_strips", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  }
-  if (!RNA_boolean_get(op->ptr, "move_strips") || is_redo_panel) {
-    uiLayout &col = layout->column(true);
-    col.prop(op->ptr, "frame_start", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    if (RNA_struct_find_property(op->ptr, "length")) {
-      col.prop(op->ptr, "length", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    }
-    layout->prop(op->ptr, "channel", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    layout->separator();
-    layout->prop(op->ptr, "replace_sel", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  }
-
-  /* Main draw call. */
-  uiDefAutoButsRNA(layout,
-                   op->ptr,
-                   sequencer_add_draw_check_fn,
-                   nullptr,
-                   nullptr,
-                   UI_BUT_LABEL_ALIGN_NONE,
-                   false);
-
-  layout->separator();
-
-  /* Image template. */
-  PointerRNA imf_ptr = RNA_pointer_create_discrete(nullptr, &RNA_ImageFormatSettings, imf);
-
-  /* Multiview template. */
-  if (RNA_boolean_get(op->ptr, "show_multiview")) {
-    uiTemplateImageFormatViews(layout, &imf_ptr, op->ptr);
-  }
 }
 
 void SEQUENCER_OT_movie_strip_add(wmOperatorType *ot)
