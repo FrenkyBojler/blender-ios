@@ -53,7 +53,7 @@ EvaluationResult evaluate_action(PointerRNA &animated_id_ptr,
       continue;
     }
 
-    auto layer_result = evaluate_layer(
+    EvaluationResult layer_result = evaluate_layer(
         animated_id_ptr, action, *layer, slot_handle, anim_eval_context);
     if (!layer_result) {
       continue;
