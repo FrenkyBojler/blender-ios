@@ -42,11 +42,8 @@ struct GPUCodegenCreateInfo : ShaderCreateInfo {
   StageInterfaceInfo *interface_generated = nullptr;
   /** Optional name buffer containing names referenced by StringRefNull. */
   NameBuffer name_buffer;
-  /** Copy of the GPUMaterial name, to prevent dangling pointers. */
-  std::string info_name_;
 
-  GPUCodegenCreateInfo(const char *name)
-      : ShaderCreateInfo("eevee_node_tree"), info_name_(name) {};
+  GPUCodegenCreateInfo(const char *name) : ShaderCreateInfo(name) {};
 
   ~GPUCodegenCreateInfo()
   {
