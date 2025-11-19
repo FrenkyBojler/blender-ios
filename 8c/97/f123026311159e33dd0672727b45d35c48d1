@@ -2,3 +2,4 @@ Referenced by issue #149217, Grease pencil: Lineart not working at all
 Referenced by issue #149567, LineArt modifier: Simplify > Sample mode crashes blender (segmentation fault)
 Referenced by pull request #149637, Fix #149567: LineArt: Stop always adding empty attributes
 Referenced by commit 4cab6780deed5d7be30c2a480107e9d8b1b865ea, Fix #149567: LineArt: Stop always adding empty attributes
+Referenced by issue #150191, Grease pencil crash opening a 4.5 file on 5.0
