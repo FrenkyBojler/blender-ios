@@ -685,16 +685,44 @@ static bool mywrite_end(WriteData *wd)
   return err;
 }
 
-static uint64_t get_stable_pointer_hint_for_id(const ID &id)
+static uint64_t get_stable_pointer_hint_for_id(const ID &id, const bool is_undo)
 {
-  /* Make the stable pointer dependent on the data-block name. This is somewhat arbitrary but the
-   * name is at least something that doesn't really change automatically unexpectedly. */
-  const uint64_t name_hash = XXH3_64bits(id.name, strlen(id.name));
-  if (id.lib) {
-    const uint64_t lib_hash = XXH3_64bits(id.lib->id.name, strlen(id.lib->id.name));
-    return name_hash ^ lib_hash;
+  /* Make the stable pointer depend on a specific data of the ID.
+   * Note that this is different when writing blendfile on disk, and when writing an undo step in
+   * memory (memfile).
+   *
+   * For the blendfile on disk, the ID name is used, together with its library if linked, as this
+   * is effectively the 'unique identifer' of IDs in blendfiles and accross linking, so if these
+   * change, it's also fine to get a different 'stable pointer'.
+   *
+   * For the undo memfile however, things are different: It is possible that a same ID name is
+   * reused for two different IDs in two different consecutive undo steps (see #149899). Getting
+   * the same stable pointer in this case can lead to falsely detecting other IDs using these as
+   * unchanged, leading to undo data corruption and crashes.
+   * In this case, using the session UID is a better source of info, as these are assumed unique
+   * during an editing session, and are extremely stable for a same ID (even if it is e.g.
+   * renamed).
+   */
+  if (is_undo) {
+    /* Note: Using the uint32_t session_uid also means that library data can be ignored (and ID
+     * made local always get a new session UID), and that there is no need to call the hashing code
+     * at all.
+     *
+     * However, to leave enough 'address space' for all the sub-data pointers, its value is shifted
+     * into higher significant bits of the returned value (only shift by 20 bits here, since
+     * #stable_id_from_hint also shifts further the generated values by 4, and some of the most
+     * significant bits are also reserved for flags, like the #implicit_sharing_address_id_flag
+     * one). */
+    return uint64_t(id.session_uid) << 20;
   }
-  return name_hash;
+
+  const uint64_t id_hash = XXH3_64bits(id.name, strlen(id.name));
+  if (!id.lib) {
+    return id_hash;
+  }
+
+  const uint64_t lib_hash = XXH3_64bits(id.lib->id.name, strlen(id.lib->id.name));
+  return id_hash ^ lib_hash;
 }
 
 /**
@@ -714,9 +742,11 @@ static void mywrite_id_begin(WriteData *wd, ID *id)
   BLI_assert_msg((id->flag & ID_FLAG_EMBEDDED_DATA) == 0 || id->deep_hash.is_null(),
                  "Embedded IDs should always have a null deep-hash data");
 
-  wd->stable_address_ids.next_id_hint = get_stable_pointer_hint_for_id(*id);
+  const bool is_undo = wd->use_memfile;
 
-  if (wd->use_memfile) {
+  wd->stable_address_ids.next_id_hint = get_stable_pointer_hint_for_id(*id, is_undo);
+
+  if (is_undo) {
     wd->mem.current_id_session_uid = id->session_uid;
 
     /* If current next memchunk does not match the ID we are about to write, or is not the _first_
@@ -847,18 +877,17 @@ static uint64_t stable_id_from_hint(const uint64_t hint)
   return stable_id;
 }
 
-static uint64_t get_next_stable_address_id(WriteData &wd)
+static uint64_t get_next_stable_address_id(WriteData &wd, uint64_t &hint)
 {
-  uint64_t stable_id = stable_id_from_hint(wd.stable_address_ids.next_id_hint);
+  uint64_t stable_id = stable_id_from_hint(hint);
   while (!wd.stable_address_ids.used_ids.add(stable_id)) {
     /* Generate a new hint because there is a collision. Collisions are generally expected to be
      * very rare. It can happen when #get_stable_pointer_hint_for_id produces values that are very
      * close for different IDs. */
-    wd.stable_address_ids.next_id_hint = XXH3_64bits(&wd.stable_address_ids.next_id_hint,
-                                                     sizeof(uint64_t));
-    stable_id = stable_id_from_hint(wd.stable_address_ids.next_id_hint);
+    hint = XXH3_64bits(&hint, sizeof(uint64_t));
+    stable_id = stable_id_from_hint(hint);
   }
-  wd.stable_address_ids.next_id_hint++;
+  hint++;
   return stable_id;
 }
 
@@ -889,8 +918,9 @@ static uint64_t get_address_id_int(WriteData &wd, const void *address)
     return 0;
   }
   /* Either reuse an existing identifier or create a new one. */
-  return wd.stable_address_ids.pointer_map.lookup_or_add_cb(
-      address, [&]() { return get_next_stable_address_id(wd); });
+  return wd.stable_address_ids.pointer_map.lookup_or_add_cb(address, [&]() {
+    return get_next_stable_address_id(wd, wd.stable_address_ids.next_id_hint);
+  });
 }
 
 static const void *get_address_id(WriteData &wd, const void *address)
@@ -1701,6 +1731,29 @@ static blender::Vector<ID *> gather_local_ids_to_write(Main *bmain, const bool i
 }
 
 /**
+ * Precomputes a stable pointer for each data-block before they are used. This ensures that their
+ * written pointer does not depend on the order in which data-blocks are written.
+ */
+static void prepare_stable_data_block_ids(WriteData &wd, Main &bmain)
+{
+  ID *id;
+  FOREACH_MAIN_ID_BEGIN (&bmain, id) {
+    /* Ensure no other stable pointer has been created before. */
+    BLI_assert(!wd.stable_address_ids.pointer_map.contains(id));
+
+    /* Derive the stable pointer from the id/library name which is independent of the write-order
+     * of data-blocks. */
+    uint64_t hint = get_stable_pointer_hint_for_id(*id, wd.use_memfile);
+    const uint64_t address_id = get_next_stable_address_id(wd, hint);
+
+    /* Store the computed stable pointer so that it is used whenever the data-block is written or
+     * referenced. */
+    wd.stable_address_ids.pointer_map.add(id, address_id);
+  }
+  FOREACH_MAIN_ID_END;
+}
+
+/**
  * When #MemFile arguments are non-null, this is a file-safe to memory.
  *
  * \param compare: Previous memory file (can be nullptr).
@@ -1720,6 +1773,8 @@ static bool write_file_handle(Main *mainvar,
   wd = mywrite_begin(ww, compare, current);
   wd->debug_dst = debug_dst;
   BlendWriter writer = {wd};
+
+  prepare_stable_data_block_ids(*wd, *mainvar);
 
   /* Clear 'directly linked' flag for all linked data, these are not necessarily valid/up-to-date
    * info, they will be re-generated while write code is processing local IDs below. */

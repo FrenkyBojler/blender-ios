@@ -16,6 +16,7 @@
 #  include "BLI_winstuff.h"
 #endif
 
+#include "BLI_enum_flags.hh"
 #include "BLI_fileops.h"
 #include "BLI_filereader.h"
 #include "BLI_map.hh"
@@ -62,7 +63,7 @@ enum eFileDataFlag {
    */
   FD_FLAGS_HAS_INVALID_ID_NAMES = 1 << 6,
 };
-ENUM_OPERATORS(eFileDataFlag, FD_FLAGS_IS_MEMFILE)
+ENUM_OPERATORS(eFileDataFlag)
 
 /* Disallow since it's 32bit on ms-windows. */
 #ifdef __GNUC__
@@ -226,7 +227,7 @@ FileData *blo_filedata_from_memfile(MemFile *memfile,
                                     BlendFileReadReport *reports);
 
 /**
- * Build a #GSet of old main (we only care about local data here,
+ * Build a #IDNameLib_Map of old main (we only care about local data here,
  * so we can do that after #blo_split_main() call.
  */
 void blo_make_old_idmap_from_main(FileData *fd, Main *bmain) ATTR_NONNULL(1, 2);
