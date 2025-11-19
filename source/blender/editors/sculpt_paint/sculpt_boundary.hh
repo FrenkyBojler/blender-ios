@@ -7,7 +7,6 @@
  */
 #pragma once
 
-
 #include <memory>
 
 #include "BLI_array.hh"
