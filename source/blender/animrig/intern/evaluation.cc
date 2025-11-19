@@ -186,9 +186,9 @@ static EvaluationResult evaluate_keyframe_data(PointerRNA &animated_id_ptr,
       continue;
     }
     FCurve *fcu = fcurves[i];
-    PathResolvedRNA &anim_rna = resolved_rna[i];
     /* This part is not threadsafe. */
-    evaluation_result.store(fcu->rna_path, fcu->array_index, results[i], anim_rna);
+    evaluation_result.store(
+        fcu->rna_path, fcu->array_index, results[i], std::move(resolved_rna[i]));
   }
 
   return evaluation_result;

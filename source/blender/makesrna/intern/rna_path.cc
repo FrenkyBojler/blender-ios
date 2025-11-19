@@ -465,7 +465,7 @@ static bool rna_path_parse(const PointerRNA *ptr,
         }
 
         if (eval_pointer || *path != '\0') {
-          curptr = nextptr;
+          curptr = std::move(nextptr);
           prop = nullptr; /* now we have a PointerRNA, the prop is our parent so forget it */
           index = -1;
         }
@@ -482,7 +482,7 @@ static bool rna_path_parse(const PointerRNA *ptr,
           }
 
           if (eval_pointer || *path != '\0') {
-            curptr = nextptr;
+            curptr = std::move(nextptr);
             prop = nullptr; /* now we have a PointerRNA, the prop is our parent so forget it */
             index = -1;
           }
@@ -504,16 +504,13 @@ static bool rna_path_parse(const PointerRNA *ptr,
   }
 
   if (r_ptr) {
-    *r_ptr = curptr;
+    *r_ptr = std::move(curptr);
   }
   if (r_prop) {
     *r_prop = prop;
   }
   if (r_index) {
     *r_index = index;
-  }
-  if (r_item_ptr && do_item_ptr) {
-    *r_item_ptr = nextptr;
   }
 
   if (prop_elem &&
@@ -524,6 +521,10 @@ static bool rna_path_parse(const PointerRNA *ptr,
     prop_elem->prop = prop;
     prop_elem->index = index;
     BLI_addtail(r_elements, prop_elem);
+  }
+
+  if (r_item_ptr && do_item_ptr) {
+    *r_item_ptr = std::move(nextptr);
   }
 
   return true;
