@@ -9,3 +9,4 @@ Referenced by pull request #141778, Fix #141768: VSE: Tabbing in/out of metastri
 Referenced by issue #141709, VSE: Retiming and Speed Control are not automatically updating Sene strip subframes while previewing
 Referenced by commit 08ec4602a2f7a64a4777692ec007dafc35ed06f1, Fix #141768: VSE: Tabbing in/out of metastrips does not update strip cache
 Referenced by issue #144254, VSE proxies for image sequences do not work (since 4.5)
+Referenced by issue #150166, VSE: Rendering a still preview while using proxies produces a broken image
