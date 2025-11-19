@@ -132,11 +132,9 @@ void uiTemplateMovieClip(blender::ui::Layout *layout,
     uiBlock *block = row.block();
     uiDefBut(block, ButType::Label, IFACE_("File Path:"), 0, 19, 145, 19, nullptr, 0, 0, "");
 
-    blender::ui::Layout &split = layout->row(false).split(0.0f, false);
-    blender::ui::Layout &sub = split.row(true);
-
-    sub.prop(&clipptr, "filepath", UI_ITEM_NONE, "", ICON_NONE);
-    sub.op("clip.reload", "", ICON_FILE_REFRESH);
+    blender::ui::Layout &file_row = layout->row(true);
+    file_row.prop(&clipptr, "filepath", UI_ITEM_NONE, "", ICON_NONE);
+    file_row.op("clip.reload", "", ICON_FILE_REFRESH);
 
     blender::ui::Layout &col = layout->column(true);
     col.separator();
