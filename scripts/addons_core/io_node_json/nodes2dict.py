@@ -1,9 +1,7 @@
 import bpy
 import json
 
-node_tree = bpy.data.node_groups["Compositor Nodes"]
-
-def export_nodes(node_tree: bpy.types.NodeTree, current_map: dict):
+def nodes2dict(node_tree: bpy.types.NodeTree, current_map: dict):
     nodes = node_tree.nodes
     links = node_tree.links
 
@@ -31,7 +29,7 @@ def export_nodes(node_tree: bpy.types.NodeTree, current_map: dict):
         node_map["location"] = n.location.to_tuple()
 
         if hasattr(n, "node_tree"):
-            export_nodes(n.node_tree, node_map)
+            nodes2dict(n.node_tree, node_map)
         current_map["node_tree"]["Nodes"].append(node_map)
 
     for l in links:
@@ -45,14 +43,17 @@ def export_nodes(node_tree: bpy.types.NodeTree, current_map: dict):
        current_map["node_tree"]["Links"].append(links_map)
 
 
-print("\n\n###### NEW RUN ########")
-ntree_dict = {}
-export_nodes(node_tree, ntree_dict)
-print("\n")
-import pprint
-pprint.pprint(ntree_dict)
+# if __name__ == "__main__":
+#     print("\n\n###### NEW RUN ########")
+#     node_tree = bpy.data.node_groups["Compositor Nodes"]
+#     ntree_dict = {}
+#     nodes2dict(node_tree, ntree_dict)
+#     print("\n")
+#     import pprint
+#     pprint.pprint(ntree_dict)
 
-json_write = json.dumps(ntree_dict)
-with open("/home/habib/blender-git/files/nodes-json/save.json", "w") as f:
-    json.dump(ntree_dict, f, indent=2)
+#     json_write = json.dumps(ntree_dict)
+#     #with open("/home/habib/blender-git/files/nodes-json/save.json", "w") as f:
+#     with open("/Users/habib/blender-git/files/json_io/save.json", "w") as f:
+#         json.dump(ntree_dict, f, indent=2)
 

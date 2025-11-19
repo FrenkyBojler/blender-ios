@@ -3,11 +3,7 @@ from mathutils import Vector
 import json
 from pprint import pprint
 
-with open("/home/habib/blender-git/files/nodes-json/save.json", "r") as f:
-    node_tree_dict = json.load(f)
-
-
-def import_nodes(node_tree_dict: dict, node_tree: bpy.types.NodeTree):
+def dict2nodes(node_tree_dict: dict, node_tree: bpy.types.NodeTree):
 
     nodes = node_tree_dict["Nodes"]
     links = node_tree_dict["Links"]
@@ -29,10 +25,14 @@ def import_nodes(node_tree_dict: dict, node_tree: bpy.types.NodeTree):
 
     for n in nodes:
         if "node_tree" in n.keys():
-            import_nodes(n["node_tree"], new_node_tree)
+            dict2nodes(n["node_tree"], new_node_tree)
+
+# if __name__ == "__main__":
+#     with open("/home/habib/blender-git/files/nodes-json/save.json", "r") as f:
+#         node_tree_dict = json.load(f)
 
 
-print("\n\n######## NEW RUN ########")
-node_tree = bpy.data.node_groups["Load tree"]
-node_tree.nodes.clear()
-import_nodes(node_tree_dict["node_tree"], node_tree)
+#     print("\n\n######## NEW RUN ########")
+#     node_tree = bpy.data.node_groups["Load tree"]
+#     node_tree.nodes.clear()
+#     dict2nodes(node_tree_dict["node_tree"], node_tree)
