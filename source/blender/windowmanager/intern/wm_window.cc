@@ -47,6 +47,7 @@
 
 #include "BLT_translation.hh"
 
+#include "BKE_blender_project.hh"
 #include "BKE_blender_version.h"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
@@ -694,6 +695,12 @@ static std::string wm_window_title_text(
   }
 
   win_title.append(fmt::format(" - Blender {}", BKE_blender_version_string()));
+
+  const bke::BlenderProject *project = BKE_blender_project_get(G_MAIN);
+  if (project) {
+    /* Add current project name to the title. */
+    win_title.insert(0, fmt::format("{} > ", project->get_name()));
+  }
 
   return win_title;
 }
