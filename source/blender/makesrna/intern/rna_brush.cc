@@ -33,99 +33,113 @@ static const EnumPropertyItem prop_direction_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-#define BLEND_ITEMS_SHARED \
-  {IMB_BLEND_MIX, "MIX", 0, "Mix", "Use Mix blending mode while painting"}, \
-      RNA_ENUM_ITEM_SEPR, \
-      {IMB_BLEND_DARKEN, "DARKEN", 0, "Darken", "Use Darken blending mode while painting"}, \
-      {IMB_BLEND_MUL, "MUL", 0, "Multiply", "Use Multiply blending mode while painting"}, \
-      RNA_ENUM_ITEM_SEPR, \
-      {IMB_BLEND_LIGHTEN, "LIGHTEN", 0, "Lighten", "Use Lighten blending mode while painting"}, \
-      {IMB_BLEND_SCREEN, "SCREEN", 0, "Screen", "Use Screen blending mode while painting"}, \
-      {IMB_BLEND_COLORDODGE, \
-       "COLORDODGE", \
-       0, \
-       "Color Dodge", \
-       "Use Color Dodge blending mode while painting"}, \
-      {IMB_BLEND_ADD, "ADD", 0, "Add", "Use Add blending mode while painting"}, \
-      RNA_ENUM_ITEM_SEPR, \
-      {IMB_BLEND_OVERLAY, "OVERLAY", 0, "Overlay", "Use Overlay blending mode while painting"}, \
-      {IMB_BLEND_SOFTLIGHT, \
-       "SOFTLIGHT", \
-       0, \
-       "Soft Light", \
-       "Use Soft Light blending mode while painting"}, \
-      {IMB_BLEND_HARDLIGHT, \
-       "HARDLIGHT", \
-       0, \
-       "Hard Light", \
-       "Use Hard Light blending mode while painting"}, \
-      RNA_ENUM_ITEM_SEPR, \
-      {IMB_BLEND_DIFFERENCE, \
-       "DIFFERENCE", \
-       0, \
-       "Difference", \
-       "Use Difference blending mode while painting"}, \
-      {IMB_BLEND_EXCLUSION, \
-       "EXCLUSION", \
-       0, \
-       "Exclusion", \
-       "Use Exclusion blending mode while painting"}, \
-      {IMB_BLEND_SUB, "SUB", 0, "Subtract", "Use Subtract blending mode while painting"}
-
-#define BLEND_ITEMS_COLOR_ONLY \
-  {IMB_BLEND_COLORBURN, \
-   "COLORBURN", \
-   0, \
-   "Color Burn", \
-   "Use Color Burn blending mode while painting"}, \
-      {IMB_BLEND_LINEARBURN, \
-       "LINEARBURN", \
-       0, \
-       "Linear Burn", \
-       "Use Linear Burn blending mode while painting"}, \
-      RNA_ENUM_ITEM_SEPR, \
-      {IMB_BLEND_VIVIDLIGHT, \
-       "VIVIDLIGHT", \
-       0, \
-       "Vivid Light", \
-       "Use Vivid Light blending mode while painting"}, \
-      {IMB_BLEND_LINEARLIGHT, \
-       "LINEARLIGHT", \
-       0, \
-       "Linear Light", \
-       "Use Linear Light blending mode while painting"}, \
-      {IMB_BLEND_PINLIGHT, \
-       "PINLIGHT", \
-       0, \
-       "Pin Light", \
-       "Use Pin Light blending mode while painting"}, \
-      RNA_ENUM_ITEM_SEPR, \
-      {IMB_BLEND_HUE, "HUE", 0, "Hue", "Use Hue blending mode while painting"}, \
-      {IMB_BLEND_SATURATION, \
-       "SATURATION", \
-       0, \
-       "Saturation", \
-       "Use Saturation blending mode while painting"}, \
-      {IMB_BLEND_COLOR, "COLOR", 0, "Color", "Use Color blending mode while painting"}, \
-      {IMB_BLEND_LUMINOSITY, "LUMINOSITY", 0, "Value", "Use Value blending mode while painting"}, \
-      RNA_ENUM_ITEM_SEPR, \
-      {IMB_BLEND_ERASE_ALPHA, "ERASE_ALPHA", 0, "Erase Alpha", "Erase alpha while painting"}, \
-      {IMB_BLEND_ADD_ALPHA, "ADD_ALPHA", 0, "Add Alpha", "Add alpha while painting"}
-
-static const EnumPropertyItem prop_blend_items[] = {
-    BLEND_ITEMS_SHARED,
+static const EnumPropertyItem prop_blend_items_shared[] = {
+    {IMB_BLEND_MIX, "MIX", 0, "Mix", "Use Mix blending mode while painting"},
     RNA_ENUM_ITEM_SEPR,
-    BLEND_ITEMS_COLOR_ONLY,
+    {IMB_BLEND_DARKEN, "DARKEN", 0, "Darken", "Use Darken blending mode while painting"},
+    {IMB_BLEND_MUL, "MUL", 0, "Multiply", "Use Multiply blending mode while painting"},
+    RNA_ENUM_ITEM_SEPR,
+    {IMB_BLEND_LIGHTEN, "LIGHTEN", 0, "Lighten", "Use Lighten blending mode while painting"},
+    {IMB_BLEND_SCREEN, "SCREEN", 0, "Screen", "Use Screen blending mode while painting"},
+    {IMB_BLEND_COLORDODGE,
+     "COLORDODGE",
+     0,
+     "Color Dodge",
+     "Use Color Dodge blending mode while painting"},
+    {IMB_BLEND_ADD, "ADD", 0, "Add", "Use Add blending mode while painting"},
+    RNA_ENUM_ITEM_SEPR,
+    {IMB_BLEND_OVERLAY, "OVERLAY", 0, "Overlay", "Use Overlay blending mode while painting"},
+    {IMB_BLEND_SOFTLIGHT,
+     "SOFTLIGHT",
+     0,
+     "Soft Light",
+     "Use Soft Light blending mode while painting"},
+    {IMB_BLEND_HARDLIGHT,
+     "HARDLIGHT",
+     0,
+     "Hard Light",
+     "Use Hard Light blending mode while painting"},
+    RNA_ENUM_ITEM_SEPR,
+    {IMB_BLEND_DIFFERENCE,
+     "DIFFERENCE",
+     0,
+     "Difference",
+     "Use Difference blending mode while painting"},
+    {IMB_BLEND_EXCLUSION,
+     "EXCLUSION",
+     0,
+     "Exclusion",
+     "Use Exclusion blending mode while painting"},
+    {IMB_BLEND_SUB, "SUB", 0, "Subtract", "Use Subtract blending mode while painting"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static const EnumPropertyItem prop_blend_items_weight_paint_items[] = {
-    BLEND_ITEMS_SHARED,
+static const EnumPropertyItem prop_blend_items_color_only[] = {
+    {IMB_BLEND_COLORBURN,
+     "COLORBURN",
+     0,
+     "Color Burn",
+     "Use Color Burn blending mode while painting"},
+    {IMB_BLEND_LINEARBURN,
+     "LINEARBURN",
+     0,
+     "Linear Burn",
+     "Use Linear Burn blending mode while painting"},
+    RNA_ENUM_ITEM_SEPR,
+    {IMB_BLEND_VIVIDLIGHT,
+     "VIVIDLIGHT",
+     0,
+     "Vivid Light",
+     "Use Vivid Light blending mode while painting"},
+    {IMB_BLEND_LINEARLIGHT,
+     "LINEARLIGHT",
+     0,
+     "Linear Light",
+     "Use Linear Light blending mode while painting"},
+    {IMB_BLEND_PINLIGHT,
+     "PINLIGHT",
+     0,
+     "Pin Light",
+     "Use Pin Light blending mode while painting"},
+    RNA_ENUM_ITEM_SEPR,
+    {IMB_BLEND_HUE, "HUE", 0, "Hue", "Use Hue blending mode while painting"},
+    {IMB_BLEND_SATURATION,
+     "SATURATION",
+     0,
+     "Saturation",
+     "Use Saturation blending mode while painting"},
+    {IMB_BLEND_COLOR, "COLOR", 0, "Color", "Use Color blending mode while painting"},
+    {IMB_BLEND_LUMINOSITY,
+     "LUMINOSITY",
+     0,
+     "Value",
+     "Use Value blending mode while painting"},
+    RNA_ENUM_ITEM_SEPR,
+    {IMB_BLEND_ERASE_ALPHA, "ERASE_ALPHA", 0, "Erase Alpha", "Erase alpha while painting"},
+    {IMB_BLEND_ADD_ALPHA, "ADD_ALPHA", 0, "Add Alpha", "Add alpha while painting"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-#undef BLEND_ITEMS_SHARED
-#undef BLEND_ITEMS_COLOR_ONLY
+static const EnumPropertyItem *prop_blend_items = nullptr;
+static const EnumPropertyItem *prop_blend_items_weight_paint_items = nullptr;
+
+static void rna_Brush_blend_items_ensure(void)
+{
+  if (prop_blend_items != nullptr) {
+    return;
+  }
+
+  EnumPropertyItem *items = nullptr;
+  int totitem = 0;
+
+  RNA_enum_items_add(&items, &totitem, prop_blend_items_shared);
+  RNA_enum_item_add_separator(&items, &totitem);
+  RNA_enum_items_add(&items, &totitem, prop_blend_items_color_only);
+  RNA_enum_item_end(&items, &totitem);
+  prop_blend_items = items;
+
+  prop_blend_items_weight_paint_items = prop_blend_items_shared;
+}
 
 static const EnumPropertyItem sculpt_stroke_method_items[] = {
     {0, "DOTS", 0, "Dots", "Apply paint on each mouse move step"},
@@ -1018,8 +1032,14 @@ static const EnumPropertyItem *rna_Brush_direction_itemf(bContext *C,
 static const EnumPropertyItem *rna_Brush_blend_itemf(bContext *C,
                                                      PointerRNA * /*ptr*/,
                                                      PropertyRNA * /*prop*/,
-                                                     bool * /*r_free*/)
+                                                     bool *r_free)
 {
+  rna_Brush_blend_items_ensure();
+
+  if (r_free != nullptr) {
+    *r_free = false;
+  }
+
   PaintMode mode = BKE_paintmode_get_active_from_context(C);
 
   if (mode == PaintMode::Weight) {
@@ -2546,6 +2566,7 @@ static void rna_def_brush(BlenderRNA *brna)
                            "been imported or read from the file");
 
   /* enums */
+  rna_Brush_blend_items_ensure();
   prop = RNA_def_property(srna, "blend", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, prop_blend_items);
   RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_Brush_blend_itemf");
