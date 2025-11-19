@@ -23,15 +23,32 @@ VERTEX_SHADER_CREATE_INFO(overlay_gridrework_next)
     return; \
   }
 
-/* Helper struct: a vertex as part of a line is defined by a begin/end vertex position,
- * a direction on the X/Y plane, and the level it is placed on. See `get_line_data()`. */
 struct LineData {
   float2 P;
   uint dir;
   int level;
 };
 
-LineData get_line_data(in uint vertex_id)
+/* Helper; gl_VertexID implicitly encodes an axis line; this is only used for the
+ * positive/negative z axis when the rest of the grid is drawn on the xy plane.  */
+LineData decode_zaxis_data(in uint vertex_id) {
+  LineData line;
+
+  /* Every pair of consecutive vertices forms a line, indicated by bit 0. */
+  uint side = vertex_id & 0x1u;
+  /* From side/dir, generate a line along [-1,0] or [0,1] dependent on grid_flag. */
+  line.P.x = 0.0f;
+  line.P.y = float(grid_buf.num_lines_per_level >> 1u)
+    * select(0.0f, select(-1.0f, 1.0f, flag_test(grid_flag, CLIP_ZPOS)), side);
+  /* Always top-drawn level. */
+  line.level = GRID_LEVELS_DRAW - 1;
+
+  return line;
+}
+
+/* Helper; gl_VertexID implicitly encodes a grid line; this is used for drawing the entire
+ * grid plus two axes on the same plane plane. */
+LineData decode_grid_data(in uint vertex_id)
 {
   LineData line;
 
@@ -60,9 +77,14 @@ LineData get_line_data(in uint vertex_id)
 
 void main()
 {
-  LineData line = get_line_data(gl_VertexID);
+  LineData line;
+  if (flag_test(grid_flag, CLIP_ZPOS) || flag_test(grid_flag, CLIP_ZNEG)) {
+    line = decode_zaxis_data(gl_VertexID);
+  } else {
+    line = decode_grid_data(gl_VertexID);
+  }
 
-  /* Compute the actual level of grid data, offset by -1 to draw a sub-level in the 3D viewport. */
+  /* Compute the actual level of grid data, offset by -1 to force a sub-level in the 3D viewport. */
   int level = int(grid_level) + line.level - (flag_test(grid_flag, PLANE_IMAGE) ? 0 : 1);
   float scale = grid_buf.level_scales[level][line.dir];
 
@@ -74,7 +96,7 @@ void main()
   /* Stage output: vertex position in [-1,1], which we use to fade level boundaries. */
   local_coord = line.P / float(grid_buf.num_lines_per_level >> 1);
 
-  /* Stage output:  level fade in [0, 1], which we use to smoothly transition grid levels, */
+  /* Stage output:  level fade in [0, 1], which we use to smoothly transition grid levels. */
   local_alpha = (line.level + 1.0f - fract(grid_level)) / float(GRID_LEVELS_DRAW - 1);
   local_alpha = saturate(local_alpha);
   local_alpha = 2.0f * local_alpha - square(local_alpha); /* Slight elliptic curve. */

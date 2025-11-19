@@ -8,6 +8,7 @@ FRAGMENT_SHADER_CREATE_INFO(overlay_gridrework_next)
 
 #include "draw_view_lib.glsl"
 #include "gpu_shader_math_base_lib.glsl"
+#include "gpu_shader_math_vector_reduce_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
 #include "overlay_common_lib.glsl"
 
@@ -22,19 +23,25 @@ void main()
     out_color = mix(theme.colors.grid, theme.colors.grid_emphasis, local_alpha);
     out_color.a *= local_alpha;
 
-    /* Primary axis colors. Note that we ignore vertex alpha. */
-    if (flag_test(grid_flag, (SHOW_AXIS_X | SHOW_AXIS_Y | SHOW_AXIS_Z))) {
-      if (abs(local_pos.x) < 1e-4f) {
-        out_color = theme.colors.grid_axis_x;
-      } else if (abs(local_pos.y) < 1e-4f) {
-        out_color = theme.colors.grid_axis_y;
-      }
+    /* Primary axis colors. */
+    if (flag_test(grid_flag, SHOW_AXIS_X) && reduce_max(abs(local_pos.yz)) < 1e-4f) {
+      out_color.rgb = theme.colors.grid_axis_x.rgb;
+      out_color.a = max(out_color.a, theme.colors.grid_axis_x.a);
+    }
+    if (flag_test(grid_flag, SHOW_AXIS_Y) && reduce_max(abs(local_pos.xz)) < 1e-4f) {
+      out_color.rgb = theme.colors.grid_axis_y.rgb;
+      out_color.a = max(out_color.a, theme.colors.grid_axis_y.a);
+    }
+    if (flag_test(grid_flag, SHOW_AXIS_Z) && reduce_max(abs(local_pos.xy)) < 1e-4f) {
+      out_color.rgb = theme.colors.grid_axis_z.rgb;
+      out_color.a = max(out_color.a, theme.colors.grid_axis_z.a);
     }
   }
 
   /* Fragment alpha. */
   {
-    /* Add fade at edge of grid level in the 3D viewport. */
+    /* Add fade at edge of grid level in the 3D viewport. This is only applied if the level
+     * doesn't exceed the clip distance, so we don't fade it twice. */
     if (!flag_test(grid_flag, PLANE_IMAGE)) {
       float length_fade = 1.f - min(1.f, dot(local_coord, local_coord));
       out_color.a *= pow2f(length_fade);
@@ -47,8 +54,10 @@ void main()
       float dist = length(V);
       V /= dist;
       
-      /* Add fade at steep angles. */
-      out_color.a *= 1.0f - pow3f(1.0f - abs(V.z));
+      /* Add fade at steep angles for the floor plane. */
+      if (!(flag_test(grid_flag, CLIP_ZPOS) || flag_test(grid_flag, CLIP_ZNEG))) {
+        out_color.a *= 1.0f - pow3f(1.0f - abs(V.z));
+      }
 
       /* Add fade towards clip distance. */
       out_color.a *= 1.0f -
