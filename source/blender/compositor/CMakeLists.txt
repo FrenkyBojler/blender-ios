@@ -207,6 +207,7 @@ set(GLSL_SRC
   shaders/infos/compositor_movie_distortion_infos.hh
   shaders/infos/compositor_node_tree_infos.hh
   shaders/infos/compositor_normalize_infos.hh
+  shaders/infos/compositor_ocio_infos.hh
   shaders/infos/compositor_pad_infos.hh
   shaders/infos/compositor_parallel_reduction_infos.hh
   shaders/infos/compositor_pixelate_infos.hh
