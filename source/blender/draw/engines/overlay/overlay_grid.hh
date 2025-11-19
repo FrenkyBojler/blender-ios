@@ -194,8 +194,7 @@ class GridRework : Overlay {
     grid_ubo_.distance = 1.0f;
     grid_poi_ = float2(v2d->cur.xmax + v2d->cur.xmin, v2d->cur.ymax + v2d->cur.ymin) - 1.0f;
 
-    /* Query grid image zoom level. Then find the lowest relevant grid level + fractional,
-     * dependent on zoom level. */
+    /* Query grid image zoom level. Then find the lowest relevant grid level + fractional. */
     float dist = ED_space_image_zoom_level(v2d, SI_GRID_STEPS_LEN) * 4.0f;
     for (int i = 0; i < OVERLAY_GRID_STEPS_LEN + 1; i++) {
       float prev = (i > 0) ?

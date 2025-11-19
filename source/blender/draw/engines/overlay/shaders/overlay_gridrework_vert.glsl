@@ -24,7 +24,7 @@ VERTEX_SHADER_CREATE_INFO(overlay_gridrework_next)
   }
 
 /* Helper struct: a vertex as part of a line is defined by a begin/end vertex position,
- * and the level it is placed on. See `get_line_data()` below. */
+ * a direction on the X/Y plane, and the level it is placed on. See `get_line_data()`. */
 struct LineData {
   float2 P;
   uint dir;
@@ -39,7 +39,7 @@ LineData get_line_data(in uint vertex_id)
    * Every pair of consecutive lines alternates x/y direction, indicated by bit 1. */
   uint side = vertex_id & 0x1u;
   vertex_id = vertex_id >> 1u;
-  line.dir = vertex_id & 0x1u;
+  line.dir = vertex_id & 0x1u; /* Stored for later lookup. */
   vertex_id = vertex_id >> 1u;
 
   /* The index/level of a line are encoded by the 30 remaining bits. */
@@ -63,36 +63,28 @@ void main()
 {
   LineData line = get_line_data(gl_VertexID);
 
-  /* Set several fragment stage outputs:
-   * - Vertex position [-1, 1], so we can fade level boundaries.
-   * - The fade for the *lowest* level, as a linear line. */
-  local_coord = line.P / float(grid_buf.num_lines_per_level >> 1);
-  local_alpha
-    = ((line.level + 1.0f - fract(grid_level)) / float(GRID_LEVELS_DRAW));
-  local_alpha = 2.0f * local_alpha - square(local_alpha);
+  /* Set stage outputs. */
+  {
+    /* Vertex position, [-1,1], which we use to fade level boundaries. */
+    local_coord = line.P / float(grid_buf.num_lines_per_level >> 1);
 
-  /* All values operate on the X, Y plane for simplicity. */
-  float2 P = line.P;
-  float2 P_offset = grid_poi;
-
-  /* Compute the actual level of grid data, offset by -1 to draw a sub-level. Then
-   * scale the grid line based on this level */
-  int level = int(grid_level) + line.level;
-  if (!flag_test(grid_flag, PLANE_IMAGE)) {
-    level -= 1;
+    /* Level alpha, [0, 1], which we use to smoothly transition levels in/out. */
+    local_alpha
+      = saturate((line.level + 1.0f - fract(grid_level)) / float(GRID_LEVELS_DRAW - 1));
+    local_alpha = 2.0f * local_alpha - square(local_alpha); /* Slight elliptic curve. */
   }
+  
+  /* Compute the actual level of grid data, offset by -1 to draw a sub-level in the 3D viewport. 
+   * Then scale the grid line based on this level */
+  int level = int(grid_level) + line.level - (flag_test(grid_flag, PLANE_IMAGE) ? 0 : 1);
   float scale = grid_buf.level_scales[level][line.dir];
-  P *= scale;
+  line.P *= scale;
 
   /* Modify fade based on pixel size for orthographic, as we lack proper dfdx/dfdy on lines. */
   if (!drw_view_is_perspective()) {
     float fade = smoothstep(scale * 0.25f, scale * pow3f(0.25f), uniform_buf.pixel_fac);
-    if (gl_VertexID == 0) 
-      printf("fade: %f, scale: %f, fac: %f\n", fade, scale, uniform_buf.pixel_fac);
     local_alpha *= fade;
   }
-
-  debug_level = line.level;
 
   /* Clipping; discard lines outside of the level range. */
   if (level < 0 || level >= GRID_LEVELS_TOTAL) {
@@ -101,30 +93,22 @@ void main()
 
   /* Clipping; restrict lines to a reasonable range for float precision, as (absurdly) large
    * lines can cause flickering/teleporting problems. */
-  /* TODO (not_mark): re-enable */
-  // float2 clip;
-  // if (drw_view_is_perspective()) {
-  //   clip = float2(grid_buf.distance);
-  // } else if (!flag_test(grid_flag, PLANE_IMAGE)) { /* Orthographic camera */
-  //   clip = float2(max(8.0 / drw_view().winmat[0][0], 8.0 / drw_view().winmat[1][1]));
-  // } else { /* PLANE_IMAGE */
-  //   clip = grid_buf.size.xy;
-  // }
-  float2 clip = drw_view_is_perspective() ?
-                    float2(grid_buf.distance) :
-                    float2(max(8.0 / drw_view().winmat[0][0], 8.0 / drw_view().winmat[1][1]));
-  // if (all(greaterThan(abs(P), clip))) {
-  //   discard_line(); /* Both x, y lie outside the clip distance. */
-  // } else {
-  //   P = clamp(P, -clip, clip);
-  // }
+  /* TODO (not_mark): fix in UV/Image editor or combine with clipping below */
+  float2 clip = drw_view_is_perspective() 
+    ? float2(grid_buf.distance) 
+    : float2(8.0 / max(drw_view().winmat[0][0], drw_view().winmat[1][1]));
+  if (all(greaterThan(abs(line.P), clip))) {
+    discard_line(); /* Both x, y lie outside the clip distance. */
+  } else {
+    line.P = clamp(line.P, -clip, clip);
+  }
 
   /* Add scaled camera offset, rounded to the nearest level-dependent line position. */
-  P += round(P_offset / scale) * scale;
+  line.P += round(grid_poi / scale) * scale;
 
   /* Clipping; restrict the grid in the UV/Image editor to the specified tile sizes */
   if (flag_test(grid_flag, PLANE_IMAGE)) {
-    P = clamp(P, float2(-1.0f), 2.0f * grid_buf.size.xy - 1.0f);
+    line.P = clamp(line.P, float2(-1.0f), 2.0f * grid_buf.size.xy - 1.0f);
   }
 
   /* Clipping; if there exists an integer, s.t. with the scaling of the level *above* we can draw
@@ -140,18 +124,19 @@ void main()
     }
   } */
 
-  /* Output the world-space position to the fragment stage.*/
+  /* Output the world-space position on the correct plane dependent on camera settings. */
   if (flag_test(grid_flag, PLANE_XY)) {
-    local_pos = float3(P.x, P.y, 0.0f);
+    local_pos = float3(line.P.x, line.P.y, 0.0f);
   }
   else if (flag_test(grid_flag, PLANE_XZ)) {
-    local_pos = float3(P.x, 0.0f, P.y);
+    local_pos = float3(line.P.x, 0.0f, line.P.y);
   }
   else if (flag_test(grid_flag, PLANE_YZ)) {
-    local_pos = float3(0.0f, P.x, P.y);
+    local_pos = float3(0.0f, line.P.x, line.P.y);
   }
   else { /* PLANE_IMAGE */
-    local_pos = float3(P.xy * 0.5f + 0.5f, 0.0f);
+    local_pos = float3(line.P.xy * 0.5f + 0.5f, 0.0f);
   }
+
   gl_Position = drw_view().winmat * (drw_view().viewmat * float4(local_pos, 1.0f));
 }

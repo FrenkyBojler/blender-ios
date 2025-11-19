@@ -20,14 +20,22 @@ void main()
   float dist = length(V);
   V /= dist;
 
-  /* Output color is specified by theme. */
-  out_color = theme.colors.grid;
-
-  /* Output alpha. */
+  /* Fragment color. */
   {
-    /* Add fade from vertex stage. */
+    /* Base color is a mix of [grid, grid_emphasis] by vertex alpha, which incorporates level
+     * and subpixel fades only. */
+    out_color = mix(theme.colors.grid, theme.colors.grid_emphasis, local_alpha);
     out_color.a *= local_alpha;
 
+    /* Query for axis lines */
+    /* Primary axis colors/alphas. */
+    if (flag_test(grid_flag, (SHOW_AXIS_X | SHOW_AXIS_Y | SHOW_AXIS_Z))) {
+      /* ... */
+    }
+  }
+
+  /* Fragment alpha. */
+  {
     /* Add fade at edge of grid level in the 3D viewport. */
     if (!flag_test(grid_flag, PLANE_IMAGE)) {
       float length_fade = 1.f - min(1.f, dot(local_coord, local_coord));
@@ -57,12 +65,7 @@ void main()
     }
   }
 
-  /* Primary axis colors/alphas. */
-  if (flag_test(grid_flag, (SHOW_AXIS_X | SHOW_AXIS_Y | SHOW_AXIS_Z))) {
-    /* ... */
-  }
-
-  /* Depth testing. */
+  /* Depth test/fade. */
   {
     /* Perform depth texture lookup */
     float2 uv = gl_FragCoord.xy / float2(textureSize(depth_tx, 0));
@@ -84,8 +87,4 @@ void main()
     float bias = max(gpu_fwidth(gl_FragCoord.z), 2.4e-7f);
     out_color.a *= linearstep(grid_depth, grid_depth + bias, scene_depth);
   }
-
-  // float3 colors[3] = {float3(1, 0, 0), float3(0, 1, 0), float3(0, 0, 1)};
-  // out_color.rgb = colors[debug_level];
-  // out_color.rgb = mix(vec3(1,0,0),vec3(0,0,1), local_alpha);
 }
