@@ -157,9 +157,3 @@ typedef enum SliceAxis {
 
 /* Only one material supported currently. */
 #define VOLUME_MATERIAL_NR 1
-
-/**
- * Dummy type used as a stand-in for OpenVDB grid pointers. This allows returning
- * direct pointers to OpenVDB grids for external processing while maintaining type safety.
- */
-struct DummyOpenVDBGridPtr;
