@@ -298,7 +298,7 @@ struct ThemeSizes {
 };
 BLI_STATIC_ASSERT_ALIGN(ThemeSizes, 16)
 
-struct ThemeData {
+struct UniformData {
   ThemeColors colors;
   ThemeSizes sizes;
 
@@ -312,7 +312,7 @@ struct ThemeData {
   bool32_t backface_culling;
   float _pad1;
 };
-BLI_STATIC_ASSERT_ALIGN(ThemeData, 16)
+BLI_STATIC_ASSERT_ALIGN(UniformData, 16)
 
 #ifdef GPU_SHADER
 /* The uniform_buf mostly contains theme properties.

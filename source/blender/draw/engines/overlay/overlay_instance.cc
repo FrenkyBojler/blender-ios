@@ -242,7 +242,7 @@ void Resources::update_clip_planes(const State &state)
 void Resources::update_theme_settings(const DRWContext *ctx, const State &state)
 {
   using namespace math;
-  ThemeData &gb = theme;
+  UniformData &gb = theme;
 
   auto rgba_uchar_to_float = [](uchar r, uchar g, uchar b, uchar a) {
     return float4(r, g, b, a) / 255.0f;

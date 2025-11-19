@@ -625,7 +625,7 @@ static void drw_shgroup_bone_relationship_lines(const Armatures::DrawContext *ct
                                                 const float start[3],
                                                 const float end[3])
 {
-  const ThemeData &theme = ctx->res->theme;
+  const UniformData &theme = ctx->res->theme;
   drw_shgroup_bone_relationship_lines_ex(ctx, start, end, theme.colors.wire);
 }
 
@@ -633,7 +633,7 @@ static void drw_shgroup_bone_ik_lines(const Armatures::DrawContext *ctx,
                                       const float start[3],
                                       const float end[3])
 {
-  const ThemeData &theme = ctx->res->theme;
+  const UniformData &theme = ctx->res->theme;
   drw_shgroup_bone_relationship_lines_ex(ctx, start, end, theme.colors.bone_ik_line);
 }
 
@@ -641,7 +641,7 @@ static void drw_shgroup_bone_ik_no_target_lines(const Armatures::DrawContext *ct
                                                 const float start[3],
                                                 const float end[3])
 {
-  const ThemeData &theme = ctx->res->theme;
+  const UniformData &theme = ctx->res->theme;
   drw_shgroup_bone_relationship_lines_ex(ctx, start, end, theme.colors.bone_ik_line_no_target);
 }
 
@@ -649,7 +649,7 @@ static void drw_shgroup_bone_ik_spline_lines(const Armatures::DrawContext *ctx,
                                              const float start[3],
                                              const float end[3])
 {
-  const ThemeData &theme = ctx->res->theme;
+  const UniformData &theme = ctx->res->theme;
   drw_shgroup_bone_relationship_lines_ex(ctx, start, end, theme.colors.bone_ik_line_spline);
 }
 
@@ -713,7 +713,7 @@ static void use_bone_color(float *r_color, const uint8_t *color_from_theme, cons
   srgb_to_linearrgb_v4(r_color, r_color);
 };
 
-static void get_pchan_color_wire(const ThemeData &theme,
+static void get_pchan_color_wire(const UniformData &theme,
                                  const ThemeWireColor *bcolor,
                                  const eArmatureDrawMode draw_mode,
                                  const eBone_Flag boneflag,
@@ -755,7 +755,7 @@ static void get_pchan_color_wire(const ThemeData &theme,
   }
 }
 
-static void get_pchan_color_solid(const ThemeData &theme,
+static void get_pchan_color_solid(const UniformData &theme,
                                   const ThemeWireColor *bcolor,
                                   float r_color[4])
 {
@@ -768,7 +768,7 @@ static void get_pchan_color_solid(const ThemeData &theme,
   }
 }
 
-static void get_pchan_color_constraint(const ThemeData &theme,
+static void get_pchan_color_constraint(const UniformData &theme,
                                        const ThemeWireColor *bcolor,
                                        const UnifiedBonePtr bone,
                                        float r_color[4])
@@ -810,7 +810,7 @@ static void get_pchan_color_constraint(const ThemeData &theme,
 /** \name Drawing Color Helpers
  * \{ */
 
-static void bone_locked_color_shade(const ThemeData &theme, float color[4])
+static void bone_locked_color_shade(const UniformData &theme, float color[4])
 {
   const float *locked_color = theme.colors.bone_locked;
 
@@ -820,7 +820,7 @@ static void bone_locked_color_shade(const ThemeData &theme, float color[4])
 static const float *get_bone_solid_color(const Armatures::DrawContext *ctx,
                                          const eBone_Flag boneflag)
 {
-  const ThemeData &theme = ctx->res->theme;
+  const UniformData &theme = ctx->res->theme;
   if (ctx->const_color) {
     return theme.colors.bone_solid;
   }
@@ -839,7 +839,7 @@ static const float *get_bone_solid_with_consts_color(const Armatures::DrawContex
                                                      const UnifiedBonePtr bone,
                                                      const eBone_Flag boneflag)
 {
-  const ThemeData &theme = ctx->res->theme;
+  const UniformData &theme = ctx->res->theme;
   if (ctx->const_color) {
     return theme.colors.bone_solid;
   }
@@ -876,7 +876,7 @@ static const float *get_bone_wire_color(const Armatures::DrawContext *ctx,
     copy_v3_v3(disp_color, ctx->const_color);
   }
   else {
-    const ThemeData &theme = ctx->res->theme;
+    const UniformData &theme = ctx->res->theme;
     switch (ctx->draw_mode) {
       case ARM_DRAW_MODE_EDIT:
         get_pchan_color_wire(theme, ctx->bcolor, ctx->draw_mode, boneflag, disp_color);
@@ -1253,7 +1253,7 @@ static void draw_points(const Armatures::DrawContext *ctx,
   float col_wire_root[4], col_wire_tail[4];
   float col_hint_root[4], col_hint_tail[4];
 
-  const ThemeData &theme = ctx->res->theme;
+  const UniformData &theme = ctx->res->theme;
 
   copy_v4_v4(col_wire_root, (ctx->const_color) ? ctx->const_color : &theme.colors.vert.x);
   copy_v4_v4(col_wire_tail, (ctx->const_color) ? ctx->const_color : &theme.colors.vert.x);
@@ -1404,7 +1404,7 @@ static void bone_draw_line(const Armatures::DrawContext *ctx,
     col_bone = col_head = col_tail = ctx->const_color;
   }
   else {
-    const ThemeData &theme = ctx->res->theme;
+    const UniformData &theme = ctx->res->theme;
 
     if (bone.is_editbone() && bone.flag() & BONE_TIPSEL) {
       col_tail = &theme.colors.vert_select.x;
