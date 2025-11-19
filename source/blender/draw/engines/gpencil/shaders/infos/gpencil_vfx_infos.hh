@@ -10,7 +10,6 @@
 #  include "gpencil_shader_shared.hh"
 
 #  include "draw_view_infos.hh"
-#  include "gpu_shader_fullscreen_infos.hh"
 #endif
 
 #ifdef GLSL_CPP_STUBS
@@ -27,6 +26,7 @@ SAMPLER(1, sampler2D, reveal_buf)
 FRAGMENT_OUT(0, float4, frag_color)
 FRAGMENT_OUT(1, float4, fragRevealage)
 FRAGMENT_SOURCE("gpencil_vfx_frag.glsl")
+VERTEX_SOURCE("gpencil_fullscreen_vert.glsl")
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(gpencil_fx_composite)
@@ -34,7 +34,6 @@ DO_STATIC_COMPILATION()
 DEFINE("COMPOSITE")
 PUSH_CONSTANT(bool, is_first_pass)
 ADDITIONAL_INFO(gpencil_fx_common)
-ADDITIONAL_INFO(gpu_fullscreen)
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(gpencil_fx_colorize)
@@ -45,7 +44,6 @@ PUSH_CONSTANT(float3, high_color)
 PUSH_CONSTANT(float, factor)
 PUSH_CONSTANT(int, mode)
 ADDITIONAL_INFO(gpencil_fx_common)
-ADDITIONAL_INFO(gpu_fullscreen)
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(gpencil_fx_blur)
@@ -54,7 +52,6 @@ DEFINE("BLUR")
 PUSH_CONSTANT(float2, offset)
 PUSH_CONSTANT(int, samp_count)
 ADDITIONAL_INFO(gpencil_fx_common)
-ADDITIONAL_INFO(gpu_fullscreen)
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(gpencil_fx_transform)
@@ -68,7 +65,6 @@ PUSH_CONSTANT(float2, swirl_center)
 PUSH_CONSTANT(float, swirl_angle)
 PUSH_CONSTANT(float, swirl_radius)
 ADDITIONAL_INFO(gpencil_fx_common)
-ADDITIONAL_INFO(gpu_fullscreen)
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(gpencil_fx_glow)
@@ -82,7 +78,6 @@ PUSH_CONSTANT(bool, first_pass)
 PUSH_CONSTANT(bool, glow_under)
 PUSH_CONSTANT(int, blend_mode)
 ADDITIONAL_INFO(gpencil_fx_common)
-ADDITIONAL_INFO(gpu_fullscreen)
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(gpencil_fx_rim)
@@ -96,7 +91,6 @@ PUSH_CONSTANT(int, samp_count)
 PUSH_CONSTANT(int, blend_mode)
 PUSH_CONSTANT(bool, is_first_pass)
 ADDITIONAL_INFO(gpencil_fx_common)
-ADDITIONAL_INFO(gpu_fullscreen)
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(gpencil_fx_shadow)
@@ -113,7 +107,6 @@ PUSH_CONSTANT(float, wave_phase)
 PUSH_CONSTANT(int, samp_count)
 PUSH_CONSTANT(bool, is_first_pass)
 ADDITIONAL_INFO(gpencil_fx_common)
-ADDITIONAL_INFO(gpu_fullscreen)
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(gpencil_fx_pixelize)
@@ -124,5 +117,4 @@ PUSH_CONSTANT(float2, target_pixel_offset)
 PUSH_CONSTANT(float2, accum_offset)
 PUSH_CONSTANT(int, samp_count)
 ADDITIONAL_INFO(gpencil_fx_common)
-ADDITIONAL_INFO(gpu_fullscreen)
 GPU_SHADER_CREATE_END()

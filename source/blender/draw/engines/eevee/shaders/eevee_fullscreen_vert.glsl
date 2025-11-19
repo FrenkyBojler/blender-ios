@@ -2,9 +2,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "gpu_shader_fullscreen_infos.hh"
+#include "infos/eevee_fullscreen_infos.hh"
 
-VERTEX_SHADER_CREATE_INFO(gpu_fullscreen)
+VERTEX_SHADER_CREATE_INFO(eevee_fullscreen)
 
 #include "gpu_shader_fullscreen_lib.glsl"
 

@@ -11,7 +11,6 @@
 
 #  include "draw_object_infos_infos.hh"
 #  include "draw_view_infos.hh"
-#  include "gpu_shader_fullscreen_infos.hh"
 #endif
 
 #ifdef GLSL_CPP_STUBS
@@ -100,7 +99,7 @@ PUSH_CONSTANT(float, blend_opacity)
 FRAGMENT_OUT(0, float4, frag_color)
 FRAGMENT_OUT(1, float4, fragRevealage)
 FRAGMENT_SOURCE("gpencil_layer_blend_frag.glsl")
-ADDITIONAL_INFO(gpu_fullscreen)
+VERTEX_SOURCE("gpencil_fullscreen_vert.glsl")
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(gpencil_mask_invert)
@@ -108,7 +107,7 @@ DO_STATIC_COMPILATION()
 FRAGMENT_OUT(0, float4, frag_color)
 FRAGMENT_OUT(1, float4, fragRevealage)
 FRAGMENT_SOURCE("gpencil_mask_invert_frag.glsl")
-ADDITIONAL_INFO(gpu_fullscreen)
+VERTEX_SOURCE("gpencil_fullscreen_vert.glsl")
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(gpencil_depth_merge)
@@ -190,7 +189,7 @@ IMAGE(1, GPENCIL_ACCUM_FORMAT, read_write, image2D, dst_img)
 PUSH_CONSTANT(float, weight_src)
 PUSH_CONSTANT(float, weight_dst)
 FRAGMENT_SOURCE("gpencil_antialiasing_accumulation_frag.glsl")
-ADDITIONAL_INFO(gpu_fullscreen)
+VERTEX_SOURCE("gpencil_fullscreen_vert.glsl")
 DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 

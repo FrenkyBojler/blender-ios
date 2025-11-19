@@ -325,6 +325,7 @@ set(GLSL_SRC
   engines/eevee/shaders/infos/eevee_deferred_infos.hh
   engines/eevee/shaders/infos/eevee_depth_of_field_infos.hh
   engines/eevee/shaders/infos/eevee_film_infos.hh
+  engines/eevee/shaders/infos/eevee_fullscreen_infos.hh
   engines/eevee/shaders/infos/eevee_geom_infos.hh
   engines/eevee/shaders/infos/eevee_hiz_infos.hh
   engines/eevee/shaders/infos/eevee_light_culling_infos.hh
@@ -368,6 +369,7 @@ set(GLSL_SRC
   engines/overlay/shaders/infos/overlay_edit_mode_infos.hh
   engines/overlay/shaders/infos/overlay_extra_infos.hh
   engines/overlay/shaders/infos/overlay_facing_infos.hh
+  engines/overlay/shaders/infos/overlay_fullscreen_infos.hh
   engines/overlay/shaders/infos/overlay_grid_infos.hh
   engines/overlay/shaders/infos/overlay_outline_infos.hh
   engines/overlay/shaders/infos/overlay_paint_infos.hh
@@ -445,6 +447,7 @@ set(GLSL_SRC
   engines/eevee/shaders/eevee_film_pass_convert_comp.glsl
   engines/eevee/shaders/eevee_filter_lib.glsl
   engines/eevee/shaders/eevee_forward_lib.glsl
+  engines/eevee/shaders/eevee_fullscreen_vert.glsl
   engines/eevee/shaders/eevee_gbuffer_closure_test.glsl
   engines/eevee/shaders/eevee_gbuffer_lib.glsl
   engines/eevee/shaders/eevee_gbuffer_normal_test.glsl
@@ -618,6 +621,7 @@ set(GLSL_SRC
   engines/workbench/shaders/workbench_effect_smaa_frag.glsl
   engines/workbench/shaders/workbench_effect_smaa_vert.glsl
   engines/workbench/shaders/workbench_effect_taa_frag.glsl
+  engines/workbench/shaders/workbench_fullscreen_vert.glsl
   engines/workbench/shaders/workbench_image_lib.glsl
   engines/workbench/shaders/workbench_matcap_lib.glsl
   engines/workbench/shaders/workbench_material_lib.glsl
@@ -695,6 +699,7 @@ set(GLSL_SRC
   engines/gpencil/shaders/gpencil_antialiasing_frag.glsl
   engines/gpencil/shaders/gpencil_antialiasing_vert.glsl
   engines/gpencil/shaders/gpencil_common_lib.glsl
+  engines/gpencil/shaders/gpencil_fullscreen_vert.glsl
   engines/gpencil/shaders/gpencil_layer_blend_frag.glsl
   engines/gpencil/shaders/gpencil_mask_invert_frag.glsl
   engines/gpencil/shaders/gpencil_depth_merge_frag.glsl
@@ -783,6 +788,7 @@ set(GLSL_SRC
   engines/overlay/shaders/overlay_extra_wire_vert.glsl
   engines/overlay/shaders/overlay_facing_frag.glsl
   engines/overlay/shaders/overlay_facing_vert.glsl
+  engines/overlay/shaders/overlay_fullscreen_vert.glsl
   engines/overlay/shaders/overlay_grid_background_frag.glsl
   engines/overlay/shaders/overlay_grid_frag.glsl
   engines/overlay/shaders/overlay_grid_vert.glsl
