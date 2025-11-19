@@ -88,14 +88,6 @@ class EvaluationResult {
   EvaluationMap result_;
 
  public:
-  EvaluationResult() = default;
-  EvaluationResult(const EvaluationResult &other) = default;
-  EvaluationResult(EvaluationResult &&other) = default;
-  EvaluationResult &operator=(const EvaluationResult &other) = default;
-  EvaluationResult &operator=(EvaluationResult &&other) = default;
-
-  ~EvaluationResult() = default;
-
   operator bool() const
   {
     return !this->is_empty();
