@@ -16,7 +16,7 @@
 
 namespace blender::ed::sculpt_paint::tests {
 class MeshTests : public testing::Test {
-public:
+ public:
   Mesh *mesh = nullptr;
 
   static void SetUpTestSuite()
@@ -40,7 +40,7 @@ public:
 
 TEST_F(MeshTests, create_boundary_info__cube)
 {
-  mesh = geometry::create_cuboid_mesh(float3(1.0, 1.0, 1.0), 2, 2,2);
+  mesh = geometry::create_cuboid_mesh(float3(1.0, 1.0, 1.0), 2, 2, 2);
 
   SculptBoundaryInfoCache boundary_info_cache = boundary::create_boundary_info(*mesh);
 
@@ -92,6 +92,4 @@ TEST_F(MeshTests, create_boundary_info__1D_strip)
   ASSERT_NE(boundary_info_cache.edges.size(), mesh->edges().size());
 }
 
-} // namespace blender::ed::sculpt_paint::tests
-
-
+}  // namespace blender::ed::sculpt_paint::tests

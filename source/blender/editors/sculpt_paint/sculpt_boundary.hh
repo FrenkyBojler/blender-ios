@@ -96,7 +96,6 @@ struct SculptBoundary {
   } twist;
 };
 
-
 /**
  * Populates boundary information for a mesh.
  *

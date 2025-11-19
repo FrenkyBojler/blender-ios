@@ -371,15 +371,16 @@ static void calc_smooth_filter(const Depsgraph &depsgraph,
         scale_factors(factors, strength);
         clamp_factors(factors, -1.0f, 1.0f);
 
-        const GroupedSpan<int> neighbors = calc_vert_neighbors_interior(faces,
-                                                                        corner_verts,
-                                                                        vert_to_face_map,
-                                                                        ss.boundary_info_cache->verts,
-                                                                        ss.boundary_info_cache->edges,
-                                                                        attribute_data.hide_poly,
-                                                                        verts,
-                                                                        tls.neighbor_offsets,
-                                                                        tls.neighbor_data);
+        const GroupedSpan<int> neighbors = calc_vert_neighbors_interior(
+            faces,
+            corner_verts,
+            vert_to_face_map,
+            ss.boundary_info_cache->verts,
+            ss.boundary_info_cache->edges,
+            attribute_data.hide_poly,
+            verts,
+            tls.neighbor_offsets,
+            tls.neighbor_data);
 
         tls.new_positions.resize(verts.size());
         const MutableSpan<float3> new_positions = tls.new_positions;

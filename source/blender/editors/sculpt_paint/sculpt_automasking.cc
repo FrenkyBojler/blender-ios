@@ -1331,7 +1331,9 @@ static void init_boundary_masking_mesh(Object &object,
   for (const int i : IndexRange(num_verts)) {
     switch (mode) {
       case BoundaryAutomaskMode::Edges:
-        if (boundary::vert_is_boundary(vert_to_face_map, hide_poly, ss.boundary_info_cache->verts, i)) {
+        if (boundary::vert_is_boundary(
+                vert_to_face_map, hide_poly, ss.boundary_info_cache->verts, i))
+        {
           edge_distance[i] = 0;
         }
         break;

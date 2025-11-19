@@ -36,7 +36,6 @@ class MeshTests : public testing::Test {
     CLG_exit();
   }
 
-
   void TearDown() override
   {
     if (mesh) {
