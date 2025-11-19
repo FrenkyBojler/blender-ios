@@ -2,4 +2,4 @@ Referenced by issue #133576, 'offscreen.draw_view3d' works in Blender 4.2, rende
 Referenced by issue #130669, EEVEE Filter Size setting set to 0.00px no longer results in a pixelated viewport, but still outputs a pixelated render
 Referenced by issue #125456, VR not showing when using 'Rendered' or 'Material preview' shading, on Blender 4.3
 Referenced by issue #124961, Eevee Next: Viewport Pixel sizes other than 1x doesn't take overscan into account
-Referenced by issue #141156, 3D Mode Viewport Display Issue
+Referenced by issue #141156, 3D Stereoscopic mode displays incorrectly in EEVEE viewport
