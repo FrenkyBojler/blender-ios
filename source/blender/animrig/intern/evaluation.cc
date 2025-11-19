@@ -63,7 +63,7 @@ EvaluationResult evaluate_action(PointerRNA &animated_id_ptr,
       /* Simple case: no results so far, so just use this layer as-is. There is
        * nothing to blend/combine with, so ignore the influence and combination
        * options. */
-      last_result = layer_result;
+      last_result = std::move(layer_result);
       continue;
     }
 
