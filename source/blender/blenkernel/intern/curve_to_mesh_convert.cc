@@ -19,6 +19,9 @@ namespace blender::bke {
 
 static int segments_num_no_duplicate_edge(const int points_num, const bool cyclic)
 {
+  if (points_num == 0) {
+    return 0;
+  }
   if (points_num <= 2) {
     return curves::segments_num(points_num, false);
   }
@@ -299,6 +302,9 @@ static ResultOffsets calculate_result_offsets(const CurvesInfo &info, const bool
 
             const bool profile_cyclic = info.profile_cyclic[i_profile];
             const int profile_point_num = profile_offsets[i_profile].size();
+            if (profile_point_num == 0) {
+              continue;
+            }
             const int profile_segment_num = curves::segments_num(profile_point_num,
                                                                  profile_cyclic);
 
@@ -387,7 +393,7 @@ static bool should_add_attribute_to_mesh(const AttributeAccessor &curve_attribut
   if (attribute_filter.allow_skip(id)) {
     return false;
   }
-  if (meta_data.data_type == CD_PROP_STRING) {
+  if (meta_data.data_type == AttrType::String) {
     return false;
   }
   return true;
@@ -402,20 +408,20 @@ static GSpan evaluate_attribute(const GVArray &src,
     if (src.is_span()) {
       return src.get_internal_span();
     }
-    buffer.reinitialize(curves.points_num() * src.type().size());
+    buffer.reinitialize(curves.points_num() * src.type().size);
     src.materialize(buffer.data());
     GMutableSpan eval{src.type(), buffer.data(), curves.points_num()};
     return eval;
   }
 
   if (src.is_span()) {
-    buffer.reinitialize(curves.evaluated_points_num() * src.type().size());
+    buffer.reinitialize(curves.evaluated_points_num() * src.type().size);
     GMutableSpan eval{src.type(), buffer.data(), curves.evaluated_points_num()};
     curves.interpolate_to_evaluated(src.get_internal_span(), eval);
     return eval;
   }
   GVArraySpan src_buffer(src);
-  buffer.reinitialize(curves.evaluated_points_num() * src.type().size());
+  buffer.reinitialize(curves.evaluated_points_num() * src.type().size);
   GMutableSpan eval{src.type(), buffer.data(), curves.evaluated_points_num()};
   curves.interpolate_to_evaluated(src_buffer, eval);
   return eval;
@@ -458,6 +464,9 @@ static void foreach_curve_combination(const CurvesInfo &info,
 
       const IndexRange main_points = main_offsets[i_main];
       const IndexRange profile_points = profile_offsets[i_profile];
+      if (main_points.is_empty() || profile_points.is_empty()) {
+        continue;
+      }
 
       const bool main_cyclic = info.main_cyclic[i_main];
       const bool profile_cyclic = info.profile_cyclic[i_profile];
@@ -492,7 +501,10 @@ static void build_mesh_positions(const CurvesInfo &curves_info,
   const bool ignore_profile_position = profile_positions.size() == 1 &&
                                        math::is_equal(profile_positions.first(), float3(0.0f));
   if (ignore_profile_position) {
-    if (mesh.verts_num == curves_info.main.points_num()) {
+    if (mesh.verts_num == curves_info.main.points_num() &&
+        /* NURBS can have equal evaluated and positions sizes, but different coords. */
+        !curves_info.main.has_curve_with_type(CURVE_TYPE_NURBS))
+    {
       const GAttributeReader src = curves_info.main.attributes().lookup("position");
       if (src.sharing_info && src.varray.is_span()) {
         const AttributeInitShared init(src.varray.get_internal_span().data(), *src.sharing_info);
@@ -578,7 +590,7 @@ static bool try_sharing_point_data(const CurvesGeometry &main,
   return mesh_attributes.add(
       id,
       AttrDomain::Point,
-      bke::cpp_type_to_custom_data_type(src.varray.type()),
+      bke::cpp_type_to_attribute_type(src.varray.type()),
       AttributeInitShared(src.varray.get_internal_span().data(), *src.sharing_info));
 }
 
@@ -610,7 +622,7 @@ static void copy_main_point_domain_attribute_to_mesh(const CurvesInfo &curves_in
     }
   }
   GSpanAttributeWriter dst_attribute = mesh_attributes.lookup_or_add_for_write_only_span(
-      id, dst_domain, bke::cpp_type_to_custom_data_type(src_attribute.varray.type()));
+      id, dst_domain, bke::cpp_type_to_attribute_type(src_attribute.varray.type()));
   if (!dst_attribute) {
     return;
   }
@@ -931,7 +943,7 @@ Mesh *curve_to_mesh_sweep(const CurvesGeometry &main,
     }
 
     const AttrDomain src_domain = iter.domain;
-    const eCustomDataType type = iter.data_type;
+    const AttrType type = iter.data_type;
     const GAttributeReader src = iter.get();
     const AttrDomain dst_domain = get_attribute_domain_for_mesh(mesh_attributes, iter.name);
 
@@ -967,7 +979,7 @@ Mesh *curve_to_mesh_sweep(const CurvesGeometry &main,
       return;
     }
     const AttrDomain src_domain = iter.domain;
-    const eCustomDataType type = iter.data_type;
+    const AttrType type = iter.data_type;
     const GVArray src = *iter.get();
 
     const AttrDomain dst_domain = get_attribute_domain_for_mesh(mesh_attributes, iter.name);

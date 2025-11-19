@@ -41,7 +41,7 @@ void timeline_boundbox(const Scene *scene, const ListBase *seqbase, rctf *r_rect
  * Get FPS rate of source media. Movie, scene and movie-clip strips are supported.
  * Returns 0 for unsupported strip or if media can't be loaded.
  */
-float time_sequence_get_fps(Scene *scene, Strip *strip);
+float time_strip_fps_get(Scene *scene, Strip *strip);
 /**
  * Find start or end position of next or previous strip.
  * \param scene: Video editing scene
@@ -61,7 +61,7 @@ int time_find_next_prev_edit(Scene *scene,
  * \note This checks if strip would be rendered at this frame. For rendering it is assumed, that
  * timeline frame has width of 1 frame and therefore ends at timeline_frame + 1
  *
- * \param seq: Sequence to be checked
+ * \param strip: Strip to be checked
  * \param timeline_frame: absolute frame position
  * \return true if strip intersects with timeline frame.
  */
@@ -98,6 +98,15 @@ void time_left_handle_frame_set(const Scene *scene, Strip *strip, int timeline_f
  */
 void time_right_handle_frame_set(const Scene *scene, Strip *strip, int timeline_frame);
 /**
+ * This function has same effect as calling @time_right_handle_frame_set and
+ * @time_right_handle_frame_set. If both handles are to be set after strip length changes, it is
+ * recommended to use this function as the order of setting handles is important. See #131731.
+ */
+void time_handles_frame_set(const Scene *scene,
+                            Strip *strip,
+                            int left_handle_timeline_frame,
+                            int right_handle_timeline_frame);
+/**
  * Get number of frames (in timeline) that can be rendered.
  * This can change depending on scene FPS or strip speed factor.
  */
@@ -126,15 +135,16 @@ void time_update_meta_strip_range(const Scene *scene, Strip *strip_meta);
  * Move contents of a strip without moving the strip handles.
  */
 void time_slip_strip(
-    const Scene *scene, Strip *strip, int delta, float subframe_delta, bool slip_keyframes);
+    const Scene *scene, Strip *strip, int frame_delta, float subframe_delta, bool slip_keyframes);
 /**
  * Get difference between scene and movie strip frame-rate.
+ * Returns 1.0f for all other strip types.
  */
 float time_media_playback_rate_factor_get(const Strip *strip, float scene_fps);
 /**
  * Get the sound offset (if any) and round it to the nearest integer.
  * This is mostly used in places where subframe data is not allowed (like re-timing key positions).
- * Returns zero if sequence is not a sound strip or if there is no offset.
+ * Returns zero if strip is not a sound strip or if there is no offset.
  */
 int time_get_rounded_sound_offset(const Strip *strip, float frames_per_second);
 

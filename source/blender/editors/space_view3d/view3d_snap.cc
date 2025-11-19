@@ -52,6 +52,7 @@
 #include "ED_transverts.hh"
 
 #include "ANIM_action.hh"
+#include "ANIM_armature.hh"
 #include "ANIM_bone_collections.hh"
 #include "ANIM_keyframing.hh"
 #include "ANIM_keyingsets.hh"
@@ -131,13 +132,13 @@ static wmOperatorStatus snap_sel_to_grid_exec(bContext *C, wmOperator *op)
     KeyingSet *ks = blender::animrig::get_keyingset_for_autokeying(scene, ANIM_KS_LOCATION_ID);
     Vector<Object *> objects_eval = BKE_object_pose_array_get(scene, view_layer_eval, v3d);
     for (Object *ob_eval : objects_eval) {
-      Object *ob = DEG_get_original_object(ob_eval);
+      Object *ob = DEG_get_original(ob_eval);
       bArmature *arm_eval = static_cast<bArmature *>(ob_eval->data);
 
       invert_m4_m4(ob_eval->runtime->world_to_object.ptr(), ob_eval->object_to_world().ptr());
 
       LISTBASE_FOREACH (bPoseChannel *, pchan_eval, &ob_eval->pose->chanbase) {
-        if (pchan_eval->bone->flag & BONE_SELECTED) {
+        if (pchan_eval->flag & POSE_SELECTED) {
           if (ANIM_bonecoll_is_visible_pchan(arm_eval, pchan_eval)) {
             if ((pchan_eval->bone->flag & BONE_CONNECTED) == 0) {
               float nLoc[3];
@@ -192,7 +193,7 @@ static wmOperatorStatus snap_sel_to_grid_exec(bContext *C, wmOperator *op)
     {
       FOREACH_SELECTED_EDITABLE_OBJECT_BEGIN (view_layer_eval, v3d, ob_eval) {
         objects_eval.append(ob_eval);
-        objects_orig.append(DEG_get_original_object(ob_eval));
+        objects_orig.append(DEG_get_original(ob_eval));
       }
       FOREACH_SELECTED_EDITABLE_OBJECT_END;
     }
@@ -202,7 +203,7 @@ static wmOperatorStatus snap_sel_to_grid_exec(bContext *C, wmOperator *op)
 
       Vector<Object *> objects(objects_eval.size());
       for (Object *ob_eval : objects_eval) {
-        objects.append_unchecked(DEG_get_original_object(ob_eval));
+        objects.append_unchecked(DEG_get_original(ob_eval));
       }
       BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
       xcs = object::xform_skip_child_container_create();
@@ -219,7 +220,7 @@ static wmOperatorStatus snap_sel_to_grid_exec(bContext *C, wmOperator *op)
     }
 
     for (Object *ob_eval : objects_eval) {
-      Object *ob = DEG_get_original_object(ob_eval);
+      Object *ob = DEG_get_original(ob_eval);
       vec[0] = -ob_eval->object_to_world().location()[0] +
                gridf * floorf(0.5f + ob_eval->object_to_world().location()[0] / gridf);
       vec[1] = -ob_eval->object_to_world().location()[1] +
@@ -270,7 +271,7 @@ void VIEW3D_OT_snap_selected_to_grid(wmOperatorType *ot)
   ot->description = "Snap selected item(s) to their nearest grid division";
   ot->idname = "VIEW3D_OT_snap_selected_to_grid";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = snap_sel_to_grid_exec;
   ot->poll = ED_operator_region_view3d_active;
 
@@ -283,6 +284,18 @@ void VIEW3D_OT_snap_selected_to_grid(wmOperatorType *ot)
 /* -------------------------------------------------------------------- */
 /** \name Snap Selection to Location (Utility)
  * \{ */
+
+/* Return true if the bone or any of its parents has the given runtime flag set. */
+static bool pose_bone_runtime_flag_test_recursive(const bPoseChannel *pose_bone, int flag)
+{
+  if (pose_bone->runtime.flag & flag) {
+    return true;
+  }
+  if (pose_bone->parent) {
+    return pose_bone_runtime_flag_test_recursive(pose_bone->parent, flag);
+  }
+  return false;
+}
 
 /**
  * Snaps the selection as a whole (use_offset=true) or each selected object to the given location.
@@ -307,6 +320,7 @@ static bool snap_selected_to_location_rotation(bContext *C,
                                                const bool use_toolsettings)
 {
   using namespace blender::ed;
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Scene *scene = CTX_data_scene(C);
   Object *obedit = CTX_data_edit_object(C);
   Object *obact = CTX_data_active_object(C);
@@ -355,7 +369,8 @@ static bool snap_selected_to_location_rotation(bContext *C,
       }
 
       if (ED_transverts_check_obedit(obedit)) {
-        ED_transverts_create_from_obedit(&tvs, obedit, 0);
+        const Object *ob_eval = DEG_get_evaluated(depsgraph, obedit);
+        ED_transverts_create_from_obedit(&tvs, ob_eval, 0);
       }
 
       if (tvs.transverts_tot != 0) {
@@ -403,24 +418,24 @@ static bool snap_selected_to_location_rotation(bContext *C,
       mul_v3_m4v3(target_loc_local, ob->world_to_object().ptr(), target_loc_global);
 
       LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
-        if ((pchan->bone->flag & BONE_SELECTED) && PBONE_VISIBLE(arm, pchan->bone) &&
+        if ((pchan->flag & POSE_SELECTED) && blender::animrig::bone_is_visible(arm, pchan) &&
             /* if the bone has a parent and is connected to the parent,
              * don't do anything - will break chain unless we do auto-ik.
              */
             (pchan->bone->flag & BONE_CONNECTED) == 0)
         {
-          pchan->bone->flag |= BONE_TRANSFORM;
+          pchan->runtime.flag |= POSE_RUNTIME_TRANSFORM;
         }
         else {
-          pchan->bone->flag &= ~BONE_TRANSFORM;
+          pchan->runtime.flag &= ~POSE_RUNTIME_TRANSFORM;
         }
       }
 
       LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
-        if ((pchan->bone->flag & BONE_TRANSFORM) &&
+        if ((pchan->runtime.flag & POSE_RUNTIME_TRANSFORM) &&
             /* check that our parents not transformed (if we have one) */
             ((pchan->bone->parent &&
-              BKE_armature_bone_flag_test_recursive(pchan->bone->parent, BONE_TRANSFORM)) == 0))
+              pose_bone_runtime_flag_test_recursive(pchan->parent, POSE_RUNTIME_TRANSFORM)) == 0))
         {
           /* Get position in pchan (pose) space. */
           blender::float3 target_loc_pose;
@@ -496,7 +511,7 @@ static bool snap_selected_to_location_rotation(bContext *C,
       }
 
       LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
-        pchan->bone->flag &= ~BONE_TRANSFORM;
+        pchan->runtime.flag &= ~POSE_RUNTIME_TRANSFORM;
       }
 
       ob->pose->flag |= (POSE_LOCKED | POSE_DO_UNLOCK);
@@ -557,8 +572,12 @@ static bool snap_selected_to_location_rotation(bContext *C,
     }
 
     for (Object *ob : objects) {
-      if (ob->parent && BKE_object_flag_test_recursive(ob->parent, OB_DONE)) {
-        continue;
+      /* With offset enabled, skip child objects whose parents are also transformed
+       * to avoid double transform. */
+      if (use_offset) {
+        if (ob->parent && BKE_object_flag_test_recursive(ob->parent, OB_DONE)) {
+          continue;
+        }
       }
 
       blender::float3 target_loc_local; /* parent-relative */
@@ -584,7 +603,7 @@ static bool snap_selected_to_location_rotation(bContext *C,
         /* Use the evaluated object here because sometimes
          * `ob->parent->runtime->curve_cache` is required. */
         BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
-        Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+        Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
 
         BKE_object_get_parent_matrix(ob_eval, ob_eval->parent, parentmat);
         mul_m3_m4m4(originmat, parentmat, ob->parentinv);
@@ -726,7 +745,7 @@ void VIEW3D_OT_snap_selected_to_cursor(wmOperatorType *ot)
   ot->description = "Snap selected item(s) to the 3D cursor";
   ot->idname = "VIEW3D_OT_snap_selected_to_cursor";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = snap_selected_to_cursor_exec;
   ot->poll = ED_operator_view3d_active;
 
@@ -775,7 +794,7 @@ void VIEW3D_OT_snap_selected_to_active(wmOperatorType *ot)
   ot->description = "Snap selected item(s) to the active item";
   ot->idname = "VIEW3D_OT_snap_selected_to_active";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = snap_selected_to_active_exec;
   ot->poll = ED_operator_view3d_active;
 
@@ -817,7 +836,7 @@ void VIEW3D_OT_snap_cursor_to_grid(wmOperatorType *ot)
   ot->description = "Snap 3D cursor to the nearest grid division";
   ot->idname = "VIEW3D_OT_snap_cursor_to_grid";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = snap_curs_to_grid_exec;
   ot->poll = ED_operator_region_view3d_active;
 
@@ -916,12 +935,13 @@ static bool snap_curs_to_sel_ex(bContext *C, const int pivot_point, float r_curs
       }
 
       if (ED_transverts_check_obedit(obedit)) {
-        ED_transverts_create_from_obedit(&tvs, obedit, TM_ALL_JOINTS | TM_SKIP_HANDLES);
+        const Object *obedit_eval = DEG_get_evaluated(depsgraph, obedit);
+        ED_transverts_create_from_obedit(&tvs, obedit_eval, TM_ALL_JOINTS | TM_SKIP_HANDLES);
       }
 
       count += tvs.transverts_tot;
       if (tvs.transverts_tot != 0) {
-        Object *obedit_eval = DEG_get_evaluated_object(depsgraph, obedit);
+        Object *obedit_eval = DEG_get_evaluated(depsgraph, obedit);
         copy_m3_m4(bmat, obedit_eval->object_to_world().ptr());
 
         tv = tvs.transverts;
@@ -940,11 +960,11 @@ static bool snap_curs_to_sel_ex(bContext *C, const int pivot_point, float r_curs
     Object *obact = CTX_data_active_object(C);
 
     if (obact && (obact->mode & OB_MODE_POSE)) {
-      Object *obact_eval = DEG_get_evaluated_object(depsgraph, obact);
+      Object *obact_eval = DEG_get_evaluated(depsgraph, obact);
       bArmature *arm = static_cast<bArmature *>(obact_eval->data);
       LISTBASE_FOREACH (bPoseChannel *, pchan, &obact_eval->pose->chanbase) {
         if (ANIM_bonecoll_is_visible_pchan(arm, pchan)) {
-          if (pchan->bone->flag & BONE_SELECTED) {
+          if (pchan->flag & POSE_SELECTED) {
             copy_v3_v3(vec, pchan->pose_head);
             mul_m4_v3(obact_eval->object_to_world().ptr(), vec);
             add_v3_v3(centroid, vec);
@@ -962,7 +982,7 @@ static bool snap_curs_to_sel_ex(bContext *C, const int pivot_point, float r_curs
         if (ob_eval->type == OB_CAMERA) {
           /* snap to bundles should happen only when bundles are visible */
           if (v3d->flag2 & V3D_SHOW_RECONSTRUCTION) {
-            bundle_midpoint(scene, DEG_get_original_object(ob_eval), vec);
+            bundle_midpoint(scene, DEG_get_original(ob_eval), vec);
           }
         }
 
@@ -1008,7 +1028,7 @@ void VIEW3D_OT_snap_cursor_to_selected(wmOperatorType *ot)
   ot->description = "Snap 3D cursor to the middle of the selected item(s)";
   ot->idname = "VIEW3D_OT_snap_cursor_to_selected";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = snap_curs_to_sel_exec;
   ot->poll = ED_operator_view3d_active;
 
@@ -1057,7 +1077,7 @@ void VIEW3D_OT_snap_cursor_to_active(wmOperatorType *ot)
   ot->description = "Snap 3D cursor to the active item";
   ot->idname = "VIEW3D_OT_snap_cursor_to_active";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = snap_curs_to_active_exec;
   ot->poll = ED_operator_view3d_active;
 
@@ -1091,7 +1111,7 @@ void VIEW3D_OT_snap_cursor_to_center(wmOperatorType *ot)
   ot->description = "Snap 3D cursor to the world origin";
   ot->idname = "VIEW3D_OT_snap_cursor_to_center";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = snap_curs_to_center_exec;
   ot->poll = ED_operator_view3d_active;
 
@@ -1152,7 +1172,7 @@ bool ED_view3d_minmax_verts(const Scene *scene, Object *obedit, float r_min[3], 
     return changed;
   }
   if (obedit->type == OB_POINTCLOUD) {
-    const Object &ob_orig = *DEG_get_original_object(obedit);
+    const Object &ob_orig = *DEG_get_original(obedit);
     const PointCloud &pointcloud = *static_cast<const PointCloud *>(ob_orig.data);
 
     IndexMaskMemory memory;
@@ -1169,7 +1189,7 @@ bool ED_view3d_minmax_verts(const Scene *scene, Object *obedit, float r_min[3], 
     return false;
   }
   if (obedit->type == OB_CURVES) {
-    const Object &ob_orig = *DEG_get_original_object(obedit);
+    const Object &ob_orig = *DEG_get_original(obedit);
     const Curves &curves_id = *static_cast<const Curves *>(ob_orig.data);
     const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
 
@@ -1190,7 +1210,7 @@ bool ED_view3d_minmax_verts(const Scene *scene, Object *obedit, float r_min[3], 
     return false;
   }
   if (obedit->type == OB_GREASE_PENCIL) {
-    Object &ob_orig = *DEG_get_original_object(obedit);
+    Object &ob_orig = *DEG_get_original(obedit);
     GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob_orig.data);
 
     std::optional<Bounds<float3>> bounds = std::nullopt;
@@ -1212,7 +1232,7 @@ bool ED_view3d_minmax_verts(const Scene *scene, Object *obedit, float r_min[3], 
 
       const bke::crazyspace::GeometryDeformation deformation =
           bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(
-              obedit, ob_orig, info.layer_index, info.frame_number);
+              obedit, ob_orig, info.drawing);
 
       const bke::greasepencil::Layer &layer = grease_pencil.layer(info.layer_index);
       const float4x4 layer_to_world = layer.to_world_space(*obedit);

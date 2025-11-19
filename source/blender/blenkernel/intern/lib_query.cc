@@ -26,7 +26,7 @@
 #include "BKE_main.hh"
 #include "BKE_node.hh"
 
-static CLG_LogRef LOG = {"bke.lib_query"};
+static CLG_LogRef LOG = {"lib.query"};
 
 /* status */
 enum {
@@ -53,16 +53,21 @@ struct LibraryForeachIDData {
   /** Callback flags that are forbidden for all callback calls for current processed data. */
   LibraryForeachIDCallbackFlag cb_flag_clear;
 
-  /* Function to call for every ID pointers of current processed data, and its opaque user data
-   * pointer. */
+  /**
+   * Function to call for every ID pointers of current processed data, and its opaque user data
+   * pointer.
+   */
   blender::FunctionRef<LibraryIDLinkCallback> callback;
   void *user_data;
-  /** Store the returned value from the callback, to decide how to continue the processing of ID
-   * pointers for current data. */
+  /**
+   * Store the returned value from the callback, to decide how to continue the processing of ID
+   * pointers for current data.
+   */
   int status;
 
   /* To handle recursion. */
-  GSet *ids_handled; /* All IDs that are either already done, or still in ids_todo stack. */
+  /* All IDs that are either already done, or still in ids_todo stack. */
+  blender::Set<ID *> *ids_handled;
   BLI_LINKSTACK_DECLARE(ids_todo, ID *);
 };
 
@@ -86,8 +91,8 @@ void BKE_lib_query_foreachid_process(LibraryForeachIDData *data,
    * caller code. */
   cb_flag = LibraryForeachIDCallbackFlag((cb_flag | data->cb_flag) & ~data->cb_flag_clear);
 
-  /* Update the callback flags with some extra information regarding overrides: all 'loopback',
-   * 'internal', 'embedded' etc. ID pointers are never overridable. */
+  /* Update the callback flags with some extra information regarding overrides: all "loop-back",
+   * "internal", "embedded" etc. ID pointers are never overridable. */
   if (cb_flag & (IDWALK_CB_INTERNAL | IDWALK_CB_LOOPBACK | IDWALK_CB_OVERRIDE_LIBRARY_REFERENCE)) {
     cb_flag |= IDWALK_CB_OVERRIDE_LIBRARY_NOT_OVERRIDABLE;
   }
@@ -111,7 +116,7 @@ void BKE_lib_query_foreachid_process(LibraryForeachIDData *data,
   }
 
   if (old_id && (flag & IDWALK_RECURSE)) {
-    if (BLI_gset_add((data)->ids_handled, old_id)) {
+    if (data->ids_handled->add(old_id)) {
       if (!(callback_return & IDWALK_RET_STOP_RECURSION)) {
         BLI_LINKSTACK_PUSH(data->ids_todo, old_id);
       }
@@ -187,7 +192,7 @@ void BKE_library_foreach_ID_embedded(LibraryForeachIDData *data, ID **id_pp)
   else if (flag & IDWALK_RECURSE) {
     /* Defer handling into main loop, recursively calling BKE_library_foreach_ID_link in
      * IDWALK_RECURSE case is troublesome, see #49553. */
-    if (BLI_gset_add(data->ids_handled, id)) {
+    if (data->ids_handled->add(id)) {
       BLI_LINKSTACK_PUSH(data->ids_todo, id);
     }
   }
@@ -204,7 +209,7 @@ void BKE_library_foreach_ID_embedded(LibraryForeachIDData *data, ID **id_pp)
 static void library_foreach_ID_data_cleanup(LibraryForeachIDData *data)
 {
   if (data->ids_handled != nullptr) {
-    BLI_gset_free(data->ids_handled, nullptr);
+    MEM_delete(data->ids_handled);
     BLI_LINKSTACK_FREE(data->ids_todo);
   }
 }
@@ -239,10 +244,10 @@ static bool library_foreach_ID_link(Main *bmain,
      * see also comments in #BKE_library_foreach_ID_embedded.
      * This is why we can always create this data here, and do not need to try and re-use it from
      * `inherit_data`. */
-    data.ids_handled = BLI_gset_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, __func__);
+    data.ids_handled = MEM_new<blender::Set<ID *>>(__func__);
     BLI_LINKSTACK_INIT(data.ids_todo);
 
-    BLI_gset_add(data.ids_handled, id);
+    data.ids_handled->add(id);
   }
   else {
     data.ids_handled = nullptr;
@@ -389,6 +394,14 @@ static bool library_foreach_ID_link(Main *bmain,
       return false;
     }
 
+    IDP_foreach_property(id->system_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
+      BKE_lib_query_idpropertiesForeachIDLink_callback(prop, &data);
+    });
+    if (BKE_lib_query_foreachid_iter_stop(&data)) {
+      library_foreach_ID_data_cleanup(&data);
+      return false;
+    }
+
     AnimData *adt = BKE_animdata_from_id(id);
     if (adt) {
       BKE_animdata_foreach_id(adt, &data);
@@ -528,7 +541,7 @@ static int foreach_libblock_id_users_callback(LibraryIDLinkCallbackData *cb_data
   IDUsersIter *iter = static_cast<IDUsersIter *>(cb_data->user_data);
 
   if (*id_p) {
-    /* 'Loopback' ID pointers (the ugly 'from' ones, like Key->from).
+    /* "Loop-back" ID pointers (the ugly *from* ones, like `Key->from`).
      * Those are not actually ID usage, we can ignore them here.
      */
     if (cb_flag & IDWALK_CB_LOOPBACK) {
@@ -657,7 +670,8 @@ void BKE_library_ID_test_usages(Main *bmain,
 
 /* ***** IDs usages.checking/tagging. ***** */
 
-/* Internal data for the common processing of the 'unused IDs' query functions.
+/**
+ * Internal data for the common processing of the 'unused IDs' query functions.
  *
  * While #LibQueryUnusedIDsData is a subset of this internal struct, they need to be kept separate,
  * since this struct is used with partially 'enforced' values for some parameters by the
@@ -804,7 +818,8 @@ static bool lib_query_unused_ids_has_exception_user(ID &id, UnusedIDsData &data)
   return false;
 }
 
-/* Returns `true` if given ID is detected as part of at least one dependency loop, false otherwise.
+/**
+ * Returns `true` if given ID is detected as part of at least one dependency loop, false otherwise.
  */
 static bool lib_query_unused_ids_tag_recurse(ID *id, UnusedIDsData &data)
 {

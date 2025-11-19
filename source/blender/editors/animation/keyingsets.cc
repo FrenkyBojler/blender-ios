@@ -28,6 +28,7 @@
 #include "ED_screen.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "WM_api.hh"
@@ -186,8 +187,7 @@ static wmOperatorStatus add_empty_ks_path_exec(bContext *C, wmOperator *op)
       BLI_findlink(&scene->keyingsets, scene->active_keyingset - 1));
 
   /* Don't use the API method for this, since that checks on values... */
-  KS_Path *keyingset_path = static_cast<KS_Path *>(
-      MEM_callocN(sizeof(KS_Path), "KeyingSetPath Empty"));
+  KS_Path *keyingset_path = MEM_callocN<KS_Path>("KeyingSetPath Empty");
   BLI_addtail(&keyingset->paths, keyingset_path);
   keyingset->active_path = BLI_listbase_count(&keyingset->paths);
 
@@ -428,13 +428,10 @@ static wmOperatorStatus keyingset_active_menu_invoke(bContext *C,
                                                      wmOperator *op,
                                                      const wmEvent * /*event*/)
 {
-  uiPopupMenu *pup;
-  uiLayout *layout;
-
   /* Call the menu, which will call this operator again, hence the canceled. */
-  pup = UI_popup_menu_begin(C, op->type->name, ICON_NONE);
-  layout = UI_popup_menu_layout(pup);
-  uiItemsEnumO(layout, "ANIM_OT_keying_set_active_set", "type");
+  uiPopupMenu *pup = UI_popup_menu_begin(C, op->type->name, ICON_NONE);
+  blender::ui::Layout &layout = *UI_popup_menu_layout(pup);
+  layout.op_enum("ANIM_OT_keying_set_active_set", "type");
   UI_popup_menu_end(C, pup);
 
   return OPERATOR_INTERFACE;

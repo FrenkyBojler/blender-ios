@@ -5,6 +5,9 @@
 # Libs that adhere to strict flags
 add_subdirectory(curve_fit_nd)
 add_subdirectory(fmtlib)
+if(WITH_IO_FBX)
+  add_subdirectory(ufbx)
+endif()
 
 # Otherwise we get warnings here that we cant fix in external projects
 remove_strict_flags()
@@ -58,14 +61,6 @@ if(WITH_BINRELOC)
   add_subdirectory(binreloc)
 endif()
 
-if(WITH_LZO AND NOT WITH_SYSTEM_LZO)
-  add_subdirectory(lzo)
-endif()
-
-if(WITH_LZMA)
-  add_subdirectory(lzma)
-endif()
-
 if(WITH_CYCLES OR WITH_OPENSUBDIV)
   if((WITH_CYCLES_DEVICE_CUDA OR WITH_CYCLES_DEVICE_OPTIX) AND WITH_CUDA_DYNLOAD)
     add_subdirectory(cuew)
@@ -83,7 +78,7 @@ if(WITH_LIBMV)
   add_subdirectory(ceres)
 endif()
 
-if(WITH_LIBMV OR WITH_GTESTS OR (WITH_CYCLES AND WITH_CYCLES_LOGGING))
+if(WITH_LIBMV OR WITH_GTESTS)
   if(NOT WITH_SYSTEM_GFLAGS)
     add_subdirectory(gflags)
   endif()

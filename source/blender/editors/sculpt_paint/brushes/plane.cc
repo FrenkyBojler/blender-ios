@@ -18,7 +18,7 @@
  *  - Swap Height and Depth: Exchanges the roles of Height and Depth.
  */
 
-#include "editors/sculpt_paint/brushes/types.hh"
+#include "editors/sculpt_paint/brushes/brushes.hh"
 
 #include "DNA_brush_types.h"
 #include "DNA_mesh_types.h"
@@ -41,7 +41,7 @@
 
 #include "bmesh.hh"
 
-namespace blender::ed::sculpt_paint {
+namespace blender::ed::sculpt_paint::brushes {
 
 inline namespace plane_cc {
 
@@ -63,21 +63,12 @@ static void calc_local_positions(const float4x4 &mat,
   }
 }
 
-static void calc_local_positions(const float4x4 &mat,
-                                 const Span<float3> positions,
-                                 const MutableSpan<float3> local_positions)
-{
-  for (const int i : positions.index_range()) {
-    local_positions[i] = math::transform_point(mat, positions[i]);
-  }
-}
-
 /**
  * Computes the local distances. For vertices above the plane,
  * the z-distances are divided by `height`, effectively scaling the
  * z-distances so that a vertex of local coordinates
  * `(0, 0, height)` has a z-distance of 1.
- .
+ *
  * When `height` is 0, the local distances are set to 1. In object space, this is
  * equivalent to setting the distances equal to the radius, resulting in
  * a falloff strength of 0 (no displacement).
@@ -231,10 +222,14 @@ static void calc_faces(const Depsgraph &depsgraph,
   tls.distances.resize(verts.size());
   const MutableSpan<float> distances = tls.distances;
   calc_local_distances(height, depth, local_positions, distances);
+  filter_distances_with_radius(1.0f, distances, factors);
 
   apply_hardness_to_distances(1.0f, cache.hardness, distances);
-  BKE_brush_calc_curve_factors(
-      eBrushCurvePreset(brush.curve_preset), brush.curve, distances, 1.0f, factors);
+  BKE_brush_calc_curve_factors(eBrushCurvePreset(brush.curve_distance_falloff_preset),
+                               brush.curve_distance_falloff,
+                               distances,
+                               1.0f,
+                               factors);
 
   auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
 
@@ -279,15 +274,19 @@ static void calc_grids(const Depsgraph &depsgraph,
 
   tls.local_positions.resize(positions.size());
   const MutableSpan<float3> local_positions = tls.local_positions;
-  calc_local_positions(mat, positions, local_positions);
+  math::transform_points(positions, mat, local_positions, false);
 
   tls.distances.resize(positions.size());
   const MutableSpan<float> distances = tls.distances;
   calc_local_distances(height, depth, local_positions, distances);
+  filter_distances_with_radius(1.0f, distances, factors);
 
   apply_hardness_to_distances(1.0f, cache.hardness, distances);
-  BKE_brush_calc_curve_factors(
-      eBrushCurvePreset(brush.curve_preset), brush.curve, distances, 1.0f, factors);
+  BKE_brush_calc_curve_factors(eBrushCurvePreset(brush.curve_distance_falloff_preset),
+                               brush.curve_distance_falloff,
+                               distances,
+                               1.0f,
+                               factors);
 
   auto_mask::calc_grids_factors(depsgraph, object, cache.automasking.get(), node, grids, factors);
 
@@ -330,15 +329,19 @@ static void calc_bmesh(const Depsgraph &depsgraph,
 
   tls.local_positions.resize(positions.size());
   const MutableSpan<float3> local_positions = tls.local_positions;
-  calc_local_positions(mat, positions, local_positions);
+  math::transform_points(positions, mat, local_positions, false);
 
   tls.distances.resize(positions.size());
   const MutableSpan<float> distances = tls.distances;
   calc_local_distances(height, depth, local_positions, distances);
+  filter_distances_with_radius(1.0f, distances, factors);
 
   apply_hardness_to_distances(1.0f, cache.hardness, distances);
-  BKE_brush_calc_curve_factors(
-      eBrushCurvePreset(brush.curve_preset), brush.curve, distances, 1.0f, factors);
+  BKE_brush_calc_curve_factors(eBrushCurvePreset(brush.curve_distance_falloff_preset),
+                               brush.curve_distance_falloff,
+                               distances,
+                               1.0f,
+                               factors);
 
   auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
 
@@ -376,7 +379,7 @@ void do_plane_brush(const Depsgraph &depsgraph,
   normal = tilt_apply_to_normal(normal, *ss.cache, brush.tilt_strength_factor);
 
   const bool flip = ss.cache->initial_direction_flipped;
-  const float offset = SCULPT_brush_plane_offset_get(sd, ss);
+  const float offset = brush_plane_offset_get(brush, ss);
   const float displace = ss.cache->radius * offset * (flip ? -1.0f : 1.0f);
   center += normal * ss.cache->scale * displace;
 
@@ -464,4 +467,44 @@ void do_plane_brush(const Depsgraph &depsgraph,
   pbvh.flush_bounds_to_parents();
 }
 
-}  // namespace blender::ed::sculpt_paint
+namespace plane {
+CursorSampleResult calc_node_mask(const Depsgraph &depsgraph,
+                                  Object &ob,
+                                  const Brush &brush,
+                                  IndexMaskMemory &memory)
+{
+  const SculptSession &ss = *ob.sculpt;
+  const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
+
+  const bool use_original = !ss.cache->accum;
+  const IndexMask initial_node_mask = gather_nodes(pbvh,
+                                                   eBrushFalloffShape(brush.falloff_shape),
+                                                   use_original,
+                                                   ss.cache->location_symm,
+                                                   ss.cache->radius_squared,
+                                                   ss.cache->view_normal_symm,
+                                                   memory);
+
+  float3 plane_center;
+  float3 plane_normal;
+  calc_brush_plane(depsgraph, brush, ob, initial_node_mask, plane_normal, plane_center);
+
+  /* Recompute the node mask using the center of the brush plane as the center.
+   *
+   * The indices of the nodes in `cursor_node_mask` have been calculated based on the cursor
+   * location. However, for the Plane brush, its effective center often deviates from the cursor
+   * location. Calculating the affected nodes using the cursor location as the center can lead to
+   * issues (see, for example, #123768). */
+  const IndexMask plane_mask = bke::pbvh::search_nodes(
+      pbvh, memory, [&](const bke::pbvh::Node &node) {
+        if (node_fully_masked_or_hidden(node)) {
+          return false;
+        }
+        return node_in_sphere(node, plane_center, ss.cache->radius_squared, use_original);
+      });
+
+  return {plane_mask, plane_center, plane_normal};
+}
+}  // namespace plane
+
+}  // namespace blender::ed::sculpt_paint::brushes

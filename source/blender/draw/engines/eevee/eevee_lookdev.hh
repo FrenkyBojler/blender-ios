@@ -21,7 +21,10 @@
 
 #include "DRW_gpu_wrapper.hh"
 
-#include "draw_manager.hh"
+#include "eevee_light_shared.hh"
+#include "eevee_lightprobe.hh"
+#include "eevee_lightprobe_shared.hh"
+
 #include "draw_pass.hh"
 
 struct bNode;
@@ -35,7 +38,7 @@ class LookdevView;
 
 using blender::draw::Framebuffer;
 using blender::draw::PassSimple;
-using blender::draw::ResourceHandle;
+using blender::draw::ResourceHandleRange;
 using blender::draw::Texture;
 using blender::draw::View;
 
@@ -47,7 +50,6 @@ using blender::draw::View;
  * \{ */
 struct LookdevParameters {
   std::string hdri;
-  float rot_z = 0.0f;
   float background_opacity = 0.0f;
   float intensity = 1.0f;
   float blur = 0.0f;
@@ -71,9 +73,8 @@ class LookdevWorld {
  private:
   bNode *environment_node_ = nullptr;
   bNodeSocketValueFloat *intensity_socket_ = nullptr;
-  bNodeSocketValueFloat *angle_socket_ = nullptr;
-  ::Image image = {};
-  ::World world = {};
+  ::Image *image = nullptr;
+  ::World *world = nullptr;
 
   LookdevParameters parameters_;
 
@@ -86,7 +87,7 @@ class LookdevWorld {
 
   ::World *world_get()
   {
-    return &world;
+    return world;
   }
 
   float background_opacity_get() const
@@ -112,11 +113,18 @@ class LookdevWorld {
  *
  * \{ */
 
+using namespace draw;
+
 class LookdevModule {
  private:
   Instance &inst_;
 
-  bool enabled_;
+  bool use_reference_spheres_ = false;
+
+  bool use_viewspace_lighting_ = false;
+  /* Used for update detection. */
+  float4x4 last_rotation_matrix_ = float4x4::identity();
+  float studio_light_rotation_z_ = 0.0f;
 
   static constexpr int num_spheres = 2;
 
@@ -153,6 +161,15 @@ class LookdevModule {
   Sphere spheres_[num_spheres];
   PassSimple display_ps_ = {"Lookdev.Display"};
 
+  /**
+   * Copy of non-rotated world probe values when using the "view space" light overlay option.
+   * These probes are then rotated to match the view direction.
+   * This is faster than trying to recompute all these values for each frame.
+   */
+  Texture world_sphere_probe_ = {"world_sphere_probe_"};
+  StorageBuffer<SphereProbeHarmonic, true> world_volume_probe_ = {"world_volume_probe_"};
+  UniformArrayBuffer<LightData, 2> world_sunlight_ = {"world_sunlight_"};
+
  public:
   LookdevModule(Instance &inst);
   ~LookdevModule();
@@ -164,8 +181,24 @@ class LookdevModule {
 
   void display();
 
+  void rotate_world();
+
+  void store_world_probe_data(Texture &in_sphere_probe,
+                              const SphereProbeAtlasCoord &atlas_coord,
+                              StorageBuffer<SphereProbeHarmonic, true> &in_volume_probe,
+                              UniformArrayBuffer<LightData, 2> &in_sunlight);
+
+  void rotate_world_probe_data(Texture &dst_sphere_probe,
+                               const SphereProbeAtlasCoord &atlas_coord,
+                               StorageBuffer<SphereProbeHarmonic, true> &dst_volume_probe,
+                               UniformArrayBuffer<LightData, 2> &dst_sunlight,
+                               float4x4 &rotation);
+
  private:
-  void sync_pass(PassSimple &pass, gpu::Batch *geom, ::Material *mat, ResourceHandle res_handle);
+  void sync_pass(PassSimple &pass,
+                 gpu::Batch *geom,
+                 ::Material *mat,
+                 ResourceHandleRange res_handle);
   void sync_display();
 
   float calc_viewport_scale();

@@ -12,7 +12,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_jitter_2d.h"
-#include "BLI_kdtree.h"
+#include "BLI_kdtree.hh"
 #include "BLI_math_geom.h"
 #include "BLI_rand.h"
 #include "BLI_sort.h"
@@ -38,7 +38,7 @@ static void alloc_child_particles(ParticleSystem *psys, int tot)
   if (psys->child) {
     /* only re-allocate if we have to */
     if (psys->part->childtype && psys->totchild == tot) {
-      memset(psys->child, 0, tot * sizeof(ChildParticle));
+      std::fill_n(psys->child, tot, ChildParticle{});
       return;
     }
 
@@ -50,7 +50,7 @@ static void alloc_child_particles(ParticleSystem *psys, int tot)
   if (psys->part->childtype) {
     psys->totchild = tot;
     if (psys->totchild) {
-      psys->child = MEM_calloc_arrayN<ChildParticle>(size_t(psys->totchild), "child_particles");
+      psys->child = MEM_calloc_arrayN<ChildParticle>(psys->totchild, "child_particles");
     }
   }
 }
@@ -370,9 +370,9 @@ static void init_mv_jit(float *jit, int num, int seed2, float amount)
   jit2 = MEM_malloc_arrayN<float>(3 + 2 * size_t(num), "initjit");
 
   for (i = 0; i < 4; i++) {
-    BLI_jitterate1((float(*)[2])jit, (float(*)[2])jit2, num, rad1);
-    BLI_jitterate1((float(*)[2])jit, (float(*)[2])jit2, num, rad1);
-    BLI_jitterate2((float(*)[2])jit, (float(*)[2])jit2, num, rad2);
+    BLI_jitterate1((float (*)[2])jit, (float (*)[2])jit2, num, rad1);
+    BLI_jitterate1((float (*)[2])jit, (float (*)[2])jit2, num, rad1);
+    BLI_jitterate2((float (*)[2])jit, (float (*)[2])jit2, num, rad2);
   }
   MEM_freeN(jit2);
   BLI_rng_free(rng);
@@ -617,8 +617,8 @@ static void distribute_from_volume_exec(ParticleTask *thread, ParticleData *pa, 
   tot = mesh->totface_legacy;
 
   psys_interpolate_face(mesh,
-                        reinterpret_cast<const float(*)[3]>(positions.data()),
-                        reinterpret_cast<const float(*)[3]>(mesh->vert_normals().data()),
+                        reinterpret_cast<const float (*)[3]>(positions.data()),
+                        reinterpret_cast<const float (*)[3]>(mesh->vert_normals().data()),
                         mface,
                         nullptr,
                         nullptr,
@@ -1020,7 +1020,7 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx,
 
     if (from == PART_FROM_VERT) {
       const blender::Span<blender::float3> positions = mesh->vert_positions();
-      const float(*orcodata)[3] = static_cast<const float(*)[3]>(
+      const float (*orcodata)[3] = static_cast<const float (*)[3]>(
           CustomData_get_layer(&mesh->vert_data, CD_ORCO));
       int totvert = mesh->verts_num;
 
@@ -1061,16 +1061,16 @@ static int psys_thread_context_init_distribute(ParticleThreadContext *ctx,
     return 0;
   }
 
-  element_weight = MEM_calloc_arrayN<float>(size_t(totelem), "particle_distribution_weights");
-  particle_element = MEM_calloc_arrayN<int>(size_t(totpart), "particle_distribution_indexes");
-  jitter_offset = MEM_calloc_arrayN<float>(size_t(totelem), "particle_distribution_jitoff");
+  element_weight = MEM_calloc_arrayN<float>(totelem, "particle_distribution_weights");
+  particle_element = MEM_calloc_arrayN<int>(totpart, "particle_distribution_indexes");
+  jitter_offset = MEM_calloc_arrayN<float>(totelem, "particle_distribution_jitoff");
 
   /* Calculate weights from face areas */
   if ((part->flag & PART_EDISTR || children) && from != PART_FROM_VERT) {
     float totarea = 0.0f, co1[3], co2[3], co3[3], co4[3];
-    const float(*orcodata)[3];
+    const float (*orcodata)[3];
 
-    orcodata = static_cast<const float(*)[3]>(CustomData_get_layer(&mesh->vert_data, CD_ORCO));
+    orcodata = static_cast<const float (*)[3]>(CustomData_get_layer(&mesh->vert_data, CD_ORCO));
 
     MFace *mfaces = (MFace *)CustomData_get_layer_for_write(
         &mesh->fdata_legacy, CD_MFACE, mesh->totface_legacy);
@@ -1335,30 +1335,25 @@ static void psys_task_init_distribute(ParticleTask *task, ParticleSimulationData
 
 static void distribute_particles_on_dm(ParticleSimulationData *sim, int from)
 {
-  TaskPool *task_pool;
   ParticleThreadContext ctx;
-  ParticleTask *tasks;
   Mesh *final_mesh = sim->psmd->mesh_final;
-  int i, totpart, numtasks;
 
   /* create a task pool for distribution tasks */
   if (!psys_thread_context_init_distribute(&ctx, sim, from)) {
     return;
   }
 
-  task_pool = BLI_task_pool_create(&ctx, TASK_PRIORITY_HIGH);
+  TaskPool *task_pool = BLI_task_pool_create(&ctx, TASK_PRIORITY_HIGH);
 
-  totpart = (from == PART_FROM_CHILD ? sim->psys->totchild : sim->psys->totpart);
-  psys_tasks_create(&ctx, 0, totpart, &tasks, &numtasks);
-  for (i = 0; i < numtasks; i++) {
-    ParticleTask *task = &tasks[i];
-
-    psys_task_init_distribute(task, sim);
+  const int totpart = (from == PART_FROM_CHILD ? sim->psys->totchild : sim->psys->totpart);
+  blender::Vector<ParticleTask> tasks = psys_tasks_create(&ctx, 0, totpart);
+  for (ParticleTask &task : tasks) {
+    psys_task_init_distribute(&task, sim);
     if (from == PART_FROM_CHILD) {
-      BLI_task_pool_push(task_pool, exec_distribute_child, task, false, nullptr);
+      BLI_task_pool_push(task_pool, exec_distribute_child, &task, false, nullptr);
     }
     else {
-      BLI_task_pool_push(task_pool, exec_distribute_parent, task, false, nullptr);
+      BLI_task_pool_push(task_pool, exec_distribute_parent, &task, false, nullptr);
     }
   }
   BLI_task_pool_work_and_wait(task_pool);
@@ -1371,7 +1366,7 @@ static void distribute_particles_on_dm(ParticleSimulationData *sim, int from)
     BKE_id_free(nullptr, ctx.mesh);
   }
 
-  psys_tasks_free(tasks, numtasks);
+  psys_tasks_free(tasks);
 
   psys_thread_context_free(&ctx);
 }

@@ -22,12 +22,13 @@
 
 #include "DEG_depsgraph_query.hh"
 
+#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_customdata.hh"
 #include "BKE_mesh.hh"
 #include "BKE_modifier.hh"
 #include "BKE_scene.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
@@ -51,6 +52,7 @@ static bool depends_on_time(Scene * /*scene*/, ModifierData * /*md*/)
 
 static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh *mesh)
 {
+  using namespace blender;
   Mesh *result;
   BuildModifierData *bmd = (BuildModifierData *)md;
   int i, j, k;
@@ -192,11 +194,16 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   blender::MutableSpan<int> result_corner_verts = result->corner_verts_for_write();
   blender::MutableSpan<int> result_corner_edges = result->corner_edges_for_write();
 
+  bke::LegacyMeshInterpolator vert_interp(*mesh, *result, bke::AttrDomain::Point);
+  bke::LegacyMeshInterpolator edge_interp(*mesh, *result, bke::AttrDomain::Edge);
+  bke::LegacyMeshInterpolator face_interp(*mesh, *result, bke::AttrDomain::Face);
+  bke::LegacyMeshInterpolator corner_interp(*mesh, *result, bke::AttrDomain::Corner);
+
   /* copy the vertices across */
   GHASH_ITER (gh_iter, vertHash) {
     int oldIndex = POINTER_AS_INT(BLI_ghashIterator_getKey(&gh_iter));
     int newIndex = POINTER_AS_INT(BLI_ghashIterator_getValue(&gh_iter));
-    CustomData_copy_data(&mesh->vert_data, &result->vert_data, oldIndex, newIndex, 1);
+    vert_interp.copy(oldIndex, newIndex, 1);
   }
 
   /* copy the edges across, remapping indices */
@@ -211,7 +218,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
     source[0] = POINTER_AS_INT(BLI_ghash_lookup(vertHash, POINTER_FROM_INT(source[0])));
     source[1] = POINTER_AS_INT(BLI_ghash_lookup(vertHash, POINTER_FROM_INT(source[1])));
 
-    CustomData_copy_data(&mesh->edge_data, &result->edge_data, oldIndex, i, 1);
+    edge_interp.copy(oldIndex, i, 1);
     *dest = source;
   }
 
@@ -221,10 +228,9 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
     const blender::IndexRange src_face = faces_src[faceMap[i]];
     result_face_offsets[i] = k;
 
-    CustomData_copy_data(&mesh->face_data, &result->face_data, faceMap[i], i, 1);
+    face_interp.copy(faceMap[i], i, 1);
 
-    CustomData_copy_data(
-        &mesh->corner_data, &result->corner_data, src_face.start(), k, src_face.size());
+    corner_interp.copy(src_face.start(), k, src_face.size());
 
     for (j = 0; j < src_face.size(); j++, k++) {
       const int vert_src = corner_verts_src[src_face[j]];
@@ -254,13 +260,13 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
-  uiItemR(layout, ptr, "frame_start", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(layout, ptr, "frame_duration", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(layout, ptr, "use_reverse", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "frame_start", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "frame_duration", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "use_reverse", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void random_panel_header_draw(const bContext * /*C*/, Panel *panel)
@@ -269,7 +275,7 @@ static void random_panel_header_draw(const bContext * /*C*/, Panel *panel)
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  uiItemR(layout, ptr, "use_random_order", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "use_random_order", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void random_panel_draw(const bContext * /*C*/, Panel *panel)
@@ -278,10 +284,10 @@ static void random_panel_draw(const bContext * /*C*/, Panel *panel)
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
-  uiLayoutSetActive(layout, RNA_boolean_get(ptr, "use_random_order"));
-  uiItemR(layout, ptr, "seed", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->active_set(RNA_boolean_get(ptr, "use_random_order"));
+  layout->prop(ptr, "seed", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void panel_register(ARegionType *region_type)
@@ -324,4 +330,5 @@ ModifierTypeInfo modifierType_Build = {
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
     /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

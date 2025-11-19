@@ -213,7 +213,7 @@ bool BKE_tracking_track_has_enabled_marker_at_frame(struct MovieTrackingTrack *t
  * \note frame number should be in clip space, not scene space.
  */
 typedef enum eTrackClearAction {
-  /* Clear path from `ref_frame+1` up to the. */
+  /* Clear path from `ref_frame+1` up to the current frame. */
   TRACK_CLEAR_UPTO,
   /* Clear path from the beginning up to `ref_frame-1`. */
   TRACK_CLEAR_REMAINED,
@@ -524,8 +524,9 @@ struct ImBuf *BKE_tracking_distort_frame(struct MovieTracking *tracking,
  * number of pixels that the image will grow/shrink by in each of the four bounds of the image as a
  * result of the distortion/undistortion. The deltas for the bounds are positive for expansion and
  * negative for shrinking. */
-void BKE_tracking_distortion_bounds_deltas(MovieTracking *tracking,
+void BKE_tracking_distortion_bounds_deltas(MovieDistortion *distortion,
                                            const int size[2],
+                                           const int calibration_size[2],
                                            const bool undistort,
                                            int *r_right,
                                            int *r_left,

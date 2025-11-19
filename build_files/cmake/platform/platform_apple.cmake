@@ -25,7 +25,7 @@ endfunction()
 # ------------------------------------------------------------------------
 # Find system provided libraries.
 
-# Find system ZLIB, not the pre-compiled one supplied with OpenCollada.
+# Find system ZLIB
 set(ZLIB_ROOT /usr)
 find_package(ZLIB REQUIRED)
 find_package(BZip2 REQUIRED)
@@ -108,12 +108,6 @@ if(WITH_OPENSUBDIV)
 endif()
 add_bundled_libraries(opensubdiv/lib)
 
-if(WITH_VULKAN_BACKEND)
-  find_package(MoltenVK REQUIRED)
-  find_package(ShaderC REQUIRED)
-  find_package(Vulkan REQUIRED)
-endif()
-
 if(WITH_CODEC_SNDFILE)
   find_package(SndFile)
   find_library(_sndfile_FLAC_LIBRARY NAMES flac HINTS ${LIBDIR}/sndfile/lib)
@@ -164,13 +158,22 @@ find_package(OpenEXR REQUIRED)
 add_bundled_libraries(openexr/lib)
 add_bundled_libraries(imath/lib)
 
+string(APPEND PLATFORM_CFLAGS " -pipe -funsigned-char -fno-strict-aliasing -ffp-contract=off")
+set(PLATFORM_LINKFLAGS
+  "-fexceptions -framework CoreServices -framework Foundation -framework IOKit -framework AppKit -framework Cocoa \
+   -framework Carbon -framework AudioUnit -framework AudioToolbox -framework CoreAudio -framework Metal \
+   -framework QuartzCore"
+)
+
 if(WITH_CODEC_FFMPEG)
   set(FFMPEG_ROOT_DIR ${LIBDIR}/ffmpeg)
   set(FFMPEG_FIND_COMPONENTS
-    avcodec avdevice avformat avutil
+    avcodec avdevice avfilter avformat avutil
     mp3lame ogg opus swresample swscale
     theora theoradec theoraenc vorbis vorbisenc
     vorbisfile vpx x264)
+  # Frameworks required by libavfilter, using legacy macOS CGL
+  string(APPEND PLATFORM_LINKFLAGS " -framework CoreImage -framework OpenGL")
   if(EXISTS ${LIBDIR}/ffmpeg/lib/libaom.a)
     list(APPEND FFMPEG_FIND_COMPONENTS aom)
   endif()
@@ -198,11 +201,6 @@ if(SYSTEMSTUBS_LIBRARY)
   list(APPEND PLATFORM_LINKLIBS SystemStubs)
 endif()
 
-string(APPEND PLATFORM_CFLAGS " -pipe -funsigned-char -fno-strict-aliasing -ffp-contract=off")
-set(PLATFORM_LINKFLAGS
-  "-fexceptions -framework CoreServices -framework Foundation -framework IOKit -framework AppKit -framework Cocoa -framework Carbon -framework AudioUnit -framework AudioToolbox -framework CoreAudio -framework Metal -framework QuartzCore"
-)
-
 if(WITH_OPENIMAGEDENOISE)
   if("${CMAKE_OSX_ARCHITECTURES}" STREQUAL "arm64")
     # OpenImageDenoise uses BNNS from the Accelerate framework.
@@ -212,12 +210,6 @@ endif()
 
 if(WITH_JACK)
   string(APPEND PLATFORM_LINKFLAGS " -F/Library/Frameworks -weak_framework jackmp")
-endif()
-
-if(WITH_OPENCOLLADA)
-  find_package(OpenCOLLADA)
-  find_library(XML2_LIBRARIES NAMES xml2 HINTS ${LIBDIR}/opencollada/lib)
-  print_found_status("XML2" "${XML2_LIBRARIES}")
 endif()
 
 if(WITH_SDL)
@@ -340,7 +332,7 @@ endif()
 add_bundled_libraries(osl/lib)
 
 if(WITH_CYCLES AND WITH_CYCLES_EMBREE)
-  find_package(Embree 3.8.0 REQUIRED)
+  find_package(Embree 4.0.0 REQUIRED)
 endif()
 add_bundled_libraries(embree/lib)
 
@@ -350,7 +342,12 @@ if(WITH_OPENIMAGEDENOISE)
 endif()
 
 if(WITH_TBB)
-  find_package(TBB REQUIRED)
+  find_package(TBB 2021.13.0 REQUIRED)
+  if(TBB_FOUND)
+    get_target_property(TBB_LIBRARIES TBB::tbb LOCATION)
+    get_target_property(TBB_INCLUDE_DIRS TBB::tbb INTERFACE_INCLUDE_DIRECTORIES)
+  endif()
+  set_and_warn_library_found("TBB" TBB_FOUND WITH_TBB)
 endif()
 add_bundled_libraries(tbb/lib)
 
@@ -368,6 +365,14 @@ endif()
 
 if(WITH_HARU)
   find_package(Haru REQUIRED)
+endif()
+
+if(WITH_MANIFOLD)
+  find_package(manifold REQUIRED)
+endif()
+
+if(WITH_RUBBERBAND)
+  find_package(Rubberband REQUIRED)
 endif()
 
 if(WITH_CYCLES AND WITH_CYCLES_PATH_GUIDING)
@@ -421,19 +426,26 @@ string(APPEND PLATFORM_LINKFLAGS
   " -Wl,-unexported_symbols_list,'${PLATFORM_SYMBOLS_MAP}'"
 )
 
-if(${XCODE_VERSION} VERSION_GREATER_EQUAL 15.0)
-  if("${CMAKE_OSX_ARCHITECTURES}" STREQUAL "x86_64")
+if(${XCODE_VERSION} VERSION_EQUAL 15.0)
+  # V4.5 specific workaround: Enforce the legacy Xcode linker to avoid incorrect
+  # assembly generation caused by known bugs in the modern linker shipped with
+  # Xcode 15.0. See issue #148792 for details.
+  string(APPEND PLATFORM_LINKFLAGS " -Wl,-ld_classic")
+elseif(${XCODE_VERSION} VERSION_GREATER_EQUAL 15.0)
+  if("${CMAKE_OSX_ARCHITECTURES}" STREQUAL "x86_64" AND WITH_LEGACY_MACOS_X64_LINKER)
     # Silence "no platform load command found in <static library>, assuming: macOS".
+    #
+    # NOTE: Using ld_classic costs minutes of extra linking time.
     string(APPEND PLATFORM_LINKFLAGS " -Wl,-ld_classic")
   else()
     # Silence "ld: warning: ignoring duplicate libraries".
     #
     # The warning is introduced with Xcode 15 and is triggered when the same library
-    # is passed to the linker ultiple times. This situation could happen with either
+    # is passed to the linker multiple times. This situation could happen with either
     # cyclic libraries, or some transitive dependencies where CMake might decide to
     # pass library to the linker multiple times to force it re-scan symbols. It is
-    # not neeed for Xcode linker to ensure all symbols from library are used and it
-    # is corrected in CMake 3.29:
+    # not necessary for Xcode linker to ensure all symbols from library are used and
+    # it is corrected in CMake 3.29:
     #    https://gitlab.kitware.com/cmake/cmake/-/issues/25297
     string(APPEND PLATFORM_LINKFLAGS " -Xlinker -no_warn_duplicate_libraries")
   endif()

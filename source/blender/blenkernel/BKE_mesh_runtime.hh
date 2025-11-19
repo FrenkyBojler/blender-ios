@@ -33,8 +33,6 @@ void BKE_mesh_runtime_ensure_edit_data(Mesh *mesh);
  *
  * For "smaller" changes to meshes like updating positions, consider calling a more specific update
  * function like #Mesh::tag_positions_changed().
- *
- * Also note that some derived caches like #CD_TANGENT are stored directly in #CustomData.
  */
 void BKE_mesh_runtime_clear_geometry(Mesh *mesh);
 
@@ -85,7 +83,3 @@ Mesh *mesh_create_eval_no_deform_render(Depsgraph *depsgraph,
                                         const CustomData_MeshMasks *dataMask);
 
 }  // namespace blender::bke
-
-#ifndef NDEBUG
-bool BKE_mesh_runtime_is_valid(Mesh *mesh_eval);
-#endif /* !NDEBUG */

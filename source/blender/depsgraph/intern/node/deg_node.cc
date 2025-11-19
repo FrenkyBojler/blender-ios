@@ -244,7 +244,7 @@ eDepsObjectComponentType nodeTypeToObjectComponent(NodeType type)
       BLI_assert_msg(0, "Visibility component is supposed to be only used internally.");
       return DEG_OB_COMP_PARAMETERS;
   }
-  BLI_assert_msg(0, "Unhandled node type, not suppsed to happen.");
+  BLI_assert_msg(0, "Unhandled node type, not supposed to happen.");
   return DEG_OB_COMP_PARAMETERS;
 }
 
@@ -285,16 +285,7 @@ Node::Node()
   name = "";
 }
 
-Node::~Node()
-{
-  /* Free links. */
-  /* NOTE: We only free incoming links. This is to avoid double-free of links
-   * when we're trying to free same link from both its sides. We don't have
-   * dangling links so this is not a problem from memory leaks point of view. */
-  for (Relation *rel : inlinks) {
-    delete rel;
-  }
-}
+Node::~Node() = default;
 
 std::string Node::identifier() const
 {

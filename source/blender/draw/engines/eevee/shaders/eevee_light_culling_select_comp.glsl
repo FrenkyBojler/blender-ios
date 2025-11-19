@@ -6,12 +6,11 @@
  * Select the visible items inside the active view and put them inside the sorting buffer.
  */
 
-#include "infos/eevee_light_culling_info.hh"
+#include "infos/eevee_light_culling_infos.hh"
 
 COMPUTE_SHADER_CREATE_INFO(eevee_light_culling_select)
 
 #include "draw_intersect_lib.glsl"
-#include "draw_math_geom_lib.glsl"
 #include "draw_view_lib.glsl"
 
 void main()
@@ -25,14 +24,14 @@ void main()
 
   /* Sun lights are packed at the end of the array. Perform early copy. */
   if (is_sun_light(light.type)) {
-    /* First sun-light is reserved for world light. Perform copy from dedicated buffer. */
-    bool is_world_sun_light = light.color.r < 0.0;
+    /* Some sun-lights are reserved for world light. Perform copy from dedicated buffer. */
+    bool is_world_sun_light = light.color.r < 0.0f;
     if (is_world_sun_light) {
-      light.color = sunlight_buf.color;
-      light.object_to_world = sunlight_buf.object_to_world;
+      light.color = sunlight_buf[l_idx].color;
+      light.object_to_world = sunlight_buf[l_idx].object_to_world;
 
       LightSunData sun_data = light_sun_data_get(light);
-      sun_data.direction = transform_z_axis(sunlight_buf.object_to_world);
+      sun_data.direction = transform_z_axis(sunlight_buf[l_idx].object_to_world);
       light = light_sun_data_set(light, sun_data);
       /* NOTE: Use the radius from UI instead of auto sun size for now. */
     }
@@ -42,7 +41,7 @@ void main()
   }
 
   /* Do not select 0 power lights. */
-  if (light_local_data_get(light).influence_radius_max < 1e-8) {
+  if (light_local_data_get(light).influence_radius_max < 1e-8f) {
     return;
   }
 
@@ -52,10 +51,10 @@ void main()
     case LIGHT_SPOT_DISK: {
       LightSpotData spot = light_spot_data_get(light);
       /* Only for < ~170 degree Cone due to plane extraction precision. */
-      if (spot.spot_tan < 10.0) {
-        vec3 x_axis = light_x_axis(light);
-        vec3 y_axis = light_y_axis(light);
-        vec3 z_axis = light_z_axis(light);
+      if (spot.spot_tan < 10.0f) {
+        float3 x_axis = light_x_axis(light);
+        float3 y_axis = light_y_axis(light);
+        float3 z_axis = light_z_axis(light);
         Pyramid pyramid = shape_pyramid_non_oblique(
             light_position_get(light),
             light_position_get(light) - z_axis * spot.influence_radius_max,

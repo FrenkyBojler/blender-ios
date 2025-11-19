@@ -20,6 +20,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "IMB_imbuf.hh"
@@ -34,7 +35,6 @@
 #include "BKE_blender_user_menu.hh" /* own include */
 #include "BKE_blender_version.h"    /* own include */
 #include "BKE_brush.hh"
-#include "BKE_cachefile.hh"
 #include "BKE_callbacks.hh"
 #include "BKE_global.hh"
 #include "BKE_idprop.hh"
@@ -50,6 +50,8 @@
 #include "BLF_api.hh"
 
 #include "SEQ_utils.hh"
+
+#include "CLG_log.h"
 
 Global G;
 UserDef U;
@@ -74,7 +76,6 @@ void BKE_blender_free()
   BKE_spacetypes_free(); /* after free main, it uses space callbacks */
 
   IMB_exit();
-  BKE_cachefiles_exit();
   DEG_free_node_types();
 
   BKE_brush_system_exit();
@@ -126,20 +127,20 @@ static void blender_version_init()
 
   const char *version_suffix = BKE_blender_version_is_lts() ? " LTS" : "";
 
-  SNPRINTF(blender_version_string,
-           "%d.%01d.%d%s%s",
-           BLENDER_VERSION / 100,
-           BLENDER_VERSION % 100,
-           BLENDER_VERSION_PATCH,
-           version_suffix,
-           version_cycle);
+  SNPRINTF_UTF8(blender_version_string,
+                "%d.%01d.%d%s%s",
+                BLENDER_VERSION / 100,
+                BLENDER_VERSION % 100,
+                BLENDER_VERSION_PATCH,
+                version_suffix,
+                version_cycle);
 
-  SNPRINTF(blender_version_string_compact,
-           "%d.%01d.%d%s",
-           BLENDER_VERSION / 100,
-           BLENDER_VERSION % 100,
-           BLENDER_VERSION_PATCH,
-           version_cycle_compact);
+  SNPRINTF_UTF8(blender_version_string_compact,
+                "%d.%01d.%d%s",
+                BLENDER_VERSION / 100,
+                BLENDER_VERSION % 100,
+                BLENDER_VERSION_PATCH,
+                version_cycle_compact);
 }
 
 const char *BKE_blender_version_string()
@@ -160,15 +161,15 @@ void BKE_blender_version_blendfile_string_from_values(char *str_buff,
   const short file_version_major = file_version / 100;
   const short file_version_minor = file_version % 100;
   if (file_subversion >= 0) {
-    BLI_snprintf(str_buff,
-                 str_buff_maxncpy,
-                 "%d.%d (sub %d)",
-                 file_version_major,
-                 file_version_minor,
-                 file_subversion);
+    BLI_snprintf_utf8(str_buff,
+                      str_buff_maxncpy,
+                      "%d.%d (sub %d)",
+                      file_version_major,
+                      file_version_minor,
+                      file_subversion);
   }
   else {
-    BLI_snprintf(str_buff, str_buff_maxncpy, "%d.%d", file_version_major, file_version_minor);
+    BLI_snprintf_utf8(str_buff, str_buff_maxncpy, "%d.%d", file_version_major, file_version_minor);
   }
 }
 
@@ -208,7 +209,7 @@ void BKE_blender_globals_init()
   G.f &= ~G_FLAG_SCRIPT_AUTOEXEC;
 #endif
 
-  G.log.level = 1;
+  G.log.level = CLG_LEVEL_WARN;
 
   G.profile_gpu = false;
 }

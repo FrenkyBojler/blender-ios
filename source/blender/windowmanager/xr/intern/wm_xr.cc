@@ -71,7 +71,7 @@ bool wm_xr_init(wmWindowManager *wm)
       case GPU_BACKEND_OPENGL:
         gpu_bindings_candidates.append(GHOST_kXrGraphicsOpenGL);
 #  ifdef WIN32
-        gpu_bindings_candidates.append(GHOST_kXrGraphicsD3D11);
+        gpu_bindings_candidates.append(GHOST_kXrGraphicsOpenGLD3D11);
 #  endif
         break;
 #endif
@@ -79,6 +79,15 @@ bool wm_xr_init(wmWindowManager *wm)
 #ifdef WITH_VULKAN_BACKEND
       case GPU_BACKEND_VULKAN:
         gpu_bindings_candidates.append(GHOST_kXrGraphicsVulkan);
+#  ifdef WIN32
+        gpu_bindings_candidates.append(GHOST_kXrGraphicsVulkanD3D11);
+#  endif
+        break;
+#endif
+
+#ifdef WITH_METAL_BACKEND
+      case GPU_BACKEND_METAL:
+        gpu_bindings_candidates.append(GHOST_kXrGraphicsMetal);
         break;
 #endif
 
@@ -131,10 +140,9 @@ void wm_xr_exit(wmWindowManager *wm)
   if (wm->xr.runtime != nullptr) {
     wm_xr_runtime_data_free(&wm->xr.runtime);
   }
-  if (wm->xr.session_settings.shading.prop) {
-    IDP_FreeProperty(wm->xr.session_settings.shading.prop);
-    wm->xr.session_settings.shading.prop = nullptr;
-  }
+
+  /* See #wm_xr_data_free for logic that frees window-manager XR data
+   * that may exist even when built without XR. */
 }
 
 bool wm_xr_events_handle(wmWindowManager *wm)
@@ -182,6 +190,8 @@ void wm_xr_runtime_data_free(wmXrRuntimeData **runtime)
     if ((*runtime)->area) {
       wmWindowManager *wm = static_cast<wmWindowManager *>(G_MAIN->wm.first);
       wmWindow *win = wm_xr_session_root_window_or_fallback_get(wm, (*runtime));
+
+      WM_event_remove_handlers_by_area(&win->handlers, (*runtime)->area);
       ED_area_offscreen_free(wm, win, (*runtime)->area);
       (*runtime)->area = nullptr;
     }

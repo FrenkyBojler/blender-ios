@@ -12,7 +12,6 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
-#include <mutex>
 
 #include "CLG_log.h"
 
@@ -22,6 +21,7 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
+#include "BLI_mutex.hh"
 
 #ifdef WITH_BULLET
 #  include "RBI_api.h"
@@ -54,7 +54,7 @@
 #include "DEG_depsgraph_query.hh"
 
 #ifdef WITH_BULLET
-static CLG_LogRef LOG = {"bke.rigidbody"};
+static CLG_LogRef LOG = {"physics.rigidbody"};
 #endif
 
 #ifndef WITH_BULLET
@@ -83,7 +83,7 @@ static void RB_constraint_delete(void * /*con*/) {}
 
 struct RigidBodyWorld_Runtime {
   rbDynamicsWorld *physics_world = nullptr;
-  std::mutex mutex;
+  blender::Mutex mutex;
 
   ~RigidBodyWorld_Runtime()
   {
@@ -285,12 +285,12 @@ static rbCollisionShape *rigidbody_get_shape_convexhull_from_mesh(Object *ob,
 {
   rbCollisionShape *shape = nullptr;
   const Mesh *mesh = nullptr;
-  const float(*positions)[3] = nullptr;
+  const float (*positions)[3] = nullptr;
   int totvert = 0;
 
   if (ob->type == OB_MESH && ob->data) {
     mesh = rigidbody_get_mesh(ob);
-    positions = (mesh) ? reinterpret_cast<const float(*)[3]>(mesh->vert_positions().data()) :
+    positions = (mesh) ? reinterpret_cast<const float (*)[3]>(mesh->vert_positions().data()) :
                          nullptr;
     totvert = (mesh) ? mesh->verts_num : 0;
   }
@@ -600,7 +600,7 @@ void BKE_rigidbody_calc_volume(Object *ob, float *r_vol)
         const blender::Span<int> corner_verts = mesh->corner_verts();
 
         if (!positions.is_empty() && !corner_tris.is_empty()) {
-          BKE_mesh_calc_volume(reinterpret_cast<const float(*)[3]>(positions.data()),
+          BKE_mesh_calc_volume(reinterpret_cast<const float (*)[3]>(positions.data()),
                                positions.size(),
                                corner_tris.data(),
                                corner_tris.size(),
@@ -612,7 +612,7 @@ void BKE_rigidbody_calc_volume(Object *ob, float *r_vol)
         }
       }
       else {
-        /* rough estimate from boundbox as fallback */
+        /* rough estimate from boundbox as a fallback */
         /* XXX could implement other types of geometry here (curves, etc.) */
         volume = size[0] * size[1] * size[2];
       }
@@ -673,7 +673,7 @@ void BKE_rigidbody_calc_center_of_mass(Object *ob, float r_center[3])
         const blender::Span<blender::int3> corner_tris = mesh->corner_tris();
 
         if (!positions.is_empty() && !corner_tris.is_empty()) {
-          BKE_mesh_calc_volume(reinterpret_cast<const float(*)[3]>(positions.data()),
+          BKE_mesh_calc_volume(reinterpret_cast<const float (*)[3]>(positions.data()),
                                positions.size(),
                                corner_tris.data(),
                                corner_tris.size(),
@@ -1481,13 +1481,13 @@ void BKE_rigidbody_ensure_local_object(Main *bmain, Object *ob)
 bool BKE_rigidbody_add_object(Main *bmain, Scene *scene, Object *ob, int type, ReportList *reports)
 {
   if (ob->type != OB_MESH) {
-    BKE_report(reports, RPT_ERROR, "Can't add Rigid Body to non mesh object");
+    BKE_report(reports, RPT_ERROR, "Cannot add Rigid Body to non mesh object");
     return false;
   }
 
   /* Add object to rigid body world in scene. */
   if (!rigidbody_add_object_to_scene(bmain, scene, ob)) {
-    BKE_report(reports, RPT_ERROR, "Can't create Rigid Body world");
+    BKE_report(reports, RPT_ERROR, "Cannot create Rigid Body world");
     return false;
   }
 
@@ -1530,10 +1530,12 @@ void BKE_rigidbody_remove_object(Main *bmain, Scene *scene, Object *ob, const bo
           if (rbc->ob1 == ob) {
             rbc->ob1 = nullptr;
             DEG_id_tag_update(&obt->id, ID_RECALC_SYNC_TO_EVAL);
+            rigidbody_validate_sim_constraint(rbw, obt, false);
           }
           if (rbc->ob2 == ob) {
             rbc->ob2 = nullptr;
             DEG_id_tag_update(&obt->id, ID_RECALC_SYNC_TO_EVAL);
+            rigidbody_validate_sim_constraint(rbw, obt, false);
           }
         }
       }
@@ -1675,7 +1677,7 @@ static void rigidbody_update_sim_ob(Depsgraph *depsgraph, Object *ob, RigidBodyO
   if (rbo->shape == RB_SHAPE_TRIMESH && rbo->flag & RBO_FLAG_USE_DEFORM) {
     const Mesh *mesh = BKE_object_get_mesh_deform_eval(ob);
     if (mesh) {
-      const float(*positions)[3] = reinterpret_cast<const float(*)[3]>(
+      const float (*positions)[3] = reinterpret_cast<const float (*)[3]>(
           mesh->vert_positions().data());
       int totvert = mesh->verts_num;
       const std::optional<blender::Bounds<blender::float3>> bounds = BKE_object_boundbox_get(ob);
@@ -1995,8 +1997,10 @@ static void rigidbody_update_external_forces(Depsgraph *depsgraph,
         if (!is_zero_v3(eff_force)) {
           RB_body_activate(static_cast<rbRigidBody *>(rbo->shared->physics_object));
         }
-        RB_body_apply_central_force(static_cast<rbRigidBody *>(rbo->shared->physics_object),
-                                    eff_force);
+        if ((rbo->flag & RBO_FLAG_DISABLED) == 0) {
+          RB_body_apply_central_force(static_cast<rbRigidBody *>(rbo->shared->physics_object),
+                                      eff_force);
+        }
       }
       else if (G.f & G_DEBUG) {
         printf("\tno forces to apply to '%s'\n", ob->id.name + 2);
@@ -2253,7 +2257,7 @@ void BKE_rigidbody_do_simulation(Depsgraph *depsgraph, Scene *scene, float ctime
 
     const float frame_diff = ctime - rbw->ltime;
     /* calculate how much time elapsed since last step in seconds */
-    const float timestep = 1.0f / float(FPS) * frame_diff * rbw->time_scale;
+    const float timestep = 1.0f / float(scene->frames_per_second()) * frame_diff * rbw->time_scale;
 
     const float substep = timestep / rbw->substeps_per_frame;
 

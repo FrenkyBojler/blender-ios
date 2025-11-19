@@ -57,7 +57,7 @@ static float bm_vert_edge_face_angle(BMVert *v,
   /* NOTE: could be either edge, it doesn't matter. */
   if (v->e && BM_edge_is_manifold(v->e)) {
     /* Checking delimited is important here,
-     * otherwise the boundary between two materials for e.g.
+     * otherwise, for example, the boundary between two materials
      * will collapse if the faces on either side of the edge have a small angle.
      *
      * This way, delimiting edges are treated like boundary edges,
@@ -292,7 +292,7 @@ void BM_mesh_decimate_dissolve_ex(BMesh *bm,
   const float angle_limit_cos_neg = -cosf(angle_limit);
   DelimitData delimit_data = {0};
   const int eheap_table_len = do_dissolve_boundaries ? einput_len : max_ii(einput_len, vinput_len);
-  void *_heap_table = MEM_mallocN(sizeof(HeapNode *) * eheap_table_len, __func__);
+  void *_heap_table = MEM_malloc_arrayN<HeapNode *>(eheap_table_len, __func__);
 
   int i;
 
@@ -348,7 +348,10 @@ void BM_mesh_decimate_dissolve_ex(BMesh *bm,
       i = BM_elem_index_get(e);
 
       if (BM_edge_is_manifold(e)) {
-        f_new = BM_faces_join_pair(bm, e->l, e->l->radial_next, false);
+        /* The `f_new` may be an existing face, see #144383.
+         * In this case it's still flagged as output so the selection
+         * isn't "lost" when dissolving, see: !144653. */
+        f_new = BM_faces_join_pair(bm, e->l, e->l->radial_next, false, nullptr);
 
         if (f_new) {
           BMLoop *l_first, *l_iter;
@@ -381,7 +384,7 @@ void BM_mesh_decimate_dissolve_ex(BMesh *bm,
 
     /* prepare for cleanup */
     BM_mesh_elem_index_ensure(bm, BM_VERT);
-    vert_reverse_lookup = static_cast<int *>(MEM_mallocN(sizeof(int) * bm->totvert, __func__));
+    vert_reverse_lookup = MEM_malloc_arrayN<int>(bm->totvert, __func__);
     copy_vn_i(vert_reverse_lookup, bm->totvert, -1);
     for (i = 0; i < vinput_len; i++) {
       BMVert *v = vinput_arr[i];
@@ -389,7 +392,7 @@ void BM_mesh_decimate_dissolve_ex(BMesh *bm,
     }
 
     /* --- cleanup --- */
-    earray = static_cast<BMEdge **>(MEM_mallocN(sizeof(BMEdge *) * bm->totedge, __func__));
+    earray = MEM_malloc_arrayN<BMEdge *>(bm->totedge, __func__);
     BM_ITER_MESH_INDEX (e_iter, &iter, bm, BM_EDGES_OF_MESH, i) {
       earray[i] = e_iter;
     }

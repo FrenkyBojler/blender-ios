@@ -16,7 +16,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
@@ -67,6 +67,7 @@
 #include "ANIM_animdata.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "object_intern.hh"
@@ -155,99 +156,6 @@ bConstraint *constraint_active_get(Object *ob)
 /** \} */
 
 /* ------------------------------------------------------------------- */
-/** \name PyConstraints (Unused)
- * \{ */
-
-#ifdef WITH_PYTHON
-
-/* this callback sets the text-file to be used for selected menu item */
-static void validate_pyconstraint_cb(Main *bmain, void *arg1, void *arg2)
-{
-  bPythonConstraint *data = static_cast<bPythonConstraint *>(arg1);
-  Text *text = nullptr;
-  int index = *((int *)arg2);
-  int i;
-
-  /* exception for no script */
-  if (index) {
-    /* innovative use of a for...loop to search */
-    for (text = static_cast<Text *>(bmain->texts.first), i = 1; text && index != i;
-         i++, text = static_cast<Text *>(text->id.next))
-    {
-      /* pass */
-    }
-  }
-  data->text = text;
-}
-
-/* this returns a string for the list of usable pyconstraint script names */
-static char *buildmenu_pyconstraints(Main *bmain, Text *con_text, int *pyconindex)
-{
-  DynStr *pupds = BLI_dynstr_new();
-  Text *text;
-  char *str;
-  char buf[64];
-  int i;
-
-  /* add title first */
-  STRNCPY(buf, "Scripts: %t|[None]%x0|");
-  BLI_dynstr_append(pupds, buf);
-
-  /* init active-index first */
-  if (con_text == nullptr) {
-    *pyconindex = 0;
-  }
-
-  /* loop through markers, adding them */
-  for (text = static_cast<Text *>(bmain->texts.first), i = 1; text;
-       i++, text = static_cast<Text *>(text->id.next))
-  {
-    /* this is important to ensure that right script is shown as active */
-    if (text == con_text) {
-      *pyconindex = i;
-    }
-
-    /* only include valid pyconstraint scripts */
-    if (BPY_is_pyconstraint(text)) {
-      BLI_dynstr_append(pupds, text->id.name + 2);
-
-      SNPRINTF(buf, "%%x%d", i);
-      BLI_dynstr_append(pupds, buf);
-
-      if (text->id.next) {
-        BLI_dynstr_append(pupds, "|");
-      }
-    }
-  }
-
-  /* convert to normal MEM_malloc'd string */
-  str = BLI_dynstr_get_cstring(pupds);
-  BLI_dynstr_free(pupds);
-
-  return str;
-}
-#endif /* WITH_PYTHON */
-
-#if 0 /* UNUSED, until pyconstraints are added back. */
-/* this callback gets called when the 'refresh' button of a pyconstraint gets pressed */
-static void update_pyconstraint_cb(void *arg1, void *arg2)
-{
-#  ifndef WITH_PYTHON
-  (void)arg1; /* unused */
-  (void)arg2; /* unused */
-#  else
-  Object *owner = (Object *)arg1;
-  bConstraint *con = (bConstraint *)arg2;
-  if (owner && con) {
-    BPY_pyconstraint_update(owner, con);
-  }
-#  endif /* WITH_PYTHON */
-}
-#endif   /* UNUSED */
-
-/** \} */
-
-/* ------------------------------------------------------------------- */
 /** \name Add Constraint Utilities
  * \{ */
 
@@ -279,7 +187,7 @@ static void set_constraint_nth_target(bConstraint *con,
     for (ct = static_cast<bConstraintTarget *>(targets.first), i = 0; ct; ct = ct->next, i++) {
       if (i == index) {
         ct->tar = target;
-        STRNCPY(ct->subtarget, subtarget);
+        STRNCPY_UTF8(ct->subtarget, subtarget);
         break;
       }
     }
@@ -1049,6 +957,34 @@ static wmOperatorStatus childof_clear_inverse_invoke(bContext *C,
   return OPERATOR_CANCELLED;
 }
 
+static bool childof_clear_inverse_poll(bContext *C)
+{
+  if (!edit_constraint_liboverride_allowed_poll(C)) {
+    return false;
+  }
+
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "constraint", &RNA_Constraint);
+  bConstraint *con = static_cast<bConstraint *>(ptr.data);
+
+  /* Allow workflows with unset context's constraint.
+   * The constraint can also be provided as an operator's property. */
+  if (con == nullptr) {
+    return true;
+  }
+
+  if (con->type != CONSTRAINT_TYPE_CHILDOF) {
+    return false;
+  }
+
+  bChildOfConstraint *data = static_cast<bChildOfConstraint *>(con->data);
+
+  if (is_identity_m4(data->invmat)) {
+    CTX_wm_operator_poll_msg_set(C, "No inverse correction is set, so there is nothing to clear");
+    return false;
+  }
+  return true;
+}
+
 void CONSTRAINT_OT_childof_clear_inverse(wmOperatorType *ot)
 {
   /* identifiers */
@@ -1059,7 +995,7 @@ void CONSTRAINT_OT_childof_clear_inverse(wmOperatorType *ot)
   /* callbacks */
   ot->invoke = childof_clear_inverse_invoke;
   ot->exec = childof_clear_inverse_exec;
-  ot->poll = edit_constraint_liboverride_allowed_poll;
+  ot->poll = childof_clear_inverse_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -1308,6 +1244,27 @@ static wmOperatorStatus objectsolver_clear_inverse_invoke(bContext *C,
   return OPERATOR_CANCELLED;
 }
 
+static bool objectsolver_clear_inverse_poll(bContext *C)
+{
+  if (!edit_constraint_poll(C)) {
+    return false;
+  }
+
+  PointerRNA ptr = CTX_data_pointer_get_type(C, "constraint", &RNA_Constraint);
+  bConstraint *con = static_cast<bConstraint *>(ptr.data);
+  if (con == nullptr) {
+    return true;
+  }
+
+  bObjectSolverConstraint *data = (bObjectSolverConstraint *)con->data;
+
+  if (is_identity_m4(data->invmat)) {
+    CTX_wm_operator_poll_msg_set(C, "No inverse correction is set, so there is nothing to clear");
+    return false;
+  }
+  return true;
+}
+
 void CONSTRAINT_OT_objectsolver_clear_inverse(wmOperatorType *ot)
 {
   /* identifiers */
@@ -1318,7 +1275,7 @@ void CONSTRAINT_OT_objectsolver_clear_inverse(wmOperatorType *ot)
   /* callbacks */
   ot->invoke = objectsolver_clear_inverse_invoke;
   ot->exec = objectsolver_clear_inverse_exec;
-  ot->poll = edit_constraint_poll;
+  ot->poll = objectsolver_clear_inverse_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -1474,7 +1431,7 @@ static wmOperatorStatus constraint_delete_exec(bContext *C, wmOperator *op)
 
   /* Store name temporarily for report. */
   char name[MAX_NAME];
-  STRNCPY(name, con->name);
+  STRNCPY_UTF8(name, con->name);
 
   /* free the constraint */
   if (BKE_constraint_remove_ex(lb, ob, con)) {
@@ -1547,7 +1504,7 @@ static wmOperatorStatus constraint_apply_exec(bContext *C, wmOperator *op)
 
   /* Store name temporarily for report. */
   char name[MAX_NAME];
-  STRNCPY(name, con->name);
+  STRNCPY_UTF8(name, con->name);
   const bool is_first_constraint = con != constraints->first;
 
   /* Copy the constraint. */
@@ -1644,7 +1601,7 @@ static wmOperatorStatus constraint_copy_exec(bContext *C, wmOperator *op)
 
   /* Store name temporarily for report. */
   char name[MAX_NAME];
-  STRNCPY(name, con->name);
+  STRNCPY_UTF8(name, con->name);
 
   /* Copy the constraint. */
   bConstraint *copy_con;
@@ -1852,7 +1809,7 @@ void CONSTRAINT_OT_copy_to_selected(wmOperatorType *ot)
   ot->idname = "CONSTRAINT_OT_copy_to_selected";
   ot->description = "Copy constraint to other selected objects/bones";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = constraint_copy_to_selected_exec;
   ot->invoke = constraint_copy_to_selected_invoke;
   ot->poll = constraint_copy_to_selected_poll;
@@ -2174,7 +2131,7 @@ void POSE_OT_constraints_copy(wmOperatorType *ot)
   ot->idname = "POSE_OT_constraints_copy";
   ot->description = "Copy constraints to other selected bones";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = pose_constraint_copy_exec;
   ot->poll = ED_operator_posemode_exclusive;
 
@@ -2219,7 +2176,7 @@ void OBJECT_OT_constraints_copy(wmOperatorType *ot)
   ot->idname = "OBJECT_OT_constraints_copy";
   ot->description = "Copy constraints to other selected objects";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = object_constraint_copy_exec;
   ot->poll = ED_operator_object_active_editable;
 
@@ -2278,6 +2235,11 @@ static bool get_new_constraint_target(
     case CONSTRAINT_TYPE_SHRINKWRAP:
       only_mesh = true;
       only_ob = true;
+      add = false;
+      break;
+
+    /* Armature only. */
+    case CONSTRAINT_TYPE_ARMATURE:
       add = false;
       break;
   }
@@ -2428,6 +2390,18 @@ static wmOperatorStatus constraint_add_exec(
 
     /* get the target objects, adding them as need be */
     if (get_new_constraint_target(C, type, &tar_ob, &tar_pchan, true)) {
+
+      /* Armature constraints don't have a target by default, add one. */
+      if (type == CONSTRAINT_TYPE_ARMATURE) {
+        bArmatureConstraint *acon = static_cast<bArmatureConstraint *>(con->data);
+        bConstraintTarget *ct = MEM_callocN<bConstraintTarget>("Constraint Target");
+
+        ct->weight = 1.0f;
+        BLI_addtail(&acon->targets, ct);
+
+        constraint_dependency_tag_update(bmain, ob, con);
+      }
+
       /* Method of setting target depends on the type of target we've got - by default,
        * just set the first target (distinction here is only for multiple-targeted constraints).
        */
@@ -2438,34 +2412,6 @@ static wmOperatorStatus constraint_add_exec(
         set_constraint_nth_target(con, tar_ob, "", 0);
       }
     }
-  }
-
-  /* Do type-specific tweaking to the constraint settings. */
-  switch (type) {
-    case CONSTRAINT_TYPE_PYTHON: /* FIXME: this code is not really valid anymore */
-    {
-#ifdef WITH_PYTHON
-      char *menustr;
-      int scriptint = 0;
-      /* popup a list of usable scripts */
-      menustr = buildmenu_pyconstraints(bmain, nullptr, &scriptint);
-      // scriptint = pupmenu(menustr); /* XXX */
-      MEM_freeN(menustr);
-
-      /* only add constraint if a script was chosen */
-      if (scriptint) {
-        /* add constraint */
-        validate_pyconstraint_cb(bmain, con->data, &scriptint);
-
-        /* make sure target allowance is set correctly */
-        BPY_pyconstraint_update(ob, con);
-      }
-#endif
-      break;
-    }
-
-    default:
-      break;
   }
 
   /* make sure all settings are valid - similar to above checks, but sometimes can be wrong */
@@ -2572,7 +2518,7 @@ void OBJECT_OT_constraint_add(wmOperatorType *ot)
   ot->description = "Add a constraint to the active object";
   ot->idname = "OBJECT_OT_constraint_add";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = object_constraint_add_exec;
   ot->poll = ED_operator_object_active_editable;
@@ -2603,7 +2549,7 @@ void OBJECT_OT_constraint_add_with_targets(wmOperatorType *ot)
       "selected objects/bones";
   ot->idname = "OBJECT_OT_constraint_add_with_targets";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = object_constraint_add_exec;
   ot->poll = ED_operator_object_active_editable;
@@ -2624,7 +2570,7 @@ void POSE_OT_constraint_add(wmOperatorType *ot)
   ot->description = "Add a constraint to the active bone";
   ot->idname = "POSE_OT_constraint_add";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = pose_constraint_add_exec;
   ot->poll = ED_operator_posemode_exclusive;
@@ -2645,7 +2591,7 @@ void POSE_OT_constraint_add_with_targets(wmOperatorType *ot)
       "Objects/Bones";
   ot->idname = "POSE_OT_constraint_add_with_targets";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = pose_constraint_add_exec;
   ot->poll = ED_operator_posemode_exclusive;
@@ -2706,20 +2652,21 @@ static wmOperatorStatus pose_ik_add_invoke(bContext *C, wmOperator *op, const wm
      * - the only thing that matters is that we want a target...
      */
     if (tar_pchan) {
-      uiItemBooleanO(
-          layout, IFACE_("To Active Bone"), ICON_NONE, "POSE_OT_ik_add", "with_targets", 1);
+      PointerRNA op_ptr = layout->op("POSE_OT_ik_add", IFACE_("Target Selected Bone"), ICON_NONE);
+      RNA_boolean_set(&op_ptr, "with_targets", true);
     }
     else {
-      uiItemBooleanO(
-          layout, IFACE_("To Active Object"), ICON_NONE, "POSE_OT_ik_add", "with_targets", 1);
+      PointerRNA op_ptr = layout->op(
+          "POSE_OT_ik_add", IFACE_("Target Selected Object"), ICON_NONE);
+      RNA_boolean_set(&op_ptr, "with_targets", true);
     }
   }
   else {
     /* we have a choice of adding to a new empty, or not setting any target (targetless IK) */
-    uiItemBooleanO(
-        layout, IFACE_("To New Empty Object"), ICON_NONE, "POSE_OT_ik_add", "with_targets", 1);
-    uiItemBooleanO(
-        layout, IFACE_("Without Targets"), ICON_NONE, "POSE_OT_ik_add", "with_targets", 0);
+    PointerRNA op_ptr = layout->op("POSE_OT_ik_add", IFACE_("Target New Empty Object"), ICON_NONE);
+    RNA_boolean_set(&op_ptr, "with_targets", true);
+    op_ptr = layout->op("POSE_OT_ik_add", IFACE_("Without Target"), ICON_NONE);
+    RNA_boolean_set(&op_ptr, "with_targets", false);
   }
 
   /* finish building the menu, and process it (should result in calling self again) */
@@ -2744,10 +2691,11 @@ void POSE_OT_ik_add(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Add IK to Bone";
-  ot->description = "Add IK Constraint to the active Bone";
+  ot->description =
+      "Add an IK Constraint to the active Bone. The target can be a selected bone or object";
   ot->idname = "POSE_OT_ik_add";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = pose_ik_add_invoke;
   ot->exec = pose_ik_add_exec;
   ot->poll = ED_operator_posemode_exclusive;
@@ -2811,7 +2759,7 @@ void POSE_OT_ik_clear(wmOperatorType *ot)
   ot->description = "Remove all IK Constraints from selected bones";
   ot->idname = "POSE_OT_ik_clear";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = pose_ik_clear_exec;
   ot->poll = ED_operator_object_active_local_editable_posemode_exclusive;
 

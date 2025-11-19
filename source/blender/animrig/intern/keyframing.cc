@@ -426,10 +426,9 @@ static Vector<float> get_keyframe_values(PointerRNA *ptr, PropertyRNA *prop, con
   Vector<float> values;
 
   if (visual_key && visualkey_can_use(ptr, prop)) {
-    /* Visual-keying is only available for object and pchan datablocks, as
-     * it works by keyframing using a value extracted from the final matrix
-     * instead of using the kt system to extract a value.
-     */
+    /* Visual-keying is only available for object data-blocks and pose-channels,
+     * as it works by key-framing using a value extracted from the final matrix
+     * instead of using the kt system to extract a value. */
     values = visualkey_get_values(ptr, prop);
   }
   else {
@@ -1031,6 +1030,13 @@ CombinedKeyingResult insert_keyframes(Main *bmain,
     return combined_result;
   }
 
+  if (const bAction *action = adt->action) {
+    if (ID_IS_LINKED(action) || ID_IS_OVERRIDE_LIBRARY(action)) {
+      combined_result.add(SingleKeyingResult::ID_NOT_EDITABLE, rna_paths.size());
+      return combined_result;
+    }
+  }
+
   bAction *dna_action = id_action_ensure(bmain, id);
   BLI_assert(dna_action != nullptr);
   Action &action = dna_action->wrap();
@@ -1080,12 +1086,12 @@ CombinedKeyingResult insert_keyframes(Main *bmain,
     std::optional<std::string> rna_path_id_to_prop = RNA_path_from_ID_to_property(&ptr, prop);
     if (!rna_path_id_to_prop.has_value()) {
       /* In the case of nested RNA properties the path cannot be reconstructed in all cases. There
-       * may be a system in place in the future, see #122427.*/
+       * may be a system in place in the future, see #122427. */
       if (struct_pointer->data != id) {
         continue;
       }
       /* However if the struct pointer happens to be an ID pointer we can use the path that was
-       * passed in. This fixes issues like #132195.*/
+       * passed in. This fixes issues like #132195. */
       rna_path_id_to_prop = rna_path.path;
     }
 

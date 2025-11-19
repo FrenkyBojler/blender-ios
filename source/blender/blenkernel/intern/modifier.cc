@@ -22,6 +22,7 @@
 
 #include "DNA_armature_types.h"
 #include "DNA_cloth_types.h"
+#include "DNA_colorband_types.h"
 #include "DNA_dynamicpaint_types.h"
 #include "DNA_fluid_types.h"
 #include "DNA_mesh_types.h"
@@ -39,6 +40,7 @@
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
+#include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
@@ -61,6 +63,7 @@
 #include "BKE_multires.hh"
 #include "BKE_object.hh"
 #include "BKE_pointcache.h"
+#include "BKE_report.hh"
 #include "BKE_screen.hh"
 
 /* may move these, only for BKE_modifier_path_relbase */
@@ -76,7 +79,7 @@
 
 #include "CLG_log.h"
 
-static CLG_LogRef LOG = {"bke.modifier"};
+static CLG_LogRef LOG = {"object.modifier"};
 static ModifierTypeInfo *modifier_types[NUM_MODIFIER_TYPES] = {nullptr};
 static VirtualModifierData virtualModifierCommonData;
 
@@ -304,7 +307,7 @@ ModifierData *BKE_modifier_copy_ex(const ModifierData *md, int flag)
 {
   ModifierData *md_dst = modifier_allocate_and_init(ModifierType(md->type));
 
-  STRNCPY(md_dst->name, md->name);
+  STRNCPY_UTF8(md_dst->name, md->name);
   BKE_modifier_copydata_ex(md, md_dst, flag);
 
   return md_dst;
@@ -704,6 +707,24 @@ Object *BKE_modifiers_is_deformed_by_lattice(Object *ob)
 {
   VirtualModifierData virtual_modifier_data;
   ModifierData *md = BKE_modifiers_get_virtual_modifierlist(ob, &virtual_modifier_data);
+
+  if (ob->type == OB_GREASE_PENCIL) {
+    GreasePencilLatticeModifierData *gplmd = nullptr;
+    /* return the first selected lattice, this lets us use multiple lattices */
+    for (; md; md = md->next) {
+      if (md->type == eModifierType_GreasePencilLattice) {
+        gplmd = reinterpret_cast<GreasePencilLatticeModifierData *>(md);
+        if (gplmd->object && (gplmd->object->base_flag & BASE_SELECTED)) {
+          return gplmd->object;
+        }
+      }
+    }
+    if (gplmd) { /* if we're still here then return the last lattice */
+      return gplmd->object;
+    }
+    return nullptr;
+  }
+
   LatticeModifierData *lmd = nullptr;
 
   /* return the first selected lattice, this lets us use multiple lattices */
@@ -987,6 +1008,9 @@ Mesh *BKE_modifier_get_evaluated_mesh_from_evaluated_object(Object *ob_eval)
     /* 'em' might not exist yet in some cases, just after loading a .blend file, see #57878. */
     if (em != nullptr) {
       mesh = const_cast<Mesh *>(BKE_object_get_editmesh_eval_final(ob_eval));
+      if (mesh != nullptr) {
+        mesh = BKE_mesh_wrapper_ensure_subdivision(mesh);
+      }
     }
   }
   if (mesh == nullptr) {
@@ -998,13 +1022,13 @@ Mesh *BKE_modifier_get_evaluated_mesh_from_evaluated_object(Object *ob_eval)
 
 ModifierData *BKE_modifier_get_original(const Object *object, ModifierData *md)
 {
-  const Object *object_orig = DEG_get_original_object((Object *)object);
+  const Object *object_orig = DEG_get_original((Object *)object);
   return BKE_modifiers_findby_persistent_uid(object_orig, md->persistent_uid);
 }
 
 ModifierData *BKE_modifier_get_evaluated(Depsgraph *depsgraph, Object *object, ModifierData *md)
 {
-  Object *object_eval = DEG_get_evaluated_object(depsgraph, object);
+  Object *object_eval = DEG_get_evaluated(depsgraph, object);
   if (object_eval == object) {
     return md;
   }

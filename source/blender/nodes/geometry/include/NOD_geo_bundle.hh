@@ -10,51 +10,66 @@
 
 namespace blender::nodes {
 
-inline bool socket_type_supported_in_bundle(const eNodeSocketDatatype socket_type)
+inline bool socket_type_supported_in_bundle(const eNodeSocketDatatype socket_type,
+                                            const int ntree_type)
 {
-  return ELEM(socket_type,
-              SOCK_FLOAT,
-              SOCK_VECTOR,
-              SOCK_RGBA,
-              SOCK_BOOLEAN,
-              SOCK_ROTATION,
-              SOCK_MATRIX,
-              SOCK_INT,
-              SOCK_STRING,
-              SOCK_GEOMETRY,
-              SOCK_OBJECT,
-              SOCK_MATERIAL,
-              SOCK_IMAGE,
-              SOCK_COLLECTION,
-              SOCK_BUNDLE,
-              SOCK_CLOSURE);
+  switch (ntree_type) {
+    case NTREE_GEOMETRY:
+      return ELEM(socket_type,
+                  SOCK_FLOAT,
+                  SOCK_VECTOR,
+                  SOCK_RGBA,
+                  SOCK_BOOLEAN,
+                  SOCK_ROTATION,
+                  SOCK_MATRIX,
+                  SOCK_INT,
+                  SOCK_STRING,
+                  SOCK_GEOMETRY,
+                  SOCK_OBJECT,
+                  SOCK_MATERIAL,
+                  SOCK_IMAGE,
+                  SOCK_COLLECTION,
+                  SOCK_BUNDLE,
+                  SOCK_CLOSURE);
+    case NTREE_SHADER:
+      return ELEM(socket_type,
+                  SOCK_FLOAT,
+                  SOCK_VECTOR,
+                  SOCK_RGBA,
+                  SOCK_SHADER,
+                  SOCK_BUNDLE,
+                  SOCK_CLOSURE,
+                  SOCK_INT);
+    default:
+      return false;
+  }
 }
 
-struct CombineBundleItemsAccessor {
-  using ItemT = NodeGeometryCombineBundleItem;
+struct CombineBundleItemsAccessor : public socket_items::SocketItemsAccessorDefaults {
+  using ItemT = NodeCombineBundleItem;
   static StructRNA *item_srna;
   static int node_type;
-  static int item_dna_type;
-  static constexpr const char *node_idname = "GeometryNodeCombineBundle";
+  static constexpr StringRefNull node_idname = "NodeCombineBundle";
   static constexpr bool has_type = true;
   static constexpr bool has_name = true;
-  static constexpr bool has_single_identifier_str = true;
+  static constexpr bool has_name_validation = true;
+  static constexpr char unique_name_separator = '_';
   struct operator_idnames {
-    static constexpr const char *add_item = "NODE_OT_combine_bundle_item_add";
-    static constexpr const char *remove_item = "NODE_OT_combine_bundle_item_remove";
-    static constexpr const char *move_item = "NODE_OT_combine_bundle_item_move";
+    static constexpr StringRefNull add_item = "NODE_OT_combine_bundle_item_add";
+    static constexpr StringRefNull remove_item = "NODE_OT_combine_bundle_item_remove";
+    static constexpr StringRefNull move_item = "NODE_OT_combine_bundle_item_move";
   };
   struct ui_idnames {
-    static constexpr const char *list = "DATA_UL_combine_bundle_items";
+    static constexpr StringRefNull list = "DATA_UL_combine_bundle_items";
   };
   struct rna_names {
-    static constexpr const char *items = "bundle_items";
-    static constexpr const char *active_index = "active_index";
+    static constexpr StringRefNull items = "bundle_items";
+    static constexpr StringRefNull active_index = "active_index";
   };
 
   static socket_items::SocketItemsRef<ItemT> get_items_from_node(bNode &node)
   {
-    auto *storage = static_cast<NodeGeometryCombineBundle *>(node.storage);
+    auto *storage = static_cast<NodeCombineBundle *>(node.storage);
     return {&storage->items, &storage->items_num, &storage->active_index};
   }
 
@@ -82,9 +97,9 @@ struct CombineBundleItemsAccessor {
     return &item.name;
   }
 
-  static bool supports_socket_type(const eNodeSocketDatatype socket_type)
+  static bool supports_socket_type(const eNodeSocketDatatype socket_type, const int ntree_type)
   {
-    return socket_type_supported_in_bundle(socket_type);
+    return socket_type_supported_in_bundle(socket_type, ntree_type);
   }
 
   static void init_with_socket_type_and_name(bNode &node,
@@ -92,7 +107,7 @@ struct CombineBundleItemsAccessor {
                                              const eNodeSocketDatatype socket_type,
                                              const char *name)
   {
-    auto *storage = static_cast<NodeGeometryCombineBundle *>(node.storage);
+    auto *storage = static_cast<NodeCombineBundle *>(node.storage);
     item.socket_type = socket_type;
     item.identifier = storage->next_identifier++;
     socket_items::set_item_name_and_make_unique<CombineBundleItemsAccessor>(node, item, name);
@@ -102,33 +117,35 @@ struct CombineBundleItemsAccessor {
   {
     return "Item_" + std::to_string(item.identifier);
   }
+
+  static std::string validate_name(const StringRef name);
 };
 
-struct SeparateBundleItemsAccessor {
-  using ItemT = NodeGeometrySeparateBundleItem;
+struct SeparateBundleItemsAccessor : public socket_items::SocketItemsAccessorDefaults {
+  using ItemT = NodeSeparateBundleItem;
   static StructRNA *item_srna;
   static int node_type;
-  static int item_dna_type;
-  static constexpr const char *node_idname = "GeometryNodeSeparateBundle";
+  static constexpr StringRefNull node_idname = "NodeSeparateBundle";
   static constexpr bool has_type = true;
   static constexpr bool has_name = true;
-  static constexpr bool has_single_identifier_str = true;
+  static constexpr bool has_name_validation = true;
+  static constexpr char unique_name_separator = '_';
   struct operator_idnames {
-    static constexpr const char *add_item = "NODE_OT_separate_bundle_item_add";
-    static constexpr const char *remove_item = "NODE_OT_separate_bundle_item_remove";
-    static constexpr const char *move_item = "NODE_OT_separate_bundle_item_move";
+    static constexpr StringRefNull add_item = "NODE_OT_separate_bundle_item_add";
+    static constexpr StringRefNull remove_item = "NODE_OT_separate_bundle_item_remove";
+    static constexpr StringRefNull move_item = "NODE_OT_separate_bundle_item_move";
   };
   struct ui_idnames {
-    static constexpr const char *list = "DATA_UL_separate_bundle_items";
+    static constexpr StringRefNull list = "DATA_UL_separate_bundle_items";
   };
   struct rna_names {
-    static constexpr const char *items = "bundle_items";
-    static constexpr const char *active_index = "active_index";
+    static constexpr StringRefNull items = "bundle_items";
+    static constexpr StringRefNull active_index = "active_index";
   };
 
   static socket_items::SocketItemsRef<ItemT> get_items_from_node(bNode &node)
   {
-    auto *storage = static_cast<NodeGeometrySeparateBundle *>(node.storage);
+    auto *storage = static_cast<NodeSeparateBundle *>(node.storage);
     return {&storage->items, &storage->items_num, &storage->active_index};
   }
 
@@ -156,9 +173,9 @@ struct SeparateBundleItemsAccessor {
     return &item.name;
   }
 
-  static bool supports_socket_type(const eNodeSocketDatatype socket_type)
+  static bool supports_socket_type(const eNodeSocketDatatype socket_type, const int ntree_type)
   {
-    return socket_type_supported_in_bundle(socket_type);
+    return socket_type_supported_in_bundle(socket_type, ntree_type);
   }
 
   static void init_with_socket_type_and_name(bNode &node,
@@ -166,7 +183,7 @@ struct SeparateBundleItemsAccessor {
                                              const eNodeSocketDatatype socket_type,
                                              const char *name)
   {
-    auto *storage = static_cast<NodeGeometrySeparateBundle *>(node.storage);
+    auto *storage = static_cast<NodeSeparateBundle *>(node.storage);
     item.socket_type = socket_type;
     item.identifier = storage->next_identifier++;
     socket_items::set_item_name_and_make_unique<SeparateBundleItemsAccessor>(node, item, name);
@@ -175,6 +192,11 @@ struct SeparateBundleItemsAccessor {
   static std::string socket_identifier_for_item(const ItemT &item)
   {
     return "Item_" + std::to_string(item.identifier);
+  }
+
+  static std::string validate_name(const StringRef name)
+  {
+    return CombineBundleItemsAccessor::validate_name(name);
   }
 };
 

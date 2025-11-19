@@ -14,7 +14,7 @@
 
 #include "DNA_sound_types.h"
 
-#include "BKE_sound.h"
+#include "BKE_sound.hh"
 
 /* Enumeration for Audio Channels, compatible with eSoundChannels */
 static const EnumPropertyItem rna_enum_audio_channels_items[] = {
@@ -34,7 +34,6 @@ static const EnumPropertyItem rna_enum_audio_channels_items[] = {
 
 #  include "BKE_context.hh"
 #  include "BKE_library.hh"
-#  include "BKE_sound.h"
 
 #  include "DEG_depsgraph.hh"
 
@@ -71,6 +70,7 @@ static void rna_def_sound(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "filepath", PROP_STRING, PROP_FILEPATH);
   RNA_def_property_string_sdna(prop, nullptr, "filepath");
+  RNA_def_property_flag(prop, PROP_PATH_SUPPORTS_BLEND_RELATIVE);
   RNA_def_property_ui_text(prop, "File Path", "Sound sample file used by this Sound data-block");
   RNA_def_property_update(prop, 0, "rna_Sound_update");
 

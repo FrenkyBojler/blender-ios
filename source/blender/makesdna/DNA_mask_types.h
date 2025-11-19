@@ -22,6 +22,11 @@ typedef struct Mask_Runtime {
 } Mask_Runtime;
 
 typedef struct Mask {
+#ifdef __cplusplus
+  /** See #ID_Type comment for why this is here. */
+  static constexpr ID_Type id_type = ID_MSK;
+#endif
+
   ID id;
   struct AnimData *adt;
   /** Mask layers. */
@@ -37,8 +42,6 @@ typedef struct Mask {
   /** For anim info. */
   int flag;
   char _pad[4];
-
-  void *_pad1;
 
   Mask_Runtime runtime;
 } Mask;
@@ -142,8 +145,8 @@ typedef struct MaskLayerShapeElem {
 typedef struct MaskLayer {
   struct MaskLayer *next, *prev;
 
-  /** Name of the mask layer (64 = MAD_ID_NAME - 2). */
-  char name[64];
+  /** Name of the mask layer. */
+  char name[/*MAX_NAME*/ 64];
 
   /** List of splines which defines this mask layer. */
   ListBase splines;

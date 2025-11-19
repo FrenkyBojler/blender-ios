@@ -10,6 +10,7 @@
 #include "BKE_material.hh"
 #include "BKE_mesh.hh"
 
+#include "GEO_foreach_geometry.hh"
 #include "GEO_randomize.hh"
 
 #include "node_geometry_util.hh"
@@ -22,7 +23,7 @@ namespace blender::nodes::node_geo_convex_hull_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Geometry");
+  b.add_input<decl::Geometry>("Geometry").description("Points to compute the convex hull of");
   b.add_output<decl::Geometry>("Convex Hull").propagate_all_instance_attributes();
 }
 
@@ -30,7 +31,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static Mesh *hull_from_bullet(const Mesh *mesh, Span<float3> coords)
 {
-  plConvexHull hull = plConvexHullCompute((float(*)[3])coords.data(), coords.size());
+  plConvexHull hull = plConvexHullCompute((float (*)[3])coords.data(), coords.size());
 
   const int verts_num = plConvexHullNumVertices(hull);
   const int faces_num = verts_num <= 2 ? 0 : plConvexHullNumFaces(hull);
@@ -257,7 +258,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 #ifdef WITH_BULLET
 
-  geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+  geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     Mesh *mesh = compute_hull(geometry_set);
     if (mesh) {
       geometry::debug_randomize_mesh_order(mesh);
@@ -266,7 +267,9 @@ static void node_geo_exec(GeoNodeExecParams params)
     if (geometry_set.has_grease_pencil()) {
       convex_hull_grease_pencil(geometry_set);
     }
-    geometry_set.keep_only_during_modify({GeometryComponent::Type::Mesh});
+    geometry_set.keep_only({GeometryComponent::Type::Mesh,
+                            GeometryComponent::Type::Instance,
+                            GeometryComponent::Type::Edit});
   });
 
   params.set_output("Convex Hull", std::move(geometry_set));

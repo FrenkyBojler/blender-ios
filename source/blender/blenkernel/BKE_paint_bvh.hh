@@ -15,14 +15,15 @@
 #include "BLI_bit_group_vector.hh"
 #include "BLI_bit_vector.hh"
 #include "BLI_bounds_types.hh"
+#include "BLI_enum_flags.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_index_mask_fwd.hh"
+#include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_set.hh"
 #include "BLI_span.hh"
 #include "BLI_string_ref.hh"
-#include "BLI_utildefines.h"
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector.hh"
 #include "BLI_vector_set.hh"
@@ -77,6 +78,9 @@ class Node : NonCopyable {
     TopologyUpdated = 1 << 17,
   };
 
+  /* Index of the parent node. A value of -1 indicates that the node is the root node. */
+  int parent_ = -1;
+
   /** Axis aligned min and max of all vertex positions in the node. */
   Bounds<float3> bounds_ = {};
   /** Bounds from the start of current brush stroke. */
@@ -106,11 +110,12 @@ class Node : NonCopyable {
   /** \todo Move storage of image painting data to #Tree or elsewhere. */
   pixels::NodeData *pixels_ = nullptr;
 
+  std::optional<int> parent() const;
   const Bounds<float3> &bounds() const;
   const Bounds<float3> &bounds_orig() const;
 };
 
-ENUM_OPERATORS(Node::Flags, Node::Flags::TopologyUpdated);
+ENUM_OPERATORS(Node::Flags);
 
 struct MeshNode : public Node {
   /**
@@ -123,6 +128,7 @@ struct MeshNode : public Node {
    * order to use 32 bit integers for slot values. .
    */
   using LocalVertMap = VectorSet<int,
+                                 0,
                                  DefaultProbingStrategy,
                                  DefaultHash<int>,
                                  DefaultEquality<int>,
@@ -283,7 +289,7 @@ class Tree {
    */
   void tag_positions_changed(const IndexMask &node_mask);
 
-  /** Tag nodes where face or vertex visibility has changed.  */
+  /** Tag nodes where face or vertex visibility has changed. */
   void tag_visibility_changed(const IndexMask &node_mask);
 
   /**
@@ -324,6 +330,8 @@ class Tree {
 
  private:
   explicit Tree(Type type);
+  /** Build a BVH tree from pre-computed MeshGroup data. */
+  static Tree from_spatially_organized_mesh(const Mesh &mesh);
 };
 
 void build_pixels(const Depsgraph &depsgraph, Object &object, Image &image, ImageUser &image_user);
@@ -338,6 +346,25 @@ void raycast(Tree &pbvh,
              const float3 &ray_start,
              const float3 &ray_normal,
              bool original);
+
+inline Bounds<float3> calc_face_bounds(const Span<float3> vert_positions,
+                                       const Span<int> face_verts)
+{
+  Bounds<float3> bounds{vert_positions[face_verts.first()]};
+  for (const int vert : face_verts.slice(1, face_verts.size() - 1)) {
+    math::min_max(vert_positions[vert], bounds.min, bounds.max);
+  }
+  return bounds;
+}
+
+int partition_along_axis(const Span<float3> face_centers,
+                         MutableSpan<int> faces,
+                         const int axis,
+                         const float middle);
+
+int partition_material_indices(const Span<int> material_indices, MutableSpan<int> faces);
+
+bool leaf_needs_material_split(const Span<int> faces, const Span<int> material_indices);
 
 bool node_raycast_mesh(const MeshNode &node,
                        Span<float3> node_positions,
@@ -445,14 +472,11 @@ int count_grid_quads(const BitGroupVector<> &grid_hidden,
 
 }  // namespace blender::bke::pbvh
 
-int BKE_pbvh_get_grid_num_verts(const Object &object);
-int BKE_pbvh_get_grid_num_faces(const Object &object);
-
 enum PBVHTopologyUpdateMode {
   PBVH_Subdivide = 1,
   PBVH_Collapse = 2,
 };
-ENUM_OPERATORS(PBVHTopologyUpdateMode, PBVH_Collapse);
+ENUM_OPERATORS(PBVHTopologyUpdateMode);
 
 namespace blender::bke::pbvh {
 
@@ -605,6 +629,15 @@ void node_update_visibility_bmesh(BMeshNode &node);
 void update_node_bounds_mesh(Span<float3> positions, MeshNode &node);
 void update_node_bounds_grids(int grid_area, Span<float3> positions, GridsNode &node);
 void update_node_bounds_bmesh(BMeshNode &node);
+
+inline std::optional<int> Node::parent() const
+{
+  if (parent_ == -1) {
+    return std::nullopt;
+  }
+
+  return parent_;
+}
 
 inline const Bounds<float3> &Node::bounds() const
 {

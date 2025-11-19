@@ -21,6 +21,7 @@
 #include "BLI_span.hh"
 #include "BLI_task.hh"
 
+#include "BKE_attribute.h"
 #include "BKE_attribute.hh"
 #include "BKE_attribute_math.hh"
 #include "BKE_bvhutils.hh"
@@ -496,7 +497,7 @@ static void gather_attributes(const Span<StringRef> ids,
 {
   for (const StringRef id : ids) {
     const GVArraySpan src = *src_attributes.lookup(id, domain);
-    const eCustomDataType type = cpp_type_to_custom_data_type(src.type());
+    const AttrType type = cpp_type_to_attribute_type(src.type());
     GSpanAttributeWriter dst = dst_attributes.lookup_or_add_for_write_only_span(id, domain, type);
     attribute_math::gather(src, index_map, dst.span);
     dst.finish();

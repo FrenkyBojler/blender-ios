@@ -54,7 +54,7 @@ class RENDER_PT_format(RenderOutputButtonsPanel, Panel):
     bl_label = "Format"
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE_NEXT',
+        'BLENDER_EEVEE',
         'BLENDER_WORKBENCH',
     }
 
@@ -136,7 +136,7 @@ class RENDER_PT_frame_range(RenderOutputButtonsPanel, Panel):
     bl_label = "Frame Range"
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE_NEXT',
+        'BLENDER_EEVEE',
         'BLENDER_WORKBENCH',
     }
 
@@ -159,7 +159,7 @@ class RENDER_PT_time_stretching(RenderOutputButtonsPanel, Panel):
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE_NEXT',
+        'BLENDER_EEVEE',
         'BLENDER_WORKBENCH',
     }
 
@@ -180,7 +180,7 @@ class RENDER_PT_post_processing(RenderOutputButtonsPanel, Panel):
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE_NEXT',
+        'BLENDER_EEVEE',
         'BLENDER_WORKBENCH',
     }
 
@@ -202,7 +202,7 @@ class RENDER_PT_stamp(RenderOutputButtonsPanel, Panel):
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE_NEXT',
+        'BLENDER_EEVEE',
         'BLENDER_WORKBENCH',
     }
 
@@ -240,7 +240,7 @@ class RENDER_PT_stamp_note(RenderOutputButtonsPanel, Panel):
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE_NEXT',
+        'BLENDER_EEVEE',
         'BLENDER_WORKBENCH',
     }
 
@@ -264,7 +264,7 @@ class RENDER_PT_stamp_burn(RenderOutputButtonsPanel, Panel):
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE_NEXT',
+        'BLENDER_EEVEE',
         'BLENDER_WORKBENCH',
     }
 
@@ -292,7 +292,7 @@ class RENDER_PT_output(RenderOutputButtonsPanel, Panel):
     bl_label = "Output"
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE_NEXT',
+        'BLENDER_EEVEE',
         'BLENDER_WORKBENCH',
     }
 
@@ -325,7 +325,7 @@ class RENDER_PT_output_views(RenderOutputButtonsPanel, Panel):
     bl_parent_id = "RENDER_PT_output"
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE_NEXT',
+        'BLENDER_EEVEE',
         'BLENDER_WORKBENCH',
     }
 
@@ -349,7 +349,7 @@ class RENDER_PT_output_color_management(RenderOutputButtonsPanel, Panel):
     bl_parent_id = "RENDER_PT_output"
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE_NEXT',
+        'BLENDER_EEVEE',
         'BLENDER_WORKBENCH',
     }
 
@@ -390,7 +390,6 @@ class RENDER_PT_output_pixel_density(RenderOutputButtonsPanel, Panel):
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
         'BLENDER_EEVEE',
-        'BLENDER_EEVEE_NEXT',
         'BLENDER_WORKBENCH',
     }
 
@@ -465,7 +464,7 @@ class RENDER_PT_encoding(RenderOutputButtonsPanel, Panel):
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE_NEXT',
+        'BLENDER_EEVEE',
         'BLENDER_WORKBENCH',
     }
 
@@ -494,7 +493,7 @@ class RENDER_PT_encoding_video(RenderOutputButtonsPanel, Panel):
     bl_parent_id = "RENDER_PT_encoding"
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE_NEXT',
+        'BLENDER_EEVEE',
         'BLENDER_WORKBENCH',
     }
 
@@ -529,15 +528,45 @@ class RENDER_PT_encoding_video(RenderOutputButtonsPanel, Panel):
         if needs_codec and ffmpeg.codec == 'NONE':
             return
 
+        image_settings = context.scene.render.image_settings
+
+        if image_settings.color_management == 'OVERRIDE':
+            display_settings = image_settings.display_settings
+            view_settings = image_settings.view_settings
+        else:
+            display_settings = context.scene.display_settings
+            view_settings = context.scene.view_settings
+
+        # HDR compatibility
+        if view_settings.is_hdr and (not needs_codec or ffmpeg.codec not in {'H265', 'AV1'}):
+            layout.label(text="HDR needs H.265 or AV1", icon='ERROR')
+
         # Color depth. List of codecs needs to be in sync with
         # `IMB_ffmpeg_valid_bit_depths` in source code.
-        use_bpp = needs_codec and ffmpeg.codec in {'H264', 'H265', 'AV1'}
+        use_bpp = needs_codec and ffmpeg.codec in {'H264', 'H265', 'AV1', 'PRORES', 'FFV1'}
         if use_bpp:
-            image_settings = context.scene.render.image_settings
             layout.prop(image_settings, "color_depth", expand=True)
+
+        # HDR compatibility
+        if view_settings.is_hdr and image_settings.color_depth not in {'10', '12'}:
+            layout.label(text="HDR needs 10 or 12 bits", icon='ERROR')
+
+        # Color space
+        split = layout.split(factor=0.4)
+        col = split.column()
+        col.alignment = 'RIGHT'
+        col.label(text="Color Space")
+
+        col = split.column()
+        row = col.row()
+        row.enabled = False
+        row.prop(display_settings, "display_device", text="")
 
         if ffmpeg.codec == 'DNXHD':
             layout.prop(ffmpeg, "use_lossless_output")
+
+        if ffmpeg.codec == 'PRORES':
+            layout.prop(ffmpeg, "ffmpeg_prores_profile")
 
         # Output quality
         use_crf = needs_codec and ffmpeg.codec in {
@@ -550,10 +579,10 @@ class RENDER_PT_encoding_video(RenderOutputButtonsPanel, Panel):
         if use_crf:
             layout.prop(ffmpeg, "constant_rate_factor")
 
-        use_encoding_speed = needs_codec and ffmpeg.codec not in {'DNXHD', 'FFV1', 'HUFFYUV', 'PNG', 'QTRLE'}
-        use_bitrate = needs_codec and ffmpeg.codec not in {'FFV1', 'HUFFYUV', 'PNG', 'QTRLE'}
+        use_encoding_speed = needs_codec and ffmpeg.codec not in {'DNXHD', 'FFV1', 'HUFFYUV', 'PNG', 'PRORES', 'QTRLE'}
+        use_bitrate = needs_codec and ffmpeg.codec not in {'FFV1', 'HUFFYUV', 'PNG', 'PRORES', 'QTRLE'}
         use_min_max_bitrate = ffmpeg.codec not in {'DNXHD'}
-        use_gop = needs_codec and ffmpeg.codec not in {'DNXHD', 'HUFFYUV', 'PNG'}
+        use_gop = needs_codec and ffmpeg.codec not in {'DNXHD', 'HUFFYUV', 'PNG', 'PRORES'}
         use_b_frames = needs_codec and use_gop and ffmpeg.codec not in {'FFV1', 'QTRLE'}
 
         # Encoding speed
@@ -592,7 +621,7 @@ class RENDER_PT_encoding_audio(RenderOutputButtonsPanel, Panel):
     bl_parent_id = "RENDER_PT_encoding"
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE_NEXT',
+        'BLENDER_EEVEE',
         'BLENDER_WORKBENCH',
     }
 
@@ -622,23 +651,18 @@ class RENDER_PT_encoding_audio(RenderOutputButtonsPanel, Panel):
 class RENDER_UL_renderviews(UIList):
     def draw_item(self, _context, layout, _data, item, icon, _active_data, _active_propname, index):
         view = item
-        if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            if view.name in {"left", "right"}:
-                layout.label(text=view.name, icon_value=icon + (not view.use))
-            else:
-                layout.prop(view, "name", text="", index=index, icon_value=icon, emboss=False)
-            layout.prop(view, "use", text="", index=index)
-
-        elif self.layout_type == 'GRID':
-            layout.alignment = 'CENTER'
-            layout.label(text="", icon_value=icon + (not view.use))
+        if view.name in {"left", "right"}:
+            layout.label(text=view.name, icon_value=icon - (not view.use))
+        else:
+            layout.prop(view, "name", text="", index=index, icon_value=icon, emboss=False)
+        layout.prop(view, "use", text="", index=index)
 
 
 class RENDER_PT_stereoscopy(RenderOutputButtonsPanel, Panel):
     bl_label = "Stereoscopy"
     COMPAT_ENGINES = {
         'BLENDER_RENDER',
-        'BLENDER_EEVEE_NEXT',
+        'BLENDER_EEVEE',
         'BLENDER_WORKBENCH',
     }
     bl_options = {'DEFAULT_CLOSED'}

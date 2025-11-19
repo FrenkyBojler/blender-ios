@@ -250,9 +250,9 @@ void create_blend_shapes(pxr::UsdStageRefPtr stage,
     pxr::VtIntArray indices(kb->totelem);
     std::iota(indices.begin(), indices.end(), 0);
 
-    const float(*fp)[3] = static_cast<float(*)[3]>(kb->data);
+    const float (*fp)[3] = static_cast<float (*)[3]>(kb->data);
 
-    const float(*basis_fp)[3] = static_cast<float(*)[3]>(basis_key->data);
+    const float (*basis_fp)[3] = static_cast<float (*)[3]>(basis_key->data);
 
     for (int i = 0; i < kb->totelem; ++i) {
       /* Subtract the key positions from the
@@ -459,10 +459,7 @@ Mesh *get_shape_key_basis_mesh(Object *obj)
   Mesh *temp_mesh = BKE_mesh_copy_for_eval(*mesh);
 
   /* Update the verts. */
-  BKE_keyblock_convert_to_mesh(
-      basis,
-      reinterpret_cast<float(*)[3]>(temp_mesh->vert_positions_for_write().data()),
-      temp_mesh->verts_num);
+  BKE_keyblock_convert_to_mesh(basis, temp_mesh->vert_positions_for_write());
 
   return temp_mesh;
 }

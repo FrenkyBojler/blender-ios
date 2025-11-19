@@ -23,22 +23,56 @@
 #include "IMB_imbuf_types.hh"
 #include "imbuf.hh"
 
-#define UTIL_DEBUG 0
+#include "CLG_log.h"
+
+static CLG_LogRef LOG = {"image.read"};
 
 const char *imb_ext_image[] = {
-    ".png",  ".tga", ".bmp", ".jpg", ".jpeg", ".sgi", ".rgb", ".rgba", ".tif", ".tiff",
-#ifdef WITH_OPENJPEG
-    ".jp2",  ".j2c",
+    /* #IMB_FTYPE_PNG */
+    ".png",
+    /* #IMB_FTYPE_TGA */
+    ".tga",
+    /* #IMB_FTYPE_BMP */
+    ".bmp",
+    /* #IMB_FTYPE_JPG */
+    ".jpg",
+    ".jpeg",
+    /* #IMB_FTYPE_IRIS */
+    ".sgi",
+    ".rgb",
+    ".rgba",
+    /* #IMB_FTYPE_TIF */
+    ".tif",
+    ".tiff",
+    /* A convention for naming tiled images at different resolutions (MIP-mapped),
+     * supported by various render engines texture caching systems.
+     * These are typically TIFF or EXR images. See the tool `maketx` from OpenImageIO. */
+    ".tx",
+#ifdef WITH_IMAGE_OPENJPEG
+    /* #IMB_FTYPE_JP2 */
+    ".jp2",
+    ".j2c",
 #endif
-    ".hdr",  ".dds",
-#ifdef WITH_CINEON
-    ".dpx",  ".cin",
+    /* #IMB_FTYPE_RADHDR */
+    ".hdr",
+    /* #IMB_FTYPE_DDS */
+    ".dds",
+#ifdef WITH_IMAGE_CINEON
+    /* #IMB_FTYPE_DPX */
+    ".dpx",
+    /* #IMB_FTYPE_CINEON */
+    ".cin",
 #endif
-#ifdef WITH_OPENEXR
+#ifdef WITH_IMAGE_OPENEXR
+    /* #IMB_FTYPE_EXR */
     ".exr",
 #endif
-    ".psd",  ".pdd", ".psb",
-#ifdef WITH_WEBP
+    /* #IMB_FTYPE_PSD */
+    ".psd",
+    ".pdd",
+    ".psb",
+#ifdef WITH_IMAGE_WEBP
+    /* #IMB_FTYPE_WEBP */
     ".webp",
 #endif
     nullptr,
@@ -82,9 +116,7 @@ static int64_t imb_test_image_read_header_from_filepath(const char *filepath,
 
   BLI_assert(!BLI_path_is_rel(filepath));
 
-  if (UTIL_DEBUG) {
-    printf("%s: loading %s\n", __func__, filepath);
-  }
+  CLOG_TRACE(&LOG, "%s: loading %s", __func__, filepath);
 
   if (BLI_stat(filepath, &st) == -1) {
     return -1;

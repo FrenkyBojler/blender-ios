@@ -18,6 +18,7 @@
 #include "DNA_object_types.h"
 
 #include "BKE_attribute.hh"
+#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_attribute_math.hh"
 #include "BKE_customdata.hh"
 #include "BKE_mesh.hh"
@@ -46,7 +47,7 @@ template<> struct DefaultHash<draw::pbvh::AttributeRequest> {
       return get_default_hash(*request_type);
     }
     const GenericRequest &attr = std::get<GenericRequest>(value);
-    return get_default_hash(attr.name);
+    return get_default_hash(attr);
   }
 };
 
@@ -75,8 +76,8 @@ struct OrigMeshData {
   OrigMeshData(const Mesh &mesh)
       : active_color(mesh.active_color_attribute),
         default_color(mesh.default_color_attribute),
-        active_uv_map(CustomData_get_active_layer_name(&mesh.corner_data, CD_PROP_FLOAT2)),
-        default_uv_map(CustomData_get_render_layer_name(&mesh.corner_data, CD_PROP_FLOAT2)),
+        active_uv_map(mesh.active_uv_map_name()),
+        default_uv_map(mesh.default_uv_map_name()),
         face_set_default(mesh.face_sets_color_default),
         face_set_seed(mesh.face_sets_color_seed),
         attributes(mesh.attributes())
@@ -239,7 +240,7 @@ void DrawCacheImpl::tag_attribute_changed(const IndexMask &node_mask, StringRef 
 {
   for (const auto &[data_request, data] : attribute_vbos_.items()) {
     if (const GenericRequest *request = std::get_if<GenericRequest>(&data_request)) {
-      if (request->name == attribute_name) {
+      if (*request == attribute_name) {
         data.tag_dirty(node_mask);
       }
     }
@@ -281,75 +282,53 @@ BLI_NOINLINE static void free_batches(const MutableSpan<gpu::Batch *> batches,
 static const GPUVertFormat &position_format()
 {
   static const GPUVertFormat format = GPU_vertformat_from_attribute(
-      "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+      "pos", gpu::VertAttrType::SFLOAT_32_32_32);
   return format;
 }
 
 static const GPUVertFormat &normal_format()
 {
   static const GPUVertFormat format = GPU_vertformat_from_attribute(
-      "nor", GPU_COMP_I16, 3, GPU_FETCH_INT_TO_FLOAT_UNIT);
+      "nor", gpu::VertAttrType::SNORM_16_16_16_16);
   return format;
 }
 
 static const GPUVertFormat &mask_format()
 {
-  static const GPUVertFormat format = GPU_vertformat_from_attribute(
-      "msk", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
+  static const GPUVertFormat format = GPU_vertformat_from_attribute("msk",
+                                                                    gpu::VertAttrType::SFLOAT_32);
   return format;
 }
 
 static const GPUVertFormat &face_set_format()
 {
   static const GPUVertFormat format = GPU_vertformat_from_attribute(
-      "fset", GPU_COMP_U8, 3, GPU_FETCH_INT_TO_FLOAT_UNIT);
+      "fset", gpu::VertAttrType::UNORM_8_8_8_8);
   return format;
 }
 
 static GPUVertFormat attribute_format(const OrigMeshData &orig_mesh_data,
-                                      const StringRefNull name,
-                                      const eCustomDataType data_type)
+                                      const StringRef name,
+                                      const bke::AttrType data_type)
 {
-  GPUVertFormat format = draw::init_format_for_attribute(data_type, "data");
+  GPUVertFormat format = init_format_for_attribute(data_type, "data");
 
   bool is_render, is_active;
   const char *prefix = "a";
 
-  if (CD_TYPE_AS_MASK(data_type) & CD_MASK_COLOR_ALL) {
+  if (CD_TYPE_AS_MASK(*bke::attr_type_to_custom_data_type(data_type))) {
     prefix = "c";
     is_active = orig_mesh_data.active_color == name;
     is_render = orig_mesh_data.default_color == name;
   }
-  if (data_type == CD_PROP_FLOAT2) {
+  if (data_type == bke::AttrType::Float2) {
     prefix = "u";
     is_active = orig_mesh_data.active_uv_map == name;
     is_render = orig_mesh_data.default_uv_map == name;
   }
 
-  DRW_cdlayer_attr_aliases_add(&format, prefix, data_type, name.c_str(), is_render, is_active);
+  DRW_cdlayer_attr_aliases_add(&format, prefix, data_type, name, is_render, is_active);
   return format;
-}
-
-static bool pbvh_attr_supported(const AttributeRequest &request)
-{
-  if (std::holds_alternative<CustomRequest>(request)) {
-    return true;
-  }
-  const GenericRequest &attr = std::get<GenericRequest>(request);
-  if (!ELEM(attr.domain, bke::AttrDomain::Point, bke::AttrDomain::Face, bke::AttrDomain::Corner)) {
-    /* blender::bke::pbvh::Tree drawing does not support edge domain attributes. */
-    return false;
-  }
-  bool type_supported = false;
-  bke::attribute_math::convert_to_static_type(attr.type, [&](auto dummy) {
-    using T = decltype(dummy);
-    using Converter = AttributeConverter<T>;
-    using VBOType = typename Converter::VBOType;
-    if constexpr (!std::is_void_v<VBOType>) {
-      type_supported = true;
-    }
-  });
-  return type_supported;
 }
 
 inline short4 normal_float_to_short(const float3 &value)
@@ -484,20 +463,6 @@ void extract_data_corner_bmesh(const Set<BMFace *, 0> &faces,
     data++;
     *data = Converter::convert(bmesh_cd_loop_get<T>(*l->next, cd_offset));
     data++;
-  }
-}
-
-static const CustomData *get_cdata(const BMesh &bm, const bke::AttrDomain domain)
-{
-  switch (domain) {
-    case bke::AttrDomain::Point:
-      return &bm.vdata;
-    case bke::AttrDomain::Corner:
-      return &bm.ldata;
-    case bke::AttrDomain::Face:
-      return &bm.pdata;
-    default:
-      return nullptr;
   }
 }
 
@@ -728,7 +693,7 @@ BLI_NOINLINE static void update_face_sets_mesh(const Object &object,
 BLI_NOINLINE static void update_generic_attribute_mesh(const Object &object,
                                                        const OrigMeshData &orig_mesh_data,
                                                        const IndexMask &node_mask,
-                                                       const GenericRequest &attr,
+                                                       const StringRef name,
                                                        MutableSpan<gpu::VertBufPtr> vbos)
 {
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
@@ -736,19 +701,20 @@ BLI_NOINLINE static void update_generic_attribute_mesh(const Object &object,
   const Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(object);
   const OffsetIndices<int> faces = mesh.faces();
   const Span<int> corner_verts = mesh.corner_verts();
-  const StringRefNull name = attr.name;
-  const bke::AttrDomain domain = attr.domain;
-  const eCustomDataType data_type = attr.type;
   const bke::AttributeAccessor attributes = orig_mesh_data.attributes;
-  const GVArraySpan attribute = *attributes.lookup_or_default(name, domain, data_type);
+  const bke::GAttributeReader attr = attributes.lookup(name);
+  if (!attr || attr.domain == bke::AttrDomain::Edge) {
+    return;
+  }
+  const bke::AttrType data_type = bke::cpp_type_to_attribute_type(attr.varray.type());
   ensure_vbos_allocated_mesh(
       object, attribute_format(orig_mesh_data, name, data_type), node_mask, vbos);
   node_mask.foreach_index(GrainSize(1), [&](const int i) {
-    bke::attribute_math::convert_to_static_type(attribute.type(), [&](auto dummy) {
+    bke::attribute_math::convert_to_static_type(attr.varray.type(), [&](auto dummy) {
       using T = decltype(dummy);
       if constexpr (!std::is_void_v<typename AttributeConverter<T>::VBOType>) {
-        const Span<T> src = attribute.typed<T>();
-        switch (domain) {
+        const VArraySpan<T> src = attr.varray.typed<T>();
+        switch (attr.domain) {
           case bke::AttrDomain::Point:
             extract_data_vert_mesh<T>(faces, corner_verts, src, nodes[i].faces(), *vbos[i]);
             break;
@@ -1091,32 +1057,32 @@ BLI_NOINLINE static void update_face_sets_bmesh(const Object &object,
 BLI_NOINLINE static void update_generic_attribute_bmesh(const Object &object,
                                                         const OrigMeshData &orig_mesh_data,
                                                         const IndexMask &node_mask,
-                                                        const GenericRequest &attr,
+                                                        const StringRef name,
                                                         const MutableSpan<gpu::VertBufPtr> vbos)
 {
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const Span<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
   const BMesh &bm = *object.sculpt->bm;
-  const bke::AttrDomain domain = attr.domain;
-  const eCustomDataType data_type = attr.type;
-  const CustomData &custom_data = *get_cdata(bm, domain);
-  const int offset = CustomData_get_offset_named(&custom_data, data_type, attr.name);
+  const BMDataLayerLookup attr = BM_data_layer_lookup(bm, name);
+  if (!attr || attr.domain == bke::AttrDomain::Edge) {
+    return;
+  }
   ensure_vbos_allocated_bmesh(
-      object, attribute_format(orig_mesh_data, attr.name, data_type), node_mask, vbos);
+      object, attribute_format(orig_mesh_data, name, attr.type), node_mask, vbos);
   node_mask.foreach_index(GrainSize(1), [&](const int i) {
-    bke::attribute_math::convert_to_static_type(data_type, [&](auto dummy) {
+    bke::attribute_math::convert_to_static_type(attr.type, [&](auto dummy) {
       using T = decltype(dummy);
       const auto &faces = BKE_pbvh_bmesh_node_faces(&const_cast<bke::pbvh::BMeshNode &>(nodes[i]));
       if constexpr (!std::is_void_v<typename AttributeConverter<T>::VBOType>) {
-        switch (domain) {
+        switch (attr.domain) {
           case bke::AttrDomain::Point:
-            extract_data_vert_bmesh<T>(faces, offset, *vbos[i]);
+            extract_data_vert_bmesh<T>(faces, attr.offset, *vbos[i]);
             break;
           case bke::AttrDomain::Face:
-            extract_data_face_bmesh<T>(faces, offset, *vbos[i]);
+            extract_data_face_bmesh<T>(faces, attr.offset, *vbos[i]);
             break;
           case bke::AttrDomain::Corner:
-            extract_data_corner_bmesh<T>(faces, offset, *vbos[i]);
+            extract_data_corner_bmesh<T>(faces, attr.offset, *vbos[i]);
             break;
           default:
             BLI_assert_unreachable();
@@ -1191,12 +1157,12 @@ static gpu::IndexBufPtr create_lines_index_bmesh(const Set<BMFace *, 0> &faces,
   return gpu::IndexBufPtr(GPU_indexbuf_build_ex(&builder, 0, visible_faces_num * 3, false));
 }
 
-static void create_tri_index_grids(const Span<int> grid_indices,
-                                   const BitGroupVector<> &grid_hidden,
-                                   const int gridsize,
-                                   const int skip,
-                                   const int totgrid,
-                                   MutableSpan<uint3> data)
+static int create_tri_index_grids(const Span<int> grid_indices,
+                                  const BitGroupVector<> &grid_hidden,
+                                  const int gridsize,
+                                  const int skip,
+                                  const int totgrid,
+                                  MutableSpan<uint3> data)
 {
   int tri_index = 0;
   int offset = 0;
@@ -1226,14 +1192,16 @@ static void create_tri_index_grids(const Span<int> grid_indices,
       }
     }
   }
+
+  return tri_index;
 }
 
-static void create_tri_index_grids_flat_layout(const Span<int> grid_indices,
-                                               const BitGroupVector<> &grid_hidden,
-                                               const int gridsize,
-                                               const int skip,
-                                               const int totgrid,
-                                               MutableSpan<uint3> data)
+static int create_tri_index_grids_flat_layout(const Span<int> grid_indices,
+                                              const BitGroupVector<> &grid_hidden,
+                                              const int gridsize,
+                                              const int skip,
+                                              const int totgrid,
+                                              MutableSpan<uint3> data)
 {
   int tri_index = 0;
   int offset = 0;
@@ -1277,6 +1245,7 @@ static void create_tri_index_grids_flat_layout(const Span<int> grid_indices,
       }
     }
   }
+  return tri_index;
 }
 
 static void create_lines_index_grids(const Span<int> grid_indices,
@@ -1561,14 +1530,22 @@ static gpu::IndexBufPtr create_tri_index_grids(const CCGKey &key,
 
   MutableSpan<uint3> data = GPU_indexbuf_get_data(&builder).cast<uint3>();
 
+  int tri_count;
   if (use_flat_layout) {
-    create_tri_index_grids_flat_layout(grid_indices, grid_hidden, gridsize, skip, totgrid, data);
+    tri_count = create_tri_index_grids_flat_layout(
+        grid_indices, grid_hidden, gridsize, skip, totgrid, data);
   }
   else {
-    create_tri_index_grids(grid_indices, grid_hidden, gridsize, skip, totgrid, data);
+    tri_count = create_tri_index_grids(grid_indices, grid_hidden, gridsize, skip, totgrid, data);
   }
 
-  return gpu::IndexBufPtr(GPU_indexbuf_build_ex(&builder, 0, 6 * visible_quad_len, false));
+  builder.index_len = tri_count * 3;
+  builder.index_min = 0;
+  builder.index_max = 6 * visible_quad_len;
+  builder.uses_restart_indices = false;
+  gpu::IndexBufPtr result = gpu::IndexBufPtr(GPU_indexbuf_calloc());
+  GPU_indexbuf_build_in_place(&builder, result.get());
+  return result;
 }
 
 static gpu::IndexBufPtr create_lines_index_grids(const CCGKey &key,
@@ -1679,9 +1656,6 @@ Span<gpu::VertBufPtr> DrawCacheImpl::ensure_attribute_data(const Object &object,
                                                            const AttributeRequest &attr,
                                                            const IndexMask &node_mask)
 {
-  if (!pbvh_attr_supported(attr)) {
-    return {};
-  }
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   AttributeData &data = attribute_vbos_.lookup_or_add_default(attr);
   Vector<gpu::VertBufPtr> &vbos = data.vbos;
@@ -1742,11 +1716,12 @@ Span<gpu::VertBufPtr> DrawCacheImpl::ensure_attribute_data(const Object &object,
         }
       }
       else {
-        ensure_vbos_allocated_grids(object,
-                                    attribute_format(orig_mesh_data, "Dummy", CD_PROP_FLOAT3),
-                                    use_flat_layout_,
-                                    mask,
-                                    vbos);
+        ensure_vbos_allocated_grids(
+            object,
+            attribute_format(orig_mesh_data, "Dummy", bke::AttrType::Float3),
+            use_flat_layout_,
+            mask,
+            vbos);
         mask.foreach_index(GrainSize(1),
                            [&](const int i) { vbos[i]->data<float3>().fill(float3(0.0f)); });
       }
@@ -1856,7 +1831,7 @@ Span<gpu::Batch *> DrawCacheImpl::ensure_tris_batches(const Object &object,
                                                       const ViewportRequest &request,
                                                       const IndexMask &nodes_to_update)
 {
-  const Object &object_orig = *DEG_get_original_object(&const_cast<Object &>(object));
+  const Object &object_orig = *DEG_get_original(&object);
   const OrigMeshData orig_mesh_data{*static_cast<const Mesh *>(object_orig.data)};
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
 
@@ -1900,7 +1875,7 @@ Span<gpu::Batch *> DrawCacheImpl::ensure_lines_batches(const Object &object,
                                                        const ViewportRequest &request,
                                                        const IndexMask &nodes_to_update)
 {
-  const Object &object_orig = *DEG_get_original_object(&const_cast<Object &>(object));
+  const Object &object_orig = *DEG_get_original(&object);
   const OrigMeshData orig_mesh_data(*static_cast<const Mesh *>(object_orig.data));
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
 
@@ -1931,7 +1906,7 @@ Span<int> DrawCacheImpl::ensure_material_indices(const Object &object)
 {
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   if (material_indices_.size() != pbvh.nodes_num()) {
-    const Object &object_orig = *DEG_get_original_object(&const_cast<Object &>(object));
+    const Object &object_orig = *DEG_get_original(&object);
     const OrigMeshData orig_mesh_data(*static_cast<const Mesh *>(object_orig.data));
     material_indices_ = calc_material_indices(object, orig_mesh_data);
   }

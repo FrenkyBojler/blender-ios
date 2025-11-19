@@ -9,7 +9,6 @@
 #include <cstdlib>
 #include <cstring>
 #include <memory>
-#include <mutex>
 
 #include "CLG_log.h"
 
@@ -21,11 +20,12 @@
 #include "BLI_fileops.h"
 #include "BLI_ghash.h"
 #include "BLI_linklist_lockfree.h"
+#include "BLI_mutex.hh"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_global.hh" /* only for G.background test */
-#include "BKE_icons.h"
+#include "BKE_icons.hh"
 #include "BKE_preview_image.hh"
 #include "BKE_studiolight.h"
 
@@ -44,7 +44,7 @@ enum {
 
 /* GLOBALS */
 
-static CLG_LogRef LOG = {"bke.icons"};
+static CLG_LogRef LOG = {"lib.icons"};
 
 /* Protected by gIconMutex. */
 static GHash *gIcons = nullptr;
@@ -55,7 +55,7 @@ static int gNextIconId = 1;
 /* Protected by gIconMutex. */
 static int gFirstIconId = 1;
 
-static std::mutex gIconMutex;
+static blender::Mutex gIconMutex;
 
 /* Queue of icons for deferred deletion. */
 struct DeferredIconDeleteNode {
@@ -76,11 +76,11 @@ static void icon_free(void *val)
     Icon_Geom *obj = (Icon_Geom *)icon->obj;
     if (obj->mem) {
       /* coords & colors are part of this memory. */
-      MEM_freeN((void *)obj->mem);
+      MEM_freeN(const_cast<void *>(obj->mem));
     }
     else {
-      MEM_freeN((void *)obj->coords);
-      MEM_freeN((void *)obj->colors);
+      MEM_freeN(obj->coords);
+      MEM_freeN(obj->colors);
     }
     MEM_freeN(icon->obj);
   }

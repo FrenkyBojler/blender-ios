@@ -86,13 +86,13 @@ void ED_scene_fps_average_clear(Scene *scene)
   BLI_assert(fpsi->times_fps_sum == times_fps_sum_cmp);
 #endif /* !NDEBUG */
 
-  MEM_freeN(scene->fps_info);
+  MEM_freeN(static_cast<ScreenFrameRateInfo *>(scene->fps_info));
   scene->fps_info = nullptr;
 }
 
 void ED_scene_fps_average_accumulate(Scene *scene, const short fps_samples, const double ltime)
 {
-  const float fps_target = float(FPS);
+  const float fps_target = float(scene->frames_per_second());
   const int times_fps_num = (fps_samples > 0) ? fps_samples : max_ii(1, int(ceilf(fps_target)));
 
   ScreenFrameRateInfo *fpsi = static_cast<ScreenFrameRateInfo *>(scene->fps_info);

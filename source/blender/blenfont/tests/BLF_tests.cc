@@ -262,8 +262,8 @@ TEST(blf_wrapping_path, wrap_path_overflow_ascii)
 {
   /* Do not break, even though over the wrap limit. */
   const char sample[] =
-      "xxxxxxxxxxxxxxxxxxx!\"#$%&\'()*+,-."
-      "0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^`abcdefghijklmnopqrstuvwxyz{|}~";
+      "xxxxxxxxxxxxxxxxxxx!\"#$\'()*+,"
+      "0123456789:;<>@ABCDEFGHIJKLMNOPQRSTUVWXYZ[]^`abcdefghijklmnopqrstuvwxyz{|}~";
   /* Ahem does not contain all the characters included in above string. */
   int id = open_font("Roboto.ttf");
   BLF_size(id, 10.0f);
@@ -441,6 +441,24 @@ TEST(blf_wrapping_typographical, wrap_typographical_hardlimit)
       int(float(width) * 0.7f),
       BLFWrapMode(int(BLFWrapMode::Typographical) | int(BLFWrapMode::HardLimit)));
   EXPECT_TRUE(wrapped.size() == 2);
+  close_font(id);
+}
+
+TEST(blf_wrapping_minimal, wrap_hardlimit_too_narrow_width)
+{
+  /* Must break for each character. */
+  const char sample[] = "aeiouáéíóú ;'/./\n\n1234567890-=";
+  int id = open_font("Ahem.ttf");
+  const blender::Vector<blender::StringRef> expected_wrap = {
+      "a", "e", "i", "o", "u", "á", "é", "í", "ó", "ú", " ", ";", "\'", "/", ".",
+      "/", "",  "",  "1", "2", "3", "4", "5", "6", "7", "8", "9", "0",  "-", "=",
+  };
+  for (float size : {0.1f, 1.0f, 5.0f, 10.0f}) {
+    BLF_size(id, size);
+    const blender::Vector<blender::StringRef> wrapped = BLF_string_wrap(
+        id, sample, 0, BLFWrapMode::HardLimit);
+    EXPECT_EQ(wrapped, expected_wrap);
+  }
   close_font(id);
 }
 
