@@ -602,11 +602,12 @@ bool ShapingData::process(FontBLF *font, GlyphCacheBLF *gc, ResultBLF *r_info)
 
   blf_ot_feature(features, HB_TAG('k', 'e', 'r', 'n'), U.text_render & USER_TEXT_KERNING);
   blf_ot_feature(features, HB_TAG('z', 'e', 'r', 'o'), U.text_render & USER_TEXT_SLASHED_ZERO);
-  blf_ot_feature(features, HB_TAG('c', 'a', 'l', 't'), U.text_render & USER_TEXT_SLASHED_ZERO);
+  blf_ot_feature(
+      features, HB_TAG('c', 'a', 'l', 't'), U.text_render & USER_TEXT_CONTEXTUAL_ALTERNATES);
   blf_ot_feature(
       features, HB_TAG('d', 'l', 'i', 'g'), U.text_render & USER_TEXT_DISCRETIONARY_LIGATURES);
-  blf_ot_feature(features, HB_TAG('c', 'a', 's', 'e'), U.text_render & USER_TEXT_CASE_ALTERNATES);
   blf_ot_feature(features, HB_TAG('t', 'n', 'u', 'm'), U.text_render & USER_TEXT_TABULAR_NUMBERS);
+  blf_ot_feature(features, HB_TAG('c', 'a', 's', 'e'), U.text_render & USER_TEXT_CASE_ALTERNATES);
 
   /* Specifically for Inter. */
   blf_ot_feature(features, HB_TAG('s', 's', '0', '1'), U.text_render & USER_TEXT_OPEN_DIGITS);
