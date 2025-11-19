@@ -7,6 +7,7 @@
 
 #  include "gpu_shader_compat.hh"
 
+#  include "draw_subdiv_shader_shared.hh"
 #  include "osd_patch_basis.glsl"
 #endif
 
