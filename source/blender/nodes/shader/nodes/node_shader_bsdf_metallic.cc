@@ -27,11 +27,13 @@ static void node_declare(NodeDeclarationBuilder &b)
       .default_value({2.757f, 2.513f, 2.231f})
       .min(0.0f)
       .max(100.0f)
+      .subtype(PROP_VECTOR_COLOR_CHANNELS)
       .description("Real part of the conductor's refractive index, often called n");
   b.add_input<decl::Vector>("Extinction")
       .default_value({3.867f, 3.404f, 3.009f})
       .min(0.0f)
       .max(100.0f)
+      .subtype(PROP_VECTOR_COLOR_CHANNELS)
       .description("Imaginary part of the conductor's refractive index, often called k");
   b.add_input<decl::Float>("Roughness")
       .default_value(0.5f)

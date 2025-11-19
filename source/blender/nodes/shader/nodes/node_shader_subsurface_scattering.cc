@@ -20,6 +20,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       "Scale factor of the subsurface scattering radius");
   b.add_input<decl::Vector>("Radius")
       .default_value({1.0f, 0.2f, 0.1f})
+      .subtype(PROP_VECTOR_COLOR_CHANNELS)
       .min(0.0f)
       .max(100.0f)
       .description("Scattering radius per color channel (RGB), multiplied with Scale");

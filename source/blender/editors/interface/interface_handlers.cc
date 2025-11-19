@@ -2218,7 +2218,9 @@ static bool ui_but_drag_init(bContext *C,
         drag_info->gamma_corrected = true;
         valid = true;
       }
-      else if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR) {
+      else if (but->rnaprop &&
+               ELEM(RNA_property_subtype(but->rnaprop), PROP_COLOR, PROP_COLOR_DATA))
+      {
         ui_but_v4_get(but, drag_info->color);
         drag_info->gamma_corrected = false;
         valid = true;
@@ -6715,7 +6717,9 @@ static int ui_do_but_COLOR(bContext *C, uiBut *but, uiHandleButtonData *data, co
                 RNA_property_float_get_array_at_most(&but->rnapoin, but->rnaprop, target, 3);
                 IMB_colormanagement_srgb_to_scene_linear_v3(target, target);
               }
-              else if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR) {
+              else if (but->rnaprop &&
+                       ELEM(RNA_property_subtype(but->rnaprop), PROP_COLOR, PROP_COLOR_DATA))
+              {
                 RNA_property_float_get_array_at_most(&but->rnapoin, but->rnaprop, target, 3);
               }
               BKE_brush_tag_unsaved_changes(brush);
@@ -6730,7 +6734,9 @@ static int ui_do_but_COLOR(bContext *C, uiBut *but, uiHandleButtonData *data, co
                 BKE_brush_color_set(paint, brush, color);
                 updated = true;
               }
-              else if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR) {
+              else if (but->rnaprop &&
+                       ELEM(RNA_property_subtype(but->rnaprop), PROP_COLOR, PROP_COLOR_DATA))
+              {
                 RNA_property_float_get_array_at_most(
                     &but->rnapoin, but->rnaprop, color, ARRAY_SIZE(color));
                 BKE_brush_color_set(paint, brush, color);

@@ -123,7 +123,7 @@ uiBut *uiDefAutoButR(uiBlock *block,
     case PROP_INT:
     case PROP_FLOAT: {
       if (RNA_property_array_check(prop) && index == -1) {
-        if (ELEM(RNA_property_subtype(prop), PROP_COLOR, PROP_COLOR_GAMMA)) {
+        if (ELEM(RNA_property_subtype(prop), PROP_COLOR, PROP_COLOR_GAMMA, PROP_COLOR_DATA)) {
           but = uiDefButR_prop(
               block, ButType::Color, name, x, y, width, height, ptr, prop, -1, 0, 0, std::nullopt);
         }

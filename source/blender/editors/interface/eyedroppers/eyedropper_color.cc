@@ -121,7 +121,7 @@ static bool eyedropper_init(bContext *C, wmOperator *op)
       (RNA_property_editable(&eye->ptr, eye->prop) == false) ||
       (RNA_property_array_length(&eye->ptr, eye->prop) < 3) ||
       (RNA_property_type(eye->prop) != PROP_FLOAT) ||
-      (ELEM(prop_subtype, PROP_COLOR, PROP_COLOR_GAMMA) == 0))
+      (ELEM(prop_subtype, PROP_COLOR, PROP_COLOR_GAMMA, PROP_COLOR_DATA) == 0))
   {
     MEM_delete(eye);
     return false;
@@ -137,7 +137,7 @@ static bool eyedropper_init(bContext *C, wmOperator *op)
     eye->draw_handle_sample_text = WM_draw_cb_activate(eye->cb_win, eyedropper_draw_cb, eye);
   }
 
-  if (prop_subtype != PROP_COLOR) {
+  if (!ELEM(prop_subtype, PROP_COLOR, PROP_COLOR_DATA)) {
     Scene *scene = CTX_data_scene(C);
     const char *display_device;
 

@@ -95,6 +95,8 @@ const EnumPropertyItem rna_enum_property_type_items[] = {
   {PROP_XYZ, "XYZ", 0, "XYZ", ""}, \
   {PROP_XYZ_LENGTH, "XYZ_LENGTH", 0, "XYZ Length", ""}, \
   {PROP_COLOR_GAMMA, "COLOR_GAMMA", 0, "sRGB Color", "Color in sRGB color space (mainly for user interface colors)"}, \
+  {PROP_COLOR_DATA, "COLOR_DATA", 0, "Data Color", "Non-color data stored as a color"}, \
+  {PROP_VECTOR_COLOR_CHANNELS, "VECTOR_COLOR_CHANNELS", 0, "Vector Color Channels", "Vector with values per color channel"}, \
   {PROP_COORDS, "COORDINATES", 0, "Coordinates", ""}, \
   /* Boolean. */ \
   {PROP_LAYER, "LAYER", 0, "Layer", ""}, \

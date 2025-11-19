@@ -3668,6 +3668,10 @@ static const char *rna_property_subtypename(PropertySubType type)
       return "PROP_COLOR_TEMPERATURE";
     case PROP_FREQUENCY:
       return "PROP_FREQUENCY";
+    case PROP_COLOR_DATA:
+      return "PROP_COLOR_DATA";
+    case PROP_VECTOR_COLOR_CHANNELS:
+      return "PROP_VECTOR_COLOR_CHANNELS";
     default: {
       /* in case we don't have a type preset that includes the subtype */
       if (RNA_SUBTYPE_UNIT(type)) {

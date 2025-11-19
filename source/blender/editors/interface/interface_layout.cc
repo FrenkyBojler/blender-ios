@@ -786,7 +786,8 @@ static void ui_item_array(Layout *layout,
      * to work with common cases, but may need to be re-worked */
 
     /* special case, boolean array in a menu, this could be used in a more generic way too */
-    if (ELEM(subtype, PROP_COLOR, PROP_COLOR_GAMMA) && !expand && ELEM(len, 3, 4)) {
+    if (ELEM(subtype, PROP_COLOR, PROP_COLOR_GAMMA, PROP_COLOR_DATA) && !expand && ELEM(len, 3, 4))
+    {
       uiDefAutoButR(block, ptr, prop, -1, "", ICON_NONE, 0, 0, w, UI_UNIT_Y);
     }
     else {
@@ -1855,7 +1856,7 @@ static bool ui_item_rna_is_expand(PropertyRNA *prop, int index, const eUI_Item_F
   const int subtype = RNA_property_subtype(prop);
   return is_array && (index == RNA_NO_INDEX) &&
          ((item_flag & UI_ITEM_R_EXPAND) ||
-          !ELEM(subtype, PROP_COLOR, PROP_COLOR_GAMMA, PROP_DIRECTION));
+          !ELEM(subtype, PROP_COLOR, PROP_COLOR_GAMMA, PROP_COLOR_DATA, PROP_DIRECTION));
 }
 
 /**

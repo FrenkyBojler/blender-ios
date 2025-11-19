@@ -355,7 +355,7 @@ bNodeSocket &Color::build(bNodeTree &ntree, bNode &node) const
                                                      node,
                                                      this->in_out,
                                                      SOCK_RGBA,
-                                                     PROP_NONE,
+                                                     this->subtype,
                                                      this->identifier.c_str(),
                                                      this->name.c_str());
   this->set_common_flags(socket);

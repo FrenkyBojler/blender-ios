@@ -485,16 +485,15 @@ static void node_foreach_working_space_color(ID *id, const IDTypeForeachColorFun
     }
 
     for (bNodeSocket *socket : node->input_sockets()) {
-      if (socket->type == SOCK_RGBA && socket->default_value) {
+      if (socket->type == SOCK_RGBA && socket->default_value &&
+          !STREQ(socket->idname, "NodeSocketColorData"))
+      {
         bNodeSocketValueRGBA *rgba = static_cast<bNodeSocketValueRGBA *>(socket->default_value);
         fn.single(rgba->value);
       }
-      /* Exception for subsurface radius which is color-like and may be outside the 0..1 range. */
+      /* For e.g. subsurface radius which is color-like and may be outside the 0..1 range. */
       else if (socket->type == SOCK_VECTOR && socket->default_value &&
-               (STREQ(socket->name, "Subsurface Radius") ||
-                STREQ(socket->name, "Subsurface Radius Scale") ||
-                (node->type_legacy == SH_NODE_SUBSURFACE_SCATTERING &&
-                 STREQ(socket->name, "Radius"))))
+               STREQ(socket->idname, "NodeSocketVectorColorChannels"))
       {
         bNodeSocketValueVector *vec = static_cast<bNodeSocketValueVector *>(socket->default_value);
         float length;
@@ -2902,6 +2901,8 @@ std::optional<StringRefNull> node_static_socket_type(const int type,
             return "NodeSocketVectorEuler";
           case PROP_XYZ:
             return "NodeSocketVectorXYZ";
+          case PROP_VECTOR_COLOR_CHANNELS:
+            return "NodeSocketVectorColorChannels";
           case PROP_NONE:
           default:
             return "NodeSocketVector";
@@ -2958,7 +2959,12 @@ std::optional<StringRefNull> node_static_socket_type(const int type,
         return "NodeSocketVector";
       }
     case SOCK_RGBA:
-      return "NodeSocketColor";
+      switch (PropertySubType(subtype)) {
+        case PROP_COLOR_DATA:
+          return "NodeSocketColorData";
+        default:
+          return "NodeSocketColor";
+      }
     case SOCK_STRING:
       switch (PropertySubType(subtype)) {
         case PROP_FILEPATH:
@@ -3059,6 +3065,8 @@ std::optional<StringRefNull> node_static_socket_interface_type_new(
             return "NodeTreeInterfaceSocketVectorEuler";
           case PROP_XYZ:
             return "NodeTreeInterfaceSocketVectorXYZ";
+          case PROP_VECTOR_COLOR_CHANNELS:
+            return "NodeTreeInterfaceSocketVectorColorChannels";
           case PROP_NONE:
           default:
             return "NodeTreeInterfaceSocketVector";
@@ -3115,7 +3123,12 @@ std::optional<StringRefNull> node_static_socket_interface_type_new(
         return "NodeTreeInterfaceSocketVector";
       }
     case SOCK_RGBA:
-      return "NodeTreeInterfaceSocketColor";
+      switch (PropertySubType(subtype)) {
+        case PROP_COLOR_DATA:
+          return "NodeTreeInterfaceSocketColorData";
+        default:
+          return "NodeTreeInterfaceSocketColor";
+      }
     case SOCK_STRING:
       switch (PropertySubType(subtype)) {
         case PROP_FILEPATH:

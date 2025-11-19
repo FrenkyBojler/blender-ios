@@ -2038,7 +2038,12 @@ static const bNodeSocketStaticTypeInfo node_socket_subtypes[] = {
     {"NodeSocketRotation", "NodeTreeInterfaceSocketRotation", SOCK_ROTATION, PROP_NONE},
     {"NodeSocketMatrix", "NodeTreeInterfaceSocketMatrix", SOCK_MATRIX, PROP_NONE},
 
-    {"NodeSocketColor", "NodeTreeInterfaceSocketColor", SOCK_RGBA, PROP_NONE},
+    {"NodeSocketColor", "NodeTreeInterfaceSocketColor", SOCK_RGBA, PROP_COLOR},
+    {"NodeSocketColorData", "NodeTreeInterfaceSocketColorData", SOCK_RGBA, PROP_COLOR_DATA},
+    {"NodeSocketVectorColorChannels",
+     "NodeTreeInterfaceSocketVectorColorChannels",
+     SOCK_VECTOR,
+     PROP_VECTOR_COLOR_CHANNELS},
     {"NodeSocketString", "NodeTreeInterfaceSocketString", SOCK_STRING, PROP_NONE},
     {"NodeSocketStringFilePath",
      "NodeTreeInterfaceSocketStringFilePath",

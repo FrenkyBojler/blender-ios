@@ -40,6 +40,7 @@
 #include "NOD_menu_value.hh"
 #include "NOD_node_declaration.hh"
 #include "NOD_socket.hh"
+#include "RNA_types.hh"
 
 using namespace blender;
 using blender::bke::SocketValueVariant;
@@ -1091,9 +1092,9 @@ static bke::bNodeSocketType *make_socket_type_vector(PropertySubType subtype, co
   return socktype;
 }
 
-static bke::bNodeSocketType *make_socket_type_rgba()
+static bke::bNodeSocketType *make_socket_type_rgba(PropertySubType subtype)
 {
-  bke::bNodeSocketType *socktype = make_standard_socket_type(SOCK_RGBA, PROP_NONE);
+  bke::bNodeSocketType *socktype = make_standard_socket_type(SOCK_RGBA, subtype);
   socktype->base_cpp_type = &blender::CPPType::get<blender::ColorGeometry4f>();
   socktype->get_base_cpp_value = [](const void *socket_value, void *r_value) {
     *(blender::ColorGeometry4f *)r_value = ((bNodeSocketValueRGBA *)socket_value)->value;
@@ -1270,6 +1271,7 @@ void register_standard_node_socket_types()
   bke::node_register_socket_type(*make_socket_type_vector(PROP_ACCELERATION, 3));
   bke::node_register_socket_type(*make_socket_type_vector(PROP_EULER, 3));
   bke::node_register_socket_type(*make_socket_type_vector(PROP_XYZ, 3));
+  bke::node_register_socket_type(*make_socket_type_vector(PROP_VECTOR_COLOR_CHANNELS, 3));
 
   bke::node_register_socket_type(*make_socket_type_vector(PROP_NONE, 2));
   bke::node_register_socket_type(*make_socket_type_vector(PROP_FACTOR, 2));
@@ -1291,7 +1293,8 @@ void register_standard_node_socket_types()
   bke::node_register_socket_type(*make_socket_type_vector(PROP_EULER, 4));
   bke::node_register_socket_type(*make_socket_type_vector(PROP_XYZ, 4));
 
-  bke::node_register_socket_type(*make_socket_type_rgba());
+  bke::node_register_socket_type(*make_socket_type_rgba(PROP_COLOR));
+  bke::node_register_socket_type(*make_socket_type_rgba(PROP_COLOR_DATA));
   bke::node_register_socket_type(*make_socket_type_rotation());
   bke::node_register_socket_type(*make_socket_type_matrix());
 

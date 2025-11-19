@@ -27,6 +27,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("Strength of the normal mapping effect")
       .translation_context(BLT_I18NCONTEXT_AMOUNT);
   b.add_input<decl::Color>("Color")
+      .subtype(PROP_COLOR_DATA)
       .default_value({0.5f, 0.5f, 1.0f, 1.0f})
       .description("Color that encodes the normal map in the specified space");
   b.add_output<decl::Vector>("Normal");

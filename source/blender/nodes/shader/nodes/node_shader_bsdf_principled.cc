@@ -4,6 +4,7 @@
 
 #include <map>
 
+#include "RNA_types.hh"
 #include "node_shader_util.hh"
 
 #include "BLI_math_base.h"
@@ -97,6 +98,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 #define SOCK_SUBSURFACE_WEIGHT_ID 8
   sss.add_input<decl::Vector>("Subsurface Radius")
       .default_value({1.0f, 0.2f, 0.1f})
+      .subtype(PROP_VECTOR_COLOR_CHANNELS)
       .min(0.0f)
       .max(100.0f)
       .short_label("Radius")

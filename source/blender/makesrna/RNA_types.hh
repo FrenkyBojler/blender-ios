@@ -292,6 +292,12 @@ enum PropertySubType {
   PROP_FREQUENCY = 46 | PROP_UNIT_FREQUENCY,
   PROP_PIXEL_DIAMETER = 47,
   PROP_DISTANCE_DIAMETER = 48 | PROP_UNIT_LENGTH,
+
+  /** Non-color data stored as color. */
+  PROP_COLOR_DATA = 49,
+
+  /** Distance per color channel. */
+  PROP_VECTOR_COLOR_CHANNELS = 50,
 };
 
 /* Make sure enums are updated with these */

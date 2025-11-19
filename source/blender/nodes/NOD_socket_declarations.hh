@@ -141,6 +141,7 @@ class Color : public SocketDeclaration {
   static constexpr eNodeSocketDatatype static_socket_type = SOCK_RGBA;
 
   ColorGeometry4f default_value{0.8f, 0.8f, 0.8f, 1.0f};
+  PropertySubType subtype = PROP_COLOR;
 
   friend ColorBuilder;
 
@@ -155,6 +156,7 @@ class Color : public SocketDeclaration {
 class ColorBuilder : public SocketDeclarationBuilder<Color> {
  public:
   ColorBuilder &default_value(const ColorGeometry4f value);
+  ColorBuilder &subtype(PropertySubType subtype);
 };
 
 class RotationBuilder;
@@ -574,6 +576,12 @@ inline BoolBuilder &BoolBuilder::default_value(const bool value)
 inline ColorBuilder &ColorBuilder::default_value(const ColorGeometry4f value)
 {
   decl_->default_value = value;
+  return *this;
+}
+
+inline ColorBuilder &ColorBuilder::subtype(PropertySubType subtype)
+{
+  decl_->subtype = subtype;
   return *this;
 }
 
