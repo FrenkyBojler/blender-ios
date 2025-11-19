@@ -248,7 +248,7 @@ static EnumPropertyItem prop_mesh_filter_types[] = {
      "RELAX_FACE_SETS",
      0,
      "Relax Face Sets",
-     "Smooth the edges of all the Face Sets"},
+     "Smooth the edges of all the face sets"},
     {int(MeshFilterType::SurfaceSmooth),
      "SURFACE_SMOOTH",
      0,
@@ -1090,7 +1090,7 @@ static void calc_relax_face_sets_filter(const Depsgraph &depsgraph,
   bke::pbvh::update_normals(depsgraph, object, pbvh);
 
   /* When using the relax face sets meshes filter, each 3 iterations, do a whole mesh relax to
-   * smooth the contents of the Face Set. This produces better results as the relax operation is no
+   * smooth the contents of the face set. This produces better results as the relax operation is no
    * completely focused on the boundaries. */
   const bool relax_face_sets = !(ss.filter_cache->iteration_count % 3 == 0);
 
@@ -2527,13 +2527,13 @@ void register_operator_props(wmOperatorType *ot)
 
 static void sculpt_mesh_ui_exec(bContext * /*C*/, wmOperator *op)
 {
-  uiLayout *layout = op->layout;
+  ui::Layout &layout = *op->layout;
 
-  layout->prop(op->ptr, "strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(op->ptr, "iteration_count", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(op->ptr, "orientation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout = &layout->row(true);
-  layout->prop(op->ptr, "deform_axis", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "iteration_count", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "orientation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  ui::Layout &row = layout.row(true);
+  row.prop(op->ptr, "deform_axis", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 }
 
 void SCULPT_OT_mesh_filter(wmOperatorType *ot)
