@@ -212,6 +212,7 @@ if(WITH_GTESTS)
     paint_test.cc
     sculpt_detail_test.cc
     sculpt_undo_test.cc
+    sculpt_boundary_tests.cc
   )
   set(TEST_INC
   )

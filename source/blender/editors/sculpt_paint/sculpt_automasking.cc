@@ -629,7 +629,7 @@ void calc_vert_factors(const Depsgraph &depsgraph,
   const Span<float3> vert_positions = bke::pbvh::vert_positions_eval(depsgraph, object);
   const Span<float3> vert_normals = blender::bke::pbvh::vert_normals_eval(depsgraph, object);
   const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
-  const BitSpan boundary_verts = ss.boundary_info.verts;
+  const BitSpan boundary_verts = ss.boundary_info_cache->verts;
   const bke::AttributeAccessor attributes = mesh.attributes();
   const VArraySpan face_sets = *attributes.lookup<int>(".sculpt_face_set", bke::AttrDomain::Face);
   const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
@@ -744,7 +744,7 @@ void calc_face_factors(const Depsgraph &depsgraph,
   const Span<float3> vert_positions = bke::pbvh::vert_positions_eval(depsgraph, object);
   const Span<float3> vert_normals = blender::bke::pbvh::vert_normals_eval(depsgraph, object);
   const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
-  const BitSpan boundary_verts = ss.boundary_info.verts;
+  const BitSpan boundary_verts = ss.boundary_info_cache->verts;
   const bke::AttributeAccessor attributes = mesh.attributes();
   const VArraySpan face_sets = *attributes.lookup<int>(".sculpt_face_set", bke::AttrDomain::Face);
   const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
@@ -853,7 +853,7 @@ void calc_grids_factors(const Depsgraph &depsgraph,
   const OffsetIndices<int> faces = base_mesh.faces();
   const Span<int> corner_verts = base_mesh.corner_verts();
   const GroupedSpan<int> vert_to_face_map = base_mesh.vert_to_face_map();
-  const BitSpan boundary_verts = ss.boundary_info.verts;
+  const BitSpan boundary_verts = ss.boundary_info_cache->verts;
   const bke::AttributeAccessor attributes = base_mesh.attributes();
   const VArraySpan face_sets = *attributes.lookup<int>(".sculpt_face_set", bke::AttrDomain::Face);
   const SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
@@ -935,7 +935,7 @@ void calc_grids_factors(const Depsgraph &depsgraph,
         if (boundary::vert_is_boundary(faces,
                                        corner_verts,
                                        boundary_verts,
-                                       ss.boundary_info.edges,
+                                       ss.boundary_info_cache->edges,
                                        subdiv_ccg,
                                        SubdivCCGCoord::from_index(key, vert)))
         {
@@ -1331,7 +1331,7 @@ static void init_boundary_masking_mesh(Object &object,
   for (const int i : IndexRange(num_verts)) {
     switch (mode) {
       case BoundaryAutomaskMode::Edges:
-        if (boundary::vert_is_boundary(vert_to_face_map, hide_poly, ss.boundary_info.verts, i)) {
+        if (boundary::vert_is_boundary(vert_to_face_map, hide_poly, ss.boundary_info_cache->verts, i)) {
           edge_distance[i] = 0;
         }
         break;
@@ -1397,8 +1397,8 @@ static void init_boundary_masking_grids(Object &object,
       case BoundaryAutomaskMode::Edges:
         if (boundary::vert_is_boundary(faces,
                                        corner_verts,
-                                       ss.boundary_info.verts,
-                                       ss.boundary_info.edges,
+                                       ss.boundary_info_cache->verts,
+                                       ss.boundary_info_cache->edges,
                                        subdiv_ccg,
                                        coord))
         {

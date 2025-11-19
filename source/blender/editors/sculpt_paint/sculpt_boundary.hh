@@ -7,6 +7,8 @@
  */
 #pragma once
 
+#include "BKE_paint.hh"
+
 #include <memory>
 
 #include "BLI_array.hh"
@@ -18,6 +20,7 @@
 #include "BLI_set.hh"
 #include "BLI_span.hh"
 #include "BLI_vector.hh"
+#include "DNA_mesh_types.h"
 
 struct Brush;
 struct BMVert;
@@ -93,12 +96,14 @@ struct SculptBoundary {
   } twist;
 };
 
+
 /**
  * Populates boundary information for a mesh.
  *
  * \see SculptBoundaryInfo
  */
 void ensure_boundary_info(Object &object);
+SculptBoundaryInfoCache create_boundary_info(const Mesh &mesh);
 
 /**
  * Determine if a vertex is a boundary vertex.

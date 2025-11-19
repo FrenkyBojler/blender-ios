@@ -2301,8 +2301,7 @@ void BKE_sculptsession_free_pbvh(Object &object)
 
   ss->preview_verts = {};
 
-  ss->boundary_info.verts.clear_and_shrink();
-  ss->boundary_info.edges.clear();
+  ss->boundary_info_cache.reset();
   ss->fake_neighbors.fake_neighbor_index = {};
   ss->topology_island_cache.reset();
 

@@ -482,6 +482,37 @@ inline void append_neighbors_to_vector(const OffsetIndices<int> faces,
 
 namespace boundary {
 
+void ensure_boundary_info(Object &object)
+{
+  SculptSession &ss = *object.sculpt;
+  if (ss.boundary_info_cache) {
+    return;
+  }
+
+  ss.boundary_info_cache = std::make_unique<SculptBoundaryInfoCache>(
+      create_boundary_info(*BKE_mesh_from_object(&object)));
+}
+
+SculptBoundaryInfoCache create_boundary_info(const Mesh &mesh)
+{
+  SculptBoundaryInfoCache boundary_info;
+  boundary_info.verts.resize(mesh.verts_num);
+  Array<int> adjacent_faces_edge_count(mesh.edges_num, 0);
+  array_utils::count_indices(mesh.corner_edges(), adjacent_faces_edge_count);
+
+  const Span<int2> edges = mesh.edges();
+  for (const int e : edges.index_range()) {
+    if (adjacent_faces_edge_count[e] < 2) {
+      const int2 &edge = edges[e];
+      boundary_info.edges.add(edge);
+      boundary_info.verts[edge[0]].set();
+      boundary_info.verts[edge[1]].set();
+    }
+  }
+
+  return boundary_info;
+}
+
 bool vert_is_boundary(const GroupedSpan<int> vert_to_face_map,
                       const Span<bool> hide_poly,
                       const BitSpan boundary_verts,
@@ -3023,8 +3054,7 @@ static void dynamic_topology_update(const Depsgraph &depsgraph,
 
   /* Free index based vertex info as it will become invalid after modifying the topology during the
    * stroke. */
-  ss.boundary_info.verts.clear();
-  ss.boundary_info.edges.clear();
+  ss.boundary_info_cache.reset();
 
   PBVHTopologyUpdateMode mode = PBVHTopologyUpdateMode(0);
 
@@ -6062,34 +6092,6 @@ static void fake_neighbor_search(const Depsgraph &depsgraph,
 }
 
 }  // namespace blender::ed::sculpt_paint
-
-namespace blender::ed::sculpt_paint::boundary {
-
-void ensure_boundary_info(Object &object)
-{
-  SculptSession &ss = *object.sculpt;
-  if (!ss.boundary_info.verts.is_empty()) {
-    return;
-  }
-
-  Mesh *base_mesh = BKE_mesh_from_object(&object);
-
-  ss.boundary_info.verts.resize(base_mesh->verts_num);
-  Array<int> adjacent_faces_edge_count(base_mesh->edges_num, 0);
-  array_utils::count_indices(base_mesh->corner_edges(), adjacent_faces_edge_count);
-
-  const Span<int2> edges = base_mesh->edges();
-  for (const int e : edges.index_range()) {
-    if (adjacent_faces_edge_count[e] < 2) {
-      const int2 &edge = edges[e];
-      ss.boundary_info.edges.add(edge);
-      ss.boundary_info.verts[edge[0]].set();
-      ss.boundary_info.verts[edge[1]].set();
-    }
-  }
-}
-
-}  // namespace blender::ed::sculpt_paint::boundary
 
 Span<int> SCULPT_fake_neighbors_ensure(const Depsgraph &depsgraph,
                                        Object &ob,

@@ -3399,7 +3399,7 @@ std::unique_ptr<SculptBoundary> data_init_mesh(const Depsgraph &depsgraph,
       positions_eval,
       hide_vert,
       hide_poly,
-      ss.boundary_info.verts,
+      ss.boundary_info_cache->verts,
       initial_vert,
       radius);
 
@@ -3417,7 +3417,7 @@ std::unique_ptr<SculptBoundary> data_init_mesh(const Depsgraph &depsgraph,
                                          vert_to_face_map,
                                          hide_vert,
                                          hide_poly,
-                                         ss.boundary_info.verts,
+                                         ss.boundary_info_cache->verts,
                                          initial_vert))
   {
     return nullptr;
@@ -3436,7 +3436,7 @@ std::unique_ptr<SculptBoundary> data_init_mesh(const Depsgraph &depsgraph,
                     vert_to_face_map,
                     hide_vert,
                     hide_poly,
-                    ss.boundary_info.verts,
+                    ss.boundary_info_cache->verts,
                     positions_eval,
                     *boundary_initial_vert,
                     *boundary);
@@ -3476,8 +3476,8 @@ std::unique_ptr<SculptBoundary> data_init_grids(Object &object,
       faces,
       corner_verts,
       subdiv_ccg,
-      ss.boundary_info.verts,
-      ss.boundary_info.edges,
+      ss.boundary_info_cache->verts,
+      ss.boundary_info_cache->edges,
       initial_vert,
       radius);
 
@@ -3490,8 +3490,8 @@ std::unique_ptr<SculptBoundary> data_init_grids(Object &object,
   if (!is_vert_in_editable_boundary_grids(faces,
                                           corner_verts,
                                           subdiv_ccg,
-                                          ss.boundary_info.verts,
-                                          ss.boundary_info.edges,
+                                          ss.boundary_info_cache->verts,
+                                          ss.boundary_info_cache->edges,
                                           initial_vert))
   {
     return nullptr;
@@ -3509,8 +3509,8 @@ std::unique_ptr<SculptBoundary> data_init_grids(Object &object,
                      faces,
                      corner_verts,
                      subdiv_ccg,
-                     ss.boundary_info.verts,
-                     ss.boundary_info.edges,
+                     ss.boundary_info_cache->verts,
+                     ss.boundary_info_cache->edges,
                      boundary_vert,
                      *boundary);
 

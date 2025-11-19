@@ -333,8 +333,10 @@ struct SculptPoseIKChainPreview {
   blender::Array<blender::float3> initial_head_coords;
 };
 
-struct SculptBoundaryInfo {
-  /* Indexed by base mesh vertex index. */
+struct SculptBoundaryInfoCache {
+  /* Indexed by base mesh vertex index.
+   *
+   * TODO: Evaluate whether a BitVector or a Set works better for memory footprint and lookup. */
   blender::BitVector<> verts;
 
   blender::Set<blender::OrderedEdge> edges;
@@ -465,7 +467,11 @@ struct SculptSession : blender::NonCopyable, blender::NonMovable {
     int grid_size = -1;
   } persistent;
 
-  SculptBoundaryInfo boundary_info = {};
+  /* Contains information used by tools and brushes that require different logic based on boundary
+   * elements. Typically used for anything which needs to consider neighbor values.
+   *
+   * Not used for Dyntopo */
+  std::unique_ptr<SculptBoundaryInfoCache> boundary_info_cache;
   SculptFakeNeighbors fake_neighbors = {};
 
   /* Transform operator */
