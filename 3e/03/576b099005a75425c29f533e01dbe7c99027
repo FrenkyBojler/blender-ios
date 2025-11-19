@@ -2,3 +2,4 @@ Referenced by issue #130990, Naming of objects is not correct
 Referenced by issue #130535, Name of Object not updated in viewport when name clashes
 Referenced by issue #124452, Blender LTS: Maintenance Task 4.2
 Referenced by commit 64a43fff2015522f2bc12febb9b4193e71da6895, Fix #138652: Crash editing an ID name after undo
+Referenced by issue #150162, Library override wrongfully renames data block to resolve naming conflict
