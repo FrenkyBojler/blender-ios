@@ -24,8 +24,15 @@
 #include FT_TRUETYPE_IDS_H     /* Code-point coverage constants. */
 #include FT_TRUETYPE_TABLES_H  /* For TT_OS2 */
 
+#ifdef WITH_HARFBUZZ
+#  include <harfbuzz/hb-ft.h>
+#  include <harfbuzz/hb-ot.h>
+#  include <harfbuzz/hb.h>
+#endif
+
 #include "MEM_guardedalloc.h"
 
+#include "DNA_userdef_types.h"
 #include "DNA_vec_types.h"
 
 #include "BLI_math_bits.h"
@@ -449,6 +456,254 @@ BLI_INLINE GlyphBLF *blf_glyph_from_utf8_and_step(FontBLF *font,
 /** \name Text Drawing: GPU
  * \{ */
 
+typedef struct ShapingData {
+  /* For the entire string. */
+  size_t char_count = 0;
+  std::u32string logical_str = {};
+  std::u32string visual_str = {};
+  blender::Vector<int> positions_L2V = {};
+  blender::Vector<int> positions_V2L = {};
+  int width = 0;
+  int height = 0;
+  hb_unicode_funcs_t *hb_ufuncs = nullptr;
+  hb_buffer_t *hb_buf = nullptr;
+  struct SegmentData {
+    /* For each run of language/script/direction. */
+    size_t char_offset = 0;
+    size_t char_count = 0;
+    FontBLF *font = nullptr;
+    GlyphCacheBLF *gc = nullptr;
+    hb_script_t last_script = HB_SCRIPT_LATIN;
+    hb_script_t current_script = HB_SCRIPT_LATIN;
+    uint glyph_count = 0;
+    blender::Vector<GlyphBLF *> glyphs = {};
+    hb_glyph_info_t *hb_glyph_info = nullptr;
+    hb_glyph_position_t *glyph_pos = nullptr;
+    blender::Vector<rcti> bounds = {};
+  } segment;
+  ShapingData(const char *str, size_t len);
+  ~ShapingData();
+  bool next_segment();
+  bool process(FontBLF *def_font, GlyphCacheBLF *gc = nullptr, ResultBLF *r_info = nullptr);
+} ShapingData;
+
+ShapingData::ShapingData(const char *str, size_t len)
+{
+  this->hb_ufuncs = hb_unicode_funcs_get_default();
+  this->hb_buf = hb_buffer_create();
+  /* Include space for null terminator. */
+  this->char_count = BLI_strnlen_utf8(str, len) + 1;
+  this->logical_str.resize(this->char_count, 0);
+  this->visual_str.resize(this->char_count, 0);
+  this->positions_L2V.resize(this->char_count, 0);
+  this->positions_V2L.resize(this->char_count, 0);
+  /* Convert input string into array of 32-bit code points. */
+  BLI_str_utf8_as_utf32(this->logical_str.data(), str, this->char_count);
+  this->visual_str = this->logical_str;
+}
+
+ShapingData::~ShapingData()
+{
+  if (this->hb_buf) {
+    hb_buffer_destroy(this->hb_buf);
+  }
+}
+
+bool ShapingData::next_segment()
+{
+  this->segment.char_offset += this->segment.char_count;
+  this->segment.char_count = 0;
+  this->segment.glyph_count = 0;
+  if (this->segment.char_offset >= this->char_count - 1) {
+    return false;
+  }
+  size_t i;
+  for (i = this->segment.char_offset; i < this->char_count && this->visual_str[i]; i++) {
+    hb_script_t script = hb_unicode_script(this->hb_ufuncs, this->visual_str[i]);
+    if (script != this->segment.last_script && script != HB_SCRIPT_INHERITED &&
+        script != HB_SCRIPT_COMMON)
+    {
+      this->segment.current_script = this->segment.last_script;
+      this->segment.last_script = script;
+      if (i > 0) {
+        break;
+      }
+    }
+  }
+
+  /* End of string. */
+  if (!this->visual_str[i]) {
+    this->segment.current_script = this->segment.last_script;
+  }
+  this->segment.char_count = (i - this->segment.char_offset);
+  if (this->segment.char_count == 0) {
+    return false;
+  }
+  return true;
+}
+
+static void blf_ot_feature(std::vector<hb_feature_t> &features, hb_tag_t feature, bool enable)
+{
+  hb_feature_t f;
+  f.tag = feature;
+  f.value = enable ? 1 : 0;
+  f.start = HB_FEATURE_GLOBAL_START;
+  f.end = HB_FEATURE_GLOBAL_END;
+  features.push_back(f);
+}
+
+bool ShapingData::process(FontBLF *font, GlyphCacheBLF *gc, ResultBLF *r_info)
+{
+  if (!this->next_segment()) {
+    return false;
+  }
+  this->segment.font = font;
+  this->segment.gc = gc;
+  if (hb_buffer_get_length(this->hb_buf) != 0) {
+    hb_buffer_clear_contents(this->hb_buf);
+  }
+  hb_buffer_add_utf32(this->hb_buf,
+                      (uint32_t *)this->visual_str.data(),
+                      int(this->char_count),
+                      uint(this->segment.char_offset),
+                      int(this->segment.char_count));
+  this->segment.hb_glyph_info = hb_buffer_get_glyph_infos(this->hb_buf,
+                                                          &this->segment.glyph_count);
+  for (unsigned int i = 0; i < this->segment.glyph_count; i++) {
+    this->segment.hb_glyph_info[i].cluster = (uint32_t)(this->segment.char_offset + i);
+  }
+  hb_buffer_guess_segment_properties(this->hb_buf);
+  hb_buffer_set_script(this->hb_buf, this->segment.current_script);
+
+  hb_buffer_set_cluster_level(this->hb_buf, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
+  /* Can the current font handle this script? */
+  if (!ELEM(this->segment.current_script,
+            HB_SCRIPT_COMMON,
+            HB_SCRIPT_INHERITED,
+            HB_SCRIPT_UNKNOWN,
+            HB_SCRIPT_LATIN))
+  {
+    this->segment.font = blf_font_script_ensure(this->segment.font,
+                                                this->visual_str[this->segment.char_offset]);
+  }
+  if (!this->segment.font->hb_font) {
+    this->segment.font->hb_font = hb_ft_font_create_referenced(this->segment.font->face);
+    hb_ot_font_set_funcs(this->segment.font->hb_font);
+  }
+
+  // hb_direction_t hb_direction_from_string(const char *str, int len);
+  // hb_buffer_set_direction(this->hb_buf, HB_DIRECTION_LTR);
+  hb_buffer_guess_segment_properties(this->hb_buf);
+
+  hb_font_set_scale(this->segment.font->hb_font, int(font->size * 64.0f), int(font->size * 64.0f));
+
+  hb_feature_t userfeatures[2];
+  std::vector<hb_feature_t> features;
+
+  blf_ot_feature(features, HB_TAG('k', 'e', 'r', 'n'), U.text_render & USER_TEXT_KERNING);
+  blf_ot_feature(features, HB_TAG('z', 'e', 'r', 'o'), U.text_render & USER_TEXT_SLASHED_ZERO);
+  blf_ot_feature(features, HB_TAG('c', 'a', 'l', 't'), U.text_render & USER_TEXT_SLASHED_ZERO);
+  blf_ot_feature(
+      features, HB_TAG('d', 'l', 'i', 'g'), U.text_render & USER_TEXT_DISCRETIONARY_LIGATURES);
+  blf_ot_feature(features, HB_TAG('c', 'a', 's', 'e'), U.text_render & USER_TEXT_CASE_ALTERNATES);
+  blf_ot_feature(features, HB_TAG('t', 'n', 'u', 'm'), U.text_render & USER_TEXT_TABULAR_NUMBERS);
+
+  /* Specifically for Inter. */
+  blf_ot_feature(features, HB_TAG('s', 's', '0', '1'), U.text_render & USER_TEXT_OPEN_DIGITS);
+  blf_ot_feature(features, HB_TAG('s', 's', '0', '4'), U.text_render & USER_TEXT_DISAMBIGUATION);
+
+  hb_shape_full(
+      this->segment.font->hb_font, this->hb_buf, features.data(), int(features.size()), nullptr);
+
+  this->segment.hb_glyph_info = hb_buffer_get_glyph_infos(this->hb_buf,
+                                                          &this->segment.glyph_count);
+  this->segment.glyph_pos = hb_buffer_get_glyph_positions(this->hb_buf, nullptr);
+  bool set_mono = this->segment.font != font && font->flags & BLF_MONOSPACED &&
+                  !(this->segment.font->flags & BLF_MONOSPACED);
+  if (set_mono) {
+    this->segment.font->flags |= BLF_MONOSPACED;
+  }
+  this->segment.glyphs.resize(this->segment.glyph_count);
+  this->segment.bounds.resize(this->char_count);
+  int cwidth = std::max(gc->fixed_width, 1);
+  int pen_x = this->width * 64;
+  int max_width = pen_x;
+  this->segment.gc = (!gc || this->segment.font != font) ?
+                         blf_glyph_cache_acquire(this->segment.font) :
+                         gc;
+  for (uint i = 0; i < this->segment.glyph_count; i++) {
+    uint32_t glyph_id = this->segment.hb_glyph_info[i].codepoint;
+    char32_t codepoint = this->visual_str[this->segment.hb_glyph_info[i].cluster];
+    this->segment.glyphs[i] = blf_glyph_ensure(
+        this->segment.font, this->segment.gc, codepoint, glyph_id);
+    GlyphBLF *g = this->segment.glyphs[i];
+    rcti *bounds = &this->segment.bounds[i];
+    hb_glyph_position_t *pos = &this->segment.glyph_pos[i];
+    const int advance = ((font->flags & BLF_MONOSPACED) ?
+                             ft_pix_from_int(cwidth) * BLI_wcwidth_safe(codepoint) :
+                             pos->x_advance);
+    if (g->box_xmin == g->box_xmax) {
+      g->box_xmax = g->box_xmin + advance;
+    }
+    bounds->xmin = pen_x + g->box_xmin + pos->x_offset;
+    bounds->xmax = pen_x + g->box_xmax + pos->x_offset;
+    bounds->ymin = g->box_ymin + pos->y_offset + pos->y_offset;
+    bounds->ymax = bounds->ymin + g->box_ymax + pos->y_offset;
+#ifndef BLF_SUBPIXEL_POSITION
+    pen_x = FT_PIX_ROUND(pen_x);
+#endif
+#ifdef BLF_SUBPIXEL_AA
+    this->segment.glyphs[i] = blf_glyph_ensure_subpixel(
+        this->segment.font, this->segment.gc, g, pen_x);
+#endif
+    max_width = pen_x + std::max(pos->x_advance, g->advance_x);
+    pen_x += advance;
+    height = std::max(this->segment.glyphs[i]->pos[1], height);
+  }
+  this->width = ft_pix_to_int(max_width);
+  this->height += ft_pix_to_int(height);
+  if (set_mono) {
+    font->flags &= ~BLF_MONOSPACED;
+  }
+  if (!gc || this->segment.font != font) {
+    blf_glyph_cache_release(this->segment.font);
+  }
+  if (r_info) {
+    r_info->lines = 1;
+    r_info->width = this->width;
+  }
+  /* Is there more data still to process after this run? */
+  return (this->char_count > (this->segment.char_offset + this->segment.char_count));
+}
+
+int blf_shaping_draw(FontBLF *font,
+                     GlyphCacheBLF *gc,
+                     const char *str,
+                     const size_t str_len,
+                     struct ResultBLF *r_info,
+                     ft_pix pen_y)
+{
+  if (!str[0] || !str_len) {
+    return 0;
+  }
+  ShapingData text(str, str_len);
+  blf_batch_draw_begin(font);
+  while (text.process(font, gc, r_info)) {
+    for (uint i = 0; i < text.segment.glyph_count; i++) {
+      blf_glyph_draw(
+          text.segment.font,
+          text.segment.gc,
+          text.segment.glyphs[i],
+          ft_pix_to_int_floor(text.segment.bounds[i].xmin - text.segment.glyphs[i]->box_xmin),
+          ft_pix_to_int_floor(pen_y + text.segment.glyph_pos[i].y_offset));
+    }
+  }
+  if (!g_batch.active) {
+    blf_batch_draw();
+  }
+  return text.width;
+}
+
 static void blf_font_draw_ex(FontBLF *font,
                              GlyphCacheBLF *gc,
                              const char *str,
@@ -460,6 +715,9 @@ static void blf_font_draw_ex(FontBLF *font,
     /* Early exit, don't do any immediate-mode GPU operations. */
     return;
   }
+
+	blf_shaping_draw(font, gc, str, str_len, r_info, pen_y);
+  return;
 
   GlyphBLF *g = nullptr;
   ft_pix pen_x = 0;
@@ -1199,7 +1457,9 @@ int blf_str_offset_to_cursor(FontBLF *font,
   /* Right edge of the previous character, if available. */
   rcti prev = {0};
   if (str_offset > 0) {
-    blf_str_offset_to_glyph_bounds(font, str, str_offset - 1, &prev);
+    int offset = int(str_offset);
+    BLI_str_cursor_step_prev_utf8(str, int(str_len), &offset);
+    blf_str_offset_to_glyph_bounds(font, str, size_t(offset), &prev);
   }
 
   /* Left edge of the next character, if available. */
@@ -1654,6 +1914,10 @@ static void blf_font_fill(FontBLF *font)
   font->pos[0] = 0;
   font->pos[1] = 0;
   font->angle = 0.0f;
+
+#ifdef WITH_HARFBUZZ
+  font->hb_font = NULL;
+#endif
 
   /* Use an easily identifiable bright color (yellow)
    * so its clear when #BLF_color calls are missing. */
@@ -2123,6 +2387,12 @@ void blf_font_free(FontBLF *font)
   if (font->kerning_cache) {
     MEM_freeN(font->kerning_cache);
   }
+
+#ifdef WITH_HARFBUZZ
+  if (font->hb_font) {
+    hb_font_destroy(font->hb_font);
+  }
+#endif
 
   if (font->variations) {
     FT_Done_MM_Var(font->ft_lib, font->variations);

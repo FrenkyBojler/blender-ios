@@ -36,6 +36,16 @@ set(LIB
   ${FREETYPE_LIBRARIES} ${BROTLI_LIBRARIES}
 )
 
+if(WITH_HARFBUZZ)
+  add_definitions(-DWITH_HARFBUZZ)
+  list(APPEND INC_SYS
+    ${LIBHARFBUZZ_INCLUDE_DIRS}
+  )
+  list(APPEND LIB
+    ${LIBHARFBUZZ_LIBRARIES}
+  )
+endif()
+
 if(WIN32)
   list(APPEND SRC
     intern/blf_font_win32_compat.cc

@@ -498,7 +498,7 @@ option(WITH_HYDRA "Enable Hydra render engine" ON)
 
 # RTL Languages, Complex Shaping, OpenType Features
 option(WITH_FRIBIDI "Enable features relying on fribidi" OFF)
-option(WITH_HARFBUZZ "Enable features relying on harfbuzz" OFF)
+option(WITH_HARFBUZZ "Enable features relying on harfbuzz" ON)
 
 # 3D format support
 option(WITH_IO_WAVEFRONT_OBJ "Enable Wavefront-OBJ 3D file format support (*.obj)" ON)

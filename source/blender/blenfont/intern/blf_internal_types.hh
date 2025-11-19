@@ -25,6 +25,10 @@
 
 #include <ft2build.h>
 
+#ifdef WITH_HARFBUZZ
+#  include <harfbuzz/hb.h>
+#endif
+
 struct FontBLF;
 struct GlyphCacheBLF;
 struct GlyphBLF;
@@ -135,15 +139,15 @@ struct KerningCacheBLF {
 };
 
 struct GlyphCacheKey {
-  uint charcode;
+  uint glyph_index;
   uint8_t subpixel;
   friend bool operator==(const GlyphCacheKey &a, const GlyphCacheKey &b)
   {
-    return a.charcode == b.charcode && a.subpixel == b.subpixel;
+    return a.glyph_index == b.glyph_index && a.subpixel == b.subpixel;
   }
   uint64_t hash() const
   {
-    return blender::get_default_hash(charcode, subpixel);
+    return blender::get_default_hash(glyph_index, subpixel);
   }
 };
 
@@ -316,6 +320,11 @@ struct FontBLF {
   size_t mem_size;
   /** Handle for in-memory fonts to avoid loading them multiple times. */
   char *mem_name;
+
+#ifdef WITH_HARFBUZZ
+  /* pointer to Harfbuzz font, if needed for complex shaping. */
+  hb_font_t *hb_font;
+#endif
 
   /**
    * Copied from the SFNT OS/2 table. Bit flags for unicode blocks and ranges

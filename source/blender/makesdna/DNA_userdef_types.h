@@ -556,8 +556,7 @@ typedef struct UserDef {
   /** Flags for animation. */
   short animation_flag;
 
-  /** Options for text rendering. */
-  char text_render;
+  char _pad19[1];
   char navigation_mode;
 
   /** Turn-table rotation amount per-pixel in radians. Scaled with DPI. */
@@ -616,7 +615,9 @@ typedef struct UserDef {
   char _pad18[7];
 
   short sequencer_proxy_setup; /* eUserpref_SeqProxySetup */
-  short _pad1;
+
+  /** Options for text rendering. */
+  short text_render;
 
   float collection_instance_empty_size;
   char text_flag;
@@ -979,6 +980,14 @@ typedef enum eText_Draw_Options {
   USER_TEXT_HINTING_FULL = (1 << 3),
 
   USER_TEXT_RENDER_SUBPIXELAA = (1 << 4),
+  USER_TEXT_KERNING = (1 << 5),
+  USER_TEXT_SLASHED_ZERO = (1 << 6),
+  USER_TEXT_DISAMBIGUATION = (1 << 7),
+  USER_TEXT_OPEN_DIGITS = (1 << 8),
+  USER_TEXT_DISCRETIONARY_LIGATURES = (1 << 9),
+  USER_TEXT_TABULAR_NUMBERS = (1 << 10),
+  USER_TEXT_CONTEXTUAL_ALTERNATES = (1 << 11),
+  USER_TEXT_CASE_ALTERNATES = (1 << 12),
 } eText_Draw_Options;
 
 /**

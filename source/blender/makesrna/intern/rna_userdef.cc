@@ -5337,6 +5337,48 @@ static void rna_def_userdef_view(BlenderRNA *brna)
       prop, "Text Subpixel Anti-Aliasing", "Render text for optimal horizontal placement");
   RNA_def_property_update(prop, 0, "rna_userdef_text_update");
 
+  prop = RNA_def_property(srna, "use_text_kerning", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "text_render", USER_TEXT_KERNING);
+  RNA_def_property_ui_text(prop, "Kerning", "Use GPOS kerning table adjustments");
+  RNA_def_property_update(prop, 0, "rna_userdef_text_update");
+
+  prop = RNA_def_property(srna, "use_text_slashed_zero", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "text_render", USER_TEXT_SLASHED_ZERO);
+  RNA_def_property_ui_text(prop, "Slashed Zero", "Zero character with slash");
+  RNA_def_property_update(prop, 0, "rna_userdef_text_update");
+
+  prop = RNA_def_property(srna, "use_text_disambiguation", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "text_render", USER_TEXT_DISAMBIGUATION);
+  RNA_def_property_ui_text(
+      prop, "Disambiguation", "Alternative characters to increase visual differences");
+  RNA_def_property_update(prop, 0, "rna_userdef_text_update");
+
+  prop = RNA_def_property(srna, "use_text_open_digits", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "text_render", USER_TEXT_OPEN_DIGITS);
+  RNA_def_property_update(prop, 0, "rna_userdef_text_update");
+
+  prop = RNA_def_property(srna, "use_text_discretionary_ligatures", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "text_render", USER_TEXT_DISCRETIONARY_LIGATURES);
+  RNA_def_property_ui_text(prop, "Discretionary Ligatures", "Extra ligatures");
+  RNA_def_property_update(prop, 0, "rna_userdef_text_update");
+
+  prop = RNA_def_property(srna, "use_text_tabular_numbers", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "text_render", USER_TEXT_TABULAR_NUMBERS);
+  RNA_def_property_ui_text(prop, "Tabular Numbers", "Fixed-width numbers");
+  RNA_def_property_update(prop, 0, "rna_userdef_text_update");
+
+  prop = RNA_def_property(srna, "use_text_contextual_alternates", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "text_render", USER_TEXT_CONTEXTUAL_ALTERNATES);
+  RNA_def_property_ui_text(
+      prop, "Contextual Alternates", "Alternative characters depending on context");
+  RNA_def_property_update(prop, 0, "rna_userdef_text_update");
+
+  prop = RNA_def_property(srna, "use_text_case_alternates", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "text_render", USER_TEXT_CASE_ALTERNATES);
+  RNA_def_property_ui_text(
+      prop, "Case Alternates", "Alternative characters matching capitals and numbers");
+  RNA_def_property_update(prop, 0, "rna_userdef_text_update");
+
   prop = RNA_def_property(srna, "text_hinting", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_bitflag_sdna(prop, nullptr, "text_render");
   RNA_def_property_enum_items(prop, text_hinting_items);

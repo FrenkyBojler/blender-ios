@@ -1741,6 +1741,14 @@ void blo_do_versions_userdef(UserDef *userdef)
         userdef, "NODE_AST_compositor", "Utilities");
   }
 
+  if (!USER_VERSION_ATLEAST(501, 100)) {
+    userdef->text_render = (USER_TEXT_HINTING_SLIGHT | USER_TEXT_RENDER_SUBPIXELAA |
+                            USER_TEXT_KERNING | USER_TEXT_SLASHED_ZERO | USER_TEXT_DISAMBIGUATION |
+                            USER_TEXT_OPEN_DIGITS | USER_TEXT_DISCRETIONARY_LIGATURES |
+                            USER_TEXT_TABULAR_NUMBERS | USER_TEXT_CONTEXTUAL_ALTERNATES |
+                            USER_TEXT_CASE_ALTERNATES);
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a USER_VERSION_ATLEAST check.
