@@ -253,13 +253,12 @@ class USERPREF_PT_interface_text(InterfacePanel, CenterAlignMixIn, Panel):
         sub.active = view.use_text_antialiasing
         sub.prop(view, "use_text_render_subpixelaa", text="Subpixel Anti-Aliasing")
         flow.prop(view, "use_text_kerning", text="Kerning")
-        flow.prop(view, "use_text_slashed_zero", text="Slashed Zero")
-        flow.prop(view, "use_text_disambiguation", text="Disambiguation")
-        flow.prop(view, "use_text_open_digits", text="Open Digits")
+        flow.prop(view, "use_text_slashed_zero", text="Slashed Zero - 0")
+        flow.prop(view, "use_text_disambiguation", text="Disambiguation - Ilßβ")
+        flow.prop(view, "use_text_open_digits", text="Open Digits - 3469")
         flow.prop(view, "use_text_discretionary_ligatures", text="Discretionary Ligatures")
         flow.prop(view, "use_text_tabular_numbers", text="Tabular Numbers")
         flow.prop(view, "use_text_contextual_alternates", text="Contexual Alternates")
-        flow.prop(view, "use_text_case_alternates", text="Case Alternates")
         flow.prop(view, "text_hinting", text="Hinting")
 
 

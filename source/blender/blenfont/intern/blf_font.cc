@@ -607,7 +607,6 @@ bool ShapingData::process(FontBLF *font, GlyphCacheBLF *gc, ResultBLF *r_info)
   blf_ot_feature(
       features, HB_TAG('d', 'l', 'i', 'g'), U.text_render & USER_TEXT_DISCRETIONARY_LIGATURES);
   blf_ot_feature(features, HB_TAG('t', 'n', 'u', 'm'), U.text_render & USER_TEXT_TABULAR_NUMBERS);
-  blf_ot_feature(features, HB_TAG('c', 'a', 's', 'e'), U.text_render & USER_TEXT_CASE_ALTERNATES);
 
   /* Specifically for Inter. */
   blf_ot_feature(features, HB_TAG('s', 's', '0', '1'), U.text_render & USER_TEXT_OPEN_DIGITS);
@@ -717,7 +716,7 @@ static void blf_font_draw_ex(FontBLF *font,
     return;
   }
 
-	blf_shaping_draw(font, gc, str, str_len, r_info, pen_y);
+  blf_shaping_draw(font, gc, str, str_len, r_info, pen_y);
   return;
 
   GlyphBLF *g = nullptr;

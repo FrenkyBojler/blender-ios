@@ -987,7 +987,6 @@ typedef enum eText_Draw_Options {
   USER_TEXT_DISCRETIONARY_LIGATURES = (1 << 9),
   USER_TEXT_TABULAR_NUMBERS = (1 << 10),
   USER_TEXT_CONTEXTUAL_ALTERNATES = (1 << 11),
-  USER_TEXT_CASE_ALTERNATES = (1 << 12),
 } eText_Draw_Options;
 
 /**

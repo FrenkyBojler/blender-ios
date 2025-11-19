@@ -5373,12 +5373,6 @@ static void rna_def_userdef_view(BlenderRNA *brna)
       prop, "Contextual Alternates", "Alternative characters depending on context");
   RNA_def_property_update(prop, 0, "rna_userdef_text_update");
 
-  prop = RNA_def_property(srna, "use_text_case_alternates", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "text_render", USER_TEXT_CASE_ALTERNATES);
-  RNA_def_property_ui_text(
-      prop, "Case Alternates", "Alternative characters matching capitals and numbers");
-  RNA_def_property_update(prop, 0, "rna_userdef_text_update");
-
   prop = RNA_def_property(srna, "text_hinting", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_bitflag_sdna(prop, nullptr, "text_render");
   RNA_def_property_enum_items(prop, text_hinting_items);
