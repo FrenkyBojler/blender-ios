@@ -1235,8 +1235,11 @@ void Mesh::uv_maps_active_set(const StringRef name)
     this->active_uv_map_attribute = BLI_strdupn(name.data(), name.size());
   }
   if (BMEditMesh *em = this->runtime->edit_mesh.get()) {
-    const int index = CustomData_get_named_layer_index(&em->bm->ldata, CD_PROP_FLOAT2, name);
-    CustomData_set_layer_render_index(&em->bm->ldata, CD_PROP_FLOAT2, std::max(index, 0));
+    int index = CustomData_get_named_layer_index(&em->bm->ldata, CD_PROP_FLOAT2, name);
+    if (index == -1) {
+      index = CustomData_get_layer_index(&em->bm->ldata, CD_PROP_FLOAT2);
+    }
+    CustomData_set_layer_active_index(&em->bm->ldata, CD_PROP_FLOAT2, index);
   }
 }
 
@@ -1247,8 +1250,11 @@ void Mesh::uv_maps_default_set(const StringRef name)
     this->default_uv_map_attribute = BLI_strdupn(name.data(), name.size());
   }
   if (BMEditMesh *em = this->runtime->edit_mesh.get()) {
-    const int index = CustomData_get_named_layer_index(&em->bm->ldata, CD_PROP_FLOAT2, name);
-    CustomData_set_layer_render_index(&em->bm->ldata, CD_PROP_FLOAT2, std::max(index, 0));
+    int index = CustomData_get_named_layer_index(&em->bm->ldata, CD_PROP_FLOAT2, name);
+    if (index == -1) {
+      index = CustomData_get_layer_index(&em->bm->ldata, CD_PROP_FLOAT2);
+    }
+    CustomData_set_layer_render_index(&em->bm->ldata, CD_PROP_FLOAT2, index);
   }
 }
 

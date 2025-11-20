@@ -1753,13 +1753,19 @@ void BM_mesh_bm_to_me_compact(BMesh &bm,
 
   {
     const StringRef name = mesh.active_uv_map_name();
-    const int index = CustomData_get_named_layer_index(&bm.ldata, CD_PROP_FLOAT2, name);
-    CustomData_set_layer_active_index(&bm.ldata, CD_PROP_FLOAT2, std::max(index, 0));
+    int index = CustomData_get_named_layer_index(&bm.ldata, CD_PROP_FLOAT2, name);
+    if (index == -1) {
+      index = CustomData_get_layer_index(&bm.ldata, CD_PROP_FLOAT2);
+    }
+    CustomData_set_layer_active_index(&bm.ldata, CD_PROP_FLOAT2, index);
   }
   {
     const StringRef name = mesh.default_uv_map_name();
-    const int index = CustomData_get_named_layer_index(&bm.ldata, CD_PROP_FLOAT2, name);
-    CustomData_set_layer_render_index(&bm.ldata, CD_PROP_FLOAT2, std::max(index, 0));
+    int index = CustomData_get_named_layer_index(&bm.ldata, CD_PROP_FLOAT2, name);
+    if (index == -1) {
+      index = CustomData_get_layer_index(&bm.ldata, CD_PROP_FLOAT2);
+    }
+    CustomData_set_layer_render_index(&bm.ldata, CD_PROP_FLOAT2, index);
   }
 
   /* Add optional mesh attributes before parallel iteration. */
