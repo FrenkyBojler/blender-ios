@@ -33,15 +33,6 @@ paths:
       summary: Retrieve the asset library meta info.
       operationId: getLibraryMeta
       tags: [meta]
-      parameters:
-        - name: blender_version
-          in: query
-          description: Blender version in 'X.Y.Z' notation.
-          schema: { type: string }
-        - name: platform
-          in: query
-          description: Combination of OS and architecture, like 'linux-x64' or 'macos-arm64'
-          schema: { type: string }
       responses:
         "200":
           description: normal response
@@ -57,15 +48,6 @@ paths:
       summary: Get the asset library index.
       operationId: getLibraryIndex
       tags: [index]
-      parameters:
-        - name: blender_version
-          in: query
-          description: Blender version in 'X.Y.Z' notation.
-          schema: { type: string }
-        - name: platform
-          in: query
-          description: Combination of OS and architecture, like 'linux-x64' or 'macos-arm64'
-          schema: { type: string }
       responses:
         "200":
           description: normal response
@@ -84,14 +66,6 @@ paths:
       operationId: getLibraryIndexPage
       tags: [index]
       parameters:
-        - name: blender_version
-          in: query
-          description: Blender version in 'X.Y.Z' notation.
-          schema: { type: string }
-        - name: platform
-          in: query
-          description: Combination of OS and architecture, like 'linux-x64' or 'macos-arm64'
-          schema: { type: string }
         - name: page
           in: path
           required: true
