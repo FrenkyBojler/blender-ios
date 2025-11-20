@@ -984,6 +984,7 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
       /* Sub-layout for context override. */
       uiLayout *sub = &layout->column(false);
       set_layout_context_from_button(C, sub, view_item_but);
+      view_item_but->view_item->on_activate(*C);
       view_item_but->view_item->build_context_menu(*C, *sub);
 
       /* Reset context. */
