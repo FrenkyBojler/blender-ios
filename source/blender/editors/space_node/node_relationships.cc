@@ -2923,9 +2923,7 @@ static bool node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
 
   const float gap_left = totr_insert.xmin - prev->runtime->draw_bounds.xmax;
   const float gap_right = next->runtime->draw_bounds.xmin - totr_insert.xmax;
-  const float dist_to_fixed_side = right_alignment ? gap_left : gap_right;
-  const float dist_to_shift_side = right_alignment ? gap_right : gap_left;
-  if (dist_to_fixed_side >= min_margin && dist_to_shift_side >= min_margin) {
+  if (gap_left >= min_margin && gap_right >= min_margin) {
     return false;
   }
 
@@ -2967,8 +2965,11 @@ static bool node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
   }
 
   /* *** ensure offset at the left (or right for right_alignment case) of insert_node *** */
-  if (dist_to_fixed_side < min_margin) {
-    const float addval = (min_margin - dist_to_fixed_side) * (right_alignment ? 1.0f : -1.0f);
+
+  float dist = right_alignment ? gap_left : gap_right;
+  /* distance between insert_node and prev is smaller than min margin */
+  if (dist < min_margin) {
+    const float addval = (min_margin - dist) * (right_alignment ? 1.0f : -1.0f);
 
     node_offset_apply(insert, addval);
 
@@ -2978,8 +2979,12 @@ static bool node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
   }
 
   /* *** ensure offset at the right (or left for right_alignment case) of insert_node *** */
-  if (dist_to_shift_side < min_margin) {
-    const float addval = (min_margin - dist_to_shift_side) * (right_alignment ? 1.0f : -1.0f);
+
+  dist = right_alignment ? next->runtime->draw_bounds.xmin - totr_insert.xmax :
+                           totr_insert.xmin - prev->runtime->draw_bounds.xmax;
+  /* distance between insert_node and next is smaller than min margin */
+  if (dist < min_margin) {
+    const float addval = (min_margin - dist) * (right_alignment ? 1.0f : -1.0f);
     if (needs_alignment) {
       bNode *offs_node = right_alignment ? next : prev;
       node_offset_apply(*offs_node, addval);
