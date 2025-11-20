@@ -867,8 +867,8 @@ static void grease_pencil_edit_batch_ensure(Object &object,
       }
 
       const IndexMask selected_editable_points =
-          ed::greasepencil::retrieve_editable_and_selected_points(
-              object, info.drawing, info.layer_index, memory);
+          ed::greasepencil::retrieve_editable_and_all_selected_points(
+              object, info.drawing, info.layer_index, CURVE_HANDLE_ALL, memory);
 
       MutableSpan<float> selection_slice = edit_points_selection.slice(points);
       index_mask::masked_fill(selection_slice, 1.0f, selected_editable_points);
