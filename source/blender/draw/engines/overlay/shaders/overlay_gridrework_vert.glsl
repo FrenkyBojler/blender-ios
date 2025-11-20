@@ -51,11 +51,11 @@ LineData decode_grid_data(in uint vertex_id)
    * Every pair of consecutive lines alternates x/y, indicated by bit 1. */
   uint side = vertex_id & 0x1u;
   vertex_id = vertex_id >> 1u;
-  line.dir = vertex_id & 0x1u; /* Stored for later lookup. */
+  line.dir = vertex_id & 0x1u; /* Stored for later use. */
   vertex_id = vertex_id >> 1u;
 
-  /* The index/level of a line are encoded by the 30 remaining bits. Note that we render
-   * levels in "large" to "small" order, prioritizing z output of the larger aprts. */
+  /* The index/level of a line are encoded by the 30 remaining bits. Note that we order
+   * levels from "large" to "small", prioritizing z output of the larger levels. */
   line.level = GRID_LEVELS_DRAW - 1 - int(vertex_id / grid_buf.num_lines_per_level);
   vertex_id = vertex_id % grid_buf.num_lines_per_level;
 
@@ -83,43 +83,44 @@ void main()
 
   /* Compute the actual level of a line, offset by -1 to force a sublevel in the 3D viewport. */
   int level = int(grid_level) + line.level - (flag_test(grid_flag, PLANE_IMAGE) ? 0 : 1);
-  float scale = grid_buf.level_scales[level][line.dir];
-
-  /* Clipping; discard lines outside of the level range. */
   if (level < 0 || level >= GRID_LEVELS_TOTAL) {
     discard_line();
   }
 
-  /* Stage output: specific line level, which is used to avoid z-fighting. */
-  local_level = line.level;
-
-  /* Stage output: vertex position in [-1,1], which we use to fade level boundaries. */
-  local_coord = line.P / float(grid_buf.num_lines_per_level >> 1);
-
-  /* Stage output:  level fade in [0, 1], which we use to smoothly transition grid levels. */
-  local_alpha = (line.level + 1.0f - fract(grid_level)) / float(GRID_LEVELS_DRAW - 1);
-  local_alpha = saturate(local_alpha);
-  local_alpha = 2.0f * local_alpha - square(local_alpha); /* Slight elliptic curve. */
-  /* Modify fade based on pixel size for orthographic, as we lack proper dfdx/dfdy on lines. */
-  if (!drw_view_is_perspective()) {
-    float fade = smoothstep(scale * 0.25f, scale * pow3f(0.25f), uniform_buf.pixel_fac);
-    local_alpha *= fade;
-  }
-
   /* Scale lines appropriately based on level scaling. */
+  float scale = grid_buf.level_scales[level][line.dir];
+
+  /* Stage outputs. */
+  {
+    /* Stage output: specific line level, which is used to avoid z-fighting. */
+    local_level = line.level;    
+
+    /* Stage output: vertex position in [-1,1], which we use to fade level boundaries. */
+    local_coord = line.P / float(grid_buf.num_lines_per_level >> 1);
+
+    /* Stage output: level fade in [0, 1], which we use to smoothly transition grid levels. */
+    local_alpha = saturate(line.level + 1.0f - fract(grid_level)) / float(GRID_LEVELS_DRAW - 1);
+    local_alpha = 2.0f * local_alpha - square(local_alpha); /* Upside down parabola curve. */
+    /* Fade by pixel size for orthographic, as we lack proper dfdx/dfdy on lines. */
+    if (!drw_view_is_perspective()) {
+      local_alpha *= smoothstep(scale * 0.25f, scale * pow3f(0.25f), uniform_buf.pixel_fac);
+    }
+  }
   line.P *= scale;
 
   /* Clipping; restrict lines to a reasonable range for float precision, as (absurdly) large
    * lines can cause flickering/teleporting problems. */
   /* TODO (not_mark): fix in UV/Image editor or combine with clipping below */
-  float clip = drw_view_is_perspective() ?
-                   grid_buf.distance :
-                   (8.0f / max(drw_view().winmat[0][0], drw_view().winmat[1][1]));
-  if (all(greaterThan(abs(line.P), float2(clip)))) {
-    discard_line(); /* Both x, y lie outside the clip distance. */
-  }
-  else {
-    line.P = clamp(line.P, -clip, clip);
+  if (!flag_test(grid_flag, PLANE_IMAGE)) {
+    float clip = drw_view_is_perspective() ?
+                    grid_buf.distance :
+                    (8.0f / max(drw_view().winmat[0][0], drw_view().winmat[1][1]));
+    if (all(greaterThan(abs(line.P), float2(clip)))) {
+      discard_line(); /* Both x, y lie outside the clip distance. */
+    }
+    else {
+      line.P = clamp(line.P, -clip, clip);
+    }
   }
 
   /* Add scaled camera offset, rounded to the nearest level-dependent line position. */
@@ -133,14 +134,14 @@ void main()
   /* Clipping; if there exists an integer, s.t. with the scaling of the level *above* we can draw
    * the current line, we can discard the current line on *any* sublevel as the superlevel
    * is guaranteed to draw over it. */
-  if (!flag_test(grid_flag, PLANE_IMAGE) && line.level < GRID_LEVELS_DRAW - 1 &&
-      level < GRID_LEVELS_TOTAL - 1)
-  {
-    float nscale = grid_buf.level_scales[min(level + 1, GRID_LEVELS_TOTAL - 1)][0];
-    float offset = round(select(grid_poi.y, grid_poi.x, line.dir) / nscale) * nscale;
-    float P_diff = offset + (select(line.P.y, line.P.x, line.dir) - offset) / nscale;
-    if (abs(fract(P_diff)) < 1e-5) {
-      discard_line();
+  if (!flag_test(grid_flag, PLANE_IMAGE)) {
+    if (line.level < GRID_LEVELS_DRAW - 1 && level < GRID_LEVELS_TOTAL - 1) {
+      float nscale = grid_buf.level_scales[min(level + 1, GRID_LEVELS_TOTAL - 1)][0];
+      float offset = round(select(grid_poi.y, grid_poi.x, line.dir) / nscale) * nscale;
+      float P_diff = offset + (select(line.P.y, line.P.x, line.dir) - offset) / nscale;
+      if (abs(fract(P_diff)) < 1e-5) {
+        discard_line();
+      }
     }
   }
 
@@ -159,7 +160,7 @@ void main()
   }
   gl_Position = drw_view().winmat * (drw_view().viewmat * float4(local_pos, 1.0f));
 
-  /* Output for viewport antialiasing. */
+  /* Stage output: variables for viewport antialiasing. */
   edge_start = edge_pos = ((gl_Position.xy / gl_Position.w) * 0.5f + 0.5f) *
                           uniform_buf.size_viewport;
 }
