@@ -18,7 +18,7 @@ void MESH_OT_circularize(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "circularize";
-  ot->description = "Shpe boundary vertices into a circular form";
+  ot->description = "Shape boundary vertices into a circular form";
   ot->idname = "MESH_OT_circularize";
 
   /* API callbacks */
