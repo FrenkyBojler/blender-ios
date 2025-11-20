@@ -1078,7 +1078,7 @@ static ShaderNode *add_node(Scene *scene,
     NormalMapNode *nmap = graph->create_node<NormalMapNode>();
     nmap->set_space((NodeNormalMapSpace)b_normal_map_node.space());
     nmap->set_attribute(ustring(b_normal_map_node.uv_map()));
-    nmap->set_green_mode(b_normal_map_node.green_mode());
+    nmap->set_convention(b_normal_map_node.convention());
     node = nmap;
   }
   else if (b_node.is_a(&RNA_ShaderNodeRadialTiling)) {

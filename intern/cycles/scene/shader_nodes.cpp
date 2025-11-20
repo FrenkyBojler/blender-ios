@@ -7571,10 +7571,10 @@ NODE_DEFINE(NormalMapNode)
   space_enum.insert("blender_world", NODE_NORMAL_MAP_BLENDER_WORLD);
   SOCKET_ENUM(space, "Space", space_enum, NODE_NORMAL_MAP_TANGENT);
 
-  static NodeEnum green_mode_enum;
-  green_mode_enum.insert("opengl", 0);
-  green_mode_enum.insert("directx", 1);
-  SOCKET_ENUM(green_mode, "Green Mode", green_mode_enum, 0);
+  static NodeEnum convention_enum;
+  convention_enum.insert("opengl", 0);
+  convention_enum.insert("directx", 1);
+  SOCKET_ENUM(convention, "Convention", convention_enum, NODE_NORMAL_MAP_CONVENTION_OPENGL);
 
   SOCKET_STRING(attribute, "Attribute", ustring());
 
@@ -7636,7 +7636,7 @@ void NormalMapNode::compile(SVMCompiler &compiler)
                                            compiler.stack_assign(normal_out),
                                            space),
                     attr,
-                    attr_sign | (green_mode == 1 ? NODE_NORMAL_MAP_GREEN_DIRECTX : 0));
+                    attr_sign | (convention == 1 ? NODE_NORMAL_MAP_CONVENTION_DIRECTX : 0));
 }
 
 void NormalMapNode::compile(OSLCompiler &compiler)
@@ -7656,7 +7656,7 @@ void NormalMapNode::compile(OSLCompiler &compiler)
   }
 
   compiler.parameter(this, "space");
-  compiler.parameter(this, "green_mode");
+  compiler.parameter(this, "convention");
   compiler.add(this, "node_normal_map");
 }
 

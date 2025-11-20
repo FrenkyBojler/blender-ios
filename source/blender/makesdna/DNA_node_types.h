@@ -1683,7 +1683,7 @@ typedef struct NodeShaderTangent {
 typedef struct NodeShaderNormalMap {
   int space;
   char uv_map[/*MAX_CUSTOMDATA_LAYER_NAME_NO_PREFIX*/ 64];
-  uint8_t green_mode;
+  uint8_t convention;
   char _pad[7];
 } NodeShaderNormalMap;
 
@@ -2834,10 +2834,10 @@ enum {
   SHD_SPACE_BLENDER_WORLD = 4,
 };
 
-/* normal map. green channel mode */
+/* normal map, convention */
 enum {
-  SHD_NORMAL_MAP_GREEN_OPENGL = 0,
-  SHD_NORMAL_MAP_GREEN_DIRECTX = 1,
+  SHD_NORMAL_MAP_CONVENTION_OPENGL = 0,
+  SHD_NORMAL_MAP_CONVENTION_DIRECTX = 1,
 };
 
 enum {
