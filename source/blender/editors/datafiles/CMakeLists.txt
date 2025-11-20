@@ -612,6 +612,7 @@ if(WITH_BLENDER)
       mod_particles
       mod_particle_instance
       mod_physics
+      mod_pitch
       mod_remesh
       mod_scatter_on_surface
       mod_screw
