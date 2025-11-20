@@ -571,7 +571,7 @@ def bake_action_iter(
                 keyframes.insert_keyframes_into_existing_action(
                     lookup_fcurves, total_new_keys, channelbag)
 
-    # object
+    # object. TODO. multiple objects
     if bake_options.do_object:
         if bake_options.do_constraint_clear:
             for con in obj.constraints[:]:
