@@ -1626,9 +1626,9 @@ static bool edit_modifier_invoke_properties_with_hover(bContext *C,
 
   PointerRNA *panel_ptr = UI_region_panel_custom_data_under_cursor(C, event);
   if (panel_ptr == nullptr || RNA_pointer_is_null(panel_ptr)) {
-    /* Work around multiple operators using the same shortcut. The operators for the other
-     * stacks in the property editor use the same key, and will not run after these return
-     * OPERATOR_CANCELLED. See #149926. */
+    /* The operators using this function can typically be called from UIs that aren't related to
+     * the modifiers UI at all. So include #OPERATOR_PASS_THROUGH to not block events from reaching
+     * other operators/handlers. See #149926. */
     *r_retval = (OPERATOR_PASS_THROUGH | OPERATOR_CANCELLED);
     return false;
   }
