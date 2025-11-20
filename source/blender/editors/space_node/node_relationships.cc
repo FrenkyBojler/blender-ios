@@ -3082,7 +3082,7 @@ static wmOperatorStatus node_insert_offset_invoke(bContext *C,
 
   iofsd->ntree = snode->edittree;
 
-  bool offset_applied = node_link_insert_offset_ntree(
+  const bool offset_applied = node_link_insert_offset_ntree(
       iofsd, CTX_wm_region(C), event->mval, (snode->insert_ofs_dir == SNODE_INSERTOFS_DIR_RIGHT));
   if (!offset_applied) {
     MEM_freeN(iofsd);
