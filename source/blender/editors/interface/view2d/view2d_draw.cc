@@ -102,13 +102,14 @@ static int calculate_grid_step(const int base, const float pixel_width, const fl
     }
   }
   else {
-    /* Grow the distance, doubling every time. */
+    /* Grow the distance, alternating *2 or *5 to ensure multiples of 10 are hit. */
+    const float scale_steps[] = {2.0f, 2.5f};
+    int scale_i = 0;
     while (pixels_per_view_unit * distance < MIN_MAJOR_LINE_DISTANCE) {
-      if (distance > base * 10){
-        distance *= 2;
-      }
-      else{
-        distance *= 5;
+      distance *= scale_steps[scale_i];
+      scale_i++;
+      if (scale_i == 2) {
+        scale_i = 0;
       }
     }
   }
