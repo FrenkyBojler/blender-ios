@@ -30,12 +30,22 @@ def dict2nodes(node_tree_dict: dict, node_tree: bpy.types.NodeTree):
 
 debug = False
 if debug:
+    # import json
+    # with open("/home/habib/blender-git/files/nodes-json/save.json", "r") as f:
+    #     node_tree_dict = json.load(f)
+
+
+    # print("\n\n######## NEW RUN ########")
+    # node_tree = bpy.data.node_groups["Load tree"]
+    # node_tree.nodes.clear()
+    # dict2nodes(node_tree_dict["node_tree"], node_tree)
+
     import json
-    with open("/home/habib/blender-git/files/nodes-json/save.json", "r") as f:
-        node_tree_dict = json.load(f)
-
-
-    print("\n\n######## NEW RUN ########")
+    node_tree_dict = {}
     node_tree = bpy.data.node_groups["Load tree"]
-    node_tree.nodes.clear()
+
+    import subprocess
+    data = subprocess.check_output(["wl-paste"], text=True)
+
+    node_tree_dict = json.loads(data)
     dict2nodes(node_tree_dict["node_tree"], node_tree)

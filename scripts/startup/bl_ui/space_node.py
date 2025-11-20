@@ -429,10 +429,13 @@ class NODE_MT_node(Menu):
         layout.operator("transform.resize")
 
         layout.separator()
-        layout.operator("node.clipboard_copy", text="Copy", icon='COPYDOWN')
-        layout.operator_context = 'EXEC_DEFAULT'
-        layout.operator("node.clipboard_paste", text="Paste", icon='PASTEDOWN')
-        layout.operator_context = 'INVOKE_REGION_WIN'
+        # layout.operator("node.clipboard_copy", text="Copy", icon='COPYDOWN')
+        # layout.operator_context = 'EXEC_DEFAULT'
+        # layout.operator("node.clipboard_paste", text="Paste", icon='PASTEDOWN')
+        # layout.operator_context = 'INVOKE_REGION_WIN'
+        layout.operator("node.json_copy", text="Copy", icon='COPYDOWN')
+        layout.operator("node.json_paste", text="Paste", icon='PASTEDOWN')
+        # todo(habib): verify operator_context
         props = layout.operator("node.duplicate_move", icon='DUPLICATE')
         props.NODE_OT_translate_attach.TRANSFORM_OT_translate.view2d_edge_pan = True
         props = layout.operator("node.duplicate_move_linked")

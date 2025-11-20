@@ -44,17 +44,26 @@ def nodes2dict(node_tree: bpy.types.NodeTree, current_map: dict):
 
 debug = False
 if debug:
+    # import json
+    # print("\n\n###### NEW RUN ########")
+    # node_tree = bpy.data.node_groups["Compositor Nodes"]
+    # ntree_dict = {}
+    # nodes2dict(node_tree, ntree_dict)
+    # print("\n")
+    # import pprint
+    # pprint.pprint(ntree_dict)
+
+    # json_write = json.dumps(ntree_dict)
+    # with open("/home/habib/blender-git/files/nodes-json/save.json", "w") as f:
+    # #with open("/Users/habib/blender-git/files/json_io/save.json", "w") as f:
+    #     json.dump(ntree_dict, f, indent=2)
+
     import json
-    print("\n\n###### NEW RUN ########")
     node_tree = bpy.data.node_groups["Compositor Nodes"]
-    ntree_dict = {}
-    nodes2dict(node_tree, ntree_dict)
-    print("\n")
-    import pprint
-    pprint.pprint(ntree_dict)
+    node_tree_dict = {}
+    nodes2dict(node_tree, node_tree_dict)
 
-    json_write = json.dumps(ntree_dict)
-    with open("/home/habib/blender-git/files/nodes-json/save.json", "w") as f:
-    #with open("/Users/habib/blender-git/files/json_io/save.json", "w") as f:
-        json.dump(ntree_dict, f, indent=2)
-
+    data = json.dumps(node_tree_dict, indent=2)
+    # todo(habib): support every OS, use pyperclip maybe?
+    import subprocess
+    subprocess.run(["wl-copy"], input=data, text=True)
