@@ -1168,36 +1168,20 @@ openvdb::GridBase::Ptr BKE_volume_grid_create_with_changed_resolution(
   return BKE_volume_grid_type_operation(grid_type, op);
 }
 
-bool BKE_volume_add_new_empty_grid(Volume *volume, const char *grid_name, VolumeGridType grid_type)
+bool BKE_volume_grid_add_new(Volume *volume, const char *grid_name, VolumeGridType grid_type)
 {
-  if (!volume) {
-    return false;
-  }
-
   openvdb::GridBase::Ptr new_grid = BKE_volume_grid_type_operation(grid_type, CreateGridOp{});
 
   if (!new_grid) {
     return false;
   }
 
-  new_grid->setName(grid_name);
-
   return BKE_volume_grid_add_vdb(*volume, grid_name, std::move(new_grid)) != nullptr;
 }
 
 void BKE_volume_clear_all_grids(Volume *volume)
 {
-  if (!volume) {
-    return;
-  }
-
-  int num_grids = BKE_volume_num_grids(volume);
-  for (int i = num_grids - 1; i >= 0; i--) {
-    const blender::bke::VolumeGridData *grid = BKE_volume_grid_get(volume, i);
-    if (grid) {
-      BKE_volume_grid_remove(volume, grid);
-    }
-  }
+  volume->runtime->grids->clear();
 }
 
 #endif

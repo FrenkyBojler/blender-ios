@@ -258,37 +258,82 @@ static bool rna_Volume_save(Volume *volume, Main *bmain, ReportList *reports, co
   return BKE_volume_save(volume, bmain, reports, filepath);
 }
 
-static bool rna_Volume_create_empty_grid(Volume *volume, const char *grid_name, int grid_type_int)
+static void rna_VolumeGrids_new(Volume *volume,
+                                ReportList *reports,
+                                const char *grid_name,
+                                int grid_type_int)
 {
-  if (!volume || !grid_name || !grid_name[0]) {
-    WM_global_reportf(RPT_ERROR, "Could not create empty grid - invalid parameters");
-    return false;
+#  ifdef WITH_OPENVDB
+  if (!grid_name || !grid_name[0]) {
+    BKE_report(reports, RPT_ERROR, "Name can not be an empty string");
+    return;
   }
 
   VolumeGridType grid_type = static_cast<VolumeGridType>(grid_type_int);
-  bool success = BKE_volume_add_new_empty_grid(volume, grid_name, grid_type);
+  bool success = BKE_volume_grid_add_new(volume, grid_name, grid_type);
   if (!success) {
-    WM_global_reportf(RPT_ERROR, "Could not create empty grid");
-    return false;
+    BKE_report(reports, RPT_ERROR, "Failed to allocate volume grid");
+    return;
   }
 
   DEG_id_tag_update(&volume->id, ID_RECALC_SYNC_TO_EVAL);
   WM_main_add_notifier(NC_GEOM | ND_DATA, volume);
-
-  return success;
+#  else
+  UNUSED_VARS(volume, reports, grid_name, grid_type_int);
+  BKE_report(reports, RPT_ERROR, "OpenVDB support not available");
+#  endif
 }
 
-static void rna_Volume_clear_all_grids(Volume *volume)
+static void rna_VolumeGrids_remove(Volume *volume,
+                                   ReportList *reports,
+                                   const char *grid_name,
+                                   int grid_index)
 {
-  if (!volume) {
-    WM_global_reportf(RPT_ERROR, "Could not remove grids from volume - invalid volume");
+#  ifdef WITH_OPENVDB
+  if (!grid_name && grid_index < 0) {
+    BKE_report(reports, RPT_ERROR, "Either name or index must be provided");
     return;
   }
 
+  const blender::bke::VolumeGridData *grid = nullptr;
+
+  if (grid_name && grid_name[0]) {
+    grid = BKE_volume_grid_find(volume, grid_name);
+    if (!grid) {
+      BKE_report(reports, RPT_ERROR, "Grid not found");
+      return;
+    }
+  }
+  else if (grid_index >= 0) {
+    const int num_grids = BKE_volume_num_grids(volume);
+    if (grid_index >= num_grids) {
+      BKE_report(reports, RPT_ERROR, "Grid index out of range");
+      return;
+    }
+    grid = BKE_volume_grid_get(volume, grid_index);
+  }
+
+  if (grid) {
+    BKE_volume_grid_remove(volume, grid);
+    DEG_id_tag_update(&volume->id, ID_RECALC_SYNC_TO_EVAL);
+    WM_main_add_notifier(NC_GEOM | ND_DATA, volume);
+  }
+#  else
+  UNUSED_VARS(volume, reports, grid_name, grid_index);
+  BKE_report(reports, RPT_ERROR, "OpenVDB support not available");
+#  endif
+}
+
+static void rna_VolumeGrids_clear(Volume *volume)
+{
+#  ifdef WITH_OPENVDB
   BKE_volume_clear_all_grids(volume);
 
   DEG_id_tag_update(&volume->id, ID_RECALC_SYNC_TO_EVAL);
   WM_main_add_notifier(NC_GEOM | ND_DATA, volume);
+#  else
+  UNUSED_VARS(volume);
+#  endif
 }
 
 #else
@@ -421,9 +466,9 @@ static void rna_def_volume_grids(BlenderRNA *brna, PropertyRNA *cprop)
   parm = RNA_def_boolean(func, "success", false, "", "True if grid list was successfully loaded");
   RNA_def_function_return(func, parm);
 
-  func = RNA_def_function(srna, "new", "rna_Volume_create_empty_grid");
-  RNA_def_function_ui_description(func,
-                                  "Create an empty grid that can be populated with custom data");
+  func = RNA_def_function(srna, "new", "rna_VolumeGrids_new");
+  RNA_def_function_ui_description(func, "Create an empty grid of the provided type");
+  RNA_def_function_flag(func, FUNC_USE_REPORTS);
   parm = RNA_def_string(func, "grid_name", nullptr, 0, "Grid Name", "Name for the new grid");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_enum(func,
@@ -433,11 +478,16 @@ static void rna_def_volume_grids(BlenderRNA *brna, PropertyRNA *cprop)
                       "Grid Type",
                       "Type of volume grid to create");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-  parm = RNA_def_boolean(func, "success", false, "", "True if grid was successfully created");
-  RNA_def_function_return(func, parm);
 
-  func = RNA_def_function(srna, "clear", "rna_Volume_clear_all_grids");
+  func = RNA_def_function(srna, "clear", "rna_VolumeGrids_clear");
   RNA_def_function_ui_description(func, "Clear all grids from the volume");
+
+  func = RNA_def_function(srna, "remove", "rna_VolumeGrids_remove");
+  RNA_def_function_ui_description(func, "Remove a grid by name or index");
+  RNA_def_function_flag(func, FUNC_USE_REPORTS);
+  parm = RNA_def_string(func, "name", nullptr, 0, "Grid Name", "Name of the grid to remove");
+  parm = RNA_def_int(
+      func, "index", -1, -1, INT_MAX, "Grid Index", "Index of the grid to remove", -1, INT_MAX);
 }
 
 static void rna_def_volume_display(BlenderRNA *brna)

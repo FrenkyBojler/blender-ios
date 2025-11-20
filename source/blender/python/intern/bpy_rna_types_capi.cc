@@ -19,6 +19,8 @@
 
 #include "BLI_utildefines.h"
 
+#include "BKE_volume_grid.hh"
+
 #include "bpy_library.hh"
 #include "bpy_rna.hh"
 #include "bpy_rna_callback.hh"
@@ -209,31 +211,58 @@ static PyGetSetDef pyrna_windowmanager_getset[] = {
 PyDoc_STRVAR(
     /* Wrap. */
     pyrna_VolumeGrid_openvdb_grid_pointer_doc,
-    "Direct pointer to the OpenVDB grid for external processing.\n"
+    "Direct pointer to the OpenVDB grid for external C++ processing.\n"
+    "This creates a copy if the grid is shared. Use openvdb_grid_pointer_readonly for exporters.\n"
+    "\n"
+    "Once accessed, the grid is marked as used externally, which prevents automatic unloading\n"
+    "to avoid use-after-free crashes. Memory is cleaned up when the volume is deleted, when\n"
+    "grids are cleared, or when individual grids are removed.\n"
+    "\n"
+    ":type: object\n");
+
+PyDoc_STRVAR(
+    /* Wrap. */
+    pyrna_VolumeGrid_openvdb_grid_pointer_readonly_doc,
+    "Read-only pointer to the OpenVDB grid for external C++ processing.\n"
+    "This is more efficient for exporters as it doesn't create unnecessary copies.\n"
+    "\n"
+    "Once accessed, the grid is marked as used externally, which prevents automatic unloading\n"
+    "to avoid use-after-free crashes. Memory is cleaned up when the volume is deleted, when\n"
+    "grids are cleared, or when individual grids are removed.\n"
     "\n"
     ":type: object\n");
 
 #ifdef WITH_OPENVDB
-
-#  include "BKE_volume_grid.hh"
 
 static PyObject *pyrna_VolumeGrid_openvdb_grid_pointer_get(PyObject *self, void * /*flag*/)
 {
   BPy_StructRNA *pyrna = (BPy_StructRNA *)self;
   auto *grid = static_cast<blender::bke::VolumeGridData *>(pyrna->ptr->data);
 
-  try {
-    blender::bke::VolumeTreeAccessToken token;
-    auto grid_ptr = grid->grid_ptr_for_write(token);
-    return PyLong_FromVoidPtr(grid_ptr.get());
-  }
-  catch (...) {
-    PyErr_SetString(PyExc_RuntimeError, "Failed to get OpenVDB grid pointer");
-    return nullptr;
-  }
+  blender::bke::VolumeTreeAccessToken token;
+  auto grid_ptr = grid->grid_ptr_for_write(token);
+  return PyLong_FromVoidPtr(grid_ptr.get());
+}
+
+static PyObject *pyrna_VolumeGrid_openvdb_grid_pointer_readonly_get(PyObject *self,
+                                                                    void * /*flag*/)
+{
+  BPy_StructRNA *pyrna = (BPy_StructRNA *)self;
+  const auto *grid = static_cast<const blender::bke::VolumeGridData *>(pyrna->ptr->data);
+
+  blender::bke::VolumeTreeAccessToken token;
+  auto grid_ptr = grid->grid_ptr(token);
+  return PyLong_FromVoidPtr(const_cast<void *>(static_cast<const void *>(grid_ptr.get())));
 }
 #else
 static PyObject *pyrna_VolumeGrid_openvdb_grid_pointer_get(PyObject * /*self*/, void * /*flag*/)
+{
+  PyErr_SetString(PyExc_NotImplementedError, "OpenVDB support not available");
+  return nullptr;
+}
+
+static PyObject *pyrna_VolumeGrid_openvdb_grid_pointer_readonly_get(PyObject * /*self*/,
+                                                                    void * /*flag*/)
 {
   PyErr_SetString(PyExc_NotImplementedError, "OpenVDB support not available");
   return nullptr;
@@ -245,6 +274,11 @@ static PyGetSetDef pyrna_volumegrid_getset[] = {
      pyrna_VolumeGrid_openvdb_grid_pointer_get,
      nullptr,
      pyrna_VolumeGrid_openvdb_grid_pointer_doc,
+     nullptr},
+    {"openvdb_grid_pointer_readonly",
+     pyrna_VolumeGrid_openvdb_grid_pointer_readonly_get,
+     nullptr,
+     pyrna_VolumeGrid_openvdb_grid_pointer_readonly_doc,
      nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr} /* Sentinel */
 };

@@ -134,7 +134,7 @@ bool BKE_volume_save(const Volume *volume,
 
 void BKE_volume_count_memory(const Volume &volume, blender::MemoryCounter &memory);
 
-bool BKE_volume_add_new_empty_grid(Volume *volume, const char *grid_name, VolumeGridType type);
+bool BKE_volume_grid_add_new(Volume *volume, const char *grid_name, VolumeGridType type);
 
 void BKE_volume_clear_all_grids(Volume *volume);
 
