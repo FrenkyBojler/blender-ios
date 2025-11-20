@@ -326,7 +326,7 @@ static void print_matrix(const blender::float3x3 &mat)
   CLOG_INFO(&LOG, "Conditional Value: %.15f", conditional_value(mat));
 }
 
-#define DEBUG_STATS 1
+#define DEBUG_STATS 0
 
 static void multires_level_object_delta_to_tangent_delta(
     blender::Span<blender::float3x3> tmat_storage,
