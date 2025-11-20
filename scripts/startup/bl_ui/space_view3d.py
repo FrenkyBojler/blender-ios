@@ -1287,6 +1287,7 @@ class VIEW3D_MT_transform(VIEW3D_MT_transform_base, Menu):
         # generic...
         layout = self.layout
         if context.mode == 'EDIT_MESH':
+            layout.operator("mesh.circularize", text="Circularize")
             layout.operator("transform.shrink_fatten", text="Shrink/Fatten")
             layout.operator("transform.skin_resize")
         elif context.mode in {'EDIT_CURVE', 'EDIT_GREASE_PENCIL', 'EDIT_CURVES', 'EDIT_POINTCLOUD'}:
@@ -4538,6 +4539,7 @@ class VIEW3D_MT_edit_mesh_context_menu(Menu):
             # Additive Operators
             col.operator("mesh.subdivide", text="Subdivide")
 
+            col.operator("mesh.circularize", text="Circularize")
             col.separator()
 
             col.operator("mesh.extrude_vertices_move", text="Extrude Vertices")
@@ -4568,7 +4570,6 @@ class VIEW3D_MT_edit_mesh_context_menu(Menu):
             col.menu("VIEW3D_MT_snap", text="Snap Vertices")
 
             col.separator()
-            col.menu("VIEW3D_MT_edit_mesh_looptools")
 
             col.separator()
 
@@ -4591,6 +4592,7 @@ class VIEW3D_MT_edit_mesh_context_menu(Menu):
 
             # Additive Operators
             col.operator("mesh.subdivide", text="Subdivide")
+            col.operator("mesh.circularize", text="Circularize")
 
             col.separator()
 
@@ -4615,7 +4617,6 @@ class VIEW3D_MT_edit_mesh_context_menu(Menu):
             col.operator("mesh.bisect")
 
             col.separator()
-            col.menu("VIEW3D_MT_edit_mesh_looptools")
 
             col.separator()
 
@@ -4664,6 +4665,7 @@ class VIEW3D_MT_edit_mesh_context_menu(Menu):
 
             # Additive Operators
             col.operator("mesh.subdivide", text="Subdivide")
+            col.operator("mesh.circularize", text="Circularize")
 
             col.separator()
 
@@ -4675,7 +4677,6 @@ class VIEW3D_MT_edit_mesh_context_menu(Menu):
             col.operator("mesh.poke")
 
             col.separator()
-            col.menu("VIEW3D_MT_edit_mesh_looptools")
 
             if selected_faces_len >= 2:
                 col.operator("mesh.bridge_edge_loops", text="Bridge Faces")
@@ -4751,14 +4752,6 @@ class VIEW3D_MT_edit_mesh_extrude(Menu):
         layout.template_node_operator_asset_menu_items(catalog_path="Mesh/Extrude")
 
 
-class VIEW3D_MT_edit_mesh_looptools(Menu):
-    bl_label = "LoopTools"
-
-    def draw(self, _context):
-        layout = self.layout
-        layout.operator("mesh.circularize")
-
-
 class VIEW3D_MT_edit_mesh_vertices(Menu):
     bl_label = "Vertex"
 
@@ -4802,8 +4795,6 @@ class VIEW3D_MT_edit_mesh_vertices(Menu):
         layout.operator("mesh.shape_propagate_to_all", text="Propagate to Shapes")
 
         layout.separator()
-
-        layout.menu("VIEW3D_MT_edit_mesh_looptools")
 
         layout.menu("VIEW3D_MT_vertex_group")
         layout.menu("VIEW3D_MT_hook")
@@ -4871,7 +4862,6 @@ class VIEW3D_MT_edit_mesh_edges(Menu):
         layout.operator("mesh.set_sharpness_by_angle")
 
         layout.separator()
-        layout.menu("VIEW3D_MT_edit_mesh_looptools")
 
         if with_freestyle:
             layout.separator()
@@ -4954,7 +4944,6 @@ class VIEW3D_MT_edit_mesh_faces(Menu):
         layout.operator("mesh.faces_shade_smooth")
         layout.operator("mesh.faces_shade_flat")
 
-        layout.menu("VIEW3D_MT_edit_mesh_looptools")
         layout.separator()
 
         layout.separator()
@@ -9285,7 +9274,6 @@ classes = (
     VIEW3D_MT_edit_mesh_select_mode,
     VIEW3D_MT_edit_mesh_select_linked,
     VIEW3D_MT_edit_mesh_select_loops,
-    VIEW3D_MT_edit_mesh_looptools,
     VIEW3D_MT_edit_mesh_extrude,
     VIEW3D_MT_edit_mesh_vertices,
     VIEW3D_MT_edit_mesh_edges,
