@@ -1,2 +1,3 @@
 Referenced by issue #137207, Compositor: File Output node: create input sockets automatically
 Referenced by issue #148805, Can't specify subfolder for file outputs using slash '\' in File Output node
+Referenced by issue #150274, Cant specify subfolders in file output node in 5.0 anymore - slashes get autocorrected to underscores!
