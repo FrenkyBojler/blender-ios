@@ -23,20 +23,21 @@ static EnumPropertyItem mode_items[] = {
     {GEO_NODE_CURVE_RESAMPLE_EVALUATED,
      "EVALUATED",
      0,
-     "Evaluated",
-     "Output the input spline's evaluated points, based on the resolution attribute for NURBS "
-     "and Bézier splines. Poly splines are unchanged"},
+     N_("Evaluated"),
+     N_("Output the input spline's evaluated points, based on the resolution attribute for NURBS "
+        "and Bézier splines. Poly splines are unchanged")},
     {GEO_NODE_CURVE_RESAMPLE_COUNT,
      "COUNT",
      0,
-     "Count",
-     "Sample the specified number of points along each spline"},
+     N_("Count"),
+     N_("Sample the specified number of points along each spline")},
     {GEO_NODE_CURVE_RESAMPLE_LENGTH,
      "LENGTH",
      0,
-     "Length",
-     "Calculate the number of samples by splitting each spline into segments with the specified "
-     "length"},
+     N_("Length"),
+     N_("Calculate the number of samples by splitting each spline into segments with the "
+        "specified "
+        "length")},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -103,7 +104,7 @@ static void node_geo_exec(GeoNodeExecParams params)
           bke::curves_copy_parameters(*src_curves_id, *dst_curves_id);
           geometry.replace_curves(dst_curves_id);
         }
-        if (GreasePencil *grease_pencil = geometry_set.get_grease_pencil_for_write()) {
+        if (GreasePencil *grease_pencil = geometry.get_grease_pencil_for_write()) {
           using namespace blender::bke::greasepencil;
           for (const int layer_index : grease_pencil->layers().index_range()) {
             Drawing *drawing = grease_pencil->get_eval_drawing(grease_pencil->layer(layer_index));
@@ -135,7 +136,7 @@ static void node_geo_exec(GeoNodeExecParams params)
           bke::curves_copy_parameters(*src_curves_id, *dst_curves_id);
           geometry.replace_curves(dst_curves_id);
         }
-        if (GreasePencil *grease_pencil = geometry_set.get_grease_pencil_for_write()) {
+        if (GreasePencil *grease_pencil = geometry.get_grease_pencil_for_write()) {
           using namespace blender::bke::greasepencil;
           for (const int layer_index : grease_pencil->layers().index_range()) {
             Drawing *drawing = grease_pencil->get_eval_drawing(grease_pencil->layer(layer_index));
@@ -165,7 +166,7 @@ static void node_geo_exec(GeoNodeExecParams params)
           bke::curves_copy_parameters(*src_curves_id, *dst_curves_id);
           geometry.replace_curves(dst_curves_id);
         }
-        if (GreasePencil *grease_pencil = geometry_set.get_grease_pencil_for_write()) {
+        if (GreasePencil *grease_pencil = geometry.get_grease_pencil_for_write()) {
           using namespace blender::bke::greasepencil;
           for (const int layer_index : grease_pencil->layers().index_range()) {
             Drawing *drawing = grease_pencil->get_eval_drawing(grease_pencil->layer(layer_index));

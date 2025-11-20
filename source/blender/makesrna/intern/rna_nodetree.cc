@@ -286,36 +286,6 @@ const EnumPropertyItem rna_enum_node_boolean_math_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-const EnumPropertyItem rna_enum_node_float_compare_items[] = {
-    {NODE_COMPARE_LESS_THAN,
-     "LESS_THAN",
-     0,
-     "Less Than",
-     "True when the first input is smaller than second input"},
-    {NODE_COMPARE_LESS_EQUAL,
-     "LESS_EQUAL",
-     0,
-     "Less Than or Equal",
-     "True when the first input is smaller than the second input or equal"},
-    {NODE_COMPARE_GREATER_THAN,
-     "GREATER_THAN",
-     0,
-     "Greater Than",
-     "True when the first input is greater than the second input"},
-    {NODE_COMPARE_GREATER_EQUAL,
-     "GREATER_EQUAL",
-     0,
-     "Greater Than or Equal",
-     "True when the first input is greater than the second input or equal"},
-    {NODE_COMPARE_EQUAL, "EQUAL", 0, "Equal", "True when both inputs are approximately equal"},
-    {NODE_COMPARE_NOT_EQUAL,
-     "NOT_EQUAL",
-     0,
-     "Not Equal",
-     "True when both inputs are not approximately equal"},
-    {0, nullptr, 0, nullptr, nullptr},
-};
-
 const EnumPropertyItem rna_enum_node_integer_math_items[] = {
     RNA_ENUM_ITEM_HEADING(CTX_N_(BLT_I18NCONTEXT_ID_NODETREE, "Functions"), nullptr),
     {NODE_INTEGER_MATH_ADD, "ADD", 0, "Add", "A + B"},
@@ -562,30 +532,38 @@ const EnumPropertyItem rna_enum_node_compositor_extension_items[] = {
     {CMP_NODE_EXTENSION_MODE_CLIP,
      "CLIP",
      0,
-     "Clip",
-     "Areas outside of the image are filled with zero"},
+     N_("Clip"),
+     N_("Areas outside of the image are filled with zero")},
     {CMP_NODE_EXTENSION_MODE_EXTEND,
      "EXTEND",
      0,
-     "Extend",
-     "Areas outside of the image are filled with the closest boundary pixel in the image"},
+     N_("Extend"),
+     N_("Areas outside of the image are filled with the closest boundary pixel in the image")},
     {CMP_NODE_EXTENSION_MODE_REPEAT,
      "REPEAT",
      0,
-     "Repeat",
-     "Areas outside of the image are filled with repetitions of the image"},
+     N_("Repeat"),
+     N_("Areas outside of the image are filled with repetitions of the image")},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
 const EnumPropertyItem rna_enum_node_compositor_interpolation_items[] = {
-    {CMP_NODE_INTERPOLATION_NEAREST, "NEAREST", 0, "Nearest", "Use Nearest interpolation"},
-    {CMP_NODE_INTERPOLATION_BILINEAR, "BILINEAR", 0, "Bilinear", "Use Bilinear interpolation"},
-    {CMP_NODE_INTERPOLATION_BICUBIC, "BICUBIC", 0, "Bicubic", "Use Cubic B-Spline interpolation"},
+    {CMP_NODE_INTERPOLATION_NEAREST, "NEAREST", 0, N_("Nearest"), N_("Use Nearest interpolation")},
+    {CMP_NODE_INTERPOLATION_BILINEAR,
+     "BILINEAR",
+     0,
+     N_("Bilinear"),
+     N_("Use Bilinear interpolation")},
+    {CMP_NODE_INTERPOLATION_BICUBIC,
+     "BICUBIC",
+     0,
+     N_("Bicubic"),
+     N_("Use Cubic B-Spline interpolation")},
     {CMP_NODE_INTERPOLATION_ANISOTROPIC,
      "ANISOTROPIC",
      0,
-     "Anisotropic",
-     "Use Anisotropic interpolation"},
+     N_("Anisotropic"),
+     N_("Use Anisotropic interpolation")},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -1623,9 +1601,8 @@ static void rna_NodeTree_debug_lazy_function_graph(bNodeTree *tree,
     /* The graph is only stored on the evaluated data. */
     Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
     tree = DEG_get_evaluated(depsgraph, tree);
-  }
-  std::lock_guard lock{tree->runtime->geometry_nodes_lazy_function_graph_info_mutex};
-  if (!tree->runtime->geometry_nodes_lazy_function_graph_info) {
+  };
+  if (tree->runtime->geometry_nodes_lazy_function_graph_info_mutex.is_dirty()) {
     return;
   }
   std::string dot_str = tree->runtime->geometry_nodes_lazy_function_graph_info->graph.to_dot();
@@ -1644,8 +1621,7 @@ static void rna_NodeTree_debug_zone_body_lazy_function_graph(
     Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
     tree = DEG_get_evaluated(depsgraph, tree);
   }
-  std::lock_guard lock{tree->runtime->geometry_nodes_lazy_function_graph_info_mutex};
-  if (!tree->runtime->geometry_nodes_lazy_function_graph_info) {
+  if (tree->runtime->geometry_nodes_lazy_function_graph_info_mutex.is_dirty()) {
     return;
   }
   const auto *graph = tree->runtime->geometry_nodes_lazy_function_graph_info
@@ -2617,6 +2593,14 @@ static void rna_Node_select_set(PointerRNA *ptr, bool value)
 {
   bNode *node = ptr->data_as<bNode>();
   blender::bke::node_set_selected(*node, value);
+}
+
+static void rna_Node_mute_set(PointerRNA *ptr, bool value)
+{
+  bNode *node = ptr->data_as<bNode>();
+  if (!node->typeinfo->no_muting) {
+    SET_FLAG_FROM_TEST(node->flag, value, NODE_MUTED);
+  }
 }
 
 static void rna_Node_name_set(PointerRNA *ptr, const char *value)
@@ -3900,7 +3884,8 @@ static void rna_ShaderNodeTexIES_mode_set(PointerRNA *ptr, int value)
 
       if (value == NODE_IES_EXTERNAL && text->filepath) {
         STRNCPY(nss->filepath, text->filepath);
-        BLI_path_rel(nss->filepath, BKE_main_blendfile_path_from_global());
+        BLI_path_abs(nss->filepath, ID_BLEND_PATH_FROM_GLOBAL(&text->id));
+        BLI_path_rel(nss->filepath, ID_BLEND_PATH_FROM_GLOBAL(ptr->owner_id));
       }
 
       id_us_min(node->id);
@@ -3925,7 +3910,8 @@ static void rna_ShaderNodeScript_mode_set(PointerRNA *ptr, int value)
 
       if (value == NODE_SCRIPT_EXTERNAL && text->filepath) {
         STRNCPY(nss->filepath, text->filepath);
-        BLI_path_rel(nss->filepath, BKE_main_blendfile_path_from_global());
+        BLI_path_abs(nss->filepath, ID_BLEND_PATH_FROM_GLOBAL(&text->id));
+        BLI_path_rel(nss->filepath, ID_BLEND_PATH_FROM_GLOBAL(ptr->owner_id));
       }
 
       id_us_min(node->id);
@@ -5048,7 +5034,7 @@ static void def_sh_tex_sky(BlenderRNA *brna, StructRNA *srna)
 
   prop = RNA_def_property(srna, "sun_elevation", PROP_FLOAT, PROP_ANGLE);
   RNA_def_property_ui_text(prop, "Sun Elevation", "Sun angle from horizon");
-  RNA_def_property_float_default(prop, M_PI_2);
+  RNA_def_property_float_default(prop, DEG2RADF(15.0f));
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   prop = RNA_def_property(srna, "sun_rotation", PROP_FLOAT, PROP_ANGLE);
@@ -6151,31 +6137,12 @@ static void def_sh_output_aov(BlenderRNA * /*brna*/, StructRNA *srna)
 
 static void def_sh_combsep_color(BlenderRNA * /*brna*/, StructRNA *srna)
 {
-  static const EnumPropertyItem type_items[] = {
-      {NODE_COMBSEP_COLOR_RGB,
-       "RGB",
-       ICON_NONE,
-       "RGB",
-       "Use RGB (Red, Green, Blue) color processing"},
-      {NODE_COMBSEP_COLOR_HSV,
-       "HSV",
-       ICON_NONE,
-       "HSV",
-       "Use HSV (Hue, Saturation, Value) color processing"},
-      {NODE_COMBSEP_COLOR_HSL,
-       "HSL",
-       ICON_NONE,
-       "HSL",
-       "Use HSL (Hue, Saturation, Lightness) color processing"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
   PropertyRNA *prop;
 
   RNA_def_struct_sdna_from(srna, "NodeCombSepColor", "storage");
 
   prop = RNA_def_property(srna, "mode", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_items(prop, type_items);
+  RNA_def_property_enum_items(prop, rna_enum_node_combsep_color_items);
   RNA_def_property_ui_text(prop, "Mode", "Mode of color processing");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_socket_update");
 }
@@ -7311,7 +7278,8 @@ static void rna_def_geo_viewer_item(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(
       prop, "Auto Remove", "Remove the item automatically when it is unlinked");
-  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+  RNA_def_property_update(
+      prop, NC_NODE | NA_EDITED, "rna_Node_ItemArray_item_update<GeoViewerItemsAccessor>");
 }
 
 static void rna_def_geo_viewer_items(BlenderRNA *brna)
@@ -9030,6 +8998,7 @@ static void rna_def_node(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "mute", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", NODE_MUTED);
+  RNA_def_property_boolean_funcs(prop, nullptr, "rna_Node_mute_set");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Mute", "");
   RNA_def_property_update(prop, 0, "rna_Node_update");
@@ -9437,7 +9406,7 @@ static void rna_def_nodetree(BlenderRNA *brna)
   RNA_def_property_array(prop, 2);
   RNA_def_property_float_sdna(prop, nullptr, "view_center");
   RNA_def_property_ui_text(
-      prop, "", "The current location (offset) of the view for this Node Tree");
+      prop, "View Center", "The current location (offset) of the view for this Node Tree");
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
 
   prop = RNA_def_property(srna, "description", PROP_STRING, PROP_NONE);
@@ -10009,6 +9978,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("CompositorNode", "CompositorNodeSetAlpha");
   define("CompositorNode", "CompositorNodeSplit");
   define("CompositorNode", "CompositorNodeStabilize", def_cmp_stabilize2d);
+  define("CompositorNode", "CompositorNodeSequencerStripInfo");
   define("CompositorNode", "CompositorNodeSwitch");
   define("CompositorNode", "CompositorNodeSwitchView");
   define("CompositorNode", "CompositorNodeTime", def_time);
@@ -10167,6 +10137,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeGizmoLinear");
   define("GeometryNode", "GeometryNodeGizmoTransform", rna_def_geo_gizmo_transform);
   define("GeometryNode", "GeometryNodeGreasePencilToCurves");
+  define("GeometryNode", "GeometryNodeGridAdvect");
   define("GeometryNode", "GeometryNodeGridCurl");
   define("GeometryNode", "GeometryNodeGridDivergence");
   define("GeometryNode", "GeometryNodeGridGradient");
@@ -10276,6 +10247,12 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeScaleElements");
   define("GeometryNode", "GeometryNodeScaleInstances");
   define("GeometryNode", "GeometryNodeSDFGridBoolean");
+  define("GeometryNode", "GeometryNodeSDFGridFillet");
+  define("GeometryNode", "GeometryNodeSDFGridLaplacian");
+  define("GeometryNode", "GeometryNodeSDFGridMean");
+  define("GeometryNode", "GeometryNodeSDFGridMeanCurvature");
+  define("GeometryNode", "GeometryNodeSDFGridMedian");
+  define("GeometryNode", "GeometryNodeSDFGridOffset");
   define("GeometryNode", "GeometryNodeSelfObject");
   define("GeometryNode", "GeometryNodeSeparateComponents");
   define("GeometryNode", "GeometryNodeSeparateGeometry");

@@ -1597,19 +1597,23 @@ void file_sfile_to_operator_ex(
 {
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
   PropertyRNA *prop;
+  char dir[FILE_MAX];
+
+  STRNCPY(dir, params->dir);
+  BLI_path_slash_ensure(dir, FILE_MAX);
 
   /* XXX, not real length */
   if (params->file[0]) {
     BLI_path_join(filepath, FILE_MAX, params->dir, params->file);
   }
   else {
-    BLI_strncpy(filepath, params->dir, FILE_MAX);
-    BLI_path_slash_ensure(filepath, FILE_MAX);
+    BLI_strncpy(filepath, dir, FILE_MAX);
   }
 
   if ((prop = RNA_struct_find_property(op->ptr, "relative_path"))) {
     if (RNA_property_boolean_get(op->ptr, prop)) {
       BLI_path_rel(filepath, BKE_main_blendfile_path(bmain));
+      BLI_path_rel(dir, BKE_main_blendfile_path(bmain));
     }
   }
 
@@ -1623,8 +1627,8 @@ void file_sfile_to_operator_ex(
   }
   if ((prop = RNA_struct_find_property(op->ptr, "directory"))) {
     RNA_property_string_get(op->ptr, prop, value);
-    RNA_property_string_set(op->ptr, prop, params->dir);
-    if (RNA_property_update_check(prop) && !STREQ(params->dir, value)) {
+    RNA_property_string_set(op->ptr, prop, dir);
+    if (RNA_property_update_check(prop) && !STREQ(dir, value)) {
       RNA_property_update(C, op->ptr, prop);
     }
   }
@@ -2766,8 +2770,13 @@ static wmOperatorStatus file_directory_new_invoke(bContext *C,
    * when entering a path from the file selector. Without a confirmation,
    * a typo will create the path without any prompt. See #128567. */
   if (RNA_boolean_get(op->ptr, "confirm")) {
-    return WM_operator_confirm_ex(
-        C, op, IFACE_("Create new directory?"), nullptr, IFACE_("Create"), ALERT_ICON_NONE, false);
+    return WM_operator_confirm_ex(C,
+                                  op,
+                                  IFACE_("Create new directory?"),
+                                  nullptr,
+                                  IFACE_("Create"),
+                                  blender::ui::AlertIcon::None,
+                                  false);
   }
   return file_directory_new_exec(C, op);
 }
@@ -3304,8 +3313,13 @@ static wmOperatorStatus file_delete_exec(bContext *C, wmOperator *op)
 
 static wmOperatorStatus file_delete_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
-  return WM_operator_confirm_ex(
-      C, op, IFACE_("Delete selected files?"), nullptr, IFACE_("Delete"), ALERT_ICON_NONE, false);
+  return WM_operator_confirm_ex(C,
+                                op,
+                                IFACE_("Delete selected files?"),
+                                nullptr,
+                                IFACE_("Delete"),
+                                blender::ui::AlertIcon::None,
+                                false);
 }
 
 void FILE_OT_delete(wmOperatorType *ot)

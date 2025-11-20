@@ -121,6 +121,10 @@ if(WITH_UI_TESTS)
       # while this could be investigated, use windowed mode instead.
       # Use a window size that balances software GPU rendering with enough room to use the UI.
       --factory-startup
+      # Used so GHOST/Wayland doesn't attempt to load LIBDECOR
+      # which can fail on some systems, causing tests to fail.
+      # On other systems this is harmless.
+      --no-window-frame
       -p 0 0 800 600
       "${EXE_PARAMS}"
       "${ARGN}"
@@ -410,6 +414,18 @@ if(TEST_SRC_DIR_EXISTS)
     --python ${TEST_PYTHON_DIR}/mesh_join.py
   )
 
+  add_blender_test_allow_error(
+    mesh_validate
+    --python ${TEST_PYTHON_DIR}/mesh_validate.py
+    --
+    --testdir "${TEST_SRC_DIR}"
+  )
+
+  add_blender_test(
+    object_edit
+    --python ${TEST_PYTHON_DIR}/object_edit.py
+  )
+
   add_blender_test(
     object_conversion
     ${TEST_SRC_DIR}/modeling/object_conversion.blend
@@ -604,6 +620,13 @@ if(TEST_SRC_DIR_EXISTS)
     --
     --testdir "${TEST_SRC_DIR}/animation"
   )
+
+  add_blender_test(
+    vertex_group_painting
+    --python ${CMAKE_CURRENT_LIST_DIR}/vertex_group_painting.py
+    --
+    --testdir "${TEST_SRC_DIR}/animation"
+  )
 endif()
 
 # ------------------------------------------------------------------------------
@@ -690,6 +713,7 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
     pointcloud
     principled_bsdf
     shader
+    shadow
     shadow_catcher
     sss
     texture
@@ -951,6 +975,7 @@ if(TEST_SRC_DIR_EXISTS)
     output
     color
     filter
+    texture
     utilities
     vector
 
@@ -986,6 +1011,7 @@ if(WITH_GPU_COMPOSITOR_TESTS AND TEST_SRC_DIR_EXISTS)
     output
     color
     filter
+    texture
     utilities
     vector
 
@@ -1099,7 +1125,7 @@ if(TEST_SRC_DIR_EXISTS)
   endif()
 
   if(WITH_OPENSUBDIV)
-    list(APPEND geo_node_tests mesh/subdivision_tests)
+    list(APPEND geo_node_tests mesh/subdivision)
   endif()
 
   foreach(geo_node_test ${geo_node_tests})
@@ -1177,6 +1203,7 @@ if(WITH_ALEMBIC AND TEST_SRC_DIR_EXISTS)
     --python ${CMAKE_CURRENT_LIST_DIR}/bl_alembic_io_test.py
     --
     --testdir "${TEST_SRC_DIR}/alembic"
+    --outdir "${TEST_OUT_DIR}/io_alembic"
   )
 endif()
 
@@ -1203,6 +1230,36 @@ if(TEST_SRC_DIR_EXISTS)
     --
     --testdir "${TEST_SRC_DIR}/io_tests/fbx"
     --outdir "${TEST_OUT_DIR}/io_fbx"
+  )
+endif()
+
+if(TEST_SRC_DIR_EXISTS)
+  add_blender_test_allow_error(
+    io_gltf_import
+    --python ${CMAKE_CURRENT_LIST_DIR}/io_gltf_import_test.py
+    --
+    --testdir "${TEST_SRC_DIR}/io_tests/gltf/import"
+    --outdir "${TEST_OUT_DIR}/io_gltf"
+  )
+endif()
+
+if(TEST_SRC_DIR_EXISTS)
+  add_blender_test_allow_error(
+    io_gltf_roundtrip
+    --python ${CMAKE_CURRENT_LIST_DIR}/io_gltf_roundtrip_test.py
+    --
+    --testdir "${TEST_SRC_DIR}/io_tests/gltf/roundtrip"
+    --outdir "${TEST_OUT_DIR}/io_gltf"
+  )
+endif()
+
+if(TEST_SRC_DIR_EXISTS)
+  add_blender_test_allow_error(
+    io_gltf_export
+    --python ${CMAKE_CURRENT_LIST_DIR}/io_gltf_export_test.py
+    --
+    --testdir "${TEST_SRC_DIR}/io_tests/gltf/export"
+    --outdir "${TEST_OUT_DIR}/io_gltf"
   )
 endif()
 

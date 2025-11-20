@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'7089def6cbcb')\n"
+"Project-Id-Version: Blender 5.0.0 Beta (b'd29f9f6118e5')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-09-29 09:33+0000\n"
+"POT-Creation-Date: 2025-11-10 09:45+0000\n"
 "PO-Revision-Date: 2025-07-23 15:34+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Hindi <https://translate.blender.org/projects/blender-ui/ui/hi/>\n"
@@ -621,14 +621,6 @@ msgstr "चयनयोग्य"
 
 msgid "Parent"
 msgstr "कारण"
-
-
-msgid "Select Head"
-msgstr "सिर का चयन करें"
-
-
-msgid "Select Tail"
-msgstr "पूंछ का चयन करें"
 
 
 msgid "Tail"
@@ -1547,6 +1539,10 @@ msgid "Grid"
 msgstr "जालक"
 
 
+msgid "Items"
+msgstr "वस्तु"
+
+
 msgid "Window"
 msgstr "खिडकी"
 
@@ -1669,10 +1665,6 @@ msgstr "मूल"
 msgctxt "Curve"
 msgid "Sharp"
 msgstr "पैना"
-
-
-msgid "Direction"
-msgstr "दिशा"
 
 
 msgid "Draw"
@@ -2436,10 +2428,6 @@ msgid "Owner"
 msgstr "स्वामी"
 
 
-msgid "Items"
-msgstr "वस्तु"
-
-
 msgid "Alt"
 msgstr "ऑल्ट"
 
@@ -2450,6 +2438,10 @@ msgstr "को"
 
 msgid "Ctrl"
 msgstr "नियंत्रण"
+
+
+msgid "Direction"
+msgstr "दिशा"
 
 
 msgid "North"
@@ -2580,30 +2572,6 @@ msgid "Mask"
 msgstr "आवरण"
 
 
-msgid "Mirror"
-msgstr "दर्पण"
-
-
-msgid "Snap"
-msgstr "स्नैप"
-
-
-msgid "Light"
-msgstr "प्रकाश"
-
-
-msgid "Keying"
-msgstr "कुंजीयन"
-
-
-msgid "Rigid Body"
-msgstr "कठोर-पदार्थ"
-
-
-msgid "Apply"
-msgstr "लागू करें"
-
-
 msgid "Track"
 msgstr "ट्रैक"
 
@@ -2628,6 +2596,10 @@ msgid "Names"
 msgstr "नाम"
 
 
+msgid "Apply"
+msgstr "लागू करें"
+
+
 msgid "Toggle Bone Options"
 msgstr "हड्डी विकल्प बंद/बुझ"
 
@@ -2640,24 +2612,44 @@ msgid "Merge"
 msgstr "विलय करें"
 
 
-msgid "Text"
-msgstr "पाठ"
-
-
-msgid "Import"
-msgstr "आयात करें"
-
-
-msgid "Bone Roll"
-msgstr "हड्डी पंजी"
+msgid "Keying"
+msgstr "कुंजीयन"
 
 
 msgid "Math"
 msgstr "गणित"
 
 
+msgid "Text"
+msgstr "पाठ"
+
+
+msgid "Bone Roll"
+msgstr "हड्डी पंजी"
+
+
+msgid "Snap"
+msgstr "स्नैप"
+
+
+msgid "Mirror"
+msgstr "दर्पण"
+
+
+msgid "Import"
+msgstr "आयात करें"
+
+
 msgid "UV"
 msgstr "यूवी"
+
+
+msgid "Light"
+msgstr "प्रकाश"
+
+
+msgid "Rigid Body"
+msgstr "कठोर-पदार्थ"
 
 
 msgid "Basic"
@@ -3373,31 +3365,6 @@ msgstr "संचिका विचरक रूप"
 
 
 msgctxt "Operator"
-msgid "Preset"
-msgstr "पूर्ववत"
-
-
-msgctxt "Curve"
-msgid "Mode"
-msgstr "रूप"
-
-
-msgctxt "Curve"
-msgid "Max"
-msgstr "अधिकतम"
-
-
-msgctxt "Curve"
-msgid "Line"
-msgstr "रेखा"
-
-
-msgctxt "Curve"
-msgid "Round"
-msgstr "दौर"
-
-
-msgctxt "Operator"
 msgid "Add Marker"
 msgstr "चिन्हक जोड़ें"
 
@@ -4010,6 +3977,26 @@ msgid "Render"
 msgstr " प्रतिपादन"
 
 
+msgctxt "Curve"
+msgid "Mode"
+msgstr "रूप"
+
+
+msgctxt "Curve"
+msgid "Max"
+msgstr "अधिकतम"
+
+
+msgctxt "Curve"
+msgid "Line"
+msgstr "रेखा"
+
+
+msgctxt "Curve"
+msgid "Round"
+msgstr "दौर"
+
+
 msgid "Hinge"
 msgstr "काज"
 
@@ -4124,11 +4111,6 @@ msgstr "मार्जन"
 msgctxt "Sequence"
 msgid "Glow"
 msgstr "चमक"
-
-
-msgctxt "Sequence"
-msgid "Transform"
-msgstr "संरचनांतरण"
 
 
 msgctxt "Sequence"
@@ -4875,10 +4857,6 @@ msgid "Blend Opacity"
 msgstr "मिश्रण अपारदर्शिता"
 
 
-msgid "Cross"
-msgstr "पार"
-
-
 msgctxt "Sequence"
 msgid "Image"
 msgstr "छवि"
@@ -5119,10 +5097,6 @@ msgid "External shader script must have .osl or .oso extension, or be a module n
 msgstr "बाह्य shader स्क्रिप्ट .osl या .oso एक्सटेंशन होना चाहिए, या एक मॉड्यूल का नाम हो"
 
 
-msgid "Failed to write .oso file next to external .osl file at "
-msgstr ".Oso संचिका में बाह्य .oslसंचिकाल में आगे लिखने में विफल "
-
-
 msgctxt "Operator"
 msgid "Assign"
 msgstr "निर्दिष्ट"
@@ -5338,6 +5312,10 @@ msgid "Paths:"
 msgstr "पथ:"
 
 
+msgid "Unpack"
+msgstr "खोल देना"
+
+
 msgid "Calculate"
 msgstr "गणना"
 
@@ -5500,10 +5478,6 @@ msgstr "गति नियंत्रण"
 msgctxt "Operator"
 msgid "Glow"
 msgstr "चमक"
-
-
-msgid "Unpack"
-msgstr "खोल देना"
 
 
 msgctxt "Text"
@@ -6133,10 +6107,6 @@ msgid "Add IK"
 msgstr "इक जोड़ें"
 
 
-msgid "To New Empty Object"
-msgstr "नया रिक्त ऑब्जेक्ट के लिए"
-
-
 msgid "Could not find scene"
 msgstr "दृश्य ढूँढ नहीं सकता"
 
@@ -6523,12 +6493,12 @@ msgid "Key"
 msgstr "कुंजी"
 
 
-msgid "Fac"
-msgstr "एफ़एसी"
-
-
 msgid "Soften"
 msgstr "मॄदु"
+
+
+msgid "Fac"
+msgstr "एफ़एसी"
 
 
 msgid "Old"

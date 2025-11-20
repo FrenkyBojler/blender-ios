@@ -4,6 +4,14 @@
 
 /* Blender OpenColorIO implementation */
 
+#include "ocio_shader_shared.hh"
+
+#include "gpu_shader_create_info.hh"
+
+/* Info is generated at runtime. */
+GPU_SHADER_CREATE_INFO(OCIO_Display)
+GPU_SHADER_CREATE_END()
+
 /* -------------------------------------------------------------------- */
 /** \name Hardcoded color space conversion for fallback implementation
  *
@@ -240,6 +248,12 @@ float4 OCIO_ProcessColor(float4 col, float4 col_overlay)
   if (parameters.dither > 0.0) {
     uint2 texel = get_pixel_coord(image_texture, texCoord_interp.xy);
     col = apply_dither(col, texel);
+  }
+#endif
+
+#ifdef OUTPUT_PREMULTIPLIED
+  if (col.a > 0.0 && col.a < 1.0) {
+    col.rgb *= col.a;
   }
 #endif
 

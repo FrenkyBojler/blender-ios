@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'7089def6cbcb')\n"
+"Project-Id-Version: Blender 5.0.0 Beta (b'd29f9f6118e5')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-09-29 09:33+0000\n"
+"POT-Creation-Date: 2025-11-10 09:45+0000\n"
 "PO-Revision-Date: 2025-07-23 15:14+0000\n"
 "Last-Translator: Kamil <uhkamil@gmail.com>\n"
 "Language-Team: Polish <https://translate.blender.org/projects/blender-ui/ui/pl/>\n"
@@ -65,10 +65,6 @@ msgstr "Gniazdo"
 
 msgid "Collection of f-curve groups"
 msgstr "Zbiór grup krzywych f"
-
-
-msgid "Action F-Curves"
-msgstr "Akcja krzywej F"
 
 
 msgid "Action Group"
@@ -237,14 +233,6 @@ msgstr "Grupa akcji jest rozwinięta w edytorze grafów"
 
 msgid "Pin in Graph Editor"
 msgstr "Przypnij w Edytorze Grafu"
-
-
-msgid "Action Groups"
-msgstr "Grupy akcji"
-
-
-msgid "Collection of action groups"
-msgstr "Kolekcja grup akcji"
 
 
 msgid "The list of strips that are on this animation layer"
@@ -1210,10 +1198,6 @@ msgstr "Edytor z narzędziami do nieliniowego cieniowania i kompozycji"
 
 msgid "Video Sequencer"
 msgstr "Edytor sekwencji wideo"
-
-
-msgid "Video editing tools"
-msgstr "Narzędzia do edycji wideo"
 
 
 msgid "Movie Clip Editor"
@@ -3383,14 +3367,6 @@ msgstr "Rodzic"
 
 msgid "Parent bone (in same Armature)"
 msgstr "Kość nadrzędna (w tym samym szkielecie)"
-
-
-msgid "Select Head"
-msgstr "Zaznacz początek"
-
-
-msgid "Select Tail"
-msgstr "Zaznacz koniec"
 
 
 msgid "Bone is always displayed in wireframe regardless of viewport shading mode (useful for non-obstructive custom bone shapes)"
@@ -8530,6 +8506,10 @@ msgid "Which asset types to show/hide, when browsing an asset library"
 msgstr "Które typy prefabrykatów mają być pokazywane/ukrywane podczas przeglądania biblioteki prefabrykatów"
 
 
+msgid "Annotations"
+msgstr "Adnotacje"
+
+
 msgid "Show Armature data-blocks"
 msgstr "Wyświetla bloki danych dla szkieletów"
 
@@ -9334,15 +9314,6 @@ msgid "Original ID"
 msgstr "Oryginalny ID"
 
 
-msgid "Groups"
-msgstr "Grupy"
-
-
-msgctxt "ID"
-msgid "ID Root Type"
-msgstr "ID (identyfikator) typu korzenia"
-
-
 msgid "Layers"
 msgstr "Warstwy"
 
@@ -9479,10 +9450,6 @@ msgstr "Usuń"
 msgctxt "Curves"
 msgid "Smooth"
 msgstr "Gładki"
-
-
-msgid "Direction"
-msgstr "Kierunek"
 
 
 msgctxt "Brush"
@@ -10481,10 +10448,6 @@ msgid "Particles/Face"
 msgstr "Cząsteczki/ściana"
 
 
-msgid "Annotations"
-msgstr "Adnotacje"
-
-
 msgid "Inverse"
 msgstr "Odwrotny"
 
@@ -10784,6 +10747,10 @@ msgstr "Wideo"
 
 msgid "Image Preview"
 msgstr "Podgląd obrazu"
+
+
+msgid "Direction"
+msgstr "Kierunek"
 
 
 msgctxt "UI_Events_KeyMaps"
@@ -11444,6 +11411,10 @@ msgid "Location, Rotation, Scale & Custom Properties"
 msgstr "Położenie, obrót, skala i właściwości własne"
 
 
+msgid "Groups"
+msgstr "Grupy"
+
+
 msgid "Layer Collection"
 msgstr "Kolekcja warstw"
 
@@ -11560,70 +11531,6 @@ msgid "Mask"
 msgstr "Maska"
 
 
-msgid "Mirror"
-msgstr "Odbicie lustrzane"
-
-
-msgid "Snap"
-msgstr "Przyciągnij"
-
-
-msgid "Local View"
-msgstr "Widok lokalny"
-
-
-msgid "Viewpoint"
-msgstr "Punkt obserwacji"
-
-
-msgid "Navigation"
-msgstr "Nawigacja"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Proporcjonalne edytowanie spadku"
-
-
-msgid "Select Linked"
-msgstr "Zaznacz powiązane"
-
-
-msgid "Assign Material"
-msgstr "Przypisanie materiału"
-
-
-msgid "Layout"
-msgstr "Układ"
-
-
-msgid "Metaball"
-msgstr "Metakula"
-
-
-msgid "Light"
-msgstr "Światło"
-
-
-msgid "Light Probe"
-msgstr "Sonda świetlna"
-
-
-msgid "Keying"
-msgstr "Kluczowanie"
-
-
-msgid "Utilities"
-msgstr "Narzędzia"
-
-
-msgid "Rigid Body"
-msgstr "Bryła sztywna"
-
-
-msgid "Apply"
-msgstr "Zastosuj"
-
-
 msgid "Track"
 msgstr "Ścieżka"
 
@@ -11652,28 +11559,80 @@ msgid "Bone Collections"
 msgstr "Kolekcja kości"
 
 
-msgid "Read"
-msgstr "Odczyt"
+msgid "Apply"
+msgstr "Zastosuj"
+
+
+msgid "Layout"
+msgstr "Układ"
 
 
 msgid "Face Data"
 msgstr "Dane ściany"
 
 
+msgid "Merge"
+msgstr "Scal"
+
+
+msgid "Keying"
+msgstr "Kluczowanie"
+
+
+msgid "Utilities"
+msgstr "Narzędzia"
+
+
+msgid "Math"
+msgstr "Matematyka"
+
+
+msgid "Text"
+msgstr "Tekst"
+
+
+msgid "Metaball"
+msgstr "Metakula"
+
+
+msgid "Snap"
+msgstr "Przyciągnij"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "Proporcjonalne edytowanie spadku"
+
+
+msgid "Read"
+msgstr "Odczyt"
+
+
 msgid "Write"
 msgstr "Zapis"
 
 
-msgid "Merge"
-msgstr "Scal"
+msgid "Mirror"
+msgstr "Odbicie lustrzane"
+
+
+msgid "Local View"
+msgstr "Widok lokalny"
+
+
+msgid "Viewpoint"
+msgstr "Punkt obserwacji"
+
+
+msgid "Navigation"
+msgstr "Nawigacja"
 
 
 msgid "Gizmo"
 msgstr "Gizmo"
 
 
-msgid "Text"
-msgstr "Tekst"
+msgid "Select Linked"
+msgstr "Zaznacz powiązane"
 
 
 msgid "Import"
@@ -11684,8 +11643,20 @@ msgid "Deprecated"
 msgstr "Przestarzałe"
 
 
-msgid "Math"
-msgstr "Matematyka"
+msgid "Assign Material"
+msgstr "Przypisanie materiału"
+
+
+msgid "Light"
+msgstr "Światło"
+
+
+msgid "Light Probe"
+msgstr "Sonda świetlna"
+
+
+msgid "Rigid Body"
+msgstr "Bryła sztywna"
 
 
 msgid "Catalog"
@@ -11882,10 +11853,6 @@ msgstr "Próbki"
 
 msgid "Intersect"
 msgstr "Część wspólna"
-
-
-msgid "UV Vertex Selection"
-msgstr "Wybór wierzchołka UV"
 
 
 msgid "Mesh Vertices"
@@ -13873,21 +13840,6 @@ msgstr "Identyfikator biblioteki prefabrykatów"
 
 msgid "Asset Library Type"
 msgstr "Rodzaj biblioteki prefabrykatów"
-
-
-msgctxt "Operator"
-msgid "Preset"
-msgstr "Ustawienie wstępne"
-
-
-msgctxt "Curve"
-msgid "Line"
-msgstr "Linia"
-
-
-msgctxt "Curve"
-msgid "Round"
-msgstr "Okrągły"
 
 
 msgctxt "Operator"
@@ -16059,8 +16011,14 @@ msgid "Render"
 msgstr "Renderuj"
 
 
-msgid "Render active scene"
-msgstr "Renderuje aktywną scenę"
+msgctxt "Curve"
+msgid "Line"
+msgstr "Linia"
+
+
+msgctxt "Curve"
+msgid "Round"
+msgstr "Okrągły"
 
 
 msgid "Hinge"
@@ -18910,10 +18868,6 @@ msgid "Command output"
 msgstr "Dane wyjściowe polecenia"
 
 
-msgid "Timeline and playback controls"
-msgstr "Oś czasu oraz kontrolki odtwarzania"
-
-
 msgid "Action Editor"
 msgstr "Edytor akcji"
 
@@ -18988,10 +18942,6 @@ msgstr "Wyświetl kanały"
 
 msgid "UV Editor"
 msgstr "Edytor UV"
-
-
-msgid "Mask editing"
-msgstr "Edycja maski"
 
 
 msgid "Line Sample"
@@ -19401,14 +19351,14 @@ msgid "Columns"
 msgstr "Kolumny"
 
 
-msgctxt "Sequence"
-msgid "Scene"
-msgstr "Scena"
-
-
 msgctxt "Color"
 msgid "Value"
 msgstr "Wartość"
+
+
+msgctxt "Sequence"
+msgid "Scene"
+msgstr "Scena"
 
 
 msgid "Anchor X"
@@ -19433,10 +19383,6 @@ msgstr "Wyświetla tekst jako kursywę"
 
 msgid "Display shadow behind text"
 msgstr "Wyświetla cień za tekstem"
-
-
-msgid "Unit of measure to translate the input"
-msgstr "Jednostka miary do przesuwania wejścia"
 
 
 msgid "Angle of the transition"
@@ -20207,11 +20153,6 @@ msgid "Installed"
 msgstr "Zainstalowane"
 
 
-msgctxt "Operator"
-msgid "Mirrored"
-msgstr "Lustrzane"
-
-
 msgid "Noise Threshold"
 msgstr "Próg szumu"
 
@@ -20500,10 +20441,6 @@ msgid "GeometryNodes"
 msgstr "GeometryNodes"
 
 
-msgid "Modifiers cannot be added to object: "
-msgstr "Nie można dodać modyfikatora do obiektu: "
-
-
 msgid "Active object is not a mesh"
 msgstr "Aktywny obiekt nie jest siatką"
 
@@ -20627,10 +20564,6 @@ msgstr "Wsparcie"
 msgctxt "Operator"
 msgid "User Communities"
 msgstr "Społeczność użytkowników"
-
-
-msgid "Failed to assign value: "
-msgstr "Ustawienie wartości nie powiodło się: "
 
 
 msgid "Object(s)"
@@ -21071,6 +21004,22 @@ msgstr "Ścieżki:"
 msgctxt "Operator"
 msgid "Export to File"
 msgstr "Eksportuj do pliku"
+
+
+msgid "Position X"
+msgstr "Pozycja X"
+
+
+msgid "Unpack"
+msgstr "Rozpakuj"
+
+
+msgid "Source Channel"
+msgstr "Kanał źródłowy"
+
+
+msgid "Cut To"
+msgstr "Przytnij do"
 
 
 msgid "Calculate"
@@ -21660,10 +21609,6 @@ msgid "Swap Data"
 msgstr "Zamień dane"
 
 
-msgid "Position X"
-msgstr "Pozycja X"
-
-
 msgctxt "Operator"
 msgid "Left"
 msgstr "Lewo"
@@ -21743,18 +21688,6 @@ msgstr "Własne proxy"
 
 msgid "Add Transition"
 msgstr "Dodaj przejście"
-
-
-msgid "Unpack"
-msgstr "Rozpakuj"
-
-
-msgid "Source Channel"
-msgstr "Kanał źródłowy"
-
-
-msgid "Cut To"
-msgstr "Przytnij do"
 
 
 msgctxt "Text"
@@ -22059,11 +21992,6 @@ msgstr "Szukaj operatora..."
 msgctxt "Operator"
 msgid "Release Notes"
 msgstr "Informacje o wydaniu"
-
-
-msgctxt "Operator"
-msgid "Tutorials"
-msgstr "Samouczki"
 
 
 msgid "No active item"
@@ -22879,6 +22807,11 @@ msgstr "Usuń z aktywnej grupy"
 msgctxt "Operator"
 msgid "Scale Radius"
 msgstr "Skaluj promień"
+
+
+msgctxt "Operator"
+msgid "Mirrored"
+msgstr "Lustrzane"
 
 
 msgctxt "Operator"
@@ -24075,10 +24008,6 @@ msgid "Choose active color stop"
 msgstr "Wybierz aktywny znacznik koloru"
 
 
-msgid "Use Clipping"
-msgstr "Użyj obcinania"
-
-
 msgid "Min X:"
 msgstr "Min X:"
 
@@ -24119,16 +24048,8 @@ msgid "Zoom out"
 msgstr "Oddal"
 
 
-msgid "Clipping Options"
-msgstr "Opcje ucinania"
-
-
 msgid "Delete points"
 msgstr "Usuń punkty"
-
-
-msgid "Reset Black/White point and curves"
-msgstr "Resetuj punkt bieli/czerni i krzywe"
 
 
 msgid "ID-Block:"
@@ -24933,22 +24854,6 @@ msgid "Add IK"
 msgstr "Dodaj IK"
 
 
-msgid "To Active Bone"
-msgstr "Do aktywnej kości"
-
-
-msgid "To Active Object"
-msgstr "Do aktywnego obiektu"
-
-
-msgid "To New Empty Object"
-msgstr "Do nowego, pustego obiektu"
-
-
-msgid "Without Targets"
-msgstr "Bez celów"
-
-
 msgid "Could not find constraint data for Child-Of Set Inverse"
 msgstr "Nie odnaleziono danych do opcji ogranicznika Dziecko Ustaw Odwrotność"
 
@@ -25423,6 +25328,10 @@ msgstr "Brak Świata Brył Sztywnych do eksportu"
 
 msgid "Rigid Body World has no associated physics data to export"
 msgstr "Świat Brył Sztywnych nie posiada powiązanych danych fizyki do eksportu"
+
+
+msgid "Render active scene"
+msgstr "Renderuje aktywną scenę"
 
 
 msgid "3D Local View "
@@ -26329,10 +26238,6 @@ msgid "Disconnect"
 msgstr "Rozłącz"
 
 
-msgid "Unsupported Menu Socket"
-msgstr "Nieobsługiwane gniazdo menu"
-
-
 msgid "Library path '%s' does not exist, correct this before saving"
 msgstr "Ścieżka biblioteki '%s' nie istnieje, popraw to zanim zapiszesz"
 
@@ -27078,10 +26983,6 @@ msgid "Rip failed"
 msgstr "Rozpruwanie nie powiodło się"
 
 
-msgid "Cannot split selection when sync selection is enabled"
-msgstr "Nie można podzielić selekcji gdy uruchomiona synchronizacja selekcji"
-
-
 msgid "Object has non-uniform scale, unwrap will operate on a non-scaled version of the mesh"
 msgstr "Obiekt ma niejednolitą skalę, odwijanie (unwrap) będzie używało nieskalowanej wersji siatki"
 
@@ -27152,22 +27053,6 @@ msgstr "Niezgodność długości szeregu (otrzymano %d, spodziewane więcej)"
 
 msgid "F-Curve data path empty, invalid argument"
 msgstr "Ścieżka danych krzywej F pusta, nieprawidłowy argument"
-
-
-msgid "Action group '%s' not found in action '%s'"
-msgstr "Grupa akcji '%s' nie odnaleziona w akcji '%s'"
-
-
-msgid "F-Curve '%s[%d]' already exists in action '%s'"
-msgstr "Krzywa F '%s[%d]' już istnieje w akcji '%s'"
-
-
-msgid "F-Curve not found in action '%s'"
-msgstr "Krzywa F nie odnaleziona w akcji '%s'"
-
-
-msgid "F-Curve's action group '%s' not found in action '%s'"
-msgstr "Grupa akcji '%s' krzywej F nie odnaleziona w akcji '%s'"
 
 
 msgid "Timeline marker '%s' not found in action '%s'"
@@ -27664,10 +27549,6 @@ msgid "Replace Original"
 msgstr "Zastąp oryginał"
 
 
-msgid "Fac"
-msgstr "Współczynnik"
-
-
 msgid "Result"
 msgstr "Wynik"
 
@@ -27702,6 +27583,10 @@ msgstr "Blask mgły"
 
 msgid "Streaks"
 msgstr "Smugi"
+
+
+msgid "Fac"
+msgstr "Współczynnik"
 
 
 msgid "Val"

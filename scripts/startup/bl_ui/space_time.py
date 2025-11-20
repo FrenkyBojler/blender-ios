@@ -40,18 +40,22 @@ class TIME_PT_playhead_snapping(Panel):
 def playback_controls(layout, context):
     st = context.space_data
     is_sequencer = st.type == 'SEQUENCE_EDITOR' and st.view_type == 'SEQUENCER'
+    is_timeline = st.type == 'DOPESHEET_EDITOR' and st.mode == 'TIMELINE'
 
     scene = context.scene if not is_sequencer else context.sequencer_scene
     tool_settings = scene.tool_settings if scene else None
     screen = context.screen
 
-    if scene:
-        layout.popover(
-            panel="TIME_PT_playback",
-            text="Playback",
-        )
+    if not scene:
+        return
 
-    if tool_settings:
+    layout.popover(
+        panel="TIME_PT_playback",
+        text="Playback",
+    )
+
+    if tool_settings and not is_timeline:
+        # The Keyframe settings are not exposed in the Timeline view.
         icon_keytype = 'KEYTYPE_{:s}_VEC'.format(tool_settings.keyframe_type)
         layout.popover(
             panel="TIME_PT_keyframing_settings",
@@ -97,6 +101,12 @@ def playback_controls(layout, context):
     row.operator("screen.keyframe_jump", text="", icon='NEXT_KEYFRAME').next = True
     row.operator("screen.frame_jump", text="", icon='FF').end = True
 
+    # Time jump
+    row = layout.row(align=True)
+    row.operator("screen.time_jump", text="", icon='FRAME_PREV').backward = True
+    row.operator("screen.time_jump", text="", icon='FRAME_NEXT').backward = False
+    row.popover(panel="TIME_PT_jump", text="")
+
     if tool_settings:
         row = layout.row(align=True)
         row.prop(tool_settings, "use_snap_playhead", text="")
@@ -124,6 +134,35 @@ def playback_controls(layout, context):
         else:
             sub.prop(scene, "frame_preview_start", text="Start")
             sub.prop(scene, "frame_preview_end", text="End")
+
+
+class TIME_MT_view(Menu):
+    bl_label = "View"
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+        st = context.space_data
+        layout.prop(st, "show_region_hud")
+        layout.prop(st, "show_region_channels")
+        layout.separator()
+        layout.operator("action.view_all")
+        if context.scene.use_preview_range:
+            layout.operator("anim.scene_range_frame", text="Frame Preview Range")
+        else:
+            layout.operator("anim.scene_range_frame", text="Frame Scene Range")
+        layout.operator("action.view_frame")
+        layout.separator()
+        layout.prop(st, "show_markers")
+        layout.prop(st, "show_seconds")
+        layout.prop(st, "show_locked_time")
+        layout.separator()
+        layout.prop(scene, "show_keys_from_selected_only")
+        layout.prop(st.dopesheet, "show_only_errors")
+        layout.separator()
+        layout.menu("DOPESHEET_MT_cache")
+        layout.separator()
+        layout.menu("INFO_MT_area")
 
 
 def marker_menu_generic(layout, context):
@@ -289,12 +328,33 @@ class TIME_PT_auto_keyframing(TimelinePanelButtons, Panel):
             col.prop(tool_settings, "use_record_with_nla", text="Layered Recording")
 
 
+class TIME_PT_jump(TimelinePanelButtons, Panel):
+    bl_label = "Time Jump"
+    bl_options = {'HIDE_HEADER'}
+    bl_region_type = 'HEADER'
+    bl_ui_units_x = 10
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        st = context.space_data
+        is_sequencer = st.type == 'SEQUENCE_EDITOR' and st.view_type == 'SEQUENCER'
+        scene = context.scene if not is_sequencer else context.sequencer_scene
+
+        layout.prop(scene, "time_jump_unit", expand=True, text="Jump Unit")
+        layout.prop(scene, "time_jump_delta", text="Delta")
+
+
 ###################################
 
 classes = (
+    TIME_MT_view,
     TIME_PT_playback,
     TIME_PT_keyframing_settings,
     TIME_PT_auto_keyframing,
+    TIME_PT_jump,
     TIME_PT_playhead_snapping,
 )
 

@@ -166,8 +166,8 @@ typedef struct Mesh {
   float remesh_voxel_adaptivity;
 
   int face_sets_color_seed;
-  /* Stores the initial Face Set to be rendered white. This way the overlay can be enabled by
-   * default and Face Sets can be used without affecting the color of the mesh. */
+  /* Stores the initial face set to be rendered white. This way the overlay can be enabled by
+   * default and face sets can be used without affecting the color of the mesh. */
   int face_sets_color_default;
 
   /** The color attribute currently selected in the list and edited by a user. */
@@ -303,6 +303,19 @@ typedef struct Mesh {
 
   blender::bke::AttributeAccessor attributes() const;
   blender::bke::MutableAttributeAccessor attributes_for_write();
+
+  /**
+   * The names of all UV map attributes, in the order of the internal storage.
+   * This is useful when UV maps are referenced by index.
+   *
+   * \warning Adding or removing attributes will invalidate the referenced memory.
+   */
+  blender::VectorSet<blender::StringRefNull> uv_map_names() const;
+
+  /** The name of the active UV map attribute, if any. */
+  blender::StringRefNull active_uv_map_name() const;
+  /** The name of the default UV map (e.g. for rendering) attribute, if any. */
+  blender::StringRefNull default_uv_map_name() const;
 
   /**
    * Vertex group data, encoded as an array of indices and weights for every vertex.
@@ -514,7 +527,11 @@ enum {
   ME_FLAG_UNUSED_0 = 1 << 0,     /* cleared */
   ME_FLAG_UNUSED_1 = 1 << 1,     /* cleared */
   ME_FLAG_DEPRECATED_2 = 1 << 2, /* deprecated */
-  ME_FLAG_UNUSED_3 = 1 << 3,     /* cleared */
+  /**
+   * The UV selection is marked as synchronized.
+   * See #BMesh::uv_select_sync_valid for details.
+   */
+  ME_FLAG_UV_SELECT_SYNC_VALID = 1 << 3,
   ME_FLAG_UNUSED_4 = 1 << 4,     /* cleared */
   ME_AUTOSMOOTH_LEGACY = 1 << 5, /* deprecated */
   ME_FLAG_UNUSED_6 = 1 << 6,     /* cleared */

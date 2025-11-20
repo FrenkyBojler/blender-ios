@@ -629,7 +629,8 @@ void colormanagement_init()
   if (ocio_env && ocio_env[0] != '\0') {
     g_config = ocio::Config::create_from_environment();
     if (g_config != nullptr) {
-      CLOG_INFO_NOCHECK(&LOG, "Using %s as a configuration file", ocio_env);
+      CLOG_INFO_NOCHECK(
+          &LOG, "Using %s=%s", (blender_ocio_env) ? "BLENDER_OCIO" : "OCIO", ocio_env);
       const bool ok = colormanage_load_config(*g_config);
 
       if (ok) {
@@ -737,7 +738,7 @@ static bool colormanage_compatible_look(const ocio::Look *look, const char *view
 static bool colormanage_use_look(const char *look_name, const char *view_name)
 {
   const ocio::Look *look = g_config->get_look_by_name(look_name);
-  return (look->is_noop == false && colormanage_compatible_look(look, view_name));
+  return (look && look->is_noop == false && colormanage_compatible_look(look, view_name));
 }
 
 void colormanage_cache_free(ImBuf *ibuf)
@@ -1113,6 +1114,11 @@ void IMB_colormanagement_check_file_config(Main *bmain)
     ok &= colormanage_check_view_settings(
         &scene->display_settings, &scene->view_settings, "scene");
 
+    ok &= colormanage_check_display_settings(
+        &scene->r.im_format.display_settings, "scene output", default_display);
+    ok &= colormanage_check_view_settings(
+        &scene->r.im_format.display_settings, &scene->r.im_format.view_settings, "scene output");
+
     sequencer_colorspace_settings = &scene->sequencer_colorspace_settings;
 
     ok &= colormanage_check_colorspace_settings(sequencer_colorspace_settings, "sequencer");
@@ -1123,7 +1129,7 @@ void IMB_colormanagement_check_file_config(Main *bmain)
 
     /* Check sequencer strip input colorspace. */
     if (scene->ed != nullptr) {
-      blender::seq::for_each_callback(&scene->ed->seqbase, [&](Strip *strip) {
+      blender::seq::foreach_strip(&scene->ed->seqbase, [&](Strip *strip) {
         if (strip->data) {
           ok &= colormanage_check_colorspace_settings(&strip->data->colorspace_settings,
                                                       "sequencer strip");

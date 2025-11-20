@@ -1,10 +1,10 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'7089def6cbcb')\n"
+"Project-Id-Version: Blender 5.0.0 Beta (b'd29f9f6118e5')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-09-29 09:33+0000\n"
-"PO-Revision-Date: 2025-09-29 00:59+0000\n"
+"POT-Creation-Date: 2025-11-10 09:45+0000\n"
+"PO-Revision-Date: 2025-10-15 14:42+0000\n"
 "Last-Translator: Daniel Nylander <blender@danielnylander.se>\n"
 "Language-Team: Swedish <https://translate.blender.org/projects/blender-ui/ui/sv/>\n"
 "Language: sv\n"
@@ -213,14 +213,6 @@ msgstr "Åtgärdsgruppen utökas förutom i grafredigeraren"
 
 msgid "Expanded in Graph Editor"
 msgstr "Expanderad i grafredigeraren"
-
-
-msgid "Action Groups"
-msgstr "Åtgärdsgrupper"
-
-
-msgid "Collection of action groups"
-msgstr "Samling av åtgärdsgrupper"
 
 
 msgid "Action Layer"
@@ -516,14 +508,6 @@ msgstr "Välj automatiskt den snabbaste intersektionsmetoden"
 
 msgid "Distribute memory across devices"
 msgstr "Fördela minne över enheter"
-
-
-msgid "HIP RT (Unstable)"
-msgstr "HIP RT (Ostabil)"
-
-
-msgid "HIP RT enables AMD hardware ray tracing on RDNA2 and above. This currently has known stability issues, that are expected to be solved before the next release."
-msgstr "HIP RT möjliggör AMD-hårdvarustrålspårning på RDNA2 och högre. Det finns för närvarande kända stabilitetsproblem, som förväntas vara lösta före nästa utgåva."
 
 
 msgid "Embree on GPU"
@@ -838,8 +822,8 @@ msgid "Video Sequencer"
 msgstr "Videosekvenser"
 
 
-msgid "Video editing tools"
-msgstr "Videoredigeringsverktyg"
+msgid "Non-linear editor for arranging and mixing scenes, video, audio, and effects"
+msgstr "Icke-linjär redigerare för att arrangera och mixa scener, video, ljud och effekter"
 
 
 msgid "Movie Clip Editor"
@@ -2915,6 +2899,18 @@ msgid "Display"
 msgstr "Visa"
 
 
+msgid "Display name. For viewing, this is the display device that will be emulated by limiting the gamut and HDR colors. For image and video output, this is the display space used for writing."
+msgstr "Visningsnamn. För visning är detta den visningsenhet som kommer att emuleras genom att begränsa färgskalan och HDR-färgerna. För bild- och videoutmatning är detta det visningsutrymme som används för skrivning."
+
+
+msgid "Display Emulation"
+msgstr "Skärmemulering"
+
+
+msgid "Control how images in the chosen display are mapped to the physical display"
+msgstr "Kontrollerar hur bilderna i den valda skärmen mappas till den fysiska skärmen"
+
+
 msgid "Is Data"
 msgstr "Är data"
 
@@ -3391,6 +3387,14 @@ msgstr "Spår"
 
 msgid "3D Position"
 msgstr "3D-position"
+
+
+msgid "Attribute Name"
+msgstr "Attributnamn"
+
+
+msgid "Domain Type"
+msgstr "Domäntyp"
 
 
 msgid "Inside"
@@ -4477,6 +4481,10 @@ msgid "Wind Factor"
 msgstr "Vindfaktor"
 
 
+msgid "Annotations"
+msgstr "Anteckningar"
+
+
 msgid "Fonts"
 msgstr "Typsnitt"
 
@@ -4953,10 +4961,6 @@ msgid "Closest"
 msgstr "Närmaste"
 
 
-msgid "Domain Type"
-msgstr "Domäntyp"
-
-
 msgid "Change domain type of the simulation"
 msgstr "Ändra typ av domän för simuleringen"
 
@@ -5275,6 +5279,10 @@ msgid "Use Curve"
 msgstr "Använd kurva"
 
 
+msgid "Items"
+msgstr "Objekt"
+
+
 msgid "Line Width"
 msgstr "Linjetjocklek"
 
@@ -5534,10 +5542,6 @@ msgid "A collection of F-Curves for animation"
 msgstr "En samling F-kurvor för animering"
 
 
-msgid "Groups"
-msgstr "Grupper"
-
-
 msgid "Is Empty"
 msgstr "Är tom"
 
@@ -5774,10 +5778,6 @@ msgstr "Nyp"
 msgctxt "Curves"
 msgid "Smooth"
 msgstr "Jämn"
-
-
-msgid "Direction"
-msgstr "Riktning"
 
 
 msgctxt "Brush"
@@ -7200,10 +7200,6 @@ msgid "Whole Collection"
 msgstr "Hela samlingen"
 
 
-msgid "Annotations"
-msgstr "Anteckningar"
-
-
 msgid "Inverse"
 msgstr "Omvänd"
 
@@ -8119,10 +8115,6 @@ msgid "Internal owner"
 msgstr "Intern ägare"
 
 
-msgid "Items"
-msgstr "Objekt"
-
-
 msgid "Activate or deactivate item"
 msgstr "Aktivera eller inaktivera objekt"
 
@@ -8137,6 +8129,10 @@ msgstr "Alla"
 
 msgid "Ctrl"
 msgstr "Ctrl"
+
+
+msgid "Direction"
+msgstr "Riktning"
 
 
 msgid "North"
@@ -9088,6 +9084,10 @@ msgid "Group Name"
 msgstr "Gruppnamn"
 
 
+msgid "Groups"
+msgstr "Grupper"
+
+
 msgid "Layer Collection"
 msgstr "Lagersamling"
 
@@ -9335,82 +9335,6 @@ msgid "Mask"
 msgstr "Mask"
 
 
-msgid "Mirror"
-msgstr "Spegla"
-
-
-msgid "Snap"
-msgstr "Snäpp"
-
-
-msgid "Local View"
-msgstr "Lokal vy"
-
-
-msgid "Viewpoint"
-msgstr "Visningspunkt"
-
-
-msgid "Navigation"
-msgstr "Navigering"
-
-
-msgid "Align View"
-msgstr "Justera vy"
-
-
-msgid "Align View to Active"
-msgstr "Justera vy till aktiv"
-
-
-msgid "Select More/Less"
-msgstr "Markera mera/mindre"
-
-
-msgid "Assign Material"
-msgstr "Tilldela material"
-
-
-msgid "Layout"
-msgstr "Layout"
-
-
-msgid "Metaball"
-msgstr "Metaboll"
-
-
-msgid "Light"
-msgstr "Ljus"
-
-
-msgid "Light Probe"
-msgstr "Ljussond"
-
-
-msgid "Adjust"
-msgstr "Justera"
-
-
-msgid "Add Image"
-msgstr "Lägg till bild"
-
-
-msgid "Relations"
-msgstr "Relationer"
-
-
-msgid "Utilities"
-msgstr "Verktyg"
-
-
-msgid "Rigid Body"
-msgstr "Rigid kropp"
-
-
-msgid "Apply"
-msgstr "Applicera"
-
-
 msgid "Track"
 msgstr "Spår"
 
@@ -9447,6 +9371,50 @@ msgid "Names"
 msgstr "Namn"
 
 
+msgid "Apply"
+msgstr "Applicera"
+
+
+msgid "Layout"
+msgstr "Layout"
+
+
+msgid "Merge"
+msgstr "Sammanfoga"
+
+
+msgid "Adjust"
+msgstr "Justera"
+
+
+msgid "Utilities"
+msgstr "Verktyg"
+
+
+msgid "Math"
+msgstr "Matematik"
+
+
+msgid "Special Characters"
+msgstr "Specialtecken"
+
+
+msgid "Text"
+msgstr "Text"
+
+
+msgid "Metaball"
+msgstr "Metaboll"
+
+
+msgid "Pivot Point"
+msgstr "Fast punkt"
+
+
+msgid "Snap"
+msgstr "Snäpp"
+
+
 msgid "Read"
 msgstr "Läs"
 
@@ -9459,20 +9427,36 @@ msgid "Primitives"
 msgstr "Primitiver"
 
 
-msgid "Merge"
-msgstr "Sammanfoga"
+msgid "Mirror"
+msgstr "Spegla"
+
+
+msgid "Local View"
+msgstr "Lokal vy"
+
+
+msgid "Viewpoint"
+msgstr "Visningspunkt"
+
+
+msgid "Navigation"
+msgstr "Navigering"
+
+
+msgid "Align View"
+msgstr "Justera vy"
+
+
+msgid "Align View to Active"
+msgstr "Justera vy till aktiv"
+
+
+msgid "Select More/Less"
+msgstr "Markera mera/mindre"
 
 
 msgid "Instances"
 msgstr "Instanser"
-
-
-msgid "Special Characters"
-msgstr "Specialtecken"
-
-
-msgid "Text"
-msgstr "Text"
 
 
 msgid "Import"
@@ -9483,16 +9467,32 @@ msgid "Deprecated"
 msgstr "Föråldrad"
 
 
-msgid "Math"
-msgstr "Matematik"
+msgid "Assign Material"
+msgstr "Tilldela material"
 
 
 msgid "UV"
 msgstr "UV"
 
 
-msgid "Pivot Point"
-msgstr "Fast punkt"
+msgid "Light"
+msgstr "Ljus"
+
+
+msgid "Light Probe"
+msgstr "Ljussond"
+
+
+msgid "Add Image"
+msgstr "Lägg till bild"
+
+
+msgid "Relations"
+msgstr "Relationer"
+
+
+msgid "Rigid Body"
+msgstr "Rigid kropp"
 
 
 msgid "Animals"
@@ -10238,10 +10238,6 @@ msgstr "Optimal visning"
 
 msgid "Total Levels"
 msgstr "Totalt antal nivåer"
-
-
-msgid "Bake Target"
-msgstr "Bakningsmål"
 
 
 msgid "Node Group"
@@ -11705,10 +11701,6 @@ msgstr "Antal strålar att spåra per shaderutvärdering"
 
 msgid "Retrieve attributes attached to objects or geometry"
 msgstr "Hämta attribut som är bunden till objekt eller geometri"
-
-
-msgid "Attribute Name"
-msgstr "Attributnamn"
 
 
 msgid "Attribute Type"
@@ -13279,11 +13271,6 @@ msgstr "Spara den aktuella visningsnoden till en bildfil"
 
 
 msgctxt "Operator"
-msgid "Save This Image"
-msgstr "Spara denna bild"
-
-
-msgctxt "Operator"
 msgid "Add Modifier"
 msgstr "Lägg till modifierare"
 
@@ -14384,21 +14371,6 @@ msgstr "Redigera metadata"
 msgctxt "Operator"
 msgid "Save Brush Asset"
 msgstr "Spara penseltillgång"
-
-
-msgctxt "Operator"
-msgid "Preset"
-msgstr "Förinställning"
-
-
-msgctxt "Curve"
-msgid "Mode"
-msgstr "Läge"
-
-
-msgctxt "Curve"
-msgid "Line"
-msgstr "Linje"
 
 
 msgctxt "Operator"
@@ -19323,6 +19295,16 @@ msgid "Render"
 msgstr "Rendera"
 
 
+msgctxt "Curve"
+msgid "Mode"
+msgstr "Läge"
+
+
+msgctxt "Curve"
+msgid "Line"
+msgstr "Linje"
+
+
 msgctxt "Operator"
 msgid "Cancel Render View"
 msgstr "Avbryt renderingsvy"
@@ -19725,11 +19707,6 @@ msgstr "Alfa över"
 msgctxt "Sequence"
 msgid "Alpha Under"
 msgstr "Alfa under"
-
-
-msgctxt "Sequence"
-msgid "Transform"
-msgstr "Omvandla"
 
 
 msgctxt "Sequence"
@@ -21332,10 +21309,6 @@ msgid "Viewer Left"
 msgstr "Visare vänster"
 
 
-msgid "Minimum Speed"
-msgstr "Minsta hastighet"
-
-
 msgctxt "Operator"
 msgid "Add Workspace"
 msgstr "Lägg till arbetsyta"
@@ -21416,6 +21389,10 @@ msgid "Palette Color"
 msgstr "Palettfärg"
 
 
+msgid "VR"
+msgstr "VR"
+
+
 msgid "Active Tool"
 msgstr "Aktivt verktyg"
 
@@ -21442,10 +21419,6 @@ msgstr "Mätning"
 
 msgid "Stroke Placement"
 msgstr "Streckplacering"
-
-
-msgid "VR"
-msgstr "VR"
 
 
 msgid "Import Settings"
@@ -21751,13 +21724,13 @@ msgid "Note"
 msgstr "Observera"
 
 
+msgid "Waveforms"
+msgstr "Vågformer"
+
+
 msgctxt "Sequence"
 msgid "Box"
 msgstr "Ruta"
-
-
-msgid "Waveforms"
-msgstr "Vågformer"
 
 
 msgid "Find & Replace"
@@ -22227,10 +22200,6 @@ msgstr "Experimentella funktioner"
 
 msgid "Cycles Debug"
 msgstr "Felsökning för Cycles"
-
-
-msgid "New Volume Nodes"
-msgstr "Nya volymnoder"
 
 
 msgid "Extension Repositories"
@@ -22999,8 +22968,212 @@ msgid "Language used for translation"
 msgstr "Språk som används för översättning"
 
 
-msgid "Automatic (Automatic)"
-msgstr "Automatiskt (automatiskt)"
+msgid "Abkhaz - Аԥсуа бызшәа"
+msgstr "Abchazisk - Аԥсуа бызшәа"
+
+
+msgid "Arabic - ﺔﻴﺑﺮﻌﻟﺍ"
+msgstr "Arabiska - ﺔﻴﺑﺮﻌﻟﺍ"
+
+
+msgid "Basque - Euskara"
+msgstr "Baskiska - Euskara"
+
+
+msgid "Belarusian - беларуску"
+msgstr "Vitryska - беларуску"
+
+
+msgid "Bulgarian - Български"
+msgstr "Bulgariska - Български"
+
+
+msgid "Catalan - Català"
+msgstr "Katalanska - Català"
+
+
+msgid "Chinese (Simplified) - 简体中文"
+msgstr "Kinesiska (förenklad) - 简体中文"
+
+
+msgid "Chinese (Traditional) - 繁體中文"
+msgstr "Kinesiska (traditionell) - 繁體中文"
+
+
+msgid "Croatian - Hrvatski"
+msgstr "Kroatiska - Hrvatski"
+
+
+msgid "Czech - Čeština"
+msgstr "Tjeckiska - Čeština"
+
+
+msgid "Danish - Dansk"
+msgstr "Danska - Dansk"
+
+
+msgid "Dutch - Nederlands"
+msgstr "Nederländska - Nederlands"
+
+
+msgid "English (UK)"
+msgstr "Engelska (Storbritannien)"
+
+
+msgid "English (US)"
+msgstr "Engelska (USA)"
+
+
+msgid "Esperanto - Esperanto"
+msgstr "Esperanto - Esperanto"
+
+
+msgid "Finnish - Suomi"
+msgstr "Finska - Suomi"
+
+
+msgid "French - Français"
+msgstr "Franska - Français"
+
+
+msgid "Georgian - ქართული"
+msgstr "Georgiska - ქართული"
+
+
+msgid "German - Deutsch"
+msgstr "Tyska - Deutsch"
+
+
+msgid "Greek - Ελληνικά"
+msgstr "Grekiska - Ελληνικά"
+
+
+msgid "Hausa - Hausa"
+msgstr "Hausa - Hausa"
+
+
+msgid "Hebrew - תירִבְעִ"
+msgstr "Hebreiska - תירִבְעִ"
+
+
+msgid "Hindi - हिन्दी"
+msgstr "Hindi - हिन्दी"
+
+
+msgid "Hungarian - Magyar"
+msgstr "Ungerska - Magyar"
+
+
+msgid "Indonesian - Bahasa indonesia"
+msgstr "Indonesiska - Bahasa indonesia"
+
+
+msgid "Italian - Italiano"
+msgstr "Italienska - Italiano"
+
+
+msgid "Japanese - 日本語"
+msgstr "Japanska - 日本語"
+
+
+msgid "Khmer - ខ្មែរ"
+msgstr "Khmer - ខ្មែរ"
+
+
+msgid "Korean - 한국어"
+msgstr "Koreanska - 한국어"
+
+
+msgid "Kyrgyz - Кыргыз тили"
+msgstr "Kirgiziska - Кыргыз тили"
+
+
+msgid "Lithuanian - Lietuviškai"
+msgstr "Litauiska - Lietuviškai"
+
+
+msgid "Malayalam - മലയാളം"
+msgstr "Malayalam - മലയാളം"
+
+
+msgid "Nepali - नेपाली"
+msgstr "Nepali - नेपाली"
+
+
+msgid "Persian - ﯽﺳﺭﺎﻓ"
+msgstr "Persiska - ﯽﺳﺭﺎﻓ"
+
+
+msgid "Polish - Polski"
+msgstr "Polska - Polski"
+
+
+msgid "Portuguese (Brazil) - Português brasileiro"
+msgstr "Portugisiska (Brasilien) - Português brasileiro"
+
+
+msgid "Portuguese (Portugal) - Português europeu"
+msgstr "Portugisiska (Portugal) - Português europeu"
+
+
+msgid "Romanian - Român"
+msgstr "Rumänska - Român"
+
+
+msgid "Russian - Русский"
+msgstr "Ryska - Русский"
+
+
+msgid "Serbian (Cyrillic) - Српски"
+msgstr "Serbiska (kyrilliska) - Српски"
+
+
+msgid "Serbian (Latin) - Srpski latinica"
+msgstr "Serbiska latin - Srpski latinica"
+
+
+msgid "Slovak - Slovenčina"
+msgstr "Slovakiska - Slovenčina"
+
+
+msgid "Slovenian - Slovenščina"
+msgstr "Slovenska - Slovenščina"
+
+
+msgid "Spanish - Español"
+msgstr "Spanska - Español"
+
+
+msgid "Swahili - Kiswahili"
+msgstr "Swahili (Kiswahili)"
+
+
+msgid "Swedish - Svenska"
+msgstr "Swedish - Svenska"
+
+
+msgid "Tamil - தமிழ்"
+msgstr "Tamil - தமிழ்"
+
+
+msgid "Thai - ภาษาไทย"
+msgstr "Thailändska - ภาษาไทย"
+
+
+msgid "Turkish - Türkçe"
+msgstr "Turkiska - Türkçe"
+
+
+msgid "Ukrainian - Українська"
+msgstr "Ukrainska - Українська"
+
+
+msgid "Urdu - وُدرُا"
+msgstr "Urdu - وُدرُا"
+
+
+msgid "Vietnamese - Tiếng Việt"
+msgstr "Vietnamesiska - Tiếng Việt"
 
 
 msgid "Brightness of the icon"
@@ -24038,10 +24211,6 @@ msgid "Asset Browser"
 msgstr "Tillgångsbläddrare"
 
 
-msgid "Edit drivers"
-msgstr "Redigera drivare"
-
-
 msgid "Use Normalization"
 msgstr "Använd normalisering"
 
@@ -24056,10 +24225,6 @@ msgstr "Färg och alfa"
 
 msgid "Z-Buffer"
 msgstr "Z-buffert"
-
-
-msgid "View the image"
-msgstr "Visa bilden"
 
 
 msgid "Pivot around the 3D cursor"
@@ -24315,16 +24480,9 @@ msgid "Active Table"
 msgstr "Aktiv tabell"
 
 
-msgid "Cross"
-msgstr "Övertona"
-
-
-msgid "Alpha Under"
-msgstr "Alfa under"
-
-
-msgid "Gamma Cross"
-msgstr "Gamma-övertona"
+msgctxt "Color"
+msgid "Value"
+msgstr "Värde"
 
 
 msgctxt "Sequence"
@@ -24372,11 +24530,6 @@ msgid "Input 2"
 msgstr "Ingång 2"
 
 
-msgctxt "Color"
-msgid "Value"
-msgstr "Värde"
-
-
 msgid "Speed Control"
 msgstr "Hastighetskontroll"
 
@@ -24403,14 +24556,6 @@ msgstr "Visa text i fetstil"
 
 msgid "Display text as italic"
 msgstr "Visa text som kursiv"
-
-
-msgid "Translate X"
-msgstr "Översätt X"
-
-
-msgid "Translate Y"
-msgstr "Översätt Y"
 
 
 msgctxt "Sequence"
@@ -24468,6 +24613,14 @@ msgstr "Vitvärde"
 
 msgid "Proxy parameters for a sequence strip"
 msgstr "Mellanparametrar för en sekvensremsa"
+
+
+msgid "Translate X"
+msgstr "Översätt X"
+
+
+msgid "Translate Y"
+msgstr "Översätt Y"
 
 
 msgctxt "Light"
@@ -25874,16 +26027,6 @@ msgstr "Hämtar ner..."
 
 msgid "Downloading \"{:s}\""
 msgstr "Hämtar \"{:s}\""
-
-
-msgctxt "Operator"
-msgid "Mirrored"
-msgstr "Speglad"
-
-
-msgctxt "Operator"
-msgid "Paste and Bake"
-msgstr "Klistra in och baka"
 
 
 msgid "Do not use compute device"
@@ -27439,6 +27582,14 @@ msgid "Export to File"
 msgstr "Exportera till fil"
 
 
+msgid "Unpack"
+msgstr "Packa upp"
+
+
+msgid "Cut To"
+msgstr "Klipp till"
+
+
 msgid "Calculate"
 msgstr "Beräkna"
 
@@ -28183,10 +28334,6 @@ msgid "Exit Group"
 msgstr "Gå ur grupp"
 
 
-msgid "Closed by Default"
-msgstr "Stängd som standard"
-
-
 msgid "Types"
 msgstr "Typer"
 
@@ -28499,16 +28646,8 @@ msgid "Add Transition"
 msgstr "Lägg till övergång"
 
 
-msgid "Unpack"
-msgstr "Packa upp"
-
-
 msgid "{:d} MB"
 msgstr "{:d} MB"
-
-
-msgid "Cut To"
-msgstr "Klipp till"
 
 
 msgid "All Data-Blocks"
@@ -28790,11 +28929,6 @@ msgstr "Operatorsökning..."
 msgctxt "Operator"
 msgid "Release Notes"
 msgstr "Versionsinformation"
-
-
-msgctxt "Operator"
-msgid "Tutorials"
-msgstr "Handledningar"
 
 
 msgctxt "Operator"
@@ -29880,6 +30014,16 @@ msgstr "Ljusradie: %.3f"
 
 msgid "Light Angle: %.3f"
 msgstr "Ljusvinkel: %.3f"
+
+
+msgctxt "Operator"
+msgid "Mirrored"
+msgstr "Speglad"
+
+
+msgctxt "Operator"
+msgid "Paste and Bake"
+msgstr "Klistra in och baka"
 
 
 msgctxt "Operator"
@@ -31269,10 +31413,6 @@ msgid "Add IK"
 msgstr "Lägg till IK"
 
 
-msgid "Without Targets"
-msgstr "Utan mål"
-
-
 msgid "Cannot edit library data"
 msgstr "Det går inte att redigera biblioteksdata"
 
@@ -32096,6 +32236,10 @@ msgid "Disconnect"
 msgstr "Koppla bort"
 
 
+msgid "Closed by Default"
+msgstr "Stängd som standard"
+
+
 msgid "Add \"%s\" Input"
 msgstr "Lägg till \"%s\"-inmatning"
 
@@ -32703,6 +32847,10 @@ msgid "Unable to copy item"
 msgstr "Det går inte att kopiera objektet"
 
 
+msgid "Anisotropic"
+msgstr "Anisotropisk"
+
+
 msgctxt "NodeTree"
 msgid "Comparison"
 msgstr "Jämförelse"
@@ -33027,10 +33175,6 @@ msgstr "Livslängd"
 
 msgid "Replace Original"
 msgstr "Ersätt original"
-
-
-msgid "Bright"
-msgstr "Ljus"
 
 
 msgid "YUV Key Channel"
@@ -33397,10 +33541,6 @@ msgid "Limit Surface"
 msgstr "Begränsa yta"
 
 
-msgid "Warnings ({})"
-msgstr "Varningar ({})"
-
-
 msgid "Manage"
 msgstr "Hantera"
 
@@ -33443,10 +33583,6 @@ msgstr "Melanin"
 
 msgid "Color of the material"
 msgstr "Materialets färg"
-
-
-msgid "Anisotropic"
-msgstr "Anisotropisk"
 
 
 msgid "View Distance"
@@ -34251,144 +34387,8 @@ msgid "microphone"
 msgstr "mikrofon"
 
 
-msgid "English (US)"
-msgstr "Engelska (USA)"
-
-
-msgid "Japanese - 日本語"
-msgstr "Japanska - 日本語"
-
-
-msgid "Dutch - Nederlands"
-msgstr "Nederländska - Nederlands"
-
-
-msgid "Italian - Italiano"
-msgstr "Italienska - Italiano"
-
-
-msgid "German - Deutsch"
-msgstr "Tyska - Deutsch"
-
-
-msgid "Finnish - Suomi"
-msgstr "Finska - Suomi"
-
-
-msgid "Swedish - Svenska"
-msgstr "Swedish - Svenska"
-
-
-msgid "French - Français"
-msgstr "Franska - Français"
-
-
-msgid "Spanish - Español"
-msgstr "Spanska - Español"
-
-
-msgid "Catalan - Català"
-msgstr "Katalanska - Català"
-
-
-msgid "Czech - Čeština"
-msgstr "Tjeckiska - Čeština"
-
-
-msgid "Portuguese (Portugal) - Português europeu"
-msgstr "Portugisiska (Portugal) - Português europeu"
-
-
-msgid "Chinese (Simplified) - 简体中文"
-msgstr "Kinesiska (förenklad) - 简体中文"
-
-
-msgid "Chinese (Traditional) - 繁體中文"
-msgstr "Kinesiska (traditionell) - 繁體中文"
-
-
-msgid "Russian - Русский"
-msgstr "Ryska - Русский"
-
-
-msgid "Croatian - Hrvatski"
-msgstr "Kroatiska - Hrvatski"
-
-
-msgid "Serbian (Cyrillic) - Српски"
-msgstr "Serbiska (kyrilliska) - Српски"
-
-
-msgid "Ukrainian - Українська"
-msgstr "Ukrainska - Українська"
-
-
-msgid "Polish - Polski"
-msgstr "Polska - Polski"
-
-
-msgid "Romanian - Român"
-msgstr "Rumänska - Român"
-
-
-msgid "Arabic - ﺔﻴﺑﺮﻌﻟﺍ"
-msgstr "Arabiska - ﺔﻴﺑﺮﻌﻟﺍ"
-
-
-msgid "Bulgarian - Български"
-msgstr "Bulgariska - Български"
-
-
-msgid "Greek - Ελληνικά"
-msgstr "Grekiska - Ελληνικά"
-
-
-msgid "Korean - 한국어"
-msgstr "Koreanska - 한국어"
-
-
-msgid "Nepali - नेपाली"
-msgstr "Nepali - नेपाली"
-
-
-msgid "Persian - ﯽﺳﺭﺎﻓ"
-msgstr "Persiska - ﯽﺳﺭﺎﻓ"
-
-
-msgid "Indonesian - Bahasa indonesia"
-msgstr "Indonesiska - Bahasa indonesia"
-
-
-msgid "Serbian (Latin) - Srpski latinica"
-msgstr "Serbiska latin - Srpski latinica"
-
-
-msgid "Kyrgyz - Кыргыз тили"
-msgstr "Kirgiziska - Кыргыз тили"
-
-
-msgid "Turkish - Türkçe"
-msgstr "Turkiska - Türkçe"
-
-
-msgid "Hungarian - Magyar"
-msgstr "Ungerska - Magyar"
-
-
-msgid "Portuguese (Brazil) - Português brasileiro"
-msgstr "Portugisiska (Brasilien) - Português brasileiro"
-
-
-msgid "Hebrew - תירִבְעִ"
-msgstr "Hebreiska - תירִבְעִ"
-
-
 msgid "Estonian - Eesti keel"
 msgstr "Estniska - Eesti keel"
-
-
-msgid "Esperanto - Esperanto"
-msgstr "Esperanto - Esperanto"
 
 
 msgid "Amharic - አማርኛ"
@@ -34403,80 +34403,8 @@ msgid "Uzbek (Cyrillic) - Ўзбек"
 msgstr "Uzbekisk (kyrilliska) - Ўзбек"
 
 
-msgid "Hindi - हिन्दी"
-msgstr "Hindi - हिन्दी"
-
-
-msgid "Vietnamese - Tiếng Việt"
-msgstr "Vietnamesiska - Tiếng Việt"
-
-
-msgid "Basque - Euskara"
-msgstr "Baskiska - Euskara"
-
-
-msgid "Hausa - Hausa"
-msgstr "Hausa - Hausa"
-
-
 msgid "Kazakh - Қазақша"
 msgstr "Kazakiska - Қазақша"
-
-
-msgid "Abkhaz - Аԥсуа бызшәа"
-msgstr "Abchazisk - Аԥсуа бызшәа"
-
-
-msgid "Thai - ภาษาไทย"
-msgstr "Thailändska - ภาษาไทย"
-
-
-msgid "Slovak - Slovenčina"
-msgstr "Slovakiska - Slovenčina"
-
-
-msgid "Georgian - ქართული"
-msgstr "Georgiska - ქართული"
-
-
-msgid "Tamil - தமிழ்"
-msgstr "Tamil - தமிழ்"
-
-
-msgid "Khmer - ខ្មែរ"
-msgstr "Khmer - ខ្មែរ"
-
-
-msgid "Swahili - Kiswahili"
-msgstr "Swahili (Kiswahili)"
-
-
-msgid "Belarusian - беларуску"
-msgstr "Vitryska - беларуску"
-
-
-msgid "Danish - Dansk"
-msgstr "Danska - Dansk"
-
-
-msgid "Slovenian - Slovenščina"
-msgstr "Slovenska - Slovenščina"
-
-
-msgid "Urdu - وُدرُا"
-msgstr "Urdu - وُدرُا"
-
-
-msgid "Lithuanian - Lietuviškai"
-msgstr "Litauiska - Lietuviškai"
-
-
-msgid "English (UK)"
-msgstr "Engelska (Storbritannien)"
-
-
-msgid "Malayalam - മലയാളം"
-msgstr "Malayalam - മലയാളം"
 
 
 msgid "Add & Subtract"
@@ -34487,12 +34415,12 @@ msgid "Utility"
 msgstr "Verktyg"
 
 
-msgid "Factor Min"
-msgstr "Faktor min"
-
-
 msgid "Factor Max"
 msgstr "Faktor max"
+
+
+msgid "Factor Min"
+msgstr "Faktor min"
 
 
 msgid "Factor End"
@@ -34507,12 +34435,12 @@ msgid "Surface UV"
 msgstr "Yta UV"
 
 
-msgid "Segment Length"
-msgstr "Segmentlängd"
-
-
 msgid "Segment Direction"
 msgstr "Segmentriktning"
+
+
+msgid "Segment Length"
+msgstr "Segmentlängd"
 
 
 msgid "Duplicate Hair Curves"

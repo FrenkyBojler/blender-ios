@@ -2090,28 +2090,50 @@ static void direct_link_id_embedded_id(BlendDataReader *reader,
   bNodeTree **nodetree = blender::bke::node_tree_ptr_from_id(id);
   if (nodetree != nullptr && *nodetree != nullptr) {
     BLO_read_struct(reader, bNodeTree, nodetree);
-    direct_link_id_common(reader,
-                          current_library,
-                          (ID *)*nodetree,
-                          id_old != nullptr ? (ID *)blender::bke::node_tree_from_id(id_old) :
-                                              nullptr,
-                          0,
-                          ID_Readfile_Data::Tags{});
-    blender::bke::node_tree_blend_read_data(reader, id, *nodetree);
+    if (!*nodetree || !BKE_idtype_idcode_is_valid(GS((*nodetree)->id.name))) {
+      BLO_reportf_wrap(
+          reader->fd->reports,
+          RPT_ERROR,
+          RPT_("Data-block '%s' had an invalid embedded node group, which has not been read"),
+          id->name);
+      MEM_SAFE_FREE(*nodetree);
+    }
+    else {
+      direct_link_id_common(reader,
+                            current_library,
+                            (ID *)*nodetree,
+                            id_old != nullptr ? (ID *)blender::bke::node_tree_from_id(id_old) :
+                                                nullptr,
+                            0,
+                            ID_Readfile_Data::Tags{});
+      blender::bke::node_tree_blend_read_data(reader, id, *nodetree);
+    }
   }
 
   if (GS(id->name) == ID_SCE) {
     Scene *scene = (Scene *)id;
     if (scene->master_collection != nullptr) {
       BLO_read_struct(reader, Collection, &scene->master_collection);
-      direct_link_id_common(reader,
-                            current_library,
-                            &scene->master_collection->id,
-                            id_old != nullptr ? &((Scene *)id_old)->master_collection->id :
-                                                nullptr,
-                            0,
-                            ID_Readfile_Data::Tags{});
-      BKE_collection_blend_read_data(reader, scene->master_collection, &scene->id);
+      if (!scene->master_collection ||
+          !BKE_idtype_idcode_is_valid(GS(scene->master_collection->id.name)))
+      {
+        BLO_reportf_wrap(
+            reader->fd->reports,
+            RPT_ERROR,
+            RPT_("Scene '%s' had an invalid root collection, which has not been read"),
+            BKE_id_name(*id));
+        MEM_SAFE_FREE(scene->master_collection);
+      }
+      else {
+        direct_link_id_common(reader,
+                              current_library,
+                              &scene->master_collection->id,
+                              id_old != nullptr ? &((Scene *)id_old)->master_collection->id :
+                                                  nullptr,
+                              0,
+                              ID_Readfile_Data::Tags{});
+        BKE_collection_blend_read_data(reader, scene->master_collection, &scene->id);
+      }
     }
   }
 }
@@ -2230,6 +2252,11 @@ static void direct_link_id_common(BlendDataReader *reader,
                                   const int id_tag,
                                   const ID_Readfile_Data::Tags id_read_tags)
 {
+  /* This should have been caught already, either by a call to `#blo_bhead_is_id_valid_type` for
+   * regular IDs, or in `#direct_link_id_embedded_id` for embedded ones. */
+  BLI_assert_msg(BKE_idtype_idcode_is_valid(GS(id->name)),
+                 "Unknown or invalid ID type, this should never happen");
+
   BLI_assert(id->runtime == nullptr);
   BKE_libblock_runtime_ensure(*id);
 
@@ -2239,8 +2266,21 @@ static void direct_link_id_common(BlendDataReader *reader,
     id->session_uid = MAIN_ID_SESSION_UID_UNSET;
   }
 
-  if (ID_IS_PACKED(id)) {
-    BLI_assert(current_library->flag & LIBRARY_FLAG_IS_ARCHIVE);
+  if (id->flag & ID_FLAG_LINKED_AND_PACKED) {
+    if (!current_library) {
+      CLOG_ERROR(&LOG,
+                 "Data-block '%s' flagged as packed, but without a valid library, fixing by "
+                 "making fully local...",
+                 id->name);
+      id->flag &= ~ID_FLAG_LINKED_AND_PACKED;
+    }
+    else if ((current_library->flag & LIBRARY_FLAG_IS_ARCHIVE) == 0) {
+      CLOG_ERROR(&LOG,
+                 "Data-block '%s' flagged as packed, but using a regular library, fixing by "
+                 "making fully linked...",
+                 id->name);
+      id->flag &= ~ID_FLAG_LINKED_AND_PACKED;
+    }
   }
   id->lib = current_library;
   if (id->lib) {
@@ -2749,7 +2789,14 @@ static Main *blo_add_main_for_library(FileData *fd,
     if (is_packed_library) {
       BLI_assert(lib->flag & LIBRARY_FLAG_IS_ARCHIVE);
       BLI_assert(lib->archive_parent_library == reference_lib);
-      BLI_assert(reference_lib->runtime->archived_libraries.contains(lib));
+
+      /* If there is already an archive library in the new set of Mains, but not a 'libmain' for it
+       * yet, it is the first time that this archive library is effectively used to own a packed
+       * ID. Since regular libraries have their list of owned archive libs cleared when reused on
+       * undo, it means that this archive library should yet be listed in its regular owner one,
+       * and needs to be added there. See also #read_undo_move_libmain_data. */
+      BLI_assert(!reference_lib->runtime->archived_libraries.contains(lib));
+      reference_lib->runtime->archived_libraries.append(lib);
 
       BLI_assert(lib->runtime->filedata == nullptr);
       lib->runtime->filedata = fd;
@@ -2840,6 +2887,12 @@ static void read_undo_move_libmain_data(FileData *fd, Main *libmain, BHead *bhea
   BLI_remlink_safe(&old_main->libraries, curlib);
   new_main->split_mains->add_new(libmain);
   BLI_addtail(&new_main->libraries, curlib);
+
+  /* Remove all references to the archive libraries owned by this 'regular' library. The
+   * archive ones are only moved over into the new Main if some of their IDs are actually
+   * re-used. Otherwise they are deleted, so the 'regular' library cannot keep references to
+   * them at this point. See also #blo_add_main_for_library. */
+  curlib->runtime->archived_libraries = {};
 
   curlib->id.tag |= ID_TAG_UNDO_OLD_ID_REUSED_NOUNDO;
   BKE_main_idmap_insert_id(fd->new_idmap_uid, &curlib->id);
@@ -3068,6 +3121,31 @@ static void read_libblock_undo_restore_at_old_address(FileData *fd, Main *main, 
 
   BLI_addtail(new_lb, id_old);
   BLI_addtail(old_lb, id);
+
+  /* In case a library has been re-read, it has added already its own split main to the new Main
+   * (see #direct_link_library code).
+   *
+   * Since we are replacing it with the 'id_old' address, we need to update that Main::curlib
+   * pointer accordingly.
+   *
+   * Note that:
+   *   - This code is only for undo, and on undo we do not re-read regular libraries, only archive
+   *     ones for packed data.
+   *   - The new split main should still be empty at this stage (this code and adding the split
+   *     Main in #direct_link_library are part of the same #read_libblock call).
+   */
+  if (GS(id_old->name) == ID_LI) {
+    Library *lib_old = blender::id_cast<Library *>(id_old);
+    Library *lib = blender::id_cast<Library *>(id);
+    BLI_assert(lib_old->flag & LIBRARY_FLAG_IS_ARCHIVE);
+
+    for (Main *bmain_iter : *fd->bmain->split_mains) {
+      if (bmain_iter->curlib == lib) {
+        BLI_assert(BKE_main_is_empty(bmain_iter));
+        bmain_iter->curlib = lib_old;
+      }
+    }
+  }
 }
 
 static bool read_libblock_undo_restore(
@@ -3450,6 +3528,11 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
      * later during 5.0 development process. */
     version_system_idprops_nodes_generate(main);
   }
+  if (!MAIN_VERSION_FILE_ATLEAST(main, 500, 110)) {
+    /* Same as above, but children bones were missed by initial versioning code, attempt to
+     * transfer idprops data still in case they have no system properties defined yet. */
+    version_system_idprops_children_bones_generate(main);
+  }
 
   if (G.debug & G_DEBUG) {
     char build_commit_datetime[32];
@@ -3513,6 +3596,9 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
   if (!main->is_read_invalid) {
     blo_do_versions_500(fd, lib, main);
   }
+  if (!main->is_read_invalid) {
+    blo_do_versions_510(fd, lib, main);
+  }
 
   /* WATCH IT!!!: pointers from libdata have not been converted yet here! */
   /* WATCH IT 2!: #UserDef struct init see #do_versions_userdef() above! */
@@ -3574,6 +3660,9 @@ static void do_versions_after_linking(FileData *fd, Main *main)
   }
   if (!main->is_read_invalid) {
     do_versions_after_linking_500(fd, main);
+  }
+  if (!main->is_read_invalid) {
+    do_versions_after_linking_510(fd, main);
   }
 
   main->is_locked_for_linking = false;
@@ -4740,7 +4829,7 @@ static void expand_doit_library(void *fdhandle,
       BLO_reportf_wrap(fd->reports,
                        RPT_ERROR,
                        RPT_("LIB: .blend file %s seems corrupted, no owner 'Library' data found "
-                            "for the linked data-block %s"),
+                            "for the linked data-block '%s'. Try saving the file again."),
                        mainvar->curlib->runtime->filepath_abs,
                        id_name ? id_name : "<InvalidIDName>");
       return;
@@ -4781,7 +4870,7 @@ static void expand_doit_library(void *fdhandle,
       BLO_reportf_wrap(fd->reports,
                        RPT_ERROR,
                        RPT_("LIB: .blend file %s seems corrupted, no owner 'Library' data found "
-                            "for the packed linked data-block %s"),
+                            "for the packed linked data-block %s. Try saving the file again."),
                        mainvar->curlib->runtime->filepath_abs,
                        id_name ? id_name : "<InvalidIDName>");
       return;
@@ -5116,7 +5205,9 @@ static void library_link_end(Main *mainl, FileData **fd, const int flag, ReportL
   }
 
   lib_link_all(*fd, mainvar);
-  after_liblink_merged_bmain_process(mainvar, (*fd)->reports);
+  if ((flag & BLO_LIBLINK_COLLECTION_NO_HIERARCHY_REBUILD) == 0) {
+    after_liblink_merged_bmain_process(mainvar, (*fd)->reports);
+  }
 
   /* Some versioning code does expect some proper userrefcounting, e.g. in conversion from
    * groups to collections... We could optimize out that first call when we are reading a
