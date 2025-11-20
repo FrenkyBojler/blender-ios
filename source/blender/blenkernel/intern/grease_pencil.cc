@@ -616,21 +616,12 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
                                     reinterpret_cast<uint32_t (*)[3]>(r_tris.data()),
                                     pf_arena);
 
-            const int first_point = points_by_curve[shape.first()].first();
-            threading::parallel_for(r_tris.index_range(), 512, [&](const IndexRange range) {
-              for (const int i : range) {
-                r_tris[i] += first_point;
-              }
-            });
-
             BLI_memarena_clear(pf_arena);
             continue;
           }
 
           Array<double2> verts(num_points);
           Array<Vector<int>> faces(shape.size());
-          Array<int> og_face_to_curve_map(shape.size());
-          Array<int> og_vert_to_point_map(num_points);
 
           threading::parallel_for(IndexRange(num_points), 512, [&](const IndexRange range) {
             for (const int i : range) {
@@ -645,14 +636,9 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
             const IndexRange shape_points = shape_points_by_curve[pos];
             const IndexRange points = points_by_curve[curve_i];
             faces[pos].resize(points.size());
-            og_face_to_curve_map[pos] = curve_i;
 
             for (const int i : points.index_range()) {
-              const int curve_p = points[i];
-              const int shape_p = shape_points[i];
-
-              og_vert_to_point_map[shape_p] = curve_p;
-              faces[pos][i] = shape_p;
+              faces[pos][i] = shape_points[i];
             }
 
             const Span<float2> projpoints = projverts_span.slice(shape_points);
@@ -679,8 +665,7 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
               return -1;
             }
             /* Just get the first point if there are multiple at the same position. */
-            const int og_vert = result.vert_orig[vert].first();
-            return og_vert_to_point_map[og_vert];
+            return result.vert_orig[vert].first();
           };
 
           for (const int i : result.face.index_range()) {
@@ -1102,9 +1087,10 @@ void Drawing::tag_positions_changed()
 
 static IndexMask curves_to_shapes_mask(const IndexMask &changed_curves,
                                        const GroupedSpan<int> shapes,
+                                       const OffsetIndices<int> points_by_curve,
                                        IndexMaskMemory &memory)
 {
-  Array<bool> selected_curves(changed_curves.size());
+  Array<bool> selected_curves(points_by_curve.size());
   changed_curves.to_bools(selected_curves);
 
   return IndexMask::from_predicate(
@@ -1133,9 +1119,8 @@ static void update_triangle_and_offsets_changed(const Span<float3> positions,
   BLI_assert(src_points_by_curve.size() == dst_points_by_curve.size());
 
   IndexMaskMemory memory;
-  const IndexMask changed_shapes = curves_to_shapes_mask(changed_curves, shapes, memory);
-  const IndexMask unchanged_curves = changed_curves.complement(src_points_by_curve.index_range(),
-                                                               memory);
+  const IndexMask changed_shapes = curves_to_shapes_mask(
+      changed_curves, shapes, src_points_by_curve, memory);
   const IndexMask unchanged_shapes = changed_shapes.complement(shapes.index_range(), memory);
 
   Array<int> changed_triangle_offsets_data(changed_shapes.size() + 1);
@@ -1175,27 +1160,6 @@ static void update_triangle_and_offsets_changed(const Span<float3> positions,
                                    unchanged_shapes,
                                    src_triangles.data,
                                    r_triangles.as_mutable_span());
-
-  /* Calculate the old to new point indexes. */
-  Array<int> src_to_dst_points(src_points_by_curve.total_size());
-  unchanged_curves.foreach_index(GrainSize(512), [&](const int curve_i) {
-    const IndexRange src_points = src_points_by_curve[curve_i];
-    const IndexRange dst_points = dst_points_by_curve[curve_i];
-
-    for (const int i : src_points.index_range()) {
-      src_to_dst_points[src_points[i]] = dst_points.first() + i;
-    }
-  });
-
-  /* Update the old triangles to the new point indexes. */
-  unchanged_shapes.foreach_index(GrainSize(512), [&](const int i) {
-    const IndexRange tris = triangle_offsets[i];
-    for (const int tri : tris) {
-      r_triangles[tri] = int3(src_to_dst_points[r_triangles[tri][0]],
-                              src_to_dst_points[r_triangles[tri][1]],
-                              src_to_dst_points[r_triangles[tri][2]]);
-    }
-  });
 
   changed_shapes.foreach_index(GrainSize(512), [&](const int i, const int pos) {
     r_triangles.as_mutable_span()

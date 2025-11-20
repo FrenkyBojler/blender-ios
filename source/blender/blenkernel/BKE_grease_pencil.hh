@@ -106,7 +106,7 @@ class Drawing : public ::GreasePencilDrawing {
    */
   GroupedSpan<int> shapes() const;
   /**
-   * The triangles for fill geometry. Grouped by each shape.
+   * The triangles for fill geometry. Grouped by each shape. Index to curves in the shape.
    */
   GroupedSpan<int3> triangles() const;
   /**

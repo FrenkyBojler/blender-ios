@@ -377,7 +377,6 @@ class CurvesGeometry : public ::CurvesGeometry {
    * The offsets of every curve's evaluated points.
    */
   OffsetIndices<int> evaluated_points_by_curve() const;
-  Array<int> evaluated_point_to_curve_map() const;
 
   /**
    * Retrieve offsets into a Bezier curve's evaluated points for each control point. Stored in the

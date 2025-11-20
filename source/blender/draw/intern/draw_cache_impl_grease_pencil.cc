@@ -1229,7 +1229,6 @@ static void grease_pencil_geom_batch_ensure(Object &object,
 
     const bke::AttributeAccessor attributes = curves.attributes();
     const OffsetIndices<int> points_by_curve = curves.evaluated_points_by_curve();
-    const Array<int> point_to_curve_map = curves.evaluated_point_to_curve_map();
     const Span<float3> positions = curves.evaluated_positions();
     const VArray<bool> cyclic = curves.cyclic();
 
@@ -1325,15 +1324,33 @@ static void grease_pencil_geom_batch_ensure(Object &object,
       triangle_ibo_index++;
     };
 
-    auto point_to_id = [&](int32_t p) {
-      const int curve_ = point_to_curve_map[p];
-      const IndexRange points_ = points_by_curve[curve_];
-      return (1 + (p - points_.first()) + verts_start_offsets[curve_]) << GP_VERTEX_ID_SHIFT;
-    };
-
     visible_shapes.foreach_index([&](const int shape_index) {
       const Span<int> shape = shapes[shape_index];
       const Span<int3> tris_slice = triangles[shape_index];
+
+      int shape_points_index = 0;
+      Array<int> shape_point_offset_data(shape.size() + 1);
+
+      for (const int pos : shape.index_range()) {
+        const int curve_i = shape[pos];
+        const IndexRange points = points_by_curve[curve_i];
+        shape_point_offset_data[pos] = shape_points_index;
+        shape_points_index += points.size();
+      }
+      shape_point_offset_data.last() = shape_points_index;
+      OffsetIndices<int> shape_point_offset = OffsetIndices<int>(shape_point_offset_data);
+
+      Array<int> shape_point_to_pos_map(shape_points_index);
+      for (const int pos : shape.index_range()) {
+        shape_point_to_pos_map.as_mutable_span().slice(shape_point_offset[pos]).fill(pos);
+      }
+
+      auto point_to_id = [&](int32_t p) {
+        const int pos_ = shape_point_to_pos_map[p];
+        const int curve_ = shape[pos_];
+        const int shape_offset = shape_point_offset[pos_].first();
+        return (1 + p - shape_offset + verts_start_offsets[curve_]) << GP_VERTEX_ID_SHIFT;
+      };
 
       /* Add all triangle indices to the index buffer. */
       for (const int3 tri : tris_slice) {
