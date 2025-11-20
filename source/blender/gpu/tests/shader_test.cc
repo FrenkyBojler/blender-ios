@@ -44,7 +44,6 @@ static void test_shader_python()
                     ImageReadWriteType::image2D,
                     "test_img");
   create_info.local_group_size(16, 16, 1);
-  create_info.builtins(BuiltinBits::GLOBAL_INVOCATION_ID);
   create_info.compute_source("draw_colormanagement_lib.glsl");
   create_info.compute_source_generated = R"(
   void main()
