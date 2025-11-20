@@ -4568,6 +4568,9 @@ class VIEW3D_MT_edit_mesh_context_menu(Menu):
             col.menu("VIEW3D_MT_snap", text="Snap Vertices")
 
             col.separator()
+            col.menu("VIEW3D_MT_edit_mesh_looptools")
+
+            col.separator()
 
             col.operator("transform.vert_crease", icon='VERTEX_CREASE')
 
@@ -4610,6 +4613,9 @@ class VIEW3D_MT_edit_mesh_context_menu(Menu):
 
             col.operator("mesh.knife_tool")
             col.operator("mesh.bisect")
+
+            col.separator()
+            col.menu("VIEW3D_MT_edit_mesh_looptools")
 
             col.separator()
 
@@ -4667,6 +4673,9 @@ class VIEW3D_MT_edit_mesh_context_menu(Menu):
 
             col.operator("mesh.inset")
             col.operator("mesh.poke")
+
+            col.separator()
+            col.menu("VIEW3D_MT_edit_mesh_looptools")
 
             if selected_faces_len >= 2:
                 col.operator("mesh.bridge_edge_loops", text="Bridge Faces")
