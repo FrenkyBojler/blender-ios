@@ -633,6 +633,7 @@ set(GLSL_SRC
   engines/workbench/shaders/workbench_prepass_vert.glsl
   engines/workbench/shaders/workbench_shadow_caps_vert.glsl
   engines/workbench/shaders/workbench_shadow_debug_frag.glsl
+  engines/workbench/shaders/workbench_shadow_frag.glsl
   engines/workbench/shaders/workbench_shadow_lib.glsl
   engines/workbench/shaders/workbench_shadow_vert.glsl
   engines/workbench/shaders/workbench_shadow_visibility_comp.glsl

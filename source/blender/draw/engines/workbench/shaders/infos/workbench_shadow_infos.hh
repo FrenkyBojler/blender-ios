@@ -79,7 +79,7 @@ GPU_SHADER_CREATE_END()
  * \{ */
 
 GPU_SHADER_CREATE_INFO(workbench_shadow_no_debug)
-FRAGMENT_SOURCE("gpu_shader_depth_only_frag.glsl")
+FRAGMENT_SOURCE("workbench_shadow_frag.glsl")
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(workbench_shadow_debug)
