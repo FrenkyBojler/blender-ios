@@ -313,12 +313,14 @@ template<typename T> [[nodiscard]] inline Bounds<T> segment_bounds(const T &star
   return bounds;
 }
 
+/** Returns true if (p1 / q1) > (p2 / q2). */
 template<typename T>
 [[nodiscard]] inline bool rational_greater_than(const T &p1, const T &q1, const T &p2, const T &q2)
 {
   BLI_assert(q1 > T(0) && q2 > T(0));
   return p1 * q2 > p2 * q1;
 }
+/** Returns true if (p1 / q1) < (p2 / q2). */
 template<typename T>
 [[nodiscard]] inline bool rational_less_than(const T &p1, const T &q1, const T &p2, const T &q2)
 {
@@ -328,9 +330,9 @@ template<typename T>
 
 /** Adaptation of Liang-Barsky for N dimensions. */
 template<typename T, int Size>
-[[nodiscard]] inline bool segment_enter_exit_bounds_v(const Bounds<VecBase<T, Size>> &bounds,
-                                                      const VecBase<T, Size> &start,
-                                                      const VecBase<T, Size> &end)
+[[nodiscard]] inline bool segment_enter_exit_bounds(const Bounds<VecBase<T, Size>> &bounds,
+                                                    const VecBase<T, Size> &start,
+                                                    const VecBase<T, Size> &end)
 {
   T p_enter = T(0);
   T q_enter = T(1);
@@ -463,7 +465,7 @@ template<typename T> inline bool Bounds<T>::intersects_segment(const T &start, c
   }
   else {
     /* Check if the segment is entering and exiting the bounds. */
-    return detail::segment_enter_exit_bounds_v(*this, start, end);
+    return detail::segment_enter_exit_bounds(*this, start, end);
   }
 }
 
