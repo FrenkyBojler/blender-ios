@@ -112,7 +112,7 @@ class CopyNodesJson(bpy.types.Operator):
         import json
         node_tree = context.space_data.node_tree
         node_tree_dict = {}
-        nodes2dict(node_tree, node_tree_dict)
+        nodes2dict(node_tree, node_tree_dict, selected_only=True)
 
         data = json.dumps(node_tree_dict, indent=2)
         # todo(habib): support every OS, use pyperclip maybe?

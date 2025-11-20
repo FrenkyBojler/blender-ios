@@ -6,11 +6,17 @@ def dict2nodes(node_tree_dict: dict, node_tree: bpy.types.NodeTree):
     nodes = node_tree_dict["Nodes"]
     links = node_tree_dict["Links"]
 
+    renamed_map = {}
+
     for n in nodes:
         new_node = node_tree.nodes.new(n["bl_idname"])
         new_node.name = n["name"]
         new_node.location = Vector(n["location"])
-        # todo(habib): export all nodes parameters in a generic way
+
+        # Nodes have unique names. Update node map if the newly created node has a different name.
+        # Creating links rely on accurate names
+        if new_node.name != n["name"]:
+            renamed_map[n["name"]] = new_node.name
 
         if "node_tree" in n.keys():
             new_node_tree = bpy.data.node_groups.new(name=n["node_tree"]["name"], type="CompositorNodeTree")
@@ -20,7 +26,11 @@ def dict2nodes(node_tree_dict: dict, node_tree: bpy.types.NodeTree):
             new_node.node_tree = new_node_tree
 
     for l in links:
-        # Todo(habib): consider name conflicts
+        if l["from_node"] in renamed_map:
+            l["from_node"] = renamed_map[l["from_node"]]
+        if l["to_node"] in renamed_map:
+            l["to_node"] = renamed_map[l["to_node"]]
+
         node_tree.links.new(node_tree.nodes[l["from_node"]].outputs[l["from_socket"]],
                             node_tree.nodes[l["to_node"]].inputs[l["to_socket"]])
 
