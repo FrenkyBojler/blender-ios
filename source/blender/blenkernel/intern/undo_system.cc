@@ -987,22 +987,24 @@ static void UNUSED_FUNCTION(BKE_undosys_foreach_ID_ref(UndoStack *ustack,
 void BKE_undosys_print(UndoStack *ustack)
 {
   if (!ustack) {
-    printf("No undo steps recorded yet.\n");
+    CLOG_DEBUG(&LOG, "No undo steps recorded yet.");
     return;
   }
-  printf("Undo %d Steps (*: active, #=applied, M=memfile-active, S=skip)\n",
-         BLI_listbase_count(&ustack->steps));
+  CLOG_DEBUG(&LOG,
+             "Undo %d Steps (*: active, #=applied, M=memfile-active, S=skip)",
+             BLI_listbase_count(&ustack->steps));
   int index = 0;
   LISTBASE_FOREACH (UndoStep *, us, &ustack->steps) {
-    printf("[%c%c%c%c] %3d {%p} type='%s', name='%s'\n",
-           (us == ustack->step_active) ? '*' : ' ',
-           us->is_applied ? '#' : ' ',
-           (us == ustack->step_active_memfile) ? 'M' : ' ',
-           us->skip ? 'S' : ' ',
-           index,
-           (void *)us,
-           us->type->name,
-           us->name);
+    CLOG_DEBUG(&LOG,
+               "[%c%c%c%c] %3d {%p} type='%s', name='%s'",
+               (us == ustack->step_active) ? '*' : ' ',
+               us->is_applied ? '#' : ' ',
+               (us == ustack->step_active_memfile) ? 'M' : ' ',
+               us->skip ? 'S' : ' ',
+               index,
+               (void *)us,
+               us->type->name,
+               us->name);
     index++;
   }
 }
