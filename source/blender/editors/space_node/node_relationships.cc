@@ -2896,7 +2896,7 @@ static bool node_link_insert_offset_chain_cb(bNode *fromnode,
   return true;
 }
 
-static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
+static bool node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
                                           ARegion *region,
                                           const int mouse_xy[2],
                                           const bool right_alignment)
@@ -2920,6 +2920,14 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
    * so `totr_insert` is used to get the correct world-space coords. */
   rctf totr_insert;
   node_to_updated_rect(insert, totr_insert);
+
+  const float gap_left = totr_insert.xmin - prev->runtime->draw_bounds.xmax;
+  const float gap_right = next->runtime->draw_bounds.xmin - totr_insert.xmax;
+  const float dist_to_fixed_side = right_alignment ? gap_left : gap_right;
+  const float dist_to_shift_side = right_alignment ? gap_right : gap_left;
+  if (dist_to_fixed_side >= min_margin && dist_to_shift_side >= min_margin) {
+    return false;
+  }
 
   /* Frame attachment wasn't handled yet so we search the frame that the node will be attached to
    * later. */
@@ -2959,12 +2967,9 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
   }
 
   /* *** ensure offset at the left (or right for right_alignment case) of insert_node *** */
-
-  float dist = right_alignment ? totr_insert.xmin - prev->runtime->draw_bounds.xmax :
-                                 next->runtime->draw_bounds.xmin - totr_insert.xmax;
   /* distance between insert_node and prev is smaller than min margin */
-  if (dist < min_margin) {
-    const float addval = (min_margin - dist) * (right_alignment ? 1.0f : -1.0f);
+  if (dist_to_fixed_side < min_margin) {
+    const float addval = (min_margin - dist_to_fixed_side) * (right_alignment ? 1.0f : -1.0f);
 
     node_offset_apply(insert, addval);
 
@@ -2974,12 +2979,9 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
   }
 
   /* *** ensure offset at the right (or left for right_alignment case) of insert_node *** */
-
-  dist = right_alignment ? next->runtime->draw_bounds.xmin - totr_insert.xmax :
-                           totr_insert.xmin - prev->runtime->draw_bounds.xmax;
   /* distance between insert_node and next is smaller than min margin */
-  if (dist < min_margin) {
-    const float addval = (min_margin - dist) * (right_alignment ? 1.0f : -1.0f);
+  if (dist_to_shift_side < min_margin) {
+    const float addval = (min_margin - dist_to_shift_side) * (right_alignment ? 1.0f : -1.0f);
     if (needs_alignment) {
       bNode *offs_node = right_alignment ? next : prev;
       node_offset_apply(*offs_node, addval);
@@ -3006,6 +3008,7 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
   }
 
   insert.parent = init_parent;
+  return true;
 }
 
 /**
@@ -3080,10 +3083,15 @@ static wmOperatorStatus node_insert_offset_invoke(bContext *C,
   BLI_assert(U.uiflag & USER_NODE_AUTO_OFFSET);
 
   iofsd->ntree = snode->edittree;
-  iofsd->anim_timer = WM_event_timer_add(CTX_wm_manager(C), CTX_wm_window(C), TIMER, 0.02);
 
-  node_link_insert_offset_ntree(
+  bool has_offset = node_link_insert_offset_ntree(
       iofsd, CTX_wm_region(C), event->mval, (snode->insert_ofs_dir == SNODE_INSERTOFS_DIR_RIGHT));
+  if (!has_offset) {
+    MEM_freeN(iofsd);
+    op->customdata = nullptr;
+    return OPERATOR_CANCELLED;
+  }
+  iofsd->anim_timer = WM_event_timer_add(CTX_wm_manager(C), CTX_wm_window(C), TIMER, 0.02);
 
   /* add temp handler */
   WM_event_add_modal_handler(C, op);
