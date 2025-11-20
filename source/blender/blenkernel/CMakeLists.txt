@@ -419,7 +419,7 @@ set(SRC
   BKE_grease_pencil.hh
   BKE_grease_pencil_legacy_convert.hh
   BKE_grease_pencil_vertex_groups.hh
-  BKE_icons.h
+  BKE_icons.hh
   BKE_id_hash.hh
   BKE_idprop.hh
   BKE_idtype.hh
@@ -503,11 +503,11 @@ set(SRC
   BKE_scene.hh
   BKE_scene_runtime.hh
   BKE_screen.hh
-  BKE_shader_fx.h
+  BKE_shader_fx.hh
   BKE_shrinkwrap.hh
   BKE_softbody.h
-  BKE_sound.h
-  BKE_speaker.h
+  BKE_sound.hh
+  BKE_speaker.hh
   BKE_studiolight.h
   BKE_subdiv.hh
   BKE_subdiv_ccg.hh

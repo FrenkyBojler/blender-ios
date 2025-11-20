@@ -3436,8 +3436,12 @@ static bool ui_textedit_copypaste(uiBut *but, uiTextEdit &text_edit, const int m
 
 #ifdef WITH_INPUT_IME
 /* Enable IME, and setup #uiBut IME data. */
-static void ui_textedit_ime_begin(wmWindow *win, uiBut * /*but*/)
+static void ui_textedit_ime_begin(wmWindow *win, uiBut *but)
 {
+  if (ELEM(but->type, ButType::Num, ButType::NumSlider)) {
+    return;
+  }
+
   /* XXX Is this really needed? */
   int x, y;
 
@@ -3452,13 +3456,19 @@ static void ui_textedit_ime_begin(wmWindow *win, uiBut * /*but*/)
 }
 
 /* Disable IME, and clear #uiBut IME data. */
-static void ui_textedit_ime_end(wmWindow *win, uiBut * /*but*/)
+static void ui_textedit_ime_end(wmWindow *win, uiBut *but)
 {
+  if (ELEM(but->type, ButType::Num, ButType::NumSlider)) {
+    return;
+  }
   wm_window_IME_end(win);
 }
 
 void ui_but_ime_reposition(uiBut *but, int x, int y, bool complete)
 {
+  if (ELEM(but->type, ButType::Num, ButType::NumSlider)) {
+    return;
+  }
   BLI_assert(but->active || but->semi_modal_state);
   uiHandleButtonData *data = but->semi_modal_state ? but->semi_modal_state : but->active;
 
@@ -3894,6 +3904,12 @@ static int ui_do_but_textedit(
           if (data->searchbox) {
             data->cancel = data->escapecancel = true;
           }
+#ifdef WITH_INPUT_IME
+          else if (is_ime_composing && ime_data->composite.size() && but->type == ButType::Text) {
+            ui_textedit_insert_buf(
+                but, text_edit, ime_data->composite.c_str(), ime_data->composite.size());
+          }
+#endif
           button_activate_state(C, but, BUTTON_STATE_EXIT);
           retval = WM_UI_HANDLER_BREAK;
         }
@@ -5646,17 +5662,20 @@ static void ui_numedit_set_active(uiBut *but)
     }
   }
 
-  /* Don't change the cursor once pressed. */
-  if ((but->flag & UI_SELECT) == 0) {
+  /* Don't change the cursor once pressed or if a modal operator is running.
+   * If a modal operator is running, the number edit input will be ignored,
+   * so do not try to change the cursor if this is the case.
+   */
+  if ((but->flag & UI_SELECT) == 0 && WM_cursor_modal_is_set_ok(data->window)) {
     if ((but->drawflag & UI_BUT_HOVER_LEFT) || (but->drawflag & UI_BUT_HOVER_RIGHT)) {
       if (data->changed_cursor) {
-        WM_cursor_modal_restore(data->window);
+        WM_cursor_set(data->window, WM_CURSOR_DEFAULT);
         data->changed_cursor = false;
       }
     }
     else {
       if (data->changed_cursor == false) {
-        WM_cursor_modal_set(data->window, WM_CURSOR_X_MOVE);
+        WM_cursor_set(data->window, WM_CURSOR_X_MOVE);
         data->changed_cursor = true;
       }
     }
@@ -9110,7 +9129,7 @@ static void button_activate_exit(
 #endif
 
   if (data->changed_cursor) {
-    WM_cursor_modal_restore(win);
+    WM_cursor_set(win, WM_CURSOR_DEFAULT);
   }
 
   /* redraw and refresh (for popups) */
@@ -11178,7 +11197,7 @@ static int ui_handle_menu_event(bContext *C,
 
             /* Menu search if space-bar or #MenuTypeFlag::SearchOnKeyPress. */
             MenuType *mt = WM_menutype_find(menu->menu_idname, true);
-            if ((mt && bool(mt->flag & MenuTypeFlag::SearchOnKeyPress)) ||
+            if ((mt && flag_is_set(mt->flag, MenuTypeFlag::SearchOnKeyPress)) ||
                 event->type == EVT_SPACEKEY)
             {
               if ((level != 0) && (but == nullptr || !menu->menu_idname[0])) {

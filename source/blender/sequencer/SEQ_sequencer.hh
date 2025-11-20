@@ -12,6 +12,8 @@
 #include "BLI_vector_set.hh"
 #include "DNA_scene_types.h"
 
+#include "BLI_enum_flags.hh"
+
 struct BlendDataReader;
 struct BlendWriter;
 struct Depsgraph;
@@ -48,7 +50,7 @@ enum class StripDuplicate : uint8_t {
   /* If this is set, duplicate all strips. If not set, duplicate selected strips. */
   All = (1 << 3),
 };
-ENUM_OPERATORS(StripDuplicate, StripDuplicate::All);
+ENUM_OPERATORS(StripDuplicate);
 
 SequencerToolSettings *tool_settings_init();
 SequencerToolSettings *tool_settings_ensure(Scene *scene);
@@ -95,16 +97,16 @@ Strip *meta_stack_pop(Editing *ed);
 Strip *strip_duplicate_recursive(Main *bmain,
                                  const Scene *scene_src,
                                  Scene *scene_dst,
-                                 ListBase *new_seq_list,
+                                 ListBase *seqbase_dst,
                                  Strip *strip,
                                  StripDuplicate dupe_flag);
 void seqbase_duplicate_recursive(Main *bmain,
                                  const Scene *scene_src,
                                  Scene *scene_dst,
-                                 ListBase *nseqbase,
-                                 const ListBase *seqbase,
+                                 ListBase *seqbase_dst,
+                                 const ListBase *seqbase_src,
                                  StripDuplicate dupe_flag,
-                                 int flag);
+                                 int copy_flag);
 bool is_valid_strip_channel(const Strip *strip);
 
 /**

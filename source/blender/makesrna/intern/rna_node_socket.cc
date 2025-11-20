@@ -390,6 +390,18 @@ static void rna_NodeSocket_enabled_update(Main *bmain, Scene * /*scene*/, Pointe
   BKE_main_ensure_invariants(*bmain, ntree->id);
 }
 
+static void rna_NodeSocket_label_get(PointerRNA *ptr, char *value)
+{
+  bNodeSocket *sock = static_cast<bNodeSocket *>(ptr->data);
+  strcpy(value, blender::bke::node_socket_label(*sock).c_str());
+}
+
+static int rna_NodeSocket_label_length(PointerRNA *ptr)
+{
+  bNodeSocket *sock = static_cast<bNodeSocket *>(ptr->data);
+  return blender::bke::node_socket_label(*sock).size();
+}
+
 static bool rna_NodeSocket_is_output_get(PointerRNA *ptr)
 {
   bNodeSocket *sock = static_cast<bNodeSocket *>(ptr->data);
@@ -595,6 +607,16 @@ void rna_NodeSocketStandard_color_default(PointerRNA *ptr, PropertyRNA * /*prop*
 #  endif
 }
 
+std::string rna_NodeSocketStandard_string_default(PointerRNA *ptr, PropertyRNA * /*prop*/)
+{
+  bNodeSocket *sock = static_cast<bNodeSocket *>(ptr->data);
+  if (!sock->runtime->declaration) {
+    return "";
+  }
+  auto *decl = static_cast<const blender::nodes::decl::String *>(sock->runtime->declaration);
+  return decl->default_value;
+}
+
 int rna_NodeSocketStandard_menu_default(PointerRNA *ptr, PropertyRNA * /*prop*/)
 {
   bNodeSocket *sock = static_cast<bNodeSocket *>(ptr->data);
@@ -701,6 +723,9 @@ static void rna_def_node_socket(BlenderRNA *brna)
       {SOCK_DISPLAY_SHAPE_CIRCLE_DOT, "CIRCLE_DOT", 0, "Circle with inner dot", ""},
       {SOCK_DISPLAY_SHAPE_SQUARE_DOT, "SQUARE_DOT", 0, "Square with inner dot", ""},
       {SOCK_DISPLAY_SHAPE_DIAMOND_DOT, "DIAMOND_DOT", 0, "Diamond with inner dot", ""},
+      {SOCK_DISPLAY_SHAPE_LINE, "LINE", 0, "Line", ""},
+      {SOCK_DISPLAY_SHAPE_VOLUME_GRID, "VOLUME_GRID", 0, "Volume Grid", ""},
+      {SOCK_DISPLAY_SHAPE_LIST, "LIST", 0, "List", ""},
       {0, nullptr, 0, nullptr, nullptr}};
 
   static const float default_draw_color[] = {0.0f, 0.0f, 0.0f, 1.0f};
@@ -721,9 +746,13 @@ static void rna_def_node_socket(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeSocket_update");
 
   prop = RNA_def_property(srna, "label", PROP_STRING, PROP_NONE);
-  RNA_def_property_string_sdna(prop, nullptr, "label");
+  RNA_def_property_string_funcs(
+      prop, "rna_NodeSocket_label_get", "rna_NodeSocket_label_length", nullptr);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-  RNA_def_property_ui_text(prop, "Label", "Custom dynamic defined socket label");
+  RNA_def_property_ui_text(prop,
+                           "Label",
+                           "Custom dynamic defined UI label for the socket. Can be translated if "
+                           "translation is enabled in the preferences");
 
   prop = RNA_def_property(srna, "identifier", PROP_STRING, PROP_NONE);
   RNA_def_property_string_sdna(prop, nullptr, "identifier");
@@ -1463,6 +1492,7 @@ static void rna_def_node_socket_string(BlenderRNA *brna,
   RNA_def_property_string_sdna(prop, nullptr, "value");
   RNA_def_property_ui_text(prop, "Default Value", "Input value used for unconnected socket");
   RNA_def_property_ui_name_func(prop, "rna_NodeSocketStandard_name_func");
+  RNA_def_property_string_default_func(prop, "rna_NodeSocketStandard_string_default");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeSocketStandard_value_update");
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
 

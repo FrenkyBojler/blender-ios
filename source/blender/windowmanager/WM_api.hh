@@ -22,6 +22,7 @@
 #include "BLI_array.hh"
 #include "BLI_bounds_types.hh"
 #include "BLI_compiler_attrs.h"
+#include "BLI_enum_flags.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_sys_types.h"
@@ -78,6 +79,10 @@ class IDRemapper;
 
 namespace blender::asset_system {
 class AssetRepresentation;
+}
+
+namespace blender::ui {
+enum class AlertIcon : int8_t;
 }
 
 /* General API. */
@@ -209,10 +214,12 @@ enum eWM_CapabilitiesFlag {
   WM_CAPABILITY_CURSOR_GENERATOR = (1 << 11),
   /** Ability to save/restore windows among multiple monitors. */
   WM_CAPABILITY_MULTIMONITOR_PLACEMENT = (1 << 12),
+  /** Support for the window to show a file-path (otherwise include in the title text). */
+  WM_CAPABILITY_WINDOW_PATH = (1 << 13),
   /** The initial value, indicates the value needs to be set by inspecting GHOST. */
   WM_CAPABILITY_INITIALIZED = (1u << 31),
 };
-ENUM_OPERATORS(eWM_CapabilitiesFlag, WM_CAPABILITY_WINDOW_DECORATION_STYLES)
+ENUM_OPERATORS(eWM_CapabilitiesFlag)
 
 /**
  * Return the capabilities of the windowing system.
@@ -318,7 +325,7 @@ bool WM_window_is_main_top_level(const wmWindow *win);
 bool WM_window_is_fullscreen(const wmWindow *win);
 bool WM_window_is_maximized(const wmWindow *win);
 
-/*
+/**
  * Support for wide gamut and HDR colors.
  */
 bool WM_window_support_hdr_color(const wmWindow *win);
@@ -414,7 +421,13 @@ float WM_window_dpi_get_scale(const wmWindow *win);
  * Give a title to a window. With "Title" unspecified or nullptr, it is generated
  * automatically from window settings and areas. Only use custom title when really needed.
  */
-void WM_window_title(wmWindowManager *wm, wmWindow *win, const char *title = nullptr);
+void WM_window_title_set(wmWindow *win, const char *title);
+/**
+ * Generate a window title automatically from window settings and areas.
+ *
+ * Also refresh the modified-state (for main windows).
+ */
+void WM_window_title_refresh(wmWindowManager *wm, wmWindow *win);
 
 bool WM_stereo3d_enabled(wmWindow *win, bool skip_stereo3d_check);
 
@@ -431,7 +444,7 @@ enum eWM_WindowDecorationStyleFlag {
   /** Colored TitleBar. */
   WM_WINDOW_DECORATION_STYLE_COLORED_TITLEBAR = (1 << 0),
 };
-ENUM_OPERATORS(eWM_WindowDecorationStyleFlag, WM_WINDOW_DECORATION_STYLE_COLORED_TITLEBAR)
+ENUM_OPERATORS(eWM_WindowDecorationStyleFlag)
 
 /**
  * Get the window decoration style flags.
@@ -584,7 +597,7 @@ enum eWM_EventHandlerFlag {
   /** Handler tagged to be freed in #wm_handlers_do(). */
   WM_HANDLER_DO_FREE = (1 << 7),
 };
-ENUM_OPERATORS(eWM_EventHandlerFlag, WM_HANDLER_DO_FREE)
+ENUM_OPERATORS(eWM_EventHandlerFlag)
 
 using EventHandlerPoll = bool (*)(const wmWindow *win,
                                   const ScrArea *area,
@@ -887,10 +900,10 @@ wmOperatorStatus WM_operator_confirm_or_exec(bContext *C, wmOperator *op, const 
  */
 wmOperatorStatus WM_operator_confirm_ex(bContext *C,
                                         wmOperator *op,
-                                        const char *title = nullptr,
-                                        const char *message = nullptr,
-                                        const char *confirm_text = nullptr,
-                                        int icon = 0, /* ALERT_ICON_WARNING. */
+                                        const char *title,
+                                        const char *message,
+                                        const char *confirm_text,
+                                        blender::ui::AlertIcon icon,
                                         bool cancel_default = false);
 
 /**
@@ -1126,7 +1139,7 @@ enum eFileSel_Flag {
   /** Show the properties sidebar by default. */
   WM_FILESEL_SHOW_PROPS = 1 << 5,
 };
-ENUM_OPERATORS(eFileSel_Flag, WM_FILESEL_SHOW_PROPS)
+ENUM_OPERATORS(eFileSel_Flag)
 
 /** Action for #WM_operator_properties_filesel. */
 enum eFileSel_Action {
@@ -1433,10 +1446,11 @@ void WM_uilisttype_free();
  * The "full" list-ID is an internal name used for storing and identifying a list. It is built like
  * this:
  * `{uiListType.idname}_{list_id}`, whereby `list_id` is an optional parameter passed to
- * `UILayout.template_list()`. If it is not set, the full list-ID is just `{uiListType.idname}_`.
+ * `blender::ui::Layout.template_list()`. If it is not set, the full list-ID is just
+ * `{uiListType.idname}_`.
  *
  * Note that whenever the Python API refers to the list-ID, it's the short, "non-full" one it
- * passed to `UILayout.template_list()`. C code can query that through
+ * passed to `blender::ui::Layout.template_list()`. C code can query that through
  * #WM_uilisttype_list_id_get().
  */
 void WM_uilisttype_to_full_list_id(const uiListType *ult,
@@ -1765,7 +1779,7 @@ enum eWM_JobFlag {
   WM_JOB_EXCL_RENDER = (1 << 1),
   WM_JOB_PROGRESS = (1 << 2),
 };
-ENUM_OPERATORS(eWM_JobFlag, WM_JOB_PROGRESS);
+ENUM_OPERATORS(eWM_JobFlag);
 
 /**
  * Identifying jobs by owner alone is unreliable, this isn't saved, order can change.
@@ -2020,7 +2034,7 @@ void WM_window_status_area_tag_redraw(wmWindow *win);
  * use here since the area is stored in the window manager.
  */
 ScrArea *WM_window_status_area_find(wmWindow *win, bScreen *screen);
-bool WM_window_modal_keymap_status_draw(bContext *C, wmWindow *win, uiLayout *layout);
+bool WM_window_modal_keymap_status_draw(bContext *C, wmWindow *win, blender::ui::Layout *layout);
 
 /* `wm_event_query.cc` */
 

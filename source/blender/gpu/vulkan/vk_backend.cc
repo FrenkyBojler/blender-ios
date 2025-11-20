@@ -147,13 +147,26 @@ static Vector<StringRefNull> missing_capabilities_get(VkPhysicalDevice vk_physic
   vkGetPhysicalDeviceFeatures2(vk_physical_device, &features);
 
 #ifndef __APPLE__
+  /* Features currently not supported by Mesa KosmicKrisp. */
   if (features.features.geometryShader == VK_FALSE) {
     missing_capabilities.append("geometry shaders");
   }
+  if (features.features.multiViewport == VK_FALSE) {
+    missing_capabilities.append("multi viewport");
+  }
+  if (features.features.shaderClipDistance == VK_FALSE) {
+    missing_capabilities.append("shader clip distance");
+  }
+  if (features.features.fragmentStoresAndAtomics == VK_FALSE) {
+    missing_capabilities.append("fragment stores and atomics");
+  }
+  if (features.features.vertexPipelineStoresAndAtomics == VK_FALSE) {
+    missing_capabilities.append("vertex pipeline stores and atomics");
+  }
+#endif
   if (features.features.logicOp == VK_FALSE) {
     missing_capabilities.append("logical operations");
   }
-#endif
   if (features.features.dualSrcBlend == VK_FALSE) {
     missing_capabilities.append("dual source blending");
   }
@@ -163,17 +176,8 @@ static Vector<StringRefNull> missing_capabilities_get(VkPhysicalDevice vk_physic
   if (features.features.multiDrawIndirect == VK_FALSE) {
     missing_capabilities.append("multi draw indirect");
   }
-  if (features.features.multiViewport == VK_FALSE) {
-    missing_capabilities.append("multi viewport");
-  }
-  if (features.features.shaderClipDistance == VK_FALSE) {
-    missing_capabilities.append("shader clip distance");
-  }
   if (features.features.drawIndirectFirstInstance == VK_FALSE) {
     missing_capabilities.append("draw indirect first instance");
-  }
-  if (features.features.fragmentStoresAndAtomics == VK_FALSE) {
-    missing_capabilities.append("fragment stores and atomics");
   }
   if (features_11.shaderDrawParameters == VK_FALSE) {
     missing_capabilities.append("shader draw parameters");
@@ -433,7 +437,6 @@ void VKBackend::detect_workarounds(VKDevice &device)
     extensions.fragment_shader_barycentric = false;
     extensions.dynamic_rendering_local_read = false;
     extensions.dynamic_rendering_unused_attachments = false;
-    extensions.descriptor_buffer = false;
     extensions.pageable_device_local_memory = false;
     extensions.wide_lines = false;
     GCaps.stencil_export_support = false;
@@ -455,11 +458,6 @@ void VKBackend::detect_workarounds(VKDevice &device)
   extensions.dynamic_rendering_unused_attachments = device.supports_extension(
       VK_EXT_DYNAMIC_RENDERING_UNUSED_ATTACHMENTS_EXTENSION_NAME);
   extensions.logic_ops = device.physical_device_features_get().logicOp;
-  /* For stability reasons descriptor buffers have been disabled. */
-#if 0
-  extensions.descriptor_buffer = device.supports_extension(
-      VK_EXT_DESCRIPTOR_BUFFER_EXTENSION_NAME);
-#endif
   extensions.maintenance4 = device.supports_extension(VK_KHR_MAINTENANCE_4_EXTENSION_NAME);
   extensions.memory_priority = device.supports_extension(VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME);
   extensions.pageable_device_local_memory = device.supports_extension(
@@ -472,29 +470,6 @@ void VKBackend::detect_workarounds(VKDevice &device)
 #else
   extensions.external_memory = false;
 #endif
-
-  /* Descriptor buffers are disabled on the NVIDIA platform due to performance regressions. Both
-   * still seem to be faster than OpenGL.
-   *
-   * See #140125
-   */
-  if (device.vk_physical_device_driver_properties_.driverID == VK_DRIVER_ID_NVIDIA_PROPRIETARY) {
-    extensions.descriptor_buffer = false;
-  }
-
-  /* Running render tests fails consistently in some scenes. The cause is that too many descriptor
-   * sets are required for rendering resulting in failing allocations of the descriptor buffer. We
-   * work around this issue by not using descriptor buffers on these platforms.
-   *
-   * TODO: recheck when the backed memory gets freed and how to improve it.
-   *
-   * See #141476
-   */
-  if (device.vk_physical_device_driver_properties_.driverID ==
-      VK_DRIVER_ID_INTEL_PROPRIETARY_WINDOWS)
-  {
-    extensions.descriptor_buffer = false;
-  }
 
   /* AMD GPUs don't support texture formats that use are aligned to 24 or 48 bits. */
   if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_ANY) ||
@@ -593,6 +568,7 @@ Context *VKBackend::context_alloc(void *ghost_window, void *ghost_context)
   if (!device.is_initialized()) {
     device.init(ghost_context);
     device.extensions_get().log();
+    device.workarounds_get().log();
     init_device_list((GHOST_ContextHandle)ghost_context);
   }
 

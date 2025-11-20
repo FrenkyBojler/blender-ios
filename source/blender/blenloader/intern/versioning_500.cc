@@ -2145,7 +2145,7 @@ static void do_version_material_remove_use_nodes(Main *bmain, Material *material
         *ntree, new_output_cycles, SOCK_IN, "NodeSocketVector", "Displacement");
     version_node_add_socket(*ntree, new_output_cycles, SOCK_IN, "NodeSocketFloat", "Thickness");
     /* We don't activate the output explicitly to avoid having two active outputs. We assume
-     * `node_tree.get_output_node('Cycles')` will return this node.  */
+     * `node_tree.get_output_node('Cycles')` will return this node. */
     new_output_cycles.custom1 = SHD_OUTPUT_CYCLES;
 
     bNode &shader_cycles = *blender::bke::node_add_static_node(
@@ -2517,11 +2517,9 @@ static void sequencer_substitute_transform_effects(Scene *scene)
       transform->scale_x *= tv->ScalexIni;
       transform->scale_y *= tv->ScaleyIni;
       transform->rotation += tv->rotIni;
-      blender::seq::EffectHandle sh = blender::seq::strip_effect_handle_get(strip);
-      sh.free(strip, true);
+      blender::seq::effect_free(strip);
       strip->type = STRIP_TYPE_GAUSSIAN_BLUR;
-      sh = blender::seq::strip_effect_handle_get(strip);
-      sh.init(strip);
+      blender::seq::effect_ensure_initialized(strip);
       GaussianBlurVars *gv = static_cast<GaussianBlurVars *>(strip->effectdata);
       gv->size_x = gv->size_y = 0.0f;
       blender::seq::edit_strip_name_set(scene, strip, "Transform Placeholder (Migrated)");
@@ -4303,7 +4301,7 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 113)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 4)) {
     /* Clear mute flag on node types that set ntype->no_muting = true. */
     static const Set<std::string> no_muting_nodes = {"CompositorNodeViewer",
                                                      "NodeClosureInput",

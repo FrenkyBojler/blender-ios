@@ -49,8 +49,10 @@ class SelectPattern(Operator):
         if self.case_sensitive:
             pattern_match = fnmatch.fnmatchcase
         else:
-            pattern_match = (lambda a, b:
-                             fnmatch.fnmatchcase(a.upper(), b.upper()))
+            pattern_match = (
+                lambda a, b:
+                fnmatch.fnmatchcase(a.upper(), b.upper())
+            )
         is_ebone = False
         is_pbone = False
         obj = context.object
@@ -424,8 +426,10 @@ class ShapeTransfer(Operator):
             # Method 1, edge
             if mode == 'OFFSET':
                 for i, vert_cos in enumerate(median_coords):
-                    vert_cos.append(target_coords[i] +
-                                    (orig_shape_coords[i] - orig_coords[i]))
+                    vert_cos.append(
+                        target_coords[i] +
+                        (orig_shape_coords[i] - orig_coords[i])
+                    )
 
             elif mode == 'RELATIVE_FACE':
                 for poly in me.polygons:
@@ -497,7 +501,7 @@ class ShapeTransfer(Operator):
     @classmethod
     def poll(cls, context):
         obj = context.active_object
-        return (obj and obj.mode != 'EDIT')
+        return (obj and obj.type == 'MESH' and obj.mode != 'EDIT')
 
     def execute(self, context):
         ob_act = context.active_object
@@ -506,14 +510,14 @@ class ShapeTransfer(Operator):
             if ob != ob_act
         ]
 
-        if 1:  # swap from/to, means we can't copy to many at once.
-            if len(objects) != 1:
-                self.report({'ERROR'}, "Expected one other selected mesh object to copy from")
-                return {'CANCELLED'}
-            ob_act, objects = objects[0], [ob_act]
+        if len(objects) != 1:
+            self.report({'ERROR'}, "Expected one other selected mesh object to copy from")
+            return {'CANCELLED'}
 
-        if ob_act.type != 'MESH':
-            self.report({'ERROR'}, "Other object is not a mesh")
+        ob_act, objects = objects[0], [ob_act]
+
+        if ob_act.type != 'MESH' or objects[0].type != 'MESH':
+            self.report({'ERROR'}, "Both objects must be meshes")
             return {'CANCELLED'}
 
         if ob_act.active_shape_key is None:
@@ -625,11 +629,12 @@ class MakeDupliFace(Operator):
 
         SCALE_FAC = 0.01
         offset = 0.5 * SCALE_FAC
-        base_tri = (Vector((-offset, -offset, 0.0)),
-                    Vector((+offset, -offset, 0.0)),
-                    Vector((+offset, +offset, 0.0)),
-                    Vector((-offset, +offset, 0.0)),
-                    )
+        base_tri = (
+            Vector((-offset, -offset, 0.0)),
+            Vector((+offset, -offset, 0.0)),
+            Vector((+offset, +offset, 0.0)),
+            Vector((-offset, +offset, 0.0)),
+        )
 
         def matrix_to_quad(matrix):
             # scale = matrix.median_scale

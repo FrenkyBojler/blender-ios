@@ -20,7 +20,7 @@
 #include "BLI_hash.h"
 #include "BLI_heap.h"
 #include "BLI_kdopbvh.hh"
-#include "BLI_kdtree.h"
+#include "BLI_kdtree.hh"
 #include "BLI_lasso_2d.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
@@ -1605,9 +1605,6 @@ void uvedit_select_prepare_custom_data(const Scene *scene, BMesh *bm)
   const ToolSettings *ts = scene->toolsettings;
   BLI_assert((ts->uv_flag & UV_FLAG_SELECT_SYNC) == 0);
   UNUSED_VARS_NDEBUG(ts);
-  const char *active_uv_name = CustomData_get_active_layer_name(&bm->ldata, CD_PROP_FLOAT2);
-  BLI_assert(active_uv_name);
-  UNUSED_VARS_NDEBUG(active_uv_name);
 
   /* Needed because this data must *not* be used for select-sync
    * once this has been manipulated with select-sync disabled. */
@@ -3097,7 +3094,7 @@ static void uv_select_invert(const Scene *scene, BMEditMesh *em)
     if (ED_uvedit_sync_uvselect_ignore(ts)) {
       bm->uv_select_sync_valid = false;
     }
-    /* If selection wasn't synced, there is no need to sync.  */
+    /* If selection wasn't synced, there is no need to sync. */
     if (bm->uv_select_sync_valid == false) {
       EDBM_select_swap(em);
       EDBM_selectmode_flush(em);
@@ -5352,9 +5349,10 @@ static wmOperatorStatus uv_select_pinned_exec(bContext *C, wmOperator *op)
       scene, view_layer, nullptr);
 
   for (Object *obedit : objects) {
-    BMesh *bm = BKE_editmesh_from_object(obedit)->bm;
+    Mesh &mesh = *static_cast<Mesh *>(obedit->data);
+    BMesh *bm = mesh.runtime->edit_mesh->bm;
 
-    const char *active_uv_name = CustomData_get_active_layer_name(&bm->ldata, CD_PROP_FLOAT2);
+    const blender::StringRef active_uv_name = mesh.active_uv_map_name();
     if (!BM_uv_map_attr_pin_exists(bm, active_uv_name)) {
       continue;
     }
@@ -5415,26 +5413,29 @@ void UV_OT_select_pinned(wmOperatorType *ot)
 /** \name Select Overlap Operator
  * \{ */
 
-BLI_INLINE uint overlap_hash(const void *overlap_v)
-{
-  const BVHTreeOverlap *overlap = static_cast<const BVHTreeOverlap *>(overlap_v);
-
-  /* Designed to treat (A,B) and (B,A) as the same. */
-  int x = overlap->indexA;
-  int y = overlap->indexB;
-  if (x > y) {
-    std::swap(x, y);
+struct BVHTreeOverlapUnorderedHash {
+  uint64_t operator()(BVHTreeOverlap overlap) const
+  {
+    if (overlap.indexA < overlap.indexB) {
+      std::swap(overlap.indexA, overlap.indexB);
+    }
+    return blender::get_default_hash(overlap.indexA, overlap.indexB);
   }
-  return BLI_hash_int_2d(x, y);
-}
+};
 
-BLI_INLINE bool overlap_cmp(const void *a_v, const void *b_v)
-{
-  const BVHTreeOverlap *a = static_cast<const BVHTreeOverlap *>(a_v);
-  const BVHTreeOverlap *b = static_cast<const BVHTreeOverlap *>(b_v);
-  return !((a->indexA == b->indexA && a->indexB == b->indexB) ||
-           (a->indexA == b->indexB && a->indexB == b->indexA));
-}
+struct BVHTreeOverlapUnorderedEq {
+  bool operator()(const BVHTreeOverlap &a, const BVHTreeOverlap &b) const
+  {
+    return (a.indexA == b.indexA && a.indexB == b.indexB) ||
+           (a.indexA == b.indexB && a.indexB == b.indexA);
+  }
+};
+
+using BVHTreeOverlapSet = blender::Set<BVHTreeOverlap,
+                                       4,
+                                       blender::DefaultProbingStrategy,
+                                       BVHTreeOverlapUnorderedHash,
+                                       BVHTreeOverlapUnorderedEq>;
 
 struct UVOverlapData {
   int ob_index;
@@ -5627,7 +5628,8 @@ static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend)
   BVHTreeOverlap *overlap = BLI_bvhtree_overlap_self(uv_tree, &tree_overlap_len, nullptr, nullptr);
 
   if (overlap != nullptr) {
-    GSet *overlap_set = BLI_gset_new_ex(overlap_hash, overlap_cmp, __func__, tree_overlap_len);
+    BVHTreeOverlapSet overlap_set;
+    overlap_set.reserve(tree_overlap_len);
 
     for (int i = 0; i < tree_overlap_len; i++) {
       /* Skip overlaps against yourself. */
@@ -5636,7 +5638,7 @@ static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend)
       }
 
       /* Skip overlaps that have already been tested. */
-      if (!BLI_gset_add(overlap_set, &overlap[i])) {
+      if (!overlap_set.add(overlap[i])) {
         continue;
       }
 
@@ -5666,7 +5668,6 @@ static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend)
       }
     }
 
-    BLI_gset_free(overlap_set, nullptr);
     MEM_freeN(overlap);
   }
 
