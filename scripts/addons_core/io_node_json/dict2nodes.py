@@ -1,7 +1,5 @@
 import bpy
 from mathutils import Vector
-import json
-from pprint import pprint
 
 def dict2nodes(node_tree_dict: dict, node_tree: bpy.types.NodeTree):
 
@@ -12,6 +10,8 @@ def dict2nodes(node_tree_dict: dict, node_tree: bpy.types.NodeTree):
         new_node = node_tree.nodes.new(n["bl_idname"])
         new_node.name = n["name"]
         new_node.location = Vector(n["location"])
+        # todo(habib): export all nodes parameters in a generic way
+
         if "node_tree" in n.keys():
             new_node_tree = bpy.data.node_groups.new(name=n["node_tree"]["name"], type="CompositorNodeTree")
             for item in n["node_tree"]["interface"]:
@@ -20,6 +20,7 @@ def dict2nodes(node_tree_dict: dict, node_tree: bpy.types.NodeTree):
             new_node.node_tree = new_node_tree
 
     for l in links:
+        # Todo(habib): consider name conflicts
         node_tree.links.new(node_tree.nodes[l["from_node"]].outputs[l["from_socket"]],
                             node_tree.nodes[l["to_node"]].inputs[l["to_socket"]])
 
@@ -27,12 +28,14 @@ def dict2nodes(node_tree_dict: dict, node_tree: bpy.types.NodeTree):
         if "node_tree" in n.keys():
             dict2nodes(n["node_tree"], new_node_tree)
 
-# if __name__ == "__main__":
-#     with open("/home/habib/blender-git/files/nodes-json/save.json", "r") as f:
-#         node_tree_dict = json.load(f)
+debug = False
+if debug:
+    import json
+    with open("/home/habib/blender-git/files/nodes-json/save.json", "r") as f:
+        node_tree_dict = json.load(f)
 
 
-#     print("\n\n######## NEW RUN ########")
-#     node_tree = bpy.data.node_groups["Load tree"]
-#     node_tree.nodes.clear()
-#     dict2nodes(node_tree_dict["node_tree"], node_tree)
+    print("\n\n######## NEW RUN ########")
+    node_tree = bpy.data.node_groups["Load tree"]
+    node_tree.nodes.clear()
+    dict2nodes(node_tree_dict["node_tree"], node_tree)
