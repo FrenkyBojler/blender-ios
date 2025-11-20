@@ -30,17 +30,14 @@ void main()
     if (flag_test(grid_flag, SHOW_AXIS_X) && reduce_max(abs(local_pos.yz)) < 1e-4f) {
       out_color.rgb = theme.colors.grid_axis_x.rgb;
       out_color.a = max(out_color.a, theme.colors.grid_axis_x.a);
-      out_color.a = 1.0f;
     }
     if (flag_test(grid_flag, SHOW_AXIS_Y) && reduce_max(abs(local_pos.xz)) < 1e-4f) {
       out_color.rgb = theme.colors.grid_axis_y.rgb;
       out_color.a = max(out_color.a, theme.colors.grid_axis_y.a);
-      out_color.a = 1.0f;
     }
     if (flag_test(grid_flag, SHOW_AXIS_Z) && reduce_max(abs(local_pos.xy)) < 1e-4f) {
       out_color.rgb = theme.colors.grid_axis_z.rgb;
       out_color.a = max(out_color.a, theme.colors.grid_axis_z.a);
-      out_color.a = 1.0f;
     }
   }
 
@@ -57,7 +54,7 @@ void main()
       V /= dist;
 
       /* Add fade at steep angles for contents of the floor plane. */
-      if (!(flag_test(grid_flag, DRAW_AXIS_ZPOS) || flag_test(grid_flag, DRAW_AXIS_ZNEG))) {
+      if (!flag_test(grid_flag, DRAW_AXIS_Z)) {
         out_color.a *= 1.0f - pow3f(1.0f - abs(V.z));
       }
 
@@ -113,4 +110,11 @@ void main()
   if (out_color.a != 0.0f) {
     line_output = pack_line_data(gl_FragCoord.xy, edge_start, edge_pos);
   }
+
+  float3 cols[3] = {
+    float3(1, 0, 0),
+    float3(0, 1, 0),
+    float3(0, 0, 1)
+  };
+  out_color.rgb = cols[local_level];
 }

@@ -38,7 +38,8 @@ enum OVERLAY_GridBits : uint32_t {
   PLANE_XZ = (1u << 5u),
   PLANE_YZ = (1u << 6u),
 
-  DRAW_AXIS_ZPOS = (1u << 7u),
+  /* TODO(not_mark): eliminate */
+  DRAW_AXIS_Z = (1u << 7u),
   DRAW_AXIS_ZNEG = (1u << 8u),
 
   GRID_BACK = (1u << 9u),

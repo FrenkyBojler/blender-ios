@@ -73,13 +73,8 @@ LineData decode_grid_data(in uint vertex_id)
 
 void main()
 {
-  LineData line;
-  if (flag_test(grid_flag, DRAW_AXIS_ZPOS) || flag_test(grid_flag, DRAW_AXIS_ZNEG)) {
-    line = decode_zaxis_data(gl_VertexID);
-  }
-  else {
-    line = decode_grid_data(gl_VertexID);
-  }
+  bool is_axis_z = flag_test(grid_flag, DRAW_AXIS_Z);
+  LineData line = is_axis_z ? decode_zaxis_data(gl_VertexID) : decode_grid_data(gl_VertexID);
 
   /* Compute the actual level of a line, offset by -1 to force a sublevel in the 3D viewport. */
   int level = int(grid_level) + line.level - (flag_test(grid_flag, PLANE_IMAGE) ? 0 : 1);

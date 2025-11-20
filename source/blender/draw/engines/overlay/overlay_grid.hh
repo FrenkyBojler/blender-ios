@@ -42,9 +42,8 @@ class GridRework : Overlay {
   float grid_level_;
 
   /* Config flags passed to different draw calls. */
-  int draw_grid_flag_ = 0;   /* Config flag for type of grid and xy/xz axis draw. */
-  int draw_zback_flag_ = 0;  /* Config flag for z axis draw before the grid draw. */
-  int draw_zfront_flag_ = 0; /* Config flag for z axis draw after the grid draw. */
+  int draw_grid_flag_ = 0; /* Config flag for type of grid and x/y axis draw. */
+  int draw_axis_flag_ = 0; /* Config flag for z axis draw. */
 
  public:
   void begin_sync(Resources &res, const State &state) final
@@ -69,16 +68,16 @@ class GridRework : Overlay {
 
     /* Draw a quad behind the grid, specifically in the 2D/uv image editor. This is retained
      * from the 5.0 grid. */
-    // if (state.is_space_image()) {
-    //   auto &sub = grid_ps_.sub("grid_background");
-    //   sub.shader_set(res.shaders->grid_background.get());
-    //   const float4 color_back = math::interpolate(
-    //       res.theme.colors.background, res.theme.colors.grid, 0.5);
-    //   sub.push_constant("ucolor", color_back);
-    //   sub.push_constant("tile_scale", float3(grid_ubo_.size));
-    //   sub.bind_texture("depth_buffer", depth_tx);
-    //   sub.draw(res.shapes.quad_solid.get());
-    // }
+    if (state.is_space_image()) {
+      auto &sub = grid_ps_.sub("grid_background");
+      sub.shader_set(res.shaders->grid_background.get());
+      const float4 color_back = math::interpolate(
+          res.theme.colors.background, res.theme.colors.grid, 0.5);
+      sub.push_constant("ucolor", color_back);
+      sub.push_constant("tile_scale", float3(grid_ubo_.size));
+      sub.bind_texture("depth_buffer", depth_tx);
+      sub.draw(res.shapes.quad_solid.get());
+    }
 
     /* Grid and axis line draws. */
     {
@@ -101,34 +100,34 @@ class GridRework : Overlay {
       }
 
       /* Z-axis line draw, 2 verts. */
-      if (draw_zfront_flag_) {
+      if (draw_axis_flag_) {
         sub.push_constant("grid_poi", &grid_poi_origin_);
-        sub.push_constant("grid_flag", &draw_zfront_flag_);
+        sub.push_constant("grid_flag", &draw_axis_flag_);
         sub.draw_procedural(GPUPrimType::GPU_PRIM_LINES, -1, 2, 0);
       }
     }
 
     /* Draw an outline around the grid, specifically in the 2D/UV image editor. This is retained
      * from the 5.0 grid. */
-    // if (state.is_space_image()) {
-    //   float4 theme_color;
-    //   UI_GetThemeColorShade4fv(TH_BACK, 60, theme_color);
-    //   srgb_to_linearrgb_v4(theme_color, theme_color);
+    if (state.is_space_image()) {
+      float4 theme_color;
+      UI_GetThemeColorShade4fv(TH_BACK, 60, theme_color);
+      srgb_to_linearrgb_v4(theme_color, theme_color);
 
-    //   /* Add wire border. */
-    //   auto &sub = grid_ps_.sub("wire_border");
-    //   sub.shader_set(res.shaders->grid_image.get());
-    //   sub.push_constant("ucolor", theme_color);
-    //   tile_pos_buf_.clear();
-    //   for (const int x : IndexRange(grid_ubo_.size[0])) {
-    //     for (const int y : IndexRange(grid_ubo_.size[1])) {
-    //       tile_pos_buf_.append(float4(x, y, 0.0f, 0.0f));
-    //     }
-    //   }
-    //   tile_pos_buf_.push_update();
-    //   sub.bind_ssbo("tile_pos_buf", &tile_pos_buf_);
-    //   sub.draw(res.shapes.quad_wire.get(), tile_pos_buf_.size());
-    // }
+      /* Add wire border. */
+      auto &sub = grid_ps_.sub("wire_border");
+      sub.shader_set(res.shaders->grid_image.get());
+      sub.push_constant("ucolor", theme_color);
+      tile_pos_buf_.clear();
+      for (const int x : IndexRange(grid_ubo_.size[0])) {
+        for (const int y : IndexRange(grid_ubo_.size[1])) {
+          tile_pos_buf_.append(float4(x, y, 0.0f, 0.0f));
+        }
+      }
+      tile_pos_buf_.push_update();
+      sub.bind_ssbo("tile_pos_buf", &tile_pos_buf_);
+      sub.draw(res.shapes.quad_wire.get(), tile_pos_buf_.size());
+    }
   }
 
   void draw_color_only(Framebuffer &framebuffer, Manager &manager, View &view) final
@@ -146,10 +145,10 @@ class GridRework : Overlay {
   bool init(const State &state)
   {
     /* Initialize config flags to default value. */
-    draw_grid_flag_ = draw_zfront_flag_ = draw_zback_flag_ = 0;
+    draw_grid_flag_ = draw_axis_flag_ = 0;
 
     /* This suffices for most cases, and in others we fade to hide it. */
-    num_lines_per_level_ = 301; /* TODO(not_mark): variable line count for orth/persp/uv/image */
+    num_lines_per_level_ = 5; // 301; /* TODO(not_mark): variable line count for orth/persp/uv/image */
     grid_ubo_.num_lines_per_level = num_lines_per_level_;
 
     return is_3d_grid_ ? init_3d(state) : init_2d(state);
@@ -270,7 +269,7 @@ class GridRework : Overlay {
 
     /* Set `draw_z*_flag_` if the Z-axis must be drawn. */
     if (((rv3d->view == RV3D_VIEW_USER) || (rv3d->persp != RV3D_ORTHO)) && show_axis_z) {
-      draw_zfront_flag_ = draw_zback_flag_ = (SHOW_AXIS_Z | PLANE_XZ);
+      draw_axis_flag_ = (SHOW_AXIS_Z | PLANE_XZ);
     }
 
     /* Query far clip distance dependent on camera/viewport */
@@ -278,8 +277,7 @@ class GridRework : Overlay {
       Object *camera_object = DEG_get_evaluated(state.depsgraph, v3d->camera);
       grid_ubo_.distance = ((Camera *)(camera_object->data))->clip_end;
       draw_grid_flag_ |= GRID_CAMERA;
-      draw_zfront_flag_ |= GRID_CAMERA;
-      draw_zback_flag_ |= GRID_CAMERA;
+      draw_axis_flag_ |= GRID_CAMERA;
     }
     else {
       grid_ubo_.distance = v3d->clip_end;
@@ -297,15 +295,9 @@ class GridRework : Overlay {
 
     /* If the Z-axis is to be drawn, configure draw flags so above/below is drawn
      * correctly behind/in front of the grid, dependent on camera angle. */
-    if (draw_zback_flag_ || draw_zfront_flag_) {
-      if (drw_view_forward.z >= 0) {
-        draw_zfront_flag_ |= DRAW_AXIS_ZPOS;
-        draw_zback_flag_ |= DRAW_AXIS_ZNEG;
-      }
-      else {
-        draw_zfront_flag_ |= DRAW_AXIS_ZNEG;
-        draw_zback_flag_ |= DRAW_AXIS_ZPOS;
-      }
+    /* TODO(not_mark): eliminate. */
+    if (draw_axis_flag_) {
+      draw_axis_flag_ |= DRAW_AXIS_Z;
     }
 
     /* Compute distance to a relevant floor point-of-interest from the camera. The grid translates
@@ -604,7 +596,7 @@ class Grid : Overlay {
       zpos_flag_ = zneg_flag_ = SHOW_AXIS_Z;
     }
     else {
-      zneg_flag_ = zpos_flag_ = DRAW_AXIS_ZNEG | DRAW_AXIS_ZPOS;
+      zneg_flag_ = zpos_flag_ = DRAW_AXIS_ZNEG | DRAW_AXIS_Z;
     }
 
     if (rv3d->persp == RV3D_CAMOB && v3d->camera && v3d->camera->type == OB_CAMERA) {
@@ -649,12 +641,12 @@ class Grid : Overlay {
       /* Perspective: If camera is below floor plane, we switch clipping.
        * Orthographic: If eye vector is looking up, we switch clipping. */
       if ((view.is_persp() && (position.z > 0.0f)) || (!view.is_persp() && (backward.z < 0.0f))) {
-        zpos_flag_ |= DRAW_AXIS_ZPOS;
+        zpos_flag_ |= DRAW_AXIS_Z;
         zneg_flag_ |= DRAW_AXIS_ZNEG;
       }
       else {
         zpos_flag_ |= DRAW_AXIS_ZNEG;
-        zneg_flag_ |= DRAW_AXIS_ZPOS;
+        zneg_flag_ |= DRAW_AXIS_Z;
       }
 
       zplane_axes_.x = float((zpos_flag_ & (PLANE_XZ | PLANE_XY)) != 0);
