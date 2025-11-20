@@ -499,6 +499,39 @@ static BMOpDefine bmo_remove_doubles_def = {
 };
 
 /*
+ * Circularize.
+ *
+ * Shape selected geometry into a circle.
+ */
+static BMOpDefine bmo_circularize_def = {
+    /*opname*/ "circularize",
+    /*slot_types_in*/
+    {
+        /* Input geometry. */
+        {"geom", BMO_OP_SLOT_ELEMENT_BUF, {BM_VERT | BM_EDGE | BM_FACE}},
+        /* Influence factor. */
+        {"influence", BMO_OP_SLOT_FLT},
+        /* Flatten the circle. */
+        {"flatten", BMO_OP_SLOT_BOOL},
+        /* Distribute vertices at constant distances. */
+        {"regular", BMO_OP_SLOT_BOOL},
+        /* Method to fit the circle. */
+        {"fit_method", BMO_OP_SLOT_INT},
+        /* Custom radius. */
+        {"custom_radius", BMO_OP_SLOT_FLT},
+        /* Axis to lock. */
+        {"lock_axis", BMO_OP_SLOT_VEC},
+        {{'\0'}},
+    },
+    /*slot_types_out*/
+    {{{'\0'}}},
+    /*init*/ nullptr,
+    /*exec*/ bmo_circularize_exec,
+    /*type_flag*/
+    (BMO_OPTYPE_FLAG_NORMALS_CALC),
+};
+
+/*
  * Collapse Connected.
  *
  * Collapses connected vertices
@@ -2783,6 +2816,7 @@ const BMOpDefine *bmo_opdefines[] = {
     &bmo_bisect_edges_def,
     &bmo_bmesh_to_mesh_def,
     &bmo_bridge_loops_def,
+    &bmo_circularize_def,
     &bmo_collapse_def,
     &bmo_collapse_uvs_def,
     &bmo_connect_verts_def,
