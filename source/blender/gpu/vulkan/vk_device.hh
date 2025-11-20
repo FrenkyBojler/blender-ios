@@ -66,11 +66,6 @@ struct VKExtensions {
   bool maintenance4 = false;
 
   /**
-   * Does the device support VK_EXT_descriptor_buffer.
-   */
-  bool descriptor_buffer = false;
-
-  /**
    * Does the device support logic ops.
    */
   bool logic_ops = false;
@@ -107,6 +102,9 @@ struct VKWorkarounds {
      */
     bool r8g8b8 = false;
   } vertex_formats;
+
+  /** Log enabled workarounds. */
+  void log() const;
 };
 
 /**
@@ -190,8 +188,6 @@ class VKDevice : public NonCopyable {
   VkPhysicalDeviceMemoryProperties vk_physical_device_memory_properties_ = {};
   VkPhysicalDeviceMaintenance4Properties vk_physical_device_maintenance4_properties_ = {
       VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_PROPERTIES};
-  VkPhysicalDeviceDescriptorBufferPropertiesEXT vk_physical_device_descriptor_buffer_properties_ =
-      {};
   /** Features support. */
   VkPhysicalDeviceFeatures vk_physical_device_features_ = {};
   VkPhysicalDeviceVulkan11Features vk_physical_device_vulkan_11_features_ = {};
@@ -245,13 +241,6 @@ class VKDevice : public NonCopyable {
     PFN_vkGetMemoryWin32HandleKHR vkGetMemoryWin32Handle = nullptr;
 #endif
 
-    /* Extension: VK_EXT_descriptor_buffer */
-    PFN_vkGetDescriptorSetLayoutSizeEXT vkGetDescriptorSetLayoutSize = nullptr;
-    PFN_vkGetDescriptorSetLayoutBindingOffsetEXT vkGetDescriptorSetLayoutBindingOffset = nullptr;
-    PFN_vkGetDescriptorEXT vkGetDescriptor = nullptr;
-    PFN_vkCmdBindDescriptorBuffersEXT vkCmdBindDescriptorBuffers = nullptr;
-    PFN_vkCmdSetDescriptorBufferOffsetsEXT vkCmdSetDescriptorBufferOffsets = nullptr;
-
   } functions;
 
   VKMemoryPools vma_pools;
@@ -280,12 +269,6 @@ class VKDevice : public NonCopyable {
   const VkPhysicalDeviceIDProperties &physical_device_id_properties_get() const
   {
     return vk_physical_device_id_properties_;
-  }
-
-  inline const VkPhysicalDeviceDescriptorBufferPropertiesEXT &
-  physical_device_descriptor_buffer_properties_get() const
-  {
-    return vk_physical_device_descriptor_buffer_properties_;
   }
 
   const VkPhysicalDeviceFeatures &physical_device_features_get() const
