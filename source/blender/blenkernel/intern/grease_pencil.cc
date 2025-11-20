@@ -747,18 +747,12 @@ static void ensure_triangle_and_offset_cache(const Drawing &drawing)
       [&](Vector<int3> &r_triangle_data) { r_triangle_data = std::move(r_triangle); });
 }
 
-OffsetIndices<int> Drawing::triangle_offsets() const
+GroupedSpan<int3> Drawing::triangles() const
 {
   ensure_triangle_and_offset_cache(*this);
 
-  return this->runtime->triangle_offsets_cache.data().as_span();
-}
-
-Span<int3> Drawing::triangles() const
-{
-  ensure_triangle_and_offset_cache(*this);
-
-  return this->runtime->triangles_cache.data().as_span();
+  return GroupedSpan<int3>(this->runtime->triangle_offsets_cache.data().as_span(),
+                           this->runtime->triangles_cache.data().as_span());
 }
 
 static void update_curve_plane_normal_cache(const Span<float3> positions,
@@ -1132,8 +1126,7 @@ static void update_triangle_and_offsets_changed(const Span<float3> positions,
                                                 const OffsetIndices<int> dst_points_by_curve,
                                                 const IndexMask &changed_curves,
                                                 const GroupedSpan<int> shapes,
-                                                const Span<int3> src_triangles,
-                                                const OffsetIndices<int> src_triangle_offsets,
+                                                const GroupedSpan<int3> src_triangles,
                                                 Vector<int3> &r_triangles,
                                                 MutableSpan<int> r_triangle_offsets)
 {
@@ -1161,7 +1154,7 @@ static void update_triangle_and_offsets_changed(const Span<float3> positions,
 
   Array<int> all_src_sizes(shapes.size());
   Array<int> changed_sizes(changed_shapes.size());
-  copy_group_sizes(src_triangle_offsets, src_triangle_offsets.index_range(), all_src_sizes);
+  copy_group_sizes(src_triangles.offsets, src_triangles.index_range(), all_src_sizes);
   copy_group_sizes(
       changed_triangle_offsets, changed_triangle_offsets.index_range(), changed_sizes);
 
@@ -1177,10 +1170,10 @@ static void update_triangle_and_offsets_changed(const Span<float3> positions,
 
   const OffsetIndices<int> triangle_offsets = OffsetIndices<int>(r_triangle_offsets);
 
-  array_utils::copy_group_to_group(src_triangle_offsets,
+  array_utils::copy_group_to_group(src_triangles.offsets,
                                    triangle_offsets,
                                    unchanged_shapes,
-                                   src_triangles,
+                                   src_triangles.data,
                                    r_triangles.as_mutable_span());
 
   /* Calculate the old to new point indexes. */
@@ -1253,7 +1246,6 @@ void Drawing::tag_positions_changed(const IndexMask &changed_curves)
                                       changed_curves,
                                       shapes,
                                       this->triangles(),
-                                      this->triangle_offsets().data(),
                                       triangles_data,
                                       triangle_offsets_data);
 
@@ -1307,7 +1299,7 @@ void Drawing::tag_topology_changed(const IndexMask &changed_curves,
   const GroupedSpan<int> shapes = this->shapes();
 
   /* Make sure the number of shapes has not changed. */
-  if (shapes.size() == this->triangle_offsets().size()) {
+  if (shapes.size() == this->triangles().size()) {
     Vector<int> triangle_offsets(shapes.size() + 1);
     Vector<int3> triangles;
 
@@ -1318,7 +1310,6 @@ void Drawing::tag_topology_changed(const IndexMask &changed_curves,
                                         changed_curves,
                                         shapes,
                                         this->triangles(),
-                                        this->triangle_offsets().data(),
                                         triangles,
                                         triangle_offsets);
 

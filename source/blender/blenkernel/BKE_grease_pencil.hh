@@ -105,16 +105,10 @@ class Drawing : public ::GreasePencilDrawing {
    * The curves in each shape.
    */
   GroupedSpan<int> shapes() const;
-
-  /**
-   * The offset indices for each shape in the flat triangle cache.
-   */
-  OffsetIndices<int> triangle_offsets() const;
-
   /**
    * The triangles for fill geometry. Grouped by each shape.
    */
-  Span<int3> triangles() const;
+  GroupedSpan<int3> triangles() const;
   /**
    * Normal vectors for a plane that fits the stroke.
    */

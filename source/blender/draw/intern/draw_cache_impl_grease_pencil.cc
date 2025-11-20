@@ -1163,7 +1163,7 @@ static void grease_pencil_geom_batch_ensure(Object &object,
     const IndexMask visible_shapes = ed::greasepencil::retrieve_visible_shapes(
         object, info.drawing, memory);
     const GroupedSpan<int> shapes = info.drawing.shapes();
-    const OffsetIndices<int> triangle_offsets = info.drawing.triangle_offsets();
+    const GroupedSpan<int3> triangles = info.drawing.triangles();
 
     Array<int> verts_start_offsets(curves.curves_num(), 0);
 
@@ -1173,7 +1173,7 @@ static void grease_pencil_geom_batch_ensure(Object &object,
     visible_shapes.foreach_index([&](const int shape_index) {
       const Span<int> shape = shapes[shape_index];
 
-      total_triangles_num += triangle_offsets[shape_index].size();
+      total_triangles_num += triangles[shape_index].size();
 
       for (const int pos : shape.index_range()) {
         const int curve_i = shape[pos];
@@ -1266,8 +1266,7 @@ static void grease_pencil_geom_batch_ensure(Object &object,
     const VArray<float> fill_opacities = *attributes.lookup_or_default<float>(
         "fill_opacity", bke::AttrDomain::Curve, 1.0f);
 
-    const OffsetIndices<int> triangle_offsets = info.drawing.triangle_offsets();
-    const Span<int3> triangles = info.drawing.triangles();
+    const GroupedSpan<int3> triangles = info.drawing.triangles();
     const Span<float4x2> texture_matrices = info.drawing.texture_matrices();
     const Span<int> verts_start_offsets = verts_start_offsets_per_visible_drawing[drawing_i];
     IndexMaskMemory memory;
@@ -1334,7 +1333,7 @@ static void grease_pencil_geom_batch_ensure(Object &object,
 
     visible_shapes.foreach_index([&](const int shape_index) {
       const Span<int> shape = shapes[shape_index];
-      const Span<int3> tris_slice = triangles.slice(triangle_offsets[shape_index]);
+      const Span<int3> tris_slice = triangles[shape_index];
 
       /* Add all triangle indices to the index buffer. */
       for (const int3 tri : tris_slice) {

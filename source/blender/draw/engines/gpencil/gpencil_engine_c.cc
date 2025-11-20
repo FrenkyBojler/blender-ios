@@ -396,8 +396,7 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandleRange res_handle)
   for (const DrawingInfo info : drawings) {
     const Layer &layer = *layers[info.layer_index];
 
-    const OffsetIndices<int> triangle_offsets = info.drawing.triangle_offsets();
-
+    const GroupedSpan<int3> triangles = info.drawing.triangles();
     const bke::CurvesGeometry &curves = info.drawing.strokes();
     const OffsetIndices<int> points_by_curve = curves.evaluated_points_by_curve();
     const bke::AttributeAccessor attributes = curves.attributes();
@@ -419,7 +418,7 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandleRange res_handle)
     visible_shapes.foreach_index([&](const int shape_index) {
       const Span<int> shape = shapes[shape_index];
 
-      const int num_stroke_triangles = triangle_offsets[shape_index].size();
+      const int num_stroke_triangles = triangles[shape_index].size();
       num_triangles_per_shape[shape_index] = num_stroke_triangles;
       total_num_triangles += num_stroke_triangles;
 
@@ -500,7 +499,7 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandleRange res_handle)
       const bool hide_material = (gp_style->flag & GP_MATERIAL_HIDE) != 0;
       const bool show_stroke = ((gp_style->flag & GP_MATERIAL_STROKE_SHOW) != 0) ||
                                is_fill_guide_stroke;
-      const bool show_fill = (!triangle_offsets[shape_index].is_empty()) &&
+      const bool show_fill = (!triangles[shape_index].is_empty()) &&
                              ((gp_style->flag & GP_MATERIAL_FILL_SHOW) != 0) &&
                              (!this->simplify_fill) && !is_fill_guide_stroke;
       const bool hide_onion = is_onion && ((gp_style->flag & GP_MATERIAL_HIDE_ONIONSKIN) != 0 ||
