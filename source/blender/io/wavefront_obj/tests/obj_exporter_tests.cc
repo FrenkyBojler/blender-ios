@@ -27,7 +27,7 @@
 
 namespace blender::io::obj {
 /* Set this true to keep comparison-failing test output in temp file directory. */
-constexpr bool save_failing_test_output = true;
+constexpr bool save_failing_test_output = false;
 
 /* This is also the test name. */
 class OBJExportTest : public BlendfileLoadingBaseTest {
