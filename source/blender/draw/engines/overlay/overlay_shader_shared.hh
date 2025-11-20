@@ -38,8 +38,8 @@ enum OVERLAY_GridBits : uint32_t {
   PLANE_XZ = (1u << 5u),
   PLANE_YZ = (1u << 6u),
 
-  CLIP_ZPOS = (1u << 7u),
-  CLIP_ZNEG = (1u << 8u),
+  DRAW_AXIS_ZPOS = (1u << 7u),
+  DRAW_AXIS_ZNEG = (1u << 8u),
 
   GRID_BACK = (1u << 9u),
   GRID_CAMERA = (1u << 10u),
@@ -160,7 +160,7 @@ struct OVERLAY_GridReworkData {
   float4 level_scales[OVERLAY_GRID_STEPS_LEN]; /* float3 padded to float4 in std140. */
 
   /* Nr. of grid lines per level, for 2D grid */
-  float4 size; /* float3 padded to float4 in std140. */
+  float4 size; /* float3 expanded to float4 in std140. */
 
   /* Per-level line count. */
   uint num_lines_per_level;
@@ -169,8 +169,7 @@ struct OVERLAY_GridReworkData {
   float distance;
 
   /* Alignment padding. */
-  float _pad0;
-  float _pad1;
+  float _pad0, _pad1;
 };
 BLI_STATIC_ASSERT_ALIGN(OVERLAY_GridReworkData, 16)
 

@@ -31,18 +31,13 @@ struct LineData {
 
 /* Helper; gl_VertexID implicitly encodes an axis line; this is only used for the
  * positive/negative z axis when the rest of the grid is drawn on the xy plane.  */
-LineData decode_zaxis_data(in uint vertex_id) {
+LineData decode_zaxis_data(in uint vertex_id)
+{
   LineData line;
-
-  /* Every pair of consecutive vertices forms a line, indicated by bit 0. */
-  uint side = vertex_id & 0x1u;
-  /* From side/dir, generate a line along [-1,0] or [0,1] dependent on grid_flag. */
   line.P.x = 0.0f;
-  line.P.y = float(grid_buf.num_lines_per_level >> 1u)
-    * select(0.0f, select(-1.0f, 1.0f, flag_test(grid_flag, CLIP_ZPOS)), side);
-  /* Always top-drawn level. */
+  line.P.y = float(grid_buf.num_lines_per_level >> 1u) * select(-1.0f, 1.0f, vertex_id & 0x1u);
   line.level = GRID_LEVELS_DRAW - 1;
-
+  line.dir = 0;
   return line;
 }
 
@@ -59,8 +54,9 @@ LineData decode_grid_data(in uint vertex_id)
   line.dir = vertex_id & 0x1u; /* Stored for later lookup. */
   vertex_id = vertex_id >> 1u;
 
-  /* The index/level of a line are encoded by the 30 remaining bits. */
-  line.level = int(vertex_id / grid_buf.num_lines_per_level);
+  /* The index/level of a line are encoded by the 30 remaining bits. Note that we render
+   * levels in "large" to "small" order, prioritizing z output of the larger aprts. */
+  line.level = GRID_LEVELS_DRAW - 1 - int(vertex_id / grid_buf.num_lines_per_level);
   vertex_id = vertex_id % grid_buf.num_lines_per_level;
 
   /* From the index, generate N+1 points equidistantly spaced on [-N/2, N/2]. */
@@ -78,13 +74,14 @@ LineData decode_grid_data(in uint vertex_id)
 void main()
 {
   LineData line;
-  if (flag_test(grid_flag, CLIP_ZPOS) || flag_test(grid_flag, CLIP_ZNEG)) {
+  if (flag_test(grid_flag, DRAW_AXIS_ZPOS) || flag_test(grid_flag, DRAW_AXIS_ZNEG)) {
     line = decode_zaxis_data(gl_VertexID);
-  } else {
+  }
+  else {
     line = decode_grid_data(gl_VertexID);
   }
 
-  /* Compute the actual level of grid data, offset by -1 to force a sub-level in the 3D viewport. */
+  /* Compute the actual level of a line, offset by -1 to force a sublevel in the 3D viewport. */
   int level = int(grid_level) + line.level - (flag_test(grid_flag, PLANE_IMAGE) ? 0 : 1);
   float scale = grid_buf.level_scales[level][line.dir];
 
@@ -92,6 +89,9 @@ void main()
   if (level < 0 || level >= GRID_LEVELS_TOTAL) {
     discard_line();
   }
+
+  /* Stage output: specific line level, which is used to avoid z-fighting. */
+  local_level = line.level;
 
   /* Stage output: vertex position in [-1,1], which we use to fade level boundaries. */
   local_coord = line.P / float(grid_buf.num_lines_per_level >> 1);
@@ -112,12 +112,13 @@ void main()
   /* Clipping; restrict lines to a reasonable range for float precision, as (absurdly) large
    * lines can cause flickering/teleporting problems. */
   /* TODO (not_mark): fix in UV/Image editor or combine with clipping below */
-  float2 clip = drw_view_is_perspective() 
-    ? float2(grid_buf.distance) 
-    : float2(8.0 / max(drw_view().winmat[0][0], drw_view().winmat[1][1]));
-  if (all(greaterThan(abs(line.P), clip))) {
+  float clip = drw_view_is_perspective() ?
+                   grid_buf.distance :
+                   (8.0f / max(drw_view().winmat[0][0], drw_view().winmat[1][1]));
+  if (all(greaterThan(abs(line.P), float2(clip)))) {
     discard_line(); /* Both x, y lie outside the clip distance. */
-  } else {
+  }
+  else {
     line.P = clamp(line.P, -clip, clip);
   }
 
@@ -132,19 +133,18 @@ void main()
   /* Clipping; if there exists an integer, s.t. with the scaling of the level *above* we can draw
    * the current line, we can discard the current line on *any* sublevel as the superlevel
    * is guaranteed to draw over it. */
-  /* TODO(not_mark): disabled until I can identify popping issues. */
-  /* if (!flag_test(grid_flag, PLANE_IMAGE)) {
-    if (line.level < GRID_LEVELS_DRAW - 1 && level < GRID_LEVELS_TOTAL - 1) {
-      float nscale = grid_buf.level_scales[min(level + 1, GRID_LEVELS_TOTAL - 1)][0];
-      float offset = round(select(grid_poi.y, grid_poi.x, line.dir) / nscale) * nscale;
-      float P_diff = offset + (select(line.P.y, line.P.x, line.dir) - offset) / nscale;
-      if (abs(fract(P_diff)) < 1e-4) {
-        discard_line();
-      }
+  if (!flag_test(grid_flag, PLANE_IMAGE) && line.level < GRID_LEVELS_DRAW - 1 &&
+      level < GRID_LEVELS_TOTAL - 1)
+  {
+    float nscale = grid_buf.level_scales[min(level + 1, GRID_LEVELS_TOTAL - 1)][0];
+    float offset = round(select(grid_poi.y, grid_poi.x, line.dir) / nscale) * nscale;
+    float P_diff = offset + (select(line.P.y, line.P.x, line.dir) - offset) / nscale;
+    if (abs(fract(P_diff)) < 1e-5) {
+      discard_line();
     }
-  } */
+  }
 
-  /* Output the world-space position on the correct plane dependent on camera settings. */
+  /* Output the world-space position on the correct plane. */
   if (flag_test(grid_flag, PLANE_XY)) {
     local_pos = float3(line.P.x, line.P.y, 0.0f);
   }
@@ -160,6 +160,6 @@ void main()
   gl_Position = drw_view().winmat * (drw_view().viewmat * float4(local_pos, 1.0f));
 
   /* Output for viewport antialiasing. */
-  edge_start = edge_pos 
-    = ((gl_Position.xy / gl_Position.w) * 0.5f + 0.5f) * uniform_buf.size_viewport;
+  edge_start = edge_pos = ((gl_Position.xy / gl_Position.w) * 0.5f + 0.5f) *
+                          uniform_buf.size_viewport;
 }

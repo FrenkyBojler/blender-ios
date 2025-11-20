@@ -823,7 +823,7 @@ void Instance::draw_v2d(Manager &manager, View &view)
 
   background.draw_output(resources.overlay_output_color_only_fb, manager, view);
 #ifdef USE_GRID_REWORK
-  grid_rework.draw_line_only(resources.overlay_output_color_only_fb, manager, view);
+  grid_rework.draw_color_only(resources.overlay_output_color_only_fb, manager, view);
 #else
   grid.draw_color_only(resources.overlay_output_color_only_fb, manager, view);
 #endif
@@ -930,6 +930,12 @@ void Instance::draw_v3d(Manager &manager, View &view)
     infront.wireframe.copy_depth(resources.depth_target_in_front_tx);
   }
   {
+/* TODO (not_mark): wrong order? */
+#ifdef USE_GRID_REWORK
+    grid_rework.draw_color_only(resources.overlay_line_fb, manager, view);
+#endif
+  }
+  {
     /* TODO(fclem): This is really bad for performance as the outline pass will then split the
      * render pass and do a framebuffer switch. This also only fix the issue for non-infront
      * objects.
@@ -954,12 +960,11 @@ void Instance::draw_v3d(Manager &manager, View &view)
     /* Color only pass. */
     motion_paths.draw_color_only(resources.overlay_color_only_fb, manager, view);
     xray_fade.draw_color_only(resources.overlay_color_only_fb, manager, view);
-#ifdef USE_GRID_REWORK
-    grid_rework.draw_line_only(resources.overlay_line_only_fb, manager, view);
-#else
+
+/* TODO (not_mark): remove... */
+#ifndef USE_GRID_REWORK
     grid.draw_color_only(resources.overlay_color_only_fb, manager, view);
 #endif
-
 
     regular.meshes.draw_line(resources.overlay_line_fb, manager, view);
     infront.meshes.draw_line(resources.overlay_line_in_front_fb, manager, view);

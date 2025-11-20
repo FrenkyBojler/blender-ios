@@ -14,6 +14,9 @@ FRAGMENT_SHADER_CREATE_INFO(overlay_gridrework_next)
 
 #define linearstep(p0, p1, v) (clamp(((v) - (p0)) / abs((p1) - (p0)), 0.0f, 1.0f))
 
+/* TODO(not_mark): extract to infos */
+#define GRID_LEVELS_DRAW 3
+
 void main()
 {
   /* Fragment color. */
@@ -27,35 +30,34 @@ void main()
     if (flag_test(grid_flag, SHOW_AXIS_X) && reduce_max(abs(local_pos.yz)) < 1e-4f) {
       out_color.rgb = theme.colors.grid_axis_x.rgb;
       out_color.a = max(out_color.a, theme.colors.grid_axis_x.a);
+      out_color.a = 1.0f;
     }
     if (flag_test(grid_flag, SHOW_AXIS_Y) && reduce_max(abs(local_pos.xz)) < 1e-4f) {
       out_color.rgb = theme.colors.grid_axis_y.rgb;
       out_color.a = max(out_color.a, theme.colors.grid_axis_y.a);
+      out_color.a = 1.0f;
     }
     if (flag_test(grid_flag, SHOW_AXIS_Z) && reduce_max(abs(local_pos.xy)) < 1e-4f) {
       out_color.rgb = theme.colors.grid_axis_z.rgb;
       out_color.a = max(out_color.a, theme.colors.grid_axis_z.a);
+      out_color.a = 1.0f;
     }
   }
 
   /* Fragment alpha. */
   {
-    /* Add fade at edge of grid level in the 3D viewport. This is only applied if the level
-     * doesn't exceed the clip distance, so we don't fade it twice. */
-    if (!flag_test(grid_flag, PLANE_IMAGE)) {
+    if (drw_view_is_perspective()) {
+      /* Fade at edge of grid level. */
       float length_fade = 1.f - min(1.f, dot(local_coord, local_coord));
       out_color.a *= pow2f(length_fade);
-    }
 
-    if (drw_view_is_perspective()) {
       /* Compute normalized view vector. */
-      float3 P = local_pos;
-      float3 V = drw_view_position() - P;
+      float3 V = drw_view_position() - local_pos;
       float dist = length(V);
       V /= dist;
-      
-      /* Add fade at steep angles for the floor plane. */
-      if (!(flag_test(grid_flag, CLIP_ZPOS) || flag_test(grid_flag, CLIP_ZNEG))) {
+
+      /* Add fade at steep angles for contents of the floor plane. */
+      if (!(flag_test(grid_flag, DRAW_AXIS_ZPOS) || flag_test(grid_flag, DRAW_AXIS_ZNEG))) {
         out_color.a *= 1.0f - pow3f(1.0f - abs(V.z));
       }
 
@@ -64,6 +66,12 @@ void main()
                      smoothstep(0.0f, 0.5f * grid_buf.distance, dist - 0.5f * grid_buf.distance);
     }
     else {
+      /* Fade at edge of grid level in orthographic, in case of rather small units. */
+      if (!flag_test(grid_flag, PLANE_IMAGE)) {
+        float length_fade = 1.f - min(1.f, dot(local_coord, local_coord));
+        out_color.a *= pow2f(length_fade);
+      }
+
       /* Avoid fading in +Z direction in camera view (see #70193).
        * This is reproduced from the 5.0 grid line-for-line. */
       float dist = gl_FragCoord.z * 2.0f - 1.0f;
@@ -92,7 +100,8 @@ void main()
 
     /* Compute grid depth. As in 5.0, a small bias places the grid below
      * a mesh with the same depth. */
-    float grid_depth = gl_FragCoord.z + 4.8e-7f;
+    float grid_depth = gl_FragCoord.z + 4.8e-7f * float(GRID_LEVELS_DRAW - 1 - local_level);
+    gl_FragDepth = grid_depth;
 
     /* Soft depth-test as in 5.0, progressively alpha the grid below occluders to
      * avoid popping and flickering. This gives the grid a see-through appearance. */

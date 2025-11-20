@@ -39,11 +39,11 @@ void main()
   float3 real_pos = drw_view_position() * plane_axes + vert_pos * grid_buf.size.xyz;
 
   /* Used for additional Z axis */
-  if (flag_test(grid_flag, CLIP_ZPOS)) {
+  if (flag_test(grid_flag, DRAW_AXIS_ZPOS)) {
     real_pos.z = clamp(real_pos.z, 0.0f, 1e30f);
     local_pos.z = clamp(local_pos.z, 0.0f, 1.0f);
   }
-  if (flag_test(grid_flag, CLIP_ZNEG)) {
+  if (flag_test(grid_flag, DRAW_AXIS_ZNEG)) {
     real_pos.z = clamp(real_pos.z, -1e30f, 0.0f);
     local_pos.z = clamp(local_pos.z, -1.0f, 0.0f);
   }
