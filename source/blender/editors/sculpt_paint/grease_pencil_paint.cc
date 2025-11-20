@@ -987,16 +987,12 @@ struct PaintOperationExecutor {
   {
     const bool on_back = (scene_->toolsettings->gpencil_flags & GP_TOOL_FLAG_PAINT_ONBACK) != 0;
 
-    const OffsetIndices<int> src_evaluated_points_by_curve =
-        self.drawing_->strokes().evaluated_points_by_curve();
     this->process_extension_sample(self, C, extension_sample);
 
     const bke::CurvesGeometry &curves = self.drawing_->strokes();
     const int active_curve = on_back ? curves.curves_range().first() :
                                        curves.curves_range().last();
-    self.drawing_->tag_topology_changed(IndexRange::from_single(active_curve),
-                                        src_evaluated_points_by_curve);
-    self.drawing_->tag_topology_changed();
+    self.drawing_->tag_topology_changed(IndexRange::from_single(active_curve));
   }
 };
 

@@ -1087,10 +1087,10 @@ void Drawing::tag_positions_changed()
 
 static IndexMask curves_to_shapes_mask(const IndexMask &changed_curves,
                                        const GroupedSpan<int> shapes,
-                                       const OffsetIndices<int> points_by_curve,
+                                       const int num_curves,
                                        IndexMaskMemory &memory)
 {
-  Array<bool> selected_curves(points_by_curve.size());
+  Array<bool> selected_curves(num_curves);
   changed_curves.to_bools(selected_curves);
 
   return IndexMask::from_predicate(
@@ -1108,7 +1108,6 @@ static IndexMask curves_to_shapes_mask(const IndexMask &changed_curves,
 
 static void update_triangle_and_offsets_changed(const Span<float3> positions,
                                                 const Span<float3> normals,
-                                                const OffsetIndices<int> src_points_by_curve,
                                                 const OffsetIndices<int> dst_points_by_curve,
                                                 const IndexMask &changed_curves,
                                                 const GroupedSpan<int> shapes,
@@ -1116,11 +1115,10 @@ static void update_triangle_and_offsets_changed(const Span<float3> positions,
                                                 Vector<int3> &r_triangles,
                                                 MutableSpan<int> r_triangle_offsets)
 {
-  BLI_assert(src_points_by_curve.size() == dst_points_by_curve.size());
 
   IndexMaskMemory memory;
   const IndexMask changed_shapes = curves_to_shapes_mask(
-      changed_curves, shapes, src_points_by_curve, memory);
+      changed_curves, shapes, dst_points_by_curve.size(), memory);
   const IndexMask unchanged_shapes = changed_shapes.complement(shapes.index_range(), memory);
 
   Array<int> changed_triangle_offsets_data(changed_shapes.size() + 1);
@@ -1206,7 +1204,6 @@ void Drawing::tag_positions_changed(const IndexMask &changed_curves)
   update_triangle_and_offsets_changed(this->strokes().evaluated_positions(),
                                       this->curve_plane_normals(),
                                       this->strokes().evaluated_points_by_curve(),
-                                      this->strokes().evaluated_points_by_curve(),
                                       changed_curves,
                                       shapes,
                                       this->triangles(),
@@ -1229,8 +1226,7 @@ void Drawing::tag_topology_changed()
   this->strokes_for_write().tag_topology_changed();
 }
 
-void Drawing::tag_topology_changed(const IndexMask &changed_curves,
-                                   const OffsetIndices<int> src_evaluated_points_by_curve)
+void Drawing::tag_topology_changed(const IndexMask &changed_curves)
 {
   if (changed_curves.is_empty()) {
     return;
@@ -1269,7 +1265,6 @@ void Drawing::tag_topology_changed(const IndexMask &changed_curves,
 
     update_triangle_and_offsets_changed(this->strokes().evaluated_positions(),
                                         this->curve_plane_normals(),
-                                        src_evaluated_points_by_curve,
                                         this->strokes().evaluated_points_by_curve(),
                                         changed_curves,
                                         shapes,
