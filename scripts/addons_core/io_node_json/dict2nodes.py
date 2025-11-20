@@ -8,10 +8,18 @@ def dict2nodes(node_tree_dict: dict, node_tree: bpy.types.NodeTree):
 
     renamed_map = {}
 
+    # XXX Hacky way to extract node options
+    # todo(habib): remove
+    ref_node = node_tree.nodes.new('ShaderNodeBlackbody')
     for n in nodes:
         new_node = node_tree.nodes.new(n["bl_idname"])
-        new_node.name = n["name"]
         new_node.location = Vector(n["location"])
+
+        for op in n.keys():
+            try:
+                setattr(new_node, op, n[op])
+            except:
+                pass
 
         # Nodes have unique names. Update node map if the newly created node has a different name.
         # Creating links rely on accurate names
@@ -38,24 +46,26 @@ def dict2nodes(node_tree_dict: dict, node_tree: bpy.types.NodeTree):
         if "node_tree" in n.keys():
             dict2nodes(n["node_tree"], new_node_tree)
 
+    node_tree.nodes.remove(ref_node)
+
 debug = False
 if debug:
-    # import json
-    # with open("/home/habib/blender-git/files/nodes-json/save.json", "r") as f:
-    #     node_tree_dict = json.load(f)
-
-
-    # print("\n\n######## NEW RUN ########")
-    # node_tree = bpy.data.node_groups["Load tree"]
-    # node_tree.nodes.clear()
-    # dict2nodes(node_tree_dict["node_tree"], node_tree)
-
     import json
-    node_tree_dict = {}
+    with open("/home/habib/blender-git/files/nodes-json/save.json", "r") as f:
+        node_tree_dict = json.load(f)
+
+
+    print("\n\n######## NEW RUN ########")
     node_tree = bpy.data.node_groups["Load tree"]
-
-    import subprocess
-    data = subprocess.check_output(["wl-paste"], text=True)
-
-    node_tree_dict = json.loads(data)
+    node_tree.nodes.clear()
     dict2nodes(node_tree_dict["node_tree"], node_tree)
+
+    # import json
+    # node_tree_dict = {}
+    # node_tree = bpy.data.node_groups["Load tree"]
+
+    # import subprocess
+    # data = subprocess.check_output(["wl-paste"], text=True)
+
+    # node_tree_dict = json.loads(data)
+    # dict2nodes(node_tree_dict["node_tree"], node_tree)
