@@ -4742,6 +4742,14 @@ class VIEW3D_MT_edit_mesh_extrude(Menu):
         layout.template_node_operator_asset_menu_items(catalog_path="Mesh/Extrude")
 
 
+class VIEW3D_MT_edit_mesh_looptools(Menu):
+    bl_label = "LoopTools"
+
+    def draw(self, _context):
+        layout = self.layout
+        layout.operator("mesh.circularize")
+
+
 class VIEW3D_MT_edit_mesh_vertices(Menu):
     bl_label = "Vertex"
 
@@ -4785,6 +4793,8 @@ class VIEW3D_MT_edit_mesh_vertices(Menu):
         layout.operator("mesh.shape_propagate_to_all", text="Propagate to Shapes")
 
         layout.separator()
+
+        layout.menu("VIEW3D_MT_edit_mesh_looptools")
 
         layout.menu("VIEW3D_MT_vertex_group")
         layout.menu("VIEW3D_MT_hook")
@@ -4850,6 +4860,9 @@ class VIEW3D_MT_edit_mesh_edges(Menu):
         props.clear = True
 
         layout.operator("mesh.set_sharpness_by_angle")
+
+        layout.separator()
+        layout.menu("VIEW3D_MT_edit_mesh_looptools")
 
         if with_freestyle:
             layout.separator()
@@ -4931,6 +4944,9 @@ class VIEW3D_MT_edit_mesh_faces(Menu):
 
         layout.operator("mesh.faces_shade_smooth")
         layout.operator("mesh.faces_shade_flat")
+
+        layout.menu("VIEW3D_MT_edit_mesh_looptools")
+        layout.separator()
 
         layout.separator()
 
@@ -9260,6 +9276,7 @@ classes = (
     VIEW3D_MT_edit_mesh_select_mode,
     VIEW3D_MT_edit_mesh_select_linked,
     VIEW3D_MT_edit_mesh_select_loops,
+    VIEW3D_MT_edit_mesh_looptools,
     VIEW3D_MT_edit_mesh_extrude,
     VIEW3D_MT_edit_mesh_vertices,
     VIEW3D_MT_edit_mesh_edges,

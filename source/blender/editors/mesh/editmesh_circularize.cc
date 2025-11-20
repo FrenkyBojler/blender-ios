@@ -5,6 +5,7 @@
 /** \file
  * \ingroup edmesh
  */
+#include "ED_screen.hh"
 #include "WM_api.hh"
 
 static wmOperatorStatus edbm_circularize_exec(bContext *C, wmOperator *op)
@@ -15,11 +16,15 @@ static wmOperatorStatus edbm_circularize_exec(bContext *C, wmOperator *op)
 
 void MESH_OT_circularize(wmOperatorType *ot)
 {
-  ot->name = "Circularize";
+  /* identifiers */
+  ot->name = "circularize";
   ot->description = "Shpe boundary vertices into a circular form";
   ot->idname = "MESH_OT_circularize";
-  
-  ot->exec = edbm_circularize_exec;
 
+  /* API callbacks */
+  ot->exec = edbm_circularize_exec;
+  ot->poll = ED_operator_editmesh;
+
+  /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
