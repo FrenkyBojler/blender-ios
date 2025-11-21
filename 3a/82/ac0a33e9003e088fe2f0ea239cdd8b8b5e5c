@@ -1,1 +1,2 @@
 Referenced by commit 279a3e18218fede1e0f2cd1faaa0b26300471720, Refactor: Mesh: add shared utility for mixing vertex group weights
+Referenced by issue #150360, Merge by distance node can crash during evaluation for render but works fine in viewport
