@@ -2716,6 +2716,62 @@ class Preprocessor {
     parser.apply_mutations();
   }
 
+  /* Need to run before local reference mutations. */
+  void srt_member_access_mutation(Parser &parser, report_callback report_error)
+  {
+    using namespace std;
+    using namespace shader::parser;
+
+    const string srt_attribute = "resource_table";
+
+    auto memher_access_mutation = [&](parser::Token type,
+                                      parser::Token var,
+                                      parser::Scope attribute,
+                                      parser::Scope body_scope) {
+      if (attribute[2].str() != srt_attribute) {
+        return;
+      }
+
+      parser.replace(attribute, "");
+      string srt_type = type.str();
+      string srt_var = var.str();
+
+      body_scope.foreach_match("w.w", [&](const vector<Token> toks) {
+        if (toks[0].str() != srt_var) {
+          return;
+        }
+        parser.replace(toks[0], toks[2], "srt_access(" + srt_type + ", " + toks[2].str() + ")");
+      });
+    };
+
+    parser.foreach_scope(ScopeType::FunctionArgs, [&](const Scope fn_args) {
+      Scope fn_body = fn_args.next();
+      if (fn_body.is_invalid()) {
+        return;
+      }
+      fn_args.foreach_match("w&w[[w]]", [&](const vector<Token> toks) {
+        memher_access_mutation(toks[0], toks[2], toks[3].scope(), fn_body);
+      });
+      fn_args.foreach_match("ww[[w]]", [&](const vector<Token> toks) {
+        if (toks[4].str() == srt_attribute) {
+          parser.erase(toks[2], toks[6]);
+          report_error(ERROR_TOK(toks[1]), "Shader Resource Table arguments must be references.");
+        }
+      });
+    });
+
+    parser.foreach_scope(ScopeType::Function, [&](const Scope fn_body) {
+      fn_body.foreach_match("w&w[[w]]", [&](const vector<Token> toks) {
+        memher_access_mutation(toks[0], toks[2], toks[3].scope(), toks[2].scope());
+      });
+      fn_body.foreach_match("ww[[w]]", [&](const vector<Token> toks) {
+        memher_access_mutation(toks[0], toks[1], toks[2].scope(), toks[1].scope());
+      });
+    });
+
+    parser.apply_mutations();
+  }
+
   /* To be run after `argument_reference_mutation()`. */
   std::string variable_reference_mutation(const std::string &str, report_callback report_error)
   {
@@ -2764,6 +2820,7 @@ class Preprocessor {
             value.find("interface_get(") == string::npos &&
             value.find("attribute_get(") == string::npos &&
             value.find("buffer_get(") == string::npos &&
+            value.find("srt_access(") == string::npos &&
             value.find("sampler_get(") == string::npos && value.find("image_get(") == string::npos)
         {
           report_error(line_number(match),
