@@ -40,10 +40,8 @@ class GridRework : Overlay {
   float2 grid_poi_origin_ = float2(0.0f);
   float2 grid_poi_ = float2(0.0f);
   float grid_level_;
-
-  /* Config flags passed to different draw calls. */
-  int draw_grid_flag_ = 0; /* Config flag for type of grid and x/y axis draw. */
-  int draw_axis_flag_ = 0; /* Config flag for z axis draw. */
+  int lines_count_ = 0;
+  int grid_flag_ = 0;
 
  public:
   void begin_sync(Resources &res, const State &state) final
@@ -83,27 +81,21 @@ class GridRework : Overlay {
     {
       auto &sub = grid_ps_.sub("grid");
 
+      /* Vertex count is 2 (x/y direction) * 2 (per line) * levels x N, plus
+        * one optional line for the Z-axis, if this is perpendicular to the XY plane. */
+      const bool incl_axis_z = (grid_flag_ & PLANE_XY) && (grid_flag_ & SHOW_AXIS_Z);
+      const uint verts_count = 4 * OVERLAY_GRID_STEPS_DRAW * lines_count_ + 2 * uint(incl_axis_z);
+
       sub.shader_set(res.shaders->gridrework.get());
-      sub.push_constant("grid_level", grid_level_);
       sub.bind_ubo("grid_buf", &grid_ubo_);
+      /* TODO(not_mark): remove */
       sub.bind_texture("depth_tx", depth_tx, GPUSamplerState::default_sampler());
       sub.bind_texture("depth_infront_tx", depth_infront_tx, GPUSamplerState::default_sampler());
-
-      /* Primary grid + xy axes draw.
-       * Vertex count is 2 (x/y-direction) * 2 (verts per line) * levels x N */
-      {
-        const uint n_verts = 4 * OVERLAY_GRID_STEPS_DRAW * num_lines_per_level_;
-        sub.push_constant("grid_poi", &grid_poi_);
-        sub.push_constant("grid_flag", &draw_grid_flag_);
-        sub.draw_procedural(GPUPrimType::GPU_PRIM_LINES, -1, n_verts, 0);
-      }
-
-      /* Z-axis line draw, 2 verts. */
-      if (draw_axis_flag_) {
-        sub.push_constant("grid_poi", &grid_poi_origin_);
-        sub.push_constant("grid_flag", &draw_axis_flag_);
-        sub.draw_procedural(GPUPrimType::GPU_PRIM_LINES, -1, 2, 0);
-      }
+      sub.push_constant("grid_level", &grid_level_);
+      sub.push_constant("grid_poi", &grid_poi_);
+      sub.push_constant("grid_flag", &grid_flag_);
+      sub.push_constant("num_lines", &lines_count_);
+      sub.draw_procedural(GPUPrimType::GPU_PRIM_LINES, -1, verts_count, 0);
     }
 
     /* Draw an outline around the grid, specifically in the 2D/UV image editor. This is retained
@@ -144,10 +136,11 @@ class GridRework : Overlay {
   bool init(const State &state)
   {
     /* Initialize config flags to default value. */
-    draw_grid_flag_ = draw_axis_flag_ = 0;
+    grid_flag_ = 0;
 
     /* This suffices for most cases, and in others we fade to hide it. */
     num_lines_per_level_ = 301; /* TODO(not_mark): variable line count for orth/persp/uv/image */
+    /* TODO(not_mark): remove */
     grid_ubo_.num_lines_per_level = num_lines_per_level_;
 
     return is_3d_grid_ ? init_3d(state) : init_2d(state);
@@ -172,15 +165,15 @@ class GridRework : Overlay {
 
     /* Process grid flags. */
     if (background_enabled) {
-      draw_grid_flag_ = GRID_BACK | PLANE_IMAGE;
+      grid_flag_ = GRID_BACK | PLANE_IMAGE;
       if (sima->flag & SI_GRID_OVER_IMAGE) {
-        draw_grid_flag_ = PLANE_IMAGE;
+        grid_flag_ = PLANE_IMAGE;
       }
     }
     if (background_enabled && draw_grid) {
-      draw_grid_flag_ |= SHOW_GRID;
+      grid_flag_ |= SHOW_GRID;
       if (is_uv_edit && sima->grid_shape_source != SI_GRID_SHAPE_DYNAMIC) {
-        draw_grid_flag_ |= CUSTOM_GRID;
+        grid_flag_ |= CUSTOM_GRID;
       }
     }
 
@@ -219,6 +212,8 @@ class GridRework : Overlay {
       grid_ubo_.size[1] = float(sima->tile_grid_shape[1]);
     }
 
+    lines_count_ = (grid_flag_ & SHOW_GRID) ? num_lines_per_level_ : 1;
+
     return true;
   }
 
@@ -239,12 +234,13 @@ class GridRework : Overlay {
     const View3D *v3d = state.v3d;
     const RegionView3D *rv3d = state.rv3d;
 
-    /* Set `draw_grid_flag_` dependent on view configuration. */
+    /* Set `grid_flag_` dependent on view configuration. */
     if (rv3d->is_persp || rv3d->view == RV3D_VIEW_USER) {
       /* Perspective; set selected axes and floor bits. */
-      draw_grid_flag_ |= (show_axis_x ? PLANE_XY | SHOW_AXIS_X : OVERLAY_GridBits(0));
-      draw_grid_flag_ |= (show_axis_y ? PLANE_XY | SHOW_AXIS_Y : OVERLAY_GridBits(0));
-      draw_grid_flag_ |= (show_persp ? PLANE_XY | SHOW_GRID : OVERLAY_GridBits(0));
+      grid_flag_ |= (show_axis_x ? PLANE_XY | SHOW_AXIS_X : OVERLAY_GridBits(0));
+      grid_flag_ |= (show_axis_y ? PLANE_XY | SHOW_AXIS_Y : OVERLAY_GridBits(0));
+      grid_flag_ |= (show_axis_z ? PLANE_XY | SHOW_AXIS_Z : OVERLAY_GridBits(0));
+      grid_flag_ |= (show_persp ? PLANE_XY | SHOW_GRID : OVERLAY_GridBits(0));
     }
     else {
       /* Orthographic; set selected axes and plane bits dependent on the specific view
@@ -253,30 +249,22 @@ class GridRework : Overlay {
       int grid_y_flag = show_axis_y ? SHOW_AXIS_Y : OVERLAY_GridBits(0);
       int grid_z_flag = show_axis_z ? SHOW_AXIS_Z : OVERLAY_GridBits(0);
       if (ELEM(rv3d->view, RV3D_VIEW_RIGHT, RV3D_VIEW_LEFT)) {
-        draw_grid_flag_ = PLANE_YZ | grid_y_flag | grid_z_flag;
+        grid_flag_ = PLANE_YZ | grid_y_flag | grid_z_flag;
       }
       else if (ELEM(rv3d->view, RV3D_VIEW_TOP, RV3D_VIEW_BOTTOM)) {
-        draw_grid_flag_ = PLANE_XY | grid_x_flag | grid_y_flag;
+        grid_flag_ = PLANE_XY | grid_x_flag | grid_y_flag;
       }
       else if (ELEM(rv3d->view, RV3D_VIEW_FRONT, RV3D_VIEW_BACK)) {
-        draw_grid_flag_ = PLANE_XZ | grid_x_flag | grid_z_flag;
+        grid_flag_ = PLANE_XZ | grid_x_flag | grid_z_flag;
       }
-      if (show_ortho) {
-        draw_grid_flag_ |= GRID_BACK | SHOW_GRID;
-      }
-    }
-
-    /* Set `draw_z*_flag_` if the Z-axis must be drawn. */
-    if (((rv3d->view == RV3D_VIEW_USER) || (rv3d->persp != RV3D_ORTHO)) && show_axis_z) {
-      draw_axis_flag_ = (SHOW_AXIS_Z | PLANE_XZ);
+      grid_flag_ |= (show_ortho ? GRID_BACK | SHOW_GRID : OVERLAY_GridBits(0));
     }
 
     /* Query far clip distance dependent on camera/viewport */
     if (rv3d->persp == RV3D_CAMOB && v3d->camera && v3d->camera->type == OB_CAMERA) {
       Object *camera_object = DEG_get_evaluated(state.depsgraph, v3d->camera);
       grid_ubo_.distance = ((Camera *)(camera_object->data))->clip_end;
-      draw_grid_flag_ |= GRID_CAMERA;
-      draw_axis_flag_ |= GRID_CAMERA;
+      grid_flag_ |= GRID_CAMERA;
     }
     else {
       grid_ubo_.distance = v3d->clip_end;
@@ -291,13 +279,6 @@ class GridRework : Overlay {
 
     /* Camera parameters. */
     float3 drw_view_position = rv3d->viewinv[3], drw_view_forward = rv3d->viewinv[2];
-
-    /* If the Z-axis is to be drawn, configure draw flags so above/below is drawn
-     * correctly behind/in front of the grid, dependent on camera angle. */
-    /* TODO(not_mark): eliminate. */
-    if (draw_axis_flag_) {
-      draw_axis_flag_ |= DRAW_AXIS_Z;
-    }
 
     /* Compute distance to a relevant floor point-of-interest from the camera. The grid translates
      * with this point and is only drawn around it. */
@@ -343,6 +324,8 @@ class GridRework : Overlay {
         break;
       }
     }
+
+    lines_count_ = (grid_flag_ & SHOW_GRID) ? num_lines_per_level_ : 1;
 
     return true;
   }

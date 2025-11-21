@@ -45,7 +45,7 @@ void main()
     V /= dist;
 
     /* Add fade at steep angles for contents of the floor plane. */
-    if (!flag_test(grid_flag, DRAW_AXIS_Z)) {
+    if (local_pos.z == 0.0f) {
       out_color.a *= 1.0f - pow3f(1.0f - abs(V.z));
     }
 
@@ -72,16 +72,8 @@ void main()
     }
   }
 
-  /* Output for viewport antialiasing. */
+  /* Viewport antialiasing output. */
   if (out_color.a != 0.0f) {
     line_output = pack_line_data(gl_FragCoord.xy, edge_start, edge_pos);
   }
-
-  /* TODO(not_mark): remove */
-  // float3 cols[3] = {
-  //   float3(1, 0, 0),
-  //   float3(0, 1, 0),
-  //   float3(0, 0, 1)
-  // };
-  // out_color.rgb = cols[local_level];
 }

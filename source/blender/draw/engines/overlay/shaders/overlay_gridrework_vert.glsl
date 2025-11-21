@@ -24,52 +24,54 @@ struct LineData {
   int level;
 };
 
-/* Helper; gl_VertexID implicitly encodes an axis line; this is only used for the
- * positive/negative z axis when the rest of the grid is drawn on the xy plane.  */
-LineData decode_zaxis_data(in uint vertex_id)
-{
+LineData decode_axis_data(in uint vertex_id) {
   LineData line;
-  line.P.x = 0.0f;
-  line.P.y = float(grid_buf.num_lines_per_level >> 1u) * select(-1.0f, 1.0f, vertex_id & 0x1u);
-  line.level = OVERLAY_GRID_STEPS_DRAW - 1;
+  uint side = vertex_id & 0x1u;
+  vertex_id = vertex_id >> 1u;
   line.dir = 0;
+  line.level = OVERLAY_GRID_STEPS_LEN - 1;
+  line.P.x = max(float(num_lines >> 1u), 1.0f) * select(1.0f, -1.0f, side);
+  line.P.y = 0.0f;
   return line;
 }
 
 /* Helper; gl_VertexID implicitly encodes a grid line; this is used for drawing the entire
  * grid plus two axes on the same plane plane. */
-LineData decode_grid_data(in uint vertex_id)
+LineData decode_line_data(in uint vertex_id)
 {
   LineData line;
 
-  /* Every pair of consecutive vertices forms a line, indicated by bit 0.
-   * Every pair of consecutive lines alternates x/y, indicated by bit 1. */
+  /* Every pair of consecutive verts forms a line, indicated by bit 0.
+   * Every pair of consecutive lines flips x/y, indicated by bit 1. */
   uint side = vertex_id & 0x1u;
   vertex_id = vertex_id >> 1u;
   line.dir = vertex_id & 0x1u; /* Stored for later use. */
   vertex_id = vertex_id >> 1u;
 
   /* The index/level of a line are encoded by the 30 remaining bits. Note that we order
-   * levels from "large" to "small", prioritizing z output of the larger levels. */
-  line.level = OVERLAY_GRID_STEPS_DRAW - 1 - int(vertex_id / grid_buf.num_lines_per_level);
-  vertex_id = vertex_id % grid_buf.num_lines_per_level;
+   * levels from "large" to "small", prioritizing output of the larger levels. */
+  line.level = (OVERLAY_GRID_STEPS_DRAW - 1 - int(vertex_id / num_lines));
+  vertex_id = vertex_id % num_lines;
 
   /* From the index, generate N+1 points equidistantly spaced on [-N/2, N/2]. */
-  line.P.x = float(grid_buf.num_lines_per_level >> 1u); /* N/2 */
-  line.P.y = float(vertex_id) - line.P.x;               /* [0...N] - N/2 */
+  line.P.x = max(float(num_lines >> 1u), 1.0f);
+  line.P.y = (float(vertex_id) - float(num_lines >> 1u));
 
   /* If this isn't the start of the line, flip the x-component to the end. Likewise,
    * if this isn't the x-direction, flip components to define the y-direction. */
   line.P.x = select(line.P.x, -line.P.x, side);
   line.P.xy = select(line.P.xy, line.P.yx, line.dir);
-
+  
   return line;
 }
 
 void main()
 {
-  bool is_axis_z = flag_test(grid_flag, DRAW_AXIS_Z);
-  LineData line = is_axis_z ? decode_zaxis_data(gl_VertexID) : decode_grid_data(gl_VertexID);
+  /* If the Z-axis is to be drawn, we offset the vertex id by 2. */
+  const uint vertex_id = (flag_test(grid_flag, SHOW_AXIS_Z) && gl_VertexID > 1) 
+    ? gl_VertexID - 2 : gl_VertexID;
+  LineData line = (flag_test(grid_flag, SHOW_AXIS_Z) && gl_VertexID > 1)
+    ? decode_line_data(vertex_id) : decode_axis_data(vertex_id);
 
   /* Compute the actual level of a line, offset by -1 to force a sublevel in the 3D viewport. */
   int level = int(grid_level) + line.level - (flag_test(grid_flag, PLANE_IMAGE) ? 0 : 1);
@@ -82,26 +84,24 @@ void main()
 
   /* Stage outputs. */
   {
-    /* Stage output: specific line level, which is used to avoid z-fighting. */
-    local_level = line.level;
-
     /* Stage output: vertex position in [-1,1], which we use to fade level boundaries. */
-    local_coord = line.P / float(grid_buf.num_lines_per_level >> 1);
+    local_coord = line.P / max(float(num_lines >> 1), 1.0f);
 
     /* Stage output: level fade in [0, 1], which we use to smoothly transition grid levels. */
     local_alpha = saturate(line.level + 1.0f - fract(grid_level)) /
                   float(OVERLAY_GRID_STEPS_DRAW - 1);
     local_alpha = 2.0f * local_alpha - square(local_alpha); /* Upside down parabola curve. */
-    /* Fade by pixel size for orthographic, as we lack proper dfdx/dfdy on lines. */
+    
+    /* Fade by pixel size for orthographic, as we lack proper line dfdx/dfdy. */
     if (!drw_view_is_perspective()) {
       local_alpha *= smoothstep(scale * 0.25f, scale * pow3f(0.25f), uniform_buf.pixel_fac);
     }
   }
+
   line.P *= scale;
 
-  /* Clipping; restrict lines to a reasonable range for float precision, as (absurdly) large
-   * lines can cause flickering/teleporting problems. */
-  /* TODO (not_mark): fix in UV/Image editor or combine with clipping below */
+  /* Clipping; restrict lines to a reasonable range for float precision, as large lines can lead 
+   * to flickering/teleporting. */
   if (!flag_test(grid_flag, PLANE_IMAGE)) {
     float clip = drw_view_is_perspective() ?
                      grid_buf.distance :
@@ -115,7 +115,9 @@ void main()
   }
 
   /* Add scaled camera offset, rounded to the nearest level-dependent line position. */
-  line.P += round(grid_poi / scale) * scale;
+  if (flag_test(grid_flag, SHOW_GRID) && vertex_id != gl_VertexID) { /* Not the Z-axis. */
+    line.P += round(grid_poi / scale) * scale;
+  }
 
   /* Clipping; restrict the grid in the UV/Image editor to the specified tile sizes */
   if (flag_test(grid_flag, PLANE_IMAGE)) {
@@ -137,7 +139,10 @@ void main()
   }
 
   /* Output the world-space position on the correct plane. */
-  if (flag_test(grid_flag, PLANE_XY)) {
+  if (flag_test(grid_flag, SHOW_AXIS_Z) && vertex_id == gl_VertexID) { /* Z-axis */
+    local_pos = float3(0.0f, 0.0f, line.P.x);
+  }
+  else if (flag_test(grid_flag, PLANE_XY)) {
     local_pos = float3(line.P.x, line.P.y, 0.0f);
   }
   else if (flag_test(grid_flag, PLANE_XZ)) {
@@ -151,13 +156,16 @@ void main()
   }
   gl_Position = drw_view().winmat * (drw_view().viewmat * float4(local_pos, 1.0f));
 
-  /* Strongly bias output z position, s.t. the grid is behind close objects, planes, and itself.
-   * Lower levels are given a stronger bias, as are inclines on the XY plane. */
+  /* Progressively bias output based on grid level and incline offset to address z-fighting. */
   float z_offset = 4.8e-7f * float(OVERLAY_GRID_STEPS_DRAW - 1 - line.level);
   if (flag_test(grid_flag, PLANE_XY)) {
     z_offset += mix(0.0f, 1.5e-4f, 1.0f - abs(drw_view_forward().z));
   }
   gl_Position.z += z_offset;
+
+  // if (gl_VertexID == vertex_id) {
+  //   printf(" %d, [%f, %f, %f, %f]\n", gl_VertexID, gl_Position.x, gl_Position.y, gl_Position.z, gl_Position.w);
+  // }
 
   /* Stage output: variables for viewport antialiasing. */
   edge_start = edge_pos = ((gl_Position.xy / gl_Position.w) * 0.5f + 0.5f) *
