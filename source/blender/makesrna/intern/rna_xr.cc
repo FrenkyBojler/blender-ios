@@ -1994,7 +1994,7 @@ static void rna_def_xr_session_settings(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "base_scale", PROP_FLOAT, PROP_NONE);
   RNA_def_property_ui_text(prop,
-                           "Base Scale",
+                           "VR Scale",
                            "Uniform scale applied on top of scene scale for adjustements to the VR"
                            " view. When possible, prefer using scene scale directly");
   RNA_def_property_range(prop, 1e-6f, FLT_MAX);
