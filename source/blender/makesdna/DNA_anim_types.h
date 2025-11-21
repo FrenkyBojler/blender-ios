@@ -450,7 +450,7 @@ typedef struct NlaStrip {
   ListBase modifiers;
 
   /** User-Visible Identifier for Strip. */
-  char name[/*MAX_NAME*/ 64];
+  char name[/*MAX_NAME*/ 256];
 
   /** Influence of strip. */
   float influence;
