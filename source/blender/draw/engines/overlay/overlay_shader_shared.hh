@@ -120,8 +120,10 @@ static inline uint outline_id_pack(uint outline_id, uint object_id)
   return (outline_id << 14u) | ((object_id << 18u) >> 18u);
 }
 
-/* Match: #SI_GRID_STEPS_LEN */
+/** Keep in sync with `SI_GRID_STEPS_LEN` in `DNA_space_types.h`. */
 #define OVERLAY_GRID_STEPS_LEN 8
+/** Hardcoded grid steps drawn at a time. */
+#define OVERLAY_GRID_STEPS_DRAW 3
 
 /* Due to the encoding clamping the passed in floats, the wire width needs to be scaled down. */
 #define WIRE_WIDTH_COMPRESSION 16.0f

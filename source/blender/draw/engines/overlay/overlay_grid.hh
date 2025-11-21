@@ -92,8 +92,7 @@ class GridRework : Overlay {
       /* Primary grid + xy axes draw.
        * Vertex count is 2 (x/y-direction) * 2 (verts per line) * levels x N */
       {
-        const uint n_verts =
-            4 * 3 * num_lines_per_level_; /* TODO(not_mark): extract 3 to shared define. */
+        const uint n_verts = 4 * OVERLAY_GRID_STEPS_DRAW * num_lines_per_level_;
         sub.push_constant("grid_poi", &grid_poi_);
         sub.push_constant("grid_flag", &draw_grid_flag_);
         sub.draw_procedural(GPUPrimType::GPU_PRIM_LINES, -1, n_verts, 0);
@@ -148,7 +147,7 @@ class GridRework : Overlay {
     draw_grid_flag_ = draw_axis_flag_ = 0;
 
     /* This suffices for most cases, and in others we fade to hide it. */
-    num_lines_per_level_ = 5; // 301; /* TODO(not_mark): variable line count for orth/persp/uv/image */
+    num_lines_per_level_ = 301; /* TODO(not_mark): variable line count for orth/persp/uv/image */
     grid_ubo_.num_lines_per_level = num_lines_per_level_;
 
     return is_3d_grid_ ? init_3d(state) : init_2d(state);

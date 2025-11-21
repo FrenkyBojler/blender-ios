@@ -11,11 +11,6 @@ VERTEX_SHADER_CREATE_INFO(overlay_gridrework_next)
 #include "gpu_shader_math_safe_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
 
-/** Keep in sync with `SI_GRID_STEPS_LEN` in `DNA_space_types.h`. */
-#define GRID_LEVELS_TOTAL 8
-/** The grid renders N hardcoded levels of hierarchy. */
-#define GRID_LEVELS_DRAW 3
-
 /* Helper function; discard the current line vertex in top scope; it will be clipped. */
 #define discard_line() \
   { \
@@ -36,7 +31,7 @@ LineData decode_zaxis_data(in uint vertex_id)
   LineData line;
   line.P.x = 0.0f;
   line.P.y = float(grid_buf.num_lines_per_level >> 1u) * select(-1.0f, 1.0f, vertex_id & 0x1u);
-  line.level = GRID_LEVELS_DRAW - 1;
+  line.level = OVERLAY_GRID_STEPS_DRAW - 1;
   line.dir = 0;
   return line;
 }
@@ -56,7 +51,7 @@ LineData decode_grid_data(in uint vertex_id)
 
   /* The index/level of a line are encoded by the 30 remaining bits. Note that we order
    * levels from "large" to "small", prioritizing z output of the larger levels. */
-  line.level = GRID_LEVELS_DRAW - 1 - int(vertex_id / grid_buf.num_lines_per_level);
+  line.level = OVERLAY_GRID_STEPS_DRAW - 1 - int(vertex_id / grid_buf.num_lines_per_level);
   vertex_id = vertex_id % grid_buf.num_lines_per_level;
 
   /* From the index, generate N+1 points equidistantly spaced on [-N/2, N/2]. */
@@ -78,7 +73,7 @@ void main()
 
   /* Compute the actual level of a line, offset by -1 to force a sublevel in the 3D viewport. */
   int level = int(grid_level) + line.level - (flag_test(grid_flag, PLANE_IMAGE) ? 0 : 1);
-  if (level < 0 || level >= GRID_LEVELS_TOTAL) {
+  if (level < 0 || level >= OVERLAY_GRID_STEPS_LEN) {
     discard_line();
   }
 
@@ -88,13 +83,14 @@ void main()
   /* Stage outputs. */
   {
     /* Stage output: specific line level, which is used to avoid z-fighting. */
-    local_level = line.level;    
+    local_level = line.level;
 
     /* Stage output: vertex position in [-1,1], which we use to fade level boundaries. */
     local_coord = line.P / float(grid_buf.num_lines_per_level >> 1);
 
     /* Stage output: level fade in [0, 1], which we use to smoothly transition grid levels. */
-    local_alpha = saturate(line.level + 1.0f - fract(grid_level)) / float(GRID_LEVELS_DRAW - 1);
+    local_alpha = saturate(line.level + 1.0f - fract(grid_level)) /
+                  float(OVERLAY_GRID_STEPS_DRAW - 1);
     local_alpha = 2.0f * local_alpha - square(local_alpha); /* Upside down parabola curve. */
     /* Fade by pixel size for orthographic, as we lack proper dfdx/dfdy on lines. */
     if (!drw_view_is_perspective()) {
@@ -108,8 +104,8 @@ void main()
   /* TODO (not_mark): fix in UV/Image editor or combine with clipping below */
   if (!flag_test(grid_flag, PLANE_IMAGE)) {
     float clip = drw_view_is_perspective() ?
-                    grid_buf.distance :
-                    (8.0f / max(drw_view().winmat[0][0], drw_view().winmat[1][1]));
+                     grid_buf.distance :
+                     (8.0f / max(drw_view().winmat[0][0], drw_view().winmat[1][1]));
     if (all(greaterThan(abs(line.P), float2(clip)))) {
       discard_line(); /* Both x, y lie outside the clip distance. */
     }
@@ -130,8 +126,8 @@ void main()
    * the current line, we can discard the current line on *any* sublevel as the superlevel
    * is guaranteed to draw over it. */
   if (!flag_test(grid_flag, PLANE_IMAGE)) {
-    if (line.level < GRID_LEVELS_DRAW - 1 && level < GRID_LEVELS_TOTAL - 1) {
-      float nscale = grid_buf.level_scales[min(level + 1, GRID_LEVELS_TOTAL - 1)][0];
+    if (line.level < OVERLAY_GRID_STEPS_DRAW - 1 && level < OVERLAY_GRID_STEPS_LEN - 1) {
+      float nscale = grid_buf.level_scales[min(level + 1, OVERLAY_GRID_STEPS_LEN - 1)][0];
       float offset = round(select(grid_poi.y, grid_poi.x, line.dir) / nscale) * nscale;
       float P_diff = offset + (select(line.P.y, line.P.x, line.dir) - offset) / nscale;
       if (abs(fract(P_diff)) < 1e-5) {
@@ -154,6 +150,14 @@ void main()
     local_pos = float3(line.P.xy * 0.5f + 0.5f, 0.0f);
   }
   gl_Position = drw_view().winmat * (drw_view().viewmat * float4(local_pos, 1.0f));
+
+  /* Strongly bias output z position, s.t. the grid is behind close objects, planes, and itself.
+   * Lower levels are given a stronger bias, as are inclines on the XY plane. */
+  float z_offset = 4.8e-7f * float(OVERLAY_GRID_STEPS_DRAW - 1 - line.level);
+  if (flag_test(grid_flag, PLANE_XY)) {
+    z_offset += mix(0.0f, 1.5e-4f, 1.0f - abs(drw_view_forward().z));
+  }
+  gl_Position.z += z_offset;
 
   /* Stage output: variables for viewport antialiasing. */
   edge_start = edge_pos = ((gl_Position.xy / gl_Position.w) * 0.5f + 0.5f) *
