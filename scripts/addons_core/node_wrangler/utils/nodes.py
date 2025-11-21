@@ -37,7 +37,7 @@ def autolink(node1, node2, links):
     available_outputs = [outp for outp in node1.outputs if outp.enabled and not outp.hide]
     for outp in available_outputs:
         for inp in available_inputs:
-            if not inp.is_linked and inp.name == outp.name:
+            if not inp.is_linked and inp.name == outp.name and inp.type == outp.type:
                 connect_sockets(outp, inp)
                 return True
 
@@ -52,6 +52,13 @@ def autolink(node1, node2, links):
         for inp in available_inputs:
             if not inp.is_linked:
                 connect_sockets(available_outputs[0], inp)
+                return True
+
+    # even if no sockets are open, force one of matching name and type
+    for outp in available_outputs:
+        for inp in available_inputs:
+            if inp.type == outp.type and inp.name == outp.name:
+                connect_sockets(outp, inp)
                 return True
 
     # even if no sockets are open, force one of matching type
