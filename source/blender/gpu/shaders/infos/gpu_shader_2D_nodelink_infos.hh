@@ -15,35 +15,42 @@
 
 #include "gpu_shader_create_info.hh"
 
-GPU_SHADER_NAMED_INTERFACE_INFO(nodelink_iface, interp)
-SMOOTH(float4, final_color)
-SMOOTH(float2, line_uv)
-GPU_SHADER_NAMED_INTERFACE_END(interp)
+struct [[vertex_in]] NodeLinkVertIn {
+  [[attribute(0)]] float2 uv;
+  [[attribute(1)]] float2 pos;
+  [[attribute(2)]] float2 expand;
+};
 
-GPU_SHADER_NAMED_INTERFACE_INFO(nodelink_iface_flat, interp_flat)
-FLAT(float, line_length)
-FLAT(float, line_thickness)
-FLAT(float, dash_length)
-FLAT(float, dash_factor)
-FLAT(float, dash_alpha)
-FLAT(float, aspect)
-FLAT(int, has_back_link)
-FLAT(int, is_main_line)
-GPU_SHADER_NAMED_INTERFACE_END(interp_flat)
+struct [[vertex_out]] NodeLinkVertOut {
+  [[smooth]] float4 final_color;
+  [[smooth]] float2 line_uv;
+  [[flat]] float line_length;
+  [[flat]] float line_thickness;
+  [[flat]] float dash_length;
+  [[flat]] float dash_factor;
+  [[flat]] float dash_alpha;
+  [[flat]] float aspect;
+  [[flat]] int has_back_link;
+  [[flat]] int is_main_line;
+};
+
+struct [[fragment_out]] NodeLinkFragOut {
+  [[color(0)]] float4 color;
+};
+
+struct [[resource_table]] NodeLinkSRT {
+  [[push_constant]] float4x4 ModelViewProjectionMatrix;
+  [[storage(0, read)]] NodeLinkData (&link_data_buf)[];
+  [[uniform(0)]] NodeLinkUniformData &link_uniforms;
+};
 
 GPU_SHADER_CREATE_INFO(gpu_shader_2D_nodelink)
-VERTEX_IN(0, float2, uv)
-VERTEX_IN(1, float2, pos)
-VERTEX_IN(2, float2, expand)
-VERTEX_OUT(nodelink_iface)
-VERTEX_OUT(nodelink_iface_flat)
-FRAGMENT_OUT(0, float4, out_color)
-STORAGE_BUF(0, read, NodeLinkData, link_data_buf[])
-UNIFORM_BUF(0, NodeLinkUniformData, link_uniforms)
-PUSH_CONSTANT(float4x4, ModelViewProjectionMatrix)
-VERTEX_SOURCE("gpu_shader_2D_nodelink_vert.glsl")
-FRAGMENT_SOURCE("gpu_shader_2D_nodelink_frag.glsl")
-TYPEDEF_SOURCE("GPU_shader_shared.hh")
-DEFINE("USE_INSTANCE")
+GRAPHIC_SOURCE("gpu_shader_2D_nodelink.glsl")
+VERTEX_FUNCTION("nodelink_vertex")
+FRAGMENT_FUNCTION("nodelink_fragment")
+VERTEX_OUT_SRT(NodeLinkVertOut)
+SRT_DATA(NodeLinkVertIn)
+SRT_DATA(NodeLinkFragOut)
+SRT_DATA(NodeLinkSRT)
 DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
