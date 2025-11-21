@@ -88,6 +88,12 @@ static void add_mesh_debug_column_names(
       if (CustomData_has_layer(&mesh.vert_data, CD_ORIGINDEX)) {
         fn({(char *)"Original Index"}, false);
       }
+      if (CustomData_has_layer(&mesh.vert_data, CD_ORCO)) {
+        fn({(char *)"CD_ORCO"}, false);
+      }
+      if (CustomData_has_layer(&mesh.vert_data, CD_CLOTH_ORCO)) {
+        fn({(char *)"CD_CLOTH_ORCO"}, false);
+      }
       break;
     case bke::AttrDomain::Edge:
       if (CustomData_has_layer(&mesh.edge_data, CD_ORIGINDEX)) {
@@ -102,6 +108,9 @@ static void add_mesh_debug_column_names(
       fn({(char *)"Corner Size"}, false);
       break;
     case bke::AttrDomain::Corner:
+      if (CustomData_has_layer(&mesh.corner_data, CD_ORIGSPACE_MLOOP)) {
+        fn({(char *)"CD_ORIGSPACE_MLOOP"}, false);
+      }
       break;
     default:
       BLI_assert_unreachable();
@@ -121,6 +130,22 @@ static std::unique_ptr<ColumnValues> build_mesh_debug_columns(const Mesh &mesh,
         if (data) {
           return std::make_unique<ColumnValues>(name,
                                                 VArray<int>::from_span({data, mesh.verts_num}));
+        }
+      }
+      if (name == "CD_ORCO") {
+        const float3 *data = static_cast<const float3 *>(
+            CustomData_get_layer(&mesh.vert_data, CD_ORCO));
+        if (data) {
+          return std::make_unique<ColumnValues>(name,
+                                                VArray<float3>::from_span({data, mesh.verts_num}));
+        }
+      }
+      if (name == "CD_CLOTH_ORCO") {
+        const float3 *data = static_cast<const float3 *>(
+            CustomData_get_layer(&mesh.vert_data, CD_CLOTH_ORCO));
+        if (data) {
+          return std::make_unique<ColumnValues>(name,
+                                                VArray<float3>::from_span({data, mesh.verts_num}));
         }
       }
       return {};
@@ -159,6 +184,14 @@ static std::unique_ptr<ColumnValues> build_mesh_debug_columns(const Mesh &mesh,
       return {};
     }
     case bke::AttrDomain::Corner: {
+      if (name == "CD_ORIGSPACE_MLOOP") {
+        const float2 *data = static_cast<const float2 *>(
+            CustomData_get_layer(&mesh.corner_data, CD_ORIGSPACE_MLOOP));
+        if (data) {
+          return std::make_unique<ColumnValues>(
+              name, VArray<float2>::from_span({data, mesh.corners_num}));
+        }
+      }
       return {};
     }
     default:
@@ -558,11 +591,27 @@ void VolumeDataSource::foreach_default_column_ids(
     return;
   }
 
-  for (const char *name : {"Grid Name", "Data Type", "Class"}) {
+  for (const char *name :
+       {"Grid Name", "Data Type", "Class", "Extent", "Voxels", "Leaf Voxels", "Tiles", "Size"})
+  {
     SpreadsheetColumnID column_id{(char *)name};
     fn(column_id, false);
   }
 }
+
+#ifdef WITH_OPENVDB
+static StringRef grid_class_name(const bke::VolumeGridData &grid_data)
+{
+  openvdb::GridClass grid_class = grid_data.grid_class();
+  if (grid_class == openvdb::GridClass::GRID_FOG_VOLUME) {
+    return IFACE_("Fog Volume");
+  }
+  if (grid_class == openvdb::GridClass::GRID_LEVEL_SET) {
+    return IFACE_("Level Set");
+  }
+  return IFACE_("Unknown");
+}
+#endif
 
 std::unique_ptr<ColumnValues> VolumeDataSource::get_column_values(
     const SpreadsheetColumnID &column_id) const
@@ -594,15 +643,41 @@ std::unique_ptr<ColumnValues> VolumeDataSource::get_column_values(
   if (STREQ(column_id.name, "Class")) {
     return std::make_unique<ColumnValues>(
         IFACE_("Class"), VArray<std::string>::from_std_func(size, [volume](int64_t index) {
-          const bke::VolumeGridData *volume_grid = BKE_volume_grid_get(volume, index);
-          openvdb::GridClass grid_class = volume_grid->grid_class();
-          if (grid_class == openvdb::GridClass::GRID_FOG_VOLUME) {
-            return IFACE_("Fog Volume");
-          }
-          if (grid_class == openvdb::GridClass::GRID_LEVEL_SET) {
-            return IFACE_("Level Set");
-          }
-          return IFACE_("Unknown");
+          return grid_class_name(*BKE_volume_grid_get(volume, index));
+        }));
+  }
+  if (STREQ(column_id.name, "Voxels")) {
+    return std::make_unique<ColumnValues>(
+        IFACE_("Voxels"), VArray<int64_t>::from_std_func(size, [volume](const int64_t index) {
+          return BKE_volume_grid_get(volume, index)->active_voxels();
+        }));
+  }
+  if (STREQ(column_id.name, "Leaf Voxels")) {
+    return std::make_unique<ColumnValues>(
+        IFACE_("Leaf Voxels"), VArray<int64_t>::from_std_func(size, [volume](const int64_t index) {
+          return BKE_volume_grid_get(volume, index)->active_leaf_voxels();
+        }));
+  }
+  if (STREQ(column_id.name, "Tiles")) {
+    return std::make_unique<ColumnValues>(
+        IFACE_("Tiles"), VArray<int64_t>::from_std_func(size, [volume](const int64_t index) {
+          return BKE_volume_grid_get(volume, index)->active_tiles();
+        }));
+  }
+  if (STREQ(column_id.name, "Size")) {
+    return std::make_unique<ColumnValues>(
+        IFACE_("Size"),
+        VArray<int64_t>::from_std_func(
+            size,
+            [volume](const int64_t index) {
+              return BKE_volume_grid_get(volume, index)->size_in_bytes();
+            }),
+        ColumnValueDisplayHint::Bytes);
+  }
+  if (STREQ(column_id.name, "Extent")) {
+    return std::make_unique<ColumnValues>(
+        IFACE_("Extent"), VArray<int3>::from_std_func(size, [volume](const int64_t index) {
+          return int3(BKE_volume_grid_get(volume, index)->active_bounds().dim().asPointer());
         }));
   }
 #else
@@ -620,6 +695,78 @@ int VolumeDataSource::tot_rows() const
   }
   return BKE_volume_num_grids(volume);
 }
+
+#ifdef WITH_OPENVDB
+
+VolumeGridDataSource::VolumeGridDataSource(const bke::GVolumeGrid &grid)
+    : grid_(std::make_unique<bke::GVolumeGrid>(grid))
+{
+}
+
+void VolumeGridDataSource::foreach_default_column_ids(
+    FunctionRef<void(const SpreadsheetColumnID &, bool is_extra)> fn) const
+{
+  if (!grid_) {
+    return;
+  }
+
+  for (const char *name :
+       {"Data Type", "Class", "Extent", "Voxels", "Leaf Voxels", "Tiles", "Size"})
+  {
+    SpreadsheetColumnID column_id{(char *)name};
+    fn(column_id, false);
+  }
+}
+
+std::unique_ptr<ColumnValues> VolumeGridDataSource::get_column_values(
+    const SpreadsheetColumnID &column_id) const
+{
+  const bke::VolumeGridData &grid = grid_->get();
+  if (STREQ(column_id.name, "Data Type")) {
+    const VolumeGridType type = grid.grid_type();
+    const char *name = nullptr;
+    RNA_enum_name_from_value(rna_enum_volume_grid_data_type_items, type, &name);
+    return std::make_unique<ColumnValues>(IFACE_("Data Type"),
+                                          VArray<std::string>::from_single(name, 1));
+  }
+  if (STREQ(column_id.name, "Class")) {
+    const StringRef name = grid_class_name(grid_->get());
+    return std::make_unique<ColumnValues>(IFACE_("Class"),
+                                          VArray<std::string>::from_single(name, 1));
+  }
+  if (STREQ(column_id.name, "Voxels")) {
+    const int64_t active_voxels = grid.active_voxels();
+    return std::make_unique<ColumnValues>(IFACE_("Voxels"),
+                                          VArray<int64_t>::from_single(active_voxels, 1));
+  }
+  if (STREQ(column_id.name, "Leaf Voxels")) {
+    const int64_t active_leaf_voxels = grid.active_leaf_voxels();
+    return std::make_unique<ColumnValues>(IFACE_("Leaf Voxels"),
+                                          VArray<int64_t>::from_single(active_leaf_voxels, 1));
+  }
+  if (STREQ(column_id.name, "Tiles")) {
+    const int64_t active_tiles = grid.active_tiles();
+    return std::make_unique<ColumnValues>(IFACE_("Tiles"),
+                                          VArray<int64_t>::from_single(active_tiles, 1));
+  }
+  if (STREQ(column_id.name, "Size")) {
+    const int64_t size = grid.size_in_bytes();
+    return std::make_unique<ColumnValues>(
+        IFACE_("Size"), VArray<int64_t>::from_single(size, 1), ColumnValueDisplayHint::Bytes);
+  }
+  if (STREQ(column_id.name, "Extent")) {
+    const int3 extent = int3(grid.active_bounds().dim().asPointer());
+    return std::make_unique<ColumnValues>(IFACE_("Extent"), VArray<int3>::from_single(extent, 1));
+  }
+  return {};
+}
+
+int VolumeGridDataSource::tot_rows() const
+{
+  return 1;
+}
+
+#endif
 
 ListDataSource::ListDataSource(nodes::ListPtr list) : list_(std::move(list)) {}
 
@@ -1051,7 +1198,11 @@ std::unique_ptr<DataSource> data_source_from_geometry(const bContext *C, Object 
     return {};
   }
   if (display_data.is_volume_grid()) {
+#ifdef WITH_OPENVDB
+    return std::make_unique<VolumeGridDataSource>(display_data.get<bke::GVolumeGrid>());
+#else
     return {};
+#endif
   }
   if (display_data.is_list()) {
     return std::make_unique<ListDataSource>(display_data.extract<nodes::ListPtr>());

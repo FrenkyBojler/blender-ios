@@ -50,6 +50,7 @@
 #include "BKE_anim_data.hh"
 #include "BKE_anonymous_attribute_id.hh"
 #include "BKE_armature.hh"
+#include "BKE_attribute.h"
 #include "BKE_camera.h"
 #include "BKE_collection.hh"
 #include "BKE_constraint.h"
@@ -91,7 +92,6 @@
 #include "BKE_pointcloud.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
-#include "BKE_speaker.h"
 #include "BKE_vfont.hh"
 #include "BKE_volume.hh"
 
@@ -106,6 +106,7 @@
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
+#include "UI_interface_icons.hh"
 #include "UI_interface_layout.hh"
 
 #include "WM_api.hh"
@@ -779,7 +780,7 @@ static std::optional<Bounds<float3>> lattice_add_to_selected_collect_targets_and
     const Object *object_eval = DEG_get_evaluated(depsgraph, base->object);
     if (object_eval && DEG_object_transform_is_evaluated(*object_eval)) {
       if (std::optional<Bounds<float3>> object_bounds = BKE_object_boundbox_get(object_eval)) {
-        const float(*object_to_world_matrix)[4] = object_eval->object_to_world().ptr();
+        const float (*object_to_world_matrix)[4] = object_eval->object_to_world().ptr();
         /* Generate all 8 corners of the bounding box. */
         std::array<float3, 8> corners = bounds::corners(*object_bounds);
         for (float3 &corner : corners) {
@@ -2321,10 +2322,9 @@ static wmOperatorStatus object_curves_empty_hair_add_exec(bContext *C, wmOperato
 
   /* Decide which UV map to use for attachment. */
   Mesh *surface_mesh = static_cast<Mesh *>(surface_ob->data);
-  const char *uv_name = CustomData_get_active_layer_name(&surface_mesh->corner_data,
-                                                         CD_PROP_FLOAT2);
-  if (uv_name != nullptr) {
-    curves_id->surface_uv_map = BLI_strdup(uv_name);
+  const StringRef uv_name = surface_mesh->active_uv_map_name();
+  if (!uv_name.is_empty()) {
+    curves_id->surface_uv_map = BLI_strdupn(uv_name.data(), uv_name.size());
   }
 
   /* Add deformation modifier. */
@@ -2547,7 +2547,7 @@ static wmOperatorStatus object_delete_invoke(bContext *C,
                                   IFACE_("Delete selected objects?"),
                                   nullptr,
                                   IFACE_("Delete"),
-                                  ALERT_ICON_NONE,
+                                  ui::AlertIcon::None,
                                   false);
   }
   return object_delete_exec(C, op);
@@ -4251,6 +4251,18 @@ static wmOperatorStatus object_convert_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
+  /* Disallow conversion if any selected editable object is in Edit Mode.
+   * This could be supported in the future, but it's a rare corner case
+   * typically triggered only by Python scripts, see #147387. */
+  for (const PointerRNA &ptr : selected_editable_bases) {
+    const Object *ob = ((const Base *)ptr.data)->object;
+    if (ob->mode & OB_MODE_EDIT) {
+      BKE_report(
+          op->reports, RPT_ERROR, "Cannot convert selected objects while they are in edit mode");
+      return OPERATOR_CANCELLED;
+    }
+  }
+
   /* don't forget multiple users! */
 
   {
@@ -4483,21 +4495,21 @@ static wmOperatorStatus object_convert_exec(bContext *C, wmOperator *op)
 
 static void object_convert_ui(bContext * /*C*/, wmOperator *op)
 {
-  uiLayout *layout = op->layout;
+  ui::Layout &layout = *op->layout;
 
-  layout->use_property_split_set(true);
+  layout.use_property_split_set(true);
 
-  layout->prop(op->ptr, "target", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(op->ptr, "keep_original", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "target", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "keep_original", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   const int target = RNA_enum_get(op->ptr, "target");
   if (target == OB_MESH) {
-    layout->prop(op->ptr, "merge_customdata", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout.prop(op->ptr, "merge_customdata", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   else if (target == OB_GREASE_PENCIL) {
-    layout->prop(op->ptr, "thickness", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    layout->prop(op->ptr, "offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    layout->prop(op->ptr, "faces", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout.prop(op->ptr, "thickness", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout.prop(op->ptr, "offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout.prop(op->ptr, "faces", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 }
 

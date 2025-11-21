@@ -21,7 +21,7 @@
  */
 
 #include "gpu_shader_math_vector_reduce_lib.glsl"
-#include "infos/eevee_common_info.hh"
+#include "infos/eevee_common_infos.hh"
 
 #include "gpu_shader_codegen_lib.glsl"
 #include "gpu_shader_math_vector_lib.glsl"
@@ -434,7 +434,7 @@ struct Header {
 
   uchar closure_len() const
   {
-    return reduce_add(int3(not(this->empty_bins())));
+    return uchar(reduce_add(int3(not(this->empty_bins()))));
   }
 
   uchar normal_len() const

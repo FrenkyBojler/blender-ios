@@ -38,7 +38,7 @@
 #include "BKE_lib_query.hh"
 #include "BKE_main.hh"
 #include "BKE_nla.hh"
-#include "BKE_sound.h"
+#include "BKE_sound.hh"
 
 #include "BLO_read_write.hh"
 
@@ -1932,7 +1932,7 @@ void BKE_nlastrip_validate_name(AnimData *adt, NlaStrip *strip)
         STRNCPY_UTF8(strip->name, DATA_("Transition"));
         break;
       case NLASTRIP_TYPE_META: /* meta */
-        STRNCPY_UTF8(strip->name, DATA_("Meta"));
+        STRNCPY_UTF8(strip->name, CTX_DATA_(BLT_I18NCONTEXT_ID_ACTION, "Meta"));
         break;
       default:
         STRNCPY_UTF8(strip->name, DATA_("NLA Strip"));

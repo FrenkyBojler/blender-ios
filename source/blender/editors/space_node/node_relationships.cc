@@ -6,6 +6,8 @@
  * \ingroup spnode
  */
 
+#include <algorithm>
+
 #include "MEM_guardedalloc.h"
 
 #include "DNA_array_utils.hh"
@@ -15,6 +17,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_stack.hh"
+#include "BLI_vector.hh"
 
 #include "BKE_context.hh"
 #include "BKE_main_invariants.hh"
@@ -161,7 +164,7 @@ static void pick_input_link_by_link_intersect(const bContext &C,
   }
 }
 
-static bool socket_is_available(bNodeTree *ntree, bNodeSocket *sock, const bool allow_used)
+static bool socket_is_available(const bNodeTree *ntree, bNodeSocket *sock, const bool allow_used)
 {
   ntree->ensure_topology_cache();
   if (!sock->is_visible()) {
@@ -257,36 +260,26 @@ static bNodeSocket *best_socket_output(bNodeTree *ntree,
   return nullptr;
 }
 
-/* This is a bit complicated, but designed to prioritize finding
- * sockets of higher types, such as image, first. */
-static bNodeSocket *best_socket_input(bNodeTree *ntree, bNode *node, int num, int replace)
+/* Returns the list of available inputs sorted by their order of importance, where the order of
+ * importance is assumed to be the numerical value of the socket type, such that a higher value
+ * corresponds to a higher importance. If only_unlinked is true, only input sockets that are
+ * unlinked will be considered. */
+static Vector<bNodeSocket *> get_available_sorted_inputs(const bNodeTree *ntree,
+                                                         const bNode *node,
+                                                         const bool only_unlinked)
 {
-  int maxtype = 0;
-  LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
-    maxtype = max_ii(sock->type, maxtype);
-  }
-
-  /* Find sockets of higher 'types' first (i.e. image). */
-  int a = 0;
-  for (int socktype = maxtype; socktype >= SOCK_CUSTOM; socktype--) {
-    LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
-      if (!socket_is_available(ntree, sock, replace)) {
-        a++;
-        continue;
-      }
-
-      if (sock->type == socktype) {
-        /* Increment to make sure we don't keep finding the same socket on every attempt running
-         * this function. */
-        a++;
-        if (a > num) {
-          return sock;
-        }
-      }
+  Vector<bNodeSocket *> inputs;
+  LISTBASE_FOREACH (bNodeSocket *, input, &node->inputs) {
+    if (socket_is_available(ntree, input, !only_unlinked)) {
+      inputs.append(input);
     }
   }
 
-  return nullptr;
+  std::sort(inputs.begin(), inputs.end(), [](const bNodeSocket *a, const bNodeSocket *b) {
+    return a->type > b->type;
+  });
+
+  return inputs;
 }
 
 static bool snode_autoconnect_input(bContext &C,
@@ -415,24 +408,15 @@ static void snode_autoconnect(bContext &C,
     }
 
     if (!has_selected_inputs) {
-      /* No selected inputs, connect by finding suitable match. */
-      int num_inputs = BLI_listbase_count(&node_to->inputs);
-
-      for (int i = 0; i < num_inputs; i++) {
-
-        /* Find the best guess input socket. */
-        bNodeSocket *sock_to = best_socket_input(ntree, node_to, i, replace);
-        if (!sock_to) {
-          continue;
-        }
-
+      Vector<bNodeSocket *> inputs = get_available_sorted_inputs(ntree, node_to, !replace);
+      for (bNodeSocket *input : inputs) {
         /* Check for an appropriate output socket to connect from. */
-        bNodeSocket *sock_fr = best_socket_output(ntree, node_fr, sock_to, allow_multiple);
+        bNodeSocket *sock_fr = best_socket_output(ntree, node_fr, input, allow_multiple);
         if (!sock_fr) {
           continue;
         }
 
-        if (snode_autoconnect_input(C, snode, node_fr, sock_fr, node_to, sock_to, replace)) {
+        if (snode_autoconnect_input(C, snode, node_fr, sock_fr, node_to, input, replace)) {
           // numlinks++;
           break;
         }
@@ -556,8 +540,12 @@ static bNodeSocket *node_link_viewer_get_socket(bNodeTree &ntree,
     /* In viewer nodes in the compositor, only the first input should be linked to. */
     return (bNodeSocket *)viewer_node.inputs.first;
   }
-  /* For the geometry nodes viewer, find the socket with the correct type. */
+  if (!nodes::GeoViewerItemsAccessor::supports_socket_type(src_socket.typeinfo->type, ntree.type))
+  {
+    return nullptr;
+  }
 
+  /* For the geometry nodes viewer, find the socket with the correct type. */
   const std::string name = get_viewer_source_name(src_socket);
 
   int item_index;
@@ -2091,7 +2079,7 @@ void NODE_OT_parent_set(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Join Nodes Operator
+/** \name Join Nodes in Frame Operator
  * \{ */
 
 struct NodeJoinState {
@@ -2172,7 +2160,7 @@ static const bNode *find_common_parent_node(const Span<const bNode *> nodes)
   return candidates.last();
 }
 
-static wmOperatorStatus node_join_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus node_join_in_frame_exec(bContext *C, wmOperator * /*op*/)
 {
   Main &bmain = *CTX_data_main(C);
   SpaceNode &snode = *CTX_wm_space_node(C);
@@ -2201,7 +2189,9 @@ static wmOperatorStatus node_join_exec(bContext *C, wmOperator * /*op*/)
   return OPERATOR_FINISHED;
 }
 
-static wmOperatorStatus node_join_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus node_join_in_frame_invoke(bContext *C,
+                                                  wmOperator *op,
+                                                  const wmEvent *event)
 {
   ARegion *region = CTX_wm_region(C);
   SpaceNode *snode = CTX_wm_space_node(C);
@@ -2216,22 +2206,130 @@ static wmOperatorStatus node_join_invoke(bContext *C, wmOperator *op, const wmEv
   snode->runtime->cursor[0] /= UI_SCALE_FAC;
   snode->runtime->cursor[1] /= UI_SCALE_FAC;
 
-  return node_join_exec(C, op);
+  return node_join_in_frame_exec(C, op);
 }
 
 void NODE_OT_join(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "Join Nodes";
+  ot->name = "Join Nodes in Frame";
   ot->description = "Attach selected nodes to a new common frame";
   ot->idname = "NODE_OT_join";
 
   /* API callbacks. */
-  ot->exec = node_join_exec;
-  ot->invoke = node_join_invoke;
+  ot->exec = node_join_in_frame_exec;
+  ot->invoke = node_join_in_frame_invoke;
   ot->poll = ED_operator_node_editable;
 
   /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Join Nodes Operator
+ * \{ */
+
+static void join_group_inputs(bNodeTree &tree, VectorSet<bNode *> group_inputs, bNode *active_node)
+{
+  bNode *main_node = nullptr;
+  if (group_inputs.contains(active_node)) {
+    main_node = active_node;
+  }
+  else {
+    main_node = group_inputs[0];
+    /* Move main node to average of all group inputs. */
+    float2 location{};
+    for (const bNode *node : group_inputs) {
+      location += node->location;
+    }
+    location /= float(group_inputs.size());
+    copy_v2_v2(main_node->location, location);
+  }
+  tree.ensure_topology_cache();
+  MultiValueMap<bNodeSocket *, bNodeLink *> old_link_map;
+  for (bNode *node : group_inputs) {
+    for (bNodeSocket *socket : node->output_sockets().drop_back(1)) {
+      old_link_map.add_multiple(socket, socket->directly_linked_links());
+    }
+  }
+  MultiValueMap<bNodeSocket *, bNodeSocket *> used_link_targets;
+  for (bNodeSocket *socket : main_node->output_sockets()) {
+    used_link_targets.add_multiple(socket, socket->directly_linked_sockets());
+  }
+  for (bNode *node : group_inputs) {
+    if (node == main_node) {
+      continue;
+    }
+    bool keep_node = false;
+
+    /* Using runtime data directly because we know the parts that are used are still valid. */
+    for (const int group_input_i : node->runtime->outputs.index_range().drop_back(1)) {
+      bool keep_socket = false;
+      bNodeSocket &new_socket = *main_node->runtime->outputs[group_input_i];
+      bNodeSocket &old_socket = *node->runtime->outputs[group_input_i];
+      for (bNodeLink *link : old_link_map.lookup(&old_socket)) {
+        bNodeSocket &to_socket = *link->tosock;
+        if (used_link_targets.lookup(&new_socket).contains(&to_socket)) {
+          keep_node = true;
+          keep_socket = true;
+          continue;
+        }
+        used_link_targets.add(&new_socket, &to_socket);
+        link->fromsock = &new_socket;
+        link->fromnode = main_node;
+        new_socket.flag &= ~SOCK_HIDDEN;
+        BKE_ntree_update_tag_link_changed(&tree);
+      }
+      if (!keep_socket) {
+        old_socket.flag |= SOCK_HIDDEN;
+      }
+    }
+    if (!keep_node) {
+      bke::node_free_node(&tree, *node);
+    }
+  }
+}
+
+static wmOperatorStatus node_join_nodes_exec(bContext *C, wmOperator *op)
+{
+  Main &bmain = *CTX_data_main(C);
+  SpaceNode &snode = *CTX_wm_space_node(C);
+  bNodeTree &ntree = *snode.edittree;
+
+  bNode *active_node = bke::node_get_active(ntree);
+  VectorSet<bNode *> selected_nodes = get_selected_nodes(ntree);
+  if (selected_nodes.size() <= 1) {
+    return OPERATOR_CANCELLED;
+  }
+
+  if (std::all_of(selected_nodes.begin(), selected_nodes.end(), [](const bNode *node) {
+        return node->is_group_input();
+      }))
+  {
+    join_group_inputs(ntree, std::move(selected_nodes), active_node);
+  }
+  else {
+    BKE_report(op->reports, RPT_ERROR, "Selected nodes can't be joined");
+    return OPERATOR_CANCELLED;
+  }
+
+  BKE_main_ensure_invariants(bmain, snode.edittree->id);
+  WM_event_add_notifier(C, NC_NODE | ND_DISPLAY, nullptr);
+
+  return OPERATOR_FINISHED;
+}
+
+void NODE_OT_join_nodes(wmOperatorType *ot)
+{
+  ot->name = "Join Nodes";
+  ot->description = "Merge selected group input nodes into one if possible";
+  ot->idname = "NODE_OT_join_nodes";
+
+  ot->exec = node_join_nodes_exec;
+  ot->poll = ED_operator_node_editable;
+
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
@@ -2730,13 +2828,12 @@ bNodeSocket *get_main_socket(bNodeTree &ntree, bNode &node, eNodeSocketInOut in_
   if (node_decl != nullptr) {
     Span<nodes::SocketDeclaration *> socket_decls = (in_out == SOCK_IN) ? node_decl->inputs :
                                                                           node_decl->outputs;
-    int index;
-    LISTBASE_FOREACH_INDEX (bNodeSocket *, socket, sockets, index) {
-      const nodes::SocketDeclaration &socket_decl = *socket_decls[index];
-      if (!socket->is_visible()) {
+    for (const nodes::SocketDeclaration *socket_decl : socket_decls) {
+      if (!socket_decl->is_default_link_socket) {
         continue;
       }
-      if (socket_decl.is_default_link_socket) {
+      bNodeSocket *socket = static_cast<bNodeSocket *>(BLI_findlink(sockets, socket_decl->index));
+      if (socket && socket->is_visible()) {
         return socket;
       }
     }
@@ -2799,7 +2896,7 @@ static bool node_link_insert_offset_chain_cb(bNode *fromnode,
   return true;
 }
 
-static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
+static bool node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
                                           ARegion *region,
                                           const int mouse_xy[2],
                                           const bool right_alignment)
@@ -2823,6 +2920,12 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
    * so `totr_insert` is used to get the correct world-space coords. */
   rctf totr_insert;
   node_to_updated_rect(insert, totr_insert);
+
+  const float gap_left = totr_insert.xmin - prev->runtime->draw_bounds.xmax;
+  const float gap_right = next->runtime->draw_bounds.xmin - totr_insert.xmax;
+  if (gap_left >= min_margin && gap_right >= min_margin) {
+    return false;
+  }
 
   /* Frame attachment wasn't handled yet so we search the frame that the node will be attached to
    * later. */
@@ -2863,8 +2966,7 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
 
   /* *** ensure offset at the left (or right for right_alignment case) of insert_node *** */
 
-  float dist = right_alignment ? totr_insert.xmin - prev->runtime->draw_bounds.xmax :
-                                 next->runtime->draw_bounds.xmin - totr_insert.xmax;
+  float dist = right_alignment ? gap_left : gap_right;
   /* distance between insert_node and prev is smaller than min margin */
   if (dist < min_margin) {
     const float addval = (min_margin - dist) * (right_alignment ? 1.0f : -1.0f);
@@ -2909,6 +3011,7 @@ static void node_link_insert_offset_ntree(NodeInsertOfsData *iofsd,
   }
 
   insert.parent = init_parent;
+  return true;
 }
 
 /**
@@ -2983,10 +3086,16 @@ static wmOperatorStatus node_insert_offset_invoke(bContext *C,
   BLI_assert(U.uiflag & USER_NODE_AUTO_OFFSET);
 
   iofsd->ntree = snode->edittree;
-  iofsd->anim_timer = WM_event_timer_add(CTX_wm_manager(C), CTX_wm_window(C), TIMER, 0.02);
 
-  node_link_insert_offset_ntree(
+  const bool offset_applied = node_link_insert_offset_ntree(
       iofsd, CTX_wm_region(C), event->mval, (snode->insert_ofs_dir == SNODE_INSERTOFS_DIR_RIGHT));
+  if (!offset_applied) {
+    MEM_freeN(iofsd);
+    op->customdata = nullptr;
+    return OPERATOR_CANCELLED;
+  }
+
+  iofsd->anim_timer = WM_event_timer_add(CTX_wm_manager(C), CTX_wm_window(C), TIMER, 0.02);
 
   /* add temp handler */
   WM_event_add_modal_handler(C, op);

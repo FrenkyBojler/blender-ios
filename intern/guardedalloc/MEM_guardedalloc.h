@@ -184,6 +184,15 @@ extern void *(*MEM_calloc_arrayN_aligned)(
         (v) = nullptr; \
       } \
     } while (0)
+
+/** Wrapper for MEM_SAFE_FREE() as deallocator for std::unique_ptr. */
+struct MEM_freeN_smart_ptr_deleter {
+  void operator()(void *pointer) const noexcept
+  {
+    MEM_SAFE_FREE(pointer);
+  }
+};
+
 #else
 #  define MEM_SAFE_FREE(v) \
     do { \
@@ -248,7 +257,7 @@ extern size_t (*MEM_get_peak_memory)(void) ATTR_WARN_UNUSED_RESULT;
 
 /** Overhead for lockfree allocator (use to avoid slop-space). */
 #define MEM_SIZE_OVERHEAD sizeof(size_t)
-#define MEM_SIZE_OPTIMAL(size) ((size)-MEM_SIZE_OVERHEAD)
+#define MEM_SIZE_OPTIMAL(size) ((size) - MEM_SIZE_OVERHEAD)
 
 #ifndef NDEBUG
 extern const char *(*MEM_name_ptr)(void *vmemh);

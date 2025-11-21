@@ -524,10 +524,6 @@ class CYCLES_RENDER_PT_subdivision(CyclesButtonsPanel, Panel):
     bl_label = "Subdivision"
     bl_options = {'DEFAULT_CLOSED'}
 
-    @classmethod
-    def poll(cls, context):
-        return (context.scene.render.engine == 'CYCLES') and (context.scene.cycles.feature_set == 'EXPERIMENTAL')
-
     def draw(self, context):
         layout = self.layout
         layout.use_property_split = True
@@ -588,8 +584,13 @@ class CYCLES_RENDER_PT_volumes(CyclesButtonsPanel, Panel):
         scene = context.scene
         cscene = scene.cycles
 
-        col = layout.column()
-        col.prop(cscene, "volume_unbiased", text="Unbiased")
+        col = layout.column(align=True)
+        col.prop(cscene, "volume_biased", text="Biased")
+        if cscene.volume_biased:
+            col.prop(cscene, "volume_step_rate", text="Step Rate Render")
+            col.prop(cscene, "volume_preview_step_rate", text="Viewport")
+
+            layout.prop(cscene, "volume_max_steps", text="Max Steps")
 
 
 class CYCLES_RENDER_PT_light_paths(CyclesButtonsPanel, Panel):
@@ -1033,7 +1034,13 @@ class CYCLES_RENDER_PT_passes_data(CyclesButtonsPanel, Panel):
 
         col = layout.column(heading="Debug", align=True)
         col.prop(cycles_view_layer, "pass_debug_sample_count", text="Sample Count")
-        col.prop(cycles_view_layer, "pass_render_time", text="Render Time")
+
+        # Render Time pass - disabled for GPU devices
+        scene = context.scene
+        cscene = scene.cycles
+        row = col.row()
+        row.enabled = (cscene.device == 'CPU')
+        row.prop(cycles_view_layer, "pass_render_time", text="Render Time")
 
         layout.prop(view_layer, "pass_alpha_threshold")
 
@@ -1203,7 +1210,7 @@ class CYCLES_CAMERA_PT_lens_custom_parameters(CyclesButtonsPanel, Panel):
 
         col = layout.column()
         for key in ccam.keys():
-            col.prop(ccam, f'["{key}"]')
+            col.prop(ccam, f'["{key}"]', text=bpy.path.display_name(key))
 
 
 class CYCLES_PT_context_material(CyclesButtonsPanel, Panel):
@@ -1403,6 +1410,7 @@ class CYCLES_OBJECT_PT_visibility(CyclesButtonsPanel, Panel):
         ob = context.object
 
         layout.prop(ob, "hide_select", text="Selectable", invert_checkbox=True, toggle=False)
+        layout.prop(ob, "hide_surface_pick", text="Surface Picking", toggle=False, invert_checkbox=True)
 
         col = layout.column(heading="Show In")
         col.prop(ob, "hide_viewport", text="Viewports", invert_checkbox=True, toggle=False)
@@ -1840,6 +1848,8 @@ class CYCLES_WORLD_PT_settings_volume(CyclesButtonsPanel, Panel):
         sub = col.column()
         col.prop(cworld, "volume_sampling", text="Sampling")
         col.prop(cworld, "volume_interpolation", text="Interpolation")
+        if context.scene.cycles.volume_biased:
+            col.prop(cworld, "volume_step_size")
 
 
 class CYCLES_WORLD_PT_settings_light_group(CyclesButtonsPanel, Panel):
@@ -2012,6 +2022,8 @@ class CYCLES_MATERIAL_PT_settings_volume(CyclesButtonsPanel, Panel):
         sub = col.column()
         col.prop(cmat, "volume_sampling", text="Sampling")
         col.prop(cmat, "volume_interpolation", text="Interpolation")
+        if context.scene.cycles.volume_biased:
+            col.prop(cmat, "volume_step_rate")
 
     def draw(self, context):
         self.draw_shared(self, context, context.material)
@@ -2449,9 +2461,6 @@ def draw_device(self, context):
     if context.engine == 'CYCLES':
         from . import engine
         cscene = scene.cycles
-
-        col = layout.column()
-        col.prop(cscene, "feature_set")
 
         col = layout.column()
         col.active = show_device_active(context)

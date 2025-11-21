@@ -33,9 +33,11 @@ class USERPREF_HT_header(Header):
             pass
         else:
             # Show '*' to let users know the preferences have been modified.
+            # It is shown to the left so that it is visible when the sidebar is narrow,
+            # and for consistency with unsaved files in the title bar.
             layout.operator(
                 "wm.save_userpref",
-                text=iface_("Save Preferences") + (" *" if prefs.is_dirty else ""),
+                text=("* " if prefs.is_dirty else "") + iface_("Save Preferences"),
                 translate=False,
             )
 
@@ -59,7 +61,7 @@ class USERPREF_PT_navigation_bar(Panel):
     bl_label = "Preferences Navigation"
     bl_space_type = 'PREFERENCES'
     bl_region_type = 'UI'
-    bl_category = 'Navigation'
+    bl_category = "Navigation"
     bl_options = {'HIDE_HEADER'}
 
     def draw(self, context):
@@ -344,12 +346,15 @@ class USERPREF_PT_interface_statusbar(InterfacePanel, CenterAlignMixIn, Panel):
         col.prop(view, "show_statusbar_version", text="Blender Version")
 
 
-class USERPREF_PT_interface_menus(InterfacePanel, Panel):
+class USERPREF_PT_interface_menus(InterfacePanel, CenterAlignMixIn, Panel):
     bl_label = "Menus"
     bl_options = {'DEFAULT_CLOSED'}
 
-    def draw(self, context):
-        pass
+    def draw_centered(self, context, layout):
+        prefs = context.preferences
+        view = prefs.view
+        col = layout.column()
+        col.prop(view, "menu_close_leave")
 
 
 class USERPREF_PT_interface_menus_mouse_over(InterfacePanel, CenterAlignMixIn, Panel):
@@ -706,7 +711,7 @@ class USERPREF_PT_system_display_graphics(SystemPanel, CenterAlignMixIn, Panel):
     @classmethod
     def poll(cls, _context):
         import platform
-        return platform.system() != 'Darwin'
+        return platform.system() != "Darwin"
 
     def draw_centered(self, context, layout):
         prefs = context.preferences
@@ -838,8 +843,8 @@ class USERPREF_PT_system_memory(SystemPanel, CenterAlignMixIn, Panel):
             col = layout.column(align=True)
             col.active = system.gpu_backend != 'VULKAN'
             col.row().prop(system, "shader_compilation_method", expand=True)
-            label = "Threads" if system.shader_compilation_method == 'THREAD' else "Subprocesses"
-            col.prop(system, "gpu_shader_workers", text=label)
+            label = iface_("Threads") if system.shader_compilation_method == 'THREAD' else iface_("Subprocesses")
+            col.prop(system, "gpu_shader_workers", text=label, translate=False)
 
 
 class USERPREF_PT_system_video_sequencer(SystemPanel, CenterAlignMixIn, Panel):
@@ -1376,7 +1381,7 @@ class USERPREF_PT_theme_collection_colors(ThemePanel, CenterAlignMixIn, Panel):
     def draw_header(self, _context):
         layout = self.layout
 
-        layout.label(icon='OUTLINER_COLLECTION')
+        layout.label(icon='GROUP')
 
     def draw_centered(self, context, layout):
         theme = context.preferences.themes[0]
@@ -1455,6 +1460,7 @@ class ThemeGenericClassGenerator:
     def generate_panel_classes_for_wcols():
         wcols = [
             ("Box", "wcol_box"),
+            ("Curve", "wcol_curve"),
             ("List Item", "wcol_list_item"),
             ("Menu", "wcol_menu"),
             ("Menu Background", "wcol_menu_back"),
@@ -2128,8 +2134,14 @@ class USERPREF_PT_ndof_settings(Panel):
         col.row().prop(props, "ndof_navigation_mode", text="Navigation Mode")
 
         if show_3dview_settings:
-            col.prop(props, "ndof_lock_horizon", text="Lock Horizon")
-
+            colsub = col.column()
+            colsub.active = props.ndof_navigation_mode in {'FLY', 'OBJECT'}
+            colsub.prop(props, "ndof_lock_horizon", text="Lock Horizon")
+            del colsub
+            colsub = col.column()
+            colsub.active = props.ndof_navigation_mode in {'FLY', 'DRONE'}
+            colsub.prop(props, "ndof_fly_speed_auto", text="Auto Fly Speed")
+            del colsub
             layout.separator()
 
         if show_3dview_settings:
@@ -2585,8 +2597,10 @@ class USERPREF_PT_addons(AddOnPanel, Panel):
                     (search in bl_info["name"].casefold() or
                      search in iface_(bl_info["name"]).casefold()) or
                     (bl_info["author"] and (search in bl_info["author"].casefold())) or
-                    ((filter == "All") and (search in bl_info["category"].casefold() or
-                                            search in iface_(bl_info["category"]).casefold()))
+                    ((filter == "All") and (
+                        search in bl_info["category"].casefold() or
+                        search in iface_(bl_info["category"]).casefold()
+                    ))
             ):
                 continue
 
@@ -2887,6 +2901,8 @@ class USERPREF_PT_developer_tools(Panel):
                 ({"property": "use_viewport_debug"}, None),
                 ({"property": "use_eevee_debug"}, None),
                 ({"property": "use_extensions_debug"}, ("/blender/blender/issues/119521", "#119521")),
+                ({"property": "write_legacy_blend_file_format"}, ("/blender/blender/issues/129309", "#129309")),
+                ({"property": "no_data_block_packing"}, ("/blender/blender/issues/132167", "#132167")),
             ),
         )
 
@@ -2930,7 +2946,6 @@ class USERPREF_PT_experimental_new_features(ExperimentalPanel, Panel):
             (
                 ({"property": "use_extended_asset_browser"},
                  ("blender/blender/projects/10", "Pipeline, Assets & IO Project Page")),
-                ({"property": "use_new_volume_nodes"}, ("blender/blender/issues/103248", "#103248")),
                 ({"property": "use_shader_node_previews"}, ("blender/blender/issues/110353", "#110353")),
                 ({"property": "use_geometry_nodes_lists"}, ("blender/blender/issues/140918", "#140918")),
             ),
@@ -2947,7 +2962,6 @@ class USERPREF_PT_experimental_prototypes(ExperimentalPanel, Panel):
             (
                 ({"property": "use_new_curves_tools"}, ("blender/blender/issues/68981", "#68981")),
                 ({"property": "use_sculpt_texture_paint"}, ("blender/blender/issues/96225", "#96225")),
-                ({"property": "write_legacy_blend_file_format"}, ("/blender/blender/issues/129309", "#129309")),
             ),
         )
 

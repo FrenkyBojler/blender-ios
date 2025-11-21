@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "draw_object_infos_info.hh"
+#include "draw_object_infos_infos.hh"
 
 #ifdef GPU_LIBRARY_SHADER
 SHADER_LIBRARY_CREATE_INFO(draw_modelmat)
@@ -42,15 +42,15 @@ float4 attr_load_tangent(MeshVertex vert, float4 tangent, int index)
   tangent.xyz = safe_normalize(drw_normal_object_to_world(tangent.xyz));
   return tangent;
 }
-float4 attr_load_vec4(MeshVertex vert, float4 attr, int index)
+float4 attr_load_float4(MeshVertex vert, float4 attr, int index)
 {
   return attr;
 }
-float3 attr_load_vec3(MeshVertex vert, float3 attr, int index)
+float3 attr_load_float3(MeshVertex vert, float3 attr, int index)
 {
   return attr;
 }
-float2 attr_load_vec2(MeshVertex vert, float2 attr, int index)
+float2 attr_load_float2(MeshVertex vert, float2 attr, int index)
 {
   return attr;
 }
