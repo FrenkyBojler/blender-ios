@@ -814,10 +814,8 @@ void USDMeshReader::read_custom_data(const ImportSettings *settings,
   }
 
   if (!active_uv_set_name.IsEmpty()) {
-    MEM_SAFE_FREE(mesh->active_uv_map_attribute);
-    MEM_SAFE_FREE(mesh->default_uv_map_attribute);
-    mesh->active_color_attribute = BLI_strdup(active_uv_set_name.GetText());
-    mesh->default_uv_map_attribute = BLI_strdup(active_uv_set_name.GetText());
+    mesh->uv_maps_active_set(active_uv_set_name.GetText());
+    mesh->uv_maps_default_set(active_uv_set_name.GetText());
   }
 }
 

@@ -576,6 +576,23 @@ void mesh_ensure_default_color_attribute_on_add(Mesh &mesh,
   mesh.default_color_attribute = BLI_strdupn(id.data(), id.size());
 }
 
+void mesh_ensure_default_uv_attribute_on_add(Mesh &mesh,
+                                             const StringRef id,
+                                             AttrDomain domain,
+                                             bke::AttrType data_type)
+{
+  if (bke::attribute_name_is_anonymous(id)) {
+    return;
+  }
+  if (!mesh::is_uv_map({domain, data_type})) {
+    return;
+  }
+  if (!mesh.default_uv_map_name().is_empty()) {
+    return;
+  }
+  mesh.uv_maps_default_set(id);
+}
+
 void mesh_ensure_required_data_layers(Mesh &mesh)
 {
   MutableAttributeAccessor attributes = mesh.attributes_for_write();
@@ -596,6 +613,12 @@ void mesh_remove_invalid_attribute_strings(Mesh &mesh)
   }
   if (!mesh::is_color_attribute(attributes.lookup_meta_data(mesh.default_color_attribute))) {
     MEM_SAFE_FREE(mesh.default_color_attribute);
+  }
+  if (!mesh::is_uv_map(attributes.lookup_meta_data(mesh.active_uv_map_name()))) {
+    MEM_SAFE_FREE(mesh.active_uv_map_attribute);
+  }
+  if (!mesh::is_uv_map(attributes.lookup_meta_data(mesh.default_uv_map_name()))) {
+    MEM_SAFE_FREE(mesh.default_uv_map_attribute);
   }
 }
 
@@ -1006,6 +1029,8 @@ static void clear_attribute_names(Mesh &mesh)
   BLI_freelistN(&mesh.vertex_group_names);
   MEM_SAFE_FREE(mesh.active_color_attribute);
   MEM_SAFE_FREE(mesh.default_color_attribute);
+  MEM_SAFE_FREE(mesh.active_uv_map_attribute);
+  MEM_SAFE_FREE(mesh.default_uv_map_attribute);
 }
 
 void BKE_mesh_clear_geometry(Mesh *mesh)
@@ -1195,12 +1220,50 @@ blender::VectorSet<blender::StringRefNull> Mesh::uv_map_names() const
 
 blender::StringRefNull Mesh::active_uv_map_name() const
 {
+  if (BMEditMesh *em = this->runtime->edit_mesh.get()) {
+    const char *name = CustomData_get_active_layer_name(&em->bm->ldata, CD_PROP_FLOAT2);
+    return name ? name : "";
+  }
   return this->active_uv_map_attribute ? this->active_uv_map_attribute : "";
 }
 
 blender::StringRefNull Mesh::default_uv_map_name() const
 {
+  if (BMEditMesh *em = this->runtime->edit_mesh.get()) {
+    const char *name = CustomData_get_render_layer_name(&em->bm->ldata, CD_PROP_FLOAT2);
+    return name ? name : "";
+  }
   return this->default_uv_map_attribute ? this->default_uv_map_attribute : "";
+}
+
+void Mesh::uv_maps_active_set(const StringRef name)
+{
+  MEM_SAFE_FREE(this->active_uv_map_attribute);
+  if (!name.is_empty()) {
+    this->active_uv_map_attribute = BLI_strdupn(name.data(), name.size());
+  }
+  if (BMEditMesh *em = this->runtime->edit_mesh.get()) {
+    int index = CustomData_get_named_layer_index(&em->bm->ldata, CD_PROP_FLOAT2, name);
+    if (index == -1) {
+      index = CustomData_get_layer_index(&em->bm->ldata, CD_PROP_FLOAT2);
+    }
+    CustomData_set_layer_active_index(&em->bm->ldata, CD_PROP_FLOAT2, index);
+  }
+}
+
+void Mesh::uv_maps_default_set(const StringRef name)
+{
+  MEM_SAFE_FREE(this->default_uv_map_attribute);
+  if (!name.is_empty()) {
+    this->default_uv_map_attribute = BLI_strdupn(name.data(), name.size());
+  }
+  if (BMEditMesh *em = this->runtime->edit_mesh.get()) {
+    int index = CustomData_get_named_layer_index(&em->bm->ldata, CD_PROP_FLOAT2, name);
+    if (index == -1) {
+      index = CustomData_get_layer_index(&em->bm->ldata, CD_PROP_FLOAT2);
+    }
+    CustomData_set_layer_render_index(&em->bm->ldata, CD_PROP_FLOAT2, index);
+  }
 }
 
 Mesh *BKE_mesh_new_nomain(const int verts_num,

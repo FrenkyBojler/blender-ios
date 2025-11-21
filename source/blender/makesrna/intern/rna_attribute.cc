@@ -707,28 +707,26 @@ static PointerRNA rna_AttributeGroupID_new(
         return PointerRNA_NULL;
       }
 
-      if (ELEM(layer->type, CD_PROP_COLOR, CD_PROP_BYTE_COLOR)) {
-        if (!mesh->active_color_attribute) {
-          mesh->active_color_attribute = BLI_strdup(layer->name);
+      if ((GS(id->name) == ID_ME)) {
+        Mesh *mesh = (Mesh *)id;
+        if (ELEM(layer->type, CD_PROP_COLOR, CD_PROP_BYTE_COLOR)) {
+          if (!mesh->active_color_attribute) {
+            mesh->active_color_attribute = BLI_strdup(layer->name);
+          }
+          if (!mesh->default_color_attribute) {
+            mesh->default_color_attribute = BLI_strdup(layer->name);
+          }
         }
-        if (!mesh->default_color_attribute) {
-          mesh->default_color_attribute = BLI_strdup(layer->name);
+        if (ELEM(layer->type, CD_PROP_FLOAT2)) {
+          if (mesh->active_uv_map_name().is_empty()) {
+            mesh->uv_maps_active_set(layer->name);
+          }
+          if (mesh->default_uv_map_name().is_empty()) {
+            mesh->uv_maps_default_set(layer->name);
+          }
         }
       }
-      else if (layer->type == CD_PROP_FLOAT2) {
-        if (!mesh->active_uv_map_attribute) {
-          mesh->active_uv_map_attribute = BLI_strdup(layer->name);
-        }
-        if (!mesh->default_uv_map_attribute) {
-          mesh->default_uv_map_attribute = BLI_strdup(layer->name);
-        }
-      }
-
-      DEG_id_tag_update(id, ID_RECALC_GEOMETRY);
-      WM_main_add_notifier(NC_GEOM | ND_DATA, id);
-
-      PointerRNA ptr = RNA_pointer_create_discrete(id, &RNA_Attribute, layer);
-      return ptr;
+      return RNA_pointer_create_discrete(id, &RNA_Attribute, layer);
     }
   }
 

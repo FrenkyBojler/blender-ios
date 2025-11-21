@@ -721,27 +721,6 @@ static int rna_CustomDataLayer_clone_get(PointerRNA *ptr, CustomData *data, int 
   return (n == CustomData_get_clone_layer_index(data, eCustomDataType(type)));
 }
 
-static void rna_CustomDataLayer_active_set(
-    PointerRNA *ptr, CustomData *data, int value, int type, int render)
-{
-  Mesh *mesh = (Mesh *)ptr->owner_id;
-  int n = (((CustomDataLayer *)ptr->data) - data->layers) -
-          CustomData_get_layer_index(data, eCustomDataType(type));
-
-  if (value == 0) {
-    return;
-  }
-
-  if (render) {
-    CustomData_set_layer_render(data, eCustomDataType(type), n);
-  }
-  else {
-    CustomData_set_layer_active(data, eCustomDataType(type), n);
-  }
-
-  BKE_mesh_tessface_clear(mesh);
-}
-
 static void rna_CustomDataLayer_clone_set(PointerRNA *ptr, CustomData *data, int value, int type)
 {
   int n = ((CustomDataLayer *)ptr->data) - data->layers;
@@ -793,16 +772,9 @@ static PointerRNA rna_Mesh_uv_layer_active_get(PointerRNA *ptr)
 
 static void rna_Mesh_uv_layer_active_set(PointerRNA *ptr, PointerRNA value, ReportList *)
 {
-  AttributeOwner owner = AttributeOwner::from_id(ptr->owner_id);
-  const StringRef name = rna_Attribute_name_get(value);
-  const int index = BKE_attribute_to_index(
-      owner, name, ATTR_DOMAIN_MASK_CORNER, CD_MASK_PROP_FLOAT2);
-  if (index == -1) {
-    return;
-  }
   Mesh *mesh = rna_mesh(ptr);
-  MEM_SAFE_FREE(mesh->active_uv_map_attribute);
-  mesh->active_uv_map_attribute = BLI_strdupn(name.data(), name.size());
+  mesh->uv_maps_active_set(rna_Attribute_name_get(value));
+  BKE_mesh_tessface_clear(mesh);
 }
 
 static int rna_Mesh_uv_layer_active_index_get(PointerRNA *ptr)
@@ -820,13 +792,13 @@ static void rna_Mesh_uv_layer_active_index_set(PointerRNA *ptr, int value)
   using namespace blender;
   AttributeOwner owner = AttributeOwner::from_id(ptr->owner_id);
   const std::optional<StringRef> name = BKE_attribute_from_index(
-      owner, value, ATTR_DOMAIN_MASK_CORNER, CD_MASK_PROP_FLOAT2);
+      owner, value, ATTR_DOMAIN_MASK_CORNER, CD_MASK_PROP_FLOAT2, false);
   if (!name) {
     return;
   }
   Mesh *mesh = rna_mesh(ptr);
-  MEM_SAFE_FREE(mesh->active_uv_map_attribute);
-  mesh->active_uv_map_attribute = BLI_strdupn(name->data(), name->size());
+  mesh->uv_maps_active_set(*name);
+  BKE_mesh_tessface_clear(mesh);
 }
 
 static PointerRNA rna_Mesh_uv_layer_clone_get(PointerRNA *ptr)
@@ -986,24 +958,18 @@ static bool rna_MeshUVLoopLayer_clone_get(PointerRNA *ptr)
 
 static void rna_MeshUVLoopLayer_active_render_set(PointerRNA *ptr, bool value)
 {
-  if (!value) {
-    return;
+  if (value) {
+    Mesh *mesh = rna_mesh(ptr);
+    mesh->uv_maps_default_set(rna_Attribute_name_get(*ptr));
   }
-  Mesh *mesh = rna_mesh(ptr);
-  StringRef name = rna_Attribute_name_get(*ptr);
-  MEM_SAFE_FREE(mesh->default_uv_map_attribute);
-  mesh->default_uv_map_attribute = BLI_strdupn(name.data(), name.size());
 }
 
 static void rna_MeshUVLoopLayer_active_set(PointerRNA *ptr, bool value)
 {
-  if (!value) {
-    return;
+  if (value) {
+    Mesh *mesh = rna_mesh(ptr);
+    mesh->uv_maps_active_set(rna_Attribute_name_get(*ptr));
   }
-  Mesh *mesh = rna_mesh(ptr);
-  StringRef name = rna_Attribute_name_get(*ptr);
-  MEM_SAFE_FREE(mesh->active_uv_map_attribute);
-  mesh->active_uv_map_attribute = BLI_strdupn(name.data(), name.size());
 }
 
 static void rna_MeshUVLoopLayer_clone_set(PointerRNA *ptr, bool value)
@@ -1822,10 +1788,15 @@ static PointerRNA rna_Mesh_uv_layers_new(Mesh *mesh,
   if (index == -1) {
     return {};
   }
-  PointerRNA attr_ptr = rna_AttributeGroup_lookup_string(RNA_id_pointer_create(&mesh->id),
-                                                         mesh->uv_map_names()[index],
-                                                         ATTR_DOMAIN_MASK_CORNER,
-                                                         CD_MASK_PROP_FLOAT2);
+  const StringRef used_name = mesh->uv_map_names()[index];
+  PointerRNA attr_ptr = rna_AttributeGroup_lookup_string(
+      RNA_id_pointer_create(&mesh->id), used_name, ATTR_DOMAIN_MASK_CORNER, CD_MASK_PROP_FLOAT2);
+  if (mesh->active_uv_map_name().is_empty()) {
+    mesh->uv_maps_active_set(used_name);
+  }
+  if (mesh->default_uv_map_name().is_empty()) {
+    mesh->uv_maps_default_set(used_name);
+  }
   attr_ptr.type = &RNA_MeshUVLoopLayer;
   return attr_ptr;
 }
