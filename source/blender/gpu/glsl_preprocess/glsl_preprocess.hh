@@ -502,6 +502,7 @@ class Preprocessor {
         vertex_in_parsing(parser, report_error);
 
         if (language == BLENDER_GLSL) {
+          entry_point_mutation(parser, report_error);
           srt_member_access_mutation(parser, report_error);
           using_mutation(parser, report_error);
 
@@ -2766,6 +2767,91 @@ class Preprocessor {
       });
       fn_body.foreach_match("ww[[w]]", [&](const vector<Token> toks) {
         memher_access_mutation(toks[0], toks[1], toks[2].scope(), toks[1].scope());
+      });
+    });
+
+    parser.apply_mutations();
+  }
+
+  void entry_point_mutation(Parser &parser, report_callback report_error)
+  {
+    using namespace std;
+    using namespace shader::parser;
+
+    parser.foreach_function([&](bool, Token type, Token, Scope args, bool, Scope fn_body) {
+      if (type.prev() != ']') {
+        return;
+      }
+      if (type.prev().prev().scope().type() != ScopeType::Attributes) {
+        return;
+      }
+      string attribute = type.prev().prev().scope().str();
+
+      if (attribute == "[vertex]") {
+        /* TODO(fclem): Error detection. */
+      }
+      else if (attribute == "[fragment]") {
+        /* TODO(fclem): Error detection. */
+      }
+      else if (attribute == "[compute]") {
+        /* TODO(fclem): Error detection. */
+      }
+      else {
+        return;
+      }
+
+      if (type.str() != "void") {
+        report_error(ERROR_TOK(type), "Entry point function must return void.");
+        return;
+      }
+
+      if (args.str() != "()") {
+        parser.erase(args.start().next(), args.end().prev());
+      }
+
+      auto replace_word = [&](const string &replaced, const string &replacement) {
+        fn_body.foreach_token(Word, [&](const Token tok) {
+          if (tok.str() == replaced) {
+            parser.replace(tok, replacement, true);
+          }
+        });
+      };
+
+      auto process_argument = [&](Token type, Token var, Token attribute) {
+        string srt_type = type.str();
+        string srt_var = var.str();
+        string srt_attr = attribute.str();
+
+        if (srt_attr == "vertex_id") {
+          replace_word(srt_var, "gl_VertexID");
+        }
+        else if (srt_attr == "instance_id") {
+          replace_word(srt_var, "gl_InstanceID");
+        }
+        else if (srt_attr == "position") {
+          replace_word(srt_var, "gl_Position");
+        }
+        else if (srt_attr == "vertex_in") {
+          replace_word(srt_var, srt_type);
+        }
+        else if (srt_attr == "vertex_out") {
+          replace_word(srt_var, srt_type);
+        }
+        else if (srt_attr == "fragment_out") {
+          replace_word(srt_var, srt_type);
+        }
+        else if (srt_attr == "resource_table") {
+          /* Add dummy var at start of function body. */
+          parser.insert_after(fn_body.start().str_index_start(),
+                              " " + srt_type + " " + srt_var + " [[resource_table]];");
+        }
+      };
+
+      args.foreach_match("ww[[w]]", [&](const vector<Token> toks) {
+        process_argument(toks[0], toks[1], toks[4]);
+      });
+      args.foreach_match("w&w[[w]]", [&](const vector<Token> toks) {
+        process_argument(toks[0], toks[2], toks[5]);
       });
     });
 
