@@ -31,11 +31,11 @@ enum OVERLAY_UVLineStyle : uint32_t {
 enum OVERLAY_GridBits : uint32_t {
   SHOW_GRID = (1u << 0u),
   SHOW_AXES = (1u << 1u),
-  
+
   AXIS_X = (1u << 2u),
   AXIS_Y = (1u << 3u),
   AXIS_Z = (1u << 4u),
-  
+
   PLANE_XY = (1u << 5u),
   PLANE_XZ = (1u << 6u),
   PLANE_YZ = (1u << 7u),

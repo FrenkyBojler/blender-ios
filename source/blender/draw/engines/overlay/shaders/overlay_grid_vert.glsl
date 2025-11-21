@@ -58,7 +58,7 @@ LineData decode_axis_data(in uint vertex_id)
 {
   LineData line;
 
-  /* Every pair of consecutive verts forms a line, indicated by bit 0. 
+  /* Every pair of consecutive verts forms a line, indicated by bit 0.
    * They then alternate x/y/z, indicated by the other 31 bits. */
   uint side = vertex_id & 0x1u;
   line.dir = vertex_id >> 1u;
@@ -88,7 +88,7 @@ void main()
   }
 
   float scale = grid_buf.level_scales[level][line.dir];
-  
+
   /* Stage outputs. */
   {
     /* Stage output: vertex position in [-1,1], which we use to fade level boundaries. */
@@ -157,9 +157,10 @@ void main()
     else { /* PLANE_IMAGE */
       local_pos.xy = line.P * 0.5f + 0.5f;
     }
-  } else if (flag_test(grid_flag, SHOW_AXES)) {
+  }
+  else if (flag_test(grid_flag, SHOW_AXES)) {
     /* Test X/Y/Z axis flags per line */
-    const uint[3] flags = { AXIS_X, AXIS_Y, AXIS_Z };
+    const uint[3] flags = {AXIS_X, AXIS_Y, AXIS_Z};
     if (!flag_test(grid_flag, flags[line.dir])) {
       discard_line();
     }

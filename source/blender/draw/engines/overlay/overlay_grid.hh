@@ -69,7 +69,8 @@ class Grid : Overlay {
           res.theme.colors.background, res.theme.colors.grid, 0.5);
       sub.push_constant("ucolor", color_back);
       sub.push_constant("tile_scale", float3(grid_ubo_.size));
-      sub.bind_texture("depth_buffer", depth_tx); /* TODO (not_mark): is this one necessary? */
+      /* TODO (not_mark): is this one necessary? IIRC, the point is to get rid of it. */
+      sub.bind_texture("depth_buffer", depth_tx);
       sub.draw(res.shapes.quad_solid.get());
     }
 
@@ -267,7 +268,8 @@ class Grid : Overlay {
     Array<float, SI_GRID_STEPS_LEN> steps(SI_GRID_STEPS_LEN);
     ED_view3d_grid_steps(state.scene, v3d, rv3d, steps.data());
     for (int i = 0; i < SI_GRID_STEPS_LEN; ++i) {
-      grid_ubo_.level_scales[i].x = grid_ubo_.level_scales[i].y = grid_ubo_.level_scales[i].z = steps[i];
+      grid_ubo_.level_scales[i].x = grid_ubo_.level_scales[i].y = grid_ubo_.level_scales[i].z =
+          steps[i];
     }
 
     /* Camera parameters. */
@@ -320,7 +322,7 @@ class Grid : Overlay {
 
     /* This suffices for most cases, and in others we fade to hide it. */
     grid_ubo_.num_lines = 301;
-    
+
     return true;
   }
 };
