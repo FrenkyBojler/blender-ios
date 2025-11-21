@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Beta (b'6f9eadf7a433')\n"
+"Project-Id-Version: Blender 5.0.0 Beta (b'd29f9f6118e5')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-27 09:50+0000\n"
+"POT-Creation-Date: 2025-11-10 09:45+0000\n"
 "PO-Revision-Date: 2025-07-23 15:34+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Hindi <https://translate.blender.org/projects/blender-ui/ui/hi/>\n"
@@ -2572,16 +2572,56 @@ msgid "Mask"
 msgstr "आवरण"
 
 
-msgid "Text"
-msgstr "पाठ"
+msgid "Track"
+msgstr "ट्रैक"
+
+
+msgid "Quick Effects"
+msgstr "त्वरित प्रभाव"
 
 
 msgid "Show/Hide"
 msgstr "छुपाएँ / दिखाएँ"
 
 
+msgid "Make Single User"
+msgstr "एकल प्रयोक्ता बनाएँ"
+
+
+msgid "Hooks"
+msgstr "खूँटी"
+
+
 msgid "Names"
 msgstr "नाम"
+
+
+msgid "Apply"
+msgstr "लागू करें"
+
+
+msgid "Toggle Bone Options"
+msgstr "हड्डी विकल्प बंद/बुझ"
+
+
+msgid "Enable Bone Options"
+msgstr "हड्डी विकल्प को सक्षम करें"
+
+
+msgid "Merge"
+msgstr "विलय करें"
+
+
+msgid "Keying"
+msgstr "कुंजीयन"
+
+
+msgid "Math"
+msgstr "गणित"
+
+
+msgid "Text"
+msgstr "पाठ"
 
 
 msgid "Bone Roll"
@@ -2596,12 +2636,12 @@ msgid "Mirror"
 msgstr "दर्पण"
 
 
-msgid "Keying"
-msgstr "कुंजीयन"
+msgid "Import"
+msgstr "आयात करें"
 
 
-msgid "Math"
-msgstr "गणित"
+msgid "UV"
+msgstr "यूवी"
 
 
 msgid "Light"
@@ -2610,46 +2650,6 @@ msgstr "प्रकाश"
 
 msgid "Rigid Body"
 msgstr "कठोर-पदार्थ"
-
-
-msgid "Apply"
-msgstr "लागू करें"
-
-
-msgid "Track"
-msgstr "ट्रैक"
-
-
-msgid "Quick Effects"
-msgstr "त्वरित प्रभाव"
-
-
-msgid "Make Single User"
-msgstr "एकल प्रयोक्ता बनाएँ"
-
-
-msgid "Hooks"
-msgstr "खूँटी"
-
-
-msgid "Import"
-msgstr "आयात करें"
-
-
-msgid "Toggle Bone Options"
-msgstr "हड्डी विकल्प बंद/बुझ"
-
-
-msgid "Enable Bone Options"
-msgstr "हड्डी विकल्प को सक्षम करें"
-
-
-msgid "UV"
-msgstr "यूवी"
-
-
-msgid "Merge"
-msgstr "विलय करें"
 
 
 msgid "Basic"
@@ -6105,10 +6105,6 @@ msgstr "अंतर्गत होने के लिए कोई अति�
 
 msgid "Add IK"
 msgstr "इक जोड़ें"
-
-
-msgid "To New Empty Object"
-msgstr "नया रिक्त ऑब्जेक्ट के लिए"
 
 
 msgid "Could not find scene"

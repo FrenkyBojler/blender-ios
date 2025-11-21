@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Beta (b'6f9eadf7a433')\n"
+"Project-Id-Version: Blender 5.0.0 Beta (b'd29f9f6118e5')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-27 09:50+0000\n"
+"POT-Creation-Date: 2025-11-10 09:45+0000\n"
 "PO-Revision-Date: 2025-07-23 14:52+0000\n"
 "Last-Translator: Lisa <blendergirl@tutanota.com>\n"
 "Language-Team: Dutch <https://translate.blender.org/projects/blender-ui/ui/nl/>\n"
@@ -2682,12 +2682,24 @@ msgid "Mask"
 msgstr "Mask"
 
 
-msgid "Text"
-msgstr "Tekst"
+msgid "Quick Effects"
+msgstr "Snelle Effecten"
 
 
 msgid "Show/Hide"
 msgstr "Toon/Verberg"
+
+
+msgid "Convert"
+msgstr "Converteer"
+
+
+msgid "Hooks"
+msgstr "Haken"
+
+
+msgid "Clear Transform"
+msgstr "Maak Transformatie Leeg"
 
 
 msgid "Names"
@@ -2696,6 +2708,10 @@ msgstr "Namen"
 
 msgid "Layout"
 msgstr "Indeling"
+
+
+msgid "Text"
+msgstr "Tekst"
 
 
 msgid "Mirror"
@@ -2718,6 +2734,10 @@ msgid "Select Linked"
 msgstr "Selecteer Aaneengesloten"
 
 
+msgid "Import"
+msgstr "Importeren"
+
+
 msgid "Light"
 msgstr "Licht"
 
@@ -2732,26 +2752,6 @@ msgstr "Relaties"
 
 msgid "Rigid Body"
 msgstr "Star Lichaam"
-
-
-msgid "Quick Effects"
-msgstr "Snelle Effecten"
-
-
-msgid "Convert"
-msgstr "Converteer"
-
-
-msgid "Hooks"
-msgstr "Haken"
-
-
-msgid "Clear Transform"
-msgstr "Maak Transformatie Leeg"
-
-
-msgid "Import"
-msgstr "Importeren"
 
 
 msgctxt "MovieClip"
@@ -8750,22 +8750,6 @@ msgstr "Geen valide geselecteerde objecten"
 
 msgid "Error handling selected objects"
 msgstr "Fout afhandelen geselecteerde objecten"
-
-
-msgid "To Active Bone"
-msgstr "Naar Actief Bot"
-
-
-msgid "To Active Object"
-msgstr "Naar Actief Object"
-
-
-msgid "To New Empty Object"
-msgstr "Naar Nieuw Leeg Object"
-
-
-msgid "Without Targets"
-msgstr "Zonder Doelen"
 
 
 msgid "Brass"

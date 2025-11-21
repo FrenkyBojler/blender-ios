@@ -38,7 +38,6 @@
 struct bContext;
 struct uiBlock;
 struct uiButViewItem;
-struct uiLayout;
 struct ViewLink;
 struct wmNotifier;
 
@@ -51,6 +50,8 @@ enum class ViewScrollDirection {
   UP,
   DOWN,
 };
+
+struct Layout;
 
 class AbstractView {
   friend class AbstractViewItem;
@@ -202,6 +203,7 @@ class AbstractViewItem {
   bool is_activatable_ = true;
   bool is_interactive_ = true;
   bool is_active_ = false;
+  /** Only change using #set_selected() so overrides can sync changes to data. */
   bool is_selected_ = false;
   bool is_renaming_ = false;
   /** See #is_search_highlight(). */
@@ -226,7 +228,7 @@ class AbstractViewItem {
  public:
   virtual ~AbstractViewItem() = default;
 
-  virtual void build_context_menu(bContext &C, uiLayout &column) const;
+  virtual void build_context_menu(bContext &C, Layout &column) const;
 
   /**
    * Like #activate() but does not call #on_activate(). Use it to reflect changes in the active
@@ -364,6 +366,7 @@ class AbstractViewItem {
   void rename_apply(const bContext &C);
 
   virtual void delete_item(bContext *C);
+  virtual void on_filter();
 
  protected:
   AbstractViewItem() = default;

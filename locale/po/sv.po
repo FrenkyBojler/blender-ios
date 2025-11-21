@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Beta (b'6f9eadf7a433')\n"
+"Project-Id-Version: Blender 5.0.0 Beta (b'd29f9f6118e5')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-27 09:50+0000\n"
+"POT-Creation-Date: 2025-11-10 09:45+0000\n"
 "PO-Revision-Date: 2025-10-15 14:42+0000\n"
 "Last-Translator: Daniel Nylander <blender@danielnylander.se>\n"
 "Language-Team: Swedish <https://translate.blender.org/projects/blender-ui/ui/sv/>\n"
@@ -9335,24 +9335,76 @@ msgid "Mask"
 msgstr "Mask"
 
 
-msgid "Text"
-msgstr "Text"
+msgid "Track"
+msgstr "Spår"
 
 
-msgid "Metaball"
-msgstr "Metaboll"
+msgid "Quick Effects"
+msgstr "Snabbeffekter"
 
 
 msgid "Show/Hide"
 msgstr "Visa/dölj"
 
 
+msgid "Clean Up"
+msgstr "Städa upp"
+
+
+msgid "Asset"
+msgstr "Tillgång"
+
+
+msgid "Convert"
+msgstr "Konvertera"
+
+
+msgid "Link/Transfer Data"
+msgstr "Länka/överför data"
+
+
+msgid "Propagate"
+msgstr "Propagera"
+
+
 msgid "Names"
 msgstr "Namn"
 
 
-msgid "Clean Up"
-msgstr "Städa upp"
+msgid "Apply"
+msgstr "Applicera"
+
+
+msgid "Layout"
+msgstr "Layout"
+
+
+msgid "Merge"
+msgstr "Sammanfoga"
+
+
+msgid "Adjust"
+msgstr "Justera"
+
+
+msgid "Utilities"
+msgstr "Verktyg"
+
+
+msgid "Math"
+msgstr "Matematik"
+
+
+msgid "Special Characters"
+msgstr "Specialtecken"
+
+
+msgid "Text"
+msgstr "Text"
+
+
+msgid "Metaball"
+msgstr "Metaboll"
 
 
 msgid "Pivot Point"
@@ -9363,8 +9415,16 @@ msgid "Snap"
 msgstr "Snäpp"
 
 
-msgid "Layout"
-msgstr "Layout"
+msgid "Read"
+msgstr "Läs"
+
+
+msgid "Write"
+msgstr "Skriv"
+
+
+msgid "Primitives"
+msgstr "Primitiver"
 
 
 msgid "Mirror"
@@ -9387,10 +9447,6 @@ msgid "Align View"
 msgstr "Justera vy"
 
 
-msgid "Adjust"
-msgstr "Justera"
-
-
 msgid "Align View to Active"
 msgstr "Justera vy till aktiv"
 
@@ -9399,16 +9455,24 @@ msgid "Select More/Less"
 msgstr "Markera mera/mindre"
 
 
-msgid "Utilities"
-msgstr "Verktyg"
+msgid "Instances"
+msgstr "Instanser"
 
 
-msgid "Math"
-msgstr "Matematik"
+msgid "Import"
+msgstr "Importera"
+
+
+msgid "Deprecated"
+msgstr "Föråldrad"
 
 
 msgid "Assign Material"
 msgstr "Tilldela material"
+
+
+msgid "UV"
+msgstr "UV"
 
 
 msgid "Light"
@@ -9429,70 +9493,6 @@ msgstr "Relationer"
 
 msgid "Rigid Body"
 msgstr "Rigid kropp"
-
-
-msgid "Apply"
-msgstr "Applicera"
-
-
-msgid "Track"
-msgstr "Spår"
-
-
-msgid "Quick Effects"
-msgstr "Snabbeffekter"
-
-
-msgid "Asset"
-msgstr "Tillgång"
-
-
-msgid "Convert"
-msgstr "Konvertera"
-
-
-msgid "Link/Transfer Data"
-msgstr "Länka/överför data"
-
-
-msgid "Read"
-msgstr "Läs"
-
-
-msgid "Write"
-msgstr "Skriv"
-
-
-msgid "Primitives"
-msgstr "Primitiver"
-
-
-msgid "Propagate"
-msgstr "Propagera"
-
-
-msgid "Instances"
-msgstr "Instanser"
-
-
-msgid "Import"
-msgstr "Importera"
-
-
-msgid "Deprecated"
-msgstr "Föråldrad"
-
-
-msgid "UV"
-msgstr "UV"
-
-
-msgid "Merge"
-msgstr "Sammanfoga"
-
-
-msgid "Special Characters"
-msgstr "Specialtecken"
 
 
 msgid "Animals"
@@ -21389,6 +21389,10 @@ msgid "Palette Color"
 msgstr "Palettfärg"
 
 
+msgid "VR"
+msgstr "VR"
+
+
 msgid "Active Tool"
 msgstr "Aktivt verktyg"
 
@@ -21415,10 +21419,6 @@ msgstr "Mätning"
 
 msgid "Stroke Placement"
 msgstr "Streckplacering"
-
-
-msgid "VR"
-msgstr "VR"
 
 
 msgid "Import Settings"
@@ -31411,10 +31411,6 @@ msgstr "Bakar noder..."
 
 msgid "Add IK"
 msgstr "Lägg till IK"
-
-
-msgid "Without Targets"
-msgstr "Utan mål"
 
 
 msgid "Cannot edit library data"
