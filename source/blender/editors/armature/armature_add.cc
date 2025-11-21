@@ -1777,6 +1777,73 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
   float obmat[3][3], curs[3], viewmat[3][3], totmat[3][3], imat[3][3];
   char name[MAXBONENAME];
 
+  int align = RNA_enum_get(op->ptr, "align");
+  float base_mat[3][3];  // base orientation matrix
+
+  switch (align) {
+      case 1: // WORLD
+      {
+          base_mat[0][0] = 1.0f; base_mat[0][1] = 0.0f; base_mat[0][2] = 0.0f; // X
+          base_mat[1][0] = 0.0f; base_mat[1][1] = 0.0f; base_mat[1][2] = -1.0f; // Y
+          base_mat[2][0] = 0.0f; base_mat[2][1] = 1.0f; base_mat[2][2] = 0.0f; // Z
+          break;
+      }
+      case 2: // VIEW
+      {
+          if (rv3d) {
+              /* Get view orientation in world space */
+              copy_m3_m4(base_mat, rv3d->viewinv);
+          }
+          else {
+              unit_m3(base_mat);  // fallback
+          }
+          break;
+      }
+      case 3: // CURSOR
+      {
+          Scene *scene = CTX_data_scene(C);
+          const View3DCursor *cursor = &scene->cursor;
+
+          float cursor_mat[3][3];
+
+          /* Convert cursor rotation to a 3×3 matrix */
+          if (cursor->rotation_mode == ROT_MODE_QUAT) {
+              quat_to_mat3(cursor_mat, cursor->rotation_quaternion);
+          }
+          else {
+              eul_to_mat3(cursor_mat, cursor->rotation_euler);
+          }
+
+          copy_m3_m3(base_mat, cursor_mat);
+          break;
+      }
+      case 0: // DEFAULT
+      default:
+          unit_m3(base_mat);  // default orientation (y-up)
+          break;
+  }
+
+  /* User rotation offset */
+  float rotation_offset[3];
+  RNA_float_get_array(op->ptr, "rotation_offset", rotation_offset);
+
+  // Convert to radians for internal math
+  float rot_rad[3] = { DEG2RADF(rotation_offset[0]),
+                      DEG2RADF(rotation_offset[1]),
+                      DEG2RADF(rotation_offset[2]) };
+
+  float rot_mat[3][3];
+  eul_to_mat3(rot_mat, rot_rad);
+
+  float final_mat[3][3];
+  mul_m3_m3m3(final_mat, base_mat, rot_mat);
+
+  /* Bone length */
+  float length = RNA_float_get(op->ptr, "length");
+  if (length <= 0.0f) {
+      length = 1.0f;  /* fallback */
+  }
+
   RNA_string_get(op->ptr, "name", name);
 
   copy_v3_v3(curs, CTX_data_scene(C)->cursor.location);
@@ -1820,14 +1887,21 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
                 bcoll_ref->bcoll->name);
   }
 
+  /* Add user offset */
+  float location_offset[3];
+  RNA_float_get_array(op->ptr, "location_offset", location_offset);
+  add_v3_v3(curs, location_offset);
+
+  /* Bone head to cursor position (with offset)*/
   copy_v3_v3(bone->head, curs);
 
-  if (rv3d && (U.flag & USER_ADD_VIEWALIGNED)) {
-    add_v3_v3v3(bone->tail, bone->head, imat[1]); /* bone with unit length 1 */
-  }
-  else {
-    add_v3_v3v3(bone->tail, bone->head, imat[2]); /* bone with unit length 1, pointing up Z */
-  }
+  float tail_vector[3];
+  copy_v3_v3(tail_vector, imat[2]);
+  
+  normalize_v3(tail_vector);
+  mul_v3_fl(tail_vector, length); // apply length
+  mul_m3_v3(final_mat, tail_vector);   // apply alignment + rotation
+  add_v3_v3v3(bone->tail, bone->head, tail_vector);
 
   /* NOTE: notifier might evolve. */
   WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, obedit);
@@ -1857,6 +1931,26 @@ void ARMATURE_OT_bone_primitive_add(wmOperatorType *ot)
                  MAXBONENAME,
                  "Name",
                  "Name of the newly created bone");
+  
+  static const EnumPropertyItem align_items[] = {
+    {0, "DEFAULT", 0, "Default", "Use the normal default orientation"},
+    {1, "WORLD",   0, "World",   "Align new bone with the world"},
+    {2, "VIEW",    0, "View",    "Align new bone to the view"},
+    {3, "CURSOR",  0, "Cursor",  "Align new bone with the 3D cursor"},
+    {0, nullptr, 0, nullptr, nullptr}
+    };
+  RNA_def_enum(ot->srna, "align", align_items, 0, "Align", "Initial orientation of the new bone");
+
+  RNA_def_float(ot->srna, "length", 1.0f, 0.001f, FLT_MAX, "Length", "Length of the new bone", 0.01f, 100.0f);
+  
+  static float location_offset[3]  = {0.0f, 0.0f, 0.0f};
+  RNA_def_float_vector(ot->srna, "location_offset", 3, location_offset, -FLT_MAX, FLT_MAX, "Location Offset", "Offset location of the bone from the cursor", -1000.0f, 1000.0f);
+
+  static float rotation_offset[3] = {0.0f, 0.0f, 0.0f};
+  RNA_def_float_vector(ot->srna, "rotation_offset", 3, rotation_offset, -360.0f, 360.0f,
+                      "Rotation Offset",
+                      "Rotation offset of the bone from the starting alignment",
+                      -360.0f, 360.0f);
 }
 
 /* ********************** Subdivide *******************************/
