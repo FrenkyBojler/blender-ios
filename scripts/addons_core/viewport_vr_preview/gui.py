@@ -194,14 +194,11 @@ class VIEW3D_PT_vr_landmarks(Panel):
 
             if landmark_selected.type == 'OBJECT':
                 layout.prop(landmark_selected, "base_pose_object")
-                layout.prop(landmark_selected, "base_scale", text="Scale")
             elif landmark_selected.type == 'CUSTOM':
                 layout.prop(landmark_selected,
                             "base_pose_location", text="Location")
                 layout.prop(landmark_selected,
                             "base_pose_angle", text="Angle")
-                layout.prop(landmark_selected,
-                            "base_scale", text="Scale")
 
 
 # Actions.
