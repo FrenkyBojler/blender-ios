@@ -371,9 +371,7 @@ static void wm_xr_session_state_update_navigation_scale(wmXrSessionState *state,
     const float offset_val = state->nav_scale - scene_scale;
     view_scaling_offset *= offset_val;
 
-    /* Only apply offset on the X/Y axes for the scaling to be visible. */
-    state->nav_pose.position[0] += view_scaling_offset.x;
-    state->nav_pose.position[1] += view_scaling_offset.y;
+    add_v3_v3(state->nav_pose.position, view_scaling_offset);
   }
 
   state->nav_scale = scene_scale;
