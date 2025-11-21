@@ -1,1 +1,1 @@
-Referenced by issue #150360, Merge by distance node can crash during evaluation for render but works fine in viewport
+Referenced by issue #150360, BMesh float boolean creates duplicate edges, causing crash
