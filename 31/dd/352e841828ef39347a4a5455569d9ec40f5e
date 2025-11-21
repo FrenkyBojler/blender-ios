@@ -2,3 +2,4 @@ Referenced by issue #149550, Crash rendering Victor benchmark scene
 Referenced by issue #149689, Regression: Skin modifier no longer works when Subdivision Surface is applied before it.
 Referenced by pull request #149727, Fix #149689: Subdiv does not propagate skin modifier data
 Referenced by commit 911300a7f9ea39b8617f4940901d6bb327e0ebec, Fix #149689: Subdiv does not propagate skin modifier data
+Referenced by issue #150296, Malloc: double free for ptr
