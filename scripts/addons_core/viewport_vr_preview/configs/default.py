@@ -34,9 +34,7 @@ actionconfig_data = \
              ],
              },
             ),
-           ("teleport", {"type": 'FLOAT', "user_paths": ['/user/hand/left', '/user/hand/right'], "op": 'wm.xr_navigation_teleport', "op_mode": 'MODAL', "bimanual": 'False', "haptic_name": '', "haptic_match_user_paths": 'False', "haptic_duration": '0.0', "haptic_frequency": '0.0', "haptic_amplitude": '0.0', "haptic_mode": 'PRESS'},
-            {"op_properties": [],
-             },
+           ("teleport", {"type": 'FLOAT', "user_paths": ['/user/hand/left', '/user/hand/right'], "op": 'wm.xr_navigation_teleport', "op_mode": 'MODAL', "bimanual": 'False', "haptic_name": '', "haptic_match_user_paths": 'False', "haptic_duration": '0.0', "haptic_frequency": '0.0', "haptic_amplitude": '0.0', "haptic_mode": 'PRESS'}, None,
             {"bindings":
             [("huawei", {"profile": '/interaction_profiles/huawei/controller', "component_paths": ['/input/trigger/value', '/input/trigger/value'], "threshold": '0.30000001192092896', "axis_region": 'ANY'}),
              ("index", {"profile": '/interaction_profiles/valve/index_controller', "component_paths": ['/input/trigger/value', '/input/trigger/value'], "threshold": '0.30000001192092896', "axis_region": 'ANY'}),
@@ -258,14 +256,7 @@ actionconfig_data = \
       ),
         ("blender_default_gamepad",
          {"items":
-          [("teleport", {"type": 'FLOAT', "user_paths": ['/user/gamepad'], "op": 'wm.xr_navigation_teleport', "op_mode": 'MODAL', "bimanual": 'False', "haptic_name": '', "haptic_match_user_paths": 'False', "haptic_duration": '0.0', "haptic_frequency": '0.0', "haptic_amplitude": '0.0', "haptic_mode": 'PRESS'},
-           {"op_properties":
-            [("interpolation", 0.9),
-             ("from_viewer", True),
-             ("hit_color", (0.0, 1.0, 1.0, 1.0)),
-             ("miss_color", (1.0, 0.0, 0.0, 1.0)),
-             ],
-            },
+          [("teleport", {"type": 'FLOAT', "user_paths": ['/user/gamepad'], "op": 'wm.xr_navigation_teleport', "op_mode": 'MODAL', "bimanual": 'False', "haptic_name": '', "haptic_match_user_paths": 'False', "haptic_duration": '0.0', "haptic_frequency": '0.0', "haptic_amplitude": '0.0', "haptic_mode": 'PRESS'}, None,
               {"bindings":
                [("gamepad", {"profile": '/interaction_profiles/microsoft/xbox_controller', "component_paths": ['/input/trigger_right/value'], "threshold": '0.30000001192092896', "axis_region": 'ANY'}),
                 ],
