@@ -117,8 +117,9 @@ class VIEW3D_PT_vr_session_view_scale(Panel):
         layout.use_property_split = True
         layout.use_property_decorate = False  # No animation.
 
-        layout.prop(scene_units, "scale_length", text="Scene Scale")
-        layout.prop(session_settings, "base_scale", text="VR Scale")
+        layout.prop(scene_units, "scale_length", text="Scene")
+        layout.prop(session_settings, "base_scale", text="VR")
+        layout.prop(session_settings, "reposition_view_on_scale_change", text="Reposition View")
 
 
 class VIEW3D_PT_vr_session_view_object_type_visibility(VIEW3D_PT_object_type_visibility):

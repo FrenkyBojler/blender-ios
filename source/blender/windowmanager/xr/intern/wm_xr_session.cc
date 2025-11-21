@@ -356,20 +356,23 @@ static void wm_xr_session_state_update_navigation_scale(wmXrSessionState *state,
   const float scene_scale = draw_data->scene->unit.scale_length;
   const float new_scale = scene_scale * settings->base_scale;
 
-  /* Apply an offset on the navigation position to visually counteract the scaling change. */
-  if (state->nav_scale != new_scale) {
+  if (state->nav_scale == new_scale) {
+    return;
+  }
+
+  if (settings->flag & XR_SESSION_REPOSITION_ON_SCALE_CHANGE) {
     /* Get the viewer matrix without navigation applied. */
     blender::float3 view_scaling_offset = state->viewer_mat_base[3];
 
     const float offset_val = state->nav_scale - new_scale;
     view_scaling_offset *= offset_val;
 
-    /* Set offset and recalculate navigation transforms with it. */
+    /* Apply an offset on the navigation pose to visually counteract the scaling change. */
     add_v3_v3(state->nav_pose.position, view_scaling_offset);
-    state->is_navigation_dirty = true;
-
-    state->nav_scale = new_scale;
   }
+
+  state->nav_scale = new_scale;
+  state->is_navigation_dirty = true;
 }
 
 void wm_xr_session_state_update(const XrSessionSettings *settings,
