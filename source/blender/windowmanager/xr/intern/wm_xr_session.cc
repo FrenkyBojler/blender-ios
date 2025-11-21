@@ -1304,8 +1304,7 @@ void wm_xr_session_actions_update(wmWindowManager *wm)
     wm_xr_pose_scale_to_mat(&state->nav_pose, state->nav_scale, m);
     mul_m4_m4m4(viewer_mat, m, state->viewer_mat_base);
     mat4_to_loc_quat(state->viewer_pose.position, state->viewer_pose.orientation_quat, viewer_mat);
-    wm_xr_pose_scale_to_imat(
-        &state->viewer_pose, state->nav_scale, state->viewer_viewmat);
+    wm_xr_pose_scale_to_imat(&state->viewer_pose, state->nav_scale, state->viewer_viewmat);
   }
 
   /* Set active action set if requested previously. */

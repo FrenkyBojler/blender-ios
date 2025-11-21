@@ -2089,10 +2089,9 @@ static void rna_def_xr_session_settings(BlenderRNA *brna)
   RNA_def_property_boolean_funcs(prop,
                                  "rna_XrSessionSettings_reposition_view_on_scale_change_get",
                                  "rna_XrSessionSettings_reposition_view_on_scale_change_set");
-  RNA_def_property_ui_text(
-      prop,
-      "Reposition View On Scale Change",
-      "Keep the view at the same world relative location on scale change");
+  RNA_def_property_ui_text(prop,
+                           "Reposition View On Scale Change",
+                           "Keep the view at the same world relative location on scale change");
   RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
 
   rna_def_object_type_visibility_flags_common(srna, NC_WM | ND_XR_DATA_CHANGED, nullptr);
