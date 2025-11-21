@@ -2375,7 +2375,7 @@ class Preprocessor {
         return;
       }
       Scope attribute = attr_tok.prev().scope();
-      if (attribute.type() != ScopeType::Subscript) {
+      if (attribute.type() != ScopeType::Attributes) {
         return;
       }
 
