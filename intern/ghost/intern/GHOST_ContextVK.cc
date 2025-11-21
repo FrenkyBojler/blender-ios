@@ -36,6 +36,7 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <cinttypes>
 #include <cstdio>
 #include <cstring>
 #include <iostream>
@@ -860,7 +861,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBufferAcquire()
   }
 
   CLOG_DEBUG(&LOG,
-             "Acquired swap-chain image (render_frame=%" PRId64 ", image_index=%u)",
+             "Acquired swap-chain image (render_frame=%" PRIu64 ", image_index=%u)",
              render_frame_,
              image_index);
   acquired_swapchain_image_index_ = image_index;
