@@ -1992,17 +1992,17 @@ class Preprocessor {
         metadata::ResourceTable srt;
         srt.name = srt_name.str();
 
-        body.foreach_match("[[..]]mww;", [&](const std::vector<Token> &tokens) {
+        body.foreach_match("[[..]]ww;", [&](const std::vector<Token> &tokens) {
           auto res = parse_resource(
               tokens[1].scope(), tokens[6].is_valid(), tokens[6], tokens[7], Scope::invalid());
           srt.emplace_back(res);
         });
-        body.foreach_match("[[..]]mw&w;", [&](const std::vector<Token> &tokens) {
+        body.foreach_match("[[..]]w&w;", [&](const std::vector<Token> &tokens) {
           auto res = parse_resource(
               tokens[1].scope(), tokens[6].is_valid(), tokens[6], tokens[8], Scope::invalid());
           srt.emplace_back(res);
         });
-        body.foreach_match("[[..]]mw(&w)[..];", [&](const std::vector<Token> &tokens) {
+        body.foreach_match("[[..]]w(&w)[..];", [&](const std::vector<Token> &tokens) {
           auto res = parse_resource(
               tokens[1].scope(), tokens[6].is_valid(), tokens[6], tokens[9], tokens[11].scope());
           srt.emplace_back(res);
@@ -2038,7 +2038,7 @@ class Preprocessor {
           iface.instance_name = "";
         }
 
-        body.foreach_match("[[..]]mww;", [&](const std::vector<Token> &tokens) {
+        body.foreach_match("[[..]]ww;", [&](const std::vector<Token> &tokens) {
           Token interpolation_mode = tokens[1].scope()[1];
           Token type = tokens[6];
           Token name = tokens[7];
@@ -2076,7 +2076,7 @@ class Preprocessor {
         metadata::VertexInputs iface;
         iface.name = srt_name.str();
 
-        body.foreach_match("[[..]]mww;", [&](const std::vector<Token> &tokens) {
+        body.foreach_match("[[..]]ww;", [&](const std::vector<Token> &tokens) {
           Scope attributes = tokens[1].scope();
           Token type = tokens[6];
           Token name = tokens[7];
@@ -2118,7 +2118,7 @@ class Preprocessor {
         metadata::FragmentOutputs iface;
         iface.name = srt_name.str();
 
-        body.foreach_match("[[..]]mww;", [&](const std::vector<Token> &tokens) {
+        body.foreach_match("[[..]]ww;", [&](const std::vector<Token> &tokens) {
           Scope attributes = tokens[1].scope();
           Token type = tokens[6];
           Token name = tokens[7];
