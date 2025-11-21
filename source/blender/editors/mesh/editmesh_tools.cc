@@ -50,6 +50,7 @@
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
+#include "DEG_depsgraph_query.hh"
 
 #include "BLT_translation.hh"
 
@@ -4112,9 +4113,11 @@ enum {
 };
 
 /** TODO: Use #mesh_separate_arrays since it's more efficient. */
-static Base *mesh_separate_tagged(
-    Main *bmain, Scene *scene, ViewLayer *view_layer, Base *base_old, BMesh *bm_old)
+static Base *mesh_separate_tagged(bContext *C, Base *base_old, BMesh *bm_old)
 {
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
   Object *obedit = base_old->object;
   BMeshCreateParams create_params{};
   create_params.use_toolflags = true;
@@ -4131,8 +4134,9 @@ static Base *mesh_separate_tagged(
   // DAG_relations_tag_update(bmain);
 
   /* new in 2.5 */
-  blender::Array<Material *> materials = BKE_object_materials_get_eval(obedit);
-  BKE_object_material_array_assign(bmain, base_new->object, materials, materials.size(), false);
+  Object *obedit_eval = DEG_get_evaluated(CTX_data_ensure_evaluated_depsgraph(C), obedit);
+  blender::Array<Material *> materials = BKE_object_materials_get_eval(obedit_eval);
+  BKE_object_material_array_assign(bmain, base_new->object, materials, false);
 
   blender::ed::object::base_select(base_new, blender::ed::object::BA_SELECT);
 
@@ -4163,9 +4167,7 @@ static Base *mesh_separate_tagged(
   return base_new;
 }
 
-static Base *mesh_separate_arrays(Main *bmain,
-                                  Scene *scene,
-                                  ViewLayer *view_layer,
+static Base *mesh_separate_arrays(bContext *C,
                                   Base *base_old,
                                   BMesh *bm_old,
                                   BMVert **verts,
@@ -4175,6 +4177,10 @@ static Base *mesh_separate_arrays(Main *bmain,
                                   BMFace **faces,
                                   uint faces_len)
 {
+  Main *bmain = CTX_data_main(C);
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+
   BMAllocTemplate bm_new_allocsize{};
   bm_new_allocsize.totvert = verts_len;
   bm_new_allocsize.totedge = edges_len;
@@ -4204,8 +4210,9 @@ static Base *mesh_separate_arrays(Main *bmain,
   // DAG_relations_tag_update(bmain);
 
   /* new in 2.5 */
-  blender::Array<Material *> materials = BKE_object_materials_get_eval(obedit);
-  BKE_object_material_array_assign(bmain, base_new->object, materials, materials.size(), false);
+  Object *obedit_eval = DEG_get_evaluated(CTX_data_ensure_evaluated_depsgraph(C), obedit);
+  blender::Array<Material *> materials = BKE_object_materials_get_eval(obedit_eval);
+  BKE_object_material_array_assign(bmain, base_new->object, materials, false);
 
   blender::ed::object::base_select(base_new, blender::ed::object::BA_SELECT);
 
@@ -4227,8 +4234,7 @@ static Base *mesh_separate_arrays(Main *bmain,
   return base_new;
 }
 
-static bool mesh_separate_selected(
-    Main *bmain, Scene *scene, ViewLayer *view_layer, Base *base_old, BMesh *bm_old)
+static bool mesh_separate_selected(bContext *C, Base *base_old, BMesh *bm_old)
 {
   /* we may have tags from previous operators */
   BM_mesh_elem_hflag_disable_all(bm_old, BM_FACE | BM_EDGE | BM_VERT, BM_ELEM_TAG, false);
@@ -4237,7 +4243,7 @@ static bool mesh_separate_selected(
   BM_mesh_elem_hflag_enable_test(
       bm_old, BM_FACE | BM_EDGE | BM_VERT, BM_ELEM_TAG, true, false, BM_ELEM_SELECT);
 
-  return (mesh_separate_tagged(bmain, scene, view_layer, base_old, bm_old) != nullptr);
+  return (mesh_separate_tagged(C, base_old, bm_old) != nullptr);
 }
 
 /**
@@ -4294,12 +4300,13 @@ static void mesh_separate_material_assign_mat_nr(Main *bmain, Object *ob, const 
   }
 }
 
-static bool mesh_separate_material(
-    Main *bmain, Scene *scene, ViewLayer *view_layer, Base *base_old, BMesh *bm_old)
+static bool mesh_separate_material(bContext *C, Base *base_old, BMesh *bm_old)
 {
   BMFace *f_cmp, *f;
   BMIter iter;
   bool result = false;
+
+  Main *bmain = CTX_data_main(C);
 
   while ((f_cmp = static_cast<BMFace *>(BM_iter_at_index(bm_old, BM_FACES_OF_MESH, nullptr, 0)))) {
     Base *base_new;
@@ -4336,7 +4343,7 @@ static bool mesh_separate_material(
     }
 
     /* Move selection into a separate object */
-    base_new = mesh_separate_tagged(bmain, scene, view_layer, base_old, bm_old);
+    base_new = mesh_separate_tagged(C, base_old, bm_old);
     if (base_new) {
       mesh_separate_material_assign_mat_nr(bmain, base_new->object, mat_nr);
     }
@@ -4347,8 +4354,7 @@ static bool mesh_separate_material(
   return result;
 }
 
-static bool mesh_separate_loose(
-    Main *bmain, Scene *scene, ViewLayer *view_layer, Base *base_old, BMesh *bm_old)
+static bool mesh_separate_loose(bContext *C, Base *base_old, BMesh *bm_old)
 {
   /* Without this, we duplicate the object mode mesh for each loose part.
    * This can get very slow especially for large meshes with many parts
@@ -4378,9 +4384,7 @@ static bool mesh_separate_loose(
   /* Separate out all groups except the first. */
   uint group_ofs[3] = {uint(groups[0][0]), uint(groups[0][1]), uint(groups[0][2])};
   for (int i = 1; i < groups_len; i++) {
-    Base *base_new = mesh_separate_arrays(bmain,
-                                          scene,
-                                          view_layer,
+    Base *base_new = mesh_separate_arrays(C,
                                           base_old,
                                           bm_old,
                                           vert_groups.data() + group_ofs[0],
@@ -4439,13 +4443,13 @@ static wmOperatorStatus edbm_separate_exec(bContext *C, wmOperator *op)
       bool changed = false;
       switch (type) {
         case MESH_SEPARATE_SELECTED:
-          changed = mesh_separate_selected(bmain, scene, view_layer, base, em->bm);
+          changed = mesh_separate_selected(C, base, em->bm);
           break;
         case MESH_SEPARATE_MATERIAL:
-          changed = mesh_separate_material(bmain, scene, view_layer, base, em->bm);
+          changed = mesh_separate_material(C, base, em->bm);
           break;
         case MESH_SEPARATE_LOOSE:
-          changed = mesh_separate_loose(bmain, scene, view_layer, base, em->bm);
+          changed = mesh_separate_loose(C, base, em->bm);
           break;
         default:
           BLI_assert(0);
@@ -4489,10 +4493,10 @@ static wmOperatorStatus edbm_separate_exec(bContext *C, wmOperator *op)
       bool changed = false;
       switch (type) {
         case MESH_SEPARATE_MATERIAL:
-          changed = mesh_separate_material(bmain, scene, view_layer, base_iter, bm_old);
+          changed = mesh_separate_material(C, base_iter, bm_old);
           break;
         case MESH_SEPARATE_LOOSE:
-          changed = mesh_separate_loose(bmain, scene, view_layer, base_iter, bm_old);
+          changed = mesh_separate_loose(C, base_iter, bm_old);
           break;
         default:
           BLI_assert(0);
@@ -4520,7 +4524,6 @@ static wmOperatorStatus edbm_separate_exec(bContext *C, wmOperator *op)
     DEG_relations_tag_update(bmain);
     WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, nullptr);
     ED_outliner_select_sync_from_object_tag(C);
-
     return OPERATOR_FINISHED;
   }
 

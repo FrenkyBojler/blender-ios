@@ -1376,10 +1376,10 @@ void BKE_object_material_from_eval_data(Main *bmain, Object *ob_orig, const ID *
 void BKE_object_material_array_assign(Main *bmain,
                                       Object *ob,
                                       blender::Span<Material *> materials,
-                                      int totcol,
                                       const bool to_object_only)
 {
   int actcol_orig = ob->actcol;
+  const int totcol = materials.size();
 
   while ((ob->totcol > totcol) && BKE_object_material_slot_remove(bmain, ob)) {
     /* pass */

@@ -2168,8 +2168,10 @@ static bool grease_pencil_separate_selected(bContext &C,
     }
 
     /* Add object materials to target object. */
-    blender::Array<Material *> materials = BKE_object_materials_get_eval(&object_src);
-    BKE_object_material_array_assign(&bmain, object_dst, materials, materials.size(), false);
+    Object *object_src_eval = DEG_get_evaluated(CTX_data_ensure_evaluated_depsgraph(&C),
+                                                &object_src);
+    blender::Array<Material *> materials = BKE_object_materials_get_eval(object_src_eval);
+    BKE_object_material_array_assign(&bmain, object_dst, materials, false);
 
     remove_unused_materials(&bmain, object_dst);
     DEG_id_tag_update(&grease_pencil_dst.id, ID_RECALC_GEOMETRY);
@@ -2217,8 +2219,10 @@ static bool grease_pencil_separate_layer(bContext &C,
       }
 
       /* Add object materials. */
-      blender::Array<Material *> materials = BKE_object_materials_get_eval(&object_src);
-      BKE_object_material_array_assign(&bmain, object_dst, materials, materials.size(), false);
+      Object *object_src_eval = DEG_get_evaluated(CTX_data_ensure_evaluated_depsgraph(&C),
+                                                  &object_src);
+      blender::Array<Material *> materials = BKE_object_materials_get_eval(object_src_eval);
+      BKE_object_material_array_assign(&bmain, object_dst, materials, false);
 
       /* Insert Keyframe at current frame/layer. */
       Drawing *drawing_dst = grease_pencil_dst.insert_frame(layer_dst, info.frame_number);
@@ -2267,7 +2271,10 @@ static bool grease_pencil_separate_material(bContext &C,
   GreasePencil &grease_pencil_src = *static_cast<GreasePencil *>(object_src.data);
 
   /* Create a new object for each material. */
-  for (const int mat_i : IndexRange(object_src.totcol).drop_front(1)) {
+  Object *object_src_eval = DEG_get_evaluated(CTX_data_ensure_evaluated_depsgraph(&C),
+                                              &object_src);
+  for (const int mat_i : IndexRange(BKE_object_material_count_eval(object_src_eval)).drop_front(1))
+  {
     if (!BKE_object_material_slot_used(&object_src, mat_i + 1)) {
       continue;
     }
@@ -2277,8 +2284,8 @@ static bool grease_pencil_separate_material(bContext &C,
     GreasePencil &grease_pencil_dst = *static_cast<GreasePencil *>(object_dst->data);
 
     /* Add object materials. */
-    blender::Array<Material *> materials = BKE_object_materials_get_eval(&object_src);
-    BKE_object_material_array_assign(&bmain, object_dst, materials, materials.size(), false);
+    blender::Array<Material *> materials = BKE_object_materials_get_eval(object_src_eval);
+    BKE_object_material_array_assign(&bmain, object_dst, materials, false);
 
     /* Iterate through all the drawings at current scene frame. */
     const Vector<MutableDrawingInfo> drawings_src = retrieve_editable_drawings(scene,
@@ -2368,7 +2375,9 @@ static wmOperatorStatus grease_pencil_separate_exec(bContext *C, wmOperator *op)
     }
     case SeparateMode::MATERIAL: {
       /* Cancel if the object only has one material. */
-      if (object_src->totcol == 1) {
+      Object *object_src_eval = DEG_get_evaluated(CTX_data_ensure_evaluated_depsgraph(C),
+                                                  object_src);
+      if (BKE_object_material_count_eval(object_src_eval) == 1) {
         BKE_report(op->reports, RPT_ERROR, "The object has only one material");
         WM_cursor_wait(false);
         return OPERATOR_CANCELLED;
@@ -5337,8 +5346,7 @@ wmOperatorStatus ED_grease_pencil_join_objects_exec(bContext *C, wmOperator *op)
 
   /* Transfer material pointers. The material indices are updated for each drawing separately. */
   if (!materials.is_empty()) {
-    BKE_object_material_array_assign(
-        bmain, DEG_get_original(ob_dst), materials.as_span(), materials.size(), false);
+    BKE_object_material_array_assign(bmain, DEG_get_original(ob_dst), materials.as_span(), false);
   }
 
   DEG_id_tag_update(&grease_pencil_dst->id, ID_RECALC_GEOMETRY);

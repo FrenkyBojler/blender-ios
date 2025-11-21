@@ -99,8 +99,10 @@ void BKE_object_material_assign_single_obdata(Main *bmain, Object *ob, Material 
 /**
  * \warning this calls many more update calls per object then are needed, could be optimized.
  */
-void BKE_object_material_array_assign(
-    Main *bmain, Object *ob, blender::Span<Material *> materials, int totcol, bool to_object_only);
+void BKE_object_material_array_assign(Main *bmain,
+                                      Object *ob,
+                                      blender::Span<Material *> materials,
+                                      bool to_object_only);
 
 short BKE_object_material_slot_find_index(Object *ob, Material *ma);
 /**

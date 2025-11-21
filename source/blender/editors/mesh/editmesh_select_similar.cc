@@ -39,6 +39,8 @@
 #include "ED_screen.hh"
 #include "ED_select_utils.hh"
 
+#include "DEG_depsgraph_query.hh"
+
 #include "mesh_intern.hh" /* own include */
 
 using blender::Vector;
@@ -213,10 +215,11 @@ static wmOperatorStatus similar_face_select_exec(bContext *C, wmOperator *op)
     int custom_data_offset = -1;
     switch (type) {
       case SIMFACE_MATERIAL: {
-        if (ob->totcol == 0) {
+        Object *object_src_eval = DEG_get_evaluated(CTX_data_ensure_evaluated_depsgraph(C), ob);
+        if (BKE_object_material_count_eval(object_src_eval) == 0) {
           continue;
         }
-        materials = BKE_object_materials_get_eval(ob);
+        materials = BKE_object_materials_get_eval(object_src_eval);
         break;
       }
       case SIMFACE_FREESTYLE: {
@@ -320,10 +323,11 @@ static wmOperatorStatus similar_face_select_exec(bContext *C, wmOperator *op)
     int custom_data_offset = -1;
     switch (type) {
       case SIMFACE_MATERIAL: {
-        if (ob->totcol == 0) {
+        Object *object_src_eval = DEG_get_evaluated(CTX_data_ensure_evaluated_depsgraph(C), ob);
+        if (BKE_object_material_count_eval(object_src_eval) == 0) {
           continue;
         }
-        materials = BKE_object_materials_get_eval(ob);
+        materials = BKE_object_materials_get_eval(object_src_eval);
         break;
       }
       case SIMFACE_FREESTYLE: {

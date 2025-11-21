@@ -574,8 +574,7 @@ static wmOperatorStatus material_slot_copy_exec(bContext *C, wmOperator * /*op*/
         }
       }
 
-      BKE_object_material_array_assign(
-          bmain, ob_iter, materials, materials.size(), is_same_obdata);
+      BKE_object_material_array_assign(bmain, ob_iter, materials, is_same_obdata);
 
       if (ob_iter->totcol == ob->totcol) {
         ob_iter->actcol = ob->actcol;
