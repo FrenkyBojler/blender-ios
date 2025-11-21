@@ -113,6 +113,11 @@ class EvaluationResult {
 
   EvaluationResult &operator=(EvaluationResult &&other) = default;
 
+  void reserve(const int64_t n)
+  {
+    result_.reserve(n);
+  }
+
   operator bool() const
   {
     return !this->is_empty();
