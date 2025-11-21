@@ -2038,7 +2038,7 @@ class Preprocessor {
           iface.instance_name = "";
         }
 
-        body.foreach_match("[[..]]ww;", [&](const std::vector<Token> &tokens) {
+        body.foreach_match("[[..]]mww;", [&](const std::vector<Token> &tokens) {
           Token interpolation_mode = tokens[1].scope()[1];
           Token type = tokens[6];
           Token name = tokens[7];
@@ -2076,7 +2076,7 @@ class Preprocessor {
         metadata::VertexInputs iface;
         iface.name = srt_name.str();
 
-        body.foreach_match("[[..]]ww;", [&](const std::vector<Token> &tokens) {
+        body.foreach_match("[[..]]mww;", [&](const std::vector<Token> &tokens) {
           Scope attributes = tokens[1].scope();
           Token type = tokens[6];
           Token name = tokens[7];
@@ -2118,7 +2118,7 @@ class Preprocessor {
         metadata::FragmentOutputs iface;
         iface.name = srt_name.str();
 
-        body.foreach_match("[[..]]ww;", [&](const std::vector<Token> &tokens) {
+        body.foreach_match("[[..]]mww;", [&](const std::vector<Token> &tokens) {
           Scope attributes = tokens[1].scope();
           Token type = tokens[6];
           Token name = tokens[7];
@@ -2422,7 +2422,7 @@ class Preprocessor {
         if (func_name != "specialization_constant_get" && func_name != "shared_variable_get" &&
             func_name != "push_constant_get" && func_name != "interface_get" &&
             func_name != "attribute_get" && func_name != "buffer_get" &&
-            func_name != "sampler_get" && func_name != "image_get")
+            func_name != "srt_access" && func_name != "sampler_get" && func_name != "image_get")
         {
           return;
         }
