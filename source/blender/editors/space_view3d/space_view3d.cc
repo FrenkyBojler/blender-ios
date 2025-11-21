@@ -63,6 +63,10 @@
 #include "WM_toolsystem.hh"
 #include "WM_types.hh"
 
+#if defined(WITH_INPUT_IME)
+#  include "wm_window.hh"
+#endif
+
 #include "RNA_access.hh"
 
 #include "UI_interface.hh"
@@ -627,10 +631,26 @@ static void view3d_main_region_listener(const wmRegionListenerParams *params)
         case ND_OB_VISIBLE:
         case ND_RENDER_OPTIONS:
         case ND_MARKERS:
-        case ND_MODE:
           ED_region_tag_redraw(region);
           WM_gizmomap_tag_refresh(gzmap);
           break;
+        case ND_MODE: {
+#if defined WITH_INPUT_IME
+          ViewLayer *view_layer = WM_window_get_active_view_layer(window);
+          if (view_layer) {
+            Base *base = BKE_view_layer_active_base_get(view_layer);
+            if (base && base->object->type == OB_FONT && base->object->mode & OB_MODE_EDIT) {
+              wm_window_IME_begin(window, region->winrct.xmin, region->winrct.ymax, 0, 0, true);
+            }
+            else {
+              wm_window_IME_end(window);
+            }
+          }
+#endif
+          ED_region_tag_redraw(region);
+          WM_gizmomap_tag_refresh(gzmap);
+          break;
+        }
         case ND_WORLD:
           /* handled by space_view3d_listener() for v3d access */
           break;
@@ -808,9 +828,26 @@ static void view3d_main_region_listener(const wmRegionListenerParams *params)
             ED_render_view3d_update(depsgraph, window, area, true);
           }
         }
+
         ED_region_tag_redraw(region);
         WM_gizmomap_tag_refresh(gzmap);
       }
+
+#ifdef WITH_INPUT_IME
+      {
+        ViewLayer *view_layer = WM_window_get_active_view_layer(window);
+        if (view_layer) {
+          Base *base = BKE_view_layer_active_base_get(view_layer);
+          if (base && base->object->type == OB_FONT && base->object->mode & OB_MODE_EDIT) {
+            wm_window_IME_begin(window, region->winrct.xmin, region->winrct.ymax, 0, 0, true);
+          }
+          else {
+            wm_window_IME_end(window);
+          }
+        }
+      }
+#endif
+
       break;
     case NC_ID:
       if (ELEM(wmn->action, NA_RENAME, NA_EDITED, NA_ADDED, NA_REMOVED)) {

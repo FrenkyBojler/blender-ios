@@ -1914,6 +1914,17 @@ static wmOperatorStatus insert_text_invoke(bContext *C, wmOperator *op, const wm
     return OPERATOR_PASS_THROUGH;
   }
 
+#ifdef WITH_INPUT_IME
+  if (event->type == WM_IME_COMPOSITE_EVENT) {
+    wmWindow *win = CTX_wm_window(C);
+    const wmIMEData *ime_data = win->runtime->ime_data;
+    if (ime_data && ime_data->result.size()) {
+      RNA_string_set(op->ptr, "text", ime_data->result.c_str());
+      return insert_text_exec(C, op);
+    }
+  }
+#endif
+
   /* Tab typically exit edit-mode, but we allow it to be typed using modifier keys. */
   if (event->type == EVT_TABKEY) {
     if ((alt || ctrl || shift) == 0) {

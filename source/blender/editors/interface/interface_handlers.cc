@@ -3445,7 +3445,9 @@ static void ui_textedit_ime_begin(wmWindow *win, uiBut *but)
   /* XXX Is this really needed? */
   int x, y;
 
-  BLI_assert(win->runtime->ime_data == nullptr);
+  if (win->runtime->ime_data) {
+    wm_window_IME_end(win);
+  }
 
   /* enable IME and position to cursor, it's a trick */
   x = win->eventstate->xy[0];
