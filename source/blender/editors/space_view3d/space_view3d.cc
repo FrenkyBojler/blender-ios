@@ -828,7 +828,6 @@ static void view3d_main_region_listener(const wmRegionListenerParams *params)
             ED_render_view3d_update(depsgraph, window, area, true);
           }
         }
-
         ED_region_tag_redraw(region);
         WM_gizmomap_tag_refresh(gzmap);
       }
