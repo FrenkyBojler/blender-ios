@@ -1736,8 +1736,8 @@ static void node_draw_shadow(const SpaceNode &snode,
   const rctf &rct = node.runtime->draw_bounds;
   UI_draw_roundbox_corner_set(UI_CNR_ALL);
 
-  const float shadow_width = 0.4f * U.widget_unit;
-  const float shadow_alpha = 0.2f * alpha;
+  const float shadow_width = (UI_GetTheme()->tui.menu_shadow_width * 0.1f) * U.widget_unit;
+  const float shadow_alpha = UI_GetTheme()->tui.menu_shadow_fac * alpha;
 
   ui_draw_dropshadow(&rct, radius, shadow_width, snode.runtime->aspect, shadow_alpha);
 
