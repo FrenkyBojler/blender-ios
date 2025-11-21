@@ -56,7 +56,7 @@
  *
  *  Usage:
  *
- *    MTLContext::get_scratchbuffer_manager() - to fetch active manager.
+ *    MTLContext::get_scratch_buffer_manager() - to fetch active manager.
  *
  *    MTLTemporaryBuffer scratch_buffer_allocate_range(size)
  *    MTLTemporaryBuffer scratch_buffer_allocate_range_aligned(size, align)
@@ -99,6 +99,7 @@ namespace blender::gpu {
 class MTLContext;
 class MTLCommandBufferManager;
 class MTLUniformBuf;
+class MTLStorageBuf;
 
 /* -------------------------------------------------------------------- */
 /** \name Memory Management.
@@ -211,6 +212,8 @@ class MTLCircularBuffer {
 
   /* Wrapped MTLBuffer allocation handled. */
   gpu::MTLBuffer *cbuffer_;
+  /* Allocated SSBO that serves as source for cbuffer. */
+  MTLStorageBuf *ssbo_source_ = nullptr;
 
   /* Current offset where next allocation will begin. */
   uint64_t current_offset_;
@@ -492,7 +495,7 @@ class MTLScratchBufferManager {
   MTLCircularBuffer *scratch_buffers_[mtl_max_scratch_buffers_];
 
  public:
-  MTLScratchBufferManager(MTLContext &context) : context_(context){};
+  MTLScratchBufferManager(MTLContext &context) : context_(context) {};
   ~MTLScratchBufferManager();
 
   /* Explicit initialization and freeing of resources.
@@ -512,6 +515,10 @@ class MTLScratchBufferManager {
    * This call will perform a partial flush of the buffer starting from
    * the last offset the data was flushed from, to the current offset. */
   void flush_active_scratch_buffer();
+
+  /* Bind the whole scratch buffer as a SSBO resource. */
+  void bind_as_ssbo(int slot);
+  void unbind_as_ssbo();
 
   MEM_CXX_CLASS_ALLOC_FUNCS("MTLBufferPool");
 };

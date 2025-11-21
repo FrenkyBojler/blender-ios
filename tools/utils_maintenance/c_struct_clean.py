@@ -11,6 +11,10 @@ There may be times this is needed, however they can typically be removed
 and any errors caused can be added to the headers which require the forward declarations.
 """
 
+__all__ = (
+    "main",
+)
+
 import os
 import sys
 import re
@@ -84,9 +88,15 @@ def clean_structs(fn: str, data_src: str) -> str | None:
     return None
 
 
-run(
-    directories=[os.path.join(SOURCE_DIR, d) for d in SOURCE_DIRS],
-    is_text=lambda fn: fn.endswith(SOURCE_EXT),
-    text_operation=clean_structs,
-    use_multiprocess=False,
-)
+def main() -> int:
+    run(
+        directories=[os.path.join(SOURCE_DIR, d) for d in SOURCE_DIRS],
+        is_text=lambda fn: fn.endswith(SOURCE_EXT),
+        text_operation=clean_structs,
+        use_multiprocess=False,
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

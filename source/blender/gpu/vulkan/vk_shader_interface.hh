@@ -26,8 +26,9 @@ namespace blender::gpu {
  * Keep in sync with #gpu::shader::ShaderCreateInfo::Resource::BindType.
  * We add the term `INPUT_ATTACHMENT` as it is stored as a sub-pass
  * input in the shader create info.
+ *
+ * TODO: Investigate if `TEXEL_BUFFER` can be added as well.
  */
-/* TODO: Investigate if `TEXEL_BUFFER` can be added as well.*/
 enum VKBindType {
   UNIFORM_BUFFER = 0,
   STORAGE_BUFFER,
@@ -83,7 +84,7 @@ class VKShaderInterface : public ShaderInterface {
 
   bool is_point_shader() const
   {
-    return (shader_builtins_ & shader::BuiltinBits::POINT_SIZE) == shader::BuiltinBits::POINT_SIZE;
+    return flag_is_set(shader_builtins_, shader::BuiltinBits::POINT_SIZE);
   }
 
   const Span<VKResourceBinding> resource_bindings_get() const

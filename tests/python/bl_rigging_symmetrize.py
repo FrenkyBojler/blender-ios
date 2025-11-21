@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 """
-blender -b --factory-startup --python tests/python/bl_rigging_symmetrize.py -- --testdir /path/to/tests/data/animation
+blender -b --factory-startup --python tests/python/bl_rigging_symmetrize.py -- --testdir /path/to/tests/files/animation
 """
 
 import pathlib
@@ -14,7 +14,7 @@ import bpy
 
 
 def check_loc_rot_scale(self, bone, exp_bone):
-    # Check if posistions are the same
+    # Check if positions are the same
     self.assertEqualVector(
         bone.head, exp_bone.head, "Head position", bone.name)
     self.assertEqualVector(
@@ -143,6 +143,10 @@ def check_constraints(self, input_arm, expected_arm, bone, exp_bone):
                 self.assertAlmostEqual(value, exp_value, places=6, msg=msg)
             elif isinstance(value, int):
                 msg = "Mismatching constraint value in pose.bones[%s].constraints[%s].%s" % (
+                    bone.name, const_name, var)
+                self.assertEqual(value, exp_value, msg=msg)
+            elif isinstance(value, bpy.types.ActionSlot):
+                msg = "Mismatching constraint ActionSlot in pose.bones[%s].constraints[%s].%s" % (
                     bone.name, const_name, var)
                 self.assertEqual(value, exp_value, msg=msg)
             elif value is None:

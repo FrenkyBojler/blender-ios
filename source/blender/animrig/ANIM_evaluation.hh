@@ -12,10 +12,6 @@
 #include "BLI_map.hh"
 #include "BLI_string_ref.hh"
 
-#include "DNA_anim_types.h"
-
-#include "RNA_access.hh"
-
 #include "ANIM_action.hh"
 
 namespace blender::animrig {
@@ -90,11 +86,6 @@ class EvaluationResult {
  protected:
   using EvaluationMap = Map<PropIdentifier, AnimatedProperty>;
   EvaluationMap result_;
-
- public:
-  EvaluationResult() = default;
-  EvaluationResult(const EvaluationResult &other) = default;
-  ~EvaluationResult() = default;
 
  public:
   operator bool() const
