@@ -144,11 +144,17 @@ class EvaluationResult {
 
   const AnimatedProperty *lookup_ptr(const PropIdentifier &key) const
   {
-    return result_.lookup_ptr(key)->get();
+    if (const destruct_ptr<AnimatedProperty> *ptr = result_.lookup_ptr(key)) {
+      return ptr->get();
+    }
+    return nullptr;
   }
   AnimatedProperty *lookup_ptr(const PropIdentifier &key)
   {
-    return result_.lookup_ptr(key)->get();
+    if (destruct_ptr<AnimatedProperty> *ptr = result_.lookup_ptr(key)) {
+      return ptr->get();
+    }
+    return nullptr;
   }
 
   EvaluationMap::ItemIterator items() const
