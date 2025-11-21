@@ -98,12 +98,6 @@ bool BKE_attribute_remove(AttributeOwner &owner,
                           blender::StringRef name,
                           struct ReportList *reports);
 
-const struct CustomDataLayer *BKE_attribute_search(const Mesh &mesh,
-                                                   const BMesh &bm,
-                                                   blender::StringRef name,
-                                                   eCustomDataMask type,
-                                                   AttrDomainMask domain_mask);
-
 blender::bke::AttrDomain BKE_attribute_domain(const Mesh &mesh,
                                               const BMesh &bm,
                                               const struct CustomDataLayer *layer);

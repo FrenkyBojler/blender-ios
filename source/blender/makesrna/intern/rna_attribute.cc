@@ -726,7 +726,12 @@ static PointerRNA rna_AttributeGroupID_new(
           }
         }
       }
-      return RNA_pointer_create_discrete(id, &RNA_Attribute, layer);
+
+      DEG_id_tag_update(id, ID_RECALC_GEOMETRY);
+      WM_main_add_notifier(NC_GEOM | ND_DATA, id);
+
+      PointerRNA ptr = RNA_pointer_create_discrete(id, &RNA_Attribute, layer);
+      return ptr;
     }
   }
 

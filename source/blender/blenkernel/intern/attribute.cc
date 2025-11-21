@@ -574,11 +574,11 @@ bool BKE_attribute_remove(AttributeOwner &owner, const StringRef name, ReportLis
   return attributes->remove(name);
 }
 
-const CustomDataLayer *BKE_attribute_search(const Mesh &mesh,
-                                            const BMesh &bm,
-                                            const StringRef name,
-                                            const eCustomDataMask type_mask,
-                                            const AttrDomainMask domain_mask)
+static const CustomDataLayer *attribute_search(const Mesh &mesh,
+                                               const BMesh &bm,
+                                               const StringRef name,
+                                               const eCustomDataMask type_mask,
+                                               const AttrDomainMask domain_mask)
 {
   BLI_assert(mesh.runtime->edit_mesh->bm == &bm);
   UNUSED_VARS_NDEBUG(mesh);
@@ -618,8 +618,7 @@ CustomDataLayer *attribute_search_for_write(Mesh &mesh,
 {
   BLI_assert(mesh.runtime->edit_mesh->bm == &bm);
   /* Reuse the implementation of the const version. */
-  return const_cast<CustomDataLayer *>(
-      BKE_attribute_search(mesh, bm, name, type_mask, domain_mask));
+  return const_cast<CustomDataLayer *>(attribute_search(mesh, bm, name, type_mask, domain_mask));
 }
 
 int BKE_attributes_length(const AttributeOwner &owner,
