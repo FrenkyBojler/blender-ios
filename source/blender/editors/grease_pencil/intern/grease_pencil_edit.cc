@@ -1934,13 +1934,19 @@ static wmOperatorStatus grease_pencil_move_to_layer_exec(bContext *C, wmOperator
       continue;
     }
 
+    bool is_key_inserted = false;
+    bool has_active_key = false;
     if (layer_dst.frames().is_empty()) {
+      /* If the target layer doesn't have any keyframes, insert a new key at the current frame. */
       grease_pencil.insert_frame(layer_dst, scene->r.cfra);
+      is_key_inserted = true;
+      has_active_key = true;
+    }
+    else {
+      has_active_key = ensure_active_keyframe(
+          *scene, grease_pencil, layer_dst, false, is_key_inserted);
     }
 
-    bool is_key_inserted = false;
-    const bool has_active_key = ensure_active_keyframe(
-        *scene, grease_pencil, layer_dst, false, is_key_inserted);
     if (has_active_key && is_key_inserted) {
       /* Move geometry to a new drawing in target layer. */
       Drawing &drawing_dst = *grease_pencil.get_drawing_at(layer_dst, info.frame_number);
