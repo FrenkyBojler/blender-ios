@@ -4,3 +4,4 @@ Referenced by pull request #149727, Fix #149689: Subdiv does not propagate skin 
 Referenced by commit 911300a7f9ea39b8617f4940901d6bb327e0ebec, Fix #149689: Subdiv does not propagate skin modifier data
 Referenced by issue #150296, Malloc: double free for ptr
 Referenced by pull request #150365, Fix: Dangling pointers in subdiv TLS
+Referenced by commit 29a1e7a20c41d85774341d6fdb1a7f0aafe3a736, Fix: Dangling pointers in subdiv TLS
