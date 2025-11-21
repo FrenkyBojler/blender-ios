@@ -200,7 +200,7 @@ void apply_evaluation_result(const EvaluationResult &evaluation_result,
 {
   for (auto channel_result : evaluation_result.items()) {
     const PropIdentifier &prop_ident = channel_result.key;
-    const AnimatedProperty &anim_prop = channel_result.value;
+    const AnimatedProperty &anim_prop = *channel_result.value;
     const float animated_value = anim_prop.value;
     PathResolvedRNA anim_rna = anim_prop.prop_rna;
 
@@ -249,7 +249,7 @@ EvaluationResult blend_layer_results(const EvaluationResult &last_result,
   for (auto channel_result : current_result.items()) {
     const PropIdentifier &prop_ident = channel_result.key;
     AnimatedProperty *last_prop = blend.lookup_ptr(prop_ident);
-    const AnimatedProperty &anim_prop = channel_result.value;
+    const AnimatedProperty &anim_prop = *channel_result.value;
 
     if (!last_prop) {
       /* Nothing to blend with, so just take (influence * value). */
@@ -305,7 +305,7 @@ EvaluationResult evaluate_layer(PointerRNA &animated_id_ptr,
       continue;
     }
 
-    const EvaluationResult strip_result = evaluate_strip(
+    EvaluationResult strip_result = evaluate_strip(
         animated_id_ptr, owning_action, *strip, slot_handle, anim_eval_context);
     if (!strip_result) {
       continue;
@@ -314,7 +314,7 @@ EvaluationResult evaluate_layer(PointerRNA &animated_id_ptr,
     const bool is_weak_result = strip->is_last_frame(anim_eval_context.eval_time);
     if (is_weak_result) {
       /* Keep going until a strong result is found. */
-      last_weak_result = strip_result;
+      last_weak_result = std::move(strip_result);
       continue;
     }
 

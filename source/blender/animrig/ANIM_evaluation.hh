@@ -9,6 +9,7 @@
  */
 #pragma once
 
+#include "BLI_linear_allocator.hh"
 #include "BLI_map.hh"
 #include "BLI_string_ref.hh"
 
@@ -84,10 +85,34 @@ class AnimatedProperty {
  */
 class EvaluationResult {
  protected:
-  using EvaluationMap = Map<PropIdentifier, AnimatedProperty>;
+  using EvaluationMap = Map<PropIdentifier, destruct_ptr<AnimatedProperty>>;
+  std::unique_ptr<LinearAllocator<>> allocator_;
   EvaluationMap result_;
 
  public:
+  EvaluationResult()
+  {
+    allocator_ = std::make_unique<LinearAllocator<>>();
+  }
+
+  EvaluationResult(const EvaluationResult &other)
+  {
+    allocator_ = std::make_unique<LinearAllocator<>>();
+    result_.reserve(other.result_.size());
+    for (const auto &item : other.result_.items()) {
+      result_.add(item.key, allocator_->construct<AnimatedProperty>(*item.value));
+    }
+  }
+
+  EvaluationResult(EvaluationResult &&other) noexcept = default;
+
+  EvaluationResult &operator=(const EvaluationResult &other)
+  {
+    return copy_assign_container(*this, other);
+  }
+
+  EvaluationResult &operator=(EvaluationResult &&other) = default;
+
   operator bool() const
   {
     return !this->is_empty();
@@ -103,23 +128,22 @@ class EvaluationResult {
              const PathResolvedRNA &prop_rna)
   {
     PropIdentifier key(rna_path, array_index);
-    AnimatedProperty anim_prop(value, prop_rna);
-    result_.add_overwrite(key, anim_prop);
+    result_.add_overwrite(key, allocator_->construct<AnimatedProperty>(value, prop_rna));
   }
 
-  AnimatedProperty value(const StringRefNull rna_path, const int array_index) const
+  const AnimatedProperty &value(const StringRefNull rna_path, const int array_index) const
   {
     PropIdentifier key(rna_path, array_index);
-    return result_.lookup(key);
+    return *result_.lookup(key);
   }
 
   const AnimatedProperty *lookup_ptr(const PropIdentifier &key) const
   {
-    return result_.lookup_ptr(key);
+    return result_.lookup_ptr(key)->get();
   }
   AnimatedProperty *lookup_ptr(const PropIdentifier &key)
   {
-    return result_.lookup_ptr(key);
+    return result_.lookup_ptr(key)->get();
   }
 
   EvaluationMap::ItemIterator items() const
