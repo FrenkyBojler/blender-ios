@@ -494,28 +494,32 @@ class Preprocessor {
       str = pragmas_mutation(str, report_error);
       str = swizzle_function_mutation(str, report_error);
       str = enum_macro_injection(str, language == CPP, report_error);
-      if (language == BLENDER_GLSL) {
+      {
         Parser parser(str, report_error);
         resource_table_parsing(parser, report_error);
         stage_interface_parsing(parser, report_error);
         fragment_out_parsing(parser, report_error);
         vertex_in_parsing(parser, report_error);
-        using_mutation(parser, report_error);
 
-        namespace_mutation(parser, report_error);
-        template_struct_mutation(parser, report_error);
-        struct_method_mutation(parser, report_error);
-        empty_struct_mutation(parser, report_error);
-        method_call_mutation(parser, report_error);
-        stage_function_mutation(parser, report_error);
-        resource_guard_mutation(parser, report_error);
-        loop_unroll(parser, report_error);
-        assert_processing(parser, filename, report_error);
-        static_strings_merging(parser, report_error);
-        static_strings_parsing_and_mutation(parser, report_error);
-        str = parser.result_get();
-        str = printf_processing(str, report_error);
-        quote_linting(str, report_error);
+        if (language == BLENDER_GLSL) {
+          srt_member_access_mutation(parser, report_error);
+          using_mutation(parser, report_error);
+
+          namespace_mutation(parser, report_error);
+          template_struct_mutation(parser, report_error);
+          struct_method_mutation(parser, report_error);
+          empty_struct_mutation(parser, report_error);
+          method_call_mutation(parser, report_error);
+          stage_function_mutation(parser, report_error);
+          resource_guard_mutation(parser, report_error);
+          loop_unroll(parser, report_error);
+          assert_processing(parser, filename, report_error);
+          static_strings_merging(parser, report_error);
+          static_strings_parsing_and_mutation(parser, report_error);
+          str = parser.result_get();
+          str = printf_processing(str, report_error);
+          quote_linting(str, report_error);
+        }
       }
       {
         Parser parser(str, report_error);
