@@ -29,23 +29,20 @@ enum OVERLAY_UVLineStyle : uint32_t {
 };
 
 enum OVERLAY_GridBits : uint32_t {
-  SHOW_AXIS_X = (1u << 0u),
-  SHOW_AXIS_Y = (1u << 1u),
-  SHOW_AXIS_Z = (1u << 2u),
-  SHOW_GRID = (1u << 3u),
+  SHOW_GRID = (1u << 0u),
+  SHOW_AXES = (1u << 1u),
+  
+  AXIS_X = (1u << 2u),
+  AXIS_Y = (1u << 3u),
+  AXIS_Z = (1u << 4u),
+  
+  PLANE_XY = (1u << 5u),
+  PLANE_XZ = (1u << 6u),
+  PLANE_YZ = (1u << 7u),
 
-  PLANE_XY = (1u << 4u),
-  PLANE_XZ = (1u << 5u),
-  PLANE_YZ = (1u << 6u),
-
-  /* TODO(not_mark): eliminate */
-  DRAW_AXIS_Z = (1u << 7u),
-  DRAW_AXIS_ZNEG = (1u << 8u),
-
-  GRID_BACK = (1u << 9u),
-  GRID_CAMERA = (1u << 10u),
-  PLANE_IMAGE = (1u << 11u),
-  CUSTOM_GRID = (1u << 12u),
+  GRID_BACK = (1u << 8u),
+  GRID_CAMERA = (1u << 9u),
+  PLANE_IMAGE = (1u << 10u)
 };
 #ifndef GPU_SHADER
 ENUM_OPERATORS(OVERLAY_GridBits)
@@ -129,52 +126,18 @@ static inline uint outline_id_pack(uint outline_id, uint object_id)
 #define WIRE_WIDTH_COMPRESSION 16.0f
 
 struct OVERLAY_GridData {
-  float4 steps[OVERLAY_GRID_STEPS_LEN]; /* float arrays are padded to float4 in std130. */
-  float4 size;                          /* float3 padded to float4. */
-  float distance;
-  float line_size;
-  float zoom_factor; /* Only for UV editor */
-  float _pad0;
-};
-BLI_STATIC_ASSERT_ALIGN(OVERLAY_GridData, 16)
-
-/* Packing/unpacking functions for 4 uint8_t's to single uint.
- * Used for hierarchy data in `OVERLAY_GridReworkData` below. */
-#ifdef GPU_SHADER
-inline uint4 unpackUint8x4(uint32_t p)
-{
-  uint4 v;
-  v[0] = (p & 0xFF);
-  v[1] = ((p >> 8u) & 0xFF);
-  v[2] = ((p >> 16u) & 0xFF);
-  v[3] = ((p >> 24u) & 0xFF);
-  return v;
-}
-#else
-inline uint32_t packUint8x4(uint4 v)
-{
-  return (v[0] & 0xFF) | ((v[1] & 0xFF) << 8u) | ((v[2] & 0xFF) << 16u) | ((v[3] & 0xFF) << 24u);
-  ;
-}
-#endif
-
-struct OVERLAY_GridReworkData {
   /* Per level scaling, based on selected unit system and zoom. */
   float4 level_scales[OVERLAY_GRID_STEPS_LEN]; /* float3 array padded to float4 (std140). */
-  
   /* Nr. of grid lines per level, for 2D grid */
   float4 size; /* float3 expanded to float4 in std140. */
-
   /* Per-level line count. */
-  uint num_lines_per_level;
-
+  uint num_lines;
   /* Draw distance, which lies below the camera clip distance. */
   float distance;
-
   /* Alignment padding. */
   float _pad0, _pad1;
 };
-BLI_STATIC_ASSERT_ALIGN(OVERLAY_GridReworkData, 16)
+BLI_STATIC_ASSERT_ALIGN(OVERLAY_GridData, 16)
 
 #ifdef GPU_SHADER
 /* Keep the same values as in `draw_cache_impl_curves.cc` */

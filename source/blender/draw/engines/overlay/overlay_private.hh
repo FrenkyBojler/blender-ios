@@ -461,7 +461,6 @@ class ShaderModule {
   StaticShader curve_edit_handles = shader_clippable("overlay_edit_curves_handle");
   StaticShader facing = shader_clippable("overlay_facing");
   StaticShader grid = {"overlay_grid_next"};
-  StaticShader gridrework = {"overlay_gridrework_next"};
   StaticShader grid_background = {"overlay_grid_background"};
   StaticShader grid_grease_pencil = shader_clippable("overlay_gpencil_canvas");
   StaticShader grid_image = {"overlay_grid_image"};
