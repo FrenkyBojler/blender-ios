@@ -749,7 +749,7 @@ using GeneratedSourceList = Vector<shader::GeneratedSource, 0>;
  */
 struct ShaderCreateInfo {
   /** Shader name for debugging. */
-  StringRefNull name_;
+  std::string name_;
   /** True if the shader is static and can be pre-compiled at compile time. */
   bool do_static_compilation_ = false;
   /** True if the shader is not part of gpu_shader_create_info_list. */
@@ -888,6 +888,7 @@ struct ShaderCreateInfo {
   struct SharedVariable {
     Type type;
     ResourceString name;
+    StringRefNull info_name;
   };
 
   Vector<SharedVariable, 0> shared_variables_;
@@ -924,6 +925,8 @@ struct ShaderCreateInfo {
       IMAGE,
     };
 
+    /* Name of the create info that declared this resource. */
+    StringRefNull info_name;
     BindType bind_type;
     int slot;
     union {
@@ -933,7 +936,8 @@ struct ShaderCreateInfo {
       StorageBuf storagebuf;
     };
 
-    Resource(BindType type, int _slot) : bind_type(type), slot(_slot) {};
+    Resource(const ShaderCreateInfo &info, BindType type, int _slot)
+        : info_name(info.name_), bind_type(type), slot(_slot) {};
 
     bool operator==(const Resource &b) const
     {
@@ -1048,7 +1052,8 @@ struct ShaderCreateInfo {
 #  endif
 
  public:
-  ShaderCreateInfo(const char *name) : name_(name) {};
+  ShaderCreateInfo(const char *name);
+
   ~ShaderCreateInfo() = default;
 
   using Self = ShaderCreateInfo;
@@ -1246,7 +1251,7 @@ struct ShaderCreateInfo {
 
   Self &shared_variable(Type type, StringRefNull name)
   {
-    shared_variables_.append({type, name});
+    shared_variables_.append({type, name, this->name_});
     return *(Self *)this;
   }
 
@@ -1261,7 +1266,7 @@ struct ShaderCreateInfo {
                     StringRefNull name,
                     Frequency freq = Frequency::PASS)
   {
-    Resource res(Resource::BindType::UNIFORM_BUFFER, slot);
+    Resource res(*this, Resource::BindType::UNIFORM_BUFFER, slot);
     res.uniformbuf.name = name;
     res.uniformbuf.type_name = type_name;
     resources_get_(freq).append(res);
@@ -1275,7 +1280,7 @@ struct ShaderCreateInfo {
                     StringRefNull name,
                     Frequency freq = Frequency::PASS)
   {
-    Resource res(Resource::BindType::STORAGE_BUFFER, slot);
+    Resource res(*this, Resource::BindType::STORAGE_BUFFER, slot);
     res.storagebuf.qualifiers = qualifiers;
     res.storagebuf.type_name = type_name;
     res.storagebuf.name = name;
@@ -1291,7 +1296,7 @@ struct ShaderCreateInfo {
               StringRefNull name,
               Frequency freq = Frequency::PASS)
   {
-    Resource res(Resource::BindType::IMAGE, slot);
+    Resource res(*this, Resource::BindType::IMAGE, slot);
     res.image.format = format;
     res.image.qualifiers = qualifiers;
     res.image.type = ImageType(type);
@@ -1307,7 +1312,7 @@ struct ShaderCreateInfo {
                 Frequency freq = Frequency::PASS,
                 GPUSamplerState sampler = GPUSamplerState::internal_sampler())
   {
-    Resource res(Resource::BindType::SAMPLER, slot);
+    Resource res(*this, Resource::BindType::SAMPLER, slot);
     res.sampler.type = type;
     res.sampler.name = name;
     /* Produces ASAN errors for the moment. */
