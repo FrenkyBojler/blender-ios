@@ -22,6 +22,7 @@
 #  include "GPU_common_types.hh"
 #  include "GPU_material.hh"
 #  include "GPU_texture.hh"
+#  include "gpu_shader_create_info_pipeline.hh"
 
 #  include <iostream>
 #endif
@@ -207,6 +208,8 @@
 #  define ADDITIONAL_INFO(info_name) .additional_info(#info_name)
 #  define TYPEDEF_SOURCE(filename) .typedef_source(filename)
 
+#  define SRT_DATA(srt_name) .additional_info(#srt_name)
+
 #  define MTL_MAX_TOTAL_THREADS_PER_THREADGROUP(value) \
     .mtl_max_total_threads_per_threadgroup(value)
 
@@ -307,6 +310,8 @@
     using namespace info_name; \
     using namespace info_name::gl_FragmentShader; \
     using namespace info_name::gl_VertexShader;
+
+#  define SRT_DATA(srt_name) srt_name srt_name;
 
 #  define TYPEDEF_SOURCE(filename)
 
@@ -744,7 +749,7 @@ using GeneratedSourceList = Vector<shader::GeneratedSource, 0>;
  */
 struct ShaderCreateInfo {
   /** Shader name for debugging. */
-  StringRefNull name_;
+  std::string name_;
   /** True if the shader is static and can be pre-compiled at compile time. */
   bool do_static_compilation_ = false;
   /** True if the shader is not part of gpu_shader_create_info_list. */
@@ -883,6 +888,7 @@ struct ShaderCreateInfo {
   struct SharedVariable {
     Type type;
     ResourceString name;
+    StringRefNull info_name;
   };
 
   Vector<SharedVariable, 0> shared_variables_;
@@ -919,6 +925,8 @@ struct ShaderCreateInfo {
       IMAGE,
     };
 
+    /* Name of the create info that declared this resource. */
+    StringRefNull info_name;
     BindType bind_type;
     int slot;
     union {
@@ -928,7 +936,8 @@ struct ShaderCreateInfo {
       StorageBuf storagebuf;
     };
 
-    Resource(BindType type, int _slot) : bind_type(type), slot(_slot) {};
+    Resource(const ShaderCreateInfo &info, BindType type, int _slot)
+        : info_name(info.name_), bind_type(type), slot(_slot) {};
 
     bool operator==(const Resource &b) const
     {
@@ -1035,13 +1044,16 @@ struct ShaderCreateInfo {
    */
   Vector<StringRefNull> additional_infos_;
 
+  Vector<PipelineState, 0> pipelines_;
+
   /* API-specific parameters. */
 #  ifdef WITH_METAL_BACKEND
   ushort mtl_max_threads_per_threadgroup_ = 0;
 #  endif
 
  public:
-  ShaderCreateInfo(const char *name) : name_(name) {};
+  ShaderCreateInfo(const char *name);
+
   ~ShaderCreateInfo() = default;
 
   using Self = ShaderCreateInfo;
@@ -1239,7 +1251,7 @@ struct ShaderCreateInfo {
 
   Self &shared_variable(Type type, StringRefNull name)
   {
-    shared_variables_.append({type, name});
+    shared_variables_.append({type, name, this->name_});
     return *(Self *)this;
   }
 
@@ -1254,7 +1266,7 @@ struct ShaderCreateInfo {
                     StringRefNull name,
                     Frequency freq = Frequency::PASS)
   {
-    Resource res(Resource::BindType::UNIFORM_BUFFER, slot);
+    Resource res(*this, Resource::BindType::UNIFORM_BUFFER, slot);
     res.uniformbuf.name = name;
     res.uniformbuf.type_name = type_name;
     resources_get_(freq).append(res);
@@ -1268,7 +1280,7 @@ struct ShaderCreateInfo {
                     StringRefNull name,
                     Frequency freq = Frequency::PASS)
   {
-    Resource res(Resource::BindType::STORAGE_BUFFER, slot);
+    Resource res(*this, Resource::BindType::STORAGE_BUFFER, slot);
     res.storagebuf.qualifiers = qualifiers;
     res.storagebuf.type_name = type_name;
     res.storagebuf.name = name;
@@ -1284,7 +1296,7 @@ struct ShaderCreateInfo {
               StringRefNull name,
               Frequency freq = Frequency::PASS)
   {
-    Resource res(Resource::BindType::IMAGE, slot);
+    Resource res(*this, Resource::BindType::IMAGE, slot);
     res.image.format = format;
     res.image.qualifiers = qualifiers;
     res.image.type = ImageType(type);
@@ -1300,7 +1312,7 @@ struct ShaderCreateInfo {
                 Frequency freq = Frequency::PASS,
                 GPUSamplerState sampler = GPUSamplerState::internal_sampler())
   {
-    Resource res(Resource::BindType::SAMPLER, slot);
+    Resource res(*this, Resource::BindType::SAMPLER, slot);
     res.sampler.type = type;
     res.sampler.name = name;
     /* Produces ASAN errors for the moment. */
@@ -1641,6 +1653,27 @@ struct ShaderCreateInfo {
       }
     }
     return slot;
+  }
+
+  /** \} */
+
+  /* -------------------------------------------------------------------- */
+  /** \name Pipeline warm-up
+   * \{ */
+
+  /**
+   * \brief Create a new pipeline state.
+   *
+   * On Metal and Vulkan pipelines states will be precompiled when creating the shader to reduce
+   * compilation stuttering when using the shader.
+   *
+   * \note returned pipeline state is only guaranteed to be valid until the next call to this
+   * function.
+   */
+  PipelineState &pipeline_state()
+  {
+    pipelines_.append({});
+    return pipelines_.last();
   }
 
   /** \} */
