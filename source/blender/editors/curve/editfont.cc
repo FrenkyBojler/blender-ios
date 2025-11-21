@@ -1915,13 +1915,16 @@ static wmOperatorStatus insert_text_invoke(bContext *C, wmOperator *op, const wm
   }
 
 #ifdef WITH_INPUT_IME
+  wmWindow *win = CTX_wm_window(C);
+  const wmIMEData *ime_data = win->runtime->ime_data;
   if (event->type == WM_IME_COMPOSITE_EVENT) {
-    wmWindow *win = CTX_wm_window(C);
-    const wmIMEData *ime_data = win->runtime->ime_data;
     if (ime_data && ime_data->result.size()) {
       RNA_string_set(op->ptr, "text", ime_data->result.c_str());
       return insert_text_exec(C, op);
     }
+  }
+  if (win->runtime->ime_data_is_composing) {
+    return OPERATOR_CANCELLED;
   }
 #endif
 
