@@ -29,9 +29,6 @@ class AssetIDTypeV1(Enum):
     world = "world"
 
 
-CustomPropertiesV1 = Optional[dict[str, str]]
-
-
 class CustomPropertyTypeV1(Enum):
     STRING = "STRING"
     INT = "INT"
@@ -76,21 +73,11 @@ class AssetLibraryIndexV1:
 
 
 @dataclass
-class AssetMetadataV1:
-    catalog_id: Optional[str] = None
-    tags: Optional[list[str]] = None
-    author: Optional[str] = None
-    description: Optional[str] = None
-    license: Optional[str] = None
-    copyright: Optional[str] = None
-    custom: Optional[CustomPropertiesV1] = None
-
-
-@dataclass
-class CustomPropertyV1:
-    type: CustomPropertyTypeV1
-    value: Union[CustomPropertiesV1, list, float, int, str, bool]
-    itemtype: Optional[CustomPropertyTypeV1] = None
+class AssetLibraryIndexPageV1:
+    asset_count: int
+    file_count: int
+    assets: list[AssetV1]
+    files: list[FileV1]
 
 
 @dataclass
@@ -103,11 +90,24 @@ class AssetV1:
 
 
 @dataclass
-class AssetLibraryIndexPageV1:
-    asset_count: int
-    file_count: int
-    assets: list[AssetV1]
-    files: list[FileV1]
+class AssetMetadataV1:
+    catalog_id: Optional[str] = None
+    tags: Optional[list[str]] = None
+    author: Optional[str] = None
+    description: Optional[str] = None
+    license: Optional[str] = None
+    copyright: Optional[str] = None
+    custom: Optional[CustomPropertiesV1] = None
+
+
+CustomPropertiesV1 = Optional[dict[str, 'CustomPropertyV1']]
+
+
+@dataclass
+class CustomPropertyV1:
+    type: CustomPropertyTypeV1
+    value: Union[CustomPropertiesV1, list, float, int, str, bool]
+    itemtype: Optional[CustomPropertyTypeV1] = None
 
 
 # This OpenAPI specification was used to generate the above code.
@@ -237,8 +237,8 @@ OPENAPI_SPEC = {'openapi': '3.0.0',
                                                                               'copyright': {'type': 'string'},
                                                                               'custom': {'$ref': '#/components/schemas/CustomPropertiesV1'}}},
                                            'CustomPropertiesV1': {'type': 'object',
-                                                                  'description': 'Arbitrary custom properties of the asset. Keys are property names, values should be of type CustomPropertyV1 (but OpenAPI v3.0 has a hard time formalizing that in the schema).\n',
-                                                                  'additionalProperties': {'type': 'string'}},
+                                                                  'description': 'Arbitrary custom properties of the asset. Keys are the property names.\n',
+                                                                  'additionalProperties': {'$ref': '#/components/schemas/CustomPropertyV1'}},
                                            'CustomPropertyV1': {'type': 'object',
                                                                 'description': "Single 'custom property' value of the asset. The value should be compatible with the given type; GROUP properties should be represented as `CustomPropertiesV1` object again. Arrays should specify an `itemtype`.\n",
                                                                 'properties': {'type': {'$ref': '#/components/schemas/CustomPropertyTypeV1'},

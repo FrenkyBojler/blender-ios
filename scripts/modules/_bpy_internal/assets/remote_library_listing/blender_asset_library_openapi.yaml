@@ -263,11 +263,9 @@ components:
     CustomPropertiesV1:
       type: object
       description: >
-        Arbitrary custom properties of the asset. Keys are property names,
-        values should be of type CustomPropertyV1 (but OpenAPI v3.0 has a
-        hard time formalizing that in the schema).
+        Arbitrary custom properties of the asset. Keys are the property names.
       additionalProperties:
-        type: string
+        $ref: "#/components/schemas/CustomPropertyV1"
 
 
     CustomPropertyV1:

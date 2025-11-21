@@ -119,6 +119,9 @@ def main() -> None:
             out_path=py_path,
         )
 
+        # Run any post-processor script.
+        _postprocess(py_path)
+
         # Append the OpenAPI specification as Python code. This is necessary to
         # reference for runtime validation. Having it available as Python
         # dictionary is easier than having to parse it from YAML or JSON later.
@@ -185,9 +188,41 @@ def _generate_datamodel(in_path: Path, in_type: str, out_path: Path) -> None:
             raise SystemExit(f"unknown result from code generation: {status}")
 
 
+def _postprocess(py_path: Path) -> None:
+    postprocess_script = py_path.with_stem(py_path.stem + "_postprocess")
+    if not postprocess_script.exists():
+        print("Post processor {!s} does not exist, skipping post-processsing".format(postprocess_script))
+        return
+    print("Running post processor:")
+    print("  {!s}".format(postprocess_script))
+
+    # Import the post-processing script, by directly loading from its file path.
+    import importlib.util
+    spec = importlib.util.spec_from_file_location(postprocess_script.stem, postprocess_script)
+    assert spec is not None
+    assert spec.loader is not None
+    postprocess_module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(postprocess_module)
+
+    # Get the 'postprocess' function, and check that it's callable.
+    try:
+        postprocess = postprocess_module.postprocess
+    except AttributeError as ex:
+        print()
+        print("WARNING: Post process file {!s} has no function 'postprocess'".format(postprocess_script))
+        print()
+        return
+    if not callable(postprocess):
+        print()
+        print("WARNING: 'postprocess' from file {!s} is not callable".format(postprocess_script))
+        print()
+        return
+
+    # Function seems ok, let's use it to post-process the file.
+    postprocess(py_path)
+
+
 # --------- Below this point is the self-bootstrapping logic ---------
-
-
 import importlib.util
 import subprocess
 import venv

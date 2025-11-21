@@ -169,9 +169,7 @@ def _get_asset_meta(asset_data: bpy.types.AssetData) -> api_models.AssetMetadata
         else:
             custom_prop = api_models.CustomPropertyV1(type=value_type, value=prop_value)
 
-        # The type:ignore is necessary because the generated Python code is
-        # `dict[str, str]` instead of `dict[str, CustomPropertyV1]`.
-        custom_props[prop_name] = custom_prop  # type: ignore
+        custom_props[prop_name] = custom_prop
 
     if custom_props:
         meta.custom = custom_props
