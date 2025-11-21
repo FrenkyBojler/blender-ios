@@ -62,7 +62,6 @@
 #include "RNA_enum_types.hh"
 #include "RNA_prototypes.hh"
 
-/* For menu, popup, icons, etc. */
 #include "ED_fileselect.hh"
 #include "ED_numinput.hh"
 #include "ED_object.hh"
@@ -78,7 +77,6 @@
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
 
-/* Own include. */
 #include "sequencer_intern.hh"
 #include <cstddef>
 #include <fmt/format.h>
@@ -336,8 +334,10 @@ bool is_scene_time_sync_needed(const bContext &C)
     return false;
   }
   SpaceSeq *sseq = CTX_wm_space_seq(&C);
-  if (!sseq) {
-    /* We only want to start syncing the time when we're in a sequence editor.
+  SpaceProperties *sprop = CTX_wm_space_properties(&C);
+  if (!sseq && !sprop) {
+    /* We only want to start syncing the time when we're in a sequence editor,
+     * or if updating strip properties.
      * Changing time in any other editor should just affect the active scene. */
     return false;
   }
@@ -1981,22 +1981,35 @@ void SEQUENCER_OT_split(wmOperatorType *ot)
 
 static void sequencer_report_duplicates(wmOperator *op, ListBase *duplicated_strips)
 {
-  int num_scenes = 0, num_movieclips = 0, num_masks = 0;
+  blender::Set<Scene *> scenes;
+  blender::Set<MovieClip *> movieclips;
+  blender::Set<Mask *> masks;
+
   LISTBASE_FOREACH (Strip *, strip, duplicated_strips) {
     switch (strip->type) {
       case STRIP_TYPE_SCENE:
-        num_scenes++;
+        if (strip->scene) {
+          scenes.add(strip->scene);
+        }
         break;
       case STRIP_TYPE_MOVIECLIP:
-        num_movieclips++;
+        if (strip->clip) {
+          movieclips.add(strip->clip);
+        }
         break;
       case STRIP_TYPE_MASK:
-        num_masks++;
+        if (strip->mask) {
+          masks.add(strip->mask);
+        }
         break;
       default:
         break;
     }
   }
+
+  const int num_scenes = scenes.size();
+  const int num_movieclips = movieclips.size();
+  const int num_masks = masks.size();
 
   if (num_scenes == 0 && num_movieclips == 0 && num_masks == 0) {
     return;
