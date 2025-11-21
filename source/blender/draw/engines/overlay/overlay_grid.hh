@@ -37,11 +37,11 @@ class GridRework : Overlay {
   uint num_lines_per_level_;
 
   /* Draw information. */
-  float2 grid_poi_origin_ = float2(0.0f);
-  float2 grid_poi_ = float2(0.0f);
+  float2 grid_offs_ = float2(0.0f);
   float grid_level_;
   int lines_count_ = 0;
   int grid_flag_ = 0;
+  int axis_flag_ = 0;
 
  public:
   void begin_sync(Resources &res, const State &state) final
@@ -55,8 +55,6 @@ class GridRework : Overlay {
     }
 
     gpu::Texture **depth_tx = state.xray_enabled ? &res.xray_depth_tx : &res.depth_tx;
-    gpu::Texture **depth_infront_tx = state.use_in_front ? &res.depth_target_in_front_tx :
-                                                           &res.dummy_depth_tx;
 
     grid_ps_.init();
     grid_ps_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
@@ -73,29 +71,30 @@ class GridRework : Overlay {
           res.theme.colors.background, res.theme.colors.grid, 0.5);
       sub.push_constant("ucolor", color_back);
       sub.push_constant("tile_scale", float3(grid_ubo_.size));
-      sub.bind_texture("depth_buffer", depth_tx);
+      sub.bind_texture("depth_buffer", depth_tx); /* TODO (not_mark): is this one necessary? */
       sub.draw(res.shapes.quad_solid.get());
     }
 
     /* Grid and axis line draws. */
     {
       auto &sub = grid_ps_.sub("grid");
-
-      /* Vertex count is 2 (x/y direction) * 2 (per line) * levels x N, plus
-        * one optional line for the Z-axis, if this is perpendicular to the XY plane. */
-      const bool incl_axis_z = (grid_flag_ & PLANE_XY) && (grid_flag_ & SHOW_AXIS_Z);
-      const uint verts_count = 4 * OVERLAY_GRID_STEPS_DRAW * lines_count_ + 2 * uint(incl_axis_z);
-
       sub.shader_set(res.shaders->gridrework.get());
       sub.bind_ubo("grid_buf", &grid_ubo_);
-      /* TODO(not_mark): remove */
-      sub.bind_texture("depth_tx", depth_tx, GPUSamplerState::default_sampler());
-      sub.bind_texture("depth_infront_tx", depth_infront_tx, GPUSamplerState::default_sampler());
-      sub.push_constant("grid_level", &grid_level_);
-      sub.push_constant("grid_poi", &grid_poi_);
-      sub.push_constant("grid_flag", &grid_flag_);
       sub.push_constant("num_lines", &lines_count_);
-      sub.draw_procedural(GPUPrimType::GPU_PRIM_LINES, -1, verts_count, 0);
+      sub.push_constant("grid_level", &grid_level_);
+
+      if (axis_flag_) {
+        sub.push_constant("grid_offs", float2(0.0f));
+        sub.push_constant("grid_flag", &axis_flag_);
+        sub.draw_procedural(GPUPrimType::GPU_PRIM_LINES, -1, 6, 0);
+      }
+
+      if (grid_flag_) {
+        const uint verts_count = 4 * OVERLAY_GRID_STEPS_DRAW * lines_count_;
+        sub.push_constant("grid_offs", &grid_offs_);
+        sub.push_constant("grid_flag", &grid_flag_);
+        sub.draw_procedural(GPUPrimType::GPU_PRIM_LINES, -1, verts_count, 0);
+      }
     }
 
     /* Draw an outline around the grid, specifically in the 2D/UV image editor. This is retained
@@ -136,7 +135,7 @@ class GridRework : Overlay {
   bool init(const State &state)
   {
     /* Initialize config flags to default value. */
-    grid_flag_ = 0;
+    grid_flag_ = axis_flag_ = 0;
 
     /* This suffices for most cases, and in others we fade to hide it. */
     num_lines_per_level_ = 301; /* TODO(not_mark): variable line count for orth/persp/uv/image */
@@ -181,13 +180,13 @@ class GridRework : Overlay {
     std::array<float, SI_GRID_STEPS_LEN> steps_x, steps_y;
     ED_space_image_grid_steps(sima, steps_x.data(), steps_y.data(), SI_GRID_STEPS_LEN);
     for (int i = 0; i < SI_GRID_STEPS_LEN; ++i) {
-      grid_ubo_.level_scales[i].x = steps_x[i] * 2.0f;
+      grid_ubo_.level_scales[i].x = grid_ubo_.level_scales[i].z = steps_x[i] * 2.0f;
       grid_ubo_.level_scales[i].y = steps_y[i] * 2.0f;
     }
 
     /* Determine camera offset to center of v2d. */
     grid_ubo_.distance = 1.0f;
-    grid_poi_ = float2(v2d->cur.xmax + v2d->cur.xmin, v2d->cur.ymax + v2d->cur.ymin) - 1.0f;
+    grid_offs_ = float2(v2d->cur.xmax + v2d->cur.xmin, v2d->cur.ymax + v2d->cur.ymin) - 1.0f;
 
     /* Query grid image zoom level. Then find the lowest relevant grid level + fractional. */
     float dist = ED_space_image_zoom_level(v2d, SI_GRID_STEPS_LEN) * 4.0f;
@@ -212,7 +211,7 @@ class GridRework : Overlay {
       grid_ubo_.size[1] = float(sima->tile_grid_shape[1]);
     }
 
-    lines_count_ = (grid_flag_ & SHOW_GRID) ? num_lines_per_level_ : 1;
+    lines_count_ = num_lines_per_level_;
 
     return true;
   }
@@ -237,27 +236,32 @@ class GridRework : Overlay {
     /* Set `grid_flag_` dependent on view configuration. */
     if (rv3d->is_persp || rv3d->view == RV3D_VIEW_USER) {
       /* Perspective; set selected axes and floor bits. */
-      grid_flag_ |= (show_axis_x ? PLANE_XY | SHOW_AXIS_X : OVERLAY_GridBits(0));
-      grid_flag_ |= (show_axis_y ? PLANE_XY | SHOW_AXIS_Y : OVERLAY_GridBits(0));
-      grid_flag_ |= (show_axis_z ? PLANE_XY | SHOW_AXIS_Z : OVERLAY_GridBits(0));
+      axis_flag_ |= (show_axis_x ? SHOW_AXIS_X : OVERLAY_GridBits(0));
+      axis_flag_ |= (show_axis_y ? SHOW_AXIS_Y : OVERLAY_GridBits(0));
+      axis_flag_ |= (show_axis_z ? SHOW_AXIS_Z : OVERLAY_GridBits(0));
       grid_flag_ |= (show_persp ? PLANE_XY | SHOW_GRID : OVERLAY_GridBits(0));
     }
     else {
       /* Orthographic; set selected axes and plane bits dependent on the specific view
        * (top, right, left, etc.) that is selected. */
-      int grid_x_flag = show_axis_x ? SHOW_AXIS_X : OVERLAY_GridBits(0);
-      int grid_y_flag = show_axis_y ? SHOW_AXIS_Y : OVERLAY_GridBits(0);
-      int grid_z_flag = show_axis_z ? SHOW_AXIS_Z : OVERLAY_GridBits(0);
+      int axis_x_flag = show_axis_x ? SHOW_AXIS_X : OVERLAY_GridBits(0);
+      int axis_y_flag = show_axis_y ? SHOW_AXIS_Y : OVERLAY_GridBits(0);
+      int axis_z_flag = show_axis_z ? SHOW_AXIS_Z : OVERLAY_GridBits(0);
       if (ELEM(rv3d->view, RV3D_VIEW_RIGHT, RV3D_VIEW_LEFT)) {
-        grid_flag_ = PLANE_YZ | grid_y_flag | grid_z_flag;
+        grid_flag_ = PLANE_YZ;
+        axis_flag_ = PLANE_YZ | axis_y_flag | axis_z_flag;
       }
       else if (ELEM(rv3d->view, RV3D_VIEW_TOP, RV3D_VIEW_BOTTOM)) {
-        grid_flag_ = PLANE_XY | grid_x_flag | grid_y_flag;
+        grid_flag_ = PLANE_XY;
+        axis_flag_ = PLANE_XY | axis_x_flag | axis_y_flag;
       }
       else if (ELEM(rv3d->view, RV3D_VIEW_FRONT, RV3D_VIEW_BACK)) {
-        grid_flag_ = PLANE_XZ | grid_x_flag | grid_z_flag;
+        grid_flag_ = PLANE_XZ;
+        axis_flag_ = PLANE_XZ | axis_x_flag | axis_z_flag;
       }
+      /* TODO(not_mark): potentially remove. */
       grid_flag_ |= (show_ortho ? GRID_BACK | SHOW_GRID : OVERLAY_GridBits(0));
+      axis_flag_ |= (show_ortho ? GRID_BACK : OVERLAY_GridBits(0));
     }
 
     /* Query far clip distance dependent on camera/viewport */
@@ -265,6 +269,7 @@ class GridRework : Overlay {
       Object *camera_object = DEG_get_evaluated(state.depsgraph, v3d->camera);
       grid_ubo_.distance = ((Camera *)(camera_object->data))->clip_end;
       grid_flag_ |= GRID_CAMERA;
+      axis_flag_ |= GRID_CAMERA;
     }
     else {
       grid_ubo_.distance = v3d->clip_end;
@@ -274,7 +279,7 @@ class GridRework : Overlay {
     Array<float, SI_GRID_STEPS_LEN> steps(SI_GRID_STEPS_LEN);
     ED_view3d_grid_steps(state.scene, v3d, rv3d, steps.data());
     for (int i = 0; i < SI_GRID_STEPS_LEN; ++i) {
-      grid_ubo_.level_scales[i].x = grid_ubo_.level_scales[i].y = steps[i];
+      grid_ubo_.level_scales[i].x = grid_ubo_.level_scales[i].y = grid_ubo_.level_scales[i].z = steps[i];
     }
 
     /* Camera parameters. */
@@ -298,16 +303,16 @@ class GridRework : Overlay {
     /* Extract 2D grid offset for moving grid "with the camera" on the floor plane. */
     float3 camera_poi = drw_view_position - dist * drw_view_forward;
     if (ELEM(rv3d->view, RV3D_VIEW_RIGHT, RV3D_VIEW_LEFT)) {
-      grid_poi_ = camera_poi.yz();
+      grid_offs_ = camera_poi.yz();
     }
     else if (ELEM(rv3d->view, RV3D_VIEW_TOP, RV3D_VIEW_BOTTOM)) {
-      grid_poi_ = camera_poi.xy();
+      grid_offs_ = camera_poi.xy();
     }
     else if (ELEM(rv3d->view, RV3D_VIEW_FRONT, RV3D_VIEW_BACK)) {
-      grid_poi_ = float2(camera_poi.x, camera_poi.z);
+      grid_offs_ = float2(camera_poi.x, camera_poi.z);
     }
     else { /* Perspective view, Image/UV view. */
-      grid_poi_ = camera_poi.xy();
+      grid_offs_ = camera_poi.xy();
     }
 
     /* Find the lowest relevant grid level + fractional, dependent on camera distance. We
@@ -325,7 +330,7 @@ class GridRework : Overlay {
       }
     }
 
-    lines_count_ = (grid_flag_ & SHOW_GRID) ? num_lines_per_level_ : 1;
+    lines_count_ = num_lines_per_level_;
 
     return true;
   }

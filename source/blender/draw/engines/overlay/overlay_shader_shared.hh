@@ -160,8 +160,8 @@ inline uint32_t packUint8x4(uint4 v)
 
 struct OVERLAY_GridReworkData {
   /* Per level scaling, based on selected unit system and zoom. */
-  float4 level_scales[OVERLAY_GRID_STEPS_LEN]; /* float3 padded to float4 in std140. */
-
+  float4 level_scales[OVERLAY_GRID_STEPS_LEN]; /* float3 array padded to float4 (std140). */
+  
   /* Nr. of grid lines per level, for 2D grid */
   float4 size; /* float3 expanded to float4 in std140. */
 
