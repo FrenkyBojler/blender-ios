@@ -19,16 +19,16 @@ void main()
   out_color = mix(theme.colors.grid, theme.colors.grid_emphasis, local_alpha);
   out_color.a *= local_alpha;
 
-  /* Primary axis colors can override base color. */
+  /* Primary axes colors override base color. */
   if (flag_test(grid_flag, AXIS_X) && reduce_max(abs(local_pos.yz)) < 1e-4f) {
     out_color.rgb = theme.colors.grid_axis_x.rgb;
     out_color.a = max(out_color.a, theme.colors.grid_axis_x.a);
   }
-  if (flag_test(grid_flag, AXIS_Y) && reduce_max(abs(local_pos.xz)) < 1e-4f) {
+  else if (flag_test(grid_flag, AXIS_Y) && reduce_max(abs(local_pos.xz)) < 1e-4f) {
     out_color.rgb = theme.colors.grid_axis_y.rgb;
     out_color.a = max(out_color.a, theme.colors.grid_axis_y.a);
   }
-  if (flag_test(grid_flag, AXIS_Z) && reduce_max(abs(local_pos.xy)) < 1e-4f) {
+  else if (flag_test(grid_flag, AXIS_Z) && reduce_max(abs(local_pos.xy)) < 1e-4f) {
     out_color.rgb = theme.colors.grid_axis_z.rgb;
     out_color.a = max(out_color.a, theme.colors.grid_axis_z.a);
   }
@@ -49,9 +49,9 @@ void main()
       out_color.a *= 1.0f - pow3f(1.0f - abs(V.z));
     }
 
-    /* Add fade towards clip distance. */
-    out_color.a *= 1.0f -
-                   smoothstep(0.0f, 0.5f * grid_buf.distance, dist - 0.5f * grid_buf.distance);
+    /* Add fade towards camera clip plane. */
+    float far_clip = -drw_view_far();
+    out_color.a *= 1.0f - smoothstep(0.0f, 0.5f * far_clip, dist - 0.5f * far_clip);
   }
   else {
     /* Fade at edge of grid level in orthographic, in case of rather small units. */

@@ -11,7 +11,7 @@ VERTEX_SHADER_CREATE_INFO(overlay_grid_next)
 #include "gpu_shader_math_safe_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
 
-/* Helper function; discard the current line vertex in top scope; it will be clipped. */
+/* Helper; discard the current vertex in top scope so it will be clipped. */
 #define discard_line() \
   { \
     gl_Position = float4(NAN_FLT); \
@@ -20,48 +20,50 @@ VERTEX_SHADER_CREATE_INFO(overlay_grid_next)
 
 struct LineData {
   float2 P;
-  uint dir;
-  int level;
+  uint axis;  /* [0, 1, 2] */
+  uint level; /* [0, ..., OVERLAY_GRID_STEPS_DRAW - 1] */
 };
 
 /* Helper; gl_VertexID implicitly encodes a grid line. */
-LineData decode_grid_data(in uint vertex_id)
+LineData decode_grid_data()
 {
+  uint i = gl_VertexID;
   LineData line;
 
   /* Every pair of consecutive verts forms a line, indicated by bit 0.
    * Every pair of consecutive lines flips x/y, indicated by bit 1. */
-  uint side = vertex_id & 0x1u;
-  vertex_id = vertex_id >> 1u;
-  line.dir = vertex_id & 0x1u;
-  vertex_id = vertex_id >> 1u;
+  uint side = i & 0x1u;
+  i = i >> 1u;
+  line.axis = i & 0x1u;
+  i = i >> 1u;
 
   /* The index/level of a line are encoded by the 30 remaining bits. Note that we order
    * levels from "large" to "small", prioritizing output of the larger levels. */
-  line.level = OVERLAY_GRID_STEPS_DRAW - 1 - int(vertex_id / grid_buf.num_lines);
-  vertex_id = vertex_id % grid_buf.num_lines;
+  line.level = OVERLAY_GRID_STEPS_DRAW - 1 - int(i / grid_buf.num_lines);
+  i = i % grid_buf.num_lines;
 
   /* From the index, generate N+1 points equidistantly spaced on [-N/2, N/2]. */
   line.P.x = max(float(grid_buf.num_lines >> 1u), 1.0f);
-  line.P.y = (float(vertex_id) - float(grid_buf.num_lines >> 1u));
+  line.P.y = (float(i) - float(grid_buf.num_lines >> 1u));
 
   /* If this isn't the start of the line, flip the x-component to the end. Likewise,
    * if this isn't the x-direction, flip components to define the y-direction. */
   line.P.x = select(line.P.x, -line.P.x, side);
-  line.P.xy = select(line.P.xy, line.P.yx, line.dir);
+  line.P.xy = select(line.P.xy, line.P.yx, line.axis);
 
   return line;
 }
 
 /* Helper; gl_VertexID implicitly encodes one of three axis lines. */
-LineData decode_axis_data(in uint vertex_id)
+LineData decode_axis_data()
 {
+  uint i = gl_VertexID;
   LineData line;
 
   /* Every pair of consecutive verts forms a line, indicated by bit 0.
    * They then alternate x/y/z, indicated by the other 31 bits. */
-  uint side = vertex_id & 0x1u;
-  line.dir = vertex_id >> 1u;
+  uint side = i & 0x1u;
+  line.axis = i >> 1u;
   /* For an axis line, the level is fixed, and the direction is simply the vertex index. */
   line.level = OVERLAY_GRID_STEPS_DRAW - 1;
   /* Output a vertex as [-N/2, N/2], [0, 0]. */
@@ -73,21 +75,18 @@ LineData decode_axis_data(in uint vertex_id)
 
 void main()
 {
-  LineData line;
-  if (flag_test(grid_flag, SHOW_GRID)) {
-    line = decode_grid_data(gl_VertexID);
-  }
-  else if (flag_test(grid_flag, SHOW_AXES)) {
-    line = decode_axis_data(gl_VertexID);
-  }
+  LineData line = flag_test(grid_flag, SHOW_GRID) ? decode_grid_data() : decode_axis_data();
 
   /* Compute the actual level of a line, offset by -1 to force a sublevel in the 3D viewport. */
-  int level = int(grid_level) + line.level - (flag_test(grid_flag, PLANE_IMAGE) ? 0 : 1);
+  int level = int(grid_buf.level) + int(line.level) - (flag_test(grid_flag, PLANE_IMAGE) ? 0 : 1);
   if (level < 0 || level >= OVERLAY_GRID_STEPS_LEN) {
     discard_line();
   }
 
-  float scale = grid_buf.level_scales[level][line.dir];
+  /* Size, camera offset for lines on this level. Note that offset is rounded to the nearest
+   * level-dependent line position. */
+  float step_size = grid_buf.steps[level][line.axis];
+  float2 step_offs = round(grid_offs / step_size) * step_size;
 
   /* Stage outputs. */
   {
@@ -95,54 +94,46 @@ void main()
     local_coord = line.P / max(float(grid_buf.num_lines >> 1), 1.0f);
 
     /* Stage output: level fade in [0, 1], which we use to smoothly transition grid levels. */
-    local_alpha = (line.level + 1.0f - fract(grid_level)) / float(OVERLAY_GRID_STEPS_DRAW - 1);
+    local_alpha = (line.level + 1.0f - fract(grid_buf.level)) / float(OVERLAY_GRID_STEPS_DRAW - 1);
     local_alpha = saturate(local_alpha);
-    local_alpha = 2.0f * local_alpha - square(local_alpha); /* Upside down parabola curve. */
 
     /* Fade by pixel size for orthographic, as we lack proper line dfdx/dfdy. */
     if (!drw_view_is_perspective()) {
-      local_alpha *= smoothstep(scale * 0.25f, scale * pow3f(0.25f), uniform_buf.pixel_fac);
+      local_alpha *= smoothstep(
+          step_size * 0.25f, step_size * pow3f(0.25f), uniform_buf.pixel_fac);
     }
   }
 
-  line.P *= scale;
+  /* Apply per-level size, camera offset. */
+  line.P = step_offs + step_size * line.P;
 
-  /* Clipping; restrict lines to a reasonable range for precision. */
-  if (!flag_test(grid_flag, PLANE_IMAGE)) {
-    float clip = drw_view_is_perspective() ?
-                     grid_buf.distance :
-                     (8.0f / max(drw_view().winmat[0][0], drw_view().winmat[1][1]));
-    if (all(greaterThan(abs(line.P), float2(clip)))) {
-      discard_line(); /* Both x, y lie outside the clip distance. */
-    }
-    else {
-      line.P = clamp(line.P, -clip, clip);
-    }
-  }
-
-  /* Add scaled camera offset, rounded to the nearest level-dependent line position. */
-  line.P += round(grid_offs / scale) * scale;
-
-  /* Clipping; restrict the grid in the UV/Image editor to the specified tile sizes */
   if (flag_test(grid_flag, PLANE_IMAGE)) {
-    line.P = clamp(line.P, float2(-1.0f), 2.0f * grid_buf.size.xy - 1.0f);
+    /* Clipping; restrict the grid in the UV/Image editor to the specified tile size. */
+    line.P = clamp(line.P, float2(-1.0f), grid_buf.clip_rect * 2.0f - 1.0f);
+  }
+  else {
+    /* Clipping; restrict lines to a reasonable range for precision. */
+    if (all(greaterThan(abs(line.P - step_offs), grid_buf.clip_rect))) {
+      discard_line();
+    }
+    line.P = clamp(line.P, step_offs - grid_buf.clip_rect, step_offs + grid_buf.clip_rect);
   }
 
-  /* Clipping; if there exists an integer, s.t. with the scaling of the level *above* we can draw
-   * the current line, we can discard the current line on *any* sublevel as the superlevel
-   * is guaranteed to draw over it. */
-  if (!flag_test(grid_flag, PLANE_IMAGE) && flag_test(grid_flag, SHOW_GRID)) {
+  /* Clipping; if there exists an integer, s.t. with the scaling of the level above we can draw
+   * the current line, we can discard the current line on any sublevel. */
+  /* TODO (not_mark): re-enable when I can work out problems with this */
+  /* if (!flag_test(grid_flag, PLANE_IMAGE) && flag_test(grid_flag, SHOW_GRID)) {
     if (line.level < OVERLAY_GRID_STEPS_DRAW - 1 && level < OVERLAY_GRID_STEPS_LEN - 1) {
-      float nscale = grid_buf.level_scales[min(level + 1, OVERLAY_GRID_STEPS_LEN - 1)][0];
-      float offset = round(select(grid_offs.y, grid_offs.x, line.dir) / nscale) * nscale;
-      float P_diff = offset + (select(line.P.y, line.P.x, line.dir) - offset) / nscale;
+      float nscale = grid_buf.steps[min(level + 1, OVERLAY_GRID_STEPS_LEN - 1)][0];
+      float offset = round(select(grid_offs.y, grid_offs.x, line.axis) / nscale) * nscale;
+      float P_diff = offset + (select(line.P.y, line.P.x, line.axis) - offset) / nscale;
       if (abs(fract(P_diff)) < 1e-5) {
         discard_line();
       }
     }
-  }
+  } */
 
-  /* Output the world-space position on the correct plane. */
+  /* Stage output: world-space position on the correct plane/axis. */
   local_pos = float3(0.0f);
   if (flag_test(grid_flag, SHOW_GRID)) {
     if (flag_test(grid_flag, PLANE_XY)) {
@@ -161,10 +152,10 @@ void main()
   else if (flag_test(grid_flag, SHOW_AXES)) {
     /* Test X/Y/Z axis flags per line */
     const uint[3] flags = {AXIS_X, AXIS_Y, AXIS_Z};
-    if (!flag_test(grid_flag, flags[line.dir])) {
+    if (!flag_test(grid_flag, flags[line.axis])) {
       discard_line();
     }
-    local_pos[line.dir] = line.P.x;
+    local_pos[line.axis] = line.P.x;
   }
 
   gl_Position = drw_view().winmat * (drw_view().viewmat * float4(local_pos, 1.0f));

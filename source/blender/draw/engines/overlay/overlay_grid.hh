@@ -35,9 +35,8 @@ class Grid : Overlay {
   /* General parameters. */
   bool is_3d_grid_ = false;
 
-  /* Draw information. */
+  /* Push constant data */
   float2 grid_offs_ = float2(0.0f);
-  float grid_level_;
   int grid_flag_ = 0;
   int axis_flag_ = 0;
 
@@ -57,18 +56,20 @@ class Grid : Overlay {
     grid_ps_.init();
     grid_ps_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
     grid_ps_.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
-    grid_ps_.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_BLEND_ALPHA |
-                       DRW_STATE_DEPTH_LESS_EQUAL);
+    grid_ps_.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA);
 
     /* Draw a quad behind the grid, specifically in the 2D/uv image editor. This is retained
      * from the 5.0 grid. */
     if (state.is_space_image()) {
+      float3 tile_scale(grid_ubo_.clip_rect.x, grid_ubo_.clip_rect.y, 0.0f);
+
       auto &sub = grid_ps_.sub("grid_background");
       sub.shader_set(res.shaders->grid_background.get());
       const float4 color_back = math::interpolate(
           res.theme.colors.background, res.theme.colors.grid, 0.5);
       sub.push_constant("ucolor", color_back);
-      sub.push_constant("tile_scale", float3(grid_ubo_.size));
+      /* TODO (not_mark): potentially bind the available UBO instead.  */
+      sub.push_constant("tile_scale", tile_scale);
       /* TODO (not_mark): is this one necessary? IIRC, the point is to get rid of it. */
       sub.bind_texture("depth_buffer", depth_tx);
       sub.draw(res.shapes.quad_solid.get());
@@ -78,8 +79,9 @@ class Grid : Overlay {
     {
       auto &sub = grid_ps_.sub("grid");
       sub.shader_set(res.shaders->grid.get());
+      sub.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA | DRW_STATE_WRITE_DEPTH |
+                    DRW_STATE_DEPTH_LESS_EQUAL);
       sub.bind_ubo("grid_buf", &grid_ubo_);
-      sub.push_constant("grid_level", &grid_level_);
 
       if (axis_flag_) {
         sub.push_constant("grid_offs", float2(0.0f));
@@ -107,8 +109,8 @@ class Grid : Overlay {
       sub.shader_set(res.shaders->grid_image.get());
       sub.push_constant("ucolor", theme_color);
       tile_pos_buf_.clear();
-      for (const int x : IndexRange(grid_ubo_.size[0])) {
-        for (const int y : IndexRange(grid_ubo_.size[1])) {
+      for (const int x : IndexRange(grid_ubo_.clip_rect.x)) {
+        for (const int y : IndexRange(grid_ubo_.clip_rect.y)) {
           tile_pos_buf_.append(float4(x, y, 0.0f, 0.0f));
         }
       }
@@ -169,35 +171,31 @@ class Grid : Overlay {
     std::array<float, SI_GRID_STEPS_LEN> steps_x, steps_y;
     ED_space_image_grid_steps(sima, steps_x.data(), steps_y.data(), SI_GRID_STEPS_LEN);
     for (int i = 0; i < SI_GRID_STEPS_LEN; ++i) {
-      grid_ubo_.level_scales[i].x = grid_ubo_.level_scales[i].z = steps_x[i] * 2.0f;
-      grid_ubo_.level_scales[i].y = steps_y[i] * 2.0f;
+      grid_ubo_.steps[i].x = grid_ubo_.steps[i].z = steps_x[i] * 2.0f;
+      grid_ubo_.steps[i].y = steps_y[i] * 2.0f;
     }
 
     /* Determine camera offset to center of v2d. */
-    grid_ubo_.distance = 1.0f;
     grid_offs_ = float2(v2d->cur.xmax + v2d->cur.xmin, v2d->cur.ymax + v2d->cur.ymin) - 1.0f;
 
     /* Query grid image zoom level. Then find the lowest relevant grid level + fractional. */
     float dist = ED_space_image_zoom_level(v2d, SI_GRID_STEPS_LEN) * 4.0f;
     for (int i = 0; i < OVERLAY_GRID_STEPS_LEN + 1; i++) {
-      float prev = (i > 0) ?
-                       std::min(grid_ubo_.level_scales[i - 1].x, grid_ubo_.level_scales[i - 1].y) :
-                       0.0f;
+      float prev = (i > 0) ? std::min(grid_ubo_.steps[i - 1].x, grid_ubo_.steps[i - 1].y) : 0.0f;
       float curr = (i < OVERLAY_GRID_STEPS_LEN) ?
-                       std::min(grid_ubo_.level_scales[i].x, grid_ubo_.level_scales[i].y) :
+                       std::min(grid_ubo_.steps[i].x, grid_ubo_.steps[i].y) :
                        std::numeric_limits<float>::infinity();
 
       if (curr >= dist || i == OVERLAY_GRID_STEPS_LEN) {
-        grid_level_ = static_cast<float>(i) + safe_divide(dist - prev, curr - prev);
+        grid_ubo_.level = static_cast<float>(i) + safe_divide(dist - prev, curr - prev);
         break;
       }
     }
 
-    /* TODO (not_mark): detail what's being stored here. Grid res basically. */
-    grid_ubo_.size = float4(1.0f);
+    grid_ubo_.clip_rect = float2(1.0f);
     if (is_uv_edit) {
-      grid_ubo_.size[0] = float(sima->tile_grid_shape[0]);
-      grid_ubo_.size[1] = float(sima->tile_grid_shape[1]);
+      grid_ubo_.clip_rect.x = float(sima->tile_grid_shape[0]);
+      grid_ubo_.clip_rect.y = float(sima->tile_grid_shape[1]);
     }
 
     /* This suffices for most cases, and in others we fade to hide it. */
@@ -226,50 +224,35 @@ class Grid : Overlay {
     /* Set `grid_flag_` dependent on view configuration. */
     if (rv3d->is_persp || rv3d->view == RV3D_VIEW_USER) {
       /* Perspective; set selected axes and floor bits. */
-      axis_flag_ |= (show_axis_x ? (AXIS_X | SHOW_AXES) : OVERLAY_GridBits(0));
-      axis_flag_ |= (show_axis_y ? (AXIS_Y | SHOW_AXES) : OVERLAY_GridBits(0));
-      axis_flag_ |= (show_axis_z ? (AXIS_Z | SHOW_AXES) : OVERLAY_GridBits(0));
-      grid_flag_ |= (show_persp ? (PLANE_XY | SHOW_GRID) : OVERLAY_GridBits(0));
+      axis_flag_ |= (show_axis_x ? (AXIS_X | SHOW_AXES) : 0);
+      axis_flag_ |= (show_axis_y ? (AXIS_Y | SHOW_AXES) : 0);
+      axis_flag_ |= (show_axis_z ? (AXIS_Z | SHOW_AXES) : 0);
+      grid_flag_ |= (show_persp ? (PLANE_XY | SHOW_GRID) : 0);
     }
     else {
       /* Orthographic; set selected axes and plane bits dependent on the specific view
        * (top, right, left, etc.) that is selected. */
-      int axis_x_flag = show_axis_x ? AXIS_X : OVERLAY_GridBits(0);
-      int axis_y_flag = show_axis_y ? AXIS_Y : OVERLAY_GridBits(0);
-      int axis_z_flag = show_axis_z ? AXIS_Z : OVERLAY_GridBits(0);
       if (ELEM(rv3d->view, RV3D_VIEW_RIGHT, RV3D_VIEW_LEFT)) {
         grid_flag_ = PLANE_YZ;
-        axis_flag_ = axis_y_flag | axis_z_flag;
+        axis_flag_ = (show_axis_y ? AXIS_Y : 0) | (show_axis_z ? AXIS_Z : 0);
       }
       else if (ELEM(rv3d->view, RV3D_VIEW_TOP, RV3D_VIEW_BOTTOM)) {
         grid_flag_ = PLANE_XY;
-        axis_flag_ = axis_x_flag | axis_y_flag;
+        axis_flag_ = (show_axis_x ? AXIS_X : 0) | (show_axis_y ? AXIS_Y : 0);
       }
       else if (ELEM(rv3d->view, RV3D_VIEW_FRONT, RV3D_VIEW_BACK)) {
         grid_flag_ = PLANE_XZ;
-        axis_flag_ = axis_x_flag | axis_z_flag;
+        axis_flag_ = (show_axis_x ? AXIS_X : 0) | (show_axis_z ? AXIS_Z : 0);
       }
-      grid_flag_ |= (show_ortho ? (GRID_BACK | SHOW_GRID) : OVERLAY_GridBits(0));
-      axis_flag_ |= (show_ortho ? (GRID_BACK | SHOW_AXES) : OVERLAY_GridBits(0));
-    }
-
-    /* Query far clip distance dependent on camera/viewport */
-    if (rv3d->persp == RV3D_CAMOB && v3d->camera && v3d->camera->type == OB_CAMERA) {
-      Object *camera_object = DEG_get_evaluated(state.depsgraph, v3d->camera);
-      grid_ubo_.distance = ((Camera *)(camera_object->data))->clip_end;
-      grid_flag_ |= GRID_CAMERA;
-      axis_flag_ |= GRID_CAMERA;
-    }
-    else {
-      grid_ubo_.distance = v3d->clip_end;
+      grid_flag_ |= (show_ortho ? (GRID_BACK | SHOW_GRID) : 0);
+      axis_flag_ |= (show_ortho ? (GRID_BACK | SHOW_AXES) : 0);
     }
 
     /* Query grid scales from unit/scaling; this range suffices for user-visible levels. */
     Array<float, SI_GRID_STEPS_LEN> steps(SI_GRID_STEPS_LEN);
     ED_view3d_grid_steps(state.scene, v3d, rv3d, steps.data());
     for (int i = 0; i < SI_GRID_STEPS_LEN; ++i) {
-      grid_ubo_.level_scales[i].x = grid_ubo_.level_scales[i].y = grid_ubo_.level_scales[i].z =
-          steps[i];
+      grid_ubo_.steps[i] = float4(steps[i]);
     }
 
     /* Camera parameters. */
@@ -291,18 +274,18 @@ class Grid : Overlay {
     }
 
     /* Extract 2D grid offset for moving grid "with the camera" on the floor plane. */
-    float3 camera_poi = drw_view_position - dist * drw_view_forward;
+    float3 camera_offs = drw_view_position - dist * drw_view_forward;
     if (ELEM(rv3d->view, RV3D_VIEW_RIGHT, RV3D_VIEW_LEFT)) {
-      grid_offs_ = camera_poi.yz();
+      grid_offs_ = camera_offs.yz();
     }
     else if (ELEM(rv3d->view, RV3D_VIEW_TOP, RV3D_VIEW_BOTTOM)) {
-      grid_offs_ = camera_poi.xy();
+      grid_offs_ = camera_offs.xy();
     }
     else if (ELEM(rv3d->view, RV3D_VIEW_FRONT, RV3D_VIEW_BACK)) {
-      grid_offs_ = float2(camera_poi.x, camera_poi.z);
+      grid_offs_ = float2(camera_offs.x, camera_offs.z);
     }
     else { /* Perspective view, Image/UV view. */
-      grid_offs_ = camera_poi.xy();
+      grid_offs_ = camera_offs.xy();
     }
 
     /* Find the lowest relevant grid level + fractional, dependent on camera distance. We
@@ -310,14 +293,30 @@ class Grid : Overlay {
      * barely exceeds the largest specified grid scale in unit systems. */
     /* TODO(not_mark): half of this loop is unreachable. Fix. */
     for (int i = 0; i < OVERLAY_GRID_STEPS_LEN - 1; i++) {
-      float curr = std::min(grid_ubo_.level_scales[i].x, grid_ubo_.level_scales[i].y);
+      float curr = std::min(grid_ubo_.steps[i].x, grid_ubo_.steps[i].y);
       float next = (i < OVERLAY_GRID_STEPS_LEN - 1) ?
-                       std::min(grid_ubo_.level_scales[i + 1].x, grid_ubo_.level_scales[i + 1].y) :
+                       std::min(grid_ubo_.steps[i + 1].x, grid_ubo_.steps[i + 1].y) :
                        curr * 10.0f;
       if (next >= dist || i == OVERLAY_GRID_STEPS_LEN - 1) {
-        grid_level_ = static_cast<float>(i) + safe_divide(dist - curr, next - curr);
+        grid_ubo_.level = static_cast<float>(i) + safe_divide(dist - curr, next - curr);
         break;
       }
+    }
+
+    /* Set clipping rectangle for lines, dependent on camera/viewport. */
+    /* TODO(not_mark): use for finite grid clipping. */
+    if (rv3d->persp == RV3D_CAMOB && v3d->camera && v3d->camera->type == OB_CAMERA) {
+      Object *camera_object = DEG_get_evaluated(state.depsgraph, v3d->camera);
+      grid_flag_ |= GRID_CAMERA;
+      axis_flag_ |= GRID_CAMERA;
+
+      float clip_dist = ((Camera *)(camera_object->data))->clip_end;
+      grid_ubo_.clip_rect = float2(clip_dist);
+    }
+    else {
+      float clip_dist = rv3d->is_persp ? v3d->clip_end :
+                                         (4.0f / max(rv3d->winmat[0][0], rv3d->winmat[1][1]));
+      grid_ubo_.clip_rect = float2(clip_dist);
     }
 
     /* This suffices for most cases, and in others we fade to hide it. */

@@ -14,9 +14,9 @@
 #include "overlay_common_infos.hh"
 
 /* We use the normalized local position to avoid precision loss during interpolation. */
-GPU_SHADER_INTERFACE_INFO(overlay_grid_vert_out)
+GPU_SHADER_INTERFACE_INFO(overlay_grid_iface)
 SMOOTH(float3, local_pos)
-SMOOTH(float2, local_coord) /* TODO(not_mark): remove */
+SMOOTH(float2, local_coord)
 FLAT(float, local_alpha)
 FLAT(float2, edge_start)
 NO_PERSPECTIVE(float2, edge_pos)
@@ -26,11 +26,10 @@ GPU_SHADER_CREATE_INFO(overlay_grid_next)
 DO_STATIC_COMPILATION()
 TYPEDEF_SOURCE("overlay_shader_shared.hh")
 VERTEX_IN(0, float3, pos)
-VERTEX_OUT(overlay_grid_vert_out)
+VERTEX_OUT(overlay_grid_iface)
 FRAGMENT_OUT(0, float4, out_color)
 FRAGMENT_OUT(1, float4, line_output)
 UNIFORM_BUF(3, OVERLAY_GridData, grid_buf)
-PUSH_CONSTANT(float, grid_level)
 PUSH_CONSTANT(float2, grid_offs)
 PUSH_CONSTANT(int, grid_flag)
 VERTEX_SOURCE("overlay_grid_vert.glsl")
