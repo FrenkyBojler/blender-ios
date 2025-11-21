@@ -1,2 +1,3 @@
 Referenced by issue #141871, Blender LTS: Maintenance Task 4.5
 Referenced by issue #149443, HIP RT or OIDN leads to crashing on newer AMD GPU drivers
+Referenced by pull request #150321, Fix: Incorrect HIP load path on Linux
