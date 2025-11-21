@@ -22,6 +22,7 @@
 #include <array>
 #include <memory>
 #include <optional>
+#include <string>
 
 #include "DNA_defs.h"
 #include "DNA_vec_types.h"
@@ -30,21 +31,27 @@
 #include "BLI_string_ref.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 #include "WM_types.hh"
 
 struct bContext;
 struct uiBlock;
 struct uiButViewItem;
-struct uiLayout;
 struct ViewLink;
-struct wmDrag;
 struct wmNotifier;
 
 namespace blender::ui {
 
 class AbstractViewItem;
 class AbstractViewItemDragController;
+
+enum class ViewScrollDirection {
+  UP,
+  DOWN,
+};
+
+struct Layout;
 
 class AbstractView {
   friend class AbstractViewItem;
@@ -59,13 +66,21 @@ class AbstractView {
    * may be able to bind the button to a `std::string` or similar.
    */
   std::unique_ptr<std::array<char, MAX_NAME>> rename_buffer_;
+  /* Search/filter string from the previous redraw, stored to detect changes. */
+  std::string prev_filter_string_;
+
+  bool needs_filtering_ = true;
 
   /* See #get_bounds(). */
   std::optional<rcti> bounds_;
 
+  std::string context_menu_title;
+  /** See #set_popup_keep_open(). */
+  bool popup_keep_open_ = false;
+  bool is_multiselect_supported_ = false;
+
  public:
   virtual ~AbstractView() = default;
-
   /**
    * If a view wants to support dropping data into it, it has to return a drop target here.
    * That is an object implementing #DropTargetInterface.
@@ -85,9 +100,32 @@ class AbstractView {
    */
   virtual bool begin_filtering(const bContext &C) const;
 
-  virtual void draw_overlays(const ARegion &region) const;
+  virtual void draw_overlays(const ARegion &region, const uiBlock &block) const;
 
   virtual void foreach_view_item(FunctionRef<void(AbstractViewItem &)> iter_fn) const = 0;
+
+  virtual bool supports_scrolling() const;
+
+  /**
+   * \return True when everything in this view is visible, i.e. no scrolling is needed.
+   */
+  virtual bool is_fully_visible() const;
+
+  virtual void scroll(ViewScrollDirection direction);
+
+  /**
+   * From the current view state, return certain state that will be written to files (stored in
+   * #ARegion.view_states) to preserve it over UI changes and file loading. The state can be
+   * restored using #persistent_state_apply().
+   *
+   * Return an empty value if there's no state to preserve (default implementation).
+   */
+  virtual std::optional<uiViewState> persistent_state() const;
+  /**
+   * Restore a view state given in \a state, which was created by #persistent_state() for saving in
+   * files, and potentially loaded from a file.
+   */
+  virtual void persistent_state_apply(const uiViewState &state);
 
   /**
    * Makes \a item valid for display in this view. Behavior is undefined for items not registered
@@ -107,6 +145,17 @@ class AbstractView {
    * Updated as part of #UI_block_end(), before that it's unset.
    */
   std::optional<rcti> get_bounds() const;
+
+  std::string get_context_menu_title() const;
+  void set_context_menu_title(const std::string &title);
+
+  bool get_popup_keep_open() const;
+  /** If this view is displayed in a popup, don't close it when clicking to activate items. */
+  void set_popup_keep_open();
+
+  void clear_search_highlight();
+  void allow_multiselect_items();
+  bool is_multiselect_supported() const;
 
  protected:
   AbstractView() = default;
@@ -134,6 +183,9 @@ class AbstractView {
    * #update_from_old() have finished.
    */
   bool is_reconstructed() const;
+
+  void filter(std::optional<StringRef> filter_str);
+  const AbstractViewItem *search_highlight_item() const;
 };
 
 class AbstractViewItem {
@@ -151,16 +203,45 @@ class AbstractViewItem {
   bool is_activatable_ = true;
   bool is_interactive_ = true;
   bool is_active_ = false;
+  /** Only change using #set_selected() so overrides can sync changes to data. */
+  bool is_selected_ = false;
   bool is_renaming_ = false;
+  /** See #is_search_highlight(). */
+  bool is_highlighted_search_ = false;
 
   /** Cache filtered state here to avoid having to re-query. */
-  mutable std::optional<bool> is_filtered_visible_;
+  bool is_filtered_visible_ = true;
+
+  /**
+   * Typically, only items with children can be collapsed. However, in some cases it's important
+   * to draw collapsible items differently from non-collapsible ones, even if they don't have
+   * children currently.
+   */
+  bool is_always_collapsible_ = false;
+  /** See #select_on_click_set(). */
+  bool select_on_click_ = false;
+  /** See #always_reactivate_on_click(). */
+  bool reactivate_on_click_ = false;
+  /** See #activate_for_context_menu_set(). */
+  bool activate_for_context_menu_ = false;
 
  public:
   virtual ~AbstractViewItem() = default;
 
-  virtual void build_context_menu(bContext &C, uiLayout &column) const;
+  virtual void build_context_menu(bContext &C, Layout &column) const;
 
+  /**
+   * Like #activate() but does not call #on_activate(). Use it to reflect changes in the active
+   * state that happened externally. Or to simply highlight the item as active without triggering
+   * activation with an `on_activate()` call. E.g. this is done when spawning a context menu if
+   * #activate_for_context_menu_set() wasn't called, to indicate which item the context menu
+   * belongs to.
+   *
+   * Can be overridden to customize behavior but should always call the base class implementation.
+   *
+   * \return true of the item was activated.
+   */
+  virtual bool set_state_active();
   /**
    * Called when the view changes an item's state from inactive to active. Will only be called if
    * the state change is triggered through the view, not through external changes. E.g. a click on
@@ -175,6 +256,8 @@ class AbstractViewItem {
    */
   virtual std::optional<bool> should_be_active() const;
 
+  virtual std::optional<bool> should_be_selected() const;
+  virtual void set_selected(const bool select);
   /**
    * Queries if the view item supports renaming in principle. Renaming may still fail, e.g. if
    * another item is already being renamed.
@@ -208,15 +291,20 @@ class AbstractViewItem {
    */
   virtual std::unique_ptr<DropTargetInterface> create_item_drop_target();
 
-  /** Return the result of #is_filtered_visible(), but ensure the result is cached so it's only
-   * queried once per redraw. */
-  bool is_filtered_visible_cached() const;
+  /**
+   * View types should implement this to return some name or identifier of the item, which is
+   * helpful for debugging (there's nothing to identify the item just from the #AbstractViewItem
+   * otherwise).
+   */
+  virtual std::optional<std::string> debug_name() const;
+
+  bool is_filtered_visible() const;
 
   /** Get the view this item is registered for using #AbstractView::register_item(). */
   AbstractView &get_view() const;
 
   /**
-   * Get the view item button (button of type #UI_BTYPE_VIEW_ITEM) created for this item. Every
+   * Get the view item button (button of type #ButType::ViewItem) created for this item. Every
    * visible item gets one during the layout building. Items that are not visible may not have one,
    * so null is a valid return value.
    */
@@ -229,26 +317,56 @@ class AbstractViewItem {
 
   void disable_activatable();
   /**
+   * Configure this view item to only select/activate on mouse-click (i.e. when the mouse is
+   * pressed and released without much movement in-between); the default is to select/activate on
+   * mouse-press.
+   */
+  void select_on_click_set();
+  bool is_select_on_click() const;
+  /** Call #on_activate() on every click on the item, even when the item was active before. */
+  void always_reactivate_on_click();
+  /** Call #on_activate() when spawning a context menu. Otherwise the item will only be highlighted
+   * as active to indicate where the context menu was spawned from. */
+  void activate_for_context_menu_set();
+  /**
    * Activates this item, deactivates other items, and calls the #AbstractViewItem::on_activate()
    * function. Should only be called when the item was activated through the view (e.g. through a
    * click), not if the view reflects an external change (e.g.
    * #AbstractViewItem::should_be_active() changes from returning false to returning true).
    *
+   * Also ensures the item is selected if it's active.
+   *
    * Requires the view to have completed reconstruction, see #is_reconstructed(). Otherwise the
    * actual item state is unknown, possibly calling state-change update functions incorrectly.
    */
   void activate(bContext &C);
+  /**
+   * If #activate_for_context_menu_set() was called, properly (re)activates the item including a
+   * #AbstractViewItem::on_activate() call. Otherwise, the item will only be highlighted as active,
+   * to indicate which item the context menu belongs to.
+   * Should be used when spawning a context menu for this item.
+   */
+  void activate_for_context_menu(bContext &C);
   void deactivate();
   /**
    * Requires the view to have completed reconstruction, see #is_reconstructed(). Otherwise we
    * can't be sure about the item state.
    */
   bool is_active() const;
+  bool is_selected() const;
+  /**
+   * Should this item be highlighted as matching search result? Only one item should be highlighted
+   * this way at a time. Pressing enter will activate it.
+   */
+  bool is_search_highlight() const;
 
   bool is_renaming() const;
   void begin_renaming();
   void end_renaming();
   void rename_apply(const bContext &C);
+
+  virtual void delete_item(bContext *C);
+  virtual void on_filter();
 
  protected:
   AbstractViewItem() = default;
@@ -272,14 +390,6 @@ class AbstractViewItem {
   virtual void update_from_old(const AbstractViewItem &old);
 
   /**
-   * Like #activate() but does not call #on_activate(). Use it to reflect changes in the active
-   * state that happened externally.
-   * Can be overridden to customize behavior but should always call the base class implementation.
-   * \return true of the item was activated.
-   */
-  virtual bool set_state_active();
-
-  /**
    * See #AbstractView::change_state_delayed(). Overrides should call the base class
    * implementation.
    */
@@ -287,9 +397,9 @@ class AbstractViewItem {
 
   /**
    * \note Do not call this directly to avoid constantly rechecking the filter state. Instead use
-   *       #is_filtered_visible_cached() for querying.
+   *       #is_filtered_visible() for querying.
    */
-  virtual bool is_filtered_visible() const;
+  virtual bool should_be_filtered_visible(StringRefNull filter_string) const;
 
   /**
    * Add a text button for renaming the item to \a block. This must be used for the built-in
@@ -315,9 +425,13 @@ class AbstractViewItemDragController {
   AbstractViewItemDragController(AbstractView &view);
   virtual ~AbstractViewItemDragController() = default;
 
-  virtual eWM_DragDataType get_drag_type() const = 0;
+  virtual std::optional<eWM_DragDataType> get_drag_type() const = 0;
   virtual void *create_drag_data() const = 0;
-  virtual void on_drag_start();
+  /**
+   * Called when beginning to drag. Also called when #get_drag_type() doesn't return a value, so an
+   * arbitrary action can be executed.
+   */
+  virtual void on_drag_start(bContext &C);
 
   /** Request the view the item is registered for as type #ViewType. Throws a `std::bad_cast`
    * exception if the view is not of the requested type. */
@@ -326,7 +440,7 @@ class AbstractViewItemDragController {
 
 template<class ViewType> ViewType &AbstractViewItemDragController::get_view() const
 {
-  static_assert(std::is_base_of<AbstractView, ViewType>::value,
+  static_assert(std::is_base_of_v<AbstractView, ViewType>,
                 "Type must derive from and implement the ui::AbstractView interface");
   return dynamic_cast<ViewType &>(view_);
 }

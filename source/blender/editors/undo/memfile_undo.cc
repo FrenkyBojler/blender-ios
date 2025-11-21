@@ -5,11 +5,10 @@
 /** \file
  * \ingroup edundo
  *
- * Wrapper between 'ED_undo.hh' and 'BKE_undo_system.hh' API's.
+ * Wrapper between `ED_undo.hh` and `BKE_undo_system.hh` API's.
  */
 
 #include "BLI_sys_types.h"
-#include "BLI_utildefines.h"
 
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
@@ -17,7 +16,6 @@
 #include "DNA_ID.h"
 #include "DNA_collection_types.h"
 #include "DNA_node_types.h"
-#include "DNA_object_enums.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
@@ -28,6 +26,7 @@
 #include "BKE_node.hh"
 #include "BKE_preview_image.hh"
 #include "BKE_scene.hh"
+#include "BKE_scene_runtime.hh"
 #include "BKE_undo_system.hh"
 
 #include "../depsgraph/DEG_depsgraph.hh"
@@ -42,8 +41,6 @@
 #include "../blenloader/BLO_undofile.hh"
 
 #include "undo_intern.hh"
-
-#include <cstdio>
 
 /* -------------------------------------------------------------------- */
 /** \name Implements ED Undo System
@@ -98,12 +95,21 @@ static bool memfile_undosys_step_encode(bContext * /*C*/, Main *bmain, UndoStep 
 static int memfile_undosys_step_id_reused_cb(LibraryIDLinkCallbackData *cb_data)
 {
   ID *self_id = cb_data->self_id;
+  ID *owner_id = cb_data->owner_id;
   ID **id_pointer = cb_data->id_pointer;
-  BLI_assert((self_id->tag & LIB_TAG_UNDO_OLD_ID_REUSED_UNCHANGED) != 0);
+  /* Embedded IDs do not get tagged with #ID_TAG_UNDO_OLD_ID_REUSED_UNCHANGED currently (could be,
+   * but would add extra processing, and by definition they always share that state with their
+   * owner, as they are stored as 'regular data' in blend-files, not as independent IDs).
+   *
+   * NOTE: It seems that local IDs using embedded ones are never 'reused unchanged', this was
+   * never caught before. However, if using `self_id` here, this assert gets triggered with
+   * upcoming packed data. Probably because while packed data remains unchanged, it is handled like
+   * regular local data by undo code, and like regular linked data. */
+  BLI_assert((owner_id->tag & ID_TAG_UNDO_OLD_ID_REUSED_UNCHANGED) != 0);
+  UNUSED_VARS_NDEBUG(owner_id);
 
   ID *id = *id_pointer;
-  if (id != nullptr && !ID_IS_LINKED(id) && (id->tag & LIB_TAG_UNDO_OLD_ID_REUSED_UNCHANGED) == 0)
-  {
+  if (id != nullptr && !ID_IS_LINKED(id) && (id->tag & ID_TAG_UNDO_OLD_ID_REUSED_UNCHANGED) == 0) {
     bool do_stop_iter = true;
     if (GS(self_id->name) == ID_OB) {
       Object *ob_self = (Object *)self_id;
@@ -162,7 +168,7 @@ static void memfile_undosys_step_decode(
 
   bool use_old_bmain_data = true;
 
-  if (USER_EXPERIMENTAL_TEST(&U, use_undo_legacy) || !(U.uiflag & USER_GLOBALUNDO)) {
+  if (USER_DEVELOPER_TOOL_TEST(&U, use_undo_legacy) || !(U.uiflag & USER_GLOBALUNDO)) {
     use_old_bmain_data = false;
   }
   else if (undo_direction == STEP_REDO) {
@@ -230,16 +236,38 @@ static void memfile_undosys_step_decode(
      * data-blocks, at least evaluated copies need to be updated... */
     ID *id = nullptr;
     FOREACH_MAIN_ID_BEGIN (bmain, id) {
-      if (id->tag & LIB_TAG_UNDO_OLD_ID_REUSED_UNCHANGED) {
+      if (id->tag & ID_TAG_UNDO_OLD_ID_REUSED_UNCHANGED) {
         BKE_library_foreach_ID_link(
             bmain, id, memfile_undosys_step_id_reused_cb, nullptr, IDWALK_READONLY);
+      }
+
+      if (GS(id->name) == ID_SCE) {
+        Scene *scene = reinterpret_cast<Scene *>(id);
+        /* TODO: We should be able to restore these depsgraphs properly as part of
+         * #BKE_scene_undo_depsgraphs_restore but this is currently only done for depsgraphs in the
+         * scene.depsgraph_hash map. So the safest option is to just delete the following
+         * depsgraphs for now. */
+        if (scene->compositing_node_group) {
+          /* Ensure undo calls from the UI update the interactive compositor preview depsgraph, see
+           * #compo_initjob. */
+          blender::bke::CompositorRuntime &compositor_runtime = scene->runtime->compositor;
+          DEG_graph_free(compositor_runtime.preview_depsgraph);
+          compositor_runtime.preview_depsgraph = nullptr;
+        }
+
+        if (scene->runtime->sequencer.depsgraph) {
+          /* Ensure that the depsgraph created in #get_depsgraph_for_scene_strip are updated. */
+          blender::bke::SequencerRuntime &seq_runtime = scene->runtime->sequencer;
+          DEG_graph_free(seq_runtime.depsgraph);
+          seq_runtime.depsgraph = nullptr;
+        }
       }
 
       /* NOTE: Tagging `ID_RECALC_SYNC_TO_EVAL` here should not be needed in practice, since
        * modified IDs should already have other depsgraph update tags anyway.
        * However, for the sake of consistency, it's better to effectively use it,
        * since content of that ID pointer does have been modified. */
-      uint recalc_flags = id->recalc | ((id->tag & LIB_TAG_UNDO_OLD_ID_REREAD_IN_PLACE) ?
+      uint recalc_flags = id->recalc | ((id->tag & ID_TAG_UNDO_OLD_ID_REREAD_IN_PLACE) ?
                                             ID_RECALC_SYNC_TO_EVAL :
                                             IDRecalcFlag(0));
       /* Tag depsgraph to update data-block for changes that happened between the
@@ -248,10 +276,10 @@ static void memfile_undosys_step_decode(
         DEG_id_tag_update_ex(bmain, id, recalc_flags);
       }
 
-      bNodeTree *nodetree = ntreeFromID(id);
+      bNodeTree *nodetree = blender::bke::node_tree_from_id(id);
       if (nodetree != nullptr) {
         recalc_flags = nodetree->id.recalc;
-        if (id->tag & LIB_TAG_UNDO_OLD_ID_REREAD_IN_PLACE) {
+        if (id->tag & ID_TAG_UNDO_OLD_ID_REREAD_IN_PLACE) {
           recalc_flags |= ID_RECALC_SYNC_TO_EVAL;
         }
         if (recalc_flags != 0) {
@@ -262,7 +290,7 @@ static void memfile_undosys_step_decode(
         Scene *scene = (Scene *)id;
         if (scene->master_collection != nullptr) {
           recalc_flags = scene->master_collection->id.recalc;
-          if (id->tag & LIB_TAG_UNDO_OLD_ID_REREAD_IN_PLACE) {
+          if (id->tag & ID_TAG_UNDO_OLD_ID_REREAD_IN_PLACE) {
             recalc_flags |= ID_RECALC_SYNC_TO_EVAL;
           }
           if (recalc_flags != 0) {
@@ -278,14 +306,14 @@ static void memfile_undosys_step_decode(
 
     FOREACH_MAIN_ID_BEGIN (bmain, id) {
       /* Clear temporary tag. */
-      id->tag &= ~(LIB_TAG_UNDO_OLD_ID_REUSED_UNCHANGED | LIB_TAG_UNDO_OLD_ID_REUSED_NOUNDO |
-                   LIB_TAG_UNDO_OLD_ID_REREAD_IN_PLACE);
+      id->tag &= ~(ID_TAG_UNDO_OLD_ID_REUSED_UNCHANGED | ID_TAG_UNDO_OLD_ID_REUSED_NOUNDO |
+                   ID_TAG_UNDO_OLD_ID_REREAD_IN_PLACE);
 
       /* We only start accumulating from this point, any tags set up to here
        * are already part of the current undo state. This is done in a second
        * loop because DEG_id_tag_update may set tags on other datablocks. */
       id->recalc_after_undo_push = 0;
-      bNodeTree *nodetree = ntreeFromID(id);
+      bNodeTree *nodetree = blender::bke::node_tree_from_id(id);
       if (nodetree != nullptr) {
         nodetree->id.recalc_after_undo_push = 0;
       }

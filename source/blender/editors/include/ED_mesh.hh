@@ -8,7 +8,14 @@
 
 #pragma once
 
+#include "BKE_attribute.hh"
+
 #include "BLI_compiler_attrs.h"
+#include "BLI_math_vector_types.hh"
+#include "BLI_span.hh"
+#include "BLI_virtual_array.hh"
+
+#include "DNA_windowmanager_enums.h"
 
 struct ARegion;
 struct BMBVHTree;
@@ -22,8 +29,8 @@ struct BMesh;
 struct BMeshNormalsUpdate_Params;
 struct Base;
 struct Depsgraph;
-struct ID;
 struct KeyBlock;
+struct Main;
 struct MDeformVert;
 struct Mesh;
 struct Object;
@@ -36,13 +43,40 @@ struct UvVertMap;
 struct View3D;
 struct ViewContext;
 struct bContext;
-struct bDeformGroup;
 struct wmKeyConfig;
 struct wmOperator;
 struct UvElement;
 struct UvElementMap;
 
-/* editmesh_utils.cc */
+/* `editmesh_utils.cc` */
+class EditMeshSymmetryHelper {
+ public:
+  static std::optional<EditMeshSymmetryHelper> create_if_needed(Object *ob, uchar htype);
+
+  bool any_mirror_vert_selected(BMVert *v, char hflag) const;
+  bool any_mirror_edge_selected(BMEdge *e, char hflag) const;
+  bool any_mirror_face_selected(BMFace *f, char hflag) const;
+
+  void set_hflag_on_mirror_verts(BMVert *v, char hflag, bool value) const;
+  void set_hflag_on_mirror_edges(BMEdge *e, char hflag, bool value) const;
+  void set_hflag_on_mirror_faces(BMFace *f, char hflag, bool value) const;
+
+  void apply_on_mirror_verts(BMVert *v, blender::FunctionRef<void(BMVert *)> op) const;
+  void apply_on_mirror_edges(BMEdge *e, blender::FunctionRef<void(BMEdge *)> op) const;
+  void apply_on_mirror_faces(BMFace *f, blender::FunctionRef<void(BMFace *)> op) const;
+
+ private:
+  EditMeshSymmetryHelper(Object *ob, uchar htype);
+
+  BMEditMesh *em_;
+  Mesh *mesh_;
+  uchar htype_;
+  bool use_topology_mirror_;
+
+  blender::Map<BMVert *, blender::Vector<BMVert *>> vert_to_mirror_map_;
+  blender::Map<BMEdge *, blender::Vector<BMEdge *>> edge_to_mirror_map_;
+  blender::Map<BMFace *, blender::Vector<BMFace *>> face_to_mirror_map_;
+};
 
 /**
  * \param em: Edit-mesh used for generating mirror data.
@@ -73,7 +107,6 @@ void EDBM_verts_mirror_cache_end(BMEditMesh *em);
 
 void EDBM_mesh_normals_update_ex(BMEditMesh *em, const BMeshNormalsUpdate_Params *params);
 void EDBM_mesh_normals_update(BMEditMesh *em);
-void EDBM_mesh_clear(BMEditMesh *em);
 
 void EDBM_selectmode_to_scene(bContext *C);
 void EDBM_mesh_make(Object *ob, int select_mode, bool add_key_index);
@@ -103,8 +136,13 @@ void EDBM_select_less(BMEditMesh *em, bool use_face_step);
 void EDBM_selectmode_flush_ex(BMEditMesh *em, short selectmode);
 void EDBM_selectmode_flush(BMEditMesh *em);
 
-void EDBM_deselect_flush(BMEditMesh *em);
-void EDBM_select_flush(BMEditMesh *em);
+/**
+ * Mode independent selection/de-selection flush from vertices.
+ *
+ * \param select: When true, flush the selection state to de-selected elements,
+ * otherwise perform the opposite, flushing de-selection.
+ */
+void EDBM_select_flush_from_verts(BMEditMesh *em, bool select);
 
 bool EDBM_vert_color_check(BMEditMesh *em);
 
@@ -169,36 +207,54 @@ UvMapVert *BM_uv_vert_map_at_index(UvVertMap *vmap, unsigned int v);
 /**
  * Return a new #UvVertMap from the edit-mesh.
  */
-UvVertMap *BM_uv_vert_map_create(BMesh *bm, bool use_select);
+UvVertMap *BM_uv_vert_map_create(BMesh *bm, bool use_select, bool respect_hide);
 
 void EDBM_flag_enable_all(BMEditMesh *em, char hflag);
 void EDBM_flag_disable_all(BMEditMesh *em, char hflag);
 
-bool BMBVH_EdgeVisible(BMBVHTree *tree,
-                       BMEdge *e,
-                       Depsgraph *depsgraph,
-                       ARegion *region,
-                       View3D *v3d,
-                       Object *obedit);
+/** \copydoc #BM_uvselect_clear */
+bool EDBM_uvselect_clear(BMEditMesh *em);
+
+bool BMBVH_EdgeVisible(const BMBVHTree *tree,
+                       const BMEdge *e,
+                       const Depsgraph *depsgraph,
+                       const ARegion *region,
+                       const View3D *v3d,
+                       const Object *obedit);
 
 void EDBM_project_snap_verts(
     bContext *C, Depsgraph *depsgraph, ARegion *region, Object *obedit, BMEditMesh *em);
 
 /* `editmesh_automerge.cc` */
 
-void EDBM_automerge(Object *obedit, bool update, char hflag, float dist);
-void EDBM_automerge_and_split(
+/** \return true if a change is made. */
+bool EDBM_automerge(Object *obedit, bool update, char hflag, float dist);
+/** \return true if a change is made. */
+bool EDBM_automerge_connected(Object *obedit, bool update, char hflag, float dist);
+
+/** \return true if a change is made. */
+bool EDBM_automerge_and_split(
     Object *obedit, bool split_edges, bool split_faces, bool update, char hflag, float dist);
 
-/* editmesh_undo.cc */
+/* `editmesh_undo.cc` */
 
 /** Export for ED_undo_sys. */
 void ED_mesh_undosys_type(UndoType *ut);
 
-/* editmesh_select.cc */
+/* `editmesh_select.cc` */
 
 void EDBM_select_mirrored(
     BMEditMesh *em, const Mesh *mesh, int axis, bool extend, int *r_totmirr, int *r_totfail);
+
+#if 0 /* Unused but seems useful to keep. */
+/**
+ * Select mirrored elements on all enabled axis.
+ * Does nothing if selection symmetry isn't enabled.
+ *
+ * \return true if the selection changed.
+ */
+bool EDBM_select_mirrored_extend_all(Object *obedit, BMEditMesh *em);
+#endif
 
 /**
  * Nearest vertex under the cursor.
@@ -265,13 +321,13 @@ bool EDBM_unified_findnearest_from_raycast(ViewContext *vc,
                                            BMEdge **r_eed,
                                            BMFace **r_efa);
 
-bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params *params);
+bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &params);
 
 /**
  * When switching select mode, makes sure selection is consistent for editing
  * also for paranoia checks to make sure edge or face mode works.
  */
-void EDBM_selectmode_set(BMEditMesh *em);
+void EDBM_selectmode_set(BMEditMesh *em, short selectmode);
 /**
  * Expand & Contract the Selection
  * (used when changing modes and Ctrl key held)
@@ -289,14 +345,24 @@ void EDBM_selectmode_set(BMEditMesh *em);
 void EDBM_selectmode_convert(BMEditMesh *em, short selectmode_old, short selectmode_new);
 
 /**
- * User access this.
+ * Select-mode setting utility.
+ * This operates on tool-settings and all objects passed in.
+ */
+bool EDBM_selectmode_set_multi_ex(Scene *scene,
+                                  blender::Span<Object *> objects,
+                                  const short selectmode);
+/**
+ * High level select-mode setting utility.
+ * This operates on tool-settings and all edit-mode objects.
  */
 bool EDBM_selectmode_set_multi(bContext *C, short selectmode);
 /**
- * User facing function, does notification.
+ * User facing function, handles notification.
+ *
+ * \param selectmode_toggle: The mode to adjust based on `action`, must not contain mixed flags.
  */
 bool EDBM_selectmode_toggle_multi(
-    bContext *C, short selectmode_new, int action, bool use_extend, bool use_expand);
+    bContext *C, short selectmode_toggle, int action, bool use_extend, bool use_expand);
 
 /**
  * Use to disable a select-mode if its enabled, Using another mode as a fallback
@@ -338,7 +404,7 @@ void EDBM_preselect_edgering_update_from_edge(EditMesh_PreSelEdgeRing *psel,
                                               BMesh *bm,
                                               BMEdge *eed_start,
                                               int previewlines,
-                                              const float (*coords)[3]);
+                                              blender::Span<blender::float3> vert_positions);
 
 /* `editmesh_preselect_elem.cc` */
 
@@ -357,7 +423,7 @@ void EDBM_preselect_elem_draw(EditMesh_PreSelElem *psel, const float matrix[4][4
 void EDBM_preselect_elem_update_from_single(EditMesh_PreSelElem *psel,
                                             BMesh *bm,
                                             BMElem *ele,
-                                            const float (*coords)[3]);
+                                            blender::Span<blender::float3> vert_positions);
 
 void EDBM_preselect_elem_update_preview(
     EditMesh_PreSelElem *psel, ViewContext *vc, BMesh *bm, BMElem *ele, const int mval[2]);
@@ -376,7 +442,7 @@ void ED_keymap_mesh(wmKeyConfig *keyconf);
 /* `editface.cc` */
 
 /**
- * Copy the face flags, most importantly selection from the mesh to the final derived mesh,
+ * Copy the face flags, most importantly selection from the mesh to the final evaluated mesh,
  * use in object mode when selecting faces (while painting).
  */
 void paintface_flush_flags(bContext *C, Object *ob, bool flush_selection, bool flush_hidden);
@@ -385,7 +451,7 @@ void paintface_flush_flags(bContext *C, Object *ob, bool flush_selection, bool f
  */
 bool paintface_mouse_select(bContext *C,
                             const int mval[2],
-                            const SelectPick_Params *params,
+                            const SelectPick_Params &params,
                             Object *ob);
 bool paintface_deselect_all_visible(bContext *C, Object *ob, int action, bool flush_flags);
 void paintface_select_linked(bContext *C, Object *ob, const int mval[2], bool select);
@@ -410,7 +476,7 @@ bool paintvert_deselect_all_visible(Object *ob, int action, bool flush_flags);
 void paintvert_select_ungrouped(Object *ob, bool extend, bool flush_flags);
 /**
  * (similar to void `paintface_flush_flags(Object *ob)`)
- * copy the vertex flags, most importantly selection from the mesh to the final derived mesh,
+ * copy the vertex flags, most importantly selection from the mesh to the final evaluated mesh,
  * use in object mode when selecting vertices (while painting).
  */
 void paintvert_flush_flags(Object *ob);
@@ -442,79 +508,7 @@ void ED_mesh_mirrtopo_init(BMEditMesh *em,
                            bool skip_em_vert_array_init);
 void ED_mesh_mirrtopo_free(MirrTopoStore_t *mesh_topo_store);
 
-/* object_vgroup.cc */
-
-#define WEIGHT_REPLACE 1
-#define WEIGHT_ADD 2
-#define WEIGHT_SUBTRACT 3
-
-bool ED_vgroup_sync_from_pose(Object *ob);
-void ED_vgroup_select_by_name(Object *ob, const char *name);
-/**
- * Removes out of range #MDeformWeights
- */
-void ED_vgroup_data_clamp_range(ID *id, int total);
-/**
- * Matching index only.
- */
-bool ED_vgroup_array_copy(Object *ob, Object *ob_from);
-bool ED_vgroup_parray_alloc(ID *id, MDeformVert ***dvert_arr, int *dvert_tot, bool use_vert_sel);
-/**
- * For use with tools that use ED_vgroup_parray_alloc with \a use_vert_sel == true.
- * This finds the unselected mirror deform verts and copies the weights to them from the selected.
- *
- * \note \a dvert_array has mirrored weights filled in,
- * in case cleanup operations are needed on both.
- */
-void ED_vgroup_parray_mirror_sync(Object *ob,
-                                  MDeformVert **dvert_array,
-                                  int dvert_tot,
-                                  const bool *vgroup_validmap,
-                                  int vgroup_tot);
-/**
- * Fill in the pointers for mirror verts (as if all mirror verts were selected too).
- *
- * similar to #ED_vgroup_parray_mirror_sync but only fill in mirror points.
- */
-void ED_vgroup_parray_mirror_assign(Object *ob, MDeformVert **dvert_array, int dvert_tot);
-void ED_vgroup_parray_remove_zero(MDeformVert **dvert_array,
-                                  int dvert_tot,
-                                  const bool *vgroup_validmap,
-                                  int vgroup_tot,
-                                  float epsilon,
-                                  bool keep_single);
-void ED_vgroup_parray_to_weight_array(const MDeformVert **dvert_array,
-                                      int dvert_tot,
-                                      float *dvert_weights,
-                                      int def_nr);
-void ED_vgroup_parray_from_weight_array(MDeformVert **dvert_array,
-                                        int dvert_tot,
-                                        const float *dvert_weights,
-                                        int def_nr,
-                                        bool remove_zero);
-void ED_vgroup_mirror(Object *ob,
-                      bool mirror_weights,
-                      bool flip_vgroups,
-                      bool all_vgroups,
-                      bool use_topology,
-                      int *r_totmirr,
-                      int *r_totfail);
-
-/**
- * Called while not in editmode.
- */
-void ED_vgroup_vert_add(Object *ob, bDeformGroup *dg, int vertnum, float weight, int assignmode);
-/**
- * Mesh object mode, lattice can be in edit-mode.
- */
-void ED_vgroup_vert_remove(Object *ob, bDeformGroup *dg, int vertnum);
-float ED_vgroup_vert_weight(Object *ob, bDeformGroup *dg, int vertnum);
-/**
- * Use when adjusting the active vertex weight and apply to mirror vertices.
- */
-void ED_vgroup_vert_active_mirror(Object *ob, int def_nr);
-
-/* mesh_data.cc */
+/* `mesh_data.cc` */
 
 void ED_mesh_verts_add(Mesh *mesh, ReportList *reports, int count);
 void ED_mesh_edges_add(Mesh *mesh, ReportList *reports, int count);
@@ -528,28 +522,20 @@ void ED_mesh_faces_remove(Mesh *mesh, ReportList *reports, int count);
 
 void ED_mesh_geometry_clear(Mesh *mesh);
 
-bool *ED_mesh_uv_map_vert_select_layer_ensure(Mesh *mesh, int uv_index);
-bool *ED_mesh_uv_map_edge_select_layer_ensure(Mesh *mesh, int uv_index);
-bool *ED_mesh_uv_map_pin_layer_ensure(Mesh *mesh, int uv_index);
-const bool *ED_mesh_uv_map_vert_select_layer_get(const Mesh *mesh, int uv_index);
-const bool *ED_mesh_uv_map_edge_select_layer_get(const Mesh *mesh, int uv_index);
-const bool *ED_mesh_uv_map_pin_layer_get(const Mesh *mesh, int uv_index);
+blender::bke::AttributeWriter<bool> ED_mesh_uv_map_pin_layer_ensure(Mesh *mesh, int uv_index);
+blender::VArray<bool> ED_mesh_uv_map_pin_layer_get(const Mesh *mesh, int uv_index);
 
 void ED_mesh_uv_ensure(Mesh *mesh, const char *name);
 int ED_mesh_uv_add(
     Mesh *mesh, const char *name, bool active_set, bool do_init, ReportList *reports);
 
 void ED_mesh_uv_loop_reset(bContext *C, Mesh *mesh);
-/**
- * Without a #bContext, called when UV-editing.
- */
-void ED_mesh_uv_loop_reset_ex(Mesh *mesh, int layernum);
 bool ED_mesh_color_ensure(Mesh *mesh, const char *name);
-int ED_mesh_color_add(
+std::string ED_mesh_color_add(
     Mesh *mesh, const char *name, bool active_set, bool do_init, ReportList *reports);
 
-void ED_mesh_report_mirror(wmOperator *op, int totmirr, int totfail);
-void ED_mesh_report_mirror_ex(wmOperator *op, int totmirr, int totfail, char selectmode);
+void ED_mesh_report_mirror(ReportList &reports, int totmirr, int totfail);
+void ED_mesh_report_mirror_ex(ReportList &reports, int totmirr, int totfail, char selectmode);
 
 KeyBlock *ED_mesh_get_edit_shape_key(const Mesh *me);
 
@@ -585,12 +571,20 @@ void EDBM_redo_state_restore_and_free(BMBackup *backup, BMEditMesh *em, bool rec
     ATTR_NONNULL(1, 2);
 void EDBM_redo_state_free(BMBackup *backup) ATTR_NONNULL(1);
 
-/* *** meshtools.cc *** */
+namespace blender::ed::mesh {
 
-int ED_mesh_join_objects_exec(bContext *C, wmOperator *op);
-int ED_mesh_shapes_join_objects_exec(bContext *C, wmOperator *op);
+wmOperatorStatus join_objects_exec(bContext *C, wmOperator *op);
 
-/* mirror lookup api */
+}
+
+/* `meshtools.cc` */
+
+wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C,
+                                                  bool ensure_keys_exist,
+                                                  bool mirror,
+                                                  ReportList *reports);
+
+/* Mirror lookup API. */
 
 /* Spatial Mirror */
 void ED_mesh_mirror_spatial_table_begin(Object *ob, BMEditMesh *em, Mesh *mesh_eval);
@@ -644,6 +638,11 @@ bool ED_mesh_pick_face(bContext *C, Object *ob, const int mval[2], uint dist_px,
  */
 bool ED_mesh_pick_face_vert(
     bContext *C, Object *ob, const int mval[2], uint dist_px, uint *r_index);
+/**
+ * Used for paint face loop selection which needs to get closest edge even though in face select
+ * mode. Changes the select_buffer context to edge selection for this.
+ */
+bool ED_mesh_pick_edge(bContext *C, Object *ob, const int mval[2], uint dist_px, uint *r_index);
 
 MDeformVert *ED_mesh_active_dvert_get_em(Object *ob, BMVert **r_eve);
 MDeformVert *ED_mesh_active_dvert_get_ob(Object *ob, int *r_index);

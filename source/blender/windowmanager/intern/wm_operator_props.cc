@@ -23,7 +23,7 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "ED_select_utils.hh"
 
@@ -168,9 +168,6 @@ void WM_operator_properties_filesel(wmOperatorType *ot,
       ot->srna, "filter_btx", (filter & FILE_TYPE_BTX) != 0, "Filter btx files", "");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
   prop = RNA_def_boolean(
-      ot->srna, "filter_collada", (filter & FILE_TYPE_COLLADA) != 0, "Filter COLLADA files", "");
-  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
-  prop = RNA_def_boolean(
       ot->srna, "filter_alembic", (filter & FILE_TYPE_ALEMBIC) != 0, "Filter Alembic files", "");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
   prop = RNA_def_boolean(
@@ -282,7 +279,7 @@ void WM_operator_properties_id_lookup(wmOperatorType *ot, const bool add_name_pr
                           MAX_ID_NAME - 2,
                           "Name",
                           "Name of the data-block to use by the operator");
-    RNA_def_property_flag(prop, (PropertyFlag)(PROP_SKIP_SAVE | PROP_HIDDEN));
+    RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN);
   }
 
   prop = RNA_def_int(ot->srna,
@@ -294,7 +291,7 @@ void WM_operator_properties_id_lookup(wmOperatorType *ot, const bool add_name_pr
                      "Session UID of the data-block to use by the operator",
                      INT32_MIN,
                      INT32_MAX);
-  RNA_def_property_flag(prop, (PropertyFlag)(PROP_SKIP_SAVE | PROP_HIDDEN));
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN);
 }
 
 static void wm_operator_properties_select_action_ex(wmOperatorType *ot,
@@ -397,19 +394,26 @@ void WM_operator_properties_border(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
-void WM_operator_properties_border_to_rcti(wmOperator *op, rcti *rect)
+void WM_operator_properties_border_to_rcti(wmOperator *op, rcti *r_rect)
 {
-  rect->xmin = RNA_int_get(op->ptr, "xmin");
-  rect->ymin = RNA_int_get(op->ptr, "ymin");
-  rect->xmax = RNA_int_get(op->ptr, "xmax");
-  rect->ymax = RNA_int_get(op->ptr, "ymax");
+  r_rect->xmin = RNA_int_get(op->ptr, "xmin");
+  r_rect->ymin = RNA_int_get(op->ptr, "ymin");
+  r_rect->xmax = RNA_int_get(op->ptr, "xmax");
+  r_rect->ymax = RNA_int_get(op->ptr, "ymax");
 }
 
-void WM_operator_properties_border_to_rctf(wmOperator *op, rctf *rect)
+void WM_operator_properties_border_to_rctf(wmOperator *op, rctf *r_rect)
 {
   rcti rect_i;
   WM_operator_properties_border_to_rcti(op, &rect_i);
-  BLI_rctf_rcti_copy(rect, &rect_i);
+  BLI_rctf_rcti_copy(r_rect, &rect_i);
+}
+
+blender::Bounds<blender::int2> WM_operator_properties_border_to_bounds(wmOperator *op)
+{
+  using namespace blender;
+  return Bounds<int2>({RNA_int_get(op->ptr, "xmin"), RNA_int_get(op->ptr, "ymin")},
+                      {RNA_int_get(op->ptr, "xmax"), RNA_int_get(op->ptr, "ymax")});
 }
 
 void WM_operator_properties_gesture_box_ex(wmOperatorType *ot, bool deselect, bool extend)
@@ -508,6 +512,16 @@ void WM_operator_properties_generic_select(wmOperatorType *ot)
       ot->srna, "wait_to_deselect_others", false, "Wait to Deselect Others", "");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
+  /* Force the selection to act on mouse click, not press.
+   * Necessary for some cases, but isn't used much. */
+  prop = RNA_def_boolean(ot->srna,
+                         "use_select_on_click",
+                         false,
+                         "Act on Click",
+                         "Instead of selecting on mouse press, wait to see if there's drag event. "
+                         "Otherwise select on mouse release");
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+
   RNA_def_int(ot->srna, "mouse_x", 0, INT_MIN, INT_MAX, "Mouse X", "", INT_MIN, INT_MAX);
   RNA_def_int(ot->srna, "mouse_y", 0, INT_MIN, INT_MAX, "Mouse Y", "", INT_MIN, INT_MAX);
 }
@@ -522,6 +536,37 @@ void WM_operator_properties_gesture_box_zoom(wmOperatorType *ot)
 }
 
 void WM_operator_properties_gesture_lasso(wmOperatorType *ot)
+{
+  PropertyRNA *prop;
+  prop = RNA_def_collection_runtime(ot->srna, "path", &RNA_OperatorMousePath, "Path", "");
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+  prop = RNA_def_boolean(ot->srna,
+                         "use_smooth_stroke",
+                         false,
+                         "Stabilize Stroke",
+                         "Selection lags behind mouse and follows a smoother path");
+  prop = RNA_def_float(ot->srna,
+                       "smooth_stroke_factor",
+                       0.75f,
+                       0.5f,
+                       0.99f,
+                       "Smooth Stroke Factor",
+                       "Higher values gives a smoother stroke",
+                       0.5f,
+                       0.99f);
+  prop = RNA_def_int(ot->srna,
+                     "smooth_stroke_radius",
+                     35,
+                     10,
+                     200,
+                     "Smooth Stroke Radius",
+                     "Minimum distance from last point before selection continues",
+                     10,
+                     200);
+  RNA_def_property_subtype(prop, PROP_PIXEL);
+}
+
+void WM_operator_properties_gesture_polyline(wmOperatorType *ot)
 {
   PropertyRNA *prop;
   prop = RNA_def_collection_runtime(ot->srna, "path", &RNA_OperatorMousePath, "Path", "");

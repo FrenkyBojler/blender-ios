@@ -23,14 +23,15 @@
 #include "DNA_scene_types.h"
 #include "DNA_texture_types.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_ghash.h"
+#include "BLI_listbase.h"
 #include "BLI_math_base_safe.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_noise.h"
 #include "BLI_rand.h"
+#include "BLI_string.h"
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
 
@@ -56,8 +57,7 @@
 
 EffectorWeights *BKE_effector_add_weights(Collection *collection)
 {
-  EffectorWeights *weights = static_cast<EffectorWeights *>(
-      MEM_callocN(sizeof(EffectorWeights), "EffectorWeights"));
+  EffectorWeights *weights = MEM_callocN<EffectorWeights>("EffectorWeights");
   for (int i = 0; i < NUM_PFIELD_TYPES; i++) {
     weights->weight[i] = 1.0f;
   }
@@ -72,7 +72,7 @@ PartDeflect *BKE_partdeflect_new(int type)
 {
   PartDeflect *pd;
 
-  pd = static_cast<PartDeflect *>(MEM_callocN(sizeof(PartDeflect), "PartDeflect"));
+  pd = MEM_callocN<PartDeflect>("PartDeflect");
 
   pd->forcefield = type;
   pd->pdef_sbdamp = 0.1f;
@@ -113,9 +113,6 @@ PartDeflect *BKE_partdeflect_copy(const PartDeflect *pd_src)
     return nullptr;
   }
   PartDeflect *pd_dst = static_cast<PartDeflect *>(MEM_dupallocN(pd_src));
-  if (pd_dst->rng != nullptr) {
-    pd_dst->rng = BLI_rng_copy(pd_dst->rng);
-  }
   return pd_dst;
 }
 
@@ -123,9 +120,6 @@ void BKE_partdeflect_free(PartDeflect *pd)
 {
   if (!pd) {
     return;
-  }
-  if (pd->rng) {
-    BLI_rng_free(pd->rng);
   }
   MEM_freeN(pd);
 }
@@ -136,12 +130,8 @@ static void precalculate_effector(Depsgraph *depsgraph, EffectorCache *eff)
 {
   float ctime = DEG_get_ctime(depsgraph);
   uint cfra = uint(ctime >= 0 ? ctime : -ctime);
-  if (!eff->pd->rng) {
-    eff->pd->rng = BLI_rng_new(eff->pd->seed + cfra);
-  }
-  else {
-    BLI_rng_srandom(eff->pd->rng, eff->pd->seed + cfra);
-  }
+
+  eff->rng = BLI_rng_new(eff->pd->seed + cfra);
 
   if (eff->pd->forcefield == PFIELD_GUIDE && eff->ob->type == OB_CURVES_LEGACY) {
     Curve *cu = static_cast<Curve *>(eff->ob->data);
@@ -176,8 +166,7 @@ static void add_effector_relation(ListBase *relations,
                                   ParticleSystem *psys,
                                   PartDeflect *pd)
 {
-  EffectorRelation *relation = static_cast<EffectorRelation *>(
-      MEM_callocN(sizeof(EffectorRelation), "EffectorRelation"));
+  EffectorRelation *relation = MEM_callocN<EffectorRelation>("EffectorRelation");
   relation->ob = ob;
   relation->psys = psys;
   relation->pd = pd;
@@ -193,11 +182,10 @@ static void add_effector_evaluation(ListBase **effectors,
                                     PartDeflect *pd)
 {
   if (*effectors == nullptr) {
-    *effectors = static_cast<ListBase *>(MEM_callocN(sizeof(ListBase), "effector effectors"));
+    *effectors = MEM_callocN<ListBase>("effector effectors");
   }
 
-  EffectorCache *eff = static_cast<EffectorCache *>(
-      MEM_callocN(sizeof(EffectorCache), "EffectorCache"));
+  EffectorCache *eff = MEM_callocN<EffectorCache>("EffectorCache");
   eff->depsgraph = depsgraph;
   eff->scene = scene;
   eff->ob = ob;
@@ -218,8 +206,7 @@ ListBase *BKE_effector_relations_create(Depsgraph *depsgraph,
   const bool for_render = (DEG_get_mode(depsgraph) == DAG_EVAL_RENDER);
   const int base_flag = (for_render) ? BASE_ENABLED_RENDER : BASE_ENABLED_VIEWPORT;
 
-  ListBase *relations = static_cast<ListBase *>(
-      MEM_callocN(sizeof(ListBase), "effector relations"));
+  ListBase *relations = MEM_callocN<ListBase>("effector relations");
 
   for (; base; base = base->next) {
     if (!(base->flag & base_flag)) {
@@ -332,7 +319,7 @@ ListBase *BKE_effectors_create(Depsgraph *depsgraph,
 
   LISTBASE_FOREACH (EffectorRelation *, relation, relations) {
     /* Get evaluated object. */
-    Object *ob = (Object *)DEG_get_evaluated_id(depsgraph, &relation->ob->id);
+    Object *ob = DEG_get_evaluated(depsgraph, relation->ob);
 
     if (relation->psys) {
       /* Get evaluated particle system. */
@@ -375,6 +362,9 @@ void BKE_effectors_free(ListBase *lb)
 {
   if (lb) {
     LISTBASE_FOREACH (EffectorCache *, eff, lb) {
+      if (eff->rng) {
+        BLI_rng_free(eff->rng);
+      }
       if (eff->guide_data) {
         MEM_freeN(eff->guide_data);
       }
@@ -648,7 +638,7 @@ bool closest_point_on_surface(SurfaceModifierData *surmd,
                               float surface_nor[3],
                               float surface_vel[3])
 {
-  BVHTreeFromMesh *bvhtree = surmd->runtime.bvhtree;
+  blender::bke::BVHTreeFromMesh *bvhtree = surmd->runtime.bvhtree;
   BVHTreeNearest nearest;
 
   nearest.index = -1;
@@ -707,9 +697,9 @@ bool get_effector_data(EffectorCache *eff,
   else if (eff->pd && eff->pd->shape == PFIELD_SHAPE_POINTS) {
     /* TODO: hair and points object support */
     const Mesh *mesh_eval = BKE_object_get_evaluated_mesh(eff->ob);
-    const blender::Span<blender::float3> positions = mesh_eval->vert_positions();
-    const blender::Span<blender::float3> vert_normals = mesh_eval->vert_normals();
     if (mesh_eval != nullptr) {
+      const blender::Span<blender::float3> positions = mesh_eval->vert_positions();
+      const blender::Span<blender::float3> vert_normals = mesh_eval->vert_normals();
       copy_v3_v3(efd->loc, positions[*efd->index]);
       copy_v3_v3(efd->nor, vert_normals[*efd->index]);
 
@@ -892,8 +882,7 @@ static void do_texture_effector(EffectorCache *eff,
     madd_v3_v3fl(tex_co, efd->nor, fac);
   }
 
-  hasrgb = multitex_ext(
-      eff->pd->tex, tex_co, nullptr, nullptr, 0, result, 0, nullptr, true, false);
+  hasrgb = multitex_ext(eff->pd->tex, tex_co, result, 0, nullptr, true, false);
 
   if (hasrgb && mode == PFIELD_TEX_RGB) {
     force[0] = (0.5f - result->trgba[0]) * strength;
@@ -904,15 +893,15 @@ static void do_texture_effector(EffectorCache *eff,
     strength /= nabla;
 
     tex_co[0] += nabla;
-    multitex_ext(eff->pd->tex, tex_co, nullptr, nullptr, 0, result + 1, 0, nullptr, true, false);
+    multitex_ext(eff->pd->tex, tex_co, result + 1, 0, nullptr, true, false);
 
     tex_co[0] -= nabla;
     tex_co[1] += nabla;
-    multitex_ext(eff->pd->tex, tex_co, nullptr, nullptr, 0, result + 2, 0, nullptr, true, false);
+    multitex_ext(eff->pd->tex, tex_co, result + 2, 0, nullptr, true, false);
 
     tex_co[1] -= nabla;
     tex_co[2] += nabla;
-    multitex_ext(eff->pd->tex, tex_co, nullptr, nullptr, 0, result + 3, 0, nullptr, true, false);
+    multitex_ext(eff->pd->tex, tex_co, result + 3, 0, nullptr, true, false);
 
     if (mode == PFIELD_TEX_GRAD || !hasrgb) { /* if we don't have rgb fall back to grad */
       /* generate intensity if texture only has rgb value */
@@ -960,7 +949,7 @@ static void do_physical_effector(EffectorCache *eff,
                                  float *total_force)
 {
   PartDeflect *pd = eff->pd;
-  RNG *rng = pd->rng;
+  RNG *rng = eff->rng;
   float force[3] = {0, 0, 0};
   float temp[3];
   float fac;
@@ -1080,8 +1069,8 @@ static void do_physical_effector(EffectorCache *eff,
       flow_falloff = 0;
 #ifdef WITH_FLUID
       if (pd->f_source) {
-        float density;
-        if ((density = BKE_fluid_get_velocity_at(pd->f_source, point->loc, force)) >= 0.0f) {
+        const float density = BKE_fluid_get_velocity_at(pd->f_source, point->loc, force);
+        if (density >= 0.0f) {
           float influence = strength * efd->falloff;
           if (pd->flag & PFIELD_SMOKE_DENSITY) {
             influence *= density;
@@ -1269,8 +1258,7 @@ void BKE_sim_debug_data_set_enabled(bool enable)
 {
   if (enable) {
     if (!_sim_debug_data) {
-      _sim_debug_data = static_cast<SimDebugData *>(
-          MEM_callocN(sizeof(SimDebugData), "sim debug data"));
+      _sim_debug_data = MEM_callocN<SimDebugData>("sim debug data");
       _sim_debug_data->gh = BLI_ghash_new(
           debug_element_hash, debug_element_compare, "sim debug element hash");
     }
@@ -1330,8 +1318,7 @@ void BKE_sim_debug_data_add_element(int type,
     }
   }
 
-  elem = static_cast<SimDebugElement *>(
-      MEM_callocN(sizeof(SimDebugElement), "sim debug data element"));
+  elem = MEM_callocN<SimDebugElement>("sim debug data element");
   elem->type = type;
   elem->category_hash = category_hash;
   elem->hash = hash;

@@ -6,15 +6,13 @@
  * \ingroup edscr
  */
 
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
-
-#include "MEM_guardedalloc.h"
 
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_gpencil_legacy_types.h"
+#include "DNA_grease_pencil_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
@@ -23,21 +21,22 @@
 #include "DNA_windowmanager_types.h"
 #include "DNA_workspace_types.h"
 
-#include "BLI_ghash.h"
 #include "BLI_listbase.h"
+#include "BLI_map.hh"
+#include "BLI_set.hh"
 #include "BLI_utildefines.h"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_armature.hh"
-#include "BKE_blender.hh"
 #include "BKE_context.hh"
 #include "BKE_gpencil_legacy.h"
 #include "BKE_layer.hh"
+#include "BKE_library.hh"
 #include "BKE_object.hh"
 #include "BKE_tracking.h"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "ED_anim_api.hh"
 #include "ED_armature.hh"
@@ -52,9 +51,11 @@
 #include "UI_interface.hh"
 #include "WM_api.hh"
 
+#include "ANIM_action.hh"
+#include "ANIM_armature.hh"
 #include "ANIM_bone_collections.hh"
 
-#include "screen_intern.h"
+#include "screen_intern.hh"
 
 using blender::Vector;
 
@@ -86,24 +87,16 @@ const char *screen_context_dir[] = {
     "image_paint_object",
     "particle_edit_object",
     "pose_object",
-    "active_sequence_strip",
-    "sequences",
-    "selected_sequences",
-    "selected_editable_sequences", /* sequencer */
     "active_nla_track",
     "active_nla_strip",
     "selected_nla_strips", /* nla editor */
     "selected_movieclip_tracks",
-    "gpencil_data",
-    "gpencil_data_owner", /* grease pencil data */
+    /* Legacy Grease Pencil */
     "annotation_data",
     "annotation_data_owner",
-    "visible_gpencil_layers",
-    "editable_gpencil_layers",
-    "editable_gpencil_strokes",
-    "active_gpencil_layer",
-    "active_gpencil_frame",
     "active_annotation_layer",
+    /* Grease Pencil */
+    "grease_pencil",
     "active_operator",
     "active_action",
     "selected_visible_actions",
@@ -117,6 +110,11 @@ const char *screen_context_dir[] = {
     "ui_list",
     "property",
     "asset_library_reference",
+    "active_strip",
+    "strips",
+    "selected_strips",
+    "selected_editable_strips",
+    "sequencer_scene",
     nullptr,
 };
 
@@ -144,7 +142,7 @@ static eContextResult screen_ctx_visible_objects(const bContext *C, bContextData
       CTX_data_id_list_add(result, &base->object->id);
     }
   }
-  CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+  CTX_data_type_set(result, ContextDataType::Collection);
   return CTX_RESULT_OK;
 }
 static eContextResult screen_ctx_selectable_objects(const bContext *C, bContextDataResult *result)
@@ -160,7 +158,7 @@ static eContextResult screen_ctx_selectable_objects(const bContext *C, bContextD
       CTX_data_id_list_add(result, &base->object->id);
     }
   }
-  CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+  CTX_data_type_set(result, ContextDataType::Collection);
   return CTX_RESULT_OK;
 }
 static eContextResult screen_ctx_selected_objects(const bContext *C, bContextDataResult *result)
@@ -176,7 +174,7 @@ static eContextResult screen_ctx_selected_objects(const bContext *C, bContextDat
       CTX_data_id_list_add(result, &base->object->id);
     }
   }
-  CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+  CTX_data_type_set(result, ContextDataType::Collection);
   return CTX_RESULT_OK;
 }
 static eContextResult screen_ctx_selected_editable_objects(const bContext *C,
@@ -193,7 +191,7 @@ static eContextResult screen_ctx_selected_editable_objects(const bContext *C,
       CTX_data_id_list_add(result, &base->object->id);
     }
   }
-  CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+  CTX_data_type_set(result, ContextDataType::Collection);
   return CTX_RESULT_OK;
 }
 static eContextResult screen_ctx_editable_objects(const bContext *C, bContextDataResult *result)
@@ -210,7 +208,7 @@ static eContextResult screen_ctx_editable_objects(const bContext *C, bContextDat
       CTX_data_id_list_add(result, &base->object->id);
     }
   }
-  CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+  CTX_data_type_set(result, ContextDataType::Collection);
   return CTX_RESULT_OK;
 }
 static eContextResult screen_ctx_objects_in_mode(const bContext *C, bContextDataResult *result)
@@ -228,7 +226,7 @@ static eContextResult screen_ctx_objects_in_mode(const bContext *C, bContextData
     }
     FOREACH_OBJECT_IN_MODE_END;
   }
-  CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+  CTX_data_type_set(result, ContextDataType::Collection);
   return CTX_RESULT_OK;
 }
 static eContextResult screen_ctx_objects_in_mode_unique_data(const bContext *C,
@@ -243,18 +241,18 @@ static eContextResult screen_ctx_objects_in_mode_unique_data(const bContext *C,
 
   if (obact && (obact->mode != OB_MODE_OBJECT)) {
     FOREACH_OBJECT_IN_MODE_BEGIN (scene, view_layer, v3d, obact->type, obact->mode, ob_iter) {
-      ob_iter->id.tag |= LIB_TAG_DOIT;
+      ob_iter->id.tag |= ID_TAG_DOIT;
     }
     FOREACH_OBJECT_IN_MODE_END;
     FOREACH_OBJECT_IN_MODE_BEGIN (scene, view_layer, v3d, obact->type, obact->mode, ob_iter) {
-      if (ob_iter->id.tag & LIB_TAG_DOIT) {
-        ob_iter->id.tag &= ~LIB_TAG_DOIT;
+      if (ob_iter->id.tag & ID_TAG_DOIT) {
+        ob_iter->id.tag &= ~ID_TAG_DOIT;
         CTX_data_id_list_add(result, &ob_iter->id);
       }
     }
     FOREACH_OBJECT_IN_MODE_END;
   }
-  CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+  CTX_data_type_set(result, ContextDataType::Collection);
   return CTX_RESULT_OK;
 }
 static eContextResult screen_ctx_visible_or_editable_bones_(const bContext *C,
@@ -280,7 +278,7 @@ static eContextResult screen_ctx_visible_or_editable_bones_(const bContext *C,
       /* Attention: X-Axis Mirroring is also handled here... */
       LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
         /* first and foremost, bone must be visible and selected */
-        if (EBONE_VISIBLE(arm, ebone)) {
+        if (blender::animrig::bone_is_visible(arm, ebone)) {
           /* Get 'x-axis mirror equivalent' bone if the X-Axis Mirroring option is enabled
            * so that most users of this data don't need to explicitly check for it themselves.
            *
@@ -307,7 +305,7 @@ static eContextResult screen_ctx_visible_or_editable_bones_(const bContext *C,
             /* only include bones if visible */
             CTX_data_list_add(result, &arm->id, &RNA_EditBone, ebone);
 
-            if ((flipbone) && EBONE_VISIBLE(arm, flipbone) == 0) {
+            if ((flipbone) && blender::animrig::bone_is_visible(arm, flipbone) == 0) {
               CTX_data_list_add(result, &arm->id, &RNA_EditBone, flipbone);
             }
           }
@@ -315,7 +313,7 @@ static eContextResult screen_ctx_visible_or_editable_bones_(const bContext *C,
       }
     }
 
-    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+    CTX_data_type_set(result, ContextDataType::Collection);
     return CTX_RESULT_OK;
   }
   return CTX_RESULT_NO_DATA;
@@ -350,7 +348,7 @@ static eContextResult screen_ctx_selected_bones_(const bContext *C,
       /* Attention: X-Axis Mirroring is also handled here... */
       LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
         /* first and foremost, bone must be visible and selected */
-        if (EBONE_VISIBLE(arm, ebone) && (ebone->flag & BONE_SELECTED)) {
+        if (blender::animrig::bone_is_visible(arm, ebone) && (ebone->flag & BONE_SELECTED)) {
           /* Get 'x-axis mirror equivalent' bone if the X-Axis Mirroring option is enabled
            * so that most users of this data don't need to explicitly check for it themselves.
            *
@@ -385,7 +383,7 @@ static eContextResult screen_ctx_selected_bones_(const bContext *C,
       }
     }
 
-    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+    CTX_data_type_set(result, ContextDataType::Collection);
     return CTX_RESULT_OK;
   }
   return CTX_RESULT_NO_DATA;
@@ -424,7 +422,7 @@ static eContextResult screen_ctx_visible_pose_bones(const bContext *C, bContextD
       }
       FOREACH_OBJECT_IN_MODE_END;
     }
-    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+    CTX_data_type_set(result, ContextDataType::Collection);
     return CTX_RESULT_OK;
   }
   return CTX_RESULT_NO_DATA;
@@ -453,7 +451,7 @@ static eContextResult screen_ctx_selected_pose_bones(const bContext *C, bContext
       }
       FOREACH_OBJECT_IN_MODE_END;
     }
-    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+    CTX_data_type_set(result, ContextDataType::Collection);
     return CTX_RESULT_OK;
   }
   return CTX_RESULT_NO_DATA;
@@ -480,7 +478,7 @@ static eContextResult screen_ctx_selected_pose_bones_from_active_object(const bC
       }
       FOREACH_PCHAN_SELECTED_IN_OBJECT_END;
     }
-    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+    CTX_data_type_set(result, ContextDataType::Collection);
     return CTX_RESULT_OK;
   }
   return CTX_RESULT_NO_DATA;
@@ -554,7 +552,7 @@ static eContextResult screen_ctx_property(const bContext *C, bContextDataResult 
       index = -1;
     }
 
-    CTX_data_type_set(result, CTX_DATA_TYPE_PROPERTY);
+    CTX_data_type_set(result, ContextDataType::Property);
     CTX_data_pointer_set_ptr(result, &ptr);
     CTX_data_prop_set(result, prop, index);
   }
@@ -670,67 +668,6 @@ static eContextResult screen_ctx_pose_object(const bContext *C, bContextDataResu
   }
   return CTX_RESULT_OK;
 }
-static eContextResult screen_ctx_active_sequence_strip(const bContext *C,
-                                                       bContextDataResult *result)
-{
-  wmWindow *win = CTX_wm_window(C);
-  Scene *scene = WM_window_get_active_scene(win);
-  Sequence *seq = SEQ_select_active_get(scene);
-  if (seq) {
-    CTX_data_pointer_set(result, &scene->id, &RNA_Sequence, seq);
-    return CTX_RESULT_OK;
-  }
-  return CTX_RESULT_NO_DATA;
-}
-static eContextResult screen_ctx_sequences(const bContext *C, bContextDataResult *result)
-{
-  wmWindow *win = CTX_wm_window(C);
-  Scene *scene = WM_window_get_active_scene(win);
-  Editing *ed = SEQ_editing_get(scene);
-  if (ed) {
-    LISTBASE_FOREACH (Sequence *, seq, ed->seqbasep) {
-      CTX_data_list_add(result, &scene->id, &RNA_Sequence, seq);
-    }
-    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
-    return CTX_RESULT_OK;
-  }
-  return CTX_RESULT_NO_DATA;
-}
-static eContextResult screen_ctx_selected_sequences(const bContext *C, bContextDataResult *result)
-{
-  wmWindow *win = CTX_wm_window(C);
-  Scene *scene = WM_window_get_active_scene(win);
-  Editing *ed = SEQ_editing_get(scene);
-  if (ed) {
-    LISTBASE_FOREACH (Sequence *, seq, ed->seqbasep) {
-      if (seq->flag & SELECT) {
-        CTX_data_list_add(result, &scene->id, &RNA_Sequence, seq);
-      }
-    }
-    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
-    return CTX_RESULT_OK;
-  }
-  return CTX_RESULT_NO_DATA;
-}
-static eContextResult screen_ctx_selected_editable_sequences(const bContext *C,
-                                                             bContextDataResult *result)
-{
-  wmWindow *win = CTX_wm_window(C);
-  Scene *scene = WM_window_get_active_scene(win);
-  Editing *ed = SEQ_editing_get(scene);
-  if (ed == nullptr) {
-    return CTX_RESULT_NO_DATA;
-  }
-
-  ListBase *channels = SEQ_channels_displayed_get(ed);
-  LISTBASE_FOREACH (Sequence *, seq, ed->seqbasep) {
-    if (seq->flag & SELECT && !SEQ_transform_is_locked(channels, seq)) {
-      CTX_data_list_add(result, &scene->id, &RNA_Sequence, seq);
-    }
-  }
-  CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
-  return CTX_RESULT_OK;
-}
 
 static eContextResult screen_ctx_active_nla_track(const bContext *C, bContextDataResult *result)
 {
@@ -771,7 +708,7 @@ static eContextResult screen_ctx_selected_nla_strips(const bContext *C, bContext
     }
     ANIM_animdata_freelist(&anim_data);
 
-    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+    CTX_data_type_set(result, ContextDataType::Collection);
     return CTX_RESULT_OK;
   }
   return CTX_RESULT_NO_DATA;
@@ -796,50 +733,10 @@ static eContextResult screen_ctx_selected_movieclip_tracks(const bContext *C,
     CTX_data_list_add(result, &clip->id, &RNA_MovieTrackingTrack, track);
   }
 
-  CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+  CTX_data_type_set(result, ContextDataType::Collection);
   return CTX_RESULT_OK;
 }
-static eContextResult screen_ctx_gpencil_data(const bContext *C, bContextDataResult *result)
-{
-  wmWindow *win = CTX_wm_window(C);
-  ScrArea *area = CTX_wm_area(C);
-  const Scene *scene = WM_window_get_active_scene(win);
-  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
-  BKE_view_layer_synced_ensure(scene, view_layer);
-  Object *obact = BKE_view_layer_active_object_get(view_layer);
-  /* FIXME: for some reason, CTX_data_active_object(C) returns nullptr when called from these
-   * situations (as outlined above - see Campbell's #ifdefs).
-   * That causes the get_active function to fail when called from context.
-   * For that reason, we end up using an alternative where we pass everything in!
-   */
-  bGPdata *gpd = ED_gpencil_data_get_active_direct(area, obact);
 
-  if (gpd) {
-    CTX_data_id_pointer_set(result, &gpd->id);
-    return CTX_RESULT_OK;
-  }
-  return CTX_RESULT_NO_DATA;
-}
-static eContextResult screen_ctx_gpencil_data_owner(const bContext *C, bContextDataResult *result)
-{
-  wmWindow *win = CTX_wm_window(C);
-  ScrArea *area = CTX_wm_area(C);
-  const Scene *scene = WM_window_get_active_scene(win);
-  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
-  BKE_view_layer_synced_ensure(scene, view_layer);
-  Object *obact = BKE_view_layer_active_object_get(view_layer);
-
-  /* Pointer to which data/datablock owns the reference to the Grease Pencil data being used
-   * (as gpencil_data). */
-  PointerRNA ptr;
-  bGPdata **gpd_ptr = ED_gpencil_data_get_pointers_direct(area, obact, &ptr);
-
-  if (gpd_ptr) {
-    CTX_data_pointer_set_ptr(result, &ptr);
-    return CTX_RESULT_OK;
-  }
-  return CTX_RESULT_NO_DATA;
-}
 static eContextResult screen_ctx_annotation_data(const bContext *C, bContextDataResult *result)
 {
   wmWindow *win = CTX_wm_window(C);
@@ -872,27 +769,6 @@ static eContextResult screen_ctx_annotation_data_owner(const bContext *C,
   }
   return CTX_RESULT_NO_DATA;
 }
-static eContextResult screen_ctx_active_gpencil_layer(const bContext *C,
-                                                      bContextDataResult *result)
-{
-  wmWindow *win = CTX_wm_window(C);
-  ScrArea *area = CTX_wm_area(C);
-  const Scene *scene = WM_window_get_active_scene(win);
-  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
-  BKE_view_layer_synced_ensure(scene, view_layer);
-  Object *obact = BKE_view_layer_active_object_get(view_layer);
-  bGPdata *gpd = ED_gpencil_data_get_active_direct(area, obact);
-
-  if (gpd) {
-    bGPDlayer *gpl = BKE_gpencil_layer_active_get(gpd);
-
-    if (gpl) {
-      CTX_data_pointer_set(result, &gpd->id, &RNA_GPencilLayer, gpl);
-      return CTX_RESULT_OK;
-    }
-  }
-  return CTX_RESULT_NO_DATA;
-}
 static eContextResult screen_ctx_active_annotation_layer(const bContext *C,
                                                          bContextDataResult *result)
 {
@@ -906,124 +782,25 @@ static eContextResult screen_ctx_active_annotation_layer(const bContext *C,
     bGPDlayer *gpl = BKE_gpencil_layer_active_get(gpd);
 
     if (gpl) {
-      CTX_data_pointer_set(result, &gpd->id, &RNA_GPencilLayer, gpl);
+      CTX_data_pointer_set(result, &gpd->id, &RNA_AnnotationLayer, gpl);
       return CTX_RESULT_OK;
     }
   }
   return CTX_RESULT_NO_DATA;
 }
-static eContextResult screen_ctx_active_gpencil_frame(const bContext *C,
-                                                      bContextDataResult *result)
+static eContextResult screen_ctx_grease_pencil_data(const bContext *C, bContextDataResult *result)
 {
   wmWindow *win = CTX_wm_window(C);
-  ScrArea *area = CTX_wm_area(C);
   const Scene *scene = WM_window_get_active_scene(win);
   ViewLayer *view_layer = WM_window_get_active_view_layer(win);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *obact = BKE_view_layer_active_object_get(view_layer);
-  bGPdata *gpd = ED_gpencil_data_get_active_direct(area, obact);
-
-  if (gpd) {
-    bGPDlayer *gpl = BKE_gpencil_layer_active_get(gpd);
-
-    if (gpl) {
-      CTX_data_pointer_set(result, &gpd->id, &RNA_GPencilLayer, gpl->actframe);
-      return CTX_RESULT_OK;
-    }
-  }
-  return CTX_RESULT_NO_DATA;
-}
-static eContextResult screen_ctx_visible_gpencil_layers(const bContext *C,
-                                                        bContextDataResult *result)
-{
-  wmWindow *win = CTX_wm_window(C);
-  ScrArea *area = CTX_wm_area(C);
-  const Scene *scene = WM_window_get_active_scene(win);
-  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
-  BKE_view_layer_synced_ensure(scene, view_layer);
-  Object *obact = BKE_view_layer_active_object_get(view_layer);
-  bGPdata *gpd = ED_gpencil_data_get_active_direct(area, obact);
-
-  if (gpd) {
-    LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
-      if ((gpl->flag & GP_LAYER_HIDE) == 0) {
-        CTX_data_list_add(result, &gpd->id, &RNA_GPencilLayer, gpl);
-      }
-    }
-    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+  if (obact && obact->type == OB_GREASE_PENCIL) {
+    GreasePencil *grease_pencil = static_cast<GreasePencil *>(obact->data);
+    CTX_data_id_pointer_set(result, &grease_pencil->id);
     return CTX_RESULT_OK;
   }
   return CTX_RESULT_NO_DATA;
-}
-static eContextResult screen_ctx_editable_gpencil_layers(const bContext *C,
-                                                         bContextDataResult *result)
-{
-  wmWindow *win = CTX_wm_window(C);
-  ScrArea *area = CTX_wm_area(C);
-  const Scene *scene = WM_window_get_active_scene(win);
-  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
-  BKE_view_layer_synced_ensure(scene, view_layer);
-  Object *obact = BKE_view_layer_active_object_get(view_layer);
-  bGPdata *gpd = ED_gpencil_data_get_active_direct(area, obact);
-
-  if (gpd) {
-    LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
-      if (BKE_gpencil_layer_is_editable(gpl)) {
-        CTX_data_list_add(result, &gpd->id, &RNA_GPencilLayer, gpl);
-      }
-    }
-    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
-    return CTX_RESULT_OK;
-  }
-  return CTX_RESULT_NO_DATA;
-}
-static eContextResult screen_ctx_editable_gpencil_strokes(const bContext *C,
-                                                          bContextDataResult *result)
-{
-  wmWindow *win = CTX_wm_window(C);
-  ScrArea *area = CTX_wm_area(C);
-  const Scene *scene = WM_window_get_active_scene(win);
-  ViewLayer *view_layer = WM_window_get_active_view_layer(win);
-  BKE_view_layer_synced_ensure(scene, view_layer);
-  Object *obact = BKE_view_layer_active_object_get(view_layer);
-
-  bGPdata *gpd = ED_gpencil_data_get_active_direct(area, obact);
-  const bool is_multiedit = bool(GPENCIL_MULTIEDIT_SESSIONS_ON(gpd));
-
-  if (gpd == nullptr) {
-    return CTX_RESULT_NO_DATA;
-  }
-
-  LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
-    if (BKE_gpencil_layer_is_editable(gpl) && (gpl->actframe)) {
-      bGPDframe *gpf;
-      bGPDframe *init_gpf = gpl->actframe;
-      if (is_multiedit) {
-        init_gpf = static_cast<bGPDframe *>(gpl->frames.first);
-      }
-
-      for (gpf = init_gpf; gpf; gpf = gpf->next) {
-        if ((gpf == gpl->actframe) || ((gpf->flag & GP_FRAME_SELECT) && (is_multiedit))) {
-          LISTBASE_FOREACH (bGPDstroke *, gps, &gpf->strokes) {
-            if (ED_gpencil_stroke_can_use_direct(area, gps)) {
-              /* check if the color is editable */
-              if (ED_gpencil_stroke_material_editable(obact, gpl, gps) == false) {
-                continue;
-              }
-
-              CTX_data_list_add(result, &gpd->id, &RNA_GPencilStroke, gps);
-            }
-          }
-        }
-        /* If not multi-edit out of loop. */
-        if (!is_multiedit) {
-          break;
-        }
-      }
-    }
-  }
-  CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
-  return CTX_RESULT_OK;
 }
 static eContextResult screen_ctx_active_operator(const bContext *C, bContextDataResult *result)
 {
@@ -1055,87 +832,91 @@ static eContextResult screen_ctx_sel_actions_impl(const bContext *C,
                                                   bool editable)
 {
   bAnimContext ac;
-  if (ANIM_animdata_get_context(C, &ac) && ELEM(ac.spacetype, SPACE_ACTION, SPACE_GRAPH)) {
-    /* In the Action and Shape Key editor always use the action field at the top. */
-    if (ac.spacetype == SPACE_ACTION) {
-      SpaceAction *saction = (SpaceAction *)ac.sl;
-
-      if (ELEM(saction->mode, SACTCONT_ACTION, SACTCONT_SHAPEKEY)) {
-        if (active_only) {
-          CTX_data_id_pointer_set(result, (ID *)saction->action);
-        }
-        else {
-          if (saction->action && !(editable && ID_IS_LINKED(saction->action))) {
-            CTX_data_id_list_add(result, &saction->action->id);
-          }
-
-          CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
-        }
-
-        return CTX_RESULT_OK;
-      }
-    }
-
-    /* Search for selected animation data items. */
-    ListBase anim_data = {nullptr, nullptr};
-
-    int filter = ANIMFILTER_DATA_VISIBLE;
-    bool check_selected = false;
-
-    switch (ac.spacetype) {
-      case SPACE_GRAPH:
-        filter |= ANIMFILTER_FCURVESONLY | ANIMFILTER_CURVE_VISIBLE |
-                  (active_only ? ANIMFILTER_ACTIVE : ANIMFILTER_SEL);
-        break;
-
-      case SPACE_ACTION:
-        filter |= ANIMFILTER_LIST_VISIBLE | ANIMFILTER_LIST_CHANNELS;
-        check_selected = true;
-        break;
-    }
-
-    ANIM_animdata_filter(
-        &ac, &anim_data, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
-
-    GSet *seen_set = active_only ? nullptr : BLI_gset_ptr_new("seen actions");
-
-    LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-      /* In dopesheet check selection status of individual items, skipping
-       * if not selected or has no selection flag. This is needed so that
-       * selecting action or group rows without any channels works. */
-      if (check_selected && ANIM_channel_setting_get(&ac, ale, ACHANNEL_SETTING_SELECT) <= 0) {
-        continue;
-      }
-
-      bAction *action = ANIM_channel_action_get(ale);
-
-      if (action) {
-        if (active_only) {
-          CTX_data_id_pointer_set(result, (ID *)action);
-          break;
-        }
-        if (editable && ID_IS_LINKED(action)) {
-          continue;
-        }
-
-        /* Add the action to the output list if not already added. */
-        if (BLI_gset_add(seen_set, action)) {
-          CTX_data_id_list_add(result, &action->id);
-        }
-      }
-    }
-
-    ANIM_animdata_freelist(&anim_data);
-
-    if (!active_only) {
-      BLI_gset_free(seen_set, nullptr);
-
-      CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
-    }
-
-    return CTX_RESULT_OK;
+  if (!ANIM_animdata_get_context(C, &ac) || !ELEM(ac.spacetype, SPACE_ACTION, SPACE_GRAPH)) {
+    return CTX_RESULT_NO_DATA;
   }
-  return CTX_RESULT_NO_DATA;
+
+  /* In the Action and Shape Key editor always use the action field at the top. */
+  if (ac.spacetype == SPACE_ACTION) {
+    SpaceAction *saction = (SpaceAction *)ac.sl;
+
+    if (ELEM(saction->mode, SACTCONT_ACTION, SACTCONT_SHAPEKEY)) {
+      ID *active_action_id = ac.active_action ? &ac.active_action->id : nullptr;
+
+      if (active_only) {
+        CTX_data_id_pointer_set(result, active_action_id);
+      }
+      else {
+        if (active_action_id && !(editable && !ID_IS_EDITABLE(active_action_id))) {
+          CTX_data_id_list_add(result, active_action_id);
+        }
+
+        CTX_data_type_set(result, ContextDataType::Collection);
+      }
+
+      return CTX_RESULT_OK;
+    }
+  }
+
+  /* Search for selected animation data items. */
+  ListBase anim_data = {nullptr, nullptr};
+
+  int filter = ANIMFILTER_DATA_VISIBLE;
+  bool check_selected = false;
+
+  switch (ac.spacetype) {
+    case SPACE_GRAPH:
+      filter |= ANIMFILTER_FCURVESONLY | ANIMFILTER_CURVE_VISIBLE |
+                (active_only ? ANIMFILTER_ACTIVE : ANIMFILTER_SEL);
+      break;
+
+    case SPACE_ACTION:
+      filter |= ANIMFILTER_LIST_VISIBLE | ANIMFILTER_LIST_CHANNELS;
+      check_selected = true;
+      break;
+    default:
+      BLI_assert_unreachable();
+  }
+
+  ANIM_animdata_filter(
+      &ac, &anim_data, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
+
+  blender::Set<bAction *> seen_set;
+
+  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
+    /* In dope-sheet check selection status of individual items, skipping
+     * if not selected or has no selection flag. This is needed so that
+     * selecting action or group rows without any channels works. */
+    if (check_selected && ANIM_channel_setting_get(&ac, ale, ACHANNEL_SETTING_SELECT) <= 0) {
+      continue;
+    }
+
+    bAction *action = ANIM_channel_action_get(ale);
+    if (!action) {
+      continue;
+    }
+
+    if (active_only) {
+      CTX_data_id_pointer_set(result, (ID *)action);
+      break;
+    }
+    if (editable && !ID_IS_EDITABLE(action)) {
+      continue;
+    }
+
+    /* Add the action to the output list if not already added. */
+    if (seen_set.add(action)) {
+      CTX_data_id_list_add(result, &action->id);
+    }
+  }
+
+  ANIM_animdata_freelist(&anim_data);
+
+  if (!active_only) {
+    CTX_data_type_set(result, ContextDataType::Collection);
+  }
+
+  return CTX_RESULT_OK;
 }
 static eContextResult screen_ctx_active_action(const bContext *C, bContextDataResult *result)
 {
@@ -1176,7 +957,7 @@ static eContextResult screen_ctx_sel_edit_fcurves_(const bContext *C,
 
     ANIM_animdata_freelist(&anim_data);
 
-    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+    CTX_data_type_set(result, ContextDataType::Collection);
     return CTX_RESULT_OK;
   }
   return CTX_RESULT_NO_DATA;
@@ -1266,7 +1047,7 @@ static eContextResult screen_ctx_selected_editable_keyframes(const bContext *C,
 
     ANIM_animdata_freelist(&anim_data);
 
-    CTX_data_type_set(result, CTX_DATA_TYPE_COLLECTION);
+    CTX_data_type_set(result, ContextDataType::Collection);
     return CTX_RESULT_OK;
   }
   return CTX_RESULT_NO_DATA;
@@ -1294,91 +1075,149 @@ static eContextResult screen_ctx_ui_list(const bContext *C, bContextDataResult *
   return CTX_RESULT_NO_DATA;
 }
 
+static eContextResult screen_ctx_active_strip(const bContext *C, bContextDataResult *result)
+{
+  Scene *scene = CTX_data_sequencer_scene(C);
+  if (!scene) {
+    return CTX_RESULT_NO_DATA;
+  }
+  Strip *strip = blender::seq::select_active_get(scene);
+  if (strip) {
+    CTX_data_pointer_set(result, &scene->id, &RNA_Strip, strip);
+    return CTX_RESULT_OK;
+  }
+  return CTX_RESULT_NO_DATA;
+}
+static eContextResult screen_ctx_strips(const bContext *C, bContextDataResult *result)
+{
+  Scene *scene = CTX_data_sequencer_scene(C);
+  if (!scene) {
+    return CTX_RESULT_NO_DATA;
+  }
+  Editing *ed = blender::seq::editing_get(scene);
+  if (ed) {
+    LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
+      CTX_data_list_add(result, &scene->id, &RNA_Strip, strip);
+    }
+    CTX_data_type_set(result, ContextDataType::Collection);
+    return CTX_RESULT_OK;
+  }
+  return CTX_RESULT_NO_DATA;
+}
+static eContextResult screen_ctx_selected_strips(const bContext *C, bContextDataResult *result)
+{
+  Scene *scene = CTX_data_sequencer_scene(C);
+  if (!scene) {
+    return CTX_RESULT_NO_DATA;
+  }
+  Editing *ed = blender::seq::editing_get(scene);
+  if (ed) {
+    LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
+      if (strip->flag & SELECT) {
+        CTX_data_list_add(result, &scene->id, &RNA_Strip, strip);
+      }
+    }
+    CTX_data_type_set(result, ContextDataType::Collection);
+    return CTX_RESULT_OK;
+  }
+  return CTX_RESULT_NO_DATA;
+}
+static eContextResult screen_ctx_selected_editable_strips(const bContext *C,
+                                                          bContextDataResult *result)
+{
+  Scene *scene = CTX_data_sequencer_scene(C);
+  if (!scene) {
+    return CTX_RESULT_NO_DATA;
+  }
+  Editing *ed = blender::seq::editing_get(scene);
+  if (ed == nullptr) {
+    return CTX_RESULT_NO_DATA;
+  }
+
+  ListBase *channels = blender::seq::channels_displayed_get(ed);
+  LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
+    if (strip->flag & SELECT && !blender::seq::transform_is_locked(channels, strip)) {
+      CTX_data_list_add(result, &scene->id, &RNA_Strip, strip);
+    }
+  }
+  CTX_data_type_set(result, ContextDataType::Collection);
+  return CTX_RESULT_OK;
+}
+static eContextResult screen_ctx_sequencer_scene(const bContext *C, bContextDataResult *result)
+{
+  Scene *scene = CTX_data_sequencer_scene(C);
+  if (scene) {
+    CTX_data_id_pointer_set(result, &scene->id);
+    return CTX_RESULT_OK;
+  }
+  return CTX_RESULT_NO_DATA;
+}
+
 /* Registry of context callback functions. */
 
 using context_callback = eContextResult (*)(const bContext *C, bContextDataResult *result);
-static GHash *ed_screen_context_functions = nullptr;
 
-static void free_context_function_ghash(void * /*user_data*/)
+static const blender::Map<blender::StringRef, context_callback> &
+ensure_ed_screen_context_functions()
 {
-  BLI_ghash_free(ed_screen_context_functions, nullptr, nullptr);
-}
-static inline void register_context_function(const char *member, context_callback function)
-{
-  BLI_ghash_insert(
-      ed_screen_context_functions, (void *)member, reinterpret_cast<void *>(function));
-}
-
-static void ensure_ed_screen_context_functions()
-{
-  if (ed_screen_context_functions != nullptr) {
-    return;
-  }
-
-  /* Murmur hash is faster for smaller strings (according to BLI_hash_mm2). */
-  ed_screen_context_functions = BLI_ghash_new(
-      BLI_ghashutil_strhash_p_murmur, BLI_ghashutil_strcmp, __func__);
-
-  BKE_blender_atexit_register(free_context_function_ghash, nullptr);
-
-  register_context_function("scene", screen_ctx_scene);
-  register_context_function("visible_objects", screen_ctx_visible_objects);
-  register_context_function("selectable_objects", screen_ctx_selectable_objects);
-  register_context_function("selected_objects", screen_ctx_selected_objects);
-  register_context_function("selected_editable_objects", screen_ctx_selected_editable_objects);
-  register_context_function("editable_objects", screen_ctx_editable_objects);
-  register_context_function("objects_in_mode", screen_ctx_objects_in_mode);
-  register_context_function("objects_in_mode_unique_data", screen_ctx_objects_in_mode_unique_data);
-  register_context_function("visible_bones", screen_ctx_visible_bones);
-  register_context_function("editable_bones", screen_ctx_editable_bones);
-  register_context_function("selected_bones", screen_ctx_selected_bones);
-  register_context_function("selected_editable_bones", screen_ctx_selected_editable_bones);
-  register_context_function("visible_pose_bones", screen_ctx_visible_pose_bones);
-  register_context_function("selected_pose_bones", screen_ctx_selected_pose_bones);
-  register_context_function("selected_pose_bones_from_active_object",
-                            screen_ctx_selected_pose_bones_from_active_object);
-  register_context_function("active_bone", screen_ctx_active_bone);
-  register_context_function("active_pose_bone", screen_ctx_active_pose_bone);
-  register_context_function("active_object", screen_ctx_active_object);
-  register_context_function("object", screen_ctx_object);
-  register_context_function("edit_object", screen_ctx_edit_object);
-  register_context_function("sculpt_object", screen_ctx_sculpt_object);
-  register_context_function("vertex_paint_object", screen_ctx_vertex_paint_object);
-  register_context_function("weight_paint_object", screen_ctx_weight_paint_object);
-  register_context_function("image_paint_object", screen_ctx_image_paint_object);
-  register_context_function("particle_edit_object", screen_ctx_particle_edit_object);
-  register_context_function("pose_object", screen_ctx_pose_object);
-  register_context_function("active_sequence_strip", screen_ctx_active_sequence_strip);
-  register_context_function("sequences", screen_ctx_sequences);
-  register_context_function("selected_sequences", screen_ctx_selected_sequences);
-  register_context_function("selected_editable_sequences", screen_ctx_selected_editable_sequences);
-  register_context_function("active_nla_track", screen_ctx_active_nla_track);
-  register_context_function("active_nla_strip", screen_ctx_active_nla_strip);
-  register_context_function("selected_nla_strips", screen_ctx_selected_nla_strips);
-  register_context_function("selected_movieclip_tracks", screen_ctx_selected_movieclip_tracks);
-  register_context_function("gpencil_data", screen_ctx_gpencil_data);
-  register_context_function("gpencil_data_owner", screen_ctx_gpencil_data_owner);
-  register_context_function("annotation_data", screen_ctx_annotation_data);
-  register_context_function("annotation_data_owner", screen_ctx_annotation_data_owner);
-  register_context_function("active_gpencil_layer", screen_ctx_active_gpencil_layer);
-  register_context_function("active_annotation_layer", screen_ctx_active_annotation_layer);
-  register_context_function("active_gpencil_frame", screen_ctx_active_gpencil_frame);
-  register_context_function("visible_gpencil_layers", screen_ctx_visible_gpencil_layers);
-  register_context_function("editable_gpencil_layers", screen_ctx_editable_gpencil_layers);
-  register_context_function("editable_gpencil_strokes", screen_ctx_editable_gpencil_strokes);
-  register_context_function("active_operator", screen_ctx_active_operator);
-  register_context_function("active_action", screen_ctx_active_action);
-  register_context_function("selected_visible_actions", screen_ctx_selected_visible_actions);
-  register_context_function("selected_editable_actions", screen_ctx_selected_editable_actions);
-  register_context_function("editable_fcurves", screen_ctx_editable_fcurves);
-  register_context_function("visible_fcurves", screen_ctx_visible_fcurves);
-  register_context_function("selected_editable_fcurves", screen_ctx_selected_editable_fcurves);
-  register_context_function("selected_visible_fcurves", screen_ctx_selected_visible_fcurves);
-  register_context_function("active_editable_fcurve", screen_ctx_active_editable_fcurve);
-  register_context_function("selected_editable_keyframes", screen_ctx_selected_editable_keyframes);
-  register_context_function("asset_library_reference", screen_ctx_asset_library);
-  register_context_function("ui_list", screen_ctx_ui_list);
-  register_context_function("property", screen_ctx_property);
+  static blender::Map<blender::StringRef, context_callback> screen_context_functions = []() {
+    blender::Map<blender::StringRef, context_callback> map;
+    map.add("scene", screen_ctx_scene);
+    map.add("visible_objects", screen_ctx_visible_objects);
+    map.add("selectable_objects", screen_ctx_selectable_objects);
+    map.add("selected_objects", screen_ctx_selected_objects);
+    map.add("selected_editable_objects", screen_ctx_selected_editable_objects);
+    map.add("editable_objects", screen_ctx_editable_objects);
+    map.add("objects_in_mode", screen_ctx_objects_in_mode);
+    map.add("objects_in_mode_unique_data", screen_ctx_objects_in_mode_unique_data);
+    map.add("visible_bones", screen_ctx_visible_bones);
+    map.add("editable_bones", screen_ctx_editable_bones);
+    map.add("selected_bones", screen_ctx_selected_bones);
+    map.add("selected_editable_bones", screen_ctx_selected_editable_bones);
+    map.add("visible_pose_bones", screen_ctx_visible_pose_bones);
+    map.add("selected_pose_bones", screen_ctx_selected_pose_bones);
+    map.add("selected_pose_bones_from_active_object",
+            screen_ctx_selected_pose_bones_from_active_object);
+    map.add("active_bone", screen_ctx_active_bone);
+    map.add("active_pose_bone", screen_ctx_active_pose_bone);
+    map.add("active_object", screen_ctx_active_object);
+    map.add("object", screen_ctx_object);
+    map.add("edit_object", screen_ctx_edit_object);
+    map.add("sculpt_object", screen_ctx_sculpt_object);
+    map.add("vertex_paint_object", screen_ctx_vertex_paint_object);
+    map.add("weight_paint_object", screen_ctx_weight_paint_object);
+    map.add("image_paint_object", screen_ctx_image_paint_object);
+    map.add("particle_edit_object", screen_ctx_particle_edit_object);
+    map.add("pose_object", screen_ctx_pose_object);
+    map.add("active_nla_track", screen_ctx_active_nla_track);
+    map.add("active_nla_strip", screen_ctx_active_nla_strip);
+    map.add("selected_nla_strips", screen_ctx_selected_nla_strips);
+    map.add("selected_movieclip_tracks", screen_ctx_selected_movieclip_tracks);
+    map.add("annotation_data", screen_ctx_annotation_data);
+    map.add("annotation_data_owner", screen_ctx_annotation_data_owner);
+    map.add("active_annotation_layer", screen_ctx_active_annotation_layer);
+    map.add("grease_pencil", screen_ctx_grease_pencil_data);
+    map.add("active_operator", screen_ctx_active_operator);
+    map.add("active_action", screen_ctx_active_action);
+    map.add("selected_visible_actions", screen_ctx_selected_visible_actions);
+    map.add("selected_editable_actions", screen_ctx_selected_editable_actions);
+    map.add("editable_fcurves", screen_ctx_editable_fcurves);
+    map.add("visible_fcurves", screen_ctx_visible_fcurves);
+    map.add("selected_editable_fcurves", screen_ctx_selected_editable_fcurves);
+    map.add("selected_visible_fcurves", screen_ctx_selected_visible_fcurves);
+    map.add("active_editable_fcurve", screen_ctx_active_editable_fcurve);
+    map.add("selected_editable_keyframes", screen_ctx_selected_editable_keyframes);
+    map.add("asset_library_reference", screen_ctx_asset_library);
+    map.add("ui_list", screen_ctx_ui_list);
+    map.add("property", screen_ctx_property);
+    map.add("active_strip", screen_ctx_active_strip);
+    map.add("strips", screen_ctx_strips);
+    map.add("selected_strips", screen_ctx_selected_strips);
+    map.add("selected_editable_strips", screen_ctx_selected_editable_strips);
+    map.add("sequencer_scene", screen_ctx_sequencer_scene);
+    return map;
+  }();
+  return screen_context_functions;
 }
 
 int ed_screen_context(const bContext *C, const char *member, bContextDataResult *result)
@@ -1388,9 +1227,9 @@ int ed_screen_context(const bContext *C, const char *member, bContextDataResult 
     return CTX_RESULT_OK;
   }
 
-  ensure_ed_screen_context_functions();
-  context_callback callback = reinterpret_cast<context_callback>(
-      BLI_ghash_lookup(ed_screen_context_functions, member));
+  const blender::Map<blender::StringRef, context_callback> &functions =
+      ensure_ed_screen_context_functions();
+  context_callback callback = functions.lookup_default(member, nullptr);
   if (callback == nullptr) {
     return CTX_RESULT_MEMBER_NOT_FOUND;
   }

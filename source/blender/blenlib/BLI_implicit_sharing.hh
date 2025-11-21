@@ -13,6 +13,8 @@
 #include "BLI_assert.h"
 #include "BLI_utility_mixins.hh"
 
+#include "MEM_guardedalloc.h"
+
 namespace blender {
 
 /**
@@ -82,7 +84,7 @@ class ImplicitSharingInfo : NonCopyable, NonMovable {
     return strong_users_.load(std::memory_order_acquire) == 0;
   }
 
-  /** Call when a the data has a new additional owner. */
+  /** Call when the data has a new additional owner. */
   void add_user() const
   {
     BLI_assert(!this->is_expired());
@@ -197,6 +199,28 @@ class ImplicitSharingMixin : public ImplicitSharingInfo {
   }
 
   virtual void delete_self() = 0;
+};
+
+/**
+ * Utility for creating an allocated shared resource, to be used like:
+ * `new ImplicitSharedValue<T>(args);`
+ */
+template<typename T> class ImplicitSharedValue : public ImplicitSharingInfo {
+ public:
+  T data;
+
+  template<typename... Args>
+  ImplicitSharedValue(Args &&...args) : data(std::forward<Args>(args)...)
+  {
+  }
+
+  MEM_CXX_CLASS_ALLOC_FUNCS("ImplicitSharedValue");
+
+ private:
+  void delete_self_with_data() override
+  {
+    delete this;
+  }
 };
 
 /**

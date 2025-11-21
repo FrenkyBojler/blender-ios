@@ -17,8 +17,13 @@
 
 #include "wm_xr.hh"
 
+struct bContext;
+struct ARegion;
 struct Object;
+struct wmWindow;
+struct wmWindowManager;
 struct wmXrActionSet;
+struct wmXrData;
 
 struct wmXrSessionState {
   bool is_started;
@@ -48,6 +53,8 @@ struct wmXrSessionState {
 
   bool force_reset_to_base_pose;
   bool is_view_data_set;
+  bool swap_hands;
+  bool is_raycast_shown;
 
   /** Current navigation transforms. */
   GHOST_XrPose nav_pose;
@@ -67,6 +74,12 @@ struct wmXrSessionState {
   struct wmXrActionSet *active_action_set;
   /* Name of the action set (if any) to activate before the next actions sync. */
   char active_action_set_next[64]; /* #MAX_NAME. */
+
+  /** The current state and parameters of the vignette that appears while moving. */
+  struct wmXrVignetteData *vignette_data;
+
+  /** Model used to draw teleportation raycast. */
+  blender::gpu::Batch *raycast_model;
 };
 
 struct wmXrRuntimeData {
@@ -128,16 +141,18 @@ struct wmXrController {
   char subaction_path[64]; /* #XR_MAX_USER_PATH_LENGTH. */
 
   /** Pose (in world space) that represents the user's hand when holding the controller. */
+  bool grip_active;
   GHOST_XrPose grip_pose;
   float grip_mat[4][4];
   float grip_mat_base[4][4];
   /** Pose (in world space) that represents the controller's aiming source. */
+  bool aim_active;
   GHOST_XrPose aim_pose;
   float aim_mat[4][4];
   float aim_mat_base[4][4];
 
   /** Controller model. */
-  struct GPUBatch *model;
+  blender::gpu::Batch *model;
 };
 
 struct wmXrAction {
@@ -193,6 +208,22 @@ struct wmXrActionSet {
   ListBase active_haptic_actions;
 };
 
+struct wmXrVignetteData {
+  /** Vignette state. */
+  float aperture;
+  float aperture_velocity;
+
+  /** Vignette parameters. */
+  float initial_aperture;
+  float initial_aperture_velocity;
+
+  float aperture_min;
+  float aperture_max;
+
+  float aperture_velocity_max;
+  float aperture_velocity_delta;
+};
+
 /* `wm_xr.cc` */
 
 wmXrRuntimeData *wm_xr_runtime_data_create();
@@ -242,3 +273,18 @@ void wm_xr_pose_scale_to_imat(const GHOST_XrPose *pose, float scale, float r_ima
  */
 void wm_xr_draw_view(const GHOST_XrDrawViewInfo *draw_view, void *customdata);
 void wm_xr_draw_controllers(const bContext *C, ARegion *region, void *customdata);
+
+/**
+ * \brief Check if XR passthrough is enabled.
+ *
+ * Needed to add or not the passthrough composition layer.
+ * It's assigned to Ghost-XR as a callback (see GHOST_XrPassthroughEnabledFunc()).
+ */
+bool wm_xr_passthrough_enabled(void *customdata);
+/**
+ * \brief Disable XR passthrough if not supported.
+ *
+ * In case passthrough is not supported by the XR runtime, force un-check the toggle in the GUI.
+ * It's assigned to Ghost-XR as a callback (see GHOST_XrDisablePassthroughFunc()).
+ */
+void wm_xr_disable_passthrough(void *customdata);

@@ -9,13 +9,13 @@
 #include <iostream>
 
 #include "BLI_fileops.hh"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 
 #include "CLG_log.h"
 
 #include "asset_catalog_definition_file.hh"
 
-static CLG_LogRef LOG = {"asset_system.asset_catalog_definition_file"};
+static CLG_LogRef LOG = {"asset.catalog"};
 
 namespace blender::asset_system {
 
@@ -185,6 +185,11 @@ bool AssetCatalogDefinitionFile::write_to_disk(const CatalogFilePath &dest_file_
   return true;
 }
 
+bool AssetCatalogDefinitionFile::exists_on_disk() const
+{
+  return BLI_exists(this->file_path.c_str());
+}
+
 bool AssetCatalogDefinitionFile::write_to_disk_unsafe(const CatalogFilePath &dest_file_path) const
 {
   char directory[PATH_MAX];
@@ -223,7 +228,7 @@ bool AssetCatalogDefinitionFile::write_to_disk_unsafe(const CatalogFilePath &des
 }
 
 bool AssetCatalogDefinitionFile::ensure_directory_exists(
-    const CatalogFilePath directory_path) const
+    const CatalogFilePath &directory_path) const
 {
   /* TODO(@sybren): design a way to get such errors presented to users (or ensure that they never
    * occur). */
@@ -280,7 +285,7 @@ std::unique_ptr<AssetCatalogDefinitionFile> AssetCatalogDefinitionFile::copy_and
       continue;
     }
 
-    BLI_assert(!"A CDF should only reference known catalogs.");
+    BLI_assert_msg(false, "A CDF should only reference known catalogs.");
   }
 
   return copy;

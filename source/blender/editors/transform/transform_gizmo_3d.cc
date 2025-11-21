@@ -11,29 +11,33 @@
  */
 
 #include "BLI_array_utils.h"
+#include "BLI_bounds.hh"
 #include "BLI_function_ref.hh"
+#include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 
 #include "DNA_armature_types.h"
-#include "DNA_gpencil_legacy_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_meta_types.h"
+#include "DNA_pointcloud_types.h"
 
+#include "BKE_action.hh"
 #include "BKE_armature.hh"
 #include "BKE_context.hh"
 #include "BKE_crazyspace.hh"
 #include "BKE_curve.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_global.hh"
-#include "BKE_gpencil_legacy.h"
 #include "BKE_grease_pencil.hh"
 #include "BKE_layer.hh"
+#include "BKE_library.hh"
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
 #include "BKE_paint.hh"
 #include "BKE_pointcache.h"
 #include "BKE_scene.hh"
+#include "BKE_screen.hh"
 
 #include "WM_api.hh"
 #include "WM_message.hh"
@@ -53,7 +57,7 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
-#include "ANIM_bone_collections.hh"
+#include "ANIM_armature.hh"
 
 /* Local module include. */
 #include "transform.hh"
@@ -61,7 +65,7 @@
 #include "transform_gizmo.hh"
 #include "transform_snap.hh"
 
-using namespace blender;
+namespace blender::ed::transform {
 
 static wmGizmoGroupType *g_GGT_xform_gizmo = nullptr;
 static wmGizmoGroupType *g_GGT_xform_gizmo_context = nullptr;
@@ -541,78 +545,18 @@ static int gizmo_3d_foreach_selected(const bContext *C,
   Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
   View3D *v3d = static_cast<View3D *>(area->spacedata.first);
-  bGPdata *gpd = CTX_data_gpencil_data(C);
-  const bool is_gp_edit = GPENCIL_ANY_MODE(gpd);
-  const bool is_curve_edit = GPENCIL_CURVE_EDIT_SESSIONS_ON(gpd);
   int a, totsel = 0;
 
   Object *ob = gizmo_3d_transform_space_object_get(scene, view_layer);
 
-  if (is_gp_edit) {
-    float diff_mat[4][4];
-    const bool use_mat_local = true;
-    LISTBASE_FOREACH (bGPDlayer *, gpl, &gpd->layers) {
-      /* Only editable and visible layers are considered. */
-
-      if (BKE_gpencil_layer_is_editable(gpl) && (gpl->actframe != nullptr)) {
-
-        /* Calculate difference matrix. */
-        BKE_gpencil_layer_transform_matrix_get(depsgraph, ob, gpl, diff_mat);
-
-        LISTBASE_FOREACH (bGPDstroke *, gps, &gpl->actframe->strokes) {
-          /* Skip strokes that are invalid for current view. */
-          if (ED_gpencil_stroke_can_use(C, gps) == false) {
-            continue;
-          }
-
-          if (is_curve_edit) {
-            if (gps->editcurve == nullptr) {
-              continue;
-            }
-
-            bGPDcurve *gpc = gps->editcurve;
-            if (gpc->flag & GP_CURVE_SELECT) {
-              for (uint32_t i = 0; i < gpc->tot_curve_points; i++) {
-                bGPDcurve_point *gpc_pt = &gpc->curve_points[i];
-                BezTriple *bezt = &gpc_pt->bezt;
-                if (gpc_pt->flag & GP_CURVE_POINT_SELECT) {
-                  for (uint32_t j = 0; j < 3; j++) {
-                    if (BEZT_ISSEL_IDX(bezt, j)) {
-                      run_coord_with_matrix(bezt->vec[j], use_mat_local, diff_mat);
-                      totsel++;
-                    }
-                  }
-                }
-              }
-            }
-          }
-          else {
-            /* We're only interested in selected points here... */
-            if (gps->flag & GP_STROKE_SELECT) {
-              bGPDspoint *pt;
-              int i;
-
-              /* Change selection status of all points, then make the stroke match. */
-              for (i = 0, pt = gps->points; i < gps->totpoints; i++, pt++) {
-                if (pt->flag & GP_SPOINT_SELECT) {
-                  run_coord_with_matrix(&pt->x, use_mat_local, diff_mat);
-                  totsel++;
-                }
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-  else if (Object *obedit = OBEDIT_FROM_OBACT(ob)) {
+  if (Object *obedit = OBEDIT_FROM_OBACT(ob)) {
 
 #define FOREACH_EDIT_OBJECT_BEGIN(ob_iter, use_mat_local) \
   { \
     invert_m4_m4(obedit->runtime->world_to_object.ptr(), obedit->object_to_world().ptr()); \
     Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode( \
         scene, view_layer, CTX_wm_view3d(C)); \
-    for (Object * ob_iter : objects) { \
+    for (Object *ob_iter : objects) { \
       const bool use_mat_local = (ob_iter != obedit);
 
 #define FOREACH_EDIT_OBJECT_END() \
@@ -660,7 +604,7 @@ static int gizmo_3d_foreach_selected(const bContext *C,
               mat_local, obedit->world_to_object().ptr(), ob_iter->object_to_world().ptr());
         }
         LISTBASE_FOREACH (EditBone *, ebo, arm->edbo) {
-          if (EBONE_VISIBLE(arm, ebo)) {
+          if (blender::animrig::bone_is_visible(arm, ebo)) {
             if (ebo->flag & BONE_TIPSEL) {
               run_coord_with_matrix(ebo->tail, use_mat_local, mat_local);
               totsel++;
@@ -668,7 +612,8 @@ static int gizmo_3d_foreach_selected(const bContext *C,
             if ((ebo->flag & BONE_ROOTSEL) &&
                 /* Don't include same point multiple times. */
                 ((ebo->flag & BONE_CONNECTED) && (ebo->parent != nullptr) &&
-                 (ebo->parent->flag & BONE_TIPSEL) && EBONE_VISIBLE(arm, ebo->parent)) == 0)
+                 (ebo->parent->flag & BONE_TIPSEL) &&
+                 blender::animrig::bone_is_visible(arm, ebo->parent)) == 0)
             {
               run_coord_with_matrix(ebo->head, use_mat_local, mat_local);
               totsel++;
@@ -814,11 +759,34 @@ static int gizmo_3d_foreach_selected(const bContext *C,
       }
       FOREACH_EDIT_OBJECT_END();
     }
+    else if (obedit->type == OB_POINTCLOUD) {
+      FOREACH_EDIT_OBJECT_BEGIN (ob_iter, use_mat_local) {
+        const PointCloud &pointcloud = *static_cast<const PointCloud *>(ob_iter->data);
+
+        float4x4 mat_local;
+        if (use_mat_local) {
+          mat_local = obedit->world_to_object() * ob_iter->object_to_world();
+        }
+
+        const bke::AttributeAccessor attributes = pointcloud.attributes();
+        const VArray selection = *attributes.lookup_or_default<bool>(
+            ".selection", bke::AttrDomain::Point, true);
+
+        IndexMaskMemory memory;
+        const IndexMask mask = IndexMask::from_bools(selection, memory);
+        const Span<float3> positions = pointcloud.positions();
+        totsel += mask.size();
+        mask.foreach_index([&](const int point) {
+          run_coord_with_matrix(positions[point], use_mat_local, mat_local.ptr());
+        });
+      }
+      FOREACH_EDIT_OBJECT_END();
+    }
     else if (obedit->type == OB_GREASE_PENCIL) {
       FOREACH_EDIT_OBJECT_BEGIN (ob_iter, use_mat_local) {
         GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob_iter->data);
 
-        float4x4 mat_local;
+        float4x4 mat_local = float4x4::identity();
         if (use_mat_local) {
           mat_local = obedit->world_to_object() * ob_iter->object_to_world();
         }
@@ -831,7 +799,10 @@ static int gizmo_3d_foreach_selected(const bContext *C,
 
               const bke::crazyspace::GeometryDeformation deformation =
                   bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(
-                      *depsgraph, *ob, info.layer_index, info.frame_number);
+                      *depsgraph, *ob, info.drawing);
+
+              const float4x4 layer_transform =
+                  mat_local * grease_pencil.layer(info.layer_index).to_object_space(*ob_iter);
 
               IndexMaskMemory memory;
               const IndexMask selected_points = ed::curves::retrieve_selected_points(curves,
@@ -839,7 +810,7 @@ static int gizmo_3d_foreach_selected(const bContext *C,
               const Span<float3> positions = deformation.positions;
               totsel += selected_points.size();
               selected_points.foreach_index([&](const int point_i) {
-                run_coord_with_matrix(positions[point_i], use_mat_local, mat_local.ptr());
+                run_coord_with_matrix(positions[point_i], true, layer_transform.ptr());
               });
             });
       }
@@ -866,12 +837,16 @@ static int gizmo_3d_foreach_selected(const bContext *C,
         mul_m4_m4m4(mat_local, ob->world_to_object().ptr(), ob_iter->object_to_world().ptr());
       }
 
+      bArmature *arm = static_cast<bArmature *>(ob_iter->data);
       /* Use channels to get stats. */
       LISTBASE_FOREACH (bPoseChannel *, pchan, &ob_iter->pose->chanbase) {
-        if (!(pchan->bone->flag & BONE_TRANSFORM)) {
+        if (!(pchan->runtime.flag & POSE_RUNTIME_TRANSFORM)) {
           continue;
         }
-        run_coord_with_matrix(pchan->pose_head, use_mat_local, mat_local);
+
+        float pchan_pivot[3];
+        BKE_pose_channel_transform_location(arm, pchan, pchan_pivot);
+        run_coord_with_matrix(pchan_pivot, use_mat_local, mat_local);
         totsel++;
 
         if (r_drawflags) {
@@ -933,11 +908,10 @@ static int gizmo_3d_foreach_selected(const bContext *C,
       }
 
       /* Get the boundbox out of the evaluated object. */
-      std::optional<BoundBox> bb;
+      std::optional<std::array<float3, 8>> bb;
       if (use_only_center == false) {
         if (std::optional<Bounds<float3>> bounds = BKE_object_boundbox_get(base->object)) {
-          bb.emplace();
-          BKE_boundbox_init_from_minmax(&*bb, bounds->min, bounds->max);
+          bb.emplace(bounds::corners(*bounds));
         }
       }
 
@@ -947,16 +921,16 @@ static int gizmo_3d_foreach_selected(const bContext *C,
       else {
         for (uint j = 0; j < 8; j++) {
           float co[3];
-          mul_v3_m4v3(co, base->object->object_to_world().ptr(), bb->vec[j]);
+          mul_v3_m4v3(co, base->object->object_to_world().ptr(), (*bb)[j]);
           user_fn(co);
         }
       }
       totsel++;
       if (r_drawflags) {
         if (orient_index == V3D_ORIENT_GLOBAL) {
-          /* Protect-flags apply to world space in object mode,
-           * so only let them influence axis visibility if we show the global orientation,
-           * otherwise it's confusing. */
+          /* Ignore scale/rotate lock flag while global orientation is active.
+           * Otherwise when object is rotated, global and local axes are misaligned, implying wrong
+           * axis as hidden/locked, see: !133286. */
           protectflag_to_drawflags(base->object->protectflag & OB_LOCK_LOC, r_drawflags);
         }
         else if (ELEM(orient_index, V3D_ORIENT_LOCAL, V3D_ORIENT_GIMBAL)) {
@@ -973,10 +947,10 @@ static int gizmo_3d_foreach_selected(const bContext *C,
   return totsel;
 }
 
-int ED_transform_calc_gizmo_stats(const bContext *C,
-                                  const TransformCalcParams *params,
-                                  TransformBounds *tbounds,
-                                  RegionView3D *rv3d)
+int calc_gizmo_stats(const bContext *C,
+                     const TransformCalcParams *params,
+                     TransformBounds *tbounds,
+                     RegionView3D *rv3d)
 {
   ScrArea *area = CTX_wm_area(C);
   Scene *scene = CTX_data_scene(C);
@@ -999,7 +973,7 @@ int ED_transform_calc_gizmo_stats(const bContext *C,
    * if we could check 'totsel' now, this should be skipped with no selection. */
   if (ob) {
     float mat[3][3];
-    ED_transform_calc_orientation_from_type_ex(
+    calc_orientation_from_type_ex(
         scene, view_layer, v3d, rv3d, ob, obedit, orient_index, pivot_point, mat);
     copy_m3_m3(tbounds->axis, mat);
   }
@@ -1037,9 +1011,7 @@ int ED_transform_calc_gizmo_stats(const bContext *C,
   if (totsel) {
     mul_v3_fl(tbounds->center, 1.0f / float(totsel)); /* Centroid! */
 
-    bGPdata *gpd = CTX_data_gpencil_data(C);
-    const bool is_gp_edit = GPENCIL_ANY_MODE(gpd);
-    if (!is_gp_edit && (obedit || (ob && (ob->mode & (OB_MODE_POSE | OB_MODE_SCULPT))))) {
+    if (obedit || (ob && (ob->mode & (OB_MODE_POSE | OB_MODE_SCULPT)))) {
       if (ob->mode & OB_MODE_POSE) {
         invert_m4_m4(ob->runtime->world_to_object.ptr(), ob->object_to_world().ptr());
       }
@@ -1096,7 +1068,7 @@ static bool gizmo_3d_calc_pos(const bContext *C,
           copy_v3_v3(r_pivot_pos, ss->pivot_pos);
           return true;
         }
-        else if (ED_object_calc_active_center(ob, false, r_pivot_pos)) {
+        if (object::calc_active_center(ob, false, r_pivot_pos)) {
           return true;
         }
       }
@@ -1107,7 +1079,7 @@ static bool gizmo_3d_calc_pos(const bContext *C,
       if (tbounds == nullptr) {
         TransformCalcParams calc_params{};
         calc_params.use_only_center = true;
-        if (ED_transform_calc_gizmo_stats(C, &calc_params, &tbounds_stack, nullptr)) {
+        if (calc_gizmo_stats(C, &calc_params, &tbounds_stack, nullptr)) {
           tbounds = &tbounds_stack;
         }
       }
@@ -1126,7 +1098,7 @@ static bool gizmo_3d_calc_pos(const bContext *C,
 
       float co_sum[3] = {0.0f, 0.0f, 0.0f};
       const auto gizmo_3d_calc_center_fn = [&](const float3 &co) { add_v3_v3(co_sum, co); };
-      const float(*r_mat)[4] = nullptr;
+      const float (*r_mat)[4] = nullptr;
       int totsel;
       totsel = gizmo_3d_foreach_selected(C,
                                          0,
@@ -1218,7 +1190,7 @@ void gizmo_xform_message_subscribe(wmGizmoGroup *gzgroup,
   }
   TransformOrientationSlot *orient_slot = BKE_scene_orientation_slot_get_from_flag(scene,
                                                                                    orient_flag);
-  PointerRNA orient_ref_ptr = RNA_pointer_create(
+  PointerRNA orient_ref_ptr = RNA_pointer_create_discrete(
       &scene->id, &RNA_TransformOrientationSlot, orient_slot);
   const ToolSettings *ts = scene->toolsettings;
 
@@ -1235,7 +1207,8 @@ void gizmo_xform_message_subscribe(wmGizmoGroup *gzgroup,
   if ((ts->transform_pivot_point == V3D_AROUND_CURSOR) || (orient_slot->type == V3D_ORIENT_CURSOR))
   {
     /* We could be more specific here, for now subscribe to any cursor change. */
-    PointerRNA cursor_ptr = RNA_pointer_create(&scene->id, &RNA_View3DCursor, &scene->cursor);
+    PointerRNA cursor_ptr = RNA_pointer_create_discrete(
+        &scene->id, &RNA_View3DCursor, &scene->cursor);
     WM_msg_subscribe_rna(mbus, &cursor_ptr, nullptr, &msg_sub_value_gz_tag_refresh, __func__);
   }
 
@@ -1252,7 +1225,7 @@ void gizmo_xform_message_subscribe(wmGizmoGroup *gzgroup,
     }
   }
 
-  PointerRNA toolsettings_ptr = RNA_pointer_create(
+  PointerRNA toolsettings_ptr = RNA_pointer_create_discrete(
       &scene->id, &RNA_ToolSettings, scene->toolsettings);
 
   if (ELEM(type_fn, VIEW3D_GGT_xform_gizmo, VIEW3D_GGT_xform_shear)) {
@@ -1275,7 +1248,8 @@ void gizmo_xform_message_subscribe(wmGizmoGroup *gzgroup,
     }
   }
 
-  PointerRNA view3d_ptr = RNA_pointer_create(&screen->id, &RNA_SpaceView3D, area->spacedata.first);
+  PointerRNA view3d_ptr = RNA_pointer_create_discrete(
+      &screen->id, &RNA_SpaceView3D, area->spacedata.first);
 
   if (type_fn == VIEW3D_GGT_xform_gizmo) {
     GizmoGroup *ggd = static_cast<GizmoGroup *>(gzgroup->customdata);
@@ -1612,7 +1586,7 @@ static void gizmo_3d_setup_draw_modal(wmGizmo *axis, const int axis_idx, const i
 
 static GizmoGroup *gizmogroup_init(wmGizmoGroup *gzgroup)
 {
-  GizmoGroup *ggd = MEM_cnew<GizmoGroup>(__func__);
+  GizmoGroup *ggd = MEM_callocN<GizmoGroup>(__func__);
 
   const wmGizmoType *gzt_arrow = WM_gizmotype_find("GIZMO_GT_arrow_3d", true);
   const wmGizmoType *gzt_dial = WM_gizmotype_find("GIZMO_GT_dial_3d", true);
@@ -1681,10 +1655,10 @@ static GizmoGroup *gizmogroup_init(wmGizmoGroup *gzgroup)
 /**
  * Custom handler for gizmo widgets
  */
-static int gizmo_modal(bContext *C,
-                       wmGizmo *widget,
-                       const wmEvent *event,
-                       eWM_GizmoFlagTweak /*tweak_flag*/)
+static wmOperatorStatus gizmo_modal(bContext *C,
+                                    wmGizmo *widget,
+                                    const wmEvent *event,
+                                    eWM_GizmoFlagTweak /*tweak_flag*/)
 {
   /* Avoid unnecessary updates, partially address: #55458. */
   if (ELEM(event->type, TIMER, INBETWEEN_MOUSEMOVE)) {
@@ -1708,7 +1682,7 @@ static int gizmo_modal(bContext *C,
 
     TransformCalcParams calc_params{};
     calc_params.use_only_center = true;
-    if (ED_transform_calc_gizmo_stats(C, &calc_params, &tbounds, rv3d)) {
+    if (calc_gizmo_stats(C, &calc_params, &tbounds, rv3d)) {
       gizmo_prepare_mat(C, rv3d, &tbounds);
       LISTBASE_FOREACH (wmGizmo *, gz, &gzgroup->gizmos) {
         WM_gizmo_set_matrix_location(gz, rv3d->twmat[3]);
@@ -1718,9 +1692,8 @@ static int gizmo_modal(bContext *C,
   else {
     wmWindow *win = CTX_wm_window(C);
     wmOperator *op = nullptr;
-    for (int i = 0; i < widget->op_data_len; i++) {
-      wmGizmoOpElem *gzop = WM_gizmo_operator_get(widget, i);
-      op = WM_operator_find_modal_by_type(win, gzop->type);
+    for (const wmGizmoOpElem &gzop : widget->op_data) {
+      op = WM_operator_find_modal_by_type(win, gzop.type);
       if (op != nullptr) {
         break;
       }
@@ -2089,15 +2062,11 @@ static void gizmogroup_refresh_from_matrix(wmGizmoGroup *gzgroup,
 
 static void WIDGETGROUP_gizmo_refresh(const bContext *C, wmGizmoGroup *gzgroup)
 {
-  ARegion *region = CTX_wm_region(C);
-
-  {
-    wmGizmo *gz = WM_gizmomap_get_modal(region->gizmo_map);
-    if (gz && gz->parent_gzgroup == gzgroup) {
-      return;
-    }
+  if (WM_gizmo_group_is_modal(gzgroup)) {
+    return;
   }
 
+  ARegion *region = CTX_wm_region(C);
   GizmoGroup *ggd = static_cast<GizmoGroup *>(gzgroup->customdata);
   Scene *scene = CTX_data_scene(C);
   ScrArea *area = CTX_wm_area(C);
@@ -2119,7 +2088,7 @@ static void WIDGETGROUP_gizmo_refresh(const bContext *C, wmGizmoGroup *gzgroup)
   TransformCalcParams calc_params{};
   calc_params.use_only_center = true;
   calc_params.orientation_index = orient_index + 1;
-  if ((ggd->all_hidden = (ED_transform_calc_gizmo_stats(C, &calc_params, &tbounds, rv3d) == 0))) {
+  if ((ggd->all_hidden = (calc_gizmo_stats(C, &calc_params, &tbounds, rv3d) == 0))) {
     return;
   }
 
@@ -2161,13 +2130,7 @@ static void WIDGETGROUP_gizmo_draw_prepare(const bContext *C, wmGizmoGroup *gzgr
   float idot[3];
 
   /* Re-calculate hidden unless modal. */
-  bool is_modal = false;
-  {
-    wmGizmo *gz = WM_gizmomap_get_modal(region->gizmo_map);
-    if (gz && gz->parent_gzgroup == gzgroup) {
-      is_modal = true;
-    }
-  }
+  const bool is_modal = WM_gizmo_group_is_modal(gzgroup);
 
   /* When looking through a selected camera, the gizmo can be at the
    * exact same position as the view, skip so we don't break selection. */
@@ -2435,7 +2398,7 @@ void VIEW3D_GGT_xform_gizmo_context(wmGizmoGroupType *gzgt)
 
 static wmGizmoGroup *gizmogroup_xform_find(TransInfo *t)
 {
-  wmGizmoMap *gizmo_map = t->region->gizmo_map;
+  wmGizmoMap *gizmo_map = t->region->runtime->gizmo_map;
   if (gizmo_map == nullptr) {
     BLI_assert_msg(false, "#T_NO_GIZMO should already be set to return early before.");
     return nullptr;
@@ -2466,8 +2429,8 @@ static wmGizmoGroup *gizmogroup_xform_find(TransInfo *t)
 
 void transform_gizmo_3d_model_from_constraint_and_mode_init(TransInfo *t)
 {
-  wmGizmo *gizmo_modal_current = t->region && t->region->gizmo_map ?
-                                     WM_gizmomap_get_modal(t->region->gizmo_map) :
+  wmGizmo *gizmo_modal_current = t->region && t->region->runtime->gizmo_map ?
+                                     WM_gizmomap_get_modal(t->region->runtime->gizmo_map) :
                                      nullptr;
   if (!gizmo_modal_current || !ELEM(gizmo_modal_current->parent_gzgroup->type,
                                     g_GGT_xform_gizmo,
@@ -2533,10 +2496,10 @@ void transform_gizmo_3d_model_from_constraint_and_mode_set(TransInfo *t)
     axis_idx = axis_map[trans_mode][con_mode];
   }
 
-  wmGizmo *gizmo_modal_current = WM_gizmomap_get_modal(t->region->gizmo_map);
+  wmGizmo *gizmo_modal_current = WM_gizmomap_get_modal(t->region->runtime->gizmo_map);
   if (axis_idx != -1) {
     RegionView3D *rv3d = static_cast<RegionView3D *>(t->region->regiondata);
-    float(*mat_cmp)[3] = t->orient[t->orient_curr != O_DEFAULT ? t->orient_curr : O_SCENE].matrix;
+    float (*mat_cmp)[3] = t->orient[t->orient_curr != O_DEFAULT ? t->orient_curr : O_SCENE].matrix;
 
     bool update_orientation = !(equals_v3v3(rv3d->twmat[0], mat_cmp[0]) &&
                                 equals_v3v3(rv3d->twmat[1], mat_cmp[1]) &&
@@ -2562,12 +2525,13 @@ void transform_gizmo_3d_model_from_constraint_and_mode_set(TransInfo *t)
       BLI_assert_msg(!gizmo_modal_current || gizmo_modal_current->highlight_part == 0,
                      "Avoid changing the highlight part");
       gizmo_expected->highlight_part = 0;
-      WM_gizmo_modal_set_while_modal(t->region->gizmo_map, t->context, gizmo_expected, &event);
-      WM_gizmo_highlight_set(t->region->gizmo_map, gizmo_expected);
+      WM_gizmo_modal_set_while_modal(
+          t->region->runtime->gizmo_map, t->context, gizmo_expected, &event);
+      WM_gizmo_highlight_set(t->region->runtime->gizmo_map, gizmo_expected);
     }
   }
   else if (gizmo_modal_current) {
-    WM_gizmo_modal_set_while_modal(t->region->gizmo_map, t->context, nullptr, nullptr);
+    WM_gizmo_modal_set_while_modal(t->region->runtime->gizmo_map, t->context, nullptr, nullptr);
   }
 }
 
@@ -2592,8 +2556,10 @@ void transform_gizmo_3d_model_from_constraint_and_mode_restore(TransInfo *t)
   MAN_ITER_AXES_END;
 }
 
-bool ED_transform_calc_pivot_pos(const bContext *C, const short pivot_type, float r_pivot_pos[3])
+bool calc_pivot_pos(const bContext *C, const short pivot_type, float r_pivot_pos[3])
 {
   Scene *scene = CTX_data_scene(C);
   return gizmo_3d_calc_pos(C, scene, nullptr, pivot_type, r_pivot_pos);
 }
+
+}  // namespace blender::ed::transform

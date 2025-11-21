@@ -6,13 +6,14 @@
  * \ingroup spview3d
  */
 
+#include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
-#include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_layer.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_object.hh"
 
 #include "DEG_depsgraph.hh"
@@ -27,9 +28,10 @@
 
 #include "RNA_access.hh"
 
+#include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "view3d_intern.h" /* own include */
+#include "view3d_intern.hh" /* own include */
 
 /* -------------------------------------------------------------------- */
 /** \name Empty Image Gizmos
@@ -48,7 +50,7 @@ static void gizmo_empty_image_prop_matrix_get(const wmGizmo *gz,
                                               wmGizmoProperty *gz_prop,
                                               void *value_p)
 {
-  float(*matrix)[4] = static_cast<float(*)[4]>(value_p);
+  float (*matrix)[4] = static_cast<float (*)[4]>(value_p);
   BLI_assert(gz_prop->type->array_length == 16);
   EmptyImageWidgetGroup *igzgroup = static_cast<EmptyImageWidgetGroup *>(
       gz_prop->custom_func.user_data);
@@ -71,7 +73,7 @@ static void gizmo_empty_image_prop_matrix_set(const wmGizmo *gz,
                                               wmGizmoProperty *gz_prop,
                                               const void *value_p)
 {
-  const float(*matrix)[4] = static_cast<const float(*)[4]>(value_p);
+  const float (*matrix)[4] = static_cast<const float (*)[4]>(value_p);
   BLI_assert(gz_prop->type->array_length == 16);
   EmptyImageWidgetGroup *igzgroup = static_cast<EmptyImageWidgetGroup *>(
       gz_prop->custom_func.user_data);
@@ -79,6 +81,7 @@ static void gizmo_empty_image_prop_matrix_set(const wmGizmo *gz,
 
   ob->empty_drawsize = matrix[0][0];
   DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
+  WM_main_add_notifier(NC_OBJECT | ND_TRANSFORM, ob);
 
   float dims[2];
   RNA_float_get_array(gz->ptr, "dimensions", dims);
@@ -106,10 +109,14 @@ static bool WIDGETGROUP_empty_image_poll(const bContext *C, wmGizmoGroupType * /
   BKE_view_layer_synced_ensure(scene, view_layer);
   Base *base = BKE_view_layer_active_base_get(view_layer);
   if (base && BASE_SELECTABLE(v3d, base)) {
-    Object *ob = base->object;
+    const Object *ob = base->object;
     if (ob->type == OB_EMPTY) {
       if (ob->empty_drawtype == OB_EMPTY_IMAGE) {
-        return BKE_object_empty_image_frame_is_visible_in_view3d(ob, rv3d);
+        if (BKE_object_empty_image_frame_is_visible_in_view3d(ob, rv3d)) {
+          if (BKE_id_is_editable(CTX_data_main(C), &ob->id)) {
+            return true;
+          }
+        }
       }
     }
   }
@@ -118,8 +125,7 @@ static bool WIDGETGROUP_empty_image_poll(const bContext *C, wmGizmoGroupType * /
 
 static void WIDGETGROUP_empty_image_setup(const bContext * /*C*/, wmGizmoGroup *gzgroup)
 {
-  EmptyImageWidgetGroup *igzgroup = static_cast<EmptyImageWidgetGroup *>(
-      MEM_mallocN(sizeof(EmptyImageWidgetGroup), __func__));
+  EmptyImageWidgetGroup *igzgroup = MEM_mallocN<EmptyImageWidgetGroup>(__func__);
   igzgroup->gizmo = WM_gizmo_new("GIZMO_GT_cage_2d", gzgroup, nullptr);
   wmGizmo *gz = igzgroup->gizmo;
   RNA_enum_set(gz->ptr, "transform", ED_GIZMO_CAGE_XFORM_FLAG_SCALE);
@@ -130,6 +136,11 @@ static void WIDGETGROUP_empty_image_setup(const bContext * /*C*/, wmGizmoGroup *
 
   UI_GetThemeColor3fv(TH_GIZMO_PRIMARY, gz->color);
   UI_GetThemeColor3fv(TH_GIZMO_HI, gz->color_hi);
+
+  /* All gizmos must perform undo. */
+  LISTBASE_FOREACH (wmGizmo *, gz, &gzgroup->gizmos) {
+    WM_gizmo_set_flag(gz, WM_GIZMO_NEEDS_UNDO, true);
+  }
 }
 
 static void WIDGETGROUP_empty_image_refresh(const bContext *C, wmGizmoGroup *gzgroup)

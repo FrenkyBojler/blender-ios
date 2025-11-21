@@ -24,6 +24,7 @@
 
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
+#include "BLI_mutex.hh"
 #include "BLI_rect.h"
 #include "BLI_task.h"
 #include "BLI_utildefines.h"
@@ -47,7 +48,7 @@
 
 #include "UI_view2d.hh"
 
-#include "clip_intern.h" /* own include */
+#include "clip_intern.hh" /* own include */
 
 /* -------------------------------------------------------------------- */
 /** \name Operator Poll Functions
@@ -104,7 +105,8 @@ bool ED_space_clip_maskedit_visible_splines_poll(bContext *C)
   }
 
   const SpaceClip *space_clip = CTX_wm_space_clip(C);
-  return space_clip->mask_info.draw_flag & MASK_DRAWFLAG_SPLINE;
+  return space_clip->overlay.flag & SC_SHOW_OVERLAYS &&
+         space_clip->mask_info.draw_flag & MASK_DRAWFLAG_SPLINE;
 }
 
 bool ED_space_clip_maskedit_mask_poll(bContext *C)
@@ -129,7 +131,8 @@ bool ED_space_clip_maskedit_mask_visible_splines_poll(bContext *C)
   }
 
   const SpaceClip *space_clip = CTX_wm_space_clip(C);
-  return space_clip->mask_info.draw_flag & MASK_DRAWFLAG_SPLINE;
+  return space_clip->overlay.flag & SC_SHOW_OVERLAYS &&
+         space_clip->mask_info.draw_flag & MASK_DRAWFLAG_SPLINE;
 }
 
 /** \} */
@@ -508,14 +511,16 @@ void ED_clip_point_stable_pos(
 
   if (sc->user.render_flag & MCLIP_PROXY_RENDER_UNDISTORT) {
     MovieClip *clip = ED_space_clip_get_clip(sc);
-    MovieTracking *tracking = &clip->tracking;
-    float aspy = 1.0f / tracking->camera.pixel_aspect;
-    float tmp[2] = {*xr * width, *yr * height * aspy};
+    if (clip != nullptr) {
+      MovieTracking *tracking = &clip->tracking;
+      float aspy = 1.0f / tracking->camera.pixel_aspect;
+      float tmp[2] = {*xr * width, *yr * height * aspy};
 
-    BKE_tracking_distort_v2(tracking, width, height, tmp, tmp);
+      BKE_tracking_distort_v2(tracking, width, height, tmp, tmp);
 
-    *xr = tmp[0] / width;
-    *yr = tmp[1] / (height * aspy);
+      *xr = tmp[0] / width;
+      *yr = tmp[1] / (height * aspy);
+    }
   }
 }
 
@@ -679,7 +684,7 @@ struct PrefetchQueue {
    */
   bool forward;
 
-  SpinLock spin;
+  blender::Mutex mutex;
 
   bool *stop;
   bool *do_update;
@@ -715,7 +720,7 @@ static uchar *prefetch_read_file_to_memory(
     return nullptr;
   }
 
-  uchar *mem = MEM_cnew_array<uchar>(size, "movieclip prefetch memory file");
+  uchar *mem = MEM_calloc_arrayN<uchar>(size, "movieclip prefetch memory file");
   if (mem == nullptr) {
     close(file);
     return nullptr;
@@ -778,7 +783,7 @@ static uchar *prefetch_thread_next_frame(PrefetchQueue *queue,
 {
   uchar *mem = nullptr;
 
-  BLI_spin_lock(&queue->spin);
+  std::lock_guard lock(queue->mutex);
   if (!*queue->stop && !check_prefetch_break() &&
       IN_RANGE_INCL(queue->current_frame, queue->start_frame, queue->end_frame))
   {
@@ -829,7 +834,6 @@ static uchar *prefetch_thread_next_frame(PrefetchQueue *queue,
       *queue->progress = float(frames_processed) / (queue->end_frame - queue->start_frame);
     }
   }
-  BLI_spin_unlock(&queue->spin);
 
   return mem;
 }
@@ -845,7 +849,7 @@ static void prefetch_task_func(TaskPool *__restrict pool, void *task_data)
   while ((mem = prefetch_thread_next_frame(queue, clip, &size, &current_frame))) {
     ImBuf *ibuf;
     MovieClipUser user = *DNA_struct_default_get(MovieClipUser);
-    int flag = IB_rect | IB_multilayer | IB_alphamode_detect | IB_metadata;
+    int flag = IB_byte_data | IB_multilayer | IB_alphamode_detect | IB_metadata;
     int result;
     char *colorspace_name = nullptr;
     const bool use_proxy = (clip->flag & MCLIP_USE_PROXY) &&
@@ -860,7 +864,7 @@ static void prefetch_task_func(TaskPool *__restrict pool, void *task_data)
       colorspace_name = clip->colorspace_settings.name;
     }
 
-    ibuf = IMB_ibImageFromMemory(mem, size, flag, colorspace_name, "prefetch frame");
+    ibuf = IMB_load_image_from_memory(mem, size, flag, "prefetch frame", nullptr, colorspace_name);
     if (ibuf == nullptr) {
       continue;
     }
@@ -894,8 +898,6 @@ static void start_prefetch_threads(MovieClip *clip,
 
   /* initialize queue */
   PrefetchQueue queue;
-  BLI_spin_init(&queue.spin);
-
   queue.current_frame = current_frame;
   queue.initial_frame = current_frame;
   queue.start_frame = start_frame;
@@ -914,8 +916,6 @@ static void start_prefetch_threads(MovieClip *clip,
   }
   BLI_task_pool_work_and_wait(task_pool);
   BLI_task_pool_free(task_pool);
-
-  BLI_spin_end(&queue.spin);
 }
 
 /* NOTE: Reading happens from `clip_local` into `clip->cache`. */
@@ -1119,12 +1119,12 @@ void clip_start_prefetch_job(const bContext *C)
   wm_job = WM_jobs_get(CTX_wm_manager(C),
                        CTX_wm_window(C),
                        CTX_data_scene(C),
-                       "Prefetching",
+                       "Prefetching...",
                        WM_JOB_PROGRESS,
                        WM_JOB_TYPE_CLIP_PREFETCH);
 
   /* create new job */
-  pj = MEM_cnew<PrefetchJob>("prefetch job");
+  pj = MEM_callocN<PrefetchJob>("prefetch job");
   pj->clip = ED_space_clip_get_clip(sc);
   pj->start_frame = prefetch_get_start_frame(C);
   pj->current_frame = sc->user.framenr;
@@ -1135,7 +1135,7 @@ void clip_start_prefetch_job(const bContext *C)
   /* Create a local copy of the clip, so that video file (clip->anim) access can happen without
    * acquiring the lock which will interfere with the main thread. */
   if (pj->clip->source == MCLIP_SRC_MOVIE) {
-    BKE_id_copy_ex(nullptr, (ID *)&pj->clip->id, (ID **)&pj->clip_local, LIB_ID_COPY_LOCALIZE);
+    BKE_id_copy_ex(nullptr, (&pj->clip->id), (ID **)&pj->clip_local, LIB_ID_COPY_LOCALIZE);
   }
 
   WM_jobs_customdata_set(wm_job, pj, prefetch_freejob);

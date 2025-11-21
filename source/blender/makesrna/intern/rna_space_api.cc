@@ -8,7 +8,6 @@
 
 #include "DNA_object_types.h"
 
-#include "RNA_access.hh"
 #include "RNA_define.hh"
 
 #include "rna_internal.hh"
@@ -71,8 +70,21 @@ static void rna_SpaceTextEditor_region_location_from_cursor(
   if (area) {
     ARegion *region = BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
     const int cursor_co[2] = {line, column};
-    ED_space_text_region_location_from_cursor(st, region, cursor_co, r_pixel_pos);
+    if (!ED_space_text_region_location_from_cursor(st, region, cursor_co, r_pixel_pos)) {
+      r_pixel_pos[0] = r_pixel_pos[1] = -1;
+    }
   }
+}
+
+static void rna_FileBrowser_deselect_all(SpaceFile *sfile, ReportList *reports)
+{
+  if (sfile->files == nullptr) {
+    /* Likely to happen in background mode.
+     * We could look into initializing this on demand, see: #141547. */
+    BKE_report(reports, RPT_ERROR, "Uninitialized file-list");
+    return;
+  }
+  ED_fileselect_deselect_all(sfile);
 }
 
 #else
@@ -177,9 +189,9 @@ void rna_def_object_type_visibility_flags_common(StructRNA *srna,
        {"show_object_viewport_empty", "show_object_select_empty"},
        {"Show empties", "Allow selection of empties"}},
       {"Grease Pencil",
-       (1 << OB_GPENCIL_LEGACY),
+       (1 << OB_GREASE_PENCIL),
        {"show_object_viewport_grease_pencil", "show_object_select_grease_pencil"},
-       {"Show grease pencil objects", "Allow selection of grease pencil objects"}},
+       {"Show Grease Pencil objects", "Allow selection of Grease Pencil objects"}},
       {"Camera",
        (1 << OB_CAMERA),
        {"show_object_viewport_camera", "show_object_select_camera"},
@@ -244,7 +256,8 @@ void RNA_api_space_filebrowser(StructRNA *srna)
   RNA_def_property(func, "relative_path", PROP_STRING, PROP_FILEPATH);
 
   /* Deselect all files. */
-  func = RNA_def_function(srna, "deselect_all", "ED_fileselect_deselect_all");
+  func = RNA_def_function(srna, "deselect_all", "rna_FileBrowser_deselect_all");
+  RNA_def_function_flag(func, FUNC_USE_REPORTS);
   RNA_def_function_ui_description(func, "Deselect all files");
 }
 

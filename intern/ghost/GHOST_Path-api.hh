@@ -8,11 +8,10 @@
 
 #pragma once
 
-#include "GHOST_Types.h"
+#include <optional>
+#include <string>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "GHOST_Types.h"
 
 GHOST_DECLARE_HANDLE(GHOST_SystemPathsHandle);
 
@@ -29,9 +28,10 @@ extern GHOST_TSuccess GHOST_CreateSystemPaths();
 extern GHOST_TSuccess GHOST_DisposeSystemPaths();
 
 /**
- * Determine the base dir in which shared resources are located. It will first try to use
- * "unpack and run" path, then look for properly installed path, including versioning.
- * \return Unsigned char string pointing to system dir (eg `/usr/share/blender/`).
+ * Determine the base directory in which shared resources are located.
+ * It will first try to use "unpack and run" path, then look for properly
+ * installed path, including versioning.
+ * \return Unsigned char string pointing to system directory (eg `/usr/share/blender/`).
  *
  * \note typically: `BKE_appdir_resource_path_id(BLENDER_RESOURCE_PATH_SYSTEM, false)` should be
  * used instead of this function directly as it ensures environment variable overrides are used.
@@ -39,8 +39,8 @@ extern GHOST_TSuccess GHOST_DisposeSystemPaths();
 extern const char *GHOST_getSystemDir(int version, const char *versionstr);
 
 /**
- * Determine the base dir in which user configuration is stored, including versioning.
- * \return Unsigned char string pointing to user dir (eg ~).
+ * Determine the base directory in which user configuration is stored, including versioning.
+ * \return Unsigned char string pointing to user directory (eg ~).
  *
  * \note typically: `BKE_appdir_resource_path_id(BLENDER_RESOURCE_PATH_USER, false)` should be
  * used instead of this function directly as it ensures environment variable overrides are used.
@@ -49,13 +49,13 @@ extern const char *GHOST_getUserDir(int version, const char *versionstr);
 
 /**
  * Determine a special ("well known") and easy to reach user directory.
- * \return Unsigned char string pointing to user dir (eg `~/Documents/`).
+ * \return If successfull, a string containing the user directory path (eg `~/Documents/`).
  */
-extern const char *GHOST_getUserSpecialDir(GHOST_TUserSpecialDirTypes type);
+extern std::optional<std::string> GHOST_getUserSpecialDir(GHOST_TUserSpecialDirTypes type);
 
 /**
- * Determine the dir in which the binary file is found.
- * \return Unsigned char string pointing to binary dir (eg ~/usr/local/bin/).
+ * Determine the directory in which the binary file is found.
+ * \return Unsigned char string pointing to binary directory (eg ~/usr/local/bin/).
  */
 extern const char *GHOST_getBinaryDir();
 
@@ -63,7 +63,3 @@ extern const char *GHOST_getBinaryDir();
  * Add the file to the operating system most recently used files
  */
 extern void GHOST_addToSystemRecentFiles(const char *filepath);
-
-#ifdef __cplusplus
-}
-#endif

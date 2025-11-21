@@ -13,18 +13,22 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  Field<float> radius_field = AttributeFieldInput::Create<float>("radius");
+  Field<float> radius_field = AttributeFieldInput::from<float>("radius");
   params.set_output("Radius", std::move(radius_field));
 }
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_INPUT_RADIUS, "Radius", NODE_CLASS_INPUT);
+  geo_node_type_base(&ntype, "GeometryNodeInputRadius", GEO_NODE_INPUT_RADIUS);
+  ntype.ui_name = "Radius";
+  ntype.ui_description = "Retrieve the radius at each point on curve or point cloud geometry";
+  ntype.enum_name_legacy = "INPUT_RADIUS";
+  ntype.nclass = NODE_CLASS_INPUT;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

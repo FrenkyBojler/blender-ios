@@ -3,8 +3,6 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 #include "testing/testing.h"
 
-#include "MEM_guardedalloc.h"
-
 #include "BKE_appdir.hh"
 #include "BKE_idtype.hh"
 #include "BKE_layer.hh"
@@ -18,9 +16,7 @@
 #include "CLG_log.h"
 
 #include "RNA_access.hh"
-#include "RNA_prototypes.h"
-
-#include "GHOST_Path-api.hh"
+#include "RNA_prototypes.hh"
 
 namespace blender::bke::tests {
 
@@ -33,7 +29,7 @@ TEST(view_layer, aov_unique_names)
   IMB_init();
   RE_engines_init();
 
-  Scene scene = {{nullptr}};
+  Scene scene = {};
   IDType_ID_SCE.init_data(&scene.id);
   ViewLayer *view_layer = static_cast<ViewLayer *>(scene.view_layers.first);
 
@@ -83,7 +79,6 @@ TEST(view_layer, aov_unique_names)
   IMB_exit();
   BKE_appdir_exit();
   CLG_exit();
-  GHOST_DisposeSystemPaths();
 }
 
 static void test_render_pass_conflict(Scene *scene,
@@ -93,7 +88,7 @@ static void test_render_pass_conflict(Scene *scene,
                                       const char *render_pass_name,
                                       const char *rna_prop_name)
 {
-  PointerRNA ptr = RNA_pointer_create(&scene->id, &RNA_ViewLayer, view_layer);
+  PointerRNA ptr = RNA_pointer_create_discrete(&scene->id, &RNA_ViewLayer, view_layer);
   RNA_boolean_set(&ptr, rna_prop_name, false);
 
   /* Rename to Conflicting name */
@@ -126,7 +121,7 @@ TEST(view_layer, aov_conflict)
   IMB_init();
   RE_engines_init();
 
-  Scene scene = {{nullptr}};
+  Scene scene = {};
   IDType_ID_SCE.init_data(&scene.id);
   ViewLayer *view_layer = static_cast<ViewLayer *>(scene.view_layers.first);
 
@@ -147,13 +142,19 @@ TEST(view_layer, aov_conflict)
   test_render_pass_conflict(&scene, engine, view_layer, aov, "Normal", "use_pass_normal");
   test_render_pass_conflict(&scene, engine, view_layer, aov, "Mist", "use_pass_mist");
   test_render_pass_conflict(&scene, engine, view_layer, aov, "Shadow", "use_pass_shadow");
-  test_render_pass_conflict(&scene, engine, view_layer, aov, "AO", "use_pass_ambient_occlusion");
-  test_render_pass_conflict(&scene, engine, view_layer, aov, "Emit", "use_pass_emit");
-  test_render_pass_conflict(&scene, engine, view_layer, aov, "Env", "use_pass_environment");
-  test_render_pass_conflict(&scene, engine, view_layer, aov, "DiffDir", "use_pass_diffuse_direct");
-  test_render_pass_conflict(&scene, engine, view_layer, aov, "DiffCol", "use_pass_diffuse_color");
-  test_render_pass_conflict(&scene, engine, view_layer, aov, "GlossDir", "use_pass_glossy_direct");
-  test_render_pass_conflict(&scene, engine, view_layer, aov, "GlossCol", "use_pass_glossy_color");
+  test_render_pass_conflict(
+      &scene, engine, view_layer, aov, "Ambient Occlusion", "use_pass_ambient_occlusion");
+  test_render_pass_conflict(&scene, engine, view_layer, aov, "Emission", "use_pass_emit");
+  test_render_pass_conflict(
+      &scene, engine, view_layer, aov, "Environment", "use_pass_environment");
+  test_render_pass_conflict(
+      &scene, engine, view_layer, aov, "Diffuse Direct", "use_pass_diffuse_direct");
+  test_render_pass_conflict(
+      &scene, engine, view_layer, aov, "Diffuse Color", "use_pass_diffuse_color");
+  test_render_pass_conflict(
+      &scene, engine, view_layer, aov, "Glossy Direct", "use_pass_glossy_direct");
+  test_render_pass_conflict(
+      &scene, engine, view_layer, aov, "Glossy Color", "use_pass_glossy_color");
 
   /* Tear down */
   RE_engine_free(engine);
@@ -162,7 +163,6 @@ TEST(view_layer, aov_conflict)
   IMB_exit();
   BKE_appdir_exit();
   CLG_exit();
-  GHOST_DisposeSystemPaths();
 }
 
 }  // namespace blender::bke::tests

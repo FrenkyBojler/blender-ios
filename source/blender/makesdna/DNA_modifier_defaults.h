@@ -52,6 +52,8 @@
     .miter_outer = MOD_BEVEL_MITER_SHARP, \
     .affect_type = MOD_BEVEL_AFFECT_EDGES, \
     .profile = 0.5f, \
+    .edge_weight_name = "bevel_weight_edge", \
+    .vertex_weight_name = "bevel_weight_vert", \
     .bevel_angle = DEG2RADF(30.0f), \
     .spread = 0.1f, \
     .defgrp_name = "", \
@@ -402,7 +404,7 @@
     .cache_file = NULL, \
     .object_path = "", \
     .read_flag = MOD_MESHSEQ_READ_VERT | MOD_MESHSEQ_READ_POLY | MOD_MESHSEQ_READ_UV | \
-                 MOD_MESHSEQ_READ_COLOR | MOD_MESHSEQ_INTERPOLATE_VERTICES, \
+                 MOD_MESHSEQ_READ_COLOR | MOD_MESHSEQ_INTERPOLATE_VERTICES | MOD_MESHSEQ_READ_ATTRIBUTES, \
     .velocity_scale = 1.0f, \
     .reader = NULL, \
     .reader_object_path = "", \
@@ -561,7 +563,9 @@
   }
 
 #define _DNA_DEFAULT_NodesModifierData \
-  { 0 }
+  { \
+    .bake_target = NODES_MODIFIER_BAKE_TARGET_PACKED, \
+  }
 
 #define _DNA_DEFAULT_SkinModifierData \
   { \
@@ -611,8 +615,9 @@
     .uv_smooth = SUBSURF_UV_SMOOTH_PRESERVE_BOUNDARIES, \
     .quality = 3, \
     .boundary_smooth = SUBSURF_BOUNDARY_SMOOTH_ALL, \
-    .emCache = NULL, \
-    .mCache = NULL, \
+    .adaptive_space = SUBSURF_ADAPTIVE_SPACE_PIXEL, \
+    .adaptive_pixel_size = 1.0f, \
+    .adaptive_object_edge_length = 0.01f, \
   }
 
 #define _DNA_DEFAULT_SurfaceModifierData \
@@ -965,8 +970,9 @@
 #define _DNA_DEFAULT_GreasePencilLineartModifierData \
   { \
     .edge_types = MOD_LINEART_EDGE_FLAG_INIT_TYPE, \
-    .thickness = 25, \
+    .radius = 0.0025, \
     .opacity = 1.0f, \
+    .thickness_legacy = 25, \
     .crease_threshold = DEG2RAD(140.0f), \
     .calculation_flags = MOD_LINEART_ALLOW_DUPLI_OBJECTS | MOD_LINEART_ALLOW_CLIPPING_BOUNDARIES | \
                          MOD_LINEART_USE_CREASE_ON_SHARP_EDGES | MOD_LINEART_FILTER_FACE_MARK_KEEP_CONTOUR | \
@@ -1019,7 +1025,7 @@
     .strength = 1.0f, \
     .skip = 0, \
   }
-  
+
 #define _DNA_DEFAULT_GreasePencilOutlineModifierData \
   { \
     .flag = MOD_GREASE_PENCIL_OUTLINE_KEEP_SHAPE, \
@@ -1060,6 +1066,26 @@
     .speed_fac = 1.2f, \
     .speed_maxgap = 0.5f, \
     .percentage_fac = 0.0f, \
+  }
+
+#define _DNA_DEFAULT_GreasePencilSimplifyModifierData \
+  { \
+    .factor = 0.0f, \
+    .mode = MOD_GREASE_PENCIL_SIMPLIFY_FIXED, \
+    .step = 1, \
+    .length = 0.1f, \
+    .distance = 0.1f, \
+  }
+
+#define _DNA_DEFAULT_GreasePencilTextureModifierData \
+  { \
+    .uv_offset = 0.0f, \
+    .uv_scale = 1.0f, \
+    .fill_rotation = 0.0f, \
+    .fill_offset = {0.0f, 0.0f}, \
+    .fill_scale = 1.0f, \
+    .fit_method = GP_TEX_CONSTANT_LENGTH, \
+    .mode = 0, \
   }
 
 /* clang-format off */

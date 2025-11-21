@@ -18,7 +18,7 @@
 #include "DNA_userdef_types.h"
 
 #include "BKE_blender_user_menu.hh"
-#include "BKE_idprop.h"
+#include "BKE_idprop.hh"
 
 /* -------------------------------------------------------------------- */
 /** \name Menu Type
@@ -38,7 +38,7 @@ bUserMenu *BKE_blender_user_menu_ensure(ListBase *lb, char space_type, const cha
 {
   bUserMenu *um = BKE_blender_user_menu_find(lb, space_type, context);
   if (um == nullptr) {
-    um = static_cast<bUserMenu *>(MEM_callocN(sizeof(bUserMenu), __func__));
+    um = MEM_callocN<bUserMenu>(__func__);
     um->space_type = space_type;
     STRNCPY(um->context, context);
     BLI_addhead(lb, um);

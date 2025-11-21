@@ -14,20 +14,25 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
+#include "BLI_path_utils.hh"
+#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 
-#include "BKE_action.h"
+#include "BKE_action.hh"
 #include "BKE_animsys.h"
 #include "BKE_appdir.hh"
 #include "BKE_armature.hh"
 #include "BKE_blender_copybuffer.hh"
+#include "BKE_blendfile.hh"
 #include "BKE_context.hh"
-#include "BKE_idprop.h"
+#include "BKE_idprop.hh"
 #include "BKE_layer.hh"
+#include "BKE_lib_query.hh"
 #include "BKE_main.hh"
 #include "BKE_object.hh"
 #include "BKE_report.hh"
@@ -37,7 +42,7 @@
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
-#include "RNA_prototypes.h"
+#include "RNA_prototypes.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -46,10 +51,12 @@
 #include "ED_keyframing.hh"
 #include "ED_screen.hh"
 
+#include "ANIM_armature.hh"
 #include "ANIM_bone_collections.hh"
 #include "ANIM_keyframing.hh"
+#include "ANIM_keyingsets.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "armature_intern.hh"
@@ -170,7 +177,7 @@ static void applyarmature_transfer_properties(EditBone *curbone,
   zero_v3(pchan->eul);
   unit_qt(pchan->quat);
   unit_axis_angle(pchan->rotAxis, &pchan->rotAngle);
-  pchan->size[0] = pchan->size[1] = pchan->size[2] = 1.0f;
+  pchan->scale[0] = pchan->scale[1] = pchan->scale[2] = 1.0f;
 }
 
 /* Adjust the current edit position of the bone using the pose space matrix. */
@@ -209,7 +216,7 @@ static void applyarmature_process_selected_recursive(bArmature *arm,
                                                      bPose *pose,
                                                      bPose *pose_eval,
                                                      Bone *bone,
-                                                     ListBase *selected,
+                                                     blender::Span<PointerRNA> selected,
                                                      ApplyArmature_ParentState *pstate)
 {
   bPoseChannel *pchan = BKE_pose_channel_find_name(pose, bone->name);
@@ -222,7 +229,10 @@ static void applyarmature_process_selected_recursive(bArmature *arm,
   ApplyArmature_ParentState new_pstate{};
   new_pstate.bone = bone;
 
-  if (BLI_findptr(selected, pchan, offsetof(CollectionPointerLink, ptr.data))) {
+  if (std::find_if(selected.begin(), selected.end(), [&](const PointerRNA &ptr) {
+        return ptr.data == pchan;
+      }) != selected.end())
+  {
     /* SELECTED BONE: Snap to final pose transform minus un-applied parent effects.
      *
      * I.e. bone position with accumulated parent effects but no local
@@ -248,7 +258,7 @@ static void applyarmature_process_selected_recursive(bArmature *arm,
                                                    &old_bpt);
 
       /* Applied parent effects that have to be kept, if any. */
-      float(*new_parent_pose)[4] = pstate ? pstate->new_rest_mat : bone->parent->arm_mat;
+      float (*new_parent_pose)[4] = pstate ? pstate->new_rest_mat : bone->parent->arm_mat;
       BKE_bone_parent_transform_calc_from_matrices(bone->flag,
                                                    bone->inherit_scale_mode,
                                                    offs_bone,
@@ -345,7 +355,7 @@ static void applyarmature_reset_bone_constraint(const bConstraint *constraint)
    * bConstraintTypeInfo callback function. */
   switch (constraint->type) {
     case CONSTRAINT_TYPE_STRETCHTO: {
-      bStretchToConstraint *stretch_to = (bStretchToConstraint *)constraint->data;
+      bStretchToConstraint *stretch_to = static_cast<bStretchToConstraint *>(constraint->data);
       stretch_to->orglength = 0.0f; /* Force recalculation on next evaluation. */
       break;
     }
@@ -370,7 +380,7 @@ static void applyarmature_reset_constraints(bPose *pose, const bool use_selected
 {
   LISTBASE_FOREACH (bPoseChannel *, pchan, &pose->chanbase) {
     BLI_assert(pchan->bone != nullptr);
-    if (use_selected && (pchan->bone->flag & BONE_SELECTED) == 0) {
+    if (use_selected && (pchan->flag & POSE_SELECTED) == 0) {
       continue;
     }
     applyarmature_reset_bone_constraints(pchan);
@@ -378,17 +388,17 @@ static void applyarmature_reset_constraints(bPose *pose, const bool use_selected
 }
 
 /* Set the current pose as the rest-pose. */
-static int apply_armature_pose2bones_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus apply_armature_pose2bones_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Scene *scene = CTX_data_scene(C);
   /* must be active object, not edit-object */
   Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(C));
-  const Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+  const Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
   bArmature *arm = BKE_armature_from_object(ob);
   bPose *pose;
-  ListBase selected_bones;
+  blender::Vector<PointerRNA> selected_bones;
 
   const bool use_selected = RNA_boolean_get(op->ptr, "selected");
 
@@ -414,7 +424,7 @@ static int apply_armature_pose2bones_exec(bContext *C, wmOperator *op)
   if (use_selected) {
     CTX_data_selected_pose_bones(C, &selected_bones);
 
-    if (!selected_bones.first) {
+    if (selected_bones.is_empty()) {
       return OPERATOR_CANCELLED;
     }
   }
@@ -429,10 +439,8 @@ static int apply_armature_pose2bones_exec(bContext *C, wmOperator *op)
     /* The selected only mode requires a recursive walk to handle parent-child relations. */
     LISTBASE_FOREACH (Bone *, bone, &arm->bonebase) {
       applyarmature_process_selected_recursive(
-          arm, pose, ob_eval->pose, bone, &selected_bones, nullptr);
+          arm, pose, ob_eval->pose, bone, selected_bones, nullptr);
     }
-
-    BLI_freelistN(&selected_bones);
   }
   else {
     LISTBASE_FOREACH (bPoseChannel *, pchan, &pose->chanbase) {
@@ -467,12 +475,12 @@ static int apply_armature_pose2bones_exec(bContext *C, wmOperator *op)
 
 static void apply_armature_pose2bones_ui(bContext *C, wmOperator *op)
 {
-  uiLayout *layout = op->layout;
+  blender::ui::Layout &layout = *op->layout;
   wmWindowManager *wm = CTX_wm_manager(C);
 
-  PointerRNA ptr = RNA_pointer_create(&wm->id, op->type->srna, op->properties);
+  PointerRNA ptr = RNA_pointer_create_discrete(&wm->id, op->type->srna, op->properties);
 
-  uiItemR(layout, &ptr, "selected", UI_ITEM_NONE, nullptr, ICON_NONE);
+  layout.prop(&ptr, "selected", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 void POSE_OT_armature_apply(wmOperatorType *ot)
@@ -505,7 +513,7 @@ void POSE_OT_armature_apply(wmOperatorType *ot)
  * Set the current pose as the rest-pose.
  * \{ */
 
-static int pose_visual_transform_apply_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus pose_visual_transform_apply_exec(bContext *C, wmOperator * /*op*/)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -524,13 +532,12 @@ static int pose_visual_transform_apply_exec(bContext *C, wmOperator * /*op*/)
     struct XFormArray {
       float matrix[4][4];
       bool is_set;
-    } *pchan_xform_array = static_cast<XFormArray *>(
-        MEM_mallocN(sizeof(*pchan_xform_array) * chanbase_len, __func__));
+    } *pchan_xform_array = MEM_malloc_arrayN<XFormArray>(chanbase_len, __func__);
     bool changed = false;
 
     int i;
     LISTBASE_FOREACH_INDEX (bPoseChannel *, pchan, &ob->pose->chanbase, i) {
-      if (!((pchan->bone->flag & BONE_SELECTED) && PBONE_VISIBLE(arm, pchan->bone))) {
+      if (!blender::animrig::bone_is_selected(arm, pchan)) {
         pchan_xform_array[i].is_set = false;
         continue;
       }
@@ -592,26 +599,6 @@ void POSE_OT_visual_transform_apply(wmOperatorType *ot)
 /** \name Copy/Paste Utilities
  * \{ */
 
-/* This function is used to indicate that a bone is selected
- * and needs to be included in copy buffer (used to be for inserting keys)
- */
-static void set_pose_keys(Object *ob)
-{
-  bArmature *arm = static_cast<bArmature *>(ob->data);
-
-  if (ob->pose) {
-    LISTBASE_FOREACH (bPoseChannel *, chan, &ob->pose->chanbase) {
-      Bone *bone = chan->bone;
-      if ((bone) && (bone->flag & BONE_SELECTED) && ANIM_bone_in_visible_collection(arm, bone)) {
-        chan->flag |= POSE_KEY;
-      }
-      else {
-        chan->flag &= ~POSE_KEY;
-      }
-    }
-  }
-}
-
 /**
  * Perform paste pose, for a single bone.
  *
@@ -633,7 +620,7 @@ static bPoseChannel *pose_bone_do_paste(Object *ob,
     BLI_string_flip_side_name(name, chan->name, false, sizeof(name));
   }
   else {
-    STRNCPY(name, chan->name);
+    STRNCPY_UTF8(name, chan->name);
   }
 
   /* only copy when:
@@ -645,7 +632,7 @@ static bPoseChannel *pose_bone_do_paste(Object *ob,
   if (pchan == nullptr) {
     return nullptr;
   }
-  if (selOnly && (pchan->bone->flag & BONE_SELECTED) == 0) {
+  if (selOnly && (pchan->flag & POSE_SELECTED) == 0) {
     return nullptr;
   }
 
@@ -653,8 +640,7 @@ static bPoseChannel *pose_bone_do_paste(Object *ob,
    * - only copies transform info for the pose
    */
   copy_v3_v3(pchan->loc, chan->loc);
-  copy_v3_v3(pchan->size, chan->size);
-  pchan->flag = chan->flag;
+  copy_v3_v3(pchan->scale, chan->scale);
 
   /* check if rotation modes are compatible (i.e. do they need any conversions) */
   if (pchan->rotmode == chan->rotmode) {
@@ -759,6 +745,15 @@ static bPoseChannel *pose_bone_do_paste(Object *ob,
       pchan->prop = IDP_CopyProperty(chan->prop);
     }
   }
+  if (chan->system_properties) {
+    /* Same logic as above for system IDProperties, for now. */
+    if (pchan->system_properties) {
+      IDP_SyncGroupValues(pchan->system_properties, chan->system_properties);
+    }
+    else {
+      pchan->system_properties = IDP_CopyProperty(chan->system_properties);
+    }
+  }
 
   return pchan;
 }
@@ -769,58 +764,56 @@ static bPoseChannel *pose_bone_do_paste(Object *ob,
 /** \name Copy Pose Operator
  * \{ */
 
-static int pose_copy_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pose_copy_exec(bContext *C, wmOperator *op)
 {
+  using namespace blender::bke::blendfile;
+
+  Main *bmain = CTX_data_main(C);
   Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(C));
-  char filepath[FILE_MAX];
+
   /* Sanity checking. */
   if (ELEM(nullptr, ob, ob->pose)) {
     BKE_report(op->reports, RPT_ERROR, "No pose to copy");
     return OPERATOR_CANCELLED;
   }
-  /* Sets chan->flag to POSE_KEY if bone selected. */
-  set_pose_keys(ob);
-  /* Construct a local bmain and only put object and its data into it,
-   * o this way we don't expand any other objects into the copy buffer
-   * file.
-   *
-   * TODO(sergey): Find an easier way to tell copy buffer to only store
-   * data we are actually interested in. Maybe pass it a flag to skip
-   * any datablock expansion?
-   */
-  Main *temp_bmain = BKE_main_new();
-  STRNCPY(temp_bmain->filepath, BKE_main_blendfile_path_from_global());
+  if (ID_IS_PACKED(&ob->id)) {
+    /* Direct link/append of packed IDs is not supported currently, so neither is their
+     * copy/pasting. */
+    BKE_report(op->reports, RPT_ERROR, "Cannot copy/paste packed data");
+    return OPERATOR_CANCELLED;
+  }
 
-  Object ob_copy = blender::dna::shallow_copy(*ob);
-  ob_copy.adt = nullptr;
+  bArmature *armature = static_cast<bArmature *>(ob->data);
+  BLI_assert_msg(armature, "If an armature object has a pose, it should have armature data");
+  /* Taking off the selection flag in case bones are hidden so they are not
+   * applied when pasting.  */
+  LISTBASE_FOREACH (bPoseChannel *, pose_bone, &ob->pose->chanbase) {
+    if (!blender::animrig::bone_is_visible(armature, pose_bone)) {
+      pose_bone->flag &= ~POSE_SELECTED;
+    }
+  }
 
-  /* Copy the armature without using the default copy constructor. This prevents
-   * the compiler from complaining that the `layer`, `layer_used`, and
-   * `layer_protected` fields are DNA_DEPRECATED.
-   */
-  bArmature arm_copy;
-  memcpy(&arm_copy, ob->data, sizeof(arm_copy));
+  PartialWriteContext copybuffer{*bmain};
+  copybuffer.id_add(
+      &ob->id,
+      PartialWriteContext::IDAddOptions{
+          (PartialWriteContext::IDAddOperations::MAKE_LOCAL |
+           PartialWriteContext::IDAddOperations::SET_FAKE_USER |
+           PartialWriteContext::IDAddOperations::SET_CLIPBOARD_MARK)},
+      [ob](LibraryIDLinkCallbackData *cb_data,
+           PartialWriteContext::IDAddOptions /*options*/) -> PartialWriteContext::IDAddOperations {
+        /* Only include `ob->data` (i.e. the Armature) dependency. */
+        if (*(cb_data->id_pointer) == ob->data) {
+          return (PartialWriteContext::IDAddOperations::MAKE_LOCAL |
+                  PartialWriteContext::IDAddOperations::ADD_DEPENDENCIES);
+        }
+        return PartialWriteContext::IDAddOperations::CLEAR_DEPENDENCIES;
+      });
 
-  arm_copy.adt = nullptr;
-  ob_copy.data = &arm_copy;
-  BLI_addtail(&temp_bmain->objects, &ob_copy);
-  BLI_addtail(&temp_bmain->armatures, &arm_copy);
-  /* begin copy buffer on a temp bmain. */
-  BKE_copybuffer_copy_begin(temp_bmain);
-  /* Store the whole object to the copy buffer because pose can't be
-   * existing on its own.
-   */
-  BKE_copybuffer_copy_tag_ID(&ob_copy.id);
-
+  char filepath[FILE_MAX];
   pose_copybuffer_filepath_get(filepath, sizeof(filepath));
-  BKE_copybuffer_copy_end(temp_bmain, filepath, op->reports);
-  /* We clear the lists so no datablocks gets freed,
-   * This is required because objects in temp bmain shares same pointers
-   * as the real ones.
-   */
-  BLI_listbase_clear(&temp_bmain->objects);
-  BLI_listbase_clear(&temp_bmain->armatures);
-  BKE_main_free(temp_bmain);
+  copybuffer.write(filepath, *op->reports);
+
   /* We are all done! */
   BKE_report(op->reports, RPT_INFO, "Copied pose to internal clipboard");
   return OPERATOR_FINISHED;
@@ -833,7 +826,7 @@ void POSE_OT_copy(wmOperatorType *ot)
   ot->idname = "POSE_OT_copy";
   ot->description = "Copy the current pose of the selected bones to the internal clipboard";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = pose_copy_exec;
   ot->poll = ED_operator_posemode;
 
@@ -847,7 +840,7 @@ void POSE_OT_copy(wmOperatorType *ot)
 /** \name Paste Pose Operator
  * \{ */
 
-static int pose_paste_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pose_paste_exec(bContext *C, wmOperator *op)
 {
   Object *ob = BKE_object_pose_armature_get(CTX_data_active_object(C));
   Scene *scene = CTX_data_scene(C);
@@ -855,7 +848,8 @@ static int pose_paste_exec(bContext *C, wmOperator *op)
   bool selOnly = RNA_boolean_get(op->ptr, "selected_mask");
 
   /* Get KeyingSet to use. */
-  KeyingSet *ks = ANIM_get_keyingset_for_autokeying(scene, ANIM_KS_WHOLE_CHARACTER_ID);
+  KeyingSet *ks = blender::animrig::get_keyingset_for_autokeying(scene,
+                                                                 ANIM_KS_WHOLE_CHARACTER_ID);
 
   /* Sanity checks. */
   if (ELEM(nullptr, ob, ob->pose)) {
@@ -902,7 +896,7 @@ static int pose_paste_exec(bContext *C, wmOperator *op)
    * existing pose.
    */
   LISTBASE_FOREACH (bPoseChannel *, chan, &pose_from->chanbase) {
-    if (chan->flag & POSE_KEY) {
+    if (chan->flag & POSE_SELECTED) {
       /* Try to perform paste on this bone. */
       bPoseChannel *pchan = pose_bone_do_paste(ob, chan, selOnly, flip);
       if (pchan != nullptr) {
@@ -936,7 +930,7 @@ void POSE_OT_paste(wmOperatorType *ot)
   ot->idname = "POSE_OT_paste";
   ot->description = "Paste the stored pose on to the current pose";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = pose_paste_exec;
   ot->poll = ED_operator_posemode;
 
@@ -968,13 +962,13 @@ void POSE_OT_paste(wmOperatorType *ot)
 static void pchan_clear_scale(bPoseChannel *pchan)
 {
   if ((pchan->protectflag & OB_LOCK_SCALEX) == 0) {
-    pchan->size[0] = 1.0f;
+    pchan->scale[0] = 1.0f;
   }
   if ((pchan->protectflag & OB_LOCK_SCALEY) == 0) {
-    pchan->size[1] = 1.0f;
+    pchan->scale[1] = 1.0f;
   }
   if ((pchan->protectflag & OB_LOCK_SCALEZ) == 0) {
-    pchan->size[2] = 1.0f;
+    pchan->scale[2] = 1.0f;
   }
 
   pchan->ease1 = 0.0f;
@@ -1174,10 +1168,11 @@ static void pchan_clear_transforms(const bPose *pose, bPoseChannel *pchan)
 /* --------------- */
 
 /* generic exec for clear-pose operators */
-static int pose_clear_transform_generic_exec(bContext *C,
-                                             wmOperator *op,
-                                             void (*clear_func)(const bPose *, bPoseChannel *),
-                                             const char default_ksName[])
+static wmOperatorStatus pose_clear_transform_generic_exec(bContext *C,
+                                                          wmOperator *op,
+                                                          void (*clear_func)(const bPose *,
+                                                                             bPoseChannel *),
+                                                          const char default_ksName[])
 {
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Scene *scene = CTX_data_scene(C);
@@ -1196,7 +1191,7 @@ static int pose_clear_transform_generic_exec(bContext *C,
   View3D *v3d = CTX_wm_view3d(C);
   FOREACH_OBJECT_IN_MODE_BEGIN (scene, view_layer, v3d, OB_ARMATURE, OB_MODE_POSE, ob_iter) {
     /* XXX: UGLY HACK (for auto-key + clear transforms). */
-    Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob_iter);
+    Object *ob_eval = DEG_get_evaluated(depsgraph, ob_iter);
     blender::Vector<PointerRNA> sources;
     bool changed = false;
 
@@ -1208,7 +1203,8 @@ static int pose_clear_transform_generic_exec(bContext *C,
       /* do auto-keyframing as appropriate */
       if (blender::animrig::autokeyframe_cfra_can_key(scene, &ob_iter->id)) {
         /* tag for autokeying later */
-        ANIM_relative_keyingset_add_source(sources, &ob_iter->id, &RNA_PoseBone, pchan);
+        blender::animrig::relative_keyingset_add_source(
+            sources, &ob_iter->id, &RNA_PoseBone, pchan);
 
 #if 1 /* XXX: Ugly Hack - Run clearing function on evaluated copy of pchan */
         bPoseChannel *pchan_eval = BKE_pose_channel_find_name(ob_eval->pose, pchan->name);
@@ -1224,10 +1220,11 @@ static int pose_clear_transform_generic_exec(bContext *C,
       /* perform autokeying on the bones if needed */
       if (!sources.is_empty()) {
         /* get KeyingSet to use */
-        KeyingSet *ks = ANIM_get_keyingset_for_autokeying(scene, default_ksName);
+        KeyingSet *ks = blender::animrig::get_keyingset_for_autokeying(scene, default_ksName);
 
         /* insert keyframes */
-        ANIM_apply_keyingset(C, &sources, ks, MODIFYKEY_MODE_INSERT, float(scene->r.cfra));
+        blender::animrig::apply_keyingset(
+            C, &sources, ks, blender::animrig::ModifyKeyMode::INSERT, float(scene->r.cfra));
 
         /* now recalculate paths */
         if (ob_iter->pose->avs.path_bakeflag & MOTIONPATH_BAKE_HAS_PATHS) {
@@ -1252,7 +1249,7 @@ static int pose_clear_transform_generic_exec(bContext *C,
 /** \name Clear Pose Scale Operator
  * \{ */
 
-static int pose_clear_scale_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pose_clear_scale_exec(bContext *C, wmOperator *op)
 {
   return pose_clear_transform_generic_exec(
       C, op, pchan_clear_scale_with_mirrored, ANIM_KS_SCALING_ID);
@@ -1265,7 +1262,7 @@ void POSE_OT_scale_clear(wmOperatorType *ot)
   ot->idname = "POSE_OT_scale_clear";
   ot->description = "Reset scaling of selected bones to their default values";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = pose_clear_scale_exec;
   ot->poll = ED_operator_posemode;
 
@@ -1279,7 +1276,7 @@ void POSE_OT_scale_clear(wmOperatorType *ot)
 /** \name Clear Pose Rotation Operator
  * \{ */
 
-static int pose_clear_rot_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pose_clear_rot_exec(bContext *C, wmOperator *op)
 {
   return pose_clear_transform_generic_exec(
       C, op, pchan_clear_rot_with_mirrored, ANIM_KS_ROTATION_ID);
@@ -1292,7 +1289,7 @@ void POSE_OT_rot_clear(wmOperatorType *ot)
   ot->idname = "POSE_OT_rot_clear";
   ot->description = "Reset rotations of selected bones to their default values";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = pose_clear_rot_exec;
   ot->poll = ED_operator_posemode;
 
@@ -1306,7 +1303,7 @@ void POSE_OT_rot_clear(wmOperatorType *ot)
 /** \name Clear Pose Location Operator
  * \{ */
 
-static int pose_clear_loc_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pose_clear_loc_exec(bContext *C, wmOperator *op)
 {
   return pose_clear_transform_generic_exec(
       C, op, pchan_clear_loc_with_mirrored, ANIM_KS_LOCATION_ID);
@@ -1319,7 +1316,7 @@ void POSE_OT_loc_clear(wmOperatorType *ot)
   ot->idname = "POSE_OT_loc_clear";
   ot->description = "Reset locations of selected bones to their default values";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = pose_clear_loc_exec;
   ot->poll = ED_operator_posemode;
 
@@ -1333,7 +1330,7 @@ void POSE_OT_loc_clear(wmOperatorType *ot)
 /** \name Clear Pose Transforms Operator
  * \{ */
 
-static int pose_clear_transforms_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pose_clear_transforms_exec(bContext *C, wmOperator *op)
 {
   return pose_clear_transform_generic_exec(
       C, op, pchan_clear_transforms, ANIM_KS_LOC_ROT_SCALE_ID);
@@ -1347,7 +1344,7 @@ void POSE_OT_transforms_clear(wmOperatorType *ot)
   ot->description =
       "Reset location, rotation, and scaling of selected bones to their default values";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = pose_clear_transforms_exec;
   ot->poll = ED_operator_posemode;
 
@@ -1361,7 +1358,7 @@ void POSE_OT_transforms_clear(wmOperatorType *ot)
 /** \name Clear User Transforms Operator
  * \{ */
 
-static int pose_clear_user_transforms_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus pose_clear_user_transforms_exec(bContext *C, wmOperator *op)
 {
   ViewLayer *view_layer = CTX_data_view_layer(C);
   View3D *v3d = CTX_wm_view3d(C);
@@ -1382,7 +1379,7 @@ static int pose_clear_user_transforms_exec(bContext *C, wmOperator *op)
       /* execute animation step for current frame using a dummy copy of the pose */
       BKE_pose_copy_data(&dummyPose, ob->pose, false);
 
-      STRNCPY(workob.id.name, "OB<ClearTfmWorkOb>");
+      STRNCPY_UTF8(workob.id.name, "OB<ClearTfmWorkOb>");
       workob.type = OB_ARMATURE;
       workob.data = ob->data;
       workob.adt = ob->adt;
@@ -1400,6 +1397,9 @@ static int pose_clear_user_transforms_exec(bContext *C, wmOperator *op)
       LISTBASE_FOREACH (bPoseChannel *, pchan, &dummyPose->chanbase) {
         if (pchan->prop) {
           IDP_FreeProperty(pchan->prop);
+        }
+        if (pchan->system_properties) {
+          IDP_FreeProperty(pchan->system_properties);
         }
       }
 

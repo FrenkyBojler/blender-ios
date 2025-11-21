@@ -26,9 +26,9 @@ class USDGeomReader : public USDXformReader {
 
   virtual void read_geometry(bke::GeometrySet &geometry_set,
                              USDMeshReadParams params,
-                             const char **err_str) = 0;
+                             const char **r_err_str) = 0;
 
-  virtual bool topology_changed(const Mesh * /*existing_mesh*/, double /*motionSampleTime*/)
+  virtual bool topology_changed(const Mesh * /*existing_mesh*/, pxr::UsdTimeCode /*time*/)
   {
     return true;
   }

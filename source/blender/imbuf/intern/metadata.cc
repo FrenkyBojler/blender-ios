@@ -11,9 +11,8 @@
 
 #include "BLI_listbase.h"
 #include "BLI_string.h"
-#include "BLI_utildefines.h"
 
-#include "BKE_idprop.h"
+#include "BKE_idprop.hh"
 
 #include "DNA_ID.h" /* ID property definitions. */
 
@@ -27,8 +26,7 @@ void IMB_metadata_ensure(IDProperty **metadata)
     return;
   }
 
-  IDPropertyTemplate val = {0};
-  *metadata = IDP_New(IDP_GROUP, &val, "metadata");
+  *metadata = blender::bke::idprop::create_group("metadata").release();
 }
 
 void IMB_metadata_free(IDProperty *metadata)
@@ -52,7 +50,7 @@ bool IMB_metadata_get_field(const IDProperty *metadata,
   IDProperty *prop = IDP_GetPropertyFromGroup(metadata, key);
 
   if (prop && prop->type == IDP_STRING) {
-    BLI_strncpy(value, IDP_String(prop), value_maxncpy);
+    BLI_strncpy(value, IDP_string_get(prop), value_maxncpy);
     return true;
   }
   return false;
@@ -81,17 +79,17 @@ void IMB_metadata_set_field(IDProperty *metadata, const char *key, const char *v
     IDP_AssignString(prop, value);
   }
   else {
-    prop = IDP_NewString(value, key);
+    prop = blender::bke::idprop::create(key, value).release();
     IDP_AddToGroup(metadata, prop);
   }
 }
 
-void IMB_metadata_foreach(ImBuf *ibuf, IMBMetadataForeachCb callback, void *userdata)
+void IMB_metadata_foreach(const ImBuf *ibuf, IMBMetadataForeachCb callback, void *userdata)
 {
   if (ibuf->metadata == nullptr) {
     return;
   }
   LISTBASE_FOREACH (IDProperty *, prop, &ibuf->metadata->data.group) {
-    callback(prop->name, IDP_String(prop), userdata);
+    callback(prop->name, IDP_string_get(prop), userdata);
   }
 }

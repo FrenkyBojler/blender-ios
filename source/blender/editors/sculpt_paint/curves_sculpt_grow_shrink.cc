@@ -8,13 +8,12 @@
 
 #include "BLI_length_parameterize.hh"
 #include "BLI_math_geom.h"
-#include "BLI_math_matrix_types.hh"
+#include "BLI_math_matrix.hh"
 #include "BLI_task.hh"
 #include "BLI_vector.hh"
 
 #include "DEG_depsgraph.hh"
 
-#include "BKE_attribute_math.hh"
 #include "BKE_brush.hh"
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
@@ -24,8 +23,6 @@
 #include "DNA_brush_types.h"
 #include "DNA_curves_types.h"
 #include "DNA_object_types.h"
-#include "DNA_screen_types.h"
-#include "DNA_space_types.h"
 
 #include "ED_screen.hh"
 #include "ED_view3d.hh"
@@ -69,19 +66,19 @@ class ShrinkCurvesEffect : public CurvesEffect {
 
   /** Storage of per-curve parameterization data to avoid reallocation. */
   struct ParameterizationBuffers {
-    Array<float3> old_positions;
-    Array<float> old_lengths;
-    Array<float> sample_lengths;
-    Array<int> indices;
-    Array<float> factors;
+    Vector<float3> old_positions;
+    Vector<float> old_lengths;
+    Vector<float> sample_lengths;
+    Vector<int> indices;
+    Vector<float> factors;
 
-    void reinitialize(const int points_num)
+    void resize(const int points_num)
     {
-      this->old_positions.reinitialize(points_num);
-      this->old_lengths.reinitialize(length_parameterize::segments_num(points_num, false));
-      this->sample_lengths.reinitialize(points_num);
-      this->indices.reinitialize(points_num);
-      this->factors.reinitialize(points_num);
+      this->old_positions.resize(points_num);
+      this->old_lengths.resize(length_parameterize::segments_num(points_num, false));
+      this->sample_lengths.resize(points_num);
+      this->indices.resize(points_num);
+      this->factors.resize(points_num);
     }
   };
 
@@ -110,7 +107,7 @@ class ShrinkCurvesEffect : public CurvesEffect {
                     ParameterizationBuffers &data) const
   {
     namespace lp = length_parameterize;
-    data.reinitialize(positions.size());
+    data.resize(positions.size());
 
     /* Copy the old positions to facilitate mixing from neighbors for the resulting curve. */
     data.old_positions.as_mutable_span().copy_from(positions);
@@ -155,7 +152,8 @@ class ExtrapolateCurvesEffect : public CurvesEffect {
         const float3 old_last_pos_cu = positions_cu[points.last()];
         /* Use some point within the curve rather than the end point to smooth out some random
          * variation. */
-        const float3 direction_reference_point = positions_cu[points[points.size() / 2]];
+        const float3 direction_reference_point =
+            positions_cu[points.size() > 2 ? points[points.size() / 2] : points.first()];
         const float3 direction = math::normalize(old_last_pos_cu - direction_reference_point);
 
         const float3 new_last_pos_cu = old_last_pos_cu + direction * move_distance_cu;
@@ -242,6 +240,7 @@ struct CurvesEffectOperationExecutor {
   IndexMaskMemory selected_curve_memory_;
   IndexMask curve_selection_;
 
+  CurvesSculpt *curves_sculpt_ = nullptr;
   const Brush *brush_ = nullptr;
   float brush_radius_base_re_;
   float brush_radius_factor_;
@@ -267,7 +266,7 @@ struct CurvesEffectOperationExecutor {
 
     curves_id_ = static_cast<Curves *>(object_->data);
     curves_ = &curves_id_->geometry.wrap();
-    if (curves_->curves_num() == 0) {
+    if (curves_->is_empty()) {
       return;
     }
 
@@ -275,13 +274,11 @@ struct CurvesEffectOperationExecutor {
         ".selection", bke::AttrDomain::Curve, 1.0f);
     curve_selection_ = curves::retrieve_selected_curves(*curves_id_, selected_curve_memory_);
 
-    const CurvesSculpt &curves_sculpt = *ctx_.scene->toolsettings->curves_sculpt;
-    brush_ = BKE_paint_brush_for_read(&curves_sculpt.paint);
-    brush_strength_ = brush_strength_get(*ctx_.scene, *brush_, stroke_extension);
-
-    brush_radius_base_re_ = BKE_brush_size_get(ctx_.scene, brush_);
+    curves_sculpt_ = ctx_.scene->toolsettings->curves_sculpt;
+    brush_ = BKE_paint_brush_for_read(&curves_sculpt_->paint);
+    brush_radius_base_re_ = BKE_brush_radius_get(&curves_sculpt_->paint, brush_);
     brush_radius_factor_ = brush_radius_factor(*brush_, stroke_extension);
-    brush_strength_ = brush_strength_get(*ctx_.scene, *brush_, stroke_extension);
+    brush_strength_ = brush_strength_get(curves_sculpt_->paint, *brush_, stroke_extension);
 
     falloff_shape_ = eBrushFalloffShape(brush_->falloff_shape);
 
@@ -291,7 +288,7 @@ struct CurvesEffectOperationExecutor {
     brush_pos_end_re_ = stroke_extension.mouse_position;
 
     if (stroke_extension.is_first) {
-      if (falloff_shape_ == PAINT_FALLOFF_SHAPE_SPHERE) {
+      if (falloff_shape_ == PAINT_FALLOFF_SHAPE_SPHERE || (U.flag & USER_ORBIT_SELECTION)) {
         if (std::optional<CurvesBrush3D> brush_3d = sample_curves_3d_brush(
                 *ctx_.depsgraph,
                 *ctx_.region,
@@ -302,6 +299,9 @@ struct CurvesEffectOperationExecutor {
                 brush_radius_base_re_))
         {
           self.brush_3d_ = *brush_3d;
+          remember_stroke_position(
+              *curves_sculpt_,
+              math::transform_point(transforms_.curves_to_world, self_->brush_3d_.position_cu));
         }
       }
 
@@ -346,7 +346,8 @@ struct CurvesEffectOperationExecutor {
         eCurvesSymmetryType(curves_id_->symmetry));
     Vector<float4x4> symmetry_brush_transforms_inv;
     for (const float4x4 &brush_transform : symmetry_brush_transforms) {
-      symmetry_brush_transforms_inv.append(math::invert(brush_transform));
+      /* Use explicit template call as MSVC 2019 has issues deducing the right template. */
+      symmetry_brush_transforms_inv.append(math::invert<float, 4>(brush_transform));
     }
 
     const float brush_radius_re = brush_radius_base_re_ * brush_radius_factor_;

@@ -6,7 +6,6 @@
  * \ingroup edphys
  */
 
-#include <cmath>
 #include <cstdlib>
 #include <cstring>
 
@@ -30,12 +29,13 @@
 
 #include "ED_object.hh"
 #include "ED_particle.hh"
+#include "ED_physics.hh"
 #include "ED_undo.hh"
 
 #include "particle_edit_utildefines.h"
 
 /** Only needed this locally. */
-static CLG_LogRef LOG = {"ed.undo.particle_edit"};
+static CLG_LogRef LOG = {"undo.particle"};
 
 /* -------------------------------------------------------------------- */
 /** \name Undo Conversion

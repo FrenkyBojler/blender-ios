@@ -4,7 +4,6 @@
 
 import abc
 import fnmatch
-from typing import Dict, List
 
 
 class Test:
@@ -33,14 +32,14 @@ class Test:
         return True
 
     @abc.abstractmethod
-    def run(self, env, device_id: str) -> Dict:
+    def run(self, env, device_id: str) -> dict:
         """
         Execute the test and report results.
         """
 
 
 class TestCollection:
-    def __init__(self, env, names_filter: List = ['*'], categories_filter: List = ['*'], background: bool = False):
+    def __init__(self, env, names_filter: list = ['*'], categories_filter: list = ['*'], background: bool = False):
         import importlib
         import pkgutil
         import tests
@@ -66,11 +65,22 @@ class TestCollection:
                     continue
 
                 test_name = test.name()
-                found = False
+
+                included = False
+                excluded = False
+
                 for name_filter in names_filter:
-                    if fnmatch.fnmatch(test_name, name_filter):
-                        found = True
-                if not found:
+                    is_exclusion = name_filter.startswith('!')
+                    pattern = name_filter[1:] if is_exclusion else name_filter
+
+                    if fnmatch.fnmatch(test_name, pattern):
+                        if is_exclusion:
+                            excluded = True
+                            break
+                        else:
+                            included = True
+
+                if not included or excluded:
                     continue
 
                 self.tests.append(test)

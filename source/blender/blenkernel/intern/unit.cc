@@ -387,6 +387,62 @@ static bUnitCollection buImperialLenCollection = {
     /*length*/ UNIT_COLLECTION_LENGTH(buImperialLenDef),
 };
 
+/* Wavelengths (scene-independent, with nm as the base unit). */
+static bUnitDef buWavelengthLenDef[] = {
+    {
+        /*name*/ "millimeter",
+        /*name_plural*/ "millimeters",
+        /*name_short*/ "mm",
+        /*name_alt*/ nullptr,
+        /*name_display*/ "Millimeters",
+        /*identifier*/ nullptr,
+        /*scalar*/ 1e6f,
+        /*bias*/ 0.0,
+        /*flag*/ B_UNIT_DEF_NONE,
+    },
+    {
+        /*name*/ "micrometer",
+        /*name_plural*/ "micrometers",
+        /*name_short*/ "µm",
+        /*name_alt*/ "um",
+        /*name_display*/ "Micrometers",
+        /*identifier*/ nullptr,
+        /*scalar*/ 1e3f,
+        /*bias*/ 0.0,
+        /*flag*/ B_UNIT_DEF_NONE,
+    },
+    /* Base unit. */
+    {
+        /*name*/ "nanometer",
+        /*name_plural*/ "nanometers",
+        /*name_short*/ "nm",
+        /*name_alt*/ nullptr,
+        /*name_display*/ "Nanometers",
+        /*identifier*/ nullptr,
+        /*scalar*/ 1.0f,
+        /*bias*/ 0.0,
+        /*flag*/ B_UNIT_DEF_NONE,
+    },
+    {
+        /*name*/ "picometer",
+        /*name_plural*/ "picometers",
+        /*name_short*/ "pm",
+        /*name_alt*/ nullptr,
+        /*name_display*/ "Picometers",
+        /*identifier*/ nullptr,
+        /*scalar*/ 1e-3f,
+        /*bias*/ 0.0,
+        /*flag*/ B_UNIT_DEF_NONE,
+    },
+    NULL_UNIT,
+};
+static bUnitCollection buWavelengthLenCollection = {
+    /*units*/ buWavelengthLenDef,
+    /*base_unit*/ 2,
+    /*flag*/ 0,
+    /*length*/ UNIT_COLLECTION_LENGTH(buWavelengthLenDef),
+};
+
 /* Areas. */
 static bUnitDef buMetricAreaDef[] = {
     {
@@ -1403,6 +1459,63 @@ static bUnitCollection buImperialTempCollection = {
     /*length*/ UNIT_COLLECTION_LENGTH(buImperialTempDef),
 };
 
+/* Color Temperature */
+static bUnitDef buColorTempDef[] = {
+    /* Base unit. */
+    {
+        /*name*/ "kelvin",
+        /*name_plural*/ "kelvin",
+        /*name_short*/ "K",
+        /*name_alt*/ nullptr,
+        /*name_display*/ "Kelvin",
+        /*identifier*/ "KELVIN",
+        /*scalar*/ 1.0f,
+        /*bias*/ 0.0,
+        /*flag*/ B_UNIT_DEF_NONE,
+    },
+    NULL_UNIT,
+};
+static bUnitCollection buColorTempCollection = {
+    /*units*/ buColorTempDef,
+    /*base_unit*/ 0,
+    /*flag*/ 0,
+    /*length*/ UNIT_COLLECTION_LENGTH(buColorTempDef),
+};
+
+/* Frequency */
+static bUnitDef buFrequencyDef[] = {
+    /* Base unit. */
+    {
+        /*name*/ "hertz",
+        /*name_plural*/ "hertz",
+        /*name_short*/ "Hz",
+        /*name_alt*/ nullptr,
+        /*name_display*/ "Hertz",
+        /*identifier*/ "HERTZ",
+        /*scalar*/ 1.0f,
+        /*bias*/ 0.0,
+        /*flag*/ B_UNIT_DEF_NONE,
+    },
+    {
+        /*name*/ "kilohertz",
+        /*name_plural*/ "kilohertz",
+        /*name_short*/ "kHz",
+        /*name_alt*/ nullptr,
+        /*name_display*/ "Kilohertz",
+        /*identifier*/ "KILOHERTZ",
+        /*scalar*/ 1e3f,
+        /*bias*/ 0.0,
+        /*flag*/ B_UNIT_DEF_NONE,
+    },
+    NULL_UNIT,
+};
+static bUnitCollection buFrequencyCollection = {
+    /*units*/ buFrequencyDef,
+    /*base_unit*/ 0,
+    /*flag*/ 0,
+    /*length*/ UNIT_COLLECTION_LENGTH(buFrequencyDef),
+};
+
 #define UNIT_SYSTEM_TOT (((sizeof(bUnitSystems) / B_UNIT_TYPE_TOT) / sizeof(void *)) - 1)
 static const bUnitCollection *bUnitSystems[][B_UNIT_TYPE_TOT] = {
     /* Natural. */
@@ -1420,6 +1533,9 @@ static const bUnitCollection *bUnitSystems[][B_UNIT_TYPE_TOT] = {
         /*B_UNIT_CAMERA*/ nullptr,
         /*B_UNIT_POWER*/ nullptr,
         /*B_UNIT_TEMPERATURE*/ nullptr,
+        /*B_UNIT_WAVELENGTH*/ nullptr,
+        /*B_UNIT_COLOR_TEMPERATURE*/ nullptr,
+        /*B_UNIT_FREQUENCY*/ nullptr,
     },
     /* Metric. */
     {
@@ -1436,6 +1552,9 @@ static const bUnitCollection *bUnitSystems[][B_UNIT_TYPE_TOT] = {
         /*B_UNIT_CAMERA*/ &buCameraLenCollection,
         /*B_UNIT_POWER*/ &buPowerCollection,
         /*B_UNIT_TEMPERATURE*/ &buMetricTempCollection,
+        /*B_UNIT_WAVELENGTH*/ &buWavelengthLenCollection,
+        /*B_UNIT_COLOR_TEMPERATURE*/ &buColorTempCollection,
+        /*B_UNIT_FREQUENCY*/ &buFrequencyCollection,
     },
     /* Imperial. */
     {
@@ -1452,6 +1571,9 @@ static const bUnitCollection *bUnitSystems[][B_UNIT_TYPE_TOT] = {
         /*B_UNIT_CAMERA*/ &buCameraLenCollection,
         /*B_UNIT_POWER*/ &buPowerCollection,
         /*B_UNIT_TEMPERATURE*/ &buImperialTempCollection,
+        /*B_UNIT_WAVELENGTH*/ &buWavelengthLenCollection,
+        /*B_UNIT_COLOR_TEMPERATURE*/ &buColorTempCollection,
+        /*B_UNIT_FREQUENCY*/ &buFrequencyCollection,
     },
     {nullptr},
 };
@@ -1509,7 +1631,7 @@ static void unit_dual_convert(double value,
   const bUnitDef *unit = (main_unit) ? main_unit : unit_best_fit(value, usys, nullptr, 1);
 
   const double scaled_value = value / unit->scalar;
-  *r_value_a = (value < 0.0 ? ceil(scaled_value) : floor(scaled_value)) * unit->scalar;
+  *r_value_a = std::trunc(scaled_value) * unit->scalar;
   *r_value_b = value - (*r_value_a);
 
   *r_unit_a = unit;
@@ -1520,11 +1642,13 @@ static size_t unit_as_string(char *str,
                              int str_maxncpy,
                              double value,
                              int prec,
+                             const bool do_rstrip_zero,
                              const bUnitCollection *usys,
                              /* Non exposed options. */
                              const bUnitDef *unit,
                              char pad)
 {
+  BLI_assert(prec >= 0);
   if (unit == nullptr) {
     if (value == 0.0) {
       /* Use the default units since there is no way to convert. */
@@ -1536,14 +1660,6 @@ static size_t unit_as_string(char *str,
   }
 
   double value_conv = (value / unit->scalar) - unit->bias;
-  bool strip_skip = false;
-
-  /* Negative precision is used to disable stripping of zeroes.
-   * This reduces text jumping when changing values. */
-  if (prec < 0) {
-    strip_skip = true;
-    prec *= -1;
-  }
 
   /* Adjust precision to expected number of significant digits.
    * Note that here, we shall not have to worry about very big/small numbers, units are expected
@@ -1563,7 +1679,7 @@ static size_t unit_as_string(char *str,
   size_t i = len - 1;
 
   if (prec > 0) {
-    if (!strip_skip) {
+    if (do_rstrip_zero) {
       while (i > 0 && str[i] == '0') { /* 4.300 -> 4.3 */
         str[i--] = pad;
       }
@@ -1599,7 +1715,7 @@ static size_t unit_as_string(char *str,
 
 static bool unit_should_be_split(int type)
 {
-  return ELEM(type, B_UNIT_LENGTH, B_UNIT_MASS, B_UNIT_TIME, B_UNIT_CAMERA);
+  return ELEM(type, B_UNIT_LENGTH, B_UNIT_MASS, B_UNIT_TIME, B_UNIT_CAMERA, B_UNIT_WAVELENGTH);
 }
 
 struct PreferredUnits {
@@ -1612,15 +1728,15 @@ struct PreferredUnits {
   int temperature;
 };
 
-static PreferredUnits preferred_units_from_UnitSettings(const UnitSettings *settings)
+static PreferredUnits preferred_units_from_UnitSettings(const UnitSettings &settings)
 {
   PreferredUnits units = {0};
-  units.system = settings->system;
-  units.rotation = settings->system_rotation;
-  units.length = settings->length_unit;
-  units.mass = settings->mass_unit;
-  units.time = settings->time_unit;
-  units.temperature = settings->temperature_unit;
+  units.system = settings.system;
+  units.rotation = settings.system_rotation;
+  units.length = settings.length_unit;
+  units.mass = settings.mass_unit;
+  units.time = settings.time_unit;
+  units.temperature = settings.temperature_unit;
   return units;
 }
 
@@ -1628,16 +1744,19 @@ static size_t unit_as_string_split_pair(char *str,
                                         int str_maxncpy,
                                         double value,
                                         int prec,
+                                        const bool do_rstrip_zero,
                                         const bUnitCollection *usys,
                                         const bUnitDef *main_unit)
 {
+  BLI_assert(prec >= 0);
   const bUnitDef *unit_a, *unit_b;
   double value_a, value_b;
   unit_dual_convert(value, usys, &unit_a, &unit_b, &value_a, &value_b, main_unit);
 
   /* Check the 2 is a smaller unit. */
   if (unit_b > unit_a) {
-    size_t i = unit_as_string(str, str_maxncpy, value_a, prec, usys, unit_a, '\0');
+    /* Always strip zeros for the larger unit, since it is truncated and won't ever "jitter". */
+    size_t i = unit_as_string(str, str_maxncpy, value_a, prec, true, usys, unit_a, '\0');
 
     prec -= integer_digits_d(value_a / unit_b->scalar) -
             integer_digits_d(value_b / unit_b->scalar);
@@ -1648,7 +1767,8 @@ static size_t unit_as_string_split_pair(char *str,
       str[i++] = ' ';
 
       /* Use low precision since this is a smaller unit. */
-      i += unit_as_string(str + i, str_maxncpy - i, value_b, prec, usys, unit_b, '\0');
+      i += unit_as_string(
+          str + i, str_maxncpy - i, value_b, prec, do_rstrip_zero, usys, unit_b, '\0');
     }
     return i;
   }
@@ -1661,7 +1781,7 @@ static bool is_valid_unit_collection(const bUnitCollection *usys)
   return usys != nullptr && usys->units[0].name != nullptr;
 }
 
-static const bUnitDef *get_preferred_display_unit_if_used(int type, PreferredUnits units)
+static const bUnitDef *get_preferred_display_unit_if_used(int type, const PreferredUnits &units)
 {
   const bUnitCollection *usys = unit_get_system(units.system, type);
   if (!is_valid_unit_collection(usys)) {
@@ -1715,7 +1835,7 @@ static size_t unit_as_string_main(char *str,
                                   int type,
                                   bool split,
                                   bool pad,
-                                  PreferredUnits units)
+                                  const PreferredUnits &units)
 {
   const bUnitCollection *usys = unit_get_system(units.system, type);
   const bUnitDef *main_unit = nullptr;
@@ -1727,15 +1847,23 @@ static size_t unit_as_string_main(char *str,
     main_unit = get_preferred_display_unit_if_used(type, units);
   }
 
+  bool do_rstrip_zero = true;
+  if (prec < 0) {
+    prec = -prec;
+    do_rstrip_zero = false;
+  }
+
   if (split && unit_should_be_split(type)) {
-    int length = unit_as_string_split_pair(str, str_maxncpy, value, prec, usys, main_unit);
-    /* Failed when length is negative, fallback to no split. */
+    int length = unit_as_string_split_pair(
+        str, str_maxncpy, value, prec, do_rstrip_zero, usys, main_unit);
+    /* Split failed when length is negative, fall back to no split. */
     if (length >= 0) {
       return length;
     }
   }
 
-  return unit_as_string(str, str_maxncpy, value, prec, usys, main_unit, pad ? ' ' : '\0');
+  return unit_as_string(
+      str, str_maxncpy, value, prec, do_rstrip_zero, usys, main_unit, pad ? ' ' : '\0');
 }
 
 size_t BKE_unit_value_as_string_adaptive(
@@ -1756,12 +1884,50 @@ size_t BKE_unit_value_as_string(char *str,
                                 double value,
                                 int prec,
                                 int type,
-                                const UnitSettings *settings,
+                                const UnitSettings &settings,
                                 bool pad)
 {
-  bool do_split = (settings->flag & USER_UNIT_OPT_SPLIT) != 0;
+  bool do_split = (settings.flag & USER_UNIT_OPT_SPLIT) != 0;
   PreferredUnits units = preferred_units_from_UnitSettings(settings);
   return unit_as_string_main(str, str_maxncpy, value, prec, type, do_split, pad, units);
+}
+
+size_t BKE_unit_value_as_string_scaled(char *str,
+                                       int str_maxncpy,
+                                       double value,
+                                       int prec,
+                                       int type,
+                                       const UnitSettings &settings,
+                                       bool pad)
+{
+  return BKE_unit_value_as_string(
+      str, str_maxncpy, BKE_unit_value_scale(settings, type, value), prec, type, settings, pad);
+}
+
+double BKE_unit_value_scale(const UnitSettings &settings, const int unit_type, double value)
+{
+  if (settings.system == USER_UNIT_NONE) {
+    /* Never apply scale_length when not using a unit setting! */
+    return value;
+  }
+
+  switch (unit_type) {
+    case B_UNIT_LENGTH:
+    case B_UNIT_VELOCITY:
+    case B_UNIT_ACCELERATION:
+      return value * double(settings.scale_length);
+    case B_UNIT_AREA:
+    case B_UNIT_POWER:
+      return value * pow(settings.scale_length, 2);
+    case B_UNIT_VOLUME:
+      return value * pow(settings.scale_length, 3);
+    case B_UNIT_MASS:
+      return value * pow(settings.scale_length, 3);
+    case B_UNIT_CAMERA: /* *Do not* use scene's unit scale for camera focal lens! See #42026. */
+    case B_UNIT_WAVELENGTH: /* Wavelength values are independent of the scene scale. */
+    default:
+      return value;
+  }
 }
 
 BLI_INLINE bool isalpha_or_utf8(const int ch)
@@ -1789,10 +1955,10 @@ static const char *unit_find_str(const char *str, const char *substr, bool case_
       /* Previous char cannot be a letter. */
       if (str_found == str ||
           /* Weak unicode support!, so "µm" won't match up be replaced by "m"
-           * since non ascii utf8 values will NEVER return true */
+           * since non ASCII UTF8 values will NEVER return true. */
           isalpha_or_utf8(*BLI_str_find_prev_char_utf8(str_found, str)) == 0)
       {
-        /* Next char cannot be alpha-numeric. */
+        /* Next char cannot be alphanumeric. */
         int len_name = strlen(substr);
 
         if (!isalpha_or_utf8(*(str_found + len_name))) {
@@ -1920,7 +2086,7 @@ static char *find_next_op(const char *str, char *remaining_str, int remaining_st
       return remaining_str + i;
     }
   }
-  BLI_assert_msg(0, "String should be nullptr terminated");
+  BLI_assert_msg(0, "String should be null terminated");
   return remaining_str + i;
 }
 
@@ -2063,9 +2229,7 @@ static int unit_scale_str(char *str,
   int len_num = BLI_snprintf_rlen(
       str_tmp, TEMP_STR_SIZE, "*%.9g" SEP_STR, unit->scalar / scale_pref);
 
-  if (len_num > str_maxncpy) {
-    len_num = str_maxncpy;
-  }
+  len_num = std::min(len_num, str_maxncpy);
 
   if (found_ofs + len_num + len_move > str_maxncpy) {
     /* Can't move the whole string, move just as much as will fit. */
@@ -2178,7 +2342,7 @@ bool BKE_unit_string_contains_unit(const char *str, int type)
   return false;
 }
 
-double BKE_unit_apply_preferred_unit(const UnitSettings *settings, int type, double value)
+double BKE_unit_apply_preferred_unit(const UnitSettings &settings, int type, double value)
 {
   PreferredUnits units = preferred_units_from_UnitSettings(settings);
   const bUnitDef *unit = get_preferred_display_unit_if_used(type, units);

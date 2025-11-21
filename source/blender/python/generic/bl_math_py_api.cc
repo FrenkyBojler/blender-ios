@@ -13,18 +13,7 @@
 
 #include "BLI_utildefines.h"
 
-#include "bl_math_py_api.h"
-
-/* -------------------------------------------------------------------- */
-/** \name Module Doc String
- * \{ */
-
-PyDoc_STRVAR(
-    /* Wrap. */
-    M_bl_math_doc,
-    "Miscellaneous math utilities module");
-
-/** \} */
+#include "bl_math_py_api.hh"
 
 /* -------------------------------------------------------------------- */
 /** \name Python Functions
@@ -135,6 +124,10 @@ static PyMethodDef M_bl_math_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
+PyDoc_STRVAR(
+    /* Wrap. */
+    M_bl_math_doc,
+    "Miscellaneous math utilities module.");
 static PyModuleDef M_bl_math_module_def = {
     /*m_base*/ PyModuleDef_HEAD_INIT,
     /*m_name*/ "bl_math",

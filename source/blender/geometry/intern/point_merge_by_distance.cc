@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_array_utils.hh"
-#include "BLI_kdtree.h"
+#include "BLI_kdtree.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_task.hh"
 
@@ -20,7 +20,7 @@ namespace blender::geometry {
 PointCloud *point_merge_by_distance(const PointCloud &src_points,
                                     const float merge_distance,
                                     const IndexMask &selection,
-                                    const bke::AnonymousAttributePropagationInfo &propagation_info)
+                                    const bke::AttributeFilter &attribute_filter)
 {
   const bke::AttributeAccessor src_attributes = src_points.attributes();
   const Span<float3> positions = src_points.positions();
@@ -103,11 +103,14 @@ PointCloud *point_merge_by_distance(const PointCloud &src_points,
     point_merge_counts[dst_index]++;
   }
 
-  Set<bke::AttributeIDRef> attribute_ids = src_attributes.all_ids();
+  Set<StringRefNull> attribute_ids = src_attributes.all_ids();
 
   /* Transfer the ID attribute if it exists, using the ID of the first merged point. */
-  if (attribute_ids.contains("id")) {
-    VArraySpan<int> src = *src_attributes.lookup_or_default<int>("id", bke::AttrDomain::Point, 0);
+  bke::GAttributeReader src_id_attribute = src_attributes.lookup("id");
+  if (src_id_attribute && src_id_attribute.domain == bke::AttrDomain::Point &&
+      src_id_attribute.varray.type().is<int>())
+  {
+    VArraySpan<int> src = src_id_attribute.varray.typed<int>();
     bke::SpanAttributeWriter<int> dst = dst_attributes.lookup_or_add_for_write_only_span<int>(
         "id", bke::AttrDomain::Point);
 
@@ -122,8 +125,8 @@ PointCloud *point_merge_by_distance(const PointCloud &src_points,
   }
 
   /* Transfer all other attributes. */
-  for (const bke::AttributeIDRef &id : attribute_ids) {
-    if (id.is_anonymous() && !propagation_info.propagate(id.anonymous_id())) {
+  for (const StringRef id : attribute_ids) {
+    if (attribute_filter.allow_skip(id)) {
       continue;
     }
 

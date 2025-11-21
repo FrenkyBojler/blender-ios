@@ -5,6 +5,7 @@
 #include "testing/testing.h"
 
 #include "BLI_listbase.h"
+#include "BLI_serialize.hh"
 
 #include "DNA_ID.h"
 
@@ -217,7 +218,7 @@ static void test_idprop(const IDProperty *id_property,
   ASSERT_NE(id_property, nullptr);
   EXPECT_EQ(id_property->type, IDP_STRING);
   EXPECT_EQ(id_property->name, expected_name);
-  EXPECT_EQ(IDP_String(id_property), expected_value);
+  EXPECT_EQ(IDP_string_get(id_property), expected_value);
 }
 
 static void test_idprop(const IDProperty *id_property,
@@ -227,7 +228,7 @@ static void test_idprop(const IDProperty *id_property,
   ASSERT_NE(id_property, nullptr);
   EXPECT_EQ(id_property->type, IDP_INT);
   EXPECT_EQ(id_property->name, expected_name);
-  EXPECT_EQ(IDP_Int(id_property), expected_value);
+  EXPECT_EQ(IDP_int_get(id_property), expected_value);
 }
 
 static void test_idprop(const IDProperty *id_property,
@@ -237,7 +238,7 @@ static void test_idprop(const IDProperty *id_property,
   ASSERT_NE(id_property, nullptr);
   EXPECT_EQ(id_property->type, IDP_FLOAT);
   EXPECT_EQ(id_property->name, expected_name);
-  EXPECT_EQ(IDP_Float(id_property), expected_value);
+  EXPECT_EQ(IDP_float_get(id_property), expected_value);
 }
 
 static void test_idprop(const IDProperty *id_property,
@@ -247,7 +248,7 @@ static void test_idprop(const IDProperty *id_property,
   ASSERT_NE(id_property, nullptr);
   EXPECT_EQ(id_property->type, IDP_DOUBLE);
   EXPECT_EQ(id_property->name, expected_name);
-  EXPECT_EQ(IDP_Double(id_property), expected_value);
+  EXPECT_EQ(IDP_double_get(id_property), expected_value);
 }
 
 static void test_idprop(const IDProperty *id_property,
@@ -259,7 +260,7 @@ static void test_idprop(const IDProperty *id_property,
   EXPECT_EQ(id_property->subtype, IDP_INT);
   EXPECT_EQ(id_property->len, values.size());
   EXPECT_EQ(id_property->name, expected_name);
-  int32_t *idprop_values = static_cast<int32_t *>(IDP_Array(id_property));
+  int32_t *idprop_values = IDP_array_int_get(id_property);
   for (int i = 0; i < values.size(); i++) {
     EXPECT_EQ(idprop_values[i], values[i]);
   }
@@ -274,7 +275,7 @@ static void test_idprop(const IDProperty *id_property,
   EXPECT_EQ(id_property->subtype, IDP_FLOAT);
   EXPECT_EQ(id_property->len, values.size());
   EXPECT_EQ(id_property->name, expected_name);
-  float *idprop_values = static_cast<float *>(IDP_Array(id_property));
+  float *idprop_values = IDP_array_float_get(id_property);
   for (int i = 0; i < values.size(); i++) {
     EXPECT_EQ(idprop_values[i], values[i]);
   }
@@ -289,7 +290,7 @@ static void test_idprop(const IDProperty *id_property,
   EXPECT_EQ(id_property->subtype, IDP_DOUBLE);
   EXPECT_EQ(id_property->len, values.size());
   EXPECT_EQ(id_property->name, expected_name);
-  double *idprop_values = static_cast<double *>(IDP_Array(id_property));
+  double *idprop_values = IDP_array_double_get(id_property);
   for (int i = 0; i < values.size(); i++) {
     EXPECT_EQ(idprop_values[i], values[i]);
   }

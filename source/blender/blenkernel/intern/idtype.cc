@@ -9,12 +9,8 @@
 #include <array>
 #include <cstring>
 
-#include "MEM_guardedalloc.h"
-
 #include "BLI_ghash.h"
 #include "BLI_utildefines.h"
-
-#include "CLG_log.h"
 
 #include "BLT_translation.hh"
 
@@ -23,12 +19,11 @@
 #include "DNA_node_types.h"
 #include "DNA_scene_types.h"
 
-#include "BKE_main.hh"
 #include "BKE_node.hh"
 
 #include "BKE_idtype.hh"
 
-// static CLG_LogRef LOG = {"bke.idtype"};
+// static CLG_LogRef LOG = {"lib.idtype"};
 
 uint BKE_idtype_cache_key_hash(const void *key_v)
 {
@@ -72,7 +67,6 @@ static void id_type_init()
   INIT_TYPE(ID_LT);
   INIT_TYPE(ID_LA);
   INIT_TYPE(ID_CA);
-  INIT_TYPE(ID_IP);
   INIT_TYPE(ID_KE);
   INIT_TYPE(ID_WO);
   INIT_TYPE(ID_SCR);
@@ -83,7 +77,6 @@ static void id_type_init()
   INIT_TYPE(ID_GR);
   INIT_TYPE(ID_AR);
   INIT_TYPE(ID_AC);
-  INIT_TYPE(ID_AN);
   INIT_TYPE(ID_NT);
   INIT_TYPE(ID_BR);
   INIT_TYPE(ID_PA);
@@ -110,6 +103,18 @@ static void id_type_init()
   BLI_assert_msg(init_types_num == INDEX_ID_MAX, "Some IDTypeInfo initialization is missing");
   UNUSED_VARS_NDEBUG(init_types_num);
 
+  { /* Inspect which ID types can be animated, so that IDType_ID_AC.dependencies_id_types can be
+     * set to include those. The runtime ID* cache of #animrig::Slot will point to any
+     * ID that is animated by it, and thus can point to any animatable ID type. */
+    IDType_ID_AC.dependencies_id_types = 0;
+    for (const IDTypeInfo *id_type : id_types) {
+      const bool is_animatable = (id_type->flags & IDTYPE_FLAGS_NO_ANIMDATA) == 0;
+      if (is_animatable) {
+        IDType_ID_AC.dependencies_id_types |= id_type->id_filter;
+      }
+    }
+  }
+
 #undef INIT_TYPE
 }
 
@@ -124,6 +129,8 @@ const IDTypeInfo *BKE_idtype_get_info_from_idtype_index(const int idtype_index)
   if (idtype_index >= 0 && idtype_index < int(id_types.size())) {
     const IDTypeInfo *id_type = id_types[size_t(idtype_index)];
     if (id_type && id_type->name[0] != '\0') {
+      BLI_assert_msg(BKE_idtype_idcode_to_index(id_type->id_code) == idtype_index,
+                     "Critical inconsistency in ID type information");
       return id_type;
     }
   }
@@ -226,7 +233,6 @@ int BKE_idtype_idcode_to_index(const short idcode)
 
   switch ((ID_Type)idcode) {
     CASE_IDINDEX(AC);
-    CASE_IDINDEX(AN);
     CASE_IDINDEX(AR);
     CASE_IDINDEX(BR);
     CASE_IDINDEX(CA);
@@ -237,7 +243,6 @@ int BKE_idtype_idcode_to_index(const short idcode)
     CASE_IDINDEX(GR);
     CASE_IDINDEX(CV);
     CASE_IDINDEX(IM);
-    CASE_IDINDEX(IP);
     CASE_IDINDEX(KE);
     CASE_IDINDEX(LA);
     CASE_IDINDEX(LI);
@@ -286,7 +291,6 @@ int BKE_idtype_idfilter_to_index(const uint64_t id_filter)
 
   switch (id_filter) {
     CASE_IDINDEX(AC);
-    CASE_IDINDEX(AN);
     CASE_IDINDEX(AR);
     CASE_IDINDEX(BR);
     CASE_IDINDEX(CA);
@@ -297,7 +301,6 @@ int BKE_idtype_idfilter_to_index(const uint64_t id_filter)
     CASE_IDINDEX(GR);
     CASE_IDINDEX(CV);
     CASE_IDINDEX(IM);
-    CASE_IDINDEX(IP);
     CASE_IDINDEX(KE);
     CASE_IDINDEX(LA);
     CASE_IDINDEX(LI);
@@ -383,7 +386,7 @@ void BKE_idtype_id_foreach_cache(ID *id,
   }
 
   /* Handle 'private IDs'. */
-  bNodeTree *nodetree = ntreeFromID(id);
+  bNodeTree *nodetree = blender::bke::node_tree_from_id(id);
   if (nodetree != nullptr) {
     type_info = BKE_idtype_get_info_from_id(&nodetree->id);
     if (type_info == nullptr) {

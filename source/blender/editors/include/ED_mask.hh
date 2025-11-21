@@ -10,41 +10,52 @@
 
 #include "DNA_mask_types.h"
 
+struct ARegion;
 struct Depsgraph;
 struct KeyframeEditData;
 struct MaskLayer;
 struct MaskLayerShape;
+struct Scene;
+struct ScrArea;
 struct bContext;
 struct wmKeyConfig;
 
 /* `mask_edit.cc` */
 
-/* Returns true when the following conditions are met:
+/**
+ * Returns true when the following conditions are met:
  * - Current space supports mask editing.
  * - The space is configured to interact with mask.
  *
- * It is not required to have mask opened for editing. */
+ * It is not required to have mask opened for editing.
+ */
 bool ED_maskedit_poll(bContext *C);
 
-/* Returns true when the following conditions are met:
+/**
+ * Returns true when the following conditions are met:
  * - Current space supports mask editing.
  * - The space is configured to interact with mask.
  * - Mask has visible and editable splines.
  *
- * It is not required to have mask opened for editing. */
+ * It is not required to have mask opened for editing.
+ */
 bool ED_maskedit_visible_splines_poll(bContext *C);
 
-/* Returns true when the following conditions are met:
+/**
+ * Returns true when the following conditions are met:
  * - Current space supports mask editing.
  * - The space is configured to interact with mask.
- * - The space has mask open for editing. */
+ * - The space has mask open for editing.
+ */
 bool ED_maskedit_mask_poll(bContext *C);
 
-/* Returns true when the following conditions are met:
+/**
+ * Returns true when the following conditions are met:
  * - Current space supports mask editing.
  * - The space is configured to interact with mask.
  * - The space has mask opened.
- * - Mask has visible and editable splines. */
+ * - Mask has visible and editable splines.
+ */
 bool ED_maskedit_mask_visible_splines_poll(bContext *C);
 
 void ED_mask_deselect_all(const bContext *C);
@@ -79,6 +90,9 @@ bool ED_mask_selected_minmax(const bContext *C,
                              float max[2],
                              bool handles_as_control_point);
 
+void ED_mask_center_from_pivot_ex(
+    const bContext *C, ScrArea *area, float r_center[2], char mode, bool *r_has_select);
+
 /* `mask_draw.cc` */
 
 /**
@@ -88,6 +102,7 @@ bool ED_mask_selected_minmax(const bContext *C,
 void ED_mask_draw_region(Depsgraph *depsgraph,
                          Mask *mask,
                          ARegion *region,
+                         bool show_overlays,
                          char draw_flag,
                          char draw_type,
                          eMaskOverlayMode overlay_mode,
@@ -160,7 +175,7 @@ bool ED_masklayer_frames_delete(MaskLayer *mask_layer);
 /**
  * Duplicate selected frames from given mask-layer.
  */
-void ED_masklayer_frames_duplicate(MaskLayer *mask_layer);
+bool ED_masklayer_frames_duplicate(MaskLayer *mask_layer);
 
 /**
  * Snap selected frames to ...

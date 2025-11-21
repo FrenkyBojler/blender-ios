@@ -10,38 +10,37 @@
 
 #include <Python.h>
 
-#include "BLI_utildefines.h"
-
 #include "bmesh.hh"
 
-#include "bmesh_py_types.h"
-#include "bmesh_py_types_customdata.h"
-#include "bmesh_py_types_meshdata.h"
-#include "bmesh_py_types_select.h"
+#include "bmesh_py_types.hh"
+#include "bmesh_py_types_customdata.hh"
+#include "bmesh_py_types_meshdata.hh"
+#include "bmesh_py_types_select.hh"
 
-#include "bmesh_py_geometry.h"
-#include "bmesh_py_ops.h"
-#include "bmesh_py_utils.h"
+#include "bmesh_py_geometry.hh"
+#include "bmesh_py_ops.hh"
+#include "bmesh_py_utils.hh"
 
 #include "BKE_editmesh.hh"
+#include "BKE_mesh_types.hh"
 
 #include "DNA_mesh_types.h"
+#include "DNA_scene_types.h"
 
-#include "../generic/py_capi_utils.h"
+#include "../generic/py_capi_utils.hh"
 
-#include "bmesh_py_api.h" /* own include */
+#include "bmesh_py_api.hh" /* own include */
 
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_bm_new_doc,
-    ".. method:: new(use_operators=True)\n"
+    ".. method:: new(*, use_operators=True)\n"
     "\n"
     "   :arg use_operators: Support calling operators in :mod:`bmesh.ops` (uses some "
     "extra memory per vert/edge/face).\n"
     "   :type use_operators: bool\n"
     "   :return: Return a new, empty BMesh.\n"
     "   :rtype: :class:`bmesh.types.BMesh`\n");
-
 static PyObject *bpy_bm_new(PyObject * /*self*/, PyObject *args, PyObject *kw)
 {
   static const char *kwlist[] = {"use_operators", nullptr};
@@ -58,6 +57,7 @@ static PyObject *bpy_bm_new(PyObject * /*self*/, PyObject *args, PyObject *kw)
   BMeshCreateParams params{};
   params.use_toolflags = use_operators;
   bm = BM_mesh_create(&bm_mesh_allocsize_default, &params);
+  bm->selectmode = SCE_SELECT_VERTEX;
 
   return BPy_BMesh_CreatePyObject(bm, BPY_BMFLAG_NOP);
 }
@@ -82,12 +82,12 @@ static PyObject *bpy_bm_from_edit_mesh(PyObject * /*self*/, PyObject *value)
     return nullptr;
   }
 
-  if (mesh->edit_mesh == nullptr) {
+  if (mesh->runtime->edit_mesh == nullptr) {
     PyErr_SetString(PyExc_ValueError, "The mesh must be in editmode");
     return nullptr;
   }
 
-  bm = mesh->edit_mesh->bm;
+  bm = mesh->runtime->edit_mesh->bm;
 
   return BPy_BMesh_CreatePyObject(bm, BPY_BMFLAG_IS_WRAPPED);
 }
@@ -97,7 +97,7 @@ void EDBM_update_extern(Mesh *mesh, const bool do_tessface, const bool is_destru
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_bm_update_edit_mesh_doc,
-    ".. method:: update_edit_mesh(mesh, loop_triangles=True, destructive=True)\n"
+    ".. method:: update_edit_mesh(mesh, *, loop_triangles=True, destructive=True)\n"
     "\n"
     "   Update the mesh after changes to the BMesh in editmode,\n"
     "   optionally recalculating n-gon tessellation.\n"
@@ -105,9 +105,9 @@ PyDoc_STRVAR(
     "   :arg mesh: The editmode mesh.\n"
     "   :type mesh: :class:`bpy.types.Mesh`\n"
     "   :arg loop_triangles: Option to recalculate n-gon tessellation.\n"
-    "   :type loop_triangles: boolean\n"
+    "   :type loop_triangles: bool\n"
     "   :arg destructive: Use when geometry has been added or removed.\n"
-    "   :type destructive: boolean\n");
+    "   :type destructive: bool\n");
 static PyObject *bpy_bm_update_edit_mesh(PyObject * /*self*/, PyObject *args, PyObject *kw)
 {
   static const char *kwlist[] = {"mesh", "loop_triangles", "destructive", nullptr};
@@ -135,7 +135,7 @@ static PyObject *bpy_bm_update_edit_mesh(PyObject * /*self*/, PyObject *args, Py
     return nullptr;
   }
 
-  if (mesh->edit_mesh == nullptr) {
+  if (mesh->runtime->edit_mesh == nullptr) {
     PyErr_SetString(PyExc_ValueError, "The mesh must be in editmode");
     return nullptr;
   }
@@ -147,9 +147,14 @@ static PyObject *bpy_bm_update_edit_mesh(PyObject * /*self*/, PyObject *args, Py
   Py_RETURN_NONE;
 }
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 static PyMethodDef BPy_BM_methods[] = {
@@ -162,8 +167,12 @@ static PyMethodDef BPy_BM_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 PyDoc_STRVAR(

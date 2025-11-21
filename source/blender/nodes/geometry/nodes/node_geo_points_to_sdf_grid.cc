@@ -13,14 +13,15 @@ namespace blender::nodes::node_geo_points_to_sdf_grid_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Points");
+  b.add_input<decl::Geometry>("Points").description(
+      "Points whose volume is converted to a signed distance field grid");
   b.add_input<decl::Float>("Radius")
       .default_value(0.5f)
       .min(0.0f)
       .subtype(PROP_DISTANCE)
       .field_on_all();
   b.add_input<decl::Float>("Voxel Size").default_value(0.3f).min(0.01f).subtype(PROP_DISTANCE);
-  b.add_output<decl::Float>("SDF Grid");
+  b.add_output<decl::Float>("SDF Grid").structure_type(StructureType::Grid);
 }
 
 #ifdef WITH_OPENVDB
@@ -61,8 +62,7 @@ static bke::VolumeGrid<float> points_to_grid(const GeometrySet &geometry_set,
                                              const Field<float> &radius_field,
                                              const float voxel_size)
 {
-  const double determinant = std::pow(double(voxel_size), 3.0);
-  if (!BKE_volume_grid_determinant_valid(determinant)) {
+  if (!BKE_volume_voxel_size_valid(float3(voxel_size))) {
     return {};
   }
 
@@ -93,7 +93,11 @@ static void node_geo_exec(GeoNodeExecParams params)
   bke::VolumeGrid<float> grid = points_to_grid(params.extract_input<GeometrySet>("Points"),
                                                params.extract_input<Field<float>>("Radius"),
                                                params.extract_input<float>("Voxel Size"));
-  params.set_output("SDF Grid", std::move(grid));
+  if (grid) {
+    params.set_output("SDF Grid", std::move(grid));
+  }
+
+  params.set_default_remaining_outputs();
 #else
   node_geo_exec_with_missing_openvdb(params);
 #endif
@@ -101,13 +105,16 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(
-      &ntype, GEO_NODE_POINTS_TO_SDF_GRID, "Points to SDF Grid", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, "GeometryNodePointsToSDFGrid", GEO_NODE_POINTS_TO_SDF_GRID);
+  ntype.ui_name = "Points to SDF Grid";
+  ntype.ui_description = "Create a signed distance volume grid from points";
+  ntype.enum_name_legacy = "POINTS_TO_SDF_GRID";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

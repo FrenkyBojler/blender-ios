@@ -10,15 +10,16 @@
 
 #include <Python.h>
 
-#include "bpy_app_timers.h"
+#include <algorithm>
 
-#include "../generic/python_compat.h"
+#include "bpy_app_timers.hh"
+
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
 static double handle_returned_value(PyObject *function, PyObject *ret)
 {
   if (ret == nullptr) {
     PyErr_PrintEx(0);
-    PyErr_Clear();
     return -1;
   }
 
@@ -35,19 +36,16 @@ static double handle_returned_value(PyObject *function, PyObject *ret)
     return -1;
   }
 
-  if (value < 0.0) {
-    value = 0.0;
-  }
+  value = std::max(value, 0.0);
 
   return value;
 }
 
 static double py_timer_execute(uintptr_t /*uuid*/, void *user_data)
 {
-  PyObject *function = static_cast<PyObject *>(user_data);
+  PyGILState_STATE gilstate = PyGILState_Ensure();
 
-  PyGILState_STATE gilstate;
-  gilstate = PyGILState_Ensure();
+  PyObject *function = static_cast<PyObject *>(user_data);
 
   PyObject *py_ret = PyObject_CallObject(function, nullptr);
   const double ret = handle_returned_value(function, py_ret);
@@ -59,11 +57,9 @@ static double py_timer_execute(uintptr_t /*uuid*/, void *user_data)
 
 static void py_timer_free(uintptr_t /*uuid*/, void *user_data)
 {
+  PyGILState_STATE gilstate = PyGILState_Ensure();
+
   PyObject *function = static_cast<PyObject *>(user_data);
-
-  PyGILState_STATE gilstate;
-  gilstate = PyGILState_Ensure();
-
   Py_DECREF(function);
 
   PyGILState_Release(gilstate);
@@ -72,7 +68,7 @@ static void py_timer_free(uintptr_t /*uuid*/, void *user_data)
 PyDoc_STRVAR(
     /* Wrap. */
     bpy_app_timers_register_doc,
-    ".. function:: register(function, first_interval=0, persistent=False)\n"
+    ".. function:: register(function, *, first_interval=0, persistent=False)\n"
     "\n"
     "   Add a new function that will be called after the specified amount of seconds.\n"
     "   The function gets no arguments and is expected to return either None or a float.\n"
@@ -81,7 +77,7 @@ PyDoc_STRVAR(
     "   ``functools.partial`` can be used to assign some parameters.\n"
     "\n"
     "   :arg function: The function that should called.\n"
-    "   :type function: Callable[[], Union[float, None]]\n"
+    "   :type function: Callable[[], float | None]\n"
     "   :arg first_interval: Seconds until the callback should be called the first time.\n"
     "   :type first_interval: float\n"
     "   :arg persistent: Don't remove timer when a new file is loaded.\n"
@@ -128,11 +124,11 @@ PyDoc_STRVAR(
     "   Unregister timer.\n"
     "\n"
     "   :arg function: Function to unregister.\n"
-    "   :type function: function\n");
+    "   :type function: Callable[[], float | None]\n");
 static PyObject *bpy_app_timers_unregister(PyObject * /*self*/, PyObject *function)
 {
   if (!BLI_timer_unregister(intptr_t(function))) {
-    PyErr_SetString(PyExc_ValueError, "Error: function is not registered");
+    PyErr_SetString(PyExc_ValueError, "function is not registered");
     return nullptr;
   }
   Py_RETURN_NONE;
@@ -146,7 +142,7 @@ PyDoc_STRVAR(
     "   Check if this function is registered as a timer.\n"
     "\n"
     "   :arg function: Function to check.\n"
-    "   :type function: int\n"
+    "   :type function: Callable[[], float | None]\n"
     "   :return: True when this function is registered, otherwise False.\n"
     "   :rtype: bool\n");
 static PyObject *bpy_app_timers_is_registered(PyObject * /*self*/, PyObject *function)
@@ -155,9 +151,14 @@ static PyObject *bpy_app_timers_is_registered(PyObject * /*self*/, PyObject *fun
   return PyBool_FromLong(ret);
 }
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 static PyMethodDef M_AppTimers_methods[] = {
@@ -173,8 +174,12 @@ static PyMethodDef M_AppTimers_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 static PyModuleDef M_AppTimers_module_def = {

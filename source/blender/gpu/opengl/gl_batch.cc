@@ -5,14 +5,14 @@
 /** \file
  * \ingroup gpu
  *
- * GL implementation of GPUBatch.
+ * GL implementation of #gpu::Batch.
  * The only specificity of GL here is that it caches a list of
  * Vertex Array Objects based on the bound shader interface.
  */
 
 #include "BLI_assert.h"
 
-#include "gpu_batch_private.hh"
+#include "GPU_batch.hh"
 #include "gpu_shader_private.hh"
 
 #include "gl_context.hh"
@@ -86,8 +86,7 @@ void GLVaoCache::insert(const GLShaderInterface *interface, GLuint vao)
       dynamic_vaos.count = GPU_BATCH_VAO_DYN_ALLOC_COUNT;
       dynamic_vaos.interfaces = (const GLShaderInterface **)MEM_callocN(
           dynamic_vaos.count * sizeof(GLShaderInterface *), "dyn vaos interfaces");
-      dynamic_vaos.vao_ids = (GLuint *)MEM_callocN(dynamic_vaos.count * sizeof(GLuint),
-                                                   "dyn vaos ids");
+      dynamic_vaos.vao_ids = MEM_calloc_arrayN<GLuint>(dynamic_vaos.count, "dyn vaos ids");
     }
   }
 
@@ -167,7 +166,7 @@ void GLVaoCache::clear()
   }
 
   if (is_dynamic_vao_count) {
-    MEM_freeN((void *)dynamic_vaos.interfaces);
+    MEM_freeN(dynamic_vaos.interfaces);
     MEM_freeN(dynamic_vaos.vao_ids);
   }
 
@@ -208,7 +207,7 @@ void GLVaoCache::context_check()
   }
 }
 
-GLuint GLVaoCache::vao_get(GPUBatch *batch)
+GLuint GLVaoCache::vao_get(Batch *batch)
 {
   this->context_check();
 
@@ -222,7 +221,7 @@ GLuint GLVaoCache::vao_get(GPUBatch *batch)
       /* Cache miss, create a new VAO. */
       glGenVertexArrays(1, &vao_id_);
       this->insert(interface_, vao_id_);
-      GLVertArray::update_bindings(vao_id_, batch, interface_, 0);
+      GLVertArray::update_bindings(vao_id_, batch, interface_);
     }
   }
 
@@ -271,12 +270,12 @@ void GLBatch::draw(int v_first, int v_count, int i_first, int i_count)
   }
 }
 
-void GLBatch::draw_indirect(GPUStorageBuf *indirect_buf, intptr_t offset)
+void GLBatch::draw_indirect(blender::gpu::StorageBuf *indirect_buf, intptr_t offset)
 {
   GL_CHECK_RESOURCES("Batch");
 
   this->bind();
-  dynamic_cast<GLStorageBuf *>(unwrap(indirect_buf))->bind_as(GL_DRAW_INDIRECT_BUFFER);
+  dynamic_cast<GLStorageBuf *>(indirect_buf)->bind_as(GL_DRAW_INDIRECT_BUFFER);
 
   GLenum gl_type = to_gl(prim_type);
   if (elem) {
@@ -291,7 +290,7 @@ void GLBatch::draw_indirect(GPUStorageBuf *indirect_buf, intptr_t offset)
   glBindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
 }
 
-void GLBatch::multi_draw_indirect(GPUStorageBuf *indirect_buf,
+void GLBatch::multi_draw_indirect(blender::gpu::StorageBuf *indirect_buf,
                                   int count,
                                   intptr_t offset,
                                   intptr_t stride)
@@ -299,7 +298,7 @@ void GLBatch::multi_draw_indirect(GPUStorageBuf *indirect_buf,
   GL_CHECK_RESOURCES("Batch");
 
   this->bind();
-  dynamic_cast<GLStorageBuf *>(unwrap(indirect_buf))->bind_as(GL_DRAW_INDIRECT_BUFFER);
+  dynamic_cast<GLStorageBuf *>(indirect_buf)->bind_as(GL_DRAW_INDIRECT_BUFFER);
 
   GLenum gl_type = to_gl(prim_type);
   if (elem) {

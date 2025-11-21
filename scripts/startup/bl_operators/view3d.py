@@ -3,11 +3,19 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 import bpy
-from bpy.types import Operator
+from bpy.types import (
+    Operator,
+    FileHandler,
+)
 from bpy.props import (
     BoolProperty,
     EnumProperty,
 )
+
+bl_file_extensions_image_and_movie = ";".join((
+    *bpy.path.extensions_image,
+    *bpy.path.extensions_movie,
+))
 
 
 class VIEW3D_OT_edit_mesh_extrude_individual_move(Operator):
@@ -17,16 +25,16 @@ class VIEW3D_OT_edit_mesh_extrude_individual_move(Operator):
 
     @classmethod
     def poll(cls, context):
-        obj = context.active_object
-        return (obj is not None and obj.mode == 'EDIT')
+        return context.mode == 'EDIT_MESH'
 
     def execute(self, context):
         from bpy_extras.object_utils import object_report_if_active_shape_key_is_locked
 
-        if object_report_if_active_shape_key_is_locked(context.object, self):
+        ob = context.object
+        if object_report_if_active_shape_key_is_locked(ob, self):
             return {'CANCELLED'}
 
-        mesh = context.object.data
+        mesh = ob.data
         select_mode = context.tool_settings.mesh_select_mode
 
         totface = mesh.total_face_sel
@@ -47,7 +55,8 @@ class VIEW3D_OT_edit_mesh_extrude_individual_move(Operator):
                 'INVOKE_REGION_WIN',
                 TRANSFORM_OT_shrink_fatten={
                     "release_confirm": False,
-                })
+                },
+            )
         elif select_mode[1] and totedge >= 1:
             bpy.ops.mesh.extrude_edges_move(
                 'INVOKE_REGION_WIN',
@@ -84,17 +93,17 @@ class VIEW3D_OT_edit_mesh_extrude_move(Operator):
 
     @classmethod
     def poll(cls, context):
-        obj = context.active_object
-        return (obj is not None and obj.mode == 'EDIT')
+        return context.mode == 'EDIT_MESH'
 
     @staticmethod
     def extrude_region(operator, context, use_vert_normals, dissolve_and_intersect):
         from bpy_extras.object_utils import object_report_if_active_shape_key_is_locked
 
-        if object_report_if_active_shape_key_is_locked(context.object, operator):
+        ob = context.object
+        if object_report_if_active_shape_key_is_locked(ob, operator):
             return {'CANCELLED'}
 
-        mesh = context.object.data
+        mesh = ob.data
 
         totface = mesh.total_face_sel
         totedge = mesh.total_edge_sel
@@ -137,7 +146,7 @@ class VIEW3D_OT_edit_mesh_extrude_move(Operator):
                     # Don't set the constraint axis since users will expect MMB
                     # to use the user setting, see: #61637
                     # "orient_type": 'NORMAL',
-                    # Not a popular choice, too restrictive for retopo.
+                    # Not a popular choice, too restrictive for retopology.
                     # "constraint_axis": (True, True, False),
                     "constraint_axis": (False, False, False),
                     "release_confirm": False,
@@ -168,8 +177,7 @@ class VIEW3D_OT_edit_mesh_extrude_shrink_fatten(Operator):
 
     @classmethod
     def poll(cls, context):
-        obj = context.active_object
-        return (obj is not None and obj.mode == 'EDIT')
+        return context.mode == 'EDIT_MESH'
 
     def execute(self, context):
         return VIEW3D_OT_edit_mesh_extrude_move.extrude_region(self, context, True, False)
@@ -185,8 +193,7 @@ class VIEW3D_OT_edit_mesh_extrude_manifold_normal(Operator):
 
     @classmethod
     def poll(cls, context):
-        obj = context.active_object
-        return (obj is not None and obj.mode == 'EDIT')
+        return context.mode == 'EDIT_MESH'
 
     def execute(self, context):
         from bpy_extras.object_utils import object_report_if_active_shape_key_is_locked
@@ -258,10 +265,52 @@ class VIEW3D_OT_transform_gizmo_set(Operator):
         return self.execute(context)
 
 
+class VIEW3D_FH_empty_image(FileHandler):
+    bl_idname = "VIEW3D_FH_empty_image"
+    bl_label = "Add empty image"
+    bl_import_operator = "OBJECT_OT_empty_image_add"
+    bl_file_extensions = bl_file_extensions_image_and_movie
+
+    @classmethod
+    def poll_drop(cls, context):
+        if not context.space_data or context.space_data.type != 'VIEW_3D':
+            return False
+        rv3d = context.space_data.region_3d
+        return rv3d.view_perspective == 'PERSP' or rv3d.view_perspective == 'ORTHO'
+
+
+class VIEW3D_FH_camera_background_image(FileHandler):
+    bl_idname = "VIEW3D_FH_camera_background_image"
+    bl_label = "Add camera background image"
+    bl_import_operator = "VIEW3D_OT_camera_background_image_add"
+    bl_file_extensions = bl_file_extensions_image_and_movie
+
+    @classmethod
+    def poll_drop(cls, context):
+        if not context.space_data or context.space_data.type != 'VIEW_3D':
+            return False
+        rv3d = context.space_data.region_3d
+        return rv3d.view_perspective == 'CAMERA'
+
+
+class VIEW3D_FH_vdb_volume(FileHandler):
+    bl_idname = "VIEW3D_FH_vdb_volume"
+    bl_label = "OpenVDB volume"
+    bl_import_operator = "OBJECT_OT_volume_import"
+    bl_file_extensions = ".vdb"
+
+    @classmethod
+    def poll_drop(cls, context):
+        return context.space_data and context.space_data.type == 'VIEW_3D'
+
+
 classes = (
     VIEW3D_OT_edit_mesh_extrude_individual_move,
     VIEW3D_OT_edit_mesh_extrude_move,
     VIEW3D_OT_edit_mesh_extrude_shrink_fatten,
     VIEW3D_OT_edit_mesh_extrude_manifold_normal,
     VIEW3D_OT_transform_gizmo_set,
+    VIEW3D_FH_camera_background_image,
+    VIEW3D_FH_empty_image,
+    VIEW3D_FH_vdb_volume,
 )
