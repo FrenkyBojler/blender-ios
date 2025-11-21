@@ -1,1 +1,2 @@
 Referenced by issue #143939, Open Folder command in File Browser opens file
+Referenced by issue #150287, bpy.ops.file.external_operation() missing filepath in bpy 5.0
