@@ -358,25 +358,27 @@ void wm_xr_session_draw_data_update(wmXrSessionState *state,
 }
 
 static void wm_xr_session_state_update_navigation_scale(wmXrSessionState *state,
-                                                        const wmXrDrawData *draw_data)
+                                                        const wmXrDrawData *draw_data,
+                                                        const XrSessionSettings *settings)
 {
-  /* Set the navigation from the scene unit scale. */
+  /* Set nav_scale from the scene unit scale and the base navigation scale. */
   const float scene_scale = draw_data->scene->unit.scale_length;
+  const float new_scale = scene_scale * settings->base_scale;
 
   /* Apply an offset on the navigation position to visually counteract the scaling change. */
-  if (state->nav_scale != scene_scale) {
+  if (state->nav_scale != new_scale) {
     /* Get the viewer matrix without navigation applied. */
     blender::float3 view_scaling_offset = state->viewer_mat_base[3];
 
-    const float offset_val = state->nav_scale - scene_scale;
+    const float offset_val = state->nav_scale - new_scale;
     view_scaling_offset *= offset_val;
 
+    /* Set offset and recalculate navigation transforms with it. */
     add_v3_v3(state->nav_pose.position, view_scaling_offset);
-  }
+    state->is_navigation_dirty = true;
 
-  state->nav_scale = scene_scale;
-  /* Recalculate navigation transforms using offset. */
-  state->is_navigation_dirty = true;
+    state->nav_scale = new_scale;
+  }
 }
 
 void wm_xr_session_state_update(const XrSessionSettings *settings,
@@ -430,7 +432,7 @@ void wm_xr_session_state_update(const XrSessionSettings *settings,
   state->force_reset_to_base_pose = false;
 
   WM_xr_session_state_vignette_update(state);
-  wm_xr_session_state_update_navigation_scale(state, draw_data);
+  wm_xr_session_state_update_navigation_scale(state, draw_data, settings);
 }
 
 wmXrSessionState *WM_xr_session_state_handle_get(const wmXrData *xr)
@@ -1300,7 +1302,7 @@ void wm_xr_session_actions_update(wmWindowManager *wm)
     mul_m4_m4m4(viewer_mat, m, state->viewer_mat_base);
     mat4_to_loc_quat(state->viewer_pose.position, state->viewer_pose.orientation_quat, viewer_mat);
     wm_xr_pose_scale_to_imat(
-        &state->viewer_pose, settings->base_scale * state->nav_scale, state->viewer_viewmat);
+        &state->viewer_pose, state->nav_scale, state->viewer_viewmat);
   }
 
   /* Set active action set if requested previously. */

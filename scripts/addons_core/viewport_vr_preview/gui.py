@@ -102,9 +102,23 @@ class VIEW3D_PT_vr_session_view(Panel):
         col = layout.column(align=True)
         col.prop(session_settings, "fly_speed", text="Fly Speed")
 
-        col = layout.column(align=True)
+class VIEW3D_PT_vr_session_view_scale(Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "VR"
+    bl_label = "Scale"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw(self, context):
+        layout = self.layout
+        session_settings = context.window_manager.xr_session_settings
         scene_units = context.scene.unit_settings
-        col.prop(scene_units, "scale_length", text="Scene Scale")
+
+        layout.use_property_split = True
+        layout.use_property_decorate = False  # No animation.
+
+        layout.prop(scene_units, "scale_length", text="Scene Scale")
+        layout.prop(session_settings, "base_scale", text="VR Scale")
 
 
 class VIEW3D_PT_vr_session_view_object_type_visibility(VIEW3D_PT_object_type_visibility):
@@ -261,6 +275,7 @@ class VIEW3D_PT_vr_info(bpy.types.Panel):
 classes = (
     VIEW3D_PT_vr_session,
     VIEW3D_PT_vr_session_view,
+    VIEW3D_PT_vr_session_view_scale,
     VIEW3D_PT_vr_session_view_object_type_visibility,
     VIEW3D_PT_vr_landmarks,
     VIEW3D_PT_vr_actionmaps,
