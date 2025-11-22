@@ -123,6 +123,25 @@ ClosureSignature ClosureSignature::from_evaluate_closure_node(const bNode &node,
   return signature;
 }
 
+ClosureSignature ClosureSignature::from_armature_deform_node(const bNode &node,
+                                                             const bool allow_auto_structure_type)
+{
+  BLI_assert(node.is_type("GeometryNodeArmatureDeform"));
+  nodes::ClosureSignature signature;
+  signature.inputs.add({"Bone",
+                        bke::node_socket_type_find_static(SOCK_STRING),
+                        NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_SINGLE});
+  signature.outputs.add({"Weight",
+                         bke::node_socket_type_find_static(SOCK_FLOAT),
+                         allow_auto_structure_type ? NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO :
+                                                     NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_FIELD});
+  signature.outputs.add({"Selection",
+                         bke::node_socket_type_find_static(SOCK_BOOLEAN),
+                         allow_auto_structure_type ? NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_AUTO :
+                                                     NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_FIELD});
+  return signature;
+}
+
 bool LinkedClosureSignatures::has_type_definition() const
 {
   for (const Item &item : this->items) {

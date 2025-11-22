@@ -43,6 +43,8 @@ class ClosureSignature {
                                                    bool allow_auto_structure_type);
   static ClosureSignature from_evaluate_closure_node(const bNode &node,
                                                      bool allow_auto_structure_type);
+  static ClosureSignature from_armature_deform_node(const bNode &node,
+                                                    bool allow_auto_structure_type);
 
   void set_auto_structure_types();
 };

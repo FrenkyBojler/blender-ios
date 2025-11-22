@@ -24,6 +24,12 @@ static bool is_evaluate_closure_node_input(const SocketInContext &socket)
          socket.owner_node()->is_type("NodeEvaluateClosure");
 }
 
+static bool is_armature_deform_node_input(const SocketInContext &socket)
+{
+  return socket->is_input() && STREQ(socket->identifier, "Custom Weights") &&
+         socket.owner_node()->is_type("GeometryNodeArmatureDeform");
+}
+
 static bool is_closure_zone_output_socket(const SocketInContext &socket)
 {
   return socket->owner_node().is_type("NodeClosureOutput") && socket->is_output();
@@ -669,6 +675,13 @@ LinkedClosureSignatures gather_linked_target_closure_signatures(
           const auto &storage = *static_cast<const NodeEvaluateClosure *>(node.storage);
           result.items.append({ClosureSignature::from_evaluate_closure_node(node, false),
                                bool(storage.flag & NODE_EVALUATE_CLOSURE_FLAG_DEFINE_SIGNATURE),
+                               socket});
+          return true;
+        }
+        if (is_armature_deform_node_input(socket)) {
+          const bool define_signature = true;
+          result.items.append({ClosureSignature::from_armature_deform_node(node, false),
+                               define_signature,
                                socket});
           return true;
         }
