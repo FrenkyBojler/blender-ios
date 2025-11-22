@@ -2721,7 +2721,7 @@ static bool dupliobject_instancer_cmp(const void *a_, const void *b_)
 }
 
 struct DupliObjectHash {
-  uint64_t hash(const DupliObject *dob) const
+  uint64_t operator()(const DupliObject *dob) const
   {
     return dupliobject_hash(dob);
   }
@@ -2731,6 +2731,20 @@ struct DupliObjectEq {
   bool operator()(const DupliObject *a, const DupliObject *b) const
   {
     return !dupliobject_cmp(a, b);
+  }
+};
+
+struct DupliObjectInstancerHash {
+  uint64_t operator()(const DupliObject *dob) const
+  {
+    return dupliobject_instancer_hash(dob);
+  }
+};
+
+struct DupliObjectInstancerEq {
+  bool operator()(const DupliObject *a, const DupliObject *b) const
+  {
+    return !dupliobject_instancer_cmp(a, b);
   }
 };
 
@@ -2745,8 +2759,14 @@ static void make_object_duplilist_real(bContext *C,
   ViewLayer *view_layer = CTX_data_view_layer(C);
   using ParentMap =
       Map<DupliObject *, Object *, 4, DefaultProbingStrategy, DupliObjectHash, DupliObjectEq>;
+  using InstancerMap = Map<DupliObject *,
+                           Object *,
+                           4,
+                           DefaultProbingStrategy,
+                           DupliObjectInstancerHash,
+                           DupliObjectInstancerEq>;
   ParentMap *parent_gh = nullptr;
-  GHash *instancer_gh = nullptr;
+  InstancerMap *instancer_gh = nullptr;
 
   Object *object_eval = DEG_get_evaluated(depsgraph, base->object);
 
@@ -2768,8 +2788,7 @@ static void make_object_duplilist_real(bContext *C,
     parent_gh = MEM_new<ParentMap>(__func__);
 
     if (use_base_parent) {
-      instancer_gh = BLI_ghash_new(
-          dupliobject_instancer_hash, dupliobject_instancer_cmp, __func__);
+      instancer_gh = MEM_new<InstancerMap>(__func__);
     }
   }
 
@@ -2821,11 +2840,8 @@ static void make_object_duplilist_real(bContext *C,
       parent_gh->add(&dob, ob_dst);
 
       if (is_dupli_instancer && instancer_gh) {
-        void **val;
         /* Same as above, we may have several 'hits'. */
-        if (!BLI_ghash_ensure_p(instancer_gh, &dob, &val)) {
-          *val = ob_dst;
-        }
+        instancer_gh->add(&dob, ob_dst);
       }
     }
   }
@@ -2888,7 +2904,7 @@ static void make_object_duplilist_real(bContext *C,
         memcpy(&dob_key.persistent_id[0],
                &dob.persistent_id[1],
                sizeof(dob_key.persistent_id[0]) * (MAX_DUPLI_RECUR - 1));
-        ob_dst_par = static_cast<Object *>(BLI_ghash_lookup(instancer_gh, &dob_key));
+        ob_dst_par = instancer_gh->lookup_default(&dob_key, nullptr);
       }
 
       if (ob_dst_par == nullptr) {
@@ -2919,9 +2935,7 @@ static void make_object_duplilist_real(bContext *C,
   DEG_id_tag_update(&base->object->id, ID_RECALC_SELECT);
 
   MEM_delete(parent_gh);
-  if (instancer_gh) {
-    BLI_ghash_free(instancer_gh, nullptr, nullptr);
-  }
+  MEM_delete(instancer_gh);
 
   BKE_main_id_newptr_and_tag_clear(bmain);
 
