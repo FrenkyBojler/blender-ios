@@ -61,7 +61,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.use_custom_socket_order();
   b.allow_any_socket_order();
 
-  b.add_input<decl::Object>("Armature Object").hide_label();
+  b.add_input<decl::Object>("Armature Object").optional_label();
 
   b.add_input<decl::Bool>("Preserve Volume")
       .default_value(false)
@@ -446,9 +446,8 @@ static Vector<DeformGroupFields> build_custom_deform_fields(
     SocketValueVariant weights_variant;
     SocketValueVariant selection_variant;
     ClosureEagerEvalParams eval_params = {
-        {{SocketInterfaceKey("Bone"), stype_string, &bone_variant}},
-        {{SocketInterfaceKey("Weight"), stype_float, &weights_variant},
-         {SocketInterfaceKey("Selection"), stype_bool, &selection_variant}},
+        {{"Bone", stype_string, bone_variant}},
+        {{"Weight", stype_float, &weights_variant}, {"Selection", stype_bool, &selection_variant}},
         user_data};
     evaluate_closure_eagerly(*custom_groups_closure, eval_params);
 
