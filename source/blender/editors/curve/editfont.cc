@@ -1722,6 +1722,14 @@ static wmOperatorStatus delete_exec(bContext *C, wmOperator *op)
   int range[2] = {0, 0};
   bool has_select = false;
 
+#ifdef WITH_INPUT_IME
+  wmWindow *win = CTX_wm_window(C);
+  const wmIMEData *ime_data = win->runtime->ime_data;
+  if (win->runtime->ime_data_is_composing) {
+    return OPERATOR_CANCELLED;
+  }
+#endif
+
   if (ef->len == 0) {
     return OPERATOR_CANCELLED;
   }
