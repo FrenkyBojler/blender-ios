@@ -35,6 +35,8 @@
 #include "draw_cache_inline.hh"
 #include "draw_pointcloud_private.hh" /* own include */
 
+#include "draw_defines.hh"
+
 namespace blender::draw {
 
 /* -------------------------------------------------------------------- */
@@ -339,8 +341,8 @@ gpu::Batch *pointcloud_surface_get(PointCloud *pointcloud)
     return cache.eval_cache.surface;
   }
 
-  cache.eval_cache.surface = GPU_batch_create_procedural(GPU_PRIM_TRI_STRIP,
-                                                         8 * pointcloud->totpoint);
+  cache.eval_cache.surface = GPU_batch_create_procedural(
+      GPU_PRIM_TRI_STRIP, DRW_POINTCLOUD_STRIP_TILE_SIZE * pointcloud->totpoint);
   DRW_vbo_request(cache.eval_cache.surface, &cache.eval_cache.pos_rad);
   return cache.eval_cache.surface;
 }

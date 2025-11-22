@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "draw_defines.hh"
+
 #include "draw_model_lib.glsl"
 #include "draw_view_lib.glsl"
 
@@ -59,7 +61,7 @@ void pointcloud_get_pos_nor_radius(out float3 outpos, out float3 outnor, out flo
 
   uint vert_id = 0u;
 #  ifdef GPU_VERTEX_SHADER
-  vert_id = gl_VertexID % 8;
+  vert_id = gl_VertexID % DRW_POINTCLOUD_STRIP_TILE_SIZE;
 #  endif
 
   float3 pos_inst = float3(0.0f);
