@@ -1061,6 +1061,12 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         max=8192,
     )
 
+    use_texture_out_of_core: BoolProperty(
+        name="Out-of-Core Textures",
+        description="Allow moving large textures from GPU memory to host memory when GPU memory is low. Disabling can reduce overhead from host memory accesses but may cause out-of-memory errors for complex scenes",
+        default=False,
+    )
+
     # Various fine-tuning debug flags
 
     def _devices_update_callback(self, context):
