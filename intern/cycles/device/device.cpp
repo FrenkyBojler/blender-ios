@@ -10,6 +10,8 @@
 #include "device/device.h"
 #include "device/queue.h"
 
+#include "scene/scene.h"
+
 #include "device/cpu/device.h"
 #include "device/cpu/kernel.h"
 #include "device/cuda/device.h"
@@ -522,6 +524,46 @@ void Device::host_free(const MemoryType /*type*/, void *host_pointer, const size
 }
 
 GPUDevice::~GPUDevice() noexcept(false) = default;
+
+void GPUDevice::optimize_for_scene(Scene *scene)
+{
+  if (scene == nullptr) {
+    return;
+  }
+
+  const SceneParams &params = scene->params;
+
+  /* Only applies to devices that support host-mapped memory. */
+  if (!can_map_host) {
+    return;
+  }
+
+  const size_t previous_limit = map_host_limit;
+
+  /* When out-of-core texture cache is disabled, prevent any new host-mapped
+   * allocations, but keep existing ones. */
+  if (!params.use_texture_cache) {
+    map_host_limit = map_host_used;
+  }
+  else {
+    /* When enabled with a positive budget, clamp the amount of host-mapped
+     * memory by the user-specified limit in megabytes. Never shrink below what
+     * is already in use. A value of 0 keeps the default heuristic from
+     * init_host_memory(). */
+    if (params.texture_cache_limit > 0) {
+      const size_t budget_bytes = (size_t)params.texture_cache_limit * 1024 * 1024;
+      map_host_limit = max(budget_bytes, map_host_used);
+    }
+  }
+
+  if (map_host_limit != previous_limit) {
+    LOG_INFO << "GPU out-of-core host memory for device " << info.id << ": used "
+             << string_human_readable_size(map_host_used) << " / "
+             << string_human_readable_size(map_host_limit)
+             << ", use_texture_cache=" << string_from_bool(params.use_texture_cache)
+             << ", texture_cache_limit=" << params.texture_cache_limit << " MB";
+  }
+}
 
 bool GPUDevice::load_texture_info()
 {

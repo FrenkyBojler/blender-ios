@@ -909,6 +909,9 @@ SceneParams BlenderSync::get_scene_params(BL::Scene &b_scene,
     params.texture_limit = 0;
   }
 
+  params.use_texture_cache = RNA_boolean_get(&cscene, "use_texture_cache");
+  params.texture_cache_limit = RNA_int_get(&cscene, "texture_cache_limit");
+
   params.bvh_layout = DebugFlags().cpu.bvh_layout;
 
   params.background = background;

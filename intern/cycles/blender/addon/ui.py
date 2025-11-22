@@ -875,7 +875,12 @@ class CYCLES_RENDER_PT_performance_memory(CyclesButtonsPanel, Panel):
         scene = context.scene
         cscene = scene.cycles
 
-        layout.prop(cscene, "tile_size")
+        col = layout.column()
+        col.prop(cscene, "tile_size")
+        col.prop(cscene, "use_texture_cache")
+        sub = col.row()
+        sub.active = cscene.use_texture_cache
+        sub.prop(cscene, "texture_cache_limit")
 
 
 class CYCLES_RENDER_PT_performance_acceleration_structure(CyclesButtonsPanel, Panel):

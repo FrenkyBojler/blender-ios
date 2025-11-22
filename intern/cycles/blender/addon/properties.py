@@ -1061,6 +1061,18 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         max=8192,
     )
 
+    use_texture_cache: BoolProperty(
+        name="Out-of-core Textures",
+        description="Allow textures to use out-of-core memory and disk-backed caches where available",
+        default=False,
+    )
+    texture_cache_limit: IntProperty(
+        name="Texture Cache (MB)",
+        default=4096,
+        description="Maximum memory in megabytes used for texture caches and out-of-core textures (0 for automatic)",
+        min=0,
+    )
+
     # Various fine-tuning debug flags
 
     def _devices_update_callback(self, context):

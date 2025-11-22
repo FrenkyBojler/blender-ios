@@ -73,6 +73,9 @@ class SceneParams {
   CurveShapeType hair_shape;
   int texture_limit;
 
+  bool use_texture_cache;
+  int texture_cache_limit;
+
   bool background;
 
   SceneParams()
@@ -87,6 +90,8 @@ class SceneParams {
     hair_subdivisions = 3;
     hair_shape = CURVE_RIBBON;
     texture_limit = 0;
+    use_texture_cache = false;
+    texture_cache_limit = 0;
     background = true;
   }
 
@@ -99,7 +104,9 @@ class SceneParams {
              use_bvh_unaligned_nodes == params.use_bvh_unaligned_nodes &&
              num_bvh_time_steps == params.num_bvh_time_steps &&
              hair_subdivisions == params.hair_subdivisions && hair_shape == params.hair_shape &&
-             texture_limit == params.texture_limit);
+             texture_limit == params.texture_limit &&
+             use_texture_cache == params.use_texture_cache &&
+             texture_cache_limit == params.texture_cache_limit);
   }
 
   int curve_subdivisions()

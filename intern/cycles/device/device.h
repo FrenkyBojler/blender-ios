@@ -340,6 +340,8 @@ class GPUDevice : public Device {
  public:
   ~GPUDevice() noexcept(false) override;
 
+  void optimize_for_scene(Scene *scene) override;
+
   /* For GPUs that can use bindless textures in some way or another. */
   device_vector<TextureInfo> texture_info;
   thread_mutex texture_info_mutex;

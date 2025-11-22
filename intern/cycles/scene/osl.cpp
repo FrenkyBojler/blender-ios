@@ -133,6 +133,15 @@ void OSLManager::device_update_pre(Device *device, Scene *scene)
 
   /* set texture system (only on CPU devices, since GPU devices cannot use OIIO) */
   if (scene->shader_manager->use_osl()) {
+    OSL::TextureSystem *ts = get_texture_system();
+    if (ts != nullptr) {
+      int texture_cache_mb = 16384;
+      if (scene->params.use_texture_cache && scene->params.texture_cache_limit > 0) {
+        texture_cache_mb = scene->params.texture_cache_limit;
+      }
+      ts->attribute("max_memory_MB", texture_cache_mb);
+    }
+
     /* add special builtin texture types */
     foreach_render_services([](OSLRenderServices *services) {
       services->textures.insert(OSLUStringHash("@ao"), OSLTextureHandle(OSLTextureHandle::AO));

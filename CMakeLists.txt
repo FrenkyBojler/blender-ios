@@ -686,7 +686,7 @@ if(NOT APPLE AND NOT (WIN32 AND CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64"))
   option(WITH_CYCLES_DEVICE_OPTIX "Enable Cycles NVIDIA OptiX support" ON)
   mark_as_advanced(WITH_CYCLES_DEVICE_CUDA)
 
-  option(WITH_CYCLES_CUDA_BINARIES "Build Cycles NVIDIA CUDA binaries" OFF)
+  option(WITH_CYCLES_CUDA_BINARIES "Build Cycles NVIDIA CUDA binaries" ON)
   set(CYCLES_CUDA_BINARIES_ARCH
     sm_50 sm_52 sm_60 sm_61 sm_70 sm_75 sm_86 sm_89 sm_120 compute_75
     CACHE STRING "CUDA architectures to build binaries for"
@@ -700,10 +700,10 @@ Dynamically load CUDA libraries at runtime (for developers, makes cuda-gdb work)
     ON
   )
 
-  set(OPTIX_ROOT_DIR "" CACHE PATH "\
+  set(OPTIX_ROOT_DIR "C:/ProgramData/NVIDIA Corporation/OptiX SDK 9.0.0" CACHE PATH "\
 Path to the OptiX SDK root directory, for building Cycles OptiX kernels."
   )
-  set(CYCLES_RUNTIME_OPTIX_ROOT_DIR "" CACHE PATH "\
+  set(CYCLES_RUNTIME_OPTIX_ROOT_DIR "C:/ProgramData/NVIDIA Corporation/OptiX SDK 9.0.0" CACHE PATH "\
 Path to the OptiX SDK root directory. \
 When set, this path will be used at runtime to compile OptiX kernels."
   )
