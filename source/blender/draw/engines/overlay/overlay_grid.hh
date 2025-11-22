@@ -28,11 +28,10 @@ namespace blender::draw::overlay {
  */
 class Grid : Overlay {
  private:
+  /* General parameters. */
   UniformBuffer<OVERLAY_GridData> grid_ubo_;
   StorageVectorBuffer<float4> tile_pos_buf_;
   PassSimple grid_ps_ = {"grid_ps_"};
-
-  /* General parameters. */
   bool is_3d_grid_ = false;
 
   /* Push constant data */
@@ -58,8 +57,7 @@ class Grid : Overlay {
     grid_ps_.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
     grid_ps_.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA);
 
-    /* Draw a quad behind the grid, specifically in the 2D/uv image editor. This is retained
-     * from the 5.0 grid. */
+    /* Background quad draw in UV/Image editor. */
     if (state.is_space_image()) {
       float3 tile_scale(grid_ubo_.clip_rect.x, grid_ubo_.clip_rect.y, 0.0f);
 
@@ -68,7 +66,6 @@ class Grid : Overlay {
       const float4 color_back = math::interpolate(
           res.theme.colors.background, res.theme.colors.grid, 0.5);
       sub.push_constant("ucolor", color_back);
-      /* TODO (not_mark): potentially bind the available UBO instead.  */
       sub.push_constant("tile_scale", tile_scale);
       /* TODO (not_mark): is this one necessary? IIRC, the point is to get rid of it. */
       sub.bind_texture("depth_buffer", depth_tx);
@@ -97,14 +94,11 @@ class Grid : Overlay {
       }
     }
 
-    /* Draw an outline around the grid, specifically in the 2D/UV image editor. This is retained
-     * from the 5.0 grid. */
+    /* Outline draw in UV/Image editors. */
     if (state.is_space_image()) {
       float4 theme_color;
       UI_GetThemeColorShade4fv(TH_BACK, 60, theme_color);
       srgb_to_linearrgb_v4(theme_color, theme_color);
-
-      /* Add wire border. */
       auto &sub = grid_ps_.sub("wire_border");
       sub.shader_set(res.shaders->grid_image.get());
       sub.push_constant("ucolor", theme_color);
@@ -185,7 +179,6 @@ class Grid : Overlay {
       float curr = (i < OVERLAY_GRID_STEPS_LEN) ?
                        std::min(grid_ubo_.steps[i].x, grid_ubo_.steps[i].y) :
                        std::numeric_limits<float>::infinity();
-
       if (curr >= dist || i == OVERLAY_GRID_STEPS_LEN) {
         grid_ubo_.level = static_cast<float>(i) + safe_divide(dist - prev, curr - prev);
         break;
@@ -288,15 +281,12 @@ class Grid : Overlay {
       grid_offs_ = camera_offs.xy();
     }
 
-    /* Find the lowest relevant grid level + fractional, dependent on camera distance. We
-     * fake a order of magnitude extra level, as in orthographic cameras the maximum zoom
-     * barely exceeds the largest specified grid scale in unit systems. */
-    /* TODO(not_mark): half of this loop is unreachable. Fix. */
+    /* Find the lowest relevant grid level + fractional. */
     for (int i = 0; i < OVERLAY_GRID_STEPS_LEN - 1; i++) {
       float curr = std::min(grid_ubo_.steps[i].x, grid_ubo_.steps[i].y);
       float next = (i < OVERLAY_GRID_STEPS_LEN - 1) ?
                        std::min(grid_ubo_.steps[i + 1].x, grid_ubo_.steps[i + 1].y) :
-                       curr * 10.0f;
+                       curr * 1e1f;
       if (next >= dist || i == OVERLAY_GRID_STEPS_LEN - 1) {
         grid_ubo_.level = static_cast<float>(i) + safe_divide(dist - curr, next - curr);
         break;
