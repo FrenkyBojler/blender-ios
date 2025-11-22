@@ -2720,6 +2720,20 @@ static bool dupliobject_instancer_cmp(const void *a_, const void *b_)
   return false;
 }
 
+struct DupliObjectHash {
+  uint64_t hash(const DupliObject *dob) const
+  {
+    return dupliobject_hash(dob);
+  }
+};
+
+struct DupliObjectEq {
+  bool operator()(const DupliObject *a, const DupliObject *b) const
+  {
+    return !dupliobject_cmp(a, b);
+  }
+};
+
 static void make_object_duplilist_real(bContext *C,
                                        Depsgraph *depsgraph,
                                        Scene *scene,
@@ -2729,7 +2743,10 @@ static void make_object_duplilist_real(bContext *C,
 {
   Main *bmain = CTX_data_main(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  GHash *parent_gh = nullptr, *instancer_gh = nullptr;
+  using ParentMap =
+      Map<DupliObject *, Object *, 4, DefaultProbingStrategy, DupliObjectHash, DupliObjectEq>;
+  ParentMap *parent_gh = nullptr;
+  GHash *instancer_gh = nullptr;
 
   Object *object_eval = DEG_get_evaluated(depsgraph, base->object);
 
@@ -2748,7 +2765,7 @@ static void make_object_duplilist_real(bContext *C,
 
   blender::Map<const DupliObject *, Object *> dupli_map;
   if (use_hierarchy) {
-    parent_gh = BLI_ghash_new(dupliobject_hash, dupliobject_cmp, __func__);
+    parent_gh = MEM_new<ParentMap>(__func__);
 
     if (use_base_parent) {
       instancer_gh = BLI_ghash_new(
@@ -2798,15 +2815,13 @@ static void make_object_duplilist_real(bContext *C,
     dupli_map.add(&dob, ob_dst);
 
     if (parent_gh) {
-      void **val;
       /* Due to nature of hash/comparison of this ghash, a lot of duplis may be considered as
        * 'the same', this avoids trying to insert same key several time and
        * raise asserts in debug builds... */
-      if (!BLI_ghash_ensure_p(parent_gh, &dob, &val)) {
-        *val = ob_dst;
-      }
+      parent_gh->add(&dob, ob_dst);
 
       if (is_dupli_instancer && instancer_gh) {
+        void **val;
         /* Same as above, we may have several 'hits'. */
         if (!BLI_ghash_ensure_p(instancer_gh, &dob, &val)) {
           *val = ob_dst;
@@ -2844,7 +2859,7 @@ static void make_object_duplilist_real(bContext *C,
         else {
           dob_key.persistent_id[0] = dob.persistent_id[0];
         }
-        ob_dst_par = static_cast<Object *>(BLI_ghash_lookup(parent_gh, &dob_key));
+        ob_dst_par = parent_gh->lookup_default(&dob_key, nullptr);
       }
 
       if (ob_dst_par) {
@@ -2903,9 +2918,7 @@ static void make_object_duplilist_real(bContext *C,
   base_select(base, BA_DESELECT);
   DEG_id_tag_update(&base->object->id, ID_RECALC_SELECT);
 
-  if (parent_gh) {
-    BLI_ghash_free(parent_gh, nullptr, nullptr);
-  }
+  MEM_delete(parent_gh);
   if (instancer_gh) {
     BLI_ghash_free(instancer_gh, nullptr, nullptr);
   }
