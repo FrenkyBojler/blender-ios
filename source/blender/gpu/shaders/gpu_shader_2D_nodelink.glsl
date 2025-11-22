@@ -133,12 +133,10 @@
 
 #define ANTIALIAS 0.75f
 
-float get_line_alpha(const NodeLinkVertOut &interp [[vertex_out]],
-                     float center,
-                     float relative_radius)
+float get_line_alpha(float2 line_uv, float line_thickness, float center, float relative_radius)
 {
-  float radius = relative_radius * interp.line_thickness;
-  float sdf = abs(interp.line_thickness * (interp.line_uv.y - center));
+  float radius = relative_radius * line_thickness;
+  float sdf = abs(line_thickness * (line_uv.y - center));
   return smoothstep(radius, radius - ANTIALIAS, sdf);
 }
 
@@ -167,21 +165,23 @@ float get_line_alpha(const NodeLinkVertOut &interp [[vertex_out]],
 
   if (interp.is_main_line == 0) {
     frag_out.color = interp.final_color;
-    frag_out.color.a *= get_line_alpha(interp, 0.5f, 0.5f) * dash_frag_alpha;
+    frag_out.color.a *= get_line_alpha(interp.line_uv, interp.line_thickness, 0.5f, 0.5f) *
+                        dash_frag_alpha;
     return;
   }
 
   if (interp.has_back_link == 0) {
     frag_out.color = interp.final_color;
-    frag_out.color.a *= get_line_alpha(interp, 0.5f, 0.5f) * dash_frag_alpha;
+    frag_out.color.a *= get_line_alpha(interp.line_uv, interp.line_thickness, 0.5f, 0.5f) *
+                        dash_frag_alpha;
   }
   else {
     /* Draw two links right next to each other, the main link and the back-link. */
     float4 main_link_color = interp.final_color;
-    main_link_color.a *= get_line_alpha(interp, 0.75f, 0.3f);
+    main_link_color.a *= get_line_alpha(interp.line_uv, interp.line_thickness, 0.75f, 0.3f);
 
     float4 back_link_color = float4(float3(0.8f), 1.0f);
-    back_link_color.a *= get_line_alpha(interp, 0.2f, 0.25f);
+    back_link_color.a *= get_line_alpha(interp.line_uv, interp.line_thickness, 0.2f, 0.25f);
 
     /* Combine both links. */
     frag_out.color.rgb = main_link_color.rgb * main_link_color.a +
