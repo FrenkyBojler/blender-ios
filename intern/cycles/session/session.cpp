@@ -43,6 +43,8 @@ Session::Session(const SessionParams &params_, const SceneParams &scene_params)
     progress.set_error(device->error_message());
   }
 
+  device->set_texture_out_of_core(params.use_texture_out_of_core);
+
   scene = make_unique<Scene>(scene_params, device.get());
 
   if (params.device == params.denoise_device) {
@@ -54,6 +56,8 @@ Session::Session(const SessionParams &params_, const SceneParams &scene_params)
     if (denoise_device_->have_error()) {
       progress.set_error(denoise_device_->error_message());
     }
+
+    denoise_device_->set_texture_out_of_core(params.use_texture_out_of_core);
   }
 
   /* Configure path tracer. */

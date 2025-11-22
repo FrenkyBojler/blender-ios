@@ -80,6 +80,13 @@ class MultiDevice : public Device {
     }
   }
 
+  void set_texture_out_of_core(bool enabled) override
+  {
+    for (SubDevice &sub : devices) {
+      sub.device->set_texture_out_of_core(enabled);
+    }
+  }
+
   void verify_hardware_raytracing()
   {
     /* Determine if we can use hardware ray-tracing. It is only supported if all selected

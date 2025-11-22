@@ -673,7 +673,7 @@ GPUDevice::Mem *GPUDevice::generic_alloc(device_memory &mem, const size_t pitch_
   const size_t headroom = (is_texture) ? device_texture_headroom : device_working_headroom;
 
   /* Move textures to host memory if needed. */
-  if (!mem.move_to_host && !is_image && can_map_host) {
+  if (use_texture_out_of_core && !mem.move_to_host && !is_image && can_map_host) {
     move_textures_to_host(size, headroom, is_texture);
   }
 
@@ -694,7 +694,7 @@ GPUDevice::Mem *GPUDevice::generic_alloc(device_memory &mem, const size_t pitch_
 
   void *shared_pointer = nullptr;
 
-  if (!mem_alloc_result && can_map_host && mem.type != MEM_DEVICE_ONLY) {
+  if (!mem_alloc_result && use_texture_out_of_core && can_map_host && mem.type != MEM_DEVICE_ONLY) {
     if (mem.shared_pointer) {
       /* Another device already allocated host memory. */
       mem_alloc_result = true;
