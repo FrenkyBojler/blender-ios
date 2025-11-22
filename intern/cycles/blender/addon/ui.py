@@ -876,6 +876,7 @@ class CYCLES_RENDER_PT_performance_memory(CyclesButtonsPanel, Panel):
         cscene = scene.cycles
 
         layout.prop(cscene, "tile_size")
+        layout.prop(cscene, "use_texture_out_of_core")
 
 
 class CYCLES_RENDER_PT_performance_acceleration_structure(CyclesButtonsPanel, Panel):
