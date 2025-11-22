@@ -60,6 +60,8 @@ class SessionParams {
   bool use_auto_tile;
   int tile_size;
 
+  bool use_texture_out_of_core;
+
   bool use_resolution_divider;
 
   ShadingSystem shadingsystem;
@@ -85,6 +87,8 @@ class SessionParams {
     use_auto_tile = true;
     tile_size = 2048;
 
+    use_texture_out_of_core = true;
+
     use_resolution_divider = true;
 
     shadingsystem = SHADINGSYSTEM_SVM;
@@ -98,7 +102,8 @@ class SessionParams {
              background == params.background && pixel_size == params.pixel_size &&
              threads == params.threads && use_profiling == params.use_profiling &&
              shadingsystem == params.shadingsystem && use_auto_tile == params.use_auto_tile &&
-             tile_size == params.tile_size);
+             tile_size == params.tile_size &&
+             use_texture_out_of_core == params.use_texture_out_of_core);
   }
 };
 
