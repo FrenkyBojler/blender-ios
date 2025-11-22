@@ -1014,6 +1014,9 @@ SessionParams BlenderSync::get_session_params(BL::RenderEngine &b_engine,
     params.use_auto_tile = false;
   }
 
+  /* Texture out-of-core. */
+  params.use_texture_out_of_core = get_boolean(cscene, "use_texture_out_of_core");
+
   return params;
 }
 
