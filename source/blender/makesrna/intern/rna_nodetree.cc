@@ -532,30 +532,38 @@ const EnumPropertyItem rna_enum_node_compositor_extension_items[] = {
     {CMP_NODE_EXTENSION_MODE_CLIP,
      "CLIP",
      0,
-     "Clip",
-     "Areas outside of the image are filled with zero"},
+     N_("Clip"),
+     N_("Areas outside of the image are filled with zero")},
     {CMP_NODE_EXTENSION_MODE_EXTEND,
      "EXTEND",
      0,
-     "Extend",
-     "Areas outside of the image are filled with the closest boundary pixel in the image"},
+     N_("Extend"),
+     N_("Areas outside of the image are filled with the closest boundary pixel in the image")},
     {CMP_NODE_EXTENSION_MODE_REPEAT,
      "REPEAT",
      0,
-     "Repeat",
-     "Areas outside of the image are filled with repetitions of the image"},
+     N_("Repeat"),
+     N_("Areas outside of the image are filled with repetitions of the image")},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
 const EnumPropertyItem rna_enum_node_compositor_interpolation_items[] = {
-    {CMP_NODE_INTERPOLATION_NEAREST, "NEAREST", 0, "Nearest", "Use Nearest interpolation"},
-    {CMP_NODE_INTERPOLATION_BILINEAR, "BILINEAR", 0, "Bilinear", "Use Bilinear interpolation"},
-    {CMP_NODE_INTERPOLATION_BICUBIC, "BICUBIC", 0, "Bicubic", "Use Cubic B-Spline interpolation"},
+    {CMP_NODE_INTERPOLATION_NEAREST, "NEAREST", 0, N_("Nearest"), N_("Use Nearest interpolation")},
+    {CMP_NODE_INTERPOLATION_BILINEAR,
+     "BILINEAR",
+     0,
+     N_("Bilinear"),
+     N_("Use Bilinear interpolation")},
+    {CMP_NODE_INTERPOLATION_BICUBIC,
+     "BICUBIC",
+     0,
+     N_("Bicubic"),
+     N_("Use Cubic B-Spline interpolation")},
     {CMP_NODE_INTERPOLATION_ANISOTROPIC,
      "ANISOTROPIC",
      0,
-     "Anisotropic",
-     "Use Anisotropic interpolation"},
+     N_("Anisotropic"),
+     N_("Use Anisotropic interpolation")},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -2587,6 +2595,14 @@ static void rna_Node_select_set(PointerRNA *ptr, bool value)
   blender::bke::node_set_selected(*node, value);
 }
 
+static void rna_Node_mute_set(PointerRNA *ptr, bool value)
+{
+  bNode *node = ptr->data_as<bNode>();
+  if (!node->typeinfo->no_muting) {
+    SET_FLAG_FROM_TEST(node->flag, value, NODE_MUTED);
+  }
+}
+
 static void rna_Node_name_set(PointerRNA *ptr, const char *value)
 {
   bNodeTree *ntree = reinterpret_cast<bNodeTree *>(ptr->owner_id);
@@ -3868,7 +3884,8 @@ static void rna_ShaderNodeTexIES_mode_set(PointerRNA *ptr, int value)
 
       if (value == NODE_IES_EXTERNAL && text->filepath) {
         STRNCPY(nss->filepath, text->filepath);
-        BLI_path_rel(nss->filepath, BKE_main_blendfile_path_from_global());
+        BLI_path_abs(nss->filepath, ID_BLEND_PATH_FROM_GLOBAL(&text->id));
+        BLI_path_rel(nss->filepath, ID_BLEND_PATH_FROM_GLOBAL(ptr->owner_id));
       }
 
       id_us_min(node->id);
@@ -3893,7 +3910,8 @@ static void rna_ShaderNodeScript_mode_set(PointerRNA *ptr, int value)
 
       if (value == NODE_SCRIPT_EXTERNAL && text->filepath) {
         STRNCPY(nss->filepath, text->filepath);
-        BLI_path_rel(nss->filepath, BKE_main_blendfile_path_from_global());
+        BLI_path_abs(nss->filepath, ID_BLEND_PATH_FROM_GLOBAL(&text->id));
+        BLI_path_rel(nss->filepath, ID_BLEND_PATH_FROM_GLOBAL(ptr->owner_id));
       }
 
       id_us_min(node->id);
@@ -5016,7 +5034,7 @@ static void def_sh_tex_sky(BlenderRNA *brna, StructRNA *srna)
 
   prop = RNA_def_property(srna, "sun_elevation", PROP_FLOAT, PROP_ANGLE);
   RNA_def_property_ui_text(prop, "Sun Elevation", "Sun angle from horizon");
-  RNA_def_property_float_default(prop, M_PI_2);
+  RNA_def_property_float_default(prop, DEG2RADF(15.0f));
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   prop = RNA_def_property(srna, "sun_rotation", PROP_FLOAT, PROP_ANGLE);
@@ -8980,6 +8998,7 @@ static void rna_def_node(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "mute", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", NODE_MUTED);
+  RNA_def_property_boolean_funcs(prop, nullptr, "rna_Node_mute_set");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Mute", "");
   RNA_def_property_update(prop, 0, "rna_Node_update");
@@ -9959,6 +9978,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("CompositorNode", "CompositorNodeSetAlpha");
   define("CompositorNode", "CompositorNodeSplit");
   define("CompositorNode", "CompositorNodeStabilize", def_cmp_stabilize2d);
+  define("CompositorNode", "CompositorNodeSequencerStripInfo");
   define("CompositorNode", "CompositorNodeSwitch");
   define("CompositorNode", "CompositorNodeSwitchView");
   define("CompositorNode", "CompositorNodeTime", def_time);
