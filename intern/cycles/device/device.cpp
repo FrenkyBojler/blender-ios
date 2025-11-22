@@ -730,12 +730,30 @@ GPUDevice::Mem *GPUDevice::generic_alloc(device_memory &mem, const size_t pitch_
   const bool is_texture = (mem.type == MEM_TEXTURE || mem.type == MEM_GLOBAL) &&
                           (&mem != &texture_info);
   const bool is_image = is_texture && (mem.data_height > 1);
+  const bool is_geometry_buffer = (mem.type == MEM_GLOBAL && mem.name != nullptr &&
+                                   (strcmp(mem.name, "tri_verts") == 0 ||
+                                    strcmp(mem.name, "tri_vnormal") == 0 ||
+                                    strcmp(mem.name, "tri_vindex") == 0 ||
+                                    strcmp(mem.name, "tri_shader") == 0 ||
+                                    strcmp(mem.name, "curve_keys") == 0 ||
+                                    strcmp(mem.name, "curves") == 0 ||
+                                    strcmp(mem.name, "curve_segments") == 0 ||
+                                    strcmp(mem.name, "points") == 0 ||
+                                    strcmp(mem.name, "points_shader") == 0));
 
   const size_t headroom = (is_texture) ? device_texture_headroom : device_working_headroom;
 
   /* Move textures to host memory if needed. */
   if (!mem.move_to_host && !is_image && can_map_host) {
-    move_textures_to_host(size, headroom, is_texture);
+    const bool for_texture = is_texture && !is_geometry_buffer;
+
+    if (is_geometry_buffer && mem.name) {
+      LOG_INFO << "Geometry buffer requesting device memory: " << mem.name << ", "
+               << string_human_readable_number(mem.memory_size()) << " bytes. ("
+               << string_human_readable_size(mem.memory_size())
+               << ") - moving other allocations to host if needed.";
+    }
+    move_textures_to_host(size, headroom, for_texture);
   }
 
   size_t total = 0;
@@ -788,9 +806,16 @@ GPUDevice::Mem *GPUDevice::generic_alloc(device_memory &mem, const size_t pitch_
   }
 
   if (mem.name) {
-    LOG_DEBUG << "Buffer allocate: " << mem.name << ", "
-              << string_human_readable_number(mem.memory_size()) << " bytes. ("
-              << string_human_readable_size(mem.memory_size()) << ")" << status;
+    if (is_geometry_buffer) {
+      LOG_INFO << "Geometry buffer allocate: " << mem.name << ", "
+               << string_human_readable_number(mem.memory_size()) << " bytes. ("
+               << string_human_readable_size(mem.memory_size()) << ")" << status;
+    }
+    else {
+      LOG_DEBUG << "Buffer allocate: " << mem.name << ", "
+                << string_human_readable_number(mem.memory_size()) << " bytes. ("
+                << string_human_readable_size(mem.memory_size()) << ")" << status;
+    }
   }
 
   mem.device_pointer = (device_ptr)device_pointer;
