@@ -553,6 +553,7 @@ class NODE_MT_gn_mesh_primitives_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeMeshCircle")
         self.node_operator(layout, "GeometryNodeMeshLine")
         self.node_operator(layout, "GeometryNodeMeshUVSphere")
+        self.node_operator(layout, "GeometryNodeMeshMonkey")
 
         self.draw_assets_for_catalog(layout, self.menu_path)
 

@@ -10212,6 +10212,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeMeshGrid");
   define("GeometryNode", "GeometryNodeMeshIcoSphere");
   define("GeometryNode", "GeometryNodeMeshLine");
+  define("GeometryNode", "GeometryNodeMeshMonkey");
   define("GeometryNode", "GeometryNodeMeshToCurve");
   define("GeometryNode", "GeometryNodeMeshToDensityGrid");
   define("GeometryNode", "GeometryNodeMeshToPoints");

@@ -173,6 +173,7 @@ set(SRC
   nodes/node_geo_mesh_primitive_grid.cc
   nodes/node_geo_mesh_primitive_ico_sphere.cc
   nodes/node_geo_mesh_primitive_line.cc
+  nodes/node_geo_mesh_primitive_monkey.cc
   nodes/node_geo_mesh_primitive_uv_sphere.cc
   nodes/node_geo_mesh_subdivide.cc
   nodes/node_geo_mesh_to_curve.cc
