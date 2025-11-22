@@ -1214,8 +1214,7 @@ wmOperatorStatus sequencer_select_exec(bContext *C, wmOperator *op)
 
   /* If no key was found, the mouse cursor may still intersect with a "fake key" that has not been
    * realized yet. */
-  if (strip_key_owner != nullptr && key == nullptr &&
-      retiming_keys_can_be_displayed(CTX_wm_space_seq(C)) &&
+  if (strip_key_owner != nullptr && retiming_keys_can_be_displayed(CTX_wm_space_seq(C)) &&
       seq::retiming_data_is_editable(strip_key_owner))
   {
     key = try_to_realize_fake_keys(C, strip_key_owner, mouse_co.region);
