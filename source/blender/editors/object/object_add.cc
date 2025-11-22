@@ -2633,21 +2633,22 @@ static void copy_object_set_idnew(bContext *C)
  * In other words, we consider each group of objects from a same item as being
  * the 'local group' where to check for parents.
  */
-static uint dupliobject_hash(const void *ptr)
-{
-  const DupliObject *dob = static_cast<const DupliObject *>(ptr);
-  uint hash = BLI_ghashutil_ptrhash(dob->ob);
+struct DupliObjectHash {
+  uint64_t operator()(const DupliObject *dob) const
+  {
+    uint hash = BLI_ghashutil_ptrhash(dob->ob);
 
-  if (dob->type == OB_DUPLICOLLECTION) {
-    for (int i = 1; (i < MAX_DUPLI_RECUR) && dob->persistent_id[i] != INT_MAX; i++) {
-      hash ^= (dob->persistent_id[i] ^ i);
+    if (dob->type == OB_DUPLICOLLECTION) {
+      for (int i = 1; (i < MAX_DUPLI_RECUR) && dob->persistent_id[i] != INT_MAX; i++) {
+        hash ^= (dob->persistent_id[i] ^ i);
+      }
     }
+    else {
+      hash ^= (dob->persistent_id[0] ^ 0);
+    }
+    return hash;
   }
-  else {
-    hash ^= (dob->persistent_id[0] ^ 0);
-  }
-  return hash;
-}
+};
 
 /**
  * \note regarding hashing dupli-objects when using OB_DUPLICOLLECTION,
@@ -2655,96 +2656,67 @@ static uint dupliobject_hash(const void *ptr)
  * since its a unique index and we only want to know if the group objects are from the same
  * dupli-group instance.
  */
-static uint dupliobject_instancer_hash(const void *ptr)
-{
-  const DupliObject *dob = static_cast<const DupliObject *>(ptr);
-  uint hash = BLI_ghashutil_inthash(dob->persistent_id[0]);
-  for (int i = 1; (i < MAX_DUPLI_RECUR) && dob->persistent_id[i] != INT_MAX; i++) {
-    hash ^= (dob->persistent_id[i] ^ i);
+struct DupliObjectInstancerHash {
+  uint64_t operator()(const DupliObject *dob) const
+  {
+    uint hash = BLI_ghashutil_inthash(dob->persistent_id[0]);
+    for (int i = 1; (i < MAX_DUPLI_RECUR) && dob->persistent_id[i] != INT_MAX; i++) {
+      hash ^= (dob->persistent_id[i] ^ i);
+    }
+    return hash;
   }
-  return hash;
-}
+};
 
 /**
- * Compare function that matches #dupliobject_hash.
+ * Compare function that matches #DupliObjectHash.
  */
-static bool dupliobject_cmp(const void *a_, const void *b_)
-{
-  const DupliObject *a = static_cast<const DupliObject *>(a_);
-  const DupliObject *b = static_cast<const DupliObject *>(b_);
+struct DupliObjectEq {
+  bool operator()(const DupliObject *a, const DupliObject *b) const
+  {
+    if (a->ob != b->ob) {
+      return false;
+    }
 
-  if (a->ob != b->ob) {
+    if (a->type != b->type) {
+      return false;
+    }
+
+    if (a->type == OB_DUPLICOLLECTION) {
+      for (int i = 1; (i < MAX_DUPLI_RECUR); i++) {
+        if (a->persistent_id[i] != b->persistent_id[i]) {
+          return false;
+        }
+        if (a->persistent_id[i] == INT_MAX) {
+          break;
+        }
+      }
+    }
+    else {
+      if (a->persistent_id[0] != b->persistent_id[0]) {
+        return false;
+      }
+    }
+
+    /* matching */
     return true;
   }
+};
 
-  if (a->type != b->type) {
-    return true;
-  }
-
-  if (a->type == OB_DUPLICOLLECTION) {
-    for (int i = 1; (i < MAX_DUPLI_RECUR); i++) {
+/* Compare function that matches DupliObjectInstancerHash. */
+struct DupliObjectInstancerEq {
+  bool operator()(const DupliObject *a, const DupliObject *b) const
+  {
+    for (int i = 0; (i < MAX_DUPLI_RECUR); i++) {
       if (a->persistent_id[i] != b->persistent_id[i]) {
-        return true;
+        return false;
       }
       if (a->persistent_id[i] == INT_MAX) {
         break;
       }
     }
-  }
-  else {
-    if (a->persistent_id[0] != b->persistent_id[0]) {
-      return true;
-    }
-  }
 
-  /* matching */
-  return false;
-}
-
-/* Compare function that matches dupliobject_instancer_hash. */
-static bool dupliobject_instancer_cmp(const void *a_, const void *b_)
-{
-  const DupliObject *a = static_cast<const DupliObject *>(a_);
-  const DupliObject *b = static_cast<const DupliObject *>(b_);
-
-  for (int i = 0; (i < MAX_DUPLI_RECUR); i++) {
-    if (a->persistent_id[i] != b->persistent_id[i]) {
-      return true;
-    }
-    if (a->persistent_id[i] == INT_MAX) {
-      break;
-    }
-  }
-
-  /* matching */
-  return false;
-}
-
-struct DupliObjectHash {
-  uint64_t operator()(const DupliObject *dob) const
-  {
-    return dupliobject_hash(dob);
-  }
-};
-
-struct DupliObjectEq {
-  bool operator()(const DupliObject *a, const DupliObject *b) const
-  {
-    return !dupliobject_cmp(a, b);
-  }
-};
-
-struct DupliObjectInstancerHash {
-  uint64_t operator()(const DupliObject *dob) const
-  {
-    return dupliobject_instancer_hash(dob);
-  }
-};
-
-struct DupliObjectInstancerEq {
-  bool operator()(const DupliObject *a, const DupliObject *b) const
-  {
-    return !dupliobject_instancer_cmp(a, b);
+    /* matching */
+    return true;
   }
 };
 
