@@ -31,6 +31,8 @@
 
 #include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
+static size_t str_utf8_truncate_at_size_unchecked(char *str, const size_t str_size);
+
 /* -------------------------------------------------------------------- */
 /** \name UTF8 Character Decoding (Skip & Mask Lookup)
  *
@@ -326,7 +328,7 @@ int BLI_str_utf8_invalid_substitute(char *str, size_t str_len, const char substi
   return tot;
 }
 
-const char *BLI_str_utf8_invalid_substitute_as_needed(const char *str,
+const char *BLI_str_utf8_invalid_substitute_if_needed(const char *str,
                                                       const size_t str_len,
                                                       const char substitute,
                                                       char *buf,
@@ -545,6 +547,80 @@ size_t BLI_strncpy_wchar_from_utf8(wchar_t *__restrict dst_w,
 
 /* End wchar_t / UTF8 functions. */
 /* -------------------------------------------------------------------- */
+
+size_t BLI_vsnprintf_utf8(char *__restrict dst,
+                          size_t dst_maxncpy,
+                          const char *__restrict format,
+                          va_list arg)
+{
+  /* NOTE: a clone of #BLI_vsnprintf that trims the end. */
+  BLI_string_debug_size(dst, dst_maxncpy);
+
+  BLI_assert(dst != nullptr);
+  BLI_assert(dst_maxncpy > 0);
+  BLI_assert(format != nullptr);
+
+  const size_t n = size_t(vsnprintf(dst, dst_maxncpy, format, arg));
+  if (n < dst_maxncpy) {
+    dst[n] = '\0';
+  }
+  else {
+    str_utf8_truncate_at_size_unchecked(dst, dst_maxncpy);
+  }
+
+  return n;
+}
+
+size_t BLI_vsnprintf_utf8_rlen(char *__restrict dst,
+                               size_t dst_maxncpy,
+                               const char *__restrict format,
+                               va_list arg)
+{
+  BLI_string_debug_size(dst, dst_maxncpy);
+
+  BLI_assert(dst != nullptr);
+  BLI_assert(dst_maxncpy > 0);
+  BLI_assert(format != nullptr);
+
+  size_t n = size_t(vsnprintf(dst, dst_maxncpy, format, arg));
+  if (n < dst_maxncpy) {
+    dst[n] = '\0';
+  }
+  else {
+    n = str_utf8_truncate_at_size_unchecked(dst, dst_maxncpy);
+  }
+  return n;
+}
+
+size_t BLI_snprintf_utf8(char *__restrict dst,
+                         size_t dst_maxncpy,
+                         const char *__restrict format,
+                         ...)
+{
+  BLI_string_debug_size(dst, dst_maxncpy);
+
+  va_list arg;
+  va_start(arg, format);
+  const size_t n = BLI_vsnprintf_utf8(dst, dst_maxncpy, format, arg);
+  va_end(arg);
+
+  return n;
+}
+
+size_t BLI_snprintf_utf8_rlen(char *__restrict dst,
+                              size_t dst_maxncpy,
+                              const char *__restrict format,
+                              ...)
+{
+  BLI_string_debug_size(dst, dst_maxncpy);
+
+  va_list arg;
+  va_start(arg, format);
+  const size_t n = BLI_vsnprintf_utf8_rlen(dst, dst_maxncpy, format, arg);
+  va_end(arg);
+
+  return n;
+}
 
 int BLI_wcwidth_or_error(char32_t ucs)
 {
@@ -951,6 +1027,51 @@ bool BLI_str_utf32_char_is_optional_break_before(char32_t codepoint, char32_t co
   return false;
 }
 
+bool BLI_str_utf32_char_is_terminal_punctuation(char32_t codepoint)
+{
+  /* Characters marking the end of sentences according to Unicode Text Segmentation
+   * (Standard Annex #29), Sentence Break Property (ATerm, STerm).
+   * Only the characters available in Blender are matched. */
+
+  return (ELEM(codepoint,
+               0x002E,    /* Full stop. */
+               0x2024,    /* One dot leader. */
+               0xFE52,    /* Small full stop. */
+               0xFF0E,    /* Fullwidth full stop. */
+               0x0021,    /* Exclamation mark. */
+               0x003F,    /* Question mark. */
+               0x0589,    /* Armenian full stop. */
+               0x061F,    /* Arabic question mark. */
+               0x06D4,    /* Arabic full stop. */
+               0x0964,    /* Devanagari danda. */
+               0x0965,    /* Devanagari double danda. */
+               0x104A,    /* Myanmar sign little section. */
+               0x104B,    /* Myanmar sign section. */
+               0x1362,    /* Ethiopic full stop. */
+               0x1367,    /* Ethiopic question mark. */
+               0x1368) || /* Ethiopic paragraph separator. */
+          ELEM(codepoint,
+               0x17D4,    /* Khmer sign khan. */
+               0x17D5,    /* Khmer sign bariyoosan. */
+               0x203C,    /* Double exclamation mark. */
+               0x203D,    /* Interrobang. */
+               0x2047,    /* Double question mark. */
+               0x2048,    /* Question exclamation mark. */
+               0x2049,    /* Exclamation question mark. */
+               0x3002,    /* Ideographic full stop. */
+               0xA9C8,    /* Javanese pada lingsa. */
+               0xA9C9,    /* Javanese pada lungsi. */
+               0xFE12,    /* Presentation form for vertical ideographic full stop. */
+               0xFE15,    /* Presentation form for vertical exclamation mark. */
+               0xFE16,    /* Presentation form for vertical question mark. */
+               0xFE56,    /* Small question mark. */
+               0xFE57,    /* Small exclamation mark. */
+               0xFF01) || /* Fullwidth exclamation mark. */
+          ELEM(codepoint,
+               0xFF1F,   /* Fullwidth question mark. */
+               0xFF61)); /* Halfwidth ideographic full stop. */
+}
+
 /** \} */ /* -------------------------------------------------------------------- */
 
 int BLI_str_utf8_size_or_error(const char *p)
@@ -1253,6 +1374,19 @@ size_t BLI_str_partition_ex_utf8(const char *str,
   return str_len;
 }
 
+/**
+ * It's always assumed trimming is needed, otherwise call #BLI_str_utf8_truncate_at_size.
+ */
+static size_t str_utf8_truncate_at_size_unchecked(char *str, const size_t str_size)
+{
+  BLI_assert(str_size > 0);
+  BLI_assert(!std::memchr(str, '\0', str_size - 1));
+  size_t str_len_trim;
+  BLI_strnlen_utf8_ex(str, str_size - 1, &str_len_trim);
+  str[str_len_trim] = '\0';
+  return str_len_trim;
+}
+
 bool BLI_str_utf8_truncate_at_size(char *str, const size_t str_size)
 {
   BLI_assert(str_size > 0);
@@ -1260,9 +1394,7 @@ bool BLI_str_utf8_truncate_at_size(char *str, const size_t str_size)
     return false;
   }
 
-  size_t str_len_trim;
-  BLI_strnlen_utf8_ex(str, str_size - 1, &str_len_trim);
-  str[str_len_trim] = '\0';
+  str_utf8_truncate_at_size_unchecked(str, str_size);
   return true;
 }
 

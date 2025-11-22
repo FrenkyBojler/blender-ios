@@ -8,7 +8,7 @@
 
 #include "BLI_length_parameterize.hh"
 #include "BLI_math_geom.h"
-#include "BLI_math_matrix_types.hh"
+#include "BLI_math_matrix.hh"
 #include "BLI_task.hh"
 #include "BLI_vector.hh"
 
@@ -276,7 +276,7 @@ struct CurvesEffectOperationExecutor {
 
     curves_sculpt_ = ctx_.scene->toolsettings->curves_sculpt;
     brush_ = BKE_paint_brush_for_read(&curves_sculpt_->paint);
-    brush_radius_base_re_ = BKE_brush_size_get(&curves_sculpt_->paint, brush_);
+    brush_radius_base_re_ = BKE_brush_radius_get(&curves_sculpt_->paint, brush_);
     brush_radius_factor_ = brush_radius_factor(*brush_, stroke_extension);
     brush_strength_ = brush_strength_get(curves_sculpt_->paint, *brush_, stroke_extension);
 
@@ -346,7 +346,8 @@ struct CurvesEffectOperationExecutor {
         eCurvesSymmetryType(curves_id_->symmetry));
     Vector<float4x4> symmetry_brush_transforms_inv;
     for (const float4x4 &brush_transform : symmetry_brush_transforms) {
-      symmetry_brush_transforms_inv.append(math::invert(brush_transform));
+      /* Use explicit template call as MSVC 2019 has issues deducing the right template. */
+      symmetry_brush_transforms_inv.append(math::invert<float, 4>(brush_transform));
     }
 
     const float brush_radius_re = brush_radius_base_re_ * brush_radius_factor_;

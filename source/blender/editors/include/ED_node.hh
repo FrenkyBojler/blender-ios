@@ -20,6 +20,8 @@
 
 #include "ED_node_c.hh"
 
+#include "UI_interface_layout.hh"
+
 struct SpaceNode;
 struct ARegion;
 struct Main;
@@ -30,11 +32,14 @@ struct Object;
 struct rcti;
 struct rctf;
 struct NodesModifierData;
-struct uiLayout;
 
 namespace blender::bke {
 class bNodeTreeZone;
 }
+
+namespace blender::ui {
+struct Layout;
+}  // namespace blender::ui
 
 namespace blender::ed::space_node {
 
@@ -122,34 +127,6 @@ bool node_editor_is_for_geometry_nodes_modifier(const SpaceNode &snode,
     const SpaceNode &snode, bke::ComputeContextCache &compute_context_cache, const bNode &node);
 
 /**
- * Attempts to find a compute context that the closure is evaluated in. If none is found, null is
- * returned. If multiple are found, it currently picks the first one it finds which is somewhat
- * arbitrary.
- */
-[[nodiscard]] const ComputeContext *compute_context_for_closure_evaluation(
-    const ComputeContext *closure_socket_context,
-    const bNodeSocket &closure_socket,
-    bke::ComputeContextCache &compute_context_cache,
-    const std::optional<nodes::ClosureSourceLocation> &source_location);
-
-Vector<nodes::BundleSignature> gather_linked_target_bundle_signatures(
-    const ComputeContext *bundle_socket_context,
-    const bNodeSocket &bundle_socket,
-    bke::ComputeContextCache &compute_context_cache);
-Vector<nodes::BundleSignature> gather_linked_origin_bundle_signatures(
-    const ComputeContext *bundle_socket_context,
-    const bNodeSocket &bundle_socket,
-    bke::ComputeContextCache &compute_context_cache);
-Vector<nodes::ClosureSignature> gather_linked_target_closure_signatures(
-    const ComputeContext *closure_socket_context,
-    const bNodeSocket &closure_socket,
-    bke::ComputeContextCache &compute_context_cache);
-Vector<nodes::ClosureSignature> gather_linked_origin_closure_signatures(
-    const ComputeContext *closure_socket_context,
-    const bNodeSocket &closure_socket,
-    bke::ComputeContextCache &compute_context_cache);
-
-/**
  * Creates a compute context for the given zone. It takes e.g. the current inspection index into
  * account.
  */
@@ -157,40 +134,21 @@ Vector<nodes::ClosureSignature> gather_linked_origin_closure_signatures(
     const bke::bNodeTreeZone &zone,
     bke::ComputeContextCache &compute_context_cache,
     const ComputeContext *parent_compute_context);
+[[nodiscard]] const ComputeContext *compute_context_for_zones(
+    const Span<const bke::bNodeTreeZone *> zones,
+    bke::ComputeContextCache &compute_context_cache,
+    const ComputeContext *parent_compute_context);
 
-void ui_template_node_asset_menu_items(uiLayout &layout,
+void ui_template_node_asset_menu_items(ui::Layout &layout,
                                        const bContext &C,
-                                       StringRef catalog_path);
+                                       StringRef catalog_path,
+                                       const NodeAssetMenuOperatorType operator_type);
 
-void sync_sockets_evaluate_closure(SpaceNode &snode,
-                                   bNode &evaluate_closure_node,
-                                   ReportList *reports);
-void sync_sockets_separate_bundle(SpaceNode &snode,
-                                  bNode &separate_bundle_node,
-                                  ReportList *reports);
-void sync_sockets_combine_bundle(SpaceNode &snode,
-                                 bNode &combine_bundle_node,
-                                 ReportList *reports);
-void sync_sockets_closure(SpaceNode &snode,
-                          bNode &closure_input_node,
-                          bNode &closure_output_node,
-                          const bool initialize_internal_links,
-                          ReportList *reports);
+/** See #SpaceNode_Runtime::node_can_sync_states. */
+Map<int, bool> &node_can_sync_cache_get(SpaceNode &snode);
 
-enum class NodeSyncState {
-  Synced,
-  CanBeSynced,
-  NoSyncSource,
-  ConflictingSyncSources,
-};
+void node_tree_interface_draw(bContext &C, ui::Layout &layout, bNodeTree &tree);
 
-NodeSyncState sync_sockets_state_separate_bundle(const SpaceNode &snode,
-                                                 const bNode &separate_bundle_node);
-NodeSyncState sync_sockets_state_combine_bundle(const SpaceNode &snode,
-                                                const bNode &combine_bundle_node);
-NodeSyncState sync_sockets_state_closure_output(const SpaceNode &snode,
-                                                const bNode &closure_output_node);
-NodeSyncState sync_sockets_state_evaluate_closure(const SpaceNode &snode,
-                                                  const bNode &evaluate_closure_node);
+const char *node_socket_get_label(const bNodeSocket *socket, const char *panel_label = nullptr);
 
 }  // namespace blender::ed::space_node

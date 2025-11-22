@@ -8,6 +8,8 @@
 
 #include "BLI_bounds_types.hh"
 #include "BLI_listbase.h"
+#include "BLI_math_base.h"
+#include "BLI_math_vector.hh"
 #include "BLI_utildefines.h"
 
 #include "DNA_scene_types.h"
@@ -26,15 +28,12 @@
 #include "SEQ_time.hh"
 #include "SEQ_transform.hh"
 
-/* For menu, popup, icons, etc. */
 #include "ED_anim_api.hh"
 #include "ED_markers.hh"
 #include "ED_screen.hh"
 #include "ED_sequencer.hh"
-#include "ED_time_scrub_ui.hh"
 #include "ED_util_imbuf.hh"
 
-/* Own include. */
 #include "sequencer_intern.hh"
 
 namespace blender::ed::vse {
@@ -60,8 +59,7 @@ void SEQUENCER_OT_sample(wmOperatorType *ot)
   ot->flag = OPTYPE_BLOCKING;
 
   /* Not implemented. */
-  PropertyRNA *prop;
-  prop = RNA_def_int(ot->srna, "size", 1, 1, 128, "Sample Size", "", 1, 64);
+  PropertyRNA *prop = RNA_def_int(ot->srna, "size", 1, 1, 128, "Sample Size", "", 1, 64);
   RNA_def_property_subtype(prop, PROP_PIXEL);
   RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN);
 }
@@ -169,15 +167,68 @@ void SEQUENCER_OT_view_frame(wmOperatorType *ot)
 
 /** \} */
 
+/* For frame all/selected operators, when we are in preview region
+ * with histogram/waveform display mode, frame the extents of the scope. */
+static bool view_frame_preview_scope(bContext *C, wmOperator *op, ARegion *region)
+{
+  if (!region || region->regiontype != RGN_TYPE_PREVIEW) {
+    return false;
+  }
+  SpaceSeq *sseq = CTX_wm_space_seq(C);
+  if (!sseq) {
+    return false;
+  }
+  const View2D *v2d = UI_view2d_fromcontext(C);
+  const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
+
+  if (sseq->mainb == SEQ_DRAW_IMG_HISTOGRAM) {
+    /* For histogram scope, use extents of the histogram. */
+    const ScopeHistogram &hist = sseq->runtime->scopes.histogram;
+    if (hist.data.is_empty()) {
+      return false;
+    }
+
+    rctf cur_new = v2d->tot;
+    const float val_max = ScopeHistogram::bin_to_float(math::reduce_max(hist.max_bin));
+    cur_new.xmax = cur_new.xmin + (cur_new.xmax - cur_new.xmin) * val_max;
+
+    /* Add some padding around whole histogram. */
+    BLI_rctf_scale(&cur_new, 1.1f);
+
+    UI_view2d_smooth_view(C, region, &cur_new, smooth_viewtx);
+    return true;
+  }
+
+  if (ELEM(sseq->mainb, SEQ_DRAW_IMG_WAVEFORM, SEQ_DRAW_IMG_RGBPARADE)) {
+    /* For waveform/parade scopes, use 3.0 display space Y value as bounds
+     * for HDR content. */
+    const bool hdr = sseq->runtime->scopes.last_ibuf_float;
+    rctf cur_new = v2d->tot;
+    if (hdr) {
+      const float val_max = 3.0f;
+      cur_new.ymax = cur_new.ymin + (cur_new.ymax - cur_new.ymin) * val_max;
+    }
+    UI_view2d_smooth_view(C, region, &cur_new, smooth_viewtx);
+    return true;
+  }
+
+  return false;
+}
+
 /* -------------------------------------------------------------------- */
 /** \name Preview Frame All Operator
  * \{ */
 
-static wmOperatorStatus sequencer_view_all_preview_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus sequencer_view_all_preview_exec(bContext *C, wmOperator *op)
 {
   SpaceSeq *sseq = CTX_wm_space_seq(C);
   bScreen *screen = CTX_wm_screen(C);
   ScrArea *area = CTX_wm_area(C);
+
+  if (view_frame_preview_scope(C, op, CTX_wm_region(C))) {
+    return OPERATOR_FINISHED;
+  }
+
 #if 0
   ARegion *region = CTX_wm_region(C);
   Scene *scene = CTX_data_sequencer_scene(C);
@@ -245,7 +296,8 @@ void SEQUENCER_OT_view_all_preview(wmOperatorType *ot)
 
 static wmOperatorStatus sequencer_view_zoom_ratio_exec(bContext *C, wmOperator *op)
 {
-  const RenderData *rd = &CTX_data_sequencer_scene(C)->r;
+  const Scene *scene = CTX_data_sequencer_scene(C);
+  const RenderData *rd = &scene->r;
   View2D *v2d = UI_view2d_fromcontext(C);
 
   float ratio = RNA_float_get(op->ptr, "ratio");
@@ -253,8 +305,8 @@ static wmOperatorStatus sequencer_view_zoom_ratio_exec(bContext *C, wmOperator *
   int winx, winy;
   BKE_render_resolution(rd, false, &winx, &winy);
 
-  float facx = BLI_rcti_size_x(&v2d->mask) / float(winx);
-  float facy = BLI_rcti_size_y(&v2d->mask) / float(winy);
+  float facx = (BLI_rcti_size_x(&v2d->mask) + 1) / float(winx);
+  float facy = (BLI_rcti_size_y(&v2d->mask) + 1) / float(winy);
 
   BLI_rctf_resize(&v2d->cur, ceilf(winx * facx / ratio + 0.5f), ceilf(winy * facy / ratio + 0.5f));
 
@@ -294,11 +346,9 @@ void SEQUENCER_OT_view_zoom_ratio(wmOperatorType *ot)
 /** \name Frame Selected Operator
  * \{ */
 
-static void seq_view_collection_rect_preview(Scene *scene,
-                                             blender::Span<Strip *> strips,
-                                             rctf *rect)
+static void seq_view_collection_rect_preview(Scene *scene, Span<Strip *> strips, rctf *rect)
 {
-  const blender::Bounds<blender::float2> box = seq::image_transform_bounding_box_from_collection(
+  const Bounds<float2> box = seq::image_transform_bounding_box_from_collection(
       scene, strips, true);
 
   rect->xmin = box.min[0];
@@ -317,16 +367,14 @@ static void seq_view_collection_rect_preview(Scene *scene,
   BLI_rctf_scale(rect, 1.1f);
 }
 
-static void seq_view_collection_rect_timeline(const bContext *C,
-                                              blender::Span<Strip *> strips,
-                                              rctf *rect)
+static void seq_view_collection_rect_timeline(const bContext *C, Span<Strip *> strips, rctf *rect)
 {
   const Scene *scene = CTX_data_sequencer_scene(C);
   int xmin = MAXFRAME * 2;
   int xmax = -MAXFRAME * 2;
   int ymin = seq::MAX_CHANNELS + 1;
   int ymax = 0;
-  int xmargin = FPS;
+  int xmargin = scene->frames_per_second();
 
   for (Strip *strip : strips) {
     xmin = min_ii(xmin, seq::time_left_handle_frame_get(scene, strip));
@@ -390,10 +438,14 @@ static wmOperatorStatus sequencer_view_selected_exec(bContext *C, wmOperator *op
 {
   Scene *scene = CTX_data_sequencer_scene(C);
   ARegion *region = CTX_wm_region(C);
-  blender::VectorSet strips = selected_strips_from_context(C);
   View2D *v2d = UI_view2d_fromcontext(C);
   rctf cur_new = v2d->cur;
 
+  if (view_frame_preview_scope(C, op, region)) {
+    return OPERATOR_FINISHED;
+  }
+
+  VectorSet strips = selected_strips_from_context(C);
   if (strips.is_empty()) {
     return OPERATOR_CANCELLED;
   }

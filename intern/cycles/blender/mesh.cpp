@@ -25,6 +25,7 @@
 #include "util/math.h"
 
 #include "BKE_anonymous_attribute_id.hh"
+#include "BKE_attribute.h"
 #include "BKE_attribute.hh"
 #include "BKE_attribute_math.hh"
 #include "BKE_customdata.hh"
@@ -241,7 +242,7 @@ static void attr_create_uv_map(Scene *scene,
 {
   const blender::Span<blender::int3> corner_tris = b_mesh.corner_tris();
   const blender::bke::AttributeAccessor b_attributes = b_mesh.attributes();
-  const ustring render_name(CustomData_get_render_layer_name(&b_mesh.corner_data, CD_PROP_FLOAT2));
+  const ustring render_name(std::string_view(b_mesh.default_uv_map_name()));
   if (blender_uv_names.empty()) {
     return;
   }
@@ -249,19 +250,14 @@ static void attr_create_uv_map(Scene *scene,
   for (const ustring &uv_name : blender_uv_names) {
     const bool active_render = uv_name == render_name;
     const AttributeStandard uv_std = (active_render) ? ATTR_STD_UV : ATTR_STD_NONE;
-    const AttributeStandard tangent_std = (active_render) ? ATTR_STD_UV_TANGENT : ATTR_STD_NONE;
-    const ustring tangent_name = ustring((string(uv_name) + ".tangent").c_str());
 
     /* Denotes whether UV map was requested directly. */
     const bool need_uv = mesh->need_attribute(scene, uv_name) ||
-                         mesh->need_attribute(scene, uv_std);
-    /* Denotes whether tangent was requested directly. */
-    const bool need_tangent = mesh->need_attribute(scene, tangent_name) ||
-                              (active_render && mesh->need_attribute(scene, tangent_std));
+                         (active_render && mesh->need_attribute(scene, uv_std));
 
     /* UV map */
     Attribute *uv_attr = nullptr;
-    if (need_uv || need_tangent) {
+    if (need_uv) {
       if (active_render) {
         uv_attr = mesh->attributes.add(uv_std, uv_name);
       }
@@ -297,24 +293,19 @@ static void attr_create_subd_uv_map(Scene *scene,
   }
 
   const blender::bke::AttributeAccessor b_attributes = b_mesh.attributes();
-  const ustring render_name(CustomData_get_render_layer_name(&b_mesh.corner_data, CD_PROP_FLOAT2));
+  const ustring render_name(std::string_view(b_mesh.default_uv_map_name()));
   for (const ustring &uv_name : blender_uv_names) {
     const bool active_render = uv_name == render_name;
     const AttributeStandard uv_std = (active_render) ? ATTR_STD_UV : ATTR_STD_NONE;
-    const AttributeStandard tangent_std = (active_render) ? ATTR_STD_UV_TANGENT : ATTR_STD_NONE;
-    const ustring tangent_name = ustring((string(uv_name) + ".tangent").c_str());
 
     /* Denotes whether UV map was requested directly. */
     const bool need_uv = mesh->need_attribute(scene, uv_name) ||
-                         mesh->need_attribute(scene, uv_std);
-    /* Denotes whether tangent was requested directly. */
-    const bool need_tangent = mesh->need_attribute(scene, tangent_name) ||
-                              (active_render && mesh->need_attribute(scene, tangent_std));
+                         (active_render && mesh->need_attribute(scene, uv_std));
 
     Attribute *uv_attr = nullptr;
 
     /* UV map */
-    if (need_uv || need_tangent) {
+    if (need_uv) {
       if (active_render) {
         uv_attr = mesh->subd_attributes.add(uv_std, uv_name);
       }
@@ -630,7 +621,7 @@ static void create_mesh(Scene *scene,
   const bool need_default_tangent = (subdivision == false) && (blender_uv_names.empty()) &&
                                     (mesh->need_attribute(scene, ATTR_STD_UV_TANGENT));
   if (mesh->need_attribute(scene, ATTR_STD_GENERATED) || need_default_tangent) {
-    const float(*orco)[3] = static_cast<const float(*)[3]>(
+    const float (*orco)[3] = static_cast<const float (*)[3]>(
         CustomData_get_layer(&b_mesh.vert_data, CD_ORCO));
     Attribute *attr = attributes.add(ATTR_STD_GENERATED);
 
@@ -844,9 +835,20 @@ static void create_subd_mesh(Scene *scene,
   }
 
   /* Set subd parameters. */
-  PointerRNA cobj = RNA_pointer_get(&b_ob.ptr, "cycles");
-  const float subd_dicing_rate = max(0.1f, RNA_float_get(&cobj, "dicing_rate") * dicing_rate);
+  Mesh::SubdivisionAdaptiveSpace space = Mesh::SUBDIVISION_ADAPTIVE_SPACE_PIXEL;
+  switch (subsurf_mod.adaptive_space()) {
+    case BL::SubsurfModifier::adaptive_space_OBJECT:
+      space = Mesh::SUBDIVISION_ADAPTIVE_SPACE_OBJECT;
+      break;
+    case BL::SubsurfModifier::adaptive_space_PIXEL:
+      space = Mesh::SUBDIVISION_ADAPTIVE_SPACE_PIXEL;
+      break;
+  }
+  const float subd_dicing_rate = (space == Mesh::SUBDIVISION_ADAPTIVE_SPACE_PIXEL) ?
+                                     max(0.1f, subsurf_mod.adaptive_pixel_size() * dicing_rate) :
+                                     subsurf_mod.adaptive_object_edge_length() * dicing_rate;
 
+  mesh->set_subd_adaptive_space(space);
   mesh->set_subd_dicing_rate(subd_dicing_rate);
   mesh->set_subd_max_level(max_subdivisions);
   mesh->set_subd_objecttoworld(get_transform(b_ob.matrix_world()));
@@ -1001,7 +1003,7 @@ void BlenderSync::sync_mesh_motion(BObjectInfo &b_ob_info, Mesh *mesh, const int
           LOG_WARNING << "Topology differs, disabling motion blur for object " << ob_name;
         }
         else {
-          LOG_DEBUG << "No actual deformation motion for object " << ob_name;
+          LOG_TRACE << "No actual deformation motion for object " << ob_name;
         }
         attributes.remove(ATTR_STD_MOTION_VERTEX_POSITION);
         if (attr_mN) {
@@ -1009,7 +1011,7 @@ void BlenderSync::sync_mesh_motion(BObjectInfo &b_ob_info, Mesh *mesh, const int
         }
       }
       else if (motion_step > 0) {
-        LOG_DEBUG << "Filling deformation motion for object " << ob_name;
+        LOG_TRACE << "Filling deformation motion for object " << ob_name;
         /* motion, fill up previous steps that we might have skipped because
          * they had no motion, but we need them anyway now */
         const float3 *P = mesh->get_verts().data();

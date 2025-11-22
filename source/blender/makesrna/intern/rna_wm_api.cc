@@ -201,12 +201,12 @@ static void rna_progress_begin(wmWindowManager * /*wm*/, float min, float max)
 static void rna_progress_update(wmWindowManager *wm, float value)
 {
   if (wm_progress_state.is_valid) {
-    /* Map to cursor_time range [0,9999] */
-    wmWindow *win = wm->winactive;
+    /* Map to factor 0..1. */
+    wmWindow *win = wm->runtime->winactive;
     if (win) {
-      int val = int(10000 * (value - wm_progress_state.min) /
-                    (wm_progress_state.max - wm_progress_state.min));
-      WM_cursor_time(win, val);
+      const float progress_factor = (value - wm_progress_state.min) /
+                                    (wm_progress_state.max - wm_progress_state.min);
+      WM_cursor_progress(win, progress_factor);
     }
   }
 }
@@ -214,7 +214,7 @@ static void rna_progress_update(wmWindowManager *wm, float value)
 static void rna_progress_end(wmWindowManager *wm)
 {
   if (wm_progress_state.is_valid) {
-    wmWindow *win = wm->winactive;
+    wmWindow *win = wm->runtime->winactive;
     if (win) {
       WM_cursor_modal_restore(win);
       wm_progress_state.is_valid = false;
@@ -244,7 +244,7 @@ static int rna_Operator_confirm(bContext *C,
                                 title_str ? title_str->c_str() : nullptr,
                                 message_str ? message_str->c_str() : nullptr,
                                 confirm_text_str ? confirm_text_str->c_str() : nullptr,
-                                icon);
+                                blender::ui::AlertIcon(icon));
 }
 
 static int rna_Operator_props_popup(bContext *C, wmOperator *op, wmEvent *event)
@@ -490,7 +490,7 @@ static wmKeyMap *rna_KeyMaps_new(wmKeyConfig *keyconf,
      * Currently this is only useful for add-ons to override built-in modal keymaps
      * which is not the intended use for add-on keymaps. */
     wmWindowManager *wm = static_cast<wmWindowManager *>(G_MAIN->wm.first);
-    if (keyconf == wm->addonconf) {
+    if (keyconf == wm->runtime->addonconf) {
       BKE_reportf(reports, RPT_ERROR, "Modal key-maps not supported for add-on key-config");
       return nullptr;
     }
@@ -566,7 +566,7 @@ wmKeyConfig *rna_KeyConfig_new(wmWindowManager *wm, const char *idname)
 static void rna_KeyConfig_remove(wmWindowManager *wm, ReportList *reports, PointerRNA *keyconf_ptr)
 {
   wmKeyConfig *keyconf = static_cast<wmKeyConfig *>(keyconf_ptr->data);
-  if (UNLIKELY(BLI_findindex(&wm->keyconfigs, keyconf) == -1)) {
+  if (UNLIKELY(BLI_findindex(&wm->runtime->keyconfigs, keyconf) == -1)) {
     BKE_reportf(reports, RPT_ERROR, "KeyConfig '%s' cannot be removed", keyconf->idname);
     return;
   }
@@ -625,8 +625,8 @@ static PointerRNA rna_PopMenuBegin(bContext *C,
   }
 
   void *data = (void *)UI_popup_menu_begin(C, title, icon);
-  PointerRNA r_ptr = RNA_pointer_create_discrete(nullptr, &RNA_UIPopupMenu, data);
-  return r_ptr;
+  PointerRNA ptr_result = RNA_pointer_create_discrete(nullptr, &RNA_UIPopupMenu, data);
+  return ptr_result;
 }
 
 static void rna_PopMenuEnd(bContext *C, PointerRNA *handle)
@@ -645,8 +645,8 @@ static PointerRNA rna_PopoverBegin(bContext *C,
   }
 
   void *data = (void *)UI_popover_begin(C, U.widget_unit * ui_units_x, from_active_button);
-  PointerRNA r_ptr = RNA_pointer_create_discrete(nullptr, &RNA_UIPopover, data);
-  return r_ptr;
+  PointerRNA ptr_result = RNA_pointer_create_discrete(nullptr, &RNA_UIPopover, data);
+  return ptr_result;
 }
 
 static void rna_PopoverEnd(bContext *C, PointerRNA *handle, wmKeyMap *keymap)
@@ -665,8 +665,8 @@ static PointerRNA rna_PieMenuBegin(
   void *data = (void *)UI_pie_menu_begin(
       C, title, icon, static_cast<const wmEvent *>(event->data));
 
-  PointerRNA r_ptr = RNA_pointer_create_discrete(nullptr, &RNA_UIPieMenu, data);
-  return r_ptr;
+  PointerRNA ptr_result = RNA_pointer_create_discrete(nullptr, &RNA_UIPieMenu, data);
+  return ptr_result;
 }
 
 static void rna_PieMenuEnd(bContext *C, PointerRNA *handle)
@@ -676,7 +676,7 @@ static void rna_PieMenuEnd(bContext *C, PointerRNA *handle)
 
 static void rna_WindowManager_print_undo_steps(wmWindowManager *wm)
 {
-  BKE_undosys_print(wm->undo_stack);
+  BKE_undosys_print(wm->runtime->undo_stack);
 }
 
 static void rna_WindowManager_tag_script_reload()
@@ -863,11 +863,11 @@ void RNA_api_window(StructRNA *srna)
 }
 
 const EnumPropertyItem rna_operator_popup_icon_items[] = {
-    {ALERT_ICON_NONE, "NONE", 0, "None", ""},
-    {ALERT_ICON_WARNING, "WARNING", 0, "Warning", ""},
-    {ALERT_ICON_QUESTION, "QUESTION", 0, "Question", ""},
-    {ALERT_ICON_ERROR, "ERROR", 0, "Error", ""},
-    {ALERT_ICON_INFO, "INFO", 0, "Info", ""},
+    {int(blender::ui::AlertIcon::None), "NONE", 0, "None", ""},
+    {int(blender::ui::AlertIcon::Warning), "WARNING", 0, "Warning", ""},
+    {int(blender::ui::AlertIcon::Question), "QUESTION", 0, "Question", ""},
+    {int(blender::ui::AlertIcon::Error), "ERROR", 0, "Error", ""},
+    {int(blender::ui::AlertIcon::Info), "INFO", 0, "Info", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -1007,7 +1007,7 @@ void RNA_api_wm(StructRNA *srna)
 
   parm = RNA_def_property(func, "icon", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(parm, rna_operator_popup_icon_items);
-  RNA_def_property_enum_default(parm, ALERT_ICON_NONE);
+  RNA_def_property_enum_default(parm, int(blender::ui::AlertIcon::None));
   RNA_def_property_ui_text(parm, "Icon", "Optional icon displayed in the dialog");
 
   api_ui_item_common_translation(func);
@@ -1092,9 +1092,9 @@ void RNA_api_wm(StructRNA *srna)
   RNA_def_property_ui_text(
       parm,
       "Is Interface Locked",
-      "If true, the interface is currently locked by a running job and data shouldn't be modified "
-      "from application timers. Otherwise, the running job might conflict with the handler "
-      "causing unexpected results or even crashes.");
+      "If true, the interface is currently locked by a running job and data should not be "
+      "modified from application timers. Otherwise, the running job might conflict with the "
+      "handler causing unexpected results or even crashes.");
   RNA_def_property_clear_flag(parm, PROP_EDITABLE);
 }
 

@@ -22,6 +22,7 @@
 #include "DNA_windowmanager_types.h"
 
 #include "BLI_listbase.h"
+#include "BLI_memory_cache.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_task.h"
@@ -36,7 +37,7 @@
 #include "BKE_blendfile.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
-#include "BKE_icons.h"
+#include "BKE_icons.hh"
 #include "BKE_image.hh"
 #include "BKE_keyconfig.h"
 #include "BKE_lib_remap.hh"
@@ -46,7 +47,7 @@
 #include "BKE_preview_image.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
-#include "BKE_sound.h"
+#include "BKE_sound.hh"
 #include "BKE_vfont.hh"
 
 #include "BKE_addon.h"
@@ -164,6 +165,9 @@ void WM_init_gpu()
   if (G.debug & G_DEBUG_GPU_COMPILE_SHADERS) {
     GPU_shader_compile_static();
   }
+
+  /* Some part of the code assumes no context is left bound. */
+  DRW_gpu_context_disable_ex(true);
 
   gpu_is_init = true;
 }
@@ -348,7 +352,7 @@ void WM_init(bContext *C, int argc, const char **argv)
   wm_init_scripts_extensions_once(C);
 
   WM_keyconfig_update_postpone_end();
-  WM_keyconfig_update(static_cast<wmWindowManager *>(G_MAIN->wm.first));
+  WM_keyconfig_update_on_startup(static_cast<wmWindowManager *>(G_MAIN->wm.first));
 
   wm_homefile_read_post(C, params_file_read_post);
 }
@@ -471,9 +475,7 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
 
       BlendFileWriteParams blend_file_write_params{};
       if (BLO_write_file(bmain, filepath, fileflags, &blend_file_write_params, nullptr)) {
-        if (!G.quiet) {
-          CLOG_INFO_NOCHECK(&LOG_BLEND, "Saved session recovery to \"%s\"", filepath);
-        }
+        CLOG_INFO_NOCHECK(&LOG_BLEND, "Saved session recovery to \"%s\"", filepath);
       }
     }
 
@@ -557,6 +559,10 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
   free_openrecent();
 
   BKE_mball_cubeTable_free();
+
+  /* Clear the cache which may (indirectly) contain e.g. GPU resources which need to be freed
+   * before the GPU backend is destroyed. */
+  memory_cache::clear();
 
   /* Render code might still access databases. */
   RE_FreeAllRender();
@@ -687,7 +693,7 @@ void WM_exit(bContext *C, const int exit_code)
   const bool do_user_exit_actions = G.background ? false : (exit_code == EXIT_SUCCESS);
   WM_exit_ex(C, true, do_user_exit_actions);
 
-  if (!G.quiet) {
+  if (!CLG_quiet_get()) {
     printf("\nBlender quit\n");
   }
 

@@ -14,6 +14,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "DNA_anim_types.h"
@@ -108,25 +109,15 @@ FCurve *alloc_driver_fcurve(const char rna_path[],
     /* add some new driver data */
     fcu->driver = MEM_callocN<ChannelDriver>("ChannelDriver");
 
-    /* F-Modifier or Keyframes? */
-    if (creation_mode == DRIVER_FCURVE_GENERATOR) {
-      /* Python API Backwards compatibility hack:
-       * Create FModifier so that old scripts won't break
-       * for now before 2.7 series -- (September 4, 2013)
-       */
-      add_fmodifier(&fcu->modifiers, FMODIFIER_TYPE_GENERATOR, fcu);
-    }
-    else {
-      /* add 2 keyframes so that user has something to work with
-       * - These are configured to 0,0 and 1,1 to give a 1-1 mapping
-       *   which can be easily tweaked from there.
-       */
-      const KeyframeSettings settings = get_keyframe_settings(false);
-      insert_vert_fcurve(fcu, {0.0f, 0.0f}, settings, INSERTKEY_FAST);
-      insert_vert_fcurve(fcu, {1.0f, 1.0f}, settings, INSERTKEY_FAST);
-      fcu->extend = FCURVE_EXTRAPOLATE_LINEAR;
-      BKE_fcurve_handles_recalc(fcu);
-    }
+    /* Add 2 keyframes so that user has something to work with
+     * - These are configured to 0,0 and 1,1 to give a 1-1 mapping
+     *   which can be easily tweaked from there.
+     */
+    const KeyframeSettings settings = get_keyframe_settings(false);
+    insert_vert_fcurve(fcu, {0.0f, 0.0f}, settings, INSERTKEY_FAST);
+    insert_vert_fcurve(fcu, {1.0f, 1.0f}, settings, INSERTKEY_FAST);
+    fcu->extend = FCURVE_EXTRAPOLATE_LINEAR;
+    BKE_fcurve_handles_recalc(fcu);
   }
 
   return fcu;
@@ -147,16 +138,13 @@ static int add_driver_with_target(ReportList * /*reports*/,
                                   PropertyRNA *dst_prop,
                                   PointerRNA *src_ptr,
                                   PropertyRNA *src_prop,
-                                  short flag,
                                   int driver_type)
 {
   FCurve *fcu;
-  short add_mode = (flag & CREATEDRIVER_WITH_FMODIFIER) ? DRIVER_FCURVE_GENERATOR :
-                                                          DRIVER_FCURVE_KEYFRAMES;
   const char *prop_name = RNA_property_identifier(src_prop);
 
   /* Create F-Curve with Driver */
-  fcu = verify_driver_fcurve(dst_id, dst_path, dst_index, eDriverFCurveCreationMode(add_mode));
+  fcu = verify_driver_fcurve(dst_id, dst_path, dst_index, DRIVER_FCURVE_KEYFRAMES);
 
   if (fcu && fcu->driver) {
     ChannelDriver *driver = fcu->driver;
@@ -178,7 +166,7 @@ static int add_driver_with_target(ReportList * /*reports*/,
       /* Rotation Destination: normal -> radians, so convert src to radians
        * (However, if both input and output is a rotation, don't apply such corrections)
        */
-      STRNCPY(driver->expression, "radians(var)");
+      STRNCPY_UTF8(driver->expression, "radians(var)");
     }
     else if ((RNA_property_unit(src_prop) == PROP_UNIT_ROTATION) &&
              (RNA_property_unit(dst_prop) != PROP_UNIT_ROTATION))
@@ -186,11 +174,11 @@ static int add_driver_with_target(ReportList * /*reports*/,
       /* Rotation Source: radians -> normal, so convert src to degrees
        * (However, if both input and output is a rotation, don't apply such corrections)
        */
-      STRNCPY(driver->expression, "degrees(var)");
+      STRNCPY_UTF8(driver->expression, "degrees(var)");
     }
     else {
       /* Just a normal property without any unit problems */
-      STRNCPY(driver->expression, "var");
+      STRNCPY_UTF8(driver->expression, "var");
     }
 
     /* Create a driver variable for the target
@@ -342,7 +330,6 @@ int ANIM_add_driver_with_target(ReportList *reports,
                                            prop,
                                            &ptr2,
                                            prop2,
-                                           flag,
                                            driver_type);
       }
       break;
@@ -364,7 +351,6 @@ int ANIM_add_driver_with_target(ReportList *reports,
                                            prop,
                                            &ptr2,
                                            prop2,
-                                           flag,
                                            driver_type);
       }
       break;
@@ -383,7 +369,6 @@ int ANIM_add_driver_with_target(ReportList *reports,
                                         prop,
                                         &ptr2,
                                         prop2,
-                                        flag,
                                         driver_type);
       break;
     }
@@ -432,10 +417,8 @@ int ANIM_add_driver(
 
   /* will only loop once unless the array index was -1 */
   for (; array_index < array_index_max; array_index++) {
-    short add_mode = (flag & CREATEDRIVER_WITH_FMODIFIER) ? 2 : 1;
-
     /* create F-Curve with Driver */
-    fcu = verify_driver_fcurve(id, rna_path, array_index, eDriverFCurveCreationMode(add_mode));
+    fcu = verify_driver_fcurve(id, rna_path, array_index, DRIVER_FCURVE_KEYFRAMES);
 
     if (fcu && fcu->driver) {
       ChannelDriver *driver = fcu->driver;
@@ -470,7 +453,7 @@ int ANIM_add_driver(
             val = RNA_property_boolean_get_index(&ptr, prop, array_index);
           }
 
-          BLI_snprintf(
+          BLI_snprintf_utf8(
               expression, expression_maxncpy, "%s%s", dvar_prefix, (val) ? "True" : "False");
         }
         else if (proptype == PROP_INT) {
@@ -481,7 +464,7 @@ int ANIM_add_driver(
             val = RNA_property_int_get_index(&ptr, prop, array_index);
           }
 
-          BLI_snprintf(expression, expression_maxncpy, "%s%d", dvar_prefix, val);
+          BLI_snprintf_utf8(expression, expression_maxncpy, "%s%d", dvar_prefix, val);
         }
         else if (proptype == PROP_FLOAT) {
           if (!array) {
@@ -491,11 +474,11 @@ int ANIM_add_driver(
             fval = RNA_property_float_get_index(&ptr, prop, array_index);
           }
 
-          BLI_snprintf(expression, expression_maxncpy, "%s%.3f", dvar_prefix, fval);
+          BLI_snprintf_utf8(expression, expression_maxncpy, "%s%.3f", dvar_prefix, fval);
           BLI_str_rstrip_float_zero(expression, '\0');
         }
         else if (flag & CREATEDRIVER_WITH_DEFAULT_DVAR) {
-          BLI_strncpy(expression, "var", expression_maxncpy);
+          BLI_strncpy_utf8(expression, "var", expression_maxncpy);
         }
       }
 
@@ -801,7 +784,7 @@ void ANIM_copy_as_driver(ID *target_id, const char *target_path, const char *var
 
   /* Set the variable name. */
   if (var_name) {
-    STRNCPY(var->name, var_name);
+    STRNCPY_UTF8(var->name, var_name);
 
     /* Sanitize the name. */
     for (int i = 0; var->name[i]; i++) {
@@ -811,7 +794,7 @@ void ANIM_copy_as_driver(ID *target_id, const char *target_path, const char *var
     }
   }
 
-  STRNCPY(driver->expression, var->name);
+  STRNCPY_UTF8(driver->expression, var->name);
 
   /* Store the driver into the copy/paste buffers. */
   channeldriver_copypaste_buf = fcu;

@@ -12,6 +12,7 @@
 
 #include "node_geometry_util.hh"
 
+#include "GEO_foreach_geometry.hh"
 #include "GEO_points_to_volume.hh"
 
 #include "BKE_lib_id.hh"
@@ -115,7 +116,7 @@ static void initialize_volume_component_from_points(GeoNodeExecParams &params,
   blender::geometry::fog_volume_grid_add_from_points(
       volume, "density", positions, radii, voxel_size, density);
 
-  r_geometry_set.keep_only_during_modify({GeometryComponent::Type::Volume});
+  r_geometry_set.keep_only({GeometryComponent::Type::Volume, GeometryComponent::Type::Edit});
   r_geometry_set.replace_volume(volume);
 }
 
@@ -127,24 +128,27 @@ static EnumPropertyItem resolution_mode_items[] = {
     {GEO_NODE_POINTS_TO_VOLUME_RESOLUTION_MODE_AMOUNT,
      "VOXEL_AMOUNT",
      0,
-     "Amount",
-     "Specify the approximate number of voxels along the diagonal"},
+     CTX_N_(BLT_I18NCONTEXT_COUNTABLE, "Amount"),
+     N_("Specify the approximate number of voxels along the diagonal")},
     {GEO_NODE_POINTS_TO_VOLUME_RESOLUTION_MODE_SIZE,
      "VOXEL_SIZE",
      0,
-     "Size",
-     "Specify the voxel side length"},
+
+     CTX_N_(BLT_I18NCONTEXT_COUNTABLE, "Size"),
+     N_("Specify the voxel side length")},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Menu>("Resolution Mode")
-      .static_items(resolution_mode_items)
-      .description("How the voxel size is specified");
   b.add_input<decl::Geometry>("Points").is_default_link_socket().description(
       "Points which are converted to a volume");
   b.add_input<decl::Float>("Density").default_value(1.0f).min(0.0f);
+  b.add_input<decl::Menu>("Resolution Mode")
+      .static_items(resolution_mode_items)
+      .optional_label()
+      .description("How the voxel size is specified")
+      .translation_context(BLT_I18NCONTEXT_COUNTABLE);
   b.add_input<decl::Float>("Voxel Size")
       .default_value(0.3f)
       .min(0.01f)
@@ -165,15 +169,14 @@ static void node_declare(NodeDeclarationBuilder &b)
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   /* Still used for forward compatibility. */
-  NodeGeometryPointsToVolume *data = MEM_callocN<NodeGeometryPointsToVolume>(__func__);
-  node->storage = data;
+  node->storage = MEM_callocN<NodeGeometryPointsToVolume>(__func__);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
 #ifdef WITH_OPENVDB
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Points");
-  geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+  geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     initialize_volume_component_from_points(params, geometry_set);
   });
   params.set_output("Volume", std::move(geometry_set));

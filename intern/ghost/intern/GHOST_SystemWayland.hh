@@ -86,7 +86,7 @@ int gwl_window_scale_int_from(const GWL_WindowScaleParams &scale_params, int val
  * Return true when all required WAYLAND libraries are present,
  * Performs dynamic loading when `WITH_GHOST_WAYLAND_DYNLOAD` is in use.
  */
-bool ghost_wl_dynload_libraries_init();
+bool ghost_wl_dynload_libraries_init(bool use_window_frame);
 void ghost_wl_dynload_libraries_exit();
 #endif
 
@@ -149,7 +149,7 @@ struct GWL_Output {
 class GHOST_SystemWayland : public GHOST_System {
  public:
   GHOST_SystemWayland(bool background);
-  GHOST_SystemWayland() : GHOST_SystemWayland(true){};
+  GHOST_SystemWayland() : GHOST_SystemWayland(true) {};
 
   ~GHOST_SystemWayland() override;
 
@@ -208,7 +208,7 @@ class GHOST_SystemWayland : public GHOST_System {
 
   void getAllDisplayDimensions(uint32_t &width, uint32_t &height) const override;
 
-  GHOST_IContext *createOffscreenContext(GHOST_GPUSettings gpuSettings) override;
+  GHOST_IContext *createOffscreenContext(GHOST_GPUSettings gpu_settings) override;
 
   GHOST_TSuccess disposeContext(GHOST_IContext *context) override;
 
@@ -218,10 +218,10 @@ class GHOST_SystemWayland : public GHOST_System {
                               uint32_t width,
                               uint32_t height,
                               GHOST_TWindowState state,
-                              GHOST_GPUSettings gpuSettings,
+                              GHOST_GPUSettings gpu_settings,
                               const bool exclusive,
                               const bool is_dialog,
-                              const GHOST_IWindow *parentWindow) override;
+                              const GHOST_IWindow *parent_window) override;
 
   GHOST_TCapabilityFlag getCapabilities() const override;
 
@@ -231,7 +231,7 @@ class GHOST_SystemWayland : public GHOST_System {
 
   GHOST_TSuccess cursor_shape_set(GHOST_TStandardCursor shape);
 
-  GHOST_TSuccess cursor_shape_check(GHOST_TStandardCursor cursorShape);
+  GHOST_TSuccess cursor_shape_check(GHOST_TStandardCursor cursor_shape);
 
   GHOST_TSuccess cursor_shape_custom_set(const GHOST_CursorGenerator &cg);
 
@@ -279,6 +279,8 @@ class GHOST_SystemWayland : public GHOST_System {
                  int32_t h,
                  bool completed) const;
   void ime_end(const GHOST_WindowWayland *win) const;
+
+  bool use_window_frame_get() const;
 
   static const char *xdg_app_id_get();
 

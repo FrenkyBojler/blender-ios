@@ -50,12 +50,6 @@ const EnumPropertyItem rna_enum_keying_flag_items[] = {
      0,
      "Visual Keying",
      "Insert keyframes based on 'visual transforms'"},
-    {0,
-     "INSERTKEY_XYZ_TO_RGB",
-     0,
-     "XYZ=RGB Colors (ignored)",
-     "This flag is no longer in use, and is here so that code that uses it doesn't break. The "
-     "XYZ=RGB coloring is determined by the animation preferences."},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -71,12 +65,6 @@ const EnumPropertyItem rna_enum_keying_flag_api_items[] = {
      0,
      "Visual Keying",
      "Insert keyframes based on 'visual transforms'"},
-    {0,
-     "INSERTKEY_XYZ_TO_RGB",
-     0,
-     "XYZ=RGB Colors (ignored)",
-     "This flag is no longer in use, and is here so that code that uses it doesn't break. The "
-     "XYZ=RGB coloring is determined by the animation preferences."},
     {INSERTKEY_REPLACE,
      "INSERTKEY_REPLACE",
      0,
@@ -233,7 +221,7 @@ static void rna_AnimData_tmpact_set(PointerRNA *ptr, PointerRNA value, ReportLis
 
   bAction *action = static_cast<bAction *>(value.data);
   if (!blender::animrig::assign_tmpaction(action, {*owner_id, *adt})) {
-    BKE_report(reports, RPT_WARNING, "Failed to set tmpact");
+    BKE_report(reports, RPT_WARNING, "Failed to set temporary action");
   }
 }
 
@@ -740,7 +728,7 @@ static void rna_KeyingSet_name_set(PointerRNA *ptr, const char *value)
         for (bActionGroup *agrp : animrig::legacy::channel_groups_for_assigned_slot(adt)) {
           if (STREQ(ks->name, agrp->name)) {
             /* there should only be one of these in the action, so can stop... */
-            STRNCPY(agrp->name, value);
+            STRNCPY_UTF8(agrp->name, value);
             break;
           }
         }
@@ -1233,9 +1221,9 @@ static void rna_def_keyingset_info(BlenderRNA *brna)
    *   other places featuring bl_idname/label/description (i.e. operators)
    */
   prop = RNA_def_property(srna, "bl_options", PROP_ENUM, PROP_NONE);
+  RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL | PROP_ENUM_FLAG);
   RNA_def_property_enum_sdna(prop, nullptr, "keyingflag");
   RNA_def_property_enum_items(prop, rna_enum_keying_flag_items);
-  RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL | PROP_ENUM_FLAG);
   RNA_def_property_ui_text(prop, "Options", "Keying Set options to use when inserting keyframes");
 
   RNA_define_verify_sdna(true);
@@ -1705,7 +1693,7 @@ static void rna_def_animdata(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_ANIMATION | ND_NLA_ACTCHANGE, "rna_AnimData_dependency_update");
 
   /* Temporary action slot for tweak mode. Just like `action_slot_handle` this is needed for
-   * library overrides to work.*/
+   * library overrides to work. */
   prop = RNA_def_property(srna, "action_slot_handle_tweak_storage", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, nullptr, "tmp_slot_handle");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_EDITABLE);

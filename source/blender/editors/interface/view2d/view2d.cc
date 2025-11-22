@@ -168,7 +168,7 @@ static void view2d_masks(View2D *v2d, const rcti *mask_scroll)
     if (scroll & V2D_SCROLL_LEFT) {
       /* on left-hand edge of region */
       v2d->vert = *mask_scroll;
-      v2d->vert.xmax = scroll_width;
+      v2d->vert.xmax = v2d->vert.xmin + scroll_width;
     }
     else if (scroll & V2D_SCROLL_RIGHT) {
       /* on right-hand edge of region */
@@ -191,8 +191,8 @@ static void view2d_masks(View2D *v2d, const rcti *mask_scroll)
 
     /* Adjust horizontal scroller to avoid interfering with splitter areas. */
     if (scroll & V2D_SCROLL_HORIZONTAL) {
-      v2d->hor.xmin += UI_AZONESPOTW;
-      v2d->hor.xmax -= UI_AZONESPOTW;
+      v2d->hor.xmin += UI_AZONESPOTW_LEFT;
+      v2d->hor.xmax -= UI_AZONESPOTW_RIGHT;
     }
 
     /* Adjust vertical scroller to avoid horizontal scrollers and splitter areas. */
@@ -386,9 +386,8 @@ void UI_view2d_region_reinit(View2D *v2d, short type, int winx, int winy)
 static void ui_view2d_curRect_validate_resize(View2D *v2d, bool resize)
 {
   /* NOTE: #calculateZfac uses this logic, keep in sync. */
-  float totwidth, totheight, curwidth, curheight, width, height;
+  float curwidth, curheight, width, height;
   float winx, winy;
-  rctf *cur, *tot;
 
   /* use mask as size of region that View2D resides in, as it takes into account
    * scroll-bars already - keep in sync with `zoomx/zoomy` in #view_zoomstep_apply_ex! */
@@ -396,8 +395,8 @@ static void ui_view2d_curRect_validate_resize(View2D *v2d, bool resize)
   winy = float(BLI_rcti_size_y(&v2d->mask) + 1);
 
   /* get pointers to rcts for less typing */
-  cur = &v2d->cur;
-  tot = &v2d->tot;
+  rctf *cur = &v2d->cur;
+  rctf *tot = &v2d->tot;
 
   /* we must satisfy the following constraints (in decreasing order of importance):
    * - alignment restrictions are respected
@@ -411,8 +410,6 @@ static void ui_view2d_curRect_validate_resize(View2D *v2d, bool resize)
    * - firstly, we calculate the sizes of the rects
    * - curwidth and curheight are saved as reference... modify width and height values here
    */
-  totwidth = BLI_rctf_size_x(tot);
-  totheight = BLI_rctf_size_y(tot);
   /* Keep in sync with `zoomx/zoomy` in #view_zoomstep_apply_ex! */
   curwidth = width = BLI_rctf_size_x(cur);
   curheight = height = BLI_rctf_size_y(cur);
@@ -641,6 +638,9 @@ static void ui_view2d_curRect_validate_resize(View2D *v2d, bool resize)
       }
     }
   }
+
+  const float totwidth = BLI_rctf_size_x(tot);
+  const float totheight = BLI_rctf_size_y(tot);
 
   /* Step 3: adjust so that it doesn't fall outside of bounds of 'tot' */
   if (v2d->keeptot) {
@@ -1690,13 +1690,13 @@ void UI_view2d_region_to_view_rctf(const View2D *v2d, const rctf *rect_src, rctf
 
 float UI_view2d_view_to_region_x(const View2D *v2d, float x)
 {
-  return (v2d->mask.xmin +
-          (((x - v2d->cur.xmin) / BLI_rctf_size_x(&v2d->cur)) * BLI_rcti_size_x(&v2d->mask)));
+  return (v2d->mask.xmin + (((x - v2d->cur.xmin) / BLI_rctf_size_x(&v2d->cur)) *
+                            float(BLI_rcti_size_x(&v2d->mask) + 1)));
 }
 float UI_view2d_view_to_region_y(const View2D *v2d, float y)
 {
-  return (v2d->mask.ymin +
-          (((y - v2d->cur.ymin) / BLI_rctf_size_y(&v2d->cur)) * BLI_rcti_size_y(&v2d->mask)));
+  return (v2d->mask.ymin + (((y - v2d->cur.ymin) / BLI_rctf_size_y(&v2d->cur)) *
+                            float(BLI_rcti_size_y(&v2d->mask) + 1)));
 }
 
 bool UI_view2d_view_to_region_clip(
@@ -1816,8 +1816,8 @@ void UI_view2d_view_to_region_m4(const View2D *v2d, float matrix[4][4])
 bool UI_view2d_view_to_region_rcti_clip(const View2D *v2d, const rctf *rect_src, rcti *rect_dst)
 {
   const float cur_size[2] = {BLI_rctf_size_x(&v2d->cur), BLI_rctf_size_y(&v2d->cur)};
-  const float mask_size[2] = {float(BLI_rcti_size_x(&v2d->mask)),
-                              float(BLI_rcti_size_y(&v2d->mask))};
+  const float mask_size[2] = {float(BLI_rcti_size_x(&v2d->mask) + 1),
+                              float(BLI_rcti_size_y(&v2d->mask) + 1)};
   rctf rect_tmp;
 
   BLI_assert(rect_src->xmin <= rect_src->xmax && rect_src->ymin <= rect_src->ymax);

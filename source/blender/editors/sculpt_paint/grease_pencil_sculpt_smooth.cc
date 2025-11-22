@@ -9,6 +9,7 @@
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_paint.hh"
+#include "BKE_paint_types.hh"
 
 #include "DNA_brush_enums.h"
 #include "DNA_brush_types.h"
@@ -75,7 +76,7 @@ void SmoothOperation::toggle_smooth_brush_on(const bContext &C)
 
   const int current_brush_size = BKE_brush_size_get(paint, current_brush);
   BKE_brush_size_set(paint, smooth_brush, current_brush_size);
-  BKE_curvemapping_init(smooth_brush->curve);
+  BKE_curvemapping_init(smooth_brush->curve_distance_falloff);
 }
 
 void SmoothOperation::toggle_smooth_brush_off(const bContext &C)
@@ -116,7 +117,7 @@ void SmoothOperation::on_stroke_extended(const bContext &C, const InputSample &e
   const Brush &brush = [&]() -> const Brush & {
     if (temp_smooth_) {
       const Brush *brush = BKE_paint_brush_from_essentials(
-          CTX_data_main(&C), OB_MODE_SCULPT_GREASE_PENCIL, "Smooth");
+          CTX_data_main(&C), PaintMode::SculptGPencil, "Smooth");
       BLI_assert(brush != nullptr);
       return *brush;
     }
@@ -126,7 +127,9 @@ void SmoothOperation::on_stroke_extended(const bContext &C, const InputSample &e
 
   this->foreach_editable_drawing_with_automask(
       C, [&](const GreasePencilStrokeParams &params, const IndexMask &point_mask) {
-        Array<float2> view_positions = calculate_view_positions(params, point_mask);
+        /* Note: smoothing requires full range of view positions regardless of point selection. */
+        const Array<float2> view_positions = view_positions_from_point_mask(
+            params, params.drawing.strokes().points_range());
         bke::CurvesGeometry &curves = params.drawing.strokes_for_write();
         bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
         const OffsetIndices points_by_curve = curves.points_by_curve();
@@ -147,16 +150,14 @@ void SmoothOperation::on_stroke_extended(const bContext &C, const InputSample &e
 
         bool changed = false;
         if (sculpt_mode_flag & GP_SCULPT_FLAGMODE_APPLY_POSITION) {
-          MutableSpan<float3> positions = curves.positions_for_write();
-          geometry::smooth_curve_attribute(curves.curves_range(),
-                                           points_by_curve,
+          geometry::smooth_curve_positions(curves,
+                                           curves.curves_range(),
                                            selection_varray,
-                                           cyclic,
                                            iterations,
                                            influences,
                                            false,
-                                           false,
-                                           positions);
+                                           false);
+
           params.drawing.tag_positions_changed();
           changed = true;
         }

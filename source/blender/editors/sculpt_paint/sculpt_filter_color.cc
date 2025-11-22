@@ -380,7 +380,6 @@ static void sculpt_color_filter_apply(bContext *C, wmOperator *op, Object &ob)
   float fill_color[3];
 
   RNA_float_get_array(op->ptr, "fill_color", fill_color);
-  IMB_colormanagement_srgb_to_scene_linear_v3(fill_color, fill_color);
 
   Mesh &mesh = *static_cast<Mesh *>(ob.data);
   if (filter_strength < 0.0 && ss.filter_cache->pre_smoothed_color.is_empty()) {
@@ -563,12 +562,12 @@ static std::string sculpt_color_filter_get_name(wmOperatorType * /*ot*/, Pointer
 
 static void sculpt_color_filter_ui(bContext * /*C*/, wmOperator *op)
 {
-  uiLayout *layout = op->layout;
+  ui::Layout &layout = *op->layout;
 
-  layout->prop(op->ptr, "strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   if (FilterType(RNA_enum_get(op->ptr, "type")) == FilterType::Fill) {
-    layout->prop(op->ptr, "fill_color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout.prop(op->ptr, "fill_color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 }
 
@@ -606,7 +605,7 @@ void SCULPT_OT_color_filter(wmOperatorType *ot)
                                           0.0f,
                                           1.0f);
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_MESH);
-  RNA_def_property_subtype(prop, PROP_COLOR_GAMMA);
+  RNA_def_property_subtype(prop, PROP_COLOR);
 }
 
 }  // namespace blender::ed::sculpt_paint::color

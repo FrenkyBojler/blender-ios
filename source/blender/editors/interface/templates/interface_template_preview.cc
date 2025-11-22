@@ -12,7 +12,7 @@
 #include "BKE_scene.hh"
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BLT_translation.hh"
 
@@ -89,7 +89,7 @@ void uiTemplatePreview(uiLayout *layout,
 
   if (!preview_id || (preview_id[0] == '\0')) {
     /* If no identifier given, generate one from ID type. */
-    SNPRINTF(_preview_id, "uiPreview_%s", BKE_idtype_idcode_to_name(GS(id->name)));
+    SNPRINTF_UTF8(_preview_id, "uiPreview_%s", BKE_idtype_idcode_to_name(GS(id->name)));
     preview_id = _preview_id;
   }
 
@@ -100,7 +100,7 @@ void uiTemplatePreview(uiLayout *layout,
 
   if (!ui_preview) {
     ui_preview = MEM_callocN<uiPreview>(__func__);
-    STRNCPY(ui_preview->preview_id, preview_id);
+    STRNCPY_UTF8(ui_preview->preview_id, preview_id);
     ui_preview->height = short(UI_UNIT_Y * 7.6f);
     ui_preview->id_session_uid = pid->session_uid;
     ui_preview->tag = UI_PREVIEW_TAG_DIRTY;
@@ -124,8 +124,7 @@ void uiTemplatePreview(uiLayout *layout,
   uiLayout *col = &row->column(false);
 
   /* add preview */
-  uiDefBut(
-      block, ButType::Extra, 0, "", 0, 0, UI_UNIT_X * 10, ui_preview->height, pid, 0.0, 0.0, "");
+  uiDefBut(block, ButType::Extra, "", 0, 0, UI_UNIT_X * 10, ui_preview->height, pid, 0.0, 0.0, "");
   UI_but_func_drawextra_set(block,
                             [pid, pparent, slot, ui_preview](const bContext *C, rcti *rect) {
                               ED_preview_draw(C, pid, pparent, slot, ui_preview, rect);
@@ -134,7 +133,6 @@ void uiTemplatePreview(uiLayout *layout,
 
   uiDefIconButS(block,
                 ButType::Grip,
-                0,
                 ICON_GRIP,
                 0,
                 0,
@@ -175,86 +173,86 @@ void uiTemplatePreview(uiLayout *layout,
       PointerRNA texture_ptr = RNA_id_pointer_create(id);
 
       layout->row(true);
-      uiDefButS(block,
-                ButType::Row,
-                B_MATPRV,
-                IFACE_("Texture"),
-                0,
-                0,
-                UI_UNIT_X * 10,
-                UI_UNIT_Y,
-                pr_texture,
-                10,
-                TEX_PR_TEXTURE,
-                "");
+      uiBut *but = uiDefButS(block,
+                             ButType::Row,
+                             IFACE_("Texture"),
+                             0,
+                             0,
+                             UI_UNIT_X * 10,
+                             UI_UNIT_Y,
+                             pr_texture,
+                             10,
+                             TEX_PR_TEXTURE,
+                             "");
+      UI_but_retval_set(but, B_MATPRV);
       if (GS(parent->name) == ID_MA) {
-        uiDefButS(block,
-                  ButType::Row,
-                  B_MATPRV,
-                  IFACE_("Material"),
-                  0,
-                  0,
-                  UI_UNIT_X * 10,
-                  UI_UNIT_Y,
-                  pr_texture,
-                  10,
-                  TEX_PR_OTHER,
-                  "");
+        but = uiDefButS(block,
+                        ButType::Row,
+                        IFACE_("Material"),
+                        0,
+                        0,
+                        UI_UNIT_X * 10,
+                        UI_UNIT_Y,
+                        pr_texture,
+                        10,
+                        TEX_PR_OTHER,
+                        "");
+        UI_but_retval_set(but, B_MATPRV);
       }
       else if (GS(parent->name) == ID_LA) {
-        uiDefButS(block,
-                  ButType::Row,
-                  B_MATPRV,
-                  CTX_IFACE_(BLT_I18NCONTEXT_ID_LIGHT, "Light"),
-                  0,
-                  0,
-                  UI_UNIT_X * 10,
-                  UI_UNIT_Y,
-                  pr_texture,
-                  10,
-                  TEX_PR_OTHER,
-                  "");
+        but = uiDefButS(block,
+                        ButType::Row,
+                        CTX_IFACE_(BLT_I18NCONTEXT_ID_LIGHT, "Light"),
+                        0,
+                        0,
+                        UI_UNIT_X * 10,
+                        UI_UNIT_Y,
+                        pr_texture,
+                        10,
+                        TEX_PR_OTHER,
+                        "");
+        UI_but_retval_set(but, B_MATPRV);
       }
       else if (GS(parent->name) == ID_WO) {
-        uiDefButS(block,
-                  ButType::Row,
-                  B_MATPRV,
-                  CTX_IFACE_(BLT_I18NCONTEXT_ID_WORLD, "World"),
-                  0,
-                  0,
-                  UI_UNIT_X * 10,
-                  UI_UNIT_Y,
-                  pr_texture,
-                  10,
-                  TEX_PR_OTHER,
-                  "");
+        but = uiDefButS(block,
+                        ButType::Row,
+                        CTX_IFACE_(BLT_I18NCONTEXT_ID_WORLD, "World"),
+                        0,
+                        0,
+                        UI_UNIT_X * 10,
+                        UI_UNIT_Y,
+                        pr_texture,
+                        10,
+                        TEX_PR_OTHER,
+                        "");
+        UI_but_retval_set(but, B_MATPRV);
       }
       else if (GS(parent->name) == ID_LS) {
-        uiDefButS(block,
-                  ButType::Row,
-                  B_MATPRV,
-                  IFACE_("Line Style"),
-                  0,
-                  0,
-                  UI_UNIT_X * 10,
-                  UI_UNIT_Y,
-                  pr_texture,
-                  10,
-                  TEX_PR_OTHER,
-                  "");
+        but = uiDefButS(block,
+                        ButType::Row,
+                        IFACE_("Line Style"),
+                        0,
+                        0,
+                        UI_UNIT_X * 10,
+                        UI_UNIT_Y,
+                        pr_texture,
+                        10,
+                        TEX_PR_OTHER,
+                        "");
+        UI_but_retval_set(but, B_MATPRV);
       }
-      uiDefButS(block,
-                ButType::Row,
-                B_MATPRV,
-                IFACE_("Both"),
-                0,
-                0,
-                UI_UNIT_X * 10,
-                UI_UNIT_Y,
-                pr_texture,
-                10,
-                TEX_PR_BOTH,
-                "");
+      but = uiDefButS(block,
+                      ButType::Row,
+                      IFACE_("Both"),
+                      0,
+                      0,
+                      UI_UNIT_X * 10,
+                      UI_UNIT_Y,
+                      pr_texture,
+                      10,
+                      TEX_PR_BOTH,
+                      "");
+      UI_but_retval_set(but, B_MATPRV);
 
       /* Alpha button for texture preview */
       if (*pr_texture != TEX_PR_OTHER) {

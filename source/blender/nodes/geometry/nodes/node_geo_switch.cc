@@ -4,6 +4,8 @@
 
 #include "node_geometry_util.hh"
 
+#include "BKE_node_tree_reference_lifetimes.hh"
+
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
@@ -39,9 +41,21 @@ static void node_declare(NodeDeclarationBuilder &b)
     true_decl.supports_field();
     output_decl.dependent_field().reference_pass_all();
   }
-  if (socket_type == SOCK_GEOMETRY) {
+  if (bke::node_tree_reference_lifetimes::can_contain_referenced_data(socket_type)) {
     output_decl.propagate_all();
   }
+  if (bke::node_tree_reference_lifetimes::can_contain_reference(socket_type)) {
+    output_decl.reference_pass_all();
+  }
+
+  const StructureType structure_type = socket_type_always_single(socket_type) ?
+                                           StructureType::Single :
+                                           StructureType::Dynamic;
+
+  switch_decl.structure_type(structure_type);
+  false_decl.structure_type(structure_type);
+  true_decl.structure_type(structure_type);
+  output_decl.structure_type(structure_type);
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
@@ -52,7 +66,7 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   NodeSwitch *data = MEM_callocN<NodeSwitch>(__func__);
-  data->input_type = SOCK_GEOMETRY;
+  data->input_type = SOCK_FLOAT;
   node->storage = data;
 }
 
@@ -115,7 +129,7 @@ class LazyFunctionForSwitchNode : public LazyFunction {
       }
     }
     BLI_assert(socket_type != nullptr);
-    const CPPType &cpp_type = *socket_type->geometry_nodes_cpp_type;
+    const CPPType &cpp_type = CPPType::get<SocketValueVariant>();
     base_type_ = socket_type->base_cpp_type;
 
     debug_name_ = node.name;
@@ -193,7 +207,8 @@ class LazyFunctionForSwitchNode : public LazyFunction {
                                    ColorGeometry4f,
                                    std::string,
                                    math::Quaternion,
-                                   float4x4>([&](auto type_tag) {
+                                   float4x4,
+                                   MenuValue>([&](auto type_tag) {
       using T = typename decltype(type_tag)::type;
       if constexpr (std::is_void_v<T>) {
         BLI_assert_unreachable();
@@ -233,11 +248,6 @@ static void node_rna(StructRNA *srna)
         *r_free = true;
         return enum_items_filter(rna_enum_node_socket_data_type_items,
                                  [](const EnumPropertyItem &item) -> bool {
-                                   if (!U.experimental.use_bundle_and_closure_nodes) {
-                                     if (ELEM(item.value, SOCK_BUNDLE, SOCK_CLOSURE)) {
-                                       return false;
-                                     }
-                                   }
                                    return ELEM(item.value,
                                                SOCK_FLOAT,
                                                SOCK_INT,

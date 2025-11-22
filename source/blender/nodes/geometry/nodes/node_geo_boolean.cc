@@ -140,9 +140,10 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
   }
 
-  Vector<GeometrySet> geometry_sets = params.extract_input<Vector<GeometrySet>>("Mesh 2");
+  GeoNodesMultiInput<GeometrySet> geometry_sets =
+      params.extract_input<GeoNodesMultiInput<GeometrySet>>("Mesh 2");
 
-  for (const GeometrySet &geometry : geometry_sets) {
+  for (const GeometrySet &geometry : geometry_sets.values) {
     if (const Mesh *mesh = geometry.get_mesh()) {
       meshes.append(mesh);
       transforms.append(float4x4::identity());
@@ -181,8 +182,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
   }
 
-  if (solver == geometry::boolean::Solver::Manifold) {
-    /* Manifold remaps materials using realize_instances. */
+  if (ELEM(solver, geometry::boolean::Solver::MeshArr, geometry::boolean::Solver::Manifold)) {
+    /* These solvers remap materials using realize_instances. */
     material_remaps.resize(0);
   }
 
@@ -247,7 +248,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   Vector<GeometrySet> all_geometries;
   all_geometries.append(set_a);
-  all_geometries.extend(geometry_sets);
+  all_geometries.extend(geometry_sets.values);
 
   const std::array types_to_join = {GeometryComponent::Type::Edit};
   GeometrySet result_geometry = geometry::join_geometries(

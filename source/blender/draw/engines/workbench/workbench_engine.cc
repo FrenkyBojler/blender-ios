@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_rect.h"
+#include "BLI_string.h"
 
 #include "DNA_fluid_types.h"
 
@@ -13,6 +14,7 @@
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
 #include "BKE_particle.h"
+#include "BKE_report.hh"
 
 #include "DEG_depsgraph_query.hh"
 
@@ -66,6 +68,8 @@ class Instance : public DrawEngine {
   /* Used to detect any scene data update. */
   uint64_t depsgraph_last_update_ = 0;
 
+  const char *hair_buffer_overflow_error_ = nullptr;
+
  public:
   const DRWContext *draw_ctx = nullptr;
 
@@ -116,6 +120,8 @@ class Instance : public DrawEngine {
     outline_ps_.sync(resources_);
     dof_ps_.sync(resources_, this->draw_ctx);
     anti_aliasing_ps_.sync(scene_state_, resources_);
+
+    hair_buffer_overflow_error_ = nullptr;
   }
 
   void end_sync() final
@@ -428,15 +434,20 @@ class Instance : public DrawEngine {
 
     this->draw_to_mesh_pass(ob_ref, mat.is_transparent(), [&](MeshPass &mesh_pass) {
       PassMain::Sub &pass = mesh_pass.get_subpass(eGeometryType::CURVES).sub("Curves SubPass");
-      gpu::Batch *batch = curves_sub_pass_setup(pass, scene_state_.scene, ob_ref.object);
+
+      const char *error = nullptr;
+      gpu::Batch *batch = curves_sub_pass_setup(pass, scene_state_.scene, ob_ref.object, error);
+      if (error) {
+        hair_buffer_overflow_error_ = error;
+      }
       pass.draw(batch, handle, material_index);
     });
   }
 
   void draw(Manager &manager,
-            GPUTexture *depth_tx,
-            GPUTexture *depth_in_front_tx,
-            GPUTexture *color_tx)
+            gpu::Texture *depth_tx,
+            gpu::Texture *depth_in_front_tx,
+            gpu::Texture *color_tx)
   {
     int2 resolution = scene_state_.resolution;
 
@@ -466,8 +477,10 @@ class Instance : public DrawEngine {
 
     GPUAttachment id_attachment = GPU_ATTACHMENT_NONE;
     if (scene_state_.draw_object_id) {
-      resources_.object_id_tx.acquire(
-          resolution, GPU_R16UI, GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT);
+      resources_.object_id_tx.acquire(resolution,
+                                      gpu::TextureFormat::UINT_16,
+                                      GPU_TEXTURE_USAGE_SHADER_READ |
+                                          GPU_TEXTURE_USAGE_ATTACHMENT);
       id_attachment = GPU_ATTACHMENT_TEXTURE(resources_.object_id_tx);
     }
     resources_.clear_fb.ensure(GPU_ATTACHMENT_TEXTURE(resources_.depth_tx),
@@ -475,7 +488,7 @@ class Instance : public DrawEngine {
                                id_attachment);
     resources_.clear_fb.bind();
     float4 clear_colors[2] = {scene_state_.background_color, float4(0.0f)};
-    GPU_framebuffer_multi_clear(resources_.clear_fb, reinterpret_cast<float(*)[4]>(clear_colors));
+    GPU_framebuffer_multi_clear(resources_.clear_fb, reinterpret_cast<float (*)[4]>(clear_colors));
     GPU_framebuffer_clear_depth_stencil(resources_.clear_fb, 1.0f, 0x00);
 
     opaque_ps_.draw(
@@ -492,14 +505,21 @@ class Instance : public DrawEngine {
   }
 
   void draw_viewport(Manager &manager,
-                     GPUTexture *depth_tx,
-                     GPUTexture *depth_in_front_tx,
-                     GPUTexture *color_tx)
+                     gpu::Texture *depth_tx,
+                     gpu::Texture *depth_in_front_tx,
+                     gpu::Texture *color_tx)
   {
     this->draw(manager, depth_tx, depth_in_front_tx, color_tx);
 
     if (scene_state_.sample + 1 < scene_state_.samples_len) {
       DRW_viewport_request_redraw();
+    }
+
+    if (hair_buffer_overflow_error_) {
+      STRNCPY(info, hair_buffer_overflow_error_);
+    }
+    else {
+      STRNCPY(info, "");
     }
   }
 
@@ -518,9 +538,9 @@ class Instance : public DrawEngine {
   }
 
   void draw_image_render(Manager &manager,
-                         GPUTexture *depth_tx,
-                         GPUTexture *depth_in_front_tx,
-                         GPUTexture *color_tx,
+                         gpu::Texture *depth_tx,
+                         gpu::Texture *depth_in_front_tx,
+                         gpu::Texture *color_tx,
                          RenderEngine *engine = nullptr)
   {
     if (scene_state_.render_finished) {
@@ -532,6 +552,10 @@ class Instance : public DrawEngine {
 
     BLI_assert(scene_state_.sample == 0);
     for (auto i : IndexRange(scene_state_.samples_len)) {
+      if (hair_buffer_overflow_error_) {
+        RE_engine_set_error_message(engine, hair_buffer_overflow_error_);
+      }
+
       if (engine && RE_engine_test_break(engine)) {
         break;
       }
@@ -587,11 +611,21 @@ static bool workbench_render_framebuffers_init(const DRWContext *draw_ctx)
     BLI_assert(dtxl->depth == nullptr);
     eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL;
     dtxl->color = GPU_texture_create_2d(
-        "txl.color", size.x, size.y, 1, GPU_RGBA16F, usage, nullptr);
-    dtxl->depth = GPU_texture_create_2d(
-        "txl.depth", size.x, size.y, 1, GPU_DEPTH32F_STENCIL8, usage, nullptr);
-    dtxl->depth_in_front = GPU_texture_create_2d(
-        "txl.depth_in_front", size.x, size.y, 1, GPU_DEPTH32F_STENCIL8, usage, nullptr);
+        "txl.color", size.x, size.y, 1, gpu::TextureFormat::SFLOAT_16_16_16_16, usage, nullptr);
+    dtxl->depth = GPU_texture_create_2d("txl.depth",
+                                        size.x,
+                                        size.y,
+                                        1,
+                                        gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8,
+                                        usage,
+                                        nullptr);
+    dtxl->depth_in_front = GPU_texture_create_2d("txl.depth_in_front",
+                                                 size.x,
+                                                 size.y,
+                                                 1,
+                                                 gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8,
+                                                 usage,
+                                                 nullptr);
   }
 
   if (!(dtxl->depth && dtxl->color && dtxl->depth_in_front)) {
@@ -617,7 +651,7 @@ static bool workbench_render_framebuffers_init(const DRWContext *draw_ctx)
 
 static void write_render_color_output(RenderLayer *layer,
                                       const char *viewname,
-                                      GPUFrameBuffer *fb,
+                                      gpu::FrameBuffer *fb,
                                       const rcti *rect)
 {
   RenderPass *rp = RE_pass_find_by_name(layer, RE_PASSNAME_COMBINED, viewname);
@@ -637,7 +671,7 @@ static void write_render_color_output(RenderLayer *layer,
 
 static void write_render_z_output(RenderLayer *layer,
                                   const char *viewname,
-                                  GPUFrameBuffer *fb,
+                                  gpu::FrameBuffer *fb,
                                   const rcti *rect,
                                   const float4x4 &winmat)
 {

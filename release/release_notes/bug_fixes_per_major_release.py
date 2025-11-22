@@ -50,7 +50,7 @@ issue: https://projects.blender.org/blender/blender/issues/137983
 
 ### How the script works
 - First the script gathers all commits that contain `Fix #NUMBER` that
-occured between the two versions of Blender you're interested in.
+occurred between the two versions of Blender you're interested in.
   - This is done using:
   `git --no-pager log PREVIOUS_VERSION..CURRENT_VERSION --oneline -i -P --grep "Fix.*#+\d+"`
 - The script then extracts all report numbers (`#NUMBER`)
@@ -224,7 +224,7 @@ LIST_OF_OFFICIAL_BLENDER_VERSIONS = (
     # 4.x.
     '4.0', '4.1', '4.2', '4.3', '4.4', '4.5',
     # 5.x.
-    '5.0',
+    '5.0', '5.1',
 )
 
 # Catch duplicates
@@ -860,8 +860,11 @@ def cached_commits_store(list_of_commits: list[CommitInfo], path_to_cached_commi
     # on commits that are already sorted (and they're not interested in).
     data_to_cache = {}
     for commit in list_of_commits:
-        if (commit.classification not in (NEEDS_MANUAL_SORTING, IGNORED)) and not (
-                commit.has_been_overwritten) and (commit.module != UNKNOWN):
+        if (
+            (commit.classification not in (NEEDS_MANUAL_SORTING, IGNORED)) and
+            (commit.has_been_overwritten is False) and
+            (commit.module != UNKNOWN)
+        ):
             commit_hash, data = commit.prepare_for_cache()
             data_to_cache[commit_hash] = data
 
@@ -1030,7 +1033,7 @@ def validate_arguments(args: argparse.Namespace) -> bool:
     if len(args.backport_tasks) == 0:
         print("WARNING: (Optional) -bpt/--backport-tasks is not defined.")
         if not (args.silence or should_quit):
-            yes_no = input("Do you want to proceeed without it? (y/n)")
+            yes_no = input("Do you want to proceed without it? (y/n)")
             if yes_no.lower() == "n":
                 should_quit = True
 
@@ -1040,14 +1043,16 @@ def validate_arguments(args: argparse.Namespace) -> bool:
 # -----------------------------------------------------------------------------
 # Main Function
 
-def gather_and_sort_commits(current_release_tag: str,
-                            current_version: str,
-                            previous_release_tag: str,
-                            previous_version: str,
-                            backport_tasks: list[str],
-                            cache: bool = False,
-                            silence: bool = False,
-                            single_thread: bool = False) -> list[CommitInfo]:
+def gather_and_sort_commits(
+        current_release_tag: str,
+        current_version: str,
+        previous_release_tag: str,
+        previous_version: str,
+        backport_tasks: list[str],
+        cache: bool = False,
+        silence: bool = False,
+        single_thread: bool = False,
+) -> list[CommitInfo]:
     set_crawl_delay()
 
     dir_of_sciprt = Path(__file__).parent.resolve()
@@ -1094,7 +1099,8 @@ def main() -> int:
         args.backport_tasks,
         args.cache,
         args.silence,
-        args.single_thread)
+        args.single_thread,
+    )
 
     print_release_notes(list_of_commits)
     return 0

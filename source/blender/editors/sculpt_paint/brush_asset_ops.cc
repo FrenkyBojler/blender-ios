@@ -5,7 +5,7 @@
 #include "BLI_fileops.h"
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "DNA_brush_types.h"
 #include "DNA_scene_types.h"
@@ -165,7 +165,7 @@ static wmOperatorStatus brush_asset_save_as_exec(bContext *C, wmOperator *op)
     RNA_property_string_get(op->ptr, name_prop, name);
   }
   if (name[0] == '\0') {
-    STRNCPY(name, brush->id.name + 2);
+    STRNCPY_UTF8(name, brush->id.name + 2);
   }
 
   const eAssetLibraryType enum_value = (eAssetLibraryType)RNA_enum_get(op->ptr,
@@ -643,7 +643,7 @@ static wmOperatorStatus brush_asset_delete_invoke(bContext *C,
           IFACE_("Permanently delete brush asset blend file. This cannot be undone.") :
           IFACE_("Permanently delete brush. This cannot be undone."),
       IFACE_("Delete"),
-      ALERT_ICON_WARNING,
+      ui::AlertIcon::Warning,
       false);
 }
 
@@ -695,7 +695,7 @@ static bool brush_asset_save_poll(bContext *C)
     return false;
   }
 
-  if ((library_ref->type == ASSET_LIBRARY_LOCAL)) {
+  if (library_ref->type == ASSET_LIBRARY_LOCAL) {
     CTX_wm_operator_poll_msg_set(C, "Assets in the current file cannot be individually saved");
     return false;
   }
@@ -757,7 +757,7 @@ static bool brush_asset_revert_poll(bContext *C)
     BLI_assert_unreachable();
     return false;
   }
-  if ((library_ref->type == ASSET_LIBRARY_LOCAL)) {
+  if (library_ref->type == ASSET_LIBRARY_LOCAL) {
     CTX_wm_operator_poll_msg_set(C, "Assets in the current file cannot be reverted");
     return false;
   }

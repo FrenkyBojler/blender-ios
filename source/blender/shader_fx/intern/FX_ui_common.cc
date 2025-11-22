@@ -7,14 +7,14 @@
  */
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "MEM_guardedalloc.h"
 
 #include "BKE_context.hh"
 #include "BKE_library.hh"
 #include "BKE_screen.hh"
-#include "BKE_shader_fx.h"
+#include "BKE_shader_fx.hh"
 
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
@@ -34,7 +34,7 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "FX_ui_common.h" /* Self include */
+#include "FX_ui_common.hh" /* Self include */
 
 /* -------------------------------------------------------------------- */
 /** \name Panel Drag and Drop, Expansion Saving
@@ -217,9 +217,9 @@ PanelType *shaderfx_panel_register(ARegionType *region_type, ShaderFxType type, 
   PanelType *panel_type = MEM_callocN<PanelType>(__func__);
 
   BKE_shaderfxType_panel_id(type, panel_type->idname);
-  STRNCPY(panel_type->label, "");
-  STRNCPY(panel_type->context, "shaderfx");
-  STRNCPY(panel_type->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+  STRNCPY_UTF8(panel_type->label, "");
+  STRNCPY_UTF8(panel_type->context, "shaderfx");
+  STRNCPY_UTF8(panel_type->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
 
   panel_type->draw_header = shaderfx_panel_header;
   panel_type->draw = draw;
@@ -247,17 +247,17 @@ PanelType *shaderfx_subpanel_register(ARegionType *region_type,
   PanelType *panel_type = MEM_callocN<PanelType>(__func__);
 
   BLI_assert(parent != nullptr);
-  SNPRINTF(panel_type->idname, "%s_%s", parent->idname, name);
-  STRNCPY(panel_type->label, label);
-  STRNCPY(panel_type->context, "shaderfx");
-  STRNCPY(panel_type->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+  SNPRINTF_UTF8(panel_type->idname, "%s_%s", parent->idname, name);
+  STRNCPY_UTF8(panel_type->label, label);
+  STRNCPY_UTF8(panel_type->context, "shaderfx");
+  STRNCPY_UTF8(panel_type->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
 
   panel_type->draw_header = draw_header;
   panel_type->draw = draw;
   panel_type->poll = shaderfx_ui_poll;
   panel_type->flag = PANEL_TYPE_DEFAULT_CLOSED;
 
-  STRNCPY(panel_type->parent_id, parent->idname);
+  STRNCPY_UTF8(panel_type->parent_id, parent->idname);
   panel_type->parent = parent;
   BLI_addtail(&parent->children, BLI_genericNodeN(panel_type));
   BLI_addtail(&region_type->paneltypes, panel_type);

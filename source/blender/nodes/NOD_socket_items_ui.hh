@@ -15,6 +15,7 @@
 #include "RNA_prototypes.hh"
 
 #include "BLI_function_ref.hh"
+#include "BLI_string_utf8.h"
 
 #include "BKE_screen.hh"
 
@@ -25,7 +26,7 @@ namespace blender::nodes::socket_items::ui {
 template<typename Accessor>
 static void draw_item_in_list(uiList * /*ui_list*/,
                               const bContext *C,
-                              uiLayout *layout,
+                              blender::ui::Layout *layout,
                               PointerRNA * /*idataptr*/,
                               PointerRNA *itemptr,
                               int /*icon*/,
@@ -34,7 +35,7 @@ static void draw_item_in_list(uiList * /*ui_list*/,
                               int /*index*/,
                               int /*flt_flag*/)
 {
-  uiLayout *row = &layout->row(true);
+  blender::ui::Layout *row = &layout->row(true);
   if constexpr (Accessor::has_type) {
     float4 color;
     RNA_float_get_array(itemptr, "color", color);
@@ -50,7 +51,7 @@ static void draw_item_in_list(uiList * /*ui_list*/,
  */
 template<typename Accessor>
 static void draw_items_list_with_operators(const bContext *C,
-                                           uiLayout *layout,
+                                           blender::ui::Layout *layout,
                                            const bNodeTree &tree,
                                            const bNode &node)
 {
@@ -60,13 +61,13 @@ static void draw_items_list_with_operators(const bContext *C,
 
   static const uiListType *items_list = []() {
     uiListType *list = MEM_callocN<uiListType>(Accessor::ui_idnames::list.c_str());
-    STRNCPY(list->idname, Accessor::ui_idnames::list.c_str());
+    STRNCPY_UTF8(list->idname, Accessor::ui_idnames::list.c_str());
     list->draw_item = draw_item_in_list<Accessor>;
     WM_uilisttype_add(list);
     return list;
   }();
 
-  uiLayout *row = &layout->row(false);
+  blender::ui::Layout *row = &layout->row(false);
   uiTemplateList(row,
                  C,
                  items_list->idname,
@@ -82,14 +83,14 @@ static void draw_items_list_with_operators(const bContext *C,
                  0,
                  UI_TEMPLATE_LIST_FLAG_NONE);
 
-  uiLayout *ops_col = &row->column(false);
+  blender::ui::Layout *ops_col = &row->column(false);
   {
-    uiLayout *add_remove_col = &ops_col->column(true);
+    blender::ui::Layout *add_remove_col = &ops_col->column(true);
     add_remove_col->op(Accessor::operator_idnames::add_item, "", ICON_ADD);
     add_remove_col->op(Accessor::operator_idnames::remove_item, "", ICON_REMOVE);
   }
   {
-    uiLayout *up_down_col = &ops_col->column(true);
+    blender::ui::Layout *up_down_col = &ops_col->column(true);
     PointerRNA op_ptr = up_down_col->op(Accessor::operator_idnames::move_item, "", ICON_TRIA_UP);
     RNA_enum_set(&op_ptr, "direction", 0);
     op_ptr = up_down_col->op(Accessor::operator_idnames::move_item, "", ICON_TRIA_DOWN);

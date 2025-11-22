@@ -15,7 +15,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_rect.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
@@ -126,8 +126,8 @@ static void draw_overshoot_triangle(const uint8_t color[4],
   GPU_blend(GPU_BLEND_ALPHA);
   GPU_polygon_smooth(true);
   immUniformColor3ubvAlpha(color, 225);
-  const float triangle_side_length = facing_right ? 6 * U.pixelsize : -6 * U.pixelsize;
-  const float triangle_offset = facing_right ? 2 * U.pixelsize : -2 * U.pixelsize;
+  const float triangle_side_length = facing_right ? 6 * UI_SCALE_FAC : -6 * UI_SCALE_FAC;
+  const float triangle_offset = facing_right ? 2 * UI_SCALE_FAC : -2 * UI_SCALE_FAC;
 
   immBegin(GPU_PRIM_TRIS, 3);
   immVertex2f(shdr_pos_2d, x + triangle_offset + triangle_side_length, y);
@@ -251,13 +251,14 @@ static void draw_backdrop(const int fontid,
                        property_label.size(),
                        &property_name_pixel_size[0],
                        &property_name_pixel_size[1]);
-  const float pad[2] = {(region_y_size - base_tick_height) / 2 + 12.0f * U.pixelsize,
-                        2.0f * U.pixelsize};
+  const float pad[2] = {(region_y_size - base_tick_height) / 2 + 12.0f * UI_SCALE_FAC,
+                        3.0f * UI_SCALE_FAC};
   rctf backdrop_rect{};
   backdrop_rect.xmin = main_line_rect->xmin - property_name_pixel_size[0] - pad[0];
   backdrop_rect.xmax = main_line_rect->xmax + percent_string_pixel_size[0] + pad[0];
   backdrop_rect.ymin = pad[1];
   backdrop_rect.ymax = region_y_size - pad[1];
+  UI_draw_roundbox_corner_set(UI_CNR_ALL);
   UI_draw_roundbox_3ub_alpha(&backdrop_rect, true, 4.0f, color_bg, color_bg[3]);
 }
 
@@ -298,8 +299,8 @@ static void slider_draw(const bContext * /*C*/, ARegion *region, void *arg)
   BLF_color3ubv(fontid, color_text);
   BLF_rotation(fontid, 0.0f);
 
-  const float line_width = 1.5 * U.pixelsize;
-  const float base_tick_height = 12.0 * U.pixelsize;
+  const float line_width = 1.5 * UI_SCALE_FAC;
+  const float base_tick_height = 12.0 * UI_SCALE_FAC;
   const float line_y = region->winy / 2;
 
   rctf main_line_rect{};
@@ -365,10 +366,10 @@ static void slider_draw(const bContext * /*C*/, ARegion *region, void *arg)
   char factor_string[256];
   switch (slider->slider_mode) {
     case SLIDER_MODE_PERCENT:
-      SNPRINTF(factor_string, "%.0f %s", slider->factor * 100, slider->unit_string);
+      SNPRINTF_UTF8(factor_string, "%.0f %s", slider->factor * 100, slider->unit_string);
       break;
     case SLIDER_MODE_FLOAT:
-      SNPRINTF(factor_string, "%.1f %s", slider->factor, slider->unit_string);
+      SNPRINTF_UTF8(factor_string, "%.1f %s", slider->factor, slider->unit_string);
       break;
   }
 
@@ -380,7 +381,7 @@ static void slider_draw(const bContext * /*C*/, ARegion *region, void *arg)
                        &factor_string_pixel_size[0],
                        &factor_string_pixel_size[1]);
 
-  const float text_padding = 12.0 * U.pixelsize;
+  const float text_padding = 12.0 * UI_SCALE_FAC;
   const float factor_string_pos_x = main_line_rect.xmax + text_padding;
   BLF_position(
       fontid, factor_string_pos_x, (region->winy / 2) - factor_string_pixel_size[1] / 2, 0.0f);
@@ -458,18 +459,23 @@ tSlider *ED_slider_create(bContext *C)
   /* Add draw callback. Always in header. */
   if (slider->area) {
     LISTBASE_FOREACH (ARegion *, region, &slider->area->regionbase) {
-      if (region->regiontype == RGN_TYPE_HEADER) {
+      /* Keep logic in sync with ED_area_status_text. */
+      if (region->regiontype == RGN_TYPE_HEADER && region->runtime->visible) {
         slider->region_header = region;
-        if (!G.background) {
-          slider->draw_handle = ED_region_draw_cb_activate(
-              region->runtime->type, slider_draw, slider, REGION_DRAW_POST_PIXEL);
-        }
+        /* Hide the area menu bar contents, as the slider will be drawn on top. Only for the header
+         * since the tool header is already empty in the center.*/
+        ED_area_status_text(slider->area, "");
+      }
+      else if (region->regiontype == RGN_TYPE_TOOL_HEADER && region->runtime->visible) {
+        slider->region_header = region;
+        break;
       }
     }
+    if (slider->region_header && !G.background) {
+      slider->draw_handle = ED_region_draw_cb_activate(
+          slider->region_header->runtime->type, slider_draw, slider, REGION_DRAW_POST_PIXEL);
+    }
   }
-
-  /* Hide the area menu bar contents, as the slider will be drawn on top. */
-  ED_area_status_text(slider->area, "");
 
   return slider;
 }
@@ -523,41 +529,41 @@ void ED_slider_status_string_get(const tSlider *slider,
 
   if (slider->allow_overshoot_lower || slider->allow_overshoot_upper) {
     if (slider->overshoot) {
-      STRNCPY(overshoot_str, IFACE_("[E] - Disable overshoot"));
+      STRNCPY_UTF8(overshoot_str, IFACE_("[E] - Disable overshoot"));
     }
     else {
-      STRNCPY(overshoot_str, IFACE_("[E] - Enable overshoot"));
+      STRNCPY_UTF8(overshoot_str, IFACE_("[E] - Enable overshoot"));
     }
   }
   else {
-    STRNCPY(overshoot_str, IFACE_("Overshoot disabled"));
+    STRNCPY_UTF8(overshoot_str, IFACE_("Overshoot disabled"));
   }
 
   if (slider->precision) {
-    STRNCPY(precision_str, IFACE_("[Shift] - Precision active"));
+    STRNCPY_UTF8(precision_str, IFACE_("[Shift] - Precision active"));
   }
   else {
-    STRNCPY(precision_str, IFACE_("Shift - Hold for precision"));
+    STRNCPY_UTF8(precision_str, IFACE_("Shift - Hold for precision"));
   }
 
   if (slider->allow_increments) {
     if (slider->increments) {
-      STRNCPY(increments_str, IFACE_(" | [Ctrl] - Increments active"));
+      STRNCPY_UTF8(increments_str, IFACE_(" | [Ctrl] - Increments active"));
     }
     else {
-      STRNCPY(increments_str, IFACE_(" | Ctrl - Hold for increments"));
+      STRNCPY_UTF8(increments_str, IFACE_(" | Ctrl - Hold for increments"));
     }
   }
   else {
     increments_str[0] = '\0';
   }
 
-  BLI_snprintf(status_string,
-               size_of_status_string,
-               "%s | %s%s",
-               overshoot_str,
-               precision_str,
-               increments_str);
+  BLI_snprintf_utf8(status_string,
+                    size_of_status_string,
+                    "%s | %s%s",
+                    overshoot_str,
+                    precision_str,
+                    increments_str);
 }
 
 void ED_slider_status_get(const tSlider *slider, WorkspaceStatus &status)
@@ -649,7 +655,7 @@ SliderMode ED_slider_mode_get(const tSlider *slider)
 
 void ED_slider_unit_set(tSlider *slider, const char *unit)
 {
-  STRNCPY(slider->unit_string, unit);
+  STRNCPY_UTF8(slider->unit_string, unit);
 }
 
 void ED_slider_property_label_set(tSlider *slider, const char *property_label)
@@ -744,7 +750,7 @@ static void metadata_custom_draw_fields(const char *field, const char *value, vo
   }
   MetadataCustomDrawContext *ctx = (MetadataCustomDrawContext *)ctx_v;
   char temp_str[MAX_METADATA_STR];
-  SNPRINTF(temp_str, "%s: %s", field, value);
+  SNPRINTF_UTF8(temp_str, "%s: %s", field, value);
   BLF_position(ctx->fontid, ctx->xmin, ctx->ymin + ctx->current_y, 0.0f);
   BLF_draw(ctx->fontid, temp_str, sizeof(temp_str));
   ctx->current_y += ctx->vertical_offset;
@@ -770,14 +776,14 @@ static void metadata_draw_imbuf(const ImBuf *ibuf, const rctf *rect, int fontid,
       /* first line */
       if (i == 0) {
         bool do_newline = false;
-        int len = SNPRINTF_RLEN(temp_str, "%s: ", meta_data_list[0]);
+        int len = SNPRINTF_UTF8_RLEN(temp_str, "%s: ", meta_data_list[0]);
         if (metadata_is_valid(ibuf, temp_str, 0, len)) {
           BLF_position(fontid, xmin, ymax - vertical_offset, 0.0f);
           BLF_draw(fontid, temp_str, sizeof(temp_str));
           do_newline = true;
         }
 
-        len = SNPRINTF_RLEN(temp_str, "%s: ", meta_data_list[1]);
+        len = SNPRINTF_UTF8_RLEN(temp_str, "%s: ", meta_data_list[1]);
         if (metadata_is_valid(ibuf, temp_str, 1, len)) {
           int line_width = BLF_width(fontid, temp_str, sizeof(temp_str));
           BLF_position(fontid, xmax - line_width, ymax - vertical_offset, 0.0f);
@@ -790,7 +796,7 @@ static void metadata_draw_imbuf(const ImBuf *ibuf, const rctf *rect, int fontid,
         }
       } /* Strip */
       else if (ELEM(i, 1, 2)) {
-        int len = SNPRINTF_RLEN(temp_str, "%s: ", meta_data_list[i + 1]);
+        int len = SNPRINTF_UTF8_RLEN(temp_str, "%s: ", meta_data_list[i + 1]);
         if (metadata_is_valid(ibuf, temp_str, i + 1, len)) {
           BLF_position(fontid, xmin, ymax - vertical_offset - ofs_y, 0.0f);
           BLF_draw(fontid, temp_str, sizeof(temp_str));
@@ -798,7 +804,7 @@ static void metadata_draw_imbuf(const ImBuf *ibuf, const rctf *rect, int fontid,
         }
       } /* Note (wrapped) */
       else if (i == 3) {
-        int len = SNPRINTF_RLEN(temp_str, "%s: ", meta_data_list[i + 1]);
+        int len = SNPRINTF_UTF8_RLEN(temp_str, "%s: ", meta_data_list[i + 1]);
         if (metadata_is_valid(ibuf, temp_str, i + 1, len)) {
           ResultBLF info;
           BLF_enable(fontid, BLF_WORD_WRAP);
@@ -811,7 +817,7 @@ static void metadata_draw_imbuf(const ImBuf *ibuf, const rctf *rect, int fontid,
         }
       }
       else {
-        int len = SNPRINTF_RLEN(temp_str, "%s: ", meta_data_list[i + 1]);
+        int len = SNPRINTF_UTF8_RLEN(temp_str, "%s: ", meta_data_list[i + 1]);
         if (metadata_is_valid(ibuf, temp_str, i + 1, len)) {
           int line_width = BLF_width(fontid, temp_str, sizeof(temp_str));
           BLF_position(fontid, xmax - line_width, ymax - vertical_offset - ofs_y, 0.0f);
@@ -832,7 +838,7 @@ static void metadata_draw_imbuf(const ImBuf *ibuf, const rctf *rect, int fontid,
     int ofs_x = 0;
     ofs_y = ctx.current_y;
     for (int i = 5; i < 10; i++) {
-      int len = SNPRINTF_RLEN(temp_str, "%s: ", meta_data_list[i]);
+      int len = SNPRINTF_UTF8_RLEN(temp_str, "%s: ", meta_data_list[i]);
       if (metadata_is_valid(ibuf, temp_str, i, len)) {
         BLF_position(fontid, xmin + ofs_x, ymin + ofs_y, 0.0f);
         BLF_draw(fontid, temp_str, sizeof(temp_str));
@@ -933,7 +939,7 @@ static void text_info_row(const char *text,
   BLF_draw(font_id, IFACE_(text), text_len);
   BLF_position(font_id, col2, row, 0.0f);
   char draw_text[MAX_NAME];
-  SNPRINTF(draw_text, "%d x %d", size_x, size_y);
+  SNPRINTF_UTF8(draw_text, "%d x %d", size_x, size_y);
   BLF_draw(font_id, draw_text, sizeof(draw_text));
 
   BLF_disable(font_id, BLF_SHADOW);

@@ -42,6 +42,7 @@ void Instance::init()
   state.is_viewport_image_render = ctx->is_viewport_image_render();
   state.is_image_render = ctx->is_image_render();
   state.is_depth_only_drawing = ctx->is_depth();
+  state.skip_particles = ctx->mode == DRWContext::DEPTH_ACTIVE_OBJECT;
   state.is_material_select = ctx->is_material_select();
   state.draw_background = ctx->options.draw_background;
   state.show_text = false;
@@ -65,6 +66,8 @@ void Instance::init()
     state.xray_opacity = state.xray_enabled ? XRAY_ALPHA(state.v3d) : 1.0f;
     state.xray_flag_enabled = SHADING_XRAY_FLAG_ENABLED(state.v3d->shading) &&
                               !state.is_depth_only_drawing;
+    state.vignette_enabled = ctx->mode == DRWContext::VIEWPORT_XR &&
+                             state.v3d->vignette_aperture < M_SQRT1_2;
 
     const bool viewport_uses_workbench = state.v3d->shading.type <= OB_SOLID ||
                                          BKE_scene_uses_blender_workbench(state.scene);
@@ -131,7 +134,8 @@ void Instance::init()
 
   {
     eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ;
-    if (resources.dummy_depth_tx.ensure_2d(GPU_DEPTH_COMPONENT32F, int2(1, 1), usage)) {
+    if (resources.dummy_depth_tx.ensure_2d(gpu::TextureFormat::SFLOAT_32_DEPTH, int2(1, 1), usage))
+    {
       float data = 1.0f;
       GPU_texture_update_sub(resources.dummy_depth_tx, GPU_DATA_FLOAT, &data, 0, 0, 0, 1, 1, 1);
     }
@@ -210,7 +214,8 @@ void Instance::ensure_weight_ramp_texture()
     unit_float_to_uchar_clamp_v4(pixels_ubyte[i], pixels[i]);
   }
 
-  resources.weight_ramp_tx.ensure_1d(GPU_SRGB8_A8, res, GPU_TEXTURE_USAGE_SHADER_READ);
+  resources.weight_ramp_tx.ensure_1d(
+      gpu::TextureFormat::SRGBA_8_8_8_8, res, GPU_TEXTURE_USAGE_SHADER_READ);
   GPU_texture_update(resources.weight_ramp_tx, GPU_DATA_UBYTE, pixels_ubyte);
 }
 
@@ -262,14 +267,14 @@ void Resources::update_theme_settings(const DRWContext *ctx, const State &state)
   UI_GetThemeColor4fv(TH_EDITMESH_ACTIVE, gb.colors.edit_mesh_active);
   UI_GetThemeColor4fv(TH_EDGE_SELECT, gb.colors.edge_select);
   UI_GetThemeColor4fv(TH_EDGE_MODE_SELECT, gb.colors.edge_mode_select);
+  UI_GetThemeColor4fv(TH_GP_WIRE_EDIT, gb.colors.gpencil_wire_edit);
   UI_GetThemeColor4fv(TH_GP_VERTEX, gb.colors.gpencil_vertex);
   UI_GetThemeColor4fv(TH_GP_VERTEX_SELECT, gb.colors.gpencil_vertex_select);
 
-  UI_GetThemeColor4fv(TH_EDGE_SEAM, gb.colors.edge_seam);
-  UI_GetThemeColor4fv(TH_EDGE_SHARP, gb.colors.edge_sharp);
-  UI_GetThemeColor4fv(TH_EDGE_CREASE, gb.colors.edge_crease);
-  UI_GetThemeColor4fv(TH_EDGE_BEVEL, gb.colors.edge_bweight);
-  UI_GetThemeColor4fv(TH_EDGE_FACESEL, gb.colors.edge_face_select);
+  UI_GetThemeColor4fv(TH_SEAM, gb.colors.edge_seam);
+  UI_GetThemeColor4fv(TH_SHARP, gb.colors.edge_sharp);
+  UI_GetThemeColor4fv(TH_CREASE, gb.colors.edge_crease);
+  UI_GetThemeColor4fv(TH_BEVEL, gb.colors.edge_bweight);
   UI_GetThemeColor4fv(TH_FACE, gb.colors.face);
   UI_GetThemeColor4fv(TH_FACE_SELECT, gb.colors.face_select);
   UI_GetThemeColor4fv(TH_FACE_MODE_SELECT, gb.colors.face_mode_select);
@@ -279,7 +284,7 @@ void Resources::update_theme_settings(const DRWContext *ctx, const State &state)
   UI_GetThemeColor4fv(TH_NORMAL, gb.colors.normal);
   UI_GetThemeColor4fv(TH_VNORMAL, gb.colors.vnormal);
   UI_GetThemeColor4fv(TH_LNORMAL, gb.colors.lnormal);
-  UI_GetThemeColor4fv(TH_FACE_DOT, gb.colors.facedot);
+  UI_GetThemeColor4fv(TH_FACE_SELECT, gb.colors.facedot), gb.colors.facedot[3] = 1.0f;
   UI_GetThemeColor4fv(TH_SKIN_ROOT, gb.colors.skinroot);
   UI_GetThemeColor4fv(TH_BACK, gb.colors.background);
   UI_GetThemeColor4fv(TH_BACK_GRAD, gb.colors.background_gradient);
@@ -297,8 +302,8 @@ void Resources::update_theme_settings(const DRWContext *ctx, const State &state)
       gb.colors.edit_mesh_middle.w);
 
 #ifdef WITH_FREESTYLE
-  UI_GetThemeColor4fv(TH_FREESTYLE_EDGE_MARK, gb.colors.edge_freestyle);
-  UI_GetThemeColor4fv(TH_FREESTYLE_FACE_MARK, gb.colors.face_freestyle);
+  UI_GetThemeColor4fv(TH_FREESTYLE, gb.colors.edge_freestyle), gb.colors.edge_freestyle[3] = 1.0f;
+  UI_GetThemeColor4fv(TH_FREESTYLE, gb.colors.face_freestyle);
 #else
   gb.colors.edge_freestyle = float4(0.0f);
   gb.colors.face_freestyle = float4(0.0f);
@@ -340,7 +345,6 @@ void Resources::update_theme_settings(const DRWContext *ctx, const State &state)
   UI_GetThemeColor4fv(TH_NURB_VLINE, gb.colors.nurb_vline);
   UI_GetThemeColor4fv(TH_NURB_SEL_ULINE, gb.colors.nurb_sel_uline);
   UI_GetThemeColor4fv(TH_NURB_SEL_VLINE, gb.colors.nurb_sel_vline);
-  UI_GetThemeColor4fv(TH_ACTIVE_SPLINE, gb.colors.active_spline);
 
   UI_GetThemeColor4fv(TH_CFRAME, gb.colors.current_frame);
   UI_GetThemeColor4fv(TH_FRAME_BEFORE, gb.colors.before_frame);
@@ -686,7 +690,7 @@ void Instance::end_sync()
                                                    size.x,
                                                    size.y,
                                                    1,
-                                                   GPU_DEPTH32F_STENCIL8,
+                                                   gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8,
                                                    GPU_TEXTURE_USAGE_GENERAL,
                                                    nullptr);
     }
@@ -961,6 +965,10 @@ void Instance::draw_v3d(Manager &manager, View &view)
     cursor.draw_output(resources.overlay_output_color_only_fb, manager, view);
 
     draw_text(resources.overlay_output_color_only_fb);
+
+    if (state.vignette_enabled) {
+      background.draw_vignette(resources.overlay_output_color_only_fb, manager, view);
+    }
   }
 }
 
@@ -1082,6 +1090,10 @@ bool Instance::object_needs_prepass(const ObjectRef &ob_ref, bool in_paint_mode)
   }
 
   if (resources.is_selection() || state.is_depth_only_drawing) {
+    if (ob_ref.object->visibility_flag & OB_HIDE_SURFACE_PICK) {
+      /* Special flag to avoid surfaces to contribute to depth picking and selection. */
+      return false;
+    }
     /* Selection and depth picking always need a prepass.
      * Note that depth writing and depth test might be disable for certain selection mode. */
     return true;
@@ -1089,7 +1101,9 @@ bool Instance::object_needs_prepass(const ObjectRef &ob_ref, bool in_paint_mode)
 
   if (in_paint_mode) {
     /* Allow paint overlays to draw with depth equal test. */
-    if (object_is_rendered_transparent(ob_ref.object, state)) {
+    if (object_is_rendered_transparent(ob_ref.object, state) ||
+        object_is_in_front(ob_ref.object, state))
+    {
       return true;
     }
   }

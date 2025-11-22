@@ -7,7 +7,7 @@
  */
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
@@ -98,9 +98,9 @@ void file_tool_props_region_panels_register(ARegionType *art)
   PanelType *pt;
 
   pt = MEM_callocN<PanelType>("spacetype file operator properties");
-  STRNCPY(pt->idname, "FILE_PT_operator");
-  STRNCPY(pt->label, N_("Operator"));
-  STRNCPY(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+  STRNCPY_UTF8(pt->idname, "FILE_PT_operator");
+  STRNCPY_UTF8(pt->label, N_("Operator"));
+  STRNCPY_UTF8(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
   pt->flag = PANEL_TYPE_NO_HEADER;
   pt->poll = file_panel_operator_poll;
   pt->draw_header = file_panel_operator_header;
@@ -108,22 +108,22 @@ void file_tool_props_region_panels_register(ARegionType *art)
   BLI_addtail(&art->paneltypes, pt);
 }
 
-static void file_panel_execution_cancel_button(uiLayout *layout)
+static void file_panel_execution_cancel_button(blender::ui::Layout &layout)
 {
-  uiLayout *row = &layout->row(false);
-  row->scale_x_set(0.8f);
-  row->fixed_size_set(true);
-  row->op("FILE_OT_cancel", IFACE_("Cancel"), ICON_NONE);
+  blender::ui::Layout &row = layout.row(false);
+  row.scale_x_set(0.8f);
+  row.fixed_size_set(true);
+  row.op("FILE_OT_cancel", IFACE_("Cancel"), ICON_NONE);
 }
 
-static void file_panel_execution_execute_button(uiLayout *layout, const char *title)
+static void file_panel_execution_execute_button(blender::ui::Layout &layout, const char *title)
 {
-  uiLayout *row = &layout->row(false);
-  row->scale_x_set(0.8f);
-  row->fixed_size_set(true);
+  blender::ui::Layout &row = layout.row(false);
+  row.scale_x_set(0.8f);
+  row.fixed_size_set(true);
   /* Just a display hint. */
-  row->active_default_set(true);
-  row->op("FILE_OT_execute", title, ICON_NONE);
+  row.active_default_set(true);
+  row.op("FILE_OT_execute", title, ICON_NONE);
 }
 
 static void file_panel_execution_buttons_draw(const bContext *C, Panel *panel)
@@ -132,8 +132,7 @@ static void file_panel_execution_buttons_draw(const bContext *C, Panel *panel)
   SpaceFile *sfile = CTX_wm_space_file(C);
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
   uiBlock *block = panel->layout->block();
-  uiBut *but;
-  uiLayout *row;
+
   PointerRNA *but_extra_rna_ptr;
 
   const bool overwrite_alert = file_draw_check_exists(sfile);
@@ -147,26 +146,27 @@ static void file_panel_execution_buttons_draw(const bContext *C, Panel *panel)
   PointerRNA params_rna_ptr = RNA_pointer_create_discrete(
       &screen->id, &RNA_FileSelectParams, params);
 
-  row = &panel->layout->row(false);
-  row->scale_y_set(1.3f);
+  blender::ui::Layout &row = panel->layout->row(false);
+  row.scale_y_set(1.3f);
 
   /* callbacks for operator check functions */
   UI_block_func_set(block, file_draw_check_cb, nullptr, nullptr);
 
-  but = uiDefButR(block,
-                  ButType::Text,
-                  -1,
-                  "",
-                  0,
-                  0,
-                  UI_UNIT_X * 5,
-                  UI_UNIT_Y,
-                  &params_rna_ptr,
-                  "filename",
-                  0,
-                  0.0f,
-                  float(FILE_MAXFILE),
-                  overwrite_alert ? TIP_("File name, overwrite existing") : TIP_("File name"));
+  uiBut *but = uiDefButR(block,
+                         ButType::Text,
+                         "",
+                         0,
+                         0,
+                         UI_UNIT_X * 5,
+                         UI_UNIT_Y,
+                         &params_rna_ptr,
+                         "filename",
+                         0,
+                         0.0f,
+                         float(FILE_MAXFILE),
+                         overwrite_alert ? TIP_("File name, overwrite existing") :
+                                           TIP_("File name"));
+  UI_but_retval_set(but, -1);
 
   BLI_assert(!UI_but_flag_is_set(but, UI_BUT_UNDO));
   BLI_assert(!UI_but_is_utf8(but));
@@ -192,8 +192,8 @@ static void file_panel_execution_buttons_draw(const bContext *C, Panel *panel)
   UI_block_func_set(block, nullptr, nullptr, nullptr);
 
   {
-    uiLayout *sub = &row->row(false);
-    sub->operator_context_set(blender::wm::OpCallContext::ExecRegionWin);
+    blender::ui::Layout &sub = row.row(false);
+    sub.operator_context_set(blender::wm::OpCallContext::ExecRegionWin);
 
     if (windows_layout) {
       file_panel_execution_execute_button(sub, params->title);
@@ -211,9 +211,9 @@ void file_execute_region_panels_register(ARegionType *art)
   PanelType *pt;
 
   pt = MEM_callocN<PanelType>("spacetype file execution buttons");
-  STRNCPY(pt->idname, "FILE_PT_execution_buttons");
-  STRNCPY(pt->label, N_("Execute Buttons"));
-  STRNCPY(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+  STRNCPY_UTF8(pt->idname, "FILE_PT_execution_buttons");
+  STRNCPY_UTF8(pt->label, N_("Execute Buttons"));
+  STRNCPY_UTF8(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
   pt->flag = PANEL_TYPE_NO_HEADER;
   pt->poll = file_panel_operator_poll;
   pt->draw = file_panel_execution_buttons_draw;
@@ -229,30 +229,30 @@ static void file_panel_asset_catalog_buttons_draw(const bContext *C, Panel *pane
   FileAssetSelectParams *params = ED_fileselect_get_asset_params(sfile);
   BLI_assert(params != nullptr);
 
-  uiLayout *col = &panel->layout->column(false);
-  uiLayout *row = &col->row(true);
+  blender::ui::Layout &col = panel->layout->column(false);
+  blender::ui::Layout &row = col.row(true);
 
   PointerRNA params_ptr = RNA_pointer_create_discrete(
       &screen->id, &RNA_FileAssetSelectParams, params);
 
-  row->prop(&params_ptr, "asset_library_reference", UI_ITEM_NONE, "", ICON_NONE);
+  row.prop(&params_ptr, "asset_library_reference", UI_ITEM_NONE, "", ICON_NONE);
   if (params->asset_library_ref.type == ASSET_LIBRARY_LOCAL) {
     bContext *mutable_ctx = CTX_copy(C);
     if (WM_operator_name_poll(mutable_ctx, "asset.bundle_install")) {
-      col->separator();
-      col->op_menu_enum(C,
-                        "asset.bundle_install",
-                        "asset_library_reference",
-                        IFACE_("Copy Bundle to Asset Library..."),
-                        ICON_IMPORT);
+      col.separator();
+      col.op_menu_enum(C,
+                       "asset.bundle_install",
+                       "asset_library_reference",
+                       IFACE_("Copy Bundle to Asset Library..."),
+                       ICON_IMPORT);
     }
     CTX_free(mutable_ctx);
   }
   else {
-    row->op("ASSET_OT_library_refresh", "", ICON_FILE_REFRESH);
+    row.op("ASSET_OT_library_refresh", "", ICON_FILE_REFRESH);
   }
 
-  col->separator();
+  col.separator();
 
   blender::ed::asset_browser::file_create_asset_catalog_tree_view_in_layout(
       C, asset_library, col, sfile, params);
@@ -263,9 +263,9 @@ void file_tools_region_panels_register(ARegionType *art)
   PanelType *pt;
 
   pt = MEM_callocN<PanelType>("spacetype file asset catalog buttons");
-  STRNCPY(pt->idname, "FILE_PT_asset_catalog_buttons");
-  STRNCPY(pt->label, N_("Asset Catalogs"));
-  STRNCPY(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+  STRNCPY_UTF8(pt->idname, "FILE_PT_asset_catalog_buttons");
+  STRNCPY_UTF8(pt->label, N_("Asset Catalogs"));
+  STRNCPY_UTF8(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
   pt->flag = PANEL_TYPE_NO_HEADER;
   pt->poll = file_panel_asset_browsing_poll;
   pt->draw = file_panel_asset_catalog_buttons_draw;

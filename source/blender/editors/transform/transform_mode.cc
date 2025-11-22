@@ -18,7 +18,7 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BKE_constraint.h"
 #include "BKE_context.hh"
@@ -570,20 +570,20 @@ void headerRotation(TransInfo *t, char *str, const int str_size, float final)
 
     outputNumInput(&(t->num), c, t->scene->unit);
 
-    ofs += BLI_snprintf_rlen(
+    ofs += BLI_snprintf_utf8_rlen(
         str + ofs, str_size - ofs, IFACE_("Rotation: %s %s %s"), &c[0], t->con.text, t->proptext);
   }
   else {
-    ofs += BLI_snprintf_rlen(str + ofs,
-                             str_size - ofs,
-                             IFACE_("Rotation: %.2f%s %s"),
-                             RAD2DEGF(final),
-                             t->con.text,
-                             t->proptext);
+    ofs += BLI_snprintf_utf8_rlen(str + ofs,
+                                  str_size - ofs,
+                                  IFACE_("Rotation: %.2f%s %s"),
+                                  RAD2DEGF(final),
+                                  t->con.text,
+                                  t->proptext);
   }
 
   if (t->flag & T_PROP_EDIT_ALL) {
-    ofs += BLI_snprintf_rlen(
+    ofs += BLI_snprintf_utf8_rlen(
         str + ofs, str_size - ofs, IFACE_(" Proportional size: %.2f"), t->prop_size);
   }
 }
@@ -651,7 +651,7 @@ void ElementRotation_ex(const TransInfo *t,
     /* Extract and invert armature object matrix. */
 
     if ((td->flag & TD_NO_LOC) == 0) {
-      sub_v3_v3v3(vec, td->center, center);
+      sub_v3_v3v3(vec, td_ext->center_no_override, center);
 
       mul_m3_v3(tc->mat3, vec);  /* To Global space. */
       mul_m3_v3(mat, vec);       /* Applying rotation. */
@@ -660,7 +660,8 @@ void ElementRotation_ex(const TransInfo *t,
       add_v3_v3(vec, center);
       /* `vec` now is the location where the object has to be. */
 
-      sub_v3_v3v3(vec, vec, td->center); /* Translation needed from the initial location. */
+      /* Translation needed from the initial location. */
+      sub_v3_v3v3(vec, vec, td_ext->center_no_override);
 
       /* Special exception, see TD_PBONE_LOCAL_MTX definition comments. */
       if (td->flag & TD_PBONE_LOCAL_MTX_P) {
@@ -874,66 +875,66 @@ void headerResize(TransInfo *t, const float vec[3], char *str, const int str_siz
     outputNumInput(&(t->num), tvec, t->scene->unit);
   }
   else {
-    BLI_snprintf(&tvec[0], NUM_STR_REP_LEN, "%.4f", vec[0]);
-    BLI_snprintf(&tvec[NUM_STR_REP_LEN], NUM_STR_REP_LEN, "%.4f", vec[1]);
-    BLI_snprintf(&tvec[NUM_STR_REP_LEN * 2], NUM_STR_REP_LEN, "%.4f", vec[2]);
+    BLI_snprintf_utf8(&tvec[0], NUM_STR_REP_LEN, "%.4f", vec[0]);
+    BLI_snprintf_utf8(&tvec[NUM_STR_REP_LEN], NUM_STR_REP_LEN, "%.4f", vec[1]);
+    BLI_snprintf_utf8(&tvec[NUM_STR_REP_LEN * 2], NUM_STR_REP_LEN, "%.4f", vec[2]);
   }
 
   if (t->con.mode & CON_APPLY) {
     switch (t->num.idx_max) {
       case 0:
-        ofs += BLI_snprintf_rlen(str + ofs,
-                                 str_size - ofs,
-                                 IFACE_("Scale: %s%s %s"),
-                                 &tvec[0],
-                                 t->con.text,
-                                 t->proptext);
+        ofs += BLI_snprintf_utf8_rlen(str + ofs,
+                                      str_size - ofs,
+                                      IFACE_("Scale: %s%s %s"),
+                                      &tvec[0],
+                                      t->con.text,
+                                      t->proptext);
         break;
       case 1:
-        ofs += BLI_snprintf_rlen(str + ofs,
-                                 str_size - ofs,
-                                 IFACE_("Scale: %s : %s%s %s"),
-                                 &tvec[0],
-                                 &tvec[NUM_STR_REP_LEN],
-                                 t->con.text,
-                                 t->proptext);
+        ofs += BLI_snprintf_utf8_rlen(str + ofs,
+                                      str_size - ofs,
+                                      IFACE_("Scale: %s : %s%s %s"),
+                                      &tvec[0],
+                                      &tvec[NUM_STR_REP_LEN],
+                                      t->con.text,
+                                      t->proptext);
         break;
       case 2:
-        ofs += BLI_snprintf_rlen(str + ofs,
-                                 str_size - ofs,
-                                 IFACE_("Scale: %s : %s : %s%s %s"),
-                                 &tvec[0],
-                                 &tvec[NUM_STR_REP_LEN],
-                                 &tvec[NUM_STR_REP_LEN * 2],
-                                 t->con.text,
-                                 t->proptext);
+        ofs += BLI_snprintf_utf8_rlen(str + ofs,
+                                      str_size - ofs,
+                                      IFACE_("Scale: %s : %s : %s%s %s"),
+                                      &tvec[0],
+                                      &tvec[NUM_STR_REP_LEN],
+                                      &tvec[NUM_STR_REP_LEN * 2],
+                                      t->con.text,
+                                      t->proptext);
         break;
     }
   }
   else {
     if (t->flag & T_2D_EDIT) {
-      ofs += BLI_snprintf_rlen(str + ofs,
-                               str_size - ofs,
-                               IFACE_("Scale X: %s   Y: %s%s %s"),
-                               &tvec[0],
-                               &tvec[NUM_STR_REP_LEN],
-                               t->con.text,
-                               t->proptext);
+      ofs += BLI_snprintf_utf8_rlen(str + ofs,
+                                    str_size - ofs,
+                                    IFACE_("Scale X: %s   Y: %s%s %s"),
+                                    &tvec[0],
+                                    &tvec[NUM_STR_REP_LEN],
+                                    t->con.text,
+                                    t->proptext);
     }
     else {
-      ofs += BLI_snprintf_rlen(str + ofs,
-                               str_size - ofs,
-                               IFACE_("Scale X: %s   Y: %s  Z: %s%s %s"),
-                               &tvec[0],
-                               &tvec[NUM_STR_REP_LEN],
-                               &tvec[NUM_STR_REP_LEN * 2],
-                               t->con.text,
-                               t->proptext);
+      ofs += BLI_snprintf_utf8_rlen(str + ofs,
+                                    str_size - ofs,
+                                    IFACE_("Scale X: %s   Y: %s  Z: %s%s %s"),
+                                    &tvec[0],
+                                    &tvec[NUM_STR_REP_LEN],
+                                    &tvec[NUM_STR_REP_LEN * 2],
+                                    t->con.text,
+                                    t->proptext);
     }
   }
 
   if (t->flag & T_PROP_EDIT_ALL) {
-    ofs += BLI_snprintf_rlen(
+    ofs += BLI_snprintf_utf8_rlen(
         str + ofs, str_size - ofs, IFACE_(" Proportional size: %.2f"), t->prop_size);
   }
 }
@@ -1273,6 +1274,11 @@ void transform_mode_rotation_axis_get(const TransInfo *t, float3 &r_axis)
   }
   else {
     r_axis = t->spacemtx[t->orient_axis];
+    /* For unconstrained rotation, flip the axis so the rotation direction
+     * matches the mouse movement in view space. */
+    if (t->mode == TFM_ROTATION && (t->con.mode & CON_APPLY) == 0) {
+      r_axis = -r_axis;
+    }
   }
 }
 

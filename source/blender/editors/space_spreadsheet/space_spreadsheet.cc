@@ -7,6 +7,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BKE_screen.hh"
 #include "BKE_viewer_path.hh"
@@ -53,6 +54,7 @@ namespace blender::ed::spreadsheet {
 static SpaceLink *spreadsheet_create(const ScrArea * /*area*/, const Scene * /*scene*/)
 {
   SpaceSpreadsheet *spreadsheet_space = MEM_callocN<SpaceSpreadsheet>("spreadsheet space");
+  spreadsheet_space->runtime = MEM_new<SpaceSpreadsheet_Runtime>(__func__);
   spreadsheet_space->spacetype = SPACE_SPREADSHEET;
 
   spreadsheet_space->geometry_id.base.type = SPREADSHEET_TABLE_ID_TYPE_GEOMETRY;
@@ -117,25 +119,14 @@ static void spreadsheet_free(SpaceLink *sl)
   spreadsheet_table_id_free_content(&sspreadsheet->geometry_id.base);
 }
 
-static void spreadsheet_init(wmWindowManager * /*wm*/, ScrArea *area)
-{
-  SpaceSpreadsheet *sspreadsheet = (SpaceSpreadsheet *)area->spacedata.first;
-  if (sspreadsheet->runtime == nullptr) {
-    sspreadsheet->runtime = MEM_new<SpaceSpreadsheet_Runtime>(__func__);
-  }
-}
+static void spreadsheet_init(wmWindowManager * /*wm*/, ScrArea * /*area*/) {}
 
 static SpaceLink *spreadsheet_duplicate(SpaceLink *sl)
 {
   const SpaceSpreadsheet *sspreadsheet_old = (SpaceSpreadsheet *)sl;
   SpaceSpreadsheet *sspreadsheet_new = (SpaceSpreadsheet *)MEM_dupallocN(sspreadsheet_old);
-  if (sspreadsheet_old->runtime) {
-    sspreadsheet_new->runtime = MEM_new<SpaceSpreadsheet_Runtime>(__func__,
-                                                                  *sspreadsheet_old->runtime);
-  }
-  else {
-    sspreadsheet_new->runtime = MEM_new<SpaceSpreadsheet_Runtime>(__func__);
-  }
+  sspreadsheet_new->runtime = MEM_new<SpaceSpreadsheet_Runtime>(__func__,
+                                                                *sspreadsheet_old->runtime);
 
   BLI_listbase_clear(&sspreadsheet_new->row_filters);
   LISTBASE_FOREACH (const SpreadsheetRowFilter *, src_filter, &sspreadsheet_old->row_filters) {
@@ -191,14 +182,16 @@ static void spreadsheet_main_region_init(wmWindowManager *wm, ARegion *region)
 
   UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_LIST, region->winx, region->winy);
 
+  region->flag |= RGN_FLAG_INDICATE_OVERFLOW;
+
   {
     wmKeyMap *keymap = WM_keymap_ensure(
-        wm->defaultconf, "View2D Buttons List", SPACE_EMPTY, RGN_TYPE_WINDOW);
+        wm->runtime->defaultconf, "View2D Buttons List", SPACE_EMPTY, RGN_TYPE_WINDOW);
     WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
   }
   {
     wmKeyMap *keymap = WM_keymap_ensure(
-        wm->defaultconf, "Spreadsheet Generic", SPACE_SPREADSHEET, RGN_TYPE_WINDOW);
+        wm->runtime->defaultconf, "Spreadsheet Generic", SPACE_SPREADSHEET, RGN_TYPE_WINDOW);
     WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
   }
 }
@@ -513,6 +506,11 @@ static void spreadsheet_main_region_draw(const bContext *C, ARegion *region)
   sspreadsheet->runtime->top_row_height = drawer->top_row_height;
   sspreadsheet->runtime->left_column_width = drawer->left_column_width;
 
+  rcti mask;
+  UI_view2d_mask_from_win(&region->v2d, &mask);
+  mask.ymax -= sspreadsheet->runtime->top_row_height;
+  ED_region_draw_overflow_indication(CTX_wm_area(C), region, &mask);
+
   /* Tag other regions for redraw, because the main region updates data for them. */
   ARegion *footer = BKE_area_find_region_type(CTX_wm_area(C), RGN_TYPE_FOOTER);
   ED_region_tag_redraw(footer);
@@ -648,21 +646,21 @@ static void spreadsheet_footer_region_draw(const bContext *C, ARegion *region)
 
   UI_ThemeClearColor(TH_BACK);
 
-  uiBlock *block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
+  uiBlock *block = UI_block_begin(C, region, __func__, ui::EmbossType::Emboss);
   const uiStyle *style = UI_style_get_dpi();
-  uiLayout &layout = blender::ui::block_layout(block,
-                                               blender::ui::LayoutDirection::Horizontal,
-                                               blender::ui::LayoutType::Header,
-                                               UI_HEADER_OFFSET,
-                                               region->winy - (region->winy - UI_UNIT_Y) / 2.0f,
-                                               region->winx,
-                                               1,
-                                               0,
-                                               style);
+  uiLayout &layout = ui::block_layout(block,
+                                      ui::LayoutDirection::Horizontal,
+                                      ui::LayoutType::Header,
+                                      UI_HEADER_OFFSET,
+                                      region->winy - (region->winy - UI_UNIT_Y) / 2.0f,
+                                      region->winx,
+                                      1,
+                                      0,
+                                      style);
   layout.separator_spacer();
-  layout.alignment_set(blender::ui::LayoutAlign::Right);
+  layout.alignment_set(ui::LayoutAlign::Right);
   layout.label(stats_str, ICON_NONE);
-  blender::ui::block_layout_resolve(block);
+  ui::block_layout_resolve(block);
   UI_block_align_end(block);
   UI_block_end(C, block);
   UI_block_draw(C, block);
@@ -706,7 +704,7 @@ static void spreadsheet_sidebar_init(wmWindowManager *wm, ARegion *region)
   ED_region_panels_init(wm, region);
 
   wmKeyMap *keymap = WM_keymap_ensure(
-      wm->defaultconf, "Spreadsheet Generic", SPACE_SPREADSHEET, RGN_TYPE_WINDOW);
+      wm->runtime->defaultconf, "Spreadsheet Generic", SPACE_SPREADSHEET, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 }
 
@@ -718,7 +716,7 @@ static void spreadsheet_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
 {
   SpaceSpreadsheet *sspreadsheet = (SpaceSpreadsheet *)sl;
 
-  sspreadsheet->runtime = nullptr;
+  sspreadsheet->runtime = MEM_new<SpaceSpreadsheet_Runtime>(__func__);
   BLO_read_struct_list(reader, SpreadsheetRowFilter, &sspreadsheet->row_filters);
   LISTBASE_FOREACH (SpreadsheetRowFilter *, row_filter, &sspreadsheet->row_filters) {
     BLO_read_string(reader, &row_filter->value_string);
@@ -775,7 +773,7 @@ void register_spacetype()
   ARegionType *art;
 
   st->spaceid = SPACE_SPREADSHEET;
-  STRNCPY(st->name, "Spreadsheet");
+  STRNCPY_UTF8(st->name, "Spreadsheet");
 
   st->create = spreadsheet_create;
   st->free = spreadsheet_free;

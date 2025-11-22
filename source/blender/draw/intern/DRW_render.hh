@@ -22,7 +22,11 @@
 
 namespace blender::gpu {
 class Batch;
-}
+class Shader;
+class Texture;
+class UniformBuf;
+class FrameBuffer;
+}  // namespace blender::gpu
 struct ARegion;
 struct bContext;
 struct Depsgraph;
@@ -30,9 +34,6 @@ struct DefaultFramebufferList;
 struct DefaultTextureList;
 struct DupliObject;
 struct GPUMaterial;
-struct GPUShader;
-struct GPUTexture;
-struct GPUUniformBuf;
 struct Mesh;
 struct Object;
 struct ParticleSystem;
@@ -51,9 +52,7 @@ struct World;
 struct DRWData;
 struct DRWViewData;
 struct GPUViewport;
-struct GPUFrameBuffer;
 struct DRWTextStore;
-struct GSet;
 struct GPUViewport;
 namespace blender::draw {
 class TextureFromPool;
@@ -193,16 +192,20 @@ template<typename T> T &DRW_object_get_data_for_drawing(const Object &object)
   return *static_cast<T *>(object.data);
 }
 
-template<> inline Mesh &DRW_object_get_data_for_drawing(const Object &object)
+inline Mesh &DRW_mesh_get_for_drawing(Mesh &mesh)
 {
   /* For drawing we want either the base mesh if GPU subdivision is enabled, or the
    * tessellated mesh if GPU subdivision is disabled. */
-  BLI_assert(object.type == OB_MESH);
-  Mesh &mesh = *static_cast<Mesh *>(object.data);
   if (BKE_subsurf_modifier_has_gpu_subdiv(&mesh)) {
     return mesh;
   }
   return *BKE_mesh_wrapper_ensure_subdivision(&mesh);
+}
+
+template<> inline Mesh &DRW_object_get_data_for_drawing(const Object &object)
+{
+  BLI_assert(object.type == OB_MESH);
+  return DRW_mesh_get_for_drawing(*static_cast<Mesh *>(object.data));
 }
 
 /**
@@ -221,6 +224,9 @@ struct DRWContext {
  private:
   /** Render State: No persistent data between draw calls. */
   static thread_local DRWContext *g_context;
+  /** Timings recorded for performance overlay. */
+  float last_sync_time_;
+  float last_submission_time_;
 
   /* TODO(fclem): Private? */
  public:
@@ -237,7 +243,7 @@ struct DRWContext {
   blender::float2 inv_size = {0, 0};
 
   /** Returns the viewport's default frame-buffer. */
-  GPUFrameBuffer *default_framebuffer();
+  blender::gpu::FrameBuffer *default_framebuffer();
   /** Returns the viewport's default frame-buffer list. Not all of them might be available. */
   DefaultFramebufferList *viewport_framebuffer_list_get() const;
   /** Returns the viewport's default texture list. Not all of them might be available. */
@@ -265,6 +271,7 @@ struct DRWContext {
 
     /** Render for depth picking (auto-depth). Runs on main thread. */
     DEPTH,
+    DEPTH_ACTIVE_OBJECT,
 
     /** Render for F12 final render. Can run in any thread. */
     RENDER,
@@ -280,7 +287,7 @@ struct DRWContext {
   DRWTextStore **text_store_p = nullptr;
 
   /** Contains list of objects that needs to be extracted from other objects. */
-  GSet *delayed_extraction = nullptr;
+  blender::Set<Object *> delayed_extraction;
 
   /* TODO(fclem): Public. */
 
@@ -396,7 +403,7 @@ struct DRWContext {
   }
   bool is_depth() const
   {
-    return ELEM(mode, DEPTH);
+    return ELEM(mode, DEPTH, DEPTH_ACTIVE_OBJECT);
   }
   bool is_image_render() const
   {
@@ -409,6 +416,14 @@ struct DRWContext {
   bool is_viewport_image_render() const
   {
     return ELEM(mode, VIEWPORT_RENDER);
+  }
+  float last_sync_time() const
+  {
+    return last_sync_time_;
+  }
+  float last_submission_time() const
+  {
+    return last_submission_time_;
   }
 
   /** True if current viewport is drawn during playback. */

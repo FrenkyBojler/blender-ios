@@ -15,7 +15,6 @@
 
 #include "BLT_translation.hh"
 
-#include "BLI_ghash.h"
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
@@ -316,7 +315,7 @@ static wmOperatorStatus armature_calc_roll_exec(bContext *C, wmOperator *op)
 
       /* cursor */
       LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
-        if (blender::animrig::bone_is_visible_editbone(arm, ebone) && EBONE_EDITABLE(ebone)) {
+        if (blender::animrig::bone_is_visible(arm, ebone) && EBONE_EDITABLE(ebone)) {
           float cursor_rel[3];
           sub_v3_v3v3(cursor_rel, cursor_local, ebone->head);
           if (axis_flip) {
@@ -332,9 +331,8 @@ static wmOperatorStatus armature_calc_roll_exec(bContext *C, wmOperator *op)
     else if (ELEM(type, CALC_ROLL_TAN_POS_X, CALC_ROLL_TAN_POS_Z)) {
       LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
         if (ebone->parent) {
-          bool is_edit = (blender::animrig::bone_is_visible_editbone(arm, ebone) &&
-                          EBONE_EDITABLE(ebone));
-          bool is_edit_parent = (blender::animrig::bone_is_visible_editbone(arm, ebone->parent) &&
+          bool is_edit = (blender::animrig::bone_is_visible(arm, ebone) && EBONE_EDITABLE(ebone));
+          bool is_edit_parent = (blender::animrig::bone_is_visible(arm, ebone->parent) &&
                                  EBONE_EDITABLE(ebone->parent));
 
           if (is_edit || is_edit_parent) {
@@ -429,7 +427,7 @@ static wmOperatorStatus armature_calc_roll_exec(bContext *C, wmOperator *op)
       }
 
       LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
-        if (blender::animrig::bone_is_visible_editbone(arm, ebone) && EBONE_EDITABLE(ebone)) {
+        if (blender::animrig::bone_is_visible(arm, ebone) && EBONE_EDITABLE(ebone)) {
           /* roll func is a callback which assumes that all is well */
           ebone->roll = ED_armature_ebone_roll_to_vector(ebone, vec, axis_only);
           changed = true;
@@ -439,11 +437,10 @@ static wmOperatorStatus armature_calc_roll_exec(bContext *C, wmOperator *op)
 
     if (arm->flag & ARM_MIRROR_EDIT) {
       LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
-        if ((blender::animrig::bone_is_visible_editbone(arm, ebone) && EBONE_EDITABLE(ebone)) == 0)
-        {
+        if ((blender::animrig::bone_is_visible(arm, ebone) && EBONE_EDITABLE(ebone)) == 0) {
           EditBone *ebone_mirr = ED_armature_ebone_get_mirrored(arm->edbo, ebone);
-          if (ebone_mirr && (blender::animrig::bone_is_visible_editbone(arm, ebone_mirr) &&
-                             EBONE_EDITABLE(ebone_mirr)))
+          if (ebone_mirr &&
+              (blender::animrig::bone_is_visible(arm, ebone_mirr) && EBONE_EDITABLE(ebone_mirr)))
           {
             ebone->roll = -ebone_mirr->roll;
           }
@@ -499,7 +496,7 @@ static wmOperatorStatus armature_roll_clear_exec(bContext *C, wmOperator *op)
     bool changed = false;
 
     LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
-      if (blender::animrig::bone_is_visible_editbone(arm, ebone) && EBONE_EDITABLE(ebone)) {
+      if (blender::animrig::bone_is_visible(arm, ebone) && EBONE_EDITABLE(ebone)) {
         /* Roll func is a callback which assumes that all is well. */
         ebone->roll = roll;
         changed = true;
@@ -508,11 +505,10 @@ static wmOperatorStatus armature_roll_clear_exec(bContext *C, wmOperator *op)
 
     if (arm->flag & ARM_MIRROR_EDIT) {
       LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
-        if ((blender::animrig::bone_is_visible_editbone(arm, ebone) && EBONE_EDITABLE(ebone)) == 0)
-        {
+        if ((blender::animrig::bone_is_visible(arm, ebone) && EBONE_EDITABLE(ebone)) == 0) {
           EditBone *ebone_mirr = ED_armature_ebone_get_mirrored(arm->edbo, ebone);
-          if (ebone_mirr && (blender::animrig::bone_is_visible_editbone(arm, ebone_mirr) &&
-                             EBONE_EDITABLE(ebone_mirr)))
+          if (ebone_mirr &&
+              (blender::animrig::bone_is_visible(arm, ebone_mirr) && EBONE_EDITABLE(ebone_mirr)))
           {
             ebone->roll = -ebone_mirr->roll;
             changed = true;
@@ -948,7 +944,7 @@ static wmOperatorStatus armature_switch_direction_exec(bContext *C, wmOperator *
         /* skip bone if already handled, see #34123. */
         if ((ebo->flag & BONE_TRANSFORM) == 0) {
           /* only if selected and editable */
-          if (blender::animrig::bone_is_visible_editbone(arm, ebo) && EBONE_EDITABLE(ebo)) {
+          if (blender::animrig::bone_is_visible(arm, ebo) && EBONE_EDITABLE(ebo)) {
             /* swap head and tail coordinates */
             swap_v3_v3(ebo->head, ebo->tail);
 
@@ -973,8 +969,8 @@ static wmOperatorStatus armature_switch_direction_exec(bContext *C, wmOperator *
             /* not swapping this bone, however, if its 'parent' got swapped, unparent us from it
              * as it will be facing in opposite direction
              */
-            if ((parent) && (blender::animrig::bone_is_visible_editbone(arm, parent) &&
-                             EBONE_EDITABLE(parent)))
+            if ((parent) &&
+                (blender::animrig::bone_is_visible(arm, parent) && EBONE_EDITABLE(parent)))
             {
               ebo->parent = nullptr;
               ebo->flag &= ~BONE_CONNECTED;
@@ -1138,7 +1134,9 @@ static wmOperatorStatus armature_align_bones_exec(bContext *C, wmOperator *op)
         if (ebone->flag & BONE_SELECTED) {
           bone_align_to_bone(arm->edbo, ebone, actbone);
         }
-        else {
+        else if ((arm->flag & ARM_MIRROR_EDIT)) {
+          /* Need to check for the mirror mode, because when editing multiple armatures with
+           * differing mirror settings `actmirb` can be a nullptr. See #146242. */
           bone_align_to_bone(arm->edbo, ebone, actmirb);
         }
       }
@@ -1231,8 +1229,7 @@ static bool armature_delete_ebone_cb(const char *bone_name, void *arm_p)
   EditBone *ebone;
 
   ebone = ED_armature_ebone_find_name(arm->edbo, bone_name);
-  return (ebone && (ebone->flag & BONE_SELECTED) &&
-          blender::animrig::bone_is_visible_editbone(arm, ebone));
+  return (ebone && blender::animrig::bone_is_selected(arm, ebone));
 }
 
 /* previously delete_armature */
@@ -1261,14 +1258,12 @@ static wmOperatorStatus armature_delete_selected_exec(bContext *C, wmOperator * 
 
     for (curBone = static_cast<EditBone *>(arm->edbo->first); curBone; curBone = ebone_next) {
       ebone_next = curBone->next;
-      if (blender::animrig::bone_is_visible_editbone(arm, curBone)) {
-        if (curBone->flag & BONE_SELECTED) {
-          if (curBone == arm->act_edbone) {
-            arm->act_edbone = nullptr;
-          }
-          ED_armature_ebone_remove(arm, curBone);
-          changed = true;
+      if (blender::animrig::bone_is_selected(arm, curBone)) {
+        if (curBone == arm->act_edbone) {
+          arm->act_edbone = nullptr;
         }
+        ED_armature_ebone_remove(arm, curBone);
+        changed = true;
       }
     }
 
@@ -1300,7 +1295,7 @@ static wmOperatorStatus armature_delete_selected_invoke(bContext *C,
                                   IFACE_("Delete selected bones?"),
                                   nullptr,
                                   IFACE_("Delete"),
-                                  ALERT_ICON_NONE,
+                                  blender::ui::AlertIcon::None,
                                   false);
   }
   return armature_delete_selected_exec(C, op);
@@ -1346,7 +1341,7 @@ static wmOperatorStatus armature_dissolve_selected_exec(bContext *C, wmOperator 
     bool changed = false;
 
     /* store for mirror */
-    GHash *ebone_flag_orig = nullptr;
+    blender::Map<EditBone *, int> ebone_flag_orig;
     int ebone_num = 0;
 
     LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
@@ -1356,27 +1351,17 @@ static wmOperatorStatus armature_dissolve_selected_exec(bContext *C, wmOperator 
     }
 
     if (arm->flag & ARM_MIRROR_EDIT) {
-      GHashIterator gh_iter;
-
-      ebone_flag_orig = BLI_ghash_ptr_new_ex(__func__, ebone_num);
+      ebone_flag_orig.reserve(ebone_num);
       LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
-        union {
-          int flag;
-          void *p;
-        } val = {0};
-        val.flag = ebone->flag;
-        BLI_ghash_insert(ebone_flag_orig, ebone, val.p);
+        ebone_flag_orig.add(ebone, ebone->flag);
       }
 
       armature_select_mirrored_ex(arm, BONE_SELECTED | BONE_ROOTSEL | BONE_TIPSEL);
 
-      GHASH_ITER (gh_iter, ebone_flag_orig) {
-        union Value {
-          int flag;
-          void *p;
-        } *val_p = (Value *)BLI_ghashIterator_getValue_p(&gh_iter);
-        ebone = static_cast<EditBone *>(BLI_ghashIterator_getKey(&gh_iter));
-        val_p->flag = ebone->flag & ~val_p->flag;
+      for (const auto &item : ebone_flag_orig.items()) {
+        ebone = item.key;
+        int &flag = item.value;
+        flag = ebone->flag & ~flag;
       }
     }
 
@@ -1405,13 +1390,13 @@ static wmOperatorStatus armature_dissolve_selected_exec(bContext *C, wmOperator 
 
     LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
       /* break connections for unseen bones */
-      if ((blender::animrig::bone_is_visible_editbone(arm, ebone) &&
+      if ((blender::animrig::bone_is_visible(arm, ebone) &&
            (ED_armature_ebone_selectflag_get(ebone) & (BONE_TIPSEL | BONE_SELECTED))) == 0)
       {
         ebone->temp.ebone = nullptr;
       }
 
-      if ((blender::animrig::bone_is_visible_editbone(arm, ebone) &&
+      if ((blender::animrig::bone_is_visible(arm, ebone) &&
            (ED_armature_ebone_selectflag_get(ebone) & (BONE_ROOTSEL | BONE_SELECTED))) == 0)
       {
         if (ebone->parent && (ebone->flag & BONE_CONNECTED)) {
@@ -1451,19 +1436,11 @@ static wmOperatorStatus armature_dissolve_selected_exec(bContext *C, wmOperator 
 
       if (arm->flag & ARM_MIRROR_EDIT) {
         LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
-          union Value {
-            int flag;
-            void *p;
-          } *val_p = (Value *)BLI_ghash_lookup_p(ebone_flag_orig, ebone);
-          if (val_p && val_p->flag) {
-            ebone->flag &= ~val_p->flag;
+          if (const int *flag_p = ebone_flag_orig.lookup_ptr(ebone)) {
+            ebone->flag &= ~*flag_p;
           }
         }
       }
-    }
-
-    if (arm->flag & ARM_MIRROR_EDIT) {
-      BLI_ghash_free(ebone_flag_orig, nullptr, nullptr);
     }
 
     if (changed) {
@@ -1521,7 +1498,7 @@ static wmOperatorStatus armature_hide_exec(bContext *C, wmOperator *op)
     bool changed = false;
 
     LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
-      if (blender::animrig::bone_is_visible_editbone(arm, ebone)) {
+      if (blender::animrig::bone_is_visible(arm, ebone)) {
         if ((ebone->flag & BONE_SELECTED) != invert) {
           ebone->flag &= ~(BONE_TIPSEL | BONE_SELECTED | BONE_ROOTSEL);
           ebone->flag |= BONE_HIDDEN_A;

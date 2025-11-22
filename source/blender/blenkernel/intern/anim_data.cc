@@ -37,6 +37,7 @@
 #include "BLI_dynstr.h"
 #include "BLI_listbase.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "DEG_depsgraph.hh"
@@ -395,6 +396,8 @@ static void animdata_copy_id_action(Main *bmain,
   if (adt) {
     if (adt->action && (do_linked_id || !ID_IS_LINKED(adt->action))) {
       bAction *cloned_action = reinterpret_cast<bAction *>(BKE_id_copy(bmain, &adt->action->id));
+
+      cloned_action->id.us = 0;
       if (set_newid) {
         ID_NEW_SET(adt->action, cloned_action);
       }
@@ -408,6 +411,8 @@ static void animdata_copy_id_action(Main *bmain,
     }
     if (adt->tmpact && (do_linked_id || !ID_IS_LINKED(adt->tmpact))) {
       bAction *cloned_action = reinterpret_cast<bAction *>(BKE_id_copy(bmain, &adt->tmpact->id));
+
+      cloned_action->id.us = 0;
       if (set_newid) {
         ID_NEW_SET(adt->tmpact, cloned_action);
       }
@@ -478,8 +483,8 @@ void BKE_animdata_merge_copy(
   }
   dst->slot_handle = src->slot_handle;
   dst->tmp_slot_handle = src->tmp_slot_handle;
-  STRNCPY(dst->last_slot_identifier, src->last_slot_identifier);
-  STRNCPY(dst->tmp_last_slot_identifier, src->tmp_last_slot_identifier);
+  STRNCPY_UTF8(dst->last_slot_identifier, src->last_slot_identifier);
+  STRNCPY_UTF8(dst->tmp_last_slot_identifier, src->tmp_last_slot_identifier);
 
   /* duplicate NLA data */
   if (src->nla_tracks.first) {
@@ -792,7 +797,7 @@ static bool fcurves_path_rename_fix(ID *owner_id,
       bActionGroup *agrp = fcu->grp;
       is_changed = true;
       if (oldName != nullptr && (agrp != nullptr) && STREQ(oldName, agrp->name)) {
-        STRNCPY(agrp->name, newName);
+        STRNCPY_UTF8(agrp->name, newName);
       }
     }
   }
@@ -867,15 +872,10 @@ static bool nlastrips_path_rename_fix(ID *owner_id,
   LISTBASE_FOREACH (NlaStrip *, strip, strips) {
     /* fix strip's action */
     if (strip->act != nullptr) {
+      const Vector<FCurve *> fcurves = blender::animrig::legacy::fcurves_for_action_slot(
+          strip->act, strip->action_slot_handle);
       const bool is_changed_action = fcurves_path_rename_fix(
-          owner_id,
-          prefix,
-          oldName,
-          newName,
-          oldKey,
-          newKey,
-          blender::animrig::legacy::fcurves_all(strip->act),
-          verify_paths);
+          owner_id, prefix, oldName, newName, oldKey, newKey, fcurves, verify_paths);
       if (is_changed_action) {
         DEG_id_tag_update(&strip->act->id, ID_RECALC_ANIMATION);
       }
@@ -950,6 +950,7 @@ char *BKE_animsys_fix_rna_path_rename(ID *owner_id,
 
 void BKE_action_fix_paths_rename(ID *owner_id,
                                  bAction *act,
+                                 animrig::slot_handle_t slot_handle,
                                  const char *prefix,
                                  const char *oldName,
                                  const char *newName,
@@ -991,12 +992,14 @@ void BKE_action_fix_paths_rename(ID *owner_id,
                           newName,
                           oldN,
                           newN,
-                          blender::animrig::legacy::fcurves_all(act),
+                          blender::animrig::legacy::fcurves_for_action_slot(act, slot_handle),
                           verify_paths);
 
   /* free the temp names */
   MEM_freeN(oldN);
   MEM_freeN(newN);
+
+  DEG_id_tag_update(&act->id, ID_RECALC_ANIMATION);
 }
 
 void BKE_animdata_fix_paths_rename(ID *owner_id,
@@ -1035,28 +1038,20 @@ void BKE_animdata_fix_paths_rename(ID *owner_id,
     newN = BLI_sprintfN("[%d]", newSubscript);
   }
   /* Active action and temp action. */
-  if (adt->action != nullptr) {
-    if (fcurves_path_rename_fix(owner_id,
-                                prefix,
-                                oldName,
-                                newName,
-                                oldN,
-                                newN,
-                                blender::animrig::legacy::fcurves_all(adt->action),
-                                verify_paths))
+  if (adt->action != nullptr && adt->slot_handle != blender::animrig::Slot::unassigned) {
+    const Vector<FCurve *> fcurves = blender::animrig::legacy::fcurves_for_action_slot(
+        adt->action, adt->slot_handle);
+    if (fcurves_path_rename_fix(
+            owner_id, prefix, oldName, newName, oldN, newN, fcurves, verify_paths))
     {
       DEG_id_tag_update(&adt->action->id, ID_RECALC_SYNC_TO_EVAL);
     }
   }
   if (adt->tmpact) {
-    if (fcurves_path_rename_fix(owner_id,
-                                prefix,
-                                oldName,
-                                newName,
-                                oldN,
-                                newN,
-                                blender::animrig::legacy::fcurves_all(adt->tmpact),
-                                verify_paths))
+    const Vector<FCurve *> fcurves = blender::animrig::legacy::fcurves_for_action_slot(
+        adt->tmpact, adt->tmp_slot_handle);
+    if (fcurves_path_rename_fix(
+            owner_id, prefix, oldName, newName, oldN, newN, fcurves, verify_paths))
     {
       DEG_id_tag_update(&adt->tmpact->id, ID_RECALC_SYNC_TO_EVAL);
     }

@@ -13,7 +13,7 @@
 #include <stdexcept>
 
 #include "BKE_context.hh"
-#include "BKE_icons.h"
+#include "BKE_icons.hh"
 
 #include "BLI_index_range.hh"
 
@@ -140,18 +140,8 @@ bool AbstractGridViewItem::matches(const AbstractViewItem &other) const
 void AbstractGridViewItem::add_grid_tile_button(uiBlock &block)
 {
   const GridViewStyle &style = this->get_view().get_style();
-  view_item_but_ = (uiButViewItem *)uiDefBut(&block,
-                                             ButType::ViewItem,
-                                             0,
-                                             "",
-                                             0,
-                                             0,
-                                             style.tile_width,
-                                             style.tile_height,
-                                             nullptr,
-                                             0,
-                                             0,
-                                             "");
+  view_item_but_ = (uiButViewItem *)uiDefBut(
+      &block, ButType::ViewItem, "", 0, 0, style.tile_width, style.tile_height, nullptr, 0, 0, "");
 
   view_item_but_->view_item = this;
 }
@@ -335,7 +325,6 @@ void BuildOnlyVisibleButtonsHelper::add_spacer_button(uiBlock &block, const int 
 
     uiDefBut(&block,
              ButType::Label,
-             0,
              "",
              0,
              0,
@@ -425,7 +414,7 @@ void GridViewLayoutBuilder::build_from_view(const bContext &C,
     item_idx++;
   });
 
-  UI_block_layout_set_current(&block_, parent_layout);
+  block_layout_set_current(&block_, parent_layout);
 
   build_visible_helper.fill_layout_after_visible(block_);
 }
@@ -455,7 +444,7 @@ void GridViewBuilder::build_grid_view(const bContext &C,
   grid_view.filter(search_string);
 
   /* Ensure the given layout is actually active. */
-  UI_block_layout_set_current(&block, &layout);
+  block_layout_set_current(&block, &layout);
 
   GridViewLayoutBuilder builder(layout);
   builder.build_from_view(C, grid_view, region->v2d);
@@ -479,7 +468,6 @@ void PreviewGridItem::build_grid_tile_button(uiLayout &layout,
 
   uiBut *but = uiDefBut(block,
                         ButType::PreviewTile,
-                        0,
                         hide_label_ ? "" : label,
                         0,
                         0,
@@ -496,7 +484,7 @@ void PreviewGridItem::build_grid_tile_button(uiLayout &layout,
                   icon_id,
                   /* NOLINTNEXTLINE: bugprone-suspicious-enum-usage */
                   UI_HAS_ICON | UI_BUT_ICON_PREVIEW);
-  but->emboss = blender::ui::EmbossType::None;
+  but->emboss = EmbossType::None;
 }
 
 void PreviewGridItem::build_grid_tile(const bContext & /*C*/, uiLayout &layout) const

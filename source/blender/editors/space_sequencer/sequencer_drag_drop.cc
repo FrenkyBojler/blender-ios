@@ -11,9 +11,11 @@
 #include "DNA_scene_types.h"
 #include "DNA_sound_types.h"
 
+#include "BLI_math_base.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 
 #include "BKE_context.hh"
@@ -44,7 +46,7 @@
 
 /* For querying audio files. */
 #ifdef WITH_AUDASPACE
-#  include "BKE_sound.h"
+#  include "BKE_sound.hh"
 #  include <AUD_Sound.h>
 #  include <AUD_Special.h>
 #endif
@@ -59,6 +61,8 @@ struct SeqDropCoords {
   float start_frame, channel;
   int strip_len, channel_len;
   float playback_rate;
+  float audio_length;
+  bool only_audio = false;
   bool in_use = false;
   bool has_read_mouse_pos = false;
   bool is_intersecting;
@@ -86,12 +90,10 @@ static void generic_poll_operations(const wmEvent *event, uint8_t type)
  * preview of the file dragged. This checks when drag-and-drop is done with a single file, and when
  * only a expected `file_handler` can be used, so internal drop-box can be used instead of the
  * `file_handler`. */
-static bool test_single_file_handler_poll(const bContext *C,
-                                          wmDrag *drag,
-                                          blender::StringRef file_handler)
+static bool test_single_file_handler_poll(const bContext *C, wmDrag *drag, StringRef file_handler)
 {
   const auto paths = WM_drag_get_paths(drag);
-  auto file_handlers = blender::bke::file_handlers_poll_file_drop(C, paths);
+  auto file_handlers = bke::file_handlers_poll_file_drop(C, paths);
   return paths.size() == 1 && file_handlers.size() == 1 &&
          file_handler == file_handlers[0]->idname;
 }
@@ -191,6 +193,10 @@ static float update_overlay_strip_position_data(bContext *C, const int mval[2])
     float scene_playback_rate = float(scene->r.frs_sec) / scene->r.frs_sec_base;
     strip_len = coords->strip_len / (coords->playback_rate / scene_playback_rate);
   }
+  else if (coords->only_audio) {
+    float scene_playback_rate = float(scene->r.frs_sec) / scene->r.frs_sec_base;
+    strip_len = coords->audio_length * scene_playback_rate;
+  }
   else {
     strip_len = coords->strip_len;
   }
@@ -203,7 +209,7 @@ static float update_overlay_strip_position_data(bContext *C, const int mval[2])
     float snap_frame;
     bool valid_snap;
 
-    valid_snap = blender::ed::transform::snap_sequencer_to_closest_strip_calc(
+    valid_snap = transform::snap_sequencer_to_closest_strip_calc(
         scene, region, start_frame, end_frame, &snap_delta, &snap_frame);
 
     if (valid_snap) {
@@ -231,7 +237,8 @@ static float update_overlay_strip_position_data(bContext *C, const int mval[2])
   Editing *ed = seq::editing_ensure(scene);
 
   for (int i = 0; i < coords->channel_len && !coords->is_intersecting; i++) {
-    coords->is_intersecting = seq::transform_test_overlap(scene, ed->seqbasep, &dummy_strip);
+    coords->is_intersecting = seq::transform_test_overlap(
+        scene, ed->current_strips(), &dummy_strip);
     seq::strip_channel_set(&dummy_strip, dummy_strip.channel + 1);
   }
 
@@ -271,7 +278,7 @@ static void sequencer_drop_copy(bContext *C, wmDrag *drag, wmDropBox *drop)
     ListBase *channels = seq::channels_displayed_get(ed);
     SpaceSeq *sseq = CTX_wm_space_seq(C);
 
-    blender::VectorSet strips = seq::query_rendered_strips(
+    VectorSet strips = seq::query_rendered_strips(
         scene, channels, seqbase, scene->r.cfra, sseq->chanshown);
 
     /* Get the top most strip channel that is in view. */
@@ -352,7 +359,7 @@ static void get_drag_path(const bContext *C, wmDrag *drag, char r_path[FILE_MAX]
       bSound *sound = (bSound *)id;
       BLI_strncpy(r_path, sound->filepath, FILE_MAX);
     }
-    BLI_path_abs(r_path, BKE_main_blendfile_path_from_global());
+    BLI_path_abs(r_path, ID_BLEND_PATH_FROM_GLOBAL(id));
   }
   else {
     BLI_strncpy(r_path, WM_drag_get_single_path(drag), FILE_MAX);
@@ -384,7 +391,7 @@ static void draw_strip_in_view(bContext *C, wmWindow * /*win*/, wmDrag *drag, co
   UI_SetTheme(SPACE_SEQ, RGN_TYPE_WINDOW);
 
   if (coords->use_snapping) {
-    blender::ed::transform::sequencer_snap_point(region, coords->snap_point_x);
+    transform::sequencer_snap_point(region, coords->snap_point_x);
   }
 
   /* Init GPU drawing. */
@@ -396,8 +403,8 @@ static void draw_strip_in_view(bContext *C, wmWindow * /*win*/, wmDrag *drag, co
   uchar strip_color[4];
   strip_color[3] = 255;
   uchar text_color[4] = {255, 255, 255, 255};
-  float pixelx = BLI_rctf_size_x(&region->v2d.cur) / BLI_rcti_size_x(&region->v2d.mask);
-  float pixely = BLI_rctf_size_y(&region->v2d.cur) / BLI_rcti_size_y(&region->v2d.mask);
+  float pixelx = BLI_rctf_size_x(&region->v2d.cur) / (BLI_rcti_size_x(&region->v2d.mask) + 1);
+  float pixely = BLI_rctf_size_y(&region->v2d.cur) / (BLI_rcti_size_y(&region->v2d.mask) + 1);
 
   StripsDrawBatch batch(&region->v2d);
 
@@ -482,17 +489,18 @@ static void draw_strip_in_view(bContext *C, wmWindow * /*win*/, wmDrag *drag, co
     }
 
     if (sseq->timeline_overlay.flag & SEQ_TIMELINE_SHOW_STRIP_DURATION) {
-      SNPRINTF(strip_duration_text, "%d", int(x2 - x1));
+      SNPRINTF_UTF8(strip_duration_text, "%d", int(x2 - x1));
       text_array[len_text_arr++] = text_sep;
       text_array[len_text_arr++] = strip_duration_text;
     }
 
     BLI_assert(len_text_arr <= ARRAY_SIZE(text_array));
 
-    BLI_string_join_array(text_display, FILE_MAX, text_array, len_text_arr);
+    const size_t text_display_len = BLI_string_join_array(
+        text_display, FILE_MAX, text_array, len_text_arr);
 
     UI_view2d_text_cache_add_rectf(
-        &region->v2d, &rect, text_display, strlen(text_display), text_color);
+        &region->v2d, &rect, text_display, text_display_len, text_color);
   }
   batch.flush_batch();
 
@@ -525,7 +533,6 @@ struct DropJobData {
    */
   char path[FILE_MAX];
   bool only_audio;
-  float scene_fps;
 };
 
 static void prefetch_data_fn(void *custom_data, wmJobWorkerStatus * /*worker_status*/)
@@ -540,8 +547,12 @@ static void prefetch_data_fn(void *custom_data, wmJobWorkerStatus * /*worker_sta
 
       AUD_SoundInfo info = AUD_getInfo(sound);
       if ((eSoundChannels)info.specs.channels != SOUND_CHANNELS_INVALID) {
-        g_drop_coords.strip_len = max_ii(1, round((info.length) * job_data->scene_fps));
+        g_drop_coords.audio_length = info.length;
       }
+      /* The playback rate is defined by the scene. This will be computed later in
+       * #update_overlay_strip_position_data, when we know the scene from the context. So set it to
+       * 0 for now. */
+      g_drop_coords.playback_rate = 0.0f;
       AUD_Sound_free(sound);
       return;
     }
@@ -584,17 +595,19 @@ static void start_audio_video_job(bContext *C, wmDrag *drag, bool only_audio)
   g_drop_coords.channel_len = 1;
 
   wmWindowManager *wm = CTX_wm_manager(C);
-  wmWindow *win = CTX_wm_window(C);
-  Scene *scene = CTX_data_sequencer_scene(C);
 
-  wmJob *wm_job = WM_jobs_get(
-      wm, win, nullptr, "Load Previews", eWM_JobFlag(0), WM_JOB_TYPE_SEQ_DRAG_DROP_PREVIEW);
+  wmJob *wm_job = WM_jobs_get(wm,
+                              nullptr,
+                              nullptr,
+                              "Loading previews...",
+                              eWM_JobFlag(0),
+                              WM_JOB_TYPE_SEQ_DRAG_DROP_PREVIEW);
 
   DropJobData *job_data = MEM_mallocN<DropJobData>("SeqDragDropPreviewData");
   get_drag_path(C, drag, job_data->path);
 
   job_data->only_audio = only_audio;
-  job_data->scene_fps = FPS;
+  g_drop_coords.only_audio = only_audio;
 
   WM_jobs_customdata_set(wm_job, job_data, free_prefetch_data_fn);
   WM_jobs_timer(wm_job, 0.1, NC_WINDOW, NC_WINDOW);

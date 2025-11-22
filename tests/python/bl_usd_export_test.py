@@ -119,7 +119,7 @@ class USDExportTest(AbstractUSDTest):
         bounds = bboxcache.ComputeWorldBound(scenePrim)
         bound_min = bounds.GetRange().GetMin()
         bound_max = bounds.GetRange().GetMax()
-        self.compareVec3d(bound_min, Gf.Vec3d(-5.752975881, -1, -2.798513651))
+        self.compareVec3d(bound_min, Gf.Vec3d(-5.76875186, -1, -2.798513651))
         self.compareVec3d(bound_max, Gf.Vec3d(1, 2.9515805244, 2.7985136508))
 
         # validate the locally authored extents
@@ -134,10 +134,10 @@ class USDExportTest(AbstractUSDTest):
         prim = stage.GetPrimAtPath("/root/scene/Volume/Volume")
         extent = UsdGeom.Boundable(prim).GetExtentAttr().Get()
         self.compareVec3d(
-            Gf.Vec3d(extent[0]), Gf.Vec3d(-0.7313742, -0.68043584, -0.5801515)
+            Gf.Vec3d(extent[0]), Gf.Vec3d(-0.74715018, -0.69621181, -0.59592748)
         )
         self.compareVec3d(
-            Gf.Vec3d(extent[1]), Gf.Vec3d(0.7515701, 0.5500924, 0.9027928)
+            Gf.Vec3d(extent[1]), Gf.Vec3d(0.76734608, 0.56586843, 0.91856879)
         )
 
     def test_material_transforms(self):
@@ -535,8 +535,8 @@ class USDExportTest(AbstractUSDTest):
 
         hair_curves = UsdGeom.BasisCurves(hair_prim)
         hair_samples = hair_curves.GetPointsAttr().GetTimeSamples()
-        self.assertEqual(hair_curves.GetTypeAttr().Get(), "cubic")
-        self.assertEqual(hair_curves.GetBasisAttr().Get(), "bspline")
+        self.assertEqual(hair_curves.GetTypeAttr().Get(), "linear")
+        self.assertEqual(hair_curves.GetBasisAttr().Get(), "catmullRom")
         self.assertEqual(len(hair_samples), 10)
 
     def check_primvar(self, prim, pv_name, pv_typeName, pv_interp, elements_len):
@@ -877,6 +877,35 @@ class USDExportTest(AbstractUSDTest):
         self.assertEqual(len(indices2), 15)
         self.assertNotEqual(indices1, indices2)
 
+    def test_export_point_ids(self):
+        """Validate we can export animated PointCloud IDs"""
+
+        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "usd_point_ids.blend"))
+        # Ensure the simulation zone data is baked for all relevant frames...
+        for frame in range(1, 7):
+            bpy.context.scene.frame_set(frame)
+        bpy.context.scene.frame_set(1)
+
+        export_path = self.tempdir / "usd_point_ids.usda"
+        self.export_and_validate(filepath=str(export_path), export_animation=True, evaluation_mode="RENDER")
+
+        stage = Usd.Stage.Open(str(export_path))
+
+        #
+        # Validate PointCloud data
+        #
+        points1 = UsdGeom.Points(stage.GetPrimAtPath("/root/pointcloud1/PointCloud"))
+
+        # IDs
+        attr_ids = points1.GetIdsAttr()
+        self.assertEqual(attr_ids.GetTimeSamples(), [1.0, 2.0, 3.0, 4.0, 5.0, 6.0])
+        self.assertEqual(attr_ids.Get(1), [3])
+        self.assertEqual(attr_ids.Get(2), [6])
+        self.assertEqual(attr_ids.Get(3), [6, 9])
+        self.assertEqual(attr_ids.Get(4), [9, 12])
+        self.assertEqual(attr_ids.Get(5), [12, 15])
+        self.assertEqual(attr_ids.Get(6), [12, 15, 18])
+
     def test_export_curves(self):
         """Test exporting Curve types"""
         bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "usd_curves_test.blend"))
@@ -895,9 +924,10 @@ class USDExportTest(AbstractUSDTest):
             self.assertEqual(self.round_vector(usd_extent[0]), extent[0])
             self.assertEqual(self.round_vector(usd_extent[1]), extent[1])
 
-        def check_nurbs_curve(prim, cyclic, orders, vert_counts, knots_count, extent):
+        def check_nurbs_curve(prim, cyclic, orders, vert_counts, weights, knots_count, extent):
             self.assertEqual(prim.GetOrderAttr().Get(), orders)
             self.assertEqual(prim.GetCurveVertexCountsAttr().Get(), vert_counts)
+            self.assertEqual(self.round_vector(prim.GetPointWeightsAttr().Get()), weights)
             self.assertEqual(prim.GetWidthsInterpolation(), "vertex")
             knots = prim.GetKnotsAttr().Get()
             usd_extent = prim.GetExtentAttr().Get()
@@ -936,11 +966,14 @@ class USDExportTest(AbstractUSDTest):
 
         # Contains 2 NURBS curves
         curve = UsdGeom.NurbsCurves(stage.GetPrimAtPath("/root/NurbsCurve/NurbsCurve"))
-        check_nurbs_curve(curve, False, [4, 4], [6, 6], 10, [[-1.75, -2.6891, -1.0117], [3.0896, 1.9583, 1.0293]])
+        weights = [1] * 12
+        check_nurbs_curve(
+            curve, False, [4, 4], [6, 6], weights, 10, [[-1.75, -2.6891, -1.0117], [3.0896, 1.9583, 1.0293]])
 
         # Contains 1 NURBS curve
         curve = UsdGeom.NurbsCurves(stage.GetPrimAtPath("/root/NurbsCircle/NurbsCircle"))
-        check_nurbs_curve(curve, True, [3], [8], 13, [[-2.0, -2.0, -1.0], [2.0, 2.0, 1.0]])
+        weights = self.round_vector([1, math.sqrt(2) / 2] * 5)
+        check_nurbs_curve(curve, True, [3], [10], weights, 13, [[-2, -2, -1], [2, 2, 1]])
 
     def test_export_animation(self):
         bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "usd_anim_test.blend"))
@@ -1093,7 +1126,7 @@ class USDExportTest(AbstractUSDTest):
         vol_mesh2vol = UsdVol.Volume(stage.GetPrimAtPath("/root/vol_mesh2vol/vol_mesh2vol"))
         density = UsdVol.OpenVDBAsset(stage.GetPrimAtPath("/root/vol_mesh2vol/vol_mesh2vol/density"))
         self.assertEqual(vol_mesh2vol.GetExtentAttr().GetTimeSamples(),
-                         [6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0])
+                         [5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0])
         self.assertEqual(density.GetFieldNameAttr().GetTimeSamples(), [])
         self.assertEqual(density.GetFilePathAttr().GetTimeSamples(),
                          [4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0])
@@ -1247,13 +1280,89 @@ class USDExportTest(AbstractUSDTest):
         shader_id = shader.GetIdAttr().Get()
         self.assertEqual(shader_id, "ND_open_pbr_surface_surfaceshader", "Shader is not an OpenPBR Surface")
 
+    def test_get_prim_map_export_xfrom_not_merged_animated(self):
+        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "usd_anim_test.blend"))
+        bpy.data.scenes["Scene"].frame_end = 2
+        bpy.utils.register_class(GetPrimMapUsdExportHook)
+        bpy.ops.wm.usd_export(
+            filepath=str(self.tempdir / "test_prim_map_export.usda"), merge_parent_xform=False, export_animation=True
+        )
+        prim_map = GetPrimMapUsdExportHook.prim_map
+        bpy.utils.unregister_class(GetPrimMapUsdExportHook)
+
+        expected_prim_map = {
+            Sdf.Path('/root/cube_anim_xform/cube_anim_child'): [bpy.data.objects['cube_anim_child']],
+            Sdf.Path('/root/Armature/column_anim_armature/column_anim_armature'): [bpy.data.meshes['column_anim_armature']],
+            Sdf.Path('/root/_materials/Material'): [bpy.data.materials['Material']],
+            Sdf.Path('/root/Armature2/side_b'): [bpy.data.objects['side_b']],
+            Sdf.Path('/root/Armature2/side_b/side_b'): [bpy.data.meshes['side_b']],
+            Sdf.Path('/root/cube_anim_keys'): [bpy.data.objects['cube_anim_keys']],
+            Sdf.Path('/root/Armature2/side_a'): [bpy.data.objects['side_a']],
+            Sdf.Path('/root/cube_anim_xform/cube_anim_child/cube_anim_child_mesh'): [bpy.data.meshes['cube_anim_child_mesh']],
+            Sdf.Path('/root/Armature'): [bpy.data.objects['Armature']],
+            Sdf.Path('/root/cube_anim_xform/cube_anim_xform_mesh'): [bpy.data.meshes['cube_anim_xform_mesh']],
+            Sdf.Path('/root/Armature2'): [bpy.data.objects['Armature2']],
+            Sdf.Path('/root/Armature/column_anim_armature'): [bpy.data.objects['column_anim_armature']],
+            Sdf.Path('/root/cube_anim_keys/cube_anim_keys'): [bpy.data.meshes['cube_anim_keys']],
+            Sdf.Path('/root/cube_anim_xform'): [bpy.data.objects['cube_anim_xform']],
+            Sdf.Path('/root/Armature2/side_a/side_a'): [bpy.data.meshes['side_a']],
+        }
+
+        self.assertDictEqual(prim_map, expected_prim_map)
+
+    def test_get_prim_map_export_xfrom_not_merged(self):
+        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "usd_extent_test.blend"))
+        bpy.utils.register_class(GetPrimMapUsdExportHook)
+        bpy.ops.wm.usd_export(filepath=str(self.tempdir / "test_prim_map_export.usda"), merge_parent_xform=False)
+        prim_map = GetPrimMapUsdExportHook.prim_map
+        bpy.utils.unregister_class(GetPrimMapUsdExportHook)
+
+        expected_prim_map = {
+            Sdf.Path('/root/_materials/Material'): [bpy.data.materials['Material']],
+            Sdf.Path('/root/Camera'): [bpy.data.objects['Camera']],
+            Sdf.Path('/root/Camera/Camera'): [bpy.data.cameras['Camera']],
+            Sdf.Path('/root/Light'): [bpy.data.objects['Light']],
+            Sdf.Path('/root/Light/Light'): [bpy.data.lights['Light']],
+            Sdf.Path('/root/scene'): [bpy.data.objects['scene']],
+            Sdf.Path('/root/scene/BigCube'): [bpy.data.objects['BigCube']],
+            Sdf.Path('/root/scene/BigCube/BigCubeMesh'): [bpy.data.meshes['BigCubeMesh']],
+            Sdf.Path('/root/scene/LittleCube'): [bpy.data.objects['LittleCube']],
+            Sdf.Path('/root/scene/LittleCube/LittleCubeMesh'): [bpy.data.meshes['LittleCubeMesh']],
+            Sdf.Path('/root/scene/Volume'): [bpy.data.objects['Volume']],
+        }
+
+        self.assertDictEqual(prim_map, expected_prim_map)
+
+    def test_get_prim_map_export_xfrom_merged(self):
+        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "usd_extent_test.blend"))
+        bpy.utils.register_class(GetPrimMapUsdExportHook)
+        bpy.ops.wm.usd_export(filepath=str(self.tempdir / "test_prim_map_export.usda"), merge_parent_xform=True)
+        prim_map = GetPrimMapUsdExportHook.prim_map
+        bpy.utils.unregister_class(GetPrimMapUsdExportHook)
+
+        expected_prim_map = {
+            Sdf.Path('/root/_materials/Material'): [bpy.data.materials['Material']],
+            Sdf.Path('/root/Camera'): [bpy.data.objects['Camera'], bpy.data.cameras['Camera']],
+            Sdf.Path('/root/Light'): [bpy.data.objects['Light'], bpy.data.lights['Light']],
+            Sdf.Path('/root/scene'): [bpy.data.objects['scene']],
+            Sdf.Path('/root/scene/BigCube'): [bpy.data.objects['BigCube'], bpy.data.meshes['BigCubeMesh']],
+            Sdf.Path('/root/scene/LittleCube'): [bpy.data.objects['LittleCube'], bpy.data.meshes['LittleCubeMesh']],
+            Sdf.Path('/root/scene/Volume'): [bpy.data.objects['Volume']],
+        }
+
+        self.assertDictEqual(prim_map, expected_prim_map)
+
     def test_hooks(self):
         """Validate USD Hook integration for both import and export"""
 
         # Create a simple scene with 1 object and 1 material
         bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "empty.blend"))
         material = bpy.data.materials.new(name="test_material")
-        material.use_nodes = True
+        node_tree = material.node_tree
+        node_tree.nodes.clear()
+        bsdf = node_tree.nodes.new("ShaderNodeBsdfPrincipled")
+        output = node_tree.nodes.new("ShaderNodeOutputMaterial")
+        node_tree.links.new(bsdf.outputs["BSDF"], output.inputs["Surface"])
         bpy.ops.mesh.primitive_plane_add()
         bpy.data.objects[0].data.materials.append(material)
 
@@ -1806,6 +1915,71 @@ class USDExportTest(AbstractUSDTest):
                     self.compareVec3d(Gf.Vec3d(extent[0]), expected_min)
                     self.compareVec3d(Gf.Vec3d(extent[1]), expected_max)
 
+    def test_export_usdz(self):
+        """Validate USDZ files are packaged correctly."""
+
+        bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "usdz_export_test.blend"))
+        export_path = str(self.tempdir / "output_こんにちは.usdz")
+
+        # USDZ export will not create the output directory if it does not already exist
+        self.tempdir.mkdir()
+
+        # USDZ export will modify the working directory during the export process, but it should
+        # return to normal once complete
+        original_cwd = pathlib.Path.cwd()
+        self.export_and_validate(filepath=export_path)
+        final_cwd = pathlib.Path.cwd()
+
+        self.assertEqual(original_cwd, final_cwd)
+
+        # Validate stage content
+        stage = Usd.Stage.Open(export_path)
+        self.assertTrue(stage.GetPrimAtPath("/root/Cube/Cube").IsValid())
+        self.assertTrue(stage.GetPrimAtPath("/root/Cylinder/Cylinder").IsValid())
+        self.assertTrue(stage.GetPrimAtPath("/root/Icosphere/Icosphere").IsValid())
+        self.assertTrue(stage.GetPrimAtPath("/root/Sphere/Sphere").IsValid())
+        self.assertTrue(stage.GetPrimAtPath("/root/env_light").IsValid())
+
+        # Validate that the archive itself contains what we expect (it is just a ZIP file)
+        import zipfile
+        with zipfile.ZipFile(export_path, 'r') as zfile:
+            file_list = zfile.namelist()
+            self.assertIn('textures/color_0C0C0C.exr', file_list)
+
+    def test_export_indexed_uvs(self):
+        """Test that UV maps are exported with proper indexing."""
+
+        # Create a simple cube
+        bpy.ops.mesh.primitive_cube_add()
+        cube = bpy.context.active_object
+        cube.name = "Cube"
+
+        # Export the mesh
+        export_path = self.tempdir / "uv_indexed_test.usda"
+        self.export_and_validate(
+            filepath=str(export_path),
+            export_uvmaps=True,
+            rename_uvmaps=True,
+            evaluation_mode="RENDER",
+        )
+
+        # Load and validate the exported USD
+        stage = Usd.Stage.Open(str(export_path))
+        mesh_prim = stage.GetPrimAtPath("/root/Cube/Cube")
+
+        primvars_api = UsdGeom.PrimvarsAPI(mesh_prim)
+        uv_primvar = primvars_api.GetPrimvar("st")
+        self.assertTrue(uv_primvar.IsIndexed(), "UV primvar should be indexed")
+        self.assertEqual(uv_primvar.GetInterpolation(), UsdGeom.Tokens.faceVarying,
+                         "UV interpolation should be faceVarying")
+
+        uv_values = uv_primvar.Get()
+        uv_indices = uv_primvar.GetIndices()
+        self.assertIsNotNone(uv_indices, "UV primvar should have indices")
+        self.assertEqual(len(uv_indices), 24, "Should have 24 UV indices (one per face vertex)")
+        self.assertLess(len(uv_values), 24,
+                        f"Unique UV count ({len(uv_values)}) should be less than face vertex count (24)")
+
 
 class USDHookBase:
     instructions = {}
@@ -1918,6 +2092,17 @@ class ExportTextureUSDHook(bpy.types.USDHook):
                                                .pathString] = tex_path
 
         return True
+
+
+class GetPrimMapUsdExportHook(bpy.types.USDHook):
+    bl_idname = "get_prim_map_usd_export_hook"
+    bl_label = "Get Prim Map Usd Export Hook"
+
+    prim_map = None
+
+    @staticmethod
+    def on_export(context):
+        GetPrimMapUsdExportHook.prim_map = context.get_prim_map()
 
 
 def main():

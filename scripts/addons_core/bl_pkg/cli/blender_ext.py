@@ -1332,7 +1332,7 @@ def url_retrieve_to_data_iter(
         retrieve_info: DataRetrieveInfo,
 ) -> Iterator[bytes]:
     """
-    Iterate over byte data downloaded from a from a URL
+    Iterate over byte data downloaded from a URL
     limited to ``chunk_size``.
 
     - The ``retrieve_info.size_hint``
@@ -1382,7 +1382,7 @@ def url_retrieve_to_data_iter(
 
     if size >= 0 and read < size:
         raise ContentTooShortError(
-            "retrieval incomplete: got only %i out of %i bytes" % (read, size),
+            "retrieval incomplete: got only {:d} out of {:d} bytes".format(read, size),
             response_headers,
         )
 
@@ -1531,7 +1531,7 @@ def url_retrieve_exception_as_message(
 
 def pkg_idname_is_valid_or_error(pkg_idname: str) -> str | None:
     if not pkg_idname.isidentifier():
-        return "Not a valid identifier"
+        return "Not a valid Python identifier"
     if "__" in pkg_idname:
         return "Only single separators are supported"
     if pkg_idname.startswith("_"):
@@ -1556,7 +1556,7 @@ def pkg_manifest_validate_terse_description_or_error(value: str) -> str | None:
     elif value[-1] in {")", "]", "}"}:
         pass  # Allow closing brackets (sometimes used to mention formats).
     else:
-        return "alpha-numeric suffix expected, the string must not end with punctuation"
+        return "alphanumeric suffix expected, the string must not end with punctuation"
     return None
 
 
@@ -3970,7 +3970,7 @@ class subcmd_client:
             return False
 
         if isinstance((repo_gen_dict := pkg_repo_data_from_json_or_error(result_dict)), str):
-            msglog.fatal_error("unexpected contants in JSON {:s}".format(repo_gen_dict))
+            msglog.fatal_error("unexpected contents in JSON {:s}".format(repo_gen_dict))
             return False
         del result_dict
 
@@ -4684,7 +4684,13 @@ class subcmd_author:
 
         # Manifest & wheels.
         if build_paths_extra:
-            build_paths.extend(build_paths_expand_iter(pkg_source_dir, build_paths_extra))
+            build_paths.extend(build_paths_expand_iter(
+                pkg_source_dir,
+                # When "paths" is set, paths after `build_paths_extra_skip_index` have been added,
+                # see: `PkgManifest_Build.from_dict_all_errors`.
+                build_paths_extra if manifest_build.paths is None else
+                build_paths_extra[:build_paths_extra_skip_index],
+            ))
 
         if manifest_build.paths is not None:
             build_paths.extend(build_paths_expand_iter(pkg_source_dir, manifest_build.paths))

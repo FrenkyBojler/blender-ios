@@ -189,7 +189,7 @@ static void acf_generic_channel_color(bAnimContext *ac, bAnimListElem *ale, floa
   /* FIXME: what happens when the indentation is 1 greater than what it should be
    * (due to grouping)? */
   const int colorOffset = 10 - 10 * indent;
-  UI_GetThemeColorShade3fv(TH_SHADE2, colorOffset, r_color);
+  UI_GetThemeColorShade3fv(TH_CHANNEL, colorOffset, r_color);
 }
 
 /* backdrop for generic channels */
@@ -419,10 +419,13 @@ static bool acf_generic_dataexpand_setting_valid(bAnimContext *ac,
 /* Animation Summary ----------------------------------- */
 
 /* get backdrop color for summary widget */
-static void acf_summary_color(bAnimContext * /*ac*/, bAnimListElem * /*ale*/, float r_color[3])
+static void acf_summary_color(bAnimContext *ac, bAnimListElem *ale, float r_color[3])
 {
-  /* reddish color - same as the 'action' line in NLA */
-  UI_GetThemeColor3fv(TH_ANIM_ACTIVE, r_color);
+  /* Only draw the summary line backdrop when it is expanded. If the entire dope sheet is
+   * just one line, there is no need for any distinction between lines, and the red-ish
+   * color is only going to be a distraction. */
+  const bool is_expanded = ANIM_channel_setting_get(ac, ale, ACHANNEL_SETTING_EXPAND);
+  UI_GetThemeColor3fv(is_expanded ? TH_ANIM_ACTIVE : TH_HEADER, r_color);
 }
 
 /* backdrop for summary widget */
@@ -692,7 +695,7 @@ static void acf_object_name(bAnimListElem *ale, char *name)
 
   /* just copy the name... */
   if (ob && name) {
-    BLI_strncpy(name, ob->id.name + 2, ANIM_CHAN_NAME_SIZE);
+    BLI_strncpy_utf8(name, ob->id.name + 2, ANIM_CHAN_NAME_SIZE);
   }
 }
 
@@ -861,7 +864,7 @@ static void acf_group_name(bAnimListElem *ale, char *name)
 
   /* just copy the name... */
   if (agrp && name) {
-    BLI_strncpy(name, agrp->name, ANIM_CHAN_NAME_SIZE);
+    BLI_strncpy_utf8(name, agrp->name, ANIM_CHAN_NAME_SIZE);
   }
 }
 
@@ -1302,11 +1305,12 @@ static void acf_nla_curve_name(bAnimListElem *ale, char *name)
   prop = RNA_struct_type_find_property(&RNA_NlaStrip, fcu->rna_path);
   if (prop) {
     /* "name" of this strip displays the UI identifier + the name of the NlaStrip */
-    BLI_snprintf(name, 256, "%s (%s)", RNA_property_ui_name(prop), strip->name);
+    BLI_snprintf_utf8(
+        name, ANIM_CHAN_NAME_SIZE, "%s (%s)", RNA_property_ui_name(prop), strip->name);
   }
   else {
     /* unknown property... */
-    BLI_snprintf(name, 256, "%s[%d]", fcu->rna_path, fcu->array_index);
+    BLI_snprintf_utf8(name, ANIM_CHAN_NAME_SIZE, "%s[%d]", fcu->rna_path, fcu->array_index);
   }
 }
 
@@ -1423,7 +1427,7 @@ static void acf_action_slot_name(bAnimListElem *ale, char *r_name)
   if (!slot) {
     /* Trying to getting the slot's name without a slot is a bug. */
     BLI_assert_unreachable();
-    BLI_strncpy(r_name, "-nil-", ANIM_CHAN_NAME_SIZE);
+    BLI_strncpy_utf8(r_name, "-nil-", ANIM_CHAN_NAME_SIZE);
     return;
   }
 
@@ -1434,13 +1438,13 @@ static void acf_action_slot_name(bAnimListElem *ale, char *r_name)
   BLI_assert(num_users >= 0);
   switch (num_users) {
     case 0:
-      BLI_snprintf(r_name, ANIM_CHAN_NAME_SIZE, "%s (unassigned)", display_name);
+      BLI_snprintf_utf8(r_name, ANIM_CHAN_NAME_SIZE, "%s (unassigned)", display_name);
       break;
     case 1:
-      BLI_strncpy(r_name, display_name, ANIM_CHAN_NAME_SIZE);
+      BLI_strncpy_utf8(r_name, display_name, ANIM_CHAN_NAME_SIZE);
       break;
     default:
-      BLI_snprintf(r_name, ANIM_CHAN_NAME_SIZE, "%s (%d)", display_name, num_users);
+      BLI_snprintf_utf8(r_name, ANIM_CHAN_NAME_SIZE, "%s (%d)", display_name, num_users);
       break;
   }
 }
@@ -3644,10 +3648,10 @@ static void acf_shapekey_name(bAnimListElem *ale, char *name)
   if (kb && name) {
     /* if the KeyBlock had a name, use it, otherwise use the index */
     if (kb->name[0]) {
-      BLI_strncpy(name, kb->name, ANIM_CHAN_NAME_SIZE);
+      BLI_strncpy_utf8(name, kb->name, ANIM_CHAN_NAME_SIZE);
     }
     else {
-      BLI_snprintf(name, ANIM_CHAN_NAME_SIZE, IFACE_("Key %d"), ale->index);
+      BLI_snprintf_utf8(name, ANIM_CHAN_NAME_SIZE, IFACE_("Key %d"), ale->index);
     }
   }
 }
@@ -3782,7 +3786,7 @@ static void acf_gpl_name_legacy(bAnimListElem *ale, char *name)
   bGPDlayer *gpl = static_cast<bGPDlayer *>(ale->data);
 
   if (gpl && name) {
-    BLI_strncpy(name, gpl->info, ANIM_CHAN_NAME_SIZE);
+    BLI_strncpy_utf8(name, gpl->info, ANIM_CHAN_NAME_SIZE);
   }
 }
 
@@ -3946,7 +3950,7 @@ static void layer_name(bAnimListElem *ale, char *name)
   GreasePencilLayer *layer = static_cast<GreasePencilLayer *>(ale->data);
 
   if (layer && name) {
-    BLI_strncpy(name, layer->wrap().name().c_str(), ANIM_CHAN_NAME_SIZE);
+    BLI_strncpy_utf8(name, layer->wrap().name().c_str(), ANIM_CHAN_NAME_SIZE);
   }
 }
 
@@ -4049,7 +4053,7 @@ static void layer_group_name(bAnimListElem *ale, char *name)
   GreasePencilLayerTreeGroup *layer_group = static_cast<GreasePencilLayerTreeGroup *>(ale->data);
 
   if (layer_group && name) {
-    BLI_strncpy(name, layer_group->wrap().name().c_str(), ANIM_CHAN_NAME_SIZE);
+    BLI_strncpy_utf8(name, layer_group->wrap().name().c_str(), ANIM_CHAN_NAME_SIZE);
   }
 }
 
@@ -4236,7 +4240,7 @@ static void acf_masklay_name(bAnimListElem *ale, char *name)
   MaskLayer *masklay = static_cast<MaskLayer *>(ale->data);
 
   if (masklay && name) {
-    BLI_strncpy(name, masklay->name, ANIM_CHAN_NAME_SIZE);
+    BLI_strncpy_utf8(name, masklay->name, ANIM_CHAN_NAME_SIZE);
   }
 }
 
@@ -4353,7 +4357,7 @@ static void acf_nlatrack_name(bAnimListElem *ale, char *name)
   NlaTrack *nlt = static_cast<NlaTrack *>(ale->data);
 
   if (nlt && name) {
-    BLI_strncpy(name, nlt->name, ANIM_CHAN_NAME_SIZE);
+    BLI_strncpy_utf8(name, nlt->name, ANIM_CHAN_NAME_SIZE);
   }
 }
 
@@ -4574,10 +4578,10 @@ static void acf_nlaaction_name(bAnimListElem *ale, char *name)
   if (name) {
     if (act) {
       /* TODO: add special decoration when doing this in tweaking mode? */
-      BLI_strncpy(name, act->id.name + 2, ANIM_CHAN_NAME_SIZE);
+      BLI_strncpy_utf8(name, act->id.name + 2, ANIM_CHAN_NAME_SIZE);
     }
     else {
-      BLI_strncpy(name, IFACE_("<No Action>"), ANIM_CHAN_NAME_SIZE);
+      BLI_strncpy_utf8(name, IFACE_("<No Action>"), ANIM_CHAN_NAME_SIZE);
     }
   }
 }
@@ -4828,7 +4832,7 @@ void ANIM_channel_debug_print_info(bAnimContext &ac, bAnimListElem *ale, short i
     acf->name(ale, name);
   }
   else {
-    STRNCPY(name, "<No name>");
+    STRNCPY_UTF8(name, "<No name>");
   }
 
   printf("ChanType: <%-25s> Name: \"%s\"\n       ", acf->channel_type_name, name);
@@ -5890,7 +5894,6 @@ static void draw_setting_widget(bAnimContext *ac,
       but = uiDefIconButBitI(block,
                              butType,
                              flag,
-                             0,
                              icon,
                              xpos,
                              ypos,
@@ -5906,7 +5909,6 @@ static void draw_setting_widget(bAnimContext *ac,
       but = uiDefIconButBitS(block,
                              butType,
                              flag,
-                             0,
                              icon,
                              xpos,
                              ypos,
@@ -5922,7 +5924,6 @@ static void draw_setting_widget(bAnimContext *ac,
       but = uiDefIconButBitC(block,
                              butType,
                              flag,
-                             0,
                              icon,
                              xpos,
                              ypos,
@@ -5972,7 +5973,7 @@ static void draw_setting_widget(bAnimContext *ac,
        !BKE_id_is_editable(ac->bmain, ale->id)))
   {
     if (setting != ACHANNEL_SETTING_EXPAND) {
-      UI_but_disable(but, "Can't edit this property from a linked data-block");
+      UI_but_disable(but, "Cannot edit this property from a linked data-block");
     }
   }
 
@@ -6168,7 +6169,6 @@ void ANIM_channel_draw_widgets(const bContext *C,
 
       but = uiDefButR(block,
                       ButType::Text,
-                      1,
                       "",
                       offset + margin_x,
                       rect->ymin,
@@ -6180,6 +6180,7 @@ void ANIM_channel_draw_widgets(const bContext *C,
                       0,
                       0,
                       std::nullopt);
+      UI_but_retval_set(but, 1);
 
       /* copy what outliner does here, see outliner_buttons */
       if (UI_but_active_only(C, ac->region, block, but) == false) {

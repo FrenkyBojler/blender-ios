@@ -31,6 +31,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_multi_value_map.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_task.hh"
 
 #include "BKE_anim_data.hh"
@@ -189,7 +190,7 @@ static void versioning_replace_musgrave_texture_node(bNodeTree *ntree)
       continue;
     }
 
-    STRNCPY(node->idname, "ShaderNodeTexNoise");
+    STRNCPY_UTF8(node->idname, "ShaderNodeTexNoise");
     node->type_legacy = SH_NODE_TEX_NOISE;
     NodeTexNoise *data = MEM_callocN<NodeTexNoise>(__func__);
     data->base = (static_cast<NodeTexMusgrave *>(node->storage))->base;
@@ -598,7 +599,7 @@ static void versioning_replace_splitviewer(bNodeTree *ntree)
       continue;
     }
 
-    STRNCPY(node->idname, "CompositorNodeSplit");
+    STRNCPY_UTF8(node->idname, "CompositorNodeSplit");
     node->type_legacy = CMP_NODE_SPLIT;
     MEM_freeN(node->storage);
     node->storage = nullptr;
@@ -691,7 +692,7 @@ static void change_input_socket_to_rotation_type(bNodeTree &ntree,
     return;
   }
   socket.type = SOCK_ROTATION;
-  STRNCPY(socket.idname, "NodeSocketRotation");
+  STRNCPY_UTF8(socket.idname, "NodeSocketRotation");
   auto *old_value = static_cast<bNodeSocketValueVector *>(socket.default_value);
   auto *new_value = MEM_callocN<bNodeSocketValueRotation>(__func__);
   copy_v3_v3(new_value->value_euler, old_value->value);
@@ -1089,7 +1090,7 @@ void blo_do_versions_410(FileData *fd, Library * /*lib*/, Main *bmain)
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       Sculpt *sculpt = scene->toolsettings->sculpt;
       if (sculpt != nullptr) {
-        Sculpt default_sculpt = *DNA_struct_default_get(Sculpt);
+        Sculpt default_sculpt = blender::dna::shallow_copy(*DNA_struct_default_get(Sculpt));
         sculpt->automasking_boundary_edges_propagation_steps =
             default_sculpt.automasking_boundary_edges_propagation_steps;
       }
@@ -1155,8 +1156,7 @@ void blo_do_versions_410(FileData *fd, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 401, 18)) {
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       if (scene->ed != nullptr) {
-        blender::seq::for_each_callback(
-            &scene->ed->seqbase, strip_filter_bilinear_to_auto, nullptr);
+        blender::seq::foreach_strip(&scene->ed->seqbase, strip_filter_bilinear_to_auto, nullptr);
       }
     }
   }

@@ -58,6 +58,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 #include "DNA_userdef_types.h"
+#include "DNA_windowmanager_types.h"
 #include "DNA_world_types.h"
 
 #include "BLI_math_vector.h"
@@ -75,7 +76,7 @@
 #include "BKE_bpath.hh"
 #include "BKE_colortools.hh"
 #include "BKE_global.hh"
-#include "BKE_icons.h"
+#include "BKE_icons.hh"
 #include "BKE_idtype.hh"
 #include "BKE_image.hh"
 #include "BKE_image_format.hh"
@@ -136,16 +137,6 @@ static void image_runtime_free_data(Image *image)
   BKE_image_partial_update_register_free(image);
 }
 
-static void image_gpu_runtime_reset(Image *ima)
-{
-  ima->lastused = 0;
-  ima->gpuflag = 0;
-  ima->gpuframenr = IMAGE_GPU_FRAME_NONE;
-  ima->gpu_pass = IMAGE_GPU_PASS_NONE;
-  ima->gpu_layer = IMAGE_GPU_LAYER_NONE;
-  ima->gpu_view = IMAGE_GPU_VIEW_NONE;
-}
-
 static void image_init_data(ID *id)
 {
   Image *image = (Image *)id;
@@ -161,8 +152,9 @@ static void image_copy_data(Main * /*bmain*/,
                             const ID *id_src,
                             const int flag)
 {
-  Image *image_dst = (Image *)id_dst;
   const Image *image_src = (const Image *)id_src;
+  Image *image_dst = (Image *)id_dst;
+  image_dst->runtime = MEM_new<blender::bke::ImageRuntime>(__func__);
 
   BKE_color_managed_colorspace_settings_copy(&image_dst->colorspace_settings,
                                              &image_src->colorspace_settings);
@@ -174,7 +166,6 @@ static void image_copy_data(Main * /*bmain*/,
   BLI_duplicatelist(&image_dst->views, &image_src->views);
 
   /* Cleanup stuff that cannot be copied. */
-  image_dst->cache = nullptr;
   image_dst->rr = nullptr;
 
   BLI_duplicatelist(&image_dst->renderslots, &image_src->renderslots);
@@ -186,20 +177,12 @@ static void image_copy_data(Main * /*bmain*/,
 
   BLI_duplicatelist(&image_dst->tiles, &image_src->tiles);
 
-  for (int eye = 0; eye < 2; eye++) {
-    for (int i = 0; i < TEXTARGET_COUNT; i++) {
-      image_dst->gputexture[i][eye] = nullptr;
-    }
-  }
-
   if ((flag & LIB_ID_COPY_NO_PREVIEW) == 0) {
     BKE_previewimg_id_copy(&image_dst->id, &image_src->id);
   }
   else {
     image_dst->preview = nullptr;
   }
-
-  image_dst->runtime = MEM_new<blender::bke::ImageRuntime>(__func__);
 }
 
 static void image_free_data(ID *id)
@@ -238,31 +221,11 @@ static void image_foreach_cache(ID *id,
   Image *image = (Image *)id;
   IDCacheKey key;
   key.id_session_uid = id->session_uid;
-  key.identifier = offsetof(Image, cache);
-  function_callback(id, &key, (void **)&image->cache, 0, user_data);
 
   key.identifier = offsetof(Image, anims.first);
   function_callback(id, &key, &image->anims.first, 0, user_data);
   key.identifier = offsetof(Image, anims.last);
   function_callback(id, &key, &image->anims.last, 0, user_data);
-
-  auto gputexture_offset = [image](int target, int eye) {
-    constexpr size_t base_offset = offsetof(Image, gputexture);
-    GPUTexture **first = &image->gputexture[0][0];
-    const size_t array_offset = sizeof(*first) * (&image->gputexture[target][eye] - first);
-    return base_offset + array_offset;
-  };
-
-  for (int eye = 0; eye < 2; eye++) {
-    for (int a = 0; a < TEXTARGET_COUNT; a++) {
-      GPUTexture *texture = image->gputexture[a][eye];
-      if (texture == nullptr) {
-        continue;
-      }
-      key.identifier = gputexture_offset(a, eye);
-      function_callback(id, &key, (void **)&image->gputexture[a][eye], 0, user_data);
-    }
-  }
 
   key.identifier = offsetof(Image, rr);
   function_callback(id, &key, (void **)&image->rr, 0, user_data);
@@ -270,6 +233,31 @@ static void image_foreach_cache(ID *id,
   LISTBASE_FOREACH (RenderSlot *, slot, &image->renderslots) {
     key.identifier = size_t(BLI_ghashutil_strhash_p(slot->name));
     function_callback(id, &key, (void **)&slot->render, 0, user_data);
+  }
+
+  /* Ensure we don't collide with the identifiers used above. */
+  constexpr size_t runtime_base_id = size_t(1) << 32u;
+
+  key.identifier = runtime_base_id + offsetof(ImageRuntimeHandle, cache);
+  function_callback(id, &key, (void **)&image->runtime->cache, 0, user_data);
+
+  auto gputexture_offset = [image](int target, int eye) {
+    constexpr size_t base_offset = offsetof(ImageRuntimeHandle, gputexture);
+    blender::gpu::Texture **first = &image->runtime->gputexture[0][0];
+    const size_t array_offset = sizeof(*first) *
+                                (&image->runtime->gputexture[target][eye] - first);
+    return base_offset + array_offset;
+  };
+
+  for (int eye = 0; eye < 2; eye++) {
+    for (int a = 0; a < TEXTARGET_COUNT; a++) {
+      const blender::gpu::Texture *texture = image->runtime->gputexture[a][eye];
+      if (texture == nullptr) {
+        continue;
+      }
+      key.identifier = runtime_base_id + gputexture_offset(a, eye);
+      function_callback(id, &key, (void **)&image->runtime->gputexture[a][eye], 0, user_data);
+    }
   }
 }
 
@@ -337,14 +325,9 @@ static void image_blend_write(BlendWriter *writer, ID *id, const void *id_addres
 
   /* Clear all data that isn't read to reduce false detection of changed image during memfile undo.
    */
-  ima->cache = nullptr;
-  image_gpu_runtime_reset(ima);
+  ima->runtime = nullptr;
+
   BLI_listbase_clear(&ima->anims);
-  for (int i = 0; i < 3; i++) {
-    for (int j = 0; j < 2; j++) {
-      ima->gputexture[i][j] = nullptr;
-    }
-  }
 
   ImagePackedFile *imapf;
 
@@ -419,7 +402,6 @@ static void image_blend_read_data(BlendDataReader *reader, ID *id)
   BKE_previewimg_blend_read(reader, ima->preview);
   BLO_read_struct(reader, Stereo3dFormat, &ima->stereo3d_format);
 
-  image_gpu_runtime_reset(ima);
   ima->runtime = MEM_new<blender::bke::ImageRuntime>(__func__);
 }
 
@@ -431,7 +413,7 @@ static void image_blend_read_after_liblink(BlendLibReader * /*reader*/, ID *id)
   /* Needs to be done *after* cache pointers are restored (call to
    * `foreach_cache`/`blo_cache_storage_entry_restore_in_new`), easier for now to do it in
    * lib_link... */
-  if (ima->cache == nullptr) {
+  if (ima->runtime->cache == nullptr) {
     BKE_image_free_buffers(ima);
   }
 }
@@ -525,37 +507,37 @@ static void imagecache_put(Image *image, int index, ImBuf *ibuf)
 {
   ImageCacheKey key;
 
-  if (image->cache == nullptr) {
+  if (image->runtime->cache == nullptr) {
     // char cache_name[64];
-    // SNPRINTF(cache_name, "Image Datablock %s", image->id.name);
+    // SNPRINTF_UTF8(cache_name, "Image Datablock %s", image->id.name);
 
-    image->cache = IMB_moviecache_create(
+    image->runtime->cache = IMB_moviecache_create(
         "Image Datablock Cache", sizeof(ImageCacheKey), imagecache_hashhash, imagecache_hashcmp);
-    IMB_moviecache_set_getdata_callback(image->cache, imagecache_keydata);
+    IMB_moviecache_set_getdata_callback(image->runtime->cache, imagecache_keydata);
   }
 
   key.index = index;
 
-  IMB_moviecache_put(image->cache, &key, ibuf);
+  IMB_moviecache_put(image->runtime->cache, &key, ibuf);
 }
 
 static void imagecache_remove(Image *image, int index)
 {
-  if (image->cache == nullptr) {
+  if (image->runtime->cache == nullptr) {
     return;
   }
 
   ImageCacheKey key;
   key.index = index;
-  IMB_moviecache_remove(image->cache, &key);
+  IMB_moviecache_remove(image->runtime->cache, &key);
 }
 
 static ImBuf *imagecache_get(Image *image, int index, bool *r_is_cached_empty)
 {
-  if (image->cache) {
+  if (image->runtime->cache) {
     ImageCacheKey key;
     key.index = index;
-    return IMB_moviecache_get(image->cache, &key, r_is_cached_empty);
+    return IMB_moviecache_get(image->runtime->cache, &key, r_is_cached_empty);
   }
 
   return nullptr;
@@ -569,9 +551,9 @@ static ImBuf *imagecache_get(Image *image, int index, bool *r_is_cached_empty)
 
 static void image_free_cached_frames(Image *image)
 {
-  if (image->cache) {
-    IMB_moviecache_free(image->cache);
-    image->cache = nullptr;
+  if (image->runtime->cache) {
+    IMB_moviecache_free(image->runtime->cache);
+    image->runtime->cache = nullptr;
   }
 }
 
@@ -762,9 +744,9 @@ void BKE_image_merge(Main *bmain, Image *dest, Image *source)
       std::scoped_lock lock_src(source->runtime->cache_mutex);
       std::scoped_lock lock_dst(dest->runtime->cache_mutex);
 
-      if (source->cache != nullptr) {
+      if (source->runtime->cache != nullptr) {
         MovieCacheIter *iter;
-        iter = IMB_moviecacheIter_new(source->cache);
+        iter = IMB_moviecacheIter_new(source->runtime->cache);
         while (!IMB_moviecacheIter_done(iter)) {
           ImBuf *ibuf = IMB_moviecacheIter_getImBuf(iter);
           ImageCacheKey *key = static_cast<ImageCacheKey *>(IMB_moviecacheIter_getUserKey(iter));
@@ -802,7 +784,7 @@ bool BKE_image_has_opengl_texture(Image *ima)
 {
   for (int eye = 0; eye < 2; eye++) {
     for (int i = 0; i < TEXTARGET_COUNT; i++) {
-      if (ima->gputexture[i][eye] != nullptr) {
+      if (ima->runtime->gputexture[i][eye] != nullptr) {
         return true;
       }
     }
@@ -937,7 +919,7 @@ int BKE_image_find_nearest_tile_with_offset(const Image *image,
                                             const float co[2],
                                             float r_uv_offset[2])
 {
-  /* NOTE: If the co-ordinates are integers, take special care to break ties. */
+  /* NOTE: If the coordinates are integers, take special care to break ties. */
 
   zero_v2(r_uv_offset);
   int tile_number_best = -1;
@@ -1179,7 +1161,7 @@ static ImBuf *add_ibuf_for_tile(Image *ima, ImageTile *tile)
       const char *colorspace = IMB_colormanagement_role_colorspace_name_get(
           COLOR_ROLE_DEFAULT_FLOAT);
 
-      STRNCPY(ima->colorspace_settings.name, colorspace);
+      STRNCPY_UTF8(ima->colorspace_settings.name, colorspace);
     }
 
     if (ibuf != nullptr) {
@@ -1203,7 +1185,7 @@ static ImBuf *add_ibuf_for_tile(Image *ima, ImageTile *tile)
       const char *colorspace = IMB_colormanagement_role_colorspace_name_get(
           COLOR_ROLE_DEFAULT_BYTE);
 
-      STRNCPY(ima->colorspace_settings.name, colorspace);
+      STRNCPY_UTF8(ima->colorspace_settings.name, colorspace);
     }
 
     if (ibuf != nullptr) {
@@ -1279,8 +1261,8 @@ Image *BKE_image_add_generated(Main *bmain,
   copy_v4_v4(tile->gen_color, color);
 
   if (is_data) {
-    STRNCPY(ima->colorspace_settings.name,
-            IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_DATA));
+    STRNCPY_UTF8(ima->colorspace_settings.name,
+                 IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_DATA));
   }
 
   for (view_id = 0; view_id < 2; view_id++) {
@@ -1325,7 +1307,7 @@ static void image_colorspace_from_imbuf(Image *image, const ImBuf *ibuf)
   }
 
   if (colorspace_name) {
-    STRNCPY(image->colorspace_settings.name, colorspace_name);
+    STRNCPY_UTF8(image->colorspace_settings.name, colorspace_name);
   }
 }
 
@@ -1526,12 +1508,16 @@ void BKE_image_packfiles_from_mem(ReportList *reports,
     imapf->view = 0;
     imapf->tile_number = 1001;
     STRNCPY(imapf->filepath, ima->filepath);
+
+    /* The image should not be marked as "generated" since image data was provided. */
+    ImageTile *base_tile = BKE_image_get_tile(ima, 0);
+    base_tile->gen_flag &= ~IMA_GEN_TILE;
   }
 }
 
 void BKE_image_tag_time(Image *ima)
 {
-  ima->lastused = BLI_time_now_seconds_i();
+  ima->runtime->lastused = BLI_time_now_seconds_i();
 }
 
 static uintptr_t image_mem_size(Image *image)
@@ -1545,8 +1531,8 @@ static uintptr_t image_mem_size(Image *image)
 
   std::scoped_lock lock(image->runtime->cache_mutex);
 
-  if (image->cache != nullptr) {
-    MovieCacheIter *iter = IMB_moviecacheIter_new(image->cache);
+  if (image->runtime->cache != nullptr) {
+    MovieCacheIter *iter = IMB_moviecacheIter_new(image->runtime->cache);
 
     while (!IMB_moviecacheIter_done(iter)) {
       ImBuf *ibuf = IMB_moviecacheIter_getImBuf(iter);
@@ -1622,12 +1608,12 @@ void BKE_image_free_all_textures(Main *bmain)
   for (ima = static_cast<Image *>(bmain->images.first); ima;
        ima = static_cast<Image *>(ima->id.next))
   {
-    if (ima->cache && (ima->id.tag & ID_TAG_DOIT)) {
+    if (ima->runtime->cache && (ima->id.tag & ID_TAG_DOIT)) {
 #ifdef CHECK_FREED_SIZE
       uintptr_t old_size = image_mem_size(ima);
 #endif
 
-      IMB_moviecache_cleanup(ima->cache, imagecache_check_dirty, nullptr);
+      IMB_moviecache_cleanup(ima->runtime->cache, imagecache_check_dirty, nullptr);
 
 #ifdef CHECK_FREED_SIZE
       tot_freed_size += old_size - image_mem_size(ima);
@@ -1652,8 +1638,8 @@ static bool imagecache_check_free_anim(ImBuf *ibuf, void * /*userkey*/, void *us
 void BKE_image_free_anim_ibufs(Image *ima, int except_frame)
 {
   std::scoped_lock lock(ima->runtime->cache_mutex);
-  if (ima->cache != nullptr) {
-    IMB_moviecache_cleanup(ima->cache, imagecache_check_free_anim, &except_frame);
+  if (ima->runtime->cache != nullptr) {
+    IMB_moviecache_cleanup(ima->runtime->cache, imagecache_check_free_anim, &except_frame);
   }
 }
 
@@ -1725,9 +1711,9 @@ static void stampdata(
 
   if (scene->r.stamp & R_STAMP_FILENAME) {
     const char *blendfile_path = BKE_main_blendfile_path_from_global();
-    SNPRINTF(stamp_data->file,
-             do_prefix ? "File %s" : "%s",
-             (blendfile_path[0] != '\0') ? blendfile_path : "<untitled>");
+    SNPRINTF_UTF8(stamp_data->file,
+                  do_prefix ? "File %s" : "%s",
+                  (blendfile_path[0] != '\0') ? blendfile_path : "<untitled>");
   }
   else {
     stamp_data->file[0] = '\0';
@@ -1735,7 +1721,7 @@ static void stampdata(
 
   if (scene->r.stamp & R_STAMP_NOTE) {
     /* Never do prefix for Note */
-    SNPRINTF(stamp_data->note, "%s", scene->r.stamp_udata);
+    STRNCPY_UTF8(stamp_data->note, scene->r.stamp_udata);
   }
   else {
     stamp_data->note[0] = '\0';
@@ -1744,15 +1730,15 @@ static void stampdata(
   if (scene->r.stamp & R_STAMP_DATE) {
     t = time(nullptr);
     tl = localtime(&t);
-    SNPRINTF(text,
-             "%04d/%02d/%02d %02d:%02d:%02d",
-             tl->tm_year + 1900,
-             tl->tm_mon + 1,
-             tl->tm_mday,
-             tl->tm_hour,
-             tl->tm_min,
-             tl->tm_sec);
-    SNPRINTF(stamp_data->date, do_prefix ? "Date %s" : "%s", text);
+    SNPRINTF_UTF8(text,
+                  "%04d/%02d/%02d %02d:%02d:%02d",
+                  tl->tm_year + 1900,
+                  tl->tm_mon + 1,
+                  tl->tm_mday,
+                  tl->tm_hour,
+                  tl->tm_min,
+                  tl->tm_sec);
+    SNPRINTF_UTF8(stamp_data->date, do_prefix ? "Date %s" : "%s", text);
   }
   else {
     stamp_data->date[0] = '\0';
@@ -1762,13 +1748,13 @@ static void stampdata(
     const char *name = BKE_scene_find_last_marker_name(scene, scene->r.cfra);
 
     if (name) {
-      STRNCPY(text, name);
+      STRNCPY_UTF8(text, name);
     }
     else {
-      STRNCPY(text, "<none>");
+      STRNCPY_UTF8(text, "<none>");
     }
 
-    SNPRINTF(stamp_data->marker, do_prefix ? "Marker %s" : "%s", text);
+    SNPRINTF_UTF8(stamp_data->marker, do_prefix ? "Marker %s" : "%s", text);
   }
   else {
     stamp_data->marker[0] = '\0';
@@ -1776,9 +1762,13 @@ static void stampdata(
 
   if (use_dynamic && scene->r.stamp & R_STAMP_TIME) {
     const short timecode_style = USER_TIMECODE_SMPTE_FULL;
-    BLI_timecode_string_from_time(
-        text, sizeof(text), 0, FRA2TIME(scene->r.cfra), FPS, timecode_style);
-    SNPRINTF(stamp_data->time, do_prefix ? "Timecode %s" : "%s", text);
+    BLI_timecode_string_from_time(text,
+                                  sizeof(text),
+                                  0,
+                                  FRA2TIME(scene->r.cfra),
+                                  scene->frames_per_second(),
+                                  timecode_style);
+    SNPRINTF_UTF8(stamp_data->time, do_prefix ? "Timecode %s" : "%s", text);
   }
   else {
     stamp_data->time[0] = '\0';
@@ -1792,27 +1782,27 @@ static void stampdata(
       digits = integer_digits_i(scene->r.efra);
     }
 
-    SNPRINTF(fmtstr, do_prefix ? "Frame %%0%di" : "%%0%di", digits);
-    SNPRINTF(stamp_data->frame, fmtstr, scene->r.cfra);
+    SNPRINTF_UTF8(fmtstr, do_prefix ? "Frame %%0%di" : "%%0%di", digits);
+    SNPRINTF_UTF8(stamp_data->frame, fmtstr, scene->r.cfra);
   }
   else {
     stamp_data->frame[0] = '\0';
   }
 
   if (scene->r.stamp & R_STAMP_FRAME_RANGE) {
-    SNPRINTF(stamp_data->frame_range,
-             do_prefix ? "Frame Range %d:%d" : "%d:%d",
-             scene->r.sfra,
-             scene->r.efra);
+    SNPRINTF_UTF8(stamp_data->frame_range,
+                  do_prefix ? "Frame Range %d:%d" : "%d:%d",
+                  scene->r.sfra,
+                  scene->r.efra);
   }
   else {
     stamp_data->frame_range[0] = '\0';
   }
 
   if (use_dynamic && scene->r.stamp & R_STAMP_CAMERA) {
-    SNPRINTF(stamp_data->camera,
-             do_prefix ? "Camera %s" : "%s",
-             camera ? camera->id.name + 2 : "<none>");
+    SNPRINTF_UTF8(stamp_data->camera,
+                  do_prefix ? "Camera %s" : "%s",
+                  camera ? camera->id.name + 2 : "<none>");
   }
   else {
     stamp_data->camera[0] = '\0';
@@ -1820,20 +1810,20 @@ static void stampdata(
 
   if (use_dynamic && scene->r.stamp & R_STAMP_CAMERALENS) {
     if (camera && camera->type == OB_CAMERA) {
-      SNPRINTF(text, "%.2f", ((Camera *)camera->data)->lens);
+      SNPRINTF_UTF8(text, "%.2f", ((Camera *)camera->data)->lens);
     }
     else {
-      STRNCPY(text, "<none>");
+      STRNCPY_UTF8(text, "<none>");
     }
 
-    SNPRINTF(stamp_data->cameralens, do_prefix ? "Lens %s" : "%s", text);
+    SNPRINTF_UTF8(stamp_data->cameralens, do_prefix ? "Lens %s" : "%s", text);
   }
   else {
     stamp_data->cameralens[0] = '\0';
   }
 
   if (scene->r.stamp & R_STAMP_SCENE) {
-    SNPRINTF(stamp_data->scene, do_prefix ? "Scene %s" : "%s", scene->id.name + 2);
+    SNPRINTF_UTF8(stamp_data->scene, do_prefix ? "Scene %s" : "%s", scene->id.name + 2);
   }
   else {
     stamp_data->scene[0] = '\0';
@@ -1843,13 +1833,13 @@ static void stampdata(
     const Strip *strip = blender::seq::strip_topmost_get(scene, scene->r.cfra);
 
     if (strip) {
-      STRNCPY(text, strip->name + 2);
+      STRNCPY_UTF8(text, strip->name + 2);
     }
     else {
-      STRNCPY(text, "<none>");
+      STRNCPY_UTF8(text, "<none>");
     }
 
-    SNPRINTF(stamp_data->strip, do_prefix ? "Strip %s" : "%s", text);
+    SNPRINTF_UTF8(stamp_data->strip, do_prefix ? "Strip %s" : "%s", text);
   }
   else {
     stamp_data->strip[0] = '\0';
@@ -1862,24 +1852,24 @@ static void stampdata(
     if (use_dynamic && stats && (scene->r.stamp & R_STAMP_RENDERTIME)) {
       BLI_timecode_string_from_time_simple(text, sizeof(text), stats->lastframetime);
 
-      SNPRINTF(stamp_data->rendertime, do_prefix ? "RenderTime %s" : "%s", text);
+      SNPRINTF_UTF8(stamp_data->rendertime, do_prefix ? "RenderTime %s" : "%s", text);
     }
     else {
       stamp_data->rendertime[0] = '\0';
     }
 
     if (use_dynamic && stats && (scene->r.stamp & R_STAMP_MEMORY)) {
-      SNPRINTF(stamp_data->memory, do_prefix ? "Peak Memory ddM" : "%dM", stats->mem_peak);
+      SNPRINTF_UTF8(stamp_data->memory, do_prefix ? "Peak Memory ddM" : "%dM", stats->mem_peak);
     }
     else {
       stamp_data->memory[0] = '\0';
     }
   }
   if (scene->r.stamp & R_STAMP_FRAME_RANGE) {
-    SNPRINTF(stamp_data->frame_range,
-             do_prefix ? "Frame Range %d:%d" : "%d:%d",
-             scene->r.sfra,
-             scene->r.efra);
+    SNPRINTF_UTF8(stamp_data->frame_range,
+                  do_prefix ? "Frame Range %d:%d" : "%d:%d",
+                  scene->r.sfra,
+                  scene->r.efra);
   }
   else {
     stamp_data->frame_range[0] = '\0';
@@ -1888,7 +1878,7 @@ static void stampdata(
   if (scene->r.stamp & R_STAMP_HOSTNAME) {
     char hostname[500]; /* sizeof(stamp_data->hostname) minus some bytes for a label. */
     BLI_hostname_get(hostname, sizeof(hostname));
-    SNPRINTF(stamp_data->hostname, do_prefix ? "Hostname %s" : "%s", hostname);
+    SNPRINTF_UTF8(stamp_data->hostname, do_prefix ? "Hostname %s" : "%s", hostname);
   }
   else {
     stamp_data->hostname[0] = '\0';
@@ -1901,90 +1891,91 @@ static void stampdata_from_template(StampData *stamp_data,
                                     bool do_prefix)
 {
   if (scene->r.stamp & R_STAMP_FILENAME) {
-    SNPRINTF(stamp_data->file, do_prefix ? "File %s" : "%s", stamp_data_template->file);
+    SNPRINTF_UTF8(stamp_data->file, do_prefix ? "File %s" : "%s", stamp_data_template->file);
   }
   else {
     stamp_data->file[0] = '\0';
   }
   if (scene->r.stamp & R_STAMP_NOTE) {
-    STRNCPY(stamp_data->note, stamp_data_template->note);
+    STRNCPY_UTF8(stamp_data->note, stamp_data_template->note);
   }
   else {
     stamp_data->note[0] = '\0';
   }
   if (scene->r.stamp & R_STAMP_DATE) {
-    SNPRINTF(stamp_data->date, do_prefix ? "Date %s" : "%s", stamp_data_template->date);
+    SNPRINTF_UTF8(stamp_data->date, do_prefix ? "Date %s" : "%s", stamp_data_template->date);
   }
   else {
     stamp_data->date[0] = '\0';
   }
   if (scene->r.stamp & R_STAMP_MARKER) {
-    SNPRINTF(stamp_data->marker, do_prefix ? "Marker %s" : "%s", stamp_data_template->marker);
+    SNPRINTF_UTF8(stamp_data->marker, do_prefix ? "Marker %s" : "%s", stamp_data_template->marker);
   }
   else {
     stamp_data->marker[0] = '\0';
   }
   if (scene->r.stamp & R_STAMP_TIME) {
-    SNPRINTF(stamp_data->time, do_prefix ? "Timecode %s" : "%s", stamp_data_template->time);
+    SNPRINTF_UTF8(stamp_data->time, do_prefix ? "Timecode %s" : "%s", stamp_data_template->time);
   }
   else {
     stamp_data->time[0] = '\0';
   }
   if (scene->r.stamp & R_STAMP_FRAME) {
-    SNPRINTF(stamp_data->frame, do_prefix ? "Frame %s" : "%s", stamp_data_template->frame);
+    SNPRINTF_UTF8(stamp_data->frame, do_prefix ? "Frame %s" : "%s", stamp_data_template->frame);
   }
   else {
     stamp_data->frame[0] = '\0';
   }
   if (scene->r.stamp & R_STAMP_FRAME_RANGE) {
-    SNPRINTF(stamp_data->frame_range,
-             do_prefix ? "Frame Range %s" : "%s",
-             stamp_data_template->frame_range);
+    SNPRINTF_UTF8(stamp_data->frame_range,
+                  do_prefix ? "Frame Range %s" : "%s",
+                  stamp_data_template->frame_range);
   }
   else {
     stamp_data->frame_range[0] = '\0';
   }
   if (scene->r.stamp & R_STAMP_CAMERA) {
-    SNPRINTF(stamp_data->camera, do_prefix ? "Camera %s" : "%s", stamp_data_template->camera);
+    SNPRINTF_UTF8(stamp_data->camera, do_prefix ? "Camera %s" : "%s", stamp_data_template->camera);
   }
   else {
     stamp_data->camera[0] = '\0';
   }
   if (scene->r.stamp & R_STAMP_CAMERALENS) {
-    SNPRINTF(
+    SNPRINTF_UTF8(
         stamp_data->cameralens, do_prefix ? "Lens %s" : "%s", stamp_data_template->cameralens);
   }
   else {
     stamp_data->cameralens[0] = '\0';
   }
   if (scene->r.stamp & R_STAMP_SCENE) {
-    SNPRINTF(stamp_data->scene, do_prefix ? "Scene %s" : "%s", stamp_data_template->scene);
+    SNPRINTF_UTF8(stamp_data->scene, do_prefix ? "Scene %s" : "%s", stamp_data_template->scene);
   }
   else {
     stamp_data->scene[0] = '\0';
   }
   if (scene->r.stamp & R_STAMP_SEQSTRIP) {
-    SNPRINTF(stamp_data->strip, do_prefix ? "Strip %s" : "%s", stamp_data_template->strip);
+    SNPRINTF_UTF8(stamp_data->strip, do_prefix ? "Strip %s" : "%s", stamp_data_template->strip);
   }
   else {
     stamp_data->strip[0] = '\0';
   }
   if (scene->r.stamp & R_STAMP_RENDERTIME) {
-    SNPRINTF(stamp_data->rendertime,
-             do_prefix ? "RenderTime %s" : "%s",
-             stamp_data_template->rendertime);
+    SNPRINTF_UTF8(stamp_data->rendertime,
+                  do_prefix ? "RenderTime %s" : "%s",
+                  stamp_data_template->rendertime);
   }
   else {
     stamp_data->rendertime[0] = '\0';
   }
   if (scene->r.stamp & R_STAMP_MEMORY) {
-    SNPRINTF(stamp_data->memory, do_prefix ? "Peak Memory %s" : "%s", stamp_data_template->memory);
+    SNPRINTF_UTF8(
+        stamp_data->memory, do_prefix ? "Peak Memory %s" : "%s", stamp_data_template->memory);
   }
   else {
     stamp_data->memory[0] = '\0';
   }
   if (scene->r.stamp & R_STAMP_HOSTNAME) {
-    SNPRINTF(
+    SNPRINTF_UTF8(
         stamp_data->hostname, do_prefix ? "Hostname %s" : "%s", stamp_data_template->hostname);
   }
   else {
@@ -1995,18 +1986,13 @@ static void stampdata_from_template(StampData *stamp_data,
 void BKE_image_stamp_buf(Scene *scene,
                          Object *camera,
                          const StampData *stamp_data_template,
-                         uchar *rect,
-                         float *rectf,
-                         int width,
-                         int height)
+                         ImBuf *ibuf)
 {
   StampData stamp_data;
   int w, h, pad;
   int x, y, y_ofs;
   int h_fixed;
   const int mono = blf_mono_font_render; /* XXX */
-  const ColorManagedDisplay *display;
-  const char *display_device;
 
   /* vars for calculating wordwrap */
   struct {
@@ -2029,12 +2015,9 @@ void BKE_image_stamp_buf(Scene *scene,
 #define BUFF_MARGIN_X 2
 #define BUFF_MARGIN_Y 1
 
-  if (!rect && !rectf) {
+  if (!ibuf->byte_buffer.data && !ibuf->float_buffer.data) {
     return;
   }
-
-  display_device = scene->display_settings.display_device;
-  display = IMB_colormanagement_display_get_named(display_device);
 
   bool do_prefix = (scene->r.stamp & R_STAMP_HIDE_LABELS) == 0;
   if (stamp_data_template == nullptr) {
@@ -2051,9 +2034,15 @@ void BKE_image_stamp_buf(Scene *scene,
 
   /* set before return */
   BLF_size(mono, scene->r.stamp_font_id);
-  BLF_wordwrap(mono, width - (BUFF_MARGIN_X * 2));
+  BLF_wordwrap(mono, ibuf->x - (BUFF_MARGIN_X * 2));
 
-  BLF_buffer(mono, rectf, rect, width, height, display);
+  BLF_buffer(mono,
+             ibuf->float_buffer.data,
+             ibuf->byte_buffer.data,
+             ibuf->x,
+             ibuf->y,
+             ibuf->byte_buffer.colorspace);
+  /* No conversion to scene linear needed, #BLF_buffer_col accepts sRGB. */
   BLF_buffer_col(mono, scene->r.fg_stamp);
   pad = BLF_width_max(mono);
 
@@ -2062,19 +2051,20 @@ void BKE_image_stamp_buf(Scene *scene,
   y_ofs = -BLF_descender(mono);
 
   x = 0;
-  y = height;
+  y = ibuf->y;
+
+  /* Background needs to be converted to scene linear. */
+  float bg_stamp[4];
+  IMB_colormanagement_srgb_to_scene_linear_v3(bg_stamp, scene->r.bg_stamp);
+  bg_stamp[3] = scene->r.bg_stamp[3];
 
   if (TEXT_SIZE_CHECK(stamp_data.file, w, h)) {
     /* Top left corner */
     y -= h;
 
     /* also a little of space to the background. */
-    buf_rectfill_area(rect,
-                      rectf,
-                      width,
-                      height,
-                      scene->r.bg_stamp,
-                      display,
+    IMB_rectfill_area(ibuf,
+                      bg_stamp,
                       x - BUFF_MARGIN_X,
                       y - BUFF_MARGIN_Y,
                       w + BUFF_MARGIN_X,
@@ -2093,16 +2083,8 @@ void BKE_image_stamp_buf(Scene *scene,
     y -= h;
 
     /* and space for background. */
-    buf_rectfill_area(rect,
-                      rectf,
-                      width,
-                      height,
-                      scene->r.bg_stamp,
-                      display,
-                      0,
-                      y - BUFF_MARGIN_Y,
-                      w + BUFF_MARGIN_X,
-                      y + h + BUFF_MARGIN_Y);
+    IMB_rectfill_area(
+        ibuf, bg_stamp, 0, y - BUFF_MARGIN_Y, w + BUFF_MARGIN_X, y + h + BUFF_MARGIN_Y);
 
     BLF_position(mono, x, y + y_ofs, 0.0);
     BLF_draw_buffer(mono, stamp_data.date, sizeof(stamp_data.date));
@@ -2116,16 +2098,8 @@ void BKE_image_stamp_buf(Scene *scene,
     y -= h;
 
     /* and space for background. */
-    buf_rectfill_area(rect,
-                      rectf,
-                      width,
-                      height,
-                      scene->r.bg_stamp,
-                      display,
-                      0,
-                      y - BUFF_MARGIN_Y,
-                      w + BUFF_MARGIN_X,
-                      y + h + BUFF_MARGIN_Y);
+    IMB_rectfill_area(
+        ibuf, bg_stamp, 0, y - BUFF_MARGIN_Y, w + BUFF_MARGIN_X, y + h + BUFF_MARGIN_Y);
 
     BLF_position(mono, x, y + y_ofs, 0.0);
     BLF_draw_buffer(mono, stamp_data.rendertime, sizeof(stamp_data.rendertime));
@@ -2139,16 +2113,8 @@ void BKE_image_stamp_buf(Scene *scene,
     y -= h;
 
     /* and space for background. */
-    buf_rectfill_area(rect,
-                      rectf,
-                      width,
-                      height,
-                      scene->r.bg_stamp,
-                      display,
-                      0,
-                      y - BUFF_MARGIN_Y,
-                      w + BUFF_MARGIN_X,
-                      y + h + BUFF_MARGIN_Y);
+    IMB_rectfill_area(
+        ibuf, bg_stamp, 0, y - BUFF_MARGIN_Y, w + BUFF_MARGIN_X, y + h + BUFF_MARGIN_Y);
 
     BLF_position(mono, x, y + y_ofs, 0.0);
     BLF_draw_buffer(mono, stamp_data.memory, sizeof(stamp_data.memory));
@@ -2162,16 +2128,8 @@ void BKE_image_stamp_buf(Scene *scene,
     y -= h;
 
     /* and space for background. */
-    buf_rectfill_area(rect,
-                      rectf,
-                      width,
-                      height,
-                      scene->r.bg_stamp,
-                      display,
-                      0,
-                      y - BUFF_MARGIN_Y,
-                      w + BUFF_MARGIN_X,
-                      y + h + BUFF_MARGIN_Y);
+    IMB_rectfill_area(
+        ibuf, bg_stamp, 0, y - BUFF_MARGIN_Y, w + BUFF_MARGIN_X, y + h + BUFF_MARGIN_Y);
 
     BLF_position(mono, x, y + y_ofs, 0.0);
     BLF_draw_buffer(mono, stamp_data.hostname, sizeof(stamp_data.hostname));
@@ -2186,16 +2144,8 @@ void BKE_image_stamp_buf(Scene *scene,
     y -= h;
 
     /* and space for background. */
-    buf_rectfill_area(rect,
-                      rectf,
-                      width,
-                      height,
-                      scene->r.bg_stamp,
-                      display,
-                      0,
-                      y - BUFF_MARGIN_Y,
-                      w + BUFF_MARGIN_X,
-                      y + h + BUFF_MARGIN_Y);
+    IMB_rectfill_area(
+        ibuf, bg_stamp, 0, y - BUFF_MARGIN_Y, w + BUFF_MARGIN_X, y + h + BUFF_MARGIN_Y);
 
     BLF_position(mono, x, y + y_ofs + (h - h_fixed), 0.0);
     BLF_draw_buffer(mono, stamp_data.note, sizeof(stamp_data.note));
@@ -2209,12 +2159,8 @@ void BKE_image_stamp_buf(Scene *scene,
   if (TEXT_SIZE_CHECK(stamp_data.marker, w, h)) {
 
     /* extra space for background. */
-    buf_rectfill_area(rect,
-                      rectf,
-                      width,
-                      height,
-                      scene->r.bg_stamp,
-                      display,
+    IMB_rectfill_area(ibuf,
+                      bg_stamp,
                       x - BUFF_MARGIN_X,
                       y - BUFF_MARGIN_Y,
                       w + BUFF_MARGIN_X,
@@ -2232,16 +2178,8 @@ void BKE_image_stamp_buf(Scene *scene,
   if (TEXT_SIZE_CHECK(stamp_data.time, w, h)) {
 
     /* extra space for background */
-    buf_rectfill_area(rect,
-                      rectf,
-                      width,
-                      height,
-                      scene->r.bg_stamp,
-                      display,
-                      x - BUFF_MARGIN_X,
-                      y,
-                      x + w + BUFF_MARGIN_X,
-                      y + h + BUFF_MARGIN_Y);
+    IMB_rectfill_area(
+        ibuf, bg_stamp, x - BUFF_MARGIN_X, y, x + w + BUFF_MARGIN_X, y + h + BUFF_MARGIN_Y);
 
     /* and pad the text. */
     BLF_position(mono, x, y + y_ofs, 0.0);
@@ -2254,12 +2192,8 @@ void BKE_image_stamp_buf(Scene *scene,
   if (TEXT_SIZE_CHECK(stamp_data.frame, w, h)) {
 
     /* extra space for background. */
-    buf_rectfill_area(rect,
-                      rectf,
-                      width,
-                      height,
-                      scene->r.bg_stamp,
-                      display,
+    IMB_rectfill_area(ibuf,
+                      bg_stamp,
                       x - BUFF_MARGIN_X,
                       y - BUFF_MARGIN_Y,
                       x + w + BUFF_MARGIN_X,
@@ -2276,12 +2210,8 @@ void BKE_image_stamp_buf(Scene *scene,
   if (TEXT_SIZE_CHECK(stamp_data.frame_range, w, h)) {
 
     /* extra space for background. */
-    buf_rectfill_area(rect,
-                      rectf,
-                      width,
-                      height,
-                      scene->r.bg_stamp,
-                      display,
+    IMB_rectfill_area(ibuf,
+                      bg_stamp,
                       x - BUFF_MARGIN_X,
                       y - BUFF_MARGIN_Y,
                       x + w + BUFF_MARGIN_X,
@@ -2298,12 +2228,8 @@ void BKE_image_stamp_buf(Scene *scene,
   if (TEXT_SIZE_CHECK(stamp_data.camera, w, h)) {
 
     /* extra space for background. */
-    buf_rectfill_area(rect,
-                      rectf,
-                      width,
-                      height,
-                      scene->r.bg_stamp,
-                      display,
+    IMB_rectfill_area(ibuf,
+                      bg_stamp,
                       x - BUFF_MARGIN_X,
                       y - BUFF_MARGIN_Y,
                       x + w + BUFF_MARGIN_X,
@@ -2318,12 +2244,8 @@ void BKE_image_stamp_buf(Scene *scene,
   if (TEXT_SIZE_CHECK(stamp_data.cameralens, w, h)) {
 
     /* extra space for background. */
-    buf_rectfill_area(rect,
-                      rectf,
-                      width,
-                      height,
-                      scene->r.bg_stamp,
-                      display,
+    IMB_rectfill_area(ibuf,
+                      bg_stamp,
                       x - BUFF_MARGIN_X,
                       y - BUFF_MARGIN_Y,
                       x + w + BUFF_MARGIN_X,
@@ -2335,15 +2257,11 @@ void BKE_image_stamp_buf(Scene *scene,
   if (TEXT_SIZE_CHECK(stamp_data.scene, w, h)) {
 
     /* Bottom right corner, with an extra space because the BLF API is too strict! */
-    x = width - w - 2;
+    x = ibuf->x - w - 2;
 
     /* extra space for background. */
-    buf_rectfill_area(rect,
-                      rectf,
-                      width,
-                      height,
-                      scene->r.bg_stamp,
-                      display,
+    IMB_rectfill_area(ibuf,
+                      bg_stamp,
                       x - BUFF_MARGIN_X,
                       y - BUFF_MARGIN_Y,
                       x + w + BUFF_MARGIN_X,
@@ -2357,16 +2275,12 @@ void BKE_image_stamp_buf(Scene *scene,
   if (TEXT_SIZE_CHECK(stamp_data.strip, w, h)) {
 
     /* Top right corner, with an extra space because the BLF API is too strict! */
-    x = width - w - pad;
-    y = height - h;
+    x = ibuf->x - w - pad;
+    y = ibuf->y - h;
 
     /* extra space for background. */
-    buf_rectfill_area(rect,
-                      rectf,
-                      width,
-                      height,
-                      scene->r.bg_stamp,
-                      display,
+    IMB_rectfill_area(ibuf,
+                      bg_stamp,
                       x - BUFF_MARGIN_X,
                       y - BUFF_MARGIN_Y,
                       x + w + BUFF_MARGIN_X,
@@ -2522,7 +2436,7 @@ void BKE_render_result_stamp_data(RenderResult *rr, const char *key, const char 
   }
   stamp_data = rr->stamp_data;
   StampDataCustomField *field = MEM_mallocN<StampDataCustomField>("StampData Custom Field");
-  STRNCPY(field->key, key);
+  STRNCPY_UTF8(field->key, key);
   field->value = BLI_strdup(value);
   BLI_addtail(&stamp_data->custom_fields, field);
 }
@@ -2561,7 +2475,7 @@ static void metadata_set_field(void *data,
                                char *propvalue,
                                int /*propvalue_maxncpy*/)
 {
-  /* We know it is an ImBuf* because that's what we pass to BKE_stamp_info_callback. */
+  /* We know it is an `ImBuf *` because that's what we pass to #BKE_stamp_info_callback. */
   ImBuf *imbuf = static_cast<ImBuf *>(data);
   IMB_metadata_set_field(imbuf->metadata, propname, propvalue);
 }
@@ -2571,7 +2485,7 @@ static void metadata_get_field(void *data,
                                char *propvalue,
                                int propvalue_maxncpy)
 {
-  /* We know it is an ImBuf* because that's what we pass to BKE_stamp_info_callback. */
+  /* We know it is an `ImBuf *` because that's what we pass to #BKE_stamp_info_callback. */
   ImBuf *imbuf = static_cast<ImBuf *>(data);
   IMB_metadata_get_field(imbuf->metadata, propname, propvalue, propvalue_maxncpy);
 }
@@ -2628,12 +2542,15 @@ bool BKE_imbuf_alpha_test(ImBuf *ibuf)
 
 bool BKE_imbuf_write(ImBuf *ibuf, const char *filepath, const ImageFormatData *imf)
 {
+  if (!BLI_file_ensure_parent_dir_exists(filepath)) {
+    CLOG_ERROR(&LOG, "Couldn't create directory for file %s: %s", filepath, std::strerror(errno));
+    return false;
+  }
+
   BKE_image_format_to_imbuf(ibuf, imf);
 
-  BLI_file_ensure_parent_dir_exists(filepath);
-
   const bool ok = IMB_save_image(ibuf, filepath, IB_byte_data);
-  if (ok == 0) {
+  if (!ok && errno != 0) {
     perror(filepath);
   }
 
@@ -2934,7 +2851,7 @@ static void image_walk_id_all_users(
     }
     case ID_MA: {
       Material *ma = (Material *)id;
-      if (ma->nodetree && ma->use_nodes && !skip_nested_nodes) {
+      if (ma->nodetree && !skip_nested_nodes) {
         image_walk_ntree_all_users(ma->nodetree, &ma->id, customdata, callback);
       }
       image_walk_gpu_materials(id, &ma->gpumaterial, customdata, callback);
@@ -2949,7 +2866,7 @@ static void image_walk_id_all_users(
     }
     case ID_WO: {
       World *world = (World *)id;
-      if (world->nodetree && world->use_nodes && !skip_nested_nodes) {
+      if (world->nodetree && !skip_nested_nodes) {
         image_walk_ntree_all_users(world->nodetree, &world->id, customdata, callback);
       }
       image_walk_gpu_materials(id, &world->gpumaterial, customdata, callback);
@@ -3115,9 +3032,9 @@ static void image_free_tile(Image *ima, ImageTile *tile)
     }
 
     for (int eye = 0; eye < 2; eye++) {
-      if (ima->gputexture[i][eye] != nullptr) {
-        GPU_texture_free(ima->gputexture[i][eye]);
-        ima->gputexture[i][eye] = nullptr;
+      if (ima->runtime->gputexture[i][eye] != nullptr) {
+        GPU_texture_free(ima->runtime->gputexture[i][eye]);
+        ima->runtime->gputexture[i][eye] = nullptr;
       }
     }
   }
@@ -3502,18 +3419,18 @@ ImageTile *BKE_image_add_tile(Image *ima, int tile_number, const char *label)
   }
 
   if (label) {
-    STRNCPY(tile->label, label);
+    STRNCPY_UTF8(tile->label, label);
   }
 
   for (int eye = 0; eye < 2; eye++) {
     /* Reallocate GPU tile array. */
-    if (ima->gputexture[TEXTARGET_2D_ARRAY][eye] != nullptr) {
-      GPU_texture_free(ima->gputexture[TEXTARGET_2D_ARRAY][eye]);
-      ima->gputexture[TEXTARGET_2D_ARRAY][eye] = nullptr;
+    if (ima->runtime->gputexture[TEXTARGET_2D_ARRAY][eye] != nullptr) {
+      GPU_texture_free(ima->runtime->gputexture[TEXTARGET_2D_ARRAY][eye]);
+      ima->runtime->gputexture[TEXTARGET_2D_ARRAY][eye] = nullptr;
     }
-    if (ima->gputexture[TEXTARGET_TILE_MAPPING][eye] != nullptr) {
-      GPU_texture_free(ima->gputexture[TEXTARGET_TILE_MAPPING][eye]);
-      ima->gputexture[TEXTARGET_TILE_MAPPING][eye] = nullptr;
+    if (ima->runtime->gputexture[TEXTARGET_TILE_MAPPING][eye] != nullptr) {
+      GPU_texture_free(ima->runtime->gputexture[TEXTARGET_TILE_MAPPING][eye]);
+      ima->runtime->gputexture[TEXTARGET_TILE_MAPPING][eye] = nullptr;
     }
   }
   BKE_image_partial_update_mark_full_update(ima);
@@ -3561,13 +3478,13 @@ void BKE_image_reassign_tile(Image *ima, ImageTile *tile, int new_tile_number)
 
   for (int eye = 0; eye < 2; eye++) {
     /* Reallocate GPU tile array. */
-    if (ima->gputexture[TEXTARGET_2D_ARRAY][eye] != nullptr) {
-      GPU_texture_free(ima->gputexture[TEXTARGET_2D_ARRAY][eye]);
-      ima->gputexture[TEXTARGET_2D_ARRAY][eye] = nullptr;
+    if (ima->runtime->gputexture[TEXTARGET_2D_ARRAY][eye] != nullptr) {
+      GPU_texture_free(ima->runtime->gputexture[TEXTARGET_2D_ARRAY][eye]);
+      ima->runtime->gputexture[TEXTARGET_2D_ARRAY][eye] = nullptr;
     }
-    if (ima->gputexture[TEXTARGET_TILE_MAPPING][eye] != nullptr) {
-      GPU_texture_free(ima->gputexture[TEXTARGET_TILE_MAPPING][eye]);
-      ima->gputexture[TEXTARGET_TILE_MAPPING][eye] = nullptr;
+    if (ima->runtime->gputexture[TEXTARGET_TILE_MAPPING][eye] != nullptr) {
+      GPU_texture_free(ima->runtime->gputexture[TEXTARGET_TILE_MAPPING][eye]);
+      ima->runtime->gputexture[TEXTARGET_TILE_MAPPING][eye] = nullptr;
     }
   }
   BKE_image_partial_update_mark_full_update(ima);
@@ -3860,7 +3777,7 @@ static void image_init_multilayer_multiview(Image *ima, RenderResult *rr)
   if (rr) {
     LISTBASE_FOREACH (RenderView *, rv, &rr->views) {
       ImageView *iv = MEM_callocN<ImageView>("Viewer Image View");
-      STRNCPY(iv->name, rv->name);
+      STRNCPY_UTF8(iv->name, rv->name);
       BLI_addtail(&ima->views, iv);
     }
   }
@@ -3973,7 +3890,7 @@ static void image_add_view(Image *ima, const char *viewname, const char *filepat
   ImageView *iv;
 
   iv = MEM_mallocN<ImageView>("Viewer Image View");
-  STRNCPY(iv->name, viewname);
+  STRNCPY_UTF8(iv->name, viewname);
   STRNCPY(iv->filepath, filepath);
 
   /* For stereo drawing we need to ensure:
@@ -4009,12 +3926,12 @@ static void image_create_multilayer(Image *ima, ImBuf *ibuf, int framenr)
 
   /* only load rr once for multiview */
   if (!ima->rr) {
-    ima->rr = RE_MultilayerConvert(ibuf->userdata, colorspace, predivide, ibuf->x, ibuf->y);
+    ima->rr = RE_MultilayerConvert(ibuf->exrhandle, colorspace, predivide, ibuf->x, ibuf->y);
   }
 
-  IMB_exr_close(ibuf->userdata);
+  IMB_exr_close(ibuf->exrhandle);
 
-  ibuf->userdata = nullptr;
+  ibuf->exrhandle = nullptr;
   if (ima->rr != nullptr) {
     ima->rr->framenr = framenr;
     BKE_stamp_info_from_imbuf(ima->rr, ibuf);
@@ -4164,7 +4081,6 @@ static ImBuf *load_movie_single(Image *ima, ImageUser *iuser, int frame, const i
     ibuf = IMB_makeSingleUser(MOV_decode_frame(ia->anim, fra, IMB_TC_RECORD_RUN, IMB_PROXY_NONE));
 
     if (ibuf) {
-      colormanage_imbuf_make_linear(ibuf, ima->colorspace_settings.name);
       image_init_after_load(ima, iuser, ibuf);
     }
   }
@@ -4282,10 +4198,10 @@ static ImBuf *load_image_single(Image *ima,
 
   if (ibuf) {
 #ifdef WITH_IMAGE_OPENEXR
-    if (ibuf->ftype == IMB_FTYPE_OPENEXR && ibuf->userdata) {
+    if (ibuf->ftype == IMB_FTYPE_OPENEXR && ibuf->exrhandle) {
       /* Handle multilayer and multiview cases, don't assign ibuf here.
        * will be set layer in BKE_image_acquire_ibuf from ima->rr. */
-      if (IMB_exr_has_multilayer(ibuf->userdata)) {
+      if (IMB_exr_has_multilayer(ibuf->exrhandle)) {
         image_create_multilayer(ima, ibuf, cfra);
         ima->type = IMA_TYPE_MULTILAYER;
         IMB_freeImBuf(ibuf);
@@ -4523,7 +4439,7 @@ static ImBuf *image_get_render_result(Image *ima, ImageUser *iuser, void **r_loc
    *
    * 2. Provides an image buffer which can be used to communicate the render resolution (with
    * possible border render applied to it) prior to the actual pixels storage is allocated. */
-  if (ima->cache == nullptr) {
+  if (ima->runtime->cache == nullptr) {
     ImBuf *empty_ibuf = IMB_allocImBuf(0, 0, 0, 0);
     image_assign_ibuf(ima, empty_ibuf, IMA_NO_INDEX, 0);
 
@@ -5158,14 +5074,14 @@ void BKE_image_user_frame_calc(Image *ima, ImageUser *iuser, int cfra)
       iuser->flag |= IMA_USER_FRAME_IN_RANGE;
     }
 
-    if (ima && ima->gpuframenr != iuser->framenr) {
+    if (ima && ima->runtime->gpuframenr != iuser->framenr) {
       /* NOTE: a single texture and refresh doesn't really work when
        * multiple image users may use different frames, this is to
        * be improved with perhaps a GPU texture cache. */
-      if (ima->gpuframenr != IMAGE_GPU_FRAME_NONE) {
+      if (ima->runtime->gpuframenr != IMAGE_GPU_FRAME_NONE) {
         BKE_image_partial_update_mark_full_update(ima);
       }
-      ima->gpuframenr = iuser->framenr;
+      ima->runtime->gpuframenr = iuser->framenr;
     }
 
     iuser->flag &= ~IMA_NEED_FRAME_RECALC;
@@ -5454,8 +5370,8 @@ bool BKE_image_is_dirty_writable(Image *image, bool *r_is_writable)
   bool is_writable = false;
 
   std::scoped_lock lock(image->runtime->cache_mutex);
-  if (image->cache != nullptr) {
-    MovieCacheIter *iter = IMB_moviecacheIter_new(image->cache);
+  if (image->runtime->cache != nullptr) {
+    MovieCacheIter *iter = IMB_moviecacheIter_new(image->runtime->cache);
 
     while (!IMB_moviecacheIter_done(iter)) {
       ImBuf *ibuf = IMB_moviecacheIter_getImBuf(iter);
@@ -5497,8 +5413,8 @@ bool BKE_image_buffer_format_writable(ImBuf *ibuf)
 void BKE_image_file_format_set(Image *image, int ftype, const ImbFormatOptions *options)
 {
   std::scoped_lock lock(image->runtime->cache_mutex);
-  if (image->cache != nullptr) {
-    MovieCacheIter *iter = IMB_moviecacheIter_new(image->cache);
+  if (image->runtime->cache != nullptr) {
+    MovieCacheIter *iter = IMB_moviecacheIter_new(image->runtime->cache);
 
     while (!IMB_moviecacheIter_done(iter)) {
       ImBuf *ibuf = IMB_moviecacheIter_getImBuf(iter);
@@ -5517,8 +5433,8 @@ bool BKE_image_has_loaded_ibuf(Image *image)
   bool has_loaded_ibuf = false;
 
   std::scoped_lock lock(image->runtime->cache_mutex);
-  if (image->cache != nullptr) {
-    MovieCacheIter *iter = IMB_moviecacheIter_new(image->cache);
+  if (image->runtime->cache != nullptr) {
+    MovieCacheIter *iter = IMB_moviecacheIter_new(image->runtime->cache);
 
     while (!IMB_moviecacheIter_done(iter)) {
       ImBuf *ibuf = IMB_moviecacheIter_getImBuf(iter);
@@ -5540,8 +5456,8 @@ ImBuf *BKE_image_get_ibuf_with_name(Image *image, const char *filepath)
   ImBuf *ibuf = nullptr;
 
   std::scoped_lock lock(image->runtime->cache_mutex);
-  if (image->cache != nullptr) {
-    MovieCacheIter *iter = IMB_moviecacheIter_new(image->cache);
+  if (image->runtime->cache != nullptr) {
+    MovieCacheIter *iter = IMB_moviecacheIter_new(image->runtime->cache);
 
     while (!IMB_moviecacheIter_done(iter)) {
       ImBuf *current_ibuf = IMB_moviecacheIter_getImBuf(iter);
@@ -5563,8 +5479,8 @@ ImBuf *BKE_image_get_first_ibuf(Image *image)
   ImBuf *ibuf = nullptr;
 
   std::scoped_lock lock(image->runtime->cache_mutex);
-  if (image->cache != nullptr) {
-    MovieCacheIter *iter = IMB_moviecacheIter_new(image->cache);
+  if (image->runtime->cache != nullptr) {
+    MovieCacheIter *iter = IMB_moviecacheIter_new(image->runtime->cache);
 
     while (!IMB_moviecacheIter_done(iter)) {
       ibuf = IMB_moviecacheIter_getImBuf(iter);
@@ -5666,7 +5582,7 @@ RenderSlot *BKE_image_add_renderslot(Image *ima, const char *name)
   }
   else {
     int n = BLI_listbase_count(&ima->renderslots) + 1;
-    SNPRINTF(slot->name, DATA_("Slot %d"), n);
+    SNPRINTF_UTF8(slot->name, DATA_("Slot %d"), n);
   }
   BLI_addtail(&ima->renderslots, slot);
   return slot;

@@ -86,7 +86,7 @@ namespace blender::bke::liboverride {
 
 bool is_auto_resync_enabled()
 {
-  return !USER_EXPERIMENTAL_TEST(&U, no_override_auto_resync) &&
+  return !USER_DEVELOPER_TOOL_TEST(&U, no_override_auto_resync) &&
          (G.fileflags & G_LIBOVERRIDE_NO_AUTO_RESYNC) == 0;
 }
 
@@ -1491,7 +1491,7 @@ static void lib_override_library_create_post_process(Main *bmain,
   /* We create a set of all objects referenced into the scene by its hierarchy of collections.
    * NOTE: This is different that the list of bases, since objects in excluded collections etc.
    * won't have a base, but are still considered as instanced from our point of view. */
-  GSet *all_objects_in_scene = BKE_scene_objects_as_gset(scene, nullptr);
+  blender::Set<Object *> *all_objects_in_scene = BKE_scene_objects_as_set(scene, nullptr);
 
   if (is_resync || id_root == nullptr || id_root->newid == nullptr) {
     /* Instantiating the root collection or object should never be needed in resync case, since the
@@ -1536,15 +1536,15 @@ static void lib_override_library_create_post_process(Main *bmain,
 
         BLI_assert(BKE_collection_is_in_scene(collection_new));
 
-        all_objects_in_scene = BKE_scene_objects_as_gset(scene, all_objects_in_scene);
+        all_objects_in_scene = BKE_scene_objects_as_set(scene, all_objects_in_scene);
         break;
       }
       case ID_OB: {
         Object *ob_new = reinterpret_cast<Object *>(id_root->newid);
-        if (BLI_gset_lookup(all_objects_in_scene, ob_new) == nullptr) {
+        if (!all_objects_in_scene->contains(ob_new)) {
           BKE_collection_object_add_from(
               bmain, scene, reinterpret_cast<Object *>(id_root), ob_new);
-          all_objects_in_scene = BKE_scene_objects_as_gset(scene, all_objects_in_scene);
+          all_objects_in_scene = BKE_scene_objects_as_set(scene, all_objects_in_scene);
         }
         break;
       }
@@ -1583,7 +1583,7 @@ static void lib_override_library_create_post_process(Main *bmain,
       DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
     }
 
-    if (BLI_gset_lookup(all_objects_in_scene, ob_new) == nullptr) {
+    if (!all_objects_in_scene->contains(ob_new)) {
       if (id_root != nullptr && default_instantiating_collection == nullptr) {
         ID *id_ref = id_root->newid != nullptr ? id_root->newid : id_root;
         switch (GS(id_ref->name)) {
@@ -1653,7 +1653,7 @@ static void lib_override_library_create_post_process(Main *bmain,
     }
   }
 
-  BLI_gset_free(all_objects_in_scene, nullptr);
+  MEM_delete(all_objects_in_scene);
 }
 
 bool BKE_lib_override_library_create(Main *bmain,
@@ -1815,7 +1815,7 @@ static bool lib_override_root_is_valid(Main *bmain, ID *id)
     return false;
   }
   ID *id_root = id->override_library->hierarchy_root;
-  if (!id_root || !ID_IS_OVERRIDE_LIBRARY_REAL(id)) {
+  if (!id_root || !ID_IS_OVERRIDE_LIBRARY_REAL(id_root)) {
     BLI_assert_unreachable();
     return false;
   }
@@ -1901,7 +1901,7 @@ static void lib_override_root_hierarchy_set(
       for (MainIDRelationsEntryItem *from_id_entry = entry->from_ids; from_id_entry != nullptr;
            from_id_entry = from_id_entry->next)
       {
-        if ((from_id_entry->usage_flag & IDWALK_CB_OVERRIDE_LIBRARY_NOT_OVERRIDABLE) != 0) {
+        if (lib_override_hierarchy_dependencies_relationship_skip_check(from_id_entry)) {
           /* Never consider non-overridable relationships as actual dependencies. */
           continue;
         }
@@ -1964,6 +1964,77 @@ static void lib_override_root_hierarchy_set(
   }
 }
 
+static void lib_override_library_main_hierarchy_id_root_ensure(Main *bmain,
+                                                               ID *id,
+                                                               blender::Set<ID *> &processed_ids)
+{
+  BLI_assert(ID_IS_OVERRIDE_LIBRARY_REAL(id));
+
+  if (id->override_library->hierarchy_root != nullptr) {
+    if (!ID_IS_OVERRIDE_LIBRARY_REAL(id->override_library->hierarchy_root) ||
+        id->override_library->hierarchy_root->lib != id->lib)
+    {
+      CLOG_ERROR(
+          &LOG,
+          "Existing override hierarchy root ('%s') for ID '%s' is invalid, will try to find a "
+          "new valid one",
+          id->override_library->hierarchy_root != nullptr ?
+              id->override_library->hierarchy_root->name :
+              "<NONE>",
+          id->name);
+      id->override_library->hierarchy_root = nullptr;
+    }
+    else if (!lib_override_root_is_valid(bmain, id)) {
+      /* Serious invalid cases (likely resulting from bugs or invalid operations) should have
+       * been caught by the first check above. Invalid hierarchy roots detected here can happen
+       * in normal situations, e.g. when breaking a hierarchy by making one of its components
+       * local. See also #137412. */
+      CLOG_DEBUG(
+          &LOG,
+          "Existing override hierarchy root ('%s') for ID '%s' is invalid, will try to find a "
+          "new valid one",
+          id->override_library->hierarchy_root != nullptr ?
+              id->override_library->hierarchy_root->name :
+              "<NONE>",
+          id->name);
+      id->override_library->hierarchy_root = nullptr;
+    }
+    else {
+      /* This ID is considered as having a valid hierarchy root. */
+      processed_ids.add(id);
+      return;
+    }
+  }
+
+  BKE_main_relations_tag_set(bmain, MAINIDRELATIONS_ENTRY_TAGS_PROCESSED, false);
+  BKE_main_relations_tag_set(bmain, MAINIDRELATIONS_ENTRY_TAGS_INPROGRESS, false);
+
+  int best_level = 0;
+  ID *id_root = lib_override_root_find(bmain, id, best_level, &best_level);
+
+  if (!ELEM(id->override_library->hierarchy_root, id_root, nullptr)) {
+    /* In case the detected hierarchy root does not match with the currently defined one, this is
+     * likely an issue and is worth a warning. */
+    CLOG_WARN(&LOG,
+              "Potential inconsistency in library override hierarchy of ID '%s' (current root "
+              "%s), detected as part of the hierarchy of '%s' (current root '%s')",
+              id->name,
+              id->override_library->hierarchy_root != nullptr ?
+                  id->override_library->hierarchy_root->name :
+                  "<NONE>",
+              id_root->name,
+              id_root->override_library->hierarchy_root != nullptr ?
+                  id_root->override_library->hierarchy_root->name :
+                  "<NONE>");
+    processed_ids.add(id);
+    return;
+  }
+
+  lib_override_root_hierarchy_set(bmain, id_root, id, nullptr, processed_ids);
+
+  BLI_assert(id->override_library->hierarchy_root != nullptr);
+}
+
 void BKE_lib_override_library_main_hierarchy_root_ensure(Main *bmain)
 {
   ID *id;
@@ -1976,69 +2047,8 @@ void BKE_lib_override_library_main_hierarchy_root_ensure(Main *bmain)
       processed_ids.add(id);
       continue;
     }
-    if (id->override_library->hierarchy_root != nullptr) {
-      if (!ID_IS_OVERRIDE_LIBRARY_REAL(id->override_library->hierarchy_root) ||
-          id->override_library->hierarchy_root->lib != id->lib)
-      {
-        CLOG_ERROR(
-            &LOG,
-            "Existing override hierarchy root ('%s') for ID '%s' is invalid, will try to find a "
-            "new valid one",
-            id->override_library->hierarchy_root != nullptr ?
-                id->override_library->hierarchy_root->name :
-                "<NONE>",
-            id->name);
-        id->override_library->hierarchy_root = nullptr;
-      }
-      else if (!lib_override_root_is_valid(bmain, id)) {
-        /* Serious invalid cases (likely resulting from bugs or invalid operations) should have
-         * been caught by the first check above. Invalid hierarchy roots detected here can happen
-         * in normal situations, e.g. when breaking a hierarchy by making one of its components
-         * local. See also #137412. */
-        CLOG_DEBUG(
-            &LOG,
-            "Existing override hierarchy root ('%s') for ID '%s' is invalid, will try to find a "
-            "new valid one",
-            id->override_library->hierarchy_root != nullptr ?
-                id->override_library->hierarchy_root->name :
-                "<NONE>",
-            id->name);
-        id->override_library->hierarchy_root = nullptr;
-      }
-      else {
-        /* This ID is considered as having a valid hierarchy root. */
-        processed_ids.add(id);
-        continue;
-      }
-    }
 
-    BKE_main_relations_tag_set(bmain, MAINIDRELATIONS_ENTRY_TAGS_PROCESSED, false);
-    BKE_main_relations_tag_set(bmain, MAINIDRELATIONS_ENTRY_TAGS_INPROGRESS, false);
-
-    int best_level = 0;
-    ID *id_root = lib_override_root_find(bmain, id, best_level, &best_level);
-
-    if (!ELEM(id->override_library->hierarchy_root, id_root, nullptr)) {
-      /* In case the detected hierarchy root does not match with the currently defined one, this is
-       * likely an issue and is worth a warning. */
-      CLOG_WARN(&LOG,
-                "Potential inconsistency in library override hierarchy of ID '%s' (current root "
-                "%s), detected as part of the hierarchy of '%s' (current root '%s')",
-                id->name,
-                id->override_library->hierarchy_root != nullptr ?
-                    id->override_library->hierarchy_root->name :
-                    "<NONE>",
-                id_root->name,
-                id_root->override_library->hierarchy_root != nullptr ?
-                    id_root->override_library->hierarchy_root->name :
-                    "<NONE>");
-      processed_ids.add(id);
-      continue;
-    }
-
-    lib_override_root_hierarchy_set(bmain, id_root, id, nullptr, processed_ids);
-
-    BLI_assert(id->override_library->hierarchy_root != nullptr);
+    lib_override_library_main_hierarchy_id_root_ensure(bmain, id, processed_ids);
   }
   FOREACH_MAIN_ID_END;
 
@@ -2868,8 +2878,19 @@ static void lib_override_cleanup_after_resync(Main *bmain)
     if (ID_IS_OVERRIDE_LIBRARY(id)) {
       const IDOverrideLibrary *override_library = BKE_lib_override_library_get(
           nullptr, id, nullptr, nullptr);
+      /* NOTE: Since hierarchy root final validation is only done on 'expected-to-be-processed' IDs
+       * after each level of recursive resync (and not the whole Main data-base, see @00375abc38),
+       * `root` may now be null here. Likely, because deleting some root override sets that pointer
+       * to null.
+       *
+       * If this turns out to be a wrong fix, the other likely solution would be to add a call to
+       * #BKE_lib_override_library_main_hierarchy_root_ensure before calling
+       * #lib_override_cleanup_after_resync.
+       *
+       * This was technically already possible before (e.g. for non-hierarchical isolated
+       * liboverrides), but in practice this is very rare case. */
       const ID *root = override_library->hierarchy_root;
-      if (root == id || (root->override_library->reference->tag & ID_TAG_MISSING) != 0) {
+      if (root && (root == id || (root->override_library->reference->tag & ID_TAG_MISSING) != 0)) {
         return false;
       }
       return ((override_library->reference->tag & ID_TAG_MISSING) != 0);
@@ -3218,7 +3239,7 @@ static bool lib_override_resync_tagging_finalize_recursive_check_from(
 /* Once all IDs needing resync have been tagged, partial ID roots can be found by processing each
  * tagged-for-resync IDs' ancestors within their liboverride hierarchy. */
 static void lib_override_resync_tagging_finalize(Main *bmain,
-                                                 GHash *id_roots,
+                                                 blender::Map<ID *, LinkNodePair *> &id_roots,
                                                  const int library_indirect_level)
 {
   ID *id_iter;
@@ -3362,13 +3383,9 @@ static void lib_override_resync_tagging_finalize(Main *bmain,
                   LIBOVERRIDE_TAG_RESYNC_ISOLATED_FROM_ROOT) == 0);
     }
 
-    LinkNodePair **id_resync_roots_p;
-    if (!BLI_ghash_ensure_p(
-            id_roots, hierarchy_root, reinterpret_cast<void ***>(&id_resync_roots_p)))
-    {
-      *id_resync_roots_p = MEM_callocN<LinkNodePair>(__func__);
-    }
-    BLI_linklist_append(*id_resync_roots_p, id_iter);
+    LinkNodePair *id_resync_roots = id_roots.lookup_or_add_cb(
+        hierarchy_root, []() { return MEM_callocN<LinkNodePair>(__func__); });
+    BLI_linklist_append(id_resync_roots, id_iter);
   }
   FOREACH_MAIN_ID_END;
 
@@ -3434,7 +3451,7 @@ static bool lib_override_library_main_resync_on_library_indirect_level(
   FOREACH_MAIN_ID_END;
   data.clear();
 
-  GHash *id_roots = BLI_ghash_ptr_new(__func__);
+  blender::Map<ID *, LinkNodePair *> id_roots;
 
   /* Now check existing overrides, those needing resync will be the one either already tagged as
    * such, or the one using linked data that is now tagged as needing override. */
@@ -3491,11 +3508,9 @@ static bool lib_override_library_main_resync_on_library_indirect_level(
    * by their resync root IDs. */
   {
     BKE_main_relations_tag_set(bmain, MAINIDRELATIONS_ENTRY_TAGS_PROCESSED, false);
-    GHashIterator *id_roots_iter = BLI_ghashIterator_new(id_roots);
-    while (!BLI_ghashIterator_done(id_roots_iter)) {
-      ID *id_root = static_cast<ID *>(BLI_ghashIterator_getKey(id_roots_iter));
-      LinkNodePair *id_resync_roots = static_cast<LinkNodePair *>(
-          BLI_ghashIterator_getValue(id_roots_iter));
+    for (const auto &item : id_roots.items()) {
+      ID *id_root = item.key;
+      LinkNodePair *id_resync_roots = item.value;
       CLOG_DEBUG(&LOG_RESYNC,
                  "Checking validity of computed TODO data for root '%s'... \n",
                  id_root->name);
@@ -3520,7 +3535,7 @@ static bool lib_override_library_main_resync_on_library_indirect_level(
            id_resync_root_iter = id_resync_root_iter->next)
       {
         ID *id_resync_root = static_cast<ID *>(id_resync_root_iter->link);
-        BLI_assert(id_resync_root == id_root || !BLI_ghash_haskey(id_roots, id_resync_root));
+        BLI_assert(id_resync_root == id_root || !id_roots.contains(id_resync_root));
         if (id_resync_root == id_root) {
           if (id_resync_root_iter != id_resync_roots->list ||
               id_resync_root_iter != id_resync_roots->last_node)
@@ -3537,9 +3552,7 @@ static bool lib_override_library_main_resync_on_library_indirect_level(
           }
         }
       }
-      BLI_ghashIterator_step(id_roots_iter);
     }
-    BLI_ghashIterator_free(id_roots_iter);
   }
 #endif
 
@@ -3548,12 +3561,10 @@ static bool lib_override_library_main_resync_on_library_indirect_level(
 
   ListBase no_main_ids_list = {nullptr};
 
-  GHashIterator *id_roots_iter = BLI_ghashIterator_new(id_roots);
-  while (!BLI_ghashIterator_done(id_roots_iter)) {
-    ID *id_root = static_cast<ID *>(BLI_ghashIterator_getKey(id_roots_iter));
+  for (const auto &item : id_roots.items()) {
+    ID *id_root = item.key;
     Library *library = id_root->lib;
-    LinkNodePair *id_resync_roots = static_cast<LinkNodePair *>(
-        BLI_ghashIterator_getValue(id_roots_iter));
+    LinkNodePair *id_resync_roots = item.value;
 
     if (ID_IS_LINKED(id_root)) {
       id_root->lib->runtime->tag |= LIBRARY_TAG_RESYNC_REQUIRED;
@@ -3587,9 +3598,7 @@ static bool lib_override_library_main_resync_on_library_indirect_level(
     }
 
     BLI_linklist_free(id_resync_roots->list, nullptr);
-    BLI_ghashIterator_step(id_roots_iter);
   }
-  BLI_ghashIterator_free(id_roots_iter);
 
   LISTBASE_FOREACH_MUTABLE (ID *, id_iter, &no_main_ids_list) {
     BKE_id_free(bmain, id_iter);
@@ -3690,11 +3699,31 @@ static bool lib_override_library_main_resync_on_library_indirect_level(
   BKE_id_multi_tagged_delete(bmain);
   BKE_main_id_tag_all(bmain, ID_TAG_DOIT, false);
 
-  BLI_ghash_free(id_roots, nullptr, MEM_freeN);
+  for (LinkNodePair *pair : id_roots.values()) {
+    MEM_freeN(pair);
+  }
 
   /* In some fairly rare (and degenerate) cases, some root ID from other liboverrides may have been
    * freed, and therefore set to nullptr. Attempt to fix this as best as possible. */
-  BKE_lib_override_library_main_hierarchy_root_ensure(bmain);
+  /* WARNING: Cannot use directly #BKE_lib_override_library_main_hierarchy_root_ensure here, as it
+   * processes the whole Main content - only the IDs matching current resync scope should be
+   * checked here. */
+  {
+    BKE_main_relations_create(bmain, 0);
+    blender::Set<ID *> processed_ids;
+
+    FOREACH_MAIN_ID_BEGIN (bmain, id) {
+      if (lib_override_library_main_resync_id_skip_check(id, library_indirect_level)) {
+        processed_ids.add(id);
+        continue;
+      }
+
+      lib_override_library_main_hierarchy_id_root_ensure(bmain, id, processed_ids);
+    }
+    FOREACH_MAIN_ID_END;
+
+    BKE_main_relations_free(bmain);
+  }
 
   if (do_reports_recursive_resync_timing) {
     reports->duration.lib_overrides_recursive_resync += BLI_time_now_seconds() - init_time;
@@ -4748,6 +4777,22 @@ void BKE_lib_override_library_main_operations_create(Main *bmain,
       BKE_pose_ensure(bmain, ob, static_cast<bArmature *>(ob->data), true);
     }
   }
+  /* Similar issue with view layers, some may not be up-to-date, and re-syncing them from a
+   * multi-threaded process is utterly unsafe. Some RNA property access may cause this, see e.g.
+   * #147565 and the `node_warnings` property of the Geometry Nodes. */
+  const bool resync_success = BKE_main_view_layers_synced_ensure(bmain);
+  /* Layer resync should never fail here.
+   *
+   * This call is fairly high-level and should never happen within a callpath which has already
+   * forbidden resync (using #BKE_layer_collection_resync_forbid).
+   *
+   * Other unlikely reasons for failure (like very old blendfile data before versioning, where
+   * scenes have no master collection yet) are also never expected to be met in this code.
+   */
+  BLI_assert_msg(resync_success,
+                 "Ensuring that all view-layers in Main are synced with their collections failed");
+  UNUSED_VARS_NDEBUG(resync_success);
+  BKE_layer_collection_resync_forbid();
 
   LibOverrideOpCreateData create_pool_data{};
   create_pool_data.bmain = bmain;
@@ -4815,6 +4860,8 @@ void BKE_lib_override_library_main_operations_create(Main *bmain,
   BLI_task_pool_work_and_wait(task_pool);
 
   BLI_task_pool_free(task_pool);
+
+  BKE_layer_collection_resync_allow();
 
   if (create_pool_data.report_flags & RNA_OVERRIDE_MATCH_RESULT_RESTORE_TAGGED) {
     BKE_lib_override_library_main_operations_restore(

@@ -5,13 +5,12 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
- * \ingroup bke
+ * \ingroup sequencer
  */
 
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
 
-#include "BLI_ghash.h"
 #include "BLI_listbase.h"
 #include "BLI_math_base.h"
 #include "BLI_session_uid.h"
@@ -25,6 +24,7 @@
 
 #include "SEQ_iterator.hh"
 #include "SEQ_prefetch.hh"
+#include "SEQ_preview_cache.hh"
 #include "SEQ_relations.hh"
 #include "SEQ_sequencer.hh"
 #include "SEQ_thumbnail_cache.hh"
@@ -45,12 +45,21 @@ bool relation_is_effect_of_strip(const Strip *effect, const Strip *input)
   return ELEM(input, effect->input1, effect->input2);
 }
 
-void cache_cleanup(Scene *scene)
+void cache_cleanup(Scene *scene, CacheCleanup mode)
 {
-  thumbnail_cache_clear(scene);
-  source_image_cache_clear(scene);
-  final_image_cache_clear(scene);
-  intra_frame_cache_invalidate(scene);
+  if (flag_is_set(mode, CacheCleanup::Thumbnails)) {
+    thumbnail_cache_clear(scene);
+  }
+  if (flag_is_set(mode, CacheCleanup::SourceImage)) {
+    source_image_cache_clear(scene);
+  }
+  if (flag_is_set(mode, CacheCleanup::FinalImage)) {
+    final_image_cache_clear(scene);
+  }
+  if (flag_is_set(mode, CacheCleanup::IntraFrame)) {
+    intra_frame_cache_invalidate(scene);
+    preview_cache_invalidate(scene);
+  }
 }
 
 void cache_settings_changed(Scene *scene)
@@ -84,29 +93,35 @@ bool evict_caches_if_full(Scene *scene)
    * stays the same. Depending on the frame composition complexity, there can be lots of
    * source images cached for a single final frame; if we only removed one source image
    * we'd eventually have the cache still filled only with source images. */
-  const size_t count_final = final_image_cache_get_image_count(scene);
-  const size_t count_source = source_image_cache_get_image_count(scene);
-
   bool evicted_final = false;
-  if (count_final != 0) {
-    evicted_final = final_image_cache_evict(scene);
-  }
   bool evicted_source = false;
-  if (count_source != 0) {
-    evicted_source = source_image_cache_evict(scene);
-    /* Only try to enforce the final frame and raw cache ratio when the final cache is active. */
-    if (evicted_source && scene->ed->cache_flag & SEQ_CACHE_STORE_FINAL_OUT) {
-      const size_t source_per_final = divide_ceil_ul(count_source,
-                                                     std::max<size_t>(count_final, 1));
-      /* Start at "1" to make sure we only try to evict more frames if the ratio is above 1:1. */
-      for (size_t i = 1; i < source_per_final; i++) {
-        if (!source_image_cache_evict(scene)) {
-          /* Can't evict any more frames, stop. */
-          break;
+  do {
+    const size_t count_final = final_image_cache_get_image_count(scene);
+    const size_t count_source = source_image_cache_get_image_count(scene);
+    evicted_final = false;
+    evicted_source = false;
+    const bool final_active = scene->ed->cache_flag & SEQ_CACHE_STORE_FINAL_OUT;
+    /* Evict one final item, and as much from source as needed to maintain ratio. */
+    if (count_final != 0) {
+      evicted_final = final_image_cache_evict(scene);
+    }
+    /* Only remove source images if there's more of them than final ones. */
+    if (count_source != 0 && (!final_active || count_source > count_final)) {
+      evicted_source = source_image_cache_evict(scene);
+      /* Only try to enforce the ratio when the final cache is active. */
+      if (evicted_source && final_active) {
+        const size_t items = divide_ceil_ul(count_source, std::max<size_t>(count_final, 1));
+        /* Start at "1" to make sure we only try to evict more frames if the ratio is above 1:1. */
+        for (size_t i = 1; i < items; i++) {
+          if (!source_image_cache_evict(scene)) {
+            /* Can't evict any more frames, stop. */
+            break;
+          }
         }
       }
     }
-  }
+
+  } while (is_cache_full(scene) && (evicted_final || evicted_source));
 
   /* Did we evict anything to free up the cache? */
   return !(evicted_final || evicted_source);
@@ -132,6 +147,7 @@ static void invalidate_raw_cache_of_parent_meta(Scene *scene, Strip *strip)
 void relations_invalidate_cache_raw(Scene *scene, Strip *strip)
 {
   source_image_cache_invalidate_strip(scene, strip);
+  media_presence_invalidate_strip(scene, strip);
   relations_invalidate_cache(scene, strip);
 }
 
@@ -141,10 +157,9 @@ void relations_invalidate_cache(Scene *scene, Strip *strip)
     strip_effect_speed_rebuild_map(scene, strip);
   }
 
-  media_presence_invalidate_strip(scene, strip);
-
   invalidate_final_cache_strip_range(scene, strip);
   intra_frame_cache_invalidate(scene, strip);
+  preview_cache_invalidate(scene);
   invalidate_raw_cache_of_parent_meta(scene, strip);
 
   /* Needed to update VSE sound. */
@@ -158,6 +173,17 @@ void relations_invalidate_scene_strips(const Main *bmain, const Scene *scene_tar
     if (scene->ed != nullptr) {
       for (Strip *strip : lookup_strips_by_scene(editing_get(scene), scene_target)) {
         relations_invalidate_cache_raw(scene, strip);
+      }
+    }
+  }
+}
+
+void relations_invalidate_compositor_modifiers(const Main *bmain, const bNodeTree *node_tree)
+{
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    if (scene->ed != nullptr) {
+      for (Strip *strip : lookup_strips_by_compositor_node_group(editing_get(scene), node_tree)) {
+        relations_invalidate_cache(scene, strip);
       }
     }
   }
@@ -194,7 +220,6 @@ void relations_free_imbuf(Scene *scene, ListBase *seqbase, bool for_render)
     return;
   }
 
-  cache_cleanup(scene);
   prefetch_stop(scene);
 
   LISTBASE_FOREACH (Strip *, strip, seqbase) {
@@ -204,7 +229,7 @@ void relations_free_imbuf(Scene *scene, ListBase *seqbase, bool for_render)
 
     if (strip->data) {
       if (strip->type == STRIP_TYPE_MOVIE) {
-        relations_strip_free_anim(strip);
+        strip_free_movie_readers(strip);
       }
       if (strip->type == STRIP_TYPE_SPEED) {
         strip_effect_speed_rebuild_map(scene, strip);
@@ -231,7 +256,7 @@ static void sequencer_all_free_anim_ibufs(const Scene *scene,
     if (!time_strip_intersects_frame(scene, strip, timeline_frame) ||
         !((frame_range[0] <= timeline_frame) && (frame_range[1] > timeline_frame)))
     {
-      relations_strip_free_anim(strip);
+      strip_free_movie_readers(strip);
     }
     if (strip->type == STRIP_TYPE_META) {
       int meta_range[2];
@@ -341,41 +366,33 @@ bool relations_render_loop_check(Strip *strip_main, Strip *strip)
   return false;
 }
 
-void relations_strip_free_anim(Strip *strip)
+void strip_free_movie_readers(Strip *strip)
 {
-  while (strip->anims.last) {
-    StripAnim *sanim = static_cast<StripAnim *>(strip->anims.last);
-
-    if (sanim->anim) {
-      MOV_close(sanim->anim);
-      sanim->anim = nullptr;
-    }
-
-    BLI_freelinkN(&strip->anims, sanim);
+  for (MovieReader *anim : strip->runtime->movie_readers) {
+    MOV_close(anim);
   }
-  BLI_listbase_clear(&strip->anims);
+  strip->runtime->movie_readers.clear();
 }
 
 void relations_session_uid_generate(Strip *strip)
 {
-  strip->runtime.session_uid = BLI_session_uid_generate();
+  strip->runtime->session_uid = BLI_session_uid_generate();
 }
 
 static bool get_uids_cb(Strip *strip, void *user_data)
 {
-  GSet *used_uids = (GSet *)user_data;
-  const SessionUID *session_uid = &strip->runtime.session_uid;
-  if (!BLI_session_uid_is_generated(session_uid)) {
+  Set<SessionUID> &used_uids = *static_cast<Set<SessionUID> *>(user_data);
+  const SessionUID &session_uid = strip->runtime->session_uid;
+  if (!BLI_session_uid_is_generated(&session_uid)) {
     printf("Sequence %s does not have UID generated.\n", strip->name);
     return true;
   }
 
-  if (BLI_gset_lookup(used_uids, session_uid) != nullptr) {
+  if (used_uids.contains(session_uid)) {
     printf("Sequence %s has duplicate UID generated.\n", strip->name);
     return true;
   }
-
-  BLI_gset_insert(used_uids, (void *)session_uid);
+  used_uids.add(session_uid);
   return true;
 }
 
@@ -385,12 +402,8 @@ void relations_check_uids_unique_and_report(const Scene *scene)
     return;
   }
 
-  GSet *used_uids = BLI_gset_new(
-      BLI_session_uid_ghash_hash, BLI_session_uid_ghash_compare, "sequencer used uids");
-
-  for_each_callback(&scene->ed->seqbase, get_uids_cb, used_uids);
-
-  BLI_gset_free(used_uids, nullptr);
+  Set<SessionUID> used_uids;
+  foreach_strip(&scene->ed->seqbase, get_uids_cb, &used_uids);
 }
 
 bool exists_in_seqbase(const Strip *strip, const ListBase *seqbase)

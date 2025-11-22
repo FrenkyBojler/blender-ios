@@ -9,15 +9,18 @@
  */
 
 #include <algorithm>
+#include <cfloat>
 
 #include "AS_asset_catalog_path.hh"
 #include "AS_asset_library.hh"
+#include "AS_asset_representation.hh"
 
 #include "BLI_function_ref.hh"
 #include "BLI_listbase.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BKE_context.hh"
+#include "BKE_idtype.hh"
 #include "BKE_main.hh"
 #include "BKE_screen.hh"
 
@@ -125,6 +128,24 @@ static bool type_poll_for_non_popup(const bContext &C,
   return type_poll_no_spacetype_check(C, shelf_type);
 }
 
+bool type_asset_poll(const AssetShelfType &shelf_type,
+                     const asset_system::AssetRepresentation &asset)
+{
+
+  if (shelf_type.id_types_prefilter != 0) {
+    const uint64_t id_filter = BKE_idtype_idcode_to_idfilter(asset.get_id_type());
+    if ((shelf_type.id_types_prefilter & id_filter) == 0) {
+      return false;
+    }
+  }
+
+  if (shelf_type.asset_poll && !shelf_type.asset_poll(&shelf_type, &asset)) {
+    return false;
+  }
+
+  return true;
+}
+
 AssetShelfType *type_find_from_idname(const StringRef idname)
 {
   for (const std::unique_ptr<AssetShelfType> &shelf_type : static_shelf_types()) {
@@ -160,7 +181,7 @@ AssetShelf *create_shelf_from_type(AssetShelfType &type)
   shelf->settings.asset_library_reference = asset_system::all_library_reference();
   shelf->type = &type;
   shelf->preferred_row_count = 1;
-  STRNCPY(shelf->idname, type.idname);
+  STRNCPY_UTF8(shelf->idname, type.idname);
   return shelf;
 }
 
@@ -365,7 +386,7 @@ void region_init(wmWindowManager *wm, ARegion *region)
   UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_PANELS_UI, region->winx, region->winy);
 
   wmKeyMap *keymap = WM_keymap_ensure(
-      wm->defaultconf, "View2D Buttons List", SPACE_EMPTY, RGN_TYPE_WINDOW);
+      wm->runtime->defaultconf, "View2D Buttons List", SPACE_EMPTY, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 
   region->v2d.scroll = V2D_SCROLL_RIGHT | V2D_SCROLL_VERTICAL_HIDE;
@@ -442,9 +463,9 @@ int region_snap(const ARegion *region, const int size, const int axis)
 }
 
 /**
- * Ensure the region height matches the preferred row count (see #AssetShelf.preferred_row_count).
- * In any case, this will ensure the region height is snapped to a multiple of the row count (plus
- * region padding).
+ * Ensure the region height matches the preferred row count (see #AssetShelf.preferred_row_count)
+ * as closely as possible while still fitting within the area. In any case, this will ensure the
+ * region height is snapped to a multiple of the row count (plus region padding).
  */
 static void region_resize_to_preferred(ScrArea *area, ARegion *region)
 {
@@ -453,10 +474,17 @@ static void region_resize_to_preferred(ScrArea *area, ARegion *region)
   const AssetShelf *active_shelf = shelf_regiondata->active_shelf;
 
   BLI_assert(active_shelf->preferred_row_count > 0);
-
   const int tile_height = current_tile_draw_height(region);
+
+  /* Prevent the AssetShelf from getting too high (and thus being hidden) in case many rows are
+   * used and preview size is increased. */
+  const int size_y_avail = ED_area_max_regionsize(area, region, AE_TOP_TO_BOTTOMRIGHT);
+  const short int max_row_count = calculate_row_count_from_tile_draw_height(
+      size_y_avail * UI_SCALE_FAC, tile_height);
+
   const int new_size_y = calculate_scaled_region_height_from_row_count(
-                             active_shelf->preferred_row_count, tile_height) /
+                             std::min(max_row_count, active_shelf->preferred_row_count),
+                             tile_height) /
                          UI_SCALE_FAC;
 
   if (region->sizey != new_size_y) {
@@ -514,24 +542,24 @@ void region_layout(const bContext *C, ARegion *region)
     return;
   }
 
-  uiBlock *block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
+  uiBlock *block = UI_block_begin(C, region, __func__, ui::EmbossType::Emboss);
 
   const uiStyle *style = UI_style_get_dpi();
   const int padding_y = main_region_padding_y();
   const int padding_x = main_region_padding_x();
-  uiLayout &layout = blender::ui::block_layout(block,
-                                               blender::ui::LayoutDirection::Vertical,
-                                               blender::ui::LayoutType::Panel,
-                                               padding_x,
-                                               -padding_y,
-                                               region->winx - 2 * padding_x,
-                                               0,
-                                               0,
-                                               style);
+  ui::Layout &layout = ui::block_layout(block,
+                                        ui::LayoutDirection::Vertical,
+                                        ui::LayoutType::Panel,
+                                        padding_x,
+                                        -padding_y,
+                                        region->winx - 2 * padding_x,
+                                        0,
+                                        0,
+                                        style);
 
   build_asset_view(layout, active_shelf->settings.asset_library_reference, *active_shelf, *C);
 
-  int layout_height = blender::ui::block_layout_resolve(block).y;
+  int layout_height = ui::block_layout_resolve(block).y;
   BLI_assert(layout_height <= 0);
   UI_view2d_totRect_set(&region->v2d, region->winx - 1, layout_height - padding_y);
   UI_view2d_curRect_validate(&region->v2d);
@@ -774,7 +802,6 @@ static uiBut *add_tab_button(uiBlock &block, StringRefNull name)
   uiBut *but = uiDefBut(
       &block,
       ButType::Tab,
-      0,
       name,
       0,
       0,
@@ -791,7 +818,7 @@ static uiBut *add_tab_button(uiBlock &block, StringRefNull name)
   return but;
 }
 
-static void add_catalog_tabs(AssetShelf &shelf, uiLayout &layout)
+static void add_catalog_tabs(AssetShelf &shelf, ui::Layout &layout)
 {
   uiBlock *block = layout.block();
   AssetShelfSettings &shelf_settings = shelf.settings;
@@ -834,36 +861,36 @@ static void add_catalog_tabs(AssetShelf &shelf, uiLayout &layout)
 
 static void asset_shelf_header_draw(const bContext *C, Header *header)
 {
-  uiLayout *layout = header->layout;
-  uiBlock *block = layout->block();
+  ui::Layout &layout = *header->layout;
+  uiBlock *block = layout.block();
   const AssetLibraryReference *library_ref = CTX_wm_asset_library_ref(C);
 
   list::storage_fetch(library_ref, C);
 
-  UI_block_emboss_set(block, blender::ui::EmbossType::None);
-  layout->popover(C, "ASSETSHELF_PT_catalog_selector", "", ICON_COLLAPSEMENU);
-  UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
+  UI_block_emboss_set(block, ui::EmbossType::None);
+  layout.popover(C, "ASSETSHELF_PT_catalog_selector", "", ICON_COLLAPSEMENU);
+  UI_block_emboss_set(block, ui::EmbossType::Emboss);
 
-  layout->separator();
+  layout.separator();
 
   PointerRNA shelf_ptr = active_shelf_ptr_from_context(C);
   if (AssetShelf *shelf = static_cast<AssetShelf *>(shelf_ptr.data)) {
-    add_catalog_tabs(*shelf, *layout);
+    add_catalog_tabs(*shelf, layout);
   }
 
-  layout->separator_spacer();
+  layout.separator_spacer();
 
-  layout->popover(C, "ASSETSHELF_PT_display", "", ICON_IMGDISPLAY);
-  uiLayout *sub = &layout->row(false);
+  layout.popover(C, "ASSETSHELF_PT_display", "", ICON_IMGDISPLAY);
+  ui::Layout &sub = layout.row(false);
   /* Same as file/asset browser header. */
-  sub->ui_units_x_set(8);
-  sub->prop(&shelf_ptr, "search_filter", UI_ITEM_NONE, "", ICON_VIEWZOOM);
+  sub.ui_units_x_set(8);
+  sub.prop(&shelf_ptr, "search_filter", UI_ITEM_NONE, "", ICON_VIEWZOOM);
 }
 
 static void header_regiontype_register(ARegionType *region_type, const int space_type)
 {
   HeaderType *ht = MEM_callocN<HeaderType>(__func__);
-  STRNCPY(ht->idname, "ASSETSHELF_HT_settings");
+  STRNCPY_UTF8(ht->idname, "ASSETSHELF_HT_settings");
   ht->space_type = space_type;
   ht->region_type = RGN_TYPE_ASSET_SHELF_HEADER;
   ht->draw = asset_shelf_header_draw;

@@ -32,7 +32,6 @@
 
 #include "ED_screen.hh"
 
-/* Own include. */
 #include "sequencer_intern.hh"
 
 namespace blender::ed::vse {
@@ -42,8 +41,12 @@ static bool sequencer_text_editing_poll(bContext *C)
   if (!sequencer_editing_initialized_and_active(C)) {
     return false;
   }
+  const Scene *scene = CTX_data_sequencer_scene(C);
+  if (!scene) {
+    return false;
+  }
 
-  const Strip *strip = seq::select_active_get(CTX_data_sequencer_scene(C));
+  const Strip *strip = seq::select_active_get(scene);
   if (strip == nullptr || strip->type != STRIP_TYPE_TEXT || !seq::effects_can_render_text(strip)) {
     return false;
   }
@@ -58,7 +61,11 @@ static bool sequencer_text_editing_poll(bContext *C)
 
 bool sequencer_text_editing_active_poll(bContext *C)
 {
-  const Strip *strip = seq::select_active_get(CTX_data_sequencer_scene(C));
+  const Scene *scene = CTX_data_sequencer_scene(C);
+  if (!scene) {
+    return false;
+  }
+  const Strip *strip = seq::select_active_get(scene);
   if (strip == nullptr || !sequencer_text_editing_poll(C)) {
     return false;
   }
@@ -66,8 +73,6 @@ bool sequencer_text_editing_active_poll(bContext *C)
   if (ED_screen_animation_no_scrub(CTX_wm_manager(C))) {
     return false;
   }
-
-  const Scene *scene = CTX_data_sequencer_scene(C);
 
   if (!seq::time_strip_intersects_frame(scene, strip, BKE_scene_frame_get(scene))) {
     return false;
@@ -442,7 +447,7 @@ static wmOperatorStatus sequencer_text_insert_invoke(bContext *C,
                                                      const wmEvent *event)
 {
   char str[6];
-  BLI_strncpy(str, event->utf8_buf, BLI_str_utf8_size_safe(event->utf8_buf) + 1);
+  BLI_strncpy_utf8(str, event->utf8_buf, BLI_str_utf8_size_safe(event->utf8_buf) + 1);
   RNA_string_set(op->ptr, "string", str);
   return sequencer_text_insert_exec(C, op);
 }
@@ -688,15 +693,14 @@ static void cursor_set_by_mouse_position(const bContext *C, const wmEvent *event
   UI_view2d_region_to_view(v2d, mval_region.x, mval_region.y, &mouse_loc.x, &mouse_loc.y);
 
   /* Convert cursor coordinates to domain of CharInfo::position. */
-  const blender::float2 view_offs{-scene->r.xsch / 2.0f, -scene->r.ysch / 2.0f};
+  const float2 view_offs{-scene->r.xsch / 2.0f, -scene->r.ysch / 2.0f};
   const float view_aspect = scene->r.xasp / scene->r.yasp;
-  blender::float3x3 transform_mat = seq::image_transform_matrix_get(CTX_data_sequencer_scene(C),
-                                                                    strip);
+  float3x3 transform_mat = seq::image_transform_matrix_get(CTX_data_sequencer_scene(C), strip);
   // MSVC 2019 can't decide here for some reason, pick the template for it.
   transform_mat = blender::math::invert<float, 3>(transform_mat);
 
   mouse_loc.x /= view_aspect;
-  mouse_loc = blender::math::transform_point(transform_mat, mouse_loc);
+  mouse_loc = math::transform_point(transform_mat, mouse_loc);
   mouse_loc -= view_offs;
   data->cursor_offset = find_closest_cursor_offset(data, float2(mouse_loc));
 }

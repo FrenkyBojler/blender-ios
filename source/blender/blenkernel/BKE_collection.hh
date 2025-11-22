@@ -10,8 +10,11 @@
 
 #include "BLI_ghash.h"
 #include "BLI_iterator.h"
+#include "BLI_map.hh"
+#include "BLI_set.hh"
 #include "BLI_sys_types.h"
 
+#include "DNA_collection_types.h"
 #include "DNA_listBase.h"
 #include "DNA_userdef_enums.h"
 
@@ -48,6 +51,8 @@ enum {
   COLLECTION_TAG_COLLECTION_OBJECT_DIRTY = (1 << 1),
 };
 
+using CollectionObjectMap = blender::Map<const Object *, CollectionObject *>;
+
 namespace blender::bke {
 
 struct CollectionRuntime {
@@ -65,7 +70,7 @@ struct CollectionRuntime {
   ListBase parents = {};
 
   /** An optional map for faster lookups on #Collection.gobject */
-  GHash *gobject_hash = nullptr;
+  CollectionObjectMap *gobject_hash = nullptr;
 
   uint8_t tag = 0;
 };
@@ -174,6 +179,13 @@ Collection *BKE_collection_duplicate(Main *bmain,
 
 #define BKE_SCENE_COLLECTION_NAME "Scene Collection"
 Collection *BKE_collection_master_add(Scene *scene);
+
+/**
+ * Check if the collection contains any geometry that can be rendered. Otherwise there's nothing to
+ * display in the preview, so don't generate one.
+ * Objects and sub-collections hidden in the render will be skipped.
+ */
+bool BKE_collection_contains_geometry_recursive(const Collection *collection);
 
 /* Collection Objects */
 
@@ -323,7 +335,8 @@ Collection *BKE_collection_from_session_uid(Main *bmain,
 /**
  * The automatic/fallback name of a new collection.
  */
-void BKE_collection_new_name_get(Collection *collection_parent, char *rname);
+void BKE_collection_new_name_get(Collection *collection_parent,
+                                 char r_name[/*MAX_ID_NAME - 2*/ 256]);
 /**
  * The name to show in the interface.
  */
@@ -473,13 +486,14 @@ void BKE_scene_objects_iterator_next_ex(BLI_Iterator *iter);
 void BKE_scene_objects_iterator_end_ex(BLI_Iterator *iter);
 
 /**
- * Generate a new #GSet (or extend given `objects_gset` if not NULL) with all objects referenced by
+ * Generate a new #Set (or extend given `objects_set` if not NULL) with all objects referenced by
  * all collections of given `scene`.
  *
  * \note This will include objects without a base currently
  * (because they would belong to excluded collections only e.g.).
  */
-GSet *BKE_scene_objects_as_gset(Scene *scene, GSet *objects_gset);
+blender::Set<Object *> *BKE_scene_objects_as_set(Scene *scene,
+                                                 blender::Set<Object *> *objects_set);
 
 #define FOREACH_SCENE_COLLECTION_BEGIN(scene, _instance) \
   ITER_BEGIN (BKE_scene_collections_iterator_begin, \

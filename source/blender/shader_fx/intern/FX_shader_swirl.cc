@@ -14,7 +14,7 @@
 #include "BKE_lib_query.hh"
 #include "BKE_modifier.hh"
 #include "BKE_screen.hh"
-#include "BKE_shader_fx.h"
+#include "BKE_shader_fx.hh"
 
 #include "DNA_screen_types.h"
 
@@ -23,8 +23,8 @@
 
 #include "RNA_access.hh"
 
-#include "FX_shader_types.h"
-#include "FX_ui_common.h"
+#include "FX_shader_types.hh"
+#include "FX_ui_common.hh"
 
 #include "DEG_depsgraph_build.hh"
 
@@ -98,5 +98,6 @@ ShaderFxTypeInfo shaderfx_Type_Swirl = {
     /*update_depsgraph*/ update_depsgraph,
     /*depends_on_time*/ nullptr,
     /*foreach_ID_link*/ foreach_ID_link,
+    /*foreach_working_space_color*/ nullptr,
     /*panel_register*/ panel_register,
 };

@@ -11,7 +11,7 @@
 #include "AS_asset_catalog.hh"
 #include "AS_asset_catalog_tree.hh"
 
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "DNA_screen_types.h"
 
@@ -24,6 +24,7 @@
 
 #include "ED_asset_filter.hh"
 #include "ED_asset_list.hh"
+#include "ED_asset_shelf.hh"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
@@ -53,7 +54,7 @@ class AssetCatalogSelectorTree : public ui::AbstractTreeView {
         library,
         shelf_settings_.asset_library_reference,
         [this](const asset_system::AssetRepresentation &asset) {
-          return (!shelf_.type->asset_poll || shelf_.type->asset_poll(shelf_.type, &asset));
+          return type_asset_poll(*shelf_.type, asset);
         });
   }
 
@@ -135,21 +136,20 @@ class AssetCatalogSelectorTree : public ui::AbstractTreeView {
       return catalog_item_.catalog_path();
     }
 
-    void build_row(uiLayout &row) override
+    void build_row(ui::Layout &row) override
     {
       AssetCatalogSelectorTree &tree = dynamic_cast<AssetCatalogSelectorTree &>(get_tree_view());
       uiBlock *block = row.block();
 
-      row.emboss_set(blender::ui::EmbossType::Emboss);
+      row.emboss_set(ui::EmbossType::Emboss);
 
-      uiLayout *subrow = &row.row(false);
-      subrow->active_set(catalog_path_enabled_);
-      subrow->label(catalog_item_.get_name(), ICON_NONE);
-      UI_block_layout_set_current(block, &row);
+      ui::Layout &subrow = row.row(false);
+      subrow.active_set(catalog_path_enabled_);
+      subrow.label(catalog_item_.get_name(), ICON_NONE);
+      ui::block_layout_set_current(block, &row);
 
       uiBut *toggle_but = uiDefButC(block,
                                     ButType::Checkbox,
-                                    0,
                                     "",
                                     0,
                                     0,
@@ -182,17 +182,17 @@ void AssetCatalogSelectorTree::update_shelf_settings_from_enabled_catalogs()
   });
 }
 
-void library_selector_draw(const bContext *C, uiLayout *layout, AssetShelf &shelf)
+void library_selector_draw(const bContext *C, ui::Layout &layout, AssetShelf &shelf)
 {
-  layout->operator_context_set(wm::OpCallContext::InvokeDefault);
+  layout.operator_context_set(wm::OpCallContext::InvokeDefault);
 
   PointerRNA shelf_ptr = RNA_pointer_create_discrete(
       &CTX_wm_screen(C)->id, &RNA_AssetShelf, &shelf);
 
-  uiLayout *row = &layout->row(true);
-  row->prop(&shelf_ptr, "asset_library_reference", UI_ITEM_NONE, "", ICON_NONE);
+  ui::Layout &row = layout.row(true);
+  row.prop(&shelf_ptr, "asset_library_reference", UI_ITEM_NONE, "", ICON_NONE);
   if (shelf.settings.asset_library_reference.type != ASSET_LIBRARY_LOCAL) {
-    row->op("ASSET_OT_library_refresh", "", ICON_FILE_REFRESH);
+    row.op("ASSET_OT_library_refresh", "", ICON_FILE_REFRESH);
   }
 }
 
@@ -203,7 +203,7 @@ static void catalog_selector_panel_draw(const bContext *C, Panel *panel)
     return;
   }
 
-  uiLayout *layout = panel->layout;
+  ui::Layout &layout = *panel->layout;
 
   library_selector_draw(C, layout, *shelf);
 
@@ -213,13 +213,13 @@ static void catalog_selector_panel_draw(const bContext *C, Panel *panel)
     return;
   }
 
-  uiBlock *block = layout->block();
+  uiBlock *block = layout.block();
   ui::AbstractTreeView *tree_view = UI_block_add_view(
       *block,
       "asset catalog tree view",
       std::make_unique<AssetCatalogSelectorTree>(*library, *shelf));
   tree_view->set_context_menu_title("Catalog");
-  ui::TreeViewBuilder::build_tree_view(*C, *tree_view, *layout);
+  ui::TreeViewBuilder::build_tree_view(*C, *tree_view, layout);
 }
 
 void catalog_selector_panel_register(ARegionType *region_type)
@@ -231,9 +231,9 @@ void catalog_selector_panel_register(ARegionType *region_type)
   }
 
   PanelType *pt = MEM_callocN<PanelType>(__func__);
-  STRNCPY(pt->idname, "ASSETSHELF_PT_catalog_selector");
-  STRNCPY(pt->label, N_("Catalog Selector"));
-  STRNCPY(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+  STRNCPY_UTF8(pt->idname, "ASSETSHELF_PT_catalog_selector");
+  STRNCPY_UTF8(pt->label, N_("Catalog Selector"));
+  STRNCPY_UTF8(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
   pt->description = N_(
       "Select the asset library and the contained catalogs to display in the asset shelf");
   pt->draw = catalog_selector_panel_draw;

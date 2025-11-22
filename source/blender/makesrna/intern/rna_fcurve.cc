@@ -191,6 +191,8 @@ static const EnumPropertyItem rna_enum_driver_target_context_property_items[] = 
 #  include "BKE_anim_data.hh"
 #  include "BKE_fcurve.hh"
 #  include "BKE_fcurve_driver.h"
+#  include "BKE_idtype.hh"
+#  include "BKE_lib_id.hh"
 #  include "BKE_report.hh"
 
 #  include "DEG_depsgraph.hh"
@@ -351,11 +353,25 @@ static void rna_DriverVariable_update_data(Main *bmain, Scene *scene, PointerRNA
 
 /* ----------- */
 
-/* NOTE: this function exists only to avoid id reference-counting. */
-static void rna_DriverTarget_id_set(PointerRNA *ptr, PointerRNA value, ReportList * /*reports*/)
+void rna_DriverTarget_id_set(PointerRNA *ptr, PointerRNA value, struct ReportList * /*reports*/)
 {
-  DriverTarget *dtar = (DriverTarget *)ptr->data;
-  dtar->id = static_cast<ID *>(value.data);
+  DriverTarget *data = ptr->data_as<DriverTarget>();
+  ID *id = value.data_as<ID>();
+  if (!id) {
+    data->id = nullptr;
+    return;
+  }
+  BLI_assert(id == value.owner_id);
+  if (ptr->owner_id && !BKE_id_can_use_id(*ptr->owner_id, *id)) {
+    return;
+  }
+  /* Driver targets may be local data referencing unlinkable data like shape keys. These cannot be
+   * directly linked.
+   * FIXME: Band-aid, find a better way to handle this. */
+  if (BKE_idtype_idcode_is_linkable(GS(id->name))) {
+    id_lib_extern(id);
+  }
+  data->id = id;
 }
 
 static StructRNA *rna_DriverTarget_id_typef(PointerRNA *ptr)
@@ -1359,12 +1375,14 @@ static void rna_def_fmodifier_function_generator(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Amplitude", "Scale factor determining the maximum/minimum values");
   RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, "rna_FModifier_update");
+  RNA_def_property_float_default(prop, 1.0);
 
   prop = RNA_def_property(srna, "phase_multiplier", PROP_FLOAT, PROP_NONE);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_ui_text(
       prop, "Phase Multiple", "Scale factor determining the 'speed' of the function");
   RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, "rna_FModifier_update");
+  RNA_def_property_float_default(prop, 1.0);
 
   prop = RNA_def_property(srna, "phase_offset", PROP_FLOAT, PROP_NONE);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
@@ -1503,6 +1521,7 @@ static void rna_def_fmodifier_envelope(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Default Minimum", "Lower distance from Reference Value for 1:1 default influence");
   RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, "rna_FModifier_update");
+  RNA_def_property_float_default(prop, -1.0);
 
   prop = RNA_def_property(srna, "default_max", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, nullptr, "max");
@@ -1510,6 +1529,7 @@ static void rna_def_fmodifier_envelope(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Default Maximum", "Upper distance from Reference Value for 1:1 default influence");
   RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, "rna_FModifier_update");
+  RNA_def_property_float_default(prop, 1.0);
 }
 
 /* --------- */
@@ -1674,6 +1694,7 @@ static void rna_def_fmodifier_noise(BlenderRNA *brna)
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_ui_text(prop, "Scale", "Scaling (in time) of the noise");
   RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, "rna_FModifier_update");
+  RNA_def_property_float_default(prop, 1.0);
 
   prop = RNA_def_property(srna, "strength", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, nullptr, "strength");
@@ -1684,18 +1705,21 @@ static void rna_def_fmodifier_noise(BlenderRNA *brna)
       "Amplitude of the noise - the amount that it modifies the underlying curve");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_AMOUNT);
   RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, "rna_FModifier_update");
+  RNA_def_property_float_default(prop, 1.0);
 
   prop = RNA_def_property(srna, "phase", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, nullptr, "phase");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_ui_text(prop, "Phase", "A random seed for the noise effect");
   RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, "rna_FModifier_update");
+  RNA_def_property_float_default(prop, 1.0);
 
   prop = RNA_def_property(srna, "offset", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, nullptr, "offset");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_ui_text(prop, "Offset", "Time offset for the noise effect");
   RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, "rna_FModifier_update");
+  RNA_def_property_float_default(prop, 0.0);
 
   prop = RNA_def_property(srna, "lacunarity", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, nullptr, "lacunarity");
@@ -1754,6 +1778,7 @@ static void rna_def_fmodifier_stepped(BlenderRNA *brna)
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_ui_text(prop, "Step Size", "Number of frames to hold each value");
   RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, "rna_FModifier_update");
+  RNA_def_property_float_default(prop, 2.0);
 
   prop = RNA_def_property(srna, "frame_offset", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, nullptr, "offset");
@@ -1976,9 +2001,9 @@ static void rna_def_drivertarget(BlenderRNA *brna)
   prop = RNA_def_property(srna, "id", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "ID");
   RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_clear_flag(prop, PROP_ID_REFCOUNT);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_editable_func(prop, "rna_DriverTarget_id_editable");
-  /* NOTE: custom set function is ONLY to avoid rna setting a user for this. */
   RNA_def_property_pointer_funcs(
       prop, nullptr, "rna_DriverTarget_id_set", "rna_DriverTarget_id_typef", nullptr);
   RNA_def_property_ui_text(prop,
@@ -2041,14 +2066,14 @@ static void rna_def_drivertarget(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "options", DTAR_OPTION_USE_FALLBACK);
   RNA_def_property_ui_text(prop,
                            "Use Fallback",
-                           "Use the fallback value if the data path can't be resolved, instead of "
-                           "failing to evaluate the driver");
+                           "Use the fallback value if the data path cannot be resolved, instead "
+                           "of failing to evaluate the driver");
   RNA_def_property_update(prop, 0, "rna_DriverTarget_update_data");
 
   prop = RNA_def_property(srna, "fallback_value", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, nullptr, "fallback_value");
   RNA_def_property_ui_text(
-      prop, "Fallback", "The value to use if the data path can't be resolved");
+      prop, "Fallback", "The value to use if the data path cannot be resolved");
   RNA_def_property_update(prop, 0, "rna_DriverTarget_update_data");
 
   prop = RNA_def_property(srna, "is_fallback_used", PROP_BOOLEAN, PROP_NONE);
@@ -2563,7 +2588,8 @@ static void rna_def_fcurve(BlenderRNA *brna)
        "AUTO_YRGB",
        0,
        "Auto WXYZ to YRGB",
-       "Use axis colors for XYZ parts of transform, and yellow for the 'W' channel"},
+       "Use WXYZ axis colors for quaternion/axis-angle rotations, XYZ axis colors for other "
+       "transform and color properties, and auto-rainbow for the rest"},
       {FCURVE_COLOR_CUSTOM,
        "CUSTOM",
        0,

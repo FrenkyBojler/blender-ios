@@ -105,7 +105,7 @@ wmOperatorType *WM_operatortype_find(const char *idname, bool quiet)
 
 static wmOperatorType *wm_operatortype_append__begin()
 {
-  wmOperatorType *ot = MEM_callocN<wmOperatorType>("operatortype");
+  wmOperatorType *ot = MEM_new<wmOperatorType>(__func__);
 
   BLI_assert(ot_prop_basic_count == -1);
 
@@ -135,6 +135,13 @@ static void wm_operatortype_append__end(wmOperatorType *ot)
 
   BLI_assert(WM_operator_bl_idname_is_valid(ot->idname));
   get_operators_map().add_new(ot);
+
+  /* Needed so any operators registered after startup will have their shortcuts set,
+   * in "register" scripts for example, see: #143838.
+   *
+   * This only has run-time implications when run after startup,
+   * it's a no-op when run beforehand, see: #WM_keyconfig_update_on_startup. */
+  WM_keyconfig_update_operatortype_tag();
 }
 
 /* All ops in 1 list (for time being... needs evaluation later). */
@@ -179,9 +186,9 @@ void WM_operatortype_remove_ptr(wmOperatorType *ot)
 
   get_operators_map().remove(ot);
 
-  WM_keyconfig_update_operatortype();
+  WM_keyconfig_update_operatortype_tag();
 
-  MEM_freeN(ot);
+  MEM_delete(ot);
 }
 
 bool WM_operatortype_remove(const char *idname)
@@ -212,7 +219,7 @@ static void operatortype_ghash_free_cb(wmOperatorType *ot)
     MEM_freeN(ot->idname);
   }
 
-  MEM_freeN(ot);
+  MEM_delete(ot);
 }
 
 void wm_operatortype_free()
@@ -489,7 +496,7 @@ wmOperatorType *WM_operatortype_append_macro(const char *idname,
     return nullptr;
   }
 
-  ot = MEM_callocN<wmOperatorType>("operatortype");
+  ot = MEM_new<wmOperatorType>(__func__);
   ot->srna = RNA_def_struct_ptr(&BLENDER_RNA, "", &RNA_OperatorProperties);
 
   ot->idname = idname;
@@ -526,7 +533,7 @@ void WM_operatortype_append_macro_ptr(void (*opfunc)(wmOperatorType *ot, void *u
 {
   wmOperatorType *ot;
 
-  ot = MEM_callocN<wmOperatorType>("operatortype");
+  ot = MEM_new<wmOperatorType>(__func__);
   ot->srna = RNA_def_struct_ptr(&BLENDER_RNA, "", &RNA_OperatorProperties);
 
   ot->flag = OPTYPE_MACRO;

@@ -22,6 +22,7 @@
 #include "BLI_array.hh"
 #include "BLI_bounds_types.hh"
 #include "BLI_compiler_attrs.h"
+#include "BLI_enum_flags.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_sys_types.h"
@@ -80,6 +81,10 @@ namespace blender::asset_system {
 class AssetRepresentation;
 }
 
+namespace blender::ui {
+enum class AlertIcon : int8_t;
+}
+
 /* General API. */
 
 /**
@@ -103,6 +108,8 @@ void WM_init_state_normal_set();
 void WM_init_state_maximized_set();
 void WM_init_state_start_with_console_set(bool value);
 void WM_init_window_focus_set(bool do_it);
+bool WM_init_window_frame_get();
+void WM_init_window_frame_set(bool do_it);
 void WM_init_native_pixels(bool do_it);
 void WM_init_input_devices();
 
@@ -205,10 +212,14 @@ enum eWM_CapabilitiesFlag {
   WM_CAPABILITY_CURSOR_RGBA = (1 << 10),
   /** Support on demand cursor generation. */
   WM_CAPABILITY_CURSOR_GENERATOR = (1 << 11),
+  /** Ability to save/restore windows among multiple monitors. */
+  WM_CAPABILITY_MULTIMONITOR_PLACEMENT = (1 << 12),
+  /** Support for the window to show a file-path (otherwise include in the title text). */
+  WM_CAPABILITY_WINDOW_PATH = (1 << 13),
   /** The initial value, indicates the value needs to be set by inspecting GHOST. */
   WM_CAPABILITY_INITIALIZED = (1u << 31),
 };
-ENUM_OPERATORS(eWM_CapabilitiesFlag, WM_CAPABILITY_WINDOW_DECORATION_STYLES)
+ENUM_OPERATORS(eWM_CapabilitiesFlag)
 
 /**
  * Return the capabilities of the windowing system.
@@ -315,6 +326,11 @@ bool WM_window_is_fullscreen(const wmWindow *win);
 bool WM_window_is_maximized(const wmWindow *win);
 
 /**
+ * Support for wide gamut and HDR colors.
+ */
+bool WM_window_support_hdr_color(const wmWindow *win);
+
+/**
  * Some editor data may need to be synced with scene data (3D View camera and layers).
  * This function ensures data is synced for editors
  * in visible work-spaces and their visible layouts.
@@ -391,6 +407,8 @@ wmWindow *WM_window_open(bContext *C,
                          void (*area_setup_fn)(bScreen *screen, ScrArea *area, void *user_data),
                          void *area_setup_user_data) ATTR_NONNULL(1, 3);
 
+wmWindow *WM_window_open_temp(bContext *C, const char *title, int space_type, bool dialog);
+
 void WM_window_dpi_set_userdef(const wmWindow *win);
 /**
  * Return the windows DPI as a scale, bypassing UI scale preference.
@@ -403,7 +421,13 @@ float WM_window_dpi_get_scale(const wmWindow *win);
  * Give a title to a window. With "Title" unspecified or nullptr, it is generated
  * automatically from window settings and areas. Only use custom title when really needed.
  */
-void WM_window_title(wmWindowManager *wm, wmWindow *win, const char *title = nullptr);
+void WM_window_title_set(wmWindow *win, const char *title);
+/**
+ * Generate a window title automatically from window settings and areas.
+ *
+ * Also refresh the modified-state (for main windows).
+ */
+void WM_window_title_refresh(wmWindowManager *wm, wmWindow *win);
 
 bool WM_stereo3d_enabled(wmWindow *win, bool skip_stereo3d_check);
 
@@ -420,7 +444,7 @@ enum eWM_WindowDecorationStyleFlag {
   /** Colored TitleBar. */
   WM_WINDOW_DECORATION_STYLE_COLORED_TITLEBAR = (1 << 0),
 };
-ENUM_OPERATORS(eWM_WindowDecorationStyleFlag, WM_WINDOW_DECORATION_STYLE_COLORED_TITLEBAR)
+ENUM_OPERATORS(eWM_WindowDecorationStyleFlag)
 
 /**
  * Get the window decoration style flags.
@@ -448,7 +472,7 @@ void WM_file_autoexec_init(const char *filepath);
 /**
  * \param use_scripts_autoexec_check: When true, script auto-execution checks excluded directories.
  * Note that this is passed in as an argument because `filepath` may reference a path to recover.
- * In this case the that used for exclusion is the recovery path which is only known once
+ * In this case the file-path used for exclusion is the recovery path which is only known once
  * the file has been loaded.
  */
 bool WM_file_read(bContext *C,
@@ -491,6 +515,16 @@ void WM_lib_reload(Library *lib, bContext *C, ReportList *reports);
 
 void WM_cursor_set(wmWindow *win, int curs);
 bool WM_cursor_set_from_tool(wmWindow *win, const ScrArea *area, const ARegion *region);
+/**
+ * Check the cursor isn't set elsewhere.
+ * When false setting the modal cursor can be done but may overwrite an existing cursor.
+ *
+ * Use this check for modal navigation operators that may be activated while other modal operators
+ * are running.
+ *
+ * \note A cursor "stack" would remove the need for this.
+ */
+bool WM_cursor_modal_is_set_ok(const wmWindow *win);
 void WM_cursor_modal_set(wmWindow *win, int val);
 void WM_cursor_modal_restore(wmWindow *win);
 /**
@@ -516,6 +550,11 @@ void WM_cursor_grab_disable(wmWindow *win, const int mouse_ungrab_xy[2]);
  * After this you can call restore too.
  */
 void WM_cursor_time(wmWindow *win, int nr);
+
+/**
+ * Show progress in the cursor (0.0..1.0 when complete).
+ */
+void WM_cursor_progress(wmWindow *win, float progress_factor);
 
 wmPaintCursor *WM_paint_cursor_activate(short space_type,
                                         short region_type,
@@ -558,7 +597,7 @@ enum eWM_EventHandlerFlag {
   /** Handler tagged to be freed in #wm_handlers_do(). */
   WM_HANDLER_DO_FREE = (1 << 7),
 };
-ENUM_OPERATORS(eWM_EventHandlerFlag, WM_HANDLER_DO_FREE)
+ENUM_OPERATORS(eWM_EventHandlerFlag)
 
 using EventHandlerPoll = bool (*)(const wmWindow *win,
                                   const ScrArea *area,
@@ -672,7 +711,7 @@ void WM_event_remove_ui_handler(ListBase *handlers,
                                 wmUIHandlerRemoveFunc remove_fn,
                                 void *user_data,
                                 bool postpone);
-void WM_event_remove_area_handler(ListBase *handlers, void *area);
+void WM_event_remove_handlers_by_area(ListBase *handlers, const ScrArea *area);
 void WM_event_free_ui_handler_all(bContext *C,
                                   ListBase *handlers,
                                   wmUIHandlerFunc handle_fn,
@@ -804,13 +843,6 @@ wmTimer *WM_event_timer_add_notifier(wmWindowManager *wm,
                                      double time_step);
 
 void WM_event_timer_free_data(wmTimer *timer);
-/**
- * Free all timers immediately.
- *
- * \note This should only be used on-exit,
- * in all other cases timers should be tagged for removal by #WM_event_timer_remove.
- */
-void WM_event_timers_free_all(wmWindowManager *wm);
 
 /**
  * Mark the given `timer` to be removed, actual removal and deletion is deferred and handled
@@ -868,10 +900,10 @@ wmOperatorStatus WM_operator_confirm_or_exec(bContext *C, wmOperator *op, const 
  */
 wmOperatorStatus WM_operator_confirm_ex(bContext *C,
                                         wmOperator *op,
-                                        const char *title = nullptr,
-                                        const char *message = nullptr,
-                                        const char *confirm_text = nullptr,
-                                        int icon = 0, /* ALERT_ICON_WARNING. */
+                                        const char *title,
+                                        const char *message,
+                                        const char *confirm_text,
+                                        blender::ui::AlertIcon icon,
                                         bool cancel_default = false);
 
 /**
@@ -899,7 +931,8 @@ wmOperatorStatus WM_operator_props_popup_confirm_ex(
     const wmEvent *event,
     std::optional<std::string> title = std::nullopt,
     std::optional<std::string> confirm_text = std::nullopt,
-    bool cancel_default = false);
+    bool cancel_default = false,
+    std::optional<std::string> message = std::nullopt);
 
 /**
  * Same as #WM_operator_props_popup but call the operator first,
@@ -915,7 +948,8 @@ wmOperatorStatus WM_operator_props_dialog_popup(
     int width,
     std::optional<std::string> title = std::nullopt,
     std::optional<std::string> confirm_text = std::nullopt,
-    bool cancel_default = false);
+    bool cancel_default = false,
+    std::optional<std::string> message = std::nullopt);
 
 wmOperatorStatus WM_operator_redo_popup(bContext *C, wmOperator *op);
 wmOperatorStatus WM_operator_ui_popup(bContext *C, wmOperator *op, int width);
@@ -952,6 +986,21 @@ void WM_operator_handlers_clear(wmWindowManager *wm, wmOperatorType *ot);
 
 bool WM_operator_poll(bContext *C, wmOperatorType *ot);
 bool WM_operator_poll_context(bContext *C, wmOperatorType *ot, blender::wm::OpCallContext context);
+
+/**
+ * Check poll succeeds or returns false & report an error.
+ *
+ * This can be used from #wmOperatorType::exec for operators that use the file-selector.
+ * It's needed in this case because the context can be changed once the file-selector
+ * has been activated.
+ *
+ * \return true or false & report an error.
+ *
+ * \note It's best practice that `ot->poll` sets the "poll message",
+ * otherwise a generic (unhelpful) error will be used.
+ */
+bool WM_operator_poll_or_report_error(bContext *C, wmOperatorType *ot, ReportList *reports);
+
 /**
  * For running operators with frozen context (modal handlers, menus).
  *
@@ -1090,7 +1139,7 @@ enum eFileSel_Flag {
   /** Show the properties sidebar by default. */
   WM_FILESEL_SHOW_PROPS = 1 << 5,
 };
-ENUM_OPERATORS(eFileSel_Flag, WM_FILESEL_SHOW_PROPS)
+ENUM_OPERATORS(eFileSel_Flag)
 
 /** Action for #WM_operator_properties_filesel. */
 enum eFileSel_Action {
@@ -1397,10 +1446,11 @@ void WM_uilisttype_free();
  * The "full" list-ID is an internal name used for storing and identifying a list. It is built like
  * this:
  * `{uiListType.idname}_{list_id}`, whereby `list_id` is an optional parameter passed to
- * `UILayout.template_list()`. If it is not set, the full list-ID is just `{uiListType.idname}_`.
+ * `blender::ui::Layout.template_list()`. If it is not set, the full list-ID is just
+ * `{uiListType.idname}_`.
  *
  * Note that whenever the Python API refers to the list-ID, it's the short, "non-full" one it
- * passed to `UILayout.template_list()`. C code can query that through
+ * passed to `blender::ui::Layout.template_list()`. C code can query that through
  * #WM_uilisttype_list_id_get().
  */
 void WM_uilisttype_to_full_list_id(const uiListType *ult,
@@ -1618,6 +1668,7 @@ ListBase *WM_dropboxmap_find(const char *idname, int spaceid, int regionid);
  */
 ID *WM_drag_asset_id_import(const bContext *C, wmDragAsset *asset_drag, int flag_extra);
 bool WM_drag_asset_will_import_linked(const wmDrag *drag);
+bool WM_drag_asset_will_import_packed(const wmDrag *drag);
 void WM_drag_add_local_ID(wmDrag *drag, ID *id, ID *from_parent);
 ID *WM_drag_get_local_ID(const wmDrag *drag, short idcode);
 ID *WM_drag_get_local_ID_from_event(const wmEvent *event, short idcode);
@@ -1728,7 +1779,7 @@ enum eWM_JobFlag {
   WM_JOB_EXCL_RENDER = (1 << 1),
   WM_JOB_PROGRESS = (1 << 2),
 };
-ENUM_OPERATORS(eWM_JobFlag, WM_JOB_PROGRESS);
+ENUM_OPERATORS(eWM_JobFlag);
 
 /**
  * Identifying jobs by owner alone is unreliable, this isn't saved, order can change.
@@ -1835,6 +1886,7 @@ void WM_jobs_callbacks_ex(wmJob *wm_job,
  *
  * If the new \a wm_job is flagged with #WM_JOB_PRIORITY, it will request other blocking jobs to
  * stop (using #WM_jobs_stop(), so this doesn't take immediate effect) rather than finish its work.
+ * Additionally, it will hint the operating system to use performance cores on hybrid CPUs.
  */
 void WM_jobs_start(wmWindowManager *wm, wmJob *wm_job);
 /**
@@ -1959,10 +2011,10 @@ void WM_autosave_write(wmWindowManager *wm, Main *bmain);
 
 /**
  * Lock the interface for any communication.
- * For #WM_set_locked_interface_with_flags, #lock_flags is #ARegionDrawLockFlags
+ * For #WM_locked_interface_set_with_flags, #lock_flags is #ARegionDrawLockFlags
  */
-void WM_set_locked_interface(wmWindowManager *wm, bool lock);
-void WM_set_locked_interface_with_flags(wmWindowManager *wm, short lock_flags);
+void WM_locked_interface_set(wmWindowManager *wm, bool lock);
+void WM_locked_interface_set_with_flags(wmWindowManager *wm, short lock_flags);
 
 void WM_event_tablet_data_default_set(wmTabletData *tablet_data);
 
@@ -1982,7 +2034,7 @@ void WM_window_status_area_tag_redraw(wmWindow *win);
  * use here since the area is stored in the window manager.
  */
 ScrArea *WM_window_status_area_find(wmWindow *win, bScreen *screen);
-bool WM_window_modal_keymap_status_draw(bContext *C, wmWindow *win, uiLayout *layout);
+bool WM_window_modal_keymap_status_draw(bContext *C, wmWindow *win, blender::ui::Layout *layout);
 
 /* `wm_event_query.cc` */
 
@@ -2083,7 +2135,7 @@ bool WM_event_is_ime_switch(const wmEvent *event);
 
 /* `wm_tooltip.cc` */
 
-using wmTooltipInitFn = ARegion *(*)(bContext *C,
+using wmTooltipInitFn = ARegion *(*)(bContext * C,
                                      ARegion *region,
                                      int *pass,
                                      double *r_pass_delay,
@@ -2160,6 +2212,9 @@ void WM_xr_session_state_nav_rotation_set(wmXrData *xr, const float rotation[4])
 bool WM_xr_session_state_nav_scale_get(const wmXrData *xr, float *r_scale);
 void WM_xr_session_state_nav_scale_set(wmXrData *xr, float scale);
 void WM_xr_session_state_navigation_reset(wmXrSessionState *state);
+void WM_xr_session_state_vignette_reset(wmXrSessionState *state);
+void WM_xr_session_state_vignette_activate(wmXrData *xr);
+void WM_xr_session_state_vignette_update(wmXrSessionState *state);
 
 ARegionType *WM_xr_surface_controller_region_type_get();
 

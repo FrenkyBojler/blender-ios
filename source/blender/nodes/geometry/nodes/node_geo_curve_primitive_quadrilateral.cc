@@ -3,11 +3,11 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_curves.hh"
-#include "NOD_rna_define.hh"
 
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
+#include "NOD_rna_define.hh"
 #include "NOD_socket_search_link.hh"
 
 #include "node_geometry_util.hh"
@@ -22,7 +22,8 @@ static void node_declare(NodeDeclarationBuilder &b)
                     .default_value(2.0f)
                     .min(0.0f)
                     .subtype(PROP_DISTANCE)
-                    .description("The X axis size of the shape");
+                    .description("The X axis size of the shape")
+                    .available(false);
   auto &height = b.add_input<decl::Float>("Height")
                      .default_value(2.0f)
                      .min(0.0f)

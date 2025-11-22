@@ -24,6 +24,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #ifdef WIN32
@@ -91,7 +92,6 @@ void ED_file_path_button(bScreen *screen,
 
   but = uiDefButR(block,
                   ButType::Text,
-                  -1,
                   "",
                   0,
                   0,
@@ -103,6 +103,7 @@ void ED_file_path_button(bScreen *screen,
                   0.0f,
                   float(FILE_MAX),
                   TIP_("File path"));
+  UI_but_retval_set(but, -1);
 
   BLI_assert(!UI_but_flag_is_set(but, UI_BUT_UNDO));
   BLI_assert(!UI_but_is_utf8(but));
@@ -202,7 +203,7 @@ static void file_draw_tooltip_custom_func(bContext & /*C*/,
         /* Load Blender version directly from the file. */
         short version = BLO_version_from_file(full_path);
         if (version != 0) {
-          SNPRINTF(version_str, "%d.%01d", version / 100, version % 100);
+          SNPRINTF_UTF8(version_str, "%d.%01d", version / 100, version % 100);
         }
       }
 
@@ -278,6 +279,16 @@ static void file_draw_tooltip_custom_func(bContext & /*C*/,
         }
       }
     }
+    else if (file->typeflag & FILE_TYPE_FTFONT) {
+      float color[4];
+      bTheme *btheme = UI_GetTheme();
+      rgba_uchar_to_float(color, btheme->tui.wcol_tooltip.text);
+      thumb = IMB_font_preview(full_path,
+                               512 * UI_SCALE_FAC,
+                               color,
+                               TIP_("The five boxing wizards jump quickly! 0123456789"));
+      free_imbuf = true;
+    }
 
     char date_str[FILELIST_DIRENTRY_DATE_LEN], time_str[FILELIST_DIRENTRY_TIME_LEN];
     bool is_today, is_yesterday;
@@ -320,7 +331,20 @@ static void file_draw_tooltip_custom_func(bContext & /*C*/,
     }
   }
 
-  if (thumb && params->display != FILE_IMGDISPLAY) {
+  if (thumb && file->typeflag & FILE_TYPE_FTFONT) {
+    const float scale = (512.0f * UI_SCALE_FAC) / float(std::max(thumb->x, thumb->y));
+    uiTooltipImage image_data;
+    image_data.ibuf = thumb;
+    image_data.width = short(float(thumb->x) * scale);
+    image_data.height = short(float(thumb->y) * scale);
+    image_data.background = uiTooltipImageBackground::None;
+    image_data.premultiplied = false;
+    image_data.text_color = true;
+    image_data.border = false;
+    UI_tooltip_text_field_add(tip, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL);
+    UI_tooltip_image_field_add(tip, image_data);
+  }
+  else if (thumb && params->display != FILE_IMGDISPLAY) {
     UI_tooltip_text_field_add(tip, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL);
     UI_tooltip_text_field_add(tip, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL);
 
@@ -386,7 +410,7 @@ static void file_but_enable_drag(uiBut *but,
       import_settings.method = eAssetImportMethod(import_method);
       import_settings.use_instance_collections =
           (sfile->asset_params->import_flags &
-           (import_method == ASSET_IMPORT_LINK ?
+           (ELEM(import_method, ASSET_IMPORT_LINK, ASSET_IMPORT_PACK) ?
                 FILE_ASSET_IMPORT_INSTANCE_COLLECTIONS_ON_LINK :
                 FILE_ASSET_IMPORT_INSTANCE_COLLECTIONS_ON_APPEND)) != 0;
 
@@ -433,14 +457,14 @@ static uiBut *file_add_icon_but(const SpaceFile *sfile,
   if (icon < BIFICONID_LAST_STATIC) {
     /* Small built-in icon. Draw centered in given width. */
     but = uiDefIconBut(
-        block, ButType::Label, 0, icon, x, y, width, height, nullptr, 0.0f, 0.0f, std::nullopt);
+        block, ButType::Label, icon, x, y, width, height, nullptr, 0.0f, 0.0f, std::nullopt);
     /* Center the icon. */
     UI_but_drawflag_disable(but, UI_BUT_ICON_LEFT);
   }
   else {
     /* Larger preview icon. Fills available width/height. */
     but = uiDefIconPreviewBut(
-        block, ButType::Label, 0, icon, x, y, width, height, nullptr, 0.0f, 0.0f, std::nullopt);
+        block, ButType::Label, icon, x, y, width, height, nullptr, 0.0f, 0.0f, std::nullopt);
   }
   UI_but_label_alpha_factor_set(but, dimmed ? 0.3f : 1.0f);
   file_but_tooltip_func_set(sfile, file, but);
@@ -452,7 +476,6 @@ static uiBut *file_add_overlay_icon_but(uiBlock *block, int pos_x, int pos_y, in
 {
   uiBut *but = uiDefIconBut(block,
                             ButType::Label,
-                            0,
                             icon,
                             pos_x,
                             pos_y,
@@ -636,7 +659,6 @@ static void file_add_preview_drag_but(const SpaceFile *sfile,
 
   uiBut *but = uiDefBut(block,
                         ButType::Label,
-                        0,
                         "",
                         drag_rect.xmin,
                         drag_rect.ymin,
@@ -701,7 +723,7 @@ static void file_draw_preview(const FileDirEntry *file,
                                 float(ymin),
                                 imb->x,
                                 imb->y,
-                                GPU_RGBA8,
+                                blender::gpu::TextureFormat::UNORM_8_8_8_8,
                                 true,
                                 imb->byte_buffer.data,
                                 scale,
@@ -1153,9 +1175,9 @@ static const char *filelist_get_details_column_string(
               nullptr, file->time, compact, time, date, &is_today, &is_yesterday);
 
           if (!compact && (is_today || is_yesterday)) {
-            STRNCPY(date, is_today ? IFACE_("Today") : IFACE_("Yesterday"));
+            STRNCPY_UTF8(date, is_today ? IFACE_("Today") : IFACE_("Yesterday"));
           }
-          SNPRINTF(file->draw_data.datetime_str, compact ? "%s" : "%s %s", date, time);
+          SNPRINTF_UTF8(file->draw_data.datetime_str, compact ? "%s" : "%s %s", date, time);
         }
 
         return file->draw_data.datetime_str;
@@ -1290,7 +1312,7 @@ void file_draw_list(const bContext *C, ARegion *region)
   }
 
   offset = ED_fileselect_layout_offset(
-      layout, int(region->v2d.cur.xmin), int(-region->v2d.cur.ymax));
+      layout, int(region->v2d.cur.xmin), int(-region->v2d.cur.ymax) + layout->offset_top);
   offset = std::max(offset, 0);
 
   numfiles_layout = ED_fileselect_layout_numfiles(layout, region);
@@ -1431,7 +1453,6 @@ void file_draw_list(const bContext *C, ARegion *region)
            * between rows. */
           uiBut *drag_but = uiDefBut(block,
                                      ButType::Label,
-                                     0,
                                      "",
                                      tile_draw_rect.xmin,
                                      tile_draw_rect.ymin - layout->tile_border_y,
@@ -1486,7 +1507,6 @@ void file_draw_list(const bContext *C, ARegion *region)
               std::min(short(BLI_rcti_size_y(&text_rect) - 1.0f * UI_SCALE_FAC), UI_UNIT_Y);
       uiBut *but = uiDefBut(block,
                             ButType::Text,
-                            1,
                             "",
                             text_rect.xmin,
                             /* First line only, when name is displayed in multiple lines. */
@@ -1497,6 +1517,7 @@ void file_draw_list(const bContext *C, ARegion *region)
                             1.0f,
                             float(sizeof(params->renamefile)),
                             "");
+      UI_but_retval_set(but, 1);
       UI_but_func_rename_set(but, renamebutton_cb, file);
       UI_but_flag_enable(but, UI_BUT_NO_UTF8); /* Allow non UTF8 names. */
       UI_but_flag_disable(but, UI_BUT_UNDO);

@@ -9,7 +9,6 @@
 #pragma once
 
 #include "BLI_map.hh"
-#include "BLI_rect.h"
 #include "BLI_span.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_utility_mixins.hh"
@@ -21,8 +20,6 @@
 #include "RNA_access.hh"
 
 #include "GPU_viewport.hh"
-
-#include "ED_sequencer.hh"
 
 #include "sequencer_scopes.hh"
 
@@ -47,6 +44,10 @@ struct ScrArea;
 struct Editing;
 struct ListBase;
 
+namespace blender::ed::asset {
+struct AssetItemTree;
+}
+
 namespace blender::ed::vse {
 
 class SeqQuadsBatch;
@@ -59,6 +60,8 @@ struct SpaceSeq_Runtime : public NonCopyable {
   float timeline_clamp_custom_range = 0;
 
   SeqScopes scopes;
+
+  std::shared_ptr<asset::AssetItemTree> assets_for_menu;
 
   SpaceSeq_Runtime() = default;
   ~SpaceSeq_Runtime();
@@ -116,9 +119,9 @@ struct TimelineDrawContext {
   Editing *ed;
   ListBase *channels;
   GPUViewport *viewport;
-  GPUFrameBuffer *framebuffer_overlay;
+  gpu::FrameBuffer *framebuffer_overlay;
   float pixelx, pixely; /* Width and height of pixel in timeline space. */
-  blender::Map<SeqRetimingKey *, Strip *> retiming_selection;
+  Map<SeqRetimingKey *, Strip *> retiming_selection;
 
   SeqQuadsBatch *quads;
 };
@@ -126,8 +129,8 @@ struct TimelineDrawContext {
 /* `sequencer_timeline_draw.cc` */
 
 /* Returns value in frames (view-space), 5px for large strips, 1/4 of the strip for smaller. */
-float strip_handle_draw_size_get(const Scene *scene, Strip *strip, float pixelx);
-void draw_timeline_seq(const bContext *C, ARegion *region);
+float strip_handle_draw_size_get(const Scene *scene, const Strip *strip, float pixelx);
+void draw_timeline_seq(const bContext *C, const ARegion *region);
 void draw_timeline_seq_display(const bContext *C, ARegion *region);
 
 /* `sequencer_preview_draw.cc` */
@@ -139,7 +142,6 @@ void draw_timeline_seq_display(const bContext *C, ARegion *region);
  * region.
  */
 void sequencer_preview_region_draw(const bContext *C, ARegion *region);
-int sequencer_draw_get_transform_preview_frame(const Scene *scene);
 void sequencer_special_update_set(Strip *strip);
 
 /* UNUSED */
@@ -156,9 +158,9 @@ ImBuf *sequencer_ibuf_get(const bContext *C, int timeline_frame, const char *vie
 
 /* `sequencer_thumbnails.cc` */
 
-void draw_strip_thumbnails(TimelineDrawContext *ctx,
+void draw_strip_thumbnails(const TimelineDrawContext &ctx,
                            StripsDrawBatch &strips_batch,
-                           const blender::Vector<StripDrawContext> &strips);
+                           const Vector<StripDrawContext> &strips);
 
 /* sequencer_draw_channels.c */
 
@@ -194,7 +196,7 @@ bool sequencer_view_strips_poll(bContext *C);
  * \param C: context
  * \return collection of strips (`Strip`)
  */
-blender::VectorSet<Strip *> all_strips_from_context(bContext *C);
+VectorSet<Strip *> all_strips_from_context(bContext *C);
 
 /* Externals. */
 
@@ -255,7 +257,7 @@ void SEQUENCER_OT_scene_frame_range_update(wmOperatorType *ot);
 /* `sequencer_select.cc` */
 
 void strip_rectf(const Scene *scene, const Strip *strip, rctf *r_rect);
-Strip *find_neighboring_strip(Scene *scene, Strip *test, int lr, int sel);
+Strip *find_neighboring_strip(const Scene *scene, const Strip *test, const int lr, int sel);
 void recurs_sel_strip(Strip *strip_meta);
 
 void SEQUENCER_OT_select_all(wmOperatorType *ot);
@@ -269,11 +271,23 @@ void SEQUENCER_OT_select_linked_pick(wmOperatorType *ot);
 void SEQUENCER_OT_select_handles(wmOperatorType *ot);
 void SEQUENCER_OT_select_side(wmOperatorType *ot);
 void SEQUENCER_OT_select_box(wmOperatorType *ot);
+void SEQUENCER_OT_select_lasso(wmOperatorType *ot);
+void SEQUENCER_OT_select_circle(wmOperatorType *ot);
 void SEQUENCER_OT_select_inverse(wmOperatorType *ot);
 void SEQUENCER_OT_select_grouped(wmOperatorType *ot);
 
 bool strip_point_image_isect(const Scene *scene, const Strip *strip, float point_view[2]);
 void sequencer_select_do_updates(const bContext *C, Scene *scene);
+/**
+ * Returns the strip that intersects with the mouse cursor in the timeline, if applicable.
+
+ * This check is more robust than simply comparing the timeline frame and channel, since strips do
+ * not take up the full height of their channels (see #STRIP_OFSBOTTOM, #STRIP_OFSTOP).
+ * Does not consider padded handles.
+ *
+ * \param mval: Mouse cursor location in regionspace
+ * \return `Strip` that intersects with the cursor, or `nullptr` if not found
+ */
 Strip *strip_under_mouse_get(const Scene *scene, const View2D *v2d, const int mval[2]);
 
 /* `sequencer_add.cc` */
@@ -286,6 +300,7 @@ void SEQUENCER_OT_mask_strip_add(wmOperatorType *ot);
 void SEQUENCER_OT_sound_strip_add(wmOperatorType *ot);
 void SEQUENCER_OT_image_strip_add(wmOperatorType *ot);
 void SEQUENCER_OT_effect_strip_add(wmOperatorType *ot);
+void SEQUENCER_OT_add_scene_strip_from_scene_asset(wmOperatorType *ot);
 
 /* `sequencer_drag_drop.cc` */
 
@@ -306,6 +321,8 @@ void SEQUENCER_OT_strip_modifier_add(wmOperatorType *ot);
 void SEQUENCER_OT_strip_modifier_remove(wmOperatorType *ot);
 void SEQUENCER_OT_strip_modifier_move(wmOperatorType *ot);
 void SEQUENCER_OT_strip_modifier_copy(wmOperatorType *ot);
+void SEQUENCER_OT_strip_modifier_move_to_index(wmOperatorType *ot);
+void SEQUENCER_OT_strip_modifier_set_active(wmOperatorType *ot);
 void SEQUENCER_OT_strip_modifier_equalizer_redefine(wmOperatorType *ot);
 
 /* `sequencer_view.cc` */
@@ -331,11 +348,11 @@ void sequencer_preview_add_sound(const bContext *C, const Strip *strip);
 
 /* `sequencer_add.cc` */
 
-int sequencer_image_seq_get_minmax_frame(wmOperator *op,
-                                         int sfra,
-                                         int *r_minframe,
-                                         int *r_numdigits);
-void sequencer_image_seq_reserve_frames(
+int sequencer_image_strip_get_minmax_frame(wmOperator *op,
+                                           int sfra,
+                                           int *r_minframe,
+                                           int *r_numdigits);
+void sequencer_image_strip_reserve_frames(
     wmOperator *op, StripElem *se, int len, int minframe, int numdigits);
 
 /* `sequencer_retiming.cc` */
@@ -360,11 +377,10 @@ wmOperatorStatus sequencer_retiming_select_all_exec(bContext *C, wmOperator *op)
 wmOperatorStatus sequencer_retiming_box_select_exec(bContext *C, wmOperator *op);
 
 /* `sequencer_retiming_draw.cc` */
-void sequencer_retiming_draw_continuity(const TimelineDrawContext *timeline_ctx,
+void sequencer_retiming_draw_continuity(const TimelineDrawContext &ctx,
                                         const StripDrawContext &strip_ctx);
-void sequencer_retiming_keys_draw(const TimelineDrawContext *timeline_ctx,
-                                  blender::Span<StripDrawContext> strips);
-void sequencer_retiming_speed_draw(const TimelineDrawContext *timeline_ctx,
+void sequencer_retiming_keys_draw(const TimelineDrawContext &ctx, Span<StripDrawContext> strips);
+void sequencer_retiming_speed_draw(const TimelineDrawContext &ctx,
                                    const StripDrawContext &strip_ctx);
 void realize_fake_keys(const Scene *scene, Strip *strip);
 SeqRetimingKey *try_to_realize_fake_keys(const bContext *C, Strip *strip, const int mval[2]);
@@ -387,15 +403,23 @@ void SEQUENCER_OT_text_cursor_set(wmOperatorType *ot);
 void SEQUENCER_OT_text_edit_copy(wmOperatorType *ot);
 void SEQUENCER_OT_text_edit_paste(wmOperatorType *ot);
 void SEQUENCER_OT_text_edit_cut(wmOperatorType *ot);
-blender::int2 strip_text_cursor_offset_to_position(const TextVarsRuntime *text, int cursor_offset);
-blender::IndexRange strip_text_selection_range_get(const TextVars *data);
+int2 strip_text_cursor_offset_to_position(const TextVarsRuntime *text, int cursor_offset);
+IndexRange strip_text_selection_range_get(const TextVars *data);
 
 /* `sequencer_timeline_draw.cc` */
-blender::Vector<Strip *> sequencer_visible_strips_get(const bContext *C);
-blender::Vector<Strip *> sequencer_visible_strips_get(const Scene *scene, const View2D *v2d);
+Vector<Strip *> sequencer_visible_strips_get(const bContext *C);
+Vector<Strip *> sequencer_visible_strips_get(const Scene *scene, const View2D *v2d);
 
 /* `sequencer_clipboard.cc` */
 wmOperatorStatus sequencer_clipboard_copy_exec(bContext *C, wmOperator *op);
 wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op);
+wmOperatorStatus sequencer_clipboard_paste_invoke(bContext *C,
+                                                  wmOperator *op,
+                                                  const wmEvent *event);
+
+/* `sequencer_add_menu_scene_assets.cc` */
+MenuType add_catalog_assets_menu_type();
+MenuType add_unassigned_assets_menu_type();
+MenuType add_scene_menu_type();
 
 }  // namespace blender::ed::vse

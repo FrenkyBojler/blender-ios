@@ -8,15 +8,11 @@
 
 #include <cmath>
 
-#include "BLI_assert.h"
 #include "BLI_math_base.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 
-#include "RNA_access.hh"
-
-#include "UI_interface_layout.hh"
-#include "UI_resources.hh"
+#include "RNA_types.hh"
 
 #include "IMB_colormanagement.hh"
 
@@ -28,31 +24,67 @@
 
 namespace blender::nodes::node_composite_tonemap_cc {
 
-NODE_STORAGE_FUNCS(NodeTonemap)
+static const EnumPropertyItem type_items[] = {
+    {CMP_NODE_TONE_MAP_PHOTORECEPTOR,
+     "RD_PHOTORECEPTOR",
+     0,
+     N_("R/D Photoreceptor"),
+     N_("More advanced algorithm based on eye physiology, by Reinhard and Devlin")},
+    {CMP_NODE_TONE_MAP_SIMPLE,
+     "RH_SIMPLE",
+     0,
+     N_("Rh Simple"),
+     N_("Simpler photographic algorithm by Reinhard")},
+    {0, nullptr, 0, nullptr, nullptr},
+};
 
 static void cmp_node_tonemap_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+
   b.add_input<decl::Color>("Image")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
+      .hide_value()
       .structure_type(StructureType::Dynamic);
 
-  b.add_input<decl::Float>("Key").default_value(0.18f).min(0.0f).description(
-      "The luminance that will be mapped to the log average luminance, typically set to the "
-      "middle gray value");
-  b.add_input<decl::Float>("Balance").default_value(1.0f).min(0.0f).description(
-      "Balances low and high luminance areas. Lower values emphasize details in shadows, "
-      "while higher values compress highlights more smoothly");
-  b.add_input<decl::Float>("Gamma").default_value(1.0f).min(0.0f).description(
-      "Gamma correction factor applied after tone mapping");
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic).align_with_previous();
+
+  b.add_input<decl::Menu>("Type")
+      .default_value(CMP_NODE_TONE_MAP_PHOTORECEPTOR)
+      .static_items(type_items)
+      .optional_label();
+
+  b.add_input<decl::Float>("Key")
+      .default_value(0.18f)
+      .min(0.0f)
+      .usage_by_single_menu(CMP_NODE_TONE_MAP_SIMPLE)
+      .description(
+          "The luminance that will be mapped to the log average luminance, typically set to the "
+          "middle gray value");
+  b.add_input<decl::Float>("Balance")
+      .default_value(1.0f)
+      .min(0.0f)
+      .usage_by_single_menu(CMP_NODE_TONE_MAP_SIMPLE)
+      .description(
+          "Balances low and high luminance areas. Lower values emphasize details in shadows, "
+          "while higher values compress highlights more smoothly");
+  b.add_input<decl::Float>("Gamma")
+      .default_value(1.0f)
+      .min(0.0f)
+      .usage_by_single_menu(CMP_NODE_TONE_MAP_SIMPLE)
+      .description("Gamma correction factor applied after tone mapping");
 
   b.add_input<decl::Float>("Intensity")
       .default_value(0.0f)
+      .usage_by_single_menu(CMP_NODE_TONE_MAP_PHOTORECEPTOR)
       .description(
           "Controls the intensity of the image, lower values makes it darker while higher values "
           "makes it lighter");
   b.add_input<decl::Float>("Contrast")
       .default_value(0.0f)
       .min(0.0f)
+      .usage_by_single_menu(CMP_NODE_TONE_MAP_PHOTORECEPTOR)
       .description(
           "Controls the contrast of the image. Zero automatically sets the contrast based on its "
           "global range for better luminance distribution");
@@ -61,6 +93,7 @@ static void cmp_node_tonemap_declare(NodeDeclarationBuilder &b)
       .subtype(PROP_FACTOR)
       .min(0.0f)
       .max(1.0f)
+      .usage_by_single_menu(CMP_NODE_TONE_MAP_PHOTORECEPTOR)
       .description(
           "Specifies if tone mapping operates on the entire image or per pixel, 0 means the "
           "entire image, 1 means it is per pixel, and values in between blends between both");
@@ -69,48 +102,18 @@ static void cmp_node_tonemap_declare(NodeDeclarationBuilder &b)
       .subtype(PROP_FACTOR)
       .min(0.0f)
       .max(1.0f)
+      .usage_by_single_menu(CMP_NODE_TONE_MAP_PHOTORECEPTOR)
       .description(
           "Specifies if tone mapping operates on the luminance or on each channel independently, "
           "0 means it uses luminance, 1 means it is per channel, and values in between blends "
           "between both");
-
-  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
 }
 
 static void node_composit_init_tonemap(bNodeTree * /*ntree*/, bNode *node)
 {
+  /* Unused, but still allocated for forward compatibility. */
   NodeTonemap *ntm = MEM_callocN<NodeTonemap>(__func__);
-  ntm->type = CMP_NODE_TONE_MAP_PHOTORECEPTOR;
   node->storage = ntm;
-}
-
-static void node_composit_buts_tonemap(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
-{
-  layout->prop(ptr, "tonemap_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-}
-
-static void node_update(bNodeTree *ntree, bNode *node)
-{
-  const bool is_simple = node_storage(*node).type == CMP_NODE_TONE_MAP_SIMPLE;
-
-  bNodeSocket *key_input = bke::node_find_socket(*node, SOCK_IN, "Key");
-  bNodeSocket *balance_input = bke::node_find_socket(*node, SOCK_IN, "Balance");
-  bNodeSocket *gamma_input = bke::node_find_socket(*node, SOCK_IN, "Gamma");
-
-  blender::bke::node_set_socket_availability(*ntree, *key_input, is_simple);
-  blender::bke::node_set_socket_availability(*ntree, *balance_input, is_simple);
-  blender::bke::node_set_socket_availability(*ntree, *gamma_input, is_simple);
-
-  bNodeSocket *intensity_input = bke::node_find_socket(*node, SOCK_IN, "Intensity");
-  bNodeSocket *contrast_input = bke::node_find_socket(*node, SOCK_IN, "Contrast");
-  bNodeSocket *light_adaptation_input = bke::node_find_socket(*node, SOCK_IN, "Light Adaptation");
-  bNodeSocket *chromatic_adaptation_input = bke::node_find_socket(
-      *node, SOCK_IN, "Chromatic Adaptation");
-
-  blender::bke::node_set_socket_availability(*ntree, *intensity_input, !is_simple);
-  blender::bke::node_set_socket_availability(*ntree, *contrast_input, !is_simple);
-  blender::bke::node_set_socket_availability(*ntree, *light_adaptation_input, !is_simple);
-  blender::bke::node_set_socket_availability(*ntree, *chromatic_adaptation_input, !is_simple);
 }
 
 using namespace blender::compositor;
@@ -135,10 +138,9 @@ class ToneMapOperation : public NodeOperation {
       case CMP_NODE_TONE_MAP_PHOTORECEPTOR:
         execute_photoreceptor();
         return;
-      default:
-        BLI_assert_unreachable();
-        return;
     }
+
+    output_image.share_data(input_image);
   }
 
   /* Tone mapping based on equation (3) from Reinhard, Erik, et al. "Photographic tone reproduction
@@ -161,7 +163,7 @@ class ToneMapOperation : public NodeOperation {
     const float gamma = this->get_gamma();
     const float inverse_gamma = gamma != 0.0f ? 1.0f / gamma : 0.0f;
 
-    GPUShader *shader = context().get_shader("compositor_tone_map_simple");
+    gpu::Shader *shader = context().get_shader("compositor_tone_map_simple");
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1f(shader, "luminance_scale", luminance_scale);
@@ -176,7 +178,7 @@ class ToneMapOperation : public NodeOperation {
     output_image.allocate_texture(domain);
     output_image.bind_as_image(shader, "output_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     GPU_shader_unbind();
     output_image.unbind_as_image();
@@ -196,8 +198,8 @@ class ToneMapOperation : public NodeOperation {
     Result &output = get_result("Image");
     output.allocate_texture(domain);
 
-    parallel_for(domain.size, [&](const int2 texel) {
-      float4 input_color = image.load_pixel<float4>(texel);
+    parallel_for(domain.data_size, [&](const int2 texel) {
+      float4 input_color = float4(image.load_pixel<Color>(texel));
 
       /* Equation (2) from Reinhard's 2002 paper. */
       float4 scaled_color = input_color * luminance_scale;
@@ -211,7 +213,7 @@ class ToneMapOperation : public NodeOperation {
         tone_mapped_color = math::pow(math::max(tone_mapped_color, float4(0.0f)), inverse_gamma);
       }
 
-      output.store_pixel(texel, float4(tone_mapped_color.xyz(), input_color.w));
+      output.store_pixel(texel, Color(float4(tone_mapped_color.xyz(), input_color.w)));
     });
   }
 
@@ -274,7 +276,7 @@ class ToneMapOperation : public NodeOperation {
     const float chromatic_adaptation = get_chromatic_adaptation();
     const float light_adaptation = get_light_adaptation();
 
-    GPUShader *shader = context().get_shader("compositor_tone_map_photoreceptor");
+    gpu::Shader *shader = context().get_shader("compositor_tone_map_photoreceptor");
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_4fv(shader, "global_adaptation_level", global_adaptation_level);
@@ -295,7 +297,7 @@ class ToneMapOperation : public NodeOperation {
     output_image.allocate_texture(domain);
     output_image.bind_as_image(shader, "output_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     GPU_shader_unbind();
     output_image.unbind_as_image();
@@ -319,8 +321,8 @@ class ToneMapOperation : public NodeOperation {
     Result &output = get_result("Image");
     output.allocate_texture(domain);
 
-    parallel_for(domain.size, [&](const int2 texel) {
-      float4 input_color = input.load_pixel<float4>(texel);
+    parallel_for(domain.data_size, [&](const int2 texel) {
+      float4 input_color = float4(input.load_pixel<Color>(texel));
       float input_luminance = math::dot(input_color.xyz(), luminance_coefficients);
 
       /* Trilinear interpolation between equations (6) and (7) from Reinhard's 2005 paper. */
@@ -333,7 +335,7 @@ class ToneMapOperation : public NodeOperation {
       float4 semi_saturation = math::pow(intensity * adaptation_level, contrast);
       float4 tone_mapped_color = math::safe_divide(input_color, input_color + semi_saturation);
 
-      output.store_pixel(texel, float4(tone_mapped_color.xyz(), input_color.w));
+      output.store_pixel(texel, Color(float4(tone_mapped_color.xyz(), input_color.w)));
     });
   }
 
@@ -357,7 +359,7 @@ class ToneMapOperation : public NodeOperation {
     }
 
     const Result &input = get_input("Image");
-    return sum_color(context(), input) / (input.domain().size.x * input.domain().size.y);
+    return sum_color(context(), input) / (input.domain().data_size.x * input.domain().data_size.y);
   }
 
   float compute_average_luminance()
@@ -373,7 +375,7 @@ class ToneMapOperation : public NodeOperation {
     IMB_colormanagement_get_luminance_coefficients(luminance_coefficients);
     const Result &input = get_input("Image");
     float sum = sum_luminance(context(), input, luminance_coefficients);
-    return sum / (input.domain().size.x * input.domain().size.y);
+    return sum / (input.domain().data_size.x * input.domain().data_size.y);
   }
 
   /* Computes equation (5) from Reinhard's 2005 paper. */
@@ -414,7 +416,8 @@ class ToneMapOperation : public NodeOperation {
     const float sum_of_log_luminance = sum_log_luminance(
         context(), input_image, luminance_coefficients);
 
-    return sum_of_log_luminance / (input_image.domain().size.x * input_image.domain().size.y);
+    return sum_of_log_luminance /
+           (input_image.domain().data_size.x * input_image.domain().data_size.y);
   }
 
   float compute_log_maximum_luminance()
@@ -457,7 +460,10 @@ class ToneMapOperation : public NodeOperation {
 
   CMPNodeToneMapType get_type()
   {
-    return static_cast<CMPNodeToneMapType>(node_storage(bnode()).type);
+    const Result &input = this->get_input("Type");
+    const MenuValue default_menu_value = MenuValue(CMP_NODE_TONE_MAP_PHOTORECEPTOR);
+    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
+    return static_cast<CMPNodeToneMapType>(menu_value.value);
   }
 };
 
@@ -482,8 +488,6 @@ static void register_node_type_cmp_tonemap()
   ntype.enum_name_legacy = "TONEMAP";
   ntype.nclass = NODE_CLASS_OP_COLOR;
   ntype.declare = file_ns::cmp_node_tonemap_declare;
-  ntype.updatefunc = file_ns::node_update;
-  ntype.draw_buttons = file_ns::node_composit_buts_tonemap;
   ntype.initfunc = file_ns::node_composit_init_tonemap;
   blender::bke::node_type_storage(
       ntype, "NodeTonemap", node_free_standard_storage, node_copy_standard_storage);

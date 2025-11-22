@@ -132,6 +132,7 @@ void VKShaderInterface::init(const shader::ShaderCreateInfo &info)
       input++;
     }
   }
+  set_image_formats_from_info(info);
 
   /* Push constants. */
   int32_t push_constant_location = 1024;
@@ -306,19 +307,19 @@ void VKShaderInterface::descriptor_set_location_update(
         break;
 
       case shader::ShaderCreateInfo::Resource::BindType::STORAGE_BUFFER:
-        if (bool(resource->storagebuf.qualifiers & shader::Qualifier::read) == true) {
+        if (flag_is_set(resource->storagebuf.qualifiers, shader::Qualifier::read)) {
           vk_access_flags |= VK_ACCESS_SHADER_READ_BIT;
         }
-        if (bool(resource->storagebuf.qualifiers & shader::Qualifier::write) == true) {
+        if (flag_is_set(resource->storagebuf.qualifiers, shader::Qualifier::write)) {
           vk_access_flags |= VK_ACCESS_SHADER_WRITE_BIT;
         }
         break;
 
       case shader::ShaderCreateInfo::Resource::BindType::IMAGE:
-        if (bool(resource->image.qualifiers & shader::Qualifier::read) == true) {
+        if (flag_is_set(resource->image.qualifiers, shader::Qualifier::read)) {
           vk_access_flags |= VK_ACCESS_SHADER_READ_BIT;
         }
-        if (bool(resource->image.qualifiers & shader::Qualifier::write) == true) {
+        if (flag_is_set(resource->image.qualifiers, shader::Qualifier::write)) {
           vk_access_flags |= VK_ACCESS_SHADER_WRITE_BIT;
         }
         break;
@@ -424,7 +425,6 @@ void VKShaderInterface::init_descriptor_set_layout_info(
     UNUSED_VARS(index);
     // TODO: clean up remove negation.
     descriptor_set_layout_info_.bindings.append_n_times(
-        !extensions.dynamic_rendering            ? VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT :
         !extensions.dynamic_rendering_local_read ? VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER :
                                                    VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
         info.subpass_inputs_.size());

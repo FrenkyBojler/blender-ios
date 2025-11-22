@@ -18,6 +18,7 @@
 #include "RNA_types.hh"
 
 #include "BLI_listbase.h"
+#include "BLI_string.h"
 
 #include "../generic/py_capi_rna.hh"
 #include "../generic/py_capi_utils.hh"
@@ -26,6 +27,7 @@
 #include "BPY_extern.hh"
 #include "bpy_capi_utils.hh"
 #include "bpy_operator.hh"
+#include "bpy_operator_function.hh"
 #include "bpy_operator_wrap.hh"
 #include "bpy_rna.hh" /* for setting argument properties & type method `get_rna_type`. */
 
@@ -39,8 +41,9 @@
 #include "MEM_guardedalloc.h"
 
 #include "BKE_context.hh"
-#include "BKE_global.hh"
 #include "BKE_report.hh"
+
+#include "CLG_log.h"
 
 /* so operators called can spawn threads which acquire the GIL */
 #define BPY_RELEASE_GIL
@@ -61,7 +64,7 @@ static wmOperatorType *ot_lookup_from_py_string(PyObject *value, const char *py_
   return ot;
 }
 
-static PyObject *pyop_poll(PyObject * /*self*/, PyObject *args)
+PyObject *pyop_poll(PyObject * /*self*/, PyObject *args)
 {
   wmOperatorType *ot;
   const char *opname;
@@ -75,7 +78,7 @@ static PyObject *pyop_poll(PyObject * /*self*/, PyObject *args)
   bContext *C = BPY_context_get();
 
   if (C == nullptr) {
-    PyErr_SetString(PyExc_RuntimeError, "Context is None, can't poll any operators");
+    PyErr_SetString(PyExc_RuntimeError, "Context is None, cannot poll any operators");
     return nullptr;
   }
 
@@ -127,7 +130,7 @@ static PyObject *pyop_poll(PyObject * /*self*/, PyObject *args)
   return Py_NewRef(ret);
 }
 
-static PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
+PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
 {
   wmOperatorType *ot;
   int error_val = 0;
@@ -146,7 +149,7 @@ static PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
   bContext *C = BPY_context_get();
 
   if (C == nullptr) {
-    PyErr_SetString(PyExc_RuntimeError, "Context is None, can't poll any operators");
+    PyErr_SetString(PyExc_RuntimeError, "Context is None, cannot poll any operators");
     return nullptr;
   }
 
@@ -182,7 +185,7 @@ static PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
   if (!pyrna_write_check()) {
     PyErr_Format(PyExc_RuntimeError,
                  "Calling operator \"bpy.ops.%s\" error, "
-                 "can't modify blend data in this state (drawing/rendering)",
+                 "cannot modify blend data in this state (drawing/rendering)",
                  opname);
     return nullptr;
   }
@@ -257,7 +260,7 @@ static PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
       if (!BLI_listbase_is_empty(&reports->list)) {
         /* Restore the print level as this is owned by the operator now. */
         eReportType level = eReportType(reports->printlevel);
-        BKE_report_print_level_set(reports, G.quiet ? RPT_WARNING : RPT_DEBUG);
+        BKE_report_print_level_set(reports, CLG_quiet_get() ? RPT_WARNING : RPT_DEBUG);
         BPy_reports_write_stdout(reports, nullptr);
         BKE_report_print_level_set(reports, level);
       }
@@ -304,7 +307,7 @@ static PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
   return pyrna_enum_bitfield_as_set(rna_enum_operator_return_items, int(retval));
 }
 
-static PyObject *pyop_as_string(PyObject * /*self*/, PyObject *args)
+PyObject *pyop_as_string(PyObject * /*self*/, PyObject *args)
 {
   wmOperatorType *ot;
 
@@ -318,7 +321,7 @@ static PyObject *pyop_as_string(PyObject * /*self*/, PyObject *args)
 
   if (C == nullptr) {
     PyErr_SetString(PyExc_RuntimeError,
-                    "Context is None, can't get the string representation of this object.");
+                    "Context is None, cannot get the string representation of this object.");
     return nullptr;
   }
 
@@ -396,7 +399,7 @@ static PyObject *pyop_dir(PyObject * /*self*/)
   return list;
 }
 
-static PyObject *pyop_getrna_type(PyObject * /*self*/, PyObject *value)
+PyObject *pyop_getrna_type(PyObject * /*self*/, PyObject *value)
 {
   wmOperatorType *ot;
   if ((ot = ot_lookup_from_py_string(value, "get_rna_type")) == nullptr) {
@@ -408,7 +411,7 @@ static PyObject *pyop_getrna_type(PyObject * /*self*/, PyObject *value)
   return (PyObject *)pyrna;
 }
 
-static PyObject *pyop_get_bl_options(PyObject * /*self*/, PyObject *value)
+PyObject *pyop_get_bl_options(PyObject * /*self*/, PyObject *value)
 {
   wmOperatorType *ot;
   if ((ot = ot_lookup_from_py_string(value, "get_bl_options")) == nullptr) {
@@ -428,12 +431,9 @@ static PyObject *pyop_get_bl_options(PyObject * /*self*/, PyObject *value)
 #endif
 
 static PyMethodDef bpy_ops_methods[] = {
-    {"poll", (PyCFunction)pyop_poll, METH_VARARGS, nullptr},
-    {"call", (PyCFunction)pyop_call, METH_VARARGS, nullptr},
-    {"as_string", (PyCFunction)pyop_as_string, METH_VARARGS, nullptr},
     {"dir", (PyCFunction)pyop_dir, METH_NOARGS, nullptr},
     {"get_rna_type", (PyCFunction)pyop_getrna_type, METH_O, nullptr},
-    {"get_bl_options", (PyCFunction)pyop_get_bl_options, METH_O, nullptr},
+    {"create_function", (PyCFunction)pyop_create_function, METH_VARARGS, nullptr},
     {"macro_define", (PyCFunction)PYOP_wrap_macro_define, METH_VARARGS, nullptr},
     {nullptr, nullptr, 0, nullptr},
 };
@@ -461,6 +461,10 @@ static PyModuleDef bpy_ops_module = {
 PyObject *BPY_operator_module()
 {
   PyObject *submodule;
+
+  if (BPyOpFunction_InitTypes() < 0) {
+    return nullptr;
+  }
 
   submodule = PyModule_Create(&bpy_ops_module);
 

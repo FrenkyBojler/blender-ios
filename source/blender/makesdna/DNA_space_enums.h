@@ -7,7 +7,7 @@
  * Enums for space type in the user interface.
  */
 
-#include "BLI_utildefines.h"
+#include "BLI_enum_flags.hh"
 
 #pragma once
 
@@ -108,6 +108,8 @@ typedef enum eSpaceButtons_Context {
   BCONTEXT_SHADERFX = 15,
   BCONTEXT_OUTPUT = 16,
   BCONTEXT_COLLECTION = 17,
+  BCONTEXT_STRIP = 18,
+  BCONTEXT_STRIP_MODIFIER = 19,
 
   /* Keep last. */
   BCONTEXT_TOT,
@@ -441,7 +443,7 @@ typedef enum eSpaceSeq_Proxy_RenderSize {
   SEQ_RENDER_SIZE_PROXY_50 = 50,
   SEQ_RENDER_SIZE_PROXY_75 = 75,
   SEQ_RENDER_SIZE_PROXY_100 = 99,
-  SEQ_RENDER_SIZE_FULL = 100,
+  SEQ_RENDER_SIZE_FULL_DEPRECATED = 100, /* deprecated, for versioning only */
 } eSpaceSeq_Proxy_RenderSize;
 
 /** #SpaceSeq.gizmo_flag */
@@ -477,6 +479,11 @@ typedef enum eFileAssetImportMethod {
   FILE_ASSET_IMPORT_APPEND_REUSE = 2,
   /** Default: Follow the preference setting for this asset library. */
   FILE_ASSET_IMPORT_FOLLOW_PREFS = 3,
+  /**
+   * Link the data-block, but also pack it in the current file to keep it working even if the
+   * source file is not available anymore.
+   */
+  FILE_ASSET_IMPORT_PACK = 4,
 } eFileAssetImportMethod;
 
 typedef enum eFileAssetImportFlags {
@@ -591,7 +598,7 @@ typedef enum eFileSel_Params_Flag {
   /** Enables filtering by asset catalog. */
   FILE_FILTER_ASSET_CATALOG = (1 << 15),
 } eFileSel_Params_Flag;
-ENUM_OPERATORS(eFileSel_Params_Flag, FILE_FILTER_ASSET_CATALOG);
+ENUM_OPERATORS(eFileSel_Params_Flag);
 
 typedef enum eFileSel_Params_AssetCatalogVisibility {
   FILE_SHOW_ASSETS_ALL_CATALOGS,
@@ -647,16 +654,16 @@ typedef enum eFileSel_File_Types {
   FILE_TYPE_DIR = (1 << 30),
   FILE_TYPE_BLENDERLIB = (1u << 31),
 } eFileSel_File_Types;
-ENUM_OPERATORS(eFileSel_File_Types, FILE_TYPE_BLENDERLIB);
+ENUM_OPERATORS(eFileSel_File_Types);
 
 /** Selection Flags #FileList::selection_state. */
 typedef enum eDirEntry_SelectFlag {
-  /*  FILE_SEL_ACTIVE         = (1 << 1), */ /* UNUSED */
+  // FILE_SEL_ACTIVE = (1 << 1), /* UNUSED */
   FILE_SEL_HIGHLIGHTED = (1 << 2),
   FILE_SEL_SELECTED = (1 << 3),
   FILE_SEL_EDITING = (1 << 4),
 } eDirEntry_SelectFlag;
-ENUM_OPERATORS(eDirEntry_SelectFlag, FILE_SEL_EDITING);
+ENUM_OPERATORS(eDirEntry_SelectFlag);
 
 /* ***** Related to file browser, but never saved in DNA, only here to help with RNA. ***** */
 
@@ -873,11 +880,17 @@ typedef enum eSpaceNode_ShaderFrom {
   SNODE_SHADER_LINESTYLE = 2,
 } eSpaceNode_ShaderFrom;
 
-/** #SpaceNode.geometry_nodes_type */
+/** #SpaceNode.nodes_type */
 typedef enum SpaceNodeGeometryNodesType {
   SNODE_GEOMETRY_MODIFIER = 0,
   SNODE_GEOMETRY_TOOL = 1,
 } SpaceNodeGeometryNodesType;
+
+/** #SpaceNode.nodes_type */
+typedef enum SpaceNodeCompositorNodesType {
+  SNODE_COMPOSITOR_SCENE = 0,
+  SNODE_COMPOSITOR_SEQUENCER = 1,
+} SpaceNodeCompositorNodesType;
 
 /** #SpaceNode.insert_ofs_dir */
 enum {
@@ -906,6 +919,12 @@ typedef enum eConsoleLine_Type {
 /** \name Motion Tracking
  * \{ */
 
+/** #SpaceClipOverlay.flag */
+typedef enum eSpaceClipOverlay_Flag {
+  SC_SHOW_OVERLAYS = (1 << 0),
+  SC_SHOW_CURSOR = (1 << 1),
+} eSpaceClipOverlay_Flag;
+
 /** #SpaceClip.flag */
 typedef enum eSpaceClip_Flag {
   SC_SHOW_MARKER_PATTERN = (1 << 0),
@@ -924,7 +943,7 @@ typedef enum eSpaceClip_Flag {
   SC_SHOW_FILTERS = (1 << 13),
   SC_SHOW_GRAPH_FRAMES = (1 << 14),
   SC_SHOW_GRAPH_TRACKS_MOTION = (1 << 15),
-  /*  SC_SHOW_PYRAMID_LEVELS      = (1 << 16), */ /* UNUSED */
+  // SC_SHOW_PYRAMID_LEVELS = (1 << 16), /* UNUSED */
   SC_LOCK_TIMECURSOR = (1 << 17),
   SC_SHOW_SECONDS = (1 << 18),
   SC_SHOW_GRAPH_SEL_ONLY = (1 << 19),
@@ -1025,6 +1044,9 @@ typedef enum eSpreadsheetColumnValueType {
   SPREADSHEET_VALUE_TYPE_INT32_2D = 10,
   SPREADSHEET_VALUE_TYPE_QUATERNION = 11,
   SPREADSHEET_VALUE_TYPE_FLOAT4X4 = 12,
+  SPREADSHEET_VALUE_TYPE_BUNDLE_ITEM = 13,
+  SPREADSHEET_VALUE_TYPE_INT64 = 14,
+  SPREADSHEET_VALUE_TYPE_INT32_3D = 15,
 } eSpreadsheetColumnValueType;
 
 typedef enum eSpreadsheetColumnFlag {
