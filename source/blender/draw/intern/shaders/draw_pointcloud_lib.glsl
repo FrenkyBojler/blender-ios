@@ -22,7 +22,7 @@ int pointcloud_get_point_id()
 {
 #  ifdef GPU_VERTEX_SHADER
   /* Remove shape indices. */
-  return gl_VertexID / 8;
+  return gl_VertexID / DRW_POINTCLOUD_STRIP_TILE_SIZE;
 #  endif
   return 0;
 }
