@@ -10,7 +10,10 @@ from bpy_extras import (
     asset_utils,
 )
 
-from bpy.app.translations import contexts as i18n_contexts
+from bpy.app.translations import (
+    pgettext_iface as iface_,
+    contexts as i18n_contexts,
+)
 
 
 class FILEBROWSER_HT_header(Header):
@@ -25,7 +28,7 @@ class FILEBROWSER_HT_header(Header):
         layout.separator_spacer()
 
         if params.asset_library_reference not in {'LOCAL', 'ESSENTIALS'}:
-            layout.popover("ASSETBROWSER_PT_import_settings", text="Import Settings")
+            layout.popover("ASSETBROWSER_PT_import_settings")
 
         layout.separator_spacer()
 
@@ -718,6 +721,12 @@ class ASSETBROWSER_PT_import_settings(asset_utils.AssetBrowserPanel, Panel):
     bl_label = "Import Settings"
     bl_options = {'HIDE_HEADER'}
     bl_ui_units_x = 15
+
+    def draw_header(self, context):
+        st = context.space_data
+        import_method_enum = st.params.bl_rna.properties["import_method"].enum_items
+        import_method = import_method_enum[st.params.import_method].name
+        self.bl_label = iface_("Import Settings ({:s})".format(import_method))
 
     def draw(self, context):
         layout = self.layout
