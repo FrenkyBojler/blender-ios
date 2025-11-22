@@ -131,7 +131,7 @@
 #  define GEOMETRY_OUT(stage_interface) .geometry_out(stage_interface)
 
 #  define VERTEX_IN_SRT(srt) .additional_info(srt)
-#  define VERTEX_OUT_SRT(srt) .vertex_out(srt)
+#  define VERTEX_OUT_SRT(srt) .vertex_out(srt##_t)
 #  define FRAGMENT_OUT_SRT(srt) .additional_info(srt)
 #  define RESOURCE_SRT(srd) .additional_info(srt)
 

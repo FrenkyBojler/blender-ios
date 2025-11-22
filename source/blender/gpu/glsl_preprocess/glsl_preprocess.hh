@@ -217,28 +217,17 @@ struct ParsedAttribute {
 
 struct StageInterface : std::vector<ParsedAttribute> {
   std::string name;
-  std::string instance_name;
 
   std::string serialize() const
   {
     std::stringstream ss;
-    if (instance_name.empty()) {
-      ss << "GPU_SHADER_INTERFACE_INFO(" << name << ")\n";
-    }
-    else {
-      ss << "GPU_SHADER_NAMED_INTERFACE_INFO(" << name << ", " << instance_name << ")\n";
-    }
+    ss << "GPU_SHADER_INTERFACE_INFO(" << name << "_t)\n";
 
     for (const auto &res : *this) {
       ss << res.serialize() << "\n";
     }
 
-    if (instance_name.empty()) {
-      ss << "GPU_SHADER_INTERFACE_END()\n";
-    }
-    else {
-      ss << "GPU_SHADER_NAMED_INTERFACE_END(" << instance_name << ")\n";
-    }
+    ss << "GPU_SHADER_INTERFACE_END()\n";
     return ss.str();
   }
 };
@@ -1017,6 +1006,20 @@ class Preprocessor {
       placeholder += "#endif\n";
       return placeholder;
     };
+
+    parser.foreach_scope(ScopeType::Attributes, [&](const Scope attrs) {
+      if (attrs.str() != "[resource_table]") {
+        return;
+      }
+      Token type = attrs.scope().end().next();
+      Token struct_keyword = attrs.scope().start().prev();
+      if (type != Word || struct_keyword != Struct) {
+        return;
+      }
+      parser.insert_before(struct_keyword, get_placeholder(type.str()));
+      parser.insert_line_number(struct_keyword.str_index_start() - 1,
+                                struct_keyword.line_number());
+    });
 
     parser.foreach_match("w(..)", [&](const std::vector<Token> &tokens) {
       if (tokens[0].str() == "CREATE_INFO_VARIANT") {
@@ -2016,7 +2019,9 @@ class Preprocessor {
         metadata.resource_tables.emplace_back(srt);
         /* Erase SRT definition. The resources are defined by the backend at runtime. */
         /* Note that this might change in the future. */
-        parser.erase(tokens[0], tokens.back());
+        parser.erase(tokens[1], tokens[6]);
+        parser.erase(tokens[8].scope().start().next(), tokens[8].scope().end().prev());
+        /* TODO(fclem): Add nested SRT members. */
       }
     });
     parser.apply_mutations();
@@ -2036,20 +2041,15 @@ class Preprocessor {
         metadata::StageInterface iface;
         iface.name = srt_name.str();
 
-        if (tokens.back().prev().type() == TokenType::Word) {
-          iface.instance_name = srt_name.str();
-        }
-        else {
-          iface.instance_name = "";
-        }
-
         body.foreach_match("[[..]]ww;", [&](const std::vector<Token> &tokens) {
           Token interpolation_mode = tokens[1].scope()[1];
           Token type = tokens[6];
           Token name = tokens[7];
 
-          metadata::ParsedAttribute attr{
-              type.line_number(), type.str(), name.str(), interpolation_mode.str()};
+          metadata::ParsedAttribute attr{type.line_number(),
+                                         type.str(),
+                                         iface.name + "_" + name.str(),
+                                         interpolation_mode.str()};
 
           iface.emplace_back(attr);
         });
@@ -2057,13 +2057,12 @@ class Preprocessor {
         metadata.stage_interfaces.emplace_back(iface);
         /* Erase SRT definition. The resources are defined by the backend at runtime. */
         /* Note that this might change in the future. */
-        parser.erase(tokens[0], tokens.back());
+        parser.erase(tokens[1], tokens[6]);
+        parser.erase(tokens[8].scope().start().next(), tokens[8].scope().end().prev());
       }
     };
 
     parser.foreach_match("s[[..]]w{..};",
-                         [&](const std::vector<Token> &tokens) { parse_interface(tokens); });
-    parser.foreach_match("s[[..]]w{..}w;",
                          [&](const std::vector<Token> &tokens) { parse_interface(tokens); });
     parser.apply_mutations();
   }
@@ -2104,7 +2103,8 @@ class Preprocessor {
         metadata.vertex_inputs.emplace_back(iface);
         /* Erase SRT definition. The resources are defined by the backend at runtime. */
         /* Note that this might change in the future. */
-        parser.erase(tokens[0], tokens.back());
+        parser.erase(tokens[1], tokens[6]);
+        parser.erase(tokens[8].scope().start().next(), tokens[8].scope().end().prev());
       }
     });
     parser.apply_mutations();
@@ -2128,7 +2128,8 @@ class Preprocessor {
           Token type = tokens[6];
           Token name = tokens[7];
 
-          metadata::ParsedFragOuput frag_out{type.line_number(), type.str(), name.str()};
+          metadata::ParsedFragOuput frag_out{
+              type.line_number(), type.str(), iface.name + "_" + name.str()};
 
           attributes.foreach_scope(ScopeType::Attribute, [&](const Scope &attribute) {
             std::string type = attribute[0].str();
@@ -2155,7 +2156,8 @@ class Preprocessor {
         metadata.fragment_outputs.emplace_back(iface);
         /* Erase SRT definition. The resources are defined by the backend at runtime. */
         /* Note that this might change in the future. */
-        parser.erase(tokens[0], tokens.back());
+        parser.erase(tokens[1], tokens[6]);
+        parser.erase(tokens[8].scope().start().next(), tokens[8].scope().end().prev());
       }
     });
     parser.apply_mutations();
@@ -2777,35 +2779,38 @@ class Preprocessor {
   {
     using namespace std;
     using namespace shader::parser;
+    using namespace metadata;
 
     parser.foreach_function([&](bool, Token type, Token, Scope args, bool, Scope fn_body) {
-      if (type.prev() != ']') {
-        return;
-      }
-      if (type.prev().prev().scope().type() != ScopeType::Attributes) {
-        return;
-      }
-      string attribute = type.prev().prev().scope().str();
+      bool is_entry_point = false;
 
-      if (attribute == "[vertex]") {
-        /* TODO(fclem): Error detection. */
-      }
-      else if (attribute == "[fragment]") {
-        /* TODO(fclem): Error detection. */
-      }
-      else if (attribute == "[compute]") {
-        /* TODO(fclem): Error detection. */
-      }
-      else {
-        return;
+      if (type.prev() == ']') {
+        Scope attributes = type.prev().prev().scope();
+        if (attributes.type() == ScopeType::Attributes) {
+          string attribute = attributes.str();
+
+          if (attribute == "[vertex]") {
+            /* TODO(fclem): Error detection. */
+            parser.replace(attributes, "[gpu::vertex_function]");
+          }
+          else if (attribute == "[fragment]") {
+            /* TODO(fclem): Error detection. */
+            parser.replace(attributes, "[gpu::fragment_function]");
+          }
+          else if (attribute == "[compute]") {
+            /* TODO(fclem): Error detection. */
+            parser.replace(attributes, "[gpu::compute_function]");
+          }
+          is_entry_point = true;
+        }
       }
 
-      if (type.str() != "void") {
+      if (is_entry_point && type.str() != "void") {
         report_error(ERROR_TOK(type), "Entry point function must return void.");
         return;
       }
 
-      if (args.str() != "()") {
+      if (is_entry_point && args.str() != "()") {
         parser.erase(args.start().next(), args.end().prev());
       }
 
@@ -2817,30 +2822,40 @@ class Preprocessor {
         });
       };
 
+      auto replace_word_and_accessor = [&](const string &replaced, const string &replacement) {
+        fn_body.foreach_token(Word, [&](const Token tok) {
+          if (tok.next().type() == Dot && tok.str() == replaced) {
+            parser.replace(tok, tok.next(), replacement);
+          }
+        });
+      };
+
       auto process_argument = [&](Token type, Token var, Token attribute) {
         string srt_type = type.str();
         string srt_var = var.str();
         string srt_attr = attribute.str();
 
-        if (srt_attr == "vertex_id") {
+        if (srt_attr == "vertex_id" && is_entry_point) {
           replace_word(srt_var, "gl_VertexID");
+          metadata.builtins.emplace_back(Builtin(hash("gl_VertexID")));
         }
-        else if (srt_attr == "instance_id") {
+        else if (srt_attr == "instance_id" && is_entry_point) {
           replace_word(srt_var, "gl_InstanceID");
+          metadata.builtins.emplace_back(Builtin(hash("gl_InstanceID")));
         }
-        else if (srt_attr == "position") {
+        else if (srt_attr == "position" && is_entry_point) {
           replace_word(srt_var, "gl_Position");
         }
         else if (srt_attr == "vertex_in") {
-          replace_word(srt_var, srt_type);
-        }
-        else if (srt_attr == "vertex_out") {
-          replace_word(srt_var, srt_type);
+          replace_word_and_accessor(srt_var, "");
         }
         else if (srt_attr == "fragment_out") {
-          replace_word(srt_var, srt_type);
+          replace_word_and_accessor(srt_var, srt_type + "_");
         }
-        else if (srt_attr == "resource_table") {
+        else if (srt_attr == "vertex_out") {
+          replace_word_and_accessor(srt_var, srt_type + "_");
+        }
+        else if (srt_attr == "resource_table" && is_entry_point) {
           /* Add dummy var at start of function body. */
           parser.insert_after(fn_body.start().str_index_start(),
                               " " + srt_type + " " + srt_var + " [[resource_table]];");

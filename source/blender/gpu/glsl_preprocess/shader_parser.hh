@@ -1475,7 +1475,7 @@ struct Parser {
   }
   void insert_before(Token at, const std::string &content)
   {
-    insert_after(at.str_index_start(), content);
+    insert_before(at.str_index_start(), content);
   }
 
   /* Return true if any mutation was applied. */
