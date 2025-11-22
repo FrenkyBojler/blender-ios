@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<component type="desktop">
+<component type="desktop-application">
     <id>org.blender.Blender</id>
     <launchable type="desktop-id">blender.desktop</launchable>
     <name>Blender</name>
