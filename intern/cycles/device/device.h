@@ -187,6 +187,8 @@ class Device {
     return true;
   }
 
+  virtual void set_texture_out_of_core(bool /*enabled*/) {}
+
   /* GPU device only functions.
    * These may not be used on CPU or multi-devices. */
 
@@ -340,6 +342,11 @@ class GPUDevice : public Device {
  public:
   ~GPUDevice() noexcept(false) override;
 
+  void set_texture_out_of_core(bool enabled) override
+  {
+    use_texture_out_of_core = enabled;
+  }
+
   /* For GPUs that can use bindless textures in some way or another. */
   device_vector<TextureInfo> texture_info;
   thread_mutex texture_info_mutex;
@@ -357,6 +364,7 @@ class GPUDevice : public Device {
   size_t map_host_limit = 0;
   size_t device_texture_headroom = 0;
   size_t device_working_headroom = 0;
+  bool use_texture_out_of_core = true;
   using texMemObject = unsigned long long;
   using arrayMemObject = unsigned long long;
   struct Mem {
