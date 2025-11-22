@@ -1869,6 +1869,12 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
   bone = ED_armature_ebone_add(id_cast<bArmature *>(obedit->data), name);
   ANIM_armature_bonecoll_assign_active(id_cast<bArmature *>(obedit->data), bone);
 
+  /* Scale B-Bone display width based on length */
+  if (length > 0.0f) {
+      bone->xwidth = 0.1f * length;
+      bone->zwidth = 0.1f * length;
+  }
+
   bArmature *arm = id_cast<bArmature *>(obedit->data);
   if (BLI_listbase_is_empty(&bone->bone_collections) && (arm->flag & ARM_BCOLL_SOLO_ACTIVE)) {
     BKE_report(op->reports,
