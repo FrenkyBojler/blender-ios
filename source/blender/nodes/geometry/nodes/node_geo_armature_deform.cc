@@ -6,11 +6,7 @@
 
 #include "BKE_armature_deform_fields.hh"
 #include "BKE_curves.hh"
-#include "BKE_deform.hh"
-#include "BKE_grease_pencil.hh"
-#include "BKE_mesh.hh"
 
-#include "NOD_geometry_nodes_closure.hh"
 #include "NOD_geometry_nodes_closure_eval.hh"
 #include "NOD_rna_define.hh"
 
