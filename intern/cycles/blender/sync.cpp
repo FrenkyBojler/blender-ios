@@ -912,6 +912,17 @@ SceneParams BlenderSync::get_scene_params(BL::Scene &b_scene,
   params.use_texture_cache = RNA_boolean_get(&cscene, "use_texture_cache");
   params.texture_cache_limit = RNA_int_get(&cscene, "texture_cache_limit");
 
+  if (background) {
+    params.use_geometry_streaming = RNA_boolean_get(&cscene, "use_geometry_streaming_render");
+    params.geometry_streaming_chunk_size = RNA_int_get(&cscene,
+                                                       "geometry_streaming_chunk_size_render");
+  }
+  else {
+    params.use_geometry_streaming = RNA_boolean_get(&cscene, "use_geometry_streaming_viewport");
+    params.geometry_streaming_chunk_size = RNA_int_get(
+        &cscene, "geometry_streaming_chunk_size_viewport");
+  }
+
   params.bvh_layout = DebugFlags().cpu.bvh_layout;
 
   params.background = background;

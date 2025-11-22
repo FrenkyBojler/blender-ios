@@ -346,6 +346,9 @@ class GPUDevice : public Device {
   device_vector<TextureInfo> texture_info;
   thread_mutex texture_info_mutex;
   bool need_texture_info = false;
+  /* Geometry streaming configuration (used by some backends for chunked uploads). */
+  size_t geometry_stream_chunk_bytes = 0;
+  bool geometry_streaming_enabled = false;
   /* Returns true if the texture info was copied to the device (meaning, some more
    * re-initialization might be needed). */
   virtual bool load_texture_info();

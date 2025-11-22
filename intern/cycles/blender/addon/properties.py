@@ -1073,6 +1073,32 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         min=0,
     )
 
+    use_geometry_streaming_viewport: BoolProperty(
+        name="Viewport Geometry Streaming",
+        description="Upload viewport geometry data to the render device in chunks instead of one big transfer",
+        default=False,
+    )
+    geometry_streaming_chunk_size_viewport: IntProperty(
+        name="Viewport Chunk (MB)",
+        default=16,
+        description="Target size for each geometry upload chunk in the viewport. 0 lets Cycles choose automatically",
+        min=0,
+        max=16384,
+    )
+
+    use_geometry_streaming_render: BoolProperty(
+        name="Render Geometry Streaming",
+        description="Upload render geometry data to the render device in chunks instead of one big transfer",
+        default=False,
+    )
+    geometry_streaming_chunk_size_render: IntProperty(
+        name="Render Chunk (MB)",
+        default=64,
+        description="Target size for each geometry upload chunk for final renders. 0 lets Cycles choose automatically",
+        min=0,
+        max=16384,
+    )
+
     # Various fine-tuning debug flags
 
     def _devices_update_callback(self, context):

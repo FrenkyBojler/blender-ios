@@ -20,6 +20,7 @@
 #include "scene/shader_nodes.h"
 
 #include "util/progress.h"
+#include "util/log.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -56,6 +57,31 @@ void GeometryManager::device_update_mesh(Device * /*unused*/,
       PointCloud *pointcloud = static_cast<PointCloud *>(geom);
       point_size += pointcloud->num_points();
     }
+  }
+
+  if (scene->params.use_geometry_streaming) {
+    size_t total_bytes = 0;
+    total_bytes += vert_size * sizeof(packed_float3);      /* tri_verts */
+    total_bytes += tri_size * sizeof(uint);                /* tri_shader */
+    total_bytes += vert_size * sizeof(packed_float3);      /* tri_vnormal */
+    total_bytes += tri_size * sizeof(packed_uint3);        /* tri_vindex */
+    total_bytes += curve_key_size * sizeof(float4);        /* curve_keys */
+    total_bytes += curve_size * sizeof(KernelCurve);       /* curves */
+    total_bytes += curve_segment_size * sizeof(KernelCurveSegment); /* curve_segments */
+    total_bytes += point_size * sizeof(float4);            /* points */
+    total_bytes += point_size * sizeof(uint);              /* points_shader */
+
+    const int chunk_size_mb = scene->params.geometry_streaming_chunk_size;
+    const size_t chunk_bytes = (chunk_size_mb > 0) ?
+                                   (size_t)chunk_size_mb * 1024 * 1024 :
+                                   (total_bytes ? total_bytes : 1);
+    const size_t chunk_count = (chunk_bytes > 0) ?
+                                   (total_bytes + chunk_bytes - 1) / chunk_bytes :
+                                   1;
+
+    LOG_INFO << "Geometry streaming enabled: total upload " << total_bytes
+             << " bytes in approximately " << chunk_count
+             << " chunk(s), chunk size target " << chunk_size_mb << " MB";
   }
 
   /* Fill in all the arrays. */

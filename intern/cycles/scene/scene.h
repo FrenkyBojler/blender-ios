@@ -76,6 +76,9 @@ class SceneParams {
   bool use_texture_cache;
   int texture_cache_limit;
 
+  bool use_geometry_streaming;
+  int geometry_streaming_chunk_size;
+
   bool background;
 
   SceneParams()
@@ -92,6 +95,8 @@ class SceneParams {
     texture_limit = 0;
     use_texture_cache = false;
     texture_cache_limit = 0;
+    use_geometry_streaming = false;
+    geometry_streaming_chunk_size = 0;
     background = true;
   }
 
@@ -106,7 +111,9 @@ class SceneParams {
              hair_subdivisions == params.hair_subdivisions && hair_shape == params.hair_shape &&
              texture_limit == params.texture_limit &&
              use_texture_cache == params.use_texture_cache &&
-             texture_cache_limit == params.texture_cache_limit);
+             texture_cache_limit == params.texture_cache_limit &&
+             use_geometry_streaming == params.use_geometry_streaming &&
+             geometry_streaming_chunk_size == params.geometry_streaming_chunk_size);
   }
 
   int curve_subdivisions()

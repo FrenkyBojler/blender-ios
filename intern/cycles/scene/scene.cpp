@@ -296,6 +296,7 @@ void Scene::device_update(Device *device_, Progress &progress)
 
   /* Camera and shaders must be ready here for adaptive subdivision and displacement. */
   progress.set_status("Updating Meshes");
+  device->optimize_for_scene(this);
   geometry_manager->device_update(device, &dscene, this, progress);
 
   if (progress.get_cancel() || device->have_error()) {
@@ -391,9 +392,11 @@ void Scene::device_update(Device *device_, Progress &progress)
 
     progress.set_status("Updating Device", "Writing constant memory");
     device->const_copy_to("data", &dscene.data, sizeof(dscene.data));
-  }
 
-  device->optimize_for_scene(this);
+    /* Configure device-side optimizations (texture cache, geometry streaming, etc.)
+     * now that scene data has been uploaded. */
+    device->optimize_for_scene(this);
+  }
 
   if (print_stats) {
     const size_t mem_used = util_guarded_get_mem_used();

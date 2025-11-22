@@ -882,6 +882,24 @@ class CYCLES_RENDER_PT_performance_memory(CyclesButtonsPanel, Panel):
         sub.active = cscene.use_texture_cache
         sub.prop(cscene, "texture_cache_limit")
 
+        col.separator()
+
+        row = col.row()
+        row.label(text="Viewport")
+        row.prop(cscene, "use_geometry_streaming_viewport", text="Streaming")
+        sub = col.row()
+        sub.active = cscene.use_geometry_streaming_viewport
+        sub.prop(cscene, "geometry_streaming_chunk_size_viewport", text="Chunk (MB)")
+
+        col.separator()
+
+        row = col.row()
+        row.label(text="Render")
+        row.prop(cscene, "use_geometry_streaming_render", text="Streaming")
+        sub = col.row()
+        sub.active = cscene.use_geometry_streaming_render
+        sub.prop(cscene, "geometry_streaming_chunk_size_render", text="Chunk (MB)")
+
 
 class CYCLES_RENDER_PT_performance_acceleration_structure(CyclesButtonsPanel, Panel):
     bl_label = "Acceleration Structure"

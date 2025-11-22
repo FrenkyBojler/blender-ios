@@ -533,6 +533,25 @@ void GPUDevice::optimize_for_scene(Scene *scene)
 
   const SceneParams &params = scene->params;
 
+  /* Geometry streaming configuration (per scene). */
+  if (params.use_geometry_streaming) {
+    geometry_streaming_enabled = true;
+
+    if (params.geometry_streaming_chunk_size > 0) {
+      geometry_stream_chunk_bytes = (size_t)params.geometry_streaming_chunk_size * 1024 * 1024;
+    }
+    else {
+      const bool is_viewport = !params.background;
+      geometry_stream_chunk_bytes = is_viewport ?
+                                       16 * 1024 * 1024LL :
+                                       64 * 1024 * 1024LL;
+    }
+  }
+  else {
+    geometry_streaming_enabled = false;
+    geometry_stream_chunk_bytes = 0;
+  }
+
   /* Only applies to devices that support host-mapped memory. */
   if (!can_map_host) {
     return;
@@ -858,8 +877,45 @@ void GPUDevice::generic_copy_to(device_memory &mem)
   /* If not host mapped, the current device only uses device memory allocated by backend
    * device allocation regardless of mem.host_pointer and mem.shared_pointer, and should
    * copy data from mem.host_pointer. */
-  if (!(mem.is_shared(this) && mem.host_pointer == mem.shared_pointer)) {
-    copy_host_to_device((void *)mem.device_pointer, mem.host_pointer, mem.memory_size());
+  if (mem.is_shared(this) && mem.host_pointer == mem.shared_pointer) {
+    /* Shared memory, nothing to upload explicitly. */
+    return;
+  }
+
+  const size_t bytes = mem.memory_size();
+
+  /* Optional chunked uploads for large geometry buffers when enabled. This is currently
+   * keyed off the buffer name and only affects MEM_GLOBAL geometry arrays. */
+  const bool is_geometry_buffer = (mem.type == MEM_GLOBAL && mem.name != nullptr &&
+                                   (strcmp(mem.name, "tri_verts") == 0 ||
+                                    strcmp(mem.name, "tri_vnormal") == 0 ||
+                                    strcmp(mem.name, "tri_vindex") == 0 ||
+                                    strcmp(mem.name, "tri_shader") == 0 ||
+                                    strcmp(mem.name, "curve_keys") == 0 ||
+                                    strcmp(mem.name, "curves") == 0 ||
+                                    strcmp(mem.name, "curve_segments") == 0 ||
+                                    strcmp(mem.name, "points") == 0 ||
+                                    strcmp(mem.name, "points_shader") == 0));
+
+  const bool use_streaming = geometry_streaming_enabled && geometry_stream_chunk_bytes > 0 &&
+                             is_geometry_buffer && bytes > geometry_stream_chunk_bytes;
+
+  if (!use_streaming) {
+    copy_host_to_device((void *)mem.device_pointer, mem.host_pointer, bytes);
+    return;
+  }
+
+  size_t remaining = bytes;
+  size_t offset = 0;
+  const size_t chunk = geometry_stream_chunk_bytes;
+
+  while (remaining > 0) {
+    const size_t this_size = (remaining > chunk) ? chunk : remaining;
+    void *dst = (void *)((char *)mem.device_pointer + offset);
+    void *src = (void *)((char *)mem.host_pointer + offset);
+    copy_host_to_device(dst, src, this_size);
+    offset += this_size;
+    remaining -= this_size;
   }
 }
 
