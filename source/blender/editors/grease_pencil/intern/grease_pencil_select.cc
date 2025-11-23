@@ -871,17 +871,6 @@ static void GREASE_PENCIL_OT_select_ends(wmOperatorType *ot)
               INT32_MAX);
 }
 
-static IndexMask curves_to_shapes_mask(const IndexMask &changed_curves,
-                                       const Span<IndexMask> shapes,
-                                       IndexMaskMemory &memory)
-{
-  return IndexMask::from_predicate(
-      shapes.index_range(), GrainSize(4096), memory, [&](const int64_t shape_index) {
-        const IndexMask &shape = shapes[shape_index];
-        return !IndexMask::from_intersection(changed_curves, shape, memory).is_empty();
-      });
-}
-
 static wmOperatorStatus select_shape_exec(bContext *C, wmOperator * /*op*/)
 {
   Scene *scene = CTX_data_scene(C);
@@ -911,15 +900,26 @@ static wmOperatorStatus select_shape_exec(bContext *C, wmOperator * /*op*/)
       return;
     }
 
-    const Vector<IndexMask, 4> shapes = info.drawing.shapes(memory);
-    const IndexMask selected_shapes = curves_to_shapes_mask(selected_strokes, shapes, memory);
-
-    Array<bool> strokes_to_select(curves.curves_num(), false);
-    selected_shapes.foreach_index(GrainSize(256), [&](const int64_t shape_i) {
-      index_mask::masked_fill(strokes_to_select.as_mutable_span(), true, shapes[shape_i]);
+    VectorSet<int> selected_shape_ids;
+    selected_strokes.foreach_index([&](const int64_t curve_i) {
+      const int shape_id = shape_ids[curve_i];
+      if (shape_id != 0) {
+        selected_shape_ids.add(shape_id);
+      }
     });
 
-    const IndexMask strokes = IndexMask::from_bools(strokes_to_select, memory);
+    Array<bool> selected_curves(curves.curves_num());
+    selected_strokes.to_bools(selected_curves);
+
+    const IndexMask strokes = IndexMask::from_predicate(
+        curves.curves_range(), GrainSize(4096), memory, [&](const int64_t curve_i) {
+          const int shape_id = shape_ids[curve_i];
+          if (shape_id == 0) {
+            return selected_curves[curve_i];
+          }
+          return selected_shape_ids.contains(shape_id);
+        });
+
     const OffsetIndices<int> points_by_curve = curves.points_by_curve();
     const Span<StringRef> selection_attribute_names =
         ed::curves::get_curves_selection_attribute_names(curves);
