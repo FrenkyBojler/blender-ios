@@ -137,10 +137,11 @@ struct ParsedResource {
     std::stringstream ss;
     if (res_type == "sampler") {
       if (res_frequency.empty()) {
-        ss << "IMAGE(" << res_slot << ", " << var_type << ", " << var_name << ")";
+        ss << "SAMPLER(" << res_slot << ", " << var_type << ", " << var_name << ")";
       }
       else {
-        ss << "IMAGE_FREQ(" << res_slot << ", " << var_type << ", " << var_name << ")";
+        ss << "SAMPLER_FREQ(" << res_slot << ", " << var_type << ", " << var_name << ", "
+           << res_frequency << ")";
       }
     }
     else if (res_type == "image") {
@@ -150,7 +151,7 @@ struct ParsedResource {
       }
       else {
         ss << "IMAGE_FREQ(" << res_slot << ", " << res_format << ", " << res_qualifier << ", "
-           << var_type << ", " << var_name << ")";
+           << var_type << ", " << var_name << ", " << res_frequency << ")";
       }
     }
     else if (res_type == "uniform") {
@@ -177,7 +178,9 @@ struct ParsedResource {
       ss << "PUSH_CONSTANT(" << var_type << ", " << var_name << ")";
     }
     else if (res_type == "compilation_constant") {
-      ss << "COMPILATION_CONSTANT(" << var_type << ", " << var_name << ", " << res_value << ")";
+      /* Needs to be defined on the shader declaration. */
+      /* TODO(fclem): Add check that shader sets an existing compilation constant. */
+      // ss << "COMPILATION_CONSTANT(" << var_type << ", " << var_name << ", " << res_value << ")";
     }
     else if (res_type == "specialization_constant") {
       ss << "SPECIALIZATION_CONSTANT(" << var_type << ", " << var_name << ", " << res_value << ")";
@@ -1978,7 +1981,6 @@ class Preprocessor {
             }
             else if (type == "compilation_constant") {
               resource.res_type = type;
-              resource.res_value = attribute[2].str();
             }
             else if (type == "specialization_constant") {
               resource.res_type = type;
