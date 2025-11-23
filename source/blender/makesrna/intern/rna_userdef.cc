@@ -2785,6 +2785,12 @@ static void rna_def_userdef_theme_spaces_gpencil(StructRNA *srna)
 {
   PropertyRNA *prop;
 
+  prop = RNA_def_property(srna, "gp_wire_edit", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_array(prop, 4);
+  RNA_def_property_ui_text(
+      prop, "Grease Pencil Wire Edit", "Grease Pencil wireframe color when in edit mode");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
   prop = RNA_def_property(srna, "gp_vertex", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 3);
   RNA_def_property_ui_text(prop, "Grease Pencil Vertex", "");
@@ -6341,6 +6347,12 @@ static void rna_def_userdef_input(BlenderRNA *brna)
        "Push into the scene and the camera moves forward into the scene. "
        "You are entering the scene as if flying around in it. "
        "This also inverts pan & zoom for 2D views"},
+      {NDOF_NAVIGATION_MODE_DRONE,
+       "DRONE",
+       0,
+       "Drone",
+       "Enables a Fly Mode navigation but pushing the cap forward "
+       "while looking down will not change the altitude of the camera."},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
