@@ -1647,10 +1647,34 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
   corner_src_index_offset_data.reserve(result->corners_num + 1);
   corner_src_index_data.reserve(mesh.corners_num);
 
+  /* Calculate exact number of surviving new polygons. */
+  /* We need this count to correctly size the arrays for the original faces loop
+   * and to correctly slice the attribute arrays for gathering. */
+  int surviving_new_polys = 0;
+  Array<int, 64> temp_group_buffer(weld_mesh.max_face_len);
+  for (const int i : weld_mesh.wpoly.index_range().take_back(weld_mesh.wpoly_new_len)) {
+    const WeldPoly &wp = weld_mesh.wpoly[i];
+    WeldLoopOfPolyIter iter;
+    if (weld_iter_loop_of_poly_begin(iter,
+                                     wp,
+                                     weld_mesh.wloop,
+                                     src_corner_verts,
+                                     src_corner_edges,
+                                     weld_mesh.loop_map,
+                                     temp_group_buffer.data()))
+    {
+      if (wp.poly_dst == OUT_OF_CONTEXT) {
+        surviving_new_polys++;
+      }
+    }
+  }
+
+  const int surviving_orig_faces = result_nfaces - surviving_new_polys;
+
   int r_i = 0;
   int loop_cur = 0;
-  Array<bool> dst_face_unaffected(result_nfaces - weld_mesh.wpoly_new_len);
-  Array<int> dst_to_src_faces(result_nfaces - weld_mesh.wpoly_new_len);
+  Array<bool> dst_face_unaffected(surviving_orig_faces);
+  Array<int> dst_to_src_faces(surviving_orig_faces);
   Array<int, 64> group_buffer(weld_mesh.max_face_len);
   for (const int i : src_faces.index_range()) {
     const int loop_start = loop_cur;
@@ -1742,10 +1766,10 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
     bke::GSpanAttributeWriter dst_attr = dst_attributes.lookup_or_add_for_write_only_span(
         iter.name, iter.domain, iter.data_type);
     bke::attribute_math::gather(
-        src_attr, dst_to_src_faces, dst_attr.span.drop_back(weld_mesh.wpoly_new_len));
+        src_attr, dst_to_src_faces, dst_attr.span.drop_back(surviving_new_polys));
     type.fill_assign_n(type.default_value(),
-                       dst_attr.span.take_back(weld_mesh.wpoly_new_len).data(),
-                       weld_mesh.wpoly_new_len);
+                       dst_attr.span.take_back(surviving_new_polys).data(),
+                       surviving_new_polys);
     dst_attr.finish();
   });
 
@@ -1755,8 +1779,9 @@ static Mesh *create_merged_mesh(const Mesh &mesh,
     MutableSpan dst(static_cast<int *>(CustomData_add_layer(
                         &result->face_data, CD_ORIGINDEX, CD_CONSTRUCT, result->faces_num)),
                     result->faces_num);
-    bke::attribute_math::gather(src, dst_to_src_faces, dst.drop_back(weld_mesh.wpoly_new_len));
-    dst.take_back(weld_mesh.wpoly_new_len).fill(ORIGINDEX_NONE);
+
+    bke::attribute_math::gather(src, dst_to_src_faces, dst.drop_back(surviving_new_polys));
+    dst.take_back(surviving_new_polys).fill(ORIGINDEX_NONE);
   }
 
   IndexMaskMemory memory;
