@@ -29,8 +29,6 @@
 #include "BLI_listbase.h"
 #include "BLI_math_bits.h"
 #include "BLI_math_geom.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
 #include "BLI_rect.h"
 #include "BLI_span.hh"
 #include "BLI_string_utf8.h"
@@ -5113,85 +5111,104 @@ static bool lattice_circle_select(const ViewContext *vc,
   return data.is_changed;
 }
 
+/**
+ * \note logic is shared with the edit-bone case, see #armature_circle_doSelectJoint.
+ */
+static bool pchan_circle_doSelectJoint(void *user_data,
+                                       bPoseChannel *pchan,
+                                       const float screen_co[2])
+{
+  CircleSelectUserData *data = static_cast<CircleSelectUserData *>(user_data);
+
+  if (len_squared_v2v2(data->mval_fl, screen_co) <= data->radius_squared) {
+    if (data->select) {
+      pchan->flag |= POSE_SELECTED;
+    }
+    else {
+      pchan->flag &= ~POSE_SELECTED;
+    }
+    return true;
+  }
+  return false;
+}
+static void do_circle_select_pose__doSelectBone(void *user_data,
+                                                bPoseChannel *pchan,
+                                                const float screen_co_a[2],
+                                                const float screen_co_b[2])
+{
+  CircleSelectUserData *data = static_cast<CircleSelectUserData *>(user_data);
+  bArmature *arm = static_cast<bArmature *>(data->vc->obact->data);
+  if (!blender::animrig::bone_is_selectable(arm, pchan)) {
+    return;
+  }
+
+  bool is_point_done = false;
+  int points_proj_tot = 0;
+
+  /* Project head location to screen-space. */
+  if (screen_co_a[0] != IS_CLIPPED) {
+    points_proj_tot++;
+    if (pchan_circle_doSelectJoint(data, pchan, screen_co_a)) {
+      is_point_done = true;
+    }
+  }
+
+  /* Project tail location to screen-space. */
+  if (screen_co_b[0] != IS_CLIPPED) {
+    points_proj_tot++;
+    if (pchan_circle_doSelectJoint(data, pchan, screen_co_b)) {
+      is_point_done = true;
+    }
+  }
+
+  /* check if the head and/or tail is in the circle
+   * - the call to check also does the selection already
+   */
+
+  /* only if the endpoints didn't get selected, deal with the middle of the bone too
+   * It works nicer to only do this if the head or tail are not in the circle,
+   * otherwise there is no way to circle select joints alone */
+  if ((is_point_done == false) && (points_proj_tot == 2) &&
+      edge_inside_circle(data->mval_fl, data->radius, screen_co_a, screen_co_b))
+  {
+    if (data->select) {
+      pchan->flag |= POSE_SELECTED;
+    }
+    else {
+      pchan->flag &= ~POSE_SELECTED;
+    }
+    data->is_changed = true;
+  }
+
+  data->is_changed |= is_point_done;
+}
 static bool pose_circle_select(const ViewContext *vc,
                                const eSelectOp sel_op,
                                const int mval[2],
                                float rad)
 {
   BLI_assert(ELEM(sel_op, SEL_OP_SET, SEL_OP_ADD, SEL_OP_SUB));
+  CircleSelectUserData data;
+  const bool select = (sel_op != SEL_OP_SUB);
 
-  blender::Vector<Base *> bases = do_pose_tag_select_op_prepare(vc);
+  view3d_userdata_circleselect_init(&data, vc, select, mval, rad);
 
-  /* Use GPU selection buffer similar to box select */
-  GPUSelectBuffer buffer;
-  rcti rect;
-
-  /* Create a rectangle from the circle bounds for GPU selection */
-  BLI_rcti_init_pt_radius(&rect, mval, int(rad + 1.0f));
-
-  const eV3DSelectObjectFilter select_filter = ED_view3d_select_filter_from_mode(vc->scene,
-                                                                                 vc->obact);
-  const int hits = view3d_gpu_select(vc, &buffer, &rect, VIEW3D_SELECT_ALL, select_filter);
-
-  bool changed = false;
   if (SEL_OP_USE_PRE_DESELECT(sel_op)) {
-    /* Deselect all first if needed */
-    for (Base *base : bases) {
-      if (ED_pose_deselect_all(base->object, SEL_DESELECT, false)) {
-        changed = true;
-      }
-    }
+    data.is_changed |= ED_pose_deselect_all(vc->obact, SEL_DESELECT, false);
   }
 
-  if (hits > 0) {
-    /* Sort hits by depth for consistent selection order */
-    qsort(buffer.storage.data(), hits, sizeof(GPUSelectResult), gpu_bone_select_buffer_cmp);
+  ED_view3d_init_mats_rv3d(vc->obact, vc->rv3d); /* for foreach's screen/vert projection */
 
-    /* Process all hits from GPU selection - these already account for custom bone shapes */
-    for (const GPUSelectResult *buf_iter = buffer.storage.data(), *buf_end = buf_iter + hits;
-         buf_iter < buf_end;
-         buf_iter++)
-    {
-      bPoseChannel *pose_bone;
-      Base *base = ED_armature_base_and_pchan_from_select_buffer(bases, buf_iter->id, &pose_bone);
+  /* Treat bones as clipped segments (no joints). */
+  pose_foreachScreenBone(vc,
+                         do_circle_select_pose__doSelectBone,
+                         &data,
+                         V3D_PROJ_TEST_CLIP_DEFAULT | V3D_PROJ_TEST_CLIP_CONTENT_DEFAULT);
 
-      if (base == nullptr) {
-        continue;
-      }
-
-      /* Loop over contiguous bone hits for 'base'. */
-      for (; buf_iter != buf_end; buf_iter++) {
-        if (pose_bone != nullptr) {
-          /* Tag this bone as being in the selection area */
-          base->object->id.tag |= ID_TAG_DOIT;
-          pose_bone->runtime.flag |= POSE_RUNTIME_IN_SELECTION_AREA;
-        }
-
-        /* Select the next bone if we're not switching bases. */
-        if (buf_iter + 1 != buf_end) {
-          const GPUSelectResult *col_next = buf_iter + 1;
-          if ((base->object->runtime->select_id & 0x0000FFFF) != (col_next->id & 0x0000FFFF)) {
-            break;
-          }
-          if (base->object->pose != nullptr) {
-            const uint hit_bone = (col_next->id & ~BONESEL_ANY) >> 16;
-            bPoseChannel *next = static_cast<bPoseChannel *>(
-                BLI_findlink(&base->object->pose->chanbase, hit_bone));
-            pose_bone = next;
-          }
-          else {
-            pose_bone = nullptr;
-          }
-        }
-      }
-    }
+  if (data.is_changed) {
+    ED_pose_bone_select_tag_update(vc->obact);
   }
-
-  const bool changed_multi = do_pose_tag_select_op_exec(bases, sel_op);
-  if (changed_multi || changed) {
-    return true;
-  }
-  return false;
+  return data.is_changed;
 }
 
 /**
