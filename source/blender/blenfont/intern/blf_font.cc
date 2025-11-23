@@ -169,15 +169,7 @@ static ft_pix blf_unscaled_F26Dot6_to_pixels(FontBLF *font, const FT_Pos value)
   blf_ensure_size(font);
 
   /* Scale value by font size using integer-optimized multiplication. */
-  FT_Long scaled = FT_MulFix(value, font->ft_size->metrics.x_scale);
-
-  /* Copied from FreeType's FT_Get_Kerning (with FT_KERNING_DEFAULT), scaling down. */
-  /* Kerning distances at small PPEM values so that they don't become too big. */
-  if (font->ft_size->metrics.x_ppem < 25) {
-    scaled = FT_MulDiv(scaled, font->ft_size->metrics.x_ppem, 25);
-  }
-
-  return (ft_pix)scaled;
+  return FT_MulFix(value, font->ft_size->metrics.x_scale);
 }
 
 /** \} */
@@ -365,41 +357,6 @@ void BLF_batch_discard()
 /** \name Glyph Stepping Utilities (Internal)
  * \{ */
 
-BLI_INLINE ft_pix blf_kerning(FontBLF *font, const GlyphBLF *g_prev, const GlyphBLF *g)
-{
-  ft_pix adjustment = 0;
-
-  /* Small adjust if there is hinting. */
-  adjustment += g->lsb_delta - ((g_prev) ? g_prev->rsb_delta : 0);
-
-  if (FT_HAS_KERNING(font) && g_prev) {
-    FT_Vector delta = {KERNING_ENTRY_UNSET};
-
-    /* Get unscaled kerning value from our cache if ASCII. */
-    if ((g_prev->c < KERNING_CACHE_TABLE_SIZE) && (g->c < KERNING_CACHE_TABLE_SIZE)) {
-      delta.x = font->kerning_cache->ascii_table[g->c][g_prev->c];
-    }
-
-    /* If not ASCII or not found in cache, ask FreeType for kerning. */
-    if (UNLIKELY(font->face && delta.x == KERNING_ENTRY_UNSET)) {
-      /* Note that this function sets delta values to zero on any error. */
-      FT_Get_Kerning(font->face, g_prev->idx, g->idx, FT_KERNING_UNSCALED, &delta);
-    }
-
-    /* If ASCII we save this value to our cache for quicker access next time. */
-    if ((g_prev->c < KERNING_CACHE_TABLE_SIZE) && (g->c < KERNING_CACHE_TABLE_SIZE)) {
-      font->kerning_cache->ascii_table[g->c][g_prev->c] = int(delta.x);
-    }
-
-    if (delta.x != 0) {
-      /* Convert unscaled design units to pixels and move pen. */
-      adjustment += blf_unscaled_F26Dot6_to_pixels(font, delta.x);
-    }
-  }
-
-  return adjustment;
-}
-
 BLI_INLINE GlyphBLF *blf_glyph_from_utf8_and_step(FontBLF *font,
                                                   GlyphCacheBLF *gc,
                                                   const GlyphBLF *g_prev,
@@ -414,7 +371,7 @@ BLI_INLINE GlyphBLF *blf_glyph_from_utf8_and_step(FontBLF *font,
   BLI_assert(charcode != BLI_UTF8_ERR);
   GlyphBLF *g = blf_glyph_ensure(font, gc, charcode);
   if (g && pen_x && !(font->flags & BLF_MONOSPACED)) {
-    *pen_x += blf_kerning(font, g_prev, g);
+    *pen_x += g->lsb_delta - ((g_prev) ? g_prev->rsb_delta : 0);
 
 #ifdef BLF_SUBPIXEL_POSITION
     if (!(font->flags & BLF_RENDER_SUBPIXELAA)) {
@@ -1054,7 +1011,7 @@ static bool blf_font_width_to_strlen_glyph_process(FontBLF *font,
   }
 
   if (!(font->flags & BLF_MONOSPACED)) {
-    *pen_x += blf_kerning(font, g_prev, g);
+    *pen_x += g->lsb_delta - ((g_prev) ? g_prev->rsb_delta : 0);
 
 #ifdef BLF_SUBPIXEL_POSITION
     if (!(font->flags & BLF_RENDER_SUBPIXELAA)) {
@@ -1937,7 +1894,6 @@ static void blf_font_fill(FontBLF *font)
   font->char_width = 1.0f;
   font->char_spacing = 0.0f;
 
-  font->kerning_cache = nullptr;
   font->tex_size_max = -1;
 
   font->buf_info.fbuf = nullptr;
@@ -2141,16 +2097,6 @@ static bool blf_setup_face(FontBLF *font)
 
   if (FT_IS_FIXED_WIDTH(font)) {
     font->flags |= BLF_MONOSPACED;
-  }
-
-  if (FT_HAS_KERNING(font) && !font->kerning_cache) {
-    /* Create kerning cache table and fill with value indicating "unset". */
-    font->kerning_cache = MEM_mallocN<KerningCacheBLF>(__func__);
-    for (uint i = 0; i < KERNING_CACHE_TABLE_SIZE; i++) {
-      for (uint j = 0; j < KERNING_CACHE_TABLE_SIZE; j++) {
-        font->kerning_cache->ascii_table[i][j] = KERNING_ENTRY_UNSET;
-      }
-    }
   }
 
   return true;
@@ -2383,10 +2329,6 @@ void blf_font_attach_from_mem(FontBLF *font, const uchar *mem, const size_t mem_
 void blf_font_free(FontBLF *font)
 {
   blf_glyph_cache_clear(font);
-
-  if (font->kerning_cache) {
-    MEM_freeN(font->kerning_cache);
-  }
 
 #ifdef WITH_HARFBUZZ
   if (font->hb_font) {

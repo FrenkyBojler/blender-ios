@@ -106,9 +106,6 @@ inline ft_pix ft_pix_from_float(float v)
 
 #define BLF_BATCH_DRAW_LEN_MAX 128 /* in glyph */
 
-/** Number of characters in #KerningCacheBLF.table. */
-#define KERNING_CACHE_TABLE_SIZE 128
-
 /** A value in the kerning cache that indicates it is not yet set. */
 #define KERNING_ENTRY_UNSET INT_MAX
 
@@ -129,14 +126,6 @@ struct BatchBLF {
 };
 
 extern BatchBLF g_batch;
-
-struct KerningCacheBLF {
-  /**
-   * Cache a ASCII glyph pairs. Only store the x offset we are interested in,
-   * instead of the full #FT_Vector since it's not used for drawing at the moment.
-   */
-  int ascii_table[KERNING_CACHE_TABLE_SIZE][KERNING_CACHE_TABLE_SIZE];
-};
 
 struct GlyphCacheKey {
   uint glyph_index;
@@ -393,9 +382,6 @@ struct FontBLF {
    * Use `blf_glyph_cache_acquire(font)` and `blf_glyph_cache_release(font)` to access cache!
    */
   blender::Vector<std::unique_ptr<GlyphCacheBLF>> cache;
-
-  /** Cache of unscaled kerning values. Will be NULL if font does not have kerning. */
-  KerningCacheBLF *kerning_cache;
 
   /** Freetype2 lib handle. */
   FT_Library ft_lib;
