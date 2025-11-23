@@ -922,6 +922,12 @@ static bke::GeometrySet::GatheredAttributes gather_attributes_to_propagate(
           /* For Grease Pencil, we want to propagate the instance attributes to the layers. */
           dst_domain = AttrDomain::Layer;
         }
+        else if (component_type == bke::GeometryComponent::Type::Curve &&
+                 !options.realize_to_point_domain)
+        {
+          /* For curves, storing the attribute on curves is more efficient. */
+          dst_domain = AttrDomain::Curve;
+        }
         else {
           /* Other instance attributes are realized on the point domain currently. */
           dst_domain = AttrDomain::Point;
@@ -1745,22 +1751,7 @@ static void execute_realize_mesh_tasks(const RealizeInstancesOptions &options,
     dst_attribute_writers.append(
         dst_attributes.lookup_or_add_for_write_only_span(attribute_id, domain, data_type));
   }
-  const char *active_layer = CustomData_get_active_layer_name(&first_mesh.corner_data,
-                                                              CD_PROP_FLOAT2);
-  if (active_layer != nullptr) {
-    int id = CustomData_get_named_layer(&dst_mesh->corner_data, CD_PROP_FLOAT2, active_layer);
-    if (id >= 0) {
-      CustomData_set_layer_active(&dst_mesh->corner_data, CD_PROP_FLOAT2, id);
-    }
-  }
-  const char *render_layer = CustomData_get_render_layer_name(&first_mesh.corner_data,
-                                                              CD_PROP_FLOAT2);
-  if (render_layer != nullptr) {
-    int id = CustomData_get_named_layer(&dst_mesh->corner_data, CD_PROP_FLOAT2, render_layer);
-    if (id >= 0) {
-      CustomData_set_layer_render(&dst_mesh->corner_data, CD_PROP_FLOAT2, id);
-    }
-  }
+
   /* Actually execute all tasks. */
   threading::parallel_for(tasks.index_range(), 100, [&](const IndexRange task_range) {
     for (const int task_index : task_range) {
