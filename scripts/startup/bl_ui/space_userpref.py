@@ -248,18 +248,25 @@ class USERPREF_PT_interface_text(InterfacePanel, CenterAlignMixIn, Panel):
         flow.prop(view, "font_path_ui")
         flow.prop(view, "font_path_ui_mono")
 
+        flow.label(text="Remove (always ON):")
         flow.prop(view, "use_text_antialiasing", text="Anti-Aliasing")
-        sub = flow.column()
-        sub.active = view.use_text_antialiasing
-        sub.prop(view, "use_text_render_subpixelaa", text="Subpixel Anti-Aliasing")
-        flow.prop(view, "use_text_kerning", text="Kerning")
+        flow.prop(view, "use_text_render_subpixelaa", text="Subpixel Positioning")
+        flow.prop(view, "use_text_kerning", text="BPOS Kerning")
+
+        flow.label(text="Remove (always Slight):")
+        flow.prop(view, "text_hinting", text="Hinting")
+
+        flow.label(text="Remove (On when not mono):")
+        flow.prop(view, "use_text_discretionary_ligatures", text="Discretionary Ligatures")
+        flow.prop(view, "use_text_contextual_alternates", text="Contexual Alternates")
+
+        flow.label(text="Show for all fonts:")
         flow.prop(view, "use_text_slashed_zero", text="Slashed Zero - 0")
+        flow.prop(view, "use_text_tabular_numbers", text="Tabular Numbers")
+
+        flow.label(text="Show for Inter only:")
         flow.prop(view, "use_text_disambiguation", text="Disambiguation - Ilßβ")
         flow.prop(view, "use_text_open_digits", text="Open Digits - 3469")
-        flow.prop(view, "use_text_discretionary_ligatures", text="Discretionary Ligatures")
-        flow.prop(view, "use_text_tabular_numbers", text="Tabular Numbers")
-        flow.prop(view, "use_text_contextual_alternates", text="Contexual Alternates")
-        flow.prop(view, "text_hinting", text="Hinting")
 
 
 class USERPREF_PT_interface_translation(InterfacePanel, CenterAlignMixIn, Panel):
