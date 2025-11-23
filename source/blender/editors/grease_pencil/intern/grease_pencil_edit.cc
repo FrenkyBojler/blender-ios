@@ -4990,7 +4990,7 @@ static wmOperatorStatus grease_pencil_join_shapes_exec(bContext *C, wmOperator *
     index_mask::masked_fill(shape_ids.span, shape_id_to_set, strokes);
     shape_ids.finish();
 
-    Set<std::string> attributes_to_set{
+    Set<StringRef> attributes_to_set{
         {"material_index", "fill_opacity", "uv_rotation", "uv_translation", "uv_scale"}};
     /* Copy curve attributes from the active to all other selected curves. */
     attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
