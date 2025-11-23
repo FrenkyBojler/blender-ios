@@ -87,6 +87,7 @@ struct RenderJob : public RenderJobBase {
   ReportList *reports;
   int orig_layer;
   int last_layer;
+  bool use_sequencer_scene;
   ScrArea *area;
   ColorManagedViewSettings view_settings;
   ColorManagedDisplaySettings display_settings;
@@ -325,20 +326,29 @@ static void get_render_operator_frame_range(wmOperator *render_operator,
 /* executes blocking render */
 static wmOperatorStatus screen_render_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
-  RenderEngineType *re_type = RE_engines_find(scene->r.engine);
-  ViewLayer *active_layer = CTX_data_view_layer(C);
   ViewLayer *single_layer = nullptr;
   Render *re;
   Image *ima;
   View3D *v3d = CTX_wm_view3d(C);
   Main *mainp = CTX_data_main(C);
+
   const bool is_animation = RNA_boolean_get(op->ptr, "animation");
   const bool is_write_still = RNA_boolean_get(op->ptr, "write_still");
+  const bool use_sequencer_scene = RNA_boolean_get(op->ptr, "use_sequencer_scene");
+
+  Scene *scene = use_sequencer_scene ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
+  ViewLayer *active_layer = use_sequencer_scene ? BKE_view_layer_default_render(scene) :
+                                                  CTX_data_view_layer(C);
+  RenderEngineType *re_type = RE_engines_find(scene->r.engine);
   Object *camera_override = v3d ? V3D_CAMERA_LOCAL(v3d) : nullptr;
 
   /* Cannot do render if there is not this function. */
   if (re_type->render == nullptr) {
+    return OPERATOR_CANCELLED;
+  }
+
+  if (use_sequencer_scene && !RE_seq_render_active(scene, &scene->r)) {
+    BKE_report(op->reports, RPT_ERROR, "No sequencer scene with video strips to render");
     return OPERATOR_CANCELLED;
   }
 
@@ -347,15 +357,15 @@ static wmOperatorStatus screen_render_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
+  /* custom scene and single layer re-render */
+  screen_render_single_layer_set(op, mainp, active_layer, &scene, &single_layer);
+
   int frame_start, frame_end;
   get_render_operator_frame_range(op, scene, frame_start, frame_end);
   if (is_animation && frame_start > frame_end) {
     BKE_report(op->reports, RPT_ERROR, "Start frame is larger than end frame");
     return OPERATOR_CANCELLED;
   }
-
-  /* custom scene and single layer re-render */
-  screen_render_single_layer_set(op, mainp, active_layer, &scene, &single_layer);
 
   if (!is_animation && is_write_still && BKE_imtype_is_movie(scene->r.im_format.imtype)) {
     BKE_report(
@@ -377,8 +387,8 @@ static wmOperatorStatus screen_render_exec(bContext *C, wmOperator *op)
   /* cleanup sequencer caches before starting user triggered render.
    * otherwise, invalidated cache entries can make their way into
    * the output rendering. We can't put that into RE_RenderFrame,
-   * since sequence rendering can call that recursively... (peter) */
-  blender::seq::cache_cleanup(scene);
+   * since sequence rendering can call that recursively... */
+  blender::seq::cache_cleanup(scene, blender::seq::CacheCleanup::FinalAndIntra);
 
   RE_SetReports(re, op->reports);
 
@@ -764,7 +774,7 @@ static void render_startjob(void *rjv, wmJobWorkerStatus *worker_status)
   RE_SetReports(rj->re, nullptr);
 }
 
-static void render_image_restore_layer(RenderJob *rj)
+static void render_image_restore_scene_and_layer(RenderJob *rj)
 {
   /* image window, compo node users */
 
@@ -777,6 +787,10 @@ static void render_image_restore_layer(RenderJob *rj)
         if (area == rj->area) {
           if (area->spacetype == SPACE_IMAGE) {
             SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
+
+            /* Automatically show scene we just rendered. */
+            SET_FLAG_FROM_TEST(
+                sima->iuser.flag, rj->use_sequencer_scene, IMA_SHOW_SEQUENCER_SCENE);
 
             if (RE_HasSingleLayer(rj->re)) {
               /* For single layer renders keep the active layer
@@ -804,10 +818,9 @@ static void render_endjob(void *rjv)
 {
   RenderJob *rj = static_cast<RenderJob *>(rjv);
 
-  /* This render may be used again by the sequencer without the active
-   * 'Render' where the callbacks would be re-assigned. assign dummy callbacks
-   * to avoid referencing freed render-jobs bug #24508. */
-  RE_InitRenderCB(rj->re);
+  /* Clear display GPU context and callbacks since this may be used again
+   * by e.g. the sequencer (#24508). */
+  RE_display_free(rj->re);
 
   if (rj->main != G_MAIN) {
     BKE_main_free(rj->main);
@@ -842,7 +855,7 @@ static void render_endjob(void *rjv)
   }
 
   if (rj->area) {
-    render_image_restore_layer(rj);
+    render_image_restore_scene_and_layer(rj);
   }
 
   /* XXX render stability hack */
@@ -1000,24 +1013,32 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
 {
   /* new render clears all callbacks */
   Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *active_layer = CTX_data_view_layer(C);
   ViewLayer *single_layer = nullptr;
-  RenderEngineType *re_type = RE_engines_find(scene->r.engine);
   Render *re;
   wmJob *wm_job;
   RenderJob *rj;
   Image *ima;
+  ScrArea *area;
+
   const bool is_animation = RNA_boolean_get(op->ptr, "animation");
   const bool is_write_still = RNA_boolean_get(op->ptr, "write_still");
   const bool use_viewport = RNA_boolean_get(op->ptr, "use_viewport");
+  const bool use_sequencer_scene = RNA_boolean_get(op->ptr, "use_sequencer_scene");
+
   View3D *v3d = use_viewport ? CTX_wm_view3d(C) : nullptr;
+  Scene *scene = use_sequencer_scene ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
+  ViewLayer *active_layer = use_sequencer_scene ? BKE_view_layer_default_render(scene) :
+                                                  CTX_data_view_layer(C);
+  RenderEngineType *re_type = RE_engines_find(scene->r.engine);
   Object *camera_override = v3d ? V3D_CAMERA_LOCAL(v3d) : nullptr;
-  const char *name;
-  ScrArea *area;
 
   /* Cannot do render if there is not this function. */
   if (re_type->render == nullptr) {
+    return OPERATOR_CANCELLED;
+  }
+
+  if (use_sequencer_scene && !RE_seq_render_active(scene, &scene->r)) {
+    BKE_report(op->reports, RPT_ERROR, "No sequencer scene with video strips to render");
     return OPERATOR_CANCELLED;
   }
 
@@ -1026,15 +1047,15 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
     return OPERATOR_CANCELLED;
   }
 
+  /* custom scene and single layer re-render */
+  screen_render_single_layer_set(op, bmain, active_layer, &scene, &single_layer);
+
   int frame_start, frame_end;
   get_render_operator_frame_range(op, scene, frame_start, frame_end);
   if (is_animation && frame_start > frame_end) {
     BKE_report(op->reports, RPT_ERROR, "Start frame is larger than end frame");
     return OPERATOR_CANCELLED;
   }
-
-  /* custom scene and single layer re-render */
-  screen_render_single_layer_set(op, bmain, active_layer, &scene, &single_layer);
 
   /* only one render job at a time */
   if (WM_jobs_test(CTX_wm_manager(C), scene, WM_JOB_TYPE_RENDER)) {
@@ -1074,7 +1095,7 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
   ED_editors_flush_edits_ex(bmain, true, false);
 
   /* Cleanup VSE cache, since it is not guaranteed that stored images are invalid. */
-  blender::seq::cache_cleanup(scene);
+  blender::seq::cache_cleanup(scene, blender::seq::CacheCleanup::FinalAndIntra);
 
   /* store spare
    * get view3d layer, local layer, make this nice API call to render
@@ -1088,7 +1109,7 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
   rj->main = bmain;
   rj->scene = scene;
   rj->current_scene = rj->scene;
-  rj->view_layer = CTX_data_view_layer(C);
+  rj->view_layer = active_layer;
   rj->single_layer = single_layer;
   rj->camera_override = camera_override;
   rj->anim = is_animation;
@@ -1097,6 +1118,7 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
   rj->reports = op->reports;
   rj->orig_layer = 0;
   rj->last_layer = 0;
+  rj->use_sequencer_scene = use_sequencer_scene;
   rj->area = area;
   rj->frame_start = frame_start;
   rj->frame_end = frame_end;
@@ -1134,6 +1156,7 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
   }
 
   /* setup job */
+  const char *name;
   if (RE_seq_render_active(scene, &scene->r)) {
     name = RPT_("Rendering sequence...");
   }
@@ -1163,13 +1186,14 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
 
   /* setup new render */
   re = RE_NewSceneRender(scene);
+  RE_display_init(re);
+  RE_display_ensure_gpu_context(re);
   RE_test_break_cb(re, rj, render_breakjob);
   RE_draw_lock_cb(re, rj, render_drawlock);
   RE_display_update_cb(re, rj, image_rect_update);
   RE_current_scene_update_cb(re, rj, current_scene_update);
   RE_stats_draw_cb(re, rj, image_renderinfo_cb);
   RE_progress_cb(re, rj, render_progress_update);
-  RE_system_gpu_context_ensure(re);
 
   rj->re = re;
   G.is_break = false;
@@ -1195,13 +1219,23 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
   return OPERATOR_RUNNING_MODAL;
 }
 
+static std::string screen_render_get_description(bContext * /*C*/,
+                                                 wmOperatorType * /*ot*/,
+                                                 PointerRNA *ptr)
+{
+  const bool use_sequencer_scene = RNA_boolean_get(ptr, "use_sequencer_scene");
+  if (use_sequencer_scene) {
+    return TIP_("Render active sequencer scene");
+  }
+  return TIP_("Render active scene");
+}
+
 void RENDER_OT_render(wmOperatorType *ot)
 {
   PropertyRNA *prop;
 
   /* identifiers */
   ot->name = "Render";
-  ot->description = "Render active scene";
   ot->idname = "RENDER_OT_render";
 
   /* API callbacks. */
@@ -1209,6 +1243,7 @@ void RENDER_OT_render(wmOperatorType *ot)
   ot->modal = screen_render_modal;
   ot->cancel = screen_render_cancel;
   ot->exec = screen_render_exec;
+  ot->get_description = screen_render_get_description;
 
   /* This isn't needed, causes failure in background mode. */
 #if 0
@@ -1232,6 +1267,12 @@ void RENDER_OT_render(wmOperatorType *ot)
                          false,
                          "Use 3D Viewport",
                          "When inside a 3D viewport, use layers and camera of the viewport");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+  prop = RNA_def_boolean(ot->srna,
+                         "use_sequencer_scene",
+                         false,
+                         "Use Sequencer Scene",
+                         "Render the sequencer scene instead of the active scene");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
   prop = RNA_def_string(ot->srna,
                         "layer",
@@ -1273,28 +1314,34 @@ void RENDER_OT_render(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
-Scene *ED_render_job_get_scene(const bContext *C)
+static RenderJobBase *render_job_get(const bContext *C)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
-  RenderJobBase *rj = (RenderJobBase *)WM_jobs_customdata_from_type(
-      wm, CTX_data_scene(C), WM_JOB_TYPE_RENDER);
+  RenderJobBase *rj;
 
-  if (rj) {
-    return rj->scene;
+  /* Try to find job tied to active scene first. */
+  rj = static_cast<RenderJobBase *>(
+      WM_jobs_customdata_from_type(wm, CTX_data_scene(C), WM_JOB_TYPE_RENDER));
+
+  /* If not found, attempt to find job tied to sequencer scene. */
+  if (rj == nullptr) {
+    return static_cast<RenderJobBase *>(
+        WM_jobs_customdata_from_type(wm, CTX_data_sequencer_scene(C), WM_JOB_TYPE_RENDER));
   }
 
-  return nullptr;
+  return rj;
+}
+
+Scene *ED_render_job_get_scene(const bContext *C)
+{
+  RenderJobBase *rj = render_job_get(C);
+  return rj ? rj->scene : nullptr;
 }
 
 Scene *ED_render_job_get_current_scene(const bContext *C)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
-  RenderJobBase *rj = (RenderJobBase *)WM_jobs_customdata_from_type(
-      wm, CTX_data_scene(C), WM_JOB_TYPE_RENDER);
-  if (rj) {
-    return rj->current_scene;
-  }
-  return nullptr;
+  RenderJobBase *rj = render_job_get(C);
+  return rj ? rj->current_scene : nullptr;
 }
 
 /* Motion blur curve preset */

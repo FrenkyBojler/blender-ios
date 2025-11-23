@@ -183,6 +183,7 @@ enum ThemeColorID {
   TH_EMPTY,
 
   TH_NODE,
+  TH_NODE_OUTLINE,
   TH_NODE_INPUT,
   TH_NODE_OUTPUT,
   TH_NODE_COLOR,
@@ -236,6 +237,7 @@ enum ThemeColorID {
   TH_HANDLE_VERTEX_SELECT,
   TH_HANDLE_VERTEX_SIZE,
 
+  TH_GP_WIRE_EDIT,
   TH_GP_VERTEX,
   TH_GP_VERTEX_SELECT,
   TH_GP_VERTEX_SIZE,
@@ -243,6 +245,8 @@ enum ThemeColorID {
   TH_DOPESHEET_CHANNELOB,
   TH_DOPESHEET_CHANNELSUBOB,
   TH_DOPESHEET_IPOLINE,
+  TH_DOPESHEET_IPOCONST,
+  TH_DOPESHEET_IPOOTHER,
 
   TH_PREVIEW_BACK,
 
@@ -287,9 +291,10 @@ enum ThemeColorID {
 
   TH_SKIN_ROOT,
 
-  TH_ANIM_ACTIVE,        /* active action */
-  TH_ANIM_INACTIVE,      /* no active action */
-  TH_ANIM_PREVIEW_RANGE, /* preview range overlay */
+  TH_ANIM_ACTIVE,            /* active action */
+  TH_ANIM_INACTIVE,          /* no active action */
+  TH_ANIM_PREVIEW_RANGE,     /* preview range overlay */
+  TH_ANIM_SCENE_STRIP_RANGE, /* scene strip range overlay */
 
   TH_ICON_SCENE,
   TH_ICON_COLLECTION,
@@ -463,6 +468,13 @@ void UI_GetThemeColorType4ubv(int colorid, int spacetype, unsigned char col[4]);
  * Get theme color for coloring monochrome icons.
  */
 bool UI_GetIconThemeColor4ubv(int colorid, unsigned char col[4]);
+
+/**
+ * Get four color values, range 0.0-1.0, blended between two other float color pointers,
+ * complete with offset for the alpha component.
+ */
+void UI_GetColorPtrBlendAlpha4fv(
+    const float cp1[4], const float cp2[4], float fac, float alphaoffset, float r_col[4]);
 
 /**
  * Shade a 3 byte color (same as UI_GetColorPtrBlendShade3ubv with 0.0 factor).

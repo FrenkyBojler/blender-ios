@@ -56,6 +56,9 @@ using ItemEditableFunc = int (*)(const PointerRNA *ptr, int index);
 using IDPropertiesFunc = IDProperty **(*)(PointerRNA * ptr);
 using StructRefineFunc = StructRNA *(*)(PointerRNA * ptr);
 using StructPathFunc = std::optional<std::string> (*)(const PointerRNA *ptr);
+using PropUINameFunc = const char *(*)(const PointerRNA *ptr,
+                                       const PropertyRNA *prop,
+                                       bool do_translate);
 
 using PropArrayLengthGetFunc = int (*)(const PointerRNA *ptr, int length[RNA_MAX_ARRAY_DIMENSION]);
 using PropBooleanGetFunc = bool (*)(PointerRNA *ptr);
@@ -422,6 +425,9 @@ struct PropertyRNA {
   /** Callback for testing if array-item editable (if applicable). */
   ItemEditableFunc itemeditable;
 
+  /** Optional function to dynamically override the user-readable #name. */
+  PropUINameFunc ui_name_func;
+
   /** Override handling callbacks (diff is also used for comparison). */
   RNAPropOverrideDiff override_diff;
   RNAPropOverrideStore override_store;
@@ -579,6 +585,8 @@ struct StringPropertyRNA {
 
   PropStringGetTransformFunc get_transform;
   PropStringSetTransformFunc set_transform;
+
+  PropStringGetFuncEx get_default;
 
   /**
    * Optional callback to list candidates for a string.

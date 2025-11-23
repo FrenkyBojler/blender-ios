@@ -36,8 +36,12 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Geometry>("Geometry").description("Geometry to duplicate elements of");
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
-  b.add_input<decl::Int>("Amount").min(0).default_value(1).field_on_all().description(
-      "The number of duplicates to create for each element");
+  b.add_input<decl::Int>("Amount")
+      .min(0)
+      .default_value(1)
+      .field_on_all()
+      .description("The number of duplicates to create for each element")
+      .translation_context(BLT_I18NCONTEXT_COUNTABLE);
 
   b.add_output<decl::Geometry>("Geometry")
       .propagate_all()
@@ -178,7 +182,7 @@ static void copy_curve_attributes_without_id(const bke::CurvesGeometry &src_curv
   for (auto &attribute : bke::retrieve_attributes_for_transfer(
            src_curves.attributes(),
            dst_curves.attributes_for_write(),
-           ATTR_DOMAIN_MASK_ALL,
+           {bke::AttrDomain::Point, bke::AttrDomain::Curve},
            bke::attribute_filter_with_skip_ref(attribute_filter, {"id"})))
   {
     switch (attribute.meta_data.domain) {
@@ -395,7 +399,10 @@ static void copy_face_attributes_without_id(const Span<int> edge_mapping,
   for (auto &attribute : bke::retrieve_attributes_for_transfer(
            src_attributes,
            dst_attributes,
-           ATTR_DOMAIN_MASK_ALL,
+           {bke::AttrDomain::Point,
+            bke::AttrDomain::Edge,
+            bke::AttrDomain::Face,
+            bke::AttrDomain::Corner},
            bke::attribute_filter_with_skip_ref(
                attribute_filter, {"id", ".corner_vert", ".corner_edge", ".edge_verts"})))
   {
@@ -603,7 +610,7 @@ static void copy_edge_attributes_without_id(const Span<int> point_mapping,
   for (auto &attribute : bke::retrieve_attributes_for_transfer(
            src_attributes,
            dst_attributes,
-           ATTR_DOMAIN_MASK_POINT | ATTR_DOMAIN_MASK_EDGE,
+           {bke::AttrDomain::Point, bke::AttrDomain::Edge},
            bke::attribute_filter_with_skip_ref(attribute_filter, {"id", ".edge_verts"})))
   {
     switch (attribute.meta_data.domain) {
@@ -792,7 +799,7 @@ static bke::CurvesGeometry duplicate_points_CurvesGeometry(
   for (auto &attribute : bke::retrieve_attributes_for_transfer(
            src_curves.attributes(),
            new_curves.attributes_for_write(),
-           ATTR_DOMAIN_MASK_CURVE,
+           {bke::AttrDomain::Curve},
            bke::attribute_filter_with_skip_ref(attribute_filter, {"id"})))
   {
     bke::attribute_math::convert_to_static_type(attribute.src.type(), [&](auto dummy) {

@@ -27,10 +27,6 @@ if(CMAKE_C_COMPILER_ID MATCHES "Clang")
       "try running from the visual studio developer prompt."
     )
   endif()
-  if(WITH_WINDOWS_STRIPPED_PDB)
-    message(WARNING "stripped pdb not supported with clang, disabling..")
-    set(WITH_WINDOWS_STRIPPED_PDB OFF)
-  endif()
 else()
   if(WITH_BLENDER)
     if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 19.28.29921) # MSVC 2019 16.9.16
@@ -907,7 +903,7 @@ endif()
 if(WITH_RUBBERBAND)
   set(RUBBERBAND_FOUND TRUE)
   set(RUBBERBAND_INCLUDE_DIRS ${LIBDIR}/rubberband/include)
-  set(RUBBERBAND_LIBRARIES 
+  set(RUBBERBAND_LIBRARIES
     optimized ${LIBDIR}/rubberband/lib/rubberband-static.lib
     debug ${LIBDIR}/rubberband/lib/rubberband-static_d.lib
   )

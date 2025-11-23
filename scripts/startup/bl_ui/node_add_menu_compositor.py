@@ -12,7 +12,6 @@ class NODE_MT_compositor_node_input_base(node_add_menu.NodeMenu):
     bl_label = "Input"
 
     def draw(self, context):
-        del context
         layout = self.layout
         self.draw_menu(layout, path="Input/Constant")
         layout.separator()
@@ -23,6 +22,8 @@ class NODE_MT_compositor_node_input_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "CompositorNodeImageCoordinates")
         self.node_operator(layout, "CompositorNodeMask")
         self.node_operator(layout, "CompositorNodeMovieClip")
+        if context.space_data.node_tree_sub_type == 'SEQUENCER':
+            self.node_operator(layout, "CompositorNodeSequencerStripInfo")
 
         layout.separator()
         self.draw_menu(layout, path="Input/Scene")
@@ -124,6 +125,7 @@ class NODE_MT_compositor_node_color_mix_base(node_add_menu.NodeMenu):
     menu_path = "Color/Mix"
 
     def draw(self, context):
+        del context
         layout = self.layout
 
         self.draw_assets_for_catalog(layout, self.menu_path)
@@ -146,10 +148,14 @@ class NODE_MT_compositor_node_filter_base(node_add_menu.NodeMenu):
         layout.separator()
         self.node_operator_with_searchable_enum_socket(
             context, layout, "CompositorNodeFilter", "Type", [
-                "Soften", "Box Sharpen", "Diamond Sharpen", "Laplace", "Sobel", "Prewitt", "Kirsch", "Shadow"])
+                "Soften", "Box Sharpen", "Diamond Sharpen", "Laplace", "Sobel", "Prewitt", "Kirsch", "Shadow",
+            ],
+        )
         self.node_operator_with_searchable_enum_socket(
             context, layout, "CompositorNodeGlare", "Type", [
-                "Bloom", "Ghosts", "Streaks", "Fog Glow", "Simple Star", "Sun Beams", "Kernel"])
+                "Bloom", "Ghosts", "Streaks", "Fog Glow", "Simple Star", "Sun Beams", "Kernel",
+            ],
+        )
 
         self.draw_assets_for_catalog(layout, self.bl_label)
 
@@ -264,6 +270,7 @@ class NODE_MT_compositor_node_utilities_base(node_add_menu.NodeMenu):
     bl_label = "Utilities"
 
     def draw(self, context):
+        del context
         layout = self.layout
         self.draw_menu(layout, path="Utilities/Math")
         self.draw_menu(layout, path="Utilities/Vector")
@@ -273,6 +280,7 @@ class NODE_MT_compositor_node_utilities_base(node_add_menu.NodeMenu):
         layout.separator()
         self.node_operator(layout, "CompositorNodeSplit")
         self.node_operator(layout, "CompositorNodeSwitch")
+        self.node_operator(layout, "GeometryNodeIndexSwitch")
         self.node_operator(layout, "GeometryNodeMenuSwitch")
         self.node_operator(
             layout, "CompositorNodeSwitchView",
@@ -302,7 +310,7 @@ class NODE_MT_compositor_node_vector_base(node_add_menu.NodeMenu):
         layout.separator()
         self.node_operator(layout, "ShaderNodeRadialTiling")
         self.node_operator(layout, "ShaderNodeVectorCurve")
-
+        self.node_operator_with_searchable_enum(context, layout, "ShaderNodeVectorMath", "operation")
         self.node_operator(layout, "ShaderNodeVectorRotate")
 
         self.draw_assets_for_catalog(layout, self.menu_path)

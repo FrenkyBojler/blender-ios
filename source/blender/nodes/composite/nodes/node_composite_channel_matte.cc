@@ -15,19 +15,29 @@
 
 #include "GPU_material.hh"
 
+#include "COM_result.hh"
+
 #include "node_composite_util.hh"
 
 namespace blender::nodes::node_composite_channel_matte_cc {
 
 static const EnumPropertyItem color_space_items[] = {
-    {CMP_NODE_CHANNEL_MATTE_CS_RGB, "RGB", 0, "RGB", "RGB (Red, Green, Blue) color space"},
-    {CMP_NODE_CHANNEL_MATTE_CS_HSV, "HSV", 0, "HSV", "HSV (Hue, Saturation, Value) color space"},
-    {CMP_NODE_CHANNEL_MATTE_CS_YUV, "YUV", 0, "YUV", "YUV (Y - luma, U V - chroma) color space"},
+    {CMP_NODE_CHANNEL_MATTE_CS_RGB, "RGB", 0, N_("RGB"), N_("RGB (Red, Green, Blue) color space")},
+    {CMP_NODE_CHANNEL_MATTE_CS_HSV,
+     "HSV",
+     0,
+     N_("HSV"),
+     N_("HSV (Hue, Saturation, Value) color space")},
+    {CMP_NODE_CHANNEL_MATTE_CS_YUV,
+     "YUV",
+     0,
+     N_("YUV"),
+     N_("YUV (Y - luma, U V - chroma) color space")},
     {CMP_NODE_CHANNEL_MATTE_CS_YCC,
      "YCC",
      0,
-     "YCbCr",
-     "YCbCr (Y - luma, Cb - blue-difference chroma, Cr - red-difference chroma) color space"},
+     N_("YCbCr"),
+     N_("YCbCr (Y - luma, Cb - blue-difference chroma, Cr - red-difference chroma) color space")},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -173,7 +183,7 @@ static void cmp_node_channel_matte_declare(NodeDeclarationBuilder &b)
             CMP_NODE_CHANNEL_MATTE_CS_RGB;
       })
       .usage_inference(
-          [](const socket_usage_inference::InputSocketUsageParams &params) -> std::optional<bool> {
+          [](const socket_usage_inference::SocketUsageParams &params) -> std::optional<bool> {
             return params.menu_input_may_be("Limit Method",
                                             CMP_NODE_CHANNEL_MATTE_LIMIT_ALGORITHM_SINGLE) &&
                    params.menu_input_may_be("Color Space", CMP_NODE_CHANNEL_MATTE_CS_RGB);
@@ -195,7 +205,7 @@ static void cmp_node_channel_matte_declare(NodeDeclarationBuilder &b)
             CMP_NODE_CHANNEL_MATTE_CS_HSV;
       })
       .usage_inference(
-          [](const socket_usage_inference::InputSocketUsageParams &params) -> std::optional<bool> {
+          [](const socket_usage_inference::SocketUsageParams &params) -> std::optional<bool> {
             return params.menu_input_may_be("Limit Method",
                                             CMP_NODE_CHANNEL_MATTE_LIMIT_ALGORITHM_SINGLE) &&
                    params.menu_input_may_be("Color Space", CMP_NODE_CHANNEL_MATTE_CS_HSV);
@@ -217,7 +227,7 @@ static void cmp_node_channel_matte_declare(NodeDeclarationBuilder &b)
             CMP_NODE_CHANNEL_MATTE_CS_YUV;
       })
       .usage_inference(
-          [](const socket_usage_inference::InputSocketUsageParams &params) -> std::optional<bool> {
+          [](const socket_usage_inference::SocketUsageParams &params) -> std::optional<bool> {
             return params.menu_input_may_be("Limit Method",
                                             CMP_NODE_CHANNEL_MATTE_LIMIT_ALGORITHM_SINGLE) &&
                    params.menu_input_may_be("Color Space", CMP_NODE_CHANNEL_MATTE_CS_YUV);
@@ -239,7 +249,7 @@ static void cmp_node_channel_matte_declare(NodeDeclarationBuilder &b)
             CMP_NODE_CHANNEL_MATTE_CS_YCC;
       })
       .usage_inference(
-          [](const socket_usage_inference::InputSocketUsageParams &params) -> std::optional<bool> {
+          [](const socket_usage_inference::SocketUsageParams &params) -> std::optional<bool> {
             return params.menu_input_may_be("Limit Method",
                                             CMP_NODE_CHANNEL_MATTE_LIMIT_ALGORITHM_SINGLE) &&
                    params.menu_input_may_be("Color Space", CMP_NODE_CHANNEL_MATTE_CS_YCC);
@@ -368,12 +378,14 @@ static void channel_key(const float4 color,
   output_color = color * matte;
 }
 
+using blender::compositor::Color;
+
 static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &builder)
 {
   static auto function =
-      mf::build::detail::build_multi_function_with_n_inputs_two_outputs<float4, float>(
+      mf::build::detail::build_multi_function_with_n_inputs_two_outputs<Color, float>(
           "Channel Key",
-          [=](const float4 &color,
+          [=](const Color &color,
               const float &minimum,
               const float &maximum,
               const MenuValue &color_space,
@@ -386,9 +398,10 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
               const MenuValue &hsv_limit_channel,
               const MenuValue &yuv_limit_channel,
               const MenuValue &ycc_limit_channel,
-              float4 &output_color,
+              Color &output_color,
               float &matte) -> void {
-            channel_key(color,
+            float4 out_color;
+            channel_key(float4(color),
                         minimum,
                         maximum,
                         CMPNodeChannelMatteColorSpace(color_space.value),
@@ -401,11 +414,12 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
                         hsv_limit_channel.value,
                         yuv_limit_channel.value,
                         ycc_limit_channel.value,
-                        output_color,
+                        out_color,
                         matte);
+            output_color = Color(out_color);
           },
           mf::build::exec_presets::SomeSpanOrSingle<0>(),
-          TypeSequence<float4,
+          TypeSequence<Color,
                        float,
                        float,
                        MenuValue,

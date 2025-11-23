@@ -22,6 +22,8 @@
 #include "BLI_threads.h"
 #include "BLI_vector.hh"
 
+#include "CLG_log.h"
+
 #include "DNA_userdef_types.h"
 
 #include "gpu_capabilities_private.hh"
@@ -30,6 +32,8 @@
 #include "gl_debug.hh"
 
 #include "gl_backend.hh"
+
+static CLG_LogRef LOG = {"gpu.opengl"};
 
 namespace blender::gpu {
 
@@ -600,6 +604,8 @@ void GLBackend::capabilities_init()
 
   /* GL specific capabilities. */
   glGetIntegerv(GL_MAX_3D_TEXTURE_SIZE, &GCaps.max_texture_3d_size);
+  glGetIntegerv(GL_MAX_TEXTURE_BUFFER_SIZE,
+                reinterpret_cast<int *>(&GCaps.max_buffer_texture_size));
   glGetIntegerv(GL_MAX_CUBE_MAP_TEXTURE_SIZE, &GLContext::max_cubemap_size);
   glGetIntegerv(GL_MAX_FRAGMENT_UNIFORM_BLOCKS, &GLContext::max_ubo_binds);
   GLint max_ssbo_binds;
@@ -699,6 +705,60 @@ void GLBackend::capabilities_init()
     GLContext::debug_layer_support = false;
     GLContext::debug_layer_workaround = false;
   }
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Log extensions
+ * \{ */
+
+void GLBackend::log_extensions()
+{
+  CLOG_DEBUG(&LOG,
+             "OpenGL Extensions\n"
+             " - [%c] Multi-bind\n"
+             " - [%c] Direct state access\n"
+             " - [%c] Anisotropic Texture Filtering\n"
+             " - [%c] Layered rendering\n"
+             " - [%c] Native barycentric coordinates\n"
+             " - [%c] Framebuffer fetch\n"
+             " - [%c] Texture barrier\n"
+             " - [%c] Shader stencil export\n",
+             GLContext::multi_bind_support ? 'X' : ' ',
+             GLContext::direct_state_access_support ? 'X' : ' ',
+             GLContext::texture_filter_anisotropic_support ? 'X' : ' ',
+             GLContext::layered_rendering_support ? 'X' : ' ',
+             GLContext::native_barycentric_support ? 'X' : ' ',
+             GLContext::framebuffer_fetch_support ? 'X' : ' ',
+             GLContext::texture_barrier_support ? 'X' : ' ',
+             GCaps.stencil_export_support ? 'X' : ' ');
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Log workarounds
+ * \{ */
+
+void GLBackend::log_workarounds()
+{
+  CLOG_DEBUG(&LOG,
+             "OpenGL Workarounds\n"
+             " - [%c] Debug layer workaround\n"
+             " - [%c] Generate mipmap workaround\n"
+             " - [%c] Unused framebuffer slot workaround\n"
+             " - [%c] Depth blitting workaround\n"
+             " - [%c] Stencil classify buffer workaround\n"
+             " - [%c] High-quality normals\n"
+             " - [%c] Use main context\n",
+             GLContext::debug_layer_workaround ? 'X' : ' ',
+             GLContext::generate_mipmap_workaround ? 'X' : ' ',
+             GLContext::unused_fb_slot_workaround ? 'X' : ' ',
+             GCaps.depth_blitting_workaround ? 'X' : ' ',
+             GCaps.stencil_clasify_buffer_workaround ? 'X' : ' ',
+             GCaps.use_hq_normals_workaround ? 'X' : ' ',
+             GCaps.use_main_context_workaround ? 'X' : ' ');
 }
 
 /** \} */

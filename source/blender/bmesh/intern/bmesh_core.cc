@@ -11,6 +11,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_alloca.h"
+#include "BLI_enum_flags.hh"
 #include "BLI_linklist_stack.h"
 #include "BLI_math_vector.h"
 #include "BLI_utildefines_stack.h"
@@ -147,7 +148,7 @@ BMEdge *BM_edge_create(
 #endif
 
   e->head.htype = BM_EDGE;
-  e->head.hflag = BM_ELEM_SMOOTH | BM_ELEM_DRAW;
+  e->head.hflag = BM_ELEM_SMOOTH;
   e->head.api_flag = 0;
 
   /* allocate flags */
@@ -549,7 +550,7 @@ enum BMeshElemErrorFlag {
   IS_FACE_LOOP_DUPE_EDGE = (1 << 25),
   IS_FACE_WRONG_LENGTH = (1 << 26),
 };
-ENUM_OPERATORS(BMeshElemErrorFlag, IS_FACE_WRONG_LENGTH)
+ENUM_OPERATORS(BMeshElemErrorFlag)
 
 int bmesh_elem_check(void *element, const char htype)
 {

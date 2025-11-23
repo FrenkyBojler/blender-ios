@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'7089def6cbcb')\n"
+"Project-Id-Version: Blender 5.0.0 Beta (b'd29f9f6118e5')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-09-29 09:33+0000\n"
+"POT-Creation-Date: 2025-11-10 09:45+0000\n"
 "PO-Revision-Date: 2025-07-23 15:03+0000\n"
 "Last-Translator: Nooby Noober <iamanoobynoober@gmail.com>\n"
 "Language-Team: Persian <https://translate.blender.org/projects/blender-ui/ui/fa/>\n"
@@ -64,10 +64,6 @@ msgstr "ﺎﻫAOV ﻪﻋﻮﻤﺠﻣ"
 
 msgid "F-Curves"
 msgstr "ﻑﺍ ﯽﻨﺤﻨﻣ"
-
-
-msgid "Action F-Curves"
-msgstr "ﻞﻤﻋ ﻊﺑﺎﺗ ﯽﻨﺤﻨﻣ"
 
 
 msgid "Action Group"
@@ -236,14 +232,6 @@ msgstr "ﺖﺳﺍ ﻪﺘﻓﺎﯾ ﺵﺮﺘﺴﮔ ﻑﺍﺮﮔ ﺮﮕﺸﯾﺍ�
 
 msgid "Pin in Graph Editor"
 msgstr "ﻑﺍﺮﮔ ﺮﮕﺸﯾﺍﺮﯾﻭ ﺭﺩ ﻥﺩﺮﮐ ﻕﺎﺠﻨﺳ"
-
-
-msgid "Action Groups"
-msgstr "ﻡﺍﺪﻗﺍ ﯼﺎﻫ‌ﻩﻭﺮﮔ"
-
-
-msgid "Collection of action groups"
-msgstr "ﻡﺍﺪﻗﺍ ﯼﺎﻫ‌ﻩﻭﺮﮔ ﻪﻋﻮﻤﺠﻣ"
 
 
 msgid "Action Pose Markers"
@@ -909,10 +897,6 @@ msgstr "ﻩﺮﮔ ﺮﺑ ﯽﻨﺘﺒﻣ ﯼﺪﻨﺑ‌ﺐﯿﮐﺮﺗ ﻭ ﯽ�
 
 msgid "Video Sequencer"
 msgstr "ﻮﺋﺪﯾﻭ ﺞﻨﺳ ﺐﯿﺗﺮﺗ"
-
-
-msgid "Video editing tools"
-msgstr "ﻮﺋﺪﯾﻭ ﺶﯾﺍﺮﯾﻭ ﯼﺎﻫﺭﺍﺰﺑﺍ"
 
 
 msgid "Movie Clip Editor"
@@ -2380,10 +2364,6 @@ msgid "Slide"
 msgstr "ﺪﯾﻼ﻿ﺳﺍ"
 
 
-msgid "Direction"
-msgstr "ﺎﺘﺳﺍﺭ"
-
-
 msgctxt "Brush"
 msgid "Scale"
 msgstr "ﺱﺎﯿﻘﻣ"
@@ -2866,6 +2846,10 @@ msgid "Ctrl"
 msgstr "Ctrl"
 
 
+msgid "Direction"
+msgstr "ﺎﺘﺳﺍﺭ"
+
+
 msgid "Cmd"
 msgstr "Cmd"
 
@@ -2949,8 +2933,12 @@ msgid "Mix"
 msgstr "ﻁﻮﻠﺨﻣ"
 
 
-msgid "Mirror"
-msgstr "ﻪﻨﯾﺁ"
+msgid "Convert"
+msgstr "ﻞﯾﺪﺒﺗ"
+
+
+msgid "Apply"
+msgstr "ﻝﺎﻤﻋﺍ"
 
 
 msgid "Layout"
@@ -2961,40 +2949,36 @@ msgid "Tracking"
 msgstr "ﯽﺑﺎﯾﺩﺭ"
 
 
-msgid "Add Image"
-msgstr "ﺮﯾﻮﺼﺗ ﻥﺩﺮﮐ‌ﻪﻓﺎﺿﺍ"
-
-
-msgid "Relations"
-msgstr "ﻂﺑﺍﻭﺭ"
-
-
-msgid "Apply"
-msgstr "ﻝﺎﻤﻋﺍ"
-
-
-msgid "Convert"
-msgstr "ﻞﯾﺪﺒﺗ"
+msgid "Math"
+msgstr "ﯽﺿﺎﯾﺭ"
 
 
 msgid "Text"
 msgstr "ﻦﺘﻣ"
 
 
+msgid "Pivot Point"
+msgstr "ﺶﺧﺮﭼ ﻪﻄﻘﻧ"
+
+
+msgid "Mirror"
+msgstr "ﻪﻨﯾﺁ"
+
+
 msgid "Import"
 msgstr "ﻥﺩﺮﮐ ﺩﺭﺍﻭ"
-
-
-msgid "Math"
-msgstr "ﯽﺿﺎﯾﺭ"
 
 
 msgid "UV"
 msgstr "UV"
 
 
-msgid "Pivot Point"
-msgstr "ﺶﺧﺮﭼ ﻪﻄﻘﻧ"
+msgid "Add Image"
+msgstr "ﺮﯾﻮﺼﺗ ﻥﺩﺮﮐ‌ﻪﻓﺎﺿﺍ"
+
+
+msgid "Relations"
+msgstr "ﻂﺑﺍﻭﺭ"
 
 
 msgid "Key"
@@ -4448,10 +4432,6 @@ msgid "Translate Y"
 msgstr "Y ﯽﯾﺎﺠﺑﺎﺟ"
 
 
-msgid "Translation Unit"
-msgstr "ﯽﯾﺎﺠﺑﺎﺟ ﺪﺣﺍﻭ"
-
-
 msgid "X Mapping"
 msgstr "X ﺖﺷﺎﮕﻧ"
 
@@ -4878,16 +4858,8 @@ msgid "Zoom out"
 msgstr "ﯽﯾﺎﻤﻨﮑﭼﻮﮐ"
 
 
-msgid "Clipping Options"
-msgstr "ﻥﺪﯿﭼ ﯼﺎﻫ ﻪﻨﯾﺰﮔ"
-
-
 msgid "Delete points"
 msgstr "ﻁﺎﻘﻧ ﻑﺬﺣ"
-
-
-msgid "Reset Black/White point and curves"
-msgstr "ﯽﻨﺤﻨﻣ ﻭ ﺪﯿﻔﺳ/ﻩﺎﯿﺳ ﻪﻄﻘﻧ ﺩﺪﺠﻣ ﻢﯿﻈﻨﺗ"
 
 
 msgid "Display number of users of this data (click to make a single-user copy)"
