@@ -97,16 +97,16 @@ Strip *meta_stack_pop(Editing *ed);
 Strip *strip_duplicate_recursive(Main *bmain,
                                  const Scene *scene_src,
                                  Scene *scene_dst,
-                                 ListBase *seqbase_dst,
+                                 ListBase *new_seq_list,
                                  Strip *strip,
                                  StripDuplicate dupe_flag);
 void seqbase_duplicate_recursive(Main *bmain,
                                  const Scene *scene_src,
                                  Scene *scene_dst,
-                                 ListBase *seqbase_dst,
-                                 const ListBase *seqbase_src,
+                                 ListBase *nseqbase,
+                                 const ListBase *seqbase,
                                  StripDuplicate dupe_flag,
-                                 int copy_flag);
+                                 int flag);
 bool is_valid_strip_channel(const Strip *strip);
 
 /**
