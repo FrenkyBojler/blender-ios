@@ -519,6 +519,8 @@ static BMOpDefine bmo_circularize_def = {
         {"fit_method", BMO_OP_SLOT_INT},
         /* Custom radius. */
         {"custom_radius", BMO_OP_SLOT_FLT},
+        /* Rotation angle. */
+        {"angle", BMO_OP_SLOT_FLT},
         /* Axis to lock. */
         {"lock_axis", BMO_OP_SLOT_VEC},
         {{'\0'}},

@@ -34,6 +34,7 @@ static wmOperatorStatus edbm_circularize_exec(bContext *C, wmOperator *op)
   const bool regular = RNA_boolean_get(op->ptr, "regular");
   const int fit_method = RNA_enum_get(op->ptr, "fit_method");
   const float custom_radius = RNA_float_get(op->ptr, "custom_radius");
+  const float angle = RNA_float_get(op->ptr, "angle");
 
   const blender::Vector<Object *> objects =
       BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
@@ -47,16 +48,17 @@ static wmOperatorStatus edbm_circularize_exec(bContext *C, wmOperator *op)
       continue;
     }
 
-    BMO_op_callf(
-        bm,
-        BMO_FLAG_DEFAULTS,
-        "circularize geom=%hvef influence=%f flatten=%b regular=%b fit_method=%i custom_radius=%f",
-        BM_ELEM_SELECT,
-        influence,
-        flatten,
-        regular,
-        fit_method,
-        custom_radius);
+    BMO_op_callf(bm,
+                 BMO_FLAG_DEFAULTS,
+                 "circularize geom=%hvef influence=%f flatten=%b regular=%b fit_method=%i "
+                 "custom_radius=%f angle=%f",
+                 BM_ELEM_SELECT,
+                 influence,
+                 flatten,
+                 regular,
+                 fit_method,
+                 custom_radius,
+                 angle);
 
     EDBMUpdate_Params params{};
     params.calc_looptris = true;
@@ -70,6 +72,7 @@ static wmOperatorStatus edbm_circularize_exec(bContext *C, wmOperator *op)
 
 void MESH_OT_circularize(wmOperatorType *ot)
 {
+  PropertyRNA *prop;
   /* identifiers */
   ot->name = "Circularize";
   ot->description = "Shape selected geometry into a circle";
@@ -109,4 +112,15 @@ void MESH_OT_circularize(wmOperatorType *ot)
                 "Custom radius for circle",
                 0.0f,
                 1000.0f);
+
+  prop = RNA_def_float(ot->srna,
+                       "angle",
+                       0.0f,
+                       -M_PI * 2.0f,
+                       M_PI * 2.0f,
+                       "Angle",
+                       "Rotate the circle",
+                       -M_PI * 2.0f,
+                       M_PI * 2.0f);
+  RNA_def_property_subtype(prop, PROP_ANGLE);
 }

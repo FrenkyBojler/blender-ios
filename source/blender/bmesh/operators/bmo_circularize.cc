@@ -245,7 +245,8 @@ static void calculate_target_locations(Vector<CircleVert> &verts,
                                        const float center[2],
                                        const float radius,
                                        const bool is_regular,
-                                       const bool is_closed)
+                                       const bool is_closed,
+                                       const float rotation_angle)
 {
   if (verts.is_empty()) {
     return;
@@ -268,11 +269,11 @@ static void calculate_target_locations(Vector<CircleVert> &verts,
     float angle;
 
     if (is_regular) {
-      angle = start_angle + (step * i);
+      angle = start_angle + (step * i) + rotation_angle;
     }
     else {
       sub_v2_v2v2(vec, verts[i].co_2d, center);
-      angle = atan2f(vec[1], vec[0]);
+      angle = atan2f(vec[1], vec[0]) + rotation_angle;
     }
 
     verts[i].target_2d[0] = center[0] + (cosf(angle) * radius);
@@ -288,6 +289,7 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
   const bool regular = BMO_slot_bool_get(op->slots_in, "regular");
   const int fit_method = BMO_slot_int_get(op->slots_in, "fit_method");
   const float custom_radius = BMO_slot_float_get(op->slots_in, "custom_radius");
+  const float angle = BMO_slot_float_get(op->slots_in, "angle");
 
   Vector<LoopData> loops;
   get_input_loops(bm, loops);
@@ -320,7 +322,7 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
     }
 
     calculate_target_locations(
-        circle_verts, circle_center_2d, radius, regular, loop_data.is_closed);
+        circle_verts, circle_center_2d, radius, regular, loop_data.is_closed, angle);
 
     for (const CircleVert &cv : circle_verts) {
       float final_pos[3];
