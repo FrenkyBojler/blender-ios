@@ -1990,6 +1990,9 @@ class Preprocessor {
             else if (type == "frequency") {
               resource.res_frequency = attribute[2].str();
             }
+            else if (type == "resource_table") {
+              resource.res_type = type;
+            }
             else {
               report_error(ERROR_TOK(attribute[0]), "Unrecognized attribute");
             }
@@ -2017,11 +2020,52 @@ class Preprocessor {
         });
 
         metadata.resource_tables.emplace_back(srt);
+
+        Token end_of_srt = tokens[8].scope().end().prev();
         /* Erase SRT definition. The resources are defined by the backend at runtime. */
         /* Note that this might change in the future. */
         parser.erase(tokens[1], tokens[6]);
-        parser.erase(tokens[8].scope().start().next(), tokens[8].scope().end().prev());
-        /* TODO(fclem): Add nested SRT members. */
+        parser.erase(tokens[8].scope().start().next(), end_of_srt);
+
+        /* Add nested SRT members. */
+        bool has_srt_members = false;
+        for (const auto &member : srt) {
+          if (member.res_type == "resource_table") {
+            parser.insert_after(end_of_srt, member.var_type + " " + member.var_name + ";");
+            has_srt_members = true;
+          }
+        }
+
+        /* Add static constructor.
+         * These are only to avoid warnings on certain backend compilers. */
+        string constructor;
+        constructor += "\nstatic " + srt.name + " new_()\n";
+        constructor += "{\n";
+        constructor += "  " + srt.name + " result;\n";
+        if (has_srt_members == false) {
+          constructor += "  result._pad = 0;\n";
+        }
+        for (const auto &member : srt) {
+          if (member.res_type == "resource_table") {
+            constructor += "  result." + member.var_name + " = " + member.var_type + "::new_();\n";
+          }
+        }
+        constructor += "  return result;\n";
+        constructor += "}\n";
+        parser.insert_after(end_of_srt, constructor);
+
+        string accessor_macros;
+        for (const auto &member : srt) {
+          if (member.res_type == "resource_table") {
+            accessor_macros += "#define access_" + srt.name + "_" + member.var_name + "() ";
+            accessor_macros += member.var_type + "::new_()\n";
+          }
+          else {
+            accessor_macros += "#define access_" + srt.name + "_" + member.var_name + "() ";
+            accessor_macros += member.var_name + "\n";
+          }
+        }
+        parser.insert_after(end_of_srt.next().line_end() + 1, accessor_macros);
       }
     });
     parser.apply_mutations();
