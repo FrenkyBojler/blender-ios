@@ -4971,16 +4971,13 @@ static wmOperatorStatus grease_pencil_separate_shapes_exec(bContext *C, wmOperat
 
 static void GREASE_PENCIL_OT_separate_shapes(wmOperatorType *ot)
 {
-  /* identifiers */
   ot->name = "Separate Shapes";
   ot->idname = "GREASE_PENCIL_OT_separate_shapes";
   ot->description = "Separate the selected strokes from current shapes";
 
-  /* callbacks */
   ot->exec = grease_pencil_separate_shapes_exec;
   ot->poll = editable_grease_pencil_poll;
 
-  /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   RNA_def_boolean(ot->srna,
