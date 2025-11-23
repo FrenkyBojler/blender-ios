@@ -680,8 +680,6 @@ void BKE_armature_deform_coords_with_editmesh(
 
 namespace blender::bke {
 
-constexpr int SPLINE_IK_MAX_CHAIN_LEN = 8192;
-
 struct SelectedBonesResult {
   bool all_bones_selected = true;
   bool no_bones_selected = true;

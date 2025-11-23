@@ -8,8 +8,6 @@
 
 #include <cstdlib>
 
-#include "BKE_armature.hh"
-
 #include "BLI_math_rotation.h"
 
 #include "BLT_translation.hh"
@@ -3201,7 +3199,7 @@ static void rna_def_constraint_spline_ik(BlenderRNA *brna)
    * unsuitable for animation. */
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   /* TODO: this should really check the max length of the chain the constraint is attached to */
-  RNA_def_property_range(prop, 1, blender::bke::SPLINE_IK_MAX_CHAIN_LEN);
+  RNA_def_property_range(prop, 1, 8192);
   RNA_def_property_ui_range(prop, 1, 100, 1, -1);
   RNA_def_property_ui_text(prop, "Chain Length", "How many bones are included in the chain");
   /* XXX: this update goes wrong... needs extra flush? */
