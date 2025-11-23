@@ -222,10 +222,6 @@ def copy_bone_properties(obj: ArmatureObject, bone_name_1: str, bone_name_2: str
                          'bbone_x', 'bbone_z', 'use_endroll_as_inroll', 'use_scale_easing',
                          'bbone_custom_handle_start', 'bbone_custom_handle_end']:
                 setattr(bone_2, name, getattr(bone_1, name))
-            
-        # Copy from obj.pose.bones (PoseBone BBone handle properties)
-        pose_bone_1 = obj.pose.bones[bone_name_1]
-        pose_bone_2 = obj.pose.bones[bone_name_2]
         
         # Only copy if source bone has bbone segments
         if bone_1.bbone_segments > 1:
@@ -241,7 +237,8 @@ def copy_bone_properties(obj: ArmatureObject, bone_name_1: str, bone_name_2: str
     else:
         raise MetarigError("Cannot copy bone properties in edit mode")
 
-
+# Do we still want to keep the legacy functions?.
+# Unused Legacy Function
 def _legacy_copy_bone(obj, bone_name, assign_name=''):
     """LEGACY ONLY, DON'T USE"""
     new_name = copy_bone(obj, bone_name, assign_name, parent=True, bbone=True)
@@ -339,6 +336,7 @@ def disable_bbones(obj: ArmatureObject, bone_names: Iterable[str]):
 
 
 # noinspection SpellCheckingInspection
+# Unused Legacy Function
 def _legacy_make_nonscaling_child(obj, bone_name, location, child_name_postfix=""):
     """ Takes the named bone and creates a non-scaling child of it at
         the given location.  The returned bone (returned by name) is not
