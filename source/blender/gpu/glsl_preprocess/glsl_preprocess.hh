@@ -2068,6 +2068,9 @@ class Preprocessor {
           }
         }
         parser.insert_after(end_of_srt.next().line_end() + 1, accessor_macros);
+
+        parser.insert_line_number(end_of_srt.next().line_end() + 1,
+                                  end_of_srt.next().line_number() + 2);
       }
     });
     parser.apply_mutations();
