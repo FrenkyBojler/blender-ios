@@ -4247,6 +4247,12 @@ static void ui_numedit_begin_set_values(uiBut *but, uiHandleButtonData *data)
 
 static void ui_numedit_begin(uiBut *but, uiHandleButtonData *data)
 {
+#ifdef WITH_INPUT_IME
+  if (data->window->runtime->ime_data) {
+    wm_window_IME_end(data->window);
+  }
+#endif
+
   if (but->type == ButType::Curve) {
     uiButCurveMapping *but_cumap = (uiButCurveMapping *)but;
     but_cumap->edit_cumap = (CurveMapping *)but->poin;
