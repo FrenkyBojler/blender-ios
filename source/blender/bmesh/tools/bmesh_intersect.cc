@@ -26,7 +26,6 @@
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.h"
 #include "BLI_memarena.h"
-#include "BLI_ordered_edge.hh"
 #include "BLI_set.hh"
 #include "BLI_sort_utils.h"
 #include "BLI_utildefines.h"
