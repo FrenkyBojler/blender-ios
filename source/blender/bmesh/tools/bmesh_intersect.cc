@@ -247,6 +247,26 @@ static void face_edges_split(BMesh *bm,
   UNUSED_VARS(use_island_connect, mem_arena_edgenet);
 #  endif
 
+  /* Remove duplicate edges before splitting. */
+  {
+    blender::Set<std::pair<int, int>> seen;
+    seen.reserve(edge_arr_len);
+
+    uint j = 0;
+    for (uint i = 0; i < edge_arr_len; i++) {
+      BMEdge *e = edge_arr[i];
+      int v1 = BM_elem_index_get(e->v1);
+      int v2 = BM_elem_index_get(e->v2);
+      if (v1 > v2)
+        std::swap(v1, v2);
+
+      if (seen.add({v1, v2})) {
+        edge_arr[j++] = e;
+      }
+    }
+    edge_arr_len = j;
+  }
+
   BM_face_split_edgenet(bm, f, edge_arr, int(edge_arr_len), nullptr);
 }
 #endif
