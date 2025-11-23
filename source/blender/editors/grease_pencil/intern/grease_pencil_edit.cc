@@ -5023,16 +5023,13 @@ static wmOperatorStatus grease_pencil_join_shapes_exec(bContext *C, wmOperator *
 
 static void GREASE_PENCIL_OT_join_shapes(wmOperatorType *ot)
 {
-  /* identifiers */
   ot->name = "Join Shapes";
   ot->idname = "GREASE_PENCIL_OT_join_shapes";
   ot->description = "Join selected strokes into one shape to create holes";
 
-  /* callbacks */
   ot->exec = grease_pencil_join_shapes_exec;
   ot->poll = editable_grease_pencil_poll;
 
-  /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
