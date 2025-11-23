@@ -85,8 +85,9 @@ void MESH_OT_circularize(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  RNA_def_float(
-      ot->srna, "influence", 100.0f, 0.0f, 100.0f, "Influence", "Force of the tool", 0.0f, 100.0f);
+  prop = RNA_def_float_factor(
+      ot->srna, "influence", 1.0f, 0.0f, 1.0f, "Influence", "Force of the tool", 0.0f, 1.0f);
+
   RNA_def_boolean(ot->srna,
                   "flatten",
                   true,

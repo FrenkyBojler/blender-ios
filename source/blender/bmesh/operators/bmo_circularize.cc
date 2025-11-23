@@ -284,7 +284,6 @@ static void calculate_target_locations(Vector<CircleVert> &verts,
 void bmo_circularize_exec(BMesh *bm, BMOperator *op)
 {
   const float influence = BMO_slot_float_get(op->slots_in, "influence");
-  const float influence_fac = influence / 100.0f;
 
   const bool regular = BMO_slot_bool_get(op->slots_in, "regular");
   const int fit_method = BMO_slot_int_get(op->slots_in, "fit_method");
@@ -334,7 +333,7 @@ void bmo_circularize_exec(BMesh *bm, BMOperator *op)
       add_v3_v3v3(final_pos, center_3d, offset_u);
       add_v3_v3(final_pos, offset_v);
 
-      interp_v3_v3v3(cv.v->co, cv.v->co, final_pos, influence_fac);
+      interp_v3_v3v3(cv.v->co, cv.v->co, final_pos, influence);
     }
   }
 }
