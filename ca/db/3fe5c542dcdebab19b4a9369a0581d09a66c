@@ -5,3 +5,4 @@ Referenced by commit 7ed85bfe17878d73700b213c840b487f1d250d40, Fix #148032: vert
 Referenced by pull request #149933, Fix #149890: Memfile undo can get corrupted and lead to crash.
 Referenced by issue #149890, Blender 5.0 undo system related crash
 Referenced by commit f9126f5f67e27ba15160dcc134c2a2d8bfeb59d3, Fix #149890: Memfile undo can get corrupted and lead to crash.
+Referenced by issue #150350, Selection of geometry and materials unusually slow in 5.0
