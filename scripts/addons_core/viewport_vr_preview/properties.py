@@ -55,9 +55,20 @@ def vr_landmark_active_base_pose_angle_update(self, context):
     session_settings.base_pose_angle = landmark_active.base_pose_angle
 
 
+def vr_landmark_active_base_scale_update(self, context):
+    session_settings = context.window_manager.xr_session_settings
+    landmark_active = VRLandmark.get_active_landmark(context)
+
+    session_settings.base_scale = landmark_active.base_scale
+
+
 def vr_landmark_type_update(self, context):
     landmark_selected = VRLandmark.get_selected_landmark(context)
     landmark_active = VRLandmark.get_active_landmark(context)
+
+    # Don't allow non-trivial base scale for scene camera landmarks.
+    if landmark_selected.type == 'SCENE_CAMERA':
+        landmark_selected.base_scale = 1.0
 
     # Only update session settings data if the changed landmark is actually
     # the active one.
@@ -95,6 +106,16 @@ def vr_landmark_base_pose_angle_update(self, context):
         vr_landmark_active_base_pose_angle_update(self, context)
 
 
+def vr_landmark_base_scale_update(self, context):
+    landmark_selected = VRLandmark.get_selected_landmark(context)
+    landmark_active = VRLandmark.get_active_landmark(context)
+
+    # Only update session settings data if the changed landmark is actually
+    # the active one.
+    if landmark_active == landmark_selected:
+        vr_landmark_active_base_scale_update(self, context)
+
+
 def vr_landmark_active_update(self, context):
     wm = context.window_manager
 
@@ -102,6 +123,7 @@ def vr_landmark_active_update(self, context):
     vr_landmark_active_base_pose_object_update(self, context)
     vr_landmark_active_base_pose_location_update(self, context)
     vr_landmark_active_base_pose_angle_update(self, context)
+    vr_landmark_active_base_scale_update(self, context)
 
     if wm.xr_session_state:
         wm.xr_session_state.reset_to_base_pose(context)
@@ -142,6 +164,13 @@ class VRLandmark(PropertyGroup):
         name="Base Pose Angle",
         subtype='ANGLE',
         update=vr_landmark_base_pose_angle_update,
+    )
+    base_scale: bpy.props.FloatProperty(
+        name="Base Scale",
+        description="Viewer reference scale associated with this landmark",
+        default=1.0,
+        min=0.000001,
+        update=vr_landmark_base_scale_update,
     )
 
     @staticmethod

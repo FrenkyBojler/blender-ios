@@ -102,24 +102,9 @@ class VIEW3D_PT_vr_session_view(Panel):
         col = layout.column(align=True)
         col.prop(session_settings, "fly_speed", text="Fly Speed")
 
-class VIEW3D_PT_vr_session_view_scale(Panel):
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI'
-    bl_category = "VR"
-    bl_label = "Scale"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    def draw(self, context):
-        layout = self.layout
-        session_settings = context.window_manager.xr_session_settings
+        col = layout.column(align=True)
         scene_units = context.scene.unit_settings
-
-        layout.use_property_split = True
-        layout.use_property_decorate = False  # No animation.
-
-        layout.prop(scene_units, "scale_length", text="Scene")
-        layout.prop(session_settings, "base_scale", text="VR")
-        layout.prop(session_settings, "reposition_view_on_scale_change", text="Reposition View")
+        col.prop(scene_units, "scale_length", text="Scene Scale")
 
 
 class VIEW3D_PT_vr_session_view_object_type_visibility(VIEW3D_PT_object_type_visibility):
@@ -194,11 +179,14 @@ class VIEW3D_PT_vr_landmarks(Panel):
 
             if landmark_selected.type == 'OBJECT':
                 layout.prop(landmark_selected, "base_pose_object")
+                layout.prop(landmark_selected, "base_scale", text="Scale")
             elif landmark_selected.type == 'CUSTOM':
                 layout.prop(landmark_selected,
                             "base_pose_location", text="Location")
                 layout.prop(landmark_selected,
                             "base_pose_angle", text="Angle")
+                layout.prop(landmark_selected,
+                            "base_scale", text="Scale")
 
 
 # Actions.
@@ -273,7 +261,6 @@ class VIEW3D_PT_vr_info(bpy.types.Panel):
 classes = (
     VIEW3D_PT_vr_session,
     VIEW3D_PT_vr_session_view,
-    VIEW3D_PT_vr_session_view_scale,
     VIEW3D_PT_vr_session_view_object_type_visibility,
     VIEW3D_PT_vr_landmarks,
     VIEW3D_PT_vr_actionmaps,

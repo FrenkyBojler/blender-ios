@@ -1169,9 +1169,9 @@ static wmOperatorStatus wm_xr_navigation_fly_modal(bContext *C,
 
     WM_xr_session_state_vignette_activate(xr);
 
-    /* Adjust speed for navigation scale. */
+    /* Adjust speed for base and navigation scale. */
     WM_xr_session_state_nav_scale_get(xr, &nav_scale);
-    speed *= nav_scale;
+    speed *= xr->session_settings.base_scale * nav_scale;
 
     if (!speed_frame_based) {
       speed *= delta_time;
