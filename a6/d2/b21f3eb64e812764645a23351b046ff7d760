@@ -1,1 +1,2 @@
 Referenced by issue #150378, Baking textures from selected to active with a cage doesnt work in 5.0
+Referenced by pull request #150499, Fix #150378: Baking with cage object fails
