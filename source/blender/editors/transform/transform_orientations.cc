@@ -49,6 +49,8 @@
 
 #include "SEQ_select.hh"
 
+#include "WM_api.hh"
+
 #include "SEQ_transform.hh"
 #include "transform.hh"
 #include "transform_orientations.hh"
@@ -530,6 +532,9 @@ TransformOrientation *addMatrixSpace(bContext *C,
 
   /* Copy matrix into transform space. */
   copy_m3_m3(ts->mat, mat);
+
+  /* This is necesary to ensure draw objects are updated (eg state.scene used on overlay). */
+  WM_event_add_notifier(C, NC_SCENE | ND_TRANSFORM, scene);
 
   return ts;
 }
