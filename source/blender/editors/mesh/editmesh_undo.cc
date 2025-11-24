@@ -169,10 +169,7 @@ struct UndoMesh {
 #ifdef USE_ARRAY_STORE
   /* Null arrays are considered empty. */
   struct { /* most data is stored as 'custom' data */
-    BArrayCustomData *vdata;
-    BArrayCustomData *edata;
-    BArrayCustomData *ldata;
-    BArrayCustomData *pdata;
+    BArrayCustomData *vdata, *edata, *ldata, *pdata;
     BArrayState *face_offset_indices;
     BArrayState **keyblocks;
     BArrayState *mselect;
