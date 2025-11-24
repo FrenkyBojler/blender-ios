@@ -416,10 +416,7 @@ BLI_INLINE GlyphBLF *blf_glyph_from_utf8_and_step(FontBLF *font,
 typedef struct ShapingData {
   /* For the entire string. */
   size_t char_count = 0;
-  std::u32string logical_str = {};
   std::u32string visual_str = {};
-  blender::Vector<int> positions_L2V = {};
-  blender::Vector<int> positions_V2L = {};
   int width = 0;
   int height = 0;
   hb_unicode_funcs_t *hb_ufuncs = nullptr;
@@ -450,13 +447,9 @@ ShapingData::ShapingData(const char *str, size_t len)
   this->hb_buf = hb_buffer_create();
   /* Include space for null terminator. */
   this->char_count = BLI_strnlen_utf8(str, len) + 1;
-  this->logical_str.resize(this->char_count, 0);
   this->visual_str.resize(this->char_count, 0);
-  this->positions_L2V.resize(this->char_count, 0);
-  this->positions_V2L.resize(this->char_count, 0);
   /* Convert input string into array of 32-bit code points. */
-  BLI_str_utf8_as_utf32(this->logical_str.data(), str, this->char_count);
-  this->visual_str = this->logical_str;
+  BLI_str_utf8_as_utf32(this->visual_str.data(), str, this->char_count);
 }
 
 ShapingData::~ShapingData()
