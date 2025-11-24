@@ -2507,14 +2507,14 @@ void NODE_OT_detach(wmOperatorType *ot)
  * \{ */
 
 struct NodeChain {
+  int selected_count = 0;
+  int external_input_count = 0;
+  rctf bounds{};
+  Vector<bNode *> nodes;
   bNode *start_node = nullptr;
   bNode *end_node = nullptr;
   Map<eNodeSocketDatatype, bNodeSocket *> start_sockets;
   Map<eNodeSocketDatatype, bNodeSocket *> end_sockets;
-  rctf bounds{};
-  bool main_in_from_selected = false;
-  int selected_count = 0;
-  Vector<bNode *> nodes;
 
   bool is_valid() const
   {
@@ -2523,11 +2523,10 @@ struct NodeChain {
 
   bool is_reroute() const
   {
-    return end_node->is_reroute() && selected_count == 1;
+    return end_node->is_reroute() && selected_count == 1;  // 一个转接点带着节点框呢?
   }
 };
 
-// eNodeSocketDatatype
 /* Store the first visible socket found for each unique socket type. */
 static Map<eNodeSocketDatatype, bNodeSocket *> get_end_sockets_map(bNode *end_node)
 {
@@ -2553,7 +2552,6 @@ static Map<eNodeSocketDatatype, bNodeSocket *> get_start_sockets_map(
     type_support.add(key, true);
   }
 
-  // ! 遍历节点时判断输出是否连在已选中里? 就不用判断是否有效了?
   Map<eNodeSocketDatatype, bNodeSocket *> start_sockets_map;
   for (bNode *node : nodes) {
     bNodeSocket *default_socket = get_default_link_socket(ntree, *node, SOCK_IN);
@@ -2596,7 +2594,6 @@ static Map<eNodeSocketDatatype, bNodeSocket *> get_start_sockets_map(
         if (bke::node_link_is_hidden(*link)) {
           continue;
         }
-
         if (nodes.contains(link->fromnode)) {
           linked_from_selection = true;
           break;
@@ -2624,7 +2621,6 @@ static NodeChain get_chain_for_insertion(bNodeTree &ntree)
   NodeChain chain{};
   Vector<bNode *> end_candidates;
 
-  // chain.nodes = transform::get_transformed_nodes(ntree, false).extract_vector();
   chain.nodes = transform::get_transformed_nodes(ntree, false).extract_vector();
   if (chain.nodes.is_empty()) {
     return {};
@@ -2662,7 +2658,6 @@ static NodeChain get_chain_for_insertion(bNodeTree &ntree)
   /* Handle no link between zone input and zone output */
   if (end_candidates.size() == 2) {
     // 不确定是否要始终把区域输入和输出之间当做有连线.
-    // 目前无法处理同时选中了无连接区域输入输出,但只有一个在候选里
     for (bNode *end_node : end_candidates) {
       if (!bke::all_zone_output_node_types().contains(end_node->type_legacy)) {
         continue;
@@ -2674,6 +2669,7 @@ static NodeChain get_chain_for_insertion(bNodeTree &ntree)
         if (paired_input && chain.nodes.contains(paired_input)) {
           chain.end_node = end_node;
           chain.end_sockets = get_end_sockets_map(end_node);
+          // 目前无法处理同时选中了无连接区域输入输出,但起点不是区域输入
           chain.start_sockets = get_start_sockets_map(ntree, {paired_input}, chain.end_sockets);
           return chain;
         }
@@ -2685,7 +2681,6 @@ static NodeChain get_chain_for_insertion(bNodeTree &ntree)
     return {};
   }
 
-  /* 这里只是预判定能不能当起点,至于起点接口选哪个，要在连线上判断 */
   bNode *end_node = end_candidates[0];
   chain.end_node = end_node;
   chain.end_sockets = get_end_sockets_map(end_node);
@@ -2722,7 +2717,7 @@ static bool can_insert_link(const bNodeTree &ntree,
                             bNodeSocket *start_sock,
                             const bNodeLink *hover_link)
 {
-  bool has_constraint = false;
+  bool find_target = false;
 
   /* --- 第一轮：优先检查同类型接口 --- */
   bool is_first_visible = true;
@@ -2730,7 +2725,6 @@ static bool can_insert_link(const bNodeTree &ntree,
     if (!sock_in->is_visible() || sock_in->type != start_sock->type) {
       continue;
     }
-
     if (is_first_visible && !sock_in->is_directly_linked()) {
       return true;
     }
@@ -2740,7 +2734,7 @@ static bool can_insert_link(const bNodeTree &ntree,
         continue;
       }
       /* 发现同类型接口有外部连线，标记限制 */
-      has_constraint = true;
+      find_target = true;
       /* 匹配成功，直接允许 */
       if (hover_link->fromsock == in_link->fromsock) {
         return true;
@@ -2749,7 +2743,7 @@ static bool can_insert_link(const bNodeTree &ntree,
   }
 
   /* 如果同类型接口存在限制，结果已定（未匹配上则拒绝），不再检查兼容类型 */
-  if (has_constraint) {
+  if (find_target) {
     return false;
   }
 
@@ -2770,7 +2764,7 @@ static bool can_insert_link(const bNodeTree &ntree,
       if (bke::node_link_is_hidden(*in_link) || chain.nodes.contains(in_link->fromnode)) {
         continue;
       }
-      has_constraint = true;
+      find_target = true;
       if (hover_link->fromsock == in_link->fromsock) {
         return true;
       }
@@ -2778,7 +2772,7 @@ static bool can_insert_link(const bNodeTree &ntree,
   }
 
   /* 有限制但未匹配->False; 全无限制->True */
-  return !has_constraint;
+  return !find_target;
 }
 
 static bNodeSocket *find_matching_socket(const bNodeTree &ntree,
@@ -2793,7 +2787,7 @@ static bNodeSocket *find_matching_socket(const bNodeTree &ntree,
   const Map<eNodeSocketDatatype, bNodeSocket *> &candidate_map = (in_out == SOCK_IN) ?
                                                                      chain.start_sockets :
                                                                      chain.end_sockets;
-  // 1. 快速路径: 尝试直接用类型作为 key 进行查找. 这是最高效的方式.
+
   const eNodeSocketDatatype need_type = (in_out == SOCK_IN) ?
                                             eNodeSocketDatatype(link.fromsock->type) :
                                             eNodeSocketDatatype(link.tosock->type);
@@ -2801,11 +2795,12 @@ static bNodeSocket *find_matching_socket(const bNodeTree &ntree,
     return socket;
   }
 
-  // 2. 慢速路径: 精确匹配失败, 开始进行兼容性搜索.
   if (!ntree.typeinfo->validate_link) {
     return nullptr;
   }
-
+  // ! candidate_map 是无序的?
+  // 如果没相同类型,找兼容类型,这些兼容的是一个节点里的话,应该取靠前的接口啊 !
+  // 如果兼容接口来自不同的节点,应该返回空吧
   for (bNodeSocket *socket : candidate_map.values()) {
     eNodeSocketDatatype sock_type = eNodeSocketDatatype(socket->type);
     eNodeSocketDatatype need_sock_type = eNodeSocketDatatype(need_type);
@@ -2819,6 +2814,59 @@ static bNodeSocket *find_matching_socket(const bNodeTree &ntree,
   }
 
   return nullptr;
+}
+
+static bool is_downstream_linked_to_chain(const NodeChain &chain, const bNodeLink *link)
+{
+  if (link == nullptr || link->tonode == nullptr) {
+    return false;
+  }
+  const bool no_external_input = [&]() {
+    for (const bNode *node : chain.nodes) {
+      for (const bNodeSocket *sock_in : node->input_sockets()) {
+        for (const bNodeLink *in_link : sock_in->directly_linked_links()) {
+          if (!chain.nodes.contains(in_link->fromnode)) {
+            return false;
+          }
+        }
+      }
+    }
+    return true;
+  }();
+  if (no_external_input) {
+    return false;
+  }
+
+  if (chain.nodes.contains(link->tonode)) {
+    return true;
+  }
+
+  Vector<bNode *> to_visit;
+  to_visit.append(link->tonode);
+  VectorSet<bNode *> visited;
+  visited.add(link->tonode);
+
+  while (!to_visit.is_empty()) {
+    for (bNodeSocket *sock_out : to_visit.pop_last()->output_sockets()) {
+      if (!sock_out->is_visible()) {
+        continue;
+      }
+      for (const bNodeLink *out_link : sock_out->directly_linked_links()) {
+        if (bke::node_link_is_hidden(*out_link)) {
+          continue;
+        }
+        bNode *next_node = out_link->tonode;
+        if (chain.nodes.contains(next_node)) {
+          return true;
+        }
+        if (visited.add(next_node)) {
+          to_visit.append(next_node);
+        }
+      }
+    }
+  }
+
+  return false;
 }
 
 void node_insert_on_link_flags_set(SpaceNode &snode,
@@ -2836,11 +2884,7 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
   if (!chain.is_valid()) {
     return;
   }
-  // todo 应该是和 key兼容的接口啊, 还要考虑转接点
-  // Vector<short> type_support;
-  // for (const short key : chain.end_sockets.keys()) {
-  //   type_support.append(key);
-  // }
+
   float2 clamped_cursor;
   UI_view2d_region_to_view(
       &region.v2d, mouse_xy.x, mouse_xy.y, &clamped_cursor.x, &clamped_cursor.y);
@@ -2852,9 +2896,6 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
     if (node_link_is_hidden_or_dimmed(region.v2d, *link)) {
       continue;
     }
-    // if (!type_support.contains(link->fromsock->type)) {
-    //   continue;
-    // }
     if (chain.nodes.contains(link->fromnode) || chain.nodes.contains(link->tonode)) {
       /* Don't insert on a link that is connected to transformed nodes already. */
       continue;
@@ -2868,18 +2909,16 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
   }
 
   if (selink) {
+    selink->flag |= NODE_LINK_INSERT_TARGET;
     bNodeSocket *start_sock = find_matching_socket(node_tree, chain, *selink, SOCK_IN);
     bNodeSocket *end_sock = find_matching_socket(node_tree, chain, *selink, SOCK_OUT);
-    if ((!start_sock || !end_sock)) {
+    if (!start_sock || !end_sock) {
+      selink->flag |= NODE_LINK_INSERT_TARGET_INVALID;
       return;
-    };
-
+    }
     bool can_insert = can_insert_link(
         node_tree, chain, start_sock->owner_node(), start_sock, selink);
-
-    selink->flag |= NODE_LINK_INSERT_TARGET;
-    if (!attach_enabled || !can_insert) {
-      // todo 还要多检查一次,防循环线
+    if (!attach_enabled || !can_insert || is_downstream_linked_to_chain(chain, selink)) {
       selink->flag |= NODE_LINK_INSERT_TARGET_INVALID;
     }
   }
@@ -2957,7 +2996,13 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
   const bool best_input_is_linked = best_input && best_input->is_directly_linked();
   bool need_new = true;
   for (bNodeSocket *sock_in : start_node->input_sockets()) {
-    if (!sock_in->is_visible() || sock_in->type != best_input->type) {
+    if (!ntree.typeinfo->validate_link) {
+      break;
+    }
+    if (!sock_in->is_visible() ||
+        !ntree.typeinfo->validate_link(eNodeSocketDatatype(sock_in->type),
+                                       eNodeSocketDatatype(best_input->type)))
+    {
       continue;
     }
     for (const bNodeLink *in_link : sock_in->directly_linked_links()) {
