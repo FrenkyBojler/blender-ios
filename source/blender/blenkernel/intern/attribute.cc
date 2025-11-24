@@ -163,25 +163,6 @@ static std::array<DomainInfo, ATTR_DOMAIN_NUM> get_domains(BMesh *bm)
   return info;
 }
 
-CustomDataLayer *attribute_search_for_write(
-    Mesh &mesh, BMesh &bm, StringRef name, eCustomDataMask type_mask, AttrDomainMask domain_mask);
-
-static bool bke_attribute_rename_if_exists(AttributeOwner &owner,
-                                           Mesh &mesh,
-                                           BMesh &bm,
-                                           const StringRef old_name,
-                                           const StringRef new_name,
-                                           ReportList *reports)
-{
-  BLI_assert(mesh.runtime->edit_mesh->bm == &bm);
-  CustomDataLayer *layer = attribute_search_for_write(
-      mesh, bm, old_name, CD_MASK_PROP_ALL, ATTR_DOMAIN_MASK_ALL);
-  if (layer == nullptr) {
-    return false;
-  }
-  return BKE_attribute_rename(owner, old_name, new_name, reports);
-}
-
 static bool bke_attribute_rename_if_exists(AttributeOwner &owner,
                                            const StringRef old_name,
                                            const StringRef new_name,
@@ -190,6 +171,20 @@ static bool bke_attribute_rename_if_exists(AttributeOwner &owner,
   using namespace blender;
   const bke::AttributeStorage &storage = *owner.get_storage();
   if (!storage.lookup(old_name)) {
+    return false;
+  }
+  return BKE_attribute_rename(owner, old_name, new_name, reports);
+}
+
+static bool bke_attribute_rename_if_exists(AttributeOwner &owner,
+                                           BMesh &bm,
+                                           const StringRef old_name,
+                                           const StringRef new_name,
+                                           ReportList *reports)
+{
+  BLI_assert(mesh.runtime->edit_mesh->bm == &bm);
+  BMDataLayerLookup attr = BM_data_layer_lookup(bm, old_name);
+  if (!attr) {
     return false;
   }
   return BKE_attribute_rename(owner, old_name, new_name, reports);
@@ -270,32 +265,25 @@ bool BKE_attribute_rename(AttributeOwner &owner,
         }
       }
 
-      CustomDataLayer *layer = attribute_search_for_write(
-          *mesh, *em->bm, old_name, CD_MASK_PROP_ALL, ATTR_DOMAIN_MASK_ALL);
-      if (layer == nullptr) {
+      BMDataLayerLookup attr = BM_data_layer_lookup(*em->bm, old_name);
+      if (!attr) {
         BKE_report(reports, RPT_ERROR, "Attribute is not part of this geometry");
         return false;
       }
 
-      if (!mesh_attribute_valid(*mesh,
-                                new_name,
-                                BKE_attribute_domain(*mesh, *em->bm, layer),
-                                *bke::custom_data_type_to_attr_type(eCustomDataType(layer->type)),
-                                reports))
-      {
+      if (!mesh_attribute_valid(*mesh, new_name, attr.domain, attr.type, reports)) {
         return false;
       }
 
       std::string result_name = BKE_attribute_calc_unique_name(owner, new_name);
 
-      if (layer->type == CD_PROP_FLOAT2) {
+      if (attr.type == bke::AttrType::Float2) {
         /* Rename UV sub-attributes. */
         char buffer_src[MAX_CUSTOMDATA_LAYER_NAME];
         char buffer_dst[MAX_CUSTOMDATA_LAYER_NAME];
         bke_attribute_rename_if_exists(owner,
-                                       *mesh,
                                        *em->bm,
-                                       BKE_uv_map_pin_name_get(layer->name, buffer_src),
+                                       BKE_uv_map_pin_name_get(old_name, buffer_src),
                                        BKE_uv_map_pin_name_get(result_name, buffer_dst),
                                        reports);
       }
@@ -307,7 +295,7 @@ bool BKE_attribute_rename(AttributeOwner &owner,
         BKE_id_attributes_default_color_set(&mesh->id, result_name);
       }
 
-      StringRef(result_name).copy_utf8_truncated(layer->name);
+      StringRef(result_name).copy_utf8_truncated(const_cast<CustomDataLayer *>(attr.layer)->name);
 
       return true;
     }
@@ -364,7 +352,7 @@ std::string BKE_attribute_calc_unique_name(const AttributeOwner &owner, const St
   if (owner.type() == AttributeOwnerType::Mesh) {
     const Mesh &mesh = *owner.get_mesh();
     if (mesh.runtime->edit_mesh) {
-      Set<StringRef, 16> names;
+      Set<StringRef, 8> names;
       const auto add_names = [&](const CustomData &data) {
         for (const CustomDataLayer &layer : Span(data.layers, data.totlayer)) {
           if (CD_TYPE_AS_MASK(eCustomDataType(layer.type)) & CD_MASK_PROP_ALL) {
@@ -572,53 +560,6 @@ bool BKE_attribute_remove(AttributeOwner &owner, const StringRef name, ReportLis
   }
 
   return attributes->remove(name);
-}
-
-static const CustomDataLayer *attribute_search(const Mesh &mesh,
-                                               const BMesh &bm,
-                                               const StringRef name,
-                                               const eCustomDataMask type_mask,
-                                               const AttrDomainMask domain_mask)
-{
-  BLI_assert(mesh.runtime->edit_mesh->bm == &bm);
-  UNUSED_VARS_NDEBUG(mesh);
-  if (name.is_empty()) {
-    return nullptr;
-  }
-  const std::array<DomainInfo, ATTR_DOMAIN_NUM> info = get_domains(&const_cast<BMesh &>(bm));
-
-  for (AttrDomain domain = AttrDomain::Point; int(domain) < ATTR_DOMAIN_NUM;
-       domain = AttrDomain(int(domain) + 1))
-  {
-    if (!(domain_mask & ATTR_DOMAIN_AS_MASK(domain))) {
-      continue;
-    }
-
-    CustomData *customdata = info[int(domain)].customdata;
-    if (customdata == nullptr) {
-      continue;
-    }
-
-    for (int i = 0; i < customdata->totlayer; i++) {
-      CustomDataLayer *layer = &customdata->layers[i];
-      if ((CD_TYPE_AS_MASK(eCustomDataType(layer->type)) & type_mask) && layer->name == name) {
-        return layer;
-      }
-    }
-  }
-
-  return nullptr;
-}
-
-CustomDataLayer *attribute_search_for_write(Mesh &mesh,
-                                            BMesh &bm,
-                                            const StringRef name,
-                                            const eCustomDataMask type_mask,
-                                            const AttrDomainMask domain_mask)
-{
-  BLI_assert(mesh.runtime->edit_mesh->bm == &bm);
-  /* Reuse the implementation of the const version. */
-  return const_cast<CustomDataLayer *>(attribute_search(mesh, bm, name, type_mask, domain_mask));
 }
 
 int BKE_attributes_length(const AttributeOwner &owner,
