@@ -7,9 +7,7 @@
  */
 
 #include <algorithm>
-#include <variant>
 
-#include "BLI_multi_value_map.hh"
 #include "MEM_guardedalloc.h"
 
 #include "CLG_log.h"
@@ -120,10 +118,16 @@ static size_t array_chunk_size_calc(const size_t stride)
   return std::max(ARRAY_CHUNK_NUM_MIN, ARRAY_CHUNK_SIZE_IN_BYTES / power_of_2_max_i(stride));
 }
 
-using DataLayerStates = std::variant<blender::Array<BArrayState *>,
-                                     blender::Array<blender::ImplicitSharingInfoAndData>>;
-
-using StatesByType = blender::Map<eCustomDataType, DataLayerStates>;
+struct BArrayCustomData {
+  /**
+   * Non-trivial data is just stored directly since allocated arrays cannot be easily deduplicated
+   * with the array-store system.
+   */
+  blender::Map<eCustomDataType, blender::Array<blender::ImplicitSharingInfoAndData>>
+      non_trivial_arrays;
+  /** Array-store states for custom data layers of each type. */
+  blender::Map<eCustomDataType, blender::Array<BArrayState *>> trivial_arrays;
+};
 
 #  ifdef USE_ARRAY_STORE_RLE
 static bool um_customdata_layer_use_rle(const eCustomDataType type)
@@ -165,10 +169,10 @@ struct UndoMesh {
 #ifdef USE_ARRAY_STORE
   /* Null arrays are considered empty. */
   struct { /* most data is stored as 'custom' data */
-    StatesByType *vdata;
-    StatesByType *edata;
-    StatesByType *ldata;
-    StatesByType *pdata;
+    BArrayCustomData *vdata;
+    BArrayCustomData *edata;
+    BArrayCustomData *ldata;
+    BArrayCustomData *pdata;
     BArrayState *face_offset_indices;
     BArrayState **keyblocks;
     BArrayState *mselect;
@@ -215,13 +219,13 @@ static struct {
 
 } um_arraystore = {{{nullptr}}};
 
-static StatesByType *um_arraystore_cd_create(CustomData *cdata,
-                                             const size_t data_len,
-                                             const int bs_index,
-                                             const StatesByType *bcd_reference)
+static BArrayCustomData *um_arraystore_cd_create(CustomData *cdata,
+                                                 const size_t data_len,
+                                                 const int bs_index,
+                                                 const BArrayCustomData *bcd_reference)
 {
   using namespace blender;
-  StatesByType states_by_type;
+  BArrayCustomData bcd;
 
   MutableSpan all_layers(cdata->layers, cdata->totlayer);
 
@@ -255,7 +259,7 @@ static StatesByType *um_arraystore_cd_create(CustomData *cdata,
         layer.sharing_info = nullptr;
         layer.data = nullptr;
       }
-      states_by_type.add(type, std::move(states));
+      bcd.non_trivial_arrays.add_new(type, std::move(states));
       continue;
     }
 
@@ -265,14 +269,8 @@ static StatesByType *um_arraystore_cd_create(CustomData *cdata,
     BArrayStore *bs = BLI_array_store_at_size_ensure(
         &um_arraystore.bs_stride[bs_index], stride, array_chunk_size_calc(stride));
 
-    const auto *bcd_reference_current = [&]() -> const Array<BArrayState *> * {
-      if (bcd_reference) {
-        if (const auto *states_reference = bcd_reference->lookup_ptr(type)) {
-          return &std::get<Array<BArrayState *>>(*states_reference);
-        }
-      }
-      return nullptr;
-    }();
+    const Array<BArrayState *> *bcd_reference_current =
+        bcd_reference ? bcd_reference->trivial_arrays.lookup_ptr(type) : nullptr;
 
     for (const int i : layers_with_type.index_range()) {
       CustomDataLayer &layer = layers_with_type[i];
@@ -319,14 +317,14 @@ static StatesByType *um_arraystore_cd_create(CustomData *cdata,
       layer.data = nullptr;
     }
 
-    states_by_type.add(type, std::move(states));
+    bcd.trivial_arrays.add_new(type, std::move(states));
   }
 
-  if (states_by_type.is_empty()) {
+  if (bcd.trivial_arrays.is_empty() && bcd.non_trivial_arrays.is_empty()) {
     return nullptr;
   }
 
-  return MEM_new<StatesByType>(__func__, std::move(states_by_type));
+  return MEM_new<BArrayCustomData>(__func__, std::move(bcd));
 }
 
 static void um_arraystore_cd_clear(CustomData *cdata)
@@ -345,28 +343,30 @@ static void um_arraystore_cd_clear(CustomData *cdata)
  * \note There is no room for data going out of sync here.
  * The layers and the states are stored together so this can be kept working.
  */
-static void um_arraystore_cd_expand(const StatesByType *bcd,
+static void um_arraystore_cd_expand(const BArrayCustomData *bcd,
                                     CustomData *cdata,
                                     const size_t data_len)
 {
   using namespace blender;
   MutableSpan all_layers(cdata->layers, cdata->totlayer);
-  for (const auto &item : bcd->items()) {
+  for (const auto &item : bcd->non_trivial_arrays.items()) {
     const eCustomDataType type = item.key;
+    const Span<ImplicitSharingInfoAndData> states = item.value;
     MutableSpan layers_with_type = all_layers.slice(CustomData_get_layer_index(cdata, type),
                                                     CustomData_number_of_layers(cdata, type));
-
-    if (const auto *states = std::get_if<Array<ImplicitSharingInfoAndData>>(&item.value)) {
-      for (const int i : layers_with_type.index_range()) {
-        CustomDataLayer &layer = layers_with_type[i];
-        layer.data = const_cast<void *>((*states)[i].data);
-        layer.sharing_info = (*states)[i].sharing_info;
-        layer.sharing_info->add_user();
-      }
-      continue;
+    for (const int i : layers_with_type.index_range()) {
+      CustomDataLayer &layer = layers_with_type[i];
+      layer.data = const_cast<void *>(states[i].data);
+      layer.sharing_info = states[i].sharing_info;
+      layer.sharing_info->add_user();
     }
+  }
 
-    const auto &states = std::get<Array<BArrayState *>>(item.value);
+  for (const auto &item : bcd->trivial_arrays.items()) {
+    const eCustomDataType type = item.key;
+    const Span<BArrayState *> states = item.value;
+    MutableSpan layers_with_type = all_layers.slice(CustomData_get_layer_index(cdata, type),
+                                                    CustomData_number_of_layers(cdata, type));
     const int stride = CustomData_sizeof(type);
     for (const int i : layers_with_type.index_range()) {
       CustomDataLayer &layer = layers_with_type[i];
@@ -406,21 +406,19 @@ static void um_arraystore_cd_expand(const StatesByType *bcd,
   }
 }
 
-static void um_arraystore_cd_free(StatesByType *bcd, const int bs_index)
+static void um_arraystore_cd_free(BArrayCustomData *bcd, const int bs_index)
 {
   using namespace blender;
-  for (const auto &item : bcd->items()) {
-    const eCustomDataType type = item.key;
-    if (auto *states = std::get_if<Array<ImplicitSharingInfoAndData>>(&item.value)) {
-      for (ImplicitSharingInfoAndData &state : *states) {
-        state.sharing_info->remove_user_and_delete_if_last();
-      }
-      continue;
+  for (Array<ImplicitSharingInfoAndData> &states : bcd->non_trivial_arrays.values()) {
+    for (ImplicitSharingInfoAndData &state : states) {
+      state.sharing_info->remove_user_and_delete_if_last();
     }
-    const auto &states = std::get<Array<BArrayState *>>(item.value);
-    const int stride = CustomData_sizeof(type);
+  }
+
+  for (const auto &item : bcd->trivial_arrays.items()) {
+    const int stride = CustomData_sizeof(item.key);
     BArrayStore *bs = BLI_array_store_at_size_get(&um_arraystore.bs_stride[bs_index], stride);
-    for (BArrayState *state : states) {
+    for (BArrayState *state : item.value) {
       if (state) {
         BLI_array_store_state_remove(bs, state);
       }
