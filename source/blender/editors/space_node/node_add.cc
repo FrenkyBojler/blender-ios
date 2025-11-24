@@ -1823,7 +1823,7 @@ static wmOperatorStatus duplicate_compositing_modifier_node_group_exec(bContext 
     return OPERATOR_CANCELLED;
   }
 
-  SequencerCompositorModifierData *nmd = (SequencerCompositorModifierData *)smd;
+  SequencerCompositorModifierData *nmd = reinterpret_cast<SequencerCompositorModifierData *>(smd);
   return duplicate_and_assign_node_tree(C, nmd->node_group);
 }
 
