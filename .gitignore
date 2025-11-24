@@ -87,4 +87,3 @@ compile_commands.json
 blendcache_*
 *.blend1
 *.blend2
-build_files/cmake/platform/platform_apple_xcode.cmake
