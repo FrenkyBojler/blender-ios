@@ -550,7 +550,10 @@ bool ShapingData::process(FontBLF *font, GlyphCacheBLF *gc, ResultBLF *r_info)
   hb_feature_t userfeatures[2];
   std::vector<hb_feature_t> features;
 
+  /* Enable for all fonts when not monospacing. */
   blf_ot_feature(features, HB_TAG('k', 'e', 'r', 'n'), U.text_render & USER_TEXT_KERNING);
+
+  /* Should be per-font. */
   blf_ot_feature(features, HB_TAG('z', 'e', 'r', 'o'), U.text_render & USER_TEXT_SLASHED_ZERO);
   blf_ot_feature(
       features, HB_TAG('c', 'a', 'l', 't'), U.text_render & USER_TEXT_CONTEXTUAL_ALTERNATES);
@@ -921,7 +924,6 @@ static void blf_font_draw_buffer_ex(FontBLF *font,
   FontBufInfoBLF *buf_info = &font->buf_info;
 
   /* Another buffer specific call for color conversion. */
-
   while ((i < str_len) && str[i]) {
     g = blf_glyph_from_utf8_and_step(font, gc, g, str, str_len, &i, &pen_x);
 
@@ -1130,8 +1132,8 @@ void blf_font_width_and_height(FontBLF *font,
   else {
     blf_font_boundbox(font, str, str_len, &box, r_info);
   }
-  *r_width = (float(BLI_rcti_size_x(&box)) * xa);
-  *r_height = (float(BLI_rcti_size_y(&box)) * ya);
+  *r_width = (float(BLI_rcti_size_x(&box) + 1) * xa);
+  *r_height = (float(BLI_rcti_size_y(&box) + 1) * ya);
 }
 
 float blf_font_width(FontBLF *font, const char *str, const size_t str_len, ResultBLF *r_info)
@@ -1152,7 +1154,7 @@ float blf_font_width(FontBLF *font, const char *str, const size_t str_len, Resul
   else {
     blf_font_boundbox(font, str, str_len, &box, r_info);
   }
-  return float(BLI_rcti_size_x(&box)) * xa;
+  return float(BLI_rcti_size_x(&box) + 1) * xa;
 }
 
 float blf_font_height(FontBLF *font, const char *str, const size_t str_len, ResultBLF *r_info)
@@ -1173,7 +1175,7 @@ float blf_font_height(FontBLF *font, const char *str, const size_t str_len, Resu
   else {
     blf_font_boundbox(font, str, str_len, &box, r_info);
   }
-  return float(BLI_rcti_size_y(&box)) * ya;
+  return float(BLI_rcti_size_y(&box) + 1) * ya;
 }
 
 float blf_font_fixed_width(FontBLF *font)
