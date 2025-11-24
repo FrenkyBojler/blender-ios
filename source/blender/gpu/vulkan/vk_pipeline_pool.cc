@@ -248,8 +248,9 @@ VkPipeline VKPipelineMap<VKGraphicsInfo>::create(const VKGraphicsInfo &graphics_
 VkPipeline VKPipelinePool::get_or_create_vertex_input_lib(
     const VKGraphicsInfo::VertexIn &vertex_input_info)
 {
+  bool created = false;
   return vertex_input_libs_.get_or_create(
-      vertex_input_info, vk_pipeline_cache_static_, VK_NULL_HANDLE, "VertexInLib");
+      vertex_input_info, vk_pipeline_cache_static_, VK_NULL_HANDLE, "VertexInLib", created);
 }
 
 template<>
@@ -286,8 +287,9 @@ VkPipeline VKPipelineMap<VKGraphicsInfo::VertexIn>::create(
 
 VkPipeline VKPipelinePool::get_or_create_shaders_lib(const VKGraphicsInfo::Shaders &shaders_info)
 {
+  bool created = false;
   return shaders_libs_.get_or_create(
-      shaders_info, vk_pipeline_cache_non_static_, VK_NULL_HANDLE, "ShadersLib");
+      shaders_info, vk_pipeline_cache_non_static_, VK_NULL_HANDLE, "ShadersLib", created);
 }
 
 template<>
@@ -325,8 +327,9 @@ VkPipeline VKPipelineMap<VKGraphicsInfo::Shaders>::create(
 VkPipeline VKPipelinePool::get_or_create_fragment_output_lib(
     const VKGraphicsInfo::FragmentOut &fragment_output_info)
 {
+  bool created = false;
   return fragment_output_libs_.get_or_create(
-      fragment_output_info, vk_pipeline_cache_static_, VK_NULL_HANDLE, "FragmentOutLib");
+      fragment_output_info, vk_pipeline_cache_static_, VK_NULL_HANDLE, "FragmentOutLib", created);
 }
 
 template<>
