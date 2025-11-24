@@ -298,6 +298,30 @@ static const EnumPropertyItem *geometry_attribute_domain_itemf(bContext *C,
   return rna_enum_attribute_domain_itemf(owner, false, r_free);
 }
 
+static void set_active_default_status_on_add(Mesh &mesh,
+                                             const bke::AttrDomain domain,
+                                             const bke::AttrType type,
+                                             const StringRefNull name)
+{
+  if (bke::mesh::is_color_attribute({domain, type})) {
+    if (!BKE_id_attributes_color_find(&mesh.id, mesh.active_color_attribute)) {
+      BKE_id_attributes_active_color_set(&mesh.id, name);
+    }
+    if (!BKE_id_attributes_color_find(&mesh.id, mesh.default_color_attribute)) {
+      BKE_id_attributes_default_color_set(&mesh.id, name);
+    }
+  }
+  else if (bke::mesh::is_uv_map({domain, type})) {
+    const VectorSet<StringRefNull> uv_maps = mesh.uv_map_names();
+    if (!uv_maps.contains(mesh.active_uv_map_name())) {
+      mesh.uv_maps_active_set(name);
+    }
+    if (!uv_maps.contains(mesh.default_uv_map_name())) {
+      mesh.uv_maps_default_set(name);
+    }
+  }
+}
+
 static wmOperatorStatus geometry_attribute_add_exec(bContext *C, wmOperator *op)
 {
   Object *ob = object::context_object(C);
@@ -305,19 +329,23 @@ static wmOperatorStatus geometry_attribute_add_exec(bContext *C, wmOperator *op)
 
   char name[MAX_NAME];
   RNA_string_get(op->ptr, "name", name);
-  const eCustomDataType type = eCustomDataType(RNA_enum_get(op->ptr, "data_type"));
+  const eCustomDataType cd_type = eCustomDataType(RNA_enum_get(op->ptr, "data_type"));
+  const bke::AttrType type = *bke::custom_data_type_to_attr_type(cd_type);
   const bke::AttrDomain domain = bke::AttrDomain(RNA_enum_get(op->ptr, "domain"));
   AttributeOwner owner = AttributeOwner::from_id(id);
 
   if (owner.type() == AttributeOwnerType::Mesh) {
-    Mesh *mesh = owner.get_mesh();
-    if (BMEditMesh *em = mesh->runtime->edit_mesh.get()) {
-      CustomDataLayer *layer = BKE_attribute_new(*mesh, *em->bm, name, type, domain, op->reports);
+    Mesh &mesh = *id_cast<Mesh *>(id);
+    if (BMEditMesh *em = mesh.runtime->edit_mesh.get()) {
+      CustomDataLayer *layer = BKE_attribute_new(
+          mesh, *em->bm, name, cd_type, domain, op->reports);
       if (layer == nullptr) {
         return OPERATOR_CANCELLED;
       }
+      const StringRefNull new_name = layer->name;
+      BKE_attributes_active_set(owner, new_name);
 
-      BKE_attributes_active_set(owner, layer->name);
+      set_active_default_status_on_add(mesh, domain, type, new_name);
 
       DEG_id_tag_update(id, ID_RECALC_GEOMETRY);
       WM_main_add_notifier(NC_GEOM | ND_DATA, id);
@@ -334,14 +362,18 @@ static wmOperatorStatus geometry_attribute_add_exec(bContext *C, wmOperator *op)
   bke::AttributeStorage &attributes = *owner.get_storage();
   const int domain_size = accessor.domain_size(bke::AttrDomain(domain));
 
-  const CPPType &cpp_type = *bke::custom_data_type_to_cpp_type(type);
+  const CPPType &cpp_type = bke::attribute_type_to_cpp_type(type);
   bke::Attribute &attr = attributes.add(
       attributes.unique_name_calc(name),
       bke::AttrDomain(domain),
-      *bke::custom_data_type_to_attr_type(type),
+      type,
       bke::Attribute::ArrayData::from_default_value(cpp_type, domain_size));
 
   BKE_attributes_active_set(owner, attr.name());
+
+  if (owner.type() == AttributeOwnerType::Mesh) {
+    set_active_default_status_on_add(*owner.get_mesh(), domain, type, attr.name());
+  }
 
   DEG_id_tag_update(id, ID_RECALC_GEOMETRY);
   WM_main_add_notifier(NC_GEOM | ND_DATA, id);
@@ -593,26 +625,21 @@ static wmOperatorStatus geometry_attribute_convert_exec(bContext *C, wmOperator 
   Object *ob = object::context_object(C);
   ID *ob_data = static_cast<ID *>(ob->data);
   AttributeOwner owner = AttributeOwner::from_id(ob_data);
+  const ConvertAttributeMode mode = ConvertAttributeMode(RNA_enum_get(op->ptr, "mode"));
+  const eCustomDataType cd_type = eCustomDataType(RNA_enum_get(op->ptr, "data_type"));
+  const bke::AttrType type = *bke::custom_data_type_to_attr_type(cd_type);
+  const bke::AttrDomain domain = bke::AttrDomain(RNA_enum_get(op->ptr, "domain"));
   const std::string name = *BKE_attributes_active_name_get(owner);
 
   if (ob->type == OB_MESH) {
-    const ConvertAttributeMode mode = ConvertAttributeMode(RNA_enum_get(op->ptr, "mode"));
-
     Mesh *mesh = reinterpret_cast<Mesh *>(ob_data);
     bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
-
     switch (mode) {
       case ConvertAttributeMode::Generic: {
-        if (!convert_attribute(owner,
-                               attributes,
-                               name,
-                               bke::AttrDomain(RNA_enum_get(op->ptr, "domain")),
-                               *bke::custom_data_type_to_attr_type(
-                                   eCustomDataType(RNA_enum_get(op->ptr, "data_type"))),
-                               op->reports))
-        {
+        if (!convert_attribute(owner, attributes, name, domain, type, op->reports)) {
           return OPERATOR_CANCELLED;
         }
+        BKE_attributes_active_set(owner, name);
         break;
       }
       case ConvertAttributeMode::VertexGroup: {
@@ -631,6 +658,7 @@ static wmOperatorStatus geometry_attribute_convert_exec(bContext *C, wmOperator 
             BKE_defvert_add_index_notest(dverts + i, defgroup_index, weight);
           }
         }
+        BKE_object_defgroup_active_index_set(ob, defgroup_index + 1);
         AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
         int *active_index = BKE_attributes_active_index_p(owner);
         if (*active_index > 0) {
@@ -641,40 +669,15 @@ static wmOperatorStatus geometry_attribute_convert_exec(bContext *C, wmOperator 
     }
     DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
     WM_main_add_notifier(NC_GEOM | ND_DATA, &mesh->id);
-  }
-  else if (ob->type == OB_CURVES) {
-    Curves *curves_id = static_cast<Curves *>(ob->data);
-    bke::CurvesGeometry &curves = curves_id->geometry.wrap();
-    if (!convert_attribute(owner,
-                           curves.attributes_for_write(),
-                           name,
-                           bke::AttrDomain(RNA_enum_get(op->ptr, "domain")),
-                           *bke::custom_data_type_to_attr_type(
-                               eCustomDataType(RNA_enum_get(op->ptr, "data_type"))),
-                           op->reports))
-    {
-      return OPERATOR_CANCELLED;
-    }
-    DEG_id_tag_update(&curves_id->id, ID_RECALC_GEOMETRY);
-    WM_main_add_notifier(NC_GEOM | ND_DATA, &curves_id->id);
-  }
-  else if (ob->type == OB_POINTCLOUD) {
-    PointCloud &pointcloud = *static_cast<PointCloud *>(ob->data);
-    if (!convert_attribute(owner,
-                           pointcloud.attributes_for_write(),
-                           name,
-                           bke::AttrDomain(RNA_enum_get(op->ptr, "domain")),
-                           *bke::custom_data_type_to_attr_type(
-                               eCustomDataType(RNA_enum_get(op->ptr, "data_type"))),
-                           op->reports))
-    {
-      return OPERATOR_CANCELLED;
-    }
-    DEG_id_tag_update(&pointcloud.id, ID_RECALC_GEOMETRY);
-    WM_main_add_notifier(NC_GEOM | ND_DATA, &pointcloud.id);
+    return OPERATOR_FINISHED;
   }
 
+  if (!convert_attribute(owner, *owner.get_accessor(), name, domain, type, op->reports)) {
+    return OPERATOR_CANCELLED;
+  }
   BKE_attributes_active_set(owner, name);
+  DEG_id_tag_update(ob_data, ID_RECALC_GEOMETRY);
+  WM_main_add_notifier(NC_GEOM | ND_DATA, ob_data);
 
   return OPERATOR_FINISHED;
 }
