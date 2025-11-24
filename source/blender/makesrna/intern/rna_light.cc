@@ -178,6 +178,8 @@ static void rna_def_light(BlenderRNA *brna)
 
   RNA_define_lib_overridable(false);
 
+  /* Excluded from being overridable because it's a read-only property with a
+   * dynamically-generated value based on the 'temperature' property above. */
   prop = RNA_def_property(srna, "temperature_color", PROP_FLOAT, PROP_COLOR);
   RNA_def_property_array(prop, 3);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
