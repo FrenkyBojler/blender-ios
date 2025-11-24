@@ -3,3 +3,4 @@ Referenced by issue #149399, 5.0 & 5.1: Color attribute active index get reset b
 Referenced by commit 0ad227cc216f3057ce66c723bae7480ec66d6454, Fix #149399: Color attribute active/default index reset by Join operator
 Referenced by issue #150483, Joining objects doesn't propagate all of active mesh's properties to the resulting mesh.
 Referenced by pull request #150530, Fix #150483: Joining mesh objects loses some data-block options
+Referenced by commit a909604a66f62121017fe7eee27c641c14d93a58, Fix #150483: Joining mesh objects loses some data-block options
