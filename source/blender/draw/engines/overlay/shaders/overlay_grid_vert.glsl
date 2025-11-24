@@ -151,7 +151,7 @@ void main()
   }
   else if (flag_test(grid_flag, SHOW_AXES)) {
     /* Test X/Y/Z axis flags per line */
-    const uint[3] flags = {AXIS_X, AXIS_Y, AXIS_Z};
+    const uint flags[3] = {AXIS_X, AXIS_Y, AXIS_Z};
     if (!flag_test(grid_flag, flags[line.axis])) {
       discard_line();
     }
