@@ -204,6 +204,8 @@ static PyGetSetDef pyrna_windowmanager_getset[] = {
 
 /** \} */
 
+#ifdef WITH_OPENVDB
+
 /* -------------------------------------------------------------------- */
 /** \name Volume Grid Type
  * \{ */
@@ -211,28 +213,139 @@ static PyGetSetDef pyrna_windowmanager_getset[] = {
 PyDoc_STRVAR(
     /* Wrap. */
     pyrna_VolumeGrid_openvdb_grid_pointer_doc,
-    "Direct pointer to the OpenVDB grid for external C++ processing.\n"
+    "OpenVDB grid wrapper for external C++ processing with write access.\n"
     "This creates a copy if the grid is shared. Use openvdb_grid_pointer_readonly for exporters.\n"
     "\n"
-    "Once accessed, the grid is marked as used externally, which prevents automatic unloading\n"
-    "to avoid use-after-free crashes. Memory is cleaned up when the volume is deleted, when\n"
-    "grids are cleared, or when individual grids are removed.\n"
+    "The wrapper holds both the grid shared_ptr and access token, ensuring the grid\n"
+    "remains valid for the lifetime of the wrapper object. Access the raw pointer\n"
+    "via the 'pointer' attribute.\n"
     "\n"
-    ":type: object\n");
+    ":type: VolumeGridWrapper\n");
 
 PyDoc_STRVAR(
     /* Wrap. */
     pyrna_VolumeGrid_openvdb_grid_pointer_readonly_doc,
-    "Read-only pointer to the OpenVDB grid for external C++ processing.\n"
+    "OpenVDB grid wrapper for external C++ processing with read-only access.\n"
     "This is more efficient for exporters as it doesn't create unnecessary copies.\n"
     "\n"
-    "Once accessed, the grid is marked as used externally, which prevents automatic unloading\n"
-    "to avoid use-after-free crashes. Memory is cleaned up when the volume is deleted, when\n"
-    "grids are cleared, or when individual grids are removed.\n"
+    "The wrapper holds both the grid shared_ptr and access token, ensuring the grid\n"
+    "remains valid for the lifetime of the wrapper object. Access the raw pointer\n"
+    "via the 'pointer' attribute.\n"
     "\n"
-    ":type: object\n");
+    ":type: VolumeGridWrapper\n");
 
-#ifdef WITH_OPENVDB
+/* -------------------------------------------------------------------- */
+/** \name Volume Grid Wrapper Type
+ * \{ */
+
+PyDoc_STRVAR(
+    /* Wrap. */
+    BPy_VolumeGridWrapper_doc,
+    "OpenVDB Grid Wrapper with Access Token\n"
+    "\n"
+    "A wrapper object that holds an OpenVDB grid pointer along with its access token,\n"
+    "ensuring the grid remains valid for the lifetime of this wrapper object.\n"
+    "\n"
+    "This prevents use-after-free crashes that could occur if the grid was unloaded\n"
+    "while external code still held a raw pointer to it.\n"
+    "\n"
+    ".. attribute:: pointer\n"
+    "\n"
+    "   Raw OpenVDB grid pointer for use with external C++ libraries.\n"
+    "\n"
+    "   :type: int\n");
+
+struct BPy_VolumeGridWrapper {
+  PyObject_HEAD
+  std::shared_ptr<openvdb::GridBase> grid;
+  blender::bke::VolumeTreeAccessToken token;
+  // TODO this currently does nothing. remove
+  bool is_readonly;
+};
+
+static void BPy_VolumeGridWrapper_dealloc(BPy_VolumeGridWrapper *self)
+{
+  using blender::bke::VolumeTreeAccessToken;
+  using std::shared_ptr;
+
+  self->grid.~shared_ptr();
+  self->token.~VolumeTreeAccessToken();
+  Py_TYPE(self)->tp_free((PyObject *)self);
+}
+
+static PyObject *BPy_VolumeGridWrapper_get_pointer(BPy_VolumeGridWrapper *self, void * /*flag*/)
+{
+  return PyLong_FromVoidPtr(self->grid.get());
+}
+
+static PyGetSetDef BPy_VolumeGridWrapper_getset[] = {
+    {"pointer",
+     (getter)BPy_VolumeGridWrapper_get_pointer,
+     nullptr,
+     "OpenVDB grid pointer",
+     nullptr},
+    {nullptr, nullptr, nullptr, nullptr, nullptr} /* Sentinel */
+};
+
+static PyTypeObject BPy_VolumeGridWrapper_Type = {
+    PyVarObject_HEAD_INIT(nullptr, 0)
+    /*tp_name*/ "VolumeGridWrapper",
+    /*tp_basicsize*/ sizeof(BPy_VolumeGridWrapper),
+    /*tp_itemsize*/ 0,
+    /*tp_dealloc*/ (destructor)BPy_VolumeGridWrapper_dealloc,
+    /*tp_vectorcall_offset*/ 0,
+    /*tp_getattr*/ nullptr,
+    /*tp_setattr*/ nullptr,
+    /*tp_as_async*/ nullptr,
+    /*tp_repr*/ nullptr,
+    /*tp_as_number*/ nullptr,
+    /*tp_as_sequence*/ nullptr,
+    /*tp_as_mapping*/ nullptr,
+    /*tp_hash*/ nullptr,
+    /*tp_call*/ nullptr,
+    /*tp_str*/ nullptr,
+    /*tp_getattro*/ PyObject_GenericGetAttr,
+    /*tp_setattro*/ PyObject_GenericSetAttr,
+    /*tp_as_buffer*/ nullptr,
+    /*tp_flags*/ Py_TPFLAGS_DEFAULT,
+    /*tp_doc*/ BPy_VolumeGridWrapper_doc,
+    /*tp_traverse*/ nullptr,
+    /*tp_clear*/ nullptr,
+    /*tp_richcompare*/ nullptr,
+    /*tp_weaklistoffset*/ 0,
+    /*tp_iter*/ nullptr,
+    /*tp_iternext*/ nullptr,
+    /*tp_methods*/ nullptr,
+    /*tp_members*/ nullptr,
+    /*tp_getset*/ BPy_VolumeGridWrapper_getset,
+    /*tp_base*/ nullptr,
+    /*tp_dict*/ nullptr,
+    /*tp_descr_get*/ nullptr,
+    /*tp_descr_set*/ nullptr,
+    /*tp_dictoffset*/ 0,
+    /*tp_init*/ nullptr,
+    /*tp_alloc*/ nullptr,
+    /*tp_new*/ nullptr,
+};
+
+static PyObject *BPy_VolumeGridWrapper_create(std::shared_ptr<openvdb::GridBase> grid,
+                                              blender::bke::VolumeTreeAccessToken &&token,
+                                              bool is_readonly)
+{
+  BPy_VolumeGridWrapper *self = (BPy_VolumeGridWrapper *)PyObject_New(BPy_VolumeGridWrapper,
+                                                                      &BPy_VolumeGridWrapper_Type);
+  if (self == nullptr) {
+    return nullptr;
+  }
+
+  new (&self->grid) std::shared_ptr(std::move(grid));
+  new (&self->token) blender::bke::VolumeTreeAccessToken(std::move(token));
+  self->is_readonly = is_readonly;
+
+  return (PyObject *)self;
+}
+
+/** \} */
 
 static PyObject *pyrna_VolumeGrid_openvdb_grid_pointer_get(PyObject *self, void * /*flag*/)
 {
@@ -241,7 +354,7 @@ static PyObject *pyrna_VolumeGrid_openvdb_grid_pointer_get(PyObject *self, void 
 
   blender::bke::VolumeTreeAccessToken token;
   auto grid_ptr = grid->grid_ptr_for_write(token);
-  return PyLong_FromVoidPtr(grid_ptr.get());
+  return BPy_VolumeGridWrapper_create(grid_ptr, std::move(token), false);
 }
 
 static PyObject *pyrna_VolumeGrid_openvdb_grid_pointer_readonly_get(PyObject *self,
@@ -252,22 +365,9 @@ static PyObject *pyrna_VolumeGrid_openvdb_grid_pointer_readonly_get(PyObject *se
 
   blender::bke::VolumeTreeAccessToken token;
   auto grid_ptr = grid->grid_ptr(token);
-  return PyLong_FromVoidPtr(const_cast<void *>(static_cast<const void *>(grid_ptr.get())));
+  return BPy_VolumeGridWrapper_create(
+      std::const_pointer_cast<openvdb::GridBase>(grid_ptr), std::move(token), true);
 }
-#else
-static PyObject *pyrna_VolumeGrid_openvdb_grid_pointer_get(PyObject * /*self*/, void * /*flag*/)
-{
-  PyErr_SetString(PyExc_NotImplementedError, "OpenVDB support not available");
-  return nullptr;
-}
-
-static PyObject *pyrna_VolumeGrid_openvdb_grid_pointer_readonly_get(PyObject * /*self*/,
-                                                                    void * /*flag*/)
-{
-  PyErr_SetString(PyExc_NotImplementedError, "OpenVDB support not available");
-  return nullptr;
-}
-#endif
 
 static PyGetSetDef pyrna_volumegrid_getset[] = {
     {"openvdb_grid_pointer",
@@ -282,6 +382,8 @@ static PyGetSetDef pyrna_volumegrid_getset[] = {
      nullptr},
     {nullptr, nullptr, nullptr, nullptr, nullptr} /* Sentinel */
 };
+
+#endif
 
 /** \} */
 
@@ -399,14 +501,21 @@ void BPY_rna_types_extend_capi()
   pyrna_struct_type_extend_capi(
       &RNA_WindowManager, pyrna_windowmanager_methods, pyrna_windowmanager_getset);
 
-  /* VolumeGrid */
-  pyrna_struct_type_extend_capi(&RNA_VolumeGrid, nullptr, pyrna_volumegrid_getset);
-
   /* Context */
   bpy_rna_context_types_init();
 
   ARRAY_SET_ITEMS(pyrna_context_methods, BPY_rna_context_temp_override_method_def);
   pyrna_struct_type_extend_capi(&RNA_Context, pyrna_context_methods, nullptr);
+
+#ifdef WITH_OPENVDB
+  /* Initialize VolumeGridWrapper type */
+  if (PyType_Ready(&BPy_VolumeGridWrapper_Type) < 0) {
+    return;
+  }
+
+  /* VolumeGrid */
+  pyrna_struct_type_extend_capi(&RNA_VolumeGrid, nullptr, pyrna_volumegrid_getset);
+#endif
 }
 
 /** \} */
