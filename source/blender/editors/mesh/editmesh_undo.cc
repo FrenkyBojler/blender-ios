@@ -421,6 +421,7 @@ static void um_arraystore_cd_free(BArrayCustomData *bcd, const int bs_index)
       }
     }
   }
+  MEM_delete(bcd);
 }
 
 /**
