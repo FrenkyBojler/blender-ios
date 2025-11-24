@@ -1397,7 +1397,9 @@ class NodeTreeMainUpdater {
     };
 
     const bNodeTreeZones *fallback_zones = nullptr;
-    if (ntree.type == NTREE_GEOMETRY && !ntree.zones() && ntree.runtime->last_valid_zones) {
+    if (ELEM(ntree.type, NTREE_GEOMETRY, NTREE_SHADER) && !ntree.zones() &&
+        ntree.runtime->last_valid_zones)
+    {
       fallback_zones = ntree.runtime->last_valid_zones.get();
     }
 
@@ -2189,6 +2191,7 @@ void BKE_ntree_update_after_single_tree_change(Main &bmain,
 
 void BKE_ntree_update_without_main(bNodeTree &tree)
 {
+  BLI_assert(tree.id.tag & ID_TAG_NO_MAIN);
   if (is_updating) {
     return;
   }

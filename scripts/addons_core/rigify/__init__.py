@@ -483,6 +483,8 @@ class RigifyBoneCollectionReference(bpy.types.PropertyGroup):
     uid: IntProperty(name="Unique ID", default=-1)
 
     def find_collection(self, *, update=False, raise_error=False) -> bpy.types.BoneCollection | None:
+        if self.uid < 0:
+            return None
         return utils.layers.resolve_collection_reference(self.id_data, self, update=update, raise_error=raise_error)
 
     def set_collection(self, coll: bpy.types.BoneCollection | None):
@@ -858,6 +860,10 @@ def register_rna_properties() -> None:
         type=bpy.types.Object,
         name="Rigify Owner Rig",
         description="Rig that owns this object and may delete or overwrite it upon re-generation")
+
+    # 5.0: Version metarigs to new Action Slot selector properties on file load.
+    from .utils.action_layers import versioning_5_0
+    bpy.app.handlers.load_post.append(versioning_5_0)
 
 
 def unregister_rna_properties() -> None:

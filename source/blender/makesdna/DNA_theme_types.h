@@ -151,6 +151,9 @@ typedef struct ThemeCommonAnim {
       keyframe_jitter_selected[4], keyframe_moving_hold_selected[4],
       keyframe_generated_selected[4];
   unsigned char long_key[4], long_key_selected[4];
+
+  unsigned char scene_strip_range[4];
+  char _pad0[4];
 } ThemeCommonAnim;
 
 typedef struct ThemeCommonCurves {
@@ -336,10 +339,10 @@ typedef struct ThemeSpace {
 
   unsigned char nurb_uline[4], nurb_vline[4];
   unsigned char nurb_sel_uline[4], nurb_sel_vline[4];
-  char _pad5[4];
 
   /** Dope-sheet. */
-  unsigned char ds_ipoline[4];
+  unsigned char anim_interpolation_linear[4], anim_interpolation_constant[4],
+      anim_interpolation_other[4];
   /** Keyframe border. */
   unsigned char keyborder[4], keyborder_select[4];
   char _pad4[3];
@@ -360,6 +363,8 @@ typedef struct ThemeSpace {
   unsigned char syntaxd[4], syntaxr[4]; /* In node-space used for distort. */
 
   unsigned char line_numbers[4];
+
+  unsigned char node_outline[4];
 
   unsigned char nodeclass_output[4], nodeclass_filter[4];
   unsigned char nodeclass_vector[4], nodeclass_texture[4];

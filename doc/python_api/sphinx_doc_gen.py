@@ -57,7 +57,7 @@ except ImportError:
     print(__doc__)
     sys.exit()
 
-import rna_info  # Blender module.
+import _rna_info as rna_info  # Blender module.
 
 
 def rna_info_BuildRNAInfo_cache():
@@ -1979,7 +1979,9 @@ def pyrna2sphinx(basepath):
                 else:
                     operator_description = op.description
 
-                fw("   {:s}\n\n".format(operator_description))
+                # Set `strip` to false as `operator_description` must never be indented.
+                write_indented_lines("   ", fw, operator_description, strip=False)
+                fw("\n")
                 for prop in op.args:
                     write_param("   ", fw, prop)
 

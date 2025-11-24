@@ -77,9 +77,12 @@
 static bool blo_is_builtin_template(const char *app_template)
 {
   /* For all builtin templates shipped with Blender. */
-  return (
-      !app_template ||
-      STR_ELEM(app_template, N_("2D_Animation"), N_("Sculpting"), N_("VFX"), N_("Video_Editing")));
+  return (!app_template || STR_ELEM(app_template,
+                                    N_("2D_Animation"),
+                                    N_("Storyboarding"),
+                                    N_("Sculpting"),
+                                    N_("VFX"),
+                                    N_("Video_Editing")));
 }
 
 static void blo_update_defaults_screen(bScreen *screen,
@@ -780,6 +783,8 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
           bNodeSocket *emission_strength = blender::bke::node_find_socket(
               *node, SOCK_IN, "Emission Strength");
           *version_cycles_node_socket_float_value(emission_strength) = 0.0f;
+          bNodeSocket *ior = blender::bke::node_find_socket(*node, SOCK_IN, "IOR");
+          *version_cycles_node_socket_float_value(ior) = 1.5f;
 
           node->custom1 = SHD_GLOSSY_MULTI_GGX;
           node->custom2 = SHD_SUBSURFACE_RANDOM_WALK;

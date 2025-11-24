@@ -83,9 +83,8 @@
 #include "BKE_particle.h"
 #include "BKE_pointcache.h"
 #include "BKE_rigidbody.h"
-#include "BKE_shader_fx.h"
+#include "BKE_shader_fx.hh"
 #include "BKE_shrinkwrap.hh"
-#include "BKE_sound.h"
 #include "BKE_tracking.h"
 #include "BKE_world.h"
 
@@ -1527,6 +1526,16 @@ void DepsgraphRelationBuilder::build_constraints(ID *id,
 
           /* NOTE: obdata eval now doesn't necessarily depend on the
            * object's transform. */
+          ComponentKey target_transform_key(&ct->tar->id, NodeType::TRANSFORM);
+          add_relation(target_transform_key, constraint_op_key, cti->name);
+        }
+        else if (con->type == CONSTRAINT_TYPE_GEOMETRY_ATTRIBUTE) {
+          /* Constraints which require the target object geometry attributes. */
+          ComponentKey target_key(&ct->tar->id, NodeType::GEOMETRY);
+          add_relation(target_key, constraint_op_key, cti->name);
+
+          /* NOTE: The target object's transform is used when the 'Apply target transform' flag
+           * is set.*/
           ComponentKey target_transform_key(&ct->tar->id, NodeType::TRANSFORM);
           add_relation(target_transform_key, constraint_op_key, cti->name);
         }

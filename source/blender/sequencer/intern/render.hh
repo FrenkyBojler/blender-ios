@@ -12,6 +12,7 @@
 #include "BLI_set.hh"
 #include "BLI_vector.hh"
 
+struct Depsgraph;
 struct ImBuf;
 struct LinkNode;
 struct ListBase;
@@ -46,7 +47,7 @@ ImBuf *seq_render_give_ibuf_seqbase(const RenderData *context,
                                     ListBase *channels,
                                     ListBase *seqbasep);
 void seq_imbuf_to_sequencer_space(const Scene *scene, ImBuf *ibuf, bool make_float);
-blender::Vector<Strip *> seq_shown_strips_get(
+Vector<Strip *> seq_shown_strips_get(
     const Scene *scene, ListBase *channels, ListBase *seqbase, int timeline_frame, int chanshown);
 ImBuf *seq_render_strip(const RenderData *context,
                         SeqRenderState *state,
@@ -55,7 +56,12 @@ ImBuf *seq_render_strip(const RenderData *context,
 
 /* Renders Mask into an image suitable for sequencer:
  * RGB channels contain mask intensity; alpha channel is opaque. */
-ImBuf *seq_render_mask(const RenderData *context, Mask *mask, float frame_index, bool make_float);
+ImBuf *seq_render_mask(Depsgraph *depsgraph,
+                       int width,
+                       int height,
+                       const Mask *mask,
+                       float frame_index,
+                       bool make_float);
 void seq_imbuf_assign_spaces(const Scene *scene, ImBuf *ibuf);
 
 StripScreenQuad get_strip_screen_quad(const RenderData *context, const Strip *strip);

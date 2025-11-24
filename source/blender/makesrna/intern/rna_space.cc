@@ -236,6 +236,13 @@ const EnumPropertyItem rna_enum_space_file_browse_mode_items[] = {
    ICON_FILE, \
    "Cache File", \
    "Edit timings for Cache File data-blocks"}
+#define SACT_ITEM_TIMELINE \
+  {SACTCONT_TIMELINE, \
+   "TIMELINE", \
+   ICON_TIME, \
+   "Timeline", \
+   "Simple timeline view with playback controls in the header, without channel list, " \
+   "side-panel, or footer"}
 
 #ifndef RNA_RUNTIME
 /* XXX: action-editor is currently for object-level only actions,
@@ -247,6 +254,7 @@ static EnumPropertyItem rna_enum_space_action_mode_all_items[] = {
     SACT_ITEM_GPENCIL,
     SACT_ITEM_MASK,
     SACT_ITEM_CACHEFILE,
+    SACT_ITEM_TIMELINE,
     {0, nullptr, 0, nullptr, nullptr},
 };
 static EnumPropertyItem rna_enum_space_action_ui_mode_items[] = {
@@ -260,12 +268,19 @@ static EnumPropertyItem rna_enum_space_action_ui_mode_items[] = {
 };
 #endif
 
+const EnumPropertyItem rna_enum_space_action_mode_items[] = {
+    SACT_ITEM_DOPESHEET,
+    SACT_ITEM_TIMELINE,
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 #undef SACT_ITEM_DOPESHEET
 #undef SACT_ITEM_ACTION
 #undef SACT_ITEM_SHAPEKEY
 #undef SACT_ITEM_GPENCIL
 #undef SACT_ITEM_MASK
 #undef SACT_ITEM_CACHEFILE
+#undef SACT_ITEM_TIMELINE
 
 #define SI_ITEM_VIEW(identifier, name, icon) \
   {SI_MODE_VIEW, identifier, icon, name, "Inspect images or render results"}
@@ -634,7 +649,7 @@ static const EnumPropertyItem spreadsheet_table_id_type_items[] = {
 #  include "BKE_brush.hh"
 #  include "BKE_context.hh"
 #  include "BKE_global.hh"
-#  include "BKE_icons.h"
+#  include "BKE_icons.hh"
 #  include "BKE_idprop.hh"
 #  include "BKE_image.hh"
 #  include "BKE_key.hh"
@@ -676,6 +691,10 @@ static const EnumPropertyItem spreadsheet_table_id_type_items[] = {
 #  include "SEQ_relations.hh"
 
 #  include "RE_engine.h"
+
+/* -------------------------------------------------------------------- */
+/** \name Private Utilities
+ * \{ */
 
 static StructRNA *rna_Space_refine(PointerRNA *ptr)
 {
@@ -728,6 +747,7 @@ static StructRNA *rna_Space_refine(PointerRNA *ptr)
 
 static ScrArea *rna_area_from_space(const PointerRNA *ptr)
 {
+  BLI_assert(RNA_struct_is_a(ptr->type, &RNA_Space));
   bScreen *screen = reinterpret_cast<bScreen *>(ptr->owner_id);
   SpaceLink *link = static_cast<SpaceLink *>(ptr->data);
   return BKE_screen_find_area_from_space(screen, link);
@@ -759,6 +779,22 @@ static void rna_area_region_from_regiondata(PointerRNA *ptr, ScrArea **r_area, A
 
   area_region_from_regiondata(screen, regiondata, r_area, r_region);
 }
+
+/**
+ * Utility to run after a "space" property changes that determines the active tool.
+ *
+ * Needed when the tool is defined by a space type.
+ */
+static void rna_space_active_tool_reset(const PointerRNA *ptr)
+{
+  if (ScrArea *area = rna_area_from_space(ptr)) {
+    area->runtime.tool = nullptr;
+    area->runtime.is_tool_set = false;
+    area->flag |= AREA_FLAG_ACTIVE_TOOL_UPDATE;
+  }
+}
+
+/** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Generic Region Flag Access
@@ -1777,11 +1813,14 @@ static PointerRNA rna_SpaceImageEditor_uvedit_get(PointerRNA *ptr)
   return RNA_pointer_create_with_parent(*ptr, &RNA_SpaceUVEditor, ptr->data);
 }
 
-static void rna_SpaceImageEditor_mode_update(Main *bmain, Scene *scene, PointerRNA * /*ptr*/)
+static void rna_SpaceImageEditor_mode_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
   if (scene != nullptr) {
     ED_space_image_paint_update(bmain, static_cast<wmWindowManager *>(bmain->wm.first), scene);
   }
+
+  /* The mode defines the tool. */
+  rna_space_active_tool_reset(ptr);
 }
 
 static void rna_SpaceImageEditor_show_stereo_set(PointerRNA *ptr, bool value)
@@ -1817,6 +1856,24 @@ static void rna_SpaceImageEditor_show_stereo_update(Main * /*bmain*/,
       BKE_image_multiview_index(ima, &sima->iuser);
     }
   }
+}
+
+static void rna_SpaceImageEditor_show_sequencer_scene_set(PointerRNA *ptr, bool value)
+{
+  SpaceImage *sima = ptr->data_as<SpaceImage>();
+
+  if (value) {
+    sima->iuser.flag |= IMA_SHOW_SEQUENCER_SCENE;
+  }
+  else {
+    sima->iuser.flag &= ~IMA_SHOW_SEQUENCER_SCENE;
+  }
+}
+
+static bool rna_SpaceImageEditor_show_sequencer_scene_get(PointerRNA *ptr)
+{
+  SpaceImage *sima = ptr->data_as<SpaceImage>();
+  return (sima->iuser.flag & IMA_SHOW_SEQUENCER_SCENE) != 0;
 }
 
 static bool rna_SpaceImageEditor_show_render_get(PointerRNA *ptr)
@@ -2390,7 +2447,7 @@ static void rna_SpaceConsole_rect_update(Main * /*bmain*/, Scene * /*scene*/, Po
 
 static void rna_SequenceEditor_update_cache(Main * /*bmain*/, Scene *scene, PointerRNA * /*ptr*/)
 {
-  blender::seq::cache_cleanup(scene);
+  blender::seq::cache_cleanup(scene, blender::seq::CacheCleanup::FinalAndIntra);
 }
 
 static void seq_build_proxy(bContext *C, PointerRNA *ptr)
@@ -2542,6 +2599,20 @@ static void rna_SpaceSequenceEditor_zoom_percentage_set(PointerRNA *ptr, const f
   ED_region_tag_redraw(region);
 }
 
+static PointerRNA rna_SpaceDopeSheet_overlay_get(PointerRNA *ptr)
+{
+  return RNA_pointer_create_with_parent(*ptr, &RNA_SpaceDopeSheetOverlay, ptr->data);
+}
+
+static std::optional<std::string> rna_SpaceDopeSheetOverlay_path(const PointerRNA *ptr)
+{
+  std::optional<std::string> editor_path = BKE_screen_path_from_screen_to_space(ptr);
+  if (!editor_path) {
+    return std::nullopt;
+  }
+  return editor_path.value() + ".overlays";
+}
+
 /* Space Node Editor */
 static PointerRNA rna_SpaceNode_overlay_get(PointerRNA *ptr)
 {
@@ -2646,13 +2717,13 @@ static const EnumPropertyItem *rna_SpaceNodeEditor_node_tree_sub_type_itemf(
       {SNODE_GEOMETRY_MODIFIER,
        "MODIFIER",
        ICON_MODIFIER_DATA,
-       "Modifier",
-       "Edit node group from active object's active modifier"},
+       N_("Modifier"),
+       N_("Edit node group from active object's active modifier")},
       {SNODE_GEOMETRY_TOOL,
        "TOOL",
        ICON_TOOL_SETTINGS,
-       "Tool",
-       "Edit any geometry node group for use as an operator"},
+       N_("Tool"),
+       N_("Edit any geometry node group for use as an operator")},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -2660,13 +2731,13 @@ static const EnumPropertyItem *rna_SpaceNodeEditor_node_tree_sub_type_itemf(
       {SNODE_COMPOSITOR_SCENE,
        "SCENE",
        ICON_SCENE_DATA,
-       "Scene",
-       "Edit compositing node group for the current scene"},
+       N_("Scene"),
+       N_("Edit compositing node group for the current scene")},
       {SNODE_COMPOSITOR_SEQUENCER,
        "SEQUENCER",
        ICON_SEQUENCE,
-       "Sequencer",
-       "Edit compositing node group for Sequencer strip modifiers"},
+       N_("Sequencer"),
+       N_("Edit compositing node group for Sequencer strip modifiers")},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -3885,6 +3956,7 @@ static void rna_def_space_mask_info(StructRNA *srna, int noteflag, const char *m
   prop = RNA_def_property(srna, "mask", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, nullptr, "mask_info.mask");
   RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_clear_flag(prop, PROP_ID_REFCOUNT);
   RNA_def_property_ui_text(prop, "Mask", "Mask displayed and edited in this space");
   RNA_def_property_pointer_funcs(prop, nullptr, mask_set_func, nullptr, nullptr);
   RNA_def_property_update(prop, noteflag, nullptr);
@@ -6067,6 +6139,17 @@ static void rna_def_space_image(BlenderRNA *brna)
   RNA_def_property_update(
       prop, NC_SPACE | ND_SPACE_IMAGE, "rna_SpaceImageEditor_show_stereo_update");
 
+  prop = RNA_def_property(srna, "show_sequencer_scene", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_funcs(prop,
+                                 "rna_SpaceImageEditor_show_sequencer_scene_get",
+                                 "rna_SpaceImageEditor_show_sequencer_scene_set");
+  RNA_def_property_ui_text(
+      prop,
+      "Show Sequencer Scene",
+      "Display the render result for the sequencer scene instead of the active scene");
+  RNA_def_property_ui_icon(prop, ICON_SEQ_SEQUENCER, 0);
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, nullptr);
+
   /* uv */
   prop = RNA_def_property(srna, "uv_editor", PROP_POINTER, PROP_NONE);
   RNA_def_property_flag(prop, PROP_NEVER_NULL);
@@ -6717,6 +6800,32 @@ static void rna_def_space_text(BlenderRNA *brna)
   RNA_api_space_text(srna);
 }
 
+static void rna_def_space_dopesheet_overlays(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  srna = RNA_def_struct(brna, "SpaceDopeSheetOverlay", nullptr);
+  RNA_def_struct_sdna(srna, "SpaceAction");
+  RNA_def_struct_nested(brna, srna, "SpaceDopeSheetEditor");
+  RNA_def_struct_path_func(srna, "rna_SpaceDopeSheetOverlay_path");
+  RNA_def_struct_ui_text(srna, "Overlay Settings", "");
+
+  prop = RNA_def_property(srna, "show_overlays", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "overlays.flag", ADS_OVERLAY_SHOW_OVERLAYS);
+  RNA_def_property_boolean_default(prop, true);
+  RNA_def_property_ui_text(prop, "Show Overlays", "Display overlays");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_NODE, nullptr);
+
+  prop = RNA_def_property(srna, "show_scene_strip_range", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "overlays.flag", ADS_SHOW_SCENE_STRIP_FRAME_RANGE);
+  RNA_def_property_ui_text(prop,
+                           "Show Scene Strip Range",
+                           "When using scene time synchronization in the sequence editor, display "
+                           "the range of the current scene strip");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_DOPESHEET, nullptr);
+}
+
 static void rna_def_space_dopesheet(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -6854,6 +6963,15 @@ static void rna_def_space_dopesheet(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "cache_display", TIME_CACHE_RIGIDBODY);
   RNA_def_property_ui_text(prop, "Rigid Body", "Show the active object's Rigid Body cache");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_TIME, nullptr);
+
+  prop = RNA_def_property(srna, "overlays", PROP_POINTER, PROP_NONE);
+  RNA_def_property_flag(prop, PROP_NEVER_NULL);
+  RNA_def_property_struct_type(prop, "SpaceDopeSheetOverlay");
+  RNA_def_property_pointer_funcs(
+      prop, "rna_SpaceDopeSheet_overlay_get", nullptr, nullptr, nullptr);
+  RNA_def_property_ui_text(prop, "Overlay Settings", "Settings for display of overlays");
+
+  rna_def_space_dopesheet_overlays(brna);
 }
 
 static void rna_def_space_graph(BlenderRNA *brna)
@@ -8039,7 +8157,6 @@ static void rna_def_space_node(BlenderRNA *brna)
   RNA_def_property_enum_funcs(
       prop, nullptr, nullptr, "rna_SpaceNodeEditor_node_tree_sub_type_itemf");
   RNA_def_property_ui_text(prop, "Node Tree Sub-Type", "");
-  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_ID);
   RNA_def_property_update(
       prop, NC_SPACE | ND_SPACE_NODE, "rna_SpaceNodeEditor_node_tree_sub_type_update");
 
@@ -8091,6 +8208,7 @@ static void rna_def_space_node(BlenderRNA *brna)
       prop, NC_SPACE | ND_SPACE_NODE_VIEW, "rna_SpaceNodeEditor_show_backdrop_update");
 
   prop = RNA_def_property(srna, "selected_node_group", PROP_POINTER, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_ID_REFCOUNT);
   RNA_def_property_pointer_funcs(
       prop, nullptr, nullptr, nullptr, "rna_SpaceNodeEditor_selected_node_group_poll");
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_CONTEXT_UPDATE);
@@ -8184,13 +8302,11 @@ static void rna_def_space_clip_overlay(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "show_overlays", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "overlay.flag", SC_SHOW_OVERLAYS);
-  RNA_def_property_boolean_default(prop, true);
   RNA_def_property_ui_text(prop, "Show Overlays", "Display overlays like cursor and annotations");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_CLIP, nullptr);
 
   prop = RNA_def_property(srna, "show_cursor", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "overlay.flag", SC_SHOW_CURSOR);
-  RNA_def_property_boolean_default(prop, true);
   RNA_def_property_ui_text(prop, "Show Overlays", "Display 2D cursor");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_CLIP, nullptr);
 }

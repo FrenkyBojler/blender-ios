@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'ceca413bcbf8')\n"
+"Project-Id-Version: Blender 5.0.0 Beta (b'd29f9f6118e5')\n"
 "Report-Msgid-Bugs-To: Leandro Paganelli <leandrobp@fastmail.com>\n"
-"POT-Creation-Date: 2025-10-06 08:44+0000\n"
+"POT-Creation-Date: 2025-11-10 09:45+0000\n"
 "PO-Revision-Date: 2025-07-23 15:03+0000\n"
 "Last-Translator: Amy Lily <lillya.assist@gmail.com>\n"
 "Language-Team: Portuguese (Brazil) <https://translate.blender.org/projects/blender-ui/ui/pt_BR/>\n"
@@ -3722,14 +3722,6 @@ msgid "Parent bone (in same Armature)"
 msgstr "Osso parente (dentro da mesma armação)."
 
 
-msgid "Select Head"
-msgstr "Selecionar cabeça"
-
-
-msgid "Select Tail"
-msgstr "Selecionar base"
-
-
 msgid "Tail"
 msgstr "Base"
 
@@ -6168,6 +6160,10 @@ msgstr "Sem distorções"
 
 msgid "Parent to undistorted position of 2D track"
 msgstr "Torna parente da posição não distorcida do rastreamento 2D."
+
+
+msgid "Attribute Name"
+msgstr "Nome do atributos"
 
 
 msgid "Kinematic Constraint"
@@ -11782,10 +11778,6 @@ msgid "Constant"
 msgstr "Constante"
 
 
-msgid "Direction"
-msgstr "Direção"
-
-
 msgid "Add effect of brush"
 msgstr "Adiciona o efeito do pincel"
 
@@ -16272,10 +16264,6 @@ msgid "Active Movie Clip"
 msgstr "Clipe de filme ativo"
 
 
-msgid "Mirror Object"
-msgstr "Objeto para espelhamento"
-
-
 msgid "Distance Model"
 msgstr "Modelo de distância"
 
@@ -18300,6 +18288,10 @@ msgstr "Ctrl"
 
 msgid "Control key pressed"
 msgstr "Tecla Ctrl pressionada"
+
+
+msgid "Direction"
+msgstr "Direção"
 
 
 msgid "North"
@@ -21251,30 +21243,6 @@ msgid "Material slot name"
 msgstr "Nome do compartimento do material."
 
 
-msgid "Add Image"
-msgstr "Adicionar Imagem"
-
-
-msgid "Relations"
-msgstr "Relações"
-
-
-msgid "Rigid Body"
-msgstr "Corpo rígido"
-
-
-msgid "Import"
-msgstr "Importar"
-
-
-msgid "Apply"
-msgstr "Aplicar"
-
-
-msgid "Text"
-msgstr "Texto"
-
-
 msgid "Track"
 msgstr "Rastrear"
 
@@ -21297,14 +21265,6 @@ msgstr "Tornar usuário único"
 
 msgid "Convert"
 msgstr "Converter"
-
-
-msgid "Math"
-msgstr "Matemática"
-
-
-msgid "UV"
-msgstr "UV"
 
 
 msgid "Hooks"
@@ -21331,6 +21291,10 @@ msgid "Names"
 msgstr "Nomes"
 
 
+msgid "Apply"
+msgstr "Aplicar"
+
+
 msgid "Toggle Bone Options"
 msgstr "Alternar opções de ossos"
 
@@ -21341,6 +21305,10 @@ msgstr "Habilitar opções de ossos"
 
 msgid "Disable Bone Options"
 msgstr "Desabilitar as opções de ossos"
+
+
+msgid "Layout"
+msgstr "Organizar"
 
 
 msgid "Mesh Select Mode"
@@ -21355,8 +21323,24 @@ msgid "Merge"
 msgstr "Fundir"
 
 
+msgid "Keying"
+msgstr "Inserção de chaves"
+
+
+msgid "Tracking"
+msgstr "Rastreamento"
+
+
+msgid "Math"
+msgstr "Matemática"
+
+
 msgid "Special Characters"
 msgstr "Caracteres especiais"
+
+
+msgid "Text"
+msgstr "Texto"
 
 
 msgid "Metaball"
@@ -21365,10 +21349,6 @@ msgstr "Meta-esfera"
 
 msgid "Bone Roll"
 msgstr "Rolagem dos ossos"
-
-
-msgid "Layout"
-msgstr "Organizar"
 
 
 msgid "Pivot Point"
@@ -21381,14 +21361,6 @@ msgstr "Atrair"
 
 msgid "Proportional Editing Falloff"
 msgstr "Tipo de decaimento para edição proporcional"
-
-
-msgid "Keying"
-msgstr "Inserção de chaves"
-
-
-msgid "Tracking"
-msgstr "Rastreamento"
 
 
 msgid "Mirror"
@@ -21427,6 +21399,10 @@ msgid "Select More/Less"
 msgstr "Selecionar mais ou menos"
 
 
+msgid "Instances"
+msgstr "Instâncias"
+
+
 msgid "Select Similar"
 msgstr "Selecionar por similaridades"
 
@@ -21443,6 +21419,14 @@ msgid "Select Loops"
 msgstr "Selecionar anéis"
 
 
+msgid "Import"
+msgstr "Importar"
+
+
+msgid "UV"
+msgstr "UV"
+
+
 msgid "Light"
 msgstr "Luz"
 
@@ -21451,8 +21435,16 @@ msgid "Light Probe"
 msgstr "Sonda de Luz"
 
 
-msgid "Instances"
-msgstr "Instâncias"
+msgid "Add Image"
+msgstr "Adicionar Imagem"
+
+
+msgid "Relations"
+msgstr "Relações"
+
+
+msgid "Rigid Body"
+msgstr "Corpo rígido"
 
 
 msgid "Basic"
@@ -21966,10 +21958,6 @@ msgstr "Distorção"
 
 msgid "UV Pinned"
 msgstr "UV afixada"
-
-
-msgid "UV Select"
-msgstr "Seleção de UVs"
 
 
 msgid "Set the map as active for display and editing"
@@ -24001,6 +23989,10 @@ msgstr "Modificador para espelhamento."
 
 msgid "Distance within which mirrored vertices are merged"
 msgstr "Distância dentro da qual os vértices espelhados são fundidos."
+
+
+msgid "Mirror Object"
+msgstr "Objeto para espelhamento"
 
 
 msgid "Object to use as mirror"
@@ -27456,10 +27448,6 @@ msgstr "Oclusão Ambiente"
 
 msgid "Number of rays to trace per shader evaluation"
 msgstr "Número de raios a ser traçados por avaliação de sombreador"
-
-
-msgid "Attribute Name"
-msgstr "Nome do atributos"
 
 
 msgid "Background"
@@ -42608,10 +42596,6 @@ msgid "Add IK to Bone"
 msgstr "Adicionar cinemática inversa para o osso"
 
 
-msgid "Add IK Constraint to the active Bone"
-msgstr "Adiciona uma restrição de cinemática inversa para o osso ativo."
-
-
 msgid "With Targets"
 msgstr "Com alvos"
 
@@ -43015,10 +42999,6 @@ msgstr "Gravar imagem"
 msgctxt "Operator"
 msgid "Render"
 msgstr "Renderizar"
-
-
-msgid "Render active scene"
-msgstr "Renderiza a cena ativa."
 
 
 msgid "Render Layer"
@@ -56004,18 +55984,6 @@ msgid "Method for controlling how the strip combines with other strips"
 msgstr "O método para controlar como as faixas serão combinadas com outras faixas."
 
 
-msgid "Cross"
-msgstr "Cruzar"
-
-
-msgid "Alpha Under"
-msgstr "Alfa por baixo"
-
-
-msgid "Gamma Cross"
-msgstr "Cruzar por gama"
-
-
 msgid "Y position of the sequence strip"
 msgstr "Posição Y da faixa de sequência "
 
@@ -59408,10 +59376,6 @@ msgid "External shader script must have .osl or .oso extension, or be a module n
 msgstr "Script de sombreador externo deve possuir extensão .osl ou .oso, ou ser um nome de módulo."
 
 
-msgid "Failed to write .oso file next to external .osl file at "
-msgstr "Falha ao escrever arquivo .oso próximo ao local externo onde o .osl está."
-
-
 msgid "No compatible GPUs found for Cycles"
 msgstr "Não foram encontradas GPUs compatíveis para o Cycles"
 
@@ -61511,11 +61475,6 @@ msgstr "Busca Operador..."
 msgctxt "Operator"
 msgid "Release Notes"
 msgstr "Notas de lançamento"
-
-
-msgctxt "Operator"
-msgid "Tutorials"
-msgstr "Tutoriais"
 
 
 msgctxt "Operator"
@@ -64667,22 +64626,6 @@ msgid "Add IK"
 msgstr "Adicionar cinemática inversa"
 
 
-msgid "To Active Bone"
-msgstr "Para o osso ativo"
-
-
-msgid "To Active Object"
-msgstr "Para o objeto ativo"
-
-
-msgid "To New Empty Object"
-msgstr "Para um novo objeto vazio"
-
-
-msgid "Without Targets"
-msgstr "Sem alvos"
-
-
 msgid "Could not find constraint data for Child-Of Set Inverse"
 msgstr "Não é possível encontrar dados de restrições para configuração inversa de \"Filho-De\"."
 
@@ -65185,6 +65128,10 @@ msgstr "Sem ambiente (mundo) de corpo rígido para exportar."
 
 msgid "Rigid Body World has no associated physics data to export"
 msgstr "Ambiente (mundo) de corpo rígido não possui dados de física associados para exportar."
+
+
+msgid "Render active scene"
+msgstr "Renderiza a cena ativa."
 
 
 msgid "Cannot write a single file with an animation format selected"
@@ -66834,10 +66781,6 @@ msgid "UV Vertex"
 msgstr "Vértices UV"
 
 
-msgid "Cannot split selection when sync selection is enabled"
-msgstr "Não é possível dividir seleção quando a sincronização de seleção está ativa."
-
-
 msgid "Object has non-uniform scale, unwrap will operate on a non-scaled version of the mesh"
 msgstr "Objeto possui uma escala não uniforme, o desdobramento irá operar em uma versão não escalonada da malha."
 
@@ -67165,6 +67108,10 @@ msgstr "Registrando classe de conector de nó: '%s' é muito longo, comprimento 
 
 msgid "Unable to create socket"
 msgstr "Não é possível de criar conector"
+
+
+msgid "Anisotropic"
+msgstr "Anisotrópico"
 
 
 msgid "Same input/output direction of sockets"
@@ -67658,10 +67605,6 @@ msgstr "Raio para subdivisão de superfície"
 
 msgid "Subsurface IOR"
 msgstr "Índice de Refração da Sub-superfície"
-
-
-msgid "Anisotropic"
-msgstr "Anisotrópico"
 
 
 msgid "Anisotropic Rotation"
