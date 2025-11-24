@@ -68,8 +68,10 @@ set(INC_SYS
 )
 
 set(SRC
+  intern/bundle_type.cc
   intern/derived_node_tree.cc
   intern/geometry_nodes_bundle.cc
+  intern/geometry_nodes_bundle_parse.cc
   intern/geometry_nodes_caller_ui.cc
   intern/geometry_nodes_closure.cc
   intern/geometry_nodes_closure_zone.cc
@@ -81,6 +83,7 @@ set(SRC
   intern/geometry_nodes_list.cc
   intern/geometry_nodes_log.cc
   intern/geometry_nodes_repeat_zone.cc
+  intern/geometry_nodes_physics_bundles.cc
   intern/geometry_nodes_warning.cc
   intern/inverse_eval.cc
   intern/list_function_eval.cc
@@ -105,6 +108,7 @@ set(SRC
   intern/value_elem.cc
   intern/volume_grid_function_eval.cc
 
+  NOD_bundle_type.hh
   NOD_common.hh
   NOD_composite.hh
   NOD_derived_node_tree.hh
@@ -126,6 +130,7 @@ set(SRC
   NOD_geometry_nodes_list.hh
   NOD_geometry_nodes_list_fwd.hh
   NOD_geometry_nodes_log.hh
+  NOD_geometry_nodes_physics_bundles.hh
   NOD_geometry_nodes_values.hh
   NOD_geometry_nodes_warning.hh
   NOD_inverse_eval_params.hh

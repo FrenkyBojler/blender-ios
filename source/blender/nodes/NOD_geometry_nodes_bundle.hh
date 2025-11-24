@@ -60,6 +60,7 @@ class Bundle : public ImplicitSharingMixin {
   Vector<StoredItem> items_;
 
  public:
+  static constexpr StringRefNull type_item_name = "Type";
   static BundlePtr create();
 
   bool add(StringRef key, const BundleItemValue &value);

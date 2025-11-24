@@ -33,6 +33,10 @@ struct BundleSignature {
   friend bool operator==(const BundleSignature &a, const BundleSignature &b);
   friend bool operator!=(const BundleSignature &a, const BundleSignature &b);
 
+  void add(std::string key, const eNodeSocketDatatype socket_type);
+
+  bool matches_exactly(const BundleSignature &other) const;
+
   static BundleSignature from_combine_bundle_node(const bNode &node,
                                                   bool allow_auto_structure_type);
   static BundleSignature from_separate_bundle_node(const bNode &node,

@@ -32,6 +32,29 @@ void BundleSignature::set_auto_structure_types()
   }
 }
 
+void BundleSignature::add(std::string key, const eNodeSocketDatatype socket_type)
+{
+  const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(socket_type);
+  BLI_assert(stype);
+  items.add({std::move(key), stype});
+}
+
+bool BundleSignature::matches_exactly(const BundleSignature &other) const
+{
+  if (items.size() != other.items.size()) {
+    return false;
+  }
+  for (const Item &item : items) {
+    if (std::none_of(other.items.begin(), other.items.end(), [&](const Item &other_item) {
+          return item.key == other_item.key;
+        }))
+    {
+      return false;
+    }
+  }
+  return true;
+}
+
 BundlePtr Bundle::create()
 {
   return BundlePtr(MEM_new<Bundle>(__func__));

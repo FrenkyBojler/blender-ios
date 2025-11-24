@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "NOD_bundle_type.hh"
 #include "NOD_socket_declarations.hh"
 #include "NOD_socket_declarations_geometry.hh"
 
@@ -146,6 +147,17 @@ bNodeSocket &Float::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket &
   return socket;
 }
 
+FloatBuilder &FloatBuilder::try_copy_ui_data(const SocketDeclaration &other_decl)
+{
+  if (const Float *other = dynamic_cast<const Float *>(&other_decl)) {
+    this->decl_->default_value = other->default_value;
+    this->decl_->soft_min_value = other->soft_min_value;
+    this->decl_->soft_max_value = other->soft_max_value;
+    this->decl_->subtype = other->subtype;
+  }
+  return *this;
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -213,6 +225,17 @@ bNodeSocket &Int::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket &so
   value.max = this->soft_max_value;
   value.subtype = this->subtype;
   return socket;
+}
+
+IntBuilder &IntBuilder::try_copy_ui_data(const SocketDeclaration &other_decl)
+{
+  if (const Int *other = dynamic_cast<const Int *>(&other_decl)) {
+    this->decl_->default_value = other->default_value;
+    this->decl_->soft_min_value = other->soft_min_value;
+    this->decl_->soft_max_value = other->soft_max_value;
+    this->decl_->subtype = other->subtype;
+  }
+  return *this;
 }
 
 /** \} */
@@ -293,6 +316,18 @@ bNodeSocket &Vector::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket 
   return socket;
 }
 
+VectorBuilder &VectorBuilder::try_copy_ui_data(const SocketDeclaration &other_decl)
+{
+  if (const Vector *other = dynamic_cast<const Vector *>(&other_decl)) {
+    this->decl_->default_value = other->default_value;
+    this->decl_->soft_min_value = other->soft_min_value;
+    this->decl_->soft_max_value = other->soft_max_value;
+    this->decl_->dimensions = other->dimensions;
+    this->decl_->subtype = other->subtype;
+  }
+  return *this;
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -341,6 +376,14 @@ bNodeSocket &Bool::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket &s
   }
   this->set_common_flags(socket);
   return socket;
+}
+
+BoolBuilder &BoolBuilder::try_copy_ui_data(const SocketDeclaration &other_decl)
+{
+  if (const Bool *other = dynamic_cast<const Bool *>(&other_decl)) {
+    this->decl_->default_value = other->default_value;
+  }
+  return *this;
 }
 
 /** \} */
@@ -393,6 +436,14 @@ bNodeSocket &Color::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket &
   return socket;
 }
 
+ColorBuilder &ColorBuilder::try_copy_ui_data(const SocketDeclaration &other_decl)
+{
+  if (const Color *other = dynamic_cast<const Color *>(&other_decl)) {
+    this->decl_->default_value = other->default_value;
+  }
+  return *this;
+}
+
 /** \} */
 /* -------------------------------------------------------------------- */
 /** \name #Rotation
@@ -443,6 +494,14 @@ bNodeSocket &Rotation::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocke
   }
   this->set_common_flags(socket);
   return socket;
+}
+
+RotationBuilder &RotationBuilder::try_copy_ui_data(const SocketDeclaration &other_decl)
+{
+  if (const Rotation *other = dynamic_cast<const Rotation *>(&other_decl)) {
+    this->decl_->default_value = other->default_value;
+  }
+  return *this;
 }
 
 /** \} */
@@ -554,6 +613,16 @@ StringBuilder &StringBuilder::path_filter(std::optional<std::string> filter)
 {
   BLI_assert(decl_->subtype == PROP_FILEPATH);
   decl_->path_filter = std::move(filter);
+  return *this;
+}
+
+StringBuilder &StringBuilder::try_copy_ui_data(const SocketDeclaration &other_decl)
+{
+  if (const String *other = dynamic_cast<const String *>(&other_decl)) {
+    this->decl_->default_value = other->default_value;
+    this->decl_->subtype = other->subtype;
+    this->decl_->path_filter = other->path_filter;
+  }
   return *this;
 }
 
@@ -674,6 +743,12 @@ bNodeSocket &Bundle::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket 
   }
   this->set_common_flags(socket);
   return socket;
+}
+
+BundleBuilder &BundleBuilder::bundle_type(BundleType bundle_type)
+{
+  decl_->bundle_type = std::move(bundle_type);
+  return *this;
 }
 
 BundleBuilder &BundleBuilder::pass_through_input_index(const std::optional<int> index)

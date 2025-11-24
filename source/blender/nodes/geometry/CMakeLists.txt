@@ -91,6 +91,7 @@ set(SRC
   nodes/node_geo_field_variance.cc
   nodes/node_geo_flip_faces.cc
   nodes/node_geo_foreach_geometry_element.cc
+  nodes/node_geo_gather_bundle_geometries.cc
   nodes/node_geo_geometry_to_instance.cc
   nodes/node_geo_get_named_grid.cc
   nodes/node_geo_gizmo_dial.cc
@@ -268,6 +269,7 @@ set(SRC
   nodes/node_geo_volume_cube.cc
   nodes/node_geo_volume_to_mesh.cc
   nodes/node_geo_warning.cc
+  nodes/node_geo_xpbd_physics_solver.cc
 
   include/NOD_geo_bake.hh
   include/NOD_geo_bundle.hh
@@ -345,6 +347,7 @@ if(WITH_BULLET)
     ${BULLET_LIBRARIES}
   )
   add_definitions(-DWITH_BULLET)
+  add_definitions(-DBT_USE_DOUBLE_PRECISION)
 endif()
 
 if(WITH_TBB)

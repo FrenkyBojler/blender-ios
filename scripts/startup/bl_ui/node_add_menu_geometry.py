@@ -632,6 +632,8 @@ class NODE_MT_gn_simulation_base(node_add_menu.NodeMenu):
     def draw(self, _context):
         layout = self.layout
         self.simulation_zone(layout, label="Simulation")
+        layout.separator()
+        self.node_operator(layout, "GeometryNodeXPBDPhysicsSolver")
 
         self.draw_assets_for_catalog(layout, self.bl_label)
 
@@ -792,8 +794,9 @@ class NODE_MT_category_utilities_bundle_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "NodeCombineBundle")
         self.node_operator(layout, "NodeSeparateBundle")
         self.node_operator(layout, "NodeJoinBundle")
-
-        self.draw_assets_for_catalog(layout, self.menu_path)
+        self.node_operator(layout, "GeometryNodeGatherBundleGeometries")
+        self.typed_bundle(layout, label="Typed Bundle")
+        self.draw_assets_for_catalog(layout, "Utilities/Bundle")
 
 
 class NODE_MT_category_utilities_closure_base(node_add_menu.NodeMenu):

@@ -110,6 +110,11 @@ def add_closure_zone(layout, label):
     return props
 
 
+def add_typed_bundle(layout):
+    props = layout.operator("node.add_typed_bundle", text="Typed Bundle", text_ctxt=i18n_contexts.default)
+    props.use_transform = True
+
+
 class NodeMenu(Menu):
     """A baseclass defining the shared methods for AddNodeMenu and SwapNodeMenu."""
     draw_assets: bool
@@ -278,6 +283,15 @@ class NodeMenu(Menu):
                 props.use_transform = cls.use_transform
 
         return operators
+
+    @classmethod
+    def typed_bundle(cls, layout, label):
+        props = layout.operator("node.add_typed_bundle", text=label, text_ctxt=i18n_contexts.default)
+
+        if hasattr(props, "use_transform"):
+            props.use_transform = cls.use_transform
+
+        return props
 
     @classmethod
     def new_empty_group(cls, layout):
