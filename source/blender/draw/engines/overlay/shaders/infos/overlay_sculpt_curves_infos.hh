@@ -8,9 +8,7 @@
 
 #  include "draw_object_infos_infos.hh"
 #  include "draw_view_infos.hh"
-#endif
 
-#ifdef GLSL_CPP_STUBS
 #  define CURVES_SHADER
 #  define DRW_HAIR_INFO
 #endif

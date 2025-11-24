@@ -167,8 +167,10 @@ class NODE_HT_header(Header):
                     row.template_ID(
                         active_modifier,
                         "node_group",
-                        new="node.new_compositor_sequencer_node_group")
-                elif active_strip and active_strip.type != 'SOUND':
+                        new="node.new_compositor_sequencer_node_group",
+                    )
+                else:
+                    row.enabled = False
                     row.template_ID(snode, "node_tree", new="node.new_compositor_sequencer_node_group")
 
         elif snode.tree_type == 'GeometryNodeTree':
@@ -1157,7 +1159,6 @@ class NODE_AST_compositor(bpy.types.AssetShelf):
     bl_space_type = 'NODE_EDITOR'
     bl_region_type = 'UI'
     bl_options = {'DEFAULT_VISIBLE', 'STORE_ENABLED_CATALOGS_IN_PREFERENCES'}
-    filter_node_tree = True
 
     @classmethod
     def poll(cls, context):

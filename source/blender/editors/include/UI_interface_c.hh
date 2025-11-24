@@ -1384,8 +1384,7 @@ uiBut *uiDefIconPreviewBut(uiBlock *block,
                            std::optional<blender::StringRef> tip);
 uiBut *uiDefButImage(
     uiBlock *block, void *imbuf, int x, int y, short width, short height, const uchar color[4]);
-uiBut *uiDefButAlert(
-    uiBlock *block, blender::ui::AlertIcon icon, int x, int y, short width, short height);
+uiBut *uiDefButAlert(uiBlock *block, int icon, int x, int y, short width, short height);
 /** Button containing both string label and icon. */
 uiBut *uiDefIconTextBut(uiBlock *block,
                         uiButTypeWithPointerType but_and_ptr_type,
@@ -2522,7 +2521,6 @@ bool uiTemplateEventFromKeymapItem(blender::ui::Layout *layout,
 /* Draw keymap item for status bar. Returns number of items consumed,
  * as X/Y/Z items may get merged to use less space. */
 int uiTemplateStatusBarModalItem(blender::ui::Layout *layout,
-                                 wmOperator *op,
                                  const wmKeyMap *keymap,
                                  const EnumPropertyItem *item);
 

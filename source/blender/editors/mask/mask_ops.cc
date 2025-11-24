@@ -1526,7 +1526,7 @@ static wmOperatorStatus delete_invoke(bContext *C, wmOperator *op, const wmEvent
                                   IFACE_("Delete selected control points and splines?"),
                                   nullptr,
                                   IFACE_("Delete"),
-                                  blender::ui::AlertIcon::None,
+                                  ALERT_ICON_NONE,
                                   false);
   }
   return delete_exec(C, op);

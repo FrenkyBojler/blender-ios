@@ -1197,7 +1197,7 @@ static wmOperatorStatus actkeys_delete_invoke(bContext *C,
                                   IFACE_("Delete selected keyframes?"),
                                   nullptr,
                                   IFACE_("Delete"),
-                                  blender::ui::AlertIcon::None,
+                                  ALERT_ICON_NONE,
                                   false);
   }
   return actkeys_delete_exec(C, op);

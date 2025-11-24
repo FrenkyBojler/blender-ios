@@ -713,7 +713,6 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
     pointcloud
     principled_bsdf
     shader
-    shadow
     shadow_catcher
     sss
     texture

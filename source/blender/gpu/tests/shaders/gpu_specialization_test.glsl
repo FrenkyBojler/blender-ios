@@ -2,10 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/gpu_shader_test_infos.hh"
-
-COMPUTE_SHADER_CREATE_INFO(gpu_graphic_specialization_test)
-
 #if defined(GPU_COMPUTE_SHADER) || defined(GPU_VERTEX_SHADER)
 
 void main()

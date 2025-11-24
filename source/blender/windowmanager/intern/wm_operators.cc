@@ -1200,22 +1200,22 @@ wmOperatorStatus WM_operator_confirm_message_ex(bContext *C,
                                                 const char *message,
                                                 const blender::wm::OpCallContext /*opcontext*/)
 {
-  blender::ui::AlertIcon alert_icon = blender::ui::AlertIcon::Question;
+  int alert_icon = ALERT_ICON_QUESTION;
   switch (icon) {
     case ICON_NONE:
-      alert_icon = blender::ui::AlertIcon::None;
+      alert_icon = ALERT_ICON_NONE;
       break;
     case ICON_ERROR:
-      alert_icon = blender::ui::AlertIcon::Warning;
+      alert_icon = ALERT_ICON_WARNING;
       break;
     case ICON_QUESTION:
-      alert_icon = blender::ui::AlertIcon::Question;
+      alert_icon = ALERT_ICON_QUESTION;
       break;
     case ICON_CANCEL:
-      alert_icon = blender::ui::AlertIcon::Error;
+      alert_icon = ALERT_ICON_ERROR;
       break;
     case ICON_INFO:
-      alert_icon = blender::ui::AlertIcon::Info;
+      alert_icon = ALERT_ICON_INFO;
       break;
   }
   return WM_operator_confirm_ex(C, op, IFACE_(title), nullptr, IFACE_(message), alert_icon, false);
@@ -1224,13 +1224,13 @@ wmOperatorStatus WM_operator_confirm_message_ex(bContext *C,
 wmOperatorStatus WM_operator_confirm_message(bContext *C, wmOperator *op, const char *message)
 {
   return WM_operator_confirm_ex(
-      C, op, IFACE_(message), nullptr, IFACE_("OK"), blender::ui::AlertIcon::None, false);
+      C, op, IFACE_(message), nullptr, IFACE_("OK"), ALERT_ICON_NONE, false);
 }
 
 wmOperatorStatus WM_operator_confirm(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   return WM_operator_confirm_ex(
-      C, op, IFACE_(op->type->name), nullptr, IFACE_("OK"), blender::ui::AlertIcon::None, false);
+      C, op, IFACE_(op->type->name), nullptr, IFACE_("OK"), ALERT_ICON_NONE, false);
 }
 
 wmOperatorStatus WM_operator_confirm_or_exec(bContext *C,
@@ -1240,7 +1240,7 @@ wmOperatorStatus WM_operator_confirm_or_exec(bContext *C,
   const bool confirm = RNA_boolean_get(op->ptr, "confirm");
   if (confirm) {
     return WM_operator_confirm_ex(
-        C, op, IFACE_(op->type->name), nullptr, IFACE_("OK"), blender::ui::AlertIcon::None, false);
+        C, op, IFACE_(op->type->name), nullptr, IFACE_("OK"), ALERT_ICON_NONE, false);
   }
   return op->type->exec(C, op);
 }
@@ -1466,7 +1466,7 @@ struct wmOpPopUp {
   std::string title;
   std::string message;
   std::string confirm_text;
-  blender::ui::AlertIcon icon;
+  eAlertIcon icon;
   wmPopupSize size;
   wmPopupPosition position;
   bool cancel_default;
@@ -1531,8 +1531,8 @@ static uiBlock *wm_block_dialog_create(bContext *C, ARegion *region, void *user_
   if (data->mouse_move_quit) {
     UI_block_flag_enable(block, UI_BLOCK_MOVEMOUSE_QUIT);
   }
-  if (data->icon < blender::ui::AlertIcon::None || data->icon >= blender::ui::AlertIcon::Max) {
-    data->icon = blender::ui::AlertIcon::Question;
+  if (data->icon < ALERT_ICON_NONE || data->icon >= ALERT_ICON_MAX) {
+    data->icon = ALERT_ICON_QUESTION;
   }
 
   UI_block_flag_enable(block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_NUMSELECT);
@@ -1563,8 +1563,9 @@ static uiBlock *wm_block_dialog_create(bContext *C, ARegion *region, void *user_
   dialog_width = std::max(dialog_width, 3 * longest_button_text);
 
   uiLayout *layout;
-  if (data->icon != blender::ui::AlertIcon::None) {
-    layout = uiItemsAlertBox(block, style, dialog_width + icon_size, data->icon, icon_size);
+  if (data->icon != ALERT_ICON_NONE) {
+    layout = uiItemsAlertBox(
+        block, style, dialog_width + icon_size, eAlertIcon(data->icon), icon_size);
   }
   else {
     layout = &blender::ui::block_layout(block,
@@ -1748,7 +1749,7 @@ wmOperatorStatus WM_operator_confirm_ex(bContext *C,
                                         const char *title,
                                         const char *message,
                                         const char *confirm_text,
-                                        blender::ui::AlertIcon icon,
+                                        int icon,
                                         bool cancel_default)
 {
   wmOpPopUp *data = MEM_new<wmOpPopUp>(__func__);
@@ -1763,7 +1764,7 @@ wmOperatorStatus WM_operator_confirm_ex(bContext *C,
   data->title = (title == nullptr) ? WM_operatortype_name(op->type, op->ptr) : title;
   data->message = (message == nullptr) ? std::string() : message;
   data->confirm_text = (confirm_text == nullptr) ? IFACE_("OK") : confirm_text;
-  data->icon = icon;
+  data->icon = eAlertIcon(icon);
   data->size = (message == nullptr) ? WM_POPUP_SIZE_SMALL : WM_POPUP_SIZE_LARGE;
   data->position = (message == nullptr) ? WM_POPUP_POSITION_MOUSE : WM_POPUP_POSITION_CENTER;
   data->cancel_default = cancel_default;
@@ -1882,7 +1883,7 @@ wmOperatorStatus WM_operator_props_dialog_popup(bContext *C,
   data->title = title ? std::move(*title) : WM_operatortype_name(op->type, op->ptr);
   data->confirm_text = confirm_text ? std::move(*confirm_text) : IFACE_("OK");
   data->message = message ? std::move(*message) : std::string();
-  data->icon = blender::ui::AlertIcon::None;
+  data->icon = ALERT_ICON_NONE;
   data->size = WM_POPUP_SIZE_SMALL;
   data->position = (message) ? WM_POPUP_POSITION_CENTER : WM_POPUP_POSITION_MOUSE;
   data->cancel_default = cancel_default;

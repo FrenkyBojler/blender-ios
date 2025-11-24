@@ -2,8 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/engine_image_infos.hh"
-
 #include "draw_colormanagement_lib.glsl"
 
 /* Keep in sync with image_engine.c */

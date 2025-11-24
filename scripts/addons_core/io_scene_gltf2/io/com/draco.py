@@ -5,6 +5,7 @@
 import os
 import sys
 from pathlib import Path
+import bpy
 
 
 def dll_path() -> Path:

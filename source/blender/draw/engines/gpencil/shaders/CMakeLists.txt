@@ -22,7 +22,6 @@ set(INC_GLSL
 set(SRC_GLSL_VERT
   gpencil_antialiasing_vert.glsl
   gpencil_depth_merge_vert.glsl
-  gpencil_fullscreen_vert.glsl
   gpencil_vert.glsl
 )
 

@@ -821,7 +821,7 @@ static wmOperatorStatus graphkeys_delete_invoke(bContext *C,
                                   IFACE_("Delete selected keyframes?"),
                                   nullptr,
                                   IFACE_("Delete"),
-                                  blender::ui::AlertIcon::None,
+                                  ALERT_ICON_NONE,
                                   false);
   }
   return graphkeys_delete_exec(C, op);

@@ -241,8 +241,8 @@ void MTLImmediate::end()
               index_buffer_mtl = allocation.metal_buffer;
               index_buffer_offset = allocation.buffer_offset;
 
-              /* Set depth stencil state (TODO: Move it back upstream, is legacy of depth bias). */
-              context_->ensure_depth_stencil_state();
+              /* Set depth stencil state (requires knowledge of primitive type). */
+              context_->ensure_depth_stencil_state(MTLPrimitiveTypeTriangle);
 
               /* Draw. */
               [rec drawIndexedPrimitives:MTLPrimitiveTypeTriangle
@@ -267,8 +267,8 @@ void MTLImmediate::end()
         MTLPrimitiveType primitive_type = metal_primitive_type_;
         int vertex_count = this->vertex_idx;
 
-        /* Set depth stencil state (TODO: Move it back upstream, is legacy of depth bias). */
-        context_->ensure_depth_stencil_state();
+        /* Set depth stencil state (requires knowledge of primitive type). */
+        context_->ensure_depth_stencil_state(primitive_type);
 
         if (this->shader->is_polyline) {
           this->polyline_draw_workaround(current_allocation_.buffer_offset);

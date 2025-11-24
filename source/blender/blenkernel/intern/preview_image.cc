@@ -22,6 +22,8 @@
 
 #include "BKE_icons.hh"
 
+#include "BLI_ghash.h"
+#include "BLI_string.h"
 #ifndef NDEBUG
 #  include "BLI_threads.h"
 #endif
@@ -37,14 +39,8 @@
 
 #include "BKE_preview_image.hh"
 
-using CachedPreviewMap = blender::Map<std::string, PreviewImage *>;
-
 /* Not mutex-protected! */
-static CachedPreviewMap &get_cached_previews_map()
-{
-  static CachedPreviewMap cached_previews_map;
-  return cached_previews_map;
-}
+static GHash *gCachedPreviews = nullptr;
 
 namespace blender::bke {
 
@@ -106,15 +102,28 @@ void BKE_previewimg_free(PreviewImage **prv)
   }
 }
 
-void BKE_preview_images_init() {}
+void BKE_preview_images_init()
+{
+  if (!gCachedPreviews) {
+    gCachedPreviews = BLI_ghash_str_new(__func__);
+  }
+}
 
 void BKE_preview_images_free()
 {
-  CachedPreviewMap &cache = get_cached_previews_map();
-  for (PreviewImage *prv : cache.values()) {
-    BKE_previewimg_free(&prv);
+  if (gCachedPreviews) {
+    BLI_ghash_free(gCachedPreviews, MEM_freeN, BKE_previewimg_freefunc);
+    gCachedPreviews = nullptr;
   }
-  cache.clear();
+}
+
+void BKE_previewimg_freefunc(void *link)
+{
+  PreviewImage *prv = (PreviewImage *)link;
+  if (!prv) {
+    return;
+  }
+  BKE_previewimg_free(&prv);
 }
 
 void BKE_previewimg_clear_single(PreviewImage *prv, enum eIconSizes size)
@@ -274,16 +283,23 @@ void BKE_previewimg_deferred_release(PreviewImage *prv)
 PreviewImage *BKE_previewimg_cached_get(const char *name)
 {
   BLI_assert(BLI_thread_is_main());
-  return get_cached_previews_map().lookup_default_as(name, nullptr);
+  return (PreviewImage *)BLI_ghash_lookup(gCachedPreviews, name);
 }
 
 PreviewImage *BKE_previewimg_cached_ensure(const char *name)
 {
   BLI_assert(BLI_thread_is_main());
 
-  PreviewImage *prv = get_cached_previews_map().lookup_or_add_cb_as(
-      name, [&]() { return BKE_previewimg_create(); });
+  PreviewImage *prv = nullptr;
+  void **key_p, **prv_p;
+
+  if (!BLI_ghash_ensure_p_ex(gCachedPreviews, name, &key_p, &prv_p)) {
+    *key_p = BLI_strdup(name);
+    *prv_p = BKE_previewimg_create();
+  }
+  prv = *(PreviewImage **)prv_p;
   BLI_assert(prv);
+
   return prv;
 }
 
@@ -295,13 +311,12 @@ PreviewImage *BKE_previewimg_cached_thumbnail_read(const char *name,
   BLI_assert(BLI_thread_is_main());
 
   PreviewImage *prv = nullptr;
-  PreviewImage **prv_p;
+  void **prv_p;
 
-  CachedPreviewMap &cache = get_cached_previews_map();
-  prv_p = cache.lookup_ptr_as(name);
+  prv_p = BLI_ghash_lookup_p(gCachedPreviews, name);
 
   if (prv_p) {
-    prv = *prv_p;
+    prv = static_cast<PreviewImage *>(*prv_p);
     BLI_assert(prv);
     BLI_assert(prv->runtime->deferred_loading_data);
   }
@@ -329,7 +344,7 @@ PreviewImage *BKE_previewimg_cached_thumbnail_read(const char *name,
       *prv_p = prv;
     }
     else {
-      cache.add(name, prv);
+      BLI_ghash_insert(gCachedPreviews, BLI_strdup(name), prv);
     }
   }
 
@@ -339,8 +354,13 @@ PreviewImage *BKE_previewimg_cached_thumbnail_read(const char *name,
 void BKE_previewimg_cached_release(const char *name)
 {
   BLI_assert(BLI_thread_is_main());
-  CachedPreviewMap &cache = get_cached_previews_map();
-  PreviewImage *prv = cache.pop_default_as(name, nullptr);
+  if (!gCachedPreviews) {
+    /* Static cache was already freed including all contained previews. Can happen on shutdown. */
+    return;
+  }
+
+  PreviewImage *prv = (PreviewImage *)BLI_ghash_popkey(gCachedPreviews, name, MEM_freeN);
+
   BKE_previewimg_deferred_release(prv);
 }
 

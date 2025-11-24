@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import bpy
+import typing
 from ......io.com import gltf2_io
 from ......io.exp import binary_data as gltf2_io_binary_data
 from ......io.com import constants as gltf2_io_constants
@@ -24,7 +25,7 @@ def gather_data_sampled_animation_sampler(
         export_settings
 ):
 
-    keyframes, alpha_cst = __gather_keyframes(
+    keyframes = __gather_keyframes(
         blender_type_data,
         blender_id,
         channel,
@@ -36,7 +37,7 @@ def gather_data_sampled_animation_sampler(
 
     if keyframes is None:
         # After check, no need to animate this node for this channel
-        return None, None
+        return None
 
     # Now we are raw input/output, we need to convert to glTF data
     input, output = __convert_keyframes(blender_type_data, blender_id, channel, keyframes, action_name, export_settings)
@@ -44,7 +45,7 @@ def gather_data_sampled_animation_sampler(
     sampler = gltf2_io.AnimationSampler(extensions=None, extras=None, input=input, interpolation=__gather_interpolation(
         blender_type_data, node_channel_is_animated, node_channel_interpolation, keyframes, export_settings), output=output)
 
-    return sampler, alpha_cst
+    return sampler
 
 
 def __gather_keyframes(
@@ -57,7 +58,7 @@ def __gather_keyframes(
         additional_key,  # Used to differentiate between material / material node_tree
         export_settings):
 
-    keyframes, alpha_cst = gather_data_sampled_keyframes(
+    keyframes = gather_data_sampled_keyframes(
         blender_type_data,
         blender_id,
         channel,
@@ -70,9 +71,9 @@ def __gather_keyframes(
 
     if keyframes is None:
         # After check, no need to animation this node
-        return None, None
+        return None
 
-    return keyframes, alpha_cst
+    return keyframes
 
 
 def __convert_keyframes(blender_type_data, blender_id, channel, keyframes, action_name, export_settings):

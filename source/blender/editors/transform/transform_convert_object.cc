@@ -676,8 +676,7 @@ static void createTransObject(bContext *C, TransInfo *t)
   ((base->flag_legacy & BA_WAS_SEL) && (base->flag & BASE_SELECTED) == 0)
 
     Set<Object *> objects_in_transdata;
-    Map<Object *, Object *> objects_parent_root;
-    objects_parent_root.reserve(tc->data_len);
+    GHash *objects_parent_root = BLI_ghash_ptr_new_ex(__func__, tc->data_len);
     td = tc->data;
     for (int i = 0; i < tc->data_len; i++, td++) {
       if ((td->flag & TD_SKIP) == 0) {
@@ -710,7 +709,7 @@ static void createTransObject(bContext *C, TransInfo *t)
                 if (ob_parent_recurse) {
                   object::object_xform_skip_child_container_item_ensure(
                       tdo->xcs, ob, ob_parent_recurse, object::XFORM_OB_SKIP_CHILD_PARENT_APPLY);
-                  objects_parent_root.add(ob, ob_parent_recurse);
+                  BLI_ghash_insert(objects_parent_root, ob, ob_parent_recurse);
                   base->flag_legacy |= BA_TRANSFORM_LOCKED_IN_PLACE;
                   base->flag_legacy &= ~BA_SNAP_FIX_DEPS_FIASCO;
                 }
@@ -737,7 +736,8 @@ static void createTransObject(bContext *C, TransInfo *t)
             base->flag_legacy &= ~BA_SNAP_FIX_DEPS_FIASCO;
           }
           else {
-            Object *ob_parent_recurse = objects_parent_root.lookup_default(ob->parent, nullptr);
+            Object *ob_parent_recurse = static_cast<Object *>(
+                BLI_ghash_lookup(objects_parent_root, ob->parent));
             if (ob_parent_recurse) {
               object::object_xform_skip_child_container_item_ensure(
                   tdo->xcs,
@@ -749,6 +749,7 @@ static void createTransObject(bContext *C, TransInfo *t)
         }
       }
     }
+    BLI_ghash_free(objects_parent_root, nullptr, nullptr);
 
 #undef BASE_XFORM_INDIRECT
   }

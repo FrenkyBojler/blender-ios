@@ -14,9 +14,6 @@
 #  include "gpu_index_load_infos.hh"
 
 #  include "workbench_shader_shared.hh"
-#endif
-
-#ifdef GLSL_CPP_STUBS
 #  define DYNAMIC_PASS_SELECTION
 #  define SHADOW_PASS
 #  define SHADOW_FAIL
@@ -79,7 +76,7 @@ GPU_SHADER_CREATE_END()
  * \{ */
 
 GPU_SHADER_CREATE_INFO(workbench_shadow_no_debug)
-FRAGMENT_SOURCE("workbench_shadow_frag.glsl")
+FRAGMENT_SOURCE("gpu_shader_depth_only_frag.glsl")
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(workbench_shadow_debug)

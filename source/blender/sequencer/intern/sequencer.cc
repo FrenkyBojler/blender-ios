@@ -83,7 +83,7 @@ StripProxy *seq_strip_proxy_alloc()
   return strip_proxy;
 }
 
-static StripData *strip_data_alloc(StripType type)
+static StripData *seq_strip_alloc(int type)
 {
   StripData *data = MEM_callocN<StripData>("strip");
 
@@ -96,11 +96,22 @@ static StripData *strip_data_alloc(StripType type)
     data->transform->filter = SEQ_TRANSFORM_FILTER_AUTO;
     data->crop = MEM_callocN<StripCrop>("StripCrop");
   }
+
+  data->us = 1;
   return data;
 }
 
-static void strip_data_free(StripData *data)
+static void seq_free_strip(StripData *data)
 {
+  data->us--;
+  if (data->us > 0) {
+    return;
+  }
+  if (data->us < 0) {
+    printf("error: negative users in strip\n");
+    return;
+  }
+
   if (data->stripdata) {
     MEM_freeN(data->stripdata);
   }
@@ -122,11 +133,9 @@ static void strip_data_free(StripData *data)
   MEM_freeN(data);
 }
 
-Strip *strip_alloc(ListBase *lb, int timeline_frame, int channel, StripType type)
+Strip *strip_alloc(ListBase *lb, int timeline_frame, int channel, int type)
 {
   Strip *strip = MEM_callocN<Strip>("addseq");
-  strip->runtime = MEM_new<StripRuntime>(__func__);
-  relations_session_uid_generate(strip);
   BLI_addtail(lb, strip);
 
   *((short *)strip->name) = ID_SEQ;
@@ -139,6 +148,7 @@ Strip *strip_alloc(ListBase *lb, int timeline_frame, int channel, StripType type
   strip->mul = 1.0;
   strip->blend_opacity = 100.0;
   strip->volume = 1.0f;
+  strip->scene_sound = nullptr;
   strip->type = type;
   strip->media_playback_rate = 0.0f;
   strip->speed_factor = 1.0f;
@@ -150,7 +160,7 @@ Strip *strip_alloc(ListBase *lb, int timeline_frame, int channel, StripType type
     strip->blend_mode = STRIP_BLEND_ALPHAOVER;
   }
 
-  strip->data = strip_data_alloc(type);
+  strip->data = seq_strip_alloc(type);
   strip->stereo3d_format = MEM_callocN<Stereo3dFormat>("Sequence Stereo Format");
 
   strip->color_tag = STRIP_COLOR_NONE;
@@ -158,6 +168,8 @@ Strip *strip_alloc(ListBase *lb, int timeline_frame, int channel, StripType type
   if (strip->type == STRIP_TYPE_META) {
     channels_ensure(&strip->channels);
   }
+
+  relations_session_uid_generate(strip);
 
   return strip;
 }
@@ -169,11 +181,10 @@ static void seq_strip_free_ex(Scene *scene,
                               const bool do_id_user)
 {
   if (strip->data) {
-    strip_data_free(strip->data);
-    strip->data = nullptr;
+    seq_free_strip(strip->data);
   }
 
-  strip_free_movie_readers(strip);
+  relations_strip_free_anim(strip);
 
   if (strip->is_effect()) {
     EffectHandle sh = strip_effect_handle_get(strip);
@@ -206,8 +217,8 @@ static void seq_strip_free_ex(Scene *scene,
       ed->act_strip = nullptr;
     }
 
-    if (strip->runtime->scene_sound && ELEM(strip->type, STRIP_TYPE_SOUND_RAM, STRIP_TYPE_SCENE)) {
-      BKE_sound_remove_scene_sound(scene, strip->runtime->scene_sound);
+    if (strip->scene_sound && ELEM(strip->type, STRIP_TYPE_SOUND_RAM, STRIP_TYPE_SCENE)) {
+      BKE_sound_remove_scene_sound(scene, strip->scene_sound);
     }
   }
 
@@ -250,7 +261,6 @@ static void seq_strip_free_ex(Scene *scene,
     strip->retiming_keys_num = 0;
   }
 
-  MEM_SAFE_DELETE(strip->runtime);
   MEM_freeN(strip);
 }
 
@@ -595,16 +605,10 @@ static void seq_duplicate_postprocess(StripDuplicateContext &ctx)
 static Strip *strip_duplicate(StripDuplicateContext &ctx, ListBase *seqbase_dst, Strip *strip)
 {
   Strip *strip_new = static_cast<Strip *>(MEM_dupallocN(strip));
-  strip_new->runtime = MEM_new<StripRuntime>(__func__);
-  strip_new->runtime->flag = strip->runtime->flag;
-
   ctx.strip_map.add(strip, strip_new);
 
   if ((ctx.copy_flag & LIB_ID_CREATE_NO_MAIN) == 0) {
     relations_session_uid_generate(strip_new);
-  }
-  else {
-    strip_new->runtime->session_uid = strip->runtime->session_uid;
   }
 
   strip_new->data = static_cast<StripData *>(MEM_dupallocN(strip->data));
@@ -666,9 +670,8 @@ static Strip *strip_duplicate(StripDuplicateContext &ctx, ListBase *seqbase_dst,
                                                  LIB_ID_DUPLICATE_IS_SUBPROCESS);
     }
     strip_new->data->stripdata = nullptr;
-    if (strip->runtime->scene_sound) {
-      strip_new->runtime->scene_sound = BKE_sound_scene_add_scene_sound_defaults(ctx.scene_dst,
-                                                                                 strip_new);
+    if (strip->scene_sound) {
+      strip_new->scene_sound = BKE_sound_scene_add_scene_sound_defaults(ctx.scene_dst, strip_new);
     }
   }
   else if (strip->type == STRIP_TYPE_MOVIECLIP) {
@@ -695,10 +698,11 @@ static Strip *strip_duplicate(StripDuplicateContext &ctx, ListBase *seqbase_dst,
   }
   else if (strip->type == STRIP_TYPE_MOVIE) {
     strip_new->data->stripdata = static_cast<StripElem *>(MEM_dupallocN(strip->data->stripdata));
+    BLI_listbase_clear(&strip_new->anims);
   }
   else if (strip->type == STRIP_TYPE_SOUND_RAM) {
     strip_new->data->stripdata = static_cast<StripElem *>(MEM_dupallocN(strip->data->stripdata));
-    strip_new->runtime->scene_sound = nullptr;
+    strip_new->scene_sound = nullptr;
     if ((ctx.copy_flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
       id_us_plus((ID *)strip_new->sound);
     }
@@ -825,11 +829,21 @@ SequencerToolSettings *tool_settings_copy(SequencerToolSettings *tool_settings)
 
 /** \} */
 
+static bool seq_set_strip_done_cb(Strip *strip, void * /*userdata*/)
+{
+  if (strip->data) {
+    strip->data->done = false;
+  }
+  return true;
+}
+
 static bool strip_write_data_cb(Strip *strip, void *userdata)
 {
   BlendWriter *writer = (BlendWriter *)userdata;
   BLO_write_struct(writer, Strip, strip);
-  if (strip->data) {
+  if (strip->data && strip->data->done == 0) {
+    /* Write strip with 'done' at 0 because read-file. */
+
     /* TODO this doesn't depend on the `Strip` data to be present? */
     if (strip->effectdata) {
       switch (strip->type) {
@@ -883,6 +897,8 @@ static bool strip_write_data_cb(Strip *strip, void *userdata)
     else if (ELEM(strip->type, STRIP_TYPE_MOVIE, STRIP_TYPE_SOUND_RAM)) {
       BLO_write_struct(writer, StripElem, data->stripdata);
     }
+
+    data->done = true;
   }
 
   if (strip->prop) {
@@ -912,6 +928,9 @@ static bool strip_write_data_cb(Strip *strip, void *userdata)
 
 void blend_write(BlendWriter *writer, ListBase *seqbase)
 {
+  /* reset write flags */
+  foreach_strip(seqbase, seq_set_strip_done_cb, nullptr);
+
   foreach_strip(seqbase, strip_write_data_cb, writer);
 }
 
@@ -919,7 +938,10 @@ static bool strip_read_data_cb(Strip *strip, void *user_data)
 {
   BlendDataReader *reader = (BlendDataReader *)user_data;
 
-  strip->runtime = MEM_new<StripRuntime>(__func__);
+  /* Runtime data cleanup. */
+  strip->scene_sound = nullptr;
+  BLI_listbase_clear(&strip->anims);
+
   /* Do as early as possible, so that other parts of reading can rely on valid session UID. */
   relations_session_uid_generate(strip);
 
@@ -974,7 +996,9 @@ static bool strip_read_data_cb(Strip *strip, void *user_data)
   IDP_BlendDataRead(reader, &strip->system_properties);
 
   BLO_read_struct(reader, StripData, &strip->data);
-  if (strip->data) {
+  if (strip->data && strip->data->done == 0) {
+    strip->data->done = true;
+
     /* `STRIP_TYPE_SOUND_HD` case needs to be kept here, for backward compatibility. */
     if (ELEM(strip->type,
              STRIP_TYPE_IMAGE,
@@ -1057,9 +1081,9 @@ void doversion_250_sound_proxy_update(Main *bmain, Editing *ed)
 static bool seq_mute_sound_strips_cb(Strip *strip, void *user_data)
 {
   Scene *scene = (Scene *)user_data;
-  if (strip->runtime->scene_sound != nullptr) {
-    BKE_sound_remove_scene_sound(scene, strip->runtime->scene_sound);
-    strip->runtime->scene_sound = nullptr;
+  if (strip->scene_sound != nullptr) {
+    BKE_sound_remove_scene_sound(scene, strip->scene_sound);
+    strip->scene_sound = nullptr;
   }
   return true;
 }
@@ -1067,31 +1091,29 @@ static bool seq_mute_sound_strips_cb(Strip *strip, void *user_data)
 /* Adds sound of strip to the `scene->sound_scene` - "sound timeline". */
 static void strip_update_mix_sounds(Scene *scene, Strip *strip)
 {
-  if (strip->runtime->scene_sound != nullptr) {
+  if (strip->scene_sound != nullptr) {
     return;
   }
 
   if (strip->sound != nullptr) {
     /* Adds `strip->sound->playback_handle` to `scene->sound_scene` */
-    strip->runtime->scene_sound = BKE_sound_add_scene_sound_defaults(scene, strip);
+    strip->scene_sound = BKE_sound_add_scene_sound_defaults(scene, strip);
   }
   else if (strip->type == STRIP_TYPE_SCENE && strip->scene != nullptr) {
     /* Adds `strip->scene->sound_scene` to `scene->sound_scene`. */
     BKE_sound_ensure_scene(strip->scene);
-    strip->runtime->scene_sound = BKE_sound_scene_add_scene_sound_defaults(scene, strip);
+    strip->scene_sound = BKE_sound_scene_add_scene_sound_defaults(scene, strip);
   }
 }
 
 static void strip_update_sound_properties(const Scene *scene, const Strip *strip)
 {
   const int frame = BKE_scene_frame_get(scene);
-  BKE_sound_set_scene_sound_volume_at_frame(strip->runtime->scene_sound,
-                                            frame,
-                                            strip->volume,
-                                            (strip->flag & SEQ_AUDIO_VOLUME_ANIMATED) != 0);
+  BKE_sound_set_scene_sound_volume_at_frame(
+      strip->scene_sound, frame, strip->volume, (strip->flag & SEQ_AUDIO_VOLUME_ANIMATED) != 0);
   retiming_sound_animation_data_set(scene, strip);
   BKE_sound_set_scene_sound_pan_at_frame(
-      strip->runtime->scene_sound, frame, strip->pan, (strip->flag & SEQ_AUDIO_PAN_ANIMATED) != 0);
+      strip->scene_sound, frame, strip->pan, (strip->flag & SEQ_AUDIO_PAN_ANIMATED) != 0);
 }
 
 static void strip_update_sound_modifiers(Strip *strip)
@@ -1105,7 +1127,7 @@ static void strip_update_sound_modifiers(Strip *strip)
 
   if (needs_update) {
     /* Assign modified sound back to `strip`. */
-    BKE_sound_update_sequence_handle(strip->runtime->scene_sound, sound_handle);
+    BKE_sound_update_sequence_handle(strip->scene_sound, sound_handle);
   }
 }
 
@@ -1124,7 +1146,7 @@ static void seq_update_sound_strips(Scene *scene, Strip *strip)
   /* Ensure strip is playing correct sound. */
   if (BLI_listbase_is_empty(&strip->modifiers)) {
     /* Just use playback handle from sound ID. */
-    BKE_sound_update_scene_sound(strip->runtime->scene_sound, strip->sound);
+    BKE_sound_update_scene_sound(strip->scene_sound, strip->sound);
   }
   else {
     /* Use Playback handle from sound ID as input for modifier stack. */
@@ -1178,7 +1200,7 @@ static bool strip_sound_update_cb(Strip *strip, void *user_data)
 
   strip_update_mix_sounds(scene, strip);
 
-  if (strip->runtime->scene_sound == nullptr) {
+  if (strip->scene_sound == nullptr) {
     return true;
   }
 

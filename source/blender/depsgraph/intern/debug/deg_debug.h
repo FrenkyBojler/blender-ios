@@ -23,8 +23,6 @@ class DepsgraphDebug {
   void begin_graph_evaluation();
   void end_graph_evaluation();
 
-  double total_evaluation_time() const;
-
   /* NOTE: Corresponds to G_DEBUG_DEPSGRAPH_* flags. */
   int flags;
 
@@ -37,11 +35,9 @@ class DepsgraphDebug {
   static const constexpr int MAX_FPS_COUNTERS = 64;
 
   /* Point in time when last graph evaluation began.
-   * Is initialized from begin_graph_evaluation().
+   * Is initialized from begin_graph_evaluation() when time debug is enabled.
    */
   double graph_evaluation_start_time_;
-  /* Total time of the last evaluation. */
-  double graph_evaluation_total_time_;
 };
 
 #define DEG_DEBUG_PRINTF(depsgraph, type, ...) \

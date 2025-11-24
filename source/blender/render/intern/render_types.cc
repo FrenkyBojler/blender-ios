@@ -35,9 +35,6 @@ BaseRender::~BaseRender()
 
   render_result_free(result);
 
-  /* Free GPU context after engine, which may need context for cleanup. */
-  display.reset();
-
   BLI_rw_mutex_end(&resultmutex);
   BLI_mutex_end(&engine_draw_mutex);
 }
@@ -50,6 +47,8 @@ Render::Render()
 Render::~Render()
 {
   RE_compositor_free(*this);
+
+  display.reset();
 
   BKE_curvemapping_free_data(&r.mblur_shutter_curve);
 

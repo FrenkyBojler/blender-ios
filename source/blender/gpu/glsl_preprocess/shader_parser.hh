@@ -110,7 +110,6 @@ enum TokenType : char {
 };
 
 enum class ScopeType : char {
-  Invalid = 0,
   /* Use ascii chars to store them in string, and for easy debugging / testing. */
   Global = 'G',
   Namespace = 'N',
@@ -127,8 +126,6 @@ enum class ScopeType : char {
   Subscript = 'A',
   Preprocessor = 'P',
   Assignment = 'a',
-  Attributes = 'B',
-  Attribute = 'b',
   /* Added scope inside function body. */
   Local = 'L',
   /* Added scope inside FunctionArgs. */
@@ -737,38 +734,19 @@ struct Scope {
             index};
   }
 
-  static Scope invalid()
-  {
-    return {"", "", nullptr, 0};
-  }
-
-  bool is_valid() const
-  {
-    return data != nullptr;
-  }
-  bool is_invalid() const
-  {
-    return data == nullptr;
-  }
-
-  Token operator[](int i)
-  {
-    return Token::from_position(data, range().start + i);
-  }
-
   Token start() const
   {
-    return is_invalid() ? Token::invalid() : Token::from_position(data, range().start);
+    return Token::from_position(data, range().start);
   }
 
   Token end() const
   {
-    return is_invalid() ? Token::invalid() : Token::from_position(data, range().last());
+    return Token::from_position(data, range().last());
   }
 
   IndexRange range() const
   {
-    return is_invalid() ? IndexRange(0, 0) : data->scope_ranges[index];
+    return data->scope_ranges[index];
   }
 
   Token operator[](const int64_t index) const
@@ -778,25 +756,32 @@ struct Scope {
 
   size_t token_count() const
   {
-    return is_invalid() ? 0 : range().size;
+    return range().size;
   }
 
   ScopeType type() const
   {
-    return is_invalid() ? ScopeType::Invalid : ScopeType(data->scope_types[index]);
+    return ScopeType(data->scope_types[index]);
   }
 
   /* Returns the scope that contains this scope. */
   Scope scope() const
   {
-    return is_invalid() ? Scope::invalid() : start().prev().scope();
+    return start().prev().scope();
   }
 
-  /* Returns the next scope after this scope. Can be either the container scope or the next scope
-   * inside the same container. */
-  Scope next() const
+  static Scope invalid()
   {
-    return is_invalid() ? Scope::invalid() : end().next().scope();
+    return {"", "", nullptr, -1};
+  }
+
+  bool is_valid() const
+  {
+    return data != nullptr && index >= 0;
+  }
+  bool is_invalid() const
+  {
+    return !is_valid();
   }
 
   bool contains(const Scope sub) const
@@ -829,7 +814,6 @@ struct Scope {
 
   Token find_token(const char token_type) const
   {
-    assert(is_valid());
     size_t pos = data->token_types.substr(range().start, range().size).find(token_type);
     return (pos != std::string::npos) ? Token::from_position(data, range().start + pos) :
                                         Token::invalid();
@@ -907,7 +891,6 @@ struct Scope {
   /* Will iterate over all the scopes that are direct children. */
   void foreach_scope(ScopeType type, std::function<void(Scope)> callback) const
   {
-    assert(is_valid());
     size_t pos = this->index;
     while ((pos = data->scope_types.find(char(type), pos)) != std::string::npos) {
       Scope scope = Scope::from_position(data, pos);
@@ -990,9 +973,6 @@ struct Scope {
 
 inline Scope Token::scope() const
 {
-  if (this->is_invalid()) {
-    return Scope::invalid();
-  }
   return Scope::from_position(data, data->token_scope[index]);
 }
 
@@ -1126,12 +1106,7 @@ inline void ParserData::parse_scopes(report_callback &report_error)
           }
           break;
         case SquareOpen:
-          if (tok_id >= 1 && token_types[tok_id - 1] == SquareOpen) {
-            enter_scope(ScopeType::Attributes, tok_id);
-          }
-          else {
-            enter_scope(ScopeType::Subscript, tok_id);
-          }
+          enter_scope(ScopeType::Subscript, tok_id);
           break;
         case AngleOpen:
           if (tok_id >= 1) {
@@ -1171,9 +1146,6 @@ inline void ParserData::parse_scopes(report_callback &report_error)
           exit_scope(tok_id);
           break;
         case SquareClose:
-          if (scopes.top().type == ScopeType::Attribute) {
-            exit_scope(tok_id - 1);
-          }
           exit_scope(tok_id);
           break;
         case SemiColon:
@@ -1200,14 +1172,8 @@ inline void ParserData::parse_scopes(report_callback &report_error)
           if (scopes.top().type == ScopeType::TemplateArg) {
             exit_scope(tok_id - 1);
           }
-          if (scopes.top().type == ScopeType::Attributes) {
-            exit_scope(tok_id - 1);
-          }
           break;
         default:
-          if (scopes.top().type == ScopeType::Attributes) {
-            enter_scope(ScopeType::Attribute, tok_id);
-          }
           if (scopes.top().type == ScopeType::FunctionArgs) {
             enter_scope(ScopeType::FunctionArg, tok_id);
           }

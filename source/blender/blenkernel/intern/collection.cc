@@ -188,7 +188,7 @@ static void collection_free_data(ID *id)
 
   BLI_freelistN(&collection->gobject);
   if (collection->runtime->gobject_hash) {
-    MEM_delete(collection->runtime->gobject_hash);
+    BLI_ghash_free(collection->runtime->gobject_hash, nullptr, nullptr);
     collection->runtime->gobject_hash = nullptr;
   }
 
@@ -555,7 +555,7 @@ bool BKE_collection_delete(Main *bmain, Collection *collection, bool hierarchy)
    * it is in fact slower because the items are removed in-order,
    * so the list-lookup succeeds on the first test. */
   if (collection->runtime->gobject_hash) {
-    MEM_delete(collection->runtime->gobject_hash);
+    BLI_ghash_free(collection->runtime->gobject_hash, nullptr, nullptr);
     collection->runtime->gobject_hash = nullptr;
   }
 
@@ -1068,7 +1068,7 @@ bool BKE_collection_has_object(Collection *collection, const Object *ob)
     return false;
   }
   collection_gobject_hash_ensure(collection);
-  return collection->runtime->gobject_hash->contains(ob);
+  return BLI_ghash_lookup(collection->runtime->gobject_hash, ob);
 }
 
 bool BKE_collection_has_object_recursive(Collection *collection, Object *ob)
@@ -1176,25 +1176,26 @@ bool BKE_collection_is_empty(const Collection *collection)
 static void collection_gobject_assert_internal_consistency(Collection *collection,
                                                            const bool do_extensive_check);
 
-static CollectionObjectMap *collection_gobject_hash_alloc(const Collection *collection)
+static GHash *collection_gobject_hash_alloc(const Collection *collection)
 {
-  auto *gobject_hash = MEM_new<CollectionObjectMap>(__func__);
-  gobject_hash->reserve(BLI_listbase_count(&collection->gobject));
-  return gobject_hash;
+  return BLI_ghash_ptr_new_ex(__func__, uint(BLI_listbase_count(&collection->gobject)));
 }
 
 static void collection_gobject_hash_create(Collection *collection)
 {
-  CollectionObjectMap *gobject_hash = collection_gobject_hash_alloc(collection);
+  GHash *gobject_hash = collection_gobject_hash_alloc(collection);
   LISTBASE_FOREACH (CollectionObject *, cob, &collection->gobject) {
     if (UNLIKELY(cob->ob == nullptr)) {
       BLI_assert(collection->runtime->tag & COLLECTION_TAG_COLLECTION_OBJECT_DIRTY);
       continue;
     }
+    CollectionObject **cob_p;
     /* Do not overwrite an already existing entry. */
-    if (!gobject_hash->add(cob->ob, cob)) {
+    if (UNLIKELY(BLI_ghash_ensure_p(gobject_hash, cob->ob, (void ***)&cob_p))) {
       BLI_assert(collection->runtime->tag & COLLECTION_TAG_COLLECTION_OBJECT_DIRTY);
+      continue;
     }
+    *cob_p = cob;
   }
   collection->runtime->gobject_hash = gobject_hash;
 }
@@ -1228,9 +1229,9 @@ static void collection_gobject_hash_ensure_fix(Main *bmain, Collection *collecti
     return;
   }
 
-  CollectionObjectMap *gobject_hash = collection->runtime->gobject_hash;
+  GHash *gobject_hash = collection->runtime->gobject_hash;
   if (gobject_hash) {
-    gobject_hash->clear_and_keep_capacity();
+    BLI_ghash_clear_ex(gobject_hash, nullptr, nullptr, BLI_ghash_len(gobject_hash));
   }
   else {
     collection->runtime->gobject_hash = gobject_hash = collection_gobject_hash_alloc(collection);
@@ -1242,12 +1243,13 @@ static void collection_gobject_hash_ensure_fix(Main *bmain, Collection *collecti
       changed = true;
       continue;
     }
-
-    if (!gobject_hash->add(cob->ob, cob)) {
+    CollectionObject **cob_p;
+    if (BLI_ghash_ensure_p(gobject_hash, cob->ob, (void ***)&cob_p)) {
       BLI_freelinkN(&collection->gobject, cob);
       changed = true;
       continue;
     }
+    *cob_p = cob;
   }
 
   if (changed) {
@@ -1281,7 +1283,8 @@ static void collection_gobject_hash_update_object(Collection *collection,
   }
 
   if (ob_old) {
-    CollectionObject *cob_old = collection->runtime->gobject_hash->pop_default(ob_old, nullptr);
+    CollectionObject *cob_old = static_cast<CollectionObject *>(
+        BLI_ghash_popkey(collection->runtime->gobject_hash, ob_old, nullptr));
     if (cob_old != cob) {
       /* Old object already removed from the #GHash. */
       collection->runtime->tag |= COLLECTION_TAG_COLLECTION_OBJECT_DIRTY;
@@ -1289,7 +1292,11 @@ static void collection_gobject_hash_update_object(Collection *collection,
   }
 
   if (cob->ob) {
-    if (collection->runtime->gobject_hash->add(cob->ob, cob)) {
+    CollectionObject **cob_p;
+    if (!BLI_ghash_ensure_p(collection->runtime->gobject_hash, cob->ob, (void ***)&cob_p)) {
+      *cob_p = cob;
+    }
+    else {
       /* Duplicate #CollectionObject entries. */
       collection->runtime->tag |= COLLECTION_TAG_COLLECTION_OBJECT_DIRTY;
     }
@@ -1326,13 +1333,13 @@ static void collection_gobject_assert_internal_consistency(Collection *collectio
      * so in theory the second loop below could be skipped. */
     collection_gobject_hash_create(collection);
   }
-  CollectionObjectMap *gobject_hash = collection->runtime->gobject_hash;
+  GHash *gobject_hash = collection->runtime->gobject_hash;
   UNUSED_VARS_NDEBUG(gobject_hash);
   LISTBASE_FOREACH (CollectionObject *, cob, &collection->gobject) {
     BLI_assert(cob->ob != nullptr);
     /* If there are more than one #CollectionObject for the same object,
      * at most one of them will pass this test. */
-    BLI_assert(gobject_hash->lookup_default(cob->ob, nullptr) == cob);
+    BLI_assert(BLI_ghash_lookup(gobject_hash, cob->ob) == cob);
   }
 }
 
@@ -1415,20 +1422,17 @@ static bool collection_object_add(Main *bmain,
   }
 
   collection_gobject_hash_ensure(collection);
-
-  bool newly_added = false;
-  CollectionObject *cob = collection->runtime->gobject_hash->lookup_or_add_cb(ob, [&]() {
-    newly_added = true;
-    return MEM_callocN<CollectionObject>(__func__);
-  });
-  if (!newly_added) {
+  CollectionObject **cob_p;
+  if (BLI_ghash_ensure_p(collection->runtime->gobject_hash, ob, (void ***)&cob_p)) {
     return false;
   }
 
+  CollectionObject *cob = MEM_callocN<CollectionObject>(__func__);
   cob->ob = ob;
   if (light_linking) {
     cob->light_linking = *light_linking;
   }
+  *cob_p = cob;
   BLI_addtail(&collection->gobject, cob);
   BKE_collection_object_cache_free(bmain, collection, id_create_flag);
 
@@ -1469,7 +1473,8 @@ static bool collection_object_remove(
     Main *bmain, Collection *collection, Object *ob, const int id_create_flag, const bool free_us)
 {
   collection_gobject_hash_ensure(collection);
-  CollectionObject *cob = collection->runtime->gobject_hash->pop_default(ob, nullptr);
+  CollectionObject *cob = static_cast<CollectionObject *>(
+      BLI_ghash_popkey(collection->runtime->gobject_hash, ob, nullptr));
   if (cob == nullptr) {
     return false;
   }
@@ -1633,17 +1638,18 @@ bool BKE_collection_object_replace(Main *bmain,
 {
   collection_gobject_hash_ensure(collection);
   CollectionObject *cob;
-  cob = collection->runtime->gobject_hash->pop_default(ob_old, nullptr);
+  cob = static_cast<CollectionObject *>(
+      BLI_ghash_popkey(collection->runtime->gobject_hash, ob_old, nullptr));
   if (cob == nullptr) {
     return false;
   }
 
-  if (!collection->runtime->gobject_hash->contains(ob_new)) {
+  if (!BLI_ghash_haskey(collection->runtime->gobject_hash, ob_new)) {
     id_us_min(&cob->ob->id);
     cob->ob = ob_new;
     id_us_plus(&cob->ob->id);
 
-    collection->runtime->gobject_hash->add(cob->ob, cob);
+    BLI_ghash_insert(collection->runtime->gobject_hash, cob->ob, cob);
   }
   else {
     collection_object_remove_no_gobject_hash(bmain, collection, cob, 0, false);

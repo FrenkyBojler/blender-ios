@@ -2,10 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/compositor_compute_preview_infos.hh"
-
-COMPUTE_SHADER_CREATE_INFO(compositor_compute_preview)
-
 void main()
 {
   int2 texel = int2(gl_GlobalInvocationID.xy);

@@ -31,8 +31,6 @@
 #pragma once
 
 #ifdef GLSL_CPP_STUBS
-#  include "gpu_shader_compat.hh"
-
 /* Silence macros when compiling for shaders. */
 #  define BLI_STATIC_ASSERT(cond, msg)
 #  define BLI_STATIC_ASSERT_ALIGN(type_, align_)
@@ -52,12 +50,11 @@
 #  define expf exp
 
 #elif defined(GPU_SHADER)
-#  include "gpu_shader_compat.hh"
-
 /* Silence macros when compiling for shaders. */
 #  define BLI_STATIC_ASSERT(cond, msg)
 #  define BLI_STATIC_ASSERT_ALIGN(type_, align_)
 #  define BLI_STATIC_ASSERT_SIZE(type_, size_)
+#  define ATTR_FALLTHROUGH
 #  define ENUM_OPERATORS(a)
 #  define UNUSED_VARS(a)
 /* Math function renaming. */

@@ -26,6 +26,10 @@ bool DepsgraphDebug::do_time_debug() const
 
 void DepsgraphDebug::begin_graph_evaluation()
 {
+  if (!do_time_debug()) {
+    return;
+  }
+
   const double current_time = BLI_time_now_seconds();
 
   graph_evaluation_start_time_ = current_time;
@@ -33,24 +37,19 @@ void DepsgraphDebug::begin_graph_evaluation()
 
 void DepsgraphDebug::end_graph_evaluation()
 {
-  const double graph_eval_end_time = BLI_time_now_seconds();
-  graph_evaluation_total_time_ = graph_eval_end_time - graph_evaluation_start_time_;
-
   if (!do_time_debug()) {
     return;
   }
 
+  const double graph_eval_end_time = BLI_time_now_seconds();
+  const double graph_eval_time = graph_eval_end_time - graph_evaluation_start_time_;
+
   if (name.empty()) {
-    printf("Depsgraph updated in %f seconds.\n", graph_evaluation_total_time_);
+    printf("Depsgraph updated in %f seconds.\n", graph_eval_time);
   }
   else {
-    printf("Depsgraph [%s] updated in %f seconds.\n", name.c_str(), graph_evaluation_total_time_);
+    printf("Depsgraph [%s] updated in %f seconds.\n", name.c_str(), graph_eval_time);
   }
-}
-
-double DepsgraphDebug::total_evaluation_time() const
-{
-  return graph_evaluation_total_time_;
 }
 
 bool terminal_do_color()

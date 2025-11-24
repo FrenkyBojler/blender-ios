@@ -18,8 +18,8 @@
 #include "DNA_gpencil_legacy_types.h"
 
 #include "BLI_fileops.h"
+#include "BLI_ghash.h"
 #include "BLI_linklist_lockfree.h"
-#include "BLI_map.hh"
 #include "BLI_mutex.hh"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
@@ -47,12 +47,7 @@ enum {
 static CLG_LogRef LOG = {"lib.icons"};
 
 /* Protected by gIconMutex. */
-using GlobalIconsMap = blender::Map<int, Icon *>;
-static GlobalIconsMap &get_global_icons_map()
-{
-  static GlobalIconsMap gIcons;
-  return gIcons;
-}
+static GHash *gIcons = nullptr;
 
 /* Protected by gIconMutex. */
 static int gNextIconId = 1;
@@ -136,8 +131,7 @@ static void icon_free_data(int icon_id, Icon *icon)
 static Icon *icon_ghash_lookup(int icon_id)
 {
   std::scoped_lock lock(gIconMutex);
-  const GlobalIconsMap &gIcons = get_global_icons_map();
-  return gIcons.lookup_default(icon_id, nullptr);
+  return (Icon *)BLI_ghash_lookup(gIcons, POINTER_FROM_INT(icon_id));
 }
 
 /* create an id for a new icon and make sure that ids from deleted icons get reused
@@ -145,7 +139,6 @@ static Icon *icon_ghash_lookup(int icon_id)
 static int get_next_free_id()
 {
   std::scoped_lock lock(gIconMutex);
-  const GlobalIconsMap &gIcons = get_global_icons_map();
   int startId = gFirstIconId;
 
   /* if we haven't used up the int number range, we just return the next int */
@@ -156,7 +149,7 @@ static int get_next_free_id()
 
   /* Now we try to find the smallest icon id not stored in the gIcons hash.
    * Don't use icon_ghash_lookup here, it would lock recursively (dead-lock). */
-  while (gIcons.contains(startId) && startId >= gFirstIconId) {
+  while (BLI_ghash_lookup(gIcons, POINTER_FROM_INT(startId)) && startId >= gFirstIconId) {
     startId++;
   }
 
@@ -176,18 +169,20 @@ void BKE_icons_init(int first_dyn_id)
   gNextIconId = first_dyn_id;
   gFirstIconId = first_dyn_id;
 
-  BLI_linklist_lockfree_init(&g_icon_delete_queue);
+  if (!gIcons) {
+    gIcons = BLI_ghash_int_new(__func__);
+    BLI_linklist_lockfree_init(&g_icon_delete_queue);
+  }
 }
 
 void BKE_icons_free()
 {
   BLI_assert(BLI_thread_is_main());
 
-  GlobalIconsMap &gIcons = get_global_icons_map();
-  for (Icon *icon : gIcons.values()) {
-    icon_free(icon);
+  if (gIcons) {
+    BLI_ghash_free(gIcons, nullptr, icon_free);
+    gIcons = nullptr;
   }
-  gIcons.clear();
 
   BLI_linklist_lockfree_free(&g_icon_delete_queue, MEM_freeN);
 }
@@ -195,16 +190,13 @@ void BKE_icons_free()
 void BKE_icons_deferred_free()
 {
   std::scoped_lock lock(gIconMutex);
-  GlobalIconsMap &gIcons = get_global_icons_map();
 
   for (DeferredIconDeleteNode *node =
            (DeferredIconDeleteNode *)BLI_linklist_lockfree_begin(&g_icon_delete_queue);
        node != nullptr;
        node = node->next)
   {
-    if (Icon *icon = gIcons.pop_default(node->icon_id, nullptr)) {
-      icon_free(icon);
-    }
+    BLI_ghash_remove(gIcons, POINTER_FROM_INT(node->icon_id), nullptr, icon_free);
   }
   BLI_linklist_lockfree_clear(&g_icon_delete_queue, MEM_freeN);
 }
@@ -255,8 +247,7 @@ static Icon *icon_create(int icon_id, int obj_type, void *obj)
 
   {
     std::scoped_lock lock(gIconMutex);
-    GlobalIconsMap &gIcons = get_global_icons_map();
-    gIcons.add(icon_id, new_icon);
+    BLI_ghash_insert(gIcons, POINTER_FROM_INT(icon_id), new_icon);
   }
 
   return new_icon;
@@ -424,11 +415,15 @@ Icon *BKE_icon_get(const int icon_id)
 
 void BKE_icon_set(const int icon_id, Icon *icon)
 {
+  void **val_p;
+
   std::scoped_lock lock(gIconMutex);
-  GlobalIconsMap &gIcons = get_global_icons_map();
-  if (!gIcons.add(icon_id, icon)) {
+  if (BLI_ghash_ensure_p(gIcons, POINTER_FROM_INT(icon_id), &val_p)) {
     CLOG_ERROR(&LOG, "icon already set: %d", icon_id);
+    return;
   }
+
+  *val_p = icon;
 }
 
 static void icon_add_to_deferred_delete_queue(int icon_id)
@@ -454,10 +449,7 @@ void BKE_icon_id_delete(ID *id)
 
   BKE_icons_deferred_free();
   std::scoped_lock lock(gIconMutex);
-  GlobalIconsMap &gIcons = get_global_icons_map();
-  if (Icon *icon = gIcons.pop_default(icon_id, nullptr)) {
-    icon_free(icon);
-  }
+  BLI_ghash_remove(gIcons, POINTER_FROM_INT(icon_id), nullptr, icon_free);
 }
 
 bool BKE_icon_delete(const int icon_id)
@@ -468,8 +460,7 @@ bool BKE_icon_delete(const int icon_id)
   }
 
   std::scoped_lock lock(gIconMutex);
-  GlobalIconsMap &gIcons = get_global_icons_map();
-  if (Icon *icon = gIcons.pop_default(icon_id, nullptr)) {
+  if (Icon *icon = (Icon *)BLI_ghash_popkey(gIcons, POINTER_FROM_INT(icon_id), nullptr)) {
     icon_free_data(icon_id, icon);
     icon_free(icon);
     return true;
@@ -486,12 +477,11 @@ bool BKE_icon_delete_unmanaged(const int icon_id)
   }
 
   std::scoped_lock lock(gIconMutex);
-  GlobalIconsMap &gIcons = get_global_icons_map();
 
-  Icon *icon = gIcons.pop_default(icon_id, nullptr);
+  Icon *icon = (Icon *)BLI_ghash_popkey(gIcons, POINTER_FROM_INT(icon_id), nullptr);
   if (icon) {
     if (UNLIKELY(icon->flag & ICON_FLAG_MANAGED)) {
-      gIcons.add(icon_id, icon);
+      BLI_ghash_insert(gIcons, POINTER_FROM_INT(icon_id), icon);
       return false;
     }
 

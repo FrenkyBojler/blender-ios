@@ -2315,7 +2315,7 @@ void wm_test_gpu_backend_fallback(bContext *C)
     UI_alert(C,
              RPT_("Failed to load using Vulkan, using OpenGL instead."),
              message,
-             blender::ui::AlertIcon::Error,
+             ALERT_ICON_ERROR,
              false);
     CTX_wm_window_set(C, prevwin);
   }

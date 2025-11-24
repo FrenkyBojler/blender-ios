@@ -10,9 +10,7 @@
 #  include "draw_view_infos.hh"
 #  include "gpu_index_load_infos.hh"
 #  include "overlay_common_infos.hh"
-#endif
 
-#ifdef GLSL_CPP_STUBS
 #  define CUSTOM_DEPTH_BIAS_CONST
 #endif
 
@@ -123,9 +121,9 @@ DO_STATIC_COMPILATION()
 DEFINE("WIREFRAME")
 STORAGE_BUF_FREQ(0, read, float, au[], GEOMETRY)
 PUSH_CONSTANT(int2, gpu_attr_0)
-COMPILATION_CONSTANT(uint, line_style, 4u /* OVERLAY_UV_LINE_STYLE_SHADOW */)
-COMPILATION_CONSTANT(uint, dash_length, 1 /* Not use by this style. */)
-COMPILATION_CONSTANT(bool, use_edge_select, false)
+DEFINE_VALUE("line_style", "4u" /* OVERLAY_UV_LINE_STYLE_SHADOW */)
+DEFINE_VALUE("dash_length", "1" /* Not used by this line style */)
+DEFINE_VALUE("use_edge_select", "false")
 PUSH_CONSTANT(bool, do_smooth_wire)
 PUSH_CONSTANT(float, alpha)
 VERTEX_OUT(overlay_edit_uv_iface_wireframe)

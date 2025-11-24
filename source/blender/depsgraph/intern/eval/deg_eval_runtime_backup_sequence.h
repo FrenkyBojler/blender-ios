@@ -11,9 +11,7 @@
 #include "DNA_listBase.h"
 
 #include "BLI_map.hh"
-#include "BLI_vector.hh"
 
-struct MovieReader;
 struct Strip;
 struct StripModifierData;
 
@@ -50,7 +48,7 @@ class StripBackup {
   bool isEmpty() const;
 
   void *scene_sound;
-  Vector<MovieReader *, 1> movie_readers;
+  ListBase anims;
   Map<int, StripModifierDataBackup> modifiers;
 };
 

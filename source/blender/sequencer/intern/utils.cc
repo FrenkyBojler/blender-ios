@@ -203,22 +203,25 @@ ListBase *get_seqbase_from_strip(Strip *strip, ListBase **r_channels, int *r_off
   return seqbase;
 }
 
-static MovieReader *open_anim_filepath(Strip *strip, const char *filepath, bool openfile)
+static void open_anim_filepath(Strip *strip, StripAnim *sanim, const char *filepath, bool openfile)
 {
   /* Sequencer takes care of colorspace conversion of the result. The input is the best to be
    * kept unchanged for the performance reasons. */
   if (openfile) {
-    return openanim(filepath,
-                    IB_byte_data | ((strip->flag & SEQ_FILTERY) ? IB_animdeinterlace : 0),
-                    strip->streamindex,
-                    true,
-                    strip->data->colorspace_settings.name);
+    sanim->anim = openanim(filepath,
+                           IB_byte_data | ((strip->flag & SEQ_FILTERY) ? IB_animdeinterlace : 0),
+                           strip->streamindex,
+                           true,
+                           strip->data->colorspace_settings.name);
   }
-  return openanim_noload(filepath,
-                         IB_byte_data | ((strip->flag & SEQ_FILTERY) ? IB_animdeinterlace : 0),
-                         strip->streamindex,
-                         true,
-                         strip->data->colorspace_settings.name);
+  else {
+    sanim->anim = openanim_noload(filepath,
+                                  IB_byte_data |
+                                      ((strip->flag & SEQ_FILTERY) ? IB_animdeinterlace : 0),
+                                  strip->streamindex,
+                                  true,
+                                  strip->data->colorspace_settings.name);
+  }
 }
 
 static bool use_proxy(Editing *ed, Strip *strip)
@@ -246,15 +249,15 @@ static void proxy_dir_get(Editing *ed, Strip *strip, char r_proxy_dirpath[FILE_M
   }
 }
 
-static void index_dir_set(Editing *ed, Strip *strip, MovieReader *reader)
+static void index_dir_set(Editing *ed, Strip *strip, StripAnim *sanim)
 {
-  if (reader == nullptr || !use_proxy(ed, strip)) {
+  if (sanim->anim == nullptr || !use_proxy(ed, strip)) {
     return;
   }
 
   char proxy_dirpath[FILE_MAX];
   proxy_dir_get(ed, strip, proxy_dirpath);
-  seq_proxy_index_dir_set(reader, proxy_dirpath);
+  seq_proxy_index_dir_set(sanim->anim, proxy_dirpath);
 }
 
 static bool open_anim_file_multiview(Scene *scene, Strip *strip, const char *filepath)
@@ -276,17 +279,18 @@ static bool open_anim_file_multiview(Scene *scene, Strip *strip, const char *fil
     char filepath_view[FILE_MAX];
     SNPRINTF(filepath_view, "%s%s%s", prefix, suffix, ext);
 
+    StripAnim *sanim = MEM_mallocN<StripAnim>("Strip Anim");
     /* Multiview files must be loaded, otherwise it is not possible to detect failure. */
-    MovieReader *reader = open_anim_filepath(strip, filepath_view, true);
+    open_anim_filepath(strip, sanim, filepath_view, true);
 
-    if (reader == nullptr) {
-      strip_free_movie_readers(strip);
+    if (sanim->anim == nullptr) {
+      relations_strip_free_anim(strip);
       return false; /* Multiview render failed. */
     }
 
-    index_dir_set(ed, strip, reader);
-    strip->runtime->movie_readers.append(reader);
-    MOV_set_multiview_suffix(reader, suffix);
+    index_dir_set(ed, strip, sanim);
+    BLI_addtail(&strip->anims, sanim);
+    MOV_set_multiview_suffix(sanim->anim, suffix);
     is_multiview_loaded = true;
   }
 
@@ -295,12 +299,14 @@ static bool open_anim_file_multiview(Scene *scene, Strip *strip, const char *fil
 
 void strip_open_anim_file(Scene *scene, Strip *strip, bool openfile)
 {
-  if (!openfile && strip->runtime->movie_reader_get() != nullptr) {
+  if ((strip->anims.first != nullptr) && (((StripAnim *)strip->anims.first)->anim != nullptr) &&
+      !openfile)
+  {
     return;
   }
 
   /* Reset all the previously created anims. */
-  strip_free_movie_readers(strip);
+  relations_strip_free_anim(strip);
 
   Editing *ed = scene->ed;
   char filepath[FILE_MAX];
@@ -316,9 +322,10 @@ void strip_open_anim_file(Scene *scene, Strip *strip, bool openfile)
   }
 
   if (!is_multiview || !multiview_is_loaded) {
-    MovieReader *reader = open_anim_filepath(strip, filepath, openfile);
-    strip->runtime->movie_readers.append(reader);
-    index_dir_set(ed, strip, reader);
+    StripAnim *sanim = MEM_mallocN<StripAnim>("Strip Anim");
+    BLI_addtail(&strip->anims, sanim);
+    open_anim_filepath(strip, sanim, filepath, openfile);
+    index_dir_set(ed, strip, sanim);
   }
 }
 

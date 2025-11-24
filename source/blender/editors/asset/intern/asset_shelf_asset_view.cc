@@ -104,8 +104,7 @@ void AssetView::build_items()
   }
 
   list::iterate(library_ref_, [&](asset_system::AssetRepresentation &asset) {
-    if (!shelf::type_asset_poll(*shelf_.type, asset)) {
-      /* Skip this asset. */
+    if (shelf_.type->asset_poll && !shelf_.type->asset_poll(shelf_.type, &asset)) {
       return true;
     }
 

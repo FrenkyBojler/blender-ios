@@ -1265,12 +1265,11 @@ void BKE_object_material_remap_calc(Object *ob_dst, Object *ob_src, short *remap
     return;
   }
 
-  blender::Map<Material *, int> mat_map;
-  mat_map.reserve(ob_src->totcol);
+  GHash *gh_mat_map = BLI_ghash_ptr_new_ex(__func__, ob_src->totcol);
 
   for (int i = 0; i < ob_dst->totcol; i++) {
     Material *ma_src = BKE_object_material_get(ob_dst, i + 1);
-    mat_map.add(ma_src, i);
+    BLI_ghash_reinsert(gh_mat_map, ma_src, POINTER_FROM_INT(i), nullptr, nullptr);
   }
 
   /* setup default mapping (when materials don't match) */
@@ -1298,11 +1297,14 @@ void BKE_object_material_remap_calc(Object *ob_dst, Object *ob_src, short *remap
       /* when objects have exact matching materials - keep existing index */
     }
     else {
-      if (const int *index_src_p = mat_map.lookup_ptr(ma_src)) {
-        remap_src_to_dst[i] = *index_src_p;
+      void **index_src_p = BLI_ghash_lookup_p(gh_mat_map, ma_src);
+      if (index_src_p) {
+        remap_src_to_dst[i] = POINTER_AS_INT(*index_src_p);
       }
     }
   }
+
+  BLI_ghash_free(gh_mat_map, nullptr, nullptr);
 }
 
 void BKE_object_material_from_eval_data(Main *bmain, Object *ob_orig, const ID *data_eval)

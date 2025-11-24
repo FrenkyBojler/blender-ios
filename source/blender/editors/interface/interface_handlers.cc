@@ -5662,20 +5662,17 @@ static void ui_numedit_set_active(uiBut *but)
     }
   }
 
-  /* Don't change the cursor once pressed or if a modal operator is running.
-   * If a modal operator is running, the number edit input will be ignored,
-   * so do not try to change the cursor if this is the case.
-   */
-  if ((but->flag & UI_SELECT) == 0 && WM_cursor_modal_is_set_ok(data->window)) {
+  /* Don't change the cursor once pressed. */
+  if ((but->flag & UI_SELECT) == 0) {
     if ((but->drawflag & UI_BUT_HOVER_LEFT) || (but->drawflag & UI_BUT_HOVER_RIGHT)) {
       if (data->changed_cursor) {
-        WM_cursor_set(data->window, WM_CURSOR_DEFAULT);
+        WM_cursor_modal_restore(data->window);
         data->changed_cursor = false;
       }
     }
     else {
       if (data->changed_cursor == false) {
-        WM_cursor_set(data->window, WM_CURSOR_X_MOVE);
+        WM_cursor_modal_set(data->window, WM_CURSOR_X_MOVE);
         data->changed_cursor = true;
       }
     }
@@ -9129,7 +9126,7 @@ static void button_activate_exit(
 #endif
 
   if (data->changed_cursor) {
-    WM_cursor_set(win, WM_CURSOR_DEFAULT);
+    WM_cursor_modal_restore(win);
   }
 
   /* redraw and refresh (for popups) */

@@ -10,9 +10,7 @@
 
 #include "DNA_ID.h"
 
-#ifdef __cplusplus
-#  include "BLI_set.hh"
-#endif
+struct GSet;
 
 /* CacheFile::type */
 typedef enum {
@@ -59,13 +57,6 @@ enum {
   CACHEFILE_VELOCITY_UNIT_FRAME,
   CACHEFILE_VELOCITY_UNIT_SECOND,
 };
-
-#ifdef __cplusplus
-struct CacheReader;
-using CacheFileHandleReaderSet = blender::Set<CacheReader **>;
-#else
-typedef struct CacheFileHandleReaderSet CacheFileHandleReaderSet;
-#endif
 
 typedef struct CacheFile {
 #ifdef __cplusplus
@@ -116,5 +107,5 @@ typedef struct CacheFile {
   /* Runtime */
   struct CacheArchiveHandle *handle;
   char handle_filepath[/*FILE_MAX*/ 1024];
-  CacheFileHandleReaderSet *handle_readers;
+  struct GSet *handle_readers;
 } CacheFile;

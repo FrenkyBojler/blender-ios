@@ -1286,11 +1286,8 @@ GHash *BM_select_history_map_create(BMesh *bm)
   return map;
 }
 
-void BM_select_history_merge_from_targetmap(BMesh *bm,
-                                            blender::Map<void *, void *> *vert_map,
-                                            blender::Map<void *, void *> *edge_map,
-                                            blender::Map<void *, void *> *face_map,
-                                            const bool use_chain)
+void BM_select_history_merge_from_targetmap(
+    BMesh *bm, GHash *vert_map, GHash *edge_map, GHash *face_map, const bool use_chain)
 {
 
 #ifndef NDEBUG
@@ -1303,7 +1300,7 @@ void BM_select_history_merge_from_targetmap(BMesh *bm,
     BM_ELEM_API_FLAG_ENABLE(ese->ele, _FLAG_OVERLAP);
 
     /* Only loop when (use_chain == true). */
-    blender::Map<void *, void *> *map = nullptr;
+    GHash *map = nullptr;
     switch (ese->ele->head.htype) {
       case BM_VERT:
         map = vert_map;
@@ -1321,7 +1318,7 @@ void BM_select_history_merge_from_targetmap(BMesh *bm,
     if (map != nullptr) {
       BMElem *ele_dst = ese->ele;
       while (true) {
-        BMElem *ele_dst_next = static_cast<BMElem *>(map->lookup_default(ele_dst, nullptr));
+        BMElem *ele_dst_next = static_cast<BMElem *>(BLI_ghash_lookup(map, ele_dst));
         BLI_assert(ele_dst != ele_dst_next);
         if (ele_dst_next == nullptr) {
           break;

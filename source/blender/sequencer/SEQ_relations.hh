@@ -27,9 +27,9 @@ namespace blender::seq {
  */
 bool relation_is_effect_of_strip(const Strip *effect, const Strip *input);
 /**
- * Free currently open movie strip readers.
+ * Function to free imbuf and anim data on changes.
  */
-void strip_free_movie_readers(Strip *strip);
+void relations_strip_free_anim(Strip *strip);
 bool relations_check_scene_recursion(Scene *scene, ReportList *reports);
 /**
  * Check if "strip_main" (indirectly) uses strip "strip".

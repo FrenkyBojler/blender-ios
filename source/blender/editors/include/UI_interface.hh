@@ -299,5 +299,5 @@ blender::ui::AbstractTreeView *UI_block_add_view(
 void UI_alert(bContext *C,
               blender::StringRef title,
               blender::StringRef message,
-              blender::ui::AlertIcon icon,
+              eAlertIcon icon,
               bool compact);

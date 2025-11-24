@@ -73,6 +73,7 @@
 #include "ED_keyframing.hh"
 
 /* Only for #UI_OT_editsource. */
+#include "BLI_ghash.h"
 #include "ED_screen.hh"
 
 using namespace blender::ui;
@@ -2015,14 +2016,14 @@ static void UI_OT_jump_to_target_button(wmOperatorType *ot)
 /* EditSource Utility functions and operator,
  * NOTE: this includes utility functions and button matching checks. */
 
-struct uiEditSourceButStore {
-  char py_dbg_fn[FILE_MAX] = {};
-  int py_dbg_line_number = 0;
-};
-
 struct uiEditSourceStore {
   uiBut but_orig;
-  blender::Map<const uiBut *, std::unique_ptr<uiEditSourceButStore>> hash;
+  GHash *hash;
+};
+
+struct uiEditSourceButStore {
+  char py_dbg_fn[FILE_MAX];
+  int py_dbg_line_number;
 };
 
 /* should only ever be set while the edit source operator is running */
@@ -2039,15 +2040,18 @@ static void ui_editsource_active_but_set(uiBut *but)
 
   ui_editsource_info = MEM_new<uiEditSourceStore>(__func__);
   ui_editsource_info->but_orig = *but;
+
+  ui_editsource_info->hash = BLI_ghash_ptr_new(__func__);
 }
 
 static void ui_editsource_active_but_clear()
 {
+  BLI_ghash_free(ui_editsource_info->hash, nullptr, MEM_freeN);
   MEM_delete(ui_editsource_info);
   ui_editsource_info = nullptr;
 }
 
-static bool ui_editsource_uibut_match(const uiBut *but_a, const uiBut *but_b)
+static bool ui_editsource_uibut_match(uiBut *but_a, uiBut *but_b)
 {
 #  if 0
   printf("matching buttons: '%s' == '%s'\n", but_a->drawstr, but_b->drawstr);
@@ -2069,7 +2073,8 @@ extern void PyC_FileAndNum_Safe(const char **r_filename, int *r_lineno);
 
 void UI_editsource_active_but_test(uiBut *but)
 {
-  auto but_store = std::make_unique<uiEditSourceButStore>();
+
+  uiEditSourceButStore *but_store = MEM_callocN<uiEditSourceButStore>(__func__);
 
   const char *fn;
   int line_number = -1;
@@ -2089,15 +2094,16 @@ void UI_editsource_active_but_test(uiBut *but)
     but_store->py_dbg_line_number = -1;
   }
 
-  ui_editsource_info->hash.add(but, std::move(but_store));
+  BLI_ghash_insert(ui_editsource_info->hash, but, but_store);
 }
 
 void UI_editsource_but_replace(const uiBut *old_but, uiBut *new_but)
 {
-  std::unique_ptr<uiEditSourceButStore> but_store = ui_editsource_info->hash.pop_default(old_but,
-                                                                                         nullptr);
+  uiEditSourceButStore *but_store = static_cast<uiEditSourceButStore *>(
+      BLI_ghash_lookup(ui_editsource_info->hash, old_but));
   if (but_store) {
-    ui_editsource_info->hash.add(new_but, std::move(but_store));
+    BLI_ghash_remove(ui_editsource_info->hash, old_but, nullptr, nullptr);
+    BLI_ghash_insert(ui_editsource_info->hash, new_but, but_store);
   }
 }
 
@@ -2125,6 +2131,9 @@ static wmOperatorStatus editsource_exec(bContext *C, wmOperator *op)
   uiBut *but = UI_context_active_but_get(C);
 
   if (but) {
+    GHashIterator ghi;
+    uiEditSourceButStore *but_store = nullptr;
+
     ARegion *region = CTX_wm_region(C);
     wmOperatorStatus ret;
 
@@ -2152,9 +2161,11 @@ static wmOperatorStatus editsource_exec(bContext *C, wmOperator *op)
       }
     }
 
-    uiEditSourceButStore *but_store = nullptr;
-    for (const auto &item : ui_editsource_info->hash.items()) {
-      const uiBut *but_key = item.key;
+    for (BLI_ghashIterator_init(&ghi, ui_editsource_info->hash);
+         BLI_ghashIterator_done(&ghi) == false;
+         BLI_ghashIterator_step(&ghi))
+    {
+      uiBut *but_key = static_cast<uiBut *>(BLI_ghashIterator_getKey(&ghi));
       if (but_key == nullptr) {
         continue;
       }
@@ -2164,7 +2175,7 @@ static wmOperatorStatus editsource_exec(bContext *C, wmOperator *op)
       }
 
       if (ui_editsource_uibut_match(&ui_editsource_info->but_orig, but_key)) {
-        but_store = item.value.get();
+        but_store = static_cast<uiEditSourceButStore *>(BLI_ghashIterator_getValue(&ghi));
         break;
       }
     }

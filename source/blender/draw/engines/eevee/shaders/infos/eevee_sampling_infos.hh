@@ -7,9 +7,7 @@
 #  include "gpu_shader_compat.hh"
 
 #  include "eevee_sampling_shared.hh"
-#endif
 
-#ifdef GLSL_CPP_STUBS
 #  define EEVEE_SAMPLING_DATA
 #endif
 

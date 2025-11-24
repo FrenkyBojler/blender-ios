@@ -10,9 +10,7 @@
 #  include "draw_view_infos.hh"
 #  include "eevee_camera_shared.hh"
 #  include "eevee_velocity_shared.hh"
-#endif
 
-#ifdef GLSL_CPP_STUBS
 #  define VELOCITY_CAMERA
 #endif
 

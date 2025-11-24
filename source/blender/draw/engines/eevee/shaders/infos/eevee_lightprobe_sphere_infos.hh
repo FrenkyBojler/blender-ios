@@ -13,9 +13,7 @@
 #  include "eevee_lightprobe_volume_infos.hh"
 #  include "eevee_sampling_infos.hh"
 #  include "eevee_uniform_infos.hh"
-#endif
 
-#ifdef GLSL_CPP_STUBS
 #  define SPHERE_PROBE
 #endif
 

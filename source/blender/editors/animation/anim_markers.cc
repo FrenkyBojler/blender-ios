@@ -1819,7 +1819,7 @@ static wmOperatorStatus ed_marker_delete_invoke(bContext *C,
                                   IFACE_("Delete selected markers?"),
                                   nullptr,
                                   IFACE_("Delete"),
-                                  blender::ui::AlertIcon::None,
+                                  ALERT_ICON_NONE,
                                   false);
   }
   return ed_marker_delete_exec(C, op);

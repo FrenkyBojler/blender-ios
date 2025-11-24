@@ -2128,7 +2128,7 @@ static wmOperatorStatus nlaedit_make_single_user_invoke(bContext *C,
         IFACE_("Make Selected Strips Single-User"),
         IFACE_("Linked actions will be duplicated for each selected strip."),
         IFACE_("Make Single"),
-        blender::ui::AlertIcon::Warning,
+        ALERT_ICON_WARNING,
         false);
   }
   return nlaedit_make_single_user_exec(C, op);

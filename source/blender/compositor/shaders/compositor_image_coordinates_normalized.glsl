@@ -2,10 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/compositor_image_coordinates_infos.hh"
-
-COMPUTE_SHADER_CREATE_INFO(compositor_image_coordinates_normalized)
-
 void main()
 {
   const int2 texel = int2(gl_GlobalInvocationID.xy);

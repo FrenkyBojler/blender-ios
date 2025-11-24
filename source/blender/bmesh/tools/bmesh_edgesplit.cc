@@ -26,12 +26,13 @@ void BM_mesh_edgesplit(BMesh *bm,
   BMEdge *e;
 
   bool use_ese = false;
-  blender::Map<BMElem *, BMEditSelection *> ese_gh;
+  GHash *ese_gh = nullptr;
 
   if (copy_select && bm->selected.first) {
+    ese_gh = BLI_ghash_ptr_new(__func__);
     LISTBASE_FOREACH (BMEditSelection *, ese, &bm->selected) {
       if (ese->htype != BM_FACE) {
-        ese_gh.add(ese->ele, ese);
+        BLI_ghash_insert(ese_gh, ese->ele, ese);
       }
     }
 
@@ -85,7 +86,7 @@ void BM_mesh_edgesplit(BMesh *bm,
 
             /* first value is always in 'v' */
             if (vtar_len > 1) {
-              BMEditSelection *ese = ese_gh.lookup_default(reinterpret_cast<BMElem *>(v), nullptr);
+              BMEditSelection *ese = static_cast<BMEditSelection *>(BLI_ghash_lookup(ese_gh, v));
               BLI_assert(v == vtar[0]);
               if (UNLIKELY(ese)) {
                 int j;
@@ -113,4 +114,8 @@ void BM_mesh_edgesplit(BMesh *bm,
     }
   }
 #endif
+
+  if (use_ese) {
+    BLI_ghash_free(ese_gh, nullptr, nullptr);
+  }
 }

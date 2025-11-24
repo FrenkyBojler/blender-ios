@@ -17,7 +17,6 @@
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_rect.h"
-#include "BLI_set.hh"
 
 #include "BKE_context.hh"
 #include "BKE_fcurve.hh"
@@ -238,9 +237,7 @@ static bool grease_pencil_layer_apply_trans_data(GreasePencil &grease_pencil,
   }
 
   if (canceled && duplicate) {
-    /* Duplicates were done, so we need to delete the corresponding duplicate drawings. Note that
-     * we just decrement the usercount here. The actual drawings are removed after all the layers
-     * have been processed. */
+    /* Duplicates were done, so we need to delete the corresponding duplicate drawings. */
     for (const GreasePencilFrame &duplicate_frame : trans_data.duplicated_frames_buffer.values()) {
       GreasePencilDrawingBase *drawing_base = grease_pencil.drawing(duplicate_frame.drawing_index);
       if (drawing_base->type == GP_DRAWING) {
@@ -248,6 +245,10 @@ static bool grease_pencil_layer_apply_trans_data(GreasePencil &grease_pencil,
       }
     }
   }
+
+  /* All frame data is updated, safe to remove the fake user and remove unused drawings. */
+  grease_pencil_transdata_remove_fake_drawing_users(grease_pencil);
+  grease_pencil.remove_drawings_with_no_users();
 
   /* Clear the frames copy. */
   trans_data.frames_static.clear();
@@ -1215,11 +1216,6 @@ static void special_aftertrans_update__actedit(bContext *C, TransInfo *t)
 
   Object *ob = ac.obact;
 
-  /* When keyframes are moved on top of other keyframes, the drawings in the GreasePencil data
-   * might need to be updated/removed. This needs to happen after all the layers have been
-   * processed. So keep track of the GreasePencils that need to be updated later. */
-  blender::Set<GreasePencil *> grease_pencils_to_update;
-
   if (ELEM(ac.datatype, ANIMCONT_DOPESHEET, ANIMCONT_SHAPEKEY, ANIMCONT_TIMELINE)) {
     ListBase anim_data = {nullptr, nullptr};
     short filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_FOREDIT);
@@ -1259,7 +1255,6 @@ static void special_aftertrans_update__actedit(bContext *C, TransInfo *t)
                                                *static_cast<bke::greasepencil::Layer *>(ale->data),
                                                canceled,
                                                duplicate);
-          grease_pencils_to_update.add(grease_pencil);
           break;
         }
         default:
@@ -1323,7 +1318,6 @@ static void special_aftertrans_update__actedit(bContext *C, TransInfo *t)
                                                *static_cast<bke::greasepencil::Layer *>(ale->data),
                                                canceled,
                                                duplicate);
-          grease_pencils_to_update.add(grease_pencil);
           break;
         }
 
@@ -1356,14 +1350,6 @@ static void special_aftertrans_update__actedit(bContext *C, TransInfo *t)
         }
       }
       ANIM_animdata_freelist(&anim_data);
-    }
-  }
-
-  if (!grease_pencils_to_update.is_empty()) {
-    for (GreasePencil *grease_pencil : grease_pencils_to_update) {
-      /* All frame data is updated, safe to remove the fake user and remove unused drawings. */
-      grease_pencil_transdata_remove_fake_drawing_users(*grease_pencil);
-      grease_pencil->remove_drawings_with_no_users();
     }
   }
 

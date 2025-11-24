@@ -162,6 +162,7 @@ static void init_editNurb_keyIndex(EditNurb *editnurb, ListBase *origBase)
 {
   Nurb *nu = static_cast<Nurb *>(editnurb->nurbs.first);
   Nurb *orignu = static_cast<Nurb *>(origBase->first);
+  GHash *gh;
   BezTriple *bezt, *origbezt;
   BPoint *bp, *origbp;
   CVKeyIndex *keyIndex;
@@ -171,7 +172,7 @@ static void init_editNurb_keyIndex(EditNurb *editnurb, ListBase *origBase)
     return;
   }
 
-  auto *gh = MEM_new<CVKeyIndexMap>("editNurb keyIndex");
+  gh = BLI_ghash_ptr_new("editNurb keyIndex");
 
   while (orignu) {
     if (orignu->bezt) {
@@ -188,7 +189,7 @@ static void init_editNurb_keyIndex(EditNurb *editnurb, ListBase *origBase)
             MEM_mallocN(sizeof(*origbezt), __func__));
         *origbezt_cpy = *origbezt;
         keyIndex = init_cvKeyIndex(origbezt_cpy, key_index, nu_index, pt_index, vertex_index);
-        gh->add(bezt, keyIndex);
+        BLI_ghash_insert(gh, bezt, keyIndex);
         key_index += KEYELEM_FLOAT_LEN_BEZTRIPLE;
         vertex_index += 3;
         bezt++;
@@ -209,7 +210,7 @@ static void init_editNurb_keyIndex(EditNurb *editnurb, ListBase *origBase)
         BPoint *origbp_cpy = MEM_mallocN<BPoint>(__func__);
         *origbp_cpy = *origbp;
         keyIndex = init_cvKeyIndex(origbp_cpy, key_index, nu_index, pt_index, vertex_index);
-        gh->add(bp, keyIndex);
+        BLI_ghash_insert(gh, bp, keyIndex);
         key_index += KEYELEM_FLOAT_LEN_BPOINT;
         bp++;
         origbp++;
@@ -228,12 +229,12 @@ static void init_editNurb_keyIndex(EditNurb *editnurb, ListBase *origBase)
 
 static CVKeyIndex *getCVKeyIndex(EditNurb *editnurb, const void *cv)
 {
-  return editnurb->keyindex->lookup_default(cv, nullptr);
+  return static_cast<CVKeyIndex *>(BLI_ghash_lookup(editnurb->keyindex, cv));
 }
 
 static CVKeyIndex *popCVKeyIndex(EditNurb *editnurb, const void *cv)
 {
-  return editnurb->keyindex->pop_default(cv, nullptr);
+  return static_cast<CVKeyIndex *>(BLI_ghash_popkey(editnurb->keyindex, cv, nullptr));
 }
 
 static BezTriple *getKeyIndexOrig_bezt(EditNurb *editnurb, const BezTriple *bezt)
@@ -336,7 +337,7 @@ static void keyIndex_updateCV(EditNurb *editnurb, char *cv, char *newcv, int cou
     index = popCVKeyIndex(editnurb, cv);
 
     if (index) {
-      editnurb->keyindex->add(newcv, index);
+      BLI_ghash_insert(editnurb->keyindex, newcv, index);
     }
 
     newcv += size;
@@ -370,10 +371,10 @@ static void keyIndex_swap(EditNurb *editnurb, void *a, void *b)
   CVKeyIndex *index2 = popCVKeyIndex(editnurb, b);
 
   if (index2) {
-    editnurb->keyindex->add(a, index2);
+    BLI_ghash_insert(editnurb->keyindex, a, index2);
   }
   if (index1) {
-    editnurb->keyindex->add(b, index1);
+    BLI_ghash_insert(editnurb->keyindex, b, index1);
   }
 }
 
@@ -543,20 +544,22 @@ static void keyData_switchDirectionNurb(Curve *cu, Nurb *nu)
   }
 }
 
-CVKeyIndexMap *ED_curve_keyindex_hash_duplicate(CVKeyIndexMap *keyindex)
+GHash *ED_curve_keyindex_hash_duplicate(GHash *keyindex)
 {
-  CVKeyIndexMap *gh = MEM_new<CVKeyIndexMap>("dupli_keyIndex gh");
-  gh->reserve(keyindex->size());
+  GHash *gh;
+  GHashIterator gh_iter;
 
-  for (const auto &item : keyindex->items()) {
-    const void *cv = item.key;
-    CVKeyIndex *index = item.value;
+  gh = BLI_ghash_ptr_new_ex("dupli_keyIndex gh", BLI_ghash_len(keyindex));
+
+  GHASH_ITER (gh_iter, keyindex) {
+    void *cv = BLI_ghashIterator_getKey(&gh_iter);
+    CVKeyIndex *index = static_cast<CVKeyIndex *>(BLI_ghashIterator_getValue(&gh_iter));
     CVKeyIndex *newIndex = MEM_mallocN<CVKeyIndex>("dupli_keyIndexHash index");
 
     memcpy(newIndex, index, sizeof(CVKeyIndex));
     newIndex->orig_cv = MEM_dupallocN(index->orig_cv);
 
-    gh->add(cv, newIndex);
+    BLI_ghash_insert(gh, cv, newIndex);
   }
 
   return gh;

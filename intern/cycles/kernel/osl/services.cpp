@@ -27,7 +27,6 @@
 #include "kernel/osl/types.h"
 
 #include "kernel/integrator/state.h"
-#include "kernel/integrator/state_util.h"
 
 #include "kernel/geom/primitive.h"
 #include "kernel/geom/shader_data.h"

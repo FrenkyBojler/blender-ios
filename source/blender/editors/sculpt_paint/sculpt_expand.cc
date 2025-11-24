@@ -452,9 +452,11 @@ static IndexMask boundary_from_enabled(Object &object,
                                        IndexMaskMemory &memory)
 {
   SculptSession &ss = *object.sculpt;
+  const int totvert = SCULPT_vertex_count_get(object);
 
   const IndexMask enabled_mask = IndexMask::from_bits(enabled_verts, memory);
 
+  BitVector<> boundary_verts(totvert);
   switch (bke::object::pbvh_get(object)->type()) {
     case bke::pbvh::Type::Mesh: {
       const Mesh &mesh = *static_cast<const Mesh *>(object.data);
@@ -474,8 +476,7 @@ static IndexMask boundary_from_enabled(Object &object,
         }
 
         if (use_mesh_boundary &&
-            boundary::vert_is_boundary(
-                vert_to_face_map, hide_poly, ss.boundary_info_cache->verts, vert))
+            boundary::vert_is_boundary(vert_to_face_map, hide_poly, ss.vertex_info.boundary, vert))
         {
           return true;
         }
@@ -500,12 +501,9 @@ static IndexMask boundary_from_enabled(Object &object,
           }
         }
 
-        if (use_mesh_boundary && boundary::vert_is_boundary(faces,
-                                                            corner_verts,
-                                                            ss.boundary_info_cache->verts,
-                                                            ss.boundary_info_cache->edges,
-                                                            subdiv_ccg,
-                                                            coord))
+        if (use_mesh_boundary &&
+            boundary::vert_is_boundary(
+                faces, corner_verts, ss.vertex_info.boundary, subdiv_ccg, coord))
         {
           return true;
         }
@@ -1129,7 +1127,7 @@ static void update_max_face_falloff_factor(const Object &object, Mesh &mesh, Cac
 
 /**
  * Functions to get falloff values for faces from the values from the vertices. This is used for
- * expanding face sets. Depending on the data type of the #SculptSession, this needs to get the per
+ * expanding Face Sets. Depending on the data type of the #SculptSession, this needs to get the per
  * face falloff value from the connected vertices of each face or from the grids stored per loops
  * for each face.
  */
@@ -1271,8 +1269,8 @@ static void resursion_step_add(const Depsgraph &depsgraph,
 /* Face Set Boundary falloff. */
 
 /**
- * When internal falloff is set to true, the falloff will fill the active face set with a gradient,
- * otherwise the active face set will be filled with a constant falloff of 0.0f.
+ * When internal falloff is set to true, the falloff will fill the active Face Set with a gradient,
+ * otherwise the active Face Set will be filled with a constant falloff of 0.0f.
  */
 static void init_from_face_set_boundary(const Depsgraph &depsgraph,
                                         Object &ob,
@@ -1447,7 +1445,7 @@ static void calc_falloff_from_vert_and_symmetry(const Depsgraph &depsgraph,
 }
 
 /**
- * Adds to the snapping face set `gset` all face sets which contain all enabled vertices for the
+ * Adds to the snapping Face Set `gset` all Face Sets which contain all enabled vertices for the
  * current #Cache state. This improves the usability of snapping, as already enabled
  * elements won't switch their state when toggling snapping with the modal key-map.
  */
@@ -1864,7 +1862,7 @@ static void original_state_store(Object &ob, Cache &expand_cache)
 
   face_set::create_face_sets_mesh(ob);
 
-  /* Face sets are always stored as they are needed for snapping. */
+  /* Face Sets are always stored as they are needed for snapping. */
   expand_cache.initial_face_sets = face_set::duplicate_face_sets(mesh);
   expand_cache.original_face_sets = face_set::duplicate_face_sets(mesh);
 
@@ -1889,7 +1887,7 @@ static void original_state_store(Object &ob, Cache &expand_cache)
 }
 
 /**
- * Restore the state of the face sets before a new update.
+ * Restore the state of the Face Sets before a new update.
  */
 static void face_sets_restore(Object &object, Cache &expand_cache)
 {
@@ -1899,7 +1897,7 @@ static void face_sets_restore(Object &object, Cache &expand_cache)
   bke::SpanAttributeWriter<int> face_sets = face_set::ensure_face_sets_mesh(mesh);
   for (const int i : faces.index_range()) {
     if (expand_cache.original_face_sets[i] <= 0) {
-      /* Do not modify hidden face sets, even when restoring the IDs state. */
+      /* Do not modify hidden Face Sets, even when restoring the IDs state. */
       continue;
     }
     if (!is_face_in_active_component(object, faces, corner_verts, expand_cache, i)) {
@@ -2177,7 +2175,7 @@ static void find_active_connected_components_from_vert(const Depsgraph &depsgrap
 }
 
 /**
- * Stores the active vertex, face set and mouse coordinates in the #Cache based on the
+ * Stores the active vertex, Face Set and mouse coordinates in the #Cache based on the
  * current cursor position.
  */
 static bool set_initial_components_for_mouse(bContext *C,
@@ -2266,7 +2264,7 @@ static void ensure_sculptsession_data(Object &ob)
 }
 
 /**
- * Returns the active face set ID from the enabled face or grid in the #SculptSession.
+ * Returns the active Face Sets ID from the enabled face or grid in the #SculptSession.
  */
 static int active_face_set_id_get(Object &object, Cache &expand_cache)
 {
@@ -2286,7 +2284,7 @@ static int active_face_set_id_get(Object &object, Cache &expand_cache)
       return expand_cache.original_face_sets[face_index];
     }
     case bke::pbvh::Type::BMesh: {
-      /* Dyntopo does not support face set functionality. */
+      /* Dyntopo does not support Face Set functionality. */
       BLI_assert(false);
     }
   }
@@ -2532,7 +2530,7 @@ static wmOperatorStatus sculpt_expand_modal(bContext *C, wmOperator *op, const w
     move_propagation_origin(C, ob, event, expand_cache);
   }
 
-  /* Add new face set IDs to the snapping set if enabled. */
+  /* Add new Face Sets IDs to the snapping set if enabled. */
   if (expand_cache.snap) {
     const int active_face_set_id = active_face_set_id_get(ob, expand_cache);
     /* The key may exist, in that case this does nothing. */
@@ -2548,9 +2546,9 @@ static wmOperatorStatus sculpt_expand_modal(bContext *C, wmOperator *op, const w
 }
 
 /**
- * Deletes the `delete_id` face set from the mesh face sets
+ * Deletes the `delete_id` Face Set ID from the mesh Face Sets
  * and stores the result in `r_face_set`.
- * The faces that were using the `delete_id` face set are filled
+ * The faces that were using the `delete_id` Face Set are filled
  * using the content from their neighbors.
  */
 static void delete_face_set_id(
@@ -2560,7 +2558,7 @@ static void delete_face_set_id(
   const OffsetIndices faces = mesh->faces();
   const Span<int> corner_verts = mesh->corner_verts();
 
-  /* Check that all the face set IDs in the mesh are not equal to `delete_id`
+  /* Check that all the face sets IDs in the mesh are not equal to `delete_id`
    * before attempting to delete it. */
   bool all_same_id = true;
   for (const int i : faces.index_range()) {
@@ -2596,7 +2594,7 @@ static void delete_face_set_id(
       for (const int vert : corner_verts.slice(faces[f_index])) {
         for (const int neighbor_face_index : vert_to_face_map[vert]) {
           if (expand_cache.original_face_sets[neighbor_face_index] <= 0) {
-            /* Skip picking IDs from hidden face sets. */
+            /* Skip picking IDs from hidden Face Sets. */
             continue;
           }
           if (r_face_sets[neighbor_face_index] != delete_id) {
@@ -2614,8 +2612,8 @@ static void delete_face_set_id(
       }
     }
     if (!any_updated) {
-      /* No face sets were updated in this iteration, which means that no more content to keep
-       * filling the faces of the deleted face set was found. Break to avoid entering an infinite
+      /* No Face Sets where updated in this iteration, which means that no more content to keep
+       * filling the faces of the deleted Face Set was found. Break to avoid entering an infinite
        * loop trying to search for those faces again. */
       break;
     }
@@ -2771,7 +2769,7 @@ static wmOperatorStatus sculpt_expand_invoke(bContext *C, wmOperator *op, const 
   }
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
 
-  /* Face set operations are not supported in dyntopo. */
+  /* Face Set operations are not supported in dyntopo. */
   if (ss.expand_cache->target == TargetType::FaceSets && pbvh.type() == bke::pbvh::Type::BMesh) {
     expand_cache_free(ss);
     return OPERATOR_CANCELLED;
@@ -2821,7 +2819,7 @@ static wmOperatorStatus sculpt_expand_invoke(bContext *C, wmOperator *op, const 
       const bke::AttributeAccessor attributes = mesh.attributes();
       const VArraySpan hide_poly = *attributes.lookup<bool>(".hide_poly", bke::AttrDomain::Face);
       if (boundary::vert_is_boundary(
-              vert_to_face_map, hide_poly, ss.boundary_info_cache->verts, initial_vert))
+              vert_to_face_map, hide_poly, ss.vertex_info.boundary, initial_vert))
       {
         falloff_type = FalloffType::BoundaryTopology;
       }
@@ -2838,8 +2836,7 @@ static wmOperatorStatus sculpt_expand_invoke(bContext *C, wmOperator *op, const 
       const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
       if (boundary::vert_is_boundary(faces,
                                      corner_verts,
-                                     ss.boundary_info_cache->verts,
-                                     ss.boundary_info_cache->edges,
+                                     ss.vertex_info.boundary,
                                      subdiv_ccg,
                                      SubdivCCGCoord::from_index(key, initial_vert)))
       {
@@ -3002,7 +2999,7 @@ void SCULPT_OT_expand(wmOperatorType *ot)
                              "use_modify_active",
                              false,
                              "Modify Active",
-                             "Modify the active face set instead of creating a new one");
+                             "Modify the active Face Set instead of creating a new one");
 
   ot->prop = RNA_def_boolean(
       ot->srna,

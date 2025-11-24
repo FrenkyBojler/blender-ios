@@ -8,6 +8,7 @@ from ......io.com import gltf2_io
 from ......io.com import constants as gltf2_io_constants
 from ......io.exp import binary_data as gltf2_io_binary_data
 from ......io.exp.user_extensions import export_user_extensions
+from .....com.data_path import get_target_object_path
 from .....com import gltf2_blender_math
 from ....tree import VExportNode
 from ....cache import cached
@@ -101,6 +102,7 @@ def __convert_keyframes(obj_uuid: str, channel: str, keyframes, action_name: str
 
     is_yup = export_settings['gltf_yup']
 
+    object_path = get_target_object_path(channel)
     transform = mathutils.Matrix.Identity(4)
 
     need_rotation_correction = (
@@ -108,6 +110,7 @@ def __convert_keyframes(obj_uuid: str, channel: str, keyframes, action_name: str
         export_settings['gltf_lights'] and export_settings['vtree'].nodes[obj_uuid].blender_type == VExportNode.LIGHT)
 
     values = []
+    fps = (bpy.context.scene.render.fps * bpy.context.scene.render.fps_base)
     for keyframe in keyframes:
 
         # Transform the data and build gltf control points

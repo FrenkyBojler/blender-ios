@@ -1044,7 +1044,7 @@ BMDataLayerLookup BM_data_layer_lookup(const BMesh &bm, const blender::StringRef
             eCustomDataType(layer.type)))
     {
       if (layer.name == name) {
-        return {layer.offset, bke::AttrDomain::Point, *type, &layer};
+        return {layer.offset, bke::AttrDomain::Point, *type};
       }
     }
   }
@@ -1053,7 +1053,7 @@ BMDataLayerLookup BM_data_layer_lookup(const BMesh &bm, const blender::StringRef
             eCustomDataType(layer.type)))
     {
       if (layer.name == name) {
-        return {layer.offset, bke::AttrDomain::Edge, *type, &layer};
+        return {layer.offset, bke::AttrDomain::Edge, *type};
       }
     }
   }
@@ -1062,7 +1062,7 @@ BMDataLayerLookup BM_data_layer_lookup(const BMesh &bm, const blender::StringRef
             eCustomDataType(layer.type)))
     {
       if (layer.name == name) {
-        return {layer.offset, bke::AttrDomain::Face, *type, &layer};
+        return {layer.offset, bke::AttrDomain::Face, *type};
       }
     }
   }
@@ -1071,7 +1071,7 @@ BMDataLayerLookup BM_data_layer_lookup(const BMesh &bm, const blender::StringRef
             eCustomDataType(layer.type)))
     {
       if (layer.name == name) {
-        return {layer.offset, bke::AttrDomain::Corner, *type, &layer};
+        return {layer.offset, bke::AttrDomain::Corner, *type};
       }
     }
   }

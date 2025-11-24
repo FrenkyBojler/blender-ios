@@ -5,9 +5,9 @@
 #ifdef GPU_SHADER
 #  pragma once
 #  include "gpu_shader_compat.hh"
-#endif
 
-#ifdef GLSL_CPP_STUBS
+#  include "gpu_shader_fullscreen_infos.hh"
+
 #  define SMAA_GLSL_3
 #  define SMAA_STAGE 1
 #  define SMAA_PRESET_HIGH
@@ -27,7 +27,7 @@ SAMPLER(0, sampler2D, color_buffer)
 PUSH_CONSTANT_ARRAY(float, samplesWeights, 9)
 FRAGMENT_OUT(0, float4, frag_color)
 FRAGMENT_SOURCE("workbench_effect_taa_frag.glsl")
-VERTEX_SOURCE("workbench_fullscreen_vert.glsl")
+ADDITIONAL_INFO(gpu_fullscreen)
 DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 

@@ -34,9 +34,6 @@ class USDPointsWriter final : public USDAbstractWriter {
                          const pxr::UsdGeomPoints &usd_points,
                          pxr::UsdTimeCode time);
 
-  void write_ids(const PointCloud *points,
-                 const pxr::UsdGeomPoints &usd_points,
-                 pxr::UsdTimeCode time);
   void write_velocities(const PointCloud *points,
                         const pxr::UsdGeomPoints &usd_points,
                         pxr::UsdTimeCode time);

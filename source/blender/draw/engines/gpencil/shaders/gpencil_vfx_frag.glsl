@@ -17,8 +17,6 @@ float gaussian_weight(float x)
 
 void main()
 {
-  float2 screen_uv = gl_FragCoord.xy / float2(textureSize(color_buf, 0).xy);
-
   if (is_first_pass) {
     /* Blend mode is multiply. */
     frag_color.rgb = fragRevealage.rgb = texture(reveal_buf, screen_uv).rgb;
@@ -47,8 +45,6 @@ void main()
 
 void main()
 {
-  float2 screen_uv = gl_FragCoord.xy / float2(textureSize(color_buf, 0).xy);
-
   frag_color = texture(color_buf, screen_uv);
   fragRevealage = texture(reveal_buf, screen_uv);
 
@@ -80,8 +76,6 @@ void main()
 
 void main()
 {
-  float2 screen_uv = gl_FragCoord.xy / float2(textureSize(color_buf, 0).xy);
-
   float2 pixel_size = 1.0f / float2(textureSize(reveal_buf, 0).xy);
   float2 ofs = offset * pixel_size;
 
@@ -107,8 +101,6 @@ void main()
 
 void main()
 {
-  float2 screen_uv = gl_FragCoord.xy / float2(textureSize(color_buf, 0).xy);
-
   float2 uv = (screen_uv - 0.5f) * axis_flip + 0.5f;
 
   /* Wave deform. */
@@ -135,8 +127,6 @@ void main()
 
 void main()
 {
-  float2 screen_uv = gl_FragCoord.xy / float2(textureSize(color_buf, 0).xy);
-
   float2 pixel_size = 1.0f / float2(textureSize(reveal_buf, 0).xy);
   float2 ofs = offset * pixel_size;
 
@@ -197,8 +187,6 @@ void main()
 
 void main()
 {
-  float2 screen_uv = gl_FragCoord.xy / float2(textureSize(color_buf, 0).xy);
-
   /* Blur revealage buffer. */
   fragRevealage = float4(0.0f);
   float weight_accum = 0.0f;
@@ -240,7 +228,7 @@ void main()
 
 #elif defined(SHADOW)
 
-float2 compute_uvs(float2 screen_uv, float x)
+float2 compute_uvs(float x)
 {
   float2 uv = screen_uv;
   /* Transform UV (loc, rot, scale) */
@@ -254,8 +242,6 @@ float2 compute_uvs(float2 screen_uv, float x)
 
 void main()
 {
-  float2 screen_uv = gl_FragCoord.xy / float2(textureSize(color_buf, 0).xy);
-
   /* Blur revealage buffer. */
   fragRevealage = float4(0.0f);
   float weight_accum = 0.0f;
@@ -263,7 +249,7 @@ void main()
     float x = float(i) / float(samp_count);
     float weight = gaussian_weight(x);
     weight_accum += weight;
-    float2 uv = compute_uvs(screen_uv, x);
+    float2 uv = compute_uvs(x);
     float3 col = texture(reveal_buf, uv).rgb;
     if (any(not(equal(float2(0.0f), floor(uv))))) {
       col = float3(1.0f);
@@ -300,8 +286,6 @@ void main()
 
 void main()
 {
-  float2 screen_uv = gl_FragCoord.xy / float2(textureSize(color_buf, 0).xy);
-
   float2 pixel = floor((screen_uv - target_pixel_offset) / target_pixel_size);
   float2 uv = (pixel + 0.5f) * target_pixel_size + target_pixel_offset;
 

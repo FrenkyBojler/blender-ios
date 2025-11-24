@@ -10,8 +10,6 @@
 
 #include "DNA_sequence_types.h"
 
-#include "SEQ_sequencer.hh"
-
 #include "BLI_listbase.h"
 
 namespace blender::deg {
@@ -64,14 +62,14 @@ StripBackup::StripBackup(const Depsgraph * /*depsgraph*/)
 void StripBackup::reset()
 {
   scene_sound = nullptr;
-  movie_readers.clear();
+  BLI_listbase_clear(&anims);
   modifiers.clear();
 }
 
 void StripBackup::init_from_strip(Strip *strip)
 {
-  scene_sound = strip->runtime->scene_sound;
-  movie_readers = std::move(strip->runtime->movie_readers);
+  scene_sound = strip->scene_sound;
+  anims = strip->anims;
 
   LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
     StripModifierDataBackup mod_backup;
@@ -81,14 +79,14 @@ void StripBackup::init_from_strip(Strip *strip)
     }
   }
 
-  strip->runtime->scene_sound = nullptr;
-  strip->runtime->movie_readers.clear();
+  strip->scene_sound = nullptr;
+  BLI_listbase_clear(&strip->anims);
 }
 
 void StripBackup::restore_to_strip(Strip *strip)
 {
-  strip->runtime->scene_sound = scene_sound;
-  strip->runtime->movie_readers = std::move(movie_readers);
+  strip->scene_sound = scene_sound;
+  strip->anims = anims;
 
   LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
     std::optional<StripModifierDataBackup> backup = modifiers.pop_try(smd->persistent_uid);
@@ -102,7 +100,7 @@ void StripBackup::restore_to_strip(Strip *strip)
 
 bool StripBackup::isEmpty() const
 {
-  return (scene_sound == nullptr) && movie_readers.is_empty() && modifiers.is_empty();
+  return (scene_sound == nullptr) && BLI_listbase_is_empty(&anims) && modifiers.is_empty();
 }
 
 }  // namespace blender::deg

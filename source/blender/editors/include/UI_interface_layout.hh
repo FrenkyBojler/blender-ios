@@ -13,6 +13,7 @@
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector.hh"
 
+#include "UI_interface_icons.hh" /* `eAlertIcon` */
 #include "UI_interface_types.hh"
 
 struct bContext;
@@ -49,7 +50,6 @@ enum class EmbossType : uint8_t;
 enum class LayoutAlign : int8_t;
 enum class ButProgressType : int8_t;
 enum class LayoutDirection : int8_t;
-enum class AlertIcon : int8_t;
 
 struct ItemInternal;
 struct LayoutInternal;
@@ -993,8 +993,6 @@ const char *UI_layout_introspect(blender::ui::Layout *layout);
 blender::ui::Layout *uiItemsAlertBox(uiBlock *block,
                                      const uiStyle *style,
                                      const int dialog_width,
-                                     const blender::ui::AlertIcon icon,
+                                     const eAlertIcon icon,
                                      const int icon_size);
-blender::ui::Layout *uiItemsAlertBox(uiBlock *block,
-                                     const int size,
-                                     const blender::ui::AlertIcon icon);
+blender::ui::Layout *uiItemsAlertBox(uiBlock *block, const int size, const eAlertIcon icon);

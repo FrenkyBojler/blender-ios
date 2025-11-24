@@ -10,8 +10,6 @@
 
 #include "BLI_sys_types.h"
 
-#include "DNA_curve_types.h"
-
 /* internal exports only */
 struct BPoint;
 struct Base;
@@ -150,7 +148,7 @@ void CURVE_OT_match_texture_space(wmOperatorType *ot);
 
 /* exported for editcurve_undo.cc */
 
-CVKeyIndexMap *ED_curve_keyindex_hash_duplicate(CVKeyIndexMap *keyindex);
+GHash *ED_curve_keyindex_hash_duplicate(GHash *keyindex);
 void ED_curve_keyindex_update_nurb(EditNurb *editnurb, Nurb *nu, Nurb *newnu);
 
 /* exported for `editcurve_pen.cc` */

@@ -46,7 +46,7 @@ struct LoadData {
   MovieClip *clip; /* Only for clip strips. */
   Mask *mask;      /* Only for mask strips. */
   struct {
-    StripType type;
+    int type;
     int length;
     Strip *input1;
     Strip *input2;

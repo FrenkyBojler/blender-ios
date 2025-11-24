@@ -23,5 +23,5 @@ def is_json_convertible(data):
     try:
         json.dumps(data, cls=BlenderJSONEncoder)
         return True
-    except Exception as _e:
+    except:
         return False

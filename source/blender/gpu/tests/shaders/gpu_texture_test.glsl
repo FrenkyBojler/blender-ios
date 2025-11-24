@@ -2,11 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/gpu_shader_test_infos.hh"
-
 #if defined(GPU_VERTEX_SHADER)
-
-VERTEX_SHADER_CREATE_INFO(gpu_sampler_arg_buf_test)
 
 void main()
 {
@@ -15,8 +11,6 @@ void main()
 }
 
 #else
-
-FRAGMENT_SHADER_CREATE_INFO(gpu_sampler_arg_buf_test)
 
 void main()
 {

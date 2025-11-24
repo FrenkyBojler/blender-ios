@@ -574,7 +574,7 @@ static wmOperatorStatus text_reload_invoke(bContext *C, wmOperator *op, const wm
                                 IFACE_("Reload active text file?"),
                                 nullptr,
                                 IFACE_("Reload"),
-                                blender::ui::AlertIcon::None,
+                                ALERT_ICON_NONE,
                                 false);
 }
 
@@ -636,7 +636,7 @@ static wmOperatorStatus text_unlink_invoke(bContext *C, wmOperator *op, const wm
                                 IFACE_("Delete active text file?"),
                                 nullptr,
                                 IFACE_("Delete"),
-                                blender::ui::AlertIcon::None,
+                                ALERT_ICON_NONE,
                                 false);
 }
 

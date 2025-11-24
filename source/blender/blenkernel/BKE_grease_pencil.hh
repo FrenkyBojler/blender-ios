@@ -952,7 +952,7 @@ class GreasePencilRuntime {
 
 class GreasePencilDrawingEditHints {
  public:
-  const greasepencil::Drawing *drawing_orig = nullptr;
+  const greasepencil::Drawing *drawing_orig;
   /* Deformed positions for original points. Data has the same topology as the original curves. */
   ImplicitSharingPtrAndData positions_data;
 

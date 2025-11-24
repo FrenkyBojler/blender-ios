@@ -30,9 +30,6 @@ using OpenSubdiv::Osd::BufferDescriptor;
 using OpenSubdiv::Osd::PatchArray;
 using OpenSubdiv::Osd::PatchArrayVector;
 
-extern "C" char datatoc_osd_eval_patches_comp_glsl[];
-extern "C" char datatoc_osd_eval_stencils_comp_glsl[];
-
 #define SHADER_SRC_VERTEX_BUFFER_BUF_SLOT 0
 #define SHADER_DST_VERTEX_BUFFER_BUF_SLOT 1
 #define SHADER_DU_BUFFER_BUF_SLOT 2
@@ -337,7 +334,7 @@ static blender::gpu::Shader *compile_eval_stencil_shader(BufferDescriptor const 
                                                          int workGroupSize)
 {
   using namespace blender::gpu::shader;
-  ShaderCreateInfo info("osd_eval_stencils_comp");
+  ShaderCreateInfo info("opensubdiv_compute_eval");
   info.local_group_size(workGroupSize, 1, 1);
   info.builtins(BuiltinBits::GLOBAL_INVOCATION_ID);
   info.builtins(BuiltinBits::NUM_WORK_GROUP);
@@ -446,7 +443,7 @@ static blender::gpu::Shader *compile_eval_patches_shader(BufferDescriptor const 
                                                          int workGroupSize)
 {
   using namespace blender::gpu::shader;
-  ShaderCreateInfo info("osd_eval_patches_comp");
+  ShaderCreateInfo info("opensubdiv_compute_eval");
   info.local_group_size(workGroupSize, 1, 1);
   info.builtins(BuiltinBits::GLOBAL_INVOCATION_ID);
   info.builtins(BuiltinBits::NUM_WORK_GROUP);

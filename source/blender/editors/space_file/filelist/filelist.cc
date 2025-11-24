@@ -790,11 +790,12 @@ FileListEntryCache::FileListEntryCache() : size(FILELIST_ENTRYCACHESIZE_DEFAULT)
   block_entries = static_cast<FileDirEntry **>(
       MEM_mallocN(sizeof(*this->block_entries) * this->size, __func__));
 
-  this->misc_entries.reserve(this->size);
+  this->misc_entries = BLI_ghash_ptr_new_ex(__func__, this->size);
   this->misc_entries_indices = MEM_malloc_arrayN<int>(this->size, __func__);
   copy_vn_i(this->misc_entries_indices, this->size, -1);
 
-  this->uids.reserve(this->size * 2);
+  this->uids = BLI_ghash_new_ex(
+      BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__, this->size * 2);
 }
 
 FileListEntryCache::~FileListEntryCache()
@@ -802,7 +803,11 @@ FileListEntryCache::~FileListEntryCache()
   filelist_cache_previews_free(this);
 
   MEM_freeN(this->block_entries);
+
+  BLI_ghash_free(this->misc_entries, nullptr, nullptr);
   MEM_freeN(this->misc_entries_indices);
+
+  BLI_ghash_free(this->uids, nullptr, nullptr);
 
   LISTBASE_FOREACH_MUTABLE (FileDirEntry *, entry, &this->cached_entries) {
     filelist_entry_free(entry);
@@ -820,16 +825,14 @@ void filelist_cache_clear(FileListEntryCache *cache, size_t new_size)
         MEM_reallocN(cache->block_entries, sizeof(*cache->block_entries) * new_size));
   }
 
-  cache->misc_entries.clear();
-  cache->misc_entries.reserve(new_size);
+  BLI_ghash_clear_ex(cache->misc_entries, nullptr, nullptr, new_size);
   if (new_size != cache->size) {
     cache->misc_entries_indices = static_cast<int *>(MEM_reallocN(
         cache->misc_entries_indices, sizeof(*cache->misc_entries_indices) * new_size));
   }
   copy_vn_i(cache->misc_entries_indices, new_size, -1);
 
-  cache->uids.clear();
-  cache->uids.reserve(new_size * 2);
+  BLI_ghash_clear_ex(cache->uids, nullptr, nullptr, new_size * 2);
 
   cache->size = new_size;
 
@@ -1231,12 +1234,13 @@ static FileDirEntry *filelist_cache_file_lookup(FileListEntryCache *cache, const
     return cache->block_entries[idx];
   }
 
-  return cache->misc_entries.lookup_default(index, nullptr);
+  return static_cast<FileDirEntry *>(
+      BLI_ghash_lookup(cache->misc_entries, POINTER_FROM_INT(index)));
 }
 
 FileDirEntry *filelist_file_ex(FileList *filelist, const int index, const bool use_request)
 {
-  FileDirEntry *ret = nullptr;
+  FileDirEntry *ret = nullptr, *old;
   FileListEntryCache *cache = filelist->filelist_cache;
   int old_index;
 
@@ -1257,12 +1261,14 @@ FileDirEntry *filelist_file_ex(FileList *filelist, const int index, const bool u
   /* Else, we have to add new entry to 'misc' cache - and possibly make room for it first! */
   ret = filelist_file_create_entry(filelist, index);
   old_index = cache->misc_entries_indices[cache->misc_cursor];
-  if (FileDirEntry *old = cache->misc_entries.pop_default(old_index, nullptr)) {
-    cache->uids.remove(old->uid);
+  if ((old = static_cast<FileDirEntry *>(
+           BLI_ghash_popkey(cache->misc_entries, POINTER_FROM_INT(old_index), nullptr))))
+  {
+    BLI_ghash_remove(cache->uids, POINTER_FROM_UINT(old->uid), nullptr, nullptr);
     filelist_file_release_entry(filelist, old);
   }
-  cache->misc_entries.add(index, ret);
-  cache->uids.add(ret->uid, ret);
+  BLI_ghash_insert(cache->misc_entries, POINTER_FROM_INT(index), ret);
+  BLI_ghash_insert(cache->uids, POINTER_FROM_UINT(ret->uid), ret);
 
   cache->misc_entries_indices[cache->misc_cursor] = index;
   cache->misc_cursor = (cache->misc_cursor + 1) % cache->size;
@@ -1399,9 +1405,11 @@ static bool filelist_file_cache_block_create(FileList *filelist,
     FileDirEntry *entry;
 
     /* That entry might have already been requested and stored in misc cache... */
-    if ((entry = cache->misc_entries.pop_default(idx, nullptr)) == nullptr) {
+    if ((entry = static_cast<FileDirEntry *>(
+             BLI_ghash_popkey(cache->misc_entries, POINTER_FROM_INT(idx), nullptr))) == nullptr)
+    {
       entry = filelist_file_create_entry(filelist, idx);
-      cache->uids.add(entry->uid, entry);
+      BLI_ghash_insert(cache->uids, POINTER_FROM_UINT(entry->uid), entry);
     }
     cache->block_entries[cursor] = entry;
   }
@@ -1421,7 +1429,7 @@ static void filelist_file_cache_block_release(FileList *filelist, const int size
            __func__,
            cursor /*, cache->block_entries[cursor], cache->block_entries[cursor]->relpath*/);
 #endif
-    cache->uids.remove(entry->uid);
+    BLI_ghash_remove(cache->uids, POINTER_FROM_UINT(entry->uid), nullptr, nullptr);
     filelist_file_release_entry(filelist, entry);
 #ifndef NDEBUG
     cache->block_entries[cursor] = nullptr;

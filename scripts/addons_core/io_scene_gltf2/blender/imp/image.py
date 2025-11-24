@@ -52,7 +52,7 @@ def create_from_file(gltf, img_idx):
     if bpy.data.is_saved and bpy.context.preferences.filepaths.use_relative_paths:
         try:
             path = bpy.path.relpath(path)
-        except Exception as _e:
+        except:
             # May happen on Windows if on different drives, eg. C:\ and D:\
             pass
 

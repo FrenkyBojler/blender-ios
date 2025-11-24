@@ -14,14 +14,8 @@
 #include "BLI_map.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_offset_indices.hh"
-#include "BLI_ordered_edge.hh"
-#include "BLI_set.hh"
 #include "BLI_span.hh"
 #include "BLI_vector.hh"
-
-#include "BKE_paint.hh"
-
-#include "DNA_mesh_types.h"
 
 struct Brush;
 struct BMVert;
@@ -100,10 +94,9 @@ struct SculptBoundary {
 /**
  * Populates boundary information for a mesh.
  *
- * \see SculptBoundaryInfo
+ * \see SculptVertexInfo
  */
 void ensure_boundary_info(Object &object);
-SculptBoundaryInfoCache create_boundary_info(const Mesh &mesh);
 
 /**
  * Determine if a vertex is a boundary vertex.
@@ -112,12 +105,11 @@ SculptBoundaryInfoCache create_boundary_info(const Mesh &mesh);
  */
 bool vert_is_boundary(GroupedSpan<int> vert_to_face_map,
                       Span<bool> hide_poly,
-                      BitSpan boundary_verts,
+                      BitSpan boundary,
                       int vert);
 bool vert_is_boundary(OffsetIndices<int> faces,
                       Span<int> corner_verts,
-                      BitSpan boundary_verts,
-                      const Set<OrderedEdge> &boundary_edges,
+                      BitSpan boundary,
                       const SubdivCCG &subdiv_ccg,
                       SubdivCCGCoord vert);
 bool vert_is_boundary(BMVert *vert);

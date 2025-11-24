@@ -25,7 +25,6 @@
 #include "DNA_listBase.h"
 
 #include "BLI_compiler_attrs.h"
-#include "BLI_map.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_set.hh"
 #include "BLI_sys_types.h"
@@ -128,7 +127,7 @@ struct MainIDRelations {
    * Mapping from an ID pointer to all of its parents (IDs using it) and children (IDs it uses).
    * Values are `MainIDRelationsEntry` pointers.
    */
-  blender::Map<const ID *, MainIDRelationsEntry *> *relations_from_pointers;
+  GHash *relations_from_pointers;
   /* NOTE: we could add more mappings when needed (e.g. from session uid?). */
 
   short flag;

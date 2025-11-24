@@ -7,9 +7,6 @@ set(INC_GLSL
   ..
   ../intern
 
-  # For variadic macros
-  ../../blenlib
-
   common
   infos
 )

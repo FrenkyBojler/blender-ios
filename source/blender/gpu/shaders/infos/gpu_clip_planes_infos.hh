@@ -11,9 +11,7 @@
 #  include "gpu_shader_compat.hh"
 
 #  include "GPU_shader_shared.hh"
-#endif
 
-#ifdef GLSL_CPP_STUBS
 #  define USE_WORLD_CLIP_PLANES
 #endif
 

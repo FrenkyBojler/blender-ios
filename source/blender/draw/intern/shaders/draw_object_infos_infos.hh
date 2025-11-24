@@ -10,9 +10,7 @@
 #  include "gpencil_shader_shared.hh"
 
 #  include "draw_view_infos.hh"
-#endif
 
-#ifdef GLSL_CPP_STUBS
 #  define CURVES_SHADER
 #  define DRW_GPENCIL_INFO
 #endif

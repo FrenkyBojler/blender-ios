@@ -15,6 +15,7 @@ from .search_node_tree import \
     from_socket, \
     FilterByType, \
     previous_node, \
+    get_const_from_socket, \
     NodeSocket, \
     get_texture_transform_from_mapping_node
 

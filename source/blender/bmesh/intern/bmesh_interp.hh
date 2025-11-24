@@ -94,7 +94,6 @@ struct BMDataLayerLookup {
   const int offset = -1;
   blender::bke::AttrDomain domain;
   blender::bke::AttrType type;
-  const CustomDataLayer *layer = nullptr;
   operator bool() const
   {
     return offset != -1;

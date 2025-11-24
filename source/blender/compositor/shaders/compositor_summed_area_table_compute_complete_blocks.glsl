@@ -2,10 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "infos/compositor_summed_area_table_infos.hh"
-
-COMPUTE_SHADER_CREATE_INFO(compositor_summed_area_table_compute_complete_blocks_identity)
-
 #include "gpu_shader_compositor_texture_utilities.glsl"
 
 /* An intermediate shared memory where the result of X accumulation will be stored. */

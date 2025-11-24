@@ -24,7 +24,6 @@
 
 #include "ED_asset_filter.hh"
 #include "ED_asset_list.hh"
-#include "ED_asset_shelf.hh"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
@@ -54,7 +53,7 @@ class AssetCatalogSelectorTree : public ui::AbstractTreeView {
         library,
         shelf_settings_.asset_library_reference,
         [this](const asset_system::AssetRepresentation &asset) {
-          return type_asset_poll(*shelf_.type, asset);
+          return (!shelf_.type->asset_poll || shelf_.type->asset_poll(shelf_.type, &asset));
         });
   }
 

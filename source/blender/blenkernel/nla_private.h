@@ -57,16 +57,6 @@ struct NlaEvalData;
 typedef struct NlaEvalChannelKey {
   struct PointerRNA ptr;
   struct PropertyRNA *prop;
-
-  friend bool operator==(const NlaEvalChannelKey &a, const NlaEvalChannelKey &b)
-  {
-    return a.ptr.data == b.ptr.data && a.prop == b.prop;
-  }
-
-  uint64_t hash() const
-  {
-    return blender::get_default_hash(this->ptr.data, this->prop);
-  }
 } NlaEvalChannelKey;
 
 /** Bitmask of array indices touched by actions. */
@@ -142,7 +132,7 @@ typedef struct NlaEvalData {
 
   /* Mapping of paths and NlaEvalChannelKeys to channels. */
   GHash *path_hash;
-  blender::Map<NlaEvalChannelKey, NlaEvalChannel *> *key_hash;
+  GHash *key_hash;
 
   /* Base snapshot. */
   int num_channels;

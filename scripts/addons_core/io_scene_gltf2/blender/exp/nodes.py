@@ -2,6 +2,7 @@
 #
 # SPDX-License-Identifier: Apache-2.0
 
+import math
 import bpy
 from mathutils import Matrix, Quaternion, Vector
 

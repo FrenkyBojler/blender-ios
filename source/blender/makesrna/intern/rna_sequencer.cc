@@ -251,11 +251,8 @@ static void UNUSED_FUNCTION(rna_Strip_invalidate_composite_update)(Main * /*bmai
   }
 }
 
-static void rna_Strip_scene_switch_update(bContext *C, PointerRNA *ptr)
+static void rna_Strip_scene_switch_update(Main *bmain, Scene *scene, PointerRNA *ptr)
 {
-  Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_sequencer_scene(C);
-  blender::ed::vse::sync_active_scene_and_time_with_scene_strip(*C);
   rna_Strip_invalidate_raw_update(bmain, scene, ptr);
   DEG_id_tag_update(&scene->id, ID_RECALC_AUDIO | ID_RECALC_SEQUENCER_STRIPS);
   DEG_relations_tag_update(bmain);
@@ -997,16 +994,16 @@ static bool rna_MovieStrip_reload_if_needed(ID *scene_id, Strip *strip, Main *bm
 
 static PointerRNA rna_MovieStrip_metadata_get(ID *scene_id, Strip *strip)
 {
-  if (strip == nullptr || strip->runtime->movie_readers.is_empty()) {
+  if (strip == nullptr || strip->anims.first == nullptr) {
     return PointerRNA_NULL;
   }
 
-  MovieReader *anim = strip->runtime->movie_readers.first();
-  if (anim == nullptr) {
+  StripAnim *sanim = static_cast<StripAnim *>(strip->anims.first);
+  if (sanim->anim == nullptr) {
     return PointerRNA_NULL;
   }
 
-  IDProperty *metadata = MOV_load_metadata(anim);
+  IDProperty *metadata = MOV_load_metadata(sanim->anim);
   if (metadata == nullptr) {
     return PointerRNA_NULL;
   }
@@ -1744,9 +1741,10 @@ static void rna_SequenceTimelineChannel_name_set(PointerRNA *ptr, const char *va
                  sizeof(channel->name));
 }
 
-static void rna_SequenceTimelineChannel_mute_update(bContext *C, PointerRNA *ptr)
+static void rna_SequenceTimelineChannel_mute_update(Main *bmain,
+                                                    Scene *active_scene,
+                                                    PointerRNA *ptr)
 {
-  Main *bmain = CTX_data_main(C);
   Scene *scene = (Scene *)ptr->owner_id;
   Editing *ed = blender::seq::editing_get(scene);
   SeqTimelineChannel *channel = (SeqTimelineChannel *)ptr;
@@ -1760,12 +1758,11 @@ static void rna_SequenceTimelineChannel_mute_update(bContext *C, PointerRNA *ptr
     seqbase = &channel_owner->seqbase;
   }
 
-  blender::ed::vse::sync_active_scene_and_time_with_scene_strip(*C);
   LISTBASE_FOREACH (Strip *, strip, seqbase) {
     blender::seq::relations_invalidate_cache(scene, strip);
   }
 
-  rna_Strip_sound_update(bmain, scene, ptr);
+  rna_Strip_sound_update(bmain, active_scene, ptr);
 }
 
 static std::optional<std::string> rna_SeqTimelineChannel_path(const PointerRNA *ptr)
@@ -2551,7 +2548,6 @@ static void rna_def_strip(BlenderRNA *brna)
   prop = RNA_def_property(srna, "show_retiming_keys", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", SEQ_SHOW_RETIMING);
   RNA_def_property_ui_text(prop, "Show Retiming Keys", "Show retiming keys, so they can be moved");
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, nullptr);
 
   RNA_api_strip(srna);
 }
@@ -2581,7 +2577,6 @@ static void rna_def_channel(BlenderRNA *brna)
   prop = RNA_def_property(srna, "mute", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", SEQ_CHANNEL_MUTE);
   RNA_def_property_ui_text(prop, "Mute channel", "");
-  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_update(
       prop, NC_SCENE | ND_SEQUENCER, "rna_SequenceTimelineChannel_mute_update");
 }
@@ -3086,7 +3081,7 @@ static void rna_def_scene(BlenderRNA *brna)
   RNA_def_struct_sdna(srna, "Strip");
 
   prop = RNA_def_property(srna, "scene", PROP_POINTER, PROP_NONE);
-  RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_SELF_CHECK | PROP_CONTEXT_UPDATE);
+  RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_SELF_CHECK);
   RNA_def_property_ui_text(prop, "Scene", "Scene that this strip uses");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_scene_switch_update");
 
