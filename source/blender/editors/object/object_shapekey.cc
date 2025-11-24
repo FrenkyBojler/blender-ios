@@ -981,7 +981,7 @@ static wmOperatorStatus shape_key_apply_to_basis_exec(bContext *C, wmOperator *o
   }
 
   if (locked_count != 0) {
-    BKE_reportf(op->reports, RPT_ERROR, "Skipped %d locked shape keys", locked_count);
+    BKE_reportf(op->reports, RPT_INFO, "Skipped %d locked shape keys", locked_count);
   }
 
   if (processed_keys.is_empty()) {
