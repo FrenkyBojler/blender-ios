@@ -380,7 +380,7 @@ void ED_image_point_pos__reverse(SpaceImage *sima,
   r_co[1] = (co[1] * height * zoomy) + float(sy);
 }
 
-bool ED_image_slot_cycle(Image *image, int direction)
+bool ED_image_slot_cycle(Image *image, ImageUser *iuser, int direction)
 {
   const int cur = image->render_slot;
   int i, slot;
@@ -396,22 +396,18 @@ bool ED_image_slot_cycle(Image *image, int direction)
 
     RenderSlot *render_slot = BKE_image_get_renderslot(image, slot);
     if ((render_slot && render_slot->render) || slot == image->last_render_slot) {
-      image->render_slot = slot;
       break;
     }
   }
 
   if (num_slots == 1) {
-    image->render_slot = 0;
+    slot = 0;
   }
   else if (i == num_slots) {
-    image->render_slot = ((cur == 1) ? 0 : 1);
+    slot = ((cur == 1) ? 0 : 1);
   }
 
-  if (cur != image->render_slot) {
-    BKE_image_partial_update_mark_full_update(image);
-  }
-  return (cur != image->render_slot);
+  return BKE_image_set_renderslot(image, slot, iuser);
 }
 
 void ED_space_image_scopes_update(const bContext *C,

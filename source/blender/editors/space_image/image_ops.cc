@@ -3802,9 +3802,10 @@ static bool image_cycle_render_slot_poll(bContext *C)
 static wmOperatorStatus image_cycle_render_slot_exec(bContext *C, wmOperator *op)
 {
   Image *ima = image_from_context(C);
+  ImageUser *iuser = image_user_from_context(C);
   const int direction = RNA_boolean_get(op->ptr, "reverse") ? -1 : 1;
 
-  if (!ED_image_slot_cycle(ima, direction)) {
+  if (!ED_image_slot_cycle(ima, iuser, direction)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -3880,9 +3881,10 @@ void IMAGE_OT_clear_render_slot(wmOperatorType *ot)
 static wmOperatorStatus image_add_render_slot_exec(bContext *C, wmOperator * /*op*/)
 {
   Image *ima = image_from_context(C);
+  ImageUser *iuser = image_user_from_context(C);
 
   RenderSlot *slot = BKE_image_add_renderslot(ima, nullptr);
-  ima->render_slot = BLI_findindex(&ima->renderslots, slot);
+  BKE_image_set_renderslot(ima, BLI_findindex(&ima->renderslots, slot), iuser);
 
   WM_event_add_notifier(C, NC_IMAGE | ND_DRAW, nullptr);
 

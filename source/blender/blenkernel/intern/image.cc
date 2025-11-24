@@ -5617,6 +5617,12 @@ bool BKE_image_remove_renderslot(Image *ima, ImageUser *iuser, int slot)
     next_slot = current_slot;
   }
 
+  /* Go through the regular slot change process to update the iuser's layer and pass. */
+  if (current_slot != next_slot) {
+    const int next_index = BLI_findindex(&ima->renderslots, next_slot);
+    BKE_image_set_renderslot(ima, next_index, iuser);
+  }
+
   /* If the slot to be removed is the slot with the last render,
    * make another slot the last render slot. */
   if (remove_slot == current_last_slot) {
@@ -5688,6 +5694,86 @@ RenderSlot *BKE_image_get_renderslot(Image *ima, int index)
 {
   /* Can be null for images without render slots. */
   return static_cast<RenderSlot *>(BLI_findlink(&ima->renderslots, index));
+}
+
+static void image_slot_change_adjust_iuser(ImageUser *iuser,
+                                           RenderResult *prev_rr,
+                                           RenderResult *new_rr)
+{
+  if (prev_rr == nullptr || new_rr == nullptr) {
+    return;
+  }
+
+  const bool prev_has_combined = ((RenderView *)prev_rr->views.first)->ibuf != nullptr;
+  const bool new_has_combined = ((RenderView *)new_rr->views.first)->ibuf != nullptr;
+
+  const int prev_layer = iuser->layer - (prev_has_combined ? 1 : 0);
+  RenderLayer *prev_rl = static_cast<RenderLayer *>(BLI_findlink(&prev_rr->layers, prev_layer));
+  if (prev_rl == nullptr) {
+    return;
+  }
+
+  RenderLayer *new_rl = static_cast<RenderLayer *>(
+      BLI_findstring(&new_rr->layers, prev_rl->name, offsetof(RenderLayer, name)));
+  if (new_rl == nullptr) {
+    return;
+  }
+  iuser->layer = BLI_findindex(&new_rr->layers, new_rl) + (new_has_combined ? 1 : 0);
+
+  RenderPass *prev_rp = static_cast<RenderPass *>(BLI_findlink(&prev_rl->passes, iuser->pass));
+  if (prev_rp == nullptr) {
+    return;
+  }
+
+  RenderPass *new_rp = static_cast<RenderPass *>(
+      BLI_findstring(&new_rl->passes, prev_rp->name, offsetof(RenderPass, name)));
+  if (new_rp == nullptr) {
+    return;
+  }
+  iuser->pass = BLI_findindex(&new_rl->passes, new_rp);
+}
+
+bool BKE_image_set_renderslot(Image *ima, int index, ImageUser *iuser)
+{
+  const int num_slots = BLI_listbase_count(&ima->renderslots);
+  CLAMP(index, 0, num_slots - 1);
+
+  const int prev_index = ima->render_slot;
+  ima->render_slot = index;
+  const bool slot_changed = index != prev_index;
+
+  BKE_image_partial_update_mark_full_update(ima);
+
+  /* If an ImageUser is provided, update layer and/or pass index to stay on the same entry. */
+  if (iuser != nullptr && slot_changed) {
+    /* Acquiring the RenderResults here is a bit awkward due to the
+     * last_render_slot special case. */
+    RenderSlot *prev_slot = BKE_image_get_renderslot(ima, prev_index);
+    RenderResult *prev_rr = nullptr;
+    if (prev_index == ima->last_render_slot) {
+      prev_rr = RE_AcquireResultRead(RE_GetSceneRender(iuser->scene));
+    }
+    else if (prev_slot != nullptr) {
+      prev_rr = prev_slot->render;
+    }
+
+    RenderSlot *new_slot = BKE_image_get_renderslot(ima, index);
+    RenderResult *new_rr = nullptr;
+    if (index == ima->last_render_slot) {
+      new_rr = RE_AcquireResultRead(RE_GetSceneRender(iuser->scene));
+    }
+    else if (new_slot != nullptr) {
+      new_rr = new_slot->render;
+    }
+
+    image_slot_change_adjust_iuser(iuser, prev_rr, new_rr);
+
+    if (ELEM(ima->last_render_slot, prev_index, index)) {
+      RE_ReleaseResult(RE_GetSceneRender(iuser->scene));
+    }
+  }
+
+  return slot_changed;
 }
 
 /** \} */

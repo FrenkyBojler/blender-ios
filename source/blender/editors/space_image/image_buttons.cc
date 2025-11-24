@@ -71,10 +71,27 @@ ImageUser *ntree_get_active_iuser(bNodeTree *ntree)
 
 /* ********************* callbacks for standard image buttons *************** */
 
-static void ui_imageuser_slot_menu(bContext *C, uiLayout *layout, void *image_p)
+/* workaround for passing many args */
+struct ImageUI_Data {
+  Image *image;
+  ImageUser *iuser;
+  int rpass_index;
+};
+
+static ImageUI_Data *ui_imageuser_data_copy(const ImageUI_Data *rnd_pt_src)
 {
+  ImageUI_Data *rnd_pt_dst = static_cast<ImageUI_Data *>(
+      MEM_mallocN(sizeof(*rnd_pt_src), __func__));
+  memcpy(rnd_pt_dst, rnd_pt_src, sizeof(*rnd_pt_src));
+  return rnd_pt_dst;
+}
+
+static void ui_imageuser_slot_menu(bContext *C, uiLayout *layout, void *rnd_pt)
+{
+  ImageUI_Data *rnd_data = static_cast<ImageUI_Data *>(rnd_pt);
   uiBlock *block = layout->block();
-  Image *image = static_cast<Image *>(image_p);
+  Image *image = rnd_data->image;
+  ImageUser *iuser = rnd_data->iuser;
 
   /* The scene isn't expected to be null, check since it's not a requirement
    * for the value to be non-null for this function to work.
@@ -104,7 +121,9 @@ static void ui_imageuser_slot_menu(bContext *C, uiLayout *layout, void *image_p)
     uiBut *but = uiDefIconTextBut(
         block, ButType::ButMenu, icon, str, 0, 0, UI_UNIT_X * 5, UI_UNIT_X, nullptr, "");
     UI_but_retval_set(but, B_NOP);
-    UI_but_func_set(but, [image, slot_id](bContext & /*C*/) { image->render_slot = slot_id; });
+    UI_but_func_set(but, [image, iuser, slot_id](bContext & /*C*/) {
+      BKE_image_set_renderslot(image, slot_id, iuser);
+    });
   }
 
   layout->separator();
@@ -121,11 +140,13 @@ static void ui_imageuser_slot_menu(bContext *C, uiLayout *layout, void *image_p)
            "");
 }
 
-static bool ui_imageuser_slot_menu_step(bContext *C, int direction, void *image_p)
+static bool ui_imageuser_slot_menu_step(bContext *C, int direction, void *rnd_pt)
 {
-  Image *image = static_cast<Image *>(image_p);
+  ImageUI_Data *rnd_data = static_cast<ImageUI_Data *>(rnd_pt);
+  Image *image = rnd_data->image;
+  ImageUser *iuser = rnd_data->iuser;
 
-  if (ED_image_slot_cycle(image, direction)) {
+  if (ED_image_slot_cycle(image, iuser, direction)) {
     WM_event_add_notifier(C, NC_IMAGE | ND_DRAW, nullptr);
     return true;
   }
@@ -146,21 +167,6 @@ static const char *ui_imageuser_layer_fake_name(RenderResult *rr)
     return IFACE_("Sequence");
   }
   return nullptr;
-}
-
-/* workaround for passing many args */
-struct ImageUI_Data {
-  Image *image;
-  ImageUser *iuser;
-  int rpass_index;
-};
-
-static ImageUI_Data *ui_imageuser_data_copy(const ImageUI_Data *rnd_pt_src)
-{
-  ImageUI_Data *rnd_pt_dst = static_cast<ImageUI_Data *>(
-      MEM_mallocN(sizeof(*rnd_pt_src), __func__));
-  memcpy(rnd_pt_dst, rnd_pt_src, sizeof(*rnd_pt_src));
-  return rnd_pt_dst;
 }
 
 static void ui_imageuser_layer_menu(bContext * /*C*/, uiLayout *layout, void *rnd_pt)
@@ -593,7 +599,7 @@ static void uiblock_layer_pass_buttons(uiLayout *layout,
 
     rnd_pt = ui_imageuser_data_copy(&rnd_pt_local);
     but = uiDefMenuBut(
-        block, ui_imageuser_slot_menu, image, str, 0, 0, wmenu1, UI_UNIT_Y, TIP_("Select Slot"));
+        block, ui_imageuser_slot_menu, rnd_pt, str, 0, 0, wmenu1, UI_UNIT_Y, TIP_("Select Slot"));
     UI_but_func_menu_step_set(but, ui_imageuser_slot_menu_step);
     UI_but_funcN_set(but, image_multi_cb, rnd_pt, rr);
     UI_but_type_set_menu_from_pulldown(but);

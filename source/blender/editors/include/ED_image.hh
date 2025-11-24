@@ -108,7 +108,7 @@ void ED_image_point_pos__reverse(SpaceImage *sima,
  * This is more a user-level functionality, for going to `next/prev` used slot,
  * Stepping onto the last unused slot too.
  */
-bool ED_image_slot_cycle(Image *image, int direction);
+bool ED_image_slot_cycle(Image *image, ImageUser *iuser, int direction);
 
 bool ED_space_image_show_render(const SpaceImage *sima);
 bool ED_space_image_show_paint(const SpaceImage *sima);

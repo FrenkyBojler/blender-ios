@@ -753,8 +753,7 @@ static void rna_render_slots_active_set(PointerRNA *ptr,
     RenderSlot *slot = (RenderSlot *)value.data;
     int index = BLI_findindex(&image->renderslots, slot);
     if (index != -1) {
-      image->render_slot = index;
-      BKE_image_partial_update_mark_full_update(image);
+      BKE_image_set_renderslot(image, index, nullptr);
     }
   }
 }
@@ -768,10 +767,7 @@ static int rna_render_slots_active_index_get(PointerRNA *ptr)
 static void rna_render_slots_active_index_set(PointerRNA *ptr, int value)
 {
   Image *image = (Image *)ptr->owner_id;
-  int num_slots = BLI_listbase_count(&image->renderslots);
-  image->render_slot = value;
-  BKE_image_partial_update_mark_full_update(image);
-  CLAMP(image->render_slot, 0, num_slots - 1);
+  BKE_image_set_renderslot(image, value, nullptr);
 }
 
 static void rna_render_slots_active_index_range(
