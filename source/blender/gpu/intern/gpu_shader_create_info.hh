@@ -125,24 +125,24 @@
 #  define LOCAL_GROUP_SIZE(...) .local_group_size(__VA_ARGS__)
 
 #  define VERTEX_IN(slot, type, name) .vertex_in(slot, Type::type##_t, #name)
-#  define VERTEX_IN_SRD(srd) .shared_resource_descriptor(srd::populate)
 #  define VERTEX_OUT(stage_interface) .vertex_out(stage_interface)
-#  define VERTEX_OUT_SRD(srd) .vertex_out(srd)
 /* TO REMOVE. */
 #  define GEOMETRY_LAYOUT(...) .geometry_layout(__VA_ARGS__)
 #  define GEOMETRY_OUT(stage_interface) .geometry_out(stage_interface)
+
+#  define VERTEX_IN_SRT(srt) .additional_info(srt)
+#  define VERTEX_OUT_SRT(srt) .vertex_out(srt)
+#  define FRAGMENT_OUT_SRT(srt) .additional_info(srt)
+#  define RESOURCE_SRT(srd) .additional_info(srt)
 
 #  define SUBPASS_IN(slot, type, img_type, name, rog) \
     .subpass_in(slot, Type::type##_t, ImageType::img_type, #name, rog)
 
 #  define FRAGMENT_OUT(slot, type, name) .fragment_out(slot, Type::type##_t, #name)
-#  define FRAGMENT_OUT_SRD(srd) .shared_resource_descriptor(srd::populate)
 #  define FRAGMENT_OUT_DUAL(slot, type, name, blend) \
     .fragment_out(slot, Type::type##_t, #name, DualBlend::blend)
 #  define FRAGMENT_OUT_ROG(slot, type, name, rog) \
     .fragment_out(slot, Type::type##_t, #name, DualBlend::NONE, rog)
-
-#  define RESOURCE_SRD(srd) .shared_resource_descriptor(srd::populate)
 
 #  define EARLY_FRAGMENT_TEST(enable) .early_fragment_test(enable)
 #  define DEPTH_WRITE(value) .depth_write(value)
@@ -191,6 +191,7 @@
 #  define VERTEX_SOURCE(filename) .vertex_source(filename)
 #  define FRAGMENT_SOURCE(filename) .fragment_source(filename)
 #  define COMPUTE_SOURCE(filename) .compute_source(filename)
+#  define GRAPHIC_SOURCE(filename) .vertex_source(filename).fragment_source(filename)
 
 #  define VERTEX_FUNCTION(function) .vertex_function(function)
 #  define FRAGMENT_FUNCTION(function) .fragment_function(function)
@@ -207,6 +208,8 @@
 
 #  define ADDITIONAL_INFO(info_name) .additional_info(#info_name)
 #  define TYPEDEF_SOURCE(filename) .typedef_source(filename)
+
+#  define SRT_DATA(srt_name) .additional_info(#srt_name)
 
 #  define MTL_MAX_TOTAL_THREADS_PER_THREADGROUP(value) \
     .mtl_max_total_threads_per_threadgroup(value)
@@ -228,12 +231,8 @@
     namespace gl_VertexShader { \
     const type name = {}; \
     }
-#  define VERTEX_IN_SRD(srd) \
-    namespace gl_VertexShader { \
-    using namespace srd; \
-    }
 #  define VERTEX_OUT(stage_interface) using namespace interface::stage_interface;
-#  define VERTEX_OUT_SRD(srd) using namespace interface::srd;
+
 /* TO REMOVE. */
 #  define GEOMETRY_LAYOUT(...)
 #  define GEOMETRY_OUT(stage_interface) using namespace interface::stage_interface;
@@ -252,12 +251,11 @@
     namespace gl_FragmentShader { \
     type name; \
     }
-#  define FRAGMENT_OUT_SRD(srd) \
-    namespace gl_FragmentShader { \
-    using namespace srd; \
-    }
 
-#  define RESOURCE_SRD(srd) using namespace srd;
+#  define VERTEX_IN_SRT(srt)
+#  define VERTEX_OUT_SRT(srt)
+#  define FRAGMENT_OUT_SRT(srt)
+#  define RESOURCE_SRT(srd)
 
 #  define EARLY_FRAGMENT_TEST(enable)
 #  define DEPTH_WRITE(value)
@@ -290,6 +288,7 @@
 #  define VERTEX_SOURCE(filename)
 #  define FRAGMENT_SOURCE(filename)
 #  define COMPUTE_SOURCE(filename)
+#  define GRAPHIC_SOURCE(filename)
 
 #  define VERTEX_FUNCTION(filename)
 #  define FRAGMENT_FUNCTION(filename)
@@ -308,6 +307,8 @@
     using namespace info_name; \
     using namespace info_name::gl_FragmentShader; \
     using namespace info_name::gl_VertexShader;
+
+#  define SRT_DATA(srt_name)
 
 #  define TYPEDEF_SOURCE(filename)
 
@@ -745,7 +746,7 @@ using GeneratedSourceList = Vector<shader::GeneratedSource, 0>;
  */
 struct ShaderCreateInfo {
   /** Shader name for debugging. */
-  StringRefNull name_;
+  std::string name_;
   /** True if the shader is static and can be pre-compiled at compile time. */
   bool do_static_compilation_ = false;
   /** True if the shader is not part of gpu_shader_create_info_list. */
@@ -884,6 +885,7 @@ struct ShaderCreateInfo {
   struct SharedVariable {
     Type type;
     ResourceString name;
+    StringRefNull info_name;
   };
 
   Vector<SharedVariable, 0> shared_variables_;
@@ -920,6 +922,8 @@ struct ShaderCreateInfo {
       IMAGE,
     };
 
+    /* Name of the create info that declared this resource. */
+    StringRefNull info_name;
     BindType bind_type;
     int slot;
     union {
@@ -929,7 +933,8 @@ struct ShaderCreateInfo {
       StorageBuf storagebuf;
     };
 
-    Resource(BindType type, int _slot) : bind_type(type), slot(_slot) {};
+    Resource(const ShaderCreateInfo &info, BindType type, int _slot)
+        : info_name(info.name_), bind_type(type), slot(_slot) {};
 
     bool operator==(const Resource &b) const
     {
@@ -1044,7 +1049,8 @@ struct ShaderCreateInfo {
 #  endif
 
  public:
-  ShaderCreateInfo(const char *name) : name_(name) {};
+  ShaderCreateInfo(const char *name);
+
   ~ShaderCreateInfo() = default;
 
   using Self = ShaderCreateInfo;
@@ -1242,7 +1248,7 @@ struct ShaderCreateInfo {
 
   Self &shared_variable(Type type, StringRefNull name)
   {
-    shared_variables_.append({type, name});
+    shared_variables_.append({type, name, this->name_});
     return *(Self *)this;
   }
 
@@ -1257,7 +1263,7 @@ struct ShaderCreateInfo {
                     StringRefNull name,
                     Frequency freq = Frequency::PASS)
   {
-    Resource res(Resource::BindType::UNIFORM_BUFFER, slot);
+    Resource res(*this, Resource::BindType::UNIFORM_BUFFER, slot);
     res.uniformbuf.name = name;
     res.uniformbuf.type_name = type_name;
     resources_get_(freq).append(res);
@@ -1271,7 +1277,7 @@ struct ShaderCreateInfo {
                     StringRefNull name,
                     Frequency freq = Frequency::PASS)
   {
-    Resource res(Resource::BindType::STORAGE_BUFFER, slot);
+    Resource res(*this, Resource::BindType::STORAGE_BUFFER, slot);
     res.storagebuf.qualifiers = qualifiers;
     res.storagebuf.type_name = type_name;
     res.storagebuf.name = name;
@@ -1287,7 +1293,7 @@ struct ShaderCreateInfo {
               StringRefNull name,
               Frequency freq = Frequency::PASS)
   {
-    Resource res(Resource::BindType::IMAGE, slot);
+    Resource res(*this, Resource::BindType::IMAGE, slot);
     res.image.format = format;
     res.image.qualifiers = qualifiers;
     res.image.type = ImageType(type);
@@ -1303,7 +1309,7 @@ struct ShaderCreateInfo {
                 Frequency freq = Frequency::PASS,
                 GPUSamplerState sampler = GPUSamplerState::internal_sampler())
   {
-    Resource res(Resource::BindType::SAMPLER, slot);
+    Resource res(*this, Resource::BindType::SAMPLER, slot);
     res.sampler.type = type;
     res.sampler.name = name;
     /* Produces ASAN errors for the moment. */
