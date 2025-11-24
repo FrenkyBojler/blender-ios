@@ -29,6 +29,7 @@ set(SRC_GLSL_VERT
   eevee_display_lightprobe_planar_vert.glsl
   eevee_display_lightprobe_sphere_vert.glsl
   eevee_display_lightprobe_volume_vert.glsl
+  eevee_fullscreen_vert.glsl
   eevee_geom_curves_vert.glsl
   eevee_geom_mesh_vert.glsl
   eevee_geom_pointcloud_vert.glsl
@@ -112,6 +113,7 @@ set(SRC_GLSL_COMP
   eevee_lightprobe_volume_offset_comp.glsl
   eevee_lightprobe_volume_ray_comp.glsl
   eevee_lightprobe_volume_world_comp.glsl
+  eevee_lookdev_copy_world_comp.glsl
   eevee_lut_comp.glsl
   eevee_motion_blur_dilate_comp.glsl
   eevee_motion_blur_flatten_comp.glsl

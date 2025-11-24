@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
- * \ingroup bke
+ * \ingroup sequencer
  */
 
 #include "DNA_scene_types.h"
@@ -18,7 +18,7 @@
 
 #include "BLT_translation.hh"
 
-#include "BKE_sound.h"
+#include "BKE_sound.hh"
 
 #include "strip_time.hh"
 
@@ -71,7 +71,7 @@ bool edit_strip_swap(Scene *scene, Strip *strip_a, Strip *strip_b, const char **
     }
   }
 
-  blender::dna::shallow_swap(*strip_a, *strip_b);
+  dna::shallow_swap(*strip_a, *strip_b);
 
   /* swap back names so animation fcurves don't get swapped */
   STRNCPY(name, strip_a->name + 2);
@@ -116,8 +116,8 @@ static void strip_update_muting_recursive(ListBase *channels,
       strip_update_muting_recursive(&strip->channels, &strip->seqbase, strip_meta, strip_mute);
     }
     else if (ELEM(strip->type, STRIP_TYPE_SOUND_RAM, STRIP_TYPE_SCENE)) {
-      if (strip->scene_sound) {
-        BKE_sound_mute_scene_sound(strip->scene_sound, strip_mute);
+      if (strip->runtime->scene_sound) {
+        BKE_sound_mute_scene_sound(strip->runtime->scene_sound, strip_mute);
       }
     }
   }
@@ -155,7 +155,7 @@ static void sequencer_flag_users_for_removal(Scene *scene, ListBase *seqbase, St
 
     /* Mark effects for removal that use the strip. */
     if (relation_is_effect_of_strip(user_strip, strip)) {
-      user_strip->runtime.flag |= STRIP_MARK_FOR_DELETE;
+      user_strip->runtime->flag |= StripRuntimeFlag::MarkForDelete;
       /* Strips can be used as mask even if not in same seqbase. */
       sequencer_flag_users_for_removal(scene, &scene->ed->seqbase, user_strip);
     }
@@ -164,7 +164,7 @@ static void sequencer_flag_users_for_removal(Scene *scene, ListBase *seqbase, St
 
 void edit_flag_for_removal(Scene *scene, ListBase *seqbase, Strip *strip)
 {
-  if (strip == nullptr || (strip->runtime.flag & STRIP_MARK_FOR_DELETE) != 0) {
+  if (strip == nullptr || flag_is_set(strip->runtime->flag, StripRuntimeFlag::MarkForDelete)) {
     return;
   }
 
@@ -175,14 +175,14 @@ void edit_flag_for_removal(Scene *scene, ListBase *seqbase, Strip *strip)
     }
   }
 
-  strip->runtime.flag |= STRIP_MARK_FOR_DELETE;
+  strip->runtime->flag |= StripRuntimeFlag::MarkForDelete;
   sequencer_flag_users_for_removal(scene, seqbase, strip);
 }
 
 void edit_remove_flagged_strips(Scene *scene, ListBase *seqbase)
 {
   LISTBASE_FOREACH_MUTABLE (Strip *, strip, seqbase) {
-    if (strip->runtime.flag & STRIP_MARK_FOR_DELETE) {
+    if (flag_is_set(strip->runtime->flag, StripRuntimeFlag::MarkForDelete)) {
       if (strip->type == STRIP_TYPE_META) {
         edit_remove_flagged_strips(scene, &strip->seqbase);
       }
@@ -246,7 +246,7 @@ bool edit_move_strip_to_meta(Scene *scene,
     return false;
   }
 
-  blender::VectorSet<Strip *> strips;
+  VectorSet<Strip *> strips;
   strips.add(src_strip);
   iterator_set_expand(scene, seqbase, strips, query_strip_effect_chain);
 
@@ -254,6 +254,8 @@ bool edit_move_strip_to_meta(Scene *scene,
     /* Move to meta. */
     edit_move_strip_to_seqbase(scene, seqbase, strip, &dst_stripm->seqbase);
   }
+
+  time_update_meta_strip_range(scene, dst_stripm);
 
   return true;
 }
@@ -374,7 +376,7 @@ static bool seq_edit_split_effect_inputs_intersect(const Scene *scene,
 }
 
 static bool seq_edit_split_operation_permitted_check(const Scene *scene,
-                                                     blender::Span<Strip *> strips,
+                                                     Span<Strip *> strips,
                                                      const int timeline_frame,
                                                      const char **r_error)
 {
@@ -393,7 +395,7 @@ static bool seq_edit_split_operation_permitted_check(const Scene *scene,
     if (effect_get_num_inputs(strip->type) <= 1) {
       continue;
     }
-    if (ELEM(strip->type, STRIP_TYPE_CROSS, STRIP_TYPE_GAMCROSS, STRIP_TYPE_WIPE)) {
+    if (effect_is_transition(StripType(strip->type))) {
       *r_error = "Splitting transition effect is not permitted.";
       return false;
     }
@@ -419,7 +421,7 @@ Strip *edit_strip_split(Main *bmain,
   }
 
   /* Whole strip effect chain must be duplicated in order to preserve relationships. */
-  blender::VectorSet<Strip *> strips;
+  VectorSet<Strip *> strips;
   strips.add(strip);
   iterator_set_expand(scene,
                       seqbase,
@@ -442,7 +444,7 @@ Strip *edit_strip_split(Main *bmain,
     BLI_addtail(&left_strips, strip_iter);
 
     if (ignore_connections) {
-      seq::disconnect(strip_iter);
+      disconnect(strip_iter);
     }
 
     /* Duplicate curves from backup, so they can be renamed along with split strips. */
