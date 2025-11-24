@@ -897,7 +897,7 @@ void gpu::MTLTexture::update_sub(
             id<MTLComputePipelineState> pso = texture_update_2d_get_kernel(
                 compute_specialization_kernel);
             TextureUpdateParams params = {
-              mip, {extent[0], extent[1], 1}, {offset[0], offset[1], 0}, extent[0]};
+                mip, {extent[0], extent[1], 1}, {offset[0], offset[1], 0}, extent[0]};
 
             /* Bind resources via compute state for optimal state caching performance. */
             MTLComputeState &cs = ctx->main_command_buffer.get_compute_state();
@@ -913,8 +913,10 @@ void gpu::MTLTexture::update_sub(
           else if (type_ == GPU_TEXTURE_2D_ARRAY) {
             id<MTLComputePipelineState> pso = texture_update_2d_array_get_kernel(
                 compute_specialization_kernel);
-            TextureUpdateParams params = {
-              mip, {extent[0], extent[1], extent[2]}, {offset[0], offset[1], offset[2]}, extent[0]};
+            TextureUpdateParams params = {mip,
+                                          {extent[0], extent[1], extent[2]},
+                                          {offset[0], offset[1], offset[2]},
+                                          extent[0]};
 
             /* Bind resources via compute state for optimal state caching performance. */
             MTLComputeState &cs = ctx->main_command_buffer.get_compute_state();
