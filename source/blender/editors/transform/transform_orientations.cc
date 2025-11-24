@@ -535,6 +535,7 @@ TransformOrientation *addMatrixSpace(bContext *C,
 
   /* This is necesary to ensure draw objects are updated (eg state.scene used on overlay). */
   WM_event_add_notifier(C, NC_SCENE | ND_TRANSFORM, scene);
+  DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
 
   return ts;
 }
