@@ -73,6 +73,82 @@ TEST_F(VolumeTest, add_grid_in_two_volumes)
   BKE_id_free(bmain, volume_b);
 }
 
+TEST_F(VolumeTest, add_new_grid_with_type)
+{
+  Volume *volume = BKE_id_new<Volume>(bmain, nullptr);
+
+  EXPECT_TRUE(BKE_volume_grid_add_new(volume, "float_grid", VOLUME_GRID_FLOAT));
+  EXPECT_EQ(BKE_volume_num_grids(volume), 1);
+
+  const VolumeGridData *grid = BKE_volume_grid_find(volume, "float_grid");
+  EXPECT_NE(grid, nullptr);
+  EXPECT_EQ(volume_grid::get_type(*grid), VOLUME_GRID_FLOAT);
+  EXPECT_EQ(volume_grid::get_name(*grid), "float_grid");
+
+  EXPECT_TRUE(BKE_volume_grid_add_new(volume, "vector_grid", VOLUME_GRID_VECTOR_FLOAT));
+  EXPECT_EQ(BKE_volume_num_grids(volume), 2);
+
+  const VolumeGridData *vector_grid = BKE_volume_grid_find(volume, "vector_grid");
+  EXPECT_NE(vector_grid, nullptr);
+  EXPECT_EQ(volume_grid::get_type(*vector_grid), VOLUME_GRID_VECTOR_FLOAT);
+
+  EXPECT_EQ(BKE_volume_grid_find(volume, "nonexistent_grid"), nullptr);
+
+  BKE_id_free(bmain, volume);
+}
+
+TEST_F(VolumeTest, add_new_grid_with_invalid_input)
+{
+  Volume *volume = BKE_id_new<Volume>(bmain, nullptr);
+
+  EXPECT_FALSE(BKE_volume_grid_add_new(volume, nullptr, VOLUME_GRID_FLOAT));
+  EXPECT_EQ(BKE_volume_num_grids(volume), 0);
+
+  EXPECT_FALSE(BKE_volume_grid_add_new(volume, "", VOLUME_GRID_FLOAT));
+  EXPECT_EQ(BKE_volume_num_grids(volume), 0);
+
+  EXPECT_FALSE(BKE_volume_grid_add_new(volume, "points_grid", VOLUME_GRID_POINTS));
+  EXPECT_EQ(BKE_volume_num_grids(volume), 0);
+
+  BKE_id_free(bmain, volume);
+}
+
+TEST_F(VolumeTest, clear_all_grids)
+{
+  Volume *volume = BKE_id_new<Volume>(bmain, nullptr);
+
+  EXPECT_TRUE(BKE_volume_grid_add_new(volume, "grid1", VOLUME_GRID_FLOAT));
+  EXPECT_TRUE(BKE_volume_grid_add_new(volume, "grid2", VOLUME_GRID_DOUBLE));
+  EXPECT_TRUE(BKE_volume_grid_add_new(volume, "grid3", VOLUME_GRID_VECTOR_FLOAT));
+  EXPECT_EQ(BKE_volume_num_grids(volume), 3);
+
+  EXPECT_NE(BKE_volume_grid_find(volume, "grid1"), nullptr);
+  EXPECT_NE(BKE_volume_grid_find(volume, "grid2"), nullptr);
+  EXPECT_NE(BKE_volume_grid_find(volume, "grid3"), nullptr);
+
+  BKE_volume_clear_all_grids(volume);
+
+  EXPECT_EQ(BKE_volume_num_grids(volume), 0);
+  EXPECT_EQ(BKE_volume_grid_find(volume, "grid1"), nullptr);
+  EXPECT_EQ(BKE_volume_grid_find(volume, "grid2"), nullptr);
+  EXPECT_EQ(BKE_volume_grid_find(volume, "grid3"), nullptr);
+
+  BKE_id_free(bmain, volume);
+}
+
+TEST_F(VolumeTest, clear_all_grids_empty_volume)
+{
+  Volume *volume = BKE_id_new<Volume>(bmain, nullptr);
+
+  EXPECT_EQ(BKE_volume_num_grids(volume), 0);
+
+  BKE_volume_clear_all_grids(volume);
+
+  EXPECT_EQ(BKE_volume_num_grids(volume), 0);
+
+  BKE_id_free(bmain, volume);
+}
+
 }  // namespace blender::bke::tests
 
 #endif /* WITH_OPENVDB */
