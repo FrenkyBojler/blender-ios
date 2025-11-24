@@ -509,8 +509,7 @@ static void ensure_shape_map_and_offset_cache(const Drawing &drawing)
     }
   });
 
-  offset_indices::accumulate_counts_to_offsets(r_shape_offsets);
-  OffsetIndices<int> shape_offsets = OffsetIndices<int>(r_shape_offsets);
+  OffsetIndices<int> shape_offsets = offset_indices::accumulate_counts_to_offsets(r_shape_offsets);
 
   Vector<int> r_shape_map(curves.curves_num());
   threading::parallel_for(shape_offsets.index_range(), 512, [&](const IndexRange range) {
@@ -591,8 +590,7 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
             shape_points_by_curve_data[pos] = points_by_curve[curve_i].size();
           });
 
-          offset_indices::accumulate_counts_to_offsets(shape_points_by_curve_data);
-          OffsetIndices<int> shape_points_by_curve = OffsetIndices<int>(
+          OffsetIndices<int> shape_points_by_curve = offset_indices::accumulate_counts_to_offsets(
               shape_points_by_curve_data);
 
           shape.foreach_index(GrainSize(256), [&](const int64_t curve_i, const int64_t pos) {
