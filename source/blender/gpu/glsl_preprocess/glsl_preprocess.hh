@@ -891,7 +891,7 @@ class Preprocessor {
           /* Append template args after function name.
            * `void func() {}` > `void func<a, 1>() {}`. */
           size_t pos = fn_decl.find(" " + fn_name);
-          instance_parser.insert_after(pos + fn_name.size(), inst_args.str());
+          instance_parser.insert_after(pos + fn_name.size(), inst_args.str_with_whitespace());
         }
         /* Paste template content in place of instantiation. */
         string instance = instance_parser.result_get();
@@ -978,10 +978,10 @@ class Preprocessor {
     Parser parser(str, report_error);
     parser.foreach_match("#w", [&](const std::vector<Token> &tokens) {
       if (tokens[1].str() == "define") {
-        metadata.create_infos_defines.emplace_back(tokens[1].next().scope().str());
+        metadata.create_infos_defines.emplace_back(tokens[1].next().scope().str_with_whitespace());
       }
       if (tokens[1].str() == "undef") {
-        metadata.create_infos_defines.emplace_back(tokens[1].next().scope().str());
+        metadata.create_infos_defines.emplace_back(tokens[1].next().scope().str_with_whitespace());
       }
     });
   }
@@ -1011,7 +1011,7 @@ class Preprocessor {
     };
 
     parser.foreach_scope(ScopeType::Attributes, [&](const Scope attrs) {
-      if (attrs.str() != "[resource_table]") {
+      if (attrs.str_with_whitespace() != "[resource_table]") {
         return;
       }
       Token type = attrs.scope().end().next();
@@ -1257,7 +1257,7 @@ class Preprocessor {
       parser.insert_after(body.end(), "\n");
       if (init.is_valid() && !iteration_is_trivial) {
         parser.insert_line_number(body.end(), init.start().line_number());
-        parser.insert_after(body.end(), indent_init + "{" + init.str() + ";\n");
+        parser.insert_after(body.end(), indent_init + "{" + init.str_with_whitespace() + ";\n");
       }
       else {
         parser.insert_after(body.end(), "{\n");
@@ -1265,15 +1265,17 @@ class Preprocessor {
       for (int64_t i = 0, value = iter_init; i < iter_count; i++, value += iter_incr) {
         if (cond.is_valid() && !condition_is_trivial) {
           parser.insert_line_number(body.end(), cond.start().line_number());
-          parser.insert_after(body.end(), indent_cond + "if(" + cond.str() + ")\n");
+          parser.insert_after(body.end(),
+                              indent_cond + "if(" + cond.str_with_whitespace() + ")\n");
         }
         parser.insert_after(body.end(), replace_index(body_prefix, value));
         parser.insert_line_number(body.end(), body.start().line_number());
-        parser.insert_after(body.end(), indent_body + replace_index(body.str(), value) + "\n");
+        parser.insert_after(body.end(),
+                            indent_body + replace_index(body.str_with_whitespace(), value) + "\n");
         parser.insert_after(body.end(), body_suffix);
         if (iter.is_valid() && !iteration_is_trivial) {
           parser.insert_line_number(body.end(), iter.start().line_number());
-          parser.insert_after(body.end(), indent_iter + iter.str() + ";\n");
+          parser.insert_after(body.end(), indent_iter + iter.str_with_whitespace() + ";\n");
         }
       }
       parser.insert_line_number(body.end(), body.end().line_number());
@@ -1283,7 +1285,7 @@ class Preprocessor {
     do {
       /* [[gpu::unroll]]. */
       parser.foreach_match("[[w::w]]f(..){..}", [&](const std::vector<Token> tokens) {
-        if (tokens[1].scope().str() != "[gpu::unroll]") {
+        if (tokens[1].scope().str_with_whitespace() != "[gpu::unroll]") {
           return;
         }
         const Token for_tok = tokens[8];
@@ -1953,7 +1955,7 @@ class Preprocessor {
                                   Token name,
                                   Scope array) -> metadata::ParsedResource {
           metadata::ParsedResource resource{
-              type.line_number(), type.str(), name.str(), array.str()};
+              type.line_number(), type.str(), name.str(), array.str_with_whitespace()};
           attributes.foreach_scope(ScopeType::Attribute, [&](const Scope &attribute) {
             std::string type = attribute[0].str();
             if (type == "sampler") {
@@ -1986,7 +1988,7 @@ class Preprocessor {
               resource.res_value = attribute[2].str();
             }
             else if (type == "condition") {
-              resource.res_condition = attribute[1].scope().str();
+              resource.res_condition = attribute[1].scope().str_with_whitespace();
             }
             else if (type == "frequency") {
               resource.res_frequency = attribute[2].str();
@@ -2636,7 +2638,7 @@ class Preprocessor {
 
           enum_scope.foreach_scope(ScopeType::Assignment, [&](Scope scope) {
             string name = scope.start().prev().str();
-            string value = scope.str();
+            string value = scope.str_with_whitespace();
             if (class_tok.is_valid()) {
               name = enum_name.str() + "::" + name;
             }
@@ -2697,7 +2699,7 @@ class Preprocessor {
             Token equal = arg.find_token('=');
             const char *comma = (args_decl.empty() ? "" : ", ");
             if (equal.is_invalid()) {
-              args_decl += comma + arg.str();
+              args_decl += comma + arg.str_with_whitespace();
               args_names += comma + arg.end().str();
             }
             else {
@@ -2848,7 +2850,7 @@ class Preprocessor {
       if (type.prev() == ']') {
         Scope attributes = type.prev().prev().scope();
         if (attributes.type() == ScopeType::Attributes) {
-          string attribute = attributes.str();
+          string attribute = attributes.str_with_whitespace();
 
           if (attribute == "[vertex]") {
             is_vertex_func = true;
@@ -2965,10 +2967,12 @@ class Preprocessor {
           }
           replace_word_and_accessor(srt_var, srt_type + "_");
         }
-        else if (srt_attr == "resource_table" && is_entry_point) {
-          /* Add dummy var at start of function body. */
-          parser.insert_after(fn_body.start().str_index_start(),
-                              " " + srt_type + " " + srt_var + " [[resource_table]];");
+        else if (srt_attr == "resource_table") {
+          if (is_entry_point) {
+            /* Add dummy var at start of function body. */
+            parser.insert_after(fn_body.start().str_index_start(),
+                                " " + srt_type + " " + srt_var + " [[resource_table]];");
+          }
         }
         else {
           report_error(ERROR_TOK(attribute), "Invalid attribute.");
