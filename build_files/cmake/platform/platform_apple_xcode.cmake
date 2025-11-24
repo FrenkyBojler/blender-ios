@@ -128,11 +128,24 @@ endif()
 set(OSX_SDK_PATH)
 set(OSX_SDK_FOUND FALSE)
 set(OSX_SDKROOT)
+
+# Force checking the generic 'MacOSX.sdk' symlink first.
+# This fixes issues on newer macOS versions (like 26.1) where the specific 
+# versioned SDK folder might be missing or broken.
+list(INSERT OSX_SDK_TEST_VERSIONS 0 "CURRENT")
+
 foreach(OSX_SDK_VERSION ${OSX_SDK_TEST_VERSIONS})
-  set(CURRENT_OSX_SDK_PATH "${XCODE_SDK_DIR}/MacOSX${OSX_SDK_VERSION}.sdk")
+  if(OSX_SDK_VERSION STREQUAL "CURRENT")
+    set(CURRENT_OSX_SDK_PATH "${XCODE_SDK_DIR}/MacOSX.sdk")
+    set(CURRENT_OSX_SDKROOT macosx)
+  else()
+    set(CURRENT_OSX_SDK_PATH "${XCODE_SDK_DIR}/MacOSX${OSX_SDK_VERSION}.sdk")
+    set(CURRENT_OSX_SDKROOT macosx${OSX_SDK_VERSION})
+  endif()
+
   if(EXISTS ${CURRENT_OSX_SDK_PATH})
     set(OSX_SDK_PATH "${CURRENT_OSX_SDK_PATH}")
-    set(OSX_SDKROOT macosx${OSX_SDK_VERSION})
+    set(OSX_SDKROOT ${CURRENT_OSX_SDKROOT})
     set(OSX_SDK_FOUND TRUE)
     break()
   endif()

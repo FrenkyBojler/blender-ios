@@ -5531,6 +5531,16 @@ class VIEW3D_MT_edit_lattice(Menu):
         layout.operator("object.vertex_parent_set")
 
 
+class VIEW3D_MT_edit_armature_symmetrize(Menu):
+    bl_label = "Symmetrize"
+
+    def draw(self, _context):
+        layout = self.layout
+        layout.operator("armature.symmetrize", text="X Axis").direction = 'NEGATIVE_X'
+        layout.operator("armature.symmetrize", text="Y Axis").direction = 'NEGATIVE_Y'
+        layout.operator("armature.symmetrize", text="Z Axis").direction = 'NEGATIVE_Z'
+
+
 class VIEW3D_MT_edit_armature(Menu):
     bl_label = "Armature"
 
@@ -5568,7 +5578,7 @@ class VIEW3D_MT_edit_armature(Menu):
 
         layout.separator()
 
-        layout.operator("armature.symmetrize")
+        layout.menu("VIEW3D_MT_edit_armature_symmetrize")
         layout.menu("VIEW3D_MT_edit_armature_names")
 
         layout.separator()
@@ -5617,7 +5627,7 @@ class VIEW3D_MT_armature_context_menu(Menu):
         # Modify
         layout.menu("VIEW3D_MT_mirror")
         layout.menu("VIEW3D_MT_snap")
-        layout.operator("armature.symmetrize")
+        layout.menu("VIEW3D_MT_edit_armature_symmetrize")
         layout.operator("armature.switch_direction", text="Switch Direction")
         layout.menu("VIEW3D_MT_edit_armature_names")
 
@@ -9211,6 +9221,7 @@ classes = (
     VIEW3D_MT_metaball_add,
     TOPBAR_MT_edit_curve_add,
     TOPBAR_MT_edit_armature_add,
+    VIEW3D_MT_edit_armature_symmetrize,
     VIEW3D_MT_armature_add,
     VIEW3D_MT_light_add,
     VIEW3D_MT_lightprobe_add,

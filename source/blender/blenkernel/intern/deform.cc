@@ -651,7 +651,7 @@ static int *object_defgroup_unlocked_flip_map_ex(const Object *ob,
         continue;
       }
 
-      BLI_string_flip_side_name(name_flip, dg->name, false, sizeof(name_flip));
+      BLI_string_flip_side_name(name_flip, dg->name, false, sizeof(name_flip), "x");
 
       if (!STREQ(name_flip, dg->name)) {
         flip_num = BKE_object_defgroup_name_index(ob, name_flip);
@@ -699,7 +699,7 @@ int *BKE_object_defgroup_flip_map_single(const Object *ob,
 
   bDeformGroup *dg = static_cast<bDeformGroup *>(BLI_findlink(defbase, defgroup));
 
-  BLI_string_flip_side_name(name_flip, dg->name, false, sizeof(name_flip));
+  BLI_string_flip_side_name(name_flip, dg->name, false, sizeof(name_flip), "x");
   if (!STREQ(name_flip, dg->name)) {
     flip_num = BKE_object_defgroup_name_index(ob, name_flip);
 
@@ -720,7 +720,7 @@ int BKE_object_defgroup_flip_index(const Object *ob, int index, const bool use_d
 
   if (dg) {
     char name_flip[sizeof(dg->name)];
-    BLI_string_flip_side_name(name_flip, dg->name, false, sizeof(name_flip));
+    BLI_string_flip_side_name(name_flip, dg->name, false, sizeof(name_flip), "x");
 
     if (!STREQ(name_flip, dg->name)) {
       flip_index = BKE_object_defgroup_name_index(ob, name_flip);

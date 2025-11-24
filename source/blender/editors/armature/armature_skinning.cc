@@ -408,7 +408,7 @@ static void add_verts_to_dgroups(ReportList *reports,
     if (dgroup && mirror) {
       char name_flip[MAXBONENAME];
 
-      BLI_string_flip_side_name(name_flip, dgroup->name, false, sizeof(name_flip));
+      BLI_string_flip_side_name(name_flip, dgroup->name, false, sizeof(name_flip), "x");
       dgroupflip[j] = BKE_object_defgroup_find_name(ob, name_flip);
     }
   }

@@ -753,7 +753,7 @@ void BKE_object_defgroup_mirror_selection(Object *ob,
     if (dg_selection[i]) {
       char name_flip[MAXBONENAME];
 
-      BLI_string_flip_side_name(name_flip, defgroup->name, false, sizeof(name_flip));
+      BLI_string_flip_side_name(name_flip, defgroup->name, false, sizeof(name_flip), "x");
       i_mirr = STREQ(name_flip, defgroup->name) ? i :
                                                   BKE_object_defgroup_name_index(ob, name_flip);
 

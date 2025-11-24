@@ -420,7 +420,7 @@ void ED_armature_bones_flip_names(Main *bmain,
 
     /* WARNING: if do_strip_numbers is set, expect completely mismatched names in cases like
      * Bone.R, Bone.R.001, Bone.R.002, etc. */
-    BLI_string_flip_side_name(name_flip, name, do_strip_numbers, sizeof(name_flip));
+    BLI_string_flip_side_name(name_flip, name, do_strip_numbers, sizeof(name_flip), "x");
 
     ED_armature_bone_rename(bmain, arm, name, name_flip);
 

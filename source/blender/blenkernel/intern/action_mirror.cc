@@ -256,7 +256,7 @@ static void action_flip_pchan(Object *ob_arm, const bPoseChannel *pchan, FCurveP
 
   bPoseChannel *pchan_flip = nullptr;
   char pchan_name_flip[MAXBONENAME];
-  BLI_string_flip_side_name(pchan_name_flip, pchan->name, false, sizeof(pchan_name_flip));
+  BLI_string_flip_side_name(pchan_name_flip, pchan->name, false, sizeof(pchan_name_flip), "x");
   if (!STREQ(pchan_name_flip, pchan->name)) {
     pchan_flip = BKE_pose_channel_find_name(ob_arm->pose, pchan_name_flip);
   }
@@ -425,7 +425,7 @@ static void action_flip_pchan_rna_paths(bAction *act)
 
     /* When the flipped name differs, perform the rename. */
     char name_flip[MAXBONENAME];
-    BLI_string_flip_side_name(name_flip, name, false, sizeof(name_flip));
+    BLI_string_flip_side_name(name_flip, name, false, sizeof(name_flip), "x");
     if (!STREQ(name_flip, name)) {
       char name_flip_esc[MAXBONENAME * 2];
       BLI_str_escape(name_flip_esc, name_flip, sizeof(name_flip_esc));
@@ -446,7 +446,7 @@ static void action_flip_pchan_rna_paths(bAction *act)
     }
     agrp->flag &= ~AGRP_TEMP;
     char name_flip[MAXBONENAME];
-    BLI_string_flip_side_name(name_flip, agrp->name, false, sizeof(name_flip));
+    BLI_string_flip_side_name(name_flip, agrp->name, false, sizeof(name_flip), "x");
     if (!STREQ(name_flip, agrp->name)) {
       STRNCPY_UTF8(agrp->name, name_flip);
     }

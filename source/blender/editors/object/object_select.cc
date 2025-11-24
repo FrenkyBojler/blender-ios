@@ -1230,7 +1230,8 @@ static wmOperatorStatus object_select_mirror_exec(bContext *C, wmOperator *op)
   CTX_DATA_BEGIN (C, Base *, primbase, selected_bases) {
     char name_flip[MAXBONENAME];
 
-    BLI_string_flip_side_name(name_flip, primbase->object->id.name + 2, true, sizeof(name_flip));
+    BLI_string_flip_side_name(
+        name_flip, primbase->object->id.name + 2, true, sizeof(name_flip), "x");
 
     if (!STREQ(name_flip, primbase->object->id.name + 2)) {
       Object *ob = (Object *)BKE_libblock_find_name(bmain, ID_OB, name_flip);

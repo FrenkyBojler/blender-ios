@@ -617,7 +617,7 @@ static bPoseChannel *pose_bone_do_paste(Object *ob,
 
   /* get the name - if flipping, we must flip this first */
   if (flip) {
-    BLI_string_flip_side_name(name, chan->name, false, sizeof(name));
+    BLI_string_flip_side_name(name, chan->name, false, sizeof(name), "x");
   }
   else {
     STRNCPY_UTF8(name, chan->name);

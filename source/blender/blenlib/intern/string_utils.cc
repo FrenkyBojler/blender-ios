@@ -289,7 +289,8 @@ void BLI_string_split_prefix(const char *string,
 size_t BLI_string_flip_side_name(char *name_dst,
                                  const char *name_src,
                                  const bool strip_number,
-                                 const size_t name_dst_maxncpy)
+                                 const size_t name_dst_maxncpy,
+                                 const char *axis)
 {
   BLI_string_debug_size(name_dst, name_dst_maxncpy);
 
@@ -323,9 +324,9 @@ size_t BLI_string_flip_side_name(char *name_dst,
   }
 
   BLI_strncpy_utf8(prefix, name_dst, name_dst_maxncpy);
-
+  /* X Axis, Case 1. */
   /* First case; separator (`.` or `_`) with extensions in `r R l L`. */
-  if ((len > 1) && is_char_sep(name_dst[len - 2])) {
+  if ((len > 1) && is_char_sep(name_dst[len - 2]) && (*axis == 'x')) {
     is_set = true;
     switch (name_dst[len - 1]) {
       case 'l':
@@ -349,8 +350,39 @@ size_t BLI_string_flip_side_name(char *name_dst,
     }
   }
 
+  /* Y Axis, Case 1: Suffix .Fr/.Bk */
+  if (!is_set && (len > 3) && is_char_sep(name_dst[len - 3]) && (*axis == 'y')) {
+    if (STREQ(name_dst + len - 2, "Fr")) {
+      is_set = true;
+      prefix[len - 2] = 0;
+      replace = "Bk";
+    }
+    else if (STREQ(name_dst + len - 2, "Bk")) {
+      is_set = true;
+      prefix[len - 2] = 0;
+      replace = "Fr";
+    }
+  }
+
+  /* Y Axis, Case 2: Suffix .Front/.Back */
+  if (!is_set && (len > 5) && (*axis == 'y')) {
+    /* Check for .Back (length 4) -> separator at len-5 */
+    if (is_char_sep(name_dst[len - 5]) && STREQ(name_dst + len - 4, "Back")) {
+      is_set = true;
+      prefix[len - 4] = 0;
+      replace = "Front";
+    }
+    /* Check for .Front (length 5) -> separator at len-6 */
+    else if ((len > 6) && is_char_sep(name_dst[len - 6]) && STREQ(name_dst + len - 5, "Front")) {
+      is_set = true;
+      prefix[len - 5] = 0;
+      replace = "Back";
+    }
+  }
+
+  /* X Axis, Case 2. */
   /* case; beginning with r R l L, with separator after it */
-  if (!is_set && is_char_sep(name_dst[1])) {
+  if (!is_set && is_char_sep(name_dst[1]) && (*axis == 'x')) {
     is_set = true;
     switch (name_dst[0]) {
       case 'l':
@@ -378,7 +410,38 @@ size_t BLI_string_flip_side_name(char *name_dst,
     }
   }
 
-  if (!is_set && len > 5) {
+  /* Y Axis, Case 3. */
+  /* case; beginning with f/b Fr/Bk, with separator after it */
+  if (!is_set && is_char_sep(name_dst[1]) && (*axis == 'y')) {
+    is_set = true;
+    switch (name_dst[0]) {
+      case 'f':
+        replace = "b";
+        BLI_strncpy_utf8(suffix, name_dst + 1, name_dst_maxncpy);
+        prefix[0] = 0;
+        break;
+      case 'b':
+        replace = "f";
+        BLI_strncpy_utf8(suffix, name_dst + 1, name_dst_maxncpy);
+        prefix[0] = 0;
+        break;
+      case 'F':
+        replace = "B";
+        BLI_strncpy_utf8(suffix, name_dst + 1, name_dst_maxncpy);
+        prefix[0] = 0;
+        break;
+      case 'B':
+        replace = "F";
+        BLI_strncpy_utf8(suffix, name_dst + 1, name_dst_maxncpy);
+        prefix[0] = 0;
+        break;
+      default:
+        is_set = false;
+    }
+  }
+
+  /* X Axis, Case 3. */
+  if (!is_set && len > 5 && (*axis == 'x')) {
     /* Test for a separator to apply the rule: ultimate left or right. */
     if (((index = BLI_strcasestr(prefix, "right")) == prefix) || (index == prefix + len - 5)) {
       is_set = true;
@@ -401,6 +464,34 @@ size_t BLI_string_flip_side_name(char *name_dst,
       }
       *index = 0;
       BLI_strncpy_utf8(suffix, index + 4, name_dst_maxncpy);
+    }
+  }
+
+  /* Y Axis, Case 4. */
+  if (!is_set && len > 5 && (*axis == 'y')) {
+    /* Test for a separator to apply the rule: ultimate front or back. */
+    if (((index = BLI_strcasestr(prefix, "back")) == prefix) || (index == prefix + len - 4)) {
+      is_set = true;
+      if (index[0] == 'b') {
+        replace = "front";
+      }
+      else {
+        replace = (index[1] == 'A' ? "FRONT" : "Front");
+      }
+      *index = 0;
+      BLI_strncpy_utf8(suffix, index + 4, name_dst_maxncpy);
+    }
+    else if (((index = BLI_strcasestr(prefix, "front")) == prefix) || (index == prefix + len - 5))
+    {
+      is_set = true;
+      if (index[0] == 'f') {
+        replace = "back";
+      }
+      else {
+        replace = (index[1] == 'R' ? "BACK" : "Back");
+      }
+      *index = 0;
+      BLI_strncpy_utf8(suffix, index + 5, name_dst_maxncpy);
     }
   }
 

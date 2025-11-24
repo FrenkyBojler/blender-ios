@@ -329,7 +329,7 @@ static bPoseChannel *pchan_duplicate_map(
   return pchan_dst;
 }
 
-static void post_edit_bone_duplicate(ListBase *editbones, Object *ob)
+static void post_edit_bone_duplicate(ListBase *editbones, Object *ob, const char * /*axis*/)
 {
   if (ob->pose == nullptr) {
     return;
@@ -381,7 +381,8 @@ static void post_edit_bone_duplicate(ListBase *editbones, Object *ob)
 
 static void update_duplicate_subtarget(EditBone *dup_bone,
                                        Object *ob,
-                                       const bool lookup_mirror_subtarget)
+                                       const bool lookup_mirror_subtarget,
+                                       const char *axis)
 {
   /* If an edit bone has been duplicated, lets update its constraints if the
    * subtarget they point to has also been duplicated.
@@ -429,7 +430,7 @@ static void update_duplicate_subtarget(EditBone *dup_bone,
         STRNCPY_UTF8(ct->subtarget, newtarget->name);
       }
       else if (lookup_mirror_subtarget) {
-        BLI_string_flip_side_name(name_flipped, ct->subtarget, false, sizeof(name_flipped));
+        BLI_string_flip_side_name(name_flipped, ct->subtarget, false, sizeof(name_flipped), axis);
         if (bPoseChannel *flipped_bone = BKE_pose_channel_find_name(ct->tar->pose, name_flipped)) {
           STRNCPY_UTF8(ct->subtarget, flipped_bone->name);
         }
@@ -757,7 +758,7 @@ static void update_duplicate_transform_constraint_settings(Object *ob,
   BKE_constraint_mat_convertspace(
       ob, target_pchan, &cob, target_mat, curcon->tarspace, CONSTRAINT_SPACE_LOCAL, false);
 
-  invert_m4_m4(imat, target_mat);
+  invert_m4_m4(imat_rot, target_mat);
   /* convert values into local object space */
   mul_m4_v3(target_mat, trans->to_min);
   mul_m4_v3(target_mat, trans->to_max);
@@ -952,7 +953,10 @@ static void update_duplicate_constraint_settings(EditBone *dup_bone,
   }
 }
 
-static void update_duplicate_custom_bone_shapes(bContext *C, EditBone *dup_bone, Object *ob)
+static void update_duplicate_custom_bone_shapes(bContext *C,
+                                                EditBone *dup_bone,
+                                                Object *ob,
+                                                const char *axis)
 {
   if (ob->pose == nullptr) {
     return;
@@ -972,7 +976,8 @@ static void update_duplicate_custom_bone_shapes(bContext *C, EditBone *dup_bone,
     pchan->custom_rotation_euler[2] *= -1;
 
     /* Skip the first two chars in the object name as those are used to store object type */
-    BLI_string_flip_side_name(name_flip, pchan->custom->id.name + 2, false, sizeof(name_flip));
+    BLI_string_flip_side_name(
+        name_flip, pchan->custom->id.name + 2, false, sizeof(name_flip), axis);
     Object *shape_ob = reinterpret_cast<Object *>(BKE_libblock_find_name(bmain, ID_OB, name_flip));
 
     /* If name_flip doesn't exist, BKE_libblock_find_name() returns pchan->custom (best match) */
@@ -1002,7 +1007,8 @@ static void mirror_pose_bone(Object &ob, EditBone &ebone)
 
 static void mirror_bone_collection_assignments(bArmature &armature,
                                                EditBone &source_bone,
-                                               EditBone &target_bone)
+                                               EditBone &target_bone,
+                                               const char *axis)
 {
   BLI_assert_msg(armature.edbo != nullptr, "Expecting the armature to be in edit mode");
   char name_flip[64];
@@ -1014,7 +1020,7 @@ static void mirror_bone_collection_assignments(bArmature &armature,
   LISTBASE_FOREACH (BoneCollectionReference *, collection_reference, &source_bone.bone_collections)
   {
     BoneCollection *collection = collection_reference->bcoll;
-    BLI_string_flip_side_name(name_flip, collection->name, false, sizeof(name_flip));
+    BLI_string_flip_side_name(name_flip, collection->name, false, sizeof(name_flip), axis);
     if (STREQ(name_flip, collection->name)) {
       /* Name flipping failed. */
       continue;
@@ -1157,7 +1163,7 @@ static wmOperatorStatus armature_duplicate_selected_exec(bContext *C, wmOperator
 
         if (do_flip_names) {
           BLI_string_flip_side_name(
-              new_bone_name_buff, ebone_iter->name, false, sizeof(new_bone_name_buff));
+              new_bone_name_buff, ebone_iter->name, false, sizeof(new_bone_name_buff), "x");
 
           /* Only use flipped name if not yet in use. Otherwise we'd get again inconsistent
            * namings (different numbers), better keep default behavior in this case. */
@@ -1211,7 +1217,7 @@ static wmOperatorStatus armature_duplicate_selected_exec(bContext *C, wmOperator
         }
 
         /* Lets try to fix any constraint sub-targets that might have been duplicated. */
-        update_duplicate_subtarget(ebone, ob, false);
+        update_duplicate_subtarget(ebone, ob, false, "x");
       }
     }
 
@@ -1230,7 +1236,7 @@ static wmOperatorStatus armature_duplicate_selected_exec(bContext *C, wmOperator
       }
     }
 
-    post_edit_bone_duplicate(arm->edbo, ob);
+    post_edit_bone_duplicate(arm->edbo, ob, "x");
 
     WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, ob);
     DEG_id_tag_update(&ob->id, ID_RECALC_SELECT);
@@ -1285,9 +1291,38 @@ static wmOperatorStatus armature_symmetrize_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  const int direction = RNA_enum_get(op->ptr, "direction");
+  const int direction_value = RNA_enum_get(op->ptr, "direction");
   const bool copy_bone_colors = RNA_boolean_get(op->ptr, "copy_bone_colors");
-  const int axis = 0;
+
+  /* Extract axis and direction from the combined value:
+   * -1, +1 = X axis (direction -1 or +1)
+   * -2, +2 = Y axis (direction -1 or +1)
+   * -3, +3 = Z axis (direction -1 or +1)
+   */
+  int axis_idx;
+  int direction;
+
+  if (abs(direction_value) == 1) {
+    axis_idx = 0; /* X axis */
+    direction = direction_value;
+  }
+  else if (abs(direction_value) == 2) {
+    axis_idx = 1;                    /* Y axis */
+    direction = direction_value / 2; /* -2 -> -1, +2 -> +1 */
+  }
+  else {                             /* abs(direction_value) == 3 */
+    axis_idx = 2;                    /* Z axis */
+    direction = direction_value / 3; /* -3 -> -1, +3 -> +1 */
+  }
+
+  /* Convert axis index to string for BLI_string_flip_side_name */
+  const char *axis_str = "x";
+  if (axis_idx == 1) {
+    axis_str = "y";
+  }
+  else if (axis_idx == 2) {
+    axis_str = "z";
+  }
 
   /* cancel if nothing selected */
   if (CTX_DATA_COUNT(C, selected_bones) == 0) {
@@ -1325,7 +1360,7 @@ static wmOperatorStatus armature_symmetrize_exec(bContext *C, wmOperator *op)
         continue;
       }
 
-      BLI_string_flip_side_name(name_flip, ebone_iter->name, false, sizeof(name_flip));
+      BLI_string_flip_side_name(name_flip, ebone_iter->name, false, sizeof(name_flip), axis_str);
 
       if (STREQ(name_flip, ebone_iter->name)) {
         /* Skipping ebones without flippable as they don't have the potential to be mirrored. */
@@ -1345,10 +1380,10 @@ static wmOperatorStatus armature_symmetrize_exec(bContext *C, wmOperator *op)
          * Deselect based on the input direction and axis. */
         float axis_delta;
 
-        axis_delta = ebone->head[axis] - ebone_iter->head[axis];
+        axis_delta = ebone->head[axis_idx] - ebone_iter->head[axis_idx];
         if (axis_delta == 0.0f) {
           /* The ebone heads are overlapping. */
-          axis_delta = ebone->tail[axis] - ebone_iter->tail[axis];
+          axis_delta = ebone->tail[axis_idx] - ebone_iter->tail[axis_idx];
 
           if (axis_delta == 0.0f) {
             /* Both mirrored bones point to each other and overlap exactly.
@@ -1397,7 +1432,7 @@ static wmOperatorStatus armature_symmetrize_exec(bContext *C, wmOperator *op)
 
         char name_flip[MAXBONENAME];
 
-        BLI_string_flip_side_name(name_flip, ebone_iter->name, false, sizeof(name_flip));
+        BLI_string_flip_side_name(name_flip, ebone_iter->name, false, sizeof(name_flip), axis_str);
 
         /* mirrored bones must have a side-suffix */
         if (!STREQ(name_flip, ebone_iter->name)) {
@@ -1453,7 +1488,7 @@ static wmOperatorStatus armature_symmetrize_exec(bContext *C, wmOperator *op)
              * So just use the same parent for both.
              */
 
-            if (ebone->head[axis] != 0.0f) {
+            if (ebone->head[axis_idx] != 0.0f) {
               /* The mirrored bone doesn't start on the mirror axis, so assume that this one
                * should not be connected to the old parent */
               ebone->flag &= ~BONE_CONNECTED;
@@ -1462,6 +1497,10 @@ static wmOperatorStatus armature_symmetrize_exec(bContext *C, wmOperator *op)
 
           ebone->parent = ebone_parent;
         }
+
+        /* Mirror the bone positions along the selected axis */
+        ebone->head[axis_idx] = -ebone_iter->head[axis_idx];
+        ebone->tail[axis_idx] = -ebone_iter->tail[axis_idx];
 
         /* Update custom handle links. */
         ebone->bbone_prev = get_symmetrized_bone(arm, ebone_iter->bbone_prev);
@@ -1477,15 +1516,15 @@ static wmOperatorStatus armature_symmetrize_exec(bContext *C, wmOperator *op)
         ebone->bbone_next_flag = ebone_iter->bbone_next_flag;
 
         /* Lets try to fix any constraint sub-targets that might have been duplicated. */
-        update_duplicate_subtarget(ebone, obedit, true);
+        update_duplicate_subtarget(ebone, obedit, true, axis_str);
         /* Try to update constraint options so that they are mirrored as well
          * (need to supply bone_iter as well in case we are working with existing bones) */
         update_duplicate_constraint_settings(ebone, ebone_iter, obedit);
         /* Mirror bone shapes if possible */
-        update_duplicate_custom_bone_shapes(C, ebone, obedit);
+        update_duplicate_custom_bone_shapes(C, ebone, obedit, axis_str);
         /* Mirror any settings on the pose bone. */
         mirror_pose_bone(*obedit, *ebone);
-        mirror_bone_collection_assignments(*arm, *ebone_iter, *ebone);
+        mirror_bone_collection_assignments(*arm, *ebone_iter, *ebone, axis_str);
       }
     }
 
@@ -1520,7 +1559,7 @@ static wmOperatorStatus armature_symmetrize_exec(bContext *C, wmOperator *op)
       arm->act_edbone = arm->act_edbone->temp.ebone;
     }
 
-    post_edit_bone_duplicate(arm->edbo, obedit);
+    post_edit_bone_duplicate(arm->edbo, obedit, axis_str);
 
     WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, obedit);
     DEG_id_tag_update(&obedit->id, ID_RECALC_SELECT);
@@ -1533,10 +1572,13 @@ void ARMATURE_OT_symmetrize(wmOperatorType *ot)
 {
   /* NOTE: following conventions from #MESH_OT_symmetrize */
 
-  /* subset of 'rna_enum_symmetrize_direction_items' */
   static const EnumPropertyItem arm_symmetrize_direction_items[] = {
-      {-1, "NEGATIVE_X", 0, "-X to +X", ""},
-      {+1, "POSITIVE_X", 0, "+X to -X", ""},
+      {-1, "NEGATIVE_X", 0, "-X to +X", "Copy from negative X to positive X"},
+      {+1, "POSITIVE_X", 0, "+X to -X", "Copy from positive X to negative X"},
+      {-2, "NEGATIVE_Y", 0, "-Y to +Y", "Copy from negative Y to positive Y"},
+      {+2, "POSITIVE_Y", 0, "+Y to -Y", "Copy from positive Y to negative Y"},
+      {-3, "NEGATIVE_Z", 0, "-Z to +Z", "Copy from negative Z to positive Z"},
+      {+3, "POSITIVE_Z", 0, "+Z to -Z", "Copy from positive Z to negative Z"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -1557,8 +1599,9 @@ void ARMATURE_OT_symmetrize(wmOperatorType *ot)
                           arm_symmetrize_direction_items,
                           -1,
                           "Direction",
-                          "Which sides to copy from and to (when both are selected)");
-  ot->prop = RNA_def_boolean(
+                          "Which side to copy from and to (when both are selected)");
+
+  RNA_def_boolean(
       ot->srna, "copy_bone_colors", false, "Bone Colors", "Copy colors to existing bones");
 }
 

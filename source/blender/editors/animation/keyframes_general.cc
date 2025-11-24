@@ -1580,7 +1580,7 @@ std::optional<std::string> flip_names(const blender::StringRefNull rna_path)
   /* Take a copy so it's 0-terminated. */
   const std::string bone_name = rna_path.substr(ofs_start, ofs_end - ofs_start);
 
-  BLI_string_flip_side_name(bname_new, bone_name.c_str(), false, sizeof(bname_new));
+  BLI_string_flip_side_name(bname_new, bone_name.c_str(), false, sizeof(bname_new), "x");
 
   return rna_path.substr(0, ofs_start) + bname_new + rna_path.substr(ofs_end);
 }
@@ -1595,6 +1595,7 @@ using pastebuf_match_func = bool (*)(Main *bmain,
 
 namespace {
 
+using namespace blender;
 using namespace blender::animrig;
 
 enum class SlotMatchMethod {

@@ -145,7 +145,8 @@ char *BLI_string_join_array_by_sep_char_with_tableN(char sep,
 size_t BLI_string_flip_side_name(char *name_dst,
                                  const char *name_src,
                                  bool strip_number,
-                                 size_t name_dst_maxncpy) ATTR_NONNULL(1, 2);
+                                 size_t name_dst_maxncpy,
+                                 const char *axis) ATTR_NONNULL(1, 2);
 
 /**
  * Ensures name is unique (according to criteria specified by caller in unique_check callback),

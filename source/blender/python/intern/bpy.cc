@@ -209,7 +209,8 @@ static PyObject *bpy_flip_name(PyObject * /*self*/, PyObject *args, PyObject *kw
    * "Left" to "Right", because only the first appearance of "Left" gets replaced. */
   const size_t size = name_src_len + 2;
   char *name_dst = static_cast<char *>(PyMem_MALLOC(size));
-  const size_t name_dst_len = BLI_string_flip_side_name(name_dst, name_src, strip_digits, size);
+  const size_t name_dst_len = BLI_string_flip_side_name(
+      name_dst, name_src, strip_digits, size, "x");
 
   PyObject *result = PyUnicode_FromStringAndSize(name_dst, name_dst_len);
 
