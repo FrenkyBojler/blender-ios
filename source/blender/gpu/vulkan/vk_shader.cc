@@ -1334,11 +1334,6 @@ bool VKShader::ensure_graphics_pipelines(Span<shader::PipelineState> pipeline_st
     graphics_info.shaders.vk_pipeline_layout = vk_pipeline_layout;
     graphics_info.shaders.vk_topology = vk_topology;
     graphics_info.shaders.state = pipeline_state.state_;
-    graphics_info.shaders.mutable_state.point_size = 1.0f;
-    graphics_info.shaders.mutable_state.line_width = 1.0f;
-    graphics_info.shaders.mutable_state.stencil_write_mask = 0u;
-    graphics_info.shaders.mutable_state.stencil_compare_mask = 0u;
-    graphics_info.shaders.mutable_state.stencil_reference = 0u;
     graphics_info.shaders.viewport_count = pipeline_state.viewport_count_;
     graphics_info.shaders.specialization_constants.extend(
         pipeline_state.specialization_constants_);
