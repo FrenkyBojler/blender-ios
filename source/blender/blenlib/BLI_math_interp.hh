@@ -169,13 +169,13 @@ inline void interpolate_nearest_fl(
  * However other values of u, including inf and NaN, produce in-range values,
  * this is also at least 5% faster.
  */
-[[nodiscard]] inline int wrap_coord(float u, int size)
+[[nodiscard]] inline int32_t wrap_coord(float u, int32_t size)
 {
   if (u < 0) {
-    int x = int(unsigned(-floor(u)) % unsigned(size));
+    int32_t x = int(uint32_t(-floor(u)) % uint32_t(size));
     return x ? size - x : 0;
   }
-  return int(unsigned(u) % unsigned(size));
+  return int(uint32_t(u) % uint32_t(size));
 }
 
 /**

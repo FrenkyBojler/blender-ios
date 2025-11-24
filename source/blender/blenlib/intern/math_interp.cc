@@ -20,17 +20,17 @@
 
 namespace blender::math {
 
-BLI_INLINE int wrap_coord(float u, int size, InterpWrapMode wrap)
+BLI_INLINE int32_t wrap_coord(float u, int32_t size, InterpWrapMode wrap)
 {
   if (u >= 0) {
     if (u < float(size)) {
-      return int(u);
+      return int32_t(u);
     }
     switch (wrap) {
       default: /* case InterpWrapMode::Extend: */
         return size - 1;
       case InterpWrapMode::Repeat:
-        return int(unsigned(u) % unsigned(size));
+        return int32_t(uint32_t(u) % uint32_t(size));
       case InterpWrapMode::Border:
         return -1;
     }
@@ -39,7 +39,7 @@ BLI_INLINE int wrap_coord(float u, int size, InterpWrapMode wrap)
     default: /* case InterpWrapMode::Extend: */
       return 0;
     case InterpWrapMode::Repeat: {
-      int x = int(unsigned(-floorf(u)) % unsigned(size));
+      int32_t x = int32_t(uint32_t(-floorf(u)) % uint32_t(size));
       return x ? size - x : 0;
     }
     case InterpWrapMode::Border:
