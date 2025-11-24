@@ -1192,10 +1192,10 @@ static void grease_pencil_geom_batch_ensure(Object &object,
         }
 
         verts_start_offsets[curve_i] = total_verts_num;
-        /* One vertex is stored before and after as padding. Cyclic strokes have one extra
-         * vertex.
-         */
-        total_verts_num += 1 + points.size() + (is_cyclic ? 1 : 0) + 1;
+        /* One vertex is stored before and after as padding. */
+        total_verts_num += 1 + points.size() + 1;
+        /* Cyclic strokes have one extra vertex. */
+        total_verts_num += (is_cyclic ? 1 : 0);
         num_points += points.size();
       }
     });
