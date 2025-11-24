@@ -633,16 +633,18 @@ bool ShapingData::process(FontBLF *font, GlyphCacheBLF *gc, ResultBLF *r_info)
   return (this->char_count > (this->segment.char_offset + this->segment.char_count));
 }
 
-int blf_shaping_draw(FontBLF *font,
-                     GlyphCacheBLF *gc,
-                     const char *str,
-                     const size_t str_len,
-                     struct ResultBLF *r_info,
-                     ft_pix pen_y)
+static void blf_font_draw_ex(FontBLF *font,
+                             GlyphCacheBLF *gc,
+                             const char *str,
+                             const size_t str_len,
+                             ResultBLF *r_info,
+                             const ft_pix pen_y)
 {
-  if (!str[0] || !str_len) {
-    return 0;
+  if (str_len == 0 || !str[0]) {
+    /* Early exit, don't do any immediate-mode GPU operations. */
+    return;
   }
+
   ShapingData text(str, str_len);
   blf_batch_draw_begin(font);
   while (text.process(font, gc, r_info)) {
@@ -658,47 +660,9 @@ int blf_shaping_draw(FontBLF *font,
   if (!g_batch.active) {
     blf_batch_draw();
   }
-  return text.width;
-}
-
-static void blf_font_draw_ex(FontBLF *font,
-                             GlyphCacheBLF *gc,
-                             const char *str,
-                             const size_t str_len,
-                             ResultBLF *r_info,
-                             const ft_pix pen_y)
-{
-  if (str_len == 0) {
-    /* Early exit, don't do any immediate-mode GPU operations. */
-    return;
-  }
-
-  blf_shaping_draw(font, gc, str, str_len, r_info, pen_y);
-  return;
-
-  GlyphBLF *g = nullptr;
-  ft_pix pen_x = 0;
-  size_t i = 0;
-
-  blf_batch_draw_begin(font);
-
-  while ((i < str_len) && str[i]) {
-    g = blf_glyph_from_utf8_and_step(font, gc, g, str, str_len, &i, &pen_x);
-    if (UNLIKELY(g == nullptr)) {
-      continue;
-    }
-    /* Do not return this loop if clipped, we want every character tested. */
-    blf_glyph_draw(font, gc, g, ft_pix_to_int_floor(pen_x), ft_pix_to_int_floor(pen_y));
-    pen_x += g->advance_x;
-  }
-
   blf_batch_draw_end();
-
-  if (r_info) {
-    r_info->lines = 1;
-    r_info->width = ft_pix_to_int(pen_x);
-  }
 }
+
 void blf_font_draw(FontBLF *font, const char *str, const size_t str_len, ResultBLF *r_info)
 {
   GlyphCacheBLF *gc = blf_glyph_cache_acquire(font);
@@ -1122,57 +1086,24 @@ static void blf_font_boundbox_ex(FontBLF *font,
                                  ResultBLF *r_info,
                                  ft_pix pen_y)
 {
-  const GlyphBLF *g = nullptr;
-  ft_pix pen_x = 0;
-  size_t i = 0;
-
-  ft_pix box_xmin = ft_pix_from_int(32000);
-  ft_pix box_xmax = ft_pix_from_int(-32000);
-  ft_pix box_ymin = ft_pix_from_int(32000);
-  ft_pix box_ymax = ft_pix_from_int(-32000);
-
-  while ((i < str_len) && str[i]) {
-    g = blf_glyph_from_utf8_and_step(font, gc, g, str, str_len, &i, &pen_x);
-
-    if (UNLIKELY(g == nullptr)) {
-      continue;
-    }
-    const ft_pix pen_x_next = pen_x + g->advance_x;
-
-    const ft_pix gbox_xmin = std::min(pen_x, pen_x + g->box_xmin);
-    /* Mono-spaced characters should only use advance. See #130385. */
-    const ft_pix gbox_xmax = (font->flags & BLF_MONOSPACED) ?
-                                 pen_x_next :
-                                 std::max(pen_x_next, pen_x + g->box_xmax);
-    const ft_pix gbox_ymin = g->box_ymin + pen_y;
-    const ft_pix gbox_ymax = g->box_ymax + pen_y;
-
-    box_xmin = std::min(gbox_xmin, box_xmin);
-    box_ymin = std::min(gbox_ymin, box_ymin);
-
-    box_xmax = std::max(gbox_xmax, box_xmax);
-    box_ymax = std::max(gbox_ymax, box_ymax);
-
-    pen_x = pen_x_next;
+  if (!str[0] || !str_len) {
+    return;
   }
-
-  if (box_xmin > box_xmax) {
-    box_xmin = 0;
-    box_ymin = 0;
-    box_xmax = 0;
-    box_ymax = 0;
+  ShapingData text(str, str_len);
+  r_box->xmin = 0;
+  r_box->xmax = INT32_MIN;
+  r_box->ymin = pen_y;
+  r_box->ymax = INT32_MIN;
+  while (text.process(font, gc, nullptr)) {
   }
-
-  r_box->xmin = ft_pix_to_int_floor(box_xmin);
-  r_box->xmax = ft_pix_to_int_ceil(box_xmax);
-  r_box->ymin = ft_pix_to_int_floor(box_ymin);
-  r_box->ymax = ft_pix_to_int_ceil(box_ymax);
-
+  r_box->xmax = std::max(r_box->xmax, text.width);
+  r_box->ymax = std::max(r_box->ymax, text.height);
   if (r_info) {
     r_info->lines = 1;
-    r_info->width = ft_pix_to_int(pen_x);
+    r_info->width = r_box->xmax;
   }
 }
+
 void blf_font_boundbox(
     FontBLF *font, const char *str, const size_t str_len, rcti *r_box, ResultBLF *r_info)
 {
