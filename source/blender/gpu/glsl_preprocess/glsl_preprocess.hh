@@ -1949,7 +1949,6 @@ class Preprocessor {
         Scope body = tokens[8].scope();
 
         auto parse_resource = [&](Scope attributes,
-                                  bool /*is_static*/,
                                   Token type,
                                   Token name,
                                   Scope array) -> metadata::ParsedResource {
@@ -2006,18 +2005,28 @@ class Preprocessor {
         srt.name = srt_name.str();
 
         body.foreach_match("[[..]]ww;", [&](const std::vector<Token> &tokens) {
-          auto res = parse_resource(
-              tokens[1].scope(), tokens[6].is_valid(), tokens[6], tokens[7], Scope::invalid());
+          auto res = parse_resource(tokens[1].scope(), tokens[6], tokens[7], Scope::invalid());
           srt.emplace_back(res);
         });
         body.foreach_match("[[..]]w&w;", [&](const std::vector<Token> &tokens) {
-          auto res = parse_resource(
-              tokens[1].scope(), tokens[6].is_valid(), tokens[6], tokens[8], Scope::invalid());
+          auto res = parse_resource(tokens[1].scope(), tokens[6], tokens[8], Scope::invalid());
           srt.emplace_back(res);
         });
         body.foreach_match("[[..]]w(&w)[..];", [&](const std::vector<Token> &tokens) {
-          auto res = parse_resource(
-              tokens[1].scope(), tokens[6].is_valid(), tokens[6], tokens[9], tokens[11].scope());
+          auto res = parse_resource(tokens[1].scope(), tokens[6], tokens[9], tokens[11].scope());
+          srt.emplace_back(res);
+        });
+
+        body.foreach_match("[[..]]cww;", [&](const std::vector<Token> &tokens) {
+          auto res = parse_resource(tokens[1].scope(), tokens[7], tokens[8], Scope::invalid());
+          srt.emplace_back(res);
+        });
+        body.foreach_match("[[..]]cw&w;", [&](const std::vector<Token> &tokens) {
+          auto res = parse_resource(tokens[1].scope(), tokens[7], tokens[9], Scope::invalid());
+          srt.emplace_back(res);
+        });
+        body.foreach_match("[[..]]cw(&w)[..];", [&](const std::vector<Token> &tokens) {
+          auto res = parse_resource(tokens[1].scope(), tokens[7], tokens[10], tokens[12].scope());
           srt.emplace_back(res);
         });
 
