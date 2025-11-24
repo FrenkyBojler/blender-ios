@@ -2832,6 +2832,9 @@ class Preprocessor {
 
     parser.foreach_function([&](bool, Token type, Token, Scope args, bool, Scope fn_body) {
       bool is_entry_point = false;
+      bool is_compute_func = false;
+      bool is_vertex_func = false;
+      bool is_fragment_func = false;
 
       if (type.prev() == ']') {
         Scope attributes = type.prev().prev().scope();
@@ -2839,15 +2842,15 @@ class Preprocessor {
           string attribute = attributes.str();
 
           if (attribute == "[vertex]") {
-            /* TODO(fclem): Error detection. */
+            is_vertex_func = true;
             parser.replace(attributes, "[gpu::vertex_function]");
           }
           else if (attribute == "[fragment]") {
-            /* TODO(fclem): Error detection. */
+            is_fragment_func = true;
             parser.replace(attributes, "[gpu::fragment_function]");
           }
           else if (attribute == "[compute]") {
-            /* TODO(fclem): Error detection. */
+            is_compute_func = true;
             parser.replace(attributes, "[gpu::compute_function]");
           }
           is_entry_point = true;
@@ -2880,34 +2883,86 @@ class Preprocessor {
       };
 
       auto process_argument = [&](Token type, Token var, Token attribute) {
+        const bool is_const = type.prev() == Const;
         string srt_type = type.str();
         string srt_var = var.str();
         string srt_attr = attribute.str();
 
         if (srt_attr == "vertex_id" && is_entry_point) {
+          if (!is_vertex_func) {
+            report_error(ERROR_TOK(attribute),
+                         "[[vertex_id]] is only supported in vertex functions.");
+          }
+          else if (!is_const || srt_type != "int") {
+            report_error(ERROR_TOK(type), "[[vertex_id]] must be declared as `const int`.");
+          }
           replace_word(srt_var, "gl_VertexID");
           metadata.builtins.emplace_back(Builtin(hash("gl_VertexID")));
         }
         else if (srt_attr == "instance_id" && is_entry_point) {
+          if (!is_vertex_func) {
+            report_error(ERROR_TOK(attribute),
+                         "[[instance_id]] is only supported in vertex functions.");
+          }
+          else if (!is_const || srt_type != "int") {
+            report_error(ERROR_TOK(type), "[[instance_id]] must be declared as `const int`.");
+          }
           replace_word(srt_var, "gl_InstanceID");
           metadata.builtins.emplace_back(Builtin(hash("gl_InstanceID")));
         }
         else if (srt_attr == "position" && is_entry_point) {
+          if (is_compute_func) {
+            report_error(ERROR_TOK(attribute),
+                         "[[position]] is only supported in vertex or fragment functions.");
+          }
+          else if (is_vertex_func && (is_const || srt_type != "float4")) {
+            report_error(ERROR_TOK(type),
+                         "[[position]] must be declared as non-const reference (aka `float4 &`).");
+          }
+          else if (is_fragment_func && (!is_const || srt_type != "float4")) {
+            report_error(ERROR_TOK(type), "[[position]] must be declared as `const float4`.");
+          }
           replace_word(srt_var, "gl_Position");
         }
         else if (srt_attr == "vertex_in") {
+          if (!is_vertex_func) {
+            report_error(ERROR_TOK(attribute),
+                         "[[vertex_in]] is only supported in vertex functions.");
+          }
           replace_word_and_accessor(srt_var, "");
         }
         else if (srt_attr == "fragment_out") {
+          if (!is_fragment_func) {
+            report_error(ERROR_TOK(attribute),
+                         "[[fragment_out]] is only supported in fragment functions.");
+          }
+          else if (is_vertex_func && is_const) {
+            report_error(ERROR_TOK(type),
+                         "[[fragment_out]] must be declared as non-const reference.");
+          }
           replace_word_and_accessor(srt_var, srt_type + "_");
         }
         else if (srt_attr == "vertex_out") {
+          if (is_compute_func) {
+            report_error(ERROR_TOK(attribute),
+                         "[[vertex_out]] is only supported in vertex or fragment functions.");
+          }
+          else if (is_vertex_func && is_const) {
+            report_error(ERROR_TOK(type),
+                         "[[vertex_out]] must be declared as non-const reference.");
+          }
+          else if (is_fragment_func && !is_const) {
+            report_error(ERROR_TOK(type), "[[vertex_out]] must be declared as const reference.");
+          }
           replace_word_and_accessor(srt_var, srt_type + "_");
         }
         else if (srt_attr == "resource_table" && is_entry_point) {
           /* Add dummy var at start of function body. */
           parser.insert_after(fn_body.start().str_index_start(),
                               " " + srt_type + " " + srt_var + " [[resource_table]];");
+        }
+        else {
+          report_error(ERROR_TOK(attribute), "Invalid attribute.");
         }
       };
 
