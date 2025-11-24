@@ -1219,32 +1219,26 @@ void blf_font_boundbox_foreach_glyph(FontBLF *font,
     return;
   }
 
-  const GlyphBLF *g = nullptr;
-  ft_pix pen_x = 0;
-  size_t i = 0;
-
   GlyphCacheBLF *gc = blf_glyph_cache_acquire(font);
 
-  while ((i < str_len) && str[i]) {
-    const size_t i_curr = i;
-    g = blf_glyph_from_utf8_and_step(font, gc, g, str, str_len, &i, &pen_x);
-
-    if (UNLIKELY(g == nullptr || g->advance_x == 0)) {
-      /* Ignore combining characters like diacritical marks. */
-      continue;
+  ShapingData text(str, str_len);
+  while (text.process(font, gc, nullptr)) {
+    for (uint i = 0; i < text.segment.glyph_count; i++) {
+      if (text.segment.glyphs[i]->advance_x <= 0) {
+        /* Ignore combining marks. */
+        continue;
+      };
+      rcti bounds;
+      bounds.xmin = ft_pix_to_int_floor(text.segment.bounds[i].xmin);
+      bounds.xmax = ft_pix_to_int_ceil(text.segment.bounds[i].xmax);
+      bounds.ymin = ft_pix_to_int_floor(text.segment.bounds[i].ymin);
+      bounds.ymax = ft_pix_to_int_ceil(text.segment.bounds[i].ymax);
+      size_t str_step_ofs = (size_t)BLI_str_utf8_offset_from_index(str, str_len, i);
+      if (user_fn(str, str_step_ofs, &bounds, user_data) == false) {
+        break;
+      }
     }
-    rcti bounds;
-    bounds.xmin = ft_pix_to_int_floor(pen_x) + ft_pix_to_int_floor(g->box_xmin);
-    bounds.xmax = ft_pix_to_int_floor(pen_x) + ft_pix_to_int_ceil(g->box_xmax);
-    bounds.ymin = ft_pix_to_int_floor(g->box_ymin);
-    bounds.ymax = ft_pix_to_int_ceil(g->box_ymax);
-
-    if (user_fn(str, i_curr, &bounds, user_data) == false) {
-      break;
-    }
-    pen_x += g->advance_x;
   }
-
   blf_glyph_cache_release(font);
 }
 
