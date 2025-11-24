@@ -12,14 +12,22 @@ from bpy.types import Operator
 PROJECT_DIR = ".blender_project"
 PROJECT_CONFIG = "project.toml"
 
-# --------------------------------------------------------------
 
+# --------------------------------------------------------------
 
 class ProjectSaveException(Exception):
     pass
 
 
+class ProjectLoadException(Exception):
+    pass
+
+
 def save_project(project):
+    """ Note: throws a ProjectSaveException on anticipated errors.
+        Other exceptions indicate unanticipated errors (a.k.a. bugs).
+    """
+
     data = project.data
     root_path = Path(data.root_path)
 
@@ -46,6 +54,78 @@ def save_project(project):
             f.write("name = \"{}\"\n".format(data.name))
     except PermissionError:
         raise ProjectSaveException("Cannot write to '{}' due to filesystem permissions.".format(PROJECT_CONFIG))
+
+
+def find_project_root_from_blend_file_path(blend_path: Path) -> Path | None:
+    for parent in blend_path.parents:
+        if parent.joinpath(PROJECT_DIR).is_dir():
+            return parent
+    return None
+
+
+def read_project_toml_config(root_path: Path) -> dict:
+    """ Note: throws a ProjectLoadException on anticipated errors.
+        Other exceptions indicate unanticipated errors (a.k.a. bugs).
+    """
+
+    config_path = root_path.joinpath(PROJECT_DIR, PROJECT_CONFIG)
+    try:
+        with open(config_path, "rb") as f:
+            return tomllib.load(f)
+    except FileNotFoundError:
+        raise ProjectLoadException("Project has no {} file.".format(PROJECT_CONFIG))
+    except PermissionError:
+        raise ProjectLoadException("Cannot access {} file due to filesystem permissions.".format(PROJECT_CONFIG))
+
+
+def validate_config(config: dict):
+    """ Note: throws a ProjectLoadException if there's a validation error.
+    """
+    if "name" not in config:
+        raise ProjectLoadException("Invalid project: no project name defined in '{}'.".format(PROJECT_CONFIG))
+        return
+
+    if type(config["name"]) != str:
+        raise ProjectLoadException("Invalid project: project name is not a string.")
+        return
+
+    if config["name"] == "":
+        raise ProjectLoadException("Invalid project: project name is empty.")
+        return
+
+
+def load_project_for_blend_path(context, blend_path: str):
+    """ Loads the project for the given blend file path, or clears the project
+        if no such project is found.
+
+        Note: throws a ProjectLoadException on anticipated errors. Other
+        exceptions indicate unanticipated errors (a.k.a. bugs).
+    """
+
+    context.project.clear()
+
+    if blend_path == "":
+        # Not an on-disk blend file, so there is no project to load.
+        return
+
+    root_path = find_project_root_from_blend_file_path(Path(blend_path))
+    if root_path is None:
+        # No project.
+        return
+
+    load_project(bpy.context, root_path)
+
+    config = read_project_toml_config(root_path)
+    if config is None:
+        raise ProjectLoadException("Invalid project: no '{}' found.".format(PROJECT_CONFIG))
+
+    validate_config(config)
+
+    bpy.context.project.clear()
+
+    context.project.init(config["name"], str(root_path))
+
+    context.project.is_dirty = False
 
 
 # --------------------------------------------------------------
@@ -105,60 +185,13 @@ class PROJECT_OP_WriteProject(Operator):
 # -----------------------------------------------------------------------------
 # Auto-loading / clearing of projects when loading/saving blend files.
 
-def find_project_root_from_blend_file_path(blend_path: Path) -> Path | None:
-    for parent in blend_path.parents:
-        if parent.joinpath(PROJECT_DIR).is_dir():
-            return parent
-    return None
-
-
-def read_project_config(root_path: Path) -> dict | None:
-    name = "My Project"
-
-    config_path = root_path.joinpath(PROJECT_DIR, PROJECT_CONFIG)
-    try:
-        with open(config_path, "rb") as f:
-            return tomllib.load(f)
-    except FileNotFoundError:
-        return None
-
-
 @bpy.app.handlers.persistent
 def on_blend_load(blend_path: str) -> None:
     if bpy.context.project.data is not None and bpy.context.project.is_dirty:
         # TODO: make this conditional on auto-save being enabled or not.
         bpy.ops.project.write_project()
 
-    bpy.context.project.clear()
-
-    if blend_path == "":
-        # Not an on-disk blend file.
-        return
-
-    root_path = find_project_root_from_blend_file_path(Path(blend_path))
-    if root_path is None:
-        return
-
-    config = read_project_config(root_path)
-    if config is None:
-        print("Invalid project: no 'project.toml' found.")
-        return
-
-    if "name" not in config:
-        print("Invalid project: no project name defined in 'project.toml'.")
-        return
-
-    if type(config["name"]) != str:
-        print("Invalid project: project name is not a string.")
-        return
-
-    if config["name"] == "":
-        print("Invalid project: project name is empty.")
-        return
-
-    bpy.context.project.init(config["name"], str(root_path))
-
-    bpy.context.project.is_dirty = False
+    load_project_for_blend_path(bpy.context, blend_path)
 
 
 @bpy.app.handlers.persistent
@@ -170,7 +203,7 @@ def on_blend_save(blend_path: str) -> None:
     if bpy.context.project.data is not None:
         return
 
-    on_blend_load(blend_path)
+    load_project_for_blend_path(bpy.context, blend_path)
 
 
 # -----------------------------------------------------------------------------
