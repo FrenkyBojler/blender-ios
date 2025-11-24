@@ -2031,7 +2031,7 @@ static void calc_squash_stretch_deform(SculptSession &ss, const Brush & /*brush*
 
   float3 scale;
   scale.z = calc_scale_from_grab_delta(ss, ik_target);
-  if (scale.z < 0.00001f) {
+  if (math::abs(scale.z) < 1e-5f) {
     scale = float3(0.0f);
   }
   else {
