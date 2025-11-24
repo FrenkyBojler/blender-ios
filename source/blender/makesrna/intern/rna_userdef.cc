@@ -4299,7 +4299,7 @@ static void rna_def_userdef_themes(BlenderRNA *brna)
       {5, "NLA_EDITOR", ICON_NLA, "Nonlinear Animation", ""},
       {12, "OUTLINER", ICON_OUTLINER, "Outliner", ""},
       {14, "PREFERENCES", ICON_PREFERENCES, "Preferences", ""},
-      {27, "PROJECT", ICON_NONE /* TODO */, "Project", ""},
+      {27, "PROJECT", ICON_PROJECT, "Project", ""},
       {11, "PROPERTIES", ICON_PROPERTIES, "Properties", ""},
       {17, "CONSOLE", ICON_CONSOLE, "Python Console", ""},
       {23, "SPREADSHEET", ICON_SPREADSHEET, "Spreadsheet"},
