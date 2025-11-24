@@ -67,6 +67,10 @@ class Rig(BaseRig, RelinkConstraintsMixin):
         if self.make_control:
             self.copy_bone_properties(bones.org, bones.ctrl)
 
+        if self.make_deform:
+            # Copy both pose properties and BBone properties
+            self.copy_bone_properties(bones.org, bones.deform)
+
     def rig_bones(self):
         bones = self.bones
 
