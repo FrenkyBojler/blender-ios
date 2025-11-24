@@ -2506,186 +2506,335 @@ void NODE_OT_detach(wmOperatorType *ot)
 /** \name Automatic Node Insert on Dragging
  * \{ */
 
-struct NodeChain {
+struct NodeInsertChain {
   int selected_count = 0;
-  int external_input_count = 0;
   rctf bounds{};
   Vector<bNode *> nodes;
-  bNode *start_node = nullptr;
   bNode *end_node = nullptr;
-  Map<eNodeSocketDatatype, bNodeSocket *> start_sockets;
-  Map<eNodeSocketDatatype, bNodeSocket *> end_sockets;
 
-  bool is_valid() const
-  {
-    return !start_sockets.is_empty() && !end_sockets.is_empty();
-  }
+ private:
+  Map<eNodeSocketDatatype, bNodeSocket *> start_sockets_;
+  Map<eNodeSocketDatatype, bNodeSocket *> end_sockets_;
 
   bool is_reroute() const
   {
     return end_node->is_reroute() && selected_count == 1;  // 一个转接点带着节点框呢?
   }
-};
 
-/* Store the first visible socket found for each unique socket type. */
-static Map<eNodeSocketDatatype, bNodeSocket *> get_end_sockets_map(bNode *end_node)
-{
-  Map<eNodeSocketDatatype, bNodeSocket *> end_sockets_map;
-  for (bNodeSocket *sock_out : end_node->output_sockets()) {
-    if (sock_out->is_visible()) {
-      const eNodeSocketDatatype socket_type = eNodeSocketDatatype(sock_out->type);
-      if (!end_sockets_map.contains(socket_type)) {
-        end_sockets_map.add(socket_type, sock_out);
+  /* Store the first visible socket found for each unique socket type. */
+  void set_end_candidate(bNode *new_end_node)
+  {
+    end_node = new_end_node;
+    for (bNodeSocket *sock_out : end_node->output_sockets()) {
+      if (sock_out->is_visible()) {
+        const eNodeSocketDatatype socket_type = eNodeSocketDatatype(sock_out->type);
+        if (!end_sockets_.contains(socket_type)) {
+          end_sockets_.add(socket_type, sock_out);
+        }
       }
     }
   }
-  return end_sockets_map;
-}
 
-static Map<eNodeSocketDatatype, bNodeSocket *> get_start_sockets_map(
-    bNodeTree &ntree,
-    Span<bNode *> nodes,
-    Map<eNodeSocketDatatype, bNodeSocket *> &end_sockets_map)
-{
-  Map<eNodeSocketDatatype, bool> type_support;
-  for (const eNodeSocketDatatype key : end_sockets_map.keys()) {
-    type_support.add(key, true);
-  }
+  /* Call After set_end_candidate */
+  void set_start_sockets(bNodeTree &ntree, const Span<bNode *> search_nodes)
+  {
+    Map<eNodeSocketDatatype, bool> type_support;
+    for (const eNodeSocketDatatype key : end_sockets_.keys()) {
+      type_support.add(key, true);
+    }
 
-  Map<eNodeSocketDatatype, bNodeSocket *> start_sockets_map;
-  for (bNode *node : nodes) {
-    bNodeSocket *default_socket = get_default_link_socket(ntree, *node, SOCK_IN);
-    VectorSet<short> find_types;
-    for (bNodeSocket *sock_in : node->input_sockets()) {
-      if (!sock_in->is_visible()) {
-        continue;
-      }
-      const eNodeSocketDatatype sock_type = eNodeSocketDatatype(sock_in->type);
-      bool is_supported = false;
-      {
-        if (const bool *cached_result = type_support.lookup_ptr(sock_type)) {
-          is_supported = *cached_result;
-        }
-        else {
-          if (ntree.typeinfo->validate_link) {
-            for (const short end_type : end_sockets_map.keys()) {
-              if (ntree.typeinfo->validate_link(eNodeSocketDatatype(end_type),
-                                                eNodeSocketDatatype(sock_type)))
-              {
-                is_supported = true;
-                break;
-              }
-            }
-          }
-          type_support.add(sock_type, is_supported);
-        }
-      }
-
-      if (default_socket && default_socket->type == sock_type && sock_in != default_socket) {
-        continue;
-      }
-      if (!is_supported || find_types.contains(sock_type)) {
-        continue;
-      }
-      find_types.add(sock_type);
-
-      bool linked_from_selection = false;
-      for (const bNodeLink *link : sock_in->directly_linked_links()) {
-        if (bke::node_link_is_hidden(*link)) {
+    for (bNode *node : search_nodes) {
+      bNodeSocket *default_socket = get_default_link_socket(ntree, *node, SOCK_IN);
+      VectorSet<short> find_types;
+      for (bNodeSocket *sock_in : node->input_sockets()) {
+        if (!sock_in->is_visible()) {
           continue;
         }
-        if (nodes.contains(link->fromnode)) {
-          linked_from_selection = true;
-          break;
+        const eNodeSocketDatatype sock_type = eNodeSocketDatatype(sock_in->type);
+        bool is_supported = false;
+        {
+          if (const bool *cached_result = type_support.lookup_ptr(sock_type)) {
+            is_supported = *cached_result;
+          }
+          else {
+            if (ntree.typeinfo->validate_link) {
+              for (const short end_type : end_sockets_.keys()) {
+                if (ntree.typeinfo->validate_link(eNodeSocketDatatype(end_type),
+                                                  eNodeSocketDatatype(sock_type)))
+                {
+                  is_supported = true;
+                  break;
+                }
+              }
+            }
+            type_support.add(sock_type, is_supported);
+          }
+        }
+
+        if (default_socket && default_socket->type == sock_type && sock_in != default_socket) {
+          continue;
+        }
+        if (!is_supported || find_types.contains(sock_type)) {
+          continue;
+        }
+        find_types.add(sock_type);
+
+        bool linked_from_selection = false;
+        for (const bNodeLink *link : sock_in->directly_linked_links()) {
+          if (bke::node_link_is_hidden(*link)) {
+            continue;
+          }
+          if (nodes.contains(link->fromnode)) {
+            linked_from_selection = true;
+            break;
+          }
+        }
+        if (linked_from_selection) {
+          continue;
+        }
+
+        if (start_sockets_.contains(sock_type)) {
+          // 如果这个类型找到了第二个候选, 从两个map中都移除它
+          start_sockets_.remove(sock_type);
+          end_sockets_.remove(sock_type);
+        }
+        else {
+          start_sockets_.add(sock_type, sock_in);
         }
       }
-      if (linked_from_selection) {
+    }
+  }
+
+ public:
+  static NodeInsertChain get_chain_for_insertion(bNodeTree &ntree)
+  {
+    NodeInsertChain chain{};
+    Vector<bNode *> end_candidates;
+
+    chain.nodes = transform::get_transformed_nodes(ntree, false).extract_vector();
+    if (chain.nodes.is_empty()) {
+      return {};
+    }
+    chain.selected_count = chain.nodes.size();
+    chain.bounds = chain.nodes[0]->runtime->draw_bounds;
+
+    for (bNode *node : chain.nodes) {
+      BLI_rctf_union(&chain.bounds, &node->runtime->draw_bounds);
+
+      if (node->output_sockets().is_empty()) {
+        continue;
+      }
+      int visible_out_link_count = 0;
+      for (const bNodeSocket *sock_out : node->output_sockets()) {
+        if (!sock_out->is_visible()) {
+          continue;
+        }
+        for (const bNodeLink *link : sock_out->directly_linked_links()) {
+          const bool link_visible = !bke::node_link_is_hidden(*link);
+          visible_out_link_count += link_visible;
+          if (link_visible && !chain.nodes.contains(link->tonode)) {
+            return {};  // 选中节点的输出连线都要连在选中节点里,选中的才会自动偏移,以及减少循环连线
+          }
+        }
+      }
+      if (visible_out_link_count == 0) {
+        end_candidates.append(node);
+        if (end_candidates.size() > 2) {
+          return {};
+        }
+      }
+    }
+
+    /* Handle no link between zone input and zone output */
+    if (end_candidates.size() == 2) {
+      // 不确定是否要始终把区域输入和输出之间当做有连线.
+      for (bNode *end_candidate : end_candidates) {
+        if (!bke::all_zone_output_node_types().contains(end_candidate->type_legacy)) {
+          continue;
+        }
+        if (const bke::bNodeZoneType *zone_type = bke::zone_type_by_node_type(
+                end_candidate->type_legacy))
+        {
+          // 找到了区域输出节点. 查找它配对的输入节点是否也被选中了.
+          bNode *paired_input = zone_type->get_corresponding_input(ntree, *end_candidate);
+          if (paired_input && chain.nodes.contains(paired_input)) {
+            chain.set_end_candidate(end_candidate);
+            // 目前无法处理同时选中了无连接区域输入输出,但起点不是区域输入
+            chain.set_start_sockets(ntree, {paired_input});
+            return chain;
+          }
+        }
+      }
+    }
+
+    if (end_candidates.size() != 1) {
+      return {};
+    }
+
+    chain.set_end_candidate(end_candidates[0]);
+    chain.set_start_sockets(ntree, chain.nodes);
+    return chain;
+  }
+
+  bool is_valid() const
+  {
+    return !start_sockets_.is_empty() && !end_sockets_.is_empty();
+  }
+
+  bool can_insert_link(const bNodeTree &ntree,
+                       bNode &start_node,
+                       bNodeSocket *start_sock,
+                       const bNodeLink *hover_link) const
+  {
+    bool find_target = false;
+
+    /* --- 第一轮：优先检查同类型接口 --- */
+    bool is_first_visible = true;
+    for (bNodeSocket *sock_in : start_node.input_sockets()) {
+      if (!sock_in->is_visible() || sock_in->type != start_sock->type) {
+        continue;
+      }
+      if (is_first_visible && !sock_in->is_directly_linked()) {
+        return true;
+      }
+      is_first_visible = false;
+      for (const bNodeLink *in_link : sock_in->directly_linked_links()) {
+        if (bke::node_link_is_hidden(*in_link) || nodes.contains(in_link->fromnode)) {
+          continue;
+        }
+        /* 发现同类型接口有外部连线，标记限制 */
+        find_target = true;
+        /* 匹配成功，直接允许 */
+        if (hover_link->fromsock == in_link->fromsock) {
+          return true;
+        }
+      }
+    }
+
+    /* 如果同类型接口存在限制，结果已定（未匹配上则拒绝），不再检查兼容类型 */
+    if (find_target) {
+      return false;
+    }
+
+    /* --- 第二轮：同类型无限制，检查兼容类型接口 --- */
+    for (bNodeSocket *sock_in : start_node.input_sockets()) {
+      /* 跳过同类型(已查过) 和 不兼容类型 */
+      if (!sock_in->is_visible() || sock_in->type == start_sock->type) {
+        continue;
+      }
+      if (ntree.typeinfo->validate_link &&
+          !ntree.typeinfo->validate_link(eNodeSocketDatatype(sock_in->type),
+                                         eNodeSocketDatatype(start_sock->type)))
+      {
         continue;
       }
 
-      if (start_sockets_map.contains(sock_type)) {
-        // 如果这个类型找到了第二个候选, 从两个map中都移除它
-        start_sockets_map.remove(sock_type);
-        end_sockets_map.remove(sock_type);
-      }
-      else {
-        start_sockets_map.add(sock_type, sock_in);
+      for (const bNodeLink *in_link : sock_in->directly_linked_links()) {
+        if (bke::node_link_is_hidden(*in_link) || nodes.contains(in_link->fromnode)) {
+          continue;
+        }
+        find_target = true;
+        if (hover_link->fromsock == in_link->fromsock) {
+          return true;
+        }
       }
     }
-  }
-  return start_sockets_map;
-}
 
-static NodeChain get_chain_for_insertion(bNodeTree &ntree)
+    /* 有限制但未匹配->False; 全无限制->True */
+    return !find_target;
+  }
+
+  bNodeSocket *find_matching_socket(const bNodeTree &ntree,
+                                    const bNodeLink &link,
+                                    eNodeSocketInOut in_out) const
+  {
+    if (is_reroute()) {
+      return (in_out == SOCK_IN) ? &end_node->input_socket(0) : &end_node->output_socket(0);
+    }
+    const Map<eNodeSocketDatatype, bNodeSocket *> &candidate_map = (in_out == SOCK_IN) ?
+                                                                       start_sockets_ :
+                                                                       end_sockets_;
+
+    const eNodeSocketDatatype need_type = (in_out == SOCK_IN) ?
+                                              eNodeSocketDatatype(link.fromsock->type) :
+                                              eNodeSocketDatatype(link.tosock->type);
+    if (bNodeSocket *socket = candidate_map.lookup_default(need_type, nullptr)) {
+      return socket;
+    }
+
+    if (!ntree.typeinfo->validate_link) {
+      return nullptr;
+    }
+    // ! candidate_map 是无序的?
+    // 如果没相同类型,找兼容类型,这些兼容的是一个节点里的话,应该取靠前的接口啊 !
+    // 如果兼容接口来自不同的节点,应该返回空吧
+    for (bNodeSocket *socket : candidate_map.values()) {
+      eNodeSocketDatatype sock_type = eNodeSocketDatatype(socket->type);
+      eNodeSocketDatatype need_sock_type = eNodeSocketDatatype(need_type);
+      const bool is_compatible = (in_out == SOCK_IN) ?
+                                     ntree.typeinfo->validate_link(need_sock_type, sock_type) :
+                                     ntree.typeinfo->validate_link(sock_type, need_sock_type);
+
+      if (is_compatible) {
+        return socket;
+      }
+    }
+
+    return nullptr;
+  }
+};
+
+static bool is_downstream_linked_to_nodes(const bNodeLink *link, const Span<bNode *> nodes)
 {
-  NodeChain chain{};
-  Vector<bNode *> end_candidates;
-
-  chain.nodes = transform::get_transformed_nodes(ntree, false).extract_vector();
-  if (chain.nodes.is_empty()) {
-    return {};
+  if (link == nullptr || link->tonode == nullptr) {
+    return false;
   }
-  chain.selected_count = chain.nodes.size();
-  chain.bounds = chain.nodes[0]->runtime->draw_bounds;
-
-  for (bNode *node : chain.nodes) {
-    BLI_rctf_union(&chain.bounds, &node->runtime->draw_bounds);
-
-    if (node->output_sockets().is_empty()) {
-      continue;
+  const bool no_external_input = [&]() {
+    for (const bNode *node : nodes) {
+      for (const bNodeSocket *sock_in : node->input_sockets()) {
+        for (const bNodeLink *in_link : sock_in->directly_linked_links()) {
+          if (!nodes.contains(in_link->fromnode)) {
+            return false;
+          }
+        }
+      }
     }
-    int visible_out_link_count = 0;
-    for (const bNodeSocket *sock_out : node->output_sockets()) {
+    return true;
+  }();
+  if (no_external_input) {
+    return false;
+  }
+
+  if (nodes.contains(link->tonode)) {
+    return true;
+  }
+
+  Vector<bNode *> to_visit;
+  to_visit.append(link->tonode);
+  VectorSet<bNode *> visited;
+  visited.add(link->tonode);
+
+  while (!to_visit.is_empty()) {
+    for (bNodeSocket *sock_out : to_visit.pop_last()->output_sockets()) {
       if (!sock_out->is_visible()) {
         continue;
       }
-      for (const bNodeLink *link : sock_out->directly_linked_links()) {
-        const bool link_visible = !bke::node_link_is_hidden(*link);
-        visible_out_link_count += link_visible;
-        if (link_visible && !chain.nodes.contains(link->tonode)) {
-          return {};  // 选中节点的输出连线都要连在选中节点里,选中的才会自动偏移,以及减少循环连线
+      for (const bNodeLink *out_link : sock_out->directly_linked_links()) {
+        if (bke::node_link_is_hidden(*out_link)) {
+          continue;
         }
-      }
-    }
-    if (visible_out_link_count == 0) {
-      end_candidates.append(node);
-      if (end_candidates.size() > 2) {
-        return {};
-      }
-    }
-  }
-
-  /* Handle no link between zone input and zone output */
-  if (end_candidates.size() == 2) {
-    // 不确定是否要始终把区域输入和输出之间当做有连线.
-    for (bNode *end_node : end_candidates) {
-      if (!bke::all_zone_output_node_types().contains(end_node->type_legacy)) {
-        continue;
-      }
-      if (const bke::bNodeZoneType *zone_type = bke::zone_type_by_node_type(end_node->type_legacy))
-      {
-        // 找到了区域输出节点. 查找它配对的输入节点是否也被选中了.
-        bNode *paired_input = zone_type->get_corresponding_input(ntree, *end_node);
-        if (paired_input && chain.nodes.contains(paired_input)) {
-          chain.end_node = end_node;
-          chain.end_sockets = get_end_sockets_map(end_node);
-          // 目前无法处理同时选中了无连接区域输入输出,但起点不是区域输入
-          chain.start_sockets = get_start_sockets_map(ntree, {paired_input}, chain.end_sockets);
-          return chain;
+        bNode *next_node = out_link->tonode;
+        if (nodes.contains(next_node)) {
+          return true;
+        }
+        if (visited.add(next_node)) {
+          to_visit.append(next_node);
         }
       }
     }
   }
 
-  if (end_candidates.size() != 1) {
-    return {};
-  }
-
-  bNode *end_node = end_candidates[0];
-  chain.end_node = end_node;
-  chain.end_sockets = get_end_sockets_map(end_node);
-  chain.start_sockets = get_start_sockets_map(ntree, chain.nodes, chain.end_sockets);
-  return chain;
+  return false;
 }
 
 static float dist_from_bounds_to_link(const bNodeLink &link,
@@ -2711,164 +2860,6 @@ static float dist_from_bounds_to_link(const bNodeLink &link,
   return dist;
 }
 
-static bool can_insert_link(const bNodeTree &ntree,
-                            const NodeChain &chain,
-                            bNode &start_node,
-                            bNodeSocket *start_sock,
-                            const bNodeLink *hover_link)
-{
-  bool find_target = false;
-
-  /* --- 第一轮：优先检查同类型接口 --- */
-  bool is_first_visible = true;
-  for (bNodeSocket *sock_in : start_node.input_sockets()) {
-    if (!sock_in->is_visible() || sock_in->type != start_sock->type) {
-      continue;
-    }
-    if (is_first_visible && !sock_in->is_directly_linked()) {
-      return true;
-    }
-    is_first_visible = false;
-    for (const bNodeLink *in_link : sock_in->directly_linked_links()) {
-      if (bke::node_link_is_hidden(*in_link) || chain.nodes.contains(in_link->fromnode)) {
-        continue;
-      }
-      /* 发现同类型接口有外部连线，标记限制 */
-      find_target = true;
-      /* 匹配成功，直接允许 */
-      if (hover_link->fromsock == in_link->fromsock) {
-        return true;
-      }
-    }
-  }
-
-  /* 如果同类型接口存在限制，结果已定（未匹配上则拒绝），不再检查兼容类型 */
-  if (find_target) {
-    return false;
-  }
-
-  /* --- 第二轮：同类型无限制，检查兼容类型接口 --- */
-  for (bNodeSocket *sock_in : start_node.input_sockets()) {
-    /* 跳过同类型(已查过) 和 不兼容类型 */
-    if (!sock_in->is_visible() || sock_in->type == start_sock->type) {
-      continue;
-    }
-    if (ntree.typeinfo->validate_link &&
-        !ntree.typeinfo->validate_link(eNodeSocketDatatype(sock_in->type),
-                                       eNodeSocketDatatype(start_sock->type)))
-    {
-      continue;
-    }
-
-    for (const bNodeLink *in_link : sock_in->directly_linked_links()) {
-      if (bke::node_link_is_hidden(*in_link) || chain.nodes.contains(in_link->fromnode)) {
-        continue;
-      }
-      find_target = true;
-      if (hover_link->fromsock == in_link->fromsock) {
-        return true;
-      }
-    }
-  }
-
-  /* 有限制但未匹配->False; 全无限制->True */
-  return !find_target;
-}
-
-static bNodeSocket *find_matching_socket(const bNodeTree &ntree,
-                                         const NodeChain &chain,
-                                         const bNodeLink &link,
-                                         eNodeSocketInOut in_out)
-{
-  if (chain.is_reroute()) {
-    return (in_out == SOCK_IN) ? &chain.end_node->input_socket(0) :
-                                 &chain.end_node->output_socket(0);
-  }
-  const Map<eNodeSocketDatatype, bNodeSocket *> &candidate_map = (in_out == SOCK_IN) ?
-                                                                     chain.start_sockets :
-                                                                     chain.end_sockets;
-
-  const eNodeSocketDatatype need_type = (in_out == SOCK_IN) ?
-                                            eNodeSocketDatatype(link.fromsock->type) :
-                                            eNodeSocketDatatype(link.tosock->type);
-  if (bNodeSocket *socket = candidate_map.lookup_default(need_type, nullptr)) {
-    return socket;
-  }
-
-  if (!ntree.typeinfo->validate_link) {
-    return nullptr;
-  }
-  // ! candidate_map 是无序的?
-  // 如果没相同类型,找兼容类型,这些兼容的是一个节点里的话,应该取靠前的接口啊 !
-  // 如果兼容接口来自不同的节点,应该返回空吧
-  for (bNodeSocket *socket : candidate_map.values()) {
-    eNodeSocketDatatype sock_type = eNodeSocketDatatype(socket->type);
-    eNodeSocketDatatype need_sock_type = eNodeSocketDatatype(need_type);
-    const bool is_compatible = (in_out == SOCK_IN) ?
-                                   ntree.typeinfo->validate_link(need_sock_type, sock_type) :
-                                   ntree.typeinfo->validate_link(sock_type, need_sock_type);
-
-    if (is_compatible) {
-      return socket;
-    }
-  }
-
-  return nullptr;
-}
-
-static bool is_downstream_linked_to_chain(const NodeChain &chain, const bNodeLink *link)
-{
-  if (link == nullptr || link->tonode == nullptr) {
-    return false;
-  }
-  const bool no_external_input = [&]() {
-    for (const bNode *node : chain.nodes) {
-      for (const bNodeSocket *sock_in : node->input_sockets()) {
-        for (const bNodeLink *in_link : sock_in->directly_linked_links()) {
-          if (!chain.nodes.contains(in_link->fromnode)) {
-            return false;
-          }
-        }
-      }
-    }
-    return true;
-  }();
-  if (no_external_input) {
-    return false;
-  }
-
-  if (chain.nodes.contains(link->tonode)) {
-    return true;
-  }
-
-  Vector<bNode *> to_visit;
-  to_visit.append(link->tonode);
-  VectorSet<bNode *> visited;
-  visited.add(link->tonode);
-
-  while (!to_visit.is_empty()) {
-    for (bNodeSocket *sock_out : to_visit.pop_last()->output_sockets()) {
-      if (!sock_out->is_visible()) {
-        continue;
-      }
-      for (const bNodeLink *out_link : sock_out->directly_linked_links()) {
-        if (bke::node_link_is_hidden(*out_link)) {
-          continue;
-        }
-        bNode *next_node = out_link->tonode;
-        if (chain.nodes.contains(next_node)) {
-          return true;
-        }
-        if (visited.add(next_node)) {
-          to_visit.append(next_node);
-        }
-      }
-    }
-  }
-
-  return false;
-}
-
 void node_insert_on_link_flags_set(SpaceNode &snode,
                                    const ARegion &region,
                                    const bool attach_enabled,
@@ -2880,7 +2871,7 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
 
   node_insert_on_link_flags_clear(node_tree);
 
-  NodeChain chain = get_chain_for_insertion(node_tree);
+  NodeInsertChain chain = NodeInsertChain::get_chain_for_insertion(node_tree);
   if (!chain.is_valid()) {
     return;
   }
@@ -2910,15 +2901,15 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
 
   if (selink) {
     selink->flag |= NODE_LINK_INSERT_TARGET;
-    bNodeSocket *start_sock = find_matching_socket(node_tree, chain, *selink, SOCK_IN);
-    bNodeSocket *end_sock = find_matching_socket(node_tree, chain, *selink, SOCK_OUT);
+    bNodeSocket *start_sock = chain.find_matching_socket(node_tree, *selink, SOCK_IN);
+    bNodeSocket *end_sock = chain.find_matching_socket(node_tree, *selink, SOCK_OUT);
     if (!start_sock || !end_sock) {
       selink->flag |= NODE_LINK_INSERT_TARGET_INVALID;
       return;
     }
-    bool can_insert = can_insert_link(
-        node_tree, chain, start_sock->owner_node(), start_sock, selink);
-    if (!attach_enabled || !can_insert || is_downstream_linked_to_chain(chain, selink)) {
+    bool can_insert = chain.can_insert_link(
+        node_tree, start_sock->owner_node(), start_sock, selink);
+    if (!attach_enabled || !can_insert || is_downstream_linked_to_nodes(selink, chain.nodes)) {
       selink->flag |= NODE_LINK_INSERT_TARGET_INVALID;
     }
   }
@@ -2964,7 +2955,7 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
 {
   bNodeTree &node_tree = *snode.edittree;
   node_tree.ensure_topology_cache();
-  NodeChain chain = get_chain_for_insertion(node_tree);
+  NodeInsertChain chain = NodeInsertChain::get_chain_for_insertion(node_tree);
   if (!chain.is_valid()) {
     return;
   }
@@ -2985,16 +2976,16 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
     return;
   }
 
-  bNodeSocket *best_input = find_matching_socket(node_tree, chain, *old_link, SOCK_IN);
-  bNodeSocket *best_output = find_matching_socket(node_tree, chain, *old_link, SOCK_OUT);
+  bNodeSocket *best_input = chain.find_matching_socket(node_tree, *old_link, SOCK_IN);
+  bNodeSocket *best_output = chain.find_matching_socket(node_tree, *old_link, SOCK_OUT);
 
   bNode *from_node = old_link->fromnode;
   bNodeSocket *from_socket = old_link->fromsock;
   bNode *to_node = old_link->tonode;
-  bNode *start_node = &best_input->owner_node();
+  bNode *start_node = &best_input->owner_node();  // !
 
   const bool best_input_is_linked = best_input && best_input->is_directly_linked();
-  bool need_new = true;
+  bool need_new_input_link = true;
   for (bNodeSocket *sock_in : start_node->input_sockets()) {
     if (!ntree.typeinfo->validate_link) {
       break;
@@ -3010,11 +3001,11 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
         continue;
       }
       if (from_socket == in_link->fromsock) {
-        need_new = false;
+        need_new_input_link = false;
         break;
       }
     }
-    if (!need_new) {
+    if (!need_new_input_link) {
       break;
     }
   }
@@ -3028,7 +3019,7 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
 
   if (best_input != nullptr) {
     /* Don't change an existing link. */
-    if (!best_input_is_linked && need_new) {
+    if (!best_input_is_linked && need_new_input_link) {
       /* Add a new link that connects the node on the left to the newly inserted node. */
       bke::node_add_link(ntree, *from_node, *from_socket, *start_node, *best_input);
     }
