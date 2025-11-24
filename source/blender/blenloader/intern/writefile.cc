@@ -1356,6 +1356,7 @@ static void write_libraries(WriteData *wd, Main *bmain)
     FOREACH_MAIN_ID_END;
   }
 
+  blender::Set<Library *> written_libraries;
   LISTBASE_FOREACH (Library *, library_ptr, &bmain->libraries) {
     Library &library = *library_ptr;
     const blender::Span<ID *> ids = linked_ids_by_library.lookup(&library);
@@ -1408,7 +1409,26 @@ static void write_libraries(WriteData *wd, Main *bmain)
       continue;
     }
 
+    if (library.flag & LIBRARY_FLAG_IS_ARCHIVE) {
+      if (!library.archive_parent_library) {
+        CLOG_ERROR(&LOG, "Written archive library '%s' has no parent library", library.id.name);
+      }
+      if (!written_libraries.contains(library.archive_parent_library)) {
+        CLOG_ERROR(
+            &LOG,
+            "Written archive library '%s', while its parent library '%s' has not been written",
+            library.id.name,
+            library.archive_parent_library->id.name);
+
+        /* Only write the parent library itself, if it was not written so far, none of its IDs was
+         * to be written either. */
+        write_id(wd, &library.archive_parent_library->id);
+        written_libraries.add(library.archive_parent_library);
+      }
+    }
+
     write_id(wd, &library.id);
+    written_libraries.add(&library);
 
     /* Write placeholders for linked data-blocks that are used, and real IDs for the packed linked
      * ones. */
