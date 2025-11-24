@@ -95,9 +95,6 @@ class EvaluationResult {
   {
     result_.reserve(size);
   };
-  EvaluationResult(const EvaluationResult &other) = default;
-  ~EvaluationResult() = default;
-
   operator bool() const
   {
     return !this->is_empty();
