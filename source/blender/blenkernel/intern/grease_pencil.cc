@@ -1094,13 +1094,9 @@ static IndexMask curves_to_shapes_mask(const IndexMask &changed_curves,
   return IndexMask::from_predicate(
       shapes.index_range(), GrainSize(4096), memory, [&](const int64_t shape_index) {
         const Span<int> shape = shapes[shape_index];
-        for (const int i : shape.index_range()) {
-          const int curve_i = shape[i];
-          if (selected_curves[curve_i]) {
-            return true;
-          }
-        }
-        return false;
+        return std::any_of(shape.begin(), shape.end(), [&](const int curve_i) {
+          return selected_curves[curve_i];
+        });
       });
 }
 
