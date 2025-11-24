@@ -273,7 +273,8 @@ static int intersect(const float2 &P1,
 
 static bool inside(const float2 &point, const Span<float2> poly)
 {
-  return isect_point_poly_v2(point, reinterpret_cast<const float(*)[2]>(poly.data()), poly.size());
+  return isect_point_poly_v2(
+      point, reinterpret_cast<const float (*)[2]>(poly.data()), poly.size());
 }
 
 static float point_in_tri_winding(const float2 pt,
