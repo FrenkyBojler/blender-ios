@@ -2925,13 +2925,31 @@ enum class Direction {
 
 static wmOperatorStatus ui_view_item_navigate_invoke(bContext *C,
                                                      wmOperator *op,
-                                                     const wmEvent *event)
+                                                     const wmEvent * /*event*/)
 {
   ARegion &region = *CTX_wm_region(C);
   const Direction direction = Direction(RNA_enum_get(op->ptr, "direction"));
-  AbstractTreeViewItem &active_item = *dynamic_cast<AbstractTreeViewItem *>(
+  AbstractTreeViewItem *active_item = dynamic_cast<AbstractTreeViewItem *>(
       UI_region_views_find_active_item(&region));
-  AbstractTreeView &tree_view = active_item.get_tree_view();
+  AbstractTreeView &tree_view = *dynamic_cast<AbstractTreeView *>(get_view_focused(C));
+
+  if (!active_item || !active_item->is_filtered_visible()) {
+    /* Active item might be filtered out due to search string, set the first visible element active in that case. */
+    bool found_active = false;
+    tree_view.foreach_item(
+        [&](AbstractTreeViewItem &item) {
+          if (!found_active) {
+            item.activate(*C);
+            active_item = &item;
+            found_active = true;
+          }
+        },
+        AbstractTreeView::IterOptions::SkipCollapsed |
+            AbstractTreeView::IterOptions::SkipFiltered);
+
+    return OPERATOR_FINISHED;
+  }
+
   AbstractTreeViewItem *next_item = nullptr;
 
   auto move_up = [&]() {
@@ -2965,25 +2983,25 @@ static wmOperatorStatus ui_view_item_navigate_invoke(bContext *C,
 
   /* Jump to parent of active element then collapse the parent. */
   auto move_left = [&]() {
-    if (!active_item.is_collapsible() || active_item.is_collapsed()) {
-      next_item = active_item.get_parent();
+    if (!active_item->is_collapsible() || active_item->is_collapsed()) {
+      next_item = active_item->get_parent();
       return;
     }
 
-    active_item.set_collapsed(true);
+    active_item->set_collapsed(true);
   };
 
   /* Expand active element if it's collapsed. */
   auto move_right = [&]() {
-    if (!active_item.is_collapsible()) {
+    if (!active_item->is_collapsible()) {
       return;
     }
 
-    if (active_item.is_collapsed()) {
-      active_item.set_collapsed(false);
+    if (active_item->is_collapsed()) {
+      active_item->set_collapsed(false);
       return;
     }
-    next_item = active_item.get_child();
+    next_item = active_item->get_child();
   };
 
   switch (direction) {
@@ -3015,11 +3033,12 @@ static wmOperatorStatus ui_view_item_navigate_invoke(bContext *C,
 
 static bool ui_tree_view_item_navigate_poll(bContext *C)
 {
-  const ARegion &region = *CTX_wm_region(C);
-  const AbstractTreeViewItem *active_item = dynamic_cast<AbstractTreeViewItem *>(
-      UI_region_views_find_active_item(&region));
-
-  return active_item != nullptr;
+  AbstractView *view = get_view_focused(C);
+  if (view) {
+    AbstractTreeView *tree_view = dynamic_cast<AbstractTreeView *>(view);
+    return tree_view != nullptr;
+  }
+  return false;
 }
 
 static void UI_OT_view_item_navigate(wmOperatorType *ot)
