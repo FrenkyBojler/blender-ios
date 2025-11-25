@@ -430,7 +430,7 @@ if (!needs_update && smd->runtime.last_sound_in == sound_in) {
 return smd->runtime.last_sound_out;
 }
 EchoModifierData *emd = (EchoModifierData *)smd;
-AUD_Sound *sound_out = AUD_Sound_Echo(sound_in, emd->delay, emd->feedback, emd->mix);
+AUD_Sound *sound_out = AUD_Sound_Echo(sound_in, emd->delay, emd->feedback, emd->mix, true);
 needs_update = true;
 smd->runtime.last_sound_in = sound_in;
 smd->runtime.last_sound_out = sound_out;
