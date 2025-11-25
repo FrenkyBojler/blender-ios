@@ -121,7 +121,7 @@ gpu::Texture *Film::get_aov_texture(ViewLayerAOV *aov)
   /* Find AOV index. Hashes are packed in tuples of 4. */
   uint hash = BLI_hash_string(aov->name);
   int aov_index = -1;
-  for (int i = 0; i < aovs_info.color_len + aovs_info.value_len; i++) {
+  for (int i : IndexRange(aovs_info.color_len + aovs_info.value_len)) {
     uint candidate_hash = aovs_info.hash[i / 4][i % 4];
     if (candidate_hash == hash) {
       /* We subtract color_len, as color and value hashes are packed after each other. */

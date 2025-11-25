@@ -14,7 +14,7 @@
 namespace blender::eevee {
 #endif
 
-/* Theoretical max is 512 with memory restrictions.
+/* Theoretical max is 256 across color and value AOVS with texture array restrictions.
  * However, the `output_aov()` function performs a linear search inside all the hashes.
  * If we can find a way to avoid this we can bump this number up. */
 #define AOV_MAX 128
@@ -23,7 +23,7 @@ struct AOVsInfoData {
   /* Pack 4 hashes per uint4, using std140 packing rules.
    * Color AOV hashes are placed before value AOV hashes. */
   uint4 hash[AOV_MAX / 4];
-  /* Nr. of AOVs stored. */
+  /* Number of AOVs stored. */
   int color_len;
   int value_len;
   /** Id of the AOV to be displayed (from the start of the AOV array). -1 for combined. */
