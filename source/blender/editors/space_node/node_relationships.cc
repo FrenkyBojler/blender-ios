@@ -2518,7 +2518,7 @@ struct NodeInsertChain {
 
   bool is_reroute() const
   {
-    return end_node->is_reroute() && selected_count == 1;  // 一个转接点带着节点框呢?
+    return end_node->is_reroute() && selected_count == 1;  // one reroute in Node Frame?
   }
 
   /* Store the first visible socket found for each unique socket type. */
@@ -2594,7 +2594,7 @@ struct NodeInsertChain {
         }
 
         if (start_sockets_.contains(sock_type)) {
-          // 如果这个类型找到了第二个候选, 从两个map中都移除它
+          // If this type finds a second candidate, remove it from both maps.
           start_sockets_.remove(sock_type);
           end_sockets_.remove(sock_type);
         }
@@ -2633,7 +2633,8 @@ struct NodeInsertChain {
           const bool link_visible = !bke::node_link_is_hidden(*link);
           visible_out_link_count += link_visible;
           if (link_visible && !chain.nodes.contains(link->tonode)) {
-            return {};  // 选中节点的输出连线都要连在选中节点里,选中的才会自动偏移,以及减少循环连线
+            /* All output links of selected nodes must connect to selected nodes. */
+            return {};
           }
         }
       }
@@ -2647,7 +2648,7 @@ struct NodeInsertChain {
 
     /* Handle no link between zone input and zone output */
     if (end_candidates.size() == 2) {
-      // 不确定是否要始终把区域输入和输出之间当做有连线.
+      /* Unsure if zone input and output should always be treated as having a link between them. */
       for (bNode *end_candidate : end_candidates) {
         if (!bke::all_zone_output_node_types().contains(end_candidate->type_legacy)) {
           continue;
@@ -2655,7 +2656,7 @@ struct NodeInsertChain {
         if (const bke::bNodeZoneType *zone_type = bke::zone_type_by_node_type(
                 end_candidate->type_legacy))
         {
-          // 找到了区域输出节点. 查找它配对的输入节点是否也被选中了.
+          /* Found a Zone Output node. Check if its paired Input node is also selected. */
           bNode *paired_input = zone_type->get_corresponding_input(ntree, *end_candidate);
           if (paired_input && chain.nodes.contains(paired_input)) {
             chain.set_end_candidate(end_candidate);
@@ -2682,15 +2683,15 @@ struct NodeInsertChain {
   }
 
   bool can_insert_link(const bNodeTree &ntree,
-                       bNode &start_node,
-                       bNodeSocket *start_sock,
+                       const bNode &start_node,
+                       const bNodeSocket *start_sock,
                        const bNodeLink *hover_link) const
   {
     bool find_target = false;
 
-    /* --- 第一轮：优先检查同类型接口 --- */
+    /* --- First pass: Prioritize checking same-type sockets --- */
     bool is_first_visible = true;
-    for (bNodeSocket *sock_in : start_node.input_sockets()) {
+    for (const bNodeSocket *sock_in : start_node.input_sockets()) {
       if (!sock_in->is_visible() || sock_in->type != start_sock->type) {
         continue;
       }
@@ -2702,23 +2703,23 @@ struct NodeInsertChain {
         if (bke::node_link_is_hidden(*in_link) || nodes.contains(in_link->fromnode)) {
           continue;
         }
-        /* 发现同类型接口有外部连线，标记限制 */
+        /* Found same-type socket with external link, mark constraint. */
         find_target = true;
-        /* 匹配成功，直接允许 */
+        /* Match successful, allow directly. */
         if (hover_link->fromsock == in_link->fromsock) {
           return true;
         }
       }
     }
 
-    /* 如果同类型接口存在限制，结果已定（未匹配上则拒绝），不再检查兼容类型 */
+    /* If constraints exist for same-type sockets, result is determined (reject if not matched). */
     if (find_target) {
       return false;
     }
 
-    /* --- 第二轮：同类型无限制，检查兼容类型接口 --- */
-    for (bNodeSocket *sock_in : start_node.input_sockets()) {
-      /* 跳过同类型(已查过) 和 不兼容类型 */
+    /* --- Second pass: No same-type constraints, check compatible types --- */
+    for (const bNodeSocket *sock_in : start_node.input_sockets()) {
+      /* Skip same-type (already checked) and incompatible types. */
       if (!sock_in->is_visible() || sock_in->type == start_sock->type) {
         continue;
       }
@@ -2740,7 +2741,7 @@ struct NodeInsertChain {
       }
     }
 
-    /* 有限制但未匹配->False; 全无限制->True */
+    /* Has constraints but no match -> False; No constraints at all -> True. */
     return !find_target;
   }
 
@@ -2837,29 +2838,6 @@ static bool is_downstream_linked_to_nodes(const bNodeLink *link, const Span<bNod
   return false;
 }
 
-static float dist_from_bounds_to_link(const bNodeLink &link,
-                                      const rctf &bounds,
-                                      const float2 &clamped_cursor)
-{
-  float dist = FLT_MAX;
-  std::array<float2, NODE_LINK_RESOL + 1> coords;
-  node_link_bezier_points_evaluated(link, coords);
-
-  /* Loop over link coords to find shortest dist to cursor clamped by nodes bounds of a intersected
-   * line segment. */
-  for (int i = 0; i < NODE_LINK_RESOL; i++) {
-    /* Check if the nodes total bounds intersects the line from this point to next one. */
-    if (BLI_rctf_isect_segment(&bounds, coords[i], coords[i + 1])) {
-      /* Store the shortest distance to the cursor of all intersections found so far.
-       * To be precise coords should be clipped by `select->draw_bounds`, but not done since
-       * there's no real noticeable difference. */
-      dist = min_ff(dist_squared_to_line_segment_v2(clamped_cursor, coords[i], coords[i + 1]),
-                    dist);
-    }
-  }
-  return dist;
-}
-
 void node_insert_on_link_flags_set(SpaceNode &snode,
                                    const ARegion &region,
                                    const bool attach_enabled,
@@ -2891,7 +2869,23 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
       /* Don't insert on a link that is connected to transformed nodes already. */
       continue;
     }
-    float dist = dist_from_bounds_to_link(*link, chain.bounds, clamped_cursor);
+
+    std::array<float2, NODE_LINK_RESOL + 1> coords;
+    node_link_bezier_points_evaluated(*link, coords);
+    float dist = FLT_MAX;
+
+    /* Loop over link coords to find shortest dist to upper left node edge of a intersected line
+     * segment. */
+    for (int i = 0; i < NODE_LINK_RESOL; i++) {
+      /* Check if the nodes total bounds intersects the line from this point to next one. */
+      if (BLI_rctf_isect_segment(&chain.bounds, coords[i], coords[i + 1])) {
+        /* Store the shortest distance to the cursor of all intersections found so far.
+         * To be precise coords should be clipped by `select->draw_bounds`, but not done since
+         * there's no real noticeable difference. */
+        dist = min_ff(dist_squared_to_line_segment_v2(clamped_cursor, coords[i], coords[i + 1]),
+                      dist);
+      }
+    }
     /* We want the link with the shortest distance to cursor clamped by nodes bounds. */
     if (dist < dist_best) {
       dist_best = dist;
