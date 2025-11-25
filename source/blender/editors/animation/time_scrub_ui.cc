@@ -80,14 +80,13 @@ static void draw_current_frame(const Scene *scene,
                                bool display_seconds,
                                const View2D *v2d,
                                const rcti *scrub_region_rect,
-                               const float current_frame,
                                bool display_stalk = true)
 {
   const uiFontStyle *fstyle = UI_FSTYLE_WIDGET;
-  const int frame_x = UI_view2d_view_to_region_x(v2d, current_frame);
   const float subframe_x = UI_view2d_view_to_region_x(v2d, BKE_scene_ctime_get(scene));
   char frame_str[64];
-  get_current_time_str(scene, display_seconds, int(current_frame), frame_str, sizeof(frame_str));
+  get_current_time_str(
+      scene, display_seconds, int(BKE_scene_ctime_get(scene)), frame_str, sizeof(frame_str));
   const float text_width = UI_fontstyle_string_width(fstyle, frame_str);
   const float text_padding = 4.0f * UI_SCALE_FAC;
   const float box_min_width = 24.0f * UI_SCALE_FAC;
@@ -115,9 +114,10 @@ static void draw_current_frame(const Scene *scene,
     immUniformColor4fv(bg_color);
     immBegin(GPU_PRIM_TRIS, 3);
     const float diag_offset = 0.4f * UI_SCALE_FAC;
-    immVertex2f(pos, floor(frame_x - tri_half_width - shadow_width - diag_offset), tri_top);
-    immVertex2f(pos, floor(frame_x + tri_half_width + shadow_width + 1.0f + diag_offset), tri_top);
-    immVertex2f(pos, frame_x + 0.5f, tri_top - tri_height - diag_offset - shadow_width);
+    immVertex2f(pos, floor(subframe_x - tri_half_width - shadow_width - diag_offset), tri_top);
+    immVertex2f(
+        pos, floor(subframe_x + tri_half_width + shadow_width + 1.0f + diag_offset), tri_top);
+    immVertex2f(pos, subframe_x + 0.5f, tri_top - tri_height - diag_offset - shadow_width);
     GPU_polygon_smooth(false);
     immEnd();
     immUnbindProgram();
@@ -140,8 +140,8 @@ static void draw_current_frame(const Scene *scene,
   /* Box. */
   UI_draw_roundbox_corner_set(UI_CNR_ALL);
   const float box_corner_radius = 4.0f * UI_SCALE_FAC;
-  rect.xmin = frame_x - (box_width / 2.0f);
-  rect.xmax = frame_x + (box_width / 2.0f) + 1.0f;
+  rect.xmin = subframe_x - (box_width / 2.0f);
+  rect.xmax = subframe_x + (box_width / 2.0f) + 1.0f;
   rect.ymin = floor(scrub_region_rect->ymin + (box_margin - shadow_width));
   rect.ymax = ceil(scrub_region_rect->ymax - box_margin + shadow_width);
   UI_draw_roundbox_4fv_ex(
@@ -151,7 +151,7 @@ static void draw_current_frame(const Scene *scene,
   uchar text_color[4];
   UI_GetThemeColor4ubv(TH_HEADER_TEXT_HI, text_color);
   const int y = BLI_rcti_cent_y(scrub_region_rect) - int(fstyle->points * UI_SCALE_FAC * 0.38f);
-  UI_fontstyle_draw_simple(fstyle, frame_x - (text_width / 2.0f), y, frame_str, text_color);
+  UI_fontstyle_draw_simple(fstyle, subframe_x - (text_width / 2.0f), y, frame_str, text_color);
 
   if (display_stalk) {
     /* Triangular base under frame number. */
@@ -159,9 +159,9 @@ static void draw_current_frame(const Scene *scene,
     GPU_polygon_smooth(true);
     immBegin(GPU_PRIM_TRIS, 3);
     immUniformColor4fv(fg_color);
-    immVertex2f(pos, frame_x - tri_half_width, tri_top);
-    immVertex2f(pos, frame_x + tri_half_width + 1, tri_top);
-    immVertex2f(pos, frame_x + 0.5f, tri_top - tri_height);
+    immVertex2f(pos, subframe_x - tri_half_width, tri_top);
+    immVertex2f(pos, subframe_x + tri_half_width + 1, tri_top);
+    immVertex2f(pos, subframe_x + 0.5f, tri_top - tri_height);
     immEnd();
     immUnbindProgram();
     GPU_polygon_smooth(false);
@@ -181,8 +181,7 @@ void ED_time_scrub_draw_current_frame(const ARegion *region,
   rcti scrub_region_rect;
   ED_time_scrub_region_rect_get(region, &scrub_region_rect);
 
-  draw_current_frame(
-      scene, display_seconds, v2d, &scrub_region_rect, BKE_scene_frame_get(scene), display_stalk);
+  draw_current_frame(scene, display_seconds, v2d, &scrub_region_rect, display_stalk);
   GPU_matrix_pop_projection();
 }
 
