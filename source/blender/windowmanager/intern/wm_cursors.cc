@@ -153,6 +153,8 @@ static GHOST_TStandardCursor convert_to_ghost_standard_cursor(WMCursorType curs)
       return GHOST_kStandardCursorBothHandles;
     case WM_CURSOR_BLADE:
       return GHOST_kStandardCursorBlade;
+    case WM_CURSOR_SLIP:
+      return GHOST_kStandardCursorSlip;
     default:
       return GHOST_kStandardCursorCustom;
   }
@@ -407,6 +409,12 @@ void WM_cursor_set(wmWindow *win, int curs)
   }
 
   if (curs == WM_CURSOR_DEFAULT && win->modalcursor) {
+    /* If the cursor was set to default during the modal operation,
+     * this usually indicates that win->lastcursor is not relevant anymore.
+     * So update lastcursor to the default cursor as this is usually a safe
+     * cursor shape to fall back to (see #144345).
+     */
+    win->lastcursor = curs;
     curs = win->modalcursor;
   }
 
@@ -1017,5 +1025,6 @@ void wm_init_cursor_data()
   wm_add_cursor(WM_CURSOR_BOTH_HANDLES, datatoc_cursor_both_handles_svg, {0.5f, 0.5f});
   wm_add_cursor(WM_CURSOR_RIGHT_HANDLE, datatoc_cursor_right_handle_svg, {0.5f, 0.5f});
   wm_add_cursor(WM_CURSOR_LEFT_HANDLE, datatoc_cursor_left_handle_svg, {0.5f, 0.5f});
+  wm_add_cursor(WM_CURSOR_SLIP, datatoc_cursor_slip_svg, {0.5f, 0.5f});
 #endif /* !WITH_HEADLESS */
 }

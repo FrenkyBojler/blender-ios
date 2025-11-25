@@ -59,7 +59,7 @@ struct BasisCache {
   Vector<int> start_indices;
 
   /**
-   * The result of #check_valid_num_and_order, to avoid retrieving its inputs later on.
+   * The result of #check_valid_eval_params, to avoid retrieving its inputs later on.
    * If this is true, the data above will be invalid, and original data should be copied
    * to the evaluated result.
    */
@@ -95,7 +95,7 @@ class CurvesGeometryRuntime {
   };
   mutable SharedCache<EvaluatedOffsets> evaluated_offsets_cache;
 
-  mutable SharedCache<std::optional<Vector<int>>> cyclic_offsets_cache;
+  mutable SharedCache<bool> has_cyclic_curve_cache;
 
   mutable SharedCache<Vector<curves::nurbs::BasisCache>> nurbs_basis_cache;
 
@@ -385,11 +385,7 @@ class CurvesGeometry : public ::CurvesGeometry {
    */
   Span<int> bezier_evaluated_offsets_for_curve(int curve_index) const;
 
-  /**
-   * A prefix sum of the cyclic attribute, in other words the number of cyclic curves that precede
-   * each curve. Used for rendering. If there are no cyclic curves, `std::nullopt` is returned.
-   */
-  std::optional<Span<int>> cyclic_offsets() const;
+  bool has_cyclic_curve() const;
 
   Span<float3> evaluated_positions() const;
   Span<float3> evaluated_tangents() const;
@@ -854,7 +850,8 @@ namespace nurbs {
 /**
  * Checks the conditions that a NURBS curve needs to evaluate.
  */
-bool check_valid_num_and_order(int points_num, int8_t order, bool cyclic, KnotsMode knots_mode);
+bool check_valid_eval_params(
+    int points_num, int8_t order, bool cyclic, KnotsMode knots_mode, int resolution);
 
 /**
  * Calculate the standard evaluated size for a NURBS curve, using the standard that
@@ -928,6 +925,7 @@ void calculate_basis_cache(int points_num,
                            int8_t order,
                            int resolution,
                            bool cyclic,
+                           KnotsMode knots_mode,
                            Span<float> knots,
                            BasisCache &basis_cache);
 

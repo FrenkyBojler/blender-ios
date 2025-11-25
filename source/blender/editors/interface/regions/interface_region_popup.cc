@@ -35,6 +35,8 @@
 #include "interface_intern.hh"
 #include "interface_regions_intern.hh"
 
+using blender::StringRef;
+
 /* -------------------------------------------------------------------- */
 /** \name Utility Functions
  * \{ */
@@ -329,7 +331,7 @@ static void ui_popup_block_position(wmWindow *window,
 
     /* when you are outside parent button, safety there should be smaller */
 
-    const int s1 = 40 * UI_SCALE_FAC;
+    const int s1 = (U.flag & USER_MENU_CLOSE_LEAVE) ? 40 * UI_SCALE_FAC : win_size[0];
     const int s2 = 3 * UI_SCALE_FAC;
 
     /* parent button to left */
@@ -1002,8 +1004,8 @@ void ui_popup_block_free(bContext *C, uiPopupBlockHandle *handle)
   MEM_delete(handle);
 }
 
-struct ui_alert_data {
-  eAlertIcon icon;
+struct uiAlertData {
+  blender::ui::AlertIcon icon;
   std::string title;
   std::string message;
   bool compact;
@@ -1013,7 +1015,7 @@ struct ui_alert_data {
 
 static void ui_alert_ok_cb(bContext *C, void *arg1, void *arg2)
 {
-  ui_alert_data *data = static_cast<ui_alert_data *>(arg1);
+  uiAlertData *data = static_cast<uiAlertData *>(arg1);
   MEM_delete(data);
   uiBlock *block = static_cast<uiBlock *>(arg2);
   UI_popup_menu_retval_set(block, UI_RETURN_OK, true);
@@ -1023,19 +1025,19 @@ static void ui_alert_ok_cb(bContext *C, void *arg1, void *arg2)
 
 static void ui_alert_ok(bContext * /*C*/, void *arg, int /*retval*/)
 {
-  ui_alert_data *data = static_cast<ui_alert_data *>(arg);
+  uiAlertData *data = static_cast<uiAlertData *>(arg);
   MEM_delete(data);
 }
 
 static void ui_alert_cancel(bContext * /*C*/, void *user_data)
 {
-  ui_alert_data *data = static_cast<ui_alert_data *>(user_data);
+  uiAlertData *data = static_cast<uiAlertData *>(user_data);
   MEM_delete(data);
 }
 
 static uiBlock *ui_alert_create(bContext *C, ARegion *region, void *user_data)
 {
-  ui_alert_data *data = static_cast<ui_alert_data *>(user_data);
+  uiAlertData *data = static_cast<uiAlertData *>(user_data);
 
   const uiStyle *style = UI_style_get_dpi();
   const short icon_size = (data->compact ? 32 : 40) * UI_SCALE_FAC;
@@ -1102,7 +1104,7 @@ static uiBlock *ui_alert_create(bContext *C, ARegion *region, void *user_data)
 
     uiBlock *buttons_block = layout->block();
     uiBut *okay_but = uiDefBut(
-        buttons_block, ButType::But, 0, "OK", 0, 0, 0, UI_UNIT_Y, nullptr, 0, 0, "");
+        buttons_block, ButType::But, "OK", 0, 0, 0, UI_UNIT_Y, nullptr, 0, 0, "");
     UI_but_func_set(okay_but, ui_alert_ok_cb, user_data, block);
     UI_but_flag_enable(okay_but, UI_BUT_ACTIVE_DEFAULT);
   }
@@ -1123,9 +1125,13 @@ static uiBlock *ui_alert_create(bContext *C, ARegion *region, void *user_data)
   return block;
 }
 
-void UI_alert(bContext *C, std::string title, std::string message, eAlertIcon icon, bool compact)
+void UI_alert(bContext *C,
+              const StringRef title,
+              const StringRef message,
+              const blender::ui::AlertIcon icon,
+              const bool compact)
 {
-  ui_alert_data *data = MEM_new<ui_alert_data>(__func__);
+  uiAlertData *data = MEM_new<uiAlertData>(__func__);
   data->title = title;
   data->message = message;
   data->icon = icon;

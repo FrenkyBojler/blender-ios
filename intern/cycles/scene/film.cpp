@@ -199,6 +199,7 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
   kfilm->pass_denoising_albedo = PASS_UNUSED;
   kfilm->pass_denoising_depth = PASS_UNUSED;
   kfilm->pass_sample_count = PASS_UNUSED;
+  kfilm->pass_render_time = PASS_UNUSED;
   kfilm->pass_adaptive_aux_buffer = PASS_UNUSED;
   kfilm->pass_shadow_catcher = PASS_UNUSED;
   kfilm->pass_shadow_catcher_sample_count = PASS_UNUSED;
@@ -395,6 +396,9 @@ void Film::device_update(Device *device, DeviceScene *dscene, Scene *scene)
       case PASS_SAMPLE_COUNT:
         kfilm->pass_sample_count = kfilm->pass_stride;
         break;
+      case PASS_RENDER_TIME:
+        kfilm->pass_render_time = kfilm->pass_stride;
+        break;
 
       case PASS_AOV_COLOR:
         if (!have_aov_color) {
@@ -501,8 +505,8 @@ void Film::update_passes(Scene *scene)
   const ObjectManager *object_manager = scene->object_manager.get();
   Integrator *integrator = scene->integrator;
 
-  if (!object_manager->need_update() && !integrator->is_modified() && !background->is_modified() &&
-      !scene->has_volume_modified())
+  if (!is_modified() && !object_manager->need_update() && !integrator->is_modified() &&
+      !background->is_modified() && !scene->has_volume_modified())
   {
     return;
   }

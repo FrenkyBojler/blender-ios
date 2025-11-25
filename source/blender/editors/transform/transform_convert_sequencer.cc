@@ -309,7 +309,7 @@ static ListBase *seqbase_active_get(const TransInfo *t)
 bool seq_transform_check_overlap(Span<Strip *> transformed_strips)
 {
   for (Strip *strip : transformed_strips) {
-    if (strip->runtime.flag & STRIP_OVERLAP) {
+    if (flag_is_set(strip->runtime->flag, seq::StripRuntimeFlag::Overlap)) {
       return true;
     }
   }
@@ -341,8 +341,8 @@ static void freeSeqData(TransInfo *t, TransDataContainer *tc, TransCustomData *c
       scene, seqbase_active_get(t), transformed_strips, seq::query_strip_effect_chain);
 
   for (Strip *strip : transformed_strips) {
-    strip->runtime.flag &= ~(STRIP_CLAMPED_LH | STRIP_CLAMPED_RH);
-    strip->runtime.flag &= ~STRIP_IGNORE_CHANNEL_LOCK;
+    strip->runtime->flag &= ~(seq::StripRuntimeFlag::ClampedLH | seq::StripRuntimeFlag::ClampedRH);
+    strip->runtime->flag &= ~seq::StripRuntimeFlag::IgnoreChannelLock;
   }
 
   if (t->state == TRANS_CANCEL) {
@@ -480,7 +480,7 @@ static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
 
   VectorSet<Strip *> strips = seq::query_selected_strips(seq::active_seqbase_get(ed));
   for (Strip *strip : strips) {
-    if (!(strip->type & STRIP_TYPE_EFFECT) || seq::effect_get_num_inputs(strip->type) == 0) {
+    if (!strip->is_effect() || seq::effect_get_num_inputs(strip->type) == 0) {
       continue;
     }
     /* If there is an effect strip with no inputs selected, prevent any x-direction movement,
@@ -560,9 +560,12 @@ static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
   }
 }
 
-static void createTransSeqData(bContext * /*C*/, TransInfo *t)
+static void createTransSeqData(bContext *C, TransInfo *t)
 {
-  Scene *scene = CTX_data_sequencer_scene(t->context);
+  Scene *scene = CTX_data_sequencer_scene(C);
+  if (!scene) {
+    return;
+  }
   Editing *ed = seq::editing_get(scene);
   TransData *td = nullptr;
   TransData2D *td2d = nullptr;
@@ -586,7 +589,7 @@ static void createTransSeqData(bContext * /*C*/, TransInfo *t)
   tc->custom.type.free_cb = freeSeqData;
   t->frame_side = transform_convert_frame_side_dir_get(t, float(scene->r.cfra));
 
-  count = SeqTransCount(t, ed->seqbasep);
+  count = SeqTransCount(t, ed->current_strips());
 
   /* Allocate memory for data. */
   tc->data_len = count;
@@ -615,7 +618,7 @@ static void createTransSeqData(bContext * /*C*/, TransInfo *t)
   ts->initial_v2d_cur = t->region->v2d.cur;
 
   /* Loop 2: build transdata array. */
-  SeqToTransData_build(t, ed->seqbasep, td, td2d, tdsq);
+  SeqToTransData_build(t, ed->current_strips(), td, td2d, tdsq);
 
   create_trans_seq_clamp_data(t, scene);
 
@@ -700,19 +703,19 @@ static void flushTransSeq(TransInfo *t)
 
     /* Compute handle clamping state to be drawn. */
     if (tdsq->sel_flag & SEQ_LEFTSEL) {
-      strip->runtime.flag &= ~STRIP_CLAMPED_LH;
+      strip->runtime->flag &= ~seq::StripRuntimeFlag::ClampedLH;
     }
     if (tdsq->sel_flag & SEQ_RIGHTSEL) {
-      strip->runtime.flag &= ~STRIP_CLAMPED_RH;
+      strip->runtime->flag &= ~seq::StripRuntimeFlag::ClampedRH;
     }
-    if (!seq::transform_single_image_check(strip) && !(strip->type & STRIP_TYPE_EFFECT)) {
+    if (!seq::transform_single_image_check(strip) && !strip->is_effect()) {
       if (offset_clamped[0] > offset[0] && new_frame == seq::time_start_frame_get(strip)) {
-        strip->runtime.flag |= STRIP_CLAMPED_LH;
+        strip->runtime->flag |= seq::StripRuntimeFlag::ClampedLH;
       }
       else if (offset_clamped[0] < offset[0] &&
                new_frame == seq::time_content_end_frame_get(scene, strip))
       {
-        strip->runtime.flag |= STRIP_CLAMPED_RH;
+        strip->runtime->flag |= seq::StripRuntimeFlag::ClampedRH;
       }
     }
 
@@ -774,9 +777,9 @@ static void flushTransSeq(TransInfo *t)
 
   for (Strip *strip : transformed_strips) {
     /* Test overlap, displays red outline. */
-    strip->runtime.flag &= ~STRIP_OVERLAP;
+    strip->runtime->flag &= ~seq::StripRuntimeFlag::Overlap;
     if (seq::transform_test_overlap(scene, seqbasep, strip)) {
-      strip->runtime.flag |= STRIP_OVERLAP;
+      strip->runtime->flag |= seq::StripRuntimeFlag::Overlap;
     }
   }
 }

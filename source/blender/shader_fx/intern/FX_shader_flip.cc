@@ -18,8 +18,8 @@
 
 #include "RNA_access.hh"
 
-#include "FX_shader_types.h"
-#include "FX_ui_common.h"
+#include "FX_shader_types.hh"
+#include "FX_ui_common.hh"
 
 static void init_data(ShaderFxData *fx)
 {
@@ -69,5 +69,6 @@ ShaderFxTypeInfo shaderfx_Type_Flip = {
     /*update_depsgraph*/ nullptr,
     /*depends_on_time*/ nullptr,
     /*foreach_ID_link*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
     /*panel_register*/ panel_register,
 };

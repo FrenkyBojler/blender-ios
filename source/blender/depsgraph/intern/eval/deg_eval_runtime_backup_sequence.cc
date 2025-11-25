@@ -10,6 +10,8 @@
 
 #include "DNA_sequence_types.h"
 
+#include "SEQ_sequencer.hh"
+
 #include "BLI_listbase.h"
 
 namespace blender::deg {
@@ -28,7 +30,7 @@ void StripModifierDataBackup::reset()
 
 void StripModifierDataBackup::init_from_modifier(StripModifierData *smd)
 {
-  if (smd->type == seqModifierType_SoundEqualizer) {
+  if (smd->type == eSeqModifierType_SoundEqualizer) {
     sound_in = smd->runtime.last_sound_in;
     sound_out = smd->runtime.last_sound_out;
     last_buf = smd->runtime.last_buf;
@@ -41,7 +43,7 @@ void StripModifierDataBackup::init_from_modifier(StripModifierData *smd)
 
 void StripModifierDataBackup::restore_to_modifier(StripModifierData *smd)
 {
-  if (smd->type == seqModifierType_SoundEqualizer) {
+  if (smd->type == eSeqModifierType_SoundEqualizer) {
     smd->runtime.last_sound_in = sound_in;
     smd->runtime.last_sound_out = sound_out;
     smd->runtime.last_buf = last_buf;
@@ -62,14 +64,14 @@ StripBackup::StripBackup(const Depsgraph * /*depsgraph*/)
 void StripBackup::reset()
 {
   scene_sound = nullptr;
-  BLI_listbase_clear(&anims);
+  movie_readers.clear();
   modifiers.clear();
 }
 
 void StripBackup::init_from_strip(Strip *strip)
 {
-  scene_sound = strip->scene_sound;
-  anims = strip->anims;
+  scene_sound = strip->runtime->scene_sound;
+  movie_readers = std::move(strip->runtime->movie_readers);
 
   LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
     StripModifierDataBackup mod_backup;
@@ -79,14 +81,14 @@ void StripBackup::init_from_strip(Strip *strip)
     }
   }
 
-  strip->scene_sound = nullptr;
-  BLI_listbase_clear(&strip->anims);
+  strip->runtime->scene_sound = nullptr;
+  strip->runtime->movie_readers.clear();
 }
 
 void StripBackup::restore_to_strip(Strip *strip)
 {
-  strip->scene_sound = scene_sound;
-  strip->anims = anims;
+  strip->runtime->scene_sound = scene_sound;
+  strip->runtime->movie_readers = std::move(movie_readers);
 
   LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
     std::optional<StripModifierDataBackup> backup = modifiers.pop_try(smd->persistent_uid);
@@ -100,7 +102,7 @@ void StripBackup::restore_to_strip(Strip *strip)
 
 bool StripBackup::isEmpty() const
 {
-  return (scene_sound == nullptr) && BLI_listbase_is_empty(&anims) && modifiers.is_empty();
+  return (scene_sound == nullptr) && movie_readers.is_empty() && modifiers.is_empty();
 }
 
 }  // namespace blender::deg

@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BKE_attribute.h"
 #include "BKE_geometry_set.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
@@ -206,7 +207,7 @@ void USDShapeReader::apply_primvars_to_mesh(Mesh *mesh, const pxr::UsdTimeCode t
     }
 
     const std::optional<bke::AttrType> type = convert_usd_type_to_blender(pv_type);
-    if (type == bke::AttrType::String) {
+    if (type == bke::AttrType::ColorFloat) {
       /* Set the active color name to 'displayColor', if a color primvar
        * with this name exists.  Otherwise, use the name of the first
        * color primvar we find for the active color. */

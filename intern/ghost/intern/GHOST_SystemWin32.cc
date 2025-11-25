@@ -624,7 +624,9 @@ GHOST_TCapabilityFlag GHOST_SystemWin32::getCapabilities() const
            * it's possible another modifier could be optionally used in it's place. */
           GHOST_kCapabilityKeyboardHyperKey |
           /* No support yet for cursors generated on demand. */
-          GHOST_kCapabilityCursorGenerator));
+          GHOST_kCapabilityCursorGenerator |
+          /* No support for window path meta-data. */
+          GHOST_kCapabilityWindowPath));
 }
 
 GHOST_TSuccess GHOST_SystemWin32::init()
@@ -1434,6 +1436,8 @@ GHOST_Event *GHOST_SystemWin32::processWindowSizeEvent(GHOST_WindowWin32 *window
     system->dispatchEvents();
     return nullptr;
   }
+
+  window->updateHDRInfo();
   return sizeEvent;
 }
 
@@ -2159,6 +2163,9 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, uint msg, WPARAM wParam, 
           if (LOWORD(wParam) == WA_INACTIVE) {
             window->lostMouseCapture();
           }
+          else {
+            window->updateHDRInfo();
+          }
 
           lResult = ::DefWindowProc(hwnd, msg, wParam, lParam);
           break;
@@ -2176,6 +2183,7 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, uint msg, WPARAM wParam, 
         }
         case WM_EXITSIZEMOVE: {
           window->in_live_resize_ = 0;
+          window->updateHDRInfo();
           break;
         }
         case WM_PAINT: {
@@ -2240,6 +2248,7 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, uint msg, WPARAM wParam, 
           }
           else {
             event = processWindowEvent(GHOST_kEventWindowMove, window);
+            window->updateHDRInfo();
           }
 
           break;
@@ -2275,6 +2284,7 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, uint msg, WPARAM wParam, 
           if (wt) {
             wt->remapCoordinates();
           }
+          window->updateHDRInfo();
           break;
         }
         case WM_KILLFOCUS: {
@@ -2293,6 +2303,7 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, uint msg, WPARAM wParam, 
           {
             window->ThemeRefresh();
           }
+          window->updateHDRInfo();
           break;
         }
         /* ======================
@@ -2352,6 +2363,7 @@ LRESULT WINAPI GHOST_SystemWin32::s_wndProc(HWND hwnd, uint msg, WPARAM wParam, 
            * another window-management function. */
         case WM_SETFOCUS: {
           /* The WM_SETFOCUS message is sent to a window after it has gained the keyboard focus. */
+          window->updateHDRInfo();
           break;
         }
         /* ============

@@ -8,7 +8,7 @@
  * \ingroup sequencer
  */
 
-#include "BLI_utildefines.h"
+#include "BLI_enum_flags.hh"
 
 #include "DNA_scene_enums.h"
 
@@ -29,25 +29,25 @@ enum eLoadFlags {
   SEQ_LOAD_MOVIE_SYNC_FPS = (1 << 3),
   SEQ_LOAD_SET_VIEW_TRANSFORM = (1 << 4),
 };
-ENUM_OPERATORS(eLoadFlags, SEQ_LOAD_SET_VIEW_TRANSFORM)
+ENUM_OPERATORS(eLoadFlags)
 
-/** API for adding new sequence strips. */
+/** API for adding new strips. If multiple strips are added, data is updated for each one. */
 struct LoadData {
   int start_frame;
   int channel;
-  char name[64]; /* Strip name. */
+  char name[64]; /* Strip name, including file extension. */
   /** Typically a `filepath` but may reference any kind of path. */
   char path[/*FILE_MAX*/ 1024];
   struct {
-    int len;
-    int end_frame;
+    int count; /* Number of images in this strip, 1 if not an image sequence. */
+    int length;
   } image;         /* Only for image strips. */
   Scene *scene;    /* Only for scene strips. */
   MovieClip *clip; /* Only for clip strips. */
   Mask *mask;      /* Only for mask strips. */
   struct {
-    int type;
-    int end_frame;
+    StripType type;
+    int length;
     Strip *input1;
     Strip *input2;
   } effect; /* Only for effect strips. */
@@ -57,7 +57,7 @@ struct LoadData {
   char views_format;
   Stereo3dFormat *stereo3d_format;
   bool allow_invalid_file;     /* Used by RNA API to create placeholder strips. */
-  double r_video_stream_start; /* For AV synchronization. Set by `SEQ_add_movie_strip`. */
+  double r_video_stream_start; /* For AV synchronization. Set by `seq::add_movie_strip`. */
   bool adjust_playback_rate;
   bool allow_overlap;
 };
@@ -182,7 +182,7 @@ void add_image_load_file(Scene *scene, Strip *strip, size_t strip_frame, const c
  *
  * \param strip: image strip to be changed
  */
-void add_image_init_alpha_mode(Strip *strip);
+void add_image_init_alpha_mode(Main *bmain, Scene *scene, Strip *strip);
 void add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, bool lock_range);
 void add_movie_reload_if_needed(
     Main *bmain, Scene *scene, Strip *strip, bool *r_was_reloaded, bool *r_can_produce_frames);

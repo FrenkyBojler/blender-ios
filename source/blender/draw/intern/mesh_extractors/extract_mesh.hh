@@ -132,9 +132,6 @@ inline const Mesh &editmesh_final_or_this(const Object &object, const Mesh &mesh
   return mesh;
 }
 
-const CustomData &mesh_cd_vdata_get_from_mesh(const Mesh &mesh);
-const CustomData &mesh_cd_edata_get_from_mesh(const Mesh &mesh);
-const CustomData &mesh_cd_pdata_get_from_mesh(const Mesh &mesh);
 const CustomData &mesh_cd_ldata_get_from_mesh(const Mesh &mesh);
 
 BLI_INLINE BMFace *bm_original_face_get(const MeshRenderData &mr, int idx)
@@ -360,13 +357,20 @@ gpu::VertBufPtr extract_edituv_stretch_angle_subdiv(const MeshRenderData &mr,
 gpu::VertBufPtr extract_edituv_data(const MeshRenderData &mr);
 gpu::VertBufPtr extract_edituv_data_subdiv(const MeshRenderData &mr,
                                            const DRWSubdivCache &subdiv_cache);
-gpu::IndexBufPtr extract_edituv_tris(const MeshRenderData &mr);
+gpu::IndexBufPtr extract_edituv_tris(const MeshRenderData &mr, bool edit_uvs);
 gpu::IndexBufPtr extract_edituv_tris_subdiv(const MeshRenderData &mr,
                                             const DRWSubdivCache &subdiv_cache);
-gpu::IndexBufPtr extract_edituv_lines(const MeshRenderData &mr, bool edit_uvs);
+
+enum class UvExtractionMode : int8_t {
+  Edit,
+  Selection,
+  All,
+};
+
+gpu::IndexBufPtr extract_edituv_lines(const MeshRenderData &mr, UvExtractionMode mode);
 gpu::IndexBufPtr extract_edituv_lines_subdiv(const MeshRenderData &mr,
                                              const DRWSubdivCache &subdiv_cache,
-                                             bool edit_uvs);
+                                             UvExtractionMode mode);
 gpu::IndexBufPtr extract_edituv_points(const MeshRenderData &mr);
 gpu::IndexBufPtr extract_edituv_points_subdiv(const MeshRenderData &mr,
                                               const DRWSubdivCache &subdiv_cache);
