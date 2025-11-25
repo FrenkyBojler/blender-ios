@@ -59,10 +59,10 @@ class DrawingRuntime {
    */
   mutable SharedCache<Vector<int3>> triangles_cache;
   /**
-   * Shape cache for the drawing.
+   * Shape cache for the drawing. Will be null when all curves are they're own shapes.
    */
-  mutable SharedCache<Vector<int>> shape_map_cache;
-  mutable SharedCache<Vector<int>> shape_offset_cache;
+  mutable SharedCache<std::optional<Vector<int>>> shape_map_cache;
+  mutable SharedCache<std::optional<Vector<int>>> shape_offset_cache;
 
   /**
    * Normal vector cache for every stroke. Computed using Newell's method.
@@ -102,9 +102,9 @@ class Drawing : public ::GreasePencilDrawing {
   bke::CurvesGeometry &strokes_for_write();
 
   /**
-   * The curves in each shape.
+   * The curves in each shape. Will return null when all shapes only have one curve.
    */
-  GroupedSpan<int> shapes() const;
+  std::optional<GroupedSpan<int>> shapes() const;
   /**
    * The triangles for fill geometry. Grouped by each shape. Index to curves in the shape.
    */

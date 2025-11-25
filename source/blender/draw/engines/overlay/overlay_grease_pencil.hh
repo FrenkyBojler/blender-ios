@@ -352,14 +352,17 @@ class GreasePencil : Overlay {
       IndexMaskMemory memory;
       const IndexMask visible_shapes = ed::greasepencil::retrieve_visible_shapes(
           *ob, info.drawing, memory);
-      const GroupedSpan<int> shapes = info.drawing.shapes();
+      const std::optional<GroupedSpan<int>> shapes = info.drawing.shapes();
 
       const bool hide_onion = info.onion_id != 0;
 
       visible_shapes.foreach_index([&](const int shape_index) {
-        const Span<int> shape = shapes[shape_index];
+        int first_curve = shape_index;
+        if (shapes) {
+          first_curve = (*shapes)[shape_index].first();
+        }
 
-        const int material_index = stroke_materials[shape.first()];
+        const int material_index = stroke_materials[first_curve];
         MaterialGPencilStyle *gp_style = BKE_gpencil_material_settings(ob, material_index + 1);
 
         const bool hide_material = (gp_style->flag & GP_MATERIAL_HIDE) != 0;
@@ -385,8 +388,7 @@ class GreasePencil : Overlay {
 
         t_offset += num_stroke_triangles;
 
-        for (const int pos : shape.index_range()) {
-          const int curve_i = shape[pos];
+        auto add_curve = [&](const int curve_i) {
           const IndexRange points = points_by_curve[curve_i];
 
           const int num_stroke_vertices = (points.size() +
@@ -403,6 +405,17 @@ class GreasePencil : Overlay {
             pass.draw(geom, 1, v_count, v_first, res_handle, select_id.get());
           }
           t_offset += num_stroke_vertices * 2;
+        };
+
+        if (!shapes) {
+          add_curve(first_curve);
+        }
+        else {
+          const Span<int> shape = (*shapes)[shape_index];
+          for (const int pos : shape.index_range()) {
+            const int curve_i = shape[pos];
+            add_curve(curve_i);
+          }
         }
       });
     }

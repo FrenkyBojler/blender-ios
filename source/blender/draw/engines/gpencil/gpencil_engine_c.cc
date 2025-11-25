@@ -406,30 +406,42 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandleRange res_handle)
     IndexMaskMemory memory;
     const IndexMask visible_shapes = ed::greasepencil::retrieve_visible_shapes(
         *ob, info.drawing, memory);
-    const GroupedSpan<int> shapes = info.drawing.shapes();
+    const std::optional<GroupedSpan<int>> shapes = info.drawing.shapes();
+    const int num_shapes = shapes.has_value() ? (*shapes).size() : curves.curves_num();
 
     /* Precompute all the triangle and vertex counts.
      * In case the drawing should not be rendered, we need to compute the offset where the next
      * drawing begins. */
-    Array<int> num_triangles_per_shape(shapes.size());
+    Array<int> num_triangles_per_shape(num_shapes);
     Array<int> num_vertices_per_stroke(curves.curves_num());
     int total_num_triangles = 0;
     int total_num_vertices = 0;
     visible_shapes.foreach_index([&](const int shape_index) {
-      const Span<int> shape = shapes[shape_index];
-
       const int num_stroke_triangles = triangles[shape_index].size();
       num_triangles_per_shape[shape_index] = num_stroke_triangles;
       total_num_triangles += num_stroke_triangles;
 
-      for (const int pos : shape.index_range()) {
-        const int curve_i = shape[pos];
+      if (!shapes) {
+        const int curve_i = shape_index;
 
         const IndexRange points = points_by_curve[curve_i];
         const int num_stroke_vertices = (points.size() +
                                          int(cyclic[curve_i] && (points.size() >= 3)));
         num_vertices_per_stroke[curve_i] = num_stroke_vertices;
         total_num_vertices += num_stroke_vertices;
+      }
+      else {
+        const Span<int> shape = (*shapes)[shape_index];
+
+        for (const int pos : shape.index_range()) {
+          const int curve_i = shape[pos];
+
+          const IndexRange points = points_by_curve[curve_i];
+          const int num_stroke_vertices = (points.size() +
+                                           int(cyclic[curve_i] && (points.size() >= 3)));
+          num_vertices_per_stroke[curve_i] = num_stroke_vertices;
+          total_num_vertices += num_stroke_vertices;
+        }
       }
     });
 
@@ -485,8 +497,11 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandleRange res_handle)
     const bool is_onion = info.onion_id != 0;
 
     visible_shapes.foreach_index([&](const int shape_index) {
-      const Span<int> shape = shapes[shape_index];
-      const int stroke_i = shape.first();
+      int stroke_i = shape_index;
+      if (shapes) {
+        const Span<int> shape = (*shapes)[shape_index];
+        stroke_i = shape.first();
+      }
 
       /* The material index is allowed to be negative as it's stored as a generic attribute. We
        * clamp it here to avoid crashing in the rendering code. Any stroke with a material < 0 will
@@ -509,9 +524,16 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandleRange res_handle)
 
       if (skip_stroke) {
         t_offset += num_triangles_per_shape[shape_index];
-        for (const int pos : shape.index_range()) {
-          const int curve_i = shape[pos];
-          t_offset += num_vertices_per_stroke[curve_i] * 2;
+
+        if (!shapes) {
+          t_offset += num_vertices_per_stroke[stroke_i] * 2;
+        }
+        else {
+          const Span<int> shape = (*shapes)[shape_index];
+          for (const int pos : shape.index_range()) {
+            const int curve_i = shape[pos];
+            t_offset += num_vertices_per_stroke[curve_i] * 2;
+          }
         }
         return;
       }
@@ -561,15 +583,27 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandleRange res_handle)
 
       t_offset += num_triangles_per_shape[shape_index];
 
-      for (const int pos : shape.index_range()) {
-        const int curve_i = shape[pos];
+      if (!shapes) {
         if (show_stroke) {
           const int v_first = t_offset * 3;
-          const int v_count = num_vertices_per_stroke[curve_i] * 2 * 3;
+          const int v_count = num_vertices_per_stroke[stroke_i] * 2 * 3;
           drawcall_add(pass, geom, v_first, v_count);
         }
 
-        t_offset += num_vertices_per_stroke[curve_i] * 2;
+        t_offset += num_vertices_per_stroke[stroke_i] * 2;
+      }
+      else {
+        const Span<int> shape = (*shapes)[shape_index];
+        for (const int pos : shape.index_range()) {
+          const int curve_i = shape[pos];
+          if (show_stroke) {
+            const int v_first = t_offset * 3;
+            const int v_count = num_vertices_per_stroke[curve_i] * 2 * 3;
+            drawcall_add(pass, geom, v_first, v_count);
+          }
+
+          t_offset += num_vertices_per_stroke[curve_i] * 2;
+        }
       }
     });
   }
