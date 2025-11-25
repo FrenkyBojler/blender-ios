@@ -122,17 +122,6 @@ def main() -> None:
         # Run any post-processor script.
         _postprocess(py_path)
 
-        # Append the OpenAPI specification as Python code. This is necessary to
-        # reference for runtime validation. Having it available as Python
-        # dictionary is easier than having to parse it from YAML or JSON later.
-        with yaml_path.open() as yamlfile:
-            openapi_spec = yaml.safe_load(yamlfile)
-        with py_path.open("a") as outfile:
-            print(file=outfile)
-            print("# This OpenAPI specification was used to generate the above code.", file=outfile)
-            print("# It is here so that Blender does not have to parse the YAML file.", file=outfile)
-            print("OPENAPI_SPEC = {!r}".format(openapi_spec), file=outfile)
-
     # Make sure that output from subprocesses is flushed, before outputting more
     # below. This prevents stderr and stdout going out of sync, ensuring things
     # are shown in chronological order (i.e. generating files before
@@ -140,9 +129,7 @@ def main() -> None:
     sys.stderr.flush()
     sys.stdout.flush()
 
-    # Format the generated Python code. Autopep8 (used by Blender) does not
-    # seem to re-wrap long lines, so that's why this script relies on running
-    # ruff first.
+    # Format the generated Python code.
     print("Formatting Python files")
     py_paths_as_str = [str(path) for path in py_paths]
     subprocess.run(
