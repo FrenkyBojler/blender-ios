@@ -594,8 +594,9 @@ static void update_triangle_and_offsets_cache_isolated(const Span<float3> positi
           float (*projverts)[2] = static_cast<float (*)[2]>(
               BLI_memarena_alloc(pf_arena, sizeof(*projverts) * size_t(points.size())));
 
-          for (const int point : points) {
-            mul_v2_m3v3(projverts[point], axis_mat.ptr(), positions[point]);
+          for (const int i : points.index_range()) {
+            const int curve_p = points[i];
+            mul_v2_m3v3(projverts[i], axis_mat.ptr(), positions[curve_p]);
           }
 
           triangle_results[pos].resize(points.size() - 2);
