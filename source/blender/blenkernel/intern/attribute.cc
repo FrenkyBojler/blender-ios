@@ -11,6 +11,7 @@
 #include <cstring>
 #include <optional>
 
+#include "BKE_anonymous_attribute_id.hh"
 #include "MEM_guardedalloc.h"
 
 #include "DNA_ID.h"
@@ -440,6 +441,23 @@ static StringRef color_name_from_index(AttributeOwner &owner, int index)
       .value_or("");
 }
 
+static int uv_name_to_index(AttributeOwner &owner, const StringRef name)
+{
+  return BKE_attribute_to_index(owner, name, ATTR_DOMAIN_MASK_CORNER, CD_MASK_PROP_FLOAT2);
+}
+
+static int uv_clamp_index(AttributeOwner &owner, int index)
+{
+  const int length = BKE_attributes_length(owner, ATTR_DOMAIN_MASK_CORNER, CD_MASK_PROP_FLOAT2);
+  return min_ii(index, length - 1);
+}
+
+static StringRef uv_name_from_index(AttributeOwner &owner, int index)
+{
+  return BKE_attribute_from_index(owner, index, ATTR_DOMAIN_MASK_CORNER, CD_MASK_PROP_FLOAT2)
+      .value_or("");
+}
+
 bool BKE_attribute_remove(AttributeOwner &owner, const StringRef name, ReportList *reports)
 {
   using namespace blender;
@@ -466,6 +484,8 @@ bool BKE_attribute_remove(AttributeOwner &owner, const StringRef name, ReportLis
           }
 
           const eCustomDataType type = eCustomDataType(data->layers[layer_index].type);
+          const bool is_active_uv_attribute = name_copy == mesh->active_uv_map_name();
+          const bool is_default_uv_attribute = name_copy == mesh->default_uv_map_name();
           const bool is_active_color_attribute = name_copy.c_str() ==
                                                  StringRef(mesh->active_color_attribute);
           const bool is_default_color_attribute = name_copy.c_str() ==
@@ -473,6 +493,8 @@ bool BKE_attribute_remove(AttributeOwner &owner, const StringRef name, ReportLis
           const int active_color_index = color_name_to_index(owner, mesh->active_color_attribute);
           const int default_color_index = color_name_to_index(owner,
                                                               mesh->default_color_attribute);
+          const int active_uv_index = uv_name_to_index(owner, mesh->active_uv_map_name());
+          const int default_uv_index = uv_name_to_index(owner, mesh->default_uv_map_name());
 
           if (!BM_data_layer_free_named(em->bm, data, name_copy.c_str())) {
             BLI_assert_unreachable();
@@ -487,6 +509,14 @@ bool BKE_attribute_remove(AttributeOwner &owner, const StringRef name, ReportLis
             BKE_id_attributes_default_color_set(
                 &mesh->id,
                 color_name_from_index(owner, color_clamp_index(owner, default_color_index)));
+          }
+          if (is_active_uv_attribute) {
+            mesh->uv_maps_active_set(
+                uv_name_from_index(owner, uv_clamp_index(owner, active_uv_index)));
+          }
+          if (is_default_uv_attribute) {
+            mesh->uv_maps_default_set(
+                uv_name_from_index(owner, uv_clamp_index(owner, default_uv_index)));
           }
 
           if (type == CD_PROP_FLOAT2 && domain == int(AttrDomain::Corner)) {
@@ -516,8 +546,12 @@ bool BKE_attribute_remove(AttributeOwner &owner, const StringRef name, ReportLis
     Mesh *mesh = owner.get_mesh();
     const bool is_active_color_attribute = name_copy == StringRef(mesh->active_color_attribute);
     const bool is_default_color_attribute = name_copy == StringRef(mesh->default_color_attribute);
+    const bool is_active_uv_attribute = name_copy == mesh->active_uv_map_name();
+    const bool is_default_uv_attribute = name_copy == mesh->default_uv_map_name();
     const int active_color_index = color_name_to_index(owner, mesh->active_color_attribute);
     const int default_color_index = color_name_to_index(owner, mesh->default_color_attribute);
+    const int active_uv_index = uv_name_to_index(owner, mesh->active_uv_map_name());
+    const int default_uv_index = uv_name_to_index(owner, mesh->default_uv_map_name());
 
     if (!attributes->remove(name_copy)) {
       BLI_assert_unreachable();
@@ -530,6 +564,13 @@ bool BKE_attribute_remove(AttributeOwner &owner, const StringRef name, ReportLis
     if (is_default_color_attribute) {
       BKE_id_attributes_default_color_set(
           &mesh->id, color_name_from_index(owner, color_clamp_index(owner, default_color_index)));
+    }
+    if (is_active_uv_attribute) {
+      mesh->uv_maps_active_set(uv_name_from_index(owner, uv_clamp_index(owner, active_uv_index)));
+    }
+    if (is_default_uv_attribute) {
+      mesh->uv_maps_default_set(
+          uv_name_from_index(owner, uv_clamp_index(owner, default_uv_index)));
     }
 
     if (bke::mesh::is_uv_map(metadata)) {
@@ -597,8 +638,9 @@ CustomDataLayer *BKE_attribute_search_for_write(AttributeOwner &owner,
 }
 
 int BKE_attributes_length(const AttributeOwner &owner,
-                          AttrDomainMask domain_mask,
-                          eCustomDataMask mask)
+                          const AttrDomainMask domain_mask,
+                          const eCustomDataMask mask,
+                          const bool include_anonymous)
 {
   using namespace blender;
   if (owner.type() == AttributeOwnerType::Mesh) {
@@ -609,15 +651,23 @@ int BKE_attributes_length(const AttributeOwner &owner,
       if (customdata == nullptr) {
         continue;
       }
-
-      if ((1 << int(domain)) & domain_mask) {
-        length += CustomData_number_of_layers_typemask(customdata, mask);
+      if (!customdata || !((1 << int(domain)) & domain_mask)) {
+        continue;
+      }
+      for (const CustomDataLayer &layer : Span(customdata->layers, customdata->totlayer)) {
+        if (!(mask & CD_TYPE_AS_MASK(eCustomDataType(layer.type)))) {
+          continue;
+        }
+        if (!include_anonymous && bke::attribute_name_is_anonymous(layer.name)) {
+          continue;
+        }
+        length++;
       }
     }
     return length;
   }
   const bke::AttributeStorage &storage = *owner.get_storage();
-  if (domain_mask == ATTR_DOMAIN_MASK_ALL && mask == CD_MASK_PROP_ALL) {
+  if (include_anonymous && domain_mask == ATTR_DOMAIN_MASK_ALL && mask == CD_MASK_PROP_ALL) {
     return storage.count();
   }
   int length = 0;
@@ -626,6 +676,9 @@ int BKE_attributes_length(const AttributeOwner &owner,
       return;
     }
     if (!(CD_TYPE_AS_MASK(*bke::attr_type_to_custom_data_type(attr.data_type())) & mask)) {
+      return;
+    }
+    if (!include_anonymous && bke::attribute_name_is_anonymous(attr.name())) {
       return;
     }
     length++;
@@ -784,34 +837,11 @@ int *BKE_attributes_active_index_p(AttributeOwner &owner)
   return nullptr;
 }
 
-CustomData *BKE_attributes_iterator_next_domain(AttributeOwner &owner, CustomDataLayer *layers)
-{
-  const std::array<DomainInfo, ATTR_DOMAIN_NUM> info = get_domains(owner);
-
-  bool use_next = (layers == nullptr);
-
-  for (const int domain : IndexRange(ATTR_DOMAIN_NUM)) {
-    CustomData *customdata = info[domain].customdata;
-    if (customdata == nullptr) {
-      continue;
-    }
-    if (customdata->layers && customdata->totlayer) {
-      if (customdata->layers == layers) {
-        use_next = true;
-      }
-      else if (use_next) {
-        return customdata;
-      }
-    }
-  }
-
-  return nullptr;
-}
-
 std::optional<blender::StringRef> BKE_attribute_from_index(AttributeOwner &owner,
-                                                           int lookup_index,
-                                                           AttrDomainMask domain_mask,
-                                                           eCustomDataMask layer_mask)
+                                                           const int lookup_index,
+                                                           const AttrDomainMask domain_mask,
+                                                           const eCustomDataMask layer_mask,
+                                                           const bool include_anonymous)
 {
   using namespace blender;
   if (owner.type() == AttributeOwnerType::Mesh) {
@@ -820,26 +850,22 @@ std::optional<blender::StringRef> BKE_attribute_from_index(AttributeOwner &owner
     int index = 0;
     for (const int domain : IndexRange(ATTR_DOMAIN_NUM)) {
       CustomData *customdata = info[domain].customdata;
-
       if (!customdata || !((1 << int(domain)) & domain_mask)) {
         continue;
       }
-
-      for (int i = 0; i < customdata->totlayer; i++) {
-        if (!(layer_mask & CD_TYPE_AS_MASK(eCustomDataType(customdata->layers[i].type))) ||
-            (customdata->layers[i].flag & CD_FLAG_TEMPORARY))
-        {
+      for (const CustomDataLayer &layer : Span(customdata->layers, customdata->totlayer)) {
+        if (!(layer_mask & CD_TYPE_AS_MASK(eCustomDataType(layer.type)))) {
           continue;
         }
-
-        if (index == lookup_index) {
-          return customdata->layers[i].name;
+        if (!include_anonymous && bke::attribute_name_is_anonymous(layer.name)) {
+          continue;
         }
-
+        if (index == lookup_index) {
+          return layer.name;
+        }
         index++;
       }
     }
-
     return std::nullopt;
   }
 
@@ -856,6 +882,9 @@ std::optional<blender::StringRef> BKE_attribute_from_index(AttributeOwner &owner
     if (!(CD_TYPE_AS_MASK(*bke::attr_type_to_custom_data_type(attr.data_type())) & layer_mask)) {
       return true;
     }
+    if (!include_anonymous && bke::attribute_name_is_anonymous(attr.name())) {
+      return true;
+    }
     if (index == lookup_index) {
       result = attr.name();
       return false;
@@ -869,7 +898,8 @@ std::optional<blender::StringRef> BKE_attribute_from_index(AttributeOwner &owner
 int BKE_attribute_to_index(const AttributeOwner &owner,
                            const StringRef name,
                            AttrDomainMask domain_mask,
-                           eCustomDataMask layer_mask)
+                           eCustomDataMask layer_mask,
+                           const bool include_anonymous)
 {
   using namespace blender;
   if (owner.type() == AttributeOwnerType::Mesh) {
@@ -881,18 +911,16 @@ int BKE_attribute_to_index(const AttributeOwner &owner,
       if (!customdata || !((1 << int(domain)) & domain_mask)) {
         continue;
       }
-      for (int i = 0; i < customdata->totlayer; i++) {
-        const CustomDataLayer *layer = customdata->layers + i;
-        if (!(layer_mask & CD_TYPE_AS_MASK(eCustomDataType(layer->type))) ||
-            (layer->flag & CD_FLAG_TEMPORARY))
-        {
+      for (const CustomDataLayer &layer : Span(customdata->layers, customdata->totlayer)) {
+        if (!(layer_mask & CD_TYPE_AS_MASK(eCustomDataType(layer.type)))) {
           continue;
         }
-
-        if (layer->name == name) {
+        if (!include_anonymous && bke::attribute_name_is_anonymous(layer.name)) {
+          continue;
+        }
+        if (layer.name == name) {
           return index;
         }
-
         index++;
       }
     }
@@ -909,6 +937,9 @@ int BKE_attribute_to_index(const AttributeOwner &owner,
       return true;
     }
     if (!(CD_TYPE_AS_MASK(*bke::attr_type_to_custom_data_type(attr.data_type())) & layer_mask)) {
+      return true;
+    }
+    if (!include_anonymous && bke::attribute_name_is_anonymous(attr.name())) {
       return true;
     }
     if (attr.name() == name) {
