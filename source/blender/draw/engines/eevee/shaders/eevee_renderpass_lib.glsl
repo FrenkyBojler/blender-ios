@@ -46,27 +46,27 @@ void output_aov(float4 color, float value, uint hash)
   uint total_len = uniform_buf.render_pass.aovs.color_len + uniform_buf.render_pass.aovs.value_len;
 
   /* Search hashes in uint4 packs; 4 comparisons at once to find the index of a candidate. */
-  uint i;
-  for (i = 0u; i < AOV_MAX && i < total_len; i += 4u) {
-    bool4 cmp_mask = equal(uniform_buf.render_pass.aovs.hash[i >> 2u], uint4(hash));
+  uint aov_index;
+  for (aov_index = 0u; aov_index < AOV_MAX && aov_index < total_len; aov_index += 4u) {
+    bool4 cmp_mask = equal(uniform_buf.render_pass.aovs.hash[aov_index >> 2u], uint4(hash));
     if (any(cmp_mask)) {
       /* Left-reduce of `cmp_mask` to find the index of candidate. */
-      i += (cmp_mask[0] ? 0u : (cmp_mask[1] ? 1u : (cmp_mask[2] ? 2u : 3u)));
+      aov_index += (cmp_mask[0] ? 0u : (cmp_mask[1] ? 1u : (cmp_mask[2] ? 2u : 3u)));
       break;
     }
   }
 
   /* If a hash was found, output to texture array layer. */
-  if (i != AOV_MAX) {
+  if (aov_index != AOV_MAX) {
     /* Value hashes are stored after color hashes, so we have to subtract for the value offset. */
-    bool is_value = i >= uniform_buf.render_pass.aovs.color_len;
+    bool is_value = aov_index >= uniform_buf.render_pass.aovs.color_len;
     if (is_value) {
-      i += uniform_buf.render_pass.value_len - uniform_buf.render_pass.aovs.color_len;
-      imageStoreFast(rp_value_img, int3(int2(gl_FragCoord.xy), i), float4(value));
+      aov_index += uniform_buf.render_pass.value_len - uniform_buf.render_pass.aovs.color_len;
+      imageStoreFast(rp_value_img, int3(int2(gl_FragCoord.xy), aov_index), float4(value));
     }
     else {
-      i += uniform_buf.render_pass.color_len;
-      imageStoreFast(rp_color_img, int3(int2(gl_FragCoord.xy), i), color);
+      aov_index += uniform_buf.render_pass.color_len;
+      imageStoreFast(rp_color_img, int3(int2(gl_FragCoord.xy), aov_index), color);
     }
   }
 #endif

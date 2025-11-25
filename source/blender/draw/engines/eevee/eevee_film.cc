@@ -88,9 +88,9 @@ void Film::init_aovs(const Set<std::string> &passes_used_by_viewport_compositor)
     bool is_value = (aov->type == AOV_TYPE_VALUE);
     int &index = is_value ? aovs_info.value_len : aovs_info.color_len;
 
-    /* Pack hash in `AOVsInfoData`. We place value AOVs after color AOVs. */
-    int index_actual = is_value ? aovs_info.color_len + index : index;
-    aovs_info.hash[index_actual / 4][index_actual % 4] = BLI_hash_string(aov->name);
+    /* Pack hash in `AOVsInfoData` uint4 array. We place value AOVs after color AOVs. */
+    int combined_index = is_value ? aovs_info.color_len + index : index;
+    aovs_info.hash[combined_index / 4][combined_index % 4] = BLI_hash_string(aov->name);
 
     index++;
   }
