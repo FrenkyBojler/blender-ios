@@ -1269,12 +1269,10 @@ static void update_triangle_and_offsets_changed(const Span<float3> positions,
   array_utils::scatter(src_sizes.as_span(), unchanged_shapes, r_triangle_offsets);
   array_utils::scatter(changed_sizes.as_span(), changed_shapes, r_triangle_offsets);
 
-  offset_indices::accumulate_counts_to_offsets(r_triangle_offsets);
+  const OffsetIndices<int> triangle_offsets = offset_indices::accumulate_counts_to_offsets(
+      r_triangle_offsets);
 
   r_triangles.resize(r_triangle_offsets.last());
-
-  const OffsetIndices<int> triangle_offsets = OffsetIndices<int>(r_triangle_offsets);
-
   array_utils::copy_group_to_group(src_triangles.offsets,
                                    triangle_offsets,
                                    unchanged_shapes,
