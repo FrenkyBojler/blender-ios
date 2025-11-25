@@ -16,19 +16,19 @@ void main()
 {
   /* Base color is a mix of [grid, emphasis] by vertex alpha, which incorporates level
    * and subpixel fades only. */
-  out_color = mix(theme.colors.grid, theme.colors.grid_emphasis, local_alpha);
-  out_color.a *= local_alpha;
+  out_color = mix(theme.colors.grid, theme.colors.grid_emphasis, vertex_out.alpha);
+  out_color.a *= vertex_out.alpha;
 
   /* Primary axes colors override base color. */
-  if (flag_test(grid_flag, AXIS_X) && reduce_max(abs(local_pos.yz)) < 1e-4f) {
+  if (flag_test(grid_flag, AXIS_X) && reduce_max(abs(vertex_out.pos.yz)) < 1e-4f) {
     out_color.rgb = theme.colors.grid_axis_x.rgb;
     out_color.a = max(out_color.a, theme.colors.grid_axis_x.a);
   }
-  else if (flag_test(grid_flag, AXIS_Y) && reduce_max(abs(local_pos.xz)) < 1e-4f) {
+  else if (flag_test(grid_flag, AXIS_Y) && reduce_max(abs(vertex_out.pos.xz)) < 1e-4f) {
     out_color.rgb = theme.colors.grid_axis_y.rgb;
     out_color.a = max(out_color.a, theme.colors.grid_axis_y.a);
   }
-  else if (flag_test(grid_flag, AXIS_Z) && reduce_max(abs(local_pos.xy)) < 1e-4f) {
+  else if (flag_test(grid_flag, AXIS_Z) && reduce_max(abs(vertex_out.pos.xy)) < 1e-4f) {
     out_color.rgb = theme.colors.grid_axis_z.rgb;
     out_color.a = max(out_color.a, theme.colors.grid_axis_z.a);
   }
@@ -36,16 +36,16 @@ void main()
   /* Fragment alpha. */
   if (drw_view_is_perspective()) {
     /* Fade at edge of grid level. */
-    float length_fade = 1.f - min(1.f, dot(local_coord, local_coord));
+    float length_fade = 1.0f - min(1.0f, dot(vertex_out.coord, vertex_out.coord));
     out_color.a *= pow2f(length_fade);
 
     /* Compute normalized view vector. */
-    float3 V = drw_view_position() - local_pos;
+    float3 V = drw_view_position() - vertex_out.pos;
     float dist = length(V);
     V /= dist;
 
     /* Add fade at steep angles for contents of the floor plane. */
-    if (local_pos.z == 0.0f) {
+    if (vertex_out.pos.z == 0.0f) {
       out_color.a *= 1.0f - pow3f(1.0f - abs(V.z));
     }
 
@@ -56,7 +56,7 @@ void main()
   else {
     /* Fade at edge of grid level in orthographic, in case of rather small units. */
     if (!flag_test(grid_flag, PLANE_IMAGE)) {
-      float length_fade = 1.f - min(1.f, dot(local_coord, local_coord));
+      float length_fade = 1.0f - min(1.0f, dot(vertex_out.coord, vertex_out.coord));
       out_color.a *= pow2f(length_fade);
     }
 
@@ -68,12 +68,12 @@ void main()
 
     if (flag_test(grid_flag, PLANE_XY)) {
       float angle = 1.0f - abs(drw_view().viewinv[2].z);
-      out_color.a *= (1.f - pow3f(angle));
+      out_color.a *= (1.0f - pow3f(angle));
     }
   }
 
   /* Viewport antialiasing output. */
   if (out_color.a != 0.0f) {
-    line_output = pack_line_data(gl_FragCoord.xy, edge_start, edge_pos);
+    line_output = pack_line_data(gl_FragCoord.xy, vertex_out.edge_start, vertex_out.edge_pos);
   }
 }

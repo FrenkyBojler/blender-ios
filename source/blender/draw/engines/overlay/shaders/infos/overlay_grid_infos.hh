@@ -14,10 +14,10 @@
 #include "overlay_common_infos.hh"
 
 /* We use the normalized local position to avoid precision loss during interpolation. */
-GPU_SHADER_INTERFACE_INFO(overlay_grid_iface)
-SMOOTH(float3, local_pos)
-SMOOTH(float2, local_coord)
-FLAT(float, local_alpha)
+GPU_SHADER_NAMED_INTERFACE_INFO(overlay_grid_iface, vertex_out)
+SMOOTH(float3, pos)
+SMOOTH(float2, coord)
+FLAT(float, alpha)
 FLAT(float2, edge_start)
 NO_PERSPECTIVE(float2, edge_pos)
 GPU_SHADER_INTERFACE_END()
