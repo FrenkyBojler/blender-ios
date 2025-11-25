@@ -1547,7 +1547,7 @@ static void id_override_library_resync_hierarchy_process(bContext *C,
   BlendFileReadReport report{};
   report.reports = reports;
 
-  /* In some cases, resync issues can be caused by missing hierarcy data (e.g. some liboverrides
+  /* In some cases, resync issues can be caused by missing hierarchy data (e.g. some liboverrides
    * have lost their hierarchy root ID pointer). So always attempt to fix/rebuild invalid hierarchy
    * info when this 'troubleshooting' tool is used.
    *
