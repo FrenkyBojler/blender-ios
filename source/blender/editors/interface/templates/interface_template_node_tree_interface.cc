@@ -109,7 +109,9 @@ class NodeSocketViewItem : public BasicTreeViewItem {
     row.use_property_decorate_set(false);
 
     uiLayout *input_socket_layout = &row.row(true);
+    bool is_used = true;
     if (socket_.flag & NODE_INTERFACE_SOCKET_INPUT) {
+      is_used = this->is_input_linked();
       /* Context is not used by the template function. */
       uiTemplateNodeSocket(input_socket_layout, /*C*/ nullptr, socket_.socket_color());
     }
@@ -118,7 +120,9 @@ class NodeSocketViewItem : public BasicTreeViewItem {
       input_socket_layout->label("", ICON_BLANK1);
     }
 
-    this->add_label(row, IFACE_(label_.c_str()));
+    uiLayout &label_layout = row.row(true);
+    label_layout.active_set(is_used);
+    this->add_label(label_layout, IFACE_(label_.c_str()));
 
     uiLayout *output_socket_layout = &row.row(true);
     if (socket_.flag & NODE_INTERFACE_SOCKET_OUTPUT) {
@@ -129,6 +133,18 @@ class NodeSocketViewItem : public BasicTreeViewItem {
       /* Blank item to align input socket labels with outputs. */
       output_socket_layout->label("", ICON_BLANK1);
     }
+  }
+
+  bool is_input_linked() const
+  {
+    nodetree_.ensure_interface_cache();
+    nodetree_.ensure_topology_cache();
+    const int index = nodetree_.interface_input_index(socket_);
+    const Span<const bNode *> group_input_nodes = nodetree_.group_input_nodes();
+    return std::any_of(group_input_nodes.begin(), group_input_nodes.end(), [&](const bNode *node) {
+      const bNodeSocket &socket = node->output_socket(index);
+      return socket.is_directly_linked();
+    });
   }
 
  protected:
