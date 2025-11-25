@@ -1,4 +1,4 @@
 Referenced by issue #147381, VSE: Mask application transparency incorrect in preview (5.0 regression)
 Referenced by pull request #147892, Fix #147381: VSE preview shows incorrect transparency for masks
 Referenced by commit 218317b8b9bc0b4ebf73bcfd5d71a36fbcd15e86, Fix #147381: VSE preview shows incorrect transparency for masks
-Referenced by issue #150156, VSE WEBP sequence with transparency artifacts
+Referenced by issue #150156, VSE: Preview artifacts when images have non-zero RGB in transparencies (e.g. some WebP)
