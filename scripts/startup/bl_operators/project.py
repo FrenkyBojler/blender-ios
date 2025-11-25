@@ -4,6 +4,7 @@
 
 from pathlib import Path
 import tomllib
+import atexit
 
 import bpy
 from bpy.types import Operator
@@ -104,26 +105,30 @@ def load_project_for_blend_path(context, blend_path: str):
         exceptions indicate unanticipated errors (a.k.a. bugs).
     """
 
-    context.project.clear()
-
     if blend_path == "":
         # Not an on-disk blend file, so there is no project to load.
+        context.project.clear()
         return
 
     root_path = find_project_root_from_blend_file_path(Path(blend_path))
     if root_path is None:
         # No project.
+        context.project.clear()
         return
 
-    load_project(bpy.context, root_path)
+    if context.project.data is not None and root_path == context.project.data.root_path:
+        # We already have this project loaded, and we don't want to obliterate
+        # local unsaved changes if auto-save isn't turned on.
+        return
 
+    # Load project.
     config = read_project_toml_config(root_path)
     if config is None:
         raise ProjectLoadException("Invalid project: no '{}' found.".format(PROJECT_CONFIG))
 
     validate_config(config)
 
-    bpy.context.project.clear()
+    context.project.clear()
 
     context.project.init(config["name"], str(root_path))
 
@@ -196,24 +201,31 @@ class PROJECT_OP_SaveProject(Operator):
 # Auto-loading / clearing of projects when loading/saving blend files.
 
 @bpy.app.handlers.persistent
-def on_blend_load(blend_path: str) -> None:
-    if bpy.context.project.data is not None and bpy.context.project.is_dirty:
-        # TODO: make this conditional on auto-save being enabled or not.
+def on_blend_load(blend_path: str):
+    use_autosave = bpy.context.preferences.use_project_auto_save
+    if bpy.context.preferences.use_project_auto_save and bpy.context.project.is_dirty and bpy.context.project.data is not None:
         save_project(bpy.context.project)
 
     load_project_for_blend_path(bpy.context, blend_path)
 
 
 @bpy.app.handlers.persistent
-def on_blend_save(blend_path: str) -> None:
-    """ This is needed due to cases like a fresh new blend file being saved for
-        the first time in a project.
-    """
+def on_blend_save(blend_path: str):
+    # Auto-save on blend save.
+    if bpy.context.preferences.use_project_auto_save and bpy.context.project.is_dirty and bpy.context.project.data is not None:
+        save_project(bpy.context.project)
 
-    if bpy.context.project.data is not None:
-        return
+    # This is needed so that when saving a new file to a directory
+    # in a project, the project is loaded.
+    if bpy.context.project.data is None:
+        load_project_for_blend_path(bpy.context, blend_path)
 
-    load_project_for_blend_path(bpy.context, blend_path)
+
+def on_exit():
+    # TODO: Python's `atexit`, which this is registered with, doesn't seem to work?
+    print("!!!!!!!!TESTING THAT THIS ACTUALLY EXECUTES ON EXIT!!!!!!!")
+    if bpy.context.preferences.use_project_auto_save and bpy.context.project.is_dirty and bpy.context.project.data is not None:
+        save_project(bpy.context.project)
 
 
 # -----------------------------------------------------------------------------
@@ -228,8 +240,10 @@ classes = (
 def register():
     bpy.app.handlers.load_pre.append(on_blend_load)
     bpy.app.handlers.save_post.append(on_blend_save)
+    atexit.register(on_exit)
 
 
 def unregister():
     bpy.app.handlers.load_pre.remove(on_blend_load)
     bpy.app.handlers.save_post.append(on_blend_save)
+    atexit.unregister(on_exit)
