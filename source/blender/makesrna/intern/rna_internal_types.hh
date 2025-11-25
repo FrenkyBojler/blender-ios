@@ -429,7 +429,7 @@ struct PropertyRNA {
   /** Optional function to dynamically override the user-readable #name. */
   PropUINameFunc ui_name_func;
 
-    /** Optional function to dynamically override the user-readable #description. */
+  /** Optional function to dynamically override the user-readable #description. */
   PropUINameFunc ui_description_func;
 
   /** Override handling callbacks (diff is also used for comparison). */
