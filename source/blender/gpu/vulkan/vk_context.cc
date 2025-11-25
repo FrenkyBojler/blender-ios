@@ -323,7 +323,7 @@ void VKContext::update_pipeline_data(const VKFrameBuffer &framebuffer,
 
   /* Dynamic state stencil state */
   if (framebuffer.stencil_attachment_format_get() != VK_FORMAT_UNDEFINED &&
-      state_manager.state.stencil_op != GPU_STENCIL_OP_NONE)
+      state_manager.state.stencil_test != GPU_STENCIL_NONE)
   {
     r_pipeline_data.stencil_state = {state_manager.mutable_state.stencil_compare_mask,
                                      state_manager.mutable_state.stencil_reference,

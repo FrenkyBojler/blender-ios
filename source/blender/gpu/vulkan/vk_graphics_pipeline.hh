@@ -366,7 +366,7 @@ struct VKGraphicsPipelineCreateInfoBuilder {
     if (is_line_topology) {
       vk_dynamic_states.append(VK_DYNAMIC_STATE_LINE_WIDTH);
     }
-    if (shaders_info.has_stencil && shaders_info.state.stencil_op != GPU_STENCIL_OP_NONE) {
+    if (shaders_info.has_stencil && shaders_info.state.stencil_test != GPU_STENCIL_NONE) {
       vk_dynamic_states.append(VK_DYNAMIC_STATE_STENCIL_COMPARE_MASK);
       vk_dynamic_states.append(VK_DYNAMIC_STATE_STENCIL_REFERENCE);
       vk_dynamic_states.append(VK_DYNAMIC_STATE_STENCIL_WRITE_MASK);
