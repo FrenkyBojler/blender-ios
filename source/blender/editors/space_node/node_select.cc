@@ -1419,9 +1419,11 @@ static std::string node_find_create_string_value(const bNode &node, const String
   return fmt::format("{}: \"{}\" ({})", TIP_("String"), str, node.name);
 }
 
-static std::string node_find_create_warning(const bNode &node, const StringRef message)
+static std::string node_find_create_warning(const bNode &node,
+                                            const nodes::geo_eval_log::NodeWarning warning)
 {
-  return fmt::format("{}: \"{}\" ({})", TIP_("Warning"), message, node.name);
+  return fmt::format(
+      "{}: \"{}\" ({})", nodes::node_warning_type_name(warning.type), warning.message, node.name);
 }
 
 static std::string node_find_create_data_block_value(const bNode &node, const ID &id)
@@ -1504,8 +1506,7 @@ static void node_find_update_fn(const bContext *C,
       if (nodes::geo_eval_log::GeoNodeLog *node_log = tree_log->nodes.lookup_ptr(node->identifier))
       {
         for (const nodes::geo_eval_log::NodeWarning &warning : node_log->warnings) {
-          const StringRef search_str = scope.add_value(
-              node_find_create_warning(*node, warning.message));
+          const StringRef search_str = scope.add_value(node_find_create_warning(*node, warning));
           search.add(search_str, &scope.construct<Item>(Item{node, search_str}));
         }
       }
