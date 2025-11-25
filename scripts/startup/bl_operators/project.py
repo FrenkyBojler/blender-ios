@@ -185,7 +185,7 @@ class PROJECT_OP_SaveProject(Operator):
 
     @classmethod
     def poll(cls, context):
-        return context.project.data is not None and context.project.is_dirty
+        return context.project.data is not None
 
     def execute(self, context):
         try:

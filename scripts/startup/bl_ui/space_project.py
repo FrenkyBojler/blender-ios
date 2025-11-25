@@ -5,6 +5,8 @@
 import bpy
 from bpy.types import Header, Menu, Panel
 
+from bpy.app.translations import pgettext_iface
+
 
 MAIN_SECTION_NAME = "General"
 
@@ -79,6 +81,17 @@ class PROJECT_PT_save_project(Panel):
         layout.operator_context = 'EXEC_AREA'
 
         layout.menu("PROJECT_MT_save_load", text="", icon='COLLAPSEMENU')
+
+        # Save button.
+        if not context.preferences.use_project_auto_save and context.project.data is not None:
+            # Show '*' to let users know the project has been modified.
+            # It is shown to the left so that it is visible when the sidebar is narrow,
+            # and for consistency with unsaved files in the title bar.
+            layout.operator(
+                "project.save_project",
+                text=("* " if context.project.is_dirty else "") + pgettext_iface("Save Project"),
+                translate=False,
+            )
 
 
 # -----------------------------------------------------------------------------
