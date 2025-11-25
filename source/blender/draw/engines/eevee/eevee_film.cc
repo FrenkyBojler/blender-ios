@@ -118,14 +118,18 @@ gpu::Texture *Film::get_aov_texture(ViewLayerAOV *aov)
   bool is_value = (aov->type == AOV_TYPE_VALUE);
   Texture &accum_tx = is_value ? value_accum_tx_ : color_accum_tx_;
 
-  /* Find AOV index. Hashes are packed in tuples of 4. */
+  /* Find AOV index next, by searching for the matching hash. */
   uint hash = BLI_hash_string(aov->name);
   int aov_index = -1;
-  for (int i : IndexRange(aovs_info.color_len + aovs_info.value_len)) {
-    uint candidate_hash = aovs_info.hash[i / 4][i % 4];
+
+  /* Hashes are packed in tuples of 4, and value hashes are placed after color hashes,
+   * so we iterate only the relevant range. */
+  IndexRange color_range(0, aovs_info.color_len);
+  IndexRange value_range(aovs_info.color_len, aovs_info.value_len);
+  for (int i : (is_value ? value_range : color_range)) {
+    uint candidate_hash = aovs_info.hash[i >> 2][i % 4];
     if (candidate_hash == hash) {
-      /* We subtract color_len, as color and value hashes are packed after each other. */
-      aov_index = i - (i > aovs_info.color_len ? aovs_info.color_len : 0);
+      aov_index = i - (is_value ? aovs_info.color_len : 0);
       break;
     }
   }
