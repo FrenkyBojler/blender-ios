@@ -59,7 +59,7 @@ class DrawingRuntime {
    */
   mutable SharedCache<Vector<int3>> triangles_cache;
   /**
-   * Shape cache for the drawing. Will be null when all curves are they're own shapes.
+   * Shape cache for the drawing. Will be null when all curves are their own shapes.
    */
   mutable SharedCache<std::optional<Vector<int>>> shape_map_cache;
   mutable SharedCache<std::optional<Vector<int>>> shape_offset_cache;
@@ -102,7 +102,7 @@ class Drawing : public ::GreasePencilDrawing {
   bke::CurvesGeometry &strokes_for_write();
 
   /**
-   * The curves in each shape. Will return null when all shapes only have one curve.
+   * The curves in each shape. Will return nullopt when all shapes only have one curve.
    */
   std::optional<GroupedSpan<int>> shapes() const;
   /**
