@@ -1192,20 +1192,15 @@ static void grease_pencil_geom_batch_ensure(Object &object,
       num_points += points.size();
     };
 
+    total_triangles_num += sum_group_sizes(triangles.offsets, visible_shapes);
+
     /* Calculate the vertex offsets for all the visible curves. */
     if (!shapes) {
-      visible_shapes.foreach_index([&](const int curve_i) {
-        total_triangles_num += triangles[curve_i].size();
-
-        add_curve(curve_i);
-      });
+      visible_shapes.foreach_index([&](const int curve_i) { add_curve(curve_i); });
     }
     else {
       visible_shapes.foreach_index([&](const int shape_index) {
         const Span<int> shape = (*shapes)[shape_index];
-
-        total_triangles_num += triangles[shape_index].size();
-
         for (const int pos : shape.index_range()) {
           const int curve_i = shape[pos];
           add_curve(curve_i);
