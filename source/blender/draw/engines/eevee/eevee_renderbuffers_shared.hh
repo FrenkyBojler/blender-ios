@@ -14,9 +14,9 @@
 namespace blender::eevee {
 #endif
 
-/* Max is capped at 128 not because of buffer size, but because the `output_aov`
- * function performs a linear search through all the hashes. If we can find a
- * way to avoid this we can bump this number up. */
+/* Theoretical max is 512 with memory restrictions.
+ * However, the `output_aov()` function performs a linear search inside all the hashes.
+ * If we can find a way to avoid this we can bump this number up. */
 #define AOV_MAX 128
 
 struct AOVsInfoData {
