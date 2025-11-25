@@ -493,8 +493,10 @@ static void node_foreach_working_space_color(ID *id, const IDTypeForeachColorFun
       else if (socket->type == SOCK_VECTOR && socket->default_value &&
                (STREQ(socket->name, "Subsurface Radius") ||
                 STREQ(socket->name, "Subsurface Radius Scale") ||
-                (node->type_legacy == SH_NODE_SUBSURFACE_SCATTERING &&
-                 STREQ(socket->name, "Radius"))))
+                (STREQ(node->idname, "ShaderNodeSubsurfaceScattering") &&
+                 STREQ(socket->name, "Radius")) ||
+                (STREQ(node->idname, "ShaderNodeBsdfMetallic") &&
+                 (STREQ(socket->name, "IOR") || STREQ(socket->name, "Extinction")))))
       {
         bNodeSocketValueVector *vec = static_cast<bNodeSocketValueVector *>(socket->default_value);
         float length;
@@ -4995,7 +4997,14 @@ std::optional<StringRefNull> node_socket_short_label(const bNodeSocket &sock)
 
 StringRefNull node_socket_label(const bNodeSocket &sock)
 {
-  return (sock.label[0] != '\0') ? sock.label : sock.name;
+  /* The node is not explicitly defined. */
+  if (sock.runtime->declaration == nullptr) {
+    return (sock.label[0] != '\0') ? sock.label : sock.name;
+  }
+  if (sock.runtime->declaration->label_fn) {
+    return (*sock.runtime->declaration->label_fn)(sock.owner_node());
+  }
+  return sock.name;
 }
 
 const char *node_socket_translation_context(const bNodeSocket &sock)

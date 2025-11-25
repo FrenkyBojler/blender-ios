@@ -8,6 +8,9 @@
 
 #pragma once
 
+#include "BLI_enum_flags.hh"
+#include "BLI_map.hh"
+
 #include "bmesh_class.hh"
 
 struct BMEditSelection {
@@ -31,7 +34,7 @@ enum class BMSelectFlushFlag : uint8_t {
    */
   Down = (1 << 3),
 };
-ENUM_OPERATORS(BMSelectFlushFlag, BMSelectFlushFlag::Down)
+ENUM_OPERATORS(BMSelectFlushFlag)
 
 #define BMSelectFlushFlag_All \
   (BMSelectFlushFlag::RecalcLenVert | BMSelectFlushFlag::RecalcLenEdge | \
@@ -208,8 +211,11 @@ struct GHash *BM_select_history_map_create(BMesh *bm);
 /**
  * Map arguments may all be the same pointer.
  */
-void BM_select_history_merge_from_targetmap(
-    BMesh *bm, GHash *vert_map, GHash *edge_map, GHash *face_map, bool use_chain);
+void BM_select_history_merge_from_targetmap(BMesh *bm,
+                                            blender::Map<void *, void *> *vert_map,
+                                            blender::Map<void *, void *> *edge_map,
+                                            blender::Map<void *, void *> *face_map,
+                                            bool use_chain);
 
 #define BM_SELECT_HISTORY_BACKUP(bm) \
   { \

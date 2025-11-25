@@ -22,6 +22,11 @@ BLOCKLIST_ALL = [
     "visibility_particles.blend",
     # Temporarily blocked for 4.4 lib upgrade, due to PNG alpha minor difference.
     "image_log_osl.blend",
+    # Tests for EEVEE-only setting (duplicates from the Cycles perspective)
+    "camera_depth_of_field_jittered.blend",
+    "shadow_resolution.blend",
+    "shadow_min_pool_size.blend",
+    "shadow_resolution_scale.blend"
 ]
 
 # Blocklist for device + build configuration that does not support OSL at all.
@@ -293,7 +298,7 @@ def main():
         report.set_fail_threshold(0.032)
 
     # Layer mixing is different between SVM and OSL, so a few tests have
-    # noticably different noise causing OSL Principled BSDF tests to fail.
+    # noticeably different noise causing OSL Principled BSDF tests to fail.
     if ((args.osl == 'all') and (test_dir_name == 'principled_bsdf')):
         report.set_fail_threshold(0.06)
 

@@ -649,7 +649,7 @@ static const EnumPropertyItem spreadsheet_table_id_type_items[] = {
 #  include "BKE_brush.hh"
 #  include "BKE_context.hh"
 #  include "BKE_global.hh"
-#  include "BKE_icons.h"
+#  include "BKE_icons.hh"
 #  include "BKE_idprop.hh"
 #  include "BKE_image.hh"
 #  include "BKE_key.hh"
@@ -747,7 +747,7 @@ static StructRNA *rna_Space_refine(PointerRNA *ptr)
 
 static ScrArea *rna_area_from_space(const PointerRNA *ptr)
 {
-  RNA_struct_is_a(ptr->type, &RNA_Space);
+  BLI_assert(RNA_struct_is_a(ptr->type, &RNA_Space));
   bScreen *screen = reinterpret_cast<bScreen *>(ptr->owner_id);
   SpaceLink *link = static_cast<SpaceLink *>(ptr->data);
   return BKE_screen_find_area_from_space(screen, link);
@@ -2447,7 +2447,7 @@ static void rna_SpaceConsole_rect_update(Main * /*bmain*/, Scene * /*scene*/, Po
 
 static void rna_SequenceEditor_update_cache(Main * /*bmain*/, Scene *scene, PointerRNA * /*ptr*/)
 {
-  blender::seq::cache_cleanup(scene);
+  blender::seq::cache_cleanup(scene, blender::seq::CacheCleanup::FinalAndIntra);
 }
 
 static void seq_build_proxy(bContext *C, PointerRNA *ptr)
@@ -4859,6 +4859,15 @@ static void rna_def_space_view3d_overlay(BlenderRNA *brna)
   prop = RNA_def_property(srna, "show_stats", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "overlay.flag", V3D_OVERLAY_STATS);
   RNA_def_property_ui_text(prop, "Show Statistics", "Display scene statistics overlay text");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+
+  prop = RNA_def_property(srna, "show_performance", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "overlay.flag", V3D_OVERLAY_PERFORMANCE);
+  RNA_def_property_ui_text(prop,
+                           "Show Performance",
+                           "Display viewport performance timings:\n"
+                           " \u2022 Evaluation: Time to evaluate the dependency graph.\n"
+                           " \u2022 Synchronization: Time to build the GPU buffers.");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
 
   /* show camera composition guides */
