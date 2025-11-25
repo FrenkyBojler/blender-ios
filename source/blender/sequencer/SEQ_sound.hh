@@ -66,8 +66,8 @@ void *pitchmodifier_recreator(Strip * /*strip*/,
                               void *sound,
                               bool &needs_update);
 void *echomodifier_recreator(Strip * /*strip*/,
-                                StripModifierData *smd,
-                                void *sound,
-                                bool &needs_update);
+                             StripModifierData *smd,
+                             void *sound,
+                             bool &needs_update);
 
 }  // namespace blender::seq

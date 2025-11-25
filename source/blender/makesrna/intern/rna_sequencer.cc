@@ -4273,8 +4273,7 @@ static void rna_def_echo_modifier(BlenderRNA *brna)
   RNA_def_property_range(prop, 0.05, 5.0);
   RNA_def_property_ui_range(prop, 0.05f, 5.0f, 0.2f, -1);
   RNA_def_property_ui_text(prop, "Delay", "The delay of the effect in seconds");
-  RNA_def_property_update(
-      prop, NC_SCENE | ND_SEQUENCER, "rna_StripModifier_update");
+  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_StripModifier_update");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 
   prop = RNA_def_property(srna, "feedback", PROP_FLOAT, PROP_FACTOR);
@@ -4282,8 +4281,7 @@ static void rna_def_echo_modifier(BlenderRNA *brna)
   RNA_def_property_range(prop, 0, 1.0);
   RNA_def_property_ui_range(prop, 0.0, 1.0f, 0.1f, 2);
   RNA_def_property_ui_text(prop, "Feedback", "The feedback of the effect");
-  RNA_def_property_update(
-      prop, NC_SCENE | ND_SEQUENCER, "rna_StripModifier_update");
+  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_StripModifier_update");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 
   prop = RNA_def_property(srna, "mix", PROP_FLOAT, PROP_FACTOR);
@@ -4291,8 +4289,7 @@ static void rna_def_echo_modifier(BlenderRNA *brna)
   RNA_def_property_range(prop, 0, 1.0);
   RNA_def_property_ui_range(prop, 0.0f, 1.0f, 0.1f, 2);
   RNA_def_property_ui_text(prop, "Mix", "The wet/dry mix of the effect");
-  RNA_def_property_update(
-      prop, NC_SCENE | ND_SEQUENCER, "rna_StripModifier_update");
+  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_StripModifier_update");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
 }
 

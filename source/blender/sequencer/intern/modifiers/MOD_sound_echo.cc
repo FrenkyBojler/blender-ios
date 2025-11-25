@@ -39,7 +39,6 @@ static void echomodifier_draw(const bContext * /*C*/, Panel *panel)
   layout->use_property_split_set(true);
 
   uiLayout &col = layout->column(false);
- 
 
   col.prop(ptr, "delay", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   col.prop(ptr, "feedback", UI_ITEM_NONE, std::nullopt, ICON_NONE);
