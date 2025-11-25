@@ -5498,35 +5498,41 @@ static void achannel_setting_widget_cb(bContext *C, void *ale_npoin, void *setti
 }
 
 /* Helper to determine if 'iter' is parent/child/self of 'target' */
-static bool anim_list_el_is_related_or_self(bAnimListElem *target, bAnimListElem *iter) {
-    /* 1. Self */
-    if (target->data == iter->data) return true;
+static bool anim_list_el_is_related_or_self(bAnimListElem *target, bAnimListElem *iter)
+{
+  /* 1. Self */
+  if (target->data == iter->data)
+    return true;
 
-    /* 2. Hierarchy Roots (Summary/Scene) - Always keep structure visible */
-    if (iter->type == ANIMTYPE_SUMMARY || iter->type == ANIMTYPE_SCENE) return true;
+  /* 2. Hierarchy Roots (Summary/Scene) - Always keep structure visible */
+  if (iter->type == ANIMTYPE_SUMMARY || iter->type == ANIMTYPE_SCENE)
+    return true;
 
-    /* 3. Parent Containers
-       If the iterator is an Expander (like Object, Material) and shares the ID of the target,
-       it is the parent container. Keep it visible. */
-    const bAnimChannelType *acf_iter = ANIM_channel_get_typeinfo(iter);
-    if (acf_iter && acf_iter->channel_role == ACHANNEL_ROLE_EXPANDER) {
-         /* Check if they belong to the same ID */
-         if (target->id && iter->id && target->id == iter->id) return true;
-    }
+  /* 3. Parent Containers
+     If the iterator is an Expander (like Object, Material) and shares the ID of the target,
+     it is the parent container. Keep it visible. */
+  const bAnimChannelType *acf_iter = ANIM_channel_get_typeinfo(iter);
+  if (acf_iter && acf_iter->channel_role == ACHANNEL_ROLE_EXPANDER) {
+    /* Check if they belong to the same ID */
+    if (target->id && iter->id && target->id == iter->id)
+      return true;
+  }
 
-    /* 4. Group / F-Curve Relationships */
-    /* Target is FCurve, Iter is its Parent Group */
-    if (target->type == ANIMTYPE_FCURVE && iter->type == ANIMTYPE_GROUP) {
-         FCurve *fcu = (FCurve*)target->data;
-         if (fcu->grp == iter->data) return true;
-    }
-    /* Target is Group, Iter is its Child FCurve */
-    if (target->type == ANIMTYPE_GROUP && iter->type == ANIMTYPE_FCURVE) {
-         FCurve *fcu = (FCurve*)iter->data;
-         if (fcu->grp == target->data) return true;
-    }
+  /* 4. Group / F-Curve Relationships */
+  /* Target is FCurve, Iter is its Parent Group */
+  if (target->type == ANIMTYPE_FCURVE && iter->type == ANIMTYPE_GROUP) {
+    FCurve *fcu = (FCurve *)target->data;
+    if (fcu->grp == iter->data)
+      return true;
+  }
+  /* Target is Group, Iter is its Child FCurve */
+  if (target->type == ANIMTYPE_GROUP && iter->type == ANIMTYPE_FCURVE) {
+    FCurve *fcu = (FCurve *)iter->data;
+    if (fcu->grp == target->data)
+      return true;
+  }
 
-    return false;
+  return false;
 };
 
 /* callback for widget settings that need flushing */
@@ -5592,7 +5598,8 @@ static void achannel_setting_flush_widget_cb(bContext *C, void *ale_npoin, void 
 
     /* 2. Pass 1: Check the state of UNRELATED channels */
     /* If we find visible unrelated items, we want to ISOLATE (Hide them).
-       If we find NO visible unrelated items, we are already isolated, so UN-ISOLATE (Show them). */
+       If we find NO visible unrelated items, we are already isolated, so UN-ISOLATE (Show them).
+     */
     LISTBASE_FOREACH (bAnimListElem *, ale_iter, &anim_data) {
       if (anim_list_el_is_related_or_self(ale_setting, ale_iter)) {
         continue;
@@ -5613,11 +5620,12 @@ static void achannel_setting_flush_widget_cb(bContext *C, void *ale_npoin, void 
       }
       else {
         if (any_unrelated_visible) {
-           /* Case A: Isolating. Hide the siblings/unrelated items. */
-           ANIM_channel_setting_set(&ac, ale_iter, setting, ACHANNEL_SETFLAG_CLEAR);
-        } else {
-           /* Case B: Un-Isolating. Show everything. */
-           ANIM_channel_setting_set(&ac, ale_iter, setting, ACHANNEL_SETFLAG_ADD);
+          /* Case A: Isolating. Hide the siblings/unrelated items. */
+          ANIM_channel_setting_set(&ac, ale_iter, setting, ACHANNEL_SETFLAG_CLEAR);
+        }
+        else {
+          /* Case B: Un-Isolating. Show everything. */
+          ANIM_channel_setting_set(&ac, ale_iter, setting, ACHANNEL_SETFLAG_ADD);
         }
       }
     }
