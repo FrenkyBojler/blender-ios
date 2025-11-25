@@ -362,11 +362,14 @@ static void wm_xr_session_state_update_navigation_scale(wmXrSessionState *state,
     return;
   }
 
-  /* Adjust navigation position to keep the viewer at the same visual location after scale
-   * change to prevent sudden jumps on scale change. */
+  /* Adjust nav position to keep the viewer at the same relative location after scale change. */
+  /* Calculate view offset from the current navigation origin. */
+  const float3 viewer_location = float3(state->viewer_pose.position);
+  const float3 nav_location = float3(state->nav_pose.position);
+  const float3 viewer_base_offset = (viewer_location - nav_location) / state->nav_scale;
+
   const float offset_val = state->nav_scale - new_nav_scale;
-  /* Calculate offset based on viewer position (using base matrix without navigation applied). */
-  const float3 view_scaling_offset = float3(state->viewer_mat_base[3]) * offset_val;
+  const float3 view_scaling_offset = viewer_base_offset * offset_val;
 
   /* On X/Y axes: Add the scaling offset to maintain relative horizontal world position. */
   state->nav_pose.position[0] += view_scaling_offset.x;
