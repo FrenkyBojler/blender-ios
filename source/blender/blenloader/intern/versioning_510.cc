@@ -302,6 +302,10 @@ void do_versions_after_linking_510(FileData * /*fd*/, Main *bmain)
     }
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 0)) {
+    version_clear_unused_strip_flags(*bmain);
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
@@ -338,7 +342,6 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 7)) {
     version_mesh_uv_map_strings(*bmain);
-    version_clear_unused_strip_flags(*bmain);
   }
 
   /**
