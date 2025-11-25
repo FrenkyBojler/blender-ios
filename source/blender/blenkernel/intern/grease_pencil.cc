@@ -509,6 +509,18 @@ static void ensure_shape_map_and_offset_cache(const Drawing &drawing)
 
   OffsetIndices<int> shape_offsets = offset_indices::accumulate_counts_to_offsets(r_shape_offsets);
 
+  /* If every shape is just a curve, skip storing the data. */
+  if (shape_offsets.size() == curves.curves_num()) {
+    drawing.runtime->shape_map_cache.ensure(
+        [&](std::optional<Vector<int>> &r_shape_map_data) { r_shape_map_data = std::nullopt; });
+    drawing.runtime->shape_offset_cache.ensure(
+        [&](std::optional<Vector<int>> &r_shape_offsets_data) {
+          r_shape_offsets_data = std::nullopt;
+        });
+
+    return;
+  }
+
   Vector<int> r_shape_map(curves.curves_num());
   threading::parallel_for(shape_offsets.index_range(), 512, [&](const IndexRange range) {
     for (const int i : range) {
