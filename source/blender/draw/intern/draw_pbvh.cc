@@ -1572,7 +1572,7 @@ static gpu::IndexBufPtr create_lines_index_grids(const CCGKey &key,
 
   MutableSpan<uint2> data = GPU_indexbuf_get_data(&builder).cast<uint2>();
   /* In case of some elements are hide we over allocated index buffer. No one check if this
-   * allocation is really necessary, so we must fill that gap by 0 to hade redundant edges. */
+   * allocation is really necessary, so we must fill that gap by 0 to hide redundant edges. */
   data.fill(uint2(0));
 
   if (use_flat_layout) {
