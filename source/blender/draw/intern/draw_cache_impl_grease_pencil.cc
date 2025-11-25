@@ -1402,10 +1402,10 @@ static void grease_pencil_geom_batch_ensure(Object &object,
       verts_slice.last().mat = -1;
     };
 
-    visible_shapes.foreach_index([&](const int shape_index) {
-      const Span<int3> tris_slice = triangles[shape_index];
+    if (!shapes) {
+      visible_shapes.foreach_index([&](const int shape_index) {
+        const Span<int3> tris_slice = triangles[shape_index];
 
-      if (!shapes) {
         const int first_curve = shape_index;
         const int first_vert = verts_start_offsets[first_curve];
         const float4x2 texture_matrix = texture_matrices[first_curve] *
@@ -1422,8 +1422,12 @@ static void grease_pencil_geom_batch_ensure(Object &object,
 
         const int curve_i = first_curve;
         populate_curve(curve_i, first_curve, first_vert, texture_matrix);
-      }
-      else {
+      });
+    }
+    else {
+      visible_shapes.foreach_index([&](const int shape_index) {
+        const Span<int3> tris_slice = triangles[shape_index];
+
         const Span<int> shape = (*shapes)[shape_index];
         const int first_curve = shape.first();
         const int first_vert = verts_start_offsets[first_curve];
@@ -1465,8 +1469,8 @@ static void grease_pencil_geom_batch_ensure(Object &object,
           const int curve_i = shape[pos];
           populate_curve(curve_i, first_curve, first_vert, texture_matrix);
         }
-      }
-    });
+      });
+    }
   }
 
   /* Mark last 2 verts as invalid. */
