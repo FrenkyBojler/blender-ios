@@ -46,7 +46,7 @@ bool BLI_debugger_present()
   struct kinfo_proc kp = {0};
   kp.kp_proc.p_flag = 0;
   len = sizeof(kp);
-  if (sysctl(mid, 4, &kp, &len, NULL, 0) != 0) {
+  if (sysctl(mib, 4, &kp, &len, NULL, 0) != 0) {
     goto error;
   }
   return (kp.kp_proc.p_flag & P_TRACED) == P_TRACED;
