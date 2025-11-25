@@ -266,8 +266,7 @@ static void rebuild_hierarchy_best_parent_find(Main *bmain,
       if (!ID_IS_LINKED(id_iter) || id_iter->lib != lib) {
         continue;
       }
-      MainIDRelationsEntry *entry = static_cast<MainIDRelationsEntry *>(
-          BLI_ghash_lookup(bmain->relations->relations_from_pointers, id_iter));
+      MainIDRelationsEntry *entry = bmain->relations->relations_from_pointers->lookup(id_iter);
       for (MainIDRelationsEntryItem *item = entry->from_ids; item; item = item->next) {
         ID *from_id = item->id_pointer.from;
         if (!ID_IS_LINKED(from_id)) {
@@ -346,8 +345,7 @@ void BKE_library_main_rebuild_hierarchy(Main *bmain)
     if (directly_used_libs.contains(id_iter->lib)) {
       continue;
     }
-    MainIDRelationsEntry *entry = static_cast<MainIDRelationsEntry *>(
-        BLI_ghash_lookup(bmain->relations->relations_from_pointers, id_iter));
+    MainIDRelationsEntry *entry = bmain->relations->relations_from_pointers->lookup(id_iter);
     for (MainIDRelationsEntryItem *item = entry->from_ids; item; item = item->next) {
       if (!ID_IS_LINKED(item->id_pointer.from)) {
         directly_used_libs.add(id_iter->lib);
@@ -561,6 +559,11 @@ static void pack_linked_id(Main &bmain,
           BLI_assert(ID_IS_PACKED(packed_id));
           BLI_assert(packed_id->lib == archive_lib);
           UNUSED_VARS_NDEBUG(archive_lib);
+
+          if (GS(packed_id->name) == ID_SCE) {
+            /* Like in #scene_blend_read_data. */
+            id_us_ensure_real(packed_id);
+          }
 
           packed_id->deep_hash = deep_hashes.hashes.lookup(linked_id);
           id_remapper.add(linked_id, packed_id);
