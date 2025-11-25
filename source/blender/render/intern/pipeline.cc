@@ -200,7 +200,7 @@ static void stats_background(void * /*arg*/, RenderStats *rs)
 
   const bool show_info = CLOG_CHECK(&LOG, CLG_LEVEL_INFO);
   if (show_info) {
-    CLOG_STR_INFO(&LOG, rs->infostr);
+    CLOG_INFO(&LOG, "Fra: %d | %s", rs->cfra, rs->infostr);
     /* Flush stdout to be sure python callbacks are printing stuff after blender. */
     fflush(stdout);
   }
@@ -962,12 +962,8 @@ void RE_display_share(Render *re, const Render *parent_re)
 
 void RE_display_free(Render *re)
 {
-  if (re->display_shared) {
-    RE_display_init(re);
-  }
-  else {
-    re->display->clear();
-  }
+  /* Re-initializing with a new RenderDisplay will free the GPU contexts. */
+  RE_display_init(re);
 }
 
 void *RE_system_gpu_context_get(Render *re)
@@ -1959,6 +1955,8 @@ void RE_RenderFrame(Render *re,
                     const float subframe,
                     const bool write_still)
 {
+  CLOG_INFO(&LOG, "Rendering frame %d", frame);
+
   render_callback_exec_id(re, re->main, &scene->id, BKE_CB_EVT_RENDER_INIT);
 
   /* Ugly global still...
@@ -2151,7 +2149,7 @@ bool RE_WriteRenderViewsMovie(ReportList *reports,
       /* imbuf knows which rects are not part of ibuf */
       IMB_freeImBuf(ibuf);
     }
-    CLOG_INFO(&LOG, "Video append frame %d", scene->r.cfra);
+    CLOG_INFO_NOCHECK(&LOG, "Video append frame %d", scene->r.cfra);
   }
   else { /* R_IMF_VIEWS_STEREO_3D */
     const char *names[2] = {STEREO_LEFT_NAME, STEREO_RIGHT_NAME};
@@ -2347,7 +2345,7 @@ void RE_RenderAnim(Render *re,
                    int tfra)
 {
   if (sfra == efra) {
-    CLOG_INFO(&LOG, "Rendering single frame (frame %d)", sfra);
+    CLOG_INFO(&LOG, "Rendering single frame");
   }
   else {
     CLOG_INFO(&LOG, "Rendering animation (frames %d..%d)", sfra, efra);
@@ -2425,6 +2423,8 @@ void RE_RenderAnim(Render *re,
 
   scene->r.subframe = 0.0f;
   for (nfra = sfra, scene->r.cfra = sfra; scene->r.cfra <= efra; scene->r.cfra++) {
+    CLOG_INFO(&LOG, "Rendering frame %d", nfra);
+
     char filepath[FILE_MAX];
 
     /* Reduce GPU memory usage so renderer has more space. */
