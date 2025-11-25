@@ -11,6 +11,7 @@
 #include <optional>
 #include <string>
 
+#include "BLI_map.hh"
 #include "BLI_vector_set.hh"
 
 #include "DNA_listBase.h"
@@ -586,6 +587,8 @@ struct StringPropertyRNA {
   PropStringGetTransformFunc get_transform;
   PropStringSetTransformFunc set_transform;
 
+  PropStringGetFuncEx get_default;
+
   /**
    * Optional callback to list candidates for a string.
    * This is only for use as suggestions in UI, other values may be assigned.
@@ -753,7 +756,8 @@ struct BlenderRNA {
    * A map of structs: `{StructRNA.identifier -> StructRNA}`
    * These are ensured to have unique names (with #STRUCT_PUBLIC_NAMESPACE enabled).
    */
-  GHash *structs_map;
+  using StructsMap = blender::Map<blender::StringRef, StructRNA *>;
+  StructsMap *structs_map;
   /** Needed because types with an empty identifier aren't included in `structs_map`. */
   unsigned int structs_len;
 };

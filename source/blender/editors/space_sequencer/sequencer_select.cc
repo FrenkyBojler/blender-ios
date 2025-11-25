@@ -47,8 +47,6 @@
 #include "SEQ_time.hh"
 #include "SEQ_transform.hh"
 
-/* For menu, popup, icons, etc. */
-
 #include "ED_outliner.hh"
 #include "ED_screen.hh"
 #include "ED_select_utils.hh"
@@ -56,7 +54,6 @@
 
 #include "UI_view2d.hh"
 
-/* Own include. */
 #include "sequencer_intern.hh"
 
 namespace blender::ed::vse {
@@ -1215,33 +1212,38 @@ wmOperatorStatus sequencer_select_exec(bContext *C, wmOperator *op)
   Strip *strip_key_owner = nullptr;
   SeqRetimingKey *key = retiming_mouseover_key_get(C, mouse_co.region, &strip_key_owner);
 
-  /* If no key was found, the mouse cursor may still intersect with a "fake key" that has not been
-   * realized yet. */
-  if (strip_key_owner != nullptr && key == nullptr &&
-      retiming_keys_can_be_displayed(CTX_wm_space_seq(C)) &&
+  if (strip_key_owner != nullptr && retiming_keys_can_be_displayed(CTX_wm_space_seq(C)) &&
       seq::retiming_data_is_editable(strip_key_owner))
   {
-    key = try_to_realize_fake_keys(C, strip_key_owner, mouse_co.region);
-  }
-
-  if (key != nullptr) {
-    if (!was_retiming) {
-      deselect_all_strips(scene);
-      sequencer_select_do_updates(C, scene);
+    /* If no key was found, the mouse cursor may still intersect with a "fake key" that has not
+     * been realized yet. */
+    if (key == nullptr) {
+      key = try_to_realize_fake_keys(C, strip_key_owner, mouse_co.region);
     }
-    /* Attempt to realize any other connected strips' fake keys. */
-    if (seq::is_strip_connected(strip_key_owner)) {
-      const int key_frame = seq::retiming_key_timeline_frame_get(scene, strip_key_owner, key);
-      VectorSet<Strip *> connections = seq::connected_strips_get(strip_key_owner);
-      for (Strip *connection : connections) {
-        if (key_frame == left_fake_key_frame_get(C, connection) ||
-            key_frame == right_fake_key_frame_get(C, connection))
-        {
-          realize_fake_keys(scene, connection);
+    else {
+      /* There may be fake key on either side of strip. It must be realized. */
+      realize_fake_keys(scene, strip_key_owner);
+    }
+
+    if (key != nullptr) {
+      if (!was_retiming) {
+        deselect_all_strips(scene);
+        sequencer_select_do_updates(C, scene);
+      }
+      /* Attempt to realize any other connected strips' fake keys. */
+      if (seq::is_strip_connected(strip_key_owner)) {
+        const int key_frame = seq::retiming_key_timeline_frame_get(scene, strip_key_owner, key);
+        VectorSet<Strip *> connections = seq::connected_strips_get(strip_key_owner);
+        for (Strip *connection : connections) {
+          if (key_frame == left_fake_key_frame_get(C, connection) ||
+              key_frame == right_fake_key_frame_get(C, connection))
+          {
+            realize_fake_keys(scene, connection);
+          }
         }
       }
+      return sequencer_retiming_key_select_exec(C, op, key, strip_key_owner);
     }
-    return sequencer_retiming_key_select_exec(C, op, key, strip_key_owner);
   }
 
   /* We should only reach here if no retiming selection is happening. */
@@ -1615,7 +1617,7 @@ static bool select_more_less_impl(Scene *scene, bool select_more)
     return false;
   }
 
-  GSet *neighbors = BLI_gset_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, "Linked strips");
+  Set<Strip *> neighbors;
   const int neighbor_selection_filter = select_more ? 0 : SELECT;
   const int selection_filter = select_more ? SELECT : 0;
 
@@ -1626,19 +1628,16 @@ static bool select_more_less_impl(Scene *scene, bool select_more)
     Strip *neighbor = find_neighboring_strip(
         scene, strip, seq::SIDE_LEFT, neighbor_selection_filter);
     if (neighbor) {
-      BLI_gset_add(neighbors, neighbor);
+      neighbors.add(neighbor);
     }
     neighbor = find_neighboring_strip(scene, strip, seq::SIDE_RIGHT, neighbor_selection_filter);
     if (neighbor) {
-      BLI_gset_add(neighbors, neighbor);
+      neighbors.add(neighbor);
     }
   }
 
   bool changed = false;
-  GSetIterator gsi;
-  BLI_gsetIterator_init(&gsi, neighbors);
-  while (!BLI_gsetIterator_done(&gsi)) {
-    Strip *neighbor = static_cast<Strip *>(BLI_gsetIterator_getKey(&gsi));
+  for (Strip *neighbor : neighbors) {
     if (select_more) {
       neighbor->flag |= SELECT;
       recurs_sel_strip(neighbor);
@@ -1647,10 +1646,7 @@ static bool select_more_less_impl(Scene *scene, bool select_more)
       neighbor->flag &= ~SELECT;
     }
     changed = true;
-    BLI_gsetIterator_step(&gsi);
   }
-
-  BLI_gset_free(neighbors, nullptr);
   return changed;
 }
 

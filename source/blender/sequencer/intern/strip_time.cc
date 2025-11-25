@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
- * \ingroup bke
+ * \ingroup sequencer
  */
 
 #include <algorithm>
@@ -53,13 +53,8 @@ float give_frame_index(const Scene *scene, const Strip *strip, float timeline_fr
 {
   float frame_index;
   float sta = time_start_frame_get(strip);
-  float end = time_content_end_frame_get(scene, strip) - 1;
-  float frame_index_max = strip->len - 1;
-
-  if (strip->is_effect()) {
-    end = time_right_handle_frame_get(scene, strip);
-    frame_index_max = end - sta;
-  }
+  float end = strip->is_effect() ? time_right_handle_frame_get(scene, strip) :
+                                   time_content_end_frame_get(scene, strip) - 1;
 
   if (end < sta) {
     return -1;
@@ -83,9 +78,12 @@ float give_frame_index(const Scene *scene, const Strip *strip, float timeline_fr
 
   if (retiming_is_active(strip)) {
     const float retiming_factor = strip_retiming_evaluate(strip, frame_index);
-    frame_index = retiming_factor * frame_index_max;
+    /* Retiming maps frame index from 0 up to `strip->len`, because key is positioned at the end of
+     * last frame. Otherwise the last frame could not be retimed. */
+    frame_index = retiming_factor * strip->len;
   }
   /* Clamp frame index to strip content frame range. */
+  float frame_index_max = strip->is_effect() ? end - sta : strip->len - 1;
   frame_index = clamp_f(frame_index, 0, frame_index_max);
 
   if (strip->strobe > 1.0f) {
@@ -120,7 +118,7 @@ static void strip_update_sound_bounds_recursive_impl(const Scene *scene,
                                                min_ii(end, metastrip_end_get(strip)));
     }
     else if (ELEM(strip->type, STRIP_TYPE_SOUND_RAM, STRIP_TYPE_SCENE)) {
-      if (strip->scene_sound) {
+      if (strip->runtime->scene_sound) {
         int startofs = strip->startofs;
         int endofs = strip->endofs;
         if (strip->startofs + strip->start < start) {
@@ -137,7 +135,7 @@ static void strip_update_sound_bounds_recursive_impl(const Scene *scene,
         }
 
         BKE_sound_move_scene_sound(scene,
-                                   strip->scene_sound,
+                                   strip->runtime->scene_sound,
                                    strip->start + startofs,
                                    strip->start + strip->len - endofs,
                                    startofs + strip->anim_startofs,
@@ -317,14 +315,11 @@ float time_strip_fps_get(Scene *scene, Strip *strip)
   switch (strip->type) {
     case STRIP_TYPE_MOVIE: {
       strip_open_anim_file(scene, strip, true);
-      if (BLI_listbase_is_empty(&strip->anims)) {
+      const MovieReader *anim = strip->runtime->movie_reader_get();
+      if (anim == nullptr) {
         return 0.0f;
       }
-      StripAnim *strip_anim = static_cast<StripAnim *>(strip->anims.first);
-      if (strip_anim->anim == nullptr) {
-        return 0.0f;
-      }
-      return MOV_get_fps(strip_anim->anim);
+      return MOV_get_fps(anim);
     }
     case STRIP_TYPE_MOVIECLIP:
       if (strip->clip != nullptr) {
@@ -454,7 +449,7 @@ int time_strip_length_get(const Scene *scene, const Strip *strip)
         scene, strip, retiming_last_key_get(strip));
     /* Last key is mapped to last frame index. Numbering starts from 0. */
     const int sound_offset = time_get_rounded_sound_offset(strip, scene_fps);
-    return last_key_frame + 1 - time_start_frame_get(strip) - sound_offset;
+    return last_key_frame - time_start_frame_get(strip) - sound_offset;
   }
 
   return strip->len / time_media_playback_rate_factor_get(strip, scene_fps);
