@@ -7,3 +7,4 @@ Referenced by pull request #146365, Fix: infinite loop when region is too small
 Referenced by commit e65524382513886ff283b49296fa8c0b984e738b, Fix: infinite loop when region is too small
 Referenced by pull request #148652, Fix: Timecode labels drawn at subframe level
 Referenced by commit 60f90604a73c5d5c6f996dea25d189f9905b8034, Fix: Timecode labels drawn at subframe level
+Referenced by issue #150543, Graph editor crashes at high zoom levels
