@@ -2,3 +2,4 @@ Referenced by issue #141332, VSE API: movie_strip_add crashes Blender
 Referenced by issue #141503, VSE: Double-click in file browser inserts strip at click-point
 Referenced by issue #146433, Crash when running modal operator from a script
 Referenced by issue #148985, Blender 5.0 crashes after adding a new Strip to Sequence Editor from Python
+Referenced by issue #150528, VSE: adding a scene or a strip gets commited when canceling the action
