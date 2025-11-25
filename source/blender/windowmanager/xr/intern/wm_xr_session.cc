@@ -371,14 +371,17 @@ static void wm_xr_session_state_update_navigation_scale(wmXrSessionState *state,
     return;
   }
 
-  /* Apply an offset on the navigation position to visually counteract the scaling change. */
+  /* Adjust navigation position to keep the viewer at the same visual location after scale
+   * change to prevent sudden jumps on scale change. */
   const float offset_val = state->nav_scale - new_nav_scale;
-  /* Use the viewer matrix base (without navigation applied). */
+  /* Calculate offset based on viewer position (using base matrix without navigation applied). */
   const float3 view_scaling_offset = float3(state->viewer_mat_base[3]) * offset_val;
 
-  /* Only apply offset on the X/Y axes for the scaling to be visible. */
+  /* On X/Y axes: Add the scaling offset to maintain relative horizontal world position. */
   state->nav_pose.position[0] += view_scaling_offset.x;
   state->nav_pose.position[1] += view_scaling_offset.y;
+  /* On Z axis: Scale proportionally for the scaling change to be visible. */
+  state->nav_pose.position[2] *= math::safe_divide(new_nav_scale, state->nav_scale);
 
   /* Set nav scale and tag navigation to be recalculated. */
   state->nav_scale = new_nav_scale;
