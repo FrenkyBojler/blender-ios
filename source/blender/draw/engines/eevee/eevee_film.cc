@@ -86,9 +86,12 @@ void Film::init_aovs(const Set<std::string> &passes_used_by_viewport_compositor)
 
   for (ViewLayerAOV *aov : aovs) {
     bool is_value = (aov->type == AOV_TYPE_VALUE);
-    int &index = is_value ? aovs_info.value_len : aovs_info.color_len;
-    uint &hash = is_value ? aovs_info.hash_value[index].x : aovs_info.hash_color[index].x;
-    hash = BLI_hash_string(aov->name);
+    int &index = is_value ?  aovs_info.value_len : aovs_info.color_len;
+    
+    /* Pack hash in `AOVsInfoData`. We place value AOVs after color AOVs. */
+    int index_actual = is_value ? aovs_info.color_len + index : index;
+    aovs_info.hash[index_actual / 4][index_actual % 4] = BLI_hash_string(aov->name);
+
     index++;
   }
 
@@ -114,19 +117,17 @@ gpu::Texture *Film::get_aov_texture(ViewLayerAOV *aov)
 {
   bool is_value = (aov->type == AOV_TYPE_VALUE);
   Texture &accum_tx = is_value ? value_accum_tx_ : color_accum_tx_;
-
-  Span<uint4> aovs_hash(is_value ? aovs_info.hash_value : aovs_info.hash_color,
-                        is_value ? aovs_info.value_len : aovs_info.color_len);
-  /* Find AOV index. */
+    
+  /* Find AOV index. Hashes are packed in tuples of 4. */
   uint hash = BLI_hash_string(aov->name);
   int aov_index = -1;
-  int i = 0;
-  for (uint4 candidate_hash : aovs_hash) {
-    if (candidate_hash.x == hash) {
-      aov_index = i;
+  for (int i = 0; i < aovs_info.color_len + aovs_info.value_len; i++) {
+    uint candidate_hash = aovs_info.hash[i / 4][i % 4];
+    if (candidate_hash == hash) {
+      /* We subtract color_len, as color and value hashes are packed after each other. */
+      aov_index = i - (i > aovs_info.color_len ? aovs_info.color_len : 0);
       break;
     }
-    i++;
   }
 
   if (aov_index == -1) {

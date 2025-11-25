@@ -43,20 +43,26 @@ void clear_aovs()
 void output_aov(float4 color, float value, uint hash)
 {
 #if defined(MAT_RENDER_PASS_SUPPORT) && defined(GPU_FRAGMENT_SHADER)
-  for (int i = 0; i < AOV_MAX && i < uniform_buf.render_pass.aovs.color_len; i++) {
-    if (uniform_buf.render_pass.aovs.hash_color[i].x == hash) {
-      imageStoreFast(
-          rp_color_img, int3(int2(gl_FragCoord.xy), uniform_buf.render_pass.color_len + i), color);
-      return;
+  int total_len = uniform_buf.render_pass.aovs.color_len + uniform_buf.render_pass.aovs.value_len;
+  for (int i = 0; 4 * i < AOV_MAX && 4 * i < total_len; i++) {
+    /* Search hashes in uint4 packs; 4 comparisons at once to find the index of a candidate hash. */
+    bool4 cmp_mask = equal(uniform_buf.render_pass.aovs.hash[i], uint4(hash));
+    if (!any(cmp_mask)) {
+      continue;
     }
-  }
-  for (int i = 0; i < AOV_MAX && i < uniform_buf.render_pass.aovs.value_len; i++) {
-    if (uniform_buf.render_pass.aovs.hash_value[i].x == hash) {
-      imageStoreFast(rp_value_img,
-                     int3(int2(gl_FragCoord.xy), uniform_buf.render_pass.value_len + i),
-                     float4(value));
-      return;
+    /* Left-reduce of `cmp_mask` to find the index of candidate. */
+    int j = 4 * i + (cmp_mask[0] ? 0 : (cmp_mask[1] ? 1 : (cmp_mask[2] ? 2 : 3)));
+    
+    /* Value hashes are stored after color hashes, so we have to subtract for the value offset. */
+    bool is_value = j >= uniform_buf.render_pass.aovs.color_len;
+    if (is_value) {
+      j += uniform_buf.render_pass.value_len - uniform_buf.render_pass.aovs.color_len;
+      imageStoreFast(rp_value_img, int3(int2(gl_FragCoord.xy), j), float4(value));
+    } else {
+      j += uniform_buf.render_pass.color_len;
+      imageStoreFast(rp_color_img, int3(int2(gl_FragCoord.xy), j), color);
     }
+    return;
   }
 #endif
 }
