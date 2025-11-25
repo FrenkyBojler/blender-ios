@@ -367,6 +367,8 @@ static void wm_xr_session_state_update_navigation_scale(wmXrSessionState *state,
   const float scene_scale = draw_data->scene->unit.scale_length;
   const float new_nav_scale = scene_scale * settings->view_scale;
 
+  BLI_assert(state->nav_scale != 0 && new_nav_scale != 0);
+
   if (state->nav_scale == new_nav_scale) {
     return;
   }
@@ -384,7 +386,7 @@ static void wm_xr_session_state_update_navigation_scale(wmXrSessionState *state,
   state->nav_pose.position[0] += view_scaling_offset.x;
   state->nav_pose.position[1] += view_scaling_offset.y;
   /* On Z axis: Scale proportionally for the scaling change to be visible. */
-  state->nav_pose.position[2] *= math::safe_divide(new_nav_scale, state->nav_scale);
+  state->nav_pose.position[2] *= new_nav_scale / state->nav_scale;
 
   /* Set nav scale and tag navigation to be recalculated. */
   state->nav_scale = new_nav_scale;
