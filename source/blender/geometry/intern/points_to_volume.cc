@@ -46,7 +46,6 @@ class OpenVDBParticleList {
     float3 pos = positions_[n] * voxel_size_inv_;
     /* Better align generated grid with source points. */
     pos -= float3(0.5f);
-    xyz = &pos.x;
   }
 
   void getPosRad(size_t n, openvdb::Vec3R &xyz, openvdb::Real &radius) const
