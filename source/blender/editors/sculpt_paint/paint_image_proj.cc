@@ -4056,6 +4056,7 @@ static void project_paint_bleed_add_face_user(const ProjPaintState *ps,
 /* Return true if evaluated mesh can be painted on, false otherwise */
 static bool proj_paint_state_mesh_eval_init(const bContext *C, ProjPaintState *ps)
 {
+  using namespace blender;
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Object *ob = ps->ob;
 
@@ -4088,14 +4089,39 @@ static bool proj_paint_state_mesh_eval_init(const bContext *C, ProjPaintState *p
   ps->edges_eval = ps->mesh_eval->edges();
   ps->faces_eval = ps->mesh_eval->faces();
   ps->corner_verts_eval = ps->mesh_eval->corner_verts();
-  ps->select_poly_eval = (const bool *)CustomData_get_layer_named(
-      &ps->mesh_eval->face_data, CD_PROP_BOOL, ".select_poly");
-  ps->hide_poly_eval = (const bool *)CustomData_get_layer_named(
-      &ps->mesh_eval->face_data, CD_PROP_BOOL, ".hide_poly");
-  ps->material_indices = (const int *)CustomData_get_layer_named(
-      &ps->mesh_eval->face_data, CD_PROP_INT32, "material_index");
-  ps->sharp_faces_eval = static_cast<const bool *>(
-      CustomData_get_layer_named(&ps->mesh_eval->face_data, CD_PROP_BOOL, "sharp_face"));
+  ps->select_poly_eval = nullptr;
+  ps->hide_poly_eval = nullptr;
+  ps->material_indices = nullptr;
+  ps->sharp_faces_eval = nullptr;
+  const bke::AttributeAccessor attributes = ps->mesh_eval->attributes();
+  if (const bke::GAttributeReader attr = attributes.lookup(".select_poly")) {
+    if (attr.domain == bke::AttrDomain::Face && attr.varray.type().is<bool>()) {
+      if (attr.varray.is_span()) {
+        ps->select_poly_eval = attr.varray.get_internal_span().typed<bool>().data();
+      }
+    }
+  }
+  if (const bke::GAttributeReader attr = attributes.lookup(".hide_poly")) {
+    if (attr.domain == bke::AttrDomain::Face && attr.varray.type().is<bool>()) {
+      if (attr.varray.is_span()) {
+        ps->hide_poly_eval = attr.varray.get_internal_span().typed<bool>().data();
+      }
+    }
+  }
+  if (const bke::GAttributeReader attr = attributes.lookup("material_index")) {
+    if (attr.domain == bke::AttrDomain::Face && attr.varray.type().is<int>()) {
+      if (attr.varray.is_span()) {
+        ps->material_indices = attr.varray.get_internal_span().typed<int>().data();
+      }
+    }
+  }
+  if (const bke::GAttributeReader attr = attributes.lookup("sharp_face")) {
+    if (attr.domain == bke::AttrDomain::Face && attr.varray.type().is<bool>()) {
+      if (attr.varray.is_span()) {
+        ps->sharp_faces_eval = attr.varray.get_internal_span().typed<bool>().data();
+      }
+    }
+  }
 
   ps->totvert_eval = ps->mesh_eval->verts_num;
   ps->faces_num_eval = ps->mesh_eval->faces_num;
@@ -4135,8 +4161,8 @@ static void proj_paint_layer_clone_init(ProjPaintState *ps, ProjPaintLayerClone 
 
     if (uv_map_clone_base == nullptr) {
       /* get active instead */
-      uv_map_clone_base = static_cast<const float (*)[2]>(
-          CustomData_get_layer(&ps->mesh_eval->corner_data, CD_PROP_FLOAT2));
+      uv_map_clone_base = static_cast<const float (*)[2]>(CustomData_get_layer_named(
+          &ps->mesh_eval->corner_data, CD_PROP_FLOAT2, ps->mesh_eval->active_uv_map_name()));
     }
   }
 
@@ -4168,8 +4194,8 @@ static bool project_paint_clone_face_skip(ProjPaintState *ps,
             !(lc->uv_map_clone_base = static_cast<const float (*)[2]>(CustomData_get_layer_named(
                   &ps->mesh_eval->corner_data, CD_PROP_FLOAT2, lc->slot_clone->uvname))))
         {
-          lc->uv_map_clone_base = static_cast<const float (*)[2]>(
-              CustomData_get_layer(&ps->mesh_eval->corner_data, CD_PROP_FLOAT2));
+          lc->uv_map_clone_base = static_cast<const float (*)[2]>(CustomData_get_layer_named(
+              &ps->mesh_eval->corner_data, CD_PROP_FLOAT2, ps->mesh_eval->active_uv_map_name()));
         }
         lc->slot_last_clone = lc->slot_clone;
       }
@@ -4349,8 +4375,8 @@ static void project_paint_prepare_all_faces(ProjPaintState *ps,
       slot = project_paint_face_paint_slot(ps, tri_index);
       /* all faces should have a valid slot, reassert here */
       if (slot == nullptr) {
-        uv_map_base = static_cast<const float (*)[2]>(
-            CustomData_get_layer(&ps->mesh_eval->corner_data, CD_PROP_FLOAT2));
+        uv_map_base = static_cast<const float (*)[2]>(CustomData_get_layer_named(
+            &ps->mesh_eval->corner_data, CD_PROP_FLOAT2, ps->mesh_eval->active_uv_map_name()));
         tpage = ps->canvas_ima;
       }
       else {
@@ -4359,8 +4385,8 @@ static void project_paint_prepare_all_faces(ProjPaintState *ps,
               !(uv_map_base = static_cast<const float (*)[2]>(CustomData_get_layer_named(
                     &ps->mesh_eval->corner_data, CD_PROP_FLOAT2, slot->uvname))))
           {
-            uv_map_base = static_cast<const float (*)[2]>(
-                CustomData_get_layer(&ps->mesh_eval->corner_data, CD_PROP_FLOAT2));
+            uv_map_base = static_cast<const float (*)[2]>(CustomData_get_layer_named(
+                &ps->mesh_eval->corner_data, CD_PROP_FLOAT2, ps->mesh_eval->active_uv_map_name()));
           }
           slot_last = slot;
         }
@@ -4549,8 +4575,8 @@ static void project_paint_begin(const bContext *C,
 
     if (ps->uv_map_stencil_eval == nullptr) {
       /* get active instead */
-      ps->uv_map_stencil_eval = static_cast<const float (*)[2]>(
-          CustomData_get_layer(&ps->mesh_eval->corner_data, CD_PROP_FLOAT2));
+      ps->uv_map_stencil_eval = static_cast<const float (*)[2]>(CustomData_get_layer_named(
+          &ps->mesh_eval->corner_data, CD_PROP_FLOAT2, ps->mesh_eval->active_uv_map_name()));
     }
 
     if (ps->do_stencil_brush) {
@@ -6924,40 +6950,40 @@ static wmOperatorStatus texture_paint_add_texture_paint_slot_invoke(bContext *C,
 
 static void texture_paint_add_texture_paint_slot_ui(bContext *C, wmOperator *op)
 {
-  uiLayout *layout = op->layout;
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
+  blender::ui::Layout &layout = *op->layout;
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
   Object *ob = blender::ed::object::context_active_object(C);
   ePaintCanvasSource slot_type = PAINT_CANVAS_SOURCE_IMAGE;
 
   if (ob->mode == OB_MODE_SCULPT) {
     slot_type = (ePaintCanvasSource)RNA_enum_get(op->ptr, "slot_type");
-    layout->prop(op->ptr, "slot_type", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+    layout.prop(op->ptr, "slot_type", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
   }
 
-  layout->prop(op->ptr, "name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   switch (slot_type) {
     case PAINT_CANVAS_SOURCE_IMAGE: {
-      uiLayout *col = &layout->column(true);
-      col->prop(op->ptr, "width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      col->prop(op->ptr, "height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      blender::ui::Layout &col = layout.column(true);
+      col.prop(op->ptr, "width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      col.prop(op->ptr, "height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-      layout->prop(op->ptr, "alpha", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      layout->prop(op->ptr, "generated_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-      layout->prop(op->ptr, "float", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout.prop(op->ptr, "alpha", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout.prop(op->ptr, "generated_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout.prop(op->ptr, "float", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       break;
     }
     case PAINT_CANVAS_SOURCE_COLOR_ATTRIBUTE:
-      layout->prop(op->ptr, "domain", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
-      layout->prop(op->ptr, "data_type", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+      layout.prop(op->ptr, "domain", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+      layout.prop(op->ptr, "data_type", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
       break;
     case PAINT_CANVAS_SOURCE_MATERIAL:
       BLI_assert_unreachable();
       break;
   }
 
-  layout->prop(op->ptr, "color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 #define IMA_DEF_NAME N_("Untitled")
