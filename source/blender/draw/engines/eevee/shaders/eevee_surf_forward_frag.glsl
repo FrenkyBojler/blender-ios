@@ -81,12 +81,12 @@ void main()
    * - Combined RGB radiance with Monochromatic transmittance.
    * - Channel split RGB radiance & RGB transmittance + Dedicated average alpha with holdout. */
   if (uniform_buf.pipeline.use_monochromatic_transmittance) {
-    out_radiance_r = float4(radiance.rgb, transmittance.r);
+    out_combined_r = float4(radiance.rgb, transmittance.r);
   }
   else {
-    out_radiance_r = float4(radiance.r, 0.0f, 0.0f, transmittance.r);
-    out_radiance_g = float4(radiance.g, 0.0f, 0.0f, transmittance.g);
-    out_radiance_b = float4(radiance.b, 0.0f, 0.0f, transmittance.b);
-    out_radiance_a = float4(g_holdout, 0.0f, 0.0f, average(transmittance));
+    out_combined_r = float4(radiance.r, 0.0f, 0.0f, transmittance.r);
+    out_combined_g = float4(radiance.g, 0.0f, 0.0f, transmittance.g);
+    out_combined_b = float4(radiance.b, 0.0f, 0.0f, transmittance.b);
+    out_combined_a = float4(g_holdout, 0.0f, 0.0f, average(transmittance));
   }
 }

@@ -41,14 +41,10 @@ DEFINE("MAT_FORWARD")
 EARLY_FRAGMENT_TEST(true)
 /* Spliting RGB components into different target to overcome the lack of dual source blending with
  * multiple render targets. */
-FRAGMENT_OUT(0, float4, out_radiance_r)
-FRAGMENT_OUT(1, float4, out_radiance_g)
-FRAGMENT_OUT(2, float4, out_radiance_b)
-FRAGMENT_OUT(3, float4, out_radiance_a)
-FRAGMENT_OUT(4, float4, out_transmittance_r)
-FRAGMENT_OUT(5, float4, out_transmittance_g)
-FRAGMENT_OUT(6, float4, out_transmittance_b)
-FRAGMENT_OUT(7, float4, out_transmittance_a)
+FRAGMENT_OUT(0, float4, out_combined_r)
+FRAGMENT_OUT(1, float4, out_combined_g)
+FRAGMENT_OUT(2, float4, out_combined_b)
+FRAGMENT_OUT(3, float4, out_combined_a)
 FRAGMENT_SOURCE("eevee_surf_forward_frag.glsl")
 /* Optionally added depending on the material. */
 //  ADDITIONAL_INFO(eevee_render_pass_out)
