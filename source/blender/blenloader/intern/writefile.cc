@@ -1409,6 +1409,18 @@ static void write_libraries(WriteData *wd, Main *bmain)
       continue;
     }
 
+    /* Since code below checking that archive libraries' parents have already been written, may
+     * forcefully write that parent library in some cases, also double-check here that current
+     * library has not yet been written.
+     *
+     * Note: In theory this should never be the case, as a parent library is always expected to be
+     * written before its archives. */
+    if (written_libraries.contains(&library)) {
+      CLOG_ERROR(
+          &LOG, "Attempt to re-write already written library '%s', skipping", library.id.name);
+      continue;
+    }
+
     if (library.flag & LIBRARY_FLAG_IS_ARCHIVE) {
       if (!library.archive_parent_library) {
         CLOG_ERROR(&LOG, "Written archive library '%s' has no parent library", library.id.name);
