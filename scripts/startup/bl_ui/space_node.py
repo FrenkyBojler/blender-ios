@@ -779,10 +779,6 @@ class NODE_PT_active_node_generic(Panel):
     def poll(cls, context):
         return context.active_node is not None
 
-    def draw_header(self, context):
-        node = context.active_node
-        self.layout.prop(node, "mute", invert_checkbox=True, text="")
-
     def draw(self, context):
         layout = self.layout
         node = context.active_node
@@ -809,7 +805,9 @@ class NODE_PT_active_node_generic(Panel):
             text="",
         )
 
-        col.prop(node, "show_options", text="Show Options")
+        col.prop(node, "show_options")
+
+        layout.prop(node, "mute")
 
         if tree.type == 'GEOMETRY':
             layout.prop(node, "warning_propagation")
