@@ -1175,16 +1175,15 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   /* Todo(#140111): Forward compatibility support will be removed in 6.0. Do not write an embedded
    * nodetree at `scene->nodetree` anymore. */
   if (sce->compositing_node_group && !is_write_undo) {
-    bNodeTree *temp_nodetree = blender::bke::node_tree_copy_tree_ex(
+    bNodeTree *temp_nodetree_copy = blender::bke::node_tree_copy_tree_ex(
         *sce->compositing_node_group, nullptr, false);
 
-    BLO_Write_IDBuffer temp_embedded_id_buffer{temp_nodetree->id, writer};
-    temp_nodetree->id.flag |= ID_FLAG_EMBEDDED_DATA;
-    temp_nodetree->owner_id = &sce->id;
-    temp_nodetree->id.lib = sce->id.lib;
+    temp_nodetree_copy->id.flag |= ID_FLAG_EMBEDDED_DATA;
+    temp_nodetree_copy->owner_id = &sce->id;
+    temp_nodetree_copy->id.lib = sce->id.lib;
     /* Set deprecated chunksize for forward compatibility. */
-    temp_nodetree->chunksize = 256;
-    BLO_write_struct_at_address(writer, bNodeTree, sce->nodetree, temp_nodetree);
+    temp_nodetree_copy->chunksize = 256;
+    BLO_write_struct_at_address(writer, bNodeTree, sce->nodetree, temp_nodetree_copy);
 
     /* The Composite node was replaced by the Group Output node in 5.0, so we add one to ensure
      * forward compatibility. */
@@ -1192,19 +1191,19 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
     bNode *composite_node = nullptr;
     bNodeSocket *composite_input = nullptr;
     blender::bke::bNodeType ntype;
-    LISTBASE_FOREACH_MUTABLE (bNode *, node, &temp_nodetree->nodes) {
+    LISTBASE_FOREACH_MUTABLE (bNode *, node, &temp_nodetree_copy->nodes) {
       if (node->is_type("NodeGroupOutput") && (node->flag & NODE_DO_OUTPUT)) {
-        composite_node = &version_node_add_empty(*temp_nodetree,
-                                                 ntype,
-                                                 "CompositorNodeComposite",
-                                                 CMP_NODE_COMPOSITE_DEPRECATED,
-                                                 "Composite",
-                                                 "Final render output",
-                                                 "COMPOSITE",
-                                                 NODE_CLASS_OUTPUT,
-                                                 false);
+        composite_node = &version_node_add_unknown(*temp_nodetree_copy,
+                                                   ntype,
+                                                   "CompositorNodeComposite",
+                                                   CMP_NODE_COMPOSITE_DEPRECATED,
+                                                   "Composite",
+                                                   "Final render output",
+                                                   "COMPOSITE",
+                                                   NODE_CLASS_OUTPUT,
+                                                   false);
         composite_input = &version_node_add_socket(
-            *temp_nodetree, *composite_node, SOCK_IN, "NodeSocketColor", "Image");
+            *temp_nodetree_copy, *composite_node, SOCK_IN, "NodeSocketColor", "Image");
 
         composite_node->location[0] = node->location[0] - 20.0f;
         composite_node->location[1] = node->location[1];
@@ -1214,25 +1213,27 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
     }
 
     bNodeLink *ngroup_input_link = nullptr;
-    LISTBASE_FOREACH_BACKWARD_MUTABLE (bNodeLink *, link, &temp_nodetree->links) {
+    LISTBASE_FOREACH_BACKWARD_MUTABLE (bNodeLink *, link, &temp_nodetree_copy->links) {
       if (link->tosock && link->tosock == first_sock) {
         ngroup_input_link = link;
         break;
       }
     }
     if (ngroup_input_link) {
-      version_node_add_link(*temp_nodetree,
+      version_node_add_link(*temp_nodetree_copy,
                             *ngroup_input_link->fromnode,
                             *ngroup_input_link->fromsock,
                             *composite_node,
                             *composite_input);
     }
 
+    BLO_Write_IDBuffer temp_embedded_id_buffer{temp_nodetree_copy->id, writer};
+    bNodeTree *temp_nodetree = reinterpret_cast<bNodeTree *>(temp_embedded_id_buffer.get());
     blender::bke::node_tree_blend_write(writer, temp_nodetree);
 
-    blender::bke::node_tree_free_embedded_tree(temp_nodetree);
-    MEM_freeN(temp_nodetree);
-    temp_nodetree = nullptr;
+    blender::bke::node_tree_free_embedded_tree(temp_nodetree_copy);
+    MEM_freeN(temp_nodetree_copy);
+    temp_nodetree_copy = nullptr;
     MEM_freeN(reinterpret_cast<void *>(sce->nodetree));
     sce->nodetree = nullptr;
   }

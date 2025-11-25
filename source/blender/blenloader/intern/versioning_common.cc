@@ -258,17 +258,17 @@ bNode &version_node_add_empty(bNodeTree &ntree, const char *idname)
   return *node;
 }
 
-bNode &version_node_add_empty(bNodeTree &ntree,
-                              blender::bke::bNodeType &ntype,
-                              const char *idname,
-                              const int16_t legacy_type,
-                              const std::string &ui_name,
-                              const std::string &ui_description,
-                              const std::string &enum_name_legacy,
-                              const short nclass,
-                              const float width,
-                              const float height,
-                              const bool no_muting)
+bNode &version_node_add_unknown(bNodeTree &ntree,
+                                blender::bke::bNodeType &ntype,
+                                const char *idname,
+                                const int16_t legacy_type,
+                                const std::string &ui_name,
+                                const std::string &ui_description,
+                                const std::string &enum_name_legacy,
+                                const short nclass,
+                                const float width,
+                                const float height,
+                                const bool no_muting)
 {
   using namespace blender::bke;
 
