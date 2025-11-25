@@ -41,13 +41,14 @@ typedef struct XrSessionSettings {
 
   /** Fly speed. */
   float fly_speed;
-  float padding;
+
+  /** View scale. */
+  float view_scale;
 } XrSessionSettings;
 
 typedef enum eXrSessionFlag {
   XR_SESSION_USE_POSITION_TRACKING = (1 << 0),
   XR_SESSION_USE_ABSOLUTE_TRACKING = (1 << 1),
-  XR_SESSION_REPOSITION_ON_SCALE_CHANGE = (1 << 2),
 } eXrSessionFlag;
 
 typedef enum eXRSessionBasePoseType {

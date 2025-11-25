@@ -694,27 +694,6 @@ static void rna_XrSessionSettings_use_absolute_tracking_set(PointerRNA *ptr, boo
 #  endif
 }
 
-static bool rna_XrSessionSettings_reposition_view_on_scale_change_get(PointerRNA *ptr)
-{
-#  ifdef WITH_XR_OPENXR
-  const wmXrData *xr = rna_XrSession_wm_xr_data_get(ptr);
-  return (xr->session_settings.flag & XR_SESSION_REPOSITION_ON_SCALE_CHANGE) != 0;
-#  else
-  UNUSED_VARS(ptr);
-  return false;
-#  endif
-}
-
-static void rna_XrSessionSettings_reposition_view_on_scale_change_set(PointerRNA *ptr, bool value)
-{
-#  ifdef WITH_XR_OPENXR
-  wmXrData *xr = rna_XrSession_wm_xr_data_get(ptr);
-  SET_FLAG_FROM_TEST(xr->session_settings.flag, value, XR_SESSION_REPOSITION_ON_SCALE_CHANGE);
-#  else
-  UNUSED_VARS(ptr, value);
-#  endif
-}
-
 static int rna_XrSessionSettings_icon_from_show_object_viewport_get(PointerRNA *ptr)
 {
 #  ifdef WITH_XR_OPENXR
@@ -1993,12 +1972,9 @@ static void rna_def_xr_session_settings(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
 
   prop = RNA_def_property(srna, "base_scale", PROP_FLOAT, PROP_NONE);
-  RNA_def_property_ui_text(prop,
-                           "VR Scale",
-                           "Uniform scale applied on top of scene scale for adjustements to the VR"
-                           " view. When possible, prefer using scene scale directly");
+  RNA_def_property_ui_text(prop, "Base Scale", "Uniform scale to apply to VR view");
   RNA_def_property_range(prop, 1e-6f, FLT_MAX);
-  RNA_def_property_ui_range(prop, 0.001f, 100.0f, 0.01f, 6);
+  RNA_def_property_ui_range(prop, 0.001f, FLT_MAX, 10, 3);
   RNA_def_property_float_default(prop, 1.0f);
   RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
 
@@ -2065,6 +2041,16 @@ static void rna_def_xr_session_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Fly Speed", "Fly speed in meters per second");
   RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
 
+  prop = RNA_def_property(srna, "view_scale", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_ui_text(prop,
+                           "View Scale",
+                           "Scaling factor applied on top of scene scale for adjustements to the "
+                           "VR view. When possible, prefer modifying the scene scale instead");
+  RNA_def_property_range(prop, 1e-6f, FLT_MAX);
+  RNA_def_property_ui_range(prop, 0.001f, 100.0f, 0.01f, 6);
+  RNA_def_property_float_default(prop, 1.0f);
+  RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
+
   prop = RNA_def_property(srna, "use_positional_tracking", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_funcs(prop,
                                  "rna_XrSessionSettings_use_positional_tracking_get",
@@ -2083,16 +2069,6 @@ static void rna_def_xr_session_settings(BlenderRNA *brna)
       prop,
       "Absolute Tracking",
       "Allow the VR tracking origin to be defined independently of the headset location");
-  RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
-
-  prop = RNA_def_property(srna, "reposition_view_on_scale_change", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_funcs(prop,
-                                 "rna_XrSessionSettings_reposition_view_on_scale_change_get",
-                                 "rna_XrSessionSettings_reposition_view_on_scale_change_set");
-  RNA_def_property_ui_text(
-      prop,
-      "Reposition View On Scale Change",
-      "Keep the view at the same world relative location on scale change");
   RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
 
   rna_def_object_type_visibility_flags_common(srna, NC_WM | ND_XR_DATA_CHANGED, nullptr);
