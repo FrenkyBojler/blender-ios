@@ -7,8 +7,8 @@
 #  include "gpu_shader_compat.hh"
 
 #  include "eevee_common_infos.hh"
+#  include "eevee_fullscreen_infos.hh"
 #  include "eevee_uniform_infos.hh"
-#  include "gpu_shader_fullscreen_infos.hh"
 #endif
 
 #include "eevee_defines.hh"
@@ -23,7 +23,7 @@ SAMPLER(1, sampler2D, transparency_g_tx)
 SAMPLER(2, sampler2D, transparency_b_tx)
 SAMPLER(3, sampler2D, transparency_a_tx)
 FRAGMENT_SOURCE("eevee_transparency_resolve_frag.glsl")
-ADDITIONAL_INFO(gpu_fullscreen)
+ADDITIONAL_INFO(eevee_fullscreen)
 ADDITIONAL_INFO(eevee_global_ubo)
 ADDITIONAL_INFO(eevee_render_pass_out)
 GPU_SHADER_CREATE_END()
