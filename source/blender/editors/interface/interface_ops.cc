@@ -2929,10 +2929,8 @@ static wmOperatorStatus ui_view_item_navigate_invoke(bContext *C,
 {
   ARegion &region = *CTX_wm_region(C);
   const Direction direction = Direction(RNA_enum_get(op->ptr, "direction"));
-
   AbstractTreeViewItem &active_item = *dynamic_cast<AbstractTreeViewItem *>(
       UI_region_views_find_active_item(&region));
-
   AbstractTreeView &tree_view = active_item.get_tree_view();
   AbstractTreeViewItem *next_item = nullptr;
 
@@ -2946,7 +2944,8 @@ static wmOperatorStatus ui_view_item_navigate_invoke(bContext *C,
             next_item = &item;
           }
         },
-        AbstractTreeView::IterOptions::SkipCollapsed);
+        AbstractTreeView::IterOptions::SkipCollapsed |
+            AbstractTreeView::IterOptions::SkipFiltered);
   };
 
   auto move_down = [&]() {
@@ -2960,9 +2959,11 @@ static wmOperatorStatus ui_view_item_navigate_invoke(bContext *C,
           }
           found_active = item.is_active();
         },
-        AbstractTreeView::IterOptions::SkipCollapsed);
+        AbstractTreeView::IterOptions::SkipCollapsed |
+            AbstractTreeView::IterOptions::SkipFiltered);
   };
 
+  /* Jump to parent of active element then collapse the parent. */
   auto move_left = [&]() {
     if (!active_item.is_collapsible() || active_item.is_collapsed()) {
       next_item = active_item.get_parent();
@@ -2972,6 +2973,7 @@ static wmOperatorStatus ui_view_item_navigate_invoke(bContext *C,
     active_item.set_collapsed(true);
   };
 
+  /* Expand active element if it's collapsed. */
   auto move_right = [&]() {
     if (!active_item.is_collapsible()) {
       return;
