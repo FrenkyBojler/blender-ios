@@ -785,15 +785,15 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
     }
   });
 
-  offset_indices::accumulate_counts_to_offsets(r_triangle_offsets);
+  const OffsetIndices<int> triangle_offsets = offset_indices::accumulate_counts_to_offsets(
+      r_triangle_offsets);
 
   r_triangles.resize(r_triangle_offsets.last());
 
   threading::parallel_for(shape_mask.index_range(), 512, [&](const IndexRange range) {
     for (const int pos : range) {
-      const IndexRange range = IndexRange::from_begin_end(r_triangle_offsets[pos],
-                                                          r_triangle_offsets[pos + 1]);
-      MutableSpan<int3> r_tris = r_triangles.as_mutable_span().slice(range);
+      const IndexRange shape_range = triangle_offsets[pos];
+      MutableSpan<int3> r_tris = r_triangles.as_mutable_span().slice(shape_range);
       array_utils::copy(triangle_results[pos].as_span(), r_tris);
     }
   });
