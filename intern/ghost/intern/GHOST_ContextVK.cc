@@ -476,6 +476,7 @@ struct GHOST_InstanceVK {
     device.extensions.enable(required_device_extensions);
     device.extensions.enable(optional_device_extensions, true);
 
+#if 0
     /* Disabling pipeline libraries and dynamic vertex input on AMD drivers due to random crashes
      * that are also happening when enabling the extension, but not using it at all. This needs
      * more investigation as it could be related to development workflows.
@@ -493,6 +494,7 @@ struct GHOST_InstanceVK {
       device.extensions.disable(VK_EXT_GRAPHICS_PIPELINE_LIBRARY_EXTENSION_NAME);
       device.extensions.disable(VK_EXT_VERTEX_INPUT_DYNAMIC_STATE_EXTENSION_NAME);
     }
+#endif
 
     device.init_generic_queue_family();
 

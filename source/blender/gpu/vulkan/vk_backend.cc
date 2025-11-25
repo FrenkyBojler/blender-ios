@@ -488,6 +488,7 @@ void VKBackend::detect_workarounds(VKDevice &device)
     workarounds.not_aligned_pixel_formats = true;
   }
 
+#if 0
   /* During testing graphics pipeline library feature it was detected that it would crash on
    * official AMD drivers.
    */
@@ -497,6 +498,7 @@ void VKBackend::detect_workarounds(VKDevice &device)
     extensions.graphics_pipeline_library = false;
     extensions.vertex_input_dynamic_state = false;
   }
+#endif
 
   /* Disable vertex input dynamic state for Qualcomm devices (#153414).
    *
