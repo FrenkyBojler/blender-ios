@@ -193,7 +193,6 @@ static wmOperatorStatus armature_click_extrude_exec(bContext *C, wmOperator * /*
 
     newbone = ED_armature_ebone_add(arm, ebone->name);
     arm->act_edbone = newbone;
-    /* Also copy the bbone size */
     newbone->xwidth = ebone->xwidth;
     newbone->zwidth = ebone->zwidth;
 
