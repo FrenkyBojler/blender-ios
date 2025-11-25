@@ -237,8 +237,7 @@ def copy_bone_properties(obj: ArmatureObject, bone_name_1: str, bone_name_2: str
     else:
         raise MetarigError("Cannot copy bone properties in edit mode")
 
-# Do we still want to keep the legacy functions?.
-# Unused Legacy Function
+
 def _legacy_copy_bone(obj, bone_name, assign_name=''):
     """LEGACY ONLY, DON'T USE"""
     new_name = copy_bone(obj, bone_name, assign_name, parent=True, bbone=True)
@@ -336,7 +335,6 @@ def disable_bbones(obj: ArmatureObject, bone_names: Iterable[str]):
 
 
 # noinspection SpellCheckingInspection
-# Unused Legacy Function
 def _legacy_make_nonscaling_child(obj, bone_name, location, child_name_postfix=""):
     """ Takes the named bone and creates a non-scaling child of it at
         the given location.  The returned bone (returned by name) is not
