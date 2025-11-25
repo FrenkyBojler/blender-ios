@@ -683,13 +683,17 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
           float (*projverts)[2] = static_cast<float (*)[2]>(
               BLI_memarena_alloc(pf_arena, sizeof(*projverts) * size_t(num_points)));
 
-          Array<int> shape_points_by_curve_data(shape.size() + 1);
+          int *shape_points_by_curve_data = static_cast<int(*)>(BLI_memarena_alloc(
+              pf_arena, sizeof(*shape_points_by_curve_data) * size_t(shape.size() + 1)));
+          const MutableSpan<int> shape_points_by_curve_data_span = MutableSpan(
+              reinterpret_cast<int *>(shape_points_by_curve_data), shape.size() + 1);
+
           shape.foreach_index([&](const int64_t curve_i, const int64_t pos) {
             shape_points_by_curve_data[pos] = points_by_curve[curve_i].size();
           });
 
           OffsetIndices<int> shape_points_by_curve = offset_indices::accumulate_counts_to_offsets(
-              shape_points_by_curve_data);
+              shape_points_by_curve_data_span);
 
           shape.foreach_index(GrainSize(256), [&](const int64_t curve_i, const int64_t pos) {
             const IndexRange shape_points = shape_points_by_curve[pos];
