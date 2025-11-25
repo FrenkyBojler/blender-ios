@@ -1174,26 +1174,30 @@ static void grease_pencil_geom_batch_ensure(Object &object,
 
     Array<int> verts_start_offsets(curves.curves_num(), 0);
 
-    /* Calculate the vertex offsets for all the visible curves. */
     int num_cyclic = 0;
     int num_points = 0;
+    auto add_curve = [&](const int curve_i) {
+      IndexRange points = points_by_curve[curve_i];
+      const bool is_cyclic = cyclic[curve_i] && (points.size() > 2);
+
+      if (is_cyclic) {
+        num_cyclic++;
+      }
+
+      verts_start_offsets[curve_i] = total_verts_num;
+      /* One vertex is stored before and after as padding. */
+      total_verts_num += 1 + points.size() + 1;
+      /* Cyclic strokes have one extra vertex. */
+      total_verts_num += (is_cyclic ? 1 : 0);
+      num_points += points.size();
+    };
+
+    /* Calculate the vertex offsets for all the visible curves. */
     if (!shapes) {
       visible_shapes.foreach_index([&](const int curve_i) {
         total_triangles_num += triangles[curve_i].size();
 
-        IndexRange points = points_by_curve[curve_i];
-        const bool is_cyclic = cyclic[curve_i] && (points.size() > 2);
-
-        if (is_cyclic) {
-          num_cyclic++;
-        }
-
-        verts_start_offsets[curve_i] = total_verts_num;
-        /* One vertex is stored before and after as padding. */
-        total_verts_num += 1 + points.size() + 1;
-        /* Cyclic strokes have one extra vertex. */
-        total_verts_num += (is_cyclic ? 1 : 0);
-        num_points += points.size();
+        add_curve(curve_i);
       });
     }
     else {
@@ -1204,19 +1208,7 @@ static void grease_pencil_geom_batch_ensure(Object &object,
 
         for (const int pos : shape.index_range()) {
           const int curve_i = shape[pos];
-          IndexRange points = points_by_curve[curve_i];
-          const bool is_cyclic = cyclic[curve_i] && (points.size() > 2);
-
-          if (is_cyclic) {
-            num_cyclic++;
-          }
-
-          verts_start_offsets[curve_i] = total_verts_num;
-          /* One vertex is stored before and after as padding. */
-          total_verts_num += 1 + points.size() + 1;
-          /* Cyclic strokes have one extra vertex. */
-          total_verts_num += (is_cyclic ? 1 : 0);
-          num_points += points.size();
+          add_curve(curve_i);
         }
       });
     }
