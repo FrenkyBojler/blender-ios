@@ -300,7 +300,7 @@ bNode &version_node_add_unknown(bNodeTree &ntree,
   node->flag = NODE_SELECT | NODE_OPTIONS | NODE_INIT;
   node->width = ntype.width;
   node->height = ntype.height;
-  node->color[0] = node->color[1] = node->color[2] = 0.608;
+  node->color[0] = node->color[1] = node->color[2] = 0.608f;
 
   node->type_legacy = ntype.type_legacy;
 
