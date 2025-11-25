@@ -55,8 +55,6 @@
 #include "ED_util.hh"
 #include "ED_view3d.hh"
 
-#include "BIF_glutil.hh"
-
 #include "SEQ_channels.hh"
 #include "SEQ_effects.hh"
 #include "SEQ_iterator.hh"
@@ -135,7 +133,7 @@ ImBuf *sequencer_ibuf_get(const bContext *C, const int timeline_frame, const cha
   int recty = roundf(render_scale * scene->r.ysch);
 
   seq::render_new_render_data(
-      bmain, depsgraph, scene, rectx, recty, render_size_mode, false, &context);
+      bmain, depsgraph, scene, rectx, recty, render_size_mode, nullptr, &context);
   context.view_id = BKE_scene_multiview_view_id_get(&scene->r, viewname);
   context.use_proxies = (sseq->flag & SEQ_USE_PROXIES) != 0;
   context.is_playing = screen->animtimer != nullptr;
@@ -976,7 +974,7 @@ static bool sequencer_draw_get_transform_preview(const SpaceSeq &sseq, const Sce
     return false;
   }
 
-  return (G.moving & G_TRANSFORM_SEQ) && (last_seq->flag & SELECT) &&
+  return (G.moving & G_TRANSFORM_SEQ) && (last_seq->flag & SEQ_SELECT) &&
          ((last_seq->flag & SEQ_LEFTSEL) || (last_seq->flag & SEQ_RIGHTSEL)) &&
          (sseq.draw_flag & SEQ_DRAW_TRANSFORM_PREVIEW);
 }
@@ -1007,7 +1005,7 @@ static void strip_draw_image_origin_and_outline(const bContext *C,
   if (region->regiontype == RGN_TYPE_PREVIEW && !sequencer_view_preview_only_poll(C)) {
     return;
   }
-  if ((strip->flag & SELECT) == 0) {
+  if ((strip->flag & SEQ_SELECT) == 0) {
     return;
   }
   if (ED_screen_animation_no_scrub(CTX_wm_manager(C))) {
