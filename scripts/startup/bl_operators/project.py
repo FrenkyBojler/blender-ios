@@ -202,7 +202,6 @@ class PROJECT_OP_SaveProject(Operator):
 
 @bpy.app.handlers.persistent
 def on_blend_load(blend_path: str):
-    use_autosave = bpy.context.preferences.use_project_auto_save
     if bpy.context.preferences.use_project_auto_save and bpy.context.project.is_dirty and bpy.context.project.data is not None:
         save_project(bpy.context.project)
 
