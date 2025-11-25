@@ -181,8 +181,14 @@ class PROJECT_PT_main(Panel, CenterAlignMixIn):
         col = layout.column()
 
         if context.project.data is None:
-            col.label(text="No project!", icon='INFO')
-            col.operator("project.new_project")
+            col.label(text="No active project.", icon='INFO')
+
+            col.label(text="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quisque sit amet")
+            col.label(text="mi et magna mattis faucibus. Sed aliquet mi justo.")
+
+            row = col.row()
+            split = row.split(factor=0.3)
+            split.operator("project.new_project")
         else:
             col.prop(project.data, "name")
             col.prop(project.data, "root_path")
