@@ -20,7 +20,7 @@ namespace blender::eevee {
 #define AOV_MAX 128
 
 struct AOVsInfoData {
-  /* Pack 4 hashes per uint4, using std140 packing rules. 
+  /* Pack 4 hashes per uint4, using std140 packing rules.
    * Color AOV hashes are placed before value AOV hashes. */
   uint4 hash[AOV_MAX / 4];
   /* Nr. of AOVs stored. */

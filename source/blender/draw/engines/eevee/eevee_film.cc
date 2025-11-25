@@ -86,8 +86,8 @@ void Film::init_aovs(const Set<std::string> &passes_used_by_viewport_compositor)
 
   for (ViewLayerAOV *aov : aovs) {
     bool is_value = (aov->type == AOV_TYPE_VALUE);
-    int &index = is_value ?  aovs_info.value_len : aovs_info.color_len;
-    
+    int &index = is_value ? aovs_info.value_len : aovs_info.color_len;
+
     /* Pack hash in `AOVsInfoData`. We place value AOVs after color AOVs. */
     int index_actual = is_value ? aovs_info.color_len + index : index;
     aovs_info.hash[index_actual / 4][index_actual % 4] = BLI_hash_string(aov->name);
@@ -117,7 +117,7 @@ gpu::Texture *Film::get_aov_texture(ViewLayerAOV *aov)
 {
   bool is_value = (aov->type == AOV_TYPE_VALUE);
   Texture &accum_tx = is_value ? value_accum_tx_ : color_accum_tx_;
-    
+
   /* Find AOV index. Hashes are packed in tuples of 4. */
   uint hash = BLI_hash_string(aov->name);
   int aov_index = -1;
