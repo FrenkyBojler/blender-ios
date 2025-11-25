@@ -2518,7 +2518,8 @@ struct NodeInsertChain {
 
   bool is_reroute() const
   {
-    return end_node->is_reroute() && selected_count == 1;  // one reroute in Node Frame?
+    // todo: only one reroute in Node Frame?
+    return end_node->is_reroute() && selected_count == 1;
   }
 
   /* Store the first visible socket found for each unique socket type. */
@@ -2552,6 +2553,7 @@ struct NodeInsertChain {
         }
         const eNodeSocketDatatype sock_type = eNodeSocketDatatype(sock_in->type);
         bool is_supported = false;
+        /* todo: Is there a better solution? */
         {
           if (const bool *cached_result = type_support.lookup_ptr(sock_type)) {
             is_supported = *cached_result;
@@ -2593,8 +2595,8 @@ struct NodeInsertChain {
           continue;
         }
 
+        /* If this type finds a second candidate, remove it from both maps. */
         if (start_sockets_.contains(sock_type)) {
-          // If this type finds a second candidate, remove it from both maps.
           start_sockets_.remove(sock_type);
           end_sockets_.remove(sock_type);
         }
@@ -2660,7 +2662,8 @@ struct NodeInsertChain {
           bNode *paired_input = zone_type->get_corresponding_input(ntree, *end_candidate);
           if (paired_input && chain.nodes.contains(paired_input)) {
             chain.set_end_candidate(end_candidate);
-            // 目前无法处理同时选中了无连接区域输入输出,但起点不是区域输入
+            /* Currently Cannot handle cases where unconnected Zone Input/Output are selected,
+             * but the start node is not the Zone Input. */
             chain.set_start_sockets(ntree, {paired_input});
             return chain;
           }
@@ -2682,6 +2685,7 @@ struct NodeInsertChain {
     return !start_sockets_.is_empty() && !end_sockets_.is_empty();
   }
 
+  // todo: need improve
   bool can_insert_link(const bNodeTree &ntree,
                        const bNode &start_node,
                        const bNodeSocket *start_sock,
@@ -2745,6 +2749,7 @@ struct NodeInsertChain {
     return !find_target;
   }
 
+  // todo: need improve
   bNodeSocket *find_matching_socket(const bNodeTree &ntree,
                                     const bNodeLink &link,
                                     eNodeSocketInOut in_out) const
@@ -2766,9 +2771,9 @@ struct NodeInsertChain {
     if (!ntree.typeinfo->validate_link) {
       return nullptr;
     }
-    // ! candidate_map 是无序的?
-    // 如果没相同类型,找兼容类型,这些兼容的是一个节点里的话,应该取靠前的接口啊 !
-    // 如果兼容接口来自不同的节点,应该返回空吧
+    // todo If compatible sockets come from different nodes, should return null ?
+    // todo If valid compatible sockets are in one node, should pick the first compatible socket,
+    // todo Map is unordered, this loop select random if multiple compatible types exist
     for (bNodeSocket *socket : candidate_map.values()) {
       eNodeSocketDatatype sock_type = eNodeSocketDatatype(socket->type);
       eNodeSocketDatatype need_sock_type = eNodeSocketDatatype(need_type);
@@ -2785,24 +2790,24 @@ struct NodeInsertChain {
   }
 };
 
-static bool is_downstream_linked_to_nodes(const bNodeLink *link, const Span<bNode *> nodes)
+static bool link_downstream_linked_to_nodes(const bNodeLink *link, const Span<bNode *> nodes)
 {
   if (link == nullptr || link->tonode == nullptr) {
     return false;
   }
-  const bool no_external_input = [&]() {
+  const bool has_external_input = [&]() {
     for (const bNode *node : nodes) {
       for (const bNodeSocket *sock_in : node->input_sockets()) {
         for (const bNodeLink *in_link : sock_in->directly_linked_links()) {
           if (!nodes.contains(in_link->fromnode)) {
-            return false;
+            return true;
           }
         }
       }
     }
-    return true;
+    return false;
   }();
-  if (no_external_input) {
+  if (!has_external_input) {
     return false;
   }
 
@@ -2903,7 +2908,7 @@ void node_insert_on_link_flags_set(SpaceNode &snode,
     }
     bool can_insert = chain.can_insert_link(
         node_tree, start_sock->owner_node(), start_sock, selink);
-    if (!attach_enabled || !can_insert || is_downstream_linked_to_nodes(selink, chain.nodes)) {
+    if (!attach_enabled || !can_insert || link_downstream_linked_to_nodes(selink, chain.nodes)) {
       selink->flag |= NODE_LINK_INSERT_TARGET_INVALID;
     }
   }
@@ -2976,31 +2981,34 @@ void node_insert_on_link_flags(Main &bmain, SpaceNode &snode, bool is_new_node)
   bNode *from_node = old_link->fromnode;
   bNodeSocket *from_socket = old_link->fromsock;
   bNode *to_node = old_link->tonode;
-  bNode *start_node = &best_input->owner_node();  // !
+  bNode *start_node = nullptr;
 
   const bool best_input_is_linked = best_input && best_input->is_directly_linked();
   bool need_new_input_link = true;
-  for (bNodeSocket *sock_in : start_node->input_sockets()) {
-    if (!ntree.typeinfo->validate_link) {
-      break;
-    }
-    if (!sock_in->is_visible() ||
-        !ntree.typeinfo->validate_link(eNodeSocketDatatype(sock_in->type),
-                                       eNodeSocketDatatype(best_input->type)))
-    {
-      continue;
-    }
-    for (const bNodeLink *in_link : sock_in->directly_linked_links()) {
-      if (bke::node_link_is_hidden(*in_link) || chain.nodes.contains(in_link->fromnode)) {
-        continue;
-      }
-      if (from_socket == in_link->fromsock) {
-        need_new_input_link = false;
+  if (best_input != nullptr) {
+    start_node = &best_input->owner_node();
+    for (bNodeSocket *sock_in : start_node->input_sockets()) {
+      if (!ntree.typeinfo->validate_link) {
         break;
       }
-    }
-    if (!need_new_input_link) {
-      break;
+      if (!sock_in->is_visible() ||
+          !ntree.typeinfo->validate_link(eNodeSocketDatatype(sock_in->type),
+                                         eNodeSocketDatatype(best_input->type)))
+      {
+        continue;
+      }
+      for (const bNodeLink *in_link : sock_in->directly_linked_links()) {
+        if (bke::node_link_is_hidden(*in_link) || chain.nodes.contains(in_link->fromnode)) {
+          continue;
+        }
+        if (from_socket == in_link->fromsock) {
+          need_new_input_link = false;
+          break;
+        }
+      }
+      if (!need_new_input_link) {
+        break;
+      }
     }
   }
 
