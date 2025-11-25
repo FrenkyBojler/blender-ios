@@ -60,6 +60,7 @@ set(SRC
   intern/cpp_type.cc
   intern/cpp_types.cc
   intern/csv_parse.cc
+  intern/debugger_utils.cc
   intern/delaunay_2d.cc
   intern/dot_export.cc
   intern/easing.cc
@@ -430,6 +431,7 @@ set(LIB
   PRIVATE bf::intern::guardedalloc
   extern_wcwidth
   PRIVATE bf::intern::atomic
+  PRIVATE bf::intern::clog
   PRIVATE extern_fmtlib
   PUBLIC bf::dependencies::optional::tbb
   PRIVATE bf::dependencies::eigen
