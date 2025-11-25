@@ -691,24 +691,24 @@ typedef enum eStripFlag {
   SEQ_SELECT = (1 << 0),
   SEQ_LEFTSEL = (1 << 1),
   SEQ_RIGHTSEL = (1 << 2),
-  /* Unused, was SEQ_OVERLAP = (1 << 3), now a runtime flag. */
+  /* (1 << 3) unused, set to zero by versioning code. */
   SEQ_DEINTERLACE = (1 << 4),
   SEQ_MUTE = (1 << 5),
   SEQ_FLAG_TEXT_EDITING_ACTIVE = (1 << 6),
   SEQ_REVERSE_FRAMES = (1 << 7),
-  /* Unused, was SEQ_IPO_FRAME_LOCKED = (1 << 8), */
-  /* Unused, was SEQ_EFFECT_NOT_LOADED = (1 << 9), */
-  /* Unused, was SEQ_FLAG_DELETE = (1 << 10), now a runtime flag. */
+  /* (1 << 8) unused, set to zero by versioning code. */
+  /* (1 << 9) unused, set to zero by versioning code. */
+  /* (1 << 10) unused, set to zero by versioning code. */
   SEQ_FLIPX = (1 << 11),
   SEQ_FLIPY = (1 << 12),
   SEQ_MAKE_FLOAT = (1 << 13),
   SEQ_LOCK = (1 << 14),
   SEQ_USE_PROXY = (1 << 15),
-  /* Unused, was SEQ_IGNORE_CHANNEL_LOCK = (1 << 16), now a runtime flag. */
+  /* (1 << 16) unused, set to zero by versioning code. */
   SEQ_AUTO_PLAYBACK_RATE = (1 << 17),
   SEQ_SINGLE_FRAME_CONTENT = (1 << 18),
   SEQ_SHOW_RETIMING = (1 << 19),
-  /* Unused, was SEQ_SHOW_OFFSETS = (1 << 20), now a runtime flag. */
+  /* (1 << 20) unused, set to zero by versioning code. */
   SEQ_MULTIPLY_ALPHA = (1 << 21),
 
   SEQ_USE_EFFECT_DEFAULT_FADE = (1 << 22),
