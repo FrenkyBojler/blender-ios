@@ -697,6 +697,8 @@ void DeferredLayer::end_sync(bool is_first_pass,
   const bool is_layer_refracted = (next_layer_has_transmission && has_any_closure);
   const bool has_transmit_closure = (closure_bits_ & (CLOSURE_REFRACTION | CLOSURE_TRANSLUCENT));
   const bool has_reflect_closure = (closure_bits_ & (CLOSURE_REFLECTION | CLOSURE_DIFFUSE));
+  const bool has_transparent_shader_to_rgba = (closure_bits_ & CLOSURE_TRANSPARENCY) &&
+                                              (closure_bits_ & CLOSURE_SHADER_TO_RGBA);
   use_raytracing_ = (has_transmit_closure || has_reflect_closure) &&
                     inst_.raytracing.use_raytracing();
   use_clamp_direct_ = inst_.sampling.use_clamp_direct();
@@ -706,7 +708,9 @@ void DeferredLayer::end_sync(bool is_first_pass,
 
   /* The first pass will never have any surfaces behind it. Nothing is refracted except the
    * environment. So in this case, disable tracing and fallback to probe. */
-  use_screen_transmission_ = use_raytracing_ && has_transmit_closure && !is_first_pass;
+  use_screen_transmission_ = use_raytracing_ &&
+                             (has_transmit_closure || has_transparent_shader_to_rgba) &&
+                             !is_first_pass;
   use_screen_reflection_ = use_raytracing_ && has_reflect_closure;
 
   use_feedback_output_ = (use_raytracing_ || is_layer_refracted) &&
@@ -967,8 +971,10 @@ gpu::Texture *DeferredLayer::render(View &main_view,
   constexpr eGPUTextureUsage usage_write = GPU_TEXTURE_USAGE_SHADER_WRITE;
   constexpr eGPUTextureUsage usage_rw = usage_read | usage_write;
 
-  /* Update for refraction. */
-  inst_.hiz_buffer.update();
+  if (use_screen_transmission_) {
+    /* Update for refraction. */
+    inst_.hiz_buffer.update();
+  }
 
   GPU_framebuffer_bind(prepass_fb);
   inst_.manager->submit(prepass_ps_, render_view);
