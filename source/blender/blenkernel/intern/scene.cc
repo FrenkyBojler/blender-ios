@@ -1183,7 +1183,6 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
     temp_nodetree_copy->id.lib = sce->id.lib;
     /* Set deprecated chunksize for forward compatibility. */
     temp_nodetree_copy->chunksize = 256;
-    BLO_write_struct_at_address(writer, bNodeTree, sce->nodetree, temp_nodetree_copy);
 
     /* The Composite node was replaced by the Group Output node in 5.0, so we add one to ensure
      * forward compatibility. */
@@ -1229,6 +1228,7 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
 
     BLO_Write_IDBuffer temp_embedded_id_buffer{temp_nodetree_copy->id, writer};
     bNodeTree *temp_nodetree = reinterpret_cast<bNodeTree *>(temp_embedded_id_buffer.get());
+    BLO_write_struct_at_address(writer, bNodeTree, sce->nodetree, temp_nodetree);
     blender::bke::node_tree_blend_write(writer, temp_nodetree);
 
     blender::bke::node_tree_free_embedded_tree(temp_nodetree_copy);
