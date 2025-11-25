@@ -58,11 +58,7 @@ class PROJECT_MT_save_load(Menu):
         prefs = context.preferences
 
         layout.prop(prefs, "use_project_auto_save", text="Auto-Save Project")
-        layout.operator("project.write_project", text="Save Project")
-
-        layout.separator()
-
-        layout.label(text="Foo")
+        layout.operator("project.save_project", text="Save Project")
 
 
 # -----------------------------------------------------------------------------
@@ -177,7 +173,6 @@ class PROJECT_PT_main(Panel, CenterAlignMixIn):
         else:
             col.prop(project.data, "name")
             col.prop(project.data, "root_path")
-            col.operator("project.write_project")
 
 
 # -----------------------------------------------------------------------------

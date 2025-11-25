@@ -55,6 +55,8 @@ def save_project(project):
     except PermissionError:
         raise ProjectSaveException("Cannot write to '{}' due to filesystem permissions.".format(PROJECT_CONFIG))
 
+    project.is_dirty = False
+
 
 def find_project_root_from_blend_file_path(blend_path: Path) -> Path | None:
     for parent in blend_path.parents:
@@ -152,8 +154,18 @@ class PROJECT_OP_NewProject(Operator):
         return context.project.data is None
 
     def execute(self, context):
-        # TODO: validate `self.directory`.
+        # TODO: ensure there isn't already a project at `self.directory`.
+
+        # Create the project.
         context.project.init("New Project", self.directory)
+
+        # Immediately save the project.
+        try:
+            save_project(context.project)
+        except ProjectSaveException as e:
+            self.report({'ERROR'}, "Failed to save project: {}".format(e))
+            return {'CANCELLED'}
+
         return {'FINISHED'}
 
     def invoke(self, context, event):
@@ -161,14 +173,14 @@ class PROJECT_OP_NewProject(Operator):
         return {'RUNNING_MODAL'}
 
 
-class PROJECT_OP_WriteProject(Operator):
-    """Write the current project to disk"""
-    bl_idname = "project.write_project"
-    bl_label = "Write Project"
+class PROJECT_OP_SaveProject(Operator):
+    """Save the current project to disk"""
+    bl_idname = "project.save_project"
+    bl_label = "Save Project"
 
     @classmethod
     def poll(cls, context):
-        return context.project.data is not None
+        return context.project.data is not None and context.project.is_dirty
 
     def execute(self, context):
         try:
@@ -176,8 +188,6 @@ class PROJECT_OP_WriteProject(Operator):
         except ProjectSaveException as e:
             self.report({'ERROR'}, "Failed to save project: {}".format(e))
             return {'CANCELLED'}
-
-        context.project.is_dirty = False
 
         return {'FINISHED'}
 
@@ -189,7 +199,7 @@ class PROJECT_OP_WriteProject(Operator):
 def on_blend_load(blend_path: str) -> None:
     if bpy.context.project.data is not None and bpy.context.project.is_dirty:
         # TODO: make this conditional on auto-save being enabled or not.
-        bpy.ops.project.write_project()
+        save_project(bpy.context.project)
 
     load_project_for_blend_path(bpy.context, blend_path)
 
@@ -211,7 +221,7 @@ def on_blend_save(blend_path: str) -> None:
 
 classes = (
     PROJECT_OP_NewProject,
-    PROJECT_OP_WriteProject
+    PROJECT_OP_SaveProject
 )
 
 
