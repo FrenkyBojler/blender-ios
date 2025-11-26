@@ -357,15 +357,15 @@ static wmOperatorStatus screen_render_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
+  /* custom scene and single layer re-render */
+  screen_render_single_layer_set(op, mainp, active_layer, &scene, &single_layer);
+
   int frame_start, frame_end;
   get_render_operator_frame_range(op, scene, frame_start, frame_end);
   if (is_animation && frame_start > frame_end) {
     BKE_report(op->reports, RPT_ERROR, "Start frame is larger than end frame");
     return OPERATOR_CANCELLED;
   }
-
-  /* custom scene and single layer re-render */
-  screen_render_single_layer_set(op, mainp, active_layer, &scene, &single_layer);
 
   if (!is_animation && is_write_still && BKE_imtype_is_movie(scene->r.im_format.imtype)) {
     BKE_report(
@@ -388,7 +388,8 @@ static wmOperatorStatus screen_render_exec(bContext *C, wmOperator *op)
    * otherwise, invalidated cache entries can make their way into
    * the output rendering. We can't put that into RE_RenderFrame,
    * since sequence rendering can call that recursively... (peter) */
-  blender::seq::cache_cleanup(scene);
+  blender::seq::cache_cleanup_intra(scene);
+  blender::seq::cache_cleanup_final(scene);
 
   RE_SetReports(re, op->reports);
 
@@ -1047,15 +1048,15 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
     return OPERATOR_CANCELLED;
   }
 
+  /* custom scene and single layer re-render */
+  screen_render_single_layer_set(op, bmain, active_layer, &scene, &single_layer);
+
   int frame_start, frame_end;
   get_render_operator_frame_range(op, scene, frame_start, frame_end);
   if (is_animation && frame_start > frame_end) {
     BKE_report(op->reports, RPT_ERROR, "Start frame is larger than end frame");
     return OPERATOR_CANCELLED;
   }
-
-  /* custom scene and single layer re-render */
-  screen_render_single_layer_set(op, bmain, active_layer, &scene, &single_layer);
 
   /* only one render job at a time */
   if (WM_jobs_test(CTX_wm_manager(C), scene, WM_JOB_TYPE_RENDER)) {
@@ -1095,7 +1096,8 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
   ED_editors_flush_edits_ex(bmain, true, false);
 
   /* Cleanup VSE cache, since it is not guaranteed that stored images are invalid. */
-  blender::seq::cache_cleanup(scene);
+  blender::seq::cache_cleanup_intra(scene);
+  blender::seq::cache_cleanup_final(scene);
 
   /* store spare
    * get view3d layer, local layer, make this nice API call to render
