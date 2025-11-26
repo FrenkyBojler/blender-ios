@@ -230,6 +230,13 @@ void multires_reshape_tangent_matrix_for_corner(const MultiresReshapeContext *re
                                                 const blender::float3 &dPdu,
                                                 const blender::float3 &dPdv,
                                                 blender::float3x3 &r_tangent_matrix);
+void multires_reshape_tangent_matrix_for_corner_for_versioning(
+    const MultiresReshapeContext *reshape_context,
+    int face_index,
+    int corner,
+    const blender::float3 &dPdu,
+    const blender::float3 &dPdv,
+    blender::float3x3 &r_tangent_matrix);
 
 /**
  * Get grid elements which are to be reshaped at a given or PTEX coordinate.

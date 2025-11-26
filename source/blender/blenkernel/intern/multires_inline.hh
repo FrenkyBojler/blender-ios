@@ -57,7 +57,7 @@ BLI_INLINE void BKE_multires_construct_tangent_matrix(blender::float3x3 &tangent
       blender::double3(tangent_matrix.x_axis()), blender::double3(tangent_matrix.y_axis()))));
 
   constexpr float eps = 0.000001f;
-  /* Check for a bad cross product by inspecting the length, if within this arbitrary epislon,
+  /* Check for a bad cross product by inspecting the length, if within this arbitrary epsilon,
    * return the null matrix. */
   if (blender::math::length_squared(N) < eps) {
     tangent_matrix = blender::float3x3::zero();
@@ -66,33 +66,19 @@ BLI_INLINE void BKE_multires_construct_tangent_matrix(blender::float3x3 &tangent
 
   tangent_matrix.z_axis() = N;
 
-  if (USER_EXPERIMENTAL_TEST(&U, use_multires_normalized_matrix)) {
-    tangent_matrix.x_axis() = blender::math::normalize(tangent_matrix.x_axis());
-    tangent_matrix.y_axis() = blender::math::normalize(tangent_matrix.y_axis());
-    tangent_matrix.z_axis() = blender::math::normalize(N);
-  }
-  else {
-    const float geometric_mean = blender::math::sqrt(
-        blender::math::length(tangent_matrix.x_axis()) *
-        blender::math::length(tangent_matrix.y_axis()));
+  const float geometric_mean = blender::math::sqrt(blender::math::length(tangent_matrix.x_axis()) *
+                                                   blender::math::length(tangent_matrix.y_axis()));
 
-    tangent_matrix.x_axis() = tangent_matrix.x_axis();
-    tangent_matrix.y_axis() = tangent_matrix.y_axis();
-    tangent_matrix.z_axis() = blender::math::normalize(N) * geometric_mean;
-  }
+  tangent_matrix.x_axis() = tangent_matrix.x_axis();
+  tangent_matrix.y_axis() = tangent_matrix.y_axis();
+  tangent_matrix.z_axis() = blender::math::normalize(N) * geometric_mean;
 
-  if (USER_EXPERIMENTAL_TEST(&U, use_multires_orthogonal_matrix)) {
-    tangent_matrix = blender::math::orthogonalize(tangent_matrix, blender::math::Axis::Z);
-  }
-
-  if (USER_EXPERIMENTAL_TEST(&U, use_multires_condition_number_filter)) {
-    const blender::float3x3 inv_mat = blender::math::invert(tangent_matrix);
-    const float condition_number = euclidean_norm(tangent_matrix) * euclidean_norm(inv_mat);
-    /* This is a pretty aggressive number, but the vast majority (99%) of the vertices on a human
-     * mesh have a value underneath this */
-    if (condition_number > 10.0f) {
-      tangent_matrix = blender::float3x3::zero();
-    }
+  const blender::float3x3 inv_mat = blender::math::invert(tangent_matrix);
+  const float condition_number = euclidean_norm(tangent_matrix) * euclidean_norm(inv_mat);
+  /* This is a pretty aggressive number, but the vast majority (99%) of the vertices on a human
+   * mesh have a value close to 3.0 */
+  if (condition_number > 10.0f) {
+    tangent_matrix = blender::float3x3::zero();
   }
 }
 
