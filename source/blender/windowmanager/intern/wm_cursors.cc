@@ -173,7 +173,7 @@ static int wm_cursor_size(const wmWindow *win)
 
   if (OS_MAC) {
     /* MacOS always scales up this type of cursor for high-dpi displays. */
-    return 20;
+    return 22;
   }
 
   /* The DPI as a scale without the UI scale preference. */
@@ -1022,8 +1022,8 @@ void wm_init_cursor_data()
   wm_add_cursor(WM_CURSOR_ZOOM_OUT, datatoc_cursor_zoom_out_svg, {0.32f, 0.32f});
   wm_add_cursor(WM_CURSOR_MUTE, datatoc_cursor_mute_svg, {0.59f, 0.59f});
   wm_add_cursor(WM_CURSOR_PICK_AREA, datatoc_cursor_pick_area_svg, {0.5f, 0.5f});
-  wm_add_cursor(WM_CURSOR_BOTH_HANDLES, datatoc_cursor_both_handles_svg, {0.5f, 0.5f});
-  wm_add_cursor(WM_CURSOR_RIGHT_HANDLE, datatoc_cursor_right_handle_svg, {0.5f, 0.5f});
+  wm_add_cursor(WM_CURSOR_BOTH_HANDLES, datatoc_cursor_both_handles_svg, {0.6f, 0.5f});
+  wm_add_cursor(WM_CURSOR_RIGHT_HANDLE, datatoc_cursor_right_handle_svg, {0.4f, 0.5f});
   wm_add_cursor(WM_CURSOR_LEFT_HANDLE, datatoc_cursor_left_handle_svg, {0.5f, 0.5f});
   wm_add_cursor(WM_CURSOR_SLIP, datatoc_cursor_slip_svg, {0.5f, 0.5f});
 #endif /* !WITH_HEADLESS */
