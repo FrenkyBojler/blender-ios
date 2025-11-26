@@ -1203,7 +1203,7 @@ static void rna_Object_dimensions_get(PointerRNA *ptr, float *value)
 static void rna_Object_dimensions_set(PointerRNA *ptr, const float *value)
 {
   Object *ob = static_cast<Object *>(ptr->data);
-  BKE_object_dimensions_set(ob, value, 0);
+  BKE_object_dimensions_set_ex(ob, value, 0, ob->scale, ob->runtime->object_to_world.ptr());
 }
 
 static int rna_Object_location_editable(const PointerRNA *ptr, int index)
