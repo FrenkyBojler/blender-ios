@@ -775,7 +775,8 @@ static void graph_panel_driverVar__singleProp(blender::ui::Layout &layout, ID *i
 static void graph_panel_driverVar__rotDiff(blender::ui::Layout &layout, ID *id, DriverVar *dvar)
 {
   for (int i : blender::IndexRange(2)) {
-    DriverTarget *dtar = &dvar->targets[i]; /* Initialize RNA pointer to the target */
+    DriverTarget *dtar = &dvar->targets[i];
+    /* Initialize RNA pointer to the target */
     PointerRNA ptr = RNA_pointer_create_discrete(id, &RNA_DriverTarget, dtar);
 
     blender::ui::Layout &col = layout.column(true);
