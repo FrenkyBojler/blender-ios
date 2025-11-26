@@ -146,21 +146,21 @@ void node_tree_composit_default_init(const bContext *C, bNodeTree *ntree)
    * node. */
   blender::bke::node_add_link(*ntree,
                               *in,
-                              *(bNodeSocket *)in->outputs.first,
+                              *reinterpret_cast<bNodeSocket *>(in->outputs.first),
                               *reroute,
-                              *(bNodeSocket *)reroute->inputs.first);
+                              *reinterpret_cast<bNodeSocket *>(reroute->inputs.first));
 
   blender::bke::node_add_link(*ntree,
                               *reroute,
-                              *(bNodeSocket *)reroute->outputs.first,
+                              *reinterpret_cast<bNodeSocket *>(reroute->outputs.first),
                               *composite,
-                              *(bNodeSocket *)composite->inputs.first);
+                              *reinterpret_cast<bNodeSocket *>(composite->inputs.first));
 
   blender::bke::node_add_link(*ntree,
                               *reroute,
-                              *(bNodeSocket *)reroute->outputs.first,
+                              *reinterpret_cast<bNodeSocket *>(reroute->outputs.first),
                               *viewer,
-                              *(bNodeSocket *)viewer->inputs.first);
+                              *reinterpret_cast<bNodeSocket *>(viewer->inputs.first));
 
   BKE_ntree_update_after_single_tree_change(*CTX_data_main(C), *ntree);
 }
