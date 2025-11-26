@@ -3004,6 +3004,7 @@ static wmOperatorStatus ui_view_item_navigate_invoke(bContext *C,
 
   if (next_item) {
     next_item->on_activate(*C);
+    tree_view.scroll_active_into_view();
   }
 
   ED_region_tag_redraw(&region);
