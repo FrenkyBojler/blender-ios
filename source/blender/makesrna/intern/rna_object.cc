@@ -1200,12 +1200,6 @@ static void rna_Object_dimensions_get(PointerRNA *ptr, float *value)
   BKE_object_dimensions_eval_cached_get(ob, value);
 }
 
-static void rna_Object_dimensions_set(PointerRNA *ptr, const float *value)
-{
-  Object *ob = static_cast<Object *>(ptr->data);
-  BKE_object_dimensions_set_ex(ob, value, 0, ob->scale, ob->runtime->object_to_world.ptr());
-}
-
 static int rna_Object_location_editable(const PointerRNA *ptr, int index)
 {
   Object *ob = static_cast<Object *>(ptr->data);
@@ -3168,8 +3162,10 @@ static void rna_def_object(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_NO_COMPARISON);
   RNA_def_property_override_clear_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
-  RNA_def_property_float_funcs(
-      prop, "rna_Object_dimensions_get", "rna_Object_dimensions_set", nullptr);
+  /* Set is set on runtime. Set as non-editable to avoid error generating rna sources. Will be
+   * restored on runtime */
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_float_funcs(prop, "rna_Object_dimensions_get", nullptr, nullptr);
   RNA_def_property_ui_range(prop, 0.0f, FLT_MAX, 1, RNA_TRANSLATION_PREC_DEFAULT);
   RNA_def_property_ui_text(prop,
                            "Dimensions",

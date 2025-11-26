@@ -39,6 +39,7 @@
 #include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_object.hh"
+#include "BKE_object_types.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
 #include "BKE_viewer_path.hh"
@@ -64,6 +65,7 @@
 #include "WM_types.hh"
 
 #include "RNA_access.hh"
+#include "RNA_define.hh"
 
 #include "UI_interface.hh"
 
@@ -1602,6 +1604,21 @@ static void view3d_space_blend_write(BlendWriter *writer, SpaceLink *sl)
   BKE_viewer_path_blend_write(writer, &v3d->viewer_path);
 }
 
+static void rna_Object_dimensions_set_ex(PointerRNA *ptr, PropertyRNA *prop, const float *value)
+{
+  Object *ob = static_cast<Object *>(ptr->data);
+  float dims[3];
+  RNA_property_float_get_array(ptr, prop, dims);
+  int axis_mask = 0;
+  for (int i = 0; i < 3; i++) {
+    if (dims[i] == value[i]) {
+      axis_mask |= (1 << i);
+    }
+  }
+  BKE_object_dimensions_set_ex(
+      ob, value, axis_mask, ob->scale, ob->runtime->object_to_world.ptr());
+}
+
 void ED_spacetype_view3d()
 {
   using namespace blender::ed;
@@ -1737,6 +1754,12 @@ void ED_spacetype_view3d()
       MEM_dupallocN<MenuType>(__func__, blender::ed::geometry::node_group_operator_assets_menu()));
   WM_menutype_add(MEM_dupallocN<MenuType>(
       __func__, blender::ed::geometry::node_group_operator_assets_menu_unassigned()));
+
+  StructRNA *srna = RNA_struct_find("Object");
+  PropertyRNA *prop = RNA_struct_type_find_property(srna, "dimensions");
+  RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_float_array_funcs_runtime(
+      prop, nullptr, rna_Object_dimensions_set_ex, nullptr, nullptr, nullptr);
 
   BKE_spacetype_register(std::move(st));
 }
