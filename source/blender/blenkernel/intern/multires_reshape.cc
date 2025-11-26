@@ -245,6 +245,10 @@ static void print_level_stats(blender::Span<float> data,
   float avg = 0.0f;
   for (int i : data.index_range()) {
     avg += data[i];
+    if (std::isnan(avg)) {
+      printf("%d, %f, %f\n", i, data[i], avg);
+      BLI_assert(false);
+    }
   }
   avg = avg / data.size();
 
@@ -326,7 +330,7 @@ static void print_matrix(const blender::float3x3 &mat)
   CLOG_INFO(&LOG, "Conditional Value: %.15f", conditional_value(mat));
 }
 
-#define DEBUG_STATS 0
+#define DEBUG_STATS 1
 
 static void multires_level_object_delta_to_tangent_delta(
     blender::Span<blender::float3x3> tmat_storage,
@@ -383,10 +387,26 @@ static void multires_level_object_delta_to_tangent_delta(
   {
     blender::Array<float> angles(tmat_storage.size());
     for (const int i : tmat_storage.index_range()) {
-      angles[i] = blender::math::dot(tmat_storage[i].x_axis(), tmat_storage[i].y_axis()) /
-                  (blender::math::length(tmat_storage[i].x_axis()) *
-                   blender::math::length(tmat_storage[i].y_axis()));
-      angles[i] = RAD2DEGF(blender::math::acos(angles[i]));
+      const blender::float3x3& tangent_matrix = tmat_storage[i];
+      if (blender::math::is_zero(tangent_matrix)) {
+        angles[i] = 0.0f;
+        continue;
+      }
+
+      double length;
+      blender::float3 N = blender::float3(blender::math::normalize_and_get_length(
+          blender::math::cross(blender::double3(tangent_matrix.x_axis()), blender::double3(tangent_matrix.y_axis())), length));
+      const double denominator = blender::math::length(blender::double3(tangent_matrix.x_axis())) *
+                                blender::math::length(blender::double3(tangent_matrix.y_axis()));
+
+      const double angle_between = RAD2DEG(blender::math::asin(double(length) / denominator));
+      if (std::isnan(angle_between)) {
+        printf("%.15f, %.15f, %.15f\n", length, denominator, blender::math::asin(length / denominator));
+        print_matrix(tangent_matrix);
+        BLI_assert(false);
+      }
+
+      angles[i] = angle_between;
     }
     print_level_stats(angles, sorted_indices, "Angles");
 
@@ -761,6 +781,7 @@ bool multiresModifier_applyHigherLevelDelta(Object &object,
     print_level_stats(determinants, sorted_indices, "Determinant");
   }
 
+#if 0
   {
     blender::Array<float> angles(tmat_storage.size());
     for (const int i : tmat_storage.index_range()) {
@@ -768,9 +789,11 @@ bool multiresModifier_applyHigherLevelDelta(Object &object,
                   (blender::math::length(tmat_storage[i].x_axis()) *
                    blender::math::length(tmat_storage[i].y_axis()));
       angles[i] = RAD2DEGF(blender::math::acos(angles[i]));
+      BLI_assert(std::isfinite(angles[i]));
     }
     print_level_stats(angles, sorted_indices, "Angles");
   }
+#endif
 
   {
     blender::Array<float> tangent_lengths(delta_storage.size());

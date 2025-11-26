@@ -12,12 +12,13 @@
 #include "BLI_math_constants.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_matrix_types.hh"
+#include "BLI_math_rotation_legacy.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 
 #define ORTHOGONALIZE 0
 #define NORMALIZE 0
-#define CHECK_COND_VALUE 0
+#define CHECK_COND_VALUE 1
 
 static float euclidean_norm_internal(const blender::float3x3 mat)
 {
@@ -55,8 +56,9 @@ BLI_INLINE void BKE_multires_construct_tangent_matrix(blender::float3x3 &tangent
   }
   /* Do cross product in double precision due to possibility of nearly parallel partial derivative
    * tangent vectors */
-  blender::float3 N = blender::float3(blender::math::normalize(blender::math::cross(
-      blender::double3(tangent_matrix.x_axis()), blender::double3(tangent_matrix.y_axis()))));
+  double length;
+  blender::float3 N = blender::float3(blender::math::normalize_and_get_length(blender::math::cross(
+      blender::double3(tangent_matrix.x_axis()), blender::double3(tangent_matrix.y_axis())), length));
 
   /* Chosen arbitrarily */
   constexpr float eps = 0.000001f;
@@ -66,6 +68,47 @@ BLI_INLINE void BKE_multires_construct_tangent_matrix(blender::float3x3 &tangent
   }
 
   tangent_matrix.z_axis() = N;
+  const float denominator = blender::math::length(tangent_matrix.x_axis()) * blender::math::length(tangent_matrix.y_axis());
+  const float angle_between = RAD2DEGF(blender::math::asin(float(length)/denominator));
+
+  constexpr float threshold_angle = 60.0f;
+  constexpr float low_threshold = 90.0f - threshold_angle;
+  constexpr float high_threshold = 90.0f + threshold_angle;
+
+  if (angle_between < low_threshold) {
+    const float deg_to_rotate = low_threshold - angle_between / 2.0f;
+    const float rad_to_rotate = DEG2RADF(deg_to_rotate);
+    tangent_matrix.x_axis() = blender::math::rotate_around_axis(tangent_matrix.x_axis(), blender::float3(0.0f), tangent_matrix.z_axis(), -rad_to_rotate);
+    tangent_matrix.y_axis() = blender::math::rotate_around_axis(tangent_matrix.y_axis(), blender::float3(0.0f), tangent_matrix.z_axis(), rad_to_rotate);
+    if (blender::math::is_zero(tangent_matrix.x_axis()) || blender::math::is_zero(tangent_matrix.y_axis())) {
+      printf("%f, (%f %f %f), (%f, %f, %f)\n",
+             deg_to_rotate,
+             tangent_matrix.x_axis().x,
+             tangent_matrix.x_axis().y,
+             tangent_matrix.x_axis().z,
+             tangent_matrix.y_axis().x,
+             tangent_matrix.y_axis().y,
+             tangent_matrix.y_axis().z);
+      BLI_assert_unreachable();
+    }
+  }
+  else if (angle_between > high_threshold) {
+    const float deg_to_rotate = angle_between - high_threshold / 2.0f;
+    const float rad_to_rotate = DEG2RADF(deg_to_rotate);
+    tangent_matrix.x_axis() = blender::math::rotate_around_axis(tangent_matrix.x_axis(), blender::float3(0.0f), tangent_matrix.z_axis(), rad_to_rotate);
+    tangent_matrix.y_axis() = blender::math::rotate_around_axis(tangent_matrix.y_axis(), blender::float3(0.0f), tangent_matrix.z_axis(), -rad_to_rotate);
+    if (blender::math::is_zero(tangent_matrix.x_axis()) || blender::math::is_zero(tangent_matrix.y_axis())) {
+      printf("%f, (%f %f %f), (%f, %f, %f)\n",
+             deg_to_rotate,
+             tangent_matrix.x_axis().x,
+             tangent_matrix.x_axis().y,
+             tangent_matrix.x_axis().z,
+             tangent_matrix.y_axis().x,
+             tangent_matrix.y_axis().y,
+             tangent_matrix.y_axis().z);
+      BLI_assert_unreachable();
+    }
+  }
 
 #  if NORMALIZE
   tangent_matrix.x_axis() = blender::math::normalize(tangent_matrix.x_axis());
@@ -83,6 +126,7 @@ BLI_INLINE void BKE_multires_construct_tangent_matrix(blender::float3x3 &tangent
 #  endif
 #if CHECK_COND_VALUE
   const blender::float3x3 inv = blender::math::invert(tangent_matrix);
+  BLI_assert(!blender::math::is_zero(tangent_matrix.x_axis()) && !blender::math::is_zero(tangent_matrix.y_axis()) && !blender::math::is_zero(tangent_matrix.z_axis()));
   if (euclidean_norm_internal(tangent_matrix) * euclidean_norm_internal(inv) > 10) {
     tangent_matrix = blender::float3x3::zero();
   }
