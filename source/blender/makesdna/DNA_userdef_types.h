@@ -241,10 +241,7 @@ typedef struct UserDef_Experimental {
   char use_sculpt_texture_paint;
   char use_shader_node_previews;
   char use_geometry_nodes_lists;
-  char use_multires_orthogonal_matrix;
-  char use_multires_normalized_matrix;
-  char use_multires_condition_number_filter;
-  char _pad[3];
+  char _pad[6];
 } UserDef_Experimental;
 
 #define USER_EXPERIMENTAL_TEST(userdef, member) (((userdef)->experimental).member)

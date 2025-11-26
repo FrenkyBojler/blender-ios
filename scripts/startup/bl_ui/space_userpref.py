@@ -2962,9 +2962,6 @@ class USERPREF_PT_experimental_prototypes(ExperimentalPanel, Panel):
             (
                 ({"property": "use_new_curves_tools"}, ("blender/blender/issues/68981", "#68981")),
                 ({"property": "use_sculpt_texture_paint"}, ("blender/blender/issues/96225", "#96225")),
-                ({"property": "use_multires_orthogonal_matrix"}, None),
-                ({"property": "use_multires_normalized_matrix"}, None),
-                ({"property": "use_multires_condition_number_filter"}, None),
             ),
         )
 
