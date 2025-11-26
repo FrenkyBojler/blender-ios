@@ -425,14 +425,12 @@ void key_curve_normal_weights(float t, float data[4], KeyInterpolationType type)
 
 /* Return 1 means k[2] is the position, return 0 means interpolate. */
 static int setkeys(
-    float fac, ListBase * /* KeyBlock */ keyblocks, KeyBlock *k[], float t[4], int cycl)
+    float fac, ListBase * /* KeyBlock */ keyblocks, KeyBlock *k[], float t[4], const int cycl)
 {
-  float offset = 0;
-
   KeyBlock *firstkey = static_cast<KeyBlock *>(keyblocks->first);
   KeyBlock *k1 = static_cast<KeyBlock *>(keyblocks->last);
-  float lastpos = k1->pos;
-  float delta_pos = lastpos - firstkey->pos;
+  const float lastpos = k1->pos;
+  const float delta_pos = lastpos - firstkey->pos;
 
   if (fac < firstkey->pos) {
     fac = firstkey->pos;
@@ -448,6 +446,7 @@ static int setkeys(
     return 1;
   }
 
+  float offset = 0;
   if (cycl) { /* Pre-sort. */
     k[2] = k1->next;
     k[3] = k[2]->next;
@@ -591,7 +590,7 @@ static char *key_block_get_data(Key *key, KeyBlock *actkb, KeyBlock *kb, char **
 
       if (mesh->runtime->edit_mesh && mesh->runtime->edit_mesh->bm->totvert == kb->totelem) {
         int a = 0;
-        float(*co)[3];
+        float (*co)[3];
         co = MEM_malloc_arrayN<float[3]>(size_t(mesh->runtime->edit_mesh->bm->totvert),
                                          "key_block_get_data");
 
@@ -863,7 +862,7 @@ static void key_evaluate_relative(const int start,
   cp_key(start, end, tot, basispoin, key, actkb, key->refkey, nullptr, mode);
 
   /* Step 2: do it. */
-  int keyblock_index;
+  int keyblock_index = 0;
   LISTBASE_FOREACH_INDEX (KeyBlock *, kb, &key->block, keyblock_index) {
     if (kb != key->refkey) {
       float icuval = kb->curval;
@@ -982,7 +981,6 @@ static void do_key(const int start,
   };
   int flagdo = K1_FLAG | K2_FLAG | K3_FLAG | K4_FLAG;
   int flagflo = 0;
-  char *cp;
 
   /* Currently always 0, in future key_pointer_size may assign. */
   ofs[1] = 0;
@@ -1110,9 +1108,9 @@ static void do_key(const int start,
   elemstr[1] = IPO_BEZTRIPLE;
   elemstr[2] = 0;
 
-  /* only here, not above! */
+  /* Only here, not above! */
   const int elemsize = key->elemsize * step;
-
+  char *cp;
   for (a = start; a < end; a += step) {
     cp = key->elemstr;
     if (mode == KEY_MODE_BEZTRIPLE) {
@@ -1951,7 +1949,7 @@ void BKE_keyblock_update_from_lattice(const Lattice *lt, KeyBlock *kb)
   }
 
   BPoint *bp = lt->def;
-  float(*fp)[3];
+  float (*fp)[3];
   fp = static_cast<float (*)[3]>(kb->data);
   for (int a = 0; a < kb->totelem; a++, fp++, bp++) {
     copy_v3_v3(*fp, bp->vec);
