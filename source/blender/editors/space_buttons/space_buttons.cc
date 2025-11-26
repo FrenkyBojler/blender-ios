@@ -28,7 +28,7 @@
 #include "BKE_lib_remap.hh"
 #include "BKE_modifier.hh"
 #include "BKE_screen.hh"
-#include "BKE_shader_fx.h"
+#include "BKE_shader_fx.hh"
 
 #include "BLT_translation.hh"
 
@@ -65,6 +65,11 @@ static SpaceLink *buttons_create(const ScrArea * /*area*/, const Scene * /*scene
   SpaceProperties *sbuts;
 
   sbuts = MEM_callocN<SpaceProperties>("initbuts");
+
+  sbuts->runtime = MEM_new<SpaceProperties_Runtime>(__func__);
+  sbuts->runtime->search_string[0] = '\0';
+  sbuts->runtime->tab_search_results = BLI_BITMAP_NEW(BCONTEXT_TOT, __func__);
+
   sbuts->spacetype = SPACE_PROPERTIES;
   sbuts->mainb = sbuts->mainbuser = BCONTEXT_OBJECT;
   sbuts->visible_tabs = uint(-1); /* 0xFFFFFFFF - All tabs visible by default. */
@@ -160,7 +165,7 @@ static void buttons_main_region_init(wmWindowManager *wm, ARegion *region)
 /** \name Property Editor Layout
  * \{ */
 
-void ED_buttons_visible_tabs_menu(bContext *C, uiLayout *layout, void * /*arg*/)
+void ED_buttons_visible_tabs_menu(bContext *C, blender::ui::Layout *layout, void * /*arg*/)
 {
   PointerRNA ptr = RNA_pointer_create_discrete(
       reinterpret_cast<ID *>(CTX_wm_screen(C)), &RNA_SpaceProperties, CTX_wm_space_properties(C));
@@ -184,7 +189,7 @@ void ED_buttons_visible_tabs_menu(bContext *C, uiLayout *layout, void * /*arg*/)
   }
 }
 
-void ED_buttons_navbar_menu(bContext *C, uiLayout *layout, void * /*arg*/)
+void ED_buttons_navbar_menu(bContext *C, blender::ui::Layout *layout, void * /*arg*/)
 {
   ED_screens_region_flip_menu_create(C, layout, nullptr);
   layout->operator_context_set(blender::wm::OpCallContext::InvokeDefault);
