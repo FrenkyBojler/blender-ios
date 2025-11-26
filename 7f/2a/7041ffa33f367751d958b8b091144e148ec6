@@ -1,4 +1,4 @@
 Referenced by issue #134810, Grease Pencil - Keyframing Layer "Hide" option doesn't reliably toggle visibility
 Referenced by issue #138325, Inconsistent `selected_objects` with `context.temp_override` (`None` values)
 Referenced by issue #143674, Pose bone transform has much worse CPU performance compared to older versions
-Referenced by issue #150629, Knife Depth Bug
+Referenced by issue #150629, Knife tool does cuts behind the camera
