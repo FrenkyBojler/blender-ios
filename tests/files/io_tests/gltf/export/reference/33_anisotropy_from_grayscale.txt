@@ -1,0 +1,5 @@
+Error during import: Error: Python: Traceback (most recent call last):
+  File "/home/julien/blender-git/build_linux/bin/5.1/scripts/addons_core/io_scene_gltf2/blender/exp/material/encode_image.py", line 390, in __encode_from_numpy_array
+    tmp_image.pixels.foreach_set(pixels)
+TypeError: expected sequence size 4, got 0
+Location: /home/julien/blender-git/blender/tests/python/io_gltf_export_test.py:33

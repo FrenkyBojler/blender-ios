@@ -1,0 +1,15 @@
+None
+None
+None
+{
+  "asset": {
+    "generator": "glTF-Blender-IO Test Suite",
+    "version": "2.0"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "Scene"
+    }
+  ]
+}

@@ -1,0 +1,229 @@
+None
+None
+None
+{
+  "asset": {
+    "generator": "glTF-Blender-IO Test Suite",
+    "version": "2.0"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "Scene",
+      "nodes": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "Camera",
+      "rotation": [
+        0.5730898976325989,
+        0,
+        0,
+        0.8194926381111145
+      ],
+      "translation": [
+        0,
+        12,
+        30
+      ]
+    },
+    {
+      "name": "Directional",
+      "rotation": [
+        0.2588190734386444,
+        0,
+        0,
+        0.965925931930542
+      ],
+      "translation": [
+        -8,
+        4,
+        8
+      ]
+    },
+    {
+      "mesh": 0,
+      "name": "Plane",
+      "scale": [
+        10,
+        10,
+        10
+      ]
+    },
+    {
+      "name": "Point_Constant",
+      "translation": [
+        -8,
+        4,
+        0
+      ]
+    },
+    {
+      "name": "Point_Linear",
+      "translation": [
+        0,
+        4,
+        0
+      ]
+    },
+    {
+      "name": "Point_Quadratic",
+      "translation": [
+        8,
+        4,
+        0
+      ]
+    },
+    {
+      "name": "Spot_Constant",
+      "rotation": [
+        -0.2588190734386444,
+        0,
+        0,
+        0.965925931930542
+      ],
+      "translation": [
+        -8,
+        4,
+        -8
+      ]
+    },
+    {
+      "name": "Spot_Linear",
+      "rotation": [
+        -0.2588190734386444,
+        0,
+        0,
+        0.965925931930542
+      ],
+      "translation": [
+        0,
+        4,
+        -8
+      ]
+    },
+    {
+      "name": "Spot_Quadratic",
+      "rotation": [
+        -0.2588190734386444,
+        0,
+        0,
+        0.965925931930542
+      ],
+      "translation": [
+        8,
+        4,
+        -8
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "name": "Plane",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.800000011920929,
+          0.800000011920929,
+          0.800000011920929,
+          1
+        ],
+        "metallicFactor": 0
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Plane",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1
+          },
+          "indices": 2,
+          "material": 0
+        }
+      ]
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 4,
+      "max": [
+        1,
+        0,
+        1
+      ],
+      "min": [
+        -1,
+        0,
+        -1
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 4,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5123,
+      "count": 6,
+      "type": "SCALAR"
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 48,
+      "byteOffset": 0,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 48,
+      "byteOffset": 48,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 12,
+      "byteOffset": 96,
+      "target": 34963
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 108,
+      "uri": "04_lights.bin"
+    }
+  ]
+}[[-1.000 0.000 1.000]
+ [1.000 0.000 -1.000]
+ [-1.000 0.000 -1.000]
+ [1.000 0.000 1.000]]
+[[0.000 1.000 0.000]
+ [0.000 1.000 0.000]
+ [0.000 1.000 0.000]
+ [0.000 1.000 0.000]]
+[[0]
+ [1]
+ [2]
+ [0]
+ [3]
+ [1]]

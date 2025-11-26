@@ -1032,7 +1032,7 @@ None
   "buffers": [
     {
       "byteLength": 98984,
-      "uri": "blender_export.bin"
+      "uri": "XX_blender_global_test.bin"
     }
   ]
 }[[1.000 1.000 -1.000]

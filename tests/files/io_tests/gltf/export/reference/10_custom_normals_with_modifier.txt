@@ -1,0 +1,142 @@
+None
+None
+None
+{
+  "asset": {
+    "generator": "glTF-Blender-IO Test Suite",
+    "version": "2.0"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "Scene",
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "mesh": 0,
+      "name": "Plane"
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Plane",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3
+        }
+      ]
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 8,
+      "max": [
+        3,
+        0,
+        1
+      ],
+      "min": [
+        -1,
+        0,
+        -1
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 8,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 8,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5123,
+      "count": 12,
+      "type": "SCALAR"
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 96,
+      "byteOffset": 0,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 96,
+      "byteOffset": 96,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 64,
+      "byteOffset": 192,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 24,
+      "byteOffset": 256,
+      "target": 34963
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 280,
+      "uri": "10_custom_normals_with_modifier.bin"
+    }
+  ]
+}[[-1.000 0.000 1.000]
+ [1.000 0.000 1.000]
+ [-1.000 0.000 -1.000]
+ [1.000 0.000 -1.000]
+ [1.000 0.000 1.000]
+ [3.000 0.000 1.000]
+ [1.000 0.000 -1.000]
+ [3.000 0.000 -1.000]]
+[[0.076 0.053 0.996]
+ [0.076 0.053 0.996]
+ [0.076 0.053 0.996]
+ [0.076 0.053 0.996]
+ [0.076 0.053 0.996]
+ [0.076 0.053 0.996]
+ [0.076 0.053 0.996]
+ [0.076 0.053 0.996]]
+[[0.000 1.000]
+ [1.000 1.000]
+ [0.000 0.000]
+ [1.000 0.000]
+ [0.000 1.000]
+ [1.000 1.000]
+ [0.000 0.000]
+ [1.000 0.000]]
+[[0]
+ [1]
+ [3]
+ [0]
+ [3]
+ [2]
+ [4]
+ [5]
+ [7]
+ [4]
+ [7]
+ [6]]

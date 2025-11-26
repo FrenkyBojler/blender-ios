@@ -1,0 +1,532 @@
+None
+None
+None
+{
+  "asset": {
+    "generator": "glTF-Blender-IO Test Suite",
+    "version": "2.0"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "Scene",
+      "nodes": [
+        2,
+        10,
+        22
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "Bone"
+    },
+    {
+      "mesh": 0,
+      "name": "Plane",
+      "skin": 0
+    },
+    {
+      "children": [
+        1,
+        0
+      ],
+      "name": "Armature"
+    },
+    {
+      "name": "Bone.001",
+      "translation": [
+        0,
+        0.16666662693023682,
+        0
+      ]
+    },
+    {
+      "children": [
+        3
+      ],
+      "name": "Bone.002",
+      "translation": [
+        0,
+        0.1666666865348816,
+        0
+      ]
+    },
+    {
+      "children": [
+        4
+      ],
+      "name": "Bone.003",
+      "translation": [
+        0,
+        0.1666666865348816,
+        0
+      ]
+    },
+    {
+      "children": [
+        5
+      ],
+      "name": "Bone.004",
+      "translation": [
+        0,
+        0.1666666567325592,
+        0
+      ]
+    },
+    {
+      "children": [
+        6
+      ],
+      "name": "Bone.005",
+      "translation": [
+        0,
+        0.1666666567325592,
+        0
+      ]
+    },
+    {
+      "children": [
+        7
+      ],
+      "name": "Bone"
+    },
+    {
+      "mesh": 1,
+      "name": "Plane.001",
+      "skin": 1
+    },
+    {
+      "children": [
+        9,
+        8
+      ],
+      "name": "Armature.001",
+      "translation": [
+        1,
+        0,
+        0
+      ]
+    },
+    {
+      "name": "Bone.009",
+      "translation": [
+        0,
+        0.20000004768371582,
+        0
+      ]
+    },
+    {
+      "children": [
+        11
+      ],
+      "name": "Bone.008",
+      "translation": [
+        0,
+        0.20000004768371582,
+        0
+      ]
+    },
+    {
+      "children": [
+        12
+      ],
+      "name": "Bone.007",
+      "translation": [
+        0,
+        0.20000004768371582,
+        0
+      ]
+    },
+    {
+      "children": [
+        13
+      ],
+      "name": "Bone.006",
+      "translation": [
+        0,
+        0.1666666865348816,
+        0
+      ]
+    },
+    {
+      "children": [
+        14
+      ],
+      "name": "Bone.001",
+      "translation": [
+        0,
+        0.16666662693023682,
+        0
+      ]
+    },
+    {
+      "children": [
+        15
+      ],
+      "name": "Bone.002",
+      "translation": [
+        0,
+        0.1666666865348816,
+        0
+      ]
+    },
+    {
+      "children": [
+        16
+      ],
+      "name": "Bone.003",
+      "translation": [
+        0,
+        0.1666666865348816,
+        0
+      ]
+    },
+    {
+      "children": [
+        17
+      ],
+      "name": "Bone.004",
+      "translation": [
+        0,
+        0.1666666567325592,
+        0
+      ]
+    },
+    {
+      "children": [
+        18
+      ],
+      "name": "Bone.005",
+      "translation": [
+        0,
+        0.1666666567325592,
+        0
+      ]
+    },
+    {
+      "children": [
+        19
+      ],
+      "name": "Bone"
+    },
+    {
+      "mesh": 2,
+      "name": "Plane.002",
+      "skin": 2
+    },
+    {
+      "children": [
+        21,
+        20
+      ],
+      "name": "Armature.002",
+      "translation": [
+        2,
+        0,
+        0
+      ]
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Plane",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "JOINTS_0": 1,
+            "WEIGHTS_0": 2
+          },
+          "mode": 0
+        }
+      ]
+    },
+    {
+      "name": "Plane.001",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 4,
+            "JOINTS_0": 5,
+            "WEIGHTS_0": 6
+          },
+          "mode": 0
+        }
+      ]
+    },
+    {
+      "name": "Plane.002",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 8,
+            "JOINTS_0": 9,
+            "WEIGHTS_0": 10
+          },
+          "mode": 0
+        }
+      ]
+    }
+  ],
+  "skins": [
+    {
+      "inverseBindMatrices": 3,
+      "joints": [
+        0
+      ],
+      "name": "Armature"
+    },
+    {
+      "inverseBindMatrices": 7,
+      "joints": [
+        8,
+        7,
+        6,
+        5,
+        4,
+        3
+      ],
+      "name": "Armature.001"
+    },
+    {
+      "inverseBindMatrices": 11,
+      "joints": [
+        20,
+        19,
+        18,
+        17,
+        16,
+        15,
+        14,
+        13,
+        12,
+        11
+      ],
+      "name": "Armature.002"
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 1,
+      "max": [
+        0,
+        0,
+        0
+      ],
+      "min": [
+        0,
+        0,
+        0
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5121,
+      "count": 1,
+      "type": "VEC4"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 1,
+      "type": "VEC4"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5126,
+      "count": 1,
+      "type": "MAT4"
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5126,
+      "count": 1,
+      "max": [
+        1,
+        0,
+        0
+      ],
+      "min": [
+        1,
+        0,
+        0
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 5,
+      "componentType": 5121,
+      "count": 1,
+      "type": "VEC4"
+    },
+    {
+      "bufferView": 6,
+      "componentType": 5126,
+      "count": 1,
+      "type": "VEC4"
+    },
+    {
+      "bufferView": 7,
+      "componentType": 5126,
+      "count": 6,
+      "type": "MAT4"
+    },
+    {
+      "bufferView": 8,
+      "componentType": 5126,
+      "count": 1,
+      "max": [
+        2,
+        0,
+        0
+      ],
+      "min": [
+        2,
+        0,
+        0
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 9,
+      "componentType": 5121,
+      "count": 1,
+      "type": "VEC4"
+    },
+    {
+      "bufferView": 10,
+      "componentType": 5126,
+      "count": 1,
+      "type": "VEC4"
+    },
+    {
+      "bufferView": 11,
+      "componentType": 5126,
+      "count": 10,
+      "type": "MAT4"
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 12,
+      "byteOffset": 0,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 4,
+      "byteOffset": 12,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 16,
+      "byteOffset": 16,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 64,
+      "byteOffset": 32
+    },
+    {
+      "buffer": 0,
+      "byteLength": 12,
+      "byteOffset": 96,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 4,
+      "byteOffset": 108,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 16,
+      "byteOffset": 112,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 384,
+      "byteOffset": 128
+    },
+    {
+      "buffer": 0,
+      "byteLength": 12,
+      "byteOffset": 512,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 4,
+      "byteOffset": 524,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 16,
+      "byteOffset": 528,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 640,
+      "byteOffset": 544
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 1184,
+      "uri": "32_weights_influence_4.bin"
+    }
+  ]
+}[[0.000 0.000 0.000]]
+[[0 0 0 0]]
+[[1.000 0.000 0.000 0.000]]
+[[1.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000 0.000 0.000 1.000 0.000
+  0.000 0.000 0.000 1.000]]
+[[1.000 0.000 0.000]]
+[[0 5 3 4]]
+[[0.400 0.300 0.200 0.100]]
+[[1.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000 0.000 0.000 1.000 0.000
+  -1.000 0.000 0.000 1.000]
+ [1.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000 0.000 0.000 1.000 0.000
+  -1.000 -0.167 0.000 1.000]
+ [1.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000 0.000 0.000 1.000 0.000
+  -1.000 -0.333 0.000 1.000]
+ [1.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000 0.000 0.000 1.000 0.000
+  -1.000 -0.500 0.000 1.000]
+ [1.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000 0.000 0.000 1.000 0.000
+  -1.000 -0.667 0.000 1.000]
+ [1.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000 0.000 0.000 1.000 0.000
+  -1.000 -0.833 0.000 1.000]]
+[[2.000 0.000 0.000]]
+[[0 5 4 3]]
+[[0.400 0.300 0.200 0.100]]
+[[1.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000 0.000 0.000 1.000 0.000
+  -2.000 0.000 0.000 1.000]
+ [1.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000 0.000 0.000 1.000 0.000
+  -2.000 -0.167 0.000 1.000]
+ [1.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000 0.000 0.000 1.000 0.000
+  -2.000 -0.333 0.000 1.000]
+ [1.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000 0.000 0.000 1.000 0.000
+  -2.000 -0.500 0.000 1.000]
+ [1.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000 0.000 0.000 1.000 0.000
+  -2.000 -0.667 0.000 1.000]
+ [1.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000 0.000 0.000 1.000 0.000
+  -2.000 -0.833 0.000 1.000]
+ [1.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000 0.000 0.000 1.000 0.000
+  -2.000 -1.000 0.000 1.000]
+ [1.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000 0.000 0.000 1.000 0.000
+  -2.000 -1.200 0.000 1.000]
+ [1.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000 0.000 0.000 1.000 0.000
+  -2.000 -1.400 0.000 1.000]
+ [1.000 0.000 0.000 0.000 0.000 1.000 0.000 0.000 0.000 0.000 1.000 0.000
+  -2.000 -1.600 0.000 1.000]]

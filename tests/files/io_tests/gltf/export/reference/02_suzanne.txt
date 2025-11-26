@@ -1,0 +1,146 @@
+None
+None
+None
+{
+  "asset": {
+    "generator": "glTF-Blender-IO Test Suite",
+    "version": "2.0"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "Scene",
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "mesh": 0,
+      "name": "Suzanne",
+      "translation": [
+        0.26462316513061523,
+        -0.6391727924346924,
+        -0.26921701431274414
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "doubleSided": true,
+      "name": "Suzanne"
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Suzanne",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "material": 0
+        }
+      ]
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 2160,
+      "max": [
+        1.3369140625,
+        0.9501953125,
+        0.82568359375
+      ],
+      "min": [
+        -1.3369140625,
+        -0.974609375,
+        -0.80078125
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 2160,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 2160,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5123,
+      "count": 11808,
+      "type": "SCALAR"
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 25920,
+      "byteOffset": 0,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 25920,
+      "byteOffset": 25920,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 17280,
+      "byteOffset": 51840,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 23616,
+      "byteOffset": 69120,
+      "target": 34963
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 92736,
+      "uri": "02_suzanne.bin"
+    }
+  ]
+}[[0.492 0.186 0.721]
+ [-0.492 0.186 0.721]
+ [0.559 0.158 0.625]
+ ...
+ [-0.808 -0.049 -0.341]
+ [0.864 0.319 -0.377]
+ [-0.864 0.319 -0.377]]
+[[0.703 -0.229 0.674]
+ [-0.703 -0.229 0.674]
+ [0.814 -0.299 0.498]
+ ...
+ [0.184 -0.533 -0.826]
+ [-0.456 0.414 -0.787]
+ [0.456 0.414 -0.787]]
+[[0.074 0.302]
+ [0.164 0.297]
+ [0.089 0.321]
+ ...
+ [0.120 0.381]
+ [0.490 0.469]
+ [0.106 0.472]]
+[[   0]
+ [ 530]
+ [1655]
+ ...
+ [ 529]
+ [2043]
+ [1566]]

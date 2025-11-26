@@ -1,0 +1,158 @@
+None
+None
+None
+{
+  "asset": {
+    "generator": "glTF-Blender-IO Test Suite",
+    "version": "2.0"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "Scene",
+      "nodes": [
+        0,
+        1
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "name": "Camera",
+      "rotation": [
+        0.483536034822464,
+        0.33687159419059753,
+        -0.20870360732078552,
+        0.7804827094078064
+      ],
+      "translation": [
+        7.481131553649902,
+        5.34366512298584,
+        6.5076398849487305
+      ]
+    },
+    {
+      "mesh": 0,
+      "name": "Sphere"
+    }
+  ],
+  "materials": [
+    {
+      "name": "Sphere",
+      "pbrMetallicRoughness": {
+        "metallicFactor": 0
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Sphere",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "material": 0
+        }
+      ]
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 561,
+      "max": [
+        1.000000238418579,
+        1,
+        1.0000003576278687
+      ],
+      "min": [
+        -0.9999998211860657,
+        -1,
+        -0.9999991655349731
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 561,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 561,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5123,
+      "count": 2880,
+      "type": "SCALAR"
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 6732,
+      "byteOffset": 0,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 6732,
+      "byteOffset": 6732,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 4488,
+      "byteOffset": 13464,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 5760,
+      "byteOffset": 17952,
+      "target": 34963
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 23712,
+      "uri": "04_sphere_specular_glossiness.bin"
+    }
+  ]
+}[[0.000 -0.707 -0.707]
+ [0.162 -0.556 -0.815]
+ [0.138 -0.707 -0.694]
+ ...
+ [-0.075 -0.924 -0.375]
+ [-0.191 0.195 -0.962]
+ [-0.038 -0.981 -0.191]]
+[[0.000 -0.704 -0.710]
+ [0.163 -0.553 -0.817]
+ [0.138 -0.704 -0.696]
+ ...
+ [-0.076 -0.922 -0.380]
+ [-0.191 0.194 -0.962]
+ [-0.039 -0.980 -0.197]]
+[[0.215 0.469]
+ [0.285 0.438]
+ [0.215 0.438]
+ ...
+ [0.070 0.500]
+ [0.570 0.500]
+ [0.000 0.500]]
+[[  0]
+ [  1]
+ [  2]
+ ...
+ [552]
+ [  3]
+ [  0]]

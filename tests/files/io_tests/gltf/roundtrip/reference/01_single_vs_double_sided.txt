@@ -1,0 +1,227 @@
+None
+None
+None
+{
+  "asset": {
+    "generator": "glTF-Blender-IO Test Suite",
+    "version": "2.0"
+  },
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "Scene",
+      "nodes": [
+        0,
+        1
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "mesh": 0,
+      "name": "node_double",
+      "rotation": [
+        0.70710688829422,
+        0,
+        0,
+        0.7071066498756409
+      ]
+    },
+    {
+      "mesh": 1,
+      "name": "node_single",
+      "rotation": [
+        0.70710688829422,
+        0,
+        0,
+        0.7071066498756409
+      ],
+      "translation": [
+        -2.5,
+        0,
+        0
+      ]
+    }
+  ],
+  "materials": [
+    {
+      "doubleSided": true,
+      "name": "mat_double",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.07000000029802322,
+          0.5899999737739563,
+          0.800000011920929,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 0
+      }
+    },
+    {
+      "name": "mat_single",
+      "pbrMetallicRoughness": {
+        "baseColorFactor": [
+          0.07000000029802322,
+          0.800000011920929,
+          0.05900000035762787,
+          1
+        ],
+        "metallicFactor": 0,
+        "roughnessFactor": 0
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "mesh_double",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1
+          },
+          "indices": 2,
+          "material": 0
+        }
+      ]
+    },
+    {
+      "name": "mesh_single",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 3,
+            "NORMAL": 4
+          },
+          "indices": 2,
+          "material": 1
+        }
+      ]
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 450,
+      "max": [
+        1,
+        0.9999999403953552,
+        0.9432085752487183
+      ],
+      "min": [
+        -0.9999999403953552,
+        -0.9999999403953552,
+        -0.9432088136672974
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 450,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5123,
+      "count": 2220,
+      "type": "SCALAR"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5126,
+      "count": 450,
+      "max": [
+        1,
+        0.9999999403953552,
+        0.9432085752487183
+      ],
+      "min": [
+        -0.9999999403953552,
+        -0.9999999403953552,
+        -0.9432088136672974
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 4,
+      "componentType": 5126,
+      "count": 450,
+      "type": "VEC3"
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 5400,
+      "byteOffset": 0,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 5400,
+      "byteOffset": 5400,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 4440,
+      "byteOffset": 10800,
+      "target": 34963
+    },
+    {
+      "buffer": 0,
+      "byteLength": 5400,
+      "byteOffset": 15240,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 5400,
+      "byteOffset": 20640,
+      "target": 34962
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 26040,
+      "uri": "01_single_vs_double_sided.bin"
+    }
+  ]
+}[[0.526 0.000 -0.851]
+ [0.451 -0.130 -0.883]
+ [0.390 0.000 -0.921]
+ ...
+ [0.289 0.370 0.883]
+ [0.399 0.450 0.799]
+ [0.497 0.517 0.697]]
+[[0.526 0.000 -0.851]
+ [0.452 -0.133 -0.882]
+ [0.422 0.000 -0.907]
+ ...
+ [0.288 0.373 0.882]
+ [0.397 0.452 0.799]
+ [0.445 0.522 0.728]]
+[[  0]
+ [  1]
+ [  2]
+ ...
+ [448]
+ [429]
+ [449]]
+[[0.526 0.000 -0.851]
+ [0.451 -0.130 -0.883]
+ [0.390 0.000 -0.921]
+ ...
+ [0.289 0.370 0.883]
+ [0.399 0.450 0.799]
+ [0.497 0.517 0.697]]
+[[0.526 0.000 -0.851]
+ [0.452 -0.133 -0.882]
+ [0.422 0.000 -0.907]
+ ...
+ [0.288 0.373 0.882]
+ [0.397 0.452 0.799]
+ [0.445 0.522 0.728]]

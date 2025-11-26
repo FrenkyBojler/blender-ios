@@ -1,0 +1,249 @@
+None
+None
+None
+{
+  "asset": {
+    "generator": "glTF-Blender-IO Test Suite",
+    "version": "2.0"
+  },
+  "extensionsUsed": [
+    "KHR_texture_transform"
+  ],
+  "extensionsRequired": [
+    "KHR_texture_transform"
+  ],
+  "scene": 0,
+  "scenes": [
+    {
+      "name": "Scene",
+      "nodes": [
+        0
+      ]
+    }
+  ],
+  "nodes": [
+    {
+      "mesh": 0,
+      "name": "Plane"
+    }
+  ],
+  "materials": [
+    {
+      "emissiveTexture": {
+        "extensions": {
+          "KHR_texture_transform": {
+            "offset": [
+              0.5000002246171995,
+              0.5999998809426623
+            ],
+            "rotation": 0.699999988079071,
+            "scale": [
+              8,
+              9
+            ]
+          }
+        },
+        "index": 0
+      },
+      "name": "Material",
+      "normalTexture": {
+        "extensions": {
+          "KHR_texture_transform": {
+            "offset": [
+              0.2999999094275614,
+              0.4000000124766192
+            ],
+            "rotation": 0.5,
+            "scale": [
+              6,
+              7
+            ]
+          }
+        },
+        "index": 1
+      },
+      "occlusionTexture": {
+        "extensions": {
+          "KHR_texture_transform": {
+            "offset": [
+              0.1999999039005278,
+              0.29999999763276364
+            ],
+            "rotation": 0.4000000059604645,
+            "scale": [
+              5,
+              6
+            ]
+          }
+        },
+        "index": 2
+      },
+      "pbrMetallicRoughness": {
+        "baseColorTexture": {
+          "extensions": {
+            "KHR_texture_transform": {
+              "offset": [
+                0.09999998492323448,
+                0.19999999653163503
+              ],
+              "rotation": 0.30000001192092896,
+              "scale": [
+                4,
+                5
+              ]
+            }
+          },
+          "index": 3
+        },
+        "metallicRoughnessTexture": {
+          "extensions": {
+            "KHR_texture_transform": {
+              "offset": [
+                0.1999999039005278,
+                0.29999999763276364
+              ],
+              "rotation": 0.4000000059604645,
+              "scale": [
+                5,
+                6
+              ]
+            }
+          },
+          "index": 2
+        }
+      }
+    }
+  ],
+  "meshes": [
+    {
+      "name": "Plane",
+      "primitives": [
+        {
+          "attributes": {
+            "POSITION": 0,
+            "NORMAL": 1,
+            "TEXCOORD_0": 2
+          },
+          "indices": 3,
+          "material": 0
+        }
+      ]
+    }
+  ],
+  "textures": [
+    {
+      "sampler": 0,
+      "source": 0
+    },
+    {
+      "sampler": 0,
+      "source": 0
+    },
+    {
+      "sampler": 0,
+      "source": 0
+    },
+    {
+      "sampler": 0,
+      "source": 0
+    }
+  ],
+  "images": [
+    {
+      "mimeType": "image/png",
+      "name": "09_tiny_grid",
+      "uri": "09_tiny_grid.png"
+    }
+  ],
+  "accessors": [
+    {
+      "bufferView": 0,
+      "componentType": 5126,
+      "count": 4,
+      "max": [
+        1,
+        0,
+        1
+      ],
+      "min": [
+        -1,
+        0,
+        -1
+      ],
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 1,
+      "componentType": 5126,
+      "count": 4,
+      "type": "VEC3"
+    },
+    {
+      "bufferView": 2,
+      "componentType": 5126,
+      "count": 4,
+      "type": "VEC2"
+    },
+    {
+      "bufferView": 3,
+      "componentType": 5123,
+      "count": 6,
+      "type": "SCALAR"
+    }
+  ],
+  "bufferViews": [
+    {
+      "buffer": 0,
+      "byteLength": 48,
+      "byteOffset": 0,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 48,
+      "byteOffset": 48,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 32,
+      "byteOffset": 96,
+      "target": 34962
+    },
+    {
+      "buffer": 0,
+      "byteLength": 12,
+      "byteOffset": 128,
+      "target": 34963
+    }
+  ],
+  "samplers": [
+    {
+      "magFilter": 9728,
+      "minFilter": 9984
+    }
+  ],
+  "buffers": [
+    {
+      "byteLength": 140,
+      "uri": "09_texture_transform.bin"
+    }
+  ]
+}[[-1.000 0.000 1.000]
+ [1.000 0.000 -1.000]
+ [-1.000 0.000 -1.000]
+ [1.000 0.000 1.000]]
+[[0.000 1.000 0.000]
+ [0.000 1.000 0.000]
+ [0.000 1.000 0.000]
+ [0.000 1.000 0.000]]
+[[0.000 1.000]
+ [1.000 0.000]
+ [0.000 0.000]
+ [1.000 1.000]]
+[[0]
+ [1]
+ [2]
+ [0]
+ [3]
+ [1]]
