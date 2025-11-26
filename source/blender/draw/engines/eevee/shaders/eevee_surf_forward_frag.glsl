@@ -9,8 +9,10 @@
  */
 
 #include "infos/eevee_geom_infos.hh"
+#include "infos/eevee_nodetree_infos.hh"
 #include "infos/eevee_surf_forward_infos.hh"
 
+FRAGMENT_SHADER_CREATE_INFO(eevee_nodetree)
 FRAGMENT_SHADER_CREATE_INFO(eevee_geom_mesh)
 FRAGMENT_SHADER_CREATE_INFO(eevee_surf_forward)
 
@@ -73,8 +75,18 @@ void main()
 
   g_holdout = saturate(g_holdout);
 
-  radiance *= 1.0f - saturate(g_holdout);
+  radiance *= 1.0f - g_holdout;
 
-  out_radiance = float4(radiance, g_holdout);
-  out_transmittance = float4(transmittance, saturate(average(transmittance)));
+  /* There can be 2 framebuffer layout for forward transparency:
+   * - Combined RGB radiance with Monochromatic transmittance.
+   * - Channel split RGB radiance & RGB transmittance + Dedicated average alpha with holdout. */
+  if (uniform_buf.pipeline.use_monochromatic_transmittance) {
+    out_combined_r = float4(radiance.rgb, transmittance.r);
+  }
+  else {
+    out_combined_r = float4(radiance.r, 0.0f, 0.0f, transmittance.r);
+    out_combined_g = float4(radiance.g, 0.0f, 0.0f, transmittance.g);
+    out_combined_b = float4(radiance.b, 0.0f, 0.0f, transmittance.b);
+    out_combined_a = float4(g_holdout, 0.0f, 0.0f, average(transmittance));
+  }
 }
