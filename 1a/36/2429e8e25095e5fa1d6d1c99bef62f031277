@@ -1,4 +1,4 @@
 Referenced by issue #134124, Geometry Nodes: mute behavior is different compared to other node editors
 Referenced by issue #134080, Deleting an attribute deletes the vgroup of the same name when there is name collision
 Referenced by issue #134070, UI: rendering progress bar is not working
-Referenced by issue #150629, Knife Depth Bug
+Referenced by issue #150629, Knife tool does cuts behind the camera
