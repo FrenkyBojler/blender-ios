@@ -24,7 +24,10 @@
 
 struct bContext;
 struct bNode;
-struct uiLayout;
+
+namespace blender::ui {
+struct Layout;
+}  // namespace blender::ui
 
 namespace blender::nodes {
 
@@ -184,7 +187,7 @@ struct SocketNameRNA {
 
 struct CustomSocketDrawParams {
   const bContext &C;
-  uiLayout &layout;
+  ui::Layout &layout;
   bNodeTree &tree;
   bNode &node;
   bNodeSocket &socket;
@@ -193,10 +196,12 @@ struct CustomSocketDrawParams {
   StringRefNull label;
   const Map<const bNode *, const bNode *> *menu_switch_source_by_index_switch = nullptr;
 
-  void draw_standard(uiLayout &layout, std::optional<StringRefNull> label_override = std::nullopt);
+  void draw_standard(ui::Layout &layout,
+                     std::optional<StringRefNull> label_override = std::nullopt);
 };
 
 using CustomSocketDrawFn = std::function<void(CustomSocketDrawParams &params)>;
+using CustomSocketLabelFn = std::function<StringRefNull(bNode node)>;
 using SocketUsageInferenceFn =
     std::function<std::optional<bool>(const socket_usage_inference::SocketUsageParams &params)>;
 
@@ -266,6 +271,10 @@ class SocketDeclaration : public ItemDeclaration {
    * Draw function that overrides how the socket is drawn for a specific node.
    */
   std::unique_ptr<CustomSocketDrawFn> custom_draw_fn;
+  /**
+   * Custom label function so a socket can display a different text depending on what it does.
+   */
+  std::unique_ptr<CustomSocketLabelFn> label_fn;
   /**
    * Determines whether this socket is used based on other input values and based on which outputs
    * are used.
@@ -433,6 +442,11 @@ class BaseSocketDeclarationBuilder {
   BaseSocketDeclarationBuilder &usage_inference(SocketUsageInferenceFn fn);
 
   /**
+   * Provide a function that determines the UI label of this socket.
+   */
+  BaseSocketDeclarationBuilder &label_fn(CustomSocketLabelFn fn);
+
+  /**
    * Utility method for the case when the node has a single menu input and this socket is only used
    * when the menu input has a specific value.
    */
@@ -502,7 +516,7 @@ class SocketDeclarationBuilder : public BaseSocketDeclarationBuilder {
 
 using SocketDeclarationPtr = std::unique_ptr<SocketDeclaration>;
 
-using DrawNodeLayoutFn = void(uiLayout *, bContext *, PointerRNA *);
+using DrawNodeLayoutFn = void(ui::Layout *, bContext *, PointerRNA *);
 
 class SeparatorDeclaration : public ItemDeclaration {};
 
@@ -591,7 +605,7 @@ class DeclarationListBuilder {
 
   void add_separator();
   void add_default_layout();
-  void add_layout(std::function<void(uiLayout *, bContext *, PointerRNA *)> draw);
+  void add_layout(std::function<void(ui::Layout *, bContext *, PointerRNA *)> draw);
 };
 
 class PanelDeclarationBuilder : public DeclarationListBuilder {

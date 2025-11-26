@@ -34,7 +34,6 @@
 #  include "BKE_movieclip.h"
 
 #  include "BKE_report.hh"
-#  include "BKE_sound.h"
 
 #  include "IMB_imbuf.hh"
 #  include "IMB_imbuf_types.hh"
@@ -528,7 +527,7 @@ static Strip *rna_Strips_new_effect(ID *id,
   blender::seq::LoadData load_data;
   blender::seq::add_load_data_init(&load_data, name, nullptr, frame_start, channel);
   load_data.effect.length = length;
-  load_data.effect.type = type;
+  load_data.effect.type = StripType(type);
   load_data.effect.input1 = input1;
   load_data.effect.input2 = input2;
   strip = blender::seq::add_effect_strip(scene, seqbase, &load_data);
