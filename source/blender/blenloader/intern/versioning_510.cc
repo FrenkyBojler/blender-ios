@@ -314,7 +314,7 @@ void do_versions_after_linking_510(FileData * /*fd*/, Main *bmain)
    */
 }
 
-void blo_do_versions_510(FileData *fd, Library * /*lib*/, Main *bmain)
+void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 1)) {
     FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
