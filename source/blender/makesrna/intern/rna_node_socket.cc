@@ -301,11 +301,11 @@ static int rna_NodeSocket_bl_idname_length(PointerRNA *ptr)
 
 static void rna_NodeSocket_bl_idname_set(PointerRNA *ptr, const char *value)
 {
-  bNodeSocket *sock = static_cast<bNodeSocket *>(ptr->data);
+  bNodeSocket *node = static_cast<bNodeSocket *>(ptr->data);
   blender::bke::bNodeSocketType *new_type = blender::bke::node_socket_type_find(value);
   if (new_type) {
-    sock->typeinfo = new_type;
-    sock->type = new_type->type;
+    node->typeinfo = new_type;
+    node->type = new_type->type;
   }
   else {
     printf("ReferenceError: Node socket type '%s' not found\n", value);
