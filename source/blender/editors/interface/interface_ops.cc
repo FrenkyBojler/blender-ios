@@ -2929,9 +2929,10 @@ static wmOperatorStatus ui_view_item_navigate_invoke(bContext *C,
 {
   ARegion &region = *CTX_wm_region(C);
   const Direction direction = Direction(RNA_enum_get(op->ptr, "direction"));
+  AbstractTreeView &tree_view = *dynamic_cast<AbstractTreeView *>(get_view_focused(C));
   AbstractTreeViewItem *active_item = dynamic_cast<AbstractTreeViewItem *>(
       UI_region_views_find_active_item(&region));
-  AbstractTreeView &tree_view = *dynamic_cast<AbstractTreeView *>(get_view_focused(C));
+
   bool found_active = false;
   auto iter_fn = [&](blender::ui::BasicTreeViewItem::ItemIterFn fn) {
     found_active = false;
