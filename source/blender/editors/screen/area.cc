@@ -2897,7 +2897,6 @@ int ED_area_header_switchbutton(const bContext *C, uiBlock *block, int yco)
 
   uiDefButR(block,
             ButType::Menu,
-            0,
             "",
             xco,
             yco,
@@ -3034,15 +3033,16 @@ static void ed_panel_draw(const bContext *C,
 
     /* Unusual case: Use expanding layout (buttons stretch to available width). */
     if (pt->flag & PANEL_TYPE_HEADER_EXPAND) {
-      uiLayout &layout = blender::ui::block_layout(block,
-                                                   blender::ui::LayoutDirection::Vertical,
-                                                   blender::ui::LayoutType::Panel,
-                                                   labelx,
-                                                   labely,
-                                                   headerend - 2 * style->panelspace,
-                                                   1,
-                                                   0,
-                                                   style);
+      blender::ui::Layout &layout = blender::ui::block_layout(
+          block,
+          blender::ui::LayoutDirection::Vertical,
+          blender::ui::LayoutType::Panel,
+          labelx,
+          labely,
+          headerend - 2 * style->panelspace,
+          1,
+          0,
+          style);
       panel->layout = &layout.row(false);
     }
     /* Regular case: Normal panel with fixed size buttons. */
@@ -3549,9 +3549,9 @@ void ED_region_panels_draw(const bContext *C, ARegion *region)
   UI_blocklist_update_window_matrix(C, &region->runtime->uiblocks);
 
   /* draw panels if they are large enough. */
-  const bool has_catgories = (region->panels_category_active.first != nullptr);
-  const short min_draw_size = has_catgories ? short(UI_PANEL_CATEGORY_MIN_WIDTH) + 20 :
-                                              std::min(region->runtime->type->prefsizex, 20);
+  const bool has_categories = (region->panels_category_active.first != nullptr);
+  const short min_draw_size = has_categories ? short(UI_PANEL_CATEGORY_MIN_WIDTH) + 20 :
+                                               std::min(region->runtime->type->prefsizex, 20);
   if (region->winx >= (min_draw_size * UI_SCALE_FAC / aspect)) {
     UI_panels_draw(C, region);
   }
@@ -3824,15 +3824,16 @@ void ED_region_header_layout(const bContext *C, ARegion *region)
     }
 
     uiBlock *block = UI_block_begin(C, region, ht->idname, blender::ui::EmbossType::Emboss);
-    uiLayout &layout = blender::ui::block_layout(block,
-                                                 blender::ui::LayoutDirection::Horizontal,
-                                                 blender::ui::LayoutType::Header,
-                                                 co.x,
-                                                 co.y,
-                                                 buttony,
-                                                 1,
-                                                 0,
-                                                 style);
+    blender::ui::Layout &layout = blender::ui::block_layout(
+        block,
+        blender::ui::LayoutDirection::Horizontal,
+        blender::ui::LayoutType::Header,
+        co.x,
+        co.y,
+        buttony,
+        1,
+        0,
+        style);
 
     if (buttony_scale != 1.0f) {
       layout.scale_y_set(buttony_scale);
@@ -4135,18 +4136,18 @@ void ED_region_info_draw(ARegion *region,
 }
 
 struct MetadataPanelDrawContext {
-  uiLayout *layout;
+  blender::ui::Layout *layout;
 };
 
 static void metadata_panel_draw_field(const char *field, const char *value, void *ctx_v)
 {
   MetadataPanelDrawContext *ctx = (MetadataPanelDrawContext *)ctx_v;
-  uiLayout *row = &ctx->layout->row(false);
-  row->label(field, ICON_NONE);
-  row->label(value, ICON_NONE);
+  blender::ui::Layout &row = ctx->layout->row(false);
+  row.label(field, ICON_NONE);
+  row.label(value, ICON_NONE);
 }
 
-void ED_region_image_metadata_panel_draw(ImBuf *ibuf, uiLayout *layout)
+void ED_region_image_metadata_panel_draw(ImBuf *ibuf, blender::ui::Layout *layout)
 {
   MetadataPanelDrawContext ctx;
   ctx.layout = layout;
