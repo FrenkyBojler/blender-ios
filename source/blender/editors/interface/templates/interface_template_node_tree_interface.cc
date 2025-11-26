@@ -466,6 +466,7 @@ bool on_drop_flat_item(bContext *C,
   }
 
   interface.move_item_to_parent(*drag_item, parent, index);
+  interface.active_item_set(drag_item);
 
   /* General update */
   BKE_main_ensure_invariants(*CTX_data_main(C), ntree.id);
@@ -556,6 +557,7 @@ bool NodePanelDropTarget::on_drop(bContext *C, const DragInfo &drag_info) const
   }
 
   interface.move_item_to_parent(*drag_item, parent, index);
+  interface.active_item_set(drag_item);
 
   /* General update */
   BKE_main_ensure_invariants(*CTX_data_main(C), nodetree.id);
