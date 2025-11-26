@@ -246,7 +246,6 @@ TEST_F(KeyframingTest, insert_keyframes__non_array_property)
 
 TEST_F(KeyframingTest, insert_keyframes__action_reuse)
 {
-  return;
   AnimationEvalContext anim_eval_context = {nullptr, 1.0};
   CombinedKeyingResult result_ob;
   result_ob = insert_keyframes(bmain,
