@@ -818,7 +818,7 @@ static void graph_panel_driverVar__locDiff(blender::ui::Layout &layout, ID *id, 
     col.red_alert_set(false);
 
     col.prop(&ptr, "transform_space", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  };
+  }
 }
 
 /* settings for 'transform channel' driver variable type */
