@@ -2932,93 +2932,71 @@ static wmOperatorStatus ui_view_item_navigate_invoke(bContext *C,
   AbstractTreeViewItem *active_item = dynamic_cast<AbstractTreeViewItem *>(
       UI_region_views_find_active_item(&region));
   AbstractTreeView &tree_view = *dynamic_cast<AbstractTreeView *>(get_view_focused(C));
+  bool found_active = false;
+  auto iter_fn = [&](blender::ui::BasicTreeViewItem::ItemIterFn fn) {
+    found_active = false;
+    tree_view.foreach_item(fn,
+                           AbstractTreeView::IterOptions::SkipCollapsed |
+                               AbstractTreeView::IterOptions::SkipFiltered);
+  };
 
   if (!active_item || !active_item->is_filtered_visible()) {
-    /* Active item might be filtered out due to search string, set the first visible element active in that case. */
-    bool found_active = false;
-    tree_view.foreach_item(
-        [&](AbstractTreeViewItem &item) {
-          if (!found_active) {
-            item.on_activate(*C);
-            active_item = &item;
-            found_active = true;
-          }
-        },
-        AbstractTreeView::IterOptions::SkipCollapsed |
-            AbstractTreeView::IterOptions::SkipFiltered);
+    /* Active item might be filtered out due to search string, set the first visible element active
+     * in that case. */
+    iter_fn([&](AbstractTreeViewItem &item) {
+      if (!found_active) {
+        item.on_activate(*C);
+        active_item = &item;
+        found_active = true;
+      }
+    });
 
     return OPERATOR_FINISHED;
   }
 
   AbstractTreeViewItem *next_item = nullptr;
-
-  auto move_up = [&]() {
-    bool found_active = false;
-    tree_view.foreach_item(
-        [&](AbstractTreeViewItem &item) {
-          found_active |= item.is_active();
-          if (!found_active) {
-            /* Store the element which is just before the active. */
-            next_item = &item;
-          }
-        },
-        AbstractTreeView::IterOptions::SkipCollapsed |
-            AbstractTreeView::IterOptions::SkipFiltered);
-  };
-
-  auto move_down = [&]() {
-    bool found_active = false;
-    tree_view.foreach_item(
-        [&](AbstractTreeViewItem &item) {
-          if (found_active) {
-            /* Store the element next to the active. */
-            next_item = &item;
-            found_active = false;
-          }
-          found_active = item.is_active();
-        },
-        AbstractTreeView::IterOptions::SkipCollapsed |
-            AbstractTreeView::IterOptions::SkipFiltered);
-  };
-
-  /* Jump to parent of active element then collapse the parent. */
-  auto move_left = [&]() {
-    if (!active_item->is_collapsible() || active_item->is_collapsed()) {
-      next_item = active_item->get_parent();
-      return;
-    }
-
-    active_item->set_collapsed(true);
-  };
-
-  /* Expand active element if it's collapsed. */
-  auto move_right = [&]() {
-    if (!active_item->is_collapsible()) {
-      return;
-    }
-
-    if (active_item->is_collapsed()) {
-      active_item->set_collapsed(false);
-      return;
-    }
-    next_item = active_item->get_child();
-  };
-
   switch (direction) {
     case Direction::UP: {
-      move_up();
+      iter_fn([&](AbstractTreeViewItem &item) {
+        found_active |= item.is_active();
+        if (!found_active) {
+          /* Store the element which is just before the active. */
+          next_item = &item;
+        }
+      });
       break;
     }
     case Direction::Down: {
-      move_down();
+      iter_fn([&](AbstractTreeViewItem &item) {
+        if (found_active) {
+          /* Store the element next to the active. */
+          next_item = &item;
+          found_active = false;
+        }
+        found_active = item.is_active();
+      });
       break;
     }
     case Direction::LEFT: {
-      move_left();
+      /* Jump to parent of active element then collapse the parent. */
+      if (!active_item->is_collapsible() || active_item->is_collapsed()) {
+        next_item = active_item->get_parent();
+        break;
+      }
+      active_item->set_collapsed(true);
       break;
     }
     case Direction::RIGHT: {
-      move_right();
+      /* Expand active element if it's collapsed. */
+      if (!active_item->is_collapsible()) {
+        break;
+      }
+
+      if (active_item->is_collapsed()) {
+        active_item->set_collapsed(false);
+        break;
+      }
+      next_item = active_item->get_child();
       break;
     }
   }
