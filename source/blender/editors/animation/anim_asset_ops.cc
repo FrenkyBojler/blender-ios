@@ -9,7 +9,7 @@
 #include "BKE_context.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_global.hh"
-#include "BKE_icons.h"
+#include "BKE_icons.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_preferences.h"
 #include "BKE_report.hh"
@@ -803,7 +803,7 @@ static wmOperatorStatus pose_asset_delete_invoke(bContext *C,
           IFACE_("Permanently delete pose asset blend file? This cannot be undone.") :
           IFACE_("The asset is local to the file. Deleting it will just clear the asset status."),
       IFACE_("Delete"),
-      ALERT_ICON_WARNING,
+      ui::AlertIcon::Warning,
       false);
 }
 

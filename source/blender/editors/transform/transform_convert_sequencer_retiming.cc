@@ -243,7 +243,7 @@ static void recalcData_sequencer_retiming(TransInfo *t)
       seq::retiming_transition_key_frame_set(t->scene, strip, key, round_fl_to_int(new_frame));
     }
     else {
-      seq::retiming_key_timeline_frame_set(t->scene, strip, key, new_frame);
+      seq::retiming_key_timeline_frame_set(t->scene, strip, key, new_frame, true);
     }
 
     seq::relations_invalidate_cache(t->scene, strip);
@@ -254,9 +254,9 @@ static void recalcData_sequencer_retiming(TransInfo *t)
   seq::iterator_set_expand(
       t->scene, seq::active_seqbase_get(ed), transformed_strips, seq::query_strip_effect_chain);
   for (Strip *strip : transformed_strips) {
-    strip->runtime.flag &= ~STRIP_OVERLAP;
+    strip->runtime->flag &= ~seq::StripRuntimeFlag::Overlap;
     if (seq::transform_test_overlap(t->scene, seq::active_seqbase_get(ed), strip)) {
-      strip->runtime.flag |= STRIP_OVERLAP;
+      strip->runtime->flag |= seq::StripRuntimeFlag::Overlap;
     }
   }
 }
