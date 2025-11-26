@@ -320,9 +320,9 @@ static void do_version_light_remove_use_nodes(Main *bmain, Light *light)
   version_node_add_link(*ntree, emission, emission_output, new_output, output_surface_input);
 
   bNodeSocketValueRGBA *rgba = emission_color_input.default_value_typed<bNodeSocketValueRGBA>();
-  rgba->value[0] = light->r;
-  rgba->value[1] = light->g;
-  rgba->value[2] = light->b;
+  rgba->value[0] = 1.0f;
+  rgba->value[1] = 1.0f;
+  rgba->value[2] = 1.0f;
   rgba->value[3] = 1.0f;
   emission_strength_input.default_value_typed<bNodeSocketValueFloat>()->value = 1.0f;
 
