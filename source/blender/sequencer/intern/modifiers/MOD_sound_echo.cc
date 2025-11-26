@@ -7,7 +7,6 @@
  */
 
 #include "BLT_translation.hh"
-#include <fmt/format.h>
 
 #include "DNA_sequence_types.h"
 
