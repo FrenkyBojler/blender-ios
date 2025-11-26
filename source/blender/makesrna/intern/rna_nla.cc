@@ -648,7 +648,6 @@ static NlaStrip *rna_NlaStrip_new(ID *id,
     }
     adt.nla_tracks.last = nlt_p;
 
-    /* now we can just auto-name as usual */
     STRNCPY(strip->name, name);
     BKE_nlastrip_validate_name(&adt, strip);
   }
