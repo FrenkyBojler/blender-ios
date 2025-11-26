@@ -1866,18 +1866,32 @@ static wmOperatorStatus new_compositor_sequencer_node_group_exec(bContext *C, wm
   Scene *scene = CTX_data_sequencer_scene(C);
   Strip *strip = seq::select_active_get(scene);
 
-  /* Add modifier and assign node tree when the strip has no active compositor modifier. */
   if (strip != nullptr && strip->type != STRIP_TYPE_SOUND_RAM) {
+    bool assigned_node_tree = false;
+
+    /* If strip is a compositor effect but has nothing assigned: assign the node tree. */
+    if (strip->type == STRIP_TYPE_COMPOSITOR && strip->effectdata) {
+      CompositorEffectVars *comp_data = static_cast<CompositorEffectVars *>(strip->effectdata);
+      if (comp_data->node_group == nullptr) {
+        comp_data->node_group = ntree;
+        assigned_node_tree = true;
+      }
+    }
+
+    /* Otherwise, if there's no active compositor modifier: create one and assign the node tree. */
     StripModifierData *active_smd = seq::modifier_get_active(strip);
-    if (!active_smd || active_smd->type != eSeqModifierType_Compositor) {
+    if (!assigned_node_tree && (!active_smd || active_smd->type != eSeqModifierType_Compositor)) {
       StripModifierData *smd = seq::modifier_new(strip, nullptr, eSeqModifierType_Compositor);
       seq::modifier_persistent_uid_init(*strip, *smd);
 
       SequencerCompositorModifierData *modifier_data =
           reinterpret_cast<SequencerCompositorModifierData *>(smd);
       modifier_data->node_group = ntree;
-      seq::relations_invalidate_cache(scene, strip);
+      assigned_node_tree = true;
+    }
 
+    if (assigned_node_tree) {
+      seq::relations_invalidate_cache(scene, strip);
       /* Tag depsgraph relations for an update since the modifier should now be referencing a
        * different node tree. */
       Main *bmain = CTX_data_main(C);

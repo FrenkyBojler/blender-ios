@@ -501,6 +501,10 @@ typedef struct ColorMixVars {
   float factor;
 } ColorMixVars;
 
+typedef struct CompositorEffectVars {
+  struct bNodeTree *node_group;
+} CompositorEffectVars;
+
 /** \} */
 
 /* -------------------------------------------------------------------- */

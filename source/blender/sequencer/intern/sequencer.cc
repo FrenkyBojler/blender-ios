@@ -860,6 +860,9 @@ static bool strip_write_data_cb(Strip *strip, void *userdata)
         case STRIP_TYPE_COLORMIX:
           BLO_write_struct(writer, ColorMixVars, strip->effectdata);
           break;
+        case STRIP_TYPE_COMPOSITOR:
+          BLO_write_struct(writer, CompositorEffectVars, strip->effectdata);
+          break;
       }
     }
 
@@ -958,6 +961,9 @@ static bool strip_read_data_cb(Strip *strip, void *user_data)
       } break;
       case STRIP_TYPE_COLORMIX:
         BLO_read_struct(reader, ColorMixVars, &strip->effectdata);
+        break;
+      case STRIP_TYPE_COMPOSITOR:
+        BLO_read_struct(reader, CompositorEffectVars, &strip->effectdata);
         break;
       default:
         BLI_assert_unreachable();

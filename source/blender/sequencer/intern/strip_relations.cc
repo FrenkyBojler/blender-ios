@@ -178,7 +178,7 @@ void relations_invalidate_scene_strips(const Main *bmain, const Scene *scene_tar
   }
 }
 
-void relations_invalidate_compositor_modifiers(const Main *bmain, const bNodeTree *node_tree)
+void relations_invalidate_compositor_users(const Main *bmain, const bNodeTree *node_tree)
 {
   LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
     if (scene->ed != nullptr) {

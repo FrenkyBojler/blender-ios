@@ -49,8 +49,16 @@ static ImBuf *do_compositor_effect(const RenderData *context,
   return dst;
 }
 
+static void init_compositor_effect(Strip *strip)
+{
+  MEM_SAFE_FREE(strip->effectdata);
+  CompositorEffectVars *data = MEM_callocN<CompositorEffectVars>(__func__);
+  strip->effectdata = data;
+}
+
 void compositor_effect_get_handle(EffectHandle &rval)
 {
+  rval.init = init_compositor_effect;
   rval.execute = do_compositor_effect;
   rval.early_out = early_out_fade;
 }
