@@ -383,7 +383,7 @@ static void graph_panel_key_properties(const bContext *C, Panel *panel)
     }
 
     /* interpolation */
-    blender::ui::Layout &interpolation_col = interpolation_col.column(false);
+    blender::ui::Layout &interpolation_col = layout.column(false);
     if (fcu->flag & FCURVE_DISCRETE_VALUES) {
       blender::ui::Layout &split = interpolation_col.split(0.33f, true);
       split.label(IFACE_("Interpolation:"), ICON_NONE);
