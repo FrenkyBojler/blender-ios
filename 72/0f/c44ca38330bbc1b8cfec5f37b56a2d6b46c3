@@ -1,1 +1,2 @@
 Referenced by issue #150414, [linux] copying on the steam version of blender crashes steam and then blender when you try to re open it
+Referenced by pull request #150640, Fix #150414: Copying value to clipboard causes Steam to crash on Linux X11
