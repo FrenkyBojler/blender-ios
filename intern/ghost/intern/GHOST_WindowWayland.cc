@@ -495,6 +495,10 @@ static void gwl_window_resize_for_backend(GWL_Window *win, const int32_t size[2]
 #endif
 #ifdef WITH_VULKAN_BACKEND
   if (win->ghost_context_type == GHOST_kDrawingContextTypeVulkan) {
+    /* FIXME: unlike EGL, the underlying surface is not resized
+     * which is needed in situations where the buffer scale changes
+     * (moving the window to an output with a different scale for e.g.).
+     * Failing to do so can exit with a protocol error, see: #148243. */
     win->backend.vulkan_window_info->size[0] = size[0];
     win->backend.vulkan_window_info->size[1] = size[1];
   }
@@ -1867,12 +1871,16 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
     GWL_XDG_Decor_Window &decor = *window_->xdg_decor;
 
     if (system_->xdg_decor_manager_get()) {
+      const bool use_window_frame = system_->use_window_frame_get();
       decor.toplevel_decor = zxdg_decoration_manager_v1_get_toplevel_decoration(
           system_->xdg_decor_manager_get(), decor.toplevel);
       zxdg_toplevel_decoration_v1_add_listener(
           decor.toplevel_decor, &xdg_toplevel_decoration_v1_listener, window_);
+      /* Request client side decorations as a way of disabling decorations. */
       zxdg_toplevel_decoration_v1_set_mode(decor.toplevel_decor,
-                                           ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE);
+                                           use_window_frame ?
+                                               ZXDG_TOPLEVEL_DECORATION_V1_MODE_SERVER_SIDE :
+                                               ZXDG_TOPLEVEL_DECORATION_V1_MODE_CLIENT_SIDE);
     }
 
     /* Commit needed to so configure callback runs. */

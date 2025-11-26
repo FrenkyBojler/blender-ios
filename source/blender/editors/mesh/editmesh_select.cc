@@ -22,6 +22,7 @@
 #include "BLI_utildefines_stack.h"
 #include "BLI_vector.hh"
 
+#include "BKE_attribute.h"
 #include "BKE_attribute.hh"
 #include "BKE_context.hh"
 #include "BKE_customdata.hh"
@@ -242,7 +243,7 @@ void EDBM_select_mirrored(BMEditMesh *em,
   *r_totfail = totfail;
 }
 
-bool EDBM_select_mirrored_extend_all(Object *obedit, BMEditMesh *em)
+static bool UNUSED_FUNCTION(EDBM_select_mirrored_extend_all)(Object *obedit, BMEditMesh *em)
 {
   BMesh *bm = em->bm;
   int selectmode = em->selectmode;
@@ -5826,13 +5827,16 @@ void MESH_OT_region_to_loop(wmOperatorType *ot)
 /** \name Select Loop to Region Operator
  * \{ */
 
-static int loop_find_region(BMLoop *l, int flag, GSet *visit_face_set, BMFace ***region_out)
+static int loop_find_region(BMLoop *l,
+                            int flag,
+                            blender::Set<BMFace *> &visit_face_set,
+                            BMFace ***region_out)
 {
   blender::Vector<BMFace *> stack;
   blender::Vector<BMFace *> region;
 
   stack.append(l->f);
-  BLI_gset_insert(visit_face_set, l->f);
+  visit_face_set.add(l->f);
 
   while (!stack.is_empty()) {
     BMIter liter1, liter2;
@@ -5853,7 +5857,7 @@ static int loop_find_region(BMLoop *l, int flag, GSet *visit_face_set, BMFace **
           continue;
         }
 
-        if (BLI_gset_add(visit_face_set, l2->f)) {
+        if (visit_face_set.add(l2->f)) {
           stack.append(l2->f);
         }
       }
@@ -5891,13 +5895,12 @@ static int verg_radial(const void *va, const void *vb)
  */
 static int loop_find_regions(BMEditMesh *em, const bool selbigger)
 {
-  GSet *visit_face_set;
   BMIter iter;
   const int edges_len = em->bm->totedgesel;
   BMEdge *e;
   int count = 0, i;
 
-  visit_face_set = BLI_gset_ptr_new_ex(__func__, edges_len);
+  blender::Set<BMFace *> visit_face_set;
   BMEdge **edges = MEM_malloc_arrayN<BMEdge *>(edges_len, __func__);
 
   i = 0;
@@ -5927,7 +5930,7 @@ static int loop_find_regions(BMEditMesh *em, const bool selbigger)
     }
 
     BM_ITER_ELEM (l, &liter, e, BM_LOOPS_OF_EDGE) {
-      if (BLI_gset_haskey(visit_face_set, l->f)) {
+      if (visit_face_set.contains(l->f)) {
         continue;
       }
 
@@ -5966,7 +5969,6 @@ static int loop_find_regions(BMEditMesh *em, const bool selbigger)
   }
 
   MEM_freeN(edges);
-  BLI_gset_free(visit_face_set, nullptr);
 
   return count;
 }
@@ -6057,13 +6059,12 @@ static bool edbm_select_by_attribute_poll(bContext *C)
     CTX_wm_operator_poll_msg_set(C, "There must be an active attribute");
     return false;
   }
-  const CustomDataLayer *layer = BKE_attribute_search(
-      owner, *name, CD_MASK_PROP_ALL, ATTR_DOMAIN_MASK_ALL);
-  if (layer->type != CD_PROP_BOOL) {
+  const BMDataLayerLookup attr = BM_data_layer_lookup(*mesh->runtime->edit_mesh->bm, *name);
+  if (attr.type != bke::AttrType::Bool) {
     CTX_wm_operator_poll_msg_set(C, "The active attribute must have a boolean type");
     return false;
   }
-  if (BKE_attribute_domain(owner, layer) == bke::AttrDomain::Corner) {
+  if (attr.domain == bke::AttrDomain::Corner) {
     CTX_wm_operator_poll_msg_set(
         C, "The active attribute must be on the vertex, edge, or face domain");
     return false;
@@ -6102,19 +6103,17 @@ static wmOperatorStatus edbm_select_by_attribute_exec(bContext *C, wmOperator * 
     if (!name) {
       continue;
     }
-    const CustomDataLayer *layer = BKE_attribute_search(
-        owner, *name, CD_MASK_PROP_ALL, ATTR_DOMAIN_MASK_ALL);
-    if (!layer) {
+    const BMDataLayerLookup attr = BM_data_layer_lookup(*bm, *name);
+    if (!attr) {
       continue;
     }
-    if (layer->type != CD_PROP_BOOL) {
+    if (attr.type != bke::AttrType::Bool) {
       continue;
     }
-    if (BKE_attribute_domain(owner, layer) == bke::AttrDomain::Corner) {
+    if (attr.domain == bke::AttrDomain::Corner) {
       continue;
     }
-    const std::optional<BMIterType> iter_type = domain_to_iter_type(
-        BKE_attribute_domain(owner, layer));
+    const std::optional<BMIterType> iter_type = domain_to_iter_type(attr.domain);
     if (!iter_type) {
       continue;
     }
@@ -6126,7 +6125,7 @@ static wmOperatorStatus edbm_select_by_attribute_exec(bContext *C, wmOperator * 
       if (BM_elem_flag_test(elem, BM_ELEM_HIDDEN | BM_ELEM_SELECT)) {
         continue;
       }
-      if (BM_ELEM_CD_GET_BOOL(elem, layer->offset)) {
+      if (BM_ELEM_CD_GET_BOOL(elem, attr.offset)) {
         BM_elem_select_set(bm, elem, true);
         changed = true;
       }

@@ -120,7 +120,7 @@ static bool draw_from_viewer_log_value(CustomSocketDrawParams &params,
 }
 static bool draw_generic_value_log(CustomSocketDrawParams &params, const GPointer &value)
 {
-  const CPPType &value_type = *params.socket.typeinfo->base_cpp_type;
+  const CPPType &value_type = *value.type();
   const CPPType &socket_base_cpp_type = *params.socket.typeinfo->base_cpp_type;
   const bke::DataTypeConversions &conversions = bke::get_implicit_type_conversions();
   if (value_type != socket_base_cpp_type) {
@@ -287,7 +287,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
   const bNodeSocket &other_socket = params.other_socket();
   if (other_socket.in_out == SOCK_OUT) {
-    params.add_item("Value", [](LinkSearchOpParams &params) {
+    params.add_item(IFACE_("Value"), [](LinkSearchOpParams &params) {
       bNode &node = params.add_node("GeometryNodeViewer");
       const auto *item = socket_items::add_item_with_socket_type_and_name<GeoViewerItemsAccessor>(
           params.node_tree, node, params.socket.typeinfo->type, params.socket.name);

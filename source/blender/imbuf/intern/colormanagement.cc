@@ -102,7 +102,6 @@ static char global_role_aces_interchange[MAX_COLORSPACE_NAME];
 
 /* Defaults from the config that never change with working space. */
 static char global_role_scene_linear_default[MAX_COLORSPACE_NAME];
-static char global_role_default_float_default[MAX_COLORSPACE_NAME];
 
 float3x3 global_scene_linear_to_xyz_default = float3x3::zero();
 
@@ -603,7 +602,6 @@ static bool colormanage_load_config(ocio::Config &config)
 
   /* Defaults that don't change with file working space. */
   STRNCPY(global_role_scene_linear_default, global_role_scene_linear);
-  STRNCPY(global_role_default_float_default, global_role_default_float);
   global_scene_linear_to_xyz_default = blender::colorspace::scene_linear_to_xyz;
 
   return ok;
@@ -629,7 +627,8 @@ void colormanagement_init()
   if (ocio_env && ocio_env[0] != '\0') {
     g_config = ocio::Config::create_from_environment();
     if (g_config != nullptr) {
-      CLOG_INFO_NOCHECK(&LOG, "Using %s as a configuration file", ocio_env);
+      CLOG_INFO_NOCHECK(
+          &LOG, "Using %s=%s", (blender_ocio_env) ? "BLENDER_OCIO" : "OCIO", ocio_env);
       const bool ok = colormanage_load_config(*g_config);
 
       if (ok) {
@@ -737,7 +736,7 @@ static bool colormanage_compatible_look(const ocio::Look *look, const char *view
 static bool colormanage_use_look(const char *look_name, const char *view_name)
 {
   const ocio::Look *look = g_config->get_look_by_name(look_name);
-  return (look->is_noop == false && colormanage_compatible_look(look, view_name));
+  return (look && look->is_noop == false && colormanage_compatible_look(look, view_name));
 }
 
 void colormanage_cache_free(ImBuf *ibuf)
@@ -1112,6 +1111,11 @@ void IMB_colormanagement_check_file_config(Main *bmain)
     ok &= colormanage_check_display_settings(&scene->display_settings, "scene", default_display);
     ok &= colormanage_check_view_settings(
         &scene->display_settings, &scene->view_settings, "scene");
+
+    ok &= colormanage_check_display_settings(
+        &scene->r.im_format.display_settings, "scene output", default_display);
+    ok &= colormanage_check_view_settings(
+        &scene->r.im_format.display_settings, &scene->r.im_format.view_settings, "scene output");
 
     sequencer_colorspace_settings = &scene->sequencer_colorspace_settings;
 
@@ -3369,14 +3373,6 @@ bool IMB_colormanagement_working_space_set_from_name(const char *name)
   }
 
   CLOG_DEBUG(&LOG, "Setting blend file working color space to '%s'", name);
-
-  /* Change default float along with working space for convenience, if it was the same. */
-  if (STREQ(global_role_default_float_default, global_role_scene_linear_default)) {
-    STRNCPY(global_role_default_float, name);
-  }
-  else {
-    STRNCPY(global_role_default_float, global_role_default_float_default);
-  }
 
   STRNCPY(global_role_scene_linear, name);
   g_config->set_scene_linear_role(name);

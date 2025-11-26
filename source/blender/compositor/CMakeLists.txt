@@ -205,7 +205,9 @@ set(GLSL_SRC
   shaders/infos/compositor_morphological_step_infos.hh
   shaders/infos/compositor_motion_blur_infos.hh
   shaders/infos/compositor_movie_distortion_infos.hh
+  shaders/infos/compositor_node_tree_infos.hh
   shaders/infos/compositor_normalize_infos.hh
+  shaders/infos/compositor_ocio_infos.hh
   shaders/infos/compositor_pad_infos.hh
   shaders/infos/compositor_parallel_reduction_infos.hh
   shaders/infos/compositor_pixelate_infos.hh
@@ -344,6 +346,7 @@ set(GLSL_SRC
   shaders/library/gpu_shader_compositor_bright_contrast.glsl
   shaders/library/gpu_shader_compositor_channel_matte.glsl
   shaders/library/gpu_shader_compositor_chroma_matte.glsl
+  shaders/library/gpu_shader_compositor_code_generation.glsl
   shaders/library/gpu_shader_compositor_color_balance.glsl
   shaders/library/gpu_shader_compositor_color_correction.glsl
   shaders/library/gpu_shader_compositor_color_matte.glsl
@@ -363,10 +366,13 @@ set(GLSL_SRC
   shaders/library/gpu_shader_compositor_main.glsl
   shaders/library/gpu_shader_compositor_map_value.glsl
   shaders/library/gpu_shader_compositor_motion_blur_lib.glsl
+  shaders/library/gpu_shader_compositor_nodetree_type.glsl
   shaders/library/gpu_shader_compositor_ocio_processor.glsl
+  shaders/library/gpu_shader_compositor_ocio_processor_lib.glsl
   shaders/library/gpu_shader_compositor_posterize.glsl
   shaders/library/gpu_shader_compositor_separate_combine.glsl
   shaders/library/gpu_shader_compositor_set_alpha.glsl
+  shaders/library/gpu_shader_compositor_set_value.glsl
   shaders/library/gpu_shader_compositor_store.glsl
   shaders/library/gpu_shader_compositor_store_output.glsl
   shaders/library/gpu_shader_compositor_summed_area_table_lib.glsl

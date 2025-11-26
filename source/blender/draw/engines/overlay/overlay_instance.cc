@@ -267,6 +267,7 @@ void Resources::update_theme_settings(const DRWContext *ctx, const State &state)
   UI_GetThemeColor4fv(TH_EDITMESH_ACTIVE, gb.colors.edit_mesh_active);
   UI_GetThemeColor4fv(TH_EDGE_SELECT, gb.colors.edge_select);
   UI_GetThemeColor4fv(TH_EDGE_MODE_SELECT, gb.colors.edge_mode_select);
+  UI_GetThemeColor4fv(TH_GP_WIRE_EDIT, gb.colors.gpencil_wire_edit);
   UI_GetThemeColor4fv(TH_GP_VERTEX, gb.colors.gpencil_vertex);
   UI_GetThemeColor4fv(TH_GP_VERTEX_SELECT, gb.colors.gpencil_vertex_select);
 
@@ -1089,6 +1090,10 @@ bool Instance::object_needs_prepass(const ObjectRef &ob_ref, bool in_paint_mode)
   }
 
   if (resources.is_selection() || state.is_depth_only_drawing) {
+    if (ob_ref.object->visibility_flag & OB_HIDE_SURFACE_PICK) {
+      /* Special flag to avoid surfaces to contribute to depth picking and selection. */
+      return false;
+    }
     /* Selection and depth picking always need a prepass.
      * Note that depth writing and depth test might be disable for certain selection mode. */
     return true;

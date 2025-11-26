@@ -34,7 +34,6 @@
 #  include "BKE_movieclip.h"
 
 #  include "BKE_report.hh"
-#  include "BKE_sound.h"
 
 #  include "IMB_imbuf.hh"
 #  include "IMB_imbuf_types.hh"
@@ -279,7 +278,7 @@ static Strip *rna_Strips_new_image(ID *id,
   BLI_path_split_dir_file(file, dirpath, sizeof(dirpath), filename, sizeof(filename));
   blender::seq::add_image_set_directory(strip, dirpath);
   blender::seq::add_image_load_file(scene, strip, 0, filename);
-  blender::seq::add_image_init_alpha_mode(strip);
+  blender::seq::add_image_init_alpha_mode(bmain, scene, strip);
 
   DEG_relations_tag_update(bmain);
   DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
@@ -528,7 +527,7 @@ static Strip *rna_Strips_new_effect(ID *id,
   blender::seq::LoadData load_data;
   blender::seq::add_load_data_init(&load_data, name, nullptr, frame_start, channel);
   load_data.effect.length = length;
-  load_data.effect.type = type;
+  load_data.effect.type = StripType(type);
   load_data.effect.input1 = input1;
   load_data.effect.input2 = input2;
   strip = blender::seq::add_effect_strip(scene, seqbase, &load_data);

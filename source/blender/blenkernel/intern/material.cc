@@ -21,7 +21,6 @@
 #include "DNA_ID.h"
 #include "DNA_curve_types.h"
 #include "DNA_curves_types.h"
-#include "DNA_customdata_types.h"
 #include "DNA_defaults.h"
 #include "DNA_gpencil_legacy_types.h"
 #include "DNA_grease_pencil_types.h"
@@ -36,22 +35,23 @@
 #include "DNA_volume_types.h"
 
 #include "BLI_array_utils.h"
+#include "BLI_enum_flags.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_color.h"
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
-#include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
 
 #include "BKE_anim_data.hh"
+#include "BKE_attribute.h"
 #include "BKE_brush.hh"
 #include "BKE_curve.hh"
 #include "BKE_curves.hh"
 #include "BKE_displist.h"
 #include "BKE_editmesh.hh"
 #include "BKE_grease_pencil.hh"
-#include "BKE_icons.h"
+#include "BKE_icons.hh"
 #include "BKE_idtype.hh"
 #include "BKE_image.hh"
 #include "BKE_lib_id.hh"
@@ -1265,11 +1265,12 @@ void BKE_object_material_remap_calc(Object *ob_dst, Object *ob_src, short *remap
     return;
   }
 
-  GHash *gh_mat_map = BLI_ghash_ptr_new_ex(__func__, ob_src->totcol);
+  blender::Map<Material *, int> mat_map;
+  mat_map.reserve(ob_src->totcol);
 
   for (int i = 0; i < ob_dst->totcol; i++) {
     Material *ma_src = BKE_object_material_get(ob_dst, i + 1);
-    BLI_ghash_reinsert(gh_mat_map, ma_src, POINTER_FROM_INT(i), nullptr, nullptr);
+    mat_map.add(ma_src, i);
   }
 
   /* setup default mapping (when materials don't match) */
@@ -1297,14 +1298,11 @@ void BKE_object_material_remap_calc(Object *ob_dst, Object *ob_src, short *remap
       /* when objects have exact matching materials - keep existing index */
     }
     else {
-      void **index_src_p = BLI_ghash_lookup_p(gh_mat_map, ma_src);
-      if (index_src_p) {
-        remap_src_to_dst[i] = POINTER_AS_INT(*index_src_p);
+      if (const int *index_src_p = mat_map.lookup_ptr(ma_src)) {
+        remap_src_to_dst[i] = *index_src_p;
       }
     }
   }
-
-  BLI_ghash_free(gh_mat_map, nullptr, nullptr);
 }
 
 void BKE_object_material_from_eval_data(Main *bmain, Object *ob_orig, const ID *data_eval)
@@ -1525,7 +1523,7 @@ enum ePaintSlotFilter {
   PAINT_SLOT_IMAGE = 1 << 0,
   PAINT_SLOT_COLOR_ATTRIBUTE = 1 << 1,
 };
-ENUM_OPERATORS(ePaintSlotFilter, PAINT_SLOT_COLOR_ATTRIBUTE)
+ENUM_OPERATORS(ePaintSlotFilter)
 
 using ForEachTexNodeCallback = bool (*)(bNode *node, void *userdata);
 static bool ntree_foreach_texnode_recursive(bNodeTree *nodetree,
@@ -1583,6 +1581,7 @@ struct FillTexPaintSlotsData {
 
 static bool fill_texpaint_slots_cb(bNode *node, void *userdata)
 {
+  using namespace blender;
   FillTexPaintSlotsData *fill_data = static_cast<FillTexPaintSlotsData *>(userdata);
 
   Material *ma = fill_data->ma;
@@ -1622,8 +1621,15 @@ static bool fill_texpaint_slots_cb(bNode *node, void *userdata)
       slot->attribute_name = storage->name;
       if (storage->type == SHD_ATTRIBUTE_GEOMETRY) {
         const Mesh *mesh = (const Mesh *)fill_data->ob->data;
-        const CustomDataLayer *layer = BKE_id_attributes_color_find(&mesh->id, storage->name);
-        slot->valid = layer != nullptr;
+        if (mesh->runtime->edit_mesh) {
+          const BMDataLayerLookup attr = BM_data_layer_lookup(*mesh->runtime->edit_mesh->bm,
+                                                              storage->name);
+          slot->valid = attr && bke::mesh::is_color_attribute({attr.domain, attr.type});
+        }
+        else {
+          const bke::AttributeAccessor attributes = mesh->attributes();
+          slot->valid = bke::mesh::is_color_attribute(attributes.lookup_meta_data(storage->name));
+        }
       }
 
       /* Do not show unsupported attributes. */
