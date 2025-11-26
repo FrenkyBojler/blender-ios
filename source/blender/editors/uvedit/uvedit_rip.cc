@@ -837,7 +837,7 @@ static bool uv_rip_object(
 
   bool vert_selected = false;
   bool edge_selected = false;
-  /* Extract loop pairs or single loops. */ 
+  /* Extract loop pairs or single loops. */
   BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
     if (BM_elem_flag_test(efa, BM_ELEM_TAG)) {
       BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
