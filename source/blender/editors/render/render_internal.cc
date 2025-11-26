@@ -339,8 +339,9 @@ static wmOperatorStatus screen_render_exec(bContext *C, wmOperator *op)
   Scene *scene = use_sequencer_scene ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
 
   if (scene == nullptr) {
-    BKE_reportf(
-        op->reports, RPT_ERROR, "No %sscene to render", use_sequencer_scene ? "sequencer " : "");
+    BKE_report(op->reports,
+               RPT_ERROR,
+               use_sequencer_scene ? "No sequencer scene to render" : "No scene to render");
     return OPERATOR_CANCELLED;
   }
 
@@ -1036,8 +1037,9 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
   Scene *scene = use_sequencer_scene ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
 
   if (scene == nullptr) {
-    BKE_reportf(
-        op->reports, RPT_ERROR, "No %sscene to render", use_sequencer_scene ? "sequencer " : "");
+    BKE_report(op->reports,
+               RPT_ERROR,
+               use_sequencer_scene ? "No sequencer scene to render" : "No scene to render");
     return OPERATOR_CANCELLED;
   }
 
