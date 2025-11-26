@@ -314,7 +314,7 @@ void do_versions_after_linking_510(FileData * /*fd*/, Main *bmain)
    */
 }
 
-void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
+void blo_do_versions_510(FileData *fd, Library * /*lib*/, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 1)) {
     FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
@@ -342,6 +342,19 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 7)) {
     version_mesh_uv_map_strings(*bmain);
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 8)) {
+    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        LISTBASE_FOREACH (SpaceLink *, space, &area->spacedata) {
+          if (space->spacetype == SPACE_IMAGE) {
+            SpaceImage *sima = (SpaceImage *)space;
+            sima->flag |= SI_SHOW_SEAMS;
+          }
+        }
+      }
+    }
   }
 
   /**
