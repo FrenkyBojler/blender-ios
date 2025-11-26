@@ -2939,7 +2939,7 @@ static wmOperatorStatus ui_view_item_navigate_invoke(bContext *C,
     tree_view.foreach_item(
         [&](AbstractTreeViewItem &item) {
           if (!found_active) {
-            item.activate(*C);
+            item.on_activate(*C);
             active_item = &item;
             found_active = true;
           }
@@ -3024,7 +3024,7 @@ static wmOperatorStatus ui_view_item_navigate_invoke(bContext *C,
   }
 
   if (next_item) {
-    next_item->activate(*C);
+    next_item->on_activate(*C);
   }
 
   ED_region_tag_redraw(&region);
