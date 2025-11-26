@@ -188,6 +188,9 @@ EffectHandle effect_handle_get(StripType strip_type)
     case STRIP_TYPE_GAMCROSS:
       gamma_cross_effect_get_handle(rval);
       break;
+    case STRIP_TYPE_COMPOSITOR:
+      compositor_effect_get_handle(rval);
+      break;
     case STRIP_TYPE_ADD:
       add_effect_get_handle(rval);
       break;
@@ -351,7 +354,7 @@ int effect_get_num_inputs(int strip_type)
 
 bool effect_is_transition(StripType type)
 {
-  return ELEM(type, STRIP_TYPE_CROSS, STRIP_TYPE_GAMCROSS, STRIP_TYPE_WIPE);
+  return ELEM(type, STRIP_TYPE_CROSS, STRIP_TYPE_GAMCROSS, STRIP_TYPE_WIPE, STRIP_TYPE_COMPOSITOR);
 }
 
 }  // namespace blender::seq

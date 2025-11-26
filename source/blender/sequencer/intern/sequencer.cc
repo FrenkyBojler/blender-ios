@@ -1237,7 +1237,7 @@ ListBase *Editing::current_channels() const
 
 bool Strip::is_effect() const
 {
-  return (this->type >= STRIP_TYPE_CROSS && this->type <= STRIP_TYPE_OVERDROP_REMOVED) ||
+  return (this->type >= STRIP_TYPE_CROSS && this->type <= STRIP_TYPE_COMPOSITOR) ||
          (this->type >= STRIP_TYPE_WIPE && this->type <= STRIP_TYPE_ADJUSTMENT) ||
          (this->type >= STRIP_TYPE_GAUSSIAN_BLUR && this->type <= STRIP_TYPE_COLORMIX);
 }

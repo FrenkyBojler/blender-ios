@@ -121,6 +121,7 @@ void alpha_over_effect_get_handle(EffectHandle &rval);
 void alpha_under_effect_get_handle(EffectHandle &rval);
 void blend_mode_effect_get_handle(EffectHandle &rval);
 void color_mix_effect_get_handle(EffectHandle &rval);
+void compositor_effect_get_handle(EffectHandle &rval);
 void cross_effect_get_handle(EffectHandle &rval);
 void gamma_cross_effect_get_handle(EffectHandle &rval);
 void gaussian_blur_effect_get_handle(EffectHandle &rval);

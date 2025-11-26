@@ -2168,6 +2168,8 @@ static std::string sequencer_add_effect_strip_get_description(bContext * /*C*/,
       return TIP_("Add a text strip to the sequencer");
     case STRIP_TYPE_COLORMIX:
       return TIP_("Add a color mix effect strip to the sequencer");
+    case STRIP_TYPE_COMPOSITOR:
+      return TIP_("Add a compositor based strip");
     default:
       break;
   }

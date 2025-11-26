@@ -925,6 +925,8 @@ static StructRNA *rna_Strip_refine(PointerRNA *ptr)
       return &RNA_AlphaUnderStrip;
     case STRIP_TYPE_GAMCROSS:
       return &RNA_GammaCrossStrip;
+    case STRIP_TYPE_COMPOSITOR:
+      return &RNA_CompositorStrip;
     case STRIP_TYPE_MUL:
       return &RNA_MultiplyStrip;
     case STRIP_TYPE_MULTICAM:
@@ -2335,6 +2337,7 @@ static void rna_def_strip(BlenderRNA *brna)
       {STRIP_TYPE_ALPHAOVER, "ALPHA_OVER", 0, "Alpha Over", ""},
       {STRIP_TYPE_ALPHAUNDER, "ALPHA_UNDER", 0, "Alpha Under", ""},
       {STRIP_TYPE_GAMCROSS, "GAMMA_CROSS", 0, "Gamma Crossfade", ""},
+      {STRIP_TYPE_COMPOSITOR, "COMPOSITOR", 0, "Compositor", ""},
       {STRIP_TYPE_MUL, "MULTIPLY", 0, "Multiply", ""},
       {STRIP_TYPE_WIPE, "WIPE", 0, "Wipe", ""},
       {STRIP_TYPE_GLOW, "GLOW", 0, "Glow", ""},
@@ -3756,6 +3759,7 @@ static EffectInfo def_effects[] = {
      0},
     {"CrossStrip", "Crossfade Strip", "Crossfade Strip", nullptr, 2},
     {"GammaCrossStrip", "Gamma Crossfade Strip", "Gamma Crossfade Strip", nullptr, 2},
+    {"CompositorStrip", "Compositor Strip", "Compositor Strip", nullptr, 2},  //@TODO: rna_def
     {"GlowStrip", "Glow Strip", "Sequence strip creating a glow effect", rna_def_glow, 1},
     {"MulticamStrip",
      "Multicam Select Strip",

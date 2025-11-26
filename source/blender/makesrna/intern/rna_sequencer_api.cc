@@ -835,6 +835,7 @@ void RNA_api_strips(StructRNA *srna, const bool metastrip)
        0,
        "Gamma Crossfade",
        "Crossfade with color correction"},
+      {STRIP_TYPE_COMPOSITOR, "COMPOSITOR", 0, "Compositor", "Compositor based effect"},
       {STRIP_TYPE_MUL, "MULTIPLY", 0, "Multiply", "Multiply color channels from two videos"},
       {STRIP_TYPE_WIPE, "WIPE", 0, "Wipe", "Sweep a transition line across the frame"},
       {STRIP_TYPE_GLOW, "GLOW", 0, "Glow", "Add blur and brightness to light areas"},

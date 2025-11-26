@@ -3081,6 +3081,7 @@ const EnumPropertyItem sequencer_prop_effect_types[] = {
     {STRIP_TYPE_GAUSSIAN_BLUR, "GAUSSIAN_BLUR", 0, "Gaussian Blur", "Soften details along axes"},
     {STRIP_TYPE_TEXT, "TEXT", 0, "Text", "Add a simple text strip"},
     {STRIP_TYPE_COLORMIX, "COLORMIX", 0, "Color Mix", "Combine two strips using blend modes"},
+    {STRIP_TYPE_COMPOSITOR, "COMPOSITOR", 0, "Compositor", "Compositor based effect"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
