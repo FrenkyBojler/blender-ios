@@ -541,6 +541,7 @@ if(WITH_GTESTS)
     tests/BLI_convexhull_2d_test.cc
     tests/BLI_cpp_type_test.cc
     tests/BLI_csv_parse_test.cc
+    tests/BLI_debugger_utils_test.cc
     tests/BLI_delaunay_2d_test.cc
     tests/BLI_disjoint_set_test.cc
     tests/BLI_expr_pylike_eval_test.cc
