@@ -1058,7 +1058,8 @@ static void graph_draw_driver_settings_panel(blender::ui::Layout &layout,
   /* add/copy/paste driver variables */
   blender::ui::Layout &row = layout.row(false);
 
-  { /* add driver variable - add blank */
+  {
+    /* Add driver variable - add blank. */
     blender::ui::Layout &sub = row.row(true);
     but = uiDefIconTextBut(
         block,
