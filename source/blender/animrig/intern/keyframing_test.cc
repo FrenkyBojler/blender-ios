@@ -133,25 +133,16 @@ class KeyframingTest : public testing::Test {
     BKE_main_free(bmain);
   }
 
-  /**
-   * Create an Action and assign it to the ID.
-   */
-  void create_and_assign_action(ID &id)
-  {
-    AnimData *adt = BKE_animdata_from_id(&id);
-    BLI_assert(!adt || !adt->action);
-    UNUSED_VARS_NDEBUG(adt);
-
-    bAction &action = animrig::action_add(*bmain, "Action");
-    Slot *slot = assign_action_ensure_slot_for_keying(action.wrap(), id);
-    BLI_assert(slot != nullptr);
-    UNUSED_VARS_NDEBUG(slot);
-  }
-
   Channelbag *get_channelbag_in_first_layer(Object &object)
   {
     Action &action = object.adt->action->wrap();
+    if (action.layer_array_num == 0) {
+      return nullptr;
+    }
     Layer *layer = action.layer(0);
+    if (layer->strip_array_num == 0) {
+      return nullptr;
+    }
     Strip *strip = layer->strip(0);
     BLI_assert(strip->type() == Strip::Type::Keyframe);
     StripKeyframeData &strip_data = strip->data<animrig::StripKeyframeData>(action);
@@ -884,7 +875,6 @@ TEST_F(KeyframingTest, insert_keyframes__optional_frame)
   AnimationEvalContext anim_eval_context = {nullptr, 5.0};
 
   object->rotmode = ROT_MODE_XYZ;
-  create_and_assign_action(object->id);
   const CombinedKeyingResult result_1 = insert_keyframes(bmain,
                                                          &object_rna_pointer,
                                                          std::nullopt,
@@ -922,7 +912,6 @@ TEST_F(KeyframingTest, insert_keyframes__optional_channel_group)
   AnimationEvalContext anim_eval_context = {nullptr, 1.0};
 
   /* If the channel group is not explicitly passed, the default should be used. */
-  create_and_assign_action(object->id);
   const CombinedKeyingResult result_1 = insert_keyframes(
       bmain,
       &object_rna_pointer,
