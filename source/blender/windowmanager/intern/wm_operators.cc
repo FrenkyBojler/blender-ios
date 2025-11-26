@@ -3137,10 +3137,12 @@ static int radial_control_get_properties(bContext *C, wmOperator *op)
 
 static void radial_control_status(bContext *C, const RadialControl *radial_control)
 {
+  const char *ui_name = RNA_property_ui_name(radial_control->prop);
+
   WorkspaceStatus status(C);
   status.item(IFACE_("Confirm"), ICON_EVENT_RETURN, ICON_MOUSE_LMB);
   status.item(IFACE_("Cancel"), ICON_EVENT_ESC, ICON_MOUSE_RMB);
-  status.item(IFACE_("Change Size"), ICON_MOUSE_MOVE);
+  status.item(ui_name, ICON_MOUSE_MOVE);
   status.item_bool(IFACE_("Snap"), radial_control->snap, ICON_EVENT_CTRL);
   status.item_bool(IFACE_("Precision Mode"), radial_control->slow_mode, ICON_EVENT_SHIFT);
 }
