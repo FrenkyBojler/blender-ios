@@ -792,6 +792,13 @@ struct Scope {
     return is_invalid() ? Scope::invalid() : start().prev().scope();
   }
 
+  /* Returns the next scope after this scope. Can be either the container scope or the next scope
+   * inside the same container. */
+  Scope next() const
+  {
+    return is_invalid() ? Scope::invalid() : end().next().scope();
+  }
+
   bool contains(const Scope sub) const
   {
     Scope parent = sub.scope();
@@ -801,13 +808,22 @@ struct Scope {
     return parent == *this;
   }
 
-  std::string str() const
+  std::string str_with_whitespace() const
   {
     if (this->is_invalid()) {
       return "";
     }
     return data->str.substr(start().str_index_start(),
                             end().str_index_last() - start().str_index_start() + 1);
+  }
+
+  std::string str() const
+  {
+    if (this->is_invalid()) {
+      return "";
+    }
+    return data->str.substr(start().str_index_start(),
+                            end().str_index_last_no_whitespace() - start().str_index_start() + 1);
   }
 
   /* Return the content without the first and last characters. */
@@ -983,6 +999,9 @@ struct Scope {
 
 inline Scope Token::scope() const
 {
+  if (this->is_invalid()) {
+    return Scope::invalid();
+  }
   return Scope::from_position(data, data->token_scope[index]);
 }
 
@@ -1424,6 +1443,7 @@ struct Parser {
    * line count and keep the remaining indentation spaces. */
   void erase(Token from, Token to)
   {
+    assert(from.index <= to.index);
     erase(from.str_index_start(), to.str_index_last());
   }
   /* Replace the content from `from` to `to` (inclusive) by whitespaces without changing
@@ -1465,7 +1485,7 @@ struct Parser {
   }
   void insert_before(Token at, const std::string &content)
   {
-    insert_after(at.str_index_start(), content);
+    insert_before(at.str_index_start(), content);
   }
 
   /* Return true if any mutation was applied. */
