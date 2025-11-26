@@ -24,6 +24,7 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
+#include "BKE_attribute.h"
 #include "BKE_attribute.hh"
 #include "BKE_context.hh"
 #include "BKE_customdata.hh"
@@ -84,7 +85,7 @@ static VectorSet<std::string> join_vertex_groups(const Span<const Object *> obje
       continue;
     }
     Vector<int, 32> index_map;
-    LISTBASE_FOREACH (const bDeformGroup *, dg, &dst_mesh.vertex_group_names) {
+    LISTBASE_FOREACH (const bDeformGroup *, dg, &src_mesh.vertex_group_names) {
       index_map.append(vertex_group_names.index_of_as(dg->name));
     }
     for (const int vert : src_dverts.index_range()) {
@@ -437,9 +438,9 @@ static VectorSet<Material *> join_materials(const Span<const Object *> objects_t
   return materials;
 }
 
-/* Face Sets IDs are a sparse sequence, so this function offsets all the IDs by face_set_offset and
+/* Face set IDs are a sparse sequence, so this function offsets all the IDs by face_set_offset and
  * updates face_set_offset with the maximum ID value. This way, when used in multiple meshes, all
- * of them will have different IDs for their Face Sets. */
+ * of them will have different IDs for their face sets. */
 static void join_face_sets(const Span<const Object *> objects_to_join,
                            const OffsetIndices<int> face_ranges,
                            Mesh &dst_mesh)
@@ -575,6 +576,10 @@ wmOperatorStatus join_objects_exec(bContext *C, wmOperator *op)
                                        edge_ranges.total_size(),
                                        face_ranges.total_size(),
                                        corner_ranges.total_size());
+  BKE_mesh_copy_parameters_for_eval(dst_mesh, active_mesh);
+  BLI_freelistN(&dst_mesh->vertex_group_names);
+  MEM_SAFE_FREE(dst_mesh->mat);
+  dst_mesh->totcol = 0;
 
   /* Inverse transform for all selected meshes in this object,
    * See #object_join_exec for detailed comment on why the safe version is used. */
@@ -619,17 +624,19 @@ wmOperatorStatus join_objects_exec(bContext *C, wmOperator *op)
     }
   }
 
-  MutableSpan<int> dst_face_offsets = dst_mesh->face_offsets_for_write();
-  for (const int i : objects_to_join.index_range()) {
-    const Object &src_object = *objects_to_join[i];
-    const IndexRange dst_range = face_ranges[i];
-    const Mesh &src_mesh = *static_cast<const Mesh *>(src_object.data);
-    const Span<int> src_face_offsets = src_mesh.face_offsets();
-    for (const int face : dst_range.index_range()) {
-      dst_face_offsets[dst_range[face]] = src_face_offsets[face] + corner_ranges[i].start();
+  if (dst_mesh->faces_num > 0) {
+    MutableSpan<int> dst_face_offsets = dst_mesh->face_offsets_for_write();
+    for (const int i : objects_to_join.index_range()) {
+      const Object &src_object = *objects_to_join[i];
+      const IndexRange dst_range = face_ranges[i];
+      const Mesh &src_mesh = *static_cast<const Mesh *>(src_object.data);
+      const Span<int> src_face_offsets = src_mesh.face_offsets();
+      for (const int face : dst_range.index_range()) {
+        dst_face_offsets[dst_range[face]] = src_face_offsets[face] + corner_ranges[i].start();
+      }
     }
+    dst_face_offsets.last() = dst_mesh->corners_num;
   }
-  dst_face_offsets.last() = dst_mesh->corners_num;
 
   join_face_sets(objects_to_join, face_ranges, *dst_mesh);
 

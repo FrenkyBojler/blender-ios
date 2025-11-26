@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'7089def6cbcb')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'ef4e8fa75057')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-09-29 09:33+0000\n"
+"POT-Creation-Date: 2025-11-24 08:35+0000\n"
 "PO-Revision-Date: 2025-07-23 15:32+0000\n"
 "Last-Translator: Leevi Oksanen <laavi.oksanen@gmail.com>\n"
 "Language-Team: Finnish <https://translate.blender.org/projects/blender-ui/ui/fi/>\n"
@@ -61,10 +61,6 @@ msgstr "AOV-kokoelam"
 
 msgid "F-Curves"
 msgstr "F-Käyrät"
-
-
-msgid "Action F-Curves"
-msgstr "Toiminta F-käyrät"
 
 
 msgid "Action Group"
@@ -233,14 +229,6 @@ msgstr "Toimintaryhmä on laajennettu graafieditorissa"
 
 msgid "Pin in Graph Editor"
 msgstr "Kiinnitä graafieditorissa"
-
-
-msgid "Action Groups"
-msgstr "Toimintaryhmät"
-
-
-msgid "Collection of action groups"
-msgstr "Toimintaryhmäkokoelma"
 
 
 msgid "Action Pose Markers"
@@ -822,10 +810,6 @@ msgid "Video Sequencer"
 msgstr "Videosekvensseri"
 
 
-msgid "Video editing tools"
-msgstr "Videoeditointityökalut"
-
-
 msgid "Movie Clip Editor"
 msgstr "Elokuvakohtauseditori"
 
@@ -969,6 +953,262 @@ msgstr "ID-nimi"
 
 msgid "Options"
 msgstr "Asetukset"
+
+
+msgid "Actions"
+msgstr "Toiminnot"
+
+
+msgid "Show Action data-blocks"
+msgstr "Näytä toiminnon data-palikat"
+
+
+msgid "Armatures"
+msgstr "Luurangot"
+
+
+msgid "Show Armature data-blocks"
+msgstr "Näytä luurangon data-palikat"
+
+
+msgid "Brushes"
+msgstr "Siveltimet"
+
+
+msgid "Show Brushes data-blocks"
+msgstr "Näytä siveltimien data-palikat"
+
+
+msgid "Cache Files"
+msgstr "Välimuistitiedostot"
+
+
+msgid "Show Cache File data-blocks"
+msgstr "Näytä välimuistitiedoston data-palikat"
+
+
+msgid "Cameras"
+msgstr "Kamerat"
+
+
+msgid "Show Camera data-blocks"
+msgstr "Näytä kameran data-palikat"
+
+
+msgid "Curves"
+msgstr "Käyrät"
+
+
+msgid "Show Curve data-blocks"
+msgstr "Näytä käyrän data-palikat"
+
+
+msgid "Hair Curves"
+msgstr "Hiuskäyrät"
+
+
+msgid "Show/hide Curves data-blocks"
+msgstr "Näytä/piilota käyrien data-palikat"
+
+
+msgid "Fonts"
+msgstr "Fontit"
+
+
+msgid "Show Font data-blocks"
+msgstr "Näytä fontin data-palikat"
+
+
+msgid "Grease Pencil"
+msgstr "Öljykynä"
+
+
+msgid "Collections"
+msgstr "Kokoelmat"
+
+
+msgid "Show Collection data-blocks"
+msgstr "Näytä kokoelman data-palikat"
+
+
+msgid "Images"
+msgstr "Kuvat"
+
+
+msgid "Show Image data-blocks"
+msgstr "Näytä kuvan data-palikat"
+
+
+msgid "Lattices"
+msgstr "Säleiköt"
+
+
+msgid "Show Lattice data-blocks"
+msgstr "Näytä säleikön data-palikat"
+
+
+msgid "Lights"
+msgstr "Valot"
+
+
+msgid "Show Light data-blocks"
+msgstr "Näytä valon data-palikat"
+
+
+msgid "Light Probes"
+msgstr "Valoluotaimet"
+
+
+msgid "Show Light Probe data-blocks"
+msgstr "Näytä valoluotaimen data-palikat"
+
+
+msgid "Masks"
+msgstr "Maskit"
+
+
+msgid "Show Mask data-blocks"
+msgstr "Näytä maskin data-palikat"
+
+
+msgid "Materials"
+msgstr "Materiaalit"
+
+
+msgid "Show Material data-blocks"
+msgstr "Näytä materiaalin data-palikat"
+
+
+msgid "Meshes"
+msgstr "Muodot"
+
+
+msgid "Show Mesh data-blocks"
+msgstr "Näytä muodon data-palikat"
+
+
+msgid "Metaballs"
+msgstr "Metapallot"
+
+
+msgid "Show Metaball data-blocks"
+msgstr "Näytä metapallon data-palikat"
+
+
+msgid "Movie Clips"
+msgstr "Elokuvaklipit"
+
+
+msgid "Show Movie Clip data-blocks"
+msgstr "Näytä elokuvaklipin data-palikat"
+
+
+msgid "Node Trees"
+msgstr "Noodipuut"
+
+
+msgid "Show Node Tree data-blocks"
+msgstr "Näytä noodipuun data-palikat"
+
+
+msgid "Objects"
+msgstr "Objektit"
+
+
+msgid "Show Object data-blocks"
+msgstr "Näytä objektin data-palikat"
+
+
+msgid "Paint Curves"
+msgstr "Maalikäyrät"
+
+
+msgid "Palettes"
+msgstr "Paletit"
+
+
+msgid "Show Palette data-blocks"
+msgstr "Näytä paletin data-palikat"
+
+
+msgid "Particles Settings"
+msgstr "Partikkeliasetukset"
+
+
+msgid "Show Particle Settings data-blocks"
+msgstr "Näytä partikkeliasetuksien data-palikat"
+
+
+msgid "Point Clouds"
+msgstr "Pistepilvet"
+
+
+msgid "Show/hide Point Cloud data-blocks"
+msgstr "Näytä/piilosta pistepilven data-palikat"
+
+
+msgid "Scenes"
+msgstr "Kohtaukset"
+
+
+msgid "Show Scene data-blocks"
+msgstr "Näytä kohtauksen data-palikat"
+
+
+msgid "Sounds"
+msgstr "Äänet"
+
+
+msgid "Show Sound data-blocks"
+msgstr "Näytä äänen data-palikat"
+
+
+msgid "Speakers"
+msgstr "Kaijuttimet"
+
+
+msgid "Show Speaker data-blocks"
+msgstr "Näytä kauittimen data-palikat"
+
+
+msgid "Texts"
+msgstr "Tekstit"
+
+
+msgid "Show Text data-blocks"
+msgstr "Näytä tekstin data-palikat"
+
+
+msgid "Textures"
+msgstr "Tekstuurit"
+
+
+msgid "Show Texture data-blocks"
+msgstr "Näytä tekstuurin data-palikat"
+
+
+msgid "Volumes"
+msgstr "Volyymit"
+
+
+msgid "Show/hide Volume data-blocks"
+msgstr "Näytä/piilota volyymin data-palikat"
+
+
+msgid "Workspaces"
+msgstr "Työtilat"
+
+
+msgid "Show workspace data-blocks"
+msgstr "Näytä työtilan data-palikat"
+
+
+msgid "Worlds"
+msgstr "Maailmat"
+
+
+msgid "Show World data-blocks"
+msgstr "Näytä maailman data-palikat"
 
 
 msgid "Show Names"
@@ -1535,10 +1775,6 @@ msgid "Weight"
 msgstr "Paino"
 
 
-msgid "Actions"
-msgstr "Toiminnot"
-
-
 msgid "Action data-blocks"
 msgstr "Toiminnan data-palikat"
 
@@ -1547,40 +1783,20 @@ msgid "Annotation"
 msgstr "Huomiointi"
 
 
-msgid "Armatures"
-msgstr "Luurangot"
-
-
 msgid "Armature data-blocks"
 msgstr "Luurangon data-palikat"
-
-
-msgid "Brushes"
-msgstr "Siveltimet"
 
 
 msgid "Brush data-blocks"
 msgstr "Siveltimen data-palikat"
 
 
-msgid "Cache Files"
-msgstr "Välimuistitiedostot"
-
-
 msgid "Cache Files data-blocks"
 msgstr "Välimuistin data-palikat"
 
 
-msgid "Cameras"
-msgstr "Kamerat"
-
-
 msgid "Camera data-blocks"
 msgstr "Kameran data-palikat"
-
-
-msgid "Collections"
-msgstr "Kokoelmat"
 
 
 msgid "Collection data-blocks"
@@ -1589,10 +1805,6 @@ msgstr "Kokoelman data-palikat"
 
 msgid "Color Space"
 msgstr "Väriavaruus"
-
-
-msgid "Curves"
-msgstr "Käyrät"
 
 
 msgid "Curve data-blocks"
@@ -1615,24 +1827,12 @@ msgid "Vector font data-blocks"
 msgstr "Vektorifontin data-palikat"
 
 
-msgid "Grease Pencil"
-msgstr "Öljykynä"
-
-
 msgid "Grease Pencil data-blocks"
 msgstr "Öljykynän data-palikat"
 
 
-msgid "Hair Curves"
-msgstr "Hiuskäyrät"
-
-
 msgid "Hair curve data-blocks"
 msgstr "Hiuskäyrien data-palikat"
-
-
-msgid "Images"
-msgstr "Kuvat"
 
 
 msgid "Image data-blocks"
@@ -1655,10 +1855,6 @@ msgid "Has the current session been saved to disk as a .blend file"
 msgstr "Nykyinen sessio tallennettu levylle .blend-tiedostona"
 
 
-msgid "Lattices"
-msgstr "Säleiköt"
-
-
 msgid "Lattice data-blocks"
 msgstr "Säleikon data-palikat"
 
@@ -1671,16 +1867,8 @@ msgid "Library data-blocks"
 msgstr "Kirjaston data-palikat"
 
 
-msgid "Light Probes"
-msgstr "Valoluotaimet"
-
-
 msgid "Light Probe data-blocks"
 msgstr "Valoluotaimen data-palikat"
-
-
-msgid "Lights"
-msgstr "Valot"
 
 
 msgid "Light data-blocks"
@@ -1695,40 +1883,20 @@ msgid "Line Style data-blocks"
 msgstr "Viivatyylin data-palikat"
 
 
-msgid "Masks"
-msgstr "Maskit"
-
-
 msgid "Masks data-blocks"
 msgstr "Maskin data-palikat"
-
-
-msgid "Materials"
-msgstr "Materiaalit"
 
 
 msgid "Material data-blocks"
 msgstr "Materiaalin data-palikat"
 
 
-msgid "Meshes"
-msgstr "Muodot"
-
-
 msgid "Mesh data-blocks"
 msgstr "Muodon data-palikat"
 
 
-msgid "Metaballs"
-msgstr "Metapallot"
-
-
 msgid "Metaball data-blocks"
 msgstr "Metapallon data-palikat"
-
-
-msgid "Movie Clips"
-msgstr "Elokuvaklipit"
 
 
 msgid "Movie Clip data-blocks"
@@ -1743,24 +1911,12 @@ msgid "Node group data-blocks"
 msgstr "Noodiryhmän data-palikat"
 
 
-msgid "Objects"
-msgstr "Objektit"
-
-
 msgid "Object data-blocks"
 msgstr "Objektin data-palikat"
 
 
-msgid "Paint Curves"
-msgstr "Maalikäyrät"
-
-
 msgid "Paint Curves data-blocks"
 msgstr "Maalikäyrien data-palikat"
-
-
-msgid "Palettes"
-msgstr "Paletit"
 
 
 msgid "Palette data-blocks"
@@ -1775,16 +1931,8 @@ msgid "Particle data-blocks"
 msgstr "Partikkelin data-palikat"
 
 
-msgid "Point Clouds"
-msgstr "Pistepilvet"
-
-
 msgid "Point cloud data-blocks"
 msgstr "Pistepilven data-palikat"
-
-
-msgid "Scenes"
-msgstr "Kohtaukset"
 
 
 msgid "Scene data-blocks"
@@ -1807,32 +1955,16 @@ msgid "Shape Key data-blocks"
 msgstr "Muotoavaimen data-palikat"
 
 
-msgid "Sounds"
-msgstr "Äänet"
-
-
 msgid "Sound data-blocks"
 msgstr "Äänen data-palikat"
-
-
-msgid "Speakers"
-msgstr "Kaijuttimet"
 
 
 msgid "Speaker data-blocks"
 msgstr "Kaiuttimen data-palikat"
 
 
-msgid "Texts"
-msgstr "Tekstit"
-
-
 msgid "Text data-blocks"
 msgstr "Tekstin data-palikat"
-
-
-msgid "Textures"
-msgstr "Tekstuurit"
 
 
 msgid "Texture data-blocks"
@@ -1855,10 +1987,6 @@ msgid "File format version the .blend file was saved with"
 msgstr "Tiedostomuodon versio, jolla .blend-tiedosto on tallennettu"
 
 
-msgid "Volumes"
-msgstr "Volyymit"
-
-
 msgid "Volume data-blocks"
 msgstr "Volyymin data-palikat"
 
@@ -1871,16 +1999,8 @@ msgid "Window manager data-blocks"
 msgstr "Ikkunamanagerin data-palikat"
 
 
-msgid "Workspaces"
-msgstr "Työtilat"
-
-
 msgid "Workspace data-blocks"
 msgstr "Työtilan data-palikat"
-
-
-msgid "Worlds"
-msgstr "Maailmat"
 
 
 msgid "World data-blocks"
@@ -2565,14 +2685,6 @@ msgstr "3x3 luumatriisi"
 
 msgid "Parent"
 msgstr "Isäntä"
-
-
-msgid "Select Head"
-msgstr "Valitse pää"
-
-
-msgid "Select Tail"
-msgstr "Valitse häntä"
 
 
 msgid "Tail"
@@ -4026,6 +4138,14 @@ msgid "3D Position"
 msgstr "3D-sijainti"
 
 
+msgid "Attribute Name"
+msgstr "Ominaisuuden nimi"
+
+
+msgid "Sample Index"
+msgstr "Kerää indeksi"
+
+
 msgid "Kinematic Constraint"
 msgstr "Kinemaattinen rajoitus"
 
@@ -5359,142 +5479,6 @@ msgid "Z Direction"
 msgstr "Z-suunta"
 
 
-msgid "Show Armature data-blocks"
-msgstr "Näytä luurangon data-palikat"
-
-
-msgid "Show Cache File data-blocks"
-msgstr "Näytä välimuistitiedoston data-palikat"
-
-
-msgid "Show Camera data-blocks"
-msgstr "Näytä kameran data-palikat"
-
-
-msgid "Show Curve data-blocks"
-msgstr "Näytä käyrän data-palikat"
-
-
-msgid "Show/hide Curves data-blocks"
-msgstr "Näytä/piilota käyrien data-palikat"
-
-
-msgid "Fonts"
-msgstr "Fontit"
-
-
-msgid "Show Font data-blocks"
-msgstr "Näytä fontin data-palikat"
-
-
-msgid "Show Image data-blocks"
-msgstr "Näytä kuvan data-palikat"
-
-
-msgid "Show Lattice data-blocks"
-msgstr "Näytä säleikön data-palikat"
-
-
-msgid "Show Light data-blocks"
-msgstr "Näytä valon data-palikat"
-
-
-msgid "Show Light Probe data-blocks"
-msgstr "Näytä valoluotaimen data-palikat"
-
-
-msgid "Show Mask data-blocks"
-msgstr "Näytä maskin data-palikat"
-
-
-msgid "Show Mesh data-blocks"
-msgstr "Näytä muodon data-palikat"
-
-
-msgid "Show Metaball data-blocks"
-msgstr "Näytä metapallon data-palikat"
-
-
-msgid "Show Movie Clip data-blocks"
-msgstr "Näytä elokuvaklipin data-palikat"
-
-
-msgid "Show Palette data-blocks"
-msgstr "Näytä paletin data-palikat"
-
-
-msgid "Particles Settings"
-msgstr "Partikkeliasetukset"
-
-
-msgid "Show Particle Settings data-blocks"
-msgstr "Näytä partikkeliasetuksien data-palikat"
-
-
-msgid "Show/hide Point Cloud data-blocks"
-msgstr "Näytä/piilosta pistepilven data-palikat"
-
-
-msgid "Show Sound data-blocks"
-msgstr "Näytä äänen data-palikat"
-
-
-msgid "Show Speaker data-blocks"
-msgstr "Näytä kauittimen data-palikat"
-
-
-msgid "Show Text data-blocks"
-msgstr "Näytä tekstin data-palikat"
-
-
-msgid "Show Texture data-blocks"
-msgstr "Näytä tekstuurin data-palikat"
-
-
-msgid "Show/hide Volume data-blocks"
-msgstr "Näytä/piilota volyymin data-palikat"
-
-
-msgid "Show workspace data-blocks"
-msgstr "Näytä työtilan data-palikat"
-
-
-msgid "Show Action data-blocks"
-msgstr "Näytä toiminnon data-palikat"
-
-
-msgid "Show Brushes data-blocks"
-msgstr "Näytä siveltimien data-palikat"
-
-
-msgid "Show Collection data-blocks"
-msgstr "Näytä kokoelman data-palikat"
-
-
-msgid "Show Material data-blocks"
-msgstr "Näytä materiaalin data-palikat"
-
-
-msgid "Node Trees"
-msgstr "Noodipuut"
-
-
-msgid "Show Node Tree data-blocks"
-msgstr "Näytä noodipuun data-palikat"
-
-
-msgid "Show Object data-blocks"
-msgstr "Näytä objektin data-palikat"
-
-
-msgid "Show Scene data-blocks"
-msgstr "Näytä kohtauksen data-palikat"
-
-
-msgid "Show World data-blocks"
-msgstr "Näytä maailman data-palikat"
-
-
 msgid "Save"
 msgstr "Tallenna"
 
@@ -6072,10 +6056,6 @@ msgstr "Poista"
 msgctxt "Curves"
 msgid "Slide"
 msgstr "Sivu"
-
-
-msgid "Direction"
-msgstr "Suunta"
 
 
 msgctxt "Brush"
@@ -6982,14 +6962,6 @@ msgid "Start/End"
 msgstr "Alku/Loppu"
 
 
-msgid "Mirror Bone"
-msgstr "Peilaa luu"
-
-
-msgid "Mirror Object"
-msgstr "Peilaa objekti"
-
-
 msgid "3D Cursor"
 msgstr "3D-kursori"
 
@@ -7256,52 +7228,16 @@ msgid "Workspace"
 msgstr "Työtila"
 
 
+msgid "Direction"
+msgstr "Suunta"
+
+
 msgid "ID Type"
 msgstr "ID-tyyppi"
 
 
 msgid "Mask"
 msgstr "Maski"
-
-
-msgid "UV Mapping"
-msgstr "UV-kartoittaminen"
-
-
-msgid "Select More/Less"
-msgstr "Valitse enemmän/vähemmän"
-
-
-msgid "Select Similar"
-msgstr "Valitse samankaltainen"
-
-
-msgid "Select All by Trait"
-msgstr "Valitse kaikki piirteen mukaan"
-
-
-msgid "Select Loops"
-msgstr "Valitse silmukat"
-
-
-msgid "Metaball"
-msgstr "Metapallo"
-
-
-msgid "Light"
-msgstr "Valo"
-
-
-msgid "Light Probe"
-msgstr "Valoluotain"
-
-
-msgid "Add Image"
-msgstr "Lisää kuva"
-
-
-msgid "Utilities"
-msgstr "Työkalut"
 
 
 msgid "Track"
@@ -7328,6 +7264,26 @@ msgid "Mesh Select Mode"
 msgstr "Muodon valintatila"
 
 
+msgid "Utilities"
+msgstr "Työkalut"
+
+
+msgid "Math"
+msgstr "Matematiikka"
+
+
+msgid "UV Mapping"
+msgstr "UV-kartoittaminen"
+
+
+msgid "Text"
+msgstr "Teksti"
+
+
+msgid "Metaball"
+msgstr "Metapallo"
+
+
 msgid "Read"
 msgstr "Lue"
 
@@ -7336,24 +7292,44 @@ msgid "Write"
 msgstr "Kirjoita"
 
 
+msgid "Select More/Less"
+msgstr "Valitse enemmän/vähemmän"
+
+
 msgid "Instances"
 msgstr "Instanssit"
 
 
-msgid "Text"
-msgstr "Teksti"
+msgid "Select Similar"
+msgstr "Valitse samankaltainen"
+
+
+msgid "Select All by Trait"
+msgstr "Valitse kaikki piirteen mukaan"
+
+
+msgid "Select Loops"
+msgstr "Valitse silmukat"
 
 
 msgid "Import"
 msgstr "Tuo"
 
 
-msgid "Math"
-msgstr "Matematiikka"
-
-
 msgid "UV"
 msgstr "UV"
+
+
+msgid "Light"
+msgstr "Valo"
+
+
+msgid "Light Probe"
+msgstr "Valoluotain"
+
+
+msgid "Add Image"
+msgstr "Lisää kuva"
 
 
 msgid "Basic"
@@ -7625,6 +7601,10 @@ msgstr "Suojaa"
 
 msgid "Read Data"
 msgstr "Lue dataa"
+
+
+msgid "Mirror Object"
+msgstr "Peilaa objekti"
 
 
 msgid "Mirror U"
@@ -8519,10 +8499,6 @@ msgid "Sample Grid Index"
 msgstr "Kerää ruudukon indeksi"
 
 
-msgid "Sample Index"
-msgstr "Kerää indeksi"
-
-
 msgid "Sample Nearest"
 msgstr "Kerää lähin"
 
@@ -8786,10 +8762,6 @@ msgstr "Lisää kaksi varjostinta samaan aikaan"
 
 msgid "Only Local"
 msgstr "Vain lokaali"
-
-
-msgid "Attribute Name"
-msgstr "Ominaisuuden nimi"
 
 
 msgid "Attribute Type"
@@ -10370,10 +10342,6 @@ msgid "Cursor Y-Value"
 msgstr "Kursorin Y-arvo"
 
 
-msgid "Edit drivers"
-msgstr "Muokkaa ajureitea"
-
-
 msgid "Individual Centers"
 msgstr "Yksittäiset keskukset"
 
@@ -10414,24 +10382,8 @@ msgid "Display image with RGB colors"
 msgstr "Näytä kuva RGB-kanavilla"
 
 
-msgid "View the image"
-msgstr "Katso kuvaa"
-
-
 msgid "UV Editor"
 msgstr "UV-editori"
-
-
-msgid "UV edit in mesh editmode"
-msgstr "UV-muokkaus muodon muokkaustilassa"
-
-
-msgid "2D image painting mode"
-msgstr "2D-kuvan maalaustila"
-
-
-msgid "Mask editing"
-msgstr "Maskin muokkaus"
 
 
 msgid "Pivot around the 3D cursor"
@@ -11345,6 +11297,10 @@ msgid "Animated"
 msgstr "Animoitu"
 
 
+msgid "Mirror Bone"
+msgstr "Peilaa luu"
+
+
 msgid "Select Mode"
 msgstr "Valintatila"
 
@@ -11699,11 +11655,6 @@ msgstr "Kokonaisluku"
 msgctxt "Volume"
 msgid "Mask"
 msgstr "Maski"
-
-
-msgctxt "Volume"
-msgid "Float Vector"
-msgstr "Liukulukuvektori"
 
 
 msgctxt "Volume"
@@ -12214,20 +12165,6 @@ msgid "Downloading..."
 msgstr "Ladataan..."
 
 
-msgctxt "Operator"
-msgid "Mirrored"
-msgstr "Peilattu"
-
-
-msgid "The Scene needs a camera"
-msgstr "Kohtaus tarvitsee kameran"
-
-
-msgctxt "Operator"
-msgid "Paste and Bake"
-msgstr "Liitä ja Paista"
-
-
 msgid "Viewports"
 msgstr "Näkymät"
 
@@ -12454,6 +12391,14 @@ msgstr "3D-näkymä"
 
 msgid "Torus"
 msgstr "Torus"
+
+
+msgid "No objects selected"
+msgstr "Yhtäkään objektia ei ole valittu"
+
+
+msgid "The Scene needs a camera"
+msgstr "Kohtaus tarvitsee kameran"
 
 
 msgid "No active camera in the scene"
@@ -13217,10 +13162,6 @@ msgid "Face"
 msgstr "Tahko"
 
 
-msgid "Image*"
-msgstr "Kuva*"
-
-
 msgctxt "Operator"
 msgid "Replace..."
 msgstr "Korvaa..."
@@ -13377,11 +13318,6 @@ msgstr "Tallenna kopio..."
 
 msgid "More..."
 msgstr "Lisää..."
-
-
-msgctxt "Operator"
-msgid "Tutorials"
-msgstr "Tutoriaalit"
 
 
 msgid "Auto-Keyframing"
@@ -13686,6 +13622,16 @@ msgstr "3D-kursoriin"
 
 msgid "Scaling"
 msgstr "Skaalaus"
+
+
+msgctxt "Operator"
+msgid "Mirrored"
+msgstr "Peilattu"
+
+
+msgctxt "Operator"
+msgid "Paste and Bake"
+msgstr "Liitä ja Paista"
 
 
 msgid "Locations"
@@ -14376,22 +14322,6 @@ msgid "Suzanne"
 msgstr "Suzanne"
 
 
-msgid "To Active Bone"
-msgstr "Aktiiviseen luuhun"
-
-
-msgid "To Active Object"
-msgstr "Aktiiviseen objektiin"
-
-
-msgid "To New Empty Object"
-msgstr "Uuteen tyhjään objektiin"
-
-
-msgid "Without Targets"
-msgstr "Ilman kohteita"
-
-
 msgid "Path is already animated"
 msgstr "Polku on jo animoitu"
 
@@ -14402,10 +14332,6 @@ msgstr "Yhtäkään kokoelmaa ei ole valittu"
 
 msgid "Unexpected error, collection not found"
 msgstr "Yllättävä virhe, kokoelmaa ei löydy"
-
-
-msgid "No objects selected"
-msgstr "Yhtäkään objektia ei ole valittu"
 
 
 msgid "Could not find hook modifier"
@@ -14626,18 +14552,6 @@ msgstr "Ei aktiivista kamerasarjaa"
 
 msgid "Attribute Data Detected"
 msgstr "Attribuutti-data havaittu"
-
-
-msgid "vertex data"
-msgstr "kärkitieto"
-
-
-msgid "edge data"
-msgstr "reunatieto"
-
-
-msgid "face data"
-msgstr "tahkotieto"
 
 
 msgid "Active F-Curve"
@@ -14942,10 +14856,6 @@ msgstr "Katkaise yhteys"
 
 msgid "Add node to input"
 msgstr "Lisää noodi syötteeseen"
-
-
-msgid "Unsupported Menu Socket"
-msgstr "Menupistoketta ei tueta"
 
 
 msgid "Copy to bone"
@@ -15628,10 +15538,6 @@ msgid "Start Position"
 msgstr "Aloitussijainti"
 
 
-msgid "Fac"
-msgstr "Tekijä"
-
-
 msgid "Key Color"
 msgstr "Avainväri"
 
@@ -15678,6 +15584,10 @@ msgstr "Ulkomaski"
 
 msgid "Inner Mask"
 msgstr "Sisämarki"
+
+
+msgid "Fac"
+msgstr "Tekijä"
 
 
 msgid "Offset Y"
@@ -16230,12 +16140,12 @@ msgid "The height of the cylinder"
 msgstr "Sylinterin korkeus"
 
 
-msgid "Start Location"
-msgstr "Aloitussijainti"
-
-
 msgid "End Location"
 msgstr "Lopetussijainti"
+
+
+msgid "Start Location"
+msgstr "Aloitussijainti"
 
 
 msgid "Corner Index"
@@ -16364,10 +16274,6 @@ msgstr "Käyräinstanssit"
 
 msgid "Remainder"
 msgstr "Jakojäännös"
-
-
-msgid "Warnings ({})"
-msgstr "Varoitukset ({})"
 
 
 msgid "Bake Path"
@@ -17252,10 +17158,6 @@ msgstr "Videoeditointi"
 
 msgid "Blender Extensions"
 msgstr "Blender-laajennukset"
-
-
-msgid "Copy Global Transform"
-msgstr "Kopio globaali muunnos"
 
 
 msgid "Cycles Render Engine"

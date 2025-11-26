@@ -35,6 +35,7 @@
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.hh"
+#include "BKE_screen.hh"
 #include "BKE_viewer_path.hh"
 #include "BKE_workspace.hh"
 
@@ -57,6 +58,8 @@
 #include "DEG_depsgraph.hh"
 
 #include "BLT_translation.hh"
+
+#include "NOD_geometry_nodes_log.hh"
 
 #include "node_intern.hh" /* own include */
 
@@ -521,6 +524,71 @@ void node_select_single(bContext &C, bNode &node)
   WM_event_add_notifier(&C, NC_NODE | NA_SELECTED, nullptr);
 }
 
+static const bNodeSocket *find_socket_at_mouse_y(const Span<const bNodeSocket *> sockets,
+                                                 const float view_y)
+{
+  const bNodeSocket *best_socket = nullptr;
+  float best_distance = FLT_MAX;
+  for (const bNodeSocket *socket : sockets) {
+    if (!socket->is_icon_visible()) {
+      continue;
+    }
+    const float socket_y = socket->runtime->location.y;
+    const float distance = math::distance(socket_y, view_y);
+    if (distance < best_distance) {
+      best_distance = distance;
+      best_socket = socket;
+    }
+  }
+  return best_socket;
+}
+
+static void activate_interface_socket(bNodeTree &tree, bNodeTreeInterfaceSocket &io_socket)
+{
+  bNodeTreeInterfacePanel &io_panel = *tree.tree_interface.find_item_parent(io_socket.item, true);
+  bNodeTreeInterfaceItem *item_to_activate = nullptr;
+  if (io_panel.header_toggle_socket() == &io_socket) {
+    item_to_activate = &io_panel.item;
+  }
+  else {
+    item_to_activate = &io_socket.item;
+  }
+  tree.tree_interface.active_item_set(item_to_activate);
+}
+
+static void handle_group_input_node_selection(bNodeTree &tree,
+                                              const bNode &group_input_node,
+                                              const float2 &cursor)
+{
+
+  tree.ensure_topology_cache();
+  tree.ensure_interface_cache();
+  const bNodeSocket *indicated_socket = find_socket_at_mouse_y(
+      group_input_node.output_sockets().drop_back(1), cursor.y);
+  if (!indicated_socket) {
+    return;
+  }
+  const int group_input_i = indicated_socket->index();
+  bNodeTreeInterfaceSocket &io_socket = *tree.interface_inputs()[group_input_i];
+  activate_interface_socket(tree, io_socket);
+}
+
+static void handle_group_output_node_selection(bNodeTree &tree,
+                                               const bNode &group_output_node,
+                                               const float2 &cursor)
+{
+  tree.ensure_topology_cache();
+  tree.ensure_interface_cache();
+  const bNodeSocket *indicated_socket = find_socket_at_mouse_y(
+      group_output_node.input_sockets().drop_back(1), cursor.y);
+  if (!indicated_socket) {
+    return;
+  }
+  const int group_output_i = indicated_socket->index();
+  bNodeTreeInterfaceSocket &io_socket = *tree.interface_outputs()[group_output_i];
+  activate_interface_socket(tree, io_socket);
+}
+
 static bool node_mouse_select(bContext *C,
                               wmOperator *op,
                               const int2 mval,
@@ -641,6 +709,13 @@ static bool node_mouse_select(bContext *C,
           /* Doesn't make sense for picking. */
           BLI_assert_unreachable();
           break;
+      }
+
+      if (node->is_group_input()) {
+        handle_group_input_node_selection(node_tree, *node, cursor);
+      }
+      if (node->is_group_output()) {
+        handle_group_output_node_selection(node_tree, *node, cursor);
       }
 
       changed = true;
@@ -1344,6 +1419,13 @@ static std::string node_find_create_string_value(const bNode &node, const String
   return fmt::format("{}: \"{}\" ({})", TIP_("String"), str, node.name);
 }
 
+static std::string node_find_create_warning(const bNode &node,
+                                            const nodes::geo_eval_log::NodeWarning warning)
+{
+  return fmt::format(
+      "{}: \"{}\" ({})", nodes::node_warning_type_name(warning.type), warning.message, node.name);
+}
+
 static std::string node_find_create_data_block_value(const bNode &node, const ID &id)
 {
   const IDTypeInfo *type = BKE_idtype_get_info_from_id(&id);
@@ -1362,7 +1444,12 @@ static void node_find_update_fn(const bContext *C,
                                 uiSearchItems *items,
                                 const bool /*is_first*/)
 {
+  Main *bmain = CTX_data_main(C);
   SpaceNode *snode = CTX_wm_space_node(C);
+  nodes::geo_eval_log::ContextualGeoTreeLogs tree_logs =
+      nodes::geo_eval_log::GeoNodesLog::get_contextual_tree_logs(*snode);
+  tree_logs.foreach_tree_log(
+      [&](nodes::geo_eval_log::GeoTreeLog &log) { log.ensure_node_warnings(*bmain); });
 
   struct Item {
     bNode *node;
@@ -1413,6 +1500,15 @@ static void node_find_update_fn(const bContext *C,
               StringRef::not_found;
       if (!skip_data_block) {
         add_data_block_item(*node, node->id);
+      }
+    }
+    if (nodes::geo_eval_log::GeoTreeLog *tree_log = tree_logs.get_main_tree_log(*node)) {
+      if (nodes::geo_eval_log::GeoNodeLog *node_log = tree_log->nodes.lookup_ptr(node->identifier))
+      {
+        for (const nodes::geo_eval_log::NodeWarning &warning : node_log->warnings) {
+          const StringRef search_str = scope.add_value(node_find_create_warning(*node, warning));
+          search.add(search_str, &scope.construct<Item>(Item{node, search_str}));
+        }
       }
     }
 
@@ -1495,15 +1591,14 @@ static uiBlock *node_find_menu(bContext *C, ARegion *region, void *arg_optype)
   const int box_width = UI_searchbox_size_x_guess(C, node_find_update_fn, nullptr);
 
   but = uiDefSearchBut(
-      block, search, 0, ICON_VIEWZOOM, sizeof(search), 0, 0, box_width, UI_UNIT_Y, "");
+      block, search, ICON_VIEWZOOM, sizeof(search), 0, 0, box_width, UI_UNIT_Y, "");
   UI_but_func_search_set(
       but, nullptr, node_find_update_fn, optype, false, nullptr, node_find_exec_fn, nullptr);
   UI_but_flag_enable(but, UI_BUT_ACTIVATE_ON_INIT);
 
   /* Fake button holds space for search items. */
   const int height = UI_searchbox_size_y() - UI_SEARCHBOX_BOUNDS;
-  uiDefBut(
-      block, ButType::Label, 0, "", 0, -height, box_width, height, nullptr, 0, 0, std::nullopt);
+  uiDefBut(block, ButType::Label, "", 0, -height, box_width, height, nullptr, 0, 0, std::nullopt);
 
   /* Move it downwards, mouse over button. */
   std::array<int, 2> bounds_offset = {0, -UI_UNIT_Y};

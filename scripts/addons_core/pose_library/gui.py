@@ -15,7 +15,7 @@ from bpy.types import (
     UILayout,
     UIList,
 )
-from bl_ui_utils.layout import operator_context
+from _bl_ui_utils.layout import operator_context
 
 
 class VIEW3D_MT_pose_modify(Menu):
@@ -43,6 +43,8 @@ class VIEW3D_AST_pose_library(bpy.types.AssetShelf):
     bl_space_type = "VIEW_3D"
     bl_activate_operator = "POSELIB_OT_apply_pose_asset"
     bl_drag_operator = "POSELIB_OT_blend_pose_asset"
+    bl_default_preview_size = 64
+    filter_action = True
 
     @classmethod
     def poll(cls, context: Context) -> bool:
