@@ -2716,12 +2716,14 @@ void UV_OT_copy_mirrored_faces(wmOperatorType *ot)
 
 static bool uvedit_straighten_island(Object *ob, Scene *scene)
 {
-
   BMEditMesh *em = BKE_editmesh_from_object(ob);
   BMesh *bm = em->bm;
-
+  ToolSettings *ts = scene->toolsettings;
   if (!bm || bm->totvertsel == 0) {
     return false;
+  }
+  if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
+    uvedit_select_prepare_sync_select(scene, bm);
   }
 
   const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
@@ -2741,7 +2743,7 @@ static bool uvedit_straighten_island(Object *ob, Scene *scene)
         original_seams.add(loop->e);
         BM_elem_flag_set(loop->e, BM_ELEM_SEAM, false);
       }
-      if (uvedit_uv_select_test(scene, bm, loop, offsets)) {
+      if (uvedit_uv_select_test_ex(ts, bm, loop, offsets)) {
         original_selected.add(loop);
         BM_ELEM_CD_SET_BOOL(loop, offsets.pin, true);
       }
@@ -2760,15 +2762,15 @@ static bool uvedit_straighten_island(Object *ob, Scene *scene)
     UvElement *element = element_map->storage + element_map->island_indices[i];
     INIT_MINMAX2(min, max);
     for (int j = 0; j < element_map->island_total_uvs[i]; j++) {
-      float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
       if (original_selected.contains(element[j].l)) {
+        float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
         minmax_v2v2_v2(min, max, luv);
         selected_island[i] = true;
       }
     }
     for (int j = 0; j < element_map->island_total_uvs[i]; j++) {
       if (selected_island[i]) {
-        uvedit_uv_select_set(scene, bm, element[j].l, true);
+        uvedit_loop_vert_select_set(ts, bm, element[j].l, true);
       }
       if (original_selected.contains(element[j].l)) {
         float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
@@ -2776,7 +2778,7 @@ static bool uvedit_straighten_island(Object *ob, Scene *scene)
           luv[1] = 0.5f * (min[1] + max[1]);
         }
         else {
-          luv[0] = 0.5f * (min[0] + max[1]);
+          luv[0] = 0.5f * (min[0] + max[0]);
         }
       }
     }
@@ -2798,7 +2800,7 @@ static bool uvedit_straighten_island(Object *ob, Scene *scene)
     BM_ITER_ELEM (loop, &liter, efa, BM_LOOPS_OF_FACE) {
       BM_ELEM_CD_SET_BOOL(loop, offsets.pin, original_pinned.contains(loop));
       BM_elem_flag_set(loop->e, BM_ELEM_SEAM, original_seams.contains(loop->e));
-      uvedit_uv_select_set(scene, bm, loop, original_selected.contains(loop));
+      uvedit_loop_vert_select_set(ts, bm, loop, original_selected.contains(loop));
     }
   }
 
