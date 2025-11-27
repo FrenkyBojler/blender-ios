@@ -11,3 +11,4 @@ Referenced by issue #146675, Rigify not longer draws side panel buttons
 Referenced by pull request #147199, Fix: correct RNA property access in Rigify
 Referenced by commit d989117f09ee8662d01132003afe9103b9525a1e, Fix: correct RNA property access in Rigify
 Referenced by issue #147978, Custom properties for child bones in parent-child relationships created in Blender 4.5 disappear in Blender 5.0 Beta
+Referenced by pull request #150713, Assets: Add second IDProps to MetaData, to support py-defined RNA data.
