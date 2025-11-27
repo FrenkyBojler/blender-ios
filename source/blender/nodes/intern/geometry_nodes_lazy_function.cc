@@ -41,6 +41,7 @@
 #include "BKE_geometry_nodes_gizmos_transforms.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_grease_pencil.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_library.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
@@ -1872,6 +1873,7 @@ class GeometryNodesLazyFunctionSideEffectProvider : public lf::GraphExecutor::Si
  */
 struct GeometryNodesLazyFunctionBuilder {
  private:
+  const bNodeTree &src_btree_;
   const bNodeTree &btree_;
   const ReferenceLifetimesInfo &reference_lifetimes_;
   ResourceScope &scope_;
@@ -1920,11 +1922,13 @@ struct GeometryNodesLazyFunctionBuilder {
 
  public:
   GeometryNodesLazyFunctionBuilder(
-      const bNodeTree &btree, std::shared_ptr<GeometryNodesLazyFunctionGraphInfo> lf_graph_info)
-      : btree_(btree),
-        reference_lifetimes_(*btree.runtime->reference_lifetimes_info),
+      const bNodeTree &src_btree,
+      std::shared_ptr<GeometryNodesLazyFunctionGraphInfo> lf_graph_info)
+      : src_btree_(src_btree),
+        btree_(*lf_graph_info->persistent_tree),
+        reference_lifetimes_(*src_btree_.runtime->reference_lifetimes_info),
         scope_(lf_graph_info->scope),
-        node_multi_functions_(lf_graph_info->scope.construct<NodeMultiFunctions>(btree)),
+        node_multi_functions_(lf_graph_info->scope.construct<NodeMultiFunctions>(btree_)),
         lf_graph_info_(lf_graph_info)
   {
   }
@@ -4208,8 +4212,20 @@ ensure_geometry_nodes_lazy_function_graph_impl(const bNodeTree &btree)
   }
 
   auto lf_graph_info = std::make_shared<GeometryNodesLazyFunctionGraphInfo>();
+  /* Make a copy of the node tree so that the execution graph can be independent of the original
+   * tree. */
+  bNodeTree *btree_copy = bke::node_tree_copy_tree_ex(btree, nullptr, false);
+  lf_graph_info->persistent_tree = btree_copy;
+  lf_graph_info->scope.add_destruct_call(
+      [btree_copy]() { BKE_id_free(nullptr, &btree_copy->id); });
   GeometryNodesLazyFunctionBuilder builder{btree, lf_graph_info};
   builder.build();
+  // TODO: Handle this better, there might be a reference cycle here.
+  lf_graph_info->persistent_tree->runtime->geometry_nodes_lazy_function_graph_info_mutex.ensure(
+      [&]() {
+        lf_graph_info->persistent_tree->runtime->geometry_nodes_lazy_function_graph_info =
+            lf_graph_info;
+      });
   return lf_graph_info;
 }
 

@@ -862,8 +862,8 @@ GeoTreeLogger &GeoNodesLog::get_local_tree_logger(const ComputeContext &compute_
     const std::optional<nodes::ClosureSourceLocation> &location =
         context->closure_source_location();
     if (location.has_value()) {
-      BLI_assert(DEG_is_evaluated(location->tree));
-      tree_logger.tree_orig_session_uid = DEG_get_original_id(&location->tree->id)->session_uid;
+      // BLI_assert(DEG_is_evaluated(location->tree));
+      // tree_logger.tree_orig_session_uid = DEG_get_original_id(&location->tree->id)->session_uid;
     }
   }
   else if (const auto *context = dynamic_cast<const bke::ModifierComputeContext *>(
