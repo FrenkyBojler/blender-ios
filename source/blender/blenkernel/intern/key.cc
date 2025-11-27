@@ -830,6 +830,37 @@ static void cp_cu_key(Curve *cu,
 }
 
 /**
+ * Iterate all keyblocks of `key` that need to be evaluated.
+ */
+static void foreach_keyblock_for_eval(
+    Key *key,
+    KeyBlock *active_keyblock,
+    const int tot_elem,
+    blender::FunctionRef<void(KeyBlock *, int, KeyBlock *)> callback)
+{
+  int keyblock_index = 0;
+  LISTBASE_FOREACH_INDEX (KeyBlock *, kb, &key->block, keyblock_index) {
+    if (kb == key->refkey) {
+      continue;
+    }
+    /* No difference in vertex count allowed. */
+    if (kb->flag & KEYBLOCK_MUTE || kb->totelem != tot_elem) {
+      continue;
+    }
+    const float kb_influence = kb->curval;
+    if (kb_influence == 0.0f) {
+      continue;
+    }
+    /* Reference can be any block. */
+    KeyBlock *reference_kb = static_cast<KeyBlock *>(BLI_findlink(&key->block, kb->relative));
+    if (reference_kb == nullptr) {
+      continue;
+    }
+    callback(kb, keyblock_index, reference_kb);
+  }
+}
+
+/**
  * Special function for mesh evaluation that is more performant and easier to understand.
  *
  * \param target_data is the float array into which the result of the evaluation is written into.
@@ -854,26 +885,9 @@ static void key_evaluate_relative_mesh(Key *key,
          KEY_MODE_DUMMY);
 
   int keyblock_index = 0;
-  LISTBASE_FOREACH_INDEX (KeyBlock *, kb, &key->block, keyblock_index) {
-    if (kb == key->refkey) {
-      continue;
-    }
-    /* No difference in vertex count allowed. */
-    if (kb->flag & KEYBLOCK_MUTE || kb->totelem != vertex_count) {
-      continue;
-    }
-    const float kb_influence = kb->curval;
-    if (kb_influence == 0.0f) {
-      continue;
-    }
 
+  auto foreach_keyblock = [&](KeyBlock *kb, const int keyblock_index, KeyBlock *refb) {
     const float *weights = per_keyblock_weights ? per_keyblock_weights[keyblock_index] : nullptr;
-
-    /* Reference can be any block. */
-    KeyBlock *refb = static_cast<KeyBlock *>(BLI_findlink(&key->block, kb->relative));
-    if (refb == nullptr) {
-      continue;
-    }
 
     char *freefrom = nullptr;
     const float *from = reinterpret_cast<float *>(
@@ -884,7 +898,7 @@ static void key_evaluate_relative_mesh(Key *key,
     float *reffrom = static_cast<float *>(refb->data);
 
     for (int i : blender::IndexRange(vertex_count)) {
-      const float weight = weights ? (weights[i] * kb_influence) : kb_influence;
+      const float weight = weights ? (weights[i] * kb->curval) : kb->curval;
       /* Each vertex has 3 floats. */
       const int elem = i * 3;
       target_data[elem + 0] -= weight * (reffrom[elem + 0] - from[elem + 0]);
@@ -895,7 +909,9 @@ static void key_evaluate_relative_mesh(Key *key,
     if (freefrom) {
       MEM_freeN(freefrom);
     }
-  }
+  };
+
+  foreach_keyblock_for_eval(key, active_keyblock, vertex_count, foreach_keyblock);
 }
 
 static void key_evaluate_relative(const int start,
@@ -933,7 +949,6 @@ static void key_evaluate_relative(const int start,
 
   /* Step 2: do it. */
   int keyblock_index = 0;
-  SCOPED_TIMER_AVERAGED("eval rel");
   LISTBASE_FOREACH_INDEX (KeyBlock *, kb, &key->block, keyblock_index) {
     if (kb == key->refkey) {
       continue;
