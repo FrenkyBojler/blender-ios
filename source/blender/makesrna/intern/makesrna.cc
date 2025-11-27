@@ -685,6 +685,57 @@ static void rna_int_print(FILE *f, int64_t num)
   }
 }
 
+static bool rna_def_has_get_ex_func(PropertyRNA *prop)
+{
+
+  if (prop->type == PROP_BOOLEAN) {
+    FloatPropertyRNA *bprop = (FloatPropertyRNA *)prop;
+    return bprop->get_ex != nullptr || bprop->getarray_ex != nullptr;
+  }
+  if (prop->type == PROP_FLOAT) {
+    FloatPropertyRNA *fprop = (FloatPropertyRNA *)prop;
+    return fprop->get_ex != nullptr || fprop->getarray_ex != nullptr;
+  }
+  if (prop->type == PROP_INT) {
+    IntPropertyRNA *iprop = (IntPropertyRNA *)prop;
+    return iprop->get_ex != nullptr || iprop->getarray_ex != nullptr;
+  }
+  if (prop->type == PROP_ENUM) {
+    EnumPropertyRNA *eprop = (EnumPropertyRNA *)prop;
+    return eprop->get_ex != nullptr;
+  }
+  if (prop->type == PROP_STRING) {
+    StringPropertyRNA *sprop = (StringPropertyRNA *)prop;
+    return sprop->get_ex != nullptr;
+  }
+  return false;
+}
+
+static bool rna_def_has_set_ex_func(PropertyRNA *prop)
+{
+  if (prop->type == PROP_BOOLEAN) {
+    FloatPropertyRNA *bprop = (FloatPropertyRNA *)prop;
+    return bprop->set_ex != nullptr || bprop->setarray_ex != nullptr;
+  }
+  if (prop->type == PROP_FLOAT) {
+    FloatPropertyRNA *fprop = (FloatPropertyRNA *)prop;
+    return fprop->set_ex != nullptr || fprop->setarray_ex != nullptr;
+  }
+  if (prop->type == PROP_INT) {
+    IntPropertyRNA *iprop = (IntPropertyRNA *)prop;
+    return iprop->set_ex != nullptr || iprop->setarray_ex != nullptr;
+  }
+  if (prop->type == PROP_ENUM) {
+    EnumPropertyRNA *eprop = (EnumPropertyRNA *)prop;
+    return eprop->set_ex != nullptr;
+  }
+  if (prop->type == PROP_STRING) {
+    StringPropertyRNA *sprop = (StringPropertyRNA *)prop;
+    return sprop->set_ex != nullptr;
+  }
+  return false;
+}
+
 static char *rna_def_property_get_func(
     FILE *f, StructRNA *srna, PropertyRNA *prop, PropertyDefRNA *dp, const char *manualfunc)
 {
@@ -696,9 +747,14 @@ static char *rna_def_property_get_func(
 
   if (!manualfunc) {
     if (!dp->dnastructname || !dp->dnaname) {
-      CLOG_ERROR(&LOG, "%s.%s has no valid dna info.", srna->identifier, prop->identifier);
-      DefRNA.error = true;
-      return nullptr;
+      if (!rna_def_has_get_ex_func(prop)) {
+        CLOG_ERROR(&LOG, "%s.%s has no valid dna info.", srna->identifier, prop->identifier);
+        DefRNA.error = true;
+        return nullptr;
+      }
+      else {
+        return nullptr;
+      }
     }
 
     /* Type check. */
@@ -1183,8 +1239,10 @@ static char *rna_def_property_set_func(
   if (!manualfunc) {
     if (!dp->dnastructname || !dp->dnaname) {
       if (prop->flag & PROP_EDITABLE) {
-        CLOG_ERROR(&LOG, "%s.%s has no valid dna info.", srna->identifier, prop->identifier);
-        DefRNA.error = true;
+        if (!rna_def_has_set_ex_func(prop)) {
+          CLOG_ERROR(&LOG, "%s.%s has no valid dna info.", srna->identifier, prop->identifier);
+          DefRNA.error = true;
+        }
       }
       return nullptr;
     }
