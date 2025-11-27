@@ -178,7 +178,7 @@ static void rna_brna_structs_add(BlenderRNA *brna, StructRNA *srna)
   /* This exception is only needed for pre-processing.
    * otherwise we don't allow empty names. */
   if ((srna->flag & STRUCT_PUBLIC_NAMESPACE) && (srna->identifier[0] != '\0')) {
-    BLI_ghash_insert(brna->structs_map, (void *)srna->identifier, srna);
+    brna->structs_map->add(srna->identifier, srna);
   }
 }
 
@@ -187,7 +187,7 @@ static void rna_brna_structs_remove_and_free(BlenderRNA *brna, StructRNA *srna)
 {
   if ((srna->flag & STRUCT_PUBLIC_NAMESPACE) && brna->structs_map) {
     if (srna->identifier[0] != '\0') {
-      BLI_ghash_remove(brna->structs_map, (void *)srna->identifier, nullptr, nullptr);
+      brna->structs_map->remove(srna->identifier);
     }
   }
 
@@ -705,7 +705,8 @@ BlenderRNA *RNA_create()
   const char *error_message = nullptr;
 
   BLI_listbase_clear(&DefRNA.structs);
-  brna->structs_map = BLI_ghash_str_new_ex(__func__, 2048);
+  brna->structs_map = MEM_new<BlenderRNA::StructsMap>(__func__);
+  brna->structs_map->reserve(2048);
 
   DefRNA.error = false;
   DefRNA.preprocess = true;
@@ -866,7 +867,7 @@ void RNA_free(BlenderRNA *brna)
   StructRNA *srna, *nextsrna;
   FunctionRNA *func;
 
-  BLI_ghash_free(brna->structs_map, nullptr, nullptr);
+  MEM_delete(brna->structs_map);
   brna->structs_map = nullptr;
 
   if (DefRNA.preprocess) {
@@ -1083,7 +1084,7 @@ StructRNA *RNA_def_struct(BlenderRNA *brna, const char *identifier, const char *
   if (from) {
     /* find struct to derive from */
     /* Inline RNA_struct_find(...) because it won't link from here. */
-    srnafrom = static_cast<StructRNA *>(BLI_ghash_lookup(brna->structs_map, from));
+    srnafrom = brna->structs_map->lookup_default(from, nullptr);
     if (!srnafrom) {
       CLOG_ERROR(&LOG, "struct %s not found to define %s.", from, identifier);
       DefRNA.error = true;
@@ -1169,7 +1170,7 @@ void RNA_def_struct_nested(BlenderRNA *brna, StructRNA *srna, const char *struct
   StructRNA *srnafrom;
 
   /* find struct to derive from */
-  srnafrom = static_cast<StructRNA *>(BLI_ghash_lookup(brna->structs_map, structname));
+  srnafrom = brna->structs_map->lookup_default(structname, nullptr);
   if (!srnafrom) {
     CLOG_ERROR(&LOG, "struct %s not found for %s.", structname, srna->identifier);
     DefRNA.error = true;
@@ -1304,10 +1305,10 @@ void RNA_def_struct_identifier(BlenderRNA *brna, StructRNA *srna, const char *id
   if (srna->flag & STRUCT_PUBLIC_NAMESPACE) {
     if (identifier != srna->identifier) {
       if (srna->identifier[0] != '\0') {
-        BLI_ghash_remove(brna->structs_map, (void *)srna->identifier, nullptr, nullptr);
+        brna->structs_map->remove(srna->identifier);
       }
       if (identifier[0] != '\0') {
-        BLI_ghash_insert(brna->structs_map, (void *)identifier, srna);
+        brna->structs_map->add(identifier, srna);
       }
     }
   }
@@ -3329,6 +3330,44 @@ void RNA_def_property_boolean_funcs(PropertyRNA *prop, const char *get, const ch
   }
 }
 
+void RNA_def_property_boolean_funcs_ex(PropertyRNA *prop, const char *get, const char *set)
+{
+  StructRNA *srna = DefRNA.laststruct;
+
+  if (!DefRNA.preprocess) {
+    CLOG_ERROR(&LOG, "only during preprocessing.");
+    return;
+  }
+
+  switch (prop->type) {
+    case PROP_BOOLEAN: {
+      BoolPropertyRNA *bprop = (BoolPropertyRNA *)prop;
+
+      if (prop->arraydimension) {
+        if (get) {
+          bprop->getarray_ex = (BooleanArrayPropertyGetFunc)get;
+        }
+        if (set) {
+          bprop->setarray_ex = (BooleanArrayPropertySetFunc)set;
+        }
+      }
+      else {
+        if (get) {
+          bprop->get_ex = (BooleanPropertyGetFunc)get;
+        }
+        if (set) {
+          bprop->set_ex = (BooleanPropertySetFunc)set;
+        }
+      }
+      break;
+    }
+    default:
+      CLOG_ERROR(&LOG, "\"%s.%s\", type is not boolean.", srna->identifier, prop->identifier);
+      DefRNA.error = true;
+      break;
+  }
+}
+
 void RNA_def_property_boolean_funcs_runtime(PropertyRNA *prop,
                                             BooleanPropertyGetFunc getfunc,
                                             BooleanPropertySetFunc setfunc,
@@ -3428,6 +3467,50 @@ void RNA_def_property_int_funcs(PropertyRNA *prop,
       }
       if (range) {
         iprop->range = (PropIntRangeFunc)range;
+      }
+      break;
+    }
+    default:
+      CLOG_ERROR(&LOG, "\"%s.%s\", type is not int.", srna->identifier, prop->identifier);
+      DefRNA.error = true;
+      break;
+  }
+}
+
+void RNA_def_property_int_funcs_ex(PropertyRNA *prop,
+                                   const char *get,
+                                   const char *set,
+                                   const char *range)
+{
+  StructRNA *srna = DefRNA.laststruct;
+
+  if (!DefRNA.preprocess) {
+    CLOG_ERROR(&LOG, "only during preprocessing.");
+    return;
+  }
+
+  switch (prop->type) {
+    case PROP_INT: {
+      IntPropertyRNA *iprop = (IntPropertyRNA *)prop;
+
+      if (prop->arraydimension) {
+        if (get) {
+          iprop->getarray_ex = (IntArrayPropertyGetFunc)get;
+        }
+        if (set) {
+          iprop->setarray_ex = (IntArrayPropertySetFunc)set;
+        }
+      }
+      else {
+        if (get) {
+          iprop->get_ex = (IntPropertyGetFunc)get;
+        }
+        if (set) {
+          iprop->set_ex = (IntPropertySetFunc)set;
+        }
+      }
+      if (range) {
+        iprop->range_ex = (IntPropertyRangeFunc)range;
       }
       break;
     }
@@ -3554,6 +3637,50 @@ void RNA_def_property_float_funcs(PropertyRNA *prop,
   }
 }
 
+void RNA_def_property_float_funcs_ex(PropertyRNA *prop,
+                                     const char *get,
+                                     const char *set,
+                                     const char *range)
+{
+  StructRNA *srna = DefRNA.laststruct;
+
+  if (!DefRNA.preprocess) {
+    CLOG_ERROR(&LOG, "only during preprocessing.");
+    return;
+  }
+
+  switch (prop->type) {
+    case PROP_FLOAT: {
+      FloatPropertyRNA *fprop = (FloatPropertyRNA *)prop;
+
+      if (prop->arraydimension) {
+        if (get) {
+          fprop->getarray_ex = (FloatArrayPropertyGetFunc)get;
+        }
+        if (set) {
+          fprop->setarray_ex = (FloatArrayPropertySetFunc)set;
+        }
+      }
+      else {
+        if (get) {
+          fprop->get_ex = (FloatPropertyGetFunc)get;
+        }
+        if (set) {
+          fprop->set_ex = (FloatPropertySetFunc)set;
+        }
+      }
+      if (range) {
+        fprop->range_ex = (FloatPropertyRangeFunc)range;
+      }
+      break;
+    }
+    default:
+      CLOG_ERROR(&LOG, "\"%s.%s\", type is not float.", srna->identifier, prop->identifier);
+      DefRNA.error = true;
+      break;
+  }
+}
+
 void RNA_def_property_float_funcs_runtime(PropertyRNA *prop,
                                           FloatPropertyGetFunc getfunc,
                                           FloatPropertySetFunc setfunc,
@@ -3661,6 +3788,40 @@ void RNA_def_property_enum_funcs(PropertyRNA *prop,
   }
 }
 
+void RNA_def_property_enum_funcs_ex(PropertyRNA *prop,
+                                    const char *get,
+                                    const char *set,
+                                    const char *item)
+{
+  StructRNA *srna = DefRNA.laststruct;
+
+  if (!DefRNA.preprocess) {
+    CLOG_ERROR(&LOG, "only during preprocessing.");
+    return;
+  }
+
+  switch (prop->type) {
+    case PROP_ENUM: {
+      EnumPropertyRNA *eprop = (EnumPropertyRNA *)prop;
+
+      if (get) {
+        eprop->get_ex = (EnumPropertyGetFunc)get;
+      }
+      if (set) {
+        eprop->set_ex = (EnumPropertySetFunc)set;
+      }
+      if (item) {
+        eprop->item_fn = (EnumPropertyItemFunc)item;
+      }
+      break;
+    }
+    default:
+      CLOG_ERROR(&LOG, "\"%s.%s\", type is not enum.", srna->identifier, prop->identifier);
+      DefRNA.error = true;
+      break;
+  }
+}
+
 void RNA_def_property_enum_funcs_runtime(PropertyRNA *prop,
                                          EnumPropertyGetFunc getfunc,
                                          EnumPropertySetFunc setfunc,
@@ -3721,6 +3882,40 @@ void RNA_def_property_string_funcs(PropertyRNA *prop,
       }
       if (set) {
         sprop->set = (PropStringSetFunc)set;
+      }
+      break;
+    }
+    default:
+      CLOG_ERROR(&LOG, "\"%s.%s\", type is not string.", srna->identifier, prop->identifier);
+      DefRNA.error = true;
+      break;
+  }
+}
+
+void RNA_def_property_string_funcs_ex(PropertyRNA *prop,
+                                      const char *get,
+                                      const char *length,
+                                      const char *set)
+{
+  StructRNA *srna = DefRNA.laststruct;
+
+  if (!DefRNA.preprocess) {
+    CLOG_ERROR(&LOG, "only during preprocessing.");
+    return;
+  }
+
+  switch (prop->type) {
+    case PROP_STRING: {
+      StringPropertyRNA *sprop = (StringPropertyRNA *)prop;
+
+      if (get) {
+        sprop->get_ex = (StringPropertyGetFunc)get;
+      }
+      if (length) {
+        sprop->length_ex = (StringPropertyLengthFunc)length;
+      }
+      if (set) {
+        sprop->set_ex = (StringPropertySetFunc)set;
       }
       break;
     }
@@ -5096,7 +5291,9 @@ void RNA_def_struct_duplicate_pointers(BlenderRNA *brna, StructRNA *srna)
   if (srna->identifier) {
     srna->identifier = BLI_strdup(srna->identifier);
     if (srna->flag & STRUCT_PUBLIC_NAMESPACE) {
-      BLI_ghash_replace_key(brna->structs_map, (void *)srna->identifier);
+      /* Replace the pointer to the identifier in the map. */
+      brna->structs_map->remove(srna->identifier);
+      brna->structs_map->add(srna->identifier, srna);
     }
   }
   if (srna->name) {
@@ -5115,7 +5312,7 @@ void RNA_def_struct_free_pointers(BlenderRNA *brna, StructRNA *srna)
     if (srna->identifier) {
       if (srna->flag & STRUCT_PUBLIC_NAMESPACE) {
         if (brna != nullptr) {
-          BLI_ghash_remove(brna->structs_map, (void *)srna->identifier, nullptr, nullptr);
+          brna->structs_map->remove(srna->identifier);
         }
       }
       MEM_freeN(srna->identifier);
