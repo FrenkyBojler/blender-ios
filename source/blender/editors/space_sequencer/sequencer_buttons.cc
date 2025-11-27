@@ -57,7 +57,7 @@ static void metadata_panel_context_draw(const bContext *C, Panel *panel)
 
   Scene *scene = CTX_data_sequencer_scene(C);
   SpaceSeq *space_sequencer = CTX_wm_space_seq(C);
-  if (!scene || space_sequencer) {
+  if (!scene || !space_sequencer) {
     return;
   }
 
