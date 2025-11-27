@@ -21,7 +21,6 @@
 #include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_task.hh"
-#include "BLI_timeit.hh"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
@@ -830,34 +829,45 @@ static void cp_cu_key(Curve *cu,
   }
 }
 
-static void key_evaluate_relative_mesh(const int vertex_count,
-                                       float *basis_key,
-                                       Key *key,
-                                       KeyBlock *actkb,
-                                       float **per_keyblock_weights)
+/**
+ * Special function for mesh evaluation that is more performant and easier to understand.
+ *
+ * \param target_data is the float array into which the result of the evaluation is written into.
+ * \param per_keyblock_weights is a 2d array which gives a per KeyBlock per Vertex weight. Can be a
+ * nullptr.
+ */
+static void key_evaluate_relative_mesh(Key *key,
+                                       KeyBlock *active_keyblock,
+                                       const int vertex_count,
+                                       float **per_keyblock_weights,
+                                       float *target_data)
 {
-  /* Step 1: init. */
-  const int mode = KEY_MODE_DUMMY;
-  cp_key(0, vertex_count, vertex_count, (char *)basis_key, key, actkb, key->refkey, nullptr, mode);
+  /* Creates the basis values in target_data. */
+  cp_key(0,
+         vertex_count,
+         vertex_count,
+         reinterpret_cast<char *>(target_data),
+         key,
+         active_keyblock,
+         key->refkey,
+         nullptr,
+         KEY_MODE_DUMMY);
 
-  /* Step 2: do it. */
-  SCOPED_TIMER_AVERAGED("eval rel");
   int keyblock_index = 0;
   LISTBASE_FOREACH_INDEX (KeyBlock *, kb, &key->block, keyblock_index) {
     if (kb == key->refkey) {
       continue;
     }
-    /* Only with value, and no difference allowed. */
+    /* No difference in vertex count allowed. */
     if (kb->flag & KEYBLOCK_MUTE || kb->totelem != vertex_count) {
       continue;
     }
-    const float icuval = kb->curval;
-    if (icuval == 0.0f) {
+    const float kb_influence = kb->curval;
+    if (kb_influence == 0.0f) {
       continue;
     }
 
-    float *weights = per_keyblock_weights ? per_keyblock_weights[keyblock_index] : nullptr;
-    char *freefrom = nullptr;
+    const float *weights = per_keyblock_weights ? per_keyblock_weights[keyblock_index] : nullptr;
 
     /* Reference can be any block. */
     KeyBlock *refb = static_cast<KeyBlock *>(BLI_findlink(&key->block, kb->relative));
@@ -865,19 +875,21 @@ static void key_evaluate_relative_mesh(const int vertex_count,
       continue;
     }
 
-    float *from = (float *)key_block_get_data(key, actkb, kb, &freefrom);
+    char *freefrom = nullptr;
+    const float *from = reinterpret_cast<float *>(
+        key_block_get_data(key, active_keyblock, kb, &freefrom));
 
     /* For meshes, use the original values instead of the bmesh values to
      * maintain a constant offset. */
     float *reffrom = static_cast<float *>(refb->data);
 
     for (int i : blender::IndexRange(vertex_count)) {
-      const float weight = weights ? (weights[i] * icuval) : icuval;
+      const float weight = weights ? (weights[i] * kb_influence) : kb_influence;
       /* Each vertex has 3 floats. */
       const int elem = i * 3;
-      basis_key[elem] -= weight * (reffrom[elem] - from[elem]);
-      basis_key[elem + 1] -= weight * (reffrom[elem + 1] - from[elem + 1]);
-      basis_key[elem + 2] -= weight * (reffrom[elem + 2] - from[elem + 2]);
+      target_data[elem + 0] -= weight * (reffrom[elem + 0] - from[elem + 0]);
+      target_data[elem + 1] -= weight * (reffrom[elem + 1] - from[elem + 1]);
+      target_data[elem + 2] -= weight * (reffrom[elem + 2] - from[elem + 2]);
     }
 
     if (freefrom) {
@@ -1415,7 +1427,8 @@ static void do_mesh_key(Object *ob, Key *key, char *out, const int tot)
     WeightsArrayCache cache = {0, nullptr};
     float **per_keyblock_weights;
     per_keyblock_weights = keyblock_get_per_block_weights(ob, key, &cache);
-    key_evaluate_relative_mesh(tot, (float *)out, key, actkb, per_keyblock_weights);
+    key_evaluate_relative_mesh(
+        key, actkb, tot, per_keyblock_weights, reinterpret_cast<float *>(out));
     keyblock_free_per_block_weights(key, per_keyblock_weights, &cache);
   }
   else {
