@@ -158,6 +158,8 @@ enum eShaderType {
   SURFEL_LIST_SORT,
   SURFEL_RAY,
 
+  TRANSPARENCY_RESOLVE,
+
   VERTEX_COPY,
 
   VOLUME_INTEGRATION,
@@ -243,7 +245,7 @@ class ShaderModule {
     }
   };
 
-  Map<SpecializationsKey, SpecializationBatchHandle> specialization_handles_;
+  Map<SpecializationsKey, Vector<AsyncSpecializationHandle>> specialization_handles_;
 
   static gpu::StaticShaderCache<ShaderModule> &get_static_cache()
   {
