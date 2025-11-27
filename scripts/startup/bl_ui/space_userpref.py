@@ -251,7 +251,7 @@ class USERPREF_PT_interface_text(InterfacePanel, CenterAlignMixIn, Panel):
         flow.label(text="Remove (always ON):")
         flow.prop(view, "use_text_antialiasing", text="Anti-Aliasing")
         flow.prop(view, "use_text_render_subpixelaa", text="Subpixel Positioning")
-        flow.prop(view, "use_text_kerning", text="BPOS Kerning")
+        flow.prop(view, "use_text_kerning", text="GPOS Kerning")
 
         flow.label(text="Remove (always Slight):")
         flow.prop(view, "text_hinting", text="Hinting")

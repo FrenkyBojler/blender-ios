@@ -587,9 +587,13 @@ bool ShapingData::process(FontBLF *font, GlyphCacheBLF *gc, ResultBLF *r_info)
   for (uint i = 0; i < this->segment.glyph_count; i++) {
     uint32_t glyph_id = this->segment.hb_glyph_info[i].codepoint;
     char32_t codepoint = this->visual_str[this->segment.hb_glyph_info[i].cluster];
-    this->segment.glyphs[i] = blf_glyph_ensure(
-        this->segment.font, this->segment.gc, codepoint, glyph_id);
-    GlyphBLF *g = this->segment.glyphs[i];
+
+    GlyphBLF *g = blf_glyph_ensure(this->segment.font, this->segment.gc, codepoint, glyph_id);
+    this->segment.glyphs[i] = g;
+    if (UNLIKELY(g == nullptr)) {
+      /* Skip missing glyphs. */
+      continue;
+    }
     rcti *bounds = &this->segment.bounds[i];
     hb_glyph_position_t *pos = &this->segment.glyph_pos[i];
     const int advance = ((font->flags & BLF_MONOSPACED) ?
@@ -645,12 +649,14 @@ static void blf_font_draw_ex(FontBLF *font,
   blf_batch_draw_begin(font);
   while (text.process(font, gc, r_info)) {
     for (uint i = 0; i < text.segment.glyph_count; i++) {
-      blf_glyph_draw(
-          text.segment.font,
-          text.segment.gc,
-          text.segment.glyphs[i],
-          ft_pix_to_int_floor(text.segment.bounds[i].xmin - text.segment.glyphs[i]->box_xmin),
-          ft_pix_to_int_floor(pen_y + text.segment.glyph_pos[i].y_offset));
+      if (text.segment.glyphs[i]) {
+        blf_glyph_draw(
+            text.segment.font,
+            text.segment.gc,
+            text.segment.glyphs[i],
+            ft_pix_to_int_floor(text.segment.bounds[i].xmin - text.segment.glyphs[i]->box_xmin),
+            ft_pix_to_int_floor(pen_y + text.segment.glyph_pos[i].y_offset));
+      }
     }
   }
   if (!g_batch.active) {
