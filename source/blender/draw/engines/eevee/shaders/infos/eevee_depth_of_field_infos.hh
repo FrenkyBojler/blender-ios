@@ -11,8 +11,11 @@
 #  include "draw_view_infos.hh"
 #  include "eevee_common_infos.hh"
 #  include "eevee_depth_of_field_shared.hh"
+#  include "eevee_sampling_infos.hh"
 #  include "eevee_velocity_infos.hh"
+#endif
 
+#ifdef GLSL_CPP_STUBS
 #  define DOF_BOKEH_TEXTURE true
 #  define DILATE_MODE_MIN_MAX true
 #endif

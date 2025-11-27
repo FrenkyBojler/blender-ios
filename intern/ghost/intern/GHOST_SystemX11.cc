@@ -154,6 +154,7 @@ GHOST_SystemX11::GHOST_SystemX11()
   GHOST_INTERN_ATOM(_MOTIF_WM_HINTS);
   GHOST_INTERN_ATOM(TARGETS);
   GHOST_INTERN_ATOM(STRING);
+  GHOST_INTERN_ATOM(C_STRING);
   GHOST_INTERN_ATOM(COMPOUND_TEXT);
   GHOST_INTERN_ATOM(TEXT);
   GHOST_INTERN_ATOM(CLIPBOARD);
@@ -1819,7 +1820,9 @@ GHOST_TCapabilityFlag GHOST_SystemX11::getCapabilities() const
           /* No support yet for RGBA mouse cursors. */
           GHOST_kCapabilityCursorRGBA |
           /* No support yet for dynamic cursor generation. */
-          GHOST_kCapabilityCursorGenerator));
+          GHOST_kCapabilityCursorGenerator |
+          /* No support for window path meta-data. */
+          GHOST_kCapabilityWindowPath));
 }
 
 void GHOST_SystemX11::addDirtyWindow(GHOST_WindowX11 *bad_wind)

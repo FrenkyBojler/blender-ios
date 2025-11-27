@@ -270,7 +270,7 @@ static void action_main_region_draw(const bContext *C, ARegion *region)
   marker_flag = ((ac.markers && (ac.markers != &ac.scene->markers)) ? DRAW_MARKERS_LOCAL : 0) |
                 DRAW_MARKERS_MARGIN;
 
-  if (saction->flag & SACTION_SHOW_MARKERS && region->winy > (UI_ANIM_MINY + UI_MARKER_MARGIN_Y)) {
+  if (ED_markers_region_visible(CTX_wm_area(C), region)) {
     ED_markers_draw(C, marker_flag);
   }
 
@@ -425,7 +425,7 @@ static void action_channel_region_listener(const wmRegionListenerParams *params)
       }
       break;
     case NC_GPENCIL:
-      if (ELEM(wmn->action, NA_RENAME, NA_SELECTED)) {
+      if (ELEM(wmn->action, NA_RENAME, NA_SELECTED, NA_EDITED)) {
         ED_region_tag_redraw(region);
       }
       break;

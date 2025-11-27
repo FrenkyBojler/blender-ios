@@ -523,6 +523,7 @@ struct ViewZoomData {
 
   /* */
   SpaceImage *sima;
+  ScrArea *area;
   ARegion *region;
 };
 
@@ -558,6 +559,7 @@ static void image_view_zoom_init(bContext *C, wmOperator *op, const wmEvent *eve
   }
 
   vpd->sima = sima;
+  vpd->area = CTX_wm_area(C);
   vpd->region = region;
 
   WM_event_add_modal_handler(C, op);
@@ -572,6 +574,9 @@ static void image_view_zoom_exit(bContext *C, wmOperator *op, bool cancel)
     sima->zoom = vpd->zoom;
     ED_region_tag_redraw(CTX_wm_region(C));
   }
+
+  ED_area_status_text(vpd->area, nullptr);
+  ED_workspace_status_text(C, nullptr);
 
   if (vpd->timer) {
     WM_event_timer_remove(CTX_wm_manager(C), vpd->timer->win, vpd->timer);
@@ -640,7 +645,8 @@ static void image_zoom_apply(ViewZoomData *vpd,
                              const int y,
                              const short viewzoom,
                              const short zoom_invert,
-                             const bool zoom_to_pos)
+                             const bool zoom_to_pos,
+                             const bool snap)
 {
   float factor;
   float delta;
@@ -676,8 +682,16 @@ static void image_zoom_apply(ViewZoomData *vpd,
     factor = 1.0f + delta / 300.0f;
   }
 
+  float zoom = vpd->zoom * factor;
+  if (snap) {
+    zoom = round(zoom * 10.0f) / 10.0f;
+  }
+  char str[5];
+  BLI_snprintf(str, sizeof(str), "%i%%", int(round(vpd->sima->zoom * 100.0f)));
+  ED_area_status_text(vpd->area, str);
+
   RNA_float_set(op->ptr, "factor", factor);
-  sima_zoom_set(vpd->sima, vpd->region, vpd->zoom * factor, vpd->location, zoom_to_pos);
+  sima_zoom_set(vpd->sima, vpd->region, zoom, vpd->location, zoom_to_pos);
   ED_region_tag_redraw(vpd->region);
 }
 
@@ -686,6 +700,9 @@ static wmOperatorStatus image_view_zoom_modal(bContext *C, wmOperator *op, const
   ViewZoomData *vpd = static_cast<ViewZoomData *>(op->customdata);
   short event_code = VIEW_PASS;
   wmOperatorStatus ret = OPERATOR_RUNNING_MODAL;
+
+  WorkspaceStatus status(C);
+  status.item_bool(IFACE_("Snap"), event->modifier & KM_CTRL, ICON_EVENT_CTRL);
 
   /* Execute the events. */
   if (event->type == MOUSEMOVE) {
@@ -712,7 +729,8 @@ static wmOperatorStatus image_view_zoom_modal(bContext *C, wmOperator *op, const
                        event->xy[1],
                        U.viewzoom,
                        (U.uiflag & USER_ZOOM_INVERT) != 0,
-                       (use_cursor_init && (U.uiflag & USER_ZOOM_TO_MOUSEPOS)));
+                       (use_cursor_init && (U.uiflag & USER_ZOOM_TO_MOUSEPOS)),
+                       event->modifier & KM_CTRL);
       break;
     }
     case VIEW_CONFIRM: {
@@ -1368,10 +1386,11 @@ static wmOperatorStatus image_open_exec(bContext *C, wmOperator *op)
   ImageOpenData *iod = static_cast<ImageOpenData *>(op->customdata);
   ID *owner_id = iod->pprop.ptr.owner_id;
   Library *owner_library = owner_id ? owner_id->lib : nullptr;
+  blender::StringRefNull blendfile_path = BKE_main_blendfile_path(bmain);
   blender::StringRefNull root_path = owner_library ? owner_library->runtime->filepath_abs :
-                                                     BKE_main_blendfile_path(bmain);
+                                                     blendfile_path;
 
-  ListBase ranges = ED_image_filesel_detect_sequences(root_path, op, use_udim);
+  ListBase ranges = ED_image_filesel_detect_sequences(blendfile_path, root_path, op, use_udim);
   LISTBASE_FOREACH (ImageFrameRange *, range, &ranges) {
     Image *ima_range = image_open_single(bmain, owner_library, op, range, use_multiview);
 
@@ -2284,8 +2303,8 @@ static wmOperatorStatus image_save_sequence_exec(bContext *C, wmOperator *op)
 
   /* get total dirty buffers and first dirty buffer which is used for menu */
   ibuf = nullptr;
-  if (image->cache != nullptr) {
-    iter = IMB_moviecacheIter_new(image->cache);
+  if (image->runtime->cache != nullptr) {
+    iter = IMB_moviecacheIter_new(image->runtime->cache);
     while (!IMB_moviecacheIter_done(iter)) {
       ibuf = IMB_moviecacheIter_getImBuf(iter);
       if (ibuf != nullptr && ibuf->userflags & IB_BITMAPDIRTY) {
@@ -2308,7 +2327,7 @@ static wmOperatorStatus image_save_sequence_exec(bContext *C, wmOperator *op)
   BLI_path_split_dir_part(first_ibuf->filepath, di, sizeof(di));
   BKE_reportf(op->reports, RPT_INFO, "%d image(s) will be saved in %s", tot, di);
 
-  iter = IMB_moviecacheIter_new(image->cache);
+  iter = IMB_moviecacheIter_new(image->runtime->cache);
   while (!IMB_moviecacheIter_done(iter)) {
     ibuf = IMB_moviecacheIter_getImBuf(iter);
 
