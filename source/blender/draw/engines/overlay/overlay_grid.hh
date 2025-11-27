@@ -220,22 +220,25 @@ class Grid : Overlay {
       axis_flag_ |= (show_axis_x ? (AXIS_X | SHOW_AXES) : 0);
       axis_flag_ |= (show_axis_y ? (AXIS_Y | SHOW_AXES) : 0);
       axis_flag_ |= (show_axis_z ? (AXIS_Z | SHOW_AXES) : 0);
+      grid_flag_ |= (show_axis_x ? AXIS_X : 0);
+      grid_flag_ |= (show_axis_y ? AXIS_Y : 0);
+      grid_flag_ |= (show_axis_z ? AXIS_Z : 0);
       grid_flag_ |= (show_persp ? (PLANE_XY | SHOW_GRID) : 0);
     }
     else {
       /* Orthographic; set selected axes and plane bits dependent on the specific view
        * (top, right, left, etc.) that is selected. */
       if (ELEM(rv3d->view, RV3D_VIEW_RIGHT, RV3D_VIEW_LEFT)) {
-        grid_flag_ = PLANE_YZ;
         axis_flag_ = (show_axis_y ? AXIS_Y : 0) | (show_axis_z ? AXIS_Z : 0);
+        grid_flag_ = axis_flag_ | PLANE_YZ;
       }
       else if (ELEM(rv3d->view, RV3D_VIEW_TOP, RV3D_VIEW_BOTTOM)) {
-        grid_flag_ = PLANE_XY;
         axis_flag_ = (show_axis_x ? AXIS_X : 0) | (show_axis_y ? AXIS_Y : 0);
+        grid_flag_ = axis_flag_ | PLANE_XY;
       }
       else if (ELEM(rv3d->view, RV3D_VIEW_FRONT, RV3D_VIEW_BACK)) {
-        grid_flag_ = PLANE_XZ;
         axis_flag_ = (show_axis_x ? AXIS_X : 0) | (show_axis_z ? AXIS_Z : 0);
+        grid_flag_ = axis_flag_ | PLANE_XZ;
       }
       grid_flag_ |= (show_ortho ? SHOW_GRID : 0);
       axis_flag_ |= (show_ortho ? SHOW_AXES : 0);

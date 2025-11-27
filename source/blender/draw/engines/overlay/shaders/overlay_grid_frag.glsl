@@ -12,25 +12,31 @@ FRAGMENT_SHADER_CREATE_INFO(overlay_grid_next)
 #include "gpu_shader_utildefines_lib.glsl"
 #include "overlay_common_lib.glsl"
 
+/* Returns true if both components of `v` fall within `epsilon` of 0. */
+bool is_zero(in vec2 v, in float epsilon) {
+  return all(lessThanEqual(abs(v), float2(epsilon)));
+}
+
 void main()
 {
-  /* Base color is a mix of [grid, emphasis] by vertex alpha, which incorporates level
-   * and subpixel fades only. */
-  out_color = mix(theme.colors.grid, theme.colors.grid_emphasis, vertex_out_flat.alpha);
-  out_color.a *= vertex_out_flat.alpha;
-
-  /* Primary axes colors override base color. */
-  if (flag_test(grid_flag, AXIS_X) && reduce_max(abs(vertex_out.pos.yz)) < 1e-4f) {
-    out_color.rgb = theme.colors.grid_axis_x.rgb;
-    out_color.a = max(out_color.a, theme.colors.grid_axis_x.a);
+  /* Fragment color. */
+  if (flag_test(grid_flag, SHOW_GRID)) {
+    /* Color is a mix of [grid, emphasis] by vertex alpha, which incorporates level
+    * and subpixel fades only. */
+    out_color = mix(theme.colors.grid, theme.colors.grid_emphasis, vertex_out_flat.alpha);
+    out_color.a *= vertex_out_flat.alpha;
   }
-  else if (flag_test(grid_flag, AXIS_Y) && reduce_max(abs(vertex_out.pos.xz)) < 1e-4f) {
-    out_color.rgb = theme.colors.grid_axis_y.rgb;
-    out_color.a = max(out_color.a, theme.colors.grid_axis_y.a);
-  }
-  else if (flag_test(grid_flag, AXIS_Z) && reduce_max(abs(vertex_out.pos.xy)) < 1e-4f) {
-    out_color.rgb = theme.colors.grid_axis_z.rgb;
-    out_color.a = max(out_color.a, theme.colors.grid_axis_z.a);
+  else if (flag_test(grid_flag, SHOW_AXES)) {
+    /* Color is fixed by theme. */
+    if (flag_test(grid_flag, AXIS_X) && is_zero(vertex_out.pos.yz, 1e-4f)) {
+      out_color = theme.colors.grid_axis_x;
+    }
+    else if (flag_test(grid_flag, AXIS_Y) && is_zero(vertex_out.pos.xz, 1e-4f)) {
+      out_color = theme.colors.grid_axis_y;
+    }
+    else if (flag_test(grid_flag, AXIS_Z) && is_zero(vertex_out.pos.xy, 1e-4f)) {
+      out_color = theme.colors.grid_axis_z;
+    }
   }
 
   /* Fragment alpha. */

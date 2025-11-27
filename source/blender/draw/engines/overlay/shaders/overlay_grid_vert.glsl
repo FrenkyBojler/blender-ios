@@ -64,6 +64,40 @@ LineData decode_axis_data(in uint vertex_id)
   return line;
 }
 
+/* Returns true if both components of `v` fall within `epsilon` of 0. */
+bool is_zero(in vec2 v, in float epsilon) {
+  return all(lessThanEqual(abs(v), float2(epsilon)));
+}
+
+/* Test if the current line falls under another line on a higher level, which occludes it. */
+bool test_level_overlap(in LineData line, in uint level) {
+  if (flag_test(grid_flag, SHOW_GRID)) {
+    if (line.level < OVERLAY_GRID_STEPS_DRAW - 1 && level < OVERLAY_GRID_STEPS_LEN - 1) {
+      float step_size_curr = grid_buf.steps[level][line.axis];
+      float step_size_next = grid_buf.steps[level + 1][line.axis];
+
+      // float2 step_offs_curr = round(grid_offs / step_size_curr) * step_size_curr;
+      float2 step_offs_next = round(grid_offs / step_size_next) * step_size_next;
+
+      float2 diff = step_offs_next + (line.P - step_offs_next) / step_size_next;
+      if (is_equal(fract(diff[line.axis]), 0.0f, 1e-4)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+/* Test if the current line falls under an axis line, which occludes it. */
+bool test_axis_overlap(in float3 vertex_pos_global) {
+  if (flag_test(grid_flag, SHOW_GRID)) {
+    return (flag_test(grid_flag, AXIS_X) && is_zero(vertex_pos_global.yz, 1e-4f)) ||
+           (flag_test(grid_flag, AXIS_Y) && is_zero(vertex_pos_global.xz, 1e-4f)) ||
+           (flag_test(grid_flag, AXIS_Z) && is_zero(vertex_pos_global.xy, 1e-4f));
+  }
+  return false;
+}
+
 void main()
 {
   /* Discard by default. */
@@ -73,8 +107,7 @@ void main()
                                                     decode_axis_data(gl_VertexID);
 
   /* Compute the actual level of a line, offset by -1 to force a sublevel in the 3D viewport. */
-  int level = int(grid_buf.level) + int(line.level) -
-              (flag_test(grid_flag, GRID_SIMA) ? 0 : 1);
+  int level = int(grid_buf.level) + int(line.level) - (flag_test(grid_flag, GRID_SIMA) ? 0 : 1);
   if (level < 0 || level >= OVERLAY_GRID_STEPS_LEN) {
     return; /* Discard line. */
   }
@@ -148,11 +181,19 @@ void main()
   }
   else if (flag_test(grid_flag, SHOW_AXES)) {
     /* Test X/Y/Z axis flags per line */
-    const uint flags[3] = {AXIS_X, AXIS_Y, AXIS_Z};
-    if (!flag_test(grid_flag, flags[line.axis])) {
+    const uint axis_flags[3] = {AXIS_X, AXIS_Y, AXIS_Z};
+    if (!flag_test(grid_flag, axis_flags[line.axis])) {
       return; /* Discard line. */
     }
     vertex_out.pos[line.axis] = line.P.x;
+  }
+
+  /* Test to discard occluded lines. */
+  if (test_axis_overlap(vertex_out.pos)) {
+    return;
+  }
+  if (test_level_overlap(line, level)) {
+    return;
   }
 
   gl_Position = drw_view().winmat * (drw_view().viewmat * float4(vertex_out.pos, 1.0f));
