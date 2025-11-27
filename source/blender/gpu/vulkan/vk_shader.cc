@@ -1344,6 +1344,11 @@ bool VKShader::ensure_graphics_pipelines(Span<shader::PipelineState> pipeline_st
     }
     graphics_info.fragment_out.state = pipeline_state.state_;
 
+    CLOG_TRACE(&LOG,
+               "Precompiling pipeline state for %s:\n\n%s",
+               name_get().c_str(),
+               graphics_info.pipeline_info_source().c_str());
+
     bool pipeline_created = false;
     VkPipeline vk_pipeline = device.pipelines.get_or_create_graphics_pipeline(
         graphics_info, is_static_shader_, vk_pipeline_base_, name_get(), pipeline_created);
