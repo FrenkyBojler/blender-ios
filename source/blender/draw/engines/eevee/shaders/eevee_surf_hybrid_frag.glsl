@@ -47,8 +47,9 @@ float4 closure_to_rgba(Closure cl_unused)
       samp, g_data.P, V, 0.0);
 
 #  ifndef MAT_FIRST_LAYER
-  if (texelFetch(hiz_prev_tx, int2(gl_FragCoord.xy), 0).x != 1.0f) {
-    radiance_behind = texelFetch(previous_layer_radiance_tx, int2(gl_FragCoord.xy), 0).xyz;
+  int2 texel = int2(gl_FragCoord.xy);
+  if (texelFetchExtend(hiz_prev_tx, texel, 0).x != 1.0f) {
+    radiance_behind = texelFetch(previous_layer_radiance_tx, texel, 0).xyz;
   }
 #  endif
 
