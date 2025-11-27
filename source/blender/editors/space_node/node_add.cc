@@ -1805,15 +1805,25 @@ void NODE_OT_duplicate_compositing_node_group(wmOperatorType *ot)
 /** \name New Compositor Sequencer Node Group Operator
  * \{ */
 
-static void initialize_compositor_sequencer_node_group(const bContext *C, bNodeTree &ntree)
+static void initialize_compositor_sequencer_node_group(const bContext *C,
+                                                       bNodeTree &ntree,
+                                                       bool for_effect)
 {
   BLI_assert(ntree.type == NTREE_COMPOSIT);
   BLI_assert(BLI_listbase_count(&ntree.nodes) == 0);
 
   ntree.tree_interface.add_socket(
       "Image", "", "NodeSocketColor", NODE_INTERFACE_SOCKET_INPUT, nullptr);
-  ntree.tree_interface.add_socket(
-      "Mask", "", "NodeSocketColor", NODE_INTERFACE_SOCKET_INPUT, nullptr);
+  if (for_effect) {
+    ntree.tree_interface.add_socket(
+        "Image2", "", "NodeSocketColor", NODE_INTERFACE_SOCKET_INPUT, nullptr);
+    ntree.tree_interface.add_socket(
+        "Factor", "", "NodeSocketFloat", NODE_INTERFACE_SOCKET_INPUT, nullptr);
+  }
+  else {
+    ntree.tree_interface.add_socket(
+        "Mask", "", "NodeSocketColor", NODE_INTERFACE_SOCKET_INPUT, nullptr);
+  }
   ntree.tree_interface.add_socket(
       "Image", "", "NodeSocketColor", NODE_INTERFACE_SOCKET_OUTPUT, nullptr);
 
@@ -1860,22 +1870,21 @@ static wmOperatorStatus new_compositor_sequencer_node_group_exec(bContext *C, wm
   char tree_name[MAX_ID_NAME - 2];
   RNA_string_get(op->ptr, "name", tree_name);
 
-  bNodeTree *ntree = new_node_tree_impl(C, tree_name, "CompositorNodeTree");
-  initialize_compositor_sequencer_node_group(C, *ntree);
-
   Scene *scene = CTX_data_sequencer_scene(C);
   Strip *strip = seq::select_active_get(scene);
+  const bool is_effect_active = strip != nullptr && strip->type == STRIP_TYPE_COMPOSITOR;
+
+  bNodeTree *ntree = new_node_tree_impl(C, tree_name, "CompositorNodeTree");
+  initialize_compositor_sequencer_node_group(C, *ntree, is_effect_active);
 
   if (strip != nullptr && strip->type != STRIP_TYPE_SOUND_RAM) {
     bool assigned_node_tree = false;
 
-    /* If strip is a compositor effect but has nothing assigned: assign the node tree. */
+    /* If strip is a compositor effect: assign the node tree. */
     if (strip->type == STRIP_TYPE_COMPOSITOR && strip->effectdata) {
       CompositorEffectVars *comp_data = static_cast<CompositorEffectVars *>(strip->effectdata);
-      if (comp_data->node_group == nullptr) {
-        comp_data->node_group = ntree;
-        assigned_node_tree = true;
-      }
+      comp_data->node_group = ntree;
+      assigned_node_tree = true;
     }
 
     /* Otherwise, if there's no active compositor modifier: create one and assign the node tree. */

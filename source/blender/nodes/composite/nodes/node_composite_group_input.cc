@@ -40,8 +40,9 @@ class GroupInputOperation : public NodeOperation {
         continue;
       }
 
-      const Result pass = this->context().get_input(output->name);
+      Result pass = this->context().get_input(output->name);
       this->execute_pass(pass, result);
+      pass.release();
     }
   }
 
@@ -160,12 +161,12 @@ void get_compositor_group_input_extra_info(blender::nodes::NodeExtraInfoParams &
   Span<const bNodeSocket *> group_inputs = parameters.node.output_sockets().drop_back(1);
   bool added_warning_for_unsupported_inputs = false;
   for (const bNodeSocket *input : group_inputs) {
-    if (StringRef(input->name) == "Image") {
+    if (StringRef(input->name) == "Image" || StringRef(input->name) == "Image2") {
       if (input->type != SOCK_RGBA) {
         blender::nodes::NodeExtraInfoRow row;
         row.text = IFACE_("Wrong Image Input Type");
         row.icon = ICON_ERROR;
-        row.tooltip = TIP_("Node group's main Image input should be of type Color");
+        row.tooltip = TIP_("Node group's Image input should be of type Color");
         parameters.rows.append(std::move(row));
       }
     }
@@ -178,6 +179,15 @@ void get_compositor_group_input_extra_info(blender::nodes::NodeExtraInfoParams &
         parameters.rows.append(std::move(row));
       }
     }
+    else if (StringRef(input->name) == "Factor") {
+      if (input->type != SOCK_FLOAT) {
+        blender::nodes::NodeExtraInfoRow row;
+        row.text = IFACE_("Wrong Factor Input Type");
+        row.icon = ICON_ERROR;
+        row.tooltip = TIP_("Node group's Factor input should be of type Float");
+        parameters.rows.append(std::move(row));
+      }
+    }
     else {
       if (added_warning_for_unsupported_inputs) {
         continue;
@@ -186,8 +196,8 @@ void get_compositor_group_input_extra_info(blender::nodes::NodeExtraInfoParams &
       row.text = IFACE_("Unsupported Inputs");
       row.icon = ICON_WARNING_LARGE;
       row.tooltip = TIP_(
-          "Only a main Image and Mask inputs are supported, the rest are unsupported and will "
-          "return zero");
+          "Only Image, Image2, Mask and Factor inputs are supported, the rest are unsupported and "
+          "will return zero");
       parameters.rows.append(std::move(row));
       added_warning_for_unsupported_inputs = true;
     }
