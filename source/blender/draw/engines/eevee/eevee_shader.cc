@@ -1465,7 +1465,27 @@ GPUMaterial *ShaderModule::world_shader_get(::World *blender_world,
  *
  * \{ */
 
-void ShaderModule::material_create_info_pipelines_amend(GPUMaterial * /*gpumat*/,
+static void add_vertex_inputs(GPUMaterial * /*gpumat*/, gpu::shader::PipelineState &r_pipeline)
+{
+  /* pos uses vbo 1, bound to location 0. Current implementation in Vulkan control
+   * flow favor the order of VBOs. */
+  r_pipeline
+      .vertex_input(1, 0, gpu::VertAttrType::SNORM_10_10_10_2, 0, 4) /* nor */
+      .vertex_input(0, 1, gpu::VertAttrType::SFLOAT_32_32_32, 0, 12) /* pos */;
+
+#if 0
+  /* This doesn't work as the vertex_inputs_ aren't populated yet. That is only done after
+   * finalize where these are merged. So we should try to extract them from the shader mat with
+   * some defaults (pos/nor)*/
+  for (int index : info.vertex_inputs_.index_range()) {
+    const ShaderCreateInfo::VertIn &vertex_input = info.vertex_inputs_[index];
+    const GPUVertAttr::Type vert_attr_type = {to_vert_attr_type(vertex_input.type)};
+    pipeline.vertex_input(index, index, vert_attr_type.format, 0, vert_attr_type.size());
+  }
+#endif
+}
+
+void ShaderModule::material_create_info_pipelines_amend(GPUMaterial *gpumat,
                                                         eMaterialGeometry geometry_type,
                                                         eMaterialPipeline pipeline_type,
                                                         gpu::shader::ShaderCreateInfo &r_info)
@@ -1491,7 +1511,7 @@ void ShaderModule::material_create_info_pipelines_amend(GPUMaterial * /*gpumat*/
               .depth_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
               .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8);
           break;
-        default:
+        default: {
           /* World Pipeline */
           r_info.pipeline_state()
               .primitive(GPU_PRIM_TRIS)
@@ -1519,8 +1539,9 @@ void ShaderModule::material_create_info_pipelines_amend(GPUMaterial * /*gpumat*/
               .depth_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
               .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
               .color_format(gpu::TextureTargetFormat::SFLOAT_16_16_16_16);
-          ;
+
           break;
+        }
       }
       break;
 
@@ -1528,163 +1549,149 @@ void ShaderModule::material_create_info_pipelines_amend(GPUMaterial * /*gpumat*/
       switch (pipeline_type) {
         case MAT_PIPE_PREPASS_DEFERRED: {
           /* DeferredLayer pipeline. */
-          r_info.pipeline_state()
-              .primitive(GPU_PRIM_TRIS)
-              /* pos uses vbo 1, bound to location 0. Current implementation in Vulkan control
-               * flow favor the order of VBOs. */
-              .vertex_input(1, 0, gpu::VertAttrType::SNORM_10_10_10_2, 0, 4) /* nor */
-              .vertex_input(0, 1, gpu::VertAttrType::SFLOAT_32_32_32, 0, 12) /* pos */
-              .state(GPU_WRITE_DEPTH | GPU_WRITE_STENCIL,
-                     GPU_BLEND_NONE,
-                     GPU_CULL_NONE,
-                     GPU_DEPTH_GREATER_EQUAL,
-                     GPU_STENCIL_ALWAYS,
-                     GPU_STENCIL_OP_REPLACE,
-                     GPU_VERTEX_LAST)
-              .viewports(1)
-              .depth_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
-              .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
-              .color_format(gpu::TextureTargetFormat::SFLOAT_16_16);
+          gpu::shader::PipelineState &pipeline =
+              r_info.pipeline_state()
+                  .primitive(GPU_PRIM_TRIS)
+                  .state(GPU_WRITE_DEPTH | GPU_WRITE_STENCIL,
+                         GPU_BLEND_NONE,
+                         GPU_CULL_NONE,
+                         GPU_DEPTH_GREATER_EQUAL,
+                         GPU_STENCIL_ALWAYS,
+                         GPU_STENCIL_OP_REPLACE,
+                         GPU_VERTEX_LAST)
+                  .viewports(1)
+                  .depth_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
+                  .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
+                  .color_format(gpu::TextureTargetFormat::SFLOAT_16_16);
+          add_vertex_inputs(gpumat, pipeline);
 
           /* Deferred probe pipeline */
-          r_info.pipeline_state()
-              .primitive(GPU_PRIM_TRIS)
-              .vertex_input(1, 0, gpu::VertAttrType::SNORM_10_10_10_2, 0, 4)
-              .vertex_input(0, 1, gpu::VertAttrType::SFLOAT_32_32_32, 0, 12)
-              .state(GPU_WRITE_DEPTH,
-                     GPU_BLEND_NONE,
-                     GPU_CULL_NONE,
-                     GPU_DEPTH_GREATER_EQUAL,
-                     GPU_STENCIL_NONE,
-                     GPU_STENCIL_OP_NONE,
-                     GPU_VERTEX_LAST)
-              .viewports(1)
-              .depth_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
-              .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
-              .color_format(gpu::TextureTargetFormat::SFLOAT_16_16);
-
-#if 0
-          /* This doesn't work as the vertex_inputs_ aren't populated yet. That is only done after
-           * finalize where these are merged. So we should try to extract them from the shader mat with some defaults (pos/nor)*/
-          for (int index : info.vertex_inputs_.index_range()) {
-            const ShaderCreateInfo::VertIn &vertex_input = info.vertex_inputs_[index];
-            const GPUVertAttr::Type vert_attr_type = {to_vert_attr_type(vertex_input.type)};
-            pipeline.vertex_input(index, index, vert_attr_type.format, 0, vert_attr_type.size());
-          }
-#endif
+          gpu::shader::PipelineState &pipeline2 = r_info.pipeline_state()
+                         .primitive(GPU_PRIM_TRIS)
+                         .state(GPU_WRITE_DEPTH,
+                                GPU_BLEND_NONE,
+                                GPU_CULL_NONE,
+                                GPU_DEPTH_GREATER_EQUAL,
+                                GPU_STENCIL_NONE,
+                                GPU_STENCIL_OP_NONE,
+                                GPU_VERTEX_LAST)
+                         .viewports(1)
+                         .depth_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
+                         .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
+                         .color_format(gpu::TextureTargetFormat::SFLOAT_16_16);
+          add_vertex_inputs(gpumat, pipeline2);
 
           break;
         }
 
         case MAT_PIPE_PREPASS_DEFERRED_VELOCITY: {
-          r_info.pipeline_state()
-              .primitive(GPU_PRIM_TRIS)
-              .vertex_input(1, 0, gpu::VertAttrType::SNORM_10_10_10_2, 0, 4)
-              .vertex_input(0, 1, gpu::VertAttrType::SFLOAT_32_32_32, 0, 12)
-              .state(GPU_WRITE_COLOR | GPU_WRITE_DEPTH | GPU_WRITE_STENCIL,
-                     GPU_BLEND_NONE,
-                     GPU_CULL_NONE,
-                     GPU_DEPTH_GREATER_EQUAL,
-                     GPU_STENCIL_ALWAYS,
-                     GPU_STENCIL_OP_REPLACE,
-                     GPU_VERTEX_LAST)
-              .viewports(1)
-              .depth_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
-              .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
-              .color_format(gpu::TextureTargetFormat::SFLOAT_16_16);
+          gpu::shader::PipelineState &pipeline =
+              r_info.pipeline_state()
+                  .primitive(GPU_PRIM_TRIS)
+                  .state(GPU_WRITE_COLOR | GPU_WRITE_DEPTH | GPU_WRITE_STENCIL,
+                         GPU_BLEND_NONE,
+                         GPU_CULL_NONE,
+                         GPU_DEPTH_GREATER_EQUAL,
+                         GPU_STENCIL_ALWAYS,
+                         GPU_STENCIL_OP_REPLACE,
+                         GPU_VERTEX_LAST)
+                  .viewports(1)
+                  .depth_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
+                  .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
+                  .color_format(gpu::TextureTargetFormat::SFLOAT_16_16);
+          add_vertex_inputs(gpumat, pipeline);
           break;
         }
         case MAT_PIPE_DEFERRED: {
-          r_info.pipeline_state()
-              .primitive(GPU_PRIM_TRIS)
-              .vertex_input(1, 0, gpu::VertAttrType::SNORM_10_10_10_2, 0, 4)
-              .vertex_input(0, 1, gpu::VertAttrType::SFLOAT_32_32_32, 0, 12)
-              .state(GPU_WRITE_COLOR | GPU_WRITE_STENCIL,
-                     GPU_BLEND_NONE,
-                     GPU_CULL_NONE,
-                     GPU_DEPTH_EQUAL,
-                     GPU_STENCIL_ALWAYS,
-                     GPU_STENCIL_OP_REPLACE,
-                     GPU_VERTEX_LAST)
-              .viewports(1)
-              .depth_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
-              .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
-              .color_format(gpu::TextureTargetFormat::SFLOAT_16_16_16_16)
-              .color_format(gpu::TextureTargetFormat::UINT_32)
-              .color_format(gpu::TextureTargetFormat::UNORM_16_16)
-              .color_format(gpu::TextureTargetFormat::UNORM_10_10_10_2)
-              .color_format(gpu::TextureTargetFormat::UNORM_10_10_10_2);
+          gpu::shader::PipelineState &pipeline =
+              r_info.pipeline_state()
+                  .primitive(GPU_PRIM_TRIS)
+                  .state(GPU_WRITE_COLOR | GPU_WRITE_STENCIL,
+                         GPU_BLEND_NONE,
+                         GPU_CULL_NONE,
+                         GPU_DEPTH_EQUAL,
+                         GPU_STENCIL_ALWAYS,
+                         GPU_STENCIL_OP_REPLACE,
+                         GPU_VERTEX_LAST)
+                  .viewports(1)
+                  .depth_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
+                  .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
+                  .color_format(gpu::TextureTargetFormat::SFLOAT_16_16_16_16)
+                  .color_format(gpu::TextureTargetFormat::UINT_32)
+                  .color_format(gpu::TextureTargetFormat::UNORM_16_16)
+                  .color_format(gpu::TextureTargetFormat::UNORM_10_10_10_2)
+                  .color_format(gpu::TextureTargetFormat::UNORM_10_10_10_2);
+          add_vertex_inputs(gpumat, pipeline);
           break;
         }
 
         case MAT_PIPE_PREPASS_FORWARD: {
-          r_info.pipeline_state()
-              .primitive(GPU_PRIM_TRIS)
-              .vertex_input(1, 0, gpu::VertAttrType::SNORM_10_10_10_2, 0, 4)
-              .vertex_input(0, 1, gpu::VertAttrType::SFLOAT_32_32_32, 0, 12)
-              .state(GPU_WRITE_DEPTH,
-                     GPU_BLEND_NONE,
-                     GPU_CULL_NONE,
-                     GPU_DEPTH_GREATER_EQUAL,
-                     GPU_STENCIL_NONE,
-                     GPU_STENCIL_OP_NONE,
-                     GPU_VERTEX_LAST)
-              .viewports(1)
-              .depth_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
-              .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
-              .color_format(gpu::TextureTargetFormat::SFLOAT_16_16);
+          gpu::shader::PipelineState &pipeline =
+              r_info.pipeline_state()
+                  .primitive(GPU_PRIM_TRIS)
+                  .state(GPU_WRITE_DEPTH,
+                         GPU_BLEND_NONE,
+                         GPU_CULL_NONE,
+                         GPU_DEPTH_GREATER_EQUAL,
+                         GPU_STENCIL_NONE,
+                         GPU_STENCIL_OP_NONE,
+                         GPU_VERTEX_LAST)
+                  .viewports(1)
+                  .depth_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
+                  .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
+                  .color_format(gpu::TextureTargetFormat::SFLOAT_16_16);
+          add_vertex_inputs(gpumat, pipeline);
           break;
         }
         case MAT_PIPE_PREPASS_FORWARD_VELOCITY: {
-          r_info.pipeline_state()
-              .primitive(GPU_PRIM_TRIS)
-              .vertex_input(1, 0, gpu::VertAttrType::SNORM_10_10_10_2, 0, 4)
-              .vertex_input(0, 1, gpu::VertAttrType::SFLOAT_32_32_32, 0, 12)
-              .state(GPU_WRITE_COLOR | GPU_WRITE_DEPTH,
-                     GPU_BLEND_NONE,
-                     GPU_CULL_NONE,
-                     GPU_DEPTH_GREATER_EQUAL,
-                     GPU_STENCIL_NONE,
-                     GPU_STENCIL_OP_NONE,
-                     GPU_VERTEX_LAST)
-              .viewports(1)
-              .depth_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
-              .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
-              .color_format(gpu::TextureTargetFormat::SFLOAT_16_16);
+          gpu::shader::PipelineState &pipeline =
+              r_info.pipeline_state()
+                  .primitive(GPU_PRIM_TRIS)
+                  .state(GPU_WRITE_COLOR | GPU_WRITE_DEPTH,
+                         GPU_BLEND_NONE,
+                         GPU_CULL_NONE,
+                         GPU_DEPTH_GREATER_EQUAL,
+                         GPU_STENCIL_NONE,
+                         GPU_STENCIL_OP_NONE,
+                         GPU_VERTEX_LAST)
+                  .viewports(1)
+                  .depth_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
+                  .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
+                  .color_format(gpu::TextureTargetFormat::SFLOAT_16_16);
+          add_vertex_inputs(gpumat, pipeline);
           break;
         }
         case MAT_PIPE_FORWARD: {
-          r_info.pipeline_state()
-              .primitive(GPU_PRIM_TRIS)
-              .vertex_input(1, 0, gpu::VertAttrType::SNORM_10_10_10_2, 0, 4)
-              .vertex_input(0, 1, gpu::VertAttrType::SFLOAT_32_32_32, 0, 12)
-              .state(GPU_WRITE_COLOR,
-                     GPU_BLEND_NONE,
-                     GPU_CULL_NONE,
-                     GPU_DEPTH_EQUAL,
-                     GPU_STENCIL_NONE,
-                     GPU_STENCIL_OP_NONE,
-                     GPU_VERTEX_LAST)
-              .viewports(1)
-              .depth_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
-              .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
-              .color_format(gpu::TextureTargetFormat::SFLOAT_16_16_16_16);
+          gpu::shader::PipelineState &pipeline =
+              r_info.pipeline_state()
+                  .primitive(GPU_PRIM_TRIS)
+                  .state(GPU_WRITE_COLOR,
+                         GPU_BLEND_NONE,
+                         GPU_CULL_NONE,
+                         GPU_DEPTH_EQUAL,
+                         GPU_STENCIL_NONE,
+                         GPU_STENCIL_OP_NONE,
+                         GPU_VERTEX_LAST)
+                  .viewports(1)
+                  .depth_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
+                  .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
+                  .color_format(gpu::TextureTargetFormat::SFLOAT_16_16_16_16);
+          add_vertex_inputs(gpumat, pipeline);
           break;
         }
 
         case MAT_PIPE_SHADOW: {
-          r_info.pipeline_state()
-              .primitive(GPU_PRIM_TRIS)
-              .vertex_input(1, 0, gpu::VertAttrType::SNORM_10_10_10_2, 0, 4)
-              .vertex_input(0, 1, gpu::VertAttrType::SFLOAT_32_32_32, 0, 12)
-              .state(GPU_WRITE_COLOR | GPU_WRITE_DEPTH,
-                     GPU_BLEND_NONE,
-                     GPU_CULL_NONE,
-                     GPU_DEPTH_LESS,
-                     GPU_STENCIL_NONE,
-                     GPU_STENCIL_OP_NONE,
-                     GPU_VERTEX_LAST)
-              .viewports(16);
+          gpu::shader::PipelineState &pipeline = r_info.pipeline_state()
+                                                     .primitive(GPU_PRIM_TRIS)
+                                                     .state(GPU_WRITE_COLOR | GPU_WRITE_DEPTH,
+                                                            GPU_BLEND_NONE,
+                                                            GPU_CULL_NONE,
+                                                            GPU_DEPTH_LESS,
+                                                            GPU_STENCIL_NONE,
+                                                            GPU_STENCIL_OP_NONE,
+                                                            GPU_VERTEX_LAST)
+                                                     .viewports(16);
+          add_vertex_inputs(gpumat, pipeline);
           break;
         }
 
