@@ -28,13 +28,12 @@ namespace blender::draw::overlay {
  */
 class Grid : Overlay {
  private:
-  /* General parameters. */
+  /* Shader data */
+  PassSimple grid_ps_ = {"grid_ps_"};
   UniformBuffer<OVERLAY_GridData> grid_ubo_;
   StorageVectorBuffer<float4> tile_pos_buf_;
-  PassSimple grid_ps_ = {"grid_ps_"};
-  bool is_3d_grid_ = false;
 
-  /* Push constant data */
+  /* Config data */
   float2 grid_offs_ = float2(0.0f);
   int grid_flag_ = 0;
   int axis_flag_ = 0;
@@ -42,33 +41,29 @@ class Grid : Overlay {
  public:
   void begin_sync(Resources &res, const State &state) final
   {
-    is_3d_grid_ = state.is_space_v3d();
-    enabled_ = !state.is_space_node() && init(state);
-
-    if (!enabled_) {
+    if (enabled_ = init(state); !enabled_) {
       grid_ps_.init();
       return;
     }
 
-    gpu::Texture **depth_tx = state.xray_enabled ? &res.xray_depth_tx : &res.depth_tx;
+    auto ps_draw_state = DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA;
 
     grid_ps_.init();
     grid_ps_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
     grid_ps_.bind_ubo(DRW_CLIPPING_UBO_SLOT, &res.clip_planes_buf);
-    grid_ps_.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA);
+    grid_ps_.state_set(ps_draw_state);
 
     /* Background quad draw in UV/Image editor. */
     if (state.is_space_image()) {
       float3 tile_scale(grid_ubo_.clip_rect.x, grid_ubo_.clip_rect.y, 0.0f);
+      const float4 color_back = math::interpolate(
+          res.theme.colors.background, res.theme.colors.grid, 0.5);
 
       auto &sub = grid_ps_.sub("grid_background");
       sub.shader_set(res.shaders->grid_background.get());
-      const float4 color_back = math::interpolate(
-          res.theme.colors.background, res.theme.colors.grid, 0.5);
+      sub.state_set(ps_draw_state | DRW_STATE_DEPTH_LESS_EQUAL);
       sub.push_constant("ucolor", color_back);
       sub.push_constant("tile_scale", tile_scale);
-      /* TODO (not_mark): is this one necessary? IIRC, the point is to get rid of it. */
-      sub.bind_texture("depth_buffer", depth_tx);
       sub.draw(res.shapes.quad_solid.get());
     }
 
@@ -76,8 +71,7 @@ class Grid : Overlay {
     {
       auto &sub = grid_ps_.sub("grid");
       sub.shader_set(res.shaders->grid.get());
-      sub.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA | DRW_STATE_WRITE_DEPTH |
-                    DRW_STATE_DEPTH_LESS_EQUAL);
+      sub.state_set(ps_draw_state | DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_WRITE_DEPTH);
       sub.bind_ubo("grid_buf", &grid_ubo_);
 
       if (axis_flag_) {
@@ -99,16 +93,10 @@ class Grid : Overlay {
       float4 theme_color;
       UI_GetThemeColorShade4fv(TH_BACK, 60, theme_color);
       srgb_to_linearrgb_v4(theme_color, theme_color);
+
       auto &sub = grid_ps_.sub("wire_border");
       sub.shader_set(res.shaders->grid_image.get());
       sub.push_constant("ucolor", theme_color);
-      tile_pos_buf_.clear();
-      for (const int x : IndexRange(grid_ubo_.clip_rect.x)) {
-        for (const int y : IndexRange(grid_ubo_.clip_rect.y)) {
-          tile_pos_buf_.append(float4(x, y, 0.0f, 0.0f));
-        }
-      }
-      tile_pos_buf_.push_update();
       sub.bind_ssbo("tile_pos_buf", &tile_pos_buf_);
       sub.draw(res.shapes.quad_wire.get(), tile_pos_buf_.size());
     }
@@ -128,43 +116,49 @@ class Grid : Overlay {
  private:
   bool init(const State &state)
   {
-    /* Initialize config flags to default value. */
+    /* Set config flags to default values. */
     grid_flag_ = axis_flag_ = 0;
-    return is_3d_grid_ ? init_3d(state) : init_2d(state);
-  }
 
-  bool init_2d(const State &state)
-  {
     if (state.hide_overlays) {
       return false;
     }
+    else if (state.is_space_v3d()) {
+      return init_v3d(state);
+    }
+    else if (state.is_space_image()) {
+      return init_space_image(state);
+    }
+    else {
+      /* Grid is currently unsupported in SPACE_NODE and such. */
+      return false;
+    }
+  }
 
+  bool init_space_image(const State &state)
+  {
     const View2D *v2d = &state.region->v2d;
     SpaceImage *sima = (SpaceImage *)state.space_data;
 
-    /* Query different options from overlay/spaceimage state. Only UV edit has
-     * overlay options for now. */
-    const bool is_uv_edit = sima->mode == SI_MODE_UV;
-    const bool background_enabled = is_uv_edit ? (sima->overlay.flag &
-                                                  SI_OVERLAY_SHOW_GRID_BACKGROUND) != 0 :
-                                                 true;
-    const bool draw_grid = is_uv_edit || !ED_space_image_has_buffer(sima);
+    /* Query different options from SpaceImage state. */
+    const bool show_image = ED_space_image_has_buffer(sima);
+    const bool show_grid = sima->mode == SI_MODE_UV &&
+                           (sima->overlay.flag & SI_OVERLAY_SHOW_GRID_BACKGROUND);
+    const bool show_over = sima->flag & SI_GRID_OVER_IMAGE;
 
-    /* Process grid flags. */
-    if (background_enabled) {
-      grid_flag_ = GRID_BACK | PLANE_IMAGE;
-      if (sima->flag & SI_GRID_OVER_IMAGE) {
-        grid_flag_ = PLANE_IMAGE;
-      }
+    if (!show_grid) {
+      return false;
     }
-    if (background_enabled && draw_grid) {
-      grid_flag_ |= SHOW_GRID;
+
+    /* Configure grid flags s.t. GRID_OVER_IMAGE is taken into account. */
+    grid_flag_ = SHOW_GRID | GRID_SIMA;
+    if (show_over) {
+      grid_flag_ |= GRID_OVER;
     }
 
     /* Query grid step/level scalings; these can differ per axis. */
     std::array<float, SI_GRID_STEPS_LEN> steps_x, steps_y;
     ED_space_image_grid_steps(sima, steps_x.data(), steps_y.data(), SI_GRID_STEPS_LEN);
-    for (int i = 0; i < SI_GRID_STEPS_LEN; ++i) {
+    for (int i : IndexRange(0, SI_GRID_STEPS_LEN)) {
       grid_ubo_.steps[i].x = grid_ubo_.steps[i].z = steps_x[i] * 2.0f;
       grid_ubo_.steps[i].y = steps_y[i] * 2.0f;
     }
@@ -174,7 +168,7 @@ class Grid : Overlay {
 
     /* Query grid image zoom level. Then find the lowest relevant grid level + fractional. */
     float dist = ED_space_image_zoom_level(v2d, SI_GRID_STEPS_LEN) * 4.0f;
-    for (int i = 0; i < OVERLAY_GRID_STEPS_LEN + 1; i++) {
+    for (int i : IndexRange(0, SI_GRID_STEPS_LEN + 1)) {
       float prev = (i > 0) ? std::min(grid_ubo_.steps[i - 1].x, grid_ubo_.steps[i - 1].y) : 0.0f;
       float curr = (i < OVERLAY_GRID_STEPS_LEN) ?
                        std::min(grid_ubo_.steps[i].x, grid_ubo_.steps[i].y) :
@@ -185,19 +179,27 @@ class Grid : Overlay {
       }
     }
 
-    grid_ubo_.clip_rect = float2(1.0f);
-    if (is_uv_edit) {
-      grid_ubo_.clip_rect.x = float(sima->tile_grid_shape[0]);
-      grid_ubo_.clip_rect.y = float(sima->tile_grid_shape[1]);
+    /* Clip rectangle can be specified in UV editor view. */
+    grid_ubo_.clip_rect.x = float(sima->tile_grid_shape[0]);
+    grid_ubo_.clip_rect.y = float(sima->tile_grid_shape[1]);
+
+    /* Outline draws lines around tile grid */
+    tile_pos_buf_.clear();
+    for (const int x : IndexRange(sima->tile_grid_shape[0])) {
+      for (const int y : IndexRange(sima->tile_grid_shape[1])) {
+        tile_pos_buf_.append(float4(x, y, 0.0f, 0.0f));
+      }
     }
+    tile_pos_buf_.push_update();
 
     /* This suffices for most cases, and in others we fade to hide it. */
+    /* TODO (not_mark): make this view/clip-dependent in 2D UV editor. */
     grid_ubo_.num_lines = 301;
 
     return true;
   }
 
-  bool init_3d(const State &state)
+  bool init_v3d(const State &state)
   {
     /* Query different options from overlay state */
     const bool show_axis_x = (state.v3d_gridflag & V3D_SHOW_X) != 0;
@@ -207,7 +209,7 @@ class Grid : Overlay {
     const bool show_ortho = (state.v3d_gridflag & V3D_SHOW_ORTHO_GRID) != 0;
     const bool show_any = show_axis_x || show_axis_y || show_axis_z || show_persp || show_ortho;
 
-    if (state.hide_overlays || !show_any) {
+    if (!show_any) {
       return false;
     }
 
@@ -237,14 +239,14 @@ class Grid : Overlay {
         grid_flag_ = PLANE_XZ;
         axis_flag_ = (show_axis_x ? AXIS_X : 0) | (show_axis_z ? AXIS_Z : 0);
       }
-      grid_flag_ |= (show_ortho ? (GRID_BACK | SHOW_GRID) : 0);
-      axis_flag_ |= (show_ortho ? (GRID_BACK | SHOW_AXES) : 0);
+      grid_flag_ |= (show_ortho ? SHOW_GRID : 0);
+      axis_flag_ |= (show_ortho ? SHOW_AXES : 0);
     }
 
     /* Query grid scales from unit/scaling; this range suffices for user-visible levels. */
     Array<float, SI_GRID_STEPS_LEN> steps(SI_GRID_STEPS_LEN);
     ED_view3d_grid_steps(state.scene, v3d, rv3d, steps.data());
-    for (int i = 0; i < SI_GRID_STEPS_LEN; ++i) {
+    for (int i : IndexRange(0, SI_GRID_STEPS_LEN)) {
       grid_ubo_.steps[i] = float4(steps[i]);
     }
 
@@ -282,7 +284,7 @@ class Grid : Overlay {
     }
 
     /* Find the lowest relevant grid level + fractional. */
-    for (int i = 0; i < OVERLAY_GRID_STEPS_LEN - 1; i++) {
+    for (int i : IndexRange(0, SI_GRID_STEPS_LEN - 1)) {
       float curr = std::min(grid_ubo_.steps[i].x, grid_ubo_.steps[i].y);
       float next = (i < OVERLAY_GRID_STEPS_LEN - 1) ?
                        std::min(grid_ubo_.steps[i + 1].x, grid_ubo_.steps[i + 1].y) :
@@ -310,7 +312,7 @@ class Grid : Overlay {
     }
 
     /* This suffices for most cases, and in others we fade to hide it. */
-    grid_ubo_.num_lines = 301;
+    grid_ubo_.num_lines = 151;
 
     return true;
   }

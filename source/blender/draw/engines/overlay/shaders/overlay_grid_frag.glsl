@@ -16,8 +16,8 @@ void main()
 {
   /* Base color is a mix of [grid, emphasis] by vertex alpha, which incorporates level
    * and subpixel fades only. */
-  out_color = mix(theme.colors.grid, theme.colors.grid_emphasis, vertex_out.alpha);
-  out_color.a *= vertex_out.alpha;
+  out_color = mix(theme.colors.grid, theme.colors.grid_emphasis, vertex_out_flat.alpha);
+  out_color.a *= vertex_out_flat.alpha;
 
   /* Primary axes colors override base color. */
   if (flag_test(grid_flag, AXIS_X) && reduce_max(abs(vertex_out.pos.yz)) < 1e-4f) {
@@ -55,7 +55,7 @@ void main()
   }
   else {
     /* Fade at edge of grid level in orthographic, in case of rather small units. */
-    if (!flag_test(grid_flag, PLANE_IMAGE)) {
+    if (!flag_test(grid_flag, GRID_SIMA)) {
       float length_fade = 1.0f - min(1.0f, dot(vertex_out.coord, vertex_out.coord));
       out_color.a *= pow2f(length_fade);
     }
@@ -74,6 +74,6 @@ void main()
 
   /* Viewport antialiasing output. */
   if (out_color.a != 0.0f) {
-    line_output = pack_line_data(gl_FragCoord.xy, vertex_out.edge_start, vertex_out.edge_pos);
+    line_output = pack_line_data(gl_FragCoord.xy, edge_start, edge_pos);
   }
 }
