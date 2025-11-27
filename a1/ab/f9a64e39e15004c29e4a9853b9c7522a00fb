@@ -2,3 +2,4 @@ Referenced by issue #145340, 4.5.3 regression - bpy behavior change on evaluated
 Referenced by issue #145295, Crash if not finding the linked data after relocating the library
 Referenced by issue #150638, Crash on relocate linked file
 Referenced by pull request #150702, Fix #150638: Crash on relocate linked file.
+Referenced by commit 6ebe4a10ec7a42f43c0f41f2a6098d085a908a83, Fix #150638: Crash on relocate linked file.
