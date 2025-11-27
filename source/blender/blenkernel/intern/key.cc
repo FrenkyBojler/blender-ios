@@ -836,17 +836,8 @@ static void key_evaluate_relative_mesh(const int vertex_count,
                                        KeyBlock *actkb,
                                        float **per_keyblock_weights)
 {
-  int offset_pointer_size;
-  int pointer_size;
-  int step;
-  const int mode = KEY_MODE_DUMMY;
-  if (!key_pointer_size(key, mode, &pointer_size, &offset_pointer_size, &step)) {
-    return;
-  }
-  /* For meshes the step is always 1. */
-  BLI_assert(step == 1);
-
   /* Step 1: init. */
+  const int mode = KEY_MODE_DUMMY;
   cp_key(0, vertex_count, vertex_count, (char *)basis_key, key, actkb, key->refkey, nullptr, mode);
 
   /* Step 2: do it. */
