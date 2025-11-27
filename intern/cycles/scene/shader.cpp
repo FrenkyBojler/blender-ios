@@ -571,6 +571,10 @@ void ShaderManager::device_update_pre(Device * /*device*/,
           break;
         }
       }
+
+      if (shader->has_volume && shader->volume_step_rate_is_modified()) {
+        dscene->volume_step_size.tag_modified();
+      }
     }
 
     if (shader->reference_count()) {
