@@ -2089,8 +2089,7 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
         continue;
       }
 
-      /* Do `active_handle > rect_frames[1]` to offset every strip on the same channel and right of
-       * the cut. */
+      /* Close gap when start and end of box cut strips. */
       if (box_cuts_left && box_cuts_right) {
         if ((seq::time_left_handle_frame_get(scene, strip) > rect_frames[0]) &&
             strip->channel <= int(box_rect.ymax) && strip->channel >= int(box_rect.ymin))
@@ -2100,6 +2099,7 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
           seq::query_strip_connected_and_effect_chain(scene, strip, &ed->seqbase, offset_strips);
         }
       }
+      /* Ripple strips right of the left box frame. */
       else {
         if (seq::time_right_handle_frame_get(scene, strip) > rect_frames[0] &&
             strip->channel <= int(box_rect.ymax) && strip->channel >= int(box_rect.ymin))
