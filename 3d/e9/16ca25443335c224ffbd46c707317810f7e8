@@ -1,1 +1,2 @@
 Referenced by commit 6bbeac97fd1ba245b80a6d5cc973839d1100ae39, Fix: RNA: Failing assert on console auto-complete
+Referenced by issue #150698, PyAPI: `path_resolve(some_array_custom_prop)` throws silly warning: "expected to be removed in Blender 0.0"
