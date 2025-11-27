@@ -42,7 +42,7 @@ struct OpenXRSessionData {
 
   std::map<std::string, GHOST_XrActionSet> action_sets;
   /* Controller models identified by subaction path. */
-  std::map<std::string, GHOST_XrControllerModel> controller_models;
+  std::map<std::string, GHOST_XrControllerModel *> controller_models;
 
   /* Meta Quest passthrough support. */
   bool passthrough_supported = false;
@@ -76,6 +76,11 @@ GHOST_XrSession::~GHOST_XrSession()
 
   oxr_->swapchains.clear();
   oxr_->action_sets.clear();
+
+  for (auto &[key, model] : oxr_->controller_models) {
+    delete model;
+  }
+  oxr_->controller_models.clear();
 
   if (oxr_->reference_space != XR_NULL_HANDLE) {
     CHECK_XR_ASSERT(xrDestroySpace(oxr_->reference_space));
@@ -954,46 +959,59 @@ void GHOST_XrSession::getActionCustomdataArray(const char *action_set_name,
 
 bool GHOST_XrSession::loadControllerModel(const char *subaction_path)
 {
-  if (!context_->isExtensionEnabled(XR_MSFT_CONTROLLER_MODEL_EXTENSION_NAME)) {
+  if (!context_->isExtensionEnabled(XR_MSFT_CONTROLLER_MODEL_EXTENSION_NAME) ||
+      !context_->isExtensionEnabled(XR_EXT_INTERACTION_RENDER_MODEL_EXTENSION_NAME))
+  {
     return false;
   }
 
+  const bool use_multivendor_extension = context_->isExtensionEnabled(
+      XR_EXT_INTERACTION_RENDER_MODEL_EXTENSION_NAME);
+
   XrSession session = oxr_->session;
-  std::map<std::string, GHOST_XrControllerModel> &controller_models = oxr_->controller_models;
-  std::map<std::string, GHOST_XrControllerModel>::iterator it = controller_models.find(
-      subaction_path);
+  auto &controller_models = oxr_->controller_models;
+  auto it = controller_models.find(subaction_path);
 
   if (it == controller_models.end()) {
     XrInstance instance = context_->getInstance();
-    it = controller_models
-             .emplace(std::piecewise_construct,
-                      std::make_tuple(subaction_path),
-                      std::make_tuple(instance, subaction_path))
-             .first;
+    GHOST_XrControllerModel *model;
+
+    if (use_multivendor_extension) {
+      model = new GHOST_XrControllerModelEXT(instance, oxr_->reference_space);
+    }
+    else {
+      model = new GHOST_XrControllerModelMSFT(instance, subaction_path);
+    }
+
+    controller_models[subaction_path] = model;
+    it = controller_models.find(subaction_path);
   }
 
-  it->second.load(session);
+  /* Load the model, this can be called multiple times. */
+  it->second->load(session);
 
   return true;
 }
 
 void GHOST_XrSession::unloadControllerModel(const char *subaction_path)
 {
-  std::map<std::string, GHOST_XrControllerModel> &controller_models = oxr_->controller_models;
-  /* It's possible nothing is removed. */
-  controller_models.erase(subaction_path);
+  auto &controller_models = oxr_->controller_models;
+  auto it = controller_models.find(subaction_path);
+  if (it != controller_models.end()) {
+    delete it->second;
+    controller_models.erase(it);
+  }
 }
 
 bool GHOST_XrSession::updateControllerModelComponents(const char *subaction_path)
 {
   XrSession session = oxr_->session;
-  std::map<std::string, GHOST_XrControllerModel>::iterator it = oxr_->controller_models.find(
-      subaction_path);
+  auto it = oxr_->controller_models.find(subaction_path);
   if (it == oxr_->controller_models.end()) {
     return false;
   }
 
-  it->second.updateComponents(session);
+  it->second->updateComponents(session, draw_info_->frame_state.predictedDisplayTime);
 
   return true;
 }
@@ -1001,13 +1019,12 @@ bool GHOST_XrSession::updateControllerModelComponents(const char *subaction_path
 bool GHOST_XrSession::getControllerModelData(const char *subaction_path,
                                              GHOST_XrControllerModelData &r_data)
 {
-  std::map<std::string, GHOST_XrControllerModel>::iterator it = oxr_->controller_models.find(
-      subaction_path);
+  auto it = oxr_->controller_models.find(subaction_path);
   if (it == oxr_->controller_models.end()) {
     return false;
   }
 
-  it->second.getData(r_data);
+  it->second->getData(r_data);
 
   return true;
 }

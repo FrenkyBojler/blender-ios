@@ -449,8 +449,21 @@ void GHOST_XrContext::getExtensionsToEnable(
 #endif
   try_ext.push_back(XR_HUAWEI_CONTROLLER_INTERACTION_EXTENSION_NAME);
 
-  /* Controller model extension. */
-  try_ext.push_back(XR_MSFT_CONTROLLER_MODEL_EXTENSION_NAME);
+  /* Controller model extensions. */
+  /* We support two possible controller model extensions: the modern multi-vendor
+   * interaction_render_model and the legacy Microsoft controller_model. */
+  if (openxr_extension_is_available(oxr_->extensions,
+                                    XR_EXT_INTERACTION_RENDER_MODEL_EXTENSION_NAME))
+  {
+    /* Assuming RENDER_MODEL is also supported as it is a dependency of INTERACTION_RENDER_MODEL.
+     */
+    try_ext.push_back(XR_EXT_INTERACTION_RENDER_MODEL_EXTENSION_NAME);
+    try_ext.push_back(XR_EXT_RENDER_MODEL_EXTENSION_NAME);
+  }
+  else {
+    /* Fallback to the old Microsoft extension if the multi-vendor extension isn't available. */
+    try_ext.push_back(XR_MSFT_CONTROLLER_MODEL_EXTENSION_NAME);
+  }
 
   /* Varjo quad view extension. */
   try_ext.push_back(XR_VARJO_QUAD_VIEWS_EXTENSION_NAME);

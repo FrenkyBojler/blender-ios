@@ -369,13 +369,73 @@ static void load_node(const tinygltf::Model &gltf_model,
  *
  * \{ */
 
+static XrInstance g_instance = XR_NULL_HANDLE;
+
+/* Multi-vendor interaction model extension function pointers. */
+static PFN_xrEnumerateInteractionRenderModelIdsEXT g_xrEnumerateInteractionRenderModelIdsEXT =
+    nullptr;
+
+/* Multi-vendor render model extension function pointers. */
+static PFN_xrCreateRenderModelEXT g_xrCreateRenderModelEXT = nullptr;
+static PFN_xrDestroyRenderModelEXT g_xrDestroyRenderModelEXT = nullptr;
+static PFN_xrGetRenderModelPropertiesEXT g_xrGetRenderModelPropertiesEXT = nullptr;
+static PFN_xrCreateRenderModelSpaceEXT g_xrCreateRenderModelSpaceEXT = nullptr;
+static PFN_xrCreateRenderModelAssetEXT g_xrCreateRenderModelAssetEXT = nullptr;
+static PFN_xrDestroyRenderModelAssetEXT g_xrDestroyRenderModelAssetEXT = nullptr;
+static PFN_xrGetRenderModelAssetDataEXT g_xrGetRenderModelAssetDataEXT = nullptr;
+static PFN_xrGetRenderModelAssetPropertiesEXT g_xrGetRenderModelAssetPropertiesEXT = nullptr;
+static PFN_xrGetRenderModelStateEXT g_xrGetRenderModelStateEXT = nullptr;
+
+/* Microsoft Controller Model extension function pointers. */
 static PFN_xrGetControllerModelKeyMSFT g_xrGetControllerModelKeyMSFT = nullptr;
 static PFN_xrLoadControllerModelMSFT g_xrLoadControllerModelMSFT = nullptr;
 static PFN_xrGetControllerModelPropertiesMSFT g_xrGetControllerModelPropertiesMSFT = nullptr;
 static PFN_xrGetControllerModelStateMSFT g_xrGetControllerModelStateMSFT = nullptr;
-static XrInstance g_instance = XR_NULL_HANDLE;
 
-static void init_controller_model_extension_functions(XrInstance instance)
+static void init_controller_model_extension_functions_multi_vendor(XrInstance instance)
+{
+  if (instance != g_instance) {
+    g_instance = instance;
+    g_xrGetControllerModelKeyMSFT = nullptr;
+    g_xrLoadControllerModelMSFT = nullptr;
+    g_xrGetControllerModelPropertiesMSFT = nullptr;
+    g_xrGetControllerModelStateMSFT = nullptr;
+  }
+
+  if (g_xrEnumerateInteractionRenderModelIdsEXT == nullptr) {
+    INIT_EXTENSION_FUNCTION(xrEnumerateInteractionRenderModelIdsEXT);
+  }
+
+  if (g_xrCreateRenderModelEXT == nullptr) {
+    INIT_EXTENSION_FUNCTION(xrCreateRenderModelEXT);
+  }
+  if (g_xrDestroyRenderModelEXT == nullptr) {
+    INIT_EXTENSION_FUNCTION(xrDestroyRenderModelEXT);
+  }
+  if (g_xrGetRenderModelPropertiesEXT == nullptr) {
+    INIT_EXTENSION_FUNCTION(xrGetRenderModelPropertiesEXT);
+  }
+  if (g_xrCreateRenderModelSpaceEXT == nullptr) {
+    INIT_EXTENSION_FUNCTION(xrCreateRenderModelSpaceEXT);
+  }
+  if (g_xrCreateRenderModelAssetEXT == nullptr) {
+    INIT_EXTENSION_FUNCTION(xrCreateRenderModelAssetEXT);
+  }
+  if (g_xrDestroyRenderModelAssetEXT == nullptr) {
+    INIT_EXTENSION_FUNCTION(xrDestroyRenderModelAssetEXT);
+  }
+  if (g_xrGetRenderModelAssetDataEXT == nullptr) {
+    INIT_EXTENSION_FUNCTION(xrGetRenderModelAssetDataEXT);
+  }
+  if (g_xrGetRenderModelAssetPropertiesEXT == nullptr) {
+    INIT_EXTENSION_FUNCTION(xrGetRenderModelAssetPropertiesEXT);
+  }
+  if (g_xrGetRenderModelStateEXT == nullptr) {
+    INIT_EXTENSION_FUNCTION(xrGetRenderModelStateEXT);
+  }
+}
+
+static void init_controller_model_extension_functions_microsoft(XrInstance instance)
 {
   if (instance != g_instance) {
     g_instance = instance;
@@ -402,27 +462,209 @@ static void init_controller_model_extension_functions(XrInstance instance)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name GHOST_XrControllerModel
+/** \name GHOST_XrControllerModelEXT
  *
  * \{ */
 
-GHOST_XrControllerModel::GHOST_XrControllerModel(XrInstance instance,
-                                                 const char *subaction_path_str)
+GHOST_XrControllerModelEXT::GHOST_XrControllerModelEXT(XrInstance instance,
+                                                       XrSpace reference_space)
 {
-  init_controller_model_extension_functions(instance);
+  init_controller_model_extension_functions_multi_vendor(instance);
+  reference_space_ = reference_space;
+}
+
+GHOST_XrControllerModelEXT::~GHOST_XrControllerModelEXT()
+{
+  // TODO: Wait/Clear a possible async loading task here
+  // TODO: Probably also cleanly destroy the RenderModelEXT handles here.
+}
+
+void GHOST_XrControllerModelEXT::load(XrSession session)
+{
+  /* Enumerate the render model IDs. */
+  uint32_t num_models = 0;
+  CHECK_XR(g_xrEnumerateInteractionRenderModelIdsEXT(session, nullptr, 0, &num_models, nullptr),
+           "Failed to obtain interaction render model count.");
+
+  std::vector<XrRenderModelIdEXT> interaction_model_ids{XR_NULL_PATH, num_models};
+  CHECK_XR(g_xrEnumerateInteractionRenderModelIdsEXT(
+               session, nullptr, num_models, &num_models, interaction_model_ids.data()),
+           "Failed to iterate interaction render models.");
+
+  // Create render model handles
+  // TODO: The names of glTF extensions that the application is capable of supporting.
+  // The returned glTF model may have any or all of these extensions listed in
+  // the "extensionsRequired" array.
+  // Pass only the extensions that your app/engine are capable of supporting.
+  std::vector<const char *> appSupportedGltfExtensions{"KHR_texture_basisu",
+                                                       "KHR_materials_specular"};
+
+  /* Create render model handles. */
+  for (XrRenderModelIdEXT id : interaction_model_ids) {
+    XrRenderModelEXT render_model;
+    XrRenderModelCreateInfoEXT render_model_create_info = {XR_TYPE_RENDER_MODEL_CREATE_INFO_EXT};
+
+    render_model_create_info.renderModelId = id;
+
+    render_model_create_info.gltfExtensionCount = (uint32_t)appSupportedGltfExtensions.size();
+    render_model_create_info.gltfExtensions = appSupportedGltfExtensions.data();
+
+    CHECK_XR(g_xrCreateRenderModelEXT(session, &render_model_create_info, &render_model),
+             "Failed to create interaction render model handle.");
+
+    interaction_models_.push_back(render_model);
+  }
+
+  for (XrRenderModelEXT render_model : interaction_models_) {
+    /* Create a space for locating the render model. */
+    XrRenderModelSpaceCreateInfoEXT space_create_info = {
+        XR_TYPE_RENDER_MODEL_SPACE_CREATE_INFO_EXT};
+    space_create_info.renderModel = render_model;
+    XrSpace model_space;
+    CHECK_XR(g_xrCreateRenderModelSpaceEXT(session, &space_create_info, &model_space),
+             "Failed to create interaction render model space.");
+    model_spaces_.push_back(model_space);
+
+    /* Get the model properties: UUID and number of animatable nodes */
+    XrRenderModelPropertiesGetInfoEXT properties_get_info = {
+        XR_TYPE_RENDER_MODEL_PROPERTIES_GET_INFO_EXT};
+    XrRenderModelPropertiesEXT properties = {XR_TYPE_RENDER_MODEL_PROPERTIES_EXT};
+    CHECK_XR(g_xrGetRenderModelPropertiesEXT(render_model, &properties_get_info, &properties),
+             "Failed to obtain interaction render model properties.");
+
+    model_properties_.push_back(properties);
+
+    // TODO: Sub-scopre / function from there on? Async?
+    /* Create the asset handle to request the data. */
+    XrRenderModelAssetCreateInfoEXT asset_create_info = {
+        XR_TYPE_RENDER_MODEL_ASSET_CREATE_INFO_EXT};
+    asset_create_info.cacheId = properties.cacheId;
+    XrRenderModelAssetEXT asset;
+    CHECK_XR(g_xrCreateRenderModelAssetEXT(session, &asset_create_info, &asset),
+             "Failed to create interaction render model asset handle.");
+
+    /* Copy the binary glTF (GLB) asset data using two-call idiom. */
+    XrRenderModelAssetDataGetInfoEXT asset_get_info = {
+        XR_TYPE_RENDER_MODEL_ASSET_DATA_GET_INFO_EXT};
+    XrRenderModelAssetDataEXT asset_data = {XR_TYPE_RENDER_MODEL_ASSET_DATA_EXT};
+    CHECK_XR(g_xrGetRenderModelAssetDataEXT(asset, &asset_get_info, &asset_data),
+             "Failed to obtain interaction render model glTF data size.");
+    std::vector<uint8_t> model_data(asset_data.bufferCountOutput);
+    asset_data.bufferCapacityInput = (uint32_t)model_data.size();
+    asset_data.buffer = model_data.data();
+    CHECK_XR(g_xrGetRenderModelAssetDataEXT(asset, &asset_get_info, &asset_data),
+             "Failed to obtain interaction render model glTF data buffer.");
+
+    // TODO: Parse glTF data.
+
+    /* Get the unique names of the animatable nodes. */
+    XrRenderModelAssetPropertiesGetInfoEXT asset_properties_get_info = {
+        XR_TYPE_RENDER_MODEL_ASSET_PROPERTIES_GET_INFO_EXT};
+    XrRenderModelAssetPropertiesEXT asset_properties = {XR_TYPE_RENDER_MODEL_ASSET_PROPERTIES_EXT};
+    std::vector<XrRenderModelAssetNodePropertiesEXT> node_properties(
+        properties.animatableNodeCount);
+    asset_properties.nodePropertyCount = (uint32_t)node_properties.size();
+    asset_properties.nodeProperties = node_properties.data();
+    CHECK_XR(
+        g_xrGetRenderModelAssetPropertiesEXT(asset, &asset_properties_get_info, &asset_properties),
+        "Failed to obtain interaction render model asset properties.");
+
+    /* Once the glTF data has been handled we no longer need the XrRenderModelAssetEXT handle. */
+    CHECK_XR(g_xrDestroyRenderModelAssetEXT(asset),
+             "Failed to destroy interaction render model asset hanndle.");
+
+    /*
+    Save the list of nodes for rendering. The order of the array matters.
+    The application will store some sort of "reference" to a node for
+    each element, using the node name (in nodeProperties) to find it here.
+    This code is not shown because it will depend on how your
+    application represents glTF assets, so add your own here.
+    */
+
+    for (int i = 0; i < asset_properties.nodePropertyCount; i++) {
+      printf("Node %d - %s", i, asset_properties.nodeProperties[i].uniqueName);
+    }
+  }
+}
+
+void GHOST_XrControllerModelEXT::updateComponents(XrSession /*session*/, XrTime display_time)
+{
+  for (size_t model_idx = 0; model_idx < interaction_models_.size(); ++model_idx) {
+    XrRenderModelEXT render_model = interaction_models_[model_idx];
+    const XrRenderModelPropertiesEXT &model_properties = model_properties_[model_idx];
+    XrSpace model_space = model_spaces_[model_idx];
+
+    /* Locate the interaction model's space. */
+    XrSpaceLocation model_location = {XR_TYPE_SPACE_LOCATION};
+    CHECK_XR(xrLocateSpace(model_space, reference_space_, display_time, &model_location),
+             "Failed to locate interaction render model space.");
+
+    const bool tracked_orientation = (model_location.locationFlags &
+                                      XR_SPACE_LOCATION_ORIENTATION_TRACKED_BIT) != 0;
+    const bool tracked_position = (model_location.locationFlags &
+                                   XR_SPACE_LOCATION_POSITION_TRACKED_BIT) != 0;
+
+    if (!tracked_orientation || !tracked_position) {
+      /* Only render if the model space is tracked, and if the session state is appropriate,
+       * if applicable. (e.g. interaction models are only to be rendered when FOCUSED) */
+
+      // TODO: Flag this model as not-rendered-this-frame in your app-specific way here.
+      continue;
+    }
+
+    XrRenderModelStateGetInfoEXT model_state_get_info = {XR_TYPE_RENDER_MODEL_STATE_GET_INFO_EXT};
+    model_state_get_info.displayTime = display_time;
+
+    // In practice, you do not want to re-allocate this array of
+    // node state every frame, but it is clearer for illustration.
+    // We know the number of elements from the model properties,
+    // and we used the names from the asset handle to find and retain
+    // our app-specific references to those nodes in the model.
+    std::vector<XrRenderModelNodeStateEXT> model_node_states(model_properties.animatableNodeCount);
+
+    XrRenderModelStateEXT model_state = {XR_TYPE_RENDER_MODEL_STATE_EXT};
+
+    model_state.nodeStateCount = (uint32_t)model_node_states.size();
+    model_state.nodeStates = model_node_states.data();
+    CHECK_XR(g_xrGetRenderModelStateEXT(render_model, &model_state_get_info, &model_state),
+             "Failed to obtain interaction render model state.");
+
+    for (size_t i = 0; i < model_node_states.size(); ++i) {
+      /*
+      Use nodeStates[i].isVisible and nodeStates[i].nodePose to update the
+      node's visibility or pose.
+      nodeStates[i] refers to the node identified by name in nodeProperties[i]
+      */
+    }
+
+    /* Your app now has the overall transform and all node transforms/status here. */
+  }
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name GHOST_XrControllerModelMSFT
+ *
+ * \{ */
+
+GHOST_XrControllerModelMSFT::GHOST_XrControllerModelMSFT(XrInstance instance,
+                                                         const char *subaction_path_str)
+{
+  init_controller_model_extension_functions_microsoft(instance);
 
   CHECK_XR(xrStringToPath(instance, subaction_path_str, &subaction_path_),
            (std::string("Failed to get user path \"") + subaction_path_str + "\".").data());
 }
 
-GHOST_XrControllerModel::~GHOST_XrControllerModel()
+GHOST_XrControllerModelMSFT::~GHOST_XrControllerModelMSFT()
 {
   if (load_task_.valid()) {
     load_task_.wait();
   }
 }
 
-void GHOST_XrControllerModel::load(XrSession session)
+void GHOST_XrControllerModelMSFT::load(XrSession session)
 {
   if (data_loaded_ || load_task_.valid()) {
     return;
@@ -436,12 +678,13 @@ void GHOST_XrControllerModel::load(XrSession session)
   if (key_state.modelKey != XR_NULL_CONTROLLER_MODEL_KEY_MSFT) {
     model_key_ = key_state.modelKey;
     /* Load asynchronously. */
+    // TODO: Use BLI_TaskPool instead
     load_task_ = std::async(std::launch::async,
                             [&, session = session]() { return loadControllerModel(session); });
   }
 }
 
-void GHOST_XrControllerModel::loadControllerModel(XrSession session)
+void GHOST_XrControllerModelMSFT::loadControllerModel(XrSession session)
 {
   /* Load binary buffers. */
   uint32_t buf_size = 0;
@@ -526,7 +769,7 @@ void GHOST_XrControllerModel::loadControllerModel(XrSession session)
   data_loaded_ = true;
 }
 
-void GHOST_XrControllerModel::updateComponents(XrSession session)
+void GHOST_XrControllerModelMSFT::updateComponents(XrSession session, XrTime /*display_time*/)
 {
   if (!data_loaded_) {
     return;
@@ -578,7 +821,7 @@ void GHOST_XrControllerModel::updateComponents(XrSession session)
   }
 }
 
-void GHOST_XrControllerModel::getData(GHOST_XrControllerModelData &r_data)
+void GHOST_XrControllerModelMSFT::getData(GHOST_XrControllerModelData &r_data)
 {
   if (data_loaded_) {
     r_data.count_vertices = uint32_t(vertices_.size());
