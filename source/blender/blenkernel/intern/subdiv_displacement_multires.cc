@@ -165,7 +165,7 @@ static void average_construct_tangent_matrix(Subdiv &subdiv,
   float3 dPdu;
   float3 dPdv;
   eval_limit_point_and_derivatives(&subdiv, ptex_face_index, u, v, dummy_P, dPdu, dPdv);
-  BKE_multires_construct_tangent_matrix(r_tangent_matrix, dPdu, dPdv, quad_corner);
+  r_tangent_matrix = BKE_multires_construct_tangent_matrix(dPdu, dPdv, quad_corner);
 }
 
 static void average_read_displacement_tangent(const MultiresDisplacementData &data,
@@ -356,8 +356,7 @@ static void eval_displacement(Displacement *displacement,
   const AverageWith average_with = read_displacement_grid(
       *displacement_grid, grid_size, grid_u, grid_v, tangent_D);
   /* Convert it to the object space. */
-  float3x3 tangent_matrix;
-  BKE_multires_construct_tangent_matrix(tangent_matrix, dPdu, dPdv, corner_of_quad);
+  float3x3 tangent_matrix = BKE_multires_construct_tangent_matrix(dPdu, dPdv, corner_of_quad);
 
   r_D = math::transform_direction(tangent_matrix, tangent_D);
   /* For the boundary points of grid average two (or all) neighbor grids. */

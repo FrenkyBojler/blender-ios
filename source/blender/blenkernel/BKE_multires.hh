@@ -220,10 +220,9 @@ void BKE_multires_subdiv_mesh_settings_init(blender::bke::subdiv::ToMeshSettings
  * Corner needs to be known to properly "rotate" partial derivatives when the
  * matrix is being constructed for quad. For non-quad the corner is to be set to 0.
  */
-BLI_INLINE void BKE_multires_construct_tangent_matrix(blender::float3x3 &tangent_matrix,
-                                                      const blender::float3 &dPdu,
-                                                      const blender::float3 &dPdv,
-                                                      int corner);
+BLI_INLINE blender::float3x3 BKE_multires_construct_tangent_matrix(const blender::float3 &dPdu,
+                                                                   const blender::float3 &dPdv,
+                                                                   int corner);
 
 /* Versioning. */
 

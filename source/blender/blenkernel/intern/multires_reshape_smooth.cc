@@ -1552,7 +1552,7 @@ static void evaluate_higher_tangent_matrices(
                    idx);
 
         /* TODO: Is this corner calculation correct? */
-        BKE_multires_construct_tangent_matrix(tangent_matrix_storage[idx], dPdu, dPdv, corner % 4);
+        tangent_matrix_storage[idx] = BKE_multires_construct_tangent_matrix(dPdu, dPdv, corner % 4);
       });
   BLI_assert(std::all_of(
       tangent_checker.begin(), tangent_checker.end(), [](const bool val) { return val; }));
@@ -1591,7 +1591,7 @@ static void evaluate_reshape_faces(MultiresReshapeSmoothContext *reshape_smooth_
                    P.y,
                    P.z);
         /* TODO: Is this corner calculation correct? */
-        BKE_multires_construct_tangent_matrix(tangent_matrix_storage[idx], dPdu, dPdv, corner % 4);
+        tangent_matrix_storage[idx] = BKE_multires_construct_tangent_matrix(dPdu, dPdv, corner % 4);
         if (idx == bad_vertex_idx) {
           blender::float3x3 tangent_matrix = tangent_matrix_storage[idx];
           CLOG_INFO(&LOG,
@@ -1663,7 +1663,7 @@ static void evaluate_reshape_faces_single_threaded(
                    P.y,
                    P.z);
         /* TODO: Is this corner calculation correct? */
-        BKE_multires_construct_tangent_matrix(tangent_matrix_storage[idx], dPdu, dPdv, corner % 4);
+        tangent_matrix_storage[idx] = BKE_multires_construct_tangent_matrix(dPdu, dPdv, corner % 4);
       });
 
   for (const int i : tagged_elements.index_range()) {
