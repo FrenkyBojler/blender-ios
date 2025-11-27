@@ -291,6 +291,32 @@ class TestPropString(unittest.TestCase):
     # TODO: Add expected failure cases (e.g. handling of too long values, invalid utf8 sequences, etc.).
 
 
+class TestPropByteString(unittest.TestCase):
+    default_value = b""
+    custom_value = b"Blender"
+
+    def setUp(self):
+        id_type.test_byte_string = StringProperty(default=self.default_value.decode(), subtype="BYTE_STRING")
+        # NOTE: get/set is known essentially broken with byte strings properties currently.
+
+    def tearDown(self):
+        del id_type.test_byte_string
+
+    def do_test_access(self, prop_name, py_type, expected_value):
+        v = getattr(id_inst, prop_name)
+        self.assertIsInstance(v, py_type)
+        self.assertEqual(v, expected_value)
+        setattr(id_inst, prop_name, v)
+        v = getattr(id_inst, prop_name)
+        self.assertIsInstance(v, py_type)
+        self.assertEqual(v, expected_value)
+
+    def test_access_byte_string(self):
+        self.do_test_access("test_byte_string", bytes, self.default_value)
+
+    # TODO: Add expected failure cases (e.g. handling of too long values, invalid utf8 sequences, etc.).
+
+
 class TestPropEnum(unittest.TestCase):
     # FIXME: Auto-generated enum values do not play well with partially specifying some values.
     # This won't work, generating (1, 1, 2, 16):
