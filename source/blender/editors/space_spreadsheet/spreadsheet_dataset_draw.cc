@@ -744,7 +744,7 @@ class GeometryDataSetTreeView : public ui::AbstractTreeView {
 
   void build_tree_for_bundle(const nodes::Bundle *bundle, ui::TreeViewItemContainer &parent)
   {
-    const bool has_bundle_items = bundle && !bundle->items().is_empty();
+    const bool has_bundle_items = bundle && !bundle->is_empty();
     auto &bundle_view_item = parent.add_tree_item<GeometryBundleViewItem>(has_bundle_items);
     if (!has_bundle_items) {
       return;
@@ -754,7 +754,7 @@ class GeometryDataSetTreeView : public ui::AbstractTreeView {
 
   void build_bundle_children(const nodes::Bundle &bundle, ui::TreeViewItemContainer &parent)
   {
-    for (const nodes::Bundle::StoredItem &item : bundle.items()) {
+    for (const auto &item : bundle.items()) {
       auto &child_item = parent.add_tree_item<GeometryBundleItemViewItem>(item.key);
       const auto *stored_value = std::get_if<nodes::BundleItemSocketValue>(&item.value.value);
       if (!stored_value) {
@@ -1356,7 +1356,7 @@ class ViewerDataTreeView : public ui::AbstractTreeView {
 
   void build_bundle_children(ui::AbstractTreeViewItem &parent, const nodes::Bundle &bundle)
   {
-    for (const nodes::Bundle::StoredItem &item : bundle.items()) {
+    for (const auto &item : bundle.items()) {
       auto &child_item = parent.add_tree_item<BundleViewerTreeItem>(item.key);
       const auto *stored_value = std::get_if<nodes::BundleItemSocketValue>(&item.value.value);
       if (!stored_value) {
