@@ -756,6 +756,11 @@ def register():
         description="Show extensions by type",
         default='ADDON',
     )
+    WindowManager.tag_repo_filter_enabled = BoolProperty(
+        name="Filter Extensions",
+        description="Filtering extensions by repository and/or tags",
+        default=False,
+    )
     WindowManager.extension_show_panel_installed = BoolProperty(
         name="Show Installed Extensions",
         description="Only show installed extensions",
@@ -766,7 +771,6 @@ def register():
         description="Only show installed extensions",
         default=True,
     )
-
     WindowManager.extension_repo_filter = EnumProperty(
         name="Filter by Repository",
         description="Filter extensions by repository",

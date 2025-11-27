@@ -857,8 +857,9 @@ class ExtensionUI_FilterParams:
         "addons_enabled",
         "active_theme_info",
         "repos_all",
-        "repo_filter",
         # From the window manager.
+        "repo_filter",
+        "tag_repo_filter_enabled",
         "show_installed_enabled",
         "show_installed_disabled",
         "show_available",
@@ -878,6 +879,7 @@ class ExtensionUI_FilterParams:
         active_theme_info,
         repos_all,
         repo_filter,
+        tag_repo_filter_enabled,
         show_installed_enabled,
         show_installed_disabled,
         show_available,
@@ -889,6 +891,7 @@ class ExtensionUI_FilterParams:
         self.active_theme_info = active_theme_info
         self.repos_all = repos_all
         self.repo_filter = repo_filter
+        self.tag_repo_filter_enabled = tag_repo_filter_enabled
         self.show_installed_enabled = show_installed_enabled
         self.show_installed_disabled = show_installed_disabled
         self.show_available = show_available
@@ -934,6 +937,7 @@ class ExtensionUI_FilterParams:
             active_theme_info=active_theme_info,
             repos_all=repos_all,
             repo_filter=wm.extension_repo_filter,
+            tag_repo_filter_enabled=wm.tag_repo_filter_enabled,
             # Extensions don't different between these (add-ons do).
             show_installed_enabled=wm.extension_show_panel_installed,
             show_installed_disabled=wm.extension_show_panel_installed,
@@ -951,9 +955,11 @@ class ExtensionUI_FilterParams:
             pkg_info_check_exclude_filter,
         )
 
-        # Early return if filtering by repository.
-        if self.repo_filter != "_ALL_" and self.repo_filter != self.repos_all[repo_index].module:
-            return
+        # Only check if filtering by tag/repository is enabled.
+        if self.tag_repo_filter_enabled:
+            # Early return if filtering by repository.
+            if self.repo_filter != "_ALL_" and self.repo_filter != self.repos_all[repo_index].module:
+                return
 
         show_addons = self.filter_by_type in {"", "add-on"}
 
@@ -970,9 +976,11 @@ class ExtensionUI_FilterParams:
             if self.search_casefold and (not pkg_info_check_exclude_filter(item, self.search_casefold)):
                 continue
 
-            if self.tags_exclude:
-                if tags_exclude_match(item.tags, self.tags_exclude):
-                    continue
+            # Only check if filtering by tag/repository is enabled.
+            if self.tag_repo_filter_enabled:
+                if self.tags_exclude:
+                    if tags_exclude_match(item.tags, self.tags_exclude):
+                        continue
 
             is_addon = False
             is_theme = False
@@ -1778,8 +1786,8 @@ class USERPREF_PT_addons_tags(Panel):
         tags_panel_draw(self.layout, context, "addon_tags")
 
 
-class USERPREF_PT_extensions_tags(Panel):
-    bl_label = "Extensions Tags"
+class USERPREF_PT_extensions_tag_repo_filter_settings(Panel):
+    bl_label = "Extensions Tags/Repository Filter Settings"
 
     bl_space_type = 'TOPBAR'  # dummy.
     bl_region_type = 'HEADER'
@@ -1787,7 +1795,9 @@ class USERPREF_PT_extensions_tags(Panel):
 
     def draw(self, context):
         layout = self.layout
-        layout.prop(context.window_manager, "extension_repo_filter", text="")
+        wm = context.window_manager
+        layout.enabled = wm.tag_repo_filter_enabled
+        layout.prop(wm, "extension_repo_filter", text="")
         tags_panel_draw(layout, context, "extension_tags")
 
 
@@ -2027,7 +2037,8 @@ def extensions_panel_draw(panel, context):
     row_a.prop(wm, "extension_search", text="", icon='VIEWZOOM', placeholder="Search Extensions")
     row_b = row.row(align=True)
     row_b.prop(wm, "extension_type", text="")
-    row_b.popover("USERPREF_PT_extensions_tags", text="", icon='TAG')
+    row_b.prop(wm, "tag_repo_filter_enabled", text="", icon="FILTER")
+    row_b.popover("USERPREF_PT_extensions_tag_repo_filter_settings", text="", icon='DOWNARROW_HLT')
 
     row_b.separator()
     row_b.popover("USERPREF_PT_extensions_repos", text="Repositories")
@@ -2230,6 +2241,7 @@ def tags_current(wm, tags_attr):
         active_theme_info=active_theme_info,
         repos_all=repos_all,
         repo_filter=wm.extension_repo_filter,
+        tag_repo_filter_enabled=wm.tag_repo_filter_enabled,
         show_installed_enabled=show_installed_enabled,
         show_installed_disabled=show_installed_disabled,
         show_available=show_available,
@@ -2363,8 +2375,7 @@ classes = (
     # Pop-overs.
     USERPREF_PT_addons_tags,
     USERPREF_MT_addons_settings,
-
-    USERPREF_PT_extensions_tags,
+    USERPREF_PT_extensions_tag_repo_filter_settings,
     USERPREF_MT_extensions_settings,
     USERPREF_MT_extensions_item,
     USERPREF_MT_extensions_active_repo_extra,
