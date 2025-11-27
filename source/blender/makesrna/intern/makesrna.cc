@@ -4382,7 +4382,7 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
           prop->arraylength[2],
           prop->totarraylength);
   fprintf(f,
-          "\t%s%s, %d, %s, %s, %s, %s, %s, %s,\n",
+          "\t%s%s, %d, %s, %s, %s, %s, %s, %s, %s,\n",
           /* NOTE: void cast is needed to quiet function cast warning in C++. */
           (prop->flag & PROP_CONTEXT_UPDATE) ? "(UpdateFunc)(void *)" : "",
           rna_function_string(prop->update),
@@ -4390,6 +4390,7 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
           rna_function_string(prop->editable),
           rna_function_string(prop->itemeditable),
           rna_function_string(prop->ui_name_func),
+          rna_function_string(prop->ui_description_func),
           rna_function_string(prop->override_diff),
           rna_function_string(prop->override_store),
           rna_function_string(prop->override_apply));
@@ -4533,7 +4534,7 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
     case PROP_STRING: {
       StringPropertyRNA *sprop = (StringPropertyRNA *)prop;
       fprintf(f,
-              "\t%s, %s, %s, %s, %s, %s, %s, %s, %s, eStringPropertySearchFlag(%d), %s, %d, ",
+              "\t%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, eStringPropertySearchFlag(%d), %s, %d, ",
               rna_function_string(sprop->get),
               rna_function_string(sprop->length),
               rna_function_string(sprop->set),
@@ -4542,6 +4543,7 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
               rna_function_string(sprop->set_ex),
               rna_function_string(sprop->get_transform),
               rna_function_string(sprop->set_transform),
+              rna_function_string(sprop->get_default),
               rna_function_string(sprop->search),
               int(sprop->search_flag),
               rna_function_string(sprop->path_filter),
