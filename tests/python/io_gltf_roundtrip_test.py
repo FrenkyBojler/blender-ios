@@ -24,7 +24,6 @@ def do_gltf_roundtrip(filepath, output_filepath, params_import, params_export):
 
     bpy.ops.import_scene.gltf(filepath=filepath, **params_import)
 
-
     args = {
         # Settings from "Remember Export Settings"
         **dict(bpy.context.scene.get('glTF2ExportSettings', {})),
