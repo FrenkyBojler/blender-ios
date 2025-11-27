@@ -1604,7 +1604,7 @@ static void rna_NodeTree_debug_lazy_function_graph(bNodeTree *tree,
     Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
     tree = DEG_get_evaluated(depsgraph, tree);
   };
-  if (tree->runtime->geometry_nodes_lazy_function_graph_info_mutex.is_dirty()) {
+  if (tree->runtime->geo_nodes_persistent_tree_mutex.is_dirty()) {
     return;
   }
   std::string dot_str = tree->runtime->geometry_nodes_lazy_function_graph_info->graph.to_dot();
@@ -1623,7 +1623,7 @@ static void rna_NodeTree_debug_zone_body_lazy_function_graph(
     Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
     tree = DEG_get_evaluated(depsgraph, tree);
   }
-  if (tree->runtime->geometry_nodes_lazy_function_graph_info_mutex.is_dirty()) {
+  if (tree->runtime->geo_nodes_persistent_tree_mutex.is_dirty()) {
     return;
   }
   const auto *graph = tree->runtime->geometry_nodes_lazy_function_graph_info

@@ -80,22 +80,24 @@ class LazyFunctionForClosureZone : public LazyFunction {
   const ZoneBuildInfo &zone_info_;
   const ZoneBodyFunction &body_fn_;
   std::shared_ptr<ClosureSignature> closure_signature_;
-  /** This is a weak_ptr because otherwise there is a cyclic dependency between the zone and the
-   * node tree that contains it. */
-  std::weak_ptr<const GeometryNodesLazyFunctionGraphInfo> lf_graph_info_;
+  /**
+   * This is a weak_ptr because otherwise there is a cyclic dependency between the zone and the
+   * node tree that contains it.
+   */
+  std::weak_ptr<const bke::GeoNodesPersistentTree> persistent_tree_;
 
  public:
   LazyFunctionForClosureZone(const bNodeTree &btree,
                              const bke::bNodeTreeZone &zone,
                              ZoneBuildInfo &zone_info,
                              const ZoneBodyFunction &body_fn,
-                             std::shared_ptr<GeometryNodesLazyFunctionGraphInfo> &lf_graph_info)
+                             std::shared_ptr<bke::GeoNodesPersistentTree> &persistent_tree)
       : btree_(btree),
         zone_(zone),
         output_bnode_(*zone.output_node()),
         zone_info_(zone_info),
         body_fn_(body_fn),
-        lf_graph_info_(lf_graph_info)
+        persistent_tree_(persistent_tree)
   {
     debug_name_ = "Closure Zone";
 
@@ -239,11 +241,10 @@ class LazyFunctionForClosureZone : public LazyFunction {
     lf_graph.update_node_indices();
 
     /* This is expected to work when the closure is created. */
-    std::shared_ptr<const GeometryNodesLazyFunctionGraphInfo> lf_graph_info =
-        lf_graph_info_.lock();
-    BLI_assert(lf_graph_info);
+    std::shared_ptr<const bke::GeoNodesPersistentTree> persistent_tree = persistent_tree_.lock();
+    BLI_assert(persistent_tree);
     /* The closure has to take ownership of its execution information. */
-    closure_scope->add(std::move(lf_graph_info));
+    closure_scope->add(std::move(persistent_tree));
 
     const auto &side_effect_provider =
         closure_scope->construct<ClosureIntermediateGraphSideEffectProvider>(lf_body_node);
@@ -884,10 +885,10 @@ LazyFunction &build_closure_zone_lazy_function(
     const bke::bNodeTreeZone &zone,
     ZoneBuildInfo &zone_info,
     const ZoneBodyFunction &body_fn,
-    std::shared_ptr<GeometryNodesLazyFunctionGraphInfo> &lf_graph_info)
+    std::shared_ptr<bke::GeoNodesPersistentTree> &persistent_tree)
 {
   return scope.construct<LazyFunctionForClosureZone>(
-      btree, zone, zone_info, body_fn, lf_graph_info);
+      btree, zone, zone_info, body_fn, persistent_tree);
 }
 
 EvaluateClosureFunction build_evaluate_closure_node_lazy_function(ResourceScope &scope,

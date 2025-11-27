@@ -9,6 +9,7 @@
 #pragma once
 
 #include <memory>
+#include <variant>
 
 #include "BLI_cache_mutex.hh"
 #include "BLI_math_vector_types.hh"
@@ -101,6 +102,14 @@ struct NodeLinkKey {
                                   input_link_index_);
 };
 
+class GeoNodesPersistentTree : NonCopyable, NonMovable {
+ public:
+  const bNodeTree &tree;
+
+  GeoNodesPersistentTree(bNodeTree &tree) : tree(tree) {}
+  ~GeoNodesPersistentTree();
+};
+
 struct LoggedZoneGraphs {
   Mutex mutex;
   /**
@@ -185,13 +194,12 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
   blender::Array<nodes::socket_usage_inference::SocketUsage> inferenced_socket_usage;
   CacheMutex inferenced_input_socket_usage_mutex;
 
-  /**
-   * For geometry nodes, a lazy function graph with some additional info is cached. This is used to
-   * evaluate the node group. Caching it here allows us to reuse the preprocessed node tree in case
-   * its used multiple times.
-   */
-  CacheMutex geometry_nodes_lazy_function_graph_info_mutex;
-  std::shared_ptr<const nodes::GeometryNodesLazyFunctionGraphInfo>
+  /** Used by node trees that are owned by the depsgraph. */
+  CacheMutex geo_nodes_persistent_tree_mutex;
+  std::shared_ptr<const GeoNodesPersistentTree> geo_nodes_persistent_tree;
+
+  /** Used by node trees that are persistent copies. */
+  std::unique_ptr<const nodes::GeometryNodesLazyFunctionGraphInfo>
       geometry_nodes_lazy_function_graph_info;
 
   /**

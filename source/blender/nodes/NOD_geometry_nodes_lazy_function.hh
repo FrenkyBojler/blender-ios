@@ -34,6 +34,7 @@
 #include "BLI_multi_value_map.hh"
 
 #include "BKE_bake_items.hh"
+#include "BKE_node_runtime.hh"
 #include "BKE_node_tree_zones.hh"
 
 struct Object;
@@ -413,7 +414,6 @@ struct GeometryNodesLazyFunctionGraphInfo {
    * Contains resources that need to be freed when the graph is not needed anymore.
    */
   ResourceScope scope;
-  const bNodeTree *persistent_tree;
   GeometryNodesGroupFunction function;
   /**
    * The actual lazy-function graph.
@@ -473,8 +473,8 @@ std::optional<FoundNestedNodeID> find_nested_node_id(const GeoNodesUserData &use
  * generated already, nothing is done. Under some circumstances a valid graph cannot be created. In
  * those cases null is returned.
  */
-std::shared_ptr<const GeometryNodesLazyFunctionGraphInfo>
-ensure_geometry_nodes_lazy_function_graph(const bNodeTree &btree);
+const GeometryNodesLazyFunctionGraphInfo *ensure_geometry_nodes_lazy_function_graph(
+    const bNodeTree &btree);
 
 /**
  * Utility to measure the time that is spend in a specific compute context during geometry nodes
@@ -595,7 +595,7 @@ LazyFunction &build_closure_zone_lazy_function(
     const bke::bNodeTreeZone &zone,
     ZoneBuildInfo &zone_info,
     const ZoneBodyFunction &body_fn,
-    std::shared_ptr<GeometryNodesLazyFunctionGraphInfo> &lf_graph_info);
+    std::shared_ptr<bke::GeoNodesPersistentTree> &persistent_tree);
 
 struct EvaluateClosureFunctionIndices {
   struct {
