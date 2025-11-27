@@ -10,6 +10,7 @@
 
 #include "GPU_primitive.hh"
 
+#include "GPU_vertex_format.hh"
 #include "gpu_state_private.hh"
 #include "gpu_texture_private.hh"
 
