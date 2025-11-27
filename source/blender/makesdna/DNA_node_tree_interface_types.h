@@ -75,6 +75,7 @@ typedef enum NodeTreeInterfaceSocketFlag {
    * cleaner UI.
    */
   NODE_INTERFACE_SOCKET_OPTIONAL_LABEL = 1 << 10,
+  NODE_INTERFACE_SOCKET_SELECTED = 1 << 11,
 } NodeTreeInterfaceSocketFlag;
 ENUM_OPERATORS(NodeTreeInterfaceSocketFlag);
 
@@ -156,6 +157,7 @@ typedef enum NodeTreeInterfacePanelFlag {
   NODE_INTERFACE_PANEL_ALLOW_SOCKETS_AFTER_PANELS = 1 << 2,
   /* Whether the panel is collapsed in the node group interface tree view. */
   NODE_INTERFACE_PANEL_IS_COLLAPSED = 1 << 3,
+  NODE_INTERFACE_PANEL_SELECTED = 1<< 4,
 } NodeTreeInterfacePanelFlag;
 ENUM_OPERATORS(NodeTreeInterfacePanelFlag);
 

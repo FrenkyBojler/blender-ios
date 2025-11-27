@@ -131,6 +131,17 @@ class NodeSocketViewItem : public BasicTreeViewItem {
     }
   }
 
+  std::optional<bool> should_be_selected() const override
+  {
+    return socket_.flag & NODE_INTERFACE_SOCKET_SELECTED;
+  }
+
+  void set_selected(const bool select) override
+  {
+    AbstractViewItem::set_selected(select);
+    SET_FLAG_FROM_TEST(socket_.flag, select, NODE_INTERFACE_SOCKET_SELECTED);
+  }
+
  protected:
   bool matches(const AbstractViewItem &other) const override
   {
@@ -167,7 +178,7 @@ class NodeSocketViewItem : public BasicTreeViewItem {
     nodetree_.tree_interface.remove_item(socket_.item);
     BKE_main_ensure_invariants(*bmain, nodetree_.id);
     WM_main_add_notifier(NC_NODE | NA_EDITED, &nodetree_);
-    ED_undo_push(C, "Delete Node Interface Socket");
+    ED_undo_grouped_push(C, "Delete Node Interface Item");
   }
 
   std::unique_ptr<AbstractViewItemDragController> create_drag_controller() const override;
@@ -211,6 +222,17 @@ class NodePanelViewItem : public BasicTreeViewItem {
 
     uiLayout *sub = &row.row(true);
     sub->use_property_decorate_set(false);
+  }
+
+std::optional<bool> should_be_selected() const override
+  {
+    return panel_.flag & NODE_INTERFACE_PANEL_SELECTED;
+  }
+
+  void set_selected(const bool select) override
+  {
+    AbstractViewItem::set_selected(select);
+    SET_FLAG_FROM_TEST(panel_.flag, select, NODE_INTERFACE_PANEL_SELECTED);
   }
 
  protected:
@@ -262,7 +284,7 @@ class NodePanelViewItem : public BasicTreeViewItem {
     nodetree_.tree_interface.remove_item(panel_.item);
     BKE_main_ensure_invariants(*bmain, nodetree_.id);
     WM_main_add_notifier(NC_NODE | NA_EDITED, &nodetree_);
-    ED_undo_push(C, "Delete Node Interface Panel");
+    ED_undo_grouped_push(C, "Delete Node Interface Item");
   }
 
   std::unique_ptr<AbstractViewItemDragController> create_drag_controller() const override;
@@ -586,6 +608,7 @@ void uiTemplateNodeTreeInterface(uiLayout *layout, const bContext *C, PointerRNA
       std::make_unique<blender::ui::nodes::NodeTreeInterfaceView>(nodetree, interface));
   tree_view->set_context_menu_title("Node Tree Interface");
   tree_view->set_default_rows(5);
+  tree_view->allow_multiselect_items();
 
   blender::ui::TreeViewBuilder::build_tree_view(*C, *tree_view, *layout);
 }
