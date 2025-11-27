@@ -2736,7 +2736,6 @@ static bool uvedit_straighten_island(Object *ob, Scene *scene)
     BM_ITER_ELEM (loop, &liter, efa, BM_LOOPS_OF_FACE) {
       if (BM_ELEM_CD_GET_BOOL(loop, offsets.pin)) {
         original_pinned.add(loop);
-        BM_ELEM_CD_SET_BOOL(loop, offsets.pin, false);
       }
       if (BM_elem_flag_test(loop->e, BM_ELEM_SEAM)) {
         original_seams.add(loop->e);
