@@ -97,13 +97,7 @@ class HiZBuffer {
   void swap_layer()
   {
     hiz_tx_.swap();
-    if (front.ref_tx_ == dummy_empty_hiz_tx_) {
-      /* Front layer is undefined. Back layer then also become undefined. */
-      back.ref_tx_ = dummy_empty_hiz_tx_;
-    }
-    else {
-      back.ref_tx_ = hiz_tx_.previous();
-    }
+    back.ref_tx_ = front.ref_tx_;
     front.ref_tx_ = hiz_tx_.current();
     set_dirty();
   }
