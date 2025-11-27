@@ -78,10 +78,7 @@ def print_row(config: api.TestConfig, entries: list, end='\n') -> None:
         output = entry.output
         result = ''
         if status in {'done', 'outdated'} and output:
-            if output['time'] < 0.1:
-                result = '%7.3f ms' % (output['time'] * 1000)
-            else:
-                result = '%7.4f s' % output['time']
+            result = '%7.4f s' % output['time']
 
             if status == 'outdated':
                 result += " (outdated)"
