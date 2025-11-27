@@ -833,10 +833,7 @@ static void cp_cu_key(Curve *cu,
  * Iterate all keyblocks of `key` that need to be evaluated.
  */
 static void foreach_keyblock_for_eval(
-    Key *key,
-    KeyBlock *active_keyblock,
-    const int tot_elem,
-    blender::FunctionRef<void(KeyBlock *, int, KeyBlock *)> callback)
+    Key *key, const int tot_elem, blender::FunctionRef<void(KeyBlock *, int, KeyBlock *)> callback)
 {
   int keyblock_index = 0;
   LISTBASE_FOREACH_INDEX (KeyBlock *, kb, &key->block, keyblock_index) {
@@ -884,8 +881,6 @@ static void key_evaluate_relative_mesh(Key *key,
          nullptr,
          KEY_MODE_DUMMY);
 
-  int keyblock_index = 0;
-
   auto foreach_keyblock = [&](KeyBlock *kb, const int keyblock_index, KeyBlock *refb) {
     const float *weights = per_keyblock_weights ? per_keyblock_weights[keyblock_index] : nullptr;
 
@@ -911,7 +906,7 @@ static void key_evaluate_relative_mesh(Key *key,
     }
   };
 
-  foreach_keyblock_for_eval(key, active_keyblock, vertex_count, foreach_keyblock);
+  foreach_keyblock_for_eval(key, vertex_count, foreach_keyblock);
 }
 
 static void key_evaluate_relative(const int start,
