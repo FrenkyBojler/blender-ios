@@ -2083,7 +2083,7 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
                                                          selected_strips_from_context(C);
     for (Strip *strip : strips) {
       if ((seq::channel_is_locked(seq::channel_get_by_index(channels, strip->channel)) &&
-           ((strip->runtime.flag & STRIP_IGNORE_CHANNEL_LOCK) == 0)) ||
+           !flag_is_set(strip->runtime->flag, seq::StripRuntimeFlag::IgnoreChannelLock)) ||
           strip->flag & SEQ_LOCK)
       {
         continue;
