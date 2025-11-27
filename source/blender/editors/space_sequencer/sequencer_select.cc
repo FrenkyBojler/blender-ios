@@ -1229,7 +1229,7 @@ wmOperatorStatus sequencer_select_exec(bContext *C, wmOperator *op)
       /* There may be fake key on either side of strip. It must be realized. */
       realize_fake_keys(scene, strip_key_owner);
     }
-    
+
     if (key != nullptr) {
       if (!was_retiming) {
         deselect_all_strips(scene);
