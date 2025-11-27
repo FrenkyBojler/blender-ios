@@ -105,6 +105,11 @@ class TestGraph:
 
             if output.find("memory") != -1:
                 formatted_value = '%.2f MB' % (output_value / (1024 * 1024))
+            elif output == "time":
+                if output_value < 0.1:
+                    formatted_value = "%.4fms" % (output_value * 1000)
+                else:
+                    formatted_value = "%.4fs" % output_value
             else:
                 formatted_value = "%.4f" % output_value
 
