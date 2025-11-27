@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
- * \ingroup bke
+ * \ingroup spseq
  */
 
 #include <algorithm>
@@ -59,11 +59,6 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#ifdef WITH_AUDASPACE
-#  include <AUD_Special.h>
-#endif
-
-/* Own include. */
 #include "sequencer_intern.hh"
 
 namespace blender::ed::vse {
@@ -329,8 +324,8 @@ wmOperatorStatus sequencer_clipboard_copy_exec(bContext *C, wmOperator *op)
 
   VectorSet<Strip *> expanded;
   for (Strip *strip : effect_chain) {
-    if (!(strip->flag & SELECT)) {
-      strip->flag |= SELECT;
+    if (!(strip->flag & SEQ_SELECT)) {
+      strip->flag |= SEQ_SELECT;
       expanded.add(strip);
     }
   }
@@ -341,7 +336,7 @@ wmOperatorStatus sequencer_clipboard_copy_exec(bContext *C, wmOperator *op)
   if (!success) {
     BKE_report(op->reports, RPT_ERROR, "Could not create the copy paste file!");
     for (Strip *strip : expanded) {
-      strip->flag &= ~SELECT;
+      strip->flag &= ~SEQ_SELECT;
     }
     return OPERATOR_CANCELLED;
   }

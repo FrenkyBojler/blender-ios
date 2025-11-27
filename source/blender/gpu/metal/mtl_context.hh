@@ -150,14 +150,7 @@ struct MTLContextDepthStencilState {
   /* Depth State. */
   bool depth_write_enable;
   bool depth_test_enabled;
-  float depth_range_near;
-  float depth_range_far;
   MTLCompareFunction depth_function;
-  float depth_bias;
-  float depth_slope_scale;
-  bool depth_bias_enabled_for_points;
-  bool depth_bias_enabled_for_lines;
-  bool depth_bias_enabled_for_tris;
 
   /* Stencil State. */
   bool stencil_test_enabled;
@@ -219,12 +212,9 @@ struct MTLContextDepthStencilState {
   {
     std::size_t boolean_bitmask = (this->depth_write_enable ? 1 : 0) |
                                   ((this->depth_test_enabled ? 1 : 0) << 1) |
-                                  ((this->depth_bias_enabled_for_points ? 1 : 0) << 2) |
-                                  ((this->depth_bias_enabled_for_lines ? 1 : 0) << 3) |
-                                  ((this->depth_bias_enabled_for_tris ? 1 : 0) << 4) |
-                                  ((this->stencil_test_enabled ? 1 : 0) << 5) |
-                                  ((this->has_depth_target ? 1 : 0) << 6) |
-                                  ((this->has_stencil_target ? 1 : 0) << 7);
+                                  ((this->stencil_test_enabled ? 1 : 0) << 2) |
+                                  ((this->has_depth_target ? 1 : 0) << 3) |
+                                  ((this->has_stencil_target ? 1 : 0) << 4);
 
     std::size_t stencilop_bitmask = ((std::size_t)this->stencil_op_front_stencil_fail) |
                                     ((std::size_t)this->stencil_op_front_depth_fail << 3) |
@@ -806,7 +796,7 @@ class MTLContext : public Context {
    * `ensure_render_pipeline_state` will return false if the state is
    * invalid and cannot be applied. This should cancel a draw call. */
   bool ensure_render_pipeline_state(MTLPrimitiveType prim_type);
-  void ensure_depth_stencil_state(MTLPrimitiveType prim_type);
+  void ensure_depth_stencil_state();
 
   id<MTLBuffer> get_null_buffer();
   id<MTLBuffer> get_null_attribute_buffer();

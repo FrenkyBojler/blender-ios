@@ -493,8 +493,10 @@ static void node_foreach_working_space_color(ID *id, const IDTypeForeachColorFun
       else if (socket->type == SOCK_VECTOR && socket->default_value &&
                (STREQ(socket->name, "Subsurface Radius") ||
                 STREQ(socket->name, "Subsurface Radius Scale") ||
-                (node->type_legacy == SH_NODE_SUBSURFACE_SCATTERING &&
-                 STREQ(socket->name, "Radius"))))
+                (STREQ(node->idname, "ShaderNodeSubsurfaceScattering") &&
+                 STREQ(socket->name, "Radius")) ||
+                (STREQ(node->idname, "ShaderNodeBsdfMetallic") &&
+                 (STREQ(socket->name, "IOR") || STREQ(socket->name, "Extinction")))))
       {
         bNodeSocketValueVector *vec = static_cast<bNodeSocketValueVector *>(socket->default_value);
         float length;
@@ -3490,12 +3492,10 @@ bNode *node_add_node(const bContext *C,
     node_unique_id(ntree, *node);
   }
   node->ui_order = ntree.all_nodes().size();
-
   idname.copy_utf8_truncated(node->idname);
-  node_set_typeinfo(C, &ntree, node, node_type_find(idname));
 
   BKE_ntree_update_tag_node_new(&ntree, node);
-
+  node_set_typeinfo(C, &ntree, node, node_type_find(idname));
   return node;
 }
 

@@ -239,43 +239,20 @@ struct ExtractionGraph {
  public:
   TaskGraph *graph = BLI_task_graph_create();
 
- private:
-  /* WORKAROUND: BLI_gset_free is not allowing to pass a data pointer to the free function. */
-  static thread_local TaskGraph *task_graph_ptr_;
-
- public:
   ~ExtractionGraph()
   {
     BLI_assert_msg(graph == nullptr, "Missing call to work_and_wait");
   }
 
-  /* `delayed_extraction` is a set of object to add to the graph before running.
-   * The non-null, the set is consumed and freed after use. */
-  void work_and_wait(GSet *&delayed_extraction)
+  void work_and_wait()
   {
     BLI_assert_msg(graph, "Trying to submit more than once");
-
-    if (delayed_extraction) {
-      task_graph_ptr_ = graph;
-      BLI_gset_free(delayed_extraction, delayed_extraction_free_callback);
-      task_graph_ptr_ = nullptr;
-      delayed_extraction = nullptr;
-    }
 
     BLI_task_graph_work_and_wait(graph);
     BLI_task_graph_free(graph);
     graph = nullptr;
   }
-
- private:
-  static void delayed_extraction_free_callback(void *object)
-  {
-    blender::draw::drw_batch_cache_generate_requested_evaluated_mesh_or_curve(
-        reinterpret_cast<Object *>(object), *task_graph_ptr_);
-  }
 };
-
-thread_local TaskGraph *ExtractionGraph::task_graph_ptr_ = nullptr;
 
 /** \} */
 
@@ -1001,13 +978,21 @@ void DRWContext::sync(iter_callback_t iter_callback)
   iter_callback(dupli_handler, extraction);
 
   dupli_handler.extract_all(extraction);
-  extraction.work_and_wait(this->delayed_extraction);
+  for (Object *object : this->delayed_extraction) {
+    blender::draw::drw_batch_cache_generate_requested_evaluated_mesh_or_curve(object,
+                                                                              *extraction.graph);
+  }
+  this->delayed_extraction.clear();
+
+  extraction.work_and_wait();
 
   DRW_curves_update(*view_data_active->manager);
 }
 
 void DRWContext::engines_init_and_sync(iter_callback_t iter_callback)
 {
+  double start_time = BLI_time_now_seconds();
+
   view_data_active->foreach_enabled_engine([&](DrawEngine &instance) { instance.init(); });
 
   view_data_active->manager->begin_sync(this->obact);
@@ -1019,10 +1004,13 @@ void DRWContext::engines_init_and_sync(iter_callback_t iter_callback)
   view_data_active->foreach_enabled_engine([&](DrawEngine &instance) { instance.end_sync(); });
 
   view_data_active->manager->end_sync();
+
+  last_sync_time_ = float(BLI_time_now_seconds() - start_time);
 }
 
 void DRWContext::engines_draw_scene()
 {
+  double start_time = BLI_time_now_seconds();
   /* Start Drawing */
   blender::draw::command::StateSet::set();
 
@@ -1045,6 +1033,8 @@ void DRWContext::engines_draw_scene()
   if (GPU_type_matches_ex(GPU_DEVICE_ANY, GPU_OS_ANY, GPU_DRIVER_ANY, GPU_BACKEND_OPENGL)) {
     GPU_flush();
   }
+
+  last_submission_time_ = float(BLI_time_now_seconds() - start_time);
 }
 
 void DRW_draw_region_engine_info(int xoffset, int *yoffset, int line_height)
@@ -1518,6 +1508,7 @@ void DRW_draw_view(const bContext *C)
 {
   Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
   ARegion *region = CTX_wm_region(C);
+  View3D *v3d = CTX_wm_view3d(C);
   GPUViewport *viewport = WM_draw_region_get_bound_viewport(region);
 
   DRWContext draw_ctx(DRWContext::VIEWPORT, depsgraph, viewport, C);
@@ -1535,7 +1526,10 @@ void DRW_draw_view(const bContext *C)
   else {
     drw_draw_render_loop_2d(draw_ctx);
   }
-
+  if (v3d) {
+    v3d->runtime.last_sync_time = draw_ctx.last_sync_time();
+    v3d->runtime.last_submission_time = draw_ctx.last_submission_time();
+  }
   draw_ctx.release_data();
 }
 
