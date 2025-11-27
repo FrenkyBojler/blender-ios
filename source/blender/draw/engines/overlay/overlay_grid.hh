@@ -73,16 +73,15 @@ class Grid : Overlay {
       sub.shader_set(res.shaders->grid.get());
       sub.state_set(ps_draw_state | DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_WRITE_DEPTH);
       sub.bind_ubo("grid_buf", &grid_ubo_);
+      sub.push_constant("grid_offs", &grid_offs_);
 
       if (axis_flag_) {
-        sub.push_constant("grid_offs", float2(0.0f));
         sub.push_constant("grid_flag", &axis_flag_);
         sub.draw_procedural(GPUPrimType::GPU_PRIM_LINES, -1, 6, 0);
       }
 
       if (grid_flag_) {
         const uint verts_count = 4 * OVERLAY_GRID_STEPS_DRAW * grid_ubo_.num_lines;
-        sub.push_constant("grid_offs", &grid_offs_);
         sub.push_constant("grid_flag", &grid_flag_);
         sub.draw_procedural(GPUPrimType::GPU_PRIM_LINES, -1, verts_count, 0);
       }

@@ -79,10 +79,12 @@ void main()
     return; /* Discard line. */
   }
 
-  /* Compute per-level size, camera offset for lines. Note that offset is rounded to the nearest
-   * level-dependent line position. */
+  /* Compute per-level size, camera offset for lines. Offset is rounded to the nearest
+   * level-dependent line position for  grid, while axes simply move with the camera. */
   float step_size = grid_buf.steps[level][line.axis];
-  float2 step_offs = round(grid_offs / step_size) * step_size;
+  float2 step_offs = flag_test(grid_flag, SHOW_GRID) /* !SHOW_AXES */
+    ? round(grid_offs / step_size) * step_size
+    : float2(drw_view_position()[line.axis], 0.0f);
 
   /* Output vertex position in [-1,1], which we use to fade level boundaries. */
   vertex_out.coord = line.P / max(float(grid_buf.num_lines >> 1), 1.0f);
@@ -139,7 +141,6 @@ void main()
     }
     else { /* GRID_SIMA */
       vertex_out.pos.xy = line.P * 0.5f + 0.5f;
-
       /* Set z to place the grid over/under image, and always under the UV mesh. 
        * See `overlay_edit_uv_edges_vert.glsl` for the full z-sorder. */
       vertex_out.pos.z = flag_test(grid_flag, GRID_OVER) ? 0.74f : 0.76f;
