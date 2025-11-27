@@ -16,6 +16,7 @@
 
 #include "DNA_world_types.h"
 
+#include "GPU_vertex_format.hh"
 #include "gpu_shader_create_info.hh"
 
 #include "eevee_shader.hh"
@@ -26,6 +27,44 @@
 #include "BLI_math_bits.h"
 
 namespace blender::eevee {
+
+static gpu::VertAttrType to_vert_attr_type(const gpu::shader::Type shader_type)
+{
+  /* Cannot use EXPEND macros due to type meaning cpp_type and not shader type.
+   * TODO: should we add shader::Type there as well? */
+  switch (shader_type) {
+    case gpu::shader::Type::float_t:
+      return gpu::VertAttrType::SFLOAT_32;
+    case gpu::shader::Type::float2_t:
+      return gpu::VertAttrType::SFLOAT_32_32;
+    case gpu::shader::Type::float3_t:
+      return gpu::VertAttrType::SFLOAT_32_32_32;
+    case gpu::shader::Type::float4_t:
+      return gpu::VertAttrType::SFLOAT_32_32_32_32;
+    case gpu::shader::Type::uint_t:
+      return gpu::VertAttrType::UINT_32;
+    case gpu::shader::Type::uint2_t:
+      return gpu::VertAttrType::UINT_32_32;
+    case gpu::shader::Type::uint3_t:
+      return gpu::VertAttrType::UINT_32_32_32;
+    case gpu::shader::Type::uint4_t:
+      return gpu::VertAttrType::UINT_32_32_32_32;
+    case gpu::shader::Type::int_t:
+      return gpu::VertAttrType::SINT_32;
+    case gpu::shader::Type::int2_t:
+      return gpu::VertAttrType::SINT_32_32;
+    case gpu::shader::Type::int3_t:
+      return gpu::VertAttrType::SINT_32_32_32;
+    case gpu::shader::Type::int4_t:
+      return gpu::VertAttrType::SINT_32_32_32_32;
+    case gpu::shader::Type::bool_t:
+      return gpu::VertAttrType::UINT_32;
+    default:
+      BLI_assert_unreachable();
+      return gpu::VertAttrType::Invalid;
+  }
+  return gpu::VertAttrType::Invalid;
+}
 
 /* -------------------------------------------------------------------- */
 /** \name Module
@@ -1281,6 +1320,7 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
     case MAT_GEOM_WORLD:
       switch (pipeline_type) {
         case MAT_PIPE_VOLUME_MATERIAL:
+          /* World Volume Pipeline */
           info.pipeline_state()
               .primitive(GPU_PRIM_TRIS)
               .state(GPU_WRITE_COLOR,
@@ -1323,6 +1363,46 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
               .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
               .color_format(gpu::TextureTargetFormat::SFLOAT_16_16_16_16);
           ;
+          break;
+      }
+      break;
+
+    case MAT_GEOM_MESH:
+      switch (pipeline_type) {
+        case MAT_PIPE_PREPASS_DEFERRED: {
+          /* DeferredLayer pipeline. */
+          info.pipeline_state()
+              .primitive(GPU_PRIM_TRIS)
+              /* pos uses vbo 1, bound to location 0. Current implementation in Vulkan control
+               * flow favor the order of VBOs. This should be refactored to prefer the order
+               * of attributes. */
+              .vertex_input(1, 0, gpu::VertAttrType::SNORM_10_10_10_2, 0, 4) /* nor */
+              .vertex_input(0, 1, gpu::VertAttrType::SFLOAT_32_32_32, 0, 12) /* pos */
+              .state(GPU_WRITE_DEPTH | GPU_WRITE_STENCIL,
+                     GPU_BLEND_NONE,
+                     GPU_CULL_NONE,
+                     GPU_DEPTH_GREATER_EQUAL,
+                     GPU_STENCIL_ALWAYS,
+                     GPU_STENCIL_OP_REPLACE,
+                     GPU_VERTEX_LAST)
+              .viewports(1)
+              .depth_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
+              .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
+              .color_format(gpu::TextureTargetFormat::SFLOAT_16_16);
+#if 0
+          /* This doesn't work as the vertex_inputs_ aren't populated yet. That is only done after
+           * finalize where these are merged. So we should try to extract them from the shader mat with some defaults (pos/nor)*/
+          for (int index : info.vertex_inputs_.index_range()) {
+            const ShaderCreateInfo::VertIn &vertex_input = info.vertex_inputs_[index];
+            const GPUVertAttr::Type vert_attr_type = {to_vert_attr_type(vertex_input.type)};
+            pipeline.vertex_input(index, index, vert_attr_type.format, 0, vert_attr_type.size());
+          }
+#endif
+
+          break;
+        }
+
+        default:
           break;
       }
       break;
