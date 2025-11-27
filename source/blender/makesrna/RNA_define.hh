@@ -543,22 +543,39 @@ void RNA_def_property_poll_runtime(PropertyRNA *prop, const void *func);
 
 void RNA_def_property_dynamic_array_funcs(PropertyRNA *prop, const char *getlength);
 void RNA_def_property_boolean_funcs(PropertyRNA *prop, const char *get, const char *set);
+void RNA_def_property_boolean_funcs_ex(PropertyRNA *prop, const char *get, const char *set);
 void RNA_def_property_int_funcs(PropertyRNA *prop,
                                 const char *get,
                                 const char *set,
                                 const char *range);
+void RNA_def_property_int_funcs_ex(PropertyRNA *prop,
+                                   const char *get,
+                                   const char *set,
+                                   const char *range);
 void RNA_def_property_float_funcs(PropertyRNA *prop,
                                   const char *get,
                                   const char *set,
                                   const char *range);
+void RNA_def_property_float_funcs_ex(PropertyRNA *prop,
+                                     const char *get,
+                                     const char *set,
+                                     const char *range);
 void RNA_def_property_enum_funcs(PropertyRNA *prop,
                                  const char *get,
                                  const char *set,
                                  const char *item);
+void RNA_def_property_enum_funcs_ex(PropertyRNA *prop,
+                                    const char *get,
+                                    const char *set,
+                                    const char *item);
 void RNA_def_property_string_funcs(PropertyRNA *prop,
                                    const char *get,
                                    const char *length,
                                    const char *set);
+void RNA_def_property_string_funcs_ex(PropertyRNA *prop,
+                                      const char *get,
+                                      const char *length,
+                                      const char *set);
 void RNA_def_property_string_search_func(PropertyRNA *prop,
                                          const char *search,
                                          eStringPropertySearchFlag search_flag);
