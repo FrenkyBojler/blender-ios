@@ -135,7 +135,15 @@ bool BM_vert_splice(BMesh *bm, BMVert *v_dst, BMVert *v_src);
  *
  * \note assume caller will handle case where verts share an edge.
  */
-bool BM_vert_splice_check_double(BMVert *v_a, BMVert *v_b);
+bool BM_vert_splice_check_double_edge(BMVert *v_a, BMVert *v_b);
+/**
+ * Check if splicing vertices would create any double faces.
+ */
+bool BM_vert_splice_check_double_face(BMVert *v_a, BMVert *v_b);
+/**
+ * Check if collapsing `v_collapse`.would create duplicate faces.
+ */
+bool BM_vert_collapse_check_double_face(BMVert *v_collapse);
 
 /**
  * \brief Loop Reverse

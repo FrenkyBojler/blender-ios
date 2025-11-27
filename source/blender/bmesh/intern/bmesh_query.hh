@@ -223,6 +223,10 @@ BMFace *BM_vert_pair_shared_face_cb(BMVert *v_a,
                                     void *user_data,
                                     BMLoop **r_l_a,
                                     BMLoop **r_l_b) ATTR_NONNULL(1, 2, 4, 6, 7);
+
+[[nodiscard]] bool BM_vert_splice_duplciate_face_check(BMVert *v_src, BMVert *v_dst)
+    ATTR_NONNULL(1, 2);
+
 /**
  * Given 2 verts, find the smallest face they share and give back both loops.
  */
