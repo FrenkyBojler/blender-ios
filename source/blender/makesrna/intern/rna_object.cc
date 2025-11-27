@@ -3179,11 +3179,7 @@ static void rna_def_object(BlenderRNA *brna)
   RNA_def_property_override_clear_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
   RNA_def_property_float_funcs_ex(prop, "rna_Object_dimensions_get_ex", "rna_Object_dimensions_set_ex", nullptr);
   RNA_def_property_ui_range(prop, 0.0f, FLT_MAX, 1, RNA_TRANSLATION_PREC_DEFAULT);
-  RNA_def_property_ui_text(prop,
-                           "Dimensions",
-                           "Absolute bounding box dimensions of the object.\n"
-                           "Warning: Assigning to it or its members multiple consecutive times "
-                           "will not work correctly, as this needs up-to-date evaluated data");
+  RNA_def_property_ui_text(prop, "Dimensions", "Absolute bounding box dimensions of the object.");
   RNA_def_property_update(prop, NC_OBJECT | ND_TRANSFORM, "rna_Object_internal_update");
 
   /* delta transforms */
