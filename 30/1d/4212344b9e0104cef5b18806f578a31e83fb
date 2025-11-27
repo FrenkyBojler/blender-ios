@@ -1,2 +1,3 @@
 Referenced by issue #140905, Brush assets broken
 Referenced by issue #150416, Can no longer save PointerProperty to AssetMetaData in Blender 5.0
+Referenced by pull request #150713, Assets: Add second IDProps to MetaData, to support py-defined RNA data.
