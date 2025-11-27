@@ -641,6 +641,9 @@ void GHOST_XrControllerModelEXT::updateComponents(XrSession /*session*/, XrTime 
   }
 }
 
+void GHOST_XrControllerModelEXT::getData(GHOST_XrControllerModelData &r_data) {
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
