@@ -713,6 +713,7 @@ if((WITH_CYCLES OR WITH_GPU_RENDER_TESTS) AND TEST_SRC_DIR_EXISTS)
     pointcloud
     principled_bsdf
     shader
+    shadow
     shadow_catcher
     sss
     texture
@@ -977,6 +978,7 @@ if(TEST_SRC_DIR_EXISTS)
     texture
     utilities
     vector
+    group
 
     pixel_nodes
     multiple_node_setups
@@ -1013,6 +1015,7 @@ if(WITH_GPU_COMPOSITOR_TESTS AND TEST_SRC_DIR_EXISTS)
     texture
     utilities
     vector
+    group
 
     pixel_nodes
     multiple_node_setups
