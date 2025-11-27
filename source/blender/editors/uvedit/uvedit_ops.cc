@@ -2761,8 +2761,8 @@ static bool uvedit_straighten_island(Object *ob, Scene *scene)
     INIT_MINMAX2(min, max);
     for (int j = 0; j < element_map->island_total_uvs[i]; j++) {
       float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
-      minmax_v2v2_v2(min, max, luv);
       if (original_selected.contains(element[j].l)) {
+        minmax_v2v2_v2(min, max, luv);
         selected_island[i] = true;
       }
     }
