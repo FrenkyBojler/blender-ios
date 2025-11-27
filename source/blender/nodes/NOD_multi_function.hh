@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include "BKE_node_runtime.hh"
+
 #include "FN_multi_function.hh"
 
 #include "DNA_node_types.h"
@@ -21,11 +23,15 @@ class NodeMultiFunctionBuilder : NonCopyable, NonMovable {
   const bNodeTree &tree_;
   std::shared_ptr<mf::MultiFunction> owned_built_fn_;
   const mf::MultiFunction *built_fn_ = nullptr;
+  std::shared_ptr<const bke::GeoNodesPersistentTree> persistent_tree_;
 
   friend NodeMultiFunctions;
 
  public:
-  NodeMultiFunctionBuilder(const bNode &node, const bNodeTree &tree);
+  NodeMultiFunctionBuilder(
+      const bNode &node,
+      const bNodeTree &tree,
+      std::shared_ptr<const bke::GeoNodesPersistentTree> persistent_tree = nullptr);
 
   /**
    * Assign a multi-function for the current node. The input and output parameters of the function
@@ -51,6 +57,11 @@ class NodeMultiFunctionBuilder : NonCopyable, NonMovable {
   const bNode &node();
   const bNodeTree &tree();
   const mf::MultiFunction &function();
+
+  const std::shared_ptr<const bke::GeoNodesPersistentTree> &persistent_tree() const
+  {
+    return persistent_tree_;
+  }
 };
 
 /**
@@ -67,7 +78,8 @@ class NodeMultiFunctions {
   Map<const bNode *, Item> map_;
 
  public:
-  NodeMultiFunctions(const bNodeTree &tree);
+  NodeMultiFunctions(const bNodeTree &tree,
+                     const std::shared_ptr<const bke::GeoNodesPersistentTree> &persistent_tree);
 
   const Item &try_get(const bNode &node) const;
 };
@@ -76,8 +88,11 @@ class NodeMultiFunctions {
 /** \name #NodeMultiFunctionBuilder Inline Methods
  * \{ */
 
-inline NodeMultiFunctionBuilder::NodeMultiFunctionBuilder(const bNode &node, const bNodeTree &tree)
-    : node_(node), tree_(tree)
+inline NodeMultiFunctionBuilder::NodeMultiFunctionBuilder(
+    const bNode &node,
+    const bNodeTree &tree,
+    std::shared_ptr<const bke::GeoNodesPersistentTree> persistent_tree)
+    : node_(node), tree_(tree), persistent_tree_(std::move(persistent_tree))
 {
 }
 
