@@ -952,7 +952,7 @@ class ExtensionUI_FilterParams:
         )
 
         # Early return if filtering by repository.
-        if self.repo_filter != "_ALL_" and self.repo_filter != self.repos_all[repo_index].name:
+        if self.repo_filter != "_ALL_" and self.repo_filter != self.repos_all[repo_index].module:
             return
 
         show_addons = self.filter_by_type in {"", "add-on"}

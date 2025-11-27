@@ -698,7 +698,7 @@ def get_extension_repo_filter_items(self, context):
     repo_enum = []
     repo_enum.append(('_ALL_', "All Repositories", "Show extensions from all repositories"))
     for repo in repos:
-        repo_enum.append((repo.name, repo.name, f"Only show extensions from '{repo.name}'"))
+        repo_enum.append((repo.module, repo.name, f"Only show extensions from '{repo.name}'"))
 
     return repo_enum
 
