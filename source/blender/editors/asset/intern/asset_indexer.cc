@@ -88,6 +88,7 @@ constexpr StringRef ATTRIBUTE_ENTRIES_COPYRIGHT("copyright");
 constexpr StringRef ATTRIBUTE_ENTRIES_LICENSE("license");
 constexpr StringRef ATTRIBUTE_ENTRIES_TAGS("tags");
 constexpr StringRef ATTRIBUTE_ENTRIES_PROPERTIES("properties");
+constexpr StringRef ATTRIBUTE_ENTRIES_SYSTEM_PROPERTIES("system_properties");
 
 /** Abstract class for #BlendFile and #AssetIndexFile. */
 class AbstractFile {
@@ -186,6 +187,11 @@ static void init_value_from_file_indexer_entry(DictionaryValue &result,
       result.append(ATTRIBUTE_ENTRIES_PROPERTIES, std::move(value));
     }
   }
+  if (const IDProperty *system_properties = asset_data.system_properties) {
+    if (std::unique_ptr<Value> value = convert_to_serialize_values(system_properties)) {
+      result.append(ATTRIBUTE_ENTRIES_SYSTEM_PROPERTIES, std::move(value));
+    }
+  }
 }
 
 static void init_value_from_file_indexer_entries(DictionaryValue &result,
@@ -252,6 +258,9 @@ static void init_indexer_entry_from_value(FileIndexerEntry &indexer_entry,
 
   if (const std::shared_ptr<Value> *value = entry.lookup(ATTRIBUTE_ENTRIES_PROPERTIES)) {
     asset_data->properties = convert_from_serialize_value(**value);
+  }
+  if (const std::shared_ptr<Value> *value = entry.lookup(ATTRIBUTE_ENTRIES_SYSTEM_PROPERTIES)) {
+    asset_data->system_properties = convert_from_serialize_value(**value);
   }
 }
 

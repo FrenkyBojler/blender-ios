@@ -49,12 +49,16 @@ AssetMetaData *BKE_asset_metadata_copy(const AssetMetaData *source)
 AssetMetaData::AssetMetaData(const AssetMetaData &other)
     : local_type_info(other.local_type_info),
       properties(nullptr),
+      system_properties(nullptr),
       catalog_id(other.catalog_id),
       active_tag(other.active_tag),
       tot_tags(other.tot_tags)
 {
   if (other.properties) {
     properties = IDP_CopyProperty(other.properties);
+  }
+  if (other.system_properties) {
+    system_properties = IDP_CopyProperty(other.system_properties);
   }
 
   STRNCPY(catalog_simple_name, other.catalog_simple_name);
@@ -70,6 +74,7 @@ AssetMetaData::AssetMetaData(const AssetMetaData &other)
 AssetMetaData::AssetMetaData(AssetMetaData &&other)
     : local_type_info(other.local_type_info),
       properties(std::exchange(other.properties, nullptr)),
+      system_properties(std::exchange(other.system_properties, nullptr)),
       catalog_id(other.catalog_id),
       author(std::exchange(other.author, nullptr)),
       description(std::exchange(other.description, nullptr)),
@@ -87,6 +92,9 @@ AssetMetaData::~AssetMetaData()
 {
   if (properties) {
     IDP_FreeProperty(properties);
+  }
+  if (system_properties) {
+    IDP_FreeProperty(system_properties);
   }
   MEM_SAFE_FREE(author);
   MEM_SAFE_FREE(description);
@@ -184,6 +192,8 @@ IDProperty *BKE_asset_metadata_idprop_find(const AssetMetaData *asset_data, cons
   return IDP_GetPropertyFromGroup(asset_data->properties, name);
 }
 
+/* Note: For the time being, `BKE_asset_metadata_idprop` API fully ignores `system_properties`. */
+
 /* Queries -------------------------------------------- */
 
 PreviewImage *BKE_asset_metadata_preview_get_from_id(const AssetMetaData * /*asset_data*/,
@@ -200,6 +210,9 @@ void BKE_asset_metadata_write(BlendWriter *writer, AssetMetaData *asset_data)
 
   if (asset_data->properties) {
     IDP_BlendWrite(writer, asset_data->properties);
+  }
+  if (asset_data->system_properties) {
+    IDP_BlendWrite(writer, asset_data->system_properties);
   }
 
   BLO_write_string(writer, asset_data->author);
@@ -220,6 +233,10 @@ void BKE_asset_metadata_read(BlendDataReader *reader, AssetMetaData *asset_data)
   if (asset_data->properties) {
     BLO_read_struct(reader, IDProperty, &asset_data->properties);
     IDP_BlendDataRead(reader, &asset_data->properties);
+  }
+  if (asset_data->system_properties) {
+    BLO_read_struct(reader, IDProperty, &asset_data->system_properties);
+    IDP_BlendDataRead(reader, &asset_data->system_properties);
   }
 
   BLO_read_string(reader, &asset_data->author);

@@ -174,6 +174,12 @@ static IDProperty **rna_AssetMetaData_idprops(PointerRNA *ptr)
   return &asset_data->properties;
 }
 
+static IDProperty **rna_AssetMetaData_system_idprops(PointerRNA *ptr)
+{
+  AssetMetaData *asset_data = static_cast<AssetMetaData *>(ptr->data);
+  return &asset_data->system_properties;
+}
+
 static void rna_AssetMetaData_author_get(PointerRNA *ptr, char *value)
 {
   AssetMetaData *asset_data = static_cast<AssetMetaData *>(ptr->data);
@@ -525,13 +531,17 @@ static void rna_def_asset_data(BlenderRNA *brna)
   RNA_def_struct_ui_text(srna, "Asset Data", "Additional data stored for an asset data-block");
   //  RNA_def_struct_ui_icon(srna, ICON_ASSET); /* TODO: Icon doesn't exist! */
   /* The struct has custom properties, but no pointer properties to other IDs! */
-  /* FIXME: These need to remain 'user-defined' properties for now, as they are _not_ accessible
-   * through RNA system.
-   * Current situation is not great, as these idprops are technically system-defined (users have no
-   * access/control over them), yet they behave as user-defined ones.
-   * Ultimately it's a similar issue as with the 'Node Modifier' - though not sure the same
-   * solution (actually using RNA access to them) would be desired here?. */
+  /* FIXME: Currently both 'user-defined' and 'system-defined' properties are necessary for now, as
+   * 'default' ones (Blender-defined) are _not_ accessible through RNA system, while some addons
+   * may extend these asset meta-data with custom sub-classes, which do require runtime RNA
+   * handling.
+   *
+   * Current situation is not great, as all of these idprops are technically system-defined (users
+   * have no access/control over them), yet they behave as user-defined ones. Ultimately it's a
+   * similar issue as with the 'Node Modifier' - though not sure the same solution (actually using
+   * RNA access to them) would be desired here?. */
   RNA_def_struct_idprops_func(srna, "rna_AssetMetaData_idprops");
+  RNA_def_struct_system_idprops_func(srna, "rna_AssetMetaData_system_idprops");
   RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES); /* Mandatory! */
 
   prop = RNA_def_property(srna, "author", PROP_STRING, PROP_NONE);

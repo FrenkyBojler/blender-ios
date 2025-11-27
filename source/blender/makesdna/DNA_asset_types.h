@@ -50,6 +50,12 @@ typedef struct AssetMetaData {
   struct IDProperty *properties;
 
   /**
+   * For runtime-defined RNA data storage of Python-sub-classsed asset meta-data and Python-defined
+   * properties. Cannot store pointers to IDs (#STRUCT_NO_DATABLOCK_IDPROPERTIES)!
+   */
+  struct IDProperty *system_properties;
+
+  /**
    * Asset Catalog identifier. Should not contain spaces.
    * Mapped to a path in the asset catalog hierarchy by an #AssetCatalogService.
    * Use #BKE_asset_metadata_catalog_id_set() to ensure a valid ID is set.
