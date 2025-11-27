@@ -363,17 +363,12 @@ void Resources::update_theme_settings(const DRWContext *ctx, const State &state)
   /* Emphasize division lines lighter instead of darker, if background is darker than grid. */
   const bool is_bg_darker = reduce_add(gb.colors.grid.xyz()) + 0.12f >
                             reduce_add(gb.colors.background.xyz());
-  ui::theme::get_color_shade_4fv(TH_GRID, (is_bg_darker) ? 20 : -10, gb.colors.grid_emphasis);
+  ui::theme::get_color_shade_4fv(TH_GRID, (is_bg_darker) ? 40 : -10, gb.colors.grid_emphasis);
+
   /* Grid Axis */
-<<<<<<< HEAD
-  ui::theme::get_color_blend_shade_4fv(TH_GRID, TH_AXIS_X, 0.5f, -10, gb.colors.grid_axis_x);
-  ui::theme::get_color_blend_shade_4fv(TH_GRID, TH_AXIS_Y, 0.5f, -10, gb.colors.grid_axis_y);
-  ui::theme::get_color_blend_shade_4fv(TH_GRID, TH_AXIS_Z, 0.5f, -10, gb.colors.grid_axis_z);
-=======
   ui::theme::get_color_blend_shade_4fv(TH_GRID, TH_AXIS_X, 0.85f, -10, gb.colors.grid_axis_x);
   ui::theme::get_color_blend_shade_4fv(TH_GRID, TH_AXIS_Y, 0.85f, -10, gb.colors.grid_axis_y);
   ui::theme::get_color_blend_shade_4fv(TH_GRID, TH_AXIS_Z, 0.85f, -10, gb.colors.grid_axis_z);
->>>>>>> f7e68a149e9 (WIP: continued cleanup)
 
   ui::theme::get_color_shade_alpha_4fv(TH_TRANSFORM, 0, -80, gb.colors.deselect);
   ui::theme::get_color_shade_alpha_4fv(TH_WIRE, 0, -30, gb.colors.outline);

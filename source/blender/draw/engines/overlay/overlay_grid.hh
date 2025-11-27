@@ -57,7 +57,7 @@ class Grid : Overlay {
     if (state.is_space_image()) {
       float3 tile_scale(grid_ubo_.clip_rect.x, grid_ubo_.clip_rect.y, 0.0f);
       const float4 color_back = math::interpolate(
-          res.theme.colors.background, res.theme.colors.grid, 0.5);
+          res.theme.colors.background, res.theme.colors.grid, 0.33);
 
       auto &sub = grid_ps_.sub("grid_background");
       sub.shader_set(res.shaders->grid_background.get());
@@ -139,7 +139,6 @@ class Grid : Overlay {
     SpaceImage *sima = (SpaceImage *)state.space_data;
 
     /* Query different options from SpaceImage state. */
-    const bool show_image = ED_space_image_has_buffer(sima);
     const bool show_grid = sima->mode == SI_MODE_UV &&
                            (sima->overlay.flag & SI_OVERLAY_SHOW_GRID_BACKGROUND);
     const bool show_over = sima->flag & SI_GRID_OVER_IMAGE;
@@ -311,7 +310,8 @@ class Grid : Overlay {
     }
 
     /* This suffices for most cases, and in others we fade to hide it. */
-    grid_ubo_.num_lines = 151;
+    /* TODO (not_mark): make this view-dependent in orthographic */
+    grid_ubo_.num_lines = 101;
 
     return true;
   }
