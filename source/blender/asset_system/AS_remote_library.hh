@@ -98,9 +98,7 @@ class RemoteLibraryLoadingStatus {
   /** Let the state know that the loading is still ongoing, resetting the timeout. */
   static void ping_still_loading(StringRef url);
   static void ping_new_pages(StringRef url);
-  static void ping_new_preview(const bContext &C,
-                               StringRef library_url,
-                               StringRef preview_full_filepath);
+  static void ping_new_preview(StringRef library_url, StringRef preview_full_filepath);
   static void ping_new_assets(const bContext &C, StringRef url);
   static void ping_metafiles_in_place(StringRef url);
   static void set_finished(StringRef url);

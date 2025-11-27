@@ -28,6 +28,7 @@
 #include "DNA_userdef_types.h"
 
 #include "ED_fileselect.hh"
+#include "ED_preview_loader.hh"
 #include "ED_render.hh"
 
 #include "RNA_access.hh"
@@ -143,11 +144,10 @@ void RemoteLibraryLoadingStatus::ping_new_pages(const StringRef url)
   }
 }
 
-void RemoteLibraryLoadingStatus::ping_new_preview(const bContext &C,
-                                                  const StringRef /*library_url*/,
+void RemoteLibraryLoadingStatus::ping_new_preview(const StringRef /*library_url*/,
                                                   const StringRef preview_full_filepath)
 {
-  ED_preview_online_download_finished(CTX_wm_manager(&C), preview_full_filepath);
+  blender::ed::PreviewLoader::on_download_completed(preview_full_filepath);
 }
 
 void RemoteLibraryLoadingStatus::ping_new_assets(const bContext &C, const StringRef url)
@@ -394,7 +394,7 @@ void remote_library_request_preview_download(bContext &C,
   }
 
   /* Notify the preview loading UI that a download for this preview is pending. */
-  ED_preview_online_download_requested(dst_filepath);
+  blender::ed::PreviewLoader::on_download_requested(dst_filepath);
 
   {
     std::string script =

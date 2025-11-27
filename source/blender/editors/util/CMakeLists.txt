@@ -15,7 +15,9 @@ set(INC_SYS
 )
 
 set(SRC
+  ed_async_resource_loader.cc
   ed_draw.cc
+  ed_preview_loader.cc
   ed_transverts.cc
   ed_util.cc
   ed_util_imbuf.cc
@@ -31,6 +33,7 @@ set(SRC
   ../include/ED_armature.hh
   ../include/ED_asset.hh
   ../include/ED_asset_menu_utils.hh
+  ../include/ED_async_resource_loader.hh
   ../include/ED_buttons.hh
   ../include/ED_clip.hh
   ../include/ED_curve.hh
@@ -67,6 +70,7 @@ set(SRC
   ../include/ED_particle.hh
   ../include/ED_physics.hh
   ../include/ED_pointcloud.hh
+  ../include/ED_preview_loader.hh
   ../include/ED_render.hh
   ../include/ED_scene.hh
   ../include/ED_screen.hh

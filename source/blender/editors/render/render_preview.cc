@@ -90,6 +90,7 @@
 #include "WM_types.hh"
 
 #include "ED_datafiles.h"
+#include "ED_preview_loader.hh"
 #include "ED_render.hh"
 #include "ED_screen.hh"
 #include "ED_view3d.hh"
@@ -2204,9 +2205,7 @@ void ED_preview_icon_job(
       /* Already in the queue, don't add it again. */
       return;
     }
-    PreviewLoadJob &load_job = PreviewLoadJob::ensure_job(CTX_wm_manager(C), CTX_wm_window(C));
-    load_job.push_load_request(prv_img, icon_size);
-
+    blender::ed::PreviewLoader::request(prv_img, icon_size);
     return;
   }
 
@@ -2359,17 +2358,6 @@ void ED_preview_kill_jobs_for_id(wmWindowManager *wm, const ID *id)
   if (wm && preview) {
     WM_jobs_kill_type(wm, preview, WM_JOB_TYPE_RENDER_PREVIEW);
   }
-}
-
-void ED_preview_online_download_requested(const StringRef preview_full_filepath)
-{
-  PreviewLoadJob::on_download_requested(preview_full_filepath);
-}
-
-void ED_preview_online_download_finished(wmWindowManager *wm,
-                                         const StringRef preview_full_filepath)
-{
-  PreviewLoadJob::on_download_completed(wm, preview_full_filepath);
 }
 
 struct PreviewRestartQueueEntry {
