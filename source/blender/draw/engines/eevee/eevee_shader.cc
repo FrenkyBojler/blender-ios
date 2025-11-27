@@ -1313,103 +1313,7 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
     info.batch_resources_.clear();
   }
 
-  /* Pipeline states to compile during shader compilation. */
-  /* NOTE: Currently only non-volume world shaders are added. Others will be added as well later
-   * on. */
-  switch (geometry_type) {
-    case MAT_GEOM_WORLD:
-      switch (pipeline_type) {
-        case MAT_PIPE_VOLUME_MATERIAL:
-          /* World Volume Pipeline */
-          info.pipeline_state()
-              .primitive(GPU_PRIM_TRIS)
-              .state(GPU_WRITE_COLOR,
-                     GPU_BLEND_NONE,
-                     GPU_CULL_NONE,
-                     GPU_DEPTH_NONE,
-                     GPU_STENCIL_NONE,
-                     GPU_STENCIL_OP_NONE,
-                     GPU_VERTEX_LAST)
-              .viewports(1)
-              .depth_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
-              .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8);
-          break;
-        default:
-          /* World Pipeline */
-          info.pipeline_state()
-              .primitive(GPU_PRIM_TRIS)
-              .state(GPU_WRITE_COLOR,
-                     GPU_BLEND_NONE,
-                     GPU_CULL_NONE,
-                     GPU_DEPTH_ALWAYS,
-                     GPU_STENCIL_NONE,
-                     GPU_STENCIL_OP_NONE,
-                     GPU_VERTEX_LAST)
-              .viewports(1)
-              .color_format(gpu::TextureTargetFormat::SFLOAT_16_16_16_16);
-
-          /* Background Pipeline */
-          info.pipeline_state()
-              .primitive(GPU_PRIM_TRIS)
-              .state(GPU_WRITE_COLOR,
-                     GPU_BLEND_NONE,
-                     GPU_CULL_NONE,
-                     GPU_DEPTH_EQUAL,
-                     GPU_STENCIL_NONE,
-                     GPU_STENCIL_OP_NONE,
-                     GPU_VERTEX_LAST)
-              .viewports(1)
-              .depth_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
-              .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
-              .color_format(gpu::TextureTargetFormat::SFLOAT_16_16_16_16);
-          ;
-          break;
-      }
-      break;
-
-    case MAT_GEOM_MESH:
-      switch (pipeline_type) {
-        case MAT_PIPE_PREPASS_DEFERRED: {
-          /* DeferredLayer pipeline. */
-          info.pipeline_state()
-              .primitive(GPU_PRIM_TRIS)
-              /* pos uses vbo 1, bound to location 0. Current implementation in Vulkan control
-               * flow favor the order of VBOs. This should be refactored to prefer the order
-               * of attributes. */
-              .vertex_input(1, 0, gpu::VertAttrType::SNORM_10_10_10_2, 0, 4) /* nor */
-              .vertex_input(0, 1, gpu::VertAttrType::SFLOAT_32_32_32, 0, 12) /* pos */
-              .state(GPU_WRITE_DEPTH | GPU_WRITE_STENCIL,
-                     GPU_BLEND_NONE,
-                     GPU_CULL_NONE,
-                     GPU_DEPTH_GREATER_EQUAL,
-                     GPU_STENCIL_ALWAYS,
-                     GPU_STENCIL_OP_REPLACE,
-                     GPU_VERTEX_LAST)
-              .viewports(1)
-              .depth_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
-              .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
-              .color_format(gpu::TextureTargetFormat::SFLOAT_16_16);
-#if 0
-          /* This doesn't work as the vertex_inputs_ aren't populated yet. That is only done after
-           * finalize where these are merged. So we should try to extract them from the shader mat with some defaults (pos/nor)*/
-          for (int index : info.vertex_inputs_.index_range()) {
-            const ShaderCreateInfo::VertIn &vertex_input = info.vertex_inputs_[index];
-            const GPUVertAttr::Type vert_attr_type = {to_vert_attr_type(vertex_input.type)};
-            pipeline.vertex_input(index, index, vert_attr_type.format, 0, vert_attr_type.size());
-          }
-#endif
-
-          break;
-        }
-
-        default:
-          break;
-      }
-      break;
-
-    default:
-      break;
-  }
+  material_create_info_pipelines_amend(gpumat, geometry_type, pipeline_type, info);
 }
 
 struct CallbackThunk {
@@ -1552,6 +1456,116 @@ GPUMaterial *ShaderModule::world_shader_get(::World *blender_world,
       &thunk);
   store_node_tree_errors(material_from_tree);
   return material_from_tree.material;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Pipeline states
+ *
+ * \{ */
+
+void ShaderModule::material_create_info_pipelines_amend(GPUMaterial *gpumat,
+                                                        eMaterialGeometry geometry_type,
+                                                        eMaterialPipeline pipeline_type,
+                                                        gpu::shader::ShaderCreateInfo &r_info)
+{
+  /* Pipeline states to compile during shader compilation. */
+  /* NOTE: Currently only non-volume world shaders are added. Others will be added as well later
+   * on. */
+  switch (geometry_type) {
+    case MAT_GEOM_WORLD:
+      switch (pipeline_type) {
+        case MAT_PIPE_VOLUME_MATERIAL:
+          /* World Volume Pipeline */
+          r_info.pipeline_state()
+              .primitive(GPU_PRIM_TRIS)
+              .state(GPU_WRITE_COLOR,
+                     GPU_BLEND_NONE,
+                     GPU_CULL_NONE,
+                     GPU_DEPTH_NONE,
+                     GPU_STENCIL_NONE,
+                     GPU_STENCIL_OP_NONE,
+                     GPU_VERTEX_LAST)
+              .viewports(1)
+              .depth_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
+              .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8);
+          break;
+        default:
+          /* World Pipeline */
+          r_info.pipeline_state()
+              .primitive(GPU_PRIM_TRIS)
+              .state(GPU_WRITE_COLOR,
+                     GPU_BLEND_NONE,
+                     GPU_CULL_NONE,
+                     GPU_DEPTH_ALWAYS,
+                     GPU_STENCIL_NONE,
+                     GPU_STENCIL_OP_NONE,
+                     GPU_VERTEX_LAST)
+              .viewports(1)
+              .color_format(gpu::TextureTargetFormat::SFLOAT_16_16_16_16);
+
+          /* Background Pipeline */
+          r_info.pipeline_state()
+              .primitive(GPU_PRIM_TRIS)
+              .state(GPU_WRITE_COLOR,
+                     GPU_BLEND_NONE,
+                     GPU_CULL_NONE,
+                     GPU_DEPTH_EQUAL,
+                     GPU_STENCIL_NONE,
+                     GPU_STENCIL_OP_NONE,
+                     GPU_VERTEX_LAST)
+              .viewports(1)
+              .depth_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
+              .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
+              .color_format(gpu::TextureTargetFormat::SFLOAT_16_16_16_16);
+          ;
+          break;
+      }
+      break;
+
+    case MAT_GEOM_MESH:
+      switch (pipeline_type) {
+        case MAT_PIPE_PREPASS_DEFERRED: {
+          /* DeferredLayer pipeline. */
+          r_info.pipeline_state()
+              .primitive(GPU_PRIM_TRIS)
+              /* pos uses vbo 1, bound to location 0. Current implementation in Vulkan control
+               * flow favor the order of VBOs. */
+              .vertex_input(1, 0, gpu::VertAttrType::SNORM_10_10_10_2, 0, 4) /* nor */
+              .vertex_input(0, 1, gpu::VertAttrType::SFLOAT_32_32_32, 0, 12) /* pos */
+              .state(GPU_WRITE_DEPTH | GPU_WRITE_STENCIL,
+                     GPU_BLEND_NONE,
+                     GPU_CULL_NONE,
+                     GPU_DEPTH_GREATER_EQUAL,
+                     GPU_STENCIL_ALWAYS,
+                     GPU_STENCIL_OP_REPLACE,
+                     GPU_VERTEX_LAST)
+              .viewports(1)
+              .depth_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
+              .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
+              .color_format(gpu::TextureTargetFormat::SFLOAT_16_16);
+#if 0
+          /* This doesn't work as the vertex_inputs_ aren't populated yet. That is only done after
+           * finalize where these are merged. So we should try to extract them from the shader mat with some defaults (pos/nor)*/
+          for (int index : info.vertex_inputs_.index_range()) {
+            const ShaderCreateInfo::VertIn &vertex_input = info.vertex_inputs_[index];
+            const GPUVertAttr::Type vert_attr_type = {to_vert_attr_type(vertex_input.type)};
+            pipeline.vertex_input(index, index, vert_attr_type.format, 0, vert_attr_type.size());
+          }
+#endif
+
+          break;
+        }
+
+        default:
+          break;
+      }
+      break;
+
+    default:
+      break;
+  }
 }
 
 /** \} */
