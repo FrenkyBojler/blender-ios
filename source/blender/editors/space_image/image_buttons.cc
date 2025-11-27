@@ -178,7 +178,6 @@ static void ui_imageuser_layer_menu(bContext * /*C*/, blender::ui::Layout *layou
     return;
   }
 
-  blender::ui::block_layout_set_current(block, layout);
   layout->column(false);
 
   const char *fake_name = ui_imageuser_layer_fake_name(rr);
@@ -252,7 +251,6 @@ static void ui_imageuser_pass_menu(bContext * /*C*/, blender::ui::Layout *layout
 
   rl = static_cast<RenderLayer *>(BLI_findlink(&rr->layers, rpass_index));
 
-  blender::ui::block_layout_set_current(block, layout);
   layout->column(false);
 
   nr = (rl == nullptr) ? 1 : 0;
@@ -322,7 +320,6 @@ static void ui_imageuser_view_menu_rr(bContext * /*C*/, blender::ui::Layout *lay
     return;
   }
 
-  blender::ui::block_layout_set_current(block, layout);
   layout->column(false);
 
   uiDefBut(block,
@@ -371,7 +368,6 @@ static void ui_imageuser_view_menu_multiview(bContext * /*C*/,
   int nr;
   ImageView *iv;
 
-  blender::ui::block_layout_set_current(block, layout);
   layout->column(false);
 
   uiDefBut(block,
