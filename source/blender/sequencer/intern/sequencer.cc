@@ -1243,7 +1243,14 @@ ListBase *Editing::current_channels() const
 
 bool Strip::is_effect() const
 {
-  return (this->type >= STRIP_TYPE_CROSS && this->type <= STRIP_TYPE_COMPOSITOR) ||
-         (this->type >= STRIP_TYPE_WIPE && this->type <= STRIP_TYPE_ADJUSTMENT) ||
-         (this->type >= STRIP_TYPE_GAUSSIAN_BLUR && this->type <= STRIP_TYPE_COLORMIX);
+  return blender::seq::strip_type_is_effect(StripType(this->type));
+}
+
+int Strip::effect_needed_inputs_get() const
+{
+  /* Compositor can have varying amount of inputs; return based on assigned inputs. */
+  if (this->type == STRIP_TYPE_COMPOSITOR) {
+    return this->input1 && this->input2 ? 2 : this->input1 ? 1 : 0;
+  }
+  return blender::seq::effect_type_get_min_num_inputs(StripType(this->type));
 }

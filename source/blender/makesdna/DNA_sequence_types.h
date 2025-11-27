@@ -64,6 +64,45 @@ typedef struct StripRuntime StripRuntime;
 /** \name Strip & Editing Structs
  * \{ */
 
+/**
+ * #Strip.type
+ *
+ * Note: update #Strip::is_effect when adding new effect types.
+ */
+typedef enum StripType {
+  STRIP_TYPE_IMAGE = 0,
+  STRIP_TYPE_META = 1,
+  STRIP_TYPE_SCENE = 2,
+  STRIP_TYPE_MOVIE = 3,
+  STRIP_TYPE_SOUND_RAM = 4,
+  STRIP_TYPE_SOUND_HD = 5, /* DEPRECATED */
+  STRIP_TYPE_MOVIECLIP = 6,
+  STRIP_TYPE_MASK = 7,
+
+  STRIP_TYPE_CROSS = 8,
+  STRIP_TYPE_ADD = 9,
+  STRIP_TYPE_SUB = 10,
+  STRIP_TYPE_ALPHAOVER = 11,
+  STRIP_TYPE_ALPHAUNDER = 12,
+  STRIP_TYPE_GAMCROSS = 13,
+  STRIP_TYPE_MUL = 14,
+  /* Removed (behavior was the same as alpha-over), only used when reading old files. */
+  STRIP_TYPE_OVERDROP_REMOVED = 15,
+  STRIP_TYPE_COMPOSITOR = 16,
+  /* STRIP_TYPE_PLUGIN = 24, */ /* Removed. */
+  STRIP_TYPE_WIPE = 25,
+  STRIP_TYPE_GLOW = 26,
+  /* Removed in 5.0, used only for versioning. */
+  STRIP_TYPE_TRANSFORM_LEGACY = 27,
+  STRIP_TYPE_COLOR = 28,
+  STRIP_TYPE_SPEED = 29,
+  STRIP_TYPE_MULTICAM = 30,
+  STRIP_TYPE_ADJUSTMENT = 31,
+  STRIP_TYPE_GAUSSIAN_BLUR = 40,
+  STRIP_TYPE_TEXT = 41,
+  STRIP_TYPE_COLORMIX = 42,
+} StripType;
+
 typedef struct StripElem {
   /** File name concatenated onto #StripData::dirpath. */
   char filename[/*FILE_MAXFILE*/ 256];
@@ -273,6 +312,11 @@ typedef struct Strip {
 
 #ifdef __cplusplus
   bool is_effect() const;
+  int effect_needed_inputs_get() const;
+  bool is_effect_with_inputs() const
+  {
+    return this->effect_needed_inputs_get() != 0;
+  }
 #endif
 } Strip;
 
@@ -781,45 +825,6 @@ typedef enum eStripAlphaMode {
   SEQ_ALPHA_STRAIGHT = 0,
   SEQ_ALPHA_PREMUL = 1,
 } eStripAlphaMode;
-
-/**
- * #Strip.type
- *
- * Note: update #Strip::is_effect when adding new effect types.
- */
-typedef enum StripType {
-  STRIP_TYPE_IMAGE = 0,
-  STRIP_TYPE_META = 1,
-  STRIP_TYPE_SCENE = 2,
-  STRIP_TYPE_MOVIE = 3,
-  STRIP_TYPE_SOUND_RAM = 4,
-  STRIP_TYPE_SOUND_HD = 5, /* DEPRECATED */
-  STRIP_TYPE_MOVIECLIP = 6,
-  STRIP_TYPE_MASK = 7,
-
-  STRIP_TYPE_CROSS = 8,
-  STRIP_TYPE_ADD = 9,
-  STRIP_TYPE_SUB = 10,
-  STRIP_TYPE_ALPHAOVER = 11,
-  STRIP_TYPE_ALPHAUNDER = 12,
-  STRIP_TYPE_GAMCROSS = 13,
-  STRIP_TYPE_MUL = 14,
-  /* Removed (behavior was the same as alpha-over), only used when reading old files. */
-  STRIP_TYPE_OVERDROP_REMOVED = 15,
-  STRIP_TYPE_COMPOSITOR = 16,
-  /* STRIP_TYPE_PLUGIN = 24, */ /* Removed. */
-  STRIP_TYPE_WIPE = 25,
-  STRIP_TYPE_GLOW = 26,
-  /* Removed in 5.0, used only for versioning. */
-  STRIP_TYPE_TRANSFORM_LEGACY = 27,
-  STRIP_TYPE_COLOR = 28,
-  STRIP_TYPE_SPEED = 29,
-  STRIP_TYPE_MULTICAM = 30,
-  STRIP_TYPE_ADJUSTMENT = 31,
-  STRIP_TYPE_GAUSSIAN_BLUR = 40,
-  STRIP_TYPE_TEXT = 41,
-  STRIP_TYPE_COLORMIX = 42,
-} StripType;
 
 typedef enum eStripMovieClipFlag {
   SEQ_MOVIECLIP_RENDER_UNDISTORTED = 1 << 0,

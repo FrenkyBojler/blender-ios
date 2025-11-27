@@ -39,9 +39,6 @@ struct EffectHandle {
   /* #init is only called on first creation, or when changing effect type. */
   void (*init)(Strip *strip);
 
-  /* Number of input strips needed for this effect. */
-  int (*num_inputs)();
-
   /* duplicate */
   void (*copy)(Strip *dst, const Strip *src, int flag);
 

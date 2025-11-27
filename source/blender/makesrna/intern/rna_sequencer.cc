@@ -25,7 +25,6 @@
 
 #include "UI_resources.hh"
 
-#include "SEQ_effects.hh"
 #include "SEQ_sequencer.hh"
 #include "SEQ_sound.hh"
 
@@ -659,7 +658,7 @@ static int rna_Strip_frame_editable(const PointerRNA *ptr, const char ** /*r_inf
 {
   Strip *strip = (Strip *)ptr->data;
   /* Effect strips' start frame and length must be readonly! */
-  return (blender::seq::effect_get_num_inputs(strip->type)) ? PropertyFlag(0) : PROP_EDITABLE;
+  return strip->is_effect_with_inputs() ? PropertyFlag(0) : PROP_EDITABLE;
 }
 
 static void rna_Strip_channel_set(PointerRNA *ptr, int value)
@@ -1103,9 +1102,8 @@ static void rna_Strip_pan_range(
 
 static int rna_Strip_input_count_get(PointerRNA *ptr)
 {
-  Strip *strip = (Strip *)(ptr->data);
-
-  return blender::seq::effect_get_num_inputs(strip->type);
+  Strip *strip = (Strip *)ptr->data;
+  return strip->effect_needed_inputs_get();
 }
 
 static void rna_Strip_input_set(PointerRNA *ptr,
