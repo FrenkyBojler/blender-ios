@@ -79,7 +79,6 @@ using blender::Span;
 using blender::Vector;
 using blender::geometry::ParamHandle;
 using blender::geometry::ParamKey;
-using blender::geometry::ParamSlimOptions;
 
 /* -------------------------------------------------------------------- */
 /** \name Utility Functions
@@ -181,36 +180,6 @@ bool blender::geometry::UVPackIsland_Params::isCancelled() const
 /* -------------------------------------------------------------------- */
 /** \name Parametrizer Conversion
  * \{ */
-
-struct UnwrapOptions {
-  /** Connectivity based on UV coordinates instead of seams. */
-  bool topology_from_uvs;
-  /** Also use seams as well as UV coordinates (only valid when `topology_from_uvs` is enabled). */
-  bool topology_from_uvs_use_seams;
-  /** Only affect selected faces. */
-  bool only_selected_faces;
-  /**
-   * Only affect selected UVs.
-   * \note Disable this for operations that don't run in the image-window.
-   * Unwrapping from the 3D view for example, where only 'only_selected_faces' should be used.
-   */
-  bool only_selected_uvs;
-  /** Fill holes to better preserve shape. */
-  bool fill_holes;
-  /** Correct for mapped image texture aspect ratio. */
-  bool correct_aspect;
-  /** Treat unselected uvs as if they were pinned. */
-  bool pin_unselected;
-
-  int method;
-  bool use_slim;
-  bool use_abf;
-  bool use_subsurf;
-  bool use_weights;
-
-  ParamSlimOptions slim;
-  char weight_group[MAX_VGROUP_NAME];
-};
 
 void blender::geometry::UVPackIsland_Params::setFromUnwrapOptions(const UnwrapOptions &options)
 {
@@ -2741,11 +2710,11 @@ static void uv_map_clip_correct(const Scene *scene,
  * \{ */
 
 /* Assumes UV Map exists, doesn't run update functions. */
-static void uvedit_unwrap(const Scene *scene,
-                          Object *obedit,
-                          const UnwrapOptions *options,
-                          int *r_count_changed,
-                          int *r_count_failed)
+void uvedit_unwrap(const Scene *scene,
+                   Object *obedit,
+                   const UnwrapOptions *options,
+                   int *r_count_changed,
+                   int *r_count_failed)
 {
   BMEditMesh *em = BKE_editmesh_from_object(obedit);
   if (!CustomData_has_layer(&em->bm->ldata, CD_PROP_FLOAT2)) {

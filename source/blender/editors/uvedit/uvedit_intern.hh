@@ -9,6 +9,8 @@
 #pragma once
 
 #include "BKE_customdata.hh"
+#include "DNA_meshdata_types.h"
+#include "GEO_uv_parametrizer.hh"
 
 struct BMVert;
 struct BMEdge;
@@ -129,6 +131,39 @@ void uvedit_face_select_set_no_sync(const ToolSettings *ts,
 
 /* utility tool functions */
 
+/* Unwrap Options */
+struct UnwrapOptions {
+  /** Connectivity based on UV coordinates instead of seams. */
+  bool topology_from_uvs;
+  /** Also use seams as well as UV coordinates (only valid when `topology_from_uvs` is enabled). */
+  bool topology_from_uvs_use_seams;
+  /** Only affect selected faces. */
+  bool only_selected_faces;
+  /**
+   * Only affect selected UVs.
+   * \note Disable this for operations that don't run in the image-window.
+   * Unwrapping from the 3D view for example, where only 'only_selected_faces' should be used.
+   */
+  bool only_selected_uvs;
+  /** Fill holes to better preserve shape. */
+  bool fill_holes;
+  /** Correct for mapped image texture aspect ratio. */
+  bool correct_aspect;
+  /** Treat unselected uvs as if they were pinned. */
+  bool pin_unselected;
+  int method;
+  bool use_slim;
+  bool use_abf;
+  bool use_subsurf;
+  bool use_weights;
+  blender::geometry::ParamSlimOptions slim;
+  char weight_group[MAX_VGROUP_NAME];
+};
+void uvedit_unwrap(const Scene *scene,
+                   Object *obedit,
+                   const UnwrapOptions *options,
+                   int *r_count_changed,
+                   int *r_count_failed);
 void uvedit_live_unwrap_update(SpaceImage *sima, Scene *scene, Object *obedit);
 
 /* operators */
