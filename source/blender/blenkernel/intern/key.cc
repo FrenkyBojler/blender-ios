@@ -880,7 +880,8 @@ static void key_evaluate_relative_mesh(Key *key,
          nullptr,
          KEY_MODE_DUMMY);
 
-  auto foreach_keyblock = [&](KeyBlock *kb, const int keyblock_index, KeyBlock *refb) {
+  auto foreach_keyblock = [key, active_keyblock, per_keyblock_weights, vertex_count, target_data](
+                              KeyBlock *kb, const int keyblock_index, KeyBlock *refb) {
     const float *weights = per_keyblock_weights ? per_keyblock_weights[keyblock_index] : nullptr;
 
     char *freefrom = nullptr;
