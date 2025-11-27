@@ -155,14 +155,14 @@ const BundleItemValue *Bundle::lookup_path(const StringRef path) const
 
 void Bundle::merge(const Bundle &other)
 {
-  for (const StoredItem &item : other.items_) {
+  for (const auto &item : other.items_.items()) {
     this->add(item.key, item.value);
   }
 }
 
 void Bundle::merge_override(const Bundle &other)
 {
-  for (const StoredItem &item : other.items_) {
+  for (const auto &item : other.items_.items()) {
     this->add_override(item.key, item.value);
   }
 }
