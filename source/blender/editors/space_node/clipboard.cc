@@ -621,30 +621,75 @@ static wmOperatorStatus os_copyboard_copy_exec(bContext *C, wmOperator *op)
   // save node group to disk
   //    choose name unique enough
 
-  // todo(habib): Get a more unique name
-  bNodeTree *copy_tree = blender::bke::node_tree_add_tree(
-      bmain, "CopyNG", node_tree->typeinfo->idname);
+  PartialWriteContext copybuffer{*bmain};
+  bNodeTree *copy_tree = reinterpret_cast<bNodeTree *>(
+      copybuffer.id_create(ID_NT,
+                           "CopyNG",
+                           nullptr,
+                           {(PartialWriteContext::IDAddOperations::SET_FAKE_USER |
+                             PartialWriteContext::IDAddOperations::SET_CLIPBOARD_MARK)}));
+
+  // todo(habib): set using ntree_set_typeinfo(ntree, node_tree_type_find(idname));
+  bNodeTree *dummy_ntree = blender::bke::node_tree_add_tree(
+      bmain, "DummyForTypeinfo", node_tree->typeinfo->idname);
+
+  copy_tree->typeinfo = dummy_ntree->typeinfo;
+  copy_tree->type = dummy_ntree->typeinfo->type;
+  strcpy(copy_tree->idname, "CompositorNodeTree");
+  BKE_id_delete(bmain, &dummy_ntree->id);
+
+  // bNodeTree *copy_tree = blender::bke::node_tree_add_tree(
+  //     bmain, "DummyForTypeinfo", node_tree->typeinfo->idname);
 
   if (!node_clipboard_copy_paste(*bmain, *node_tree, *copy_tree, op->reports)) {
     return OPERATOR_CANCELLED;
   };
 
-  PartialWriteContext copybuffer{*bmain};
-
   // todo(habib): what flags make sense?
-  copybuffer.id_add(
-      &copy_tree->id,
-      PartialWriteContext::IDAddOptions{(PartialWriteContext::IDAddOperations::SET_FAKE_USER |
-                                         PartialWriteContext::IDAddOperations::SET_CLIPBOARD_MARK |
-                                         PartialWriteContext::IDAddOperations::ADD_DEPENDENCIES)},
-      nullptr);
+  // copybuffer.id_add(&copy_tree->id,
+  //                   PartialWriteContext::IDAddOptions{
+  //                       (PartialWriteContext::IDAddOperations::SET_FAKE_USER |
+  //                        PartialWriteContext::IDAddOperations::SET_CLIPBOARD_MARK)},
+  //                   nullptr);
+
+  auto add_tree_ids_dependencies_cb = [&copybuffer,
+                                       copy_tree](LibraryIDLinkCallbackData *cb_data) -> int {
+    ID *id_src = *cb_data->id_pointer;
+    if (!id_src) {
+      return IDWALK_RET_NOP;
+    }
+
+    printf("id_src->name: %s\n", id_src->name);
+
+    ID *id_dst = nullptr;
+    const ID_Type id_type = GS((id_src)->name);
+
+    auto partial_write_dependencies_filter_cb =
+        [](LibraryIDLinkCallbackData *cb_deps_data,
+           PartialWriteContext::IDAddOptions /*options*/) -> PartialWriteContext::IDAddOperations {
+      ID *id_deps_src = *cb_deps_data->id_pointer;
+      const ID_Type id_type = GS((id_deps_src)->name);
+      if (ELEM(id_type, ID_SCE) || (cb_deps_data->cb_flag & IDWALK_CB_NEVER_NULL)) {
+        printf("Id %s added\n", id_deps_src->name);
+        return PartialWriteContext::IDAddOperations::ADD_DEPENDENCIES;
+      }
+
+      printf("Id %s cleared\n", id_deps_src->name);
+      return PartialWriteContext::IDAddOperations::CLEAR_DEPENDENCIES;
+    };
+
+    id_dst = copybuffer.id_add(
+        id_src, {PartialWriteContext::IDAddOperations::NOP}, partial_write_dependencies_filter_cb);
+
+    return IDWALK_RET_NOP;
+  };
+
+  BKE_library_foreach_ID_link(
+      nullptr, &copy_tree->id, add_tree_ids_dependencies_cb, nullptr, IDWALK_NOP);
 
   char filepath[FILE_MAX];
   node_copybuffer_filepath_get(filepath, sizeof(filepath));
   copybuffer.write(filepath, *op->reports);
-
-  // delete CopyNG
-  BKE_id_delete(bmain, &copy_tree->id);
 
   return OPERATOR_FINISHED;
 }
