@@ -3330,44 +3330,6 @@ void RNA_def_property_boolean_funcs(PropertyRNA *prop, const char *get, const ch
   }
 }
 
-void RNA_def_property_boolean_funcs_ex(PropertyRNA *prop, const char *get, const char *set)
-{
-  StructRNA *srna = DefRNA.laststruct;
-
-  if (!DefRNA.preprocess) {
-    CLOG_ERROR(&LOG, "only during preprocessing.");
-    return;
-  }
-
-  switch (prop->type) {
-    case PROP_BOOLEAN: {
-      BoolPropertyRNA *bprop = (BoolPropertyRNA *)prop;
-
-      if (prop->arraydimension) {
-        if (get) {
-          bprop->getarray_ex = (BooleanArrayPropertyGetFunc)get;
-        }
-        if (set) {
-          bprop->setarray_ex = (BooleanArrayPropertySetFunc)set;
-        }
-      }
-      else {
-        if (get) {
-          bprop->get_ex = (BooleanPropertyGetFunc)get;
-        }
-        if (set) {
-          bprop->set_ex = (BooleanPropertySetFunc)set;
-        }
-      }
-      break;
-    }
-    default:
-      CLOG_ERROR(&LOG, "\"%s.%s\", type is not boolean.", srna->identifier, prop->identifier);
-      DefRNA.error = true;
-      break;
-  }
-}
-
 void RNA_def_property_boolean_funcs_runtime(PropertyRNA *prop,
                                             BooleanPropertyGetFunc getfunc,
                                             BooleanPropertySetFunc setfunc,
@@ -3467,50 +3429,6 @@ void RNA_def_property_int_funcs(PropertyRNA *prop,
       }
       if (range) {
         iprop->range = (PropIntRangeFunc)range;
-      }
-      break;
-    }
-    default:
-      CLOG_ERROR(&LOG, "\"%s.%s\", type is not int.", srna->identifier, prop->identifier);
-      DefRNA.error = true;
-      break;
-  }
-}
-
-void RNA_def_property_int_funcs_ex(PropertyRNA *prop,
-                                   const char *get,
-                                   const char *set,
-                                   const char *range)
-{
-  StructRNA *srna = DefRNA.laststruct;
-
-  if (!DefRNA.preprocess) {
-    CLOG_ERROR(&LOG, "only during preprocessing.");
-    return;
-  }
-
-  switch (prop->type) {
-    case PROP_INT: {
-      IntPropertyRNA *iprop = (IntPropertyRNA *)prop;
-
-      if (prop->arraydimension) {
-        if (get) {
-          iprop->getarray_ex = (IntArrayPropertyGetFunc)get;
-        }
-        if (set) {
-          iprop->setarray_ex = (IntArrayPropertySetFunc)set;
-        }
-      }
-      else {
-        if (get) {
-          iprop->get_ex = (IntPropertyGetFunc)get;
-        }
-        if (set) {
-          iprop->set_ex = (IntPropertySetFunc)set;
-        }
-      }
-      if (range) {
-        iprop->range_ex = (IntPropertyRangeFunc)range;
       }
       break;
     }
@@ -3637,50 +3555,6 @@ void RNA_def_property_float_funcs(PropertyRNA *prop,
   }
 }
 
-void RNA_def_property_float_funcs_ex(PropertyRNA *prop,
-                                     const char *get,
-                                     const char *set,
-                                     const char *range)
-{
-  StructRNA *srna = DefRNA.laststruct;
-
-  if (!DefRNA.preprocess) {
-    CLOG_ERROR(&LOG, "only during preprocessing.");
-    return;
-  }
-
-  switch (prop->type) {
-    case PROP_FLOAT: {
-      FloatPropertyRNA *fprop = (FloatPropertyRNA *)prop;
-
-      if (prop->arraydimension) {
-        if (get) {
-          fprop->getarray_ex = (FloatArrayPropertyGetFunc)get;
-        }
-        if (set) {
-          fprop->setarray_ex = (FloatArrayPropertySetFunc)set;
-        }
-      }
-      else {
-        if (get) {
-          fprop->get_ex = (FloatPropertyGetFunc)get;
-        }
-        if (set) {
-          fprop->set_ex = (FloatPropertySetFunc)set;
-        }
-      }
-      if (range) {
-        fprop->range_ex = (FloatPropertyRangeFunc)range;
-      }
-      break;
-    }
-    default:
-      CLOG_ERROR(&LOG, "\"%s.%s\", type is not float.", srna->identifier, prop->identifier);
-      DefRNA.error = true;
-      break;
-  }
-}
-
 void RNA_def_property_float_funcs_runtime(PropertyRNA *prop,
                                           FloatPropertyGetFunc getfunc,
                                           FloatPropertySetFunc setfunc,
@@ -3788,40 +3662,6 @@ void RNA_def_property_enum_funcs(PropertyRNA *prop,
   }
 }
 
-void RNA_def_property_enum_funcs_ex(PropertyRNA *prop,
-                                    const char *get,
-                                    const char *set,
-                                    const char *item)
-{
-  StructRNA *srna = DefRNA.laststruct;
-
-  if (!DefRNA.preprocess) {
-    CLOG_ERROR(&LOG, "only during preprocessing.");
-    return;
-  }
-
-  switch (prop->type) {
-    case PROP_ENUM: {
-      EnumPropertyRNA *eprop = (EnumPropertyRNA *)prop;
-
-      if (get) {
-        eprop->get_ex = (EnumPropertyGetFunc)get;
-      }
-      if (set) {
-        eprop->set_ex = (EnumPropertySetFunc)set;
-      }
-      if (item) {
-        eprop->item_fn = (EnumPropertyItemFunc)item;
-      }
-      break;
-    }
-    default:
-      CLOG_ERROR(&LOG, "\"%s.%s\", type is not enum.", srna->identifier, prop->identifier);
-      DefRNA.error = true;
-      break;
-  }
-}
-
 void RNA_def_property_enum_funcs_runtime(PropertyRNA *prop,
                                          EnumPropertyGetFunc getfunc,
                                          EnumPropertySetFunc setfunc,
@@ -3882,40 +3722,6 @@ void RNA_def_property_string_funcs(PropertyRNA *prop,
       }
       if (set) {
         sprop->set = (PropStringSetFunc)set;
-      }
-      break;
-    }
-    default:
-      CLOG_ERROR(&LOG, "\"%s.%s\", type is not string.", srna->identifier, prop->identifier);
-      DefRNA.error = true;
-      break;
-  }
-}
-
-void RNA_def_property_string_funcs_ex(PropertyRNA *prop,
-                                      const char *get,
-                                      const char *length,
-                                      const char *set)
-{
-  StructRNA *srna = DefRNA.laststruct;
-
-  if (!DefRNA.preprocess) {
-    CLOG_ERROR(&LOG, "only during preprocessing.");
-    return;
-  }
-
-  switch (prop->type) {
-    case PROP_STRING: {
-      StringPropertyRNA *sprop = (StringPropertyRNA *)prop;
-
-      if (get) {
-        sprop->get_ex = (StringPropertyGetFunc)get;
-      }
-      if (length) {
-        sprop->length_ex = (StringPropertyLengthFunc)length;
-      }
-      if (set) {
-        sprop->set_ex = (StringPropertySetFunc)set;
       }
       break;
     }
