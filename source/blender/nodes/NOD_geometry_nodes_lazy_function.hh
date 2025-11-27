@@ -413,6 +413,7 @@ struct GeometryNodesLazyFunctionGraphInfo {
    * Contains resources that need to be freed when the graph is not needed anymore.
    */
   ResourceScope scope;
+  const bNodeTree *persistent_tree;
   GeometryNodesGroupFunction function;
   /**
    * The actual lazy-function graph.
@@ -472,8 +473,8 @@ std::optional<FoundNestedNodeID> find_nested_node_id(const GeoNodesUserData &use
  * generated already, nothing is done. Under some circumstances a valid graph cannot be created. In
  * those cases null is returned.
  */
-const GeometryNodesLazyFunctionGraphInfo *ensure_geometry_nodes_lazy_function_graph(
-    const bNodeTree &btree);
+std::shared_ptr<const GeometryNodesLazyFunctionGraphInfo>
+ensure_geometry_nodes_lazy_function_graph(const bNodeTree &btree);
 
 /**
  * Utility to measure the time that is spend in a specific compute context during geometry nodes
@@ -588,11 +589,13 @@ LazyFunction &build_foreach_geometry_element_zone_lazy_function(ResourceScope &s
                                                                 ZoneBuildInfo &zone_info,
                                                                 const ZoneBodyFunction &body_fn);
 
-LazyFunction &build_closure_zone_lazy_function(ResourceScope &scope,
-                                               const bNodeTree &btree,
-                                               const bke::bNodeTreeZone &zone,
-                                               ZoneBuildInfo &zone_info,
-                                               const ZoneBodyFunction &body_fn);
+LazyFunction &build_closure_zone_lazy_function(
+    ResourceScope &scope,
+    const bNodeTree &btree,
+    const bke::bNodeTreeZone &zone,
+    ZoneBuildInfo &zone_info,
+    const ZoneBodyFunction &body_fn,
+    std::shared_ptr<GeometryNodesLazyFunctionGraphInfo> &lf_graph_info);
 
 struct EvaluateClosureFunctionIndices {
   struct {

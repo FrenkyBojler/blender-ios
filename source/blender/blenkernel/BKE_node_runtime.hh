@@ -191,7 +191,7 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
    * its used multiple times.
    */
   CacheMutex geometry_nodes_lazy_function_graph_info_mutex;
-  std::unique_ptr<nodes::GeometryNodesLazyFunctionGraphInfo>
+  std::shared_ptr<const nodes::GeometryNodesLazyFunctionGraphInfo>
       geometry_nodes_lazy_function_graph_info;
 
   /**
