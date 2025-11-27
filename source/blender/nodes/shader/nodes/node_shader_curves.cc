@@ -116,6 +116,7 @@ static void sh_node_curve_vec_build_multi_function(NodeMultiFunctionBuilder &bui
   const bNode &bnode = builder.node();
   CurveMapping *cumap = (CurveMapping *)bnode.storage;
   BKE_curvemapping_init(cumap);
+  // TODO: The multi-function needs to take ownership of the curvemapping somehow.
   builder.construct_and_set_matching_fn<CurveVecFunction>(*cumap);
 }
 
