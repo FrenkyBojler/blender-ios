@@ -48,7 +48,7 @@ None
           1
         ],
         "metallicFactor": 0,
-        "roughnessFactor": 0.4000000059604645
+        "roughnessFactor": 0.4
       }
     },
     {
@@ -62,7 +62,7 @@ None
           1
         ],
         "metallicFactor": 0,
-        "roughnessFactor": 0.4000000059604645
+        "roughnessFactor": 0.4
       }
     },
     {
@@ -70,9 +70,9 @@ None
       "name": "Orange",
       "pbrMetallicRoughness": {
         "baseColorFactor": [
-          0.9142919182777405,
-          0.18117068707942963,
-          0.05664999037981033,
+          0.914,
+          0.181,
+          0.057,
           1
         ],
         "metallicFactor": 0,
@@ -86,7 +86,7 @@ None
         "baseColorFactor": [
           0,
           1,
-          0.01599104329943657,
+          0.016,
           1
         ],
         "metallicFactor": 0,

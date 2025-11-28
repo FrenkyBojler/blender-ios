@@ -35,15 +35,15 @@ None
     {
       "name": "Bone.001",
       "rotation": [
-        1.319117231285828e-16,
-        1.0025483360881847e-23,
-        -3.931275304963976e-24,
+        0.0,
+        0.0,
+        0.0,
         1
       ],
       "translation": [
-        -7.209343014829651e-23,
-        0.9999998807907104,
-        3.0250667862861697e-15
+        0.0,
+        1.0,
+        0.0
       ]
     },
     {
@@ -52,9 +52,9 @@ None
       ],
       "name": "Bone",
       "rotation": [
-        -8.557136332854043e-09,
-        1.7114272665708086e-08,
-        -2.928983286277023e-16,
+        0.0,
+        0.0,
+        0.0,
         1
       ],
       "translation": [
@@ -371,9 +371,9 @@ None
       "alphaMode": "BLEND",
       "doubleSided": false,
       "emissiveFactor": [
-        0.550000011920929,
-        0.550000011920929,
-        0.550000011920929
+        0.55,
+        0.55,
+        0.55
       ],
       "emissiveTexture": {
         "index": 0
@@ -381,7 +381,7 @@ None
       "extensions": {
         "KHR_materials_clearcoat": {
           "clearcoatFactor": 0.25,
-          "clearcoatRoughnessFactor": 0.3499999940395355,
+          "clearcoatRoughnessFactor": 0.35,
           "clearcoatTexture": {
             "index": 1
           },
@@ -390,43 +390,43 @@ None
           }
         },
         "KHR_materials_transmission": {
-          "transmissionFactor": 0.20000000298023224
+          "transmissionFactor": 0.2
         },
         "KHR_materials_volume": {
           "attenuationColor": [
-            0.03310215473175049,
-            0.1328708678483963,
-            0.3185665011405945
+            0.033,
+            0.133,
+            0.319
           ],
-          "attenuationDistance": 2.9999999105930355,
-          "thicknessFactor": 0.3499999940395355,
+          "attenuationDistance": 3.0,
+          "thicknessFactor": 0.35,
           "thicknessTexture": {
             "index": 2
           }
         },
         "KHR_materials_sheen": {
           "sheenColorFactor": [
-            0.44012218713760376,
-            0.11930619180202484,
-            0.11930608749389648
+            0.44,
+            0.119,
+            0.119
           ],
           "sheenColorTexture": {
             "index": 3
           },
-          "sheenRoughnessFactor": 0.11999999731779099,
+          "sheenRoughnessFactor": 0.12,
           "sheenRoughnessTexture": {
             "index": 4
           }
         },
         "KHR_materials_anisotropy": {
-          "anisotropyStrength": 0.8999999761581421,
-          "anisotropyRotation": 1.0999999046325684,
+          "anisotropyStrength": 0.9,
+          "anisotropyRotation": 1.1,
           "anisotropyTexture": {
             "index": 5
           }
         },
         "KHR_materials_ior": {
-          "ior": 1.2000000476837158
+          "ior": 1.2
         }
       },
       "name": "Material",
@@ -434,10 +434,10 @@ None
         "extensions": {
           "KHR_texture_transform": {
             "offset": [
-              0.6464466016795712,
-              -1.3535533828661186
+              0.646,
+              -1.354
             ],
-            "rotation": 0.7853981852531433,
+            "rotation": 0.785,
             "scale": [
               0.5,
               0.5
@@ -445,16 +445,16 @@ None
           }
         },
         "index": 6,
-        "scale": 0.6000000238418579
+        "scale": 0.6
       },
       "occlusionTexture": {
         "extensions": {
           "KHR_texture_transform": {
             "offset": [
-              0.6464466016795712,
-              -1.3535533828661186
+              0.646,
+              -1.354
             ],
-            "rotation": 0.7853981852531433,
+            "rotation": 0.785,
             "scale": [
               0.5,
               0.5
@@ -466,19 +466,19 @@ None
       },
       "pbrMetallicRoughness": {
         "baseColorFactor": [
-          0.10000000149011612,
-          0.20000000298023224,
-          0.30000001192092896,
+          0.1,
+          0.2,
+          0.3,
           1
         ],
         "baseColorTexture": {
           "extensions": {
             "KHR_texture_transform": {
               "offset": [
-                0.6464466016795712,
-                -1.3535533828661186
+                0.646,
+                -1.354
               ],
-              "rotation": 0.7853981852531433,
+              "rotation": 0.785,
               "scale": [
                 0.5,
                 0.5
@@ -487,15 +487,15 @@ None
           },
           "index": 8
         },
-        "metallicFactor": 0.30000001192092896,
+        "metallicFactor": 0.3,
         "metallicRoughnessTexture": {
           "extensions": {
             "KHR_texture_transform": {
               "offset": [
-                0.6464466016795712,
-                -1.3535533828661186
+                0.646,
+                -1.354
               ],
-              "rotation": 0.7853981852531433,
+              "rotation": 0.785,
               "scale": [
                 0.5,
                 0.5
@@ -504,7 +504,7 @@ None
           },
           "index": 7
         },
-        "roughnessFactor": 0.20000000298023224
+        "roughnessFactor": 0.2
       }
     }
   ],
@@ -722,14 +722,14 @@ None
       "componentType": 5126,
       "count": 34,
       "max": [
-        0.6016637086868286,
-        1.2613286972045898,
+        0.602,
+        1.261,
         0
       ],
       "min": [
         0,
         0,
-        -0.622972846031189
+        -0.623
       ],
       "sparse": {
         "count": 5,
@@ -754,11 +754,11 @@ None
       "count": 34,
       "max": [
         0,
-        0.49069952964782715,
-        0.3329627513885498
+        0.491,
+        0.333
       ],
       "min": [
-        -1.41804838180542,
+        -1.418,
         0,
         0
       ],
@@ -791,14 +791,14 @@ None
       "componentType": 5126,
       "count": 1970,
       "max": [
-        1.3671875,
-        0.984375,
-        0.8515625
+        1.367,
+        0.984,
+        0.852
       ],
       "min": [
-        -1.3671875,
-        -0.984375,
-        -0.8515625
+        -1.367,
+        -0.984,
+        -0.852
       ],
       "type": "VEC3"
     },
@@ -859,7 +859,7 @@ None
         1
       ],
       "min": [
-        0.041666666666666664
+        0.042
       ],
       "type": "SCALAR"
     },
@@ -889,7 +889,7 @@ None
         1
       ],
       "min": [
-        0.041666666666666664
+        0.042
       ],
       "type": "SCALAR"
     },
@@ -943,7 +943,7 @@ None
         1.5
       ],
       "min": [
-        0.041666666666666664
+        0.042
       ],
       "type": "SCALAR"
     },
@@ -973,7 +973,7 @@ None
         1.5
       ],
       "min": [
-        0.041666666666666664
+        0.042
       ],
       "type": "SCALAR"
     },
