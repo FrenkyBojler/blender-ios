@@ -6,4 +6,4 @@ Referenced by pull request #149933, Fix #149890: Memfile undo can get corrupted 
 Referenced by issue #149890, Blender 5.0 undo system related crash
 Referenced by commit f9126f5f67e27ba15160dcc134c2a2d8bfeb59d3, Fix #149890: Memfile undo can get corrupted and lead to crash.
 Referenced by issue #150350, Selection of geometry and materials unusually slow in 5.0
-Referenced by issue #150393, 'Corrupted' (Lagging) Armature Object/Data from Blender 4.5 LTS Blend file Saved into Blender 5.0
+Referenced by issue #150393, Slowdown/Lagging Armature Object/Data caused by huge Custom Property
