@@ -446,6 +446,20 @@ static wmOperatorStatus sequencer_text_insert_invoke(bContext *C,
                                                      wmOperator *op,
                                                      const wmEvent *event)
 {
+#ifdef WITH_INPUT_IME
+  wmWindow *win = CTX_wm_window(C);
+  const wmIMEData *ime_data = win->runtime->ime_data;
+  if (event->type == WM_IME_COMPOSITE_EVENT) {
+    if (ime_data && ime_data->result.size()) {
+      RNA_string_set(op->ptr, "string", ime_data->result.c_str());
+      return sequencer_text_insert_exec(C, op);
+    }
+  }
+  if (win->runtime->ime_data_is_composing) {
+    return OPERATOR_CANCELLED;
+  }
+#endif
+
   char str[6];
   BLI_strncpy_utf8(str, event->utf8_buf, BLI_str_utf8_size_safe(event->utf8_buf) + 1);
   RNA_string_set(op->ptr, "string", str);
@@ -497,6 +511,14 @@ static wmOperatorStatus sequencer_text_delete_exec(bContext *C, wmOperator *op)
   TextVars *data = static_cast<TextVars *>(strip->effectdata);
   const TextVarsRuntime *text = data->runtime;
   const int type = RNA_enum_get(op->ptr, "type");
+
+#ifdef WITH_INPUT_IME
+  wmWindow *win = CTX_wm_window(C);
+  const wmIMEData *ime_data = win->runtime->ime_data;
+  if (win->runtime->ime_data_is_composing) {
+    return OPERATOR_CANCELLED;
+  }
+#endif
 
   if (text_has_selection(data)) {
     delete_selected_text(data);
