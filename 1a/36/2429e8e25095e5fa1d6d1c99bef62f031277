@@ -2,3 +2,4 @@ Referenced by issue #134124, Geometry Nodes: mute behavior is different compared
 Referenced by issue #134080, Deleting an attribute deletes the vgroup of the same name when there is name collision
 Referenced by issue #134070, UI: rendering progress bar is not working
 Referenced by issue #150629, Knife tool does cuts behind the camera
+Referenced by commit 40b6a4dc75e1b27da026fb80633562371cf236ae, Fix #150629: Knife tool makes cuts behind the viewpoint
