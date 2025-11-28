@@ -1997,17 +1997,20 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
   const bool ignore_connections = RNA_boolean_get(op->ptr, "ignore_connections");
   const seq::eSplitMethod method = seq::eSplitMethod(RNA_enum_get(op->ptr, "type"));
   const int2 rect_frames = {round_fl_to_int(box_rect.xmin), round_fl_to_int(box_rect.xmax)};
+  ListBase *channels = seq::channels_displayed_get(ed);
 
   bool changed = false;
   int2 gap_removal_boundary = {INT_MAX, INT_MAX};
   bool box_cuts_left = false;
   bool box_cuts_right = false;
-  ListBase *channels = seq::channels_displayed_get(ed);
 
   Vector<Strip *> strips = ignore_selection ? all_strips_from_context(C).extract_vector() :
                                               selected_strips_from_context(C).extract_vector();
   /* Use vector and itterate using `i` to be able to also access the newly created strips. */
   for (int i = 0; i < strips.size(); i++) {
+    if (seq::transform_is_locked(channels, strips[i])) {
+      continue;
+    }
     rctf strip_rect;
     strip_rectf(scene, strips[i], &strip_rect);
     if (BLI_rctf_isect(&strip_rect, &box_rect, nullptr)) {
