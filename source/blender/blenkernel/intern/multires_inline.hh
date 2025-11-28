@@ -73,9 +73,10 @@ BLI_INLINE blender::float3x3 BKE_multires_construct_tangent_matrix(const blender
 
     tangent_matrix.z_axis() = N;
 #if ADJUST_ANGLE
-    const float denominator = blender::math::length(tangent_matrix.x_axis()) *
-                              blender::math::length(tangent_matrix.y_axis());
-    const float angle_between = RAD2DEGF(blender::math::asin(float(length) / denominator));
+    const float angle_between = RAD2DEGF(blender::math::acos(
+        blender::math::dot(tangent_matrix.x_axis(), tangent_matrix.y_axis()) /
+        (blender::math::length(tangent_matrix.x_axis() *
+                               blender::math::length(tangent_matrix.y_axis())))));
 
     constexpr float threshold_angle = 60.0f;
     constexpr float low_threshold = 90.0f - threshold_angle;
@@ -88,19 +89,6 @@ BLI_INLINE blender::float3x3 BKE_multires_construct_tangent_matrix(const blender
           tangent_matrix.x_axis(), blender::float3(0.0f), tangent_matrix.z_axis(), -rad_to_rotate);
       tangent_matrix.y_axis() = blender::math::rotate_around_axis(
           tangent_matrix.y_axis(), blender::float3(0.0f), tangent_matrix.z_axis(), rad_to_rotate);
-      if (blender::math::is_zero(tangent_matrix.x_axis()) ||
-          blender::math::is_zero(tangent_matrix.y_axis()))
-      {
-        printf("%f, (%f %f %f), (%f, %f, %f)\n",
-               deg_to_rotate,
-               tangent_matrix.x_axis().x,
-               tangent_matrix.x_axis().y,
-               tangent_matrix.x_axis().z,
-               tangent_matrix.y_axis().x,
-               tangent_matrix.y_axis().y,
-               tangent_matrix.y_axis().z);
-        BLI_assert_unreachable();
-      }
     }
     else if (angle_between > high_threshold) {
       const float deg_to_rotate = angle_between - high_threshold / 2.0f;
@@ -109,19 +97,6 @@ BLI_INLINE blender::float3x3 BKE_multires_construct_tangent_matrix(const blender
           tangent_matrix.x_axis(), blender::float3(0.0f), tangent_matrix.z_axis(), rad_to_rotate);
       tangent_matrix.y_axis() = blender::math::rotate_around_axis(
           tangent_matrix.y_axis(), blender::float3(0.0f), tangent_matrix.z_axis(), -rad_to_rotate);
-      if (blender::math::is_zero(tangent_matrix.x_axis()) ||
-          blender::math::is_zero(tangent_matrix.y_axis()))
-      {
-        printf("%f, (%f %f %f), (%f, %f, %f)\n",
-               deg_to_rotate,
-               tangent_matrix.x_axis().x,
-               tangent_matrix.x_axis().y,
-               tangent_matrix.x_axis().z,
-               tangent_matrix.y_axis().x,
-               tangent_matrix.y_axis().y,
-               tangent_matrix.y_axis().z);
-        BLI_assert_unreachable();
-      }
     }
 #endif
 

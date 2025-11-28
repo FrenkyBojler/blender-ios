@@ -260,9 +260,10 @@ static void print_level_stats(blender::Span<float> data,
   int index_99_99th = int(data.size() * .9999f);
 
   CLOG_INFO(&LOG,
-            "%s: MAX: (%ld) %.15f, MEAN: %.15f, MEDIAN: (%d) %.15f, 90th: (%d) %.15f, 95th: (%d) "
+            "%s: MIN: %.15f, MAX: (%ld) %.15f, MEAN: %.15f, MEDIAN: (%d) %.15f, 90th: (%d) %.15f, 95th: (%d) "
             "%.15f, 99th: (%d) %.15f, 99.9th: (%d) %.15f, 99.99th: (%d) %.15f",
             label.c_str(),
+            data[sorted_indices[0]],
             data.size() - 1,
             data[sorted_indices[data.size() - 1]],
             avg,
@@ -393,21 +394,20 @@ static void multires_level_object_delta_to_tangent_delta(
         continue;
       }
 
-      double length;
-      blender::float3 N = blender::float3(blender::math::normalize_and_get_length(
-          blender::math::cross(blender::double3(tangent_matrix.x_axis()), blender::double3(tangent_matrix.y_axis())), length));
-      const double denominator = blender::math::length(blender::double3(tangent_matrix.x_axis())) *
-                                blender::math::length(blender::double3(tangent_matrix.y_axis()));
-
-      const double angle_between = RAD2DEG(blender::math::asin(double(length) / denominator));
+      const float angle_between = RAD2DEGF(blender::math::acos(
+          blender::math::dot(tangent_matrix.x_axis(), tangent_matrix.y_axis()) /
+          (blender::math::length(tangent_matrix.x_axis() *
+                                 blender::math::length(tangent_matrix.y_axis())))));
       if (std::isnan(angle_between)) {
-        printf("%.15f, %.15f, %.15f\n", length, denominator, blender::math::asin(length / denominator));
         print_matrix(tangent_matrix);
         BLI_assert(false);
       }
 
       angles[i] = angle_between;
     }
+    std::sort(sorted_indices.begin(), sorted_indices.end(), [&](int a, int b) {
+      return angles[a] < angles[b];
+    });
     print_level_stats(angles, sorted_indices, "Angles");
 
     int less_than_1 = 0;
