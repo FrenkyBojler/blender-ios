@@ -468,8 +468,10 @@ void VKBackend::detect_workarounds(VKDevice &device)
       VK_EXT_GRAPHICS_PIPELINE_LIBRARY_EXTENSION_NAME);
   extensions.line_rasterization = device.supports_extension(
       VK_EXT_LINE_RASTERIZATION_EXTENSION_NAME);
+#if 1
   extensions.extended_dynamic_state = device.supports_extension(
       VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME);
+#endif
 #ifdef _WIN32
   extensions.external_memory = device.supports_extension(
       VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME);
