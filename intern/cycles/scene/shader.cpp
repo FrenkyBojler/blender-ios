@@ -423,6 +423,7 @@ void Shader::tag_update(Scene *scene)
   if (has_volume != prev_has_volume || volume_step_rate != prev_volume_step_rate) {
     scene->geometry_manager->need_flags_update = true;
     scene->object_manager->need_flags_update = true;
+    scene->volume_manager->need_update_step_size = true;
     prev_volume_step_rate = volume_step_rate;
   }
 
@@ -570,10 +571,6 @@ void ShaderManager::device_update_pre(Device * /*device*/,
           shader->has_light_path_node = true;
           break;
         }
-      }
-
-      if (shader->has_volume && shader->volume_step_rate_is_modified()) {
-        dscene->volume_step_size.tag_modified();
       }
     }
 
