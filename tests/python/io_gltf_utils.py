@@ -29,10 +29,13 @@ def gltf_generate_descr(output_datafile: pathlib.Path) -> str:
         if isinstance(o, float):
             # round to avoid precision issues
             # Also avoid -0.0
-            if abs(o) < 0.0005: return 0.000
+            if abs(o) < 0.0005:
+                return 0.000
             return round(o, 3)
-        if isinstance(o, dict): return {k: round_floats(v) for k, v in o.items()}
-        if isinstance(o, (list, tuple)): return [round_floats(x) for x in o]
+        if isinstance(o, dict):
+            return {k: round_floats(v) for k, v in o.items()}
+        if isinstance(o, (list, tuple)):
+            return [round_floats(x) for x in o]
         return o
 
     text += json.dumps(round_floats(gltf.json), indent=2, ensure_ascii=False)
