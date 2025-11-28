@@ -74,12 +74,12 @@ class VKDrawIndexedNode : public VKNodeInfo<VKNodeType::DRAW_INDEXED,
                       Data &data,
                       VKBoundPipelines &r_bound_pipelines) override
   {
+    vk_pipeline_dynamic_graphics_build_commands(command_buffer, data.graphics, r_bound_pipelines);
     vk_pipeline_data_build_commands(command_buffer,
                                     data.graphics.pipeline_data,
                                     r_bound_pipelines.graphics.pipeline,
                                     VK_PIPELINE_BIND_POINT_GRAPHICS,
                                     VK_SHADER_STAGE_ALL_GRAPHICS);
-    vk_pipeline_dynamic_graphics_build_commands(command_buffer, data.graphics, r_bound_pipelines);
     vk_index_buffer_binding_build_commands(
         command_buffer, data.index_buffer, r_bound_pipelines.graphics.index_buffer);
     vk_vertex_buffer_bindings_build_commands(
