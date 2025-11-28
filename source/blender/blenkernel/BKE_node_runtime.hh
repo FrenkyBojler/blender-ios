@@ -9,7 +9,6 @@
 #pragma once
 
 #include <memory>
-#include <variant>
 
 #include "BLI_cache_mutex.hh"
 #include "BLI_math_vector_types.hh"
@@ -102,10 +101,6 @@ struct NodeLinkKey {
                                   input_link_index_);
 };
 
-class GeoNodesPersistentTree {
- public:
-};
-
 struct LoggedZoneGraphs {
   Mutex mutex;
   /**
@@ -190,12 +185,16 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
   blender::Array<nodes::socket_usage_inference::SocketUsage> inferenced_socket_usage;
   CacheMutex inferenced_input_socket_usage_mutex;
 
-  /** Used by node trees that are owned by the depsgraph. */
+  /**
+   * Execution data for geometry nodes. The data is independent of the owner tree, so taking
+   * shared ownership of #geometry_nodes_lazy_function_graph_info allows the node tree to be
+   * evaluated even if the owner tree is freed already.
+   */
   CacheMutex geometry_nodes_lazy_function_graph_info_mutex;
   std::shared_ptr<const nodes::GeometryNodesLazyFunctionGraphInfo>
       geometry_nodes_lazy_function_graph_info;
 
-  /** This must not be owning to avoid circular references. */
+  /** Back-pointer if this is a node tree owned by #geometry_nodes_lazy_function_graph_info. */
   const nodes::GeometryNodesLazyFunctionGraphInfo *self_geometry_nodes_lazy_function_graph_info =
       nullptr;
 

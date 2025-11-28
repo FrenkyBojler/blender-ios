@@ -2,7 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_lib_id.hh"
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
 
@@ -22,7 +21,7 @@ namespace blender::bke::node_tree_runtime {
 void preprocess_geometry_node_tree_for_evaluation(bNodeTree &tree_cow)
 {
   BLI_assert(tree_cow.type == NTREE_GEOMETRY);
-  /* Rebuild geometry nodes lazy function graph eagerly to avoid pipeline stalls later on. */
+  /* Rebuild geometry nodes lazy function graph. */
   tree_cow.runtime->geometry_nodes_lazy_function_graph_info_mutex.tag_dirty();
   blender::nodes::ensure_geometry_nodes_lazy_function_graph(tree_cow);
 }

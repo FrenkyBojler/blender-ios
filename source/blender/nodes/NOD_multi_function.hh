@@ -54,6 +54,12 @@ class NodeMultiFunctionBuilder : NonCopyable, NonMovable {
   const bNode &node();
   const bNodeTree &tree();
   const mf::MultiFunction &function();
+
+  /**
+   * If the created multi-function references data from the node it was created for, it should also
+   * take shared ownership of the tree if provided. This makes sure that the tree is not freed
+   * while multi-functions referencing it are still in use.
+   */
   const std::shared_ptr<const bNodeTree> &shared_tree();
 };
 

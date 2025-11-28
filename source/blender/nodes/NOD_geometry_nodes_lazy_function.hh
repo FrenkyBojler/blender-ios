@@ -34,7 +34,6 @@
 #include "BLI_multi_value_map.hh"
 
 #include "BKE_bake_items.hh"
-#include "BKE_node_runtime.hh"
 #include "BKE_node_tree_zones.hh"
 
 struct Object;

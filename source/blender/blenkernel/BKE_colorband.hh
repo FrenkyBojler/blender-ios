@@ -7,8 +7,6 @@
  * \ingroup bke
  */
 
-#include "MEM_guardedalloc.h"
-
 struct CBData;
 struct ColorBand;
 struct IDTypeForeachColorFunctionCallback;
@@ -29,11 +27,3 @@ bool BKE_colorband_element_remove(ColorBand *coba, int index);
 void BKE_colorband_update_sort(ColorBand *coba);
 void BKE_colorband_foreach_working_space_color(ColorBand *coba,
                                                const IDTypeForeachColorFunctionCallback &fn);
-
-struct ColorBandDestructor {
-  void operator()(ColorBand *coba)
-  {
-    MEM_freeN(coba);
-  }
-};
-using ColorBand_unique_ptr = std::unique_ptr<ColorBand, ColorBandDestructor>;
