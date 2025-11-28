@@ -2598,16 +2598,14 @@ static bool bm_ray_cast_cb_elem_not_in_face_check(BMFace *f, void *user_data)
 static bool knife_point_in_front_of_view(const KnifeTool_OpData *kcd, const float p[3])
 {
   const RegionView3D *rv3d = kcd->vc.rv3d;
-
-  /* Ortho view has no concept of front/behind. */
-  if (rv3d->persp == RV3D_ORTHO) {
+  /* Ortho view has no concept of front/behind
+   * so treat all points as visible. */
+  if (kcd->is_ortho) {
     return true;
   }
 
-  float p_view[3];
-  mul_v3_m4v3(p_view, rv3d->viewmat, p);
-
-  return (p_view[2] < 0.0f);
+  const float zfac = mul_project_m4_v3_zfac(rv3d->persmat, p);
+  return (zfac > 0.0f);
 }
 
 /**
