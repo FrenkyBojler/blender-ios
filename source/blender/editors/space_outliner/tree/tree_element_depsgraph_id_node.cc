@@ -69,7 +69,7 @@ void TreeElementDepsgraphIDNode::expand(SpaceOutliner & /*soops*/) const
 std::optional<double> TreeElementDepsgraphIDNode::node_evaluation_time() const
 {
   if (!orig_id_) {
-    return DEG_get_total_evaluation_time(depsgraph_);
+    return DEG_get_last_evaluation_time(depsgraph_);
   }
   return DEG_get_id_self_evaluation_time(depsgraph_, *orig_id_);
 }
@@ -82,7 +82,7 @@ std::optional<float> TreeElementDepsgraphIDNode::node_evaluation_percent() const
 
   if (std::optional<double> id_eval_time = DEG_get_id_self_evaluation_time(depsgraph_, *orig_id_))
   {
-    double eval_time = *DEG_get_total_evaluation_time(depsgraph_);
+    double eval_time = *DEG_get_last_evaluation_time(depsgraph_);
     return float(*id_eval_time / eval_time) * 100.0f;
   }
   return std::nullopt;
