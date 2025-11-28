@@ -80,6 +80,13 @@ void main()
 
   g_holdout = saturate(g_holdout);
 
+#ifdef MAT_REFRACTION_AS_TRANSPARENCY
+  if (g_thickness > 0.0f) {
+    /* Simulate 2 refraction event. */
+    g_transmittance *= g_transmittance;
+  }
+#endif
+
   /** Transparency weight is already applied through dithering, remove it from other closures. */
   float alpha = 1.0f - average(g_transmittance);
   float alpha_rcp = safe_rcp(alpha);

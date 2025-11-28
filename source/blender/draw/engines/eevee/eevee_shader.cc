@@ -795,15 +795,21 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
   eMaterialDisplacement displacement_type;
   eMaterialThickness thickness_type;
   bool transparent_shadows;
+  bool refraction_as_transparency;
   material_type_from_shader_uuid(shader_uuid,
                                  pipeline_type,
                                  geometry_type,
                                  displacement_type,
                                  thickness_type,
-                                 transparent_shadows);
+                                 transparent_shadows,
+                                 refraction_as_transparency);
 
   GPUCodegenOutput &codegen = *codegen_;
   ShaderCreateInfo &info = *reinterpret_cast<ShaderCreateInfo *>(codegen.create_info);
+
+  if (refraction_as_transparency) {
+    info.define("MAT_REFRACTION_AS_TRANSPARENCY");
+  }
 
   /* WORKAROUND: Add new ob attr buffer. */
   if (GPU_material_uniform_attributes(gpumat) != nullptr) {
@@ -1337,12 +1343,14 @@ static GPUPass *pass_replacement_cb(void *void_thunk, GPUMaterial *mat)
   eMaterialDisplacement displacement_type;
   eMaterialThickness thickness_type;
   bool transparent_shadows;
+  bool refraction_as_transparency;
   material_type_from_shader_uuid(shader_uuid,
                                  pipeline_type,
                                  geometry_type,
                                  displacement_type,
                                  thickness_type,
-                                 transparent_shadows);
+                                 transparent_shadows,
+                                 refraction_as_transparency);
 
   bool is_shadow_pass = pipeline_type == eMaterialPipeline::MAT_PIPE_SHADOW;
   bool is_prepass = ELEM(pipeline_type,
@@ -1405,8 +1413,12 @@ GPUMaterial *ShaderModule::material_shader_get(::Material *blender_mat,
   eMaterialDisplacement displacement_type = to_displacement_type(blender_mat->displacement_method);
   eMaterialThickness thickness_type = to_thickness_type(blender_mat->thickness_mode);
 
-  uint64_t shader_uuid = shader_uuid_from_material_type(
-      pipeline_type, geometry_type, displacement_type, thickness_type, blender_mat->blend_flag);
+  uint64_t shader_uuid = shader_uuid_from_material_type(pipeline_type,
+                                                        geometry_type,
+                                                        displacement_type,
+                                                        thickness_type,
+                                                        blender_mat->refraction_mode,
+                                                        blender_mat->blend_flag);
 
   bool is_default_material = default_mat == nullptr;
   BLI_assert(blender_mat != default_mat);

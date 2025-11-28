@@ -1074,6 +1074,14 @@ void RNA_def_material(BlenderRNA *brna)
                            "to refine the thickness defined by the material node tree");
   RNA_def_property_update(prop, 0, "rna_Material_draw_update");
 
+  prop = RNA_def_property(srna, "use_refraction_as_transparency", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "refraction_mode", MA_REFRACTION_AS_TRANSPARENCY);
+  RNA_def_property_ui_text(prop,
+                           "Refraction As Transparency",
+                           "Replace Refraction BSDF evaluation by Transparent BSDF. "
+                           "Result in better appearance for very thin glass objects");
+  RNA_def_property_update(prop, 0, "rna_Material_draw_update");
+
   prop = RNA_def_property(srna, "volume_intersection_method", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, prop_eevee_volume_isect_method_items);
   RNA_def_property_ui_text(

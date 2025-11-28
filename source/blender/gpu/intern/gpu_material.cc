@@ -375,6 +375,20 @@ eGPUMaterialFlag GPU_material_flag(const GPUMaterial *mat)
 
 void GPU_material_flag_set(GPUMaterial *mat, eGPUMaterialFlag flag)
 {
+  if (mat->source_material &&
+      (mat->source_material->refraction_mode == MA_REFRACTION_AS_TRANSPARENCY))
+  {
+    /* Transfer refraction flag to transparent flags. */
+    if (flag & GPU_MATFLAG_REFRACT) {
+      flag &= ~GPU_MATFLAG_REFRACT;
+      flag |= GPU_MATFLAG_TRANSPARENT;
+    }
+    if (flag & GPU_MATFLAG_REFRACTION_MAYBE_COLORED) {
+      flag &= ~GPU_MATFLAG_REFRACTION_MAYBE_COLORED;
+      flag |= GPU_MATFLAG_TRANSPARENT_MAYBE_COLORED;
+    }
+  }
+
   if ((flag & GPU_MATFLAG_GLOSSY) && (mat->flag & GPU_MATFLAG_GLOSSY)) {
     /* Tag material using multiple glossy BSDF as using clear coat. */
     mat->flag |= GPU_MATFLAG_COAT;

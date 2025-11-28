@@ -115,6 +115,10 @@ Closure closure_eval(ClosureReflection reflection)
 
 Closure closure_eval(ClosureRefraction refraction)
 {
+#ifdef MAT_REFRACTION_AS_TRANSPARENCY
+  g_transmittance += refraction.color * refraction.weight;
+  return Closure(0);
+#endif
   ClosureUndetermined cl;
   closure_base_copy(cl, refraction);
   cl.data.r = refraction.roughness;

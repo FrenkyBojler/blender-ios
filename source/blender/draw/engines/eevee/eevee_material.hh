@@ -86,7 +86,8 @@ static inline void material_type_from_shader_uuid(uint64_t shader_uuid,
                                                   eMaterialGeometry &geometry_type,
                                                   eMaterialDisplacement &displacement_type,
                                                   eMaterialThickness &thickness_type,
-                                                  bool &transparent_shadows)
+                                                  bool &transparent_shadows,
+                                                  bool &refraction_as_transparency)
 {
   const uint64_t geometry_mask = ((1u << 4u) - 1u);
   const uint64_t pipeline_mask = ((1u << 4u) - 1u);
@@ -97,6 +98,7 @@ static inline void material_type_from_shader_uuid(uint64_t shader_uuid,
   displacement_type = static_cast<eMaterialDisplacement>((shader_uuid >> 8u) & displacement_mask);
   thickness_type = static_cast<eMaterialThickness>((shader_uuid >> 9u) & thickness_mask);
   transparent_shadows = (shader_uuid >> 10u) & 1u;
+  refraction_as_transparency = (shader_uuid >> 11u) & 1u;
 }
 
 static inline uint64_t shader_uuid_from_material_type(
@@ -104,13 +106,15 @@ static inline uint64_t shader_uuid_from_material_type(
     eMaterialGeometry geometry_type,
     eMaterialDisplacement displacement_type = MAT_DISPLACEMENT_BUMP,
     eMaterialThickness thickness_type = MAT_THICKNESS_SPHERE,
+    char refraction_mode = 0,
     char blend_flags = 0)
 {
   BLI_assert(int64_t(displacement_type) < (1 << 1));
   BLI_assert(int64_t(thickness_type) < (1 << 1));
   BLI_assert(int64_t(geometry_type) < (1 << 4));
   BLI_assert(int64_t(pipeline_type) < (1 << 4));
-  uint64_t transparent_shadows = blend_flags & MA_BL_TRANSPARENT_SHADOW ? 1 : 0;
+  uint64_t transparent_shadows = (blend_flags & MA_BL_TRANSPARENT_SHADOW) ? 1 : 0;
+  uint64_t refraction_as_transparency = (refraction_mode & MA_REFRACTION_AS_TRANSPARENCY) ? 1 : 0;
 
   uint64_t uuid;
   uuid = geometry_type;
@@ -118,6 +122,7 @@ static inline uint64_t shader_uuid_from_material_type(
   uuid |= displacement_type << 8;
   uuid |= thickness_type << 9;
   uuid |= transparent_shadows << 10;
+  uuid |= refraction_as_transparency << 11;
   return uuid;
 }
 

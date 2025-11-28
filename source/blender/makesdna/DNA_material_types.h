@@ -230,7 +230,10 @@ typedef struct Material {
   /* Displacement. */
   float inflate_bounds;
 
-  char _pad3[4];
+  /* Refraction. */
+  char refraction_mode;
+
+  char _pad3[3];
 
   /**
    * Cached slots for texture painting, must be refreshed via
@@ -394,6 +397,12 @@ enum {
 enum {
   MA_THICKNESS_SPHERE = 0,
   MA_THICKNESS_SLAB = 1,
+};
+
+/** #Material::refraction_mode */
+enum {
+  MA_REFRACTION_FULL = 0,
+  MA_REFRACTION_AS_TRANSPARENCY = 1,
 };
 
 /* Grease Pencil Stroke styles */
