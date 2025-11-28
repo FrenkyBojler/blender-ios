@@ -294,10 +294,21 @@ class TestPropString(unittest.TestCase):
 class TestPropByteString(unittest.TestCase):
     default_value = b""
     custom_value = b"Blender"
+    custom_nullbyte_value = b"Blen\0der"
 
     def setUp(self):
         id_type.test_byte_string = StringProperty(default=self.default_value.decode(), subtype="BYTE_STRING")
-        # NOTE: get/set is known essentially broken with byte strings properties currently.
+
+        self.test_byte_string_storage = self.custom_value
+
+        def set_(s, v):
+            self.test_byte_string_storage = v
+        id_type.test_byte_string_getset = StringProperty(
+            default=self.default_value.decode(),
+            subtype="BYTE_STRING",
+            get=lambda s: self.test_byte_string_storage,
+            set=set_,
+        )
 
     def tearDown(self):
         del id_type.test_byte_string
@@ -306,15 +317,21 @@ class TestPropByteString(unittest.TestCase):
         v = getattr(id_inst, prop_name)
         self.assertIsInstance(v, py_type)
         self.assertEqual(v, expected_value)
-        setattr(id_inst, prop_name, v)
+        # Test with nullbyte in the value.
+        setattr(id_inst, prop_name, self.custom_nullbyte_value)
         v = getattr(id_inst, prop_name)
         self.assertIsInstance(v, py_type)
-        self.assertEqual(v, expected_value)
+        self.assertEqual(v, self.custom_nullbyte_value)
 
     def test_access_byte_string(self):
         self.do_test_access("test_byte_string", bytes, self.default_value)
 
-    # TODO: Add expected failure cases (e.g. handling of too long values, invalid utf8 sequences, etc.).
+    # TODO: get/set is known essentially broken (aka unsupported) with byte strings properties currently.
+    # See comments in `bpy_props.cc`: `bpy_prop_string_get_transform_locked_fn`, `bpy_prop_string_set_fn`, etc.
+    # def test_access_byte_string_getset(self):
+    #     self.do_test_access("test_byte_string_getset", bytes, self.custom_value)
+
+    # TODO: Add expected failure cases (e.g. handling of too long values, etc.).
 
 
 class TestPropEnum(unittest.TestCase):
