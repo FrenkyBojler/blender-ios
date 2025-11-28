@@ -494,6 +494,7 @@ void RNA_def_property_string_default(PropertyRNA *prop, const char *value);
 
 void RNA_def_property_ui_text(PropertyRNA *prop, const char *name, const char *description);
 void RNA_def_property_ui_name_func(PropertyRNA *prop, const char *name_func);
+void RNA_def_property_ui_description_func(PropertyRNA *prop, const char *description_func);
 
 void RNA_def_property_deprecated(PropertyRNA *prop,
                                  const char *note,
@@ -579,6 +580,7 @@ void RNA_def_property_float_default_func(PropertyRNA *prop, const char *get_defa
 void RNA_def_property_int_default_func(PropertyRNA *prop, const char *get_default);
 void RNA_def_property_boolean_default_func(PropertyRNA *prop, const char *get_default);
 void RNA_def_property_enum_default_func(PropertyRNA *prop, const char *get_default);
+void RNA_def_property_string_default_func(PropertyRNA *prop, const char *get_default);
 
 void RNA_def_property_srna(PropertyRNA *prop, const char *type);
 void RNA_def_py_data(PropertyRNA *prop, void *py_data);

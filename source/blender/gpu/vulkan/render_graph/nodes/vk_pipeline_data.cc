@@ -26,6 +26,7 @@ void vk_pipeline_data_copy(VKPipelineData &dst, const VKPipelineData &src)
 void vk_pipeline_dynamic_graphics_build_commands(VKCommandBufferInterface &command_buffer,
                                                  const VKViewportData &viewport,
                                                  const std::optional<float> line_width,
+                                                 const std::optional<StencilState> stencil_state,
                                                  VKBoundPipelines &r_bound_pipelines)
 {
   if (assign_if_different(r_bound_pipelines.graphics.viewport_state, viewport)) {
@@ -35,6 +36,14 @@ void vk_pipeline_dynamic_graphics_build_commands(VKCommandBufferInterface &comma
   if (assign_if_different(r_bound_pipelines.graphics.line_width, line_width)) {
     if (line_width.has_value()) {
       command_buffer.set_line_width(*line_width);
+    }
+  }
+  if (assign_if_different(r_bound_pipelines.graphics.stencil_state, stencil_state)) {
+    if (stencil_state.has_value()) {
+      const StencilState &s = *stencil_state;
+      command_buffer.set_stencil_compare_mask(s.compare_mask);
+      command_buffer.set_stencil_write_mask(s.write_mask);
+      command_buffer.set_stencil_reference(s.reference);
     }
   }
 }
@@ -59,40 +68,6 @@ void vk_pipeline_data_build_commands(VKCommandBufferInterface &command_buffer,
                                         &r_bound_pipeline.vk_descriptor_set,
                                         0,
                                         nullptr);
-  }
-
-  if (assign_if_different(r_bound_pipeline.descriptor_buffer_device_address,
-                          pipeline_data.descriptor_buffer_device_address) &&
-      r_bound_pipeline.descriptor_buffer_device_address != 0)
-  {
-    r_bound_pipeline.descriptor_buffer_offset = pipeline_data.descriptor_buffer_offset;
-    VkDescriptorBufferBindingInfoEXT descriptor_buffer_binding_info = {
-        VK_STRUCTURE_TYPE_DESCRIPTOR_BUFFER_BINDING_INFO_EXT,
-        nullptr,
-        r_bound_pipeline.descriptor_buffer_device_address,
-        VK_BUFFER_USAGE_SAMPLER_DESCRIPTOR_BUFFER_BIT_EXT |
-            VK_BUFFER_USAGE_RESOURCE_DESCRIPTOR_BUFFER_BIT_EXT};
-    command_buffer.bind_descriptor_buffers(1, &descriptor_buffer_binding_info);
-
-    uint32_t buffer_index = 0;
-    command_buffer.set_descriptor_buffer_offsets(vk_pipeline_bind_point,
-                                                 pipeline_data.vk_pipeline_layout,
-                                                 0,
-                                                 1,
-                                                 &buffer_index,
-                                                 &r_bound_pipeline.descriptor_buffer_offset);
-  }
-  else if (assign_if_different(r_bound_pipeline.descriptor_buffer_offset,
-                               pipeline_data.descriptor_buffer_offset) &&
-           r_bound_pipeline.descriptor_buffer_device_address != 0)
-  {
-    uint32_t buffer_index = 0;
-    command_buffer.set_descriptor_buffer_offsets(vk_pipeline_bind_point,
-                                                 pipeline_data.vk_pipeline_layout,
-                                                 0,
-                                                 1,
-                                                 &buffer_index,
-                                                 &r_bound_pipeline.descriptor_buffer_offset);
   }
 
   if (pipeline_data.push_constants_size) {
