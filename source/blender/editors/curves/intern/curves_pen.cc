@@ -1178,7 +1178,7 @@ wmOperatorStatus PenToolOperation::invoke(bContext *C, wmOperator *op, const wmE
   this->move_point = RNA_boolean_get(op->ptr, "move_point");
   this->cycle_handle_type = RNA_boolean_get(op->ptr, "cycle_handle_type");
   this->extrude_handle = RNA_enum_get(op->ptr, "extrude_handle");
-  /* Size is stored in diameter. */
+  /* Size is stored as the diameter. */
   this->radius = RNA_float_get(op->ptr, "size") / 2.0f;
 
   this->move_entire = false;
