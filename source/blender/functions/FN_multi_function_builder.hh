@@ -576,11 +576,11 @@ template<typename In1,
          typename ElementFn,
          typename ExecPreset = exec_presets::Materialized>
 inline auto SI2_SO(const char *name,
-                   const ElementFn element_fn,
+                   ElementFn &&element_fn,
                    const ExecPreset exec_preset = exec_presets::Materialized())
 {
   return detail::build_multi_function_with_n_inputs_one_output<Out1>(
-      name, element_fn, exec_preset, TypeSequence<In1, In2>());
+      name, std::forward<ElementFn>(element_fn), exec_preset, TypeSequence<In1, In2>());
 }
 
 /** Build multi-function with 3 single-input and 1 single-output parameter. */
