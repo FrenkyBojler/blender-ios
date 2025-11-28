@@ -2768,7 +2768,6 @@ static bool knife_linehit_face_test(KnifeTool_OpData *kcd,
  */
 static void knife_find_line_hits(KnifeTool_OpData *kcd)
 {
-
   float3 v1, v2;
   float2 s1, s2;
   int *results, *result;
