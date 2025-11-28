@@ -17,9 +17,6 @@
 #include "BLI_math_vector_types.hh"
 
 #define ADJUST_ANGLE 1
-#define ORTHOGONALIZE 0
-#define NORMALIZE 0
-#define CHECK_COND_VALUE 1
 
 static float euclidean_norm_internal(const blender::float3x3 mat)
 {
@@ -67,71 +64,48 @@ BLI_INLINE blender::float3x3 BKE_multires_construct_tangent_matrix(const blender
     tangent_matrix = blender::float3x3::zero();
     return tangent_matrix;
   }
-  else {
+  BLI_assert(blender::math::length_squared(N) >= eps);
 
-    BLI_assert(blender::math::length_squared(N) >= eps);
-
-    tangent_matrix.z_axis() = N;
+  tangent_matrix.z_axis() = N;
 #if ADJUST_ANGLE
-    const float angle_between = RAD2DEGF(blender::math::acos(
-        blender::math::dot(tangent_matrix.x_axis(), tangent_matrix.y_axis()) /
-        (blender::math::length(tangent_matrix.x_axis() *
-                               blender::math::length(tangent_matrix.y_axis())))));
+  const float angle_between = RAD2DEGF(blender::math::acos(
+      blender::math::dot(tangent_matrix.x_axis(), tangent_matrix.y_axis()) /
+      (blender::math::length(tangent_matrix.x_axis() *
+                             blender::math::length(tangent_matrix.y_axis())))));
 
-    constexpr float threshold_angle = 60.0f;
-    constexpr float low_threshold = 90.0f - threshold_angle;
-    constexpr float high_threshold = 90.0f + threshold_angle;
+  constexpr float threshold_angle = 80.0f;
+  constexpr float low_threshold = 90.0f - threshold_angle;
+  constexpr float high_threshold = 90.0f + threshold_angle;
 
-    if (angle_between < low_threshold) {
-      const float deg_to_rotate = low_threshold - angle_between / 2.0f;
-      const float rad_to_rotate = DEG2RADF(deg_to_rotate);
-      tangent_matrix.x_axis() = blender::math::rotate_around_axis(
-          tangent_matrix.x_axis(), blender::float3(0.0f), tangent_matrix.z_axis(), -rad_to_rotate);
-      tangent_matrix.y_axis() = blender::math::rotate_around_axis(
-          tangent_matrix.y_axis(), blender::float3(0.0f), tangent_matrix.z_axis(), rad_to_rotate);
-    }
-    else if (angle_between > high_threshold) {
-      const float deg_to_rotate = angle_between - high_threshold / 2.0f;
-      const float rad_to_rotate = DEG2RADF(deg_to_rotate);
-      tangent_matrix.x_axis() = blender::math::rotate_around_axis(
-          tangent_matrix.x_axis(), blender::float3(0.0f), tangent_matrix.z_axis(), rad_to_rotate);
-      tangent_matrix.y_axis() = blender::math::rotate_around_axis(
-          tangent_matrix.y_axis(), blender::float3(0.0f), tangent_matrix.z_axis(), -rad_to_rotate);
-    }
+  if (angle_between < low_threshold) {
+    const float deg_to_rotate = low_threshold - angle_between / 2.0f;
+    const float rad_to_rotate = DEG2RADF(deg_to_rotate);
+    tangent_matrix.x_axis() = blender::math::rotate_around_axis(
+        tangent_matrix.x_axis(), blender::float3(0.0f), tangent_matrix.z_axis(), -rad_to_rotate);
+    tangent_matrix.y_axis() = blender::math::rotate_around_axis(
+        tangent_matrix.y_axis(), blender::float3(0.0f), tangent_matrix.z_axis(), rad_to_rotate);
+  }
+  else if (angle_between > high_threshold) {
+    const float deg_to_rotate = angle_between - high_threshold / 2.0f;
+    const float rad_to_rotate = DEG2RADF(deg_to_rotate);
+    tangent_matrix.x_axis() = blender::math::rotate_around_axis(
+        tangent_matrix.x_axis(), blender::float3(0.0f), tangent_matrix.z_axis(), rad_to_rotate);
+    tangent_matrix.y_axis() = blender::math::rotate_around_axis(
+        tangent_matrix.y_axis(), blender::float3(0.0f), tangent_matrix.z_axis(), -rad_to_rotate);
+  }
 #endif
 
-    float geometric_mean = blender::math::sqrt(blender::math::length(dPdu) *
-                                               blender::math::length(dPdv));
-    tangent_matrix.z_axis() = blender::math::normalize(tangent_matrix.z_axis()) * geometric_mean;
-    const blender::float3x3 inv = blender::math::invert(tangent_matrix);
-    if (blender::math::is_zero(tangent_matrix.x_axis()) ||
-        blender::math::is_zero(tangent_matrix.y_axis()) ||
-        blender::math::is_zero(tangent_matrix.z_axis()))
-    {
-      printf("Angle Between: %f, N: (%f %f %f) N length sq: %.15f\n", angle_between, N.x, N.y, N.z, blender::math::length_squared(N));
-      printf("(%f, %f, %f) x (%f, %f, %f)\n", dPdu.x, dPdu.y, dPdu.z, dPdv.x, dPdv.y, dPdv.z);
-      printf("%.15f %.15f %.15f\n",
-             tangent_matrix.x_axis().x,
-             tangent_matrix.x_axis().y,
-             tangent_matrix.x_axis().z);
-      printf("%.15f %.15f %.15f\n",
-             tangent_matrix.y_axis().x,
-             tangent_matrix.y_axis().y,
-             tangent_matrix.y_axis().z);
-      printf("%.15f %.15f %.15f\n",
-             tangent_matrix.z_axis().x,
-             tangent_matrix.z_axis().y,
-             tangent_matrix.z_axis().z);
-      BLI_assert(false);
-    }
-    BLI_assert(!blender::math::is_zero(tangent_matrix.x_axis()));
-    BLI_assert(!blender::math::is_zero(tangent_matrix.y_axis()));
-    BLI_assert(!blender::math::is_zero(tangent_matrix.z_axis()));
-    if (euclidean_norm_internal(tangent_matrix) * euclidean_norm_internal(inv) > 10) {
-      tangent_matrix = blender::float3x3::zero();
-    }
-    return tangent_matrix;
+  float geometric_mean = blender::math::sqrt(blender::math::length(dPdu) *
+                                             blender::math::length(dPdv));
+  tangent_matrix.z_axis() = blender::math::normalize(tangent_matrix.z_axis()) * geometric_mean;
+  const blender::float3x3 inv = blender::math::invert(tangent_matrix);
+  BLI_assert(!blender::math::is_zero(tangent_matrix.x_axis()));
+  BLI_assert(!blender::math::is_zero(tangent_matrix.y_axis()));
+  BLI_assert(!blender::math::is_zero(tangent_matrix.z_axis()));
+  if (euclidean_norm_internal(tangent_matrix) * euclidean_norm_internal(inv) > 10) {
+    tangent_matrix = blender::float3x3::zero();
   }
+  return tangent_matrix;
 }
 
 BLI_INLINE void BKE_multires_construct_tangent_matrix_for_versioning(
