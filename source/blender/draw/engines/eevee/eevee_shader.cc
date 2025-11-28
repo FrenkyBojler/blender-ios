@@ -1580,28 +1580,12 @@ void ShaderModule::material_create_info_pipelines_amend(eMaterialGeometry geomet
                          GPU_STENCIL_NONE,
                          GPU_STENCIL_OP_NONE,
                          GPU_VERTEX_LAST)
+                  .use_dynamic_facing()
                   .viewports(1)
                   .depth_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
                   .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
                   .color_format(gpu::TextureTargetFormat::SFLOAT_16_16);
           add_vertex_inputs(r_info, pipeline_probe);
-
-          gpu::shader::PipelineState &pipeline_probe_invert =
-              r_info.pipeline_state()
-                  .primitive(GPU_PRIM_TRIS)
-                  .state(GPU_WRITE_DEPTH,
-                         GPU_BLEND_NONE,
-                         GPU_CULL_NONE,
-                         GPU_DEPTH_GREATER_EQUAL,
-                         GPU_STENCIL_NONE,
-                         GPU_STENCIL_OP_NONE,
-                         GPU_VERTEX_LAST)
-                  .invert_facing()
-                  .viewports(1)
-                  .depth_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
-                  .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
-                  .color_format(gpu::TextureTargetFormat::SFLOAT_16_16);
-          add_vertex_inputs(r_info, pipeline_probe_invert);
 
           break;
         }
@@ -1636,6 +1620,7 @@ void ShaderModule::material_create_info_pipelines_amend(eMaterialGeometry geomet
                          GPU_STENCIL_OP_REPLACE,
                          GPU_VERTEX_LAST)
                   .viewports(1)
+                  .use_dynamic_facing()
                   .depth_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
                   .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
                   .color_format(gpu::TextureTargetFormat::SFLOAT_16_16_16_16)
@@ -1644,27 +1629,6 @@ void ShaderModule::material_create_info_pipelines_amend(eMaterialGeometry geomet
                   .color_format(gpu::TextureTargetFormat::UNORM_10_10_10_2)
                   .color_format(gpu::TextureTargetFormat::UNORM_10_10_10_2);
           add_vertex_inputs(r_info, pipeline);
-          /* Probe */
-          gpu::shader::PipelineState &pipeline_probe =
-              r_info.pipeline_state()
-                  .primitive(GPU_PRIM_TRIS)
-                  .state(GPU_WRITE_COLOR | GPU_WRITE_STENCIL,
-                         GPU_BLEND_NONE,
-                         GPU_CULL_NONE,
-                         GPU_DEPTH_EQUAL,
-                         GPU_STENCIL_ALWAYS,
-                         GPU_STENCIL_OP_REPLACE,
-                         GPU_VERTEX_LAST)
-                  .invert_facing()
-                  .viewports(1)
-                  .depth_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
-                  .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
-                  .color_format(gpu::TextureTargetFormat::SFLOAT_16_16_16_16)
-                  .color_format(gpu::TextureTargetFormat::UINT_32)
-                  .color_format(gpu::TextureTargetFormat::UNORM_16_16)
-                  .color_format(gpu::TextureTargetFormat::UNORM_10_10_10_2)
-                  .color_format(gpu::TextureTargetFormat::UNORM_10_10_10_2);
-          add_vertex_inputs(r_info, pipeline_probe);
 
           /* Planar probe */
           gpu::shader::PipelineState &pipeline_planar =
@@ -1754,21 +1718,9 @@ void ShaderModule::material_create_info_pipelines_amend(eMaterialGeometry geomet
                                                             GPU_STENCIL_NONE,
                                                             GPU_STENCIL_OP_NONE,
                                                             GPU_VERTEX_LAST)
+                                                     .use_dynamic_facing()
                                                      .viewports(16);
           add_vertex_inputs(r_info, pipeline);
-          gpu::shader::PipelineState &pipeline_invert = r_info.pipeline_state()
-                                                            .primitive(GPU_PRIM_TRIS)
-                                                            .state(GPU_WRITE_COLOR |
-                                                                       GPU_WRITE_DEPTH,
-                                                                   GPU_BLEND_NONE,
-                                                                   GPU_CULL_NONE,
-                                                                   GPU_DEPTH_LESS,
-                                                                   GPU_STENCIL_NONE,
-                                                                   GPU_STENCIL_OP_NONE,
-                                                                   GPU_VERTEX_LAST)
-                                                            .invert_facing()
-                                                            .viewports(16);
-          add_vertex_inputs(r_info, pipeline_invert);
           break;
         }
 
