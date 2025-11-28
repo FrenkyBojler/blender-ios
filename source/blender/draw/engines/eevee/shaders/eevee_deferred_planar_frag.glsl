@@ -29,12 +29,28 @@ void main()
   float3 albedo_front = float3(0.0f);
   float3 albedo_back = float3(0.0f);
 
+  ClosureUndetermined cl_reflect;
+  cl_reflect.type = CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID;
+  cl_reflect.color = float3(0.0);
+  cl_reflect.N = float3(0.0);
+  cl_reflect.data = float4(0.0);
+
+  float reflect_weight = 0.0;
+
   for (uchar i = 0; i < GBUFFER_LAYER_MAX && i < closure_count; i++) {
     ClosureUndetermined cl = gbuf.layer_get(i);
     switch (cl.type) {
+      case CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID: {
+        cl_reflect.color += cl.color;
+        /* Average roughness and normals. */
+        float weight = reduce_add(cl.color);
+        cl_reflect.N += cl.N * weight;
+        cl_reflect.data += cl.data * weight;
+        reflect_weight += weight;
+        break;
+      }
       case CLOSURE_BSSRDF_BURLEY_ID:
       case CLOSURE_BSDF_DIFFUSE_ID:
-      case CLOSURE_BSDF_MICROFACET_GGX_REFLECTION_ID:
         albedo_front += cl.color;
         break;
       case CLOSURE_BSDF_TRANSLUCENT_ID:
@@ -46,6 +62,10 @@ void main()
         break;
     }
   }
+
+  float inv_weight = safe_rcp(reflect_weight);
+  cl_reflect.N *= inv_weight;
+  cl_reflect.data *= inv_weight;
 
   float3 P = drw_point_screen_to_world(float3(screen_uv, depth));
   float3 Ng = gbuf.header.geometry_normal(gbuf.surface_N());
@@ -74,9 +94,11 @@ void main()
   /* Direct light. */
   ClosureLightStack stack;
   stack.cl[0] = closure_light_new(cl, V);
+  stack.cl[1] = closure_light_new(cl_reflect, V);
   light_eval_reflection(stack, P, Ng, V, vPz, receiver_light_set, normal_offset, geometry_offset);
 
   float3 radiance_front = stack.cl[0].light_shadowed;
+  float3 radiance_reflection = stack.cl[1].light_shadowed;
 
   stack.cl[0] = closure_light_new(cl_transmit, V, thickness);
   light_eval_transmission(
@@ -90,5 +112,8 @@ void main()
   radiance_front += spherical_harmonics_evaluate_lambert(Ng, sh);
   radiance_back += spherical_harmonics_evaluate_lambert(-Ng, sh);
 
-  out_radiance = float4(radiance_front * albedo_front + radiance_back * albedo_back, 0.0f);
+  out_radiance = float4(0.0f);
+  out_radiance.xyz += radiance_reflection * cl_reflect.color;
+  // out_radiance.xyz += radiance_front * albedo_front;
+  // out_radiance.xyz += radiance_back * albedo_back;
 }
