@@ -83,7 +83,7 @@ class CurveVecFunction : public mf::MultiFunction {
   CurveMapping_unique_ptr cumap_;
 
  public:
-  CurveVecFunction(const CurveMapping &cumap) : cumap_(BKE_curvemapping_copy(&cumap))
+  CurveVecFunction(CurveMapping_unique_ptr cumap) : cumap_(std::move(cumap))
   {
     BKE_curvemapping_init(cumap_.get());
     static const mf::Signature signature = []() {
@@ -116,7 +116,8 @@ static void sh_node_curve_vec_build_multi_function(NodeMultiFunctionBuilder &bui
 {
   const bNode &bnode = builder.node();
   CurveMapping *cumap = (CurveMapping *)bnode.storage;
-  builder.construct_and_set_matching_fn<CurveVecFunction>(*cumap);
+  builder.construct_and_set_matching_fn<CurveVecFunction>(
+      CurveMapping_unique_ptr(BKE_curvemapping_copy(cumap)));
 }
 
 NODE_SHADER_MATERIALX_BEGIN
@@ -246,7 +247,7 @@ class CurveRGBFunction : public mf::MultiFunction {
   CurveMapping_unique_ptr cumap_;
 
  public:
-  CurveRGBFunction(const CurveMapping &cumap) : cumap_(BKE_curvemapping_copy(&cumap))
+  CurveRGBFunction(CurveMapping_unique_ptr cumap) : cumap_(std::move(cumap))
   {
     BKE_curvemapping_init(cumap_.get());
     static const mf::Signature signature = []() {
@@ -282,7 +283,8 @@ static void sh_node_curve_rgb_build_multi_function(NodeMultiFunctionBuilder &bui
 {
   const bNode &bnode = builder.node();
   CurveMapping *cumap = (CurveMapping *)bnode.storage;
-  builder.construct_and_set_matching_fn<CurveRGBFunction>(*cumap);
+  builder.construct_and_set_matching_fn<CurveRGBFunction>(
+      CurveMapping_unique_ptr(BKE_curvemapping_copy(cumap)));
 }
 
 NODE_SHADER_MATERIALX_BEGIN
@@ -385,7 +387,7 @@ class CurveFloatFunction : public mf::MultiFunction {
   CurveMapping_unique_ptr cumap_;
 
  public:
-  CurveFloatFunction(const CurveMapping &cumap) : cumap_(BKE_curvemapping_copy(&cumap))
+  CurveFloatFunction(CurveMapping_unique_ptr cumap) : cumap_(std::move(cumap))
   {
     BKE_curvemapping_init(cumap_.get());
     static const mf::Signature signature = []() {
@@ -418,7 +420,8 @@ static void sh_node_curve_float_build_multi_function(NodeMultiFunctionBuilder &b
 {
   const bNode &bnode = builder.node();
   CurveMapping *cumap = (CurveMapping *)bnode.storage;
-  builder.construct_and_set_matching_fn<CurveFloatFunction>(*cumap);
+  builder.construct_and_set_matching_fn<CurveFloatFunction>(
+      CurveMapping_unique_ptr(BKE_curvemapping_copy(cumap)));
 }
 
 NODE_SHADER_MATERIALX_BEGIN

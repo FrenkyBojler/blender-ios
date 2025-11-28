@@ -108,7 +108,7 @@ class ColorBandFunction : public mf::MultiFunction {
   ColorBand_unique_ptr color_band_;
 
  public:
-  ColorBandFunction(const ColorBand &color_band) : color_band_(MEM_dupallocN(__func__, color_band))
+  ColorBandFunction(ColorBand_unique_ptr color_band) : color_band_(std::move(color_band))
   {
     static const mf::Signature signature = []() {
       mf::Signature signature;
@@ -141,7 +141,8 @@ static void sh_node_valtorgb_build_multi_function(nodes::NodeMultiFunctionBuilde
 {
   const bNode &bnode = builder.node();
   const ColorBand *color_band = (const ColorBand *)bnode.storage;
-  builder.construct_and_set_matching_fn<ColorBandFunction>(*color_band);
+  builder.construct_and_set_matching_fn<ColorBandFunction>(
+      ColorBand_unique_ptr(MEM_dupallocN(__func__, *color_band)));
 }
 
 NODE_SHADER_MATERIALX_BEGIN
