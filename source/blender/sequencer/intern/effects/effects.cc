@@ -314,7 +314,15 @@ EffectHandle strip_blend_mode_handle_get(Strip *strip)
 static float transition_fader_calc(const Scene *scene, const Strip *strip, float timeline_frame)
 {
   float fac = float(timeline_frame - time_left_handle_frame_get(scene, strip));
-  fac /= time_strip_length_get(scene, strip);
+  /* Compositor with no inputs can have strip->len not be updated,
+   * since most of existing editing code assumes no-input effects never need the length.
+   * So for the fader, just calculated it here directly. */
+  if (strip->type == STRIP_TYPE_COMPOSITOR) {
+    fac /= strip->enddisp - strip->startdisp;
+  }
+  else {
+    fac /= time_strip_length_get(scene, strip);
+  }
   fac = math::clamp(fac, 0.0f, 1.0f);
   return fac;
 }

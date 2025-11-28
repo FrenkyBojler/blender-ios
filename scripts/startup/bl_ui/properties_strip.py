@@ -166,6 +166,11 @@ class STRIP_PT_effect(StripButtonsPanel, Panel):
 
         layout.active = not strip.mute
 
+        strip_type = strip.type
+
+        if strip_type == 'COMPOSITOR':
+            layout.template_ID(strip, "node_group", new="node.new_compositor_sequencer_node_group")
+
         if strip.input_count > 0:
             col = layout.column()
             row = col.row()
@@ -176,8 +181,6 @@ class STRIP_PT_effect(StripButtonsPanel, Panel):
                 row = col.row()
                 row.prop(strip, "input_2")
                 row.operator("sequencer.swap_inputs", text="", icon='SORT_DESC')
-
-        strip_type = strip.type
 
         if strip_type == 'COLOR':
             layout.template_color_picker(strip, "color", value_slider=True, cubic=True)

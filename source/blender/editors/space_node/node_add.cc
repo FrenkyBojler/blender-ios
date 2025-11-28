@@ -1807,20 +1807,29 @@ void NODE_OT_duplicate_compositing_node_group(wmOperatorType *ot)
 
 static void initialize_compositor_sequencer_node_group(const bContext *C,
                                                        bNodeTree &ntree,
-                                                       bool for_effect)
+                                                       bool for_effect,
+                                                       int effect_input_count)
 {
   BLI_assert(ntree.type == NTREE_COMPOSIT);
   BLI_assert(BLI_listbase_count(&ntree.nodes) == 0);
 
-  ntree.tree_interface.add_socket(
-      "Image", "", "NodeSocketColor", NODE_INTERFACE_SOCKET_INPUT, nullptr);
   if (for_effect) {
-    ntree.tree_interface.add_socket(
-        "Image2", "", "NodeSocketColor", NODE_INTERFACE_SOCKET_INPUT, nullptr);
+    /* Effect: Image, Image2, Factor depending on input count. */
+    if (effect_input_count > 0) {
+      ntree.tree_interface.add_socket(
+          "Image", "", "NodeSocketColor", NODE_INTERFACE_SOCKET_INPUT, nullptr);
+    }
+    if (effect_input_count > 1) {
+      ntree.tree_interface.add_socket(
+          "Image2", "", "NodeSocketColor", NODE_INTERFACE_SOCKET_INPUT, nullptr);
+    }
     ntree.tree_interface.add_socket(
         "Factor", "", "NodeSocketFloat", NODE_INTERFACE_SOCKET_INPUT, nullptr);
   }
   else {
+    /* Modifier: Image, Mask. */
+    ntree.tree_interface.add_socket(
+        "Image", "", "NodeSocketColor", NODE_INTERFACE_SOCKET_INPUT, nullptr);
     ntree.tree_interface.add_socket(
         "Mask", "", "NodeSocketColor", NODE_INTERFACE_SOCKET_INPUT, nullptr);
   }
@@ -1873,9 +1882,13 @@ static wmOperatorStatus new_compositor_sequencer_node_group_exec(bContext *C, wm
   Scene *scene = CTX_data_sequencer_scene(C);
   Strip *strip = seq::select_active_get(scene);
   const bool is_effect_active = strip != nullptr && strip->type == STRIP_TYPE_COMPOSITOR;
+  int effect_input_count = 0;
+  if (is_effect_active) {
+    effect_input_count = (strip->input1 && strip->input2) ? 2 : (strip->input1 ? 1 : 0);
+  }
 
   bNodeTree *ntree = new_node_tree_impl(C, tree_name, "CompositorNodeTree");
-  initialize_compositor_sequencer_node_group(C, *ntree, is_effect_active);
+  initialize_compositor_sequencer_node_group(C, *ntree, is_effect_active, effect_input_count);
 
   if (strip != nullptr && strip->type != STRIP_TYPE_SOUND_RAM) {
     bool assigned_node_tree = false;
