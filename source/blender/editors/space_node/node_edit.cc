@@ -321,7 +321,7 @@ static bool is_compositing_possible(const bContext *C)
 /* Returns the compositor outputs that need to be computed because their result is visible to the
  * user or required by the render pipeline. */
 static blender::compositor::OutputTypes get_compositor_needed_outputs(const bContext *C,
-                                                                      const Scene *scene)
+                                                                      Scene *scene_owner)
 {
   blender::compositor::OutputTypes needed_outputs = blender::compositor::OutputTypes::None;
 
@@ -350,8 +350,8 @@ static blender::compositor::OutputTypes get_compositor_needed_outputs(const bCon
         }
         /* Do not override the Render Result if compositing is disabled in the render pipeline or
          * if the sequencer is enabled. */
-        if (image->type == IMA_TYPE_R_RESULT && scene->r.scemode & R_DOCOMP &&
-            ((scene->r.scemode & R_DOSEQ) == 0))
+        if (image->type == IMA_TYPE_R_RESULT && scene_owner->r.scemode & R_DOCOMP &&
+            !RE_seq_render_active(scene_owner, &scene_owner->r))
         {
           needed_outputs |= blender::compositor::OutputTypes::Composite;
         }
