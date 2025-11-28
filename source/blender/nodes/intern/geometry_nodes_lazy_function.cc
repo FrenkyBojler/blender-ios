@@ -1929,7 +1929,8 @@ struct GeometryNodesLazyFunctionBuilder {
         btree_(*persistent_tree->tree),
         reference_lifetimes_(*src_btree.runtime->reference_lifetimes_info),
         scope_(lf_graph_info.scope),
-        node_multi_functions_(lf_graph_info.scope.construct<NodeMultiFunctions>(btree_)),
+        node_multi_functions_(
+            lf_graph_info.scope.construct<NodeMultiFunctions>(btree_, persistent_tree->tree)),
         lf_graph_info_(&lf_graph_info)
   {
   }

@@ -105,10 +105,12 @@ static int gpu_shader_valtorgb(GPUMaterial *mat,
 
 class ColorBandFunction : public mf::MultiFunction {
  private:
-  ColorBand_unique_ptr color_band_;
+  std::shared_ptr<const bNodeTree> tree_;
+  const ColorBand &color_band_;
 
  public:
-  ColorBandFunction(ColorBand_unique_ptr color_band) : color_band_(std::move(color_band))
+  ColorBandFunction(const ColorBand &color_band, std::shared_ptr<const bNodeTree> tree)
+      : tree_(tree), color_band_(color_band)
   {
     static const mf::Signature signature = []() {
       mf::Signature signature;
@@ -130,7 +132,7 @@ class ColorBandFunction : public mf::MultiFunction {
 
     mask.foreach_index([&](const int64_t i) {
       ColorGeometry4f color;
-      BKE_colorband_evaluate(color_band_.get(), values[i], color);
+      BKE_colorband_evaluate(&color_band_, values[i], color);
       colors[i] = color;
       alphas[i] = color.a;
     });
@@ -141,8 +143,7 @@ static void sh_node_valtorgb_build_multi_function(nodes::NodeMultiFunctionBuilde
 {
   const bNode &bnode = builder.node();
   const ColorBand *color_band = (const ColorBand *)bnode.storage;
-  builder.construct_and_set_matching_fn<ColorBandFunction>(
-      ColorBand_unique_ptr(MEM_dupallocN(__func__, *color_band)));
+  builder.construct_and_set_matching_fn<ColorBandFunction>(*color_band, builder.shared_tree());
 }
 
 NODE_SHADER_MATERIALX_BEGIN
