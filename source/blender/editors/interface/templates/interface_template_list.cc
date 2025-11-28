@@ -124,7 +124,14 @@ static void uilist_draw_filter_default(uiList *ui_list, const bContext * /*C*/, 
   uiLayout *row = &layout->row(false);
 
   uiLayout *subrow = &row->row(true);
-  subrow->prop(&listptr, "filter_name", UI_ITEM_NONE, "", ICON_NONE);
+  subrow->prop(&listptr,
+               RNA_struct_find_property(&listptr, "filter_name"),
+               -1,
+               0,
+               UI_ITEM_NONE,
+               "",
+               ICON_VIEWZOOM,
+               IFACE_("Search"));
   subrow->prop(&listptr,
                "use_filter_invert",
                UI_ITEM_R_TOGGLE | UI_ITEM_R_ICON_ONLY,
@@ -749,7 +756,6 @@ static void ui_template_list_layout_draw(const bContext *C,
 
           but = uiDefButR_prop(subblock,
                                ButType::ListRow,
-                               0,
                                "",
                                0,
                                0,
@@ -814,7 +820,6 @@ static void ui_template_list_layout_draw(const bContext *C,
         row->column(false);
         but = uiDefButI(block,
                         ButType::Scroll,
-                        0,
                         "",
                         0,
                         0,
@@ -862,7 +867,6 @@ static void ui_template_list_layout_draw(const bContext *C,
       SNPRINTF_UTF8(numstr, "%d :", dyn_data->items_shown);
       but = uiDefIconTextButR_prop(block,
                                    ButType::Num,
-                                   0,
                                    ICON_NONE,
                                    numstr,
                                    0,
@@ -913,7 +917,6 @@ static void ui_template_list_layout_draw(const bContext *C,
 
           but = uiDefButR_prop(subblock,
                                ButType::ListRow,
-                               0,
                                "",
                                0,
                                0,
@@ -958,7 +961,6 @@ static void ui_template_list_layout_draw(const bContext *C,
         /* col = */ row->column(false);
         but = uiDefButI(block,
                         ButType::Scroll,
-                        0,
                         "",
                         0,
                         0,
@@ -1002,7 +1004,6 @@ static void ui_template_list_layout_draw(const bContext *C,
       but = uiDefIconButBitI(subblock,
                              ButType::Toggle,
                              UILST_FLT_SHOW,
-                             0,
                              ICON_DISCLOSURE_TRI_DOWN,
                              0,
                              0,
@@ -1017,7 +1018,6 @@ static void ui_template_list_layout_draw(const bContext *C,
       if (add_grip_but) {
         but = uiDefIconButI(subblock,
                             ButType::Grip,
-                            0,
                             ICON_GRIP,
                             0,
                             0,
@@ -1034,18 +1034,8 @@ static void ui_template_list_layout_draw(const bContext *C,
 
       col = &glob->column(false);
       subblock = col->block();
-      uiDefBut(subblock,
-               ButType::Sepr,
-               0,
-               "",
-               0,
-               0,
-               UI_UNIT_X,
-               UI_UNIT_Y * 0.05f,
-               nullptr,
-               0.0,
-               0.0,
-               "");
+      uiDefBut(
+          subblock, ButType::Sepr, "", 0, 0, UI_UNIT_X, UI_UNIT_Y * 0.05f, nullptr, 0.0, 0.0, "");
 
       layout_data->draw_filter(ui_list, C, col);
     }
@@ -1053,7 +1043,6 @@ static void ui_template_list_layout_draw(const bContext *C,
       but = uiDefIconButBitI(subblock,
                              ButType::Toggle,
                              UILST_FLT_SHOW,
-                             0,
                              ICON_DISCLOSURE_TRI_RIGHT,
                              0,
                              0,
@@ -1068,7 +1057,6 @@ static void ui_template_list_layout_draw(const bContext *C,
       if (add_grip_but) {
         but = uiDefIconButI(subblock,
                             ButType::Grip,
-                            0,
                             ICON_GRIP,
                             0,
                             0,

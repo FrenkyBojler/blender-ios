@@ -1550,9 +1550,27 @@ static bool transinfo_show_overlay(TransInfo *t, ARegion *region)
     return false;
   }
 
-  if (t->spacetype == SPACE_VIEW3D) {
-    View3D *v3d = static_cast<View3D *>(t->view);
-    if ((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0) {
+  switch (t->spacetype) {
+    case SPACE_VIEW3D: {
+      const View3D *v3d = static_cast<const View3D *>(t->view);
+      return (v3d->flag2 & V3D_HIDE_OVERLAYS) == 0;
+    }
+    case SPACE_IMAGE: {
+      const SpaceImage *sima = static_cast<const SpaceImage *>(t->area->spacedata.first);
+      return (sima->overlay.flag & SI_OVERLAY_SHOW_OVERLAYS) != 0;
+    }
+    case SPACE_SEQ: {
+      const SpaceSeq *sseq = static_cast<const SpaceSeq *>(t->area->spacedata.first);
+      return (sseq->flag & SEQ_SHOW_OVERLAY) != 0;
+    }
+    case SPACE_ACTION: {
+      const SpaceAction *sact = static_cast<const SpaceAction *>(t->area->spacedata.first);
+      return (sact->overlays.flag & ADS_OVERLAY_SHOW_OVERLAYS) != 0;
+    }
+
+    case SPACE_GRAPH: {
+      /* There is no overlay flag defined yet for the Graph Editor. But there is the proportional
+       * editing drawing that will not happen if we return false here. */
       return true;
     }
   }
@@ -1800,6 +1818,13 @@ void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
     else {
       RNA_property_float_set(op->ptr, prop, t->values_final[0]);
     }
+  }
+
+  /* Shear uses offset internally, but the operator property is angle.
+   * Convert offset to angle before saving. */
+  if (t->mode == TFM_SHEAR) {
+    const float angle_rad = atanf(t->values_final[0]);
+    RNA_float_set(op->ptr, "angle", angle_rad);
   }
 
   /* Save snapping settings. */

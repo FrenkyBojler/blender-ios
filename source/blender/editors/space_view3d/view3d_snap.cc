@@ -103,7 +103,8 @@ static wmOperatorStatus snap_sel_to_grid_exec(bContext *C, wmOperator *op)
       }
 
       if (ED_transverts_check_obedit(obedit)) {
-        ED_transverts_create_from_obedit(&tvs, obedit, 0);
+        const Object *obedit_eval = DEG_get_evaluated(depsgraph, obedit);
+        ED_transverts_create_from_obedit(&tvs, obedit_eval, 0);
       }
 
       if (tvs.transverts_tot != 0) {
@@ -320,6 +321,7 @@ static bool snap_selected_to_location_rotation(bContext *C,
                                                const bool use_toolsettings)
 {
   using namespace blender::ed;
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Scene *scene = CTX_data_scene(C);
   Object *obedit = CTX_data_edit_object(C);
   Object *obact = CTX_data_active_object(C);
@@ -368,7 +370,8 @@ static bool snap_selected_to_location_rotation(bContext *C,
       }
 
       if (ED_transverts_check_obedit(obedit)) {
-        ED_transverts_create_from_obedit(&tvs, obedit, 0);
+        const Object *ob_eval = DEG_get_evaluated(depsgraph, obedit);
+        ED_transverts_create_from_obedit(&tvs, ob_eval, 0);
       }
 
       if (tvs.transverts_tot != 0) {
