@@ -1760,7 +1760,6 @@ void ShaderModule::material_create_info_pipelines_amend(GPUMaterial *gpumat,
     }
 
     case MAT_PIPE_PREPASS_PLANAR: {
-
       gpu::shader::PipelineState &pipeline =
           r_info.pipeline_state()
               .primitive(GPU_PRIM_TRIS)
@@ -1779,6 +1778,48 @@ void ShaderModule::material_create_info_pipelines_amend(GPUMaterial *gpumat,
               .color_format(gpu::TextureTargetFormat::UNORM_10_10_10_2)
               .color_format(gpu::TextureTargetFormat::UNORM_10_10_10_2);
       add_vertex_inputs(gpumat, r_info, pipeline);
+      break;
+    }
+
+    case MAT_PIPE_VOLUME_MATERIAL: {
+      /* Volume Material Pipeline */
+      gpu::shader::PipelineState &pipeline =
+          r_info.pipeline_state()
+              .primitive(prim_type)
+              .state(GPU_WRITE_STENCIL,
+                     GPU_BLEND_NONE,
+                     GPU_CULL_NONE,
+                     GPU_DEPTH_NONE,
+                     GPU_STENCIL_NEQUAL,
+                     GPU_STENCIL_OP_REPLACE,
+                     GPU_VERTEX_LAST)
+              .viewports(1)
+              .depth_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
+              .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8);
+      if (use_attributes) {
+        add_vertex_inputs(gpumat, r_info, pipeline);
+      }
+
+      break;
+    }
+    case MAT_PIPE_VOLUME_OCCUPANCY: {
+      /* Volume Occupancy Pipeline */
+      gpu::shader::PipelineState &pipeline =
+          r_info.pipeline_state()
+              .primitive(prim_type)
+              .state(GPU_WRITE_DEPTH,
+                     GPU_BLEND_NONE,
+                     GPU_CULL_NONE,
+                     GPU_DEPTH_NONE,
+                     GPU_STENCIL_NONE,
+                     GPU_STENCIL_OP_NONE,
+                     GPU_VERTEX_LAST)
+              .viewports(1)
+              .depth_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
+              .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8);
+      if (use_attributes) {
+        add_vertex_inputs(gpumat, r_info, pipeline);
+      }
       break;
     }
 
