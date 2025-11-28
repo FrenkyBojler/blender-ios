@@ -414,7 +414,21 @@ struct GeometryNodesLazyFunctionGraphInfo {
    * Contains resources that need to be freed when the graph is not needed anymore.
    */
   ResourceScope scope;
+  /**
+   * Owned copy of the tree to evaluate. This allows the original tree to be freed without making
+   * the execution graph invalid. This is very common because many changes to a node tree trigger a
+   * new depsgraph-copy but not a new evaluation (since the output has not changed).
+   *
+   * Without an extra copy, one could not output fields/closures to other objects without having
+   * those become dangling on trivial tree changes.
+   */
   std::shared_ptr<const bNodeTree> tree;
+  /**
+   * Session UID of the original tree in Main that this is based on. Used to map evaluated data
+   * back later on.
+   */
+  uint32_t original_tree_session_uid;
+
   GeometryNodesGroupFunction function;
   /**
    * The actual lazy-function graph.

@@ -4178,6 +4178,12 @@ ensure_geometry_nodes_lazy_function_graph_impl(const bNodeTree &btree)
   }
 
   auto lf_graph_info = std::make_shared<GeometryNodesLazyFunctionGraphInfo>();
+  if (const bNodeTree *original_tree = DEG_get_original(&btree)) {
+    lf_graph_info->original_tree_session_uid = original_tree->id.session_uid;
+  }
+  else {
+    lf_graph_info->original_tree_session_uid = btree.id.session_uid;
+  }
 
   /* Make a copy of the node tree so that the execution graph can be independent of the original
    * tree. */
