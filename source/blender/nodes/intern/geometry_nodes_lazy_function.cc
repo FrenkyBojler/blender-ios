@@ -1921,10 +1921,9 @@ struct GeometryNodesLazyFunctionBuilder {
 
  public:
   GeometryNodesLazyFunctionBuilder(
-      const bNodeTree &src_btree,
       std::shared_ptr<GeometryNodesLazyFunctionGraphInfo> &lf_graph_info)
       : btree_(*lf_graph_info->tree),
-        reference_lifetimes_(*src_btree.runtime->reference_lifetimes_info),
+        reference_lifetimes_(*lf_graph_info->tree->runtime->reference_lifetimes_info),
         scope_(lf_graph_info->scope),
         node_multi_functions_(
             lf_graph_info->scope.construct<NodeMultiFunctions>(btree_, lf_graph_info->tree)),
@@ -4189,7 +4188,7 @@ ensure_geometry_nodes_lazy_function_graph_impl(const bNodeTree &btree)
 
   btree_copy->runtime->self_geometry_nodes_lazy_function_graph_info = lf_graph_info.get();
 
-  GeometryNodesLazyFunctionBuilder builder{btree, lf_graph_info};
+  GeometryNodesLazyFunctionBuilder builder{lf_graph_info};
   builder.build();
   return lf_graph_info;
 }
