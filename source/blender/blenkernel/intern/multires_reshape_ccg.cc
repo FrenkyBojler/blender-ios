@@ -92,17 +92,19 @@ bool multires_reshape_assign_final_coords_from_ccg(const MultiresReshapeContext 
 
   CLOG_DEBUG(&LOG, "ASSIGN TO STORAGE FROM LOWER CCG");
   int num_grids = subdiv_ccg->grids_num;
-  for (int grid_index = 0; grid_index < num_grids; ++grid_index) {
-    for (int y = 0; y < reshape_grid_size; ++y) {
-      for (int x = 0; x < reshape_grid_size; ++x) {
-        const int vert = bke::ccg::grid_xy_to_vert(reshape_level_key, grid_index, x, y);
+  threading::parallel_for(IndexRange(num_grids), 1024, [&](const IndexRange range) {
+    for (int grid_index : range) {
+      for (int y = 0; y < reshape_grid_size; ++y) {
+        for (int x = 0; x < reshape_grid_size; ++x) {
+          const int vert = bke::ccg::grid_xy_to_vert(reshape_level_key, grid_index, x, y);
 
-        storage[vert] = positions[vert];
-        CLOG_TRACE(
-            &LOG, "(%d) %f, %f, %f\n", vert, storage[vert].x, storage[vert].y, storage[vert].z);
+          storage[vert] = positions[vert];
+          CLOG_TRACE(
+              &LOG, "(%d) %f, %f, %f\n", vert, storage[vert].x, storage[vert].y, storage[vert].z);
+        }
       }
     }
-  }
+  });
 
   return true;
 }
