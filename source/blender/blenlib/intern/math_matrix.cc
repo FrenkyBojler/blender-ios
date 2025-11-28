@@ -200,24 +200,24 @@ template double4x4 adjoint(const double4x4 &mat);
  * \{ */
 
 template<typename T, int Size>
-MatBase<T, Size, Size> invert(const MatBase<T, Size, Size> &mat, bool &r_success, const T epsilon)
+MatBase<T, Size, Size> invert(const MatBase<T, Size, Size> &mat, bool &r_success)
 {
   MatBase<T, Size, Size> result;
   Eigen::Map<const Eigen::Matrix<T, Size, Size>> M(mat.base_ptr());
   Eigen::Map<Eigen::Matrix<T, Size, Size>> R(result.base_ptr());
-  M.computeInverseWithCheck(R, r_success, epsilon);
+  M.computeInverseWithCheck(R, r_success, 0.0f);
   if (!r_success) {
     R = R.Zero();
   }
   return result;
 }
 
-template float2x2 invert(const float2x2 &mat, bool &r_success, float epsilon);
-template float3x3 invert(const float3x3 &mat, bool &r_success, float epsilon);
-template float4x4 invert(const float4x4 &mat, bool &r_success, float epsilon);
-template double2x2 invert(const double2x2 &mat, bool &r_success, double epsilon);
-template double3x3 invert(const double3x3 &mat, bool &r_success, double epsilon);
-template double4x4 invert(const double4x4 &mat, bool &r_success, double epsilon);
+template float2x2 invert(const float2x2 &mat, bool &r_success);
+template float3x3 invert(const float3x3 &mat, bool &r_success);
+template float4x4 invert(const float4x4 &mat, bool &r_success);
+template double2x2 invert(const double2x2 &mat, bool &r_success);
+template double3x3 invert(const double3x3 &mat, bool &r_success);
+template double4x4 invert(const double4x4 &mat, bool &r_success);
 
 template<typename T, int Size>
 MatBase<T, Size, Size> pseudo_invert(const MatBase<T, Size, Size> &mat, T epsilon)

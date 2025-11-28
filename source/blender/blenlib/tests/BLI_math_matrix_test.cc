@@ -159,14 +159,6 @@ TEST(math_matrix, MatrixInverse)
   EXPECT_FALSE(success);
 }
 
-TEST(math_matrix, MatrixInverseWeird)
-{
-  float3x3 mat;
-  mat.x_axis() = {-0.000308702699840, -0.000043909531087, 0.000163629651070};
-  mat.y_axis() = {0.000054940115660, 0.000007780734450, -0.000029250979424};
-  mat.z_axis() = {0.000038961417886, -0.000138761781272, 0.000036267811083};
-}
-
 TEST(math_matrix, MatrixPseudoInverse)
 {
   float4x4 mat = transpose(float4x4({0.224976f, -0.333770f, 0.765074f, 0.100000f},
