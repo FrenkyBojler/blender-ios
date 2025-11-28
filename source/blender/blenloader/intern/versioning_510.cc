@@ -347,12 +347,6 @@ static void convert_grease_pencil_material_stroke_fill_toggle_to_attributes(Main
       convert_grease_pencil_drawing_material_stroke_fill_toggle_to_attributes(object, drawing);
     }
   }
-  LISTBASE_FOREACH (Material *, material, &bmain.materials) {
-    if (material->gp_style) {
-      material->gp_style->flag |= GP_MATERIAL_STROKE_SHOW;
-      material->gp_style->flag |= GP_MATERIAL_FILL_SHOW;
-    }
-  }
 }
 
 void do_versions_after_linking_510(FileData * /*fd*/, Main *bmain)
