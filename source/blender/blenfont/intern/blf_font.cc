@@ -921,7 +921,6 @@ static void blf_font_draw_buffer_ex(FontBLF *font,
                                     const ft_pix pen_y,
                                     ResultBLF *r_info)
 {
-  GlyphBLF *g = nullptr;
   ft_pix pen_x = ft_pix_from_int(font->pos[0]);
   ft_pix pen_y_basis = ft_pix_from_int(font->pos[1]) + pen_y;
   size_t i = 0;
@@ -929,15 +928,18 @@ static void blf_font_draw_buffer_ex(FontBLF *font,
   /* Buffer specific variables. */
   FontBufInfoBLF *buf_info = &font->buf_info;
 
-  /* Another buffer specific call for color conversion. */
-  while ((i < str_len) && str[i]) {
-    g = blf_glyph_from_utf8_and_step(font, gc, g, str, str_len, &i, &pen_x);
-
-    if (UNLIKELY(g == nullptr)) {
-      continue;
+  ShapingData text(str, str_len);
+  while (text.process(font, gc, r_info)) {
+    for (uint i = 0; i < text.segment.glyph_count; i++) {
+      if (UNLIKELY(text.segment.glyphs[i] == nullptr)) {
+        continue;
+      }
+      blf_glyph_draw_buffer(buf_info,
+                            text.segment.glyphs[i],
+                            pen_x + text.segment.glyph_pos[i].x_offset,
+                            pen_y_basis + text.segment.glyph_pos[i].y_offset);
+      pen_x += text.segment.glyph_pos[i].x_advance;
     }
-    blf_glyph_draw_buffer(buf_info, g, pen_x, pen_y_basis);
-    pen_x += g->advance_x;
   }
 
   if (r_info) {
