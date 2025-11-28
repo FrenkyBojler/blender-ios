@@ -6,6 +6,18 @@ None
     "generator": "glTF-Blender-IO Test Suite",
     "version": "2.0"
   },
+  "extensionsUsed": [
+    "KHR_materials_clearcoat",
+    "KHR_materials_transmission",
+    "KHR_texture_transform",
+    "KHR_materials_volume",
+    "KHR_materials_sheen",
+    "KHR_materials_anisotropy",
+    "KHR_materials_ior"
+  ],
+  "extensionsRequired": [
+    "KHR_texture_transform"
+  ],
   "scene": 0,
   "scenes": [
     {
@@ -354,8 +366,127 @@ None
   "materials": [
     {
       "alphaMode": "BLEND",
-      "doubleSided": true,
+      "doubleSided": false,
+      "emissiveFactor": [
+        0.550000011920929,
+        0.550000011920929,
+        0.550000011920929
+      ],
+      "emissiveTexture": {
+        "index": 0
+      },
+      "extensions": {
+        "KHR_materials_clearcoat": {
+          "clearcoatFactor": 0.25,
+          "clearcoatRoughnessFactor": 0.3499999940395355,
+          "clearcoatTexture": {
+            "index": 1
+          },
+          "clearcoatRoughnessTexture": {
+            "index": 1
+          }
+        },
+        "KHR_materials_transmission": {
+          "transmissionFactor": 0.20000000298023224
+        },
+        "KHR_materials_volume": {
+          "attenuationColor": [
+            0.03310215473175049,
+            0.1328708678483963,
+            0.3185665011405945
+          ],
+          "attenuationDistance": 2.9999999105930355,
+          "thicknessFactor": 0.3499999940395355,
+          "thicknessTexture": {
+            "extensions": {
+              "KHR_texture_transform": {
+                "offset": [
+                  0.6464466016795712,
+                  -1.3535533828661186
+                ],
+                "rotation": 0.7853981852531433,
+                "scale": [
+                  0.5,
+                  0.5
+                ]
+              }
+            },
+            "index": 2
+          }
+        },
+        "KHR_materials_sheen": {
+          "sheenColorFactor": [
+            0.44012218713760376,
+            0.11930619180202484,
+            0.11930608749389648
+          ],
+          "sheenColorTexture": {
+            "index": 3
+          },
+          "sheenRoughnessFactor": 0.11999999731779099,
+          "sheenRoughnessTexture": {
+            "index": 4
+          }
+        },
+        "KHR_materials_anisotropy": {
+          "anisotropyStrength": 0.8999999761581421,
+          "anisotropyRotation": 1.0999999046325684,
+          "anisotropyTexture": {
+            "extensions": {
+              "KHR_texture_transform": {
+                "offset": [
+                  0.6464466016795712,
+                  -1.3535533828661186
+                ],
+                "rotation": 0.7853981852531433,
+                "scale": [
+                  0.5,
+                  0.5
+                ]
+              }
+            },
+            "index": 5
+          }
+        },
+        "KHR_materials_ior": {
+          "ior": 1.2000000476837158
+        }
+      },
       "name": "Material",
+      "normalTexture": {
+        "extensions": {
+          "KHR_texture_transform": {
+            "offset": [
+              0.6464466016795712,
+              -1.3535533828661186
+            ],
+            "rotation": 0.7853981852531433,
+            "scale": [
+              0.5,
+              0.5
+            ]
+          }
+        },
+        "index": 6,
+        "scale": 0.6000000238418579
+      },
+      "occlusionTexture": {
+        "extensions": {
+          "KHR_texture_transform": {
+            "offset": [
+              0.6464466016795712,
+              -1.3535533828661186
+            ],
+            "rotation": 0.7853981852531433,
+            "scale": [
+              0.5,
+              0.5
+            ]
+          }
+        },
+        "index": 7,
+        "strength": 0.25
+      },
       "pbrMetallicRoughness": {
         "baseColorFactor": [
           0.10000000149011612,
@@ -364,10 +495,39 @@ None
           1
         ],
         "baseColorTexture": {
-          "index": 0
+          "extensions": {
+            "KHR_texture_transform": {
+              "offset": [
+                0.6464466016795712,
+                -1.3535533828661186
+              ],
+              "rotation": 0.7853981852531433,
+              "scale": [
+                0.5,
+                0.5
+              ]
+            }
+          },
+          "index": 8
         },
-        "metallicFactor": 0,
-        "roughnessFactor": 0.5
+        "metallicFactor": 0.30000001192092896,
+        "metallicRoughnessTexture": {
+          "extensions": {
+            "KHR_texture_transform": {
+              "offset": [
+                0.6464466016795712,
+                -1.3535533828661186
+              ],
+              "rotation": 0.7853981852531433,
+              "scale": [
+                0.5,
+                0.5
+              ]
+            }
+          },
+          "index": 7
+        },
+        "roughnessFactor": 0.20000000298023224
       }
     }
   ],
@@ -441,9 +601,76 @@ None
     {
       "sampler": 0,
       "source": 0
+    },
+    {
+      "sampler": 0,
+      "source": 1
+    },
+    {
+      "sampler": 0,
+      "source": 2
+    },
+    {
+      "sampler": 0,
+      "source": 3
+    },
+    {
+      "sampler": 0,
+      "source": 3
+    },
+    {
+      "sampler": 0,
+      "source": 4
+    },
+    {
+      "sampler": 0,
+      "source": 5
+    },
+    {
+      "sampler": 0,
+      "source": 6
+    },
+    {
+      "sampler": 0,
+      "source": 7
     }
   ],
   "images": [
+    {
+      "mimeType": "image/png",
+      "name": "Emissive",
+      "uri": "Emissive.png"
+    },
+    {
+      "mimeType": "image/png",
+      "name": "Coat",
+      "uri": "Coat.png"
+    },
+    {
+      "mimeType": "image/png",
+      "name": "Volume",
+      "uri": "Volume.png"
+    },
+    {
+      "mimeType": "image/png",
+      "name": "Sheen",
+      "uri": "Sheen.png"
+    },
+    {
+      "mimeType": "image/png",
+      "name": "AnisotropyDiscs",
+      "uri": "AnisotropyDiscs.png"
+    },
+    {
+      "mimeType": "image/png",
+      "name": "NormalMap",
+      "uri": "NormalMap.png"
+    },
+    {
+      "mimeType": "image/png",
+      "name": "ORM",
+      "uri": "ORM.png"
+    },
     {
       "mimeType": "image/png",
       "name": "Albedo",
