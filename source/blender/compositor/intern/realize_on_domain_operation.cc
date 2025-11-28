@@ -133,6 +133,7 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const int2 &size,
 
   bool nearest = options.sampler == math::Sampler::Nearest;
   bool fast = (nearest || options.sampler == math::Sampler::Bilinear);
+  bool anisotropic = options.sampler == math::Sampler::Anisotropic;
 
   const char *shader_name;
   switch (input.type()) {
@@ -143,6 +144,8 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const int2 &size,
     case ResultType::Float4:
       if (fast)
         shader_name = "compositor_realize_on_domain_float4";
+      else if (anisotropic)
+        shader_name = "compositor_realize_on_domain_anisotropic";
       else if (options.sampler == math::Sampler::Bspline)
         shader_name = "compositor_realize_on_domain_bspline_float4";
       else
@@ -171,7 +174,7 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const int2 &size,
   gpu::Shader *shader = this->context().get_shader(shader_name);
   GPU_shader_bind(shader);
 
-  if (fast) {
+  if (fast || anisotropic) {
     /* The matrix must produce uv coordinates */
     const float3x3 mat = math::from_scale<float3x3>(1.0f / float2(input.domain().data_size)) *
                          inverse_transformation;
@@ -182,8 +185,12 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const int2 &size,
     GPU_shader_uniform_2fv(shader, "wh", wh);
   }
 
-  GPU_texture_filter_mode(input, !nearest);
-  /* GPU_texture_anisotropic_filter(input, false); */
+  if (anisotropic) {
+    GPU_texture_mipmap_mode(input, true, true);
+    GPU_texture_anisotropic_filter(input, anisotropic);
+  } else {
+    GPU_texture_filter_mode(input, !nearest);
+  }
   GPU_texture_extend_mode_x(input, map_wrap_mode_to_extend_mode(options.wrap_x));
   GPU_texture_extend_mode_y(input, map_wrap_mode_to_extend_mode(options.wrap_y));
   input.bind_as_texture(shader, "input_tx");
@@ -256,6 +263,16 @@ void RealizeOnDomainOperation::realize_on_domain_cpu(const int2 &size,
   const float2 dPdx(inverse_transformation[0].xy());
   const float2 dPdy(inverse_transformation[1].xy());
   const float2 translate(inverse_transformation[2].xy());
+
+  if (source.sampler == math::Sampler::Anisotropic) {
+    auto sample_area = math::sample_area(source);
+    parallel_for(size, [&](const int2 texel) {
+      float2 uv = dPdx * texel.x + dPdy * texel.y + translate;
+      float4 sample = sample_area(source, uv, dPdx, dPdy);
+      output.store_pixel_generic_type(texel, sample);
+    });
+    return;
+  }
 
   // locate the optimized version of sample_rect
   auto sample_rect = math::sample_rect(source);

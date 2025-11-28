@@ -2,12 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-float4 sample_nearest(float2 uv)
-{
-  return texture(input_tx, uv / float2(textureSize(input_tx, 0)));
-  // return texelFetch(input_tx, int2(uv), 0);
-}
-
 static inline float weight_box(float x, float w)
 {
   return min((w + 1) / 2 - abs(x), 1.0f);

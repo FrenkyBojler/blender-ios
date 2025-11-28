@@ -391,11 +391,22 @@ void interpolate_cubic_mitchell_fl(
     const float *buffer, float *output, int width, int height, int components, float u, float v);
 
 /**
- * Lookup optimized versions of above function. The returned function assumes it is called with
- * the same arguments. If there is no optimized version sample_rect() is returned.
+ * Filtered sampling based on derivatives of the sample location. For 90 degree rotations
+ * \a wh is the absolute value of the horizontal and vertical derivatives. For rotations
+ * the sample area must be approximated by this rectangle, hypot(dPdx,dPdy) is recommended.
+ * Sampler::Anisotropic does Sampler::Box.
  */
 using SampleRect = float4 (*)(const SamplerSource &source, const float2 &uv, const float2 &wh);
+/** Lookup optimized function to call for \a source. */
 SampleRect sample_rect(const SamplerSource &source);
+
+/**
+ * Filtered sampling based on derivatives of the sample location. Only Sampler::Anisotropic
+ * does something different here, all others call sample_rect.
+ */
+using SampleArea = float4 (*)(const SamplerSource &source, const float2 &uv, const float2 &dPdx, const float2 &dPdy);
+/** Lookup optimized function to call for \a source. */
+SampleArea sample_area(const SamplerSource &source);
 
 }  // namespace blender::math
 
@@ -424,4 +435,6 @@ void BLI_ewa_filter(int width,
                     const float dv[2],
                     ewa_filter_read_pixel_cb read_pixel_cb,
                     void *userdata,
-                    float result[4]);
+                    float result[4],
+                    bool clip = true
+                  );
