@@ -7,6 +7,7 @@
  * \ingroup bke
  */
 #include <cstdint>
+#include <memory>
 
 struct BlendDataReader;
 struct BlendWriter;
@@ -39,6 +40,14 @@ void BKE_curvemapping_set_black_white_ex(const float black[3],
 void BKE_curvemapping_set_black_white(CurveMapping *cumap,
                                       const float black[3],
                                       const float white[3]);
+
+struct CurveMappingDestructor {
+  void operator()(CurveMapping *cumap)
+  {
+    BKE_curvemapping_free(cumap);
+  }
+};
+using CurveMapping_unique_ptr = std::unique_ptr<CurveMapping, CurveMappingDestructor>;
 
 enum class CurveMapSlopeType : int8_t {
   Negative = 0,

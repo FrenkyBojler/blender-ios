@@ -80,13 +80,12 @@ static int gpu_shader_curve_vec(GPUMaterial *mat,
 
 class CurveVecFunction : public mf::MultiFunction {
  private:
-  CurveMapping *cumap_;
+  CurveMapping_unique_ptr cumap_;
 
  public:
-  CurveVecFunction(const CurveMapping &cumap)
+  CurveVecFunction(const CurveMapping &cumap) : cumap_(BKE_curvemapping_copy(&cumap))
   {
-    cumap_ = BKE_curvemapping_copy(&cumap);
-    BKE_curvemapping_init(cumap_);
+    BKE_curvemapping_init(cumap_.get());
     static const mf::Signature signature = []() {
       mf::Signature signature;
       mf::SignatureBuilder builder{"Curve Vec", signature};
@@ -98,11 +97,6 @@ class CurveVecFunction : public mf::MultiFunction {
     this->set_signature(&signature);
   }
 
-  ~CurveVecFunction()
-  {
-    BKE_curvemapping_free(cumap_);
-  }
-
   void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
   {
     const VArray<float> &fac = params.readonly_single_input<float>(0, "Fac");
@@ -110,7 +104,7 @@ class CurveVecFunction : public mf::MultiFunction {
     MutableSpan<float3> vec_out = params.uninitialized_single_output<float3>(2, "Vector");
 
     mask.foreach_index([&](const int64_t i) {
-      BKE_curvemapping_evaluate3F(cumap_, vec_out[i], vec_in[i]);
+      BKE_curvemapping_evaluate3F(cumap_.get(), vec_out[i], vec_in[i]);
       if (fac[i] != 1.0f) {
         interp_v3_v3v3(vec_out[i], vec_in[i], vec_out[i], fac[i]);
       }
@@ -249,13 +243,12 @@ static int gpu_shader_curve_rgb(GPUMaterial *mat,
 
 class CurveRGBFunction : public mf::MultiFunction {
  private:
-  CurveMapping *cumap_;
+  CurveMapping_unique_ptr cumap_;
 
  public:
-  CurveRGBFunction(const CurveMapping &cumap)
+  CurveRGBFunction(const CurveMapping &cumap) : cumap_(BKE_curvemapping_copy(&cumap))
   {
-    cumap_ = BKE_curvemapping_copy(&cumap);
-    BKE_curvemapping_init(cumap_);
+    BKE_curvemapping_init(cumap_.get());
     static const mf::Signature signature = []() {
       mf::Signature signature;
       mf::SignatureBuilder builder{"Curve RGB", signature};
@@ -267,11 +260,6 @@ class CurveRGBFunction : public mf::MultiFunction {
     this->set_signature(&signature);
   }
 
-  ~CurveRGBFunction()
-  {
-    BKE_curvemapping_free(cumap_);
-  }
-
   void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
   {
     const VArray<float> &fac = params.readonly_single_input<float>(0, "Fac");
@@ -281,7 +269,7 @@ class CurveRGBFunction : public mf::MultiFunction {
         2, "Color");
 
     mask.foreach_index([&](const int64_t i) {
-      BKE_curvemapping_evaluateRGBF(cumap_, col_out[i], col_in[i]);
+      BKE_curvemapping_evaluateRGBF(cumap_.get(), col_out[i], col_in[i]);
       if (fac[i] != 1.0f) {
         interp_v3_v3v3(col_out[i], col_in[i], col_out[i], fac[i]);
       }
@@ -394,13 +382,12 @@ static int gpu_shader_curve_float(GPUMaterial *mat,
 
 class CurveFloatFunction : public mf::MultiFunction {
  private:
-  CurveMapping *cumap_;
+  CurveMapping_unique_ptr cumap_;
 
  public:
-  CurveFloatFunction(const CurveMapping &cumap)
+  CurveFloatFunction(const CurveMapping &cumap) : cumap_(BKE_curvemapping_copy(&cumap))
   {
-    cumap_ = BKE_curvemapping_copy(&cumap);
-    BKE_curvemapping_init(cumap_);
+    BKE_curvemapping_init(cumap_.get());
     static const mf::Signature signature = []() {
       mf::Signature signature;
       mf::SignatureBuilder builder{"Curve Float", signature};
@@ -419,7 +406,7 @@ class CurveFloatFunction : public mf::MultiFunction {
     MutableSpan<float> val_out = params.uninitialized_single_output<float>(2, "Value");
 
     mask.foreach_index([&](const int64_t i) {
-      val_out[i] = BKE_curvemapping_evaluateF(cumap_, 0, val_in[i]);
+      val_out[i] = BKE_curvemapping_evaluateF(cumap_.get(), 0, val_in[i]);
       if (fac[i] != 1.0f) {
         val_out[i] = (1.0f - fac[i]) * val_in[i] + fac[i] * val_out[i];
       }
@@ -431,7 +418,6 @@ static void sh_node_curve_float_build_multi_function(NodeMultiFunctionBuilder &b
 {
   const bNode &bnode = builder.node();
   CurveMapping *cumap = (CurveMapping *)bnode.storage;
-  BKE_curvemapping_init(cumap);
   builder.construct_and_set_matching_fn<CurveFloatFunction>(*cumap);
 }
 

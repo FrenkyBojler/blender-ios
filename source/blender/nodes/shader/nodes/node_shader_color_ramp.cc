@@ -105,12 +105,11 @@ static int gpu_shader_valtorgb(GPUMaterial *mat,
 
 class ColorBandFunction : public mf::MultiFunction {
  private:
-  ColorBand *color_band_;
+  ColorBand_unique_ptr color_band_;
 
  public:
-  ColorBandFunction(const ColorBand &color_band)
+  ColorBandFunction(const ColorBand &color_band) : color_band_(MEM_dupallocN(__func__, color_band))
   {
-    color_band_ = MEM_dupallocN(__func__, color_band);
     static const mf::Signature signature = []() {
       mf::Signature signature;
       mf::SignatureBuilder builder{"Color Band", signature};
@@ -122,11 +121,6 @@ class ColorBandFunction : public mf::MultiFunction {
     this->set_signature(&signature);
   }
 
-  ~ColorBandFunction()
-  {
-    MEM_freeN(color_band_);
-  }
-
   void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
   {
     const VArray<float> &values = params.readonly_single_input<float>(0, "Value");
@@ -136,7 +130,7 @@ class ColorBandFunction : public mf::MultiFunction {
 
     mask.foreach_index([&](const int64_t i) {
       ColorGeometry4f color;
-      BKE_colorband_evaluate(color_band_, values[i], color);
+      BKE_colorband_evaluate(color_band_.get(), values[i], color);
       colors[i] = color;
       alphas[i] = color.a;
     });
