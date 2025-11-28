@@ -2595,6 +2595,16 @@ static bool bm_ray_cast_cb_elem_not_in_face_check(BMFace *f, void *user_data)
   return ans;
 }
 
+static bool knife_point_in_front_of_view(const KnifeTool_OpData *kcd, const float p[3])
+{
+  const RegionView3D *rv3d = kcd->vc.rv3d;
+
+  float p_view[3];
+  mul_v3_m4v3(p_view, rv3d->viewmat, p);
+
+  return (p_view[2] < 0.0f);
+}
+
 /**
  * Check if \a p is visible (not clipped, not occluded by another face).
  * s in screen projection of p.
@@ -2608,6 +2618,11 @@ static bool point_is_visible(KnifeTool_OpData *kcd,
                              BMElem *ele_test)
 {
   BMFace *f_hit;
+
+  /* Reject points that lie behind the viewport camera. */
+  if (!knife_point_in_front_of_view(kcd, p)) {
+    return false;
+  }
 
   /* If box clipping on, make sure p is not clipped. */
   if (RV3D_CLIPPING_ENABLED(kcd->vc.v3d, kcd->vc.rv3d) &&
@@ -2753,6 +2768,9 @@ static bool knife_linehit_face_test(KnifeTool_OpData *kcd,
  */
 static void knife_find_line_hits(KnifeTool_OpData *kcd)
 {
+  float test_point[3] = {0.0f, 0.0f, 10.0f};
+  knife_point_in_front_of_view(kcd, test_point);
+
   float3 v1, v2;
   float2 s1, s2;
   int *results, *result;
