@@ -1,3 +1,4 @@
 Referenced by issue #148479, PreferencesView.preferences_display_type set to Maximized Area is ignored
 Referenced by pull request #148516, Fix #148479: Allow Preferences to Open in Maximized Area
 Referenced by commit c73cc43eb264b85ae75aec9e70a28d6ac6814d3e, Fix #148479: Allow Preferences to Open in Maximized Area
+Referenced by issue #150685, Can't Open Save/Load Window
