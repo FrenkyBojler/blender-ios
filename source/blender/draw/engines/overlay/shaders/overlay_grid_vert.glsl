@@ -64,23 +64,33 @@ LineData decode_axis_data(in uint vertex_id)
   return line;
 }
 
-/* Returns true if both components of `v` fall within `epsilon` of 0. */
-bool is_zero(in vec2 v, in float epsilon) {
-  return all(lessThanEqual(abs(v), float2(epsilon)));
+/* Returns true if components of `v` fall within `epsilon` of 0. */
+bool2 is_zero(in float2 v, in float epsilon) {
+  return lessThanEqual(abs(v), float2(epsilon));
+}
+
+/* Test if the current line falls under an active axis line which occludes it. */
+bool test_axis_occlude(in float3 vertex_pos_global) {
+  if (flag_test(grid_flag, SHOW_GRID)) {
+    return (flag_test(grid_flag, AXIS_X) && all(is_zero(vertex_pos_global.yz, 1e-4f))) ||
+           (flag_test(grid_flag, AXIS_Y) && all(is_zero(vertex_pos_global.xz, 1e-4f))) ||
+           (flag_test(grid_flag, AXIS_Z) && all(is_zero(vertex_pos_global.xy, 1e-4f)));
+  }
+  return false;
 }
 
 /* Test if the current line falls under another line on a higher level, which occludes it. */
-bool test_level_overlap(in LineData line, in uint level) {
+bool test_level_occlude(in LineData line, in uint level) {
   if (flag_test(grid_flag, SHOW_GRID)) {
     if (line.level < OVERLAY_GRID_STEPS_DRAW - 1 && level < OVERLAY_GRID_STEPS_LEN - 1) {
       float step_size_curr = grid_buf.steps[level][line.axis];
       float step_size_next = grid_buf.steps[level + 1][line.axis];
 
-      // float2 step_offs_curr = round(grid_offs / step_size_curr) * step_size_curr;
-      float2 step_offs_next = round(grid_offs / step_size_next) * step_size_next;
-
+      float2 step_offs_curr = round(grid_buf.offset / step_size_curr) * step_size_curr;
+      float2 step_offs_next = round(step_offs_curr / step_size_next) * step_size_next;
       float2 diff = step_offs_next + (line.P - step_offs_next) / step_size_next;
-      if (is_equal(fract(diff[line.axis]), 0.0f, 1e-4)) {
+
+      if (is_equal(fract(diff[1 - line.axis]), 0.0f, 1e-4)) {
         return true;
       }
     }
@@ -88,21 +98,9 @@ bool test_level_overlap(in LineData line, in uint level) {
   return false;
 }
 
-/* Test if the current line falls under an axis line, which occludes it. */
-bool test_axis_overlap(in float3 vertex_pos_global) {
-  if (flag_test(grid_flag, SHOW_GRID)) {
-    return (flag_test(grid_flag, AXIS_X) && is_zero(vertex_pos_global.yz, 1e-4f)) ||
-           (flag_test(grid_flag, AXIS_Y) && is_zero(vertex_pos_global.xz, 1e-4f)) ||
-           (flag_test(grid_flag, AXIS_Z) && is_zero(vertex_pos_global.xy, 1e-4f));
-  }
-  return false;
-}
-
 void main()
 {
-  /* Discard by default. */
-  gl_Position = float4(NAN_FLT);
-
+  gl_Position = float4(NAN_FLT); /* Discard by default. */
   LineData line = flag_test(grid_flag, SHOW_GRID) ? decode_grid_data(gl_VertexID) :
                                                     decode_axis_data(gl_VertexID);
 
@@ -116,7 +114,7 @@ void main()
    * level-dependent line position for  grid, while axes simply move with the camera. */
   float step_size = grid_buf.steps[level][line.axis];
   float2 step_offs = flag_test(grid_flag, SHOW_GRID) /* !SHOW_AXES */
-    ? round(grid_offs / step_size) * step_size
+    ? round(grid_buf.offset / step_size) * step_size
     : float2(drw_view_position()[line.axis], 0.0f);
 
   /* Output vertex position in [-1,1], which we use to fade level boundaries. */
@@ -134,31 +132,18 @@ void main()
   /* Apply per-level size, camera offset. */
   line.P = step_offs + step_size * line.P;
 
+  /* Lines are clamped to a clipping rectangle to avoid precision issues further on. */
   if (flag_test(grid_flag, GRID_SIMA)) {
-    /* Clipping; restrict the grid in the UV/Image editor to the specified tile size. */
+    /* Restrict the grid in the UV/Image editor to the specified tile size. */
     line.P = clamp(line.P, float2(-1.0f), grid_buf.clip_rect * 2.0f - 1.0f);
   }
   else {
-    /* Clipping; restrict lines to a reasonable range for precision. */
-    if (all(greaterThan(abs(line.P - step_offs), grid_buf.clip_rect))) {
+    bool line_outside_rect = all(greaterThan(abs(line.P - step_offs), grid_buf.clip_rect)); 
+    if (line_outside_rect) {
       return; /* Discard line. */
     }
-    line.P = clamp(line.P, step_offs - grid_buf.clip_rect, step_offs + grid_buf.clip_rect);
+    line.P = clamp(line.P, grid_buf.offset - grid_buf.clip_rect, grid_buf.offset + grid_buf.clip_rect);
   }
-
-  /* Clipping; if there exists an integer, s.t. with the scaling of the level above we can draw
-   * the current line, we can discard the current line on any sublevel. */
-  /* TODO (not_mark): re-enable when I can work out problems with this */
-  // if (!flag_test(grid_flag, GRID_SIMA) && flag_test(grid_flag, SHOW_GRID)) {
-  //   if (line.level < OVERLAY_GRID_STEPS_DRAW - 1 && level < OVERLAY_GRID_STEPS_LEN - 1) {
-  //     float nscale = grid_buf.steps[min(level + 1, OVERLAY_GRID_STEPS_LEN - 1)][0];
-  //     float offset = round(select(grid_offs.y, grid_offs.x, line.axis) / nscale) * nscale;
-  //     float P_diff = offset + (select(line.P.y, line.P.x, line.axis) - offset) / nscale;
-  //     if (abs(fract(P_diff)) < 1e-5) {
-  //       return;  /* Discard line. */
-  //     }
-  //   }
-  // }
 
   /* Output world-space position on the correct plane/axis. */
   vertex_out.pos = float3(0.0f);
@@ -179,7 +164,7 @@ void main()
       vertex_out.pos.z = flag_test(grid_flag, GRID_OVER) ? 0.74f : 0.76f;
     }
   }
-  else if (flag_test(grid_flag, SHOW_AXES)) {
+  else /* if (flag_test(grid_flag, SHOW_AXES)) */ { /* SHOW_AXES */
     /* Test X/Y/Z axis flags per line */
     const uint axis_flags[3] = {AXIS_X, AXIS_Y, AXIS_Z};
     if (!flag_test(grid_flag, axis_flags[line.axis])) {
@@ -187,12 +172,9 @@ void main()
     }
     vertex_out.pos[line.axis] = line.P.x;
   }
-
-  /* Test to discard occluded lines. */
-  if (test_axis_overlap(vertex_out.pos)) {
-    return;
-  }
-  if (test_level_overlap(line, level)) {
+  
+  /* Cull occluded lines. */
+  if (test_axis_occlude(vertex_out.pos) || test_level_occlude(line, level)) {
     return;
   }
 
@@ -202,9 +184,9 @@ void main()
   if (flag_test(grid_flag, SHOW_GRID)) {
     gl_Position.z += 4.8e-7f * float(OVERLAY_GRID_STEPS_DRAW - line.level);
   }
-  if (flag_test(grid_flag, PLANE_XY)) {
+  /* if (flag_test(grid_flag, PLANE_XY)) {
     gl_Position.z += mix(0.0f, 1.5e-4f, 1.0f - abs(drw_view_forward().z));
-  }
+  } */
 
   /* Stage output for viewport antialiasing. */
   edge_start = edge_pos = ((gl_Position.xy / gl_Position.w) * 0.5f + 0.5f) * uniform_buf.size_viewport;

@@ -130,12 +130,15 @@ static inline uint outline_id_pack(uint outline_id, uint object_id)
 struct OVERLAY_GridData {
   /* Per level step size, based on selected units/subdivision. */
   float4 steps[OVERLAY_GRID_STEPS_LEN]; /* float3 array padded to float4 (std140). */
+  /* XY/YZ/XZ camera offset of grid. */
+  float2 offset;
   /* Clipping rectangle for UV/Image editor; encoded as minx, miny, maxx, maxy. */
   float2 clip_rect;
   /* Fractional grid-level, dependent on current camera position/distance/zoom. */
   float level;
   /* Per-level line count. */
   uint num_lines;
+  uint _pad0, _pad1;
 };
 BLI_STATIC_ASSERT_ALIGN(OVERLAY_GridData, 16)
 

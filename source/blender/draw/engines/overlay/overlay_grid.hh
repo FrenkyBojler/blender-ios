@@ -74,12 +74,10 @@ class Grid : Overlay {
       sub.state_set(ps_draw_state | DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_WRITE_DEPTH);
       sub.bind_ubo("grid_buf", &grid_ubo_);
       sub.push_constant("grid_offs", &grid_offs_);
-
       if (axis_flag_) {
         sub.push_constant("grid_flag", &axis_flag_);
         sub.draw_procedural(GPUPrimType::GPU_PRIM_LINES, -1, 6, 0);
       }
-
       if (grid_flag_) {
         const uint verts_count = 4 * OVERLAY_GRID_STEPS_DRAW * grid_ubo_.num_lines;
         sub.push_constant("grid_flag", &grid_flag_);
@@ -162,7 +160,7 @@ class Grid : Overlay {
     }
 
     /* Determine camera offset to center of v2d. */
-    grid_offs_ = float2(v2d->cur.xmax + v2d->cur.xmin, v2d->cur.ymax + v2d->cur.ymin) - 1.0f;
+    grid_ubo_.offset = float2(v2d->cur.xmax + v2d->cur.xmin, v2d->cur.ymax + v2d->cur.ymin) - 1.0f;
 
     /* Query grid image zoom level. Then find the lowest relevant grid level + fractional. */
     float dist = ED_space_image_zoom_level(v2d, SI_GRID_STEPS_LEN) * 4.0f;
@@ -191,7 +189,7 @@ class Grid : Overlay {
     tile_pos_buf_.push_update();
 
     /* This suffices for most cases, and in others we fade to hide it. */
-    /* TODO (not_mark): make this view/clip-dependent in 2D UV editor. */
+    /* TODO (not_mark): make this view-dependent in 2D UV editor to have full coverage */
     grid_ubo_.num_lines = 301;
 
     return true;
@@ -272,16 +270,16 @@ class Grid : Overlay {
     /* Extract 2D grid offset for moving grid "with the camera" on the floor plane. */
     float3 camera_offs = drw_view_position - dist * drw_view_forward;
     if (ELEM(rv3d->view, RV3D_VIEW_RIGHT, RV3D_VIEW_LEFT)) {
-      grid_offs_ = camera_offs.yz();
+      grid_ubo_.offset = camera_offs.yz();
     }
     else if (ELEM(rv3d->view, RV3D_VIEW_TOP, RV3D_VIEW_BOTTOM)) {
-      grid_offs_ = camera_offs.xy();
+      grid_ubo_.offset = camera_offs.xy();
     }
     else if (ELEM(rv3d->view, RV3D_VIEW_FRONT, RV3D_VIEW_BACK)) {
-      grid_offs_ = float2(camera_offs.x, camera_offs.z);
+      grid_ubo_.offset = float2(camera_offs.x, camera_offs.z);
     }
     else { /* Perspective view, Image/UV view. */
-      grid_offs_ = camera_offs.xy();
+      grid_ubo_.offset = camera_offs.xy();
     }
 
     /* Find the lowest relevant grid level + fractional. */
@@ -313,8 +311,8 @@ class Grid : Overlay {
     }
 
     /* This suffices for most cases, and in others we fade to hide it. */
-    /* TODO (not_mark): make this view-dependent in orthographic */
-    grid_ubo_.num_lines = 101;
+    /* TODO (not_mark): make this view-dependent in orthographic to have full coverage */
+    grid_ubo_.num_lines = rv3d->is_persp ? 101 : 301;
 
     return true;
   }
