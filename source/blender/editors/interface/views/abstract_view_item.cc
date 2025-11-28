@@ -478,7 +478,7 @@ bool UI_view_item_drag_start(bContext &C, AbstractViewItem &item)
 
   /* Make sure the view item is highlighted as active when dragging from it. This is useful user
    * feedback. */
-  item.set_state_active();
+  item.set_selected(true);
 
   return true;
 }
