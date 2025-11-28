@@ -581,11 +581,6 @@ static void ensure_topology_cache(const bNodeTree &ntree)
 
 namespace blender::bke {
 
-GeoNodesPersistentTree::~GeoNodesPersistentTree()
-{
-  BKE_id_free(nullptr, const_cast<ID *>(&this->tree.id));
-}
-
 NodeLinkKey::NodeLinkKey(const bNodeLink &link)
 {
   to_node_id_ = link.tonode->identifier;

@@ -104,10 +104,9 @@ struct NodeLinkKey {
 
 class GeoNodesPersistentTree : NonCopyable, NonMovable {
  public:
-  const bNodeTree &tree;
-
-  GeoNodesPersistentTree(bNodeTree &tree) : tree(tree) {}
-  ~GeoNodesPersistentTree();
+  std::shared_ptr<bNodeTree> tree;
+  std::unique_ptr<const nodes::GeometryNodesLazyFunctionGraphInfo>
+      geometry_nodes_lazy_function_graph_info;
 };
 
 struct LoggedZoneGraphs {
@@ -198,9 +197,7 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
   CacheMutex geo_nodes_persistent_tree_mutex;
   std::shared_ptr<const GeoNodesPersistentTree> geo_nodes_persistent_tree;
 
-  /** Used by node trees that are persistent copies. */
-  std::unique_ptr<const nodes::GeometryNodesLazyFunctionGraphInfo>
-      geometry_nodes_lazy_function_graph_info;
+  const GeoNodesPersistentTree *self_geo_nodes_persistent_tree = nullptr;
 
   /**
    * Stores information about invalid links. This information is then displayed to the user. This
