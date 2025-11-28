@@ -50,14 +50,15 @@ using blender::Vector;
  * Check loops have matching vertices over a partial span
  * over `l_a` -> `l_a_end` & `l_a` -> `l_a_end` (inclusive).
  */
-bool bm_face_pair_overlap_check_subset_same_winding(BMLoop *l_a,
-                                                    BMLoop *l_a_end,
-                                                    BMLoop *l_b,
-                                                    BMLoop *l_b_end)
+static bool bm_face_pair_overlap_check_subset_same_winding(BMLoop *l_a,
+                                                           BMLoop *l_a_end,
+                                                           BMLoop *l_b,
+                                                           BMLoop *l_b_end)
 {
   BLI_assert(l_a->f == l_a_end->f);
   BLI_assert(l_b->f == l_b_end->f);
   BLI_assert(l_a->f != l_b->f);
+  UNUSED_VARS_NDEBUG(l_b_end);
 #ifndef NDEBUG
   /* Ensure the loops have the same topological distance. */
   {
@@ -95,14 +96,15 @@ bool bm_face_pair_overlap_check_subset_same_winding(BMLoop *l_a,
  * A version of #bm_face_pair_overlap_check_subset_same_winding
  * that walks over `l_b` in the reverse direction.
  */
-bool bm_face_pair_overlap_check_subset_swap_winding(BMLoop *l_a,
-                                                    BMLoop *l_a_end,
-                                                    BMLoop *l_b,
-                                                    BMLoop *l_b_end)
+static bool bm_face_pair_overlap_check_subset_swap_winding(BMLoop *l_a,
+                                                           BMLoop *l_a_end,
+                                                           BMLoop *l_b,
+                                                           BMLoop *l_b_end)
 {
   BLI_assert(l_a->f == l_a_end->f);
   BLI_assert(l_b->f == l_b_end->f);
   BLI_assert(l_a->f != l_b->f);
+  UNUSED_VARS_NDEBUG(l_b_end);
 #ifndef NDEBUG
   /* Ensure the loops have the same topological distance. */
   {
