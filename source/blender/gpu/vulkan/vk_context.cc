@@ -337,8 +337,8 @@ void VKContext::update_pipeline_data(const VKFrameBuffer &framebuffer,
   /* VK_EXT_extended_dynamic_state */
   if (extensions.extended_dynamic_state) {
     r_pipeline_data.front_face = state_manager.state.invert_facing ?
-                                     VK_FRONT_FACE_CLOCKWISE :
-                                     VK_FRONT_FACE_COUNTER_CLOCKWISE;
+                                     VK_FRONT_FACE_COUNTER_CLOCKWISE :
+                                     VK_FRONT_FACE_CLOCKWISE;
   }
 
   update_pipeline_data(vk_shader,
