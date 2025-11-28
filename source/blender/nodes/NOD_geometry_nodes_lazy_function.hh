@@ -415,6 +415,7 @@ struct GeometryNodesLazyFunctionGraphInfo {
    * Contains resources that need to be freed when the graph is not needed anymore.
    */
   ResourceScope scope;
+  std::shared_ptr<const bNodeTree> tree;
   GeometryNodesGroupFunction function;
   /**
    * The actual lazy-function graph.

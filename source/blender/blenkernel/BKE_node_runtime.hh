@@ -102,9 +102,8 @@ struct NodeLinkKey {
                                   input_link_index_);
 };
 
-class GeoNodesPersistentTree : NonCopyable, NonMovable {
+class GeoNodesPersistentTree {
  public:
-  std::shared_ptr<const bNodeTree> tree;
   std::unique_ptr<const nodes::GeometryNodesLazyFunctionGraphInfo>
       geometry_nodes_lazy_function_graph_info;
 };
