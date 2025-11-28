@@ -31,6 +31,8 @@
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
+#include "NOD_common.hh"
+
 #include "rna_internal.hh"
 #include "rna_internal_types.hh"
 
@@ -3035,6 +3037,7 @@ static StructRNA *rna_GeometryNodeCustomGroup_register(Main *bmain,
   }
 
   nt->type_legacy = NODE_CUSTOM_GROUP;
+  nt->ui_class = node_group_ui_class;
 
   register_node_type_geo_custom_group(nt);
 
@@ -3063,6 +3066,7 @@ static StructRNA *rna_ShaderNodeCustomGroup_register(Main *bmain,
   }
 
   nt->type_legacy = NODE_CUSTOM_GROUP;
+  nt->ui_class = node_group_ui_class;
 
   register_node_type_sh_custom_group(nt);
 
@@ -3088,6 +3092,7 @@ static StructRNA *rna_CompositorNodeCustomGroup_register(Main *bmain,
   }
 
   nt->type_legacy = NODE_CUSTOM_GROUP;
+  nt->ui_class = node_group_ui_class;
 
   register_node_type_cmp_custom_group(nt);
 
@@ -5034,7 +5039,7 @@ static void def_sh_tex_sky(BlenderRNA *brna, StructRNA *srna)
 
   prop = RNA_def_property(srna, "sun_elevation", PROP_FLOAT, PROP_ANGLE);
   RNA_def_property_ui_text(prop, "Sun Elevation", "Sun angle from horizon");
-  RNA_def_property_float_default(prop, M_PI_2);
+  RNA_def_property_float_default(prop, DEG2RADF(15.0f));
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   prop = RNA_def_property(srna, "sun_rotation", PROP_FLOAT, PROP_ANGLE);
