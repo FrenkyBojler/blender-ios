@@ -7,6 +7,7 @@
  */
 
 #include "BKE_context.hh"
+#include "BKE_library.hh"
 #include "BKE_main_invariants.hh"
 #include "BKE_node_tree_interface.hh"
 
@@ -117,7 +118,7 @@ class NodeSocketViewItem : public BasicTreeViewItem {
       input_socket_layout->label("", ICON_BLANK1);
     }
 
-    this->add_label(row);
+    this->add_label(row, IFACE_(label_.c_str()));
 
     uiLayout *output_socket_layout = &row.row(true);
     if (socket_.flag & NODE_INTERFACE_SOCKET_OUTPUT) {
@@ -206,7 +207,7 @@ class NodePanelViewItem : public BasicTreeViewItem {
       uiTemplateNodeSocket(toggle_layout, /*C*/ nullptr, toggle_->socket_color());
     }
 
-    this->add_label(row);
+    this->add_label(row, IFACE_(label_.c_str()));
 
     uiLayout *sub = &row.row(true);
     sub->use_property_decorate_set(false);
@@ -332,6 +333,9 @@ class NodeTreeInterfaceView : public AbstractTreeView {
 
 std::unique_ptr<AbstractViewItemDragController> NodeSocketViewItem::create_drag_controller() const
 {
+  if (!ID_IS_EDITABLE(&nodetree_.id)) {
+    return nullptr;
+  }
   return std::make_unique<NodeTreeInterfaceDragController>(
       static_cast<NodeTreeInterfaceView &>(this->get_tree_view()), socket_.item, nodetree_);
 }
@@ -343,6 +347,9 @@ std::unique_ptr<TreeViewItemDropTarget> NodeSocketViewItem::create_drop_target()
 
 std::unique_ptr<AbstractViewItemDragController> NodePanelViewItem::create_drag_controller() const
 {
+  if (!ID_IS_EDITABLE(&nodetree_.id)) {
+    return nullptr;
+  }
   return std::make_unique<NodeTreeInterfaceDragController>(
       static_cast<NodeTreeInterfaceView &>(this->get_tree_view()), panel_.item, nodetree_);
 }
@@ -482,17 +489,9 @@ bool NodePanelDropTarget::can_drop(const wmDrag &drag, const char ** /*r_disable
   if (drag.type != WM_DRAG_NODE_TREE_INTERFACE) {
     return false;
   }
-  bNodeTreeInterfaceItemReference *drag_data = get_drag_node_tree_declaration(drag);
-
-  /* Can't drop an item onto its children. */
-  if (const bNodeTreeInterfacePanel *panel = node_interface::get_item_as<bNodeTreeInterfacePanel>(
-          drag_data->item))
-  {
-    if (panel->contains(panel_.item)) {
-      return false;
-    }
+  if (is_dragging_parent_panel(drag, panel_.item)) {
+    return false;
   }
-
   return true;
 }
 
@@ -560,7 +559,7 @@ bool NodePanelDropTarget::on_drop(bContext *C, const DragInfo &drag_info) const
 
 }  // namespace blender::ui::nodes
 
-void uiTemplateNodeTreeInterface(uiLayout *layout, bContext *C, PointerRNA *ptr)
+void uiTemplateNodeTreeInterface(uiLayout *layout, const bContext *C, PointerRNA *ptr)
 {
   if (!ptr->data) {
     return;

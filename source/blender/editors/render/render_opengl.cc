@@ -484,7 +484,7 @@ static void screen_opengl_render_apply(OGLRender *oglrender)
                                          oglrender->sizex,
                                          oglrender->sizey,
                                          SEQ_RENDER_SIZE_SCENE,
-                                         false,
+                                         nullptr,
                                          &context);
 
     for (view_id = 0; view_id < oglrender->views_len; view_id++) {
@@ -629,7 +629,6 @@ static int gather_frames_to_render_for_id(LibraryIDLinkCallbackData *cb_data)
     case ID_SCE: /* Scene */
     case ID_LI:  /* Library */
     case ID_OB:  /* Object */
-    case ID_IP:  /* Ipo (depreciated, replaced by FCurves) */
     case ID_WO:  /* World */
     case ID_SCR: /* Screen */
     case ID_GR:  /* Group */
