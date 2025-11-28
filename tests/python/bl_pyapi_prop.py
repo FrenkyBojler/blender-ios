@@ -327,7 +327,8 @@ class TestPropByteString(unittest.TestCase):
         self.do_test_access("test_byte_string", bytes, self.default_value)
 
     # TODO: get/set is known essentially broken (aka unsupported) with byte strings properties currently.
-    # See comments in `bpy_props.cc`: `bpy_prop_string_get_transform_locked_fn`, `bpy_prop_string_set_fn`, etc.
+    # See #150755, and comments in `bpy_props.cc`:
+    # `bpy_prop_string_get_transform_locked_fn`, `bpy_prop_string_set_fn`, etc.
     # def test_access_byte_string_getset(self):
     #     self.do_test_access("test_byte_string_getset", bytes, self.custom_value)
 
