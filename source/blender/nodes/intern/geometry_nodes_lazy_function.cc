@@ -402,8 +402,7 @@ void set_default_remaining_node_outputs(lf::Params &params, const bNode &node)
 {
   const bNodeTree &ntree = node.owner_tree();
   const Span<int> lf_index_by_bsocket =
-      ntree.runtime->self_geo_nodes_persistent_tree->geometry_nodes_lazy_function_graph_info
-          ->mapping.lf_index_by_bsocket;
+      ntree.runtime->self_geometry_nodes_lazy_function_graph_info->mapping.lf_index_by_bsocket;
   for (const bNodeSocket *bsocket : node.output_sockets()) {
     const int lf_index = lf_index_by_bsocket[bsocket->index_in_tree()];
     if (lf_index == -1) {
@@ -1874,12 +1873,11 @@ class GeometryNodesLazyFunctionSideEffectProvider : public lf::GraphExecutor::Si
  */
 struct GeometryNodesLazyFunctionBuilder {
  private:
-  std::shared_ptr<bke::GeoNodesPersistentTree> persistent_tree_;
   const bNodeTree &btree_;
   const ReferenceLifetimesInfo &reference_lifetimes_;
   ResourceScope &scope_;
   NodeMultiFunctions &node_multi_functions_;
-  GeometryNodesLazyFunctionGraphInfo *lf_graph_info_;
+  std::shared_ptr<GeometryNodesLazyFunctionGraphInfo> lf_graph_info_;
   GeometryNodeLazyFunctionGraphMapping *mapping_;
   const bke::DataTypeConversions *conversions_;
 
@@ -1922,16 +1920,15 @@ struct GeometryNodesLazyFunctionBuilder {
   friend class UsedSocketVisualizeOptions;
 
  public:
-  GeometryNodesLazyFunctionBuilder(const bNodeTree &src_btree,
-                                   std::shared_ptr<bke::GeoNodesPersistentTree> &persistent_tree,
-                                   GeometryNodesLazyFunctionGraphInfo &lf_graph_info)
-      : persistent_tree_(persistent_tree),
-        btree_(*lf_graph_info.tree),
+  GeometryNodesLazyFunctionBuilder(
+      const bNodeTree &src_btree,
+      std::shared_ptr<GeometryNodesLazyFunctionGraphInfo> &lf_graph_info)
+      : btree_(*lf_graph_info->tree),
         reference_lifetimes_(*src_btree.runtime->reference_lifetimes_info),
-        scope_(lf_graph_info.scope),
+        scope_(lf_graph_info->scope),
         node_multi_functions_(
-            lf_graph_info.scope.construct<NodeMultiFunctions>(btree_, lf_graph_info.tree)),
-        lf_graph_info_(&lf_graph_info)
+            lf_graph_info->scope.construct<NodeMultiFunctions>(btree_, lf_graph_info->tree)),
+        lf_graph_info_(lf_graph_info)
   {
   }
 
@@ -2175,7 +2172,7 @@ struct GeometryNodesLazyFunctionBuilder {
     ZoneBodyFunction &body_fn = this->build_zone_body_function(
         zone, "Closure Body", &scope_.construct<GeometryNodesLazyFunctionSideEffectProvider>());
     auto &zone_fn = build_closure_zone_lazy_function(
-        scope_, btree_, zone, zone_info, body_fn, persistent_tree_);
+        scope_, btree_, zone, zone_info, body_fn, lf_graph_info_);
     zone_info.lazy_function = &zone_fn;
   }
 
@@ -3006,14 +3003,13 @@ struct GeometryNodesLazyFunctionBuilder {
     if (group_btree == nullptr) {
       return;
     }
-    const GeometryNodesLazyFunctionGraphInfo *group_lf_graph_info =
+    const std::shared_ptr<const GeometryNodesLazyFunctionGraphInfo> group_lf_graph_info =
         ensure_geometry_nodes_lazy_function_graph(*group_btree);
     if (!group_lf_graph_info) {
       return;
     }
     /* Take ownership of the nested group. */
-    BLI_assert(group_btree->runtime->geo_nodes_persistent_tree);
-    scope_.add(group_btree->runtime->geo_nodes_persistent_tree);
+    scope_.add(group_lf_graph_info);
 
     auto &lazy_function = scope_.construct<LazyFunctionForGroupNode>(
         bnode, *group_lf_graph_info, *lf_graph_info_);
@@ -4140,8 +4136,8 @@ struct GeometryNodesLazyFunctionBuilder {
   }
 };
 
-static std::shared_ptr<bke::GeoNodesPersistentTree> ensure_geometry_nodes_lazy_function_graph_impl(
-    const bNodeTree &btree)
+static std::shared_ptr<GeometryNodesLazyFunctionGraphInfo>
+ensure_geometry_nodes_lazy_function_graph_impl(const bNodeTree &btree)
 {
   btree.ensure_topology_cache();
   btree.ensure_interface_cache();
@@ -4182,34 +4178,30 @@ static std::shared_ptr<bke::GeoNodesPersistentTree> ensure_geometry_nodes_lazy_f
     }
   }
 
+  auto lf_graph_info = std::make_shared<GeometryNodesLazyFunctionGraphInfo>();
+
   /* Make a copy of the node tree so that the execution graph can be independent of the original
    * tree. */
   std::shared_ptr<bNodeTree> btree_copy{
       bke::node_tree_copy_tree_ex(btree, nullptr, false),
       [](bNodeTree *btree) { BKE_id_free(nullptr, &btree->id); }};
-  auto persistent_tree = std::make_shared<bke::GeoNodesPersistentTree>();
-  auto lf_graph_info_ptr = std::make_unique<GeometryNodesLazyFunctionGraphInfo>();
-  lf_graph_info_ptr->tree = btree_copy;
-  GeometryNodesLazyFunctionGraphInfo *lf_graph_info = lf_graph_info_ptr.get();
-  persistent_tree->geometry_nodes_lazy_function_graph_info = std::move(lf_graph_info_ptr);
-  btree_copy->runtime->self_geo_nodes_persistent_tree = persistent_tree.get();
+  lf_graph_info->tree = btree_copy;
 
-  GeometryNodesLazyFunctionBuilder builder{btree, persistent_tree, *lf_graph_info};
+  btree_copy->runtime->self_geometry_nodes_lazy_function_graph_info = lf_graph_info.get();
+
+  GeometryNodesLazyFunctionBuilder builder{btree, lf_graph_info};
   builder.build();
-  return persistent_tree;
+  return lf_graph_info;
 }
 
-const GeometryNodesLazyFunctionGraphInfo *ensure_geometry_nodes_lazy_function_graph(
-    const bNodeTree &btree)
+const std::shared_ptr<const GeometryNodesLazyFunctionGraphInfo> &
+ensure_geometry_nodes_lazy_function_graph(const bNodeTree &btree)
 {
-  btree.runtime->geo_nodes_persistent_tree_mutex.ensure([&]() {
-    btree.runtime->geo_nodes_persistent_tree = ensure_geometry_nodes_lazy_function_graph_impl(
-        btree);
+  btree.runtime->geometry_nodes_lazy_function_graph_info_mutex.ensure([&]() {
+    btree.runtime->geometry_nodes_lazy_function_graph_info =
+        ensure_geometry_nodes_lazy_function_graph_impl(btree);
   });
-  if (!btree.runtime->geo_nodes_persistent_tree) {
-    return nullptr;
-  }
-  return btree.runtime->geo_nodes_persistent_tree->geometry_nodes_lazy_function_graph_info.get();
+  return btree.runtime->geometry_nodes_lazy_function_graph_info;
 }
 
 destruct_ptr<fn::LocalUserData> GeoNodesUserData::get_local(LinearAllocator<> &allocator)

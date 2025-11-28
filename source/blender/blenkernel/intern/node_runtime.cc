@@ -23,7 +23,7 @@ void preprocess_geometry_node_tree_for_evaluation(bNodeTree &tree_cow)
 {
   BLI_assert(tree_cow.type == NTREE_GEOMETRY);
   /* Rebuild geometry nodes lazy function graph eagerly to avoid pipeline stalls later on. */
-  tree_cow.runtime->geo_nodes_persistent_tree_mutex.tag_dirty();
+  tree_cow.runtime->geometry_nodes_lazy_function_graph_info_mutex.tag_dirty();
   blender::nodes::ensure_geometry_nodes_lazy_function_graph(tree_cow);
 }
 

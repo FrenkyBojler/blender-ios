@@ -1604,11 +1604,10 @@ static void rna_NodeTree_debug_lazy_function_graph(bNodeTree *tree,
     Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
     tree = DEG_get_evaluated(depsgraph, tree);
   };
-  if (tree->runtime->geo_nodes_persistent_tree_mutex.is_dirty()) {
+  if (tree->runtime->geometry_nodes_lazy_function_graph_info_mutex.is_dirty()) {
     return;
   }
-  std::string dot_str = tree->runtime->geo_nodes_persistent_tree
-                            ->geometry_nodes_lazy_function_graph_info->graph.to_dot();
+  std::string dot_str = tree->runtime->geometry_nodes_lazy_function_graph_info->graph.to_dot();
   *r_str = BLI_strdup(dot_str.c_str());
   *r_len = dot_str.size();
 }
@@ -1624,12 +1623,11 @@ static void rna_NodeTree_debug_zone_body_lazy_function_graph(
     Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
     tree = DEG_get_evaluated(depsgraph, tree);
   }
-  if (tree->runtime->geo_nodes_persistent_tree_mutex.is_dirty()) {
+  if (tree->runtime->geometry_nodes_lazy_function_graph_info_mutex.is_dirty()) {
     return;
   }
-  const auto *graph =
-      tree->runtime->geo_nodes_persistent_tree->geometry_nodes_lazy_function_graph_info
-          ->debug_zone_body_graphs.lookup_default(node->identifier, nullptr);
+  const auto *graph = tree->runtime->geometry_nodes_lazy_function_graph_info
+                          ->debug_zone_body_graphs.lookup_default(node->identifier, nullptr);
   if (!graph) {
     return;
   }

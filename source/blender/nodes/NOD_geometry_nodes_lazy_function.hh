@@ -475,8 +475,8 @@ std::optional<FoundNestedNodeID> find_nested_node_id(const GeoNodesUserData &use
  * generated already, nothing is done. Under some circumstances a valid graph cannot be created. In
  * those cases null is returned.
  */
-const GeometryNodesLazyFunctionGraphInfo *ensure_geometry_nodes_lazy_function_graph(
-    const bNodeTree &btree);
+const std::shared_ptr<const GeometryNodesLazyFunctionGraphInfo> &
+ensure_geometry_nodes_lazy_function_graph(const bNodeTree &btree);
 
 /**
  * Utility to measure the time that is spend in a specific compute context during geometry nodes
@@ -597,7 +597,7 @@ LazyFunction &build_closure_zone_lazy_function(
     const bke::bNodeTreeZone &zone,
     ZoneBuildInfo &zone_info,
     const ZoneBodyFunction &body_fn,
-    std::shared_ptr<bke::GeoNodesPersistentTree> &persistent_tree);
+    std::shared_ptr<GeometryNodesLazyFunctionGraphInfo> &lf_graph_info);
 
 struct EvaluateClosureFunctionIndices {
   struct {
