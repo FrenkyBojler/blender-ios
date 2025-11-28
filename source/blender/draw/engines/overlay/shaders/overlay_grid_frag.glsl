@@ -82,4 +82,7 @@ void main()
   if (out_color.a != 0.0f) {
     line_output = pack_line_data(gl_FragCoord.xy, edge_start, edge_pos);
   }
+
+  /* Grid iteration additive alpha. */
+  out_color.a *= 1.0f / float(OVERLAY_GRID_ITER_LEN);
 }

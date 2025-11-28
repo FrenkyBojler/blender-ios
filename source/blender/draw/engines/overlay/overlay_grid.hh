@@ -69,19 +69,24 @@ class Grid : Overlay {
 
     /* Grid and axis line draws. */
     {
+      const uint axis_vertex_count = 6;
+      const uint grid_vertex_count = 4 * OVERLAY_GRID_STEPS_DRAW * grid_ubo_.num_lines;
+
       auto &sub = grid_ps_.sub("grid");
       sub.shader_set(res.shaders->grid.get());
-      sub.state_set(ps_draw_state | DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_WRITE_DEPTH);
+      sub.state_set(ps_draw_state 
+        | DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_WRITE_DEPTH | DRW_STATE_BLEND_ADD);
       sub.bind_ubo("grid_buf", &grid_ubo_);
-      sub.push_constant("grid_offs", &grid_offs_);
-      if (axis_flag_) {
-        sub.push_constant("grid_flag", &axis_flag_);
-        sub.draw_procedural(GPUPrimType::GPU_PRIM_LINES, -1, 6, 0);
-      }
-      if (grid_flag_) {
-        const uint verts_count = 4 * OVERLAY_GRID_STEPS_DRAW * grid_ubo_.num_lines;
-        sub.push_constant("grid_flag", &grid_flag_);
-        sub.draw_procedural(GPUPrimType::GPU_PRIM_LINES, -1, verts_count, 0);
+      for (int grid_iter = 0; grid_iter < OVERLAY_GRID_ITER_LEN; grid_iter++) {
+        sub.push_constant("grid_iter", grid_iter);
+        if (axis_flag_) {
+          sub.push_constant("grid_flag", &axis_flag_);
+          sub.draw_procedural(GPUPrimType::GPU_PRIM_LINES, -1, axis_vertex_count, 0);
+        }
+        if (grid_flag_) {
+          sub.push_constant("grid_flag", &grid_flag_);
+          sub.draw_procedural(GPUPrimType::GPU_PRIM_LINES, -1, grid_vertex_count, 0);
+        }
       }
     }
 
@@ -268,20 +273,20 @@ class Grid : Overlay {
     }
 
     /* Extract 2D grid offset for moving grid "with the camera" on the floor plane. */
-    float3 camera_offs = drw_view_position - dist * drw_view_forward;
     if (ELEM(rv3d->view, RV3D_VIEW_RIGHT, RV3D_VIEW_LEFT)) {
-      grid_ubo_.offset = camera_offs.yz();
+      grid_ubo_.offset = drw_view_position.yz();
     }
     else if (ELEM(rv3d->view, RV3D_VIEW_TOP, RV3D_VIEW_BOTTOM)) {
-      grid_ubo_.offset = camera_offs.xy();
+      grid_ubo_.offset = drw_view_position.xy();
     }
     else if (ELEM(rv3d->view, RV3D_VIEW_FRONT, RV3D_VIEW_BACK)) {
-      grid_ubo_.offset = float2(camera_offs.x, camera_offs.z);
+      grid_ubo_.offset = float2(drw_view_position.x, drw_view_position.z);
     }
     else { /* Perspective view, Image/UV view. */
+      float3 camera_offs = drw_view_position - dist * drw_view_forward;
       grid_ubo_.offset = camera_offs.xy();
     }
-
+    
     /* Find the lowest relevant grid level + fractional. */
     for (int i : IndexRange(0, SI_GRID_STEPS_LEN - 1)) {
       float curr = std::min(grid_ubo_.steps[i].x, grid_ubo_.steps[i].y);
@@ -312,7 +317,7 @@ class Grid : Overlay {
 
     /* This suffices for most cases, and in others we fade to hide it. */
     /* TODO (not_mark): make this view-dependent in orthographic to have full coverage */
-    grid_ubo_.num_lines = rv3d->is_persp ? 101 : 301;
+    grid_ubo_.num_lines = rv3d->is_persp ? 151 : 301;
 
     return true;
   }

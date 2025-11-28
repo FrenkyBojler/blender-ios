@@ -123,6 +123,8 @@ static inline uint outline_id_pack(uint outline_id, uint object_id)
 #define OVERLAY_GRID_STEPS_LEN 8
 /** Hardcoded grid steps drawn at a time. */
 #define OVERLAY_GRID_STEPS_DRAW 3
+/** Hardcoded iterations of grid draw at 1/N alpha. */
+#define OVERLAY_GRID_ITER_LEN 4
 
 /* Due to the encoding clamping the passed in floats, the wire width needs to be scaled down. */
 #define WIRE_WIDTH_COMPRESSION 16.0f

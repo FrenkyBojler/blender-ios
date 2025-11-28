@@ -137,12 +137,17 @@ void main()
     /* Restrict the grid in the UV/Image editor to the specified tile size. */
     line.P = clamp(line.P, float2(-1.0f), grid_buf.clip_rect * 2.0f - 1.0f);
   }
-  else {
+  else if (flag_test(grid_flag, SHOW_GRID)) {
     bool line_outside_rect = all(greaterThan(abs(line.P - step_offs), grid_buf.clip_rect)); 
     if (line_outside_rect) {
       return; /* Discard line. */
     }
     line.P = clamp(line.P, grid_buf.offset - grid_buf.clip_rect, grid_buf.offset + grid_buf.clip_rect);
+  }
+  else { /* SHOW_AXES */
+    float offset = grid_buf.offset[line.axis];
+    float rect = grid_buf.clip_rect[line.axis];
+    line.P.x = clamp(line.P.x, offset - rect, offset + rect);
   }
 
   /* Output world-space position on the correct plane/axis. */
@@ -164,7 +169,7 @@ void main()
       vertex_out.pos.z = flag_test(grid_flag, GRID_OVER) ? 0.74f : 0.76f;
     }
   }
-  else /* if (flag_test(grid_flag, SHOW_AXES)) */ { /* SHOW_AXES */
+  else { /* SHOW_AXES */
     /* Test X/Y/Z axis flags per line */
     const uint axis_flags[3] = {AXIS_X, AXIS_Y, AXIS_Z};
     if (!flag_test(grid_flag, axis_flags[line.axis])) {
@@ -173,20 +178,19 @@ void main()
     vertex_out.pos[line.axis] = line.P.x;
   }
   
-  /* Cull occluded lines. */
+  /* Additional culling steps discard occluded lines. */
   if (test_axis_occlude(vertex_out.pos) || test_level_occlude(line, level)) {
     return;
   }
 
   gl_Position = drw_view().winmat * (drw_view().viewmat * float4(vertex_out.pos, 1.0f));
 
-  /* Progressively bias Z based on grid level and incline offset to address Z-fighting. */
-  if (flag_test(grid_flag, SHOW_GRID)) {
-    gl_Position.z += 4.8e-7f * float(OVERLAY_GRID_STEPS_DRAW - line.level);
-  }
-  /* if (flag_test(grid_flag, PLANE_XY)) {
-    gl_Position.z += mix(0.0f, 1.5e-4f, 1.0f - abs(drw_view_forward().z));
-  } */
+  /* To negative z-fighting a bit, the grid is drawn N times with progressively less alpha
+   * and a progressively smaller z-bias. */
+   /* 4 * -[0...5] */
+  int z_iter_offset = OVERLAY_GRID_STEPS_DRAW * (-grid_iter + 2);
+  int z_level_offset = int(OVERLAY_GRID_STEPS_DRAW - line.level);
+  gl_Position.z += (5e-5f) * float(z_iter_offset + z_level_offset);
 
   /* Stage output for viewport antialiasing. */
   edge_start = edge_pos = ((gl_Position.xy / gl_Position.w) * 0.5f + 0.5f) * uniform_buf.size_viewport;
