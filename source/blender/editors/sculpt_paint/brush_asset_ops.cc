@@ -94,7 +94,7 @@ static wmOperatorStatus brush_asset_activate_exec(bContext *C, wmOperator *op)
   if (!WM_toolsystem_activate_brush_and_tool(C, paint, brush)) {
     /* Note brush datablock was still added, so was not a no-op. */
     BKE_report(op->reports, RPT_WARNING, "Unable to activate brush, wrong object mode");
-    return OPERATOR_FINISHED;
+    return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
   }
 
   if (asset_to_save) {
@@ -109,7 +109,7 @@ static wmOperatorStatus brush_asset_activate_exec(bContext *C, wmOperator *op)
   WM_main_add_notifier(NC_ASSET | NA_ACTIVATED, nullptr);
   WM_main_add_notifier(NC_SCENE | ND_TOOLSETTINGS, nullptr);
 
-  return OPERATOR_FINISHED;
+  return OPERATOR_FINISHED | OPERATOR_PASS_THROUGH;
 }
 
 void BRUSH_OT_asset_activate(wmOperatorType *ot)

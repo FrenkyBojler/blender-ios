@@ -20,7 +20,7 @@ class AssetActivateTest(unittest.TestCase):
         result = bpy.ops.brush.asset_activate(
             asset_library_type='ESSENTIALS',
             relative_asset_identifier='brushes/essentials_brushes-mesh_sculpt.blend/Brush/Smooth')
-        self.assertEqual({'FINISHED'}, result)
+        self.assertEqual({'FINISHED', 'PASS_THROUGH'}, result)
 
     def test_toggle_when_brush_differs_sets_specified_brush(self):
         """Test that using the 'Toggle' parameter when the brush is not active still activates the correct brush"""
