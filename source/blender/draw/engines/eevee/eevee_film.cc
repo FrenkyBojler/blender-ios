@@ -127,7 +127,7 @@ gpu::Texture *Film::get_aov_texture(ViewLayerAOV *aov)
   IndexRange color_range(0, aovs_info.color_len);
   IndexRange value_range(aovs_info.color_len, aovs_info.value_len);
   for (int i : (is_value ? value_range : color_range)) {
-    uint candidate_hash = aovs_info.hash[i >> 2][i % 4];
+    uint candidate_hash = aovs_info.hash[i / 4][i % 4];
     if (candidate_hash == hash) {
       aov_index = i - (is_value ? aovs_info.color_len : 0);
       break;
