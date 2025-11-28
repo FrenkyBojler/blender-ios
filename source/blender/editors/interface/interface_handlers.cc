@@ -1302,18 +1302,20 @@ static void ui_apply_but_TEX(bContext *C, uiBut *but, uiHandleButtonData *data)
   ui_but_string_set(C, but, data->text_edit.edit_string);
   ui_but_update_edited(but);
 
-  /* give butfunc a copy of the original text too.
-   * feature used for bone renaming, channels, etc.
-   * afterfunc frees rename_orig */
-  if (data->text_edit.original_string && (but->flag & UI_BUT_TEXTEDIT_UPDATE)) {
-    /* In this case, we need to keep `original_string` available,
-     * to restore real org string in case we cancel after having typed something already. */
-    but->rename_orig = BLI_strdup(data->text_edit.original_string);
-  }
   /* only if there are afterfuncs, otherwise 'renam_orig' isn't freed */
-  else if (ui_afterfunc_check(but->block, but)) {
-    but->rename_orig = data->text_edit.original_string;
-    data->text_edit.original_string = nullptr;
+  if (ui_afterfunc_check(but->block, but)) {
+    /* give butfunc a copy of the original text too.
+     * feature used for bone renaming, channels, etc.
+     * afterfunc frees rename_orig */
+    if (data->text_edit.original_string && (but->flag & UI_BUT_TEXTEDIT_UPDATE)) {
+      /* In this case, we need to keep `original_string` available,
+       * to restore real org string in case we cancel after having typed something already. */
+      but->rename_orig = BLI_strdup(data->text_edit.original_string);
+    }
+    else {
+      but->rename_orig = data->text_edit.original_string;
+      data->text_edit.original_string = nullptr;
+    }
   }
 
   void *orig_arg2 = but->func_arg2;
@@ -4994,8 +4996,17 @@ static int ui_do_but_TEX(
       }
     }
     else if (ELEM(event->type, WHEELUPMOUSE, WHEELDOWNMOUSE) && (event->modifier & KM_CTRL)) {
-      const int inc_value = (event->type == WHEELUPMOUSE) ? 1 : -1;
-      return ui_do_but_text_value_cycle(C, but, data, inc_value);
+      if ((but->type == ButType::SearchMenu) && but->func_argN &&
+          (static_cast<uiButSearch *>(but)->arg == but->func_argN))
+      {
+        /* Disable value cycling for search buttons with an allocated search data argument. This
+         * causes issues because the search data is moved to the "afterfuncs", but search updating
+         * requires it again. See #147539. */
+      }
+      else {
+        const int inc_value = (event->type == WHEELUPMOUSE) ? 1 : -1;
+        return ui_do_but_text_value_cycle(C, but, data, inc_value);
+      }
     }
   }
   else if (data->state == BUTTON_STATE_TEXT_EDITING) {
@@ -5651,17 +5662,20 @@ static void ui_numedit_set_active(uiBut *but)
     }
   }
 
-  /* Don't change the cursor once pressed. */
-  if ((but->flag & UI_SELECT) == 0) {
+  /* Don't change the cursor once pressed or if a modal operator is running.
+   * If a modal operator is running, the number edit input will be ignored,
+   * so do not try to change the cursor if this is the case.
+   */
+  if ((but->flag & UI_SELECT) == 0 && WM_cursor_modal_is_set_ok(data->window)) {
     if ((but->drawflag & UI_BUT_HOVER_LEFT) || (but->drawflag & UI_BUT_HOVER_RIGHT)) {
       if (data->changed_cursor) {
-        WM_cursor_modal_restore(data->window);
+        WM_cursor_set(data->window, WM_CURSOR_DEFAULT);
         data->changed_cursor = false;
       }
     }
     else {
       if (data->changed_cursor == false) {
-        WM_cursor_modal_set(data->window, WM_CURSOR_X_MOVE);
+        WM_cursor_set(data->window, WM_CURSOR_X_MOVE);
         data->changed_cursor = true;
       }
     }
@@ -9115,7 +9129,7 @@ static void button_activate_exit(
 #endif
 
   if (data->changed_cursor) {
-    WM_cursor_modal_restore(win);
+    WM_cursor_set(win, WM_CURSOR_DEFAULT);
   }
 
   /* redraw and refresh (for popups) */

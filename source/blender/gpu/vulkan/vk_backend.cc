@@ -54,11 +54,6 @@ bool GPU_vulkan_is_supported_driver(VkPhysicalDevice vk_physical_device)
   vk_physical_device_driver_properties.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DRIVER_PROPERTIES;
   vk_physical_device_properties.pNext = &vk_physical_device_driver_properties;
   vkGetPhysicalDeviceProperties2(vk_physical_device, &vk_physical_device_properties);
-  uint32_t conformance_version = VK_MAKE_API_VERSION(
-      vk_physical_device_driver_properties.conformanceVersion.major,
-      vk_physical_device_driver_properties.conformanceVersion.minor,
-      vk_physical_device_driver_properties.conformanceVersion.subminor,
-      vk_physical_device_driver_properties.conformanceVersion.patch);
 
 #ifdef _WIN32
   /* Intel IRIS on 10th gen CPU (and older) crashes with drivers before 101.2140 due to multiple
@@ -91,6 +86,11 @@ bool GPU_vulkan_is_supported_driver(VkPhysicalDevice vk_physical_device)
    * but there is no mention of a solution. This means that on Linux we can only support GTX900 and
    * or use MesaNVK.
    */
+  uint32_t conformance_version = VK_MAKE_API_VERSION(
+      vk_physical_device_driver_properties.conformanceVersion.major,
+      vk_physical_device_driver_properties.conformanceVersion.minor,
+      vk_physical_device_driver_properties.conformanceVersion.subminor,
+      vk_physical_device_driver_properties.conformanceVersion.patch);
   if (vk_physical_device_driver_properties.driverID == VK_DRIVER_ID_NVIDIA_PROPRIETARY &&
       conformance_version < VK_MAKE_API_VERSION(1, 3, 7, 2))
   {
@@ -147,13 +147,26 @@ static Vector<StringRefNull> missing_capabilities_get(VkPhysicalDevice vk_physic
   vkGetPhysicalDeviceFeatures2(vk_physical_device, &features);
 
 #ifndef __APPLE__
+  /* Features currently not supported by Mesa KosmicKrisp. */
   if (features.features.geometryShader == VK_FALSE) {
     missing_capabilities.append("geometry shaders");
   }
+  if (features.features.multiViewport == VK_FALSE) {
+    missing_capabilities.append("multi viewport");
+  }
+  if (features.features.shaderClipDistance == VK_FALSE) {
+    missing_capabilities.append("shader clip distance");
+  }
+  if (features.features.fragmentStoresAndAtomics == VK_FALSE) {
+    missing_capabilities.append("fragment stores and atomics");
+  }
+  if (features.features.vertexPipelineStoresAndAtomics == VK_FALSE) {
+    missing_capabilities.append("vertex pipeline stores and atomics");
+  }
+#endif
   if (features.features.logicOp == VK_FALSE) {
     missing_capabilities.append("logical operations");
   }
-#endif
   if (features.features.dualSrcBlend == VK_FALSE) {
     missing_capabilities.append("dual source blending");
   }
@@ -163,20 +176,8 @@ static Vector<StringRefNull> missing_capabilities_get(VkPhysicalDevice vk_physic
   if (features.features.multiDrawIndirect == VK_FALSE) {
     missing_capabilities.append("multi draw indirect");
   }
-  if (features.features.multiViewport == VK_FALSE) {
-    missing_capabilities.append("multi viewport");
-  }
-  if (features.features.shaderClipDistance == VK_FALSE) {
-    missing_capabilities.append("shader clip distance");
-  }
   if (features.features.drawIndirectFirstInstance == VK_FALSE) {
     missing_capabilities.append("draw indirect first instance");
-  }
-  if (features.features.fragmentStoresAndAtomics == VK_FALSE) {
-    missing_capabilities.append("fragment stores and atomics");
-  }
-  if (features.features.vertexPipelineStoresAndAtomics == VK_FALSE) {
-    missing_capabilities.append("vertex pipeline stores and atomics");
   }
   if (features_11.shaderDrawParameters == VK_FALSE) {
     missing_capabilities.append("shader draw parameters");
@@ -438,6 +439,8 @@ void VKBackend::detect_workarounds(VKDevice &device)
     extensions.dynamic_rendering_unused_attachments = false;
     extensions.pageable_device_local_memory = false;
     extensions.wide_lines = false;
+    extensions.line_rasterization = false;
+    extensions.extended_dynamic_state = false;
     GCaps.stencil_export_support = false;
 
     device.workarounds_ = workarounds;
@@ -461,6 +464,12 @@ void VKBackend::detect_workarounds(VKDevice &device)
   extensions.memory_priority = device.supports_extension(VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME);
   extensions.pageable_device_local_memory = device.supports_extension(
       VK_EXT_PAGEABLE_DEVICE_LOCAL_MEMORY_EXTENSION_NAME);
+  extensions.graphics_pipeline_library = device.supports_extension(
+      VK_EXT_GRAPHICS_PIPELINE_LIBRARY_EXTENSION_NAME);
+  extensions.line_rasterization = device.supports_extension(
+      VK_EXT_LINE_RASTERIZATION_EXTENSION_NAME);
+  extensions.extended_dynamic_state = device.supports_extension(
+      VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME);
 #ifdef _WIN32
   extensions.external_memory = device.supports_extension(
       VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME);
@@ -475,6 +484,13 @@ void VKBackend::detect_workarounds(VKDevice &device)
       GPU_type_matches(GPU_DEVICE_APPLE, GPU_OS_MAC, GPU_DRIVER_ANY))
   {
     workarounds.not_aligned_pixel_formats = true;
+  }
+
+  /* During testing graphics pipeline library feature it was detected that it would crash on
+   * official AMD drivers.
+   */
+  if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_OFFICIAL)) {
+    extensions.graphics_pipeline_library = false;
   }
 
   /* Only enable by default dynamic rendering local read on Qualcomm devices. NVIDIA, AMD and Intel
@@ -567,6 +583,7 @@ Context *VKBackend::context_alloc(void *ghost_window, void *ghost_context)
   if (!device.is_initialized()) {
     device.init(ghost_context);
     device.extensions_get().log();
+    device.workarounds_get().log();
     init_device_list((GHOST_ContextHandle)ghost_context);
   }
 

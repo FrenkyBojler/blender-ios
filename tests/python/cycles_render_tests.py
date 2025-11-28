@@ -22,6 +22,12 @@ BLOCKLIST_ALL = [
     "visibility_particles.blend",
     # Temporarily blocked for 4.4 lib upgrade, due to PNG alpha minor difference.
     "image_log_osl.blend",
+    # Tests for EEVEE-only setting (duplicates from the Cycles perspective)
+    "camera_depth_of_field_jittered.blend",
+    "shadow_resolution.blend",
+    "shadow_min_pool_size.blend",
+    "shadow_resolution_scale.blend",
+    "shader_to_rgb_transparent.blend",
 ]
 
 # Blocklist for device + build configuration that does not support OSL at all.
@@ -57,6 +63,8 @@ BLOCKLIST_OSL_ALL = BLOCKLIST_OSL_LIMITED + [
     # Tests that need investigating into why they're failing:
     # Noise differences due to Principled BSDF mixing/layering used in some of these scenes
     'render_passes_.*.blend',
+    # OSL can not specify parameters when reading attribute, which we need for stochastic sampling
+    'volume_tricubic_interpolation.blend',
 ]
 
 BLOCKLIST_OPTIX = [
