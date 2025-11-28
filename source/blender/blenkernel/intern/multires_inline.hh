@@ -9,12 +9,13 @@
 #pragma once
 
 #include "BKE_multires.hh"
+
+#include "BLI_math_constants.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_matrix_types.hh"
+#include "BLI_math_rotation_legacy.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
-
-#include "DNA_userdef_types.h"
 
 static float euclidean_norm(const blender::float3x3 mat)
 {
@@ -65,6 +66,33 @@ BLI_INLINE void BKE_multires_construct_tangent_matrix(blender::float3x3 &tangent
   }
 
   tangent_matrix.z_axis() = N;
+
+  const float angle_between = RAD2DEGF(blender::math::acos(
+    blender::math::dot(tangent_matrix.x_axis(), tangent_matrix.y_axis()) /
+    (blender::math::length(tangent_matrix.x_axis() *
+                           blender::math::length(tangent_matrix.y_axis())))));
+
+  /* Adjust the angle by a small amount to not have nearly parallel lines */
+  constexpr float threshold = 85.0f;
+  constexpr float low_threshold = 90.0f - threshold;
+  constexpr float high_threshold = 90.0f + threshold;
+
+  if (angle_between < low_threshold) {
+    const float deg_to_rotate = low_threshold - angle_between / 2.0f;
+    const float rad_to_rotate = DEG2RADF(deg_to_rotate);
+    tangent_matrix.x_axis() = blender::math::rotate_around_axis(
+        tangent_matrix.x_axis(), blender::float3(0.0f), tangent_matrix.z_axis(), -rad_to_rotate);
+    tangent_matrix.y_axis() = blender::math::rotate_around_axis(
+        tangent_matrix.y_axis(), blender::float3(0.0f), tangent_matrix.z_axis(), rad_to_rotate);
+  }
+  else if (angle_between > high_threshold) {
+    const float deg_to_rotate = angle_between - high_threshold / 2.0f;
+    const float rad_to_rotate = DEG2RADF(deg_to_rotate);
+    tangent_matrix.x_axis() = blender::math::rotate_around_axis(
+        tangent_matrix.x_axis(), blender::float3(0.0f), tangent_matrix.z_axis(), rad_to_rotate);
+    tangent_matrix.y_axis() = blender::math::rotate_around_axis(
+        tangent_matrix.y_axis(), blender::float3(0.0f), tangent_matrix.z_axis(), -rad_to_rotate);
+  }
 
   const float geometric_mean = blender::math::sqrt(blender::math::length(tangent_matrix.x_axis()) *
                                                    blender::math::length(tangent_matrix.y_axis()));
