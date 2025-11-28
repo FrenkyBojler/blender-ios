@@ -157,7 +157,8 @@ static blender::MutableSpan<blender::float3> multires_ensure_delta_storage(
   SculptSession &ss = *object.sculpt;
   if (ss.multires.runtime.disp_at_level[level - 1].is_empty()) {
     /* Filling with empty is only necessary when opening the file at a non-top level */
-    ss.multires.runtime.disp_at_level[level - 1].resize(subdiv_ccg.positions.size(), blender::float3(0.0f));
+    ss.multires.runtime.disp_at_level[level - 1].resize(subdiv_ccg.positions.size(),
+                                                        blender::float3(0.0f));
   }
   return ss.multires.runtime.disp_at_level[level - 1];
 }
@@ -179,35 +180,35 @@ static void multires_level_calc_object_delta(blender::Span<blender::float3> &old
       old_positions.index_range(), 1024, [&](const blender::IndexRange range) {
         for (const int i : range) {
           const blender::float3 limit_surf_position = object_delta[i];
-            object_delta[i] = old_positions[i] - limit_surf_position;
-            CLOG_TRACE(&LOG,
-                       "M - (%d) (%f %f %f) - (%f %f %f) = (%f %f %f) (%f)",
-                       i,
-                       old_positions[i].x,
-                       old_positions[i].y,
-                       old_positions[i].z,
-                       limit_surf_position.x,
-                       limit_surf_position.y,
-                       limit_surf_position.z,
-                       object_delta[i].x,
-                       object_delta[i].y,
-                       object_delta[i].z,
-                       blender::math::length(object_delta[i]));
-            if (i == bad_vertex_idx) {
-              CLOG_INFO(&LOG,
-                        "M - (%d) (%f %f %f) - (%f %f %f) = (%f %f %f) (%f)",
-                        i,
-                        old_positions[i].x,
-                        old_positions[i].y,
-                        old_positions[i].z,
-                        limit_surf_position.x,
-                        limit_surf_position.y,
-                        limit_surf_position.z,
-                        object_delta[i].x,
-                        object_delta[i].y,
-                        object_delta[i].z,
-                        blender::math::length(object_delta[i]));
-            }
+          object_delta[i] = old_positions[i] - limit_surf_position;
+          CLOG_TRACE(&LOG,
+                     "M - (%d) (%f %f %f) - (%f %f %f) = (%f %f %f) (%f)",
+                     i,
+                     old_positions[i].x,
+                     old_positions[i].y,
+                     old_positions[i].z,
+                     limit_surf_position.x,
+                     limit_surf_position.y,
+                     limit_surf_position.z,
+                     object_delta[i].x,
+                     object_delta[i].y,
+                     object_delta[i].z,
+                     blender::math::length(object_delta[i]));
+          if (i == bad_vertex_idx) {
+            CLOG_INFO(&LOG,
+                      "M - (%d) (%f %f %f) - (%f %f %f) = (%f %f %f) (%f)",
+                      i,
+                      old_positions[i].x,
+                      old_positions[i].y,
+                      old_positions[i].z,
+                      limit_surf_position.x,
+                      limit_surf_position.y,
+                      limit_surf_position.z,
+                      object_delta[i].x,
+                      object_delta[i].y,
+                      object_delta[i].z,
+                      blender::math::length(object_delta[i]));
+          }
         }
       });
 }
@@ -238,7 +239,8 @@ static void print_level_stats(blender::Span<float> data,
   int index_99_99th = int(data.size() * .9999f);
 
   CLOG_INFO(&LOG,
-            "%s: MIN: %.15f, MAX: (%ld) %.15f, MEAN: %.15f, MEDIAN: (%d) %.15f, 90th: (%d) %.15f, 95th: (%d) "
+            "%s: MIN: %.15f, MAX: (%ld) %.15f, MEAN: %.15f, MEDIAN: (%d) %.15f, 90th: (%d) %.15f, "
+            "95th: (%d) "
             "%.15f, 99th: (%d) %.15f, 99.9th: (%d) %.15f, 99.99th: (%d) %.15f",
             label.c_str(),
             data[sorted_indices[0]],
@@ -309,7 +311,6 @@ static void print_matrix(const blender::float3x3 &mat)
   CLOG_INFO(&LOG, "%.15f %.15f %.15f", result.z_axis()[0], result.z_axis()[1], result.z_axis()[2]);
   CLOG_INFO(&LOG, "Conditional Value: %.15f", conditional_value(mat));
 }
-
 
 static void multires_level_object_delta_to_tangent_delta(
     blender::Span<blender::float3x3> tmat_storage,
@@ -384,7 +385,7 @@ static void multires_level_object_delta_to_tangent_delta(
   {
     blender::Array<float> angles(tmat_storage.size());
     for (const int i : tmat_storage.index_range()) {
-      const blender::float3x3& tangent_matrix = tmat_storage[i];
+      const blender::float3x3 &tangent_matrix = tmat_storage[i];
       if (blender::math::is_zero(tangent_matrix)) {
         angles[i] = 0.0f;
         continue;
@@ -467,31 +468,31 @@ static void multires_copy_from_old_ccg(const SubdivCCG &higher_subdiv_ccg,
   const float grid_1_inv = 1.0f / (subdiv_ccg.grid_size - 1);
   blender::threading::parallel_for(
       blender::IndexRange(subdiv_ccg.grids_num), 1024, [&](const blender::IndexRange range) {
-    for (const int i : range) {
-      for (const int y : blender::IndexRange(subdiv_ccg.grid_size)) {
-        for (const int x : blender::IndexRange(subdiv_ccg.grid_size)) {
-          blender::float2 uv(float(x) * grid_1_inv, float(y) * grid_1_inv);
-          const int new_x = (int)(uv.x * higher_grid_1);
-          const int new_y = (int)(uv.y * higher_grid_1);
+        for (const int i : range) {
+          for (const int y : blender::IndexRange(subdiv_ccg.grid_size)) {
+            for (const int x : blender::IndexRange(subdiv_ccg.grid_size)) {
+              blender::float2 uv(float(x) * grid_1_inv, float(y) * grid_1_inv);
+              const int new_x = (int)(uv.x * higher_grid_1);
+              const int new_y = (int)(uv.y * higher_grid_1);
 
-          const int curr_idx = i * subdiv_ccg.grid_area + y * subdiv_ccg.grid_size + x;
-          const int higher_idx = i * higher_subdiv_ccg.grid_area +
-                                 new_y * higher_subdiv_ccg.grid_size + new_x;
-          CLOG_TRACE(&LOG,
-                     "Assigning %d: %d %d (%d) to %d %d (%d)",
-                     i,
-                     new_x,
-                     new_y,
-                     higher_idx,
-                     x,
-                     y,
-                     curr_idx);
+              const int curr_idx = i * subdiv_ccg.grid_area + y * subdiv_ccg.grid_size + x;
+              const int higher_idx = i * higher_subdiv_ccg.grid_area +
+                                     new_y * higher_subdiv_ccg.grid_size + new_x;
+              CLOG_TRACE(&LOG,
+                         "Assigning %d: %d %d (%d) to %d %d (%d)",
+                         i,
+                         new_x,
+                         new_y,
+                         higher_idx,
+                         x,
+                         y,
+                         curr_idx);
 
-          subdiv_ccg.positions[curr_idx] = old_positions[higher_idx];
+              subdiv_ccg.positions[curr_idx] = old_positions[higher_idx];
+            }
+          }
         }
-      }
-    }
-  });
+      });
 }
 
 bool multiresModifier_storeHigherLevelDelta(Object &object,

@@ -55,8 +55,10 @@ BLI_INLINE blender::float3x3 BKE_multires_construct_tangent_matrix(const blender
   /* Do cross product in double precision due to possibility of nearly parallel partial derivative
    * tangent vectors */
   double length;
-  blender::float3 N = blender::float3(blender::math::normalize_and_get_length(blender::math::cross(
-      blender::double3(tangent_matrix.x_axis()), blender::double3(tangent_matrix.y_axis())), length));
+  blender::float3 N = blender::float3(blender::math::normalize_and_get_length(
+      blender::math::cross(blender::double3(tangent_matrix.x_axis()),
+                           blender::double3(tangent_matrix.y_axis())),
+      length));
 
   /* Chosen arbitrarily */
   constexpr float eps = 0.000001f;
