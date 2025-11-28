@@ -2599,6 +2599,10 @@ static bool knife_point_in_front_of_view(const KnifeTool_OpData *kcd, const floa
 {
   const RegionView3D *rv3d = kcd->vc.rv3d;
 
+  if (rv3d->persp == RV3D_ORTHO) {
+    return true;
+  }
+
   float p_view[3];
   mul_v3_m4v3(p_view, rv3d->viewmat, p);
 
