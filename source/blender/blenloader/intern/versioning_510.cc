@@ -382,6 +382,28 @@ void do_versions_after_linking_510(FileData * /*fd*/, Main *bmain)
     version_clear_unused_strip_flags(*bmain);
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 8)) {
+    convert_grease_pencil_material_stroke_fill_toggle_to_attributes(*bmain);
+    /* Set the stroke mode for all brushes. */
+    LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
+      if (BrushGpencilSettings *settings = brush->gpencil_settings) {
+        if (Material *material = settings->material) {
+          BLI_assert(material->gp_style != nullptr);
+          SET_FLAG_FROM_TEST(settings->flag2,
+                             (material->gp_style->flag & GP_MATERIAL_STROKE_SHOW) != 0,
+                             GP_BRUSH_USE_STROKE);
+          SET_FLAG_FROM_TEST(settings->flag2,
+                             (material->gp_style->flag & GP_MATERIAL_FILL_SHOW) != 0,
+                             GP_BRUSH_USE_FILL);
+        }
+        else {
+          settings->flag2 |= GP_BRUSH_USE_STROKE;
+          settings->flag2 &= ~GP_BRUSH_USE_FILL;
+        }
+      }
+    }
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
@@ -418,28 +440,6 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 7)) {
     version_mesh_uv_map_strings(*bmain);
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 8)) {
-    convert_grease_pencil_material_stroke_fill_toggle_to_attributes(*bmain);
-    /* Set the stroke mode for all brushes. */
-    LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
-      if (BrushGpencilSettings *settings = brush->gpencil_settings) {
-        if (Material *material = settings->material) {
-          BLI_assert(material->gp_style != nullptr);
-          SET_FLAG_FROM_TEST(settings->flag2,
-                             (material->gp_style->flag & GP_MATERIAL_STROKE_SHOW) != 0,
-                             GP_BRUSH_USE_STROKE);
-          SET_FLAG_FROM_TEST(settings->flag2,
-                             (material->gp_style->flag & GP_MATERIAL_FILL_SHOW) != 0,
-                             GP_BRUSH_USE_FILL);
-        }
-        else {
-          settings->flag2 |= GP_BRUSH_USE_STROKE;
-          settings->flag2 &= ~GP_BRUSH_USE_FILL;
-        }
-      }
-    }
   }
 
   /**
