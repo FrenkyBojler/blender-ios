@@ -43,7 +43,7 @@ class BackgroundPipeline {
   PassSimple world_ps_ = {"World.Background"};
 
  public:
-  BackgroundPipeline(Instance &inst) : inst_(inst){};
+  BackgroundPipeline(Instance &inst) : inst_(inst) {};
 
   void sync(GPUMaterial *gpumat, float background_opacity, float background_blur);
   void clear(View &view);
@@ -70,13 +70,20 @@ class WorldPipeline {
 
   PassSimple cubemap_face_ps_ = {"World.Probe"};
 
+  bool use_lightpath_node_ = false;
+
  public:
-  WorldPipeline(Instance &inst) : inst_(inst){};
+  WorldPipeline(Instance &inst) : inst_(inst) {};
 
   void sync(GPUMaterial *gpumat);
   void render(View &view);
 
-};  // namespace blender::eevee
+  /* NOTE: Is valid after WorldPipeline::sync. */
+  bool use_lightpath_node() const
+  {
+    return use_lightpath_node_;
+  }
+};
 
 /** \} */
 
@@ -93,7 +100,7 @@ class WorldVolumePipeline {
   PassSimple world_ps_ = {"World.Volume"};
 
  public:
-  WorldVolumePipeline(Instance &inst) : inst_(inst){};
+  WorldVolumePipeline(Instance &inst) : inst_(inst) {};
 
   void sync(GPUMaterial *gpumat);
   void render(View &view);
@@ -117,7 +124,7 @@ class ShadowPipeline {
   PassMain::Sub *surface_single_sided_ps_ = nullptr;
 
  public:
-  ShadowPipeline(Instance &inst) : inst_(inst){};
+  ShadowPipeline(Instance &inst) : inst_(inst) {};
 
   PassMain::Sub *surface_material_add(::Material *material, GPUMaterial *gpumat);
 
@@ -151,13 +158,33 @@ class ForwardPipeline {
   PassSortable transparent_ps_ = {"Forward.Transparent"};
   float3 camera_forward_;
 
+  PassSimple resolve_ps_ = {"Forward.Resolve"};
+
   bool has_opaque_ = false;
   bool has_transparent_ = false;
+  bool has_colored_transparency_ = false;
+  bool has_holdout_ = false;
+
+  struct TransparencyBuffer {
+    /* Channels are packed separately for technical reason (see eevee_surf_forward_frag.glsl for
+     * explanation). In the case of monochromatic transparency, the #r_channel_tx actually
+     * contains the whole RGBA and the other textures are dummy texture not attached to the
+     * framebuffer. The #a_channel_tx is only allocated if holdout or film transparency is enabled.
+     */
+    TextureFromPool r_channel_tx;
+    TextureFromPool g_channel_tx;
+    TextureFromPool b_channel_tx;
+    TextureFromPool a_channel_tx;
+
+    void acquire(int2 extent, bool use_colored_transparency);
+    void release();
+  } transp_buffer_;
 
  public:
-  ForwardPipeline(Instance &inst) : inst_(inst){};
+  ForwardPipeline(Instance &inst) : inst_(inst) {};
 
   void sync();
+  void end_sync();
 
   PassMain::Sub *prepass_opaque_add(::Material *blender_mat, GPUMaterial *gpumat, bool has_motion);
   PassMain::Sub *material_opaque_add(::Material *blender_mat, GPUMaterial *gpumat);
@@ -169,7 +196,14 @@ class ForwardPipeline {
                                           ::Material *blender_mat,
                                           GPUMaterial *gpumat);
 
-  void render(View &view, Framebuffer &prepass_fb, Framebuffer &combined_fb, int2 extent);
+  bool use_colored_transparency() const;
+
+  void render(View &view,
+              gpu::Texture *depth_tx,
+              Framebuffer &prepass_fb,
+              Framebuffer &transparent_fb,
+              Framebuffer &combined_fb,
+              int2 extent);
 };
 
 /** \} */
@@ -363,7 +397,7 @@ class DeferredPipeline {
 
  public:
   DeferredPipeline(Instance &inst)
-      : opaque_layer_(inst), refraction_layer_(inst), volumetric_layer_(inst){};
+      : opaque_layer_(inst), refraction_layer_(inst), volumetric_layer_(inst) {};
 
   void begin_sync();
   void end_sync();
@@ -488,7 +522,7 @@ class VolumePipeline {
   bool has_absorption_ = false;
 
  public:
-  VolumePipeline(Instance &inst) : inst_(inst){};
+  VolumePipeline(Instance &inst) : inst_(inst) {};
 
   void sync();
   void render(View &view, Texture &occupancy_tx);
@@ -539,7 +573,7 @@ class DeferredProbePipeline {
   PassSimple eval_light_ps_ = {"EvalLights"};
 
  public:
-  DeferredProbePipeline(Instance &inst) : inst_(inst){};
+  DeferredProbePipeline(Instance &inst) : inst_(inst) {};
 
   void begin_sync();
   void end_sync();
@@ -585,7 +619,7 @@ class PlanarProbePipeline : DeferredLayerBase {
   PassSimple eval_light_ps_ = {"EvalLights"};
 
  public:
-  PlanarProbePipeline(Instance &inst) : inst_(inst){};
+  PlanarProbePipeline(Instance &inst) : inst_(inst) {};
 
   void begin_sync();
   void end_sync();
@@ -614,7 +648,7 @@ class CapturePipeline {
   PassMain surface_ps_ = {"Capture.Surface"};
 
  public:
-  CapturePipeline(Instance &inst) : inst_(inst){};
+  CapturePipeline(Instance &inst) : inst_(inst) {};
 
   PassMain::Sub *surface_material_add(::Material *blender_mat, GPUMaterial *gpumat);
 
@@ -735,11 +769,11 @@ class PipelineModule {
         shadow(inst),
         volume(inst),
         capture(inst),
-        data(data){};
+        data(data) {};
 
   void begin_sync()
   {
-    data.is_sphere_probe = false;
+    data.ray_type = RAY_TYPE_CAMERA;
     probe.begin_sync();
     planar.begin_sync();
     deferred.begin_sync();
@@ -754,6 +788,7 @@ class PipelineModule {
     probe.end_sync();
     planar.end_sync();
     deferred.end_sync();
+    forward.end_sync();
   }
 
   PassMain::Sub *material_add(Object * /*ob*/ /* TODO remove. */,

@@ -20,7 +20,7 @@
  * without dealing with none-closures.
  */
 
-#include "infos/eevee_common_info.hh"
+#include "infos/eevee_common_infos.hh"
 
 #include "eevee_gbuffer_lib.glsl"
 
@@ -280,7 +280,7 @@ Packed pack(
   }
 
   for (int i = 0; i < GBUFFER_LAYER_MAX; i++) {
-    packer.header.closure_set(i, packer.closures[i].mode);
+    packer.header.closure_set(uchar(i), packer.closures[i].mode);
   }
 
   if (packer.header.has_additional_data()) {

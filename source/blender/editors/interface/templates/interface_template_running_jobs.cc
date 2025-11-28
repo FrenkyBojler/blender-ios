@@ -23,6 +23,7 @@
 
 #include "WM_api.hh"
 
+#include "UI_interface_c.hh"
 #include "UI_interface_layout.hh"
 #include "interface_intern.hh"
 
@@ -32,8 +33,7 @@
 #define B_STOPCOMPO 4
 #define B_STOPSEQ 5
 #define B_STOPCLIP 6
-#define B_STOPFILE 7
-#define B_STOPOTHER 8
+#define B_STOPOTHER 7
 
 static void do_running_jobs(bContext *C, void * /*arg*/, int event)
 {
@@ -58,9 +58,6 @@ static void do_running_jobs(bContext *C, void * /*arg*/, int event)
       WM_jobs_stop_all_from_owner(CTX_wm_manager(C), CTX_data_scene(C));
       break;
     case B_STOPCLIP:
-      WM_jobs_stop_all_from_owner(CTX_wm_manager(C), CTX_data_scene(C));
-      break;
-    case B_STOPFILE:
       WM_jobs_stop_all_from_owner(CTX_wm_manager(C), CTX_data_scene(C));
       break;
     case B_STOPOTHER:
@@ -107,8 +104,10 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
   Main *bmain = CTX_data_main(C);
   wmWindowManager *wm = CTX_wm_manager(C);
   ScrArea *area = CTX_wm_area(C);
+
   void *owner = nullptr;
   int handle_event, icon = 0;
+  std::function<void(bContext &)> cancel_fn = nullptr;
   const char *op_name = nullptr;
   const char *op_description = nullptr;
 
@@ -164,13 +163,6 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
       icon = ICON_TRACKER;
       break;
     }
-    if (WM_jobs_test(wm, scene, WM_JOB_TYPE_FILESEL_READDIR) ||
-        WM_jobs_test(wm, scene, WM_JOB_TYPE_ASSET_LIBRARY_LOAD))
-    {
-      handle_event = B_STOPFILE;
-      icon = ICON_FILEBROWSER;
-      break;
-    }
     if (WM_jobs_test(wm, scene, WM_JOB_TYPE_RENDER)) {
       handle_event = B_STOPRENDER;
       icon = ICON_SCENE;
@@ -220,6 +212,37 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
       break;
     }
   }
+  if (!owner) {
+    LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
+      const bScreen *screen = WM_window_get_active_screen(win);
+      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        if (area->spacetype != SPACE_FILE) {
+          continue;
+        }
+        const SpaceFile *sfile = static_cast<SpaceFile *>(area->spacedata.first);
+        auto tmp_cancel_fn = [sfile](bContext &C) {
+          WM_jobs_stop_all_from_owner(CTX_wm_manager(&C), sfile->files);
+        };
+
+        if (WM_jobs_test(wm, sfile->files, WM_JOB_TYPE_FILESEL_READDIR)) {
+          icon = ICON_FILEBROWSER;
+          owner = sfile->files;
+          cancel_fn = tmp_cancel_fn;
+          break;
+        }
+
+        if (WM_jobs_test(wm, sfile->files, WM_JOB_TYPE_ASSET_LIBRARY_LOAD)) {
+          icon = ICON_ASSET_MANAGER;
+          owner = sfile->files;
+          cancel_fn = tmp_cancel_fn;
+          break;
+        }
+      }
+      if (owner) {
+        break;
+      }
+    }
+  }
 
   if (owner) {
     const uiFontStyle *fstyle = UI_FSTYLE_WIDGET;
@@ -253,7 +276,6 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
     const int textwidth = UI_fontstyle_string_width(fstyle, name);
     uiDefIconTextBut(block,
                      ButType::Label,
-                     0,
                      op_name ? 0 : icon,
                      name,
                      0,
@@ -275,7 +297,6 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
       tip_arg->owner = owner;
       uiButProgress *but_progress = (uiButProgress *)uiDefIconTextBut(block,
                                                                       ButType::Progress,
-                                                                      0,
                                                                       ICON_NONE,
                                                                       text,
                                                                       UI_UNIT_X,
@@ -290,31 +311,34 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
     }
 
     if (!wm->runtime->is_interface_locked) {
-      uiDefIconTextBut(block,
-                       ButType::But,
-                       handle_event,
-                       ICON_PANEL_CLOSE,
-                       "",
-                       0,
-                       0,
-                       UI_UNIT_X,
-                       UI_UNIT_Y,
-                       nullptr,
-                       TIP_("Stop this job"));
+      uiBut *but = uiDefIconTextBut(block,
+                                    ButType::But,
+                                    ICON_PANEL_CLOSE,
+                                    "",
+                                    0,
+                                    0,
+                                    UI_UNIT_X,
+                                    UI_UNIT_Y,
+                                    nullptr,
+                                    TIP_("Stop this job"));
+      UI_but_retval_set(but, handle_event);
+      if (cancel_fn) {
+        UI_but_func_set(but, cancel_fn);
+      }
     }
   }
 
   if (ED_screen_animation_no_scrub(wm)) {
-    uiDefIconTextBut(block,
-                     ButType::But,
-                     B_STOPANIM,
-                     ICON_CANCEL,
-                     IFACE_("Anim Player"),
-                     0,
-                     0,
-                     UI_UNIT_X * 5.0f,
-                     UI_UNIT_Y,
-                     nullptr,
-                     TIP_("Stop animation playback"));
+    uiBut *but = uiDefIconTextBut(block,
+                                  ButType::But,
+                                  ICON_CANCEL,
+                                  IFACE_("Anim Player"),
+                                  0,
+                                  0,
+                                  UI_UNIT_X * 5.0f,
+                                  UI_UNIT_Y,
+                                  nullptr,
+                                  TIP_("Stop animation playback"));
+    UI_but_retval_set(but, B_STOPANIM);
   }
 }

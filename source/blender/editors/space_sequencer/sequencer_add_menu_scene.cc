@@ -14,9 +14,9 @@
 #include "DNA_space_types.h"
 #include "DNA_workspace_types.h"
 
-#include "BKE_asset.hh"
 #include "BKE_idprop.hh"
 #include "BKE_main.hh"
+#include "BKE_scene.hh"
 #include "BKE_screen.hh"
 
 #include "BLT_translation.hh"
@@ -25,7 +25,6 @@
 
 #include "ED_asset.hh"
 #include "ED_asset_menu_utils.hh"
-#include "ED_sequencer.hh"
 
 #include "UI_interface.hh"
 #include "UI_interface_layout.hh"
@@ -69,8 +68,7 @@ static void sequencer_add_catalog_assets_draw(const bContext *C, Menu *menu)
   }
   asset::AssetItemTree &tree = *sseq->runtime->assets_for_menu;
 
-  const std::optional<blender::StringRefNull> menu_path = CTX_data_string_get(
-      C, "asset_catalog_path");
+  const std::optional<StringRefNull> menu_path = CTX_data_string_get(C, "asset_catalog_path");
   if (!menu_path) {
     return;
   }
@@ -140,13 +138,13 @@ static void sequencer_add_scene_draw(const bContext *C, Menu *menu)
   }
 
   uiLayout *layout = menu->layout;
-  layout->operator_context_set(blender::wm::OpCallContext::InvokeRegionWin);
+  layout->operator_context_set(wm::OpCallContext::InvokeRegionWin);
 
   /* New scene. */
   {
     PointerRNA op_ptr = layout->op(
         "SEQUENCER_OT_scene_strip_add_new", IFACE_("Empty Scene"), ICON_ADD);
-    RNA_string_set(&op_ptr, "type", "EMPTY");
+    RNA_enum_set(&op_ptr, "type", SCE_COPY_NEW);
   }
 
   /* Handle the assets. */
@@ -156,11 +154,12 @@ static void sequencer_add_scene_draw(const bContext *C, Menu *menu)
   asset::AssetItemTree &tree = *sseq->runtime->assets_for_menu;
   const bool show_assets = !(tree.catalogs.is_empty() && loading_finished &&
                              tree.unassigned_assets.is_empty());
+
+  layout->separator();
+
+  layout->label(IFACE_("Assets"), ICON_ASSET_MANAGER);
+
   if (show_assets) {
-    layout->separator();
-
-    layout->label(IFACE_("Assets"), ICON_ASSET_MANAGER);
-
     if (!loading_finished) {
       layout->label(IFACE_("Loading Asset Libraries"), ICON_INFO);
     }
@@ -172,25 +171,26 @@ static void sequencer_add_scene_draw(const bContext *C, Menu *menu)
     if (!tree.unassigned_assets.is_empty()) {
       layout->menu_contents("SEQUENCER_MT_scene_add_unassigned_assets");
     }
-
-    layout->separator();
   }
+  else {
+    layout->label(IFACE_("No scene assets."), ICON_NONE);
+  }
+
+  layout->separator();
 
   /* Show existing scenes. */
   Main *bmain = CTX_data_main(C);
   const int scenes_len = BLI_listbase_count(&bmain->scenes);
   if (scenes_len > 10) {
     layout->op("SEQUENCER_OT_scene_strip_add",
-               IFACE_("Scenes..."),
+               IFACE_("Scene Strip..."),
                ICON_SCENE_DATA,
-               blender::wm::OpCallContext::InvokeDefault,
+               wm::OpCallContext::InvokeDefault,
                UI_ITEM_NONE);
   }
-  else if (scenes_len > 1) {
-    if (show_assets) {
-      layout->label(IFACE_("Scenes"), ICON_SCENE_DATA);
-    }
-    const Scene *active_scene = CTX_data_scene(C);
+  else {
+    layout->label(IFACE_("Scene Strip"), ICON_SCENE_DATA);
+    const Scene *active_scene = CTX_data_sequencer_scene(C);
     int i = 0;
     LISTBASE_FOREACH_INDEX (Scene *, scene, &bmain->scenes, i) {
       if (scene == active_scene) {
@@ -202,7 +202,7 @@ static void sequencer_add_scene_draw(const bContext *C, Menu *menu)
       PointerRNA op_ptr = layout->op("SEQUENCER_OT_scene_strip_add",
                                      scene->id.name + 2,
                                      ICON_NONE,
-                                     blender::wm::OpCallContext::InvokeRegionWin,
+                                     wm::OpCallContext::InvokeRegionWin,
                                      UI_ITEM_NONE);
       RNA_enum_set(&op_ptr, "scene", i);
     }

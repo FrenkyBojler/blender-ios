@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "gpu_shader_math_base_lib.glsl"
+#include "gpu_shader_math_constants_lib.glsl"
 
 /* Define macro flags for code adaption. */
 /* No macro flags necessary, as code is adapted to GLSL by default. */
@@ -14,7 +15,7 @@
 /* Undefine macro flags used for code adaption. */
 /* No macro flags necessary, as code is adapted to GLSL by default. */
 
-void node_radial_tiling(float3 coord,
+void node_radial_tiling(float2 coord,
                         float r_gon_sides,
                         float r_gon_roundness,
                         float normalize_r_gon_parameter,

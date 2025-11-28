@@ -49,6 +49,7 @@
 #include "COM_utilities.hh"
 
 #include "NOD_compositor_file_output.hh"
+#include "NOD_node_extra_info.hh"
 #include "NOD_socket_items_blend.hh"
 #include "NOD_socket_items_ops.hh"
 #include "NOD_socket_items_ui.hh"
@@ -112,7 +113,7 @@ static void node_init(const bContext *C, PointerRNA *node_pointer)
   data->save_as_render = true;
   data->file_name = BLI_strdup("file_name");
 
-  BKE_image_format_init(&data->format, false);
+  BKE_image_format_init(&data->format);
   BKE_image_format_media_type_set(
       &data->format, node_pointer->owner_id, MEDIA_TYPE_MULTI_LAYER_IMAGE);
   BKE_image_format_update_color_space_for_type(&data->format);
@@ -181,6 +182,12 @@ static Vector<path_templates::Error> compute_image_path(const StringRefNull dire
   BKE_add_template_variables_general(template_variables, &node.owner_tree().id);
   BKE_add_template_variables_for_render_path(template_variables, scene);
   BKE_add_template_variables_for_node(template_variables, node);
+
+  /* Substitute #### frame variables if not doing an animation render. For animation renders, this
+   * is handled internally by the following function. */
+  if (!is_animation_render) {
+    BLI_path_frame(base_path, FILE_MAX, frame_number, 0);
+  }
 
   return BKE_image_path_from_imformat(r_image_path,
                                       base_path,
@@ -376,6 +383,18 @@ static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &
   socket_items::blend_read_data<FileOutputItemsAccessor>(&reader, node);
 }
 
+static void node_extra_info(NodeExtraInfoParams &parameters)
+{
+  SpaceNode *space_node = CTX_wm_space_node(&parameters.C);
+  if (space_node->node_tree_sub_type != SNODE_COMPOSITOR_SCENE) {
+    NodeExtraInfoRow row;
+    row.text = RPT_("Node Unsupported");
+    row.tooltip = TIP_("The File Output node is only supported for scene compositing");
+    row.icon = ICON_ERROR;
+    parameters.rows.append(std::move(row));
+  }
+}
+
 using namespace blender::compositor;
 
 class FileOutputOperation : public NodeOperation {
@@ -433,7 +452,7 @@ class FileOutputOperation : public NodeOperation {
         continue;
       }
 
-      const int2 size = result.domain().size;
+      const int2 size = result.domain().data_size;
       FileOutput &file_output = this->context().render_context()->get_file_output(
           image_path, format, size, save_as_render);
 
@@ -464,7 +483,7 @@ class FileOutputOperation : public NodeOperation {
       return;
     }
 
-    const int2 size = result.domain().size;
+    const int2 size = result.domain().data_size;
     FileOutput &file_output = this->context().render_context()->get_file_output(
         image_path, format, size, true);
 
@@ -484,7 +503,7 @@ class FileOutputOperation : public NodeOperation {
   void execute_multi_layer()
   {
     /* We only write images, not single values. */
-    const int2 size = this->compute_domain().size;
+    const int2 size = this->compute_domain().data_size;
     if (size == int2(1)) {
       return;
     }
@@ -531,8 +550,8 @@ class FileOutputOperation : public NodeOperation {
   {
     /* For single values, we fill a buffer that covers the domain of the operation with the value
      * of the result. */
-    const int2 size = result.is_single_value() ? this->compute_domain().size :
-                                                 result.domain().size;
+    const int2 size = result.is_single_value() ? this->compute_domain().data_size :
+                                                 result.domain().data_size;
 
     /* The image buffer in the file output will take ownership of this buffer and freeing it will
      * be its responsibility. */
@@ -642,7 +661,7 @@ class FileOutputOperation : public NodeOperation {
       buffer = static_cast<float *>(MEM_dupallocN(result.cpu_data().data()));
     }
 
-    const int2 size = result.domain().size;
+    const int2 size = result.domain().data_size;
     switch (result.type()) {
       case ResultType::Color:
         file_output.add_view(view_name, 4, buffer);
@@ -826,6 +845,7 @@ static void node_register()
       ntype, "NodeCompositorFileOutput", node_free_storage, node_copy_storage);
   ntype.blend_write_storage_content = node_blend_write;
   ntype.blend_data_read_storage_content = node_blend_read;
+  ntype.get_extra_info = node_extra_info;
   ntype.get_compositor_operation = get_compositor_operation;
 
   blender::bke::node_register_type(ntype);
