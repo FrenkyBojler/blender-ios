@@ -133,7 +133,7 @@ template<typename MaskT, typename... Args, typename... ParamTags, size_t... I, t
 #endif
 inline void execute_array(TypeSequence<ParamTags...> /*param_tags*/,
                           std::index_sequence<I...> /*indices*/,
-                          ElementFn element_fn,
+                          const ElementFn &element_fn,
                           MaskT mask,
                           /* Use restrict to tell the compiler that pointer inputs do not alias
                            * each other. This is important for some compiler optimizations. */
@@ -174,7 +174,7 @@ template<typename... ParamTags, typename ElementFn, typename... Chunks>
 [[gnu::optimize("-funroll-loops")]] [[gnu::optimize("O3")]]
 #endif
 inline void execute_materialized_impl(TypeSequence<ParamTags...> /*param_tags*/,
-                                      const ElementFn element_fn,
+                                      const ElementFn &element_fn,
                                       const int64_t size,
                                       Chunks &&__restrict... chunks)
 {
@@ -191,7 +191,7 @@ inline void execute_materialized_impl(TypeSequence<ParamTags...> /*param_tags*/,
 template<typename... ParamTags, size_t... I, typename ElementFn, typename... LoadedParams>
 inline void execute_materialized(TypeSequence<ParamTags...> /*param_tags*/,
                                  std::index_sequence<I...> /*indices*/,
-                                 const ElementFn element_fn,
+                                 const ElementFn &element_fn,
                                  const IndexMaskSegment mask,
                                  const std::tuple<LoadedParams...> &loaded_params)
 {
@@ -378,7 +378,7 @@ inline void execute_materialized(TypeSequence<ParamTags...> /*param_tags*/,
 }
 
 template<typename ElementFn, typename ExecPreset, typename... ParamTags, size_t... I>
-inline void execute_element_fn_as_multi_function(const ElementFn element_fn,
+inline void execute_element_fn_as_multi_function(const ElementFn &element_fn,
                                                  const ExecPreset exec_preset,
                                                  const IndexMask &mask,
                                                  Params params,
@@ -485,11 +485,12 @@ inline void execute_element_fn_as_multi_function(const ElementFn element_fn,
  * - For single-outputs: non-const pointer.
  */
 template<typename ElementFn, typename ExecPreset, typename... ParamTags>
-inline auto build_multi_function_call_from_element_fn(const ElementFn element_fn,
+inline auto build_multi_function_call_from_element_fn(ElementFn &&element_fn,
                                                       const ExecPreset exec_preset,
                                                       TypeSequence<ParamTags...> /*param_tags*/)
 {
-  return [element_fn, exec_preset](const IndexMask &mask, Params params) {
+  return [element_fn = std::forward<ElementFn>(element_fn), exec_preset](const IndexMask &mask,
+                                                                         Params params) {
     execute_element_fn_as_multi_function(element_fn,
                                          exec_preset,
                                          mask,
@@ -525,17 +526,19 @@ template<typename CallFn, typename... ParamTags> class CustomMF : public MultiFu
 
 template<typename Out, typename... In, typename ElementFn, typename ExecPreset>
 inline auto build_multi_function_with_n_inputs_one_output(const char *name,
-                                                          const ElementFn element_fn,
+                                                          ElementFn &&element_fn,
                                                           const ExecPreset exec_preset,
                                                           TypeSequence<In...> /*in_types*/)
 {
   constexpr auto param_tags = TypeSequence<ParamTag<ParamCategory::SingleInput, In>...,
                                            ParamTag<ParamCategory::SingleOutput, Out>>();
   auto call_fn = build_multi_function_call_from_element_fn(
-      [element_fn](const In &...in, Out &out) { new (&out) Out(element_fn(in...)); },
+      [element_fn = std::forward<ElementFn>(element_fn)](const In &...in, Out &out) {
+        new (&out) Out(element_fn(in...));
+      },
       exec_preset,
       param_tags);
-  return CustomMF(name, call_fn, param_tags);
+  return CustomMF(name, std::move(call_fn), param_tags);
 }
 
 template<typename Out1, typename Out2, typename... In, typename ElementFn, typename ExecPreset>
@@ -604,11 +607,11 @@ template<typename In1,
          typename ElementFn,
          typename ExecPreset = exec_presets::Materialized>
 inline auto SI4_SO(const char *name,
-                   const ElementFn element_fn,
+                   ElementFn &&element_fn,
                    const ExecPreset exec_preset = exec_presets::Materialized())
 {
   return detail::build_multi_function_with_n_inputs_one_output<Out1>(
-      name, element_fn, exec_preset, TypeSequence<In1, In2, In3, In4>());
+      name, std::forward<ElementFn>(element_fn), exec_preset, TypeSequence<In1, In2, In3, In4>());
 }
 
 /** Build multi-function with 5 single-input and 1 single-output parameter. */

@@ -256,17 +256,20 @@ using blender::compositor::Color;
 
 static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &builder)
 {
-  CurveMapping *curve_mapping = get_curve_mapping(builder.node());
-  BKE_curvemapping_init(curve_mapping);
-  BKE_curvemapping_premultiply(curve_mapping, false);
+  CurveMapping_unique_ptr curve_mapping{BKE_curvemapping_copy(get_curve_mapping(builder.node()))};
 
-  builder.construct_and_set_matching_fn_cb([=]() {
+  BKE_curvemapping_init(curve_mapping.get());
+  BKE_curvemapping_premultiply(curve_mapping.get(), false);
+
+  builder.construct_and_set_matching_fn_cb([curve_mapping = std::move(curve_mapping)]() mutable {
     return mf::build::SI4_SO<Color, float, Color, Color, Color>(
         "RGB Curves",
-        [=](const Color &color, const float factor, const Color &black, const Color &white)
-            -> Color {
-          return Color(
-              curves_rgba(curve_mapping, float4(color), factor, float4(black), float4(white)));
+        [curve_mapping = std::move(curve_mapping)](const Color &color,
+                                                   const float factor,
+                                                   const Color &black,
+                                                   const Color &white) -> Color {
+          return Color(curves_rgba(
+              curve_mapping.get(), float4(color), factor, float4(black), float4(white)));
         },
         mf::build::exec_presets::SomeSpanOrSingle<0>());
   });
