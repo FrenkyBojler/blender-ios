@@ -2002,6 +2002,7 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
   int2 gap_removal_boundary = {INT_MAX, INT_MAX};
   bool box_cuts_left = false;
   bool box_cuts_right = false;
+  ListBase *channels = seq::channels_displayed_get(ed);
 
   Vector<Strip *> strips = ignore_selection ? all_strips_from_context(C).extract_vector() :
                                               selected_strips_from_context(C).extract_vector();
@@ -2044,6 +2045,9 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
   seq::prefetch_stop(scene);
   /* Remove strips that are in the cut area. */
   for (Strip *strip : strips) {
+    if (seq::transform_is_locked(channels, strip)) {
+      continue;
+    }
     const float left_handle = seq::time_left_handle_frame_get(scene, strip);
     const float right_handle = seq::time_right_handle_frame_get(scene, strip);
 
@@ -2078,7 +2082,6 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
     offset = box_cuts_right ? math::max(offset, (gap_removal_boundary[0] - rect_frames[1])) :
                               math::max(offset, (rect_frames[0] - gap_removal_boundary[1]));
 
-    ListBase *channels = seq::channels_displayed_get(ed);
     const VectorSet<Strip *> strips = ignore_selection ? all_strips_from_context(C) :
                                                          selected_strips_from_context(C);
     for (Strip *strip : strips) {
