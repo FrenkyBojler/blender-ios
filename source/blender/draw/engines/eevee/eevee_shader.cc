@@ -19,6 +19,9 @@
 #include "GPU_vertex_format.hh"
 #include "gpu_shader_create_info.hh"
 
+/* XXX: UGLY!*/
+#include "gpu_node_graph.hh"
+
 #include "eevee_shader.hh"
 
 #include "eevee_shadow.hh"
@@ -1313,7 +1316,7 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
     info.batch_resources_.clear();
   }
 
-  material_create_info_pipelines_amend(geometry_type, pipeline_type, info);
+  material_create_info_pipelines_amend(gpumat, geometry_type, pipeline_type, info);
 }
 
 struct CallbackThunk {
@@ -1465,7 +1468,8 @@ GPUMaterial *ShaderModule::world_shader_get(::World *blender_world,
  *
  * \{ */
 
-static void add_vertex_inputs(const gpu::shader::ShaderCreateInfo &info,
+static void add_vertex_inputs(GPUMaterial *gpumat,
+                              const gpu::shader::ShaderCreateInfo &info,
                               gpu::shader::PipelineState &r_pipeline)
 {
   /* `pos` uses vbo 1, bound to location 0 and `nor` uses vbo 0 bound to location 1. */
@@ -1473,24 +1477,32 @@ static void add_vertex_inputs(const gpu::shader::ShaderCreateInfo &info,
       .vertex_input(0, 1, gpu::VertAttrType::SFLOAT_32_32_32) /* pos */
       .vertex_input(1, 0, gpu::VertAttrType::SNORM_10_10_10_2) /* nor */;
 
+  /** Quick exit for geometry types that use vertex pulling (curves, volumes) */
+  if (info.vertex_inputs_.is_empty()) {
+    return;
+  }
+
+  /* XXX: Main issue with this is that the shader type are often float4, but the actual geometry
+   * attribute can be smaller float2 for uv's etc. This mismatch will compile a pipeline which in
+   * the end is never used.
+   *
+   * As we don't have access to the actual GPUMaterial.graph here we cannot determine the actual
+   * needed vertex attribute type. Guessing from the name isn't reliable enough.
+   *
+   * But we could ask the codegen to provide the actual attribute types.
+   */
+  GPUNodeGraph *graph = gpu_material_node_graph(gpumat);
   for (const gpu::shader::ShaderCreateInfo::VertIn &vertex_input : info.vertex_inputs_) {
     const gpu::VertAttrType vert_attr_type = to_vert_attr_type(vertex_input.type);
-    r_pipeline.vertex_input(vertex_input.index, 17 - vertex_input.index, vert_attr_type);
+    /* Reverse order bindings with 2 reserved slots for pos and nor. */
+    uint32_t binding = (15 + 2) - vertex_input.index;
+    uint32_t location = vertex_input.index;
+    r_pipeline.vertex_input(location, binding, vert_attr_type);
   }
-
-#if 0
-  /* This doesn't work as the vertex_inputs_ aren't populated yet. That is only done after
-   * finalize where these are merged. So we should try to extract them from the shader mat with
-   * some defaults (pos/nor)*/
-  for (int index : info.vertex_inputs_.index_range()) {
-    const ShaderCreateInfo::VertIn &vertex_input = info.vertex_inputs_[index];
-    const GPUVertAttr::Type vert_attr_type = {to_vert_attr_type(vertex_input.type)};
-    pipeline.vertex_input(index, index, vert_attr_type.format, 0, vert_attr_type.size());
-  }
-#endif
 }
 
-void ShaderModule::material_create_info_pipelines_amend(eMaterialGeometry geometry_type,
+void ShaderModule::material_create_info_pipelines_amend(GPUMaterial *gpumat,
+                                                        eMaterialGeometry geometry_type,
                                                         eMaterialPipeline pipeline_type,
                                                         gpu::shader::ShaderCreateInfo &r_info)
 {
@@ -1567,7 +1579,7 @@ void ShaderModule::material_create_info_pipelines_amend(eMaterialGeometry geomet
                   .depth_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
                   .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
                   .color_format(gpu::TextureTargetFormat::SFLOAT_16_16);
-          add_vertex_inputs(r_info, pipeline);
+          add_vertex_inputs(gpumat, r_info, pipeline);
 
           /* Deferred probe pipeline */
           gpu::shader::PipelineState &pipeline_probe =
@@ -1584,7 +1596,7 @@ void ShaderModule::material_create_info_pipelines_amend(eMaterialGeometry geomet
                   .depth_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
                   .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
                   .color_format(gpu::TextureTargetFormat::SFLOAT_16_16);
-          add_vertex_inputs(r_info, pipeline_probe);
+          add_vertex_inputs(gpumat, r_info, pipeline_probe);
 
           break;
         }
@@ -1604,7 +1616,7 @@ void ShaderModule::material_create_info_pipelines_amend(eMaterialGeometry geomet
                   .depth_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
                   .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
                   .color_format(gpu::TextureTargetFormat::SFLOAT_16_16);
-          add_vertex_inputs(r_info, pipeline);
+          add_vertex_inputs(gpumat, r_info, pipeline);
           break;
         }
         case MAT_PIPE_DEFERRED: {
@@ -1626,7 +1638,7 @@ void ShaderModule::material_create_info_pipelines_amend(eMaterialGeometry geomet
                   .color_format(gpu::TextureTargetFormat::UNORM_16_16)
                   .color_format(gpu::TextureTargetFormat::UNORM_10_10_10_2)
                   .color_format(gpu::TextureTargetFormat::UNORM_10_10_10_2);
-          add_vertex_inputs(r_info, pipeline);
+          add_vertex_inputs(gpumat, r_info, pipeline);
 
           /* Planar probe */
           gpu::shader::PipelineState &pipeline_planar =
@@ -1646,7 +1658,7 @@ void ShaderModule::material_create_info_pipelines_amend(eMaterialGeometry geomet
                   .color_format(gpu::TextureTargetFormat::UNORM_16_16)
                   .color_format(gpu::TextureTargetFormat::UNORM_10_10_10_2)
                   .color_format(gpu::TextureTargetFormat::UNORM_10_10_10_2);
-          add_vertex_inputs(r_info, pipeline_planar);
+          add_vertex_inputs(gpumat, r_info, pipeline_planar);
 
           break;
         }
@@ -1666,7 +1678,7 @@ void ShaderModule::material_create_info_pipelines_amend(eMaterialGeometry geomet
                   .depth_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
                   .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
                   .color_format(gpu::TextureTargetFormat::SFLOAT_16_16);
-          add_vertex_inputs(r_info, pipeline);
+          add_vertex_inputs(gpumat, r_info, pipeline);
           break;
         }
         case MAT_PIPE_PREPASS_FORWARD_VELOCITY: {
@@ -1684,7 +1696,7 @@ void ShaderModule::material_create_info_pipelines_amend(eMaterialGeometry geomet
                   .depth_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
                   .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
                   .color_format(gpu::TextureTargetFormat::SFLOAT_16_16);
-          add_vertex_inputs(r_info, pipeline);
+          add_vertex_inputs(gpumat, r_info, pipeline);
           break;
         }
         case MAT_PIPE_FORWARD: {
@@ -1702,7 +1714,7 @@ void ShaderModule::material_create_info_pipelines_amend(eMaterialGeometry geomet
                   .depth_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
                   .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
                   .color_format(gpu::TextureTargetFormat::SFLOAT_16_16_16_16);
-          add_vertex_inputs(r_info, pipeline);
+          add_vertex_inputs(gpumat, r_info, pipeline);
           break;
         }
 
@@ -1717,7 +1729,7 @@ void ShaderModule::material_create_info_pipelines_amend(eMaterialGeometry geomet
                                                             GPU_STENCIL_OP_NONE,
                                                             GPU_VERTEX_LAST)
                                                      .viewports(16);
-          add_vertex_inputs(r_info, pipeline);
+          add_vertex_inputs(gpumat, r_info, pipeline);
           break;
         }
 
@@ -1740,7 +1752,7 @@ void ShaderModule::material_create_info_pipelines_amend(eMaterialGeometry geomet
                   .color_format(gpu::TextureTargetFormat::UNORM_16_16)
                   .color_format(gpu::TextureTargetFormat::UNORM_10_10_10_2)
                   .color_format(gpu::TextureTargetFormat::UNORM_10_10_10_2);
-          add_vertex_inputs(r_info, pipeline);
+          add_vertex_inputs(gpumat, r_info, pipeline);
           break;
         }
 
