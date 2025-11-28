@@ -152,19 +152,13 @@ bool multiresModifier_reshapeFromCCG(const int tot_level, Mesh *coarse_mesh, Sub
 }
 
 static blender::MutableSpan<blender::float3> multires_ensure_delta_storage(
-    Object &object, SubdivCCG &higher_subdiv_ccg, const int level)
+    Object &object, const SubdivCCG &subdiv_ccg, const int level)
 {
   SculptSession &ss = *object.sculpt;
   if (ss.multires.runtime.disp_at_level[level - 1].is_empty()) {
-    ss.multires.runtime.disp_at_level[level - 1].resize(higher_subdiv_ccg.positions.size());
+    /* Filling with empty is only necessary when opening the file at a non-top level */
+    ss.multires.runtime.disp_at_level[level - 1].resize(subdiv_ccg.positions.size(), blender::float3(0.0f));
   }
-  return ss.multires.runtime.disp_at_level[level - 1];
-}
-
-static blender::MutableSpan<blender::float3> multires_get_delta_storage(Object &object,
-                                                                        const int level)
-{
-  SculptSession &ss = *object.sculpt;
   return ss.multires.runtime.disp_at_level[level - 1];
 }
 
@@ -652,8 +646,11 @@ bool multiresModifier_applyHigherLevelDelta(Object &object,
   /* When switching to higher levels... */
   /* Take the stored higher level tangent displacements */
   blender::Array<blender::float3> ccg_storage(lower_subdiv_ccg.positions.size());
-  blender::MutableSpan<blender::float3> delta_storage = multires_get_delta_storage(
-      object, subdiv_ccg.level);
+
+  /* Typically this will be created already, but sometimes we need to ensure it exists, i.e. upon
+   * opening a file at a non-highest multiresolution level */
+  blender::MutableSpan<blender::float3> delta_storage = multires_ensure_delta_storage(
+      object, subdiv_ccg, subdiv_ccg.level);
   blender::Array<blender::float3> position_storage(delta_storage.size());
   blender::Array<blender::float3x3> tmat_storage(delta_storage.size());
   BLI_assert(delta_storage.size() == subdiv_ccg.positions.size());

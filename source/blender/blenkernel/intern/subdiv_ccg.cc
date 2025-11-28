@@ -476,7 +476,7 @@ Mesh *BKE_subdiv_to_ccg_mesh(Object &object,
   std::unique_ptr<SubdivCCG> subdiv_ccg = BKE_subdiv_to_ccg(
       subdiv, settings, coarse_mesh, has_mask ? &mask_evaluator : nullptr);
 
-  if (delta < 0) {
+  if (delta < 0 && settings.level != 0) {
     BLI_assert(fake_subdiv);
 
     SubdivToCCGSettings higher_settings;
@@ -495,7 +495,7 @@ Mesh *BKE_subdiv_to_ccg_mesh(Object &object,
     higher_subdiv_ccg->subdiv = fake_subdiv;
     higher_subdiv_ccg.reset();
   }
-  else if (delta > 0) {
+  else if (delta > 0 && (settings.level - delta) != 0) {
     SubdivToCCGSettings lower_settings;
     lower_settings.level = settings.level - delta;
     BLI_assert(lower_settings.level < settings.level);
