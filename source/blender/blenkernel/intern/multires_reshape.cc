@@ -151,18 +151,6 @@ bool multiresModifier_reshapeFromCCG(const int tot_level, Mesh *coarse_mesh, Sub
   return true;
 }
 
-/* TODO: This doesn't work at the moment, only kept in to avoid re-writing more code if further
- * experimentation is needed */
-#define SAMPLE_HIGHER_LEVEL_LIMIT_SURFACE 0
-
-/* When lowering Sculpt subdivision levels, set the CCG positions to the limit surface of the
- * lower level instead of using the higher level positions. Probably not needed */
-#define USE_LIMIT_SURFACE_POSITIONS 0
-
-/* Only store the object space delta for odd vertices when switching down levels. Results in
- * shrinkage of the mesh when it has boundary elements. */
-#define ONLY_AFFECT_ODD_VERTICES 0
-
 static blender::MutableSpan<blender::float3> multires_ensure_delta_storage(
     Object &object, SubdivCCG &higher_subdiv_ccg, const int level)
 {
@@ -189,16 +177,12 @@ static void multires_clear_delta_storage(Object &object, const int level)
 }
 
 static void multires_level_calc_object_delta(blender::Span<blender::float3> &old_positions,
-                                             blender::MutableSpan<blender::float3> object_delta,
-                                             blender::Span<bool> odd_vertices)
+                                             blender::MutableSpan<blender::float3> object_delta)
 {
   CLOG_DEBUG(&LOG, "(ELEM) SUBDIV - LIMIT = DELTA:");
   BLI_assert(old_positions.size() == object_delta.size());
   for (const int i : old_positions.index_range()) {
     const blender::float3 limit_surf_position = object_delta[i];
-#if ONLY_AFFECT_ODD_VERTICES
-    if (odd_vertices[i]) {
-#endif
       object_delta[i] = old_positions[i] - limit_surf_position;
       CLOG_TRACE(&LOG,
                  "M - (%d) (%f %f %f) - (%f %f %f) = (%f %f %f) (%f)",
@@ -228,12 +212,6 @@ static void multires_level_calc_object_delta(blender::Span<blender::float3> &old
                   object_delta[i].z,
                   blender::math::length(object_delta[i]));
       }
-#if ONLY_AFFECT_ODD_VERTICES
-    }
-    else {
-      object_delta[i] = blender::float3(0.0f);
-    }
-#endif
   }
 }
 
@@ -497,31 +475,6 @@ static void multires_copy_from_old_ccg(const SubdivCCG &higher_subdiv_ccg,
   }
 }
 
-static void multires_copy_from_limit_surface(
-    const SubdivCCG &higher_subdiv_ccg,
-    blender::Span<blender::float3> limit_surface_positions,
-    SubdivCCG &subdiv_ccg)
-{
-  BLI_assert(higher_subdiv_ccg.positions.size() == limit_surface_positions.size());
-  const float higher_grid_1 = higher_subdiv_ccg.grid_size - 1;
-  const float grid_1_inv = 1.0f / (subdiv_ccg.grid_size - 1);
-  for (const int i : blender::IndexRange(subdiv_ccg.grids_num)) {
-    for (const int y : blender::IndexRange(subdiv_ccg.grid_size)) {
-      for (const int x : blender::IndexRange(subdiv_ccg.grid_size)) {
-        blender::float2 uv(float(x) * grid_1_inv, float(y) * grid_1_inv);
-        const int new_x = (int)(uv.x * higher_grid_1);
-        const int new_y = (int)(uv.y * higher_grid_1);
-
-        const int curr_idx = i * subdiv_ccg.grid_area + y * subdiv_ccg.grid_size + x;
-        const int higher_idx = i * higher_subdiv_ccg.grid_area +
-                               new_y * higher_subdiv_ccg.grid_size + new_x;
-
-        subdiv_ccg.positions[curr_idx] = limit_surface_positions[higher_idx];
-      }
-    }
-  }
-}
-
 bool multiresModifier_storeHigherLevelDelta(Object &object,
                                             Mesh &coarse_mesh,
                                             SubdivCCG &higher_subdiv_ccg,
@@ -574,26 +527,10 @@ bool multiresModifier_storeHigherLevelDelta(Object &object,
                delta_storage[i].z,
                blender::math::length(delta_storage[i]));
   }
-#if USE_LIMIT_SURFACE_POSITIONS
-  multires_copy_from_limit_surface(higher_subdiv_ccg, delta_storage, subdiv_ccg);
-#endif
   /* Delta = (MV - LV) * LMat */
-  multires_level_calc_object_delta(old_positions, delta_storage, odd_vertices);
+  multires_level_calc_object_delta(old_positions, delta_storage);
   CLOG_DEBUG(&LOG, "STORED HIGHER POS - LIMIT POS");
   multires_reshape_context_free(&reshape_context);
-#if SAMPLE_HIGHER_LEVEL_LIMIT_SURFACE
-  MultiresReshapeContext higher_reshape_context;
-  multires_reshape_context_create_from_ccg(
-      &higher_reshape_context, &higher_subdiv_ccg, &coarse_mesh, higher_subdiv_ccg.level + 1);
-
-  CLOG_DEBUG(&LOG, "Retrieving matrices");
-  multires_reshape_store_higher_limit_surface_tangent_matrices(
-      &higher_reshape_context,
-      MultiresSubdivideModeType::CatmullClark,
-      old_positions,
-      tmat_storage);
-  multires_reshape_context_free(&higher_reshape_context);
-#endif
 
   multires_level_object_delta_to_tangent_delta(tmat_storage, delta_storage);
   for (const int i : delta_storage.index_range()) {
