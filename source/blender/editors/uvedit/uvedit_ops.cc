@@ -2722,69 +2722,66 @@ static bool uvedit_straighten_island(Object *ob, Scene *scene)
   if (!bm || bm->totvertsel == 0) {
     return false;
   }
-  if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
-    uvedit_select_prepare_sync_select(scene, bm);
-  }
 
   const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
 
   Set<BMLoop *> original_selected;
   Set<BMLoop *> original_pinned;
   Set<BMEdge *> original_seams;
-  BMIter iter, liter;
-  BMFace *efa;
-  BMLoop *loop;
-  BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
-    BM_ITER_ELEM (loop, &liter, efa, BM_LOOPS_OF_FACE) {
+  uvedit_uv_straighten(scene, bm, eUVWeldAlign::UV_STRAIGHTEN);
+
+  UvElementMap *selection_map = BM_uv_element_map_create(bm, scene, true, false, false, true);
+  UvElementMap *islands_map = BM_uv_element_map_create(bm, scene, false, false, false, true);
+
+  if (!selection_map || !islands_map) {
+    return false;
+  }
+
+  float2 min, max;
+  for (int i = 0; i < selection_map->total_islands; i++) {
+    UvElement *element = selection_map->storage + selection_map->island_indices[i];
+    INIT_MINMAX2(min, max);
+    for (int j = 0; j < selection_map->island_total_uvs[i]; j++) {
+      BMLoop *loop = element[j].l;
+      float *luv = BM_ELEM_CD_GET_FLOAT_P(loop, offsets.uv);
+      minmax_v2v2_v2(min, max, luv);
       if (BM_ELEM_CD_GET_BOOL(loop, offsets.pin)) {
         original_pinned.add(loop);
+      }
+      BM_ELEM_CD_SET_BOOL(loop, offsets.pin, true);
+      original_selected.add(loop);
+    }
+    for (int j = 0; j < selection_map->island_total_uvs[i]; j++) {
+      float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
+      if (max[0] - min[0] >= max[1] - min[1]) {
+        luv[1] = 0.5f * (min[1] + max[1]);
+      }
+      else {
+        luv[0] = 0.5f * (min[0] + max[0]);
+      }
+    }
+  }
+  for (int i = 0; i < islands_map->total_islands; i++) {
+    bool island_touched = false;
+    UvElement *element = islands_map->storage + islands_map->island_indices[i];
+    for (int j = 0; j < islands_map->island_total_uvs[i]; j++) {
+      BMLoop *loop = element[j].l;
+      if (original_selected.contains(loop)) {
+        island_touched = true;
       }
       if (BM_elem_flag_test(loop->e, BM_ELEM_SEAM)) {
         original_seams.add(loop->e);
         BM_elem_flag_set(loop->e, BM_ELEM_SEAM, false);
       }
-      if (uvedit_uv_select_test_ex(ts, bm, loop, offsets)) {
-        original_selected.add(loop);
-        BM_ELEM_CD_SET_BOOL(loop, offsets.pin, true);
-      }
     }
-  }
-  uvedit_uv_straighten(scene, bm, eUVWeldAlign::UV_STRAIGHTEN);
-
-  UvElementMap *element_map = BM_uv_element_map_create(bm, scene, false, false, false, true);
-  if (!element_map) {
-    return false;
-  }
-
-  blender::Array<bool> selected_island = blender::Array<bool>(element_map->total_islands, false);
-  float2 min, max;
-  for (int i = 0; i < element_map->total_islands; i++) {
-    UvElement *element = element_map->storage + element_map->island_indices[i];
-    INIT_MINMAX2(min, max);
-    for (int j = 0; j < element_map->island_total_uvs[i]; j++) {
-      if (original_selected.contains(element[j].l)) {
-        float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
-        minmax_v2v2_v2(min, max, luv);
-        selected_island[i] = true;
-      }
-    }
-    for (int j = 0; j < element_map->island_total_uvs[i]; j++) {
-      if (selected_island[i]) {
+    if (island_touched) {
+      for (int j = 0; j < islands_map->island_total_uvs[i]; j++) {
         uvedit_loop_vert_select_set(ts, bm, element[j].l, true);
       }
-      if (original_selected.contains(element[j].l)) {
-        float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
-        if (max[0] - min[0] >= max[1] - min[1]) {
-          luv[1] = 0.5f * (min[1] + max[1]);
-        }
-        else {
-          luv[0] = 0.5f * (min[0] + max[0]);
-        }
-      }
     }
   }
 
-  BM_uv_element_map_free(element_map);
+  BM_uv_element_map_free(selection_map);
 
   uv_seam_from_islands((Mesh *)ob->data, scene, true, false);
   UnwrapOptions options{};
@@ -2796,14 +2793,16 @@ static bool uvedit_straighten_island(Object *ob, Scene *scene)
   options.correct_aspect = true;
   uvedit_unwrap(scene, ob, &options, nullptr, nullptr);
 
-  BM_ITER_MESH (efa, &iter, bm, BM_FACES_OF_MESH) {
-    BM_ITER_ELEM (loop, &liter, efa, BM_LOOPS_OF_FACE) {
+  for (int i = 0; i < islands_map->total_islands; i++) {
+    UvElement *element = islands_map->storage + islands_map->island_indices[i];
+    for (int j = 0; j < islands_map->island_total_uvs[i]; j++) {
+      BMLoop *loop = element[j].l;
       BM_ELEM_CD_SET_BOOL(loop, offsets.pin, original_pinned.contains(loop));
       BM_elem_flag_set(loop->e, BM_ELEM_SEAM, original_seams.contains(loop->e));
       uvedit_loop_vert_select_set(ts, bm, loop, original_selected.contains(loop));
     }
   }
-
+  BM_uv_element_map_free(islands_map);
   return true;
 }
 
