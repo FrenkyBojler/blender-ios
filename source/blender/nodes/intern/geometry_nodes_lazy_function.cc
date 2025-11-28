@@ -3002,7 +3002,7 @@ struct GeometryNodesLazyFunctionBuilder {
     if (group_btree == nullptr) {
       return;
     }
-    const std::shared_ptr<const GeometryNodesLazyFunctionGraphInfo> group_lf_graph_info =
+    const std::shared_ptr<const GeometryNodesLazyFunctionGraphInfo> &group_lf_graph_info =
         ensure_geometry_nodes_lazy_function_graph(*group_btree);
     if (!group_lf_graph_info) {
       return;
