@@ -760,6 +760,10 @@ class RemoteAssetListingDownloader:
         return self._locator.remote_url
 
     @property
+    def local_path(self) -> Path:
+        return self._locator.local_path
+
+    @property
     def status(self) -> DownloadStatus:
         return self._status
 

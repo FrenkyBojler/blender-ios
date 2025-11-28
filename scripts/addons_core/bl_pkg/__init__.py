@@ -454,6 +454,14 @@ def remote_asset_libraries_sync(
     if only_if_older_than_sec and listing_downloader.is_more_recent_than(library, only_if_older_than_sec):
         return
 
+    # Only actually start downloading if no other Blender is already syncing
+    # this asset library.
+    from pathlib import Path
+    from _bpy_internal.assets.remote_library_listing import sync_mutex
+    if not sync_mutex.mutex_lock(Path(library.path)):
+        print("  skipping {!r}, another Blender is already syncing this asset library,".format(library.remote_url))
+        return
+
     # Communicate to the asset system that we started loading a library. It will let asset browsers
     # and other UIs displaying this library indicate that loading is ongoing then, until finished.
     wm = bpy.context.window_manager
@@ -481,18 +489,27 @@ def _remote_asset_libraries_sync_done(downloader: _RemoteAssetListingDownloader)
     or other issues can cause things to abort. In that case, this function is
     still called.
     """
+    from _bpy_internal.assets.remote_library_listing import sync_mutex
     from _bpy_internal.assets.remote_library_listing.listing_downloader import DownloadStatus
 
-    _downloaders.remove(downloader)
+    try:
+        _downloaders.remove(downloader)
 
-    wm = bpy.context.window_manager
-    match downloader.status:
-        case DownloadStatus.LOADING:
-            print("Unexpected: `on_done_callback` called while downloader status is loading")
-        case DownloadStatus.FINISHED_SUCCESSFULLY:
-            wm.asset_library_status_finished_loading(downloader.remote_url)
-        case DownloadStatus.FAILED:
-            wm.asset_library_status_failed_loading(downloader.remote_url, message=downloader.error_message)
+        wm = bpy.context.window_manager
+        match downloader.status:
+            case DownloadStatus.LOADING:
+                print("Unexpected: `on_done_callback` called while downloader status is loading")
+            case DownloadStatus.FINISHED_SUCCESSFULLY:
+                wm.asset_library_status_finished_loading(downloader.remote_url)
+            case DownloadStatus.FAILED:
+                wm.asset_library_status_failed_loading(downloader.remote_url, message=downloader.error_message)
+    finally:
+        # print("\033[38;5;214mSync complete, press ENTER to unlock the mutex\033[0m")
+        # input(">")
+
+        sync_mutex.mutex_unlock(downloader.local_path)
+
+        # print("\033[92mMutex released!\033[0m")
 
 
 def _remote_asset_libraries_sync_update(downloader: _RemoteAssetListingDownloader) -> None:
