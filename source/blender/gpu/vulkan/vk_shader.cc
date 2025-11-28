@@ -1313,19 +1313,15 @@ bool VKShader::ensure_graphics_pipelines(Span<shader::PipelineState> pipeline_st
          pipeline_state.vertex_inputs_)
     {
       const GPUVertAttr::Type attribute_type = {attribute_binding.type};
-      int location_len = ceil_division(attribute_type.comp_len(), 4);
-      for (const uint32_t location_offset : IndexRange(location_len)) {
-        graphics_info.vertex_in.attributes.append({
-            attribute_binding.location + location_offset,
-            binding,
-            to_vk_format(
-                attribute_type.comp_type(), attribute_type.size(), attribute_type.fetch_mode()),
-            attribute_binding.offset + location_offset * uint32_t(sizeof(float4)),
-        });
-        graphics_info.vertex_in.bindings.append(
-            {attribute_binding.binding, attribute_binding.stride, VK_VERTEX_INPUT_RATE_VERTEX});
-        binding++;
-      }
+      graphics_info.vertex_in.attributes.append({attribute_binding.location,
+                                                 binding,
+                                                 to_vk_format(attribute_type.comp_type(),
+                                                              attribute_type.size(),
+                                                              attribute_type.fetch_mode()),
+                                                 attribute_binding.offset});
+      graphics_info.vertex_in.bindings.append(
+          {attribute_binding.binding, attribute_binding.stride, VK_VERTEX_INPUT_RATE_VERTEX});
+      binding++;
     }
 
     graphics_info.shaders.vk_vertex_module = vertex_module.vk_shader_module;
@@ -1334,11 +1330,6 @@ bool VKShader::ensure_graphics_pipelines(Span<shader::PipelineState> pipeline_st
     graphics_info.shaders.vk_pipeline_layout = vk_pipeline_layout;
     graphics_info.shaders.vk_topology = vk_topology;
     graphics_info.shaders.state = pipeline_state.state_;
-    graphics_info.shaders.mutable_state.point_size = 1.0f;
-    graphics_info.shaders.mutable_state.line_width = 1.0f;
-    graphics_info.shaders.mutable_state.stencil_write_mask = 0u;
-    graphics_info.shaders.mutable_state.stencil_compare_mask = 0u;
-    graphics_info.shaders.mutable_state.stencil_reference = 0u;
     graphics_info.shaders.viewport_count = pipeline_state.viewport_count_;
     graphics_info.shaders.specialization_constants.extend(
         pipeline_state.specialization_constants_);
@@ -1379,7 +1370,7 @@ bool VKShader::ensure_graphics_pipelines(Span<shader::PipelineState> pipeline_st
 VkPipeline VKShader::ensure_and_get_graphics_pipeline(GPUPrimType primitive,
                                                       VKVertexAttributeObject &vao,
                                                       VKStateManager &state_manager,
-                                                      VKFrameBuffer &framebuffer,
+                                                      const VKFrameBuffer &framebuffer,
                                                       SpecializationConstants &constants_state)
 {
   BLI_assert(!is_compute_shader_);
@@ -1404,28 +1395,21 @@ VkPipeline VKShader::ensure_and_get_graphics_pipeline(GPUPrimType primitive,
   graphics_info.shaders.vk_pipeline_layout = vk_pipeline_layout;
   graphics_info.shaders.vk_topology = vk_topology;
   graphics_info.shaders.state = state_manager.state;
-  graphics_info.shaders.mutable_state = state_manager.mutable_state;
   graphics_info.shaders.viewport_count = framebuffer.viewport_size();
   graphics_info.shaders.specialization_constants.extend(constants_state.values);
   graphics_info.shaders.has_depth = depth_attachment_format != VK_FORMAT_UNDEFINED;
   graphics_info.shaders.has_stencil = stencil_attachment_format != VK_FORMAT_UNDEFINED;
-  /* Cleanup mutable state to increase cache hits. */
-  /* NOTE: Refactor stencils to use dynamic state. #149452 */
+  /* Cleanup state to increase cache hits. */
   if (!graphics_info.shaders.has_stencil || state_manager.state.stencil_test == GPU_STENCIL_NONE) {
-    graphics_info.shaders.mutable_state.stencil_write_mask = 0u;
-    graphics_info.shaders.mutable_state.stencil_compare_mask = 0u;
-    graphics_info.shaders.mutable_state.stencil_reference = 0u;
+    graphics_info.shaders.state.stencil_test = GPU_STENCIL_NONE;
+    graphics_info.shaders.state.stencil_op = GPU_STENCIL_OP_NONE;
   }
-  if (primitive != GPU_PRIM_POINTS) {
-    graphics_info.shaders.mutable_state.point_size = 1.0f;
-  }
-  graphics_info.shaders.mutable_state.line_width = 1.0f;
 
   graphics_info.fragment_out.depth_attachment_format = depth_attachment_format;
   graphics_info.fragment_out.stencil_attachment_format = stencil_attachment_format;
   graphics_info.fragment_out.color_attachment_formats.extend(
       framebuffer.color_attachment_formats_get());
-  graphics_info.fragment_out.state = state_manager.state;
+  graphics_info.fragment_out.state = graphics_info.shaders.state;
 
   VKDevice &device = VKBackend::get().device;
   bool pipeline_created = false;

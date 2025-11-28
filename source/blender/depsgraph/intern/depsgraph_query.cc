@@ -400,7 +400,7 @@ bool DEG_collection_geometry_is_evaluated(const Collection &collection)
       collection.id, deg::NodeType::GEOMETRY, deg::OperationCode::GEOMETRY_EVAL_DONE);
 }
 
-std::optional<double> DEG_get_total_evaluation_time(const Depsgraph *depsgraph)
+std::optional<double> DEG_get_last_evaluation_time(const Depsgraph *depsgraph)
 {
   if (!DEG_is_fully_evaluated(depsgraph)) {
     return std::nullopt;

@@ -997,16 +997,16 @@ static bool rna_MovieStrip_reload_if_needed(ID *scene_id, Strip *strip, Main *bm
 
 static PointerRNA rna_MovieStrip_metadata_get(ID *scene_id, Strip *strip)
 {
-  if (strip == nullptr || strip->anims.first == nullptr) {
+  if (strip == nullptr || strip->runtime->movie_readers.is_empty()) {
     return PointerRNA_NULL;
   }
 
-  StripAnim *sanim = static_cast<StripAnim *>(strip->anims.first);
-  if (sanim->anim == nullptr) {
+  MovieReader *anim = strip->runtime->movie_readers.first();
+  if (anim == nullptr) {
     return PointerRNA_NULL;
   }
 
-  IDProperty *metadata = MOV_load_metadata(sanim->anim);
+  IDProperty *metadata = MOV_load_metadata(anim);
   if (metadata == nullptr) {
     return PointerRNA_NULL;
   }
@@ -2777,7 +2777,7 @@ static void rna_def_filter_video(StructRNA *srna)
   };
 
   prop = RNA_def_property(srna, "use_deinterlace", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", SEQ_FILTERY);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", SEQ_DEINTERLACE);
   RNA_def_property_ui_text(prop, "Deinterlace", "Remove fields from video movies");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_reopen_files_update");
 

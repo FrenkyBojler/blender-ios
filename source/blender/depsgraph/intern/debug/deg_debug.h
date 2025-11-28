@@ -37,10 +37,11 @@ class DepsgraphDebug {
   static const constexpr int MAX_FPS_COUNTERS = 64;
 
   /* Point in time when last graph evaluation began.
-   * Is initialized from begin_graph_evaluation() when time debug is enabled.
+   * Is initialized from begin_graph_evaluation().
    */
   double graph_evaluation_start_time_;
 
+  /* Total time of the last evaluation. */
   double graph_evaluation_total_time_;
 };
 
