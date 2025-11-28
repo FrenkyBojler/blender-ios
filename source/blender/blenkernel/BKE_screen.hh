@@ -283,6 +283,12 @@ struct ARegionType {
    */
   void (*on_view2d_changed)(const bContext *C, ARegion *region);
 
+  /**
+   * Called when the region is activated or deactivated.
+   * Params `win` and `area` always relate to the active region, not the deactive region.
+   */
+  void (*on_activation_changed)(wmWindow *win, ScrArea *area, ARegion *region, bool active);
+
   /** Custom drawing callbacks. */
   ListBase drawcalls;
 

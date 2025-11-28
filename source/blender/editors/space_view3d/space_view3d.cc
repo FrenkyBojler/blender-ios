@@ -638,8 +638,8 @@ static void view3d_main_region_listener(const wmRegionListenerParams *params)
 #if defined WITH_INPUT_IME
           ViewLayer *view_layer = WM_window_get_active_view_layer(window);
           if (view_layer) {
-            Base *base = BKE_view_layer_active_base_get(view_layer);
-            if (base && base->object->type == OB_FONT && base->object->mode & OB_MODE_EDIT) {
+            Object *ob = BKE_view_layer_active_object_get(view_layer);
+            if (ob && ob->type == OB_FONT && ob->mode == OB_MODE_EDIT) {
               wm_window_IME_begin(window, region->winrct.xmin, region->winrct.ymax, 0, 0, true);
             }
             else {
@@ -831,22 +831,6 @@ static void view3d_main_region_listener(const wmRegionListenerParams *params)
         ED_region_tag_redraw(region);
         WM_gizmomap_tag_refresh(gzmap);
       }
-
-#ifdef WITH_INPUT_IME
-      {
-        ViewLayer *view_layer = WM_window_get_active_view_layer(window);
-        if (view_layer) {
-          Base *base = BKE_view_layer_active_base_get(view_layer);
-          if (base && base->object->type == OB_FONT && base->object->mode & OB_MODE_EDIT) {
-            wm_window_IME_begin(window, region->winrct.xmin, region->winrct.ymax, 0, 0, true);
-          }
-          else {
-            wm_window_IME_end(window);
-          }
-        }
-      }
-#endif
-
       break;
     case NC_ID:
       if (ELEM(wmn->action, NA_RENAME, NA_EDITED, NA_ADDED, NA_REMOVED)) {
@@ -1638,6 +1622,27 @@ static void view3d_space_blend_write(BlendWriter *writer, SpaceLink *sl)
   BKE_viewer_path_blend_write(writer, &v3d->viewer_path);
 }
 
+#ifdef WITH_INPUT_IME
+static void view3d_main_region_on_activation_changed(wmWindow *win,
+                                                     ScrArea *area,
+                                                     ARegion *region,
+                                                     bool activated)
+{
+  if (activated) {
+    ViewLayer *view_layer = WM_window_get_active_view_layer(win);
+    if (view_layer) {
+      Object *ob = BKE_view_layer_active_object_get(view_layer);
+      if (ob && ob->type == OB_FONT && ob->mode == OB_MODE_EDIT) {
+        wm_window_IME_begin(win, region->winrct.xmin, region->winrct.ymax, 0, 0, true);
+      }
+    }
+  }
+  else {
+    wm_window_IME_end(win);
+  }
+}
+#endif
+
 void ED_spacetype_view3d()
 {
   using namespace blender::ed;
@@ -1674,6 +1679,9 @@ void ED_spacetype_view3d()
   art->exit = view3d_main_region_exit;
   art->free = view3d_main_region_free;
   art->duplicate = view3d_main_region_duplicate;
+#ifdef WITH_INPUT_IME
+  art->on_activation_changed = view3d_main_region_on_activation_changed;
+#endif
   art->listener = view3d_main_region_listener;
   art->message_subscribe = view3d_main_region_message_subscribe;
   art->cursor = view3d_main_region_cursor;

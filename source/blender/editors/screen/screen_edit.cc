@@ -1199,6 +1199,20 @@ void ED_screen_set_active_region(bContext *C, wmWindow *win, const int xy[2])
       }
     }
   }
+
+  if (region_prev != screen->active_region) {
+    if (region_prev != nullptr) {
+      if (region_prev->runtime->type->on_activation_changed != nullptr) {
+        region_prev->runtime->type->on_activation_changed(win, area, region_prev, false);
+      }
+    }
+    if (screen->active_region != nullptr) {
+      if (screen->active_region->runtime->type->on_activation_changed != nullptr) {
+        screen->active_region->runtime->type->on_activation_changed(
+            win, area, screen->active_region, true);
+      }
+    }
+  }
 }
 
 int ED_screen_area_active(const bContext *C)
