@@ -110,11 +110,11 @@ class CompositorEffectContext : public compositor::Context {
   compositor::Result get_input(StringRef name) override
   {
     compositor::Result result = this->create_result(compositor::ResultType::Color);
-    if (name == "Image") {
+    if (name == "Image" && this->input_1_) {
       result.wrap_external(this->input_1_->float_buffer.data,
                            int2(this->input_1_->x, this->input_1_->y));
     }
-    else if (name == "Image2") {
+    else if (name == "Image2" && this->input_2_) {
       result.wrap_external(this->input_2_->float_buffer.data,
                            int2(this->input_2_->x, this->input_2_->y));
     }
@@ -232,11 +232,27 @@ static void init_compositor_effect(Strip *strip)
   strip->effectdata = data;
 }
 
+static StripEarlyOut early_out_compositor(const Strip *strip, float fac)
+{
+  /* No inputs: compositor generates the result. */
+  if (strip->input1 == nullptr) {
+    return StripEarlyOut::NoInput;
+  }
+
+  /* One input: do the effect. */
+  if (strip->input1 != nullptr && strip->input2 == nullptr) {
+    return StripEarlyOut::DoEffect;
+  }
+
+  /* Two inputs: regular fade logic. */
+  return early_out_fade(strip, fac);
+}
+
 void compositor_effect_get_handle(EffectHandle &rval)
 {
   rval.init = init_compositor_effect;
   rval.execute = do_compositor_effect;
-  rval.early_out = early_out_fade;
+  rval.early_out = early_out_compositor;
 }
 
 }  // namespace blender::seq

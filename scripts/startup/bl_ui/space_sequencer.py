@@ -703,6 +703,7 @@ class SEQUENCER_MT_add(Menu):
         layout.separator()
 
         layout.operator("sequencer.effect_strip_add", text="Adjustment Layer", icon='COLOR').type = 'ADJUSTMENT'
+        layout.operator("sequencer.effect_strip_add", text="Compositor", icon='NODE_COMPOSITING').type = 'COMPOSITOR'
 
         layout.operator_context = 'INVOKE_DEFAULT'
         layout.menu("SEQUENCER_MT_add_effect", icon='SHADERFX')
@@ -743,7 +744,6 @@ class SEQUENCER_MT_add_transitions(Menu):
         layout.separator()
 
         col = layout.column()
-        col.operator("sequencer.effect_strip_add", text="Compositor").type = 'COMPOSITOR'
         col.operator("sequencer.effect_strip_add", text="Crossfade").type = 'CROSS'
         col.operator("sequencer.effect_strip_add", text="Gamma Crossfade").type = 'GAMMA_CROSS'
 

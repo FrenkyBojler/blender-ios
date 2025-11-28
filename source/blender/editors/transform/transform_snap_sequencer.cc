@@ -213,9 +213,8 @@ static VectorSet<Strip *> query_snap_targets_timeline(Scene *scene,
    * have to be selected. Remove such strips from `snap_targets` collection. */
   VectorSet effects_of_snap_sources = snap_sources;
   seq::iterator_set_expand(scene, seqbase, effects_of_snap_sources, query_strip_effects_fn);
-  effects_of_snap_sources.remove_if([&](Strip *strip) {
-    return strip->is_effect() && !strip->is_effect_with_inputs();
-  });
+  effects_of_snap_sources.remove_if(
+      [&](Strip *strip) { return strip->is_effect() && !strip->is_effect_with_inputs(); });
 
   VectorSet<Strip *> snap_targets;
   LISTBASE_FOREACH (Strip *, strip, seqbase) {
