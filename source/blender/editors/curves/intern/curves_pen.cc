@@ -1455,15 +1455,8 @@ void pen_tool_common_props(wmOperatorType *ot)
                   false,
                   "Cycle Handle Type",
                   "Cycle between all four handle types");
-  RNA_def_float_distance(ot->srna,
-                         "size",
-                         0.01f,
-                         0.0f,
-                         FLT_MAX,
-                         "Size",
-                         "Diameter of new points in Blender units",
-                         0.0f,
-                         10.0f);
+  RNA_def_float_distance(
+      ot->srna, "size", 0.01f, 0.0f, FLT_MAX, "Size", "Diameter of new points", 0.0f, 10.0f);
 }
 
 wmKeyMap *ensure_keymap(wmKeyConfig *keyconf)
