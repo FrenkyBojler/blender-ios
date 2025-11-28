@@ -2595,25 +2595,85 @@ void mat3_vec_to_roll(const float mat[3][3], const float vec[3], float *r_roll)
 
 void vec_roll_to_mat3_normalized(const float nor[3], const float roll, float r_mat[3][3])
 {
+  /* Nathan's Python code that should do the same thing:
+   *
+   * def matrix(self) -> Matrix:
+   *     # TODO: is this threshold right?  Compare against Blender source code to make it match.
+   *     threshold = 0.99999
+   *
+   *     # Roll.
+   *     m1 = Matrix.Rotation(self.roll, 3, Vector((0, 1, 0)))
+   *
+   *     # Swing.
+   *     m2 = Matrix.Identity(3)
+   *     y_axis = Vector((0, 1, 0))
+   *     bone_direction = (self.tail - self.head).normalized()
+   *     dot = y_axis.dot(bone_direction)
+   *     if dot >= threshold:
+   *         # Cross product will produce almost-zero length vector that's unstable for further
+   *         # rotation. Since the dot product is as good as 1 anyway, the vectors already align.
+   *         return m1
+   *     if dot <= -threshold:
+   *         m2 = Matrix.Rotation(acos(dot), 3, Vector((1, 0, 0)))
+   *     else:
+   *         m2 = Matrix.Rotation(acos(dot), 3, y_axis.cross(bone_direction))
+   *
+   *     return m2 @ m1
+   */
   {
     // Get the matrix that rolls around 'nor'.
-    float rMatrix[3][3];
-    axis_angle_normalized_to_mat3(rMatrix, nor, roll);
+    float mat_roll[3][3];
+    axis_angle_normalized_to_mat3(mat_roll, nor, roll);
 
-    // Get the matrix that rotates the roll axis to align with 'nor'.
-    float matrix44[4][4];
-    unit_m4(matrix44);
-    // TODO: split up the function below, because I think we can make it work more specialized,
-    // with just the rotation part of the matrix.
-    damptrack_do_transform_normalized(matrix44, nor, blender::bke::BONE_AXIS_ROLL);
+    // Get the matrix that swings the bone's roll axis to align with 'nor'.
 
-    float bMatrix[3][3];
-    copy_m3_m4(bMatrix, matrix44);
+    // This is written out explicitly to get the compiler to optimize out those
+    // values where bone_axis_vector_roll(n) is zero.
+    const float dot_product = nor[0] * bke::bone_axis_vector_roll(0) +
+                              nor[1] * bke::bone_axis_vector_roll(1) +
+                              nor[2] * bke::bone_axis_vector_roll(2);
+    constexpr float THRESHOLD = 0.99999;
+    if (dot_product > THRESHOLD) {
+      // Cross product will produce almost-zero length vector that's unstable for further rotation.
+      // Since the dot product is as good as 1 anyway, the vectors already align.
+      copy_m3_m3(r_mat, mat_roll);
+      return;
+    }
+
+    float mat_swing[3][3];
+    if (dot_product < -THRESHOLD) {
+      // Cross product will produce almost-zero length vector that's unstable
+      // for further rotation, so use another vector to swing.
+      // TODO: compute
+      BLI_assert_unreachable();
+
+      // // damptrack_do_transform_normalized(matrix44, nor, blender::bke::BONE_AXIS_MAIN);
+      // const float main_axis[3] = {bke::bone_axis_vector_main(0),
+      //                             bke::bone_axis_vector_main(1),
+      //                             bke::bone_axis_vector_main(2)};
+      // axis_angle_to_mat3(mat_swing, main_axis, acos(dot_product));
+    }
+    else {
+      const float roll_axis[3] = {bke::bone_axis_vector_roll(0),
+                                  bke::bone_axis_vector_roll(1),
+                                  bke::bone_axis_vector_roll(2)};
+      float swing_axis[3];
+      cross_v3_v3v3(swing_axis, roll_axis, nor);
+      axis_angle_to_mat3(mat_swing, swing_axis, acos(dot_product));
+    }
+
+    // Alternative take:
+    //
+    // TODO: split up `damptrack_do_transform_normalized()`, because I think we
+    // can make it work more specialized, with just the rotation part of the
+    // matrix.
+    // float matrix44[4][4];
+    // unit_m4(matrix44);
+    // damptrack_do_transform_normalized(matrix44, nor, blender::bke::BONE_AXIS_ROLL);
+    // copy_m3_m4(mat_swing, matrix44);
 
     /* Combine and output result */
-    // TODO: maybe if we do this in opposite order, the roll matrix can be around a fixed
-    // coordinate axis, maybe making it easier to compute. Not sure though.
-    mul_m3_m3m3(r_mat, rMatrix, bMatrix);
+    mul_m3_m3m3(r_mat, mat_roll, mat_swing);
     return;
   }
 
