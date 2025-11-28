@@ -189,7 +189,9 @@ void BKE_image_save_options_update(ImageSaveOptions *opts, const Image *image)
       }
     }
   }
-  else if (opts->prev_save_as_render || opts->im_format.imtype != opts->prev_imtype) {
+  else if (opts->prev_save_as_render || BKE_imtype_requires_linear_float(opts->im_format.imtype) !=
+                                            BKE_imtype_requires_linear_float(opts->prev_imtype))
+  {
     if (IMB_colormanagement_space_name_is_data(opts->im_format.linear_colorspace_settings.name)) {
       /* Stays the same regardless of file format. */
     }
