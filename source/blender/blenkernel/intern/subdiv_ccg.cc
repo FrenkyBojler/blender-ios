@@ -476,6 +476,7 @@ Mesh *BKE_subdiv_to_ccg_mesh(Object &object,
   std::unique_ptr<SubdivCCG> subdiv_ccg = BKE_subdiv_to_ccg(
       subdiv, settings, coarse_mesh, has_mask ? &mask_evaluator : nullptr);
 
+  bool need_free_fake_subdiv = true;
   if (delta < 0 && settings.level != 0) {
     BLI_assert(fake_subdiv);
 
@@ -494,6 +495,7 @@ Mesh *BKE_subdiv_to_ccg_mesh(Object &object,
      * subdiv descriptor */
     higher_subdiv_ccg->subdiv = fake_subdiv;
     higher_subdiv_ccg.reset();
+    need_free_fake_subdiv = false;
   }
   else if (delta > 0 && (settings.level - delta) != 0) {
     SubdivToCCGSettings lower_settings;
@@ -510,6 +512,11 @@ Mesh *BKE_subdiv_to_ccg_mesh(Object &object,
 
     lower_subdiv_ccg->subdiv = fake_subdiv;
     lower_subdiv_ccg.reset();
+    need_free_fake_subdiv = false;
+  }
+
+  if (fake_subdiv != nullptr && need_free_fake_subdiv) {
+    blender::bke::subdiv::free(fake_subdiv);
   }
 
   if (has_mask) {
