@@ -3,3 +3,4 @@ Referenced by pull request #147630, Fix #147626: Crash when clicking on the "Ren
 Referenced by commit 2998b97d5e14b114637daba976e159a9275783d9, Fix #147626: Crash when clicking on the "Rendering" workspace
 Referenced by issue #150125, API bpy.ops.render.render() uses wrong frame range
 Referenced by pull request blender/blender-manual#105362, VSE: Render Operators for Sequencer Scene
+Referenced by commit blender/blender-manual@2b17bff280549d618b9c594a2c7e61468a954f4a, VSE: Render Operators for Sequencer Scene
