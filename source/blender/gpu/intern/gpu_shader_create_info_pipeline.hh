@@ -25,12 +25,6 @@ struct PipelineState {
   GPUPrimType primitive_;
   /* Pre-fragment and Fragment stage*/
   GPUState state_ = {{GPU_WRITE_COLOR}};
-  /**
-   * Pipeline state will be used with CCW and CW front facing.
-   * When set to 'true' both pipeline states will be compiled, but backend can decide to only
-   * compile one when supported as a dynamic pipeline state.
-   */
-  bool use_dynamic_facing_ = false;
   uint32_t viewport_count_;
   /* Attachment formats. */
   TextureTargetFormat depth_format_;

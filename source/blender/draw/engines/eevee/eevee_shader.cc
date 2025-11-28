@@ -1580,7 +1580,6 @@ void ShaderModule::material_create_info_pipelines_amend(eMaterialGeometry geomet
                          GPU_STENCIL_NONE,
                          GPU_STENCIL_OP_NONE,
                          GPU_VERTEX_LAST)
-                  .use_dynamic_facing()
                   .viewports(1)
                   .depth_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
                   .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
@@ -1620,7 +1619,6 @@ void ShaderModule::material_create_info_pipelines_amend(eMaterialGeometry geomet
                          GPU_STENCIL_OP_REPLACE,
                          GPU_VERTEX_LAST)
                   .viewports(1)
-                  .use_dynamic_facing()
                   .depth_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
                   .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
                   .color_format(gpu::TextureTargetFormat::SFLOAT_16_16_16_16)
@@ -1718,7 +1716,6 @@ void ShaderModule::material_create_info_pipelines_amend(eMaterialGeometry geomet
                                                             GPU_STENCIL_NONE,
                                                             GPU_STENCIL_OP_NONE,
                                                             GPU_VERTEX_LAST)
-                                                     .use_dynamic_facing()
                                                      .viewports(16);
           add_vertex_inputs(r_info, pipeline);
           break;
