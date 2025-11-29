@@ -419,9 +419,9 @@ static void CurveProfile_buttons_layout(Layout &layout, PointerRNA *ptr, const R
 
     PointerRNA point_ptr = RNA_pointer_create_discrete(
         ptr->owner_id, &RNA_CurveProfilePoint, point);
-    PropertyRNA *prop_handle_type = RNA_struct_find_property(&point_ptr, "handle_type_1");
+    PropertyRNA *prop_handle_types = RNA_struct_find_property(&point_ptr, "handle_types");
     row->prop(&point_ptr,
-              prop_handle_type,
+              prop_handle_types,
               RNA_NO_INDEX,
               0,
               ITEM_R_EXPAND | ITEM_R_ICON_ONLY,

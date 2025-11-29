@@ -25,17 +25,71 @@
 
 #  include "BKE_curveprofile.h"
 
-/**
- * Set both handle types for all selected points in the profile-- faster than changing types
- * for many points individually. Also set both handles for the points.
- */
-static void rna_CurveProfilePoint_handle_type_set(PointerRNA *ptr, int value)
+static int rna_CurveProfilePoint_handle_types_get(PointerRNA *ptr)
+{
+  CurveProfilePoint *point = (CurveProfilePoint *)ptr->data;  
+  if(point->h1 == point->h2) 
+  {
+      return point->h1;
+  }
+  return 0;
+}
+static void rna_CurveProfilePoint_handle_types_set(PointerRNA *ptr, int value)
 {
   CurveProfilePoint *point = static_cast<CurveProfilePoint *>(ptr->data);
-  CurveProfile *profile = point->profile;
+  point->h1 = value;
+  point->h2 = value;
 
-  if (profile) {
-    BKE_curveprofile_selected_handle_set(profile, value, value);
+  if (value == HD_ALIGN)
+  {
+      /* Align the handles. */
+      BKE_curveprofile_move_handle(point, true, false, nullptr);
+  }
+
+  CurveProfile *profile = point->profile;
+  if (profile)
+  {
+    BKE_curveprofile_update(profile, PROF_UPDATE_NONE);
+    WM_main_add_notifier(NC_GEOM | ND_DATA, nullptr);
+  }
+}
+
+
+static int rna_CurveProfilePoint_handle_type_1_get(PointerRNA *ptr)
+{
+  CurveProfilePoint *point = (CurveProfilePoint *)ptr->data;  
+  return point->h1;
+}
+
+
+static void rna_CurveProfilePoint_handle_type_1_set(PointerRNA *ptr, int value)
+{
+  CurveProfilePoint *point = static_cast<CurveProfilePoint *>(ptr->data);
+
+  point->h1 = value;
+
+  CurveProfile *profile = point->profile;
+  if (profile) 
+  {    
+    BKE_curveprofile_update(profile, PROF_UPDATE_NONE);
+    WM_main_add_notifier(NC_GEOM | ND_DATA, nullptr);
+  }
+}
+
+static int rna_CurveProfilePoint_handle_type_2_get(PointerRNA *ptr)
+{
+  CurveProfilePoint *point = (CurveProfilePoint *)ptr->data;  
+  return point->h2;
+}
+
+static void rna_CurveProfilePoint_handle_type_2_set(PointerRNA *ptr, int value)
+{
+  CurveProfilePoint *point = static_cast<CurveProfilePoint *>(ptr->data);
+  point->h2 = value;
+
+  CurveProfile *profile = point->profile;
+  if (profile) 
+  {    
     BKE_curveprofile_update(profile, PROF_UPDATE_NONE);
     WM_main_add_notifier(NC_GEOM | ND_DATA, nullptr);
   }
@@ -140,16 +194,20 @@ static void rna_def_curveprofilepoint(BlenderRNA *brna)
   RNA_def_property_array(prop, 2);
   RNA_def_property_ui_text(prop, "Location", "X/Y coordinates of the path point");
 
-  prop = RNA_def_property(srna, "handle_type_1", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_sdna(prop, nullptr, "h1");
+  prop = RNA_def_property(srna, "handle_types", PROP_ENUM, PROP_NONE);  
   RNA_def_property_enum_items(prop, prop_handle_type_items);
-  RNA_def_property_enum_funcs(prop, nullptr, "rna_CurveProfilePoint_handle_type_set", nullptr);
+  RNA_def_property_enum_funcs(prop, "rna_CurveProfilePoint_handle_types_get", "rna_CurveProfilePoint_handle_types_set", nullptr);
+  RNA_def_property_ui_text(prop, "Handle Types", "Type of both handles if they are the same, None otherwise.");
+
+  prop = RNA_def_property(srna, "handle_type_1", PROP_ENUM, PROP_NONE);  
+  RNA_def_property_enum_items(prop, prop_handle_type_items);
+  RNA_def_property_enum_funcs(prop, "rna_CurveProfilePoint_handle_type_1_get", "rna_CurveProfilePoint_handle_type_1_set", nullptr);
   RNA_def_property_ui_text(prop, "First Handle Type", "Path interpolation at this point");
 
-  prop = RNA_def_property(srna, "handle_type_2", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_sdna(prop, nullptr, "h2");
+
+  prop = RNA_def_property(srna, "handle_type_2", PROP_ENUM, PROP_NONE);  
   RNA_def_property_enum_items(prop, prop_handle_type_items);
-  RNA_def_property_enum_funcs(prop, nullptr, "rna_CurveProfilePoint_handle_type_set", nullptr);
+  RNA_def_property_enum_funcs(prop, "rna_CurveProfilePoint_handle_type_2_get", "rna_CurveProfilePoint_handle_type_2_set", nullptr);
   RNA_def_property_ui_text(prop, "Second Handle Type", "Path interpolation at this point");
 
   prop = RNA_def_property(srna, "select", PROP_BOOLEAN, PROP_NONE);
