@@ -523,6 +523,7 @@ class Preprocessor {
         remove_quotes(parser, report_error);
         argument_reference_mutation(parser, report_error);
         default_argument_mutation(parser, report_error);
+        cleanup_line_directives(parser, report_error);
         cleanup_empty_lines(parser, report_error);
         str = parser.result_get();
       }
@@ -2735,6 +2736,36 @@ class Preprocessor {
           parser.insert_line_number(end_of_fn_char, fn_body.end().line_number() + 1);
         });
 
+    parser.apply_mutations();
+  }
+
+  /* Successive mutations can introduce a lot of uneeded line directives. */
+  void cleanup_line_directives(Parser &parser, report_callback /*report_error*/)
+  {
+    using namespace std;
+    using namespace shader::parser;
+
+    /* Pattern can only match #line directives. */
+    const char *pattern = "#w0\n";
+
+    parser.foreach_match(pattern, [&](vector<Token> toks) {
+      Token t0 = toks.back().next();
+      Token t1 = toks.back().next().next();
+      Token t2 = toks.back().next().next().next();
+      Token t3 = toks.back().next().next().next().next();
+      /* True if directive is followed by another directive. */
+      if (t0 == '#' && t1 == 'w' && t2 == '0' && t3 == '\n') {
+        parser.replace(toks[0].line_start(), toks[0].line_end() + 1, "");
+      }
+    });
+    parser.apply_mutations();
+
+    parser.foreach_match(pattern, [&](vector<Token> toks) {
+      /* True if directive is noop. */
+      if (toks[0].line_number() == stol(toks[2].str())) {
+        parser.replace(toks[0].line_start(), toks[0].line_end() + 1, "");
+      }
+    });
     parser.apply_mutations();
   }
 
