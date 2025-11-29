@@ -3918,6 +3918,10 @@ void Layout::resolve_impl()
   /* Nothing to do. */
 }
 
+namespace blender::interface::internal {
+void pie_menu_create_scroll_pages(uiBlock *block, ui::Layout *layout);
+}
+
 void LayoutRootPieMenu::resolve_impl()
 {
   /* first item is pie menu title, align on center of menu */
@@ -3933,6 +3937,7 @@ void LayoutRootPieMenu::resolve_impl()
     ui_item_position(
         item, x - size.x / 2, y + UI_SCALE_FAC * (U.pie_menu_threshold + 9.0f), size.x, size.y);
   }
+  blender::interface::internal::pie_menu_create_scroll_pages(this->block(), this);
 }
 
 /* panel header layout */
@@ -5377,7 +5382,7 @@ static void pie_menu_add_buts_to_page(PieMenuPage &page, const uiItem *item)
   }
 }
 
-static void pie_menu_create_scroll_pages(uiBlock *block, Layout *layout)
+void pie_menu_create_scroll_pages(uiBlock *block, Layout *layout)
 {
   BLI_assert(layout->root()->type == ui::LayoutType::PieMenu);
   const uiItem *const *pie_menu = std::find_if(
@@ -5412,9 +5417,6 @@ static blender::int2 ui_layout_end(uiBlock *block, Layout *layout)
 
   LayoutInternal::layout_estimate(layout);
   LayoutInternal::layout_resolve(layout);
-  if (layout->root()->type == blender::ui::LayoutType::PieMenu) {
-    blender::interface::internal::pie_menu_create_scroll_pages(block, layout);
-  }
   return layout->offset();
 }
 

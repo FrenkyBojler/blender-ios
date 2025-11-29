@@ -216,4 +216,20 @@ wmOperatorStatus UI_pie_menu_invoke(bContext *C, const char *idname, const wmEve
   return OPERATOR_INTERFACE;
 }
 
+rctf PieMenuData::scroll_handle_rect() const
+{
+  const float pie_radius_external = UI_SCALE_FAC * (U.pie_menu_threshold + 8.0f);
+  const int icon_size = UI_SCALE_FAC * ICON_DEFAULT_HEIGHT;
+
+  rctf handle_rect;
+  handle_rect.xmax = UI_SCALE_FAC * ((PieMenuData::pie_page_dot_rad * 2.0f +
+                                      PieMenuData::pie_page_dot_margin) *
+                                     float(this->pages.size()) / 2.0f) +
+                     icon_size + PieMenuData::pie_page_dot_margin * UI_SCALE_FAC;
+  handle_rect.xmax = handle_rect.xmax;
+  handle_rect.xmin = -handle_rect.xmax;
+  handle_rect.ymax = -(pie_radius_external + UI_SCALE_FAC * 5.0f);
+  handle_rect.ymin = handle_rect.ymax - UI_UNIT_Y;
+  return handle_rect;
+};
 /** \} */

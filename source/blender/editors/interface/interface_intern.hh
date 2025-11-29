@@ -540,6 +540,14 @@ struct ColorPickerData {
  * Group of buttons in pie menu layouts, every #PIE_PAGE_MAX_ITEMS layout sub-items makes a page.
  */
 using PieMenuPage = blender::Vector<uiBut *>;
+enum class PieScrollHandle : uint8_t {
+  None = 0,
+  Left,
+  Right,
+  Center,
+  Hold = 1 << 7,
+};
+ENUM_OPERATORS(PieScrollHandle);
 
 struct PieMenuData {
   /** store title and icon to allow access when pie levels are created */
@@ -560,7 +568,13 @@ struct PieMenuData {
 
   blender::Vector<PieMenuPage> pages;
   /** Visible pie menu page. */
-  int active_page;
+  int active_page = 0;
+  PieScrollHandle active_scroll_handle = PieScrollHandle::None;
+
+  static constexpr float pie_page_dot_rad = 3.5f;
+  static constexpr float pie_page_dot_margin = 3.0f;
+
+  rctf scroll_handle_rect() const;
 };
 
 /** #uiBlock.content_hints */

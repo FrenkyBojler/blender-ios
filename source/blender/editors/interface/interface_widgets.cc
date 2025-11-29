@@ -5714,23 +5714,79 @@ void ui_draw_pie_center(uiBlock *block)
   imm_draw_circle_wire_2d(pos, 0.0f, 0.0f, pie_radius_external, subd);
   /* When the pie menu contains more than one page, add a visual feedback of wich page is active.
    */
-  if (block->pie_data.pages.size() > 1) {
-    const float dot_radius = 3.0f;
-    const float dot_margin = 1.0f;
-    const float dot_y = -(pie_radius_external + UI_SCALE_FAC * 8.0f);
-
-    float dot_x = -UI_SCALE_FAC * std::ceil((dot_radius * 2.0f + dot_margin) *
-                                            float(block->pie_data.pages.size() - 1) / 2.0f);
-    uchar page_dot_color[] = {255, 255, 255, 0};
-    for (int i : block->pie_data.pages.index_range()) {
-      page_dot_color[3] = i == block->pie_data.active_page ? 175 : 60;
-      immUniformColor4ubv(page_dot_color);
-      imm_draw_circle_fill_2d(pos, dot_x, dot_y, dot_radius * UI_SCALE_FAC, 12);
-      dot_x += (2.0f * dot_radius + dot_margin) * UI_SCALE_FAC;
-    }
-  }
   immUnbindProgram();
 
+  const PieMenuData &pie_data = block->pie_data;
+  if (pie_data.pages.size() > 1) {
+    const rctf handle_rect = pie_data.scroll_handle_rect();
+    int arrow_size = UI_SCALE_FAC * ICON_DEFAULT_HEIGHT;
+
+    UI_draw_roundbox_corner_set(UI_CNR_ALL);
+    UI_draw_roundbox_3ub_alpha(&handle_rect,
+                               true,
+                               2.0f,
+                               btheme->tui.wcol_pie_menu.inner,
+                               btheme->tui.wcol_pie_menu.inner[3]);
+    PieScrollHandle active_handle = PieScrollHandle(pie_data.active_scroll_handle &
+                                                    ~PieScrollHandle::Hold);
+    if (active_handle != PieScrollHandle::None) {
+      rctf rect = handle_rect;
+      if (active_handle == PieScrollHandle::Left) {
+        rect.xmax = rect.xmin + arrow_size;
+        UI_draw_roundbox_corner_set(UI_CNR_BOTTOM_LEFT | UI_CNR_TOP_LEFT);
+      }
+      else if (active_handle == PieScrollHandle::Right) {
+        UI_draw_roundbox_corner_set(UI_CNR_BOTTOM_RIGHT | UI_CNR_TOP_RIGHT);
+        rect.xmin = rect.xmax - arrow_size;
+      }
+      UI_draw_roundbox_3ub_alpha(
+          &rect, true, 2.0f, btheme->tui.wcol_pie_menu.item, btheme->tui.wcol_pie_menu.item[3]);
+    }
+
+    const float dot_space = (PieMenuData::pie_page_dot_rad * 2.0f +
+                             PieMenuData::pie_page_dot_margin) *
+                            UI_SCALE_FAC;
+    const float dot_y = BLI_rctf_cent_y(&handle_rect);
+    float dot_x = handle_rect.xmin + arrow_size + dot_space / 2.0f +
+                  PieMenuData::pie_page_dot_margin * UI_SCALE_FAC;
+    GPUVertFormat *format = immVertexFormat();
+    const uint pos = GPU_vertformat_attr_add(
+        format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+    immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+    uchar page_dot_color[] = {255, 255, 255, 0};
+    for (int i : pie_data.pages.index_range()) {
+      page_dot_color[3] = i == pie_data.active_page ? 175 : 60;
+      immUniformColor4ubv(page_dot_color);
+      imm_draw_circle_fill_2d(pos, dot_x, dot_y, PieMenuData::pie_page_dot_rad * UI_SCALE_FAC, 12);
+      dot_x += dot_space;
+    }
+    immUnbindProgram();
+
+    page_dot_color[3] = (pie_data.active_page != 0 ? 175 : 60) *
+                        (active_handle == PieScrollHandle::Left ? 1.25 : 1);
+    const float aspect = block->aspect * UI_INV_SCALE_FAC;
+    UI_icon_draw_ex(handle_rect.xmin,
+                    dot_y - arrow_size / 2,
+                    ICON_TRIA_LEFT,
+                    aspect,
+                    1,
+                    0,
+                    page_dot_color,
+                    true,
+                    nullptr);
+
+    page_dot_color[3] = (pie_data.active_page != pie_data.pages.size() - 1 ? 175 : 60) *
+                        (active_handle == PieScrollHandle::Right ? 1.25 : 1);
+    UI_icon_draw_ex(handle_rect.xmax - arrow_size,
+                    dot_y - arrow_size / 2,
+                    ICON_TRIA_RIGHT,
+                    aspect,
+                    1,
+                    0,
+                    page_dot_color,
+                    true,
+                    nullptr);
+  }
   if (U.pie_menu_confirm > 0 &&
       !(block->pie_data.flags & (UI_PIE_INVALID_DIR | UI_PIE_CLICK_STYLE)))
   {

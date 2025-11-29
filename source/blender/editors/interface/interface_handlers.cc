@@ -11615,6 +11615,56 @@ static int ui_pie_handler(bContext *C, const wmEvent *event, uiPopupBlockHandle 
   /* Distance from initial point. */
   const float dist = ui_block_calc_pie_segment(block, event_xy);
 
+  PieMenuData &pie_data = block->pie_data;
+
+  auto test_pie_page_scroll_handle = [&]() {
+    if (pie_data.pages.size() < 2 || !ELEM(event->type, LEFTMOUSE, MOUSEMOVE)) {
+      return WM_UI_HANDLER_CONTINUE;
+    }
+    rctf handle_rect = pie_data.scroll_handle_rect();
+    BLI_rctf_translate(&handle_rect, UNPACK2(pie_data.pie_center_spawned));
+    const int icon_size = UI_SCALE_FAC * ICON_DEFAULT_HEIGHT;
+
+    if (!BLI_rctf_isect_pt_v(&handle_rect, event_xy)) {
+      if (bool(pie_data.active_scroll_handle & PieScrollHandle::Hold) &&
+          !(event->type == LEFTMOUSE && event->val == KM_RELEASE))
+      {
+        return WM_UI_HANDLER_BREAK;
+      }
+      pie_data.active_scroll_handle = PieScrollHandle::None;
+      return WM_UI_HANDLER_CONTINUE;
+    }
+    if (but_active) {
+      but_active->active->cancel = true;
+      button_activate_exit(C, but_active, but_active->active, false, false);
+    }
+    PieScrollHandle active_handler = PieScrollHandle::Center;
+    int direction = 0;
+    if (handle_rect.xmin + icon_size > event_xy[0]) {
+      direction = -1;
+      active_handler = PieScrollHandle::Left;
+    }
+    else if (handle_rect.xmax - icon_size < event_xy[0]) {
+      direction = 1;
+      active_handler = PieScrollHandle::Right;
+    }
+    if (!bool(pie_data.active_scroll_handle & PieScrollHandle::Hold)) {
+      pie_data.active_scroll_handle = active_handler;
+    }
+    if (event->type == LEFTMOUSE && event->val == KM_RELEASE) {
+      pie_data.active_scroll_handle = active_handler;
+      ui_pie_menu_page_scroll_step(C, block, menu, direction, false);
+    }
+    else if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
+      pie_data.active_scroll_handle = active_handler | PieScrollHandle::Hold;
+    }
+    return WM_UI_HANDLER_BREAK;
+  };
+  if (test_pie_page_scroll_handle() == WM_UI_HANDLER_BREAK) {
+    ED_region_tag_redraw(region);
+    return WM_UI_HANDLER_BREAK;
+  }
+
   if (but_active && button_modal_state(but_active->active->state)) {
     retval = ui_handle_menu_button(C, event, menu);
   }
