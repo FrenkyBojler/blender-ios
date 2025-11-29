@@ -1383,8 +1383,6 @@ enum class FillRule : int8_t {
   EvenOdd,
   /* Treat non zero winding order as fill. */
   NonZero,
-  /* Treat non zero winding order as fill but without holes. */
-  NoHoles,
 };
 
 struct CurveBooleanOpParameters {
@@ -1392,7 +1390,6 @@ struct CurveBooleanOpParameters {
 
   FillRule subject_rule;
   FillRule clipping_rule;
-  FillRule output_rule;
 };
 
 /**
@@ -1415,12 +1412,6 @@ static int intersect(const float2 &P1,
   *r_alpha_Q = r_mu;
 
   return val;
-}
-
-static bool inside(const float2 &point, const Span<float2> poly)
-{
-  return isect_point_poly_v2(
-      point, reinterpret_cast<const float (*)[2]>(poly.data()), poly.size());
 }
 
 static float point_in_tri_winding(const float2 pt,
@@ -1531,29 +1522,6 @@ class WindingState {
                    const FillRule fill_rule) const
   {
     const IndexMask &shape = shapes[shape_id];
-
-    if (fill_rule == FillRule::NoHoles) {
-      /* Each curve is checked individually. */
-      return threading::parallel_reduce(
-          shape.index_range(),
-          4096,
-          false,
-          [&](const IndexRange range, bool value) {
-            if (value) {
-              return value;
-            }
-            shape.slice(range).foreach_index([&](const int curve_i) {
-              if (orders_per_curve_.contains(curve_i)) {
-                if (orders_per_curve_.lookup(curve_i) != 0) {
-                  value = true;
-                  return;
-                }
-              }
-            });
-            return value;
-          },
-          std::logical_or());
-    }
 
     int winding = 0;
 
@@ -2390,51 +2358,6 @@ static BooleanResult execute_boolean(const CurveBooleanOpParameters op_params,
   return results_all;
 }
 
-static bke::CurvesGeometry remove_holes(const bke::CurvesGeometry &curves,
-                                        const Span<int> shape_ids)
-{
-  const OffsetIndices<int> points_by_curve = curves.points_by_curve();
-  const VArray<float2> positions_2d_attribute = *curves.attributes().lookup<float2>(
-      ".positions_2d", bke::AttrDomain::Point);
-
-  BLI_assert(positions_2d_attribute.is_span());
-  const Span<float2> positions_2d = positions_2d_attribute.get_internal_span();
-
-  Vector<int> keep;
-
-  IndexMaskMemory memory;
-  VectorSet<int> shape_indexing;
-  const Vector<IndexMask> shapes = IndexMask::from_group_ids(
-      VArray<int>::from_span(shape_ids), memory, shape_indexing);
-
-  for (const int shape_i : shapes.index_range()) {
-    const IndexMask shape = shapes[shape_i];
-    shape.foreach_index([&](const int curve_i) {
-      bool is_inside = false;
-      const float2 &point_i = positions_2d[points_by_curve[curve_i].first()];
-
-      shape.foreach_index([&](const int curve_j) {
-        if (curve_j == curve_i) {
-          return;
-        }
-        const IndexRange points_j = points_by_curve[curve_j];
-
-        if (inside(point_i, positions_2d.slice(points_j))) {
-          is_inside = true;
-        }
-      });
-
-      if (!is_inside) {
-        keep.append(curve_i);
-      }
-    });
-  }
-
-  const IndexMask to_keep = IndexMask::from_indices(keep.as_span(), memory);
-
-  return curves_copy_curve_selection(curves, to_keep, {});
-}
-
 static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry &src,
                                                        const Span<Segment> segments,
                                                        const Span<bool> segment_reversed,
@@ -2770,10 +2693,6 @@ static bke::CurvesGeometry curve_boolean(const CurveBooleanOpParameters op_param
              dst_segments_by_curve);
   }
 
-  if (op_params.output_rule == FillRule::NoHoles) {
-    dst_curves = remove_holes(dst_curves, result.shape_ids);
-  }
-
   return dst_curves;
 }
 
@@ -2905,7 +2824,6 @@ static bool execute_carver_on_drawing(const int /*layer_index*/,
   geometry::boolean::CurveBooleanOpParameters op_params;
   op_params.subject_rule = geometry::boolean::FillRule::EvenOdd;
   op_params.clipping_rule = geometry::boolean::FillRule::EvenOdd;
-  op_params.output_rule = geometry::boolean::FillRule::NoHoles;
   op_params.boolean_mode = geometry::boolean::Operation::Difference;
 
   bke::CurvesGeometry carved_strokes = geometry::boolean::curve_boolean(
