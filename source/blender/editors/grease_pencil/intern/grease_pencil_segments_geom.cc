@@ -1367,6 +1367,7 @@ namespace blender::geometry::boolean {
 using Segment = ed::greasepencil::trim::Segment;
 using Side = ed::greasepencil::trim::Side;
 using IntersectionPoint = ed::greasepencil::trim::IntersectionPoint;
+using EncodedConnection = ed::greasepencil::trim::EncodedConnection;
 
 enum class Operation : int8_t {
   /* Intersection of the Subject and the Clipping. */
@@ -1687,48 +1688,6 @@ static std::pair<WindingState, WindingState> LR_states_from_segment(
 
   return {state_L, state_R};
 }
-
-class SegmentEndPoint {
- private:
-  int index_ = 0;
-
- public:
-  constexpr SegmentEndPoint() = default;
-
-  constexpr explicit SegmentEndPoint(const int segment_i, const Side side)
-  {
-    BLI_assert(segment_i >= 0);
-    if (side == Side::End) {
-      index_ = -(segment_i + 1);
-    }
-    else {
-      index_ = segment_i + 1;
-    }
-  }
-
-  constexpr friend bool operator==(SegmentEndPoint a, SegmentEndPoint b)
-  {
-    return a.index_ == b.index_;
-  }
-  constexpr friend bool operator!=(SegmentEndPoint a, SegmentEndPoint b)
-  {
-    return !(a == b);
-  }
-
-  bool is_null() const
-  {
-    return index_ == 0;
-  }
-  Side get_side() const
-  {
-    return index_ > 0 ? Side::Start : Side::End;
-  }
-
-  int segment_index() const
-  {
-    return math::abs(index_) - 1;
-  }
-};
 
 static void check_segments(const CurveBooleanOpParameters &op_params,
                            const int curve_k,
@@ -2292,27 +2251,37 @@ static BooleanResult execute_single_boolean(
                                   int2(ed::greasepencil::trim::SEGMENT_CONNECTION_NULL));
 
   for (const int inter_id : intersections.index_range()) {
+    using namespace ed::greasepencil::trim;
+
     const IntersectionPoint &inter = intersections[inter_id];
 
-    const SegmentEndPoint start_a = SegmentEndPoint(inter.segment_index_i[Side::Start], Side::End);
-    const SegmentEndPoint end_a = SegmentEndPoint(inter.segment_index_i[Side::End], Side::Start);
-    const SegmentEndPoint start_b = SegmentEndPoint(inter.segment_index_j[Side::Start], Side::End);
-    const SegmentEndPoint end_b = SegmentEndPoint(inter.segment_index_j[Side::End], Side::Start);
-    const bool is_start_a = start_a.is_null() ? false : segments_to_keep[start_a.segment_index()];
-    const bool is_end_a = end_a.is_null() ? false : segments_to_keep[end_a.segment_index()];
-    const bool is_start_b = start_b.is_null() ? false : segments_to_keep[start_b.segment_index()];
-    const bool is_end_b = end_b.is_null() ? false : segments_to_keep[end_b.segment_index()];
+    const EncodedConnection start_a = encode_index_and_side(inter.segment_index_i[Side::Start],
+                                                            Side::End);
+    const EncodedConnection end_a = encode_index_and_side(inter.segment_index_i[Side::End],
+                                                          Side::Start);
+    const EncodedConnection start_b = encode_index_and_side(inter.segment_index_j[Side::Start],
+                                                            Side::End);
+    const EncodedConnection end_b = encode_index_and_side(inter.segment_index_j[Side::End],
+                                                          Side::Start);
+    const bool is_start_a = start_a == SEGMENT_CONNECTION_NULL ?
+                                false :
+                                segments_to_keep[decode_index(start_a)];
+    const bool is_end_a = end_a == SEGMENT_CONNECTION_NULL ? false :
+                                                             segments_to_keep[decode_index(end_a)];
+    const bool is_start_b = start_b == SEGMENT_CONNECTION_NULL ?
+                                false :
+                                segments_to_keep[decode_index(start_b)];
+    const bool is_end_b = end_b == SEGMENT_CONNECTION_NULL ? false :
+                                                             segments_to_keep[decode_index(end_b)];
 
-    auto connect = [&](const SegmentEndPoint point_1, const SegmentEndPoint point_2) {
-      BLI_assert(all_segments[point_1.segment_index()].intersection_index[point_1.get_side()] ==
-                 all_segments[point_2.segment_index()].intersection_index[point_2.get_side()]);
+    auto connect = [&](const EncodedConnection point_1, const EncodedConnection point_2) {
+      BLI_assert(all_segments[decode_index(point_1)].intersection_index[decode_side(point_1)] ==
+                 all_segments[decode_index(point_2)].intersection_index[decode_side(point_2)]);
 
-      segment_connections[point_1.segment_index()][point_1.get_side()] =
-          ed::greasepencil::trim::encode_index_and_side(point_2.segment_index(),
-                                                        point_2.get_side());
-      segment_connections[point_2.segment_index()][point_2.get_side()] =
-          ed::greasepencil::trim::encode_index_and_side(point_1.segment_index(),
-                                                        point_1.get_side());
+      segment_connections[decode_index(point_1)][decode_side(point_1)] = encode_index_and_side(
+          decode_index(point_2), decode_side(point_2));
+      segment_connections[decode_index(point_2)][decode_side(point_2)] = encode_index_and_side(
+          decode_index(point_1), decode_side(point_1));
     };
 
     /* TODO: Use left and right. */
