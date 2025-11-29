@@ -135,7 +135,10 @@ struct ParsedResource {
   std::string serialize() const
   {
     std::stringstream ss;
-    if (res_type == "sampler") {
+    if (res_type == "legacy_info") {
+      ss << "ADDITIONAL_INFO(" << var_name << ")";
+    }
+    else if (res_type == "sampler") {
       if (res_frequency.empty()) {
         ss << "SAMPLER(" << res_slot << ", " << var_type << ", " << var_name << ")";
       }
@@ -1996,6 +1999,9 @@ class Preprocessor {
         else if (type == "resource_table") {
           resource.res_type = type;
         }
+        else if (type == "legacy_info") {
+          /* Name is already stored. */
+        }
         else {
           report_error(ERROR_TOK(attribute[0]), "Unrecognized attribute");
         }
@@ -2085,7 +2091,7 @@ class Preprocessor {
       string type = attr.str();
       return (type == "sampler" || type == "image" || type == "uniform" || type == "storage" ||
               type == "push_constant" || type == "compilation_constant" ||
-              type == "specialization_constant" || type == "resource_table");
+              type == "compilation_constant" || type == "legacy_info" || type == "resource_table");
     };
     auto is_vertex_input_attribute = [](Token attr) {
       string type = attr.str();
