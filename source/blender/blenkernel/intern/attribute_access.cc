@@ -933,12 +933,12 @@ fn::GField AttributeValidator::validate_field_if_necessary(const fn::GField &fie
 Vector<AttributeTransferData> retrieve_attributes_for_transfer(
     const AttributeAccessor src_attributes,
     MutableAttributeAccessor dst_attributes,
-    const AttrDomainMask domain_mask,
+    Span<AttrDomain> domains,
     const bke::AttributeFilter &attribute_filter)
 {
   Vector<AttributeTransferData> attributes;
   src_attributes.foreach_attribute([&](const AttributeIter &iter) {
-    if (!(ATTR_DOMAIN_AS_MASK(iter.domain) & domain_mask)) {
+    if (!domains.contains(iter.domain)) {
       return;
     }
     if (iter.data_type == AttrType::String) {
@@ -1189,7 +1189,17 @@ void fill_attribute_range_default(MutableAttributeAccessor attributes,
     GSpanAttributeWriter attribute = attributes.lookup_for_write_span(iter.name);
     const CPPType &type = attribute.span.type();
     GMutableSpan data = attribute.span.slice(range);
-    type.fill_assign_n(type.default_value(), data.data(), data.size());
+    if (attributes.is_builtin(iter.name)) {
+      if (const GPointer value = attributes.get_builtin_default(iter.name)) {
+        type.fill_assign_n(value.get(), data.data(), data.size());
+      }
+      else {
+        type.fill_assign_n(type.default_value(), data.data(), data.size());
+      }
+    }
+    else {
+      type.fill_assign_n(type.default_value(), data.data(), data.size());
+    }
     attribute.finish();
   });
 }

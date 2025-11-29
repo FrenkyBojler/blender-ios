@@ -59,6 +59,8 @@
 
 #include "BLT_translation.hh"
 
+#include "NOD_geometry_nodes_log.hh"
+
 #include "node_intern.hh" /* own include */
 
 namespace blender::ed::space_node {
@@ -1417,6 +1419,13 @@ static std::string node_find_create_string_value(const bNode &node, const String
   return fmt::format("{}: \"{}\" ({})", TIP_("String"), str, node.name);
 }
 
+static std::string node_find_create_warning(const bNode &node,
+                                            const nodes::geo_eval_log::NodeWarning warning)
+{
+  return fmt::format(
+      "{}: \"{}\" ({})", nodes::node_warning_type_name(warning.type), warning.message, node.name);
+}
+
 static std::string node_find_create_data_block_value(const bNode &node, const ID &id)
 {
   const IDTypeInfo *type = BKE_idtype_get_info_from_id(&id);
@@ -1435,7 +1444,12 @@ static void node_find_update_fn(const bContext *C,
                                 uiSearchItems *items,
                                 const bool /*is_first*/)
 {
+  Main *bmain = CTX_data_main(C);
   SpaceNode *snode = CTX_wm_space_node(C);
+  nodes::geo_eval_log::ContextualGeoTreeLogs tree_logs =
+      nodes::geo_eval_log::GeoNodesLog::get_contextual_tree_logs(*snode);
+  tree_logs.foreach_tree_log(
+      [&](nodes::geo_eval_log::GeoTreeLog &log) { log.ensure_node_warnings(*bmain); });
 
   struct Item {
     bNode *node;
@@ -1486,6 +1500,15 @@ static void node_find_update_fn(const bContext *C,
               StringRef::not_found;
       if (!skip_data_block) {
         add_data_block_item(*node, node->id);
+      }
+    }
+    if (nodes::geo_eval_log::GeoTreeLog *tree_log = tree_logs.get_main_tree_log(*node)) {
+      if (nodes::geo_eval_log::GeoNodeLog *node_log = tree_log->nodes.lookup_ptr(node->identifier))
+      {
+        for (const nodes::geo_eval_log::NodeWarning &warning : node_log->warnings) {
+          const StringRef search_str = scope.add_value(node_find_create_warning(*node, warning));
+          search.add(search_str, &scope.construct<Item>(Item{node, search_str}));
+        }
       }
     }
 
@@ -1568,15 +1591,14 @@ static uiBlock *node_find_menu(bContext *C, ARegion *region, void *arg_optype)
   const int box_width = UI_searchbox_size_x_guess(C, node_find_update_fn, nullptr);
 
   but = uiDefSearchBut(
-      block, search, 0, ICON_VIEWZOOM, sizeof(search), 0, 0, box_width, UI_UNIT_Y, "");
+      block, search, ICON_VIEWZOOM, sizeof(search), 0, 0, box_width, UI_UNIT_Y, "");
   UI_but_func_search_set(
       but, nullptr, node_find_update_fn, optype, false, nullptr, node_find_exec_fn, nullptr);
   UI_but_flag_enable(but, UI_BUT_ACTIVATE_ON_INIT);
 
   /* Fake button holds space for search items. */
   const int height = UI_searchbox_size_y() - UI_SEARCHBOX_BOUNDS;
-  uiDefBut(
-      block, ButType::Label, 0, "", 0, -height, box_width, height, nullptr, 0, 0, std::nullopt);
+  uiDefBut(block, ButType::Label, "", 0, -height, box_width, height, nullptr, 0, 0, std::nullopt);
 
   /* Move it downwards, mouse over button. */
   std::array<int, 2> bounds_offset = {0, -UI_UNIT_Y};

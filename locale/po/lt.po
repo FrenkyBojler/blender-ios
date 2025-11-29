@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Beta (b'702691150287')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'ef4e8fa75057')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-13 16:12+0000\n"
+"POT-Creation-Date: 2025-11-24 08:35+0000\n"
 "PO-Revision-Date: 2025-07-23 15:18+0000\n"
 "Last-Translator: Aras Pranckevičius <aras@nesnausk.org>\n"
 "Language-Team: Lithuanian <https://translate.blender.org/projects/blender-ui/ui/lt/>\n"
@@ -781,6 +781,46 @@ msgid "Space Type"
 msgstr "Zonos tipas"
 
 
+msgid "Actions"
+msgstr "Veiksmai"
+
+
+msgid "Cameras"
+msgstr "Kameros/Fotoaparatai"
+
+
+msgid "Fonts"
+msgstr "Šriftai"
+
+
+msgid "Materials"
+msgstr "Medžiagos"
+
+
+msgid "Objects"
+msgstr "Objektai"
+
+
+msgid "Sounds"
+msgstr "Garsai"
+
+
+msgid "Speakers"
+msgstr "Garsiakalbiai"
+
+
+msgid "Texts"
+msgstr "Tekstai"
+
+
+msgid "Volumes"
+msgstr "Garsumai"
+
+
+msgid "Worlds"
+msgstr "Pasauliai"
+
+
 msgid "Display Filter"
 msgstr "Rodymo filtras"
 
@@ -977,14 +1017,6 @@ msgid "Weight"
 msgstr "Svoris"
 
 
-msgid "Actions"
-msgstr "Veiksmai"
-
-
-msgid "Cameras"
-msgstr "Kameros/Fotoaparatai"
-
-
 msgid "Color Space"
 msgstr "Spalvų erdvė"
 
@@ -1001,40 +1033,12 @@ msgid "Libraries"
 msgstr "Bibliotekos"
 
 
-msgid "Materials"
-msgstr "Medžiagos"
-
-
-msgid "Objects"
-msgstr "Objektai"
-
-
 msgid "Screens"
 msgstr "Ekranai"
 
 
-msgid "Sounds"
-msgstr "Garsai"
-
-
-msgid "Speakers"
-msgstr "Garsiakalbiai"
-
-
-msgid "Texts"
-msgstr "Tekstai"
-
-
 msgid "Version"
 msgstr "Versija"
-
-
-msgid "Volumes"
-msgstr "Garsumai"
-
-
-msgid "Worlds"
-msgstr "Pasauliai"
 
 
 msgid "ACEScg"
@@ -2083,10 +2087,6 @@ msgid "Weights"
 msgstr "Svoriai/Svarmenys"
 
 
-msgid "Fonts"
-msgstr "Šriftai"
-
-
 msgid "Save"
 msgstr "Išsaugoti"
 
@@ -2362,10 +2362,6 @@ msgstr "Dėžė"
 msgctxt "Curves"
 msgid "Add"
 msgstr "Pridėti"
-
-
-msgid "Direction"
-msgstr "Kryptis"
 
 
 msgid "Has unsaved changes"
@@ -2867,6 +2863,10 @@ msgstr "„YCC“"
 
 msgid "Owner"
 msgstr "Savininkas/-ė"
+
+
+msgid "Direction"
+msgstr "Kryptis"
 
 
 msgid "North"

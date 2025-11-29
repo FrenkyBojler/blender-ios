@@ -4,9 +4,9 @@
 
 #pragma once
 
-#ifndef GPU_SHADER
-#  include "GPU_shader_shared_utils.hh"
+#include "GPU_shader_shared_utils.hh"
 
+#ifndef GPU_SHADER
 #  include "DNA_action_types.h"
 #  include "DNA_view3d_types.h"
 #endif
@@ -44,7 +44,7 @@ enum OVERLAY_GridBits : uint32_t {
   CUSTOM_GRID = (1u << 12u),
 };
 #ifndef GPU_SHADER
-ENUM_OPERATORS(OVERLAY_GridBits, CUSTOM_GRID)
+ENUM_OPERATORS(OVERLAY_GridBits)
 #endif
 
 enum VertexClass : uint32_t {
@@ -70,7 +70,7 @@ enum VertexClass : uint32_t {
   VCLASS_EMPTY_SIZE = 1 << 14,
 };
 #ifndef GPU_SHADER
-ENUM_OPERATORS(VertexClass, VCLASS_EMPTY_SIZE)
+ENUM_OPERATORS(VertexClass)
 #endif
 
 enum StickBoneFlag : uint32_t {
@@ -83,7 +83,7 @@ enum StickBoneFlag : uint32_t {
   POS_BONE = (1u << 6u),
 };
 #ifndef GPU_SHADER
-ENUM_OPERATORS(StickBoneFlag, POS_BONE)
+ENUM_OPERATORS(StickBoneFlag)
 #endif
 
 /* TODO(fclem): Convert into enum. */
@@ -120,7 +120,7 @@ static inline uint outline_id_pack(uint outline_id, uint object_id)
 #define OVERLAY_GRID_STEPS_LEN 8
 
 /* Due to the encoding clamping the passed in floats, the wire width needs to be scaled down. */
-#define WIRE_WIDTH_COMPRESSION 16.0
+#define WIRE_WIDTH_COMPRESSION 16.0f
 
 struct OVERLAY_GridData {
   float4 steps[OVERLAY_GRID_STEPS_LEN]; /* float arrays are padded to float4 in std130. */
@@ -201,6 +201,7 @@ struct ThemeColors {
   float4 face_mode_select; /* Stands for face mode selection. */
   float4 face_retopology;
   float4 face_freestyle;
+  float4 gpencil_wire_edit;
   float4 gpencil_vertex;
   float4 gpencil_vertex_select;
   float4 normal;

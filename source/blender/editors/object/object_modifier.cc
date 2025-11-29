@@ -184,28 +184,7 @@ ModifierData *modifier_add(
     /* get new modifier data to add */
     new_md = BKE_modifier_new(type);
 
-    ModifierData *next_md = nullptr;
-    LISTBASE_FOREACH_BACKWARD (ModifierData *, md, &ob->modifiers) {
-      if (md->flag & eModifierFlag_PinLast) {
-        next_md = md;
-      }
-      else {
-        break;
-      }
-    }
-    if (mti->flags & eModifierTypeFlag_RequiresOriginalData) {
-      next_md = static_cast<ModifierData *>(ob->modifiers.first);
-
-      while (next_md && BKE_modifier_get_info((ModifierType)next_md->type)->type ==
-                            ModifierTypeType::OnlyDeform)
-      {
-        if (next_md->next && (next_md->next->flag & eModifierFlag_PinLast) != 0) {
-          break;
-        }
-        next_md = next_md->next;
-      }
-    }
-    BLI_insertlinkbefore(&ob->modifiers, next_md, new_md);
+    BKE_modifiers_add_at_end_if_possible(ob, new_md);
     BKE_modifiers_persistent_uid_init(*ob, *new_md);
 
     if (name) {
@@ -213,7 +192,6 @@ ModifierData *modifier_add(
     }
 
     /* make sure modifier data has unique name */
-
     BKE_modifier_unique_name(&ob->modifiers, new_md);
 
     /* special cases */
@@ -1648,7 +1626,10 @@ static bool edit_modifier_invoke_properties_with_hover(bContext *C,
 
   PointerRNA *panel_ptr = UI_region_panel_custom_data_under_cursor(C, event);
   if (panel_ptr == nullptr || RNA_pointer_is_null(panel_ptr)) {
-    *r_retval = OPERATOR_CANCELLED;
+    /* The operators using this function can typically be called from UIs that aren't related to
+     * the modifiers UI at all. So include #OPERATOR_PASS_THROUGH to not block events from reaching
+     * other operators/handlers. */
+    *r_retval = (OPERATOR_PASS_THROUGH | OPERATOR_CANCELLED);
     return false;
   }
 
@@ -2093,7 +2074,7 @@ static wmOperatorStatus modifier_apply_invoke(bContext *C, wmOperator *op, const
             IFACE_("Apply Modifier"),
             IFACE_("Make data single-user, apply modifier, and remove it from the list."),
             IFACE_("Apply"),
-            ALERT_ICON_WARNING,
+            ui::AlertIcon::Warning,
             false);
       }
     }
@@ -2345,18 +2326,6 @@ static wmOperatorStatus modifier_set_active_invoke(bContext *C,
   return retval;
 }
 
-static bool modifier_set_active_poll(bContext *C)
-{
-  /* Only make this operator work in the Modifiers tab of the Properties editor.
-   * Otherwise it may eat up too many mouse click events. */
-  SpaceProperties *space_properties = CTX_wm_space_properties(C);
-  if (!(space_properties && space_properties->mainb == BCONTEXT_MODIFIER)) {
-    return false;
-  }
-
-  return ED_operator_object_active_only(C);
-}
-
 void OBJECT_OT_modifier_set_active(wmOperatorType *ot)
 {
   ot->name = "Set Active Modifier";
@@ -2365,7 +2334,7 @@ void OBJECT_OT_modifier_set_active(wmOperatorType *ot)
 
   ot->invoke = modifier_set_active_invoke;
   ot->exec = modifier_set_active_exec;
-  ot->poll = modifier_set_active_poll;
+  ot->poll = ED_operator_object_active_only;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
   edit_modifier_properties(ot);
@@ -2582,7 +2551,7 @@ static bool skin_edit_poll(bContext *C)
           !ID_IS_OVERRIDE_LIBRARY(ob) && !ID_IS_OVERRIDE_LIBRARY(ob->data));
 }
 
-static void skin_root_clear(BMVert *bm_vert, GSet *visited, const int cd_vert_skin_offset)
+static void skin_root_clear(BMVert *bm_vert, Set<BMVert *> &visited, const int cd_vert_skin_offset)
 {
   BMEdge *bm_edge;
   BMIter bm_iter;
@@ -2590,7 +2559,7 @@ static void skin_root_clear(BMVert *bm_vert, GSet *visited, const int cd_vert_sk
   BM_ITER_ELEM (bm_edge, &bm_iter, bm_vert, BM_EDGES_OF_VERT) {
     BMVert *v2 = BM_edge_other_vert(bm_edge, bm_vert);
 
-    if (BLI_gset_add(visited, v2)) {
+    if (visited.add(v2)) {
       MVertSkin *vs = static_cast<MVertSkin *>(BM_ELEM_CD_GET_VOID_P(v2, cd_vert_skin_offset));
 
       /* clear vertex root flag and add to visited set */
@@ -2607,7 +2576,7 @@ static wmOperatorStatus skin_root_mark_exec(bContext *C, wmOperator * /*op*/)
   BMEditMesh *em = BKE_editmesh_from_object(ob);
   BMesh *bm = em->bm;
 
-  GSet *visited = BLI_gset_ptr_new(__func__);
+  Set<BMVert *> visited;
 
   BKE_mesh_ensure_skin_customdata(static_cast<Mesh *>(ob->data));
 
@@ -2616,7 +2585,7 @@ static wmOperatorStatus skin_root_mark_exec(bContext *C, wmOperator * /*op*/)
   BMVert *bm_vert;
   BMIter bm_iter;
   BM_ITER_MESH (bm_vert, &bm_iter, bm, BM_VERTS_OF_MESH) {
-    if (BM_elem_flag_test(bm_vert, BM_ELEM_SELECT) && BLI_gset_add(visited, bm_vert)) {
+    if (BM_elem_flag_test(bm_vert, BM_ELEM_SELECT) && visited.add(bm_vert)) {
       MVertSkin *vs = static_cast<MVertSkin *>(
           BM_ELEM_CD_GET_VOID_P(bm_vert, cd_vert_skin_offset));
 
@@ -2627,8 +2596,6 @@ static wmOperatorStatus skin_root_mark_exec(bContext *C, wmOperator * /*op*/)
       skin_root_clear(bm_vert, visited, cd_vert_skin_offset);
     }
   }
-
-  BLI_gset_free(visited, nullptr);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
