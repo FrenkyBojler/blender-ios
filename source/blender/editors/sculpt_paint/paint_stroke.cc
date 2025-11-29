@@ -732,8 +732,15 @@ static float paint_space_stroke_spacing(const bContext *C,
     return max_ff(FLT_EPSILON, size_clamp * spacing / 50.0f);
   }
 
-  /* Clamp the spacing to the smallest value normally possible, 1% of a pixel. */
-  return max_ff(stroke->zoom_2d / 100.0f, size_clamp * spacing / 50.0f);
+  /* Set the minimum spacing to a reasonably small value to avoid performance issues. */
+  float minimum_spacing = stroke->zoom_2d; /* 1px */
+
+  if (mode == PaintMode::Texture2D) {
+    /* Clamp to a 10th of a pixel instead, to make pixel painting more responsive. */
+    minimum_spacing /= 10.0f;
+  }
+
+  return max_ff(minimum_spacing, size_clamp * spacing / 50.0f);
 }
 
 static float paint_space_stroke_spacing_no_pressure(const bContext *C, PaintStroke *stroke)
