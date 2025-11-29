@@ -387,6 +387,7 @@ inline bNodeTreeInterfaceSocket *add_interface_socket_from_node(bNodeTree &ntree
  */
 struct bNodeTreeInterfaceItemReference {
   bNodeTree *tree;
+  bNodeTreeInterfaceItem *item;
   bNodeTreeInterfaceItem **items;
   int items_count;
 };
