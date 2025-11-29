@@ -1358,6 +1358,8 @@ bke::CurvesGeometry trim_curve_segment_ends(const bke::CurvesGeometry &src,
 
 namespace blender::geometry::boolean {
 
+using Side = ed::greasepencil::trim::Side;
+
 enum class Operation : int8_t {
   /* Intersection of the Subject and the Clipping. */
   Intersect,
@@ -1383,8 +1385,6 @@ struct CurveBooleanOpParameters {
   FillRule clipping_rule;
   FillRule output_rule;
 };
-
-enum Side : uint8_t { Start = 0, End = 1 };
 
 class Segment {
  public:
@@ -2193,24 +2193,6 @@ static void add_segments(const int curve_k,
   all_segments_by_curve[curve_k] = all_segments.index_range().drop_front(start_size);
 }
 
-static constexpr int SEGMENT_CONNECTION_NULL = 0;
-
-/* We store the side as sign, but because a segment with index zero is valid, we shift by one. */
-static int encode_index_and_side(const int index, const Side side)
-{
-  return side == Side::Start ? index + 1 : -(index + 1);
-}
-
-static int decode_index(const int encoded)
-{
-  return math::abs(encoded) - 1;
-}
-
-static Side decode_side(const int encoded)
-{
-  return encoded < 0 ? Side::End : Side::Start;
-}
-
 static BooleanResult follow_segment_connections(const Span<Segment> all_segments,
                                                 const Span<bool> segments_to_keep,
                                                 const Span<int2> segment_connections)
@@ -2284,13 +2266,13 @@ static BooleanResult follow_segment_connections(const Span<Segment> all_segments
       const int next_encoded =
           segment_connections[current_i][current_backwards ? Side::Start : Side::End];
 
-      if (next_encoded == SEGMENT_CONNECTION_NULL) {
+      if (next_encoded == ed::greasepencil::trim::SEGMENT_CONNECTION_NULL) {
         PolygonDone = true;
         break;
       }
 
-      const int next_segment = decode_index(next_encoded);
-      const Side next_side = decode_side(next_encoded);
+      const int next_segment = ed::greasepencil::trim::decode_index(next_encoded);
+      const Side next_side = ed::greasepencil::trim::decode_side(next_encoded);
 
       current_i = next_segment;
       current_backwards = next_side == Side::End;
@@ -2321,14 +2303,14 @@ static BooleanResult follow_segment_connections(const Span<Segment> all_segments
       const int next_encoded =
           segment_connections[current_i][current_backwards ? Side::Start : Side::End];
 
-      if (next_encoded == SEGMENT_CONNECTION_NULL) {
+      if (next_encoded == ed::greasepencil::trim::SEGMENT_CONNECTION_NULL) {
         PolygonDone = true;
         PolygonClosed = current_segment.is_loop();
         break;
       }
 
-      const int next_segment = decode_index(next_encoded);
-      const Side next_side = decode_side(next_encoded);
+      const int next_segment = ed::greasepencil::trim::decode_index(next_encoded);
+      const Side next_side = ed::greasepencil::trim::decode_side(next_encoded);
 
       if (next_segment == first_segment) {
         PolygonDone = true;
@@ -2507,7 +2489,8 @@ static BooleanResult execute_single_boolean(
 
   /* -------------------- */
 
-  Array<int2> segment_connections(all_segments.size(), int2(SEGMENT_CONNECTION_NULL));
+  Array<int2> segment_connections(all_segments.size(),
+                                  int2(ed::greasepencil::trim::SEGMENT_CONNECTION_NULL));
 
   for (const int inter_id : intersections.index_range()) {
     const IntersectionPoint &inter = intersections[inter_id];
@@ -2525,10 +2508,12 @@ static BooleanResult execute_single_boolean(
       BLI_assert(all_segments[point_1.segment_index()].intersection_index[point_1.get_side()] ==
                  all_segments[point_2.segment_index()].intersection_index[point_2.get_side()]);
 
-      segment_connections[point_1.segment_index()][point_1.get_side()] = encode_index_and_side(
-          point_2.segment_index(), point_2.get_side());
-      segment_connections[point_2.segment_index()][point_2.get_side()] = encode_index_and_side(
-          point_1.segment_index(), point_1.get_side());
+      segment_connections[point_1.segment_index()][point_1.get_side()] =
+          ed::greasepencil::trim::encode_index_and_side(point_2.segment_index(),
+                                                        point_2.get_side());
+      segment_connections[point_2.segment_index()][point_2.get_side()] =
+          ed::greasepencil::trim::encode_index_and_side(point_1.segment_index(),
+                                                        point_1.get_side());
     };
 
     /* TODO: Use left and right. */
