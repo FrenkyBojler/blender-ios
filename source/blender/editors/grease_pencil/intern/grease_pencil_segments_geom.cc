@@ -1300,37 +1300,18 @@ bke::CurvesGeometry trim_curve_segment_ends(const bke::CurvesGeometry &src,
 
 }  // namespace blender::ed::greasepencil::trim
 
-/* SPDX-FileCopyrightText: 2025 Blender Authors
- *
- * SPDX-License-Identifier: GPL-2.0-or-later */
+/* try to remove: */
 
-/** \file
- * \ingroup edgreasepencil
- */
-
-#include <algorithm>
-#include <functional>
-
-#include "BLI_array.hh"
-#include "BLI_array_utils.hh"
 #include "BLI_enumerable_thread_specific.hh"
-#include "BLI_lasso_2d.hh"
 #include "BLI_map.hh"
-#include "BLI_math_base.hh"
 #include "BLI_math_geom.h"
-#include "BLI_math_vector_types.hh"
-#include "BLI_offset_indices.hh"
 #include "BLI_rect.h"
-#include "BLI_sort.hh"
-#include "BLI_task.hh"
-#include "BLI_vector.hh"
 
 #include "BKE_attribute.hh"
 #include "BKE_attribute_math.hh"
 #include "BKE_brush.hh"
 #include "BKE_context.hh"
 #include "BKE_crazyspace.hh"
-#include "BKE_curves.hh"
 #include "BKE_material.hh"
 #include "BKE_paint.hh"
 #include "BKE_report.hh"
@@ -1338,8 +1319,6 @@ bke::CurvesGeometry trim_curve_segment_ends(const bke::CurvesGeometry &src,
 #include "DEG_depsgraph_query.hh"
 
 #include "ED_curves.hh"
-#include "ED_grease_pencil.hh"
-#include "ED_view3d.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
