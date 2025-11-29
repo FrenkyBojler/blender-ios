@@ -1358,6 +1358,7 @@ bke::CurvesGeometry trim_curve_segment_ends(const bke::CurvesGeometry &src,
 
 namespace blender::geometry::boolean {
 
+using Segment = ed::greasepencil::trim::Segment;
 using Side = ed::greasepencil::trim::Side;
 
 enum class Operation : int8_t {
@@ -1384,150 +1385,6 @@ struct CurveBooleanOpParameters {
   FillRule subject_rule;
   FillRule clipping_rule;
   FillRule output_rule;
-};
-
-class Segment {
- public:
-  int curve = -1;
-  IndexRange src_points;
-
-  int points[2] = {-1, -1};
-
-  float alpha[2] = {0.0f, 0.0f};
-
-  int intersection_index[2] = {-1, -1};
-
-  constexpr Segment() = default;
-
- public:
-  bool is_loop() const
-  {
-    return alpha[Side::End] == 1.0f;
-  }
-
-  bool has_intersection(const Side side) const
-  {
-    return alpha[side] != 0.0f && alpha[side] != 1.0f;
-  }
-
-  int2 edge(const Side side) const
-  {
-    return int2(points[side], this->wrap_index(points[side] + 1));
-  }
-
-  int wrap_index(const int i) const
-  {
-    return math::mod_periodic(i - src_points.first(), src_points.size()) + src_points.first();
-  }
-
-  IndexRange point_range() const
-  {
-    if (this->is_loop()) {
-      return src_points;
-    }
-
-    if (!this->has_intersection(Side::Start) && this->has_intersection(Side::End)) {
-      return IndexRange::from_begin_end_inclusive(src_points.first(), points[Side::End]);
-    }
-
-    if (!this->has_intersection(Side::Start) && !this->has_intersection(Side::End)) {
-      return src_points;
-    }
-
-    /* If both intersection points are on the same edge, there's ether no points between or
-     * all of the points are. */
-    if (points[Side::Start] == points[Side::End]) {
-      if (alpha[Side::Start] > alpha[Side::End]) {
-        return src_points.shift(points[Side::Start] - src_points.first() + 1);
-      }
-      return IndexRange(0);
-    }
-
-    if (points[Side::Start] > points[Side::End]) {
-      return IndexRange::from_begin_end_inclusive(points[Side::Start] + 1,
-                                                  points[Side::End] + src_points.size());
-    }
-
-    return IndexRange::from_begin_end_inclusive(points[Side::Start] + 1, points[Side::End]);
-  }
-
-  int points_num() const
-  {
-    return this->point_range().size();
-  }
-
-  template<typename Fn> inline void foreach_point(Fn &&fn) const
-  {
-    const IndexRange point_range = this->point_range();
-
-    for (const int64_t pos : point_range.index_range()) {
-      const int i = this->wrap_index(point_range[pos]);
-
-      if constexpr (std::is_invocable_r_v<void, Fn, int64_t, int64_t>) {
-        fn(i, pos);
-      }
-      else {
-        fn(i);
-      }
-    }
-  }
-
-  constexpr static Segment from_curve(const int curve_i,
-                                      const IndexRange points,
-                                      const bool cyclical)
-  {
-    Segment segment;
-    segment.curve = curve_i;
-    segment.src_points = points;
-
-    segment.points[Side::Start] = points.first();
-    segment.points[Side::End] = points.last();
-
-    segment.alpha[Side::Start] = 0.0f;
-    segment.alpha[Side::End] = cyclical ? 1.0f : 0.0f;
-
-    return segment;
-  }
-
-  static Segment from_intersections(const int curve_i,
-                                    const IndexRange points,
-                                    const std::optional<float> parameter_start,
-                                    const std::optional<float> parameter_end,
-                                    const std::optional<int> inter_index_start,
-                                    const std::optional<int> inter_index_end)
-  {
-    Segment segment;
-    segment.curve = curve_i;
-    segment.src_points = points;
-
-    if (parameter_start) {
-      segment.points[Side::Start] = int(math::floor(*parameter_start));
-      segment.alpha[Side::Start] = math::fract(*parameter_start);
-    }
-    else {
-      segment.points[Side::Start] = points.first();
-      segment.alpha[Side::Start] = 0.0f;
-    }
-
-    if (inter_index_start) {
-      segment.intersection_index[Side::Start] = *inter_index_start;
-    }
-
-    if (parameter_end) {
-      segment.points[Side::End] = int(math::floor(*parameter_end));
-      segment.alpha[Side::End] = math::fract(*parameter_end);
-    }
-    else {
-      segment.points[Side::End] = points.last();
-      segment.alpha[Side::End] = 0.0f;
-    }
-
-    if (inter_index_end) {
-      segment.intersection_index[Side::End] = *inter_index_end;
-    }
-
-    return segment;
-  }
 };
 
 /**
@@ -1802,7 +1659,7 @@ static std::pair<WindingState, WindingState> LR_states_from_segment(
   if (segment.points_num() == 0) {
     first_point = math::interpolate(points[segment.edge(Side::Start).x],
                                     points[segment.edge(Side::Start).y],
-                                    segment.alpha[Side::Start]);
+                                    segment.intersection_factor[Side::Start]);
   }
 
   mask_shapes.foreach_index([&](const int shape_id) {
@@ -1879,6 +1736,18 @@ struct IntersectionPoint {
   SegmentEndPoint end_b;
 
   constexpr IntersectionPoint() = default;
+
+  float point_for_curve(const int curve) const
+  {
+    BLI_assert(curve == curve_a || curve == curve_b);
+    return curve == curve_a ? point_a : point_b;
+  }
+
+  float factor_for_curve(const int curve) const
+  {
+    BLI_assert(curve == curve_a || curve == curve_b);
+    return curve == curve_a ? alpha_a : alpha_b;
+  }
 
   float parameter_for_curve(const int curve) const
   {
@@ -2074,34 +1943,6 @@ static void find_intersections_between_shapes(const Span<float2> points,
   });
 }
 
-static bool check_and_join_segments(Segment &first, const Segment &second)
-{
-  if (first.curve != second.curve) {
-    return false;
-  }
-
-  if (first.intersection_index[Side::End] == second.intersection_index[Side::Start] &&
-      first.intersection_index[Side::End] != -1)
-  {
-    first.points[Side::End] = second.points[Side::End];
-    first.alpha[Side::End] = second.alpha[Side::End];
-
-    first.intersection_index[Side::End] = second.intersection_index[Side::End];
-    return true;
-  }
-  if (first.intersection_index[Side::Start] == second.intersection_index[Side::End] &&
-      first.intersection_index[Side::Start] != -1)
-  {
-    first.points[Side::Start] = second.points[Side::Start];
-    first.alpha[Side::Start] = second.alpha[Side::Start];
-
-    first.intersection_index[Side::Start] = second.intersection_index[Side::Start];
-    return true;
-  }
-
-  return false;
-}
-
 static void add_segments(const int curve_k,
                          const Span<Vector<int>> inters_per_curves,
                          const Span<Vector<int>> self_clipping_inters_per_curves,
@@ -2146,8 +1987,10 @@ static void add_segments(const int curve_k,
 
     all_segments.append(Segment::from_intersections(curve_k,
                                                     points_k,
-                                                    inter_last.parameter_for_curve(curve_k),
-                                                    inter_first.parameter_for_curve(curve_k),
+                                                    inter_last.point_for_curve(curve_k),
+                                                    inter_first.point_for_curve(curve_k),
+                                                    inter_last.factor_for_curve(curve_k),
+                                                    inter_first.factor_for_curve(curve_k),
                                                     int_p_2,
                                                     int_p_1));
   }
@@ -2158,7 +2001,9 @@ static void add_segments(const int curve_k,
     all_segments.append(Segment::from_intersections(curve_k,
                                                     points_k,
                                                     std::nullopt,
-                                                    inter_first.parameter_for_curve(curve_k),
+                                                    inter_first.point_for_curve(curve_k),
+                                                    std::nullopt,
+                                                    inter_first.factor_for_curve(curve_k),
                                                     std::nullopt,
                                                     int_p_1));
   }
@@ -2172,8 +2017,10 @@ static void add_segments(const int curve_k,
 
     all_segments.append(Segment::from_intersections(curve_k,
                                                     points_k,
-                                                    inter_first.parameter_for_curve(curve_k),
-                                                    inter_last.parameter_for_curve(curve_k),
+                                                    inter_first.point_for_curve(curve_k),
+                                                    inter_last.point_for_curve(curve_k),
+                                                    inter_first.factor_for_curve(curve_k),
+                                                    inter_last.factor_for_curve(curve_k),
                                                     int_p_1,
                                                     int_p_2));
   }
@@ -2184,7 +2031,9 @@ static void add_segments(const int curve_k,
 
     all_segments.append(Segment::from_intersections(curve_k,
                                                     points_k,
-                                                    inter_last.parameter_for_curve(curve_k),
+                                                    inter_last.point_for_curve(curve_k),
+                                                    std::nullopt,
+                                                    inter_last.factor_for_curve(curve_k),
                                                     std::nullopt,
                                                     int_p_2,
                                                     std::nullopt));
@@ -2241,7 +2090,7 @@ static BooleanResult follow_segment_connections(const Span<Segment> all_segments
         return;
       }
       /* Check if the last segment can be joined with this one. */
-      if (!check_and_join_segments(segments.last(), current_segment)) {
+      if (!ed::greasepencil::trim::check_and_join_segments(segments.last(), current_segment)) {
         segments.append(current_segment);
         segment_reversed.append(current_backwards);
       }
@@ -2252,7 +2101,7 @@ static BooleanResult follow_segment_connections(const Span<Segment> all_segments
         return;
       }
       /* Check if the last segment can be joined to the first one. */
-      if (check_and_join_segments(segments.first(), segments.last())) {
+      if (ed::greasepencil::trim::check_and_join_segments(segments.first(), segments.last())) {
         segments.remove_last();
         segment_reversed.remove_last();
       }
@@ -2714,52 +2563,6 @@ static bke::CurvesGeometry remove_holes(const bke::CurvesGeometry &curves,
   return curves_copy_curve_selection(curves, to_keep, {});
 }
 
-static void cut_caps(bke::CurvesGeometry &dst,
-                     const Span<Segment> segments,
-                     const Span<bool> segment_reversed,
-                     const Span<bool> cyclic,
-                     const OffsetIndices<int> segment_offsets)
-{
-  bke::MutableAttributeAccessor dst_attributes = dst.attributes_for_write();
-
-  bke::SpanAttributeWriter<int8_t> dst_start_caps =
-      dst_attributes.lookup_or_add_for_write_span<int8_t>("start_cap", bke::AttrDomain::Curve);
-  bke::SpanAttributeWriter<int8_t> dst_end_caps =
-      dst_attributes.lookup_or_add_for_write_span<int8_t>("end_cap", bke::AttrDomain::Curve);
-
-  for (const int curve_i : segment_offsets.index_range()) {
-    /* If the curve connects back to it's self, don't cut it. */
-    if (cyclic[curve_i]) {
-      continue;
-    }
-
-    const IndexRange segment_range = segment_offsets[curve_i];
-
-    const int segment_index_first = segment_range.first();
-    const bool reversed_first = segment_reversed[segment_index_first];
-    const Segment &segment_first = segments[segment_index_first];
-    const Side direction_first = reversed_first ? Side::End : Side::Start;
-    const int inter_index_first = segment_first.intersection_index[direction_first];
-
-    const int segment_index_last = segment_range.last();
-    const bool reversed_last = segment_reversed[segment_index_last];
-    const Segment &segment_last = segments[segment_index_last];
-    const Side direction_last = reversed_last ? Side::Start : Side::End;
-    const int inter_index_last = segment_last.intersection_index[direction_last];
-
-    /* Check if there is intersection and therefor the segment should be cut. */
-    if (inter_index_first != -1) {
-      dst_start_caps.span[curve_i] = GP_STROKE_CAP_TYPE_FLAT;
-    }
-    if (inter_index_last != -1) {
-      dst_end_caps.span[curve_i] = GP_STROKE_CAP_TYPE_FLAT;
-    }
-  }
-
-  dst_start_caps.finish();
-  dst_end_caps.finish();
-}
-
 static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry &src,
                                                        const Span<Segment> segments,
                                                        const Span<bool> segment_reversed,
@@ -2815,7 +2618,7 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
       const int point_num = segment.points_num();
 
       if (segment.has_intersection(reversed ? Side::End : Side::Start) && !segment.is_loop()) {
-        const float start_alpha = segment.alpha[reversed ? Side::End : Side::Start];
+        const float start_alpha = segment.intersection_factor[reversed ? Side::End : Side::Start];
         const int2 start_edge = segment.edge(reversed ? Side::End : Side::Start);
         point_to_interpolate.append({i, start_edge.x, start_edge.y, start_alpha});
         is_point_clipping.append(is_clipping);
@@ -2850,7 +2653,7 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
       if (seg_i == segment_range.last() &&
           segment.has_intersection(reversed ? Side::Start : Side::End) && !cyclic[curve_i])
       {
-        const float end_alpha = segment.alpha[reversed ? Side::Start : Side::End];
+        const float end_alpha = segment.intersection_factor[reversed ? Side::Start : Side::End];
         const int2 end_edge = segment.edge(reversed ? Side::Start : Side::End);
         point_to_interpolate.append({i, end_edge.x, end_edge.y, end_alpha});
         is_point_clipping.append(is_clipping);
