@@ -176,9 +176,9 @@ void GrabOperation::on_stroke_begin(const bContext &C, const InputSample &start_
 
     const Array<float2> view_positions = view_positions_from_point_mask(params,
                                                                         auto_mask_info.point_mask);
-    Array<float2> view_positions_left = view_positions_left_from_point_mask(
+    const Array<float2> view_positions_left = view_positions_left_from_point_mask(
         params, auto_mask_info.point_mask);
-    Array<float2> view_positions_right = view_positions_right_from_point_mask(
+    const Array<float2> view_positions_right = view_positions_right_from_point_mask(
         params, auto_mask_info.point_mask);
 
     /* Cache points under brush influence. */

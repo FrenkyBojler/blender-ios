@@ -97,10 +97,10 @@ void RandomizeOperation::on_stroke_extended(const bContext &C, const InputSample
           MutableSpan<float3> handle_positions_right = curves.handle_positions_right_for_write();
 
           if (!handle_positions_left.is_empty()) {
-            Array<float2> view_positions_left = view_positions_left_from_point_mask(params,
-                                                                                    point_mask);
-            Array<float2> view_positions_right = view_positions_right_from_point_mask(params,
-                                                                                      point_mask);
+            const Array<float2> view_positions_left = view_positions_left_from_point_mask(
+                params, point_mask);
+            const Array<float2> view_positions_right = view_positions_right_from_point_mask(
+                params, point_mask);
 
             point_mask.foreach_index(GrainSize(4096), [&](const int64_t point_i) {
               const float2 co_left = view_positions_left[point_i];
