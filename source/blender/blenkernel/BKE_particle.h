@@ -41,7 +41,6 @@ struct ModifierData;
 struct Object;
 struct RNG;
 struct Scene;
-// namespace blender
 
 #define PARTICLE_COLLISION_MAX_COLLISIONS 10
 
