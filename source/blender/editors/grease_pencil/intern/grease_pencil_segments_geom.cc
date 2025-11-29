@@ -1346,14 +1346,9 @@ bke::CurvesGeometry trim_curve_segment_ends(const bke::CurvesGeometry &src,
  *  3: Create all polygons by following the direction of each intersection point until it
  * loops.
  *
- * The original algorithm was only ever designed to work with one `subject` and one `clipping`
- * polygon, and with `OddEven` fill rule.
- *
  * This implementation adds the following:
  *  1: Groups of curves, called `shapes`. This allows for input geometry with holes.
  *  2: Curves can have no fill, so they will get cut.
- *  3: Multiple `clipping` shapes acting one `subject` shape.
- *  4: Separate fill rules for the `subject`, `clipping` and output geometry.
  *
  * This implementation works by:
  *  1: Break one subject shape and all clipping shapes into segments and store their intersections.
@@ -1378,18 +1373,8 @@ enum class Operation : int8_t {
   Difference,
 };
 
-enum class FillRule : int8_t {
-  /* Treat odd winding order as fill. */
-  EvenOdd,
-  /* Treat non zero winding order as fill. */
-  NonZero,
-};
-
 struct CurveBooleanOpParameters {
   Operation boolean_mode;
-
-  FillRule subject_rule;
-  FillRule clipping_rule;
 };
 
 /**
@@ -1517,9 +1502,7 @@ class WindingState {
     }
   }
 
-  bool is_in_shape(const int shape_id,
-                   const Vector<IndexMask> &shapes,
-                   const FillRule fill_rule) const
+  bool is_in_shape(const int shape_id, const Vector<IndexMask> &shapes) const
   {
     const IndexMask &shape = shapes[shape_id];
 
@@ -1531,20 +1514,10 @@ class WindingState {
       }
     });
 
-    if (fill_rule == FillRule::EvenOdd) {
-      return winding % 2 != 0;
-    }
-    else if (fill_rule == FillRule::NonZero) {
-      return winding != 0;
-    }
-
-    BLI_assert_unreachable();
-    return false;
+    return winding % 2 != 0;
   }
 
-  bool is_in_shapes(const IndexMask &shapes_mask,
-                    const Vector<IndexMask> &shapes,
-                    const FillRule fill_rule) const
+  bool is_in_shapes(const IndexMask &shapes_mask, const Vector<IndexMask> &shapes) const
   {
     if (orders_per_curve_.is_empty() || shapes_mask.is_empty()) {
       return false;
@@ -1559,7 +1532,7 @@ class WindingState {
             return value;
           }
           shapes_mask.slice(range).foreach_index([&](const int shape_id) {
-            if (this->is_in_shape(shape_id, shapes, fill_rule)) {
+            if (this->is_in_shape(shape_id, shapes)) {
               value = true;
               return;
             }
@@ -1574,8 +1547,8 @@ class WindingState {
                        const int subject_shape,
                        const IndexMask &clipping_shapes) const
   {
-    const bool subj = this->is_in_shape(subject_shape, shapes, op_params.subject_rule);
-    const bool clip = this->is_in_shapes(clipping_shapes, shapes, op_params.clipping_rule);
+    const bool subj = this->is_in_shape(subject_shape, shapes);
+    const bool clip = this->is_in_shapes(clipping_shapes, shapes);
 
     switch (op_params.boolean_mode) {
       case Operation::Intersect: {
@@ -1693,10 +1666,8 @@ static void check_segments(const CurveBooleanOpParameters &op_params,
           op_params, shapes, subj_shape_id, clipping_shapes);
     }
     else {
-      all_inside_left[seg_i] = state_L.is_in_shapes(
-          clipping_shapes, shapes, op_params.clipping_rule);
-      all_inside_right[seg_i] = state_R.is_in_shapes(
-          clipping_shapes, shapes, op_params.clipping_rule);
+      all_inside_left[seg_i] = state_L.is_in_shapes(clipping_shapes, shapes);
+      all_inside_right[seg_i] = state_R.is_in_shapes(clipping_shapes, shapes);
     }
 
     if (!this_segment.has_intersection(Side::End)) {
@@ -2822,8 +2793,6 @@ static bool execute_carver_on_drawing(const int /*layer_index*/,
       clipping_curves);
 
   geometry::boolean::CurveBooleanOpParameters op_params;
-  op_params.subject_rule = geometry::boolean::FillRule::EvenOdd;
-  op_params.clipping_rule = geometry::boolean::FillRule::EvenOdd;
   op_params.boolean_mode = geometry::boolean::Operation::Difference;
 
   bke::CurvesGeometry carved_strokes = geometry::boolean::curve_boolean(
