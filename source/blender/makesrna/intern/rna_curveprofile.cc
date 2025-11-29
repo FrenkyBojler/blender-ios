@@ -146,11 +146,21 @@ static void rna_def_curveprofilepoint(BlenderRNA *brna)
   RNA_def_property_enum_funcs(prop, nullptr, "rna_CurveProfilePoint_handle_type_set", nullptr);
   RNA_def_property_ui_text(prop, "First Handle Type", "Path interpolation at this point");
 
+  prop = RNA_def_property(srna, "handle_location_1", PROP_FLOAT, PROP_XYZ);
+  RNA_def_property_float_sdna(prop, nullptr, "h1_loc");
+  RNA_def_property_array(prop, 2);
+  RNA_def_property_ui_text(prop, "Handle 1 Location", "X/Y coordinates of the left handle");
+
   prop = RNA_def_property(srna, "handle_type_2", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "h2");
   RNA_def_property_enum_items(prop, prop_handle_type_items);
   RNA_def_property_enum_funcs(prop, nullptr, "rna_CurveProfilePoint_handle_type_set", nullptr);
   RNA_def_property_ui_text(prop, "Second Handle Type", "Path interpolation at this point");
+
+  prop = RNA_def_property(srna, "handle_location_2", PROP_FLOAT, PROP_XYZ);
+  RNA_def_property_float_sdna(prop, nullptr, "h2_loc");
+  RNA_def_property_array(prop, 2);
+  RNA_def_property_ui_text(prop, "Handle 2 Location", "X/Y coordinates of the right handle");
 
   prop = RNA_def_property(srna, "select", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", PROF_SELECT);
