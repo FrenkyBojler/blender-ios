@@ -18,6 +18,8 @@
 
 #include "WM_api.hh"
 
+#include "CLG_log.h"
+
 const EnumPropertyItem rna_enum_node_socket_type_items[] = {
     {SOCK_CUSTOM, "CUSTOM", 0, "Custom", ""},
     {SOCK_FLOAT, "VALUE", ICON_NODE_SOCKET_FLOAT, "Value", ""},
@@ -61,6 +63,8 @@ const EnumPropertyItem rna_enum_node_socket_type_items[] = {
 #  include "NOD_socket_declarations.hh"
 
 #  include "ED_node.hh"
+
+static CLG_LogRef LOG = {"rna.node"};
 
 extern FunctionRNA rna_NodeSocket_draw_func;
 extern FunctionRNA rna_NodeSocket_draw_color_func;
@@ -308,7 +312,7 @@ static void rna_NodeSocket_bl_idname_set(PointerRNA *ptr, const char *value)
     node->type = ntype->type;
   }
   else {
-    printf("ReferenceError: Node socket type '%s' not found\n", value);
+    CLOG_ERROR(&LOG, "Node socket type '%s' not found", value);
   }
 }
 
