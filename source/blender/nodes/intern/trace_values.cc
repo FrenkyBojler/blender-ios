@@ -18,10 +18,20 @@
 
 namespace blender::nodes {
 
-static bool is_evaluate_closure_node_input(const SocketInContext &socket)
+static bool target_socket_evaluates_closure(const SocketInContext &socket)
 {
-  return socket->is_input() && socket->index() == 0 &&
-         socket.owner_node()->is_type("NodeEvaluateClosure");
+  if (!socket->is_input()) {
+    return false;
+  }
+  if (socket->index() == 0 && socket.owner_node()->is_type("NodeEvaluateClosure")) {
+    return true;
+  }
+  if (const SocketDeclaration *decl = socket->runtime->declaration) {
+    if (const auto *closure_decl = dynamic_cast<const decl::Closure *>(decl)) {
+      return bool(closure_decl->signature);
+    }
+  }
+  return false;
 }
 
 static bool is_closure_zone_output_socket(const SocketInContext &socket)
@@ -159,8 +169,15 @@ static Vector<SocketInContext> find_target_sockets_through_contexts(
         const auto &closure_storage = *static_cast<const NodeClosureOutput *>(node->storage);
         const StringRef key = closure_storage.output_items.items[socket->index()].name;
         const Vector<SocketInContext> target_sockets = find_target_sockets_through_contexts(
-            node.output_socket(0), compute_context_cache, is_evaluate_closure_node_input, true);
+            node.output_socket(0), compute_context_cache, target_socket_evaluates_closure, true);
         for (const auto &target_socket : target_sockets) {
+          if (const SocketDeclaration *decl = target_socket.socket->runtime->declaration) {
+            if (const auto *closure_decl = dynamic_cast<const decl::Closure *>(decl)) {
+              if (closure_decl->signature) {
+                continue;
+              }
+            }
+          }
           const NodeInContext evaluate_node = target_socket.owner_node();
           const auto &evaluate_storage = *static_cast<const NodeEvaluateClosure *>(
               evaluate_node->storage);
@@ -307,12 +324,19 @@ static Vector<SocketInContext> find_target_sockets_through_contexts(
   const Vector<SocketInContext> target_sockets = find_target_sockets_through_contexts(
       {closure_socket_context, &closure_socket},
       compute_context_cache,
-      is_evaluate_closure_node_input,
+      target_socket_evaluates_closure,
       false);
   if (target_sockets.is_empty()) {
     return nullptr;
   }
   const SocketInContext target_socket = target_sockets[0];
+  if (const SocketDeclaration *decl = target_socket.socket->runtime->declaration) {
+    if (const auto *closure_decl = dynamic_cast<const decl::Closure *>(decl)) {
+      if (closure_decl->signature) {
+        return nullptr;
+      }
+    }
+  }
   const NodeInContext target_node = target_socket.owner_node();
   return &compute_context_cache.for_evaluate_closure(target_socket.context,
                                                      target_node->identifier,
@@ -495,9 +519,16 @@ static Vector<SocketInContext> find_origin_sockets_through_contexts(
         const Vector<SocketInContext> target_sockets = find_target_sockets_through_contexts(
             {socket.context, &closure_output_socket},
             compute_context_cache,
-            is_evaluate_closure_node_input,
+            target_socket_evaluates_closure,
             true);
         for (const SocketInContext &target_socket : target_sockets) {
+          if (const SocketDeclaration *decl = socket.socket->runtime->declaration) {
+            if (const auto *closure_decl = dynamic_cast<const decl::Closure *>(decl)) {
+              if (closure_decl->signature) {
+                continue;
+              }
+            }
+          }
           const NodeInContext target_node = target_socket.owner_node();
           const auto &evaluate_storage = *static_cast<const NodeEvaluateClosure *>(
               target_node.node->storage);
@@ -664,8 +695,16 @@ LinkedClosureSignatures gather_linked_target_closure_signatures(
       {closure_socket_context, &closure_socket},
       compute_context_cache,
       [&](const SocketInContext &socket) {
+        if (const SocketDeclaration *decl = socket.socket->runtime->declaration) {
+          if (const auto *closure_decl = dynamic_cast<const decl::Closure *>(decl)) {
+            if (const ClosureSignature *signature = closure_decl->signature.get()) {
+              result.items.append({*signature, true, socket});
+              return true;
+            }
+          }
+        }
         const bNode &node = socket->owner_node();
-        if (is_evaluate_closure_node_input(socket)) {
+        if (target_socket_evaluates_closure(socket)) {
           const auto &storage = *static_cast<const NodeEvaluateClosure *>(node.storage);
           result.items.append({ClosureSignature::from_evaluate_closure_node(node, false),
                                bool(storage.flag & NODE_EVALUATE_CLOSURE_FLAG_DEFINE_SIGNATURE),

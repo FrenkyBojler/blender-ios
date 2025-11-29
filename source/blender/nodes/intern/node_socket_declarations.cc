@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "NOD_geometry_nodes_closure_signature.hh"
 #include "NOD_socket_declarations.hh"
 #include "NOD_socket_declarations_geometry.hh"
 
@@ -689,6 +690,8 @@ BundleBuilder &BundleBuilder::pass_through_input_index(const std::optional<int> 
 /** \name #Closure
  * \{ */
 
+Closure::~Closure() = default;
+
 bNodeSocket &Closure::build(bNodeTree &ntree, bNode &node) const
 {
   bNodeSocket &socket = *bke::node_add_static_socket(ntree,
@@ -729,6 +732,11 @@ bNodeSocket &Closure::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket
   }
   this->set_common_flags(socket);
   return socket;
+}
+
+void ClosureBuilder::signature(std::unique_ptr<ClosureSignature> signature)
+{
+  decl_->signature = std::move(signature);
 }
 
 /** \} */

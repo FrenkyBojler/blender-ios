@@ -85,13 +85,40 @@ class SampleIndexFunction : public mf::MultiFunction {
   {
     const VArray<int> &indices = params.readonly_single_input<int>(0, "Index");
     GMutableSpan dst = params.uninitialized_single_output(1, "Value");
+
+    const IndexRange list_range(list_->size());
+
+    IndexMaskMemory memory;
+    const IndexMask valid_indices = [&]() {
+      if (const std::optional<int> index = indices.get_if_single()) {
+        return list_range.contains(*index) ? mask : IndexMask{};
+      }
+      if (indices.is_span()) {
+        const Span<int> indices_span = indices.get_internal_span();
+        return IndexMask::from_predicate(mask, GrainSize(4096), memory, [&](const int i) {
+          return list_range.contains(indices_span[i]);
+        });
+      }
+      return IndexMask::from_predicate(mask, GrainSize(4096), memory, [&](const int i) {
+        return list_range.contains(indices[i]);
+      });
+    }();
+
+    if (valid_indices.size() != mask.size()) {
+      const IndexMask invalid_indices = valid_indices.complement(mask, memory);
+      list_->cpp_type().fill_construct_indices(
+          list_->cpp_type().default_value(), dst.data(), invalid_indices);
+    }
+
     const List::DataVariant &data = list_->data();
     if (const auto *array_data = std::get_if<nodes::List::ArrayData>(&data)) {
-      const GSpan span(list_->cpp_type(), array_data->data, list_->size());
-      bke::copy_with_checked_indices(GVArray::from_span(span), indices, mask, dst);
+      const GSpan src(list_->cpp_type(), array_data->data, list_->size());
+      valid_indices.foreach_index([&](const int i, const int mask) {
+        list_->cpp_type().copy_construct(src[indices[i]], dst[mask]);
+      });
     }
     else if (const auto *single_data = std::get_if<nodes::List::SingleData>(&data)) {
-      list_->cpp_type().fill_construct_indices(single_data->value, dst.data(), mask);
+      list_->cpp_type().fill_construct_indices(single_data->value, dst.data(), valid_indices);
     }
   }
 };
@@ -106,11 +133,14 @@ static void node_rna(StructRNA *srna)
       rna_enum_node_socket_data_type_items,
       NOD_inline_enum_accessors(custom1),
       SOCK_GEOMETRY,
-      [](bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free) {
+      [](bContext * /*C*/, PointerRNA *ptr, PropertyRNA * /*prop*/, bool *r_free) {
         *r_free = true;
+        const bNodeTree &ntree = *reinterpret_cast<bNodeTree *>(ptr->owner_id);
+        blender::bke::bNodeTreeType *ntree_type = ntree.typeinfo;
         return enum_items_filter(
-            rna_enum_node_socket_data_type_items, [](const EnumPropertyItem &item) -> bool {
-              return socket_type_supports_fields(eNodeSocketDatatype(item.value));
+            rna_enum_node_socket_data_type_items, [&](const EnumPropertyItem &item) -> bool {
+              bke::bNodeSocketType *socket_type = bke::node_socket_type_find_static(item.value);
+              return ntree_type->valid_socket_type(ntree_type, socket_type);
             });
       });
 }
@@ -121,6 +151,21 @@ static void node_geo_exec(GeoNodeExecParams params)
   ListPtr list = params.extract_input<ListPtr>("List");
   if (!list) {
     params.set_default_remaining_outputs();
+    return;
+  }
+  if (list->cpp_type().is<bke::SocketValueVariant>()) {
+    if (!index.is_single()) {
+      params.set_default_remaining_outputs();
+      return;
+    }
+    index.convert_to_single();
+    const int index_int = index.get<int>();
+    const VArray<bke::SocketValueVariant> varray = list->varray().typed<bke::SocketValueVariant>();
+    if (!varray.index_range().contains(index_int)) {
+      params.set_default_remaining_outputs();
+      return;
+    }
+    params.set_output("Value", varray[index_int]);
     return;
   }
 
