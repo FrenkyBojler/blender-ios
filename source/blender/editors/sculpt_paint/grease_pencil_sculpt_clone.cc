@@ -102,10 +102,10 @@ void CloneOperation::on_stroke_begin(const bContext &C, const InputSample &start
         if (!handle_positions_left.is_empty()) {
           threading::parallel_for(pasted_points, 4096, [&](const IndexRange range) {
             for (const int point_i : range) {
-              handle_positions_left[point_i] += compute_orig_delta(
+              const float3 offset = compute_orig_delta(
                   projection_fn, deformation, point_i, mouse_delta);
-              handle_positions_right[point_i] += compute_orig_delta(
-                  projection_fn, deformation, point_i, mouse_delta);
+              handle_positions_left[point_i] += offset;
+              handle_positions_right[point_i] += offset;
             }
           });
 
