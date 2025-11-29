@@ -34,6 +34,7 @@
 #include "BLI_bit_vector.hh"
 #include "BLI_dynstr.h"
 #include "BLI_math_base.h"
+#include "BLI_task.hh"
 #include "BLI_utildefines.h"
 #include "BLT_translation.hh"
 
@@ -272,13 +273,23 @@ static bool assigned_action_has_keyframe_at(AnimData &adt, const float frame)
     return false;
   }
 
-  for (FCurve *fcu : blender::animrig::legacy::fcurves_for_assigned_action(&adt)) {
-    if (fcurve_frame_has_keyframe(fcu, frame)) {
-      return true;
-    }
-  }
-
-  return false;
+  const Span<FCurve *> curves = blender::animrig::legacy::fcurves_for_assigned_action(&adt);
+  return threading::parallel_reduce<bool>(
+      curves.index_range(),
+      512,
+      false,
+      [&](const IndexRange range, const bool value) {
+        if (value) {
+          return true;
+        }
+        for (FCurve *fcu : curves.slice(range)) {
+          if (fcurve_frame_has_keyframe(fcu, frame)) {
+            return true;
+          }
+        }
+        return false;
+      },
+      std::logical_or<bool>());
 }
 
 /* Checks whether an Object has a keyframe for a given frame. */
