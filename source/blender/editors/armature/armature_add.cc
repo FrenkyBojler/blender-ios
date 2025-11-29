@@ -1778,7 +1778,7 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
   char name[MAXBONENAME];
 
   int align = RNA_enum_get(op->ptr, "align");
-  float base_mat[3][3];  // base orientation matrix
+  float base_mat[3][3];  /* initial bone orientation matrix */
 
   switch (align) {
       case 1: /* Z up*/
@@ -1802,7 +1802,7 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
 
   RNA_string_get(op->ptr, "name", name);
 
-  copy_v3_v3(curs, CTX_data_scene(C)->cursor.location);
+      copy_v3_v3(curs, CTX_data_scene(C)->cursor.location);
 
   /* Get inverse point for head and orientation for tail */
   invert_m4_m4(obedit->runtime->world_to_object.ptr(), obedit->object_to_world().ptr());
@@ -1850,7 +1850,7 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
   }
 
   /* Bone head to cursor position */
-  copy_v3_v3(bone->head, curs);
+  copy_v3_v3(bone->head, curs); 
 
   float tail_vector[3];
   copy_v3_v3(tail_vector, imat[2]);
