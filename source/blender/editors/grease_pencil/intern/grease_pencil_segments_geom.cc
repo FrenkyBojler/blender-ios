@@ -2111,6 +2111,8 @@ static BooleanResult execute_single_boolean(
     const VArray<bool> &is_fill,
     const VArray<bool> &cyclic)
 {
+  using namespace ed::greasepencil::trim;
+
   const IndexMask &curves_i = shapes[subj_shape_id];
 
   Vector<IntersectionPoint> intersections;
@@ -2161,30 +2163,7 @@ static BooleanResult execute_single_boolean(
 
   /* -------------------- */
 
-  for (const int seg_i : all_segments.index_range()) {
-    const Segment &segment = all_segments[seg_i];
-    const int curve_i = segment.curve;
-
-    if (segment.has_intersection(Side::Start)) {
-      IntersectionPoint &inter_start = intersections[segment.intersection_index[Side::Start]];
-      if (curve_i == inter_start.curve_i) {
-        inter_start.segment_index_i[Side::End] = seg_i;
-      }
-      else {
-        inter_start.segment_index_j[Side::End] = seg_i;
-      }
-    }
-
-    if (segment.has_intersection(Side::End)) {
-      IntersectionPoint &inter_end = intersections[segment.intersection_index[Side::End]];
-      if (curve_i == inter_end.curve_i) {
-        inter_end.segment_index_i[Side::Start] = seg_i;
-      }
-      else {
-        inter_end.segment_index_j[Side::Start] = seg_i;
-      }
-    }
-  }
+  store_segment_map_on_intersections(all_segments, intersections);
 
   /* -------------------- */
 
@@ -2251,8 +2230,6 @@ static BooleanResult execute_single_boolean(
                                   int2(ed::greasepencil::trim::SEGMENT_CONNECTION_NULL));
 
   for (const int inter_id : intersections.index_range()) {
-    using namespace ed::greasepencil::trim;
-
     const IntersectionPoint &inter = intersections[inter_id];
 
     const EncodedConnection start_a = encode_index_and_side(inter.segment_index_i[Side::Start],
