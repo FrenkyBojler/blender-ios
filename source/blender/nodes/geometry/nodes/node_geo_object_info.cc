@@ -7,6 +7,7 @@
 
 #include "BKE_geometry_set_instances.hh"
 #include "BKE_instances.hh"
+#include "BKE_lib_id.hh"
 
 #include "DNA_object_types.h"
 
@@ -41,6 +42,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Rotation>("Rotation");
   b.add_output<decl::Vector>("Scale");
   b.add_output<decl::Geometry>("Geometry");
+  b.add_output<decl::String>("Name");
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
@@ -61,6 +63,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     params.set_default_remaining_outputs();
     return;
   }
+
+  params.set_output("Name", BKE_id_name(object->id));
 
   const bool self_transform_evaluated = DEG_object_transform_is_evaluated(*self_object);
   const bool object_transform_evaluated = DEG_object_transform_is_evaluated(*object);

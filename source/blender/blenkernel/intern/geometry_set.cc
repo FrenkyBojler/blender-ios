@@ -286,6 +286,9 @@ void GeometrySet::ensure_owns_direct_data()
     GeometryComponent &component_for_write = this->get_component_for_write(component_ptr->type());
     component_for_write.ensure_owns_direct_data();
   }
+  if (bundle_ && !bundle_->owns_direct_data()) {
+    this->bundle_for_write().ensure_owns_direct_data();
+  }
 }
 
 void GeometrySet::ensure_owns_all_data()
@@ -304,6 +307,9 @@ bool GeometrySet::owns_direct_data() const
         return false;
       }
     }
+  }
+  if (bundle_ && !bundle_->owns_direct_data()) {
+    return false;
   }
   return true;
 }

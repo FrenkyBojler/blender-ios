@@ -14,6 +14,7 @@
 
 #include "BKE_collection.hh"
 #include "BKE_instances.hh"
+#include "BKE_lib_id.hh"
 
 #include "DEG_depsgraph_query.hh"
 
@@ -38,6 +39,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Geometry>("Instances")
       .description(
           "Instance of the collection or instances of all the children in the collection");
+  b.add_output<decl::Object>("Objects").structure_type(StructureType::List);
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
@@ -155,7 +157,22 @@ static void node_geo_exec(GeoNodeExecParams params)
   GeometrySet geometry = GeometrySet::from_instances(instances.release());
   geometry.name = collection->id.name + 2;
 
+  auto *objects = new ImplicitSharedValue<Vector<Object *>>();
+  FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (collection, object) {
+    objects->data.append(object);
+  }
+  FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
+
+  std::sort(objects->data.begin(), objects->data.end(), [](const Object *a, const Object *b) {
+    return BLI_strcasecmp_natural(BKE_id_name(a->id), BKE_id_name(b->id)) < 0;
+  });
+
+  List::ArrayData objects_array_data = {objects->data.data(), ImplicitSharingPtr<>(objects)};
+
   params.set_output("Instances", std::move(geometry));
+  params.set_output(
+      "Objects",
+      List::create(CPPType::get<Object *>(), std::move(objects_array_data), objects->data.size()));
 }
 
 static void node_rna(StructRNA *srna)
