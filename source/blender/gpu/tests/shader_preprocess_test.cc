@@ -1512,6 +1512,39 @@ w)";
     EXPECT_EQ(A.line_number(), 2);
     EXPECT_EQ(B.line_number(), 100);
   }
+  {
+    string input = R"(
+const bool foo;
+[[a]] int bar[0];
+)";
+
+    string expect = R"(
+match(, const, bool, , foo, , ;)
+match([a], , int, , bar, [0], ;)
+)";
+
+    Parser parser(input, no_err_report);
+
+    string result = "\n";
+    parser.foreach_declaration([&](Scope attributes,
+                                   Token const_tok,
+                                   Token type,
+                                   Scope template_scope,
+                                   Token name,
+                                   Scope array,
+                                   Token decl_end) {
+      result += "match(";
+      result += attributes.str() + ", ";
+      result += const_tok.str() + ", ";
+      result += type.str() + ", ";
+      result += template_scope.str() + ", ";
+      result += name.str() + ", ";
+      result += array.str() + ", ";
+      result += decl_end.str() + ")\n";
+    });
+
+    EXPECT_EQ(expect, result);
+  }
 }
 GPU_TEST(preprocess_parser);
 
