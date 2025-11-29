@@ -396,6 +396,12 @@ struct IntersectionPoint {
   {
     return this->point_for_curve(curve) + this->factor_for_curve(curve);
   }
+
+  int other_curve(const int curve) const
+  {
+    BLI_assert(curve == curve_i || curve == curve_j);
+    return curve == curve_i ? curve_j : curve_i;
+  }
 };
 
 static IntersectionPoint create_intersection(const int point_i,
@@ -1360,6 +1366,7 @@ namespace blender::geometry::boolean {
 
 using Segment = ed::greasepencil::trim::Segment;
 using Side = ed::greasepencil::trim::Side;
+using IntersectionPoint = ed::greasepencil::trim::IntersectionPoint;
 
 enum class Operation : int8_t {
   /* Intersection of the Subject and the Clipping. */
@@ -1723,63 +1730,6 @@ class SegmentEndPoint {
   }
 };
 
-struct IntersectionPoint {
-  int point_a = -1;
-  int point_b = -1;
-  float alpha_a = -1.0f;
-  float alpha_b = -1.0f;
-  int curve_a = -1;
-  int curve_b = -1;
-  SegmentEndPoint start_a;
-  SegmentEndPoint end_a;
-  SegmentEndPoint start_b;
-  SegmentEndPoint end_b;
-
-  constexpr IntersectionPoint() = default;
-
-  float point_for_curve(const int curve) const
-  {
-    BLI_assert(curve == curve_a || curve == curve_b);
-    return curve == curve_a ? point_a : point_b;
-  }
-
-  float factor_for_curve(const int curve) const
-  {
-    BLI_assert(curve == curve_a || curve == curve_b);
-    return curve == curve_a ? alpha_a : alpha_b;
-  }
-
-  float parameter_for_curve(const int curve) const
-  {
-    BLI_assert(curve == curve_a || curve == curve_b);
-    return curve == curve_a ? point_a + alpha_a : point_b + alpha_b;
-  }
-
-  int other_curve(const int curve) const
-  {
-    BLI_assert(curve == curve_a || curve == curve_b);
-    return curve == curve_a ? curve_b : curve_a;
-  }
-};
-
-static IntersectionPoint create_intersection(const int point_a,
-                                             const int point_b,
-                                             const float alpha_a,
-                                             const float alpha_b,
-                                             const int curve_a,
-                                             const int curve_b)
-{
-  IntersectionPoint inter_point;
-  inter_point.point_a = point_a;
-  inter_point.point_b = point_b;
-  inter_point.alpha_a = alpha_a;
-  inter_point.alpha_b = alpha_b;
-  inter_point.curve_a = curve_a;
-  inter_point.curve_b = curve_b;
-
-  return inter_point;
-}
-
 static void check_segments(const CurveBooleanOpParameters &op_params,
                            const int curve_k,
                            const bool is_subj,
@@ -1831,8 +1781,8 @@ static void check_segments(const CurveBooleanOpParameters &op_params,
     const int other_curve_k = inter_end.other_curve(curve_k);
 
     if (is_fill[other_curve_k]) {
-      const int point_k = curve_k == inter_end.curve_a ? inter_end.point_a : inter_end.point_b;
-      const int point_other = curve_k != inter_end.curve_a ? inter_end.point_a : inter_end.point_b;
+      const int point_k = curve_k == inter_end.curve_i ? inter_end.point_i : inter_end.point_j;
+      const int point_other = curve_k != inter_end.curve_i ? inter_end.point_i : inter_end.point_j;
       const float2 &point1 = points[point_k];
       const float2 &point_other1 = points[point_other];
       const float2 &point_other2 = points[(point_other + 1) % points.size()];
@@ -1894,7 +1844,7 @@ static void find_intersections_between_curves(const Span<float2> points_i,
       if (val == ISECT_LINE_LINE_CROSS || val == ISECT_LINE_LINE_EXACT) {
         r_inters_per_curves[curve_i].append(r_intersections.size());
         r_inters_per_curves[curve_j].append(r_intersections.size());
-        r_intersections.append(create_intersection(
+        r_intersections.append(ed::greasepencil::trim::create_intersection(
             i + point_offset_i, j + point_offset_j, alpha_a, alpha_b, curve_i, curve_j));
       }
     }
@@ -2258,21 +2208,21 @@ static BooleanResult execute_single_boolean(
 
     if (segment.has_intersection(Side::Start)) {
       IntersectionPoint &inter_start = intersections[segment.intersection_index[Side::Start]];
-      if (curve_i == inter_start.curve_a) {
-        inter_start.end_a = SegmentEndPoint(seg_i, Side::Start);
+      if (curve_i == inter_start.curve_i) {
+        inter_start.segment_index_i[Side::End] = seg_i;
       }
       else {
-        inter_start.end_b = SegmentEndPoint(seg_i, Side::Start);
+        inter_start.segment_index_j[Side::End] = seg_i;
       }
     }
 
     if (segment.has_intersection(Side::End)) {
       IntersectionPoint &inter_end = intersections[segment.intersection_index[Side::End]];
-      if (curve_i == inter_end.curve_a) {
-        inter_end.start_a = SegmentEndPoint(seg_i, Side::End);
+      if (curve_i == inter_end.curve_i) {
+        inter_end.segment_index_i[Side::Start] = seg_i;
       }
       else {
-        inter_end.start_b = SegmentEndPoint(seg_i, Side::End);
+        inter_end.segment_index_j[Side::Start] = seg_i;
       }
     }
   }
@@ -2344,10 +2294,10 @@ static BooleanResult execute_single_boolean(
   for (const int inter_id : intersections.index_range()) {
     const IntersectionPoint &inter = intersections[inter_id];
 
-    const SegmentEndPoint start_a = inter.start_a;
-    const SegmentEndPoint end_a = inter.end_a;
-    const SegmentEndPoint start_b = inter.start_b;
-    const SegmentEndPoint end_b = inter.end_b;
+    const SegmentEndPoint start_a = SegmentEndPoint(inter.segment_index_i[Side::Start], Side::End);
+    const SegmentEndPoint end_a = SegmentEndPoint(inter.segment_index_i[Side::End], Side::Start);
+    const SegmentEndPoint start_b = SegmentEndPoint(inter.segment_index_j[Side::Start], Side::End);
+    const SegmentEndPoint end_b = SegmentEndPoint(inter.segment_index_j[Side::End], Side::Start);
     const bool is_start_a = start_a.is_null() ? false : segments_to_keep[start_a.segment_index()];
     const bool is_end_a = end_a.is_null() ? false : segments_to_keep[end_a.segment_index()];
     const bool is_start_b = start_b.is_null() ? false : segments_to_keep[start_b.segment_index()];
