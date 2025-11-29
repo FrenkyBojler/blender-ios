@@ -43,7 +43,7 @@ static void deduplicate_test()
 {
   for (int tree_size = 1; tree_size < 40; tree_size++) {
     int tree_index = 0;
-    KDTree_1d *tree = blender::BLI_kdtree_1d_new(tree_size);
+    blender::KDTree_1d *tree = blender::BLI_kdtree_1d_new(tree_size);
     for (int i = 0; i < tree_size; i++) {
       float key[1] = {1.0f};
       blender::BLI_kdtree_1d_insert(tree, tree_index++, key);
