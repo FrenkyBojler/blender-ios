@@ -523,6 +523,7 @@ class Preprocessor {
         remove_quotes(parser, report_error);
         argument_reference_mutation(parser, report_error);
         default_argument_mutation(parser, report_error);
+        cleanup_empty_lines(parser, report_error);
         str = parser.result_get();
       }
       str = variable_reference_mutation(str, report_error);
@@ -2734,6 +2735,27 @@ class Preprocessor {
           parser.insert_line_number(end_of_fn_char, fn_body.end().line_number() + 1);
         });
 
+    parser.apply_mutations();
+  }
+
+  /* Successive mutations can introduce a lot of uneeded blank lines. */
+  void cleanup_empty_lines(Parser &parser, report_callback /*report_error*/)
+  {
+    using namespace std;
+    using namespace shader::parser;
+
+    const string &str = parser.data_get().str;
+
+    size_t sequence_start = 0;
+    size_t sequence_end = -1;
+    while ((sequence_start = str.find("\n\n\n", sequence_end + 1)) != string::npos) {
+      sequence_end = str.find_first_not_of("\n", sequence_start);
+      if (sequence_end == string::npos) {
+        break;
+      }
+      size_t line = parser::line_number(str.substr(0, sequence_end));
+      parser.replace(sequence_start + 2, sequence_end - 1, "#line " + to_string(line) + "\n");
+    }
     parser.apply_mutations();
   }
 
