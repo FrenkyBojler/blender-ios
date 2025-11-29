@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Optional, Union
+from typing import Any, Optional, Union
 
 
 @dataclass
@@ -17,6 +17,12 @@ class Contact:
     name: str
     url: Optional[str] = None
     email: Optional[str] = None
+
+
+@dataclass
+class AssetLibraryIndexPageInfoV1:
+    url: str
+    hash: Any
 
 
 class AssetIDTypeV1(Enum):
@@ -68,7 +74,7 @@ class AssetLibraryIndexV1:
     asset_size_bytes: int
     asset_count: int
     file_count: int
-    page_urls: Optional[list[str]] = None
+    pages: list[AssetLibraryIndexPageInfoV1]
     catalogs: Optional[list[CatalogV1]] = None
 
 
@@ -86,6 +92,7 @@ class AssetV1:
     id_type: AssetIDTypeV1
     file: str
     thumbnail_url: Optional[str] = None
+    thumbnail_hash: Optional[str] = None
     meta: Optional[AssetMetadataV1] = None
 
 

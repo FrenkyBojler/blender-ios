@@ -16,7 +16,7 @@ from typing import Any
 
 import cattrs.preconf.json
 
-from . import asset_catalogs, asset_finder, listing_common, pagination, json_parsing
+from . import asset_catalogs, asset_finder, hashing, listing_common, pagination, json_parsing
 from . import blender_asset_library_openapi as api_models
 
 SCHEMA_VERSION = "1.0.0"
@@ -124,12 +124,15 @@ def _write_json_files(
     # Note that these paths are determined by the generator, and their URLs are
     # listed explicitly in the index file, so there is no need to have those in
     # the listing_common.py file.
-    page_urls = []
+    page_infos: list[api_models.AssetLibraryIndexPageInfoV1] = []
     for page_index, page in enumerate(asset_index_pages):
         page_relpath = listing_common.api_versioned(f"assets-{page_index:05}.json")
-        page_urls.append(page_relpath.as_posix())
-
         _save_json(page, outdir_root / page_relpath)
+
+        page_infos.append(api_models.AssetLibraryIndexPageInfoV1(
+            url=page_relpath.as_posix(),
+            hash=hashing.hash_file(page_relpath),
+        ))
 
     # Library Index file /_v1/asset-index.json:
     total_asset_count = sum(page.asset_count for page in asset_index_pages)
@@ -143,7 +146,7 @@ def _write_json_files(
         asset_size_bytes=asset_size_bytes,
         asset_count=total_asset_count,
         file_count=total_file_count,
-        page_urls=page_urls,
+        pages=page_infos,
         catalogs=asset_cats,
     )
     _save_json(index, outdir_versioned / listing_common.ASSET_INDEX_JSON_FILENAME)
