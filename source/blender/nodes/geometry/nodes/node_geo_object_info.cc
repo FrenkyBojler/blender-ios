@@ -64,7 +64,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  params.set_output("Name", BKE_id_name(object->id));
+  params.set_output("Name", std::string(BKE_id_name(object->id)));
 
   const bool self_transform_evaluated = DEG_object_transform_is_evaluated(*self_object);
   const bool object_transform_evaluated = DEG_object_transform_is_evaluated(*object);
