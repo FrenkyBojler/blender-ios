@@ -1854,7 +1854,6 @@ static void find_intersections_between_shapes(const Span<float2> points,
 
 static void add_segments(const int curve_k,
                          const Span<Vector<int>> inters_per_curves,
-                         const Span<Vector<int>> self_clipping_inters_per_curves,
                          const OffsetIndices<int> points_by_curve,
                          const Span<IntersectionPoint> &intersections,
                          const VArray<bool> &cyclic,
@@ -1862,21 +1861,16 @@ static void add_segments(const int curve_k,
                          MutableSpan<IndexRange> all_segments_by_curve)
 {
   const IndexRange points_k = points_by_curve[curve_k];
-  const Span<int> other_inter = inters_per_curves[curve_k];
-  const Span<int> self_inter = self_clipping_inters_per_curves[curve_k];
+  const Span<int> new_inters = inters_per_curves[curve_k];
 
   const int start_size = all_segments.size();
 
-  if (other_inter.size() == 0 && self_inter.size() == 0) {
+  if (new_inters.size() == 0) {
     all_segments.append(Segment::from_curve(curve_k, points_k, cyclic[curve_k]));
     all_segments_by_curve[curve_k] = all_segments.index_range().drop_front(start_size);
 
     return;
   }
-
-  Array<int> new_inters(other_inter.size() + self_inter.size());
-  new_inters.as_mutable_span().take_back(other_inter.size()).copy_from(other_inter);
-  new_inters.as_mutable_span().take_front(self_inter.size()).copy_from(self_inter);
 
   Array<int> inter_sorted_ids = Array<int>(new_inters.size());
   array_utils::fill_index_range<int>(inter_sorted_ids);
@@ -2099,17 +2093,15 @@ static BooleanResult follow_segment_connections(const Span<Segment> all_segments
   return result;
 }
 
-static BooleanResult execute_single_boolean(
-    const CurveBooleanOpParameters op_params,
-    const int subj_shape_id,
-    const Span<float2> points,
-    const Vector<IndexMask> &shapes,
-    const OffsetIndices<int> points_by_curve,
-    const IndexMask &clipping_shapes,
-    const Array<Vector<int>> &self_clipping_inters_per_curves,
-    const Span<IntersectionPoint> clipping_intersections,
-    const VArray<bool> &is_fill,
-    const VArray<bool> &cyclic)
+static BooleanResult execute_single_boolean(const CurveBooleanOpParameters op_params,
+                                            const int subj_shape_id,
+                                            const Span<float2> points,
+                                            const Vector<IndexMask> &shapes,
+                                            const OffsetIndices<int> points_by_curve,
+                                            const IndexMask &clipping_shapes,
+                                            const Span<IntersectionPoint> clipping_intersections,
+                                            const VArray<bool> &is_fill,
+                                            const VArray<bool> &cyclic)
 {
   using namespace ed::greasepencil::trim;
 
@@ -2140,7 +2132,6 @@ static BooleanResult execute_single_boolean(
   curves_i.foreach_index([&](const int curve_i) {
     add_segments(curve_i,
                  inters_per_curves,
-                 self_clipping_inters_per_curves,
                  points_by_curve,
                  intersections,
                  cyclic,
@@ -2152,7 +2143,6 @@ static BooleanResult execute_single_boolean(
     curves_j.foreach_index([&](const int curve_j) {
       add_segments(curve_j,
                    inters_per_curves,
-                   self_clipping_inters_per_curves,
                    points_by_curve,
                    intersections,
                    cyclic,
@@ -2339,18 +2329,6 @@ static BooleanResult execute_boolean(const CurveBooleanOpParameters op_params,
 
   Vector<IntersectionPoint> intersections;
 
-  Array<Vector<int>> self_clipping_inters_per_curves(points_by_curve.size());
-
-  find_intersections_between_shapes(points,
-                                    shapes,
-                                    clipping_shapes,
-                                    clipping_shapes,
-                                    points_by_curve,
-                                    cyclic,
-                                    true,
-                                    self_clipping_inters_per_curves,
-                                    intersections);
-
   BooleanResult results_all;
   results_all.segment_offsets.append(0);
 
@@ -2364,7 +2342,6 @@ static BooleanResult execute_boolean(const CurveBooleanOpParameters op_params,
                                                           shapes,
                                                           points_by_curve,
                                                           clipping_shapes,
-                                                          self_clipping_inters_per_curves,
                                                           intersections,
                                                           is_fill,
                                                           cyclic);
@@ -2383,7 +2360,6 @@ static BooleanResult execute_boolean(const CurveBooleanOpParameters op_params,
                                                             shapes,
                                                             points_by_curve,
                                                             clipping_shapes,
-                                                            self_clipping_inters_per_curves,
                                                             intersections,
                                                             is_fill,
                                                             cyclic);
