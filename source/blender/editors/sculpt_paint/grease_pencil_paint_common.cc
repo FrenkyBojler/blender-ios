@@ -391,8 +391,8 @@ Array<float2> view_positions_from_curve_mask(const GreasePencilStrokeParams &par
   return view_positions;
 }
 
-Array<float2> calculate_view_handles_positions_left(const GreasePencilStrokeParams &params,
-                                                    const IndexMask &selection)
+Array<float2> view_positions_left_from_point_mask(const GreasePencilStrokeParams &params,
+                                                  const IndexMask &selection)
 {
   const Span<float3> handle_positions_left =
       params.drawing.strokes().handle_positions_left().value_or(Span<float3>());
@@ -418,8 +418,8 @@ Array<float2> calculate_view_handles_positions_left(const GreasePencilStrokePara
   return view_positions;
 }
 
-Array<float2> calculate_view_handles_positions_right(const GreasePencilStrokeParams &params,
-                                                     const IndexMask &selection)
+Array<float2> view_positions_right_from_point_mask(const GreasePencilStrokeParams &params,
+                                                   const IndexMask &selection)
 {
   const Span<float3> handle_positions_right =
       params.drawing.strokes().handle_positions_right().value_or(Span<float3>());
