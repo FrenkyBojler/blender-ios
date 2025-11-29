@@ -98,14 +98,20 @@ class VKTexture : public Texture {
                   int extent[3],
                   eGPUDataFormat format,
                   const void *data,
-                  VKPixelBuffer *pixel_buffer);
+                  VKPixelBuffer *pixel_buffer,
+                  const uint texture_unpack_row_length);
 
-  void update_sub(
-      int mip, int offset[3], int extent[3], eGPUDataFormat format, const void *data) override;
+  void update_sub(int mip,
+                  int offset[3],
+                  int extent[3],
+                  eGPUDataFormat format,
+                  const void *data,
+                  const uint texture_unpack_row_length) override;
   void update_sub(int offset[3],
                   int extent[3],
                   eGPUDataFormat format,
-                  GPUPixelBuffer *pixbuf) override;
+                  GPUPixelBuffer *pixbuf,
+                  const uint texture_unpack_row_length) override;
 
   /**
    * Export the memory associated with this texture to be imported by a different

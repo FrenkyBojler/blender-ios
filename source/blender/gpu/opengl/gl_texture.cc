@@ -187,8 +187,12 @@ void GLTexture::update_sub_direct_state_access(
   has_pixels_ = true;
 }
 
-void GLTexture::update_sub(
-    int mip, int offset[3], int extent[3], eGPUDataFormat type, const void *data)
+void GLTexture::update_sub(int mip,
+                           int offset[3],
+                           int extent[3],
+                           eGPUDataFormat type,
+                           const void *data,
+                           const uint texture_unpack_row_length)
 {
   BLI_assert(validate_data_format(format_, type));
   BLI_assert(data != nullptr);
@@ -200,8 +204,6 @@ void GLTexture::update_sub(
 
   /* If `texture_unpack_row_length` is 0, rows are sequentially stored. Otherwise we unpack data
    * into a staging block, so the half conversion below doesn't happen on the full input. */
-  const uint texture_unpack_row_length =
-      GLContext::state_manager_active_get()->texture_unpack_row_length_get();
   const bool do_texture_unpack = !ELEM(texture_unpack_row_length, 0, extent[0]);
 
   /* Unpack `data` if `texture_unpack_row_length` is set. */
@@ -323,7 +325,8 @@ void GLTexture::update_sub(
 void GLTexture::update_sub(int offset[3],
                            int extent[3],
                            eGPUDataFormat format,
-                           GPUPixelBuffer *pixbuf)
+                           GPUPixelBuffer *pixbuf,
+                           const uint texture_unpack_row_length)
 {
   /* Update texture from pixel buffer. */
   BLI_assert(validate_data_format(format_, format));
