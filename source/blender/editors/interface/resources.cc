@@ -628,6 +628,9 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
         case TH_NODE:
           cp = ts->syntaxl;
           break;
+        case TH_NODE_OUTLINE:
+          cp = ts->node_outline;
+          break;
         case TH_NODE_INPUT:
           cp = ts->syntaxn;
           break;
@@ -776,6 +779,9 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           cp = &btheme->common.curves.handle_vertex_size;
           break;
 
+        case TH_GP_WIRE_EDIT:
+          cp = ts->gp_wire_edit;
+          break;
         case TH_GP_VERTEX:
           cp = ts->gp_vertex;
           break;

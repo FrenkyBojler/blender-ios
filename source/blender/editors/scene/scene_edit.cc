@@ -60,7 +60,11 @@ static Scene *scene_add(Main *bmain, Scene *scene_old, eSceneCopyMethod method)
       ED_editors_flush_edits(bmain);
     }
 
-    scene_new = BKE_scene_duplicate(bmain, scene_old, method);
+    scene_new = BKE_scene_duplicate(bmain,
+                                    scene_old,
+                                    method,
+                                    static_cast<eDupli_ID_Flags>(U.dupflag | USER_DUP_OBJECT),
+                                    LIB_ID_DUPLICATE_IS_ROOT_ID);
   }
 
   return scene_new;
@@ -146,7 +150,7 @@ bool ED_scene_replace_active_for_deletion(bContext &C, Main &bmain, Scene &scene
 
   /* In theory, the call to #WM_window_set_active_scene above should have handled this through
    * calls to #ED_screen_scene_change. But there can be unusual cases (e.g. on file opening in
-   * brackground mode) where the state of available Windows may prevent this from happening. */
+   * background mode) where the state of available Windows may prevent this from happening. */
   if (CTX_data_scene(&C) == &scene) {
 #ifdef WITH_PYTHON
     BPy_BEGIN_ALLOW_THREADS;
@@ -411,6 +415,7 @@ static void SCENE_OT_new_sequencer(wmOperatorType *ot)
 static wmOperatorStatus new_sequencer_scene_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
+  wmWindow *win = CTX_wm_window(C);
   WorkSpace *workspace = CTX_wm_workspace(C);
   Scene *scene_old = CTX_data_sequencer_scene(C);
   const int type = RNA_enum_get(op->ptr, "type");
@@ -419,6 +424,16 @@ static wmOperatorStatus new_sequencer_scene_exec(bContext *C, wmOperator *op)
   blender::seq::editing_ensure(new_scene);
 
   workspace->sequencer_scene = new_scene;
+
+  /* Switching the active scene to the newly created sequencer scene should prevent confusion among
+   * new users to the VSE. For example, this prevents the case where attempting to change
+   * resolution properties would have no effect.
+   *
+   * FIXME: This logic is meant to address a temporary paper-cut and may be removed later in 5.1+
+   * when properties for scenes and sequencer scenes can be more properly separated. */
+  WM_window_set_active_scene(bmain, C, win, new_scene);
+  BKE_reportf(
+      op->reports, RPT_WARNING, TIP_("Active scene changed to '%s'"), new_scene->id.name + 2);
 
   WM_event_add_notifier(C, NC_WINDOW, nullptr);
   return OPERATOR_FINISHED;

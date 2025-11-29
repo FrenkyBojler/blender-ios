@@ -23,6 +23,8 @@
 #include "BKE_pointcloud.hh"
 #include "BKE_type_conversions.hh"
 
+#include "BLT_translation.hh"
+
 namespace blender::geometry {
 
 using blender::bke::AttrDomain;
@@ -87,10 +89,10 @@ struct RealizePointCloudTask {
 
 /** Start indices in the final output mesh. */
 struct MeshElementStartIndices {
-  int vertex = 0;
+  int vert = 0;
   int edge = 0;
   int face = 0;
-  int loop = 0;
+  int corner = 0;
 };
 
 struct MeshRealizeInfo {
@@ -106,7 +108,7 @@ struct MeshRealizeInfo {
   /** Matches the order in #AllMeshesInfo.attributes. */
   Array<std::optional<GVArraySpan>> attributes;
   /** Vertex ids stored on the mesh. If there are no ids, this #Span is empty. */
-  Span<int> stored_vertex_ids;
+  Span<int> stored_vert_ids;
   VArray<int> material_indices;
   /** Custom normals are rotated based on each instance's transformation. */
   GVArraySpan custom_normal;
@@ -279,10 +281,19 @@ struct GatherTasks {
 
 /** Current offsets while during the gather operation. */
 struct GatherOffsets {
-  int pointcloud_offset = 0;
-  MeshElementStartIndices mesh_offsets;
-  CurvesElementStartIndices curves_offsets;
-  int grease_pencil_layer_offset = 0;
+  int64_t pointcloud_offset = 0;
+  struct {
+    int64_t vert = 0;
+    int64_t edge = 0;
+    int64_t face = 0;
+    int64_t corner = 0;
+  } mesh_offsets;
+  struct {
+    int64_t point = 0;
+    int64_t curve = 0;
+    int64_t custom_knot = 0;
+  } curves_offsets;
+  int64_t grease_pencil_layer_offset = 0;
 };
 
 struct GatherTasksInfo {
@@ -344,6 +355,11 @@ struct InstanceContext {
   }
 };
 
+static bool valid_int_num(const int64_t num)
+{
+  return num >= 0 && num <= INT32_MAX;
+}
+
 static int64_t get_final_points_num(const GatherTasks &tasks)
 {
   int64_t points_num = 0;
@@ -353,7 +369,7 @@ static int64_t get_final_points_num(const GatherTasks &tasks)
   }
   if (!tasks.mesh_tasks.is_empty()) {
     const RealizeMeshTask &task = tasks.mesh_tasks.last();
-    points_num += task.start_indices.vertex + task.mesh_info->mesh->verts_num;
+    points_num += task.start_indices.vert + task.mesh_info->mesh->verts_num;
   }
   if (!tasks.curve_tasks.is_empty()) {
     const RealizeCurveTask &task = tasks.curve_tasks.last();
@@ -629,14 +645,17 @@ static void gather_realize_tasks_recursive(GatherTasksInfo &gather_info,
         if (mesh != nullptr && mesh->verts_num > 0) {
           const int mesh_index = gather_info.meshes.order.index_of(mesh);
           const MeshRealizeInfo &mesh_info = gather_info.meshes.realize_info[mesh_index];
-          gather_info.r_tasks.mesh_tasks.append({gather_info.r_offsets.mesh_offsets,
+          gather_info.r_tasks.mesh_tasks.append({{int(gather_info.r_offsets.mesh_offsets.vert),
+                                                  int(gather_info.r_offsets.mesh_offsets.edge),
+                                                  int(gather_info.r_offsets.mesh_offsets.face),
+                                                  int(gather_info.r_offsets.mesh_offsets.corner)},
                                                  &mesh_info,
                                                  base_transform,
                                                  base_instance_context.meshes,
                                                  base_instance_context.id});
-          gather_info.r_offsets.mesh_offsets.vertex += mesh->verts_num;
+          gather_info.r_offsets.mesh_offsets.vert += mesh->verts_num;
           gather_info.r_offsets.mesh_offsets.edge += mesh->edges_num;
-          gather_info.r_offsets.mesh_offsets.loop += mesh->corners_num;
+          gather_info.r_offsets.mesh_offsets.corner += mesh->corners_num;
           gather_info.r_offsets.mesh_offsets.face += mesh->faces_num;
         }
         break;
@@ -649,11 +668,12 @@ static void gather_realize_tasks_recursive(GatherTasksInfo &gather_info,
           const int pointcloud_index = gather_info.pointclouds.order.index_of(pointcloud);
           const PointCloudRealizeInfo &pointcloud_info =
               gather_info.pointclouds.realize_info[pointcloud_index];
-          gather_info.r_tasks.pointcloud_tasks.append({gather_info.r_offsets.pointcloud_offset,
-                                                       &pointcloud_info,
-                                                       base_transform,
-                                                       base_instance_context.pointclouds,
-                                                       base_instance_context.id});
+          gather_info.r_tasks.pointcloud_tasks.append(
+              {int(gather_info.r_offsets.pointcloud_offset),
+               &pointcloud_info,
+               base_transform,
+               base_instance_context.pointclouds,
+               base_instance_context.id});
           gather_info.r_offsets.pointcloud_offset += pointcloud->totpoint;
         }
         break;
@@ -664,11 +684,14 @@ static void gather_realize_tasks_recursive(GatherTasksInfo &gather_info,
         if (curves != nullptr && curves->geometry.curve_num > 0) {
           const int curve_index = gather_info.curves.order.index_of(curves);
           const RealizeCurveInfo &curve_info = gather_info.curves.realize_info[curve_index];
-          gather_info.r_tasks.curve_tasks.append({gather_info.r_offsets.curves_offsets,
-                                                  &curve_info,
-                                                  base_transform,
-                                                  base_instance_context.curves,
-                                                  base_instance_context.id});
+          gather_info.r_tasks.curve_tasks.append(
+              {{int(gather_info.r_offsets.curves_offsets.point),
+                int(gather_info.r_offsets.curves_offsets.curve),
+                int(gather_info.r_offsets.curves_offsets.custom_knot)},
+               &curve_info,
+               base_transform,
+               base_instance_context.curves,
+               base_instance_context.id});
           gather_info.r_offsets.curves_offsets.point += curves->geometry.point_num;
           gather_info.r_offsets.curves_offsets.curve += curves->geometry.curve_num;
           gather_info.r_offsets.curves_offsets.custom_knot += curves->geometry.custom_knot_num;
@@ -684,7 +707,7 @@ static void gather_realize_tasks_recursive(GatherTasksInfo &gather_info,
           const GreasePencilRealizeInfo &grease_pencil_info =
               gather_info.grease_pencils.realize_info[grease_pencil_index];
           gather_info.r_tasks.grease_pencil_tasks.append(
-              {gather_info.r_offsets.grease_pencil_layer_offset,
+              {int(gather_info.r_offsets.grease_pencil_layer_offset),
                &grease_pencil_info,
                base_transform,
                base_instance_context.grease_pencils});
@@ -898,6 +921,12 @@ static bke::GeometrySet::GatheredAttributes gather_attributes_to_propagate(
         if (component_type == bke::GeometryComponent::Type::GreasePencil) {
           /* For Grease Pencil, we want to propagate the instance attributes to the layers. */
           dst_domain = AttrDomain::Layer;
+        }
+        else if (component_type == bke::GeometryComponent::Type::Curve &&
+                 !options.realize_to_point_domain)
+        {
+          /* For curves, storing the attribute on curves is more efficient. */
+          dst_domain = AttrDomain::Curve;
         }
         else {
           /* Other instance attributes are realized on the point domain currently. */
@@ -1183,10 +1212,11 @@ static void add_instance_attributes_to_single_geometry(
   }
 }
 static void execute_realize_pointcloud_tasks(const RealizeInstancesOptions &options,
+                                             const GatherOffsets &offsets,
                                              const AllPointCloudsInfo &all_pointclouds_info,
                                              const Span<RealizePointCloudTask> tasks,
                                              const OrderedAttributes &ordered_attributes,
-                                             bke::GeometrySet &r_realized_geometry)
+                                             RealizeInstancesResult &r_result)
 {
   if (tasks.is_empty()) {
     return;
@@ -1201,17 +1231,19 @@ static void execute_realize_pointcloud_tasks(const RealizeInstancesOptions &opti
     }
     add_instance_attributes_to_single_geometry(
         ordered_attributes, task.attribute_fallbacks, new_points->attributes_for_write());
-    r_realized_geometry.replace_pointcloud(new_points);
+    r_result.geometry.replace_pointcloud(new_points);
     return;
   }
 
-  const RealizePointCloudTask &last_task = tasks.last();
-  const PointCloud &last_pointcloud = *last_task.pointcloud_info->pointcloud;
-  const int tot_points = last_task.start_index + last_pointcloud.totpoint;
+  const int64_t tot_points = offsets.pointcloud_offset;
+  if (!valid_int_num(tot_points)) {
+    r_result.errors.append(RPT_("Realized point cloud has too many points."));
+    return;
+  }
 
   /* Allocate new point cloud. */
   PointCloud *dst_pointcloud = BKE_pointcloud_new_nomain(tot_points);
-  r_realized_geometry.replace_pointcloud(dst_pointcloud);
+  r_result.geometry.replace_pointcloud(dst_pointcloud);
   bke::MutableAttributeAccessor dst_attributes = dst_pointcloud->attributes_for_write();
 
   const RealizePointCloudTask &first_task = tasks.first();
@@ -1393,7 +1425,7 @@ static AllMeshesInfo preprocess_meshes(const bke::GeometrySet &geometry_set,
       if (ids_attribute && ids_attribute.domain == bke::AttrDomain::Point &&
           ids_attribute.varray.type().is<int>() && ids_attribute.varray.is_span())
       {
-        mesh_info.stored_vertex_ids = ids_attribute.varray.get_internal_span().typed<int>();
+        mesh_info.stored_vert_ids = ids_attribute.varray.get_internal_span().typed<int>();
       }
     }
     mesh_info.material_indices = *attributes.lookup_or_default<int>(
@@ -1457,7 +1489,7 @@ static void execute_realize_mesh_task(const RealizeInstancesOptions &options,
                                       MutableSpan<int> all_dst_face_offsets,
                                       MutableSpan<int> all_dst_corner_verts,
                                       MutableSpan<int> all_dst_corner_edges,
-                                      MutableSpan<int> all_dst_vertex_ids,
+                                      MutableSpan<int> all_dst_vert_ids,
                                       MutableSpan<int> all_dst_material_indices,
                                       GSpanAttributeWriter &all_dst_custom_normals)
 {
@@ -1470,37 +1502,39 @@ static void execute_realize_mesh_task(const RealizeInstancesOptions &options,
   const Span<int> src_corner_verts = mesh_info.corner_verts;
   const Span<int> src_corner_edges = mesh_info.corner_edges;
 
-  const IndexRange dst_vert_range(task.start_indices.vertex, src_positions.size());
+  const IndexRange dst_vert_range(task.start_indices.vert, src_positions.size());
   const IndexRange dst_edge_range(task.start_indices.edge, src_edges.size());
   const IndexRange dst_face_range(task.start_indices.face, src_faces.size());
-  const IndexRange dst_loop_range(task.start_indices.loop, src_corner_verts.size());
+  const IndexRange dst_corner_range(task.start_indices.corner, src_corner_verts.size());
 
   MutableSpan<float3> dst_positions = all_dst_positions.slice(dst_vert_range);
   MutableSpan<int2> dst_edges = all_dst_edges.slice(dst_edge_range);
   MutableSpan<int> dst_face_offsets = all_dst_face_offsets.slice(dst_face_range);
-  MutableSpan<int> dst_corner_verts = all_dst_corner_verts.slice(dst_loop_range);
-  MutableSpan<int> dst_corner_edges = all_dst_corner_edges.slice(dst_loop_range);
+  MutableSpan<int> dst_corner_verts = all_dst_corner_verts.slice(dst_corner_range);
+  MutableSpan<int> dst_corner_edges = all_dst_corner_edges.slice(dst_corner_range);
 
   math::transform_points(src_positions, task.transform, dst_positions);
 
   threading::parallel_for(src_edges.index_range(), 1024, [&](const IndexRange edge_range) {
     for (const int i : edge_range) {
-      dst_edges[i] = src_edges[i] + task.start_indices.vertex;
+      dst_edges[i] = src_edges[i] + task.start_indices.vert;
     }
   });
-  threading::parallel_for(src_corner_verts.index_range(), 1024, [&](const IndexRange loop_range) {
-    for (const int i : loop_range) {
-      dst_corner_verts[i] = src_corner_verts[i] + task.start_indices.vertex;
-    }
-  });
-  threading::parallel_for(src_corner_edges.index_range(), 1024, [&](const IndexRange loop_range) {
-    for (const int i : loop_range) {
-      dst_corner_edges[i] = src_corner_edges[i] + task.start_indices.edge;
-    }
-  });
+  threading::parallel_for(
+      src_corner_verts.index_range(), 1024, [&](const IndexRange corner_range) {
+        for (const int i : corner_range) {
+          dst_corner_verts[i] = src_corner_verts[i] + task.start_indices.vert;
+        }
+      });
+  threading::parallel_for(
+      src_corner_edges.index_range(), 1024, [&](const IndexRange corner_range) {
+        for (const int i : corner_range) {
+          dst_corner_edges[i] = src_corner_edges[i] + task.start_indices.edge;
+        }
+      });
   threading::parallel_for(src_faces.index_range(), 1024, [&](const IndexRange face_range) {
     for (const int i : face_range) {
-      dst_face_offsets[i] = src_faces[i].start() + task.start_indices.loop;
+      dst_face_offsets[i] = src_faces[i].start() + task.start_indices.corner;
     }
   });
   if (!all_dst_material_indices.is_empty()) {
@@ -1529,11 +1563,11 @@ static void execute_realize_mesh_task(const RealizeInstancesOptions &options,
     }
   }
 
-  if (!all_dst_vertex_ids.is_empty()) {
+  if (!all_dst_vert_ids.is_empty()) {
     create_result_ids(options,
-                      mesh_info.stored_vertex_ids,
+                      mesh_info.stored_vert_ids,
                       task.id,
-                      all_dst_vertex_ids.slice(task.start_indices.vertex, mesh.verts_num));
+                      all_dst_vert_ids.slice(task.start_indices.vert, mesh.verts_num));
   }
 
   const auto domain_to_range = [&](const bke::AttrDomain domain) {
@@ -1545,7 +1579,7 @@ static void execute_realize_mesh_task(const RealizeInstancesOptions &options,
       case bke::AttrDomain::Face:
         return dst_face_range;
       case bke::AttrDomain::Corner:
-        return dst_loop_range;
+        return dst_corner_range;
       default:
         BLI_assert_unreachable();
         return IndexRange();
@@ -1555,11 +1589,11 @@ static void execute_realize_mesh_task(const RealizeInstancesOptions &options,
   if (all_dst_custom_normals) {
     if (all_dst_custom_normals.span.type().is<short2>()) {
       if (mesh_info.custom_normal.is_empty()) {
-        all_dst_custom_normals.span.typed<short2>().slice(dst_loop_range).fill(short2(0));
+        all_dst_custom_normals.span.typed<short2>().slice(dst_corner_range).fill(short2(0));
       }
       else {
         all_dst_custom_normals.span.typed<short2>()
-            .slice(dst_loop_range)
+            .slice(dst_corner_range)
             .copy_from(mesh_info.custom_normal.typed<short2>());
       }
     }
@@ -1617,11 +1651,12 @@ static void copy_vertex_group_names(Mesh &dst_mesh,
 }
 
 static void execute_realize_mesh_tasks(const RealizeInstancesOptions &options,
+                                       const GatherOffsets &offsets,
                                        const AllMeshesInfo &all_meshes_info,
                                        const Span<RealizeMeshTask> tasks,
                                        const OrderedAttributes &ordered_attributes,
                                        const VectorSet<Material *> &ordered_materials,
-                                       bke::GeometrySet &r_realized_geometry)
+                                       RealizeInstancesResult &r_result)
 {
   if (tasks.is_empty()) {
     return;
@@ -1635,19 +1670,24 @@ static void execute_realize_mesh_tasks(const RealizeInstancesOptions &options,
     }
     add_instance_attributes_to_single_geometry(
         ordered_attributes, task.attribute_fallbacks, new_mesh->attributes_for_write());
-    r_realized_geometry.replace_mesh(new_mesh);
+    r_result.geometry.replace_mesh(new_mesh);
     return;
   }
 
-  const RealizeMeshTask &last_task = tasks.last();
-  const Mesh &last_mesh = *last_task.mesh_info->mesh;
-  const int tot_vertices = last_task.start_indices.vertex + last_mesh.verts_num;
-  const int tot_edges = last_task.start_indices.edge + last_mesh.edges_num;
-  const int tot_loops = last_task.start_indices.loop + last_mesh.corners_num;
-  const int tot_faces = last_task.start_indices.face + last_mesh.faces_num;
+  const int64_t verts_num = offsets.mesh_offsets.vert;
+  const int64_t edges_num = offsets.mesh_offsets.edge;
+  const int64_t faces_num = offsets.mesh_offsets.face;
+  const int64_t corners_num = offsets.mesh_offsets.corner;
 
-  Mesh *dst_mesh = BKE_mesh_new_nomain(tot_vertices, tot_edges, tot_faces, tot_loops);
-  r_realized_geometry.replace_mesh(dst_mesh);
+  if (!valid_int_num(verts_num) || !valid_int_num(edges_num) || !valid_int_num(corners_num) ||
+      !valid_int_num(faces_num))
+  {
+    r_result.errors.append(RPT_("Realized mesh has too many elements."));
+    return;
+  }
+
+  Mesh *dst_mesh = BKE_mesh_new_nomain(verts_num, edges_num, faces_num, corners_num);
+  r_result.geometry.replace_mesh(dst_mesh);
   bke::MutableAttributeAccessor dst_attributes = dst_mesh->attributes_for_write();
   MutableSpan<float3> dst_positions = dst_mesh->vert_positions_for_write();
   MutableSpan<int2> dst_edges = dst_mesh->edges_for_write();
@@ -1673,10 +1713,9 @@ static void execute_realize_mesh_tasks(const RealizeInstancesOptions &options,
   }
 
   /* Prepare id attribute. */
-  SpanAttributeWriter<int> vertex_ids;
+  SpanAttributeWriter<int> vert_ids;
   if (all_meshes_info.create_id_attribute) {
-    vertex_ids = dst_attributes.lookup_or_add_for_write_only_span<int>("id",
-                                                                       bke::AttrDomain::Point);
+    vert_ids = dst_attributes.lookup_or_add_for_write_only_span<int>("id", bke::AttrDomain::Point);
   }
   /* Prepare material indices. */
   SpanAttributeWriter<int> material_indices;
@@ -1712,22 +1751,7 @@ static void execute_realize_mesh_tasks(const RealizeInstancesOptions &options,
     dst_attribute_writers.append(
         dst_attributes.lookup_or_add_for_write_only_span(attribute_id, domain, data_type));
   }
-  const char *active_layer = CustomData_get_active_layer_name(&first_mesh.corner_data,
-                                                              CD_PROP_FLOAT2);
-  if (active_layer != nullptr) {
-    int id = CustomData_get_named_layer(&dst_mesh->corner_data, CD_PROP_FLOAT2, active_layer);
-    if (id >= 0) {
-      CustomData_set_layer_active(&dst_mesh->corner_data, CD_PROP_FLOAT2, id);
-    }
-  }
-  const char *render_layer = CustomData_get_render_layer_name(&first_mesh.corner_data,
-                                                              CD_PROP_FLOAT2);
-  if (render_layer != nullptr) {
-    int id = CustomData_get_named_layer(&dst_mesh->corner_data, CD_PROP_FLOAT2, render_layer);
-    if (id >= 0) {
-      CustomData_set_layer_render(&dst_mesh->corner_data, CD_PROP_FLOAT2, id);
-    }
-  }
+
   /* Actually execute all tasks. */
   threading::parallel_for(tasks.index_range(), 100, [&](const IndexRange task_range) {
     for (const int task_index : task_range) {
@@ -1741,7 +1765,7 @@ static void execute_realize_mesh_tasks(const RealizeInstancesOptions &options,
                                 dst_face_offsets,
                                 dst_corner_verts,
                                 dst_corner_edges,
-                                vertex_ids.span,
+                                vert_ids.span,
                                 material_indices.span,
                                 custom_normals);
     }
@@ -1751,7 +1775,7 @@ static void execute_realize_mesh_tasks(const RealizeInstancesOptions &options,
   for (GSpanAttributeWriter &dst_attribute : dst_attribute_writers) {
     dst_attribute.finish();
   }
-  vertex_ids.finish();
+  vert_ids.finish();
   material_indices.finish();
   custom_normals.finish();
 
@@ -2009,10 +2033,11 @@ static void copy_vertex_group_names(CurvesGeometry &dst_curve,
 }
 
 static void execute_realize_curve_tasks(const RealizeInstancesOptions &options,
+                                        const GatherOffsets &offsets,
                                         const AllCurvesInfo &all_curves_info,
                                         const Span<RealizeCurveTask> tasks,
                                         const OrderedAttributes &ordered_attributes,
-                                        bke::GeometrySet &r_realized_geometry)
+                                        RealizeInstancesResult &r_result)
 {
   if (tasks.is_empty()) {
     return;
@@ -2027,16 +2052,19 @@ static void execute_realize_curve_tasks(const RealizeInstancesOptions &options,
     add_instance_attributes_to_single_geometry(ordered_attributes,
                                                task.attribute_fallbacks,
                                                new_curves->geometry.wrap().attributes_for_write());
-    r_realized_geometry.replace_curves(new_curves);
+    r_result.geometry.replace_curves(new_curves);
     return;
   }
 
-  const RealizeCurveTask &last_task = tasks.last();
-  const Curves &last_curves = *last_task.curve_info->curves;
-  const int points_num = last_task.start_indices.point + last_curves.geometry.point_num;
-  const int curves_num = last_task.start_indices.curve + last_curves.geometry.curve_num;
-  const int custom_knot_num = last_task.start_indices.custom_knot +
-                              last_curves.geometry.custom_knot_num;
+  const int64_t points_num = offsets.curves_offsets.point;
+  const int64_t curves_num = offsets.curves_offsets.curve;
+  const int64_t custom_knot_num = offsets.curves_offsets.custom_knot;
+
+  if (!valid_int_num(points_num) || !valid_int_num(curves_num) || !valid_int_num(custom_knot_num))
+  {
+    r_result.errors.append(RPT_("Realized curves data has too many elements."));
+    return;
+  }
 
   /* Allocate new curves data-block. */
   Curves *dst_curves_id = bke::curves_new_nomain(points_num, curves_num);
@@ -2045,7 +2073,7 @@ static void execute_realize_curve_tasks(const RealizeInstancesOptions &options,
     dst_curves.nurbs_custom_knots_resize(custom_knot_num);
   }
   dst_curves.offsets_for_write().last() = points_num;
-  r_realized_geometry.replace_curves(dst_curves_id);
+  r_result.geometry.replace_curves(dst_curves_id);
   bke::MutableAttributeAccessor dst_attributes = dst_curves.attributes_for_write();
 
   /* Copy settings from the first input geometry set with curves. */
@@ -2269,9 +2297,10 @@ static void transform_grease_pencil_layers(Span<bke::greasepencil::Layer *> laye
 
 static void execute_realize_grease_pencil_tasks(
     const AllGreasePencilsInfo &all_grease_pencils_info,
+    const GatherOffsets &offsets,
     const Span<RealizeGreasePencilTask> tasks,
     const OrderedAttributes &ordered_attributes,
-    bke::GeometrySet &r_realized_geometry)
+    RealizeInstancesResult &r_result)
 {
   if (tasks.is_empty()) {
     return;
@@ -2285,19 +2314,21 @@ static void execute_realize_grease_pencil_tasks(
     }
     add_instance_attributes_to_single_geometry(
         ordered_attributes, task.attribute_fallbacks, new_gp->attributes_for_write());
-    r_realized_geometry.replace_grease_pencil(new_gp);
+    r_result.geometry.replace_grease_pencil(new_gp);
     return;
   }
 
-  const RealizeGreasePencilTask &last_task = tasks.last();
-  const int new_layers_num = last_task.start_index +
-                             last_task.grease_pencil_info->grease_pencil->layers().size();
+  const int64_t new_layers_num = offsets.grease_pencil_layer_offset;
+  if (!valid_int_num(new_layers_num)) {
+    r_result.errors.append(RPT_("Realized grease pencil has too many layers."));
+    return;
+  }
 
   /* Allocate new grease pencil. */
   GreasePencil *dst_grease_pencil = BKE_grease_pencil_new_nomain();
   BKE_grease_pencil_copy_parameters(*tasks.first().grease_pencil_info->grease_pencil,
                                     *dst_grease_pencil);
-  r_realized_geometry.replace_grease_pencil(dst_grease_pencil);
+  r_result.geometry.replace_grease_pencil(dst_grease_pencil);
 
   /* Allocate all layers. */
   dst_grease_pencil->add_layers_with_empty_drawings_for_eval(new_layers_num);
@@ -2414,11 +2445,11 @@ static void propagate_instances_to_keep(const bke::GeometrySet &geometry_set,
   new_instances_components.replace(new_instances.release(), bke::GeometryOwnershipType::Owned);
 }
 
-bke::GeometrySet realize_instances(bke::GeometrySet geometry_set,
-                                   const RealizeInstancesOptions &options)
+RealizeInstancesResult realize_instances(bke::GeometrySet geometry_set,
+                                         const RealizeInstancesOptions &options)
 {
   if (!geometry_set.has_instances()) {
-    return geometry_set;
+    return {geometry_set};
   }
 
   VariedDepthOptions all_instances;
@@ -2428,9 +2459,9 @@ bke::GeometrySet realize_instances(bke::GeometrySet geometry_set,
   return realize_instances(geometry_set, options, all_instances);
 }
 
-bke::GeometrySet realize_instances(bke::GeometrySet geometry_set,
-                                   const RealizeInstancesOptions &options,
-                                   const VariedDepthOptions &varied_depth_option)
+RealizeInstancesResult realize_instances(bke::GeometrySet geometry_set,
+                                         const RealizeInstancesOptions &options,
+                                         const VariedDepthOptions &varied_depth_option)
 {
   /* The algorithm works in three steps:
    * 1. Preprocess each unique geometry that is instanced (e.g. each `Mesh`).
@@ -2440,7 +2471,7 @@ bke::GeometrySet realize_instances(bke::GeometrySet geometry_set,
    */
 
   if (!geometry_set.has_instances()) {
-    return geometry_set;
+    return {geometry_set};
   }
 
   bke::GeometrySet not_to_realize_set;
@@ -2489,12 +2520,12 @@ bke::GeometrySet realize_instances(bke::GeometrySet geometry_set,
   gather_realize_tasks_recursive(
       gather_info, 0, VariedDepthOptions::MAX_DEPTH, geometry_set, transform, attribute_fallbacks);
 
-  bke::GeometrySet new_geometry_set;
+  RealizeInstancesResult result;
   execute_instances_tasks(gather_info.instances.instances_components_to_merge,
                           gather_info.instances.instances_components_transforms,
                           all_instance_attributes,
                           gather_info.instances.attribute_fallback,
-                          new_geometry_set);
+                          result.geometry);
 
   const int64_t total_points_num = get_final_points_num(gather_info.r_tasks);
   /* This doesn't have to be exact at all, it's just a rough estimate to make decisions about
@@ -2502,32 +2533,36 @@ bke::GeometrySet realize_instances(bke::GeometrySet geometry_set,
   const int64_t approximate_used_bytes_num = total_points_num * 32;
   threading::memory_bandwidth_bound_task(approximate_used_bytes_num, [&]() {
     execute_realize_pointcloud_tasks(options,
+                                     gather_info.r_offsets,
                                      all_pointclouds_info,
                                      gather_info.r_tasks.pointcloud_tasks,
                                      all_pointclouds_info.attributes,
-                                     new_geometry_set);
+                                     result);
     execute_realize_mesh_tasks(options,
+                               gather_info.r_offsets,
                                all_meshes_info,
                                gather_info.r_tasks.mesh_tasks,
                                all_meshes_info.attributes,
                                all_meshes_info.materials,
-                               new_geometry_set);
+                               result);
     execute_realize_curve_tasks(options,
+                                gather_info.r_offsets,
                                 all_curves_info,
                                 gather_info.r_tasks.curve_tasks,
                                 all_curves_info.attributes,
-                                new_geometry_set);
+                                result);
     execute_realize_grease_pencil_tasks(all_grease_pencils_info,
+                                        gather_info.r_offsets,
                                         gather_info.r_tasks.grease_pencil_tasks,
                                         all_grease_pencils_info.attributes,
-                                        new_geometry_set);
-    execute_realize_edit_data_tasks(gather_info.r_tasks.edit_data_tasks, new_geometry_set);
+                                        result);
+    execute_realize_edit_data_tasks(gather_info.r_tasks.edit_data_tasks, result.geometry);
   });
   if (gather_info.r_tasks.first_volume) {
-    new_geometry_set.add(*gather_info.r_tasks.first_volume);
+    result.geometry.add(*gather_info.r_tasks.first_volume);
   }
 
-  return new_geometry_set;
+  return result;
 }
 
 /** \} */

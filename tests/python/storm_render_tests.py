@@ -17,6 +17,8 @@ BLOCKLIST_HYDRA = [
     "image.blend",
     # VDB rendering is incorrect on Metal
     "overlapping_octrees.blend",
+    # No number of sample support, so will not converge to gray as expected
+    "white_noise_256spp.blend",
 ]
 
 BLOCKLIST_USD = [
@@ -27,6 +29,8 @@ BLOCKLIST_USD = [
     "light_tree_node_subtended_angle.blend",
     # VDB rendering is incorrect on Metal
     "overlapping_octrees.blend",
+    # No number of sample support, so will not converge to gray as expected
+    "white_noise_256spp.blend",
 ]
 
 # Metal support in Storm is no as good as OpenGL, though this needs to be
@@ -54,28 +58,19 @@ BLOCKLIST_METAL = [
     "openvdb.*.blend",
     "principled_bsdf_interior",
     # Other
-    "white_noise.*.blend",
-    "musgrave_multifractal.*.blend",
     "autosmooth_custom_normals.blend",
 ]
 
 # AMD seems to have similar limitations as Metal for transparency.
 BLOCKLIST_AMD = BLOCKLIST_METAL + [
-    "musgrave_.*_multifractal.*.blend",
-    "noise_lacunarity.blend",
 ]
 
 # Minor difference in texture coordinate for white noise hash.
 BLOCKLIST_INTEL = [
-    "autosmooth_custom_normals.blend",
     "hair_reflection.blend",
     "hair_transmission.blend",
     "principled_bsdf_emission.blend",
     "principled_bsdf_sheen.blend",
-    "musgrave_.*_multifractal.*.blend",
-    "noise_lacunarity.blend",
-    "sss_hair.blend",
-    "white_noise.*.blend",
 ]
 
 
@@ -163,12 +158,19 @@ def main():
 
     # Try to account for image filtering differences from OS/drivers
     test_dir_name = Path(args.testdir).name
-    if (test_dir_name in {'image_mapping', 'mesh'}):
+    if (test_dir_name in {'image_mapping'}):
         report.set_fail_threshold(0.028)
         report.set_fail_percent(1.3)
     if (test_dir_name in {'image_colorspace'}):
         report.set_fail_threshold(0.032)
         report.set_fail_percent(1.5)
+    if (test_dir_name in {'mesh'}):
+        report.set_fail_threshold(0.036)
+        report.set_fail_percent(1.3)
+    if (test_dir_name in {'sss', 'hair'}):
+        # Ignore differences in rasterization of hair on Mesa drivers
+        report.set_fail_threshold(0.02)
+        report.set_fail_percent(1.8)
 
     test_dir_name = Path(args.testdir).name
 

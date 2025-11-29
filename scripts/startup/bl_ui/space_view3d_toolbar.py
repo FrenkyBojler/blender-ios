@@ -260,7 +260,6 @@ class View3DPaintBrushPanel(View3DPaintPanel):
 class VIEW3D_PT_tools_particlemode(Panel, View3DPaintPanel):
     bl_context = ".paint_common"  # dot on purpose (access from topbar)
     bl_label = "Particle Tool"
-    bl_options = {'HIDE_HEADER'}
 
     @classmethod
     def poll(cls, context):
@@ -488,7 +487,7 @@ class SelectPaintSlotHelper:
                     layout.operator("paint.add_simple_uvs", icon='ADD', text="Add UVs")
                 else:
                     layout.menu("VIEW3D_MT_tools_projectpaint_uvlayer", text=uv_text, translate=False)
-                have_image = getattr(settings, self.canvas_image_attr_name) is not None
+                have_image = getattr(mode_settings, self.canvas_image_attr_name) is not None
 
                 self.draw_image_interpolation(layout=layout, mode_settings=mode_settings)
 

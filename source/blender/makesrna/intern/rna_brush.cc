@@ -66,17 +66,6 @@ static const EnumPropertyItem rna_enum_brush_texture_slot_map_all_mode_items[] =
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-#ifdef RNA_RUNTIME
-static const EnumPropertyItem rna_enum_brush_texture_slot_map_texture_mode_items[] = {
-    {MTEX_MAP_MODE_VIEW, "VIEW_PLANE", 0, "View Plane", ""},
-    {MTEX_MAP_MODE_TILED, "TILED", 0, "Tiled", ""},
-    {MTEX_MAP_MODE_3D, "3D", 0, "3D", ""},
-    {MTEX_MAP_MODE_RANDOM, "RANDOM", 0, "Random", ""},
-    {MTEX_MAP_MODE_STENCIL, "STENCIL", 0, "Stencil", ""},
-    {0, nullptr, 0, nullptr, nullptr},
-};
-#endif
-
 const EnumPropertyItem rna_enum_brush_curve_preset_items[] = {
     {BRUSH_CURVE_CUSTOM, "CUSTOM", ICON_RNDCURVE, "Custom", ""},
     {BRUSH_CURVE_SMOOTH, "SMOOTH", ICON_SMOOTHCURVE, "Smooth", ""},
@@ -103,7 +92,7 @@ const EnumPropertyItem rna_enum_brush_automasking_flag_items[] = {
      "use_automasking_face_sets",
      0,
      "Face Sets",
-     "Affect only vertices that share Face Sets with the active vertex"},
+     "Affect only vertices that share face sets with the active vertex"},
     {BRUSH_AUTOMASKING_BOUNDARY_EDGES,
      "use_automasking_boundary_edges",
      0,
@@ -113,7 +102,7 @@ const EnumPropertyItem rna_enum_brush_automasking_flag_items[] = {
      "use_automasking_boundary_face_sets",
      0,
      "Face Sets Boundary Automasking",
-     "Do not affect vertices that belong to a Face Set boundary"},
+     "Do not affect vertices that belong to a face set boundary"},
     {BRUSH_AUTOMASKING_CAVITY_NORMAL,
      "use_automasking_cavity",
      0,
@@ -1064,6 +1053,14 @@ static const EnumPropertyItem *rna_BrushTextureSlot_map_mode_itemf(bContext *C,
                                                                    PropertyRNA * /*prop*/,
                                                                    bool * /*r_free*/)
 {
+  static const EnumPropertyItem rna_enum_brush_texture_slot_map_texture_mode_items[] = {
+      {MTEX_MAP_MODE_VIEW, "VIEW_PLANE", 0, "View Plane", ""},
+      {MTEX_MAP_MODE_TILED, "TILED", 0, "Tiled", ""},
+      {MTEX_MAP_MODE_3D, "3D", 0, "3D", ""},
+      {MTEX_MAP_MODE_RANDOM, "RANDOM", 0, "Random", ""},
+      {MTEX_MAP_MODE_STENCIL, "STENCIL", 0, "Stencil", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
 
   if (C == nullptr) {
     return rna_enum_brush_texture_slot_map_all_mode_items;
@@ -2457,7 +2454,7 @@ static void rna_def_brush(BlenderRNA *brna)
 
   static const EnumPropertyItem brush_pose_deform_type_items[] = {
       {BRUSH_POSE_DEFORM_ROTATE_TWIST, "ROTATE_TWIST", 0, "Rotate/Twist", ""},
-      {BRUSH_POSE_DEFORM_SCALE_TRASLATE, "SCALE_TRANSLATE", 0, "Scale/Translate", ""},
+      {BRUSH_POSE_DEFORM_SCALE_TRANSLATE, "SCALE_TRANSLATE", 0, "Scale/Translate", ""},
       {BRUSH_POSE_DEFORM_SQUASH_STRETCH, "SQUASH_STRETCH", 0, "Squash & Stretch", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
@@ -2473,12 +2470,12 @@ static void rna_def_brush(BlenderRNA *brna)
        "FACE_SETS",
        0,
        "Face Sets",
-       "Creates a pose segment per face sets, starting from the active face set"},
+       "Creates a pose segment per face set, starting from the active face set"},
       {BRUSH_POSE_ORIGIN_FACE_SETS_FK,
        "FACE_SETS_FK",
        0,
        "Face Sets FK",
-       "Simulates an FK deformation using the Face Set under the cursor as control"},
+       "Simulates an FK deformation using the face set under the cursor as control"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 

@@ -154,6 +154,8 @@ RESHAPE(float3x3, mat3x3, mat3x4)
 #define METAL_CONSTRUCTOR_6(class_name, t1, m1, t2, m2, t3, m3, t4, m4, t5, m5, t6, m6)
 #define METAL_CONSTRUCTOR_7(class_name, t1, m1, t2, m2, t3, m3, t4, m4, t5, m5, t6, m6, t7, m7)
 
+#define ATTR_FALLTHROUGH
+
 #define _in_sta
 #define _in_end
 #define _out_sta
@@ -172,6 +174,7 @@ RESHAPE(float3x3, mat3x3, mat3x4)
 #define buffer_get(create_info, _res) _res
 #define sampler_get(create_info, _res) _res
 #define image_get(create_info, _res) _res
+#define srt_access(create_info, _res) access_##create_info##_##_res()
 
 /* Incompatible keywords. */
 #define static
@@ -180,6 +183,12 @@ RESHAPE(float3x3, mat3x3, mat3x4)
 #define device
 #define thread
 #define threadgroup
+
+float4 texelFetchExtend(sampler2D samp, int2 texel, int lvl)
+{
+  texel = clamp(texel, int2(0), textureSize(samp, lvl).xy - 1);
+  return texelFetch(samp, texel, lvl);
+}
 
 /* Stage agnostic builtin function.
  * GLSL doesn't allow mixing shader stages inside the same source file.

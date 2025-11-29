@@ -349,7 +349,8 @@ static bool nlaedit_get_context(bAnimContext *ac, SpaceNla *snla)
   /* sync settings with current view status, then return appropriate data */
   /* update scene-pointer (no need to check for pinning yet, as not implemented) */
   snla->ads->source = reinterpret_cast<ID *>(ac->scene);
-  snla->ads->filterflag |= ADS_FILTER_ONLYNLA;
+  ac->filters.flag = eDopeSheet_FilterFlag(snla->ads->filterflag | ADS_FILTER_ONLYNLA);
+  ac->filters.flag2 = eDopeSheet_FilterFlag2(snla->ads->filterflag2);
 
   ac->datatype = ANIMCONT_NLA;
   ac->data = snla->ads;
@@ -1098,7 +1099,7 @@ static bool skip_fcurve_selected_data(bAnimContext *ac,
           return true;
         }
 
-        if ((strip->flag & SELECT) == 0) {
+        if ((strip->flag & SEQ_SELECT) == 0) {
           return true;
         }
       }
@@ -3692,7 +3693,7 @@ static int ds_base_sorting_cmp(const void *base1_ptr, const void *base2_ptr)
   const Base *b1 = *((const Base **)base1_ptr);
   const Base *b2 = *((const Base **)base2_ptr);
 
-  return strcmp(b1->object->id.name + 2, b2->object->id.name + 2);
+  return BLI_strcasecmp_natural(b1->object->id.name + 2, b2->object->id.name + 2);
 }
 
 /* Get a sorted list of all the bases - for inclusion in dopesheet (when drawing channels) */
@@ -3710,7 +3711,8 @@ static Base **animdata_filter_ds_sorted_bases(bAnimContext *ac,
 
   Base **sorted_bases = MEM_calloc_arrayN<Base *>(tot_bases, "Dopesheet Usable Sorted Bases");
   LISTBASE_FOREACH (Base *, base, object_bases) {
-    if (animdata_filter_base_is_ok(ac, base, OB_MODE_OBJECT, filter_mode)) {
+    const eObjectMode object_mode = eObjectMode(base->object->mode);
+    if (animdata_filter_base_is_ok(ac, base, object_mode, filter_mode)) {
       sorted_bases[num_bases++] = base;
     }
   }
@@ -3949,12 +3951,9 @@ static size_t animdata_filter_remove_invalid(ListBase *anim_data)
 /* Remove duplicate entries in animation channel list */
 static size_t animdata_filter_remove_duplis(ListBase *anim_data)
 {
-  GSet *gs;
-  size_t items = 0;
-
   /* Build new hash-table to efficiently store and retrieve which entries have been
    * encountered already while searching. */
-  gs = BLI_gset_ptr_new(__func__);
+  blender::Set<const void *> gs;
 
   /* loop through items, removing them from the list if a similar item occurs already */
   LISTBASE_FOREACH_MUTABLE (bAnimListElem *, ale, anim_data) {
@@ -3963,21 +3962,14 @@ static size_t animdata_filter_remove_duplis(ListBase *anim_data)
      *   ale->type in combination too to capture corner cases
      *   (where same data performs differently)
      */
-    if (BLI_gset_add(gs, ale->data)) {
-      /* this entry is 'unique' and can be kept */
-      items++;
-    }
-    else {
+    if (!gs.add(ale->data)) {
       /* this entry isn't needed anymore */
       BLI_freelinkN(anim_data, ale);
     }
   }
 
-  /* free the hash... */
-  BLI_gset_free(gs, nullptr);
-
   /* return the number of items still in the list */
-  return items;
+  return gs.size();
 }
 
 /* ----------- Public API --------------- */

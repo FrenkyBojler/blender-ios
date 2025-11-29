@@ -277,10 +277,16 @@ int RNA_property_array_item_index(PropertyRNA *prop, char name);
  */
 int RNA_property_string_maxlength(PropertyRNA *prop);
 
+/**
+ * \return true when the string is stored as UTF-8. Otherwise this is e.g. a byte string.
+ */
+bool RNA_property_string_is_utf8(PropertyRNA *prop);
+
 const char *RNA_property_ui_name(const PropertyRNA *prop, const PointerRNA *ptr = nullptr);
 const char *RNA_property_ui_name_raw(const PropertyRNA *prop, const PointerRNA *ptr = nullptr);
-const char *RNA_property_ui_description(const PropertyRNA *prop);
-const char *RNA_property_ui_description_raw(const PropertyRNA *prop);
+const char *RNA_property_ui_description(const PropertyRNA *prop, const PointerRNA *ptr = nullptr);
+const char *RNA_property_ui_description_raw(const PropertyRNA *prop,
+                                            const PointerRNA *ptr = nullptr);
 const char *RNA_property_translation_context(const PropertyRNA *prop);
 int RNA_property_ui_icon(const PropertyRNA *prop);
 
@@ -546,7 +552,10 @@ std::optional<std::string> RNA_property_string_path_filter(const bContext *C,
  * string, when a `get_transform` callback is defined).
  */
 int RNA_property_string_length(PointerRNA *ptr, PropertyRNA *prop);
-void RNA_property_string_get_default(PropertyRNA *prop, char *value, int value_maxncpy);
+void RNA_property_string_get_default(PointerRNA *ptr,
+                                     PropertyRNA *prop,
+                                     char *value,
+                                     int value_maxncpy);
 char *RNA_property_string_get_default_alloc(PointerRNA *ptr,
                                             PropertyRNA *prop,
                                             char *fixedbuf,
@@ -580,8 +589,9 @@ PointerRNA RNA_property_pointer_get(PointerRNA *ptr, PropertyRNA *prop) ATTR_NON
  * Same as above, but never creates an empty IDPGroup property for Pointer runtime properties that
  * are not set yet.
  *
- * Ideally this should never be done ever, as it is intrisically not threadsafe, but for the time
- * being at least provide a way to avoid this bad behavior. */
+ * Ideally this should never be done ever, as it is intrinsically not thread-safe,
+ * but for the time being at least provide a way to avoid this bad behavior.
+ */
 PointerRNA RNA_property_pointer_get_never_create(PointerRNA *ptr, PropertyRNA *prop)
     ATTR_NONNULL(1, 2);
 void RNA_property_pointer_set(PointerRNA *ptr,
