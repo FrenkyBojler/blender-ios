@@ -1486,9 +1486,12 @@ struct Parser {
     IndexRange range = IndexRange(from, to + 1 - from);
     std::string content = data_.str.substr(range.start, range.size);
     size_t lines = std::count(content.begin(), content.end(), '\n');
-    size_t spaces = content.find_last_not_of(" ");
+    size_t spaces = content.find_first_of("\n");
     if (spaces != std::string::npos) {
       spaces = content.length() - (spaces + 1);
+    }
+    else {
+      spaces = content.length();
     }
     replace(from, to, std::string(lines, '\n') + std::string(spaces, ' '));
   }
