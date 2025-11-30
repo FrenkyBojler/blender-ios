@@ -1492,49 +1492,14 @@ float fn(SRT &srt [[resource_table]]) {
 }
 )";
     string expect = R"(
-float fn(inout SRT _inout_sta srt _inout_end) {
 #if defined(CREATE_INFO_SRT)
-#line 3
-#if defined(CREATE_INFO_OtherSRT)
-#line 3
+#line 1
+float fn(inout SRT _inout_sta srt _inout_end) {
 
   return srt_access(OtherSRT, member);
-#else
-#line 3
-  return float(0);
+}
 #endif
 #line 5
-#else
-#line 3
-  return float(0);
-#endif
-#line 5
-}
-)";
-    string error;
-    string output = process_test_string(input, error);
-    EXPECT_EQ(output, expect);
-    EXPECT_EQ(error, "");
-  }
-  {
-    string input = R"(
-float fn() {
-  const SRT other_srt [[resource_table]] = srt_get(SRT);
-  return other_srt.member;
-}
-)";
-    string expect = R"(
-float fn() {
-#if defined(CREATE_INFO_SRT)
-#line 3
-  const SRT other_srt = srt_get(SRT);
-  return srt_access(SRT, member);
-#else
-#line 3
-  return float(0);
-#endif
-#line 5
-}
 )";
     string error;
     string output = process_test_string(input, error);
