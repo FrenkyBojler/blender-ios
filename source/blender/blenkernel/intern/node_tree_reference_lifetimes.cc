@@ -1076,7 +1076,7 @@ static std::unique_ptr<ReferenceLifetimesInfo> make_reference_lifetimes_info(con
   }
 
 /* Only useful when debugging the reference lifetimes analysis. */
-#if 1
+#if 0
   std::cout << "\n\n"
             << node_tree_to_dot(tree,
                                 bNodeTreeBitGroupVectorOptions({potential_data_by_socket,
