@@ -521,16 +521,15 @@ bool ShapingData::process(FontBLF *font, GlyphCacheBLF *gc, ResultBLF *r_info)
   for (unsigned int i = 0; i < this->segment.glyph_count; i++) {
     this->segment.hb_glyph_info[i].cluster = (uint32_t)(this->segment.char_offset + i);
   }
+
   hb_buffer_guess_segment_properties(this->hb_buf);
-  hb_buffer_set_script(this->hb_buf, this->segment.current_script);
+  hb_segment_properties_t props;
+  hb_buffer_get_segment_properties(this->hb_buf, &props);
 
   hb_buffer_set_cluster_level(this->hb_buf, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
   /* Can the current font handle this script? */
-  if (!ELEM(this->segment.current_script,
-            HB_SCRIPT_COMMON,
-            HB_SCRIPT_INHERITED,
-            HB_SCRIPT_UNKNOWN,
-            HB_SCRIPT_LATIN))
+  if (!ELEM(
+          props.script, HB_SCRIPT_COMMON, HB_SCRIPT_INHERITED, HB_SCRIPT_UNKNOWN, HB_SCRIPT_LATIN))
   {
     this->segment.font = blf_font_script_ensure(this->segment.font,
                                                 this->visual_str[this->segment.char_offset]);
@@ -539,10 +538,6 @@ bool ShapingData::process(FontBLF *font, GlyphCacheBLF *gc, ResultBLF *r_info)
     this->segment.font->hb_font = hb_ft_font_create_referenced(this->segment.font->face);
     hb_ot_font_set_funcs(this->segment.font->hb_font);
   }
-
-  // hb_direction_t hb_direction_from_string(const char *str, int len);
-  // hb_buffer_set_direction(this->hb_buf, HB_DIRECTION_LTR);
-  hb_buffer_guess_segment_properties(this->hb_buf);
 
   hb_font_set_scale(this->segment.font->hb_font, int(font->size * 64.0f), int(font->size * 64.0f));
 
