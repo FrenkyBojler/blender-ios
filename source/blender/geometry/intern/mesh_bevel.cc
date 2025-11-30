@@ -504,6 +504,7 @@ class BevelState {
     return bevface_mesh_faces_;
   }
 
+  /** The newface indices used to rebuild a given bevface. Currently, there will be only one per bevface. */
   OffsetIndices<int> bevface_newfaces() const
   {
     return bevface_newfaces_;
@@ -3676,6 +3677,28 @@ static void calculate_vertex_mesh_face_uvs(const int bevvert,
   }
 }
 
+static void calculate_edge_mesh_uvs(const int bevedge,
+                                         const int uv_map_index,
+                                         Vector<Array<float2>> &uv_attributes,
+                                         const BevelState &bs)
+{
+  // TODO: Implement me.
+  fmt::println("calculate_edge_mesh_face_uvs not implemented, bevedge={}, uv_map_index={}",
+               bevedge,
+               uv_map_index);
+}
+
+static void calculate_face_mesh_uvs(const int bevface,
+                                         const int uv_map_index,
+                                         Vector<Array<float2>> &uv_attributes,
+                                         const BevelState &bs)
+{
+  // TODO: Implement me.
+  fmt::println("calculate_face_mesh_face_uvs not implemented, bevface={}, uv_map_index={}",
+               bevface,
+               uv_map_index);
+}
+
 }  // end namespace uv
 
 UVMapInfo::UVMapInfo(const std::string &uv_attr_name, const Mesh &mesh)
@@ -5749,6 +5772,9 @@ void BevelState::build_edge_meshes()
         set_edge_mesh_reps(
             be, newedge_repedges_.as_mutable_span(), newface_repfaces_.as_mutable_span(), *this);
       }
+      for (const int mapi : IndexRange(uvmaps_num)) {
+        uv::calculate_edge_mesh_uvs(be, mapi, this->uv_attributes_, *this);
+      }
     }
   });
 }
@@ -5816,6 +5842,9 @@ void BevelState::build_face_meshes()
       build_newface(newf, nverts, nedges);
       if (any_face_attributes) {
         newface_repfaces_[newf] = meshf;
+      }
+      for (const int mapi : IndexRange(uvmaps_num)) {
+        uv::calculate_face_mesh_uvs(bf, mapi, this->uv_attributes_, *this);
       }
     }
   });
