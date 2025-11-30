@@ -3149,7 +3149,11 @@ class Preprocessor {
         return;
       }
 
-      parser.replace(attribute, "");
+      if (attribute.scope().type() != ScopeType::FunctionArgs &&
+          attribute.scope().type() != ScopeType::FunctionArg)
+      {
+        parser.replace(attribute, "");
+      }
       string srt_type = type.str();
       string srt_var = var.str();
 
