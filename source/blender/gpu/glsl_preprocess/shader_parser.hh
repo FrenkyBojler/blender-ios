@@ -922,7 +922,7 @@ struct Scope {
         if (is_last_token) {
           callback(match);
           /* Avoid matching the same position if start of pattern is optional tokens. */
-          pos += control_token_count;
+          pos = cursor - range().start - 1;
         }
       }
     }
@@ -1486,7 +1486,7 @@ struct Parser {
     IndexRange range = IndexRange(from, to + 1 - from);
     std::string content = data_.str.substr(range.start, range.size);
     size_t lines = std::count(content.begin(), content.end(), '\n');
-    size_t spaces = content.find_first_of("\n");
+    size_t spaces = content.find_last_of("\n");
     if (spaces != std::string::npos) {
       spaces = content.length() - (spaces + 1);
     }
