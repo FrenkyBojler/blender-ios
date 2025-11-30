@@ -3142,9 +3142,9 @@ class Preprocessor {
 
     const string srt_attribute = "resource_table";
 
-    auto memher_access_mutation = [&](parser::Token type,
+    auto memher_access_mutation = [&](parser::Scope attribute,
+                                      parser::Token type,
                                       parser::Token var,
-                                      parser::Scope attribute,
                                       parser::Scope body_scope) {
       if (attribute[2].str() != srt_attribute) {
         return;
@@ -3167,23 +3167,23 @@ class Preprocessor {
       if (fn_body.is_invalid()) {
         return;
       }
-      fn_args.foreach_match("w&w[[w]]", [&](const vector<Token> toks) {
-        memher_access_mutation(toks[0], toks[2], toks[3].scope(), fn_body);
+      fn_args.foreach_match("[[w]]w&w", [&](const vector<Token> toks) {
+        memher_access_mutation(toks[0].scope(), toks[5], toks[7], fn_body);
       });
-      fn_args.foreach_match("ww[[w]]", [&](const vector<Token> toks) {
-        if (toks[4].str() == srt_attribute) {
-          parser.erase(toks[2], toks[6]);
+      fn_args.foreach_match("[[w]]ww", [&](const vector<Token> toks) {
+        if (toks[2].str() == srt_attribute) {
+          parser.erase(toks[0].scope());
           report_error(ERROR_TOK(toks[1]), "Shader Resource Table arguments must be references.");
         }
       });
     });
 
     parser.foreach_scope(ScopeType::Function, [&](const Scope fn_body) {
-      fn_body.foreach_match("w&w[[w]]", [&](const vector<Token> toks) {
-        memher_access_mutation(toks[0], toks[2], toks[3].scope(), toks[2].scope());
+      fn_body.foreach_match("[[w]]w&w", [&](const vector<Token> toks) {
+        memher_access_mutation(toks[0].scope(), toks[5], toks[7], toks[7].scope());
       });
-      fn_body.foreach_match("ww[[w]]", [&](const vector<Token> toks) {
-        memher_access_mutation(toks[0], toks[1], toks[2].scope(), toks[1].scope());
+      fn_body.foreach_match("[[w]]ww", [&](const vector<Token> toks) {
+        memher_access_mutation(toks[0].scope(), toks[5], toks[6], toks[6].scope());
       });
     });
 
