@@ -511,8 +511,8 @@ class Preprocessor {
           assert_processing(parser, filename, report_error);
           static_strings_merging(parser, report_error);
           static_strings_parsing_and_mutation(parser, report_error);
+          printf_processing(parser, report_error);
           str = parser.result_get();
-          str = printf_processing(str, report_error);
           quote_linting(str, report_error);
         }
       }
@@ -1895,9 +1895,32 @@ class Preprocessor {
     }
   }
 
-  template<typename ReportErrorF>
-  std::string printf_processing(const std::string &str, const ReportErrorF &report_error)
+  void printf_processing(Parser &parser, report_callback /*report_error*/)
   {
+    using namespace std;
+    using namespace shader::parser;
+    parser.foreach_match("w(..)", [&](const vector<Token> &tokens) {
+      if (tokens[0].str() != "printf") {
+        return;
+      }
+
+      int arg_count = 0;
+      tokens[1].scope().foreach_scope(ScopeType::FunctionArg, [&](const Scope &) { arg_count++; });
+
+      string unrolled;
+      tokens[1].scope().foreach_scope(ScopeType::FunctionArg, [&](const Scope &attribute) {
+        if (unrolled.empty()) {
+          unrolled = "print_header(" + to_string(arg_count) + ", " + attribute.str() + ")";
+        }
+        else {
+          unrolled = "print_data(" + unrolled + ", " + attribute.str() + ")";
+        }
+      });
+
+      parser.replace(tokens.front(), tokens.back(), unrolled);
+    });
+    parser.apply_mutations();
+#if 0
     std::string out_str = str;
     {
       /* Example: `printf(2, b, f(c, d));` > `printf(2@ b@ f(c@ d))$` */
@@ -1952,7 +1975,8 @@ class Preprocessor {
       std::regex regex(R"(\$)");
       out_str = std::regex_replace(out_str, regex, "; }");
     }
-    return out_str;
+        return out_str;
+#endif
   }
 
   void assert_processing(Parser &parser, const std::string &filepath, report_callback report_error)
