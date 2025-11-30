@@ -1532,9 +1532,7 @@ std::optional<float3> mouse_delta_to_world_dir(const TransInfo *t, const float2 
     }
 
     const RegionView3D *rv3d = static_cast<const RegionView3D *>(t->region->regiondata);
-    float v[3] = {delta.x, delta.y, 0.0f};
-    mul_mat3_m4_v3(const_cast<float (*)[4]>(rv3d->viewinv), v);
-    dir = float3(v[0], v[1], v[2]);
+    dir = (float4x4(rv3d->viewinv) * float4(delta, 0.0f, 0.0f)).xyz();
   }
   else {
     /* In 2D views (UV Editor), use the mouse movement directly on the XY plane. */
