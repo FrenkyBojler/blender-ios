@@ -1049,8 +1049,34 @@ static std::unique_ptr<ReferenceLifetimesInfo> make_reference_lifetimes_info(con
   /* Make sure that all required data is also potentially available. */
   required_data_by_socket.all_bits() &= potential_data_by_socket.all_bits();
 
+  reference_lifetimes_info->tree_relations = get_tree_relations(tree,
+                                                                reference_sets,
+                                                                potential_data_by_socket,
+                                                                potential_reference_by_socket,
+                                                                required_data_by_socket);
+
+  Vector<int> propagate_targets;
+  for (const auto relation : reference_lifetimes_info->tree_relations.propagate_relations) {
+    propagate_targets.append(relation.to_geometry_output);
+  }
+  Vector<int> reference_sets_to_disable;
+  for (const int i : reference_sets.index_range()) {
+    const ReferenceSetInfo &reference_set = reference_sets[i];
+    if (reference_set.type == ReferenceSetType::GroupOutputData) {
+      if (!propagate_targets.contains(reference_set.index)) {
+        reference_sets_to_disable.append(i);
+      }
+    }
+  }
+  for (const int i : required_data_by_socket.index_range()) {
+    MutableBoundedBitSpan required_data = required_data_by_socket[i];
+    for (const int reference_set_i : reference_sets_to_disable) {
+      required_data[reference_set_i].reset();
+    }
+  }
+
 /* Only useful when debugging the reference lifetimes analysis. */
-#if 0
+#if 1
   std::cout << "\n\n"
             << node_tree_to_dot(tree,
                                 bNodeTreeBitGroupVectorOptions({potential_data_by_socket,
@@ -1060,11 +1086,6 @@ static std::unique_ptr<ReferenceLifetimesInfo> make_reference_lifetimes_info(con
             << "\n\n";
 #endif
 
-  reference_lifetimes_info->tree_relations = get_tree_relations(tree,
-                                                                reference_sets,
-                                                                potential_data_by_socket,
-                                                                potential_reference_by_socket,
-                                                                required_data_by_socket);
   reference_lifetimes_info->required_data_by_socket = std::move(required_data_by_socket);
   return reference_lifetimes_info;
 }
