@@ -523,12 +523,11 @@ class Preprocessor {
           small_type_linting(parser, report_error);
         }
         remove_quotes(parser, report_error);
-        argument_reference_mutation(parser, report_error);
         default_argument_mutation(parser, report_error);
         srt_guard_mutation(parser, report_error);
-        cleanup_line_directives(parser, report_error);
-        cleanup_empty_lines(parser, report_error);
+        argument_reference_mutation(parser, report_error);
         str = parser.result_get();
+        str = remove_whitespace(str, report_error);
       }
       str = variable_reference_mutation(str, report_error);
       str = template_definition_mutation(str, report_error);
@@ -538,6 +537,12 @@ class Preprocessor {
       str = template_call_mutation(str, report_error);
       /* Do another whitespace pass to remove the one introduced by mutations. */
       str = remove_whitespace(str, report_error);
+      {
+        Parser parser(str, report_error);
+        cleanup_empty_lines(parser, report_error);
+        cleanup_line_directives(parser, report_error);
+        str = parser.result_get();
+      }
     }
     else if (language == MSL) {
       pragma_runtime_generated_parsing(str);
@@ -2769,6 +2774,7 @@ class Preprocessor {
           return;
         }
         condition += "defined(CREATE_INFO_" + tokens[7].str() + ")";
+        parser.erase(tokens[0].scope());
       });
 
       if (!condition.empty()) {
@@ -3046,22 +3052,17 @@ class Preprocessor {
     using namespace std;
     using namespace shader::parser;
 
-    /* Pattern can only match #line directives. */
-    const char *pattern = "#w0\n";
-
-    parser.foreach_match(pattern, [&](vector<Token> toks) {
-      Token t0 = toks.back().next();
-      Token t1 = toks.back().next().next();
-      Token t2 = toks.back().next().next().next();
-      Token t3 = toks.back().next().next().next().next();
-      /* True if directive is followed by another directive. */
-      if (t0 == '#' && t1 == 'w' && t2 == '0' && t3 == '\n') {
-        parser.replace(toks[0].line_start(), toks[0].line_end() + 1, "");
-      }
+    parser.foreach_match("#w0\n#w0\n", [&](vector<Token> toks) {
+      parser.replace(toks[0].line_start(), toks[0].line_end() + 1, "");
     });
     parser.apply_mutations();
 
-    parser.foreach_match(pattern, [&](vector<Token> toks) {
+    parser.foreach_match("#w0\n#w\n#w0\n", [&](vector<Token> toks) {
+      parser.replace(toks[0].line_start(), toks[0].line_end() + 1, "");
+    });
+    parser.apply_mutations();
+
+    parser.foreach_match("#w0\n", [&](vector<Token> toks) {
       /* True if directive is noop. */
       if (toks[0].line_number() == stol(toks[2].str())) {
         parser.replace(toks[0].line_start(), toks[0].line_end() + 1, "");
@@ -3078,17 +3079,31 @@ class Preprocessor {
 
     const string &str = parser.data_get().str;
 
-    size_t sequence_start = 0;
-    size_t sequence_end = -1;
-    while ((sequence_start = str.find("\n\n\n", sequence_end + 1)) != string::npos) {
-      sequence_end = str.find_first_not_of("\n", sequence_start);
-      if (sequence_end == string::npos) {
-        break;
+    {
+      size_t sequence_start = 0;
+      size_t sequence_end = -1;
+      while ((sequence_start = str.find("\n\n\n", sequence_end + 1)) != string::npos) {
+        sequence_end = str.find_first_not_of("\n", sequence_start);
+        if (sequence_end == string::npos) {
+          break;
+        }
+        size_t line = parser::line_number(str.substr(0, sequence_end));
+        parser.replace(sequence_start + 2, sequence_end - 1, "#line " + to_string(line) + "\n");
       }
-      size_t line = parser::line_number(str.substr(0, sequence_end));
-      parser.replace(sequence_start + 2, sequence_end - 1, "#line " + to_string(line) + "\n");
+      parser.apply_mutations();
     }
-    parser.apply_mutations();
+    {
+      size_t sequence_start = 0;
+      size_t sequence_end = -1;
+      while ((sequence_end = str.find("\n\n#line ", sequence_end + 1)) != string::npos) {
+        sequence_start = str.find_last_not_of("\n", sequence_end) + 1;
+        if (sequence_start == string::npos) {
+          continue;
+        }
+        parser.replace(sequence_start, sequence_end, "");
+      }
+      parser.apply_mutations();
+    }
   }
 
   /* Used to make GLSL matrix constructor compatible with MSL in pyGPU shaders.
