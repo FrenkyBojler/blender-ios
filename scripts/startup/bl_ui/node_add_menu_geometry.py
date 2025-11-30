@@ -421,8 +421,8 @@ class NODE_MT_gn_instance_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeRealizeInstances", search_weight=1.0)
         self.node_operator(layout, "GeometryNodeRotateInstances")
         self.node_operator(layout, "GeometryNodeScaleInstances")
-        self.node_operator(layout, "GeometryNodeTranslateInstances")
         self.node_operator(layout, "GeometryNodeSetInstanceTransform")
+        self.node_operator(layout, "GeometryNodeTranslateInstances")
         layout.separator()
         self.node_operator(layout, "GeometryNodeInputInstanceBounds")
         self.node_operator(layout, "GeometryNodeInstanceTransform")
@@ -615,8 +615,8 @@ class NODE_MT_gn_point_base(node_add_menu.NodeMenu):
     def draw(self, context):
         del context
         layout = self.layout
-        self.node_operator(layout, "GeometryNodeDistributePointsInVolume")
         self.node_operator(layout, "GeometryNodeDistributePointsInGrid")
+        self.node_operator(layout, "GeometryNodeDistributePointsInVolume")
         self.node_operator(layout, "GeometryNodeDistributePointsOnFaces")
         layout.separator()
         self.node_operator(layout, "GeometryNodePoints")
@@ -928,9 +928,9 @@ class NODE_MT_gn_volume_write_base(node_add_menu.NodeMenu):
 
     def draw(self, context):
         layout = self.layout
-        self.node_operator(layout, "GeometryNodeStoreNamedGrid")
         self.node_operator(layout, "GeometryNodeSetGridBackground")
         self.node_operator(layout, "GeometryNodeSetGridTransform")
+        self.node_operator(layout, "GeometryNodeStoreNamedGrid")
 
         self.draw_assets_for_catalog(layout, self.menu_path)
 
@@ -944,6 +944,7 @@ class NODE_MT_gn_volume_sample_base(node_add_menu.NodeMenu):
         layout = self.layout
         self.node_operator(layout, "GeometryNodeSampleGrid")
         self.node_operator(layout, "GeometryNodeSampleGridIndex")
+        layout.separator()
         self.node_operator(layout, "GeometryNodeGridAdvect")
         self.node_operator(layout, "GeometryNodeGridCurl")
         self.node_operator(layout, "GeometryNodeGridDivergence")
@@ -960,8 +961,9 @@ class NODE_MT_gn_volume_operations_base(node_add_menu.NodeMenu):
     def draw(self, context):
         del context
         layout = self.layout
-        self.node_operator(layout, "GeometryNodeVolumeToMesh")
         self.node_operator(layout, "GeometryNodeGridToMesh")
+        self.node_operator(layout, "GeometryNodeVolumeToMesh")
+        layout.separator()
         self.node_operator(layout, "GeometryNodeSDFGridBoolean")
         self.node_operator(layout, "GeometryNodeSDFGridFillet")
         self.node_operator(layout, "GeometryNodeSDFGridLaplacian")
@@ -969,6 +971,7 @@ class NODE_MT_gn_volume_operations_base(node_add_menu.NodeMenu):
         self.node_operator(layout, "GeometryNodeSDFGridMeanCurvature")
         self.node_operator(layout, "GeometryNodeSDFGridMedian")
         self.node_operator(layout, "GeometryNodeSDFGridOffset")
+        layout.separator()
         self.node_operator(layout, "GeometryNodeFieldToGrid")
         self.node_operator(layout, "GeometryNodeGridPrune")
         self.node_operator(layout, "GeometryNodeGridVoxelize")
@@ -1024,7 +1027,7 @@ class NODE_MT_gn_all_base(node_add_menu.NodeMenu):
 
 
 add_menus = {
-    # menu bl_idname: baseclass
+    # menu `bl_idname`: base-class.
     "NODE_MT_geometry_node_GEO_ATTRIBUTE": NODE_MT_gn_attribute_base,
     "NODE_MT_geometry_node_GEO_INPUT": NODE_MT_gn_input_base,
     "NODE_MT_geometry_node_GEO_INPUT_CONSTANT": NODE_MT_gn_input_constant_base,
@@ -1090,7 +1093,7 @@ add_menus = node_add_menu.generate_menus(
 
 
 swap_menus = {
-    # menu bl_idname: baseclass
+    # menu `bl_idname`: base-class.
     "NODE_MT_gn_attribute_swap": NODE_MT_gn_attribute_base,
     "NODE_MT_gn_input_swap": NODE_MT_gn_input_base,
     "NODE_MT_gn_input_constant_swap": NODE_MT_gn_input_constant_base,
