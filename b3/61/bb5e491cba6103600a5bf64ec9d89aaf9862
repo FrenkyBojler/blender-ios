@@ -1,2 +1,3 @@
 Referenced by pull request #113899, BMesh: Add face duplication check to validation function
 Referenced by issue #149784, 5.0: Candidates for corrective releases
+Referenced by pull request #150844, Fix #150842: Mesh validate removes non-duplicate faces
