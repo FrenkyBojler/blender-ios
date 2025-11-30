@@ -1570,8 +1570,7 @@ class Preprocessor {
       unordered_set<string> processed_functions;
 
       scope.foreach_function([&](bool, Token, Token fn_name, Scope, bool, Scope) {
-        /* Note: Struct scopes are currently parsed as Local. */
-        if (fn_name.scope().type() == ScopeType::Local) {
+        if (fn_name.scope().type() == ScopeType::Struct) {
           /* Don't process functions inside a struct scope as the namespace must not be apply
            * to them, but to the type. Otherwise, method calls will not work. */
           return;
