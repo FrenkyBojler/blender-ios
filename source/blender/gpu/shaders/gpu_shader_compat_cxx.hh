@@ -224,6 +224,60 @@ struct ShaderCreateInfo {};
 
 struct NoConstants {};
 
+template<typename VertFn,
+         typename FragFn,
+         typename ConstT1 = NoConstants,
+         typename ConstT2 = ConstT1,
+         typename ConstT3 = ConstT2>
+struct PipelineGraphic {
+  VertFn vertex;
+  FragFn fragment;
+  /* Constant values. */
+  ConstT1 c1;
+  ConstT2 c2;
+  ConstT3 c3;
+
+  PipelineGraphic(VertFn vertex, FragFn fragment)
+      : vertex(vertex), fragment(fragment), c1({}), c2({}), c3({})
+  {
+  }
+  PipelineGraphic(VertFn vertex, FragFn fragment, ConstT1 c1)
+      : vertex(vertex), fragment(fragment), c1(c1), c2({}), c3({})
+  {
+  }
+  PipelineGraphic(VertFn vertex, FragFn fragment, ConstT1 c1, ConstT2 c2)
+      : vertex(vertex), fragment(fragment), c1(c1), c2(c2), c3({})
+  {
+  }
+  PipelineGraphic(VertFn vertex, FragFn fragment, ConstT1 c1, ConstT2 c2, ConstT3 c3)
+      : vertex(vertex), fragment(fragment), c1(c1), c2(c2), c3(c3)
+  {
+  }
+};
+
+template<typename CompFn,
+         typename ConstT1 = NoConstants,
+         typename ConstT2 = ConstT1,
+         typename ConstT3 = ConstT2>
+struct PipelineCompute {
+  CompFn compute;
+  /* Constant values. */
+  ConstT1 c1;
+  ConstT2 c2;
+  ConstT3 c3;
+
+  PipelineCompute(CompFn compute) : compute(compute), c1({}), c2({}), c3({}) {}
+  PipelineCompute(CompFn compute, ConstT1 c1) : compute(compute), c1(c1), c2({}), c3({}) {}
+  PipelineCompute(CompFn compute, ConstT1 c1, ConstT2 c2)
+      : compute(compute), c1(c1), c2(c2), c3({})
+  {
+  }
+  PipelineCompute(CompFn compute, ConstT1 c1, ConstT2 c2, ConstT3 c3)
+      : compute(compute), c1(c1), c2(c2), c3(c3)
+  {
+  }
+};
+
 #include "GPU_shader_shared_utils.hh"
 
 #ifdef __GNUC__
