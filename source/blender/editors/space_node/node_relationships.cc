@@ -2519,14 +2519,14 @@ struct NodeInsertChain {
   bool is_reroute() const
   {
     // todo: only one reroute in Node Frame?
-    return end_node->is_reroute() && selected_count == 1;
+    return this->end_node->is_reroute() && this->selected_count == 1;
   }
 
   /* Store the first visible socket found for each unique socket type. */
   void set_end_candidate(bNode *new_end_node)
   {
-    end_node = new_end_node;
-    for (bNodeSocket *sock_out : end_node->output_sockets()) {
+    this->end_node = new_end_node;
+    for (bNodeSocket *sock_out : this->end_node->output_sockets()) {
       if (sock_out->is_visible()) {
         const eNodeSocketDatatype socket_type = eNodeSocketDatatype(sock_out->type);
         if (!end_sockets_.contains(socket_type)) {
@@ -2754,8 +2754,9 @@ struct NodeInsertChain {
                                     const bNodeLink &link,
                                     eNodeSocketInOut in_out) const
   {
-    if (is_reroute()) {
-      return (in_out == SOCK_IN) ? &end_node->input_socket(0) : &end_node->output_socket(0);
+    if (this->is_reroute()) {
+      return (in_out == SOCK_IN) ? &this->end_node->input_socket(0) :
+                                   &this->end_node->output_socket(0);
     }
     const Map<eNodeSocketDatatype, bNodeSocket *> &candidate_map = (in_out == SOCK_IN) ?
                                                                        start_sockets_ :
