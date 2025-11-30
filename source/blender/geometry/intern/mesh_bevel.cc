@@ -504,7 +504,8 @@ class BevelState {
     return bevface_mesh_faces_;
   }
 
-  /** The newface indices used to rebuild a given bevface. Currently, there will be only one per bevface. */
+  /** The newface indices used to rebuild a given bevface. Currently, there will be only one per
+   * bevface. */
   OffsetIndices<int> bevface_newfaces() const
   {
     return bevface_newfaces_;
@@ -544,16 +545,12 @@ class BevelState {
 
   /** Returns a contiguous chunk of face corners, represented as an #IndexRange, like a #Mesh
    * faces(). The corners are newcorner indices. */
-  OffsetIndices<int> newface_faces() const
-  {
-    return newface_faces_;
-  }
-
   OffsetIndices<int> newface_faces_face() const
   {
     return newface_faces_face_;
   }
 
+  /** The corner offsets for the newfaces faces. Mostly used to construct newface_faces_face(). */
   Span<int> newface_faces_face_offsets() const
   {
     return newface_faces_face_offsets_;
@@ -583,14 +580,10 @@ class BevelState {
     return newcorner_edges_;
   }
 
+  /** The representative (for non-uv attributes) original corners of the given newcorner. */
   Span<int> newcorner_repcorners() const
   {
     return newcorner_repcorners_;
-  }
-
-  OffsetIndices<int> bevface_newfaces()
-  {
-    return bevface_newfaces_;
   }
 
   /** Is the edge corresponding to bevedge \a be beveled? */
@@ -663,11 +656,15 @@ class BevelState {
   /** Return the edge position for bevedge \a be around bevvert \a bv. */
   int bevedge_pos(const int be, const int bv) const;
 
+  /** Return the UVMapInfo corresponding to the UV map with index \a uv_map_index. */
   const UVMapInfo &uv_map_info(const int uv_map_index) const
   {
     return uv_map_infos_[uv_map_index];
   }
 
+  /** Return the newly calculated UV values for newcorners.
+   *. The outer Vector is indexed by the uv map index,
+   * and the inner Array is indexed by a newcorner index. */
   const Vector<Array<float2>> &uv_attributes() const
   {
     return uv_attributes_;
@@ -744,6 +741,8 @@ class BevelState {
   Array<int> materials_;
 };
 
+/** Construct a MeshInfo from a given Mesh.  This mostly involves calculating some topology maps.
+ */
 MeshInfo::MeshInfo(const Mesh &mesh) : mesh(mesh)
 {
   vert_edges_ = bke::mesh::build_vert_to_edge_map(
@@ -950,7 +949,6 @@ static void print_anchor_newvert_positions(const BevelState &bs, const char *lab
   print_offsetindices(bs.bevedge_newedges(), "bevedge_newedges");
   print_offsetindices(bs.bevedge_newfaces(), "bevedge_newfaces");
   print_offsetindices(bs.bevface_newfaces(), "bevface_newfaces");
-  print_offsetindices(bs.newface_faces(), "newface_faces");
   print_offsetindices(bs.newface_faces_face(), "newface_faces_face");
   print_float3_span(bs.newvert_positions(), "newvert_positions");
   print_int2_span(bs.newedge_vertpairs(), "newedge_vertpairs");
@@ -985,6 +983,11 @@ static void print_anchor_newvert_positions(const BevelState &bs, const char *lab
   print_span(bs.bevvert_faces()[bv], "faces");
 }
 
+/** For debugging: draws some colored "points" on the screen to help visualize the state of a
+ * bevvert. The original vertex is drawn in orig_vert_col (red). The first anchor (boundary point)
+ * is drawn in first_bndv_col (blue), and the rest of them are drawn in bndv_col (blue). These
+ * points will persist on the screen as long as Blender is running.
+ */
 static void draw_bevvert(int bv, const BevelState &bs)
 {
   constexpr uint life = draw::drw_debug_persistent_lifetime;
@@ -1003,6 +1006,7 @@ static void draw_bevvert(int bv, const BevelState &bs)
   }
 }
 
+/** For debugging: call draw_bevvert() (see above) on all bevverts. */
 [[maybe_unused]] static void draw_all_bevverts(const BevelState &bs)
 {
   for (const int bv : IndexRange(bs.bevverts_num)) {
@@ -2597,6 +2601,8 @@ static int face_outer_vertex_ring(int f, int nv, int ns)
   return odd(ns) ? face_ring(f, nv, ns) : face_ring(f, nv, ns) + 1;
 }
 
+/** Return the pattern indices for vertices and edges making up the pattern face \a f.
+ * \a nv is the number of anchor verts and \a ns is the number of segments.  */
 static std::pair<int4, int4> face_vertices_and_edges(int f, int nv, int ns)
 {
   if (f == 0 and odd(ns)) {
@@ -2722,18 +2728,25 @@ struct AdjVerts {
     verts.fill(float3(0.0f, 0.0f, 0.0f));
   }
 
+  /** Given an anchor index and an offset from that anchor to a verterx on the outer ring,
+   * return the pattern vertex index for that identified vertex. */
   const int anchor_offset_to_outer_ring_vert(const int anchor, const int offset) const;
 
+  /** Return the 3d position of the vertex given by an anchor and an offset from that anchor, in
+   * the outer ring. */
   const float3 &outer_ring_vert(const int anchor, const int offset) const
   {
     return verts[anchor_offset_to_outer_ring_vert(anchor, offset)];
   }
 
+  /** Like outer_ring_vert(), but return a mutable position. */
   float3 &mutable_outer_ring_vert(const int anchor, const int offset)
   {
     return verts[anchor_offset_to_outer_ring_vert(anchor, offset)];
   }
 
+  /** Given a ring, an anchor index, and an offset from that anchor, return the vertex pattern
+   * index for the corresponding vertex. */
   const int ring_anchor_offset_to_vert(const int ring, const int anchor, const int offset) const;
 
   const float3 &vert(const int ring, const int anchor, const int offset) const
@@ -2747,12 +2760,16 @@ struct AdjVerts {
   }
 };
 
+/** Given an anchor index and an offset from that anchor to a verterx on the outer ring,
+ * return the pattern vertex index for that identified vertex. */
 const int AdjVerts::anchor_offset_to_outer_ring_vert(const int anchor, const int offset) const
 {
   const int ring = v_num_rings(this->segments) - 1;
   return rao_to_vert(ring, anchor, offset, this->anchors, this->segments);
 }
 
+/** Given a ring, an anchor index, and an offset from that anchor, return the vertex pattern index
+ * for the corresponding vertex. */
 const int AdjVerts::ring_anchor_offset_to_vert(const int ring,
                                                const int anchor,
                                                const int offset) const
@@ -2760,6 +2777,7 @@ const int AdjVerts::ring_anchor_offset_to_vert(const int ring,
   return rao_to_vert(ring, anchor, offset, this->anchors, this->segments);
 }
 
+/** For debugging: draw the Adj Pattern anchors of the \a adjvertes object. */
 [[maybe_unused]] static void draw_adj(const AdjVerts &adjverts)
 {
   constexpr uint life = draw::drw_debug_persistent_lifetime;
@@ -2769,6 +2787,7 @@ const int AdjVerts::ring_anchor_offset_to_vert(const int ring,
   }
 }
 
+/** Return the average of four 3d positions. */
 static float3 avg4(const float3 &v0, const float3 &v1, const float3 &v2, const float3 &v3)
 {
   return 0.25f * (v0 + v1 + v2 + v3);
@@ -2806,7 +2825,7 @@ static float sabin_gamma(int n)
   return (k * x + 2.0 * k2 - 1.0) / (x * x * (k * x + 1.0));
 }
 
-/* Fill \a adjverts using recursive cubic subdivision, until reach the
+/** Fill \a adjverts using recursive cubic subdivision, until reach the
  * base case where \a adjverts_2_segs is the answer.
  * adjverts.segments should be a power of 2, and >= 2.
  */
@@ -3439,43 +3458,29 @@ static Array<UVGapKind, 20> bevvert_bevedge_uv_gaps(const int bv,
   return ans;
 }
 
-/* Project \a pos onto face \a f of mesh \a mesh.
- * Return true if the result is inside or on the perimeter the face (within tolerance).
- * Return the projected point in \a *r_projected_pos. */
-static bool project_to_face(const float3 pos, const int f, const Mesh &mesh, int *r_projected_pos)
-{
-  // TODO:
-  // find the plane containing the face
-  // use closest_to_plane_v3 to get the point on the plane
-  // project the face vertices onto a 2d plane, and the point just found
-  // use isect_point_poly_v2 to see if it is inside or not.
-  // See e.g., BM_face_point_inside_test
-  return false;
-}
-
+/** Give a 3D position and a Span of Mesh face indices,  find the face (if any) where the
+ * perpendicular projection of \a pos  is inside it. There may be another (if the projection is on
+ * the edge between two faces) -- if so, return that too. Return the index of the "over" face in
+ * *r_over_face, and the 3D position of its projection in *r_over_pos. If there is an alternative
+ * over face, use *r_alt_face and *r_alt_pos to store those. If there is no suitable face for the
+ * main or alternate, return -1 in the index. Assume all pointers are non-null.
+ */
 static void find_over_faces(const float3 &pos,
-                            const int bv,
+                            const Span<int> mesh_faces,
                             const BevelState &bs,
-                            int *r_best_face,
-                            float3 *r_best_pos,
+                            int *r_over_face,
+                            float3 *r_over_pos,
                             int *r_alt_face,
                             float3 *r_alt_pos)
 {
-  Span<int> bv_faces = bs.bevvert_faces()[bv];
   const Mesh &mesh = bs.mesh_info.mesh;
+  BLI_assert(r_over_face && r_alt_face && r_over_pos && r_alt_pos);
 
-  *r_best_face = -1;
-  if (r_alt_face) {
-    *r_alt_face = -1;
-  }
+  *r_over_face = -1;
+  *r_alt_face = -1;
 
-  float best_dist_sq = FLT_MAX;
-  float alt_dist_sq = FLT_MAX;
-
-  for (const int mesh_f : bv_faces) {
-    if (mesh_f == -1) {
-      continue;
-    }
+  for (const int mesh_f : mesh_faces) {
+    BLI_assert(mesh_f != -1);
 
     const float3 &face_no = mesh.face_normals()[mesh_f];
     const IndexRange face_corners_indices = mesh.faces()[mesh_f];
@@ -3504,33 +3509,24 @@ static void find_over_faces(const float3 &pos,
     float2 p_2d;
     mul_v2_m3v3(p_2d, axis_mat.ptr(), projected_pos);
 
+    /* TODO: do better when the intersection is "near" the edge between two faces. */
     if (isect_point_poly_v2(p_2d, (const float (*)[2])poly_2d.data(), face_len)) {
-      const float dist_sq = math::distance_squared(pos, projected_pos);
-      if (dist_sq < best_dist_sq) {
-        if (*r_best_face != -1) {
-          alt_dist_sq = best_dist_sq;
-          *r_alt_face = *r_best_face;
-          if (r_alt_pos) {
-            *r_alt_pos = *r_best_pos;
-          }
-        }
-        best_dist_sq = dist_sq;
-        *r_best_face = mesh_f;
-        if (r_best_pos) {
-          *r_best_pos = projected_pos;
-        }
+      if (*r_over_face == -1) {
+        *r_over_face = mesh_f;
+        *r_over_pos = projected_pos;
       }
-      else if (dist_sq < alt_dist_sq) {
-        alt_dist_sq = dist_sq;
+      else if (*r_alt_face == -1) {
         *r_alt_face = mesh_f;
-        if (r_alt_pos) {
-          *r_alt_pos = projected_pos;
-        }
+        *r_alt_pos = projected_pos;
       }
     }
   }
 }
 
+/** For the face with index \a f in the adj pattern for bevvert \a bv, calculate the UV position
+ * for each of its corners in the UV map with the given \a uv_map_index, and store them in
+ * uv_attributes[uv_map_index] at the corresponding newcorner indices.
+ */
 static void calculate_adj_face_uvs(const int f,
                                    const int bv,
                                    const Array<UVGapKind, 20> &gaps,
@@ -3545,14 +3541,19 @@ static void calculate_adj_face_uvs(const int f,
   const Span<int> fverts = bs.newcorner_verts().slice(newface_corners_range);
   print_span(fverts, "fverts");
   const int num_fverts = fverts.size();
-  SmallIntArray best_over_face(num_fverts);
+  SmallIntArray over_face(num_fverts);
   SmallIntArray alt_over_face(num_fverts);
-  Array<float3, 20> best_over_pos(num_fverts);
+  Array<float3, 20> over_pos(num_fverts);
   Array<float3, 20> alt_over_pos(num_fverts);
   for (const int i : fverts.index_range()) {
     const float3 pos = bs.newvert_positions()[fverts[i]];
-    find_over_faces(
-        pos, bv, bs, &best_over_face[i], &best_over_pos[i], &alt_over_face[i], &alt_over_pos[i]);
+    find_over_faces(pos,
+                    bs.bevvert_faces()[bv],
+                    bs,
+                    &over_face[i],
+                    &over_pos[i],
+                    &alt_over_face[i],
+                    &alt_over_pos[i]);
     // DEBUG!!
     fmt::println("i={}, nv={}, pos=({},{},{}), over_f={}, over_pos=({},{},{})",
                  i,
@@ -3560,10 +3561,10 @@ static void calculate_adj_face_uvs(const int f,
                  pos[0],
                  pos[1],
                  pos[2],
-                 best_over_face[i],
-                 best_over_pos[i][0],
-                 best_over_pos[i][1],
-                 best_over_pos[i][2]);
+                 over_face[i],
+                 over_pos[i][0],
+                 over_pos[i][1],
+                 over_pos[i][2]);
   }
 
   const UVMapInfo &uv_info = bs.uv_map_info(uv_map_index);
@@ -3575,8 +3576,8 @@ static void calculate_adj_face_uvs(const int f,
   Array<float2, 20> face_uvs(num_fverts);
 
   for (const int i : fverts.index_range()) {
-    const int over_f = best_over_face[i];
-    const float3 over_pos = best_over_pos[i];
+    const int over_f = over_face[i];
+    const float3 over_p = over_pos[i];
 
     if (over_f == -1) {
       face_uvs[i] = float2(0.0f, 0.0f); /* Default UV. */
@@ -3606,7 +3607,7 @@ static void calculate_adj_face_uvs(const int f,
       over_face_corner_uvs[j] = uv_info.value(corner_idx);
     }
 
-    float2 over_pos_2d = float2(transform_point(axis_mat, over_pos));
+    float2 over_pos_2d = float2(transform_point(axis_mat, over_p));
 
     if (num_over_face_corners == 3) { /* Triangle. */
       float bary_weights[3];
@@ -3678,9 +3679,9 @@ static void calculate_vertex_mesh_face_uvs(const int bevvert,
 }
 
 static void calculate_edge_mesh_uvs(const int bevedge,
-                                         const int uv_map_index,
-                                         Vector<Array<float2>> &uv_attributes,
-                                         const BevelState &bs)
+                                    const int uv_map_index,
+                                    Vector<Array<float2>> &uv_attributes,
+                                    const BevelState &bs)
 {
   // TODO: Implement me.
   fmt::println("calculate_edge_mesh_face_uvs not implemented, bevedge={}, uv_map_index={}",
@@ -3689,9 +3690,9 @@ static void calculate_edge_mesh_uvs(const int bevedge,
 }
 
 static void calculate_face_mesh_uvs(const int bevface,
-                                         const int uv_map_index,
-                                         Vector<Array<float2>> &uv_attributes,
-                                         const BevelState &bs)
+                                    const int uv_map_index,
+                                    Vector<Array<float2>> &uv_attributes,
+                                    const BevelState &bs)
 {
   // TODO: Implement me.
   fmt::println("calculate_face_mesh_face_uvs not implemented, bevface={}, uv_map_index={}",
