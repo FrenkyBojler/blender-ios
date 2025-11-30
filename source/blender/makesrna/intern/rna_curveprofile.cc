@@ -149,7 +149,7 @@ static void rna_def_curveprofilepoint(BlenderRNA *brna)
   prop = RNA_def_property(srna, "handle_location_1", PROP_FLOAT, PROP_XYZ);
   RNA_def_property_float_sdna(prop, nullptr, "h1_loc");
   RNA_def_property_array(prop, 2);
-  RNA_def_property_ui_text(prop, "Handle 1 Location", "X/Y coordinates of the left handle");
+  RNA_def_property_ui_text(prop, "First Handle Location", "X/Y coordinates of the first handle");
 
   prop = RNA_def_property(srna, "handle_type_2", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "h2");
@@ -160,7 +160,7 @@ static void rna_def_curveprofilepoint(BlenderRNA *brna)
   prop = RNA_def_property(srna, "handle_location_2", PROP_FLOAT, PROP_XYZ);
   RNA_def_property_float_sdna(prop, nullptr, "h2_loc");
   RNA_def_property_array(prop, 2);
-  RNA_def_property_ui_text(prop, "Handle 2 Location", "X/Y coordinates of the right handle");
+  RNA_def_property_ui_text(prop, "Second Handle Location", "X/Y coordinates of the second handle");
 
   prop = RNA_def_property(srna, "select", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", PROF_SELECT);
