@@ -200,6 +200,30 @@
 #define image_get(create_info, _res) create_info::_res
 #define srt_access(create_info, _res) create_info::_res
 
+/**
+ * Member hiding type.
+ * Allows to declare fake references to Shader Resource Tables.
+ * This make sure we cannot directly reference them.
+ * This is just a safety measure for our fragile SRT implementation which cannot safely directly
+ * access SRT members that are more that 1 level deep.
+ * This should only be used in SRT struct member declaration for wrapping other SRT types.
+ */
+template<typename T> struct srt_t {
+  operator const T &() const
+  {
+    return *reinterpret_cast<const T *>(this);
+  }
+
+  operator T &()
+  {
+    return *reinterpret_cast<T *>(this);
+  }
+};
+
+struct ShaderCreateInfo {};
+
+struct NoConstants {};
+
 #include "GPU_shader_shared_utils.hh"
 
 #ifdef __GNUC__
