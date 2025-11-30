@@ -493,7 +493,7 @@ bool ShapingData::next_segment()
 
 static void blf_ot_feature(std::vector<hb_feature_t> &features, hb_tag_t feature, bool enable)
 {
-  hb_feature_t f;
+  hb_feature_t f = {0};
   f.tag = feature;
   f.value = enable ? 1 : 0;
   f.start = HB_FEATURE_GLOBAL_START;
