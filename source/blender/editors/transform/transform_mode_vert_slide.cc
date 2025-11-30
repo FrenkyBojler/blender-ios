@@ -621,9 +621,8 @@ static void initVertSlide_ex(
     if (op) {
       PropertyRNA *pdir = RNA_struct_find_property(op->ptr, "slide_direction");
       if (pdir && RNA_property_is_set(op->ptr, pdir)) {
-        float tmp[3];
-        RNA_property_float_get_array(op->ptr, pdir, tmp);
-        const float3 d(tmp[0], tmp[1], tmp[2]);
+        float3 d;
+        RNA_property_float_get_array(op->ptr, pdir, d);
         slp->dir_3d = math::normalize(d);
       }
     }
