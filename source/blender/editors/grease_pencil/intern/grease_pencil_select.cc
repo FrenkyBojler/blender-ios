@@ -892,7 +892,7 @@ static wmOperatorStatus select_shape_exec(bContext *C, wmOperator * /*op*/)
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
     const VArray<int> shape_ids = *attributes.lookup<int>("shape_id", bke::AttrDomain::Curve);
 
-    /* If the attribute does not exist then each curves is it's own shape. */
+    /* If the attribute does not exist then each curves is its own shape. */
     if (!shape_ids) {
       const IndexMask editable_strokes = ed::greasepencil::retrieve_editable_strokes(
           *object, info.drawing, info.layer_index, memory);
@@ -958,7 +958,7 @@ static void GREASE_PENCIL_OT_select_shape(wmOperatorType *ot)
 {
   ot->name = "Select Shape";
   ot->idname = "GREASE_PENCIL_OT_select_shape";
-  ot->description = "Select all curves in the shape";
+  ot->description = "Select all curves in a shape";
 
   ot->exec = select_shape_exec;
   ot->poll = editable_grease_pencil_poll;
