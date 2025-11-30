@@ -416,6 +416,11 @@ function(blender_add_lib__impl
 
   add_library(${name} ${sources})
 
+  string(COMPARE EQUAL ${name} "bf_rna" IS_BF_RNA)
+   if (IS_BF_RNA)
+       target_compile_definitions (${name} PRIVATE RNA_RUNTIME)
+   endif ()
+
   # On windows vcpkg goes out of its way to make its libs the preferred
   # libs, and needs to be explicitly be told not to do that.
   if(WIN32)

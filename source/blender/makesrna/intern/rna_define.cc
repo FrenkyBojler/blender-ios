@@ -43,6 +43,7 @@
 static CLG_LogRef LOG = {"rna.define"};
 
 #ifdef RNA_RUNTIME
+#  include "BPY_extern.hh"
 #  include "RNA_prototypes.hh"
 #endif
 
