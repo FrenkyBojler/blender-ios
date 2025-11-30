@@ -1139,7 +1139,7 @@ inline void ParserData::parse_scopes(report_callback &report_error)
           } while (keyword != Invalid && keyword == Colon);
 
           if (keyword == Struct) {
-            enter_scope(ScopeType::Local, tok_id);
+            enter_scope(ScopeType::Struct, tok_id);
           }
           else if (keyword == Enum) {
             enter_scope(ScopeType::Local, tok_id);
