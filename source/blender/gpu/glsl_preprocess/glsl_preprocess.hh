@@ -525,6 +525,7 @@ class Preprocessor {
         remove_quotes(parser, report_error);
         argument_reference_mutation(parser, report_error);
         default_argument_mutation(parser, report_error);
+        srt_guard_mutation(parser, report_error);
         cleanup_line_directives(parser, report_error);
         cleanup_empty_lines(parser, report_error);
         str = parser.result_get();
@@ -2756,19 +2757,43 @@ class Preprocessor {
     parser.apply_mutations();
   }
 
+  void srt_guard_mutation(Parser &parser, report_callback /*report_error*/)
+  {
+    using namespace std;
+    using namespace shader::parser;
+
+    /* SRT arguments. */
+    parser.foreach_function([&](bool, Token fn_type, Token, Scope fn_args, bool, Scope fn_body) {
+      string condition;
+      fn_args.foreach_match("[[w]]c?w", [&](const std::vector<Token> &tokens) {
+        if (tokens[2].str() != "resource_table") {
+          return;
+        }
+        condition += "defined(CREATE_INFO_" + tokens[7].str() + ")";
+      });
+
+      if (!condition.empty()) {
+        parser.insert_directive(fn_type.prev(), "#if " + condition);
+        parser.insert_directive(fn_body.end(), "#endif");
+      }
+    });
+
+    parser.apply_mutations();
+  }
+
   void resource_guard_mutation(Parser &parser, report_callback /*report_error*/)
   {
     using namespace std;
     using namespace shader::parser;
 
+    /* Legacy access macros. */
     parser.foreach_function([&](bool, Token fn_type, Token, Scope, bool, Scope fn_body) {
       fn_body.foreach_match("w(w,", [&](const std::vector<Token> &tokens) {
         string func_name = tokens[0].str();
         if (func_name != "specialization_constant_get" && func_name != "shared_variable_get" &&
             func_name != "push_constant_get" && func_name != "interface_get" &&
             func_name != "attribute_get" && func_name != "buffer_get" &&
-            /* func_name != "srt_access" && */ func_name != "sampler_get" &&
-            func_name != "image_get")
+            func_name != "sampler_get" && func_name != "image_get")
         {
           return;
         }
