@@ -470,6 +470,7 @@ class Preprocessor {
       return "";
     }
     str = remove_comments(str, report_error);
+    str = remove_whitespace(str, report_error);
     if (language == BLENDER_GLSL || language == CPP) {
       str = disabled_code_mutation(str, report_error);
     }
@@ -498,6 +499,7 @@ class Preprocessor {
           srt_member_access_mutation(parser, report_error);
           using_mutation(parser, report_error);
 
+          static_branch_mutation(parser, report_error);
           namespace_mutation(parser, report_error);
           template_struct_mutation(parser, report_error);
           struct_method_mutation(parser, report_error);
@@ -533,6 +535,8 @@ class Preprocessor {
         str = namespace_separator_mutation(str);
       }
       str = template_call_mutation(str, report_error);
+      /* Do another whitespace pass to remove the one introduced by mutations. */
+      str = remove_whitespace(str, report_error);
     }
     else if (language == MSL) {
       pragma_runtime_generated_parsing(str);
@@ -634,9 +638,14 @@ class Preprocessor {
         return out_str;
       }
     }
+    return out_str;
+  }
+
+  std::string remove_whitespace(const std::string &str, const report_callback & /*report_error*/)
+  {
     /* Remove trailing white space as they make the subsequent regex much slower. */
     std::regex regex(R"((\ )*?\n)");
-    return std::regex_replace(out_str, regex, "\n");
+    return std::regex_replace(str, regex, "\n");
   }
 
   static std::string template_arguments_mangle(const shader::parser::Scope template_args)
@@ -1451,6 +1460,74 @@ class Preprocessor {
         report_error(ERROR_TOK(tokens[0]), "Incompatible loop format for [[gpu::unroll]].");
       }
     });
+  }
+
+  void process_static_branch(Parser &parser,
+                             shader::parser::Token if_tok,
+                             shader::parser::Scope condition,
+                             shader::parser::Token attribute,
+                             shader::parser::Scope body,
+                             report_callback report_error)
+  {
+    using namespace std;
+    using namespace shader::parser;
+
+    if (attribute.str() != "static_branch") {
+      report_error(ERROR_TOK(attribute), "Unrecognized attribute.");
+      return;
+    }
+
+    if (condition.str().find("&&") != string::npos || condition.str().find("||") != string::npos) {
+      report_error(ERROR_TOK(condition[0]), "Expecting single condition.");
+      return;
+    }
+
+    if (condition[1].str() != "srt_access") {
+      report_error(ERROR_TOK(if_tok), "Expecting compilation or specialization constant.");
+      return;
+    }
+
+    Token before_body = body.start().prev();
+    string test = condition[3].str() + "_" + condition[5].str();
+    string directive = (if_tok.prev() == Else ? "#elif " : "#if ");
+
+    parser.insert_directive(before_body, directive + test);
+    parser.erase(if_tok, before_body);
+
+    if (body.end().next() == Else) {
+      Token else_tok = body.end().next();
+      parser.erase(else_tok);
+      if (else_tok.next() == If) {
+        /* Will be processed later. */
+        Token next_if = else_tok.next();
+        /* Ensure the rest of the if clauses also have the attribute. */
+        Scope attributes = next_if.next().scope().end().next().scope();
+        if (attributes.type() != ScopeType::Subscript ||
+            attributes.start().next().scope().str_exclusive() != "static_branch")
+        {
+          report_error(ERROR_TOK(next_if),
+                       "Expecting next if statement to also be a static branch.");
+          return;
+        }
+        return;
+      }
+      body = else_tok.next().scope();
+
+      parser.insert_directive(else_tok, "#else");
+    }
+    parser.insert_directive(body.end(), "#endif");
+  };
+
+  void static_branch_mutation(Parser &parser, report_callback report_error)
+  {
+    using namespace std;
+    using namespace shader::parser;
+
+    parser.foreach_match("i(..)[[w]]{..}", [&](const std::vector<Token> &tokens) {
+      process_static_branch(
+          parser, tokens[0], tokens[1].scope(), tokens[7], tokens[10].scope(), report_error);
+    });
+    parser.apply_mutations();
   }
 
   void namespace_mutation(Parser &parser, report_callback report_error)
@@ -2690,7 +2767,8 @@ class Preprocessor {
         if (func_name != "specialization_constant_get" && func_name != "shared_variable_get" &&
             func_name != "push_constant_get" && func_name != "interface_get" &&
             func_name != "attribute_get" && func_name != "buffer_get" &&
-            func_name != "srt_access" && func_name != "sampler_get" && func_name != "image_get")
+            /* func_name != "srt_access" && */ func_name != "sampler_get" &&
+            func_name != "image_get")
         {
           return;
         }

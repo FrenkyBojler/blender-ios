@@ -620,6 +620,151 @@ void func()
 }
 GPU_TEST(preprocess_default_arguments);
 
+static void test_preprocess_static_branch()
+{
+  using namespace shader;
+  using namespace std;
+
+  {
+    string input = R"(
+void func(Resources &srt [[resource_table]])
+{
+  if (srt.use_color_band) [[static_branch]] {
+    test;
+  }
+
+  if (srt.use_color_band) [[static_branch]] {
+    test;
+  } else {
+    test;
+  }
+
+  if (srt.use_color_band) [[static_branch]] {
+    test;
+  } else if (srt.use_color_band) [[static_branch]] {
+    test;
+  }
+
+  if (srt.use_color_band) [[static_branch]] {
+    test;
+  } else if (srt.use_color_band) [[static_branch]] {
+    test;
+  } else {
+    test;
+  }
+}
+)";
+    string expect = R"(
+void func(inout Resources _inout_sta srt _inout_end)
+{
+
+#if Resources_use_color_band
+#line 4
+                                                               {
+    test;
+  }
+
+
+#endif
+#line 6
+
+#if Resources_use_color_band
+#line 8
+                                                               {
+    test;
+  }
+#else
+#line 10
+         {
+    test;
+  }
+
+
+#endif
+#line 12
+
+#if Resources_use_color_band
+                                                               {
+    test;
+  }
+#elif Resources_use_color_band
+#line 16
+                                                                      {
+    test;
+  }
+
+
+#endif
+#line 18
+
+#if Resources_use_color_band
+                                                               {
+    test;
+  }
+#elif Resources_use_color_band
+#line 22
+                                                                      {
+    test;
+  }
+#else
+#line 24
+         {
+    test;
+  }
+
+#endif
+#line 26
+}
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+  {
+    string input = R"(
+void func(Resources &srt [[resource_table]])
+{
+  if (srt.use_color_band) [[static_branch]] {
+    test;
+  } else if (srt.use_color_band) {
+    test;
+  }
+}
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error, "Expecting next if statement to also be a static branch.");
+  }
+  {
+    string input = R"(
+void func(Resources &srt [[resource_table]])
+{
+  if (use_color_band) [[static_branch]] {
+    test;
+  }
+}
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error, "Expecting compilation or specialization constant.");
+  }
+  {
+    string input = R"(
+void func(Resources &srt [[resource_table]])
+{
+  if (srt.use_color_band && srt.use_color_band) [[static_branch]] {
+    test;
+  }
+}
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error, "Expecting single condition.");
+  }
+}
+GPU_TEST(preprocess_static_branch);
+
 static void test_preprocess_namespace()
 {
   using namespace shader;
@@ -1336,16 +1481,13 @@ float fn(SRT &srt [[resource_table]]) {
 }
 )";
     string expect = R"(
-float fn(inout SRT _inout_sta srt _inout_end) {
 #if defined(CREATE_INFO_SRT)
-#line 3
+#line 2
+float fn(inout SRT _inout_sta srt _inout_end) {
   return srt_access(SRT, member);
-#else
-#line 3
-  return float(0);
-#endif
-#line 4
 }
+#endif
+#line 5
 )";
     string error;
     string output = process_test_string(input, error);

@@ -1534,6 +1534,15 @@ struct Parser {
     insert_line_number(at.str_index_last(), line);
   }
 
+  void insert_directive(Token at, const std::string directive)
+  {
+    insert_after(at, "\n" + directive + "\n");
+    insert_line_number(at, at.line_number());
+    size_t line_break = data_.str.find_last_of("\n", at.str_index_last() + 1);
+    size_t spaces = at.str_index_last() - line_break;
+    insert_after(at, std::string(spaces, ' '));
+  }
+
   void insert_before(size_t at, const std::string &content)
   {
     IndexRange range = IndexRange(at, 0);
