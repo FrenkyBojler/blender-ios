@@ -539,15 +539,10 @@ bool on_drop_interface_items(bContext *C,
     return false;
   }
 
-  const int target_index = interface.find_item_index(drop_target_item);
   for (int i = 0; i < drag_data->items_count; i++) {
     bNodeTreeInterfaceItem *drag_item = drag_data->items[i];
-    bNodeTreeInterfacePanel *current_parent = interface.find_item_parent(*drag_item, true);
-    const int item_index = interface.find_item_index(*drag_item);
-    const int offset = (item_index < target_index && parent == current_parent) ? 0 : i;
-    position += offset;
-
     interface.move_item_to_parent(*drag_item, parent, position);
+    position = parent->item_position(*drag_item) + 1;
   }
 
   interface.active_item_set(original_active);
