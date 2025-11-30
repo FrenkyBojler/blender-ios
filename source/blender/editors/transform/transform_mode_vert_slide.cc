@@ -88,11 +88,8 @@ struct VertSlideData {
    * Run while moving the mouse to slide along the edge matching the mouse direction.
    * Update which edges are active for vertex slide using a world-space direction.
    */
-  void update_active_edges(TransInfo * /*t*/,
-                           const TransDataContainer *tc,
-                           const float3 &dir_world)
+  void update_active_edges(TransInfo * /*t*/, const TransDataContainer *tc, const float3 &dir)
   {
-    const float3 dir = math::normalize(dir_world);
     const float4x4 &obmat = tc->obedit->object_to_world();
 
     for (TransDataVertSlideVert &sv : this->sv) {
@@ -108,10 +105,9 @@ struct VertSlideData {
       for (int j : sv.co_link_orig_3d.index_range()) {
         const float3 &loc_dst = sv.co_link_orig_3d[j];
 
-        float3 tdir = loc_dst - v_co_orig;
-        mul_mat3_m4_v3(const_cast<float (*)[4]>(obmat.ptr()), tdir);
+        const float3 dir_os = loc_dst - v_co_orig;
 
-        tdir = math::normalize(tdir);
+        const float3 tdir = math::normalize((obmat * float4(dir_os, 0.0f)).xyz());
         const float dir_dot = math::dot(dir, tdir);
         if (dir_dot > dir_dot_best) {
           dir_dot_best = dir_dot;
