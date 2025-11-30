@@ -124,8 +124,6 @@ static void test_preprocess_unroll()
     string input = R"(
 [[gpu::unroll]] for (int i = 2; i < 4; i++, y++) { content += i; })";
     string expect = R"(
-
-#line 2
                     {int i = 2;
 #line 2
                                                  { content += i; }
@@ -146,8 +144,6 @@ static void test_preprocess_unroll()
     string input = R"(
 [[gpu::unroll]] for (int i = 2; i < 4 && i < y; i++, y++) { cont += i; })";
     string expect = R"(
-
-#line 2
                     {int i = 2;
 #line 2
                              if(i < 4 && i < y)
@@ -307,8 +303,6 @@ void func(T a) {a;}
 template void func<float>(float a);
 )";
     string expect = R"(
-
-
 #line 3
 void func(float a) {a;}
 #line 5
@@ -327,10 +321,6 @@ void func(T a) {
 template void func<float, 1>(float a);
 )";
     string expect = R"(
-
-
-
-
 #line 3
 void funcTfloatT1(float a) {
   a;
@@ -393,8 +383,6 @@ struct A { T a; };
 template struct A<float>;
 )";
     string expect = R"(
-
-
 #line 3
 struct ATfloat { float a; };
 #line 5
@@ -653,7 +641,10 @@ void func([[resource_table]] Resources &srt)
 }
 )";
     string expect = R"(
-void func(inout Resources _inout_sta srt _inout_end)
+
+#if defined(CREATE_INFO_Resources)
+#line 2
+void func(                   inout Resources _inout_sta srt _inout_end)
 {
 
 #if Resources_use_color_band
@@ -661,10 +652,7 @@ void func(inout Resources _inout_sta srt _inout_end)
                                                                {
     test;
   }
-
-
 #endif
-#line 6
 
 #if Resources_use_color_band
 #line 8
@@ -676,12 +664,10 @@ void func(inout Resources _inout_sta srt _inout_end)
          {
     test;
   }
-
-
 #endif
-#line 12
 
 #if Resources_use_color_band
+#line 14
                                                                {
     test;
   }
@@ -690,12 +676,10 @@ void func(inout Resources _inout_sta srt _inout_end)
                                                                       {
     test;
   }
-
-
 #endif
-#line 18
 
 #if Resources_use_color_band
+#line 20
                                                                {
     test;
   }
@@ -711,8 +695,11 @@ void func(inout Resources _inout_sta srt _inout_end)
   }
 
 #endif
-#line 26
+#line 27
 }
+
+#endif
+#line 28
 )";
     string error;
     string output = process_test_string(input, error);
@@ -926,7 +913,6 @@ void test() {
 
 void A_B_func() {}
 struct A_B_S {int _pad;};
-
 #line 9
 void A_B_test() {
   A_B_S s;
@@ -1000,11 +986,6 @@ float write(float a){ return a; }
 )";
 
     string expect = R"(
-
-
-
-
-
 #line 3
 float NS_read(float a)
 {
@@ -1037,12 +1018,7 @@ struct S {
     string expect = R"(
 
 struct NS_S {
-
-#line 6
-
-
-#line 9
-
+#line 10
 int _pad;};
 #line 4
          NS_S NS_S_static_method(NS_S s) {
@@ -1090,10 +1066,6 @@ enum class enum_class : int {
 };
 )";
     string expect = R"(
-
-#line 4
-
-#line 2
 #define enum_class int
 constant static constexpr int enum_class_VALUE = 0;
 #line 5
@@ -1264,7 +1236,6 @@ uint my_func() {
     i += interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_index;
     i += buffer_get(draw_resource_id, resource_id_buf)[0];
 #endif
-#line 7
 #endif
 #line 7
   }
@@ -1389,19 +1360,9 @@ struct S {
 
   int member;
   int this_member;
-
-
-
-#line 14
-
-
+#line 16
   int another_member;
-
-#line 23
-
-
-#line 28
-
+#line 29
 };
 #line 8
          S S_construct()
@@ -1461,11 +1422,13 @@ float fn([[resource_table]] SRT &srt) {
 }
 )";
     string expect = R"(
+
 #if defined(CREATE_INFO_SRT)
 #line 2
-float fn(inout SRT _inout_sta srt _inout_end) {
+float fn(                   inout SRT _inout_sta srt _inout_end) {
   return srt_access(SRT, member);
 }
+
 #endif
 #line 5
 )";
@@ -1487,19 +1450,21 @@ float fn([[resource_table]] SRT srt) {
   {
     string input = R"(
 float fn([[resource_table]] SRT &srt) {
-  OtherSRT &other_srt [[resource_table]] = srt.other_srt;
+  [[resource_table]] OtherSRT &other_srt = srt.other_srt;
   return other_srt.member;
 }
 )";
     string expect = R"(
+
 #if defined(CREATE_INFO_SRT)
-#line 1
-float fn(inout SRT _inout_sta srt _inout_end) {
+#line 2
+float fn(                   inout SRT _inout_sta srt _inout_end) {
 
   return srt_access(OtherSRT, member);
 }
+
 #endif
-#line 5
+#line 6
 )";
     string error;
     string output = process_test_string(input, error);
