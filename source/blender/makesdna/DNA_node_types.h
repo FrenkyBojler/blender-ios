@@ -3549,5 +3549,3 @@ typedef struct NodeGeometryGetBundleItem {
   /** #eCustomDataType. */
   int8_t data_type;
 } NodeGeometryGetBundleItem;
-
-
