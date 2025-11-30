@@ -1,2 +1,3 @@
 Referenced by commit fa3d266f9cc037c83055278f04e7a08de090f7d1, Fix: Snap Base Rotates in The Opposite Direction
 Referenced by issue #150838, Rotation direction regression in Blender 5.0: R+90 rotates counter-clockwise instead of clockwise (same issue as T83092)
+Referenced by issue #149784, 5.0: Candidates for corrective releases
