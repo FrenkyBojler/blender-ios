@@ -625,7 +625,7 @@ static void test_preprocess_static_branch()
 
   {
     string input = R"(
-void func(Resources &srt [[resource_table]])
+void func([[resource_table]] Resources &srt)
 {
   if (srt.use_color_band) [[static_branch]] {
     test;
@@ -721,7 +721,7 @@ void func(inout Resources _inout_sta srt _inout_end)
   }
   {
     string input = R"(
-void func(Resources &srt [[resource_table]])
+void func([[resource_table]] Resources &srt)
 {
   if (srt.use_color_band) [[static_branch]] {
     test;
@@ -736,7 +736,7 @@ void func(Resources &srt [[resource_table]])
   }
   {
     string input = R"(
-void func(Resources &srt [[resource_table]])
+void func([[resource_table]] Resources &srt)
 {
   if (use_color_band) [[static_branch]] {
     test;
@@ -749,7 +749,7 @@ void func(Resources &srt [[resource_table]])
   }
   {
     string input = R"(
-void func(Resources &srt [[resource_table]])
+void func([[resource_table]] Resources &srt)
 {
   if (srt.use_color_band && srt.use_color_band) [[static_branch]] {
     test;
@@ -1456,7 +1456,7 @@ static void test_preprocess_srt_mutations()
 
   {
     string input = R"(
-float fn(SRT &srt [[resource_table]]) {
+float fn([[resource_table]] SRT &srt) {
   return srt.member;
 }
 )";
@@ -1476,7 +1476,7 @@ float fn(inout SRT _inout_sta srt _inout_end) {
   }
   {
     string input = R"(
-float fn(SRT srt [[resource_table]]) {
+float fn([[resource_table]] SRT srt) {
   return srt.member;
 }
 )";
@@ -1486,7 +1486,7 @@ float fn(SRT srt [[resource_table]]) {
   }
   {
     string input = R"(
-float fn(SRT &srt [[resource_table]]) {
+float fn([[resource_table]] SRT &srt) {
   OtherSRT &other_srt [[resource_table]] = srt.other_srt;
   return other_srt.member;
 }
