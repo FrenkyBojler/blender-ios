@@ -211,13 +211,7 @@ static void freeVertSlideVerts(TransInfo * /*t*/,
                                TransDataContainer * /*tc*/,
                                TransCustomData *custom_data)
 {
-  VertSlideData *sld = static_cast<VertSlideData *>(custom_data->data);
-
-  if (!sld) {
-    return;
-  }
-
-  MEM_delete(sld);
+  MEM_delete(static_cast<VertSlideData *>(custom_data->data));
   custom_data->data = nullptr;
 }
 
@@ -225,12 +219,7 @@ static void freeVertSlideParams(TransInfo * /*t*/,
                                 TransDataContainer * /*tc*/,
                                 TransCustomData *custom_data)
 {
-  VertSlideParams *slp = static_cast<VertSlideParams *>(custom_data->data);
-  if (!slp) {
-    return;
-  }
-
-  MEM_delete(slp);
+  MEM_delete(static_cast<VertSlideParams *>(custom_data->data));
   custom_data->data = nullptr;
 }
 
