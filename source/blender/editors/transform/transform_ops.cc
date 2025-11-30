@@ -1306,7 +1306,7 @@ static void TRANSFORM_OT_vert_slide(wmOperatorType *ot)
                                            -FLT_MAX,
                                            FLT_MAX,
                                            "Slide Direction",
-                                           "World-space direction used for vertex slide redo",
+                                           "World-space direction",
                                            -FLT_MAX,
                                            FLT_MAX);
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
