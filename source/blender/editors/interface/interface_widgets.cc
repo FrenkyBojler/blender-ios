@@ -5715,20 +5715,23 @@ void ui_draw_pie_center(uiBlock *block)
   /* When the pie menu contains more than one page, add a visual feedback of wich page is active.
    */
   immUnbindProgram();
-
   const PieMenuData &pie_data = block->pie_data;
   if (pie_data.pages.size() > 1) {
-    const rctf handle_rect = pie_data.scroll_handle_rect();
+    rctf handle_rect = pie_data.scroll_handle_rect();
+    /* Make the drawing handle rectangle more subtle. */
+    BLI_rctf_pad(&handle_rect, 0, -UI_UNIT_Y / 8);
+
     int arrow_size = UI_SCALE_FAC * ICON_DEFAULT_HEIGHT;
 
     UI_draw_roundbox_corner_set(UI_CNR_ALL);
     UI_draw_roundbox_3ub_alpha(&handle_rect,
                                true,
-                               2.0f,
+                               8.0f,
                                btheme->tui.wcol_pie_menu.inner,
                                btheme->tui.wcol_pie_menu.inner[3]);
     PieScrollHandle active_handle = PieScrollHandle(pie_data.active_scroll_handle &
                                                     ~PieScrollHandle::Hold);
+    /* Highlight active scroll handle. */
     if (active_handle != PieScrollHandle::None) {
       rctf rect = handle_rect;
       if (active_handle == PieScrollHandle::Left) {
@@ -5740,7 +5743,7 @@ void ui_draw_pie_center(uiBlock *block)
         rect.xmin = rect.xmax - arrow_size;
       }
       UI_draw_roundbox_3ub_alpha(
-          &rect, true, 2.0f, btheme->tui.wcol_pie_menu.item, btheme->tui.wcol_pie_menu.item[3]);
+          &rect, true, 8.0f, btheme->tui.wcol_pie_menu.item, btheme->tui.wcol_pie_menu.item[3]);
     }
 
     const float dot_space = (PieMenuData::pie_page_dot_rad * 2.0f +
@@ -5749,11 +5752,13 @@ void ui_draw_pie_center(uiBlock *block)
     const float dot_y = BLI_rctf_cent_y(&handle_rect);
     float dot_x = handle_rect.xmin + arrow_size + dot_space / 2.0f +
                   PieMenuData::pie_page_dot_margin * UI_SCALE_FAC;
+
     GPUVertFormat *format = immVertexFormat();
     const uint pos = GPU_vertformat_attr_add(
         format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
     uchar page_dot_color[] = {255, 255, 255, 0};
+
     for (int i : pie_data.pages.index_range()) {
       page_dot_color[3] = i == pie_data.active_page ? 175 : 60;
       immUniformColor4ubv(page_dot_color);

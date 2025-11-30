@@ -11617,7 +11617,7 @@ static int ui_pie_handler(bContext *C, const wmEvent *event, uiPopupBlockHandle 
 
   PieMenuData &pie_data = block->pie_data;
 
-  auto test_pie_page_scroll_handle = [&]() {
+  auto test_pie_menu_page_scroll_handle = [&]() {
     if (pie_data.pages.size() < 2 || !ELEM(event->type, LEFTMOUSE, MOUSEMOVE)) {
       return WM_UI_HANDLER_CONTINUE;
     }
@@ -11638,6 +11638,7 @@ static int ui_pie_handler(bContext *C, const wmEvent *event, uiPopupBlockHandle 
       but_active->active->cancel = true;
       button_activate_exit(C, but_active, but_active->active, false, false);
     }
+    /* Check which scroll handle is active.*/
     PieScrollHandle active_handler = PieScrollHandle::Center;
     int direction = 0;
     if (handle_rect.xmin + icon_size > event_xy[0]) {
@@ -11660,7 +11661,8 @@ static int ui_pie_handler(bContext *C, const wmEvent *event, uiPopupBlockHandle 
     }
     return WM_UI_HANDLER_BREAK;
   };
-  if (test_pie_page_scroll_handle() == WM_UI_HANDLER_BREAK) {
+  /* Check if pie menu scroll scroll handles are active. */
+  if (test_pie_menu_page_scroll_handle() == WM_UI_HANDLER_BREAK) {
     ED_region_tag_redraw(region);
     return WM_UI_HANDLER_BREAK;
   }
