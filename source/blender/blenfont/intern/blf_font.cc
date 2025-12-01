@@ -164,16 +164,6 @@ uint blf_get_char_index(FontBLF *font, const uint charcode)
   return blf_ensure_face(font) ? FT_Get_Char_Index(font->face, charcode) : 0;
 }
 
-/* Convert a FreeType 26.6 value representing an unscaled design size to fractional pixels. */
-static ft_pix blf_unscaled_F26Dot6_to_pixels(FontBLF *font, const FT_Pos value)
-{
-  /* Make sure we have a valid font->ft_size. */
-  blf_ensure_size(font);
-
-  /* Scale value by font size using integer-optimized multiplication. */
-  return FT_MulFix(value, font->ft_size->metrics.x_scale);
-}
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
