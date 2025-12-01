@@ -51,7 +51,7 @@ static void node_geo_exec(GeoNodeExecParams params)
                                             ImplicitSharingPtr<>(collections)};
 
   params.set_output("Collections",
-                    List::create(CPPType::get<Object *>(),
+                    List::create(CPPType::get<Collection *>(),
                                  std::move(collections_array_data),
                                  collections->data.size()));
 
