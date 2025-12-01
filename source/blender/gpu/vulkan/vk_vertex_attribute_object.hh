@@ -105,10 +105,10 @@ class VKVertexInputDescriptionPool {
     return result;
   }
 
-  VKVertexInputDescription *get(Key key)
+  const VKVertexInputDescription &get(Key key)
   {
     std::scoped_lock lock(mutex_);
-    return vertex_inputs_[key].get();
+    return *vertex_inputs_[key].get();
   }
 };
 

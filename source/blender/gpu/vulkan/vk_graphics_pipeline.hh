@@ -325,7 +325,7 @@ struct VKGraphicsPipelineCreateInfoBuilder {
   void build_vertex_input_state(VKDevice &device,
                                 const VKGraphicsInfo::VertexIn &vertex_input_info)
   {
-    const VKVertexInputDescription &description = *device.vertex_input_descriptions.get(
+    const VKVertexInputDescription &description = device.vertex_input_descriptions.get(
         vertex_input_info.vertex_input_key);
     vk_pipeline_vertex_input_state_create_info = {
         VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO};
