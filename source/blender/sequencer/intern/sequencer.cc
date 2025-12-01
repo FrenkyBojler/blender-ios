@@ -132,7 +132,7 @@ Strip *strip_alloc(ListBase *lb, int timeline_frame, int channel, StripType type
   *((short *)strip->name) = ID_SEQ;
   strip->name[2] = 0;
 
-  strip->flag = SELECT;
+  strip->flag = SEQ_SELECT;
   strip->start = timeline_frame;
   strip_channel_set(strip, channel);
   strip->sat = 1.0;
@@ -520,14 +520,14 @@ static void seq_duplicate_postprocess(StripDuplicateContext &ctx)
   if (flag_is_set(ctx.dupe_flag, StripDuplicate::Data)) {
     /* Remapping newids in Scenes will usually trigger a view_layers/collections resync after each
      * scene. Besides performances considerations, this is also bad because it means some
-     * not-yet-remapped scenes will get their viewlayer updated while still referencing old
+     * not-yet-remapped scenes will get their view-layer updated while still referencing old
      * (source) collections, objects etc. This can e.g. lead to losing the active object in the
      * duplicated scenes.
      *
-     * So instead, prevent any resync untill all new IDs have been remapped. */
+     * So instead, prevent any resync until all new IDs have been remapped. */
     BKE_layer_collection_resync_forbid();
 
-    /* Newly created datablocks may reference IDs that themselves have also been duplicated in the
+    /* Newly created data-blocks may reference IDs that themselves have also been duplicated in the
      * "current duplication". E.g. a scene may have a custom property that refers to itself; when
      * it is duplicated, we should ensure that these references are properly remapped.
      *
@@ -778,7 +778,7 @@ static void seqbase_duplicate_recursive_impl(StripDuplicateContext &ctx,
                                              const ListBase *seqbase_src)
 {
   LISTBASE_FOREACH (Strip *, strip, seqbase_src) {
-    if ((strip->flag & SELECT) == 0 && !flag_is_set(ctx.dupe_flag, StripDuplicate::All)) {
+    if ((strip->flag & SEQ_SELECT) == 0 && !flag_is_set(ctx.dupe_flag, StripDuplicate::All)) {
       continue;
     }
 

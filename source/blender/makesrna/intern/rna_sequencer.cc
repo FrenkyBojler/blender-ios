@@ -683,7 +683,7 @@ static bool rna_Strip_lock_get(PointerRNA *ptr)
   Scene *scene = reinterpret_cast<Scene *>(ptr->owner_id);
   Strip *strip = static_cast<Strip *>(ptr->data);
   Editing *ed = blender::seq::editing_get(scene);
-  ListBase *channels = blender::seq::get_channels_by_strip(ed, strip);
+  const ListBase *channels = blender::seq::get_channels_by_strip(ed, strip);
   return blender::seq::transform_is_locked(channels, strip);
 }
 
@@ -2777,7 +2777,7 @@ static void rna_def_filter_video(StructRNA *srna)
   };
 
   prop = RNA_def_property(srna, "use_deinterlace", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", SEQ_FILTERY);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", SEQ_DEINTERLACE);
   RNA_def_property_ui_text(prop, "Deinterlace", "Remove fields from video movies");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_reopen_files_update");
 
