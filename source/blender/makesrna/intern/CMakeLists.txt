@@ -493,6 +493,8 @@ set(LIB
 
 blender_add_lib(bf_rna "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
+target_compile_definitions (bf_rna PRIVATE RNA_RUNTIME)
+
 if(WITH_GTESTS)
   set(TEST_SRC
     makesrna_utils.cc
