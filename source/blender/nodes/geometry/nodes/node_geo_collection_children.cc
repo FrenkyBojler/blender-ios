@@ -50,6 +50,11 @@ static void node_geo_exec(GeoNodeExecParams params)
   List::ArrayData collections_array_data = {collections->data.data(),
                                             ImplicitSharingPtr<>(collections)};
 
+  params.set_output("Collections",
+                    List::create(CPPType::get<Object *>(),
+                                 std::move(collections_array_data),
+                                 collections->data.size()));
+
   auto *objects = new ImplicitSharedValue<Vector<Object *>>();
   if (recursive) {
     FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (collection, object) {
