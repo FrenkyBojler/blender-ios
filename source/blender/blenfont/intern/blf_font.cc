@@ -596,9 +596,6 @@ bool ShapingData::process(FontBLF *font, GlyphCacheBLF *gc, ResultBLF *r_info)
 #ifdef BLF_SUBPIXEL_AA
     this->segment.glyphs[i] = blf_glyph_ensure_subpixel(
         this->segment.font, this->segment.gc, g, pen_x);
-    if (this->segment.glyphs[i] == nullptr) {
-      continue;
-    }
 #endif
     max_width = pen_x + std::max(pos->x_advance, g->advance_x);
     pen_x += advance;
@@ -2124,7 +2121,7 @@ static const FaceDetails static_face_details[] = {
          TT_UCR_ENCLOSED_CJK_LETTERS_MONTHS | TT_UCR_CJK_COMPATIBILITY |
          TT_UCR_CJK_UNIFIED_IDEOGRAPHS | TT_UCR_CJK_COMPATIBILITY_IDEOGRAPHS |
          TT_UCR_HANGUL_COMPATIBILITY_JAMO | TT_UCR_HANGUL,
-     TT_UCR_CJK_COMPATIBILITY_FORMS,
+     TT_UCR_CJK_COMPATIBILITY_FORMS | TT_UCR_HALFWIDTH_FULLWIDTH_FORMS,
      0},
     {"NotoEmoji-VariableFont_wght.woff2", 0x80000003L, 0x241E4ACL, 0x14000000L, 0x4000000L},
     {"NotoSansArabic-VariableFont_wdth,wght.woff2",

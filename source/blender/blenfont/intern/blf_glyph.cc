@@ -1468,7 +1468,10 @@ GlyphBLF *blf_glyph_ensure_subpixel(FontBLF *font, GlyphCacheBLF *gc, GlyphBLF *
   const uint8_t subpixel = uint8_t(pen_x & ((font->size > 16.0f) ? 32L : 48L));
 
   if (g->subpixel != subpixel) {
-    g = blf_glyph_ensure(font, gc, g->c, g->idx, subpixel);
+    GlyphBLF *g_new = blf_glyph_ensure(font, gc, g->c, g->idx, subpixel);
+    if (g_new) {
+      g = g_new;
+    }
   }
   return g;
 }
