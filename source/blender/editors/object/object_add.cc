@@ -94,6 +94,7 @@
 #include "BKE_scene.hh"
 #include "BKE_vfont.hh"
 #include "BKE_volume.hh"
+#include "BKE_idprop.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
@@ -145,6 +146,21 @@ const EnumPropertyItem rna_enum_light_type_items[] = {
 };
 
 namespace blender::ed::object {
+
+static void object_light_manager_clear_group(Object *ob)
+{
+  if (ob == nullptr || ob->type != OB_LAMP) {
+    return;
+  }
+  if (ob->id.properties == nullptr) {
+    return;
+  }
+
+  IDProperty *prop = IDP_GetPropertyFromGroup(ob->id.properties, "light_mixer_group");
+  if (prop != nullptr) {
+    IDP_FreeFromGroup(ob->id.properties, prop);
+  }
+}
 
 /* -------------------------------------------------------------------- */
 /** \name Local Enum Declarations
@@ -4776,6 +4792,8 @@ static wmOperatorStatus duplicate_exec(bContext *C, wmOperator *op)
     }
 
     object_add_sync_local_view(link.base_src, base_new);
+
+    object_light_manager_clear_group(link.object_new);
   }
 
   /* Note that this will also clear newid pointers and tags. */
@@ -4882,6 +4900,8 @@ static wmOperatorStatus object_add_named_exec(bContext *C, wmOperator *op)
   base_activate(C, basen);
 
   copy_object_set_idnew(C);
+
+  object_light_manager_clear_group(basen->object);
 
   /* TODO(sergey): Only update relations for the current scene. */
   DEG_relations_tag_update(bmain);

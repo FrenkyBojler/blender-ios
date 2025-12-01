@@ -79,6 +79,21 @@ struct SpaceLightManager_Runtime {
   blender::Vector<GroupBounds> group_bounds;  /* Updated each draw */
 };
 
+static void light_manager_ensure_default_group(SpaceLightManager *space_lm)
+{
+  if (space_lm == nullptr) {
+    return;
+  }
+  if (space_lm->groups.first != nullptr) {
+    return;
+  }
+
+  SpaceLightManagerGroup *group = MEM_callocN<SpaceLightManagerGroup>("LightManagerGroup");
+  STRNCPY(group->name, light_manager_default_group_name());
+  group->flag = 0;
+  BLI_addtail(&space_lm->groups, group);
+}
+
 /* -------------------------------------------------------------------- */
 /** \name Dedicated table-style layout for lights
  *  (pixel-based columns, similar spirit to Spreadsheet)
@@ -890,10 +905,11 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
         int local_my = screen_my - region->winrct.ymin;
         
         if (local_my <= rect.ymax && local_my >= rect.ymin) {
-            /* Hover effect: lighten */
-            final_col[0] = std::min(1.0f, final_col[0] * 1.2f);
-            final_col[1] = std::min(1.0f, final_col[1] * 1.2f);
-            final_col[2] = std::min(1.0f, final_col[2] * 1.2f);
+            /* Hover effect: subtle highlight similar to native lists. */
+            const float hover_boost = 0.08f;
+            final_col[0] = std::min(1.0f, final_col[0] + hover_boost);
+            final_col[1] = std::min(1.0f, final_col[1] + hover_boost);
+            final_col[2] = std::min(1.0f, final_col[2] + hover_boost);
         }
     }
     
@@ -907,16 +923,34 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
   const int row_height = int(UI_UNIT_Y * 1.2f);
   const int top_bar_height = int(UI_UNIT_Y * 1.5f);
   const int margin = 10;
+  const int group_vertical_padding = int(UI_UNIT_Y * 0.5f);
+
+  /* Shared colors for group header and zebra rows (exactly two base shades). */
+  float group_row_color[4];
+  float zebra_color_even[4];
+  float zebra_color_odd[4];
+  UI_GetThemeColor4fv(TH_HEADER, group_row_color);
+  for (int i = 0; i < 4; i++) {
+    zebra_color_even[i] = group_row_color[i];
+  }
+  UI_GetThemeColorShade4fv(TH_HEADER, -10, zebra_color_odd);
   
   /* Start Y at top of region */
   int y = region->winy - margin;
 
   /* --- Top Bar (Manual Draw) --- */
   {
-    uiDefIconButO(block, ButType::But, "LIGHT_MANAGER_OT_group_add",
-                  wm::OpCallContext::InvokeDefault, ICON_ADD,
-                  margin, y - top_bar_height, 200, short(top_bar_height),
-                  std::nullopt);
+    uiDefIconTextButO(block,
+                      ButType::But,
+                      "LIGHT_MANAGER_OT_group_add",
+                      wm::OpCallContext::InvokeDefault,
+                      ICON_ADD,
+                      "Add a new group",
+                      margin,
+                      y - top_bar_height,
+                      200,
+                      short(top_bar_height),
+                      std::nullopt);
   }
   
   y -= (top_bar_height + margin);
@@ -991,9 +1025,18 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
       /* Calculate bounds for Drag & Drop */
       float group_start_y = (float)y;
       float group_h = (float)row_height;
-      if (!(group->flag & SPACE_LIGHT_MANAGER_GROUP_COLLAPSED) && group_lights_ptr) {
-        group_h += (float)row_height * group_lights_ptr->size();
+      if (!(group->flag & SPACE_LIGHT_MANAGER_GROUP_COLLAPSED)) {
+        int visible_rows = 0;
+        if (group_lights_ptr && group_lights_ptr->size() != 0) {
+          visible_rows = group_lights_ptr->size();
+        }
+        else {
+          /* Show one informational row for empty expanded groups. */
+          visible_rows = 1;
+        }
+        group_h += (float)row_height * visible_rows;
       }
+      group_h += (float)group_vertical_padding;
       
       if (space_lm->runtime) {
         GroupBounds bounds;
@@ -1006,9 +1049,7 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
 
       /* Group Row Background */
       {
-          float col[4];
-          UI_GetThemeColor4fv(TH_HEADER, col); 
-          draw_row_bg(y, row_height, col);
+          draw_row_bg(y, row_height, group_row_color);
       }
 
       /* Group Row */
@@ -1040,13 +1081,20 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
             const int col = int(eLightManagerColumn::Name);
             /* Group Name (Rename Operator) - Draw closer to icon like a tree view */
             /* Use Icon column end as start if possible, or just standard column */
-             uiBut *but = uiDefButO(block, ButType::But, "LIGHT_MANAGER_OT_group_rename",
-                           wm::OpCallContext::InvokeDefault, group->name,
-                           columns[col].x, y - row_height, short(columns[col].width + columns[col+1].width), short(row_height), std::nullopt);
+             uiBut *but = uiDefButO(block,
+                           ButType::But,
+                           "LIGHT_MANAGER_OT_group_rename",
+                           wm::OpCallContext::InvokeDefault,
+                           group->name,
+                           columns[col].x,
+                           y - row_height,
+                           short(columns[col].width + columns[col + 1].width),
+                           short(row_height),
+                           std::nullopt);
              if (but) {
                  UI_but_operator_ptr_ensure(but);
                  RNA_int_set(but->opptr, "index", BLI_findindex(&space_lm->groups, group));
-                 UI_but_flag_enable(but, UI_BUT_TEXT_LEFT);
+                 UI_but_drawflag_enable(but, UI_BUT_TEXT_LEFT);
              }
         }
         
@@ -1090,28 +1138,15 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
       }
       y -= row_height;
       
-      /* Lights Rows */
-      if (!(group->flag & SPACE_LIGHT_MANAGER_GROUP_COLLAPSED) && group_lights_ptr) {
-         int light_idx = 0;
-         for (Object *ob : *group_lights_ptr) {
-            
-            /* Zebra striping for lights */
+      /* Lights Rows / Empty Group Message */
+      if (!(group->flag & SPACE_LIGHT_MANAGER_GROUP_COLLAPSED)) {
+        if (group_lights_ptr && group_lights_ptr->size() != 0) {
+          int light_idx = 0;
+          for (Object *ob : *group_lights_ptr) {
+            /* Zebra striping for lights: exactly two base colors. */
             {
-                float col[4];
-                UI_GetThemeColor4fv(TH_BACK, col);
-                
-                if (light_idx % 2 != 0) {
-                     /* Manually darken for odd rows - Stronger contrast */
-                     col[0] *= 0.75f;
-                     col[1] *= 0.75f;
-                     col[2] *= 0.75f;
-                } else {
-                     /* Even rows - Slight darken */
-                     col[0] *= 0.95f;
-                     col[1] *= 0.95f;
-                     col[2] *= 0.95f;
-                }
-                draw_row_bg(y, row_height, col);
+              const float *col = (light_idx % 2 == 0) ? zebra_color_even : zebra_color_odd;
+              draw_row_bg(y, row_height, col);
             }
             light_idx++;
 
@@ -1212,8 +1247,33 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
                 }
             }
             y -= row_height;
-         }
+          }
+        }
+        else {
+          /* Expanded group with no lights: show an informational row. */
+          const int name_col = int(eLightManagerColumn::Name);
+          const int indent = 20;
+          const int msg_x = columns[name_col].x + indent;
+          const short msg_w = short(table_width - (msg_x - margin));
+
+          draw_row_bg(y, row_height, zebra_color_even);
+
+          uiDefBut(block,
+                   ButType::Label,
+                   IFACE_("No lights in this group"),
+                   msg_x,
+                   y - row_height,
+                   msg_w,
+                   short(row_height),
+                   nullptr,
+                   0.0f,
+                   0.0f,
+                   std::nullopt);
+
+          y -= row_height;
+        }
       }
+      y -= group_vertical_padding;
     }
   }
   
@@ -1290,8 +1350,7 @@ static SpaceLink *light_manager_create(const ScrArea * /*area*/, const Scene * /
   SpaceLightManager *space_lm = MEM_callocN<SpaceLightManager>("init light manager space");
   space_lm->spacetype = SPACE_LIGHT_MANAGER;
   space_lm->runtime = MEM_new<SpaceLightManager_Runtime>(__func__);
-
-
+  light_manager_ensure_default_group(space_lm);
 
   ARegion *region;
 
@@ -1333,7 +1392,7 @@ static void light_manager_space_blend_read_data(BlendDataReader * /*reader*/, Sp
 {
   SpaceLightManager *space_lm = (SpaceLightManager *)sl;
   space_lm->runtime = MEM_new<SpaceLightManager_Runtime>(__func__);
-
+  light_manager_ensure_default_group(space_lm);
 }
 
 static void light_manager_space_blend_write(BlendWriter *writer, SpaceLink *sl)
