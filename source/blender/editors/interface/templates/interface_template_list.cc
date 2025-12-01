@@ -141,7 +141,7 @@ static void uilist_draw_filter_default(uiList *ui_list,
                ICON_ARROW_LEFTRIGHT);
 
   if ((ui_list->filter_sort_flag & UILST_FLT_SORT_LOCK) == 0) {
-    subrow = &row->row(true);
+    subrow = &row.row(true);
     subrow->prop(
         &listptr, "use_filter_sort_alpha", UI_ITEM_R_TOGGLE | UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
     subrow->prop(&listptr,
