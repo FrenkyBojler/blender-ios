@@ -1408,10 +1408,13 @@ void RENDER_OT_shutter_curve_preset(wmOperatorType *ot)
                                        BLT_I18NCONTEXT_ID_CURVE_LEGACY); /* Abusing id_curve :/ */
 }
 
-static wmOperatorStatus render_sequence_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus render_sequence_invoke(bContext *C,
+                                               wmOperator *op,
+                                               const wmEvent * /*event*/)
 {
-  ED_fileselect_ensure_default_filepath(C, op, ".mp4");
-  return WM_operator_filesel(C, op, event);
+  ED_fileselect_ensure_default_filepath(C, op, "");
+  WM_event_add_fileselect(C, op);
+  return OPERATOR_RUNNING_MODAL;
 }
 
 static void render_sequence_ui(bContext *C, wmOperator *op)
@@ -1426,16 +1429,56 @@ static void render_sequence_ui(bContext *C, wmOperator *op)
   PointerRNA render_ptr = RNA_pointer_get(&scene_ptr, "render");
   PointerRNA image_settings_ptr = RNA_pointer_get(&render_ptr, "image_settings");
 
+  const MediaType media_type = MediaType(scene.r.im_format.media_type);
+
   {
     uiLayout &col = layout.column(false);
     col.prop(&image_settings_ptr, "media_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    col.prop(&image_settings_ptr, "color_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    switch (media_type) {
+      case MEDIA_TYPE_IMAGE: {
+        col.prop(&image_settings_ptr, "file_format", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+        col.row(false).prop(
+            &image_settings_ptr, "color_mode", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+        col.row(false).prop(
+            &image_settings_ptr, "color_depth", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+        col.prop(&image_settings_ptr, "compression", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+        break;
+      }
+      case MEDIA_TYPE_MULTI_LAYER_IMAGE: {
+        col.row(false).prop(
+            &image_settings_ptr, "color_depth", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+        col.row(false).prop(
+            &image_settings_ptr, "exr_codec", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+        col.prop(&image_settings_ptr, "use_exr_interleave", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+        col.prop(&image_settings_ptr, "use_preview", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+        break;
+      }
+      case MEDIA_TYPE_VIDEO:
+        col.row(false).prop(
+            &image_settings_ptr, "color_mode", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+        break;
+    }
   }
 }
 
 static wmOperatorStatus render_sequence_exec(bContext *C, wmOperator *op)
 {
-  return OPERATOR_FINISHED;
+  Scene &scene = *CTX_data_scene(C);
+  PointerRNA scene_ptr = RNA_id_pointer_create(&scene.id);
+  PointerRNA render_ptr = RNA_pointer_get(&scene_ptr, "render");
+
+  const std::string path = RNA_string_get(op->ptr, "filepath");
+  RNA_string_set(&render_ptr, "filepath", path.c_str());
+
+  wmOperatorType *ot = WM_operatortype_find("RENDER_OT_render", false);
+  PointerRNA props;
+  WM_operator_properties_create_ptr(&props, ot);
+  RNA_boolean_set(&props, "animation", true);
+  RNA_boolean_set(&props, "use_viewport", true);
+  const wmOperatorStatus status = WM_operator_name_call_ptr(
+      C, ot, blender::wm::OpCallContext::InvokeDefault, &props, nullptr);
+  WM_operator_properties_free(&props);
+  return status;
 }
 
 void RENDER_OT_render_sequence(wmOperatorType *ot)
