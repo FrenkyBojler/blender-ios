@@ -1249,28 +1249,25 @@ static void wm_xr_navigation_teleport_draw_ray(const XrTeleportData *data)
   bke::curves::catmull_rom::interpolate_to_evaluated(
       arc_control_points, false, segment_samples, spline_points.as_mutable_span());
 
-  GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", gpu::VertAttrType::SFLOAT_32_32_32);
-
-  /* Allocate the VBO using the calculated size and fill it with the evaluated array. */
-  gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(*format);
-  GPU_vertbuf_data_alloc(*vbo, spline_size);
-  GPU_vertbuf_attr_fill(vbo, pos, spline_points.data());
-
-  /* Build the batch using the evaluated spline VBO. */
-  gpu::Batch *batch = GPU_batch_create_ex(GPU_PRIM_LINE_STRIP, vbo, nullptr, GPU_BATCH_OWNS_VBO);
-
-  GPU_batch_program_set_builtin(batch, GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR);
-  GPU_batch_uniform_4fv(batch, "color", data->ray_color);
-
   float viewport[4];
   GPU_viewport_size_get_f(viewport);
-  GPU_batch_uniform_2fv(batch, "viewportSize", &viewport[2]);
-  GPU_batch_uniform_1f(batch, "lineWidth", data->ray_line_width);
-  GPU_batch_uniform_1b(batch, "lineSmooth", true);
+  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", gpu::VertAttrType::SFLOAT_32_32_32);
 
-  GPU_batch_draw(batch);
-  GPU_batch_discard(batch);
+  /* Draw the evaluated points. */
+  immBindBuiltinProgram(GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR);
+
+  immUniformColor4fv(data->ray_color);
+  immUniform2fv("viewportSize", &viewport[2]);
+  immUniform1f("lineWidth", data->ray_line_width);
+  immUniform1i("lineSmooth", true);
+
+  immBegin(GPU_PRIM_LINE_STRIP, spline_points.size());
+  for (int64_t i = 0; i < spline_points.size(); i++) {
+    immVertex3fv(pos, spline_points[i]);
+  }
+  immEnd();
+
+  immUnbindProgram();
 }
 
 static void wm_xr_navigation_teleport_draw(const bContext * /*C*/,
