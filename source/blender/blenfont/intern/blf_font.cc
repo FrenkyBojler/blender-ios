@@ -48,6 +48,8 @@
 
 #include "BLF_api.hh"
 
+#include "BLT_lang.hh"
+
 #include "GPU_batch.hh"
 #include "GPU_matrix.hh"
 #include "GPU_state.hh"
@@ -526,6 +528,11 @@ bool ShapingData::process(FontBLF *font, GlyphCacheBLF *gc, ResultBLF *r_info)
   hb_segment_properties_t props;
   hb_buffer_get_segment_properties(this->hb_buf, &props);
 
+  if (ELEM(props.script, HB_SCRIPT_HAN)) {
+    const char *lang = BLT_lang_get();
+    hb_buffer_set_language(this->hb_buf, hb_language_from_string(lang, -1));
+  }
+
   hb_buffer_set_cluster_level(this->hb_buf, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
   /* Can the current font handle this script? */
   if (!ELEM(
@@ -599,6 +606,9 @@ bool ShapingData::process(FontBLF *font, GlyphCacheBLF *gc, ResultBLF *r_info)
 #ifdef BLF_SUBPIXEL_AA
     this->segment.glyphs[i] = blf_glyph_ensure_subpixel(
         this->segment.font, this->segment.gc, g, pen_x);
+    if (this->segment.glyphs[i] == nullptr) {
+      continue;
+    }
 #endif
     max_width = pen_x + std::max(pos->x_advance, g->advance_x);
     pen_x += advance;
@@ -2119,10 +2129,11 @@ struct FaceDetails {
 /* Details about the fallback fonts we ship, so that we can load only when needed. */
 static const FaceDetails static_face_details[] = {
     {"Noto Sans CJK Regular.woff2",
-     0,
+     TT_UCR_HANGUL_JAMO,
      TT_UCR_CJK_SYMBOLS | TT_UCR_HIRAGANA | TT_UCR_KATAKANA | TT_UCR_BOPOMOFO | TT_UCR_CJK_MISC |
          TT_UCR_ENCLOSED_CJK_LETTERS_MONTHS | TT_UCR_CJK_COMPATIBILITY |
-         TT_UCR_CJK_UNIFIED_IDEOGRAPHS | TT_UCR_CJK_COMPATIBILITY_IDEOGRAPHS,
+         TT_UCR_CJK_UNIFIED_IDEOGRAPHS | TT_UCR_CJK_COMPATIBILITY_IDEOGRAPHS |
+         TT_UCR_HANGUL_COMPATIBILITY_JAMO | TT_UCR_HANGUL,
      TT_UCR_CJK_COMPATIBILITY_FORMS,
      0},
     {"NotoEmoji-VariableFont_wght.woff2", 0x80000003L, 0x241E4ACL, 0x14000000L, 0x4000000L},
