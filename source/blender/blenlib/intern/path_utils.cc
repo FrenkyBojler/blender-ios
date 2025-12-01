@@ -1001,11 +1001,11 @@ bool BLI_path_frame_range(char *path, size_t path_maxncpy, int sta, int end, int
 
 bool BLI_path_frame_get(const char *path, int *r_frame, int *r_digits_len)
 {
+  *r_digits_len = 0;
+
   if (*path == '\0') {
     return false;
   }
-
-  *r_digits_len = 0;
 
   const char *file = BLI_path_basename(path);
   const char *file_ext = BLI_path_extension_or_end(file);
