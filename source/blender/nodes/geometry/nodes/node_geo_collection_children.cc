@@ -22,8 +22,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Collection>("Collection").optional_label();
   b.add_input<decl::Bool>("Recursive").description("Recursively retrieve collections and objects");
-  b.add_output<decl::Object>("Objects").structure_type(StructureType::List);
   b.add_output<decl::Collection>("Collections").structure_type(StructureType::List);
+  b.add_output<decl::Object>("Objects").structure_type(StructureType::List);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -36,11 +36,29 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  auto *objects = new ImplicitSharedValue<Vector<Object *>>();
-  FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (collection, object) {
-    objects->data.append(object);
+  auto *collections = new ImplicitSharedValue<Vector<Collection *>>();
+  if (recursive) {
   }
-  FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
+  else {
+  }
+
+  std::sort(collections->data.begin(),
+            collections->data.end(),
+            [](const Collection *a, const Collection *b) {
+              return BLI_strcasecmp_natural(BKE_id_name(a->id), BKE_id_name(b->id)) < 0;
+            });
+  List::ArrayData collections_array_data = {collections->data.data(),
+                                            ImplicitSharingPtr<>(collections)};
+
+  auto *objects = new ImplicitSharedValue<Vector<Object *>>();
+  if (recursive) {
+    FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN (collection, object) {
+      objects->data.append(object);
+    }
+    FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
+  }
+  else {
+  }
 
   std::sort(objects->data.begin(), objects->data.end(), [](const Object *a, const Object *b) {
     return BLI_strcasecmp_natural(BKE_id_name(a->id), BKE_id_name(b->id)) < 0;
@@ -48,10 +66,6 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   List::ArrayData objects_array_data = {objects->data.data(), ImplicitSharingPtr<>(objects)};
 
-  //  params.set_output("Collections",
-  //                   List::create(CPPType::get<Collection *>(),
-  //                                std::move(collections_array_data),
-  //                                collections->data.size()));
   params.set_output(
       "Objects",
       List::create(CPPType::get<Object *>(), std::move(objects_array_data), objects->data.size()));
