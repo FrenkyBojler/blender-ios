@@ -29,6 +29,8 @@ def save_project(project):
         Other exceptions indicate unanticipated errors (a.k.a. bugs).
     """
 
+    print("Saving project '{}' at '{}'...".format(project.data.name, project.data.root_path))
+
     data = project.data
     root_path = Path(data.root_path)
 
@@ -57,6 +59,8 @@ def save_project(project):
         raise ProjectSaveException("Cannot write to '{}' due to filesystem permissions.".format(PROJECT_CONFIG))
 
     project.is_dirty = False
+
+    print("...done.")
 
 
 def find_project_root_from_blend_file_path(blend_path: Path) -> Path | None:
@@ -221,8 +225,6 @@ def on_blend_save(blend_path: str):
 
 
 def on_exit():
-    # TODO: Python's `atexit`, which this is registered with, doesn't seem to work?
-    print("!!!!!!!!TESTING THAT THIS ACTUALLY EXECUTES ON EXIT!!!!!!!")
     if bpy.context.preferences.use_project_auto_save and bpy.context.project.is_dirty and bpy.context.project.data is not None:
         save_project(bpy.context.project)
 
@@ -239,10 +241,14 @@ classes = (
 def register():
     bpy.app.handlers.load_pre.append(on_blend_load)
     bpy.app.handlers.save_post.append(on_blend_save)
+
     atexit.register(on_exit)
 
 
 def unregister():
     bpy.app.handlers.load_pre.remove(on_blend_load)
     bpy.app.handlers.save_post.append(on_blend_save)
-    atexit.unregister(on_exit)
+
+    # Note: we intentionally *don't* call `atexit.unregister()`, because then
+    # the callback gets removed before Python exits and thus doesn't run,
+    # defeating the purpose.
