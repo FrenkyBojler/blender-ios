@@ -291,7 +291,7 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
                                     nullptr,
                                     TIP_("Stop this job"));
       if (cancel_fn) {
-        UI_but_func_set(but, cancel_fn);
+        UI_but_func_set(but, std::move(cancel_fn));
       }
     }
   }
