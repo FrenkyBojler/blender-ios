@@ -448,11 +448,8 @@ typedef struct FileSelectParams {
   /** Max number of levels in directory tree to show at once, 0 to disable recursion. */
   short recursion_level;
 
-  char _pad2[2];
-
   /** Directory path with template variables (unresolved). */
   char dir_template[/*FILE_MAX_LIBEXTRA*/ 1282];
-  char _pad4[6]; /* Align to 8 bytes before pointers */
 
   /** Runtime data (template variables, etc). Not saved to .blend files. */
   FileSelectParams_Runtime *runtime;
