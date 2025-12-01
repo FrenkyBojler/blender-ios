@@ -22,6 +22,7 @@
  #include "BKE_collection.hh"
  #include "BKE_context.hh"
  #include "BKE_idprop.hh"
+ #include "BKE_layer.hh"
  #include "BKE_screen.hh"
 
  #include "ED_screen.hh"
@@ -144,14 +145,6 @@ static wmOperatorStatus light_manager_group_add_exec(bContext *C, wmOperator * /
   group->flag = 0;
   BLI_addtail(&space_lm->groups, group);
 
-  /* Assign all selected lights to this new group. */
-  CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
-    if (ob->type == OB_LAMP) {
-      set_light_group(ob, group->name);
-    }
-  }
-  CTX_DATA_END;
-
   WM_event_add_notifier(C, NC_SPACE | ND_SPACE_LIGHT_MANAGER, space_lm);
   return OPERATOR_FINISHED;
 }
@@ -253,6 +246,10 @@ static wmOperatorStatus light_manager_assign_selected_to_group_exec(bContext *C,
     return OPERATOR_CANCELLED;
   }
 
+  /* Make sure there is at least one valid group so index 0 always refers
+   * to something sensible even after deleting all groups. */
+  ensure_default_group_exists(space_lm);
+
   const int index = RNA_int_get(op->ptr, "index");
   SpaceLightManagerGroup *group = static_cast<SpaceLightManagerGroup *>(
       BLI_findlink(&space_lm->groups, index));
@@ -284,6 +281,439 @@ static void LIGHT_MANAGER_OT_assign_selected_to_group(wmOperatorType *ot)
   RNA_def_int(ot->srna, "index", 0, 0, INT_MAX, "Index", "", 0, INT_MAX);
 }
 
+/* Add a single light to a group via popup. */
+
+static wmOperatorStatus light_manager_add_light_exec(bContext *C, wmOperator *op)
+{
+  SpaceLightManager *space_lm = CTX_wm_space_light_manager(C);
+  if (!space_lm) {
+    return OPERATOR_CANCELLED;
+  }
+
+  ensure_default_group_exists(space_lm);
+
+  const int index = RNA_int_get(op->ptr, "index");
+  SpaceLightManagerGroup *group = static_cast<SpaceLightManagerGroup *>(
+      BLI_findlink(&space_lm->groups, index));
+  if (!group) {
+    return OPERATOR_CANCELLED;
+  }
+
+  /* Get the enum value (which is the light index in our list). */
+  const int light_index = RNA_enum_get(op->ptr, "light_name");
+  
+  /* Find the light object by iterating through scene lights. */
+  Scene *scene = CTX_data_scene(C);
+  Object *ob = nullptr;
+  int current_index = 0;
+  
+  FOREACH_SCENE_OBJECT_BEGIN (scene, ob_iter) {
+    if (ob_iter->type == OB_LAMP) {
+      if (current_index == light_index) {
+        ob = ob_iter;
+        break;
+      }
+      current_index++;
+    }
+  }
+  FOREACH_SCENE_OBJECT_END;
+  
+  if (!ob) {
+    return OPERATOR_CANCELLED;
+  }
+
+  set_light_group(ob, group->name);
+
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_LIGHT_MANAGER, space_lm);
+  return OPERATOR_FINISHED;
+}
+
+/* Dynamic enum items callback to list all lights in the scene. */
+static const EnumPropertyItem *light_manager_light_enum_itemf(bContext *C,
+                                                               PointerRNA * /*ptr*/,
+                                                               PropertyRNA * /*prop*/,
+                                                               bool *r_free)
+{
+  static const EnumPropertyItem empty_items[] = {{0, nullptr, 0, nullptr, nullptr}};
+  
+  if (!C) {
+    return empty_items;
+  }
+
+  Scene *scene = CTX_data_scene(C);
+  if (!scene) {
+    return empty_items;
+  }
+
+  EnumPropertyItem *items = nullptr;
+  int totitem = 0;
+
+  FOREACH_SCENE_OBJECT_BEGIN (scene, ob) {
+    if (ob->type == OB_LAMP) {
+      EnumPropertyItem tmp = {0};
+      tmp.identifier = ob->id.name + 2;
+      tmp.name = ob->id.name + 2;
+      tmp.value = totitem;
+      RNA_enum_item_add(&items, &totitem, &tmp);
+    }
+  }
+  FOREACH_SCENE_OBJECT_END;
+
+  RNA_enum_item_end(&items, &totitem);
+  *r_free = true;
+
+  return items;
+}
+
+static wmOperatorStatus light_manager_add_light_invoke(bContext *C,
+                                                       wmOperator *op,
+                                                       const wmEvent * /*event*/)
+{
+  SpaceLightManager *space_lm = CTX_wm_space_light_manager(C);
+  if (!space_lm) {
+    return OPERATOR_CANCELLED;
+  }
+
+  /* Show dialog popup to select a light. */
+  return WM_operator_props_dialog_popup(C, op, 300, IFACE_("Add Light to Group"));
+}
+
+static void LIGHT_MANAGER_OT_add_light(wmOperatorType *ot)
+{
+  static const EnumPropertyItem dummy_items[] = {{0, nullptr, 0, nullptr, nullptr}};
+  
+  ot->name = "Add Light to Group";
+  ot->description = "Assign a chosen light from the scene to this group";
+  ot->idname = "LIGHT_MANAGER_OT_add_light";
+  ot->invoke = light_manager_add_light_invoke;
+  ot->exec = light_manager_add_light_exec;
+  ot->poll = ED_operator_light_manager_active;
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  /* Internal group index. */
+  PropertyRNA *prop = RNA_def_property(ot->srna, "index", PROP_INT, PROP_NONE);
+  RNA_def_property_range(prop, 0, INT_MAX);
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+
+  /* Light name as enum presented in the popup. */
+  prop = RNA_def_enum(ot->srna, "light_name", dummy_items, 0, "Light", "Light to assign to the group");
+  RNA_def_enum_funcs(prop, light_manager_light_enum_itemf);
+}
+
+/* Move groups up/down in the list. */
+
+enum eLightManagerGroupMoveDirection {
+  LIGHT_MANAGER_GROUP_MOVE_UP = 0,
+  LIGHT_MANAGER_GROUP_MOVE_DOWN = 1,
+};
+
+static wmOperatorStatus light_manager_group_move_exec(bContext *C, wmOperator *op)
+{
+  SpaceLightManager *space_lm = CTX_wm_space_light_manager(C);
+  if (!space_lm) {
+    return OPERATOR_CANCELLED;
+  }
+
+  const int index = RNA_int_get(op->ptr, "index");
+  const int direction = RNA_enum_get(op->ptr, "direction");
+
+  SpaceLightManagerGroup *group = static_cast<SpaceLightManagerGroup *>(
+      BLI_findlink(&space_lm->groups, index));
+  if (!group) {
+    return OPERATOR_CANCELLED;
+  }
+
+  if (direction == LIGHT_MANAGER_GROUP_MOVE_UP) {
+    if (group->prev == nullptr) {
+      return OPERATOR_CANCELLED;
+    }
+    BLI_remlink(&space_lm->groups, group);
+    BLI_insertlinkbefore(&space_lm->groups, group->prev, group);
+  }
+  else if (direction == LIGHT_MANAGER_GROUP_MOVE_DOWN) {
+    if (group->next == nullptr) {
+      return OPERATOR_CANCELLED;
+    }
+    BLI_remlink(&space_lm->groups, group);
+    BLI_insertlinkafter(&space_lm->groups, group->next, group);
+  }
+
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_LIGHT_MANAGER, space_lm);
+  return OPERATOR_FINISHED;
+}
+
+static void LIGHT_MANAGER_OT_group_move(wmOperatorType *ot)
+{
+  static const EnumPropertyItem move_dir_items[] = {
+      {LIGHT_MANAGER_GROUP_MOVE_UP, "UP", ICON_TRIA_UP, "Up", "Move group up"},
+      {LIGHT_MANAGER_GROUP_MOVE_DOWN, "DOWN", ICON_TRIA_DOWN, "Down", "Move group down"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  ot->name = "Move Light Group";
+  ot->description = "Reorder light groups";
+  ot->idname = "LIGHT_MANAGER_OT_group_move";
+  ot->exec = light_manager_group_move_exec;
+  ot->poll = ED_operator_light_manager_active;
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  RNA_def_int(ot->srna, "index", 0, 0, INT_MAX, "Index", "", 0, INT_MAX);
+  PropertyRNA *prop = RNA_def_property(ot->srna, "direction", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, move_dir_items);
+}
+
+/* Toggle visibility for all lights in a group. */
+
+enum eLightManagerGroupVisibilityMode {
+  LIGHT_MANAGER_GROUP_VISIBILITY_VIEWPORT = 0,
+  LIGHT_MANAGER_GROUP_VISIBILITY_RENDER = 1,
+};
+
+static wmOperatorStatus light_manager_group_toggle_visibility_exec(bContext *C, wmOperator *op)
+{
+  SpaceLightManager *space_lm = CTX_wm_space_light_manager(C);
+  if (!space_lm) {
+    return OPERATOR_CANCELLED;
+  }
+
+  const int index = RNA_int_get(op->ptr, "index");
+  const int mode = RNA_enum_get(op->ptr, "mode");
+
+  SpaceLightManagerGroup *group = static_cast<SpaceLightManagerGroup *>(
+      BLI_findlink(&space_lm->groups, index));
+  if (!group) {
+    return OPERATOR_CANCELLED;
+  }
+
+  Scene *scene = CTX_data_scene(C);
+
+  /* Decide whether to hide or unhide: if any light in the group is visible,
+   * hide all; otherwise unhide all. */
+  bool any_viewport_visible = false;
+  bool any_render_visible = false;
+
+  FOREACH_SCENE_OBJECT_BEGIN (scene, ob) {
+    if (ob->type != OB_LAMP) {
+      continue;
+    }
+    if (!STREQ(get_light_group(ob), group->name)) {
+      continue;
+    }
+
+    if (mode == LIGHT_MANAGER_GROUP_VISIBILITY_VIEWPORT &&
+        (ob->visibility_flag & OB_HIDE_VIEWPORT) == 0)
+    {
+      any_viewport_visible = true;
+    }
+    if (mode == LIGHT_MANAGER_GROUP_VISIBILITY_RENDER &&
+        (ob->visibility_flag & OB_HIDE_RENDER) == 0)
+    {
+      any_render_visible = true;
+    }
+  }
+  FOREACH_SCENE_OBJECT_END;
+
+  const bool new_viewport_hidden = (mode == LIGHT_MANAGER_GROUP_VISIBILITY_VIEWPORT) ?
+                                       any_viewport_visible :
+                                       false;
+  const bool new_render_hidden = (mode == LIGHT_MANAGER_GROUP_VISIBILITY_RENDER) ?
+                                      any_render_visible :
+                                      false;
+
+  FOREACH_SCENE_OBJECT_BEGIN (scene, ob) {
+    if (ob->type != OB_LAMP) {
+      continue;
+    }
+    if (!STREQ(get_light_group(ob), group->name)) {
+      continue;
+    }
+
+    if (mode == LIGHT_MANAGER_GROUP_VISIBILITY_VIEWPORT) {
+      if (new_viewport_hidden) {
+        ob->visibility_flag |= OB_HIDE_VIEWPORT;
+      }
+      else {
+        ob->visibility_flag &= ~OB_HIDE_VIEWPORT;
+      }
+    }
+    else if (mode == LIGHT_MANAGER_GROUP_VISIBILITY_RENDER) {
+      if (new_render_hidden) {
+        ob->visibility_flag |= OB_HIDE_RENDER;
+      }
+      else {
+        ob->visibility_flag &= ~OB_HIDE_RENDER;
+      }
+    }
+  }
+  FOREACH_SCENE_OBJECT_END;
+
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_LIGHT_MANAGER, space_lm);
+  return OPERATOR_FINISHED;
+}
+
+static void LIGHT_MANAGER_OT_group_toggle_visibility(wmOperatorType *ot)
+{
+  static const EnumPropertyItem visibility_mode_items[] = {
+      {LIGHT_MANAGER_GROUP_VISIBILITY_VIEWPORT,
+       "VIEWPORT",
+       ICON_RESTRICT_VIEW_OFF,
+       "Viewport",
+       "Toggle all lights in the group in the viewport"},
+      {LIGHT_MANAGER_GROUP_VISIBILITY_RENDER,
+       "RENDER",
+       ICON_RESTRICT_RENDER_OFF,
+       "Render",
+       "Toggle all lights in the group for rendering"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  ot->name = "Toggle Group Visibility";
+  ot->description = "Toggle visibility of all lights in a group";
+  ot->idname = "LIGHT_MANAGER_OT_group_toggle_visibility";
+  ot->exec = light_manager_group_toggle_visibility_exec;
+  ot->poll = ED_operator_light_manager_active;
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  RNA_def_int(ot->srna, "index", 0, 0, INT_MAX, "Index", "", 0, INT_MAX);
+  PropertyRNA *prop = RNA_def_property(ot->srna, "mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, visibility_mode_items);
+}
+
+/* Rename group. */
+
+static wmOperatorStatus light_manager_group_rename_exec(bContext *C, wmOperator *op)
+{
+  SpaceLightManager *space_lm = CTX_wm_space_light_manager(C);
+  if (!space_lm) {
+    return OPERATOR_CANCELLED;
+  }
+
+  const int index = RNA_int_get(op->ptr, "index");
+  SpaceLightManagerGroup *group = static_cast<SpaceLightManagerGroup *>(
+      BLI_findlink(&space_lm->groups, index));
+  if (!group) {
+    return OPERATOR_CANCELLED;
+  }
+
+  /* Store old name so we can update lights that belong to this group. */
+  char old_name[64];
+  STRNCPY(old_name, group->name);
+
+  char new_name[64];
+  RNA_string_get(op->ptr, "name", new_name);
+  if (new_name[0] != '\0') {
+    STRNCPY_UTF8(group->name, new_name);
+  }
+
+  /* Update all lights that referenced the old group name so they keep
+   * belonging to this renamed group. */
+  Scene *scene = CTX_data_scene(C);
+  FOREACH_SCENE_OBJECT_BEGIN (scene, ob) {
+    if (ob->type != OB_LAMP) {
+      continue;
+    }
+    if (STREQ(get_light_group(ob), old_name)) {
+      set_light_group(ob, group->name);
+    }
+  }
+  FOREACH_SCENE_OBJECT_END;
+
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_LIGHT_MANAGER, space_lm);
+  return OPERATOR_FINISHED;
+}
+
+static wmOperatorStatus light_manager_group_rename_invoke(bContext *C,
+                                                          wmOperator *op,
+                                                          const wmEvent * /*event*/)
+{
+  SpaceLightManager *space_lm = CTX_wm_space_light_manager(C);
+  if (!space_lm) {
+    return OPERATOR_CANCELLED;
+  }
+
+  const int index = RNA_int_get(op->ptr, "index");
+  SpaceLightManagerGroup *group = static_cast<SpaceLightManagerGroup *>(
+      BLI_findlink(&space_lm->groups, index));
+  if (!group) {
+    return OPERATOR_CANCELLED;
+  }
+
+  RNA_string_set(op->ptr, "name", group->name);
+  /* Dialog popup with explicit OK/Cancel buttons. */
+  return WM_operator_props_dialog_popup(C, op, 250, IFACE_("Rename Light Group"));
+}
+
+static void LIGHT_MANAGER_OT_group_rename(wmOperatorType *ot)
+{
+  ot->name = "Rename Light Group";
+  ot->description = "Rename this light group";
+  ot->idname = "LIGHT_MANAGER_OT_group_rename";
+  ot->invoke = light_manager_group_rename_invoke;
+  ot->exec = light_manager_group_rename_exec;
+  ot->poll = ED_operator_light_manager_active;
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  /* Internal index, hidden from the UI. */
+  PropertyRNA *prop = RNA_def_property(ot->srna, "index", PROP_INT, PROP_NONE);
+  RNA_def_property_range(prop, 0, INT_MAX);
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+
+  /* Visible editable name field. */
+  RNA_def_string(ot->srna, "name", nullptr, 64, "Name", "New group");
+}
+
+/* Remove a single light from its current group (send back to default group). */
+
+static wmOperatorStatus light_manager_light_remove_from_group_exec(bContext *C, wmOperator *op)
+{
+  SpaceLightManager *space_lm = CTX_wm_space_light_manager(C);
+  if (!space_lm) {
+    return OPERATOR_CANCELLED;
+  }
+
+  char name[MAX_ID_NAME];
+  RNA_string_get(op->ptr, "object_name", name);
+  if (name[0] == '\0') {
+    return OPERATOR_CANCELLED;
+  }
+
+  Scene *scene = CTX_data_scene(C);
+  Object *ob = nullptr;
+  FOREACH_SCENE_OBJECT_BEGIN (scene, ob_iter) {
+    if (STREQ(ob_iter->id.name + 2, name)) {
+      ob = ob_iter;
+      break;
+    }
+  }
+  FOREACH_SCENE_OBJECT_END;
+
+  if (!ob || ob->type != OB_LAMP) {
+    return OPERATOR_CANCELLED;
+  }
+
+  set_light_group(ob, light_manager_default_group_name());
+
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_LIGHT_MANAGER, space_lm);
+  return OPERATOR_FINISHED;
+}
+
+static void LIGHT_MANAGER_OT_light_remove_from_group(wmOperatorType *ot)
+{
+  ot->name = "Remove Light From Group";
+  ot->description = "Remove this light from its current group";
+  ot->idname = "LIGHT_MANAGER_OT_light_remove_from_group";
+  ot->exec = light_manager_light_remove_from_group_exec;
+  ot->poll = ED_operator_light_manager_active;
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  RNA_def_string(ot->srna,
+                 "object_name",
+                 nullptr,
+                 MAX_ID_NAME,
+                 "Light",
+                 "Name of the light to unassign from the group");
+}
+
 /* -------------------------------------------------------------------- */
 /** \name Main Region
  * \{ */
@@ -301,6 +731,11 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
 
   /* Get scene context. */
   Scene *scene = CTX_data_scene(C);
+
+  /* Ensure there is always at least the default 'Scene light' group so
+   * lights never disappear from the UI after deleting all groups. */
+  SpaceLightManager *space_lm = CTX_wm_space_light_manager(C);
+  ensure_default_group_exists(space_lm);
 
   /* Create UI block and layout. */
   uiBlock *block = UI_block_begin(C, region, __func__, ui::EmbossType::Emboss);
@@ -320,7 +755,7 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
   title_row.label(IFACE_("Light Manager"), ICON_OUTLINER_OB_LIGHT);
   
   /* Add group button. */
-  title_row.op("LIGHT_MANAGER_OT_group_add", "", ICON_ADD);
+  title_row.op("LIGHT_MANAGER_OT_group_add", IFACE_("Add a new group"), ICON_ADD);
 
   layout.separator();
 
@@ -340,7 +775,6 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
   FOREACH_SCENE_OBJECT_END;
 
   /* Sort lights based on sort type stored in the space. */
-  SpaceLightManager *space_lm = CTX_wm_space_light_manager(C);
   eSpaceLightManagerSortType sort_type = LIGHT_MANAGER_SORT_NAME;
   if (space_lm != nullptr) {
     sort_type = static_cast<eSpaceLightManagerSortType>(space_lm->sort_type);
@@ -400,14 +834,44 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
       PointerRNA op_ptr = group_header.op("LIGHT_MANAGER_OT_group_toggle", "", icon);
       RNA_int_set(&op_ptr, "index", group_index);
       
-      /* Group name. */
-      group_header.label(group->name, ICON_NONE);
+      /* Group name (click to rename). */
+      PointerRNA rename_op = group_header.op("LIGHT_MANAGER_OT_group_rename", group->name, ICON_NONE);
+      if (rename_op.type != nullptr) {
+        RNA_int_set(&rename_op, "index", group_index);
+      }
 
-      /* Assign selected lights to this group (grip icon). */
+      /* Add a light to this group via popup. */
       PointerRNA assign_op = group_header.op(
-          "LIGHT_MANAGER_OT_assign_selected_to_group", "", ICON_GRIP);
+          "LIGHT_MANAGER_OT_add_light", IFACE_("Add light"), ICON_LIGHT);
       if (assign_op.type != nullptr) {
         RNA_int_set(&assign_op, "index", group_index);
+      }
+
+      /* Reorder groups (up/down arrows). */
+      PointerRNA move_up = group_header.op("LIGHT_MANAGER_OT_group_move", "", ICON_TRIA_UP);
+      if (move_up.type != nullptr) {
+        RNA_int_set(&move_up, "index", group_index);
+        RNA_enum_set(&move_up, "direction", LIGHT_MANAGER_GROUP_MOVE_UP);
+      }
+      PointerRNA move_down = group_header.op(
+          "LIGHT_MANAGER_OT_group_move", "", ICON_TRIA_DOWN);
+      if (move_down.type != nullptr) {
+        RNA_int_set(&move_down, "index", group_index);
+        RNA_enum_set(&move_down, "direction", LIGHT_MANAGER_GROUP_MOVE_DOWN);
+      }
+
+      /* Toggle visibility for all lights in this group (viewport/render). */
+      PointerRNA vis_view = group_header.op(
+          "LIGHT_MANAGER_OT_group_toggle_visibility", "", ICON_RESTRICT_VIEW_OFF);
+      if (vis_view.type != nullptr) {
+        RNA_int_set(&vis_view, "index", group_index);
+        RNA_enum_set(&vis_view, "mode", LIGHT_MANAGER_GROUP_VISIBILITY_VIEWPORT);
+      }
+      PointerRNA vis_rend = group_header.op(
+          "LIGHT_MANAGER_OT_group_toggle_visibility", "", ICON_RESTRICT_RENDER_OFF);
+      if (vis_rend.type != nullptr) {
+        RNA_int_set(&vis_rend, "index", group_index);
+        RNA_enum_set(&vis_rend, "mode", LIGHT_MANAGER_GROUP_VISIBILITY_RENDER);
       }
 
       /* Delete button. */
@@ -428,10 +892,6 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
             ui::Layout &light_row = group_box.row(false);
             light_row.use_property_split_set(false);
             light_row.use_property_decorate_set(false);
-
-            if (ob->visibility_flag & OB_HIDE_VIEWPORT) {
-              light_row.enabled_set(false);
-            }
 
             /* Light type icon. */
             int type_icon = ICON_LIGHT;
@@ -456,10 +916,27 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
             intensity_col.ui_units_x_set(8.0f);
             intensity_col.prop(&light_ptr, "energy", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
+            /* When hidden in viewport, keep the visibility toggles active but
+             * disable editing of name/color/intensity. */
+            const bool hidden_in_viewport = (ob->visibility_flag & OB_HIDE_VIEWPORT) != 0;
+            if (hidden_in_viewport) {
+              name_col.enabled_set(false);
+              color_col.enabled_set(false);
+              intensity_col.enabled_set(false);
+            }
+
             ui::Layout &vis_col = light_row.row(true);
             vis_col.ui_units_x_set(3.0f);
             vis_col.prop(&ob_ptr, "hide_viewport", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
             vis_col.prop(&ob_ptr, "hide_render", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
+
+            /* Remove this light from its group (back to default). */
+            ui::Layout &remove_col = light_row.row(true);
+            PointerRNA remove_op = remove_col.op(
+                "LIGHT_MANAGER_OT_light_remove_from_group", "", ICON_X);
+            if (remove_op.type != nullptr) {
+              RNA_string_set(&remove_op, "object_name", ob->id.name + 2);
+            }
           }
         }
         else {
@@ -489,10 +966,6 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
       light_row.use_property_split_set(false);
       light_row.use_property_decorate_set(false);
 
-      if (ob->visibility_flag & OB_HIDE_VIEWPORT) {
-        light_row.enabled_set(false);
-      }
-
       int type_icon = ICON_LIGHT;
       switch (light->type) {
         case LA_LOCAL: type_icon = ICON_LIGHT_POINT; break;
@@ -514,10 +987,27 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
       intensity_col.ui_units_x_set(8.0f);
       intensity_col.prop(&light_ptr, "energy", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
+      /* Same behavior for ungrouped lights: keep visibility toggles
+       * interactive even when the light is hidden in the viewport. */
+      const bool hidden_in_viewport = (ob->visibility_flag & OB_HIDE_VIEWPORT) != 0;
+      if (hidden_in_viewport) {
+        name_col.enabled_set(false);
+        color_col.enabled_set(false);
+        intensity_col.enabled_set(false);
+      }
+
       ui::Layout &vis_col = light_row.row(true);
       vis_col.ui_units_x_set(3.0f);
       vis_col.prop(&ob_ptr, "hide_viewport", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
       vis_col.prop(&ob_ptr, "hide_render", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
+
+      /* Remove this light from its group (back to default). */
+      ui::Layout &remove_col = light_row.row(true);
+      PointerRNA remove_op = remove_col.op(
+          "LIGHT_MANAGER_OT_light_remove_from_group", "", ICON_X);
+      if (remove_op.type != nullptr) {
+        RNA_string_set(&remove_op, "object_name", ob->id.name + 2);
+      }
     }
   }
 
@@ -657,7 +1147,12 @@ static void light_manager_operatortypes()
   WM_operatortype_append(LIGHT_MANAGER_OT_group_add);
   WM_operatortype_append(LIGHT_MANAGER_OT_group_delete);
   WM_operatortype_append(LIGHT_MANAGER_OT_group_toggle);
-   WM_operatortype_append(LIGHT_MANAGER_OT_assign_selected_to_group);
+  WM_operatortype_append(LIGHT_MANAGER_OT_assign_selected_to_group);
+  WM_operatortype_append(LIGHT_MANAGER_OT_add_light);
+  WM_operatortype_append(LIGHT_MANAGER_OT_group_move);
+  WM_operatortype_append(LIGHT_MANAGER_OT_group_toggle_visibility);
+  WM_operatortype_append(LIGHT_MANAGER_OT_group_rename);
+  WM_operatortype_append(LIGHT_MANAGER_OT_light_remove_from_group);
 }
 
 static void light_manager_keymap(wmKeyConfig * /*keyconf*/)
