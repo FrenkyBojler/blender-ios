@@ -963,48 +963,26 @@ static void key_evaluate_relative_beztriple(Key *key,
 }
 
 /**
- *
+ * Shapekey evaluation for data of 12 floats (4x Vector3).
  */
-static void key_evaluate_relative_bpoint() {}
-
-static void key_evaluate_relative(const int start,
-                                  int end,
-                                  const int tot,
-                                  char *basispoin,
-                                  Key *key,
-                                  KeyBlock *actkb,
-                                  float **per_keyblock_weights,
-                                  const int mode)
+static void key_evaluate_relative_bpoint(
+    Key *key, KeyBlock *actkb, const int start, int end, const int vertex_count, char *target_data)
 {
-  int ofs[3];
-  /* Currently always 0, in future key_pointer_size may assign. */
-  ofs[1] = 0;
+  const int offset = sizeof(float[KEYELEM_FLOAT_LEN_BPOINT]);
+  const int pointer_size = sizeof(float[KEYELEM_ELEM_SIZE_CURVE]);
+  const int step = KEYELEM_ELEM_LEN_BPOINT;
 
-  int pointer_size;
-  int step;
-  if (!key_pointer_size(key, mode, &pointer_size, &ofs[0], &step)) {
-    return;
-  }
-
-  end = std::min(end, tot);
-
-  /* In case of Bezier-triple. */
-  char elemstr[8];
-  elemstr[0] = 1; /* Number of IPO-floats. */
-  elemstr[1] = IPO_BEZTRIPLE;
-  elemstr[2] = 0;
+  end = std::min(end, vertex_count);
 
   /* Just here, not above! */
   /* step == 4 */
   /* key->elemsize == sizeof(float[3]) */
   const int elemsize = key->elemsize * step;
 
-  /* Step 1: init. */
-  cp_key(start, end, tot, basispoin, key, actkb, key->refkey, nullptr, mode);
+  cp_key(start, end, vertex_count, target_data, key, actkb, key->refkey, nullptr, KEY_MODE_BPOINT);
 
-  /* Step 2: do it. */
   const auto visit_keyblock = [&](KeyBlock *kb, const int keyblock_index, KeyBlock *refb) {
-    char *poin = basispoin;
+    char *poin = target_data;
     poin += start * pointer_size;
 
     /* For meshes, use the original values instead of the bmesh values to
@@ -1016,57 +994,13 @@ static void key_evaluate_relative(const int start,
     char *from = key_block_get_data(key, actkb, kb, &freefrom);
     from += start * key->elemsize;
 
-    const float *weights = per_keyblock_weights ? per_keyblock_weights[keyblock_index] : nullptr;
+    for (int i = start; i < end; i += KEYELEM_ELEM_LEN_BPOINT) {
+      rel_flerp(
+          KEYELEM_FLOAT_LEN_BPOINT, (float *)poin, (float *)reffrom, (float *)from, kb->curval);
 
-    char *cp;
-    int *ofsp;
-
-    for (int b = start; b < end; b += step) {
-
-      const float weight = weights ? (*weights * kb->curval) : kb->curval;
-
-      cp = key->elemstr;
-      if (mode == KEY_MODE_BEZTRIPLE) {
-        cp = elemstr;
-      }
-
-      ofsp = ofs;
-
-      while (cp[0]) { /* (cp[0] == amount) */
-
-        switch (cp[1]) {
-          case IPO_BPOINT:
-            rel_flerp(
-                KEYELEM_FLOAT_LEN_BPOINT, (float *)poin, (float *)reffrom, (float *)from, weight);
-            break;
-          case IPO_BEZTRIPLE:
-            rel_flerp(KEYELEM_FLOAT_LEN_BEZTRIPLE,
-                      (float *)poin,
-                      (float *)reffrom,
-                      (float *)from,
-                      weight);
-            break;
-          default:
-            BLI_assert_unreachable();
-            if (freefrom) {
-              MEM_freeN(freefrom);
-            }
-            BLI_assert_msg(0, "invalid 'cp[1]'");
-            return;
-        }
-
-        poin += *ofsp;
-
-        cp += 2;
-        ofsp++;
-      }
-
+      poin += offset;
       reffrom += elemsize;
       from += elemsize;
-
-      if (weights) {
-        weights++;
-      }
     }
 
     if (freefrom) {
@@ -1074,7 +1008,7 @@ static void key_evaluate_relative(const int start,
     }
   };
 
-  foreach_keyblock_for_eval(key, tot, visit_keyblock);
+  foreach_keyblock_for_eval(key, vertex_count, visit_keyblock);
 }
 
 static void do_key(const int start,
@@ -1525,7 +1459,7 @@ static void do_rel_cu_key(Curve *cu, Key *key, KeyBlock *actkb, char *out, const
   for (a = 0, nu = static_cast<Nurb *>(cu->nurb.first); nu; nu = nu->next, a += step) {
     if (nu->bp) {
       step = KEYELEM_ELEM_LEN_BPOINT * nu->pntsu * nu->pntsv;
-      key_evaluate_relative(a, a + step, tot, out, key, actkb, nullptr, KEY_MODE_BPOINT);
+      key_evaluate_relative_bpoint(key, actkb, a, a + step, tot, out);
     }
     else if (nu->bezt) {
       step = KEYELEM_ELEM_LEN_BEZTRIPLE * nu->pntsu;
