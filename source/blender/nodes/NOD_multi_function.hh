@@ -21,6 +21,10 @@ class NodeMultiFunctionBuilder : NonCopyable, NonMovable {
   const bNodeTree &tree_;
   std::shared_ptr<mf::MultiFunction> owned_built_fn_;
   const mf::MultiFunction *built_fn_ = nullptr;
+  /**
+   * If set, the created multi-function can take shared ownership of the tree. This allows it to
+   * safely reference data owned by the node tree without making additional copies.
+   */
   std::shared_ptr<const bNodeTree> shared_tree_;
 
   friend NodeMultiFunctions;

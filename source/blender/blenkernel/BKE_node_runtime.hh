@@ -194,7 +194,9 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
   std::shared_ptr<const nodes::GeometryNodesLazyFunctionGraphInfo>
       geometry_nodes_lazy_function_graph_info;
 
-  /** Back-pointer if this is a node tree owned by #geometry_nodes_lazy_function_graph_info. */
+  /**
+   * Back-pointer if this is a node tree owned by #geometry_nodes_lazy_function_graph_info.
+   */
   const nodes::GeometryNodesLazyFunctionGraphInfo *self_geometry_nodes_lazy_function_graph_info =
       nullptr;
 
