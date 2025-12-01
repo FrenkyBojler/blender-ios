@@ -7,3 +7,4 @@ Referenced by issue #147541, node groups created in 5.0 is Broken when imported 
 Referenced by issue #149365, 5.0: Using objects from Asset Browser uses linking by default (no bounding box drawing or snapping while dragging)
 Referenced by issue #149617, Collection will be added to scene twice if it is appended, deleted, then linked under certain conditions
 Referenced by issue #150147, Blender 5.0 Crash when I try to open this Scene made in 5.0
+Referenced by issue #150786, Bundled hair node groups are imported with missing node groups
