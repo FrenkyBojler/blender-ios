@@ -24,6 +24,7 @@
 #include "DNA_vec_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_userdef_types.h"
 
 #include "draw_cache_impl.hh"
 #include "draw_defines.hh"
@@ -50,10 +51,9 @@ bool draw_skinning_is_available(const Object *ob)
   for (ModifierData *md = (ModifierData *)ob->modifiers.first; md; md = md->next) {
     if (md->type == eModifierType_Armature) {
       ArmatureModifierData *amd = (ArmatureModifierData *)md;
-      short has_gpudeform = amd->use_gpudeform;
 
       return (gpu::GCaps.max_work_group_count[0] > 0 &&
-              gpu::GCaps.max_shader_storage_buffer_bindings >= 6 && has_gpudeform);
+              gpu::GCaps.max_shader_storage_buffer_bindings >= 6 && (U.gpu_flag & USER_GPU_FLAG_SUBDIVISION_EVALUATION) == 1);
     }
   }
   return false;
@@ -822,11 +822,11 @@ static void draw_create_skinning(Object &ob,
       MeshRenderData mr = mesh_render_data_create(
           ob, mesh, is_editmode, is_paint_mode, do_final, do_uvedit, use_hide, ts);
 
-      if (amd->use_gpudeform == SKIN_CPU || (ob.mode & OB_MODE_EDIT)) {
+      if ((U.gpu_flag & USER_GPU_FLAG_SUBDIVISION_EVALUATION) == 0 || (ob.mode & OB_MODE_EDIT)) {
         draw_skinning_cache_free_object(&ob);
       }
 
-      if (amd->use_gpudeform == SKIN_GPU && !(ob.mode & OB_MODE_EDIT)) {
+      if ((U.gpu_flag & USER_GPU_FLAG_SUBDIVISION_EVALUATION) == 1 && !(ob.mode & OB_MODE_EDIT)) {
 
         bool flag_changed = (amd && skincache.cached_deform_flag != amd->deformflag);
 

@@ -508,10 +508,10 @@ typedef struct UserDef {
   /** eUserpref_ShaderCompileMethod (OpenGL only). */
   short shader_compilation_method;
 
-  char _pad16[2];
-
   /** #GPUBackendType */
   short gpu_backend;
+
+  short gpuskin_influences;
 
   /** Number of samples for FPS display calculations. */
   short playback_fps_samples;
@@ -833,6 +833,7 @@ typedef enum eUserpref_GPU_Flag {
   USER_GPU_FLAG_OVERLAY_SMOOTH_WIRE = (1 << 2),
   USER_GPU_FLAG_SUBDIVISION_EVALUATION = (1 << 3),
   USER_GPU_FLAG_FRESNEL_EDIT = (1 << 4),
+  USER_GPU_FLAG_DEFORMATION_EVALUATION = (1 << 5),
 } eUserpref_GPU_Flag;
 
 /** #UserDef.gpu_backend

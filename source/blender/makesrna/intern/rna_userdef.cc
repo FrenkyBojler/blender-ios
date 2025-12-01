@@ -6161,6 +6161,25 @@ static void rna_def_userdef_system(BlenderRNA *brna)
                            "modifiers in the stack");
   RNA_def_property_update(prop, 0, "rna_UserDef_subdivision_update");
 
+  /* GPU deformations evaluation. */
+  prop = RNA_def_property(srna, "use_gpu_deform", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "gpu_flag", USER_GPU_FLAG_DEFORMATION_EVALUATION);
+  RNA_def_property_ui_text(prop,
+                           "GPU Deformation",
+                           "Enable hardware acceleration armature deformation. NOTE: Won't "
+                           "produce exactly same results as disabled");
+  RNA_def_property_update(prop, 0, "rna_userdef_update");
+
+  prop = RNA_def_property(srna, "gpuskin_influences", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "gpuskin_influences");
+  RNA_def_property_range(prop, 0, 1024);
+  RNA_def_property_ui_range(prop, 0, 256, 1, 3);
+  RNA_def_property_ui_text(prop,
+                           "Maximum GPU influences",
+                           "Limited around 256 "
+                           "blah blah.");
+  RNA_def_property_update(prop, 0, "rna_userdef_update");
+
   /* GPU backend selection */
   prop = RNA_def_property(srna, "gpu_backend", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "gpu_backend");

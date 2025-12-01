@@ -3322,6 +3322,8 @@ static void rna_def_modifier_armature(BlenderRNA *brna)
       prop, "Preserve Volume", "Deform rotation interpolation with quaternions");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 
+  /* Unused Code for GPU Deformations. This could be re-enabled if UI design decisions conclude so.*/
+  #if 0
   prop = RNA_def_property(srna, "use_gpudeform", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "use_gpudeform", SKIN_CPU);
   RNA_def_property_ui_text(prop,
@@ -3339,6 +3341,7 @@ static void rna_def_modifier_armature(BlenderRNA *brna)
                            "Precision of the GPU deformation, lower is faster but less accurate\n"
                            "Higher is slower but more accurate as disabled");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
+  #endif
 
   prop = RNA_def_property(srna, "use_multi_modifier", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "multi", 0);

@@ -949,6 +949,18 @@ class USERPREF_PT_viewport_subdivision(ViewportPanel, CenterAlignMixIn, Panel):
 
         layout.prop(system, "use_gpu_subdivision")
 
+class USERPREF_PT_viewport_deform(ViewportPanel, CenterAlignMixIn, Panel):
+    bl_label = "Armature Deformation"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw_centered(self, context, layout):
+        prefs = context.preferences
+        system = prefs.system
+
+        layout.prop(system, "use_gpu_deform")
+        layout.prop(system, "gpuskin_influences")
+        # add gpuskin precision
+
 
 # -----------------------------------------------------------------------------
 # Theme Panels

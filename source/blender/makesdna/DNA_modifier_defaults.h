@@ -16,8 +16,6 @@
     .multi = 0.0f, \
     .object = NULL, \
     .defgrp_name = "", \
-    .use_gpudeform = SKIN_CPU, \
-    .gpu_deform_precision = 3, \
   }
 
 /* Default to 2 duplicates distributed along the x-axis by an offset of 1 object width. */

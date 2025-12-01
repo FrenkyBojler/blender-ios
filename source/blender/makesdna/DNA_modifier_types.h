@@ -867,15 +867,7 @@ typedef struct ArmatureModifierData {
   /** Stored input of previous modifier, for vertex-group blending. */
   float (*vert_coords_prev)[3];
   char defgrp_name[/*MAX_VGROUP_NAME*/ 64];
-  short use_gpudeform;
-  short gpu_deform_precision;
-  char _pad3[4];
 } ArmatureModifierData;
-
-typedef enum eDeformFlag {
-  SKIN_CPU = 0,
-  SKIN_GPU = 1,
-} eDeformFlag;
 
 typedef enum {
   MOD_HOOK_UNIFORM_SPACE = (1 << 0),
