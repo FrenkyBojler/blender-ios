@@ -396,8 +396,6 @@ typedef struct Object {
 
   LodItem *lod_items;  /* Dynamic array for LOD levels */
   int lod_items_num;
-  // FIXME: Not required
-  // float cull_distance;  
   int lod_items_index;
 
   /** Irradiance caches baked for this object (light-probes only). */

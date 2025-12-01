@@ -289,6 +289,12 @@ void operatortypes_object()
 
   WM_operatortype_append(OBJECT_OT_light_linking_unlink_from_collection);
 
+  /* Distance LODs. */
+
+  WM_operatortype_append(OBJECT_OT_lod_add);
+  WM_operatortype_append(OBJECT_OT_lod_remove);
+  // TODO(Treata): clear
+
   /* Custom cameras. */
   WM_operatortype_append(OBJECT_OT_camera_custom_update);
 

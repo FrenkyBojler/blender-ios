@@ -22,6 +22,9 @@
 #include "DNA_object_enums.h"
 #include "DNA_userdef_enums.h"
 
+// FIXME(Tre): 
+#include "DNA_object_types.h"
+
 struct Base;
 struct BoundBox;
 struct Curve;
@@ -458,6 +461,13 @@ void BKE_object_eval_uber_data(Depsgraph *depsgraph, Scene *scene, Object *ob);
 void BKE_object_eval_shading(Depsgraph *depsgraph, Object *object);
 
 void BKE_object_eval_light_linking(Depsgraph *depsgraph, Object *object);
+
+/* Add/Remove LOD items (blenkernel API).
+ * These mutate the Object in-place and update ob->lod_items_num and ob->lod_items_index.
+ */
+void BKE_object_lod_add(Object *ob);
+bool BKE_object_lod_remove(Object *ob, int index);
+void BKE_object_lod_clear(Object *ob);
 
 /**
  * Assign #Object.data after modifier stack evaluation.

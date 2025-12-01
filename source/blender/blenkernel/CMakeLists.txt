@@ -243,6 +243,7 @@ set(SRC
   intern/object.cc
   intern/object_deform.cc
   intern/object_dupli.cc
+  intern/object_lod.cc
   intern/object_update.cc
   intern/ocean.cc
   intern/ocean_spectrum.cc

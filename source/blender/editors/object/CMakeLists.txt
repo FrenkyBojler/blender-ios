@@ -33,6 +33,7 @@ set(SRC
   object_edit.cc
   object_hook.cc
   object_light_linking_ops.cc
+  object_lod_ops.cc
   object_modes.cc
   object_modifier.cc
   object_multires_modifier.cc

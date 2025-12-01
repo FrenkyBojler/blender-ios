@@ -328,6 +328,13 @@ static void object_free_data(ID *id)
     ob->runtime->curve_cache = nullptr;
   }
 
+  /* Free LOD items. */
+  if (ob->lod_items) {
+      MEM_freeN(ob->lod_items);
+      ob->lod_items = nullptr;
+  }
+  ob->lod_items_num = 0;
+
   BKE_previewimg_free(&ob->preview);
 
   MEM_SAFE_FREE(ob->lightgroup);
@@ -686,6 +693,11 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
     BLO_write_struct(writer, LightProbeObjectCache, ob->lightprobe_cache);
     BKE_lightprobe_cache_blend_write(writer, ob->lightprobe_cache);
   }
+
+  // NEW
+  if (ob->lod_items && ob->lod_items_num > 0) {
+    BLO_write_struct_array(writer, LodItem, ob->lod_items_num, ob->lod_items);
+  }
 }
 
 static void object_blend_read_data(BlendDataReader *reader, ID *id)
@@ -897,6 +909,14 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
   BLO_read_struct(reader, LightProbeObjectCache, &ob->lightprobe_cache);
   if (ob->lightprobe_cache) {
     BKE_lightprobe_cache_blend_read(reader, ob->lightprobe_cache);
+  }
+
+  // NEW
+  if (ob->lod_items_num > 0) {
+    BLO_read_struct_array(reader, LodItem, ob->lod_items_num, &ob->lod_items);
+  }
+  else {
+    ob->lod_items = nullptr;
   }
 }
 

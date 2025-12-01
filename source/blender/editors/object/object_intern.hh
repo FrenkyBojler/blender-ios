@@ -12,6 +12,9 @@
 
 #include "RNA_types.hh"
 
+// FIXME(Treata):
+#include "DNA_object_types.h"
+
 struct bContext;
 struct ModifierData;
 struct Object;
@@ -184,6 +187,14 @@ void OBJECT_OT_light_linking_blockers_select(wmOperatorType *ot);
 void OBJECT_OT_light_linking_blockers_link(wmOperatorType *ot);
 
 void OBJECT_OT_light_linking_unlink_from_collection(wmOperatorType *ot);
+
+/* objec_lod_ops.cc */
+
+void OBJECT_OT_lod_add(wmOperatorType *ot);
+void OBJECT_OT_lod_remove(wmOperatorType *ot);
+// TODO(Treata): 
+// void object_OT_lod_clear(wmOperatorType *ot);
+
 
 /* object_camera.cc */
 

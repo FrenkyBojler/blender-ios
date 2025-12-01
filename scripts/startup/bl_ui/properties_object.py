@@ -7,7 +7,7 @@ from bl_ui.properties_animviz import (
     MotionPathButtonsPanel_display,
 )
 import bpy
-from bpy.types import Panel, Menu
+from bpy.types import Panel, Menu, UIList
 from rna_prop_ui import PropertyPanel
 from bl_ui.space_properties import PropertiesAnimationMixin
 
@@ -624,6 +624,58 @@ class OBJECT_PT_custom_props(ObjectButtonsPanel, PropertyPanel, Panel):
     _context_path = "object"
     _property_type = bpy.types.Object
 
+# New
+# class OBJECT_UL_lod_items(UIList):
+#     def draw_item(
+#         self, context, layout, data, item, icon, active_data, active_propname, index
+#     ):
+#         ob = data
+#         lod = item  # LodItem RNA struct
+
+#         layout.use_property_split = False
+#         layout.use_property_decorate = False
+
+#         col = layout.column()
+#         col.prop(lod, "target", text=f"LOD {index}") # Line 639
+#         col.prop(lod, "distance", text="Distance")
+class OBJECT_UL_lod_items(UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data, active_propname, index):
+        lod = item
+        col = layout.column(align=True)
+        col.prop(lod, "target", text=f"LOD {index}")    # line 645
+        col.prop(lod, "distance", text="Dist")
+
+
+          
+class OBJECT_PT_distance_lod(ObjectButtonsPanel, Panel):
+    bl_label = "Distance LOD"
+    bl_idname = "OBJECT_PT_distance_lod"
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = "object"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+
+        ob = context.object
+
+        row = layout.row()
+        row.template_list(  # Line 666
+            "OBJECT_UL_lod_items",     # Custom UIList
+            "",
+            ob,
+            "lod_items",
+            ob,
+            "lod_items_index",         # you must add lod_items_index in RNA!!
+        )
+
+        col = row.column(align=True)
+        # col.operator("object.lod_item_add", icon='ADD', text="")
+        # col.operator("object.lod_item_remove", icon='REMOVE', text="")
+        col.operator("object.lod_add", icon='ADD', text="")
+        col.operator("object.lod_remove", icon='REMOVE', text="")
 
 classes = (
     OBJECT_PT_context_object,
@@ -648,6 +700,8 @@ classes = (
     OBJECT_PT_lineart,
     OBJECT_PT_animation,
     OBJECT_PT_custom_props,
+    OBJECT_UL_lod_items,
+    OBJECT_PT_distance_lod,
 )
 
 if __name__ == "__main__":  # only for live edit.
