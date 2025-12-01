@@ -408,7 +408,8 @@ typedef struct FileSelectParams {
    * `renamefile` but for local IDs (takes precedence). Don't keep this stored across handlers!
    * Would break on undo. */
   const ID *rename_id;
-  void *_pad3;
+  /** Runtime data (template variables, etc). Not saved to .blend files. */
+  FileSelectParams_Runtime *runtime;
 
   /** List of file-types to filter. */
   char filter_glob[/*FILE_MAXFILE*/ 256];
@@ -450,10 +451,6 @@ typedef struct FileSelectParams {
 
   /** Directory path with template variables (unresolved). */
   char dir_template[/*FILE_MAX_LIBEXTRA*/ 1282];
-
-  /** Runtime data (template variables, etc). Not saved to .blend files. */
-  FileSelectParams_Runtime *runtime;
-  void *_pad5; /* Padding pointer for 32-bit compatibility */
 } FileSelectParams;
 
 /**
