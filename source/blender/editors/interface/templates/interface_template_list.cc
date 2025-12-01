@@ -123,9 +123,9 @@ static void uilist_draw_filter_default(uiList *ui_list,
 {
   PointerRNA listptr = RNA_pointer_create_discrete(nullptr, &RNA_UIList, ui_list);
 
-  uiLayout *row = &layout.row(false);
+  blender::ui::Layout &row = layout.row(false);
 
-  uiLayout *subrow = &row->row(true);
+  blender::ui::Layout *subrow = &row.row(true);
   subrow->prop(&listptr,
                RNA_struct_find_property(&listptr, "filter_name"),
                -1,
