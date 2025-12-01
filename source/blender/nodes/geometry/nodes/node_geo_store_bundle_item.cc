@@ -68,12 +68,15 @@ static void node_geo_exec(GeoNodeExecParams params)
   if (!bundle_ptr) {
     bundle_ptr = Bundle::create();
   }
+  if (!bundle_ptr->is_mutable()) {
+    bundle_ptr = bundle_ptr->copy();
+  }
 
   Bundle &bundle = const_cast<Bundle &>(*bundle_ptr);
 
   const std::string name = params.extract_input<std::string>("Name");
   if (name.empty()) {
-    params.set_default_remaining_outputs();
+    params.set_output("Bundle", std::move(bundle_ptr));
     return;
   }
 
@@ -90,7 +93,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  bundle.add_override(name, BundleItemSocketValue{stype, std::move(value)});
+  bundle.add_path_override(name, BundleItemSocketValue{stype, std::move(value)});
 
   params.set_output("Bundle", std::move(bundle_ptr));
 }
