@@ -829,34 +829,6 @@ static void cp_cu_key(Curve *cu,
 }
 
 /**
- * Iterate all keyblocks of `key` that need to be evaluated.
- */
-static void foreach_keyblock_for_eval(
-    Key *key, const int tot_elem, blender::FunctionRef<void(KeyBlock *, int, KeyBlock *)> callback)
-{
-  int keyblock_index = 0;
-  LISTBASE_FOREACH_INDEX (KeyBlock *, kb, &key->block, keyblock_index) {
-    if (kb == key->refkey) {
-      continue;
-    }
-    /* No difference in vertex count allowed. */
-    if (kb->flag & KEYBLOCK_MUTE || kb->totelem != tot_elem) {
-      continue;
-    }
-    const float kb_influence = kb->curval;
-    if (kb_influence == 0.0f) {
-      continue;
-    }
-    /* Reference can be any block. */
-    KeyBlock *reference_kb = static_cast<KeyBlock *>(BLI_findlink(&key->block, kb->relative));
-    if (reference_kb == nullptr) {
-      continue;
-    }
-    callback(kb, keyblock_index, reference_kb);
-  }
-}
-
-/**
  * Move the point in `r_targets` along the vector of ab by a factor of `weight`.
  *
  * \param start_index points to the x value in the flat float array. Indices of +1 and +2 from this
@@ -900,12 +872,25 @@ static void key_evaluate_relative_float3(Key *key,
          nullptr,
          mode);
 
-  const auto visit_keyblock = [key,
-                               active_keyblock,
-                               per_keyblock_weights,
-                               vertex_count,
-                               target_data,
-                               range](KeyBlock *kb, const int keyblock_index, KeyBlock *refb) {
+  int keyblock_index = 0;
+  LISTBASE_FOREACH_INDEX (KeyBlock *, kb, &key->block, keyblock_index) {
+    if (kb == key->refkey) {
+      continue;
+    }
+    /* No difference in vertex count allowed. */
+    if (kb->flag & KEYBLOCK_MUTE || kb->totelem != vertex_count) {
+      continue;
+    }
+    const float kb_influence = kb->curval;
+    if (kb_influence == 0.0f) {
+      continue;
+    }
+    /* Reference can be any block. */
+    KeyBlock *reference_kb = static_cast<KeyBlock *>(BLI_findlink(&key->block, kb->relative));
+    if (reference_kb == nullptr) {
+      continue;
+    }
+
     const float *weights = per_keyblock_weights ? per_keyblock_weights[keyblock_index] : nullptr;
 
     char *freefrom = nullptr;
@@ -914,9 +899,9 @@ static void key_evaluate_relative_float3(Key *key,
 
     /* For meshes, use the original values instead of the bmesh values to
      * maintain a constant offset. */
-    const float *reffrom = static_cast<float *>(refb->data);
+    const float *reffrom = static_cast<float *>(reference_kb->data);
 
-    for (int i : range) {
+    for (const int i : range) {
       const float weight = weights ? (weights[i] * kb->curval) : kb->curval;
       /* Each vertex has 3 floats. */
       const int vector_index = i * 3;
@@ -926,9 +911,7 @@ static void key_evaluate_relative_float3(Key *key,
     if (freefrom) {
       MEM_freeN(freefrom);
     }
-  };
-
-  foreach_keyblock_for_eval(key, vertex_count, visit_keyblock);
+  }
 }
 
 static void do_key(const int start,
