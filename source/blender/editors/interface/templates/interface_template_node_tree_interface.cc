@@ -133,13 +133,13 @@ class NodeSocketViewItem : public BasicTreeViewItem {
 
   std::optional<bool> should_be_selected() const override
   {
-    return socket_.flag & NODE_INTERFACE_SOCKET_SELECTED;
+    return socket_.flag & NODE_INTERFACE_SOCKET_SELECT;
   }
 
   void set_selected(const bool select) override
   {
     AbstractViewItem::set_selected(select);
-    SET_FLAG_FROM_TEST(socket_.flag, select, NODE_INTERFACE_SOCKET_SELECTED);
+    SET_FLAG_FROM_TEST(socket_.flag, select, NODE_INTERFACE_SOCKET_SELECT);
   }
 
  protected:
@@ -226,15 +226,16 @@ class NodePanelViewItem : public BasicTreeViewItem {
 
   std::optional<bool> should_be_selected() const override
   {
-    return panel_.flag & NODE_INTERFACE_PANEL_SELECTED;
+    return panel_.flag & NODE_INTERFACE_PANEL_SELECT;
   }
 
   void set_selected(const bool select) override
   {
     AbstractViewItem::set_selected(select);
-    SET_FLAG_FROM_TEST(panel_.flag, select, NODE_INTERFACE_PANEL_SELECTED);
+    SET_FLAG_FROM_TEST(panel_.flag, select, NODE_INTERFACE_PANEL_SELECT);
+    /* `NodeSocketViewItem::set_selected` doesn't handle toggle sockets, so handle it here. */
     if (toggle_) {
-      SET_FLAG_FROM_TEST(toggle_->flag, select, NODE_INTERFACE_SOCKET_SELECTED);
+      SET_FLAG_FROM_TEST(toggle_->flag, select, NODE_INTERFACE_SOCKET_SELECT);
     }
   }
 
@@ -284,6 +285,9 @@ class NodePanelViewItem : public BasicTreeViewItem {
   void delete_item(bContext *C) override
   {
     Main *bmain = CTX_data_main(C);
+    if (toggle_){
+      nodetree_.tree_interface.remove_item(toggle_->item);
+    }
     nodetree_.tree_interface.remove_item(panel_.item);
     BKE_main_ensure_invariants(*bmain, nodetree_.id);
     WM_main_add_notifier(NC_NODE | NA_EDITED, &nodetree_);
@@ -411,14 +415,14 @@ static void gather_moved_items_recursive(bNodeTreeInterfacePanel &panel,
       case NODE_INTERFACE_PANEL: {
         bNodeTreeInterfacePanel *panel = node_interface::get_item_as<bNodeTreeInterfacePanel>(
             item);
-        is_selected = (panel->flag & NODE_INTERFACE_PANEL_SELECTED);
+        is_selected = (panel->flag & NODE_INTERFACE_PANEL_SELECT);
         gather_moved_items_recursive(*panel, r_items, is_selected);
         break;
       }
       case NODE_INTERFACE_SOCKET: {
         bNodeTreeInterfaceSocket *socket = node_interface::get_item_as<bNodeTreeInterfaceSocket>(
             item);
-        is_selected = (socket->flag & NODE_INTERFACE_SOCKET_SELECTED);
+        is_selected = (socket->flag & NODE_INTERFACE_SOCKET_SELECT);
         break;
       }
     }
@@ -518,6 +522,7 @@ bool on_drop_interface_items(bContext *C,
   int position = -1;
   switch (drag_info.drop_location) {
     case DropLocation::Into: {
+      /* Insert into target */
       if (drop_target_item.item_type != NODE_INTERFACE_PANEL) {
         return false;
       }
@@ -528,6 +533,7 @@ bool on_drop_interface_items(bContext *C,
     }
     case DropLocation::Before:
     case DropLocation::After: {
+      /* Insert into same panel as the target. */
       parent = interface.find_item_parent(drop_target_item, true);
       BLI_assert(parent != nullptr);
       const int offset = (drag_info.drop_location == DropLocation::After) ? 1 : 0;
@@ -542,6 +548,7 @@ bool on_drop_interface_items(bContext *C,
   for (int i = 0; i < drag_data->items_count; i++) {
     bNodeTreeInterfaceItem *drag_item = drag_data->items[i];
     interface.move_item_to_parent(*drag_item, parent, position);
+    /* Update position as it may shift after move. */
     position = parent->item_position(*drag_item) + 1;
   }
 
