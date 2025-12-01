@@ -1,10 +1,10 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Beta (b'702691150287')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'ef4e8fa75057')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-13 16:12+0000\n"
-"PO-Revision-Date: 2025-09-29 00:59+0000\n"
+"POT-Creation-Date: 2025-11-24 08:35+0000\n"
+"PO-Revision-Date: 2025-11-18 20:05+0000\n"
 "Last-Translator: Daniel Nylander <blender@danielnylander.se>\n"
 "Language-Team: Swedish <https://translate.blender.org/projects/blender-ui/ui/sv/>\n"
 "Language: sv\n"
@@ -510,14 +510,6 @@ msgid "Distribute memory across devices"
 msgstr "Fördela minne över enheter"
 
 
-msgid "HIP RT (Unstable)"
-msgstr "HIP RT (Ostabil)"
-
-
-msgid "HIP RT enables AMD hardware ray tracing on RDNA2 and above. This currently has known stability issues, that are expected to be solved before the next release."
-msgstr "HIP RT möjliggör AMD-hårdvarustrålspårning på RDNA2 och högre. Det finns för närvarande kända stabilitetsproblem, som förväntas vara lösta före nästa utgåva."
-
-
 msgid "Embree on GPU"
 msgstr "Embree på GPU"
 
@@ -830,6 +822,10 @@ msgid "Video Sequencer"
 msgstr "Videosekvenser"
 
 
+msgid "Non-linear editor for arranging and mixing scenes, video, audio, and effects"
+msgstr "Icke-linjär redigerare för att arrangera och mixa scener, video, ljud och effekter"
+
+
 msgid "Movie Clip Editor"
 msgstr "Redigerare för filmklipp"
 
@@ -1089,6 +1085,130 @@ msgstr "Alternativ för denna typ av tillgångshylla"
 
 msgid "When spawning a context menu for an asset, activate the asset and call `bl_activate_operator` if present, rather than just highlighting the asset"
 msgstr "När du skapar ett snabbmeny för en tillgång, aktivera tillgången och anropa `bl_activate_operator` om det finns, istället för att bara markera tillgången"
+
+
+msgid "Actions"
+msgstr "Åtgärder"
+
+
+msgid "Annotations"
+msgstr "Anteckningar"
+
+
+msgid "Armatures"
+msgstr "Armaturer"
+
+
+msgid "Brushes"
+msgstr "Penslar"
+
+
+msgid "Cache Files"
+msgstr "Cachefiler"
+
+
+msgid "Cameras"
+msgstr "Kameror"
+
+
+msgid "Curves"
+msgstr "Kurvor"
+
+
+msgid "Hair Curves"
+msgstr "Hårkurvor"
+
+
+msgid "Fonts"
+msgstr "Typsnitt"
+
+
+msgid "Grease Pencil"
+msgstr "Grease Pencil"
+
+
+msgid "Collections"
+msgstr "Samlingar"
+
+
+msgid "Images"
+msgstr "Bilder"
+
+
+msgid "Lattices"
+msgstr "Latticer"
+
+
+msgid "Lights"
+msgstr "Ljus"
+
+
+msgid "Light Probes"
+msgstr "Ljussonder"
+
+
+msgid "Masks"
+msgstr "Masker"
+
+
+msgid "Materials"
+msgstr "Material"
+
+
+msgid "Metaballs"
+msgstr "Metabollar"
+
+
+msgid "Movie Clips"
+msgstr "Filmklipp"
+
+
+msgid "Node Trees"
+msgstr "Nodträd"
+
+
+msgid "Objects"
+msgstr "Objekt"
+
+
+msgid "Palettes"
+msgstr "Paletter"
+
+
+msgid "Point Clouds"
+msgstr "Punktmoln"
+
+
+msgid "Scenes"
+msgstr "Scener"
+
+
+msgid "Sounds"
+msgstr "Ljud"
+
+
+msgid "Speakers"
+msgstr "Högtalare"
+
+
+msgid "Texts"
+msgstr "Texter"
+
+
+msgid "Textures"
+msgstr "Texturer"
+
+
+msgid "Volumes"
+msgstr "Volymer"
+
+
+msgid "Workspaces"
+msgstr "Arbetsytor"
+
+
+msgid "Worlds"
+msgstr "Världar"
 
 
 msgid "Preview Size"
@@ -1595,48 +1715,24 @@ msgid "Main data structure representing a .blend file and all its data-blocks"
 msgstr "Huvuddatastruktur som representerar en .blend-fil och alla dess datablock"
 
 
-msgid "Actions"
-msgstr "Åtgärder"
-
-
 msgid "Annotation"
 msgstr "Anteckning"
-
-
-msgid "Armatures"
-msgstr "Armaturer"
 
 
 msgid "Armature data-blocks"
 msgstr "Armatur datablock"
 
 
-msgid "Brushes"
-msgstr "Penslar"
-
-
 msgid "Brush data-blocks"
 msgstr "Pensel datablock"
-
-
-msgid "Cache Files"
-msgstr "Cachefiler"
 
 
 msgid "Cache Files data-blocks"
 msgstr "Cachefiler datablock"
 
 
-msgid "Cameras"
-msgstr "Kameror"
-
-
 msgid "Camera data-blocks"
 msgstr "Kamera datablock"
-
-
-msgid "Collections"
-msgstr "Samlingar"
 
 
 msgid "Collection data-blocks"
@@ -1649,10 +1745,6 @@ msgstr "Färgrymd"
 
 msgid "Information about the color space used for data-blocks in a blend file"
 msgstr "Information om färgrymden som används för datablock i en blend-fil"
-
-
-msgid "Curves"
-msgstr "Kurvor"
 
 
 msgid "Curve data-blocks"
@@ -1675,24 +1767,12 @@ msgid "Vector font data-blocks"
 msgstr "Vektortypsnitt datablock"
 
 
-msgid "Grease Pencil"
-msgstr "Grease Pencil"
-
-
 msgid "Grease Pencil data-blocks"
 msgstr "Grease Pencil datablock"
 
 
-msgid "Hair Curves"
-msgstr "Hårkurvor"
-
-
 msgid "Hair curve data-blocks"
 msgstr "Hårkurvor datablock"
-
-
-msgid "Images"
-msgstr "Bilder"
 
 
 msgid "Image data-blocks"
@@ -1715,10 +1795,6 @@ msgid "Has the current session been saved to disk as a .blend file"
 msgstr "Har den aktuella sessionen sparats till disk som en .blend-fil"
 
 
-msgid "Lattices"
-msgstr "Latticer"
-
-
 msgid "Lattice data-blocks"
 msgstr "Lattice datablock"
 
@@ -1731,48 +1807,24 @@ msgid "Library data-blocks"
 msgstr "Bibliotek datablock"
 
 
-msgid "Light Probes"
-msgstr "Ljussonder"
-
-
 msgid "Light Probe data-blocks"
 msgstr "Ljussond datablock"
-
-
-msgid "Lights"
-msgstr "Ljus"
 
 
 msgid "Light data-blocks"
 msgstr "Ljus datablock"
 
 
-msgid "Masks"
-msgstr "Masker"
-
-
 msgid "Masks data-blocks"
 msgstr "Masker datablock"
-
-
-msgid "Materials"
-msgstr "Material"
 
 
 msgid "Material data-blocks"
 msgstr "Material datablock"
 
 
-msgid "Metaballs"
-msgstr "Metabollar"
-
-
 msgid "Metaball data-blocks"
 msgstr "Metaboll datablock"
-
-
-msgid "Movie Clips"
-msgstr "Filmklipp"
 
 
 msgid "Movie Clip data-blocks"
@@ -1787,16 +1839,8 @@ msgid "Node group data-blocks"
 msgstr "Nodgrupp datablock"
 
 
-msgid "Objects"
-msgstr "Objekt"
-
-
 msgid "Object data-blocks"
 msgstr "Objekt datablock"
-
-
-msgid "Palettes"
-msgstr "Paletter"
 
 
 msgid "Palette data-blocks"
@@ -1811,16 +1855,8 @@ msgid "Particle data-blocks"
 msgstr "Partikel datablock"
 
 
-msgid "Point Clouds"
-msgstr "Punktmoln"
-
-
 msgid "Point cloud data-blocks"
 msgstr "Punktmoln datablock"
-
-
-msgid "Scenes"
-msgstr "Scener"
 
 
 msgid "Scene data-blocks"
@@ -1835,32 +1871,16 @@ msgid "Screen data-blocks"
 msgstr "Skärmar datablock"
 
 
-msgid "Sounds"
-msgstr "Ljud"
-
-
 msgid "Sound data-blocks"
 msgstr "Ljud datablock"
-
-
-msgid "Speakers"
-msgstr "Högtalare"
 
 
 msgid "Speaker data-blocks"
 msgstr "Högtalare datablock"
 
 
-msgid "Texts"
-msgstr "Texter"
-
-
 msgid "Text data-blocks"
 msgstr "Text datablock"
-
-
-msgid "Textures"
-msgstr "Texturer"
 
 
 msgid "Texture data-blocks"
@@ -1875,10 +1895,6 @@ msgid "File format version the .blend file was saved with"
 msgstr "Version av filformat som .blend-filen sparats med"
 
 
-msgid "Volumes"
-msgstr "Volymer"
-
-
 msgid "Volume data-blocks"
 msgstr "Volym datablock"
 
@@ -1891,16 +1907,8 @@ msgid "Window manager data-blocks"
 msgstr "Fönsterhanterare datablock"
 
 
-msgid "Workspaces"
-msgstr "Arbetsytor"
-
-
 msgid "Workspace data-blocks"
 msgstr "Arbetsyta datablock"
-
-
-msgid "Worlds"
-msgstr "Världar"
 
 
 msgid "World data-blocks"
@@ -2901,6 +2909,18 @@ msgstr "Ta bort krockade partiklar"
 
 msgid "Display"
 msgstr "Visa"
+
+
+msgid "Display name. For viewing, this is the display device that will be emulated by limiting the gamut and HDR colors. For image and video output, this is the display space used for writing."
+msgstr "Visningsnamn. För visning är detta den visningsenhet som kommer att emuleras genom att begränsa färgskalan och HDR-färgerna. För bild- och videoutmatning är detta det visningsutrymme som används för skrivning."
+
+
+msgid "Display Emulation"
+msgstr "Skärmemulering"
+
+
+msgid "Control how images in the chosen display are mapped to the physical display"
+msgstr "Kontrollerar hur bilderna i den valda skärmen mappas till den fysiska skärmen"
 
 
 msgid "Is Data"
@@ -4473,18 +4493,6 @@ msgid "Wind Factor"
 msgstr "Vindfaktor"
 
 
-msgid "Annotations"
-msgstr "Anteckningar"
-
-
-msgid "Fonts"
-msgstr "Typsnitt"
-
-
-msgid "Node Trees"
-msgstr "Nodträd"
-
-
 msgid "Save"
 msgstr "Spara"
 
@@ -5770,10 +5778,6 @@ msgstr "Nyp"
 msgctxt "Curves"
 msgid "Smooth"
 msgstr "Jämn"
-
-
-msgid "Direction"
-msgstr "Riktning"
 
 
 msgctxt "Brush"
@@ -7248,10 +7252,6 @@ msgid "Sync to Audio"
 msgstr "Synkronisera till ljud"
 
 
-msgid "Second"
-msgstr "Sekund"
-
-
 msgid "Timeline Markers"
 msgstr "Tidslinjemarkörer"
 
@@ -8129,6 +8129,10 @@ msgstr "Alla"
 
 msgid "Ctrl"
 msgstr "Ctrl"
+
+
+msgid "Direction"
+msgstr "Riktning"
 
 
 msgid "North"
@@ -9331,28 +9335,8 @@ msgid "Mask"
 msgstr "Mask"
 
 
-msgid "Metaball"
-msgstr "Metaboll"
-
-
-msgid "Light"
-msgstr "Ljus"
-
-
-msgid "Light Probe"
-msgstr "Ljussond"
-
-
-msgid "Add Image"
-msgstr "Lägg till bild"
-
-
-msgid "Relations"
-msgstr "Relationer"
-
-
-msgid "Rigid Body"
-msgstr "Rigid kropp"
+msgid "Align View"
+msgstr "Justera vy"
 
 
 msgid "Apply"
@@ -9365,6 +9349,10 @@ msgstr "Spår"
 
 msgid "Quick Effects"
 msgstr "Snabbeffekter"
+
+
+msgid "Navigation"
+msgstr "Navigering"
 
 
 msgid "Show/Hide"
@@ -9387,8 +9375,12 @@ msgid "Link/Transfer Data"
 msgstr "Länka/överför data"
 
 
-msgid "Layout"
-msgstr "Layout"
+msgid "Viewpoint"
+msgstr "Visningspunkt"
+
+
+msgid "Local View"
+msgstr "Lokal vy"
 
 
 msgid "Propagate"
@@ -9399,8 +9391,16 @@ msgid "Names"
 msgstr "Namn"
 
 
+msgid "Layout"
+msgstr "Layout"
+
+
 msgid "Adjust"
 msgstr "Justera"
+
+
+msgid "Merge"
+msgstr "Sammanfoga"
 
 
 msgid "Utilities"
@@ -9411,24 +9411,28 @@ msgid "Math"
 msgstr "Matematik"
 
 
-msgid "Merge"
-msgstr "Sammanfoga"
-
-
 msgid "Special Characters"
 msgstr "Specialtecken"
+
+
+msgid "Snap"
+msgstr "Snäpp"
+
+
+msgid "Mirror"
+msgstr "Spegla"
 
 
 msgid "Text"
 msgstr "Text"
 
 
+msgid "Metaball"
+msgstr "Metaboll"
+
+
 msgid "Pivot Point"
 msgstr "Fast punkt"
-
-
-msgid "Snap"
-msgstr "Snäpp"
 
 
 msgid "Read"
@@ -9443,56 +9447,56 @@ msgid "Primitives"
 msgstr "Primitiver"
 
 
+msgid "Select More/Less"
+msgstr "Markera mera/mindre"
+
+
 msgid "Instances"
 msgstr "Instanser"
-
-
-msgid "Mirror"
-msgstr "Spegla"
 
 
 msgid "Import"
 msgstr "Importera"
 
 
-msgid "Local View"
-msgstr "Lokal vy"
-
-
-msgid "Viewpoint"
-msgstr "Visningspunkt"
-
-
-msgid "Navigation"
-msgstr "Navigering"
-
-
-msgid "Align View"
-msgstr "Justera vy"
-
-
-msgid "Align View to Active"
-msgstr "Justera vy till aktiv"
-
-
 msgid "Deprecated"
 msgstr "Föråldrad"
 
 
-msgid "Select More/Less"
-msgstr "Markera mera/mindre"
+msgid "Assign Material"
+msgstr "Tilldela material"
 
 
 msgid "UV"
 msgstr "UV"
 
 
+msgid "Light"
+msgstr "Ljus"
+
+
+msgid "Light Probe"
+msgstr "Ljussond"
+
+
+msgid "Add Image"
+msgstr "Lägg till bild"
+
+
+msgid "Relations"
+msgstr "Relationer"
+
+
+msgid "Rigid Body"
+msgstr "Rigid kropp"
+
+
+msgid "Align View to Active"
+msgstr "Justera vy till aktiv"
+
+
 msgid "Animals"
 msgstr "Djur"
-
-
-msgid "Assign Material"
-msgstr "Tilldela material"
 
 
 msgid "Catalog"
@@ -10234,10 +10238,6 @@ msgstr "Optimal visning"
 
 msgid "Total Levels"
 msgstr "Totalt antal nivåer"
-
-
-msgid "Bake Target"
-msgstr "Bakningsmål"
 
 
 msgid "Node Group"
@@ -12588,10 +12588,6 @@ msgid "True if the socket is unavailable"
 msgstr "Sant om uttaget är otillgängligt"
 
 
-msgid "Custom dynamic defined socket label"
-msgstr "Anpassad dynamiskt definierad uttagsetikett"
-
-
 msgid "Link Limit"
 msgstr "Länkgräns"
 
@@ -13229,6 +13225,11 @@ msgstr "Nytt objekt"
 msgctxt "Operator"
 msgid "Remove Item"
 msgstr "Ta bort objekt"
+
+
+msgctxt "Operator"
+msgid "Add Attribute"
+msgstr "Lägg till attribut"
 
 
 msgctxt "Operator"
@@ -15603,11 +15604,6 @@ msgstr "Den aktuella textrutan"
 msgctxt "Operator"
 msgid "Unlink"
 msgstr "Avlänka"
-
-
-msgctxt "Operator"
-msgid "Add Attribute"
-msgstr "Lägg till attribut"
 
 
 msgid "Add attribute to geometry"
@@ -22154,6 +22150,10 @@ msgid "Recent Searches"
 msgstr "Senaste sökningarna"
 
 
+msgid "Sort the recently searched items at the top"
+msgstr "Sortera de senast sökta objekten högst upp"
+
+
 msgid "Version of Blender the userpref.blend was saved with"
 msgstr "Version av Blender som userpref.blend har sparats med"
 
@@ -22772,6 +22772,14 @@ msgid "Allow Online Access"
 msgstr "Tillåt internetåtkomst"
 
 
+msgid "Region Overlap"
+msgstr "Överlappning av regioner"
+
+
+msgid "Display tool/property regions over the main region"
+msgstr "Visa verktygs-/egenskapsregioner över huvudregionen"
+
+
 msgid "Edit Studio Light"
 msgstr "Redigera studioljus"
 
@@ -22844,6 +22852,14 @@ msgid "Scene will be rendered using 32 anti-aliasing samples"
 msgstr "Scenen kommer renderas med 32 kantutjämningssamplingar"
 
 
+msgid "Border Width"
+msgstr "Bredd på ram"
+
+
+msgid "Size of the padding around each editor."
+msgstr "Storlek på utfyllnaden runt varje editor."
+
+
 msgid "Color Picker Type"
 msgstr "Typ av färgväljare"
 
@@ -22893,7 +22909,7 @@ msgstr "En kvadrat som visar nyans/värde, med mättnadsreglage"
 
 
 msgid "Factor Display Type"
-msgstr "Faktor visningstyp"
+msgstr "Faktorvisning"
 
 
 msgid "How factor values are displayed"
@@ -22917,7 +22933,7 @@ msgstr "Filbläddrare visningstyp"
 
 
 msgid "Default location where the File Editor will be displayed in"
-msgstr "Standardposition som filbläddraren kommer att visas i"
+msgstr "Standardposition som filredigeraren kommer att visas i"
 
 
 msgid "Maximized Area"
@@ -22958,6 +22974,14 @@ msgstr "Gizmo-storlek"
 
 msgid "Diameter of the gizmo"
 msgstr "Diameter på gizmon"
+
+
+msgid "Header Position"
+msgstr "Rubrikposition"
+
+
+msgid "Default header position for new space-types"
+msgstr "Standardposition på rubriken för nya utrymmestyper"
 
 
 msgid "Language"
@@ -23196,6 +23220,14 @@ msgid "Pie menu size in pixels"
 msgstr "Pajmenyers storlek i pixlar"
 
 
+msgid "Default location where the Preferences will be displayed in"
+msgstr "Standardplats som Inställningar kommer att visas i"
+
+
+msgid "Default location where rendered images will be displayed in"
+msgstr "Standardplats där renderade bilder kommer att visas i"
+
+
 msgid "Keep User Interface"
 msgstr "Bevara användargränssnitt"
 
@@ -23222,6 +23254,10 @@ msgstr "Endast aktiverade tillägg"
 
 msgid "Developer Extras"
 msgstr "Extrafunktioner för utvecklare"
+
+
+msgid "Display advanced settings and tools for developers"
+msgstr "Visa avancerade inställningar och verktyg för utvecklare"
 
 
 msgid "Navigation Controls"
@@ -23268,8 +23304,16 @@ msgid "Tooltips"
 msgstr "Verktygstips"
 
 
+msgid "Display tooltips (when disabled, hold Alt then hover to force display)"
+msgstr "Visa verktygstips (när de är inaktiverade, håll ner Alt för att tvinga fram visning)"
+
+
 msgid "Python Tooltips"
 msgstr "Verktygstips för Python"
+
+
+msgid "Show Python references in tooltips"
+msgstr "Visa Python-referenser i verktygstips"
 
 
 msgid "Only Seconds"
@@ -24480,16 +24524,9 @@ msgid "Active Table"
 msgstr "Aktiv tabell"
 
 
-msgid "Cross"
-msgstr "Övertona"
-
-
-msgid "Alpha Under"
-msgstr "Alfa under"
-
-
-msgid "Gamma Cross"
-msgstr "Gamma-övertona"
+msgctxt "Color"
+msgid "Value"
+msgstr "Värde"
 
 
 msgctxt "Sequence"
@@ -24535,11 +24572,6 @@ msgstr "Ingång 1"
 
 msgid "Input 2"
 msgstr "Ingång 2"
-
-
-msgctxt "Color"
-msgid "Value"
-msgstr "Värde"
 
 
 msgid "Speed Control"
@@ -26073,10 +26105,6 @@ msgid "and AMD Adrenalin driver %s or newer"
 msgstr "och AMD Adrenalin-drivrutin %s eller nyare"
 
 
-msgid "and AMD driver version %s or newer"
-msgstr "och AMD-drivrutin version %s eller nyare"
-
-
 msgid "and Windows driver version %s or newer"
 msgstr "och Windows-drivrutin version %s eller nyare"
 
@@ -26222,14 +26250,6 @@ msgid "Add Texture Setup"
 msgstr "Lägg till texturinställning"
 
 
-msgid "(Quick access: Shift+W)"
-msgstr "(Snabbåtkomst: Shift+W)"
-
-
-msgid "To Socket"
-msgstr "Till uttag"
-
-
 msgctxt "Operator"
 msgid "Do Not Replace Links"
 msgstr "Ersätt inte länkar"
@@ -26258,6 +26278,10 @@ msgstr "Tog bort {} noder"
 
 msgid "Deleted 1 node"
 msgstr "Tog bort 1 nod"
+
+
+msgid "To Socket"
+msgstr "Till uttag"
 
 
 msgctxt "UI_Events_KeyMaps"
@@ -27537,6 +27561,10 @@ msgid "Calculate to Frame"
 msgstr "Beräkna till bildruta"
 
 
+msgid "Second"
+msgstr "Sekund"
+
+
 msgid "X Stiffness"
 msgstr "X styvhet"
 
@@ -28160,10 +28188,6 @@ msgstr "Yta"
 msgctxt "Operator"
 msgid "Zoom 1:1"
 msgstr "Zooma 1:1"
-
-
-msgid "Image*"
-msgstr "Bild*"
 
 
 msgid "Repeat Image"
@@ -28984,6 +29008,10 @@ msgstr "Startskärm"
 
 msgid "User Tooltips"
 msgstr "Verktygstips för användare"
+
+
+msgid "Sort by Most Recent"
+msgstr "Sortera efter senaste"
 
 
 msgctxt "Preferences"
@@ -31421,10 +31449,6 @@ msgid "Add IK"
 msgstr "Lägg till IK"
 
 
-msgid "Without Targets"
-msgstr "Utan mål"
-
-
 msgid "Cannot edit library data"
 msgstr "Det går inte att redigera biblioteksdata"
 
@@ -32859,6 +32883,10 @@ msgid "Unable to copy item"
 msgstr "Det går inte att kopiera objektet"
 
 
+msgid "Anisotropic"
+msgstr "Anisotropisk"
+
+
 msgctxt "NodeTree"
 msgid "Comparison"
 msgstr "Jämförelse"
@@ -33235,10 +33263,6 @@ msgstr "Kirsch"
 
 msgid "Balance"
 msgstr "Balans"
-
-
-msgid "Anisotropic"
-msgstr "Anisotropisk"
 
 
 msgid "Eccentricity"

@@ -434,7 +434,7 @@ void DeclarationListBuilder::add_separator()
 void DeclarationListBuilder::add_default_layout()
 {
   BLI_assert(this->node_decl_builder.typeinfo_.draw_buttons);
-  this->add_layout([](uiLayout *layout, bContext *C, PointerRNA *ptr) {
+  this->add_layout([](ui::Layout *layout, bContext *C, PointerRNA *ptr) {
     const bNode &node = *static_cast<bNode *>(ptr->data);
     node.typeinfo->draw_buttons(layout, C, ptr);
   });
@@ -442,7 +442,7 @@ void DeclarationListBuilder::add_default_layout()
 }
 
 void DeclarationListBuilder::add_layout(
-    std::function<void(uiLayout *, bContext *, PointerRNA *)> draw)
+    std::function<void(ui::Layout *, bContext *, PointerRNA *)> draw)
 {
   auto decl_ptr = std::make_unique<LayoutDeclaration>();
   LayoutDeclaration &decl = *decl_ptr;
@@ -601,6 +601,12 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::field_on(const Span<
     }
   }
   this->structure_type(StructureType::Field);
+  return *this;
+}
+
+BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::label_fn(CustomSocketLabelFn fn)
+{
+  decl_base_->label_fn = std::make_unique<CustomSocketLabelFn>(std::move(fn));
   return *this;
 }
 
@@ -769,9 +775,9 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::custom_draw(CustomSo
 }
 
 BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::usage_inference(
-    InputSocketUsageInferenceFn fn)
+    SocketUsageInferenceFn fn)
 {
-  decl_base_->usage_inference_fn = std::make_unique<InputSocketUsageInferenceFn>(std::move(fn));
+  decl_base_->usage_inference_fn = std::make_unique<SocketUsageInferenceFn>(std::move(fn));
   return *this;
 }
 
@@ -810,19 +816,21 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::usage_by_single_menu
     bNodeSocketValueMenu *value = socket.default_value_typed<bNodeSocketValueMenu>();
     value->value = menu_value;
   });
-  this->usage_inference([menu_value](const socket_usage_inference::InputSocketUsageParams &params)
+  this->usage_inference([menu_value](const socket_usage_inference::SocketUsageParams &params)
                             -> std::optional<bool> {
     const bNodeSocket &socket = find_single_menu_input(params.node);
-    if (const std::optional<bool> any_output_used = params.any_output_is_used()) {
-      if (!*any_output_used) {
-        /* If no output is used, none of the inputs is used either. */
-        return false;
+    if (params.socket.is_input()) {
+      if (const std::optional<bool> any_output_used = params.any_output_is_used()) {
+        if (!*any_output_used) {
+          /* If no output is used, none of the inputs is used either. */
+          return false;
+        }
       }
-    }
-    else {
-      /* It's not known if any output is used yet. This function will be called again once new
-       * information about output usages is available. */
-      return std::nullopt;
+      else {
+        /* It's not known if any output is used yet. This function will be called again once new
+         * information about output usages is available. */
+        return std::nullopt;
+      }
     }
     return params.menu_input_may_be(socket.identifier, menu_value);
   });
@@ -850,17 +858,19 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::usage_by_menu(
   });
   this->usage_inference(
       [menu_input_identifier, menu_values](
-          const socket_usage_inference::InputSocketUsageParams &params) -> std::optional<bool> {
-        if (const std::optional<bool> any_output_used = params.any_output_is_used()) {
-          if (!*any_output_used) {
-            /* If no output is used, none of the inputs is used either. */
-            return false;
+          const socket_usage_inference::SocketUsageParams &params) -> std::optional<bool> {
+        if (params.socket.is_input()) {
+          if (const std::optional<bool> any_output_used = params.any_output_is_used()) {
+            if (!*any_output_used) {
+              /* If no output is used, none of the inputs is used either. */
+              return false;
+            }
           }
-        }
-        else {
-          /* It's not known if any output is used yet. This function will be called again once new
-           * information about output usages is available. */
-          return std::nullopt;
+          else {
+            /* It's not known if any output is used yet. This function will be called again once
+             * new information about output usages is available. */
+            return std::nullopt;
+          }
         }
 
         /* Check if the menu might be any of the given values. */
@@ -1116,7 +1126,7 @@ bool socket_type_supports_default_input_type(const bke::bNodeSocketType &socket_
   return false;
 }
 
-void CustomSocketDrawParams::draw_standard(uiLayout &layout,
+void CustomSocketDrawParams::draw_standard(ui::Layout &layout,
                                            const std::optional<StringRefNull> label_override)
 {
   this->socket.typeinfo->draw(const_cast<bContext *>(&this->C),

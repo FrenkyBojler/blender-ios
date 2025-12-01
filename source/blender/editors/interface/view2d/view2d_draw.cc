@@ -37,12 +37,12 @@
 
 #define MIN_MAJOR_LINE_DISTANCE (U.v2d_min_gridsize * UI_SCALE_FAC)
 
-/* This number defines the smalles scale unit that will be displayed. For example 100 will give
+/* This number defines the smallest scale unit that will be displayed. For example 100 will give
  * 1/100 -> 0.01 as the smallest step. This is only relevant for editors that do display subframe
  * information, for example the Graph Editor. */
 constexpr int subframe_range = 100;
 
-/* This esentially performs a special prime factor decomposition where it can only use 2, 3 and 5
+/* This essentially performs a special prime factor decomposition where it can only use 2, 3 and 5
  * as prime factors. Divisions that result in 2 are preferred. */
 static int get_divisor(const int distance)
 {
@@ -71,7 +71,7 @@ static int get_divisor(const int distance)
   }
 
   /* In case none of the above if is true, the divisor will be the full distance meaning the next
-   * step down from that number is 1.  */
+   * step down from that number is 1. */
   return distance;
 }
 
@@ -102,8 +102,10 @@ static int calculate_grid_step(const int base, const float pixel_width, const fl
     }
   }
   else {
-    /* Grow the distance, doubling every time. */
-    while (pixels_per_view_unit * distance < MIN_MAJOR_LINE_DISTANCE) {
+    /* Grow the distance, doubling every time. Break just before hitting an integer overflow. This
+     * creates a drawing issue after hitting the limit where the numbers will overlap but that is
+     * better than an endless loop. See #150543. */
+    while (pixels_per_view_unit * distance < MIN_MAJOR_LINE_DISTANCE && distance < (1 << 30)) {
       distance *= 2;
     }
   }
@@ -340,7 +342,7 @@ static void draw_horizontal_scale_indicators(const ARegion *region,
     to_string(to_string_data, start + steps * distance, 0, text, sizeof(text));
     const float right_text_width = BLF_width(font_id, text, strlen(text));
     const float max_text_width = max_ff(left_text_width, right_text_width);
-    const float max_label_count = (BLI_rcti_size_x(&v2d->mask) + 1) / (max_text_width + 10.0f);
+    const float max_label_count = (BLI_rcti_size_x(&v2d->mask) + 1) / (max_text_width + 6.0f);
     draw_frequency = ceil(float(steps) / max_label_count);
   }
 
@@ -458,13 +460,13 @@ static void view_to_string__time(
 static void view_to_string__value(
     void * /*user_data*/, float v2d_pos, float v2d_step, char *r_str, uint str_maxncpy)
 {
-  if (v2d_step >= 1.0f) {
+  if (v2d_step >= 1.0f * UI_SCALE_FAC) {
     BLI_snprintf_utf8(r_str, str_maxncpy, "%d", int(v2d_pos));
   }
-  else if (v2d_step >= 0.5f) {
+  else if (v2d_step >= 0.5f * UI_SCALE_FAC) {
     BLI_snprintf_utf8(r_str, str_maxncpy, "%.1f", v2d_pos);
   }
-  else if (v2d_step >= 0.01f) {
+  else if (v2d_step >= 0.01f * UI_SCALE_FAC) {
     BLI_snprintf_utf8(r_str, str_maxncpy, "%.2f", v2d_pos);
   }
   else {
@@ -530,7 +532,7 @@ void UI_view2d_draw_lines_x__discrete_frames_or_seconds(const View2D *v2d,
                                                         bool display_seconds,
                                                         bool display_minor_lines)
 {
-  /* Rounding fractional framerates for drawing. */
+  /* Rounding fractional frame-rates for drawing. */
   const int fps = round_db_to_int(scene->frames_per_second());
   if (display_seconds) {
     UI_view2d_draw_lines_x__discrete_time(v2d, fps, display_minor_lines);
@@ -593,13 +595,15 @@ void UI_view2d_draw_scale_x__frames_or_seconds(const ARegion *region,
                                                int colorid,
                                                const int base)
 {
-  const float step = calculate_grid_step_subframes(
-      base, BLI_rcti_size_x(&v2d->mask) + 1, BLI_rctf_size_x(&v2d->cur));
   if (display_seconds) {
+    const float step = calculate_grid_step(
+        base, BLI_rcti_size_x(&v2d->mask) + 1, BLI_rctf_size_x(&v2d->cur));
     draw_horizontal_scale_indicators(
         region, v2d, step, rect, view_to_string__time, (void *)scene, colorid);
   }
   else {
+    const float step = calculate_grid_step_subframes(
+        base, BLI_rcti_size_x(&v2d->mask) + 1, BLI_rctf_size_x(&v2d->cur));
     draw_horizontal_scale_indicators(
         region, v2d, step, rect, view_to_string__value, nullptr, colorid);
   }

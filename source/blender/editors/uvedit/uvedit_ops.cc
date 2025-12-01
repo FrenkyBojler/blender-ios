@@ -21,12 +21,12 @@
 #include "DNA_space_types.h"
 
 #include "BLI_bounds.hh"
-#include "BLI_kdtree.h"
+#include "BLI_enum_flags.hh"
+#include "BLI_kdtree.hh"
 #include "BLI_math_base.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
-#include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
 
@@ -87,21 +87,6 @@ bool ED_uvedit_test(Object *obedit)
   ret = EDBM_uv_check(em);
 
   return ret;
-}
-
-static int UNUSED_FUNCTION(ED_operator_uvmap_mesh)(bContext *C)
-{
-  Object *ob = CTX_data_active_object(C);
-
-  if (ob && ob->type == OB_MESH) {
-    Mesh *mesh = static_cast<Mesh *>(ob->data);
-
-    if (CustomData_get_layer(&mesh->corner_data, CD_PROP_FLOAT2) != nullptr) {
-      return 1;
-    }
-  }
-
-  return 0;
 }
 
 /** \} */
@@ -491,7 +476,7 @@ enum eUVEndPointPrecedence {
   UVEP_SELECTED = (1 << 0),
   UVEP_PINNED = (1 << 1), /* i.e. Pinned verts are preferred to selected. */
 };
-ENUM_OPERATORS(eUVEndPointPrecedence, UVEP_PINNED);
+ENUM_OPERATORS(eUVEndPointPrecedence);
 
 static eUVEndPointPrecedence uvedit_line_update_get_precedence(const bool pinned)
 {
@@ -1112,7 +1097,7 @@ static wmOperatorStatus uv_remove_doubles_to_selected(bContext *C, wmOperator *o
     uv_maxlen += em->bm->totloop;
   }
 
-  KDTree_2d *tree = BLI_kdtree_2d_new(uv_maxlen);
+  blender::KDTree_2d *tree = blender::BLI_kdtree_2d_new(uv_maxlen);
 
   blender::Vector<int> duplicates;
   blender::Vector<float *> uv_map_arr;
@@ -1123,7 +1108,7 @@ static wmOperatorStatus uv_remove_doubles_to_selected(bContext *C, wmOperator *o
     Object *obedit = objects[ob_index];
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     ED_uvedit_foreach_uv(scene, em->bm, true, true, [&](float luv[2]) {
-      BLI_kdtree_2d_insert(tree, uv_map_count, luv);
+      blender::BLI_kdtree_2d_insert(tree, uv_map_count, luv);
       duplicates.append(-1);
       uv_map_arr.append(luv);
       uv_map_count++;
@@ -1132,8 +1117,8 @@ static wmOperatorStatus uv_remove_doubles_to_selected(bContext *C, wmOperator *o
     ob_uv_map_max_idx[ob_index] = uv_map_count - 1;
   }
 
-  BLI_kdtree_2d_balance(tree);
-  int found_duplicates = BLI_kdtree_2d_calc_duplicates_fast(
+  blender::BLI_kdtree_2d_balance(tree);
+  int found_duplicates = blender::BLI_kdtree_2d_calc_duplicates_fast(
       tree, threshold, false, duplicates.data());
 
   if (found_duplicates > 0) {
@@ -1190,7 +1175,7 @@ static wmOperatorStatus uv_remove_doubles_to_selected(bContext *C, wmOperator *o
     }
   }
 
-  BLI_kdtree_2d_free(tree);
+  blender::BLI_kdtree_2d_free(tree);
   MEM_freeN(changed);
   MEM_freeN(ob_uv_map_max_idx);
 
@@ -1214,7 +1199,7 @@ static wmOperatorStatus uv_remove_doubles_to_unselected(bContext *C, wmOperator 
     uv_maxlen += em->bm->totloop;
   }
 
-  KDTree_2d *tree = BLI_kdtree_2d_new(uv_maxlen);
+  blender::KDTree_2d *tree = blender::BLI_kdtree_2d_new(uv_maxlen);
 
   blender::Vector<float *> uv_map_arr;
 
@@ -1222,20 +1207,20 @@ static wmOperatorStatus uv_remove_doubles_to_unselected(bContext *C, wmOperator 
 
   /* Add visible non-selected uvs to tree */
   ED_uvedit_foreach_uv_multi(scene, objects, true, false, [&](float luv[2]) {
-    BLI_kdtree_2d_insert(tree, uv_map_count, luv);
+    blender::BLI_kdtree_2d_insert(tree, uv_map_count, luv);
     uv_map_arr.append(luv);
     uv_map_count++;
   });
 
-  BLI_kdtree_2d_balance(tree);
+  blender::BLI_kdtree_2d_balance(tree);
 
   /* For each selected uv, find duplicate non selected uv. */
   for (Object *obedit : objects) {
     bool changed = false;
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     ED_uvedit_foreach_uv(scene, em->bm, true, true, [&](float luv[2]) {
-      KDTreeNearest_2d nearest;
-      const int i = BLI_kdtree_2d_find_nearest(tree, luv, &nearest);
+      blender::KDTreeNearest_2d nearest;
+      const int i = blender::BLI_kdtree_2d_find_nearest(tree, luv, &nearest);
 
       if (i != -1 && nearest.dist < threshold) {
         copy_v2_v2(luv, uv_map_arr[i]);
@@ -1250,7 +1235,7 @@ static wmOperatorStatus uv_remove_doubles_to_unselected(bContext *C, wmOperator 
     }
   }
 
-  BLI_kdtree_2d_free(tree);
+  blender::BLI_kdtree_2d_free(tree);
 
   return OPERATOR_FINISHED;
 }
@@ -1731,11 +1716,12 @@ static wmOperatorStatus uv_pin_exec(bContext *C, wmOperator *op)
       scene, view_layer, nullptr);
 
   for (Object *obedit : objects) {
-    BMEditMesh *em = BKE_editmesh_from_object(obedit);
+    Mesh &mesh = *static_cast<Mesh *>(obedit->data);
+    BMEditMesh *em = mesh.runtime->edit_mesh.get();
 
     bool changed = false;
 
-    const char *active_uv_name = CustomData_get_active_layer_name(&em->bm->ldata, CD_PROP_FLOAT2);
+    const StringRef active_uv_name = mesh.active_uv_map_name();
     if (em->bm->totvertsel == 0) {
       continue;
     }

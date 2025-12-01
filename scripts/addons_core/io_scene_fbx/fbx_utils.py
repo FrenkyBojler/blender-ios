@@ -131,11 +131,11 @@ RIGHT_HAND_AXES = {
 }
 
 
-# NOTE: Not fully in enum value order, since when exporting the first entry matching the framerate value is used
-# (e.g. better have NTSC fullframe than NTSC drop frame for 29.97 framerate).
+# NOTE: Not fully in enum value order, since when exporting the first entry matching the frame-rate value is used
+# (e.g. better have NTSC full-frame than NTSC drop frame for 29.97 frame-rate).
 FBX_FRAMERATES = (
-    # (-1.0, 0),  # Default framerate.
-    (-1.0, 14),  # Custom framerate.
+    # (-1.0, 0),  # Default frame-rate.
+    (-1.0, 14),  # Custom frame-rate.
     (120.0, 1),
     (100.0, 2),
     (60.0, 3),
@@ -210,7 +210,7 @@ else:
 
 
 # Scale/unit mess. FBX can store the 'reference' unit of a file in its UnitScaleFactor property
-# (1.0 meaning centimeter, afaik). We use that to reflect user's default unit as set in Blender with scale_length.
+# (1.0 meaning centimeter, AFAIK). We use that to reflect user's default unit as set in Blender with scale_length.
 # However, we always get values in BU (i.e. meters), so we have to reverse-apply that scale in global matrix...
 # Note that when no default unit is available, we assume 'meters' (and hence scale by 100).
 def units_blender_to_fbx_factor(scene):
@@ -284,38 +284,49 @@ def similar_values_iter(v1, v2, e=1e-6):
     return True
 
 
-def shape_difference_exclude_similar(sv_cos, ref_cos, e=1e-6):
+def shape_difference_exclude_similar(sv_cos_nors, ref_cos_nors, e=1e-6):
     """Return a tuple of:
         the difference between the vertex cos in sv_cos and ref_cos, excluding any that are nearly the same,
+        the corresponding vertex normal differences,
         and the indices of the vertices that are not nearly the same"""
-    assert(sv_cos.size == ref_cos.size)
+    sv_cos, sv_nors = sv_cos_nors
+    ref_cos, ref_nors = ref_cos_nors
+    assert(sv_cos.size == ref_cos.size == sv_nors.size == ref_nors.size)
 
     # Create views of 1 co per row of the arrays, only making copies if needed.
     sv_cos = sv_cos.reshape(-1, 3)
+    sv_nors = sv_nors.reshape(-1, 3)
     ref_cos = ref_cos.reshape(-1, 3)
+    ref_nors = ref_nors.reshape(-1, 3)
 
     # Quick check for equality
     if np.array_equal(sv_cos, ref_cos):
         # There's no difference between the two arrays.
         empty_cos = np.empty((0, 3), dtype=sv_cos.dtype)
+        empty_nors = np.empty((0, 3), dtype=sv_nors.dtype)
         empty_indices = np.empty(0, dtype=np.int32)
-        return empty_cos, empty_indices
+        return empty_cos, empty_nors, empty_indices
 
     # Note that unlike math.isclose(a,b), np.isclose(a,b) is not symmetrical and the second argument 'b', is
     # considered to be the reference value.
     # Note that atol=0 will mean that if only one co component being compared is zero, they won't be considered close.
-    similar_mask = np.isclose(sv_cos, ref_cos, atol=0, rtol=e)
+    similar_mask_cos = np.isclose(sv_cos, ref_cos, atol=0, rtol=e)
 
-    # A co is only similar if every component in it is similar.
-    co_similar_mask = np.all(similar_mask, axis=1)
+    # Normal tolerance is higher because it's only meant to add a few extra vertices compared to position check,
+    # and deltas below 1e-4 would hardly be visually noticeable anyway.
+    similar_mask_nors = np.isclose(sv_nors, ref_nors, atol=1e-4, rtol=e)
+
+    # A vertex is only similar if every component in both its position and normal are similar.
+    similar_mask = np.all(similar_mask_cos & similar_mask_nors, axis=1)
 
     # Get the indices of cos that are not similar.
-    not_similar_verts_idx = np.flatnonzero(~co_similar_mask)
+    not_similar_verts_idx = np.flatnonzero(~similar_mask)
 
     # Subtracting first over the entire arrays and then indexing seems faster than indexing both arrays first and then
     # subtracting, until less than about 3% of the cos are being indexed.
     difference_cos = (sv_cos - ref_cos)[not_similar_verts_idx]
-    return difference_cos, not_similar_verts_idx
+    difference_nors = (sv_nors - ref_nors)[not_similar_verts_idx]
+    return difference_cos, difference_nors, not_similar_verts_idx
 
 
 def _mat4_vec3_array_multiply(mat4, vec3_array, dtype=None, return_4d=False):
@@ -512,7 +523,7 @@ def fast_first_axis_flat(ar):
 
 
 def fast_first_axis_unique(ar, return_unique=True, return_index=False, return_inverse=False, return_counts=False):
-    """np.unique with axis=0 but optimised for when the input array has multiple elements per row, and the returned
+    """np.unique with axis=0 but optimized for when the input array has multiple elements per row, and the returned
     unique array doesn't need to be sorted.
 
     Arrays with more than one element per row are more costly to sort in np.unique due to being compared one
@@ -1288,8 +1299,8 @@ class AnimationCurveNodeWrapper:
 
     def add_group(self, elem_key, fbx_group, fbx_gname, fbx_props):
         """
-        Add another whole group stuff (curvenode, animated item/prop + curvnode/curve identifiers).
-        E.g. Shapes animations is written twice, houra!
+        Add another whole group stuff (curve-node, animated item/prop + curve-node/curve identifiers).
+        E.g. Shapes animations is written twice, horror!
         """
         assert(len(fbx_props) == len(self.fbx_props[0]))
         self.elem_keys.append(elem_key)
@@ -1331,7 +1342,7 @@ class AnimationCurveNodeWrapper:
         min_reldiff_fac = fac * 1.0e-3  # min relative value evolution: 0.1% of current 'order of magnitude'.
         min_absdiff_fac = 0.1  # A tenth of reldiff...
 
-        # Initialise to no values enabled for writing.
+        # Initialize to no values enabled for writing.
         self._frame_write_mask_array[:] = False
 
         # Values are enabled for writing if they differ enough from either of their adjacent values or if they differ
@@ -1575,7 +1586,7 @@ class ObjectWrapper(metaclass=MetaObjectWrapper):
     This class provides a same common interface for all (FBX-wise) object-like elements:
     * Blender Object
     * Blender Bone and PoseBone
-    * Blender DepsgraphObjectInstance (for dulis).
+    * Blender DepsgraphObjectInstance (for duplis).
     Note since a same Blender object might be 'mapped' to several FBX models (esp. with duplis),
     we need to use a key to identify each.
     """
@@ -1812,7 +1823,7 @@ class ObjectWrapper(metaclass=MetaObjectWrapper):
         matrix = self.fbx_object_matrix(scene_data, rest=rest)
         loc, rot, scale = matrix.decompose()
         matrix_rot = rot.to_matrix()
-        # quat -> euler, we always use 'XYZ' order, use ref rotation if given.
+        # Quaternion -> euler, we always use 'XYZ' order, use ref rotation if given.
         if rot_euler_compat is not None:
             rot = rot.to_euler('XYZ', rot_euler_compat)
         else:

@@ -118,7 +118,7 @@ class NodeSocketViewItem : public BasicTreeViewItem {
       input_socket_layout->label("", ICON_BLANK1);
     }
 
-    this->add_label(row);
+    this->add_label(row, IFACE_(label_.c_str()));
 
     uiLayout *output_socket_layout = &row.row(true);
     if (socket_.flag & NODE_INTERFACE_SOCKET_OUTPUT) {
@@ -207,7 +207,7 @@ class NodePanelViewItem : public BasicTreeViewItem {
       uiTemplateNodeSocket(toggle_layout, /*C*/ nullptr, toggle_->socket_color());
     }
 
-    this->add_label(row);
+    this->add_label(row, IFACE_(label_.c_str()));
 
     uiLayout *sub = &row.row(true);
     sub->use_property_decorate_set(false);
@@ -489,17 +489,9 @@ bool NodePanelDropTarget::can_drop(const wmDrag &drag, const char ** /*r_disable
   if (drag.type != WM_DRAG_NODE_TREE_INTERFACE) {
     return false;
   }
-  bNodeTreeInterfaceItemReference *drag_data = get_drag_node_tree_declaration(drag);
-
-  /* Can't drop an item onto its children. */
-  if (const bNodeTreeInterfacePanel *panel = node_interface::get_item_as<bNodeTreeInterfacePanel>(
-          drag_data->item))
-  {
-    if (panel->contains(panel_.item)) {
-      return false;
-    }
+  if (is_dragging_parent_panel(drag, panel_.item)) {
+    return false;
   }
-
   return true;
 }
 
