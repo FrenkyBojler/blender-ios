@@ -857,17 +857,29 @@ static void foreach_keyblock_for_eval(
 }
 
 /**
+ * Move the point in `r_targets` along the vector of ab by a factor of `weight`.
+ */
+static inline void lerp_relative_float3(
+    const int start_index, const float weight, const float *a, const float *b, float *r_target)
+{
+  r_target[start_index + 0] -= weight * (a[start_index + 0] - b[start_index + 0]);
+  r_target[start_index + 1] -= weight * (a[start_index + 1] - b[start_index + 1]);
+  r_target[start_index + 2] -= weight * (a[start_index + 2] - b[start_index + 2]);
+}
+
+/**
  * Shapekey evaluation for data of 3 floats (Vector3).
+ * \note cp_key is the only function making this mesh specific.
  *
  * \param target_data is the float array into which the result of the evaluation is written into.
  * \param per_keyblock_weights is a 2d array which gives a per KeyBlock per Vertex weight. Can be a
  * nullptr.
  */
-static void key_evaluate_relative_float3(Key *key,
-                                         KeyBlock *active_keyblock,
-                                         const int vertex_count,
-                                         float **per_keyblock_weights,
-                                         float *target_data)
+static void key_evaluate_relative_mesh(Key *key,
+                                       KeyBlock *active_keyblock,
+                                       const int vertex_count,
+                                       float **per_keyblock_weights,
+                                       float *target_data)
 {
   /* Creates the basis values in target_data. */
   cp_key(0,
@@ -899,10 +911,8 @@ static void key_evaluate_relative_float3(Key *key,
     for (int i : blender::IndexRange(vertex_count)) {
       const float weight = weights ? (weights[i] * kb->curval) : kb->curval;
       /* Each vertex has 3 floats. */
-      const int elem = i * 3;
-      target_data[elem + 0] -= weight * (reffrom[elem + 0] - from[elem + 0]);
-      target_data[elem + 1] -= weight * (reffrom[elem + 1] - from[elem + 1]);
-      target_data[elem + 2] -= weight * (reffrom[elem + 2] - from[elem + 2]);
+      const int vector_index = i * 3;
+      lerp_relative_float3(vector_index, weight, reffrom, from, target_data);
     }
 
     if (freefrom) {
@@ -914,19 +924,22 @@ static void key_evaluate_relative_float3(Key *key,
 }
 
 /**
- * Shapekey evaluation for data of 12 floats (4x Vector3).
+ * Shapekey evaluation for data of 3 floats (Vector3).
  * The called has to supply a `start` and an `end` because the curve ID can store a mix of Nurbs
  * and Bezier curves, which need to be evaluated differently. The shapekey stores all that data in
  * a flat array though.
  *
+ * \note cp_key is the only function making this curve specific.
+ *
  * \param start the start index for a vertex (float3) for which to evaluate the shapekeys.
  */
-static void key_evaluate_relative_beztriple(Key *key,
-                                            KeyBlock *actkb,
-                                            const int start,
-                                            int end,
-                                            const int vertex_count,
-                                            float *target_data)
+static void key_evaluate_relative_curve(Key *key,
+                                        KeyBlock *active_keyblock,
+                                        const int start,
+                                        int end,
+                                        const int vertex_count,
+                                        const int mode,
+                                        float *target_data)
 {
   end = std::min(end, vertex_count);
 
@@ -935,67 +948,22 @@ static void key_evaluate_relative_beztriple(Key *key,
          vertex_count,
          (char *)target_data,
          key,
-         actkb,
+         active_keyblock,
          key->refkey,
          nullptr,
-         KEY_MODE_BEZTRIPLE);
-
-  const auto visit_keyblock = [&](KeyBlock *kb, const int /* keyblock_index */, KeyBlock *refb) {
-    float *reffrom = static_cast<float *>(refb->data);
-    char *freefrom = nullptr;
-    const float *from = reinterpret_cast<float *>(key_block_get_data(key, actkb, kb, &freefrom));
-
-    for (int i = start; i < end; i += KEYELEM_ELEM_LEN_BEZTRIPLE) {
-      /* The `start` is an index into the float3 data, hence the multiplication by 3. */
-      rel_flerp(KEYELEM_FLOAT_LEN_BEZTRIPLE,
-                &target_data[i * 3],
-                &reffrom[i * 3],
-                &from[i * 3],
-                kb->curval);
-    }
-
-    if (freefrom) {
-      MEM_freeN(freefrom);
-    }
-  };
-
-  foreach_keyblock_for_eval(key, vertex_count, visit_keyblock);
-}
-
-/**
- * Shapekey evaluation for data of 6 floats (2x Vector3).
- */
-static void key_evaluate_relative_bpoint(Key *key,
-                                         KeyBlock *actkb,
-                                         const int start,
-                                         int end,
-                                         const int vertex_count,
-                                         float *target_data)
-{
-  end = std::min(end, vertex_count);
-
-  cp_key(start,
-         end,
-         vertex_count,
-         (char *)target_data,
-         key,
-         actkb,
-         key->refkey,
-         nullptr,
-         KEY_MODE_BPOINT);
+         mode);
 
   const auto visit_keyblock = [&](KeyBlock *kb, const int /* keyblock_index */, KeyBlock *refb) {
     const float *reffrom = static_cast<float *>(refb->data);
     char *freefrom = nullptr;
-    const float *from = (float *)key_block_get_data(key, actkb, kb, &freefrom);
+    const float *from = reinterpret_cast<float *>(
+        key_block_get_data(key, active_keyblock, kb, &freefrom));
 
-    for (int i = start; i < end; i += KEYELEM_ELEM_LEN_BPOINT) {
-      /* The `start` is an index into the float3 data, hence the multiplication by 3. */
-      rel_flerp(KEYELEM_FLOAT_LEN_BPOINT,
-                &target_data[i * 3],
-                &reffrom[i * 3],
-                &from[i * 3],
-                kb->curval);
+    for (int i = start; i < end; i++) {
+      /* Each vertex has 3 floats. */
+      const int vector_index = i * 3;
+      const float weight = kb->curval;
+      lerp_relative_float3(vector_index, weight, reffrom, from, target_data);
     }
 
     if (freefrom) {
@@ -1405,7 +1373,7 @@ static void do_mesh_key(Object *ob, Key *key, char *out, const int tot)
     WeightsArrayCache cache = {0, nullptr};
     float **per_keyblock_weights;
     per_keyblock_weights = keyblock_get_per_block_weights(ob, key, &cache);
-    key_evaluate_relative_float3(
+    key_evaluate_relative_mesh(
         key, actkb, tot, per_keyblock_weights, reinterpret_cast<float *>(out));
     keyblock_free_per_block_weights(key, per_keyblock_weights, &cache);
   }
@@ -1454,11 +1422,11 @@ static void do_rel_cu_key(Curve *cu, Key *key, KeyBlock *actkb, char *out, const
   for (a = 0, nu = static_cast<Nurb *>(cu->nurb.first); nu; nu = nu->next, a += step) {
     if (nu->bp) {
       step = KEYELEM_ELEM_LEN_BPOINT * nu->pntsu * nu->pntsv;
-      key_evaluate_relative_bpoint(key, actkb, a, a + step, tot, (float *)out);
+      key_evaluate_relative_curve(key, actkb, a, a + step, tot, KEY_MODE_BPOINT, (float *)out);
     }
     else if (nu->bezt) {
       step = KEYELEM_ELEM_LEN_BEZTRIPLE * nu->pntsu;
-      key_evaluate_relative_beztriple(key, actkb, a, a + step, tot, (float *)out);
+      key_evaluate_relative_curve(key, actkb, a, a + step, tot, KEY_MODE_BEZTRIPLE, (float *)out);
     }
     else {
       step = 0;
@@ -1498,7 +1466,7 @@ static void do_latt_key(Object *ob, Key *key, char *out, const int tot)
   if (key->type == KEY_RELATIVE) {
     float **per_keyblock_weights;
     per_keyblock_weights = keyblock_get_per_block_weights(ob, key, nullptr);
-    key_evaluate_relative_float3(
+    key_evaluate_relative_mesh(
         key, actkb, tot, per_keyblock_weights, reinterpret_cast<float *>(out));
     keyblock_free_per_block_weights(key, per_keyblock_weights, nullptr);
   }
