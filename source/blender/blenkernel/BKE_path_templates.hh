@@ -481,5 +481,25 @@ void nav_handle_browse(FileSelectParams *params,
                        const char *new_directory,
                        const blender::bke::path_templates::VariableMap &variables);
 
+/**
+ * Synchronize template path to match the cleaned resolved path.
+ *
+ * After path normalization functions like BLI_path_abs remove non-existent directory
+ * components from the resolved path, this function updates the template path to match,
+ * removing the same components while preserving template variable syntax.
+ *
+ * Example: Template "/home/{project}/nonexistent/renders" with resolved path
+ * "/home/my_project" (after cleanup) becomes template "/home/{project}".
+ *
+ * NOTE: Caller must ensure variables is valid (non-null). Only call when template
+ * variables are available.
+ *
+ * \param params: FileSelectParams with dir containing cleaned resolved path and
+ *                dir_template containing the original template path to sync.
+ * \param variables: Variable map for template resolution (must be valid).
+ */
+void nav_sync_template_to_resolved(FileSelectParams *params,
+                                   const blender::bke::path_templates::VariableMap &variables);
+
 }  // namespace blender::bke::path_templates
 /** \} */

@@ -242,6 +242,15 @@ static void file_refresh(const bContext *C, ScrArea *area)
 
   filelist_settype(sfile->files, params->type);
   filelist_setdir(sfile->files, params->dir);
+
+  /* Sync template path after filelist_setdir, which may truncate params->dir to an existing
+   * parent directory if the full path doesn't exist. */
+  const blender::bke::path_templates::VariableMap *template_vars =
+      ED_fileselect_params_get_template_vars(params);
+  if (template_vars) {
+    blender::bke::path_templates::nav_sync_template_to_resolved(params, *template_vars);
+  }
+
   filelist_setrecursion(sfile->files, params->recursion_level);
   filelist_setsorting(sfile->files, params->sort, params->flag & FILE_SORT_INVERT);
   filelist_setlibrary(sfile->files, asset_params ? &asset_params->asset_library_ref : nullptr);
