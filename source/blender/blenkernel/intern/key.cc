@@ -880,8 +880,12 @@ static void key_evaluate_relative_mesh(Key *key,
          nullptr,
          KEY_MODE_DUMMY);
 
-  auto foreach_keyblock = [key, active_keyblock, per_keyblock_weights, vertex_count, target_data](
-                              KeyBlock *kb, const int keyblock_index, KeyBlock *refb) {
+  const auto visit_keyblock = [key,
+                               active_keyblock,
+                               per_keyblock_weights,
+                               vertex_count,
+                               target_data](
+                                  KeyBlock *kb, const int keyblock_index, KeyBlock *refb) {
     const float *weights = per_keyblock_weights ? per_keyblock_weights[keyblock_index] : nullptr;
 
     char *freefrom = nullptr;
@@ -906,7 +910,7 @@ static void key_evaluate_relative_mesh(Key *key,
     }
   };
 
-  foreach_keyblock_for_eval(key, vertex_count, foreach_keyblock);
+  foreach_keyblock_for_eval(key, vertex_count, visit_keyblock);
 }
 
 static void key_evaluate_relative(const int start,
@@ -944,28 +948,8 @@ static void key_evaluate_relative(const int start,
 
   /* Step 2: do it. */
   int keyblock_index = 0;
-  LISTBASE_FOREACH_INDEX (KeyBlock *, kb, &key->block, keyblock_index) {
-    if (kb == key->refkey) {
-      continue;
-    }
-    /* Only with value, and no difference allowed. */
-    if (kb->flag & KEYBLOCK_MUTE || kb->totelem != tot) {
-      continue;
-    }
-    const float icuval = kb->curval;
-    if (icuval == 0.0f) {
-      continue;
-    }
-
-    float weight, *weights = per_keyblock_weights ? per_keyblock_weights[keyblock_index] : nullptr;
+  const auto visit_keyblock = [&](KeyBlock *kb, const int keyblock_index, KeyBlock *refb) {
     char *freefrom = nullptr;
-
-    /* Reference can be any block. */
-    KeyBlock *refb = static_cast<KeyBlock *>(BLI_findlink(&key->block, kb->relative));
-    if (refb == nullptr) {
-      continue;
-    }
-
     char *poin = basispoin;
     char *from = key_block_get_data(key, actkb, kb, &freefrom);
 
@@ -977,12 +961,14 @@ static void key_evaluate_relative(const int start,
     reffrom += key->elemsize * start; /* Key elemsize yes! */
     from += key->elemsize * start;
 
+    const float *weights = per_keyblock_weights ? per_keyblock_weights[keyblock_index] : nullptr;
+
     char *cp;
     int *ofsp;
 
     for (int b = start; b < end; b += step) {
 
-      weight = weights ? (*weights * icuval) : icuval;
+      const float weight = weights ? (*weights * kb->curval) : kb->curval;
 
       cp = key->elemstr;
       if (mode == KEY_MODE_BEZTRIPLE) {
@@ -1035,7 +1021,9 @@ static void key_evaluate_relative(const int start,
     if (freefrom) {
       MEM_freeN(freefrom);
     }
-  }
+  };
+
+  foreach_keyblock_for_eval(key, tot, visit_keyblock);
 }
 
 static void do_key(const int start,
