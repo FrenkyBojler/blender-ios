@@ -45,9 +45,13 @@
 
 #include "DEG_depsgraph.hh"
 
+#include "UI_interface_layout.hh"
+#include "UI_resources.hh"
+
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+#include "ED_fileselect.hh"
 #include "ED_render.hh"
 #include "ED_screen.hh"
 #include "ED_util.hh"
@@ -1402,4 +1406,52 @@ void RENDER_OT_shutter_curve_preset(wmOperatorType *ot)
   prop = RNA_def_enum(ot->srna, "shape", prop_shape_items, CURVE_PRESET_SMOOTH, "Mode", "");
   RNA_def_property_translation_context(prop,
                                        BLT_I18NCONTEXT_ID_CURVE_LEGACY); /* Abusing id_curve :/ */
+}
+
+static wmOperatorStatus render_sequence_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  ED_fileselect_ensure_default_filepath(C, op, ".mp4");
+  return WM_operator_filesel(C, op, event);
+}
+
+static void render_sequence_ui(bContext *C, wmOperator *op)
+{
+  uiLayout &layout = *op->layout;
+  Scene &scene = *CTX_data_scene(C);
+
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
+
+  PointerRNA scene_ptr = RNA_id_pointer_create(&scene.id);
+  PointerRNA render_ptr = RNA_pointer_get(&scene_ptr, "render");
+  PointerRNA image_settings_ptr = RNA_pointer_get(&render_ptr, "image_settings");
+
+  {
+    uiLayout &col = layout.column(false);
+    col.prop(&image_settings_ptr, "media_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col.prop(&image_settings_ptr, "color_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
+}
+
+static wmOperatorStatus render_sequence_exec(bContext *C, wmOperator *op)
+{
+  return OPERATOR_FINISHED;
+}
+
+void RENDER_OT_render_sequence(wmOperatorType *ot)
+{
+  ot->name = "Render Sequence";
+  ot->idname = "RENDER_OT_render_sequence";
+
+  ot->invoke = render_sequence_invoke;
+  ot->exec = render_sequence_exec;
+  ot->ui = render_sequence_ui;
+
+  WM_operator_properties_filesel(ot,
+                                 FILE_TYPE_FOLDER | FILE_TYPE_MOVIE,
+                                 FILE_BLENDER,
+                                 FILE_SAVE,
+                                 WM_FILESEL_FILEPATH | WM_FILESEL_RELPATH | WM_FILESEL_SHOW_PROPS,
+                                 FILE_DEFAULTDISPLAY,
+                                 FILE_SORT_DEFAULT);
 }
