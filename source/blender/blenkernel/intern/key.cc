@@ -869,8 +869,6 @@ static inline void lerp_relative_float3(
 
 /**
  * Shapekey evaluation for data of 3 floats (Vector3).
- * \note cp_key is the only function that stops this from being merged with
- * key_evaluate_relative_curve.
  *
  * \param target_data is the float array into which the result of the evaluation is written into.
  * \param per_keyblock_weights is a 2d array which gives a per KeyBlock per Vertex weight. Can be a
@@ -925,7 +923,7 @@ static void key_evaluate_relative_float3(Key *key,
 }
 
 /**
- * Shapekey evaluation for data of 3 floats (Vector3).
+ * Special shapekey evaluation for curves. This handles data of 3 floats (Vector3).
  * The called has to supply a `start` and an `end` because the curve ID can store a mix of Nurbs
  * and Bezier curves, which need to be evaluated differently. The shapekey stores all that data in
  * a flat array though.
