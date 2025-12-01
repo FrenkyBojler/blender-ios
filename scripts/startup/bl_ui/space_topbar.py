@@ -474,7 +474,7 @@ class TOPBAR_MT_render(Menu):
         can_render_seq = seq_scene and seq_scene.render.use_sequencer and strips
 
         layout.operator("render.render", text="Render Image", icon='RENDER_STILL').use_viewport = True
-        layout.operator("render.render_sequence", text="Render Sequence", icon='RENDER_ANIMATION')
+        layout.operator("render.render_sequence", text="Render Sequence...", icon='RENDER_ANIMATION')
 
         layout.separator()
 
