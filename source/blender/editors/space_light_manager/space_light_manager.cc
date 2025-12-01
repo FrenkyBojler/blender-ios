@@ -15,6 +15,9 @@
 
  #include "BLT_translation.hh"
 
+#include "BLF_api.hh"
+
+ #include "BKE_context.hh"
  #include "BKE_screen.hh"
 
  #include "ED_screen.hh"
@@ -24,14 +27,18 @@
  #include "WM_message.hh"
  #include "WM_types.hh"
 
-#include "UI_interface.hh"
-#include "UI_interface_layout.hh"
-#include "UI_resources.hh"
-#include "UI_view2d.hh"
+ #include "UI_interface.hh"
+ #include "UI_interface_layout.hh"
+ #include "UI_resources.hh"
+ #include "UI_view2d.hh"
 
-#include "BLO_read_write.hh"
+ #include "BLO_read_write.hh"
 
-#include "DNA_space_types.h"
+ #include "DNA_light_types.h"
+ #include "DNA_object_types.h"
+ #include "DNA_space_types.h"
+
+ #include "RNA_access.hh"
 
 namespace blender::ed::light_manager {
 
@@ -42,43 +49,113 @@ struct SpaceLightManager_Runtime {
 /** \name Main Region
  * \{ */
 
-static void light_manager_main_region_init(wmWindowManager *wm, ARegion *region)
+static void light_manager_main_region_init(wmWindowManager * /*wm*/, ARegion *region)
 {
-  region->v2d.scroll = V2D_SCROLL_RIGHT | V2D_SCROLL_BOTTOM | V2D_SCROLL_VERTICAL_HIDE |
-                       V2D_SCROLL_HORIZONTAL_HIDE;
-  region->v2d.align = V2D_ALIGN_NO_NEG_X | V2D_ALIGN_NO_POS_Y;
-  region->v2d.keepzoom = V2D_LOCKZOOM_X | V2D_LOCKZOOM_Y | V2D_LIMITZOOM | V2D_KEEPASPECT;
-  region->v2d.keeptot = V2D_KEEPTOT_STRICT;
-  region->v2d.minzoom = region->v2d.maxzoom = 1.0f;
-
-  UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_LIST, region->winx, region->winy);
-
   region->flag |= RGN_FLAG_INDICATE_OVERFLOW;
-
-  wmKeyMap *keymap = WM_keymap_ensure(
-      wm->runtime->defaultconf, "Light Manager", SPACE_LIGHT_MANAGER, RGN_TYPE_WINDOW);
-  WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 }
 
 static void light_manager_main_region_draw(const bContext *C, ARegion *region)
 {
+  using namespace blender;
+  
   UI_ThemeClearColor(TH_BACK);
 
-  uiBlock *block = UI_block_begin(C, region, __func__, ui::EmbossType::None);
-  const uiStyle *style = UI_style_get_dpi();
+  /* Get scene context. */
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
 
-  uiLayout &layout = ui::block_layout(block,
-                                      ui::LayoutDirection::Vertical,
-                                      ui::LayoutType::Panel,
-                                      0,
-                                      0,
-                                      region->winx,
-                                      region->winy,
-                                      0,
-                                      style);
+  /* Create UI block and layout. */
+  uiBlock *block = UI_block_begin(C, region, __func__, ui::EmbossType::Emboss);
+  
+  ui::Layout &layout = ui::block_layout(block,
+                                         ui::LayoutDirection::Vertical,
+                                         ui::LayoutType::Panel,
+                                         10,
+                                         region->winy - 10,  /* Start from top */
+                                         region->winx - 20,
+                                         region->winy,
+                                         0,
+                                         UI_style_get());
+  
+  /* Title row. */
+  ui::Layout &title_row = layout.row(false);
+  title_row.label(IFACE_("Light Manager"), ICON_OUTLINER_OB_LIGHT);
 
-  layout.label(IFACE_("Light Manager"), ICON_LIGHT_DATA);
-  layout.label(IFACE_("Work in progress"), ICON_NONE);
+  layout.separator();
+
+  /* Iterate through all visible lights in the scene. */
+  int light_count = 0;
+
+  CTX_DATA_BEGIN (C, Object *, ob, visible_objects) {
+    if (ob->type != OB_LAMP) {
+      continue;
+    }
+
+    Light *light = static_cast<Light *>(ob->data);
+    if (light == nullptr) {
+      continue;
+    }
+
+    light_count++;
+
+    /* Create PointerRNA for object and light data. */
+    PointerRNA ob_ptr = RNA_pointer_create_discrete(&scene->id, &RNA_Object, ob);
+    PointerRNA light_ptr = RNA_pointer_get(&ob_ptr, "data");
+
+    /* Create a row for this light. */
+    ui::Layout &light_row = layout.row(false);
+    light_row.use_property_split_set(false);
+    light_row.use_property_decorate_set(false);
+
+    /* Column 1: Light name (editable). */
+    ui::Layout &name_col = light_row.row(false);
+    name_col.ui_units_x_set(12.0f);
+    name_col.prop(&ob_ptr, "name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+
+    /* Column 2: Light type icon. */
+    int type_icon = ICON_LIGHT;
+    switch (light->type) {
+      case LA_LOCAL:
+        type_icon = ICON_LIGHT_POINT;
+        break;
+      case LA_SUN:
+        type_icon = ICON_LIGHT_SUN;
+        break;
+      case LA_SPOT:
+        type_icon = ICON_LIGHT_SPOT;
+        break;
+      case LA_AREA:
+        type_icon = ICON_LIGHT_AREA;
+        break;
+    }
+    light_row.label("", type_icon);
+
+    /* Column 3: Light color. */
+    ui::Layout &color_col = light_row.row(false);
+    color_col.ui_units_x_set(3.0f);
+    color_col.prop(&light_ptr, "color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+
+    /* Column 4: Intensity. */
+    ui::Layout &intensity_col = light_row.row(false);
+    intensity_col.ui_units_x_set(8.0f);
+    intensity_col.prop(&light_ptr, "energy", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+
+    /* Column 5-7: Visibility toggles. */
+    ui::Layout &vis_col = light_row.row(true);  /* Aligned group */
+    vis_col.ui_units_x_set(3.0f);
+    
+    /* Viewport visibility. */
+    vis_col.prop(&ob_ptr, "hide_viewport", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
+    
+    /* Render visibility. */
+    vis_col.prop(&ob_ptr, "hide_render", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
+  }
+  CTX_DATA_END;
+
+  /* If no lights found, show message. */
+  if (light_count == 0) {
+    layout.label(IFACE_("No lights in scene"), ICON_INFO);
+  }
 
   ui::block_layout_resolve(block);
   UI_block_end(C, block);
