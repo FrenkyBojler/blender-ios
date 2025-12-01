@@ -105,18 +105,18 @@ def _find_assets(
 
         if thumbnail_path:
             as_posix = thumbnail_path.relative_to(asset_library_root).as_posix()
-            thumbnail_url = urllib.parse.quote(as_posix)
-            thumbnail_hash = hashing.hash_file(thumbnail_path)
+            thumbnail = api_models.URLWithHashV1(
+                url=urllib.parse.quote(as_posix),
+                hash=hashing.hash_file(thumbnail_path),
+            )
         else:
-            thumbnail_url = None
-            thumbnail_hash = None
+            thumbnail = None
 
         asset = api_models.AssetV1(
             name=datablock.name,
             id_type=api_models.AssetIDTypeV1(datablock.id_type.lower()),
             file=file.path,
-            thumbnail_url=thumbnail_url,
-            thumbnail_hash=thumbnail_hash,
+            thumbnail=thumbnail,
             meta=_get_asset_meta(asset_data),
         )
 

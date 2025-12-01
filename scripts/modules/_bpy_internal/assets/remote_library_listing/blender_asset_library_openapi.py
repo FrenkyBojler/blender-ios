@@ -20,7 +20,7 @@ class Contact:
 
 
 @dataclass
-class AssetLibraryIndexPageInfoV1:
+class URLWithHashV1:
     url: str
     hash: Any
 
@@ -63,7 +63,7 @@ class FileV1:
 
 @dataclass
 class AssetLibraryMeta:
-    api_versions: dict[str, str]
+    api_versions: dict[str, URLWithHashV1]
     name: str
     contact: Contact
 
@@ -74,7 +74,7 @@ class AssetLibraryIndexV1:
     asset_size_bytes: int
     asset_count: int
     file_count: int
-    pages: list[AssetLibraryIndexPageInfoV1]
+    pages: list[URLWithHashV1]
     catalogs: Optional[list[CatalogV1]] = None
 
 
@@ -91,8 +91,7 @@ class AssetV1:
     name: str
     id_type: AssetIDTypeV1
     file: str
-    thumbnail_url: Optional[str] = None
-    thumbnail_hash: Optional[str] = None
+    thumbnail: Optional[URLWithHashV1] = None
     meta: Optional[AssetMetadataV1] = None
 
 

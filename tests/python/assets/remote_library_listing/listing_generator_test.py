@@ -5,7 +5,7 @@
 import sys
 import unittest
 
-from _bpy_internal.assets.remote_library_listing import asset_finder
+from _bpy_internal.assets.remote_library_listing import asset_finder, json_parsing
 from _bpy_internal.assets.remote_library_listing import blender_asset_library_openapi as api_models
 
 import bpy
@@ -82,13 +82,16 @@ class CustomPropertiesTest(unittest.TestCase):
         self.assertEqual(expected_custom, meta.custom)
 
     def test_serialize_to_json(self) -> None:
-        import cattrs.preconf.json
-
         meta = asset_finder._get_asset_meta(self.cube.asset_data)
 
-        converter = cattrs.preconf.json.JsonConverter(omit_if_default=True)
-        as_json = converter.dumps(meta, indent=2)
+        # The asset metadata should be convertable to JSON.
+        parser = json_parsing.ValidatingParser()
+        as_json = parser.dumps(meta)
         self.assertIsNotNone(as_json)
+
+        # The JSON should also be deserializable as well, and produce the same data.
+        roundtripped = parser.parse_and_validate(api_models.AssetMetadataV1, as_json)
+        self.assertEqual(meta, roundtripped)
 
 
 def main():
