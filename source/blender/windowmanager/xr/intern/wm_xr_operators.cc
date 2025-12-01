@@ -1549,8 +1549,6 @@ static XrTeleportRayResult wm_xr_navigation_teleport_main(bContext *C,
                                                           XrTeleportData *data,
                                                           blender::float3 &r_nav_destination)
 {
-  using namespace blender;
-
   /* Generate the initial parabolic arc. */
   wm_xr_navigation_teleport_generate_arc(op, data);
 
