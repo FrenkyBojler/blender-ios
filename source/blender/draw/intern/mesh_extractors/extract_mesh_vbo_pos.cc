@@ -130,7 +130,8 @@ gpu::VertBufPtr extract_positions_skinning(const DRWSkinningCache &skinning_cach
 
   draw_skinning_extract_pos_nor_tan(vbo_pos.get(), vbo_nor.get(), vbo_tan.get(), skinning_cache);
 
-  draw_skinning_compute_bounds(const_cast<Mesh *>(mr.mesh), skinning_cache, vbo_pos.get());
+  /* Activate later...*/
+  // draw_skinning_compute_bounds(const_cast<Mesh *>(mr.mesh), skinning_cache, vbo_pos.get());
 
   /* Cache the normals and tangents VBOs for later retrieval */
   g_skinning_normals_cache = std::move(vbo_nor);

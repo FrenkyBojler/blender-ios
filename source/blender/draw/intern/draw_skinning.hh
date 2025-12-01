@@ -9,60 +9,13 @@
  */
 #pragma once
 
-#include <algorithm>
-#include <cstdio>
-#include <cstring>
-
-#include "BLI_listbase.h"
-#include "BLI_math_matrix.h"
-#include "BLI_math_vector.h"
-#include "BLI_task.hh"
-#include "BLI_utildefines.h"
-#include <tbb/parallel_for.h>
-
-#include "BLT_translation.hh"
-
-#include "DNA_armature_types.h"
-#include "DNA_defaults.h"
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
-#include "DNA_object_types.h"
-#include "DNA_scene_types.h"
-#include "DNA_screen_types.h"
-
-#include "BKE_action.hh"
-#include "BKE_armature.hh"
-#include "BKE_customdata.hh"
-#include "BKE_deform.hh"
-#include "BKE_lib_query.hh"
-#include "BKE_mesh.hh"
-#include "BKE_mesh_types.hh"
-#include "BKE_modifier.hh"
-#include "DEG_depsgraph_query.hh"
-
-#include "UI_interface.hh"
-#include "UI_resources.hh"
-#include "WM_api.hh"
-
-#include "MEM_guardedalloc.h"
-
-#include "draw_cache_extract.hh"
-
-#include "GPU_compute.hh"
-#include "GPU_context.hh"
-#include "GPU_shader.hh"
-#include "GPU_state.hh"
-#include "GPU_storage_buffer.hh"
-
-#include "bmesh.hh"
 #include "draw_cache_extract.hh"
 #include "draw_shader_shared.hh"
-#include "gpu_capabilities_private.hh"
-#include "gpu_shader_create_info.hh"
-#include "mesh_extractors/extract_mesh.hh"
 
-using namespace blender::gpu::shader;
-using namespace blender::gpu;
+#include "GPU_context.hh"
+#include "GPU_storage_buffer.hh"
+
+#include "gpu_capabilities_private.hh"
 
 namespace blender::gpu {
 class IndexBuf;
@@ -79,20 +32,16 @@ struct MeshBufferCache;
 
 struct DRWSkinningCache {
 
-  blender::gpu::Shader *compute_shader;
+  gpu::Shader *compute_shader;
 
-  VertBuf *in_indices_buf;
-  VertBuf *in_weights_buf;
-  VertBuf *in_bonemat_buf;
-  VertBuf *in_vertpos_buf;
-  VertBuf *in_vertnor_buf;
-  VertBuf *in_verttan_buf;
+  gpu::VertBuf *in_indices_buf;
+  gpu::VertBuf *in_weights_buf;
+  gpu::VertBuf *in_bonemat_buf;
+  gpu::VertBuf *in_vertpos_buf;
+  gpu::VertBuf *in_vertnor_buf;
+  gpu::VertBuf *in_verttan_buf;
 
-  blender::gpu::StorageBuf *in_bonedq_buf;
-
-  VertBuf *out_skinned_pos;
-  VertBuf *out_skinned_nor;
-  VertBuf *out_skinned_tan;
+  gpu::StorageBuf *in_bonedq_buf;
 
   float *meshdata_pos;
   float *meshdata_nor;
@@ -130,14 +79,14 @@ void DRW_create_skinning(Object &evaluated_object,
                          const ToolSettings *ts,
                          const bool use_hide);
 
-void draw_skinning_extract_pos_nor_tan(VertBuf *vbo_pos,
-                                       VertBuf *vbo_nor,
-                                       VertBuf *vbo_tan,
+void draw_skinning_extract_pos_nor_tan(gpu::VertBuf *vbo_pos,
+                                       gpu::VertBuf *vbo_nor,
+                                       gpu::VertBuf *vbo_tan,
                                        const DRWSkinningCache &cache);
 
 void draw_skinning_compute_bounds(Mesh *mesh,
                                   const DRWSkinningCache &cache,
-                                  VertBuf *skinned_positions_vbo);
+                                  gpu::VertBuf *skinned_positions_vbo);
 
 void draw_skinning_bounds_cleanup();
 

@@ -9,26 +9,38 @@
  */
 #include "BKE_armature.hh"
 #include "BKE_mesh.hh"
+#include "BKE_modifier.hh"
+#include "BKE_action.hh"
 #include "BKE_mesh_tangent.hh"
+
+#include "BLI_listbase.h"
+#include "BLI_math_matrix.h"
 #include "BLI_array_utils.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_rotation.h"
+#include "BLI_task.hh"
+
 #include "DNA_armature_types.h"
 #include "DNA_vec_types.h"
-#include "GPU_debug.hh"
-#include "GPU_vertex_buffer.hh"
+#include "DNA_armature_types.h"
+#include "DNA_meshdata_types.h"
+
 #include "draw_cache_impl.hh"
-#include "draw_cache_inline.hh"
 #include "draw_defines.hh"
 #include "draw_shader.hh"
 #include "draw_skinning.hh"
+#include "draw_cache_extract.hh"
+#include "draw_shader_shared.hh"
+
+#include "GPU_compute.hh"
+#include "GPU_vertex_buffer.hh"
+
+#include "gpu_shader_create_info.hh"
+
 #include "mesh_extractors/extract_mesh.hh"
 
-/* (ResolutionC): we'll probably use soon... */
-// #define MAX_BONE_WEIGHTS 4
-
-using namespace blender::gpu;
-using namespace blender::gpu::shader;
+// using namespace blender::gpu;
+// using namespace blender::gpu::shader;
 
 namespace blender::draw {
 
@@ -40,8 +52,8 @@ bool draw_skinning_is_available(const Object *ob)
       ArmatureModifierData *amd = (ArmatureModifierData *)md;
       short has_gpudeform = amd->use_gpudeform;
 
-      return (blender::gpu::GCaps.max_work_group_count[0] > 0 &&
-              blender::gpu::GCaps.max_shader_storage_buffer_bindings >= 6 && has_gpudeform);
+      return (gpu::GCaps.max_work_group_count[0] > 0 &&
+              gpu::GCaps.max_shader_storage_buffer_bindings >= 6 && has_gpudeform);
     }
   }
   return false;
@@ -76,6 +88,8 @@ void draw_skinning_cache_free(DRWSkinningCache &cache)
 /* We don't want to work with the meshcache method, because it actively deletes skincache on mesh
  * update. And we don't want to always keep running the packing on mesh eval that's too expensive,
  * so we keep the cache and delete it once we have no use for it...*/
+
+/* TODO (Ayoub Zouad): Investigate further a better way of caching than global caching...*/
 static std::unordered_map<void *, DRWSkinningCache *> g_persistent_skinning_caches;
 
 std::unordered_map<void *, DRWSkinningCache *> &get_persistent_skinning_caches()
@@ -113,7 +127,7 @@ static DRWSkinningCache &mesh_batch_cache_ensure_skinning_cache(MeshBatchCache &
   return *skinning_cache;
 }
 
-/* !Idea! (ResolutionC): Another idea we can implement is give the user an option to create an
+/* !Idea! (Ayoub Zouad): Another idea we can implement is give the user an option to create an
  * "optimized" mesh by automatically creating new sets of the mesh's LOD via using the Decimation
  * MOD...*/
 
@@ -123,7 +137,7 @@ static DRWSkinningCache &mesh_batch_cache_ensure_skinning_cache(MeshBatchCache &
  * Extracts mesh data and compresses to save on GPU memory.
  * \{ */
 
-static bool draw_skinning_pack_vertex_data(Object *armature_ob,
+static void draw_skinning_pack_vertex_data(Object *armature_ob,
                                            float **r_meshdata_pos,
                                            float **r_meshdata_nor,
                                            float **r_meshdata_tan,
@@ -133,22 +147,22 @@ static bool draw_skinning_pack_vertex_data(Object *armature_ob,
 {
   const int verts_num = mr.mesh->verts_num;
   if (verts_num == 0) {
-    return false;
+    return;
   }
 
   const int total_elements = mr.corners_num + mr.loose_indices_num;
 
   /* Extract data per-corner but get vertex data for each corner */
-  blender::MutableSpan<blender::float4> pos_data(
-      reinterpret_cast<blender::float4 *>(*r_meshdata_pos), total_elements);
-  blender::MutableSpan corners_data = pos_data.take_front(mr.corners_num);
-  blender::MutableSpan loose_edge_data = pos_data.slice(mr.corners_num, mr.loose_edges.size() * 2);
-  blender::MutableSpan loose_vert_data = pos_data.take_back(mr.loose_verts.size());
+  MutableSpan<float4> pos_data(
+      reinterpret_cast<float4 *>(*r_meshdata_pos), total_elements);
+  MutableSpan corners_data = pos_data.take_front(mr.corners_num);
+  MutableSpan loose_edge_data = pos_data.slice(mr.corners_num, mr.loose_edges.size() * 2);
+  MutableSpan loose_vert_data = pos_data.take_back(mr.loose_verts.size());
 
   /* Extract positions per corner */
   for (int i = 0; i < mr.corners_num; i++) {
-    const blender::float3 &pos = mr.vert_positions[mr.corner_verts[i]];
-    corners_data[i] = blender::float4(pos.x, pos.y, pos.z, 1.0f);
+    const float3 &pos = mr.vert_positions[mr.corner_verts[i]];
+    corners_data[i] = float4(pos.x, pos.y, pos.z, 1.0f);
   }
 
   for (int i = 0; i < mr.loose_edges.size() * 2; i++) {
@@ -156,17 +170,17 @@ static bool draw_skinning_pack_vertex_data(Object *armature_ob,
     int vert_in_edge = i % 2;
     int edge_index = mr.loose_edges[edge_idx];
     int vert_idx = (vert_in_edge == 0) ? mr.edges[edge_index][0] : mr.edges[edge_index][1];
-    const blender::float3 &pos = mr.vert_positions[vert_idx];
-    loose_edge_data[i] = blender::float4(pos.x, pos.y, pos.z, 1.0f);
+    const float3 &pos = mr.vert_positions[vert_idx];
+    loose_edge_data[i] = float4(pos.x, pos.y, pos.z, 1.0f);
   }
 
   for (int i = 0; i < mr.loose_verts.size(); i++) {
-    const blender::float3 &pos = mr.vert_positions[mr.loose_verts[i]];
-    loose_vert_data[i] = blender::float4(pos.x, pos.y, pos.z, 1.0f);
+    const float3 &pos = mr.vert_positions[mr.loose_verts[i]];
+    loose_vert_data[i] = float4(pos.x, pos.y, pos.z, 1.0f);
   }
 
-  const blender::Span<blender::float3> vert_normals = mr.mesh->vert_normals();
-  const blender::Span<MDeformVert> dverts = mr.mesh->deform_verts();
+  const Span<float3> vert_normals = mr.mesh->vert_normals();
+  const Span<MDeformVert> dverts = mr.mesh->deform_verts();
 
   const ListBase *defbase = &mr.mesh->vertex_group_names;
   const int defbase_len = BLI_listbase_count(defbase);
@@ -199,45 +213,44 @@ static bool draw_skinning_pack_vertex_data(Object *armature_ob,
     }
   }
 
-  blender::MutableSpan<blender::float2> nor_data(
-      reinterpret_cast<blender::float2 *>(*r_meshdata_nor), total_elements);
+  MutableSpan<float2> nor_data(
+      reinterpret_cast<float2 *>(*r_meshdata_nor), total_elements);
 
-  blender::MutableSpan corners_nor_data = nor_data.take_front(mr.corners_num);
-  blender::MutableSpan loose_edge_nor_data = nor_data.slice(mr.corners_num,
+  MutableSpan corners_nor_data = nor_data.take_front(mr.corners_num);
+  MutableSpan loose_edge_nor_data = nor_data.slice(mr.corners_num,
                                                             mr.loose_edges.size() * 2);
-  blender::MutableSpan loose_vert_nor_data = nor_data.take_back(mr.loose_verts.size());
+  MutableSpan loose_vert_nor_data = nor_data.take_back(mr.loose_verts.size());
 
   /* Octahedral compression for mesh normals, helps with mem bandwidth. */
-  auto encode_octahedral = [](const blender::float3 &normal) -> blender::float2 {
-    float vx = normal.x, vy = normal.y, vz = normal.z;
-    float len = sqrtf(vx * vx + vy * vy + vz * vz);
-    if (len > 0.0f) {
-      vx /= len;
-      vy /= len;
-      vz /= len;
-    }
+  auto encode_octahedral = [](const float3 &normal) -> float2 {
+    float3 n = math::normalize(normal);
+    float vx = n.x, vy = n.y, vz = n.z;
+
     float inv_sum = 1.0f / (fabsf(vx) + fabsf(vy) + fabsf(vz));
     float px = vx * inv_sum;
     float py = vy * inv_sum;
+
     if (vz <= 0.0f) {
       float oldx = px;
       px = (1.0f - fabsf(py)) * (px >= 0.0f ? 1.0f : -1.0f);
       py = (1.0f - fabsf(oldx)) * (py >= 0.0f ? 1.0f : -1.0f);
     }
-    return blender::float2(px, py);
+
+    return float2(px, py);
   };
 
-  tbb::parallel_for(tbb::blocked_range<int>(0, mr.corners_num),
-                    [&](const tbb::blocked_range<int> &range) {
-                      for (int i = range.begin(); i != range.end(); ++i) {
-                        int vert_idx = mr.corner_verts[i];
-                        blender::float3 n(0.0f, 0.0f, 1.0f);
-                        if (vert_idx < vert_normals.size()) {
-                          n = vert_normals[vert_idx];
-                        }
-                        corners_nor_data[i] = encode_octahedral(n);
-                      }
-                    });
+  threading::parallel_for(IndexRange(mr.corners_num), 1024, [&](IndexRange range) {
+    for (int i : range) {
+      int vert_idx = mr.corner_verts[i];
+      float3 n(0.0f, 0.0f, 1.0f);
+
+      if (vert_idx < vert_normals.size()) {
+        n = vert_normals[vert_idx];
+      }
+
+      corners_nor_data[i] = encode_octahedral(n);
+    }
+  });
 
   for (int i = 0; i < mr.loose_edges.size() * 2; i++) {
     int edge_idx = i / 2;
@@ -245,7 +258,7 @@ static bool draw_skinning_pack_vertex_data(Object *armature_ob,
     int edge_index = mr.loose_edges[edge_idx];
     int vert_idx = (vert_in_edge == 0) ? mr.edges[edge_index][0] : mr.edges[edge_index][1];
 
-    blender::float3 n(0.0f, 0.0f, 1.0f);
+    float3 n(0.0f, 0.0f, 1.0f);
     if (vert_idx < vert_normals.size()) {
       n = vert_normals[vert_idx];
     }
@@ -254,30 +267,30 @@ static bool draw_skinning_pack_vertex_data(Object *armature_ob,
 
   for (int i = 0; i < mr.loose_verts.size(); i++) {
     int vert_idx = mr.loose_verts[i];
-    blender::float3 n(0.0f, 0.0f, 1.0f);
+    float3 n(0.0f, 0.0f, 1.0f);
     if (vert_idx < vert_normals.size()) {
       n = vert_normals[vert_idx];
     }
     loose_vert_nor_data[i] = encode_octahedral(n);
   }
 
-  blender::MutableSpan<blender::float4> tan_data(
-      reinterpret_cast<blender::float4 *>(*r_meshdata_tan), total_elements);
+  MutableSpan<float4> tan_data(
+      reinterpret_cast<float4 *>(*r_meshdata_tan), total_elements);
 
-  blender::MutableSpan corners_tan_data = tan_data.take_front(mr.corners_num);
-  blender::MutableSpan loose_edge_tan_data = tan_data.slice(mr.corners_num,
+  MutableSpan corners_tan_data = tan_data.take_front(mr.corners_num);
+  MutableSpan loose_edge_tan_data = tan_data.slice(mr.corners_num,
                                                             mr.loose_edges.size() * 2);
-  blender::MutableSpan loose_vert_tan_data = tan_data.take_back(mr.loose_verts.size());
+  MutableSpan loose_vert_tan_data = tan_data.take_back(mr.loose_verts.size());
 
   /* Calculate tangents using the default UV layer */
-  blender::Array<blender::Array<blender::float4>> tangent_arrays;
+  Array<Array<float4>> tangent_arrays;
   const bke::AttributeAccessor attributes = mr.mesh->attributes();
   const StringRef default_uv_name = mr.mesh->default_uv_map_name();
 
   if (!default_uv_name.is_empty()) {
-    blender::VArraySpan<blender::float2> uv_map = *attributes.lookup<blender::float2>(
+    VArraySpan<float2> uv_map = *attributes.lookup<float2>(
         default_uv_name, bke::AttrDomain::Corner);
-    blender::Array<blender::Span<blender::float2>> uv_map_spans(1);
+    Array<Span<float2>> uv_map_spans(1);
     uv_map_spans[0] = uv_map;
 
     tangent_arrays = bke::mesh::calc_uv_tangents(mr.vert_positions,
@@ -293,7 +306,7 @@ static bool draw_skinning_pack_vertex_data(Object *armature_ob,
   }
 
   if (!tangent_arrays.is_empty() && !tangent_arrays[0].is_empty()) {
-    const blender::Span<blender::float4> tangents = tangent_arrays[0];
+    const Span<float4> tangents = tangent_arrays[0];
 
     for (int i = 0; i < mr.corners_num; i++) {
       corners_tan_data[i] = tangents[i];
@@ -301,23 +314,23 @@ static bool draw_skinning_pack_vertex_data(Object *armature_ob,
   }
   else {
     for (int i = 0; i < mr.corners_num; i++) {
-      corners_tan_data[i] = blender::float4(1.0f, 0.0f, 0.0f, 1.0f);
+      corners_tan_data[i] = float4(1.0f, 0.0f, 0.0f, 1.0f);
     }
   }
 
   for (int i = 0; i < mr.loose_edges.size() * 2; i++) {
-    loose_edge_tan_data[i] = blender::float4(1.0f, 0.0f, 0.0f, 1.0f);
+    loose_edge_tan_data[i] = float4(1.0f, 0.0f, 0.0f, 1.0f);
   }
 
   for (int i = 0; i < mr.loose_verts.size(); i++) {
-    loose_vert_tan_data[i] = blender::float4(1.0f, 0.0f, 0.0f, 1.0f);
+    loose_vert_tan_data[i] = float4(1.0f, 0.0f, 0.0f, 1.0f);
   }
 
-  blender::MutableSpan<blender::uint2> idx_data(
-      reinterpret_cast<blender::uint2 *>(*r_meshdata_idx), total_elements);
+  MutableSpan<uint2> idx_data(
+      reinterpret_cast<uint2 *>(*r_meshdata_idx), total_elements);
 
-  blender::MutableSpan<blender::uint2> wgt_data(
-      reinterpret_cast<blender::uint2 *>(*r_meshdata_wgt), total_elements);
+  MutableSpan<uint2> wgt_data(
+      reinterpret_cast<uint2 *>(*r_meshdata_wgt), total_elements);
 
   struct Influence {
     int bone_idx;
@@ -415,18 +428,17 @@ static bool draw_skinning_pack_vertex_data(Object *armature_ob,
     uint32_t w0u = (q[0] & 0xFFFFu) | ((q[1] & 0xFFFFu) << 16);
     uint32_t w1u = (q[2] & 0xFFFFu) | ((q[3] & 0xFFFFu) << 16);
 
-    idx_data[output_idx] = blender::uint2(idx0, idx1);
-    wgt_data[output_idx] = blender::uint2(w0u, w1u);
+    idx_data[output_idx] = uint2(idx0, idx1);
+    wgt_data[output_idx] = uint2(w0u, w1u);
   };
 
   /* Extract weights per corner */
-  tbb::parallel_for(tbb::blocked_range<int>(0, mr.corners_num),
-                    [&](const tbb::blocked_range<int> &range) {
-                      for (int i = range.begin(); i != range.end(); ++i) {
-                        int vert_idx = mr.corner_verts[i];
-                        extract_vertex_weights(vert_idx, i);
-                      }
-                    });
+  threading::parallel_for(IndexRange(mr.corners_num), 1024, [&](IndexRange range) {
+    for (int i : range) {
+      int vert_idx = mr.corner_verts[i];
+      extract_vertex_weights(vert_idx, i);
+    }
+  });
 
   for (int i = 0; i < mr.loose_edges.size() * 2; i++) {
     int edge_idx = i / 2;
@@ -447,7 +459,6 @@ static bool draw_skinning_pack_vertex_data(Object *armature_ob,
   if (bone_index_from_defbase) {
     MEM_freeN(bone_index_from_defbase);
   }
-  return true;
 }
 
 static int draw_get_bone_count(Object *armature_ob, int *bone_count)
@@ -537,7 +548,6 @@ static void draw_skinning_setup_buffers(Object *armature_ob,
   cache->bone_count = draw_get_bone_count(armature_ob, &cache->bone_count);
 
   const int total_elements = mr.corners_num + mr.loose_indices_num;
-  const int vert_count = mr.verts_num;
   cache->corner_nums = total_elements;
 
   cache->in_indices_buf = GPU_vertbuf_calloc();
@@ -647,9 +657,9 @@ static void draw_skinning_setup_buffers(Object *armature_ob,
  * Setup shader buffers for packing and upload
  * \{ */
 
-void draw_skinning_extract_pos_nor_tan(VertBuf *vbo_pos,
-                                       VertBuf *vbo_nor,
-                                       VertBuf *vbo_tan,
+void draw_skinning_extract_pos_nor_tan(gpu::VertBuf *vbo_pos,
+                                       gpu::VertBuf *vbo_nor,
+                                       gpu::VertBuf *vbo_tan,
                                        const DRWSkinningCache &cache)
 {
   GPU_shader_bind(cache.compute_shader);
@@ -703,7 +713,7 @@ static gpu::StorageBuf *g_original_bounds_buf = nullptr;
 
 void draw_skinning_compute_bounds(Mesh *mesh,
                                   const DRWSkinningCache &cache,
-                                  VertBuf *skinned_positions_vbo)
+                                  gpu::VertBuf *skinned_positions_vbo)
 {
   /* Kinda horrible code for now, but we'll improve later...*/
   auto original_bounds = mesh->bounds_min_max();
@@ -718,12 +728,12 @@ void draw_skinning_compute_bounds(Mesh *mesh,
   }
 
   if (!g_original_bounds_buf) {
-    g_original_bounds_buf = GPU_storagebuf_create(2 * sizeof(blender::float4));
+    g_original_bounds_buf = GPU_storagebuf_create(2 * sizeof(float4));
   }
 
-  blender::float4 bounds_data[2];
-  bounds_data[0] = blender::float4(original_bounds->min, 1.0f);
-  bounds_data[1] = blender::float4(original_bounds->max, 1.0f);
+  float4 bounds_data[2];
+  bounds_data[0] = float4(original_bounds->min, 1.0f);
+  bounds_data[1] = float4(original_bounds->max, 1.0f);
   GPU_storagebuf_update(g_original_bounds_buf, bounds_data);
 
   auto float_to_sortable_uint = [](float f) -> uint32_t {
@@ -756,7 +766,7 @@ void draw_skinning_compute_bounds(Mesh *mesh,
   GPU_shader_unbind();
 
   uint32_t result_data[6];
-  /* (ResolutionC): this is kinda sad and I hate to read the buffer */
+  /* (Ayoub Zouad): this is kinda sad and I hate to read the buffer */
   GPU_storagebuf_read(g_bounds_result_buf, result_data);
 
   auto sortable_uint_to_float = [](uint32_t u) -> float {
@@ -765,18 +775,18 @@ void draw_skinning_compute_bounds(Mesh *mesh,
     return *reinterpret_cast<float *>(&f_bits);
   };
 
-  blender::float3 computed_min(sortable_uint_to_float(result_data[0]),
+  float3 computed_min(sortable_uint_to_float(result_data[0]),
                                sortable_uint_to_float(result_data[1]),
                                sortable_uint_to_float(result_data[2]));
 
-  blender::float3 computed_max(sortable_uint_to_float(result_data[3]),
+  float3 computed_max(sortable_uint_to_float(result_data[3]),
                                sortable_uint_to_float(result_data[4]),
                                sortable_uint_to_float(result_data[5]));
-  blender::Bounds<blender::float3> object_space_bounds(computed_min, computed_max);
+  Bounds<float3> object_space_bounds(computed_min, computed_max);
 
   mesh->runtime->bounds_cache.tag_dirty();
   mesh->runtime->bounds_cache.ensure(
-      [&object_space_bounds](blender::Bounds<blender::float3> &r_data) {
+      [&object_space_bounds](Bounds<float3> &r_data) {
         r_data = object_space_bounds;
       });
 }
@@ -785,7 +795,7 @@ void draw_skinning_compute_bounds(Mesh *mesh,
 /** \name Main skinning creation runtime
  * \{ */
 
-static bool draw_create_skinning(Object &ob,
+static void draw_create_skinning(Object &ob,
                                  Mesh &mesh,
                                  MeshBatchCache &cache,
                                  MeshBufferCache &mbc,
@@ -799,17 +809,13 @@ static bool draw_create_skinning(Object &ob,
                                  const ToolSettings *ts,
                                  const bool use_hide)
 {
+  if (!draw_skinning_is_available(&ob)) {
+    return;
+  }
+
   LISTBASE_FOREACH (ModifierData *, md, &ob.modifiers) {
     if (md->type == eModifierType_Armature) {
       ArmatureModifierData *amd = (ArmatureModifierData *)md;
-
-      if (!amd->object) {
-        continue;
-      }
-
-      if (!draw_skinning_is_available(&ob)) {
-        return false;
-      }
 
       DRWSkinningCache &skincache = mesh_batch_cache_ensure_skinning_cache(cache, &ob);
 
@@ -835,8 +841,8 @@ static bool draw_create_skinning(Object &ob,
                               skincache.compute_shader != nullptr);
         bool needs_buffer_setup = !buffers_exist || flag_changed;
 
-        // TODO (ResolutionC): needs better evaluation for if topo/new modifiers added
-        // TODO (ResolutionC): we need to handle multimodifiers
+        // TODO (Ayoub Zouad): needs better evaluation for if topo/new modifiers added
+        // TODO (Ayoub Zouad): we need to handle multimodifiers
         if (needs_buffer_setup /*|| check mesh/modifier stack updated and or if the mesh's resting data is actively changing*/)
         {
           draw_skinning_cache_free(skincache);
@@ -873,12 +879,11 @@ static bool draw_create_skinning(Object &ob,
         }
         mesh_buffer_cache_create_requested_skinning(
             cache, mbc, ibo_requests, vbo_requests, skincache, mr);
-        return true;
       }
       break;
     }
   }
-  return false;
+  return;
 }
 
 void DRW_create_skinning(Object &ob,

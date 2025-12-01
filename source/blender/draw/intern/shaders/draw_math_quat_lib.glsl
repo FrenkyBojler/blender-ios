@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /* SPDX-License-Identifier: Zlib
- * Copyright 2006-2007 University of Dublin, Trinity College, All Rights Reserved. */
+ * Copyright 2006-2007 University of Dublin, Trinity College, All Rights Reserved.
 
 /**
  * Dual Quaternion Skinning Library
@@ -17,27 +17,28 @@
  * Structure matching blender's DQ format.
  */
 struct DualQuat {
-  vec4 quat;
-  vec4 trans;
-  mat4 scale;
+  float4 quat;
+  float4 trans;
+  float4x4 scale;
   float scale_weight;
   float quat_weight;
 };
 
-vec4 quat_conjugate(vec4 q) {
-  return vec4(-q.xyz, q.w);
+float4 quat_conjugate(float4 q)
+{
+  return float4(-q.xyz, q.w);
 }
 
-vec4 quat_multiply(vec4 q1, vec4 q2) {
-  return vec4(
-    q1.w * q2.x + q1.x * q2.w + q1.y * q2.z - q1.z * q2.y,
-    q1.w * q2.y - q1.x * q2.z + q1.y * q2.w + q1.z * q2.x,
-    q1.w * q2.z + q1.x * q2.y - q1.y * q2.x + q1.z * q2.w,
-    q1.w * q2.w - q1.x * q2.x - q1.y * q2.y - q1.z * q2.z
-  );
+float4 quat_multiply(float4 q1, float4 q2)
+{
+  return float4(q1.w * q2.x + q1.x * q2.w + q1.y * q2.z - q1.z * q2.y,
+                q1.w * q2.y - q1.x * q2.z + q1.y * q2.w + q1.z * q2.x,
+                q1.w * q2.z + q1.x * q2.y - q1.y * q2.x + q1.z * q2.w,
+                q1.w * q2.w - q1.x * q2.x - q1.y * q2.y - q1.z * q2.z);
 }
 
-void accumulate_dual_quat_raw(inout DualQuat sum, in DualQuat bone_dq, float weight) {
+void accumulate_dual_quat_raw(inout DualQuat sum, in DualQuat bone_dq, float weight)
+{
   bool flipped = false;
 
   if (length(sum.quat) > 0.0 && dot(bone_dq.quat, sum.quat) < 0.0) {
@@ -61,18 +62,22 @@ void accumulate_dual_quat_raw(inout DualQuat sum, in DualQuat bone_dq, float wei
       weight = -weight;
     }
 
-    mat4 wmat = bone_dq.scale * weight;
+    float4x4 wmat = bone_dq.scale * weight;
     sum.scale += wmat;
     sum.scale_weight += weight;
   }
 }
 
-void accumulate_dual_quat_pivot(inout DualQuat sum, in DualQuat bone_dq, vec3 pivot, float weight) {
+void accumulate_dual_quat_pivot(inout DualQuat sum,
+                                in DualQuat bone_dq,
+                                float3 pivot,
+                                float weight)
+{
   if (bone_dq.scale_weight > 0.0) {
     DualQuat mdq = bone_dq;
 
     /* Compute scale-induced translation at the pivot point. */
-    vec3 dst = (mdq.scale * vec4(pivot, 1.0)).xyz;
+    float3 dst = (mdq.scale * float4(pivot, 1.0)).xyz;
     dst = dst - pivot;
 
     mdq.trans.w -= 0.5 * (mdq.quat.x * dst.x + mdq.quat.y * dst.y + mdq.quat.z * dst.z);
@@ -91,17 +96,19 @@ void accumulate_dual_quat_pivot(inout DualQuat sum, in DualQuat bone_dq, vec3 pi
   }
 }
 
-void accumulate_dual_quat(inout DualQuat sum, in DualQuat bone_dq, float weight) {
-  vec3 pivot = vec3(0.0);
+void accumulate_dual_quat(inout DualQuat sum, in DualQuat bone_dq, float weight)
+{
+  float3 pivot = float3(0.0);
   accumulate_dual_quat_pivot(sum, bone_dq, pivot, weight);
 }
 
-DualQuat normalize_dual_quat(DualQuat dq) {
+DualQuat normalize_dual_quat(DualQuat dq)
+{
   if (dq.quat_weight == 0.0) {
     DualQuat identity;
-    identity.quat = vec4(0.0, 0.0, 0.0, 1.0);
-    identity.trans = vec4(0.0, 0.0, 0.0, 0.0);
-    identity.scale = mat4(1.0);
+    identity.quat = float4(0.0, 0.0, 0.0, 1.0);
+    identity.trans = float4(0.0, 0.0, 0.0, 0.0);
+    identity.scale = float4x4(1.0);
     identity.scale_weight = 0.0;
     identity.quat_weight = 1.0;
     return identity;
@@ -130,11 +137,12 @@ DualQuat normalize_dual_quat(DualQuat dq) {
   return result;
 }
 
-vec3 transform_point_dual_quat(vec3 point, DualQuat dq) {
+float3 transform_point_dual_quat(float3 point, DualQuat dq)
+{
   float w = dq.quat.w, x = dq.quat.x, y = dq.quat.y, z = dq.quat.z;
   float t0 = dq.trans.w, t1 = dq.trans.x, t2 = dq.trans.y, t3 = dq.trans.z;
 
-  mat3 M;
+  float3x3 M;
   M[0][0] = w * w + x * x - y * y - z * z;
   M[1][0] = 2.0 * (x * y - w * z);
   M[2][0] = 2.0 * (x * z + w * y);
@@ -153,16 +161,16 @@ vec3 transform_point_dual_quat(vec3 point, DualQuat dq) {
   }
 
   /* Extract translation from dual quaternion. */
-  vec3 t;
+  float3 t;
   t[0] = 2.0 * (-t0 * x + w * t1 - t2 * z + y * t3);
   t[1] = 2.0 * (-t0 * y + t1 * z - x * t3 + w * t2);
   t[2] = 2.0 * (-t0 * z + x * t2 + w * t3 - t1 * y);
 
-  vec3 result = point;
+  float3 result = point;
 
   /* Apply scale transformation first. */
   if (dq.scale_weight != 0.0) {
-    result = (dq.scale * vec4(result, 1.0)).xyz;
+    result = (dq.scale * float4(result, 1.0)).xyz;
   }
 
   /* Apply rotation and translation with quaternion normalization. */
@@ -174,11 +182,12 @@ vec3 transform_point_dual_quat(vec3 point, DualQuat dq) {
   return result;
 }
 
-vec3 transform_normal_dual_quat(vec3 normal, DualQuat dq) {
+float3 transform_normal_dual_quat(float3 normal, DualQuat dq)
+{
   float w = dq.quat.w, x = dq.quat.x, y = dq.quat.y, z = dq.quat.z;
 
   /* Build rotation matrix from quaternion */
-  mat3 M;
+  float3x3 M;
   M[0][0] = w * w + x * x - y * y - z * z;
   M[1][0] = 2.0 * (x * y - w * z);
   M[2][0] = 2.0 * (x * z + w * y);
@@ -197,13 +206,13 @@ vec3 transform_normal_dual_quat(vec3 normal, DualQuat dq) {
   }
 
   /* Apply scale first if present */
-  mat3 transform_matrix = M;
+  float3x3 transform_matrix = M;
   if (dq.scale_weight != 0.0) {
-    transform_matrix = M * mat3(dq.scale);
+    transform_matrix = M * float3x3(dq.scale);
   }
 
-  mat3 normal_matrix = transpose(inverse(transform_matrix));
-  vec3 result = normal_matrix * normal;
+  float3x3 normal_matrix = transpose(inverse(transform_matrix));
+  float3 result = normal_matrix * normal;
 
   result *= len2;
 
