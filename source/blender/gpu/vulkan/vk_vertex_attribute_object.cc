@@ -132,7 +132,7 @@ void VKVertexAttributeObject::fill_unused_bindings(const VKShaderInterface &inte
     vk_binding_descriptor.binding = binding;
     vk_binding_descriptor.stride = 0;
     vk_binding_descriptor.inputRate = VK_VERTEX_INPUT_RATE_INSTANCE;
-    vertex_input. bindings.append(vk_binding_descriptor);
+    vertex_input.bindings.append(vk_binding_descriptor);
   }
 }
 
