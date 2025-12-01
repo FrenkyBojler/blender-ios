@@ -1,2 +1,3 @@
 Referenced by issue #149784, 5.0: Candidates for corrective releases
 Referenced by pull request #126754, Geometry Nodes: Dissolve Boundary Vertices node
+Referenced by pull request #150899, [5.0]: Fix #150842: Mesh validate removes non-duplicate faces
