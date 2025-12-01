@@ -350,6 +350,7 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         continue;
       }
       LISTBASE_FOREACH (bPoseChannel *, pose_bone, &obj->pose->chanbase) {
+        /* Those flags were previously unused, so to be safe we clear them. */
         pose_bone->flag &= ~(POSE_SELECTED_ROOT | POSE_SELECTED_TIP);
       }
     }
