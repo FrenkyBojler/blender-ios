@@ -21,6 +21,7 @@ namespace blender::nodes::node_geo_collection_children_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Collection>("Collection").optional_label();
+  b.add_input<decl::Bool>("Recursive").description("Recursively retrieve collections and objects");
   b.add_output<decl::Object>("Objects").structure_type(StructureType::List);
   b.add_output<decl::Collection>("Collections").structure_type(StructureType::List);
 }
@@ -28,6 +29,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 static void node_geo_exec(GeoNodeExecParams params)
 {
   Collection *collection = params.extract_input<Collection *>("Collection");
+  const bool recursive = params.extract_input<bool>("Recursive");
 
   if (collection == nullptr) {
     params.set_default_remaining_outputs();
