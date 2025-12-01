@@ -93,7 +93,9 @@ class CustomPropertiesTest(unittest.TestCase):
         roundtripped = parser.parse_and_validate(api_models.AssetMetadataV1, as_json)
         self.assertEqual(meta, roundtripped)
 
-    def test_hashing_url(self) -> None:
+
+class HashingTest(unittest.TestCase):
+    def test_url_function(self) -> None:
         # No hash.
         url_with_hash = api_models.URLWithHashV1(
             url="http://localhost:8080/_v1/asset-index.json",
