@@ -869,17 +869,18 @@ static inline void lerp_relative_float3(
 
 /**
  * Shapekey evaluation for data of 3 floats (Vector3).
- * \note cp_key is the only function making this mesh specific.
+ * \note cp_key is the only function that stops this from being merged with
+ * key_evaluate_relative_curve.
  *
  * \param target_data is the float array into which the result of the evaluation is written into.
  * \param per_keyblock_weights is a 2d array which gives a per KeyBlock per Vertex weight. Can be a
  * nullptr.
  */
-static void key_evaluate_relative_mesh(Key *key,
-                                       KeyBlock *active_keyblock,
-                                       const int vertex_count,
-                                       float **per_keyblock_weights,
-                                       float *target_data)
+static void key_evaluate_relative_float3(Key *key,
+                                         KeyBlock *active_keyblock,
+                                         const int vertex_count,
+                                         float **per_keyblock_weights,
+                                         float *target_data)
 {
   /* Creates the basis values in target_data. */
   cp_key(0,
@@ -1373,7 +1374,7 @@ static void do_mesh_key(Object *ob, Key *key, char *out, const int tot)
     WeightsArrayCache cache = {0, nullptr};
     float **per_keyblock_weights;
     per_keyblock_weights = keyblock_get_per_block_weights(ob, key, &cache);
-    key_evaluate_relative_mesh(
+    key_evaluate_relative_float3(
         key, actkb, tot, per_keyblock_weights, reinterpret_cast<float *>(out));
     keyblock_free_per_block_weights(key, per_keyblock_weights, &cache);
   }
@@ -1466,7 +1467,7 @@ static void do_latt_key(Object *ob, Key *key, char *out, const int tot)
   if (key->type == KEY_RELATIVE) {
     float **per_keyblock_weights;
     per_keyblock_weights = keyblock_get_per_block_weights(ob, key, nullptr);
-    key_evaluate_relative_mesh(
+    key_evaluate_relative_float3(
         key, actkb, tot, per_keyblock_weights, reinterpret_cast<float *>(out));
     keyblock_free_per_block_weights(key, per_keyblock_weights, nullptr);
   }
