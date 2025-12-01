@@ -563,24 +563,41 @@ static void flush_bone_selection_to_pose(Object &ob)
 {
   BLI_assert(ob.pose);
   LISTBASE_FOREACH (bPoseChannel *, pose_bone, &ob.pose->chanbase) {
+    pose_bone->flag &= ~(POSE_SELECTED | POSE_SELECTED_ROOT | POSE_SELECTED_TIP);
+    if (pose_bone->bone->flag & BONE_ROOTSEL) {
+      pose_bone->flag |= POSE_SELECTED_ROOT;
+    }
+    if (pose_bone->bone->flag & BONE_TIPSEL) {
+      pose_bone->flag |= POSE_SELECTED_TIP;
+    }
+
+    /* A bone counts as selected if both, the tip and the root are selected. See
+     * `ED_armature_edit_sync_selection`. */
     if (pose_bone->bone->flag & BONE_SELECTED) {
       pose_bone->flag |= POSE_SELECTED;
     }
-    else {
-      pose_bone->flag &= ~POSE_SELECTED;
-    }
   }
 }
+
 static void flush_pose_selection_to_bone(Object &ob)
 {
   BLI_assert(ob.pose);
-  constexpr int selection_flags = (BONE_SELECTED | BONE_ROOTSEL | BONE_TIPSEL);
   LISTBASE_FOREACH (bPoseChannel *, pose_bone, &ob.pose->chanbase) {
-    if (pose_bone->flag & POSE_SELECTED) {
-      pose_bone->bone->flag |= selection_flags;
+    pose_bone->bone->flag &= ~(BONE_ROOTSEL | BONE_TIPSEL | BONE_SELECTED);
+    /* The cases of POSE_SELECTED_ROOT and POSE_SELECTED_TIP can only occur if switching to pose
+     * mode and back without modifying that pose bones selection. */
+    if (pose_bone->flag & POSE_SELECTED_ROOT) {
+      pose_bone->bone->flag |= BONE_ROOTSEL;
     }
-    else {
-      pose_bone->bone->flag &= ~selection_flags;
+
+    if (pose_bone->flag & POSE_SELECTED_TIP) {
+      pose_bone->bone->flag |= BONE_TIPSEL;
+    }
+
+    /* If the bone is selected in pose mode, conceptually that includes the root and the tip, so we
+     * ensure here that carries over to edit mode. */
+    if (pose_bone->flag & POSE_SELECTED) {
+      pose_bone->bone->flag |= (BONE_SELECTED | BONE_ROOTSEL | BONE_TIPSEL);
     }
   }
 }

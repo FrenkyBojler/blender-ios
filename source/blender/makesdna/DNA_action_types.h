@@ -490,6 +490,12 @@ typedef enum ePchan_Flag {
    */
   POSE_TRANSFORM_AROUND_CUSTOM_TX = (1 << 5),
   POSE_SELECTED = (1 << 6),
+  /**
+   * Even though root and tip selection is not used in pose mode, we still have to store that
+   * state in order to retain selection when switching back and forth between pose and edit mode.
+   */
+  POSE_SELECTED_ROOT = (1 << 7),
+  POSE_SELECTED_TIP = (1 << 8),
 
   /* IK/Pose solving */
   POSE_CHAIN = (1 << 9),
