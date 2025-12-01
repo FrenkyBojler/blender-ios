@@ -93,8 +93,10 @@ void AbstractViewItem::activate_for_context_menu(bContext &C)
 
 void AbstractViewItem::deactivate()
 {
-  is_active_ = false;
-  is_selected_ = false;
+  if (is_active_) {
+    is_active_ = false;
+    is_selected_ = false;
+  }
 }
 
 std::optional<bool> AbstractViewItem::should_be_selected() const
