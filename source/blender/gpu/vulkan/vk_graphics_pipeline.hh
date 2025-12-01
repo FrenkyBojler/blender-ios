@@ -30,7 +30,8 @@ struct VKGraphicsPipelineCreateInfoBuilder {
   VkPipelineRasterizationStateCreateInfo vk_pipeline_rasterization_state_create_info;
   VkPipelineRasterizationProvokingVertexStateCreateInfoEXT
       vk_pipeline_rasterization_provoking_vertex_state_info;
-  Vector<VkDynamicState, 3> vk_dynamic_states;
+  VkPipelineRasterizationLineStateCreateInfoEXT vk_pipeline_rasterization_line_state_info;
+  Vector<VkDynamicState, 6> vk_dynamic_states;
   VkPipelineDynamicStateCreateInfo vk_pipeline_dynamic_state_create_info;
   VkPipelineViewportStateCreateInfo vk_pipeline_viewport_state_create_info;
   VkPipelineDepthStencilStateCreateInfo vk_pipeline_depth_stencil_state_create_info;
@@ -61,7 +62,7 @@ struct VKGraphicsPipelineCreateInfoBuilder {
     build_dynamic_state(graphics_info.shaders);
     build_multisample_state();
     build_viewport_state(graphics_info.shaders);
-    build_rasterization_state(graphics_info.shaders);
+    build_rasterization_state(graphics_info.shaders, extensions);
     build_depth_stencil_state(graphics_info.shaders);
 
     build_color_blend_attachment_states(graphics_info.fragment_out);
@@ -84,7 +85,9 @@ struct VKGraphicsPipelineCreateInfoBuilder {
   /**
    * Initialize graphics pipeline create info and related structs for a shaders library build.
    */
-  void build_shaders_lib(const VKGraphicsInfo::Shaders &shaders_info, VkPipeline vk_pipeline_base)
+  void build_shaders_lib(const VKGraphicsInfo::Shaders &shaders_info,
+                         const VKExtensions &extensions,
+                         VkPipeline vk_pipeline_base)
   {
     build_graphics_pipeline_library(
         VK_GRAPHICS_PIPELINE_LIBRARY_PRE_RASTERIZATION_SHADERS_BIT_EXT |
@@ -99,7 +102,7 @@ struct VKGraphicsPipelineCreateInfoBuilder {
     build_dynamic_state(shaders_info);
     build_multisample_state();
     build_viewport_state(shaders_info);
-    build_rasterization_state(shaders_info);
+    build_rasterization_state(shaders_info, extensions);
     build_depth_stencil_state(shaders_info);
     build_dynamic_rendering_shaders_lib();
   }
@@ -329,7 +332,8 @@ struct VKGraphicsPipelineCreateInfoBuilder {
         vertex_input_info.bindings.size();
   }
 
-  void build_rasterization_state(const VKGraphicsInfo::Shaders &shaders_info)
+  void build_rasterization_state(const VKGraphicsInfo::Shaders &shaders_info,
+                                 const VKExtensions &extensions)
   {
     vk_pipeline_rasterization_provoking_vertex_state_info = {};
     vk_pipeline_rasterization_provoking_vertex_state_info.sType =
@@ -354,6 +358,22 @@ struct VKGraphicsPipelineCreateInfoBuilder {
     vk_pipeline_rasterization_state_create_info.frontFace = shaders_info.state.invert_facing ?
                                                                 VK_FRONT_FACE_COUNTER_CLOCKWISE :
                                                                 VK_FRONT_FACE_CLOCKWISE;
+
+    if (extensions.line_rasterization) {
+      /* Request use of Bresenham algorithm if supported. */
+      vk_pipeline_rasterization_line_state_info = {};
+      vk_pipeline_rasterization_line_state_info.sType =
+          VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_LINE_STATE_CREATE_INFO_EXT;
+      vk_pipeline_rasterization_line_state_info.lineRasterizationMode =
+          VK_LINE_RASTERIZATION_MODE_BRESENHAM_EXT;
+      vk_pipeline_rasterization_line_state_info.stippledLineEnable = VK_FALSE;
+      vk_pipeline_rasterization_line_state_info.lineStippleFactor = 0u;
+      vk_pipeline_rasterization_line_state_info.lineStipplePattern = 0u;
+      vk_pipeline_rasterization_line_state_info.pNext =
+          &vk_pipeline_rasterization_state_create_info.pNext;
+      vk_pipeline_rasterization_state_create_info.pNext =
+          &vk_pipeline_rasterization_line_state_info;
+    }
   }
 
   void build_dynamic_state(const VKGraphicsInfo::Shaders &shaders_info)
@@ -365,6 +385,11 @@ struct VKGraphicsPipelineCreateInfoBuilder {
                                        VK_PRIMITIVE_TOPOLOGY_LINE_STRIP);
     if (is_line_topology) {
       vk_dynamic_states.append(VK_DYNAMIC_STATE_LINE_WIDTH);
+    }
+    if (shaders_info.has_stencil && shaders_info.state.stencil_test != GPU_STENCIL_NONE) {
+      vk_dynamic_states.append(VK_DYNAMIC_STATE_STENCIL_COMPARE_MASK);
+      vk_dynamic_states.append(VK_DYNAMIC_STATE_STENCIL_REFERENCE);
+      vk_dynamic_states.append(VK_DYNAMIC_STATE_STENCIL_WRITE_MASK);
     }
     vk_pipeline_dynamic_state_create_info = {VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
                                              nullptr,
@@ -433,13 +458,6 @@ struct VKGraphicsPipelineCreateInfoBuilder {
           vk_pipeline_depth_stencil_state_create_info.front.compareOp = VK_COMPARE_OP_ALWAYS;
           break;
       }
-
-      vk_pipeline_depth_stencil_state_create_info.front.compareMask =
-          shaders_info.mutable_state.stencil_compare_mask;
-      vk_pipeline_depth_stencil_state_create_info.front.reference =
-          shaders_info.mutable_state.stencil_reference;
-      vk_pipeline_depth_stencil_state_create_info.front.writeMask =
-          shaders_info.mutable_state.stencil_write_mask;
 
       switch (shaders_info.state.stencil_op) {
         case GPU_STENCIL_OP_REPLACE:
@@ -594,6 +612,13 @@ struct VKGraphicsPipelineCreateInfoBuilder {
         attachment_state.dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
         attachment_state.srcAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
         attachment_state.dstAlphaBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+        break;
+
+      case GPU_BLEND_TRANSPARENCY:
+        attachment_state.srcColorBlendFactor = VK_BLEND_FACTOR_ONE;
+        attachment_state.dstColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
+        attachment_state.srcAlphaBlendFactor = VK_BLEND_FACTOR_ZERO;
+        attachment_state.dstAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA;
         break;
     }
 
