@@ -824,7 +824,7 @@ class STRIP_PT_adjust_sound(StripButtonsPanel, Panel):
         if not strip:
             return False
 
-        return strip.type in { 'SOUND', 'META', }
+        return strip.type in {'SOUND', 'META', }
 
     def draw(self, context):
         layout = self.layout

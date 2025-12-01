@@ -1086,7 +1086,7 @@ static void strip_update_sound_properties(const Scene *scene, const Strip *strip
 {
   const Strip *meta = lookup_meta_by_strip(editing_get(scene), strip);
   float output_volume = strip->volume;
-  if (meta != nullptr){
+  if (meta != nullptr) {
     output_volume *= meta->volume;
   }
   const int frame = BKE_scene_frame_get(scene);
