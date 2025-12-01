@@ -3424,6 +3424,8 @@ void OBJECT_OT_vertex_group_invert(wmOperatorType *ot)
 
 static wmOperatorStatus vertex_group_smooth_exec(bContext *C, wmOperator *op)
 {
+  const ToolSettings *tool_settings = CTX_data_tool_settings(C);
+
   const float fac = RNA_float_get(op->ptr, "factor");
   const int repeat = RNA_int_get(op->ptr, "repeat");
   const eVGroupSelect subset_type = static_cast<eVGroupSelect>(
@@ -3439,6 +3441,7 @@ static wmOperatorStatus vertex_group_smooth_exec(bContext *C, wmOperator *op)
         ob, subset_type, &vgroup_tot, &subset_count);
 
     if (vgroup_tot) {
+      /* Bool array indicating which groups are locked. */
       const bool *locked_vgroups = BKE_object_defgroup_lock_flags_get(ob, vgroup_tot);
       if (locked_vgroups) {
         /* Remove locked groups from the vgroup valid map. */
@@ -3449,7 +3452,6 @@ static wmOperatorStatus vertex_group_smooth_exec(bContext *C, wmOperator *op)
           }
         }
       }
-      MEM_SAFE_FREE(locked_vgroups);
 
       has_vgroup_multi = true;
 
@@ -3457,10 +3459,79 @@ static wmOperatorStatus vertex_group_smooth_exec(bContext *C, wmOperator *op)
         vgroup_smooth_subset(
             ob, vgroup_validmap, vgroup_tot, subset_count, fac, repeat, fac_expand);
 
+        /* Normalize deform groups. */
+        if (tool_settings->auto_normalize) {
+          /* Bool array indicating which groups are deform bones. */
+          const bool *vgroup_deform_map = BKE_object_defgroup_validmap_get(ob, vgroup_tot);
+
+          /* Determine if one of the smoothed groups was a deform group. */
+          bool deform_group_was_smoothed = false;
+          if (vgroup_deform_map) {
+            for (int i = 0; i < vgroup_tot; i++) {
+              deform_group_was_smoothed |= vgroup_validmap[i] & vgroup_deform_map[i];
+            }
+          }
+
+          if (deform_group_was_smoothed) {
+            MDeformVert **dvert_array = nullptr;
+            int dvert_tot = 0;
+            vgroup_parray_alloc(
+                static_cast<ID *>(ob->data), &dvert_array, &dvert_tot, false, std::nullopt);
+
+            if (dvert_array) {
+              BMEditMesh *em = BKE_editmesh_from_object(ob);
+              Mesh *mesh = em ? nullptr : static_cast<Mesh *>(ob->data);
+
+              const bool use_select = vertex_group_use_vert_sel(ob);
+              const bool use_hide = use_select;
+
+              VArray<bool> hide_vert;
+              if (mesh && use_hide) {
+                hide_vert = *mesh->attributes().lookup_or_default<bool>(
+                    ".hide_vert", bke::AttrDomain::Point, false);
+              }
+              else {
+                hide_vert = VArray<bool>::from_single(false, dvert_tot);
+              }
+
+              VArray<bool> select_vert;
+              if (mesh && use_select) {
+                select_vert = *mesh->attributes().lookup_or_default<bool>(
+                    ".select_vert", bke::AttrDomain::Point, false);
+              }
+              else {
+                select_vert = VArray<bool>::from_single(true, dvert_tot);
+              }
+
+              Span<bool> subset_flags = Span(vgroup_deform_map,
+                                             !vgroup_deform_map ? 0 : vgroup_tot);
+              Span<bool> lock_flags = Span(locked_vgroups, !locked_vgroups ? 0 : vgroup_tot);
+              Span<bool> soft_lock_flags = Span(vgroup_validmap,
+                                                !vgroup_validmap ? 0 : vgroup_tot);
+
+              for (int i = 0; i < dvert_tot; i++) {
+                const bool vert_is_used = select_vert[i] && !hide_vert[i];
+                if (!vert_is_used) {
+                  continue;
+                }
+                MDeformVert *dv = dvert_array[i];
+                BLI_assert(dv != nullptr);
+                BKE_defvert_normalize_ex(*dv, subset_flags, lock_flags, soft_lock_flags);
+              }
+
+              MEM_freeN(dvert_array);
+            }
+          }
+
+          MEM_SAFE_FREE(vgroup_deform_map);
+        }
+
         DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
         WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
         WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
       }
+
+      MEM_SAFE_FREE(locked_vgroups);
     }
 
     MEM_freeN(vgroup_validmap);
