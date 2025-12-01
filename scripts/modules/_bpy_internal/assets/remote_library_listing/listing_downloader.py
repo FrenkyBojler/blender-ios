@@ -474,16 +474,16 @@ class RemoteAssetListingDownloader:
 
     def _queue_download(
         self,
-        relative_url: str | api_models.URLWithHashV1,
+        relative_url: str | api_models.URLWithHash,
         download_to_path: Path | str,
         on_done: Callable[[http_dl.RequestDescription, Path], None],
     ) -> Path:
         """Queue up this download, returning the path to which it will be downloaded."""
-        assert isinstance(relative_url, (str, api_models.URLWithHashV1)), "value is {!r}".format(relative_url)
+        assert isinstance(relative_url, (str, api_models.URLWithHash)), "value is {!r}".format(relative_url)
         assert isinstance(download_to_path, (str, Path)), "value is {!r}".format(download_to_path)
 
         # If a hash is known, append it to the query string.
-        if isinstance(relative_url, api_models.URLWithHashV1):
+        if isinstance(relative_url, api_models.URLWithHash):
             relative_url = hashing.url(relative_url)
 
         remote_url = urllib.parse.urljoin(self._locator.remote_url, relative_url)

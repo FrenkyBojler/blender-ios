@@ -6,9 +6,9 @@ import typing
 from pathlib import Path
 
 if typing.TYPE_CHECKING:
-    from _bpy_internal.assets.remote_library_listing.blender_asset_library_openapi import URLWithHashV1 as _URLWithHashV1
+    from _bpy_internal.assets.remote_library_listing.blender_asset_library_openapi import URLWithHash as _URLWithHash
 else:
-    _URLWithHashV1 = object
+    _URLWithHash = object
 
 
 def hash_file(filepath: Path) -> str:
@@ -33,10 +33,10 @@ def _sha256_file(filepath: Path) -> str:
     return sha256_hash.hexdigest()
 
 
-def url(url_with_hash: _URLWithHashV1) -> str:
+def url(url_with_hash: _URLWithHash) -> str:
     """Return the url, with the hash on the query string.
 
-    >>> url(URLWithHashV1(url="http://localhost/", hash="sha256:the-hash"))
+    >>> url(URLWithHash(url="http://localhost/", hash="sha256:the-hash"))
     'http://localhost/?hash=the-hash'
     """
 

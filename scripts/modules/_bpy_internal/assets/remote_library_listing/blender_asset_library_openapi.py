@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any, Optional, Union
+from typing import Optional, Union
 
 
 @dataclass
@@ -20,9 +20,9 @@ class Contact:
 
 
 @dataclass
-class URLWithHashV1:
+class URLWithHash:
     url: str
-    hash: Any
+    hash: str
 
 
 class AssetIDTypeV1(Enum):
@@ -63,7 +63,7 @@ class FileV1:
 
 @dataclass
 class AssetLibraryMeta:
-    api_versions: dict[str, URLWithHashV1]
+    api_versions: dict[str, URLWithHash]
     name: str
     contact: Contact
 
@@ -74,7 +74,7 @@ class AssetLibraryIndexV1:
     asset_size_bytes: int
     asset_count: int
     file_count: int
-    pages: list[URLWithHashV1]
+    pages: list[URLWithHash]
     catalogs: Optional[list[CatalogV1]] = None
 
 
@@ -91,7 +91,7 @@ class AssetV1:
     name: str
     id_type: AssetIDTypeV1
     file: str
-    thumbnail: Optional[URLWithHashV1] = None
+    thumbnail: Optional[URLWithHash] = None
     meta: Optional[AssetMetadataV1] = None
 
 

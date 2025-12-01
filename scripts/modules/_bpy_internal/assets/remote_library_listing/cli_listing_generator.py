@@ -95,7 +95,7 @@ def cli_main(arguments_raw: argparse.Namespace) -> None:
     # Write the top-level meta file:
     api_version_key = "v{:d}".format(listing_common.API_VERSION)
     index_relpath: Path = index_path.relative_to(arguments.repository)
-    toplevel_meta.api_versions[api_version_key] = api_models.URLWithHashV1(
+    toplevel_meta.api_versions[api_version_key] = api_models.URLWithHash(
         url=urllib.parse.quote(index_relpath.as_posix()),
         hash=hashing.hash_file(index_path),
     )
@@ -134,12 +134,12 @@ def _write_json_files(
     # Note that these paths are determined by the generator, and their URLs are
     # listed explicitly in the index file, so there is no need to have those in
     # the listing_common.py file.
-    page_infos: list[api_models.URLWithHashV1] = []
+    page_infos: list[api_models.URLWithHash] = []
     for page_index, page in enumerate(asset_index_pages):
         page_relpath = listing_common.api_versioned(f"assets-{page_index:05}.json")
         _save_json(page, outdir_root / page_relpath)
 
-        page_infos.append(api_models.URLWithHashV1(
+        page_infos.append(api_models.URLWithHash(
             url=urllib.parse.quote(page_relpath.as_posix()),
             hash=hashing.hash_file(page_relpath),
         ))
