@@ -524,7 +524,7 @@ static void uilist_draw_item(uiList *ui_list,
 
   RNA_parameter_list_create(&list, &ul_ptr, func);
   RNA_parameter_set_lookup(&list, "context", &C);
-  blender::ui::Layout *layout_ptr = &layout;
+  Layout *layout_ptr = &layout;
   RNA_parameter_set_lookup(&list, "layout", &layout_ptr);
   RNA_parameter_set_lookup(&list, "data", dataptr);
   RNA_parameter_set_lookup(&list, "item", itemptr);
@@ -551,7 +551,7 @@ static void uilist_draw_filter(uiList *ui_list, const bContext *C, Layout &layou
 
   RNA_parameter_list_create(&list, &ul_ptr, func);
   RNA_parameter_set_lookup(&list, "context", &C);
-  blender::ui::Layout *layout_ptr = &layout;
+  Layout *layout_ptr = &layout;
   RNA_parameter_set_lookup(&list, "layout", &layout_ptr);
   ui_list->type->rna_ext.call((bContext *)C, &ul_ptr, func, &list);
 
@@ -1194,7 +1194,7 @@ static void asset_shelf_draw_context_menu(const bContext *C,
   RNA_parameter_list_create(&list, &ptr, func);
   RNA_parameter_set_lookup(&list, "context", &C);
   RNA_parameter_set_lookup(&list, "asset", &asset);
-  blender::ui::Layout *layout_ptr = &layout;
+  Layout *layout_ptr = &layout;
   RNA_parameter_set_lookup(&list, "layout", &layout_ptr);
   shelf_type->rna_ext.call((bContext *)C, &ptr, func, &list);
 
