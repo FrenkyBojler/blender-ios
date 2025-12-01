@@ -1186,7 +1186,7 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
 
     /* The Composite node was replaced by the Group Output node in 5.0, so we add one to ensure
      * forward compatibility. */
-    bNodeSocket *first_sock = nullptr;
+    bNodeSocket *group_output_first_input = nullptr;
     bNode *composite_node = nullptr;
     bNodeSocket *composite_input = nullptr;
     blender::bke::bNodeType ntype;
@@ -1206,14 +1206,14 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
 
         composite_node->location[0] = node->location[0] - 20.0f;
         composite_node->location[1] = node->location[1];
-        first_sock = (bNodeSocket *)(node->inputs.first);
+        group_output_first_input = static_cast<bNodeSocket *>(node->inputs.first);
         break;
       }
     }
 
     bNodeLink *ngroup_input_link = nullptr;
     LISTBASE_FOREACH_BACKWARD_MUTABLE (bNodeLink *, link, &temp_nodetree_copy->links) {
-      if (link->tosock && link->tosock == first_sock) {
+      if (link->tosock && link->tosock == group_output_first_input) {
         ngroup_input_link = link;
         break;
       }
