@@ -176,7 +176,7 @@ std::optional<blender::StringRefNull> CTX_store_string_lookup(const bContextStor
 std::optional<int64_t> CTX_store_int_lookup(const bContextStore *store, blender::StringRef name);
 
 /* Set a temporary flag to indicate when writing via RNA is disallowed. */
-void CTX_rna_disallow_write_set(bContext *C, const bool *rna_disallow_writes);
+void CTX_rna_disallow_write_set_p(bContext *C, const bool *rna_disallow_writes);
 
 /** Needed to store if Python is initialized or not. */
 bool CTX_py_init_get(const bContext *C);

@@ -470,12 +470,12 @@ void pyrna_write_set(bool val)
 
 void pyrna_context_init(bContext *C)
 {
-  CTX_rna_disallow_write_set(C, &rna_disallow_writes);
+  CTX_rna_disallow_write_set_p(C, &rna_disallow_writes);
 }
 
 void pyrna_context_clear(bContext *C)
 {
-  CTX_rna_disallow_write_set(C, nullptr);
+  CTX_rna_disallow_write_set_p(C, nullptr);
 }
 #else  /* USE_PEDANTIC_WRITE */
 bool pyrna_write_check()

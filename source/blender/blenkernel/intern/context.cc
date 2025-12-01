@@ -280,7 +280,7 @@ void CTX_py_state_pop(bContext *C, bContext_PyState *pystate)
   C->data.py_context_orig = pystate->py_context_orig;
 }
 
-void CTX_rna_disallow_write_set(bContext *C, const bool *rna_disallow_writes)
+void CTX_rna_disallow_write_set_p(bContext *C, const bool *rna_disallow_writes)
 {
   C->data.rna_disallow_writes = rna_disallow_writes;
 }
