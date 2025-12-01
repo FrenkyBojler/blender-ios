@@ -14,6 +14,7 @@
  #include "BLI_map.hh"
  #include "BLI_string_utf8.h"
  #include "BLI_vector.hh"
+ #include "BLI_rect.h"
 
  #include "BLT_translation.hh"
 
@@ -36,6 +37,7 @@
  #include "UI_interface_layout.hh"
  #include "UI_resources.hh"
  #include "UI_view2d.hh"
+ #include "UI_interface_c.hh"
  #include "../interface/interface_intern.hh"
 
  #include "BLO_read_write.hh"
@@ -76,6 +78,612 @@ struct SpaceLightManager_Runtime {
   blender::Vector<SubgroupCollapseState> subgroup_states;
   blender::Vector<GroupBounds> group_bounds;  /* Updated each draw */
 };
+
+/* -------------------------------------------------------------------- */
+/** \name Dedicated table-style layout for lights
+ *  (pixel-based columns, similar spirit to Spreadsheet)
+ * \{ */
+
+enum class eLightManagerColumn {
+  Drag = 0,
+  Icon,
+  Name,
+  Color,
+  Power,
+  Visibility,
+  Count,
+};
+
+struct LightManagerColumnLayout {
+  const char *label;
+  float width_fraction;
+};
+
+static const LightManagerColumnLayout light_manager_columns[] = {
+    {"", 0.04f},          /* Drag handle (centered) */
+    {"", 0.03f},          /* Light type icon (centered) */
+    {"Name", 0.43f},      /* Object name */
+    {"Color", 0.22f},     /* Light color */
+    {"Power", 0.18f},     /* Light energy */
+    {"Visibility", 0.10f} /* Viewport/render toggles + remove */
+};
+
+struct LightManagerRow {
+  SpaceLightManagerGroup *group; /* Optional, nullptr for ungrouped header/rows. */
+  Object *ob;                    /* Light object, nullptr for pure group header rows. */
+  bool is_group_header;
+};
+
+class LightManagerDrawer {
+ public:
+  Scene *scene;
+  ARegion *region;
+  blender::Vector<LightManagerRow> rows;
+
+  int top_row_height;
+  int row_height;
+  int rows_y_top;
+
+  LightManagerDrawer(Scene *scene, ARegion *region, int start_y)
+      : scene(scene), region(region)
+  {
+    top_row_height = int(UI_UNIT_Y * 1.1f);
+    row_height = int(UI_UNIT_Y * 1.2f);
+    rows_y_top = start_y;
+  }
+
+  int table_left_x() const
+  {
+    return 10; /* Match layout x offset above. */
+  }
+
+  int table_width() const
+  {
+    return region->winx - 20; /* Same margin as block_layout. */
+  }
+
+  int column_width_px(int column_index) const
+  {
+    const float fraction = light_manager_columns[column_index].width_fraction;
+    return int(float(table_width()) * fraction);
+  }
+
+  int column_x_px(int column_index) const
+  {
+    int x = table_left_x();
+    for (int i = 0; i < column_index; i++) {
+      x += column_width_px(i);
+    }
+    return x;
+  }
+
+  void draw_rows(const bContext *C, uiBlock *block) const
+  {
+    using namespace blender;
+
+    int y = rows_y_top;
+
+    SpaceLightManagerGroup *current_group = nullptr;
+    bool ungrouped_header_drawn = false;
+    int group_y_top = 0;
+    int group_row_count = 0; /* header + data rows */
+
+    auto flush_group_background = [&](SpaceLightManagerGroup * /*group*/, int y_top, int rows) {
+      if (rows <= 0) {
+        return;
+      }
+      rctf rect;
+      rect.xmin = float(table_left_x());
+      rect.xmax = float(table_left_x() + table_width());
+      rect.ymax = float(y_top + top_row_height);
+      rect.ymin = float(y_top - rows * row_height);
+
+      float col[4];
+      UI_GetThemeColor4fv(TH_BACK, col);
+      UI_draw_roundbox_4fv(&rect, true, 0.0f, col);
+    };
+
+    auto draw_header_row = [&](int y_header) {
+      for (int col = 0; col < int(eLightManagerColumn::Count); col++) {
+        const char *label = light_manager_columns[col].label;
+        if (label[0] == '\0') {
+          continue;
+        }
+
+        const int x = column_x_px(col);
+        const int w = column_width_px(col);
+
+        uiDefBut(block,
+                 ButType::Label,
+                 label,
+                 x,
+                 y_header,
+                 short(w),
+                 short(top_row_height),
+                 nullptr,
+                 0.0f,
+                 0.0f,
+                 std::nullopt);
+      }
+    };
+
+    for (const LightManagerRow &row_data : rows) {
+      if (row_data.ob == nullptr) {
+        continue;
+      }
+
+      /* Draw a header row when entering a new group, or once for ungrouped lights. */
+      if (row_data.group != current_group) {
+        /* Finish background for previous group. */
+        flush_group_background(current_group, group_y_top, group_row_count);
+
+        current_group = row_data.group;
+        group_y_top = y;
+        group_row_count = 0;
+
+        if (current_group != nullptr || !ungrouped_header_drawn) {
+          draw_header_row(y);
+          y -= row_height;
+          group_row_count++;
+
+          if (current_group == nullptr) {
+            ungrouped_header_drawn = true;
+          }
+        }
+      }
+
+      PointerRNA ob_ptr = RNA_pointer_create_discrete(&scene->id, &RNA_Object, row_data.ob);
+      PointerRNA light_ptr = RNA_pointer_get(&ob_ptr, "data");
+
+      /* Drag column. */
+      {
+        const int col = int(eLightManagerColumn::Drag);
+        const int x = column_x_px(col);
+        const int w = column_width_px(col);
+
+        uiBut *drag_but = uiDefIconBut(block,
+                                       ButType::Label,
+                                       ICON_GRIP,
+                                       x,
+                                       y,
+                                       short(w),
+                                       short(row_height),
+                                       nullptr,
+                                       0.0f,
+                                       0.0f,
+                                       std::nullopt);
+        UI_but_drag_set_id(drag_but, &row_data.ob->id);
+      }
+
+      /* Icon column. */
+      {
+        const int col = int(eLightManagerColumn::Icon);
+        const int x = column_x_px(col);
+        const int w = column_width_px(col);
+
+        int type_icon = ICON_LIGHT;
+        Light *light = static_cast<Light *>(row_data.ob->data);
+        switch (light->type) {
+          case LA_LOCAL: type_icon = ICON_LIGHT_POINT; break;
+          case LA_SUN: type_icon = ICON_LIGHT_SUN; break;
+          case LA_SPOT: type_icon = ICON_LIGHT_SPOT; break;
+          case LA_AREA: type_icon = ICON_LIGHT_AREA; break;
+        }
+
+        uiDefIconBut(block,
+                     ButType::Label,
+                     type_icon,
+                     x,
+                     y,
+                     short(w),
+                     short(row_height),
+                     nullptr,
+                     0.0f,
+                     0.0f,
+                     std::nullopt);
+      }
+
+      /* Name column. */
+      {
+        const int col = int(eLightManagerColumn::Name);
+        const int x = column_x_px(col);
+        const int w = column_width_px(col);
+
+        PropertyRNA *prop = RNA_struct_find_property(&ob_ptr, "name");
+        if (prop != nullptr) {
+          uiDefButR_prop(block,
+                         ButType::Text,
+                         std::nullopt,
+                         x,
+                         y,
+                         short(w),
+                         short(row_height),
+                         &ob_ptr,
+                         prop,
+                         -1,
+                         0.0f,
+                         0.0f,
+                         std::nullopt);
+        }
+      }
+
+      /* Color column. */
+      {
+        const int col = int(eLightManagerColumn::Color);
+        const int x = column_x_px(col);
+        const int w = column_width_px(col);
+
+        PropertyRNA *prop = RNA_struct_find_property(&light_ptr, "color");
+        if (prop != nullptr) {
+          uiDefButR_prop(block,
+                         ButType::Color,
+                         std::nullopt,
+                         x,
+                         y,
+                         short(w),
+                         short(row_height),
+                         &light_ptr,
+                         prop,
+                         -1,
+                         0.0f,
+                         0.0f,
+                         std::nullopt);
+        }
+      }
+
+      /* Power column. */
+      {
+        const int col = int(eLightManagerColumn::Power);
+        const int x = column_x_px(col);
+        const int w = column_width_px(col);
+
+        PropertyRNA *prop = RNA_struct_find_property(&light_ptr, "energy");
+        if (prop != nullptr) {
+          uiDefButR_prop(block,
+                         ButType::NumSlider,
+                         std::nullopt,
+                         x,
+                         y,
+                         short(w),
+                         short(row_height),
+                         &light_ptr,
+                         prop,
+                         -1,
+                         0.0f,
+                         0.0f,
+                         std::nullopt);
+        }
+      }
+
+      /* Visibility column: hide_viewport, hide_render, remove. */
+      {
+        const int col = int(eLightManagerColumn::Visibility);
+        int x = column_x_px(col);
+        const int w = column_width_px(col);
+        const int icon_w = UI_UNIT_X;
+
+        PropertyRNA *prop_hide_view = RNA_struct_find_property(&ob_ptr, "hide_viewport");
+        if (prop_hide_view != nullptr) {
+          uiDefButR_prop(block,
+                         ButType::IconToggle,
+                         std::nullopt,
+                         x,
+                         y,
+                         short(icon_w),
+                         short(row_height),
+                         &ob_ptr,
+                         prop_hide_view,
+                         -1,
+                         0.0f,
+                         0.0f,
+                         std::nullopt);
+        }
+        x += icon_w;
+
+        PropertyRNA *prop_hide_render = RNA_struct_find_property(&ob_ptr, "hide_render");
+        if (prop_hide_render != nullptr) {
+          uiDefButR_prop(block,
+                         ButType::IconToggle,
+                         std::nullopt,
+                         x,
+                         y,
+                         short(icon_w),
+                         short(row_height),
+                         &ob_ptr,
+                         prop_hide_render,
+                         -1,
+                         0.0f,
+                         0.0f,
+                         std::nullopt);
+        }
+        x += icon_w;
+
+        const int remaining_w = std::max(0, w - 2 * icon_w);
+        uiBut *remove_but = uiDefIconButO(block,
+                                           ButType::But,
+                                           "LIGHT_MANAGER_OT_light_remove_from_group",
+                                           blender::wm::OpCallContext::InvokeDefault,
+                                           ICON_X,
+                                           x,
+                                           y,
+                                           short(remaining_w),
+                                           short(row_height),
+                                           std::nullopt);
+        if (remove_but != nullptr) {
+          UI_but_operator_ptr_ensure(remove_but);
+          RNA_string_set(remove_but->opptr, "object_name", row_data.ob->id.name + 2);
+        }
+      }
+
+      y -= row_height;
+      group_row_count++;
+    }
+
+    /* Flush background for last group. */
+    flush_group_background(current_group, group_y_top, group_row_count);
+  }
+};
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Table-based layout helpers for groups
+ *  (pixel-precise columns aligned across all groups)
+ * \{ */
+
+struct ColumnLayout {
+  int x;      /* Position X en pixels */
+  int width;  /* Largeur en pixels */
+};
+
+/* Calculate pixel-precise column positions for the entire table. */
+static void calculate_column_positions(int table_width,
+                                       int x_start,
+                                       ColumnLayout out_columns[int(eLightManagerColumn::Count)])
+{
+  for (int i = 0; i < int(eLightManagerColumn::Count); i++) {
+    const float fraction = light_manager_columns[i].width_fraction;
+    out_columns[i].width = int(float(table_width) * fraction);
+    
+    /* Calculate X position by summing widths of previous columns */
+    out_columns[i].x = x_start;
+    for (int j = 0; j < i; j++) {
+      out_columns[i].x += out_columns[j].width;
+    }
+  }
+}
+
+/* Draw the table header row with pixel-precise column alignment. */
+static void draw_light_table_header(uiBlock *block,
+                                    const ColumnLayout columns[int(eLightManagerColumn::Count)],
+                                    int y,
+                                    int header_height)
+{
+  for (int col = 0; col < int(eLightManagerColumn::Count); col++) {
+    const char *label = light_manager_columns[col].label;
+    if (label[0] == '\0') {
+      continue;
+    }
+
+    const int x = columns[col].x;
+    const int w = columns[col].width;
+
+    uiDefBut(block,
+             ButType::Label,
+             label,
+             x,
+             y,
+             short(w),
+             short(header_height),
+             nullptr,
+             0.0f,
+             0.0f,
+             std::nullopt);
+  }
+}
+
+/* Draw a single light row with pixel-precise column alignment and centered elements. */
+static void draw_light_table_row(const bContext *C,
+                                 uiBlock *block,
+                                 Scene *scene,
+                                 Object *ob,
+                                 const ColumnLayout columns[int(eLightManagerColumn::Count)],
+                                 int y,
+                                 int row_height)
+{
+  PointerRNA ob_ptr = RNA_pointer_create_discrete(&scene->id, &RNA_Object, ob);
+  PointerRNA light_ptr = RNA_pointer_get(&ob_ptr, "data");
+
+  /* Drag column */
+  {
+    const int col = int(eLightManagerColumn::Drag);
+    const int x = columns[col].x;
+    const int w = columns[col].width;
+
+    /* Center the icon in the column */
+    const int icon_w = UI_UNIT_X;
+    const int padding = (w - icon_w) / 2;
+
+    uiBut *drag_but = uiDefIconBut(block,
+                                   ButType::Label,
+                                   ICON_GRIP,
+                                   x + padding,
+                                   y,
+                                   short(icon_w),
+                                   short(row_height),
+                                   nullptr,
+                                   0.0f,
+                                   0.0f,
+                                   std::nullopt);
+    UI_but_drag_set_id(drag_but, &ob->id);
+  }
+
+  /* Icon column */
+  {
+    const int col = int(eLightManagerColumn::Icon);
+    const int x = columns[col].x;
+    const int w = columns[col].width;
+
+    Light *light = static_cast<Light *>(ob->data);
+    int type_icon = ICON_LIGHT;
+    switch (light->type) {
+      case LA_LOCAL: type_icon = ICON_LIGHT_POINT; break;
+      case LA_SUN: type_icon = ICON_LIGHT_SUN; break;
+      case LA_SPOT: type_icon = ICON_LIGHT_SPOT; break;
+      case LA_AREA: type_icon = ICON_LIGHT_AREA; break;
+    }
+
+    /* Center the icon in the column */
+    const int icon_w = UI_UNIT_X;
+    const int padding = (w - icon_w) / 2;
+
+    uiDefIconBut(block,
+                 ButType::Label,
+                 type_icon,
+                 x + padding,
+                 y,
+                 short(icon_w),
+                 short(row_height),
+                 nullptr,
+                 0.0f,
+                 0.0f,
+                 std::nullopt);
+  }
+
+  /* Name column */
+  {
+    const int col = int(eLightManagerColumn::Name);
+    const int x = columns[col].x;
+    const int w = columns[col].width;
+
+    PropertyRNA *prop = RNA_struct_find_property(&ob_ptr, "name");
+    if (prop != nullptr) {
+      uiDefButR_prop(block,
+                     ButType::Text,
+                     std::nullopt,
+                     x,
+                     y,
+                     short(w),
+                     short(row_height),
+                     &ob_ptr,
+                     prop,
+                     -1,
+                     0.0f,
+                     0.0f,
+                     std::nullopt);
+    }
+  }
+
+  /* Color column */
+  {
+    const int col = int(eLightManagerColumn::Color);
+    const int x = columns[col].x;
+    const int w = columns[col].width;
+
+    PropertyRNA *prop = RNA_struct_find_property(&light_ptr, "color");
+    if (prop != nullptr) {
+      uiDefButR_prop(block,
+                     ButType::Color,
+                     std::nullopt,
+                     x,
+                     y,
+                     short(w),
+                     short(row_height),
+                     &light_ptr,
+                     prop,
+                     -1,
+                     0.0f,
+                     0.0f,
+                     std::nullopt);
+    }
+  }
+
+  /* Power column */
+  {
+    const int col = int(eLightManagerColumn::Power);
+    const int x = columns[col].x;
+    const int w = columns[col].width;
+
+    PropertyRNA *prop = RNA_struct_find_property(&light_ptr, "energy");
+    if (prop != nullptr) {
+      uiDefButR_prop(block,
+                     ButType::NumSlider,
+                     std::nullopt,
+                     x,
+                     y,
+                     short(w),
+                     short(row_height),
+                     &light_ptr,
+                     prop,
+                     -1,
+                     0.0f,
+                     0.0f,
+                     std::nullopt);
+    }
+  }
+
+  /* Visibility column: hide_viewport, hide_render, remove */
+  {
+    const int col = int(eLightManagerColumn::Visibility);
+    int x = columns[col].x;
+    const int w = columns[col].width;
+    const int icon_w = UI_UNIT_X;
+
+    PropertyRNA *prop_hide_view = RNA_struct_find_property(&ob_ptr, "hide_viewport");
+    if (prop_hide_view != nullptr) {
+      uiDefButR_prop(block,
+                     ButType::IconToggle,
+                     std::nullopt,
+                     x,
+                     y,
+                     short(icon_w),
+                     short(row_height),
+                     &ob_ptr,
+                     prop_hide_view,
+                     -1,
+                     0.0f,
+                     0.0f,
+                     std::nullopt);
+    }
+    x += icon_w;
+
+    PropertyRNA *prop_hide_render = RNA_struct_find_property(&ob_ptr, "hide_render");
+    if (prop_hide_render != nullptr) {
+      uiDefButR_prop(block,
+                     ButType::IconToggle,
+                     std::nullopt,
+                     x,
+                     y,
+                     short(icon_w),
+                     short(row_height),
+                     &ob_ptr,
+                     prop_hide_render,
+                     -1,
+                     0.0f,
+                     0.0f,
+                     std::nullopt);
+    }
+    x += icon_w;
+
+    const int remaining_w = std::max(0, w - 2 * icon_w);
+    uiBut *remove_but = uiDefIconButO(block,
+                                       ButType::But,
+                                       "LIGHT_MANAGER_OT_light_remove_from_group",
+                                       blender::wm::OpCallContext::InvokeDefault,
+                                       ICON_X,
+                                       x,
+                                       y,
+                                       short(remaining_w),
+                                       short(row_height),
+                                       std::nullopt);
+    if (remove_but != nullptr) {
+      UI_but_operator_ptr_ensure(remove_but);
+      RNA_string_set(remove_but->opptr, "object_name", ob->id.name + 2);
+    }
+  }
+}
+
+/** \} */
 
 /* Inline helper to get SpaceLightManager from context. */
 static inline SpaceLightManager *CTX_wm_space_light_manager(const bContext *C)
@@ -795,23 +1403,23 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
 
   SpaceLightManager *space_lm = CTX_wm_space_light_manager(C);
 
-  /* Create UI block and layout. */
+  /* Create UI block. */
   uiBlock *block = UI_block_begin(C, region, __func__, ui::EmbossType::Emboss);
-  
+
+  /* Simple layout at the top for the add-group button, keep existing style. */
   ui::Layout &layout = ui::block_layout(block,
                                          ui::LayoutDirection::Vertical,
                                          ui::LayoutType::Panel,
                                          10,
-                                         region->winy - 10,  /* Start from top */
+                                         region->winy - 10,
                                          region->winx - 20,
                                          region->winy,
                                          0,
                                          UI_style_get());
-  
-  /* Draw Add Group button at the top */
+
   ui::Layout &button_row = layout.row(false);
   button_row.op("LIGHT_MANAGER_OT_group_add", "+ Add New Group", ICON_ADD);
-  
+
   layout.separator();
 
   /* Collect and sort all lights in the scene. */
@@ -979,149 +1587,227 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
 
       layout.separator();
 
-      /* Draw lights in this group if expanded. */
+      /* Draw lights in this group if expanded directly inside the group box,
+       * so the panel background expands together with the data. */
       if (!(group->flag & SPACE_LIGHT_MANAGER_GROUP_COLLAPSED)) {
         if (group_lights && !group_lights->is_empty()) {
-          group_box.separator();
+          /* Calculate table dimensions and heights */
+          const int header_height = int(UI_UNIT_Y * 1.1f);
+          const int row_height = int(UI_UNIT_Y * 1.2f);
+          const int table_x_start = 5;  /* Minimal padding inside the box */
+          const int table_width = region->winx - 30;  /* Box width minus padding */
+          
+          /* Calculate column positions once for pixel-precise alignment */
+          ColumnLayout columns[int(eLightManagerColumn::Count)];
+          calculate_column_positions(table_width, table_x_start, columns);
+          
+          /* Table header: Drag | Icon | Name | Color | Power | Visibility */
+          ui::Layout &header_row = group_box.row(false);
+          header_row.use_property_split_set(false);
+          header_row.use_property_decorate_set(false);
 
-          /* Indent column plus a row of shared column layouts: this builds a true 2xN table. */
-          ui::Layout &indented_table = group_box.row(false);
-          ui::Layout &table_indent = indented_table.split(0.03f, false);
-          table_indent.label("", ICON_NONE);
-
-          ui::Layout &table_columns = indented_table.row(false);
-          table_columns.use_property_split_set(false);
-          table_columns.use_property_decorate_set(false);
-
-          /* One column per logical field. Use fixed widths so headers and rows align like a table. */
-          ui::Layout &controls_column = table_columns.column(false);
-          controls_column.ui_units_x_set(4.0f);
-
-          ui::Layout &name_column = table_columns.column(false);
-          name_column.ui_units_x_set(12.0f);
-
-          ui::Layout &color_column = table_columns.column(false);
-          color_column.ui_units_x_set(3.0f);
-
-          ui::Layout &intensity_column = table_columns.column(false);
-          intensity_column.ui_units_x_set(8.0f);
-
-          /* Visibility column will hold the two visibility toggles and the remove (X) icon).
-           * Use a width proche de la largeur des 3 icônes pour éviter que le titre paraisse
-           * décalé par rapport aux icônes.
-           */
-          ui::Layout &visibility_column = table_columns.column(true);
-          visibility_column.ui_units_x_set(4.0f);
-
-          /* Header row. */
-          controls_column.label("", ICON_NONE);
-
-          ui::Layout &name_header = name_column.row(false);
-          name_header.label(IFACE_("Name"), ICON_NONE);
-          {
-            uiBlock *block = name_header.block();
-            uiBut *but = block->last_but();
-            UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
-            UI_but_drawflag_disable(but, UI_BUT_TEXT_RIGHT);
+          uiBlock *header_block = header_row.block();
+          
+          /* Draw header labels at exact positions */
+          for (int col = 0; col < int(eLightManagerColumn::Count); col++) {
+            const char *label = light_manager_columns[col].label;
+            if (label[0] == '\0') {
+              continue;
+            }
+            
+            uiDefBut(header_block,
+                     ButType::Label,
+                     label,
+                     columns[col].x,
+                     0,  /* Y will be set by layout */
+                     short(columns[col].width),
+                     short(header_height),
+                     nullptr,
+                     0.0f,
+                     0.0f,
+                     std::nullopt);
           }
 
-          ui::Layout &color_header = color_column.row(false);
-          color_header.label(IFACE_("Color"), ICON_NONE);
-          {
-            uiBlock *block = color_header.block();
-            uiBut *but = block->last_but();
-            UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
-            UI_but_drawflag_disable(but, UI_BUT_TEXT_RIGHT);
-          }
-
-          ui::Layout &intensity_header = intensity_column.row(false);
-          intensity_header.label(IFACE_("Power"), ICON_NONE);
-          {
-            uiBlock *block = intensity_header.block();
-            uiBut *but = block->last_but();
-            UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
-            UI_but_drawflag_disable(but, UI_BUT_TEXT_RIGHT);
-          }
-
-          ui::Layout &vis_header = visibility_column.row(false);
-          vis_header.label(IFACE_("Visibility"), ICON_NONE);
-          {
-            uiBlock *block = vis_header.block();
-            uiBut *but = block->last_but();
-            UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
-            UI_but_drawflag_disable(but, UI_BUT_TEXT_RIGHT);
-          }
-
-          /* Data rows: one row per light, sharing the same column layouts as the header. */
-          for (int light_index = 0; light_index < group_lights->size(); light_index++) {
-            Object *ob = (*group_lights)[light_index];
-            Light *light = static_cast<Light *>(ob->data);
-
+          /* Draw each light row */
+          for (Object *ob : *group_lights) {
+            ui::Layout &row = group_box.row(false);
+            row.use_property_split_set(false);
+            row.use_property_decorate_set(false);
+            
+            uiBlock *row_block = row.block();
+            
+            /* Draw the row at exact column positions */
             PointerRNA ob_ptr = RNA_pointer_create_discrete(&scene->id, &RNA_Object, ob);
             PointerRNA light_ptr = RNA_pointer_get(&ob_ptr, "data");
 
-            /* Controls column: drag handle + light icon. */
-            ui::Layout &controls_row = controls_column.row(false);
-            controls_row.use_property_split_set(false);
-            controls_row.use_property_decorate_set(false);
+            /* Drag column */
+            {
+              const int col = int(eLightManagerColumn::Drag);
+              const int icon_w = UI_UNIT_X;
+              const int padding = (columns[col].width - icon_w) / 2;
 
-            uiBlock *block_ptr = controls_row.block();
-            uiBut *light_drag_but = uiDefIconBut(block_ptr,
-                                                 ButType::Label,
-                                                 ICON_GRIP,
-                                                 0, 0,
-                                                 UI_UNIT_X, UI_UNIT_Y,
-                                                 nullptr, 0.0f, 0.0f,
+              uiBut *drag_but = uiDefIconBut(row_block,
+                                             ButType::Label,
+                                             ICON_GRIP,
+                                             columns[col].x + padding,
+                                             0,
+                                             short(icon_w),
+                                             short(row_height),
+                                             nullptr,
+                                             0.0f,
+                                             0.0f,
+                                             std::nullopt);
+              UI_but_drag_set_id(drag_but, &ob->id);
+            }
+
+            /* Icon column */
+            {
+              const int col = int(eLightManagerColumn::Icon);
+              Light *light = static_cast<Light *>(ob->data);
+              int type_icon = ICON_LIGHT;
+              switch (light->type) {
+                case LA_LOCAL: type_icon = ICON_LIGHT_POINT; break;
+                case LA_SUN: type_icon = ICON_LIGHT_SUN; break;
+                case LA_SPOT: type_icon = ICON_LIGHT_SPOT; break;
+                case LA_AREA: type_icon = ICON_LIGHT_AREA; break;
+              }
+
+              const int icon_w = UI_UNIT_X;
+              const int padding = (columns[col].width - icon_w) / 2;
+
+              uiDefIconBut(row_block,
+                           ButType::Label,
+                           type_icon,
+                           columns[col].x + padding,
+                           0,
+                           short(icon_w),
+                           short(row_height),
+                           nullptr,
+                           0.0f,
+                           0.0f,
+                           std::nullopt);
+            }
+
+            /* Name column */
+            {
+              const int col = int(eLightManagerColumn::Name);
+              PropertyRNA *prop = RNA_struct_find_property(&ob_ptr, "name");
+              if (prop != nullptr) {
+                uiDefButR_prop(row_block,
+                               ButType::Text,
+                               std::nullopt,
+                               columns[col].x,
+                               0,
+                               short(columns[col].width),
+                               short(row_height),
+                               &ob_ptr,
+                               prop,
+                               -1,
+                               0.0f,
+                               0.0f,
+                               std::nullopt);
+              }
+            }
+
+            /* Color column */
+            {
+              const int col = int(eLightManagerColumn::Color);
+              PropertyRNA *prop = RNA_struct_find_property(&light_ptr, "color");
+              if (prop != nullptr) {
+                uiDefButR_prop(row_block,
+                               ButType::Color,
+                               std::nullopt,
+                               columns[col].x,
+                               0,
+                               short(columns[col].width),
+                               short(row_height),
+                               &light_ptr,
+                               prop,
+                               -1,
+                               0.0f,
+                               0.0f,
+                               std::nullopt);
+              }
+            }
+
+            /* Power column */
+            {
+              const int col = int(eLightManagerColumn::Power);
+              PropertyRNA *prop = RNA_struct_find_property(&light_ptr, "energy");
+              if (prop != nullptr) {
+                uiDefButR_prop(row_block,
+                               ButType::NumSlider,
+                               std::nullopt,
+                               columns[col].x,
+                               0,
+                               short(columns[col].width),
+                               short(row_height),
+                               &light_ptr,
+                               prop,
+                               -1,
+                               0.0f,
+                               0.0f,
+                               std::nullopt);
+              }
+            }
+
+            /* Visibility column */
+            {
+              const int col = int(eLightManagerColumn::Visibility);
+              int x = columns[col].x;
+              const int icon_w = UI_UNIT_X;
+
+              PropertyRNA *prop_hide_view = RNA_struct_find_property(&ob_ptr, "hide_viewport");
+              if (prop_hide_view != nullptr) {
+                uiDefButR_prop(row_block,
+                               ButType::IconToggle,
+                               std::nullopt,
+                               x,
+                               0,
+                               short(icon_w),
+                               short(row_height),
+                               &ob_ptr,
+                               prop_hide_view,
+                               -1,
+                               0.0f,
+                               0.0f,
+                               std::nullopt);
+              }
+              x += icon_w;
+
+              PropertyRNA *prop_hide_render = RNA_struct_find_property(&ob_ptr, "hide_render");
+              if (prop_hide_render != nullptr) {
+                uiDefButR_prop(row_block,
+                               ButType::IconToggle,
+                               std::nullopt,
+                               x,
+                               0,
+                               short(icon_w),
+                               short(row_height),
+                               &ob_ptr,
+                               prop_hide_render,
+                               -1,
+                               0.0f,
+                               0.0f,
+                               std::nullopt);
+              }
+              x += icon_w;
+
+              /* Make remove button square like the other icon buttons */
+              uiBut *remove_but = uiDefIconButO(row_block,
+                                                 ButType::But,
+                                                 "LIGHT_MANAGER_OT_light_remove_from_group",
+                                                 blender::wm::OpCallContext::InvokeDefault,
+                                                 ICON_X,
+                                                 x,
+                                                 0,
+                                                 short(icon_w),
+                                                 short(row_height),
                                                  std::nullopt);
-            UI_but_drag_set_id(light_drag_but, &ob->id);
-
-            int type_icon = ICON_LIGHT;
-            switch (light->type) {
-              case LA_LOCAL: type_icon = ICON_LIGHT_POINT; break;
-              case LA_SUN: type_icon = ICON_LIGHT_SUN; break;
-              case LA_SPOT: type_icon = ICON_LIGHT_SPOT; break;
-              case LA_AREA: type_icon = ICON_LIGHT_AREA; break;
-            }
-            controls_row.label("", type_icon);
-
-            /* Light properties (no per-row labels, headers are drawn above). */
-            ui::Layout &name_row = name_column.row(false);
-            name_row.prop(&ob_ptr, "name", UI_ITEM_NONE, "", ICON_NONE);
-
-            ui::Layout &color_row = color_column.row(false);
-            color_row.prop(&light_ptr, "color", UI_ITEM_NONE, "", ICON_NONE);
-
-            ui::Layout &intensity_row = intensity_column.row(false);
-            intensity_row.prop(&light_ptr, "energy", UI_ITEM_NONE, "", ICON_NONE);
-
-            /* When hidden in viewport, keep the visibility toggles active but
-             * disable editing of name/color/intensity. */
-            const bool hidden_in_viewport = (ob->visibility_flag & OB_HIDE_VIEWPORT) != 0;
-            if (hidden_in_viewport) {
-              name_row.enabled_set(false);
-              color_row.enabled_set(false);
-              intensity_row.enabled_set(false);
-            }
-
-            ui::Layout &vis_row = visibility_column.row(true);
-            vis_row.prop(&ob_ptr, "hide_viewport", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
-            vis_row.prop(&ob_ptr, "hide_render", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
-
-            /* Remove this light from its group (back to default), as a third icon in the
-             * visibility column so it aligns with the other visibility icons. */
-            PointerRNA remove_op = vis_row.op(
-                "LIGHT_MANAGER_OT_light_remove_from_group", "", ICON_X);
-            if (remove_op.type != nullptr) {
-              RNA_string_set(&remove_op, "object_name", ob->id.name + 2);
-            }
-
-            /* Horizontal separator between rows, for all columns (except after last row). */
-            if (light_index < group_lights->size() - 1) {
-              controls_column.separator(1.0f);
-              name_column.separator(1.0f);
-              color_column.separator(1.0f);
-              intensity_column.separator(1.0f);
-              visibility_column.separator(1.0f);
+              if (remove_but != nullptr) {
+                UI_but_operator_ptr_ensure(remove_but);
+                RNA_string_set(remove_but->opptr, "object_name", ob->id.name + 2);
+              }
             }
           }
         }
@@ -1134,96 +1820,6 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
     }
   }
   
-  /* Draw ungrouped lights. */
-  if (grouped_lights.contains("Ungrouped") && !grouped_lights.lookup("Ungrouped").is_empty()) {
-    layout.separator();
-    ui::Layout &ungrouped_header = layout.row(false);
-    ungrouped_header.label("=== Ungrouped ===", ICON_NONE);
-    layout.separator();
-
-    /* Column headers for ungrouped lights (table-like layout). */
-    ui::Layout &ungrouped_columns = layout.row(false);
-    ungrouped_columns.use_property_split_set(false);
-    ungrouped_columns.use_property_decorate_set(false);
-
-    /* Icon column. */
-    ungrouped_columns.label("", ICON_NONE);
-
-    ui::Layout &ungrouped_name_header = ungrouped_columns.row(false);
-    ungrouped_name_header.ui_units_x_set(12.0f);
-    ungrouped_name_header.label(IFACE_("Name"), ICON_NONE);
-
-    ui::Layout &ungrouped_color_header = ungrouped_columns.row(false);
-    ungrouped_color_header.ui_units_x_set(3.0f);
-    ungrouped_color_header.label(IFACE_("Color"), ICON_NONE);
-
-    ui::Layout &ungrouped_intensity_header = ungrouped_columns.row(false);
-    ungrouped_intensity_header.ui_units_x_set(8.0f);
-    ungrouped_intensity_header.label(IFACE_("Power"), ICON_NONE);
-
-    ui::Layout &ungrouped_vis_header = ungrouped_columns.row(true);
-    ungrouped_vis_header.ui_units_x_set(3.0f);
-    ungrouped_vis_header.label(IFACE_("Visibility"), ICON_NONE);
-
-    ui::Layout &ungrouped_remove_header = ungrouped_columns.row(true);
-    ungrouped_remove_header.label("", ICON_NONE);
-
-    for (Object *ob : grouped_lights.lookup("Ungrouped")) {
-
-      Light *light = static_cast<Light *>(ob->data);
-      
-      PointerRNA ob_ptr = RNA_pointer_create_discrete(&scene->id, &RNA_Object, ob);
-      PointerRNA light_ptr = RNA_pointer_get(&ob_ptr, "data");;
-
-      ui::Layout &light_row = layout.row(false);
-      light_row.use_property_split_set(false);
-      light_row.use_property_decorate_set(false);
-
-      int type_icon = ICON_LIGHT;
-      switch (light->type) {
-        case LA_LOCAL: type_icon = ICON_LIGHT_POINT; break;
-        case LA_SUN: type_icon = ICON_LIGHT_SUN; break;
-        case LA_SPOT: type_icon = ICON_LIGHT_SPOT; break;
-        case LA_AREA: type_icon = ICON_LIGHT_AREA; break;
-      }
-      light_row.label("", type_icon);
-
-      ui::Layout &name_col = light_row.row(false);
-      name_col.ui_units_x_set(12.0f);
-      name_col.prop(&ob_ptr, "name", UI_ITEM_NONE, "", ICON_NONE);
-
-      ui::Layout &color_col = light_row.row(false);
-      color_col.ui_units_x_set(3.0f);
-      color_col.prop(&light_ptr, "color", UI_ITEM_NONE, "", ICON_NONE);
-
-      ui::Layout &intensity_col = light_row.row(false);
-      intensity_col.ui_units_x_set(8.0f);
-      intensity_col.prop(&light_ptr, "energy", UI_ITEM_NONE, "", ICON_NONE);
-
-      /* Same behavior for ungrouped lights: keep visibility toggles
-       * interactive even when the light is hidden in the viewport. */
-      const bool hidden_in_viewport = (ob->visibility_flag & OB_HIDE_VIEWPORT) != 0;
-      if (hidden_in_viewport) {
-        name_col.enabled_set(false);
-        color_col.enabled_set(false);
-        intensity_col.enabled_set(false);
-      }
-
-      ui::Layout &vis_col = light_row.row(true);
-      vis_col.ui_units_x_set(3.0f);
-      vis_col.prop(&ob_ptr, "hide_viewport", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
-      vis_col.prop(&ob_ptr, "hide_render", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
-
-      /* Remove this light from its group (back to default). */
-      ui::Layout &remove_col = light_row.row(true);
-      PointerRNA remove_op = remove_col.op(
-          "LIGHT_MANAGER_OT_light_remove_from_group", "", ICON_X);
-      if (remove_op.type != nullptr) {
-        RNA_string_set(&remove_op, "object_name", ob->id.name + 2);
-      }
-    }
-  }
-
   /* If no lights found, show message. */
   if (light_count == 0) {
     layout.label(IFACE_("No lights in scene"), ICON_INFO);
