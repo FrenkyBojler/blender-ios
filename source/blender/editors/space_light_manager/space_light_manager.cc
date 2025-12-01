@@ -133,18 +133,7 @@ static void remove_light_group(Object *ob)
   }
 }
 
-static void ensure_default_group_exists(SpaceLightManager *space_lm)
-{
-  if (space_lm == nullptr) {
-    return;
-  }
-  if (space_lm->groups.first == nullptr) {
-    SpaceLightManagerGroup *group = MEM_callocN<SpaceLightManagerGroup>("LightManagerGroup");
-    STRNCPY(group->name, light_manager_default_group_name());
-    group->flag = 0;
-    BLI_addtail(&space_lm->groups, group);
-  }
-}
+
 
 static bool ED_operator_light_manager_active(bContext *C)
 {
@@ -299,7 +288,7 @@ static wmOperatorStatus light_manager_assign_selected_to_group_exec(bContext *C,
 
   /* Make sure there is at least one valid group so index 0 always refers
    * to something sensible even after deleting all groups. */
-  ensure_default_group_exists(space_lm);
+
 
   const int index = RNA_int_get(op->ptr, "index");
   SpaceLightManagerGroup *group = static_cast<SpaceLightManagerGroup *>(
@@ -341,7 +330,7 @@ static wmOperatorStatus light_manager_add_light_exec(bContext *C, wmOperator *op
     return OPERATOR_CANCELLED;
   }
 
-  ensure_default_group_exists(space_lm);
+
 
   const int index = RNA_int_get(op->ptr, "index");
   SpaceLightManagerGroup *group = static_cast<SpaceLightManagerGroup *>(
@@ -550,7 +539,8 @@ static wmOperatorStatus light_manager_group_toggle_visibility_exec(bContext *C, 
     if (ob->type != OB_LAMP) {
       continue;
     }
-    if (!STREQ(get_light_group(ob), group->name)) {
+    const char *light_group = get_light_group(ob);
+    if (light_group == nullptr || !STREQ(light_group, group->name)) {
       continue;
     }
 
@@ -578,7 +568,8 @@ static wmOperatorStatus light_manager_group_toggle_visibility_exec(bContext *C, 
     if (ob->type != OB_LAMP) {
       continue;
     }
-    if (!STREQ(get_light_group(ob), group->name)) {
+    const char *light_group = get_light_group(ob);
+    if (light_group == nullptr || !STREQ(light_group, group->name)) {
       continue;
     }
 
@@ -601,6 +592,7 @@ static wmOperatorStatus light_manager_group_toggle_visibility_exec(bContext *C, 
   }
   FOREACH_SCENE_OBJECT_END;
 
+  WM_event_add_notifier(C, NC_SCENE | ND_OB_VISIBLE, scene);
   WM_event_add_notifier(C, NC_SPACE | ND_SPACE_LIGHT_MANAGER, space_lm);
   return OPERATOR_FINISHED;
 }
@@ -800,10 +792,7 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
   /* Get scene context. */
   Scene *scene = CTX_data_scene(C);
 
-  /* Ensure there is always at least the default 'Scene light' group so
-   * lights never disappear from the UI after deleting all groups. */
   SpaceLightManager *space_lm = CTX_wm_space_light_manager(C);
-  ensure_default_group_exists(space_lm);
 
   /* Create UI block and layout. */
   uiBlock *block = UI_block_begin(C, region, __func__, ui::EmbossType::Emboss);
@@ -818,13 +807,10 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
                                          0,
                                          UI_style_get());
   
-  /* Title row. */
-  ui::Layout &title_row = layout.row(false);
-  title_row.label(IFACE_("Light Manager"), ICON_OUTLINER_OB_LIGHT);
+  /* Draw Add Group button at the top */
+  ui::Layout &button_row = layout.row(false);
+  button_row.op("LIGHT_MANAGER_OT_group_add", "+ Add New Group", ICON_ADD);
   
-  /* Add group button. */
-  title_row.op("LIGHT_MANAGER_OT_group_add", IFACE_("Add a new group"), ICON_ADD);
-
   layout.separator();
 
   /* Collect and sort all lights in the scene. */
@@ -1016,7 +1002,7 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
                                                  std::nullopt);
             UI_but_drag_set_id(light_drag_but, &ob->id);
 
-            /* Light type icon. */
+            /* Light type icon (theme-colored like in the Outliner). */
             int type_icon = ICON_LIGHT;
             switch (light->type) {
               case LA_LOCAL: type_icon = ICON_LIGHT_POINT; break;
@@ -1215,7 +1201,7 @@ static SpaceLink *light_manager_create(const ScrArea * /*area*/, const Scene * /
   space_lm->spacetype = SPACE_LIGHT_MANAGER;
   space_lm->runtime = MEM_new<SpaceLightManager_Runtime>(__func__);
 
-  ensure_default_group_exists(space_lm);
+
 
   ARegion *region;
 
@@ -1257,7 +1243,7 @@ static void light_manager_space_blend_read_data(BlendDataReader * /*reader*/, Sp
 {
   SpaceLightManager *space_lm = (SpaceLightManager *)sl;
   space_lm->runtime = MEM_new<SpaceLightManager_Runtime>(__func__);
-  ensure_default_group_exists(space_lm);
+
 }
 
 static void light_manager_space_blend_write(BlendWriter *writer, SpaceLink *sl)
@@ -1286,21 +1272,21 @@ static void light_manager_operatortypes()
 /* Check if drag data can be dropped - light objects only. */
 static bool light_drop_poll(bContext * /*C*/, wmDrag *drag, const wmEvent * /*event*/)
 {
-  printf("Light drop poll called, drag type: %d\n", drag->type);
+
   
   /* Only accept light objects. */
   if (drag->type == WM_DRAG_ID) {
     ID *id = WM_drag_get_local_ID(drag, ID_OB);
-    printf("Got ID: %p\n", (void*)id);
+  
     if (id) {
       Object *ob = reinterpret_cast<Object *>(id);
-      printf("Object type: %d, OB_LAMP: %d\n", ob->type, OB_LAMP);
+    
       bool result = (ob->type == OB_LAMP);
-      printf("Light drop poll returning: %d\n", result);
+    
       return result;
     }
   }
-  printf("Light drop poll returning false\n");
+
   return false;
 }
 
@@ -1321,7 +1307,7 @@ static int find_group_at_position(SpaceLightManager *space_lm, ARegion *region, 
   int mouse_y = event->mval[1];  /* Y coordinate in region space */
   int region_height = region->winy;
   
-  printf("Mouse Y (region): %d, Region height: %d, num_groups: %d\n", mouse_y, region_height, num_groups);
+
   
   /* Simple heuristic: divide region height by number of groups
    * Groups are drawn from top to bottom, so:
@@ -1338,11 +1324,11 @@ static int find_group_at_position(SpaceLightManager *space_lm, ARegion *region, 
     float group_top = current_y_top;
     float group_bottom = current_y_top - group_height_estimate;
     
-    printf("Group %d: top=%f, bottom=%f\n", i, group_top, group_bottom);
+  
     
     /* Check if mouse is in this group's area */
     if (mouse_y <= group_top && mouse_y >= group_bottom) {
-      printf("Found group at index %d\n", i);
+    
       return i;
     }
     
@@ -1350,34 +1336,34 @@ static int find_group_at_position(SpaceLightManager *space_lm, ARegion *region, 
   }
   
   /* Default to last group if below all */
-  printf("Mouse below all groups, using last group (index %d)\n", num_groups - 1);
+
   return num_groups - 1;
 }
 
 /* Dedicated operator for dropping lights (no popup). */
 static wmOperatorStatus light_manager_drop_light_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  printf("Light drop invoke called!\n");
+
   
   ID *id = WM_drag_get_local_ID_from_event(event, ID_OB);
-  printf("Got ID from event: %p\n", (void*)id);
+
   if (!id || GS(id->name) != ID_OB) {
-    printf("Not an object or ID is null\n");
+  
     return OPERATOR_CANCELLED;
   }
 
   Object *ob = reinterpret_cast<Object *>(id);
   if (ob->type != OB_LAMP) {
-    printf("Object is not a lamp\n");
+  
     return OPERATOR_CANCELLED;
   }
   
-  printf("Dropping light: %s\n", ob->id.name + 2);
+
 
   /* Detect which group the mouse is over. */
   SpaceLightManager *space_lm = CTX_wm_space_light_manager(C);
   if (!space_lm) {
-    printf("No space_lm\n");
+  
     return OPERATOR_CANCELLED;
   }
   
@@ -1388,23 +1374,23 @@ static wmOperatorStatus light_manager_drop_light_invoke(bContext *C, wmOperator 
     target_group_index = find_group_at_position(space_lm, region, event);
   }
 
-  ensure_default_group_exists(space_lm);
+
 
   SpaceLightManagerGroup *group = static_cast<SpaceLightManagerGroup *>(
       BLI_findlink(&space_lm->groups, target_group_index));
   if (!group) {
-    printf("Group not found at index %d\n", target_group_index);
+  
     return OPERATOR_CANCELLED;
   }
   
-  printf("Adding to group: %s\n", group->name);
+
 
   /* Assign the light to the group using the object's light group property. */
   set_light_group(ob, group->name);
 
   WM_event_add_notifier(C, NC_SPACE | ND_SPACE_LIGHT_MANAGER, nullptr);
   
-  printf("Light drop completed successfully!\n");
+
   return OPERATOR_FINISHED;
 }
 
@@ -1425,19 +1411,19 @@ static void LIGHT_MANAGER_OT_drop_light(wmOperatorType *ot)
 /* Check if drag data is a group name for reordering. */
 static bool group_drop_poll(bContext * /*C*/, wmDrag *drag, const wmEvent * /*event*/)
 {
-  printf("Group drop poll called, drag type: %d, WM_DRAG_NAME: %d\n", drag->type, WM_DRAG_NAME);
+
   bool result = (drag->type == WM_DRAG_NAME);
-  printf("Group drop poll returning: %d\n", result);
+
   return result;
 }
 
 /* Handle dropping a group to reorder it. */
 static wmOperatorStatus group_drop_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  printf("Group drop invoke called!\n");
+
   
   if (event->custom != EVT_DATA_DRAGDROP) {
-    printf("Not a drag drop event\n");
+  
     return OPERATOR_CANCELLED;
   }
 
@@ -1477,7 +1463,7 @@ static wmOperatorStatus group_drop_invoke(bContext *C, wmOperator *op, const wmE
    * User can drop multiple times to move further.
    * TODO: Detect exact target position based on mouse Y. */
   if (source_index >= total_groups - 1) {
-    printf("Already at bottom\n");
+  
     return OPERATOR_CANCELLED;
   }
 
@@ -1485,7 +1471,7 @@ static wmOperatorStatus group_drop_invoke(bContext *C, wmOperator *op, const wmE
   RNA_int_set(op->ptr, "index", source_index);
   RNA_enum_set(op->ptr, "direction", 1);  /* Down */
 
-  printf("Moving group from index %d down\n", source_index);
+
   return light_manager_group_move_exec(C, op);
 }
 
