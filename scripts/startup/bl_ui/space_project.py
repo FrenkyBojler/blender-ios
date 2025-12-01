@@ -180,15 +180,36 @@ class PROJECT_PT_main(Panel, CenterAlignMixIn):
 
         col = layout.column()
 
-        if context.project.data is None:
-            col.label(text="No active project.", icon='INFO')
-
-            col.label(text="Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quisque sit amet")
-            col.label(text="mi et magna mattis faucibus. Sed aliquet mi justo.")
-
+        if context.blend_data.filepath == "":
+            col.label(
+                text="Save the current file, and make sure to place it in a folder that will be part of the project.",
+                icon='WARNING_LARGE')
             row = col.row()
             split = row.split(factor=0.3)
-            split.operator("project.new_project")
+            split.operator("wm.save_as_mainfile", text="Save File...")
+
+            col.separator_spacer()
+
+            col.label(text="Alternatively, open a file inside of a project directory to see its settings.")
+            row = col.row()
+            split = row.split(factor=0.3)
+            split.operator("wm.open_mainfile", text="Open File...")
+        elif context.project.data is None:
+            col.label(text="No active project.", icon='INFO')
+
+            col.separator_spacer()
+
+            col.label(text="Set up a new project by choosing any parent directory of the current file.")
+            row = col.row()
+            split = row.split(factor=0.3)
+            split.operator("project.new_project", text="New Project...")
+
+            col.separator_spacer()
+
+            col.label(text="Alternatively, open a file inside of a project directory to see its settings.")
+            row = col.row()
+            split = row.split(factor=0.3)
+            split.operator("wm.open_mainfile", text="Open File...")
         else:
             col.prop(project.data, "name")
             col.prop(project.data, "root_path")
