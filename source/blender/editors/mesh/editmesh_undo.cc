@@ -118,15 +118,26 @@ static size_t array_chunk_size_calc(const size_t stride)
   return std::max(ARRAY_CHUNK_NUM_MIN, ARRAY_CHUNK_SIZE_IN_BYTES / power_of_2_max_i(stride));
 }
 
+struct ArrayDataKey {
+  std::optional<std::string> name;
+  eCustomDataType type;
+
+  BLI_STRUCT_EQUALITY_OPERATORS_2(ArrayDataKey, name, type);
+
+  uint64_t hash() const
+  {
+    return blender::get_default_hash(this->name.value_or(""), this->type);
+  }
+};
+
 struct BArrayCustomData {
   /**
    * Non-trivial data is just stored directly since allocated arrays cannot be easily deduplicated
    * with the array-store system.
    */
-  blender::Map<eCustomDataType, blender::Array<blender::ImplicitSharingInfoAndData>>
-      non_trivial_arrays;
+  blender::Map<ArrayDataKey, blender::ImplicitSharingInfoAndData> non_trivial_arrays;
   /** Array-store states for custom data layers of each type. */
-  blender::Map<eCustomDataType, blender::Array<BArrayState *>> trivial_arrays;
+  blender::Map<ArrayDataKey, BArrayState *> trivial_arrays;
 };
 
 #  ifdef USE_ARRAY_STORE_RLE
@@ -216,7 +227,7 @@ static struct {
 
 } um_arraystore = {{{nullptr}}};
 
-static BArrayCustomData *um_arraystore_cd_create(CustomData *cdata,
+static BArrayCustomData *um_arraystore_cd_create(const CustomData *cdata,
                                                  const size_t data_len,
                                                  const int bs_index,
                                                  const BArrayCustomData *bcd_reference)
@@ -224,16 +235,13 @@ static BArrayCustomData *um_arraystore_cd_create(CustomData *cdata,
   using namespace blender;
   BArrayCustomData bcd;
 
-  MutableSpan all_layers(cdata->layers, cdata->totlayer);
-
-  for (int layer_start = 0, layer_end; layer_start < cdata->totlayer; layer_start = layer_end) {
-    const eCustomDataType type = eCustomDataType(cdata->layers[layer_start].type);
-
-    layer_end = layer_start + 1;
-    while ((layer_end < cdata->totlayer) && (type == cdata->layers[layer_end].type)) {
-      layer_end++;
+  for (const CustomDataLayer &layer : Span(cdata->layers, cdata->totlayer)) {
+    const eCustomDataType type = eCustomDataType(layer.type);
+    ArrayDataKey key{};
+    key.type = type;
+    if (layer.name[0] != '\0') {
+      key.name = layer.name;
     }
-    MutableSpan layers_with_type = all_layers.slice(layer_start, layer_end - layer_start);
 
     /* Perform a full copy on dynamic layers.
      *
@@ -249,72 +257,54 @@ static BArrayCustomData *um_arraystore_cd_create(CustomData *cdata,
      * sharing, to avoid the copy from the undo mesh.
      */
     if (CustomData_layertype_is_dynamic(type)) {
-      Array<ImplicitSharingInfoAndData> states(layers_with_type.size());
-      for (const int i : layers_with_type.index_range()) {
-        CustomDataLayer &layer = layers_with_type[i];
-        states[i] = {layers_with_type[i].sharing_info, layers_with_type[i].data};
-        layer.sharing_info = nullptr;
-        layer.data = nullptr;
-      }
-      bcd.non_trivial_arrays.add_new(type, std::move(states));
+      ImplicitSharingInfoAndData state = {layer.sharing_info, layer.data};
+      state.sharing_info->add_user();
+      bcd.non_trivial_arrays.add_new(key, state);
       continue;
     }
-
-    Array<BArrayState *> states(layers_with_type.size());
 
     const int stride = CustomData_sizeof(type);
     BArrayStore *bs = BLI_array_store_at_size_ensure(
         &um_arraystore.bs_stride[bs_index], stride, array_chunk_size_calc(stride));
 
-    const Array<BArrayState *> *bcd_reference_current =
-        bcd_reference ? bcd_reference->trivial_arrays.lookup_ptr(type) : nullptr;
-
-    for (const int i : layers_with_type.index_range()) {
-      CustomDataLayer &layer = layers_with_type[i];
-      if (!layer.data) {
-        states[i] = nullptr;
-        continue;
-      }
-
-      const BArrayState *state_reference = nullptr;
-      if (bcd_reference_current && i < bcd_reference_current->size()) {
-        state_reference = (*bcd_reference_current)[i];
-      }
-
-      void *data_final = layer.data;
-      size_t data_final_size = size_t(data_len) * stride;
-
-#  ifdef USE_ARRAY_STORE_RLE
-      const bool use_rle = um_customdata_layer_use_rle(type);
-      uint8_t *data_enc = nullptr;
-      if (use_rle) {
-        /* Store the size in the encoded data (for convenience). */
-        size_t data_enc_extra_size = sizeof(size_t);
-        size_t data_enc_len;
-        data_enc = BLI_array_store_rle_encode(reinterpret_cast<const uint8_t *>(data_final),
-                                              data_final_size,
-                                              data_enc_extra_size,
-                                              &data_enc_len);
-        memcpy(data_enc, &data_final_size, data_enc_extra_size);
-        data_final = data_enc;
-        data_final_size = data_enc_extra_size + data_enc_len;
-      }
-#  endif
-
-      states[i] = BLI_array_store_state_add(bs, data_final, data_final_size, state_reference);
-
-#  ifdef USE_ARRAY_STORE_RLE
-      if (use_rle) {
-        MEM_freeN(data_enc);
-      }
-#  endif
-
-      layer.sharing_info->remove_user_and_delete_if_last();
-      layer.sharing_info = nullptr;
-      layer.data = nullptr;
+    if (!layer.data) {
+      bcd.trivial_arrays.add_new(key, nullptr);
+      continue;
     }
 
-    bcd.trivial_arrays.add_new(type, std::move(states));
+    const BArrayState *state_reference = bcd_reference ?
+                                             bcd_reference->trivial_arrays.lookup_default(
+                                                 key, nullptr) :
+                                             nullptr;
+
+    void *data_final = layer.data;
+    size_t data_final_size = size_t(data_len) * stride;
+
+#  ifdef USE_ARRAY_STORE_RLE
+    const bool use_rle = um_customdata_layer_use_rle(type);
+    uint8_t *data_enc = nullptr;
+    if (use_rle) {
+      /* Store the size in the encoded data (for convenience). */
+      size_t data_enc_extra_size = sizeof(size_t);
+      size_t data_enc_len;
+      data_enc = BLI_array_store_rle_encode(reinterpret_cast<const uint8_t *>(data_final),
+                                            data_final_size,
+                                            data_enc_extra_size,
+                                            &data_enc_len);
+      memcpy(data_enc, &data_final_size, data_enc_extra_size);
+      data_final = data_enc;
+      data_final_size = data_enc_extra_size + data_enc_len;
+    }
+#  endif
+
+    bcd.trivial_arrays.add_new(
+        key, BLI_array_store_state_add(bs, data_final, data_final_size, state_reference));
+
+#  ifdef USE_ARRAY_STORE_RLE
+    if (use_rle) {
+      MEM_freeN(data_enc);
+    }
+#  endif
   }
 
   if (bcd.trivial_arrays.is_empty() && bcd.non_trivial_arrays.is_empty()) {
@@ -322,18 +312,6 @@ static BArrayCustomData *um_arraystore_cd_create(CustomData *cdata,
   }
 
   return MEM_new<BArrayCustomData>(__func__, std::move(bcd));
-}
-
-static void um_arraystore_cd_clear(CustomData *cdata)
-{
-  using namespace blender;
-  for (CustomDataLayer &layer : MutableSpan(cdata->layers, cdata->totlayer)) {
-    if (layer.data) {
-      layer.sharing_info->remove_user_and_delete_if_last();
-      layer.sharing_info = nullptr;
-      layer.data = nullptr;
-    }
-  }
 }
 
 /**
@@ -345,80 +323,82 @@ static void um_arraystore_cd_expand(const BArrayCustomData *bcd,
                                     const size_t data_len)
 {
   using namespace blender;
-  MutableSpan all_layers(cdata->layers, cdata->totlayer);
   for (const auto &item : bcd->non_trivial_arrays.items()) {
-    const eCustomDataType type = item.key;
-    const Span<ImplicitSharingInfoAndData> states = item.value;
-    MutableSpan layers_with_type = all_layers.slice(CustomData_get_layer_index(cdata, type),
-                                                    CustomData_number_of_layers(cdata, type));
-    for (const int i : layers_with_type.index_range()) {
-      CustomDataLayer &layer = layers_with_type[i];
-      layer.data = const_cast<void *>(states[i].data);
-      layer.sharing_info = states[i].sharing_info;
-      layer.sharing_info->add_user();
+    const eCustomDataType type = item.key.type;
+    if (item.key.name) {
+      CustomData_add_layer_named_with_data(cdata,
+                                           type,
+                                           const_cast<void *>(item.value.data),
+                                           data_len,
+                                           *item.key.name,
+                                           item.value.sharing_info);
+    }
+    else {
+      CustomData_add_layer_with_data(
+          cdata, type, const_cast<void *>(item.value.data), data_len, item.value.sharing_info);
     }
   }
 
   for (const auto &item : bcd->trivial_arrays.items()) {
-    const eCustomDataType type = item.key;
-    const Span<BArrayState *> states = item.value;
-    MutableSpan layers_with_type = all_layers.slice(CustomData_get_layer_index(cdata, type),
-                                                    CustomData_number_of_layers(cdata, type));
+    const eCustomDataType type = item.key.type;
     const int stride = CustomData_sizeof(type);
-    for (const int i : layers_with_type.index_range()) {
-      CustomDataLayer &layer = layers_with_type[i];
-      if (!states[i]) {
-        layer.data = nullptr;
-        continue;
+    const BArrayState *state = item.value;
+    if (!state) {
+      if (item.key.name) {
+        CustomData_add_layer_named_with_data(
+            cdata, type, nullptr, data_len, *item.key.name, nullptr);
       }
+      else {
+        CustomData_add_layer_with_data(cdata, type, nullptr, data_len, nullptr);
+      }
+      continue;
+    }
 
-      size_t state_len;
-      void *data = BLI_array_store_state_data_get_alloc(states[i], &state_len);
+    size_t state_len;
+    void *data = BLI_array_store_state_data_get_alloc(state, &state_len);
 
 #  ifdef USE_ARRAY_STORE_RLE
-      const bool use_rle = um_customdata_layer_use_rle(type);
-      if (use_rle) {
-        /* Store the size in the encoded data (for convenience). */
-        size_t data_enc_extra_size = sizeof(size_t);
-        const uint8_t *data_enc = reinterpret_cast<uint8_t *>(data);
-        size_t data_dec_len;
-        memcpy(&data_dec_len, data_enc, sizeof(size_t));
-        uint8_t *data_dec = MEM_malloc_arrayN<uint8_t>(data_dec_len, __func__);
-        BLI_array_store_rle_decode(data_enc + data_enc_extra_size,
-                                   state_len - data_enc_extra_size,
-                                   data_dec,
-                                   data_dec_len);
-        MEM_freeN(data);
-        data = static_cast<void *>(data_dec);
-        /* Just for the assert to succeed. */
-        state_len = data_dec_len;
-      }
+    const bool use_rle = um_customdata_layer_use_rle(type);
+    if (use_rle) {
+      /* Store the size in the encoded data (for convenience). */
+      size_t data_enc_extra_size = sizeof(size_t);
+      const uint8_t *data_enc = reinterpret_cast<uint8_t *>(data);
+      size_t data_dec_len;
+      memcpy(&data_dec_len, data_enc, sizeof(size_t));
+      uint8_t *data_dec = MEM_malloc_arrayN<uint8_t>(data_dec_len, __func__);
+      BLI_array_store_rle_decode(
+          data_enc + data_enc_extra_size, state_len - data_enc_extra_size, data_dec, data_dec_len);
+      MEM_freeN(data);
+      data = static_cast<void *>(data_dec);
+      /* Just for the assert to succeed. */
+      state_len = data_dec_len;
+    }
 #  endif
 
-      layer.data = data;
-      layer.sharing_info = implicit_sharing::info_for_mem_free(layer.data);
-      BLI_assert(stride * data_len == state_len);
-      UNUSED_VARS_NDEBUG(stride, data_len);
+    if (item.key.name) {
+      CustomData_add_layer_named_with_data(cdata, type, data, data_len, *item.key.name, nullptr);
     }
+    else {
+      CustomData_add_layer_with_data(cdata, type, data, data_len, nullptr);
+    }
+
+    BLI_assert(stride * data_len == state_len);
+    UNUSED_VARS_NDEBUG(stride, data_len);
   }
 }
 
 static void um_arraystore_cd_free(BArrayCustomData *bcd, const int bs_index)
 {
   using namespace blender;
-  for (Array<ImplicitSharingInfoAndData> &states : bcd->non_trivial_arrays.values()) {
-    for (ImplicitSharingInfoAndData &state : states) {
-      state.sharing_info->remove_user_and_delete_if_last();
-    }
+  for (ImplicitSharingInfoAndData &state : bcd->non_trivial_arrays.values()) {
+    state.sharing_info->remove_user_and_delete_if_last();
   }
 
   for (const auto &item : bcd->trivial_arrays.items()) {
-    const int stride = CustomData_sizeof(item.key);
+    const int stride = CustomData_sizeof(item.key.type);
     BArrayStore *bs = BLI_array_store_at_size_get(&um_arraystore.bs_stride[bs_index], stride);
-    for (BArrayState *state : item.value) {
-      if (state) {
-        BLI_array_store_state_remove(bs, state);
-      }
+    if (item.value) {
+      BLI_array_store_state_remove(bs, item.value);
     }
   }
   MEM_delete(bcd);
@@ -445,24 +425,28 @@ static void um_arraystore_compact(UndoMesh *um, const UndoMesh *um_ref)
                                                   mesh->verts_num,
                                                   ARRAY_STORE_INDEX_VERT,
                                                   um_ref ? um_ref->store.vdata : nullptr);
+        CustomData_free(&mesh->vert_data);
       },
       [&]() {
         um->store.edata = um_arraystore_cd_create(&mesh->edge_data,
                                                   mesh->edges_num,
                                                   ARRAY_STORE_INDEX_EDGE,
                                                   um_ref ? um_ref->store.edata : nullptr);
+        CustomData_free(&mesh->edge_data);
       },
       [&]() {
         um->store.ldata = um_arraystore_cd_create(&mesh->corner_data,
                                                   mesh->corners_num,
                                                   ARRAY_STORE_INDEX_LOOP,
                                                   um_ref ? um_ref->store.ldata : nullptr);
+        CustomData_free(&mesh->corner_data);
       },
       [&]() {
         um->store.pdata = um_arraystore_cd_create(&mesh->face_data,
                                                   mesh->faces_num,
                                                   ARRAY_STORE_INDEX_POLY,
                                                   um_ref ? um_ref->store.pdata : nullptr);
+        CustomData_free(&mesh->face_data);
       },
       [&]() {
         if (mesh->face_offset_indices) {
@@ -535,10 +519,10 @@ static void um_arraystore_compact(UndoMesh *um, const UndoMesh *um_ref)
 static void um_arraystore_expand_clear(UndoMesh *um)
 {
   Mesh *mesh = um->mesh;
-  um_arraystore_cd_clear(&mesh->vert_data);
-  um_arraystore_cd_clear(&mesh->edge_data);
-  um_arraystore_cd_clear(&mesh->corner_data);
-  um_arraystore_cd_clear(&mesh->face_data);
+  CustomData_free(&mesh->vert_data);
+  CustomData_free(&mesh->edge_data);
+  CustomData_free(&mesh->corner_data);
+  CustomData_free(&mesh->face_data);
   if (mesh->face_offset_indices) {
     blender::implicit_sharing::free_shared_data(&mesh->face_offset_indices,
                                                 &mesh->runtime->face_offsets_sharing_info);
