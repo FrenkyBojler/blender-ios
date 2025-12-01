@@ -425,7 +425,7 @@ struct GeometryNodesLazyFunctionGraphInfo {
   std::shared_ptr<const bNodeTree> tree;
   /**
    * Session UID of the original tree in Main that this is based on. Used to map evaluated data
-   * back later on.
+   * back to the original tree later on.
    */
   uint32_t original_tree_session_uid;
 
