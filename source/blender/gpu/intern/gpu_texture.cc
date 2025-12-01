@@ -495,12 +495,12 @@ eGPUTextureUsage GPU_texture_usage(const gpu::Texture *texture_)
 void GPU_texture_update_mipmap(gpu::Texture *texture,
                                int mip_level,
                                eGPUDataFormat data_format,
-                               const void *pixels, uint texture_unpack_row_length)
+                               const void *pixels,
+                               uint unpack_row_length)
 {
   int extent[3] = {1, 1, 1}, offset[3] = {0, 0, 0};
   texture->mip_size_get(mip_level, extent);
-  texture->update_sub(
-      mip_level, offset, extent, data_format, pixels, texture_unpack_row_length);
+  texture->update_sub(mip_level, offset, extent, data_format, pixels, unpack_row_length);
 }
 
 void GPU_texture_update_sub(gpu::Texture *tex,
@@ -512,11 +512,11 @@ void GPU_texture_update_sub(gpu::Texture *tex,
                             int width,
                             int height,
                             int depth,
-                            uint texture_unpack_row_length)
+                            uint unpack_row_length)
 {
   int offset[3] = {offset_x, offset_y, offset_z};
   int extent[3] = {width, height, depth};
-  tex->update_sub(0, offset, extent, data_format, pixels, texture_unpack_row_length);
+  tex->update_sub(0, offset, extent, data_format, pixels, unpack_row_length);
 }
 
 void GPU_texture_update_sub_from_pixel_buffer(gpu::Texture *texture,

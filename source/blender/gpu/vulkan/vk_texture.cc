@@ -353,7 +353,7 @@ void VKTexture::update_sub(int mip,
                            eGPUDataFormat format,
                            const void *data,
                            VKPixelBuffer *pixel_buffer,
-                           const uint texture_unpack_row_length)
+                           const uint unpack_row_length)
 {
   BLI_assert(!is_texture_view());
 
@@ -410,17 +410,17 @@ void VKTexture::update_sub(int mip,
     /* Rows are sequentially stored, when unpack row length is 0, or equal to the extent width. In
      * other cases we unpack the rows to reduce the size of the staging buffer and data transfer.
      */
-    if (ELEM(texture_unpack_row_length, 0, extent.x)) {
+    if (ELEM(unpack_row_length, 0, extent.x)) {
       convert_host_to_device(
           staging_buffer.mapped_memory_get(), data, sample_len, format, format_, device_format_);
     }
     else {
       BLI_assert_msg(!is_compressed,
-                     "Compressed data with texture_unpack_row_length != 0 is not supported.");
+                     "Compressed data with unpack_row_length != 0 is not supported.");
       BLI_assert_msg(extent[2] <= 1,
-                     "3D texture data with texture_unpack_row_length != 0 is not supported.");
+                     "3D texture data with unpack_row_length != 0 is not supported.");
       size_t dst_row_stride = extent.x * to_bytesize(device_format_);
-      size_t src_row_stride = texture_unpack_row_length * to_bytesize(format_, format);
+      size_t src_row_stride = unpack_row_length * to_bytesize(format_, format);
       uint8_t *dst_ptr = static_cast<uint8_t *>(staging_buffer.mapped_memory_get());
       const uint8_t *src_ptr = static_cast<const uint8_t *>(data);
       for (int y = 0; y < extent.y; y++) {
@@ -461,19 +461,18 @@ void VKTexture::update_sub(int mip,
                            int extent[3],
                            eGPUDataFormat format,
                            const void *data,
-                           const uint texture_unpack_row_length)
+                           const uint unpack_row_length)
 {
-  update_sub(mip, offset, extent, format, data, nullptr, texture_unpack_row_length);
+  update_sub(mip, offset, extent, format, data, nullptr, unpack_row_length);
 }
 
 void VKTexture::update_sub(int offset[3],
                            int extent[3],
                            eGPUDataFormat format,
-                           GPUPixelBuffer *pixbuf,
-                           const uint texture_unpack_row_length)
+                           GPUPixelBuffer *pixbuf)
 {
   VKPixelBuffer &pixel_buffer = *unwrap(unwrap(pixbuf));
-  update_sub(0, offset, extent, format, nullptr, &pixel_buffer, texture_unpack_row_length);
+  update_sub(0, offset, extent, format, nullptr, &pixel_buffer);
 }
 
 VKMemoryExport VKTexture::export_memory(VkExternalMemoryHandleTypeFlagBits handle_type)

@@ -63,12 +63,11 @@ class GLTexture : public Texture {
                   int extent[3],
                   eGPUDataFormat type,
                   const void *data,
-                  const uint texture_unpack_row_length = 0) override;
+                  const uint unpack_row_length = 0) override;
   void update_sub(int offset[3],
                   int extent[3],
                   eGPUDataFormat format,
-                  GPUPixelBuffer *pixbuf,
-                  const uint texture_unpack_row_length = 0) override;
+                  GPUPixelBuffer *pixbuf) override;
 
   /**
    * This will create the mipmap images and populate them with filtered data from base level.

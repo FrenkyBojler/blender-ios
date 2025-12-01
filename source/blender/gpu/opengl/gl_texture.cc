@@ -192,7 +192,7 @@ void GLTexture::update_sub(int mip,
                            int extent[3],
                            eGPUDataFormat type,
                            const void *data,
-                           const uint texture_unpack_row_length)
+                           const uint unpack_row_length)
 {
   BLI_assert(validate_data_format(format_, type));
   BLI_assert(data != nullptr);
@@ -202,19 +202,19 @@ void GLTexture::update_sub(int mip,
     return;
   }
 
-  /* If `texture_unpack_row_length` is 0, rows are sequentially stored. Otherwise we unpack data
+  /* If `unpack_row_length` is 0, rows are sequentially stored. Otherwise we unpack data
    * into a staging block, so the half conversion below doesn't happen on the full input. */
-  const bool do_texture_unpack = !ELEM(texture_unpack_row_length, 0, extent[0]);
+  const bool do_texture_unpack = !ELEM(unpack_row_length, 0, extent[0]);
 
-  /* Unpack `data` if `texture_unpack_row_length` is set. */
+  /* Unpack `data` if `unpack_row_length` is set. */
   std::unique_ptr<uint8_t, MEM_freeN_smart_ptr_deleter> unpack_buffer = nullptr;
   if (do_texture_unpack) {
     BLI_assert_msg(!(format_flag_ & GPU_FORMAT_COMPRESSED),
-                   "Compressed data with texture_unpack_row_length != 0 is not supported.");
+                   "Compressed data with unpack_row_length != 0 is not supported.");
     BLI_assert_msg(extent[2] <= 1,
-                   "3D texture data with texture_unpack_row_length != 0 is not supported.");
+                   "3D texture data with unpack_row_length != 0 is not supported.");
 
-    size_t src_row_stride = texture_unpack_row_length * to_bytesize(format_, type);
+    size_t src_row_stride = unpack_row_length * to_bytesize(format_, type);
     size_t dst_row_stride = max_ii(extent[0], 1) * to_bytesize(format_, type);
     size_t dst_total_count = dst_row_stride * max_ii(extent[1], 1) * max_ii(extent[2], 1);
 
@@ -325,8 +325,7 @@ void GLTexture::update_sub(int mip,
 void GLTexture::update_sub(int offset[3],
                            int extent[3],
                            eGPUDataFormat format,
-                           GPUPixelBuffer *pixbuf,
-                           const uint texture_unpack_row_length)
+                           GPUPixelBuffer *pixbuf)
 {
   /* Update texture from pixel buffer. */
   BLI_assert(validate_data_format(format_, format));

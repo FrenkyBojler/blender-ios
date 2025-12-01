@@ -910,7 +910,7 @@ void GPU_texture_update_sub(blender::gpu::Texture *texture,
                             int width,
                             int height,
                             int depth,
-                            uint texture_unpack_row_length = 0);
+                            uint unpack_row_length = 0);
 
 /**
  * Update the content of a texture's specific mip-map level.
@@ -922,7 +922,7 @@ void GPU_texture_update_mipmap(blender::gpu::Texture *texture,
                                int mip_level,
                                eGPUDataFormat data_format,
                                const void *pixels,
-                               uint texture_unpack_row_length = 0);
+                               uint unpack_row_length = 0);
 
 /**
  * Fills the whole texture with the same data for all pixels.

@@ -257,6 +257,5 @@ class VKStateManager : public StateManager {
                            VkDeviceSize offset);
   void storage_buffer_unbind(void *resource);
   void storage_buffer_unbind_all();
-
 };
 }  // namespace blender::gpu

@@ -257,20 +257,23 @@ void immDrawPixelsTexTiled_scaling_clipping(IMMDrawPixelsTexState *state,
           const void *data = DATA(src_y, src_x + subpart_w - 1);
           const int offset[2] = {subpart_w, 0};
           const int extent[2] = {1, subpart_h};
-          GPU_texture_update_sub(tex, gpu_data, data, UNPACK2(offset), 0, UNPACK2(extent), 0, img_w);
+          GPU_texture_update_sub(
+              tex, gpu_data, data, UNPACK2(offset), 0, UNPACK2(extent), 0, img_w);
         }
         if (subpart_h < tex_h) {
           const void *data = DATA(src_y + subpart_h - 1, src_x);
           const int offset[2] = {0, subpart_h};
           const int extent[2] = {subpart_w, 1};
-          GPU_texture_update_sub(tex, gpu_data, data, UNPACK2(offset), 0, UNPACK2(extent), 0, img_w);
+          GPU_texture_update_sub(
+              tex, gpu_data, data, UNPACK2(offset), 0, UNPACK2(extent), 0, img_w);
         }
 
         if (subpart_w < tex_w && subpart_h < tex_h) {
           const void *data = DATA(src_y + subpart_h - 1, src_x + subpart_w - 1);
           const int offset[2] = {subpart_w, subpart_h};
           const int extent[2] = {1, 1};
-          GPU_texture_update_sub(tex, gpu_data, data, UNPACK2(offset), 0, UNPACK2(extent), 0, img_w);
+          GPU_texture_update_sub(
+              tex, gpu_data, data, UNPACK2(offset), 0, UNPACK2(extent), 0, img_w);
         }
 #undef DATA
       }

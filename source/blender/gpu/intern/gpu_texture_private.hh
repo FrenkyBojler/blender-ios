@@ -172,13 +172,16 @@ class Texture {
 
   void usage_set(eGPUTextureUsage usage_flags);
 
-  virtual void update_sub(
-      int mip, int offset[3], int extent[3], eGPUDataFormat format, const void *data, const uint texture_unpack_row_length = 0) = 0;
+  virtual void update_sub(int mip,
+                          int offset[3],
+                          int extent[3],
+                          eGPUDataFormat format,
+                          const void *data,
+                          uint unpack_row_length = 0) = 0;
   virtual void update_sub(int offset[3],
                           int extent[3],
                           eGPUDataFormat format,
-                          GPUPixelBuffer *pixbuf,
-                          const uint texture_unpack_row_length = 0) = 0;
+                          GPUPixelBuffer *pixbuf) = 0;
 
   int width_get() const
   {
