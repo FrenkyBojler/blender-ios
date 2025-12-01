@@ -4,3 +4,4 @@ Referenced by issue #143895, Copying keyframe doesn't paste position data
 Referenced by issue #150081, Assign Automatic From Bones doesn't work in 5.0
 Referenced by pull request #150121, Fix #150081: Regression: Assign Automatic From Bones doesn't work
 Referenced by commit dd4df13e3847f7134e416ffd142fb623210b55e1, Fix #150081: Regression: Assign Automatic From Bones doesn't work
+Referenced by pull request #150892, Fix #150131: Selection state of edit bone root/tip not preserved
