@@ -5413,30 +5413,6 @@ void UV_OT_select_pinned(wmOperatorType *ot)
 /** \name Select Overlap Operator
  * \{ */
 
-struct BVHTreeOverlapUnorderedHash {
-  uint64_t operator()(BVHTreeOverlap overlap) const
-  {
-    if (overlap.indexA < overlap.indexB) {
-      std::swap(overlap.indexA, overlap.indexB);
-    }
-    return blender::get_default_hash(overlap.indexA, overlap.indexB);
-  }
-};
-
-struct BVHTreeOverlapUnorderedEq {
-  bool operator()(const BVHTreeOverlap &a, const BVHTreeOverlap &b) const
-  {
-    return (a.indexA == b.indexA && a.indexB == b.indexB) ||
-           (a.indexA == b.indexB && a.indexB == b.indexA);
-  }
-};
-
-using BVHTreeOverlapSet = blender::Set<BVHTreeOverlap,
-                                       4,
-                                       blender::DefaultProbingStrategy,
-                                       BVHTreeOverlapUnorderedHash,
-                                       BVHTreeOverlapUnorderedEq>;
-
 struct UVOverlapData {
   int ob_index;
   int face_index;
@@ -5449,7 +5425,7 @@ struct ChangedInfo {
 };
 
 struct UVOverlapQueryData {
-  const UVOverlapData *source_data;
+  int src_index;
   const UVOverlapData *all_overlap_data;
   const Vector<Object *> *objects;
   Array<ChangedInfo> *objects_tag;
@@ -5502,27 +5478,30 @@ static bool overlap_tri_tri_uv_test(const float t1[3][2],
   return false;
 }
 
-static void uv_overlap_query_cb(void *userdata, int index, const float *co, float dist_sq)
+/**
+ * Callback for BLI_bvhtree_overlap_ex.
+ * Return true to count as a hit (stops search immediately since max_interactions=1).
+ * Return false to ignore this hit and continue searching.
+ */
+static bool uv_overlap_cb(void *userdata, int index_a, int index_b, int thread)
 {
-  UNUSED_VARS(co, dist_sq);
+  UNUSED_VARS(index_a, thread);
   UVOverlapQueryData *data = static_cast<UVOverlapQueryData *>(userdata);
 
-  /* If we already found an overlap for this face, exit early. */
-  if (data->found_overlap) {
-    return;
+  const int src_i = data->src_index;
+  const int dst_i = index_b;
+
+  /* Skip self-intersection. */
+  if (src_i == dst_i) {
+    return false;
   }
 
-  const UVOverlapData *src = data->source_data;
-  const UVOverlapData *dst = &data->all_overlap_data[index];
-
-  /* Skip self. */
-  if (src == dst) {
-    return;
-  }
+  const UVOverlapData *src = &data->all_overlap_data[src_i];
+  const UVOverlapData *dst = &data->all_overlap_data[dst_i];
 
   /* Skip triangles from the same face. */
   if (src->ob_index == dst->ob_index && src->face_index == dst->face_index) {
-    return;
+    return false;
   }
 
   Object *ob_src = (*data->objects)[src->ob_index];
@@ -5544,7 +5523,11 @@ static void uv_overlap_query_cb(void *userdata, int index, const float *co, floa
     (*data->objects_tag)[dst->ob_index].has_overlap = true;
 
     data->found_overlap = true;
+
+    return true;
   }
+
+  return false;
 }
 
 static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend)
@@ -5677,6 +5660,19 @@ static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend)
 
   BLI_bvhtree_balance(uv_tree);
 
+  /* Reusable 1-leaf tree we will update for every face we test. */
+  BVHTree *probe_tree = BLI_bvhtree_new(1, 0.0f, 4, 6);
+
+  /* Initializing the first node so we have valid memory to update later. */
+  float dummy_co[3] = {0.0f};
+  BLI_bvhtree_insert(probe_tree, 0, dummy_co, 3);
+  BLI_bvhtree_balance(probe_tree);
+
+  UVOverlapQueryData query_data = {};
+  query_data.all_overlap_data = overlap_data;
+  query_data.objects = &objects;
+  query_data.objects_tag = &objects_tag;
+
   for (int i = 0; i < uv_tri_len; i++) {
     UVOverlapData *src_data = &overlap_data[i];
     Object *ob = objects[src_data->ob_index];
@@ -5688,28 +5684,18 @@ static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend)
       continue;
     }
 
-    float min[3], max[3];
-    INIT_MINMAX(min, max);
-
+    /* Convert 2D UV tri to 3D for BVH update. */
     float tri_3d[3][3];
     for (int v = 0; v < 3; v++) {
       copy_v2_v2(tri_3d[v], src_data->tri[v]);
       tri_3d[v][2] = 0.0f;
-      minmax_v3v3_v3(min, max, tri_3d[v]);
     }
 
-    float center[3];
-    mid_v3_v3v3(center, min, max);
-    float radius = len_v3v3(center, max) + 1e-5f;
-
-    UVOverlapQueryData query_data = {};
-    query_data.source_data = src_data;
-    query_data.all_overlap_data = overlap_data;
-    query_data.objects = &objects;
-    query_data.objects_tag = &objects_tag;
+    BLI_bvhtree_update_node(probe_tree, 0, &tri_3d[0][0], nullptr, 3);
+    query_data.src_index = i;
     query_data.found_overlap = false;
 
-    BLI_bvhtree_range_query(uv_tree, center, radius, uv_overlap_query_cb, &query_data);
+    BLI_bvhtree_overlap_ex(probe_tree, uv_tree, nullptr, uv_overlap_cb, &query_data, 1, 0);
   }
 
   for (const int i : blender::IndexRange(objects.size())) {
@@ -5742,7 +5728,7 @@ static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend)
   }
 
   BLI_bvhtree_free(uv_tree);
-
+  BLI_bvhtree_free(probe_tree);
   MEM_freeN(overlap_data);
 
   return OPERATOR_FINISHED;
