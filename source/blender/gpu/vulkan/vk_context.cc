@@ -23,6 +23,7 @@
 #include "vk_texture.hh"
 
 #include "GHOST_C-api.h"
+#include "vk_vertex_attribute_object.hh"
 
 namespace blender::gpu {
 
@@ -341,10 +342,14 @@ void VKContext::update_pipeline_data(const VKFrameBuffer &framebuffer,
                                      VK_FRONT_FACE_CLOCKWISE;
   }
 
-  update_pipeline_data(vk_shader,
-                       vk_shader.ensure_and_get_graphics_pipeline(
-                           primitive, vao, state_manager, framebuffer, constants_state_),
-                       r_pipeline_data.pipeline_data);
+  VKVertexInputDescriptionPool::Key vertex_input_description_key =
+      device.vertex_input_descriptions.get_or_insert(vao.vertex_input);
+
+  update_pipeline_data(
+      vk_shader,
+      vk_shader.ensure_and_get_graphics_pipeline(
+          primitive, vertex_input_description_key, state_manager, framebuffer, constants_state_),
+      r_pipeline_data.pipeline_data);
 }
 
 void VKContext::update_pipeline_data(render_graph::VKPipelineData &r_pipeline_data)

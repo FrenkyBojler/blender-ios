@@ -10,7 +10,13 @@
 #include "vk_buffer.hh"
 #include "vk_common.hh"
 
+#include "BLI_map.hh"
+#include "BLI_mutex.hh"
 #include "BLI_vector.hh"
+
+#include "xxhash.h"
+
+#include <mutex>
 
 #pragma once
 
@@ -24,14 +30,74 @@ class VKImmediate;
 
 using AttributeMask = uint16_t;
 
+struct VKVertexInputDescription {
+  Vector<VkVertexInputBindingDescription> bindings;
+  Vector<VkVertexInputAttributeDescription> attributes;
+
+  void clear();
+
+  bool operator==(const VKVertexInputDescription &other) const
+  {
+    return attributes.size() == other.attributes.size() &&
+           bindings.size() == other.bindings.size() &&
+           memcmp(attributes.data(),
+                  other.attributes.data(),
+                  attributes.size() * sizeof(VkVertexInputAttributeDescription)) == 0 &&
+           memcmp(bindings.data(),
+                  other.bindings.data(),
+                  bindings.size() * sizeof(VkVertexInputBindingDescription)) == 0;
+  }
+
+  uint64_t hash() const
+  {
+    uint64_t hash = XXH3_64bits(attributes.data(),
+                                attributes.size() * sizeof(VkVertexInputAttributeDescription));
+    hash = hash * 33 ^
+           XXH3_64bits(bindings.data(), bindings.size() * sizeof(VkVertexInputBindingDescription));
+    return hash;
+  }
+};
+
+class VKVertexInputDescriptionPool {
+ public:
+  using Key = int64_t;
+
+ private:
+  Mutex mutex_;
+
+  Vector<std::unique_ptr<VKVertexInputDescription>> vertex_inputs_;
+  Map<VKVertexInputDescription, Key> lookup_;
+
+ public:
+  Key get_or_insert(VKVertexInputDescription &description)
+  {
+    std::scoped_lock lock(mutex_);
+    Key *result_ptr = lookup_.lookup_ptr(description);
+    if (result_ptr != nullptr) {
+      return *result_ptr;
+    }
+
+    Key result = vertex_inputs_.size();
+    lookup_.add(description, result);
+    vertex_inputs_.append(std::make_unique<VKVertexInputDescription>(description));
+    return result;
+  }
+
+  VKVertexInputDescription *get(Key key)
+  {
+    std::scoped_lock lock(mutex_);
+    return vertex_inputs_[key].get();
+  }
+};
+
 /* TODO: VKVertexAttributeObject should not contain any reference to VBO's. This should make the
  * API be compatible with both #VKBatch and #VKImmediate. */
 /* TODO: In steam of storing the bindings/attributes we should add a data structure that can store
  * them. Building the bindings/attributes should be done inside #VKPipelinePool. */
 class VKVertexAttributeObject {
  public:
-  Vector<VkVertexInputBindingDescription> bindings;
-  Vector<VkVertexInputAttributeDescription> attributes;
+  VKVertexInputDescription vertex_input;
+
   /* Used for batches. */
   Vector<VKVertexBuffer *> vbos;
   /* Used for immediate mode. */
