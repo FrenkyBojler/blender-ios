@@ -161,6 +161,11 @@ const EnumPropertyItem rna_enum_space_type_items[] = {
      ICON_SPREADSHEET,
      "Spreadsheet",
      "Explore geometry data in a table"},
+    {SPACE_LIGHT_MANAGER,
+     "LIGHT_MANAGER",
+     ICON_LIGHT_DATA,
+     "Light Manager",
+     "Manage scene lights in a dedicated editor"},
     {SPACE_USERPREF,
      "PREFERENCES",
      ICON_PREFERENCES,
@@ -733,6 +738,9 @@ static StructRNA *rna_Space_refine(PointerRNA *ptr)
       return &RNA_SpaceClipEditor;
     case SPACE_SPREADSHEET:
       return &RNA_SpaceSpreadsheet;
+
+    case SPACE_LIGHT_MANAGER:
+      return &RNA_SpaceLightManager;
 
       /* Currently no type info. */
     case SPACE_SCRIPT:
@@ -9042,6 +9050,15 @@ static void rna_def_viewer_path(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Viewer Path", nullptr);
 }
 
+static void rna_def_space_light_manager(BlenderRNA *brna)
+{
+  StructRNA *srna;
+
+  srna = RNA_def_struct(brna, "SpaceLightManager", "Space");
+  RNA_def_struct_sdna(srna, "SpaceLightManager");
+  RNA_def_struct_ui_text(srna, "Space Light Manager", "Light Manager space data");
+}
+
 static void rna_def_space_spreadsheet(BlenderRNA *brna)
 {
   PropertyRNA *prop;
@@ -9162,6 +9179,7 @@ void RNA_def_space(BlenderRNA *brna)
   rna_def_space_node(brna);
   rna_def_space_clip(brna);
   rna_def_space_spreadsheet(brna);
+  rna_def_space_light_manager(brna);
 }
 
 #endif

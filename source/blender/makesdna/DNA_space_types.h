@@ -81,6 +81,11 @@ struct SpreadsheetColumnRuntime;
 }  // namespace blender::ed::spreadsheet
 using SpaceSpreadsheet_Runtime = blender::ed::spreadsheet::SpaceSpreadsheet_Runtime;
 using SpreadsheetColumnRuntime = blender::ed::spreadsheet::SpreadsheetColumnRuntime;
+
+namespace blender::ed::light_manager {
+struct SpaceLightManager_Runtime;
+}  // namespace blender::ed::light_manager
+using SpaceLightManager_Runtime = blender::ed::light_manager::SpaceLightManager_Runtime;
 #else
 typedef struct SpaceNode_Runtime SpaceNode_Runtime;
 typedef struct SpaceOutliner_Runtime SpaceOutliner_Runtime;
@@ -88,6 +93,7 @@ typedef struct SpaceSeq_Runtime SpaceSeq_Runtime;
 typedef struct SpaceText_Runtime SpaceText_Runtime;
 typedef struct SpaceSpreadsheet_Runtime SpaceSpreadsheet_Runtime;
 typedef struct SpreadsheetColumnRuntime SpreadsheetColumnRuntime;
+typedef struct SpaceLightManager_Runtime SpaceLightManager_Runtime;
 #endif
 
 /** Defined in `file_intern.hh`. */
@@ -1276,5 +1282,24 @@ typedef struct SpreadsheetRowFilter {
   float value_color[4];
   char _pad1[4];
 } SpreadsheetRowFilter;
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Light Manager
+ * \{ */
+
+typedef struct SpaceLightManager {
+  SpaceLink *next, *prev;
+  ListBase regionbase;
+  char spacetype;
+  char link_flag;
+  char _pad0[6];
+
+  int flag;
+  int _pad1;
+
+  SpaceLightManager_Runtime *runtime;
+} SpaceLightManager;
 
 /** \} */

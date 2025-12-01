@@ -542,6 +542,8 @@ struct wmNotifier {
 /* Not a space itself, but a part of another space. */
 #define ND_REGIONS_ASSET_SHELF (23 << 16)
 
+#define ND_SPACE_LIGHT_MANAGER (24 << 16)
+
 /* NC_ASSET. */
 /* Denotes that the AssetList is done reading some previews. NOT that the preview generation of
  * assets is done. */
