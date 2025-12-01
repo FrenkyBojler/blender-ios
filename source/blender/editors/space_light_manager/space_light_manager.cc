@@ -64,8 +64,16 @@ struct SubgroupCollapseState {
   bool collapsed;
 };
 
+struct GroupBounds {
+  const char *group_name;
+  int index;
+  float y_min;  /* Bottom of group in view space */
+  float y_max;  /* Top of group in view space */
+};
+
 struct SpaceLightManager_Runtime {
   blender::Vector<SubgroupCollapseState> subgroup_states;
+  blender::Vector<GroupBounds> group_bounds;  /* Updated each draw */
 };
 
 /* Inline helper to get SpaceLightManager from context. */
@@ -83,14 +91,14 @@ static inline SpaceLightManager *CTX_wm_space_light_manager(const bContext *C)
 static const char *get_light_group(Object *ob)
 {
   if (ob->id.properties == nullptr) {
-    return light_manager_default_group_name();
+    return nullptr;  /* No property = not in Light Manager */
   }
   
   IDProperty *prop = IDP_GetPropertyFromGroup(ob->id.properties, "light_mixer_group");
   if (prop && prop->type == IDP_STRING) {
-    return IDP_string_get(prop);  /* Use macro instead of IDP_String */
+    return IDP_string_get(prop);
   }
-  return light_manager_default_group_name();
+  return nullptr;  /* Property missing or wrong type = not in Light Manager */
 }
 
 static void set_light_group(Object *ob, const char *group_name)
@@ -111,6 +119,18 @@ static void set_light_group(Object *ob, const char *group_name)
   val.string.subtype = IDP_STRING_SUB_UTF8;
   prop = IDP_New(IDP_STRING, &val, "light_mixer_group");
   IDP_AddToGroup(ob->id.properties, prop);
+}
+
+static void remove_light_group(Object *ob)
+{
+  if (ob->id.properties == nullptr) {
+    return;
+  }
+  
+  IDProperty *prop = IDP_GetPropertyFromGroup(ob->id.properties, "light_mixer_group");
+  if (prop) {
+    IDP_FreeFromGroup(ob->id.properties, prop);
+  }
 }
 
 static void ensure_default_group_exists(SpaceLightManager *space_lm)
@@ -141,7 +161,37 @@ static wmOperatorStatus light_manager_group_add_exec(bContext *C, wmOperator * /
   }
 
   SpaceLightManagerGroup *group = MEM_callocN<SpaceLightManagerGroup>("LightManagerGroup");
-  STRNCPY(group->name, "New Group");
+  
+  /* Find unique name with automatic numbering */
+  char base_name[64] = "Group";
+  int suffix = 1;
+  bool name_is_unique = false;
+  
+  while (!name_is_unique) {
+    char test_name[64];
+    if (suffix == 1) {
+      STRNCPY(test_name, base_name);
+    } else {
+      BLI_snprintf(test_name, sizeof(test_name), "%s.%03d", base_name, suffix);
+    }
+    
+    /* Check if this name already exists */
+    bool exists = false;
+    LISTBASE_FOREACH (SpaceLightManagerGroup *, existing_group, &space_lm->groups) {
+      if (STREQ(existing_group->name, test_name)) {
+        exists = true;
+        break;
+      }
+    }
+    
+    if (!exists) {
+      STRNCPY(group->name, test_name);
+      name_is_unique = true;
+    } else {
+      suffix++;
+    }
+  }
+  
   group->flag = 0;
   BLI_addtail(&space_lm->groups, group);
 
@@ -180,7 +230,8 @@ static wmOperatorStatus light_manager_group_delete_exec(bContext *C, wmOperator 
     if (ob->type != OB_LAMP) {
       continue;
     }
-    if (STREQ(get_light_group(ob), group->name)) {
+    const char *light_group = get_light_group(ob);
+    if (light_group && STREQ(light_group, group->name)) {
       set_light_group(ob, light_manager_default_group_name());
     }
   }
@@ -407,6 +458,9 @@ enum eLightManagerGroupMoveDirection {
   LIGHT_MANAGER_GROUP_MOVE_DOWN = 1,
 };
 
+/* Forward declarations */
+static void LIGHT_MANAGER_OT_drop_light(wmOperatorType *ot);
+
 static wmOperatorStatus light_manager_group_move_exec(bContext *C, wmOperator *op)
 {
   SpaceLightManager *space_lm = CTX_wm_space_light_manager(C);
@@ -602,6 +656,14 @@ static wmOperatorStatus light_manager_group_rename_exec(bContext *C, wmOperator 
   char new_name[64];
   RNA_string_get(op->ptr, "name", new_name);
   if (new_name[0] != '\0') {
+    /* Check if new name is already in use by another group */
+    LISTBASE_FOREACH (SpaceLightManagerGroup *, other_group, &space_lm->groups) {
+      if (other_group != group && STREQ(other_group->name, new_name)) {
+        BKE_reportf(op->reports, RPT_ERROR, "Name '%s' already in use", new_name);
+        return OPERATOR_CANCELLED;
+      }
+    }
+    
     STRNCPY_UTF8(group->name, new_name);
   }
 
@@ -612,7 +674,8 @@ static wmOperatorStatus light_manager_group_rename_exec(bContext *C, wmOperator 
     if (ob->type != OB_LAMP) {
       continue;
     }
-    if (STREQ(get_light_group(ob), old_name)) {
+    const char *light_group = get_light_group(ob);
+    if (light_group && STREQ(light_group, old_name)) {
       set_light_group(ob, group->name);
     }
   }
@@ -691,7 +754,8 @@ static wmOperatorStatus light_manager_light_remove_from_group_exec(bContext *C, 
     return OPERATOR_CANCELLED;
   }
 
-  set_light_group(ob, light_manager_default_group_name());
+  /* Completely remove the light from Light Manager (remove the group property) */
+  remove_light_group(ob);
 
   WM_event_add_notifier(C, NC_SPACE | ND_SPACE_LIGHT_MANAGER, space_lm);
   return OPERATOR_FINISHED;
@@ -721,6 +785,10 @@ static void LIGHT_MANAGER_OT_light_remove_from_group(wmOperatorType *ot)
 static void light_manager_main_region_init(wmWindowManager * /*wm*/, ARegion *region)
 {
   region->flag |= RGN_FLAG_INDICATE_OVERFLOW;
+  
+  /* Add dropbox handler for drag and drop functionality. */
+  ListBase *lb = WM_dropboxmap_find("Light Manager", SPACE_LIGHT_MANAGER, RGN_TYPE_WINDOW);
+  WM_event_add_dropbox_handler(&region->runtime->handlers, lb);
 }
 
 static void light_manager_main_region_draw(const bContext *C, ARegion *region)
@@ -812,6 +880,12 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
 
   for (Object *ob : lights) {
     const char *group_name = get_light_group(ob);
+    
+    /* Skip lights that don't have a group (not in Light Manager) */
+    if (group_name == nullptr) {
+      continue;
+    }
+    
     grouped_lights.lookup_or_add_default(group_name).append(ob);
   }
 
@@ -824,13 +898,46 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
       layout.separator();
       ui::Layout &group_box = layout.box();
 
+      /* Track group position for drop detection. */
+      if (space_lm->runtime) {
+        /* We need to get the Y position of this group box.
+         * Since we can't easily get exact coords during layout,
+         * we'll use an approximation based on iteration order. */
+        int group_idx = BLI_findindex(&space_lm->groups, group);
+        
+        /* Estimate Y position - will be refined after layout resolve */
+        GroupBounds bounds;
+        bounds.group_name = group->name;
+        bounds.index = group_idx;
+        bounds.y_min = 0;  /* Will be updated */
+        bounds.y_max = 0;  /* Will be updated */
+        
+        /* For now, just mark that this group exists at this index */
+        if (group_idx < space_lm->runtime->group_bounds.size()) {
+          space_lm->runtime->group_bounds[group_idx] = bounds;
+        } else {
+          space_lm->runtime->group_bounds.append(bounds);
+        }
+      }
+
       /* Group header. */
       ui::Layout &group_header = group_box.row(false);
 
+      /* Drag handle for group reordering. */
+      uiBlock *block_ptr = group_header.block();
+      uiBut *drag_but = uiDefIconBut(block_ptr,
+                                     ButType::Label,
+                                     ICON_GRIP,
+                                     0, 0,
+                                     UI_UNIT_X, UI_UNIT_Y,
+                                     nullptr, 0.0f, 0.0f,
+                                     std::nullopt);
+      UI_but_drag_set_name(drag_but, group->name);
+      
       /* Collapse/expand button. */
+      int group_index = BLI_findindex(&space_lm->groups, group);
       int icon = (group->flag & SPACE_LIGHT_MANAGER_GROUP_COLLAPSED) ? 
                  ICON_DISCLOSURE_TRI_RIGHT : ICON_DISCLOSURE_TRI_DOWN;
-      int group_index = BLI_findindex(&space_lm->groups, group);
       PointerRNA op_ptr = group_header.op("LIGHT_MANAGER_OT_group_toggle", "", icon);
       RNA_int_set(&op_ptr, "index", group_index);
       
@@ -889,9 +996,25 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
             PointerRNA ob_ptr = RNA_pointer_create_discrete(&scene->id, &RNA_Object, ob);
             PointerRNA light_ptr = RNA_pointer_get(&ob_ptr, "data");
 
-            ui::Layout &light_row = group_box.row(false);
+            /* Add indentation for lights within groups. */
+            ui::Layout &indented_row = group_box.row(false);
+            ui::Layout &indent = indented_row.split(0.03f, false);  /* 3% indent */
+            indent.label("", ICON_NONE);  /* Empty space for indentation */
+            
+            ui::Layout &light_row = indented_row.row(false);
             light_row.use_property_split_set(false);
             light_row.use_property_decorate_set(false);
+
+            /* Drag handle for moving light between groups. */
+            uiBlock *block_ptr = light_row.block();
+            uiBut *light_drag_but = uiDefIconBut(block_ptr,
+                                                 ButType::Label,
+                                                 ICON_GRIP,
+                                                 0, 0,
+                                                 UI_UNIT_X, UI_UNIT_Y,
+                                                 nullptr, 0.0f, 0.0f,
+                                                 std::nullopt);
+            UI_but_drag_set_id(light_drag_but, &ob->id);
 
             /* Light type icon. */
             int type_icon = ICON_LIGHT;
@@ -1153,7 +1276,243 @@ static void light_manager_operatortypes()
   WM_operatortype_append(LIGHT_MANAGER_OT_group_toggle_visibility);
   WM_operatortype_append(LIGHT_MANAGER_OT_group_rename);
   WM_operatortype_append(LIGHT_MANAGER_OT_light_remove_from_group);
+  WM_operatortype_append(LIGHT_MANAGER_OT_drop_light);
 }
+
+/* -------------------------------------------------------------------- */
+/** \name Drop Boxes
+ * \{ */
+
+/* Check if drag data can be dropped - light objects only. */
+static bool light_drop_poll(bContext * /*C*/, wmDrag *drag, const wmEvent * /*event*/)
+{
+  printf("Light drop poll called, drag type: %d\n", drag->type);
+  
+  /* Only accept light objects. */
+  if (drag->type == WM_DRAG_ID) {
+    ID *id = WM_drag_get_local_ID(drag, ID_OB);
+    printf("Got ID: %p\n", (void*)id);
+    if (id) {
+      Object *ob = reinterpret_cast<Object *>(id);
+      printf("Object type: %d, OB_LAMP: %d\n", ob->type, OB_LAMP);
+      bool result = (ob->type == OB_LAMP);
+      printf("Light drop poll returning: %d\n", result);
+      return result;
+    }
+  }
+  printf("Light drop poll returning false\n");
+  return false;
+}
+
+/* Helper function to find which group is at a given Y coordinate. */
+static int find_group_at_position(SpaceLightManager *space_lm, ARegion *region, const wmEvent *event)
+{
+  if (!space_lm || !region || !space_lm->runtime) {
+    return 0;
+  }
+
+  /* Clear old bounds and prepare for simple detection based on group count */
+  int num_groups = BLI_listbase_count(&space_lm->groups);
+  if (num_groups == 0) {
+    return 0;
+  }
+
+  /* Use region pixel coordinates directly since View2D isn't initialized */
+  int mouse_y = event->mval[1];  /* Y coordinate in region space */
+  int region_height = region->winy;
+  
+  printf("Mouse Y (region): %d, Region height: %d, num_groups: %d\n", mouse_y, region_height, num_groups);
+  
+  /* Simple heuristic: divide region height by number of groups
+   * Groups are drawn from top to bottom, so:
+   * - Group 0 is at the top (high Y values)
+   * - Group N-1 is at the bottom (low Y values)
+   * Note: Y=0 is at bottom of region, Y=region_height is at top */
+  
+  float group_height_estimate = (float)region_height / (float)(num_groups + 1);  /* +1 for header/padding */
+  
+  /* Start from top of region */
+  float current_y_top = region_height;
+  
+  for (int i = 0; i < num_groups; i++) {
+    float group_top = current_y_top;
+    float group_bottom = current_y_top - group_height_estimate;
+    
+    printf("Group %d: top=%f, bottom=%f\n", i, group_top, group_bottom);
+    
+    /* Check if mouse is in this group's area */
+    if (mouse_y <= group_top && mouse_y >= group_bottom) {
+      printf("Found group at index %d\n", i);
+      return i;
+    }
+    
+    current_y_top = group_bottom;
+  }
+  
+  /* Default to last group if below all */
+  printf("Mouse below all groups, using last group (index %d)\n", num_groups - 1);
+  return num_groups - 1;
+}
+
+/* Dedicated operator for dropping lights (no popup). */
+static wmOperatorStatus light_manager_drop_light_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  printf("Light drop invoke called!\n");
+  
+  ID *id = WM_drag_get_local_ID_from_event(event, ID_OB);
+  printf("Got ID from event: %p\n", (void*)id);
+  if (!id || GS(id->name) != ID_OB) {
+    printf("Not an object or ID is null\n");
+    return OPERATOR_CANCELLED;
+  }
+
+  Object *ob = reinterpret_cast<Object *>(id);
+  if (ob->type != OB_LAMP) {
+    printf("Object is not a lamp\n");
+    return OPERATOR_CANCELLED;
+  }
+  
+  printf("Dropping light: %s\n", ob->id.name + 2);
+
+  /* Detect which group the mouse is over. */
+  SpaceLightManager *space_lm = CTX_wm_space_light_manager(C);
+  if (!space_lm) {
+    printf("No space_lm\n");
+    return OPERATOR_CANCELLED;
+  }
+  
+  ARegion *region = CTX_wm_region(C);
+  int target_group_index = 0;  /* Default to first group */
+  
+  if (space_lm && region) {
+    target_group_index = find_group_at_position(space_lm, region, event);
+  }
+
+  ensure_default_group_exists(space_lm);
+
+  SpaceLightManagerGroup *group = static_cast<SpaceLightManagerGroup *>(
+      BLI_findlink(&space_lm->groups, target_group_index));
+  if (!group) {
+    printf("Group not found at index %d\n", target_group_index);
+    return OPERATOR_CANCELLED;
+  }
+  
+  printf("Adding to group: %s\n", group->name);
+
+  /* Assign the light to the group using the object's light group property. */
+  set_light_group(ob, group->name);
+
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_LIGHT_MANAGER, nullptr);
+  
+  printf("Light drop completed successfully!\n");
+  return OPERATOR_FINISHED;
+}
+
+static void LIGHT_MANAGER_OT_drop_light(wmOperatorType *ot)
+{
+  ot->name = "Drop Light";
+  ot->description = "Drop a light into a group";
+  ot->idname = "LIGHT_MANAGER_OT_drop_light";
+  ot->invoke = light_manager_drop_light_invoke;
+  ot->poll = ED_operator_light_manager_active;
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_INTERNAL;
+}
+
+/* -------------------------------------------------------------------- */
+/** \name Group Reordering Drop Handlers
+ * \{ */
+
+/* Check if drag data is a group name for reordering. */
+static bool group_drop_poll(bContext * /*C*/, wmDrag *drag, const wmEvent * /*event*/)
+{
+  printf("Group drop poll called, drag type: %d, WM_DRAG_NAME: %d\n", drag->type, WM_DRAG_NAME);
+  bool result = (drag->type == WM_DRAG_NAME);
+  printf("Group drop poll returning: %d\n", result);
+  return result;
+}
+
+/* Handle dropping a group to reorder it. */
+static wmOperatorStatus group_drop_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  printf("Group drop invoke called!\n");
+  
+  if (event->custom != EVT_DATA_DRAGDROP) {
+    printf("Not a drag drop event\n");
+    return OPERATOR_CANCELLED;
+  }
+
+  ListBase *lb = static_cast<ListBase *>(event->customdata);
+  wmDrag *drag = static_cast<wmDrag *>(lb->first);
+  
+  if (drag->type != WM_DRAG_NAME || !drag->poin) {
+    return OPERATOR_CANCELLED;
+  }
+
+  /* Get the dragged group name. */
+  const char *dragged_group_name = static_cast<const char *>(drag->poin);
+  
+  SpaceLightManager *space_lm = CTX_wm_space_light_manager(C);
+  if (!space_lm) {
+    return OPERATOR_CANCELLED;
+  }
+
+  /* Find the source group index. */
+  int source_index = -1;
+  int current_index = 0;
+  LISTBASE_FOREACH (SpaceLightManagerGroup *, group, &space_lm->groups) {
+    if (STREQ(group->name, dragged_group_name)) {
+      source_index = current_index;
+      break;
+    }
+    current_index++;
+  }
+
+  if (source_index == -1) {
+    return OPERATOR_CANCELLED;
+  }
+  
+  int total_groups = BLI_listbase_count(&space_lm->groups);
+  
+  /* For now, just move one position down (simpler, no freeze risk).
+   * User can drop multiple times to move further.
+   * TODO: Detect exact target position based on mouse Y. */
+  if (source_index >= total_groups - 1) {
+    printf("Already at bottom\n");
+    return OPERATOR_CANCELLED;
+  }
+
+  /* Set up the move operator to move down one position. */
+  RNA_int_set(op->ptr, "index", source_index);
+  RNA_enum_set(op->ptr, "direction", 1);  /* Down */
+
+  printf("Moving group from index %d down\n", source_index);
+  return light_manager_group_move_exec(C, op);
+}
+
+/** \} */
+
+static void light_manager_dropboxes()
+{
+  ListBase *lb = WM_dropboxmap_find("Light Manager", SPACE_LIGHT_MANAGER, RGN_TYPE_WINDOW);
+  
+  /* Light drop handler. */
+  WM_dropbox_add(lb,
+                 "LIGHT_MANAGER_OT_drop_light",
+                 light_drop_poll,
+                 nullptr,  /* copy */
+                 nullptr,  /* cancel */
+                 nullptr); /* tooltip */
+  
+  /* Group reordering handler. */
+  WM_dropbox_add(lb,
+                 "LIGHT_MANAGER_OT_group_move",
+                 group_drop_poll,
+                 nullptr,  /* copy */
+                 nullptr,  /* cancel */
+                 nullptr); /* tooltip */
+}
+
+/** \} */
 
 static void light_manager_keymap(wmKeyConfig * /*keyconf*/)
 {
@@ -1177,6 +1536,7 @@ void ED_spacetype_light_manager()
   st->duplicate = light_manager_duplicate;
   st->operatortypes = light_manager_operatortypes;
   st->keymap = light_manager_keymap;
+  st->dropboxes = light_manager_dropboxes;
   st->blend_read_data = light_manager_space_blend_read_data;
   st->blend_read_after_liblink = nullptr;
   st->blend_write = light_manager_space_blend_write;
