@@ -96,15 +96,20 @@ bool ShaderCreateInfo::is_vulkan_compatible() const
 
 /** \} */
 
+ShaderCreateInfo::ShaderCreateInfo(const char *name) : name_(name)
+{
+  /* Escape the shader name to be able to use it inside an identifier. */
+  for (char &c : name_) {
+    if (!std::isalnum(c)) {
+      c = '_';
+    }
+  }
+}
+
 std::string ShaderCreateInfo::resource_guard_defines() const
 {
   std::string defines;
-  if (name_.startswith("MA") || name_.startswith("WO")) {
-    defines += "#define CREATE_INFO_Material\n";
-  }
-  else {
-    defines += "#define CREATE_INFO_" + name_ + "\n";
-  }
+  defines += "#define CREATE_INFO_" + name_ + "\n";
   for (const auto &info_name : additional_infos_) {
     const ShaderCreateInfo &info = *reinterpret_cast<const ShaderCreateInfo *>(
         gpu_shader_create_info_get(info_name.c_str()));
@@ -345,7 +350,7 @@ std::string ShaderCreateInfo::check_error() const
         error += "Shader " + this->name_ + " : \"" + interface->name + "." + inout.name + "\":";
         error += " Array types are not allowed in shader stage interfaces.\n";
       }
-      if (inout.type == Type::float3x3_t || inout.type == Type::float4x4_t) {
+      if (ELEM(inout.type, Type::float3x3_t, Type::float4x4_t)) {
         error += "Shader " + this->name_ + " : \"" + interface->name + "." + inout.name + "\":";
         error += " Matrix types are not allowed in shader stage interfaces.\n";
       }
@@ -574,8 +579,13 @@ void gpu_shader_create_info_init()
     info->builtins_ |= gpu_shader_dependency_get_builtins(info->geometry_source_);
     info->builtins_ |= gpu_shader_dependency_get_builtins(info->compute_source_);
 
+    if (!info->compute_source_.is_empty()) {
+      info->shared_variables_.extend(
+          gpu_shader_dependency_get_shared_variables(info->compute_source_));
+    }
+
 #if GPU_SHADER_PRINTF_ENABLE
-    const bool is_material_shader = info->name_.startswith("eevee_surf_");
+    const bool is_material_shader = blender::StringRefNull(info->name_).startswith("eevee_surf_");
     if (flag_is_set(info->builtins_, BuiltinBits::USE_PRINTF) ||
         (gpu_shader_dependency_force_gpu_print_injection() && is_material_shader))
     {
@@ -615,7 +625,7 @@ void gpu_shader_create_info_exit()
   delete g_interfaces;
 }
 
-bool gpu_shader_create_info_compile(const char *name_starts_with_filter)
+bool gpu_shader_create_info_compile_all(const char *name_starts_with_filter)
 {
   using namespace blender;
   using namespace blender::gpu;
@@ -624,13 +634,13 @@ bool gpu_shader_create_info_compile(const char *name_starts_with_filter)
   int skipped = 0;
   int total = 0;
 
-  Vector<const GPUShaderCreateInfo *> infos;
+  Vector<AsyncCompilationHandle> handles;
 
   for (ShaderCreateInfo *info : g_create_infos->values()) {
     info->finalize();
     if (info->do_static_compilation_) {
       if (name_starts_with_filter &&
-          !info->name_.startswith(blender::StringRefNull(name_starts_with_filter)))
+          !StringRefNull(info->name_).startswith(blender::StringRefNull(name_starts_with_filter)))
       {
         skipped_filter++;
         continue;
@@ -643,15 +653,15 @@ bool gpu_shader_create_info_compile(const char *name_starts_with_filter)
       }
       total++;
 
-      infos.append(reinterpret_cast<const GPUShaderCreateInfo *>(info));
+      handles.append(
+          GPU_shader_async_compilation(reinterpret_cast<const GPUShaderCreateInfo *>(info)));
     }
   }
 
-  BatchHandle batch = GPU_shader_batch_create_from_infos(infos);
-  Vector<blender::gpu::Shader *> result = GPU_shader_batch_finalize(batch);
+  GPU_shader_compiler_wait_for_all();
 
-  for (int i : result.index_range()) {
-    if (result[i]) {
+  for (AsyncCompilationHandle handle : handles) {
+    if (blender::gpu::Shader *result = GPU_shader_async_compilation_finalize(handle)) {
       success++;
 #if 0 /* TODO(fclem): This is too verbose for now. Make it a cmake option. */
         /* Test if any resource is optimized out and print a warning if that's the case. */
@@ -693,7 +703,7 @@ bool gpu_shader_create_info_compile(const char *name_starts_with_filter)
           }
         }
 #endif
-      GPU_shader_free(result[i]);
+      GPU_shader_free(result);
     }
   }
 
