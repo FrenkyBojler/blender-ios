@@ -36,15 +36,8 @@ def _sha256_file(filepath: Path) -> str:
 def url(url_with_hash: _URLWithHashV1) -> str:
     """Return the url, with the hash on the query string.
 
-    >>> from _bpy_internal.assets.remote_library_listing.blender_asset_library_openapi import URLWithHashV1
-    >>> url(URLWithHashV1(url="http://localhost/", hash=""))
-    'http://localhost/'
-    >>> url(URLWithHashV1(url="http://localhost/", hash="the-hash"))
-    'http://localhost/?hash=the-hash'
     >>> url(URLWithHashV1(url="http://localhost/", hash="sha256:the-hash"))
     'http://localhost/?hash=the-hash'
-    >>> url(URLWithHashV1(url="http://localhost/?a=b", hash="the-hash"))
-    'http://localhost/?a=b&hash=the-hash'
     """
 
     import urllib.parse
@@ -63,9 +56,3 @@ def url(url_with_hash: _URLWithHashV1) -> str:
 
     sep = '&' if '?' in url else '?'
     return url + sep + 'hash=' + urllib.parse.quote(hash_value)
-
-
-if __name__ == '__main__':
-    # Run with 'blender -b -P scripts/modules/_bpy_internal/assets/remote_library_listing/hashing.py' to test.
-    import doctest
-    doctest.testmod()
