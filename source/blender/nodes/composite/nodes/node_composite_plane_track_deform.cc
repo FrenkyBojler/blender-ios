@@ -199,6 +199,7 @@ class PlaneTrackDeformOperation : public NodeOperation {
     Result &input_image = get_input("Image");
     GPU_texture_mipmap_mode(input_image, true, true);
     GPU_texture_anisotropic_filter(input_image, true);
+    GPU_texture_update_mipmap_chain(input_image);
     /* We actually need zero boundary conditions, but we sampled using extended boundaries then
      * multiply by the anti-aliased plane mask to get better quality anti-aliased planes. */
     GPU_texture_extend_mode(input_image, GPU_SAMPLER_EXTEND_MODE_EXTEND);
