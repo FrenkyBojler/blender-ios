@@ -1289,6 +1289,23 @@ typedef struct SpreadsheetRowFilter {
 /** \name Light Manager
  * \{ */
 
+typedef enum eSpaceLightManagerSortType {
+  LIGHT_MANAGER_SORT_NAME = 0,
+  LIGHT_MANAGER_SORT_TYPE = 1,
+  LIGHT_MANAGER_SORT_POWER = 2,
+} eSpaceLightManagerSortType;
+
+typedef struct SpaceLightManagerGroup {
+  struct SpaceLightManagerGroup *next, *prev;
+  
+  char name[64];  /* Group name, e.g., "Exterior" */
+  int flag;       /* SPACE_LIGHT_MANAGER_GROUP_* flags */
+  char _pad[4];
+} SpaceLightManagerGroup;
+
+/* SpaceLightManagerGroup.flag */
+#define SPACE_LIGHT_MANAGER_GROUP_COLLAPSED (1 << 0)
+
 typedef struct SpaceLightManager {
   SpaceLink *next, *prev;
   ListBase regionbase;
@@ -1297,7 +1314,10 @@ typedef struct SpaceLightManager {
   char _pad0[6];
 
   int flag;
-  int _pad1;
+  char sort_type; /* eSpaceLightManagerSortType */
+  char _pad1[3];
+
+  ListBase groups; /* SpaceLightManagerGroup list */
 
   SpaceLightManager_Runtime *runtime;
 } SpaceLightManager;

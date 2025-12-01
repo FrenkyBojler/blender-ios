@@ -9053,10 +9053,37 @@ static void rna_def_viewer_path(BlenderRNA *brna)
 static void rna_def_space_light_manager(BlenderRNA *brna)
 {
   StructRNA *srna;
+  PropertyRNA *prop;
+
+  /* NOTE: Keep enum values in sync with eSpaceLightManagerSortType in DNA_space_types.h. */
+  static const EnumPropertyItem sort_type_items[] = {
+      {LIGHT_MANAGER_SORT_NAME,
+       "NAME",
+       ICON_SORTALPHA,
+       "Name",
+       "Sort lights alphabetically by object name"},
+      {LIGHT_MANAGER_SORT_TYPE,
+       "TYPE",
+       ICON_LIGHT,
+       "Type",
+       "Sort lights by type (Point, Sun, Spot, Area), then by name"},
+      {LIGHT_MANAGER_SORT_POWER,
+       "POWER",
+       ICON_LIGHT,
+       "Power",
+       "Sort lights by intensity (energy), then by name"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
 
   srna = RNA_def_struct(brna, "SpaceLightManager", "Space");
   RNA_def_struct_sdna(srna, "SpaceLightManager");
   RNA_def_struct_ui_text(srna, "Space Light Manager", "Light Manager space data");
+
+  prop = RNA_def_property(srna, "sort_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "sort_type");
+  RNA_def_property_enum_items(prop, sort_type_items);
+  RNA_def_property_ui_text(prop, "Sort By", "Sorting mode for lights in the Light Manager");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_LIGHT_MANAGER, nullptr);
 }
 
 static void rna_def_space_spreadsheet(BlenderRNA *brna)

@@ -83,6 +83,7 @@ _modules = [
     "space_properties",
     "space_sequencer",
     "space_spreadsheet",
+    "space_light_manager",
     "space_statusbar",
     "space_text",
     "space_time",
