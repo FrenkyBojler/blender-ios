@@ -15,6 +15,9 @@ PROJECT_CONFIG = "project.toml"
 
 
 # --------------------------------------------------------------
+# Custom exception types, used for reporting expected errors.
+#
+# Mainly used so we can raise, catch, and report expected errors to the user.
 
 class ProjectSaveException(Exception):
     pass
@@ -23,6 +26,8 @@ class ProjectSaveException(Exception):
 class ProjectLoadException(Exception):
     pass
 
+
+# --------------------------------------------------------------
 
 def save_project(project):
     """ Note: throws a ProjectSaveException on anticipated errors.
@@ -64,6 +69,12 @@ def save_project(project):
 
 
 def find_project_root_from_blend_file_path(blend_path: Path) -> Path | None:
+    """ Searches for a Blender project root in the parent directories of the
+        given path.
+
+        Returns the project root if found, or None otherwise.
+    """
+
     for parent in blend_path.parents:
         if parent.joinpath(PROJECT_DIR).is_dir():
             return parent
@@ -164,6 +175,9 @@ class PROJECT_OP_NewProject(Operator):
 
     def execute(self, context):
         # TODO: ensure there isn't already a project at `self.directory`.
+        #
+        # TODO: ensure `self.directory` is a parent of the current file (if the
+        # file is on disk).
 
         # Create the project.
         context.project.init("New Project", self.directory)
@@ -225,6 +239,8 @@ def on_blend_save(blend_path: str):
 
 
 def on_exit():
+    # TODO: when this gets called on exit, the assignment to project.is_dirty in
+    # `save_project()` above appears to be the cause of a write-after-free bug.
     if bpy.context.preferences.use_project_auto_save and bpy.context.project.is_dirty and bpy.context.project.data is not None:
         save_project(bpy.context.project)
 
