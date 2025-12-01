@@ -250,13 +250,15 @@ class SubdivisionSet(Operator):
         ensure_modifier = self.ensure_modifier
 
         objs = context.selected_editable_objects
+        active_object = context.active_object
+
+        # For Sculpt, defer to the active object, not the selected objects
+        if active_object and active_object.mode == 'SCULPT':
+            objs = [active_object]
+
         if not objs:
-            active = context.active_object
-            if active:
-                objs = [active]
-            else:
-                self.report({'WARNING'}, "No active object")
-                return {'CANCELLED'}
+            self.report({'WARNING'}, "No applicable objects found")
+            return {'CANCELLED'}
 
         if relative and level == 0:
             return {'CANCELLED'}  # nothing to do
