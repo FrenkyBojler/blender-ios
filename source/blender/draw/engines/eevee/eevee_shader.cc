@@ -825,7 +825,9 @@ static SlotAllocator add_pipeline_create_info(blender::gpu::shader::ShaderCreate
   return available_slots;
 }
 
-void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOutput *codegen_)
+void ShaderModule::material_create_info_amend(GPUMaterial *gpumat,
+                                              GPUCodegenOutput *codegen_,
+                                              bool use_hq_normals)
 {
   using namespace blender::gpu::shader;
 
@@ -1316,12 +1318,13 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
     info.batch_resources_.clear();
   }
 
-  material_create_info_pipelines_amend(gpumat, geometry_type, pipeline_type, info);
+  material_create_info_pipelines_amend(gpumat, geometry_type, pipeline_type, use_hq_normals, info);
 }
 
 struct CallbackThunk {
   ShaderModule *shader_module;
   ::Material *default_mat;
+  bool use_hq_normals;
 };
 
 /* WATCH: This can be called from another thread! Needs to not touch the shader module in any
@@ -1329,7 +1332,7 @@ struct CallbackThunk {
 static void codegen_callback(void *void_thunk, GPUMaterial *mat, GPUCodegenOutput *codegen)
 {
   CallbackThunk *thunk = static_cast<CallbackThunk *>(void_thunk);
-  thunk->shader_module->material_create_info_amend(mat, codegen);
+  thunk->shader_module->material_create_info_amend(mat, codegen, thunk->use_hq_normals);
 }
 
 static GPUPass *pass_replacement_cb(void *void_thunk, GPUMaterial *mat)
@@ -1379,7 +1382,8 @@ static GPUPass *pass_replacement_cb(void *void_thunk, GPUMaterial *mat)
                                                                  pipeline_type,
                                                                  geometry_type,
                                                                  false,
-                                                                 nullptr);
+                                                                 nullptr,
+                                                                 thunk->use_hq_normals);
     return GPU_material_get_pass(mat);
   }
 
@@ -1410,7 +1414,8 @@ GPUMaterial *ShaderModule::material_shader_get(::Material *blender_mat,
                                                eMaterialPipeline pipeline_type,
                                                eMaterialGeometry geometry_type,
                                                bool deferred_compilation,
-                                               ::Material *default_mat)
+                                               ::Material *default_mat,
+                                               bool use_hq_normals)
 {
   eMaterialDisplacement displacement_type = to_displacement_type(blender_mat->displacement_method);
   eMaterialThickness thickness_type = to_thickness_type(blender_mat->thickness_mode);
@@ -1421,7 +1426,7 @@ GPUMaterial *ShaderModule::material_shader_get(::Material *blender_mat,
   bool is_default_material = default_mat == nullptr;
   BLI_assert(blender_mat != default_mat);
 
-  CallbackThunk thunk = {this, default_mat};
+  CallbackThunk thunk = {this, default_mat, use_hq_normals};
 
   GPUMaterialFromNodeTreeResult material_from_tree = GPU_material_from_nodetree(
       blender_mat,
@@ -1470,12 +1475,17 @@ GPUMaterial *ShaderModule::world_shader_get(::World *blender_world,
 
 static void add_vertex_inputs(GPUMaterial * /*gpumat*/,
                               const gpu::shader::ShaderCreateInfo &info,
-                              gpu::shader::PipelineState &r_pipeline)
+                              gpu::shader::PipelineState &r_pipeline,
+                              bool use_hq_normals)
 {
+  const gpu::VertAttrType normal_attr_type = use_hq_normals ?
+                                                 gpu::VertAttrType::SNORM_16_16_16_16 :
+                                                 gpu::VertAttrType::SNORM_10_10_10_2;
+
   /* `pos` uses vbo 1, bound to location 0 and `nor` uses vbo 0 bound to location 1. */
   r_pipeline
       .vertex_input(0, 1, gpu::VertAttrType::SFLOAT_32_32_32) /* pos */
-      .vertex_input(1, 0, gpu::VertAttrType::SNORM_10_10_10_2) /* nor */;
+      .vertex_input(1, 0, normal_attr_type) /* nor */;
 
   /* XXX: Main issue with this is that the shader type are often float4, but the actual geometry
    * attribute can be smaller float2 for uv's etc. This mismatch will compile a pipeline which in
@@ -1493,6 +1503,7 @@ static void add_vertex_inputs(GPUMaterial * /*gpumat*/,
 void ShaderModule::material_create_info_pipelines_amend(GPUMaterial *gpumat,
                                                         eMaterialGeometry geometry_type,
                                                         eMaterialPipeline pipeline_type,
+                                                        bool use_hq_normals,
                                                         gpu::shader::ShaderCreateInfo &r_info)
 {
   /* Pipeline states to compile during shader compilation. */
@@ -1588,7 +1599,7 @@ void ShaderModule::material_create_info_pipelines_amend(GPUMaterial *gpumat,
               .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
               .color_format(gpu::TextureTargetFormat::SFLOAT_16_16);
       if (use_attributes) {
-        add_vertex_inputs(gpumat, r_info, pipeline);
+        add_vertex_inputs(gpumat, r_info, pipeline, use_hq_normals);
       }
 
       /* Deferred probe pipeline */
@@ -1607,7 +1618,7 @@ void ShaderModule::material_create_info_pipelines_amend(GPUMaterial *gpumat,
               .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
               .color_format(gpu::TextureTargetFormat::SFLOAT_16_16);
       if (use_attributes) {
-        add_vertex_inputs(gpumat, r_info, pipeline_probe);
+        add_vertex_inputs(gpumat, r_info, pipeline_probe, use_hq_normals);
       }
 
       break;
@@ -1629,7 +1640,7 @@ void ShaderModule::material_create_info_pipelines_amend(GPUMaterial *gpumat,
               .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
               .color_format(gpu::TextureTargetFormat::SFLOAT_16_16);
       if (use_attributes) {
-        add_vertex_inputs(gpumat, r_info, pipeline);
+        add_vertex_inputs(gpumat, r_info, pipeline, use_hq_normals);
       }
       break;
     }
@@ -1653,7 +1664,7 @@ void ShaderModule::material_create_info_pipelines_amend(GPUMaterial *gpumat,
               .color_format(gpu::TextureTargetFormat::UNORM_10_10_10_2)
               .color_format(gpu::TextureTargetFormat::UNORM_10_10_10_2);
       if (use_attributes) {
-        add_vertex_inputs(gpumat, r_info, pipeline);
+        add_vertex_inputs(gpumat, r_info, pipeline, use_hq_normals);
       }
 
       /* Planar probe */
@@ -1675,7 +1686,7 @@ void ShaderModule::material_create_info_pipelines_amend(GPUMaterial *gpumat,
               .color_format(gpu::TextureTargetFormat::UNORM_10_10_10_2)
               .color_format(gpu::TextureTargetFormat::UNORM_10_10_10_2);
       if (use_attributes) {
-        add_vertex_inputs(gpumat, r_info, pipeline_planar);
+        add_vertex_inputs(gpumat, r_info, pipeline_planar, use_hq_normals);
       }
 
       break;
@@ -1697,7 +1708,7 @@ void ShaderModule::material_create_info_pipelines_amend(GPUMaterial *gpumat,
               .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
               .color_format(gpu::TextureTargetFormat::SFLOAT_16_16);
       if (use_attributes) {
-        add_vertex_inputs(gpumat, r_info, pipeline);
+        add_vertex_inputs(gpumat, r_info, pipeline, use_hq_normals);
       }
       break;
     }
@@ -1717,7 +1728,7 @@ void ShaderModule::material_create_info_pipelines_amend(GPUMaterial *gpumat,
               .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
               .color_format(gpu::TextureTargetFormat::SFLOAT_16_16);
       if (use_attributes) {
-        add_vertex_inputs(gpumat, r_info, pipeline);
+        add_vertex_inputs(gpumat, r_info, pipeline, use_hq_normals);
       }
       break;
     }
@@ -1737,7 +1748,7 @@ void ShaderModule::material_create_info_pipelines_amend(GPUMaterial *gpumat,
               .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
               .color_format(gpu::TextureTargetFormat::SFLOAT_16_16_16_16);
       if (use_attributes) {
-        add_vertex_inputs(gpumat, r_info, pipeline);
+        add_vertex_inputs(gpumat, r_info, pipeline, use_hq_normals);
       }
       break;
     }
@@ -1754,7 +1765,7 @@ void ShaderModule::material_create_info_pipelines_amend(GPUMaterial *gpumat,
                                                         GPU_VERTEX_LAST)
                                                  .viewports(16);
       if (use_attributes) {
-        add_vertex_inputs(gpumat, r_info, pipeline);
+        add_vertex_inputs(gpumat, r_info, pipeline, use_hq_normals);
       }
       break;
     }
@@ -1777,7 +1788,7 @@ void ShaderModule::material_create_info_pipelines_amend(GPUMaterial *gpumat,
               .color_format(gpu::TextureTargetFormat::UNORM_16_16)
               .color_format(gpu::TextureTargetFormat::UNORM_10_10_10_2)
               .color_format(gpu::TextureTargetFormat::UNORM_10_10_10_2);
-      add_vertex_inputs(gpumat, r_info, pipeline);
+      add_vertex_inputs(gpumat, r_info, pipeline, use_hq_normals);
       break;
     }
 
@@ -1797,7 +1808,7 @@ void ShaderModule::material_create_info_pipelines_amend(GPUMaterial *gpumat,
               .depth_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
               .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8);
       if (use_attributes) {
-        add_vertex_inputs(gpumat, r_info, pipeline);
+        add_vertex_inputs(gpumat, r_info, pipeline, use_hq_normals);
       }
 
       break;
@@ -1818,7 +1829,7 @@ void ShaderModule::material_create_info_pipelines_amend(GPUMaterial *gpumat,
               .depth_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8)
               .stencil_format(gpu::TextureTargetFormat::SFLOAT_32_DEPTH_UINT_8);
       if (use_attributes) {
-        add_vertex_inputs(gpumat, r_info, pipeline);
+        add_vertex_inputs(gpumat, r_info, pipeline, use_hq_normals);
       }
       break;
     }

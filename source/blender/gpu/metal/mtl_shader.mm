@@ -32,6 +32,7 @@
 #include "mtl_common.hh"
 #include "mtl_context.hh"
 #include "mtl_debug.hh"
+#include "mtl_primitive.hh"
 #include "mtl_pso_descriptor_state.hh"
 #include "mtl_shader.hh"
 #include "mtl_shader_generate.hh"
@@ -362,6 +363,10 @@ bool MTLShader::finalize(const shader::ShaderCreateInfo *info)
     /* Prepare Render pipeline descriptor. */
     pso_descriptor_ = [[MTLRenderPipelineDescriptor alloc] init];
     pso_descriptor_.label = [NSString stringWithUTF8String:this->name];
+
+    if (!info->pipelines_.is_empty()) {
+      this->bake_graphic_pipeline_states(info->pipelines_);
+    }
   }
 
   return true;
@@ -692,6 +697,21 @@ MTLRenderPipelineStateInstance *MTLShader::bake_current_pipeline_state(
 
   /* Bake pipeline state using global descriptor. */
   return bake_graphic_pipeline_state(ctx, prim_type, pipeline_descriptor);
+}
+
+void MTLShader::bake_graphic_pipeline_states(Span<shader::PipelineState> pipeline_states)
+{
+  MTLContext *ctx = MTLContext::get();
+  for (const shader::PipelineState &pipeline_state : pipeline_states) {
+    MTLRenderPipelineStateDescriptor pipeline_descriptor = {};
+    // TODO: fill in all the data.
+    //pipeline_descriptor.
+
+
+    MTLPrimitiveTopologyClass prim_type = mtl_prim_type_to_topology_class(
+        gpu_prim_type_to_metal(pipeline_state.primitive_));
+    //bake_graphic_pipeline_state(ctx, prim_type, pipeline_descriptor);
+  }
 }
 
 /* Variant which bakes a pipeline state based on an existing MTLRenderPipelineStateDescriptor.

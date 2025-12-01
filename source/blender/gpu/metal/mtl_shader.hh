@@ -256,6 +256,7 @@ class MTLShader : public Shader {
       MTLContext *ctx,
       MTLPrimitiveTopologyClass prim_type,
       const MTLRenderPipelineStateDescriptor &pipeline_descriptor);
+  void bake_graphic_pipeline_states(Span<shader::PipelineState> pipeline_states);
 
   /* Bakes and caches a PSO for compute. */
   MTLComputePipelineStateInstance *bake_compute_pipeline_state(

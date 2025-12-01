@@ -283,13 +283,16 @@ class ShaderModule {
                                    eMaterialPipeline pipeline_type,
                                    eMaterialGeometry geometry_type,
                                    bool deferred_compilation,
-                                   ::Material *default_mat);
+                                   ::Material *default_mat,
+                                   bool use_hq_normals);
   GPUMaterial *world_shader_get(::World *blender_world,
                                 bNodeTree *nodetree,
                                 eMaterialPipeline pipeline_type,
                                 bool deferred_compilation);
 
-  void material_create_info_amend(GPUMaterial *mat, GPUCodegenOutput *codegen);
+  void material_create_info_amend(GPUMaterial *mat,
+                                  GPUCodegenOutput *codegen,
+                                  bool use_hq_normals);
 
   /** Only to be used by Instance constructor. */
   static ShaderModule *module_get();
@@ -301,6 +304,7 @@ class ShaderModule {
   void material_create_info_pipelines_amend(GPUMaterial *gpumat,
                                             eMaterialGeometry geometry_type,
                                             eMaterialPipeline pipeline_type,
+                                            bool use_hq_normals,
                                             gpu::shader::ShaderCreateInfo &r_info);
 };
 
