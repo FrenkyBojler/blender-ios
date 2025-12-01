@@ -186,8 +186,9 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const int2 &size,
   }
 
   if (anisotropic) {
+    GPU_texture_anisotropic_filter(input, true);
     GPU_texture_mipmap_mode(input, true, true);
-    GPU_texture_anisotropic_filter(input, anisotropic);
+    GPU_texture_update_mipmap_chain(input);
   } else {
     GPU_texture_filter_mode(input, !nearest);
   }
