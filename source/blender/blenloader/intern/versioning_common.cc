@@ -277,7 +277,7 @@ bNode &version_node_add_unknown(bNodeTree &ntree,
   ntype.height = height;
   ntype.width = width;
   node_type_size_preset(ntype, eNodeSizePreset::Default);
-  ntype.minheight = 30;
+  ntype.minheight = 30.0f;
   ntype.maxheight = FLT_MAX;
 
   ntype.ui_name = ui_name;
