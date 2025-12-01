@@ -1142,6 +1142,8 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   }
 
   BKE_paint_blend_write(writer, &ts->imapaint.paint);
+  BLO_write_string(writer, ts->imapaint.clone_uv_map);
+  BLO_write_string(writer, ts->imapaint.stencil_uv_map);
 
   Editing *ed = sce->ed;
   if (ed) {
@@ -1303,6 +1305,8 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
     direct_link_paint_helper(reader, sce, (Paint **)&sce->toolsettings->curves_sculpt);
 
     BKE_paint_blend_read_data(reader, sce, &sce->toolsettings->imapaint.paint);
+    BLO_read_string(reader, &sce->toolsettings->imapaint.clone_uv_map);
+    BLO_read_string(reader, &sce->toolsettings->imapaint.stencil_uv_map);
 
     sce->toolsettings->particle.paintcursor = nullptr;
     sce->toolsettings->particle.scene = nullptr;
@@ -1683,6 +1687,9 @@ ToolSettings *BKE_toolsettings_copy(ToolSettings *toolsettings, const int flag)
       toolsettings->unified_paint_settings.curve_rand_value);
 
   BKE_paint_copy(&toolsettings->imapaint.paint, &ts->imapaint.paint, flag);
+  ts->imapaint.clone_uv_map = BLI_strdup_null(toolsettings->imapaint.clone_uv_map);
+  ts->imapaint.stencil_uv_map = BLI_strdup_null(toolsettings->imapaint.stencil_uv_map);
+
   ts->particle.paintcursor = nullptr;
   ts->particle.scene = nullptr;
   ts->particle.object = nullptr;
@@ -1749,6 +1756,8 @@ void BKE_toolsettings_free(ToolSettings *toolsettings)
     MEM_freeN(toolsettings->curves_sculpt);
   }
   BKE_paint_free(&toolsettings->imapaint.paint);
+  MEM_SAFE_FREE(toolsettings->imapaint.clone_uv_map);
+  MEM_SAFE_FREE(toolsettings->imapaint.stencil_uv_map);
 
   /* Color jitter curves in unified paint settings. */
   if (toolsettings->unified_paint_settings.curve_rand_hue) {

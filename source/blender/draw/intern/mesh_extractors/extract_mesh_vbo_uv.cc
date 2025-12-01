@@ -21,8 +21,8 @@ namespace blender::draw {
 /* Initialize the vertex format to be used for UVs. Return true if any UV layer is
  * found, false otherwise. */
 static VectorSet<StringRef> mesh_extract_uv_format_init(GPUVertFormat *format,
+                                                        const MeshRenderData &mr,
                                                         const MeshBatchCache &cache,
-                                                        const CustomData *cd_ldata,
                                                         const StringRef active_name,
                                                         const StringRef default_name,
                                                         const MeshExtractType extract_type)
@@ -41,13 +41,7 @@ static VectorSet<StringRef> mesh_extract_uv_format_init(GPUVertFormat *format,
     }
   }
 
-  const StringRef stencil_name = [&]() -> StringRef {
-    const int stencil_index = CustomData_get_stencil_layer_index(cd_ldata, CD_PROP_FLOAT2);
-    if (stencil_index == -1) {
-      return "";
-    }
-    return cd_ldata->layers[stencil_index].name;
-  }();
+  const StringRef stencil_name = mr.toolsettings->imapaint.stencil_uv_map;
 
   for (const StringRef name : uv_layers) {
     char attr_name[32], attr_safe_name[GPU_MAX_SAFE_ATTR_NAME];
@@ -81,8 +75,8 @@ gpu::VertBufPtr extract_uv_maps(const MeshRenderData &mr, const MeshBatchCache &
   int v_len = mr.corners_num;
   const VectorSet<StringRef> uv_layers = mesh_extract_uv_format_init(
       &format,
+      mr,
       cache,
-      (mr.extract_type == MeshExtractType::BMesh) ? &mr.bm->ldata : &mr.mesh->corner_data,
       mr.mesh->active_uv_map_name(),
       mr.mesh->default_uv_map_name(),
       mr.extract_type);
@@ -138,7 +132,8 @@ static VectorSet<StringRef> all_uv_map_attributes(const Mesh &mesh)
   return result;
 }
 
-gpu::VertBufPtr extract_uv_maps_subdiv(const DRWSubdivCache &subdiv_cache,
+gpu::VertBufPtr extract_uv_maps_subdiv(const MeshRenderData &mr,
+                                       const DRWSubdivCache &subdiv_cache,
                                        const MeshBatchCache &cache)
 {
   const Mesh *coarse_mesh = subdiv_cache.mesh;
@@ -146,8 +141,8 @@ gpu::VertBufPtr extract_uv_maps_subdiv(const DRWSubdivCache &subdiv_cache,
 
   const VectorSet<StringRef> uv_layers = mesh_extract_uv_format_init(
       &format,
+      mr,
       cache,
-      &coarse_mesh->corner_data,
       coarse_mesh->active_uv_map_name(),
       coarse_mesh->default_uv_map_name(),
       MeshExtractType::Mesh);

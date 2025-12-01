@@ -46,6 +46,7 @@ class Paints : Overlay {
   bool show_wires_ = false;
   bool show_paint_mask_ = false;
   bool masked_transparency_support_ = false;
+  const ImagePaintSettings *imapaint_ = nullptr;
 
  public:
   void begin_sync(Resources &res, const State &state) final
@@ -61,6 +62,13 @@ class Paints : Overlay {
 
     if (!enabled_) {
       return;
+    }
+
+    {
+      const DRWContext *draw_ctx = DRW_context_get();
+      if (draw_ctx->object_mode == OB_MODE_TEXTURE_PAINT) {
+        imapaint_ = &draw_ctx->scene->toolsettings->imapaint;
+      }
     }
 
     show_weight_ = state.ctx_mode == CTX_MODE_PAINT_WEIGHT;
@@ -211,7 +219,7 @@ class Paints : Overlay {
       }
       case CTX_MODE_PAINT_TEXTURE: {
         if (show_paint_mask_) {
-          gpu::Batch *geom = DRW_cache_mesh_surface_texpaint_single_get(ob_ref.object);
+          gpu::Batch *geom = DRW_cache_mesh_surface_texpaint_single_get(ob_ref.object, imapaint_);
           paint_mask_ps_.draw(geom, manager.unique_handle(ob_ref));
         }
         break;

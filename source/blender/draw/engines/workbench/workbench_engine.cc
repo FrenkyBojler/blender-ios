@@ -70,6 +70,8 @@ class Instance : public DrawEngine {
 
   const char *hair_buffer_overflow_error_ = nullptr;
 
+  const ImagePaintSettings *imapaint_ = nullptr;
+
  public:
   const DRWContext *draw_ctx = nullptr;
 
@@ -121,6 +123,9 @@ class Instance : public DrawEngine {
     dof_ps_.sync(resources_, this->draw_ctx);
     anti_aliasing_ps_.sync(scene_state_, resources_);
 
+    if (this->draw_ctx->object_mode == OB_MODE_TEXTURE_PAINT) {
+      imapaint_ = &this->draw_ctx->scene->toolsettings->imapaint;
+    }
     hair_buffer_overflow_error_ = nullptr;
   }
 
@@ -286,7 +291,7 @@ class Instance : public DrawEngine {
 
       Span<gpu::Batch *> batches;
       if (object_state.color_type == V3D_SHADING_TEXTURE_COLOR) {
-        batches = DRW_cache_mesh_surface_texpaint_get(ob_ref.object);
+        batches = DRW_cache_mesh_surface_texpaint_get(ob_ref.object, imapaint_);
       }
       else {
         batches = DRW_cache_object_surface_material_get(
@@ -316,7 +321,7 @@ class Instance : public DrawEngine {
     else {
       gpu::Batch *batch;
       if (object_state.color_type == V3D_SHADING_TEXTURE_COLOR) {
-        batch = DRW_cache_mesh_surface_texpaint_single_get(ob_ref.object);
+        batch = DRW_cache_mesh_surface_texpaint_single_get(ob_ref.object, imapaint_);
       }
       else if (object_state.color_type == V3D_SHADING_VERTEX_COLOR) {
         if (ob_ref.object->mode & OB_MODE_VERTEX_PAINT) {

@@ -148,18 +148,6 @@ static void mesh_cd_calc_active_uv_layer(const Object &object,
   }
 }
 
-static void mesh_cd_calc_active_mask_uv_layer(const Object &object,
-                                              const Mesh &mesh,
-                                              DRW_MeshCDMask &cd_used)
-{
-  const Mesh &me_final = editmesh_final_or_this(object, mesh);
-  const CustomData &cd_ldata = mesh_cd_ldata_get_from_mesh(me_final);
-  int layer = CustomData_get_stencil_layer_index(&cd_ldata, CD_PROP_FLOAT2);
-  if (layer != -1) {
-    cd_used.uv.add_as(cd_ldata.layers[layer].name);
-  }
-}
-
 static bool attribute_exists(const Mesh &mesh, const StringRef name)
 {
   if (BMEditMesh *em = mesh.runtime->edit_mesh.get()) {
@@ -622,16 +610,6 @@ void DRW_mesh_batch_cache_free(void *batch_cache)
 /** \name Public API
  * \{ */
 
-static void texpaint_request_active_uv(MeshBatchCache &cache, Object &object, Mesh &mesh)
-{
-  mesh_cd_calc_active_uv_layer(object, mesh, cache.cd_needed);
-
-  BLI_assert(!cache.cd_needed.uv.is_empty() &&
-             "No uv layer available in texpaint, but batches requested anyway!");
-
-  mesh_cd_calc_active_mask_uv_layer(object, mesh, cache.cd_needed);
-}
-
 static void request_active_and_default_color_attributes(const Object &object,
                                                         const Mesh &mesh,
                                                         VectorSet<std::string> &attributes)
@@ -750,18 +728,32 @@ Span<gpu::Batch *> DRW_mesh_batch_cache_get_surface_shaded(
   return cache.surface_per_mat;
 }
 
-Span<gpu::Batch *> DRW_mesh_batch_cache_get_surface_texpaint(Object &object, Mesh &mesh)
+Span<gpu::Batch *> DRW_mesh_batch_cache_get_surface_texpaint(Object &object,
+                                                             Mesh &mesh,
+                                                             const ImagePaintSettings *imapaint)
 {
   MeshBatchCache &cache = *mesh_batch_cache_get(mesh);
-  texpaint_request_active_uv(cache, object, mesh);
+  mesh_cd_calc_active_uv_layer(object, mesh, cache.cd_needed);
+  if (imapaint) {
+    if (imapaint->stencil_uv_map && imapaint->stencil_uv_map[0] != '\0') {
+      cache.cd_needed.uv.add_as(imapaint->stencil_uv_map);
+    }
+  }
   mesh_batch_cache_request_surface_batches(mesh, cache);
   return cache.surface_per_mat;
 }
 
-gpu::Batch *DRW_mesh_batch_cache_get_surface_texpaint_single(Object &object, Mesh &mesh)
+gpu::Batch *DRW_mesh_batch_cache_get_surface_texpaint_single(Object &object,
+                                                             Mesh &mesh,
+                                                             const ImagePaintSettings *imapaint)
 {
   MeshBatchCache &cache = *mesh_batch_cache_get(mesh);
-  texpaint_request_active_uv(cache, object, mesh);
+  mesh_cd_calc_active_uv_layer(object, mesh, cache.cd_needed);
+  if (imapaint) {
+    if (imapaint->stencil_uv_map && imapaint->stencil_uv_map[0] != '\0') {
+      cache.cd_needed.uv.add_as(imapaint->stencil_uv_map);
+    }
+  }
   mesh_batch_cache_request_surface_batches(mesh, cache);
   return cache.batch.surface;
 }
@@ -912,8 +904,6 @@ static void edituv_request_active_uv(MeshBatchCache &cache, Object &object, Mesh
 {
   mesh_cd_calc_active_uv_layer(object, mesh, cache.cd_needed);
   mesh_cd_calc_edit_uv_layer(mesh, &cache.cd_needed);
-
-  mesh_cd_calc_active_mask_uv_layer(object, mesh, cache.cd_needed);
 }
 
 gpu::Batch *DRW_mesh_batch_cache_get_edituv_faces_stretch_area(Object &object,
@@ -1116,15 +1106,22 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
      * need vertex buffers that aren't currently cached. */
     /* TODO(fclem): We could be a bit smarter here and only do it per
      * material. */
+    const bool uv_stencil_matches = cache.uv_map_stencil_name ==
+                                    StringRef(ts->imapaint.stencil_uv_map);
     const bool uvs_overlap = drw_attributes_overlap(&cache.cd_used.uv, &cache.cd_needed.uv);
     const bool tan_overlap = drw_attributes_overlap(&cache.cd_used.tan, &cache.cd_needed.tan);
     const bool attr_overlap = drw_attributes_overlap(&cache.attr_used, &cache.attr_needed);
-    if (!uvs_overlap || !tan_overlap || !attr_overlap ||
+    if (!uv_stencil_matches || !uvs_overlap || !tan_overlap || !attr_overlap ||
         (cache.cd_needed.orco && !cache.cd_used.orco) ||
         (cache.cd_needed.tan_orco && !cache.cd_used.tan_orco) ||
         (cache.cd_needed.sculpt_overlays && !cache.cd_used.sculpt_overlays))
     {
       FOREACH_MESH_BUFFER_CACHE (cache, mbc) {
+        if (!uv_stencil_matches) {
+          cache.uv_map_stencil_name = StringRef(ts->imapaint.stencil_uv_map);
+          mbc->buff.vbos.remove(VBOType::UVs);
+          cd_uv_update = true;
+        }
         if (!uvs_overlap) {
           mbc->buff.vbos.remove(VBOType::UVs);
           cd_uv_update = true;

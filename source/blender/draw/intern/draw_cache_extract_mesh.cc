@@ -474,7 +474,7 @@ void mesh_buffer_cache_create_requested_subdiv(MeshBatchCache &cache,
   }
   if (vbos_to_create.contains(VBOType::UVs)) {
     /* Make sure UVs are computed before edituv stuffs. */
-    buffers.vbos.add_new(VBOType::UVs, extract_uv_maps_subdiv(subdiv_cache, cache));
+    buffers.vbos.add_new(VBOType::UVs, extract_uv_maps_subdiv(mr, subdiv_cache, cache));
   }
   if (ibos_to_create.contains(IBOType::AllUVLines)) {
     buffers.ibos.add_new(IBOType::AllUVLines,

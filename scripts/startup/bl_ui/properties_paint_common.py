@@ -468,7 +468,7 @@ class ClonePanel(BrushPanel):
         elif settings.mode == 'IMAGE':
             mesh = ob.data
 
-            clone_text = mesh.uv_layer_clone.name if mesh.uv_layer_clone else ""
+            clone_text = settings.clone_uv_map_name
             col.label(text="Source Clone Image")
             col.template_ID(settings, "clone_image")
             col.label(text="Source Clone UV Map")
@@ -772,9 +772,9 @@ class VIEW3D_MT_tools_projectpaint_clone(Menu):
         layout = self.layout
 
         for i, uv_layer in enumerate(context.active_object.data.uv_layers):
-            props = layout.operator("wm.context_set_int", text=uv_layer.name, translate=False)
-            props.data_path = "active_object.data.uv_layer_clone_index"
-            props.value = i
+            props = layout.operator("wm.context_set_string", text=uv_layer.name, translate=False)
+            props.data_path = "tool_settings.image_paint.clone_uv_map_name"
+            props.value = uv_layer.name
 
 
 def brush_settings(layout, context, brush, popover=False):

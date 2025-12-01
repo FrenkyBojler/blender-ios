@@ -22,6 +22,7 @@ class Batch;
 class UniformBuf;
 class VertBuf;
 }  // namespace blender::gpu
+struct ImagePaintSettings;
 struct ModifierData;
 struct PTCacheEdit;
 struct ParticleSystem;
@@ -203,8 +204,11 @@ Span<gpu::Batch *> DRW_mesh_batch_cache_get_surface_shaded(Object &object,
                                                            Mesh &mesh,
                                                            Span<const GPUMaterial *> materials);
 
-Span<gpu::Batch *> DRW_mesh_batch_cache_get_surface_texpaint(Object &object, Mesh &mesh);
-blender::gpu::Batch *DRW_mesh_batch_cache_get_surface_texpaint_single(Object &object, Mesh &mesh);
+Span<gpu::Batch *> DRW_mesh_batch_cache_get_surface_texpaint(Object &object,
+                                                             Mesh &mesh,
+                                                             const ImagePaintSettings *imapaint);
+blender::gpu::Batch *DRW_mesh_batch_cache_get_surface_texpaint_single(
+    Object &object, Mesh &mesh, const ImagePaintSettings *imapaint);
 blender::gpu::Batch *DRW_mesh_batch_cache_get_surface_vertpaint(Object &object, Mesh &mesh);
 blender::gpu::Batch *DRW_mesh_batch_cache_get_surface_sculpt(Object &object, Mesh &mesh);
 blender::gpu::Batch *DRW_mesh_batch_cache_get_surface_weights(Mesh &mesh);

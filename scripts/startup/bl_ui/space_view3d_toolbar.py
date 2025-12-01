@@ -739,7 +739,7 @@ class VIEW3D_PT_stencil_projectpaint(Panel):
         col.label(text="Stencil Image")
         col.template_ID(ipaint, "stencil_image", new="image.new", open="image.open")
 
-        stencil_text = mesh.uv_layer_stencil.name if mesh.uv_layer_stencil else ""
+        stencil_text = ipaint.stencil_uv_map_name
 
         col.separator()
 
@@ -1403,9 +1403,9 @@ class VIEW3D_MT_tools_projectpaint_stencil(Menu):
     def draw(self, context):
         layout = self.layout
         for i, uv_layer in enumerate(context.active_object.data.uv_layers):
-            props = layout.operator("wm.context_set_int", text=uv_layer.name, translate=False)
-            props.data_path = "active_object.data.uv_layer_stencil_index"
-            props.value = i
+            props = layout.operator("wm.context_set_string", text=uv_layer.name, translate=False)
+            props.data_path = "tool_settings.image_paint.stencil_uv_map_name"
+            props.value = uv_layer.name
 
 
 class VIEW3D_PT_tools_particlemode_options(View3DPanel, Panel):

@@ -1244,8 +1244,10 @@ typedef struct ImagePaintSettings {
 
   /** Workaround until we support true layer masks. */
   struct Image *stencil;
+  char *stencil_uv_map;
   /** Clone layer for image mode for projective texture painting. */
   struct Image *clone;
+  char *clone_uv_map;
   /** Canvas when the explicit system is used for painting. */
   struct Image *canvas;
   float stencil_col[3];

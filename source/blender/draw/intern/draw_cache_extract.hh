@@ -299,6 +299,12 @@ struct MeshBatchCache {
   bool is_editmode;
   bool is_uvsyncsel;
 
+  /**
+   * The active stencil UV map name is encoded as an attribute prefix in the common UV maps vertex
+   * buffer, so we need to store whether it's changed to invalidate the cache.
+   */
+  std::string uv_map_stencil_name;
+
   DRW_MeshWeightState weight_state;
 
   DRW_MeshCDMask cd_used, cd_needed, cd_used_over_time;

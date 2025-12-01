@@ -132,8 +132,6 @@ inline const Mesh &editmesh_final_or_this(const Object &object, const Mesh &mesh
   return mesh;
 }
 
-const CustomData &mesh_cd_ldata_get_from_mesh(const Mesh &mesh);
-
 BLI_INLINE BMFace *bm_original_face_get(const MeshRenderData &mr, int idx)
 {
   return ((mr.orig_index_face != nullptr) && (mr.orig_index_face[idx] != ORIGINDEX_NONE) &&
@@ -341,7 +339,8 @@ gpu::IndexBufPtr extract_lines_adjacency_subdiv(const DRWSubdivCache &subdiv_cac
                                                 bool &r_is_manifold);
 
 gpu::VertBufPtr extract_uv_maps(const MeshRenderData &mr, const MeshBatchCache &cache);
-gpu::VertBufPtr extract_uv_maps_subdiv(const DRWSubdivCache &subdiv_cache,
+gpu::VertBufPtr extract_uv_maps_subdiv(const MeshRenderData &mr,
+                                       const DRWSubdivCache &subdiv_cache,
                                        const MeshBatchCache &cache);
 gpu::VertBufPtr extract_edituv_stretch_area(const MeshRenderData &mr,
                                             float &tot_area,

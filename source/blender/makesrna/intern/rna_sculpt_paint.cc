@@ -1449,6 +1449,11 @@ static void rna_def_image_paint(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Invert", "Invert the stencil layer");
   RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, "rna_ImaPaint_viewport_update");
 
+  prop = RNA_def_property(srna, "stencil_uv_map_name", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, nullptr, "stencil_uv_map");
+  RNA_def_property_ui_text(prop, "Stencil UV Map", "The UV map to use for the stencil");
+  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, "rna_ImaPaint_viewport_update");
+
   prop = RNA_def_property(srna, "stencil_image", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, nullptr, "stencil");
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_CONTEXT_UPDATE);
@@ -1547,6 +1552,11 @@ static void rna_def_image_paint(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Missing Texture", "Image Painting does not have a texture to paint on");
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+
+  prop = RNA_def_property(srna, "clone_uv_map_name", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, nullptr, "clone_uv_map");
+  RNA_def_property_ui_text(prop, "Clone UV Map", "The UV map to use for cloning");
+  RNA_def_property_update(prop, NC_SCENE | ND_TOOLSETTINGS, "rna_ImaPaint_viewport_update");
 
   prop = RNA_def_property(srna, "clone_alpha", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_float_sdna(prop, nullptr, "clone_alpha");

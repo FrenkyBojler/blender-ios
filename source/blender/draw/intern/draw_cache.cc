@@ -220,18 +220,20 @@ Span<gpu::Batch *> DRW_cache_mesh_surface_shaded_get(Object *ob,
       *ob, DRW_object_get_data_for_drawing<Mesh>(*ob), materials);
 }
 
-Span<gpu::Batch *> DRW_cache_mesh_surface_texpaint_get(Object *ob)
+Span<gpu::Batch *> DRW_cache_mesh_surface_texpaint_get(Object *ob,
+                                                       const ImagePaintSettings *imapaint)
 {
   BLI_assert(ob->type == OB_MESH);
-  return DRW_mesh_batch_cache_get_surface_texpaint(*ob,
-                                                   DRW_object_get_data_for_drawing<Mesh>(*ob));
+  return DRW_mesh_batch_cache_get_surface_texpaint(
+      *ob, DRW_object_get_data_for_drawing<Mesh>(*ob), imapaint);
 }
 
-gpu::Batch *DRW_cache_mesh_surface_texpaint_single_get(Object *ob)
+gpu::Batch *DRW_cache_mesh_surface_texpaint_single_get(Object *ob,
+                                                       const ImagePaintSettings *imapaint)
 {
   BLI_assert(ob->type == OB_MESH);
   return DRW_mesh_batch_cache_get_surface_texpaint_single(
-      *ob, DRW_object_get_data_for_drawing<Mesh>(*ob));
+      *ob, DRW_object_get_data_for_drawing<Mesh>(*ob), imapaint);
 }
 
 gpu::Batch *DRW_cache_mesh_surface_vertpaint_get(Object *ob)
