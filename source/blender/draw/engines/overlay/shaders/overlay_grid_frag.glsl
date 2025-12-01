@@ -13,7 +13,8 @@ FRAGMENT_SHADER_CREATE_INFO(overlay_grid_next)
 #include "overlay_common_lib.glsl"
 
 /* Returns true if both components of `v` fall within `epsilon` of 0. */
-bool is_zero(in vec2 v, in float epsilon) {
+bool is_zero(in vec2 v, in float epsilon)
+{
   return all(lessThanEqual(abs(v), float2(epsilon)));
 }
 
@@ -22,7 +23,7 @@ void main()
   /* Fragment color. */
   if (flag_test(grid_flag, SHOW_GRID)) {
     /* Color is a mix of [grid, emphasis] by vertex alpha, which incorporates level
-    * and subpixel fades only. */
+     * and subpixel fades only. */
     out_color = mix(theme.colors.grid, theme.colors.grid_emphasis, vertex_out_flat.alpha);
     out_color.a *= vertex_out_flat.alpha;
   }

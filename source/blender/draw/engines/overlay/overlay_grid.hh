@@ -74,9 +74,10 @@ class Grid : Overlay {
 
       auto &sub = grid_ps_.sub("grid");
       sub.shader_set(res.shaders->grid.get());
-      sub.state_set(ps_draw_state 
-        | DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_WRITE_DEPTH | DRW_STATE_BLEND_ADD);
+      sub.state_set(ps_draw_state | DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_WRITE_DEPTH |
+                    DRW_STATE_BLEND_ADD);
       sub.bind_ubo("grid_buf", &grid_ubo_);
+      
       for (int grid_iter = 0; grid_iter < OVERLAY_GRID_ITER_LEN; grid_iter++) {
         sub.push_constant("grid_iter", grid_iter);
         if (axis_flag_) {
@@ -286,7 +287,7 @@ class Grid : Overlay {
       float3 camera_offs = drw_view_position - dist * drw_view_forward;
       grid_ubo_.offset = camera_offs.xy();
     }
-    
+
     /* Find the lowest relevant grid level + fractional. */
     for (int i : IndexRange(0, SI_GRID_STEPS_LEN - 1)) {
       float curr = std::min(grid_ubo_.steps[i].x, grid_ubo_.steps[i].y);

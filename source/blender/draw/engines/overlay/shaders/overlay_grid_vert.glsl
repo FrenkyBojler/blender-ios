@@ -65,12 +65,14 @@ LineData decode_axis_data(in uint vertex_id)
 }
 
 /* Returns true if components of `v` fall within `epsilon` of 0. */
-bool2 is_zero(in float2 v, in float epsilon) {
+bool2 is_zero(in float2 v, in float epsilon)
+{
   return lessThanEqual(abs(v), float2(epsilon));
 }
 
 /* Test if the current line falls under an active axis line which occludes it. */
-bool test_axis_occlude(in float3 vertex_pos_global) {
+bool test_axis_occlude(in float3 vertex_pos_global)
+{
   if (flag_test(grid_flag, SHOW_GRID)) {
     return (flag_test(grid_flag, AXIS_X) && all(is_zero(vertex_pos_global.yz, 1e-4f))) ||
            (flag_test(grid_flag, AXIS_Y) && all(is_zero(vertex_pos_global.xz, 1e-4f))) ||
@@ -80,7 +82,8 @@ bool test_axis_occlude(in float3 vertex_pos_global) {
 }
 
 /* Test if the current line falls under another line on a higher level, which occludes it. */
-bool test_level_occlude(in LineData line, in uint level) {
+bool test_level_occlude(in LineData line, in uint level)
+{
   if (flag_test(grid_flag, SHOW_GRID)) {
     if (line.level < OVERLAY_GRID_STEPS_DRAW - 1 && level < OVERLAY_GRID_STEPS_LEN - 1) {
       float step_size_curr = grid_buf.steps[level][line.axis];
@@ -111,17 +114,17 @@ void main()
   }
 
   /* Compute per-level size, camera offset for lines. Offset is rounded to the nearest
-   * level-dependent line position for  grid, while axes simply move with the camera. */
+   * level-dependent line position for grid, while axes simply move with the camera. */
   float step_size = grid_buf.steps[level][line.axis];
-  float2 step_offs = flag_test(grid_flag, SHOW_GRID) /* !SHOW_AXES */
-    ? round(grid_buf.offset / step_size) * step_size
-    : float2(drw_view_position()[line.axis], 0.0f);
+  float2 step_offs = flag_test(grid_flag, SHOW_GRID) ?
+                         round(grid_buf.offset / step_size) * step_size :
+                         float2(drw_view_position()[line.axis], 0.0f);
 
   /* Output vertex position in [-1,1], which we use to fade level boundaries. */
   vertex_out.coord = line.P / max(float(grid_buf.num_lines >> 1), 1.0f);
   /* Output level fade in [0, 1], which we use to smoothly transition grid levels. */
   vertex_out_flat.alpha = (line.level + 1.0f - fract(grid_buf.level)) /
-                     float(OVERLAY_GRID_STEPS_DRAW - 1);
+                          float(OVERLAY_GRID_STEPS_DRAW - 1);
   vertex_out_flat.alpha = saturate(vertex_out_flat.alpha);
   if (!drw_view_is_perspective()) {
     /* Fade by pixel size for orthographic, as we lack proper line dfdx/dfdy. */
@@ -132,27 +135,33 @@ void main()
   /* Apply per-level size, camera offset. */
   line.P = step_offs + step_size * line.P;
 
-  /* Lines are clamped to a clipping rectangle to avoid precision issues further on. */
+  /* Compute clipping rectangle. We discard lines entirely outside the rectangle, and
+   * bring lines partially inside the rectangle fully inside to avoid precision problems. */
+  float2 clip_min, clip_max;
   if (flag_test(grid_flag, GRID_SIMA)) {
-    /* Restrict the grid in the UV/Image editor to the specified tile size. */
-    line.P = clamp(line.P, float2(-1.0f), grid_buf.clip_rect * 2.0f - 1.0f);
+    clip_min = float2(-1.0f);
+    clip_max = grid_buf.clip_rect * 2.0f - 1.0f;
   }
   else if (flag_test(grid_flag, SHOW_GRID)) {
-    bool line_outside_rect = all(greaterThan(abs(line.P - step_offs), grid_buf.clip_rect)); 
-    if (line_outside_rect) {
-      return; /* Discard line. */
-    }
-    line.P = clamp(line.P, grid_buf.offset - grid_buf.clip_rect, grid_buf.offset + grid_buf.clip_rect);
+    clip_min = grid_buf.offset - grid_buf.clip_rect;
+    clip_max = grid_buf.offset + grid_buf.clip_rect;
   }
   else { /* SHOW_AXES */
-    float offset = grid_buf.offset[line.axis];
-    float rect = grid_buf.clip_rect[line.axis];
-    line.P.x = clamp(line.P.x, offset - rect, offset + rect);
+    clip_min = float2(grid_buf.offset[line.axis] - grid_buf.clip_rect[line.axis], 0.0f);
+    clip_max = float2(grid_buf.offset[line.axis] + grid_buf.clip_rect[line.axis], 0.0f);
+  }
+  bool line_outside_rect = all(lessThan(line.P, clip_min)) || all(greaterThan(line.P, clip_max));
+  if (line_outside_rect) {
+    return; /* Discard line. */
+  }
+  else {
+    line.P = clamp(line.P, clip_min, clip_max);
   }
 
-  /* Output world-space position on the correct plane/axis. */
+  /* Output world-space position. */
   vertex_out.pos = float3(0.0f);
   if (flag_test(grid_flag, SHOW_GRID)) {
+    /* Position is placed on the correct plane. */
     if (flag_test(grid_flag, PLANE_XY)) {
       vertex_out.pos.xy = line.P;
     }
@@ -163,10 +172,10 @@ void main()
       vertex_out.pos.yz = line.P;
     }
     else { /* GRID_SIMA */
-      vertex_out.pos.xy = line.P * 0.5f + 0.5f;
-      /* Set z to place the grid over/under image, and always under the UV mesh. 
+      /* Set z to place the grid over/under image, and always under the UV mesh.
        * See `overlay_edit_uv_edges_vert.glsl` for the full z-sorder. */
-      vertex_out.pos.z = flag_test(grid_flag, GRID_OVER) ? 0.74f : 0.76f;
+      float z = flag_test(grid_flag, GRID_OVER) ? 0.74f : 0.76f;
+      vertex_out.pos = float3(line.P * 0.5f + 0.5f, z);
     }
   }
   else { /* SHOW_AXES */
@@ -177,21 +186,23 @@ void main()
     }
     vertex_out.pos[line.axis] = line.P.x;
   }
-  
-  /* Additional culling steps discard occluded lines. */
+
+  /* Additional culling steps to discard occluded lines. */
   if (test_axis_occlude(vertex_out.pos) || test_level_occlude(line, level)) {
     return;
   }
 
   gl_Position = drw_view().winmat * (drw_view().viewmat * float4(vertex_out.pos, 1.0f));
 
-  /* To negative z-fighting a bit, the grid is drawn N times with progressively less alpha
-   * and a progressively smaller z-bias. */
-   /* 4 * -[0...5] */
-  int z_iter_offset = OVERLAY_GRID_STEPS_DRAW * (-grid_iter + 2);
-  int z_level_offset = int(OVERLAY_GRID_STEPS_DRAW - line.level);
-  gl_Position.z += (5e-5f) * float(z_iter_offset + z_level_offset);
+  /* To minimize z-fighting, the grid is drawn N times with progressively less alpha
+   * and a progressively smaller z-bias. This makes it "fade" through geometry. */
+  float z_ratio_iter = 1.0f - float(grid_iter) / float(OVERLAY_GRID_ITER_LEN);
+  float z_ratio_level = (1.0f / float(OVERLAY_GRID_ITER_LEN))
+                      * (1.0f - float(line.level) / float(OVERLAY_GRID_STEPS_DRAW));
+  /* Increase/decrease this number for a smoother/sharper fade. */
+  gl_Position.z += 1e-4f * (z_ratio_iter + z_ratio_level);
 
   /* Stage output for viewport antialiasing. */
-  edge_start = edge_pos = ((gl_Position.xy / gl_Position.w) * 0.5f + 0.5f) * uniform_buf.size_viewport;
+  edge_start = edge_pos = ((gl_Position.xy / gl_Position.w) * 0.5f + 0.5f) *
+                          uniform_buf.size_viewport;
 }
