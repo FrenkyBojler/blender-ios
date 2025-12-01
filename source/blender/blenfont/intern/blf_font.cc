@@ -566,7 +566,7 @@ bool ShapingData::process(FontBLF *font, GlyphCacheBLF *gc, ResultBLF *r_info)
   blf_ot_feature(features, HB_TAG('s', 's', '0', '4'), U.text_render & USER_TEXT_DISAMBIGUATION);
 
   hb_shape_full(
-      this->segment.font->hb_font, this->hb_buf, features.data(), int(features.size()), nullptr);
+      this->segment.font->hb_font, this->hb_buf, features.data(), uint(features.size()), nullptr);
 
   this->segment.hb_glyph_info = hb_buffer_get_glyph_infos(this->hb_buf,
                                                           &this->segment.glyph_count);
@@ -1234,7 +1234,7 @@ void blf_font_boundbox_foreach_glyph(FontBLF *font,
         continue;
       };
       rcti bounds;
-      g = text.segment.glyphs[i];
+      g = text.segment.glyphs[int64_t(i)];
       bounds.xmin = ft_pix_to_int_floor(pen_x) + ft_pix_to_int_floor(g->box_xmin);
       bounds.xmax = ft_pix_to_int_floor(pen_x) + ft_pix_to_int_ceil(g->box_xmax);
       bounds.ymin = ft_pix_to_int_floor(g->box_ymin);
