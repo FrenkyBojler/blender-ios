@@ -241,23 +241,31 @@ class SubdivisionSet(Operator):
 
     @classmethod
     def poll(cls, context):
-        obs = context.selected_editable_objects
-        return (obs is not None)
+        active_object = context.active_object
+        # For paint modes, defer to the active object, not the selected objects
+        if active_object and active_object.mode in {'SCULPT', 'VERTEX_PAINT', 'WEIGHT_PAINT', 'TEXTURE_PAINT'}:
+            objs = [active_object]
+        else:
+            objs = context.selected_editable_objects
+        return (objs is not None)
 
     def execute(self, context):
         level = self.level
         relative = self.relative
         ensure_modifier = self.ensure_modifier
 
-        objs = context.selected_editable_objects
         active_object = context.active_object
 
-        # For Sculpt, defer to the active object, not the selected objects
-        if active_object and active_object.mode == 'SCULPT':
+        # For paint modes, defer to the active object, not the selected objects
+        if active_object and active_object.mode in {'SCULPT', 'VERTEX_PAINT', 'WEIGHT_PAINT', 'TEXTURE_PAINT'}:
             objs = [active_object]
+        else:
+            objs = context.selected_editable_objects
 
         if not objs:
-            self.report({'WARNING'}, "No applicable objects found")
+            # Note that this will never be true for the paint cases, hence the following report only mentions
+            # the selected & editable objects.
+            self.report({'WARNING'}, "No selected editable objects to operate on")
             return {'CANCELLED'}
 
         if relative and level == 0:
