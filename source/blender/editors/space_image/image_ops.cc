@@ -700,9 +700,15 @@ static wmOperatorStatus image_view_zoom_modal(bContext *C, wmOperator *op, const
   ViewZoomData *vpd = static_cast<ViewZoomData *>(op->customdata);
   short event_code = VIEW_PASS;
   wmOperatorStatus ret = OPERATOR_RUNNING_MODAL;
+  const bool allow_snap = !vpd->own_cursor;
 
   WorkspaceStatus status(C);
-  status.item_bool(IFACE_("Snap"), event->modifier & KM_CTRL, ICON_EVENT_CTRL);
+  if (allow_snap) {
+    status.item_bool(IFACE_("Snap"), event->modifier & KM_CTRL, ICON_EVENT_CTRL);
+  }
+  else {
+    status.item(" ", 0);
+  }
 
   /* Execute the events. */
   if (event->type == MOUSEMOVE) {
@@ -730,7 +736,7 @@ static wmOperatorStatus image_view_zoom_modal(bContext *C, wmOperator *op, const
                        U.viewzoom,
                        (U.uiflag & USER_ZOOM_INVERT) != 0,
                        (use_cursor_init && (U.uiflag & USER_ZOOM_TO_MOUSEPOS)),
-                       event->modifier & KM_CTRL);
+                       allow_snap && (event->modifier & KM_CTRL));
       break;
     }
     case VIEW_CONFIRM: {
