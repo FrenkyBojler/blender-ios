@@ -1,1 +1,2 @@
 Referenced by issue #150804, Run-Time Check Failure: The variable 'handle_event' is being used without being initialized
+Referenced by commit 9048f816dfeb37917ca0f310b5818c1c960b2a94, Fix #150804: Uninitialized variable use in progress bar UI template
