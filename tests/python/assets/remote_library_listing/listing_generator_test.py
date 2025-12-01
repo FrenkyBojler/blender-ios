@@ -5,7 +5,7 @@
 import sys
 import unittest
 
-from _bpy_internal.assets.remote_library_listing import asset_finder, json_parsing
+from _bpy_internal.assets.remote_library_listing import asset_finder, json_parsing, hashing
 from _bpy_internal.assets.remote_library_listing import blender_asset_library_openapi as api_models
 
 import bpy
@@ -92,6 +92,32 @@ class CustomPropertiesTest(unittest.TestCase):
         # The JSON should also be deserializable as well, and produce the same data.
         roundtripped = parser.parse_and_validate(api_models.AssetMetadataV1, as_json)
         self.assertEqual(meta, roundtripped)
+
+    def test_hashing_url(self) -> None:
+        # No hash.
+        url_with_hash = api_models.URLWithHashV1(
+            url="http://localhost:8080/_v1/asset-index.json",
+            hash=""
+        )
+        self.assertEqual("http://localhost:8080/_v1/asset-index.json", hashing.url(url_with_hash))
+
+        # Hash without type, and to-be-quoted characters.
+        url_with_hash.hash = "this is a weird häsh"
+        self.assertEqual(
+            "http://localhost:8080/_v1/asset-index.json?hash=this%20is%20a%20weird%20h%C3%A4sh",
+            hashing.url(url_with_hash))
+
+        # Hash with a type prefix, should be stripped.
+        url_with_hash.hash = "sha1:2cafc9d388fb8c2d0b6ca9780d6b75963587916d"
+        self.assertEqual(
+            "http://localhost:8080/_v1/asset-index.json?hash=2cafc9d388fb8c2d0b6ca9780d6b75963587916d",
+            hashing.url(url_with_hash))
+
+        # Existing query string, should be correctly appended to.
+        url_with_hash.url = "http://localhost:8080/_v1/asset-index.json?auth=none"
+        self.assertEqual(
+            "http://localhost:8080/_v1/asset-index.json?auth=none&hash=2cafc9d388fb8c2d0b6ca9780d6b75963587916d",
+            hashing.url(url_with_hash))
 
 
 def main():

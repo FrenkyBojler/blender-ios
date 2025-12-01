@@ -2,7 +2,13 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+import typing
 from pathlib import Path
+
+if typing.TYPE_CHECKING:
+    from _bpy_internal.assets.remote_library_listing.blender_asset_library_openapi import URLWithHashV1 as _URLWithHashV1
+else:
+    _URLWithHashV1 = object
 
 
 def hash_file(filepath: Path) -> str:
@@ -25,3 +31,41 @@ def _sha256_file(filepath: Path) -> str:
             file_size_bytes += len(byte_block)
             sha256_hash.update(byte_block)
     return sha256_hash.hexdigest()
+
+
+def url(url_with_hash: _URLWithHashV1) -> str:
+    """Return the url, with the hash on the query string.
+
+    >>> from _bpy_internal.assets.remote_library_listing.blender_asset_library_openapi import URLWithHashV1
+    >>> url(URLWithHashV1(url="http://localhost/", hash=""))
+    'http://localhost/'
+    >>> url(URLWithHashV1(url="http://localhost/", hash="the-hash"))
+    'http://localhost/?hash=the-hash'
+    >>> url(URLWithHashV1(url="http://localhost/", hash="sha256:the-hash"))
+    'http://localhost/?hash=the-hash'
+    >>> url(URLWithHashV1(url="http://localhost/?a=b", hash="the-hash"))
+    'http://localhost/?a=b&hash=the-hash'
+    """
+
+    import urllib.parse
+
+    url = url_with_hash.url
+    hash_with_type = url_with_hash.hash
+
+    if not hash_with_type:
+        return url
+
+    try:
+        _, hash_value = hash_with_type.split(':', 1)
+    except ValueError:
+        # This means the hash is not in the form '{TYPE}:{HASH}'; just use it as-is.
+        hash_value = hash_with_type
+
+    sep = '&' if '?' in url else '?'
+    return url + sep + 'hash=' + urllib.parse.quote(hash_value)
+
+
+if __name__ == '__main__':
+    # Run with 'blender -b -P scripts/modules/_bpy_internal/assets/remote_library_listing/hashing.py' to test.
+    import doctest
+    doctest.testmod()
