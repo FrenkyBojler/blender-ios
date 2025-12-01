@@ -17,6 +17,7 @@
 
 #include "BLF_api.hh"
 
+ #include "BKE_collection.hh"
  #include "BKE_context.hh"
  #include "BKE_screen.hh"
 
@@ -62,7 +63,6 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
 
   /* Get scene context. */
   Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
 
   /* Create UI block and layout. */
   uiBlock *block = UI_block_begin(C, region, __func__, ui::EmbossType::Emboss);
@@ -83,10 +83,10 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
 
   layout.separator();
 
-  /* Iterate through all visible lights in the scene. */
+  /* Iterate through all lights in the scene. */
   int light_count = 0;
 
-  CTX_DATA_BEGIN (C, Object *, ob, visible_objects) {
+  FOREACH_SCENE_OBJECT_BEGIN (scene, ob) {
     if (ob->type != OB_LAMP) {
       continue;
     }
@@ -107,12 +107,12 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
     light_row.use_property_split_set(false);
     light_row.use_property_decorate_set(false);
 
-    /* Column 1: Light name (editable). */
-    ui::Layout &name_col = light_row.row(false);
-    name_col.ui_units_x_set(12.0f);
-    name_col.prop(&ob_ptr, "name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    /* Disable (gray out) row if light is hidden in viewport. */
+    if (ob->visibility_flag & OB_HIDE_VIEWPORT) {
+      light_row.enabled_set(false);
+    }
 
-    /* Column 2: Light type icon. */
+    /* Column 1: Light type icon (before name). */
     int type_icon = ICON_LIGHT;
     switch (light->type) {
       case LA_LOCAL:
@@ -129,6 +129,11 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
         break;
     }
     light_row.label("", type_icon);
+
+    /* Column 2: Light name (editable). */
+    ui::Layout &name_col = light_row.row(false);
+    name_col.ui_units_x_set(12.0f);
+    name_col.prop(&ob_ptr, "name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
     /* Column 3: Light color. */
     ui::Layout &color_col = light_row.row(false);
@@ -150,7 +155,7 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
     /* Render visibility. */
     vis_col.prop(&ob_ptr, "hide_render", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
   }
-  CTX_DATA_END;
+  FOREACH_SCENE_OBJECT_END;
 
   /* If no lights found, show message. */
   if (light_count == 0) {
@@ -164,8 +169,40 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
   ED_region_draw_overflow_indication(CTX_wm_area(C), region);
 }
 
-static void light_manager_main_region_listener(const wmRegionListenerParams * /*params*/)
+static void light_manager_main_region_listener(const wmRegionListenerParams *params)
 {
+  ARegion *region = params->region;
+  const wmNotifier *wmn = params->notifier;
+
+  /* Context changes. */
+  switch (wmn->category) {
+    case NC_SCENE:
+      /* Redraw when scene changes (lights added/removed). */
+      switch (wmn->data) {
+        case ND_OB_ACTIVE:
+        case ND_OB_SELECT:
+        case ND_OB_VISIBLE:
+        case ND_LAYER_CONTENT:
+          ED_region_tag_redraw(region);
+          break;
+      }
+      break;
+    case NC_OBJECT:
+      /* Redraw when objects change (lights modified). */
+      switch (wmn->data) {
+        case ND_TRANSFORM:
+        case ND_OB_SHADING:
+        case ND_DRAW:
+          ED_region_tag_redraw(region);
+          break;
+      }
+      break;
+    case NC_SPACE:
+      if (wmn->data == ND_SPACE_LIGHT_MANAGER) {
+        ED_region_tag_redraw(region);
+      }
+      break;
+  }
 }
 
 /* \} */
@@ -181,6 +218,15 @@ static void light_manager_header_region_init(wmWindowManager * /*wm*/, ARegion *
 
 static void light_manager_header_region_draw(const bContext *C, ARegion *region)
 {
+  uiBlock *block = UI_block_begin(C, region, __func__, ui::EmbossType::Emboss);
+  
+  /* Editor type selector (dropdown menu). */
+  int xco = ED_area_header_switchbutton(C, block, 0);
+  
+  UI_block_end(C, block);
+  UI_block_draw(C, block);
+  
+  /* Standard header menus. */
   ED_region_header(C, region);
 }
 
