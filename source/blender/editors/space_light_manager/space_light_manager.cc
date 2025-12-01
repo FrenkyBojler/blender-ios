@@ -36,6 +36,7 @@
  #include "UI_interface_layout.hh"
  #include "UI_resources.hh"
  #include "UI_view2d.hh"
+ #include "../interface/interface_intern.hh"
 
  #include "BLO_read_write.hh"
 
@@ -938,6 +939,11 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
           "LIGHT_MANAGER_OT_add_light", IFACE_("Add light"), ICON_LIGHT);
       if (assign_op.type != nullptr) {
         RNA_int_set(&assign_op, "index", group_index);
+
+        uiBlock *assign_block = group_header.block();
+        uiBut *assign_but = assign_block->last_but();
+        const uchar white[4] = {255, 255, 255, 255};
+        UI_but_color_set(assign_but, white);
       }
 
       /* Reorder groups (up/down arrows). */
@@ -976,23 +982,90 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
       /* Draw lights in this group if expanded. */
       if (!(group->flag & SPACE_LIGHT_MANAGER_GROUP_COLLAPSED)) {
         if (group_lights && !group_lights->is_empty()) {
-          for (Object *ob : *group_lights) {
+          group_box.separator();
+
+          /* Indent column plus a row of shared column layouts: this builds a true 2xN table. */
+          ui::Layout &indented_table = group_box.row(false);
+          ui::Layout &table_indent = indented_table.split(0.03f, false);
+          table_indent.label("", ICON_NONE);
+
+          ui::Layout &table_columns = indented_table.row(false);
+          table_columns.use_property_split_set(false);
+          table_columns.use_property_decorate_set(false);
+
+          /* One column per logical field. Use fixed widths so headers and rows align like a table. */
+          ui::Layout &controls_column = table_columns.column(false);
+          controls_column.ui_units_x_set(4.0f);
+
+          ui::Layout &name_column = table_columns.column(false);
+          name_column.ui_units_x_set(12.0f);
+
+          ui::Layout &color_column = table_columns.column(false);
+          color_column.ui_units_x_set(3.0f);
+
+          ui::Layout &intensity_column = table_columns.column(false);
+          intensity_column.ui_units_x_set(8.0f);
+
+          /* Visibility column will hold the two visibility toggles and the remove (X) icon).
+           * Use a width proche de la largeur des 3 icônes pour éviter que le titre paraisse
+           * décalé par rapport aux icônes.
+           */
+          ui::Layout &visibility_column = table_columns.column(true);
+          visibility_column.ui_units_x_set(4.0f);
+
+          /* Header row. */
+          controls_column.label("", ICON_NONE);
+
+          ui::Layout &name_header = name_column.row(false);
+          name_header.label(IFACE_("Name"), ICON_NONE);
+          {
+            uiBlock *block = name_header.block();
+            uiBut *but = block->last_but();
+            UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
+            UI_but_drawflag_disable(but, UI_BUT_TEXT_RIGHT);
+          }
+
+          ui::Layout &color_header = color_column.row(false);
+          color_header.label(IFACE_("Color"), ICON_NONE);
+          {
+            uiBlock *block = color_header.block();
+            uiBut *but = block->last_but();
+            UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
+            UI_but_drawflag_disable(but, UI_BUT_TEXT_RIGHT);
+          }
+
+          ui::Layout &intensity_header = intensity_column.row(false);
+          intensity_header.label(IFACE_("Power"), ICON_NONE);
+          {
+            uiBlock *block = intensity_header.block();
+            uiBut *but = block->last_but();
+            UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
+            UI_but_drawflag_disable(but, UI_BUT_TEXT_RIGHT);
+          }
+
+          ui::Layout &vis_header = visibility_column.row(false);
+          vis_header.label(IFACE_("Visibility"), ICON_NONE);
+          {
+            uiBlock *block = vis_header.block();
+            uiBut *but = block->last_but();
+            UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
+            UI_but_drawflag_disable(but, UI_BUT_TEXT_RIGHT);
+          }
+
+          /* Data rows: one row per light, sharing the same column layouts as the header. */
+          for (int light_index = 0; light_index < group_lights->size(); light_index++) {
+            Object *ob = (*group_lights)[light_index];
             Light *light = static_cast<Light *>(ob->data);
 
             PointerRNA ob_ptr = RNA_pointer_create_discrete(&scene->id, &RNA_Object, ob);
             PointerRNA light_ptr = RNA_pointer_get(&ob_ptr, "data");
 
-            /* Add indentation for lights within groups. */
-            ui::Layout &indented_row = group_box.row(false);
-            ui::Layout &indent = indented_row.split(0.03f, false);  /* 3% indent */
-            indent.label("", ICON_NONE);  /* Empty space for indentation */
-            
-            ui::Layout &light_row = indented_row.row(false);
-            light_row.use_property_split_set(false);
-            light_row.use_property_decorate_set(false);
+            /* Controls column: drag handle + light icon. */
+            ui::Layout &controls_row = controls_column.row(false);
+            controls_row.use_property_split_set(false);
+            controls_row.use_property_decorate_set(false);
 
-            /* Drag handle for moving light between groups. */
-            uiBlock *block_ptr = light_row.block();
+            uiBlock *block_ptr = controls_row.block();
             uiBut *light_drag_but = uiDefIconBut(block_ptr,
                                                  ButType::Label,
                                                  ICON_GRIP,
@@ -1002,7 +1075,6 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
                                                  std::nullopt);
             UI_but_drag_set_id(light_drag_but, &ob->id);
 
-            /* Light type icon (theme-colored like in the Outliner). */
             int type_icon = ICON_LIGHT;
             switch (light->type) {
               case LA_LOCAL: type_icon = ICON_LIGHT_POINT; break;
@@ -1010,41 +1082,46 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
               case LA_SPOT: type_icon = ICON_LIGHT_SPOT; break;
               case LA_AREA: type_icon = ICON_LIGHT_AREA; break;
             }
-            light_row.label("", type_icon);
+            controls_row.label("", type_icon);
 
-            /* Light properties. */
-            ui::Layout &name_col = light_row.row(false);
-            name_col.ui_units_x_set(12.0f);
-            name_col.prop(&ob_ptr, "name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+            /* Light properties (no per-row labels, headers are drawn above). */
+            ui::Layout &name_row = name_column.row(false);
+            name_row.prop(&ob_ptr, "name", UI_ITEM_NONE, "", ICON_NONE);
 
-            ui::Layout &color_col = light_row.row(false);
-            color_col.ui_units_x_set(3.0f);
-            color_col.prop(&light_ptr, "color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+            ui::Layout &color_row = color_column.row(false);
+            color_row.prop(&light_ptr, "color", UI_ITEM_NONE, "", ICON_NONE);
 
-            ui::Layout &intensity_col = light_row.row(false);
-            intensity_col.ui_units_x_set(8.0f);
-            intensity_col.prop(&light_ptr, "energy", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+            ui::Layout &intensity_row = intensity_column.row(false);
+            intensity_row.prop(&light_ptr, "energy", UI_ITEM_NONE, "", ICON_NONE);
 
             /* When hidden in viewport, keep the visibility toggles active but
              * disable editing of name/color/intensity. */
             const bool hidden_in_viewport = (ob->visibility_flag & OB_HIDE_VIEWPORT) != 0;
             if (hidden_in_viewport) {
-              name_col.enabled_set(false);
-              color_col.enabled_set(false);
-              intensity_col.enabled_set(false);
+              name_row.enabled_set(false);
+              color_row.enabled_set(false);
+              intensity_row.enabled_set(false);
             }
 
-            ui::Layout &vis_col = light_row.row(true);
-            vis_col.ui_units_x_set(3.0f);
-            vis_col.prop(&ob_ptr, "hide_viewport", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
-            vis_col.prop(&ob_ptr, "hide_render", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
+            ui::Layout &vis_row = visibility_column.row(true);
+            vis_row.prop(&ob_ptr, "hide_viewport", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
+            vis_row.prop(&ob_ptr, "hide_render", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
 
-            /* Remove this light from its group (back to default). */
-            ui::Layout &remove_col = light_row.row(true);
-            PointerRNA remove_op = remove_col.op(
+            /* Remove this light from its group (back to default), as a third icon in the
+             * visibility column so it aligns with the other visibility icons. */
+            PointerRNA remove_op = vis_row.op(
                 "LIGHT_MANAGER_OT_light_remove_from_group", "", ICON_X);
             if (remove_op.type != nullptr) {
               RNA_string_set(&remove_op, "object_name", ob->id.name + 2);
+            }
+
+            /* Horizontal separator between rows, for all columns (except after last row). */
+            if (light_index < group_lights->size() - 1) {
+              controls_column.separator(1.0f);
+              name_column.separator(1.0f);
+              color_column.separator(1.0f);
+              intensity_column.separator(1.0f);
+              visibility_column.separator(1.0f);
             }
           }
         }
@@ -1063,7 +1140,34 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
     ui::Layout &ungrouped_header = layout.row(false);
     ungrouped_header.label("=== Ungrouped ===", ICON_NONE);
     layout.separator();
-    
+
+    /* Column headers for ungrouped lights (table-like layout). */
+    ui::Layout &ungrouped_columns = layout.row(false);
+    ungrouped_columns.use_property_split_set(false);
+    ungrouped_columns.use_property_decorate_set(false);
+
+    /* Icon column. */
+    ungrouped_columns.label("", ICON_NONE);
+
+    ui::Layout &ungrouped_name_header = ungrouped_columns.row(false);
+    ungrouped_name_header.ui_units_x_set(12.0f);
+    ungrouped_name_header.label(IFACE_("Name"), ICON_NONE);
+
+    ui::Layout &ungrouped_color_header = ungrouped_columns.row(false);
+    ungrouped_color_header.ui_units_x_set(3.0f);
+    ungrouped_color_header.label(IFACE_("Color"), ICON_NONE);
+
+    ui::Layout &ungrouped_intensity_header = ungrouped_columns.row(false);
+    ungrouped_intensity_header.ui_units_x_set(8.0f);
+    ungrouped_intensity_header.label(IFACE_("Power"), ICON_NONE);
+
+    ui::Layout &ungrouped_vis_header = ungrouped_columns.row(true);
+    ungrouped_vis_header.ui_units_x_set(3.0f);
+    ungrouped_vis_header.label(IFACE_("Visibility"), ICON_NONE);
+
+    ui::Layout &ungrouped_remove_header = ungrouped_columns.row(true);
+    ungrouped_remove_header.label("", ICON_NONE);
+
     for (Object *ob : grouped_lights.lookup("Ungrouped")) {
 
       Light *light = static_cast<Light *>(ob->data);
@@ -1086,15 +1190,15 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
 
       ui::Layout &name_col = light_row.row(false);
       name_col.ui_units_x_set(12.0f);
-      name_col.prop(&ob_ptr, "name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      name_col.prop(&ob_ptr, "name", UI_ITEM_NONE, "", ICON_NONE);
 
       ui::Layout &color_col = light_row.row(false);
       color_col.ui_units_x_set(3.0f);
-      color_col.prop(&light_ptr, "color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      color_col.prop(&light_ptr, "color", UI_ITEM_NONE, "", ICON_NONE);
 
       ui::Layout &intensity_col = light_row.row(false);
       intensity_col.ui_units_x_set(8.0f);
-      intensity_col.prop(&light_ptr, "energy", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      intensity_col.prop(&light_ptr, "energy", UI_ITEM_NONE, "", ICON_NONE);
 
       /* Same behavior for ungrouped lights: keep visibility toggles
        * interactive even when the light is hidden in the viewport. */
