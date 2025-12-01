@@ -121,8 +121,8 @@ void sound_update_bounds(Scene *scene, Strip *strip)
 
       BKE_sound_move_scene_sound(scene,
                                  strip->runtime->scene_sound,
-                                 time_left_handle_frame_get(scene, strip),
-                                 time_right_handle_frame_get(scene, strip),
+                                 strip->left_handle_frame_get(),
+                                 strip->right_handle_frame_get(scene),
                                  startofs,
                                  0.0);
     }

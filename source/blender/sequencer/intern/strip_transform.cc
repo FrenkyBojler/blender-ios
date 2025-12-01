@@ -49,11 +49,9 @@ bool transform_strip_can_be_translated(const Strip *strip)
 
 bool transform_test_overlap(const Scene *scene, Strip *strip1, Strip *strip2)
 {
-  return (
-      strip1 != strip2 && strip1->channel == strip2->channel &&
-      ((time_right_handle_frame_get(scene, strip1) <= time_left_handle_frame_get(scene, strip2)) ||
-       (time_left_handle_frame_get(scene, strip1) >=
-        time_right_handle_frame_get(scene, strip2))) == 0);
+  return (strip1 != strip2 && strip1->channel == strip2->channel &&
+          ((strip1->right_handle_frame_get(scene) <= strip2->left_handle_frame_get()) ||
+           (strip1->left_handle_frame_get() >= strip2->right_handle_frame_get(scene))) == 0);
 }
 
 bool transform_test_overlap(const Scene *scene, ListBase *seqbasep, Strip *test)
@@ -85,13 +83,15 @@ void transform_translate_strip(Scene *evil_scene, Strip *strip, int delta)
       transform_translate_strip(evil_scene, strip_child, delta);
     }
     /* Move meta start/end points. */
-    strip_time_translate_handles(evil_scene, strip, delta);
+    const int left_handle = strip->left_handle_frame_get();
+    const int right_handle = strip->right_handle_frame_get(evil_scene);
+    strip->handles_frame_set(evil_scene, left_handle + delta, right_handle + delta);
   }
   else if (strip->input1 == nullptr && strip->input2 == nullptr) { /* All other strip types. */
     strip->start += delta;
     /* Only to make files usable in older versions. */
-    strip->startdisp = time_left_handle_frame_get(evil_scene, strip);
-    strip->enddisp = time_right_handle_frame_get(evil_scene, strip);
+    strip->startdisp = strip->left_handle_frame_get();
+    strip->enddisp = strip->right_handle_frame_get(evil_scene);
   }
 
   offset_animdata(evil_scene, strip, delta);
@@ -131,18 +131,18 @@ bool transform_seqbase_shuffle_ex(ListBase *seqbasep,
 
   /* Strip can not be moved to next free channel, translate it instead. */
   if (use_fallback_translation) {
-    int new_frame = time_right_handle_frame_get(evil_scene, test);
+    int new_frame = test->right_handle_frame_get(evil_scene);
 
     LISTBASE_FOREACH (Strip *, strip, seqbasep) {
       if (strip->channel == orig_channel) {
-        new_frame = max_ii(new_frame, time_right_handle_frame_get(evil_scene, strip));
+        new_frame = max_ii(new_frame, strip->right_handle_frame_get(evil_scene));
       }
     }
 
     strip_channel_set(test, orig_channel);
 
-    new_frame = new_frame + (test->start - time_left_handle_frame_get(
-                                               evil_scene, test)); /* adjust by the startdisp */
+    new_frame = new_frame +
+                (test->start - test->left_handle_frame_get()); /* adjust by the startdisp */
     transform_translate_strip(evil_scene, test, new_frame - test->start);
     return false;
   }
@@ -162,10 +162,9 @@ static bool shuffle_strip_test_overlap(const Scene *scene,
 {
   BLI_assert(strip1 != strip2);
   return (strip1->channel == strip2->channel &&
-          ((time_right_handle_frame_get(scene, strip1) + offset <=
-            time_left_handle_frame_get(scene, strip2)) ||
-           (time_left_handle_frame_get(scene, strip1) + offset >=
-            time_right_handle_frame_get(scene, strip2))) == 0);
+          ((strip1->right_handle_frame_get(scene) + offset <= strip2->left_handle_frame_get()) ||
+           (strip1->left_handle_frame_get() + offset >= strip2->right_handle_frame_get(scene))) ==
+              0);
 }
 
 static int shuffle_strip_time_offset_get(const Scene *scene,
@@ -193,14 +192,12 @@ static int shuffle_strip_time_offset_get(const Scene *scene,
         all_conflicts_resolved = false;
 
         if (dir == 'L') {
-          offset = min_ii(offset,
-                          time_left_handle_frame_get(scene, strip_other) -
-                              time_right_handle_frame_get(scene, strip));
+          offset = min_ii(
+              offset, strip_other->left_handle_frame_get() - strip->right_handle_frame_get(scene));
         }
         else {
-          offset = max_ii(offset,
-                          time_right_handle_frame_get(scene, strip_other) -
-                              time_left_handle_frame_get(scene, strip));
+          offset = max_ii(
+              offset, strip_other->right_handle_frame_get(scene) - strip->left_handle_frame_get());
         }
       }
     }
@@ -269,15 +266,14 @@ static VectorSet<Strip *> extract_standalone_strips(Span<Strip *> transformed_st
 }
 
 /* Query strips positioned after left edge of transformed strips bound-box. */
-static VectorSet<Strip *> query_right_side_strips(const Scene *scene,
-                                                  ListBase *seqbase,
+static VectorSet<Strip *> query_right_side_strips(ListBase *seqbase,
                                                   Span<Strip *> transformed_strips,
                                                   Span<Strip *> time_dependent_strips)
 {
   int minframe = MAXFRAME;
   {
     for (Strip *strip : transformed_strips) {
-      minframe = min_ii(minframe, time_left_handle_frame_get(scene, strip));
+      minframe = min_ii(minframe, strip->left_handle_frame_get());
     }
   }
 
@@ -290,7 +286,7 @@ static VectorSet<Strip *> query_right_side_strips(const Scene *scene,
       continue;
     }
 
-    if ((strip->flag & SEQ_SELECT) == 0 && time_left_handle_frame_get(scene, strip) >= minframe) {
+    if ((strip->flag & SEQ_SELECT) == 0 && strip->left_handle_frame_get() >= minframe) {
       right_side_strips.add(strip);
     }
   }
@@ -308,7 +304,7 @@ static void strip_transform_handle_expand_to_fit(Scene *scene,
   ListBase *markers = &scene->markers;
 
   VectorSet right_side_strips = query_right_side_strips(
-      scene, seqbasep, transformed_strips, time_dependent_strips);
+      seqbasep, transformed_strips, time_dependent_strips);
 
   /* Temporarily move right side strips beyond timeline boundary. */
   for (Strip *strip : right_side_strips) {
@@ -368,28 +364,23 @@ static eOvelapDescrition overlap_description_get(const Scene *scene,
                                                  const Strip *transformed,
                                                  const Strip *target)
 {
-  if (time_left_handle_frame_get(scene, transformed) <=
-          time_left_handle_frame_get(scene, target) &&
-      time_right_handle_frame_get(scene, transformed) >=
-          time_right_handle_frame_get(scene, target))
+  if (transformed->left_handle_frame_get() <= target->left_handle_frame_get() &&
+      transformed->right_handle_frame_get(scene) >= target->right_handle_frame_get(scene))
   {
     return STRIP_OVERLAP_IS_FULL;
   }
-  if (time_left_handle_frame_get(scene, transformed) > time_left_handle_frame_get(scene, target) &&
-      time_right_handle_frame_get(scene, transformed) < time_right_handle_frame_get(scene, target))
+  if (transformed->left_handle_frame_get() > target->left_handle_frame_get() &&
+      transformed->right_handle_frame_get(scene) < target->right_handle_frame_get(scene))
   {
     return STRIP_OVERLAP_IS_INSIDE;
   }
-  if (time_left_handle_frame_get(scene, transformed) <=
-          time_left_handle_frame_get(scene, target) &&
-      time_left_handle_frame_get(scene, target) <= time_right_handle_frame_get(scene, transformed))
+  if (transformed->left_handle_frame_get() <= target->left_handle_frame_get() &&
+      target->left_handle_frame_get() <= transformed->right_handle_frame_get(scene))
   {
     return STRIP_OVERLAP_LEFT_SIDE;
   }
-  if (time_left_handle_frame_get(scene, transformed) <=
-          time_right_handle_frame_get(scene, target) &&
-      time_right_handle_frame_get(scene, target) <=
-          time_right_handle_frame_get(scene, transformed))
+  if (transformed->left_handle_frame_get() <= target->right_handle_frame_get(scene) &&
+      target->right_handle_frame_get(scene) <= transformed->right_handle_frame_get(scene))
   {
     return STRIP_OVERLAP_RIGHT_SIDE;
   }
@@ -410,7 +401,7 @@ static void strip_transform_handle_overwrite_split(Scene *scene,
                                         scene,
                                         seqbasep,
                                         target,
-                                        time_left_handle_frame_get(scene, transformed),
+                                        transformed->left_handle_frame_get(),
                                         SPLIT_SOFT,
                                         true,
                                         &error_msg);
@@ -423,7 +414,7 @@ static void strip_transform_handle_overwrite_split(Scene *scene,
                        scene,
                        seqbasep,
                        split_strip,
-                       time_right_handle_frame_get(scene, transformed),
+                       transformed->right_handle_frame_get(scene),
                        SPLIT_SOFT,
                        true,
                        &error_msg) == nullptr)
@@ -455,11 +446,11 @@ static void strip_transform_handle_overwrite_trim(Scene *scene,
       continue;
     }
     if (overlap == STRIP_OVERLAP_LEFT_SIDE) {
-      time_left_handle_frame_set(scene, strip, time_right_handle_frame_get(scene, transformed));
+      strip->left_handle_frame_set(scene, transformed->right_handle_frame_get(scene));
     }
     else {
       BLI_assert(overlap == STRIP_OVERLAP_RIGHT_SIDE);
-      time_right_handle_frame_set(scene, strip, time_left_handle_frame_get(scene, transformed));
+      strip->right_handle_frame_set(scene, transformed->left_handle_frame_get());
     }
   }
 }
@@ -567,7 +558,7 @@ void transform_offset_after_frame(Scene *scene,
                                   const int timeline_frame)
 {
   LISTBASE_FOREACH (Strip *, strip, seqbase) {
-    if (time_left_handle_frame_get(scene, strip) >= timeline_frame) {
+    if (strip->left_handle_frame_get() >= timeline_frame) {
       transform_translate_strip(scene, strip, delta);
       relations_invalidate_cache(scene, strip);
     }

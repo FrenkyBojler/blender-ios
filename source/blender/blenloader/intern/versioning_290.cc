@@ -375,13 +375,13 @@ static void seq_update_meta_disp_range(Scene *scene)
   LISTBASE_FOREACH_BACKWARD (MetaStack *, ms, &ed->metastack) {
     /* Update ms->disp_range from meta. */
     if (ms->disp_range[0] == ms->disp_range[1]) {
-      ms->disp_range[0] = blender::seq::time_left_handle_frame_get(scene, ms->parent_strip);
-      ms->disp_range[1] = blender::seq::time_right_handle_frame_get(scene, ms->parent_strip);
+      ms->disp_range[0] = ms->parent_strip->left_handle_frame_get();
+      ms->disp_range[1] = ms->parent_strip->right_handle_frame_get(scene);
     }
 
     /* Update meta strip endpoints. */
-    blender::seq::time_left_handle_frame_set(scene, ms->parent_strip, ms->disp_range[0]);
-    blender::seq::time_right_handle_frame_set(scene, ms->parent_strip, ms->disp_range[1]);
+    ms->parent_strip->left_handle_frame_set(scene, ms->disp_range[0]);
+    ms->parent_strip->right_handle_frame_set(scene, ms->disp_range[1]);
 
     /* Recalculate effects using meta strip. */
     ListBase *old_seqbasep = ms->old_strip ? &ms->old_strip->seqbase : &ed->seqbase;
