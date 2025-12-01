@@ -11,7 +11,9 @@
  #include "MEM_guardedalloc.h"
 
  #include "BLI_listbase.h"
+ #include "BLI_map.hh"
  #include "BLI_string_utf8.h"
+ #include "BLI_vector.hh"
 
  #include "BLT_translation.hh"
 
@@ -50,7 +52,19 @@
 
 namespace blender::ed::light_manager {
 
+static const char *light_manager_default_group_name()
+{
+  return "Scene light";
+}
+
+struct SubgroupCollapseState {
+  SpaceLightManagerGroup *group;
+  std::string name;
+  bool collapsed;
+};
+
 struct SpaceLightManager_Runtime {
+  blender::Vector<SubgroupCollapseState> subgroup_states;
 };
 
 /* Inline helper to get SpaceLightManager from context. */
@@ -68,14 +82,14 @@ static inline SpaceLightManager *CTX_wm_space_light_manager(const bContext *C)
 static const char *get_light_group(Object *ob)
 {
   if (ob->id.properties == nullptr) {
-    return "Ungrouped";
+    return light_manager_default_group_name();
   }
   
   IDProperty *prop = IDP_GetPropertyFromGroup(ob->id.properties, "light_mixer_group");
   if (prop && prop->type == IDP_STRING) {
     return IDP_string_get(prop);  /* Use macro instead of IDP_String */
   }
-  return "Ungrouped";
+  return light_manager_default_group_name();
 }
 
 static void set_light_group(Object *ob, const char *group_name)
@@ -96,6 +110,19 @@ static void set_light_group(Object *ob, const char *group_name)
   val.string.subtype = IDP_STRING_SUB_UTF8;
   prop = IDP_New(IDP_STRING, &val, "light_mixer_group");
   IDP_AddToGroup(ob->id.properties, prop);
+}
+
+static void ensure_default_group_exists(SpaceLightManager *space_lm)
+{
+  if (space_lm == nullptr) {
+    return;
+  }
+  if (space_lm->groups.first == nullptr) {
+    SpaceLightManagerGroup *group = MEM_callocN<SpaceLightManagerGroup>("LightManagerGroup");
+    STRNCPY(group->name, light_manager_default_group_name());
+    group->flag = 0;
+    BLI_addtail(&space_lm->groups, group);
+  }
 }
 
 static bool ED_operator_light_manager_active(bContext *C)
@@ -161,7 +188,7 @@ static wmOperatorStatus light_manager_group_delete_exec(bContext *C, wmOperator 
       continue;
     }
     if (STREQ(get_light_group(ob), group->name)) {
-      set_light_group(ob, "Ungrouped");
+      set_light_group(ob, light_manager_default_group_name());
     }
   }
   FOREACH_SCENE_OBJECT_END;
@@ -213,6 +240,47 @@ static void LIGHT_MANAGER_OT_group_toggle(wmOperatorType *ot)
   ot->exec = light_manager_group_toggle_exec;
   ot->poll = ED_operator_light_manager_active;
   ot->flag = OPTYPE_INTERNAL;
+  RNA_def_int(ot->srna, "index", 0, 0, INT_MAX, "Index", "", 0, INT_MAX);
+}
+
+/* Assign selected lights to an existing group. */
+
+static wmOperatorStatus light_manager_assign_selected_to_group_exec(bContext *C,
+                                                                    wmOperator *op)
+{
+  SpaceLightManager *space_lm = CTX_wm_space_light_manager(C);
+  if (!space_lm) {
+    return OPERATOR_CANCELLED;
+  }
+
+  const int index = RNA_int_get(op->ptr, "index");
+  SpaceLightManagerGroup *group = static_cast<SpaceLightManagerGroup *>(
+      BLI_findlink(&space_lm->groups, index));
+
+  if (!group) {
+    return OPERATOR_CANCELLED;
+  }
+
+  /* Move all selected light objects into this group. */
+  CTX_DATA_BEGIN (C, Object *, ob, selected_objects) {
+    if (ob->type == OB_LAMP) {
+      set_light_group(ob, group->name);
+    }
+  }
+  CTX_DATA_END;
+
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_LIGHT_MANAGER, space_lm);
+  return OPERATOR_FINISHED;
+}
+
+static void LIGHT_MANAGER_OT_assign_selected_to_group(wmOperatorType *ot)
+{
+  ot->name = "Assign Selected Lights to Group";
+  ot->description = "Move selected lights into this group";
+  ot->idname = "LIGHT_MANAGER_OT_assign_selected_to_group";
+  ot->exec = light_manager_assign_selected_to_group_exec;
+  ot->poll = ED_operator_light_manager_active;
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
   RNA_def_int(ot->srna, "index", 0, 0, INT_MAX, "Index", "", 0, INT_MAX);
 }
 
@@ -307,18 +375,17 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
 
   /* Group lights by their assigned group. */
   blender::Map<std::string, blender::Vector<Object *>> grouped_lights;
-  
+
   for (Object *ob : lights) {
     const char *group_name = get_light_group(ob);
     grouped_lights.lookup_or_add_default(group_name).append(ob);
   }
 
-  /* Draw custom groups first. */
+  /* Draw custom groups first. Always draw the group box once it exists,
+   * even if there are currently no lights assigned to it. */
   if (space_lm && space_lm->groups.first) {
     LISTBASE_FOREACH (SpaceLightManagerGroup *, group, &space_lm->groups) {
-      if (!grouped_lights.contains(group->name)) {
-        continue;
-      }
+      blender::Vector<Object *> *group_lights = grouped_lights.lookup_ptr(group->name);
 
       layout.separator();
       ui::Layout &group_box = layout.box();
@@ -335,55 +402,70 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
       
       /* Group name. */
       group_header.label(group->name, ICON_NONE);
-      
+
+      /* Assign selected lights to this group (grip icon). */
+      PointerRNA assign_op = group_header.op(
+          "LIGHT_MANAGER_OT_assign_selected_to_group", "", ICON_GRIP);
+      if (assign_op.type != nullptr) {
+        RNA_int_set(&assign_op, "index", group_index);
+      }
+
       /* Delete button. */
       PointerRNA del_op = group_header.op("LIGHT_MANAGER_OT_group_delete", "", ICON_X);
       RNA_int_set(&del_op, "index", group_index);
+
       layout.separator();
 
       /* Draw lights in this group if expanded. */
       if (!(group->flag & SPACE_LIGHT_MANAGER_GROUP_COLLAPSED)) {
-        for (Object *ob : grouped_lights.lookup(group->name)) {
-          Light *light = static_cast<Light *>(ob->data);
-          
-          PointerRNA ob_ptr = RNA_pointer_create_discrete(&scene->id, &RNA_Object, ob);
-          PointerRNA light_ptr = RNA_pointer_get(&ob_ptr, "data");
+        if (group_lights && !group_lights->is_empty()) {
+          for (Object *ob : *group_lights) {
+            Light *light = static_cast<Light *>(ob->data);
 
-          ui::Layout &light_row = group_box.row(false);
-          light_row.use_property_split_set(false);
-          light_row.use_property_decorate_set(false);
+            PointerRNA ob_ptr = RNA_pointer_create_discrete(&scene->id, &RNA_Object, ob);
+            PointerRNA light_ptr = RNA_pointer_get(&ob_ptr, "data");
 
-          if (ob->visibility_flag & OB_HIDE_VIEWPORT) {
-            light_row.enabled_set(false);
+            ui::Layout &light_row = group_box.row(false);
+            light_row.use_property_split_set(false);
+            light_row.use_property_decorate_set(false);
+
+            if (ob->visibility_flag & OB_HIDE_VIEWPORT) {
+              light_row.enabled_set(false);
+            }
+
+            /* Light type icon. */
+            int type_icon = ICON_LIGHT;
+            switch (light->type) {
+              case LA_LOCAL: type_icon = ICON_LIGHT_POINT; break;
+              case LA_SUN: type_icon = ICON_LIGHT_SUN; break;
+              case LA_SPOT: type_icon = ICON_LIGHT_SPOT; break;
+              case LA_AREA: type_icon = ICON_LIGHT_AREA; break;
+            }
+            light_row.label("", type_icon);
+
+            /* Light properties. */
+            ui::Layout &name_col = light_row.row(false);
+            name_col.ui_units_x_set(12.0f);
+            name_col.prop(&ob_ptr, "name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+
+            ui::Layout &color_col = light_row.row(false);
+            color_col.ui_units_x_set(3.0f);
+            color_col.prop(&light_ptr, "color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+
+            ui::Layout &intensity_col = light_row.row(false);
+            intensity_col.ui_units_x_set(8.0f);
+            intensity_col.prop(&light_ptr, "energy", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+
+            ui::Layout &vis_col = light_row.row(true);
+            vis_col.ui_units_x_set(3.0f);
+            vis_col.prop(&ob_ptr, "hide_viewport", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
+            vis_col.prop(&ob_ptr, "hide_render", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
           }
-
-          /* Light type icon. */
-          int type_icon = ICON_LIGHT;
-          switch (light->type) {
-            case LA_LOCAL: type_icon = ICON_LIGHT_POINT; break;
-            case LA_SUN: type_icon = ICON_LIGHT_SUN; break;
-            case LA_SPOT: type_icon = ICON_LIGHT_SPOT; break;
-            case LA_AREA: type_icon = ICON_LIGHT_AREA; break;
-          }
-          light_row.label("", type_icon);
-
-          /* Light properties. */
-          ui::Layout &name_col = light_row.row(false);
-          name_col.ui_units_x_set(12.0f);
-          name_col.prop(&ob_ptr, "name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-
-          ui::Layout &color_col = light_row.row(false);
-          color_col.ui_units_x_set(3.0f);
-          color_col.prop(&light_ptr, "color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-
-          ui::Layout &intensity_col = light_row.row(false);
-          intensity_col.ui_units_x_set(8.0f);
-          intensity_col.prop(&light_ptr, "energy", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-
-          ui::Layout &vis_col = light_row.row(true);
-          vis_col.ui_units_x_set(3.0f);
-          vis_col.prop(&ob_ptr, "hide_viewport", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
-          vis_col.prop(&ob_ptr, "hide_render", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
+        }
+        else {
+          /* Empty group placeholder for better feedback. */
+          ui::Layout &empty_row = group_box.row(false);
+          empty_row.label(IFACE_("No lights in this group"), ICON_INFO);
         }
       }
     }
@@ -520,6 +602,8 @@ static SpaceLink *light_manager_create(const ScrArea * /*area*/, const Scene * /
   space_lm->spacetype = SPACE_LIGHT_MANAGER;
   space_lm->runtime = MEM_new<SpaceLightManager_Runtime>(__func__);
 
+  ensure_default_group_exists(space_lm);
+
   ARegion *region;
 
   /* Header. */
@@ -560,6 +644,7 @@ static void light_manager_space_blend_read_data(BlendDataReader * /*reader*/, Sp
 {
   SpaceLightManager *space_lm = (SpaceLightManager *)sl;
   space_lm->runtime = MEM_new<SpaceLightManager_Runtime>(__func__);
+  ensure_default_group_exists(space_lm);
 }
 
 static void light_manager_space_blend_write(BlendWriter *writer, SpaceLink *sl)
@@ -572,6 +657,7 @@ static void light_manager_operatortypes()
   WM_operatortype_append(LIGHT_MANAGER_OT_group_add);
   WM_operatortype_append(LIGHT_MANAGER_OT_group_delete);
   WM_operatortype_append(LIGHT_MANAGER_OT_group_toggle);
+   WM_operatortype_append(LIGHT_MANAGER_OT_assign_selected_to_group);
 }
 
 static void light_manager_keymap(wmKeyConfig * /*keyconf*/)
