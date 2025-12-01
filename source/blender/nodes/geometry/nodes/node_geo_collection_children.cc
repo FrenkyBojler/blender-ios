@@ -40,6 +40,9 @@ static void node_geo_exec(GeoNodeExecParams params)
   if (recursive) {
   }
   else {
+    LISTBASE_FOREACH (CollectionChild *, child, &collection->children) {
+      collections->data.append(child->collection);
+    }
   }
 
   std::sort(collections->data.begin(),
@@ -63,6 +66,9 @@ static void node_geo_exec(GeoNodeExecParams params)
     FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
   }
   else {
+    LISTBASE_FOREACH (CollectionObject *, cob, &collection->gobject) {
+      objects->data.append(cob->ob);
+    }
   }
 
   std::sort(objects->data.begin(), objects->data.end(), [](const Object *a, const Object *b) {
