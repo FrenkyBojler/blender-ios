@@ -1307,26 +1307,7 @@ bool VKShader::ensure_graphics_pipelines(Span<shader::PipelineState> pipeline_st
     VKDevice &device = VKBackend::get().device;
     const VKExtensions &extensions = device.extensions_get();
 
-    /* TODO: Make a constructor */
-    VKVertexInputDescription vertex_input_description = {};
-    vertex_input_description.attributes.reserve(pipeline_state.vertex_inputs_.size());
-    vertex_input_description.bindings.reserve(pipeline_state.vertex_inputs_.size());
-    uint32_t binding = 0;
-    for (const shader::PipelineState::AttributeBinding &attribute_binding :
-         pipeline_state.vertex_inputs_)
-    {
-      const GPUVertAttr::Type attribute_type = {attribute_binding.type};
-      vertex_input_description.attributes.append({attribute_binding.location,
-                                                  binding,
-                                                  to_vk_format(attribute_type.comp_type(),
-                                                               attribute_type.size(),
-                                                               attribute_type.fetch_mode()),
-                                                  attribute_binding.offset});
-      vertex_input_description.bindings.append(
-          {attribute_binding.binding, attribute_binding.stride, VK_VERTEX_INPUT_RATE_VERTEX});
-      binding++;
-    }
-
+    VKVertexInputDescription vertex_input_description(pipeline_state);
     VKGraphicsInfo graphics_info = {};
     graphics_info.vertex_in.vk_topology = vk_topology;
     graphics_info.vertex_in.vertex_input_key = device.vertex_input_descriptions.get_or_insert(

@@ -8,7 +8,6 @@
 
 #pragma once
 
-#include "vk_vertex_attribute_object.hh"
 #include "xxhash.h"
 
 #include "BLI_map.hh"
@@ -18,6 +17,7 @@
 #include "gpu_state_private.hh"
 
 #include "vk_resource_pool.hh"
+#include "vk_vertex_attribute_object.hh"
 
 namespace blender::gpu {
 class VKDevice;

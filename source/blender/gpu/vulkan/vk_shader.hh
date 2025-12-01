@@ -16,9 +16,9 @@
 #include "vk_context.hh"
 #include "vk_push_constants.hh"
 #include "vk_shader_module.hh"
+#include "vk_vertex_attribute_object.hh"
 
 #include "shaderc/shaderc.hpp"
-#include "vk_vertex_attribute_object.hh"
 
 namespace blender::gpu {
 class VKShaderInterface;

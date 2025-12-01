@@ -21,9 +21,9 @@
 #include "vk_shader_interface.hh"
 #include "vk_state_manager.hh"
 #include "vk_texture.hh"
+#include "vk_vertex_attribute_object.hh"
 
 #include "GHOST_C-api.h"
-#include "vk_vertex_attribute_object.hh"
 
 namespace blender::gpu {
 

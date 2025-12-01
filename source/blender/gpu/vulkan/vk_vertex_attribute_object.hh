@@ -8,7 +8,6 @@
 
 #include "render_graph/vk_render_graph.hh"
 #include "vk_buffer.hh"
-#include "vk_common.hh"
 
 #include "BLI_map.hh"
 #include "BLI_mutex.hh"
@@ -33,6 +32,29 @@ using AttributeMask = uint16_t;
 struct VKVertexInputDescription {
   Vector<VkVertexInputBindingDescription> bindings;
   Vector<VkVertexInputAttributeDescription> attributes;
+
+  VKVertexInputDescription() = default;
+
+  VKVertexInputDescription(const gpu::shader::PipelineState &pipeline_state)
+  {
+    attributes.reserve(pipeline_state.vertex_inputs_.size());
+    bindings.reserve(pipeline_state.vertex_inputs_.size());
+    uint32_t binding = 0;
+    for (const gpu::shader::PipelineState::AttributeBinding &attribute_binding :
+         pipeline_state.vertex_inputs_)
+    {
+      const GPUVertAttr::Type attribute_type = {attribute_binding.type};
+      attributes.append({attribute_binding.location,
+                         binding,
+                         to_vk_format(attribute_type.comp_type(),
+                                      attribute_type.size(),
+                                      attribute_type.fetch_mode()),
+                         attribute_binding.offset});
+      bindings.append(
+          {attribute_binding.binding, attribute_binding.stride, VK_VERTEX_INPUT_RATE_VERTEX});
+      binding++;
+    }
+  }
 
   void clear();
 
