@@ -3,3 +3,4 @@ Referenced by pull request #149777, Fix: Crash rendering multiple frames from th
 Referenced by pull request #149780, Fix: Crash rendering multiple frames from the command line
 Referenced by commit d9ead90b64990c5f1fcf643864808102871290f2, Fix: Crash rendering multiple frames from the command line
 Referenced by issue #149925, crashes when trying to render in EEVEE using Freestyle
+Referenced by issue #150874, The progress bar does not advance when baking any texture.
