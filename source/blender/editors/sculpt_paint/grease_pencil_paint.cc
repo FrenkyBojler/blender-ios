@@ -1180,10 +1180,7 @@ void PaintOperation::on_stroke_begin(const bContext &C, const InputSample &start
   const bke::greasepencil::Layer &layer = *grease_pencil->get_active_layer();
   /* Initialize helper class for projecting screen space coordinates. */
   placement_ = ed::greasepencil::DrawingPlacement(*scene_, *region, *view3d, *eval_object, &layer);
-  if (placement_.use_project_to_surface()) {
-    placement_.cache_viewport_depths(depsgraph, region, view3d);
-  }
-  else if (placement_.use_project_to_stroke()) {
+  if (placement_.use_project_to_surface() || placement_.use_project_to_stroke()) {
     placement_.cache_viewport_depths(depsgraph, region, view3d);
   }
 
