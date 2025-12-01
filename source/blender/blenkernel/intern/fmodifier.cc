@@ -1007,7 +1007,7 @@ static void fcm_smooth_new_data(void *mdata)
   data->filter_width = 6;
 }
 
-/* Evaluate the F-Curve at a certain point, by locally smoothing the values around that point. */
+/** Evaluate the F-Curve at a certain point, by locally smoothing the values around that point. */
 static float fcm_smooth_frame(const FCurve *fcu,
                               const FModifier *fcm,
                               const int evaltime,
@@ -1058,15 +1058,23 @@ static void fcm_smooth_evaluate(
     const FCurve *fcu, const FModifier *fcm, float *cvalue, float evaltime, void * /*storage*/)
 {
   /* Check if evaltime is an integer, with FLT_EPSILON tolerance. */
-  const bool is_subframe = (fabs(roundf(evaltime) - evaltime) > FLT_EPSILON);
+  const bool is_integer_frame = (fabs(roundf(evaltime) - evaltime) <= FLT_EPSILON);
 
-  /* If the evaltime is an integer frame, we directly calcuate the value. */
-  if (!is_subframe) {
+  /* If the evaltime is an integer frame, we directly calculate the value. */
+  if (is_integer_frame) {
     *cvalue = fcm_smooth_frame(fcu, fcm, evaltime, *cvalue);
     return;
   }
 
-  /* Otherwise, we linearly interpolate. */
+  /* Otherwise, we linearly interpolate.
+   * The Gaussian function requires knowing the distance from a sample to its neighboring frames.
+   * However, F-Curve modifiers work as continuous functions, so we cannot access discrete keyframe
+   * positions. Instead, we sample each integer frame, then linearly interpolate to find the value
+   * at evaltime. This means that subframes won't contribute to the smoothing, but it is not
+   * possible to know their positions.
+   * The F-Curve is sampled using a fixed-size window of at least one frame, to prevent aliasing
+   * that can occur when there is high frequency data (on sub-frames).
+   */
   const float prev_frame = floorf(evaltime);
   const float next_frame = ceilf(evaltime);
 

@@ -186,7 +186,10 @@ struct FMod_Stepped {
 
 /* stepped modifier data */
 typedef struct FMod_Smooth {
-  /** The shape of the Gaussian distribution in frames. Lower values will make it sharper. */
+  /**
+   * The shape of the Gaussian distribution in frames. Lower values will make it sharper.
+   * This can be any positive value.
+   */
   float sigma;
 
   /** The number of frames to average around each keyframe. */
