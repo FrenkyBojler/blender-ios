@@ -1345,7 +1345,7 @@ void register_node_group_operators(const bContext &C)
       if (item.value.is_builtin_operator) {
         BKE_reportf(reports,
                     RPT_ERROR,
-                    "Error registering node tool \"%s\", operator is already built-in",
+                    "Error registering node tool \"%s\", operator is already registered",
                     item.key.c_str());
       }
       if (item.value.duplicate_count != 0) {
