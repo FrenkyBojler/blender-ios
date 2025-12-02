@@ -139,7 +139,7 @@
 - Action 'o1Action' curverange:(1.0 .. 3.0) layers:1
 - ActionLayer Layer strips:1
  - Keyframe strip channelbags:1
- - Channelbag slot 'KEKey' curves:1
+ - Channelbag slot 'KEo1Key' curves:1
   - fcu 'key_blocks["Key_1"].value[0]' smooth:CONT_ACCEL extra:CONSTANT keyframes:3
     - (1.000, 0.000) lh:(0.667, 0.000 AUTO) rh:(1.333, 0.000 AUTO)
     - (2.000, 0.333) lh:(1.667, 0.167 AUTO) rh:(2.333, 0.500 AUTO)
@@ -148,7 +148,7 @@
 - Action 'o2Action' curverange:(1.0 .. 3.0) layers:1
 - ActionLayer Layer strips:1
  - Keyframe strip channelbags:1
- - Channelbag slot 'KEKey.001' curves:1
+ - Channelbag slot 'KEo2Key' curves:1
   - fcu 'key_blocks["Key_1"].value[0]' smooth:CONT_ACCEL extra:CONSTANT keyframes:3
     - (1.000, 0.000) lh:(0.667, 0.000 AUTO) rh:(1.333, 0.000 AUTO)
     - (2.000, 0.333) lh:(1.667, 0.167 AUTO) rh:(2.333, 0.500 AUTO)
@@ -157,7 +157,7 @@
 - Action 'o3Action' curverange:(1.0 .. 3.0) layers:1
 - ActionLayer Layer strips:1
  - Keyframe strip channelbags:1
- - Channelbag slot 'KEKey.002' curves:1
+ - Channelbag slot 'KEo3Key' curves:1
   - fcu 'key_blocks["Key_1"].value[0]' smooth:CONT_ACCEL extra:CONSTANT keyframes:3
     - (1.000, 0.000) lh:(0.667, 0.000 AUTO) rh:(1.333, 0.000 AUTO)
     - (2.000, 0.333) lh:(1.667, 0.167 AUTO) rh:(2.333, 0.500 AUTO)

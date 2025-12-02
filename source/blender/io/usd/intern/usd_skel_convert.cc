@@ -39,6 +39,7 @@
 #include "BLI_mutex.hh"
 #include "BLI_set.hh"
 #include "BLI_span.hh"
+#include "BLI_string_utf8.h"
 #include "BLI_vector.hh"
 
 #include "ED_armature.hh"
@@ -446,6 +447,10 @@ void import_blendshapes(Main *bmain,
   {
     std::scoped_lock lock{reader_mutex};
     key = BKE_key_add(bmain, (ID *)mesh);
+
+    char keyname[sizeof(mesh->id.name) - 2];
+    SNPRINTF_UTF8(keyname, "%sKey", mesh->id.name + 2);
+    BKE_id_rename(*bmain, key->id, keyname, IDNewNameMode::RenameExistingNever);
   }
   key->type = KEY_RELATIVE;
 
