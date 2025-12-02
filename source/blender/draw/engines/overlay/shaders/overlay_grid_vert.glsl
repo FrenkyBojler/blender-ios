@@ -84,7 +84,7 @@ bool test_axis_occlude(in float3 vertex_pos_global)
 /* Test if the current line falls under another line on a higher level, which occludes it. */
 bool test_level_occlude(in LineData line, in uint level)
 {
-  if (flag_test(grid_flag, SHOW_GRID)) {
+  if (flag_test(grid_flag, SHOW_GRID) && !flag_test(grid_flag, GRID_SIMA)) {
     if (line.level < OVERLAY_GRID_STEPS_DRAW - 1 && level < OVERLAY_GRID_STEPS_LEN - 1) {
       float step_size_curr = grid_buf.steps[level][line.axis];
       float step_size_next = grid_buf.steps[level + 1][line.axis];
@@ -128,8 +128,8 @@ void main()
   /* Output vertex position in [-1,1], which we use to fade level boundaries. */
   vertex_out.coord = line.P / max(float(grid_buf.num_lines >> 1), 1.0f);
   /* Output level fade in [0, 1], which we use to smoothly transition grid levels. */
-  vertex_out_flat.alpha = (line.level + 1.0f - fract(grid_buf.level)) /* /
-                          float(OVERLAY_GRID_STEPS_DRAW - 1) */;
+  vertex_out_flat.alpha = (line.level + 1.0f - fract(grid_buf.level)) /
+                          float(OVERLAY_GRID_STEPS_DRAW - 1);
   vertex_out_flat.alpha = saturate(vertex_out_flat.alpha);
   if (!drw_view_is_perspective()) {
     /* Fade by pixel size for orthographic, as we lack proper line dfdx/dfdy. */
@@ -205,7 +205,7 @@ void main()
   if (drw_view_is_perspective()) {
     /* To minimize z-fighting, the grid is drawn N times with progressive alpha and z-bias,
      * making it "fade" through geometry over a distance.  */
-    constexpr float z_fade_dist = 2e-4f;
+    constexpr float z_fade_dist = 1e-4f;
     float z_ratio_iter = 1.0f - float(grid_iter) / float(OVERLAY_GRID_ITER_LEN);
     float z_ratio_level = (1.0f / float(OVERLAY_GRID_ITER_LEN))
                         * (1.0f - float(line.level) / float(OVERLAY_GRID_STEPS_DRAW));

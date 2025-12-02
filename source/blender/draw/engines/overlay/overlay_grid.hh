@@ -78,7 +78,7 @@ class Grid : Overlay {
                     DRW_STATE_BLEND_ADD);
       sub.bind_ubo("grid_buf", &grid_ubo_);
       
-      for (int grid_iter = 0; grid_iter < OVERLAY_GRID_ITER_LEN; grid_iter++) {
+      for (int grid_iter = 0; grid_iter < grid_ubo_.num_iters; grid_iter++) {
         sub.push_constant("grid_iter", grid_iter);
         if (axis_flag_) {
           sub.push_constant("grid_flag", &axis_flag_);
@@ -195,8 +195,8 @@ class Grid : Overlay {
     tile_pos_buf_.push_update();
 
     /* This suffices for most cases, and in others we fade to hide it. */
-    /* TODO (not_mark): make this view-dependent in 2D UV editor to have full coverage */
-    grid_ubo_.num_lines = 301;
+    grid_ubo_.num_lines = 301u;
+    grid_ubo_.num_iters = 1u;
 
     return true;
   }
@@ -318,7 +318,8 @@ class Grid : Overlay {
 
     /* This suffices for most cases, and in others we fade to hide it. */
     /* TODO (not_mark): make this view-dependent in orthographic to have full coverage */
-    grid_ubo_.num_lines = rv3d->is_persp ? 151 : 301;
+    grid_ubo_.num_lines = rv3d->is_persp ? 151u : 301u;
+    grid_ubo_.num_iters = rv3d->is_persp ? OVERLAY_GRID_ITER_LEN : 1u;
 
     return true;
   }

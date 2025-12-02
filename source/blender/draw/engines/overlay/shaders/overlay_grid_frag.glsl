@@ -86,5 +86,5 @@ void main()
   }
 
   /* Grid iteration additive alpha. */
-  out_color.a *= 1.0f / float(OVERLAY_GRID_ITER_LEN);
+  out_color.a /= float(grid_buf.num_iters);
 }

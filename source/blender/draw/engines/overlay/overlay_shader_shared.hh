@@ -123,7 +123,7 @@ static inline uint outline_id_pack(uint outline_id, uint object_id)
 #define OVERLAY_GRID_STEPS_LEN 8
 /** Hardcoded grid steps drawn at a time. */
 #define OVERLAY_GRID_STEPS_DRAW 3
-/** Hardcoded iterations of grid draw at 1/N alpha. */
+/** Hardcoded max iterations of grid draw for alpha fade. */
 #define OVERLAY_GRID_ITER_LEN 4
 
 /* Due to the encoding clamping the passed in floats, the wire width needs to be scaled down. */
@@ -134,13 +134,15 @@ struct OVERLAY_GridData {
   float4 steps[OVERLAY_GRID_STEPS_LEN]; /* float3 array padded to float4 (std140). */
   /* XY/YZ/XZ camera offset of grid. */
   float2 offset;
-  /* Clipping rectangle for UV/Image editor; encoded as minx, miny, maxx, maxy. */
+  /* Clipping rectangle for UV/Image editor. */
   float2 clip_rect;
   /* Fractional grid-level, dependent on current camera position/distance/zoom. */
   float level;
   /* Per-level line count. */
   uint num_lines;
-  uint _pad0, _pad1;
+  /* Number of grid draws. */
+  uint num_iters;
+  uint _pad0;
 };
 BLI_STATIC_ASSERT_ALIGN(OVERLAY_GridData, 16)
 
