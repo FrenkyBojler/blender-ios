@@ -818,7 +818,7 @@ void Instance::draw_v2d(Manager &manager, View &view)
   GPU_framebuffer_clear_color(resources.overlay_output_color_only_fb, float4(0.0));
 
   background.draw_output(resources.overlay_output_color_only_fb, manager, view);
-  grid.draw_color_only(resources.overlay_output_fb, manager, view);
+  grid.draw_line(resources.overlay_output_fb, manager, view);
   regular.mesh_uvs.draw(resources.overlay_output_fb, manager, view);
 
   cursor.draw_output(resources.overlay_output_color_only_fb, manager, view);
@@ -922,8 +922,8 @@ void Instance::draw_v3d(Manager &manager, View &view)
     infront.wireframe.copy_depth(resources.depth_target_in_front_tx);
   }
   {
-    /* TODO (not_mark): Not 100% certain about draw order. */
-    grid.draw_color_only(resources.overlay_line_fb, manager, view);
+    /* Grid is drawn before outline; it would clip otherwise due to lack of depth output. */
+    grid.draw_line(resources.overlay_line_fb, manager, view);
   }
   {
     /* TODO(fclem): This is really bad for performance as the outline pass will then split the

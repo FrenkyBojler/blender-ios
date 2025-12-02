@@ -105,7 +105,7 @@ class Grid : Overlay {
     }
   }
 
-  void draw_color_only(Framebuffer &framebuffer, Manager &manager, View &view) final
+  void draw_line(Framebuffer &framebuffer, Manager &manager, View &view) final
   {
     if (!enabled_) {
       return;
@@ -293,7 +293,7 @@ class Grid : Overlay {
       float curr = std::min(grid_ubo_.steps[i].x, grid_ubo_.steps[i].y);
       float next = (i < OVERLAY_GRID_STEPS_LEN - 1) ?
                        std::min(grid_ubo_.steps[i + 1].x, grid_ubo_.steps[i + 1].y) :
-                       curr * 1e1f;
+                       curr * 10.0f;
       if (next >= dist || i == OVERLAY_GRID_STEPS_LEN - 1) {
         grid_ubo_.level = static_cast<float>(i) + safe_divide(dist - curr, next - curr);
         break;
