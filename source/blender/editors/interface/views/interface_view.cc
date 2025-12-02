@@ -18,8 +18,6 @@
  */
 
 #include <memory>
-#include <type_traits>
-#include <variant>
 
 #include "DNA_screen_types.h"
 
@@ -27,13 +25,11 @@
 
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
-#include "BLI_string.h"
+#include "BLI_rect.h"
 
 #include "ED_screen.hh"
 
 #include "interface_intern.hh"
-
-#include "UI_interface.hh"
 
 #include "UI_abstract_view.hh"
 #include "UI_grid_view.hh"
@@ -99,11 +95,11 @@ void ViewLink::views_bounds_calc(const uiBlock &block)
     views_bounds.add(link->view.get(), minmax);
   }
 
-  LISTBASE_FOREACH (uiBut *, but, &block.buttons) {
-    if (but->type != UI_BTYPE_VIEW_ITEM) {
+  for (const std::unique_ptr<uiBut> &but : block.buttons) {
+    if (but->type != ButType::ViewItem) {
       continue;
     }
-    uiButViewItem *view_item_but = static_cast<uiButViewItem *>(but);
+    uiButViewItem *view_item_but = static_cast<uiButViewItem *>(but.get());
     if (!view_item_but->view_item) {
       continue;
     }
@@ -162,7 +158,7 @@ static uiViewStateLink *ensure_view_state(ARegion &region, const ViewLink &link)
     }
   }
 
-  uiViewStateLink *new_state = MEM_cnew<uiViewStateLink>(__func__);
+  uiViewStateLink *new_state = MEM_callocN<uiViewStateLink>(__func__);
   link.idname.copy(new_state->idname, sizeof(new_state->idname));
   BLI_addhead(&region.view_states, new_state);
   return new_state;
@@ -210,7 +206,7 @@ blender::ui::AbstractView *UI_region_view_find_at(const ARegion *region,
   if (!ui_region_contains_point_px(region, xy)) {
     return nullptr;
   }
-  LISTBASE_FOREACH (uiBlock *, block, &region->uiblocks) {
+  LISTBASE_FOREACH (uiBlock *, block, &region->runtime->uiblocks) {
     float mx = xy[0], my = xy[1];
     ui_window_to_block_fl(region, block, &mx, &my);
 
@@ -260,7 +256,7 @@ uiBut *UI_region_views_find_active_item_but(const ARegion *region)
 
 void UI_region_views_clear_search_highlight(const ARegion *region)
 {
-  LISTBASE_FOREACH (uiBlock *, block, &region->uiblocks) {
+  LISTBASE_FOREACH (uiBlock *, block, &region->runtime->uiblocks) {
     LISTBASE_FOREACH (ViewLink *, view_link, &block->views) {
       view_link->view->clear_search_highlight();
     }
@@ -286,6 +282,24 @@ std::unique_ptr<DropTargetInterface> region_views_find_drop_target_at(const AReg
     }
   }
 
+  if (AbstractView *view = UI_region_view_find_at(region, xy, 0)) {
+    /* If we are above a tree, but not hovering any specific element, dropping something should
+     * insert it after the last item. */
+    if (AbstractTreeView *tree_view = dynamic_cast<AbstractTreeView *>(view)) {
+      /* Find the last item which we want to drop below. */
+      AbstractTreeViewItem *last_item = nullptr;
+      tree_view->foreach_root_item([&](AbstractTreeViewItem &item) {
+        if (!item.is_interactive()) {
+          return;
+        }
+        last_item = &item;
+      });
+      if (last_item) {
+        return last_item->create_item_drop_target();
+      }
+    }
+  }
+
   return nullptr;
 }
 
@@ -293,7 +307,7 @@ std::unique_ptr<DropTargetInterface> region_views_find_drop_target_at(const AReg
 
 static StringRef ui_block_view_find_idname(const uiBlock &block, const AbstractView &view)
 {
-  /* First get the idname the of the view we're looking for. */
+  /* First get the `idname` of the view we're looking for. */
   LISTBASE_FOREACH (ViewLink *, view_link, &block.views) {
     if (view_link->view.get() == &view) {
       return view_link->idname;
@@ -346,11 +360,11 @@ uiButViewItem *ui_block_view_find_matching_view_item_but_in_old_block(
     return nullptr;
   }
 
-  LISTBASE_FOREACH (uiBut *, old_but, &old_block->buttons) {
-    if (old_but->type != UI_BTYPE_VIEW_ITEM) {
+  for (const std::unique_ptr<uiBut> &old_but : old_block->buttons) {
+    if (old_but->type != ButType::ViewItem) {
       continue;
     }
-    uiButViewItem *old_item_but = (uiButViewItem *)old_but;
+    uiButViewItem *old_item_but = (uiButViewItem *)old_but.get();
     if (!old_item_but->view_item) {
       continue;
     }

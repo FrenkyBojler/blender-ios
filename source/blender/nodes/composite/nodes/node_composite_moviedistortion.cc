@@ -16,6 +16,7 @@
 #include "BKE_tracking.h"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "GPU_shader.hh"
@@ -27,26 +28,25 @@
 
 #include "node_composite_util.hh"
 
-/* **************** Translate  ******************** */
-
 namespace blender::nodes::node_composite_moviedistortion_cc {
+
+static const EnumPropertyItem type_items[] = {
+    {int(compositor::DistortionType::Distort), "UNDISTORT", 0, N_("Undistort"), ""},
+    {int(compositor::DistortionType::Undistort), "DISTORT", 0, N_("Distort"), ""},
+    {0, nullptr, 0, nullptr, nullptr},
+};
 
 static void cmp_node_moviedistortion_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Color>("Image")
       .default_value({0.8f, 0.8f, 0.8f, 1.0f})
-      .compositor_domain_priority(0);
-  b.add_output<decl::Color>("Image");
-}
+      .structure_type(StructureType::Dynamic);
+  b.add_input<decl::Menu>("Type")
+      .default_value(compositor::DistortionType::Distort)
+      .static_items(type_items)
+      .optional_label();
 
-static void label(const bNodeTree * /*ntree*/, const bNode *node, char *label, int label_maxncpy)
-{
-  if (node->custom1 == 0) {
-    BLI_strncpy_utf8(label, IFACE_("Undistortion"), label_maxncpy);
-  }
-  else {
-    BLI_strncpy_utf8(label, IFACE_("Distortion"), label_maxncpy);
-  }
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
 }
 
 static void init(const bContext *C, PointerRNA *ptr)
@@ -74,20 +74,12 @@ static void storage_copy(bNodeTree * /*dst_ntree*/, bNode *dest_node, const bNod
   }
 }
 
-static void node_composit_buts_moviedistortion(uiLayout *layout, bContext *C, PointerRNA *ptr)
+static void node_composit_buts_moviedistortion(ui::Layout &layout, bContext *C, PointerRNA *ptr)
 {
-  bNode *node = (bNode *)ptr->data;
-
-  uiTemplateID(layout, C, ptr, "clip", nullptr, "CLIP_OT_open", nullptr);
-
-  if (!node->id) {
-    return;
-  }
-
-  uiItemR(layout, ptr, "distortion_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  uiTemplateID(&layout, C, ptr, "clip", nullptr, "CLIP_OT_open", nullptr);
 }
 
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class MovieDistortionOperation : public NodeOperation {
  public:
@@ -95,10 +87,10 @@ class MovieDistortionOperation : public NodeOperation {
 
   void execute() override
   {
-    Result &input_image = get_input("Image");
-    Result &output_image = get_result("Image");
-    if (input_image.is_single_value() || !get_movie_clip()) {
-      input_image.pass_through(output_image);
+    const Result &input_image = this->get_input("Image");
+    if (input_image.is_single_value() || !this->get_movie_clip()) {
+      Result &output_image = this->get_result("Image");
+      output_image.share_data(input_image);
       return;
     }
 
@@ -106,7 +98,7 @@ class MovieDistortionOperation : public NodeOperation {
     const Result &distortion_grid = context().cache_manager().distortion_grids.get(
         context(),
         get_movie_clip(),
-        domain.size,
+        domain.data_size,
         get_distortion_type(),
         context().get_frame_number());
 
@@ -120,7 +112,7 @@ class MovieDistortionOperation : public NodeOperation {
 
   void execute_gpu(const Result &distortion_grid)
   {
-    GPUShader *shader = context().get_shader("compositor_movie_distortion");
+    gpu::Shader *shader = context().get_shader("compositor_movie_distortion");
     GPU_shader_bind(shader);
 
     Result &input_image = get_input("Image");
@@ -130,12 +122,11 @@ class MovieDistortionOperation : public NodeOperation {
 
     distortion_grid.bind_as_texture(shader, "distortion_grid_tx");
 
-    const Domain domain = compute_domain();
     Result &output_image = get_result("Image");
-    output_image.allocate_texture(domain);
+    output_image.allocate_texture(distortion_grid.domain());
     output_image.bind_as_image(shader, "output_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, distortion_grid.domain().data_size);
 
     input_image.unbind_as_texture();
     distortion_grid.unbind_as_texture();
@@ -147,19 +138,21 @@ class MovieDistortionOperation : public NodeOperation {
   {
     Result &input = get_input("Image");
 
-    const Domain domain = compute_domain();
     Result &output = get_result("Image");
-    output.allocate_texture(domain);
+    output.allocate_texture(distortion_grid.domain());
 
-    parallel_for(domain.size, [&](const int2 texel) {
-      output.store_pixel(texel,
-                         input.sample_bilinear_zero(distortion_grid.load_pixel(texel).xy()));
+    parallel_for(distortion_grid.domain().data_size, [&](const int2 texel) {
+      output.store_pixel(
+          texel, Color(input.sample_bilinear_zero(distortion_grid.load_pixel<float2>(texel))));
     });
   }
 
   DistortionType get_distortion_type()
   {
-    return bnode().custom1 == 0 ? DistortionType::Distort : DistortionType::Undistort;
+    const Result &input = this->get_input("Type");
+    const MenuValue default_menu_value = MenuValue(DistortionType::Distort);
+    const MenuValue menu_value = input.get_single_value_default(default_menu_value);
+    return static_cast<DistortionType>(menu_value.value);
   }
 
   MovieClip *get_movie_clip()
@@ -175,19 +168,25 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_moviedistortion_cc
 
-void register_node_type_cmp_moviedistortion()
+static void register_node_type_cmp_moviedistortion()
 {
   namespace file_ns = blender::nodes::node_composite_moviedistortion_cc;
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_MOVIEDISTORTION, "Movie Distortion", NODE_CLASS_DISTORT);
+  cmp_node_type_base(&ntype, "CompositorNodeMovieDistortion", CMP_NODE_MOVIEDISTORTION);
+  ntype.ui_name = "Movie Distortion";
+  ntype.ui_description =
+      "Remove lens distortion from footage, using motion tracking camera lens settings";
+  ntype.enum_name_legacy = "MOVIEDISTORTION";
+  ntype.nclass = NODE_CLASS_DISTORT;
   ntype.declare = file_ns::cmp_node_moviedistortion_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_moviedistortion;
-  ntype.labelfunc = file_ns::label;
   ntype.initfunc_api = file_ns::init;
-  blender::bke::node_type_storage(&ntype, nullptr, file_ns::storage_free, file_ns::storage_copy);
+  blender::bke::node_type_storage(
+      ntype, std::nullopt, file_ns::storage_free, file_ns::storage_copy);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_moviedistortion)

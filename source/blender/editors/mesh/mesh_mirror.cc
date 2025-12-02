@@ -16,7 +16,7 @@
 #include "BKE_mesh.hh"
 #include "BKE_mesh_types.hh"
 
-#include "BLI_kdtree.h"
+#include "BLI_kdtree.hh"
 
 #include "ED_mesh.hh"
 
@@ -27,7 +27,7 @@
 #define KD_THRESH 0.00002f
 
 static struct {
-  KDTree_3d *tree;
+  blender::KDTree_3d *tree;
 } MirrKdStore = {nullptr};
 
 void ED_mesh_mirror_spatial_table_begin(Object *ob, BMEditMesh *em, Mesh *mesh_eval)
@@ -42,7 +42,7 @@ void ED_mesh_mirror_spatial_table_begin(Object *ob, BMEditMesh *em, Mesh *mesh_e
     ED_mesh_mirror_spatial_table_end(ob);
   }
 
-  MirrKdStore.tree = BLI_kdtree_3d_new(totvert);
+  MirrKdStore.tree = blender::BLI_kdtree_3d_new(totvert);
 
   if (use_em) {
     BMVert *eve;
@@ -53,18 +53,18 @@ void ED_mesh_mirror_spatial_table_begin(Object *ob, BMEditMesh *em, Mesh *mesh_e
     BM_mesh_elem_table_ensure(em->bm, BM_VERT);
 
     BM_ITER_MESH_INDEX (eve, &iter, em->bm, BM_VERTS_OF_MESH, i) {
-      BLI_kdtree_3d_insert(MirrKdStore.tree, i, eve->co);
+      blender::BLI_kdtree_3d_insert(MirrKdStore.tree, i, eve->co);
     }
   }
   else {
     const blender::Span<blender::float3> positions = mesh_eval ? mesh_eval->vert_positions() :
                                                                  mesh->vert_positions();
     for (int i = 0; i < totvert; i++) {
-      BLI_kdtree_3d_insert(MirrKdStore.tree, i, positions[i]);
+      blender::BLI_kdtree_3d_insert(MirrKdStore.tree, i, positions[i]);
     }
   }
 
-  BLI_kdtree_3d_balance(MirrKdStore.tree);
+  blender::BLI_kdtree_3d_balance(MirrKdStore.tree);
 }
 
 int ED_mesh_mirror_spatial_table_lookup(Object *ob,
@@ -77,8 +77,8 @@ int ED_mesh_mirror_spatial_table_lookup(Object *ob,
   }
 
   if (MirrKdStore.tree) {
-    KDTreeNearest_3d nearest;
-    const int i = BLI_kdtree_3d_find_nearest(MirrKdStore.tree, co, &nearest);
+    blender::KDTreeNearest_3d nearest;
+    const int i = blender::BLI_kdtree_3d_find_nearest(MirrKdStore.tree, co, &nearest);
 
     if (i != -1) {
       if (nearest.dist < KD_THRESH) {
@@ -93,7 +93,7 @@ void ED_mesh_mirror_spatial_table_end(Object * /*ob*/)
 {
   /* TODO: store this in object/object-data (keep unused argument for now). */
   if (MirrKdStore.tree) {
-    BLI_kdtree_3d_free(MirrKdStore.tree);
+    blender::BLI_kdtree_3d_free(MirrKdStore.tree);
     MirrKdStore.tree = nullptr;
   }
 }
@@ -192,8 +192,7 @@ void ED_mesh_mirrtopo_init(BMEditMesh *em,
     totvert = mesh->verts_num;
   }
 
-  MirrTopoHash_t *topo_hash = static_cast<MirrTopoHash_t *>(
-      MEM_callocN(totvert * sizeof(MirrTopoHash_t), __func__));
+  MirrTopoHash_t *topo_hash = MEM_calloc_arrayN<MirrTopoHash_t>(totvert, __func__);
 
   /* Initialize the vert-edge-user counts used to detect unique topology */
   if (em) {
@@ -265,8 +264,7 @@ void ED_mesh_mirrtopo_init(BMEditMesh *em,
   }
 
   /* Hash/Index pairs are needed for sorting to find index pairs */
-  MirrTopoVert_t *topo_pairs = static_cast<MirrTopoVert_t *>(
-      MEM_callocN(sizeof(MirrTopoVert_t) * totvert, "MirrTopoPairs"));
+  MirrTopoVert_t *topo_pairs = MEM_calloc_arrayN<MirrTopoVert_t>(totvert, "MirrTopoPairs");
 
   /* since we are looping through verts, initialize these values here too */
   intptr_t *index_lookup = static_cast<intptr_t *>(
@@ -350,6 +348,235 @@ void ED_mesh_mirrtopo_free(MirrTopoStore_t *mesh_topo_store)
   MEM_SAFE_FREE(mesh_topo_store->index_lookup);
   mesh_topo_store->prev_vert_tot = -1;
   mesh_topo_store->prev_edge_tot = -1;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name EditMeshSymmetryHelper API
+ * \{ */
+
+std::optional<EditMeshSymmetryHelper> EditMeshSymmetryHelper::create_if_needed(Object *ob,
+                                                                               uchar htype)
+{
+  BLI_assert(htype != 0);
+  BLI_assert((htype & ~(BM_VERT | BM_EDGE | BM_FACE)) == 0);
+
+  if (!ob || !ob->data) {
+    return std::nullopt;
+  }
+  Mesh *mesh = static_cast<Mesh *>(ob->data);
+  BMEditMesh *em = BKE_editmesh_from_object(ob);
+
+  if (!em || !em->bm || mesh->symmetry == 0) {
+    return std::nullopt;
+  }
+  return EditMeshSymmetryHelper(ob, htype);
+}
+
+EditMeshSymmetryHelper::EditMeshSymmetryHelper(Object *ob, uchar htype)
+    : em_(BKE_editmesh_from_object(ob)), mesh_(static_cast<Mesh *>(ob->data)), htype_(htype)
+{
+  BMesh *bmesh = em_->bm;
+  use_topology_mirror_ = (mesh_->editflag & ME_EDIT_MIRROR_TOPO) != 0;
+
+  blender::Set<BMVert *> processed_verts;
+  blender::Set<BMEdge *> processed_edges;
+  blender::Set<BMFace *> processed_faces;
+
+  BMIter iter;
+
+  for (int axis = 0; axis < 3; axis++) {
+    if (mesh_->symmetry & (ME_SYMMETRY_X << axis)) {
+      EDBM_verts_mirror_cache_begin(em_,
+                                    axis,
+                                    (htype_ & BM_VERT) != 0,
+                                    (htype_ & BM_EDGE) != 0,
+                                    (htype_ & BM_FACE) != 0,
+                                    use_topology_mirror_);
+
+      if (htype_ & BM_VERT) {
+        BMVert *v_curr;
+        BM_ITER_MESH (v_curr, &iter, bmesh, BM_VERTS_OF_MESH) {
+          if (processed_verts.contains(v_curr)) {
+            continue;
+          }
+          BMVert *v_mirr = EDBM_verts_mirror_get(em_, v_curr);
+          if (v_mirr && v_mirr != v_curr) {
+            BMVert *v_mirr_check = EDBM_verts_mirror_get(em_, v_mirr);
+            if (v_mirr_check == v_curr) {
+              vert_to_mirror_map_.lookup_or_add(v_curr, {}).append(v_mirr);
+              vert_to_mirror_map_.lookup_or_add(v_mirr, {}).append(v_curr);
+              processed_verts.add(v_curr);
+              processed_verts.add(v_mirr);
+            }
+          }
+        }
+      }
+
+      if (htype_ & BM_EDGE) {
+        BMEdge *e_curr;
+        BM_ITER_MESH (e_curr, &iter, bmesh, BM_EDGES_OF_MESH) {
+          if (processed_edges.contains(e_curr)) {
+            continue;
+          }
+          BMEdge *e_mirr = EDBM_verts_mirror_get_edge(em_, e_curr);
+          if (e_mirr && e_mirr != e_curr) {
+            BMEdge *e_mirr_check = EDBM_verts_mirror_get_edge(em_, e_mirr);
+            if (e_mirr_check == e_curr) {
+              edge_to_mirror_map_.lookup_or_add(e_curr, {}).append(e_mirr);
+              edge_to_mirror_map_.lookup_or_add(e_mirr, {}).append(e_curr);
+              processed_edges.add(e_curr);
+              processed_edges.add(e_mirr);
+            }
+          }
+        }
+      }
+
+      if (htype_ & BM_FACE) {
+        BMFace *f_curr;
+        BM_ITER_MESH (f_curr, &iter, bmesh, BM_FACES_OF_MESH) {
+          if (processed_faces.contains(f_curr)) {
+            continue;
+          }
+          BMFace *f_mirr = EDBM_verts_mirror_get_face(em_, f_curr);
+          if (f_mirr && f_mirr != f_curr) {
+            BMFace *f_mirr_check = EDBM_verts_mirror_get_face(em_, f_mirr);
+            if (f_mirr_check == f_curr) {
+              face_to_mirror_map_.lookup_or_add(f_curr, {}).append(f_mirr);
+              face_to_mirror_map_.lookup_or_add(f_mirr, {}).append(f_curr);
+              processed_faces.add(f_curr);
+              processed_faces.add(f_mirr);
+            }
+          }
+        }
+      }
+
+      EDBM_verts_mirror_cache_end(em_);
+    }
+  }
+}
+void EditMeshSymmetryHelper::apply_on_mirror_verts(BMVert *v,
+                                                   blender::FunctionRef<void(BMVert *)> op) const
+{
+  BLI_assert((this->htype_ & BM_VERT) != 0);
+  const blender::Vector<BMVert *> *mirrors = this->vert_to_mirror_map_.lookup_ptr(v);
+  if (mirrors) {
+    for (BMVert *v_mirr : *mirrors) {
+      op(v_mirr);
+    }
+  }
+}
+
+void EditMeshSymmetryHelper::apply_on_mirror_edges(BMEdge *e,
+                                                   blender::FunctionRef<void(BMEdge *)> op) const
+{
+  BLI_assert((this->htype_ & BM_EDGE) != 0);
+  const blender::Vector<BMEdge *> *mirrors = this->edge_to_mirror_map_.lookup_ptr(e);
+  if (mirrors) {
+    for (BMEdge *e_mirr : *mirrors) {
+      op(e_mirr);
+    }
+  }
+}
+
+void EditMeshSymmetryHelper::apply_on_mirror_faces(BMFace *f,
+                                                   blender::FunctionRef<void(BMFace *)> op) const
+{
+  BLI_assert((this->htype_ & BM_FACE) != 0);
+  const blender::Vector<BMFace *> *mirrors = this->face_to_mirror_map_.lookup_ptr(f);
+  if (mirrors) {
+    for (BMFace *f_mirr : *mirrors) {
+      op(f_mirr);
+    }
+  }
+}
+
+bool EditMeshSymmetryHelper::any_mirror_vert_selected(BMVert *v, const char hflag) const
+{
+  BLI_assert((this->htype_ & BM_VERT) != 0);
+  const blender::Vector<BMVert *> *mirrors = this->vert_to_mirror_map_.lookup_ptr(v);
+  if (mirrors) {
+    for (BMVert *v_mirr : *mirrors) {
+      if (BM_elem_flag_test(v_mirr, hflag) && !BM_elem_flag_test(v_mirr, BM_ELEM_HIDDEN)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+bool EditMeshSymmetryHelper::any_mirror_edge_selected(BMEdge *e, const char hflag) const
+{
+  BLI_assert((this->htype_ & BM_EDGE) != 0);
+  const blender::Vector<BMEdge *> *mirrors = this->edge_to_mirror_map_.lookup_ptr(e);
+  if (mirrors) {
+    for (BMEdge *e_mirr : *mirrors) {
+      if (BM_elem_flag_test(e_mirr, hflag) && !BM_elem_flag_test(e_mirr, BM_ELEM_HIDDEN)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+bool EditMeshSymmetryHelper::any_mirror_face_selected(BMFace *f, const char hflag) const
+{
+  BLI_assert((this->htype_ & BM_FACE) != 0);
+  const blender::Vector<BMFace *> *mirrors = this->face_to_mirror_map_.lookup_ptr(f);
+  if (mirrors) {
+    for (BMFace *f_mirr : *mirrors) {
+      if (BM_elem_flag_test(f_mirr, hflag) && !BM_elem_flag_test(f_mirr, BM_ELEM_HIDDEN)) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+void EditMeshSymmetryHelper::set_hflag_on_mirror_verts(BMVert *v,
+                                                       const char hflag,
+                                                       const bool value) const
+{
+  apply_on_mirror_verts(v, [this, hflag, value](BMVert *v_mirr) {
+    if (hflag & BM_ELEM_SELECT) {
+      BM_vert_select_set(this->em_->bm, v_mirr, value);
+    }
+    const char hflag_test = char(hflag & ~BM_ELEM_SELECT);
+    if (hflag_test) {
+      BM_elem_flag_set(v_mirr, hflag_test, value);
+    }
+  });
+}
+
+void EditMeshSymmetryHelper::set_hflag_on_mirror_edges(BMEdge *e,
+                                                       char hflag,
+                                                       const bool value) const
+{
+  apply_on_mirror_edges(e, [this, hflag, value](BMEdge *e_mirr) {
+    if (hflag & BM_ELEM_SELECT) {
+      BM_edge_select_set(this->em_->bm, e_mirr, value);
+    }
+    char hflag_test = char(hflag & ~BM_ELEM_SELECT);
+    if (hflag_test) {
+      BM_elem_flag_set(e_mirr, hflag_test, value);
+    }
+  });
+}
+
+void EditMeshSymmetryHelper::set_hflag_on_mirror_faces(BMFace *f,
+                                                       const char hflag,
+                                                       const bool value) const
+{
+  apply_on_mirror_faces(f, [this, hflag, value](BMFace *f_mirr) {
+    if (hflag & BM_ELEM_SELECT) {
+      BM_face_select_set(this->em_->bm, f_mirr, value);
+    }
+    char hflag_test = char(hflag & ~BM_ELEM_SELECT);
+    if (hflag_test) {
+      BM_elem_flag_set(f_mirr, hflag_test, value);
+    }
+  });
 }
 
 /** \} */

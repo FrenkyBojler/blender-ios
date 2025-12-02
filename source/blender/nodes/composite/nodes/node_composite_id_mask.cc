@@ -11,7 +11,6 @@
 #include "BLI_math_base.hh"
 #include "BLI_math_vector_types.hh"
 
-#include "UI_interface.hh"
 #include "UI_resources.hh"
 
 #include "GPU_shader.hh"
@@ -32,17 +31,14 @@ static void cmp_node_idmask_declare(NodeDeclarationBuilder &b)
       .default_value(1.0f)
       .min(0.0f)
       .max(1.0f)
-      .compositor_domain_priority(0);
-  b.add_output<decl::Float>("Alpha");
+      .structure_type(StructureType::Dynamic);
+  b.add_input<decl::Int>("Index").default_value(0).min(0);
+  b.add_input<decl::Bool>("Anti-Alias").default_value(false);
+
+  b.add_output<decl::Float>("Alpha").structure_type(StructureType::Dynamic);
 }
 
-static void node_composit_buts_id_mask(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
-{
-  uiItemR(layout, ptr, "index", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
-  uiItemR(layout, ptr, "use_antialiasing", UI_ITEM_R_SPLIT_EMPTY_NAME, nullptr, ICON_NONE);
-}
-
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class IDMaskOperation : public NodeOperation {
  public:
@@ -76,7 +72,7 @@ class IDMaskOperation : public NodeOperation {
 
   void execute_gpu(Result &output_mask)
   {
-    GPUShader *shader = context().get_shader("compositor_id_mask");
+    gpu::Shader *shader = context().get_shader("compositor_id_mask");
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1i(shader, "index", get_index());
@@ -88,7 +84,7 @@ class IDMaskOperation : public NodeOperation {
     output_mask.allocate_texture(domain);
     output_mask.bind_as_image(shader, "output_mask_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     input_mask.unbind_as_texture();
     output_mask.unbind_as_image();
@@ -104,29 +100,29 @@ class IDMaskOperation : public NodeOperation {
     const Domain domain = compute_domain();
     output_mask.allocate_texture(domain);
 
-    parallel_for(domain.size, [&](const int2 texel) {
-      float input_mask_value = input_mask.load_pixel(texel).x;
+    parallel_for(domain.data_size, [&](const int2 texel) {
+      float input_mask_value = input_mask.load_pixel<float>(texel);
       float mask = int(math::round(input_mask_value)) == index ? 1.0f : 0.0f;
-      output_mask.store_pixel(texel, float4(mask));
+      output_mask.store_pixel(texel, mask);
     });
   }
 
   void execute_single_value()
   {
-    const float input_mask_value = get_input("ID value").get_float_value();
+    const float input_mask_value = get_input("ID value").get_single_value<float>();
     const float mask = int(round(input_mask_value)) == get_index() ? 1.0f : 0.0f;
     get_result("Alpha").allocate_single_value();
-    get_result("Alpha").set_float_value(mask);
+    get_result("Alpha").set_single_value(mask);
   }
 
   int get_index()
   {
-    return bnode().custom1;
+    return math::max(0, this->get_input("Index").get_single_value_default(0));
   }
 
   bool use_anti_aliasing()
   {
-    return bnode().custom2 != 0;
+    return this->get_input("Anti-Alias").get_single_value_default(false);
   }
 };
 
@@ -137,16 +133,20 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_id_mask_cc
 
-void register_node_type_cmp_idmask()
+static void register_node_type_cmp_idmask()
 {
   namespace file_ns = blender::nodes::node_composite_id_mask_cc;
 
   static blender::bke::bNodeType ntype;
 
-  cmp_node_type_base(&ntype, CMP_NODE_ID_MASK, "ID Mask", NODE_CLASS_CONVERTER);
+  cmp_node_type_base(&ntype, "CompositorNodeIDMask", CMP_NODE_ID_MASK);
+  ntype.ui_name = "ID Mask";
+  ntype.ui_description = "Create a matte from an object or material index pass";
+  ntype.enum_name_legacy = "ID_MASK";
+  ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = file_ns::cmp_node_idmask_declare;
-  ntype.draw_buttons = file_ns::node_composit_buts_id_mask;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_idmask)

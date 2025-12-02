@@ -2,11 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-/** \file
- * \ingroup cmpnodes
- */
-
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "COM_algorithm_jump_flooding.hh"
@@ -15,40 +11,35 @@
 
 #include "node_composite_util.hh"
 
-/* **************** Double Edge Mask ******************** */
-
 namespace blender::nodes::node_composite_double_edge_mask_cc {
 
 static void cmp_node_double_edge_mask_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Float>("Inner Mask")
-      .default_value(0.8f)
-      .min(0.0f)
-      .max(1.0f)
-      .compositor_domain_priority(1);
   b.add_input<decl::Float>("Outer Mask")
       .default_value(0.8f)
       .min(0.0f)
       .max(1.0f)
-      .compositor_domain_priority(0);
-  b.add_output<decl::Float>("Mask");
+      .structure_type(StructureType::Dynamic);
+  b.add_input<decl::Float>("Inner Mask")
+      .default_value(0.8f)
+      .min(0.0f)
+      .max(1.0f)
+      .structure_type(StructureType::Dynamic);
+  b.add_input<decl::Bool>("Image Edges")
+      .default_value(false)
+      .description(
+          "The edges of the image that intersects the outer mask will be considered edges of the "
+          "outer mask. Otherwise, the outer mask will be considered open-ended");
+  b.add_input<decl::Bool>("Only Inside Outer")
+      .default_value(false)
+      .description(
+          "Only edges of the inner mask that lie inside the outer mask will be considered. "
+          "Otherwise, all edges of the inner mask will be considered");
+
+  b.add_output<decl::Float>("Mask").structure_type(StructureType::Dynamic);
 }
 
-static void node_composit_buts_double_edge_mask(uiLayout *layout,
-                                                bContext * /*C*/,
-                                                PointerRNA *ptr)
-{
-  uiLayout *col;
-
-  col = uiLayoutColumn(layout, false);
-
-  uiItemL(col, IFACE_("Inner Edge:"), ICON_NONE);
-  uiItemR(col, ptr, "inner_mode", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-  uiItemL(col, IFACE_("Buffer Edge:"), ICON_NONE);
-  uiItemR(col, ptr, "edge_mode", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-}
-
-using namespace blender::realtime_compositor;
+using namespace blender::compositor;
 
 class DoubleEdgeMaskOperation : public NodeOperation {
  public:
@@ -99,8 +90,8 @@ class DoubleEdgeMaskOperation : public NodeOperation {
 
   void compute_boundary_gpu(Result &inner_boundary, Result &outer_boundary)
   {
-    GPUShader *shader = context().get_shader("compositor_double_edge_mask_compute_boundary",
-                                             ResultPrecision::Half);
+    gpu::Shader *shader = context().get_shader("compositor_double_edge_mask_compute_boundary",
+                                               ResultPrecision::Half);
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_1b(shader, "include_all_inner_edges", include_all_inner_edges());
@@ -120,7 +111,7 @@ class DoubleEdgeMaskOperation : public NodeOperation {
     outer_boundary.allocate_texture(domain);
     outer_boundary.bind_as_image(shader, "outer_boundary_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     inner_mask.unbind_as_texture();
     outer_mask.unbind_as_texture();
@@ -149,7 +140,7 @@ class DoubleEdgeMaskOperation : public NodeOperation {
      * Technically, we needn't restrict the output to just the boundary pixels, since the algorithm
      * can still operate if the interior of the masks was also included. However, the algorithm
      * operates more accurately when the number of pixels to be flooded is minimum. */
-    parallel_for(domain.size, [&](const int2 texel) {
+    parallel_for(domain.data_size, [&](const int2 texel) {
       /* Identify if any of the 8 neighbors around the center pixel are not masked. */
       bool has_inner_non_masked_neighbors = false;
       bool has_outer_non_masked_neighbors = false;
@@ -162,7 +153,7 @@ class DoubleEdgeMaskOperation : public NodeOperation {
             continue;
           }
 
-          if (inner_mask.load_pixel_extended(texel + offset).x == 0.0f) {
+          if (inner_mask.load_pixel_extended<float>(texel + offset) == 0.0f) {
             has_inner_non_masked_neighbors = true;
           }
 
@@ -170,8 +161,8 @@ class DoubleEdgeMaskOperation : public NodeOperation {
            * is bounded by the image boundary, otherwise, we assume the outer mask is open-ended.
            * This is practically implemented by falling back to 0.0f or 1.0f for out of bound
            * pixels. */
-          float4 boundary_fallback = include_edges_of_image ? float4(0.0f) : float4(1.0f);
-          if (outer_mask.load_pixel_fallback(texel + offset, boundary_fallback).x == 0.0f) {
+          float boundary_fallback = include_edges_of_image ? 0.0f : 1.0f;
+          if (outer_mask.load_pixel_fallback(texel + offset, boundary_fallback) == 0.0f) {
             has_outer_non_masked_neighbors = true;
           }
 
@@ -182,8 +173,8 @@ class DoubleEdgeMaskOperation : public NodeOperation {
         }
       }
 
-      bool is_inner_masked = inner_mask.load_pixel(texel).x > 0.0f;
-      bool is_outer_masked = outer_mask.load_pixel(texel).x > 0.0f;
+      bool is_inner_masked = inner_mask.load_pixel<float>(texel) > 0.0f;
+      bool is_outer_masked = outer_mask.load_pixel<float>(texel) > 0.0f;
 
       /* The pixels at the boundary are those that are masked and have non masked neighbors. The
        * inner boundary has a specialization, if include_all_inner_edges is false, only inner
@@ -198,8 +189,8 @@ class DoubleEdgeMaskOperation : public NodeOperation {
       int2 inner_jump_flooding_value = initialize_jump_flooding_value(texel, is_inner_boundary);
       int2 outer_jump_flooding_value = initialize_jump_flooding_value(texel, is_outer_boundary);
 
-      inner_boundary.store_pixel(texel, int4(inner_jump_flooding_value, int2(0)));
-      outer_boundary.store_pixel(texel, int4(outer_jump_flooding_value, int2(0)));
+      inner_boundary.store_pixel(texel, inner_jump_flooding_value);
+      outer_boundary.store_pixel(texel, outer_jump_flooding_value);
     });
   }
 
@@ -216,7 +207,7 @@ class DoubleEdgeMaskOperation : public NodeOperation {
   void compute_gradient_gpu(const Result &flooded_inner_boundary,
                             const Result &flooded_outer_boundary)
   {
-    GPUShader *shader = context().get_shader("compositor_double_edge_mask_compute_gradient");
+    gpu::Shader *shader = context().get_shader("compositor_double_edge_mask_compute_gradient");
     GPU_shader_bind(shader);
 
     const Result &inner_mask = get_input("Inner Mask");
@@ -233,7 +224,7 @@ class DoubleEdgeMaskOperation : public NodeOperation {
     output.allocate_texture(domain);
     output.bind_as_image(shader, "output_img");
 
-    compute_dispatch_threads_at_least(shader, domain.size);
+    compute_dispatch_threads_at_least(shader, domain.data_size);
 
     inner_mask.unbind_as_texture();
     outer_mask.unbind_as_texture();
@@ -265,45 +256,41 @@ class DoubleEdgeMaskOperation : public NodeOperation {
      *   Outer Boundary  |---------$---------|  Inner Boundary
      *                   |                   |
      */
-    parallel_for(domain.size, [&](const int2 texel) {
+    parallel_for(domain.data_size, [&](const int2 texel) {
       /* Pixels inside the inner mask are always 1.0. */
-      float inner_mask = inner_mask_input.load_pixel(texel).x;
+      float inner_mask = inner_mask_input.load_pixel<float>(texel);
       if (inner_mask != 0.0f) {
-        output.store_pixel(texel, float4(1.0f));
+        output.store_pixel(texel, 1.0f);
         return;
       }
 
       /* Pixels outside the outer mask are always 0.0. */
-      float outer_mask = outer_mask_input.load_pixel(texel).x;
+      float outer_mask = outer_mask_input.load_pixel<float>(texel);
       if (outer_mask == 0.0f) {
-        output.store_pixel(texel, float4(0.0f));
+        output.store_pixel(texel, 0.0f);
         return;
       }
 
       /* Compute the distances to the inner and outer boundaries from the jump flooding tables. */
-      int2 inner_boundary_texel = flooded_inner_boundary.load_integer_pixel(texel).xy();
-      int2 outer_boundary_texel = flooded_outer_boundary.load_integer_pixel(texel).xy();
+      int2 inner_boundary_texel = flooded_inner_boundary.load_pixel<int2>(texel);
+      int2 outer_boundary_texel = flooded_outer_boundary.load_pixel<int2>(texel);
       float distance_to_inner = math::distance(float2(texel), float2(inner_boundary_texel));
       float distance_to_outer = math::distance(float2(texel), float2(outer_boundary_texel));
 
       float gradient = distance_to_outer / (distance_to_outer + distance_to_inner);
 
-      output.store_pixel(texel, float4(gradient));
+      output.store_pixel(texel, gradient);
     });
   }
 
-  /* If false, only edges of the inner mask that lie inside the outer mask will be considered. If
-   * true, all edges of the inner mask will be considered. */
   bool include_all_inner_edges()
   {
-    return !bool(bnode().custom1);
+    return !this->get_input("Only Inside Outer").get_single_value_default(false);
   }
 
-  /* If true, the edges of the image that intersects the outer mask will be considered edges o the
-   * outer mask. If false, the outer mask will be considered open-ended. */
   bool include_edges_of_image()
   {
-    return bool(bnode().custom2);
+    return this->get_input("Image Edges").get_single_value_default(false);
   }
 };
 
@@ -314,16 +301,21 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_double_edge_mask_cc
 
-void register_node_type_cmp_doubleedgemask()
+static void register_node_type_cmp_doubleedgemask()
 {
   namespace file_ns = blender::nodes::node_composite_double_edge_mask_cc;
 
   static blender::bke::bNodeType ntype; /* Allocate a node type data structure. */
 
-  cmp_node_type_base(&ntype, CMP_NODE_DOUBLEEDGEMASK, "Double Edge Mask", NODE_CLASS_MATTE);
+  cmp_node_type_base(&ntype, "CompositorNodeDoubleEdgeMask", CMP_NODE_DOUBLEEDGEMASK);
+  ntype.ui_name = "Double Edge Mask";
+  ntype.ui_description = "Create a gradient between two masks";
+  ntype.enum_name_legacy = "DOUBLEEDGEMASK";
+  ntype.nclass = NODE_CLASS_MATTE;
   ntype.declare = file_ns::cmp_node_double_edge_mask_declare;
-  ntype.draw_buttons = file_ns::node_composit_buts_double_edge_mask;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
+  blender::bke::node_type_size(ntype, 145, 140, NODE_DEFAULT_MAX_WIDTH);
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_doubleedgemask)
