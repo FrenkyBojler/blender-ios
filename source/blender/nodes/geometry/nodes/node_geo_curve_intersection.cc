@@ -10,12 +10,15 @@
 #include "BKE_mesh.hh"
 #include "BKE_pointcloud.hh"
 
-#include "BLI_kdopbvh.h"
+#include "BLI_kdopbvh.hh"
+#include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_task.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
+
+#include "GEO_foreach_geometry.hh"
 
 #include "NOD_rna_define.hh"
 
@@ -44,6 +47,7 @@ enum class IntersectionMode {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.add_default_layout();
   b.add_input<decl::Geometry>("Curve").supported_type(GeometryComponent::Type::Curve);
   b.add_input<decl::Geometry>("Mesh")
       .only_realized_data()
@@ -104,12 +108,12 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("If the intersection is one of a pair of matching intersections");
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
   const IntersectionMode mode = IntersectionMode(static_cast<const bNode *>(ptr->data)->custom1);
-  uiItemR(layout, ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
   if (ELEM(mode, IntersectionMode::Curve, IntersectionMode::Curve_Project)) {
-    uiItemR(layout, ptr, "pair_data_mode", UI_ITEM_NONE, "", ICON_NONE);
+    layout.prop(ptr, "pair_data_mode", UI_ITEM_NONE, "", ICON_NONE);
   }
 }
 
@@ -132,13 +136,13 @@ static void node_update(bNodeTree *ntree, bNode *node)
 
   const bool curve_mode = ELEM(mode, IntersectionMode::Curve, IntersectionMode::Curve_Project);
 
-  bke::node_set_socket_availability(ntree, mesh, mode == IntersectionMode::Surface);
-  bke::node_set_socket_availability(ntree, self, curve_mode);
-  bke::node_set_socket_availability(ntree, all, curve_mode);
+  bke::node_set_socket_availability(*ntree, *mesh, mode == IntersectionMode::Surface);
+  bke::node_set_socket_availability(*ntree, *self, curve_mode);
+  bke::node_set_socket_availability(*ntree, *all, curve_mode);
   bke::node_set_socket_availability(
-      ntree, direction, ELEM(mode, IntersectionMode::Plane, IntersectionMode::Curve_Project));
-  bke::node_set_socket_availability(ntree, plane_center, mode == IntersectionMode::Plane);
-  bke::node_set_socket_availability(ntree, distance, mode == IntersectionMode::Curve);
+      *ntree, *direction, ELEM(mode, IntersectionMode::Plane, IntersectionMode::Curve_Project));
+  bke::node_set_socket_availability(*ntree, *plane_center, mode == IntersectionMode::Plane);
+  bke::node_set_socket_availability(*ntree, *distance, mode == IntersectionMode::Curve);
 
   const bool use_paired_data = ELEM(
       PairData(node->custom2), PairData::FullPair, PairData::HalfPair);
@@ -147,29 +151,29 @@ static void node_update(bNodeTree *ntree, bNode *node)
 
   LISTBASE_FOREACH (bNodeSocket *, socket, &node->outputs) {
     if (STREQ(socket->name, "Curve Index")) {
-      bke::node_set_socket_availability(ntree, socket, !points_only_mode);
+      bke::node_set_socket_availability(*ntree, *socket, !points_only_mode);
     }
     if (STREQ(socket->name, "Direction")) {
-      bke::node_set_socket_availability(ntree, socket, !points_only_mode);
+      bke::node_set_socket_availability(*ntree, *socket, !points_only_mode);
     }
     if (STREQ(socket->name, "Factor")) {
-      bke::node_set_socket_availability(ntree, socket, !points_only_mode);
+      bke::node_set_socket_availability(*ntree, *socket, !points_only_mode);
     }
     if (STREQ(socket->name, "Length")) {
-      bke::node_set_socket_availability(ntree, socket, !points_only_mode);
+      bke::node_set_socket_availability(*ntree, *socket, !points_only_mode);
     }
     if (STREQ(socket->name, "Pair Position")) {
-      bke::node_set_socket_availability(ntree, socket, curve_mode && use_paired_data);
+      bke::node_set_socket_availability(*ntree, *socket, curve_mode && use_paired_data);
     }
     if (STREQ(socket->name, "Pair Direction")) {
-      bke::node_set_socket_availability(ntree, socket, curve_mode && use_paired_data);
+      bke::node_set_socket_availability(*ntree, *socket, curve_mode && use_paired_data);
     }
     if (STREQ(socket->name, "Pair")) {
       bke::node_set_socket_availability(
-          ntree, socket, curve_mode && PairData(node->custom2) == PairData::FullPair);
+          *ntree, *socket, curve_mode && PairData(node->custom2) == PairData::FullPair);
     }
     if (STREQ(socket->name, "Normal")) {
-      bke::node_set_socket_availability(ntree, socket, mode == IntersectionMode::Surface);
+      bke::node_set_socket_availability(*ntree, *socket, mode == IntersectionMode::Surface);
     }
   }
 }
@@ -359,7 +363,7 @@ static float calc_min_angle(const float3 an, const float3 bn, const bool is_face
   return is_face_normal ? angle : pi_2_f - angle;
 }
 
-/* `isect_line_line_epsilon_v3` is too strict for checking parallel lines. This
+/* Library function `isect_line_line_epsilon_v3` is too strict for checking parallel lines. This
  * version adds an epsilon to the parallel line check^. */
 static int isect_line_line_epsilon_v3_loose(const float v1[3],
                                             const float v2[3],
@@ -558,30 +562,31 @@ static BVHTree *create_curve_segment_bvhtree(const bke::CurvesGeometry &src_curv
   return bvhtree;
 }
 
-/* Based on isect_line_plane_v3 with additional check that lines cross between start and end
- * points. It also stores the lambda.^ */
+/* Based on existing function `isect_line_plane_v3` but with following changes.
+ * a) adds an check that lines cross between start and end points.^
+ * b) stores lambda value.^^ */
 static bool isect_line_plane_v3_crossing(const float3 point_1,
                                          const float3 point_2,
                                          const float3 surface_center,
                                          const float3 surface_normal,
                                          float3 &r_isect_co,
-                                         float &lambda)
+                                         float &r_lambda)
 {
   const float3 u = point_2 - point_1;
   const float dot = math::dot(surface_normal, u);
 
-  /* The segment is parallel to plane */
+  /* The segment is parallel to plane.^ */
   if (math::abs(dot) <= FLT_EPSILON) {
     return false;
   }
   const float3 h = point_1 - surface_center;
-  lambda = -math::dot(surface_normal, h) / dot;
+  r_lambda = -math::dot(surface_normal, h) / dot;
 
-  /* Test lambda to check intersection is between the start and end points.^ */
-  if (lambda >= -curve_isect_eps && lambda <= 1.0f + curve_isect_eps) {
+  /* Test lambda to check intersection is between the start and end points.^^ */
+  if (r_lambda >= -curve_isect_eps && r_lambda <= 1.0f + curve_isect_eps) {
     /* Remove epsilon from lambda. */
-    lambda = math::clamp(lambda, 0.0f, 1.0f);
-    r_isect_co = point_1 + u * lambda;
+    r_lambda = math::clamp(r_lambda, 0.0f, 1.0f);
+    r_isect_co = point_1 + u * r_lambda;
     return true;
   }
 
@@ -687,7 +692,7 @@ static void set_curve_intersections_mesh(GeometrySet &mesh_set,
   const bool use_normal = use_angle || attribute_outputs.normal;
 
   /* Loop mesh data. */
-  mesh_set.modify_geometry_sets([&](GeometrySet &mesh_set) {
+  geometry::foreach_real_geometry(mesh_set, [&](GeometrySet &mesh_set) {
     if (!mesh_set.has_mesh()) {
       return;
     }
@@ -979,9 +984,9 @@ static void node_geo_exec(GeoNodeExecParams params)
     attribute_outputs.pair = params.get_output_anonymous_attribute_id_if_needed("Pair");
   }
 
-  geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
+  geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     if (!geometry_set.has_curves()) {
-      geometry_set.remove_geometry_during_modify();
+      // geometry_set.remove_geometry_during_modify();
       return;
     }
     const Curves &src_curves_id = *geometry_set.get_curves();
@@ -1051,7 +1056,7 @@ static void node_geo_exec(GeoNodeExecParams params)
                                        r_data);
         }
         else {
-          geometry_set.remove_geometry_during_modify();
+          // geometry_set.remove_geometry_during_modify();
           return;
         }
         break;
@@ -1062,7 +1067,7 @@ static void node_geo_exec(GeoNodeExecParams params)
       }
     }
 
-    geometry_set.remove_geometry_during_modify();
+    geometry_set.clear();
 
     /* Gather and sort data for attributes. */
     if (r_data.position.size() > 0) {
@@ -1214,14 +1219,18 @@ static void node_rna(StructRNA *srna)
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
-  geo_node_type_base(
-      &ntype, GEO_NODE_CURVE_INTERSECTIONS, "Curve Intersections", NODE_CLASS_GEOMETRY);
+
+  geo_node_type_base(&ntype, "GeometryNodeCurveIntersections", GEO_NODE_CURVE_INTERSECTIONS);
+  ntype.ui_name = "Curve Intersections";
+  ntype.ui_description = "Calculate and ouput curve intersections as a point cloud";
+  ntype.enum_name_legacy = "CURVE_INTERSECTIONS";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.declare = node_declare;
   ntype.initfunc = node_init;
   ntype.updatefunc = node_update;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }
