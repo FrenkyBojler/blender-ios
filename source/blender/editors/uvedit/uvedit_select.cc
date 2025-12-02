@@ -5419,19 +5419,6 @@ struct UVOverlapData {
   float tri[3][2];
 };
 
-struct ChangedInfo {
-  uint has_changed : 1;
-  uint has_overlap : 1;
-};
-
-struct UVOverlapQueryData {
-  int src_index;
-  const UVOverlapData *all_overlap_data;
-  const Vector<Object *> *objects;
-  Array<ChangedInfo> *objects_tag;
-  bool found_overlap;
-};
-
 /**
  * Specialized 2D triangle intersection for detecting UV overlap:
  *
@@ -5478,57 +5465,6 @@ static bool overlap_tri_tri_uv_test(const float t1[3][2],
   return false;
 }
 
-/**
- * Callback for BLI_bvhtree_overlap_ex.
- * Return true to count as a hit (stops search immediately since max_interactions=1).
- * Return false to ignore this hit and continue searching.
- */
-static bool uv_overlap_cb(void *userdata, int index_a, int index_b, int thread)
-{
-  UNUSED_VARS(index_a, thread);
-  UVOverlapQueryData *data = static_cast<UVOverlapQueryData *>(userdata);
-
-  const int src_i = data->src_index;
-  const int dst_i = index_b;
-
-  /* Skip self-intersection. */
-  if (src_i == dst_i) {
-    return false;
-  }
-
-  const UVOverlapData *src = &data->all_overlap_data[src_i];
-  const UVOverlapData *dst = &data->all_overlap_data[dst_i];
-
-  /* Skip triangles from the same face. */
-  if (src->ob_index == dst->ob_index && src->face_index == dst->face_index) {
-    return false;
-  }
-
-  Object *ob_src = (*data->objects)[src->ob_index];
-  Object *ob_dst = (*data->objects)[dst->ob_index];
-
-  BMesh *bm_src = BKE_editmesh_from_object(ob_src)->bm;
-  BMesh *bm_dst = BKE_editmesh_from_object(ob_dst)->bm;
-
-  BMFace *face_src = bm_src->ftable[src->face_index];
-  BMFace *face_dst = bm_dst->ftable[dst->face_index];
-
-  /* Check exact overlap. */
-  const float endpoint_bias = -1e-4f;
-  if (overlap_tri_tri_uv_test(src->tri, dst->tri, endpoint_bias)) {
-    BM_elem_flag_enable(face_src, BM_ELEM_TAG);
-    BM_elem_flag_enable(face_dst, BM_ELEM_TAG);
-
-    (*data->objects_tag)[src->ob_index].has_overlap = true;
-    (*data->objects_tag)[dst->ob_index].has_overlap = true;
-
-    data->found_overlap = true;
-
-    return true;
-  }
-
-  return false;
-}
 
 static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend)
 {
@@ -5540,6 +5476,19 @@ static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend)
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
+
+  struct ChangedInfo {
+    uint has_changed : 1;
+    uint has_overlap : 1;
+  };
+
+  struct UVOverlapQueryData {
+    int src_index;
+    const UVOverlapData *all_overlap_data;
+    const Vector<Object *> *objects;
+    Array<ChangedInfo> *objects_tag;
+    bool found_overlap;
+  };
 
   Array<ChangedInfo> objects_tag(objects.size(), {false, false});
 
@@ -5673,6 +5622,50 @@ static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend)
   query_data.objects = &objects;
   query_data.objects_tag = &objects_tag;
 
+  auto cb = [](void *userdata, int /*index_a*/, int index_b, int /*thread*/) -> bool {
+    UVOverlapQueryData *data = static_cast<UVOverlapQueryData *>(userdata);
+
+    int src_i = data->src_index;
+    int dst_i = index_b;
+
+    /* Skip self-intersection. */
+    if (src_i == dst_i) {
+      return false;
+    }
+
+    const UVOverlapData *src = &data->all_overlap_data[src_i];
+    const UVOverlapData *dst = &data->all_overlap_data[dst_i];
+
+    /* Skip triangles from the same face. */
+    if (src->ob_index == dst->ob_index && src->face_index == dst->face_index) {
+      return false;
+    }
+
+    Object *ob_src = (*data->objects)[src->ob_index];
+    Object *ob_dst = (*data->objects)[dst->ob_index];
+
+    BMesh *bm_src = BKE_editmesh_from_object(ob_src)->bm;
+    BMesh *bm_dst = BKE_editmesh_from_object(ob_dst)->bm;
+
+    BMFace *face_src = bm_src->ftable[src->face_index];
+    BMFace *face_dst = bm_dst->ftable[dst->face_index];
+
+    /* Check exact overlap. */
+    const float endpoint_bias = -1e-4f;
+    if (overlap_tri_tri_uv_test(src->tri, dst->tri, endpoint_bias)) {
+      BM_elem_flag_enable(face_src, BM_ELEM_TAG);
+      BM_elem_flag_enable(face_dst, BM_ELEM_TAG);
+
+      (*data->objects_tag)[src->ob_index].has_overlap = true;
+      (*data->objects_tag)[dst->ob_index].has_overlap = true;
+
+      data->found_overlap = true;
+      return true;
+    }
+
+    return false;
+  };
+
   for (int i = 0; i < uv_tri_len; i++) {
     UVOverlapData *src_data = &overlap_data[i];
     Object *ob = objects[src_data->ob_index];
@@ -5695,7 +5688,7 @@ static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend)
     query_data.src_index = i;
     query_data.found_overlap = false;
 
-    BLI_bvhtree_overlap_ex(probe_tree, uv_tree, nullptr, uv_overlap_cb, &query_data, 1, 0);
+    BLI_bvhtree_overlap_ex(probe_tree, uv_tree, nullptr, cb, &query_data, 1, 0);
   }
 
   for (const int i : blender::IndexRange(objects.size())) {
