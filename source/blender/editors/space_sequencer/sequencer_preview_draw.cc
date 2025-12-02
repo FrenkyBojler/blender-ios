@@ -968,7 +968,9 @@ static void update_cpu_scopes(const SpaceSeq &space_sequencer,
 
 static bool sequencer_draw_get_transform_preview(const SpaceSeq &sseq, const Scene &scene)
 {
-  if ((scene.ed->runtime.flag & SEQ_SHOW_TRANSFORM_PREVIEW) && (sseq.draw_flag & SEQ_DRAW_TRANSFORM_PREVIEW)) {
+  if ((scene.ed->runtime.flag & SEQ_SHOW_TRANSFORM_PREVIEW) &&
+      (sseq.draw_flag & SEQ_DRAW_TRANSFORM_PREVIEW))
+  {
     return true;
   }
 
