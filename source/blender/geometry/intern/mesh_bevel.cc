@@ -498,7 +498,7 @@ class BevelState {
 
   /* The following are indexed by a bevface index, 0..bevfaces_num - 1. */
 
-  /** The Mesh edge associated with the given bevedge. */
+  /** The Mesh face associated with the given bevedge. */
   Span<int> bevface_mesh_faces() const
   {
     return bevface_mesh_faces_;
@@ -3523,6 +3523,61 @@ static void find_over_faces(const float3 &pos,
   }
 }
 
+/** Project the given Mesh face to 2d and return the array of 2d positions of its vertices.
+ * Also return in \a r_axis_mat the transformation matrix that will project any other 3d point
+ * onto the same plane.
+ */
+static Array<float2, 20> project_face_to_2d(const int mesh_face,
+                                            const Mesh &mesh,
+                                            float3x3 &r_axis_mat)
+{
+  const IndexRange face_corners = mesh.faces()[mesh_face];
+  const int face_size = face_corners.size();
+  Array<float2, 20> pos_2d(face_size);
+  const Span<int> corner_verts = mesh.corner_verts();
+  const Span<float3> vert_positions = mesh.vert_positions();
+
+  const float3 face_normal = mesh.face_normals()[mesh_face];
+  axis_dominant_v3_to_m3(r_axis_mat.ptr(), face_normal);
+  for (const int i : face_corners.index_range()) {
+    const int c = face_corners[i];
+    float3 pos_3d = vert_positions[corner_verts[c]];
+    pos_2d[i] = float2(transform_point(r_axis_mat, pos_3d));
+  }
+  return pos_2d;
+}
+
+/** Given a Span of 2d positions of a face, and a Span of corresponding values,
+ * return the interpolation of those values at another 2d point, \a interp_pos.
+ */
+static float2 interp_uv_2d(const Span<float2> &positions,
+                           const Span<float2> values,
+                           const float2 interp_pos)
+{
+  const int face_size = positions.size();
+  BLI_assert(face_size >= 3 && values.size() == face_size);
+  Array<float, 20> bary_weights(face_size);
+  if (face_size == 3) {
+    barycentric_weights_v2(
+        positions[0], positions[1], positions[2], interp_pos, bary_weights.data());
+  }
+  else if (face_size == 4) {
+    barycentric_weights_v2_quad(
+        positions[0], positions[1], positions[2], positions[3], interp_pos, bary_weights.data());
+  }
+  else {
+    interp_weights_poly_v2(bary_weights.data(),
+                           reinterpret_cast<float (*)[2]>(const_cast<float2 *>(positions.data())),
+                           face_size,
+                           interp_pos);
+  }
+  float2 ans(0.0f, 0.0f);
+  for (const int i : IndexRange(face_size)) {
+    ans += bary_weights[i] * values[i];
+  }
+  return ans;
+}
+
 /** For the face with index \a f in the adj pattern for bevvert \a bv, calculate the UV position
  * for each of its corners in the UV map with the given \a uv_map_index, and store them in
  * uv_attributes[uv_map_index] at the corresponding newcorner indices.
@@ -3539,7 +3594,6 @@ static void calculate_adj_face_uvs(const int f,
   const IndexRange newfaces = bs.bevvert_newfaces()[bv];
   const IndexRange newface_corners_range = bs.newface_faces_face()[newfaces[f]];
   const Span<int> fverts = bs.newcorner_verts().slice(newface_corners_range);
-  print_span(fverts, "fverts");
   const int num_fverts = fverts.size();
   SmallIntArray over_face(num_fverts);
   SmallIntArray alt_over_face(num_fverts);
@@ -3569,8 +3623,6 @@ static void calculate_adj_face_uvs(const int f,
 
   const UVMapInfo &uv_info = bs.uv_map_info(uv_map_index);
   const Mesh &mesh = bs.mesh_info.mesh;
-  const Span<float3> mesh_vert_positions = mesh.vert_positions();
-  const Span<int> mesh_corner_verts = mesh.corner_verts();
   const OffsetIndices<int> mesh_faces = mesh.faces();
 
   Array<float2, 20> face_uvs(num_fverts);
@@ -3592,54 +3644,17 @@ static void calculate_adj_face_uvs(const int f,
       continue;
     }
 
-    /* Get face normal for projection. */
-    const float3 face_normal = mesh.face_normals()[over_f];
     float3x3 axis_mat;
-    axis_dominant_v3_to_m3(axis_mat.ptr(), face_normal);
-
-    Array<float2, 20> over_face_vert_pos_2d(num_over_face_corners);
+    Array<float2, 20> over_face_vert_pos_2d = project_face_to_2d(over_f, mesh, axis_mat);
     Array<float2, 20> over_face_corner_uvs(num_over_face_corners);
 
     for (const int j : over_face_corners.index_range()) {
       const int corner_idx = over_face_corners[j];
-      const float3 vert_pos_3d = mesh_vert_positions[mesh_corner_verts[corner_idx]];
-      over_face_vert_pos_2d[j] = float2(transform_point(axis_mat, vert_pos_3d));
       over_face_corner_uvs[j] = uv_info.value(corner_idx);
     }
 
     float2 over_pos_2d = float2(transform_point(axis_mat, over_p));
-
-    if (num_over_face_corners == 3) { /* Triangle. */
-      float bary_weights[3];
-      barycentric_weights_v2(over_face_vert_pos_2d[0],
-                             over_face_vert_pos_2d[1],
-                             over_face_vert_pos_2d[2],
-                             over_pos_2d,
-                             bary_weights);
-      face_uvs[i] = bary_weights[0] * over_face_corner_uvs[0] +
-                    bary_weights[1] * over_face_corner_uvs[1] +
-                    bary_weights[2] * over_face_corner_uvs[2];
-    }
-    else if (num_over_face_corners == 4) { /* Quad. */
-      float bary_weights[4];
-      barycentric_weights_v2_quad(over_face_vert_pos_2d[0],
-                                  over_face_vert_pos_2d[1],
-                                  over_face_vert_pos_2d[2],
-                                  over_face_vert_pos_2d[3],
-                                  over_pos_2d,
-                                  bary_weights);
-      face_uvs[i] = bary_weights[0] * over_face_corner_uvs[0] +
-                    bary_weights[1] * over_face_corner_uvs[1] +
-                    bary_weights[2] * over_face_corner_uvs[2] +
-                    bary_weights[3] * over_face_corner_uvs[3];
-    }
-    else {
-      Array<float, 20> bary_weights(num_over_face_corners);
-      interp_weights_poly_v2(reinterpret_cast<float *>(bary_weights.data()),
-                             reinterpret_cast<float (*)[2]>(over_face_vert_pos_2d.data()),
-                             num_over_face_corners,
-                             reinterpret_cast<float *>(&face_uvs[i]));
-    }
+    face_uvs[i] = interp_uv_2d(over_face_vert_pos_2d, over_face_corner_uvs, over_pos_2d);
   }
 
   for (const int i : fverts.index_range()) {
@@ -3694,10 +3709,43 @@ static void calculate_face_mesh_uvs(const int bevface,
                                     Vector<Array<float2>> &uv_attributes,
                                     const BevelState &bs)
 {
-  // TODO: Implement me.
-  fmt::println("calculate_face_mesh_face_uvs not implemented, bevface={}, uv_map_index={}",
-               bevface,
-               uv_map_index);
+  fmt::println("calculate_face_mesh_face_uvs, bevface={}, uv_map_index={}", bevface, uv_map_index);
+  const UVMapInfo &uv_info = bs.uv_map_info(uv_map_index);
+  const Mesh &mesh = bs.mesh_info.mesh;
+  const Span<float3> mesh_vert_positions = mesh.vert_positions();
+  const OffsetIndices<int> mesh_faces = mesh.faces();
+  const int mesh_face = bs.bevface_mesh_faces()[bevface];
+  const int new_face = bs.bevface_newfaces()[bevface][0];
+  fmt::println("mesh_face = {}, new_face = {}", mesh_face, new_face);
+  const IndexRange orig_face_corners = mesh_faces[mesh_face];
+  const int num_orig_face_corners = orig_face_corners.size();
+  const IndexRange newface_corners = bs.newface_faces_face()[new_face];
+  const Span<float3> new_positions = bs.newvert_positions();
+
+  /* Values needed for interpolation. */
+  float3x3 axis_mat;
+  Array<float2, 20> orig_face_vert_pos_2d = project_face_to_2d(mesh_face, mesh, axis_mat);
+
+  Array<float2, 20> orig_face_corner_uvs(num_orig_face_corners);
+  for (const int i : orig_face_corners.index_range()) {
+    orig_face_corner_uvs[i] = uv_info.value(orig_face_corners[i]);
+  }
+
+  for (const int c : newface_corners) {
+    const int v = bs.newcorner_verts()[c];
+    fmt::println("process corner c={}, v={}", c, v);
+    /* In the newfaces, corner vertices are encoded where newverts are as is,
+     * but original verts are encoded as -(meshv + 1). */
+    const float3 pos = (v < 0) ? mesh_vert_positions[-(v + 1)] : new_positions[v];
+    float2 pos_2d = float2(transform_point(axis_mat, pos));
+    fmt::println(
+        "   pos=({},{},{}); pos_2d=({},{})", pos[0], pos[1], pos[2], pos_2d[0], pos_2d[1]);
+    /* TOOD: use original values of UVs for corners that are original verts. */
+    uv_attributes[uv_map_index][c] = interp_uv_2d(
+        orig_face_vert_pos_2d, orig_face_corner_uvs, pos_2d);
+    fmt::println(
+        "   uv = ({},{})", uv_attributes[uv_map_index][c][0], uv_attributes[uv_map_index][c][1]);
+  }
 }
 
 }  // end namespace uv
