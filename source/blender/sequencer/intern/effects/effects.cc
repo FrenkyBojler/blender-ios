@@ -22,7 +22,6 @@
 #include "RNA_prototypes.hh"
 
 #include "SEQ_render.hh"
-#include "SEQ_time.hh"
 
 #include "effects.hh"
 #include "render.hh"

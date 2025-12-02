@@ -30,7 +30,6 @@
 #include "UI_view2d.hh"
 
 #include "SEQ_retiming.hh"
-#include "SEQ_time.hh"
 
 #include "sequencer_intern.hh"
 #include "sequencer_quads_batch.hh"

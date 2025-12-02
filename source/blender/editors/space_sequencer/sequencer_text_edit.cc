@@ -21,7 +21,6 @@
 #include "SEQ_effects.hh"
 #include "SEQ_relations.hh"
 #include "SEQ_select.hh"
-#include "SEQ_time.hh"
 #include "SEQ_transform.hh"
 
 #include "WM_api.hh"

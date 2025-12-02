@@ -28,7 +28,6 @@
 #include "SEQ_relations.hh"
 #include "SEQ_sequencer.hh"
 #include "SEQ_thumbnail_cache.hh"
-#include "SEQ_time.hh"
 #include "SEQ_utils.hh"
 
 #include "cache/final_image_cache.hh"

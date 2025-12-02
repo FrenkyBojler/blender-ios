@@ -11,7 +11,6 @@
 #include "SEQ_channels.hh"
 #include "SEQ_render.hh"
 #include "SEQ_sequencer.hh"
-#include "SEQ_time.hh"
 #include "SEQ_utils.hh"
 
 #include "effects.hh"

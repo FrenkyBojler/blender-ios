@@ -27,7 +27,6 @@
 
 #include "ED_sequencer.hh"
 
-#include "SEQ_time.hh"
 
 #include "MEM_guardedalloc.h"
 

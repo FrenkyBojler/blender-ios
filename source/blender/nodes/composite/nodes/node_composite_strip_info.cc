@@ -17,8 +17,6 @@
 
 #include "NOD_node_extra_info.hh"
 
-#include "SEQ_time.hh"
-
 #include "UI_resources.hh"
 
 #include "node_composite_util.hh"

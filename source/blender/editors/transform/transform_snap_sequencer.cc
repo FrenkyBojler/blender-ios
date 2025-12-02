@@ -35,7 +35,6 @@
 #include "SEQ_render.hh"
 #include "SEQ_retiming.hh"
 #include "SEQ_sequencer.hh"
-#include "SEQ_time.hh"
 #include "SEQ_transform.hh"
 
 #include "transform.hh"
