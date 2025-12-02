@@ -212,13 +212,8 @@ MaterialPass MaterialModule::material_pass_get(Object *ob,
   ::Material *default_mat = is_volume ? default_volume : default_surface;
 
   MaterialPass matpass = MaterialPass();
-  matpass.gpumat = inst_.shaders.material_shader_get(blender_mat,
-                                                     ntree,
-                                                     pipeline_type,
-                                                     geometry_type,
-                                                     use_deferred_compilation,
-                                                     default_mat,
-                                                     inst_.use_hq_normals);
+  matpass.gpumat = inst_.shaders.material_shader_get(
+      blender_mat, ntree, pipeline_type, geometry_type, use_deferred_compilation, default_mat);
 
   queue_texture_loading(matpass.gpumat);
 
@@ -239,23 +234,13 @@ MaterialPass MaterialModule::material_pass_get(Object *ob,
     }
     case GPU_MAT_QUEUED:
       queued_shaders_count++;
-      matpass.gpumat = inst_.shaders.material_shader_get(default_mat,
-                                                         default_mat->nodetree,
-                                                         pipeline_type,
-                                                         geometry_type,
-                                                         false,
-                                                         nullptr,
-                                                         inst_.use_hq_normals);
+      matpass.gpumat = inst_.shaders.material_shader_get(
+          default_mat, default_mat->nodetree, pipeline_type, geometry_type, false, nullptr);
       break;
     case GPU_MAT_FAILED:
     default:
-      matpass.gpumat = inst_.shaders.material_shader_get(error_mat_,
-                                                         error_mat_->nodetree,
-                                                         pipeline_type,
-                                                         geometry_type,
-                                                         false,
-                                                         nullptr,
-                                                         inst_.use_hq_normals);
+      matpass.gpumat = inst_.shaders.material_shader_get(
+          error_mat_, error_mat_->nodetree, pipeline_type, geometry_type, false, nullptr);
       break;
   }
   /* Returned material should be ready to be drawn. */
@@ -529,7 +514,7 @@ ShaderGroups MaterialModule::default_materials_load(bool block_until_ready)
   bool shaders_are_ready = true;
   auto request_shader = [&](::Material *mat, eMaterialPipeline pipeline, eMaterialGeometry geom) {
     GPUMaterial *gpu_mat = inst_.shaders.material_shader_get(
-        mat, mat->nodetree, pipeline, geom, !block_until_ready, nullptr, inst_.use_hq_normals);
+        mat, mat->nodetree, pipeline, geom, !block_until_ready, nullptr);
     shaders_are_ready = shaders_are_ready && GPU_material_status(gpu_mat) == GPU_MAT_SUCCESS;
   };
 

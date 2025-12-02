@@ -195,8 +195,6 @@ void Instance::init(const int2 &output_res,
   else {
     is_image_render = true;
   }
-  use_hq_normals = (draw_ctx->scene->r.perf_flag & SCE_PERF_HQ_NORMALS) ||
-                   GPU_use_hq_normals_workaround();
 
   sampling.init(scene);
   camera.init();

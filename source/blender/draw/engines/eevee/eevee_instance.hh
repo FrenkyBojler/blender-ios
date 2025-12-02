@@ -165,8 +165,6 @@ class Instance : public DrawEngine {
   bool is_viewport_compositor_enabled = false;
   /** True if overlays need to be displayed (only for viewport). */
   bool draw_overlays = false;
-  /** True when HQ normals are used.  */
-  bool use_hq_normals = false;
 
   ShaderGroups loaded_shaders = ShaderGroups(0);
   ShaderGroups needed_shaders = ShaderGroups(0);
