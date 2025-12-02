@@ -1939,7 +1939,7 @@ static bool area_move_init(bContext *C, wmOperator *op)
   return true;
 }
 
-static bool area_has_scrub_snap(ScrArea *area)
+static bool area_has_scrubbing_snap(ScrArea *area)
 {
   if (area == nullptr) {
     return false;
@@ -2007,10 +2007,10 @@ static int area_snap_calc_location(sAreaMoveData *md, const int delta)
       /* Minimum. */
       snaps.append(m_min);
 
-      /* Add minimal snaps for editors below with time scrub areas. */
       if (md->dir_axis == SCREEN_AXIS_H) {
+        /* Minimal snaps for editors below the cursor with time scrub areas. */
         int snap_pos = m_min;
-        if (area_has_scrub_snap(md->area2)) {
+        if (area_has_scrubbing_snap(md->area2)) {
           snap_pos += UI_TIME_SCRUB_MARGIN_Y;
           snaps.append(snap_pos);
         }
@@ -2018,33 +2018,32 @@ static int area_snap_calc_location(sAreaMoveData *md, const int delta)
           snap_pos += ED_area_footersize();
           snaps.append(snap_pos);
         }
-      }
 
-      /* Add maximal snaps for editors above with time scrub areas. */
-      if (md->dir_axis == SCREEN_AXIS_H) {
-        int snap_pos = md->origval + md->bigger;
+        /* Maximal snaps for editors above the cursor with time scrub areas. */
+        snap_pos = md->origval + md->bigger;
         if (area_has_playback_snap(md->area2)) {
           snap_pos -= ED_area_footersize();
           snaps.append(snap_pos);
         }
-        if (area_has_scrub_snap(md->area1)) {
+        if (area_has_scrubbing_snap(md->area1)) {
           snap_pos -= UI_TIME_SCRUB_MARGIN_Y;
           snaps.append(snap_pos);
         }
+
+        if (md->area2 && md->area2->spacetype == SPACE_CONSOLE) {
+          /* Minimal snap for Console below. */
+          SpaceConsole *console = static_cast<SpaceConsole *>(md->area2->spacedata.first);
+          snaps.append(m_min + int(float(console->lheight) * UI_SCALE_FAC * 1.5f));
+        }
+        if (md->area1 && md->area1->spacetype == SPACE_CONSOLE) {
+          /* Maximal snap for Console above. */
+          SpaceConsole *console = static_cast<SpaceConsole *>(md->area1->spacedata.first);
+          snaps.append(md->origval + md->bigger -
+                       int(float(console->lheight) * UI_SCALE_FAC * 1.5f));
+        }
       }
 
-      /* Minimal snap for Console below. */
-      if (md->dir_axis == SCREEN_AXIS_H && md->area2 && md->area2->spacetype == SPACE_CONSOLE) {
-        SpaceConsole *console = static_cast<SpaceConsole *>(md->area2->spacedata.first);
-        snaps.append(m_min + int(float(console->lheight) * UI_SCALE_FAC * 1.5f));
-      }
-      /* Maximal snap for Console above. */
-      if (md->dir_axis == SCREEN_AXIS_H && md->area1 && md->area1->spacetype == SPACE_CONSOLE) {
-        SpaceConsole *console = static_cast<SpaceConsole *>(md->area1->spacedata.first);
-        snaps.append(md->origval + md->bigger -
-                     int(float(console->lheight) * UI_SCALE_FAC * 1.5f));
-      }
-
+      /* Maximum. */
       snaps.append(md->origval + md->bigger);
 
       for (int i = 0; i < snaps.size(); i++) {
