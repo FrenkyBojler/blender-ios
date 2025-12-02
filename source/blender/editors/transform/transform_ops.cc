@@ -197,12 +197,9 @@ static wmOperatorStatus select_orientation_invoke(bContext *C,
                                                   wmOperator * /*op*/,
                                                   const wmEvent * /*event*/)
 {
-  uiPopupMenu *pup;
-  uiLayout *layout;
-
-  pup = UI_popup_menu_begin(C, IFACE_("Orientation"), ICON_NONE);
-  layout = UI_popup_menu_layout(pup);
-  layout->op_enum("TRANSFORM_OT_select_orientation", "orientation");
+  uiPopupMenu *pup = UI_popup_menu_begin(C, IFACE_("Orientation"), ICON_NONE);
+  blender::ui::Layout &layout = *UI_popup_menu_layout(pup);
+  layout.op_enum("TRANSFORM_OT_select_orientation", "orientation");
   UI_popup_menu_end(C, pup);
 
   return OPERATOR_INTERFACE;
@@ -1101,7 +1098,8 @@ static void TRANSFORM_OT_shear(wmOperatorType *ot)
   ot->poll = transform_shear_poll;
   ot->poll_property = transform_poll_property;
 
-  RNA_def_float(ot->srna, "value", 0, -FLT_MAX, FLT_MAX, "Offset", "", -FLT_MAX, FLT_MAX);
+  RNA_def_float_rotation(
+      ot->srna, "angle", 0, nullptr, -FLT_MAX, FLT_MAX, "Angle", "", -M_PI * 2, M_PI * 2);
 
   WM_operatortype_props_advanced_begin(ot);
 

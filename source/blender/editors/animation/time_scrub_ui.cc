@@ -67,15 +67,36 @@ static void draw_background(const rcti *rect)
 }
 
 static void get_current_time_str(
-    const Scene *scene, bool display_seconds, int frame, char *r_str, uint str_maxncpy)
+    const Scene *scene, bool display_seconds, const float frame, char *r_str, uint str_maxncpy)
 {
   if (display_seconds) {
-    BLI_timecode_string_from_time(
-        r_str, str_maxncpy, -1, FRA2TIME(frame), scene->frames_per_second(), U.timecode_style);
+    BLI_timecode_string_from_time(r_str,
+                                  str_maxncpy,
+                                  -1,
+                                  FRA2TIME(int(frame)),
+                                  scene->frames_per_second(),
+                                  U.timecode_style);
+  }
+  else if (scene->r.flag & SCER_SHOW_SUBFRAME) {
+    BLI_snprintf_utf8(r_str, str_maxncpy, "%.02f", frame);
   }
   else {
-    BLI_snprintf_utf8(r_str, str_maxncpy, "%d", frame);
+    BLI_snprintf_utf8(r_str, str_maxncpy, "%d", int(frame));
   }
+}
+
+static void draw_frame_line(const float subframe_x,
+                            const float region_height,
+                            const float *fg_color,
+                            const float *bg_color)
+{
+  const float line_width = LINE_WIDTH;
+  rctf line_rect{};
+  line_rect.xmin = floor(subframe_x - line_width / 2);
+  line_rect.xmax = ceil(subframe_x + line_width / 2);
+  line_rect.ymin = -UI_SCALE_FAC;
+  line_rect.ymax = ceil(region_height);
+  UI_draw_roundbox_4fv_ex(&line_rect, fg_color, nullptr, 1.0f, bg_color, UI_SCALE_FAC, 0.0f);
 }
 
 static void draw_frame_line(const float subframe_x,
@@ -101,9 +122,13 @@ static void draw_current_frame(const Scene *scene,
                                const bool draw_line)
 {
   const uiFontStyle *fstyle = UI_FSTYLE_WIDGET;
-  const float subframe_x = UI_view2d_view_to_region_x(v2d, BKE_scene_ctime_get(scene));
-  char frame_str[64];
-  get_current_time_str(scene, display_seconds, current_frame, frame_str, sizeof(frame_str));
+  const float current_frame = BKE_scene_ctime_get(scene);
+  const float subframe_x = UI_view2d_view_to_region_x(v2d, current_frame);
+
+  constexpr int max_frame_string_len = 64;
+  char frame_str[max_frame_string_len];
+  get_current_time_str(scene, display_seconds, current_frame, frame_str, max_frame_string_len);
+
   const float text_width = UI_fontstyle_string_width(fstyle, frame_str);
   const float text_padding = 4.0f * UI_SCALE_FAC;
 
