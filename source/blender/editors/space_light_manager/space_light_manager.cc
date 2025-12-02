@@ -1282,7 +1282,7 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
                     const short w = short(columns[col].width - indent);
                     uiDefButR_prop(block,
                                    ButType::Text,
-                                   std::nullopt,
+                                   "",
                                    x,
                                    y - row_height,
                                    w,
@@ -1675,10 +1675,53 @@ static wmOperatorStatus light_manager_drop_light_invoke(bContext *C, wmOperator 
     return OPERATOR_CANCELLED;
   }
   
+  /* Assign lights to the group using the object's light group property.
+   * - The dragged light is ALWAYS assigned.
+   * - Additionally, all selected lamps are assigned too.
+   * This way, dragging one light with others selected moves the whole selection,
+   * but we never ignore the dragged light itself. */
+ 
+  /* Distinguish between multi-ID drags from the Outliner and single-ID drags from the
+   * Light Manager. Outliner drags may populate wmDrag::ids with multiple objects, while
+   * the Light Manager grip only creates a single-ID drag. Use the drag list to decide
+   * whether to move multiple lamps or just the dragged one. */
 
+  bool handled_multi_drag = false;
 
-  /* Assign the light to the group using the object's light group property. */
-  set_light_group(ob, group->name);
+  if (event->custom == EVT_DATA_DRAGDROP && event->customdata != nullptr) {
+    ListBase *lb = static_cast<ListBase *>(event->customdata);
+    wmDrag *drag = static_cast<wmDrag *>(lb->first);
+
+    if (drag && drag->type == WM_DRAG_ID) {
+      wmDragID *first_id = static_cast<wmDragID *>(drag->ids.first);
+      wmDragID *second_id = first_id ? first_id->next : nullptr;
+
+      /* When there is more than one ID in the drag, assume this comes from the Outliner,
+       * which deliberately packs the current selection into the drag. Move all lamp IDs. */
+      if (second_id != nullptr) {
+        LISTBASE_FOREACH (wmDragID *, drag_id, &drag->ids) {
+          if (!drag_id->id || GS(drag_id->id->name) != ID_OB) {
+            continue;
+          }
+
+          Object *drag_ob = reinterpret_cast<Object *>(drag_id->id);
+          if (drag_ob->type != OB_LAMP) {
+            continue;
+          }
+
+          set_light_group(drag_ob, group->name);
+        }
+
+        handled_multi_drag = true;
+      }
+    }
+  }
+
+  /* Single-ID drag: Light Manager grip, or Outliner with only one object in the drag.
+   * In this case, move only the dragged light, regardless of Outliner selection state. */
+  if (!handled_multi_drag) {
+    set_light_group(ob, group->name);
+  }
 
   WM_event_add_notifier(C, NC_SPACE | ND_SPACE_LIGHT_MANAGER, nullptr);
   
