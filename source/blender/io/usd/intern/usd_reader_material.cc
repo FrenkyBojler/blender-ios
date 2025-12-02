@@ -472,7 +472,7 @@ Material *USDMaterialReader::create_blender_material(Main &bmain,
   /* Create the material. */
   Material *mtl = BKE_material_add(&bmain, mtl_name.c_str());
   mtl->nodetree = blender::bke::node_tree_add_tree_embedded(
-      &bmain_, &mtl->id, "USD Material Node Tree", "ShaderNodeTree");
+      &bmain, &mtl->id, "USD Material Node Tree", "ShaderNodeTree");
   id_us_min(&mtl->id);
 
   return mtl;
