@@ -474,6 +474,27 @@ void *SocketValueVariant::allocate_single(const eNodeSocketDatatype socket_type)
   }
 }
 
+static bool socket_value_list_owns_direct_data(const nodes::List &list)
+{
+  bool owns_direct_data = true;
+  list.foreach<SocketValueVariant>([&](const SocketValueVariant &value) {
+    if (!value.owns_direct_data()) {
+      owns_direct_data = false;
+    }
+  });
+  return true;
+}
+
+static void socket_value_list_ensure_owns_direct_data(nodes::ListPtr &list_ptr)
+{
+  if (!list_ptr) {
+    return;
+  }
+  nodes::List &list = nodes::List::ensure_mutable_inplace(list_ptr);
+  list.foreach_for_write<SocketValueVariant>(
+      [&](SocketValueVariant &value) { value.ensure_owns_direct_data(); });
+}
+
 void SocketValueVariant::ensure_owns_direct_data()
 {
   if (this->owns_direct_data()) {
@@ -507,8 +528,9 @@ void SocketValueVariant::ensure_owns_direct_data()
           bundle.ensure_owns_direct_data();
         }
       }
-      else {
-        // TODO
+      else if (this->is_list()) {
+        nodes::ListPtr &list = value_.get<nodes::ListPtr>();
+        socket_value_list_ensure_owns_direct_data(list);
       }
       break;
     }
@@ -517,8 +539,9 @@ void SocketValueVariant::ensure_owns_direct_data()
         GeometrySet &geometry = value_.get<GeometrySet>();
         geometry.ensure_owns_direct_data();
       }
-      else {
-        // TODO
+      else if (this->is_list()) {
+        nodes::ListPtr &list = value_.get<nodes::ListPtr>();
+        socket_value_list_ensure_owns_direct_data(list);
       }
       break;
     }
@@ -555,8 +578,10 @@ bool SocketValueVariant::owns_direct_data() const
           return bundle_ptr->owns_direct_data();
         }
       }
-      else {
-        // TODO
+      else if (this->is_list()) {
+        if (const nodes::ListPtr list = value_.get<nodes::ListPtr>()) {
+          return socket_value_list_owns_direct_data(*list);
+        }
       }
       return true;
     }
@@ -565,7 +590,11 @@ bool SocketValueVariant::owns_direct_data() const
         const GeometrySet &geometry = value_.get<GeometrySet>();
         return geometry.owns_direct_data();
       }
-      // TODO
+      if (this->is_list()) {
+        if (const nodes::ListPtr list = value_.get<nodes::ListPtr>()) {
+          return socket_value_list_owns_direct_data(*list);
+        }
+      }
       return true;
     }
     default:
