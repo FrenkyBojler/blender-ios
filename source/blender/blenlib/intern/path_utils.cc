@@ -1001,8 +1001,6 @@ bool BLI_path_frame_range(char *path, size_t path_maxncpy, int sta, int end, int
 
 bool BLI_path_frame_get(const char *path, int *r_frame, int *r_digits_len)
 {
-  *r_digits_len = 0;
-
   if (*path == '\0') {
     return false;
   }
