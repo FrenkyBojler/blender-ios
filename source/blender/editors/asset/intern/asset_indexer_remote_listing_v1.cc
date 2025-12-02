@@ -38,7 +38,9 @@ struct AssetLibraryListingPageV1 {
 };
 
 static std::optional<RemoteListingAssetEntry> listing_entry_from_asset_dictionary(
-    const DictionaryValue &dictionary, const char **r_failure_reason)
+    const DictionaryValue &dictionary,
+    const char **r_failure_reason,
+    const Map<std::string, RemoteListingFileEntry> &file_path_to_entry_map)
 {
   RemoteListingAssetEntry listing_entry{};
 
@@ -74,7 +76,18 @@ static std::optional<RemoteListingAssetEntry> listing_entry_from_asset_dictionar
     return {};
   }
 
-  /* TODO: look up the file URL and hash from the <files> section of the JSON. */
+  /* Look up the file URL and hash from the <files> section of the JSON. */
+  if (const RemoteListingFileEntry *file_entry = file_path_to_entry_map.lookup_ptr(
+          listing_entry.file_path))
+  {
+    listing_entry.download_url.url = file_entry->download_url.url;
+    listing_entry.download_url.hash = file_entry->download_url.hash;
+  }
+  else {
+    /* TODO: include the path that's not found. */
+    *r_failure_reason = "asset references unknown file";
+    return {};
+  }
 
   /* 'thumbnail': URL and hash of the preview image. */
   listing_entry.thumbnail = ed::asset::index::parse_url_with_hash_dict(
@@ -92,7 +105,7 @@ static std::optional<RemoteListingAssetEntry> listing_entry_from_asset_dictionar
 }
 
 static std::optional<RemoteListingFileEntry> listing_file_from_asset_dictionary(
-    const DictionaryValue &dictionary, const char **r_failure_reason)
+    const DictionaryValue &dictionary)
 {
   RemoteListingFileEntry file_entry{};
 
@@ -101,7 +114,9 @@ static std::optional<RemoteListingFileEntry> listing_file_from_asset_dictionary(
     file_entry.local_path = *path;
   }
   else {
-    *r_failure_reason = "found a file without 'path' field";
+    printf(
+        "Error reading asset listing file entry, skipping. Reason: found a file without 'path' "
+        "field\n");
     return {};
   }
 
@@ -110,7 +125,10 @@ static std::optional<RemoteListingFileEntry> listing_file_from_asset_dictionary(
     file_entry.download_url.hash = *hash;
   }
   else {
-    *r_failure_reason = "found a file without 'hash' field";
+    printf(
+        "Error reading asset listing file entry, skipping. Reason: found a file (%s) without "
+        "'hash' field\n",
+        file_entry.local_path.c_str());
     return {};
   }
 
@@ -142,22 +160,25 @@ static ReadingResult listing_entries_from_root(const DictionaryValue &value,
     printf("Error reading asset listing, page file has no files section.\n");
     return ReadingResult::Failure;
   }
-  Map<StringRefNull, FileIndexerEntry> path_to_file_info;
+  Map<std::string, RemoteListingFileEntry> path_to_file_info;
   for (const std::shared_ptr<Value> &file_element : files->elements()) {
-    const char *failure_reason = "";
-    std::optional<RemoteListingFileEntry> entry = listing_file_from_asset_dictionary(
-        *file_element->as_dictionary_value(), &failure_reason);
-    if (!entry) {
-      printf("Error reading asset listing file entry, skipping. Reason: %s\n", failure_reason);
+    std::optional<RemoteListingFileEntry> file_entry = listing_file_from_asset_dictionary(
+        *file_element->as_dictionary_value());
+    if (!file_entry) {
       continue;
     }
+    if (file_entry->local_path.empty()) {
+      continue;
+    }
+    std::string local_path = file_entry->local_path; /* Make a copy before std::moving. */
+    path_to_file_info.add_overwrite(local_path, std::move(*file_entry));
   }
 
   /* Convert the assets into RemoteListingAssetEntry objects. */
   for (const std::shared_ptr<Value> &asset_element : assets->elements()) {
     const char *failure_reason = "";
     std::optional<RemoteListingAssetEntry> entry = listing_entry_from_asset_dictionary(
-        *asset_element->as_dictionary_value(), &failure_reason);
+        *asset_element->as_dictionary_value(), &failure_reason, path_to_file_info);
     if (!entry) {
       /* Don't add this entry on failure to read it. */
       printf("Error reading asset listing entry, skipping. Reason: %s\n", failure_reason);

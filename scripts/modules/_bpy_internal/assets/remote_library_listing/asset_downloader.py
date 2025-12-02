@@ -32,7 +32,12 @@ _asset_downloaders: dict[str, AssetDownloader] = {}
 _preview_downloaders: dict[str, AssetDownloader] = {}
 
 
-def download_asset(asset_library_url: str, asset_library_local_path: Path, asset_url: str, save_to: Path) -> None:
+def download_asset(
+        asset_library_url: str,
+        asset_library_local_path: Path,
+        asset_url: str,
+        asset_hash: str,
+        save_to: Path) -> None:
     """Download an asset to a file on disk.
 
     :param asset_library_url: Root URL of the remote asset library. Used as an
@@ -44,6 +49,7 @@ def download_asset(asset_library_url: str, asset_library_local_path: Path, asset
         cache for this asset library (for conditional downloads).
 
     :param asset_url: the URL to download. Can be absolute or relative.
+    :param asset_hash: the hash of the asset file, will be appended to the URL.
 
     :param save_to: the path on disk where to download to. While the download is
         pending, ".part" will be appended to the filename. When the download
@@ -63,7 +69,9 @@ def download_asset(asset_library_url: str, asset_library_local_path: Path, asset
         downloader.start()
         _asset_downloaders[asset_library_url] = downloader
 
-    downloader.download_asset(asset_url, save_to)
+    # Include the hash in the URL, and download the asset.
+    download_url = hashing.url((asset_url, asset_hash))
+    downloader.download_asset(download_url, save_to)
 
 
 def download_preview(
@@ -119,7 +127,7 @@ def download_preview(
         downloader.start()
         _preview_downloaders[asset_library_url] = downloader
 
-    # Include the hash in the URL, and download the asset.
+    # Include the hash in the URL, and download the preview.
     download_url = hashing.url((preview_url, preview_hash))
     downloader.download_asset(download_url, dst_filepath)
 

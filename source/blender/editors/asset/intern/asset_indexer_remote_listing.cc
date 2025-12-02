@@ -39,6 +39,7 @@ RemoteListingAssetEntry::RemoteListingAssetEntry(RemoteListingAssetEntry &&other
   this->idcode = other.idcode;
 
   this->file_path = std::move(other.file_path);
+  this->download_url = std::move(other.download_url);
   this->thumbnail = std::move(other.thumbnail);
 }
 
