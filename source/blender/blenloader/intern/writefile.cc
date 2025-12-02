@@ -105,6 +105,7 @@
 #include "BLI_set.hh"
 #include "BLI_string.h"
 #include "BLI_threads.h"
+#include "BLI_time.h"
 
 #include "MEM_guardedalloc.h" /* MEM_freeN */
 
@@ -161,6 +162,7 @@
 #define ZSTD_COMPRESSION_LEVEL 3
 
 static CLG_LogRef LOG = {"blend.writefile"};
+static CLG_LogRef LOG_UNDO = {"undo"};
 
 /** Use if we want to store how many bytes have been written to the file. */
 // #define USE_WRITE_DATA_LEN
@@ -506,6 +508,11 @@ struct WriteData {
    * Will be nullptr for UNDO.
    */
   WriteWrap *ww;
+
+  /**
+   * Timestamp info defined when creating the new WriteData. Used for performance logging.
+   */
+  double timestamp_init;
 };
 
 struct BlendWriter {
@@ -515,6 +522,8 @@ struct BlendWriter {
 static WriteData *writedata_new(WriteWrap *ww)
 {
   WriteData *wd = MEM_new<WriteData>(__func__);
+
+  wd->timestamp_init = BLI_time_now_seconds();
 
   wd->sdna = DNA_sdna_current_get();
   wd->stable_address_ids.sdna_pointers = std::make_unique<blender::dna::pointers::PointersInDNA>(
@@ -677,6 +686,13 @@ static bool mywrite_end(WriteData *wd)
 
   if (wd->use_memfile) {
     BLO_memfile_write_finalize(&wd->mem);
+    CLOG_INFO(&LOG_UNDO,
+              "Memfile undo step written in %.3f seconds",
+              BLI_time_now_seconds() - wd->timestamp_init);
+  }
+  else {
+    CLOG_INFO(
+        &LOG, "lendfile written in %.3f seconds", BLI_time_now_seconds() - wd->timestamp_init);
   }
 
   const bool err = wd->validation_data.critical_error;
@@ -692,8 +708,8 @@ static uint64_t get_stable_pointer_hint_for_id(const ID &id, const bool is_undo)
    * memory (memfile).
    *
    * For the blendfile on disk, the ID name is used, together with its library if linked, as this
-   * is effectively the 'unique identifer' of IDs in blendfiles and accross linking, so if these
-   * change, it's also fine to get a different 'stable pointer'.
+   * is effectively the 'unique identifier' of IDs in blend-files and across linking,
+   * so if these change, it's also fine to get a different 'stable pointer'.
    *
    * For the undo memfile however, things are different: It is possible that a same ID name is
    * reused for two different IDs in two different consecutive undo steps (see #149899). Getting
@@ -978,8 +994,8 @@ static void writestruct_at_address_nr(WriteData *wd,
       for (const blender::dna::pointers::PointerInfo &pointer_info : struct_info.pointers) {
         const int offset = i * struct_info.size_in_bytes + pointer_info.offset;
         const void **p_ptr = reinterpret_cast<const void **>(POINTER_OFFSET(buffer, offset));
-        const void *address_id = get_address_id(*wd, *p_ptr);
-        *p_ptr = address_id;
+        const void *p_ptr_address_id = get_address_id(*wd, *p_ptr);
+        *p_ptr = p_ptr_address_id;
       }
     }
   }
@@ -1356,6 +1372,7 @@ static void write_libraries(WriteData *wd, Main *bmain)
     FOREACH_MAIN_ID_END;
   }
 
+  blender::Set<Library *> written_libraries;
   LISTBASE_FOREACH (Library *, library_ptr, &bmain->libraries) {
     Library &library = *library_ptr;
     const blender::Span<ID *> ids = linked_ids_by_library.lookup(&library);
@@ -1408,7 +1425,38 @@ static void write_libraries(WriteData *wd, Main *bmain)
       continue;
     }
 
+    /* Since code below checking that archive libraries' parents have already been written, may
+     * forcefully write that parent library in some cases, also double-check here that current
+     * library has not yet been written.
+     *
+     * Note: In theory this should never be the case, as a parent library is always expected to be
+     * written before its archives. */
+    if (written_libraries.contains(&library)) {
+      CLOG_ERROR(
+          &LOG, "Attempt to re-write already written library '%s', skipping", library.id.name);
+      continue;
+    }
+
+    if (library.flag & LIBRARY_FLAG_IS_ARCHIVE) {
+      if (!library.archive_parent_library) {
+        CLOG_ERROR(&LOG, "Written archive library '%s' has no parent library", library.id.name);
+      }
+      if (!written_libraries.contains(library.archive_parent_library)) {
+        CLOG_ERROR(
+            &LOG,
+            "Written archive library '%s', while its parent library '%s' has not been written",
+            library.id.name,
+            library.archive_parent_library->id.name);
+
+        /* Only write the parent library itself, if it was not written so far, none of its IDs was
+         * to be written either. */
+        write_id(wd, &library.archive_parent_library->id);
+        written_libraries.add(library.archive_parent_library);
+      }
+    }
+
     write_id(wd, &library.id);
+    written_libraries.add(&library);
 
     /* Write placeholders for linked data-blocks that are used, and real IDs for the packed linked
      * ones. */
