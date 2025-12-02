@@ -442,6 +442,9 @@ const uchar *get_color_ptr(bTheme *btheme, int spacetype, int colorid)
         case TH_FACE_RETOPOLOGY:
           cp = ts->face_retopology;
           break;
+        case TH_FACE_SETS_DEFAULT:
+          cp = ts->face_sets_default;
+          break;
         case TH_FACE_BACK:
           cp = ts->face_back;
           break;

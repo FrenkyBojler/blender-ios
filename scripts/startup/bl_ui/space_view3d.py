@@ -7349,6 +7349,12 @@ class VIEW3D_PT_overlay_edit_mesh_shading(Panel):
         sub.active = overlay.show_retopology
         sub.prop(overlay, "retopology_offset", text="Retopology")
 
+        row = col.row(align=True)
+        row.prop(overlay, "show_face_sets", text="")
+        sub = row.row()
+        sub.active = overlay.show_face_sets
+        sub.prop(overlay, "face_sets_opacity", text="Face Sets")
+
         col.prop(overlay, "show_weight", text="Vertex Group Weights")
         if overlay.show_weight:
             row = col.split(factor=0.33)

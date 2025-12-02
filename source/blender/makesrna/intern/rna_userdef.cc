@@ -233,6 +233,7 @@ static const EnumPropertyItem rna_enum_preferences_asset_import_method_items[] =
 #  include "BKE_idprop.hh"
 #  include "BKE_image.hh"
 #  include "BKE_main.hh"
+#  include "BKE_mesh.hh"
 #  include "BKE_mesh_runtime.hh"
 #  include "BKE_object.hh"
 #  include "BKE_paint.hh"
@@ -3034,6 +3035,11 @@ static void rna_def_userdef_theme_space_view3d(BlenderRNA *brna)
   prop = RNA_def_property(srna, "face_retopology", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 4);
   RNA_def_property_ui_text(prop, "Face Retopology", "");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
+  prop = RNA_def_property(srna, "face_sets_default", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_array(prop, 4);
+  RNA_def_property_ui_text(prop, "Face Sets Default", "Default color for face sets");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   /* Curve Object specific */

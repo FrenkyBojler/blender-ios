@@ -391,6 +391,19 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(common.anim.scene_strip_range);
   }
 
+  if (!USER_VERSION_ATLEAST(501, 1)) {
+    FROM_DEFAULT_V4_UCHAR(space_view3d.face_sets_default);
+  }
+
+  /* If face_sets_default is uninitialized (all zeros), use default value.
+   * This handles cases where themes were saved after 501.1 but the field was zeroed. */
+  if (btheme->space_view3d.face_sets_default[0] == 0 &&
+      btheme->space_view3d.face_sets_default[1] == 0 &&
+      btheme->space_view3d.face_sets_default[2] == 0 &&
+      btheme->space_view3d.face_sets_default[3] == 0) {
+    FROM_DEFAULT_V4_UCHAR(space_view3d.face_sets_default);
+  }
+
   /* Reset the theme due to compatibility breaking changes in 5.0. */
   if (!USER_VERSION_ATLEAST(500, 111)) {
     MEMCPY_STRUCT_AFTER(btheme, &U_theme_default, name);

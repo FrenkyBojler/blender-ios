@@ -7,12 +7,19 @@
  */
 
 #include "DNA_meshdata_types.h"
+#include "DNA_space_types.h"
 
 #include "extract_mesh.hh"
 
 #include "draw_cache_impl.hh"
 
 #include "draw_subdivision.hh"
+
+#include "BKE_attribute.hh"
+#include "BKE_mesh.hh"
+#include "BKE_paint.hh"
+
+#include "UI_resources.hh"
 
 namespace blender::draw {
 
@@ -105,6 +112,8 @@ static const GPUVertFormat &get_edit_data_format()
     /* WARNING: Adjust #EditLoopData struct accordingly. */
     GPU_vertformat_attr_add(&format, "data", gpu::VertAttrType::UINT_8_8_8_8);
     GPU_vertformat_alias_add(&format, "flag");
+    GPU_vertformat_attr_add(&format, "fset_color", gpu::VertAttrType::UNORM_8_8_8_8);
+    GPU_vertformat_attr_add(&format, "nor", gpu::VertAttrType::SFLOAT_32_32_32);
     return format;
   }();
   return format;
@@ -120,6 +129,13 @@ static void extract_edit_data_mesh(const MeshRenderData &mr, MutableSpan<EditLoo
   const OffsetIndices faces = mr.faces;
   const Span<int> corner_verts = mr.corner_verts;
   const Span<int> corner_edges = mr.corner_edges;
+
+  const bke::AttributeAccessor attributes = mr.mesh->attributes();
+  const VArraySpan<int> face_sets = *attributes.lookup<int>(".sculpt_face_set",
+                                                            bke::AttrDomain::Face);
+  const int face_set_seed = mr.mesh->face_sets_color_seed;
+  const int face_set_default = mr.mesh->face_sets_color_default;
+
   threading::parallel_for(faces.index_range(), 2048, [&](const IndexRange range) {
     for (const int face : range) {
       EditLoopData face_value = {};
@@ -134,6 +150,31 @@ static void extract_edit_data_mesh(const MeshRenderData &mr, MutableSpan<EditLoo
         }
         if (const BMEdge *bm_edge = bm_original_edge_get(mr, corner_edges[corner])) {
           mesh_render_data_edge_flag(mr, bm_edge, value);
+        }
+
+        if (!face_sets.is_empty()) {
+          const int face_set_id = face_sets[face];
+          if (face_set_id != face_set_default) {
+            BKE_paint_face_set_overlay_color_get(face_set_id, face_set_seed, value.face_set_color);
+            value.face_set_color[3] = 255; /* Full opacity in VBO, shader handles opacity */
+          }
+          else {
+            /* Use special marker (alpha=0, RGB=255) to indicate default face set.
+             * Shader will use theme color directly for this case. */
+            value.face_set_color = uchar4(255, 255, 255, 0);
+          }
+        }
+        else {
+          value.face_set_color = uchar4(
+              0, 0, 0, 0); /* No face sets at all - make transparent by default */
+        }
+        /* Extract normal for shading */
+        if (const BMFace *bm_face = bm_original_face_get(mr, face)) {
+          const float *face_normal = bm_face_no_get(mr, bm_face);
+          value.nor = float3(face_normal[0], face_normal[1], face_normal[2]);
+        }
+        else {
+          value.nor = float3(0.0f, 0.0f, 1.0f);
         }
       }
     }
@@ -160,6 +201,10 @@ static void extract_edit_data_mesh(const MeshRenderData &mr, MutableSpan<EditLoo
       if (const BMVert *bm_vert = bm_original_vert_get(mr, edge[1])) {
         mesh_render_data_vert_flag(mr, bm_vert, value_2);
       }
+
+      /* Initialize face set color for loose edges. Transparent by default */
+      value_1.face_set_color = uchar4(0, 0, 0, 0);
+      value_2.face_set_color = uchar4(0, 0, 0, 0);
     }
   });
 
@@ -170,6 +215,11 @@ static void extract_edit_data_mesh(const MeshRenderData &mr, MutableSpan<EditLoo
       if (const BMVert *eve = bm_original_vert_get(mr, loose_verts[i])) {
         mesh_render_data_vert_flag(mr, eve, loose_vert_data[i]);
       }
+      /* Initialize face set color for loose verts */
+      loose_vert_data[i].face_set_color = uchar4(0, 0, 0, 0); /* transparent by default */
+
+      /* Initialize normals for loose verts */
+      loose_vert_data[i].nor = float3(0.0f, 0.0f, 1.0f); /* default up normal */
     }
   });
 }
@@ -183,18 +233,49 @@ static void extract_edit_data_bm(const MeshRenderData &mr, MutableSpan<EditLoopD
   const BMesh &bm = *mr.bm;
   const BMUVOffsets uv_offsets_none = BMUVOFFSETS_NONE;
 
+  /* Get face set data from BMesh */
+  const int face_set_offset = CustomData_get_offset_named(
+      &bm.pdata, CD_PROP_INT32, ".sculpt_face_set");
+  const int face_set_seed = mr.mesh->face_sets_color_seed;
+  const int face_set_default = mr.mesh->face_sets_color_default;
+
   threading::parallel_for(IndexRange(bm.totface), 2048, [&](const IndexRange range) {
     for (const int face_index : range) {
       const BMFace &face = *BM_face_at_index(&const_cast<BMesh &>(bm), face_index);
       EditLoopData face_value = {};
       mesh_render_data_face_flag(mr, &face, uv_offsets_none, face_value);
       const BMLoop *loop = BM_FACE_FIRST_LOOP(&face);
+
+      /* Get face set ID for this face */
+      int face_set_id = face_set_default;
+      if (face_set_offset != -1) {
+        face_set_id = BM_ELEM_CD_GET_INT(&face, face_set_offset);
+      }
+
       for ([[maybe_unused]] const int i : IndexRange(face.len)) {
         const int index = BM_elem_index_get(loop);
         EditLoopData &value = corners_data[index];
         value = face_value;
         mesh_render_data_edge_flag(mr, loop->e, value);
         mesh_render_data_vert_flag(mr, loop->v, value);
+
+        /* Extract face set color */
+        if (face_set_id != face_set_default) {
+          BKE_paint_face_set_overlay_color_get(face_set_id, face_set_seed, value.face_set_color);
+          /* Set alpha based on face sets opacity setting */
+          /* For now, use full opacity - shader will apply face_sets_opacity */
+          value.face_set_color[3] = 255; /* Full opacity in VBO, shader handles opacity */
+        }
+        else {
+          /* Use special marker (alpha=0, RGB=255) to indicate default face set.
+           * Shader will use theme color directly for this case. */
+          value.face_set_color = uchar4(255, 255, 255, 0);
+        }
+
+        /* Extract normal for shading */
+        const float *face_normal = bm_face_no_get(mr, &face);
+        value.nor = float3(face_normal[0], face_normal[1], face_normal[2]);
+
         loop = loop->next;
       }
     }
@@ -211,6 +292,14 @@ static void extract_edit_data_bm(const MeshRenderData &mr, MutableSpan<EditLoopD
       value_2 = value_1;
       mesh_render_data_vert_flag(mr, edge.v1, value_1);
       mesh_render_data_vert_flag(mr, edge.v2, value_2);
+
+      /* Initialize face set color for loose edges */
+      value_1.face_set_color = uchar4(0, 0, 0, 0); /* transparent by default */
+      value_2.face_set_color = uchar4(0, 0, 0, 0); /* transparent by default */
+
+      /* Initialize normals for loose edges */
+      value_1.nor = float3(0.0f, 0.0f, 1.0f); /* default up normal */
+      value_2.nor = float3(0.0f, 0.0f, 1.0f); /* default up normal */
     }
   });
 
@@ -220,6 +309,12 @@ static void extract_edit_data_bm(const MeshRenderData &mr, MutableSpan<EditLoopD
       loose_vert_data[i] = {};
       const BMVert &vert = *BM_vert_at_index(&const_cast<BMesh &>(bm), loose_verts[i]);
       mesh_render_data_vert_flag(mr, &vert, loose_vert_data[i]);
+
+      /* Initialize face set color for loose verts */
+      loose_vert_data[i].face_set_color = uchar4(0, 0, 0, 0); /* transparent by default */
+
+      /* Initialize normals for loose verts */
+      loose_vert_data[i].nor = float3(0.0f, 0.0f, 1.0f); /* default up normal */
     }
   });
 }
@@ -256,6 +351,13 @@ static void extract_edit_subdiv_data_mesh(const MeshRenderData &mr,
   MutableSpan loose_edge_data = vbo_data.slice(corners_num, loose_edges_num * verts_per_edge);
   MutableSpan loose_vert_data = vbo_data.take_back(mr.loose_verts.size());
 
+  /* Extract face set data for face set colors */
+  const bke::AttributeAccessor attributes = mr.mesh->attributes();
+  const VArraySpan<int> face_sets = *attributes.lookup<int>(".sculpt_face_set",
+                                                            bke::AttrDomain::Face);
+  const int face_set_seed = mr.mesh->face_sets_color_seed;
+  const int face_set_default = mr.mesh->face_sets_color_default;
+
   threading::parallel_for(IndexRange(subdiv_cache.num_subdiv_quads), 2048, [&](IndexRange range) {
     for (const int subdiv_quad : range) {
       const int coarse_face = subdiv_loop_face_index[subdiv_quad * 4];
@@ -281,6 +383,25 @@ static void extract_edit_subdiv_data_mesh(const MeshRenderData &mr,
             mesh_render_data_edge_flag(mr, bm_edge, value);
           }
         }
+
+        /* Extract face set color */
+        if (!face_sets.is_empty() && coarse_face < face_sets.size()) {
+          const int face_set_id = face_sets[coarse_face];
+          if (face_set_id != face_set_default) {
+            BKE_paint_face_set_overlay_color_get(face_set_id, face_set_seed, value.face_set_color);
+            value.face_set_color[3] = 255; /* Set alpha to full opacity */
+          }
+          else {
+            /* Use special marker (alpha=0, RGB=255) to indicate default face set.
+             * Shader will use theme color directly for this case. */
+            value.face_set_color = uchar4(255, 255, 255, 0);
+          }
+        }
+        else {
+          /* Use special marker (alpha=0, RGB=255) to indicate default face set.
+           * Shader will use theme color directly for this case. */
+          value.face_set_color = uchar4(255, 255, 255, 0);
+        }
       }
     }
   });
@@ -305,6 +426,11 @@ static void extract_edit_subdiv_data_mesh(const MeshRenderData &mr,
       if (const BMVert *bm_vert = bm_original_vert_get(mr, edge[1])) {
         mesh_render_data_vert_flag(mr, bm_vert, data.last());
       }
+
+      /* Initialize face set color for loose edges */
+      for (EditLoopData &value : data) {
+        value.face_set_color = uchar4(255, 255, 255, 255); /* white by default */
+      }
     }
   });
 
@@ -315,6 +441,12 @@ static void extract_edit_subdiv_data_mesh(const MeshRenderData &mr,
       if (const BMVert *eve = bm_original_vert_get(mr, loose_verts[i])) {
         mesh_render_data_vert_flag(mr, eve, loose_vert_data[i]);
       }
+
+      /* Initialize face set color for loose verts */
+      loose_vert_data[i].face_set_color = uchar4(0, 0, 0, 0); /* transparent by default */
+
+      /* Initialize normals for loose verts */
+      loose_vert_data[i].nor = float3(0.0f, 0.0f, 1.0f); /* default up normal */
     }
   });
 }
@@ -336,10 +468,21 @@ static void extract_edit_subdiv_data_bm(const MeshRenderData &mr,
   MutableSpan loose_vert_data = vbo_data.take_back(mr.loose_verts.size());
 
   BMesh &bm = *mr.bm;
+
+  const int face_set_offset = CustomData_get_offset_named(
+      &bm.pdata, CD_PROP_INT32, ".sculpt_face_set");
+  const int face_set_seed = mr.mesh->face_sets_color_seed;
+  const int face_set_default = mr.mesh->face_sets_color_default;
+
   threading::parallel_for(IndexRange(subdiv_cache.num_subdiv_quads), 2048, [&](IndexRange range) {
     for (const int subdiv_quad : range) {
       const int coarse_face = subdiv_loop_face_index[subdiv_quad * 4];
       const BMFace *bm_face = BM_face_at_index(&bm, coarse_face);
+
+      int face_set_id = face_set_default;
+      if (face_set_offset != -1) {
+        face_set_id = BM_ELEM_CD_GET_INT(bm_face, face_set_offset);
+      }
 
       EditLoopData face_value = {};
       mesh_render_data_face_flag(mr, bm_face, uv_offsets_none, face_value);
@@ -359,6 +502,15 @@ static void extract_edit_subdiv_data_bm(const MeshRenderData &mr,
           const BMEdge *bm_edge = BM_edge_at_index(mr.bm, edge_origindex);
           mesh_render_data_edge_flag(mr, bm_edge, value);
         }
+
+        if (face_set_id != face_set_default) {
+          BKE_paint_face_set_overlay_color_get(face_set_id, face_set_seed, value.face_set_color);
+        }
+        else {
+          /* Use special marker (alpha=0, RGB=255) to indicate default face set.
+           * Shader will use theme color directly for this case. */
+          value.face_set_color = uchar4(255, 255, 255, 0);
+        }
       }
     }
   });
@@ -373,6 +525,11 @@ static void extract_edit_subdiv_data_bm(const MeshRenderData &mr,
       data.fill(value);
       mesh_render_data_vert_flag(mr, edge->v1, data.first());
       mesh_render_data_vert_flag(mr, edge->v2, data.last());
+
+      /* Initialize face set color for loose edges */
+      for (EditLoopData &value : data) {
+        value.face_set_color = uchar4(255, 255, 255, 255); /* white by default */
+      }
     }
   });
 
@@ -382,6 +539,12 @@ static void extract_edit_subdiv_data_bm(const MeshRenderData &mr,
       loose_vert_data[i] = {};
       const BMVert *vert = BM_vert_at_index(&bm, loose_verts[i]);
       mesh_render_data_vert_flag(mr, vert, loose_vert_data[i]);
+
+      /* Initialize face set color for loose verts */
+      loose_vert_data[i].face_set_color = uchar4(0, 0, 0, 0); /* transparent by default */
+
+      /* Initialize normals for loose verts */
+      loose_vert_data[i].nor = float3(0.0f, 0.0f, 1.0f); /* default up normal */
     }
   });
 }

@@ -29,6 +29,260 @@ struct SpaceLink;
 struct bGPdata;
 struct wmTimer;
 
+<<<<<<< HEAD
+=======
+#ifdef __cplusplus
+#  include "BLI_math_matrix_types.hh"
+#  include "BLI_math_quaternion_types.hh"
+#endif
+
+#include "DNA_defs.h"
+#include "DNA_image_types.h"
+#include "DNA_listBase.h"
+#include "DNA_movieclip_types.h"
+#include "DNA_object_types.h"
+#include "DNA_view3d_enums.h"
+#include "DNA_viewer_path_types.h"
+
+typedef struct RegionView3D {
+
+  /** GL_PROJECTION matrix. */
+  float winmat[4][4];
+  /** GL_MODELVIEW matrix. */
+  float viewmat[4][4];
+  /** Inverse of viewmat. */
+  float viewinv[4][4];
+  /** Viewmat*winmat. */
+  float persmat[4][4];
+  /** Inverse of persmat. */
+  float persinv[4][4];
+  /** Offset/scale for camera GLSL texture-coordinates. */
+  float viewcamtexcofac[4];
+
+  /** viewmat/persmat multiplied with object matrix, while drawing and selection. */
+  float viewmatob[4][4];
+  float persmatob[4][4];
+
+  /** User defined clipping planes. */
+  float clip[6][4];
+  /**
+   * Clip in object space,
+   * means we can test for clipping in edit-mode without first going into world-space.
+   */
+  float clip_local[6][4];
+  struct BoundBox *clipbb;
+
+  /** Allocated backup of itself while in local-view. */
+  struct RegionView3D *localvd;
+  struct ViewRender *view_render;
+
+  /** Animated smooth view. */
+  struct SmoothView3DStore *sms;
+  struct wmTimer *smooth_timer;
+
+  /** Transform gizmo matrix. */
+  float twmat[4][4];
+  /** min/max dot product on `twmat` XYZ axis. */
+  float tw_axis_min[3], tw_axis_max[3];
+  float tw_axis_matrix[3][3];
+
+  float gridview DNA_DEPRECATED;
+
+  /** View rotation, must be kept normalized. */
+  float viewquat[4];
+  /**
+   * Distance from `ofs` along `-viewinv[2]` vector, where result is negative as is `ofs`.
+   *
+   * \note Besides being above zero, the range of this value is not strictly defined,
+   * see #ED_view3d_dist_soft_range_get to calculate a working range
+   * viewport "zoom" functions to use.
+   */
+  float dist;
+  /** Camera view offsets, 1.0 = viewplane moves entire width/height. */
+  float camdx, camdy;
+  /** Runtime only. */
+  float pixsize;
+  /**
+   * View center & orbit pivot, negative of world-space location,
+   * also matches `-viewinv[3][0:3]` in orthographic mode.
+   */
+  float ofs[3];
+  /** Viewport zoom on the camera frame, see BKE_screen_view3d_zoom_to_fac. */
+  float camzoom;
+  /**
+   * Check if persp/ortho view, since 'persp' can't be used for this since
+   * it can have cameras assigned as well. (only set in #view3d_winmatrix_set)
+   */
+  char is_persp;
+  char persp;
+  char view;
+  char view_axis_roll;
+  char viewlock; /* Should usually be accessed with RV3D_LOCK_FLAGS()! */
+  /** Options for runtime only locking (cleared on file read) */
+  char runtime_viewlock; /* Should usually be accessed with RV3D_LOCK_FLAGS()! */
+  /** Options for quadview (store while out of quad view). */
+  char viewlock_quad;
+  char _pad[1];
+  /** Normalized offset for locked view: (-1, -1) bottom left, (1, 1) upper right. */
+  float ofs_lock[2];
+
+  /** XXX can easily get rid of this (Julian). */
+  short twdrawflag;
+  short rflag;
+
+  /** Last view (use when switching out of camera view). */
+  float lviewquat[4];
+  /** The last perspective can never be set to #RV3D_CAMOB. */
+  char lpersp;
+  char lview;
+  char lview_axis_roll;
+  char _pad8[4];
+
+  char ndof_flag;
+  /**
+   * Rotation center used for "Auto Orbit" (see #NDOF_ORBIT_CENTER_AUTO).
+   * Any modification should be followed by adjusting #RegionView3D::dist
+   * to prevent problems zooming in after navigation. See: #134732.
+   */
+  float ndof_ofs[3];
+
+  /** Active rotation from NDOF (run-time only). */
+  float ndof_rot_angle;
+  float ndof_rot_axis[3];
+} RegionView3D;
+
+typedef struct View3DCursor {
+  float location[3];
+
+  float rotation_quaternion[4];
+  float rotation_euler[3];
+  float rotation_axis[3], rotation_angle;
+  short rotation_mode;
+
+  char _pad[6];
+
+#ifdef __cplusplus
+  template<typename T> T matrix() const;
+  blender::math::Quaternion rotation() const;
+
+  void set_rotation(const blender::math::Quaternion &quat, bool use_compat);
+  void set_matrix(const blender::float3x3 &mat, bool use_compat);
+  void set_matrix(const blender::float4x4 &mat, bool use_compat);
+#endif
+} View3DCursor;
+
+/** 3D Viewport Shading settings. */
+typedef struct View3DShading {
+  /** Shading type (OB_SOLID, ..). */
+  char type;
+  /** Runtime, for toggle between rendered viewport. */
+  char prev_type;
+  char prev_type_wire;
+
+  char color_type;
+  short flag;
+
+  char light;
+  char background_type;
+  char cavity_type;
+  char wire_color_type;
+
+  /** When to preview the compositor output in the viewport. View3DShadingUseCompositor. */
+  char use_compositor;
+
+  char _pad;
+
+  char studio_light[/*FILE_MAXFILE*/ 256];
+  char lookdev_light[/*FILE_MAXFILE*/ 256];
+  char matcap[/*FILE_MAXFILE*/ 256];
+
+  float shadow_intensity;
+  float single_color[3];
+
+  float studiolight_rot_z;
+  float studiolight_background;
+  float studiolight_intensity;
+  float studiolight_blur;
+
+  float object_outline_color[3];
+  float xray_alpha;
+  float xray_alpha_wire;
+
+  float cavity_valley_factor;
+  float cavity_ridge_factor;
+
+  float background_color[3];
+
+  float curvature_ridge_factor;
+  float curvature_valley_factor;
+
+  /* Render pass displayed in the viewport. Is an `eScenePassType` where one bit is set */
+  int render_pass;
+  char aov_name[64];
+
+  struct IDProperty *prop;
+  void *_pad2;
+} View3DShading;
+
+/** 3D Viewport Overlay settings. */
+typedef struct View3DOverlay {
+  int flag;
+
+  /** Edit mode settings. */
+  int edit_flag;
+  float normals_length;
+  float normals_constant_screen_size;
+
+  /** Paint mode settings. */
+  int paint_flag;
+
+  /** Weight paint mode settings. */
+  int wpaint_flag;
+
+  /** Alpha for texture, weight, vertex paint overlay. */
+  float texture_paint_mode_opacity;
+  float vertex_paint_mode_opacity;
+  float weight_paint_mode_opacity;
+  float sculpt_mode_mask_opacity;
+  float sculpt_mode_face_sets_opacity;
+  float viewer_attribute_opacity;
+
+  /** Armature edit/pose mode settings. */
+  float xray_alpha_bone;
+  float bone_wire_alpha;
+
+  /** Darken Inactive. */
+  float fade_alpha;
+
+  /** Other settings. */
+  float wireframe_threshold;
+  float wireframe_opacity;
+  float retopology_offset;
+  float face_sets_opacity;
+
+  /** Grease pencil settings. */
+  float gpencil_paper_opacity;
+  float gpencil_grid_opacity;
+  float gpencil_fade_layer;
+
+  /* Grease Pencil canvas settings. */
+  float gpencil_grid_color[3];
+  float gpencil_grid_scale[2];
+  float gpencil_grid_offset[2];
+  int gpencil_grid_subdivisions;
+
+  /** Factor for mixing vertex paint with original color */
+  float gpencil_vertex_paint_opacity;
+  /** Handles display type for curves. */
+  int handle_display;
+
+  /** Curves sculpt mode settings. */
+  float sculpt_curves_cage_opacity;
+
+  char _pad[4];
+} View3DOverlay;
+
+>>>>>>> 7017432cee3 (First commit. Face Sets in Edit Mode for Mesh:)
 /** #View3DOverlay.handle_display */
 enum eHandleDisplay {
   /* Display only selected points. */
@@ -326,6 +580,7 @@ enum {
 
   V3D_OVERLAY_EDIT_CU_NORMALS = (1 << 21),
   V3D_OVERLAY_EDIT_CONSTANT_SCREEN_SIZE_NORMALS = (1 << 22),
+  V3D_OVERLAY_EDIT_FACE_SETS = (1 << 23),
 };
 
 /** #View3DOverlay.paint_flag */
@@ -647,6 +902,7 @@ struct View3DOverlay {
   float wireframe_threshold = 1.0f;
   float wireframe_opacity = 1.0f;
   float retopology_offset = 0.01f;
+  float face_sets_opacity = 0.4f;
 
   /** Grease pencil settings. */
   float gpencil_paper_opacity = 0.5f;
