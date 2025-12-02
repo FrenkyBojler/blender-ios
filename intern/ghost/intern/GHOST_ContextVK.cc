@@ -523,6 +523,17 @@ struct GHOST_InstanceVK {
 
     device.extensions.enable(required_device_extensions);
     device.extensions.enable(optional_device_extensions, true);
+
+    /* Disabling pipeline libraries on AMD drivers due to random crashes that are also happening
+     * when enabling the extension, but not using it at all. This needs more investigation as it
+     * could be related to development workflows. */
+    const bool is_amd_driver = device.properties_12.driverID == VK_DRIVER_ID_AMD_PROPRIETARY ||
+                               device.properties_12.driverID == VK_DRIVER_ID_AMD_OPEN_SOURCE;
+    if (is_amd_driver) {
+      device.extensions.disable(VK_KHR_PIPELINE_LIBRARY_EXTENSION_NAME);
+      device.extensions.disable(VK_EXT_GRAPHICS_PIPELINE_LIBRARY_EXTENSION_NAME);
+    }
+
     device.init_generic_queue_family();
 
     float queue_priorities[] = {1.0f};
@@ -575,12 +586,14 @@ struct GHOST_InstanceVK {
     vulkan_12_features.timelineSemaphore = VK_TRUE;
     feature_struct_ptr.push_back(&vulkan_12_features);
 
+#ifndef __APPLE__
     /* Enable provoking vertex. */
     VkPhysicalDeviceProvokingVertexFeaturesEXT provoking_vertex_features = {};
     provoking_vertex_features.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROVOKING_VERTEX_FEATURES_EXT;
     provoking_vertex_features.provokingVertexLast = VK_TRUE;
     feature_struct_ptr.push_back(&provoking_vertex_features);
+#endif
 
     /* Enable dynamic rendering. */
     VkPhysicalDeviceDynamicRenderingFeatures dynamic_rendering = {};
@@ -652,6 +665,31 @@ struct GHOST_InstanceVK {
         VK_TRUE};
     if (device.extensions.is_enabled(VK_EXT_PAGEABLE_DEVICE_LOCAL_MEMORY_EXTENSION_NAME)) {
       feature_struct_ptr.push_back(&pageable_device_local_memory);
+    }
+
+    /* VK_EXT_graphics_pipeline_library */
+    VkPhysicalDeviceGraphicsPipelineLibraryFeaturesEXT graphics_pipeline_library = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_GRAPHICS_PIPELINE_LIBRARY_FEATURES_EXT,
+        nullptr,
+        VK_TRUE};
+    if (device.extensions.is_enabled(VK_EXT_GRAPHICS_PIPELINE_LIBRARY_EXTENSION_NAME)) {
+      feature_struct_ptr.push_back(&graphics_pipeline_library);
+    }
+
+    /* VK_EXT_line_rasterization */
+    VkPhysicalDeviceLineRasterizationFeaturesKHR line_rasterization_features = {};
+    line_rasterization_features.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_LINE_RASTERIZATION_FEATURES_EXT;
+    line_rasterization_features.bresenhamLines = VK_TRUE;
+    if (device.extensions.is_enabled(VK_EXT_LINE_RASTERIZATION_EXTENSION_NAME)) {
+      feature_struct_ptr.push_back(&line_rasterization_features);
+    }
+
+    /* VK_EXT_extended_dynamic_state */
+    VkPhysicalDeviceExtendedDynamicStateFeaturesEXT extended_dynamic_state = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT, nullptr, VK_TRUE};
+    if (device.extensions.is_enabled(VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME)) {
+      feature_struct_ptr.push_back(&extended_dynamic_state);
     }
 
     /* Link all registered feature structs. */
@@ -1592,6 +1630,13 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
     optional_device_extensions.append(VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME);
     optional_device_extensions.append(VK_EXT_MEMORY_PRIORITY_EXTENSION_NAME);
     optional_device_extensions.append(VK_EXT_PAGEABLE_DEVICE_LOCAL_MEMORY_EXTENSION_NAME);
+    optional_device_extensions.append(VK_KHR_PIPELINE_LIBRARY_EXTENSION_NAME);
+    optional_device_extensions.append(VK_EXT_GRAPHICS_PIPELINE_LIBRARY_EXTENSION_NAME);
+    optional_device_extensions.append(VK_EXT_LINE_RASTERIZATION_EXTENSION_NAME);
+    /* Disabled as the extension is available, but without any features set. */
+#ifndef __APPLE__
+    optional_device_extensions.append(VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME);
+#endif
 
     if (!instance_vk.select_physical_device(preferred_device_, required_device_extensions)) {
       return GHOST_kFailure;
