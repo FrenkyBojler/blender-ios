@@ -16,6 +16,9 @@
 #include "BLI_string.h"
 
 #include "BKE_instances.hh"
+#include "BKE_lib_id.hh"
+
+#include "ED_outliner.hh"
 
 #include "NOD_geometry_nodes_bundle.hh"
 
@@ -91,7 +94,6 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
     const StringRefNull name = spreadsheet_layout_.columns[column_index].values->name();
     uiBut *but = uiDefIconTextBut(params.block,
                                   ButType::Label,
-                                  0,
                                   ICON_NONE,
                                   name,
                                   params.xmin,
@@ -118,7 +120,6 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
     std::string index_str = std::to_string(real_index);
     uiBut *but = uiDefIconTextBut(params.block,
                                   ButType::Label,
-                                  0,
                                   ICON_NONE,
                                   index_str,
                                   params.xmin,
@@ -166,7 +167,6 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
       const std::string value_str = std::to_string(value);
       uiBut *but = uiDefIconTextBut(params.block,
                                     ButType::Label,
-                                    0,
                                     ICON_NONE,
                                     value_str,
                                     params.xmin,
@@ -202,7 +202,6 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
       const std::string value_str = ss.str();
       uiBut *but = uiDefIconTextBut(params.block,
                                     ButType::Label,
-                                    0,
                                     ICON_NONE,
                                     value_str,
                                     params.xmin,
@@ -228,7 +227,6 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
       const int icon = value ? ICON_CHECKBOX_HLT : ICON_CHECKBOX_DEHLT;
       uiBut *but = uiDefIconTextBut(params.block,
                                     ButType::Label,
-                                    0,
                                     icon,
                                     "",
                                     params.xmin,
@@ -275,7 +273,6 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
       const int icon = get_instance_reference_icon(value);
       uiDefIconTextBut(params.block,
                        ButType::Label,
-                       0,
                        icon,
                        name.c_str(),
                        params.xmin,
@@ -289,7 +286,6 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
     if (type.is<std::string>()) {
       uiDefIconTextBut(params.block,
                        ButType::Label,
-                       0,
                        ICON_NONE,
                        *value_ptr.get<std::string>(),
                        params.xmin + CELL_PADDING_X,
@@ -305,7 +301,6 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
       *prop = *value_ptr.get<MStringProperty>();
       uiBut *but = uiDefIconTextBut(params.block,
                                     ButType::Label,
-                                    0,
                                     ICON_NONE,
                                     StringRef(prop->s, prop->s_len),
                                     params.xmin + CELL_PADDING_X,
@@ -340,6 +335,35 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
       this->draw_undrawable(params);
       return;
     }
+    if (type.is<Object *>()) {
+      Object *object = *value_ptr.get<Object *>();
+      if (object) {
+        const int icon = ED_outliner_icon_from_id(object->id);
+        uiDefIconTextBut(params.block,
+                         ButType::Label,
+                         icon,
+                         BKE_id_name(object->id),
+                         params.xmin,
+                         params.ymin,
+                         params.width,
+                         params.height,
+                         nullptr,
+                         std::nullopt);
+      }
+      else {
+        uiDefIconTextBut(params.block,
+                         ButType::Label,
+                         ICON_OBJECT_DATA,
+                         "",
+                         params.xmin,
+                         params.ymin,
+                         params.width,
+                         params.height,
+                         nullptr,
+                         std::nullopt);
+      }
+      return;
+    }
     this->draw_undrawable(params);
   }
 
@@ -354,7 +378,6 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
       const std::string value_str = ss.str();
       uiBut *but = uiDefIconTextBut(params.block,
                                     ButType::Label,
-                                    0,
                                     ICON_NONE,
                                     value_str,
                                     params.xmin + i * segment_width,
@@ -398,7 +421,6 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
     }
     uiBut *but = uiDefIconTextBut(params.block,
                                   ButType::Label,
-                                  0,
                                   ICON_NONE,
                                   value_str,
                                   params.xmin,
@@ -407,15 +429,30 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
                                   params.height,
                                   nullptr,
                                   std::nullopt);
-    UI_but_func_tooltip_set(
-        but,
-        [](bContext * /*C*/, void *argN, const StringRef /*tip*/) {
-          char dst[BLI_STR_FORMAT_INT64_GROUPED_SIZE];
-          BLI_str_format_int64_grouped(dst, *(int64_t *)argN);
-          return fmt::format("{} {}", dst, TIP_("bytes"));
-        },
-        MEM_dupallocN<int64_t>(__func__, value),
-        MEM_freeN);
+    switch (display_hint) {
+      case ColumnValueDisplayHint::Bytes: {
+        UI_but_func_tooltip_set(
+            but,
+            [](bContext * /*C*/, void *argN, const StringRef /*tip*/) {
+              char dst[BLI_STR_FORMAT_INT64_GROUPED_SIZE];
+              BLI_str_format_int64_grouped(dst, *(int64_t *)argN);
+              return fmt::format("{} {}", dst, TIP_("bytes"));
+            },
+            MEM_dupallocN<int64_t>(__func__, value),
+            MEM_freeN);
+        break;
+      }
+      default: {
+        UI_but_func_tooltip_set(
+            but,
+            [](bContext * /*C*/, void *argN, const StringRef /*tip*/) {
+              return fmt::format("{}", *(int64_t *)argN);
+            },
+            MEM_dupallocN<int64_t>(__func__, value),
+            MEM_freeN);
+        break;
+      }
+    }
     /* Right-align Integers. */
     UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
     UI_but_drawflag_enable(but, UI_BUT_TEXT_RIGHT);
@@ -432,7 +469,6 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
       const std::string value_str = ss.str();
       uiBut *but = uiDefIconTextBut(params.block,
                                     ButType::Label,
-                                    0,
                                     ICON_NONE,
                                     value_str,
                                     params.xmin + i * segment_width,
@@ -466,7 +502,6 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
       const std::string value_str = ss.str();
       uiBut *but = uiDefIconTextBut(params.block,
                                     ButType::Label,
-                                    0,
                                     ICON_NONE,
                                     value_str,
                                     params.xmin + i * segment_width,
@@ -516,7 +551,6 @@ class SpreadsheetLayoutDrawer : public SpreadsheetDrawer {
   {
     uiBut *but = uiDefIconTextBut(params.block,
                                   ButType::Label,
-                                  0,
                                   ICON_NONE,
                                   "...",
                                   params.xmin,

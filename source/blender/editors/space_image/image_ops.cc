@@ -523,8 +523,8 @@ struct ViewZoomData {
 
   /* */
   SpaceImage *sima;
-  ARegion *region;
   ScrArea *area;
+  ARegion *region;
 };
 
 }  // namespace
@@ -559,6 +559,7 @@ static void image_view_zoom_init(bContext *C, wmOperator *op, const wmEvent *eve
   }
 
   vpd->sima = sima;
+  vpd->area = CTX_wm_area(C);
   vpd->region = region;
   vpd->area = CTX_wm_area(C);
 
@@ -575,6 +576,9 @@ static void image_view_zoom_exit(bContext *C, wmOperator *op, bool cancel)
     ED_region_tag_redraw(CTX_wm_region(C));
     ED_area_tag_redraw_regiontype(CTX_wm_area(C), RGN_TYPE_HEADER);
   }
+
+  ED_area_status_text(vpd->area, nullptr);
+  ED_workspace_status_text(C, nullptr);
 
   if (vpd->timer) {
     WM_event_timer_remove(CTX_wm_manager(C), vpd->timer->win, vpd->timer);
@@ -645,7 +649,8 @@ static void image_zoom_apply(ViewZoomData *vpd,
                              const int y,
                              const short viewzoom,
                              const short zoom_invert,
-                             const bool zoom_to_pos)
+                             const bool zoom_to_pos,
+                             const bool snap)
 {
   float factor;
   float delta;
@@ -681,8 +686,16 @@ static void image_zoom_apply(ViewZoomData *vpd,
     factor = 1.0f + delta / 300.0f;
   }
 
+  float zoom = vpd->zoom * factor;
+  if (snap) {
+    zoom = round(zoom * 10.0f) / 10.0f;
+  }
+  char str[5];
+  BLI_snprintf(str, sizeof(str), "%i%%", int(round(vpd->sima->zoom * 100.0f)));
+  ED_area_status_text(vpd->area, str);
+
   RNA_float_set(op->ptr, "factor", factor);
-  sima_zoom_set(vpd->sima, vpd->region, vpd->zoom * factor, vpd->location, zoom_to_pos);
+  sima_zoom_set(vpd->sima, vpd->region, zoom, vpd->location, zoom_to_pos);
   ED_region_tag_redraw(vpd->region);
   ED_area_tag_redraw_regiontype(vpd->area, RGN_TYPE_HEADER);
 }
@@ -692,6 +705,9 @@ static wmOperatorStatus image_view_zoom_modal(bContext *C, wmOperator *op, const
   ViewZoomData *vpd = static_cast<ViewZoomData *>(op->customdata);
   short event_code = VIEW_PASS;
   wmOperatorStatus ret = OPERATOR_RUNNING_MODAL;
+
+  WorkspaceStatus status(C);
+  status.item_bool(IFACE_("Snap"), event->modifier & KM_CTRL, ICON_EVENT_CTRL);
 
   /* Execute the events. */
   if (event->type == MOUSEMOVE) {
@@ -718,7 +734,8 @@ static wmOperatorStatus image_view_zoom_modal(bContext *C, wmOperator *op, const
                        event->xy[1],
                        U.viewzoom,
                        (U.uiflag & USER_ZOOM_INVERT) != 0,
-                       (use_cursor_init && (U.uiflag & USER_ZOOM_TO_MOUSEPOS)));
+                       (use_cursor_init && (U.uiflag & USER_ZOOM_TO_MOUSEPOS)),
+                       event->modifier & KM_CTRL);
       break;
     }
     case VIEW_CONFIRM: {
@@ -1381,10 +1398,11 @@ static wmOperatorStatus image_open_exec(bContext *C, wmOperator *op)
   ImageOpenData *iod = static_cast<ImageOpenData *>(op->customdata);
   ID *owner_id = iod->pprop.ptr.owner_id;
   Library *owner_library = owner_id ? owner_id->lib : nullptr;
+  blender::StringRefNull blendfile_path = BKE_main_blendfile_path(bmain);
   blender::StringRefNull root_path = owner_library ? owner_library->runtime->filepath_abs :
-                                                     BKE_main_blendfile_path(bmain);
+                                                     blendfile_path;
 
-  ListBase ranges = ED_image_filesel_detect_sequences(root_path, op, use_udim);
+  ListBase ranges = ED_image_filesel_detect_sequences(blendfile_path, root_path, op, use_udim);
   LISTBASE_FOREACH (ImageFrameRange *, range, &ranges) {
     Image *ima_range = image_open_single(bmain, owner_library, op, range, use_multiview);
 
@@ -1544,12 +1562,12 @@ static bool image_open_draw_check_prop(PointerRNA * /*ptr*/,
 
 static void image_open_draw(bContext * /*C*/, wmOperator *op)
 {
-  uiLayout *layout = op->layout;
+  blender::ui::Layout &layout = *op->layout;
   ImageOpenData *iod = static_cast<ImageOpenData *>(op->customdata);
   ImageFormatData *imf = &iod->im_format;
 
   /* main draw call */
-  uiDefAutoButsRNA(layout,
+  uiDefAutoButsRNA(&layout,
                    op->ptr,
                    image_open_draw_check_prop,
                    nullptr,
@@ -1562,7 +1580,7 @@ static void image_open_draw(bContext * /*C*/, wmOperator *op)
 
   /* multiview template */
   if (RNA_boolean_get(op->ptr, "show_multiview")) {
-    uiTemplateImageFormatViews(layout, &imf_ptr, op->ptr);
+    uiTemplateImageFormatViews(&layout, &imf_ptr, op->ptr);
   }
 }
 
@@ -1691,7 +1709,7 @@ static wmOperatorStatus image_file_browse_invoke(bContext *C, wmOperator *op, co
   }
 
   /* The image is typically passed to the operator via layout/button context (e.g.
-   * #uiLayout::context_ptr_set. The File Browser doesn't support
+   * # blender::ui::Layout::context_ptr_set. The File Browser doesn't support
    * restoring this context when calling `exec()` though, so we have to pass it the image via
    * custom data. */
   op->customdata = ima;
@@ -2052,16 +2070,16 @@ static bool image_save_as_draw_check_prop(PointerRNA *ptr, PropertyRNA *prop, vo
 
 static void image_save_as_draw(bContext *C, wmOperator *op)
 {
-  uiLayout *layout = op->layout;
+  blender::ui::Layout &layout = *op->layout;
   ImageSaveData *isd = static_cast<ImageSaveData *>(op->customdata);
   const bool is_multiview = RNA_boolean_get(op->ptr, "show_multiview");
   const bool save_as_render = RNA_boolean_get(op->ptr, "save_as_render");
 
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
 
   /* Operator settings. */
-  uiDefAutoButsRNA(layout,
+  uiDefAutoButsRNA(&layout,
                    op->ptr,
                    image_save_as_draw_check_prop,
                    isd,
@@ -2069,23 +2087,23 @@ static void image_save_as_draw(bContext *C, wmOperator *op)
                    UI_BUT_LABEL_ALIGN_NONE,
                    false);
 
-  layout->separator();
+  layout.separator();
 
   /* Image format settings. */
   PointerRNA imf_ptr = RNA_pointer_create_discrete(
       nullptr, &RNA_ImageFormatSettings, &isd->opts.im_format);
-  uiTemplateImageSettings(layout, C, &imf_ptr, save_as_render);
+  uiTemplateImageSettings(&layout, C, &imf_ptr, save_as_render);
 
   if (!save_as_render) {
     PointerRNA linear_settings_ptr = RNA_pointer_get(&imf_ptr, "linear_colorspace_settings");
-    uiLayout *col = &layout->column(true);
-    col->separator();
-    col->prop(&linear_settings_ptr, "name", UI_ITEM_NONE, IFACE_("Color Space"), ICON_NONE);
+    blender::ui::Layout &col = layout.column(true);
+    col.separator();
+    col.prop(&linear_settings_ptr, "name", UI_ITEM_NONE, IFACE_("Color Space"), ICON_NONE);
   }
 
   /* Multiview settings. */
   if (is_multiview) {
-    uiTemplateImageFormatViews(layout, &imf_ptr, op->ptr);
+    uiTemplateImageFormatViews(&layout, &imf_ptr, op->ptr);
   }
 }
 
@@ -2297,8 +2315,8 @@ static wmOperatorStatus image_save_sequence_exec(bContext *C, wmOperator *op)
 
   /* get total dirty buffers and first dirty buffer which is used for menu */
   ibuf = nullptr;
-  if (image->cache != nullptr) {
-    iter = IMB_moviecacheIter_new(image->cache);
+  if (image->runtime->cache != nullptr) {
+    iter = IMB_moviecacheIter_new(image->runtime->cache);
     while (!IMB_moviecacheIter_done(iter)) {
       ibuf = IMB_moviecacheIter_getImBuf(iter);
       if (ibuf != nullptr && ibuf->userflags & IB_BITMAPDIRTY) {
@@ -2321,7 +2339,7 @@ static wmOperatorStatus image_save_sequence_exec(bContext *C, wmOperator *op)
   BLI_path_split_dir_part(first_ibuf->filepath, di, sizeof(di));
   BKE_reportf(op->reports, RPT_INFO, "%d image(s) will be saved in %s", tot, di);
 
-  iter = IMB_moviecacheIter_new(image->cache);
+  iter = IMB_moviecacheIter_new(image->runtime->cache);
   while (!IMB_moviecacheIter_done(iter)) {
     ibuf = IMB_moviecacheIter_getImBuf(iter);
 
@@ -2703,34 +2721,22 @@ static wmOperatorStatus image_new_invoke(bContext *C, wmOperator *op, const wmEv
 
 static void image_new_draw(bContext * /*C*/, wmOperator *op)
 {
-  uiLayout *col;
-  uiLayout *layout = op->layout;
-#if 0
-  Scene *scene = CTX_data_scene(C);
-  const bool is_multiview = (scene->r.scemode & R_MULTIVIEW) != 0;
-#endif
+  blender::ui::Layout &layout = *op->layout;
 
   /* copy of WM_operator_props_dialog_popup() layout */
 
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
 
-  col = &layout->column(false);
-  col->prop(op->ptr, "name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col->prop(op->ptr, "width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col->prop(op->ptr, "height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col->prop(op->ptr, "color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col->prop(op->ptr, "alpha", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col->prop(op->ptr, "generated_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col->prop(op->ptr, "float", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col->prop(op->ptr, "tiled", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-
-#if 0
-  if (is_multiview) {
-    col[0].label("", ICON_NONE);
-    col[1].prop( op->ptr, "use_stereo_3d", 0, std::nullopt, ICON_NONE);
-  }
-#endif
+  blender::ui::Layout &col = layout.column(false);
+  col.prop(op->ptr, "name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(op->ptr, "width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(op->ptr, "height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(op->ptr, "color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(op->ptr, "alpha", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(op->ptr, "generated_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(op->ptr, "float", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(op->ptr, "tiled", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void image_new_cancel(bContext * /*C*/, wmOperator *op)
@@ -3307,7 +3313,7 @@ static wmOperatorStatus image_scale_exec(bContext *C, wmOperator *op)
     ED_image_undo_push_end();
   }
   else {
-    // Ensure that an image buffer can be acquired for all UDIM tiles
+    /* Ensure that an image buffer can be acquired for all UDIM tiles. */
     LISTBASE_FOREACH (ImageTile *, current_tile, &ima->tiles) {
       iuser.tile = current_tile->tile_number;
 
@@ -4247,18 +4253,18 @@ static bool do_fill_tile(PointerRNA *ptr, Image *ima, ImageTile *tile)
   return BKE_image_fill_tile(ima, tile);
 }
 
-static void draw_fill_tile(PointerRNA *ptr, uiLayout *layout)
+static void draw_fill_tile(PointerRNA *ptr, blender::ui::Layout &layout)
 {
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
 
-  uiLayout *col = &layout->column(false);
-  col->prop(ptr, "color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col->prop(ptr, "width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col->prop(ptr, "height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col->prop(ptr, "alpha", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col->prop(ptr, "generated_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col->prop(ptr, "float", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  blender::ui::Layout &col = layout.column(false);
+  col.prop(ptr, "color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(ptr, "width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(ptr, "height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(ptr, "alpha", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(ptr, "generated_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(ptr, "float", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void tile_fill_init(PointerRNA *ptr, Image *ima, ImageTile *tile)
@@ -4392,17 +4398,16 @@ static wmOperatorStatus tile_add_invoke(bContext *C, wmOperator *op, const wmEve
 
 static void tile_add_draw(bContext * /*C*/, wmOperator *op)
 {
-  uiLayout *col;
-  uiLayout *layout = op->layout;
+  blender::ui::Layout &layout = *op->layout;
 
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
 
-  col = &layout->column(false);
-  col->prop(op->ptr, "number", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col->prop(op->ptr, "count", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col->prop(op->ptr, "label", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(op->ptr, "fill", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  blender::ui::Layout &col = layout.column(false);
+  col.prop(op->ptr, "number", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(op->ptr, "count", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(op->ptr, "label", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "fill", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   if (RNA_boolean_get(op->ptr, "fill")) {
     draw_fill_tile(op->ptr, layout);
@@ -4532,7 +4537,7 @@ static wmOperatorStatus tile_fill_invoke(bContext *C, wmOperator *op, const wmEv
 
 static void tile_fill_draw(bContext * /*C*/, wmOperator *op)
 {
-  draw_fill_tile(op->ptr, op->layout);
+  draw_fill_tile(op->ptr, *op->layout);
 }
 
 void IMAGE_OT_tile_fill(wmOperatorType *ot)

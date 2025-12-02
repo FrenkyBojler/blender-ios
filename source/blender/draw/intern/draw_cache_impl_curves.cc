@@ -474,8 +474,8 @@ static void calc_edit_handles_ibo(const OffsetIndices<int> points_by_curve,
   BLI_assert(lines.size() == points_num + extra_bezier_segments);
   MutableSpan<uint2> curve_or_handle_segments = lines.take_front(points_num);
 
-#ifdef NDEBUG
-  lines.fill(uint2(std::numeric_limits<uint32_t>::min()));
+#ifndef NDEBUG
+  lines.fill(uint2(std::numeric_limits<uint32_t>::max()));
 #endif
 
   create_segments_with_cyclic(
@@ -507,7 +507,7 @@ static void calc_edit_handles_ibo(const OffsetIndices<int> points_by_curve,
     }
   });
 
-  BLI_assert(!lines.contains(uint2(std::numeric_limits<uint32_t>::min())));
+  BLI_assert(!lines.contains(uint2(std::numeric_limits<uint32_t>::max())));
 
   GPU_indexbuf_build_in_place_ex(
       &builder, 0, handles_and_points_num(points_num, bezier_offsets), false, &ibo);
@@ -846,6 +846,9 @@ gpu::Batch *CurvesEvalCache::batch_get(const int evaluated_point_count,
     if (use_cyclic) {
       segment_count += curve_count;
     }
+    /* The last segment is always a restart vertex. However, it is not accounted for inside the
+     * data buffers and can lead to out of bound reads (see #148914). */
+    segment_count -= (segment_count > 0) ? 1 : 0;
     vert_per_segment = 1;
     prim_type = GPU_PRIM_LINE_STRIP;
   }
@@ -855,6 +858,9 @@ gpu::Batch *CurvesEvalCache::batch_get(const int evaluated_point_count,
     if (use_cyclic) {
       segment_count += curve_count;
     }
+    /* The last segment is always a restart vertex. However, it is not accounted for inside the
+     * data buffers and can lead to out of bound reads (see #148914). */
+    segment_count -= (segment_count > 0) ? 1 : 0;
     vert_per_segment = 2;
     prim_type = GPU_PRIM_TRI_STRIP;
   }

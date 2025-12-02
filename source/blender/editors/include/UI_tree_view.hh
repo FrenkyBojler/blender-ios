@@ -25,13 +25,13 @@
 
 struct bContext;
 struct uiBlock;
-struct uiLayout;
 
 namespace blender::ui {
 
 class AbstractTreeView;
 class AbstractTreeViewItem;
 class TreeViewItemDropTarget;
+struct Layout;
 
 /* ---------------------------------------------------------------------- */
 /** \name Tree-View Item Container
@@ -128,8 +128,14 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
    * The total number of items in the tree during the last redraw.
    */
   int last_tot_items_ = 0;
-
   bool scroll_active_into_view_on_draw_ = false;
+  /**
+   * Collapse/expand state of filter panel.
+   */
+  std::shared_ptr<char> show_display_options_ = std::make_shared<char>(0);
+  /* `char[UI_MAX_NAME_STR]` wrapped in shared pointer, to keep a stable pointer over
+   * reconstruction that can be passed to buttons. */
+  std::shared_ptr<char[]> search_string_{new char[256 /*UI_MAX_NAME_STR*/]{}};
 
   friend class AbstractTreeViewItem;
   friend class TreeViewBuilder;
@@ -146,7 +152,6 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
 
   bool is_fully_visible() const override;
   void scroll(ViewScrollDirection direction) override;
-  /* Scroll to the active element when state is changed. */
 
   /**
    * \param xy: The mouse coordinates in window space.
@@ -187,6 +192,9 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
                            int &visible_item_index) const;
 
   int count_visible_descendants(const AbstractTreeViewItem &parent) const;
+  /**
+   * Scroll the view so the active item is visible.
+   */
   void scroll_active_into_view();
 };
 
@@ -219,7 +227,7 @@ class AbstractTreeViewItem : public AbstractViewItem, public TreeViewItemContain
  public:
   /* virtual */ ~AbstractTreeViewItem() override = default;
 
-  virtual void build_row(uiLayout &row) = 0;
+  virtual void build_row(Layout &row) = 0;
 
   /* virtual */ std::optional<std::string> debug_name() const override;
 
@@ -279,6 +287,8 @@ class AbstractTreeViewItem : public AbstractViewItem, public TreeViewItemContain
 
   int count_parents() const;
 
+  void on_filter() override;
+
  protected:
   /** See AbstractViewItem::get_rename_string(). */
   /* virtual */ StringRef get_rename_string() const override;
@@ -336,9 +346,9 @@ class AbstractTreeViewItem : public AbstractViewItem, public TreeViewItemContain
 
   void add_treerow_button(uiBlock &block);
   int indent_width() const;
-  void add_indent(uiLayout &row) const;
+  void add_indent(Layout &row) const;
   void add_collapse_chevron(uiBlock &block) const;
-  void add_rename_button(uiLayout &row);
+  void add_rename_button(Layout &row);
 
   bool has_active_child() const;
 };
@@ -362,8 +372,8 @@ class BasicTreeViewItem : public AbstractTreeViewItem {
 
   explicit BasicTreeViewItem(StringRef label, BIFIconID icon = ICON_NONE);
 
-  void build_row(uiLayout &row) override;
-  void add_label(uiLayout &layout, StringRefNull label_override = "");
+  void build_row(Layout &row) override;
+  void add_label(Layout &layout, StringRefNull label_override = "");
   void set_on_activate_fn(ActivateFn fn);
   /**
    * Set a custom callback to check if this item should be active.
@@ -426,8 +436,7 @@ class TreeViewBuilder {
  public:
   static void build_tree_view(const bContext &C,
                               AbstractTreeView &tree_view,
-                              uiLayout &layout,
-                              std::optional<StringRef> search_string = {},
+                              Layout &layout,
                               bool add_box = true);
 
  private:

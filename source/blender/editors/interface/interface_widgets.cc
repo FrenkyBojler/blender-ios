@@ -1175,11 +1175,11 @@ static void widgetbase_draw(uiWidgetBase *wtb, const uiWidgetColors *wcol)
     outline_col[1] = wcol->outline[1];
     outline_col[2] = wcol->outline[2];
     outline_col[3] = wcol->outline[3];
+  }
 
-    /* Emboss shadow if enabled, and inner and outline colors are not fully transparent. */
-    if ((wtb->draw_emboss) && (wcol->inner[3] != 0.0f || wcol->outline[3] != 0.0f)) {
-      UI_GetThemeColor4ubv(TH_WIDGET_EMBOSS, emboss_col);
-    }
+  /* Draw emboss only if the outline is not fully transparent, it looks like a gap otherwise. */
+  if (wtb->draw_emboss && wcol->outline[3] != 0.0f) {
+    UI_GetThemeColor4ubv(TH_WIDGET_EMBOSS, emboss_col);
   }
 
   if (wtb->tria1.type != ROUNDBOX_TRIA_NONE) {
@@ -5093,7 +5093,12 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
         wt = widget_type(UI_WTYPE_PREVIEW_TILE);
         break;
       case ButType::Popover:
-        wt = popover_widget_type(but, rect);
+        if (but->icon == 0) {
+          wt = popover_widget_type(but, rect);
+        }
+        else { /* Currently used for presets. */
+          wt = widget_type(UI_WTYPE_ICON);
+        }
         break;
       case ButType::NodeSocket:
         wt = widget_type(UI_WTYPE_NODESOCKET);
