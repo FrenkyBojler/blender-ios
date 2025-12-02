@@ -583,20 +583,14 @@ static void flush_pose_selection_to_bone(Object &ob)
   LISTBASE_FOREACH (bPoseChannel *, pose_bone, &ob.pose->chanbase) {
     pose_bone->bone->flag &= ~(BONE_ROOTSEL | BONE_TIPSEL | BONE_SELECTED);
     Bone *bone = pose_bone->bone;
-    /* The cases of POSE_SELECTED_ROOT and POSE_SELECTED_TIP can only occur if switching to pose
-     * mode and back without modifying that pose bones selection. */
     if (pose_bone->flag & POSE_SELECTED_ROOT) {
       bone->flag |= BONE_ROOTSEL;
     }
-
     if (pose_bone->flag & POSE_SELECTED_TIP) {
       bone->flag |= BONE_TIPSEL;
     }
-
-    /* If the bone is selected in pose mode, conceptually that includes the root and the tip, so we
-     * ensure here that carries over to edit mode. */
     if (pose_bone->flag & POSE_SELECTED) {
-      bone->flag |= (BONE_SELECTED | BONE_ROOTSEL | BONE_TIPSEL);
+      bone->flag |= BONE_SELECTED;
     }
   }
 }

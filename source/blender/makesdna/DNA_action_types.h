@@ -496,6 +496,11 @@ typedef enum ePchan_Flag {
    */
   POSE_SELECTED_ROOT = (1 << 7),
   POSE_SELECTED_TIP = (1 << 8),
+  /**
+   * When setting pose bone selection, all flags have to be set/cleared. However checking of
+   * selection state should only be against `POSE_SELECTED`.
+   */
+  POSE_SELECTED_ALL = (POSE_SELECTED | POSE_SELECTED_ROOT | POSE_SELECTED_TIP),
 
   /* IK/Pose solving */
   POSE_CHAIN = (1 << 9),
