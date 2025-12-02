@@ -20,6 +20,9 @@
 
 #include "BLF_api.hh"
 
+ #include "GPU_matrix.hh"
+ #include "GPU_state.hh"
+
  #include "BKE_collection.hh"
  #include "BKE_context.hh"
  #include "BKE_idprop.hh"
@@ -78,6 +81,8 @@ struct SpaceLightManager_Runtime {
   blender::Vector<SubgroupCollapseState> subgroup_states;
   blender::Vector<GroupBounds> group_bounds;  /* Updated each draw */
 };
+
+static void light_manager_draw_drag_ghost(bContext *C, wmWindow *win, wmDrag *drag, const int xy[2]);
 
 static void light_manager_ensure_default_group(SpaceLightManager *space_lm)
 {
@@ -305,7 +310,9 @@ static wmOperatorStatus light_manager_group_delete_exec(bContext *C, wmOperator 
     }
     const char *light_group = get_light_group(ob);
     if (light_group && STREQ(light_group, group->name)) {
-      set_light_group(ob, light_manager_default_group_name());
+      /* Completely remove the light from Light Manager so this group name cannot
+       * respawn later based on lingering properties. */
+      remove_light_group(ob);
     }
   }
   FOREACH_SCENE_OBJECT_END;
@@ -885,13 +892,14 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
     space_lm->runtime->group_bounds.clear();
   }
 
-  /* Helper for drawing row backgrounds (no hover effect). */
   auto draw_row_bg = [&](int y_top, int height, const float color[4]) {
+    const float pad = 0.75f; /* uniform padding around each row background */
+
     rctf rect;
-    rect.xmin = 0.0f;
-    rect.xmax = (float)region->winx;
-    rect.ymax = (float)y_top;
-    rect.ymin = (float)(y_top - height);
+    rect.xmin = pad;
+    rect.xmax = (float)region->winx - pad;
+    rect.ymax = (float)y_top - pad;
+    rect.ymin = (float)(y_top - height) + pad;
     
     float final_col[4];
     final_col[0] = color[0];
@@ -1006,7 +1014,13 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
   /* --- Groups Loop --- */
   if (space_lm && space_lm->groups.first) {
     LISTBASE_FOREACH (SpaceLightManagerGroup *, group, &space_lm->groups) {
-      blender::Vector<Object *> *group_lights_ptr = grouped_lights.lookup_ptr(group->name);
+      /* Use a safe, null-terminated copy of the group name when looking up in the map, to
+       * avoid issues with corrupted or legacy data causing bad C-strings. */
+      char group_name_safe[sizeof(group->name)];
+      BLI_strncpy(group_name_safe, group->name, sizeof(group_name_safe));
+      std::string group_key(group_name_safe);
+
+      blender::Vector<Object *> *group_lights_ptr = grouped_lights.lookup_ptr(group_key);
       
       /* Calculate bounds for Drag & Drop */
       float group_start_y = (float)y;
@@ -1084,14 +1098,28 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
              }
         }
 
-        /* Icon Column (Column 1) - Used for Collapse */
+        /* Icon Column (Column 1) - Used for Collapse (centered in column, wider hit area). */
         {
             const int col = int(eLightManagerColumn::Icon);
+            const int icon_glyph_w = UI_UNIT_X;
+            const int pad_x = int(15 * UI_SCALE_FAC); /* 15 px padding on each side. */
+            int button_w = icon_glyph_w + 2 * pad_x;
+            if (button_w > columns[col].width) {
+              button_w = columns[col].width;
+            }
+            const int button_x = columns[col].x + ((columns[col].width - button_w) / 2);
             int icon = (group->flag & SPACE_LIGHT_MANAGER_GROUP_COLLAPSED) ? ICON_DISCLOSURE_TRI_RIGHT : ICON_DISCLOSURE_TRI_DOWN;
             
-             uiBut *but = uiDefIconButO(block, ButType::But, "LIGHT_MANAGER_OT_group_toggle",
-                           wm::OpCallContext::InvokeDefault, icon,
-                           columns[col].x, y - row_height, short(columns[col].width), short(row_height), std::nullopt);
+             uiBut *but = uiDefIconButO(block,
+                           ButType::But,
+                           "LIGHT_MANAGER_OT_group_toggle",
+                           wm::OpCallContext::InvokeDefault,
+                           icon,
+                           button_x,
+                           y - row_height,
+                           short(button_w),
+                           short(row_height),
+                           std::nullopt);
              if (but) {
                  UI_but_operator_ptr_ensure(but);
                  RNA_int_set(but->opptr, "index", BLI_findindex(&space_lm->groups, group));
@@ -1106,11 +1134,14 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
             const int x = columns[col].x + padding_x;
             const short w = short(columns[col].width - padding_x);
 
+            char group_name_safe[sizeof(group->name)];
+            BLI_strncpy(group_name_safe, group->name, sizeof(group_name_safe));
+
             uiBut *but = uiDefButO(block,
                            ButType::But,
                            "LIGHT_MANAGER_OT_group_rename",
                            wm::OpCallContext::InvokeDefault,
-                           group->name,
+                           group_name_safe,
                            x,
                            y - row_height,
                            w,
@@ -1126,8 +1157,9 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
         /* Visibility Column (Column 5) - Group Visibility */
         {
             const int col = int(eLightManagerColumn::Visibility);
-            int x = columns[col].x;
             const int icon_w = UI_UNIT_X;
+            /* Center three icons in the visibility column. */
+            int x = columns[col].x + ((columns[col].width - (icon_w * 3)) / 2);
 
             /* Choose icons based on aggregated group visibility state. */
             int icon_view = ICON_RESTRICT_VIEW_OFF;   /* eye open (visible) */
@@ -1214,9 +1246,11 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
                  UI_but_drag_set_id(drag_but, &ob->id);
             }
             
-            /* Icon (Col 1) - Light Type */
+            /* Icon (Col 1) - Light Type (centered to match group toggle). */
             {
                 const int col = int(eLightManagerColumn::Icon);
+                const int icon_w = UI_UNIT_X;
+                const int icon_x = columns[col].x + ((columns[col].width - icon_w) / 2);
                 Light *light = static_cast<Light *>(ob->data);
                 int type_icon = ICON_LIGHT;
                 switch (light->type) {
@@ -1225,9 +1259,17 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
                     case LA_SPOT: type_icon = ICON_LIGHT_SPOT; break;
                     case LA_AREA: type_icon = ICON_LIGHT_AREA; break;
                 }
-                uiDefIconBut(block, ButType::Label, type_icon,
-                             columns[col].x, y - row_height, short(columns[col].width), short(row_height),
-                             nullptr, 0.0f, 0.0f, std::nullopt);
+                uiDefIconBut(block,
+                             ButType::Label,
+                             type_icon,
+                             icon_x,
+                             y - row_height,
+                             short(icon_w),
+                             short(row_height),
+                             nullptr,
+                             0.0f,
+                             0.0f,
+                             std::nullopt);
             }
             
             /* Name (Col 2) - Indented, fills the Name column up to Color. */
@@ -1265,22 +1307,38 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
                 }
             }
             
-            /* Power (Col 4) */
+            /* Power (Col 4) - full-width slider, center its text/value. */
             {
                 const int col = int(eLightManagerColumn::Power);
                 PropertyRNA *prop = RNA_struct_find_property(&light_ptr, "energy");
                 if (prop) {
-                    uiDefButR_prop(block, ButType::NumSlider, std::nullopt,
-                                   columns[col].x, y - row_height, short(columns[col].width), short(row_height),
-                                   &light_ptr, prop, -1, 0.0f, 0.0f, std::nullopt);
+                    uiBut *but_power = uiDefButR_prop(block,
+                                   ButType::NumSlider,
+                                   std::nullopt,
+                                   columns[col].x,
+                                   y - row_height,
+                                   short(columns[col].width),
+                                   short(row_height),
+                                   &light_ptr,
+                                   prop,
+                                   -1,
+                                   0.0f,
+                                   0.0f,
+                                   std::nullopt);
+                    if (but_power != nullptr) {
+                        /* Enlever les flags gauche/droite pour obtenir un texte centré. */
+                        UI_but_drawflag_disable(but_power, UI_BUT_TEXT_LEFT);
+                        UI_but_drawflag_disable(but_power, UI_BUT_TEXT_RIGHT);
+                    }
                 }
             }
             
             /* Visibility (Col 5) */
             {
                 const int col = int(eLightManagerColumn::Visibility);
-                int x = columns[col].x;
                 const int icon_w = UI_UNIT_X;
+                /* Center three icons in the visibility column, matching group header. */
+                int x = columns[col].x + ((columns[col].width - (icon_w * 3)) / 2);
                 
                 PropertyRNA *prop_hide_view = RNA_struct_find_property(&ob_ptr, "hide_viewport");
                 if (prop_hide_view) {
@@ -1314,13 +1372,14 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
           }
         }
         else {
-          /* Expanded group with no lights: show an informational row. */
+          /* Expanded group with no lights: show an informational row, using the darker
+           * zebra color so it matches the first light row background. */
           const int name_col = int(eLightManagerColumn::Name);
           const int indent = 20;
           const int msg_x = columns[name_col].x + indent;
           const short msg_w = short(table_width - (msg_x - margin));
 
-          draw_row_bg(y, row_height, zebra_color_even);
+          draw_row_bg(y, row_height, zebra_color_odd);
 
           uiDefBut(block,
                    ButType::Label,
@@ -1365,11 +1424,12 @@ static void light_manager_main_region_listener(const wmRegionListenerParams *par
       }
       break;
     case NC_OBJECT:
-      /* Redraw when objects change (lights modified). */
+      /* Redraw when objects or their data change (lights modified, type changed, etc.). */
       switch (wmn->data) {
         case ND_TRANSFORM:
         case ND_OB_SHADING:
         case ND_DRAW:
+        case ND_DATA:       /* Light data (type, color, energy, etc.) changed. */
           ED_region_tag_redraw(region);
           break;
       }
@@ -1448,7 +1508,6 @@ static SpaceLink *light_manager_duplicate(SpaceLink *sl)
   SpaceLightManager *space_lm = (SpaceLightManager *)sl;
   SpaceLightManager *space_lm_new = MEM_dupallocN<SpaceLightManager>(__func__, *space_lm);
   space_lm_new->runtime = MEM_new<SpaceLightManager_Runtime>(__func__);
-
   return (SpaceLink *)space_lm_new;
 }
 
@@ -1456,7 +1515,11 @@ static void light_manager_space_blend_read_data(BlendDataReader * /*reader*/, Sp
 {
   SpaceLightManager *space_lm = (SpaceLightManager *)sl;
   space_lm->runtime = MEM_new<SpaceLightManager_Runtime>(__func__);
-  light_manager_ensure_default_group(space_lm);
+
+  /* Sanitize group names to be null-terminated even for legacy/corrupt files. */
+  LISTBASE_FOREACH (SpaceLightManagerGroup *, group, &space_lm->groups) {
+    group->name[sizeof(group->name) - 1] = '\0';
+  }
 }
 
 static void light_manager_space_blend_write(BlendWriter *writer, SpaceLink *sl)
@@ -1476,6 +1539,54 @@ static void light_manager_operatortypes()
   WM_operatortype_append(LIGHT_MANAGER_OT_group_rename);
   WM_operatortype_append(LIGHT_MANAGER_OT_light_remove_from_group);
   WM_operatortype_append(LIGHT_MANAGER_OT_drop_light);
+}
+
+/* Draw a simple ghost row in the Light Manager while dragging lights or groups. */
+static void light_manager_draw_drag_ghost(bContext *C, wmWindow * /*win*/, wmDrag *drag, const int xy[2])
+{
+  /* Only draw for light or group drags used by Light Manager. */
+  if (!(drag->type == WM_DRAG_ID || drag->type == WM_DRAG_NAME)) {
+    return;
+  }
+
+  ARegion *region = CTX_wm_region(C);
+  if (region == nullptr) {
+    return;
+  }
+
+  /* Convert window coordinates to region local pixel-space. */
+  int mx = xy[0] - region->winrct.xmin;
+  int my = xy[1] - region->winrct.ymin;
+
+  const int row_height = int(UI_UNIT_Y * 1.2f);
+  const float pad = 1.0f;
+
+  rctf rect;
+  rect.xmin = pad;
+  rect.xmax = float(region->winx) - pad;
+  rect.ymax = float(my) + float(row_height) * 0.5f;
+  rect.ymin = rect.ymax - float(row_height);
+
+  bThemeState theme_state;
+  UI_Theme_Store(&theme_state);
+  UI_SetTheme(SPACE_LIGHT_MANAGER, RGN_TYPE_WINDOW);
+
+  GPU_matrix_push();
+  wmOrtho2_region_pixelspace(region);
+  GPU_blend(GPU_BLEND_ALPHA_PREMULT);
+
+  float col_bg[4];
+  UI_GetThemeColor4fv(TH_BACK, col_bg);
+  /* Darken strongly to get an almost-black ghost. */
+  col_bg[0] *= 0.0f;
+  col_bg[1] *= 0.0f;
+  col_bg[2] *= 0.0f;
+  col_bg[3] = 0.35f; /* fairly opaque but still a preview */
+  UI_draw_roundbox_4fv(&rect, true, 0.0f, col_bg);
+
+  GPU_blend(GPU_BLEND_NONE);
+  GPU_matrix_pop();
+  UI_Theme_Restore(&theme_state);
 }
 
 /* -------------------------------------------------------------------- */
@@ -1663,20 +1774,23 @@ static void light_manager_dropboxes()
   ListBase *lb = WM_dropboxmap_find("Light Manager", SPACE_LIGHT_MANAGER, RGN_TYPE_WINDOW);
   
   /* Light drop handler. */
-  WM_dropbox_add(lb,
-                 "LIGHT_MANAGER_OT_drop_light",
-                 light_drop_poll,
-                 nullptr,  /* copy */
-                 nullptr,  /* cancel */
-                 nullptr); /* tooltip */
+  wmDropBox *drop;
+  drop = WM_dropbox_add(lb,
+                        "LIGHT_MANAGER_OT_drop_light",
+                        light_drop_poll,
+                        nullptr,  /* copy */
+                        nullptr,  /* cancel */
+                        nullptr); /* tooltip */
+  drop->draw_in_view = light_manager_draw_drag_ghost;
   
   /* Group reordering handler. */
-  WM_dropbox_add(lb,
-                 "LIGHT_MANAGER_OT_group_move",
-                 group_drop_poll,
-                 nullptr,  /* copy */
-                 nullptr,  /* cancel */
-                 nullptr); /* tooltip */
+  drop = WM_dropbox_add(lb,
+                        "LIGHT_MANAGER_OT_group_move",
+                        group_drop_poll,
+                        nullptr,  /* copy */
+                        nullptr,  /* cancel */
+                        nullptr); /* tooltip */
+  drop->draw_in_view = light_manager_draw_drag_ghost;
 }
 
 /** \} */
