@@ -14,6 +14,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_array_utils.h"
+#include "BLI_array_utils.hh"
 #include "BLI_color_mix.hh"
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_listbase.h"
@@ -118,6 +119,8 @@ struct WPaintData : public PaintModeData {
   /* original weight values for use in blur/smear */
   float *precomputed_weight;
   bool precomputed_weight_ready;
+
+  Array<MDeformVert> original_weights;
 
   ~WPaintData() override
   {
@@ -1008,6 +1011,11 @@ static bool wpaint_stroke_test_start(bContext *C, wmOperator *op, const float mo
       dv->flag = 1;
     }
   }
+
+  Span<MDeformVert> deform_verts = mesh.deform_verts();
+  wpd->original_weights.reinitialize(deform_verts.size());
+
+  blender::array_utils::copy(deform_verts, wpd->original_weights.as_mutable_span());
 
   paint_stroke_set_mode_data(&stroke, std::move(wpd));
 
@@ -1936,10 +1944,21 @@ static wmOperatorStatus wpaint_exec(bContext *C, wmOperator *op)
 static void wpaint_cancel(bContext *C, wmOperator *op)
 {
   Object &ob = *CTX_data_active_object(C);
-  MEM_delete(ob.sculpt->cache);
-  ob.sculpt->cache = nullptr;
 
-  paint_stroke_cancel(C, op, (PaintStroke *)op->customdata);
+  Mesh &mesh = *static_cast<Mesh *>(ob.data);
+  PaintStroke *stroke = reinterpret_cast<PaintStroke *>(op->customdata);
+  WPaintData *data = reinterpret_cast<WPaintData *>(paint_stroke_mode_data(stroke));
+
+  MutableSpan<MDeformVert> deform_verts = mesh.deform_verts_for_write();
+  threading::parallel_for(deform_verts.index_range(), 1024, [&](const IndexRange range) {
+    for (const int i : range) {
+      MEM_SAFE_FREE(deform_verts[i].dw);
+    }
+  });
+
+  blender::array_utils::copy(data->original_weights.as_span(), mesh.deform_verts_for_write());
+
+  paint_stroke_cancel(C, op, stroke);
 }
 
 static wmOperatorStatus wpaint_modal(bContext *C, wmOperator *op, const wmEvent *event)
