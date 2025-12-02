@@ -1016,6 +1016,10 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
       total_height += group_h;
     }
   }
+  else {
+    /* No groups: reserve one row for a global informational message. */
+    total_height += row_height + group_vertical_padding;
+  }
 
   View2D *v2d = &region->v2d;
   int view_height = total_height;
@@ -1466,6 +1470,29 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
       }
       y -= group_vertical_padding;
     }
+  }
+  else {
+    /* No groups at all: show a single informational row asking the user to create one. */
+    const int name_col = int(eLightManagerColumn::Name);
+    const int indent = 20;
+    const int msg_x = columns[name_col].x + indent;
+    const short msg_w = short(table_width - (msg_x - margin));
+
+    draw_row_bg(y, row_height, zebra_color_odd);
+
+    uiDefBut(block,
+             ButType::Label,
+             IFACE_("Please create a group to start"),
+             msg_x,
+             y - row_height,
+             msg_w,
+             short(row_height),
+             nullptr,
+             0.0f,
+             0.0f,
+             std::nullopt);
+
+    y -= row_height;
   }
   
   UI_block_end(C, block);
