@@ -20,6 +20,7 @@
 
 #include "ED_asset_indexer.hh"
 #include "asset_index.hh"
+#include "asset_indexer_remote_listing.hh"
 
 static CLG_LogRef LOG = {"asset.remote_listing"};
 
@@ -73,8 +74,9 @@ static std::optional<RemoteListingAssetEntry> listing_entry_from_asset_dictionar
     return {};
   }
 
-  /* 'thumbnail': optional string. */
-  listing_entry.thumbnail_url = dictionary.lookup_str("thumbnail_url").value_or("");
+  /* 'thumbnail': URL and hash of the preview image. */
+  listing_entry.thumbnail = ed::asset::index::parse_url_with_hash_dict(
+      dictionary.lookup_dict("thumbnail"));
 
   /* 'metadata': optional dictionary. If all the metadata fields are empty, this can be left out of
    * the listing. Default metadata will then be allocated, with all fields empty/0. */
@@ -181,7 +183,7 @@ std::optional<AssetLibraryListingV1> AssetLibraryListingV1::read(
     return {};
   }
 
-  const ArrayValue *entries = root->lookup_array("page_urls");
+  const ArrayValue *entries = root->lookup_array("pages");
   BLI_assert(entries != nullptr);
   if (entries == nullptr) {
     return {};
@@ -191,15 +193,16 @@ std::optional<AssetLibraryListingV1> AssetLibraryListingV1::read(
 
   int i = 0;
   for (const std::shared_ptr<Value> &element : entries->elements()) {
-    const StringValue *page_path = element->as_string_value();
-    if (!page_path) {
+    const std::optional<asset_system::URLWithHash> page_info = parse_url_with_hash_dict(
+        element->as_dictionary_value());
+    if (!page_info) {
       printf("Error reading asset listing page path at index %i in %s - ignoring\n",
              i,
              listing_filepath.c_str());
       i++;
       continue;
     }
-    listing.page_rel_paths.append(std::move(page_path->value()));
+    listing.page_rel_paths.append(std::move(page_info->url));
     i++;
   }
 

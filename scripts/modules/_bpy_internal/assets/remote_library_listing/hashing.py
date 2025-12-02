@@ -33,26 +33,35 @@ def _sha256_file(filepath: Path) -> str:
     return sha256_hash.hexdigest()
 
 
-def url(url_with_hash: _URLWithHash) -> str:
+def url(url_with_hash: _URLWithHash | tuple[str, str]) -> str:
     """Return the url, with the hash on the query string.
 
     >>> url(URLWithHash(url="http://localhost/", hash="sha256:the-hash"))
+    'http://localhost/?hash=the-hash'
+    >>> url(("http://localhost/", "sha256:the-hash"))
     'http://localhost/?hash=the-hash'
     """
 
     import urllib.parse
 
-    url = url_with_hash.url
-    hash_with_type = url_with_hash.hash
+    # Get the URL and the hash.
+    if isinstance(url_with_hash, tuple):
+        url, hash_with_type = url_with_hash
+    else:
+        url = url_with_hash.url
+        hash_with_type = url_with_hash.hash
 
+    # Without a hash, it's simple.
     if not hash_with_type:
         return url
 
+    # Remove the hash type from the hash string.
     try:
         _, hash_value = hash_with_type.split(':', 1)
     except ValueError:
         # This means the hash is not in the form '{TYPE}:{HASH}'; just use it as-is.
         hash_value = hash_with_type
 
+    # Append to the URL with the correct separator.
     sep = '&' if '?' in url else '?'
     return url + sep + 'hash=' + urllib.parse.quote(hash_value)

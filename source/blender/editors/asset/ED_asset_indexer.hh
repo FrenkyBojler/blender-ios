@@ -13,6 +13,8 @@
 
 #include "BLI_function_ref.hh"
 
+#include "AS_asset_representation.hh" /* For URLWithHash. */
+
 #include "ED_file_indexer.hh"
 
 struct AssetLibraryReference;
@@ -48,7 +50,7 @@ struct RemoteListingAssetEntry {
 
   /* The path of the blend file that contains the asset, relative to the library root. */
   std::string file_path;
-  std::string thumbnail_url;
+  std::optional<asset_system::URLWithHash> thumbnail;
 
   RemoteListingAssetEntry() = default;
   RemoteListingAssetEntry(const RemoteListingAssetEntry &) = delete;

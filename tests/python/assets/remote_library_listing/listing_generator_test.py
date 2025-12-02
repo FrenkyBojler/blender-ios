@@ -97,7 +97,7 @@ class CustomPropertiesTest(unittest.TestCase):
 class HashingTest(unittest.TestCase):
     def test_url_function(self) -> None:
         # No hash.
-        url_with_hash = api_models.URLWithHashV1(
+        url_with_hash = api_models.URLWithHash(
             url="http://localhost:8080/_v1/asset-index.json",
             hash=""
         )
@@ -120,6 +120,14 @@ class HashingTest(unittest.TestCase):
         self.assertEqual(
             "http://localhost:8080/_v1/asset-index.json?auth=none&hash=2cafc9d388fb8c2d0b6ca9780d6b75963587916d",
             hashing.url(url_with_hash))
+
+        # Using a tuple instead of an URLWithHash object.
+        self.assertEqual(
+            "http://localhost:8080/_v1/asset-index.json?auth=none&hash=2cafc9d388fb8c2d0b6ca9780d6b75963587916d",
+            hashing.url((
+                "http://localhost:8080/_v1/asset-index.json?auth=none",
+                "sha1:2cafc9d388fb8c2d0b6ca9780d6b75963587916d"
+            )))
 
 
 def main():

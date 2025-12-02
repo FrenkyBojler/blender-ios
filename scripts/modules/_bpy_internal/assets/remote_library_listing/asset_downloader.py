@@ -20,6 +20,7 @@ import bpy
 
 from _bpy_internal.http import downloader as http_dl
 from _bpy_internal.assets.remote_library_listing.listing_downloader import RemoteAssetListingLocator
+from _bpy_internal.assets.remote_library_listing import hashing
 
 logger = logging.getLogger(__name__)
 
@@ -69,6 +70,7 @@ def download_preview(
         asset_library_url: str,
         asset_library_local_path: Path,
         preview_url: str,
+        preview_hash: str,
         dst_filepath: Path) -> None:
     """Download an asset preview to a file on disk.
 
@@ -81,6 +83,7 @@ def download_preview(
         cache for this asset library (for conditional downloads).
 
     :param preview_url: the URL to download. Can be absolute or relative.
+    :param preview_hash: the hash of the thumbnail, will be appended to the URL.
 
     :param savedst_filepath_to: the path on disk where to download to. While the
         download is pending, ".part" will be appended to the filename. When the
@@ -116,7 +119,9 @@ def download_preview(
         downloader.start()
         _preview_downloaders[asset_library_url] = downloader
 
-    downloader.download_asset(preview_url, dst_filepath)
+    # Include the hash in the URL, and download the asset.
+    download_url = hashing.url((preview_url, preview_hash))
+    downloader.download_asset(download_url, dst_filepath)
 
 
 def _asset_download_done(

@@ -379,7 +379,7 @@ void remote_library_request_preview_download(bContext &C,
   }
 
 #ifdef WITH_PYTHON
-  const std::optional<StringRef> preview_url = asset.online_asset_preview_url();
+  const std::optional<URLWithHash> preview_url = asset.online_asset_preview_url();
   if (!preview_url) {
     return;
   }
@@ -403,13 +403,14 @@ void remote_library_request_preview_download(bContext &C,
         "\n"
         "asset_dl.download_preview(\n"
         "    library_url, Path(library_path),\n"
-        "    preview_url, Path(dst_filepath),\n"
+        "    preview_url, preview_hash, Path(dst_filepath),\n"
         ")\n";
 
     std::unique_ptr locals = bke::idprop::create_group("locals");
     IDP_AddToGroup(locals.get(), IDP_NewString(*library_url, "library_url"));
     IDP_AddToGroup(locals.get(), IDP_NewString(library.root_path(), "library_path"));
-    IDP_AddToGroup(locals.get(), IDP_NewString(*preview_url, "preview_url"));
+    IDP_AddToGroup(locals.get(), IDP_NewString(preview_url->url, "preview_url"));
+    IDP_AddToGroup(locals.get(), IDP_NewString(preview_url->hash, "preview_hash"));
     IDP_AddToGroup(locals.get(), IDP_NewString(dst_filepath, "dst_filepath"));
 
     /* TODO: report errors in the UI somehow. */
@@ -439,7 +440,7 @@ std::string remote_library_asset_preview_path(const AssetRepresentation &asset)
   BLI_path_join(
       thumbs_dir_path, sizeof(thumbs_dir_path), library_cache_dir.c_str(), "_thumbs", "large");
 
-  const std::optional<StringRefNull> preview_url = asset.online_asset_preview_url();
+  const std::optional<URLWithHash> preview_url = asset.online_asset_preview_url();
   if (!preview_url) {
     BLI_assert_unreachable();
     return "";
@@ -456,7 +457,7 @@ std::string remote_library_asset_preview_path(const AssetRepresentation &asset)
 
     /* If the download URL has an extension, preserve that for the downloaded file (will be either
      * the period before the last extension, or the null character at the end of the file name). */
-    const char *ext = BLI_path_extension_or_end(preview_url->c_str());
+    const char *ext = BLI_path_extension_or_end(preview_url->url.c_str());
     BLI_snprintf(thumb_name, sizeof(thumb_name), "%s%s", hexdigest, ext);
   }
 

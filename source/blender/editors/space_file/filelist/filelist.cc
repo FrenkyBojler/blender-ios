@@ -2426,7 +2426,7 @@ static void filelist_readjob_list_lib_add_datablock(
     const int idcode,
     const char *group_name,
     const std::optional<std::string> asset_download_dst_filepath = std::nullopt,
-    const std::optional<std::string> asset_preview_url = std::nullopt)
+    const std::optional<asset_system::URLWithHash> asset_preview_url = std::nullopt)
 {
   FileListInternEntry *entry = MEM_new<FileListInternEntry>(__func__);
   if (prefix_relpath_with_group_name) {
@@ -3274,7 +3274,7 @@ static void filelist_readjob_remote_asset_library_index_read(
                                             entry.idcode,
                                             group_name,
                                             entry.file_path,
-                                            entry.thumbnail_url);
+                                            entry.thumbnail);
 
     int entries_num = 0;
     LISTBASE_FOREACH (FileListInternEntry *, entry, &entries) {

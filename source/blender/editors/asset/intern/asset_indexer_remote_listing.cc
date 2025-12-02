@@ -20,6 +20,7 @@
 
 #include "ED_asset_indexer.hh"
 #include "asset_index.hh"
+#include "asset_indexer_remote_listing.hh"
 
 static CLG_LogRef LOG = {"asset.remote_listing"};
 
@@ -38,7 +39,7 @@ RemoteListingAssetEntry::RemoteListingAssetEntry(RemoteListingAssetEntry &&other
   this->idcode = other.idcode;
 
   this->file_path = std::move(other.file_path);
-  this->thumbnail_url = std::move(other.thumbnail_url);
+  this->thumbnail = std::move(other.thumbnail);
 }
 
 RemoteListingAssetEntry &RemoteListingAssetEntry::operator=(RemoteListingAssetEntry &&other)
@@ -72,6 +73,25 @@ std::unique_ptr<Value> read_contents(const StringRefNull filepath)
   return formatter.deserialize(is);
 }
 
+std::optional<asset_system::URLWithHash> parse_url_with_hash_dict(
+    const DictionaryValue *url_with_hash_dict)
+{
+  if (!url_with_hash_dict) {
+    return {};
+  }
+
+  const std::optional<StringRefNull> url = url_with_hash_dict->lookup_str("url");
+  const std::optional<StringRefNull> hash = url_with_hash_dict->lookup_str("hash");
+
+  /* A URL without hash is not up to spec, but we can work with it. But without
+   * a URL it's hopeless. */
+  if (!url) {
+    return {};
+  }
+
+  return asset_system::URLWithHash{*url, hash.value_or("")};
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -83,7 +103,7 @@ std::unique_ptr<Value> read_contents(const StringRefNull filepath)
 
 struct AssetLibraryMeta {
   /** Map of API version string ("v1", "v2", ...) to path relative to root directory. */
-  Map<std::string, std::string> api_versions;
+  Map<std::string, asset_system::URLWithHash> api_versions;
 
   static std::optional<AssetLibraryMeta> read(const StringRefNull root_dirpath,
                                               std::optional<Timestamp> ignore_before_timestamp);
@@ -154,14 +174,22 @@ std::optional<AssetLibraryMeta> AssetLibraryMeta::read(
 
   for (const DictionaryValue::Item &version : entries->elements()) {
     /* Relative path to the listing meta-file (e.g. `_v1/asset-index.json`). */
-    const StringValue *listing_rel_path = version.second->as_string_value();
-    if (!listing_rel_path) {
-      printf("Error reading asset listing API version path '%s' in %s - ignoring\n",
+    const DictionaryValue *index_path_info = version.second->as_dictionary_value();
+    if (!index_path_info) {
+      printf("Error reading asset listing API version '%s' in %s - ignoring\n",
              version.first.c_str(),
              filepath);
       continue;
     }
-    library_meta.api_versions.add(version.first, std::move(listing_rel_path->value()));
+
+    std::optional<asset_system::URLWithHash> url_with_hash = parse_url_with_hash_dict(
+        index_path_info);
+    if (!url_with_hash) {
+      printf("Error reading asset listing API version '%s' in %s, no URL found - ignoring\n",
+             version.first.c_str(),
+             filepath);
+    }
+    library_meta.api_versions.add(version.first, std::move(*url_with_hash));
   }
 
   return library_meta;
@@ -173,6 +201,8 @@ struct ApiVersionInfo {
   uint version_nr;
   /** Relative path to the listing meta-file (e.g. `_v1/asset-index.json`). */
   std::string listing_relpath;
+  /** Hash of the file, like `SHA256:112233`. */
+  std::string listing_hash;
 };
 
 static std::optional<ApiVersionInfo> choose_api_version(const AssetLibraryMeta &library_meta)
@@ -184,9 +214,10 @@ static std::optional<ApiVersionInfo> choose_api_version(const AssetLibraryMeta &
   };
 
   for (const auto &[version_nr, version_str] : readable_versions) {
-    if (const std::string *version_listing_url = library_meta.api_versions.lookup_ptr(version_str))
+    if (const asset_system::URLWithHash *url_with_hash = library_meta.api_versions.lookup_ptr(
+            version_str))
     {
-      return ApiVersionInfo{version_nr, *version_listing_url};
+      return ApiVersionInfo{version_nr, url_with_hash->url, url_with_hash->hash};
     }
   }
 
