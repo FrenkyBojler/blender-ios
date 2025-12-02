@@ -80,6 +80,7 @@ static int gpu_shader_curve_vec(GPUMaterial *mat,
 
 class CurveVecFunction : public mf::MultiFunction {
  private:
+  /** Take ownership of the tree because it contains the curve mapping. */
   std::shared_ptr<const bNodeTree> tree_;
   const CurveMapping &cumap_;
 
@@ -245,6 +246,7 @@ static int gpu_shader_curve_rgb(GPUMaterial *mat,
 
 class CurveRGBFunction : public mf::MultiFunction {
  private:
+  /** Take ownership of the tree because it contains the curve mapping. */
   std::shared_ptr<const bNodeTree> tree_;
   const CurveMapping &cumap_;
 
@@ -386,6 +388,7 @@ static int gpu_shader_curve_float(GPUMaterial *mat,
 
 class CurveFloatFunction : public mf::MultiFunction {
  private:
+  /** Take ownership of the tree because it contains the curve mapping. */
   std::shared_ptr<const bNodeTree> tree_;
   const CurveMapping &cumap_;
 

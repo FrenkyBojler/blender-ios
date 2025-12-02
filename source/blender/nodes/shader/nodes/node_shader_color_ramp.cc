@@ -105,6 +105,7 @@ static int gpu_shader_valtorgb(GPUMaterial *mat,
 
 class ColorBandFunction : public mf::MultiFunction {
  private:
+  /** Take ownership of the tree because it contains the color ramp. */
   std::shared_ptr<const bNodeTree> tree_;
   const ColorBand &color_band_;
 

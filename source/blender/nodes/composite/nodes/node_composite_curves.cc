@@ -263,6 +263,7 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
   builder.construct_and_set_matching_fn_cb([&]() {
     return mf::build::SI4_SO<Color, float, Color, Color, Color>(
         "RGB Curves",
+        /* Take ownership of the tree because it contains the curve mapping. */
         [curve_mapping, tree = builder.shared_tree()](const Color &color,
                                                       const float factor,
                                                       const Color &black,

@@ -700,6 +700,7 @@ static bool format_strings(const StringRef format,
 
 class FormatStringMultiFunction : public mf::MultiFunction {
  private:
+  /** Take ownership of the tree because it contains the node. */
   std::shared_ptr<const bNodeTree> shared_tree_;
   const bNode &node_;
   VectorSet<std::string> input_names_;
