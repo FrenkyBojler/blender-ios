@@ -770,6 +770,10 @@ class TransformsToDeltas(Operator):
         default=True,
     )
 
+    @classmethod
+    def poll(cls, context):
+        return context.scene.is_editable
+
     def execute(self, context):
         objects = context.selected_editable_objects
         if not objects:
@@ -827,6 +831,10 @@ class TransformsToDeltasAnim(Operator):
     bl_idname = "object.anim_transforms_to_deltas"
     bl_label = "Animated Transforms to Deltas"
     bl_options = {'REGISTER', 'UNDO'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.scene.is_editable
 
     def execute(self, context):
         from bpy_extras import anim_utils
