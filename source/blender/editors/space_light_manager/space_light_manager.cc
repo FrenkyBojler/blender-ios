@@ -1511,10 +1511,14 @@ static SpaceLink *light_manager_duplicate(SpaceLink *sl)
   return (SpaceLink *)space_lm_new;
 }
 
-static void light_manager_space_blend_read_data(BlendDataReader * /*reader*/, SpaceLink *sl)
+static void light_manager_space_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
 {
   SpaceLightManager *space_lm = (SpaceLightManager *)sl;
   space_lm->runtime = MEM_new<SpaceLightManager_Runtime>(__func__);
+
+  BLO_read_struct_list(reader, SpaceLightManagerGroup, &space_lm->groups);
+
+  light_manager_ensure_default_group(space_lm);
 
   /* Sanitize group names to be null-terminated even for legacy/corrupt files. */
   LISTBASE_FOREACH (SpaceLightManagerGroup *, group, &space_lm->groups) {
@@ -1524,7 +1528,10 @@ static void light_manager_space_blend_read_data(BlendDataReader * /*reader*/, Sp
 
 static void light_manager_space_blend_write(BlendWriter *writer, SpaceLink *sl)
 {
-  BLO_write_struct(writer, SpaceLightManager, sl);
+  SpaceLightManager *space_lm = (SpaceLightManager *)sl;
+
+  BLO_write_struct(writer, SpaceLightManager, space_lm);
+  BLO_write_struct_list(writer, SpaceLightManagerGroup, &space_lm->groups);
 }
 
 static void light_manager_operatortypes()
