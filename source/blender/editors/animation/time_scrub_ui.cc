@@ -99,25 +99,10 @@ static void draw_frame_line(const float subframe_x,
   UI_draw_roundbox_4fv_ex(&line_rect, fg_color, nullptr, 1.0f, bg_color, UI_SCALE_FAC, 0.0f);
 }
 
-static void draw_frame_line(const float subframe_x,
-                            const float region_height,
-                            const float *fg_color,
-                            const float *bg_color)
-{
-  const float line_width = LINE_WIDTH;
-  rctf line_rect{};
-  line_rect.xmin = floor(subframe_x - line_width / 2);
-  line_rect.xmax = ceil(subframe_x + line_width / 2);
-  line_rect.ymin = -UI_SCALE_FAC;
-  line_rect.ymax = ceil(region_height);
-  UI_draw_roundbox_4fv_ex(&line_rect, fg_color, nullptr, 1.0f, bg_color, UI_SCALE_FAC, 0.0f);
-}
-
 static void draw_current_frame(const Scene *scene,
                                bool display_seconds,
                                const View2D *v2d,
                                const rcti *scrub_region_rect,
-                               int current_frame,
                                const bool display_stalk,
                                const bool draw_line)
 {
@@ -234,8 +219,7 @@ void ED_time_scrub_draw_current_frame(const ARegion *region,
   rcti scrub_region_rect;
   ED_time_scrub_region_rect_get(region, &scrub_region_rect);
 
-  draw_current_frame(
-      scene, display_seconds, v2d, &scrub_region_rect, scene->r.cfra, display_stalk, draw_line);
+  draw_current_frame(scene, display_seconds, v2d, &scrub_region_rect, display_stalk, draw_line);
   GPU_matrix_pop_projection();
 }
 
