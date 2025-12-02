@@ -31,6 +31,8 @@
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
+#include "NOD_common.hh"
+
 #include "rna_internal.hh"
 #include "rna_internal_types.hh"
 
@@ -1891,7 +1893,7 @@ static void rna_Node_free(PointerRNA *ptr)
   RNA_parameter_list_free(&list);
 }
 
-static void rna_Node_draw_buttons(uiLayout *layout, bContext *C, PointerRNA *ptr)
+static void rna_Node_draw_buttons(blender::ui::Layout &layout, bContext *C, PointerRNA *ptr)
 {
   bNode *node = ptr->data_as<bNode>();
   ParameterList list;
@@ -1901,13 +1903,14 @@ static void rna_Node_draw_buttons(uiLayout *layout, bContext *C, PointerRNA *ptr
 
   RNA_parameter_list_create(&list, ptr, func);
   RNA_parameter_set_lookup(&list, "context", &C);
-  RNA_parameter_set_lookup(&list, "layout", &layout);
+  blender::ui::Layout *layout_ptr = &layout;
+  RNA_parameter_set_lookup(&list, "layout", &layout_ptr);
   node->typeinfo->rna_ext.call(C, ptr, func, &list);
 
   RNA_parameter_list_free(&list);
 }
 
-static void rna_Node_draw_buttons_ext(uiLayout *layout, bContext *C, PointerRNA *ptr)
+static void rna_Node_draw_buttons_ext(blender::ui::Layout &layout, bContext *C, PointerRNA *ptr)
 {
   bNode *node = ptr->data_as<bNode>();
   ParameterList list;
@@ -1917,7 +1920,8 @@ static void rna_Node_draw_buttons_ext(uiLayout *layout, bContext *C, PointerRNA 
 
   RNA_parameter_list_create(&list, ptr, func);
   RNA_parameter_set_lookup(&list, "context", &C);
-  RNA_parameter_set_lookup(&list, "layout", &layout);
+  blender::ui::Layout *layout_ptr = &layout;
+  RNA_parameter_set_lookup(&list, "layout", &layout_ptr);
   node->typeinfo->rna_ext.call(C, ptr, func, &list);
 
   RNA_parameter_list_free(&list);
@@ -2985,7 +2989,7 @@ static void rna_NodeInternal_draw_buttons(ID *id, bNode *node, bContext *C, uiLa
 {
   if (node->typeinfo->draw_buttons) {
     PointerRNA ptr = RNA_pointer_create_discrete(id, &RNA_Node, node);
-    node->typeinfo->draw_buttons(layout, C, &ptr);
+    node->typeinfo->draw_buttons(*layout, C, &ptr);
   }
 }
 
@@ -2993,11 +2997,11 @@ static void rna_NodeInternal_draw_buttons_ext(ID *id, bNode *node, bContext *C, 
 {
   if (node->typeinfo->draw_buttons_ex) {
     PointerRNA ptr = RNA_pointer_create_discrete(id, &RNA_Node, node);
-    node->typeinfo->draw_buttons_ex(layout, C, &ptr);
+    node->typeinfo->draw_buttons_ex(*layout, C, &ptr);
   }
   else if (node->typeinfo->draw_buttons) {
     PointerRNA ptr = RNA_pointer_create_discrete(id, &RNA_Node, node);
-    node->typeinfo->draw_buttons(layout, C, &ptr);
+    node->typeinfo->draw_buttons(*layout, C, &ptr);
   }
 }
 
@@ -3039,6 +3043,7 @@ static StructRNA *rna_GeometryNodeCustomGroup_register(Main *bmain,
   }
 
   nt->type_legacy = NODE_CUSTOM_GROUP;
+  nt->ui_class = node_group_ui_class;
 
   register_node_type_geo_custom_group(nt);
 
@@ -3067,6 +3072,7 @@ static StructRNA *rna_ShaderNodeCustomGroup_register(Main *bmain,
   }
 
   nt->type_legacy = NODE_CUSTOM_GROUP;
+  nt->ui_class = node_group_ui_class;
 
   register_node_type_sh_custom_group(nt);
 
@@ -3092,6 +3098,7 @@ static StructRNA *rna_CompositorNodeCustomGroup_register(Main *bmain,
   }
 
   nt->type_legacy = NODE_CUSTOM_GROUP;
+  nt->ui_class = node_group_ui_class;
 
   register_node_type_cmp_custom_group(nt);
 
