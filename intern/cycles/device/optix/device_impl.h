@@ -83,7 +83,7 @@ static const int NUM_MISS_PROGRAM_GROUPS = 1;
 static const int HIT_PROGAM_GROUP_OFFSET = PG_HITD;
 static const int NUM_HIT_PROGRAM_GROUPS = 24;
 static const int CALLABLE_PROGRAM_GROUPS_BASE = PG_CALL_SVM_AO;
-static const int NUM_CALLABLE_PROGRAM_GROUPS = 2;
+static const int NUM_CALLABLE_PROGRAM_GROUPS = 3;
 
 /* List of OptiX pipelines. */
 enum { PIP_SHADE, PIP_INTERSECT, NUM_PIPELINES };
