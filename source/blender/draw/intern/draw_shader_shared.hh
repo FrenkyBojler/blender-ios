@@ -4,10 +4,11 @@
 
 #pragma once
 
+#include "GPU_shader_shared_utils.hh"
+
 #ifndef GPU_SHADER
 #  include "BLI_math_vector.hh"
 #  include "GPU_shader.hh"
-#  include "GPU_shader_shared_utils.hh"
 #  include "draw_defines.hh"
 
 struct ViewCullingData;
@@ -156,7 +157,7 @@ enum eObjectInfoFlag : uint32_t {
 };
 
 #ifndef GPU_SHADER
-ENUM_OPERATORS(eObjectInfoFlag, OBJECT_ACTIVE_EDIT_MODE);
+ENUM_OPERATORS(eObjectInfoFlag);
 #endif
 
 struct ObjectInfos {

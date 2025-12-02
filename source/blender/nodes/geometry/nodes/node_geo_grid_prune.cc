@@ -43,20 +43,21 @@ static void node_declare(NodeDeclarationBuilder &b)
       {int(Mode::Inactive),
        "INACTIVE",
        0,
-       "Inactive",
-       "Turn inactive voxels and tiles into inactive background tiles"},
+       N_("Inactive"),
+       N_("Turn inactive voxels and tiles into inactive background tiles")},
       {int(Mode::Threshold),
        "THRESHOLD",
        0,
-       "Threshold",
-       "Turn regions where all voxels have the same value and active state (within a tolerance "
-       "threshold) into inactive background tiles"},
+       N_("Threshold"),
+       N_("Turn regions where all voxels have the same value and active state (within a tolerance "
+          "threshold) into inactive background tiles")},
       {int(Mode::SDF),
        "SDF",
        0,
-       "SDF",
-       "Replace inactive tiles with inactive nodes. Faster than tolerance-based pruning, useful "
-       "for cases like narrow-band SDF grids with only inside or outside background values."},
+       N_("SDF"),
+       N_("Replace inactive tiles with inactive nodes. Faster than tolerance-based pruning, "
+          "useful for cases like narrow-band SDF grids with only inside or outside background "
+          "values.")},
       {0, nullptr, 0, nullptr, nullptr},
   };
   b.add_input<decl::Menu>("Mode")
@@ -90,9 +91,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static std::optional<eNodeSocketDatatype> node_type_for_socket_type(const bNodeSocket &socket)

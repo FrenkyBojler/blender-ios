@@ -1002,36 +1002,44 @@ struct FlatObjectRef {
 
     float dim[3];
     BKE_object_dimensions_get(ob, dim);
-    if (dim[0] == 0.0f) {
+
+    /* Small epsilon relative to object size to handle float errors in flat axis detection after
+     * rotation. See #139555. */
+    const float max_dim = math::reduce_max(float3(dim));
+    const float epsilon = max_dim * 1e-6f;
+
+    if (dim[0] <= epsilon) {
       return 0;
     }
-    if (dim[1] == 0.0f) {
+    if (dim[1] <= epsilon) {
       return 1;
     }
-    if (dim[2] == 0.0f) {
+    if (dim[2] <= epsilon) {
       return 2;
     }
     return -1;
   }
 
-  using Callback = FunctionRef<void(gpu::Batch *geom, ResourceHandleRange handle)>;
+  using Callback = FunctionRef<void(gpu::Batch *geom, ResourceIndex handle)>;
 
   /* Execute callback for every handles that is orthogonal to the view.
    * Note: Only works in orthogonal view. */
   void if_flat_axis_orthogonal_to_view(Manager &manager, const View &view, Callback callback) const
   {
-    const float4x4 &object_to_world =
-        manager.matrix_buf.current().get_or_resize(handle.resource_index()).model;
+    for (ResourceIndex resource_index : handle.index_range()) {
+      const float4x4 &object_to_world =
+          manager.matrix_buf.current().get_or_resize(resource_index.resource_index()).model;
 
-    float3 view_forward = view.forward();
-    float3 axis_not_flat_a = (flattened_axis_id == 0) ? object_to_world.y_axis() :
-                                                        object_to_world.x_axis();
-    float3 axis_not_flat_b = (flattened_axis_id == 1) ? object_to_world.z_axis() :
-                                                        object_to_world.y_axis();
-    float3 axis_flat = math::cross(axis_not_flat_a, axis_not_flat_b);
+      float3 view_forward = view.forward();
+      float3 axis_not_flat_a = (flattened_axis_id == 0) ? object_to_world.y_axis() :
+                                                          object_to_world.x_axis();
+      float3 axis_not_flat_b = (flattened_axis_id == 1) ? object_to_world.z_axis() :
+                                                          object_to_world.y_axis();
+      float3 axis_flat = math::cross(axis_not_flat_a, axis_not_flat_b);
 
-    if (math::abs(math::dot(view_forward, axis_flat)) < 1e-3f) {
-      callback(geom, handle);
+      if (math::abs(math::dot(view_forward, axis_flat)) < 1e-3f) {
+        callback(geom, resource_index);
+      }
     }
   }
 };

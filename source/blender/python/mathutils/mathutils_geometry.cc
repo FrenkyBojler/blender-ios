@@ -29,6 +29,7 @@
 #include "BLI_utildefines.h"
 
 #include "../generic/py_capi_utils.hh"
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 #include "../generic/python_utildefines.hh"
 
 /* ---------------------------------INTERSECTION FUNCTIONS-------------------- */
@@ -1822,6 +1823,16 @@ static PyObject *M_Geometry_delaunay_2d_cdt(PyObject * /*self*/, PyObject *args)
 
 #endif /* MATH_STANDALONE */
 
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
+#endif
+
 static PyMethodDef M_Geometry_methods[] = {
     {"intersect_ray_tri",
      (PyCFunction)M_Geometry_intersect_ray_tri,
@@ -1923,6 +1934,14 @@ static PyMethodDef M_Geometry_methods[] = {
 #endif
     {nullptr, nullptr, 0, nullptr},
 };
+
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
+#endif
 
 PyDoc_STRVAR(
     /* Wrap. */

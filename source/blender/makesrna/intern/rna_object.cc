@@ -473,6 +473,7 @@ static void rna_Object_active_shape_update(Main *bmain, Scene * /*scene*/, Point
     }
   }
 
+  WM_main_add_notifier(NC_OBJECT | ND_TRANSFORM, ob);
   rna_Object_internal_update_data_impl(ptr);
 }
 
@@ -2188,7 +2189,7 @@ bool rna_Object_light_linking_override_apply(Main *bmain,
   UNUSED_VARS_NDEBUG(ptr_storage, len_dst, len_src, len_storage, opop);
 
   /* LightLinking is a special case, since you cannot edit/replace it, it's either existent or not.
-   * Further more, when a lightlinking is added to the linked reference later on, the one created
+   * Further more, when a light-linking is added to the linked reference later on, the one created
    * for the liboverride needs to be 'merged', such that its overridable data is kept. */
   Object *ob_dst = blender::id_cast<Object *>(ptr_dst->owner_id);
   Object *ob_src = blender::id_cast<Object *>(ptr_src->owner_id);
@@ -2838,6 +2839,15 @@ static void rna_def_object_visibility(StructRNA *srna)
   RNA_def_property_boolean_sdna(prop, nullptr, "visibility_flag", OB_HIDE_PROBE_PLANAR);
   RNA_def_property_ui_text(
       prop, "Disable in Planar Light Probes", "Globally disable in planar light probes");
+  RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_internal_update_draw");
+
+  prop = RNA_def_property(srna, "hide_surface_pick", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "visibility_flag", OB_HIDE_SURFACE_PICK);
+  RNA_def_property_ui_text(
+      prop,
+      "Disable in Surface Picking",
+      "Disable surface influence during selection, snapping and depth-picking operators. "
+      "Usually used to avoid semi-transparent objects to affect scene navigation");
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Object_internal_update_draw");
 
   /* Instancer options. */

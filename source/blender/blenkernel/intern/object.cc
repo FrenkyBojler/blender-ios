@@ -49,7 +49,7 @@
 #include "DNA_view3d_types.h"
 
 #include "BLI_bounds.hh"
-#include "BLI_kdtree.h"
+#include "BLI_kdtree.hh"
 #include "BLI_linklist.h"
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
@@ -122,9 +122,9 @@
 #include "BKE_preview_image.hh"
 #include "BKE_rigidbody.h"
 #include "BKE_scene.hh"
-#include "BKE_shader_fx.h"
+#include "BKE_shader_fx.hh"
 #include "BKE_softbody.h"
-#include "BKE_speaker.h"
+#include "BKE_speaker.hh"
 #include "BKE_subdiv_ccg.hh"
 #include "BKE_vfont.hh"
 #include "BKE_volume.hh"
@@ -637,13 +637,9 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   BLO_write_pointer_array(writer, ob->totcol, ob->mat);
   BLO_write_char_array(writer, ob->totcol, ob->matbits);
 
-  bArmature *arm = nullptr;
-  if (ob->type == OB_ARMATURE) {
-    arm = (bArmature *)ob->data;
-  }
-
   if (ob->pose) {
-    BKE_pose_blend_write(writer, ob->pose, arm);
+    BLI_assert(ob->type == OB_ARMATURE);
+    BKE_pose_blend_write(writer, ob->pose);
   }
   BKE_constraint_blend_write(writer, &ob->constraints);
   animviz_motionpath_blend_write(writer, ob->mpath);
@@ -1433,16 +1429,7 @@ bool BKE_object_copy_modifier(Main *bmain,
         break;
     }
 
-    ModifierData *next_md = nullptr;
-    LISTBASE_FOREACH_BACKWARD (ModifierData *, md, &ob_dst->modifiers) {
-      if (md->flag & eModifierFlag_PinLast) {
-        next_md = md;
-      }
-      else {
-        break;
-      }
-    }
-    BLI_insertlinkbefore(&ob_dst->modifiers, next_md, md_dst);
+    BKE_modifiers_add_at_end_if_possible(ob_dst, md_dst);
     BKE_modifier_unique_name(&ob_dst->modifiers, md_dst);
     BKE_modifiers_persistent_uid_init(*ob_dst, *md_dst);
   }
@@ -5059,9 +5046,9 @@ void BKE_object_groups_clear(Main *bmain, Scene *scene, Object *ob)
 /** \name Object KD-Tree
  * \{ */
 
-KDTree_3d *BKE_object_as_kdtree(Object *ob, int *r_tot)
+blender::KDTree_3d *BKE_object_as_kdtree(Object *ob, int *r_tot)
 {
-  KDTree_3d *tree = nullptr;
+  blender::KDTree_3d *tree = nullptr;
   uint tot = 0;
 
   switch (ob->type) {
@@ -5081,14 +5068,14 @@ KDTree_3d *BKE_object_as_kdtree(Object *ob, int *r_tot)
 
         /* Tree over-allocates in case where some verts have #ORIGINDEX_NONE. */
         tot = 0;
-        tree = BLI_kdtree_3d_new(positions.size());
+        tree = blender::BLI_kdtree_3d_new(positions.size());
 
         /* We don't how many verts from the DM we can use. */
         for (i = 0; i < positions.size(); i++) {
           if (index[i] != ORIGINDEX_NONE) {
             float co[3];
             mul_v3_m4v3(co, ob->object_to_world().ptr(), positions[i]);
-            BLI_kdtree_3d_insert(tree, index[i], co);
+            blender::BLI_kdtree_3d_insert(tree, index[i], co);
             tot++;
           }
         }
@@ -5097,16 +5084,16 @@ KDTree_3d *BKE_object_as_kdtree(Object *ob, int *r_tot)
         const Span<float3> positions = mesh->vert_positions();
 
         tot = positions.size();
-        tree = BLI_kdtree_3d_new(tot);
+        tree = blender::BLI_kdtree_3d_new(tot);
 
         for (i = 0; i < tot; i++) {
           float co[3];
           mul_v3_m4v3(co, ob->object_to_world().ptr(), positions[i]);
-          BLI_kdtree_3d_insert(tree, i, co);
+          blender::BLI_kdtree_3d_insert(tree, i, co);
         }
       }
 
-      BLI_kdtree_3d_balance(tree);
+      blender::BLI_kdtree_3d_balance(tree);
       break;
     }
     case OB_CURVES_LEGACY:
@@ -5118,7 +5105,7 @@ KDTree_3d *BKE_object_as_kdtree(Object *ob, int *r_tot)
       Nurb *nu;
 
       tot = BKE_nurbList_verts_count_without_handles(&cu->nurb);
-      tree = BLI_kdtree_3d_new(tot);
+      tree = blender::BLI_kdtree_3d_new(tot);
       i = 0;
 
       nu = (Nurb *)cu->nurb.first;
@@ -5131,7 +5118,7 @@ KDTree_3d *BKE_object_as_kdtree(Object *ob, int *r_tot)
           while (a--) {
             float co[3];
             mul_v3_m4v3(co, ob->object_to_world().ptr(), bezt->vec[1]);
-            BLI_kdtree_3d_insert(tree, i++, co);
+            blender::BLI_kdtree_3d_insert(tree, i++, co);
             bezt++;
           }
         }
@@ -5143,14 +5130,14 @@ KDTree_3d *BKE_object_as_kdtree(Object *ob, int *r_tot)
           while (a--) {
             float co[3];
             mul_v3_m4v3(co, ob->object_to_world().ptr(), bp->vec);
-            BLI_kdtree_3d_insert(tree, i++, co);
+            blender::BLI_kdtree_3d_insert(tree, i++, co);
             bp++;
           }
         }
         nu = nu->next;
       }
 
-      BLI_kdtree_3d_balance(tree);
+      blender::BLI_kdtree_3d_balance(tree);
       break;
     }
     case OB_LATTICE: {
@@ -5160,16 +5147,16 @@ KDTree_3d *BKE_object_as_kdtree(Object *ob, int *r_tot)
       uint i;
 
       tot = lt->pntsu * lt->pntsv * lt->pntsw;
-      tree = BLI_kdtree_3d_new(tot);
+      tree = blender::BLI_kdtree_3d_new(tot);
       i = 0;
 
       for (bp = lt->def; i < tot; bp++) {
         float co[3];
         mul_v3_m4v3(co, ob->object_to_world().ptr(), bp->vec);
-        BLI_kdtree_3d_insert(tree, i++, co);
+        blender::BLI_kdtree_3d_insert(tree, i++, co);
       }
 
-      BLI_kdtree_3d_balance(tree);
+      blender::BLI_kdtree_3d_balance(tree);
       break;
     }
   }

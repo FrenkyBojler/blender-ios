@@ -2151,6 +2151,11 @@ static void rna_Scene_uv_select_mode_update(bContext *C, PointerRNA * /*ptr*/)
   ED_uvedit_selectmode_clean_multi(C);
 }
 
+static void rna_Scene_uv_select_sync_update(bContext *C, PointerRNA * /*ptr*/)
+{
+  ED_uvedit_select_sync_multi(C);
+}
+
 static void rna_Scene_uv_sticky_select_mode_update(bContext *C, PointerRNA * /*ptr*/)
 {
   /* Some changes to sticky select mode require rebuilding. */
@@ -2539,7 +2544,7 @@ static void rna_SceneCamera_update(Main * /*bmain*/, Scene * /*scene*/, PointerR
   Scene *scene = (Scene *)ptr->owner_id;
   Object *camera = scene->camera;
 
-  blender::seq::cache_cleanup(scene);
+  blender::seq::cache_cleanup(scene, blender::seq::CacheCleanup::FinalAndIntra);
 
   if (camera && (camera->type == OB_CAMERA)) {
     DEG_id_tag_update(&camera->id, ID_RECALC_GEOMETRY);
@@ -2548,7 +2553,7 @@ static void rna_SceneCamera_update(Main * /*bmain*/, Scene * /*scene*/, PointerR
 
 static void rna_SceneSequencer_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
-  blender::seq::cache_cleanup((Scene *)ptr->owner_id);
+  blender::seq::cache_cleanup((Scene *)ptr->owner_id, blender::seq::CacheCleanup::FinalAndIntra);
 }
 
 static std::optional<std::string> rna_ToolSettings_path(const PointerRNA * /*ptr*/)
@@ -4250,7 +4255,8 @@ static void rna_def_tool_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "UV Sync Selection", "Keep UV and edit mode mesh selection in sync");
   RNA_def_property_ui_icon(prop, ICON_UV_SYNC_SELECT, 0);
-  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, nullptr);
+  RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, "rna_Scene_uv_select_sync_update");
 
   prop = RNA_def_property(srna, "use_uv_select_island", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "uv_flag", UV_FLAG_SELECT_ISLAND);
@@ -8651,6 +8657,12 @@ void RNA_def_scene(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
+  static const EnumPropertyItem time_jump_unit_items[] = {
+      {SCE_TIME_JUMP_FRAME, "FRAME", 0, "Frame", "Jump by frames"},
+      {SCE_TIME_JUMP_SECOND, "SECOND", 0, "Second", "Jump by seconds"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
   /* Struct definition */
   srna = RNA_def_struct(brna, "Scene", "ID");
   RNA_def_struct_ui_text(srna,
@@ -8754,6 +8766,23 @@ void RNA_def_scene(BlenderRNA *brna)
       "Frame Step",
       "Number of frames to skip forward while rendering/playing back each frame");
   RNA_def_property_update(prop, NC_SCENE | ND_FRAME, nullptr);
+
+  prop = RNA_def_property(srna, "time_jump_unit", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "r.time_jump_unit");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_enum_items(prop, time_jump_unit_items);
+  RNA_def_property_ui_text(
+      prop, "Time Jump Unit", "Which unit to use for time jumps in the timeline");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_UNIT);
+  RNA_def_property_update(prop, NC_SCENE | ND_FRAME_RANGE, nullptr);
+
+  prop = RNA_def_property(srna, "time_jump_delta", PROP_FLOAT, PROP_TIME);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_float_sdna(prop, nullptr, "r.time_jump_delta");
+  RNA_def_property_range(prop, 0.1f, FLT_MAX);
+  RNA_def_property_ui_text(
+      prop, "Time Jump Delta", "Number of frames or seconds to jump forward or backward");
+  RNA_def_property_update(prop, NC_SCENE | ND_FRAME_RANGE, nullptr);
 
   prop = RNA_def_property(srna, "frame_current_final", PROP_FLOAT, PROP_TIME);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE | PROP_EDITABLE);

@@ -95,7 +95,7 @@ static void library_copy_data(Main *bmain,
     library_dst->packedfile = BKE_packedfile_duplicate(library_src->packedfile);
   }
 
-  /* Only explicitely copy a sub-set of the runtime data. */
+  /* Only explicitly copy a sub-set of the runtime data. */
   library_dst->runtime = MEM_new<LibraryRuntime>(__func__);
   BLI_strncpy(library_dst->runtime->filepath_abs,
               library_src->runtime->filepath_abs,
@@ -266,8 +266,7 @@ static void rebuild_hierarchy_best_parent_find(Main *bmain,
       if (!ID_IS_LINKED(id_iter) || id_iter->lib != lib) {
         continue;
       }
-      MainIDRelationsEntry *entry = static_cast<MainIDRelationsEntry *>(
-          BLI_ghash_lookup(bmain->relations->relations_from_pointers, id_iter));
+      MainIDRelationsEntry *entry = bmain->relations->relations_from_pointers->lookup(id_iter);
       for (MainIDRelationsEntryItem *item = entry->from_ids; item; item = item->next) {
         ID *from_id = item->id_pointer.from;
         if (!ID_IS_LINKED(from_id)) {
@@ -346,8 +345,7 @@ void BKE_library_main_rebuild_hierarchy(Main *bmain)
     if (directly_used_libs.contains(id_iter->lib)) {
       continue;
     }
-    MainIDRelationsEntry *entry = static_cast<MainIDRelationsEntry *>(
-        BLI_ghash_lookup(bmain->relations->relations_from_pointers, id_iter));
+    MainIDRelationsEntry *entry = bmain->relations->relations_from_pointers->lookup(id_iter);
     for (MainIDRelationsEntryItem *item = entry->from_ids; item; item = item->next) {
       if (!ID_IS_LINKED(item->id_pointer.from)) {
         directly_used_libs.add(id_iter->lib);
@@ -418,6 +416,11 @@ Library *blender::bke::library::search_filepath_abs(ListBase *libraries,
                                                     blender::StringRef filepath_abs)
 {
   LISTBASE_FOREACH (Library *, lib_iter, libraries) {
+    if (lib_iter->flag & LIBRARY_FLAG_IS_ARCHIVE) {
+      /* Skip archive libraries because there may be multiple of those for the same path and there
+       * should also be a non-archive one. */
+      continue;
+    }
     if (filepath_abs == lib_iter->runtime->filepath_abs) {
       return lib_iter;
     }
@@ -460,36 +463,41 @@ static Library *add_archive_library(Main &bmain, Library &reference_library)
   return archive_library;
 }
 
-static Library *get_archive_library(Main &bmain, ID *for_id, const IDHash &for_id_deep_hash)
+Library *blender::bke::library::ensure_archive_library(
+    Main &bmain, ID &id, Library &reference_library, const IDHash &id_deep_hash, bool &is_new)
 {
-  Library *reference_library = for_id->lib;
-  BLI_assert(reference_library && (reference_library->flag & LIBRARY_FLAG_IS_ARCHIVE) == 0);
+  BLI_assert(ID_IS_LINKED(&id));
+  BLI_assert((reference_library.flag & LIBRARY_FLAG_IS_ARCHIVE) == 0);
 
   Library *archive_library = nullptr;
-  for (Library *lib_iter : reference_library->runtime->archived_libraries) {
+  for (Library *lib_iter : reference_library.runtime->archived_libraries) {
     BLI_assert((lib_iter->flag & LIBRARY_FLAG_IS_ARCHIVE) != 0);
     BLI_assert(lib_iter->archive_parent_library != nullptr);
-    BLI_assert(lib_iter->archive_parent_library == reference_library);
+    BLI_assert(lib_iter->archive_parent_library == &reference_library);
     /* Check if current archive library already contains an ID of same type and name. */
-    if (BKE_main_namemap_contain_name(bmain, lib_iter, GS(for_id->name), BKE_id_name(*for_id))) {
+    if (BKE_main_namemap_contain_name(bmain, lib_iter, GS(id.name), BKE_id_name(id))) {
 #ifndef NDEBUG
       ID *packed_id = BKE_libblock_find_name_and_library(
-          &bmain, GS(for_id->name), BKE_id_name(*for_id), BKE_id_name(lib_iter->id));
+          &bmain, GS(id.name), BKE_id_name(id), BKE_id_name(lib_iter->id));
       BLI_assert_msg(
-          packed_id && packed_id->deep_hash != for_id_deep_hash,
+          packed_id && packed_id->deep_hash != id_deep_hash,
           "An already packed ID with same deep hash as the one to be packed, should have already "
           "be found and used (deduplication) before reaching this code-path");
 #endif
-      UNUSED_VARS_NDEBUG(for_id_deep_hash);
+      UNUSED_VARS_NDEBUG(id_deep_hash);
       continue;
     }
     archive_library = lib_iter;
     break;
   }
   if (!archive_library) {
-    archive_library = add_archive_library(bmain, *reference_library);
+    archive_library = add_archive_library(bmain, reference_library);
+    is_new = true;
   }
-  BLI_assert(reference_library->runtime->archived_libraries.contains(archive_library));
+  else {
+    is_new = false;
+  }
+  BLI_assert(reference_library.runtime->archived_libraries.contains(archive_library));
   return archive_library;
 }
 
@@ -540,7 +548,9 @@ static void pack_linked_id(Main &bmain,
 
     /* Find an existing archive Library not containing a 'version' of this ID yet (to prevent names
      * collisions). */
-    Library *archive_lib = get_archive_library(bmain, linked_id, linked_id_deep_hash);
+    bool is_new;
+    Library *archive_lib = ensure_archive_library(
+        bmain, *linked_id, *linked_id->lib, linked_id_deep_hash, is_new);
 
     auto copied_id_process =
         [&archive_lib, &deep_hashes, &ids_to_remap, &id_remapper, &already_packed_ids](
@@ -549,6 +559,11 @@ static void pack_linked_id(Main &bmain,
           BLI_assert(ID_IS_PACKED(packed_id));
           BLI_assert(packed_id->lib == archive_lib);
           UNUSED_VARS_NDEBUG(archive_lib);
+
+          if (GS(packed_id->name) == ID_SCE) {
+            /* Like in #scene_blend_read_data. */
+            id_us_ensure_real(packed_id);
+          }
 
           packed_id->deep_hash = deep_hashes.hashes.lookup(linked_id);
           id_remapper.add(linked_id, packed_id);
@@ -562,7 +577,7 @@ static void pack_linked_id(Main &bmain,
                                    std::nullopt,
                                    nullptr,
                                    LIB_ID_COPY_DEFAULT | LIB_ID_COPY_ID_NEW_SET |
-                                       LIB_ID_COPY_NO_ANIMDATA);
+                                       LIB_ID_COPY_NO_ANIMDATA | LIB_ID_COPY_ASSET_METADATA);
     id_us_min(packed_id);
     copied_id_process(linked_id, packed_id);
 

@@ -42,6 +42,8 @@
 
 #include "UI_resources.hh"
 
+#include "ED_node.hh"
+
 #include "node_common.h"
 #include "node_util.hh"
 
@@ -406,6 +408,7 @@ static BaseSocketDeclarationBuilder &build_interface_socket_declaration(
 
 static void node_group_declare_panel_recursive(
     DeclarationListBuilder &b,
+    const bNode &node,
     const bNodeTree &group,
     const Map<const bNodeTreeInterfaceSocket *, StructureType> &structure_type_by_socket,
     const bNodeTreeInterfacePanel &io_parent_panel,
@@ -413,9 +416,12 @@ static void node_group_declare_panel_recursive(
 {
   bool layout_added = false;
   auto add_layout_if_needed = [&]() {
-    if (is_root && !layout_added) {
-      b.add_default_layout();
-      layout_added = true;
+    /* Some custom group nodes don't have a draw function. */
+    if (node.typeinfo->draw_buttons) {
+      if (is_root && !layout_added) {
+        b.add_default_layout();
+        layout_added = true;
+      }
     }
   };
 
@@ -439,7 +445,7 @@ static void node_group_declare_panel_recursive(
                             .description(StringRef(io_panel.description))
                             .default_closed(io_panel.flag & NODE_INTERFACE_PANEL_DEFAULT_CLOSED);
         node_group_declare_panel_recursive(
-            panel_b, group, structure_type_by_socket, io_panel, false);
+            panel_b, node, group, structure_type_by_socket, io_panel, false);
         break;
       }
     }
@@ -490,7 +496,7 @@ void node_group_declare(NodeDeclarationBuilder &b)
   }
 
   node_group_declare_panel_recursive(
-      b, *group, structure_type_by_socket, group->tree_interface.root_panel, true);
+      b, *node, *group, structure_type_by_socket, group->tree_interface.root_panel, true);
 
   if (group->type == NTREE_GEOMETRY) {
     group->ensure_interface_cache();
@@ -723,8 +729,10 @@ void ntree_update_reroute_nodes(bNodeTree *ntree)
     const int reroute_index = reroute_nodes[reroute_i];
     bNode &reroute_node = *all_nodes[reroute_index];
     NodeReroute *storage = static_cast<NodeReroute *>(reroute_node.storage);
-    StringRef(reroute_type->idname).copy_utf8_truncated(storage->type_idname);
-    nodes::update_node_declaration_and_sockets(*ntree, reroute_node);
+    if (reroute_type->idname != storage->type_idname) {
+      StringRef(reroute_type->idname).copy_utf8_truncated(storage->type_idname);
+      nodes::update_node_declaration_and_sockets(*ntree, reroute_node);
+    }
   }
 }
 
@@ -869,6 +877,16 @@ static bool group_output_insert_link(blender::bke::NodeInsertLinkParams &params)
   return true;
 }
 
+static void node_group_input_layout(ui::Layout &layout, bContext *C, PointerRNA *ptr)
+{
+  ed::space_node::node_tree_interface_draw(*C, layout, *id_cast<bNodeTree *>(ptr->owner_id));
+}
+
+static void node_group_output_layout(ui::Layout &layout, bContext *C, PointerRNA *ptr)
+{
+  ed::space_node::node_tree_interface_draw(*C, layout, *id_cast<bNodeTree *>(ptr->owner_id));
+}
+
 }  // namespace blender::nodes
 
 static void node_group_input_extra_info(blender::nodes::NodeExtraInfoParams &params)
@@ -893,6 +911,7 @@ void register_node_type_group_input()
   ntype->insert_link = blender::nodes::group_input_insert_link;
   ntype->get_extra_info = node_group_input_extra_info;
   ntype->get_compositor_operation = blender::nodes::get_group_input_compositor_operation;
+  ntype->draw_buttons_ex = blender::nodes::node_group_input_layout;
   ntype->no_muting = true;
 
   blender::bke::node_register_type(*ntype);
@@ -941,6 +960,7 @@ void register_node_type_group_output()
   ntype->declare = blender::nodes::group_output_declare;
   ntype->insert_link = blender::nodes::group_output_insert_link;
   ntype->get_extra_info = node_group_output_extra_info;
+  ntype->draw_buttons_ex = blender::nodes::node_group_output_layout;
   ntype->get_compositor_operation = blender::nodes::get_group_output_compositor_operation;
 
   ntype->no_muting = true;

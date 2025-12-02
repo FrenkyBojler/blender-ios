@@ -23,12 +23,12 @@ namespace blender::nodes::node_composite_mask_cc {
 
 static const EnumPropertyItem size_source_items[] = {
     {0, "SCENE", 0, "Scene Size", ""},
-    {CMP_NODE_MASK_FLAG_SIZE_FIXED, "FIXED", 0, "Fixed", "Use pixel size for the buffer"},
+    {CMP_NODE_MASK_FLAG_SIZE_FIXED, "FIXED", 0, N_("Fixed"), N_("Use pixel size for the buffer")},
     {CMP_NODE_MASK_FLAG_SIZE_FIXED_SCENE,
      "FIXED_SCENE",
      0,
-     "Fixed/Scene",
-     "Pixel size scaled by scene percentage"},
+     N_("Fixed/Scene"),
+     N_("Pixel size scaled by scene percentage")},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -38,8 +38,8 @@ static void cmp_node_mask_declare(NodeDeclarationBuilder &b)
 
   b.add_output<decl::Float>("Mask").structure_type(StructureType::Dynamic);
 
-  b.add_layout([](uiLayout *layout, bContext *C, PointerRNA *ptr) {
-    uiTemplateID(layout, C, ptr, "mask", nullptr, nullptr, nullptr);
+  b.add_layout([](ui::Layout &layout, bContext *C, PointerRNA *ptr) {
+    uiTemplateID(&layout, C, ptr, "mask", nullptr, nullptr, nullptr);
   });
 
   b.add_input<decl::Menu>("Size Source")
@@ -97,9 +97,7 @@ class MaskOperation : public NodeOperation {
   void execute() override
   {
     Result &output_mask = this->get_result("Mask");
-    if (!this->get_mask() ||
-        (!this->is_fixed_size() && !this->context().is_valid_compositing_region()))
-    {
+    if (!this->get_mask()) {
       output_mask.allocate_invalid();
       return;
     }
@@ -108,7 +106,7 @@ class MaskOperation : public NodeOperation {
     Result &cached_mask = context().cache_manager().cached_masks.get(
         this->context(),
         this->get_mask(),
-        domain.size,
+        domain,
         this->get_aspect_ratio(),
         this->get_use_feather(),
         this->get_motion_blur_samples(),
@@ -119,20 +117,15 @@ class MaskOperation : public NodeOperation {
 
   Domain compute_domain() override
   {
-    return Domain(this->compute_size());
-  }
-
-  int2 compute_size()
-  {
     if (this->get_flags() & CMP_NODE_MASK_FLAG_SIZE_FIXED) {
-      return this->get_size();
+      return Domain(this->get_size());
     }
 
     if (this->get_flags() & CMP_NODE_MASK_FLAG_SIZE_FIXED_SCENE) {
-      return this->get_size() * this->context().get_render_percentage();
+      return Domain(this->get_size() * this->context().get_render_percentage());
     }
 
-    return this->context().get_compositing_region_size();
+    return this->context().get_compositing_domain();
   }
 
   int2 get_size()

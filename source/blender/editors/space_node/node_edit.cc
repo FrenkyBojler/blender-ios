@@ -212,7 +212,7 @@ static void compo_initjob(void *cjv)
 
   cj->re = RE_NewInteractiveCompositorRender(scene);
   if (scene->r.compositor_device == SCE_COMPOSITOR_DEVICE_GPU) {
-    RE_system_gpu_context_ensure(cj->re);
+    RE_display_ensure_gpu_context(cj->re);
   }
 }
 
@@ -319,8 +319,9 @@ static bool is_compositing_possible(const bContext *C)
 }
 
 /* Returns the compositor outputs that need to be computed because their result is visible to the
- * user. */
-static blender::compositor::OutputTypes get_compositor_needed_outputs(const bContext *C)
+ * user or required by the render pipeline. */
+static blender::compositor::OutputTypes get_compositor_needed_outputs(const bContext *C,
+                                                                      Scene *scene_owner)
 {
   blender::compositor::OutputTypes needed_outputs = blender::compositor::OutputTypes::None;
 
@@ -347,10 +348,20 @@ static blender::compositor::OutputTypes get_compositor_needed_outputs(const bCon
         if (!image || image->source != IMA_SRC_VIEWER) {
           continue;
         }
-        if (image->type == IMA_TYPE_R_RESULT) {
+        /* Do not override the Render Result if compositing is disabled in the render pipeline or
+         * if the sequencer is enabled. */
+        if (image->type == IMA_TYPE_R_RESULT && scene_owner->r.scemode & R_DOCOMP &&
+            !RE_seq_render_active(scene_owner, &scene_owner->r))
+        {
           needed_outputs |= blender::compositor::OutputTypes::Composite;
         }
         else if (image->type == IMA_TYPE_COMPOSITE) {
+          needed_outputs |= blender::compositor::OutputTypes::Viewer;
+        }
+      }
+      else if (space_link->spacetype == SPACE_SEQ) {
+        const SpaceSeq *space_sequencer = reinterpret_cast<const SpaceSeq *>(space_link);
+        if (ELEM(space_sequencer->view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW)) {
           needed_outputs |= blender::compositor::OutputTypes::Viewer;
         }
       }
@@ -373,7 +384,7 @@ void ED_node_composite_job(const bContext *C, bNodeTree *nodetree, Scene *scene_
   /* None of the outputs are needed except maybe previews, so no need to execute the compositor.
    * Previews are not considered because they are a secondary output that needs another output to
    * be computed with. */
-  blender::compositor::OutputTypes needed_outputs = get_compositor_needed_outputs(C);
+  blender::compositor::OutputTypes needed_outputs = get_compositor_needed_outputs(C, scene_owner);
   if (ELEM(needed_outputs,
            blender::compositor::OutputTypes::None,
            blender::compositor::OutputTypes::Previews))
@@ -1286,6 +1297,15 @@ bNodeSocket *node_find_indicated_socket(SpaceNode &snode,
           }
         }
         if (distance < max_distance) {
+          if (node_collapsed) {
+            if ((cursor.x - location.x > NODE_SOCKSIZE) ||
+                ((location.x < cursor.x) && (cursor.x - location.x <= padded_socket_size) &&
+                 (abs(location.y - cursor.y) > NODE_SOCKSIZE)))
+            {
+              /* Needed to be able to resize collapsed nodes. */
+              continue;
+            }
+          }
           update_best_socket(sock, distance);
         }
       }
@@ -1299,7 +1319,10 @@ bNodeSocket *node_find_indicated_socket(SpaceNode &snode,
         const float distance = math::distance(location, cursor);
         if (distance < max_distance) {
           if (node_collapsed) {
-            if (location.x - cursor.x > padded_socket_size) {
+            if ((location.x - cursor.x > NODE_SOCKSIZE) ||
+                ((location.x > cursor.x) && (location.x - cursor.x <= padded_socket_size) &&
+                 (abs(location.y - cursor.y) > NODE_SOCKSIZE)))
+            {
               /* Needed to be able to resize collapsed nodes. */
               continue;
             }
@@ -1425,7 +1448,7 @@ static wmOperatorStatus node_duplicate_exec(bContext *C, wmOperator *op)
         ntree, *node, LIB_ID_COPY_DEFAULT, std::nullopt, std::nullopt, socket_map);
     node_map.add_new(node, new_node);
 
-    if (node->id && dupli_node_tree) {
+    if (node->id && dupli_node_tree && !ID_IS_LINKED(node->id)) {
       ID *new_group = duplicated_node_groups.lookup_or_add_cb(node->id, [&]() {
         ID *new_group = BKE_id_copy(bmain, node->id);
         /* Remove user added by copying. */
