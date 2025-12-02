@@ -666,20 +666,25 @@ static wmOperatorStatus light_manager_group_toggle_visibility_exec(bContext *C, 
       continue;
     }
 
+    /* Use the same PointerRNA pattern as the per-light row UI: create a
+     * discrete pointer from the Scene ID to the Object data, then drive
+     * the `hide_viewport` / `hide_render` properties through RNA so we
+     * get the same update behavior (rna_Object_hide_update, depsgraph,
+     * viewport refresh, etc.). */
+    PointerRNA ob_ptr = RNA_pointer_create_discrete(&scene->id, &RNA_Object, ob);
+
     if (mode == LIGHT_MANAGER_GROUP_VISIBILITY_VIEWPORT) {
-      if (new_viewport_hidden) {
-        ob->visibility_flag |= OB_HIDE_VIEWPORT;
-      }
-      else {
-        ob->visibility_flag &= ~OB_HIDE_VIEWPORT;
+      PropertyRNA *prop = RNA_struct_find_property(&ob_ptr, "hide_viewport");
+      if (prop) {
+        RNA_property_boolean_set(&ob_ptr, prop, new_viewport_hidden);
+        RNA_property_update(C, &ob_ptr, prop);
       }
     }
     else if (mode == LIGHT_MANAGER_GROUP_VISIBILITY_RENDER) {
-      if (new_render_hidden) {
-        ob->visibility_flag |= OB_HIDE_RENDER;
-      }
-      else {
-        ob->visibility_flag &= ~OB_HIDE_RENDER;
+      PropertyRNA *prop = RNA_struct_find_property(&ob_ptr, "hide_render");
+      if (prop) {
+        RNA_property_boolean_set(&ob_ptr, prop, new_render_hidden);
+        RNA_property_update(C, &ob_ptr, prop);
       }
     }
   }
