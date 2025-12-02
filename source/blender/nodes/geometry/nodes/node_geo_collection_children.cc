@@ -17,6 +17,19 @@
 #include <algorithm>
 
 namespace blender::nodes::node_geo_collection_children_cc {
+  
+static void collection_children_recursive(Collection *collection,
+                                          Vector<Collection *> &collections,
+                                          Set<Collection *> &visited)
+{
+  LISTBASE_FOREACH (CollectionChild *, child, &collection->children) {
+    Collection *cc = child->collection;
+    if (visited.add(cc)) {
+      collections.append(cc);
+      collection_children_recursive(cc, collections, visited);
+    }
+  }
+}
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -38,6 +51,8 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   auto *collections = new ImplicitSharedValue<Vector<Collection *>>();
   if (recursive) {
+    Set<Collection *> visited;
+    collection_children_recursive(collection, collections->data, visited);
   }
   else {
     LISTBASE_FOREACH (CollectionChild *, child, &collection->children) {
