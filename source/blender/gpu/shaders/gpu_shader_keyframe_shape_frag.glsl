@@ -77,8 +77,10 @@ void main()
 
       alpha = max(alpha, minmax_step * minmax_alpha);
     }
-
     fragColor = mix(finalColor, finalOutlineColor, alpha);
+    if (test(GPU_KEYFRAME_SHAPE_HIGHLIGHT)){
+      fragColor = mix(finalColor, finalHighlightColor, alpha);
+    }
   }
   /* Outside the outline. */
   else {

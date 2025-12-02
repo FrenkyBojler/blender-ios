@@ -86,7 +86,12 @@ void draw_keyframe_shape(const float x,
 
   uchar fill_col[4];
   uchar outline_col[4];
+  uchar highlight_color[4];
   uint flags = 0;
+
+  UI_GetThemeColor4ubv(TH_CFRAME, highlight_color);
+  highlight_color[3] = 255;
+
   const bool sel = flag & KEYFRAME_DRAW_SELECTED;
 
   /* draw! */
@@ -128,14 +133,8 @@ void draw_keyframe_shape(const float x,
 
   if (draw_outline) {
     /* exterior - black frame */
-    if (flag & KEYFRAME_DRAW_HIGHLIGHT) {
-      UI_GetThemeColor4ubv(TH_CFRAME, outline_col);
-      outline_col[3] = 255;
-    }
-    else {
-      UI_GetThemeColor4ubv(sel ? TH_KEYBORDER_SELECT : TH_KEYBORDER, outline_col);
-      outline_col[3] *= alpha;
-    }
+    UI_GetThemeColor4ubv(sel ? TH_KEYBORDER_SELECT : TH_KEYBORDER, outline_col);
+    outline_col[3] *= alpha;
 
     if (!draw_fill) {
       /* fill color needs to be (outline.rgb, 0) */
@@ -177,9 +176,14 @@ void draw_keyframe_shape(const float x,
     flags |= 0x400;
   }
 
+  if (flag & KEYFRAME_DRAW_HIGHLIGHT) {
+    flags |= GPU_KEYFRAME_SHAPE_HIGHLIGHT;
+  }
+
   immAttr1f(sh_bindings->size_id, size);
   immAttr4ubv(sh_bindings->color_id, fill_col);
   immAttr4ubv(sh_bindings->outline_color_id, outline_col);
+  immAttr4ubv(sh_bindings->highlight_color_id, highlight_color);
   immAttr1u(sh_bindings->flags_id, flags);
   immVertex2f(sh_bindings->pos_id, x, y);
 }
@@ -666,6 +670,8 @@ static void channel_list_draw_keys(ChannelDrawList *channel_list, View2D *v2d, c
       format, "color", blender::gpu::VertAttrType::UNORM_8_8_8_8);
   sh_bindings.outline_color_id = GPU_vertformat_attr_add(
       format, "outlineColor", blender::gpu::VertAttrType::UNORM_8_8_8_8);
+  sh_bindings.highlight_color_id = GPU_vertformat_attr_add(
+      format, "highlightColor", blender::gpu::VertAttrType::UNORM_8_8_8_8);
   sh_bindings.flags_id = GPU_vertformat_attr_add(
       format, "flags", blender::gpu::VertAttrType::UINT_32);
 

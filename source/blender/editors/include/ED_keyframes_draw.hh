@@ -42,6 +42,7 @@ struct KeyframeShaderBindings {
   uint size_id;
   uint color_id;
   uint outline_color_id;
+  uint highlight_color_id;
   uint flags_id;
 };
 
