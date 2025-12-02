@@ -19,6 +19,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
+#include "BLI_string_utils.hh"
 
 #include "BLT_translation.hh"
 
@@ -366,6 +367,31 @@ void OBJECT_OT_shape_key_add(wmOperatorType *ot)
                   true,
                   "From Mix",
                   "Create the new shape key from the existing mix of keys");
+}
+
+static wmOperatorStatus shape_key_group_add_exec(bContext *C, wmOperator *op)
+{
+    Object *ob = context_object(C);
+    Key *key = BKE_key_from_object(ob);
+    KeyBlockGroup *group = MEM_mallocN<KeyBlockGroup>("KeyBlockGroup");
+    BLI_uniquename(&key->groups, group, DATA_("Group"), '.', offsetof(KeyBlockGroup, name), sizeof(group->name));
+    BLI_addtail(&key->groups, group);
+    return OPERATOR_FINISHED;
+}
+
+void OBJECT_OT_shape_key_group_add(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Add Shape Key Group";
+  ot->idname = "OBJECT_OT_shape_key_group_add";
+  ot->description = "Add shape key Group to the object";
+
+  /* API callbacks. */
+  ot->poll = shape_key_mode_poll;
+  ot->exec = shape_key_group_add_exec;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
 /** \} */

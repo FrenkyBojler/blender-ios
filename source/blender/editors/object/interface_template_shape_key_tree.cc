@@ -189,6 +189,68 @@ class ShapeKeyDropTarget : public ui::TreeViewItemDropTarget {
   }
 };
 
+class ShapeKeyGroupDropTarget : public ui::TreeViewItemDropTarget {
+ private:
+  KeyBlockGroup *group_;
+
+ public:
+  ShapeKeyGroupDropTarget(ui::AbstractTreeViewItem &item,
+                          ui::DropBehavior behavior,
+                          KeyBlockGroup *group)
+      : TreeViewItemDropTarget(item, behavior), group_(group)
+  {
+  }
+
+  bool can_drop(const wmDrag &drag, const char ** /*r_disabled_hint*/) const override
+  {
+    return true;
+  }
+
+  std::string drop_tooltip(const ui::DragInfo &drag_info) const override
+  {
+    const StringRef drag_name = TIP_("Selected Keys");
+    const StringRef drop_name = group_->name;
+
+    switch (drag_info.drop_location) {
+      case ui::DropLocation::Into:
+        return fmt::format(fmt::runtime(TIP_("Move {} into {}")), drag_name, drop_name);
+      default:
+        //BLI_assert_unreachable();
+        break;
+    }
+
+    return "";
+  }
+
+  bool on_drop(bContext *C, const ui::DragInfo &drag_info) const override
+  {
+    Object *ob = CTX_data_active_object(C);
+    Key *key = BKE_key_from_object(ob);
+    const KeyBlock **drag_shapekey = static_cast<const KeyBlock **>(drag_info.drag_data.poin);
+
+    for (int8_t i = 0; drag_shapekey[i] != nullptr; i++) {
+      KeyBlock *kb = static_cast<KeyBlock *>(BLI_findlink(&key->block, i));
+      switch (drag_info.drop_location) {
+        case ui::DropLocation::Into:
+          BLI_remlink(&key->block, kb);
+          BLI_addtail(&group_->children, kb);
+          //BLI_assert_unreachable();
+          break;
+        default:
+          break;
+      }
+
+      //BKE_keyblock_move(ob, drag_index, drop_index);
+    }
+
+    DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
+    WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
+    ED_undo_push(C, "Drop Active Shape Key");
+
+    return true;
+  }
+};
+
 class ShapeKeyItem : public ui::AbstractTreeViewItem {
  private:
   ShapeKey shape_key_;
@@ -299,6 +361,39 @@ class ShapeKeyItem : public ui::AbstractTreeViewItem {
   }
 };
 
+class ShapeKeyGroupItem : public ui::AbstractTreeViewItem {
+  private:
+    KeyBlockGroup *group_;
+  public:
+  ShapeKeyGroupItem(KeyBlockGroup *group){
+    group_ = group;
+  }
+
+  std::optional<bool> should_be_collapsed() const override
+  {
+    return (group_->flag & Key_GROUP_EXPANDED) == 0;
+  }
+
+  bool set_collapsed(const bool collapsed) override
+  {
+    if (!AbstractTreeViewItem::set_collapsed(collapsed)) {
+      return false;
+    }
+    SET_FLAG_FROM_TEST(group_->flag, !collapsed, Key_GROUP_EXPANDED);
+    return true;
+  }
+  
+  void build_row(ui::Layout &row) override
+  {
+    uiItemL_ex(&row, group_->name, ICON_GROUP, false, false);
+  }
+
+  std::unique_ptr<ui::TreeViewItemDropTarget> create_drop_target() override
+  {
+    return std::make_unique<ShapeKeyGroupDropTarget>(*this, ui::DropBehavior::Insert, group_);
+  }
+};
+
 void ShapeKeyTreeView::build_tree()
 {
   Key *key = BKE_key_from_object(&object_);
@@ -306,6 +401,18 @@ void ShapeKeyTreeView::build_tree()
     return;
   }
   int index = 1;
+  LISTBASE_FOREACH (KeyBlockGroup *, group, &key->groups) {
+    auto &item = this->add_tree_item<ShapeKeyGroupItem>(group);
+    
+    if (!BLI_listbase_is_empty(&group->children)) {
+      LISTBASE_FOREACH (KeyBlock *, kb, &group->children) {
+        item.add_tree_item<ShapeKeyItem>(&object_, key, kb, index);
+        index++;
+      }
+    }
+    
+  }
+
   LISTBASE_FOREACH_INDEX (KeyBlock *, kb, &key->block, index) {
     this->add_tree_item<ShapeKeyItem>(&object_, key, kb, index);
   }

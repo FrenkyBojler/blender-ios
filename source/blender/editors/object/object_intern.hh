@@ -320,6 +320,7 @@ void TRANSFORM_OT_vertex_warp(wmOperatorType *ot);
 /* `object_shapekey.cc` */
 
 void OBJECT_OT_shape_key_add(wmOperatorType *ot);
+void OBJECT_OT_shape_key_group_add(wmOperatorType *ot);
 void OBJECT_OT_shape_key_copy(wmOperatorType *ot);
 void OBJECT_OT_shape_key_remove(wmOperatorType *ot);
 void OBJECT_OT_shape_key_clear(wmOperatorType *ot);

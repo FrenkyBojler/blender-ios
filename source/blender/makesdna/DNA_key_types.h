@@ -17,6 +17,18 @@
 
 struct AnimData;
 
+typedef enum KeyBlockGroupflag {
+  Key_GROUP_EXPANDED = 1,
+} KeyBlockGroupflag;
+
+typedef struct KeyBlockGroup {
+  ListBase children;
+  int flag;
+  char _pad[4];
+  char name[/*MAX_NAME*/ 64];
+
+} KeyBlockGroup;
+
 /**
  * The struct that holds the data for an individual Shape Key. Depending on which object owns the
  * `Key`, the contained data type can vary (see `void *data;`).
@@ -109,6 +121,9 @@ typedef struct Key {
    * current free UID for key-blocks.
    */
   int uidgen;
+
+  KeyBlockGroup *root_group;
+  ListBase groups;
 } Key;
 
 /* **************** KEY ********************* */
