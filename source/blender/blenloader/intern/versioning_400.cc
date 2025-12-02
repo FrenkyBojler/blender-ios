@@ -1767,9 +1767,7 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 34)) {
-    if (!DNA_struct_member_exists(
-            fd->filesdna, "View3DOverlay", "float", "face_sets_opacity"))
-    {
+    if (!DNA_struct_member_exists(fd->filesdna, "View3DOverlay", "float", "face_sets_opacity")) {
       LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
         LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
           LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {

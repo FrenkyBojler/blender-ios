@@ -34,7 +34,7 @@ void main()
   face_set_color.a = face_set_color.a * face_sets_opacity;
   /* Apply premultiplication in vertex shader for better performance */
   face_set_color.rgb *= face_set_color.a;
-  
+
   /* Apply fake shading for lit mode */
 #ifdef FAKE_SHADING
   float3 view_normal = normalize(drw_normal_object_to_view(nor));

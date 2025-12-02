@@ -13,7 +13,7 @@ void main()
   /* Output face set color with alpha blending */
   /* Color is already premultiplied in vertex shader */
   frag_color = face_set_color;
-  
+
   /* Apply fake shading for lit mode */
   frag_color.rgb = max(float3(0.005f), frag_color.rgb) * color_fac;
 

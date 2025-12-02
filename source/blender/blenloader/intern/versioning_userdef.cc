@@ -400,7 +400,8 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
   if (btheme->space_view3d.face_sets_default[0] == 0 &&
       btheme->space_view3d.face_sets_default[1] == 0 &&
       btheme->space_view3d.face_sets_default[2] == 0 &&
-      btheme->space_view3d.face_sets_default[3] == 0) {
+      btheme->space_view3d.face_sets_default[3] == 0)
+  {
     FROM_DEFAULT_V4_UCHAR(space_view3d.face_sets_default);
   }
 
