@@ -18,11 +18,12 @@
 
 namespace blender::ed::asset {
 
-ID *asset_local_id_ensure_imported(Main &bmain,
-                                   const asset_system::AssetRepresentation &asset,
-                                   const int flags, /* #eFileSel_Params_Flag + #eBLOLibLinkFlags */
-                                   const std::optional<eAssetImportMethod> import_method,
-                                   const std::optional<ImportInstantiateContext> instantiate_context)
+ID *asset_local_id_ensure_imported(
+    Main &bmain,
+    const asset_system::AssetRepresentation &asset,
+    const int flags, /* #eFileSel_Params_Flag + #eBLOLibLinkFlags */
+    const std::optional<eAssetImportMethod> import_method,
+    const std::optional<ImportInstantiateContext> instantiate_context)
 {
   if (ID *local_id = asset.local_id()) {
     return local_id;
