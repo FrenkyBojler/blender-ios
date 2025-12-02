@@ -28,7 +28,7 @@ static void cmp_node_rgb_declare(NodeDeclarationBuilder &b)
       .default_value({0.5f, 0.5f, 0.5f, 1.0f})
       .custom_draw([](CustomSocketDrawParams &params) {
         params.layout.alignment_set(ui::LayoutAlign::Expand);
-        uiLayout &col = params.layout.column(false);
+        ui::Layout &col = params.layout.column(false);
         uiTemplateColorPicker(
             &col, &params.socket_ptr, "default_value", true, false, false, false);
         col.prop(&params.socket_ptr,
@@ -51,7 +51,7 @@ class RGBOperation : public NodeOperation {
     result.allocate_single_value();
 
     const bNodeSocket *socket = static_cast<const bNodeSocket *>(bnode().outputs.first);
-    float4 color = float4(static_cast<const bNodeSocketValueRGBA *>(socket->default_value)->value);
+    Color color = Color(static_cast<const bNodeSocketValueRGBA *>(socket->default_value)->value);
 
     result.set_single_value(color);
   }

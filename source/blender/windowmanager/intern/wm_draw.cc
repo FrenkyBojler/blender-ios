@@ -584,13 +584,13 @@ bool WM_region_use_viewport(ScrArea *area, ARegion *region)
   return wm_region_use_viewport_by_type(area->spacetype, region->regiontype);
 }
 
-static const char *wm_area_name(ScrArea *area)
+static const char *wm_area_name(const ScrArea *area)
 {
 #define SPACE_NAME(space) \
-  case space: \
-    return #space;
-
-  switch (area->spacetype) {
+  case space: { \
+    return #space; \
+  }
+  switch (eSpace_Type(area->spacetype)) {
     SPACE_NAME(SPACE_EMPTY);
     SPACE_NAME(SPACE_VIEW3D);
     SPACE_NAME(SPACE_GRAPH);
@@ -610,9 +610,11 @@ static const char *wm_area_name(ScrArea *area)
     SPACE_NAME(SPACE_CLIP);
     SPACE_NAME(SPACE_TOPBAR);
     SPACE_NAME(SPACE_STATUSBAR);
-    default:
-      return "Unknown Space";
+    SPACE_NAME(SPACE_SPREADSHEET);
   }
+#undef SPACE_NAME
+
+  return "Unknown Space";
 }
 
 /** \} */
@@ -1613,6 +1615,9 @@ void wm_draw_update(bContext *C)
 {
   Main *bmain = CTX_data_main(C);
   wmWindowManager *wm = CTX_wm_manager(C);
+  const bool rna_disallow_writes = true;
+
+  CTX_rna_disallow_write_set_p(C, &rna_disallow_writes);
 
   GPU_context_main_lock();
 
@@ -1664,6 +1669,8 @@ void wm_draw_update(bContext *C)
 
   GPU_render_end();
   GPU_context_main_unlock();
+
+  CTX_rna_disallow_write_set_p(C, nullptr);
 }
 
 void wm_draw_region_clear(wmWindow *win, ARegion * /*region*/)

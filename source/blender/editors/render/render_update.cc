@@ -30,7 +30,7 @@
 
 #include "BKE_brush.hh"
 #include "BKE_context.hh"
-#include "BKE_icons.h"
+#include "BKE_icons.hh"
 #include "BKE_main.hh"
 #include "BKE_main_invariants.hh"
 #include "BKE_material.hh"
@@ -281,6 +281,9 @@ static void image_changed(Main *bmain, Image *ima)
       texture_changed(bmain, tex);
     }
   }
+
+  /* Ensure downstream editors are made aware of changes to the Image data. */
+  WM_main_add_notifier(NC_IMAGE | NA_EDITED, ima);
 }
 
 static void scene_changed(Main *bmain, Scene *scene)
@@ -318,18 +321,19 @@ static void update_sequencer(const DEGEditorUpdateContext *update_ctx, Main *bma
     blender::seq::relations_invalidate_scene_strips(bmain, changed_scene);
   }
 
-  /* Invalidate VSE cache in `changed_scene`, because strip animation may have been updated. */
+  /* Invalidate rendered VSE caches in `changed_scene`, because strip animation may have been
+   * updated. */
   if (GS(id->name) == ID_AC) {
     Editing *ed = blender::seq::editing_get(changed_scene);
     if (ed != nullptr && blender::seq::animation_keyframes_exist(changed_scene) &&
         &changed_scene->adt->action->id == id)
     {
       blender::seq::prefetch_stop(changed_scene);
-      blender::seq::cache_cleanup(changed_scene);
+      blender::seq::cache_cleanup(changed_scene, blender::seq::CacheCleanup::FinalAndIntra);
     }
   }
 
-  /* Invalidate cache for strips that use this compositing tree as a modifier.  */
+  /* Invalidate cache for strips that use this compositing tree as a modifier. */
   if (GS(id->name) == ID_NT) {
     const bNodeTree *node_tree = reinterpret_cast<const bNodeTree *>(id);
     if (node_tree->type == NTREE_COMPOSIT) {

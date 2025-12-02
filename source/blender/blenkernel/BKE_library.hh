@@ -71,7 +71,7 @@ struct LibraryRuntime {
   short versionfile = 0;
   short subversionfile = 0;
 
-  /* Colorspace information. */
+  /** Color-space information. */
   MainColorspace colorspace;
 };
 
@@ -91,6 +91,20 @@ void pack_linked_id_hierarchy(Main &bmain, ID &root_id);
  * Cleanup references to removed/deleted archive libraries in their archive parent.
  */
 void main_cleanup_parent_archives(Main &bmain);
+
+/**
+ * Ensure that there is a valid archive library in given `bmain`, for the given `id`,
+ * `reference_library` and `id_deep_hash` parameters.
+ *
+ * \note Typically, both the `reference_library` and `id_deep_hash` are the same as the `id`
+ * library and deep-hash, but in some cases they may still differ (see e.g.
+ * #PartialWriteContext::ensure_library).
+ *
+ * \return the archive library. `is_new` is set to `true` if a new archive library had to be
+ * created, false if an existing one could be re-used.
+ */
+Library *ensure_archive_library(
+    Main &bmain, ID &id, Library &reference_library, const IDHash &id_deep_hash, bool &is_new);
 
 };  // namespace blender::bke::library
 

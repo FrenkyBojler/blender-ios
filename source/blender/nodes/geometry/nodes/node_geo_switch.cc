@@ -4,6 +4,8 @@
 
 #include "node_geometry_util.hh"
 
+#include "BKE_node_tree_reference_lifetimes.hh"
+
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
@@ -39,8 +41,11 @@ static void node_declare(NodeDeclarationBuilder &b)
     true_decl.supports_field();
     output_decl.dependent_field().reference_pass_all();
   }
-  if (socket_type == SOCK_GEOMETRY) {
+  if (bke::node_tree_reference_lifetimes::can_contain_referenced_data(socket_type)) {
     output_decl.propagate_all();
+  }
+  if (bke::node_tree_reference_lifetimes::can_contain_reference(socket_type)) {
+    output_decl.reference_pass_all();
   }
 
   const StructureType structure_type = socket_type_always_single(socket_type) ?
@@ -53,15 +58,15 @@ static void node_declare(NodeDeclarationBuilder &b)
   output_decl.structure_type(structure_type);
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "input_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "input_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   NodeSwitch *data = MEM_callocN<NodeSwitch>(__func__);
-  data->input_type = SOCK_GEOMETRY;
+  data->input_type = SOCK_FLOAT;
   node->storage = data;
 }
 

@@ -156,7 +156,7 @@ static Mesh *get_quick_mesh(
 }
 
 /* has no meaning for faces, do this so we can tell which face is which */
-#define BM_FACE_TAG BM_ELEM_DRAW
+#define BM_FACE_TAG BM_ELEM_SELECT_UV
 
 /**
  * Compare selected/unselected.
@@ -181,18 +181,18 @@ static bool BMD_error_messages(const Object *ob, ModifierData *md)
 #ifndef WITH_GMP
   /* If compiled without GMP, return a error. */
   if (use_exact) {
-    BKE_modifier_set_error(ob, md, "Compiled without GMP, using fast solver");
+    BKE_modifier_set_error(ob, md, "Compiled without GMP, using \"float\" solver");
     error_returns_result = false;
   }
 #endif
 
-  /* If intersect is selected using fast solver, return a error. */
+  /* If intersect is selected using "float" solver, return a error. */
   if (operand_collection && operation_intersect && !(use_exact || use_manifold)) {
     BKE_modifier_set_error(ob, md, "Cannot execute, intersect only available using exact solver");
     error_returns_result = true;
   }
 
-  /* If the selected collection is empty and using fast solver, return a error. */
+  /* If the selected collection is empty and using "float" solver, return a error. */
   if (operand_collection) {
     if (!use_exact && BKE_collection_is_empty(col)) {
       BKE_modifier_set_error(ob, md, "Cannot execute, non-exact solver and empty collection");
