@@ -43,7 +43,7 @@ void main()
   /* Fragment alpha. */
   if (drw_view_is_perspective()) {
     /* Fade at edge of grid level. */
-    float length_fade = 1.0f - min(1.0f, dot(vertex_out.coord, vertex_out.coord));
+    float length_fade = 1.0f - min(1.0f, length(vertex_out.coord));
     out_color.a *= pow2f(length_fade);
 
     /* Compute normalized view vector. */
@@ -82,6 +82,18 @@ void main()
   /* Viewport antialiasing output. */
   if (out_color.a != 0.0f) {
     line_output = pack_line_data(gl_FragCoord.xy, edge_start, edge_pos);
+  }
+
+  /* Alpha discard; discard by stipple pattern for low alpha, to account for overlays
+   * incompatible with depth+blend, e.g. MeshEdit. */
+  {
+    constexpr float dash_width = 4.0f; /* Width of dash pattern; increase to make lines longer. */
+    constexpr float fade_start = 0.1f; /* Cutoff for dash fade; alpha above is fully drawn. */
+    constexpr float fade_rcp = 1.0f / fade_start;
+    float dist = distance(edge_start, edge_pos);
+    if (out_color.a < fade_start && fade_rcp * out_color.a < fract(dist / dash_width)) {
+      gpu_discard_fragment();
+    }
   }
 
   /* Grid iteration additive alpha. */

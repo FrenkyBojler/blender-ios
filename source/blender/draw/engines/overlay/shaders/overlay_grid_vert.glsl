@@ -101,6 +101,11 @@ bool test_level_occlude(in LineData line, in uint level)
   return false;
 }
 
+float2 screen_position(float4 p)
+{
+  return ((p.xy / p.w) * 0.5f + 0.5f) * uniform_buf.size_viewport;
+}
+
 void main()
 {
   gl_Position = float4(NAN_FLT); /* Discard by default. */
@@ -123,8 +128,8 @@ void main()
   /* Output vertex position in [-1,1], which we use to fade level boundaries. */
   vertex_out.coord = line.P / max(float(grid_buf.num_lines >> 1), 1.0f);
   /* Output level fade in [0, 1], which we use to smoothly transition grid levels. */
-  vertex_out_flat.alpha = (line.level + 1.0f - fract(grid_buf.level)) /
-                          float(OVERLAY_GRID_STEPS_DRAW - 1);
+  vertex_out_flat.alpha = (line.level + 1.0f - fract(grid_buf.level)) /* /
+                          float(OVERLAY_GRID_STEPS_DRAW - 1) */;
   vertex_out_flat.alpha = saturate(vertex_out_flat.alpha);
   if (!drw_view_is_perspective()) {
     /* Fade by pixel size for orthographic, as we lack proper line dfdx/dfdy. */
@@ -135,8 +140,7 @@ void main()
   /* Apply per-level size, camera offset. */
   line.P = step_offs + step_size * line.P;
 
-  /* Compute clipping rectangle. We discard lines entirely outside the rectangle, and
-   * bring lines partially inside the rectangle fully inside to avoid precision problems. */
+  /* Compute clipping rectangle. */
   float2 clip_min, clip_max;
   if (flag_test(grid_flag, GRID_SIMA)) {
     clip_min = float2(-1.0f);
@@ -150,6 +154,9 @@ void main()
     clip_min = float2(grid_buf.offset[line.axis] - grid_buf.clip_rect[line.axis], 0.0f);
     clip_max = float2(grid_buf.offset[line.axis] + grid_buf.clip_rect[line.axis], 0.0f);
   }
+
+  /* Clip/clamp; lines entirely outside the rectangle get discarded; others get brought
+   * inside the rectangle to avoid precision problems with large lines. */
   bool line_outside_rect = all(lessThan(line.P, clip_min)) || all(greaterThan(line.P, clip_max));
   if (line_outside_rect) {
     return; /* Discard line. */
@@ -200,9 +207,8 @@ void main()
   float z_ratio_level = (1.0f / float(OVERLAY_GRID_ITER_LEN))
                       * (1.0f - float(line.level) / float(OVERLAY_GRID_STEPS_DRAW));
   /* Increase/decrease this number for a smoother/sharper fade. */
-  gl_Position.z += 1e-4f * (z_ratio_iter + z_ratio_level);
-
-  /* Stage output for viewport antialiasing. */
-  edge_start = edge_pos = ((gl_Position.xy / gl_Position.w) * 0.5f + 0.5f) *
-                          uniform_buf.size_viewport;
+  gl_Position.z += 2e-4f * (z_ratio_iter + z_ratio_level);
+  
+  /* Stage output for viewport antialiasing/alpha dithering. */
+  edge_start = edge_pos = screen_position(gl_Position);
 }
