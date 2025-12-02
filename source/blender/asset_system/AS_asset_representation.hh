@@ -60,8 +60,8 @@ class AssetRepresentation : NonCopyable, NonMovable {
     /** The path this file should be downloaded to. Usually relative, but isn't required to. The
      * downloader accepts both cases, see #download_asset() in Python. */
     std::string download_dst_filepath_;
-    std::string download_hash_;
-    std::optional<URLWithHash> preview_;
+    URLWithHash asset_url_;
+    std::optional<URLWithHash> preview_url_;
   };
 
   struct ExternalAsset {
@@ -100,6 +100,7 @@ class AssetRepresentation : NonCopyable, NonMovable {
                       std::unique_ptr<AssetMetaData> metadata,
                       AssetLibrary &owner_asset_library,
                       StringRef download_dst_filepath,
+                      URLWithHash download_url,
                       std::optional<URLWithHash> preview_url);
   /**
    * Constructs an asset representation for an ID stored in the current file. This makes the asset
@@ -145,6 +146,14 @@ class AssetRepresentation : NonCopyable, NonMovable {
   StringRefNull library_relative_identifier() const;
   std::string full_path() const;
   std::string full_library_path() const;
+
+  /**
+   * For online assets (see #is_online()), the URL this file should be downloaded from when
+   * requested.
+   *
+   * Will return an empty value if this is not an online asset.
+   */
+  std::optional<URLWithHash> online_asset_url() const;
 
   /**
    * For online assets (see #is_online()), the path this file should be downloaded to when

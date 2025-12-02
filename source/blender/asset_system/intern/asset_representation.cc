@@ -44,6 +44,7 @@ AssetRepresentation::AssetRepresentation(StringRef relative_asset_path,
                                          std::unique_ptr<AssetMetaData> metadata,
                                          AssetLibrary &owner_asset_library,
                                          StringRef download_dst_filepath,
+                                         URLWithHash download_url,
                                          std::optional<URLWithHash> preview_url)
     : owner_asset_library_(owner_asset_library),
       relative_identifier_(relative_asset_path),
@@ -52,8 +53,8 @@ AssetRepresentation::AssetRepresentation(StringRef relative_asset_path,
           id_type,
           std::move(metadata),
           nullptr,
-          std::make_unique<OnlineAssetInfo>(OnlineAssetInfo{
-              download_dst_filepath, "TODO-put-asset-download-hash-here", preview_url})})
+          std::make_unique<OnlineAssetInfo>(
+              OnlineAssetInfo{download_dst_filepath, download_url, preview_url})})
 {
 }
 
@@ -94,7 +95,7 @@ void AssetRepresentation::ensure_previewable(bContext &C, ReportList *reports)
   }
 
   if (extern_asset.online_info_) {
-    if (!extern_asset.online_info_->preview_) {
+    if (!extern_asset.online_info_->preview_url_) {
       return;
     }
 
@@ -184,6 +185,15 @@ std::string AssetRepresentation::full_library_path() const
   return blend_path;
 }
 
+// TODO: prevent copying the URLWithHash here.
+std::optional<URLWithHash> AssetRepresentation::online_asset_url() const
+{
+  if (!this->is_online()) {
+    return {};
+  }
+  return std::get<ExternalAsset>(asset_).online_info_->asset_url_;
+}
+
 std::optional<StringRefNull> AssetRepresentation::download_dst_filepath() const
 {
   if (!this->is_online()) {
@@ -198,7 +208,7 @@ std::optional<URLWithHash> AssetRepresentation::online_asset_preview_url() const
   if (!this->is_online()) {
     return {};
   }
-  return std::get<ExternalAsset>(asset_).online_info_->preview_;
+  return std::get<ExternalAsset>(asset_).online_info_->preview_url_;
 }
 
 void AssetRepresentation::online_asset_mark_downloaded()

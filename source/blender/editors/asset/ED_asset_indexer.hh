@@ -50,6 +50,8 @@ struct RemoteListingAssetEntry {
 
   /* The path of the blend file that contains the asset, relative to the library root. */
   std::string file_path;
+  /** The URL the asset should be downloaded from. */
+  asset_system::URLWithHash download_url;
   std::optional<asset_system::URLWithHash> thumbnail;
 
   RemoteListingAssetEntry() = default;
@@ -58,6 +60,24 @@ struct RemoteListingAssetEntry {
   RemoteListingAssetEntry(RemoteListingAssetEntry &&);
   RemoteListingAssetEntry &operator=(RemoteListingAssetEntry &&);
   ~RemoteListingAssetEntry();
+};
+
+/**
+ * Representation of the FileV1 type in the OpenAPI definition.
+ * See blender_asset_library_openapi.yaml.
+ *
+ * Not all fields are included here, just the ones that are used by Blender.
+ */
+struct RemoteListingFileEntry {
+  std::string local_path;
+  asset_system::URLWithHash download_url;
+
+  RemoteListingFileEntry() = default;
+  RemoteListingFileEntry(const RemoteListingFileEntry &) = delete;
+  RemoteListingFileEntry &operator=(const RemoteListingFileEntry &) = delete;
+  RemoteListingFileEntry(RemoteListingFileEntry &&);
+  RemoteListingFileEntry &operator=(RemoteListingFileEntry &&);
+  ~RemoteListingFileEntry() = default;
 };
 
 using RemoteListingEntryProcessFn = FunctionRef<bool(RemoteListingAssetEntry &)>;

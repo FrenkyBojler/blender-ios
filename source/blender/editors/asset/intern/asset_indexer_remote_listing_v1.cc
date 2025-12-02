@@ -74,6 +74,8 @@ static std::optional<RemoteListingAssetEntry> listing_entry_from_asset_dictionar
     return {};
   }
 
+  /* TODO: look up the file URL and hash from the <files> section of the JSON. */
+
   /* 'thumbnail': URL and hash of the preview image. */
   listing_entry.thumbnail = ed::asset::index::parse_url_with_hash_dict(
       dictionary.lookup_dict("thumbnail"));
@@ -89,19 +91,73 @@ static std::optional<RemoteListingAssetEntry> listing_entry_from_asset_dictionar
   return listing_entry;
 }
 
+static std::optional<RemoteListingFileEntry> listing_file_from_asset_dictionary(
+    const DictionaryValue &dictionary, const char **r_failure_reason)
+{
+  RemoteListingFileEntry file_entry{};
+
+  /* Path is mandatory. */
+  if (const std::optional<StringRefNull> path = dictionary.lookup_str("path")) {
+    file_entry.local_path = *path;
+  }
+  else {
+    *r_failure_reason = "found a file without 'path' field";
+    return {};
+  }
+
+  /* Hash is mandatory. */
+  if (const std::optional<StringRefNull> hash = dictionary.lookup_str("hash")) {
+    file_entry.download_url.hash = *hash;
+  }
+  else {
+    *r_failure_reason = "found a file without 'hash' field";
+    return {};
+  }
+
+  /* URL is optional, and defaults to the local path. */
+  if (const std::optional<StringRefNull> url = dictionary.lookup_str("url")) {
+    file_entry.download_url.url = *url;
+  }
+  if (file_entry.download_url.url.empty()) {
+    file_entry.download_url.url = file_entry.local_path;
+  }
+
+  return file_entry;
+}
+
 static ReadingResult listing_entries_from_root(const DictionaryValue &value,
                                                const RemoteListingEntryProcessFn process_fn)
 {
-  const ArrayValue *entries = value.lookup_array("assets");
-  BLI_assert(entries != nullptr);
-  if (entries == nullptr) {
+  const ArrayValue *assets = value.lookup_array("assets");
+  BLI_assert(assets != nullptr);
+  if (assets == nullptr) {
     return ReadingResult::Failure;
   }
 
-  for (const std::shared_ptr<Value> &element : entries->elements()) {
+  /* Build a mapping from local file path to its file info. */
+  const ArrayValue *files = value.lookup_array("files");
+  BLI_assert(files != nullptr);
+  if (assets == nullptr) {
+    /* The 'files' section is mandatory in the OpenAPI schema. */
+    printf("Error reading asset listing, page file has no files section.\n");
+    return ReadingResult::Failure;
+  }
+  Map<StringRefNull, FileIndexerEntry> path_to_file_info;
+  for (const std::shared_ptr<Value> &file_element : files->elements()) {
+    const char *failure_reason = "";
+    std::optional<RemoteListingFileEntry> entry = listing_file_from_asset_dictionary(
+        *file_element->as_dictionary_value(), &failure_reason);
+    if (!entry) {
+      printf("Error reading asset listing file entry, skipping. Reason: %s\n", failure_reason);
+      continue;
+    }
+  }
+
+  /* Convert the assets into RemoteListingAssetEntry objects. */
+  for (const std::shared_ptr<Value> &asset_element : assets->elements()) {
     const char *failure_reason = "";
     std::optional<RemoteListingAssetEntry> entry = listing_entry_from_asset_dictionary(
-        *element->as_dictionary_value(), &failure_reason);
+        *asset_element->as_dictionary_value(), &failure_reason);
     if (!entry) {
       /* Don't add this entry on failure to read it. */
       printf("Error reading asset listing entry, skipping. Reason: %s\n", failure_reason);

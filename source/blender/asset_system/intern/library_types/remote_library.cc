@@ -341,6 +341,14 @@ void remote_library_request_asset_download(bContext &C,
                 asset.get_name().c_str());
     return;
   }
+  const std::optional<URLWithHash> asset_url = asset.online_asset_url();
+  if (!asset_url) {
+    BKE_reportf(reports,
+                RPT_WARNING,
+                "Could not find URL to download asset '%s'",
+                asset.get_name().c_str());
+    return;
+  }
 
   {
     std::string script =
@@ -349,13 +357,15 @@ void remote_library_request_asset_download(bContext &C,
         "\n"
         "asset_dl.download_asset(\n"
         "    library_url, Path(library_path),\n"
-        "    dst_filepath, Path(dst_filepath),\n"
+        "    asset_url, asset_hash, Path(dst_filepath),\n"
         ")\n";
 
     std::unique_ptr locals = bke::idprop::create_group("locals");
     IDP_AddToGroup(locals.get(), IDP_NewString(*library_url, "library_url"));
     IDP_AddToGroup(locals.get(), IDP_NewString(library.root_path(), "library_path"));
     IDP_AddToGroup(locals.get(), IDP_NewString(*dst_filepath, "dst_filepath"));
+    IDP_AddToGroup(locals.get(), IDP_NewString(asset_url->url, "asset_url"));
+    IDP_AddToGroup(locals.get(), IDP_NewString(asset_url->hash, "asset_hash"));
 
     /* TODO: report errors in the UI somehow. */
     BPY_run_string_with_locals(&C, script, *locals);
