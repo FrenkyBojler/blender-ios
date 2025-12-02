@@ -201,14 +201,22 @@ void main()
 
   gl_Position = drw_view().winmat * (drw_view().viewmat * float4(vertex_out.pos, 1.0f));
 
-  /* To minimize z-fighting, the grid is drawn N times with progressively less alpha
-   * and a progressively smaller z-bias. This makes it "fade" through geometry. */
-  float z_ratio_iter = 1.0f - float(grid_iter) / float(OVERLAY_GRID_ITER_LEN);
-  float z_ratio_level = (1.0f / float(OVERLAY_GRID_ITER_LEN))
-                      * (1.0f - float(line.level) / float(OVERLAY_GRID_STEPS_DRAW));
-  /* Increase/decrease this number for a smoother/sharper fade. */
-  gl_Position.z += 2e-4f * (z_ratio_iter + z_ratio_level);
-  
+  /* Adjust z-component */
+  if (drw_view_is_perspective()) {
+    /* To minimize z-fighting, the grid is drawn N times with progressive alpha and z-bias,
+     * making it "fade" through geometry over a distance.  */
+    constexpr float z_fade_dist = 2e-4f;
+    float z_ratio_iter = 1.0f - float(grid_iter) / float(OVERLAY_GRID_ITER_LEN);
+    float z_ratio_level = (1.0f / float(OVERLAY_GRID_ITER_LEN))
+                        * (1.0f - float(line.level) / float(OVERLAY_GRID_STEPS_DRAW));
+    gl_Position.z += 2e-4f * (z_ratio_iter + z_ratio_level);
+  } else { /* orthographic */
+    /* Set z to far plane in orthographic, so it is behind all things. */
+    if (!flag_test(grid_flag, GRID_SIMA)) {
+      gl_Position.z = 1.0f;
+    }
+  }
+
   /* Stage output for viewport antialiasing/alpha dithering. */
   edge_start = edge_pos = screen_position(gl_Position);
 }

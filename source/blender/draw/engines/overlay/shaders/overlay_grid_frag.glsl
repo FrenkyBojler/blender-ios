@@ -66,17 +66,6 @@ void main()
       float length_fade = 1.0f - min(1.0f, dot(vertex_out.coord, vertex_out.coord));
       out_color.a *= pow2f(length_fade);
     }
-
-    /* Avoid fading in +Z direction in camera view (see #70193).
-     * This is reproduced from the 5.0 grid line-for-line. */
-    float dist = gl_FragCoord.z * 2.0f - 1.0f;
-    dist = flag_test(grid_flag, GRID_CAMERA) ? clamp(dist, 0.0f, 1.0f) : abs(dist);
-    out_color.a *= (1.0f - smoothstep(0.0f, 0.5f, dist - 0.5f));
-
-    if (flag_test(grid_flag, PLANE_XY)) {
-      float angle = 1.0f - abs(drw_view().viewinv[2].z);
-      out_color.a *= (1.0f - pow3f(angle));
-    }
   }
 
   /* Viewport antialiasing output. */
