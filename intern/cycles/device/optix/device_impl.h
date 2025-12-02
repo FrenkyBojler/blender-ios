@@ -73,6 +73,7 @@ enum {
   /* Callable */
   PG_CALL_SVM_AO,
   PG_CALL_SVM_BEVEL,
+  PG_CALL_SVM_RAYCAST,
 
   NUM_PROGRAM_GROUPS
 };
