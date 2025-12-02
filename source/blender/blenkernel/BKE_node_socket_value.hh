@@ -180,6 +180,9 @@ class SocketValueVariant {
    */
   const void *get_single_ptr_raw() const;
 
+  void ensure_owns_direct_data();
+  bool owns_direct_data() const;
+
   /**
    * Replace the stored value with the given single value.
    */
