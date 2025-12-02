@@ -867,10 +867,28 @@ static void LIGHT_MANAGER_OT_light_remove_from_group(wmOperatorType *ot)
 /** \name Main Region
  * \{ */
 
-static void light_manager_main_region_init(wmWindowManager * /*wm*/, ARegion *region)
+static void light_manager_main_region_init(wmWindowManager *wm, ARegion *region)
 {
   region->flag |= RGN_FLAG_INDICATE_OVERFLOW;
-  
+
+  /* Configure View2D for list-style vertical scrolling, similar to Outliner. */
+  region->v2d.scroll |= (V2D_SCROLL_RIGHT | V2D_SCROLL_BOTTOM);
+  region->v2d.scroll &= ~(V2D_SCROLL_LEFT | V2D_SCROLL_TOP);
+  region->v2d.scroll |= V2D_SCROLL_HORIZONTAL_HIDE;
+  region->v2d.scroll |= V2D_SCROLL_VERTICAL_HIDE;
+
+  region->v2d.align = (V2D_ALIGN_NO_NEG_X | V2D_ALIGN_NO_NEG_Y);
+  region->v2d.keepzoom = (V2D_LOCKZOOM_X | V2D_LOCKZOOM_Y | V2D_LIMITZOOM | V2D_KEEPASPECT);
+  region->v2d.keeptot = V2D_KEEPTOT_STRICT;
+  region->v2d.minzoom = region->v2d.maxzoom = 1.0f;
+
+  UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_LIST, region->winx, region->winy);
+
+  /* Basic View2D navigation for button lists (scroll wheel, middle-mouse pan, etc.). */
+  wmKeyMap *keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "View2D Buttons List", SPACE_EMPTY, RGN_TYPE_WINDOW);
+  WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
+
   /* Add dropbox handler for drag and drop functionality. */
   ListBase *lb = WM_dropboxmap_find("Light Manager", SPACE_LIGHT_MANAGER, RGN_TYPE_WINDOW);
   WM_event_add_dropbox_handler(&region->runtime->handlers, lb);
@@ -911,8 +929,6 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
     UI_draw_roundbox_4fv(&rect, true, 0.0f, final_col);
   };
 
-  uiBlock *block = UI_block_begin(C, region, __func__, ui::EmbossType::Emboss);
-  
   /* Constants */
   const int row_height = int(UI_UNIT_Y * 1.2f);
   const int top_bar_height = int(UI_UNIT_Y * 1.5f);
@@ -929,26 +945,6 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
   }
   UI_GetThemeColorShade4fv(TH_HEADER, -10, zebra_color_odd);
   
-  /* Start Y at top of region */
-  int y = region->winy - margin;
-
-  /* --- Top Bar (Manual Draw) --- */
-  {
-    uiDefIconTextButO(block,
-                      ButType::But,
-                      "LIGHT_MANAGER_OT_group_add",
-                      wm::OpCallContext::InvokeDefault,
-                      ICON_ADD,
-                      "Add a new group",
-                      margin,
-                      y - top_bar_height,
-                      200,
-                      short(top_bar_height),
-                      std::nullopt);
-  }
-  
-  y -= (top_bar_height + margin);
-
   /* --- Collect Lights --- */
   blender::Vector<Object *> lights;
   FOREACH_SCENE_OBJECT_BEGIN (scene, ob) {
@@ -988,6 +984,70 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
       grouped_lights.lookup_or_add_default(group_name).append(ob);
     }
   }
+
+  /* --- Compute total content height for View2D scrolling --- */
+  int total_height = 0;
+  total_height += margin;         /* Margin above top bar. */
+  total_height += top_bar_height; /* Top bar itself. */
+  total_height += margin;         /* Spacing between top bar and header. */
+  total_height += row_height;     /* Header row. */
+
+  if (space_lm && space_lm->groups.first) {
+    LISTBASE_FOREACH (SpaceLightManagerGroup *, group, &space_lm->groups) {
+      char group_name_safe[sizeof(group->name)];
+      BLI_strncpy(group_name_safe, group->name, sizeof(group_name_safe));
+      std::string group_key(group_name_safe);
+
+      blender::Vector<Object *> *group_lights_ptr = grouped_lights.lookup_ptr(group_key);
+
+      int group_h = row_height; /* Group header. */
+      if (!(group->flag & SPACE_LIGHT_MANAGER_GROUP_COLLAPSED)) {
+        int visible_rows = 0;
+        if (group_lights_ptr && group_lights_ptr->size() != 0) {
+          visible_rows = int(group_lights_ptr->size());
+        }
+        else {
+          /* Expanded group with no lights: one informational row. */
+          visible_rows = 1;
+        }
+        group_h += row_height * visible_rows;
+      }
+      group_h += group_vertical_padding;
+      total_height += group_h;
+    }
+  }
+
+  View2D *v2d = &region->v2d;
+  int view_height = total_height;
+  if (view_height < region->winy) {
+    view_height = region->winy;
+  }
+  UI_view2d_totRect_set(v2d, region->winx, view_height);
+  /* Use full View2D transform for both axes; X layout matches region pixels via align flags. */
+  UI_view2d_view_ortho(v2d);
+
+  /* Start Y at top of View2D space (view_height), going downward as y decreases. */
+  int y = 0;
+
+  uiBlock *block = UI_block_begin(C, region, __func__, ui::EmbossType::Emboss);
+
+  /* --- Top Bar (Manual Draw) --- */
+  {
+    uiDefIconTextButO(block,
+                      ButType::But,
+                      "LIGHT_MANAGER_OT_group_add",
+                      wm::OpCallContext::InvokeDefault,
+                      ICON_ADD,
+                      "Add a new group",
+                      margin + 0,
+                      y - top_bar_height - 10,
+                      200,
+                      short(top_bar_height),
+                      std::nullopt);
+  }
+  
+  /* Shift everything below the button 5px further down. */
+  y -= (top_bar_height + margin + 10);
 
   /* --- Table Setup --- */
   const int table_width = region->winx - 2 * margin;
@@ -1158,8 +1218,12 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
         {
             const int col = int(eLightManagerColumn::Visibility);
             const int icon_w = UI_UNIT_X;
-            /* Center three icons in the visibility column. */
-            int x = columns[col].x + ((columns[col].width - (icon_w * 3)) / 2);
+            /* Start slightly to the right of the header label's X so the first icon visually
+             * aligns with the "Visibility" text (which has its own internal padding). */
+            const int header_offset_x = light_manager_columns[col].header_offset_x;
+            const int col_x = columns[col].x + header_offset_x;
+            const int text_inset = int(2 * UI_SCALE_FAC);
+            int x = col_x + text_inset;
 
             /* Choose icons based on aggregated group visibility state. */
             int icon_view = ICON_RESTRICT_VIEW_OFF;   /* eye open (visible) */
@@ -1337,8 +1401,12 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
             {
                 const int col = int(eLightManagerColumn::Visibility);
                 const int icon_w = UI_UNIT_X;
-                /* Center three icons in the visibility column, matching group header. */
-                int x = columns[col].x + ((columns[col].width - (icon_w * 3)) / 2);
+                /* Same as group row: add a small inset so the first icon lines up with the
+                 * visible start of the "Visibility" text. */
+                const int header_offset_x = light_manager_columns[col].header_offset_x;
+                const int col_x = columns[col].x + header_offset_x;
+                const int text_inset = int(2 * UI_SCALE_FAC);
+                int x = col_x + text_inset;
                 
                 PropertyRNA *prop_hide_view = RNA_struct_find_property(&ob_ptr, "hide_viewport");
                 if (prop_hide_view) {
@@ -1402,7 +1470,11 @@ static void light_manager_main_region_draw(const bContext *C, ARegion *region)
   
   UI_block_end(C, block);
   UI_block_draw(C, block);
+
+  /* Restore view matrix and draw scrollbars/overflow indicators. */
+  UI_view2d_view_restore(C);
   ED_region_draw_overflow_indication(CTX_wm_area(C), region);
+  UI_view2d_scrollers_draw(&region->v2d, nullptr);
 }
 
 static void light_manager_main_region_listener(const wmRegionListenerParams *params)
@@ -1628,9 +1700,13 @@ static int find_group_at_position(SpaceLightManager *space_lm, ARegion *region, 
     return 0;
   }
 
-  /* Use cached bounds from draw */
-  int mouse_y = event->mval[1];
-  
+  /* Convert mouse position from region space to View2D (scroll-aware) space. */
+  float view_mval[2];
+  UI_view2d_region_to_view(
+      &region->v2d, float(event->mval[0]), float(event->mval[1]), &view_mval[0], &view_mval[1]);
+
+  const float mouse_y = view_mval[1];
+
   for (const GroupBounds &bounds : space_lm->runtime->group_bounds) {
     if (mouse_y <= bounds.y_max && mouse_y >= bounds.y_min) {
       return bounds.index;
