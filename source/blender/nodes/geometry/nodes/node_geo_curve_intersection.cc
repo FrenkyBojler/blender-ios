@@ -220,8 +220,8 @@ struct IntersectionData {
   Vector<float3> position;
   Vector<int> curve_index;
   Vector<float3> direction;
-  Vector<float> length;
   Vector<float> factor;
+  Vector<float> length;
   Vector<float3> normal;
   Vector<float3> pair_position;
   Vector<float3> pair_direction;
@@ -253,11 +253,11 @@ static void add_intersection_data(IntersectionData &data,
   if (attribute_outputs.curve_index) {
     data.curve_index.append(curve_index);
   }
-  if (attribute_outputs.length) {
-    data.length.append(length);
-  }
   if (attribute_outputs.factor) {
     data.factor.append(factor);
+  }
+  if (attribute_outputs.length) {
+    data.length.append(length);
   }
   if (attribute_outputs.direction) {
     data.direction.append(direction);
@@ -285,8 +285,8 @@ static void gather_thread_storage(ThreadLocalData &thread_storage,
     const int64_t local_size = local_data.position.size();
     BLI_assert(local_data.sortkey.size() == local_size);
     BLI_assert(attribute_outputs.curve_index && local_data.curve_index.size() == local_size);
-    BLI_assert(attribute_outputs.length && local_data.length.size() == local_size);
     BLI_assert(attribute_outputs.factor && local_data.factor.size() == local_size);
+    BLI_assert(attribute_outputs.length && local_data.length.size() == local_size);
     BLI_assert(attribute_outputs.direction && local_data.direction.size() == local_size);
     BLI_assert(attribute_outputs.normal && local_data.normal.size() == local_size);
     BLI_assert(attribute_outputs.pair_position && local_data.pair_position.size() == local_size);
@@ -302,11 +302,11 @@ static void gather_thread_storage(ThreadLocalData &thread_storage,
   if (attribute_outputs.curve_index) {
     r_data.curve_index.reserve(new_size);
   }
-  if (attribute_outputs.length) {
-    r_data.length.reserve(new_size);
-  }
   if (attribute_outputs.factor) {
     r_data.factor.reserve(new_size);
+  }
+  if (attribute_outputs.length) {
+    r_data.length.reserve(new_size);
   }
   if (attribute_outputs.direction) {
     r_data.direction.reserve(new_size);
@@ -330,12 +330,12 @@ static void gather_thread_storage(ThreadLocalData &thread_storage,
 
     if (attribute_outputs.curve_index) {
       r_data.curve_index.extend(local_data.curve_index);
-    };
-    if (attribute_outputs.length) {
-      r_data.length.extend(local_data.length);
     }
     if (attribute_outputs.factor) {
       r_data.factor.extend(local_data.factor);
+    }
+    if (attribute_outputs.length) {
+      r_data.length.extend(local_data.length);
     }
     if (attribute_outputs.direction) {
       r_data.direction.extend(local_data.direction);
@@ -892,11 +892,11 @@ static IntersectionData sort_intersection_data(IntersectionData &data,
   if (attribute_outputs.curve_index) {
     r_data.curve_index.reserve(data_size);
   }
-  if (attribute_outputs.length) {
-    r_data.length.reserve(data_size);
-  }
   if (attribute_outputs.factor) {
     r_data.factor.reserve(data_size);
+  }
+  if (attribute_outputs.length) {
+    r_data.length.reserve(data_size);
   }
   if (attribute_outputs.direction) {
     r_data.direction.reserve(data_size);
@@ -920,11 +920,11 @@ static IntersectionData sort_intersection_data(IntersectionData &data,
     if (attribute_outputs.curve_index) {
       r_data.curve_index.append(data.curve_index[key_index]);
     }
-    if (attribute_outputs.length) {
-      r_data.length.append(data.length[key_index]);
-    }
     if (attribute_outputs.factor) {
       r_data.factor.append(data.factor[key_index]);
+    }
+    if (attribute_outputs.length) {
+      r_data.length.append(data.length[key_index]);
     }
     if (attribute_outputs.direction) {
       r_data.direction.append(data.direction[key_index]);
@@ -986,7 +986,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   geometry::foreach_real_geometry(geometry_set, [&](GeometrySet &geometry_set) {
     if (!geometry_set.has_curves()) {
-      // geometry_set.remove_geometry_during_modify();
+      geometry_set.clear();
       return;
     }
     const Curves &src_curves_id = *geometry_set.get_curves();
@@ -1056,7 +1056,7 @@ static void node_geo_exec(GeoNodeExecParams params)
                                        r_data);
         }
         else {
-          // geometry_set.remove_geometry_during_modify();
+          geometry_set.clear();
           return;
         }
         break;
