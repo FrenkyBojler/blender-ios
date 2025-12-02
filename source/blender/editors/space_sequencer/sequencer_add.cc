@@ -159,24 +159,24 @@ static bool sequencer_add_draw_check_fn(PointerRNA *ptr, PropertyRNA *prop, void
 
 static void sequencer_add_draw(bContext * /*C*/, wmOperator *op)
 {
-  uiLayout *layout = op->layout;
+  ui::Layout &layout = *op->layout;
   SequencerAddData *sad = static_cast<SequencerAddData *>(op->customdata);
   ImageFormatData *imf = &sad->im_format;
 
   bool is_redo_panel = sad == nullptr;
 
   if (!is_redo_panel) {
-    layout->prop(op->ptr, "move_strips", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout.prop(op->ptr, "move_strips", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   if (!RNA_boolean_get(op->ptr, "move_strips") || is_redo_panel) {
-    uiLayout &col = layout->column(true);
+    ui::Layout &col = layout.column(true);
     col.prop(op->ptr, "frame_start", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    layout->prop(op->ptr, "channel", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    layout->prop(op->ptr, "replace_sel", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout.prop(op->ptr, "channel", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout.prop(op->ptr, "replace_sel", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
   /* Main draw call. */
-  uiDefAutoButsRNA(layout,
+  uiDefAutoButsRNA(&layout,
                    op->ptr,
                    sequencer_add_draw_check_fn,
                    nullptr,
@@ -188,17 +188,17 @@ static void sequencer_add_draw(bContext * /*C*/, wmOperator *op)
   if (RNA_struct_find_property(op->ptr, "length") &&
       ImageImport(RNA_enum_get(op->ptr, "image_import_type")) != ImageImport::Sequence)
   {
-    layout->prop(op->ptr, "length", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout.prop(op->ptr, "length", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
-  layout->separator();
+  layout.separator();
 
   /* Image template. */
   PointerRNA imf_ptr = RNA_pointer_create_discrete(nullptr, &RNA_ImageFormatSettings, imf);
 
   /* Multiview template. */
   if (RNA_boolean_get(op->ptr, "show_multiview")) {
-    uiTemplateImageFormatViews(layout, &imf_ptr, op->ptr);
+    uiTemplateImageFormatViews(&layout, &imf_ptr, op->ptr);
   }
 }
 
@@ -642,7 +642,7 @@ static void seq_load_apply_generic_options(bContext *C, wmOperator *op, Strip *s
   }
 
   if (RNA_boolean_get(op->ptr, "replace_sel")) {
-    strip->flag |= SELECT;
+    strip->flag |= SEQ_SELECT;
     seq::select_active_set(scene, strip);
   }
 
@@ -682,7 +682,7 @@ static bool seq_load_apply_generic_options_only_test_overlap(bContext *C,
   }
 
   if (RNA_boolean_get(op->ptr, "replace_sel")) {
-    strip->flag |= SELECT;
+    strip->flag |= SEQ_SELECT;
     seq::select_active_set(scene, strip);
   }
 
