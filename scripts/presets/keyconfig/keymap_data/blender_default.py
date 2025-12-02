@@ -337,7 +337,7 @@ def _template_space_region_type_toggle(
     items = []
 
     if params.use_region_toggle_pie:
-        pie_key = sidebar_key or sidebar_key or channels_key
+        pie_key = sidebar_key or toolbar_key or channels_key
         if pie_key is not None:
             items.append(op_menu_pie("WM_MT_region_toggle_pie", pie_key))
         return items
@@ -900,6 +900,7 @@ def km_screen_editing(params):
         ("screen.area_dupli", {"type": 'ACTIONZONE_AREA', "value": 'ANY', "shift": True}, None),
         ("screen.area_swap", {"type": 'ACTIONZONE_AREA', "value": 'ANY', "ctrl": True}, None),
         ("screen.region_scale", {"type": 'ACTIONZONE_REGION', "value": 'ANY'}, None),
+        ("screen.quadview_size", {"type": 'ACTIONZONE_REGION_QUAD', "value": 'ANY'}, None),
         ("screen.screen_full_area", {"type": 'ACTIONZONE_FULLSCREEN', "value": 'ANY'},
          {"properties": [("use_hide_panels", True)]}),
         # Area move after action zones

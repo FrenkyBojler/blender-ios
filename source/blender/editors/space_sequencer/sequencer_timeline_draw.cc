@@ -69,7 +69,6 @@
 
 #include "BLF_api.hh"
 
-/* Own include. */
 #include "sequencer_intern.hh"
 #include "sequencer_quads_batch.hh"
 #include "sequencer_strips_batch.hh"
@@ -439,22 +438,9 @@ static void color3ubv_from_seq(const Scene *curscene,
 
 static void waveform_job_start_if_needed(const bContext *C, const Strip *strip)
 {
-  bSound *sound = strip->sound;
-
-  BLI_spin_lock(static_cast<SpinLock *>(sound->spinlock));
-  if (!sound->waveform) {
-    /* Load the waveform data if it hasn't been loaded and cached already. */
-    if (!(sound->tags & SOUND_TAGS_WAVEFORM_LOADING)) {
-      /* Prevent sounds from reloading. */
-      sound->tags |= SOUND_TAGS_WAVEFORM_LOADING;
-      BLI_spin_unlock(static_cast<SpinLock *>(sound->spinlock));
-      sequencer_preview_add_sound(C, strip);
-    }
-    else {
-      BLI_spin_unlock(static_cast<SpinLock *>(sound->spinlock));
-    }
+  if (BKE_sound_runtime_start_waveform_loading(strip->sound)) {
+    sequencer_preview_add_sound(C, strip);
   }
-  BLI_spin_unlock(static_cast<SpinLock *>(sound->spinlock));
 }
 
 static float align_frame_with_pixel(float frame_coord, float frames_per_pixel)
@@ -504,8 +490,8 @@ static void draw_seq_waveform_overlay(const TimelineDrawContext &ctx,
 
   waveform_job_start_if_needed(ctx.C, strip);
 
-  SoundWaveform *waveform = static_cast<SoundWaveform *>(strip->sound->waveform);
-  if (waveform == nullptr || waveform->length == 0) {
+  const Vector<float> *waveform = BKE_sound_runtime_get_waveform(strip->sound);
+  if (waveform == nullptr || waveform->is_empty()) {
     return; /* Waveform was not built. */
   }
 
@@ -515,6 +501,7 @@ static void draw_seq_waveform_overlay(const TimelineDrawContext &ctx,
   uchar color_rms[4] = {255, 255, 255, 204};
   ctx.quads->add_line(draw_start_frame, y_zero, draw_end_frame, y_zero, color);
 
+  const int waveform_sample_count = waveform->size() / 3;
   float prev_y_mid = y_zero;
   for (int i = 0; i < pixels_to_draw; i++) {
     float timeline_frame = sample_start_frame + i * frames_per_pixel;
@@ -526,23 +513,23 @@ static void draw_seq_waveform_overlay(const TimelineDrawContext &ctx,
       continue;
     }
 
-    if (sample_index >= waveform->length) {
+    if (sample_index >= waveform_sample_count) {
       break;
     }
 
-    float value_min = waveform->data[sample_index * 3];
-    float value_max = waveform->data[sample_index * 3 + 1];
-    float rms = waveform->data[sample_index * 3 + 2];
+    float value_min = (*waveform)[sample_index * 3];
+    float value_max = (*waveform)[sample_index * 3 + 1];
+    float rms = (*waveform)[sample_index * 3 + 2];
 
     if (samples_per_pixel > 1.0f) {
       /* We need to sum up the values we skip over until the next step. */
       float next_pos = sample + samples_per_pixel;
       int end_idx = round_fl_to_int(next_pos);
 
-      for (int j = sample_index + 1; (j < waveform->length) && (j < end_idx); j++) {
-        value_min = min_ff(value_min, waveform->data[j * 3]);
-        value_max = max_ff(value_max, waveform->data[j * 3 + 1]);
-        rms = max_ff(rms, waveform->data[j * 3 + 2]);
+      for (int j = sample_index + 1; (j < waveform_sample_count) && (j < end_idx); j++) {
+        value_min = min_ff(value_min, (*waveform)[j * 3]);
+        value_max = max_ff(value_max, (*waveform)[j * 3 + 1]);
+        rms = max_ff(rms, (*waveform)[j * 3 + 2]);
       }
     }
 
@@ -722,7 +709,7 @@ static void draw_handle_transform_text(const TimelineDrawContext &ctx,
                                        eStripHandle handle)
 {
   /* Draw numbers for start and end of the strip next to its handles. */
-  if (strip_ctx.strip_is_too_small || (strip_ctx.strip->flag & SELECT) == 0) {
+  if (strip_ctx.strip_is_too_small || (strip_ctx.strip->flag & SEQ_SELECT) == 0) {
     return;
   }
 
@@ -879,7 +866,7 @@ static size_t draw_seq_text_get_overlay_string(const TimelineDrawContext &ctx,
 static void get_strip_text_color(const StripDrawContext &strip_ctx, uchar r_col[4])
 {
   const Strip *strip = strip_ctx.strip;
-  const bool active_or_selected = (strip->flag & SELECT) || strip_ctx.is_active_strip;
+  const bool active_or_selected = (strip->flag & SEQ_SELECT) || strip_ctx.is_active_strip;
 
   /* Text: white when selected/active, black otherwise. */
   r_col[0] = r_col[1] = r_col[2] = r_col[3] = 255;
@@ -1057,7 +1044,7 @@ static void draw_strip_offsets(const TimelineDrawContext &ctx, const StripDrawCo
   }
   if ((ctx.sseq->timeline_overlay.flag & SEQ_TIMELINE_SHOW_STRIP_OFFSETS) == 0 &&
       (strip_ctx.strip != special_preview_get()) &&
-      (strip_ctx.strip->runtime.flag & STRIP_SHOW_OFFSETS) == 0)
+      !flag_is_set(strip_ctx.strip->runtime->flag, seq::StripRuntimeFlag::ShowOffsets))
   {
     return;
   }
@@ -1066,7 +1053,7 @@ static void draw_strip_offsets(const TimelineDrawContext &ctx, const StripDrawCo
 
   uchar col[4], blend_col[4];
   color3ubv_from_seq(scene, strip, strip_ctx.show_strip_color_tag, strip_ctx.is_muted, col);
-  if (strip->flag & SELECT) {
+  if (strip->flag & SEQ_SELECT) {
     UI_GetColorPtrShade3ubv(col, 50, col);
   }
   col[3] = strip_ctx.is_muted ? MUTE_ALPHA : 200;
@@ -1182,7 +1169,7 @@ static void draw_multicam_highlight(const TimelineDrawContext &ctx,
   if (strip_ctx.strip != act_strip || act_strip == nullptr) {
     return;
   }
-  if ((act_strip->flag & SELECT) == 0 || act_strip->type != STRIP_TYPE_MULTICAM) {
+  if ((act_strip->flag & SEQ_SELECT) == 0 || act_strip->type != STRIP_TYPE_MULTICAM) {
     return;
   }
 
@@ -1243,7 +1230,7 @@ static void visible_strips_ordered_get(const TimelineDrawContext &ctx,
 
   for (Strip *strip : strips) {
     StripDrawContext strip_ctx = strip_draw_context_get(ctx, strip);
-    if ((strip->runtime.flag & STRIP_OVERLAP) == 0) {
+    if (!flag_is_set(strip->runtime->flag, seq::StripRuntimeFlag::Overlap)) {
       r_bottom_layer.append(strip_ctx);
     }
     else {
@@ -1373,7 +1360,7 @@ static void strip_data_outline_params_set(const StripDrawContext &strip,
                                           SeqStripDrawData &data)
 {
   const bool active = strip.is_active_strip;
-  const bool selected = strip.strip->flag & SELECT;
+  const bool selected = strip.strip->flag & SEQ_SELECT;
   uchar4 col{0, 0, 0, 255};
 
   if (selected) {
@@ -1398,10 +1385,11 @@ static void strip_data_outline_params_set(const StripDrawContext &strip,
 
   const eSeqOverlapMode overlap_mode = seq::tool_settings_overlap_mode_get(ctx.scene);
   const bool use_overwrite = overlap_mode == SEQ_OVERLAP_OVERWRITE;
-  const bool overlaps = (strip.strip->runtime.flag & STRIP_OVERLAP) && translating;
+  const bool overlaps = flag_is_set(strip.strip->runtime->flag, seq::StripRuntimeFlag::Overlap) &&
+                        translating;
 
-  const bool clamped_l = (strip.strip->runtime.flag & STRIP_CLAMPED_LH);
-  const bool clamped_r = (strip.strip->runtime.flag & STRIP_CLAMPED_RH);
+  const bool clamped_l = flag_is_set(strip.strip->runtime->flag, seq::StripRuntimeFlag::ClampedLH);
+  const bool clamped_r = flag_is_set(strip.strip->runtime->flag, seq::StripRuntimeFlag::ClampedRH);
 
   /* Strip outline is:
    *  - Red when overlapping with other strips or handles are clamped.
@@ -1425,7 +1413,7 @@ static void strip_data_highlight_flags_set(const StripDrawContext &strip,
   const Strip *act_strip = seq::select_active_get(ctx.scene);
   const Strip *special_preview = special_preview_get();
   /* Highlight if strip is an input of an active strip, or if the strip is solo preview. */
-  if (act_strip != nullptr && (act_strip->flag & SELECT) != 0) {
+  if (act_strip != nullptr && (act_strip->flag & SEQ_SELECT) != 0) {
     if (act_strip->input1 == strip.strip || act_strip->input2 == strip.strip) {
       data.flags |= GPU_SEQ_FLAG_HIGHLIGHT;
     }
@@ -1440,7 +1428,7 @@ static void strip_data_handle_flags_set(const StripDrawContext &strip,
                                         SeqStripDrawData &data)
 {
   const Scene *scene = ctx.scene;
-  const bool selected = strip.strip->flag & SELECT;
+  const bool selected = strip.strip->flag & SEQ_SELECT;
   /* Handles on left/right side. */
   if (!seq::transform_is_locked(ctx.channels, strip.strip) &&
       can_select_handle(scene, strip.strip, ctx.v2d))
@@ -1792,7 +1780,7 @@ static void draw_timeline_grid(const TimelineDrawContext &ctx)
 
   const Scene *scene = ctx.scene;
   if (scene == nullptr) {
-    /* If we don't have a scene available, pick what we defined as default for framerate to show
+    /* If we don't have a scene available, pick what we defined as default for frame-rate to show
      * *something*. */
     scene = DNA_struct_default_get(Scene);
   }

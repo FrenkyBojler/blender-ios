@@ -20,7 +20,7 @@
 #include "BLI_hash.h"
 #include "BLI_heap.h"
 #include "BLI_kdopbvh.hh"
-#include "BLI_kdtree.h"
+#include "BLI_kdtree.hh"
 #include "BLI_lasso_2d.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
@@ -4391,15 +4391,15 @@ static void uv_select_flush_from_tag_loop(const Scene *scene, Object *obedit, co
   BMLoop *l;
   BMIter iter, liter;
 
-  const bool use_mesh_select = (ts->uv_flag & UV_FLAG_SELECT_SYNC) &&
-                               (bm->uv_select_sync_valid == false);
-
   if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
     uvedit_select_prepare_sync_select(scene, bm);
   }
   else {
     uvedit_select_prepare_custom_data(scene, bm);
   }
+  const bool use_mesh_select = (ts->uv_flag & UV_FLAG_SELECT_SYNC) &&
+                               (bm->uv_select_sync_valid == false);
+
   const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
 
   if ((use_mesh_select == false) && ts->uv_sticky == UV_STICKY_VERT) {
@@ -4430,12 +4430,22 @@ static void uv_select_flush_from_tag_loop(const Scene *scene, Object *obedit, co
       }
       if (select) {
         if (tag_all && uvedit_face_visible_test(scene, efa)) {
-          uvedit_face_select_set_no_sync(ts, bm, efa, true);
+          if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
+            BM_face_uvselect_set_noflush(bm, efa, true);
+          }
+          else {
+            uvedit_face_select_set_no_sync(ts, bm, efa, true);
+          }
         }
       }
       else {
         if (tag_any && uvedit_face_visible_test(scene, efa)) {
-          uvedit_face_select_set_no_sync(ts, bm, efa, false);
+          if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
+            BM_face_uvselect_set_noflush(bm, efa, false);
+          }
+          else {
+            uvedit_face_select_set_no_sync(ts, bm, efa, false);
+          }
         }
       }
     }
@@ -4455,12 +4465,22 @@ static void uv_select_flush_from_tag_loop(const Scene *scene, Object *obedit, co
       }
       if (select) {
         if (tag_all && uvedit_face_visible_test(scene, efa)) {
-          uvedit_face_select_set_no_sync(ts, bm, efa, true);
+          if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
+            BM_face_uvselect_set_noflush(bm, efa, true);
+          }
+          else {
+            uvedit_face_select_set_no_sync(ts, bm, efa, true);
+          }
         }
       }
       else {
         if (tag_any && uvedit_face_visible_test(scene, efa)) {
-          uvedit_face_select_set_no_sync(ts, bm, efa, false);
+          if (ts->uv_flag & UV_FLAG_SELECT_SYNC) {
+            BM_face_uvselect_set_noflush(bm, efa, false);
+          }
+          else {
+            uvedit_face_select_set_no_sync(ts, bm, efa, false);
+          }
         }
       }
     }
@@ -5393,26 +5413,29 @@ void UV_OT_select_pinned(wmOperatorType *ot)
 /** \name Select Overlap Operator
  * \{ */
 
-BLI_INLINE uint overlap_hash(const void *overlap_v)
-{
-  const BVHTreeOverlap *overlap = static_cast<const BVHTreeOverlap *>(overlap_v);
-
-  /* Designed to treat (A,B) and (B,A) as the same. */
-  int x = overlap->indexA;
-  int y = overlap->indexB;
-  if (x > y) {
-    std::swap(x, y);
+struct BVHTreeOverlapUnorderedHash {
+  uint64_t operator()(BVHTreeOverlap overlap) const
+  {
+    if (overlap.indexA < overlap.indexB) {
+      std::swap(overlap.indexA, overlap.indexB);
+    }
+    return blender::get_default_hash(overlap.indexA, overlap.indexB);
   }
-  return BLI_hash_int_2d(x, y);
-}
+};
 
-BLI_INLINE bool overlap_cmp(const void *a_v, const void *b_v)
-{
-  const BVHTreeOverlap *a = static_cast<const BVHTreeOverlap *>(a_v);
-  const BVHTreeOverlap *b = static_cast<const BVHTreeOverlap *>(b_v);
-  return !((a->indexA == b->indexA && a->indexB == b->indexB) ||
-           (a->indexA == b->indexB && a->indexB == b->indexA));
-}
+struct BVHTreeOverlapUnorderedEq {
+  bool operator()(const BVHTreeOverlap &a, const BVHTreeOverlap &b) const
+  {
+    return (a.indexA == b.indexA && a.indexB == b.indexB) ||
+           (a.indexA == b.indexB && a.indexB == b.indexA);
+  }
+};
+
+using BVHTreeOverlapSet = blender::Set<BVHTreeOverlap,
+                                       4,
+                                       blender::DefaultProbingStrategy,
+                                       BVHTreeOverlapUnorderedHash,
+                                       BVHTreeOverlapUnorderedEq>;
 
 struct UVOverlapData {
   int ob_index;
@@ -5605,7 +5628,8 @@ static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend)
   BVHTreeOverlap *overlap = BLI_bvhtree_overlap_self(uv_tree, &tree_overlap_len, nullptr, nullptr);
 
   if (overlap != nullptr) {
-    GSet *overlap_set = BLI_gset_new_ex(overlap_hash, overlap_cmp, __func__, tree_overlap_len);
+    BVHTreeOverlapSet overlap_set;
+    overlap_set.reserve(tree_overlap_len);
 
     for (int i = 0; i < tree_overlap_len; i++) {
       /* Skip overlaps against yourself. */
@@ -5614,7 +5638,7 @@ static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend)
       }
 
       /* Skip overlaps that have already been tested. */
-      if (!BLI_gset_add(overlap_set, &overlap[i])) {
+      if (!overlap_set.add(overlap[i])) {
         continue;
       }
 
@@ -5644,7 +5668,6 @@ static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend)
       }
     }
 
-    BLI_gset_free(overlap_set, nullptr);
     MEM_freeN(overlap);
   }
 
@@ -5914,7 +5937,7 @@ static wmOperatorStatus uv_select_similar_vert_exec(bContext *C, wmOperator *op)
   }
 
   int tree_index = 0;
-  KDTree_1d *tree_1d = BLI_kdtree_1d_new(max_verts_selected_all);
+  blender::KDTree_1d *tree_1d = blender::BLI_kdtree_1d_new(max_verts_selected_all);
 
   for (Object *ob : objects) {
     BMesh *bm = BKE_editmesh_from_object(ob)->bm;
@@ -5939,14 +5962,14 @@ static wmOperatorStatus uv_select_similar_vert_exec(bContext *C, wmOperator *op)
           continue;
         }
         float needle = get_uv_vert_needle(type, l->v, ob_m3, l, offsets);
-        BLI_kdtree_1d_insert(tree_1d, tree_index++, &needle);
+        blender::BLI_kdtree_1d_insert(tree_1d, tree_index++, &needle);
       }
     }
   }
 
   if (tree_1d != nullptr) {
-    BLI_kdtree_1d_deduplicate(tree_1d);
-    BLI_kdtree_1d_balance(tree_1d);
+    blender::BLI_kdtree_1d_deduplicate(tree_1d);
+    blender::BLI_kdtree_1d_balance(tree_1d);
   }
 
   for (Object *ob : objects) {
@@ -6005,7 +6028,7 @@ static wmOperatorStatus uv_select_similar_vert_exec(bContext *C, wmOperator *op)
     }
   }
 
-  BLI_kdtree_1d_free(tree_1d);
+  blender::BLI_kdtree_1d_free(tree_1d);
   return OPERATOR_FINISHED;
 }
 
@@ -6038,7 +6061,7 @@ static wmOperatorStatus uv_select_similar_edge_exec(bContext *C, wmOperator *op)
   }
 
   int tree_index = 0;
-  KDTree_1d *tree_1d = BLI_kdtree_1d_new(max_edges_selected_all);
+  blender::KDTree_1d *tree_1d = blender::BLI_kdtree_1d_new(max_edges_selected_all);
 
   for (Object *ob : objects) {
     BMesh *bm = BKE_editmesh_from_object(ob)->bm;
@@ -6065,15 +6088,15 @@ static wmOperatorStatus uv_select_similar_edge_exec(bContext *C, wmOperator *op)
 
         float needle = get_uv_edge_needle(type, l->e, ob_m3, l, l->next, offsets);
         if (tree_1d) {
-          BLI_kdtree_1d_insert(tree_1d, tree_index++, &needle);
+          blender::BLI_kdtree_1d_insert(tree_1d, tree_index++, &needle);
         }
       }
     }
   }
 
   if (tree_1d != nullptr) {
-    BLI_kdtree_1d_deduplicate(tree_1d);
-    BLI_kdtree_1d_balance(tree_1d);
+    blender::BLI_kdtree_1d_deduplicate(tree_1d);
+    blender::BLI_kdtree_1d_balance(tree_1d);
   }
 
   for (Object *ob : objects) {
@@ -6132,7 +6155,7 @@ static wmOperatorStatus uv_select_similar_edge_exec(bContext *C, wmOperator *op)
     }
   }
 
-  BLI_kdtree_1d_free(tree_1d);
+  blender::BLI_kdtree_1d_free(tree_1d);
   return OPERATOR_FINISHED;
 }
 
@@ -6158,7 +6181,7 @@ static wmOperatorStatus uv_select_similar_face_exec(bContext *C, wmOperator *op)
   }
 
   int tree_index = 0;
-  KDTree_1d *tree_1d = BLI_kdtree_1d_new(max_faces_selected_all);
+  blender::KDTree_1d *tree_1d = blender::BLI_kdtree_1d_new(max_faces_selected_all);
 
   for (const int ob_index : objects.index_range()) {
     Object *ob = objects[ob_index];
@@ -6184,14 +6207,14 @@ static wmOperatorStatus uv_select_similar_face_exec(bContext *C, wmOperator *op)
 
       float needle = get_uv_face_needle(type, face, ob_index, ob_m3, offsets);
       if (tree_1d) {
-        BLI_kdtree_1d_insert(tree_1d, tree_index++, &needle);
+        blender::BLI_kdtree_1d_insert(tree_1d, tree_index++, &needle);
       }
     }
   }
 
   if (tree_1d != nullptr) {
-    BLI_kdtree_1d_deduplicate(tree_1d);
-    BLI_kdtree_1d_balance(tree_1d);
+    blender::BLI_kdtree_1d_deduplicate(tree_1d);
+    blender::BLI_kdtree_1d_balance(tree_1d);
   }
 
   for (const int ob_index : objects.index_range()) {
@@ -6249,7 +6272,7 @@ static wmOperatorStatus uv_select_similar_face_exec(bContext *C, wmOperator *op)
     }
   }
 
-  BLI_kdtree_1d_free(tree_1d);
+  blender::BLI_kdtree_1d_free(tree_1d);
   return OPERATOR_FINISHED;
 }
 
@@ -6291,7 +6314,7 @@ static wmOperatorStatus uv_select_similar_island_exec(bContext *C, wmOperator *o
       MEM_callocN(sizeof(*island_array) * island_list_len, __func__));
 
   int tree_index = 0;
-  KDTree_1d *tree_1d = BLI_kdtree_1d_new(island_list_len);
+  blender::KDTree_1d *tree_1d = blender::BLI_kdtree_1d_new(island_list_len);
 
   for (const int ob_index : objects.index_range()) {
     Object *obedit = objects[ob_index];
@@ -6308,14 +6331,14 @@ static wmOperatorStatus uv_select_similar_island_exec(bContext *C, wmOperator *o
       }
       float needle = get_uv_island_needle(type, island, ob_m3, island->offsets);
       if (tree_1d) {
-        BLI_kdtree_1d_insert(tree_1d, tree_index++, &needle);
+        blender::BLI_kdtree_1d_insert(tree_1d, tree_index++, &needle);
       }
     }
   }
 
   if (tree_1d != nullptr) {
-    BLI_kdtree_1d_deduplicate(tree_1d);
-    BLI_kdtree_1d_balance(tree_1d);
+    blender::BLI_kdtree_1d_deduplicate(tree_1d);
+    blender::BLI_kdtree_1d_balance(tree_1d);
   }
 
   int tot_island_index = 0;
@@ -6373,7 +6396,7 @@ static wmOperatorStatus uv_select_similar_island_exec(bContext *C, wmOperator *o
 
   MEM_SAFE_FREE(island_array);
   MEM_SAFE_FREE(island_list_ptr);
-  BLI_kdtree_1d_free(tree_1d);
+  blender::BLI_kdtree_1d_free(tree_1d);
 
   return OPERATOR_FINISHED;
 }

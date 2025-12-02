@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /**
- * Shared code between host and client codebases.
+ * Shared code between host and client code-bases.
  */
 
 #pragma once
@@ -58,9 +58,17 @@ struct ClampData {
 };
 BLI_STATIC_ASSERT_ALIGN(ClampData, 16)
 
+/* Emulation of the light path node. */
+enum RayPipelineType : uint32_t {
+  RAY_TYPE_CAMERA = 0u,
+  RAY_TYPE_SHADOW = 1u,
+  RAY_TYPE_DIFFUSE = 2u,
+  RAY_TYPE_GLOSSY = 3u,
+};
+
 struct PipelineInfoData {
   float alpha_hash_scale;
-  bool32_t is_sphere_probe;
+  RayPipelineType ray_type;
   /* True if the main camera view has inverted handedness.
    * This is the case if the camera has negative scale on one axis. */
   bool32_t is_main_view_inverted;
@@ -69,6 +77,11 @@ struct PipelineInfoData {
    * texture view (see #146132). So we always pass the correct layer index manually to avoid any
    * platform inconsistency. */
   int gbuffer_additional_data_layer_id;
+  /* Use monochromatic transmittance for the forward pipeline. */
+  bool32_t use_monochromatic_transmittance;
+  bool32_t _pad0;
+  bool32_t _pad1;
+  bool32_t _pad2;
 };
 BLI_STATIC_ASSERT_ALIGN(PipelineInfoData, 16)
 

@@ -22,7 +22,8 @@ static void node_declare(NodeDeclarationBuilder &b)
                     .default_value(2.0f)
                     .min(0.0f)
                     .subtype(PROP_DISTANCE)
-                    .description("The X axis size of the shape");
+                    .description("The X axis size of the shape")
+                    .available(false);
   auto &height = b.add_input<decl::Float>("Height")
                      .default_value(2.0f)
                      .min(0.0f)
@@ -116,9 +117,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)

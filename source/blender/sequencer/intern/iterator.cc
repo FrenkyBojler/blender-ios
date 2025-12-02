@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
- * \ingroup bke
+ * \ingroup sequencer
  */
 
 #include <cstring>
@@ -152,7 +152,7 @@ VectorSet<Strip *> query_selected_strips(ListBase *seqbase)
 {
   VectorSet<Strip *> strips;
   LISTBASE_FOREACH (Strip *, strip, seqbase) {
-    if ((strip->flag & SELECT) != 0) {
+    if ((strip->flag & SEQ_SELECT) != 0) {
       strips.add(strip);
     }
   }
@@ -242,7 +242,7 @@ VectorSet<Strip *> query_unselected_strips(ListBase *seqbase)
 {
   VectorSet<Strip *> strips;
   LISTBASE_FOREACH (Strip *, strip, seqbase) {
-    if ((strip->flag & SELECT) != 0) {
+    if ((strip->flag & SEQ_SELECT) != 0) {
       continue;
     }
     strips.add(strip);
