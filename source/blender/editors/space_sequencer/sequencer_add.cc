@@ -1745,7 +1745,7 @@ static void sequencer_add_image_strip_load_files(wmOperator *op,
 {
   int framenr, numdigits;
   if (!BLI_path_frame_get(load_data->path, &framenr, &numdigits)) {
-    return;
+    numdigits = 0;
   }
 
   char ext[FILE_MAX];

@@ -1005,6 +1005,8 @@ bool BLI_path_frame_get(const char *path, int *r_frame, int *r_digits_len)
     return false;
   }
 
+  *r_digits_len = 0;
+
   const char *file = BLI_path_basename(path);
   const char *file_ext = BLI_path_extension_or_end(file);
   const char *c = file_ext;
