@@ -16,7 +16,7 @@ import sys
 
 
 class ObjectShapekeyTest(unittest.TestCase):
-    
+
     def setUp(self) -> None:
         bpy.ops.wm.read_homefile(use_factory_startup=True)
         self.cube = bpy.data.objects["Cube"]
@@ -102,7 +102,7 @@ class CurveShapekeyTest(unittest.TestCase):
         self.assertEqual(eval_curve.data.splines[1].points[0].co[3], 1)
         bpy.ops.object.mode_set(mode='OBJECT')
 
-        # This test is incomplete and blocked by a bug in the python API. 
+        # This test is incomplete and blocked by a bug in the python API.
         # For curves, it fails to return the evaluated coordinates. See #150973.
 
 
