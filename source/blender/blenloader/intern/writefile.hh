@@ -146,4 +146,9 @@ struct WriteData {
    * Will be nullptr for UNDO.
    */
   WriteWrap *ww;
+
+  /**
+   * Timestamp info defined when creating the new WriteData. Used for performance logging.
+   */
+  double timestamp_init;
 };
