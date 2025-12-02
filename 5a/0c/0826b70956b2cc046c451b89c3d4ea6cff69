@@ -1,3 +1,4 @@
 Referenced by issue #145137, Regression: Multires Bake: Broken with UDIM
 Referenced by issue #148212, Regression: Auto IK doesn't work in 5.0
 Referenced by issue #148969, Sequencer - Impossible to add Image/sequence with many png's
+Referenced by issue #150903, VSE: Crash when adding Image ID Data Block
