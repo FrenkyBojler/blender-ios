@@ -8,6 +8,7 @@
 
 #include <cmath>
 #include <cstring>
+#include <limits>
 
 #include "MEM_guardedalloc.h"
 
@@ -22,7 +23,7 @@
 
 #include "BKE_context.hh"
 #include "BKE_global.hh"
-#include "BKE_icons.h"
+#include "BKE_icons.hh"
 #include "BKE_image.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
@@ -30,7 +31,7 @@
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
-#include "BKE_sound.h"
+#include "BKE_sound.hh"
 #include "BKE_workspace.hh"
 
 #include "WM_api.hh"
@@ -40,6 +41,7 @@
 #include "ED_node.hh"
 #include "ED_screen.hh"
 #include "ED_screen_types.hh"
+#include "ED_sequencer.hh"
 
 #include "RNA_access.hh"
 #include "RNA_enum_types.hh"
@@ -314,8 +316,8 @@ void area_getoffsets(
     ScrArea *sa_a, ScrArea *sa_b, const eScreenDir dir, int *r_offset1, int *r_offset2)
 {
   if (sa_a == nullptr || sa_b == nullptr) {
-    *r_offset1 = INT_MAX;
-    *r_offset2 = INT_MAX;
+    *r_offset1 = std::numeric_limits<int>::max();
+    *r_offset2 = std::numeric_limits<int>::max();
   }
   else if (dir == SCREEN_DIR_W) { /* West: sa on right and sa_b to the left. */
     *r_offset1 = sa_b->v3->vec.y - sa_a->v2->vec.y;
@@ -335,8 +337,8 @@ void area_getoffsets(
   }
   else {
     BLI_assert(dir == SCREEN_DIR_NONE);
-    *r_offset1 = INT_MAX;
-    *r_offset2 = INT_MAX;
+    *r_offset1 = std::numeric_limits<int>::max();
+    *r_offset2 = std::numeric_limits<int>::max();
   }
 }
 
@@ -660,7 +662,7 @@ static void region_cursor_set(wmWindow *win, bool swin_changed)
 {
   bScreen *screen = WM_window_get_active_screen(win);
 
-  /* Don't touch cursor if something else is controling it, like button handling. See #51739. */
+  /* Don't touch cursor if something else is controlling it, like button handling. See #51739. */
   if (win->grabcursor) {
     return;
   }
@@ -952,7 +954,7 @@ void ED_region_exit(bContext *C, ARegion *region)
     region->runtime->regiontimer = nullptr;
   }
 
-  WM_msgbus_clear_by_owner(wm->message_bus, region);
+  WM_msgbus_clear_by_owner(wm->runtime->message_bus, region);
 
   CTX_wm_region_set(C, prevar);
 }
@@ -1070,6 +1072,9 @@ static void screen_cursor_set(wmWindow *win, const int xy[2])
     }
     else if (az->type == AZONE_REGION_SCROLL) {
       WM_cursor_set(win, WM_CURSOR_DEFAULT);
+    }
+    else if (az->type == AZONE_REGION_QUAD) {
+      WM_cursor_set(win, WM_CURSOR_NSEW_SCROLL);
     }
     else if (az->type == AZONE_REGION) {
       if (ELEM(az->edge, AE_LEFT_TO_TOPRIGHT, AE_RIGHT_TO_TOPLEFT)) {
@@ -1375,9 +1380,17 @@ void screen_change_prepare(
   if (screen_old != screen_new) {
     wmTimer *wt = screen_old->animtimer;
 
+    /* Remove popup handlers (menus), while unlikely, it's possible an "error"
+     * popup is displayed when switching screens.
+     * Ideally popups from reported errors would remain so the error isn't hidden from the user.
+     * On the other hand this is a rare occurrence, script developers will often show errors
+     * in a console too, so it's not such a priority to relocate these to the new screen.
+     * See: #144958. */
+    UI_popup_handlers_remove_all(C, &win->modalhandlers);
+
     /* remove handlers referencing areas in old screen */
     LISTBASE_FOREACH (ScrArea *, area, &screen_old->areabase) {
-      WM_event_remove_area_handler(&win->modalhandlers, area);
+      WM_event_remove_handlers_by_area(&win->modalhandlers, area);
     }
 
     /* we put timer to sleep, so screen_exit has to think there's no timer */
@@ -1443,32 +1456,40 @@ static void screen_set_3dview_camera(Scene *scene,
                                      ScrArea *area,
                                      View3D *v3d)
 {
-  /* fix any cameras that are used in the 3d view but not in the scene */
+  /* Fix any cameras that are used in the 3d view but not in the scene. */
   BKE_screen_view3d_sync(v3d, scene);
 
   BKE_view_layer_synced_ensure(scene, view_layer);
   if (!v3d->camera || !BKE_view_layer_base_find(view_layer, v3d->camera)) {
     v3d->camera = BKE_view_layer_camera_find(scene, view_layer);
-    // XXX if (screen == curscreen) handle_view3d_lock();
+  }
+  ListBase *regionbase;
+
+  /* regionbase is in different place depending if space is active. */
+  if (v3d == area->spacedata.first) {
+    regionbase = &area->regionbase;
+  }
+  else {
+    regionbase = &v3d->regionbase;
+  }
+
+  LISTBASE_FOREACH (ARegion *, region, regionbase) {
+    if (region->regiontype != RGN_TYPE_WINDOW) {
+      continue;
+    }
+    RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
+    /* Keep the information about RV3D_CAMOB even when no camera can be found.
+     * This prevents jumping off the camera view while scrubbing through the
+     * Sequencer with some Scene strips without scene. */
     if (!v3d->camera) {
-      ListBase *regionbase;
-
-      /* regionbase is in different place depending if space is active */
-      if (v3d == area->spacedata.first) {
-        regionbase = &area->regionbase;
+      if (rv3d->persp == RV3D_CAMOB) {
+        rv3d->persp = RV3D_PERSP;
+        rv3d->rflag |= RV3D_WAS_CAMOB;
       }
-      else {
-        regionbase = &v3d->regionbase;
-      }
-
-      LISTBASE_FOREACH (ARegion *, region, regionbase) {
-        if (region->regiontype == RGN_TYPE_WINDOW) {
-          RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
-          if (rv3d->persp == RV3D_CAMOB) {
-            rv3d->persp = RV3D_PERSP;
-          }
-        }
-      }
+    }
+    else if ((rv3d->rflag & RV3D_WAS_CAMOB) != 0) {
+      rv3d->persp = RV3D_CAMOB;
+      rv3d->rflag &= ~RV3D_WAS_CAMOB;
     }
   }
 }
@@ -1654,6 +1675,8 @@ static bScreen *screen_state_to_nonnormal(bContext *C,
   if (toggle_area) {
     ED_area_data_swap(newa, toggle_area);
     newa->flag = toggle_area->flag; /* mostly for AREA_FLAG_WASFULLSCREEN */
+    newa->quadview_ratio[0] = toggle_area->quadview_ratio[0];
+    newa->quadview_ratio[1] = toggle_area->quadview_ratio[1];
   }
 
   if (state == SCREENFULL) {
@@ -1837,6 +1860,8 @@ ScrArea *ED_screen_state_toggle(bContext *C, wmWindow *win, ScrArea *area, const
     if (fullsa) {
       ED_area_data_swap(fullsa, area);
       ED_area_tag_refresh(fullsa);
+      fullsa->quadview_ratio[0] = area->quadview_ratio[0];
+      fullsa->quadview_ratio[1] = area->quadview_ratio[1];
     }
 
     /* animtimer back */
@@ -1882,26 +1907,12 @@ ScrArea *ED_screen_state_toggle(bContext *C, wmWindow *win, ScrArea *area, const
   return static_cast<ScrArea *>(screen->areabase.first);
 }
 
-ScrArea *ED_screen_temp_space_open(bContext *C,
-                                   const char *title,
-                                   const rcti *rect_unscaled,
-                                   eSpace_Type space_type,
-                                   int display_type,
-                                   bool dialog)
+ScrArea *ED_screen_temp_space_open(
+    bContext *C, const char *title, eSpace_Type space_type, int display_type, bool dialog)
 {
   switch (display_type) {
     case USER_TEMP_SPACE_DISPLAY_WINDOW:
-      if (WM_window_open(C,
-                         title,
-                         rect_unscaled,
-                         int(space_type),
-                         false,
-                         dialog,
-                         true,
-                         WIN_ALIGN_LOCATION_CENTER,
-                         nullptr,
-                         nullptr))
-      {
+      if (WM_window_open_temp(C, title, space_type, dialog)) {
         return CTX_wm_area(C);
       }
       break;
@@ -1940,12 +1951,12 @@ ScrArea *ED_screen_temp_space_open(bContext *C,
   return nullptr;
 }
 
-void ED_screen_animation_timer(bContext *C, int redraws, int sync, int enable)
+void ED_screen_animation_timer(
+    bContext *C, Scene *scene, ViewLayer *view_layer, int redraws, int sync, int enable)
 {
   bScreen *screen = CTX_wm_screen(C);
   wmWindowManager *wm = CTX_wm_manager(C);
   wmWindow *win = CTX_wm_window(C);
-  Scene *scene = CTX_data_scene(C);
   bScreen *stopscreen = ED_screen_animation_playing(wm);
 
   if (stopscreen) {
@@ -1959,6 +1970,11 @@ void ED_screen_animation_timer(bContext *C, int redraws, int sync, int enable)
     screen->animtimer = WM_event_timer_add(wm, win, TIMER0, (1.0 / scene->frames_per_second()));
 
     sad->region = CTX_wm_region(C);
+    sad->scene = scene;
+    sad->view_layer = view_layer;
+
+    sad->do_scene_syncing = blender::ed::vse::is_scene_time_sync_needed(*C);
+
     sad->sfra = scene->r.cfra;
     /* Make sure that were are inside the scene or preview frame range. */
     CLAMP(scene->r.cfra, PSFRA, PEFRA);

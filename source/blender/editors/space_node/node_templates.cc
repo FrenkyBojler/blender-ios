@@ -26,6 +26,7 @@
 
 #include "BKE_context.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_library.hh"
 #include "BKE_main.hh"
 #include "BKE_main_invariants.hh"
 #include "BKE_node_runtime.hh"
@@ -317,7 +318,7 @@ struct NodeLinkArg {
   bke::bNodeType *node_type;
   NodeLinkItem item;
 
-  uiLayout *layout;
+  ui::Layout *layout;
 };
 
 static Vector<NodeLinkItem> ui_node_link_items(NodeLinkArg *arg,
@@ -481,8 +482,8 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
 {
   bNodeTree *ntree = arg->ntree;
   bNodeSocket *sock = arg->sock;
-  uiLayout *layout = arg->layout;
-  uiLayout *column = nullptr;
+  ui::Layout *layout = arg->layout;
+  ui::Layout *column = nullptr;
   uiBlock *block = layout->block();
   uiBut *but;
   NodeLinkArg *argN;
@@ -550,11 +551,10 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
       if (num > 1) {
         if (!cur_node_name || !STREQ(cur_node_name, item.node_name)) {
           cur_node_name = item.node_name;
-          /* XXX Do not use uiLayout::label here,
+          /* XXX Do not use ui::Layout::label here,
            * it would add an empty icon as we are in a menu! */
           uiDefBut(block,
                    ButType::Label,
-                   0,
                    IFACE_(cur_node_name),
                    0,
                    0,
@@ -576,7 +576,6 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
 
       but = uiDefIconTextBut(block,
                              ButType::But,
-                             0,
                              icon,
                              name,
                              0,
@@ -602,13 +601,13 @@ static void node_menu_column_foreach_cb(void *calldata, int nclass, const String
   }
 }
 
-static void ui_template_node_link_menu(bContext *C, uiLayout *layout, void *but_p)
+static void ui_template_node_link_menu(bContext *C, ui::Layout *layout, void *but_p)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
   uiBlock *block = layout->block();
   uiBut *but = (uiBut *)but_p;
-  uiLayout *split, *column;
+  ui::Layout *split, *column;
   NodeLinkArg *arg = (NodeLinkArg *)but->func_argN;
   bNodeSocket *sock = arg->sock;
   bke::bNodeTreeType *ntreetype = arg->ntree->typeinfo;
@@ -634,7 +633,6 @@ static void ui_template_node_link_menu(bContext *C, uiLayout *layout, void *but_
 
     but = uiDefBut(block,
                    ButType::But,
-                   0,
                    CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Remove"),
                    0,
                    0,
@@ -648,7 +646,6 @@ static void ui_template_node_link_menu(bContext *C, uiLayout *layout, void *but_
 
     but = uiDefBut(block,
                    ButType::But,
-                   0,
                    IFACE_("Disconnect"),
                    0,
                    0,
@@ -668,7 +665,7 @@ static void ui_template_node_link_menu(bContext *C, uiLayout *layout, void *but_
 }  // namespace blender::ed::space_node
 
 void uiTemplateNodeLink(
-    uiLayout *layout, bContext *C, bNodeTree *ntree, bNode *node, bNodeSocket *input)
+    blender::ui::Layout *layout, bContext *C, bNodeTree *ntree, bNode *node, bNodeSocket *input)
 {
   using namespace blender::ed::space_node;
 
@@ -713,13 +710,17 @@ void uiTemplateNodeLink(
       but->flag |= UI_BUT_NODE_ACTIVE;
     }
   }
+
+  if (!ID_IS_EDITABLE(ntree)) {
+    UI_but_disable(but, "Cannot edit linked node tree");
+  }
 }
 
 namespace blender::ed::space_node {
 
 /**************************** Node Tree Layout *******************************/
 
-static void ui_node_draw_input(uiLayout &layout,
+static void ui_node_draw_input(ui::Layout &layout,
                                bContext &C,
                                bNodeTree &ntree,
                                bNode &node,
@@ -727,7 +728,7 @@ static void ui_node_draw_input(uiLayout &layout,
                                int depth,
                                const char *panel_label);
 
-static void ui_node_draw_recursive(uiLayout &layout,
+static void ui_node_draw_recursive(ui::Layout &layout,
                                    bContext &C,
                                    bNodeTree &ntree,
                                    bNode &node,
@@ -764,14 +765,21 @@ static void ui_node_draw_recursive(uiLayout &layout,
       continue;
     }
     if (const auto *socket_decl = dynamic_cast<const nodes::SocketDeclaration *>(item_decl)) {
-      if (socket_decl->in_out == SOCK_IN) {
-        ui_node_draw_input(*panel_layout.body,
-                           C,
-                           ntree,
-                           node,
-                           node.socket_by_decl(*socket_decl),
-                           depth,
-                           panel_decl.name.c_str());
+      bNodeSocket &socket = node.socket_by_decl(*socket_decl);
+      if (socket_decl->custom_draw_fn) {
+        nodes::CustomSocketDrawParams params{
+            C,
+            *panel_layout.body,
+            ntree,
+            node,
+            socket,
+            RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node),
+            RNA_pointer_create_discrete(&ntree.id, &RNA_NodeSocket, &socket)};
+        (*socket_decl->custom_draw_fn)(params);
+      }
+      else if (socket_decl->in_out == SOCK_IN) {
+        ui_node_draw_input(
+            *panel_layout.body, C, ntree, node, socket, depth, panel_decl.name.c_str());
       }
     }
     else if (const auto *sub_panel_decl = dynamic_cast<const nodes::PanelDeclaration *>(item_decl))
@@ -780,17 +788,25 @@ static void ui_node_draw_recursive(uiLayout &layout,
     }
     else if (const auto *layout_decl = dynamic_cast<const nodes::LayoutDeclaration *>(item_decl)) {
       PointerRNA nodeptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node);
-      layout_decl->draw(panel_layout.body, &C, &nodeptr);
+      layout_decl->draw(*panel_layout.body, &C, &nodeptr);
     }
   }
 }
 
 static void ui_node_draw_node(
-    uiLayout &layout, bContext &C, bNodeTree &ntree, bNode &node, int depth)
+    ui::Layout &layout, bContext &C, bNodeTree &ntree, bNode &node, int depth)
 {
   PointerRNA nodeptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node);
 
-  if (node.declaration() && node.declaration()->use_custom_socket_order) {
+  /* Draw top-level node buttons. */
+  if (node.typeinfo->draw_buttons) {
+    if (node.type_legacy != NODE_GROUP) {
+      layout.use_property_split_set(true);
+      node.typeinfo->draw_buttons(layout, &C, &nodeptr);
+    }
+  }
+
+  if (node.declaration()) {
     const nodes::NodeDeclaration &node_decl = *node.declaration();
     for (const nodes::ItemDeclaration *item_decl : node_decl.root_items) {
       if (const auto *panel_decl = dynamic_cast<const nodes::PanelDeclaration *>(item_decl)) {
@@ -798,33 +814,40 @@ static void ui_node_draw_node(
       }
       else if (const auto *socket_decl = dynamic_cast<const nodes::SocketDeclaration *>(item_decl))
       {
-        if (socket_decl->in_out == SOCK_IN) {
-          ui_node_draw_input(
-              layout, C, ntree, node, node.socket_by_decl(*socket_decl), depth + 1, nullptr);
+        bNodeSocket &socket = node.socket_by_decl(*socket_decl);
+        if (socket_decl->custom_draw_fn) {
+          nodes::CustomSocketDrawParams params{
+              C,
+              layout,
+              ntree,
+              node,
+              socket,
+              RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node),
+              RNA_pointer_create_discrete(&ntree.id, &RNA_NodeSocket, &socket)};
+          (*socket_decl->custom_draw_fn)(params);
+        }
+        else if (socket_decl->in_out == SOCK_IN) {
+          ui_node_draw_input(layout, C, ntree, node, socket, depth + 1, nullptr);
         }
       }
       else if (const auto *layout_decl = dynamic_cast<const nodes::LayoutDeclaration *>(item_decl))
       {
-        PointerRNA nodeptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node);
-        layout_decl->draw(&layout, &C, &nodeptr);
+        if (!layout_decl->is_default) {
+          PointerRNA nodeptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node);
+          layout_decl->draw(layout, &C, &nodeptr);
+        }
       }
     }
   }
   else {
-    if (node.typeinfo->draw_buttons) {
-      if (node.type_legacy != NODE_GROUP) {
-        layout.use_property_split_set(true);
-        node.typeinfo->draw_buttons(&layout, &C, &nodeptr);
-      }
-    }
-
+    /* Draw socket values using the flat inputs list. */
     LISTBASE_FOREACH (bNodeSocket *, input, &node.inputs) {
       ui_node_draw_input(layout, C, ntree, node, *input, depth + 1, nullptr);
     }
   }
 }
 
-static void ui_node_draw_input(uiLayout &layout,
+static void ui_node_draw_input(ui::Layout &layout,
                                bContext &C,
                                bNodeTree &ntree,
                                bNode &node,
@@ -833,7 +856,7 @@ static void ui_node_draw_input(uiLayout &layout,
                                const char *panel_label)
 {
   uiBlock *block = layout.block();
-  uiLayout *row = nullptr;
+  ui::Layout *row = nullptr;
   bool dependency_loop;
 
   if (input.flag & SOCK_UNAVAIL) {
@@ -862,16 +885,38 @@ static void ui_node_draw_input(uiLayout &layout,
   bool add_dummy_decorator = false;
 
   {
-    uiLayout *sub = &split_wrapper.label_column->row(true);
+    ui::Layout *sub = &split_wrapper.label_column->row(true);
 
     if (depth > 0) {
       UI_block_emboss_set(block, ui::EmbossType::None);
 
-      if (lnode && (lnode->inputs.first ||
-                    (lnode->typeinfo->draw_buttons && lnode->type_legacy != NODE_GROUP)))
-      {
-        int icon = (input.flag & SOCK_COLLAPSED) ? ICON_RIGHTARROW : ICON_DOWNARROW_HLT;
-        sub->prop(&inputptr, "show_expanded", UI_ITEM_R_ICON_ONLY, "", icon);
+      if (lnode) {
+        /* Input linked to a node, we can expand/collapse if
+         * - linked node has inputs
+         * - linked node has dedicated button drawing
+         * - linked node has dedicated socket drawing */
+        bool can_expand = lnode->inputs.first;
+        if (lnode->type_legacy != NODE_GROUP) {
+          if (lnode->typeinfo->draw_buttons) {
+            can_expand = true;
+          }
+          else if (lnode->declaration()) {
+            const nodes::NodeDeclaration &lnode_decl = *lnode->declaration();
+            for (const nodes::ItemDeclaration *item_decl : lnode_decl.root_items) {
+              if (const auto *socket_decl = dynamic_cast<const nodes::SocketDeclaration *>(
+                      item_decl))
+              {
+                if (socket_decl->custom_draw_fn) {
+                  can_expand = true;
+                }
+              }
+            }
+          }
+        }
+        if (can_expand) {
+          int icon = (input.flag & SOCK_COLLAPSED) ? ICON_RIGHTARROW : ICON_DOWNARROW_HLT;
+          sub->prop(&inputptr, "show_expanded", UI_ITEM_R_ICON_ONLY, "", icon);
+        }
       }
 
       UI_block_emboss_set(block, ui::EmbossType::Emboss);
@@ -900,7 +945,7 @@ static void ui_node_draw_input(uiLayout &layout,
     }
   }
   else {
-    uiLayout *sub = &row->row(true);
+    ui::Layout *sub = &row->row(true);
 
     uiTemplateNodeLink(sub, &C, &ntree, &node, &input);
 
@@ -919,6 +964,7 @@ static void ui_node_draw_input(uiLayout &layout,
         case SOCK_ROTATION:
         case SOCK_BOOLEAN:
         case SOCK_RGBA:
+        case SOCK_MENU:
           sub->prop(&inputptr, "default_value", UI_ITEM_NONE, "", ICON_NONE);
           if (split_wrapper.decorate_column) {
             split_wrapper.decorate_column->decorator(&inputptr, "default_value", RNA_NO_INDEX);
@@ -940,9 +986,6 @@ static void ui_node_draw_input(uiLayout &layout,
           }
           break;
         }
-        case SOCK_MENU:
-          sub->label(RPT_("Unsupported Menu Socket"), ICON_NONE);
-          break;
         case SOCK_CUSTOM:
           input.typeinfo->draw(&C, sub, &inputptr, &nodeptr, input.name);
           break;
@@ -965,7 +1008,7 @@ static void ui_node_draw_input(uiLayout &layout,
 }  // namespace blender::ed::space_node
 
 void uiTemplateNodeView(
-    uiLayout *layout, bContext *C, bNodeTree *ntree, bNode *node, bNodeSocket *input)
+    blender::ui::Layout *layout, bContext *C, bNodeTree *ntree, bNode *node, bNodeSocket *input)
 {
   using namespace blender::ed::space_node;
 

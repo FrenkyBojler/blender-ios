@@ -181,6 +181,7 @@ IDTypeInfo IDType_ID_VF = {
     /*foreach_id*/ nullptr,
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ vfont_foreach_path,
+    /*foreach_working_space_color*/ nullptr,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ vfont_blend_write,
@@ -242,9 +243,7 @@ void BKE_vfont_data_free(VFont *vfont)
 {
   if (vfont->data) {
     if (vfont->data->characters) {
-      GHashIterator gh_iter;
-      GHASH_ITER (gh_iter, vfont->data->characters) {
-        VChar *che = static_cast<VChar *>(BLI_ghashIterator_getValue(&gh_iter));
+      for (VChar *che : vfont->data->characters->values()) {
         if (che == nullptr) {
           continue;
         }
@@ -260,7 +259,7 @@ void BKE_vfont_data_free(VFont *vfont)
         MEM_freeN(che);
       }
 
-      BLI_ghash_free(vfont->data->characters, nullptr, nullptr);
+      MEM_delete(vfont->data->characters);
     }
 
     MEM_freeN(vfont->data);
@@ -404,13 +403,12 @@ VFont *BKE_vfont_builtin_ensure()
 /** \name VFont Selection
  * \{ */
 
-int BKE_vfont_select_get(Object *ob, int *r_start, int *r_end)
+int BKE_vfont_select_get(const Curve *cu, int *r_start, int *r_end)
 {
-  Curve *cu = static_cast<Curve *>(ob->data);
   EditFont *ef = cu->editfont;
   int start, end, direction;
 
-  if ((ob->type != OB_FONT) || (ef == nullptr)) {
+  if (ef == nullptr || (cu->ob_type != OB_FONT)) {
     return 0;
   }
 
@@ -444,12 +442,11 @@ int BKE_vfont_select_get(Object *ob, int *r_start, int *r_end)
   return direction;
 }
 
-void BKE_vfont_select_clamp(Object *ob)
+void BKE_vfont_select_clamp(Curve *cu)
 {
-  Curve *cu = static_cast<Curve *>(ob->data);
   EditFont *ef = cu->editfont;
 
-  BLI_assert((ob->type == OB_FONT) && ef);
+  BLI_assert((cu->ob_type == OB_FONT) && ef);
 
   CLAMP_MAX(ef->pos, ef->len);
   CLAMP_MAX(ef->selstart, ef->len + 1);

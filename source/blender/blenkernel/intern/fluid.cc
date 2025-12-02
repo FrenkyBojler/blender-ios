@@ -53,7 +53,7 @@
 #  include "DNA_scene_types.h"
 
 #  include "BLI_kdopbvh.hh"
-#  include "BLI_kdtree.h"
+#  include "BLI_kdtree.hh"
 #  include "BLI_math_vector.hh"
 #  include "BLI_mutex.hh"
 #  include "BLI_threads.h"
@@ -1259,8 +1259,13 @@ static void compute_obstaclesemission(Scene *scene,
          * BLI_mutex_lock() called in manta_step(), so safe to update subframe here
          * TODO(sebbas): Using BKE_scene_ctime_get(scene) instead of new DEG_get_ctime(depsgraph)
          * as subframes don't work with the latter yet. */
-        BKE_object_modifier_update_subframe(
-            depsgraph, scene, effecobj, true, 5, BKE_scene_ctime_get(scene), eModifierType_Fluid);
+        BKE_object_modifier_update_subframe(depsgraph,
+                                            scene,
+                                            effecobj,
+                                            true,
+                                            OBJECT_MODIFIER_UPDATE_SUBFRAME_RECURSION_DEFAULT,
+                                            BKE_scene_ctime_get(scene),
+                                            eModifierType_Fluid);
 
         if (subframes) {
           obstacles_from_mesh(effecobj, fds, fes, &bb_temp, subframe_dt);
@@ -1468,7 +1473,7 @@ static void update_obstacles(Depsgraph *depsgraph,
 
 struct EmitFromParticlesData {
   FluidFlowSettings *ffs;
-  KDTree_3d *tree;
+  blender::KDTree_3d *tree;
 
   FluidObjectBB *bb;
   float *particle_vel;
@@ -1493,9 +1498,9 @@ static void emit_from_particles_task_cb(void *__restrict userdata,
       const float ray_start[3] = {float(x) + 0.5f, float(y) + 0.5f, float(z) + 0.5f};
 
       /* Find particle distance from the kdtree. */
-      KDTreeNearest_3d nearest;
+      blender::KDTreeNearest_3d nearest;
       const float range = data->solid + data->smooth;
-      BLI_kdtree_3d_find_nearest(data->tree, ray_start, &nearest);
+      blender::BLI_kdtree_3d_find_nearest(data->tree, ray_start, &nearest);
 
       if (nearest.dist < range) {
         bb->influence[index] = (nearest.dist < data->solid) ?
@@ -1534,7 +1539,7 @@ static void emit_from_particles(Object *flow_ob,
     /* radius based flow */
     const float solid = ffs->particle_size * 0.5f;
     const float smooth = 0.5f; /* add 0.5 cells of linear falloff to reduce aliasing */
-    KDTree_3d *tree = nullptr;
+    blender::KDTree_3d *tree = nullptr;
 
     sim.depsgraph = depsgraph;
     sim.scene = scene;
@@ -1559,7 +1564,7 @@ static void emit_from_particles(Object *flow_ob,
 
     /* setup particle radius emission if enabled */
     if (ffs->flags & FLUID_FLOW_USE_PART_SIZE) {
-      tree = BLI_kdtree_3d_new(psys->totpart + psys->totchild);
+      tree = blender::BLI_kdtree_3d_new(psys->totpart + psys->totchild);
       bounds_margin = int(ceil(solid + smooth));
     }
 
@@ -1598,7 +1603,7 @@ static void emit_from_particles(Object *flow_ob,
       mul_mat3_m4_v3(fds->imat, &particle_vel[valid_particles * 3]);
 
       if (ffs->flags & FLUID_FLOW_USE_PART_SIZE) {
-        BLI_kdtree_3d_insert(tree, valid_particles, pos);
+        blender::BLI_kdtree_3d_insert(tree, valid_particles, pos);
       }
 
       /* calculate emission map bounds */
@@ -1651,7 +1656,7 @@ static void emit_from_particles(Object *flow_ob,
         res[i] = bb->res[i];
       }
 
-      BLI_kdtree_3d_balance(tree);
+      blender::BLI_kdtree_3d_balance(tree);
 
       EmitFromParticlesData data{};
       data.ffs = ffs;
@@ -1671,7 +1676,7 @@ static void emit_from_particles(Object *flow_ob,
     }
 
     if (ffs->flags & FLUID_FLOW_USE_PART_SIZE) {
-      BLI_kdtree_3d_free(tree);
+      blender::BLI_kdtree_3d_free(tree);
     }
 
     /* free data */
@@ -1794,7 +1799,7 @@ static void sample_mesh(FluidFlowSettings *ffs,
                         const blender::Span<blender::float3> vert_normals,
                         const int *corner_verts,
                         const blender::int3 *corner_tris,
-                        blender::Span<blender::float2> mloopuv,
+                        blender::Span<blender::float2> uv_map,
                         float *influence_map,
                         float *velocity_map,
                         int index,
@@ -1915,11 +1920,11 @@ static void sample_mesh(FluidFlowSettings *ffs,
           tex_co[2] = ((z - flow_center[2]) / base_res[2] - ffs->texture_offset) /
                       ffs->texture_size;
         }
-        else if (!mloopuv.is_empty()) {
+        else if (!uv_map.is_empty()) {
           const float *uv[3];
-          uv[0] = mloopuv[corner_tris[tri_i][0]];
-          uv[1] = mloopuv[corner_tris[tri_i][1]];
-          uv[2] = mloopuv[corner_tris[tri_i][2]];
+          uv[0] = uv_map[corner_tris[tri_i][0]];
+          uv[1] = uv_map[corner_tris[tri_i][1]];
+          uv[2] = uv_map[corner_tris[tri_i][2]];
 
           interp_v2_v2v2v2(tex_co, UNPACK3(uv), weights);
 
@@ -1992,7 +1997,7 @@ struct EmitFromDMData {
   blender::Span<blender::float3> vert_normals;
   blender::Span<int> corner_verts;
   blender::Span<blender::int3> corner_tris;
-  blender::Span<blender::float2> mloopuv;
+  blender::Span<blender::float2> uv_map;
   const MDeformVert *dvert;
   int defgrp_index;
 
@@ -2026,7 +2031,7 @@ static void emit_from_mesh_task_cb(void *__restrict userdata,
                     data->vert_normals,
                     data->corner_verts.data(),
                     data->corner_tris.data(),
-                    data->mloopuv,
+                    data->uv_map,
                     bb->influence,
                     bb->velocity,
                     index,
@@ -2146,7 +2151,7 @@ static void emit_from_mesh(
       data.vert_normals = mesh->vert_normals();
       data.corner_verts = corner_verts;
       data.corner_tris = corner_tris;
-      data.mloopuv = uv_map;
+      data.uv_map = uv_map;
       data.dvert = dvert;
       data.defgrp_index = defgrp_index;
       data.tree = &tree_data;
@@ -2734,8 +2739,13 @@ static void compute_flowsemission(Scene *scene,
          * BLI_mutex_lock() called in manta_step(), so safe to update subframe here
          * TODO(sebbas): Using BKE_scene_ctime_get(scene) instead of new DEG_get_ctime(depsgraph)
          * as subframes don't work with the latter yet. */
-        BKE_object_modifier_update_subframe(
-            depsgraph, scene, flowobj, true, 5, BKE_scene_ctime_get(scene), eModifierType_Fluid);
+        BKE_object_modifier_update_subframe(depsgraph,
+                                            scene,
+                                            flowobj,
+                                            true,
+                                            OBJECT_MODIFIER_UPDATE_SUBFRAME_RECURSION_DEFAULT,
+                                            BKE_scene_ctime_get(scene),
+                                            eModifierType_Fluid);
 
         /* Emission from particles. */
         if (ffs->source == FLUID_FLOW_SOURCE_PARTICLES) {
@@ -3214,10 +3224,12 @@ static Mesh *create_liquid_geometry(FluidDomainSettings *fds,
   blender::MutableSpan<int> face_offsets = mesh->face_offsets_for_write();
   blender::MutableSpan<int> corner_verts = mesh->corner_verts_for_write();
 
-  const bool is_sharp = orgmesh->attributes()
-                            .lookup_or_default<bool>("sharp_face", AttrDomain::Face, false)
-                            .varray[0];
-  mesh_smooth_set(*mesh, !is_sharp);
+  if (orgmesh->attributes().domain_size(AttrDomain::Face) > 0) {
+    const bool is_sharp = orgmesh->attributes()
+                              .lookup_or_default<bool>("sharp_face", AttrDomain::Face, false)
+                              .varray[0];
+    mesh_smooth_set(*mesh, !is_sharp);
+  }
 
   /* Get size (dimension) but considering scaling. */
   copy_v3_v3(cell_size_scaled, fds->cell_size);

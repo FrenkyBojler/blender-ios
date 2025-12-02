@@ -22,6 +22,8 @@
 
 #include "rna_internal.hh"
 
+#include "UI_interface_layout.hh"
+
 #include "WM_api.hh"
 #include "WM_keymap.hh"
 #include "WM_types.hh"
@@ -456,6 +458,7 @@ const EnumPropertyItem rna_enum_event_type_items[] = {
     /* Action Zones. */
     {EVT_ACTIONZONE_AREA, "ACTIONZONE_AREA", 0, "ActionZone Area", "AZone Area"},
     {EVT_ACTIONZONE_REGION, "ACTIONZONE_REGION", 0, "ActionZone Region", "AZone Region"},
+    {EVT_ACTIONZONE_REGION_QUAD, "ACTIONZONE_REGION_QUAD", 0, "ActionZone Quad", "AZone Quad"},
     {EVT_ACTIONZONE_FULLSCREEN,
      "ACTIONZONE_FULLSCREEN",
      0,
@@ -656,7 +659,8 @@ static wmOperator *rna_OperatorProperties_find_operator(PointerRNA *ptr)
   wmWindowManager *wm = (wmWindowManager *)ptr->owner_id;
 
   IDProperty *properties = (IDProperty *)ptr->data;
-  for (wmOperator *op = static_cast<wmOperator *>(wm->operators.last); op; op = op->prev) {
+  for (wmOperator *op = static_cast<wmOperator *>(wm->runtime->operators.last); op; op = op->prev)
+  {
     if (op->properties == properties) {
       return op;
     }
@@ -882,7 +886,7 @@ static PointerRNA rna_Event_xr_get(PointerRNA *ptr)
 static PointerRNA rna_PopupMenu_layout_get(PointerRNA *ptr)
 {
   uiPopupMenu *pup = static_cast<uiPopupMenu *>(ptr->data);
-  uiLayout *layout = UI_popup_menu_layout(pup);
+  blender::ui::Layout *layout = UI_popup_menu_layout(pup);
 
   PointerRNA rptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_UILayout, layout);
   return rptr;
@@ -891,7 +895,7 @@ static PointerRNA rna_PopupMenu_layout_get(PointerRNA *ptr)
 static PointerRNA rna_PopoverMenu_layout_get(PointerRNA *ptr)
 {
   uiPopover *pup = static_cast<uiPopover *>(ptr->data);
-  uiLayout *layout = UI_popover_layout(pup);
+  blender::ui::Layout *layout = UI_popover_layout(pup);
 
   PointerRNA rptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_UILayout, layout);
   return rptr;
@@ -900,7 +904,7 @@ static PointerRNA rna_PopoverMenu_layout_get(PointerRNA *ptr)
 static PointerRNA rna_PieMenu_layout_get(PointerRNA *ptr)
 {
   uiPieMenu *pie = static_cast<uiPieMenu *>(ptr->data);
-  uiLayout *layout = UI_pie_menu_layout(pie);
+  blender::ui::Layout *layout = UI_pie_menu_layout(pie);
 
   PointerRNA rptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_UILayout, layout);
   return rptr;
@@ -1048,6 +1052,12 @@ static void rna_Window_view_layer_set(PointerRNA *ptr, PointerRNA value, ReportL
   WM_window_set_active_view_layer(win, view_layer);
 }
 
+static bool rna_Window_support_hdr_color_get(PointerRNA *ptr)
+{
+  wmWindow *win = static_cast<wmWindow *>(ptr->data);
+  return WM_window_support_hdr_color(win);
+}
+
 static bool rna_Window_modal_handler_skip(CollectionPropertyIterator * /*iter*/, void *data)
 {
   const wmEventHandler_Op *handler = (wmEventHandler_Op *)data;
@@ -1189,7 +1199,7 @@ static const EnumPropertyItem *rna_KeyMapItem_propvalue_itemf(bContext *C,
   wmKeyConfig *kc;
   wmKeyMap *km;
 
-  for (kc = static_cast<wmKeyConfig *>(wm->keyconfigs.first); kc; kc = kc->next) {
+  for (kc = static_cast<wmKeyConfig *>(wm->runtime->keyconfigs.first); kc; kc = kc->next) {
     for (km = static_cast<wmKeyMap *>(kc->keymaps.first); km; km = km->next) {
       /* only check if it's a modal keymap */
       if (km->modal_items) {
@@ -1268,10 +1278,10 @@ static PointerRNA rna_WindowManager_active_keyconfig_get(PointerRNA *ptr)
   wmKeyConfig *kc;
 
   kc = static_cast<wmKeyConfig *>(
-      BLI_findstring(&wm->keyconfigs, U.keyconfigstr, offsetof(wmKeyConfig, idname)));
+      BLI_findstring(&wm->runtime->keyconfigs, U.keyconfigstr, offsetof(wmKeyConfig, idname)));
 
   if (!kc) {
-    kc = wm->defaultconf;
+    kc = wm->runtime->defaultconf;
   }
 
   return RNA_pointer_create_with_parent(*ptr, &RNA_KeyConfig, kc);
@@ -1287,6 +1297,24 @@ static void rna_WindowManager_active_keyconfig_set(PointerRNA *ptr,
   if (kc) {
     WM_keyconfig_set_active(wm, kc->idname);
   }
+}
+
+static PointerRNA rna_WindowManager_default_keyconfig_get(PointerRNA *ptr)
+{
+  wmWindowManager *wm = static_cast<wmWindowManager *>(ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_KeyConfig, wm->runtime->defaultconf);
+}
+
+static PointerRNA rna_WindowManager_addon_keyconfig_get(PointerRNA *ptr)
+{
+  wmWindowManager *wm = static_cast<wmWindowManager *>(ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_KeyConfig, wm->runtime->addonconf);
+}
+
+static PointerRNA rna_WindowManager_user_keyconfig_get(PointerRNA *ptr)
+{
+  wmWindowManager *wm = static_cast<wmWindowManager *>(ptr->data);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_KeyConfig, wm->runtime->userconf);
 }
 
 static void rna_WindowManager_extensions_statusbar_update(Main * /*bmain*/,
@@ -1477,6 +1505,18 @@ static bool rna_KeyMapItem_userdefined_get(PointerRNA *ptr)
 {
   wmKeyMapItem *kmi = static_cast<wmKeyMapItem *>(ptr->data);
   return kmi->id < 0;
+}
+
+static void rna_WindowManager_operators_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+{
+  wmWindowManager *wm = static_cast<wmWindowManager *>(ptr->data);
+  rna_iterator_listbase_begin(iter, ptr, &wm->runtime->operators, nullptr);
+}
+
+static void rna_WindowManager_keyconfigs_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
+{
+  wmWindowManager *wm = static_cast<wmWindowManager *>(ptr->data);
+  rna_iterator_listbase_begin(iter, ptr, &wm->runtime->keyconfigs, nullptr);
 }
 
 static PointerRNA rna_WindowManager_xr_session_state_get(PointerRNA *ptr)
@@ -2751,6 +2791,14 @@ static void rna_def_window(BlenderRNA *brna)
   RNA_def_property_struct_type(prop, "Stereo3dDisplay");
   RNA_def_property_ui_text(prop, "Stereo 3D Display", "Settings for stereo 3D display");
 
+  prop = RNA_def_property(srna, "support_hdr_color", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop,
+                           "Support HDR Color",
+                           "The window has a HDR graphics buffer that wide gamut and high dynamic "
+                           "range colors can be written to, in extended sRGB color space.");
+  RNA_def_property_boolean_funcs(prop, "rna_Window_support_hdr_color_get", nullptr);
+
   prop = RNA_def_property(srna, "modal_operators", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_struct_type(prop, "Operator");
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
@@ -2790,13 +2838,15 @@ static void rna_def_wm_keyconfigs(BlenderRNA *brna, PropertyRNA *cprop)
   RNA_def_property_ui_text(prop, "Active KeyConfig", "Active key configuration (preset)");
 
   prop = RNA_def_property(srna, "default", PROP_POINTER, PROP_NEVER_NULL);
-  RNA_def_property_pointer_sdna(prop, nullptr, "defaultconf");
+  RNA_def_property_pointer_funcs(
+      prop, "rna_WindowManager_default_keyconfig_get", nullptr, nullptr, nullptr);
   RNA_def_property_struct_type(prop, "KeyConfig");
   RNA_def_property_ui_text(prop, "Default Key Configuration", "Default builtin key configuration");
 
   prop = RNA_def_property(srna, "addon", PROP_POINTER, PROP_NEVER_NULL);
-  RNA_def_property_pointer_sdna(prop, nullptr, "addonconf");
   RNA_def_property_struct_type(prop, "KeyConfig");
+  RNA_def_property_pointer_funcs(
+      prop, "rna_WindowManager_addon_keyconfig_get", nullptr, nullptr, nullptr);
   RNA_def_property_ui_text(
       prop,
       "Add-on Key Configuration",
@@ -2804,8 +2854,9 @@ static void rna_def_wm_keyconfigs(BlenderRNA *brna, PropertyRNA *cprop)
       "configuration when handling events");
 
   prop = RNA_def_property(srna, "user", PROP_POINTER, PROP_NEVER_NULL);
-  RNA_def_property_pointer_sdna(prop, nullptr, "userconf");
   RNA_def_property_struct_type(prop, "KeyConfig");
+  RNA_def_property_pointer_funcs(
+      prop, "rna_WindowManager_user_keyconfig_get", nullptr, nullptr, nullptr);
   RNA_def_property_ui_text(
       prop,
       "User Key Configuration",
@@ -2830,6 +2881,15 @@ static void rna_def_windowmanager(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "operators", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_struct_type(prop, "Operator");
+  RNA_def_property_collection_funcs(prop,
+                                    "rna_WindowManager_operators_begin",
+                                    "rna_iterator_listbase_next",
+                                    "rna_iterator_listbase_end",
+                                    "rna_iterator_listbase_get",
+                                    nullptr,
+                                    nullptr,
+                                    nullptr,
+                                    nullptr);
   RNA_def_property_ui_text(prop, "Operators", "Operator registry");
 
   prop = RNA_def_property(srna, "windows", PROP_COLLECTION, PROP_NONE);
@@ -2838,6 +2898,15 @@ static void rna_def_windowmanager(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "keyconfigs", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_struct_type(prop, "KeyConfig");
+  RNA_def_property_collection_funcs(prop,
+                                    "rna_WindowManager_keyconfigs_begin",
+                                    "rna_iterator_listbase_next",
+                                    "rna_iterator_listbase_end",
+                                    "rna_iterator_listbase_get",
+                                    nullptr,
+                                    nullptr,
+                                    nullptr,
+                                    nullptr);
   RNA_def_property_ui_text(prop, "Key Configurations", "Registered key configurations");
   rna_def_wm_keyconfigs(brna, prop);
 

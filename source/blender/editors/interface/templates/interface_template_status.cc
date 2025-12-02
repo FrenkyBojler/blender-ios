@@ -89,7 +89,6 @@ void uiTemplateReportsBanner(uiLayout *layout, bContext *C)
   /* Background for icon. */
   but = uiDefBut(block,
                  ButType::Roundbox,
-                 0,
                  "",
                  0,
                  0,
@@ -105,7 +104,6 @@ void uiTemplateReportsBanner(uiLayout *layout, bContext *C)
   /* Background for the rest of the message. */
   but = uiDefBut(block,
                  ButType::Roundbox,
-                 0,
                  "",
                  UI_UNIT_X + (6 * UI_SCALE_FAC),
                  0,
@@ -168,6 +166,13 @@ static bool uiTemplateInputStatusAzone(uiLayout *layout, const AZone *az, const 
     layout->label(nullptr, ICON_MOUSE_LMB_DRAG);
     layout->separator(-0.2f);
     layout->label(IFACE_("Swap Areas"), ICON_NONE);
+    return true;
+  }
+
+  if (az->type == AZONE_REGION_QUAD) {
+    layout->label(nullptr, ICON_MOUSE_LMB_DRAG);
+    layout->separator(-0.2f);
+    layout->label(IFACE_("Resize Quadrants"), ICON_NONE);
     return true;
   }
 
@@ -389,6 +394,13 @@ static std::string ui_template_status_tooltip(bContext *C,
     tooltip_message += RPT_(
         "This file is managed by the Blender asset system and cannot be overridden");
   }
+  if (bmain->colorspace.is_missing_opencolorio_config) {
+    if (!tooltip_message.empty()) {
+      tooltip_message += "\n\n";
+    }
+    tooltip_message += RPT_(
+        "Displays, views or color spaces in this file were missing and have been changed");
+  }
 
   return tooltip_message;
 }
@@ -503,7 +515,7 @@ void uiTemplateStatusInfo(uiLayout *layout, bContext *C)
 
   blender::StringRefNull version_string = ED_info_statusbar_string_ex(
       bmain, scene, view_layer, STATUSBAR_SHOW_VERSION);
-  blender::StringRefNull warning_message;
+  std::string warning_message;
 
   /* Blender version part is shown as warning area when there are forward compatibility issues with
    * currently loaded .blend file. */
@@ -515,6 +527,14 @@ void uiTemplateStatusInfo(uiLayout *layout, bContext *C)
     if (U.statusbar_flag & STATUSBAR_SHOW_VERSION) {
       layout->label(version_string, ICON_NONE);
     }
+  }
+
+  /* Color space warning. */
+  if (bmain->colorspace.is_missing_opencolorio_config) {
+    if (!warning_message.empty()) {
+      warning_message = warning_message + " ";
+    }
+    warning_message = warning_message + RPT_("Color Management");
   }
 
   const uiStyle *style = UI_style_get();
@@ -532,7 +552,6 @@ void uiTemplateStatusInfo(uiLayout *layout, bContext *C)
   /* Background for icon. */
   uiBut *but = uiDefBut(block,
                         ButType::Roundbox,
-                        0,
                         "",
                         0,
                         0,
@@ -545,11 +564,10 @@ void uiTemplateStatusInfo(uiLayout *layout, bContext *C)
   /*# ButType::Roundbox's background color is set in `but->col`. */
   UI_GetThemeColor4ubv(TH_WARNING, but->col);
 
-  if (!warning_message.is_empty()) {
+  if (!warning_message.empty()) {
     /* Background for the rest of the message. */
     but = uiDefBut(block,
                    ButType::Roundbox,
-                   0,
                    "",
                    UI_UNIT_X + (6 * UI_SCALE_FAC),
                    0,
@@ -571,7 +589,6 @@ void uiTemplateStatusInfo(uiLayout *layout, bContext *C)
   /* The warning icon itself. */
   but = uiDefIconBut(block,
                      ButType::But,
-                     0,
                      ICON_ERROR,
                      int(3 * UI_SCALE_FAC),
                      0,
@@ -586,10 +603,9 @@ void uiTemplateStatusInfo(uiLayout *layout, bContext *C)
   but->col[3] = 255; /* This theme color is RBG only, so have to set alpha here. */
 
   /* The warning message, if any. */
-  if (!warning_message.is_empty()) {
+  if (!warning_message.empty()) {
     but = uiDefBut(block,
                    ButType::But,
-                   0,
                    warning_message.c_str(),
                    UI_UNIT_X,
                    0,

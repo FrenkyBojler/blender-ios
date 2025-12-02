@@ -49,6 +49,7 @@
 #include "COM_utilities.hh"
 
 #include "NOD_compositor_file_output.hh"
+#include "NOD_node_extra_info.hh"
 #include "NOD_socket_items_blend.hh"
 #include "NOD_socket_items_ops.hh"
 #include "NOD_socket_items_ui.hh"
@@ -112,7 +113,7 @@ static void node_init(const bContext *C, PointerRNA *node_pointer)
   data->save_as_render = true;
   data->file_name = BLI_strdup("file_name");
 
-  BKE_image_format_init(&data->format, false);
+  BKE_image_format_init(&data->format);
   BKE_image_format_media_type_set(
       &data->format, node_pointer->owner_id, MEDIA_TYPE_MULTI_LAYER_IMAGE);
   BKE_image_format_update_color_space_for_type(&data->format);
@@ -120,7 +121,7 @@ static void node_init(const bContext *C, PointerRNA *node_pointer)
   Scene *scene = CTX_data_scene(C);
   if (scene) {
     const RenderData *render_data = &scene->r;
-    BLI_strncpy(data->directory, render_data->pic, FILE_MAX);
+    STRNCPY(data->directory, render_data->pic);
   }
 }
 
@@ -169,10 +170,11 @@ static Vector<path_templates::Error> compute_image_path(const StringRefNull dire
                                                         const ImageFormatData &format,
                                                         const Scene &scene,
                                                         const bNode &node,
+                                                        const bool is_animation_render,
                                                         char *r_image_path)
 {
   char base_path[FILE_MAX] = "";
-  BLI_strncpy(base_path, directory.c_str(), FILE_MAX);
+  STRNCPY(base_path, directory.c_str());
   const std::string full_file_name = file_name + file_name_suffix;
   BLI_path_append(base_path, FILE_MAX, full_file_name.c_str());
 
@@ -181,6 +183,12 @@ static Vector<path_templates::Error> compute_image_path(const StringRefNull dire
   BKE_add_template_variables_for_render_path(template_variables, scene);
   BKE_add_template_variables_for_node(template_variables, node);
 
+  /* Substitute #### frame variables if not doing an animation render. For animation renders, this
+   * is handled internally by the following function. */
+  if (!is_animation_render) {
+    BLI_path_frame(base_path, FILE_MAX, frame_number, 0);
+  }
+
   return BKE_image_path_from_imformat(r_image_path,
                                       base_path,
                                       BKE_main_blendfile_path_from_global(),
@@ -188,33 +196,33 @@ static Vector<path_templates::Error> compute_image_path(const StringRefNull dire
                                       frame_number,
                                       &format,
                                       scene.r.scemode & R_EXTENSION,
-                                      true,
+                                      is_animation_render,
                                       BKE_scene_multiview_view_suffix_get(&scene.r, view));
 }
 
-static void node_layout(uiLayout *layout, bContext * /*context*/, PointerRNA *node_pointer)
+static void node_layout(ui::Layout &layout, bContext * /*context*/, PointerRNA *node_pointer)
 {
-  layout->prop(node_pointer, "directory", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-  layout->prop(node_pointer, "file_name", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout.prop(node_pointer, "directory", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout.prop(node_pointer, "file_name", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
-static void format_layout(uiLayout *layout,
+static void format_layout(ui::Layout *layout,
                           bContext *context,
                           PointerRNA *format_pointer,
                           PointerRNA *node_or_item_pointer)
 {
-  uiLayout *column = &layout->column(true);
-  column->use_property_split_set(true);
-  column->use_property_decorate_set(false);
-  column->prop(
+  ui::Layout &col = layout->column(true);
+  col.use_property_split_set(true);
+  col.use_property_decorate_set(false);
+  col.prop(
       node_or_item_pointer, "save_as_render", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
   const bool save_as_render = RNA_boolean_get(node_or_item_pointer, "save_as_render");
   uiTemplateImageSettings(layout, context, format_pointer, save_as_render);
 
   if (!save_as_render) {
-    uiLayout *column = &layout->column(true);
-    column->use_property_split_set(true);
-    column->use_property_decorate_set(false);
+    ui::Layout *column = &layout->column(true);
+    col.use_property_split_set(true);
+    col.use_property_decorate_set(false);
 
     PointerRNA linear_settings_ptr = RNA_pointer_get(format_pointer, "linear_colorspace_settings");
     column->prop(&linear_settings_ptr, "name", UI_ITEM_NONE, IFACE_("Color Space"), ICON_NONE);
@@ -227,7 +235,7 @@ static void format_layout(uiLayout *layout,
   }
 }
 
-static void output_path_layout(uiLayout *layout,
+static void output_path_layout(ui::Layout &layout,
                                const StringRefNull directory,
                                const StringRefNull file_name,
                                const StringRefNull file_name_suffix,
@@ -238,20 +246,28 @@ static void output_path_layout(uiLayout *layout,
 {
 
   char image_path[FILE_MAX];
-  const Vector<path_templates::Error> path_errors = compute_image_path(
-      directory, file_name, file_name_suffix, view, scene.r.cfra, format, scene, node, image_path);
+  const Vector<path_templates::Error> path_errors = compute_image_path(directory,
+                                                                       file_name,
+                                                                       file_name_suffix,
+                                                                       view,
+                                                                       scene.r.cfra,
+                                                                       format,
+                                                                       scene,
+                                                                       node,
+                                                                       false,
+                                                                       image_path);
 
   if (path_errors.is_empty()) {
-    layout->label(image_path, ICON_FILE_IMAGE);
+    layout.label(image_path, ICON_FILE_IMAGE);
   }
   else {
     for (const path_templates::Error &error : path_errors) {
-      layout->label(BKE_path_template_error_to_string(error, image_path).c_str(), ICON_ERROR);
+      layout.label(BKE_path_template_error_to_string(error, image_path).c_str(), ICON_ERROR);
     }
   }
 }
 
-static void output_paths_layout(uiLayout *layout,
+static void output_paths_layout(ui::Layout &layout,
                                 bContext *context,
                                 const StringRefNull file_name_suffix,
                                 const bNode &node,
@@ -277,24 +293,24 @@ static void output_paths_layout(uiLayout *layout,
   }
 }
 
-static void item_layout(uiLayout *layout,
+static void item_layout(ui::Layout &layout,
                         bContext *context,
                         PointerRNA *node_pointer,
                         PointerRNA *item_pointer,
                         const bool is_multi_layer)
 {
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
-  layout->prop(item_pointer, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
+  layout.prop(item_pointer, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   if (RNA_enum_get(item_pointer, "socket_type") == SOCK_VECTOR) {
-    layout->prop(item_pointer, "vector_socket_dimensions", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout.prop(item_pointer, "vector_socket_dimensions", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
   if (is_multi_layer) {
     return;
   }
 
-  layout->prop(
+  layout.prop(
       item_pointer, "override_node_format", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
   const bool override_node_format = RNA_boolean_get(item_pointer, "override_node_format");
 
@@ -303,49 +319,49 @@ static void item_layout(uiLayout *layout,
   PointerRNA *format_pointer = override_node_format ? &item_format_pointer : &node_format_pointer;
 
   if (override_node_format) {
-    if (uiLayout *panel = layout->panel(context, "item_format", false, IFACE_("Item Format"))) {
+    if (ui::Layout *panel = layout.panel(context, "item_format", false, IFACE_("Item Format"))) {
       format_layout(panel, context, format_pointer, item_pointer);
     }
   }
 }
 
-static void node_layout_ex(uiLayout *layout, bContext *context, PointerRNA *node_pointer)
+static void node_layout_ex(ui::Layout &layout, bContext *context, PointerRNA *node_pointer)
 {
   node_layout(layout, context, node_pointer);
 
   PointerRNA format_pointer = RNA_pointer_get(node_pointer, "format");
   const bool is_multi_layer = RNA_enum_get(&format_pointer, "file_format") ==
                               R_IMF_IMTYPE_MULTILAYER;
-  layout->prop(&format_pointer, "media_type", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
-  if (uiLayout *panel = layout->panel(context, "node_format", false, IFACE_("Node Format"))) {
+  layout.prop(&format_pointer, "media_type", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  if (ui::Layout *panel = layout.panel(context, "node_format", false, IFACE_("Node Format"))) {
     format_layout(panel, context, &format_pointer, node_pointer);
   }
 
   const char *panel_name = is_multi_layer ? IFACE_("Layers") : IFACE_("Images");
-  if (uiLayout *panel = layout->panel(context, "file_output_items", false, panel_name)) {
+  if (ui::Layout *panel = layout.panel(context, "file_output_items", false, panel_name)) {
     bNodeTree &tree = *reinterpret_cast<bNodeTree *>(node_pointer->owner_id);
     bNode &node = *node_pointer->data_as<bNode>();
     socket_items::ui::draw_items_list_with_operators<FileOutputItemsAccessor>(
         context, panel, tree, node);
     socket_items::ui::draw_active_item_props<FileOutputItemsAccessor>(
         tree, node, [&](PointerRNA *item_pointer) {
-          item_layout(panel, context, node_pointer, item_pointer, is_multi_layer);
+          item_layout(*panel, context, node_pointer, item_pointer, is_multi_layer);
         });
   }
 
-  if (uiLayout *panel = layout->panel(context, "output_paths", true, IFACE_("Output Paths"))) {
+  if (ui::Layout *panel = layout.panel(context, "output_paths", true, IFACE_("Output Paths"))) {
     const bNode &node = *node_pointer->data_as<bNode>();
     const ImageFormatData &node_format = *format_pointer.data_as<ImageFormatData>();
 
     if (is_multi_layer) {
-      output_paths_layout(panel, context, "", node, node_format);
+      output_paths_layout(*panel, context, "", node, node_format);
     }
     else {
       const NodeCompositorFileOutput &storage = node_storage(node);
       for (const int i : IndexRange(storage.items_count)) {
         const NodeCompositorFileOutputItem &item = storage.items[i];
         const auto &format = item.override_node_format ? item.format : storage.format;
-        output_paths_layout(panel, context, item.name, node, format);
+        output_paths_layout(*panel, context, item.name, node, format);
       }
     }
   }
@@ -365,6 +381,18 @@ static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &
   BLO_read_string(&reader, &data.file_name);
   BKE_image_format_blend_read_data(&reader, &data.format);
   socket_items::blend_read_data<FileOutputItemsAccessor>(&reader, node);
+}
+
+static void node_extra_info(NodeExtraInfoParams &parameters)
+{
+  SpaceNode *space_node = CTX_wm_space_node(&parameters.C);
+  if (space_node->node_tree_sub_type != SNODE_COMPOSITOR_SCENE) {
+    NodeExtraInfoRow row;
+    row.text = RPT_("Node Unsupported");
+    row.tooltip = TIP_("The File Output node is only supported for scene compositing");
+    row.icon = ICON_ERROR;
+    parameters.rows.append(std::move(row));
+  }
 }
 
 using namespace blender::compositor;
@@ -424,7 +452,7 @@ class FileOutputOperation : public NodeOperation {
         continue;
       }
 
-      const int2 size = result.domain().size;
+      const int2 size = result.domain().data_size;
       FileOutput &file_output = this->context().render_context()->get_file_output(
           image_path, format, size, save_as_render);
 
@@ -455,7 +483,7 @@ class FileOutputOperation : public NodeOperation {
       return;
     }
 
-    const int2 size = result.domain().size;
+    const int2 size = result.domain().data_size;
     FileOutput &file_output = this->context().render_context()->get_file_output(
         image_path, format, size, true);
 
@@ -475,7 +503,7 @@ class FileOutputOperation : public NodeOperation {
   void execute_multi_layer()
   {
     /* We only write images, not single values. */
-    const int2 size = this->compute_domain().size;
+    const int2 size = this->compute_domain().data_size;
     if (size == int2(1)) {
       return;
     }
@@ -522,8 +550,8 @@ class FileOutputOperation : public NodeOperation {
   {
     /* For single values, we fill a buffer that covers the domain of the operation with the value
      * of the result. */
-    const int2 size = result.is_single_value() ? this->compute_domain().size :
-                                                 result.domain().size;
+    const int2 size = result.is_single_value() ? this->compute_domain().data_size :
+                                                 result.domain().data_size;
 
     /* The image buffer in the file output will take ownership of this buffer and freeing it will
      * be its responsibility. */
@@ -633,7 +661,7 @@ class FileOutputOperation : public NodeOperation {
       buffer = static_cast<float *>(MEM_dupallocN(result.cpu_data().data()));
     }
 
-    const int2 size = result.domain().size;
+    const int2 size = result.domain().data_size;
     switch (result.type()) {
       case ResultType::Color:
         file_output.add_view(view_name, 4, buffer);
@@ -729,6 +757,7 @@ class FileOutputOperation : public NodeOperation {
         format,
         this->context().get_scene(),
         this->bnode(),
+        this->is_animation_render(),
         r_image_path);
 
     if (!path_errors.is_empty()) {
@@ -782,6 +811,14 @@ class FileOutputOperation : public NodeOperation {
     domain.transformation.location() = float2(0.0f);
     return domain;
   }
+
+  bool is_animation_render()
+  {
+    if (!this->context().render_context()) {
+      return false;
+    }
+    return this->context().render_context()->is_animation_render;
+  }
 };
 
 static NodeOperation *get_compositor_operation(Context &context, DNode node)
@@ -808,6 +845,7 @@ static void node_register()
       ntype, "NodeCompositorFileOutput", node_free_storage, node_copy_storage);
   ntype.blend_write_storage_content = node_blend_write;
   ntype.blend_data_read_storage_content = node_blend_read;
+  ntype.get_extra_info = node_extra_info;
   ntype.get_compositor_operation = get_compositor_operation;
 
   blender::bke::node_register_type(ntype);
@@ -835,7 +873,7 @@ void FileOutputItemsAccessor::blend_read_data_item(BlendDataReader *reader, Item
 std::string FileOutputItemsAccessor::validate_name(const StringRef name)
 {
   char file_name[FILE_MAX] = "";
-  BLI_strncpy(file_name, name.data(), FILE_MAX);
+  STRNCPY(file_name, name.data());
   BLI_path_make_safe_filename(file_name);
   return file_name;
 }

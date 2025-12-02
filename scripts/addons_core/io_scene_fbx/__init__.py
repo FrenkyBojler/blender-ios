@@ -7,8 +7,8 @@ bl_info = {
     # This is now displayed as the maintainer, so show the foundation.
     # "author": "Campbell Barton, Bastien Montagne, Jens Restemeier, @Mysteryem", # Original Authors
     "author": "Blender Foundation",
-    "version": (5, 13, 0),
-    "blender": (4, 5, 0),
+    "version": (5, 15, 0),
+    "blender": (5, 0, 0),
     "location": "File > Import-Export",
     "description": "FBX IO meshes, UVs, vertex colors, materials, textures, cameras, lamps and actions",
     "warning": "",
@@ -388,7 +388,7 @@ class ExportFBX(bpy.types.Operator, ExportHelper):
                ('LIGHT', "Lamp", ""),
                ('ARMATURE', "Armature", "WARNING: not supported in dupli/group instances"),
                ('MESH', "Mesh", ""),
-               ('OTHER', "Other", "Other geometry types, like curve, metaball, etc. (converted to meshes)"),
+               ('OTHER', "Other", "Other geometry types, like curve, meta-ball, etc. (converted to meshes)"),
                ),
         description="Which kind of object to export",
         default={'EMPTY', 'CAMERA', 'LIGHT', 'ARMATURE', 'MESH', 'OTHER'},

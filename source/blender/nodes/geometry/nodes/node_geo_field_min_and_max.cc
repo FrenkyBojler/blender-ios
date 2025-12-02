@@ -28,7 +28,7 @@ static void node_declare(NodeDeclarationBuilder &b)
     const eCustomDataType data_type = eCustomDataType(node->custom1);
     b.add_input(data_type, "Value")
         .supports_field()
-        .description("The values the mininum and maximum will be calculated from");
+        .description("The values the minimum and maximum will be calculated from");
   }
 
   b.add_input<decl::Int>("Group ID", "Group Index")
@@ -47,10 +47,10 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
-  layout->prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -278,9 +278,13 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_rna(StructRNA *srna)
 {
   static EnumPropertyItem items[] = {
-      {CD_PROP_FLOAT, "FLOAT", 0, "Float", "Floating-point value"},
-      {CD_PROP_INT32, "INT", 0, "Integer", "32-bit integer"},
-      {CD_PROP_FLOAT3, "FLOAT_VECTOR", 0, "Vector", "3D vector with floating-point values"},
+      {CD_PROP_FLOAT, "FLOAT", ICON_NODE_SOCKET_FLOAT, "Float", "Floating-point value"},
+      {CD_PROP_INT32, "INT", ICON_NODE_SOCKET_INT, "Integer", "32-bit integer"},
+      {CD_PROP_FLOAT3,
+       "FLOAT_VECTOR",
+       ICON_NODE_SOCKET_VECTOR,
+       "Vector",
+       "3D vector with floating-point values"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 

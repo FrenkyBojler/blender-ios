@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'6dca66d606ed')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'dba3692987cb')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-08-11 08:28+0000\n"
+"POT-Creation-Date: 2025-12-02 11:29+0000\n"
 "PO-Revision-Date: 2025-07-23 15:18+0000\n"
 "Last-Translator: Aras Pranckevičius <aras@nesnausk.org>\n"
 "Language-Team: Lithuanian <https://translate.blender.org/projects/blender-ui/ui/lt/>\n"
@@ -33,10 +33,6 @@ msgstr "Spalva"
 
 msgid "Value"
 msgstr "Reikšmė"
-
-
-msgid "Action F-Curves"
-msgstr "Veiksmo „F“-kreivės"
 
 
 msgid "Groups of F-Curves"
@@ -536,10 +532,6 @@ msgid "Video Sequencer"
 msgstr "Vaizdo montažas"
 
 
-msgid "Video editing tools"
-msgstr "Vaizdo įrašų redagavimo įrankiai"
-
-
 msgid "Motion tracking tools"
 msgstr "Judesio sekimo įrankiai"
 
@@ -789,8 +781,44 @@ msgid "Space Type"
 msgstr "Zonos tipas"
 
 
-msgid "The space where the asset shelf is going to be used in"
-msgstr "Zona kur naudojama išteklių lentyna"
+msgid "Actions"
+msgstr "Veiksmai"
+
+
+msgid "Cameras"
+msgstr "Kameros/Fotoaparatai"
+
+
+msgid "Fonts"
+msgstr "Šriftai"
+
+
+msgid "Materials"
+msgstr "Medžiagos"
+
+
+msgid "Objects"
+msgstr "Objektai"
+
+
+msgid "Sounds"
+msgstr "Garsai"
+
+
+msgid "Speakers"
+msgstr "Garsiakalbiai"
+
+
+msgid "Texts"
+msgstr "Tekstai"
+
+
+msgid "Volumes"
+msgstr "Garsumai"
+
+
+msgid "Worlds"
+msgstr "Pasauliai"
 
 
 msgid "Display Filter"
@@ -829,12 +857,12 @@ msgid "Type of data stored in attribute"
 msgstr "Duomenų laikomų atribute tipas"
 
 
+msgid "Boolean"
+msgstr "Loginis"
+
+
 msgid "Vector"
 msgstr "Vektorius"
-
-
-msgid "Byte Color"
-msgstr "Baitų spalva"
 
 
 msgid "String"
@@ -845,8 +873,8 @@ msgid "Text string"
 msgstr "Teksto eilutė"
 
 
-msgid "Boolean"
-msgstr "Loginis"
+msgid "Byte Color"
+msgstr "Baitų spalva"
 
 
 msgid "Face"
@@ -901,6 +929,10 @@ msgid "Default Color Attribute"
 msgstr "Numatytasis spalvos atributas"
 
 
+msgid "Object"
+msgstr "Objektas"
+
+
 msgid "File Path"
 msgstr "Failo kelias"
 
@@ -941,10 +973,6 @@ msgid "-Z"
 msgstr "- Z"
 
 
-msgid "Object"
-msgstr "Objektas"
-
-
 msgid "None"
 msgstr "Joks/-ia"
 
@@ -973,6 +1001,10 @@ msgid "External"
 msgstr "Išorinis/-ė"
 
 
+msgid "Normals"
+msgstr "Normalės"
+
+
 msgid "Free"
 msgstr "Laisva/-s"
 
@@ -985,12 +1017,8 @@ msgid "Weight"
 msgstr "Svoris"
 
 
-msgid "Actions"
-msgstr "Veiksmai"
-
-
-msgid "Cameras"
-msgstr "Kameros/Fotoaparatai"
+msgid "Color Space"
+msgstr "Spalvų erdvė"
 
 
 msgid "Filename"
@@ -1005,40 +1033,16 @@ msgid "Libraries"
 msgstr "Bibliotekos"
 
 
-msgid "Materials"
-msgstr "Medžiagos"
-
-
-msgid "Objects"
-msgstr "Objektai"
-
-
 msgid "Screens"
 msgstr "Ekranai"
-
-
-msgid "Sounds"
-msgstr "Garsai"
-
-
-msgid "Speakers"
-msgstr "Garsiakalbiai"
-
-
-msgid "Texts"
-msgstr "Tekstai"
 
 
 msgid "Version"
 msgstr "Versija"
 
 
-msgid "Volumes"
-msgstr "Garsumai"
-
-
-msgid "Worlds"
-msgstr "Pasauliai"
+msgid "ACEScg"
+msgstr "„ACEScg“"
 
 
 msgid "Not yet defined"
@@ -1403,10 +1407,6 @@ msgid "ACES2065-1"
 msgstr "„ACES2065-1“"
 
 
-msgid "ACEScg"
-msgstr "„ACEScg“"
-
-
 msgid "AgX Log"
 msgstr "„AgX“ žurnalas"
 
@@ -1419,12 +1419,12 @@ msgid "Rec.2020"
 msgstr "„Rec.2020“"
 
 
-msgid "Color Space"
-msgstr "Spalvų erdvė"
-
-
 msgid "Color space that the sequencer operates in"
 msgstr "Vaizdo montavimo spalvų erdvė"
+
+
+msgid "View"
+msgstr "Rodymas"
 
 
 msgid "Temperature"
@@ -1546,10 +1546,6 @@ msgstr "Gylis"
 
 msgid "Surface"
 msgstr "Paviršius"
-
-
-msgid "View"
-msgstr "Rodymas"
 
 
 msgid "Radius"
@@ -2091,10 +2087,6 @@ msgid "Weights"
 msgstr "Svoriai/Svarmenys"
 
 
-msgid "Fonts"
-msgstr "Šriftai"
-
-
 msgid "Save"
 msgstr "Išsaugoti"
 
@@ -2197,10 +2189,6 @@ msgstr "Laikas"
 
 msgid "Zip"
 msgstr "„Zip“"
-
-
-msgid "Blosc"
-msgstr "„Blosc“"
 
 
 msgctxt "Amount"
@@ -2359,10 +2347,6 @@ msgid "Users"
 msgstr "Vartotojai/Naudotojai"
 
 
-msgid "Groups"
-msgstr "Grupės"
-
-
 msgid "Layers"
 msgstr "Sluoksniai"
 
@@ -2378,10 +2362,6 @@ msgstr "Dėžė"
 msgctxt "Curves"
 msgid "Add"
 msgstr "Pridėti"
-
-
-msgid "Direction"
-msgstr "Kryptis"
 
 
 msgid "Has unsaved changes"
@@ -2467,10 +2447,6 @@ msgstr "Mažų raidžių dydis"
 
 msgid "Textboxes"
 msgstr "Teksto laukai"
-
-
-msgid "Normals"
-msgstr "Normalės"
 
 
 msgid "Active Texture"
@@ -2889,6 +2865,10 @@ msgid "Owner"
 msgstr "Savininkas/-ė"
 
 
+msgid "Direction"
+msgstr "Kryptis"
+
+
 msgid "North"
 msgstr "Šiaurė"
 
@@ -3081,6 +3061,10 @@ msgid "Paths"
 msgstr "Keliai"
 
 
+msgid "Groups"
+msgstr "Grupės"
+
+
 msgid "Modifier Name"
 msgstr "Keitiklio pavadinimas"
 
@@ -3117,8 +3101,16 @@ msgid "Show/Hide"
 msgstr "Rodyti/Slėpti"
 
 
+msgid "Layout"
+msgstr "Išdėstymas/Maketas"
+
+
 msgid "Text"
 msgstr "Tekstas"
+
+
+msgid "Import"
+msgstr "Importuoti"
 
 
 msgid "Animals"
@@ -3139,14 +3131,6 @@ msgstr "Failai"
 
 msgid "NLA"
 msgstr "„NLA“"
-
-
-msgid "Import"
-msgstr "Importuoti"
-
-
-msgid "Layout"
-msgstr "Išdėstymas/Maketas"
 
 
 msgid "Add Modifier"
@@ -3229,10 +3213,6 @@ msgstr "pks."
 
 msgid "JPEG"
 msgstr "„JPEG“"
-
-
-msgid "Growing/shrinking mode"
-msgstr "Augimo/Susitraukimo veiksena"
 
 
 msgctxt "NodeTree"
@@ -3441,11 +3421,6 @@ msgid "File Browser Mode"
 msgstr "Failų naršyklės veiksena"
 
 
-msgctxt "Curve"
-msgid "Mode"
-msgstr "Veiksena"
-
-
 msgctxt "Operator"
 msgid "Filter"
 msgstr "Filtras"
@@ -3540,6 +3515,11 @@ msgstr "Įdiegti pasirinktinius medžiagos užfiksavimus („MatCap“ (dgs.))"
 msgctxt "Operator"
 msgid "Render"
 msgstr "Vaizduoti"
+
+
+msgctxt "Curve"
+msgid "Mode"
+msgstr "Veiksena"
 
 
 msgctxt "Scene"
@@ -3918,16 +3898,6 @@ msgid "Display warnings"
 msgstr "Rodyti/Vaizduoti įspėjimus/perspėjimus"
 
 
-msgctxt "ID"
-msgid "Modifier"
-msgstr "Keitiklis"
-
-
-msgctxt "ID"
-msgid "Tool"
-msgstr "Įrankis"
-
-
 msgid "ID From"
 msgstr "ID iš"
 
@@ -3967,6 +3937,11 @@ msgstr "Filtravimo būdas"
 
 msgid "Filter based on the operator name"
 msgstr "Filtruoti pagal operatoriaus/-ės vardą"
+
+
+msgctxt "ID"
+msgid "Tool"
+msgstr "Įrankis"
 
 
 msgid "Scene Properties"

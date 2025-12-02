@@ -27,9 +27,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Rotation>("Rotate By");
 };
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "rotation_space", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "rotation_space", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 }
 
 static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
@@ -79,6 +79,7 @@ static void node_register()
   static blender::bke::bNodeType ntype;
   fn_node_type_base(&ntype, "FunctionNodeRotateRotation", FN_NODE_ROTATE_ROTATION);
   ntype.ui_name = "Rotate Rotation";
+  ntype.ui_description = "Apply a secondary rotation to a given rotation value";
   ntype.enum_name_legacy = "ROTATE_ROTATION";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;

@@ -11,7 +11,7 @@
 
 #include <atomic>
 
-#include "BLI_color.hh"
+#include "BLI_color_types.hh"
 #include "BLI_implicit_sharing_ptr.hh"
 #include "BLI_map.hh"
 #include "BLI_math_matrix_types.hh"
@@ -952,7 +952,8 @@ class GreasePencilRuntime {
 
 class GreasePencilDrawingEditHints {
  public:
-  const greasepencil::Drawing *drawing_orig;
+  const greasepencil::Drawing *drawing_orig = nullptr;
+  /* Deformed positions for original points. Data has the same topology as the original curves. */
   ImplicitSharingPtrAndData positions_data;
 
   /**

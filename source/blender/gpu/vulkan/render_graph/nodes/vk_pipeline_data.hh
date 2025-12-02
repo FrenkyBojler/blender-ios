@@ -16,6 +16,26 @@ struct VKRenderGraphNodeLinks;
 class VKResourceStateTracker;
 
 /**
+ * Stencil dynamic data: op + compare/write masks + reference.
+ * Moved here so it can be shared between pipeline code and command-buffer wrappers.
+ */
+struct StencilState {
+  uint8_t compare_mask;
+  uint8_t reference;
+  uint8_t write_mask;
+
+  bool operator==(const StencilState &other) const noexcept
+  {
+    return compare_mask == other.compare_mask && reference == other.reference &&
+           write_mask == other.write_mask;
+  }
+  bool operator!=(const StencilState &other) const noexcept
+  {
+    return !(*this == other);
+  }
+};
+
+/**
  * Container for storing shader descriptor set and push constants.
  *
  * Compute and graphic shaders use the same structure to setup the pipeline for execution.
@@ -24,9 +44,6 @@ struct VKPipelineData {
   VkPipeline vk_pipeline;
   VkPipelineLayout vk_pipeline_layout;
   VkDescriptorSet vk_descriptor_set;
-  /* VK_EXT_descriptor_buffer */
-  VkDeviceAddress descriptor_buffer_device_address;
-  VkDeviceSize descriptor_buffer_offset;
 
   uint32_t push_constants_size;
   const void *push_constants_data;
@@ -65,12 +82,18 @@ struct VKViewportData {
   }
 };
 
+struct VKPipelineDataGraphics {
+  VKPipelineData pipeline_data;
+  VKViewportData viewport;
+  std::optional<float> line_width;
+  std::optional<StencilState> stencil_state;
+  std::optional<VkFrontFace> front_face;
+};
+
 /** Resources bound for a compute/graphics pipeline. */
 struct VKBoundPipeline {
   VkPipeline vk_pipeline;
   VkDescriptorSet vk_descriptor_set;
-  VkDeviceAddress descriptor_buffer_device_address;
-  VkDeviceSize descriptor_buffer_offset;
 };
 
 struct VKIndexBufferBinding {
@@ -119,6 +142,9 @@ struct VKBoundPipelines {
     VKIndexBufferBinding index_buffer;
     VKVertexBufferBindings vertex_buffers;
     VKViewportData viewport_state;
+    std::optional<float> line_width;
+    std::optional<StencilState> stencil_state;
+    std::optional<VkFrontFace> front_face;
   } graphics;
 };
 
@@ -130,15 +156,24 @@ struct VKBoundPipelines {
  * guardedalloc.
  */
 void vk_pipeline_data_copy(VKPipelineData &dst, const VKPipelineData &src);
+static inline void vk_pipeline_data_copy(VKPipelineDataGraphics &dst,
+                                         const VKPipelineDataGraphics &src)
+{
+  vk_pipeline_data_copy(dst.pipeline_data, src.pipeline_data);
+}
 
 /**
- * Record commands that set the viewport and scissor only if the desired
- * viewport state is different than the current viewport state.
+ * Record commands that update the dynamic state.
  *
+ * - viewports
+ * - scissors
+ * - line width
+ * - stencil op + compare/write masks + reference
+ * - front face (when VK_EXT_extended_dynamic_state is available)
  */
-void vk_pipeline_viewport_set_commands(VKCommandBufferInterface &command_buffer,
-                                       const VKViewportData &viewport_data,
-                                       VKViewportData &r_viewport_state);
+void vk_pipeline_dynamic_graphics_build_commands(VKCommandBufferInterface &command_buffer,
+                                                 const VKPipelineDataGraphics &graphics,
+                                                 VKBoundPipelines &r_bound_pipelines);
 
 /**
  * Record the commands to the given command buffer to bind the descriptor set, pipeline and push
@@ -161,6 +196,10 @@ void vk_pipeline_data_build_commands(VKCommandBufferInterface &command_buffer,
  * Free localized data created by `vk_pipeline_data_copy`.
  */
 void vk_pipeline_data_free(VKPipelineData &data);
+static inline void vk_pipeline_data_free(VKPipelineDataGraphics &data)
+{
+  vk_pipeline_data_free(data.pipeline_data);
+}
 
 void vk_index_buffer_binding_build_links(VKResourceStateTracker &resources,
                                          VKRenderGraphNodeLinks &node_links,

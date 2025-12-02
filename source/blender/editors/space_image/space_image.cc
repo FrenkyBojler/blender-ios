@@ -76,13 +76,18 @@ static void image_scopes_tag_refresh(ScrArea *area)
 static void image_user_refresh_scene(const bContext *C, SpaceImage *sima)
 {
   /* Update scene image user for acquiring render results. */
-  sima->iuser.scene = CTX_data_scene(C);
+  Scene *sequencer_scene = CTX_data_sequencer_scene(C);
+  sima->iuser.scene = (sima->iuser.flag & IMA_SHOW_SEQUENCER_SCENE) && sequencer_scene ?
+                          sequencer_scene :
+                          CTX_data_scene(C);
 
   if (sima->image && sima->image->type == IMA_TYPE_R_RESULT) {
     /* While rendering, prefer scene that is being rendered. */
     Scene *render_scene = ED_render_job_get_current_scene(C);
     if (render_scene) {
       sima->iuser.scene = render_scene;
+      SET_FLAG_FROM_TEST(
+          sima->iuser.flag, render_scene == CTX_data_sequencer_scene(C), IMA_SHOW_SEQUENCER_SCENE);
     }
   }
 
@@ -405,7 +410,7 @@ static void image_listener(const wmSpaceTypeListenerParams *params)
            * any change on `wmn->reference`. If we could track the upstream dependencies,
            * unnecessary redraws could be reduced. Until then, just redraw. See #98594. */
           if (ob && (ob->mode & OB_MODE_EDIT) && sima->mode == SI_MODE_UV) {
-            if (sima->lock && (sima->flag & SI_DRAWSHADOW)) {
+            if (sima->lock && ((sima->flag & SI_DRAWSHADOW) || (sima->flag & SI_DRAW_STRETCH))) {
               ED_area_tag_refresh(area);
               ED_area_tag_redraw(area);
             }
@@ -605,26 +610,28 @@ static void image_main_region_init(wmWindowManager *wm, ARegion *region)
    * since the space clip manages own v2d in #image_main_region_set_view2d */
 
   /* mask polls mode */
-  keymap = WM_keymap_ensure(wm->defaultconf, "Mask Editing", SPACE_EMPTY, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "Mask Editing", SPACE_EMPTY, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 
   /* image paint polls for mode */
-  keymap = WM_keymap_ensure(wm->defaultconf, "Curve", SPACE_EMPTY, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->runtime->defaultconf, "Curve", SPACE_EMPTY, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "Paint Curve", SPACE_EMPTY, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->runtime->defaultconf, "Paint Curve", SPACE_EMPTY, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "Image Paint", SPACE_EMPTY, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->runtime->defaultconf, "Image Paint", SPACE_EMPTY, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "UV Editor", SPACE_EMPTY, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->runtime->defaultconf, "UV Editor", SPACE_EMPTY, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 
   /* own keymaps */
-  keymap = WM_keymap_ensure(wm->defaultconf, "Image Generic", SPACE_IMAGE, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "Image Generic", SPACE_IMAGE, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
-  keymap = WM_keymap_ensure(wm->defaultconf, "Image", SPACE_IMAGE, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(wm->runtime->defaultconf, "Image", SPACE_IMAGE, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 }
 
@@ -759,6 +766,7 @@ static void image_main_region_draw(const bContext *C, ARegion *region)
     ED_mask_draw_region(depsgraph,
                         mask,
                         region, /* Mask overlay is drawn by image/overlay engine. */
+                        sima->overlay.flag & SI_OVERLAY_SHOW_OVERLAYS,
                         sima->mask_info.draw_flag & ~MASK_DRAWFLAG_OVERLAY,
                         sima->mask_info.draw_type,
                         eMaskOverlayMode(sima->mask_info.overlay_mode),
@@ -806,7 +814,10 @@ static void image_main_region_listener(const wmRegionListenerParams *params)
       WM_gizmomap_tag_refresh(region->runtime->gizmo_map);
       break;
     case NC_MASK:
-      if (ELEM(wmn->data, ND_DATA, ND_SELECT)) {
+      if (wmn->action == NA_EDITED) {
+        WM_gizmomap_tag_refresh(region->runtime->gizmo_map);
+      }
+      else if (ELEM(wmn->data, ND_DATA, ND_SELECT)) {
         WM_gizmomap_tag_refresh(region->runtime->gizmo_map);
       }
       break;
@@ -839,7 +850,8 @@ static void image_buttons_region_init(wmWindowManager *wm, ARegion *region)
   region->v2d.scroll = V2D_SCROLL_RIGHT | V2D_SCROLL_VERTICAL_HIDE;
   ED_region_panels_init(wm, region);
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "Image Generic", SPACE_IMAGE, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "Image Generic", SPACE_IMAGE, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 }
 
@@ -958,7 +970,8 @@ static void image_tools_region_init(wmWindowManager *wm, ARegion *region)
   region->v2d.scroll = V2D_SCROLL_RIGHT | V2D_SCROLL_VERTICAL_HIDE;
   ED_region_panels_init(wm, region);
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "Image Generic", SPACE_IMAGE, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "Image Generic", SPACE_IMAGE, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 }
 
@@ -1084,7 +1097,7 @@ static void image_asset_shelf_region_init(wmWindowManager *wm, ARegion *region)
 {
   using namespace blender::ed;
   wmKeyMap *keymap = WM_keymap_ensure(
-      wm->defaultconf, "Image Generic", SPACE_IMAGE, RGN_TYPE_WINDOW);
+      wm->runtime->defaultconf, "Image Generic", SPACE_IMAGE, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 
   asset::shelf::region_init(wm, region);

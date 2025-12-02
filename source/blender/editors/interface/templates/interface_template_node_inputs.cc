@@ -70,7 +70,8 @@ static void draw_node_input(bContext *C,
 
   PointerRNA socket_ptr = RNA_pointer_create_discrete(
       node_ptr->owner_id, &RNA_NodeSocket, &socket);
-  const StringRefNull text(IFACE_(bke::node_socket_label(socket).c_str()));
+  const StringRef text = CTX_IFACE_(bke::node_socket_translation_context(socket),
+                                    bke::node_socket_label(socket));
   uiLayout *row = &layout->row(true);
   socket.typeinfo->draw(C, row, &socket_ptr, node_ptr, text);
 }
@@ -127,7 +128,7 @@ static void draw_node_inputs_recursive(bContext *C,
     }
     else if (const auto *layout_decl = dynamic_cast<const LayoutDeclaration *>(item_decl)) {
       if (!layout_decl->is_default) {
-        layout_decl->draw(panel.body, C, node_ptr);
+        layout_decl->draw(*panel.body, C, node_ptr);
       }
     }
   }
@@ -146,10 +147,10 @@ void uiTemplateNodeInputs(uiLayout *layout, bContext *C, PointerRNA *ptr)
   BLI_assert(node.typeinfo != nullptr);
   /* Draw top-level node buttons. */
   if (node.typeinfo->draw_buttons_ex) {
-    node.typeinfo->draw_buttons_ex(layout, C, ptr);
+    node.typeinfo->draw_buttons_ex(*layout, C, ptr);
   }
   else if (node.typeinfo->draw_buttons) {
-    node.typeinfo->draw_buttons(layout, C, ptr);
+    node.typeinfo->draw_buttons(*layout, C, ptr);
   }
 
   if (node.declaration()) {
@@ -162,9 +163,10 @@ void uiTemplateNodeInputs(uiLayout *layout, bContext *C, PointerRNA *ptr)
       else if (const auto *socket_decl = dynamic_cast<const SocketDeclaration *>(item_decl)) {
         bNodeSocket &socket = node.socket_by_decl(*socket_decl);
         if (socket_decl->custom_draw_fn) {
+          uiLayout &row = layout->row(false);
           CustomSocketDrawParams params{
               *C,
-              *layout,
+              row,
               tree,
               node,
               socket,
@@ -178,7 +180,7 @@ void uiTemplateNodeInputs(uiLayout *layout, bContext *C, PointerRNA *ptr)
       }
       else if (const auto *layout_decl = dynamic_cast<const LayoutDeclaration *>(item_decl)) {
         if (!layout_decl->is_default) {
-          layout_decl->draw(layout, C, ptr);
+          layout_decl->draw(*layout, C, ptr);
         }
       }
     }

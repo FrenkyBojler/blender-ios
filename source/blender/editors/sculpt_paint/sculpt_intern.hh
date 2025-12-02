@@ -462,7 +462,7 @@ void flush_update_done(const bContext *C, Object &ob, UpdateType update_type);
 }  // namespace blender::ed::sculpt_paint
 
 /**
- * Should be used after modifying the mask or Face Sets IDs.
+ * Should be used after modifying the mask or face set IDs.
  */
 void SCULPT_tag_update_overlays(bContext *C);
 /** \} */
@@ -503,7 +503,7 @@ void geometry_preview_lines_update(Depsgraph &depsgraph,
 
 }  // namespace blender::ed::sculpt_paint
 
-void SCULPT_stroke_modifiers_check(const bContext *C, Object &ob, const Brush &brush);
+void SCULPT_stroke_modifiers_check(const bContext *C, Object &ob, const Brush *brush);
 namespace blender::ed::sculpt_paint {
 float raycast_init(ViewContext *vc,
                    const float2 &mval,

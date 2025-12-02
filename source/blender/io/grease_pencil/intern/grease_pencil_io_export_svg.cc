@@ -106,7 +106,7 @@ class SVGExporter : public GreasePencilExporter {
 
   pugi::xml_document main_doc_;
 
-  bool export_scene(Scene &scene, StringRefNull filepath);
+  ExportStatus export_scene(Scene &scene, StringRefNull filepath);
   void export_grease_pencil_objects(pugi::xml_node node, int frame_number);
   void export_grease_pencil_layer(pugi::xml_node node,
                                   const Object &object,
@@ -135,7 +135,8 @@ class SVGExporter : public GreasePencilExporter {
                                    Span<float3> positions,
                                    Span<float3> positions_left,
                                    Span<float3> positions_right,
-                                   bool cyclic);
+                                   bool cyclic,
+                                   std::optional<float> width);
 
   bool write_to_file(StringRefNull filepath);
 };
@@ -146,7 +147,7 @@ std::string SVGExporter::get_node_uuid_string()
   return id;
 }
 
-bool SVGExporter::export_scene(Scene &scene, StringRefNull filepath)
+ExportStatus SVGExporter::export_scene(Scene &scene, StringRefNull filepath)
 {
   this->_node_uuid = 0;
 
@@ -160,7 +161,8 @@ bool SVGExporter::export_scene(Scene &scene, StringRefNull filepath)
 
       this->export_grease_pencil_objects(main_node, frame_number);
 
-      return this->write_to_file(filepath);
+      const bool write_success = this->write_to_file(filepath);
+      return write_success ? ExportStatus::Ok : ExportStatus::FileWriteError;
     }
     case ExportParams::FrameMode::Selected:
     case ExportParams::FrameMode::Scene: {
@@ -172,11 +174,18 @@ bool SVGExporter::export_scene(Scene &scene, StringRefNull filepath)
       IndexMaskMemory memory;
       if (selection_only) {
         const Object &ob_eval = *DEG_get_evaluated(context_.depsgraph, params_.object);
+        if (ob_eval.type != OB_GREASE_PENCIL) {
+          return ExportStatus::InvalidActiveObjectType;
+        }
         const GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob_eval.data);
         frames = IndexMask::from_predicate(
             frames, GrainSize(1024), memory, [&](const int frame_number) {
               return this->is_selected_frame(grease_pencil, frame_number);
             });
+      }
+
+      if (frames.is_empty()) {
+        return ExportStatus::NoFramesSelected;
       }
 
       this->prepare_render_params(scene, frames.first());
@@ -209,11 +218,12 @@ bool SVGExporter::export_scene(Scene &scene, StringRefNull filepath)
 
       this->write_animation_node(main_node, frames, duration);
 
-      return this->write_to_file(filepath);
+      const bool write_success = this->write_to_file(filepath);
+      return write_success ? ExportStatus::Ok : ExportStatus::FileWriteError;
     }
     default:
       BLI_assert_unreachable();
-      return false;
+      return ExportStatus::UnknownError;
   }
 }
 
@@ -331,7 +341,7 @@ void SVGExporter::export_grease_pencil_layer(pugi::xml_node layer_node,
       pugi::xml_node element_node;
       if (type == CURVE_TYPE_BEZIER) {
         element_node = write_bezier_path(
-            layer_node, layer_to_world, positions, positions_left, positions_right, cyclic);
+            layer_node, layer_to_world, positions, positions_left, positions_right, cyclic, width);
       }
       else {
         /* Fill is always exported as polygon because the stroke of the fill is done
@@ -509,9 +519,14 @@ pugi::xml_node SVGExporter::write_bezier_path(pugi::xml_node node,
                                               const Span<float3> positions,
                                               const Span<float3> positions_left,
                                               const Span<float3> positions_right,
-                                              const bool cyclic)
+                                              const bool cyclic,
+                                              const std::optional<float> width)
 {
   pugi::xml_node element_node = node.append_child("path");
+
+  if (width) {
+    element_node.append_attribute("stroke-width").set_value(*width);
+  }
 
   std::string txt = "M";
   for (const int i : positions.index_range().drop_back(1)) {
@@ -572,10 +587,10 @@ bool SVGExporter::write_to_file(StringRefNull filepath)
   return result;
 }
 
-bool export_svg(const IOContext &context,
-                const ExportParams &params,
-                Scene &scene,
-                StringRefNull filepath)
+ExportStatus export_svg(const IOContext &context,
+                        const ExportParams &params,
+                        Scene &scene,
+                        StringRefNull filepath)
 {
   SVGExporter exporter(context, params);
   return exporter.export_scene(scene, filepath);

@@ -25,6 +25,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
+#include "BLI_math_base.h"
 #include "BLI_string.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
@@ -42,6 +43,7 @@
 #include "BKE_context.hh"
 #include "BKE_image.hh"
 #include "BKE_paint.hh"
+#include "BKE_paint_types.hh"
 #include "BKE_undo_system.hh"
 
 #include "DEG_depsgraph.hh"
@@ -1143,7 +1145,7 @@ void ED_image_undo_push_begin_with_image_all_udims(const char *name,
 
     ED_image_undo_push(image, ibuf, iuser, us);
 
-    // Release the image buffer to avoid leaking memory
+    /* Release the image buffer to avoid leaking memory. */
     BKE_image_release_ibuf(image, ibuf, nullptr);
   }
 }

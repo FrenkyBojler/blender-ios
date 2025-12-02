@@ -49,10 +49,10 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
-  layout->prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -295,8 +295,12 @@ static void node_geo_exec(GeoNodeExecParams params)
 static void node_rna(StructRNA *srna)
 {
   static EnumPropertyItem items[] = {
-      {CD_PROP_FLOAT, "FLOAT", 0, "Float", "Floating-point value"},
-      {CD_PROP_FLOAT3, "FLOAT_VECTOR", 0, "Vector", "3D vector with floating-point values"},
+      {CD_PROP_FLOAT, "FLOAT", ICON_NODE_SOCKET_FLOAT, "Float", "Floating-point value"},
+      {CD_PROP_FLOAT3,
+       "FLOAT_VECTOR",
+       ICON_NODE_SOCKET_VECTOR,
+       "Vector",
+       "3D vector with floating-point values"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 

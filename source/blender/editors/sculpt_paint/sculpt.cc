@@ -18,6 +18,7 @@
 #include "BLI_array_utils.hh"
 #include "BLI_atomic_disjoint_set.hh"
 #include "BLI_dial_2d.h"
+#include "BLI_enum_flags.hh"
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_axis_angle.hh"
@@ -30,7 +31,6 @@
 #include "BLI_span.hh"
 #include "BLI_task.h"
 #include "BLI_task.hh"
-#include "BLI_utildefines.h"
 #include "BLI_vector.hh"
 
 #include "DNA_brush_types.h"
@@ -62,7 +62,6 @@
 #include "BKE_paint_types.hh"
 #include "BKE_report.hh"
 #include "BKE_subdiv_ccg.hh"
-#include "BKE_subsurf.hh"
 #include "BLI_math_rotation_legacy.hh"
 #include "BLI_math_vector.hh"
 
@@ -120,7 +119,7 @@ float object_space_radius_get(const ViewContext &vc,
 {
   if (!BKE_brush_use_locked_size(&paint, &brush)) {
     return paint_calc_object_space_radius(
-        vc, location, BKE_brush_size_get(&paint, &brush) * scale_factor);
+        vc, location, BKE_brush_radius_get(&paint, &brush) * scale_factor);
   }
   return BKE_brush_unprojected_radius_get(&paint, &brush) * scale_factor;
 }
@@ -159,7 +158,7 @@ int SCULPT_vertex_count_get(const Object &object)
     case blender::bke::pbvh::Type::BMesh:
       return BM_mesh_elem_count(ss.bm, BM_VERT);
     case blender::bke::pbvh::Type::Grids:
-      return BKE_pbvh_get_grid_num_verts(object);
+      return BKE_sculpt_get_grid_num_verts(object);
   }
 
   return 0;
@@ -420,7 +419,9 @@ Span<BMVert *> vert_neighbors_get_interior_bmesh(BMVert &vert, BMeshNeighborVert
     }
     else {
       /* Only include other boundary vertices as neighbors of boundary vertices. */
-      r_neighbors.remove_if([&](const BMVert *vert) { return !BM_vert_is_boundary(vert); });
+      r_neighbors.remove_if([&](const BMVert *neighbor) {
+        return !BM_edge_is_boundary(BM_edge_exists(&vert, const_cast<BMVert *>(neighbor)));
+      });
     }
   }
 
@@ -481,38 +482,59 @@ inline void append_neighbors_to_vector(const OffsetIndices<int> faces,
 
 namespace boundary {
 
+void ensure_boundary_info(Object &object)
+{
+  SculptSession &ss = *object.sculpt;
+  if (ss.boundary_info_cache) {
+    return;
+  }
+
+  ss.boundary_info_cache = std::make_unique<SculptBoundaryInfoCache>(
+      create_boundary_info(*BKE_mesh_from_object(&object)));
+}
+
+SculptBoundaryInfoCache create_boundary_info(const Mesh &mesh)
+{
+  SculptBoundaryInfoCache boundary_info;
+  boundary_info.verts.resize(mesh.verts_num);
+  Array<int> adjacent_faces_edge_count(mesh.edges_num, 0);
+  array_utils::count_indices(mesh.corner_edges(), adjacent_faces_edge_count);
+
+  const Span<int2> edges = mesh.edges();
+  for (const int e : edges.index_range()) {
+    if (adjacent_faces_edge_count[e] < 2) {
+      const int2 &edge = edges[e];
+      boundary_info.edges.add(edge);
+      boundary_info.verts[edge[0]].set();
+      boundary_info.verts[edge[1]].set();
+    }
+  }
+
+  return boundary_info;
+}
+
 bool vert_is_boundary(const GroupedSpan<int> vert_to_face_map,
                       const Span<bool> hide_poly,
-                      const BitSpan boundary,
+                      const BitSpan boundary_verts,
                       const int vert)
 {
   if (!hide::vert_all_faces_visible_get(hide_poly, vert_to_face_map, vert)) {
     return true;
   }
-  return boundary[vert].test();
+  return boundary_verts[vert].test();
 }
 
 bool vert_is_boundary(const OffsetIndices<int> faces,
                       const Span<int> corner_verts,
-                      const BitSpan boundary,
+                      const BitSpan boundary_verts,
+                      const Set<OrderedEdge> &boundary_edges,
                       const SubdivCCG &subdiv_ccg,
                       const SubdivCCGCoord vert)
 {
   /* TODO: Unlike the base mesh implementation this method does NOT take into account face
    * visibility. Either this should be noted as a intentional limitation or fixed. */
-  int v1, v2;
-  const SubdivCCGAdjacencyType adjacency = BKE_subdiv_ccg_coarse_mesh_adjacency_info_get(
-      subdiv_ccg, vert, corner_verts, faces, v1, v2);
-  switch (adjacency) {
-    case SubdivCCGAdjacencyType::Vertex:
-      return boundary[v1].test();
-    case SubdivCCGAdjacencyType::Edge:
-      return boundary[v1].test() && boundary[v2].test();
-    case SubdivCCGAdjacencyType::None:
-      return false;
-  }
-  BLI_assert_unreachable();
-  return false;
+  return BKE_subdiv_ccg_coord_is_mesh_boundary(
+      faces, corner_verts, boundary_verts, boundary_edges, subdiv_ccg, vert);
 }
 
 bool vert_is_boundary(BMVert *vert)
@@ -1355,13 +1377,20 @@ struct SampleLocalData {
   Vector<float> distances;
 };
 
+enum class AverageDataFlags : uint8_t {
+  Position = 1 << 0,
+  Normal = 1 << 1,
+
+  All = Position | Normal
+};
+ENUM_OPERATORS(AverageDataFlags);
+
 static void calc_area_normal_and_center_node_mesh(const Object &object,
                                                   const Span<float3> vert_positions,
                                                   const Span<float3> vert_normals,
                                                   const Span<bool> hide_vert,
                                                   const Brush &brush,
-                                                  const bool use_area_nos,
-                                                  const bool use_area_cos,
+                                                  const AverageDataFlags flag,
                                                   const bke::pbvh::MeshNode &node,
                                                   SampleLocalData &tls,
                                                   AreaNormalCenterData &anctd)
@@ -1395,19 +1424,21 @@ static void calc_area_normal_and_center_node_mesh(const Object &object,
         if (!hide_vert.is_empty() && hide_vert[vert]) {
           continue;
         }
-        const bool normal_test_r = use_area_nos && distances_sq[i] <= normal_radius_sq;
-        const bool area_test_r = use_area_cos && distances_sq[i] <= position_radius_sq;
-        if (!normal_test_r && !area_test_r) {
+        const bool needs_normal = flag_is_set(flag, AverageDataFlags::Normal) &&
+                                  distances_sq[i] <= normal_radius_sq;
+        const bool needs_center = flag_is_set(flag, AverageDataFlags::Position) &&
+                                  distances_sq[i] <= position_radius_sq;
+        if (!needs_normal && !needs_center) {
           continue;
         }
         const float3 &normal = orig_normals[i];
         const float distance = std::sqrt(distances_sq[i]);
         const int flip_index = math::dot(view_normal, normal) <= 0.0f;
-        if (area_test_r) {
+        if (needs_center) {
           accumulate_area_center(
               location, orig_positions[i], distance, position_radius_inv, flip_index, anctd);
         }
-        if (normal_test_r) {
+        if (needs_normal) {
           accumulate_area_normal(normal, distance, normal_radius_inv, flip_index, anctd);
         }
       }
@@ -1425,19 +1456,21 @@ static void calc_area_normal_and_center_node_mesh(const Object &object,
     if (!hide_vert.is_empty() && hide_vert[vert]) {
       continue;
     }
-    const bool normal_test_r = distances_sq[i] <= normal_radius_sq;
-    const bool area_test_r = distances_sq[i] <= position_radius_sq;
-    if (!normal_test_r && !area_test_r) {
+    const bool needs_normal = flag_is_set(flag, AverageDataFlags::Normal) &&
+                              distances_sq[i] <= normal_radius_sq;
+    const bool needs_center = flag_is_set(flag, AverageDataFlags::Position) &&
+                              distances_sq[i] <= position_radius_sq;
+    if (!needs_normal && !needs_center) {
       continue;
     }
     const float3 &normal = vert_normals[vert];
     const float distance = std::sqrt(distances_sq[i]);
     const int flip_index = math::dot(view_normal, normal) <= 0.0f;
-    if (area_test_r) {
+    if (needs_center) {
       accumulate_area_center(
           location, vert_positions[vert], distance, position_radius_inv, flip_index, anctd);
     }
-    if (normal_test_r) {
+    if (needs_normal) {
       accumulate_area_normal(normal, distance, normal_radius_inv, flip_index, anctd);
     }
   }
@@ -1445,8 +1478,7 @@ static void calc_area_normal_and_center_node_mesh(const Object &object,
 
 static void calc_area_normal_and_center_node_grids(const Object &object,
                                                    const Brush &brush,
-                                                   const bool use_area_nos,
-                                                   const bool use_area_cos,
+                                                   const AverageDataFlags flag,
                                                    const bke::pbvh::GridsNode &node,
                                                    SampleLocalData &tls,
                                                    AreaNormalCenterData &anctd)
@@ -1488,15 +1520,17 @@ static void calc_area_normal_and_center_node_grids(const Object &object,
           }
           const int node_vert = grid_range_node[offset];
 
-          const bool normal_test_r = use_area_nos && distances_sq[node_vert] <= normal_radius_sq;
-          const bool area_test_r = use_area_cos && distances_sq[node_vert] <= position_radius_sq;
-          if (!normal_test_r && !area_test_r) {
+          const bool needs_normal = flag_is_set(flag, AverageDataFlags::Normal) &&
+                                    distances_sq[node_vert] <= normal_radius_sq;
+          const bool needs_center = flag_is_set(flag, AverageDataFlags::Position) &&
+                                    distances_sq[node_vert] <= position_radius_sq;
+          if (!needs_normal && !needs_center) {
             continue;
           }
           const float3 &normal = orig_normals[node_vert];
           const float distance = std::sqrt(distances_sq[node_vert]);
           const int flip_index = math::dot(view_normal, normal) <= 0.0f;
-          if (area_test_r) {
+          if (needs_center) {
             accumulate_area_center(location,
                                    orig_positions[node_vert],
                                    distance,
@@ -1504,7 +1538,7 @@ static void calc_area_normal_and_center_node_grids(const Object &object,
                                    flip_index,
                                    anctd);
           }
-          if (normal_test_r) {
+          if (needs_normal) {
             accumulate_area_normal(normal, distance, normal_radius_inv, flip_index, anctd);
           }
         }
@@ -1530,19 +1564,21 @@ static void calc_area_normal_and_center_node_grids(const Object &object,
       const int node_vert = grid_range_node[offset];
       const int vert = grid_range[offset];
 
-      const bool normal_test_r = use_area_nos && distances_sq[node_vert] <= normal_radius_sq;
-      const bool area_test_r = use_area_cos && distances_sq[node_vert] <= position_radius_sq;
-      if (!normal_test_r && !area_test_r) {
+      const bool needs_normal = flag_is_set(flag, AverageDataFlags::Normal) &&
+                                distances_sq[node_vert] <= normal_radius_sq;
+      const bool needs_center = flag_is_set(flag, AverageDataFlags::Position) &&
+                                distances_sq[node_vert] <= position_radius_sq;
+      if (!needs_normal && !needs_center) {
         continue;
       }
       const float3 &normal = normals[vert];
       const float distance = std::sqrt(distances_sq[node_vert]);
       const int flip_index = math::dot(view_normal, normal) <= 0.0f;
-      if (area_test_r) {
+      if (needs_center) {
         accumulate_area_center(
             location, positions[node_vert], distance, position_radius_inv, flip_index, anctd);
       }
-      if (normal_test_r) {
+      if (needs_normal) {
         accumulate_area_normal(normal, distance, normal_radius_inv, flip_index, anctd);
       }
     }
@@ -1551,8 +1587,7 @@ static void calc_area_normal_and_center_node_grids(const Object &object,
 
 static void calc_area_normal_and_center_node_bmesh(const Object &object,
                                                    const Brush &brush,
-                                                   const bool use_area_nos,
-                                                   const bool use_area_cos,
+                                                   const AverageDataFlags flag,
                                                    const bool has_bm_orco,
                                                    const bke::pbvh::BMeshNode &node,
                                                    SampleLocalData &tls,
@@ -1597,9 +1632,11 @@ static void calc_area_normal_and_center_node_bmesh(const Object &object,
         ss, positions, eBrushFalloffShape(brush.falloff_shape), distances_sq);
 
     for (const int i : orig_tris.index_range()) {
-      const bool normal_test_r = use_area_nos && distances_sq[i] <= normal_radius_sq;
-      const bool area_test_r = use_area_cos && distances_sq[i] <= position_radius_sq;
-      if (!normal_test_r && !area_test_r) {
+      const bool needs_normal = flag_is_set(flag, AverageDataFlags::Normal) &&
+                                distances_sq[i] <= normal_radius_sq;
+      const bool needs_center = flag_is_set(flag, AverageDataFlags::Position) &&
+                                distances_sq[i] <= position_radius_sq;
+      if (!needs_normal && !needs_center) {
         continue;
       }
       const float3 normal = math::normal_tri(float3(orig_positions[orig_tris[i][0]]),
@@ -1608,11 +1645,11 @@ static void calc_area_normal_and_center_node_bmesh(const Object &object,
 
       const float distance = std::sqrt(distances_sq[i]);
       const int flip_index = math::dot(view_normal, normal) <= 0.0f;
-      if (area_test_r) {
+      if (needs_center) {
         accumulate_area_center(
             location, positions[i], distance, position_radius_inv, flip_index, anctd);
       }
-      if (normal_test_r) {
+      if (needs_normal) {
         accumulate_area_normal(normal, distance, normal_radius_inv, flip_index, anctd);
       }
     }
@@ -1638,20 +1675,22 @@ static void calc_area_normal_and_center_node_bmesh(const Object &object,
         i++;
         continue;
       }
-      const bool normal_test_r = use_area_nos && distances_sq[i] <= normal_radius_sq;
-      const bool area_test_r = use_area_cos && distances_sq[i] <= position_radius_sq;
-      if (!normal_test_r && !area_test_r) {
+      const bool needs_normal = flag_is_set(flag, AverageDataFlags::Normal) &&
+                                distances_sq[i] <= normal_radius_sq;
+      const bool needs_center = flag_is_set(flag, AverageDataFlags::Position) &&
+                                distances_sq[i] <= position_radius_sq;
+      if (!needs_normal && !needs_center) {
         i++;
         continue;
       }
       const float3 &normal = normals[i];
       const float distance = std::sqrt(distances_sq[i]);
       const int flip_index = math::dot(view_normal, normal) <= 0.0f;
-      if (area_test_r) {
+      if (needs_center) {
         accumulate_area_center(
             location, positions[i], distance, position_radius_inv, flip_index, anctd);
       }
-      if (normal_test_r) {
+      if (needs_normal) {
         accumulate_area_normal(normal, distance, normal_radius_inv, flip_index, anctd);
       }
       i++;
@@ -1672,20 +1711,22 @@ static void calc_area_normal_and_center_node_bmesh(const Object &object,
       i++;
       continue;
     }
-    const bool normal_test_r = use_area_nos && distances_sq[i] <= normal_radius_sq;
-    const bool area_test_r = use_area_cos && distances_sq[i] <= position_radius_sq;
-    if (!normal_test_r && !area_test_r) {
+    const bool needs_normal = flag_is_set(flag, AverageDataFlags::Normal) &&
+                              distances_sq[i] <= normal_radius_sq;
+    const bool needs_center = flag_is_set(flag, AverageDataFlags::Position) &&
+                              distances_sq[i] <= position_radius_sq;
+    if (!needs_normal && !needs_center) {
       i++;
       continue;
     }
     const float3 normal = vert->no;
     const float distance = std::sqrt(distances_sq[i]);
     const int flip_index = math::dot(view_normal, normal) <= 0.0f;
-    if (area_test_r) {
+    if (needs_center) {
       accumulate_area_center(
           location, positions[i], distance, position_radius_inv, flip_index, anctd);
     }
-    if (normal_test_r) {
+    if (needs_normal) {
       accumulate_area_normal(normal, distance, normal_radius_inv, flip_index, anctd);
     }
     i++;
@@ -1743,8 +1784,7 @@ void calc_area_center(const Depsgraph &depsgraph,
                                                     vert_normals,
                                                     hide_vert,
                                                     brush,
-                                                    false,
-                                                    true,
+                                                    AverageDataFlags::Position,
                                                     nodes[i],
                                                     tls,
                                                     anctd);
@@ -1766,7 +1806,7 @@ void calc_area_center(const Depsgraph &depsgraph,
             SampleLocalData &tls = all_tls.local();
             node_mask.slice(range).foreach_index([&](const int i) {
               calc_area_normal_and_center_node_bmesh(
-                  ob, brush, false, true, has_bm_orco, nodes[i], tls, anctd);
+                  ob, brush, AverageDataFlags::Position, has_bm_orco, nodes[i], tls, anctd);
             });
             return anctd;
           },
@@ -1782,7 +1822,8 @@ void calc_area_center(const Depsgraph &depsgraph,
           [&](const IndexRange range, AreaNormalCenterData anctd) {
             SampleLocalData &tls = all_tls.local();
             node_mask.slice(range).foreach_index([&](const int i) {
-              calc_area_normal_and_center_node_grids(ob, brush, false, true, nodes[i], tls, anctd);
+              calc_area_normal_and_center_node_grids(
+                  ob, brush, AverageDataFlags::Position, nodes[i], tls, anctd);
             });
             return anctd;
           },
@@ -1843,8 +1884,7 @@ std::optional<float3> calc_area_normal(const Depsgraph &depsgraph,
                                                     vert_normals,
                                                     hide_vert,
                                                     brush,
-                                                    true,
-                                                    false,
+                                                    AverageDataFlags::Normal,
                                                     nodes[i],
                                                     tls,
                                                     anctd);
@@ -1868,8 +1908,7 @@ std::optional<float3> calc_area_normal(const Depsgraph &depsgraph,
               calc_area_normal_and_center_node_bmesh(
                   ob,
                   brush,
-                  true,
-                  false,
+                  AverageDataFlags::Normal,
                   has_bm_orco,
                   static_cast<const blender::bke::pbvh::BMeshNode &>(nodes[i]),
                   tls,
@@ -1889,7 +1928,8 @@ std::optional<float3> calc_area_normal(const Depsgraph &depsgraph,
           [&](const IndexRange range, AreaNormalCenterData anctd) {
             SampleLocalData &tls = all_tls.local();
             node_mask.slice(range).foreach_index([&](const int i) {
-              calc_area_normal_and_center_node_grids(ob, brush, true, false, nodes[i], tls, anctd);
+              calc_area_normal_and_center_node_grids(
+                  ob, brush, AverageDataFlags::Normal, nodes[i], tls, anctd);
             });
             return anctd;
           },
@@ -2042,8 +2082,7 @@ void calc_area_normal_and_center(const Depsgraph &depsgraph,
                                                     vert_normals,
                                                     hide_vert,
                                                     brush,
-                                                    true,
-                                                    true,
+                                                    AverageDataFlags::All,
                                                     nodes[i],
                                                     tls,
                                                     anctd);
@@ -2065,7 +2104,7 @@ void calc_area_normal_and_center(const Depsgraph &depsgraph,
             SampleLocalData &tls = all_tls.local();
             node_mask.slice(range).foreach_index([&](const int i) {
               calc_area_normal_and_center_node_bmesh(
-                  ob, brush, true, true, has_bm_orco, nodes[i], tls, anctd);
+                  ob, brush, AverageDataFlags::All, has_bm_orco, nodes[i], tls, anctd);
             });
             return anctd;
           },
@@ -2081,7 +2120,8 @@ void calc_area_normal_and_center(const Depsgraph &depsgraph,
           [&](const IndexRange range, AreaNormalCenterData anctd) {
             SampleLocalData &tls = all_tls.local();
             node_mask.slice(range).foreach_index([&](const int i) {
-              calc_area_normal_and_center_node_grids(ob, brush, true, true, nodes[i], tls, anctd);
+              calc_area_normal_and_center_node_grids(
+                  ob, brush, AverageDataFlags::All, nodes[i], tls, anctd);
             });
             return anctd;
           },
@@ -2166,7 +2206,9 @@ static float brush_strength(const Sculpt &sd,
   /* Primary strength input; square it to make lower values more sensitive. */
   const float root_alpha = BKE_brush_alpha_get(&sd.paint, &brush);
   const float alpha = root_alpha * root_alpha;
-  const float pressure = BKE_brush_use_alpha_pressure(&brush) ? cache.pressure : 1.0f;
+  const float pressure = BKE_brush_use_alpha_pressure(&brush) ?
+                             BKE_curvemapping_evaluateF(brush.curve_strength, 0, cache.pressure) :
+                             1.0f;
   float overlap = paint_runtime.overlap_factor;
   /* Spacing is integer percentage of radius, divide by 50 to get
    * normalized diameter. */
@@ -3012,7 +3054,7 @@ static void dynamic_topology_update(const Depsgraph &depsgraph,
 
   /* Free index based vertex info as it will become invalid after modifying the topology during the
    * stroke. */
-  ss.vertex_info.boundary.clear();
+  ss.boundary_info_cache.reset();
 
   PBVHTopologyUpdateMode mode = PBVHTopologyUpdateMode(0);
 
@@ -3403,7 +3445,9 @@ static void do_brush_action(const Depsgraph &depsgraph,
   if (!ELEM(brush.sculpt_brush_type, SCULPT_BRUSH_TYPE_SMOOTH, SCULPT_BRUSH_TYPE_MASK) &&
       brush.autosmooth_factor > 0)
   {
-    if (brush.flag & BRUSH_INVERSE_SMOOTH_PRESSURE) {
+    if (bke::brush::supports_auto_smooth_pressure(brush) &&
+        brush.flag & BRUSH_INVERSE_SMOOTH_PRESSURE)
+    {
       brushes::do_smooth_brush(
           depsgraph, sd, ob, node_mask, brush.autosmooth_factor * (1.0f - ss.cache->pressure));
     }
@@ -3883,7 +3927,7 @@ static void smooth_brush_toggle_on(const bContext *C, Paint *paint, StrokeCache 
 
   cache->saved_smooth_size = BKE_brush_size_get(paint, smooth_brush);
   BKE_brush_size_set(paint, smooth_brush, cur_brush_size);
-  BKE_curvemapping_init(smooth_brush->curve);
+  BKE_curvemapping_init(smooth_brush->curve_distance_falloff);
 }
 
 static void smooth_brush_toggle_off(Paint *paint, StrokeCache *cache)
@@ -4063,17 +4107,19 @@ static float brush_dynamic_size_get(const Brush &brush,
                                     const StrokeCache &cache,
                                     float initial_size)
 {
+  const float pressure_eval = BKE_curvemapping_evaluateF(brush.curve_size, 0, cache.pressure);
   switch (brush.sculpt_brush_type) {
     case SCULPT_BRUSH_TYPE_CLAY:
-      return max_ff(initial_size * 0.20f, initial_size * pow3f(cache.pressure));
+      return max_ff(initial_size * 0.20f, initial_size * pow3f(pressure_eval));
     case SCULPT_BRUSH_TYPE_CLAY_STRIPS:
-      return max_ff(initial_size * 0.30f, initial_size * powf(cache.pressure, 1.5f));
+      return max_ff(initial_size * 0.30f, initial_size * powf(pressure_eval, 1.5f));
     case SCULPT_BRUSH_TYPE_CLAY_THUMB: {
       float clay_stabilized_pressure = brushes::clay_thumb_get_stabilized_pressure(cache);
-      return initial_size * clay_stabilized_pressure;
+      return initial_size *
+             BKE_curvemapping_evaluateF(brush.curve_size, 0, clay_stabilized_pressure);
     }
     default:
-      return initial_size * cache.pressure;
+      return initial_size * pressure_eval;
   }
 }
 
@@ -4156,7 +4202,9 @@ static void brush_delta_update(const Depsgraph &depsgraph,
   float grab_location[3], imat[4][4], delta[3], loc[3];
 
   if (SCULPT_stroke_is_first_brush_step_of_symmetry_pass(*ss.cache)) {
-    if (brush_type == SCULPT_BRUSH_TYPE_GRAB && brush.flag & BRUSH_GRAB_ACTIVE_VERTEX) {
+    if (brush_type == SCULPT_BRUSH_TYPE_GRAB && brush.flag & BRUSH_GRAB_ACTIVE_VERTEX &&
+        !std::holds_alternative<std::monostate>(ss.active_vert()))
+    {
       if (pbvh.type() == bke::pbvh::Type::Mesh) {
         const Span<float3> positions = vert_positions_for_grab_active_get(depsgraph, ob);
         cache->orig_grab_location = positions[std::get<int>(ss.active_vert())];
@@ -4269,7 +4317,9 @@ static void brush_delta_update(const Depsgraph &depsgraph,
 static void cache_paint_invariants_update(StrokeCache &cache, const Brush &brush)
 {
   cache.hardness = brush.hardness;
-  if (brush.paint_flags & BRUSH_PAINT_HARDNESS_PRESSURE) {
+  if (bke::brush::supports_hardness_pressure(brush) &&
+      brush.paint_flags & BRUSH_PAINT_HARDNESS_PRESSURE)
+  {
     cache.hardness *= brush.paint_flags & BRUSH_PAINT_HARDNESS_PRESSURE_INVERT ?
                           1.0f - cache.pressure :
                           cache.pressure;
@@ -4347,7 +4397,7 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt &sd, Object &ob, Po
     cache.initial_radius = object_space_radius_get(*cache.vc, paint, brush, cache.location);
 
     if (!BKE_brush_use_locked_size(&paint, &brush)) {
-      BKE_brush_unprojected_radius_set(&paint, &brush, cache.initial_radius);
+      BKE_brush_unprojected_size_set(&paint, &brush, cache.initial_radius * 2.0f);
     }
   }
 
@@ -4440,20 +4490,20 @@ static bool sculpt_needs_connectivity_info(const Sculpt &sd,
 
 }  // namespace blender::ed::sculpt_paint
 
-void SCULPT_stroke_modifiers_check(const bContext *C, Object &ob, const Brush &brush)
+void SCULPT_stroke_modifiers_check(const bContext *C, Object &ob, const Brush *brush)
 {
   using namespace blender::ed::sculpt_paint;
   SculptSession &ss = *ob.sculpt;
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
   const Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
 
-  bool need_pmap = sculpt_needs_connectivity_info(sd, brush, ob, 0);
+  bool need_pmap = brush && sculpt_needs_connectivity_info(sd, *brush, ob, 0);
   if (ss.shapekey_active || ss.deform_modifiers_active ||
       (!BKE_sculptsession_use_pbvh_draw(&ob, rv3d) && need_pmap))
   {
     Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
     BKE_sculpt_update_object_for_edit(
-        depsgraph, &ob, brush_type_is_paint(brush.sculpt_brush_type));
+        depsgraph, &ob, brush_type_is_paint(brush->sculpt_brush_type));
   }
 }
 
@@ -4689,7 +4739,7 @@ bool cursor_geometry_info_update(bContext *C,
   float3 ray_end;
   float3 ray_normal;
   float depth = raycast_init(&vc, mval, ray_start, ray_end, ray_normal, original);
-  SCULPT_stroke_modifiers_check(C, ob, brush);
+  SCULPT_stroke_modifiers_check(C, ob, &brush);
 
   RaycastData srd{};
   srd.use_original = original;
@@ -4816,7 +4866,7 @@ static bool stroke_get_location_bvh_ex(bContext *C,
   StrokeCache *cache = ss.cache;
   const bool original = force_original || ((cache) ? !cache->accum : false);
   Paint *paint = BKE_paint_get_active_from_context(C);
-  const Brush &brush = *BKE_paint_brush(paint);
+  const Brush *brush = BKE_paint_brush(paint);
 
   SCULPT_stroke_modifiers_check(C, ob, brush);
 
@@ -4905,8 +4955,10 @@ static bool stroke_get_location_bvh_ex(bContext *C,
 
   float closest_radius_sq = std::numeric_limits<float>::max();
   if (limit_closest_radius) {
-    closest_radius_sq = object_space_radius_get(vc, *paint, brush, out);
-    closest_radius_sq *= closest_radius_sq;
+    if (brush) {
+      closest_radius_sq = object_space_radius_get(vc, *paint, *brush, out);
+      closest_radius_sq *= closest_radius_sq;
+    }
   }
 
   return hit && fntrd.dist_sq_to_ray < closest_radius_sq;
@@ -4918,7 +4970,7 @@ bool stroke_get_location_bvh(bContext *C,
                              const bool force_original)
 {
   const Brush *brush = BKE_paint_brush(BKE_paint_get_active_from_context(C));
-  const bool check_closest = brush->falloff_shape == PAINT_FALLOFF_SHAPE_TUBE;
+  const bool check_closest = brush && brush->falloff_shape == PAINT_FALLOFF_SHAPE_TUBE;
 
   float3 location;
   const bool result = stroke_get_location_bvh_ex(
@@ -5009,11 +5061,7 @@ static void restore_from_undo_step_if_necessary(const Depsgraph &depsgraph,
   }
 
   /* Restore the mesh before continuing with anchored stroke. */
-  if ((brush->flag & BRUSH_ANCHORED) ||
-      (ELEM(brush->sculpt_brush_type, SCULPT_BRUSH_TYPE_GRAB, SCULPT_BRUSH_TYPE_ELASTIC_DEFORM) &&
-       BKE_brush_use_size_pressure(brush)) ||
-      (brush->flag & BRUSH_DRAG_DOT))
-  {
+  if (brush->flag & BRUSH_ANCHORED || brush->flag & BRUSH_DRAG_DOT) {
 
     undo::restore_from_undo_step(depsgraph, sd, ob);
 
@@ -5517,7 +5565,7 @@ static void stroke_update_step(bContext *C,
   StrokeCache *cache = ss.cache;
   cache->stroke_distance = paint_stroke_distance_get(stroke);
 
-  SCULPT_stroke_modifiers_check(C, ob, brush);
+  SCULPT_stroke_modifiers_check(C, ob, &brush);
   sculpt_update_cache_variants(C, sd, ob, itemptr);
   restore_from_undo_step_if_necessary(depsgraph, sd, ob);
 
@@ -5579,7 +5627,7 @@ static void stroke_done(const bContext *C, PaintStroke * /*stroke*/)
   BLI_assert(brush == ss.cache->brush); /* const, so we shouldn't change. */
   paint_runtime->draw_inverted = false;
 
-  SCULPT_stroke_modifiers_check(C, ob, *brush);
+  SCULPT_stroke_modifiers_check(C, ob, brush);
 
   /* Alt-Smooth. */
   if (ss.cache->alt_smooth) {
@@ -5770,8 +5818,8 @@ void SCULPT_OT_brush_stroke(wmOperatorType *ot)
       "override_location",
       false,
       "Override Location",
-      "Override the given `location` array by recalculating object space positions from the "
-      "provided `mouse_event` positions");
+      "Override the given \"location\" array by recalculating object space positions from the "
+      "provided \"mouse_event\" positions");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
   RNA_def_boolean(ot->srna,
@@ -6046,33 +6094,6 @@ static void fake_neighbor_search(const Depsgraph &depsgraph,
 }
 
 }  // namespace blender::ed::sculpt_paint
-
-namespace blender::ed::sculpt_paint::boundary {
-
-void ensure_boundary_info(Object &object)
-{
-  SculptSession &ss = *object.sculpt;
-  if (!ss.vertex_info.boundary.is_empty()) {
-    return;
-  }
-
-  Mesh *base_mesh = BKE_mesh_from_object(&object);
-
-  ss.vertex_info.boundary.resize(base_mesh->verts_num);
-  Array<int> adjacent_faces_edge_count(base_mesh->edges_num, 0);
-  array_utils::count_indices(base_mesh->corner_edges(), adjacent_faces_edge_count);
-
-  const Span<int2> edges = base_mesh->edges();
-  for (const int e : edges.index_range()) {
-    if (adjacent_faces_edge_count[e] < 2) {
-      const int2 &edge = edges[e];
-      ss.vertex_info.boundary[edge[0]].set();
-      ss.vertex_info.boundary[edge[1]].set();
-    }
-  }
-}
-
-}  // namespace blender::ed::sculpt_paint::boundary
 
 Span<int> SCULPT_fake_neighbors_ensure(const Depsgraph &depsgraph,
                                        Object &ob,
@@ -7164,8 +7185,11 @@ void calc_brush_strength_factors(const StrokeCache &cache,
                                  const Span<float> distances,
                                  const MutableSpan<float> factors)
 {
-  BKE_brush_calc_curve_factors(
-      eBrushCurvePreset(brush.curve_preset), brush.curve, distances, cache.radius, factors);
+  BKE_brush_calc_curve_factors(eBrushCurvePreset(brush.curve_distance_falloff_preset),
+                               brush.curve_distance_falloff,
+                               distances,
+                               cache.radius,
+                               factors);
 }
 
 void calc_brush_texture_factors(const SculptSession &ss,
@@ -7536,24 +7560,6 @@ void translations_from_new_positions(const Span<float3> new_positions,
   }
 }
 
-void transform_positions(const Span<float3> src,
-                         const float4x4 &transform,
-                         const MutableSpan<float3> dst)
-{
-  BLI_assert(src.size() == dst.size());
-
-  for (const int i : src.index_range()) {
-    dst[i] = math::transform_point(transform, src[i]);
-  }
-}
-
-void transform_positions(const float4x4 &transform, const MutableSpan<float3> positions)
-{
-  for (const int i : positions.index_range()) {
-    positions[i] = math::transform_point(transform, positions[i]);
-  }
-}
-
 OffsetIndices<int> create_node_vert_offsets(const Span<bke::pbvh::MeshNode> nodes,
                                             const IndexMask &node_mask,
                                             Array<int> &node_data)
@@ -7621,10 +7627,12 @@ GroupedSpan<int> calc_vert_neighbors(const SubdivCCG &subdiv_ccg,
   for (const int i : grids.index_range()) {
     const int grid = grids[i];
     const int node_verts_start = i * key.grid_area;
-    r_offset_data[node_verts_start] = r_data.size();
 
     for (const short y : IndexRange(key.grid_size)) {
       for (const short x : IndexRange(key.grid_size)) {
+        const int offset = CCG_grid_xy_to_index(key.grid_size, x, y);
+        r_offset_data[node_verts_start + offset] = r_data.size();
+
         SubdivCCGCoord coord{};
         coord.grid_index = grid;
         coord.x = x;
@@ -7636,6 +7644,7 @@ GroupedSpan<int> calc_vert_neighbors(const SubdivCCG &subdiv_ccg,
       }
     }
   }
+  r_offset_data.last() = r_data.size();
   return GroupedSpan<int>(r_offset_data.as_span(), r_data.as_span());
 }
 
@@ -7662,6 +7671,7 @@ static GroupedSpan<int> calc_vert_neighbors_interior_impl(const OffsetIndices<in
                                                           const Span<int> corner_verts,
                                                           const GroupedSpan<int> vert_to_face,
                                                           const BitSpan boundary_verts,
+                                                          const Set<OrderedEdge> &boundary_edges,
                                                           const Span<bool> hide_poly,
                                                           const Span<int> verts,
                                                           const Span<float> factors,
@@ -7695,7 +7705,8 @@ static GroupedSpan<int> calc_vert_neighbors_interior_impl(const OffsetIndices<in
       else {
         /* Only include other boundary vertices as neighbors of boundary vertices. */
         for (int neighbor_i = r_data.size() - 1; neighbor_i >= vert_start; neighbor_i--) {
-          if (!boundary_verts[r_data[neighbor_i]]) {
+          OrderedEdge edge(r_data[neighbor_i], vert);
+          if (!boundary_edges.contains(OrderedEdge(r_data[neighbor_i], vert))) {
             r_data.remove_and_reorder(neighbor_i);
           }
         }
@@ -7710,6 +7721,7 @@ GroupedSpan<int> calc_vert_neighbors_interior(const OffsetIndices<int> faces,
                                               const Span<int> corner_verts,
                                               const GroupedSpan<int> vert_to_face,
                                               const BitSpan boundary_verts,
+                                              const Set<OrderedEdge> &boundary_edges,
                                               const Span<bool> hide_poly,
                                               const Span<int> verts,
                                               const Span<float> factors,
@@ -7720,6 +7732,7 @@ GroupedSpan<int> calc_vert_neighbors_interior(const OffsetIndices<int> faces,
                                                  corner_verts,
                                                  vert_to_face,
                                                  boundary_verts,
+                                                 boundary_edges,
                                                  hide_poly,
                                                  verts,
                                                  factors,
@@ -7731,6 +7744,7 @@ GroupedSpan<int> calc_vert_neighbors_interior(const OffsetIndices<int> faces,
                                               const Span<int> corner_verts,
                                               const GroupedSpan<int> vert_to_face,
                                               const BitSpan boundary_verts,
+                                              const Set<OrderedEdge> &boundary_edges,
                                               const Span<bool> hide_poly,
                                               const Span<int> verts,
                                               Vector<int> &r_offset_data,
@@ -7740,6 +7754,7 @@ GroupedSpan<int> calc_vert_neighbors_interior(const OffsetIndices<int> faces,
                                                   corner_verts,
                                                   vert_to_face,
                                                   boundary_verts,
+                                                  boundary_edges,
                                                   hide_poly,
                                                   verts,
                                                   {},
@@ -7750,6 +7765,7 @@ GroupedSpan<int> calc_vert_neighbors_interior(const OffsetIndices<int> faces,
 void calc_vert_neighbors_interior(const OffsetIndices<int> faces,
                                   const Span<int> corner_verts,
                                   const BitSpan boundary_verts,
+                                  const Set<OrderedEdge> &boundary_edges,
                                   const SubdivCCG &subdiv_ccg,
                                   const Span<int> grids,
                                   const MutableSpan<Vector<SubdivCCGCoord>> result)
@@ -7777,8 +7793,8 @@ void calc_vert_neighbors_interior(const OffsetIndices<int> faces,
         SubdivCCGNeighbors neighbors;
         BKE_subdiv_ccg_neighbor_coords_get(subdiv_ccg, coord, false, neighbors);
 
-        if (BKE_subdiv_ccg_coord_is_mesh_boundary(
-                faces, corner_verts, boundary_verts, subdiv_ccg, coord))
+        if (boundary::vert_is_boundary(
+                faces, corner_verts, boundary_verts, boundary_edges, subdiv_ccg, coord))
         {
           if (neighbors.coords.size() == 2) {
             /* Do not include neighbors of corner vertices. */
@@ -7787,8 +7803,8 @@ void calc_vert_neighbors_interior(const OffsetIndices<int> faces,
           else {
             /* Only include other boundary vertices as neighbors of boundary vertices. */
             neighbors.coords.remove_if([&](const SubdivCCGCoord coord) {
-              return !BKE_subdiv_ccg_coord_is_mesh_boundary(
-                  faces, corner_verts, boundary_verts, subdiv_ccg, coord);
+              return !boundary::vert_is_boundary(
+                  faces, corner_verts, boundary_verts, boundary_edges, subdiv_ccg, coord);
             });
           }
         }

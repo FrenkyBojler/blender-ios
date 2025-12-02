@@ -15,6 +15,7 @@
 #include "BKE_material.hh"
 #include "BKE_object_deform.h"
 #include "BKE_paint.hh"
+#include "BKE_paint_types.hh"
 #include "BKE_report.hh"
 #include "BKE_screen.hh"
 
@@ -24,7 +25,7 @@
 #include "BLI_color.hh"
 #include "BLI_index_mask.hh"
 #include "BLI_kdopbvh.hh"
-#include "BLI_kdtree.h"
+#include "BLI_kdtree.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.hh"
@@ -891,7 +892,7 @@ static void grease_pencil_fill_extension_lines_from_circles(
   Array<float2> view_centers(max_kd_entries);
   Array<float> view_radii(max_kd_entries);
 
-  KDTree_2d *kdtree = BLI_kdtree_2d_new(max_kd_entries);
+  blender::KDTree_2d *kdtree = blender::BLI_kdtree_2d_new(max_kd_entries);
 
   /* Insert points for overlap tests. */
   for (const int point_i : circles_range.index_range()) {
@@ -904,13 +905,13 @@ static void grease_pencil_fill_extension_lines_from_circles(
     view_centers[kd_index] = center;
     view_radii[kd_index] = radius;
 
-    BLI_kdtree_2d_insert(kdtree, kd_index, center);
+    blender::BLI_kdtree_2d_insert(kdtree, kd_index, center);
   }
   for (const int i_point : feature_points_range.index_range()) {
     /* TODO Insert feature points into the KDTree. */
     UNUSED_VARS(i_point);
   }
-  BLI_kdtree_2d_balance(kdtree);
+  blender::BLI_kdtree_2d_balance(kdtree);
 
   struct {
     Vector<float3> starts;
@@ -926,7 +927,7 @@ static void grease_pencil_fill_extension_lines_from_circles(
     const float radius = view_radii[kd_index];
 
     bool found = false;
-    BLI_kdtree_2d_range_search_cb_cpp(
+    blender::BLI_kdtree_2d_range_search_cb_cpp(
         kdtree,
         center,
         radius,
@@ -955,7 +956,7 @@ static void grease_pencil_fill_extension_lines_from_circles(
     }
   }
 
-  BLI_kdtree_2d_free(kdtree);
+  blender::BLI_kdtree_2d_free(kdtree);
 
   /* Add new extension lines. */
   extension_data.lines.starts.extend(connection_lines.starts);
@@ -1197,27 +1198,27 @@ static VArray<bool> get_fill_boundary_layers(const GreasePencil &grease_pencil,
 
   switch (fill_layer_mode) {
     case GP_FILL_GPLMODE_ACTIVE:
-      return VArray<bool>::from_func(all_layers.size(), [active_layer_index](const int index) {
+      return VArray<bool>::from_std_func(all_layers.size(), [active_layer_index](const int index) {
         return index != active_layer_index;
       });
     case GP_FILL_GPLMODE_ABOVE:
-      return VArray<bool>::from_func(all_layers.size(), [active_layer_index](const int index) {
+      return VArray<bool>::from_std_func(all_layers.size(), [active_layer_index](const int index) {
         return index != active_layer_index + 1;
       });
     case GP_FILL_GPLMODE_BELOW:
-      return VArray<bool>::from_func(all_layers.size(), [active_layer_index](const int index) {
+      return VArray<bool>::from_std_func(all_layers.size(), [active_layer_index](const int index) {
         return index != active_layer_index - 1;
       });
     case GP_FILL_GPLMODE_ALL_ABOVE:
-      return VArray<bool>::from_func(all_layers.size(), [active_layer_index](const int index) {
+      return VArray<bool>::from_std_func(all_layers.size(), [active_layer_index](const int index) {
         return index <= active_layer_index;
       });
     case GP_FILL_GPLMODE_ALL_BELOW:
-      return VArray<bool>::from_func(all_layers.size(), [active_layer_index](const int index) {
+      return VArray<bool>::from_std_func(all_layers.size(), [active_layer_index](const int index) {
         return index >= active_layer_index;
       });
     case GP_FILL_GPLMODE_VISIBLE:
-      return VArray<bool>::from_func(all_layers.size(), [grease_pencil](const int index) {
+      return VArray<bool>::from_std_func(all_layers.size(), [grease_pencil](const int index) {
         return !grease_pencil.layers()[index]->is_visible();
       });
   }
@@ -1859,7 +1860,7 @@ static inline bool is_point_inside_bounds(const Bounds<int2> bounds, const int2 
 static inline bool is_point_inside_lasso(const Array<int2> lasso, const int2 point)
 {
   return isect_point_poly_v2_int(
-      point, reinterpret_cast<const int(*)[2]>(lasso.data()), uint(lasso.size()));
+      point, reinterpret_cast<const int (*)[2]>(lasso.data()), uint(lasso.size()));
 }
 
 static wmOperatorStatus grease_pencil_erase_lasso_exec(bContext *C, wmOperator *op)

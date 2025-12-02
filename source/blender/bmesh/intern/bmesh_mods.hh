@@ -58,8 +58,8 @@ bool BM_disk_dissolve(BMesh *bm, BMVert *v);
  * \param l_b: Second loop of an adjacent face pair that will be joined.
  * \param do_del: If true, remove the original faces, internal edges,
  * and internal verts such that they are replaced by the new face.
- * \param r_double: A pointer to a BMFace* that controls processing of doubled faces.
- * See #BM_faces_join_pair `r_double` argument for details.
+ * \param r_double: A pointer to a face that controls processing of doubled faces.
+ * See #BM_faces_join `r_double` argument for details.
  *
  * \return The combined face or NULL on failure.
  */
@@ -152,6 +152,9 @@ BMEdge *BM_vert_collapse_faces(BMesh *bm,
  * Collapses a vertex onto another vertex it shares an edge with.
  *
  * \return The New Edge
+ *
+ * \note To check if collapsing would create duplicate geometry,
+ * see: #BM_vert_collapse_check_double_face.
  */
 BMEdge *BM_vert_collapse_edge(BMesh *bm,
                               BMEdge *e_kill,

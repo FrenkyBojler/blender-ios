@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Alpha (b'6dca66d606ed')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'dba3692987cb')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-08-11 08:28+0000\n"
+"POT-Creation-Date: 2025-12-02 11:29+0000\n"
 "PO-Revision-Date: 2025-07-23 15:13+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Basque <https://translate.blender.org/projects/blender-ui/ui/eu/>\n"
@@ -255,6 +255,10 @@ msgid "Layer"
 msgstr "Geruza"
 
 
+msgid "Object"
+msgstr "Objektua"
+
+
 msgid "+X"
 msgstr "+X"
 
@@ -269,10 +273,6 @@ msgstr "-X"
 
 msgid "-Y"
 msgstr "-Y"
-
-
-msgid "Object"
-msgstr "Objektua"
 
 
 msgid "Emit"
@@ -427,10 +427,6 @@ msgid "Tools"
 msgstr "Tresnak"
 
 
-msgid "Groups"
-msgstr "Taldeak"
-
-
 msgid "Local"
 msgstr "Lokala"
 
@@ -438,10 +434,6 @@ msgstr "Lokala"
 msgctxt "Curve"
 msgid "Sphere"
 msgstr "Esfera"
-
-
-msgid "Direction"
-msgstr "Norabidea"
 
 
 msgid "Sequence"
@@ -532,6 +524,10 @@ msgid "Owner"
 msgstr "Jabea"
 
 
+msgid "Direction"
+msgstr "Norabidea"
+
+
 msgctxt "UI_Events_KeyMaps"
 msgid "Delete"
 msgstr "Ezabatu"
@@ -539,6 +535,10 @@ msgstr "Ezabatu"
 
 msgid "Mouse"
 msgstr "Sagua"
+
+
+msgid "Groups"
+msgstr "Taldeak"
 
 
 msgid "Selected Objects"
@@ -553,10 +553,6 @@ msgid "Min Angle"
 msgstr "Angelu Minimoa"
 
 
-msgid "Relations"
-msgstr "Loturak"
-
-
 msgid "Show/Hide"
 msgstr "Erakutsi/Ezkutatu"
 
@@ -565,16 +561,20 @@ msgid "Text"
 msgstr "Testua"
 
 
+msgid "Import"
+msgstr "Inportatu"
+
+
 msgid "UV"
 msgstr "UV"
 
 
+msgid "Relations"
+msgstr "Loturak"
+
+
 msgid "Show/Hide Faces"
 msgstr "Aurpegiak erakutsi/ezkutatu"
-
-
-msgid "Import"
-msgstr "Inportatu"
 
 
 msgid "Physics"
@@ -623,14 +623,6 @@ msgid "Starting"
 msgstr "Hasten"
 
 
-msgid "Shadow"
-msgstr "Itzala"
-
-
-msgid "Combined"
-msgstr "Konbinatuak"
-
-
 msgid "Translate"
 msgstr "Mugitu"
 
@@ -673,6 +665,10 @@ msgstr "Y Ardatza"
 
 msgid "Z Axis"
 msgstr "Z Ardatza"
+
+
+msgid "Shadow"
+msgstr "Itzala"
 
 
 msgctxt "Operator"
@@ -888,6 +884,18 @@ msgid "Reset Original Length"
 msgstr "Jatorrizko Luzera Berrasieratu"
 
 
+msgid "Remove from selection"
+msgstr "Hautaketatik ezabatu"
+
+
+msgid "Toggle Selection"
+msgstr "Hautaketa txandakatu"
+
+
+msgid "Toggle the selection"
+msgstr "Hautaketa txandakatu"
+
+
 msgctxt "Operator"
 msgid "(De)select First"
 msgstr "(Ez)hautatu Lehena"
@@ -906,18 +914,6 @@ msgstr "Kurba Bikoiztu"
 msgctxt "Operator"
 msgid "Add Duplicate"
 msgstr "Bikoizketa Gehitu"
-
-
-msgid "Remove from selection"
-msgstr "Hautaketatik ezabatu"
-
-
-msgid "Toggle Selection"
-msgstr "Hautaketa txandakatu"
-
-
-msgid "Toggle the selection"
-msgstr "Hautaketa txandakatu"
 
 
 msgid "Object Types"
@@ -1447,6 +1443,10 @@ msgid "Mouse location"
 msgstr "Arratoiaren lokalizazioa"
 
 
+msgid "Combined"
+msgstr "Konbinatuak"
+
+
 msgctxt "Operator"
 msgid "Join"
 msgstr "Elkartu"
@@ -1852,11 +1852,6 @@ msgstr "Kolorea"
 msgctxt "Operator"
 msgid "Text"
 msgstr "Testua"
-
-
-msgctxt "Operator"
-msgid "Scene..."
-msgstr "Eszena"
 
 
 msgctxt "Text"

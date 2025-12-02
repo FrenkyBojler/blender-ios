@@ -29,7 +29,6 @@ struct PointerRNA;
 struct StructRNA;
 struct uiBlock;
 struct uiBut;
-struct uiLayout;
 struct uiList;
 struct uiSearchItems;
 struct wmDrag;
@@ -37,6 +36,7 @@ struct wmEvent;
 namespace blender::ui {
 class AbstractView;
 class AbstractViewItem;
+struct Layout;
 }  // namespace blender::ui
 
 void UI_but_func_set(uiBut *but, std::function<void(bContext &)> func);
@@ -76,14 +76,17 @@ struct ContextPathItem {
   /* #BIFIconID */
   int icon;
   int icon_indicator_number;
+
+  std::function<void(bContext &)> handle_func;
 };
 
 void context_path_add_generic(Vector<ContextPathItem> &path,
                               StructRNA &rna_type,
                               void *ptr,
-                              const BIFIconID icon_override = ICON_NONE);
+                              const BIFIconID icon_override = ICON_NONE,
+                              std::function<void(bContext &)> handle_func = nullptr);
 
-void template_breadcrumbs(uiLayout &layout, Span<ContextPathItem> context_path);
+void template_breadcrumbs(Layout &layout, Span<ContextPathItem> context_path);
 
 void attribute_search_add_items(StringRef str,
                                 bool can_create_attribute,
@@ -293,4 +296,8 @@ blender::ui::AbstractTreeView *UI_block_add_view(
     blender::StringRef idname,
     std::unique_ptr<blender::ui::AbstractTreeView> tree_view);
 
-void UI_alert(bContext *C, std::string title, std::string message, eAlertIcon icon, bool compact);
+void UI_alert(bContext *C,
+              blender::StringRef title,
+              blender::StringRef message,
+              blender::ui::AlertIcon icon,
+              bool compact);

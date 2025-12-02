@@ -16,6 +16,7 @@
 
 struct BlendDataReader;
 struct BlendWriter;
+struct IDTypeForeachColorFunctionCallback;
 namespace blender {
 class GPointer;
 class CPPType;
@@ -40,7 +41,7 @@ class Attribute {
      * stores the size and type itself. It may be possible to make use of that fact to avoid
      * storing it here, or even vice versa. */
     void *data;
-    /* The number of elements in the array. */
+    /** The number of elements in the array. */
     int64_t size;
     ImplicitSharingPtr<> sharing_info;
     static ArrayData from_value(const GPointer &value, int64_t domain_size);
@@ -178,7 +179,7 @@ class AttributeStorage : public ::AttributeStorage {
                  Attribute::DataVariant data);
 
   /** Return a possibly changed version of the input name that is unique within existing names. */
-  std::string unique_name_calc(StringRef name);
+  std::string unique_name_calc(StringRef name) const;
 
   /** Change the name of a single existing attribute. */
   void rename(StringRef old_name, std::string new_name);
@@ -208,6 +209,11 @@ class AttributeStorage : public ::AttributeStorage {
    * the #AttributeStorage struct.
    */
   void blend_write(BlendWriter &writer, const BlendWriteData &write_data);
+
+  /**
+   * Iterate over every color to change it to another color-space.
+   */
+  void foreach_working_space_color(const IDTypeForeachColorFunctionCallback &fn);
 
   void count_memory(MemoryCounter &memory) const;
 };

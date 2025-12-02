@@ -159,7 +159,6 @@ static eAutoPropButsReturn template_operator_property_buts_draw_single(
     block = col->block();
     but = uiDefIconTextBut(block,
                            ButType::But,
-                           0,
                            ICON_FILE_REFRESH,
                            IFACE_("Reset"),
                            0,
@@ -392,7 +391,7 @@ static void draw_export_properties(bContext *C,
 
 static void draw_exporter_item(uiList * /*ui_list*/,
                                const bContext * /*C*/,
-                               uiLayout *layout,
+                               blender::ui::Layout &layout,
                                PointerRNA * /*idataptr*/,
                                PointerRNA *itemptr,
                                int /*icon*/,
@@ -401,9 +400,9 @@ static void draw_exporter_item(uiList * /*ui_list*/,
                                int /*index*/,
                                int /*flt_flag*/)
 {
-  uiLayout *row = &layout->row(false);
-  row->emboss_set(blender::ui::EmbossType::None);
-  row->prop(itemptr, "name", UI_ITEM_NONE, "", ICON_NONE);
+  blender::ui::Layout &row = layout.row(false);
+  row.emboss_set(blender::ui::EmbossType::None);
+  row.prop(itemptr, "name", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 void uiTemplateCollectionExporters(uiLayout *layout, bContext *C)
