@@ -130,7 +130,7 @@ class LatticeShapekeyTest(unittest.TestCase):
         self.assertEqual(eval_lattice.data.points[0].co[1], -0.5)
         self.assertEqual(eval_lattice.data.points[0].co[2], -0.5)
 
-        # Incomplete test, same issue as CurveShapekeyTest
+        # Incomplete test, same issue as CurveShapekeyTest.
 
 
 def main():
