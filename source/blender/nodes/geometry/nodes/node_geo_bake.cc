@@ -801,7 +801,7 @@ void draw_common_bake_settings(bContext *C, BakeDrawContext &ctx, ui::Layout &la
 
 static void draw_bake_data_block_list_item(uiList * /*ui_list*/,
                                            const bContext * /*C*/,
-                                           blender::ui::Layout &layout,
+                                           ui::Layout &layout,
                                            PointerRNA * /*idataptr*/,
                                            PointerRNA *itemptr,
                                            int /*icon*/,
