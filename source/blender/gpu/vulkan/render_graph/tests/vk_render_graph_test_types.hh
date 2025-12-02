@@ -499,6 +499,8 @@ class CommandBufferLog : public VKCommandBufferInterface {
   {
     EXPECT_TRUE(is_recording_);
     std::stringstream ss;
+    ss << "set_vertex_input(vertexBindingDescriptionCount=" << vertex_binding_descriptions.size()
+       << ", vertexAttributeDescriptionCount=" << vertex_attribute_descriptions.size() << ")";
     log_.append(ss.str());
   }
 

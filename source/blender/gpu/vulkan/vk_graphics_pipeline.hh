@@ -189,7 +189,7 @@ struct VKGraphicsPipelineCreateInfoBuilder {
         nullptr,
         nullptr,
         nullptr,
-        vk_dynamic_states.is_empty() ? nullptr : &vk_pipeline_dynamic_state_create_info,
+        &vk_pipeline_dynamic_state_create_info,
         VK_NULL_HANDLE,
         VK_NULL_HANDLE,
         0,
