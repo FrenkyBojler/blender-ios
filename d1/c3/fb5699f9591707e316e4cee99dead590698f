@@ -1,1 +1,2 @@
 Referenced by issue #149784, 5.0: Candidates for corrective releases
+Referenced by issue #149617, Collection will be added to scene twice if it is appended, deleted, then linked under certain conditions
