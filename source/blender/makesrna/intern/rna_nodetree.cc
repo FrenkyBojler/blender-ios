@@ -9937,6 +9937,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("CompositorNode", "CompositorNodeDBlur");
   define("CompositorNode", "CompositorNodeDefocus", def_cmp_defocus);
   define("CompositorNode", "CompositorNodeDenoise");
+  define("CompositorNode", "CompositorNodeTemporalDenoise");
   define("CompositorNode", "CompositorNodeDespeckle");
   define("CompositorNode", "CompositorNodeDiffMatte");
   define("CompositorNode", "CompositorNodeDilateErode");
