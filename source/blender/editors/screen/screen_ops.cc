@@ -930,6 +930,9 @@ static AZone *area_actionzone_refresh_xy(ScrArea *area, const int xy[2], const b
       if (az->type == AZONE_AREA) {
         break;
       }
+      if (az->type == AZONE_REGION_QUAD) {
+        break;
+      }
       if (az->type == AZONE_REGION) {
         const ARegion *region = az->region;
         const int local_xy[2] = {xy[0] - region->winrct.xmin, xy[1] - region->winrct.ymin};
@@ -1141,6 +1144,9 @@ static void actionzone_apply(bContext *C, wmOperator *op, int type)
   else if (type == AZONE_FULLSCREEN) {
     event.type = EVT_ACTIONZONE_FULLSCREEN;
   }
+  else if (type == AZONE_REGION_QUAD) {
+    event.type = EVT_ACTIONZONE_REGION_QUAD;
+  }
   else {
     event.type = EVT_ACTIONZONE_REGION;
   }
@@ -1174,8 +1180,8 @@ static wmOperatorStatus actionzone_invoke(bContext *C, wmOperator *op, const wmE
   sad->y = event->xy[1];
   sad->modifier = RNA_int_get(op->ptr, "modifier");
 
-  /* region azone directly reacts on mouse clicks */
-  if (ELEM(sad->az->type, AZONE_REGION, AZONE_FULLSCREEN)) {
+  /* Region azones directly react on mouse clicks. */
+  if (ELEM(sad->az->type, AZONE_REGION, AZONE_FULLSCREEN, AZONE_REGION_QUAD)) {
     actionzone_apply(C, op, sad->az->type);
     actionzone_exit(op);
     return OPERATOR_FINISHED;
@@ -3224,6 +3230,142 @@ static void SCREEN_OT_region_scale(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Quad View Resize Operator
+ * \{ */
+
+struct QuadViewSizeData {
+  ScrArea *area;
+  ARegion *region;
+  /* Combined bounds of the four regions. */
+  rcti bounds;
+  float original_ratio[2];
+};
+
+static void quadview_size_exit(wmOperator *op)
+{
+  QuadViewSizeData *qsd = static_cast<QuadViewSizeData *>(op->customdata);
+  MEM_freeN(qsd);
+  op->customdata = nullptr;
+  screen_modal_action_end();
+}
+
+static wmOperatorStatus quadview_size_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  sActionzoneData *sad = static_cast<sActionzoneData *>(event->customdata);
+
+  if (event->type != EVT_ACTIONZONE_REGION_QUAD) {
+    BKE_report(op->reports, RPT_ERROR, "Can only size Quad View from an action zone");
+    return OPERATOR_CANCELLED;
+  }
+
+  if (sad->sa1) {
+    QuadViewSizeData *qsd = MEM_callocN<QuadViewSizeData>("QuadViewSizeData");
+    op->customdata = qsd;
+    qsd->area = sad->sa1;
+    qsd->region = sad->az->region;
+
+    BLI_rcti_init_minmax(&qsd->bounds);
+    LISTBASE_FOREACH (ARegion *, region, &sad->sa1->regionbase) {
+      if (region->alignment == RGN_ALIGN_QSPLIT) {
+        BLI_rcti_do_minmax_rcti(&qsd->bounds, &region->winrct);
+      }
+    }
+
+    qsd->original_ratio[0] = float(BLI_rcti_size_x(&sad->az->region->winrct)) /
+                             float(BLI_rcti_size_x(&qsd->bounds));
+    qsd->original_ratio[1] = float(BLI_rcti_size_y(&sad->az->region->winrct)) /
+                             float(BLI_rcti_size_y(&qsd->bounds));
+
+    WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
+
+    /* add temp handler */
+    screen_modal_action_begin();
+    WM_event_add_modal_handler(C, op);
+
+    return OPERATOR_RUNNING_MODAL;
+  }
+
+  return OPERATOR_FINISHED;
+}
+
+static void quadview_size_cancel(bContext *C, wmOperator *op)
+{
+  ED_workspace_status_text(C, nullptr);
+  quadview_size_exit(op);
+}
+
+static wmOperatorStatus quadview_size_modal(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  QuadViewSizeData *qsd = static_cast<QuadViewSizeData *>(op->customdata);
+  switch (event->type) {
+    case MOUSEMOVE: {
+      if (qsd->region->runtime->type->on_user_resize) {
+        qsd->region->runtime->type->on_user_resize(qsd->region);
+      }
+      WM_cursor_set(CTX_wm_window(C), WM_CURSOR_NSEW_SCROLL);
+      float quad_x = float(event->xy[0] - (qsd->bounds.xmin)) /
+                     float(BLI_rcti_size_x(&qsd->bounds) + 1);
+      float quad_y = float((event->xy[1]) - (qsd->bounds.ymin)) /
+                     float(BLI_rcti_size_y(&qsd->bounds) + 1);
+
+      if (event->modifier & KM_CTRL) {
+        quad_x = round(quad_x * 12.0f) / 12.0f;
+        quad_y = round(quad_y * 12.0f) / 12.0f;
+      }
+
+      /* Clamp.*/
+      qsd->area->quadview_ratio[0] = std::clamp(quad_x, 0.1f, 0.9f);
+      qsd->area->quadview_ratio[1] = std::clamp(quad_y, 0.2f, 0.8f);
+
+      WorkspaceStatus status(C);
+      status.item(IFACE_("Cancel"), ICON_EVENT_ESC);
+      status.item_bool(IFACE_("Snap"), event->modifier & KM_CTRL, ICON_EVENT_CTRL);
+
+      ED_area_tag_redraw(qsd->area);
+      WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
+      break;
+    }
+    case LEFTMOUSE:
+      if (event->val == KM_RELEASE) {
+        ED_area_tag_redraw(qsd->area);
+        WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
+        quadview_size_cancel(C, op);
+        return OPERATOR_FINISHED;
+      }
+      break;
+
+    case EVT_ESCKEY:
+      qsd->area->quadview_ratio[0] = qsd->original_ratio[0];
+      qsd->area->quadview_ratio[1] = qsd->original_ratio[1];
+      ED_area_tag_redraw(qsd->area);
+      WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
+      quadview_size_cancel(C, op);
+      return OPERATOR_CANCELLED;
+    default: {
+      break;
+    }
+  }
+
+  return OPERATOR_RUNNING_MODAL;
+}
+
+static void SCREEN_OT_quadview_size(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Quad View Resize";
+  ot->description = "Resize Quad View areas";
+  ot->idname = "SCREEN_OT_quadview_size";
+
+  ot->invoke = quadview_size_invoke;
+  ot->modal = quadview_size_modal;
+  ot->cancel = quadview_size_cancel;
+  ot->poll = ED_operator_areaactive;
+
+  /* flags */
+  ot->flag = OPTYPE_BLOCKING | OPTYPE_INTERNAL;
+}
+
+/* -------------------------------------------------------------------- */
 /** \name Frame Change Operator
  * \{ */
 
@@ -3421,6 +3563,11 @@ static wmOperatorStatus frame_jump_delta_exec(bContext *C, wmOperator *op)
 
   int step = int(delta);
   float fraction = delta - step;
+  if (!(scene->r.flag & SCER_SHOW_SUBFRAME)) {
+    step = round_fl_to_int(delta);
+    fraction = 0.0f;
+  }
+
   if (backward) {
     scene->r.cfra -= step;
     scene->r.subframe -= fraction;
@@ -3437,6 +3584,8 @@ static wmOperatorStatus frame_jump_delta_exec(bContext *C, wmOperator *op)
     scene->r.cfra += frame_offset;
     scene->r.subframe -= subframe_offset;
   }
+
+  FRAMENUMBER_MIN_CLAMP(scene->r.cfra);
 
   ED_areas_do_frame_follow(C, true);
   blender::ed::vse::sync_active_scene_and_time_with_scene_strip(*C);
@@ -4542,44 +4691,44 @@ static void area_join_cancel(bContext *C, wmOperator *op)
 static void screen_area_touch_menu_create(bContext *C, ScrArea *area)
 {
   uiPopupMenu *pup = UI_popup_menu_begin(C, "Area Options", ICON_NONE);
-  uiLayout *layout = UI_popup_menu_layout(pup);
-  layout->operator_context_set(blender::wm::OpCallContext::InvokeDefault);
+  blender::ui::Layout &layout = *UI_popup_menu_layout(pup);
+  layout.operator_context_set(blender::wm::OpCallContext::InvokeDefault);
 
-  PointerRNA ptr = layout->op("SCREEN_OT_area_split",
-                              IFACE_("Horizontal Split"),
-                              ICON_SPLIT_HORIZONTAL,
-                              blender::wm::OpCallContext::ExecDefault,
-                              UI_ITEM_NONE);
+  PointerRNA ptr = layout.op("SCREEN_OT_area_split",
+                             IFACE_("Horizontal Split"),
+                             ICON_SPLIT_HORIZONTAL,
+                             blender::wm::OpCallContext::ExecDefault,
+                             UI_ITEM_NONE);
   RNA_enum_set(&ptr, "direction", SCREEN_AXIS_H);
   RNA_float_set(&ptr, "factor", 0.49999f);
   blender::int2 pos = {area->totrct.xmin + area->winx / 2, area->totrct.ymin + area->winy / 2};
   RNA_int_set_array(&ptr, "cursor", pos);
 
-  ptr = layout->op("SCREEN_OT_area_split",
-                   IFACE_("Vertical Split"),
-                   ICON_SPLIT_VERTICAL,
-                   blender::wm::OpCallContext::ExecDefault,
-                   UI_ITEM_NONE);
+  ptr = layout.op("SCREEN_OT_area_split",
+                  IFACE_("Vertical Split"),
+                  ICON_SPLIT_VERTICAL,
+                  blender::wm::OpCallContext::ExecDefault,
+                  UI_ITEM_NONE);
   RNA_enum_set(&ptr, "direction", SCREEN_AXIS_V);
   RNA_float_set(&ptr, "factor", 0.49999f);
   RNA_int_set_array(&ptr, "cursor", pos);
 
-  layout->separator();
+  layout.separator();
 
-  layout->op("SCREEN_OT_area_join", IFACE_("Move/Join/Dock Area"), ICON_AREA_DOCK);
+  layout.op("SCREEN_OT_area_join", IFACE_("Move/Join/Dock Area"), ICON_AREA_DOCK);
 
-  layout->separator();
+  layout.separator();
 
-  layout->op("SCREEN_OT_screen_full_area",
-             area->full ? IFACE_("Restore Areas") : IFACE_("Maximize Area"),
-             ICON_NONE);
+  layout.op("SCREEN_OT_screen_full_area",
+            area->full ? IFACE_("Restore Areas") : IFACE_("Maximize Area"),
+            ICON_NONE);
 
-  ptr = layout->op("SCREEN_OT_screen_full_area", IFACE_("Focus Mode"), ICON_NONE);
+  ptr = layout.op("SCREEN_OT_screen_full_area", IFACE_("Focus Mode"), ICON_NONE);
   RNA_boolean_set(&ptr, "use_hide_panels", true);
 
-  layout->op("SCREEN_OT_area_dupli", std::nullopt, ICON_NONE);
-  layout->separator();
-  layout->op("SCREEN_OT_area_close", IFACE_("Close Area"), ICON_X);
+  layout.op("SCREEN_OT_area_dupli", std::nullopt, ICON_NONE);
+  layout.separator();
+  layout.op("SCREEN_OT_area_close", IFACE_("Close Area"), ICON_X);
 
   UI_popup_menu_end(C, pup);
 }
@@ -4837,47 +4986,46 @@ static wmOperatorStatus screen_area_options_invoke(bContext *C,
 
   uiPopupMenu *pup = UI_popup_menu_begin(
       C, WM_operatortype_name(op->type, op->ptr).c_str(), ICON_NONE);
-  uiLayout *layout = UI_popup_menu_layout(pup);
+  blender::ui::Layout &layout = *UI_popup_menu_layout(pup);
 
   /* Vertical Split */
-  PointerRNA ptr;
-  ptr = layout->op("SCREEN_OT_area_split",
-                   IFACE_("Vertical Split"),
-                   ICON_SPLIT_VERTICAL,
-                   blender::wm::OpCallContext::InvokeDefault,
-                   UI_ITEM_NONE);
+  PointerRNA ptr = layout.op("SCREEN_OT_area_split",
+                             IFACE_("Vertical Split"),
+                             ICON_SPLIT_VERTICAL,
+                             blender::wm::OpCallContext::InvokeDefault,
+                             UI_ITEM_NONE);
   /* store initial mouse cursor position. */
   RNA_int_set_array(&ptr, "cursor", event->xy);
   RNA_enum_set(&ptr, "direction", SCREEN_AXIS_V);
 
   /* Horizontal Split */
-  ptr = layout->op("SCREEN_OT_area_split",
-                   IFACE_("Horizontal Split"),
-                   ICON_SPLIT_HORIZONTAL,
-                   blender::wm::OpCallContext::InvokeDefault,
-                   UI_ITEM_NONE);
+  ptr = layout.op("SCREEN_OT_area_split",
+                  IFACE_("Horizontal Split"),
+                  ICON_SPLIT_HORIZONTAL,
+                  blender::wm::OpCallContext::InvokeDefault,
+                  UI_ITEM_NONE);
   /* store initial mouse cursor position. */
   RNA_int_set_array(&ptr, "cursor", event->xy);
   RNA_enum_set(&ptr, "direction", SCREEN_AXIS_H);
 
   if (sa1 && sa2) {
-    layout->separator();
+    layout.separator();
   }
 
   /* Join needs two very similar areas. */
   if (sa1 && sa2) {
     eScreenDir dir = area_getorientation(sa1, sa2);
     if (dir != SCREEN_DIR_NONE) {
-      ptr = layout->op("SCREEN_OT_area_join",
-                       ELEM(dir, SCREEN_DIR_N, SCREEN_DIR_S) ? IFACE_("Join Up") :
-                                                               IFACE_("Join Right"),
-                       ELEM(dir, SCREEN_DIR_N, SCREEN_DIR_S) ? ICON_AREA_JOIN_UP : ICON_AREA_JOIN,
-                       blender::wm::OpCallContext::ExecDefault,
-                       UI_ITEM_NONE);
+      ptr = layout.op("SCREEN_OT_area_join",
+                      ELEM(dir, SCREEN_DIR_N, SCREEN_DIR_S) ? IFACE_("Join Up") :
+                                                              IFACE_("Join Right"),
+                      ELEM(dir, SCREEN_DIR_N, SCREEN_DIR_S) ? ICON_AREA_JOIN_UP : ICON_AREA_JOIN,
+                      blender::wm::OpCallContext::ExecDefault,
+                      UI_ITEM_NONE);
       RNA_int_set_array(&ptr, "source_xy", blender::int2{sa2->totrct.xmin, sa2->totrct.ymin});
       RNA_int_set_array(&ptr, "target_xy", blender::int2{sa1->totrct.xmin, sa1->totrct.ymin});
 
-      ptr = layout->op(
+      ptr = layout.op(
           "SCREEN_OT_area_join",
           ELEM(dir, SCREEN_DIR_N, SCREEN_DIR_S) ? IFACE_("Join Down") : IFACE_("Join Left"),
           ELEM(dir, SCREEN_DIR_N, SCREEN_DIR_S) ? ICON_AREA_JOIN_DOWN : ICON_AREA_JOIN_LEFT,
@@ -4886,17 +5034,17 @@ static wmOperatorStatus screen_area_options_invoke(bContext *C,
       RNA_int_set_array(&ptr, "source_xy", blender::int2{sa1->totrct.xmin, sa1->totrct.ymin});
       RNA_int_set_array(&ptr, "target_xy", blender::int2{sa2->totrct.xmin, sa2->totrct.ymin});
 
-      layout->separator();
+      layout.separator();
     }
   }
 
   /* Swap just needs two areas. */
   if (sa1 && sa2) {
-    ptr = layout->op("SCREEN_OT_area_swap",
-                     IFACE_("Swap Areas"),
-                     ICON_AREA_SWAP,
-                     blender::wm::OpCallContext::ExecDefault,
-                     UI_ITEM_NONE);
+    ptr = layout.op("SCREEN_OT_area_swap",
+                    IFACE_("Swap Areas"),
+                    ICON_AREA_SWAP,
+                    blender::wm::OpCallContext::ExecDefault,
+                    UI_ITEM_NONE);
     RNA_int_set_array(&ptr, "cursor", event->xy);
   }
 
@@ -5029,7 +5177,7 @@ static wmOperatorStatus repeat_history_invoke(bContext *C,
 
   uiPopupMenu *pup = UI_popup_menu_begin(
       C, WM_operatortype_name(op->type, op->ptr).c_str(), ICON_NONE);
-  uiLayout *layout = UI_popup_menu_layout(pup);
+  blender::ui::Layout &layout = *UI_popup_menu_layout(pup);
 
   wmOperator *lastop;
   int i;
@@ -5037,7 +5185,7 @@ static wmOperatorStatus repeat_history_invoke(bContext *C,
        lastop = lastop->prev, i--)
   {
     if ((lastop->type->flag & OPTYPE_REGISTER) && WM_operator_repeat_check(C, lastop)) {
-      PointerRNA op_ptr = layout->op(
+      PointerRNA op_ptr = layout.op(
           op->type, WM_operatortype_name(lastop->type, lastop->ptr), ICON_NONE);
       RNA_int_set(&op_ptr, "index", i);
     }
@@ -5442,41 +5590,39 @@ static void SCREEN_OT_header_toggle_menus(wmOperatorType *ot)
 /** \name Region Context Menu Operator (Header/Footer/Navigation-Bar)
  * \{ */
 
-static void screen_area_menu_items(ScrArea *area, uiLayout *layout)
+static void screen_area_menu_items(ScrArea *area, blender::ui::Layout &layout)
 {
   if (ED_area_is_global(area)) {
     return;
   }
 
-  PointerRNA ptr;
+  PointerRNA ptr = layout.op("SCREEN_OT_area_join",
+                             IFACE_("Move/Split Area"),
+                             ICON_AREA_DOCK,
+                             blender::wm::OpCallContext::InvokeDefault,
+                             UI_ITEM_NONE);
 
-  ptr = layout->op("SCREEN_OT_area_join",
-                   IFACE_("Move/Split Area"),
-                   ICON_AREA_DOCK,
-                   blender::wm::OpCallContext::InvokeDefault,
-                   UI_ITEM_NONE);
+  layout.separator();
 
-  layout->separator();
-
-  layout->op("SCREEN_OT_screen_full_area",
-             area->full ? IFACE_("Restore Areas") : IFACE_("Maximize Area"),
-             ICON_NONE);
+  layout.op("SCREEN_OT_screen_full_area",
+            area->full ? IFACE_("Restore Areas") : IFACE_("Maximize Area"),
+            ICON_NONE);
 
   if (area->spacetype != SPACE_FILE && !area->full) {
-    ptr = layout->op("SCREEN_OT_screen_full_area",
-                     IFACE_("Focus Mode"),
-                     ICON_NONE,
-                     blender::wm::OpCallContext::InvokeDefault,
-                     UI_ITEM_NONE);
+    ptr = layout.op("SCREEN_OT_screen_full_area",
+                    IFACE_("Focus Mode"),
+                    ICON_NONE,
+                    blender::wm::OpCallContext::InvokeDefault,
+                    UI_ITEM_NONE);
     RNA_boolean_set(&ptr, "use_hide_panels", true);
   }
 
-  layout->op("SCREEN_OT_area_dupli", std::nullopt, ICON_NONE);
-  layout->separator();
-  layout->op("SCREEN_OT_area_close", std::nullopt, ICON_X);
+  layout.op("SCREEN_OT_area_dupli", std::nullopt, ICON_NONE);
+  layout.separator();
+  layout.op("SCREEN_OT_area_close", std::nullopt, ICON_X);
 }
 
-void ED_screens_header_tools_menu_create(bContext *C, uiLayout *layout, void * /*arg*/)
+void ED_screens_header_tools_menu_create(bContext *C, blender::ui::Layout *layout, void * /*arg*/)
 {
   ScrArea *area = CTX_wm_area(C);
   {
@@ -5487,28 +5633,28 @@ void ED_screens_header_tools_menu_create(bContext *C, uiLayout *layout, void * /
     }
 
     ARegion *region_header = BKE_area_find_region_type(area, RGN_TYPE_HEADER);
-    uiLayout *col = &layout->column(false);
-    col->active_set((region_header->flag & RGN_FLAG_HIDDEN) == 0);
+    blender::ui::Layout &col = layout->column(false);
+    col.active_set((region_header->flag & RGN_FLAG_HIDDEN) == 0);
 
     if (BKE_area_find_region_type(area, RGN_TYPE_TOOL_HEADER)) {
-      col->prop(
+      col.prop(
           &ptr, "show_region_tool_header", UI_ITEM_NONE, IFACE_("Show Tool Settings"), ICON_NONE);
     }
 
-    col->op("SCREEN_OT_header_toggle_menus",
-            IFACE_("Show Menus"),
-            (area->flag & HEADER_NO_PULLDOWN) ? ICON_CHECKBOX_DEHLT : ICON_CHECKBOX_HLT);
+    col.op("SCREEN_OT_header_toggle_menus",
+           IFACE_("Show Menus"),
+           (area->flag & HEADER_NO_PULLDOWN) ? ICON_CHECKBOX_DEHLT : ICON_CHECKBOX_HLT);
   }
 
   if (!ELEM(area->spacetype, SPACE_TOPBAR)) {
     layout->separator();
     ED_screens_region_flip_menu_create(C, layout, nullptr);
     layout->separator();
-    screen_area_menu_items(area, layout);
+    screen_area_menu_items(area, *layout);
   }
 }
 
-void ED_screens_footer_tools_menu_create(bContext *C, uiLayout *layout, void * /*arg*/)
+void ED_screens_footer_tools_menu_create(bContext *C, blender::ui::Layout *layout, void * /*arg*/)
 {
   ScrArea *area = CTX_wm_area(C);
 
@@ -5520,10 +5666,10 @@ void ED_screens_footer_tools_menu_create(bContext *C, uiLayout *layout, void * /
 
   ED_screens_region_flip_menu_create(C, layout, nullptr);
   layout->separator();
-  screen_area_menu_items(area, layout);
+  screen_area_menu_items(area, *layout);
 }
 
-void ED_screens_region_flip_menu_create(bContext *C, uiLayout *layout, void * /*arg*/)
+void ED_screens_region_flip_menu_create(bContext *C, blender::ui::Layout *layout, void * /*arg*/)
 {
   const ARegion *region = CTX_wm_region(C);
   const short region_alignment = RGN_ALIGN_ENUM_FROM_MASK(region->alignment);
@@ -5538,19 +5684,19 @@ void ED_screens_region_flip_menu_create(bContext *C, uiLayout *layout, void * /*
   layout->op("SCREEN_OT_region_flip", but_flip_str, ICON_NONE);
 }
 
-static void ed_screens_statusbar_menu_create(uiLayout *layout, void * /*arg*/)
+static void ed_screens_statusbar_menu_create(blender::ui::Layout &layout, void * /*arg*/)
 {
   PointerRNA ptr = RNA_pointer_create_discrete(nullptr, &RNA_PreferencesView, &U);
-  layout->prop(&ptr, "show_statusbar_stats", UI_ITEM_NONE, IFACE_("Scene Statistics"), ICON_NONE);
-  layout->prop(
+  layout.prop(&ptr, "show_statusbar_stats", UI_ITEM_NONE, IFACE_("Scene Statistics"), ICON_NONE);
+  layout.prop(
       &ptr, "show_statusbar_scene_duration", UI_ITEM_NONE, IFACE_("Scene Duration"), ICON_NONE);
-  layout->prop(&ptr, "show_statusbar_memory", UI_ITEM_NONE, IFACE_("System Memory"), ICON_NONE);
+  layout.prop(&ptr, "show_statusbar_memory", UI_ITEM_NONE, IFACE_("System Memory"), ICON_NONE);
   if (GPU_mem_stats_supported()) {
-    layout->prop(&ptr, "show_statusbar_vram", UI_ITEM_NONE, IFACE_("Video Memory"), ICON_NONE);
+    layout.prop(&ptr, "show_statusbar_vram", UI_ITEM_NONE, IFACE_("Video Memory"), ICON_NONE);
   }
-  layout->prop(
+  layout.prop(
       &ptr, "show_extensions_updates", UI_ITEM_NONE, IFACE_("Extensions Updates"), ICON_NONE);
-  layout->prop(&ptr, "show_statusbar_version", UI_ITEM_NONE, IFACE_("Blender Version"), ICON_NONE);
+  layout.prop(&ptr, "show_statusbar_version", UI_ITEM_NONE, IFACE_("Blender Version"), ICON_NONE);
 }
 
 static wmOperatorStatus screen_context_menu_invoke(bContext *C,
@@ -5562,36 +5708,36 @@ static wmOperatorStatus screen_context_menu_invoke(bContext *C,
 
   if (area && area->spacetype == SPACE_STATUSBAR) {
     uiPopupMenu *pup = UI_popup_menu_begin(C, IFACE_("Status Bar"), ICON_NONE);
-    uiLayout *layout = UI_popup_menu_layout(pup);
+    blender::ui::Layout &layout = *UI_popup_menu_layout(pup);
     ed_screens_statusbar_menu_create(layout, nullptr);
     UI_popup_menu_end(C, pup);
   }
   else if (region) {
     if (ELEM(region->regiontype, RGN_TYPE_HEADER, RGN_TYPE_TOOL_HEADER)) {
       uiPopupMenu *pup = UI_popup_menu_begin(C, IFACE_("Header"), ICON_NONE);
-      uiLayout *layout = UI_popup_menu_layout(pup);
+      blender::ui::Layout *layout = UI_popup_menu_layout(pup);
       ED_screens_header_tools_menu_create(C, layout, nullptr);
       UI_popup_menu_end(C, pup);
     }
     else if (region->regiontype == RGN_TYPE_FOOTER) {
       uiPopupMenu *pup = UI_popup_menu_begin(C, IFACE_("Footer"), ICON_NONE);
-      uiLayout *layout = UI_popup_menu_layout(pup);
+      blender::ui::Layout *layout = UI_popup_menu_layout(pup);
       ED_screens_footer_tools_menu_create(C, layout, nullptr);
       UI_popup_menu_end(C, pup);
     }
     else if (region->regiontype == RGN_TYPE_NAV_BAR) {
       uiPopupMenu *pup = UI_popup_menu_begin(C, IFACE_("Navigation Bar"), ICON_NONE);
-      uiLayout *layout = UI_popup_menu_layout(pup);
+      blender::ui::Layout &layout = *UI_popup_menu_layout(pup);
 
       /* We need blender::wm::OpCallContext::InvokeDefault in case menu item is over another area.
        */
-      layout->operator_context_set(blender::wm::OpCallContext::InvokeDefault);
-      layout->op("SCREEN_OT_region_toggle", IFACE_("Hide"), ICON_NONE);
+      layout.operator_context_set(blender::wm::OpCallContext::InvokeDefault);
+      layout.op("SCREEN_OT_region_toggle", IFACE_("Hide"), ICON_NONE);
 
-      ED_screens_region_flip_menu_create(C, layout, nullptr);
+      ED_screens_region_flip_menu_create(C, &layout, nullptr);
       const ScrArea *area = CTX_wm_area(C);
       if (area && area->spacetype == SPACE_PROPERTIES) {
-        layout->menu_fn(IFACE_("Visible Tabs"), ICON_NONE, ED_buttons_visible_tabs_menu, nullptr);
+        layout.menu_fn(IFACE_("Visible Tabs"), ICON_NONE, ED_buttons_visible_tabs_menu, nullptr);
       }
       UI_popup_menu_end(C, pup);
     }
@@ -6986,6 +7132,7 @@ void ED_operatortypes_screen()
   WM_operatortype_append(SCREEN_OT_region_scale);
   WM_operatortype_append(SCREEN_OT_region_toggle);
   WM_operatortype_append(SCREEN_OT_region_flip);
+  WM_operatortype_append(SCREEN_OT_quadview_size);
   WM_operatortype_append(SCREEN_OT_header_toggle_menus);
   WM_operatortype_append(SCREEN_OT_region_context_menu);
   WM_operatortype_append(SCREEN_OT_screen_set);
