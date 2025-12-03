@@ -391,7 +391,7 @@ static void paint_stroke_redraw(const bContext *C, PaintStroke *stroke, bool fin
   pop->mode->paint_stroke_redraw(C, pop->stroke_handle, final);
 }
 
-static void paint_stroke_done(const bContext *C, PaintStroke *stroke)
+static void paint_stroke_done(const bContext *C, PaintStroke *stroke, bool is_cancelled)
 {
   Scene *scene = CTX_data_scene(C);
   ToolSettings *toolsettings = scene->toolsettings;
@@ -414,7 +414,9 @@ static void paint_stroke_done(const bContext *C, PaintStroke *stroke)
   pop->mode->paint_stroke_done(pop->stroke_handle);
   pop->stroke_handle = nullptr;
 
-  ED_image_undo_push_end();
+  if (!is_cancelled) {
+    ED_image_undo_push_end();
+  }
 
 /* duplicate warning, see texpaint_init */
 #if 0
@@ -457,6 +459,7 @@ static wmOperatorStatus paint_invoke(bContext *C, wmOperator *op, const wmEvent 
                                     paint_stroke_test_start,
                                     paint_stroke_update_step,
                                     paint_stroke_redraw,
+                                    nullptr,
                                     paint_stroke_done,
                                     event->type);
 
@@ -495,6 +498,7 @@ static wmOperatorStatus paint_exec(bContext *C, wmOperator *op)
                                          paint_stroke_test_start,
                                          paint_stroke_update_step,
                                          paint_stroke_redraw,
+                                         nullptr,
                                          paint_stroke_done,
                                          0);
   op->customdata = stroke;
@@ -524,6 +528,12 @@ static wmOperatorStatus paint_modal(bContext *C, wmOperator *op, const wmEvent *
 
 static void paint_cancel(bContext *C, wmOperator *op)
 {
+  UndoStack *ustack = CTX_wm_manager(C)->runtime->undo_stack;
+  if (ustack->step_init) {
+    /* If the user cancels a stroke when none actually started, there is nothing to undo from. */
+    ED_image_undo_restore(ustack->step_init);
+  }
+
   paint_stroke_cancel(C, op, static_cast<PaintStroke *>(op->customdata));
 }
 }  // namespace blender::ed::sculpt_paint::image::ops::paint
