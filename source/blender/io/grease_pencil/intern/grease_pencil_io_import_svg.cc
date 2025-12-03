@@ -129,10 +129,12 @@ static IndexRange extend_curves_geometry(bke::CurvesGeometry &curves, const NSVG
     if (path->npts == 0) {
       continue;
     }
+    const bool closed = path->closed;
     BLI_assert(path->npts >= 1 && path->npts == int(path->npts / 3) * 3 + 1);
     /* nanosvg converts everything to bezier curves, points come in triplets. Round up to the
-     * next full integer, since there is one point without handles (3*n+1 points in total). */
-    const int point_num = (path->npts + 2) / 3;
+     * next full integer, since there is one point without handles (3*n+1 points in total).
+     * Remove one point for cyclical curves. */
+    const int point_num = (path->npts + 2) / 3 - (closed ? 1 : 0);
     new_curve_offsets.append(point_num);
   }
   if (new_curve_offsets.is_empty()) {
@@ -213,8 +215,8 @@ static void shape_attributes_to_curves(bke::CurvesGeometry &curves,
     if (path->npts == 0) {
       continue;
     }
-
-    cyclic[curve_index] = bool(path->closed);
+    const bool closed = bool(path->closed);
+    cyclic[curve_index] = closed;
 
     /* 2D vectors in triplets: [control point, left handle, right handle]. */
     const Span<float2> svg_path_data = Span<float>(path->pts, 2 * path->npts).cast<float2>();
@@ -223,9 +225,20 @@ static void shape_attributes_to_curves(bke::CurvesGeometry &curves,
     for (const int i : points.index_range()) {
       const int point_index = points[i];
       const float2 pos_center = svg_path_data[i * 3];
-      const float2 pos_handle_left = (i > 0) ? svg_path_data[i * 3 - 1] : pos_center;
-      const float2 pos_handle_right = (i < points.size() - 1) ? svg_path_data[i * 3 + 1] :
-                                                                pos_center;
+      float2 pos_handle_left;
+      if (i == 0) {
+        if (closed) {
+          pos_handle_left = svg_path_data[points.size() * 3 - 1];
+        }
+        else {
+          pos_handle_left = pos_center;
+        }
+      }
+      else {
+        pos_handle_left = svg_path_data[i * 3 - 1];
+      }
+      const float2 pos_handle_right = (i < points.size() - 1 + closed) ? svg_path_data[i * 3 + 1] :
+                                                                         pos_center;
       positions[point_index] = math::transform_point(transform, float3(pos_center, 0.0f));
       handle_positions_left[point_index] = math::transform_point(transform,
                                                                  float3(pos_handle_left, 0.0f));
