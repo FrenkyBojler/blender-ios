@@ -177,8 +177,8 @@ static void create_reference_spaces(OpenXRSessionData &oxr, bool isDebugMode)
   if (!valid_stage_space && supported_spaces.contains(XR_REFERENCE_SPACE_TYPE_LOCAL_FLOOR)) {
     if (isDebugMode) {
       printf(
-          "OpenXR: Stage reference space unavailable, falling back to local floor reference"
-          "space\n");
+          "Warning: Stage reference space unavailable, falling back to local floor reference "
+          "space.\n");
     }
     create_info.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_LOCAL_FLOOR;
     CHECK_XR(xrCreateReferenceSpace(oxr.session, &create_info, &oxr.reference_space),
@@ -187,8 +187,8 @@ static void create_reference_spaces(OpenXRSessionData &oxr, bool isDebugMode)
   else {
     if (isDebugMode) {
       printf(
-          "OpenXR: Stage and local floor reference space unavailable, falling back to local "
-          "reference space\n");
+          "Warning: Stage and local floor reference space unavailable, falling back to local "
+          "reference space.\n");
     }
     create_info.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_LOCAL;
     CHECK_XR(xrCreateReferenceSpace(oxr.session, &create_info, &oxr.reference_space),
