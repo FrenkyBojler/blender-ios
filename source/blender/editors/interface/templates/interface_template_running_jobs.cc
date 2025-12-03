@@ -23,51 +23,9 @@
 
 #include "WM_api.hh"
 
+#include "UI_interface_c.hh"
 #include "UI_interface_layout.hh"
 #include "interface_intern.hh"
-
-#define B_STOPRENDER 1
-#define B_STOPCAST 2
-#define B_STOPANIM 3
-#define B_STOPCOMPO 4
-#define B_STOPSEQ 5
-#define B_STOPCLIP 6
-#define B_STOPFILE 7
-#define B_STOPOTHER 8
-
-static void do_running_jobs(bContext *C, void * /*arg*/, int event)
-{
-  switch (event) {
-    case B_STOPRENDER:
-      G.is_break = true;
-      break;
-    case B_STOPCAST:
-      WM_jobs_stop_all_from_owner(CTX_wm_manager(C), CTX_wm_screen(C));
-      break;
-    case B_STOPANIM:
-      WM_operator_name_call(C,
-                            "SCREEN_OT_animation_play",
-                            blender::wm::OpCallContext::InvokeScreen,
-                            nullptr,
-                            nullptr);
-      break;
-    case B_STOPCOMPO:
-      WM_jobs_stop_all_from_owner(CTX_wm_manager(C), CTX_data_scene(C));
-      break;
-    case B_STOPSEQ:
-      WM_jobs_stop_all_from_owner(CTX_wm_manager(C), CTX_data_scene(C));
-      break;
-    case B_STOPCLIP:
-      WM_jobs_stop_all_from_owner(CTX_wm_manager(C), CTX_data_scene(C));
-      break;
-    case B_STOPFILE:
-      WM_jobs_stop_all_from_owner(CTX_wm_manager(C), CTX_data_scene(C));
-      break;
-    case B_STOPOTHER:
-      G.is_break = true;
-      break;
-  }
-}
 
 struct ProgressTooltip_Store {
   wmWindowManager *wm;
@@ -102,25 +60,35 @@ static std::string progress_tooltip_func(bContext * /*C*/,
       elapsed_str);
 }
 
+static void cancel_all_scene_jobs(bContext &C)
+{
+  WM_jobs_stop_all_from_owner(CTX_wm_manager(&C), CTX_data_scene(&C));
+}
+
+static void set_global_break(bContext &C)
+{
+  WM_jobs_stop_all_from_owner(CTX_wm_manager(&C), CTX_data_scene(&C));
+}
+
 void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
 {
   Main *bmain = CTX_data_main(C);
   wmWindowManager *wm = CTX_wm_manager(C);
   ScrArea *area = CTX_wm_area(C);
+
   void *owner = nullptr;
-  int handle_event, icon = 0;
+  int icon = 0;
+  std::function<void(bContext &)> cancel_fn = nullptr;
   const char *op_name = nullptr;
   const char *op_description = nullptr;
 
   uiBlock *block = layout->block();
   blender::ui::block_layout_set_current(block, layout);
 
-  UI_block_func_handle_set(block, do_running_jobs, nullptr);
-
   /* another scene can be rendering too, for example via compositor */
   LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
     if (WM_jobs_test(wm, scene, WM_JOB_TYPE_ANY)) {
-      handle_event = B_STOPOTHER;
+      cancel_fn = set_global_break;
       icon = ICON_NONE;
       owner = scene;
     }
@@ -129,50 +97,43 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
     }
 
     if (WM_jobs_test(wm, scene, WM_JOB_TYPE_SEQ_BUILD_PROXY)) {
-      handle_event = B_STOPSEQ;
+      cancel_fn = cancel_all_scene_jobs;
       icon = ICON_SEQUENCE;
       owner = scene;
       break;
     }
     if (WM_jobs_test(wm, scene, WM_JOB_TYPE_SEQ_BUILD_PREVIEW)) {
-      handle_event = B_STOPSEQ;
+      cancel_fn = cancel_all_scene_jobs;
       icon = ICON_SEQUENCE;
       break;
     }
     if (WM_jobs_test(wm, scene, WM_JOB_TYPE_SEQ_DRAW_THUMBNAIL)) {
-      handle_event = B_STOPSEQ;
+      cancel_fn = cancel_all_scene_jobs;
       icon = ICON_SEQUENCE;
       break;
     }
     if (WM_jobs_test(wm, scene, WM_JOB_TYPE_CLIP_BUILD_PROXY)) {
-      handle_event = B_STOPCLIP;
+      cancel_fn = cancel_all_scene_jobs;
       icon = ICON_TRACKER;
       break;
     }
     if (WM_jobs_test(wm, scene, WM_JOB_TYPE_CLIP_PREFETCH)) {
-      handle_event = B_STOPCLIP;
+      cancel_fn = cancel_all_scene_jobs;
       icon = ICON_TRACKER;
       break;
     }
     if (WM_jobs_test(wm, scene, WM_JOB_TYPE_CLIP_TRACK_MARKERS)) {
-      handle_event = B_STOPCLIP;
+      cancel_fn = cancel_all_scene_jobs;
       icon = ICON_TRACKER;
       break;
     }
     if (WM_jobs_test(wm, scene, WM_JOB_TYPE_CLIP_SOLVE_CAMERA)) {
-      handle_event = B_STOPCLIP;
+      cancel_fn = cancel_all_scene_jobs;
       icon = ICON_TRACKER;
       break;
     }
-    if (WM_jobs_test(wm, scene, WM_JOB_TYPE_FILESEL_READDIR) ||
-        WM_jobs_test(wm, scene, WM_JOB_TYPE_ASSET_LIBRARY_LOAD))
-    {
-      handle_event = B_STOPFILE;
-      icon = ICON_FILEBROWSER;
-      break;
-    }
     if (WM_jobs_test(wm, scene, WM_JOB_TYPE_RENDER)) {
-      handle_event = B_STOPRENDER;
+      cancel_fn = set_global_break;
       icon = ICON_SCENE;
       if (U.render_display_type != USER_RENDER_DISPLAY_NONE) {
         op_name = "RENDER_OT_view_show";
@@ -181,7 +142,7 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
       break;
     }
     if (WM_jobs_test(wm, scene, WM_JOB_TYPE_COMPOSITE)) {
-      handle_event = B_STOPCOMPO;
+      cancel_fn = cancel_all_scene_jobs;
       icon = ICON_RENDERLAYERS;
       break;
     }
@@ -193,31 +154,62 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
        * to update NC_IMAGE context.
        */
       if (area->spacetype != SPACE_NODE) {
-        handle_event = B_STOPOTHER;
+        cancel_fn = set_global_break;
         icon = ICON_IMAGE;
         break;
       }
       continue;
     }
     if (WM_jobs_test(wm, scene, WM_JOB_TYPE_DPAINT_BAKE)) {
-      handle_event = B_STOPOTHER;
+      cancel_fn = set_global_break;
       icon = ICON_MOD_DYNAMICPAINT;
       break;
     }
     if (WM_jobs_test(wm, scene, WM_JOB_TYPE_POINTCACHE)) {
-      handle_event = B_STOPOTHER;
+      cancel_fn = set_global_break;
       icon = ICON_PHYSICS;
       break;
     }
     if (WM_jobs_test(wm, scene, WM_JOB_TYPE_OBJECT_SIM_FLUID)) {
-      handle_event = B_STOPOTHER;
+      cancel_fn = set_global_break;
       icon = ICON_MOD_FLUIDSIM;
       break;
     }
     if (WM_jobs_test(wm, scene, WM_JOB_TYPE_OBJECT_SIM_OCEAN)) {
-      handle_event = B_STOPOTHER;
+      cancel_fn = set_global_break;
       icon = ICON_MOD_OCEAN;
       break;
+    }
+  }
+  if (!owner) {
+    LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
+      const bScreen *screen = WM_window_get_active_screen(win);
+      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        if (area->spacetype != SPACE_FILE) {
+          continue;
+        }
+        const SpaceFile *sfile = static_cast<SpaceFile *>(area->spacedata.first);
+        auto tmp_cancel_fn = [sfile](bContext &C) {
+          WM_jobs_stop_all_from_owner(CTX_wm_manager(&C), sfile->files);
+        };
+
+        if (WM_jobs_test(wm, sfile->files, WM_JOB_TYPE_FILESEL_READDIR)) {
+          icon = ICON_FILEBROWSER;
+          owner = sfile->files;
+          cancel_fn = tmp_cancel_fn;
+          break;
+        }
+
+        if (WM_jobs_test(wm, sfile->files, WM_JOB_TYPE_ASSET_LIBRARY_LOAD)) {
+          icon = ICON_ASSET_MANAGER;
+          owner = sfile->files;
+          cancel_fn = tmp_cancel_fn;
+          break;
+        }
+      }
+      if (owner) {
+        break;
+      }
     }
   }
 
@@ -287,7 +279,7 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
       UI_but_func_tooltip_set(but_progress, progress_tooltip_func, tip_arg, MEM_freeN);
     }
 
-    if (!wm->runtime->is_interface_locked) {
+    if (cancel_fn && !wm->runtime->is_interface_locked) {
       uiBut *but = uiDefIconTextBut(block,
                                     ButType::But,
                                     ICON_PANEL_CLOSE,
@@ -298,7 +290,7 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
                                     UI_UNIT_Y,
                                     nullptr,
                                     TIP_("Stop this job"));
-      UI_but_retval_set(but, handle_event);
+      UI_but_func_set(but, std::move(cancel_fn));
     }
   }
 
@@ -313,6 +305,12 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
                                   UI_UNIT_Y,
                                   nullptr,
                                   TIP_("Stop animation playback"));
-    UI_but_retval_set(but, B_STOPANIM);
+    UI_but_func_set(but, [](bContext &C) {
+      WM_operator_name_call(&C,
+                            "SCREEN_OT_animation_play",
+                            blender::wm::OpCallContext::InvokeScreen,
+                            nullptr,
+                            nullptr);
+    });
   }
 }

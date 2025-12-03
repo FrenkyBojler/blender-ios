@@ -26,6 +26,7 @@
 #include "vk_pipeline_pool.hh"
 #include "vk_resource_pool.hh"
 #include "vk_samplers.hh"
+#include "vk_vertex_attribute_object.hh"
 
 namespace blender::gpu {
 class VKBackend;
@@ -89,6 +90,11 @@ struct VKExtensions {
    * Does the device support VK_EXT_line_rasterization
    */
   bool line_rasterization = false;
+
+  /**
+   * Does the device support VK_EXT_extended_dynamic_state
+   */
+  bool extended_dynamic_state = false;
 
   /** Log enabled features and extensions. */
   void log() const;
@@ -228,6 +234,8 @@ class VKDevice : public NonCopyable {
   /** Discard pool for resources that could still be used during rendering. */
   VKDiscardPool orphaned_data_render;
   VKPipelinePool pipelines;
+  VKVertexInputDescriptionPool vertex_input_descriptions;
+
   /** Buffer to bind to unbound resource locations. */
   VKBuffer dummy_buffer;
 
@@ -245,6 +253,9 @@ class VKDevice : public NonCopyable {
     PFN_vkSetDebugUtilsObjectNameEXT vkSetDebugUtilsObjectName = nullptr;
     PFN_vkCreateDebugUtilsMessengerEXT vkCreateDebugUtilsMessenger = nullptr;
     PFN_vkDestroyDebugUtilsMessengerEXT vkDestroyDebugUtilsMessenger = nullptr;
+
+    /* Extension: VK_EXT_extended_dynamic_state */
+    PFN_vkCmdSetFrontFace vkCmdSetFrontFace = nullptr;
 
     /* Extension: VK_KHR_external_memory_fd */
     PFN_vkGetMemoryFdKHR vkGetMemoryFd = nullptr;
