@@ -770,6 +770,7 @@ class TemporalDenoiseOperation : public NodeOperation {
               temporal_result_ycocg = hist_ycocg;
               has_valid_history = true;
             }
+            
             else {
               /* Use base_alpha from Advanced parameters (with optional quality multiplier) */
               const float quality_mult = use_quality_mult ? 
