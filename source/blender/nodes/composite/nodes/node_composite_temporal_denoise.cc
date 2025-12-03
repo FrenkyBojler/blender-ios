@@ -470,143 +470,180 @@ class TemporalDenoiseOperation : public NodeOperation {
       float3 temporal_result_ycocg = center_ycocg;  /* Start with current frame */
       bool has_valid_history = false;
 
-      if (use_history && has_motion && effective_history > 0) {
+      /* Check if we can use history - FIXED: validate prev_head >= 0 */
+      if (use_history && prev_head >= 0 && effective_history > 0) {
         const int x = texel.x;
         const int y = texel.y;
         const int width = size.x;
         const int height = size.y;
 
-        /* Try to find  ONE valid historical sample (most recent) */
-        for (int i = 0; i < effective_history; i++) {
-          const int frame_index = (prev_head - i + history_capacity) % history_capacity;
+        /* FIXED: Support both with and without motion vectors */
+        if (has_motion) {
+          /* PATH A: WITH MOTION VECTORS - Motion-compensated temporal filtering */
           
-          /* Reproject pixel position */
-          const float2 reprojected_pos = float2(x, y) - motion_prev * float(i + 1);
-          
-          /* Bounds check */
-          if (reprojected_pos.x < 0 || reprojected_pos.x >= width - 1 ||
-              reprojected_pos.y < 0 || reprojected_pos.y >= height - 1) {
-            continue;
-          }
-
-          /* Bilinear interpolation setup */
-          const int2 p0 = int2(math::floor(reprojected_pos.x), math::floor(reprojected_pos.y));
-          const float2 frac = reprojected_pos - float2(p0);
-          const float w00 = (1.0f - frac.x) * (1.0f - frac.y);
-          const float w10 = frac.x * (1.0f - frac.y);
-          const float w01 = (1.0f - frac.x) * frac.y;
-          const float w11 = frac.x * frac.y;
-
-          const int64_t pixel_count_local = int64_t(width) * height;
-          const int64_t idx0 = int64_t(frame_index) * pixel_count_local + int64_t(p0.y) * width + p0.x;
-          const int64_t idx1 = idx0 + 1;
-          const int64_t idx2 = idx0 + width;
-          const int64_t idx3 = idx2 + 1;
-
-          /* Sample historical color */
-          const float4 h0 = entry.buffer[idx0];
-          const float4 h1 = entry.buffer[idx1];
-          const float4 h2 = entry.buffer[idx2];
-          const float4 h3 = entry.buffer[idx3];
-          const float4 hist_rgba = h0 * w00 + h1 * w10 + h2 * w01 + h3 * w11;
-          const float3 hist_rgb = float3(hist_rgba.x, hist_rgba.y, hist_rgba.z);
-          float3 hist_ycocg = rgb_to_ycocg(hist_rgb);
-
-          /* ===============================================================
-           * ROBUST REJECTION CRITERIA
-           * =============================================================== */
-          
-          bool is_valid = true;
-
-          /* 1. Depth discontinuity check - relaxed to reduce flickering */
-          if (has_depth && entry.depth_buffer.size() > 0) {
-            const float d0 = entry.depth_buffer[idx0];
-            const float d1 = entry.depth_buffer[idx1];
-            const float d2 = entry.depth_buffer[idx2];
-            const float d3 = entry.depth_buffer[idx3];
-            const float hist_depth = d0 * w00 + d1 * w10 + d2 * w01 + d3 * w11;
+          /* Try to find valid historical samples with reprojection */
+          for (int i = 0; i < effective_history; i++) {
+            const int frame_index = (prev_head - i + history_capacity) % history_capacity;
             
-            const float depth_diff = math::abs(hist_depth - depth_center);
-            const float depth_threshold_val = 0.15f * math::max(depth_center, 0.01f);  /* Relaxed */
-            if (depth_diff > depth_threshold_val) {
-              is_valid = false;
+            /* Reproject pixel position */
+            const float2 reprojected_pos = float2(x, y) - motion_prev * float(i + 1);
+            
+            /* Bounds check */
+            if (reprojected_pos.x < 0 || reprojected_pos.x >= width - 1 ||
+                reprojected_pos.y < 0 || reprojected_pos.y >= height - 1) {
+              continue;
+            }
+
+            /* Bilinear interpolation setup */
+            const int2 p0 = int2(math::floor(reprojected_pos.x), math::floor(reprojected_pos.y));
+            const float2 frac = reprojected_pos - float2(p0);
+            const float w00 = (1.0f - frac.x) * (1.0f - frac.y);
+            const float w10 = frac.x * (1.0f - frac.y);
+            const float w01 = (1.0f - frac.x) * frac.y;
+            const float w11 = frac.x * frac.y;
+
+            const int64_t pixel_count_local = int64_t(width) * height;
+            const int64_t idx0 = int64_t(frame_index) * pixel_count_local + int64_t(p0.y) * width + p0.x;
+            const int64_t idx1 = idx0 + 1;
+            const int64_t idx2 = idx0 + width;
+            const int64_t idx3 = idx2 + 1;
+
+            /* Sample historical color */
+            const float4 h0 = entry.buffer[idx0];
+            const float4 h1 = entry.buffer[idx1];
+            const float4 h2 = entry.buffer[idx2];
+            const float4 h3 = entry.buffer[idx3];
+            const float4 hist_rgba = h0 * w00 + h1 * w10 + h2 * w01 + h3 * w11;
+            const float3 hist_rgb = float3(hist_rgba.x, hist_rgba.y, hist_rgba.z);
+            float3 hist_ycocg = rgb_to_ycocg(hist_rgb);
+
+            /* ===============================================================
+             * ROBUST REJECTION CRITERIA
+             * =============================================================== */
+            
+            bool is_valid = true;
+
+            /* 1. Depth discontinuity check - relaxed to reduce flickering */
+            if (has_depth && entry.depth_buffer.size() > 0) {
+              const float d0 = entry.depth_buffer[idx0];
+              const float d1 = entry.depth_buffer[idx1];
+              const float d2 = entry.depth_buffer[idx2];
+              const float d3 = entry.depth_buffer[idx3];
+              const float hist_depth = d0 * w00 + d1 * w10 + d2 * w01 + d3 * w11;
+              
+              const float depth_diff = math::abs(hist_depth - depth_center);
+              const float depth_threshold_val = 0.15f * math::max(depth_center, 0.01f);  /* Relaxed */
+              if (depth_diff > depth_threshold_val) {
+                is_valid = false;
+              }
+            }
+
+            /* 2. Normal discontinuity check - relaxed */
+            if (is_valid && has_normal && entry.normal_buffer.size() > 0) {
+              const float4 n0 = entry.normal_buffer[idx0];
+              const float4 n1 = entry.normal_buffer[idx1];
+              const float4 n2 = entry.normal_buffer[idx2];
+              const float4 n3 = entry.normal_buffer[idx3];
+              const float4 nh = n0 * w00 + n1 * w10 + n2 * w01 + n3 * w11;
+              const float3 hist_normal = float3(nh.x, nh.y, nh.z);
+              
+              const float normal_dot = math::dot(hist_normal, normal_center);
+              if (normal_dot < 0.85f) {  /* ~30° deviation - relaxed for stability */
+                is_valid = false;
+              }
+            }
+
+            /* 3. Motion vector consistency check - relaxed */
+            if (is_valid && has_motion && entry.motion_buffer.size() > 0) {
+              const float4 m0 = entry.motion_buffer[idx0];
+              const float4 m1 = entry.motion_buffer[idx1];
+              const float4 m2 = entry.motion_buffer[idx2];
+              const float4 m3 = entry.motion_buffer[idx3];
+              const float4 hist_motion = m0 * w00 + m1 * w10 + m2 * w01 + m3 * w11;
+              
+              /* Use backward motion (zw component) for validation */
+              const float2 backward_motion = hist_motion.zw();
+              const float motion_error = math::length(motion_prev + backward_motion);
+              if (motion_error > 3.0f) {  /* pixels - relaxed for stability */
+                is_valid = false;
+              }
+            }
+
+            /* 4. Variance Clipping (AABB) - Reject outliers */
+            if (is_valid) {
+              hist_ycocg = clip_aabb(hist_ycocg, box_min, box_max);
+              
+              /* Additional color divergence check after clamping - relaxed */
+              const float3 color_diff = math::abs(hist_ycocg - center_ycocg);
+              if (color_diff.x > 0.7f || color_diff.y > 0.7f || color_diff.z > 0.7f) {  /* Relaxed */
+                is_valid = false;
+              }
+            }
+
+            /* ===============================================================
+             * EXPONENTIAL MOVING AVERAGE - Lower alphas for more stability
+             * =============================================================== */
+            
+            if (is_valid) {
+              /* Compute weight for this frame */
+              const float temporal_falloff = 1.0f / (1.0f + float(i) * 0.5f);
+              
+              /* Accumulate this valid sample */
+              if (!has_valid_history) {
+                /* First valid sample - initialize */
+                temporal_result_ycocg = hist_ycocg;
+                has_valid_history = true;
+              }
+              else {
+                /* Blend with previous accumulation */
+                /* Base alpha adjusted by temporal_weight parameter */
+                const float base_alpha = quality == 0 ? 0.03f :   /* High - very stable */
+                                         quality == 1 ? 0.07f :    /* Balanced */
+                                         0.15f;                    /* Fast */
+                
+                const float adjusted_alpha = base_alpha * temporal_weight;
+                const float blend_alpha = adjusted_alpha * temporal_falloff;
+                temporal_result_ycocg = math::interpolate(temporal_result_ycocg, hist_ycocg, blend_alpha);
+              }
+              
+              /* Don't break - accumulate multiple frames for better stability */
             }
           }
-
-          /* 2. Normal discontinuity check - relaxed */
-          if (is_valid && has_normal && entry.normal_buffer.size() > 0) {
-            const float4 n0 = entry.normal_buffer[idx0];
-            const float4 n1 = entry.normal_buffer[idx1];
-            const float4 n2 = entry.normal_buffer[idx2];
-            const float4 n3 = entry.normal_buffer[idx3];
-            const float4 nh = n0 * w00 + n1 * w10 + n2 * w01 + n3 * w11;
-            const float3 hist_normal = float3(nh.x, nh.y, nh.z);
+        }
+        else {
+          /* PATH B: WITHOUT MOTION VECTORS - Direct temporal filtering (fallback) */
+          /* This allows the node to work even without motion vector input */
+          
+          const int64_t pixel_index = int64_t(y) * width + x;
+          
+          for (int i = 0; i < effective_history; i++) {
+            const int frame_index = (prev_head - i + history_capacity) % history_capacity;
+            const int64_t buffer_index = int64_t(frame_index) * pixel_count + pixel_index;
             
-            const float normal_dot = math::dot(hist_normal, normal_center);
-            if (normal_dot < 0.85f) {  /* ~30° deviation - relaxed for stability */
-              is_valid = false;
-            }
-          }
-
-          /* 3. Motion vector consistency check - relaxed */
-          if (is_valid && has_motion && entry.motion_buffer.size() > 0) {
-            const float4 m0 = entry.motion_buffer[idx0];
-            const float4 m1 = entry.motion_buffer[idx1];
-            const float4 m2 = entry.motion_buffer[idx2];
-            const float4 m3 = entry.motion_buffer[idx3];
-            const float4 hist_motion = m0 * w00 + m1 * w10 + m2 * w01 + m3 * w11;
+            const float4 hist_rgba = entry.buffer[buffer_index];
+            const float3 hist_rgb = float3(hist_rgba.x, hist_rgba.y, hist_rgba.z);
+            float3 hist_ycocg = rgb_to_ycocg(hist_rgb);
             
-            /* Use backward motion (zw component) for validation */
-            const float2 backward_motion = hist_motion.zw();
-            const float motion_error = math::length(motion_prev + backward_motion);
-            if (motion_error > 3.0f) {  /* pixels - relaxed for stability */
-              is_valid = false;
-            }
-          }
-
-          /* 4. Variance Clipping (AABB) - Reject outliers */
-          if (is_valid) {
+            /* Apply variance clipping */
             hist_ycocg = clip_aabb(hist_ycocg, box_min, box_max);
             
-            /* Additional color divergence check after clamping - relaxed */
-            const float3 color_diff = math::abs(hist_ycocg - center_ycocg);
-            if (color_diff.x > 0.7f || color_diff.y > 0.7f || color_diff.z > 0.7f) {  /* Relaxed */
-              is_valid = false;
-            }
-          }
-
-          /* ===============================================================
-           * EXPONENTIAL MOVING AVERAGE - Lower alphas for more stability
-           * =============================================================== */
-          
-          if (is_valid) {
-            /* Compute weight for this frame */
-            const float temporal_falloff = 1.0f / (1.0f + float(i) * 0.5f);
-            
-            /* Accumulate this valid sample */
+            /* Simple accumulation without motion validation */
             if (!has_valid_history) {
-              /* First valid sample - initialize */
               temporal_result_ycocg = hist_ycocg;
               has_valid_history = true;
             }
             else {
-              /* Blend with previous accumulation */
-              /* Base alpha adjusted by temporal_weight parameter */
-              const float base_alpha = quality == 0 ? 0.03f :   /* High - very stable */
-                                       quality == 1 ? 0.07f :    /* Balanced */
-                                       0.15f;                    /* Fast */
-              
+              const float base_alpha = quality == 0 ? 0.03f : quality == 1 ? 0.07f : 0.15f;
               const float adjusted_alpha = base_alpha * temporal_weight;
+              const float temporal_falloff = 1.0f / (1.0f + float(i) * 0.5f);
               const float blend_alpha = adjusted_alpha * temporal_falloff;
               temporal_result_ycocg = math::interpolate(temporal_result_ycocg, hist_ycocg, blend_alpha);
             }
-            
-            /* Don't break - accumulate multiple frames for better stability */
           }
         }
       }
 
-      /* If no valid history or no motion vectors, keep current frame */
+      /* If no valid history, keep current frame */
       if (!has_valid_history) {
         temporal_result_ycocg = center_ycocg;
       }
@@ -632,7 +669,9 @@ class TemporalDenoiseOperation : public NodeOperation {
         const int64_t pixel_index = int64_t(y) * width + x;
         const int64_t buffer_index = int64_t(write_frame_index) * pixel_count + pixel_index;
         
-        entry.buffer[buffer_index] = out_color;
+        /* CRITICAL: Store ORIGINAL image, NOT filtered result */
+        /* This prevents blur accumulation across frames */
+        entry.buffer[buffer_index] = center_rgba;  /* ← ORIGINAL, not out_color */
         
         if (entry.motion_buffer.size() > 0) {
           entry.motion_buffer[buffer_index] = motion_vec;
