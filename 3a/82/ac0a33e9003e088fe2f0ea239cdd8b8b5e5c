@@ -2,3 +2,4 @@ Referenced by commit 279a3e18218fede1e0f2cd1faaa0b26300471720, Refactor: Mesh: a
 Referenced by issue #150360, BMesh float boolean creates duplicate edges, causing crash
 Referenced by issue #151029, Crash in merge by distance in 5.1
 Referenced by pull request #151065, Fix #151029: Merge by distance crash after recent refactor
+Referenced by commit 85b410220c37d93e148a112a17bc7ecaf3bc7e3a, Fix #151029: Merge by distance crash after recent refactor
