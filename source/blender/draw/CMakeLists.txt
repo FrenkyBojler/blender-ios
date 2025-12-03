@@ -959,16 +959,18 @@ if(WITH_GTESTS)
       tests/draw_testing.hh
     )
     set(TEST_INC
+      ${INC}
       ../../../intern/ghost
       ../gpu/tests
     )
     set(TEST_LIB
+      ${LIB}
     )
     set(TEST_COMMON_SRC
       tests/draw_testing.cc
       ../gpu/tests/gpu_testing.cc
       ../gpu/tests/gpu_testing.hh
     )
-    blender_add_test_suite_lib(draw "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${LIB};${TEST_LIB}" "${TEST_COMMON_SRC}")
+    blender_add_test_suite_lib(draw "${TEST_SRC}" "${TEST_INC}" "${INC_SYS}" "${TEST_LIB}" "${TEST_COMMON_SRC}")
   endif()
 endif()
