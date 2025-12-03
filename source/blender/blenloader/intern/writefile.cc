@@ -1686,7 +1686,16 @@ static void prepare_stable_data_block_ids(WriteData &wd, Main &bmain)
   ID *id;
   FOREACH_MAIN_ID_BEGIN (&bmain, id) {
     /* Ensure no other stable pointer has been created before. */
-    BLI_assert(!wd.stable_address_ids.pointer_map.contains(id));
+    if (wd.use_memfile) {
+      /* In memfile case (undo steps), the stable address ids data is preserved between undo steps,
+       * so the ID address may already be in there, and does not need to be re-generated. */
+      if (wd.stable_address_ids.pointer_map.contains(id)) {
+        continue;
+      }
+    }
+    else {
+      BLI_assert(!wd.stable_address_ids.pointer_map.contains(id));
+    }
 
     /* Derive the stable pointer from the id/library name which is independent of the write-order
      * of data-blocks. */

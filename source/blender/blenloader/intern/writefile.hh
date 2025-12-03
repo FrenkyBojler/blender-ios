@@ -26,7 +26,7 @@ struct WriteDataStableAddressIDs {
    * Knows which DNA members are pointers. Those members are overridden when serializing the
    * .blend file to get more stable pointer identifiers.
    */
-  std::unique_ptr<blender::dna::pointers::PointersInDNA> sdna_pointers;
+  std::shared_ptr<blender::dna::pointers::PointersInDNA> sdna_pointers;
   /**
    * Maps each runtime-pointer to a unique identifier that's written in the .blend file.
    *
@@ -59,27 +59,6 @@ struct WriteDataStableAddressIDs {
    * previous hints.
    */
   uint64_t next_id_hint = 0;
-
-  /**
-   * Constructors and copy-operators required to support moving (part of) that data to MemFiles,
-   * and initializing the WriteData one again on next undo step writing.
-   *
-   * The SDNA pointers data is _not_ preserved.
-   */
-  WriteDataStableAddressIDs() = default;
-  WriteDataStableAddressIDs(const WriteDataStableAddressIDs &other)
-      : pointer_map(other.pointer_map), used_ids(other.used_ids), next_id_hint(other.next_id_hint)
-  {
-    BLI_assert(this->sdna_pointers);
-  }
-  WriteDataStableAddressIDs &operator=(const WriteDataStableAddressIDs &other)
-  {
-    this->pointer_map = other.pointer_map;
-    this->used_ids = other.used_ids;
-    this->next_id_hint = other.next_id_hint;
-    BLI_assert(!this->sdna_pointers);
-    return *this;
-  }
 };
 
 struct WriteData {
