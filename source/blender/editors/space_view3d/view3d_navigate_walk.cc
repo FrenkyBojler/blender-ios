@@ -708,12 +708,12 @@ static wmOperatorStatus walkEnd(bContext *C, WalkInfo *walk)
   return OPERATOR_CANCELLED;
 }
 
-static void walkEvent(WalkInfo *walk, const wmEvent *event)
+static bool walkEvent(WalkInfo *walk, const wmEvent *event)
 {
   if (event->type == TIMER && event->customdata == walk->timer) {
     walk->redraw = true;
   }
-  else if (ISMOUSE_MOTION(event->type)) {
+  else if (event->type == MOUSEMOVE) {
 
 #ifdef USE_TABLET_SUPPORT
     if ((walk->is_cursor_absolute == false) && event->tablet.is_motion_absolute) {
@@ -1003,7 +1003,11 @@ static void walkEvent(WalkInfo *walk, const wmEvent *event)
 #undef JUMP_HEIGHT_MIN
 #undef JUMP_HEIGHT_MAX
     }
+
+    return true;
   }
+
+  return false;
 }
 
 static void walkMoveCamera(bContext *C,
@@ -1595,9 +1599,10 @@ static wmOperatorStatus walk_modal(bContext *C, wmOperator *op, const wmEvent *e
 
   walk->redraw = false;
 
-  walkEvent(walk, event);
-
-  walk_draw_status(C, op);
+  const bool status_changed = walkEvent(walk, event);
+  if (status_changed) {
+    walk_draw_status(C, op);
+  }
 
 #ifdef WITH_INPUT_NDOF
   if (walk->ndof) { /* 3D mouse overrules [2D mouse + timer]. */
