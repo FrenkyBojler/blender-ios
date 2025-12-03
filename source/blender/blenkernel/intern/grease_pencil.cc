@@ -580,8 +580,6 @@ static void update_triangle_and_offsets_cache_isolated(const Span<float3> positi
         for (const int index : mask_segment.index_range()) {
           const int curve_i = mask_segment[index];
           const int pos = segment_pos + index;
-
-          IndexMaskMemory memory;
           const IndexRange points = points_by_curve[curve_i];
 
           if (points.size() < 3) {
