@@ -33,7 +33,7 @@
 
 #include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
-#include "undofile.hh"
+#include "writefile.hh"
 
 /* **************** support for memory-write, for undo buffers *************** */
 

@@ -137,7 +137,6 @@
 #include "BLO_writefile.hh"
 
 #include "readfile.hh"
-#include "undofile.hh"
 #include "writefile.hh"
 
 #include <zstd.h>
