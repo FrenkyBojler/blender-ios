@@ -26,9 +26,22 @@ static const EnumPropertyItem quality_items[] = {
     {2, "FAST", 0, "Fast", "Fast temporal denoising with reduced precision"},
     {0, nullptr, 0, nullptr, nullptr}};
 
+static const EnumPropertyItem preset_items[] = {
+    {0, "CUSTOM", 0, "Custom", "Manually adjust all parameters"},
+    {1, "ANTI_GHOSTING", 0, "Anti-Ghosting", "Reduce ghosting/motion trails (responsive, may flicker)"},
+    {2, "ANTI_FLICKERING", 0, "Anti-Flickering", "Reduce flickering (stable, may show ghosting)"},
+    {3, "BALANCED", 0, "Balanced", "Balanced ghosting/flickering compromise"},
+    {0, nullptr, 0, nullptr, nullptr}};
+
 static void cmp_node_temporal_denoise_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
+
+  b.add_input<decl::Menu>("Preset")
+      .default_value(MenuValue(3))
+      .static_items(preset_items)
+      .optional_label()
+      .description("Quick preset configurations: Custom, Anti-Ghosting, Anti-Flickering, or Balanced");
 
   b.add_input<decl::Color>("Image")
       .hide_value()
@@ -129,6 +142,9 @@ static void cmp_node_temporal_denoise_declare(NodeDeclarationBuilder &b)
       .min(0.0f)
       .max(2.0f)
       .description("How older frames are weighted: lower=all frames equal, higher=recent frames preferred");
+  advanced_panel.add_input<decl::Bool>("Use Motion Adaptive History")
+      .default_value(true)
+      .description("Automatically reduce history frames based on motion intensity. Disable for maximum temporal stability (anti-flickering)");
 
   b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic).align_with_previous();
 }
@@ -422,31 +438,83 @@ class TemporalDenoiseOperation : public NodeOperation {
     const MenuValue quality_menu = this->get_input("Quality").get_single_value_default(MenuValue(0));
     const int quality = quality_menu.value;  /* 0=High, 1=Balanced, 2=Fast */
 
-    /* Load Advanced parameters */
-    const float variance_gamma = math::clamp(
-        this->get_input("Variance Gamma").get_single_value_default(1.5f), 0.5f, 3.0f);
-    const float temporal_weight = math::clamp(
-        this->get_input("Temporal Weight").get_single_value_default(1.0f), 0.1f, 3.0f);
-
     const int current_frame = context().get_frame_number();
 
-    /* Load Advanced tuning parameters */
-    const float base_alpha = math::clamp(
-        this->get_input("Base Alpha").get_single_value_default(0.3f), 0.05f, 1.0f);
-    const float depth_threshold_param = math::clamp(
-        this->get_input("Depth Threshold").get_single_value_default(0.15f), 0.0f, 1.0f);
-    const float motion_threshold_param = math::clamp(
-        this->get_input("Motion Threshold").get_single_value_default(15.0f), 0.0f, 50.0f);
-    const float color_threshold_param = math::clamp(
-        this->get_input("Color Threshold").get_single_value_default(0.7f), 0.0f, 2.0f);
-    const bool use_quality_mult = this->get_input("Use Quality Multiplier").get_single_value_default(true);
-    const bool use_variance_clipping = this->get_input("Use Variance Clipping").get_single_value_default(true);
-    const float max_blend_alpha = math::clamp(
-        this->get_input("Max Blend Alpha").get_single_value_default(0.95f), 0.1f, 0.99f);
-    const float responsive_strength = math::clamp(
-        this->get_input("Responsive Strength").get_single_value_default(2.0f), 0.0f, 5.0f);
-    const float temporal_falloff_factor = math::clamp(
-        this->get_input("Temporal Falloff Factor").get_single_value_default(0.5f), 0.0f, 2.0f);
+    /* Load Preset selection */
+    const MenuValue preset_menu = this->get_input("Preset").get_single_value_default(MenuValue(3));
+    const int preset = preset_menu.value;  /* 0=Custom, 1=Anti-Ghosting, 2=Anti-Flickering, 3=Balanced */
+
+    /* Load Advanced tuning parameters - apply preset defaults if not Custom */
+    float base_alpha, depth_threshold_param, motion_threshold_param, color_threshold_param;
+    float max_blend_alpha, responsive_strength, temporal_falloff_factor;
+    float variance_gamma, temporal_weight;
+    bool use_quality_mult, use_variance_clipping, use_motion_adaptive_history;
+
+    if (preset == 1) {  /* ANTI-GHOSTING: Responsive, reduce motion trails */
+      variance_gamma = 1.3f;
+      temporal_weight = 1.2f;
+      base_alpha = 0.35f;
+      depth_threshold_param = 0.12f;
+      motion_threshold_param = 10.0f;
+      color_threshold_param = 0.6f;
+      use_quality_mult = true;
+      use_variance_clipping = true;
+      max_blend_alpha = 0.60f;           /* Lower = less ghosting */
+      responsive_strength = 3.0f;        /* Higher = more responsive */
+      temporal_falloff_factor = 1.8f;    /* Higher = older frames fade faster */
+      use_motion_adaptive_history = true;  /* Enable adaptive history for responsive behavior */
+    }
+    else if (preset == 2) {  /* ANTI-FLICKERING: Stable, reduce scintillation */
+      variance_gamma = 2.2f;             /* Larger AABB = more permissive */
+      temporal_weight = 0.8f;
+      base_alpha = 0.20f;                /* Lower = slower blend = more stable */
+      depth_threshold_param = 0.18f;
+      motion_threshold_param = 20.0f;    /* More tolerant to motion errors */
+      color_threshold_param = 0.9f;      /* More permissive color differences */
+      use_quality_mult = true;
+      use_variance_clipping = true;
+      max_blend_alpha = 0.90f;           /* Higher = more accumulation = more stable */
+      responsive_strength = 0.8f;        /* Lower = less reactive = more stable */
+      temporal_falloff_factor = 0.3f;    /* Lower = older frames still matter */
+      use_motion_adaptive_history = false;  /* DISABLE adaptive - maximum stability! */
+    }
+    else if (preset == 3) {  /* BALANCED: Compromise between ghosting and flickering */
+      variance_gamma = 1.7f;
+      temporal_weight = 1.0f;
+      base_alpha = 0.28f;
+      depth_threshold_param = 0.15f;
+      motion_threshold_param = 13.0f;
+      color_threshold_param = 0.7f;
+      use_quality_mult = true;
+      use_variance_clipping = true;
+      max_blend_alpha = 0.75f;           /* Mid-range */
+      responsive_strength = 1.8f;        /* Mid-range */
+      temporal_falloff_factor = 1.0f;    /* Mid-range */
+      use_motion_adaptive_history = true;  /* Enable for balanced behavior */
+    }
+    else {  /* CUSTOM: Use user-specified values */
+      variance_gamma = math::clamp(
+          this->get_input("Variance Gamma").get_single_value_default(1.5f), 0.5f, 3.0f);
+      temporal_weight = math::clamp(
+          this->get_input("Temporal Weight").get_single_value_default(1.0f), 0.1f, 3.0f);
+      base_alpha = math::clamp(
+          this->get_input("Base Alpha").get_single_value_default(0.3f), 0.05f, 1.0f);
+      depth_threshold_param = math::clamp(
+          this->get_input("Depth Threshold").get_single_value_default(0.15f), 0.0f, 1.0f);
+      motion_threshold_param = math::clamp(
+          this->get_input("Motion Threshold").get_single_value_default(15.0f), 0.0f, 50.0f);
+      color_threshold_param = math::clamp(
+          this->get_input("Color Threshold").get_single_value_default(0.7f), 0.0f, 2.0f);
+      use_quality_mult = this->get_input("Use Quality Multiplier").get_single_value_default(true);
+      use_variance_clipping = this->get_input("Use Variance Clipping").get_single_value_default(true);
+      max_blend_alpha = math::clamp(
+          this->get_input("Max Blend Alpha").get_single_value_default(0.95f), 0.1f, 0.99f);
+      responsive_strength = math::clamp(
+          this->get_input("Responsive Strength").get_single_value_default(2.0f), 0.0f, 5.0f);
+      temporal_falloff_factor = math::clamp(
+          this->get_input("Temporal Falloff Factor").get_single_value_default(0.5f), 0.0f, 2.0f);
+      use_motion_adaptive_history = this->get_input("Use Motion Adaptive History").get_single_value_default(true);
+    }
 
     /* NOTE: True temporal history across frames would require persistent caches keyed by node id
      * and frame number, which is outside the scope of this first implementation. For now we apply
@@ -490,15 +558,20 @@ class TemporalDenoiseOperation : public NodeOperation {
       avg_scene_motion = math::length(center_motion.xy());
     }
     
-    /* Adaptive reduction based on global motion */
-    if (has_motion && avg_scene_motion > 5.0f) {
-      /* High motion: use max 2 frames */
-      effective_history = math::min(effective_history, 2);
+    
+    /* Adaptive reduction based on global motion (only if enabled) */
+    if (use_motion_adaptive_history) {
+      if (has_motion && avg_scene_motion > 5.0f) {
+        /* High motion: use max 2 frames */
+        effective_history = math::min(effective_history, 2);
+      }
+      else if (has_motion && avg_scene_motion > 2.0f) {
+        /* Medium motion: use max 4 frames */
+        effective_history = math::min(effective_history, 4);
+      }
     }
-    else if (has_motion && avg_scene_motion > 2.0f) {
-      /* Medium motion: use max 4 frames */
-      effective_history = math::min(effective_history, 4);
-    }
+    /* When disabled: keep full history regardless of motion for maximum stability */
+    
     
     /* Quality-based limits - SAFE: never exceed capacity */
     if (quality == 2) {  /* Fast */
