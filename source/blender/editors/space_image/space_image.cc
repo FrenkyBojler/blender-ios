@@ -410,7 +410,7 @@ static void image_listener(const wmSpaceTypeListenerParams *params)
            * any change on `wmn->reference`. If we could track the upstream dependencies,
            * unnecessary redraws could be reduced. Until then, just redraw. See #98594. */
           if (ob && (ob->mode & OB_MODE_EDIT) && sima->mode == SI_MODE_UV) {
-            if (sima->lock && (sima->flag & SI_DRAWSHADOW)) {
+            if (sima->lock && ((sima->flag & SI_DRAWSHADOW) || (sima->flag & SI_DRAW_STRETCH))) {
               ED_area_tag_refresh(area);
               ED_area_tag_redraw(area);
             }
@@ -767,9 +767,9 @@ static void image_main_region_draw(const bContext *C, ARegion *region)
                         mask,
                         region, /* Mask overlay is drawn by image/overlay engine. */
                         sima->overlay.flag & SI_OVERLAY_SHOW_OVERLAYS,
-                        sima->mask_info.draw_flag & ~MASK_DRAWFLAG_OVERLAY,
-                        sima->mask_info.draw_type,
-                        eMaskOverlayMode(sima->mask_info.overlay_mode),
+                        MaskDrawFlag(sima->mask_info.draw_flag & ~MASK_DRAWFLAG_OVERLAY),
+                        MaskDrawType(sima->mask_info.draw_type),
+                        MaskOverlayMode(sima->mask_info.overlay_mode),
                         sima->mask_info.blend_factor,
                         width,
                         height,

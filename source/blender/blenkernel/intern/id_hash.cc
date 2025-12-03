@@ -111,9 +111,13 @@ static std::optional<XXH128_hash_t> get_source_file_hash(const ID &id, DeepHashE
     }
   }
 
-  if (stat.st_mtime != id.runtime->src_blend_modifification_time) {
-    r_errors.updated_files.add_as(path);
-    return std::nullopt;
+  /* The modification time may not be set if the data-block is added as linked data as part of
+   * versioning (e.g. in #do_versions_after_setup). */
+  if (id.runtime->src_blend_modifification_time != 0) {
+    if (stat.st_mtime != id.runtime->src_blend_modifification_time) {
+      r_errors.updated_files.add_as(path);
+      return std::nullopt;
+    }
   }
 
   if (const std::optional<XXH128_hash_t> hash = compute_file_hash(path)) {
@@ -173,10 +177,10 @@ static void compute_deep_hash_recursive(const Main &bmain,
       const_cast<ID *>(&id),
       [&](LibraryIDLinkCallbackData *cb_data) {
         if (cb_data->cb_flag & IDWALK_CB_LOOPBACK) {
-          /* Loopback pointer (e.g. from a shapekey to its owner geometry ID, or from a collection
-           * to its parents) should always be ignored, as they do not represent an actual
-           * dependency. The dependency relationship should already have been processed from the
-           * owner to its dependency anyway (if applicable). */
+          /* Loop-back pointer (e.g. from a shape-key to its owner geometry ID, or from a
+           * collection to its parents) should always be ignored, as they do not represent an
+           * actual dependency. The dependency relationship should already have been
+           * processed from the owner to its dependency anyway (if applicable). */
           return IDWALK_RET_NOP;
         }
         if (cb_data->cb_flag & (IDWALK_CB_EMBEDDED | IDWALK_CB_EMBEDDED_NOT_OWNING)) {

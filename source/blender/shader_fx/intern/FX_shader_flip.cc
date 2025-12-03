@@ -18,8 +18,8 @@
 
 #include "RNA_access.hh"
 
-#include "FX_shader_types.h"
-#include "FX_ui_common.h"
+#include "FX_shader_types.hh"
+#include "FX_ui_common.hh"
 
 static void init_data(ShaderFxData *fx)
 {
@@ -34,17 +34,16 @@ static void copy_data(const ShaderFxData *md, ShaderFxData *target)
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *row;
-  uiLayout *layout = panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
   const eUI_Item_Flag toggles_flag = UI_ITEM_R_TOGGLE | UI_ITEM_R_FORCE_BLANK_DECORATE;
 
   PointerRNA *ptr = shaderfx_panel_get_property_pointers(panel, nullptr);
 
-  layout->use_property_split_set(true);
+  layout.use_property_split_set(true);
 
-  row = &layout->row(true, IFACE_("Axis"));
-  row->prop(ptr, "use_flip_x", toggles_flag, std::nullopt, ICON_NONE);
-  row->prop(ptr, "use_flip_y", toggles_flag, std::nullopt, ICON_NONE);
+  blender::ui::Layout &row = layout.row(true, IFACE_("Axis"));
+  row.prop(ptr, "use_flip_x", toggles_flag, std::nullopt, ICON_NONE);
+  row.prop(ptr, "use_flip_y", toggles_flag, std::nullopt, ICON_NONE);
 
   shaderfx_panel_end(layout, ptr);
 }

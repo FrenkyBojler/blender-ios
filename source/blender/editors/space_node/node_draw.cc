@@ -195,60 +195,7 @@ void tree_update(const bContext *C)
   }
 }
 
-/* id is supposed to contain a node tree */
-static bNodeTree *node_tree_from_ID(ID *id)
-{
-  if (id) {
-    if (GS(id->name) == ID_NT) {
-      return (bNodeTree *)id;
-    }
-    return bke::node_tree_from_id(id);
-  }
-
-  return nullptr;
-}
-
-void tag_update_id(ID *id)
-{
-  bNodeTree *ntree = node_tree_from_ID(id);
-  if (id == nullptr || ntree == nullptr) {
-    return;
-  }
-
-  /* TODO(sergey): With the new dependency graph it should be just enough to only tag ntree itself.
-   * All the users of this tree will have update flushed from the tree. */
-  DEG_id_tag_update(&ntree->id, 0);
-
-  if (ntree->type == NTREE_SHADER) {
-    DEG_id_tag_update(id, 0);
-
-    if (GS(id->name) == ID_MA) {
-      WM_main_add_notifier(NC_MATERIAL | ND_SHADING, id);
-    }
-    else if (GS(id->name) == ID_LA) {
-      WM_main_add_notifier(NC_LAMP | ND_LIGHTING, id);
-    }
-    else if (GS(id->name) == ID_WO) {
-      WM_main_add_notifier(NC_WORLD | ND_WORLD, id);
-    }
-  }
-  else if (ntree->type == NTREE_COMPOSIT) {
-    WM_main_add_notifier(NC_SCENE | ND_NODES, id);
-  }
-  else if (ntree->type == NTREE_TEXTURE) {
-    DEG_id_tag_update(id, 0);
-    WM_main_add_notifier(NC_TEXTURE | ND_NODES, id);
-  }
-  else if (ntree->type == NTREE_GEOMETRY) {
-    WM_main_add_notifier(NC_OBJECT | ND_MODIFIER, id);
-  }
-  else if (id == &ntree->id) {
-    /* Node groups. */
-    DEG_id_tag_update(id, 0);
-  }
-}
-
-static void node_socket_add_tooltip_in_node_editor(const bNodeSocket &sock, uiLayout &layout);
+static void node_socket_add_tooltip_in_node_editor(const bNodeSocket &sock, ui::Layout &layout);
 
 /** Return true when \a a should be behind \a b and false otherwise. */
 static bool compare_node_depth(const bNode *a, const bNode *b)
@@ -422,15 +369,15 @@ static bool node_update_basis_buttons(const bContext &C,
 
   dy -= NODE_DYS / 4;
 
-  uiLayout &layout = ui::block_layout(&block,
-                                      ui::LayoutDirection::Vertical,
-                                      ui::LayoutType::Panel,
-                                      loc.x + NODE_DYS,
-                                      dy,
-                                      NODE_WIDTH(node) - NODE_DY,
-                                      0,
-                                      0,
-                                      UI_style_get_dpi());
+  ui::Layout &layout = ui::block_layout(&block,
+                                        ui::LayoutDirection::Vertical,
+                                        ui::LayoutType::Panel,
+                                        loc.x + NODE_DYS,
+                                        dy,
+                                        NODE_WIDTH(node) - NODE_DY,
+                                        0,
+                                        0,
+                                        UI_style_get_dpi());
 
   if (node.is_muted()) {
     layout.active_set(false);
@@ -441,7 +388,7 @@ static bool node_update_basis_buttons(const bContext &C,
 
   layout.context_ptr_set("node", &nodeptr);
 
-  draw_buttons(&layout, (bContext *)&C, &nodeptr);
+  draw_buttons(layout, (bContext *)&C, &nodeptr);
 
   UI_block_align_end(&block);
   const int buty = ui::block_layout_resolve(&block).y;
@@ -479,9 +426,24 @@ const char *node_socket_get_label(const bNodeSocket *socket, const char *panel_l
   return translated_socket_label;
 }
 
+const char *node_socket_get_description(const bNodeSocket *socket)
+{
+  if (socket->runtime->declaration == nullptr) {
+    if (socket->description[0]) {
+      return socket->description;
+    }
+    return nullptr;
+  }
+  const nodes::SocketDeclaration &socket_decl = *socket->runtime->declaration;
+  if (!socket_decl.description.empty()) {
+    return socket_decl.description.c_str();
+  }
+  return nullptr;
+}
+
 static void draw_socket_layout(TreeDrawContext &tree_draw_ctx,
                                const bContext &C,
-                               uiLayout &layout,
+                               ui::Layout &layout,
                                bNodeSocket &socket,
                                bNodeTree &ntree,
                                bNode &node,
@@ -538,15 +500,15 @@ static bool node_update_basis_socket(TreeDrawContext &tree_draw_ctx,
                                               0.0f;
   locy -= multi_input_socket_offset * 0.5f;
 
-  uiLayout &layout = ui::block_layout(&block,
-                                      ui::LayoutDirection::Vertical,
-                                      ui::LayoutType::Panel,
-                                      locx + NODE_DYS,
-                                      locy,
-                                      NODE_WIDTH(node) - NODE_DY,
-                                      NODE_DY,
-                                      0,
-                                      UI_style_get_dpi());
+  ui::Layout &layout = ui::block_layout(&block,
+                                        ui::LayoutDirection::Vertical,
+                                        ui::LayoutType::Panel,
+                                        locx + NODE_DYS,
+                                        locy,
+                                        NODE_WIDTH(node) - NODE_DY,
+                                        NODE_DY,
+                                        0,
+                                        UI_style_get_dpi());
 
   if (node.is_muted()) {
     layout.active_set(false);
@@ -555,7 +517,7 @@ static bool node_update_basis_socket(TreeDrawContext &tree_draw_ctx,
     layout.enabled_set(false);
   }
 
-  uiLayout *row = &layout.row(true);
+  ui::Layout *row = &layout.row(true);
   PointerRNA nodeptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node);
   row->context_ptr_set("node", &nodeptr);
 
@@ -1191,15 +1153,15 @@ static void node_update_basis_from_declaration(TreeDrawContext &tree_draw_ctx,
             const nodes::LayoutDeclaration &decl = *item.decl;
             /* Round the node origin because text contents are always pixel-aligned. */
             const float2 loc = math::round(node_to_view(node.location));
-            uiLayout &layout = ui::block_layout(&block,
-                                                ui::LayoutDirection::Vertical,
-                                                ui::LayoutType::Panel,
-                                                loc.x + NODE_DYS,
-                                                locy,
-                                                NODE_WIDTH(node) - NODE_DY,
-                                                0,
-                                                0,
-                                                UI_style_get_dpi());
+            ui::Layout &layout = ui::block_layout(&block,
+                                                  ui::LayoutDirection::Vertical,
+                                                  ui::LayoutType::Panel,
+                                                  loc.x + NODE_DYS,
+                                                  locy,
+                                                  NODE_WIDTH(node) - NODE_DY,
+                                                  0,
+                                                  0,
+                                                  UI_style_get_dpi());
             if (node.is_muted()) {
               layout.active_set(false);
             }
@@ -1208,20 +1170,20 @@ static void node_update_basis_from_declaration(TreeDrawContext &tree_draw_ctx,
             }
             PointerRNA node_ptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node);
             layout.context_ptr_set("node", &node_ptr);
-            decl.draw(&layout, const_cast<bContext *>(&C), &node_ptr);
+            decl.draw(layout, const_cast<bContext *>(&C), &node_ptr);
             UI_block_align_end(&block);
             locy = ui::block_layout_resolve(&block).y;
           }
           else if constexpr (std::is_same_v<ItemT, flat_item::Separator>) {
-            uiLayout &layout = ui::block_layout(&block,
-                                                ui::LayoutDirection::Vertical,
-                                                ui::LayoutType::Panel,
-                                                locx + NODE_DYS,
-                                                locy,
-                                                NODE_WIDTH(node) - NODE_DY,
-                                                NODE_DY,
-                                                0,
-                                                UI_style_get_dpi());
+            ui::Layout &layout = ui::block_layout(&block,
+                                                  ui::LayoutDirection::Vertical,
+                                                  ui::LayoutType::Panel,
+                                                  locx + NODE_DYS,
+                                                  locy,
+                                                  NODE_WIDTH(node) - NODE_DY,
+                                                  NODE_DY,
+                                                  0,
+                                                  UI_style_get_dpi());
             layout.separator(1.0, LayoutSeparatorType::Line);
             ui::block_layout_resolve(&block);
           }
@@ -1463,6 +1425,8 @@ static int node_get_colorid(TreeDrawContext &tree_draw_ctx, const bNode &node)
       return TH_NODE_GEOMETRY;
     case NODE_CLASS_ATTRIBUTE:
       return TH_NODE_ATTRIBUTE;
+    case NODE_CLASS_LAYOUT:
+      return node.is_frame() ? TH_NODE_FRAME : TH_NODE;
     default:
       return TH_NODE;
   }
@@ -1493,7 +1457,6 @@ static void node_socket_tooltip_set(uiBlock &block,
    * button on top of them for the tooltip. */
   uiBut *but = uiDefIconBut(&block,
                             ButType::Label,
-                            0,
                             ICON_NONE,
                             location.x - size.x / 2.0f,
                             location.y - size.y / 2.0f,
@@ -1564,7 +1527,7 @@ void node_socket_color_get(const bContext &C,
   sock.typeinfo->draw_color((bContext *)&C, &ptr, &node_ptr, r_color);
 }
 
-static void node_socket_add_tooltip_in_node_editor(const bNodeSocket &sock, uiLayout &layout)
+static void node_socket_add_tooltip_in_node_editor(const bNodeSocket &sock, ui::Layout &layout)
 {
   uiLayoutSetTooltipCustomFunc(
       &layout,
@@ -1581,7 +1544,7 @@ static void node_socket_add_tooltip_in_node_editor(const bNodeSocket &sock, uiLa
       nullptr);
 }
 
-void node_socket_add_tooltip(const bNodeTree &ntree, const bNodeSocket &sock, uiLayout &layout)
+void node_socket_add_tooltip(const bNodeTree &ntree, const bNodeSocket &sock, ui::Layout &layout)
 {
   struct SocketTooltipData {
     const bNodeTree *ntree;
@@ -2048,7 +2011,6 @@ static void node_draw_panels(bNodeTree &ntree, const bNode &node, uiBlock &block
     uiBut *toggle_action_but = uiDefIconBut(
         &block,
         ButType::ButToggle,
-        0,
         ICON_NONE,
         header_rect.xmin + header_but_margin,
         header_rect.ymin,
@@ -2071,7 +2033,6 @@ static void node_draw_panels(bNodeTree &ntree, const bNode &node, uiBlock &block
     int offsetx = draw_bounds.xmin + (NODE_MARGIN_X / 3);
     uiDefIconBut(&block,
                  ButType::Label,
-                 0,
                  panel_state.is_collapsed() ? ICON_RIGHTARROW : ICON_DOWNARROW_HLT,
                  offsetx,
                  *panel_runtime.header_center_y - but_size / 2,
@@ -2091,7 +2052,6 @@ static void node_draw_panels(bNodeTree &ntree, const bNode &node, uiBlock &block
           &ntree.id, &RNA_NodeSocket, input_socket);
       uiBut *panel_toggle_but = uiDefButR(&block,
                                           ButType::Checkbox,
-                                          -1,
                                           "",
                                           offsetx,
                                           int(*panel_runtime.header_center_y - NODE_DYS),
@@ -2103,6 +2063,7 @@ static void node_draw_panels(bNodeTree &ntree, const bNode &node, uiBlock &block
                                           0,
                                           0,
                                           "");
+      UI_but_retval_set(panel_toggle_but, -1);
       UI_but_func_tooltip_custom_set(
           panel_toggle_but,
           [](bContext &C, uiTooltipData &tip, uiBut *but, void *argN) {
@@ -2128,7 +2089,6 @@ static void node_draw_panels(bNodeTree &ntree, const bNode &node, uiBlock &block
     uiBut *label_but = uiDefBut(
         &block,
         ButType::Label,
-        0,
         CTX_IFACE_(panel_translation_context, panel_decl.name),
         offsetx,
         int(*panel_runtime.header_center_y - NODE_DYS),
@@ -2189,7 +2149,6 @@ static uiBut *add_error_message_button(uiBlock &block,
   UI_block_emboss_set(&block, ui::EmbossType::None);
   uiBut *but = uiDefIconBut(&block,
                             ButType::But,
-                            0,
                             icon,
                             icon_offset,
                             rect.ymax - NODE_DY,
@@ -2668,7 +2627,6 @@ static void node_draw_extra_info_row(const bNode &node,
   UI_block_emboss_set(&block, ui::EmbossType::None);
   uiBut *but_icon = uiDefIconBut(&block,
                                  ButType::But,
-                                 0,
                                  extra_info_row.icon,
                                  int(but_icon_left),
                                  int(rect.ymin + row * EXTRA_INFO_ROW_HEIGHT),
@@ -2692,7 +2650,6 @@ static void node_draw_extra_info_row(const bNode &node,
 
   uiBut *but_text = uiDefBut(&block,
                              extra_info_row.set_execute_fn ? ButType::But : ButType::Label,
-                             0,
                              extra_info_row.text.c_str(),
                              int(but_text_left),
                              int(rect.ymin + row * EXTRA_INFO_ROW_HEIGHT),
@@ -3042,7 +2999,6 @@ static void node_draw_basis(const bContext &C,
     UI_block_emboss_set(&block, ui::EmbossType::None);
     uiBut *but = uiDefIconBut(&block,
                               ButType::ButToggle,
-                              0,
                               ICON_FILE_REFRESH,
                               iconofs,
                               rct.ymax - NODE_DY,
@@ -3068,7 +3024,6 @@ static void node_draw_basis(const bContext &C,
     UI_block_emboss_set(&block, ui::EmbossType::None);
     uiBut *but = uiDefIconBut(&block,
                               ButType::ButToggle,
-                              0,
                               is_active ? ICON_HIDE_OFF : ICON_HIDE_ON,
                               iconofs,
                               rct.ymax - NODE_DY,
@@ -3091,7 +3046,6 @@ static void node_draw_basis(const bContext &C,
     UI_block_emboss_set(&block, ui::EmbossType::None);
     uiDefIconBut(&block,
                  ButType::But,
-                 0,
                  node.typeinfo->ui_icon,
                  iconofs,
                  rct.ymax - NODE_DY,
@@ -3109,7 +3063,6 @@ static void node_draw_basis(const bContext &C,
     UI_block_emboss_set(&block, ui::EmbossType::None);
     uiBut *but = uiDefIconBut(&block,
                               ButType::But,
-                              0,
                               is_active ? ICON_RESTRICT_VIEW_OFF : ICON_RESTRICT_VIEW_ON,
                               iconofs,
                               rct.ymax - NODE_DY,
@@ -3128,7 +3081,6 @@ static void node_draw_basis(const bContext &C,
     short shortcut_icon = get_viewer_shortcut_icon(node);
     uiDefIconBut(&block,
                  ButType::But,
-                 0,
                  shortcut_icon,
                  iconofs - 1.2 * iconbutw,
                  rct.ymax - NODE_DY,
@@ -3148,7 +3100,6 @@ static void node_draw_basis(const bContext &C,
     UI_block_emboss_set(&block, ui::EmbossType::None);
     uiBut *but = uiDefIconBut(&block,
                               ButType::But,
-                              0,
                               is_active ? ICON_RESTRICT_VIEW_OFF : ICON_RESTRICT_VIEW_ON,
                               iconofs,
                               rct.ymax - NODE_DY,
@@ -3166,7 +3117,6 @@ static void node_draw_basis(const bContext &C,
 
     uiDefIconBut(&block,
                  ButType::But,
-                 0,
                  shortcut_icon,
                  iconofs - 1.2 * iconbutw,
                  rct.ymax - NODE_DY,
@@ -3196,7 +3146,6 @@ static void node_draw_basis(const bContext &C,
 
     uiBut *but = uiDefIconBut(&block,
                               ButType::ButToggle,
-                              0,
                               ICON_DOWNARROW_HLT,
                               rct.xmin + (NODE_MARGIN_X / 3),
                               rct.ymax - NODE_DY / 2.2f - but_size / 2,
@@ -3218,7 +3167,6 @@ static void node_draw_basis(const bContext &C,
 
   uiBut *but = uiDefBut(&block,
                         ButType::Label,
-                        0,
                         showname,
                         round_fl_to_int(rct.xmin + NODE_MARGIN_X),
                         int(rct.ymax - NODE_DY),
@@ -3394,7 +3342,6 @@ static void node_draw_collapsed(const bContext &C,
 
     uiBut *but = uiDefIconBut(&block,
                               ButType::ButToggle,
-                              0,
                               ICON_RIGHTARROW,
                               rct.xmin + (NODE_MARGIN_X / 3) + 0.1f * U.widget_unit,
                               centy - but_size / 2,
@@ -3416,7 +3363,6 @@ static void node_draw_collapsed(const bContext &C,
 
   uiBut *but = uiDefBut(&block,
                         ButType::Label,
-                        0,
                         showname,
                         round_fl_to_int(rct.xmin + NODE_MARGIN_X),
                         round_fl_to_int(centy - NODE_DY * 0.5f),
@@ -4079,7 +4025,7 @@ static void reroute_node_draw_label(TreeDrawContext &tree_draw_ctx,
   const int y = node.runtime->draw_bounds.ymax - 4 * UI_SCALE_FAC;
 
   uiBut *label_but = uiDefBut(
-      &block, ButType::Label, 0, text, x, y, width, NODE_DY, nullptr, 0, 0, std::nullopt);
+      &block, ButType::Label, text, x, y, width, NODE_DY, nullptr, 0, 0, std::nullopt);
 
   UI_but_drawflag_disable(label_but, UI_BUT_TEXT_LEFT);
 
@@ -4559,7 +4505,6 @@ static void draw_link_errors(const bContext &C,
   UI_block_emboss_set(&invalid_links_block, ui::EmbossType::None);
   uiBut *but = uiDefIconBut(&invalid_links_block,
                             ButType::But,
-                            0,
                             ICON_ERROR,
                             draw_position.x - icon_size / 2,
                             draw_position.y - icon_size / 2,
@@ -4666,7 +4611,7 @@ static void draw_tree_path(const bContext &C, ARegion &region)
   const int width = BLI_rcti_size_x(rect) - 2 * padding_x;
 
   uiBlock *block = UI_block_begin(&C, &region, __func__, ui::EmbossType::None);
-  uiLayout &layout = ui::block_layout(
+  ui::Layout &layout = ui::block_layout(
       block, ui::LayoutDirection::Vertical, ui::LayoutType::Panel, x, y, width, 1, 0, style);
 
   const Vector<ui::ContextPathItem> context_path = ed::space_node::context_path_for_space_node(C);

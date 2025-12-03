@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Beta (b'6cf0458fdf00')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'dba3692987cb')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-11-03 10:44+0000\n"
+"POT-Creation-Date: 2025-12-02 11:29+0000\n"
 "PO-Revision-Date: 2025-07-23 14:56+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Serbian (Latin script) <https://translate.blender.org/projects/blender-ui/ui/sr_Latn/>\n"
@@ -639,6 +639,98 @@ msgid "Space Type"
 msgstr "Vrsta razmaka"
 
 
+msgid "Actions"
+msgstr "Akcije"
+
+
+msgid "Armatures"
+msgstr "Kosturi"
+
+
+msgid "Brushes"
+msgstr "Četkice"
+
+
+msgid "Cameras"
+msgstr "Kamere"
+
+
+msgid "Curves"
+msgstr "Krive"
+
+
+msgid "Fonts"
+msgstr "Fontovi"
+
+
+msgid "Grease Pencil"
+msgstr "Skiciranje"
+
+
+msgid "Images"
+msgstr "Slike"
+
+
+msgid "Lattices"
+msgstr "Kavezi"
+
+
+msgid "Lights"
+msgstr "Svetla"
+
+
+msgid "Masks"
+msgstr "Maske"
+
+
+msgid "Materials"
+msgstr "Materijali"
+
+
+msgid "Meshes"
+msgstr "Meševi"
+
+
+msgid "Metaballs"
+msgstr "Metalopte"
+
+
+msgid "Movie Clips"
+msgstr "Filmski isečak"
+
+
+msgid "Objects"
+msgstr "Objekti"
+
+
+msgid "Palettes"
+msgstr "Palete"
+
+
+msgid "Scenes"
+msgstr "Scene"
+
+
+msgid "Sounds"
+msgstr "Zvuci"
+
+
+msgid "Speakers"
+msgstr "Zvučnici"
+
+
+msgid "Texts"
+msgstr "Tekstovi"
+
+
+msgid "Textures"
+msgstr "Teksture"
+
+
+msgid "Worlds"
+msgstr "Svetovi"
+
+
 msgid "Display Filter"
 msgstr "Filter prikaza"
 
@@ -903,28 +995,8 @@ msgid "Softbody goal weight"
 msgstr "Ciljna težina mekog tela"
 
 
-msgid "Actions"
-msgstr "Akcije"
-
-
-msgid "Armatures"
-msgstr "Kosturi"
-
-
-msgid "Brushes"
-msgstr "Četkice"
-
-
-msgid "Cameras"
-msgstr "Kamere"
-
-
 msgid "Color Space"
 msgstr "Prostor boja"
-
-
-msgid "Curves"
-msgstr "Krive"
 
 
 msgid "Filename"
@@ -939,72 +1011,24 @@ msgid "Vector Fonts"
 msgstr "Fontovi"
 
 
-msgid "Grease Pencil"
-msgstr "Skiciranje"
-
-
-msgid "Images"
-msgstr "Slike"
-
-
 msgid "File is Saved"
 msgstr "Datoteka je sačuvana"
-
-
-msgid "Lattices"
-msgstr "Kavezi"
 
 
 msgid "Libraries"
 msgstr "Zbirke"
 
 
-msgid "Lights"
-msgstr "Svetla"
-
-
 msgid "Line Styles"
 msgstr "Vrste linija"
-
-
-msgid "Masks"
-msgstr "Maske"
-
-
-msgid "Materials"
-msgstr "Materijali"
-
-
-msgid "Meshes"
-msgstr "Meševi"
-
-
-msgid "Metaballs"
-msgstr "Metalopte"
-
-
-msgid "Movie Clips"
-msgstr "Filmski isečak"
 
 
 msgid "Node Groups"
 msgstr "Grupe čvorova"
 
 
-msgid "Objects"
-msgstr "Objekti"
-
-
-msgid "Palettes"
-msgstr "Palete"
-
-
 msgid "Particles"
 msgstr "Čestice"
-
-
-msgid "Scenes"
-msgstr "Scene"
 
 
 msgid "Screens"
@@ -1015,32 +1039,12 @@ msgid "Shape Keys"
 msgstr "Ključevi oblika"
 
 
-msgid "Sounds"
-msgstr "Zvuci"
-
-
-msgid "Speakers"
-msgstr "Zvučnici"
-
-
-msgid "Texts"
-msgstr "Tekstovi"
-
-
-msgid "Textures"
-msgstr "Teksture"
-
-
 msgid "Version"
 msgstr "Verzija"
 
 
 msgid "Window Managers"
 msgstr "Upravljači prozorima"
-
-
-msgid "Worlds"
-msgstr "Svetovi"
 
 
 msgid "Blender RNA"
@@ -4266,10 +4270,6 @@ msgstr "Z smer"
 
 msgid "Both Z"
 msgstr "Obe Z"
-
-
-msgid "Fonts"
-msgstr "Fontovi"
 
 
 msgid "File Select Parameters"
@@ -8497,22 +8497,6 @@ msgid "Material slot name"
 msgstr "Naziv slota materijala"
 
 
-msgid "Metaball"
-msgstr "Meta lopta"
-
-
-msgid "Light"
-msgstr "Svetlost"
-
-
-msgid "Relations"
-msgstr "Odnosi"
-
-
-msgid "Rigid Body"
-msgstr "Kruto telo"
-
-
 msgid "Apply"
 msgstr "Primeni"
 
@@ -8545,20 +8529,8 @@ msgid "Propagate"
 msgstr "Prenesi"
 
 
-msgid "Keying"
-msgstr "Zbirka tastera"
-
-
-msgid "Tracking"
-msgstr "Praćenje"
-
-
 msgid "Names"
 msgstr "Imena"
-
-
-msgid "Math"
-msgstr "Matematika"
 
 
 msgid "Toggle Bone Options"
@@ -8581,8 +8553,24 @@ msgid "Merge"
 msgstr "Sjedini"
 
 
+msgid "Keying"
+msgstr "Zbirka tastera"
+
+
+msgid "Tracking"
+msgstr "Praćenje"
+
+
+msgid "Math"
+msgstr "Matematika"
+
+
 msgid "Special Characters"
 msgstr "Specijalni znaci"
+
+
+msgid "Metaball"
+msgstr "Meta lopta"
 
 
 msgid "Bone Roll"
@@ -8591,10 +8579,6 @@ msgstr "Rolna kostiju"
 
 msgid "Snap"
 msgstr "Lepljenje"
-
-
-msgid "Import"
-msgstr "Uvoz"
 
 
 msgid "Mirror"
@@ -8609,10 +8593,6 @@ msgid "Local View"
 msgstr "Lokalni pogled"
 
 
-msgid "UV"
-msgstr "UV"
-
-
 msgid "Navigation"
 msgstr "Navigacija"
 
@@ -8623,6 +8603,26 @@ msgstr "Poravnaj pogled"
 
 msgid "Select Linked"
 msgstr "Izaberi povezano"
+
+
+msgid "Import"
+msgstr "Uvoz"
+
+
+msgid "UV"
+msgstr "UV"
+
+
+msgid "Light"
+msgstr "Svetlost"
+
+
+msgid "Relations"
+msgstr "Odnosi"
+
+
+msgid "Rigid Body"
+msgstr "Kruto telo"
 
 
 msgid "Basic"
@@ -11117,12 +11117,12 @@ msgid "Data type"
 msgstr "Vrsta podatka"
 
 
-msgid "Default Value"
-msgstr "Početna vrednost"
-
-
 msgid "Shader Node Socket"
 msgstr "Utičnica čvora senčenja"
+
+
+msgid "Default Value"
+msgstr "Početna vrednost"
 
 
 msgid "Maximum value"
@@ -16850,10 +16850,6 @@ msgid "Add IK to Bone"
 msgstr "Dodaj IK na kost"
 
 
-msgid "Add IK Constraint to the active Bone"
-msgstr "Dodaje IK ograničenja aktivnoj kosti"
-
-
 msgctxt "Operator"
 msgid "Remove IK"
 msgstr "Ukloni IK"
@@ -21558,6 +21554,10 @@ msgid "Meta Strip"
 msgstr "Meta traka"
 
 
+msgid "Playback volume of the sound"
+msgstr "Jačina zvuka pri reprodukciji"
+
+
 msgid "Stabilize 2D Clip"
 msgstr "Stabilizuj 2D klip"
 
@@ -21568,10 +21568,6 @@ msgstr "Klip bez izobličavanja"
 
 msgid "Scene Strip"
 msgstr "Traka scene"
-
-
-msgid "Playback volume of the sound"
-msgstr "Jačina zvuka pri reprodukciji"
 
 
 msgid "Inverse Gamma"
@@ -23232,10 +23228,6 @@ msgid "Face"
 msgstr "Stranica"
 
 
-msgid "Image*"
-msgstr "Slika*"
-
-
 msgctxt "Operator"
 msgid "Pack"
 msgstr "Zapakuj"
@@ -23284,11 +23276,6 @@ msgstr "Uputstvo na internetu"
 msgctxt "Operator"
 msgid "Make"
 msgstr "Napravi"
-
-
-msgctxt "Operator"
-msgid "Movie"
-msgstr "Film"
 
 
 msgctxt "Operator"
@@ -24538,22 +24525,6 @@ msgstr "Objekat nije pronađen"
 
 msgid "No active mesh object"
 msgstr "Bez aktivnog meš objekta"
-
-
-msgid "To Active Bone"
-msgstr "Na aktivnu kost"
-
-
-msgid "To Active Object"
-msgstr "Na aktivni objekat"
-
-
-msgid "To New Empty Object"
-msgstr "Na novi prazan objekat"
-
-
-msgid "Without Targets"
-msgstr "Bez cilja"
 
 
 msgid "Object (Keep Transform)"

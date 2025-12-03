@@ -173,7 +173,7 @@ void node_socket_color_get(const bContext &C,
 
 void node_draw_space(const bContext &C, ARegion &region);
 
-void node_socket_add_tooltip(const bNodeTree &ntree, const bNodeSocket &sock, uiLayout &layout);
+void node_socket_add_tooltip(const bNodeTree &ntree, const bNodeSocket &sock, ui::Layout &layout);
 
 /**
  * Update node draw order nodes based on selection: unselected nodes first, then selected,
@@ -311,6 +311,7 @@ void NODE_OT_swap_group_asset(wmOperatorType *ot);
 void NODE_OT_new_node_tree(wmOperatorType *ot);
 void NODE_OT_new_compositing_node_group(wmOperatorType *ot);
 void NODE_OT_duplicate_compositing_node_group(wmOperatorType *ot);
+void NODE_OT_duplicate_compositing_modifier_node_group(wmOperatorType *ot);
 void NODE_OT_new_compositor_sequencer_node_group(wmOperatorType *operator_type);
 void NODE_OT_add_group_input_node(wmOperatorType *ot);
 
@@ -425,7 +426,7 @@ void NODE_GGT_backdrop_split(wmGizmoGroupType *gzgt);
 void node_geometry_add_attribute_search_button(const bContext &C,
                                                const bNode &node,
                                                PointerRNA &socket_ptr,
-                                               uiLayout &layout,
+                                               ui::Layout &layout,
                                                StringRef placeholder = "");
 
 /* `node_geometry_layer_search.cc` */
@@ -433,14 +434,14 @@ void node_geometry_add_attribute_search_button(const bContext &C,
 void node_geometry_add_layer_search_button(const bContext &C,
                                            const bNode &node,
                                            PointerRNA &socket_ptr,
-                                           uiLayout &layout,
+                                           ui::Layout &layout,
                                            StringRef placeholder = "");
 /* `node_geometry_volume_grid_search.cc` */
 
 void node_geometry_add_volume_grid_search_button(const bContext &C,
                                                  const bNode &node,
                                                  PointerRNA &socket_ptr,
-                                                 uiLayout &layout,
+                                                 ui::Layout &layout,
                                                  StringRef placeholder = "");
 
 /* `node_context_path.cc` */

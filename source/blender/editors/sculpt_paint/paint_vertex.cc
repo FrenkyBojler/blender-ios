@@ -617,7 +617,7 @@ bool vertex_paint_mode_poll(bContext *C)
     return false;
   }
 
-  if (!BKE_color_attribute_supported(*mesh, mesh->active_color_attribute)) {
+  if (!BKE_id_attributes_color_find(&mesh->id, mesh->active_color_attribute)) {
     return false;
   }
 
@@ -1069,7 +1069,7 @@ static bool vpaint_stroke_test_start(bContext *C, wmOperator *op, const float mo
 
   const std::optional<bke::AttributeMetaData> meta_data = mesh->attributes().lookup_meta_data(
       mesh->active_color_attribute);
-  if (!BKE_color_attribute_supported(*mesh, mesh->active_color_attribute)) {
+  if (!BKE_id_attributes_color_find(&mesh->id, mesh->active_color_attribute)) {
     return false;
   }
 
@@ -1077,6 +1077,10 @@ static bool vpaint_stroke_test_start(bContext *C, wmOperator *op, const float mo
       C, op, scene, depsgraph, vp, ob, *mesh, meta_data->domain, meta_data->data_type, brush);
 
   paint_stroke_set_mode_data(stroke, std::move(vpd));
+
+  BKE_curvemapping_init(brush.curve_rand_hue);
+  BKE_curvemapping_init(brush.curve_rand_saturation);
+  BKE_curvemapping_init(brush.curve_rand_value);
 
   /* If not previously created, create vertex/weight paint mode session data */
   vertex_paint_init_stroke(depsgraph, ob);
