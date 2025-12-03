@@ -60,7 +60,7 @@ static void cmp_node_temporal_denoise_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Menu>("Mode")
       .default_value(MenuValue(0))
       .static_items(mode_items)
-      .description("Manual uses all sliders. Auto presets override most settings and use their own tuned values");
+      .description("Manual uses all sliders. Auto presets override most settings (Except Frames let them to 5 when you're use Auto) and use their own tuned values");
 
   b.add_input<decl::Int>("Frames")
       .default_value(5)
