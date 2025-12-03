@@ -105,7 +105,7 @@ void GHOST_XrContext::createOpenXRInstance(
 
   BLI_strncpy(
       create_info.applicationInfo.applicationName, "Blender", XR_MAX_APPLICATION_NAME_SIZE);
-  create_info.applicationInfo.apiVersion = XR_CURRENT_API_VERSION;
+  create_info.applicationInfo.apiVersion = XR_API_VERSION_1_0; /* Explicitely target OpenXR 1.0. */
 
   getAPILayersToEnable(enabled_layers_);
   getExtensionsToEnable(graphics_binding_types, enabled_extensions_);
