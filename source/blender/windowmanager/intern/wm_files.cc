@@ -4726,10 +4726,8 @@ static uiBlock *block_create__close_file_dialog(bContext *C, ARegion *region, vo
       block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_LOOP | UI_BLOCK_NO_WIN_CLIP | UI_BLOCK_NUMSELECT);
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
 
-  blender::ui::Layout &layout = *uiItemsAlertBox(
-      block,
-      (bmain->colorspace.is_missing_opencolorio_config) ? 44 : 34,
-      blender::ui::AlertIcon::Question);
+  ui::Layout &layout = *uiItemsAlertBox(
+      block, (bmain->colorspace.is_missing_opencolorio_config) ? 44 : 34, ui::AlertIcon::Question);
 
   const bool needs_overwrite_confirm = BKE_main_needs_overwrite_confirm(bmain);
 
@@ -4759,7 +4757,7 @@ static uiBlock *block_create__close_file_dialog(bContext *C, ARegion *region, vo
   uint modified_images_count = ED_image_save_all_modified_info(bmain, &reports);
 
   LISTBASE_FOREACH (Report *, report, &reports.list) {
-    blender::ui::Layout &row = layout.column(false);
+    ui::Layout &row = layout.column(false);
     row.scale_y_set(0.6f);
     row.separator();
 
@@ -4849,7 +4847,7 @@ static uiBlock *block_create__close_file_dialog(bContext *C, ARegion *region, vo
   if (windows_layout) {
     /* Windows standard layout. */
 
-    blender::ui::Layout &split = layout.split(0.0f, true);
+    ui::Layout &split = layout.split(0.0f, true);
     split.scale_y_set(1.2f);
 
     split.column(false);
@@ -4864,13 +4862,13 @@ static uiBlock *block_create__close_file_dialog(bContext *C, ARegion *region, vo
   else {
     /* Non-Windows layout (macOS and Linux). */
 
-    blender::ui::Layout &split = layout.split(0.3f, true);
+    ui::Layout &split = layout.split(0.3f, true);
     split.scale_y_set(1.2f);
 
     split.column(false);
     wm_block_file_close_discard_button(block, post_action);
 
-    blender::ui::Layout &split_right = split.split(0.1f, true);
+    ui::Layout &split_right = split.split(0.1f, true);
 
     split_right.column(false);
     /* Empty space. */
