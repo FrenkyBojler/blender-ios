@@ -294,7 +294,6 @@ static int filelist_geticon_file_type_ex(const FileList *filelist,
     if (typeflag & FILE_TYPE_BLENDER) {
       return ICON_FILE_BLEND;
     }
-
     if (is_main) {
       if (filelist->type == FILE_SYSTEM_ROOT) {
         /* If this path is in System list or path cache then use that icon. */
@@ -3016,6 +3015,9 @@ void filelist_add_system_root_item(FileList *filelist, FSMenu *menu, FSMenuCateg
     entry->typeflag |= FILE_TYPE_DIR | FILE_TYPE_FOLDER;
     entry->uid = filelist_uid_generate(filelist);
     entry->redirection_path = BLI_strdup(fsm_iter->path);
+    if (category != FS_CATEGORY_SYSTEM) {
+      entry->attributes |= FILE_ATTR_ALIAS;
+    }
     BLI_addtail(&filelist->filelist_intern.entries, entry);
     filelist->filelist.entries_num += 1;
   }
@@ -3359,7 +3361,8 @@ static void filelist_readjob_start_ex(FileList *filelist,
   wm_job = WM_jobs_get(CTX_wm_manager(C),
                        CTX_wm_window(C),
                        filelist,
-                       "Listing directories...",
+                       filelist->asset_library_ref ? "Loading Asset Library..." :
+                                                     "Listing directories...",
                        WM_JOB_PROGRESS,
                        filelist_jobtype_get(filelist));
   WM_jobs_customdata_set(wm_job, flrj, filelist_readjob_free);
