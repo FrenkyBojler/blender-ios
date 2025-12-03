@@ -387,13 +387,6 @@ class TemporalDenoiseOperation : public NodeOperation {
     const float temporal_weight = math::clamp(
         this->get_input("Temporal Weight").get_single_value_default(1.0f), 0.1f, 3.0f);
 
-    /* Hardcoded thresholds - mostly unused with variance clipping */
-    const float luma_threshold = 0.1f;
-    const float chroma_threshold = 0.1f;
-    const float motion_threshold = 0.5f;
-    const float inv_luma_threshold = 10.0f;
-    const float inv_chroma_threshold = 10.0f;
-
     const int current_frame = context().get_frame_number();
 
     /* NOTE: True temporal history across frames would require persistent caches keyed by node id
@@ -422,8 +415,45 @@ class TemporalDenoiseOperation : public NodeOperation {
       }
     }
 
-    /* Adaptive motion-based frame count */
-    const float scene_motion_threshold = 5.0f;
+    /* =================================================================
+     * Adaptive History Calculation (GLOBAL - computed once)
+     * ================================================================= */
+    
+    /* CRITICAL: Calculate effective_history ONCE for entire image */
+    /* Per-pixel calculation would give inconsistent results */
+    int effective_history = history_to_use;
+    
+    /* Sample center pixel for global motion estimation */
+    float avg_scene_motion = 0.0f;
+    if (has_motion && size.x > 0 && size.y > 0) {
+      const int2 center_texel = int2(size.x / 2, size.y / 2);
+      const float4 center_motion = speed_cpu.load_pixel<float4>(center_texel);
+      avg_scene_motion = math::length(center_motion.xy());
+    }
+    
+    /* Adaptive reduction based on global motion */
+    if (has_motion && avg_scene_motion > 5.0f) {
+      /* High motion: use max 2 frames */
+      effective_history = math::min(effective_history, 2);
+    }
+    else if (has_motion && avg_scene_motion > 2.0f) {
+      /* Medium motion: use max 4 frames */
+      effective_history = math::min(effective_history, 4);
+    }
+    
+    /* Quality-based limits - SAFE: never exceed capacity */
+    if (quality == 2) {  /* Fast */
+      effective_history = math::min(effective_history, 2);
+    }
+    else if (quality == 1) {  /* Balanced */
+      effective_history = math::min(effective_history, math::min(5, history_capacity));
+    }
+    /* High quality: use all available */
+    
+    /* CRITICAL: Strict clamping to never exceed actual data */
+    effective_history = math::min(effective_history, prev_stored);
+    effective_history = math::min(effective_history, history_capacity);
+    effective_history = math::max(effective_history, 0);  /* Safety */
 
     parallel_for(size, [&](const int2 texel) {
       /* =================================================================
@@ -440,7 +470,6 @@ class TemporalDenoiseOperation : public NodeOperation {
       /* Load motion vector */
       const float4 motion_vec = has_motion ? speed_cpu.load_pixel<float4>(texel) : float4(0.0f);
       const float2 motion_prev = motion_vec.xy();
-      const float scene_motion = math::length(motion_prev);
       
       /* Load auxiliary data */
       float3 albedo_center = float3(0.0f);
@@ -487,24 +516,8 @@ class TemporalDenoiseOperation : public NodeOperation {
       }
 
       /* =================================================================
-       * STEP 3: Adaptive Frame Count based on Motion
-       * ================================================================= */
-      
-      int adaptive_frames = history_to_use;
-      if (scene_motion > scene_motion_threshold) {
-        adaptive_frames = math::min(history_to_use, 2);  /* High motion: fewer frames */
-      }
-      else if (scene_motion > 2.0f) {
-        adaptive_frames = math::min(history_to_use, 4);  /* Moderate motion */
-      }
-      
-      /* Quality-based limit */
-      const int effective_history = quality == 2 ? math::min(adaptive_frames, 2) :
-                                    quality == 1 ? math::min(adaptive_frames, 5) : 
-                                    adaptive_frames;
-
-      /* =================================================================
-       * STEP 4: Temporal Reprojection & Exponential Moving Average
+       * STEP 3: Temporal Reprojection & Exponential Moving Average
+       * NOTE: effective_history is now calculated GLOBALLY before parallel_for
        * ================================================================= */
       
       float3 temporal_result_ycocg = center_ycocg;  /* Start with current frame */
