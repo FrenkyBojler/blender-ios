@@ -48,21 +48,40 @@ namespace greasepencil {
  * For compatibility, legacy thickness values have to be multiplied by this factor. */
 constexpr float LEGACY_RADIUS_CONVERSION_FACTOR = 1.0f / 2000.0f;
 
+struct TriangleCache {
+  /* Triangle offset cache for all the strokes in the drawing */
+  Vector<int> triangle_offsets;
+  /* Triangle cache for all the strokes in the drawing. */
+  Vector<int3> triangles;
+};
+
+struct ShapeCache {
+  /**
+   * The store which curves are in each shape.
+   *
+   * Here's a example:
+   *
+   * curve index:   0 1 2 3 4 5 6 7 8
+   * shape_id:      0 0 1 0 1 4 1 3 3
+   * shape_map:     0 1 2 4 7 3 5 7 8
+   * shape_offsets: 0 1 2     5 6 7   9
+   * shapes:        _ _ _____ _ _ ___
+   */
+  Vector<int> shape_map;
+  Vector<int> shape_offsets;
+};
+
 class DrawingRuntime {
  public:
   /**
-   * Triangle offset cache for all the strokes in the drawing.
-   */
-  mutable SharedCache<Vector<int>> triangle_offsets_cache;
-  /**
    * Triangle cache for all the strokes in the drawing.
    */
-  mutable SharedCache<Vector<int3>> triangles_cache;
+  mutable SharedCache<TriangleCache> triangle_cache;
+
   /**
-   * Shape cache for the drawing. Will be null when all curves are their own shapes.
+   * Shape cache for the drawing. Will be `nullopt` when all curves are their own shapes.
    */
-  mutable SharedCache<std::optional<Vector<int>>> shape_map_cache;
-  mutable SharedCache<std::optional<Vector<int>>> shape_offset_cache;
+  mutable SharedCache<std::optional<ShapeCache>> shape_cache;
 
   /**
    * Normal vector cache for every stroke. Computed using Newell's method.

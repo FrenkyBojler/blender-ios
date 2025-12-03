@@ -408,10 +408,8 @@ Drawing::Drawing(const Drawing &other)
   /* Initialize runtime data. */
   this->runtime = MEM_new<bke::greasepencil::DrawingRuntime>(__func__);
 
-  this->runtime->triangle_offsets_cache = other.runtime->triangle_offsets_cache;
-  this->runtime->triangles_cache = other.runtime->triangles_cache;
-  this->runtime->shape_map_cache = other.runtime->shape_map_cache;
-  this->runtime->shape_offset_cache = other.runtime->shape_offset_cache;
+  this->runtime->triangle_cache = other.runtime->triangle_cache;
+  this->runtime->shape_cache = other.runtime->shape_cache;
   this->runtime->curve_plane_normals_cache = other.runtime->curve_plane_normals_cache;
   this->runtime->curve_texture_matrices = other.runtime->curve_texture_matrices;
 }
@@ -458,94 +456,80 @@ Drawing::~Drawing()
 
 static void ensure_shape_map_and_offset_cache(const Drawing &drawing)
 {
-  if (drawing.runtime->shape_map_cache.is_cached() &&
-      drawing.runtime->shape_offset_cache.is_cached())
-  {
+  if (drawing.runtime->shape_cache.is_cached()) {
     return;
   }
 
-  const CurvesGeometry &curves = drawing.strokes();
-  const bke::AttributeAccessor attributes = curves.attributes();
-  const VArray<int> shape_ids = *attributes.lookup<int>("shape_id", bke::AttrDomain::Curve);
+  drawing.runtime->shape_cache.ensure([&](std::optional<ShapeCache> &r_shape_cache) {
+    const CurvesGeometry &curves = drawing.strokes();
+    const bke::AttributeAccessor attributes = curves.attributes();
+    const VArray<int> shape_ids = *attributes.lookup<int>("shape_id", bke::AttrDomain::Curve);
 
-  if (!shape_ids) {
-    drawing.runtime->shape_map_cache.ensure(
-        [&](std::optional<Vector<int>> &r_shape_map_data) { r_shape_map_data = std::nullopt; });
-    drawing.runtime->shape_offset_cache.ensure(
-        [&](std::optional<Vector<int>> &r_shape_offsets_data) {
-          r_shape_offsets_data = std::nullopt;
-        });
-
-    return;
-  }
-
-  Vector<Vector<int>> indices_by_shape;
-  Map<int, int> shape_indexing;
-
-  /* Create shapes from indices, zero is a special value, every zero gets it's own shape. */
-  for (const int i : curves.curves_range()) {
-    const int shape_id = shape_ids[i];
-
-    if (shape_id == 0) {
-      indices_by_shape.append(Vector<int>({i}));
-      continue;
+    if (!shape_ids) {
+      r_shape_cache = std::nullopt;
+      return;
     }
 
-    if (shape_indexing.add(shape_id, indices_by_shape.size())) {
-      indices_by_shape.append(Vector<int>({i}));
-    }
-    else {
-      indices_by_shape[shape_indexing.lookup(shape_id)].append(i);
-    }
-  }
+    Vector<Vector<int>> indices_by_shape;
+    Map<int, int> shape_indexing;
 
-  Vector<int> r_shape_offsets(indices_by_shape.size() + 1);
+    /* Create shapes from indices, zero is a special value, every zero gets it's own shape. */
+    for (const int i : curves.curves_range()) {
+      const int shape_id = shape_ids[i];
 
-  threading::parallel_for(indices_by_shape.index_range(), 512, [&](const IndexRange range) {
-    for (const int i : range) {
-      r_shape_offsets[i] = indices_by_shape[i].size();
+      if (shape_id == 0) {
+        indices_by_shape.append(Vector<int>({i}));
+        continue;
+      }
+
+      if (shape_indexing.add(shape_id, indices_by_shape.size())) {
+        indices_by_shape.append(Vector<int>({i}));
+      }
+      else {
+        indices_by_shape[shape_indexing.lookup(shape_id)].append(i);
+      }
     }
+
+    Vector<int> r_shape_offsets(indices_by_shape.size() + 1);
+
+    threading::parallel_for(indices_by_shape.index_range(), 512, [&](const IndexRange range) {
+      for (const int i : range) {
+        r_shape_offsets[i] = indices_by_shape[i].size();
+      }
+    });
+
+    OffsetIndices<int> shape_offsets = offset_indices::accumulate_counts_to_offsets(
+        r_shape_offsets);
+
+    /* If every shape is just a curve, skip storing the data. */
+    if (shape_offsets.size() == curves.curves_num()) {
+      r_shape_cache = std::nullopt;
+      return;
+    }
+
+    Vector<int> r_shape_map(curves.curves_num());
+    threading::parallel_for(shape_offsets.index_range(), 512, [&](const IndexRange range) {
+      for (const int i : range) {
+        const IndexRange shape_curves = shape_offsets[i];
+        r_shape_map.as_mutable_span().slice(shape_curves).copy_from(indices_by_shape[i]);
+      }
+    });
+
+    ShapeCache shape_cache;
+
+    shape_cache.shape_map = std::move(r_shape_map);
+    shape_cache.shape_offsets = std::move(r_shape_offsets);
+
+    r_shape_cache = std::make_optional(shape_cache);
   });
-
-  OffsetIndices<int> shape_offsets = offset_indices::accumulate_counts_to_offsets(r_shape_offsets);
-
-  /* If every shape is just a curve, skip storing the data. */
-  if (shape_offsets.size() == curves.curves_num()) {
-    drawing.runtime->shape_map_cache.ensure(
-        [&](std::optional<Vector<int>> &r_shape_map_data) { r_shape_map_data = std::nullopt; });
-    drawing.runtime->shape_offset_cache.ensure(
-        [&](std::optional<Vector<int>> &r_shape_offsets_data) {
-          r_shape_offsets_data = std::nullopt;
-        });
-
-    return;
-  }
-
-  Vector<int> r_shape_map(curves.curves_num());
-  threading::parallel_for(shape_offsets.index_range(), 512, [&](const IndexRange range) {
-    for (const int i : range) {
-      const IndexRange shape_curves = shape_offsets[i];
-      r_shape_map.as_mutable_span().slice(shape_curves).copy_from(indices_by_shape[i]);
-    }
-  });
-
-  drawing.runtime->shape_map_cache.ensure([&](std::optional<Vector<int>> &r_shape_map_data) {
-    r_shape_map_data = std::make_optional(std::move(r_shape_map));
-  });
-  drawing.runtime->shape_offset_cache.ensure(
-      [&](std::optional<Vector<int>> &r_shape_offsets_data) {
-        r_shape_offsets_data = std::make_optional(std::move(r_shape_offsets));
-      });
 }
 
 std::optional<GroupedSpan<int>> Drawing::shapes() const
 {
   ensure_shape_map_and_offset_cache(*this);
-  if (this->runtime->shape_offset_cache.data().has_value() &&
-      this->runtime->shape_offset_cache.data().has_value())
-  {
-    return GroupedSpan<int>((*this->runtime->shape_offset_cache.data()).as_span(),
-                            (*this->runtime->shape_map_cache.data()).as_span());
+  if (this->runtime->shape_cache.data().has_value()) {
+    return GroupedSpan<int>((*this->runtime->shape_cache.data()).shape_offsets.as_span(),
+                            (*this->runtime->shape_cache.data()).shape_map.as_span());
   }
 
   return std::nullopt;
@@ -803,50 +787,45 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
 
 static void ensure_triangle_and_offset_cache(const Drawing &drawing)
 {
-  if (drawing.runtime->triangles_cache.is_cached() &&
-      drawing.runtime->triangle_offsets_cache.is_cached())
-  {
+  if (drawing.runtime->triangle_cache.is_cached()) {
     return;
   }
 
-  const CurvesGeometry &curves = drawing.strokes();
-  const std::optional<GroupedSpan<int>> shapes = drawing.shapes();
-  const int num_shapes = shapes.has_value() ? (*shapes).size() : curves.curves_num();
+  drawing.runtime->triangle_cache.ensure([&](TriangleCache &r_triangle_cache) {
+    const CurvesGeometry &curves = drawing.strokes();
+    const std::optional<GroupedSpan<int>> shapes = drawing.shapes();
+    const int num_shapes = shapes.has_value() ? (*shapes).size() : curves.curves_num();
 
-  Vector<int3> r_triangle;
-  Vector<int> r_triangle_offsets(num_shapes + 1);
+    r_triangle_cache.triangles.clear();
+    r_triangle_cache.triangle_offsets.resize(num_shapes + 1);
 
-  if (!shapes) {
-    update_triangle_and_offsets_cache_isolated(curves.evaluated_positions(),
-                                               drawing.curve_plane_normals(),
-                                               curves.evaluated_points_by_curve(),
-                                               curves.curves_range(),
-                                               r_triangle,
-                                               r_triangle_offsets.as_mutable_span());
-  }
-  else {
-    update_triangle_and_offsets_cache(curves.evaluated_positions(),
-                                      drawing.curve_plane_normals(),
-                                      curves.evaluated_points_by_curve(),
-                                      (*shapes).index_range(),
-                                      *shapes,
-                                      r_triangle,
-                                      r_triangle_offsets.as_mutable_span());
-  }
-
-  drawing.runtime->triangle_offsets_cache.ensure([&](Vector<int> &r_triangle_offsets_data) {
-    r_triangle_offsets_data = std::move(r_triangle_offsets);
+    if (!shapes) {
+      update_triangle_and_offsets_cache_isolated(
+          curves.evaluated_positions(),
+          drawing.curve_plane_normals(),
+          curves.evaluated_points_by_curve(),
+          curves.curves_range(),
+          r_triangle_cache.triangles,
+          r_triangle_cache.triangle_offsets.as_mutable_span());
+    }
+    else {
+      update_triangle_and_offsets_cache(curves.evaluated_positions(),
+                                        drawing.curve_plane_normals(),
+                                        curves.evaluated_points_by_curve(),
+                                        (*shapes).index_range(),
+                                        *shapes,
+                                        r_triangle_cache.triangles,
+                                        r_triangle_cache.triangle_offsets.as_mutable_span());
+    }
   });
-  drawing.runtime->triangles_cache.ensure(
-      [&](Vector<int3> &r_triangle_data) { r_triangle_data = std::move(r_triangle); });
 }
 
 GroupedSpan<int3> Drawing::triangles() const
 {
   ensure_triangle_and_offset_cache(*this);
 
-  return GroupedSpan<int3>(this->runtime->triangle_offsets_cache.data().as_span(),
-                           this->runtime->triangles_cache.data().as_span());
+  return GroupedSpan<int3>(this->runtime->triangle_cache.data().triangle_offsets.as_span(),
+                           this->runtime->triangle_cache.data().triangles.as_span());
 }
 
 static void update_curve_plane_normal_cache(const Span<float3> positions,
@@ -1189,8 +1168,7 @@ void Drawing::tag_positions_changed()
 {
   this->strokes_for_write().tag_positions_changed();
   this->runtime->curve_plane_normals_cache.tag_dirty();
-  this->runtime->triangle_offsets_cache.tag_dirty();
-  this->runtime->triangles_cache.tag_dirty();
+  this->runtime->triangle_cache.tag_dirty();
   this->tag_texture_matrices_changed();
 }
 
@@ -1298,8 +1276,7 @@ void Drawing::tag_positions_changed(const IndexMask &changed_curves)
     this->tag_positions_changed();
     return;
   }
-  if (!this->runtime->triangle_offsets_cache.is_cached() ||
-      !this->runtime->triangles_cache.is_cached() ||
+  if (!this->runtime->triangle_cache.is_cached() ||
       !this->runtime->curve_plane_normals_cache.is_cached())
   {
     this->tag_positions_changed();
@@ -1315,32 +1292,29 @@ void Drawing::tag_positions_changed(const IndexMask &changed_curves)
   });
 
   this->tag_texture_matrices_changed();
-  const std::optional<GroupedSpan<int>> shapes = this->shapes();
-  const int num_shapes = shapes.has_value() ? (*shapes).size() : this->strokes().curves_num();
 
-  Vector<int> triangle_offsets_data(num_shapes + 1);
-  Vector<int3> triangles_data;
+  this->runtime->triangle_cache.update([&](TriangleCache &r_triangle_cache) {
+    const std::optional<GroupedSpan<int>> shapes = this->shapes();
+    const int num_shapes = shapes.has_value() ? (*shapes).size() : this->strokes().curves_num();
 
-  update_triangle_and_offsets_changed(this->strokes().evaluated_positions(),
-                                      this->curve_plane_normals(),
-                                      this->strokes().evaluated_points_by_curve(),
-                                      changed_curves,
-                                      shapes,
-                                      this->triangles(),
-                                      triangles_data,
-                                      triangle_offsets_data);
+    r_triangle_cache.triangles.clear();
+    r_triangle_cache.triangle_offsets.resize(num_shapes + 1);
 
-  this->runtime->triangle_offsets_cache.update(
-      [&](Vector<int> &r_offsets) { r_offsets = std::move(triangle_offsets_data); });
-  this->runtime->triangles_cache.update(
-      [&](Vector<int3> &r_triangles) { r_triangles = std::move(triangles_data); });
+    update_triangle_and_offsets_changed(this->strokes().evaluated_positions(),
+                                        this->curve_plane_normals(),
+                                        this->strokes().evaluated_points_by_curve(),
+                                        changed_curves,
+                                        shapes,
+                                        this->triangles(),
+                                        r_triangle_cache.triangles,
+                                        r_triangle_cache.triangle_offsets);
+  });
 }
 
 void Drawing::tag_topology_changed()
 {
   this->tag_positions_changed();
-  this->runtime->shape_map_cache.tag_dirty();
-  this->runtime->shape_offset_cache.tag_dirty();
+  this->runtime->shape_cache.tag_dirty();
   this->strokes_for_write().tag_topology_changed();
 }
 
@@ -1358,8 +1332,7 @@ void Drawing::tag_topology_changed(const IndexMask &changed_curves)
     this->tag_topology_changed();
     return;
   }
-  if (!this->runtime->triangle_offsets_cache.is_cached() ||
-      !this->runtime->triangles_cache.is_cached() ||
+  if (!this->runtime->triangle_cache.is_cached() ||
       !this->runtime->curve_plane_normals_cache.is_cached())
   {
     this->tag_topology_changed();
@@ -1379,26 +1352,25 @@ void Drawing::tag_topology_changed(const IndexMask &changed_curves)
 
   /* Make sure the number of shapes has not changed. */
   if (num_shapes == this->triangles().size()) {
-    Vector<int> triangle_offsets(num_shapes + 1);
-    Vector<int3> triangles;
+    this->runtime->triangle_cache.update([&](TriangleCache &r_triangle_cache) {
+      const std::optional<GroupedSpan<int>> shapes = this->shapes();
+      const int num_shapes = shapes.has_value() ? (*shapes).size() : this->strokes().curves_num();
 
-    update_triangle_and_offsets_changed(this->strokes().evaluated_positions(),
-                                        this->curve_plane_normals(),
-                                        this->strokes().evaluated_points_by_curve(),
-                                        changed_curves,
-                                        shapes,
-                                        this->triangles(),
-                                        triangles,
-                                        triangle_offsets);
+      r_triangle_cache.triangles.clear();
+      r_triangle_cache.triangle_offsets.resize(num_shapes + 1);
 
-    this->runtime->triangle_offsets_cache.update(
-        [&](Vector<int> &r_offsets) { r_offsets = std::move(triangle_offsets); });
-    this->runtime->triangles_cache.update(
-        [&](Vector<int3> &r_triangles) { r_triangles = std::move(triangles); });
+      update_triangle_and_offsets_changed(this->strokes().evaluated_positions(),
+                                          this->curve_plane_normals(),
+                                          this->strokes().evaluated_points_by_curve(),
+                                          changed_curves,
+                                          shapes,
+                                          this->triangles(),
+                                          r_triangle_cache.triangles,
+                                          r_triangle_cache.triangle_offsets);
+    });
   }
   else {
-    this->runtime->triangles_cache.tag_dirty();
-    this->runtime->triangle_offsets_cache.tag_dirty();
+    this->runtime->triangle_cache.tag_dirty();
   }
 
   this->tag_texture_matrices_changed();
