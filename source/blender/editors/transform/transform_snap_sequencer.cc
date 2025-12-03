@@ -305,7 +305,7 @@ static void points_build_targets_timeline(const Scene *scene,
     snap_data->target_snap_points.append(float2(strip->right_handle(scene)));
 
     if (snap_mode & SEQ_SNAP_TO_STRIP_HOLD) {
-      int content_start = strip->start_frame();
+      int content_start = strip->content_start();
       int content_end = strip->content_end(scene);
 
       /* Effects and single image strips produce incorrect content length. Skip these strips. */

@@ -41,7 +41,7 @@ namespace blender::seq {
 float give_frame_index(const Scene *scene, const Strip *strip, float timeline_frame)
 {
   float frame_index;
-  float sta = strip->start_frame();
+  float sta = strip->content_start();
   float end = strip->is_effect() ? strip->right_handle(scene) :
                                    strip->content_end(scene) - 1;
 
@@ -489,7 +489,7 @@ float Strip::media_fps(Scene *scene)
   return 0.0f;
 }
 
-float Strip::start_frame() const
+float Strip::content_start() const
 {
   return this->start;
 }
@@ -505,7 +505,7 @@ void Strip::start_frame_set(const Scene *scene, int timeline_frame)
 
 float Strip::content_end(const Scene *scene) const
 {
-  return this->start_frame() + this->length(scene);
+  return this->content_start() + this->length(scene);
 }
 
 int Strip::length(const Scene *scene) const
@@ -516,7 +516,7 @@ int Strip::length(const Scene *scene) const
         scene, this, blender::seq::retiming_last_key_get(this));
     /* Last key is mapped to last frame index. Numbering starts from 0. */
     const int sound_offset = this->rounded_sound_offset(scene_fps);
-    return last_key_frame - this->start_frame() - sound_offset;
+    return last_key_frame - this->content_start() - sound_offset;
   }
 
   return this->len / this->media_playback_rate_factor(scene_fps);
@@ -556,7 +556,7 @@ void Strip::left_handle_frame_set(const Scene *scene, int timeline_frame)
     timeline_frame = right_handle_orig_frame - 1;
   }
 
-  float offset = timeline_frame - this->start_frame();
+  float offset = timeline_frame - this->content_start();
 
   if (blender::seq::transform_single_image_check(this)) {
     /* This strip has only 1 frame of content that is always stretched to the whole strip length.

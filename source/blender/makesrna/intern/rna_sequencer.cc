@@ -463,7 +463,7 @@ static int rna_Strip_retiming_key_frame_get(PointerRNA *ptr)
     return 0;
   }
 
-  return strip->start_frame() + key->strip_frame_index;
+  return strip->content_start() + key->strip_frame_index;
 }
 
 static void rna_Strip_retiming_key_frame_set(PointerRNA *ptr, int value)

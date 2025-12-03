@@ -107,7 +107,7 @@ int left_fake_key_frame_get(const bContext *C, const Strip *strip)
   const Scene *scene = CTX_data_sequencer_scene(C);
   const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
   const int sound_offset = strip->rounded_sound_offset(scene_fps);
-  const int content_start = strip->start_frame() + sound_offset;
+  const int content_start = strip->content_start() + sound_offset;
   return max_ii(content_start, strip->left_handle());
 }
 
@@ -356,7 +356,7 @@ static SeqRetimingKey fake_retiming_key_init(const Scene *scene, const Strip *st
   const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
   const int sound_offset = strip->rounded_sound_offset(scene_fps);
   SeqRetimingKey fake_key = {0};
-  fake_key.strip_frame_index = (key_x - strip->start_frame() - sound_offset) *
+  fake_key.strip_frame_index = (key_x - strip->content_start() - sound_offset) *
                                strip->media_playback_rate_factor(scene_fps);
   fake_key.flag = 0;
   return fake_key;

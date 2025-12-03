@@ -265,7 +265,7 @@ static void seq_split_set_right_hold_offset(Main *bmain,
                                             Strip *strip,
                                             int timeline_frame)
 {
-  const float content_start = strip->start_frame();
+  const float content_start = strip->content_start();
   const float content_end = strip->content_end(scene);
 
   /* Adjust within range of extended still-frames before strip. */
@@ -292,7 +292,7 @@ static void seq_split_set_left_hold_offset(Main *bmain,
                                            Strip *strip,
                                            int timeline_frame)
 {
-  const float content_start = strip->start_frame();
+  const float content_start = strip->content_start();
   const float content_end = strip->content_end(scene);
 
   /* Adjust within range of strip contents. */

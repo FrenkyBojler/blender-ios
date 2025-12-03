@@ -65,20 +65,20 @@ class TimeCurveOperation : public NodeOperation {
   float compute_normalized_time()
   {
     const int frame_number = this->context().get_frame_number();
-    if (frame_number < this->get_start_frame()) {
+    if (frame_number < this->get_content_start()) {
       return 0.0f;
     }
     if (frame_number > this->get_end_frame()) {
       return 1.0f;
     }
-    if (this->get_start_frame() == this->get_end_frame()) {
+    if (this->get_content_start() == this->get_end_frame()) {
       return 0.0f;
     }
-    return float(frame_number - this->get_start_frame()) /
-           float(this->get_end_frame() - this->get_start_frame());
+    return float(frame_number - this->get_content_start()) /
+           float(this->get_end_frame() - this->get_content_start());
   }
 
-  int get_start_frame()
+  int get_content_start()
   {
     return this->get_input("Start Frame").get_single_value_default(1);
   }

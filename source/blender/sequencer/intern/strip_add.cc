@@ -197,7 +197,7 @@ void add_image_set_directory(Strip *strip, const char *dirpath)
 
 void add_image_load_file(Scene *scene, Strip *strip, size_t strip_frame, const char *filename)
 {
-  StripElem *se = render_give_stripelem(scene, strip, strip->start_frame() + strip_frame);
+  StripElem *se = render_give_stripelem(scene, strip, strip->content_start() + strip_frame);
   STRNCPY(se->filename, filename);
 }
 

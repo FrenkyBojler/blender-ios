@@ -906,7 +906,7 @@ static void slip_strips_delta(
     strip->runtime->flag &= ~(seq::StripRuntimeFlag::ClampedLH | seq::StripRuntimeFlag::ClampedRH);
     /* Reconstruct handle clamp state from first principles. */
     if (data->clamp == true) {
-      if (strip->left_handle() == strip->start_frame()) {
+      if (strip->left_handle() == strip->content_start()) {
         strip->runtime->flag |= seq::StripRuntimeFlag::ClampedLH;
       }
       if (strip->right_handle(scene) == strip->content_end(scene)) {
@@ -948,7 +948,7 @@ static float slip_apply_clamp(const Scene *scene, const SlipData *data, float *r
 
   if (data->can_clamp) {
     for (Strip *strip : data->strips) {
-      const float unclamped_start = strip->start_frame() + strip->sound_offset + offset_delta;
+      const float unclamped_start = strip->content_start() + strip->sound_offset + offset_delta;
       const float unclamped_end = strip->content_end(scene) + strip->sound_offset +
                                   offset_delta;
 

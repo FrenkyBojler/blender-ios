@@ -277,7 +277,7 @@ typedef struct Strip {
   /**
    * Get timeline frame where strip content starts.
    */
-  float start_frame() const;
+  float content_start() const;
   /**
    * Set frame where strip content starts.
    * This function will also move strip handles.

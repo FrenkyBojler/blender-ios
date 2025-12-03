@@ -708,7 +708,7 @@ static void flushTransSeq(TransInfo *t)
       strip->runtime->flag &= ~seq::StripRuntimeFlag::ClampedRH;
     }
     if (!seq::transform_single_image_check(strip) && !strip->is_effect()) {
-      if (offset_clamped[0] > offset[0] && new_frame == strip->start_frame()) {
+      if (offset_clamped[0] > offset[0] && new_frame == strip->content_start()) {
         strip->runtime->flag |= seq::StripRuntimeFlag::ClampedLH;
       }
       else if (offset_clamped[0] < offset[0] && new_frame == strip->content_end(scene)) {

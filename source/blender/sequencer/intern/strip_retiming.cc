@@ -62,7 +62,7 @@ static int content_frame_index_get(const Scene *scene,
 {
   const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
   const int sound_offset = strip->rounded_sound_offset(scene_fps);
-  return (timeline_frame - strip->start_frame() - sound_offset) *
+  return (timeline_frame - strip->content_start() - sound_offset) *
          strip->media_playback_rate_factor(scene_fps);
 }
 
@@ -764,7 +764,7 @@ int retiming_key_timeline_frame_get(const Scene *scene,
 {
   const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
   const int sound_offset = strip->rounded_sound_offset(scene_fps);
-  return round_fl_to_int(strip->start_frame() + sound_offset +
+  return round_fl_to_int(strip->content_start() + sound_offset +
                          key->strip_frame_index /
                              strip->media_playback_rate_factor(scene_fps));
 }
@@ -960,7 +960,7 @@ class RetimingRange {
       /* We need number actual number of frames here. */
       const double normal_step = 1 / double(strip->len - 1);
 
-      const int frame_index = timeline_frame - strip->start_frame();
+      const int frame_index = timeline_frame - strip->content_start();
       /* Who needs calculus, when you can have slow code? */
       const double val_prev = strip_retiming_evaluate(strip, frame_index - 1);
       const double val = strip_retiming_evaluate(strip, frame_index);
@@ -998,8 +998,8 @@ class RetimingRangeData {
       }
       const SeqRetimingKey *key_prev = &key - 1;
       float speed = retiming_key_speed_get(strip, &key);
-      int frame_start = strip->start_frame() + key_prev->strip_frame_index;
-      int frame_end = strip->start_frame() + key.strip_frame_index;
+      int frame_start = strip->content_start() + key_prev->strip_frame_index;
+      int frame_end = strip->content_start() + key.strip_frame_index;
 
       eRangeType type = retiming_key_is_transition_start(key_prev) ? TRANSITION : LINEAR;
       RetimingRange range = RetimingRange(strip, frame_start, frame_end, speed, type);
@@ -1096,7 +1096,7 @@ void retiming_sound_animation_data_set(const Scene *scene, const Strip *strip)
   /* Content cut off by `anim_startofs` is as if it does not exist for sequencer. But Audaspace
    * seeking relies on having animation buffer initialized for whole sequence. */
   if (strip->anim_startofs > 0) {
-    const int strip_start = strip->start_frame();
+    const int strip_start = strip->content_start();
     BKE_sound_set_scene_sound_pitch_constant_range(
         strip->runtime->scene_sound, strip_start - strip->anim_startofs, strip_start, 1.0f);
   }

@@ -215,7 +215,7 @@ static bool retiming_key_add_new_for_strip(bContext *C,
 {
   Scene *scene = CTX_data_sequencer_scene(C);
   const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
-  const float frame_index = (BKE_scene_frame_get(scene) - strip->start_frame()) *
+  const float frame_index = (BKE_scene_frame_get(scene) - strip->content_start()) *
                             strip->media_playback_rate_factor(scene_fps);
   const SeqRetimingKey *key = seq::retiming_find_segment_start_key(strip, frame_index);
 
@@ -897,7 +897,7 @@ static void realize_fake_keys_in_rect(bContext *C, Strip *strip, const rctf &rec
 {
   const Scene *scene = CTX_data_sequencer_scene(C);
 
-  const int content_start = strip->start_frame();
+  const int content_start = strip->content_start();
   const int left_key_frame = max_ii(content_start, strip->left_handle());
   const int content_end = strip->content_end(scene);
   const int right_key_frame = min_ii(content_end, strip->right_handle(scene));
