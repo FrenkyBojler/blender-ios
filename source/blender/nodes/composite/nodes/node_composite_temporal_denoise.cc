@@ -375,18 +375,39 @@ class TemporalDenoiseOperation : public NodeOperation {
           }
 
           if (sample_valid) {
-            /* Separate this history sample into luma/chroma */
             const float hist_luma = rgb_to_luma(hist_rgb);
             const float3 hist_chroma = hist_rgb - float3(hist_luma);
+            const float dl = math::abs(hist_luma - current_luma);
+            const float dc = math::length(hist_chroma - current_chroma);
 
-            /* Temporal weighting: i=0 (most recent) has weight=1.0, decays for older frames */
-            const float temporal_weight = 1.0f / (1.0f + float(i) * 0.5f);
-            
-            /* Accumulate with temporal weighting */
-            accumulated_luma += hist_luma * temporal_weight;
-            accumulated_chroma += hist_chroma * temporal_weight;
-            total_luma_weight += temporal_weight;
-            total_chroma_weight += temporal_weight;
+            const float base_luma_threshold = 0.08f;
+            const float base_chroma_threshold = 0.15f;
+            const float luma_threshold = base_luma_threshold *
+                                         (0.5f + 0.5f * (1.0f - luma_strength));
+            const float chroma_threshold = base_chroma_threshold *
+                                           (0.5f + 0.5f * (1.0f - math::min(chroma_strength, 1.5f)));
+
+            float luma_gate = (luma_threshold > 0.0f) ? (1.0f - dl / luma_threshold) : 0.0f;
+            float chroma_gate = (chroma_threshold > 0.0f) ? (1.0f - dc / chroma_threshold) : 0.0f;
+            luma_gate = math::clamp(luma_gate, 0.0f, 1.0f);
+            chroma_gate = math::clamp(chroma_gate, 0.0f, 1.0f);
+
+            const float base_temporal_weight = 1.0f / (1.0f + float(i) * 0.5f);
+            float motion_factor = 1.0f;
+            if (i > 0 && motion_threshold > 0.0f) {
+              const float t = math::min(math::length(motion) / motion_threshold, 4.0f);
+              motion_factor = 1.0f / (1.0f + t * t);
+            }
+
+            const float luma_weight = base_temporal_weight * luma_gate * motion_factor;
+            const float chroma_weight = base_temporal_weight * chroma_gate * motion_factor;
+            if (luma_weight <= 0.0f && chroma_weight <= 0.0f) {
+              continue;
+            }
+            accumulated_luma += hist_luma * luma_weight;
+            accumulated_chroma += hist_chroma * chroma_weight;
+            total_luma_weight += luma_weight;
+            total_chroma_weight += chroma_weight;
           }
         }
       }
@@ -399,9 +420,32 @@ class TemporalDenoiseOperation : public NodeOperation {
         pixels_direct_average++;
       }
 
-      /* Average luma and chroma using temporal weights */
       accumulated_luma /= total_luma_weight;
       accumulated_chroma /= total_chroma_weight;
+
+      if (use_history && prev_head >= 0) {
+        const int w = size.x;
+        const int h = size.y;
+        const int cx = texel.x;
+        const int cy = texel.y;
+        float local_min_luma = current_luma;
+        float local_max_luma = current_luma;
+        for (int oy = -1; oy <= 1; oy++) {
+          const int ny = math::clamp(cy + oy, 0, h - 1);
+          for (int ox = -1; ox <= 1; ox++) {
+            const int nx = math::clamp(cx + ox, 0, w - 1);
+            const float4 n_rgba = input_cpu.load_pixel<float4>(int2(nx, ny));
+            const float3 n_rgb = float3(n_rgba.x, n_rgba.y, n_rgba.z);
+            const float n_luma = rgb_to_luma(n_rgb);
+            local_min_luma = math::min(local_min_luma, n_luma);
+            local_max_luma = math::max(local_max_luma, n_luma);
+          }
+        }
+        const float pad = 0.02f;
+        const float min_l = local_min_luma - pad;
+        const float max_l = local_max_luma + pad;
+        accumulated_luma = math::clamp(accumulated_luma, min_l, max_l);
+      }
 
       /* Apply denoising strength separately to luma and chroma */
       const float final_luma = math::interpolate(current_luma, accumulated_luma, luma_strength);
