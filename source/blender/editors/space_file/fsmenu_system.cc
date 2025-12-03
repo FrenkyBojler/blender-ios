@@ -262,7 +262,6 @@ static int fsmenu_external_drive_icon(char drive_letter)
   bool is_removable = false; /* zip, jaz, cdrom, mo, etc. vs hdd */
   bool is_hotplug = false;   /* 1394, USB, etc */
   bool is_usb = false;       /* USB bus */
-
   char volumeName[8] = "";
   SNPRINTF(volumeName, "\\\\.\\%c:", drive_letter);
   HANDLE volume = ::CreateFile(volumeName, 0, 0, NULL, OPEN_EXISTING, 0, NULL);
@@ -356,7 +355,6 @@ void fsmenu_read_system(FSMenu *fsmenu, int read_bookmarks)
         }
 
         int icon = ICON_DISK_DRIVE;
-
         switch (GetDriveType(tmps)) {
           case DRIVE_REMOVABLE:
             icon = fsmenu_external_drive_icon('A' + i);
