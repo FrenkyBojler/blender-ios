@@ -70,7 +70,7 @@ static void shapekey_copy_data(Main * /*bmain*/,
   Key *key_dst = (Key *)id_dst;
   const Key *key_src = (const Key *)id_src;
   BLI_duplicatelist(&key_dst->block, &key_src->block);
-  BLI_duplicatelist(&key_dst->groups, &key_src  ->groups);
+
   KeyBlock *kb_dst, *kb_src;
   for (kb_src = static_cast<KeyBlock *>(key_src->block.first),
       kb_dst = static_cast<KeyBlock *>(key_dst->block.first);

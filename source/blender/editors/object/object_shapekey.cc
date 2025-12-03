@@ -20,6 +20,7 @@
 #include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 #include "BLI_string_utils.hh"
+#include "BLI_string.h"
 
 #include "BLT_translation.hh"
 
@@ -373,7 +374,8 @@ static wmOperatorStatus shape_key_group_add_exec(bContext *C, wmOperator *op)
 {
     Object *ob = context_object(C);
     Key *key = BKE_key_from_object(ob);
-    KeyBlockGroup *group = MEM_mallocN<KeyBlockGroup>("KeyBlockGroup");
+    KeyBlockGroup *group = MEM_callocN<KeyBlockGroup>("KeyBlockGroup");
+    STRNCPY(group->name, "Group");
     BLI_uniquename(&key->groups, group, DATA_("Group"), '.', offsetof(KeyBlockGroup, name), sizeof(group->name));
     BLI_addtail(&key->groups, group);
     return OPERATOR_FINISHED;

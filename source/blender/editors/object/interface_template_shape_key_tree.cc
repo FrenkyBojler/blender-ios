@@ -226,14 +226,18 @@ class ShapeKeyGroupDropTarget : public ui::TreeViewItemDropTarget {
   {
     Object *ob = CTX_data_active_object(C);
     Key *key = BKE_key_from_object(ob);
-    const KeyBlock **drag_shapekey = static_cast<const KeyBlock **>(drag_info.drag_data.poin);
+    KeyBlock **drag_shapekey = static_cast<KeyBlock **>(drag_info.drag_data.poin);
 
     for (int8_t i = 0; drag_shapekey[i] != nullptr; i++) {
-      KeyBlock *kb = static_cast<KeyBlock *>(BLI_findlink(&key->block, i));
+      const int drag_index = BLI_findindex(&key->block, drag_shapekey[i]);
+      if (drag_index == -1) {
+        continue;
+      }
+
       switch (drag_info.drop_location) {
         case ui::DropLocation::Into:
-          BLI_remlink(&key->block, kb);
-          BLI_addtail(&group_->children, kb);
+          BLI_remlink(&key->block, drag_shapekey[i]);
+          BLI_addtail(&group_->children, drag_shapekey[i]);
           //BLI_assert_unreachable();
           break;
         default:

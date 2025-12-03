@@ -22,6 +22,7 @@ typedef enum KeyBlockGroupflag {
 } KeyBlockGroupflag;
 
 typedef struct KeyBlockGroup {
+  struct KeyBlockGroup *next, *prev;
   ListBase children;
   int flag;
   char _pad[4];
