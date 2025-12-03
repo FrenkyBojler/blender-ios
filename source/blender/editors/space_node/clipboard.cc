@@ -643,24 +643,8 @@ static wmOperatorStatus os_clipboard_copy_exec(bContext *C, wmOperator *op)
         return IDWALK_RET_NOP;
       }
 
-      auto partial_write_dependencies_filter_cb =
-          [copy_tree](LibraryIDLinkCallbackData *cb_deps_data,
-                      PartialWriteContext::IDAddOptions /*options*/)
-          -> PartialWriteContext::IDAddOperations {
-        ID *id_deps_src = *cb_deps_data->id_pointer;
-
-        if ((cb_deps_data->cb_flag & IDWALK_CB_NEVER_NULL)) {
-          printf("Id %s added\n", id_deps_src->name);
-          return PartialWriteContext::IDAddOperations::ADD_DEPENDENCIES;
-        }
-
-        printf("Id %s cleared\n", id_deps_src->name);
-        return PartialWriteContext::IDAddOperations::CLEAR_DEPENDENCIES;
-      };
-
-      id_dst = copy_buffer.id_add(id_src,
-                                  {PartialWriteContext::IDAddOperations::NOP},
-                                  partial_write_dependencies_filter_cb);
+      id_dst = copy_buffer.id_add(
+          id_src, {PartialWriteContext::IDAddOperations::CLEAR_DEPENDENCIES}, nullptr);
     }
     *cb_data->id_pointer = id_dst;
     return IDWALK_RET_NOP;
