@@ -985,10 +985,10 @@ static int sequencer_draw_get_transform_preview_frame(const Scene *scene)
   int preview_frame;
 
   if (last_seq->flag & SEQ_RIGHTSEL) {
-    preview_frame = last_seq->right_handle_frame(scene) - 1;
+    preview_frame = last_seq->right_handle(scene) - 1;
   }
   else {
-    preview_frame = last_seq->left_handle_frame();
+    preview_frame = last_seq->left_handle();
   }
 
   return preview_frame;

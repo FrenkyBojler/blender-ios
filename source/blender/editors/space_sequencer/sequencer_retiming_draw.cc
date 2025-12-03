@@ -73,12 +73,12 @@ static float pixels_to_view_height(const bContext *C, const float height)
 
 static float strip_start_screenspace_get(const View2D *v2d, const Strip *strip)
 {
-  return UI_view2d_view_to_region_x(v2d, strip->left_handle_frame());
+  return UI_view2d_view_to_region_x(v2d, strip->left_handle());
 }
 
 static float strip_end_screenspace_get(const Scene *scene, const View2D *v2d, const Strip *strip)
 {
-  return UI_view2d_view_to_region_x(v2d, strip->right_handle_frame(scene));
+  return UI_view2d_view_to_region_x(v2d, strip->right_handle(scene));
 }
 
 static rctf strip_box_get(const Scene *scene, const View2D *v2d, const Strip *strip)
@@ -108,7 +108,7 @@ int left_fake_key_frame_get(const bContext *C, const Strip *strip)
   const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
   const int sound_offset = strip->rounded_sound_offset(scene_fps);
   const int content_start = strip->start_frame() + sound_offset;
-  return max_ii(content_start, strip->left_handle_frame());
+  return max_ii(content_start, strip->left_handle());
 }
 
 int right_fake_key_frame_get(const bContext *C, const Strip *strip)
@@ -116,8 +116,8 @@ int right_fake_key_frame_get(const bContext *C, const Strip *strip)
   const Scene *scene = CTX_data_sequencer_scene(C);
   const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
   const int sound_offset = strip->rounded_sound_offset(scene_fps);
-  const int content_end = strip->content_end_frame(scene) + sound_offset;
-  return min_ii(content_end, strip->right_handle_frame(scene));
+  const int content_end = strip->content_end(scene) + sound_offset;
+  return min_ii(content_end, strip->right_handle(scene));
 }
 
 static bool retiming_fake_key_frame_clicked(const bContext *C,
@@ -149,8 +149,8 @@ static bool retiming_fake_key_frame_clicked(const bContext *C,
 void realize_fake_keys(const Scene *scene, Strip *strip)
 {
   seq::retiming_data_ensure(strip);
-  seq::retiming_add_key(scene, strip, strip->left_handle_frame());
-  seq::retiming_add_key(scene, strip, strip->right_handle_frame(scene));
+  seq::retiming_add_key(scene, strip, strip->left_handle());
+  seq::retiming_add_key(scene, strip, strip->right_handle(scene));
 }
 
 SeqRetimingKey *try_to_realize_fake_keys(const bContext *C, Strip *strip, const int mval[2])
@@ -181,8 +181,8 @@ static SeqRetimingKey *mouse_over_key_get_from_strip(const bContext *C,
         fabsf(UI_view2d_view_to_region_x(v2d, key_x_get(scene, strip, &key)) - mval[0]));
 
     int threshold = RETIME_KEY_MOUSEOVER_THRESHOLD;
-    if (key_x_get(scene, strip, &key) == strip->left_handle_frame() ||
-        key_x_get(scene, strip, &key) == strip->right_handle_frame(scene))
+    if (key_x_get(scene, strip, &key) == strip->left_handle() ||
+        key_x_get(scene, strip, &key) == strip->right_handle(scene))
     {
       threshold *= 2; /* Make first and last key easier to select. */
     }

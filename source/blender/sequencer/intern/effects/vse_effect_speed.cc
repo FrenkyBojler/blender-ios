@@ -67,8 +67,8 @@ static FCurve *strip_effect_speed_speed_factor_curve_get(Scene *scene, Strip *st
 
 void strip_effect_speed_rebuild_map(Scene *scene, Strip *strip)
 {
-  const int effect_strip_length = strip->right_handle_frame(scene) -
-                                  strip->left_handle_frame();
+  const int effect_strip_length = strip->right_handle(scene) -
+                                  strip->left_handle();
 
   if ((strip->input1 == nullptr) || (effect_strip_length < 1)) {
     return; /* Make COVERITY happy and check for (CID 598) input strip. */
@@ -89,7 +89,7 @@ void strip_effect_speed_rebuild_map(Scene *scene, Strip *strip)
 
   float target_frame = 0;
   for (int frame_index = 1; frame_index < effect_strip_length; frame_index++) {
-    target_frame += evaluate_fcurve(fcu, strip->left_handle_frame() + frame_index);
+    target_frame += evaluate_fcurve(fcu, strip->left_handle() + frame_index);
     const int target_frame_max = strip->input1->length(scene);
     CLAMP(target_frame, 0, target_frame_max);
     v->frameMap[frame_index] = target_frame;
@@ -125,8 +125,8 @@ float strip_speed_effect_target_frame_get(Scene *scene,
     case SEQ_SPEED_STRETCH: {
       /* Only right handle controls effect speed! */
       const float target_content_length = source->length(scene) - source->startofs;
-      const float speed_effetct_length = strip_speed->right_handle_frame(scene) -
-                                         strip_speed->left_handle_frame();
+      const float speed_effetct_length = strip_speed->right_handle(scene) -
+                                         strip_speed->left_handle();
       const float ratio = frame_index / speed_effetct_length;
       target_frame = target_content_length * ratio;
       break;

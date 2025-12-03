@@ -544,8 +544,8 @@ void add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool loc
 
   if (lock_range) {
     /* keep so we don't have to move the actual start and end points (only the data) */
-    prev_start_frame = strip->left_handle_frame();
-    prev_end_frame = strip->right_handle_frame(scene);
+    prev_start_frame = strip->left_handle();
+    prev_end_frame = strip->right_handle(scene);
   }
 
   switch (strip->type) {

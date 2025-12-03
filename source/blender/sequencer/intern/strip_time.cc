@@ -42,8 +42,8 @@ float give_frame_index(const Scene *scene, const Strip *strip, float timeline_fr
 {
   float frame_index;
   float sta = strip->start_frame();
-  float end = strip->is_effect() ? strip->right_handle_frame(scene) :
-                                   strip->content_end_frame(scene) - 1;
+  float end = strip->is_effect() ? strip->right_handle(scene) :
+                                   strip->content_end(scene) - 1;
 
   if (end < sta) {
     return -1;
@@ -150,14 +150,14 @@ void time_update_meta_strip_range(const Scene *scene, Strip *strip_meta)
     return;
   }
 
-  const int strip_start = strip_meta->left_handle_frame();
-  const int strip_end = strip_meta->right_handle_frame(scene);
+  const int strip_start = strip_meta->left_handle();
+  const int strip_end = strip_meta->right_handle(scene);
 
   int min = MAXFRAME * 2;
   int max = -MAXFRAME * 2;
   LISTBASE_FOREACH (Strip *, strip, &strip_meta->seqbase) {
-    min = min_ii(strip->left_handle_frame(), min);
-    max = max_ii(strip->right_handle_frame(scene), max);
+    min = min_ii(strip->left_handle(), min);
+    max = max_ii(strip->right_handle(scene), max);
   }
 
   strip_meta->start = min + strip_meta->anim_startofs;
@@ -183,18 +183,18 @@ void strip_time_effect_range_set(const Scene *scene, Strip *strip)
   }
 
   if (strip->input1 && strip->input2) { /* 2 - input effect. */
-    strip->startdisp = max_ii(strip->input1->left_handle_frame(),
-                              strip->input2->left_handle_frame());
-    strip->enddisp = min_ii(strip->input1->right_handle_frame(scene),
-                            strip->input2->right_handle_frame(scene));
+    strip->startdisp = max_ii(strip->input1->left_handle(),
+                              strip->input2->left_handle());
+    strip->enddisp = min_ii(strip->input1->right_handle(scene),
+                            strip->input2->right_handle(scene));
   }
   else if (strip->input1) { /* Single input effect. */
-    strip->startdisp = strip->input1->right_handle_frame(scene);
-    strip->enddisp = strip->input1->left_handle_frame();
+    strip->startdisp = strip->input1->right_handle(scene);
+    strip->enddisp = strip->input1->left_handle();
   }
   else if (strip->input2) { /* Strip may be missing one of inputs. */
-    strip->startdisp = strip->input2->right_handle_frame(scene);
-    strip->enddisp = strip->input2->left_handle_frame();
+    strip->startdisp = strip->input2->right_handle(scene);
+    strip->enddisp = strip->input2->left_handle();
   }
 
   if (strip->startdisp > strip->enddisp) {
@@ -256,12 +256,12 @@ int time_find_next_prev_edit(Scene *scene,
     }
 
     if (do_center) {
-      strip_frames[0] = (strip->left_handle_frame() + strip->right_handle_frame(scene)) / 2;
+      strip_frames[0] = (strip->left_handle() + strip->right_handle(scene)) / 2;
       strip_frames_tot = 1;
     }
     else {
-      strip_frames[0] = strip->left_handle_frame();
-      strip_frames[1] = strip->right_handle_frame(scene);
+      strip_frames[0] = strip->left_handle();
+      strip_frames[1] = strip->right_handle(scene);
 
       strip_frames_tot = 2;
     }
@@ -312,8 +312,8 @@ void timeline_expand_boundbox(const Scene *scene, const ListBase *seqbase, rctf 
   }
 
   LISTBASE_FOREACH (Strip *, strip, seqbase) {
-    rect->xmin = std::min<float>(rect->xmin, strip->left_handle_frame() - 1);
-    rect->xmax = std::max<float>(rect->xmax, strip->right_handle_frame(scene) + 1);
+    rect->xmin = std::min<float>(rect->xmin, strip->left_handle() - 1);
+    rect->xmax = std::max<float>(rect->xmax, strip->right_handle(scene) + 1);
     /* We do +1 here to account for the channel thickness. Channel n has range of <n, n+1>. */
     rect->ymax = std::max(rect->ymax, strip->channel + 1.0f);
   }
@@ -438,8 +438,8 @@ static void strip_time_slip_strip_ex(const Scene *scene,
   }
 
   /* Only to make files usable in older versions. */
-  strip->startdisp = strip->left_handle_frame();
-  strip->enddisp = strip->right_handle_frame(scene);
+  strip->startdisp = strip->left_handle();
+  strip->enddisp = strip->right_handle(scene);
 
   Span<Strip *> effects = SEQ_lookup_effects_by_strip(scene->ed, strip);
   strip_time_update_effects_strip_range(scene, effects);
@@ -503,7 +503,7 @@ void Strip::start_frame_set(const Scene *scene, int timeline_frame)
                                              blender::seq::lookup_meta_by_strip(scene->ed, this));
 }
 
-float Strip::content_end_frame(const Scene *scene) const
+float Strip::content_end(const Scene *scene) const
 {
   return this->start_frame() + this->length(scene);
 }
@@ -530,7 +530,7 @@ int Strip::rounded_sound_offset(float scene_fps) const
   return 0;
 }
 
-int Strip::left_handle_frame() const
+int Strip::left_handle() const
 {
   if (this->input1 || this->input2) {
     return this->startdisp;
@@ -539,18 +539,18 @@ int Strip::left_handle_frame() const
   return this->start + this->startofs;
 }
 
-int Strip::right_handle_frame(const Scene *scene) const
+int Strip::right_handle(const Scene *scene) const
 {
   if (this->input1 || this->input2) {
     return this->enddisp;
   }
 
-  return this->content_end_frame(scene) - this->endofs;
+  return this->content_end(scene) - this->endofs;
 }
 
 void Strip::left_handle_frame_set(const Scene *scene, int timeline_frame)
 {
-  const float right_handle_orig_frame = this->right_handle_frame(scene);
+  const float right_handle_orig_frame = this->right_handle(scene);
 
   if (timeline_frame >= right_handle_orig_frame) {
     timeline_frame = right_handle_orig_frame - 1;
@@ -578,13 +578,13 @@ void Strip::left_handle_frame_set(const Scene *scene, int timeline_frame)
 
 void Strip::right_handle_frame_set(const Scene *scene, int timeline_frame)
 {
-  const float left_handle_orig_frame = this->left_handle_frame();
+  const float left_handle_orig_frame = this->left_handle();
 
   if (timeline_frame <= left_handle_orig_frame) {
     timeline_frame = left_handle_orig_frame + 1;
   }
 
-  this->endofs = this->content_end_frame(scene) - timeline_frame;
+  this->endofs = this->content_end(scene) - timeline_frame;
   this->enddisp = timeline_frame; /* Only to make files usable in older versions. */
 
   blender::Span<Strip *> effects = blender::seq::SEQ_lookup_effects_by_strip(scene->ed, this);
@@ -603,6 +603,6 @@ void Strip::handles_frame_set(const Scene *scene,
 
 bool Strip::intersects_frame(const Scene *scene, const int timeline_frame) const
 {
-  return (this->left_handle_frame() <= timeline_frame) &&
-         (this->right_handle_frame(scene) > timeline_frame);
+  return (this->left_handle() <= timeline_frame) &&
+         (this->right_handle(scene) > timeline_frame);
 }

@@ -99,8 +99,8 @@ static void SeqTransInfo(TransInfo *t, Strip *strip, int *r_count, int *r_flag)
 
     /* *** Extend Transform *** */
     int cfra = scene->r.cfra;
-    int left = strip->left_handle_frame();
-    int right = strip->right_handle_frame(scene);
+    int left = strip->left_handle();
+    int right = strip->right_handle(scene);
 
     if ((strip->flag & SEQ_SELECT) == 0 || seq::transform_is_locked(channels, strip)) {
       *r_count = 0;
@@ -185,16 +185,16 @@ static TransData *SeqToTransData(Scene *scene,
       /* Use seq_tx_get_final_left() and an offset here
        * so transform has the left hand location of the strip.
        * `tdsq->start_offset` is used when flushing the tx data back. */
-      start_left = strip->left_handle_frame();
+      start_left = strip->left_handle();
       td2d->loc[0] = start_left;
       tdsq->start_offset = start_left - strip->start; /* Use to apply the original location. */
       break;
     case SEQ_LEFTSEL:
-      start_left = strip->left_handle_frame();
+      start_left = strip->left_handle();
       td2d->loc[0] = start_left;
       break;
     case SEQ_RIGHTSEL:
-      td2d->loc[0] = strip->right_handle_frame(scene);
+      td2d->loc[0] = strip->right_handle(scene);
       break;
   }
 
@@ -384,7 +384,7 @@ static Strip *effect_input_get(Strip *effect, SeqInputSide side)
 {
   Strip *input = effect->input1;
   if (effect->input2 &&
-      (effect->input2->left_handle_frame() - effect->input1->left_handle_frame()) * side >
+      (effect->input2->left_handle() - effect->input1->left_handle()) * side >
           0)
   {
     input = effect->input2;
@@ -512,7 +512,7 @@ static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
     /* If both handles are selected, there must be enough underlying content to clamp holds. */
     bool can_clamp_holds = !(left_sel && right_sel) ||
                            (strip->len >=
-                            strip->right_handle_frame(scene) - strip->left_handle_frame());
+                            strip->right_handle(scene) - strip->left_handle());
     can_clamp_holds &= !seq::transform_single_image_check(strip);
 
     /* A handle is selected. Update x-axis clamping data. */
@@ -520,7 +520,7 @@ static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
       if (left_sel) {
         /* Ensure that this strip's left handle cannot pass its right handle. */
         if (!(left_sel && right_sel)) {
-          int offset = (strip->right_handle_frame(scene) - 1) - strip->left_handle_frame();
+          int offset = (strip->right_handle(scene) - 1) - strip->left_handle();
           ts->offset_clamp.xmax = min_ii(ts->offset_clamp.xmax, offset);
         }
 
@@ -532,7 +532,7 @@ static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
       if (right_sel) {
         if (!(left_sel && right_sel)) {
           /* Ensure that this strip's right handle cannot pass its left handle. */
-          int offset = (strip->left_handle_frame() + 1) - strip->right_handle_frame(scene);
+          int offset = (strip->left_handle() + 1) - strip->right_handle(scene);
           ts->offset_clamp.xmin = max_ii(ts->offset_clamp.xmin, offset);
         }
 
@@ -711,7 +711,7 @@ static void flushTransSeq(TransInfo *t)
       if (offset_clamped[0] > offset[0] && new_frame == strip->start_frame()) {
         strip->runtime->flag |= seq::StripRuntimeFlag::ClampedLH;
       }
-      else if (offset_clamped[0] < offset[0] && new_frame == strip->content_end_frame(scene)) {
+      else if (offset_clamped[0] < offset[0] && new_frame == strip->content_end(scene)) {
         strip->runtime->flag |= seq::StripRuntimeFlag::ClampedRH;
       }
     }
@@ -733,26 +733,26 @@ static void flushTransSeq(TransInfo *t)
          * the old one to avoid unexpected left handle clamping when canceling. See #126191. */
         const bool both_handles_selected = (tdsq->flag & (SEQ_LEFTSEL | SEQ_RIGHTSEL)) ==
                                            (SEQ_LEFTSEL | SEQ_RIGHTSEL);
-        if (both_handles_selected && new_frame >= strip->right_handle_frame(scene)) {
+        if (both_handles_selected && new_frame >= strip->right_handle(scene)) {
           /* For now, move the right handle far enough to avoid the left handle getting clamped.
            * The final, correct position will be calculated later. */
           strip->right_handle_frame_set(scene, new_frame + 1);
         }
 
-        int old_startdisp = strip->left_handle_frame();
+        int old_startdisp = strip->left_handle();
         strip->left_handle_frame_set(scene, new_frame);
 
-        if (abs(strip->left_handle_frame() - old_startdisp) > abs(max_offset)) {
-          max_offset = strip->left_handle_frame() - old_startdisp;
+        if (abs(strip->left_handle() - old_startdisp) > abs(max_offset)) {
+          max_offset = strip->left_handle() - old_startdisp;
         }
         break;
       }
       case SEQ_RIGHTSEL: { /* No vertical transform. */
-        int old_enddisp = strip->right_handle_frame(scene);
+        int old_enddisp = strip->right_handle(scene);
         strip->right_handle_frame_set(scene, new_frame);
 
-        if (abs(strip->right_handle_frame(scene) - old_enddisp) > abs(max_offset)) {
-          max_offset = strip->right_handle_frame(scene) - old_enddisp;
+        if (abs(strip->right_handle(scene) - old_enddisp) > abs(max_offset)) {
+          max_offset = strip->right_handle(scene) - old_enddisp;
         }
         break;
       }

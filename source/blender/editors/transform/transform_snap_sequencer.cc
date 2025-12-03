@@ -96,14 +96,14 @@ static void points_build_sources_timeline_strips(const Scene *scene,
   for (Strip *strip : snap_sources) {
     int left = 0, right = 0;
     if (strip->flag & SEQ_LEFTSEL && !(strip->flag & SEQ_RIGHTSEL)) {
-      left = right = strip->left_handle_frame();
+      left = right = strip->left_handle();
     }
     else if (strip->flag & SEQ_RIGHTSEL && !(strip->flag & SEQ_LEFTSEL)) {
-      left = right = strip->right_handle_frame(scene);
+      left = right = strip->right_handle(scene);
     }
     else {
-      left = strip->left_handle_frame();
-      right = strip->right_handle_frame(scene);
+      left = strip->left_handle();
+      right = strip->right_handle(scene);
     }
 
     /* Set only the x-positions when snapping in the timeline. */
@@ -301,21 +301,21 @@ static void points_build_targets_timeline(const Scene *scene,
   }
 
   for (Strip *strip : strip_targets) {
-    snap_data->target_snap_points.append(float2(strip->left_handle_frame()));
-    snap_data->target_snap_points.append(float2(strip->right_handle_frame(scene)));
+    snap_data->target_snap_points.append(float2(strip->left_handle()));
+    snap_data->target_snap_points.append(float2(strip->right_handle(scene)));
 
     if (snap_mode & SEQ_SNAP_TO_STRIP_HOLD) {
       int content_start = strip->start_frame();
-      int content_end = strip->content_end_frame(scene);
+      int content_end = strip->content_end(scene);
 
       /* Effects and single image strips produce incorrect content length. Skip these strips. */
       if (strip->is_effect() || strip->len == 1) {
-        content_start = strip->left_handle_frame();
-        content_end = strip->right_handle_frame(scene);
+        content_start = strip->left_handle();
+        content_end = strip->right_handle(scene);
       }
 
-      CLAMP(content_start, strip->left_handle_frame(), strip->right_handle_frame(scene));
-      CLAMP(content_end, strip->left_handle_frame(), strip->right_handle_frame(scene));
+      CLAMP(content_start, strip->left_handle(), strip->right_handle(scene));
+      CLAMP(content_end, strip->left_handle(), strip->right_handle(scene));
 
       snap_data->target_snap_points.append(float2(content_start));
       snap_data->target_snap_points.append(float2(content_end));

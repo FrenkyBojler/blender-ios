@@ -898,9 +898,9 @@ static void realize_fake_keys_in_rect(bContext *C, Strip *strip, const rctf &rec
   const Scene *scene = CTX_data_sequencer_scene(C);
 
   const int content_start = strip->start_frame();
-  const int left_key_frame = max_ii(content_start, strip->left_handle_frame());
-  const int content_end = strip->content_end_frame_get(scene);
-  const int right_key_frame = min_ii(content_end, strip->right_handle_frame(scene));
+  const int left_key_frame = max_ii(content_start, strip->left_handle());
+  const int content_end = strip->content_end(scene);
+  const int right_key_frame = min_ii(content_end, strip->right_handle(scene));
 
   /* Realize "fake" keys. */
   if (left_key_frame > rectf.xmin && left_key_frame < rectf.xmax) {
@@ -945,8 +945,8 @@ wmOperatorStatus sequencer_retiming_box_select_exec(bContext *C, wmOperator *op)
 
     for (SeqRetimingKey &key : seq::retiming_keys_get(strip)) {
       const int key_frame = seq::retiming_key_timeline_frame_get(scene, strip, &key);
-      const int strip_start = strip->left_handle_frame();
-      const int strip_end = strip->right_handle_frame(scene);
+      const int strip_start = strip->left_handle();
+      const int strip_end = strip->right_handle(scene);
       if (key_frame < strip_start || key_frame > strip_end) {
         continue;
       }

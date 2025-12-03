@@ -316,7 +316,7 @@ EffectHandle strip_blend_mode_handle_get(Strip *strip)
 
 static float transition_fader_calc(const Scene *scene, const Strip *strip, float timeline_frame)
 {
-  float fac = float(timeline_frame - strip->left_handle_frame());
+  float fac = float(timeline_frame - strip->left_handle());
   fac /= strip->length(scene);
   fac = math::clamp(fac, 0.0f, 1.0f);
   return fac;

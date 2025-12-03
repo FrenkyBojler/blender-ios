@@ -266,7 +266,7 @@ static void seq_split_set_right_hold_offset(Main *bmain,
                                             int timeline_frame)
 {
   const float content_start = strip->start_frame();
-  const float content_end = strip->content_end_frame(scene);
+  const float content_end = strip->content_end(scene);
 
   /* Adjust within range of extended still-frames before strip. */
   if (timeline_frame < content_start) {
@@ -293,7 +293,7 @@ static void seq_split_set_left_hold_offset(Main *bmain,
                                            int timeline_frame)
 {
   const float content_start = strip->start_frame();
-  const float content_end = strip->content_end_frame(scene);
+  const float content_end = strip->content_end(scene);
 
   /* Adjust within range of strip contents. */
   if ((timeline_frame >= content_start) && (timeline_frame <= content_end)) {
@@ -319,8 +319,8 @@ static bool seq_edit_split_intersect_check(const Scene *scene,
                                            const Strip *strip,
                                            const int timeline_frame)
 {
-  return timeline_frame > strip->left_handle_frame() &&
-         timeline_frame < strip->right_handle_frame(scene);
+  return timeline_frame > strip->left_handle() &&
+         timeline_frame < strip->right_handle(scene);
 }
 
 static void seq_edit_split_handle_strip_offsets(Main *bmain,
@@ -473,10 +473,10 @@ Strip *edit_strip_split(Main *bmain,
 
   /* Split strips. */
   while (left_strip && right_strip) {
-    if (left_strip->left_handle_frame() >= timeline_frame) {
+    if (left_strip->left_handle() >= timeline_frame) {
       edit_flag_for_removal(scene, seqbase, left_strip);
     }
-    else if (right_strip->right_handle_frame(scene) <= timeline_frame) {
+    else if (right_strip->right_handle(scene) <= timeline_frame) {
       edit_flag_for_removal(scene, seqbase, right_strip);
     }
     else if (return_strip == nullptr) {

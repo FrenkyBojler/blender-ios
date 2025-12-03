@@ -786,13 +786,13 @@ void retiming_key_timeline_frame_set(
   const int key_count = retiming_keys_get(strip).size();
   const int key_index = retiming_key_index_get(strip, key);
 
-  if (orig_timeline_frame == strip->right_handle_frame(scene) && keep_retiming) {
+  if (orig_timeline_frame == strip->right_handle(scene) && keep_retiming) {
     for (int i = key_index; i < key_count; i++) {
       SeqRetimingKey *key_iter = &retiming_keys_get(strip)[i];
       strip_retiming_key_offset(scene, strip, key_iter, offset);
     }
   }
-  else if (orig_timeline_frame == strip->left_handle_frame() || key->strip_frame_index == 0) {
+  else if (orig_timeline_frame == strip->left_handle() || key->strip_frame_index == 0) {
     strip->start += clamped_timeline_frame - orig_timeline_frame;
     for (int i = key_index + 1; i < key_count; i++) {
       SeqRetimingKey *key_iter = &retiming_keys_get(strip)[i];

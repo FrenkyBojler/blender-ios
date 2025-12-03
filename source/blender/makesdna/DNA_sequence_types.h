@@ -286,7 +286,7 @@ typedef struct Strip {
   /**
    * Get timeline frame where strip content ends.
    */
-  float content_end_frame(const Scene *scene) const;
+  float content_end(const Scene *scene) const;
   /**
    * Get number of frames (in timeline) that can be rendered.
    * This can change depending on scene FPS or strip speed factor.
@@ -301,11 +301,11 @@ typedef struct Strip {
   /**
    * Get timeline frame where strip boundary starts.
    */
-  int left_handle_frame() const;
+  int left_handle() const;
   /**
    * Get timeline frame where strip boundary ends.
    */
-  int right_handle_frame(const Scene *scene) const;
+  int right_handle(const Scene *scene) const;
   /**
    * Set frame where strip boundary starts. This function moves only handle, content is not moved.
    */

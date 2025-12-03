@@ -374,8 +374,8 @@ static void seq_update_meta_disp_range(Scene *scene)
   LISTBASE_FOREACH_BACKWARD (MetaStack *, ms, &ed->metastack) {
     /* Update ms->disp_range from meta. */
     if (ms->disp_range[0] == ms->disp_range[1]) {
-      ms->disp_range[0] = ms->parent_strip->left_handle_frame();
-      ms->disp_range[1] = ms->parent_strip->right_handle_frame(scene);
+      ms->disp_range[0] = ms->parent_strip->left_handle();
+      ms->disp_range[1] = ms->parent_strip->right_handle(scene);
     }
 
     /* Update meta strip endpoints. */
