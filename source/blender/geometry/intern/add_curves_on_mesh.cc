@@ -4,7 +4,7 @@
 
 #include "BLI_math_vector.hh"
 
-#include "BLI_kdtree.h"
+#include "BLI_kdtree.hh"
 #include "BLI_length_parameterize.hh"
 #include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
@@ -58,19 +58,19 @@ static void calc_straight_curve_positions(const float3 &a,
 }
 
 static Array<NeighborCurves> find_curve_neighbors(const Span<float3> root_positions,
-                                                  const KDTree_3d &old_roots_kdtree)
+                                                  const blender::KDTree_3d &old_roots_kdtree)
 {
   const int tot_added_curves = root_positions.size();
   Array<NeighborCurves> neighbors_per_curve(tot_added_curves);
   threading::parallel_for(IndexRange(tot_added_curves), 128, [&](const IndexRange range) {
     for (const int i : range) {
       const float3 root = root_positions[i];
-      std::array<KDTreeNearest_3d, max_neighbors> nearest_n;
-      const int found_neighbors = BLI_kdtree_3d_find_nearest_n(
+      std::array<blender::KDTreeNearest_3d, max_neighbors> nearest_n;
+      const int found_neighbors = blender::BLI_kdtree_3d_find_nearest_n(
           &old_roots_kdtree, root, nearest_n.data(), max_neighbors);
       float tot_weight = 0.0f;
       for (const int neighbor_i : IndexRange(found_neighbors)) {
-        KDTreeNearest_3d &nearest = nearest_n[neighbor_i];
+        blender::KDTreeNearest_3d &nearest = nearest_n[neighbor_i];
         const float weight = 1.0f / std::max(nearest.dist, 0.00001f);
         tot_weight += weight;
         neighbors_per_curve[i].append({nearest.index, weight});
@@ -149,7 +149,7 @@ static void calc_position_with_interpolation(CurvesGeometry &curves,
   const int added_curves_num = root_positions_cu.size();
 
   const OffsetIndices points_by_curve = curves.points_by_curve();
-  const Span<float2> uv_coords = curves.surface_uv_coords();
+  const Span<float2> uv_coords = *curves.surface_uv_coords();
 
   threading::parallel_for(IndexRange(added_curves_num), 256, [&](const IndexRange range) {
     for (const int added_curve_i : range) {
@@ -239,11 +239,8 @@ static void calc_radius_without_interpolation(CurvesGeometry &curves,
                                               const IndexRange new_points_range,
                                               const float radius)
 {
-  bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-  bke::SpanAttributeWriter radius_attr = attributes.lookup_or_add_for_write_span<float>(
-      "radius", bke::AttrDomain::Point);
-  radius_attr.span.slice(new_points_range).fill(radius);
-  radius_attr.finish();
+  curves.radius_for_write().slice(new_points_range).fill(radius);
+  curves.tag_radii_changed();
 }
 
 static void calc_radius_with_interpolation(CurvesGeometry &curves,

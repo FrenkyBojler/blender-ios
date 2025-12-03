@@ -4,17 +4,10 @@
 
 set(INC
   ..
-  ../../blenkernel
-  ../../blenloader
-  ../../blentranslation
   ../../editors/include
-  ../../gpu
-  ../../imbuf
   ../../imbuf/intern/oiio
   ../../makesrna
-  ../../windowmanager
   ../../../../intern/mantaflow/extern
-  ../../../../intern/opencolorio
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
@@ -39,10 +32,13 @@ set(SRC
   bpy_app_timers.cc
   bpy_app_translations.cc
   bpy_app_usd.cc
+  bpy_audaspace.cc
   bpy_capi_utils.cc
   bpy_cli_command.cc
   bpy_driver.cc
+  bpy_geometry_set.cc
   bpy_gizmo_wrap.cc
+  bpy_inline_shader_nodes.cc
   bpy_interface.cc
   bpy_interface_atexit.cc
   bpy_interface_run.cc
@@ -51,6 +47,7 @@ set(SRC
   bpy_library_write.cc
   bpy_msgbus.cc
   bpy_operator.cc
+  bpy_operator_function.cc
   bpy_operator_wrap.cc
   bpy_path.cc
   bpy_props.cc
@@ -70,7 +67,6 @@ set(SRC
   bpy_traceback.cc
   bpy_utils_previews.cc
   bpy_utils_units.cc
-  stubs.cc
 
   bpy.hh
   bpy_app.hh
@@ -87,10 +83,13 @@ set(SRC
   bpy_app_timers.hh
   bpy_app_translations.hh
   bpy_app_usd.hh
+  bpy_audaspace.hh
   bpy_capi_utils.hh
   bpy_cli_command.hh
   bpy_driver.hh
+  bpy_geometry_set.hh
   bpy_gizmo_wrap.hh
+  bpy_inline_shader_nodes.hh
   bpy_intern_string.hh
   bpy_library.hh
   bpy_msgbus.hh
@@ -120,24 +119,36 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blenloader
+  PRIVATE bf::blentranslation
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
   bf_editor_animation
   bf_editor_interface
   bf_editor_space_api
+  PRIVATE bf::gpu
+  PRIVATE bf::imbuf
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::animrig
   bf_python_gpu
+  PRIVATE bf::imbuf::opencolorio
+  PRIVATE bf::nodes
 
   ${PYTHON_LINKFLAGS}
   ${PYTHON_LIBRARIES}
+  PRIVATE bf::windowmanager
 )
 
 # Only to check if `buildinfo` is available.
 if(WITH_BUILDINFO)
   add_definitions(-DBUILD_DATE)
+endif()
+
+if(WITH_INSTALL_PORTABLE)
+  add_definitions(-DWITH_INSTALL_PORTABLE)
 endif()
 
 if(WITH_PYTHON_MODULE)
@@ -175,6 +186,15 @@ if(WITH_AUDASPACE)
   add_definitions(-DWITH_AUDASPACE)
   if(WITH_PYTHON_NUMPY)
     add_definitions(-DWITH_AUDASPACE_PY)
+    list(APPEND INC_SYS
+      ${AUDASPACE_C_INCLUDE_DIRS}
+      ${AUDASPACE_PY_INCLUDE_DIRS}
+    )
+    if(NOT WITH_SYSTEM_AUDASPACE)
+      list(APPEND LIB audaspace audaspace-py)
+    else()
+      list(APPEND LIB ${AUDASPACE_C_LIBRARIES} ${AUDASPACE_PY_LIBRARIES})
+    endif()
   endif()
 endif()
 
@@ -194,10 +214,6 @@ endif()
 
 if(WITH_CODEC_SNDFILE)
   add_definitions(-DWITH_SNDFILE)
-endif()
-
-if(WITH_COMPOSITOR_CPU)
-  add_definitions(-DWITH_COMPOSITOR_CPU)
 endif()
 
 if(WITH_CYCLES)
@@ -226,19 +242,19 @@ if(WITH_FREESTYLE)
 endif()
 
 if(WITH_IMAGE_CINEON)
-  add_definitions(-DWITH_CINEON)
+  add_definitions(-DWITH_IMAGE_CINEON)
 endif()
 
 if(WITH_IMAGE_OPENEXR)
-  add_definitions(-DWITH_OPENEXR)
+  add_definitions(-DWITH_IMAGE_OPENEXR)
 endif()
 
 if(WITH_IMAGE_OPENJPEG)
-  add_definitions(-DWITH_OPENJPEG)
+  add_definitions(-DWITH_IMAGE_OPENJPEG)
 endif()
 
-if(WITH_WEBP)
-  add_definitions(-DWITH_WEBP)
+if(WITH_IMAGE_WEBP)
+  add_definitions(-DWITH_IMAGE_WEBP)
 endif()
 
 if(WITH_INPUT_NDOF)
@@ -299,10 +315,6 @@ if(WITH_MOD_FLUID)
   add_definitions(-DWITH_FLUID)
 endif()
 
-if(WITH_OPENCOLLADA)
-  add_definitions(-DWITH_COLLADA)
-endif()
-
 if(WITH_IO_WAVEFRONT_OBJ)
   add_definitions(-DWITH_IO_WAVEFRONT_OBJ)
 endif()
@@ -315,23 +327,12 @@ if(WITH_IO_STL)
   add_definitions(-DWITH_IO_STL)
 endif()
 
+if(WITH_IO_FBX)
+  add_definitions(-DWITH_IO_FBX)
+endif()
+
 if(WITH_IO_GREASE_PENCIL)
   add_definitions(-DWITH_IO_GREASE_PENCIL)
-endif()
-
-if(WITH_ALEMBIC)
-  add_definitions(-DWITH_ALEMBIC)
-endif()
-
-if(WITH_OPENCOLORIO)
-  add_definitions(-DWITH_OCIO)
-endif()
-
-if(WITH_OPENVDB)
-  add_definitions(-DWITH_OPENVDB)
-  list(APPEND INC
-    ../../../../intern/openvdb
-  )
 endif()
 
 if(WITH_ALEMBIC)
@@ -376,6 +377,10 @@ if(WITH_HYDRA)
     bf_render_hydra
   )
   add_definitions(-DWITH_HYDRA)
+endif()
+
+if(WITH_EXPERIMENTAL_FEATURES)
+  add_definitions(-DWITH_EXPERIMENTAL_FEATURES)
 endif()
 
 blender_add_lib(bf_python "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

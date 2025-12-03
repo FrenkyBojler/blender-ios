@@ -23,6 +23,34 @@ void vk_pipeline_data_copy(VKPipelineData &dst, const VKPipelineData &src)
   }
 }
 
+void vk_pipeline_dynamic_graphics_build_commands(VKCommandBufferInterface &command_buffer,
+                                                 const VKPipelineDataGraphics &graphics,
+                                                 VKBoundPipelines &r_bound_pipelines)
+{
+  if (assign_if_different(r_bound_pipelines.graphics.viewport_state, graphics.viewport)) {
+    command_buffer.set_viewport(graphics.viewport.viewports);
+    command_buffer.set_scissor(graphics.viewport.scissors);
+  }
+  if (assign_if_different(r_bound_pipelines.graphics.line_width, graphics.line_width)) {
+    if (graphics.line_width.has_value()) {
+      command_buffer.set_line_width(*graphics.line_width);
+    }
+  }
+  if (assign_if_different(r_bound_pipelines.graphics.stencil_state, graphics.stencil_state)) {
+    if (graphics.stencil_state.has_value()) {
+      const StencilState &stencil_state = *graphics.stencil_state;
+      command_buffer.set_stencil_compare_mask(stencil_state.compare_mask);
+      command_buffer.set_stencil_write_mask(stencil_state.write_mask);
+      command_buffer.set_stencil_reference(stencil_state.reference);
+    }
+  }
+  if (assign_if_different(r_bound_pipelines.graphics.front_face, graphics.front_face)) {
+    if (graphics.front_face.has_value()) {
+      command_buffer.set_front_face(*graphics.front_face);
+    }
+  }
+}
+
 void vk_pipeline_data_build_commands(VKCommandBufferInterface &command_buffer,
                                      const VKPipelineData &pipeline_data,
                                      VKBoundPipeline &r_bound_pipeline,
@@ -56,7 +84,10 @@ void vk_pipeline_data_build_commands(VKCommandBufferInterface &command_buffer,
 
 void vk_pipeline_data_free(VKPipelineData &data)
 {
-  MEM_SAFE_FREE(data.push_constants_data);
+  if (data.push_constants_data) {
+    MEM_freeN(const_cast<void *>(data.push_constants_data));
+    data.push_constants_data = nullptr;
+  }
 }
 
 void vk_index_buffer_binding_build_links(VKResourceStateTracker &resources,
@@ -81,6 +112,7 @@ void vk_vertex_buffer_bindings_build_links(VKResourceStateTracker &resources,
                                            VKRenderGraphNodeLinks &node_links,
                                            const VKVertexBufferBindings &vertex_buffers)
 {
+  node_links.inputs.reserve(node_links.inputs.size() + vertex_buffers.buffer_count);
   for (const VkBuffer vk_buffer :
        Span<VkBuffer>(vertex_buffers.buffer, vertex_buffers.buffer_count))
   {

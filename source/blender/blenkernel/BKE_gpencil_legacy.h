@@ -8,15 +8,10 @@
  * \ingroup bke
  */
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct BlendDataReader;
 struct Brush;
 struct CurveMapping;
 struct Depsgraph;
-struct GHash;
 struct ListBase;
 struct MDeformVert;
 struct Main;
@@ -227,41 +222,6 @@ void BKE_gpencil_layer_active_set(struct bGPdata *gpd, struct bGPDlayer *active)
  */
 void BKE_gpencil_layer_delete(struct bGPdata *gpd, struct bGPDlayer *gpl);
 /**
- * Set locked layers for autolock mode.
- * \param gpd: Grease pencil data-block
- * \param unlock: Unlock flag
- */
-void BKE_gpencil_layer_autolock_set(struct bGPdata *gpd, bool unlock);
-
-/**
- * Remove grease pencil mask layer.
- * \param gpl: Grease pencil layer
- * \param mask: Grease pencil mask layer
- */
-void BKE_gpencil_layer_mask_remove(struct bGPDlayer *gpl, struct bGPDlayer_Mask *mask);
-/**
- * Remove any reference to mask layer.
- * \param gpd: Grease pencil data-block
- * \param name: Name of the mask layer
- */
-void BKE_gpencil_layer_mask_remove_ref(struct bGPdata *gpd, const char *name);
-/**
- * Sort grease pencil mask layers.
- * \param gpd: Grease pencil data-block
- * \param gpl: Grease pencil layer
- */
-void BKE_gpencil_layer_mask_sort(struct bGPdata *gpd, struct bGPDlayer *gpl);
-/**
- * Sort all grease pencil mask layer.
- * \param gpd: Grease pencil data-block
- */
-void BKE_gpencil_layer_mask_sort_all(struct bGPdata *gpd);
-/**
- * Make a copy of a given gpencil mask layers.
- */
-void BKE_gpencil_layer_mask_copy(const struct bGPDlayer *gpl_src, struct bGPDlayer *gpl_dst);
-
-/**
  * Sort grease pencil frames.
  * \param gpl: Grease pencil layer
  * \param r_has_duplicate_frames: Duplicated frames flag
@@ -291,38 +251,4 @@ void BKE_gpencil_stroke_weights_duplicate(struct bGPDstroke *gps_src, struct bGP
  */
 void BKE_gpencil_palette_ensure(struct Main *bmain, struct Scene *scene);
 
-/**
- * Update original pointers in evaluated frame.
- * \param gpf_orig: Original grease-pencil frame.
- * \param gpf_eval: Evaluated grease pencil frame.
- */
-void BKE_gpencil_frame_original_pointers_update(const struct bGPDframe *gpf_orig,
-                                                const struct bGPDframe *gpf_eval);
-
-/**
- * Update original pointers in evaluated layer.
- * \param gpl_orig: Original grease-pencil layer.
- * \param gpl_eval: Evaluated grease pencil layer.
- */
-void BKE_gpencil_layer_original_pointers_update(const struct bGPDlayer *gpl_orig,
-                                                const struct bGPDlayer *gpl_eval);
-/**
- * Update pointers of eval data to original data to keep references.
- * \param ob_orig: Original grease pencil object
- * \param ob_eval: Evaluated grease pencil object
- */
-void BKE_gpencil_update_orig_pointers(const struct Object *ob_orig, const struct Object *ob_eval);
-
-/**
- * Update pointers of eval data to original data to keep references.
- * \param gpd_orig: Original grease pencil data
- * \param gpd_eval: Evaluated grease pencil data
- */
-void BKE_gpencil_data_update_orig_pointers(const struct bGPdata *gpd_orig,
-                                           const struct bGPdata *gpd_eval);
-
 void BKE_gpencil_blend_read_data(struct BlendDataReader *reader, struct bGPdata *gpd);
-
-#ifdef __cplusplus
-}
-#endif

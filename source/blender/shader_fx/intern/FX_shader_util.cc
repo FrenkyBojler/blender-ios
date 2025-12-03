@@ -6,16 +6,9 @@
  * \ingroup shader_fx
  */
 
-#include <cstdio>
+#include "BKE_shader_fx.hh"
 
-#include "MEM_guardedalloc.h"
-
-#include "BLI_utildefines.h"
-
-#include "BKE_shader_fx.h"
-
-#include "FX_shader_types.h"
-#include "FX_shader_util.h"
+#include "FX_shader_types.hh"
 
 void shaderfx_type_init(ShaderFxTypeInfo *types[])
 {
