@@ -1263,7 +1263,6 @@ IndexMask retrieve_visible_shapes(Object &object,
   VectorSet<int> hidden_material_indices = get_hidden_material_indices(object);
 
   const std::optional<GroupedSpan<int>> shapes = drawing.shapes();
-
   if (!shapes) {
     return ed::greasepencil::retrieve_visible_strokes(object, drawing, memory);
   }
