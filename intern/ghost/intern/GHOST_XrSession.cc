@@ -124,8 +124,7 @@ void GHOST_XrSession::initSystem()
 /** \name State Management
  * \{ */
 
-static void create_reference_spaces(OpenXRSessionData &oxr,
-                                    bool isDebugMode)
+static void create_reference_spaces(OpenXRSessionData &oxr, bool isDebugMode)
 {
   XrReferenceSpaceCreateInfo create_info = {XR_TYPE_REFERENCE_SPACE_CREATE_INFO};
   create_info.poseInReferenceSpace.orientation.w = 1.0f;
@@ -136,9 +135,9 @@ static void create_reference_spaces(OpenXRSessionData &oxr,
            "Failed to enumerate available reference space count.");
 
   std::vector<XrReferenceSpaceType> supported_spaces_vec(space_count);
-  CHECK_XR(
-      xrEnumerateReferenceSpaces(oxr.session, space_count, &space_count, supported_spaces_vec.data()),
-      "Failed to enumerate available reference spaces.");
+  CHECK_XR(xrEnumerateReferenceSpaces(
+               oxr.session, space_count, &space_count, supported_spaces_vec.data()),
+           "Failed to enumerate available reference spaces.");
 
   const blender::Span supported_spaces(supported_spaces_vec);
 
@@ -176,11 +175,21 @@ static void create_reference_spaces(OpenXRSessionData &oxr,
   }
 
   if (!valid_stage_space && supported_spaces.contains(XR_REFERENCE_SPACE_TYPE_LOCAL_FLOOR)) {
+    if (isDebugMode) {
+      printf(
+          "OpenXR: Stage reference space unavailable, falling back to local floor reference"
+          "space\n");
+    }
     create_info.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_LOCAL_FLOOR;
     CHECK_XR(xrCreateReferenceSpace(oxr.session, &create_info, &oxr.reference_space),
              "Failed to create local floor reference space.");
   }
   else {
+    if (isDebugMode) {
+      printf(
+          "OpenXR: Stage and local floor reference space unavailable, falling back to local "
+          "reference space\n");
+    }
     create_info.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_LOCAL;
     CHECK_XR(xrCreateReferenceSpace(oxr.session, &create_info, &oxr.reference_space),
              "Failed to create local reference space.");
