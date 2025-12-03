@@ -1,3 +1,4 @@
 Referenced by commit 77b523d3179, Fix #128920: Crash calculating geometry nodes that use UV unwrap
 Referenced by issue #114545, The SLIM UV unwrap algorithm implementation for Blender 4.x
 Referenced by issue #149324, [4.5 LTS] Unwrap last operation not working.
+Referenced by commit a86c05e5068135788e57ee64ced29014f9764ae6, Geometry Nodes: Add Minimum stretch unwrap option
