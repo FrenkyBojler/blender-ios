@@ -57,8 +57,8 @@ ccl_device float svm_raycast(
   ray.dD = differential_zero_compact();
 
   Intersection isect;
-
-  const uint visibility = PATH_RAY_SHADOW_OPAQUE;
+  /* Ray-trace, leaving out shadow opaque to avoid early exit. */
+  const uint visibility = PATH_RAY_ALL_VISIBILITY - PATH_RAY_SHADOW_OPAQUE;
   if (!scene_intersect_material_raycast(kg, &ray, visibility, &isect)) {
     return -1.0f;
   }
