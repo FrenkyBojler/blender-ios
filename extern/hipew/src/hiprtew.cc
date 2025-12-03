@@ -84,11 +84,23 @@ bool hiprtewInit()
 #ifdef _WIN32
   const char *hiprt_paths[] = {"hiprt64.dll", NULL};
 #else
+
+  const char* hip_paths[] = { "libamdhip64.so",
+                            "/opt/rocm/lib/libamdhip64.so",
+                            "/opt/rocm/hip/lib/libamdhip64.so",
+                             NULL };
+
   /* libhiprt is installed to the bin subfolder by default, so we include it
    * in our search path. */
   const char *hiprt_paths[] = {"libhiprt64.so",
                                "/opt/rocm/lib/libhiprt64.so",
                                "/opt/rocm/bin/libhiprt64.so", NULL};
+
+  if(!dynamic_library_open_find(hip_paths))
+  {
+    return false;
+  }
+
 #endif
 
   hiprt_lib = dynamic_library_open_find(hiprt_paths);
