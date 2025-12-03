@@ -5,3 +5,4 @@ Referenced by issue #139126, Undo in Texture Paint mode does not redraw object
 Referenced by issue #141070, Geometry node preview on/off shortcut fails to reload mesh in viewport.
 Referenced by issue #143323, Attribute node (Type: View Layer) is not updated during playback in EEVEE when nothing is animated
 Referenced by issue #150019, Compositor: AOV causes viewport to stop updating
+Referenced by issue #150957, Undoing brushstrokes in texture paint doesn't visually happen until viewport camera is moved (in Viewport)
