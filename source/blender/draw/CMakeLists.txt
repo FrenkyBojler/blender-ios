@@ -968,9 +968,15 @@ if(WITH_GTESTS)
     )
     set(TEST_COMMON_SRC
       tests/draw_testing.cc
-      ../gpu/tests/gpu_testing.cc
-      ../gpu/tests/gpu_testing.hh
     )
+    if(NOT WITH_TESTS_SINGLE_BINARY)
+      list(APPEND TEST_COMMON_SRC
+        ../gpu/tests/gpu_testing.cc
+        ../gpu/tests/gpu_testing.hh
+      )
+    else()
+      list(APPEND TEST_LIB gpu_tests)
+    endif()
     blender_add_test_suite_lib(draw "${TEST_SRC}" "${TEST_INC}" "${INC_SYS}" "${TEST_LIB}" "${TEST_COMMON_SRC}")
   endif()
 endif()
