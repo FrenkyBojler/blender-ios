@@ -1476,8 +1476,9 @@ enum {
   MAKE_LINKS_GROUP = 4,
   MAKE_LINKS_DUPLICOLLECTION = 5,
   MAKE_LINKS_MODIFIERS = 6,
-  MAKE_LINKS_FONTS = 7,
-  MAKE_LINKS_SHADERFX = 8,
+  MAKE_LINKS_CONSTRAINTS = 7,
+  MAKE_LINKS_FONTS = 8,
+  MAKE_LINKS_SHADERFX = 9,
 };
 
 /* Return true if make link data is allowed, false otherwise */
@@ -1512,6 +1513,8 @@ static bool allow_make_links_data(const int type, Object *ob_src, Object *ob_dst
         return true;
       }
       break;
+    case MAKE_LINKS_CONSTRAINTS:
+      return true;
     case MAKE_LINKS_FONTS:
       if ((ob_src->data != ob_dst->data) && (ob_src->type == OB_FONT) && (ob_dst->type == OB_FONT))
       {
@@ -1626,6 +1629,16 @@ static wmOperatorStatus make_links_data_exec(bContext *C, wmOperator *op)
             DEG_id_tag_update(&ob_dst->id,
                               ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
             break;
+          case MAKE_LINKS_CONSTRAINTS:
+          constraint_link(bmain, ob_dst, &ob_dst->constraints, &ob_src->constraints); //option 1 - use existing editor level function which is already implemented
+          // BKE_object_link_constraints(ob_dst, ob_src); //option 2 - create a function similar to modifiers ()
+
+          // option 3 - implement here directly inline:
+          // BKE_constraints_free(&ob_dst->constraints);
+          // BKE_constraints_copy(&ob_dst->constraints, &ob_src->constraints, true);
+          // DEG_id_tag_update(&ob_dst->id,
+          //                   ID_RECALC_TRANSFORM | ID_RECALC_GEOMETRY | ID_RECALC_ANIMATION);
+          break;
           case MAKE_LINKS_FONTS: {
             Curve *cu_src = id_cast<Curve *>(ob_src->data);
             Curve *cu_dst = id_cast<Curve *>(ob_dst->data);
@@ -1732,6 +1745,7 @@ void OBJECT_OT_make_links_data(wmOperatorType *ot)
       {MAKE_LINKS_FONTS, "FONTS", 0, "Link Fonts to Text", "Replace Text object Fonts"},
       RNA_ENUM_ITEM_SEPR,
       {MAKE_LINKS_MODIFIERS, "MODIFIERS", 0, "Copy Modifiers", "Replace Modifiers"},
+      {MAKE_LINKS_CONSTRAINTS, "CONSTRAINTS", 0, "Copy Constraints", "Replace Constraints"},
       {MAKE_LINKS_SHADERFX,
        "EFFECTS",
        0,
