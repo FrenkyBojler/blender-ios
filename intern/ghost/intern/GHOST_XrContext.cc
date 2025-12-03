@@ -106,8 +106,8 @@ void GHOST_XrContext::createOpenXRInstance(
   BLI_strncpy(
       create_info.applicationInfo.applicationName, "Blender", XR_MAX_APPLICATION_NAME_SIZE);
 
-  /* Explicitely target OpenXR 1.0 when using a 1.1+ OpenXR SDK. Note that the API_VERSION_1_0
-   * macro is only available in 1.1+ SDKs. For 1.0 SDKs, target the current SDK version. */
+  /* Explicitly target OpenXR API version 1.0. Note that the API_VERSION_1_0 macro is only available
+   * in 1.1+ SDKs. For 1.0 SDKs, target the current SDK version. */
 #ifdef XR_API_VERSION_1_0
   create_info.applicationInfo.apiVersion = XR_API_VERSION_1_0;
 #else
