@@ -863,11 +863,7 @@ typedef enum StripBlendMode {
 } StripBlendMode;
 
 #define STRIP_HAS_PATH(_strip) \
-  (ELEM((_strip)->type, \
-        STRIP_TYPE_MOVIE, \
-        STRIP_TYPE_IMAGE, \
-        STRIP_TYPE_SOUND, \
-        STRIP_TYPE_SOUND_HD))
+  (ELEM((_strip)->type, STRIP_TYPE_MOVIE, STRIP_TYPE_IMAGE, STRIP_TYPE_SOUND, STRIP_TYPE_SOUND_HD))
 
 /* Modifiers */
 
