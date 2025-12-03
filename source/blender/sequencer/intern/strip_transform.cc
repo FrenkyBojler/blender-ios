@@ -85,7 +85,7 @@ void transform_translate_strip(Scene *evil_scene, Strip *strip, int delta)
     /* Move meta start/end points. */
     const int left_handle = strip->left_handle();
     const int right_handle = strip->right_handle(evil_scene);
-    strip->handles_frame_set(evil_scene, left_handle + delta, right_handle + delta);
+    strip->handles_set(evil_scene, left_handle + delta, right_handle + delta);
   }
   else if (strip->input1 == nullptr && strip->input2 == nullptr) { /* All other strip types. */
     strip->start += delta;
@@ -436,11 +436,11 @@ static void strip_transform_handle_overwrite_trim(Scene *scene,
       continue;
     }
     if (overlap == STRIP_OVERLAP_LEFT_SIDE) {
-      strip->left_handle_frame_set(scene, transformed->right_handle(scene));
+      strip->left_handle_set(scene, transformed->right_handle(scene));
     }
     else {
       BLI_assert(overlap == STRIP_OVERLAP_RIGHT_SIDE);
-      strip->right_handle_frame_set(scene, transformed->left_handle());
+      strip->right_handle_set(scene, transformed->left_handle());
     }
   }
 }

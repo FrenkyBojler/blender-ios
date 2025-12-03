@@ -585,10 +585,10 @@ static wmOperatorStatus sequencer_snap_exec(bContext *C, wmOperator *op)
       }
       else {
         if (strip->flag & SEQ_LEFTSEL) {
-          strip->left_handle_frame_set(scene, snap_frame);
+          strip->left_handle_set(scene, snap_frame);
         }
         else { /* SEQ_RIGHTSEL */
-          strip->right_handle_frame_set(scene, snap_frame);
+          strip->right_handle_set(scene, snap_frame);
         }
       }
 
@@ -1606,7 +1606,7 @@ static wmOperatorStatus sequencer_reassign_inputs_exec(bContext *C, wmOperator *
    * TODO(Richard): This is because internally startdisp is still used, due to poor performance
    * of mapping effect range to inputs. This mapping could be cached though. */
   seq::strip_lookup_invalidate(scene->ed);
-  input1->left_handle_frame_set(scene, input1->left_handle());
+  input1->left_handle_set(scene, input1->left_handle());
 
   Editing *ed = seq::editing_get(scene);
   ListBase *active_seqbase = seq::active_seqbase_get(ed);
@@ -3921,7 +3921,7 @@ static wmOperatorStatus sequencer_scene_frame_range_update_exec(bContext *C, wmO
   Scene *target_scene = strip->scene;
 
   strip->len = target_scene->r.efra - target_scene->r.sfra + 1;
-  strip->handles_frame_set(scene, old_start, old_end);
+  strip->handles_set(scene, old_start, old_end);
 
   seq::relations_invalidate_cache_raw(scene, strip);
   DEG_id_tag_update(&scene->id, ID_RECALC_AUDIO | ID_RECALC_SEQUENCER_STRIPS);

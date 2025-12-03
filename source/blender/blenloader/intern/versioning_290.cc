@@ -379,8 +379,8 @@ static void seq_update_meta_disp_range(Scene *scene)
     }
 
     /* Update meta strip endpoints. */
-    ms->parent_strip->left_handle_frame_set(scene, ms->disp_range[0]);
-    ms->parent_strip->right_handle_frame_set(scene, ms->disp_range[1]);
+    ms->parent_strip->left_handle_set(scene, ms->disp_range[0]);
+    ms->parent_strip->right_handle_set(scene, ms->disp_range[1]);
 
     /* Recalculate effects using meta strip. */
     ListBase *old_seqbasep = ms->old_strip ? &ms->old_strip->seqbase : &ed->seqbase;

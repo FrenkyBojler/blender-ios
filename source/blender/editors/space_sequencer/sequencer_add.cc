@@ -1221,8 +1221,8 @@ static void sequencer_add_movie_sync_sound_strip(
 
   /* Ensure that length matches the movie strip even if the underlying sound data
    * doesn't match up (e.g. it is longer). */
-  strip_sound->right_handle_frame_set(scene, strip_movie->right_handle(scene));
-  strip_sound->left_handle_frame_set(scene, strip_movie->left_handle());
+  strip_sound->right_handle_set(scene, strip_movie->right_handle(scene));
+  strip_sound->left_handle_set(scene, strip_movie->left_handle());
 }
 
 static void sequencer_add_movie_multiple_strips(bContext *C,
@@ -1801,7 +1801,7 @@ static bool sequencer_add_image_sequence_force(bContext *C,
 
   seq::add_image_init_alpha_mode(bmain, scene, strip);
   if (load_data.image.count == 1) {
-    strip->right_handle_frame_set(scene, load_data.start_frame + load_data.image.length);
+    strip->right_handle_set(scene, load_data.start_frame + load_data.image.length);
   }
   seq_load_apply_generic_options(C, op, strip);
   return true;
@@ -1848,7 +1848,7 @@ static bool sequencer_add_images(bContext *C, wmOperator *op, seq::LoadData &loa
     /* Adjust starting length of strip.
      * Note that this length differs from `strip->len`, which is always 1 for single images. */
     if (!is_sequence) {
-      strip->right_handle_frame_set(scene, load_data.start_frame + load_data.image.length);
+      strip->right_handle_set(scene, load_data.start_frame + load_data.image.length);
     }
 
     seq_load_apply_generic_options(C, op, strip);

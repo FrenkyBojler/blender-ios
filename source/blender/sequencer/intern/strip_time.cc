@@ -492,7 +492,7 @@ float Strip::content_start() const
   return this->start;
 }
 
-void Strip::start_frame_set(const Scene *scene, int timeline_frame)
+void Strip::content_start_set(const Scene *scene, int timeline_frame)
 {
   this->start = timeline_frame;
   blender::Span<Strip *> effects = blender::seq::SEQ_lookup_effects_by_strip(scene->ed, this);
@@ -546,7 +546,7 @@ int Strip::right_handle(const Scene *scene) const
   return this->content_end(scene) - this->endofs;
 }
 
-void Strip::left_handle_frame_set(const Scene *scene, int timeline_frame)
+void Strip::left_handle_set(const Scene *scene, int timeline_frame)
 {
   const float right_handle_orig_frame = this->right_handle(scene);
 
@@ -559,7 +559,7 @@ void Strip::left_handle_frame_set(const Scene *scene, int timeline_frame)
   if (blender::seq::transform_single_image_check(this)) {
     /* This strip has only 1 frame of content that is always stretched to the whole strip length.
      * Move strip start left and adjust end offset to be negative (rightwards past the 1 frame). */
-    this->start_frame_set(scene, timeline_frame);
+    this->content_start_set(scene, timeline_frame);
     this->endofs += offset;
   }
   else {
@@ -574,7 +574,7 @@ void Strip::left_handle_frame_set(const Scene *scene, int timeline_frame)
                                              blender::seq::lookup_meta_by_strip(scene->ed, this));
 }
 
-void Strip::right_handle_frame_set(const Scene *scene, int timeline_frame)
+void Strip::right_handle_set(const Scene *scene, int timeline_frame)
 {
   const float left_handle_orig_frame = this->left_handle();
 
@@ -591,12 +591,12 @@ void Strip::right_handle_frame_set(const Scene *scene, int timeline_frame)
                                              blender::seq::lookup_meta_by_strip(scene->ed, this));
 }
 
-void Strip::handles_frame_set(const Scene *scene,
-                              int left_handle_timeline_frame,
-                              int right_handle_timeline_frame)
+void Strip::handles_set(const Scene *scene,
+                        int left_handle_timeline_frame,
+                        int right_handle_timeline_frame)
 {
-  this->right_handle_frame_set(scene, right_handle_timeline_frame);
-  this->left_handle_frame_set(scene, left_handle_timeline_frame);
+  this->right_handle_set(scene, right_handle_timeline_frame);
+  this->left_handle_set(scene, left_handle_timeline_frame);
 }
 
 bool Strip::intersects_frame(const Scene *scene, const int timeline_frame) const

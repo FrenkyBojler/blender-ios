@@ -181,7 +181,7 @@ Strip *add_effect_strip(Scene *scene, ListBase *seqbase, LoadData *load_data)
   if (strip->input1 == nullptr) {
     strip->len = 1; /* Effect is generator, set non zero length. */
     strip->flag |= SEQ_SINGLE_FRAME_CONTENT;
-    strip->right_handle_frame_set(scene, load_data->start_frame + load_data->effect.length);
+    strip->right_handle_set(scene, load_data->start_frame + load_data->effect.length);
   }
 
   strip_add_set_name(scene, strip, load_data);
@@ -681,7 +681,7 @@ void add_reload_new_file(Main *bmain, Scene *scene, Strip *strip, const bool loc
   free_strip_proxy(strip);
 
   if (lock_range) {
-    strip->handles_frame_set(scene, prev_start_frame, prev_end_frame);
+    strip->handles_set(scene, prev_start_frame, prev_end_frame);
   }
 
   relations_invalidate_cache_raw(scene, strip);

@@ -529,7 +529,7 @@ static void rna_Strip_start_frame_final_set(PointerRNA *ptr, int value)
   Strip *strip = (Strip *)ptr->data;
   Scene *scene = (Scene *)ptr->owner_id;
 
-  strip->left_handle_frame_set(scene, value);
+  strip->left_handle_set(scene, value);
   do_strip_frame_change_update(scene, strip);
   blender::seq::relations_invalidate_cache(scene, strip);
 }
@@ -539,7 +539,7 @@ static void rna_Strip_end_frame_final_set(PointerRNA *ptr, int value)
   Strip *strip = (Strip *)ptr->data;
   Scene *scene = (Scene *)ptr->owner_id;
 
-  strip->right_handle_frame_set(scene, value);
+  strip->right_handle_set(scene, value);
   do_strip_frame_change_update(scene, strip);
   blender::seq::relations_invalidate_cache(scene, strip);
 }
@@ -633,7 +633,7 @@ static void rna_Strip_frame_length_set(PointerRNA *ptr, int value)
   Strip *strip = (Strip *)ptr->data;
   Scene *scene = (Scene *)ptr->owner_id;
 
-  strip->right_handle_frame_set(scene, strip->left_handle() + value);
+  strip->right_handle_set(scene, strip->left_handle() + value);
   do_strip_frame_change_update(scene, strip);
   blender::seq::relations_invalidate_cache(scene, strip);
 }

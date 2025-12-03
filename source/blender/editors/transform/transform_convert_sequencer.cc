@@ -733,11 +733,11 @@ static void flushTransSeq(TransInfo *t)
         if (both_handles_selected && new_frame >= strip->right_handle(scene)) {
           /* For now, move the right handle far enough to avoid the left handle getting clamped.
            * The final, correct position will be calculated later. */
-          strip->right_handle_frame_set(scene, new_frame + 1);
+          strip->right_handle_set(scene, new_frame + 1);
         }
 
         int old_startdisp = strip->left_handle();
-        strip->left_handle_frame_set(scene, new_frame);
+        strip->left_handle_set(scene, new_frame);
 
         if (abs(strip->left_handle() - old_startdisp) > abs(max_offset)) {
           max_offset = strip->left_handle() - old_startdisp;
@@ -746,7 +746,7 @@ static void flushTransSeq(TransInfo *t)
       }
       case SEQ_RIGHTSEL: { /* No vertical transform. */
         int old_enddisp = strip->right_handle(scene);
-        strip->right_handle_frame_set(scene, new_frame);
+        strip->right_handle_set(scene, new_frame);
 
         if (abs(strip->right_handle(scene) - old_enddisp) > abs(max_offset)) {
           max_offset = strip->right_handle(scene) - old_enddisp;

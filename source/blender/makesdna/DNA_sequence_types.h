@@ -282,7 +282,7 @@ typedef struct Strip {
    * Set frame where strip content starts.
    * This function will also move strip handles.
    */
-  void start_frame_set(const Scene *scene, int timeline_frame);
+  void content_start_set(const Scene *scene, int timeline_frame);
   /**
    * Get timeline frame where strip content ends.
    */
@@ -309,20 +309,20 @@ typedef struct Strip {
   /**
    * Set frame where strip boundary starts. This function moves only handle, content is not moved.
    */
-  void left_handle_frame_set(const Scene *scene, int timeline_frame);
+  void left_handle_set(const Scene *scene, int timeline_frame);
   /**
    * Set frame where strip boundary ends.
    * This function moves only handle, content is not moved.
    */
-  void right_handle_frame_set(const Scene *scene, int timeline_frame);
+  void right_handle_set(const Scene *scene, int timeline_frame);
   /**
    * This function has same effect as calling @Strip::right_handle_frame_set and
    * @Strip::left_handle_frame_set. If both handles are to be set after strip length changes, it is
    * recommended to use this function as the order of setting handles is important. See #131731.
    */
-  void handles_frame_set(const Scene *scene,
-                         int left_handle_timeline_frame,
-                         int right_handle_timeline_frame);
+  void handles_set(const Scene *scene,
+                   int left_handle_timeline_frame,
+                   int right_handle_timeline_frame);
   /**
    * Test if strip intersects with timeline frame.
    * \note This checks if strip would be rendered at this frame. For rendering it is assumed, that

@@ -284,7 +284,7 @@ static void seq_split_set_right_hold_offset(Main *bmain,
 
   /* Needed only to set `strip->len`. */
   add_reload_new_file(bmain, scene, strip, false);
-  strip->right_handle_frame_set(scene, timeline_frame);
+  strip->right_handle_set(scene, timeline_frame);
 }
 
 static void seq_split_set_left_hold_offset(Main *bmain,
@@ -312,7 +312,7 @@ static void seq_split_set_left_hold_offset(Main *bmain,
 
   /* Needed only to set `strip->len`. */
   add_reload_new_file(bmain, scene, strip, false);
-  strip->left_handle_frame_set(scene, timeline_frame);
+  strip->left_handle_set(scene, timeline_frame);
 }
 
 static bool seq_edit_split_intersect_check(const Scene *scene,
@@ -332,7 +332,7 @@ static void seq_edit_split_handle_strip_offsets(Main *bmain,
   if (seq_edit_split_intersect_check(scene, right_strip, timeline_frame)) {
     switch (method) {
       case SPLIT_SOFT:
-        right_strip->left_handle_frame_set(scene, timeline_frame);
+        right_strip->left_handle_set(scene, timeline_frame);
         break;
       case SPLIT_HARD:
         seq_split_set_left_hold_offset(bmain, scene, right_strip, timeline_frame);
@@ -343,7 +343,7 @@ static void seq_edit_split_handle_strip_offsets(Main *bmain,
   if (seq_edit_split_intersect_check(scene, left_strip, timeline_frame)) {
     switch (method) {
       case SPLIT_SOFT:
-        left_strip->right_handle_frame_set(scene, timeline_frame);
+        left_strip->right_handle_set(scene, timeline_frame);
         break;
       case SPLIT_HARD:
         seq_split_set_right_hold_offset(bmain, scene, left_strip, timeline_frame);

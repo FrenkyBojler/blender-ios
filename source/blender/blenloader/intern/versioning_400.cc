@@ -303,7 +303,7 @@ static bool versioning_convert_strip_speed_factor(Strip *strip, void *user_data)
   if (strip->type == STRIP_TYPE_SOUND_RAM) {
     const int prev_length = strip->len - strip->startofs - strip->endofs;
     const float left_handle = strip->left_handle();
-    strip->right_handle_frame_set(scene, left_handle + prev_length);
+    strip->right_handle_set(scene, left_handle + prev_length);
   }
 
   return true;

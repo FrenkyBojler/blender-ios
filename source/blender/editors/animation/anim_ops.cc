@@ -48,7 +48,9 @@
 #include "DEG_depsgraph_build.hh"
 
 #include "SEQ_iterator.hh"
+#include "SEQ_retiming.hh"
 #include "SEQ_sequencer.hh"
+#include "SEQ_time.hh"
 
 #include "ANIM_action.hh"
 #include "ANIM_animdata.hh"
