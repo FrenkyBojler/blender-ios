@@ -8750,6 +8750,8 @@ class VIEW3D_PT_paint_weight_context_menu(Panel):
         layout = self.layout
 
         brush = context.tool_settings.weight_paint.brush
+
+        # Use unified_paint_settings_override to allow 'brush-like' tools (e.g. Gradient).
         UnifiedPaintPanel.prop_unified(
             layout,
             context,
