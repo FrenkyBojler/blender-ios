@@ -2015,7 +2015,7 @@ void NodesModifierUsageInferenceCache::reset()
 
 static void panel_draw(const bContext *C, Panel *panel)
 {
-  blender::ui::Layout &layout = *panel->layout;
+  ui::Layout &layout = *panel->layout;
   PointerRNA *modifier_ptr = modifier_panel_get_property_pointers(panel, nullptr);
   nodes::draw_geometry_nodes_modifier_ui(*C, modifier_ptr, layout);
 }
