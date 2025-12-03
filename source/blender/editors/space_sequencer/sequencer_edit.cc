@@ -2162,7 +2162,7 @@ void SEQUENCER_OT_box_blade(wmOperatorType *ot)
   /* Identifiers. */
   ot->name = "Box Blade";
   ot->idname = "SEQUENCER_OT_box_blade";
-  ot->description = "Draw a box around the parts of strips you want to cut away.";
+  ot->description = "Draw a box around the parts of strips you want to cut away";
 
   /* API callbacks. */
   ot->invoke = WM_gesture_box_invoke;
