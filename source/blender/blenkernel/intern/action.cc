@@ -491,8 +491,7 @@ static void action_blend_write(BlendWriter *writer, ID *id, const void *id_addre
 
   /* Create legacy data for Layered Actions: the F-Curves from the first Slot,
    * bottom layer, first Keyframe strip. */
-  const bool do_write_forward_compat = !BLO_write_is_undo(writer) && action.slot_array_num > 0 &&
-                                       action.is_action_layered();
+  const bool do_write_forward_compat = !BLO_write_is_undo(writer) && action.slot_array_num > 0;
   if (do_write_forward_compat) {
     animrig::assert_baklava_phase_1_invariants(action);
     BLI_assert_msg(BLI_listbase_is_empty(&action.curves),
@@ -1977,13 +1976,8 @@ void what_does_obaction(Object *ob,
   if (groupname && groupname[0]) {
     /* Find the named channel group. */
     Action &action = act->wrap();
-    if (action.is_action_layered()) {
-      Channelbag *cbag = channelbag_for_action_slot(action, action_slot_handle);
-      agrp = cbag ? cbag->channel_group_find(groupname) : nullptr;
-    }
-    else {
-      agrp = BKE_action_group_find_name(act, groupname);
-    }
+    Channelbag *cbag = channelbag_for_action_slot(action, action_slot_handle);
+    agrp = cbag ? cbag->channel_group_find(groupname) : nullptr;
   }
 
   /* clear workob */
@@ -2049,7 +2043,6 @@ void what_does_obaction(Object *ob,
 
     adt.action = act;
     adt.slot_handle = action_slot_handle;
-    BKE_animdata_action_ensure_idroot(&workob->id, act);
 
     /* execute effects of Action on to workob (or its PoseChannels) */
     BKE_animsys_evaluate_animdata(&workob->id, &adt, anim_eval_context, ADT_RECALC_ANIM, false);
