@@ -5608,7 +5608,15 @@ static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend)
 
   BLI_bvhtree_balance(uv_tree);
 
-  /* Reusable 1-leaf tree we will update for every face we test. */
+  /* Use a reusable 1-leaf tree to probe the main tree for overlaps.
+   *
+   * `BLI_bvhtree_overlap_self` calculates all overlapping pairs
+   * which causes a freeze on dense meshes with many overlaps
+   * (See #150087).
+   *
+   * By using a single-leaf tree and updating it per-face, we can use `BLI_bvhtree_overlap_ex`
+   * with a `max_interactions` limit of 1. This allows the search to abort immediately
+   * as soon as the first overlap is found. */
   BVHTree *probe_tree = BLI_bvhtree_new(1, 0.0f, 4, 6);
 
   /* Initializing the first node so we have valid memory to update later. */
