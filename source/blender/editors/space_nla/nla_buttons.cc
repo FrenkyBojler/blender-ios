@@ -484,20 +484,18 @@ static void nla_panel_actclip(const bContext *C, Panel *panel)
 
     animrig::Action &action = strip->act->wrap();
     ID &animated_id = *strip_ptr.owner_id;
-    if (!blender::animrig::legacy::action_treat_as_legacy(action)) {
-      PointerRNA animated_id_ptr = RNA_id_pointer_create(&animated_id);
-      action_col.context_ptr_set("animated_id", &animated_id_ptr);
-      action_col.context_ptr_set("nla_strip", &strip_ptr);
-      uiTemplateSearch(&action_col,
-                       C,
-                       &strip_ptr,
-                       "action_slot",
-                       &strip_ptr,
-                       "action_suitable_slots",
-                       nullptr,
-                       "anim.slot_unassign_from_nla_strip",
-                       "Slot");
-    }
+    PointerRNA animated_id_ptr = RNA_id_pointer_create(&animated_id);
+    action_col.context_ptr_set("animated_id", &animated_id_ptr);
+    action_col.context_ptr_set("nla_strip", &strip_ptr);
+    uiTemplateSearch(&action_col,
+                     C,
+                     &strip_ptr,
+                     "action_slot",
+                     &strip_ptr,
+                     "action_suitable_slots",
+                     nullptr,
+                     "anim.slot_unassign_from_nla_strip",
+                     "Slot");
   }
 
   /* action extents */
