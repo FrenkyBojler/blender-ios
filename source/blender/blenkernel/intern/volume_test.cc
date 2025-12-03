@@ -107,7 +107,7 @@ TEST_F(VolumeTest, add_new_grid_with_invalid_input)
   EXPECT_FALSE(BKE_volume_grid_add_new(volume, "", VOLUME_GRID_FLOAT));
   EXPECT_EQ(BKE_volume_num_grids(volume), 0);
 
-  EXPECT_FALSE(BKE_volume_grid_add_new(volume, "points_grid", VOLUME_GRID_POINTS));
+  EXPECT_FALSE(BKE_volume_grid_add_new(volume, "points_grid", VOLUME_GRID_UNKNOWN));
   EXPECT_EQ(BKE_volume_num_grids(volume), 0);
 
   BKE_id_free(bmain, volume);

@@ -1170,6 +1170,10 @@ openvdb::GridBase::Ptr BKE_volume_grid_create_with_changed_resolution(
 
 bool BKE_volume_grid_add_new(Volume *volume, const char *grid_name, VolumeGridType grid_type)
 {
+  if (!grid_name || strlen(grid_name) == 0) {
+    return false;
+  }
+
   openvdb::GridBase::Ptr new_grid = BKE_volume_grid_type_operation(grid_type, CreateGridOp{});
 
   if (!new_grid) {
