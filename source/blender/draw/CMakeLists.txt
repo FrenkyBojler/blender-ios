@@ -954,7 +954,6 @@ if(WITH_GTESTS)
     set(TEST_SRC
       tests/draw_curves_test.cc
       tests/draw_pass_test.cc
-      tests/draw_testing.cc
       tests/eevee_test.cc
 
       tests/draw_testing.hh
@@ -964,8 +963,12 @@ if(WITH_GTESTS)
       ../gpu/tests
     )
     set(TEST_LIB
-      gpu_tests
     )
-    blender_add_test_suite_lib(draw "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${LIB};${TEST_LIB}")
+    set(TEST_COMMON_SRC
+      tests/draw_testing.cc
+      ../gpu/tests/gpu_testing.cc
+      ../gpu/tests/gpu_testing.hh
+    )
+    blender_add_test_suite_lib(draw "${TEST_SRC}" "${INC};${TEST_INC}" "${INC_SYS}" "${LIB};${TEST_LIB}" "${TEST_COMMON_SRC}")
   endif()
 endif()
