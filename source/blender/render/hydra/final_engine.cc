@@ -8,6 +8,10 @@
 #include <pxr/imaging/hd/light.h>
 #include <pxr/imaging/hd/renderBuffer.h>
 
+#ifdef WITH_RENDERDOC
+#  include "renderdoc_api.hh"
+#endif
+
 #include "DNA_layer_types.h"
 #include "DNA_scene_types.h"
 
@@ -15,6 +19,7 @@
 #include "BLI_time.h"
 #include "BLI_timecode.h"
 
+#include "BKE_global.hh"
 #include "BKE_lib_id.hh"
 
 #include "DEG_depsgraph_query.hh"
@@ -76,6 +81,8 @@ void FinalEngine::render()
   double time_begin = BLI_time_now_seconds();
   float percent_done = 0.0;
 
+  DebugScope debug_scope("Hydra.render_frame");
+
   while (true) {
     engine_->Execute(render_index_.get(), &t);
 
@@ -136,5 +143,24 @@ void FinalEngine::update_render_result(int width, int height, const char *layer_
 
   RE_engine_end_result(bl_engine_, rr, false, false, false);
 }
+
+#ifdef WITH_RENDERDOC
+static renderdoc::api::Renderdoc renderdoc_api_;
+
+FinalEngine::DebugScope::DebugScope(const char *title)
+{
+  if (StringRefNull(title) == StringRefNull(G.gpu_debug_scope_name)) {
+    bool result = renderdoc_api_.start_frame_capture(nullptr, nullptr);
+    if (result) {
+      renderdoc_api_.set_frame_capture_title(title);
+    }
+  }
+}
+
+FinalEngine::DebugScope::~DebugScope()
+{
+  renderdoc_api_.end_frame_capture(nullptr, nullptr);
+}
+#endif
 
 }  // namespace blender::render::hydra

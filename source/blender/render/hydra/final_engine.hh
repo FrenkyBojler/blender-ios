@@ -23,6 +23,18 @@ class FinalEngine : public Engine {
 
  private:
   void update_render_result(int width, int height, const char *layer_name);
+
+  struct DebugScope {
+#ifdef WITH_RENDERDOC
+    DebugScope(const char *title);
+    ~DebugScope();
+#else
+    DebugScope(const char *title)
+    {
+      UNUSED_VARS(title);
+    }
+#endif
+  };
 };
 
 }  // namespace blender::render::hydra

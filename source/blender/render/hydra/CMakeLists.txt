@@ -97,6 +97,14 @@ set(SRC
   viewport_engine.hh
 )
 
+if(WITH_RENDERDOC)
+  list(APPEND INC
+    ../../../../extern/renderdoc/include
+    ../../../../intern/renderdoc_dynload/include
+  )
+  add_definitions(-DWITH_RENDERDOC)
+endif()
+
 blender_add_lib(bf_render_hydra "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
 # RNA_prototypes.hh
