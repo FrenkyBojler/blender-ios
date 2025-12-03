@@ -145,6 +145,14 @@ ccl_device_intersect bool scene_intersect_shadow(KernelGlobals kg,
   return scene_intersect(kg, ray, visibility, &isect);
 }
 
+ccl_device_intersect bool scene_intersect_material_raycast(KernelGlobals kg,
+                                                           const ccl_private Ray *ray,
+                                                           const uint visibility,
+                                                           Intersection *isect)
+{
+  return scene_intersect(kg, ray, visibility, isect);
+}
+
 /* Single object BVH traversal, for SSS/AO/bevel. */
 
 #  ifdef __BVH_LOCAL__

@@ -69,9 +69,18 @@ ccl_device_intersect bool scene_intersect(KernelGlobals kg,
   return false;
 }
 
-ccl_device_intersect bool scene_intersect_shadow(KernelGlobals kg,
-                                                 const ccl_private Ray *ray,
-                                                 const uint visibility)
+ccl_device_intersect bool scene_intersect_material_raycast(KernelGlobals kg,
+                                                           const ccl_private Ray *ray,
+                                                           const uint visibility,
+                                                           Intersection *isect)
+{
+  return scene_intersect(kg, ray, visibility, isect);
+}
+
+ccl_device_intersect bool scene_intersect_material_raycast(KernelGlobals kg,
+                                                           const ccl_private Ray *ray,
+                                                           const uint visibility,
+                                                           Intersection *isect)
 {
   Intersection isect;
   return scene_intersect(kg, ray, visibility, &isect);

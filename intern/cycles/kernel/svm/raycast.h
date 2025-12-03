@@ -56,23 +56,13 @@ ccl_device float svm_raycast(
   ray.dP = differential_zero_compact();
   ray.dD = differential_zero_compact();
 
-  /* Ray-trace, leaving out shadow opaque to avoid early exit. */
-  const uint visibility = PATH_RAY_ALL_VISIBILITY - PATH_RAY_SHADOW_OPAQUE;
-  if (!scene_intersect_shadow(kg, &ray, PATH_RAY_SHADOW_OPAQUE)) {
-    return -1.0f;
-  }
-  return 1.0f;
-
-#  if 0
   Intersection isect;
 
-  if (!scene_intersect(kg, &ray, visibility, &isect)) {
+  const uint visibility = PATH_RAY_SHADOW_OPAQUE;
+  if (!scene_intersect_material_raycast(kg, &ray, visibility, &isect)) {
     return -1.0f;
   }
-  *hit_position = position + direction * isect.t;
-  *hit_distance = isect.t;
-  return 1.0f;
-#  endif
+  return isect.t;
 }
 
 template<uint node_feature_mask, typename ConstIntegratorGenericState>
@@ -117,8 +107,8 @@ ccl_device_noinline
 
     if (result >= 0.0f) {
       is_hit = 1.0f;
-      hit_position = position + direction * hit_distance;
       hit_distance = result;
+      hit_position = position + direction * hit_distance;
     }
   }
 

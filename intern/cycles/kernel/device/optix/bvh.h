@@ -563,6 +563,61 @@ ccl_device_intersect bool scene_intersect_shadow(KernelGlobals kg,
   return optixHitObjectIsHit();
 }
 
+ccl_device_intersect bool scene_intersect_material_raycast(KernelGlobals kg,
+                                                           const ccl_private Ray *ray,
+                                                           const uint visibility,
+                                                           ccl_private Intersection *isect)
+{
+  uint p0 = 0;
+  uint p1 = 0;
+  uint p2 = 0;
+  uint p3 = 0;
+  uint p4 = visibility;
+  uint p5 = PRIMITIVE_NONE;
+  uint p6 = pointer_pack_to_uint_0(ray);
+  uint p7 = pointer_pack_to_uint_1(ray);
+
+  uint ray_mask = visibility & 0xFF;
+  uint ray_flags = OPTIX_RAY_FLAG_ENFORCE_ANYHIT;
+  if (0 == ray_mask && (visibility & ~0xFF) != 0) {
+    ray_mask = 0xFF;
+  }
+  else if (visibility & PATH_RAY_SHADOW_OPAQUE) {
+    ray_flags |= OPTIX_RAY_FLAG_TERMINATE_ON_FIRST_HIT;
+  }
+
+  optixTraverse(intersection_ray_valid(ray) ? kernel_data.device_bvh : 0,
+                ray->P,
+                ray->D,
+                ray->tmin,
+                ray->tmax,
+                ray->time,
+                ray_mask,
+                ray_flags,
+                0, /* SBT offset for PG_HITD */
+                0,
+                0,
+                p0,
+                p1,
+                p2,
+                p3,
+                p4,
+                p5,
+                p6,
+                p7);
+
+  isect->t = optixHitObjectGetRayTmax();
+#if 0
+  isect->u = __uint_as_float(p1);
+  isect->v = __uint_as_float(p2);
+  isect->prim = p3;
+  isect->object = p4;
+  isect->type = p5;
+#endif
+
+  return optixHitObjectIsHit();
+}
+
 #ifdef __BVH_LOCAL__
 template<bool single_hit = false>
 ccl_device_intersect bool scene_intersect_local(KernelGlobals kg,
