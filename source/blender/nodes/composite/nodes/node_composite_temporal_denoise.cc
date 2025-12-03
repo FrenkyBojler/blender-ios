@@ -88,6 +88,32 @@ static void cmp_node_temporal_denoise_declare(NodeDeclarationBuilder &b)
       .min(0.1f)
       .max(3.0f)
       .description("Temporal accumulation: lower=more stable, higher=more responsive");
+  advanced_panel.add_input<decl::Float>("Base Alpha")
+      .default_value(0.3f)
+      .min(0.05f)
+      .max(1.0f)
+      .description("EMA strength: lower=more stable/less effect, higher=stronger denoising");
+  advanced_panel.add_input<decl::Float>("Depth Threshold")
+      .default_value(0.15f)
+      .min(0.0f)
+      .max(1.0f)
+      .description("Depth discontinuity tolerance (% of depth)");
+  advanced_panel.add_input<decl::Float>("Motion Threshold")
+      .default_value(15.0f)
+      .min(0.0f)
+      .max(50.0f)
+      .description("Motion error tolerance (pixels)");
+  advanced_panel.add_input<decl::Float>("Color Threshold")
+      .default_value(0.7f)
+      .min(0.0f)
+      .max(2.0f)
+      .description("Color divergence tolerance (tone-mapped space)");
+  advanced_panel.add_input<decl::Bool>("Use Quality Multiplier")
+      .default_value(true)
+      .description("Apply quality-based alpha reduction (High=0.7x, Balanced=1x, Fast=1.5x). Disable for full Base Alpha strength");
+  advanced_panel.add_input<decl::Bool>("Use Variance Clipping")
+      .default_value(true)
+      .description("Enable tone-mapped AABB variance clipping. Disable for stronger denoising (may cause ghosting)");
 
   b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic).align_with_previous();
 }
@@ -389,6 +415,18 @@ class TemporalDenoiseOperation : public NodeOperation {
 
     const int current_frame = context().get_frame_number();
 
+    /* Load Advanced tuning parameters */
+    const float base_alpha = math::clamp(
+        this->get_input("Base Alpha").get_single_value_default(0.3f), 0.05f, 1.0f);
+    const float depth_threshold_param = math::clamp(
+        this->get_input("Depth Threshold").get_single_value_default(0.15f), 0.0f, 1.0f);
+    const float motion_threshold_param = math::clamp(
+        this->get_input("Motion Threshold").get_single_value_default(15.0f), 0.0f, 50.0f);
+    const float color_threshold_param = math::clamp(
+        this->get_input("Color Threshold").get_single_value_default(0.7f), 0.0f, 2.0f);
+    const bool use_quality_mult = this->get_input("Use Quality Multiplier").get_single_value_default(true);
+    const bool use_variance_clipping = this->get_input("Use Variance Clipping").get_single_value_default(true);
+
     /* NOTE: True temporal history across frames would require persistent caches keyed by node id
      * and frame number, which is outside the scope of this first implementation. For now we apply
      * a simple per-frame luma/chroma-aware blend towards the input itself, which keeps the
@@ -510,8 +548,10 @@ class TemporalDenoiseOperation : public NodeOperation {
           const int2 sp = math::clamp(texel + offsets[i], int2(0), size - int2(1));
           const float4 c = input_cpu.load_pixel<float4>(sp);
           const float3 yc = rgb_to_ycocg(float3(c.x, c.y, c.z));
-          box_min = math::min(box_min, yc);
-          box_max = math::max(box_max, yc);
+          /* Apply tone mapping for Fast mode too if clipping enabled */
+          const float3 yc_tm = use_variance_clipping ? tonemap(yc) : yc;
+          box_min = math::min(box_min, yc_tm);
+          box_max = math::max(box_max, yc_tm);
         }
       }
 
@@ -535,7 +575,16 @@ class TemporalDenoiseOperation : public NodeOperation {
           /* PATH A: WITH MOTION VECTORS - Motion-compensated temporal filtering */
           
           /* Try to find valid historical samples with reprojection */
+          int frames_processed = 0;
+          int frames_accepted = 0;
+          int frames_rejected_bounds = 0;
+          int frames_rejected_depth = 0;
+          int frames_rejected_normal = 0;
+          int frames_rejected_motion = 0;
+          int frames_rejected_color = 0;
+          
           for (int i = 0; i < effective_history; i++) {
+            frames_processed++;
             const int frame_index = (prev_head - i + history_capacity) % history_capacity;
             
             /* Reproject pixel position */
@@ -544,6 +593,7 @@ class TemporalDenoiseOperation : public NodeOperation {
             /* Bounds check */
             if (reprojected_pos.x < 0 || reprojected_pos.x >= width - 1 ||
                 reprojected_pos.y < 0 || reprojected_pos.y >= height - 1) {
+              frames_rejected_bounds++;
               continue;
             }
 
@@ -585,13 +635,17 @@ class TemporalDenoiseOperation : public NodeOperation {
               const float hist_depth = d0 * w00 + d1 * w10 + d2 * w01 + d3 * w11;
               
               const float depth_diff = math::abs(hist_depth - depth_center);
-              const float depth_threshold_val = 0.15f * math::max(depth_center, 0.01f);  /* Relaxed */
+              const float depth_threshold_val = depth_threshold_param * math::max(depth_center, 0.01f);
               if (depth_diff > depth_threshold_val) {
+                frames_rejected_depth++;
                 is_valid = false;
               }
             }
 
             /* 2. Normal discontinuity check - relaxed */
+            /* TODO: RE-ENABLE with motion-adaptive threshold after testing */
+            /* TEMPORARILY DISABLED - too strict with camera motion */
+            #if 0
             if (is_valid && has_normal && entry.normal_buffer.size() > 0) {
               const float4 n0 = entry.normal_buffer[idx0];
               const float4 n1 = entry.normal_buffer[idx1];
@@ -601,10 +655,12 @@ class TemporalDenoiseOperation : public NodeOperation {
               const float3 hist_normal = float3(nh.x, nh.y, nh.z);
               
               const float normal_dot = math::dot(hist_normal, normal_center);
-              if (normal_dot < 0.85f) {  /* ~30° deviation - relaxed for stability */
+              if (normal_dot < 0.7f) {  /* ~45° tolerance - relaxed for camera motion */
+                frames_rejected_normal++;
                 is_valid = false;
               }
             }
+            #endif
 
             /* 3. Motion vector consistency check - relaxed */
             if (is_valid && has_motion && entry.motion_buffer.size() > 0) {
@@ -617,13 +673,14 @@ class TemporalDenoiseOperation : public NodeOperation {
               /* Use backward motion (zw component) for validation */
               const float2 backward_motion = hist_motion.zw();
               const float motion_error = math::length(motion_prev + backward_motion);
-              if (motion_error > 3.0f) {  /* pixels - relaxed for stability */
+              if (motion_error > motion_threshold_param) {
+                frames_rejected_motion++;
                 is_valid = false;
               }
             }
 
             /* 4. Variance Clipping (AABB) - Tone-mapped space for HDR safety */
-            if (is_valid) {
+            if (is_valid && use_variance_clipping) {
               /* Tone map historical color */
               const float3 hist_ycocg_tm = tonemap(hist_ycocg);
               
@@ -635,7 +692,8 @@ class TemporalDenoiseOperation : public NodeOperation {
               
               /* Additional color divergence check after clamping */
               const float3 color_diff_tm = math::abs(clamped_tm - center_ycocg_tm);
-              if (color_diff_tm.x > 0.7f || color_diff_tm.y > 0.7f || color_diff_tm.z > 0.7f) {
+              if (color_diff_tm.x > color_threshold_param || color_diff_tm.y > color_threshold_param || color_diff_tm.z > color_threshold_param) {
+                frames_rejected_color++;
                 is_valid = false;
               }
             }
@@ -645,6 +703,8 @@ class TemporalDenoiseOperation : public NodeOperation {
              * =============================================================== */
             
             if (is_valid) {
+              frames_accepted++;
+              
               /* Compute weight for this frame */
               const float temporal_falloff = 1.0f / (1.0f + float(i) * 0.5f);
               
@@ -655,10 +715,13 @@ class TemporalDenoiseOperation : public NodeOperation {
                 has_valid_history = true;
               }
               else {
-                /* Base alpha from quality setting */
-                const float base_alpha = quality == 0 ? 0.03f :   /* High - very stable */
-                                         quality == 1 ? 0.07f :    /* Balanced */
-                                         0.15f;                    /* Fast */
+                /* Use base_alpha from Advanced parameters (with optional quality multiplier) */
+                const float quality_mult = use_quality_mult ? 
+                                           (quality == 0 ? 0.7f :    /* High - more conservative */
+                                            quality == 1 ? 1.0f :     /* Balanced - use as-is */
+                                            1.5f) :                  /* Fast - more aggressive */
+                                           1.0f;                     /* Disabled - use base_alpha directly */
+                const float effective_alpha = base_alpha * quality_mult;
                 
                 /* IMPROVEMENT: Responsive AA - increase alpha when color changes */
                 /* Detect significant color difference between current and accumulated */
@@ -668,9 +731,13 @@ class TemporalDenoiseOperation : public NodeOperation {
                 /* Boost alpha when change detected - makes AA more responsive */
                 const float responsive_boost = math::clamp(color_change * 2.0f, 1.0f, 3.0f);
                 
-                const float adjusted_alpha = base_alpha * temporal_weight * responsive_boost;
-                const float blend_alpha = adjusted_alpha * temporal_falloff;
-                temporal_result_ycocg = math::interpolate(temporal_result_ycocg, hist_ycocg, blend_alpha);
+                const float adjusted_alpha = effective_alpha * temporal_weight * responsive_boost;
+                const float blend_alpha_raw = adjusted_alpha * temporal_falloff;
+                /* CRITICAL FIX: Clamp to [0, 0.95] to prevent math::interpolate from saturating */
+                /* Without clamp, blend_alpha could reach 1.0-9.0, causing NO blending! */
+                const float blend_alpha = math::clamp(blend_alpha_raw, 0.0f, 0.95f);
+                /* CRITICAL: Interpolate FROM history TO current (not the other way!) */
+                temporal_result_ycocg = math::interpolate(hist_ycocg, temporal_result_ycocg, blend_alpha);
               }
               
               /* Don't break - accumulate multiple frames for better stability */
@@ -691,10 +758,12 @@ class TemporalDenoiseOperation : public NodeOperation {
             const float3 hist_rgb = float3(hist_rgba.x, hist_rgba.y, hist_rgba.z);
             float3 hist_ycocg = rgb_to_ycocg(hist_rgb);
             
-            /* Apply tone-mapped variance clipping (HDR-safe) */
-            const float3 hist_ycocg_tm = tonemap(hist_ycocg);
-            const float3 clamped_tm = clip_aabb(hist_ycocg_tm, box_min, box_max);
-            hist_ycocg = inverse_tonemap(clamped_tm);
+            /* Apply tone-mapped variance clipping if enabled (HDR-safe) */
+            if (use_variance_clipping) {
+              const float3 hist_ycocg_tm = tonemap(hist_ycocg);
+              const float3 clamped_tm = clip_aabb(hist_ycocg_tm, box_min, box_max);
+              hist_ycocg = inverse_tonemap(clamped_tm);
+            }
             
             /* Simple accumulation without motion validation */
             if (!has_valid_history) {
@@ -702,17 +771,24 @@ class TemporalDenoiseOperation : public NodeOperation {
               has_valid_history = true;
             }
             else {
-              const float base_alpha = quality == 0 ? 0.03f : quality == 1 ? 0.07f : 0.15f;
+              /* Use base_alpha from Advanced parameters (with optional quality multiplier) */
+              const float quality_mult = use_quality_mult ? 
+                                         (quality == 0 ? 0.7f : quality == 1 ? 1.0f : 1.5f) :
+                                         1.0f;
+              const float effective_alpha = base_alpha * quality_mult;
               
               /* Responsive AA also in fallback mode */
               const float3 accumulated_tm = tonemap(temporal_result_ycocg);
               const float color_change = math::length(accumulated_tm - center_ycocg_tm);
               const float responsive_boost = math::clamp(color_change * 2.0f, 1.0f, 3.0f);
               
-              const float adjusted_alpha = base_alpha * temporal_weight * responsive_boost;
+              const float adjusted_alpha = effective_alpha * temporal_weight * responsive_boost;
               const float temporal_falloff = 1.0f / (1.0f + float(i) * 0.5f);
-              const float blend_alpha = adjusted_alpha * temporal_falloff;
-              temporal_result_ycocg = math::interpolate(temporal_result_ycocg, hist_ycocg, blend_alpha);
+              const float blend_alpha_raw = adjusted_alpha * temporal_falloff;
+              /* CRITICAL FIX: Clamp blend_alpha */
+              const float blend_alpha = math::clamp(blend_alpha_raw, 0.0f, 0.95f);
+              /* CRITICAL: Interpolate FROM history TO current */
+              temporal_result_ycocg = math::interpolate(hist_ycocg, temporal_result_ycocg, blend_alpha);
             }
           }
         }
