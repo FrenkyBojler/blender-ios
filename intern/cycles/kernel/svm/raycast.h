@@ -28,18 +28,16 @@ ccl_device float svm_raycast(
     ccl_private ShaderData *sd,
     float3 position,
     float3 direction,
-    float distance,
-    float3 *hit_position,
-    float *hit_distance)
+    float distance)
 {
   /* Early out if no sampling needed. */
   if (distance <= 0.0f || sd->object == OBJECT_NONE) {
-    return 0.0f;
+    return -1.0f;
   }
 
   /* Can't ray-trace from shaders like displacement, before BVH exists. */
   if (kernel_data.bvh.bvh_layout == BVH_LAYOUT_NONE) {
-    return 0.0f;
+    return -1.0f;
   }
 
   const bool avoid_self_intersection = isequal(position, sd->P);
@@ -58,18 +56,23 @@ ccl_device float svm_raycast(
   ray.dP = differential_zero_compact();
   ray.dD = differential_zero_compact();
 
-  Intersection isect;
-
   /* Ray-trace, leaving out shadow opaque to avoid early exit. */
   const uint visibility = PATH_RAY_ALL_VISIBILITY - PATH_RAY_SHADOW_OPAQUE;
-  if (!scene_intersect(kg, &ray, visibility, &isect)) {
-    return 0.0f;
+  if (!scene_intersect_shadow(kg, &ray, PATH_RAY_SHADOW_OPAQUE)) {
+    return -1.0f;
   }
+  return 1.0f;
 
+#  if 0
+  Intersection isect;
+
+  if (!scene_intersect(kg, &ray, visibility, &isect)) {
+    return -1.0f;
+  }
   *hit_position = position + direction * isect.t;
   *hit_distance = isect.t;
-
   return 1.0f;
+#  endif
 }
 
 template<uint node_feature_mask, typename ConstIntegratorGenericState>
@@ -85,7 +88,6 @@ ccl_device_noinline
                      ccl_private float *stack,
                      const uint4 node)
 {
-
   uint position_offset;
   uint direction_offset;
   uint distance_offset;
@@ -107,14 +109,17 @@ ccl_device_noinline
   {
     float3 position = stack_load_float3_default(stack, position_offset, sd->P);
     float3 direction = stack_load_float3_default(stack, direction_offset, sd->N);
-
 #  ifdef __KERNEL_OPTIX__
-    is_hit = optixDirectCall<float>(
-        0, kg, state, sd, position, direction, distance, &hit_position, &hit_distance);
+    float result = optixDirectCall<float>(2, kg, state, sd, position, direction, distance);
 #  else
-    is_hit = svm_raycast(
-        kg, state, sd, position, direction, distance, &hit_position, &hit_distance);
+    float result = svm_raycast(kg, state, sd, position, direction, distance);
 #  endif
+
+    if (result >= 0.0f) {
+      is_hit = 1.0f;
+      hit_position = position + direction * hit_distance;
+      hit_distance = result;
+    }
   }
 
   if (stack_valid(is_hit_offset)) {
