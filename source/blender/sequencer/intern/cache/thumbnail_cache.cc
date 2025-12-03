@@ -16,8 +16,9 @@
 #include "BLI_vector.hh"
 
 #include "BKE_context.hh"
-#include "BKE_library.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_main.hh"
+#include "BKE_mask.hh"
 #include "BKE_movieclip.hh"
 
 #include "DNA_mask_types.h"
@@ -195,6 +196,9 @@ bool strip_can_have_thumbnail(const Scene *scene, const Strip *strip)
   if (strip->type == STRIP_TYPE_MOVIECLIP && strip->clip) {
     return true;
   }
+  if (strip->type == STRIP_TYPE_MASK && strip->mask) {
+    return true;
+  }
   return false;
 }
 
@@ -272,6 +276,38 @@ static void scale_to_thumbnail_size(ImBuf *ibuf)
   int height = ibuf->y;
   image_size_to_thumb_size(width, height);
   IMB_scale(ibuf, width, height, IMBScaleFilter::Nearest, false);
+}
+
+static ImBuf *render_mask_thumb(const Mask *mask, float frame_index)
+{
+  if (!mask) {
+    return nullptr;
+  }
+
+  Mask *mask_copy = (Mask *)BKE_id_copy_ex(
+      nullptr, &mask->id, nullptr, LIB_ID_COPY_LOCALIZE | LIB_ID_COPY_NO_ANIMDATA);
+  BKE_mask_evaluate(mask_copy, mask->sfra + frame_index, true);
+
+  constexpr int width = THUMB_SIZE;
+  constexpr int height = THUMB_SIZE;
+  Array<float> mask_buffer(width * height);
+  MaskRasterHandle *raster = BKE_maskrasterize_handle_new();
+  BKE_maskrasterize_handle_init(raster, mask_copy, width, height, true, true, true);
+  BKE_maskrasterize_buffer(raster, width, height, mask_buffer.data());
+  BKE_maskrasterize_handle_free(raster);
+
+  BKE_id_free(nullptr, &mask_copy->id);
+
+  ImBuf *ibuf = IMB_allocImBuf(width, height, 32, IB_byte_data | IB_uninitialized_pixels);
+  const float *src = mask_buffer.data();
+  uchar *dst = ibuf->byte_buffer.data;
+  for (int i = 0; i < width * height; i++) {
+    dst[0] = dst[1] = dst[2] = uchar(*src * 255.0f); /* already clamped */
+    dst[3] = 255;
+    src += 1;
+    dst += 4;
+  }
+  return ibuf;
 }
 
 /* Background job that processes in-flight thumbnail requests. */
@@ -432,6 +468,14 @@ void ThumbGenerationJob::run_fn(void *customdata, wmJobWorkerStatus *worker_stat
           BKE_movieclip_user_set_frame(&clip_user, request.frame_index + clip->start_frame);
           thumb = BKE_movieclip_get_ibuf_flag(
               clip, &clip_user, MovieClipFlag(clip->flag), MovieClipCacheFlag::SkipCache);
+          if (thumb != nullptr) {
+            seq_imbuf_assign_spaces(job->scene_, thumb);
+          }
+        }
+        else if (request.strip_type == STRIP_TYPE_MASK) {
+          /* Load thumbnail for a mask. */
+          Mask *mask = (Mask *)request.source_key.id;
+          thumb = render_mask_thumb(mask, request.frame_index);
           if (thumb != nullptr) {
             seq_imbuf_assign_spaces(job->scene_, thumb);
           }

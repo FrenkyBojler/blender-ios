@@ -89,7 +89,7 @@ static void strip_get_thumb_image_dimensions(const Strip *strip,
                                              float *r_image_width,
                                              float *r_image_height)
 {
-  float image_width = 1.0f, image_height = 1.0f;
+  float image_width = seq::THUMB_SIZE, image_height = seq::THUMB_SIZE;
   if (ELEM(strip->type, STRIP_TYPE_IMAGE, STRIP_TYPE_MOVIE)) {
     image_width = strip->data->stripdata->orig_width;
     image_height = strip->data->stripdata->orig_height;
