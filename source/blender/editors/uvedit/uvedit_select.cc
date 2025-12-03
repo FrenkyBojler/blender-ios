@@ -5678,9 +5678,9 @@ static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend)
 
     /* Convert 2D UV tri to 3D for BVH update. */
     float tri_3d[3][3];
-    for (int v = 0; v < 3; v++) {
-      copy_v2_v2(tri_3d[v], src_data->tri[v]);
-      tri_3d[v][2] = 0.0f;
+    for (int j = 0; j < 3; j++) {
+      copy_v2_v2(tri_3d[j], src_data->tri[j]);
+      tri_3d[j][2] = 0.0f;
     }
 
     BLI_bvhtree_update_node(probe_tree, 0, &tri_3d[0][0], nullptr, 3);
