@@ -12,8 +12,8 @@
 *.dll filter=lfs diff=lfs merge=lfs -text
 *.so filter=lfs diff=lfs merge=lfs -text
 *.so\.* filter=lfs diff=lfs merge=lfs -text
-*.blend filter=lfs diff=lfs merge=lfs -text
-*.blend? filter=lfs diff=lfs merge=lfs -text
+*.blend filter=lfs diff=blend merge=lfs -text
+*.blend? filter=lfs diff=blend merge=lfs -text
 *.png filter=lfs diff=lfs merge=lfs -text
 *.exr filter=lfs diff=lfs merge=lfs -text
 *.tx filter=lfs diff=lfs merge=lfs -text
