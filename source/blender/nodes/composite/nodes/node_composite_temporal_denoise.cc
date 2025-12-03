@@ -20,140 +20,74 @@
 
 namespace blender::nodes::node_composite_temporal_denoise_cc {
 
-static const EnumPropertyItem quality_items[] = {
-    {0, "HIGH", 0, "High", "High quality temporal denoising with full precision"},
-    {1, "BALANCED", 0, "Balanced", "Balanced quality and performance"},
-    {2, "FAST", 0, "Fast", "Fast temporal denoising with reduced precision"},
+static const EnumPropertyItem motion_estimation_items[] = {
+    {0, "NONE", 0, "None", "No motion estimation (faster but may blur motion)"},
+    {1, "FASTER", 0, "Faster", "Fast motion estimation (default, good balance)"},
+    {2, "BETTER", 0, "Better", "Accurate motion estimation (slower, best quality)"},
     {0, nullptr, 0, nullptr, nullptr}};
 
-static const EnumPropertyItem preset_items[] = {
-    {0, "CUSTOM", 0, "Custom", "Manually adjust all parameters"},
-    {1, "ANTI_GHOSTING", 0, "Anti-Ghosting", "Reduce ghosting/motion trails (responsive, may flicker)"},
-    {2, "ANTI_FLICKERING", 0, "Anti-Flickering", "Reduce flickering (stable, may show ghosting)"},
-    {3, "BALANCED", 0, "Balanced", "Balanced ghosting/flickering compromise"},
+static const EnumPropertyItem motion_range_items[] = {
+    {0, "SMALL", 0, "Small", "Slow motion (more denoising in static areas)"},
+    {1, "MEDIUM", 0, "Medium", "Medium motion (balanced)"},
+    {2, "LARGE", 0, "Large", "Fast motion (less denoising, sharper motion)"},
     {0, nullptr, 0, nullptr, nullptr}};
 
 static void cmp_node_temporal_denoise_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
 
-  b.add_input<decl::Menu>("Preset")
-      .default_value(MenuValue(3))
-      .static_items(preset_items)
-      .optional_label()
-      .description("Quick preset configurations: Custom, Anti-Ghosting, Anti-Flickering, or Balanced");
-
   b.add_input<decl::Color>("Image")
       .hide_value()
       .structure_type(StructureType::Dynamic);
 
-  b.add_input<decl::Vector>("Speed")
+  b.add_input<decl::Vector>("Motion")
       .dimensions(4)
       .default_value({0.0f, 0.0f, 0.0f})
-      .min(0.0f)
-      .max(1.0f)
       .subtype(PROP_VELOCITY)
       .hide_value()
       .structure_type(StructureType::Dynamic)
-      .description("Motion vector pass (xy=previous frame, zw=next frame)");
+      .description("Motion vector pass (xy=previous, zw=next). Optional but recommended");
 
-  b.add_input<decl::Color>("Albedo")
-      .default_value({1.0f, 1.0f, 1.0f, 1.0f})
-      .hide_value()
-      .structure_type(StructureType::Dynamic);
-  b.add_input<decl::Vector>("Normal")
-      .default_value({0.0f, 0.0f, 0.0f})
-      .min(-1.0f)
-      .max(1.0f)
-      .hide_value()
-      .structure_type(StructureType::Dynamic);
-  b.add_input<decl::Float>("Depth")
-      .default_value(0.0f)
-      .min(0.0f)
-      .structure_type(StructureType::Dynamic);
-
-  b.add_input<decl::Int>("Frames")
-      .default_value(5)
-      .min(1)
-      .max(10)
-      .description("Maximum frames for temporal accumulation (auto-adapted to motion)");
-
-  b.add_input<decl::Float>("Amplitude")
-      .default_value(0.8f)
+  b.add_input<decl::Float>("Luma")
+      .default_value(0.5f)
       .min(0.0f)
       .max(1.0f)
-      .description("Denoising strength (0=original, 1=full denoising)");
+      .description("Luminance denoising strength (brightness)");
 
-  b.add_input<decl::Menu>("Quality")
-      .default_value(MenuValue(0))
-      .static_items(quality_items)
-      .optional_label()
-      .description("High=best quality, Balanced=optimized, Fast=preview");
-
-  PanelDeclarationBuilder &advanced_panel = b.add_panel("Advanced").default_closed(true);
-  advanced_panel.add_input<decl::Float>("Variance Gamma")
-      .default_value(1.5f)
-      .min(0.5f)
-      .max(3.0f)
-      .description("AABB width: lower=less ghosting/more flicker, higher=more stable/slight ghost");
-  advanced_panel.add_input<decl::Float>("Temporal Weight")
-      .default_value(1.0f)
-      .min(0.1f)
-      .max(3.0f)
-      .description("Temporal accumulation: lower=more stable, higher=more responsive");
-  advanced_panel.add_input<decl::Float>("Base Alpha")
-      .default_value(0.3f)
-      .min(0.05f)
-      .max(1.0f)
-      .description("EMA strength: lower=more stable/less effect, higher=stronger denoising");
-  advanced_panel.add_input<decl::Float>("Depth Threshold")
-      .default_value(0.15f)
-      .min(0.0f)
-      .max(1.0f)
-      .description("Depth discontinuity tolerance (% of depth)");
-  advanced_panel.add_input<decl::Float>("Motion Threshold")
-      .default_value(15.0f)
-      .min(0.0f)
-      .max(50.0f)
-      .description("Motion error tolerance (pixels)");
-  advanced_panel.add_input<decl::Float>("Color Threshold")
+  b.add_input<decl::Float>("Chroma")
       .default_value(0.7f)
       .min(0.0f)
       .max(2.0f)
-      .description("Color divergence tolerance (tone-mapped space)");
-  advanced_panel.add_input<decl::Bool>("Use Quality Multiplier")
-      .default_value(true)
-      .description("Apply quality-based alpha reduction (High=0.7x, Balanced=1x, Fast=1.5x). Disable for full Base Alpha strength");
-  advanced_panel.add_input<decl::Bool>("Use Variance Clipping")
-      .default_value(true)
-      .description("Enable tone-mapped AABB variance clipping. Disable for stronger denoising (may cause ghosting)");
-  advanced_panel.add_input<decl::Float>("Max Blend Alpha")
-      .default_value(0.95f)
-      .min(0.1f)
-      .max(0.99f)
-      .description("Maximum blend strength: lower=more stable, higher=stronger fusion (0.95=strong, 0.5=conservative)");
-  advanced_panel.add_input<decl::Float>("Responsive Strength")
-      .default_value(2.0f)
-      .min(0.0f)
-      .max(5.0f)
-      .description("Adaptive boost intensity: 0=disabled, 2=default, 5=very responsive to changes");
-  advanced_panel.add_input<decl::Float>("Temporal Falloff Factor")
-      .default_value(0.5f)
-      .min(0.0f)
-      .max(2.0f)
-      .description("How older frames are weighted: lower=all frames equal, higher=recent frames preferred");
-  advanced_panel.add_input<decl::Bool>("Use Motion Adaptive History")
-      .default_value(true)
-      .description("Automatically reduce history frames based on motion intensity. Disable for maximum temporal stability (anti-flickering)");
+      .description("Chrominance denoising strength (color). Can be higher than Luma");
 
-  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic).align_with_previous();
+  b.add_input<decl::Int>("Frames")
+      .default_value(3)
+      .min(1)
+      .max(5)
+      .description("Number of frames to blend (1-5). Higher = stronger denoising");
+
+  b.add_input<decl::Float>("Motion Threshold")
+      .default_value(10.0f)
+      .min(0.0f)
+      .max(100.0f)
+      .description("Exclude pixels above this motion (pixels). Lower = sharper motion");
+
+  b.add_input<decl::Menu>("Motion Estimation")
+      .default_value(MenuValue(1))
+      .static_items(motion_estimation_items)
+      .description("Motion detection quality: None (fastest), Faster (default), Better (best)");
+
+  b.add_input<decl::Menu>("Motion Range")
+      .default_value(MenuValue(1))
+      .static_items(motion_range_items)
+      .description("Expected motion speed: Small (slow), Medium (default), Large (fast)");
+
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
 }
 
 using namespace blender::compositor;
 
-/* Per-node history state. For now we keep it simple: just remember last frame number.
- * Pixel history buffering is implemented inside the operation via static cache keyed by node. */
-
+/* Simple history buffer */
 struct HistoryKey {
   const Scene *scene;
   const bNodeTree *tree;
@@ -175,11 +109,8 @@ struct HistoryEntry {
   int stored_frames = 0;
   int capacity_frames = 0;
   int2 size = int2(0);
-  blender::Array<float4> buffer;
-  blender::Array<float4> albedo_buffer;
-  blender::Array<float4> normal_buffer;
-  blender::Array<float> depth_buffer;
-  blender::Array<float4> motion_buffer;  /* Motion vectors (xy=previous, zw=next) */
+  blender::Array<float4> buffer;        /* RGB history */
+  blender::Array<float4> motion_buffer; /* Motion vectors */
   int head = -1;
 };
 
@@ -207,12 +138,8 @@ static HistoryEntry &ensure_history_entry(Context &context,
     entry.size = size;
     entry.capacity_frames = history_frames;
     const int64_t pixel_count = int64_t(size.x) * size.y;
-    const int frames_non_negative = history_frames > 0 ? history_frames : 0;
-    const int64_t buffer_size = pixel_count * frames_non_negative;
+    const int64_t buffer_size = pixel_count * history_frames;
     entry.buffer.reinitialize(buffer_size);
-    entry.albedo_buffer.reinitialize(buffer_size);
-    entry.normal_buffer.reinitialize(buffer_size);
-    entry.depth_buffer.reinitialize(buffer_size);
     entry.motion_buffer.reinitialize(buffer_size);
     entry.stored_frames = 0;
     entry.head = -1;
@@ -226,159 +153,10 @@ static HistoryEntry &ensure_history_entry(Context &context,
   return entry;
 }
 
-/* -------------------------------------------------------------------
- * Color Space Conversion: RGB ↔ YCoCg
- * YCoCg separates luma from chroma for better temporal filtering
- * and reduces color artifacts during variance clipping.
- * ------------------------------------------------------------------- */
-
-static inline float3 rgb_to_ycocg(const float3 &rgb)
+/* RGB to Luma (Rec. 709) */
+static inline float rgb_to_luma(const float3 &rgb)
 {
-  const float Y = 0.25f * rgb.x + 0.5f * rgb.y + 0.25f * rgb.z;
-  const float Co = 0.5f * rgb.x - 0.5f * rgb.z;
-  const float Cg = -0.25f * rgb.x + 0.5f * rgb.y - 0.25f * rgb.z;
-  return float3(Y, Co, Cg);
-}
-
-static inline float3 ycocg_to_rgb(const float3 &ycocg)
-{
-  const float tmp = ycocg.x - ycocg.z;
-  const float r = tmp + ycocg.y;
-  const float g = ycocg.x + ycocg.z;
-  const float b = tmp - ycocg.y;
-  return float3(r, g, b);
-}
-
-/* -------------------------------------------------------------------
- * Tone Mapping for HDR-Safe Variance Clipping
- * Prevents fireflies and extreme HDR values from breaking AABB
- * ------------------------------------------------------------------- */
-
-static inline float tonemap_channel(float x)
-{
-  /* Reinhard-style: x / (1 + x) */
-  /* Simple, invertible, compresses HDR → [0,1] range */
-  return x / (1.0f + x);
-}
-
-static inline float inverse_tonemap_channel(float x)
-{
-  /* Inverse: x / (1 - x) */
-  /* Clamp to prevent division by zero at x=1 */
-  const float clamped = math::min(x, 0.999f);
-  return clamped / (1.0f - clamped);
-}
-
-static inline float3 tonemap(const float3 &color)
-{
-  return float3(tonemap_channel(color.x),
-                tonemap_channel(color.y),
-                tonemap_channel(color.z));
-}
-
-static inline float3 inverse_tonemap(const float3 &color)
-{
-  return float3(inverse_tonemap_channel(color.x),
-                inverse_tonemap_channel(color.y),
-                inverse_tonemap_channel(color.z));
-}
-
-/* -------------------------------------------------------------------
- * Variance Clipping (AABB Method)
- * Computes min/max bounds from neighborhood variance to reject
- * outlier historical colors, preventing ghosting artifacts.
- * ------------------------------------------------------------------- */
-
-struct NeighborhoodStats {
-  float3 mean;
-  float3 variance;
-  float3 aabb_min;
-  float3 aabb_max;
-};
-
-static NeighborhoodStats compute_neighborhood_aabb(const Result &input,
-                                                    const int2 &texel,
-                                                    const int2 &size,
-                                                    const float gamma)
-{
-  /* 5-tap cross pattern for efficiency (center + 4 neighbors) */
-  const int2 offsets[5] = {
-      int2(0, 0),   /* center */
-      int2(-1, 0),  /* left */
-      int2(1, 0),   /* right */
-      int2(0, -1),  /* top */
-      int2(0, 1)    /* bottom */
-  };
-
-  float3 m1 = float3(0.0f);  /* mean */
-  float3 m2 = float3(0.0f);  /* second moment (for variance) */
-
-  for (int i = 0; i < 5; i++) {
-    const int2 sample_pos = texel + offsets[i];
-    
-    /* Clamp to image bounds */
-    const int2 clamped_pos = math::clamp(sample_pos, int2(0), size - int2(1));
-    
-    const float4 color = input.load_pixel<float4>(clamped_pos);
-    const float3 rgb = float3(color.x, color.y, color.z);
-    const float3 ycocg = rgb_to_ycocg(rgb);
-    
-    /* IMPROVEMENT: Tone map before variance computation (HDR-safe) */
-    const float3 ycocg_tm = tonemap(ycocg);
-    
-    m1 += ycocg_tm;
-    m2 += ycocg_tm * ycocg_tm;
-  }
-
-  m1 /= 5.0f;
-  m2 /= 5.0f;
-
-  /* Standard deviation: sqrt(E[X²] - E[X]²) */
-  const float3 variance = math::max(float3(0.0f), m2 - m1 * m1);
-  const float3 sigma = math::sqrt(variance);
-
-  /* AABB bounds: mean ± gamma * sigma (in tone-mapped space) */
-  NeighborhoodStats stats;
-  stats.mean = m1;  /* tone-mapped mean */
-  stats.variance = variance;
-  stats.aabb_min = m1 - gamma * sigma;  /* tone-mapped bounds */
-  stats.aabb_max = m1 + gamma * sigma;
-
-  return stats;
-}
-
-/* Clamp color to AABB bounds */
-static inline float3 clip_aabb(const float3 &color,
-                               const float3 &aabb_min,
-                               const float3 &aabb_max)
-{
-  return math::clamp(color, aabb_min, aabb_max);
-}
-
-/* Simple min-max neighborhood clamping (faster alternative) */
-static float3 compute_neighborhood_minmax(const Result &input,
-                                          const int2 &texel,
-                                          const int2 &size,
-                                          bool &out_valid)
-{
-  const int2 offsets[5] = {
-      int2(0, 0), int2(-1, 0), int2(1, 0), int2(0, -1), int2(0, 1)};
-
-  float3 box_min = float3(1e10f);
-  float3 box_max = float3(-1e10f);
-
-  for (int i = 0; i < 5; i++) {
-    const int2 sample_pos = math::clamp(texel + offsets[i], int2(0), size - int2(1));
-    const float4 color = input.load_pixel<float4>(sample_pos);
-    const float3 rgb = float3(color.x, color.y, color.z);
-    const float3 ycocg = rgb_to_ycocg(rgb);
-    
-    box_min = math::min(box_min, ycocg);
-    box_max = math::max(box_max, ycocg);
-  }
-
-  out_valid = true;
-  return (box_min + box_max) * 0.5f;  /* Return center for reference */
+  return 0.2126f * rgb.x + 0.7152f * rgb.y + 0.0722f * rgb.z;
 }
 
 class TemporalDenoiseOperation : public NodeOperation {
@@ -395,563 +173,278 @@ class TemporalDenoiseOperation : public NodeOperation {
     }
 
     if (input.is_single_value()) {
-      /* Nothing temporal to do on single values. */
       output.share_data(input);
       return;
     }
 
     const int2 size = input.domain().data_size;
-
-    /* Ensure we work on CPU data. */
     Result input_cpu = context().use_gpu() ? input.download_to_cpu() : input;
 
-    Result &speed_input = get_input("Speed");
-    Result &albedo_input = get_input("Albedo");
-    Result &normal_input = get_input("Normal");
-    Result &depth_input = get_input("Depth");
+    Result &motion_input = get_input("Motion");
+    const bool has_motion = !motion_input.is_single_value();
+    Result motion_cpu = (has_motion && context().use_gpu()) ? motion_input.download_to_cpu() :
+                                                                motion_input;
 
-    const bool has_motion = !speed_input.is_single_value();
-    const bool has_albedo = !albedo_input.is_single_value();
-    const bool has_normal = !normal_input.is_single_value();
-    const bool has_depth = !depth_input.is_single_value();
-
-    Result speed_cpu = (has_motion && context().use_gpu()) ? speed_input.download_to_cpu() :
-                                                               speed_input;
-    Result albedo_cpu = (has_albedo && context().use_gpu()) ? albedo_input.download_to_cpu() :
-                                                                   albedo_input;
-    Result normal_cpu = (has_normal && context().use_gpu()) ? normal_input.download_to_cpu() :
-                                                                   normal_input;
-    Result depth_cpu = (has_depth && context().use_gpu()) ? depth_input.download_to_cpu() :
-                                                                 depth_input;
-
-    /* Allocate CPU output buffer. */
     output.set_type(input_cpu.type());
     output.set_precision(input_cpu.precision());
     output.allocate_texture(input_cpu.domain(), false, ResultStorageType::CPU);
 
+    const float luma_strength = math::clamp(
+        this->get_input("Luma").get_single_value_default(0.5f), 0.0f, 1.0f);
+    const float chroma_strength = math::clamp(
+        this->get_input("Chroma").get_single_value_default(0.7f), 0.0f, 2.0f);
     const int frames = math::clamp(
-        this->get_input("Frames").get_single_value_default(5), 1, 10);
-    const int history_frames = math::max(frames - 1, 0);
-    const float amplitude = math::clamp(
-        this->get_input("Amplitude").get_single_value_default(0.8f), 0.0f, 1.0f);
-    
-    const MenuValue quality_menu = this->get_input("Quality").get_single_value_default(MenuValue(0));
-    const int quality = quality_menu.value;  /* 0=High, 1=Balanced, 2=Fast */
+        this->get_input("Frames").get_single_value_default(3), 1, 5);
+    const float base_motion_threshold = math::clamp(
+        this->get_input("Motion Threshold").get_single_value_default(10.0f), 0.0f, 100.0f);
 
+    /* Motion Estimation: 0=None, 1=Faster, 2=Better */
+    const MenuValue motion_est_menu = this->get_input("Motion Estimation")
+                                           .get_single_value_default(MenuValue(1));
+    const int motion_estimation = motion_est_menu.value;
+
+    /* Motion Range: 0=Small, 1=Medium, 2=Large */
+    const MenuValue motion_range_menu = this->get_input("Motion Range")
+                                             .get_single_value_default(MenuValue(1));
+    const int motion_range = motion_range_menu.value;
+
+    /* Apply motion range to threshold: Small=stricter, Large=more permissive */
+    const float range_multiplier = (motion_range == 0) ? 0.5f :   /* Small: stricter */
+                                    (motion_range == 2) ? 2.0f :   /* Large: more permissive */
+                                                          1.0f;    /* Medium: default */
+    const float motion_threshold = base_motion_threshold * range_multiplier;
+
+    /* Motion Estimation=None disables motion compensation entirely */
+    const bool use_motion_compensation = (motion_estimation != 0 && has_motion);
+
+    const int history_frames = frames - 1;  /* Current frame + N-1 history */
     const int current_frame = context().get_frame_number();
-
-    /* Load Preset selection */
-    const MenuValue preset_menu = this->get_input("Preset").get_single_value_default(MenuValue(3));
-    const int preset = preset_menu.value;  /* 0=Custom, 1=Anti-Ghosting, 2=Anti-Flickering, 3=Balanced */
-
-    /* Load Advanced tuning parameters - apply preset defaults if not Custom */
-    float base_alpha, depth_threshold_param, motion_threshold_param, color_threshold_param;
-    float max_blend_alpha, responsive_strength, temporal_falloff_factor;
-    float variance_gamma, temporal_weight;
-    bool use_quality_mult, use_variance_clipping, use_motion_adaptive_history;
-
-    if (preset == 1) {  /* ANTI-GHOSTING: Responsive, reduce motion trails */
-      variance_gamma = 1.3f;
-      temporal_weight = 1.2f;
-      base_alpha = 0.35f;
-      depth_threshold_param = 0.12f;
-      motion_threshold_param = 10.0f;
-      color_threshold_param = 0.6f;
-      use_quality_mult = true;
-      use_variance_clipping = true;
-      max_blend_alpha = 0.60f;           /* Lower = less ghosting */
-      responsive_strength = 3.0f;        /* Higher = more responsive */
-      temporal_falloff_factor = 1.8f;    /* Higher = older frames fade faster */
-      use_motion_adaptive_history = true;  /* Enable adaptive history for responsive behavior */
-    }
-    else if (preset == 2) {  /* ANTI-FLICKERING: Stable, reduce scintillation */
-      variance_gamma = 2.2f;             /* Larger AABB = more permissive */
-      temporal_weight = 0.8f;
-      base_alpha = 0.20f;                /* Lower = slower blend = more stable */
-      depth_threshold_param = 0.18f;
-      motion_threshold_param = 20.0f;    /* More tolerant to motion errors */
-      color_threshold_param = 0.9f;      /* More permissive color differences */
-      use_quality_mult = true;
-      use_variance_clipping = true;
-      max_blend_alpha = 0.90f;           /* Higher = more accumulation = more stable */
-      responsive_strength = 0.8f;        /* Lower = less reactive = more stable */
-      temporal_falloff_factor = 0.3f;    /* Lower = older frames still matter */
-      use_motion_adaptive_history = false;  /* DISABLE adaptive - maximum stability! */
-    }
-    else if (preset == 3) {  /* BALANCED: Compromise between ghosting and flickering */
-      variance_gamma = 1.7f;
-      temporal_weight = 1.0f;
-      base_alpha = 0.28f;
-      depth_threshold_param = 0.15f;
-      motion_threshold_param = 13.0f;
-      color_threshold_param = 0.7f;
-      use_quality_mult = true;
-      use_variance_clipping = true;
-      max_blend_alpha = 0.75f;           /* Mid-range */
-      responsive_strength = 1.8f;        /* Mid-range */
-      temporal_falloff_factor = 1.0f;    /* Mid-range */
-      use_motion_adaptive_history = true;  /* Enable for balanced behavior */
-    }
-    else {  /* CUSTOM: Use user-specified values */
-      variance_gamma = math::clamp(
-          this->get_input("Variance Gamma").get_single_value_default(1.5f), 0.5f, 3.0f);
-      temporal_weight = math::clamp(
-          this->get_input("Temporal Weight").get_single_value_default(1.0f), 0.1f, 3.0f);
-      base_alpha = math::clamp(
-          this->get_input("Base Alpha").get_single_value_default(0.3f), 0.05f, 1.0f);
-      depth_threshold_param = math::clamp(
-          this->get_input("Depth Threshold").get_single_value_default(0.15f), 0.0f, 1.0f);
-      motion_threshold_param = math::clamp(
-          this->get_input("Motion Threshold").get_single_value_default(15.0f), 0.0f, 50.0f);
-      color_threshold_param = math::clamp(
-          this->get_input("Color Threshold").get_single_value_default(0.7f), 0.0f, 2.0f);
-      use_quality_mult = this->get_input("Use Quality Multiplier").get_single_value_default(true);
-      use_variance_clipping = this->get_input("Use Variance Clipping").get_single_value_default(true);
-      max_blend_alpha = math::clamp(
-          this->get_input("Max Blend Alpha").get_single_value_default(0.95f), 0.1f, 0.99f);
-      responsive_strength = math::clamp(
-          this->get_input("Responsive Strength").get_single_value_default(2.0f), 0.0f, 5.0f);
-      temporal_falloff_factor = math::clamp(
-          this->get_input("Temporal Falloff Factor").get_single_value_default(0.5f), 0.0f, 2.0f);
-      use_motion_adaptive_history = this->get_input("Use Motion Adaptive History").get_single_value_default(true);
-    }
-
-    /* NOTE: True temporal history across frames would require persistent caches keyed by node id
-     * and frame number, which is outside the scope of this first implementation. For now we apply
-     * a simple per-frame luma/chroma-aware blend towards the input itself, which keeps the
-     * structure needed for a future true temporal extension. */
 
     bool has_history = false;
     HistoryEntry &entry = ensure_history_entry(
         context(), this->bnode(), size, current_frame, history_frames, has_history);
 
     const int64_t pixel_count = int64_t(size.x) * size.y;
-    const int history_capacity = entry.capacity_frames;
     const int prev_head = entry.head;
     const int prev_stored = entry.stored_frames;
-    const bool use_history = (has_history && history_capacity > 0 && prev_stored > 0);
-    const int history_to_use = use_history ? math::min(prev_stored, history_capacity) : 0;
+    const bool use_history = (has_history && prev_stored > 0);
 
     int write_frame_index = 0;
-    if (history_capacity > 0) {
-      if (prev_head < 0) {
-        write_frame_index = 0;
-      }
-      else {
-        write_frame_index = (prev_head + 1) % history_capacity;
-      }
+    if (history_frames > 0) {
+      write_frame_index = (prev_head < 0) ? 0 : ((prev_head + 1) % history_frames);
     }
 
-    /* =================================================================
-     * Adaptive History Calculation (GLOBAL - computed once)
-     * ================================================================= */
-    
-    /* CRITICAL: Calculate effective_history ONCE for entire image */
-    /* Per-pixel calculation would give inconsistent results */
-    int effective_history = history_to_use;
-    
-    /* Sample center pixel for global motion estimation */
-    float avg_scene_motion = 0.0f;
-    if (has_motion && size.x > 0 && size.y > 0) {
-      const int2 center_texel = int2(size.x / 2, size.y / 2);
-      const float4 center_motion = speed_cpu.load_pixel<float4>(center_texel);
-      avg_scene_motion = math::length(center_motion.xy());
-    }
-    
-    
-    /* Adaptive reduction based on global motion (only if enabled) */
-    if (use_motion_adaptive_history) {
-      if (has_motion && avg_scene_motion > 5.0f) {
-        /* High motion: use max 2 frames */
-        effective_history = math::min(effective_history, 2);
-      }
-      else if (has_motion && avg_scene_motion > 2.0f) {
-        /* Medium motion: use max 4 frames */
-        effective_history = math::min(effective_history, 4);
-      }
-    }
-    /* When disabled: keep full history regardless of motion for maximum stability */
-    
-    
-    /* Quality-based limits - SAFE: never exceed capacity */
-    if (quality == 2) {  /* Fast */
-      effective_history = math::min(effective_history, 2);
-    }
-    else if (quality == 1) {  /* Balanced */
-      effective_history = math::min(effective_history, math::min(5, history_capacity));
-    }
-    /* High quality: use all available */
-    
-    /* CRITICAL: Strict clamping to never exceed actual data */
-    effective_history = math::min(effective_history, prev_stored);
-    effective_history = math::min(effective_history, history_capacity);
-    effective_history = math::max(effective_history, 0);  /* Safety */
+    /* ===== DEBUG OUTPUT ===== */
+    printf("\n========== TEMPORAL DENOISE DEBUG ==========\n");
+    printf("Frame: %d | Resolution: %dx%d | Pixels: %lld\n", 
+           current_frame, size.x, size.y, pixel_count);
+    printf("--- Parameters ---\n");
+    printf("  Luma Strength: %.2f\n", luma_strength);
+    printf("  Chroma Strength: %.2f\n", chroma_strength);
+    printf("  Frames: %d (history: %d)\n", frames, history_frames);
+    printf("  Base Motion Threshold: %.1f\n", base_motion_threshold);
+    printf("  Motion Estimation: %s (%d)\n", 
+           motion_estimation == 0 ? "NONE" : motion_estimation == 1 ? "FASTER" : "BETTER",
+           motion_estimation);
+    printf("  Motion Range: %s (%d) | Multiplier: %.1fx\n",
+           motion_range == 0 ? "SMALL" : motion_range == 1 ? "MEDIUM" : "LARGE",
+           motion_range, range_multiplier);
+    printf("  Effective Motion Threshold: %.1f\n", motion_threshold);
+    printf("--- Motion ---\n");
+    printf("  Has Motion Vectors: %s\n", has_motion ? "YES" : "NO");
+    printf("  Use Motion Compensation: %s\n", use_motion_compensation ? "YES" : "NO");
+    printf("--- History ---\n");
+    printf("  Has History: %s\n", has_history ? "YES" : "NO");
+    printf("  Stored Frames: %d / %d capacity\n", prev_stored, entry.capacity_frames);
+    printf("  Previous Head: %d | Write Index: %d\n", prev_head, write_frame_index);
+    printf("  Using History: %s\n", use_history ? "YES" : "NO");
+    printf("============================================\n\n");
 
+    /* Statistics counters for debug */
+    std::atomic<int64_t> pixels_with_motion_comp(0);
+    std::atomic<int64_t> pixels_direct_average(0);
+    std::atomic<int64_t> samples_excluded_bounds(0);
+    std::atomic<int64_t> samples_excluded_threshold(0);
+    std::atomic<int> debug_motion_count(0);  /* For debugging motion compensation */
+
+    /* DaVinci-style simple averaging */
     parallel_for(size, [&](const int2 texel) {
-      /* =================================================================
-       * STEP 1: Load Current Frame Data
-       * ================================================================= */
-      
-      const float4 center_rgba = input_cpu.load_pixel<float4>(texel);
-      const float3 center_rgb = float3(center_rgba.x, center_rgba.y, center_rgba.z);
-      const float3 center_ycocg = rgb_to_ycocg(center_rgb);
-      
-      /* Tone map current pixel for variance clipping and responsive AA */
-      const float3 center_ycocg_tm = tonemap(center_ycocg);
-      
-      /* Load motion vector */
-      const float4 motion_vec = has_motion ? speed_cpu.load_pixel<float4>(texel) : float4(0.0f);
-      const float2 motion_prev = motion_vec.xy();
-      
-      /* Load auxiliary data */
-      float3 albedo_center = float3(0.0f);
-      float3 normal_center = float3(0.0f);
-      float depth_center = 0.0f;
+      const float4 current_rgba = input_cpu.load_pixel<float4>(texel);
+      const float3 current_rgb = float3(current_rgba.x, current_rgba.y, current_rgba.z);
+      const float current_luma = rgb_to_luma(current_rgb);
+      const float3 current_chroma = current_rgb - float3(current_luma);
 
-      if (has_albedo) {
-        const float4 a = albedo_cpu.load_pixel<float4>(texel);
-        albedo_center = float3(a.x, a.y, a.z);
-      }
-      if (has_normal) {
-        normal_center = normal_cpu.load_pixel<float3>(texel);
-      }
-      if (has_depth) {
-        depth_center = depth_cpu.load_pixel<float>(texel);
-      }
+      /* Load motion vector once (needed for both history lookup and storage) */
+      const float4 motion_vec = has_motion ? motion_cpu.load_pixel<float4>(texel) : float4(0.0f);
+      /* Blender motion vectors are typically in pixels (Speed pass). */
+      const float2 motion = float2(motion_vec.x, motion_vec.y);
+      bool used_motion_comp = false;
 
-      /* =================================================================
-       * STEP 2: Compute Neighborhood Stats (Variance Clipping)
-       * ================================================================= */
-      
-      NeighborhoodStats neighborhood;
-      float3 box_min, box_max;
-      
-      if (quality != 2) {  /* High or Balanced: use variance clipping */
-        neighborhood = compute_neighborhood_aabb(input_cpu, texel, size, variance_gamma);
-        box_min = neighborhood.aabb_min;
-        box_max = neighborhood.aabb_max;
-      }
-      else {  /* Fast: use simple min-max */
-        bool valid;
-        compute_neighborhood_minmax(input_cpu, texel, size, valid);
-        /* Compute min-max manually for Fast mode */
-        const int2 offsets[5] = {int2(0, 0), int2(-1, 0), int2(1, 0), int2(0, -1), int2(0, 1)};
-        box_min = float3(1e10f);
-        box_max = float3(-1e10f);
-        for (int i = 0; i < 5; i++) {
-          const int2 sp = math::clamp(texel + offsets[i], int2(0), size - int2(1));
-          const float4 c = input_cpu.load_pixel<float4>(sp);
-          const float3 yc = rgb_to_ycocg(float3(c.x, c.y, c.z));
-          /* Apply tone mapping for Fast mode too if clipping enabled */
-          const float3 yc_tm = use_variance_clipping ? tonemap(yc) : yc;
-          box_min = math::min(box_min, yc_tm);
-          box_max = math::max(box_max, yc_tm);
-        }
-      }
+      /* Separate luma/chroma and apply different strengths */
+      /* DaVinci style: accumulate luma and chroma SEPARATELY, not RGB together */
+      /* Temporal weighting: closer frames contribute MORE than distant frames */
+      float accumulated_luma = current_luma;
+      float3 accumulated_chroma = current_chroma;
+      float total_luma_weight = 1.0f;
+      float total_chroma_weight = 1.0f;
 
-      /* =================================================================
-       * STEP 3: Temporal Reprojection & Exponential Moving Average
-       * NOTE: effective_history is now calculated GLOBALLY before parallel_for
-       * ================================================================= */
-      
-      float3 temporal_result_ycocg = center_ycocg;  /* Start with current frame */
-      bool has_valid_history = false;
-
-      /* Check if we can use history - FIXED: validate prev_head >= 0 */
-      if (use_history && prev_head >= 0 && effective_history > 0) {
+      if (use_history && prev_head >= 0) {
         const int x = texel.x;
         const int y = texel.y;
         const int width = size.x;
         const int height = size.y;
 
-        /* FIXED: Support both with and without motion vectors */
-        if (has_motion) {
-          /* PATH A: WITH MOTION VECTORS - Motion-compensated temporal filtering */
-          
-          /* Try to find valid historical samples with reprojection */
-          int frames_processed = 0;
-          int frames_accepted = 0;
-          int frames_rejected_bounds = 0;
-          int frames_rejected_depth = 0;
-          int frames_rejected_motion = 0;
-          int frames_rejected_color = 0;
-          
-          for (int i = 0; i < effective_history; i++) {
-            frames_processed++;
-            const int frame_index = (prev_head - i + history_capacity) % history_capacity;
-            
-            /* Reproject pixel position */
-            const float2 reprojected_pos = float2(x, y) - motion_prev * float(i + 1);
-            
-            /* Bounds check */
-            if (reprojected_pos.x < 0 || reprojected_pos.x >= width - 1 ||
-                reprojected_pos.y < 0 || reprojected_pos.y >= height - 1) {
-              frames_rejected_bounds++;
-              continue;
+        for (int i = 0; i < prev_stored && i < history_frames; i++) {
+          /* Safe circular buffer indexing (handles negative modulo) */
+          const int frame_idx = ((prev_head - i) % history_frames + history_frames) % history_frames;
+          float3 hist_rgb;
+          bool sample_valid = false;
+
+          if (use_motion_compensation && i == 0) {
+            /* Motion compensation path (Faster or Better modes) */
+            const float2 reproj = float2(x, y) + motion;
+
+            /* Bilinear sample - compute base pixel FIRST */
+            const int2 p0 = int2(math::floor(reproj.x), math::floor(reproj.y));
+
+            /* CRITICAL: Check bounds on p0. 
+             * We can clamp the +1 pixel, so as long as p0 is within [0, width-1], we are good.
+             * Even better, we can support sampling slightly off-screen if we wanted, but for now
+             * let's just ensure p0 is strictly inside the image.
+             */
+            if (p0.x < 0 || p0.x >= width || p0.y < 0 || p0.y >= height) {
+              samples_excluded_bounds++;
+              continue;  /* Out of bounds */
             }
 
-            /* Bilinear interpolation setup */
-            const int2 p0 = int2(math::floor(reprojected_pos.x), math::floor(reprojected_pos.y));
-            const float2 frac = reprojected_pos - float2(p0);
+            /* Check motion magnitude against threshold (in pixels). */
+            const float motion_mag = math::length(motion);
+            if (motion_mag > motion_threshold) {
+              samples_excluded_threshold++;
+              continue;  /* Motion too high, exclude this pixel */
+            }
+
+            /* Bilinear interpolation weights */
+            const float2 frac = reproj - float2(p0);
             const float w00 = (1.0f - frac.x) * (1.0f - frac.y);
             const float w10 = frac.x * (1.0f - frac.y);
             const float w01 = (1.0f - frac.x) * frac.y;
             const float w11 = frac.x * frac.y;
 
-            const int64_t pixel_count_local = int64_t(width) * height;
-            const int64_t idx0 = int64_t(frame_index) * pixel_count_local + int64_t(p0.y) * width + p0.x;
-            const int64_t idx1 = idx0 + 1;
-            const int64_t idx2 = idx0 + width;
-            const int64_t idx3 = idx2 + 1;
+            /* CRITICAL: Clamp coordinates to prevent wrapping at line boundaries */
+            const int x0 = math::min(p0.x, width - 1);
+            const int x1 = math::min(p0.x + 1, width - 1);
+            const int y0 = math::min(p0.y, height - 1);
+            const int y1 = math::min(p0.y + 1, height - 1);
 
-            /* Sample historical color */
-            const float4 h0 = entry.buffer[idx0];
-            const float4 h1 = entry.buffer[idx1];
-            const float4 h2 = entry.buffer[idx2];
-            const float4 h3 = entry.buffer[idx3];
+            const int64_t base_idx = int64_t(frame_idx) * pixel_count;
+            const int64_t idx00 = base_idx + int64_t(y0) * width + x0;
+            const int64_t idx10 = base_idx + int64_t(y0) * width + x1;
+            const int64_t idx01 = base_idx + int64_t(y1) * width + x0;
+            const int64_t idx11 = base_idx + int64_t(y1) * width + x1;
+
+            const float4 h0 = entry.buffer[idx00];
+            const float4 h1 = entry.buffer[idx10];
+            const float4 h2 = entry.buffer[idx01];
+            const float4 h3 = entry.buffer[idx11];
+
             const float4 hist_rgba = h0 * w00 + h1 * w10 + h2 * w01 + h3 * w11;
-            const float3 hist_rgb = float3(hist_rgba.x, hist_rgba.y, hist_rgba.z);
-            float3 hist_ycocg = rgb_to_ycocg(hist_rgb);
+            hist_rgb = float3(hist_rgba.x, hist_rgba.y, hist_rgba.z);
+            sample_valid = true;
+            used_motion_comp = true;
 
-            /* ===============================================================
-             * ROBUST REJECTION CRITERIA
-             * =============================================================== */
-            
-            bool is_valid = true;
-
-            /* 1. Depth discontinuity check - relaxed to reduce flickering */
-            if (has_depth && entry.depth_buffer.size() > 0) {
-              const float d0 = entry.depth_buffer[idx0];
-              const float d1 = entry.depth_buffer[idx1];
-              const float d2 = entry.depth_buffer[idx2];
-              const float d3 = entry.depth_buffer[idx3];
-              const float hist_depth = d0 * w00 + d1 * w10 + d2 * w01 + d3 * w11;
-              
-              const float depth_diff = math::abs(hist_depth - depth_center);
-              const float depth_threshold_val = depth_threshold_param * math::max(depth_center, 0.01f);
-              if (depth_diff > depth_threshold_val) {
-                frames_rejected_depth++;
-                is_valid = false;
-              }
-            }
-
-            /* 2. Normal discontinuity check - relaxed */
-            /* TODO: RE-ENABLE with motion-adaptive threshold after testing */
-            /* TEMPORARILY DISABLED - too strict with camera motion */
-            #if 0
-            if (is_valid && has_normal && entry.normal_buffer.size() > 0) {
-              const float4 n0 = entry.normal_buffer[idx0];
-              const float4 n1 = entry.normal_buffer[idx1];
-              const float4 n2 = entry.normal_buffer[idx2];
-              const float4 n3 = entry.normal_buffer[idx3];
-              const float4 nh = n0 * w00 + n1 * w10 + n2 * w01 + n3 * w11;
-              const float3 hist_normal = float3(nh.x, nh.y, nh.z);
-              
-              const float normal_dot = math::dot(hist_normal, normal_center);
-              if (normal_dot < 0.7f) {  /* ~45° tolerance - relaxed for camera motion */
-                frames_rejected_normal++;
-                is_valid = false;
-              }
-            }
-            #endif
-
-            /* 3. Motion vector consistency check - relaxed */
-            if (is_valid && has_motion && entry.motion_buffer.size() > 0) {
-              const float4 m0 = entry.motion_buffer[idx0];
-              const float4 m1 = entry.motion_buffer[idx1];
-              const float4 m2 = entry.motion_buffer[idx2];
-              const float4 m3 = entry.motion_buffer[idx3];
-              const float4 hist_motion = m0 * w00 + m1 * w10 + m2 * w01 + m3 * w11;
-              
-              /* Use backward motion (zw component) for validation */
-              const float2 backward_motion = hist_motion.zw();
-              const float motion_error = math::length(motion_prev + backward_motion);
-              if (motion_error > motion_threshold_param) {
-                frames_rejected_motion++;
-                is_valid = false;
-              }
-            }
-
-            /* 4. Variance Clipping (AABB) - Tone-mapped space for HDR safety */
-            if (is_valid && use_variance_clipping) {
-              /* Tone map historical color */
-              const float3 hist_ycocg_tm = tonemap(hist_ycocg);
-              
-              /* Clip in tone-mapped space (HDR-safe) */
-              const float3 clamped_tm = clip_aabb(hist_ycocg_tm, box_min, box_max);
-              
-              /* Inverse tone map back to linear */
-              hist_ycocg = inverse_tonemap(clamped_tm);
-              
-              /* Additional color divergence check after clamping */
-              const float3 color_diff_tm = math::abs(clamped_tm - center_ycocg_tm);
-              if (color_diff_tm.x > color_threshold_param || color_diff_tm.y > color_threshold_param || color_diff_tm.z > color_threshold_param) {
-                frames_rejected_color++;
-                is_valid = false;
-              }
-            }
-
-            /* ===============================================================
-             * EXPONENTIAL MOVING AVERAGE - Responsive AA
-             * =============================================================== */
-            
-            if (is_valid) {
-              frames_accepted++;
-              
-              /* Compute weight for this frame */
-              const float temporal_falloff = (temporal_falloff_factor > 0.0f) ? 
-                                             (1.0f / (1.0f + float(i) * temporal_falloff_factor)) : 
-                                             1.0f;  /* If factor=0, all frames equal weight */
-              
-              /* Accumulate this valid sample */
-              if (!has_valid_history) {
-                /* First valid sample - initialize */
-                temporal_result_ycocg = hist_ycocg;
-                has_valid_history = true;
-              }
-              else {
-                /* Use base_alpha from Advanced parameters (with optional quality multiplier) */
-                const float quality_mult = use_quality_mult ? 
-                                           (quality == 0 ? 0.7f :    /* High - more conservative */
-                                            quality == 1 ? 1.0f :     /* Balanced - use as-is */
-                                            1.5f) :                  /* Fast - more aggressive */
-                                           1.0f;                     /* Disabled - use base_alpha directly */
-                const float effective_alpha = base_alpha * quality_mult;
-                
-                /* IMPROVEMENT: Responsive AA - increase alpha when color changes */
-                /* Detect significant color difference between current and accumulated */
-                const float3 accumulated_tm = tonemap(temporal_result_ycocg);
-                const float color_change = math::length(accumulated_tm - center_ycocg_tm);
-                
-                /* Boost alpha when change detected - makes AA more responsive */
-                const float responsive_boost = (responsive_strength > 0.0f) ? 
-                                               math::clamp(color_change * responsive_strength, 1.0f, 3.0f) : 
-                                               1.0f;  /* If strength=0, disable responsive AA */
-                
-                const float adjusted_alpha = effective_alpha * temporal_weight * responsive_boost;
-                const float blend_alpha_raw = adjusted_alpha * temporal_falloff;
-                /* CRITICAL FIX: Clamp to user-defined max to prevent math::interpolate from saturating */
-                /* Without clamp, blend_alpha could reach 1.0-9.0, causing NO blending! */
-                const float blend_alpha = math::clamp(blend_alpha_raw, 0.0f, max_blend_alpha);
-                /* CRITICAL: Interpolate FROM history TO current (not the other way!) */
-                temporal_result_ycocg = math::interpolate(hist_ycocg, temporal_result_ycocg, blend_alpha);
-              }
-              
-              /* Don't break - accumulate multiple frames for better stability */
+            /* DEBUG: Print first few motion compensation samples */
+            static std::atomic<int> debug_count(0);
+            if (debug_count.load() < 5 && current_frame == 2) {
+              const int64_t total_buffer_size = int64_t(history_frames) * pixel_count;
+              printf("  [DEBUG Pixel %d,%d Frame %d History i=%d]\n", x, y, current_frame, i);
+              printf("    Motion: (%.2f, %.2f)\n", motion.x, motion.y);
+              printf("    Reproj: (%.2f, %.2f) -> p0: (%d, %d)\n", reproj.x, reproj.y, p0.x, p0.y);
+              printf("    Clamped: x0=%d x1=%d y0=%d y1=%d\n", x0, x1, y0, y1);
+              printf("    Indices: %lld %lld %lld %lld (max: %lld)\n", idx00, idx10, idx01, idx11, total_buffer_size - 1);
+              printf("    Weights: %.3f %.3f %.3f %.3f\n", w00, w10, w01, w11);
+              debug_count++;
             }
           }
-        }
-        else {
-          /* PATH B: WITHOUT MOTION VECTORS - Direct temporal filtering (fallback) */
-          /* This allows the node to work even without motion vector input */
-          
-          const int64_t pixel_index = int64_t(y) * width + x;
-          
-          for (int i = 0; i < effective_history; i++) {
-            const int frame_index = (prev_head - i + history_capacity) % history_capacity;
-            const int64_t buffer_index = int64_t(frame_index) * pixel_count + pixel_index;
+          else {
+            /* No motion compensation - direct averaging */
+            const int64_t idx = int64_t(frame_idx) * pixel_count + int64_t(y) * width + x;
+            const float4 hist_rgba = entry.buffer[idx];
+            hist_rgb = float3(hist_rgba.x, hist_rgba.y, hist_rgba.z);
+            sample_valid = true;
+          }
+
+          if (sample_valid) {
+            /* Separate this history sample into luma/chroma */
+            const float hist_luma = rgb_to_luma(hist_rgb);
+            const float3 hist_chroma = hist_rgb - float3(hist_luma);
+
+            /* Temporal weighting: i=0 (most recent) has weight=1.0, decays for older frames */
+            const float temporal_weight = 1.0f / (1.0f + float(i) * 0.5f);
             
-            const float4 hist_rgba = entry.buffer[buffer_index];
-            const float3 hist_rgb = float3(hist_rgba.x, hist_rgba.y, hist_rgba.z);
-            float3 hist_ycocg = rgb_to_ycocg(hist_rgb);
-            
-            /* Apply tone-mapped variance clipping if enabled (HDR-safe) */
-            if (use_variance_clipping) {
-              const float3 hist_ycocg_tm = tonemap(hist_ycocg);
-              const float3 clamped_tm = clip_aabb(hist_ycocg_tm, box_min, box_max);
-              hist_ycocg = inverse_tonemap(clamped_tm);
-            }
-            
-            /* Simple accumulation without motion validation */
-            if (!has_valid_history) {
-              temporal_result_ycocg = hist_ycocg;
-              has_valid_history = true;
-            }
-            
-            else {
-              /* Use base_alpha from Advanced parameters (with optional quality multiplier) */
-              const float quality_mult = use_quality_mult ? 
-                                         (quality == 0 ? 0.7f : quality == 1 ? 1.0f : 1.5f) :
-                                         1.0f;
-              const float effective_alpha = base_alpha * quality_mult;
-              
-              /* Responsive AA also in fallback mode */
-              const float3 accumulated_tm = tonemap(temporal_result_ycocg);
-              const float color_change = math::length(accumulated_tm - center_ycocg_tm);
-              const float responsive_boost = (responsive_strength > 0.0f) ? 
-                                             math::clamp(color_change * responsive_strength, 1.0f, 3.0f) : 
-                                             1.0f;
-              
-              const float adjusted_alpha = effective_alpha * temporal_weight * responsive_boost;
-              const float temporal_falloff = (temporal_falloff_factor > 0.0f) ? 
-                                             (1.0f / (1.0f + float(i) * temporal_falloff_factor)) : 
-                                             1.0f;
-              const float blend_alpha_raw = adjusted_alpha * temporal_falloff;
-              /* CRITICAL FIX: Clamp blend_alpha */
-              const float blend_alpha = math::clamp(blend_alpha_raw, 0.0f, max_blend_alpha);
-              /* CRITICAL: Interpolate FROM history TO current */
-              temporal_result_ycocg = math::interpolate(hist_ycocg, temporal_result_ycocg, blend_alpha);
-            }
+            /* Accumulate with temporal weighting */
+            accumulated_luma += hist_luma * temporal_weight;
+            accumulated_chroma += hist_chroma * temporal_weight;
+            total_luma_weight += temporal_weight;
+            total_chroma_weight += temporal_weight;
           }
         }
       }
 
-      /* If no valid history, keep current frame */
-      if (!has_valid_history) {
-        temporal_result_ycocg = center_ycocg;
+      /* Track which path was used for this pixel */
+      if (used_motion_comp) {
+        pixels_with_motion_comp++;
+      }
+      else if (use_history && prev_head >= 0) {
+        pixels_direct_average++;
       }
 
-      /* =================================================================
-       * STEP 5: Convert back to RGB and Apply Amplitude
-       * ================================================================= */
-      
-      const float3 denoised_rgb = ycocg_to_rgb(temporal_result_ycocg);
-      const float3 final_rgb = math::interpolate(center_rgb, denoised_rgb, amplitude);
-      const float4 out_color = float4(final_rgb.x, final_rgb.y, final_rgb.z, center_rgba.w);
+      /* Average luma and chroma using temporal weights */
+      accumulated_luma /= total_luma_weight;
+      accumulated_chroma /= total_chroma_weight;
 
-      output.store_pixel(texel, Color(out_color));
+      /* Apply denoising strength separately to luma and chroma */
+      const float final_luma = math::interpolate(current_luma, accumulated_luma, luma_strength);
+      const float3 final_chroma = math::interpolate(
+          current_chroma, accumulated_chroma, chroma_strength);
 
-      /* =================================================================
-       * STEP 6: Store to History Buffer
-       * ================================================================= */
-      
-      if (history_capacity > 0) {
-        const int x = texel.x;
-        const int y = texel.y;
-        const int width = size.x;
-        const int64_t pixel_index = int64_t(y) * width + x;
-        const int64_t buffer_index = int64_t(write_frame_index) * pixel_count + pixel_index;
-        
-        /* CRITICAL: Store ORIGINAL image, NOT filtered result */
-        /* This prevents blur accumulation across frames */
-        entry.buffer[buffer_index] = center_rgba;  /* ← ORIGINAL, not out_color */
-        
-        if (entry.motion_buffer.size() > 0) {
-          entry.motion_buffer[buffer_index] = motion_vec;
-        }
-        
-        if (has_albedo && entry.albedo_buffer.size() > 0) {
-          entry.albedo_buffer[buffer_index] = float4(albedo_center.x,
-                                                    albedo_center.y,
-                                                    albedo_center.z,
-                                                    0.0f);
-        }
-        if (has_normal && entry.normal_buffer.size() > 0) {
-          entry.normal_buffer[buffer_index] = float4(normal_center.x,
-                                                    normal_center.y,
-                                                    normal_center.z,
-                                                    0.0f);
-        }
-        if (has_depth && entry.depth_buffer.size() > 0) {
-          entry.depth_buffer[buffer_index] = depth_center;
+      const float3 final_rgb = float3(final_luma) + final_chroma;
+      const float4 final_rgba = float4(final_rgb.x, final_rgb.y, final_rgb.z, current_rgba.w);
+
+      output.store_pixel(texel, Color(final_rgba));
+
+      /* Store current frame to history */
+      if (history_frames > 0) {
+        const int64_t buffer_idx = int64_t(write_frame_index) * pixel_count +
+                                   int64_t(texel.y) * size.x + texel.x;
+        entry.buffer[buffer_idx] = current_rgba;
+        if (has_motion) {
+          entry.motion_buffer[buffer_idx] = motion_vec;
         }
       }
     });
 
-    if (history_capacity > 0) {
+    if (history_frames > 0) {
       entry.head = write_frame_index;
-      entry.stored_frames = math::min(prev_stored + 1, history_capacity);
+      entry.stored_frames = math::min(prev_stored + 1, history_frames);
     }
+
+    /* ===== DEBUG OUTPUT - COMPLETION ===== */
+    printf("========== PROCESSING COMPLETE ==========\n");
+    printf("  Updated History Head: %d\n", entry.head);
+    printf("  Updated Stored Frames: %d / %d\n", entry.stored_frames, history_frames);
+    printf("  Next frame will have %d history frames available\n", entry.stored_frames);
+    printf("--- Processing Statistics ---\n");
+    printf("  Total Pixels: %lld\n", pixel_count);
+    printf("  Pixels with Motion Compensation: %lld (%.1f%%)\n", 
+           pixels_with_motion_comp.load(),
+           100.0f * pixels_with_motion_comp.load() / pixel_count);
+    printf("  Pixels with Direct Averaging: %lld (%.1f%%)\n",
+           pixels_direct_average.load(),
+           100.0f * pixels_direct_average.load() / pixel_count);
+    printf("  Samples Excluded (Out of Bounds): %lld\n", samples_excluded_bounds.load());
+    printf("  Samples Excluded (Motion Threshold): %lld\n", samples_excluded_threshold.load());
+    printf("==========================================\n\n");
 
     if (context().use_gpu()) {
       Result output_gpu = output.upload_to_gpu(true);
