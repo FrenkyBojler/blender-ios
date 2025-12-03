@@ -159,7 +159,7 @@ static bool strip_hides_text_overlay_first(const TimelineDrawContext &ctx,
                                            const StripDrawContext &strip_ctx)
 {
   return seq_draw_waveforms_poll(ctx.sseq, strip_ctx.strip) ||
-         strip_ctx.strip->type == STRIP_TYPE_COLOR;
+         ELEM(strip_ctx.strip->type, STRIP_TYPE_COLOR, STRIP_TYPE_TEXT);
 }
 
 static void strip_draw_context_set_text_overlay_visibility(const TimelineDrawContext &ctx,
@@ -1489,6 +1489,72 @@ static void draw_retiming_continuity_ranges(const TimelineDrawContext &ctx,
   GPU_matrix_pop_projection();
 }
 
+static void draw_strip_texts(const TimelineDrawContext &ctx,
+                             const StripsDrawBatch &batch,
+                             const Vector<StripDrawContext> &strips)
+{
+  /* Nothing to do if we're not showing thumbnails overall. */
+  if ((ctx.sseq->flag & SEQ_SHOW_OVERLAY) == 0 ||
+      (ctx.sseq->timeline_overlay.flag & SEQ_TIMELINE_SHOW_THUMBNAILS) == 0)
+  {
+    return;
+  }
+
+  GPU_matrix_push_projection();
+  wmOrtho2_region_pixelspace(ctx.region);
+
+  std::lock_guard lock(seq::text_runtime_mutex_get());
+
+  for (const StripDrawContext &strip : strips) {
+    if (!strip.can_draw_strip_content || strip.strip->type != STRIP_TYPE_TEXT) {
+      continue;
+    }
+
+    const TextVars *data = static_cast<TextVars *>(strip.strip->effectdata);
+    if (data == nullptr || data->text_len_bytes < 1 || data->color[3] < 0.01f) {
+      continue;
+    }
+
+    const float content_height_px = (strip.strip_content_top - strip.bottom) / ctx.pixely;
+    if (content_height_px <= 10 * UI_SCALE_FAC) {
+      continue;
+    }
+
+    const FontFlags font_flags = ((data->flag & SEQ_TEXT_BOLD) ? BLF_BOLD : BLF_NONE) |
+                                 ((data->flag & SEQ_TEXT_ITALIC) ? BLF_ITALIC : BLF_NONE) |
+                                 BLF_CLIPPING | BLF_SHADOW;
+
+    const int font = seq::text_effect_font_get(strip.strip);
+    float font_size = std::min(data->text_size, std::min(content_height_px * 0.5f, 40.0f));
+    const float lightness = srgb_to_grayscale(data->color);
+    const bool outline_is_dark = lightness > 0.37f;
+    float outline_dark_color[4] = {0, 0, 0, 0.8f * data->color[3]};
+    float outline_light_color[4] = {1, 1, 1, 0.8f * data->color[3]};
+
+    BLF_enable(font, font_flags);
+    BLF_size(font, font_size);
+    BLF_shadow(
+        font, FontShadowType::None, outline_is_dark ? outline_dark_color : outline_light_color);
+    BLF_shadow_offset(font, 1, -1);
+
+    BLF_color4fv(font, data->color);
+
+    constexpr float margin = 2.0f;
+    const float x1 = batch.pos_to_pixel_space_x(strip.left_handle) + margin;
+    const float x2 = batch.pos_to_pixel_space_x(strip.right_handle) - margin;
+    const float y1 = batch.pos_to_pixel_space_y(strip.bottom) + margin;
+    const float y2 = batch.pos_to_pixel_space_y(strip.strip_content_top) - margin;
+
+    BLF_clipping(font, x1, y1, x2, y2);
+    BLF_position(font, x1 + margin, (y1 + y2) * 0.5f - font_size * 0.25f, 0.0f);
+    BLF_draw(font, data->text_ptr, data->text_len_bytes);
+
+    BLF_disable(font, font_flags);
+  }
+
+  GPU_matrix_pop_projection();
+}
+
 static void draw_seq_strips(const TimelineDrawContext &ctx,
                             StripsDrawBatch &strips_batch,
                             const Vector<StripDrawContext> &strips)
@@ -1510,8 +1576,9 @@ static void draw_seq_strips(const TimelineDrawContext &ctx,
   }
   ctx.quads->draw();
 
-  /* Draw thumbnails. */
+  /* Draw thumbnails and text strip content. */
   draw_strip_thumbnails(ctx, strips_batch, strips);
+  draw_strip_texts(ctx, strips_batch, strips);
 
   /* Draw parts of strips above thumbnails. */
   GPU_blend(GPU_BLEND_ALPHA);

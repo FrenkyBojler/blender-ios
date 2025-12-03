@@ -8,6 +8,7 @@
 #include "DNA_vec_types.h"
 
 #include "BLI_math_vector_types.hh"
+#include "BLI_mutex.hh"
 #include "BLI_vector.hh"
 
 /** \file
@@ -25,6 +26,9 @@ int effect_get_num_inputs(int strip_type);
 bool effect_is_transition(StripType type);
 void effect_text_font_set(Strip *strip, VFont *font);
 bool effects_can_render_text(const Strip *strip);
+
+Mutex &text_runtime_mutex_get();
+int text_effect_font_get(const Strip *strip);
 
 struct CharInfo {
   int index = 0;

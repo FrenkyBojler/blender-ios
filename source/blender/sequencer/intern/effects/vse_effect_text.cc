@@ -7,7 +7,6 @@
  */
 
 #include <cmath>
-#include <mutex>
 
 #include "BKE_lib_id.hh"
 #include "BKE_library.hh"
@@ -46,9 +45,9 @@ namespace blender::seq {
 
 static Mutex text_runtime_mutex;
 
-std::unique_lock<Mutex> text_runtime_scoped_lock_get()
+Mutex &text_runtime_mutex_get()
 {
-  return std::unique_lock<Mutex>(text_runtime_mutex);
+  return text_runtime_mutex;
 }
 
 /* -------------------------------------------------------------------- */
@@ -801,25 +800,27 @@ static int text_effect_line_size_get(const RenderData *context, const Strip *str
   return size_scale * data->text_size;
 }
 
-int text_effect_font_init(const RenderData *context, const Strip *strip, FontFlags font_flags)
+int text_effect_font_get(const Strip *strip)
 {
   TextVars *data = static_cast<TextVars *>(strip->effectdata);
   int font = blf_mono_font_render;
-
   /* In case font got unloaded behind our backs: mark it as needing a load. */
   if (data->text_blf_id >= 0 && !BLF_is_loaded_id(data->text_blf_id)) {
     data->text_blf_id = STRIP_FONT_NOT_LOADED;
   }
-
   if (data->text_blf_id == STRIP_FONT_NOT_LOADED) {
     data->text_blf_id = -1;
     text_font_load(data, false);
   }
-
   if (data->text_blf_id >= 0) {
     font = data->text_blf_id;
   }
+  return font;
+}
 
+int text_effect_font_init(const RenderData *context, const Strip *strip, FontFlags font_flags)
+{
+  int font = text_effect_font_get(strip);
   BLF_size(font, text_effect_line_size_get(context, strip));
   BLF_enable(font, font_flags);
   return font;
