@@ -52,6 +52,7 @@ static bool node_copy_local(Main &bmain,
                             bNodeTree &from_tree,
                             bNodeTree &to_tree,
                             const bool allow_duplicate_names,
+                            const float2 offset,
                             ReportList *reports)
 {
   // todo(habib): needed?
@@ -75,27 +76,8 @@ static bool node_copy_local(Main &bmain,
                                                     socket_map,
                                                     allow_duplicate_names);
       node_map.add_new(node, new_node);
-      // todo(habib): support offset
-
-      // PropertyRNA *offset_prop = RNA_struct_find_property(op->ptr, "offset");
-      // if (RNA_property_is_set(op->ptr, offset_prop)) {
-      //   float2 center(0);
-      //   for (NodeClipboardItem &item : clipboard.nodes) {
-      //     center.x += BLI_rctf_cent_x(&item.draw_rect);
-      //     center.y += BLI_rctf_cent_y(&item.draw_rect);
-      //   }
-      //   /* DPI factor needs to be removed when computing a View2D offset from drawing rects. */
-      //   center /= clipboard.nodes.size();
-
-      //   float2 mouse_location;
-      //   RNA_property_float_get_array(op->ptr, offset_prop, mouse_location);
-      //   const float2 offset = (mouse_location - center) / UI_SCALE_FAC;
-
-      //   for (bNode *new_node : node_map.values()) {
-      //     new_node->location[0] += offset.x;
-      //     new_node->location[1] += offset.y;
-      //   }
-      // }
+      new_node->location[0] += offset.x;
+      new_node->location[1] += offset.y;
     }
     else {
       // todo(habib): test this branch
@@ -193,7 +175,7 @@ static wmOperatorStatus node_clipboard_copy_exec(bContext *C, wmOperator *op)
   strcpy(copy_tree->idname, dummy_ntree->typeinfo->idname.c_str());
   // BKE_id_delete(bmain, &dummy_ntree->id);
 
-  if (!node_copy_local(*bmain, *node_tree, *copy_tree, true, op->reports)) {
+  if (!node_copy_local(*bmain, *node_tree, *copy_tree, true, float2{0, 0}, op->reports)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -289,7 +271,28 @@ static wmOperatorStatus node_clipboard_paste_exec(bContext *C, wmOperator *op)
   FOREACH_NODETREE_END;
   BLI_assert(from_tree != nullptr);
 
-  if (!node_copy_local(*bmain_dst, *from_tree, *snode->edittree, false, op->reports)) {
+  float2 offset(0);
+  PropertyRNA *offset_prop = RNA_struct_find_property(op->ptr, "offset");
+  if (RNA_property_is_set(op->ptr, offset_prop)) {
+    rctf bbox;
+    float2 center;
+    BLI_rctf_init_minmax(&bbox);
+    for (bNode *node : from_tree->all_nodes()) {
+      bbox.xmin = math::min(node->location[0], bbox.xmin);
+      bbox.ymin = math::min(node->location[1], bbox.ymin);
+
+      bbox.xmax = math::max(node->location[0] + node->width, bbox.xmax);
+      bbox.ymax = math::max(node->location[1] - node->height / 2, bbox.ymax);
+    }
+    center.x = BLI_rctf_cent_x(&bbox);
+    center.y = BLI_rctf_cent_y(&bbox);
+
+    float2 mouse_location;
+    RNA_property_float_get_array(op->ptr, offset_prop, mouse_location);
+    offset = mouse_location / UI_SCALE_FAC - center;
+  }
+
+  if (!node_copy_local(*bmain_dst, *from_tree, *snode->edittree, false, offset, op->reports)) {
     return OPERATOR_CANCELLED;
   };
   BKE_id_delete(bmain_dst, &from_tree->id);
