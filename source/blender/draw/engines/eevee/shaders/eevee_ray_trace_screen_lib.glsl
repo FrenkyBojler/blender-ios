@@ -335,7 +335,7 @@ float raytrace_screen_2(float3 vs_origin,
     previous_step_z = step.z;
 
     /* Note that camera forward is -Z. */
-    if (step.z < hit_far_z && step.z + thickness > hit_near_z) {
+    if (step.z <= hit_far_z && step.z + max_thickness >= hit_near_z) {
       /* We have a hit. Compute the distance. */
       float3 ndc_hit_point = float3(step.xy, hit_depth_point * 2.0f - 1.0f);
       float3 vs_hit_point = drw_point_ndc_to_view(ndc_hit_point);
