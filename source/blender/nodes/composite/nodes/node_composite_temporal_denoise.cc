@@ -114,6 +114,21 @@ static void cmp_node_temporal_denoise_declare(NodeDeclarationBuilder &b)
   advanced_panel.add_input<decl::Bool>("Use Variance Clipping")
       .default_value(true)
       .description("Enable tone-mapped AABB variance clipping. Disable for stronger denoising (may cause ghosting)");
+  advanced_panel.add_input<decl::Float>("Max Blend Alpha")
+      .default_value(0.95f)
+      .min(0.1f)
+      .max(0.99f)
+      .description("Maximum blend strength: lower=more stable, higher=stronger fusion (0.95=strong, 0.5=conservative)");
+  advanced_panel.add_input<decl::Float>("Responsive Strength")
+      .default_value(2.0f)
+      .min(0.0f)
+      .max(5.0f)
+      .description("Adaptive boost intensity: 0=disabled, 2=default, 5=very responsive to changes");
+  advanced_panel.add_input<decl::Float>("Temporal Falloff Factor")
+      .default_value(0.5f)
+      .min(0.0f)
+      .max(2.0f)
+      .description("How older frames are weighted: lower=all frames equal, higher=recent frames preferred");
 
   b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic).align_with_previous();
 }
@@ -426,6 +441,12 @@ class TemporalDenoiseOperation : public NodeOperation {
         this->get_input("Color Threshold").get_single_value_default(0.7f), 0.0f, 2.0f);
     const bool use_quality_mult = this->get_input("Use Quality Multiplier").get_single_value_default(true);
     const bool use_variance_clipping = this->get_input("Use Variance Clipping").get_single_value_default(true);
+    const float max_blend_alpha = math::clamp(
+        this->get_input("Max Blend Alpha").get_single_value_default(0.95f), 0.1f, 0.99f);
+    const float responsive_strength = math::clamp(
+        this->get_input("Responsive Strength").get_single_value_default(2.0f), 0.0f, 5.0f);
+    const float temporal_falloff_factor = math::clamp(
+        this->get_input("Temporal Falloff Factor").get_single_value_default(0.5f), 0.0f, 2.0f);
 
     /* NOTE: True temporal history across frames would require persistent caches keyed by node id
      * and frame number, which is outside the scope of this first implementation. For now we apply
@@ -579,7 +600,6 @@ class TemporalDenoiseOperation : public NodeOperation {
           int frames_accepted = 0;
           int frames_rejected_bounds = 0;
           int frames_rejected_depth = 0;
-          int frames_rejected_normal = 0;
           int frames_rejected_motion = 0;
           int frames_rejected_color = 0;
           
@@ -706,7 +726,9 @@ class TemporalDenoiseOperation : public NodeOperation {
               frames_accepted++;
               
               /* Compute weight for this frame */
-              const float temporal_falloff = 1.0f / (1.0f + float(i) * 0.5f);
+              const float temporal_falloff = (temporal_falloff_factor > 0.0f) ? 
+                                             (1.0f / (1.0f + float(i) * temporal_falloff_factor)) : 
+                                             1.0f;  /* If factor=0, all frames equal weight */
               
               /* Accumulate this valid sample */
               if (!has_valid_history) {
@@ -729,13 +751,15 @@ class TemporalDenoiseOperation : public NodeOperation {
                 const float color_change = math::length(accumulated_tm - center_ycocg_tm);
                 
                 /* Boost alpha when change detected - makes AA more responsive */
-                const float responsive_boost = math::clamp(color_change * 2.0f, 1.0f, 3.0f);
+                const float responsive_boost = (responsive_strength > 0.0f) ? 
+                                               math::clamp(color_change * responsive_strength, 1.0f, 3.0f) : 
+                                               1.0f;  /* If strength=0, disable responsive AA */
                 
                 const float adjusted_alpha = effective_alpha * temporal_weight * responsive_boost;
                 const float blend_alpha_raw = adjusted_alpha * temporal_falloff;
-                /* CRITICAL FIX: Clamp to [0, 0.95] to prevent math::interpolate from saturating */
+                /* CRITICAL FIX: Clamp to user-defined max to prevent math::interpolate from saturating */
                 /* Without clamp, blend_alpha could reach 1.0-9.0, causing NO blending! */
-                const float blend_alpha = math::clamp(blend_alpha_raw, 0.0f, 0.95f);
+                const float blend_alpha = math::clamp(blend_alpha_raw, 0.0f, max_blend_alpha);
                 /* CRITICAL: Interpolate FROM history TO current (not the other way!) */
                 temporal_result_ycocg = math::interpolate(hist_ycocg, temporal_result_ycocg, blend_alpha);
               }
@@ -781,13 +805,17 @@ class TemporalDenoiseOperation : public NodeOperation {
               /* Responsive AA also in fallback mode */
               const float3 accumulated_tm = tonemap(temporal_result_ycocg);
               const float color_change = math::length(accumulated_tm - center_ycocg_tm);
-              const float responsive_boost = math::clamp(color_change * 2.0f, 1.0f, 3.0f);
+              const float responsive_boost = (responsive_strength > 0.0f) ? 
+                                             math::clamp(color_change * responsive_strength, 1.0f, 3.0f) : 
+                                             1.0f;
               
               const float adjusted_alpha = effective_alpha * temporal_weight * responsive_boost;
-              const float temporal_falloff = 1.0f / (1.0f + float(i) * 0.5f);
+              const float temporal_falloff = (temporal_falloff_factor > 0.0f) ? 
+                                             (1.0f / (1.0f + float(i) * temporal_falloff_factor)) : 
+                                             1.0f;
               const float blend_alpha_raw = adjusted_alpha * temporal_falloff;
               /* CRITICAL FIX: Clamp blend_alpha */
-              const float blend_alpha = math::clamp(blend_alpha_raw, 0.0f, 0.95f);
+              const float blend_alpha = math::clamp(blend_alpha_raw, 0.0f, max_blend_alpha);
               /* CRITICAL: Interpolate FROM history TO current */
               temporal_result_ycocg = math::interpolate(hist_ycocg, temporal_result_ycocg, blend_alpha);
             }
