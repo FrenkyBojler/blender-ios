@@ -5465,7 +5465,6 @@ static bool overlap_tri_tri_uv_test(const float t1[3][2],
   return false;
 }
 
-
 static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend)
 {
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
@@ -5641,18 +5640,18 @@ static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend)
       return false;
     }
 
-    Object *ob_src = (*data->objects)[src->ob_index];
-    Object *ob_dst = (*data->objects)[dst->ob_index];
-
-    BMesh *bm_src = BKE_editmesh_from_object(ob_src)->bm;
-    BMesh *bm_dst = BKE_editmesh_from_object(ob_dst)->bm;
-
-    BMFace *face_src = bm_src->ftable[src->face_index];
-    BMFace *face_dst = bm_dst->ftable[dst->face_index];
-
     /* Check exact overlap. */
     const float endpoint_bias = -1e-4f;
     if (overlap_tri_tri_uv_test(src->tri, dst->tri, endpoint_bias)) {
+      Object *ob_src = (*data->objects)[src->ob_index];
+      Object *ob_dst = (*data->objects)[dst->ob_index];
+
+      BMesh *bm_src = BKE_editmesh_from_object(ob_src)->bm;
+      BMesh *bm_dst = BKE_editmesh_from_object(ob_dst)->bm;
+
+      BMFace *face_src = bm_src->ftable[src->face_index];
+      BMFace *face_dst = bm_dst->ftable[dst->face_index];
+
       BM_elem_flag_enable(face_src, BM_ELEM_TAG);
       BM_elem_flag_enable(face_dst, BM_ELEM_TAG);
 
