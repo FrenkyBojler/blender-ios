@@ -26,10 +26,8 @@
 #  include "BKE_collection.hh"
 #  include "BKE_curve.hh"
 #  include "BKE_curves.h"
-#  include "BKE_displist.h"
 #  include "BKE_gpencil_legacy.h"
 #  include "BKE_grease_pencil.hh"
-#  include "BKE_icons.h"
 #  include "BKE_idtype.hh"
 #  include "BKE_image.hh"
 #  include "BKE_lattice.hh"
@@ -39,7 +37,7 @@
 #  include "BKE_lightprobe.h"
 #  include "BKE_linestyle.h"
 #  include "BKE_main_invariants.hh"
-#  include "BKE_mask.h"
+#  include "BKE_mask.hh"
 #  include "BKE_material.hh"
 #  include "BKE_mball.hh"
 #  include "BKE_mesh.hh"
@@ -50,13 +48,12 @@
 #  include "BKE_particle.h"
 #  include "BKE_pointcloud.hh"
 #  include "BKE_scene.hh"
-#  include "BKE_sound.h"
-#  include "BKE_speaker.h"
+#  include "BKE_sound.hh"
+#  include "BKE_speaker.hh"
 #  include "BKE_text.h"
 #  include "BKE_texture.h"
 #  include "BKE_vfont.hh"
 #  include "BKE_volume.hh"
-#  include "BKE_workspace.hh"
 #  include "BKE_world.h"
 
 #  include "DEG_depsgraph_build.hh"
@@ -90,7 +87,7 @@
 #  include "DNA_world_types.h"
 
 #  include "ED_node.hh"
-#  include "ED_screen.hh"
+#  include "ED_scene.hh"
 
 #  include "BLT_translation.hh"
 
@@ -200,44 +197,23 @@ static void rna_Main_scenes_remove(
   Scene *scene = static_cast<Scene *>(scene_ptr->data);
 
   if (BKE_scene_can_be_removed(bmain, scene)) {
-    Scene *scene_new = static_cast<Scene *>(scene->id.prev ? scene->id.prev : scene->id.next);
     if (do_unlink) {
-      /* Don't rely on `CTX_wm_window(C)` as it may have been cleared,
-       * yet windows may still be open that reference this scene. */
-      wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
-      LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-        if (WM_window_get_active_scene(win) == scene) {
-#  ifdef WITH_PYTHON
-          BPy_BEGIN_ALLOW_THREADS;
-#  endif
-
-          WM_window_set_active_scene(bmain, C, win, scene_new);
-
-#  ifdef WITH_PYTHON
-          BPy_END_ALLOW_THREADS;
-#  endif
-        }
-      }
-      if (CTX_data_scene(C) == scene) {
-#  ifdef WITH_PYTHON
-        BPy_BEGIN_ALLOW_THREADS;
-#  endif
-
-        CTX_data_scene_set(C, scene_new);
-
-#  ifdef WITH_PYTHON
-        BPy_END_ALLOW_THREADS;
-#  endif
+      Scene *scene_new = BKE_scene_find_replacement(*bmain, *scene);
+      if (scene_new && ED_scene_replace_active_for_deletion(*C, *bmain, *scene, scene_new)) {
+        rna_Main_ID_remove(bmain, reports, scene_ptr, do_unlink, true, true);
+        return;
       }
     }
-    rna_Main_ID_remove(bmain, reports, scene_ptr, do_unlink, true, true);
+    else {
+      rna_Main_ID_remove(bmain, reports, scene_ptr, do_unlink, true, true);
+      return;
+    }
   }
-  else {
-    BKE_reportf(reports,
-                RPT_ERROR,
-                "Scene '%s' is the last local one, cannot be removed",
-                scene->id.name + 2);
-  }
+
+  BKE_reportf(reports,
+              RPT_ERROR,
+              "Scene '%s' is the last local one, cannot be removed",
+              scene->id.name + 2);
 }
 
 static Object *rna_Main_objects_new(Main *bmain, ReportList *reports, const char *name, ID *data)

@@ -16,7 +16,6 @@
 #include "DNA_sequence_types.h"
 
 #include "SEQ_modifier.hh"
-#include "SEQ_modifiertypes.hh"
 
 #include "UI_interface.hh"
 #include "UI_interface_layout.hh"
@@ -52,11 +51,8 @@ struct BrightContrastApplyOp {
   }
 };
 
-static void brightcontrast_apply(const RenderData * /*render_data*/,
-                                 const Strip * /*strip*/,
-                                 const float transform[3][3],
+static void brightcontrast_apply(ModifierApplyContext &context,
                                  StripModifierData *smd,
-                                 ImBuf *ibuf,
                                  ImBuf *mask)
 {
   const BrightContrastModifierData *bcmd = (BrightContrastModifierData *)smd;
@@ -81,7 +77,7 @@ static void brightcontrast_apply(const RenderData * /*render_data*/,
     op.add = op.mul * brightness + delta;
   }
 
-  apply_modifier_op(op, ibuf, mask, float3x3(transform));
+  apply_modifier_op(op, context.image, mask, context.transform);
 }
 
 static void brightcontrast_panel_draw(const bContext *C, Panel *panel)

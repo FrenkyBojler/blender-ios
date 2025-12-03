@@ -66,7 +66,7 @@ template<> float4 to_float(const MLoopCol &src)
 {
   float4 dst;
   rgba_uchar_to_float(dst, reinterpret_cast<const uchar *>(&src));
-  srgb_to_linearrgb_v3_v3(dst, dst);
+  IMB_colormanagement_srgb_to_scene_linear_v3(dst, dst);
   return dst;
 }
 template<> float4 to_float(const MPropCol &src)
@@ -79,7 +79,7 @@ template<typename T> void from_float(const float4 &src, T &dst);
 template<> void from_float(const float4 &src, MLoopCol &dst)
 {
   float4 temp;
-  linearrgb_to_srgb_v3_v3(temp, src);
+  IMB_colormanagement_scene_linear_to_srgb_v3(temp, src);
   temp[3] = src[3];
   rgba_float_to_uchar(reinterpret_cast<uchar *>(&dst), temp);
 }
@@ -224,11 +224,8 @@ bke::GAttributeReader active_color_attribute(const Mesh &mesh)
   if (!colors) {
     return {};
   }
-  const eCustomDataType data_type = bke::cpp_type_to_custom_data_type(colors.varray.type());
-  if ((CD_TYPE_AS_MASK(data_type) & CD_MASK_COLOR_ALL) == 0) {
-    return {};
-  }
-  if ((ATTR_DOMAIN_AS_MASK(colors.domain) & ATTR_DOMAIN_MASK_COLOR) == 0) {
+  const bke::AttrType data_type = bke::cpp_type_to_attribute_type(colors.varray.type());
+  if (!bke::mesh::is_color_attribute({colors.domain, data_type})) {
     return {};
   }
   return colors;
@@ -242,12 +239,8 @@ bke::GSpanAttributeWriter active_color_attribute_for_write(Mesh &mesh)
   if (!colors) {
     return {};
   }
-  const eCustomDataType data_type = bke::cpp_type_to_custom_data_type(colors.span.type());
-  if ((CD_TYPE_AS_MASK(data_type) & CD_MASK_COLOR_ALL) == 0) {
-    colors.finish();
-    return {};
-  }
-  if ((ATTR_DOMAIN_AS_MASK(colors.domain) & ATTR_DOMAIN_MASK_COLOR) == 0) {
+  const bke::AttrType data_type = bke::cpp_type_to_attribute_type(colors.span.type());
+  if (!bke::mesh::is_color_attribute({colors.domain, data_type})) {
     colors.finish();
     return {};
   }

@@ -104,19 +104,16 @@ static bool uvedit_ensure_uvs(Object *obedit)
     return false;
   }
 
-  const char *active_uv_name = CustomData_get_active_layer_name(&em->bm->ldata, CD_PROP_FLOAT2);
-  BM_uv_map_attr_vert_select_ensure(em->bm, active_uv_name);
-  BM_uv_map_attr_edge_select_ensure(em->bm, active_uv_name);
-  const BMUVOffsets offsets = BM_uv_map_offsets_get(em->bm);
-
   /* select new UVs (ignore UV_FLAG_SELECT_SYNC in this case) */
+  em->bm->uv_select_sync_valid = false;
   BM_ITER_MESH (efa, &iter, em->bm, BM_FACES_OF_MESH) {
     BMIter liter;
     BMLoop *l;
 
+    BM_elem_flag_enable(efa, BM_ELEM_SELECT_UV);
     BM_ITER_ELEM (l, &liter, efa, BM_LOOPS_OF_FACE) {
-      BM_ELEM_CD_SET_BOOL(l, offsets.select_vert, true);
-      BM_ELEM_CD_SET_BOOL(l, offsets.select_edge, true);
+      BM_elem_flag_enable(l, BM_ELEM_SELECT_UV);
+      BM_elem_flag_enable(l, BM_ELEM_SELECT_UV_EDGE);
     }
   }
 
@@ -1939,31 +1936,31 @@ static const EnumPropertyItem pinned_islands_method_items[] = {
 
 static void uv_pack_islands_ui(bContext * /*C*/, wmOperator *op)
 {
-  uiLayout *layout = op->layout;
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
-  layout->prop(op->ptr, "shape_method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(op->ptr, "scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  blender::ui::Layout &layout = *op->layout;
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
+  layout.prop(op->ptr, "shape_method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   {
-    layout->prop(op->ptr, "rotate", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiLayout *sub = &layout->row(true);
-    sub->active_set(RNA_boolean_get(op->ptr, "rotate"));
-    sub->prop(op->ptr, "rotate_method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    layout->separator();
+    layout.prop(op->ptr, "rotate", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    blender::ui::Layout &row = layout.row(true);
+    row.active_set(RNA_boolean_get(op->ptr, "rotate"));
+    row.prop(op->ptr, "rotate_method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout.separator();
   }
-  layout->prop(op->ptr, "margin_method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(op->ptr, "margin", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->separator();
+  layout.prop(op->ptr, "margin_method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "margin", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.separator();
   {
-    layout->prop(op->ptr, "pin", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiLayout *sub = &layout->row(true);
-    sub->active_set(RNA_boolean_get(op->ptr, "pin"));
-    sub->prop(op->ptr, "pin_method", UI_ITEM_NONE, IFACE_("Lock Method"), ICON_NONE);
-    layout->separator();
+    layout.prop(op->ptr, "pin", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    blender::ui::Layout &row = layout.row(true);
+    row.active_set(RNA_boolean_get(op->ptr, "pin"));
+    row.prop(op->ptr, "pin_method", UI_ITEM_NONE, IFACE_("Lock Method"), ICON_NONE);
+    layout.separator();
   }
-  layout->prop(op->ptr, "merge_overlap", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(op->ptr, "udim_source", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->separator();
+  layout.prop(op->ptr, "merge_overlap", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "udim_source", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.separator();
 }
 
 static wmOperatorStatus uv_pack_islands_invoke(bContext *C, wmOperator *op, const wmEvent *event)
@@ -2667,7 +2664,7 @@ static void uv_map_clip_correct(const Scene *scene,
           continue;
         }
 
-        if (only_selected_uvs && !uvedit_face_select_test(scene, em->bm, efa, offsets)) {
+        if (only_selected_uvs && !uvedit_face_select_test(scene, em->bm, efa)) {
           continue;
         }
 
@@ -2684,7 +2681,7 @@ static void uv_map_clip_correct(const Scene *scene,
           continue;
         }
 
-        if (only_selected_uvs && !uvedit_face_select_test(scene, em->bm, efa, offsets)) {
+        if (only_selected_uvs && !uvedit_face_select_test(scene, em->bm, efa)) {
           continue;
         }
 
@@ -2722,7 +2719,7 @@ static void uv_map_clip_correct(const Scene *scene,
           continue;
         }
 
-        if (only_selected_uvs && !uvedit_face_select_test(scene, em->bm, efa, offsets)) {
+        if (only_selected_uvs && !uvedit_face_select_test(scene, em->bm, efa)) {
           continue;
         }
 
@@ -2826,6 +2823,8 @@ static wmOperatorStatus unwrap_exec(bContext *C, wmOperator *op)
 {
   ViewLayer *view_layer = CTX_data_view_layer(C);
   const Scene *scene = CTX_data_scene(C);
+  const bool sync_selection = (scene->toolsettings->uv_flag & UV_FLAG_SELECT_SYNC) != 0;
+
   int reported_errors = 0;
 
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
@@ -2844,6 +2843,12 @@ static wmOperatorStatus unwrap_exec(bContext *C, wmOperator *op)
 
   if (CTX_wm_space_image(C)) {
     /* Inside the UV Editor, only unwrap selected UVs. */
+    if (sync_selection) {
+      /* It's important to include unselected faces so they are taken into account
+       * when unwrapping adjacent UV's, so it's possible to select part of an island
+       * without it becoming disconnected from the unselected region, see: #148536. */
+      options.only_selected_faces = false;
+    }
     options.only_selected_uvs = true;
     options.pin_unselected = true;
   }
@@ -2935,17 +2940,15 @@ static wmOperatorStatus unwrap_exec(bContext *C, wmOperator *op)
 
 static void unwrap_draw(bContext * /*C*/, wmOperator *op)
 {
-  uiLayout *layout = op->layout;
+  blender::ui::Layout &layout = *op->layout;
 
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
 
   /* Main draw call */
   PointerRNA ptr = RNA_pointer_create_discrete(nullptr, op->type->srna, op->properties);
 
-  uiLayout *col;
-
-  col = &layout->column(true);
+  blender::ui::Layout *col = &layout.column(true);
   col->prop(&ptr, "method", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   bool is_slim = RNA_enum_get(op->ptr, "method") == UVCALC_UNWRAP_METHOD_MINIMUM_STRETCH;
 
@@ -2957,7 +2960,7 @@ static void unwrap_draw(bContext * /*C*/, wmOperator *op)
     col->prop(&ptr, "use_weights", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
     if (RNA_boolean_get(op->ptr, "use_weights")) {
-      col = &layout->column(true);
+      col = &layout.column(true);
       col->prop(&ptr, "weight_group", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       col->prop(&ptr, "weight_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     }
@@ -3258,8 +3261,8 @@ static wmOperatorStatus smart_project_exec(bContext *C, wmOperator *op)
       }
 
       if (only_selected_uvs) {
-        if (!uvedit_face_select_test(scene, em->bm, efa, offsets)) {
-          uvedit_face_select_disable(scene, em->bm, efa, offsets);
+        if (!uvedit_face_select_test(scene, em->bm, efa)) {
+          uvedit_face_select_disable(scene, em->bm, efa);
           continue;
         }
       }
@@ -3851,8 +3854,8 @@ static float uv_sphere_project(const Scene *scene,
     }
 
     if (only_selected_uvs) {
-      if (!uvedit_face_select_test(scene, bm, efa, offsets)) {
-        uvedit_face_select_disable(scene, bm, efa, offsets);
+      if (!uvedit_face_select_test(scene, bm, efa)) {
+        uvedit_face_select_disable(scene, bm, efa);
         continue; /* Unselected UV, ignore. */
       }
     }
@@ -4027,8 +4030,8 @@ static float uv_cylinder_project(const Scene *scene,
     }
 
     if (only_selected_uvs) {
-      if (!uvedit_face_select_test(scene, bm, efa, offsets)) {
-        uvedit_face_select_disable(scene, bm, efa, offsets);
+      if (!uvedit_face_select_test(scene, bm, efa)) {
+        uvedit_face_select_disable(scene, bm, efa);
         continue; /* Unselected UV, ignore. */
       }
     }
@@ -4123,8 +4126,8 @@ static wmOperatorStatus cylinder_project_exec(bContext *C, wmOperator *op)
         continue;
       }
 
-      if (only_selected_uvs && !uvedit_face_select_test(scene, em->bm, efa, offsets)) {
-        uvedit_face_select_disable(scene, em->bm, efa, offsets);
+      if (only_selected_uvs && !uvedit_face_select_test(scene, em->bm, efa)) {
+        uvedit_face_select_disable(scene, em->bm, efa);
         continue;
       }
 
@@ -4208,8 +4211,8 @@ static void uvedit_unwrap_cube_project(const Scene *scene,
     if (use_select && !BM_elem_flag_test(efa, BM_ELEM_SELECT)) {
       continue;
     }
-    if (only_selected_uvs && !uvedit_face_select_test(scene, bm, efa, offsets)) {
-      uvedit_face_select_disable(scene, bm, efa, offsets);
+    if (only_selected_uvs && !uvedit_face_select_test(scene, bm, efa)) {
+      uvedit_face_select_disable(scene, bm, efa);
       continue;
     }
 
@@ -4340,7 +4343,7 @@ void ED_uvedit_add_simple_uvs(Main *bmain, const Scene *scene, Object *ob)
   BM_mesh_bm_from_me(bm, mesh, &bm_from_me_params);
 
   /* Select all UVs for cube_project. */
-  ED_uvedit_select_all(bm);
+  ED_uvedit_select_all(scene->toolsettings, bm);
   /* A cube size of 2.0 maps [-1..1] vertex coords to [0.0..1.0] in UV coords. */
   uvedit_unwrap_cube_project(scene, bm, 2.0, false, false, nullptr);
 

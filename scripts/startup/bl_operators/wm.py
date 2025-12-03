@@ -31,7 +31,7 @@ from bpy.app.translations import (
 
 def _rna_path_prop_search_for_context_impl(context, edit_text, unique_attrs):
     # Use the same logic as auto-completing in the Python console to expand the data-path.
-    from bl_console_utils.autocomplete import intellisense
+    from _bl_console_utils.autocomplete import intellisense
     context_prefix = "context."
     line = context_prefix + edit_text
     cursor = len(line)
@@ -148,7 +148,7 @@ def context_path_validate(context, data_path):
 
 
 def context_path_to_rna_property(context, data_path):
-    from bl_rna_utils.data_path import property_definition_from_data_path
+    from _bl_rna_utils.data_path import property_definition_from_data_path
     rna_prop = property_definition_from_data_path(context, "." + data_path)
     if rna_prop is not None:
         return rna_prop
@@ -167,7 +167,7 @@ def context_path_decompose(data_path):
     # Note that the `.` is removed from the start of the first and second values,
     # this is done because `.attr` isn't convenient to use as an argument,
     # also the convention is not to include this within the data paths or the operator logic for `bpy.ops.wm.*`.
-    from bl_rna_utils.data_path import decompose_data_path
+    from _bl_rna_utils.data_path import decompose_data_path
     path_split = decompose_data_path("." + data_path)
 
     # Find the last property that isn't a function call.
@@ -1342,7 +1342,7 @@ class WM_OT_doc_view_manual(Operator):
             self.report(
                 {'WARNING'},
                 rpt_("No reference available {!r}, "
-                     "Update info in 'rna_manual_reference.py' "
+                     "update info in '_rna_manual_reference.py' "
                      "or callback to bpy.utils.manual_map()").format(self.doc_id)
             )
             return {'CANCELLED'}
@@ -1891,12 +1891,12 @@ class WM_OT_properties_edit(Operator):
             try:
                 new_value = eval(self.eval_string)
             except Exception as ex:
-                self.report({'WARNING'}, "Python evaluation failed: " + str(ex))
+                self.report({'WARNING'}, rpt_("Python evaluation failed: {:s}").format(str(ex)))
                 return {'CANCELLED'}
             try:
                 item[name] = new_value
             except Exception as ex:
-                self.report({'ERROR'}, "Failed to assign value: " + str(ex))
+                self.report({'ERROR'}, rpt_("Failed to assign value: {:s}").format(str(ex)))
                 return {'CANCELLED'}
             if name_old != name:
                 del item[name_old]
@@ -3290,14 +3290,14 @@ class WM_OT_batch_rename(Operator):
                 try:
                     re.compile(action.replace_src)
                 except Exception as ex:
-                    self.report({'ERROR'}, "Invalid regular expression (find): " + str(ex))
+                    self.report({'ERROR'}, rpt_("Invalid regular expression (find): {:s}").format(str(ex)))
                     return {'CANCELLED'}
 
                 if action.use_replace_regex_dst:
                     try:
                         re.sub(action.replace_src, action.replace_dst, "")
                     except Exception as ex:
-                        self.report({'ERROR'}, "Invalid regular expression (replace): " + str(ex))
+                        self.report({'ERROR'}, rpt_("Invalid regular expression (replace): {:s}").format(str(ex)))
                         return {'CANCELLED'}
 
         total_len = 0

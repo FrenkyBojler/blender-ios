@@ -188,6 +188,7 @@ dict_custom = {
     "foveation",
     "generatrix",
     "glitchy",
+    "handlings",
     "haptics",
     "headerless",
     "highlightable",
@@ -907,7 +908,7 @@ dict_ignore_hyphenated_suffix = {
 }
 
 files_ignore = {
-    "scripts/modules/bl_i18n_utils/utils_spell_check.py",  # UI spelling, doesn't always match code spelling.
+    "scripts/modules/_bl_i18n_utils/utils_spell_check.py",  # UI spelling, doesn't always match code spelling.
     "tools/utils/git_data_canonical_authors.py",  # Too many names which aren't in the dictionary.
     "tools/utils_doc/rna_manual_reference_updater.py",  # Contains language ID references.
 
@@ -917,7 +918,8 @@ files_ignore = {
     "source/blender/gpu/shaders/common/gpu_shader_smaa_lib.glsl",
 }
 
+# These contain many typos that could be resolved, then removed from this list.
 directories_ignore = {
-    "scripts/addons",
-    "scripts/addons_core",
+    "scripts/addons_core/io_scene_gltf2/",
+    "scripts/addons_core/rigify/",
 }

@@ -38,6 +38,7 @@
 #include "BLI_math_vector.hh"
 #include "BLI_rand.hh"
 #include "BLI_set.hh"
+#include "BLI_stack.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
@@ -396,7 +397,7 @@ static void node_foreach_id(ID *id, LibraryForeachIDData *data)
 
   if (ntree->runtime->geometry_nodes_eval_dependencies) {
     for (ID *&id_ref : ntree->runtime->geometry_nodes_eval_dependencies->ids.values()) {
-      BKE_LIB_FOREACHID_PROCESS_ID(data, id_ref, IDWALK_CB_NOP);
+      BKE_LIB_FOREACHID_PROCESS_ID(data, id_ref, IDWALK_CB_HASH_IGNORE);
     }
   }
 }
@@ -492,8 +493,10 @@ static void node_foreach_working_space_color(ID *id, const IDTypeForeachColorFun
       else if (socket->type == SOCK_VECTOR && socket->default_value &&
                (STREQ(socket->name, "Subsurface Radius") ||
                 STREQ(socket->name, "Subsurface Radius Scale") ||
-                (node->type_legacy == SH_NODE_SUBSURFACE_SCATTERING &&
-                 STREQ(socket->name, "Radius"))))
+                (STREQ(node->idname, "ShaderNodeSubsurfaceScattering") &&
+                 STREQ(socket->name, "Radius")) ||
+                (STREQ(node->idname, "ShaderNodeBsdfMetallic") &&
+                 (STREQ(socket->name, "IOR") || STREQ(socket->name, "Extinction")))))
       {
         bNodeSocketValueVector *vec = static_cast<bNodeSocketValueVector *>(socket->default_value);
         float length;
@@ -1074,7 +1077,7 @@ static void node_blend_write_storage(BlendWriter *writer, bNodeTree *ntree, bNod
     }
   }
   else if (node->type_legacy == GEO_NODE_VIEWER) {
-    /* Forward compatibility for older Blender versionins where the viewer node only had a geometry
+    /* Forward compatibility for older Blender versions where the viewer node only had a geometry
      * and field input. */
     auto &storage = *static_cast<NodeGeometryViewer *>(node->storage);
     for (const NodeGeometryViewerItem &item : Span{storage.items, storage.items_num}) {
@@ -3369,35 +3372,56 @@ void node_chain_iterator(const bNodeTree *ntree,
 }
 
 static void iter_backwards_ex(const bNodeTree *ntree,
-                              const bNode *node_start,
+                              bNode *node_start,
                               bool (*callback)(bNode *, bNode *, void *),
                               void *userdata,
                               const char recursion_mask)
 {
-  LISTBASE_FOREACH (bNodeSocket *, sock, &node_start->inputs) {
-    bNodeLink *link = sock->link;
-    if (link == nullptr) {
-      continue;
-    }
-    if ((link->flag & NODE_LINK_VALID) == 0) {
-      /* Skip links marked as cyclic. */
-      continue;
-    }
-    if (link->fromnode->runtime->iter_flag & recursion_mask) {
-      continue;
-    }
+  blender::Stack<bNode *> stack;
+  blender::Stack<bNode *> zone_stack;
+  stack.push(node_start);
 
-    link->fromnode->runtime->iter_flag |= recursion_mask;
+  while (!stack.is_empty() || !zone_stack.is_empty()) {
+    bNode *node = !stack.is_empty() ? stack.pop() : zone_stack.pop();
 
-    if (!callback(link->fromnode, link->tonode, userdata)) {
-      return;
+    LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
+      bNodeLink *link = sock->link;
+      if (link == nullptr) {
+        continue;
+      }
+      if ((link->flag & NODE_LINK_VALID) == 0) {
+        /* Skip links marked as cyclic. */
+        continue;
+      }
+      if (link->fromnode->runtime->iter_flag & recursion_mask) {
+        continue;
+      }
+
+      link->fromnode->runtime->iter_flag |= recursion_mask;
+
+      if (!callback(link->fromnode, link->tonode, userdata)) {
+        break;
+      }
+      stack.push(link->fromnode);
     }
-    iter_backwards_ex(ntree, link->fromnode, callback, userdata, recursion_mask);
+    /* Zone input nodes are implicitly linked to their corresponding zone output nodes,
+     * even if there is no bNodeLink between them. */
+    if (const bNodeZoneType *zone_type = zone_type_by_node_type(node->type_legacy)) {
+      if (zone_type->output_type == node->type_legacy) {
+        if (bNode *zone_input_node = const_cast<bNode *>(
+                zone_type->get_corresponding_input(*ntree, *node)))
+        {
+          if (callback(zone_input_node, node, userdata)) {
+            zone_stack.push(zone_input_node);
+          }
+        }
+      }
+    }
   }
 }
 
 void node_chain_iterator_backwards(const bNodeTree *ntree,
-                                   const bNode *node_start,
+                                   bNode *node_start,
                                    bool (*callback)(bNode *, bNode *, void *),
                                    void *userdata,
                                    const int recursion_lvl)
@@ -3468,12 +3492,10 @@ bNode *node_add_node(const bContext *C,
     node_unique_id(ntree, *node);
   }
   node->ui_order = ntree.all_nodes().size();
-
   idname.copy_utf8_truncated(node->idname);
-  node_set_typeinfo(C, &ntree, node, node_type_find(idname));
 
   BKE_ntree_update_tag_node_new(&ntree, node);
-
+  node_set_typeinfo(C, &ntree, node, node_type_find(idname));
   return node;
 }
 
@@ -3730,6 +3752,17 @@ void node_socket_move_default_value(Main & /*bmain*/,
     }
   }
 
+  /* Special handling for strings because the generic code below can't handle them. */
+  if (src.type == SOCK_STRING && dst.type == SOCK_STRING &&
+      dst_node.is_type("FunctionNodeInputString"))
+  {
+    auto *src_value = static_cast<bNodeSocketValueString *>(src.default_value);
+    auto *dst_storage = static_cast<NodeInputString *>(dst_node.storage);
+    MEM_SAFE_FREE(dst_storage->string);
+    dst_storage->string = BLI_strdup_null(src_value->value);
+    return;
+  }
+
   void *src_value = socket_value_storage(src);
   if (!src_value) {
     return;
@@ -3743,17 +3776,6 @@ void node_socket_move_default_value(Main & /*bmain*/,
     dst_node.input_socket(0).default_value_typed<bNodeSocketValueFloat>()->value = src_value.x;
     dst_node.input_socket(1).default_value_typed<bNodeSocketValueFloat>()->value = src_value.y;
     dst_node.input_socket(2).default_value_typed<bNodeSocketValueFloat>()->value = src_value.z;
-    return;
-  }
-
-  /* Special handling for strings because the generic code below can't handle them. */
-  if (src.type == SOCK_STRING && dst.type == SOCK_STRING &&
-      dst_node.is_type("FunctionNodeInputString"))
-  {
-    auto *src_value = static_cast<bNodeSocketValueString *>(src.default_value);
-    auto *dst_storage = static_cast<NodeInputString *>(dst_node.storage);
-    MEM_SAFE_FREE(dst_storage->string);
-    dst_storage->string = BLI_strdup_null(src_value->value);
     return;
   }
 
@@ -4363,7 +4385,8 @@ void node_tree_free_local_node(bNodeTree &ntree, bNode &node)
   node_rebuild_id_vector(ntree);
 }
 
-void node_remove_node(Main *bmain, bNodeTree &ntree, bNode &node, const bool do_id_user)
+void node_remove_node(
+    Main *bmain, bNodeTree &ntree, bNode &node, const bool do_id_user, const bool remove_animation)
 {
   /* This function is not for localized node trees, we do not want
    * do to ID user reference-counting and removal of animation data then. */
@@ -4390,16 +4413,17 @@ void node_remove_node(Main *bmain, bNodeTree &ntree, bNode &node, const bool do_
     }
   }
 
-  /* Remove animation data. */
-  char propname_esc[MAX_IDPROP_NAME * 2];
-  char prefix[MAX_IDPROP_NAME * 2];
+  if (remove_animation) {
+    char propname_esc[MAX_IDPROP_NAME * 2];
+    char prefix[MAX_IDPROP_NAME * 2];
 
-  BLI_str_escape(propname_esc, node.name, sizeof(propname_esc));
-  SNPRINTF_UTF8(prefix, "nodes[\"%s\"]", propname_esc);
+    BLI_str_escape(propname_esc, node.name, sizeof(propname_esc));
+    SNPRINTF_UTF8(prefix, "nodes[\"%s\"]", propname_esc);
 
-  if (BKE_animdata_fix_paths_remove(&ntree.id, prefix)) {
-    if (bmain != nullptr) {
-      DEG_relations_tag_update(bmain);
+    if (BKE_animdata_fix_paths_remove(&ntree.id, prefix)) {
+      if (bmain != nullptr) {
+        DEG_relations_tag_update(bmain);
+      }
     }
   }
 
@@ -4973,7 +4997,14 @@ std::optional<StringRefNull> node_socket_short_label(const bNodeSocket &sock)
 
 StringRefNull node_socket_label(const bNodeSocket &sock)
 {
-  return (sock.label[0] != '\0') ? sock.label : sock.name;
+  /* The node is not explicitly defined. */
+  if (sock.runtime->declaration == nullptr) {
+    return (sock.label[0] != '\0') ? sock.label : sock.name;
+  }
+  if (sock.runtime->declaration->label_fn) {
+    return (*sock.runtime->declaration->label_fn)(sock.owner_node());
+  }
+  return sock.name;
 }
 
 const char *node_socket_translation_context(const bNodeSocket &sock)

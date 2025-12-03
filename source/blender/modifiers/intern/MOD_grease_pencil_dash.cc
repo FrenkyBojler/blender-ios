@@ -429,10 +429,10 @@ static void panel_draw(const bContext *C, Panel *panel)
   sub->op("OBJECT_OT_grease_pencil_dash_modifier_segment_remove", "", ICON_REMOVE);
   col->separator();
   sub = &col->column(true);
-  PointerRNA op_ptr = layout->op(
+  PointerRNA op_ptr = sub->op(
       "OBJECT_OT_grease_pencil_dash_modifier_segment_move", "", ICON_TRIA_UP);
   RNA_enum_set(&op_ptr, "type", /* blender::ed::object::DashSegmentMoveDirection::Up */ -1);
-  op_ptr = layout->op("OBJECT_OT_grease_pencil_dash_modifier_segment_move", "", ICON_TRIA_DOWN);
+  op_ptr = sub->op("OBJECT_OT_grease_pencil_dash_modifier_segment_move", "", ICON_TRIA_DOWN);
   RNA_enum_set(&op_ptr, "type", /* blender::ed::object::DashSegmentMoveDirection::Down */ 1);
 
   if (dmd->segment_active_index >= 0 && dmd->segment_active_index < dmd->segments_num) {
@@ -463,7 +463,7 @@ static void panel_draw(const bContext *C, Panel *panel)
 
 static void segment_list_item_draw(uiList * /*ui_list*/,
                                    const bContext * /*C*/,
-                                   uiLayout *layout,
+                                   ui::Layout &layout,
                                    PointerRNA * /*idataptr*/,
                                    PointerRNA *itemptr,
                                    int /*icon*/,
@@ -472,8 +472,8 @@ static void segment_list_item_draw(uiList * /*ui_list*/,
                                    int /*index*/,
                                    int /*flt_flag*/)
 {
-  uiLayout *row = &layout->row(true);
-  row->prop(itemptr, "name", UI_ITEM_R_NO_BG, "", ICON_NONE);
+  ui::Layout &row = layout.row(true);
+  row.prop(itemptr, "name", UI_ITEM_R_NO_BG, "", ICON_NONE);
 }
 
 static void panel_register(ARegionType *region_type)

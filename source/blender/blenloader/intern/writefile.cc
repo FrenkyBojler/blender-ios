@@ -105,6 +105,7 @@
 #include "BLI_set.hh"
 #include "BLI_string.h"
 #include "BLI_threads.h"
+#include "BLI_time.h"
 
 #include "MEM_guardedalloc.h" /* MEM_freeN */
 
@@ -161,6 +162,7 @@
 #define ZSTD_COMPRESSION_LEVEL 3
 
 static CLG_LogRef LOG = {"blend.writefile"};
+static CLG_LogRef LOG_UNDO = {"undo"};
 
 /** Use if we want to store how many bytes have been written to the file. */
 // #define USE_WRITE_DATA_LEN
@@ -506,6 +508,11 @@ struct WriteData {
    * Will be nullptr for UNDO.
    */
   WriteWrap *ww;
+
+  /**
+   * Timestamp info defined when creating the new WriteData. Used for performance logging.
+   */
+  double timestamp_init;
 };
 
 struct BlendWriter {
@@ -515,6 +522,8 @@ struct BlendWriter {
 static WriteData *writedata_new(WriteWrap *ww)
 {
   WriteData *wd = MEM_new<WriteData>(__func__);
+
+  wd->timestamp_init = BLI_time_now_seconds();
 
   wd->sdna = DNA_sdna_current_get();
   wd->stable_address_ids.sdna_pointers = std::make_unique<blender::dna::pointers::PointersInDNA>(
@@ -677,6 +686,13 @@ static bool mywrite_end(WriteData *wd)
 
   if (wd->use_memfile) {
     BLO_memfile_write_finalize(&wd->mem);
+    CLOG_INFO(&LOG_UNDO,
+              "Memfile undo step written in %.3f seconds",
+              BLI_time_now_seconds() - wd->timestamp_init);
+  }
+  else {
+    CLOG_INFO(
+        &LOG, "Blendfile written in %.3f seconds", BLI_time_now_seconds() - wd->timestamp_init);
   }
 
   const bool err = wd->validation_data.critical_error;
@@ -685,16 +701,44 @@ static bool mywrite_end(WriteData *wd)
   return err;
 }
 
-static uint64_t get_stable_pointer_hint_for_id(const ID &id)
+static uint64_t get_stable_pointer_hint_for_id(const ID &id, const bool is_undo)
 {
-  /* Make the stable pointer dependent on the data-block name. This is somewhat arbitrary but the
-   * name is at least something that doesn't really change automatically unexpectedly. */
-  const uint64_t name_hash = XXH3_64bits(id.name, strlen(id.name));
-  if (id.lib) {
-    const uint64_t lib_hash = XXH3_64bits(id.lib->id.name, strlen(id.lib->id.name));
-    return name_hash ^ lib_hash;
+  /* Make the stable pointer depend on a specific data of the ID.
+   * Note that this is different when writing blendfile on disk, and when writing an undo step in
+   * memory (memfile).
+   *
+   * For the blendfile on disk, the ID name is used, together with its library if linked, as this
+   * is effectively the 'unique identifier' of IDs in blend-files and across linking,
+   * so if these change, it's also fine to get a different 'stable pointer'.
+   *
+   * For the undo memfile however, things are different: It is possible that a same ID name is
+   * reused for two different IDs in two different consecutive undo steps (see #149899). Getting
+   * the same stable pointer in this case can lead to falsely detecting other IDs using these as
+   * unchanged, leading to undo data corruption and crashes.
+   * In this case, using the session UID is a better source of info, as these are assumed unique
+   * during an editing session, and are extremely stable for a same ID (even if it is e.g.
+   * renamed).
+   */
+  if (is_undo) {
+    /* Note: Using the uint32_t session_uid also means that library data can be ignored (and ID
+     * made local always get a new session UID), and that there is no need to call the hashing code
+     * at all.
+     *
+     * However, to leave enough 'address space' for all the sub-data pointers, its value is shifted
+     * into higher significant bits of the returned value (only shift by 20 bits here, since
+     * #stable_id_from_hint also shifts further the generated values by 4, and some of the most
+     * significant bits are also reserved for flags, like the #implicit_sharing_address_id_flag
+     * one). */
+    return uint64_t(id.session_uid) << 20;
   }
-  return name_hash;
+
+  const uint64_t id_hash = XXH3_64bits(id.name, strlen(id.name));
+  if (!id.lib) {
+    return id_hash;
+  }
+
+  const uint64_t lib_hash = XXH3_64bits(id.lib->id.name, strlen(id.lib->id.name));
+  return id_hash ^ lib_hash;
 }
 
 /**
@@ -714,9 +758,11 @@ static void mywrite_id_begin(WriteData *wd, ID *id)
   BLI_assert_msg((id->flag & ID_FLAG_EMBEDDED_DATA) == 0 || id->deep_hash.is_null(),
                  "Embedded IDs should always have a null deep-hash data");
 
-  wd->stable_address_ids.next_id_hint = get_stable_pointer_hint_for_id(*id);
+  const bool is_undo = wd->use_memfile;
 
-  if (wd->use_memfile) {
+  wd->stable_address_ids.next_id_hint = get_stable_pointer_hint_for_id(*id, is_undo);
+
+  if (is_undo) {
     wd->mem.current_id_session_uid = id->session_uid;
 
     /* If current next memchunk does not match the ID we are about to write, or is not the _first_
@@ -830,6 +876,9 @@ static void write_bhead(WriteData *wd, const BHead &bhead)
   mywrite(wd, &bh, sizeof(bh));
 }
 
+/** This bit is used to mark address ids that use implicit sharing during undo. */
+constexpr uint64_t implicit_sharing_address_id_flag = uint64_t(1) << 63;
+
 static uint64_t stable_id_from_hint(const uint64_t hint)
 {
   /* Add a stride. This is not strictly necessary but may help with debugging later on because it's
@@ -839,22 +888,44 @@ static uint64_t stable_id_from_hint(const uint64_t hint)
     /* Null values are reserved for nullptr. */
     stable_id = (1 << 4);
   }
+  /* Remove the first bit as it reserved for pointers for implicit sharing.*/
+  stable_id &= ~implicit_sharing_address_id_flag;
   return stable_id;
 }
 
-static uint64_t get_next_stable_address_id(WriteData &wd)
+static uint64_t get_next_stable_address_id(WriteData &wd, uint64_t &hint)
 {
-  uint64_t stable_id = stable_id_from_hint(wd.stable_address_ids.next_id_hint);
+  uint64_t stable_id = stable_id_from_hint(hint);
   while (!wd.stable_address_ids.used_ids.add(stable_id)) {
     /* Generate a new hint because there is a collision. Collisions are generally expected to be
      * very rare. It can happen when #get_stable_pointer_hint_for_id produces values that are very
      * close for different IDs. */
-    wd.stable_address_ids.next_id_hint = XXH3_64bits(&wd.stable_address_ids.next_id_hint,
-                                                     sizeof(uint64_t));
-    stable_id = stable_id_from_hint(wd.stable_address_ids.next_id_hint);
+    hint = XXH3_64bits(&hint, sizeof(uint64_t));
+    stable_id = stable_id_from_hint(hint);
   }
-  wd.stable_address_ids.next_id_hint++;
+  hint++;
   return stable_id;
+}
+
+/**
+ * When writing an undo step, implicitly shared pointers do not use stable-pointers because that
+ * would lead to incorrect detection if a data-block has been changed between undo steps. That's
+ * because different shared data could be mapped to the same stable pointer, leading to
+ * #is_memchunk_identical to being true even if the referenced data is actually different.
+ *
+ * Another way to look at it is that implicit-sharing is a system for stable pointers (at runtime)
+ * itself. So it does not need an additional layer of stable pointers on top.
+ */
+static uint64_t get_address_id_for_implicit_sharing_data(const void *data)
+{
+  BLI_assert(data != nullptr);
+  uint64_t address_id = uint64_t(data);
+  /* Adding this bit so that it never overlap with an id generated by #stable_id_from_hint.
+   * Assuming that the given pointer is an actual pointer, it will stay unique when the
+   * #implicit_sharing_address_id_flag bit is set. That's because the upper bits of the pointer
+   * are effectively unused nowadays. */
+  address_id |= implicit_sharing_address_id_flag;
+  return address_id;
 }
 
 static uint64_t get_address_id_int(WriteData &wd, const void *address)
@@ -863,8 +934,9 @@ static uint64_t get_address_id_int(WriteData &wd, const void *address)
     return 0;
   }
   /* Either reuse an existing identifier or create a new one. */
-  return wd.stable_address_ids.pointer_map.lookup_or_add_cb(
-      address, [&]() { return get_next_stable_address_id(wd); });
+  return wd.stable_address_ids.pointer_map.lookup_or_add_cb(address, [&]() {
+    return get_next_stable_address_id(wd, wd.stable_address_ids.next_id_hint);
+  });
 }
 
 static const void *get_address_id(WriteData &wd, const void *address)
@@ -922,8 +994,8 @@ static void writestruct_at_address_nr(WriteData *wd,
       for (const blender::dna::pointers::PointerInfo &pointer_info : struct_info.pointers) {
         const int offset = i * struct_info.size_in_bytes + pointer_info.offset;
         const void **p_ptr = reinterpret_cast<const void **>(POINTER_OFFSET(buffer, offset));
-        const void *address_id = get_address_id(*wd, *p_ptr);
-        *p_ptr = address_id;
+        const void *p_ptr_address_id = get_address_id(*wd, *p_ptr);
+        *p_ptr = p_ptr_address_id;
       }
     }
   }
@@ -1300,6 +1372,7 @@ static void write_libraries(WriteData *wd, Main *bmain)
     FOREACH_MAIN_ID_END;
   }
 
+  blender::Set<Library *> written_libraries;
   LISTBASE_FOREACH (Library *, library_ptr, &bmain->libraries) {
     Library &library = *library_ptr;
     const blender::Span<ID *> ids = linked_ids_by_library.lookup(&library);
@@ -1352,7 +1425,38 @@ static void write_libraries(WriteData *wd, Main *bmain)
       continue;
     }
 
+    /* Since code below checking that archive libraries' parents have already been written, may
+     * forcefully write that parent library in some cases, also double-check here that current
+     * library has not yet been written.
+     *
+     * Note: In theory this should never be the case, as a parent library is always expected to be
+     * written before its archives. */
+    if (written_libraries.contains(&library)) {
+      CLOG_ERROR(
+          &LOG, "Attempt to re-write already written library '%s', skipping", library.id.name);
+      continue;
+    }
+
+    if (library.flag & LIBRARY_FLAG_IS_ARCHIVE) {
+      if (!library.archive_parent_library) {
+        CLOG_ERROR(&LOG, "Written archive library '%s' has no parent library", library.id.name);
+      }
+      if (!written_libraries.contains(library.archive_parent_library)) {
+        CLOG_ERROR(
+            &LOG,
+            "Written archive library '%s', while its parent library '%s' has not been written",
+            library.id.name,
+            library.archive_parent_library->id.name);
+
+        /* Only write the parent library itself, if it was not written so far, none of its IDs was
+         * to be written either. */
+        write_id(wd, &library.archive_parent_library->id);
+        written_libraries.add(library.archive_parent_library);
+      }
+    }
+
     write_id(wd, &library.id);
+    written_libraries.add(&library);
 
     /* Write placeholders for linked data-blocks that are used, and real IDs for the packed linked
      * ones. */
@@ -1675,6 +1779,29 @@ static blender::Vector<ID *> gather_local_ids_to_write(Main *bmain, const bool i
 }
 
 /**
+ * Precomputes a stable pointer for each data-block before they are used. This ensures that their
+ * written pointer does not depend on the order in which data-blocks are written.
+ */
+static void prepare_stable_data_block_ids(WriteData &wd, Main &bmain)
+{
+  ID *id;
+  FOREACH_MAIN_ID_BEGIN (&bmain, id) {
+    /* Ensure no other stable pointer has been created before. */
+    BLI_assert(!wd.stable_address_ids.pointer_map.contains(id));
+
+    /* Derive the stable pointer from the id/library name which is independent of the write-order
+     * of data-blocks. */
+    uint64_t hint = get_stable_pointer_hint_for_id(*id, wd.use_memfile);
+    const uint64_t address_id = get_next_stable_address_id(wd, hint);
+
+    /* Store the computed stable pointer so that it is used whenever the data-block is written or
+     * referenced. */
+    wd.stable_address_ids.pointer_map.add(id, address_id);
+  }
+  FOREACH_MAIN_ID_END;
+}
+
+/**
  * When #MemFile arguments are non-null, this is a file-safe to memory.
  *
  * \param compare: Previous memory file (can be nullptr).
@@ -1694,6 +1821,8 @@ static bool write_file_handle(Main *mainvar,
   wd = mywrite_begin(ww, compare, current);
   wd->debug_dst = debug_dst;
   BlendWriter writer = {wd};
+
+  prepare_stable_data_block_ids(*wd, *mainvar);
 
   /* Clear 'directly linked' flag for all linked data, these are not necessarily valid/up-to-date
    * info, they will be re-generated while write code is processing local IDs below. */
@@ -2248,6 +2377,21 @@ void BLO_write_string(BlendWriter *writer, const char *data_ptr)
   }
 }
 
+void BLO_write_shared_tag(BlendWriter *writer, const void *data)
+{
+  if (!data) {
+    return;
+  }
+  if (!BLO_write_is_undo(writer)) {
+    return;
+  }
+  const uint64_t address_id = get_address_id_for_implicit_sharing_data(data);
+  /* Check that the pointer has not been written before it was tagged as being shared. */
+  BLI_assert(writer->wd->stable_address_ids.pointer_map.lookup_default(data, address_id) ==
+             address_id);
+  writer->wd->stable_address_ids.pointer_map.add(data, address_id);
+}
+
 void BLO_write_shared(BlendWriter *writer,
                       const void *data,
                       const size_t approximate_size_in_bytes,
@@ -2256,6 +2400,9 @@ void BLO_write_shared(BlendWriter *writer,
 {
   if (data == nullptr) {
     return;
+  }
+  if (sharing_info) {
+    BLO_write_shared_tag(writer, data);
   }
   const uint64_t address_id = get_address_id_int(*writer->wd, data);
   if (BLO_write_is_undo(writer)) {

@@ -42,6 +42,8 @@ bool wm_get_screensize(int r_size[2]) ATTR_NONNULL(1) ATTR_WARN_UNUSED_RESULT;
  */
 bool wm_get_desktopsize(int r_size[2]) ATTR_NONNULL(1) ATTR_WARN_UNUSED_RESULT;
 
+bool wm_is_full_screen(wmWindow *win) ATTR_NONNULL(1) ATTR_WARN_UNUSED_RESULT;
+
 /**
  * Don't change context itself.
  */

@@ -419,7 +419,7 @@ set(SRC
   BKE_grease_pencil.hh
   BKE_grease_pencil_legacy_convert.hh
   BKE_grease_pencil_vertex_groups.hh
-  BKE_icons.h
+  BKE_icons.hh
   BKE_id_hash.hh
   BKE_idprop.hh
   BKE_idtype.hh
@@ -447,7 +447,7 @@ set(SRC
   BKE_main_idmap.hh
   BKE_main_invariants.hh
   BKE_main_namemap.hh
-  BKE_mask.h
+  BKE_mask.hh
   BKE_material.hh
   BKE_mball.hh
   BKE_mball_tessellate.hh
@@ -503,11 +503,11 @@ set(SRC
   BKE_scene.hh
   BKE_scene_runtime.hh
   BKE_screen.hh
-  BKE_shader_fx.h
+  BKE_shader_fx.hh
   BKE_shrinkwrap.hh
   BKE_softbody.h
-  BKE_sound.h
-  BKE_speaker.h
+  BKE_sound.hh
+  BKE_speaker.hh
   BKE_studiolight.h
   BKE_subdiv.hh
   BKE_subdiv_ccg.hh
@@ -814,6 +814,7 @@ if(WITH_GTESTS)
     intern/main_test.cc
     intern/nla_test.cc
     intern/path_templates_test.cc
+    intern/scene_test.cc
     intern/subdiv_ccg_test.cc
     intern/tracking_test.cc
     intern/volume_test.cc
