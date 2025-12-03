@@ -193,6 +193,40 @@ static inline float3 ycocg_to_rgb(const float3 &ycocg)
 }
 
 /* -------------------------------------------------------------------
+ * Tone Mapping for HDR-Safe Variance Clipping
+ * Prevents fireflies and extreme HDR values from breaking AABB
+ * ------------------------------------------------------------------- */
+
+static inline float tonemap_channel(float x)
+{
+  /* Reinhard-style: x / (1 + x) */
+  /* Simple, invertible, compresses HDR → [0,1] range */
+  return x / (1.0f + x);
+}
+
+static inline float inverse_tonemap_channel(float x)
+{
+  /* Inverse: x / (1 - x) */
+  /* Clamp to prevent division by zero at x=1 */
+  const float clamped = math::min(x, 0.999f);
+  return clamped / (1.0f - clamped);
+}
+
+static inline float3 tonemap(const float3 &color)
+{
+  return float3(tonemap_channel(color.x),
+                tonemap_channel(color.y),
+                tonemap_channel(color.z));
+}
+
+static inline float3 inverse_tonemap(const float3 &color)
+{
+  return float3(inverse_tonemap_channel(color.x),
+                inverse_tonemap_channel(color.y),
+                inverse_tonemap_channel(color.z));
+}
+
+/* -------------------------------------------------------------------
  * Variance Clipping (AABB Method)
  * Computes min/max bounds from neighborhood variance to reject
  * outlier historical colors, preventing ghosting artifacts.
@@ -232,8 +266,11 @@ static NeighborhoodStats compute_neighborhood_aabb(const Result &input,
     const float3 rgb = float3(color.x, color.y, color.z);
     const float3 ycocg = rgb_to_ycocg(rgb);
     
-    m1 += ycocg;
-    m2 += ycocg * ycocg;
+    /* IMPROVEMENT: Tone map before variance computation (HDR-safe) */
+    const float3 ycocg_tm = tonemap(ycocg);
+    
+    m1 += ycocg_tm;
+    m2 += ycocg_tm * ycocg_tm;
   }
 
   m1 /= 5.0f;
@@ -243,11 +280,11 @@ static NeighborhoodStats compute_neighborhood_aabb(const Result &input,
   const float3 variance = math::max(float3(0.0f), m2 - m1 * m1);
   const float3 sigma = math::sqrt(variance);
 
-  /* AABB bounds: mean ± gamma * sigma */
+  /* AABB bounds: mean ± gamma * sigma (in tone-mapped space) */
   NeighborhoodStats stats;
-  stats.mean = m1;
+  stats.mean = m1;  /* tone-mapped mean */
   stats.variance = variance;
-  stats.aabb_min = m1 - gamma * sigma;
+  stats.aabb_min = m1 - gamma * sigma;  /* tone-mapped bounds */
   stats.aabb_max = m1 + gamma * sigma;
 
   return stats;
@@ -396,6 +433,9 @@ class TemporalDenoiseOperation : public NodeOperation {
       const float4 center_rgba = input_cpu.load_pixel<float4>(texel);
       const float3 center_rgb = float3(center_rgba.x, center_rgba.y, center_rgba.z);
       const float3 center_ycocg = rgb_to_ycocg(center_rgb);
+      
+      /* Tone map current pixel for variance clipping and responsive AA */
+      const float3 center_ycocg_tm = tonemap(center_ycocg);
       
       /* Load motion vector */
       const float4 motion_vec = has_motion ? speed_cpu.load_pixel<float4>(texel) : float4(0.0f);
@@ -569,19 +609,26 @@ class TemporalDenoiseOperation : public NodeOperation {
               }
             }
 
-            /* 4. Variance Clipping (AABB) - Reject outliers */
+            /* 4. Variance Clipping (AABB) - Tone-mapped space for HDR safety */
             if (is_valid) {
-              hist_ycocg = clip_aabb(hist_ycocg, box_min, box_max);
+              /* Tone map historical color */
+              const float3 hist_ycocg_tm = tonemap(hist_ycocg);
               
-              /* Additional color divergence check after clamping - relaxed */
-              const float3 color_diff = math::abs(hist_ycocg - center_ycocg);
-              if (color_diff.x > 0.7f || color_diff.y > 0.7f || color_diff.z > 0.7f) {  /* Relaxed */
+              /* Clip in tone-mapped space (HDR-safe) */
+              const float3 clamped_tm = clip_aabb(hist_ycocg_tm, box_min, box_max);
+              
+              /* Inverse tone map back to linear */
+              hist_ycocg = inverse_tonemap(clamped_tm);
+              
+              /* Additional color divergence check after clamping */
+              const float3 color_diff_tm = math::abs(clamped_tm - center_ycocg_tm);
+              if (color_diff_tm.x > 0.7f || color_diff_tm.y > 0.7f || color_diff_tm.z > 0.7f) {
                 is_valid = false;
               }
             }
 
             /* ===============================================================
-             * EXPONENTIAL MOVING AVERAGE - Lower alphas for more stability
+             * EXPONENTIAL MOVING AVERAGE - Responsive AA
              * =============================================================== */
             
             if (is_valid) {
@@ -595,13 +642,20 @@ class TemporalDenoiseOperation : public NodeOperation {
                 has_valid_history = true;
               }
               else {
-                /* Blend with previous accumulation */
-                /* Base alpha adjusted by temporal_weight parameter */
+                /* Base alpha from quality setting */
                 const float base_alpha = quality == 0 ? 0.03f :   /* High - very stable */
                                          quality == 1 ? 0.07f :    /* Balanced */
                                          0.15f;                    /* Fast */
                 
-                const float adjusted_alpha = base_alpha * temporal_weight;
+                /* IMPROVEMENT: Responsive AA - increase alpha when color changes */
+                /* Detect significant color difference between current and accumulated */
+                const float3 accumulated_tm = tonemap(temporal_result_ycocg);
+                const float color_change = math::length(accumulated_tm - center_ycocg_tm);
+                
+                /* Boost alpha when change detected - makes AA more responsive */
+                const float responsive_boost = math::clamp(color_change * 2.0f, 1.0f, 3.0f);
+                
+                const float adjusted_alpha = base_alpha * temporal_weight * responsive_boost;
                 const float blend_alpha = adjusted_alpha * temporal_falloff;
                 temporal_result_ycocg = math::interpolate(temporal_result_ycocg, hist_ycocg, blend_alpha);
               }
@@ -624,8 +678,10 @@ class TemporalDenoiseOperation : public NodeOperation {
             const float3 hist_rgb = float3(hist_rgba.x, hist_rgba.y, hist_rgba.z);
             float3 hist_ycocg = rgb_to_ycocg(hist_rgb);
             
-            /* Apply variance clipping */
-            hist_ycocg = clip_aabb(hist_ycocg, box_min, box_max);
+            /* Apply tone-mapped variance clipping (HDR-safe) */
+            const float3 hist_ycocg_tm = tonemap(hist_ycocg);
+            const float3 clamped_tm = clip_aabb(hist_ycocg_tm, box_min, box_max);
+            hist_ycocg = inverse_tonemap(clamped_tm);
             
             /* Simple accumulation without motion validation */
             if (!has_valid_history) {
@@ -634,7 +690,13 @@ class TemporalDenoiseOperation : public NodeOperation {
             }
             else {
               const float base_alpha = quality == 0 ? 0.03f : quality == 1 ? 0.07f : 0.15f;
-              const float adjusted_alpha = base_alpha * temporal_weight;
+              
+              /* Responsive AA also in fallback mode */
+              const float3 accumulated_tm = tonemap(temporal_result_ycocg);
+              const float color_change = math::length(accumulated_tm - center_ycocg_tm);
+              const float responsive_boost = math::clamp(color_change * 2.0f, 1.0f, 3.0f);
+              
+              const float adjusted_alpha = base_alpha * temporal_weight * responsive_boost;
               const float temporal_falloff = 1.0f / (1.0f + float(i) * 0.5f);
               const float blend_alpha = adjusted_alpha * temporal_falloff;
               temporal_result_ycocg = math::interpolate(temporal_result_ycocg, hist_ycocg, blend_alpha);
