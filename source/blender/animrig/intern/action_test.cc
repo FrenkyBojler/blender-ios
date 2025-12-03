@@ -17,10 +17,13 @@
 #include "DNA_object_types.h"
 
 #include "RNA_access.hh"
+#include "RNA_prototypes.hh"
 
 #include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
+
+#include "DEG_depsgraph_build.hh"
 
 #include <limits>
 
@@ -28,6 +31,88 @@
 #include "testing/testing.h"
 
 namespace blender::animrig::tests {
+
+/**
+ * Ensure an FCurve exists for a legacy action. Only useful for unit tests since legacy actions can
+ * no longer be created and are versioned to layered actions.
+ */
+static FCurve *action_fcurve_ensure_legacy(Main *bmain,
+                                           bAction *act,
+                                           const char group[],
+                                           PointerRNA *ptr,
+                                           const FCurveDescriptor &fcurve_descriptor)
+{
+  if (!act) {
+    return nullptr;
+  }
+
+  BLI_assert(act->wrap().is_empty() || act->wrap().is_action_legacy());
+
+  /* Try to find f-curve matching for this setting.
+   * - add if not found and allowed to add one
+   *   TODO: add auto-grouping support? how this works will need to be resolved
+   */
+  FCurve *fcu = BKE_fcurve_find(
+      &act->curves, fcurve_descriptor.rna_path.c_str(), fcurve_descriptor.array_index);
+
+  if (fcu != nullptr) {
+    return fcu;
+  }
+
+  /* Determine the property (sub)type if we can. */
+  std::optional<PropertyType> prop_type = std::nullopt;
+  std::optional<PropertySubType> prop_subtype = std::nullopt;
+  if (ptr != nullptr) {
+    PropertyRNA *resolved_prop;
+    PointerRNA resolved_ptr;
+    PointerRNA id_ptr = RNA_id_pointer_create(ptr->owner_id);
+    const bool resolved = RNA_path_resolve_property(
+        &id_ptr, fcurve_descriptor.rna_path.c_str(), &resolved_ptr, &resolved_prop);
+    if (resolved) {
+      prop_type = RNA_property_type(resolved_prop);
+      prop_subtype = RNA_property_subtype(resolved_prop);
+    }
+  }
+
+  BLI_assert_msg(!fcurve_descriptor.prop_type.has_value(),
+                 "Did not expect a prop_type to be passed in. This is fine, but does need some "
+                 "changes to action_fcurve_ensure_legacy() to deal with it");
+  BLI_assert_msg(!fcurve_descriptor.prop_subtype.has_value(),
+                 "Did not expect a prop_subtype to be passed in. This is fine, but does need some "
+                 "changes to action_fcurve_ensure_legacy() to deal with it");
+  fcu = create_fcurve_for_channel(
+      {fcurve_descriptor.rna_path, fcurve_descriptor.array_index, prop_type, prop_subtype});
+
+  if (BLI_listbase_is_empty(&act->curves)) {
+    fcu->flag |= FCURVE_ACTIVE;
+  }
+
+  if (group) {
+    bActionGroup *agrp = BKE_action_group_find_name(act, group);
+
+    if (agrp == nullptr) {
+      agrp = action_groups_add_new(act, group);
+
+      /* Sync bone group colors if applicable. */
+      if (ptr && (ptr->type == &RNA_PoseBone) && ptr->data) {
+        const bPoseChannel *pchan = static_cast<const bPoseChannel *>(ptr->data);
+        action_group_colors_set_from_posebone(agrp, pchan);
+      }
+    }
+
+    action_groups_add_channel(act, agrp, fcu);
+  }
+  else {
+    BLI_addtail(&act->curves, fcu);
+  }
+
+  /* New f-curve was added, meaning it's possible that it affects
+   * dependency graph component which wasn't previously animated.
+   */
+  DEG_relations_tag_update(bmain);
+
+  return fcu;
+}
 
 TEST(action, low_level_initialisation)
 {
@@ -1006,25 +1091,6 @@ TEST_F(ActionLayersTest, is_action_assignable_to)
   EXPECT_TRUE(is_action_assignable_to(action, ID_CA))
       << "Empty Actions should be assignable to any type.";
 
-  /* Make the Action a legacy one. */
-  FCurve fake_fcurve;
-  BLI_addtail(&action->curves, &fake_fcurve);
-  ASSERT_FALSE(action->is_empty());
-  ASSERT_TRUE(action->is_action_legacy());
-  ASSERT_EQ(0, action->idroot);
-
-  EXPECT_TRUE(is_action_assignable_to(action, ID_OB))
-      << "Legacy Actions with idroot=0 should be assignable to any type.";
-  EXPECT_TRUE(is_action_assignable_to(action, ID_CA))
-      << "Legacy Actions with idroot=0 should be assignable to any type.";
-
-  /* Set the legacy idroot. */
-  action->idroot = ID_CA;
-  EXPECT_FALSE(is_action_assignable_to(action, ID_OB))
-      << "Legacy Actions with idroot=ID_CA should NOT be assignable to ID_OB.";
-  EXPECT_TRUE(is_action_assignable_to(action, ID_CA))
-      << "Legacy Actions with idroot=CA should be assignable to ID_CA.";
-
   /* Make the Action a layered one. */
   BLI_poptail(&action->curves);
   action->layer_add("layer");
@@ -1046,23 +1112,6 @@ TEST_F(ActionLayersTest, action_slot_get_id_for_keying__empty_action)
   /* None should return an ID, since there are no slots yet which could have this ID assigned.
    * Assignment of the Action itself (cube) shouldn't matter. */
   EXPECT_EQ(nullptr, action_slot_get_id_for_keying(*bmain, *action, 0, &cube->id));
-  EXPECT_EQ(nullptr, action_slot_get_id_for_keying(*bmain, *action, 0, nullptr));
-  EXPECT_EQ(nullptr, action_slot_get_id_for_keying(*bmain, *action, 0, &suzanne->id));
-}
-
-TEST_F(ActionLayersTest, action_slot_get_id_for_keying__legacy_action)
-{
-  FCurve *fcurve = action_fcurve_ensure_legacy(bmain, action, nullptr, nullptr, {"location", 0});
-  EXPECT_FALSE(fcurve == nullptr);
-
-  EXPECT_TRUE(assign_action(action, cube->id));
-
-  /* Double-check that the action is considered legacy for the test. */
-  EXPECT_TRUE(action->is_action_legacy());
-
-  /* A `primary_id` that uses the action should get returned. Every other case
-   * should return nullptr. */
-  EXPECT_EQ(&cube->id, action_slot_get_id_for_keying(*bmain, *action, 0, &cube->id));
   EXPECT_EQ(nullptr, action_slot_get_id_for_keying(*bmain, *action, 0, nullptr));
   EXPECT_EQ(nullptr, action_slot_get_id_for_keying(*bmain, *action, 0, &suzanne->id));
 }
@@ -2260,38 +2309,6 @@ class ActionFCurveMoveTest : public testing::Test {
     return fcurve;
   };
 };
-
-TEST_F(ActionFCurveMoveTest, test_fcurve_move_legacy)
-{
-  Action &action_src = action_add(*this->bmain, "SourceAction");
-  Action &action_dst = action_add(*this->bmain, "DestinationAction");
-
-  /* Add F-Curves to source Action. */
-  BLI_addtail(&action_src.curves, fcurve_create("source_prop", 0));
-  FCurve *fcurve_to_move = fcurve_create("source_prop", 2);
-  BLI_addtail(&action_src.curves, fcurve_to_move);
-
-  /* Add F-Curves to destination Action. */
-  BLI_addtail(&action_dst.curves, fcurve_create("dest_prop", 0));
-
-  ASSERT_TRUE(action_src.is_action_legacy());
-  ASSERT_TRUE(action_dst.is_action_legacy());
-
-  action_fcurve_move(action_dst, Slot::unassigned, action_src, *fcurve_to_move);
-
-  EXPECT_TRUE(action_src.is_action_legacy());
-  EXPECT_TRUE(action_dst.is_action_legacy());
-
-  EXPECT_EQ(-1, BLI_findindex(&action_src.curves, fcurve_to_move))
-      << "F-Curve should no longer exist in source Action";
-  EXPECT_EQ(1, BLI_findindex(&action_dst.curves, fcurve_to_move))
-      << "F-Curve should exist in destination Action";
-
-  EXPECT_EQ(1, BLI_listbase_count(&action_src.curves))
-      << "Source Action should still have the other F-Curve";
-  EXPECT_EQ(2, BLI_listbase_count(&action_dst.curves))
-      << "Destination Action should have its original and the moved F-Curve";
-}
 
 TEST_F(ActionFCurveMoveTest, test_fcurve_move_layered)
 {

@@ -1716,21 +1716,6 @@ FCurve *action_fcurve_ensure_ex(Main *bmain,
                                 const FCurveDescriptor &fcurve_descriptor);
 
 /**
- * Same as above, but creates a legacy Action.
- *
- * \note this function should ONLY be used in unit tests, in order to create
- * legacy Actions for testing. Or in the very rare cases where handling of
- * legacy Actions is still necessary AND you have no PointerRNA. In all other
- * cases, just call #action_fcurve_ensure, it'll do the right thing
- * transparently on whatever Action you give it.
- */
-FCurve *action_fcurve_ensure_legacy(Main *bmain,
-                                    bAction *act,
-                                    const char group[],
-                                    PointerRNA *ptr,
-                                    const FCurveDescriptor &fcurve_descriptor);
-
-/**
  * Find the F-Curve in the given Action.
  *
  * All the Action slots are searched for this F-Curve. To limit to a single
