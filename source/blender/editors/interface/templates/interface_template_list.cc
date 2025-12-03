@@ -700,7 +700,7 @@ static uiList *ui_list_ensure(const bContext *C,
 
 static void ui_template_list_layout_draw(const bContext *C,
                                          uiList *ui_list,
-                                         uiLayout *layout,
+                                         blender::ui::Layout &layout,
                                          TemplateListInputData *input_data,
                                          TemplateListItems *items,
                                          const TemplateListLayoutDrawData *layout_data,
@@ -709,12 +709,12 @@ static void ui_template_list_layout_draw(const bContext *C,
   uiListDyn *dyn_data = ui_list->dyn_data;
   const char *active_propname = RNA_property_identifier(input_data->activeprop);
 
-  uiLayout *glob = nullptr, *box, *row, *col, *sub, *overlap;
+  blender::ui::Layout *glob = nullptr, *box, *row, *col, *sub, *overlap;
   char numstr[32];
   int rnaicon = ICON_NONE, icon = ICON_NONE;
   uiBut *but;
 
-  uiBlock *block = layout->block();
+  uiBlock *block = layout.block();
 
   /* get icon */
   if (input_data->dataptr.data && input_data->prop) {
@@ -726,7 +726,7 @@ static void ui_template_list_layout_draw(const bContext *C,
   switch (ui_list->layout_type) {
     case UILST_LAYOUT_DEFAULT: {
       /* layout */
-      box = &layout->list_box(ui_list, &input_data->active_dataptr, input_data->activeprop);
+      box = &layout.list_box(ui_list, &input_data->active_dataptr, input_data->activeprop);
       glob = &box->column(true);
       row = &glob->row(false);
       col = &row->column(true);
@@ -778,11 +778,11 @@ static void ui_template_list_layout_draw(const bContext *C,
             UI_but_func_tooltip_set(but, uilist_item_tooltip_func, dyntip_data, MEM_freeN);
           }
 
-          uiLayout *item_row = &overlap->row(true);
+          blender::ui::Layout &item_row = overlap->row(true);
 
-          uiLayoutListItemAddPadding(item_row);
+          uiLayoutListItemAddPadding(&item_row);
 
-          sub = &item_row->row(false);
+          sub = &item_row.row(false);
           icon = UI_icon_from_rnaptr(C, itemptr, rnaicon, false);
           if (icon == ICON_DOT) {
             icon = ICON_NONE;
@@ -807,7 +807,7 @@ static void ui_template_list_layout_draw(const bContext *C,
             ui_layout_list_set_labels_active(sub);
           }
 
-          uiLayoutListItemAddPadding(item_row);
+          uiLayoutListItemAddPadding(&item_row);
           UI_block_flag_disable(subblock, UI_BLOCK_LIST_ITEM);
         }
       }
@@ -837,7 +837,7 @@ static void ui_template_list_layout_draw(const bContext *C,
       break;
     }
     case UILST_LAYOUT_COMPACT:
-      row = &layout->row(true);
+      row = &layout.row(true);
 
       if ((input_data->dataptr.data && input_data->prop) && (dyn_data->items_shown > 0) &&
           (items->active_item_idx >= 0) && (items->active_item_idx < dyn_data->items_shown))
@@ -886,7 +886,7 @@ static void ui_template_list_layout_draw(const bContext *C,
       }
       break;
     case UILST_LAYOUT_BIG_PREVIEW_GRID:
-      box = &layout->list_box(ui_list, &input_data->active_dataptr, input_data->activeprop);
+      box = &layout.list_box(ui_list, &input_data->active_dataptr, input_data->activeprop);
       /* For grip button. */
       glob = &box->column(true);
       /* For scroll-bar. */
@@ -898,7 +898,7 @@ static void ui_template_list_layout_draw(const bContext *C,
       const int size_y = show_names ? UI_preview_tile_size_y() : UI_preview_tile_size_y_no_label();
 
       const int cols_per_row = std::max(int((box->width() - V2D_SCROLL_WIDTH) / size_x), 1);
-      uiLayout *grid = &row->grid_flow(true, cols_per_row, true, true, true);
+      blender::ui::Layout &grid = row->grid_flow(true, cols_per_row, true, true, true);
 
       TemplateListLayoutDrawData adjusted_layout_data = *layout_data;
       adjusted_layout_data.columns = cols_per_row;
@@ -911,7 +911,7 @@ static void ui_template_list_layout_draw(const bContext *C,
           const int org_i = items->item_vec[i].org_idx;
           const int flt_flag = items->item_vec[i].flt_flag;
 
-          overlap = &grid->overlap();
+          overlap = &grid.overlap();
           col = &overlap->column(false);
 
           uiBlock *subblock = col->block();
@@ -1076,7 +1076,7 @@ static void ui_template_list_layout_draw(const bContext *C,
   }
 }
 
-uiList *uiTemplateList_ex(uiLayout *layout,
+uiList *uiTemplateList_ex(blender::ui::Layout *layout,
                           const bContext *C,
                           const char *listtype_name,
                           const char *list_id,
@@ -1141,12 +1141,12 @@ uiList *uiTemplateList_ex(uiLayout *layout,
   layout_data.maxrows = maxrows;
   layout_data.columns = columns;
 
-  ui_template_list_layout_draw(C, ui_list, layout, &input_data, &items, &layout_data, flags);
+  ui_template_list_layout_draw(C, ui_list, *layout, &input_data, &items, &layout_data, flags);
 
   return ui_list;
 }
 
-void uiTemplateList(uiLayout *layout,
+void uiTemplateList(blender::ui::Layout *layout,
                     const bContext *C,
                     const char *listtype_name,
                     const char *list_id,
