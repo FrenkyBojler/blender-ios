@@ -202,7 +202,7 @@ Span<float3> PointCloud::positions() const
                                                   blender::bke::AttrDomain::Point,
                                                   "position",
                                                   this->totpoint)
-      .value_or({});
+      .value_or(Span<float3>());
 }
 MutableSpan<float3> PointCloud::positions_for_write()
 {
