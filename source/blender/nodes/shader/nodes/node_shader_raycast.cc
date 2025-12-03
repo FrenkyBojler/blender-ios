@@ -24,6 +24,14 @@ static int node_shader_gpu_raycast(GPUMaterial *mat,
                                    GPUNodeStack *in,
                                    GPUNodeStack *out)
 {
+  if (!in[0].link) {
+    GPU_link(mat, "world_position_get", &in[0].link);
+  }
+
+  if (!in[1].link) {
+    GPU_link(mat, "world_normals_get", &in[1].link);
+  }
+
   return GPU_stack_link(mat, node, "node_raycast", in, out);
 }
 

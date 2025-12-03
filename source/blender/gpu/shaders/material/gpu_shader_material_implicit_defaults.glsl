@@ -6,3 +6,8 @@ void world_normals_get(out float3 N)
 {
   N = g_data.N;
 }
+
+void world_position_get(out float3 P)
+{
+  P = g_data.P;
+}

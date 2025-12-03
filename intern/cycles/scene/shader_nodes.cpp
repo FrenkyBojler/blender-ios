@@ -8013,8 +8013,8 @@ NODE_DEFINE(RaycastNode)
 {
   NodeType *type = NodeType::add("raycast", create, NodeType::SHADER);
 
-  SOCKET_IN_POINT(position, "Position", zero_float3());
-  SOCKET_IN_NORMAL(direction, "Direction", zero_float3());
+  SOCKET_IN_POINT(position, "Position", zero_float3(), SocketType::LINK_POSITION);
+  SOCKET_IN_NORMAL(direction, "Direction", zero_float3(), SocketType::LINK_NORMAL);
   SOCKET_IN_FLOAT(length, "Length", 1.0f);
 
   SOCKET_OUT_FLOAT(is_hit, "Is Hit");
