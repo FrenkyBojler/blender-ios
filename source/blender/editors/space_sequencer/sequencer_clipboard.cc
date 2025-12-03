@@ -271,6 +271,7 @@ static bool sequencer_write_copy_paste_file(Main *bmain_src,
     const ID_Type id_type = GS((id_src)->name);
     /* Only add (and follow) IDs which usage is marked as 'never null', or are from following
      * types: #bSound, #MovieClip, #Image, #Text, #VFont, #bAction. */
+    printf("Sequencer id_type: %s\n", id_src->name);
     if (ELEM(id_type, VSE_COPYBUFFER_IDTYPES) || (cb_data->cb_flag & IDWALK_CB_NEVER_NULL)) {
       /* The partial write context handle dependencies of ID added to it. This callback will tell
        * it whether a given dependency ID should be skipped/cleared, or also added in the context.
@@ -283,8 +284,10 @@ static bool sequencer_write_copy_paste_file(Main *bmain_src,
         if (ELEM(id_type, VSE_COPYBUFFER_IDTYPES) ||
             (cb_deps_data->cb_flag & IDWALK_CB_NEVER_NULL))
         {
+          printf("Sequencer Id %s added\n", id_deps_src->name);
           return PartialWriteContext::IDAddOperations::ADD_DEPENDENCIES;
         }
+        printf("Sequencer Id %s cleared\n", id_deps_src->name);
         return PartialWriteContext::IDAddOperations::CLEAR_DEPENDENCIES;
       };
       id_dst = copy_buffer.id_add(id_src,

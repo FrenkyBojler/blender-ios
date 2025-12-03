@@ -592,113 +592,79 @@ static wmOperatorStatus node_clipboard_copy_exec(bContext *C, wmOperator * /*op*
   return OPERATOR_FINISHED;
 }
 
-/*
-Global idea:
-  Copy:
-    - Create node group "CopyNG" (tree type = type of selected node)
-    - Copy paste selected nodes (and links) into this node group
-      => need to refactor `node_clipboard_copy_exec()`
-    - Save group to file using PartialWriteContext
-    - Done
-
-  Paste:
-    - Paste from file using PartialWriteContext
-      - Group "CopyNG" should be here now
-    - Copy-paste from CopyNG to current edittree
-*/
-
-static wmOperatorStatus os_copyboard_copy_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus os_clipboard_copy_exec(bContext *C, wmOperator *op)
 {
   using namespace blender::bke::blendfile;
+
   Main *bmain = CTX_data_main(C);
   SpaceNode *snode = CTX_wm_space_node(C);
   bNodeTree *node_tree = snode->edittree;
 
-  // create a node group
-  //    type must be same of active
-  // for each selected node
-  //    copy to node group
-  // save node group to disk
-  //    choose name unique enough
+  PartialWriteContext copy_buffer{*bmain};
+  bNodeTree *copy_tree = reinterpret_cast<bNodeTree *>(
+      copy_buffer.id_create(ID_NT,
+                            "CopyNG",
+                            nullptr,
+                            {(PartialWriteContext::IDAddOperations::SET_FAKE_USER |
+                              PartialWriteContext::IDAddOperations::SET_CLIPBOARD_MARK)}));
 
-  PartialWriteContext copybuffer{*bmain};
-  // bNodeTree *copy_tree = reinterpret_cast<bNodeTree *>(
-  //     copybuffer.id_create(ID_NT,
-  //                          "CopyNG",
-  //                          nullptr,
-  //                          {(PartialWriteContext::IDAddOperations::SET_FAKE_USER |
-  //                            PartialWriteContext::IDAddOperations::SET_CLIPBOARD_MARK)}));
+  // todo(habib): set using ntree_set_typeinfo(ntree, node_tree_type_find(idname));
+  bNodeTree *dummy_ntree = blender::bke::node_tree_add_tree(
+      bmain, "DummyForTypeinfo", node_tree->typeinfo->idname);
 
-  // // todo(habib): set using ntree_set_typeinfo(ntree, node_tree_type_find(idname));
-  // bNodeTree *dummy_ntree = blender::bke::node_tree_add_tree(
-  //     bmain, "DummyForTypeinfo", node_tree->typeinfo->idname);
-
-  // copy_tree->typeinfo = dummy_ntree->typeinfo;
-  // copy_tree->type = dummy_ntree->typeinfo->type;
-  // strcpy(copy_tree->idname, "CompositorNodeTree");
-  // BKE_id_delete(bmain, &dummy_ntree->id);
-
-  // bNodeTree *copy_tree = blender::bke::node_tree_add_tree(
-  //     bmain, "DummyForTypeinfo", node_tree->typeinfo->idname);
-
-  bNodeTree *copy_tree = blender::bke::node_tree_add_tree(
-      bmain, "CopyNG", node_tree->typeinfo->idname);
+  copy_tree->typeinfo = dummy_ntree->typeinfo;
+  copy_tree->type = dummy_ntree->typeinfo->type;
+  strcpy(copy_tree->idname, dummy_ntree->typeinfo->idname.c_str());
+  BKE_id_delete(bmain, &dummy_ntree->id);
 
   if (!node_clipboard_copy_paste(*bmain, *node_tree, *copy_tree, op->reports)) {
     return OPERATOR_CANCELLED;
   };
 
-  // todo(habib): what flags make sense?
-  copy_tree->id.flag |= ID_FLAG_CLIPBOARD_MARK;
-  copybuffer.id_add(
-      &copy_tree->id,
-      PartialWriteContext::IDAddOptions{(PartialWriteContext::IDAddOperations::SET_FAKE_USER |
-                                         PartialWriteContext::IDAddOperations::SET_CLIPBOARD_MARK |
-                                         PartialWriteContext::IDAddOperations::ADD_DEPENDENCIES)},
-      nullptr);
+  auto add_tree_ids_dependencies_cb = [&copy_buffer,
+                                       copy_tree](LibraryIDLinkCallbackData *cb_data) -> int {
+    ID *id_src = *cb_data->id_pointer;
+    if (!id_src) {
+      return IDWALK_RET_NOP;
+    }
 
-  /*
-// auto add_tree_ids_dependencies_cb = [&copybuffer,
-//                                      copy_tree](LibraryIDLinkCallbackData *cb_data) -> int {
-//   ID *id_src = *cb_data->id_pointer;
-//   if (!id_src) {
-//     return IDWALK_RET_NOP;
-//   }
+    printf("id_src->name: %s\n", id_src->name);
 
-//   printf("id_src->name: %s\n", id_src->name);
+    ID *id_dst = nullptr;
+    const ID_Type id_type = GS((id_src)->name);
 
-//   ID *id_dst = nullptr;
-//   const ID_Type id_type = GS((id_src)->name);
+    if (ELEM(id_type, ID_SCE, ID_IM, ID_MC) || (cb_data->cb_flag & IDWALK_CB_NEVER_NULL)) {
+      auto partial_write_dependencies_filter_cb = [](LibraryIDLinkCallbackData *cb_deps_data,
+                                                     PartialWriteContext::IDAddOptions /*options*/)
+          -> PartialWriteContext::IDAddOperations {
+        ID *id_deps_src = *cb_deps_data->id_pointer;
+        const ID_Type id_type = GS((id_deps_src)->name);
 
-//   auto partial_write_dependencies_filter_cb =
-//       [](LibraryIDLinkCallbackData *cb_deps_data,
-//          PartialWriteContext::IDAddOptions /*options) ->
-//          PartialWriteContext::IDAddOperations {
-//     ID *id_deps_src = *cb_deps_data->id_pointer;
-//     const ID_Type id_type = GS((id_deps_src)->name);
-//     if (ELEM(id_type, ID_SCE) || (cb_deps_data->cb_flag & IDWALK_CB_NEVER_NULL)) {
-//       printf("Id %s added\n", id_deps_src->name);
-//       return PartialWriteContext::IDAddOperations::ADD_DEPENDENCIES;
-//     }
+        /* A scene may contain a compositing node trees which references the scene itself. Don't
+         * add compositing node trees in this case to avoid circular dependencies. */
+        if (id_type != ID_NT || (cb_deps_data->cb_flag & IDWALK_CB_NEVER_NULL)) {
+          printf("Id %s added\n", id_deps_src->name);
+          return PartialWriteContext::IDAddOperations::ADD_DEPENDENCIES;
+        }
 
-//     printf("Id %s cleared\n", id_deps_src->name);
-//     return PartialWriteContext::IDAddOperations::CLEAR_DEPENDENCIES;
-//   };
+        printf("Id %s cleared\n", id_deps_src->name);
+        return PartialWriteContext::IDAddOperations::CLEAR_DEPENDENCIES;
+      };
 
-//   id_dst = copybuffer.id_add(
-//       id_src, {PartialWriteContext::IDAddOperations::NOP},
-//       partial_write_dependencies_filter_cb);
+      id_dst = copy_buffer.id_add(id_src,
+                                  {PartialWriteContext::IDAddOperations::NOP},
+                                  partial_write_dependencies_filter_cb);
+    }
+    *cb_data->id_pointer = id_dst;
+    return IDWALK_RET_NOP;
+  };
 
-//   return IDWALK_RET_NOP;
-// };
-
-// BKE_library_foreach_ID_link(
-//     nullptr, &copy_tree->id, add_tree_ids_dependencies_cb, nullptr, IDWALK_NOP);
-*/
+  BKE_library_foreach_ID_link(
+      nullptr, &copy_tree->id, add_tree_ids_dependencies_cb, nullptr, IDWALK_NOP);
 
   char filepath[FILE_MAX];
   node_copybuffer_filepath_get(filepath, sizeof(filepath));
-  copybuffer.write(filepath, *op->reports);
+  copy_buffer.write(filepath, *op->reports);
 
   return OPERATOR_FINISHED;
 }
@@ -756,7 +722,7 @@ void NODE_OT_clipboard_copy(wmOperatorType *ot)
   ot->description = "Copy the selected nodes to the internal clipboard";
   ot->idname = "NODE_OT_clipboard_copy";
 
-  ot->exec = os_copyboard_copy_exec;
+  ot->exec = os_clipboard_copy_exec;
   ot->poll = ED_operator_node_active;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -930,7 +896,6 @@ static wmOperatorStatus node_clipboard_paste_invoke(bContext *C,
   float2 cursor;
   UI_view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &cursor.x, &cursor.y);
   RNA_float_set_array(op->ptr, "offset", cursor);
-  // return node_clipboard_paste_exec(C, op);
   return os_clipboard_paste_exec(C, op);
 }
 

@@ -2006,7 +2006,11 @@ ID *PartialWriteContext::id_add(
    * parameter otherwise). */
   blender::Vector<std::pair<ID *, PartialWriteContext::IDAddOperations>> post_process_ids_todo;
 
-  ctx_root_id = id_add_copy(id, false);
+  ctx_root_id = id_add_copy(id, false);  // todo(habib): revert!
+  printf("Copying id %s...\n", id->name);
+  printf("\tid->session_uid: %u\n", id->session_uid);
+  printf("\tctx_root_id->session_uid: %u\n", ctx_root_id->session_uid);
+
   if (!ctx_root_id) {
     CLOG_ERROR(&LOG_PARTIALWRITE,
                "Failed to copy ID '%s', could not add it to the partial write context",
