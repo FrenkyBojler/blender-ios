@@ -47,7 +47,7 @@ using blender::StringRefNull;
 
 struct uiPieMenu {
   uiBlock *pie_block; /* radial block of the pie menu (more could be added later) */
-  uiLayout *layout;
+  blender::ui::Layout *layout;
   int mx, my;
 };
 
@@ -185,15 +185,13 @@ void UI_pie_menu_end(bContext *C, uiPieMenu *pie)
   MEM_freeN(pie);
 }
 
-uiLayout *UI_pie_menu_layout(uiPieMenu *pie)
+blender::ui::Layout *UI_pie_menu_layout(uiPieMenu *pie)
 {
   return pie->layout;
 }
 
 wmOperatorStatus UI_pie_menu_invoke(bContext *C, const char *idname, const wmEvent *event)
 {
-  uiPieMenu *pie;
-  uiLayout *layout;
   MenuType *mt = WM_menutype_find(idname, true);
 
   if (mt == nullptr) {
@@ -206,8 +204,9 @@ wmOperatorStatus UI_pie_menu_invoke(bContext *C, const char *idname, const wmEve
     return (OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH);
   }
 
-  pie = UI_pie_menu_begin(C, CTX_IFACE_(mt->translation_context, mt->label), ICON_NONE, event);
-  layout = UI_pie_menu_layout(pie);
+  uiPieMenu *pie = UI_pie_menu_begin(
+      C, CTX_IFACE_(mt->translation_context, mt->label), ICON_NONE, event);
+  blender::ui::Layout *layout = UI_pie_menu_layout(pie);
 
   UI_menutype_draw(C, mt, layout);
 
