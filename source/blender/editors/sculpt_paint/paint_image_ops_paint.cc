@@ -391,7 +391,7 @@ static void paint_stroke_redraw(const bContext *C, PaintStroke *stroke, bool fin
   pop->mode->paint_stroke_redraw(C, pop->stroke_handle, final);
 }
 
-static void paint_stroke_done(const bContext *C, PaintStroke *stroke, bool is_cancelled)
+static void paint_stroke_done(const bContext *C, PaintStroke *stroke, const bool is_cancelled)
 {
   Scene *scene = CTX_data_scene(C);
   ToolSettings *toolsettings = scene->toolsettings;

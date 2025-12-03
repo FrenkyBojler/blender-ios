@@ -5777,7 +5777,6 @@ static wmOperatorStatus sculpt_brush_stroke_exec(bContext *C, wmOperator *op)
 
 static void sculpt_brush_stroke_cancel(bContext *C, wmOperator *op)
 {
-
   using namespace blender::ed::sculpt_paint;
   const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
   Object &ob = *CTX_data_active_object(C);

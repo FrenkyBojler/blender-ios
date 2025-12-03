@@ -1028,7 +1028,7 @@ void paint_stroke_free(bContext *C, wmOperator * /*op*/, PaintStroke *stroke)
   MEM_delete(stroke);
 }
 
-static void stroke_done(bContext *C, wmOperator *op, PaintStroke *stroke, bool is_cancelled)
+static void stroke_done(bContext *C, wmOperator *op, PaintStroke *stroke, const bool is_cancelled)
 {
   if (print_pressure_status_enabled()) {
     ED_workspace_status_text(C, nullptr);

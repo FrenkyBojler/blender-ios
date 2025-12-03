@@ -94,7 +94,7 @@ using StrokeUpdateStep = void (*)(bContext *C,
                                   PointerRNA *itemptr);
 
 /**
- * callback function for performing necessary redraw functions based on the stroke.
+ * Callback function for performing necessary redraw functions based on the stroke.
  */
 using StrokeRedraw = void (*)(const bContext *C, PaintStroke *stroke, bool final);
 
