@@ -15,7 +15,7 @@
 
 #include "BKE_context.hh"
 #include "BKE_geometry_set.hh"
-#include "BKE_movieclip.h"
+#include "BKE_movieclip.hh"
 
 #include "ED_asset.hh"
 #include "ED_buttons.hh"
@@ -4861,6 +4861,15 @@ static void rna_def_space_view3d_overlay(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Show Statistics", "Display scene statistics overlay text");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
 
+  prop = RNA_def_property(srna, "show_performance", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "overlay.flag", V3D_OVERLAY_PERFORMANCE);
+  RNA_def_property_ui_text(prop,
+                           "Show Performance",
+                           "Display viewport performance timings:\n"
+                           " \u2022 Evaluation: Time to evaluate the dependency graph.\n"
+                           " \u2022 Synchronization: Time to build the GPU buffers.");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, nullptr);
+
   /* show camera composition guides */
   prop = RNA_def_property(srna, "show_camera_guides", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag2", V3D_SHOW_CAMERA_GUIDES);
@@ -8560,25 +8569,29 @@ static void rna_def_space_clip(BlenderRNA *brna)
 
   /* show_red_channel */
   prop = RNA_def_property(srna, "show_red_channel", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_negative_sdna(prop, nullptr, "postproc_flag", MOVIECLIP_DISABLE_RED);
+  RNA_def_property_boolean_negative_sdna(
+      prop, nullptr, "postproc_flag", int(MovieClipPostprocFlag::DisableRed));
   RNA_def_property_ui_text(prop, "Show Red Channel", "Show red channel in the frame");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_CLIP, nullptr);
 
   /* show_green_channel */
   prop = RNA_def_property(srna, "show_green_channel", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_negative_sdna(prop, nullptr, "postproc_flag", MOVIECLIP_DISABLE_GREEN);
+  RNA_def_property_boolean_negative_sdna(
+      prop, nullptr, "postproc_flag", int(MovieClipPostprocFlag::DisableGreen));
   RNA_def_property_ui_text(prop, "Show Green Channel", "Show green channel in the frame");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_CLIP, nullptr);
 
   /* show_blue_channel */
   prop = RNA_def_property(srna, "show_blue_channel", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_negative_sdna(prop, nullptr, "postproc_flag", MOVIECLIP_DISABLE_BLUE);
+  RNA_def_property_boolean_negative_sdna(
+      prop, nullptr, "postproc_flag", int(MovieClipPostprocFlag::DisableBlue));
   RNA_def_property_ui_text(prop, "Show Blue Channel", "Show blue channel in the frame");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_CLIP, nullptr);
 
   /* preview_grayscale */
   prop = RNA_def_property(srna, "use_grayscale_preview", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "postproc_flag", MOVIECLIP_PREVIEW_GRAYSCALE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "postproc_flag", int(MovieClipPostprocFlag::PreviewGray));
   RNA_def_property_ui_text(prop, "Grayscale", "Display frame in grayscale mode");
   RNA_def_property_update(prop, NC_MOVIECLIP | ND_DISPLAY, nullptr);
 
