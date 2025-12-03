@@ -1631,7 +1631,7 @@ static wmOperatorStatus make_links_data_exec(bContext *C, wmOperator *op)
             break;
           case MAKE_LINKS_CONSTRAINTS:
           constraint_link(bmain, ob_dst, &ob_dst->constraints, &ob_src->constraints); //option 1 - use existing editor level function which is already implemented
-          // BKE_object_link_constraints(ob_dst, ob_src); //option 2 - create a function similar to modifiers ()
+          // BKE_object_link_constraints(ob_dst, ob_src); //option 2 - create a function similar to modifiers (would probably have to be implemented in object.cc to align with BKE_object_link_modifiers)
 
           // option 3 - implement here directly inline:
           // BKE_constraints_free(&ob_dst->constraints);
