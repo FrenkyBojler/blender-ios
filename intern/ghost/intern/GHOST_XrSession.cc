@@ -13,6 +13,8 @@
 #include <list>
 #include <sstream>
 
+#include "BLI_span.hh"
+
 #include "GHOST_C-api.h"
 
 #include "GHOST_IXrGraphicsBinding.hh"
@@ -123,80 +125,68 @@ void GHOST_XrSession::initSystem()
  * \{ */
 
 static void create_reference_spaces(OpenXRSessionData &oxr,
-                                    const GHOST_XrPose &base_pose,
                                     bool isDebugMode)
 {
   XrReferenceSpaceCreateInfo create_info = {XR_TYPE_REFERENCE_SPACE_CREATE_INFO};
   create_info.poseInReferenceSpace.orientation.w = 1.0f;
 
-  create_info.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_STAGE;
-#if 0
-/* TODO
- *
- * Proper reference space set up is not supported yet. We simply hand OpenXR
- * the global space as reference space and apply its pose onto the active
- * camera matrix to get a basic viewing experience going. If there's no active
- * camera with stick to the world origin.
- *
- * Once we have proper reference space set up (i.e. a way to define origin, up-
- * direction and an initial view rotation perpendicular to the up-direction),
- * we can hand OpenXR a proper reference pose/space.
- */
-  create_info.poseInReferenceSpace.position.x = base_pose->position[0];
-  create_info.poseInReferenceSpace.position.y = base_pose->position[1];
-  create_info.poseInReferenceSpace.position.z = base_pose->position[2];
-  create_info.poseInReferenceSpace.orientation.x = base_pose->orientation_quat[1];
-  create_info.poseInReferenceSpace.orientation.y = base_pose->orientation_quat[2];
-  create_info.poseInReferenceSpace.orientation.z = base_pose->orientation_quat[3];
-  create_info.poseInReferenceSpace.orientation.w = base_pose->orientation_quat[0];
-#else
-  (void)base_pose;
-#endif
+  /* Enumerate supported reference spaces. */
+  uint32_t space_count = 0;
+  CHECK_XR(xrEnumerateReferenceSpaces(oxr.session, 0, &space_count, nullptr),
+           "Failed to enumerate available reference space count.");
 
-  XrResult result = xrCreateReferenceSpace(oxr.session, &create_info, &oxr.reference_space);
+  std::vector<XrReferenceSpaceType> supported_spaces_vec(space_count);
+  CHECK_XR(
+      xrEnumerateReferenceSpaces(oxr.session, space_count, &space_count, supported_spaces_vec.data()),
+      "Failed to enumerate available reference spaces.");
 
-  if (XR_FAILED(result)) {
-    /* One of the rare cases where we don't want to immediately throw an exception on failure,
-     * since runtimes are not required to support the stage reference space. If the runtime
-     * doesn't support it then just fall back to the local space. */
-    if (result == XR_ERROR_REFERENCE_SPACE_UNSUPPORTED) {
-      if (isDebugMode) {
-        printf(
-            "Warning: XR runtime does not support stage reference space, falling back to local "
-            "reference space.\n");
-      }
-      create_info.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_LOCAL;
-      CHECK_XR(xrCreateReferenceSpace(oxr.session, &create_info, &oxr.reference_space),
-               "Failed to create local reference space.");
-    }
-    else {
-      throw GHOST_XrException("Failed to create stage reference space.", result);
-    }
-  }
-  else {
+  const blender::Span supported_spaces(supported_spaces_vec);
+
+  /* Use the most suitable space as the main reference space. By order of preference:
+   * - Stage Reference Space
+   * - Local Floor Reference Space (extension in OpenXR 1.0, promoted in OpenXR 1.1+)
+   * - Local Space
+   */
+
+  bool valid_stage_space = false;
+  if (supported_spaces.contains(XR_REFERENCE_SPACE_TYPE_STAGE)) {
+    create_info.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_STAGE;
+    CHECK_XR(xrCreateReferenceSpace(oxr.session, &create_info, &oxr.reference_space),
+             "Failed to create stage reference space.");
+
     /* Check if tracking bounds are valid. Tracking bounds may be invalid if the user did not
      * define a tracking space via the XR runtime. */
     XrExtent2Df extents;
     CHECK_XR(xrGetReferenceSpaceBoundsRect(oxr.session, XR_REFERENCE_SPACE_TYPE_STAGE, &extents),
              "Failed to get stage reference space bounds.");
-    if (extents.width == 0.0f || extents.height == 0.0f) {
-      if (isDebugMode) {
-        printf(
-            "Warning: Invalid stage reference space bounds, falling back to local reference "
-            "space. To use the stage reference space, please define a tracking space via the XR "
-            "runtime.\n");
-      }
-      /* Fall back to local space. */
+
+    valid_stage_space = extents.width != 0.0f && extents.height != 0.0f;
+    if (!valid_stage_space) {
       if (oxr.reference_space != XR_NULL_HANDLE) {
         CHECK_XR(xrDestroySpace(oxr.reference_space), "Failed to destroy stage reference space.");
       }
 
-      create_info.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_LOCAL;
-      CHECK_XR(xrCreateReferenceSpace(oxr.session, &create_info, &oxr.reference_space),
-               "Failed to create local reference space.");
+      if (isDebugMode) {
+        printf(
+            "Warning: Invalid stage reference space bounds, falling back to local floor reference "
+            "space. To use the stage reference space, please define a tracking space via the XR "
+            "runtime.\n");
+      }
     }
   }
 
+  if (!valid_stage_space && supported_spaces.contains(XR_REFERENCE_SPACE_TYPE_LOCAL_FLOOR)) {
+    create_info.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_LOCAL_FLOOR;
+    CHECK_XR(xrCreateReferenceSpace(oxr.session, &create_info, &oxr.reference_space),
+             "Failed to create local floor reference space.");
+  }
+  else {
+    create_info.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_LOCAL;
+    CHECK_XR(xrCreateReferenceSpace(oxr.session, &create_info, &oxr.reference_space),
+             "Failed to create local reference space.");
+  }
+
+  /* View reference space. */
   create_info.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_VIEW;
   CHECK_XR(xrCreateReferenceSpace(oxr.session, &create_info, &oxr.view_space),
            "Failed to create view reference space.");
@@ -209,7 +199,7 @@ static void create_reference_spaces(OpenXRSessionData &oxr,
   }
 }
 
-void GHOST_XrSession::start(const GHOST_XrSessionBeginInfo *begin_info)
+void GHOST_XrSession::start()
 {
   assert(context_->getInstance() != XR_NULL_HANDLE);
   assert(oxr_->session == XR_NULL_HANDLE);
@@ -255,7 +245,7 @@ void GHOST_XrSession::start(const GHOST_XrSessionBeginInfo *begin_info)
            "detailed error information to the command line.");
 
   prepareDrawing();
-  create_reference_spaces(*oxr_, begin_info->base_pose, context_->isDebugMode());
+  create_reference_spaces(*oxr_, context_->isDebugMode());
 
   /* Create and bind actions here. */
   context_->getCustomFuncs().session_create_fn();
