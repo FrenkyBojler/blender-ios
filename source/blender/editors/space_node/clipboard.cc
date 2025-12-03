@@ -633,16 +633,23 @@ static wmOperatorStatus os_clipboard_copy_exec(bContext *C, wmOperator *op)
     ID *id_dst = nullptr;
     const ID_Type id_type = GS((id_src)->name);
 
-    if (ELEM(id_type, ID_SCE, ID_IM, ID_MC) || (cb_data->cb_flag & IDWALK_CB_NEVER_NULL)) {
-      auto partial_write_dependencies_filter_cb = [](LibraryIDLinkCallbackData *cb_deps_data,
-                                                     PartialWriteContext::IDAddOptions /*options*/)
+    if (ELEM(id_type, ID_SCE, ID_NT, ID_IM, ID_MC, ID_MSK) ||
+        (cb_data->cb_flag & IDWALK_CB_NEVER_NULL))
+    {
+      /* A scene may contain a compositing node trees which references the scene itself. Don't
+       * add compositing node trees in this case to avoid circular dependencies. */
+      const bool is_root_compositing_node_group = id_type == ID_NT && id_src == &copy_tree->id;
+      if (is_root_compositing_node_group) {
+        return IDWALK_RET_NOP;
+      }
+
+      auto partial_write_dependencies_filter_cb =
+          [copy_tree](LibraryIDLinkCallbackData *cb_deps_data,
+                      PartialWriteContext::IDAddOptions /*options*/)
           -> PartialWriteContext::IDAddOperations {
         ID *id_deps_src = *cb_deps_data->id_pointer;
-        const ID_Type id_type = GS((id_deps_src)->name);
 
-        /* A scene may contain a compositing node trees which references the scene itself. Don't
-         * add compositing node trees in this case to avoid circular dependencies. */
-        if (id_type != ID_NT || (cb_deps_data->cb_flag & IDWALK_CB_NEVER_NULL)) {
+        if ((cb_deps_data->cb_flag & IDWALK_CB_NEVER_NULL)) {
           printf("Id %s added\n", id_deps_src->name);
           return PartialWriteContext::IDAddOperations::ADD_DEPENDENCIES;
         }
