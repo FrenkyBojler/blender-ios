@@ -1,2 +1,3 @@
 Referenced by issue #150787, Absolute Increment Snapping snaps to 2D grid
 Referenced by pull request #151016, Fix #150787: Absolute Increment Snapping snaps to 2D grid
+Referenced by commit eb4e3a056f4d16ea77d1368f54741bb664b3a8ea, Revert "Fix #147246: Translate with absolute increment snap fails"
