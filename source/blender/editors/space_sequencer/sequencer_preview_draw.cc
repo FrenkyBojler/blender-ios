@@ -1368,7 +1368,6 @@ static void preview_draw_all_image_overlays(const bContext *C,
   Strip *active_seq = seq::select_active_get(scene);
 
   for (Strip *strip : strips) {
-    /* TODO(sergey): Avoid having per-strip strip-independent checks. */
     strip_draw_image_origin_and_outline(C, strip, strip == active_seq);
   }
   /* needs to only be called ones since only runs for active text strip */
