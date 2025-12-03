@@ -591,7 +591,7 @@ static bool mywrite_end(WriteData *wd)
   }
   else {
     CLOG_INFO(
-        &LOG, "lendfile written in %.3f seconds", BLI_time_now_seconds() - wd->timestamp_init);
+        &LOG, "Blendfile written in %.3f seconds", BLI_time_now_seconds() - wd->timestamp_init);
   }
 
   const bool err = wd->validation_data.critical_error;
@@ -893,8 +893,8 @@ static void writestruct_at_address_nr(WriteData *wd,
       for (const blender::dna::pointers::PointerInfo &pointer_info : struct_info.pointers) {
         const int offset = i * struct_info.size_in_bytes + pointer_info.offset;
         const void **p_ptr = reinterpret_cast<const void **>(POINTER_OFFSET(buffer, offset));
-        const void *address_id = get_address_id(*wd, *p_ptr);
-        *p_ptr = address_id;
+        const void *p_ptr_address_id = get_address_id(*wd, *p_ptr);
+        *p_ptr = p_ptr_address_id;
       }
     }
   }
