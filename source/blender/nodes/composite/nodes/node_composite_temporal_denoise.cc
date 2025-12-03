@@ -32,6 +32,13 @@ static const EnumPropertyItem motion_range_items[] = {
     {2, "LARGE", 0, "Large", "Fast motion (less denoising, sharper motion)"},
     {0, nullptr, 0, nullptr, nullptr}};
 
+static const EnumPropertyItem mode_items[] = {
+    {0, "MANUAL", 0, "Manual", "Use manual settings"},
+    {1, "AUTO_BALANCED", 0, "Auto Balanced", "Automatic balanced denoising"},
+    {2, "AUTO_QUALITY", 0, "Auto Quality", "Automatic high-quality denoising"},
+    {3, "AUTO_TEMPORAL", 0, "Auto Temporal", "Automatic maximum temporal stability"},
+    {0, nullptr, 0, nullptr, nullptr}};
+
 static void cmp_node_temporal_denoise_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
@@ -40,49 +47,66 @@ static void cmp_node_temporal_denoise_declare(NodeDeclarationBuilder &b)
       .hide_value()
       .structure_type(StructureType::Dynamic);
 
-  b.add_input<decl::Vector>("Motion")
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic).align_with_previous();
+
+  b.add_input<decl::Vector>("Vector")
       .dimensions(4)
       .default_value({0.0f, 0.0f, 0.0f})
       .subtype(PROP_VELOCITY)
       .hide_value()
       .structure_type(StructureType::Dynamic)
-      .description("Motion vector pass (xy=previous, zw=next). Optional but recommended");
+      .description("Vector (Speed) pass from renderer (xy=previous, zw=next). Optional but recommended");
 
-  b.add_input<decl::Float>("Luma")
-      .default_value(0.5f)
-      .min(0.0f)
-      .max(1.0f)
-      .description("Luminance denoising strength (brightness)");
-
-  b.add_input<decl::Float>("Chroma")
-      .default_value(0.7f)
-      .min(0.0f)
-      .max(2.0f)
-      .description("Chrominance denoising strength (color). Can be higher than Luma");
+  b.add_input<decl::Menu>("Mode")
+      .default_value(MenuValue(0))
+      .static_items(mode_items)
+      .description("Manual uses all sliders. Auto presets override most settings and use their own tuned values");
 
   b.add_input<decl::Int>("Frames")
       .default_value(3)
       .min(1)
       .max(5)
-      .description("Number of frames to blend (1-5). Higher = stronger denoising");
+      .description("Number of frames to blend (1-5). In Auto modes this is clamped per preset and acts as an upper limit");
+
+  b.add_input<decl::Menu>("Motion Estimation")
+      .default_value(MenuValue(1))
+      .static_items(motion_estimation_items)
+      .description("Motion detection quality. In Auto modes the preset may override this");
+
+  b.add_input<decl::Menu>("Motion Range")
+      .default_value(MenuValue(1))
+      .static_items(motion_range_items)
+      .description("Expected motion speed. In Auto modes the preset may override this");
 
   b.add_input<decl::Float>("Motion Threshold")
       .default_value(10.0f)
       .min(0.0f)
       .max(100.0f)
-      .description("Exclude pixels above this motion (pixels). Lower = sharper motion");
+      .description("Exclude pixels above this motion (pixels). In Auto modes acts as a base that presets may clamp");
 
-  b.add_input<decl::Menu>("Motion Estimation")
-      .default_value(MenuValue(1))
-      .static_items(motion_estimation_items)
-      .description("Motion detection quality: None (fastest), Faster (default), Better (best)");
+  b.add_input<decl::Float>("Luma")
+      .default_value(0.5f)
+      .min(0.0f)
+      .max(1.0f)
+      .description("Luminance denoising strength. In Auto modes this is driven by the selected preset");
 
-  b.add_input<decl::Menu>("Motion Range")
-      .default_value(MenuValue(1))
-      .static_items(motion_range_items)
-      .description("Expected motion speed: Small (slow), Medium (default), Large (fast)");
+  b.add_input<decl::Float>("Chroma")
+      .default_value(0.7f)
+      .min(0.0f)
+      .max(2.0f)
+      .description("Chrominance denoising strength. In Auto modes this is driven by the selected preset");
 
-  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
+  b.add_input<decl::Float>("Detail")
+      .default_value(0.5f)
+      .min(0.0f)
+      .max(1.0f)
+      .description("Detail preservation. Lower values smooth more. In Auto modes this is driven by the selected preset");
+
+  b.add_input<decl::Float>("Motion Sensitivity")
+      .default_value(0.5f)
+      .min(0.0f)
+      .max(1.0f)
+      .description("How strongly motion reduces use of history frames. In Auto modes this is driven by the selected preset");
 }
 
 using namespace blender::compositor;
@@ -180,7 +204,7 @@ class TemporalDenoiseOperation : public NodeOperation {
     const int2 size = input.domain().data_size;
     Result input_cpu = context().use_gpu() ? input.download_to_cpu() : input;
 
-    Result &motion_input = get_input("Motion");
+    Result &motion_input = get_input("Vector");
     const bool has_motion = !motion_input.is_single_value();
     Result motion_cpu = (has_motion && context().use_gpu()) ? motion_input.download_to_cpu() :
                                                                 motion_input;
@@ -189,33 +213,77 @@ class TemporalDenoiseOperation : public NodeOperation {
     output.set_precision(input_cpu.precision());
     output.allocate_texture(input_cpu.domain(), false, ResultStorageType::CPU);
 
-    const float luma_strength = math::clamp(
+    float luma_strength = math::clamp(
         this->get_input("Luma").get_single_value_default(0.5f), 0.0f, 1.0f);
-    const float chroma_strength = math::clamp(
+    float chroma_strength = math::clamp(
         this->get_input("Chroma").get_single_value_default(0.7f), 0.0f, 2.0f);
-    const int frames = math::clamp(
+    float detail = math::clamp(
+        this->get_input("Detail").get_single_value_default(0.5f), 0.0f, 1.0f);
+    float motion_sensitivity = math::clamp(
+        this->get_input("Motion Sensitivity").get_single_value_default(0.5f), 0.0f, 1.0f);
+    int frames = math::clamp(
         this->get_input("Frames").get_single_value_default(3), 1, 5);
-    const float base_motion_threshold = math::clamp(
+    float base_motion_threshold = math::clamp(
         this->get_input("Motion Threshold").get_single_value_default(10.0f), 0.0f, 100.0f);
 
-    /* Motion Estimation: 0=None, 1=Faster, 2=Better */
     const MenuValue motion_est_menu = this->get_input("Motion Estimation")
                                            .get_single_value_default(MenuValue(1));
-    const int motion_estimation = motion_est_menu.value;
+    int motion_estimation = motion_est_menu.value;
 
-    /* Motion Range: 0=Small, 1=Medium, 2=Large */
     const MenuValue motion_range_menu = this->get_input("Motion Range")
                                              .get_single_value_default(MenuValue(1));
-    const int motion_range = motion_range_menu.value;
+    int motion_range = motion_range_menu.value;
 
-    /* Apply motion range to threshold: Small=stricter, Large=more permissive */
+    const MenuValue mode_menu = this->get_input("Mode")
+                                      .get_single_value_default(MenuValue(0));
+    const int preset_mode = mode_menu.value;
+
+    if (preset_mode == 1) {
+      frames = math::clamp(frames, 2, 3);
+      luma_strength = 0.7f;
+      chroma_strength = 1.0f;
+      detail = 0.6f;
+      motion_sensitivity = 0.6f;
+      base_motion_threshold = 25.0f;
+      motion_estimation = 1;
+      motion_range = 1;
+    }
+    else if (preset_mode == 2) {
+      frames = math::clamp(frames, 3, 4);
+      luma_strength = 0.85f;
+      chroma_strength = 1.2f;
+      detail = 0.8f;
+      motion_sensitivity = 0.5f;
+      base_motion_threshold = 30.0f;
+      motion_estimation = 2;
+      motion_range = 1;
+    }
+    else if (preset_mode == 3) {
+      frames = math::clamp(frames, 3, 5);
+      luma_strength = 1.0f;
+      chroma_strength = 1.3f;
+      detail = 0.3f;
+      motion_sensitivity = 0.7f;
+      base_motion_threshold = 35.0f;
+      motion_estimation = 2;
+      motion_range = 2;
+    }
+
     const float range_multiplier = (motion_range == 0) ? 0.5f :   /* Small: stricter */
                                     (motion_range == 2) ? 2.0f :   /* Large: more permissive */
                                                           1.0f;    /* Medium: default */
     const float motion_threshold = base_motion_threshold * range_multiplier;
 
-    /* Motion Estimation=None disables motion compensation entirely */
     const bool use_motion_compensation = (motion_estimation != 0 && has_motion);
+
+    const bool is_better = (motion_estimation == 2);
+    const float detail_scale = detail;
+    const float luma_quality_scale = (is_better ? 0.7f : 1.0f) * (1.0f - 0.2f * detail_scale);
+    const float chroma_quality_scale = (is_better ? 0.7f : 1.0f) * (1.0f - 0.2f * detail_scale);
+    const float motion_sens_scale = 0.5f + motion_sensitivity;
+    const float motion_factor_strength = (is_better ? 0.7f : 1.0f) * motion_sens_scale;
+    const int clamp_radius = (is_better || detail_scale > 0.5f) ? 2 : 1;
+    const float clamp_pad = (is_better ? 0.015f : 0.02f) * (1.0f - 0.25f * detail_scale);
 
     const int history_frames = frames - 1;  /* Current frame + N-1 history */
     const int current_frame = context().get_frame_number();
@@ -234,40 +302,7 @@ class TemporalDenoiseOperation : public NodeOperation {
       write_frame_index = (prev_head < 0) ? 0 : ((prev_head + 1) % history_frames);
     }
 
-    /* ===== DEBUG OUTPUT ===== */
-    printf("\n========== TEMPORAL DENOISE DEBUG ==========\n");
-    printf("Frame: %d | Resolution: %dx%d | Pixels: %lld\n", 
-           current_frame, size.x, size.y, pixel_count);
-    printf("--- Parameters ---\n");
-    printf("  Luma Strength: %.2f\n", luma_strength);
-    printf("  Chroma Strength: %.2f\n", chroma_strength);
-    printf("  Frames: %d (history: %d)\n", frames, history_frames);
-    printf("  Base Motion Threshold: %.1f\n", base_motion_threshold);
-    printf("  Motion Estimation: %s (%d)\n", 
-           motion_estimation == 0 ? "NONE" : motion_estimation == 1 ? "FASTER" : "BETTER",
-           motion_estimation);
-    printf("  Motion Range: %s (%d) | Multiplier: %.1fx\n",
-           motion_range == 0 ? "SMALL" : motion_range == 1 ? "MEDIUM" : "LARGE",
-           motion_range, range_multiplier);
-    printf("  Effective Motion Threshold: %.1f\n", motion_threshold);
-    printf("--- Motion ---\n");
-    printf("  Has Motion Vectors: %s\n", has_motion ? "YES" : "NO");
-    printf("  Use Motion Compensation: %s\n", use_motion_compensation ? "YES" : "NO");
-    printf("--- History ---\n");
-    printf("  Has History: %s\n", has_history ? "YES" : "NO");
-    printf("  Stored Frames: %d / %d capacity\n", prev_stored, entry.capacity_frames);
-    printf("  Previous Head: %d | Write Index: %d\n", prev_head, write_frame_index);
-    printf("  Using History: %s\n", use_history ? "YES" : "NO");
-    printf("============================================\n\n");
-
-    /* Statistics counters for debug */
-    std::atomic<int64_t> pixels_with_motion_comp(0);
-    std::atomic<int64_t> pixels_direct_average(0);
-    std::atomic<int64_t> samples_excluded_bounds(0);
-    std::atomic<int64_t> samples_excluded_threshold(0);
-    std::atomic<int> debug_motion_count(0);  /* For debugging motion compensation */
-
-    /* DaVinci-style simple averaging */
+    /* Temporal accumulation */
     parallel_for(size, [&](const int2 texel) {
       const float4 current_rgba = input_cpu.load_pixel<float4>(texel);
       const float3 current_rgb = float3(current_rgba.x, current_rgba.y, current_rgba.z);
@@ -281,9 +316,10 @@ class TemporalDenoiseOperation : public NodeOperation {
       bool used_motion_comp = false;
 
       /* Separate luma/chroma and apply different strengths */
-      /* DaVinci style: accumulate luma and chroma SEPARATELY, not RGB together */
+      /* Accumulate luma and chroma separately, not RGB together */
       /* Temporal weighting: closer frames contribute MORE than distant frames */
       float accumulated_luma = current_luma;
+      float accumulated_luma_sq = current_luma * current_luma;
       float3 accumulated_chroma = current_chroma;
       float total_luma_weight = 1.0f;
       float total_chroma_weight = 1.0f;
@@ -307,20 +343,12 @@ class TemporalDenoiseOperation : public NodeOperation {
             /* Bilinear sample - compute base pixel FIRST */
             const int2 p0 = int2(math::floor(reproj.x), math::floor(reproj.y));
 
-            /* CRITICAL: Check bounds on p0. 
-             * We can clamp the +1 pixel, so as long as p0 is within [0, width-1], we are good.
-             * Even better, we can support sampling slightly off-screen if we wanted, but for now
-             * let's just ensure p0 is strictly inside the image.
-             */
             if (p0.x < 0 || p0.x >= width || p0.y < 0 || p0.y >= height) {
-              samples_excluded_bounds++;
               continue;  /* Out of bounds */
             }
 
-            /* Check motion magnitude against threshold (in pixels). */
             const float motion_mag = math::length(motion);
             if (motion_mag > motion_threshold) {
-              samples_excluded_threshold++;
               continue;  /* Motion too high, exclude this pixel */
             }
 
@@ -331,7 +359,6 @@ class TemporalDenoiseOperation : public NodeOperation {
             const float w01 = (1.0f - frac.x) * frac.y;
             const float w11 = frac.x * frac.y;
 
-            /* CRITICAL: Clamp coordinates to prevent wrapping at line boundaries */
             const int x0 = math::min(p0.x, width - 1);
             const int x1 = math::min(p0.x + 1, width - 1);
             const int y0 = math::min(p0.y, height - 1);
@@ -353,18 +380,6 @@ class TemporalDenoiseOperation : public NodeOperation {
             sample_valid = true;
             used_motion_comp = true;
 
-            /* DEBUG: Print first few motion compensation samples */
-            static std::atomic<int> debug_count(0);
-            if (debug_count.load() < 5 && current_frame == 2) {
-              const int64_t total_buffer_size = int64_t(history_frames) * pixel_count;
-              printf("  [DEBUG Pixel %d,%d Frame %d History i=%d]\n", x, y, current_frame, i);
-              printf("    Motion: (%.2f, %.2f)\n", motion.x, motion.y);
-              printf("    Reproj: (%.2f, %.2f) -> p0: (%d, %d)\n", reproj.x, reproj.y, p0.x, p0.y);
-              printf("    Clamped: x0=%d x1=%d y0=%d y1=%d\n", x0, x1, y0, y1);
-              printf("    Indices: %lld %lld %lld %lld (max: %lld)\n", idx00, idx10, idx01, idx11, total_buffer_size - 1);
-              printf("    Weights: %.3f %.3f %.3f %.3f\n", w00, w10, w01, w11);
-              debug_count++;
-            }
           }
           else {
             /* No motion compensation - direct averaging */
@@ -380,12 +395,13 @@ class TemporalDenoiseOperation : public NodeOperation {
             const float dl = math::abs(hist_luma - current_luma);
             const float dc = math::length(hist_chroma - current_chroma);
 
-            const float base_luma_threshold = 0.08f;
-            const float base_chroma_threshold = 0.15f;
+            const float base_luma_threshold = 0.08f * luma_quality_scale;
+            const float base_chroma_threshold = 0.15f * chroma_quality_scale;
             const float luma_threshold = base_luma_threshold *
-                                         (0.5f + 0.5f * (1.0f - luma_strength));
+                                         (0.5f + 0.5f * luma_strength);
+            const float chroma_norm = math::min(chroma_strength, 1.5f) / 1.5f;
             const float chroma_threshold = base_chroma_threshold *
-                                           (0.5f + 0.5f * (1.0f - math::min(chroma_strength, 1.5f)));
+                                           (0.5f + 0.5f * chroma_norm);
 
             float luma_gate = (luma_threshold > 0.0f) ? (1.0f - dl / luma_threshold) : 0.0f;
             float chroma_gate = (chroma_threshold > 0.0f) ? (1.0f - dc / chroma_threshold) : 0.0f;
@@ -395,7 +411,8 @@ class TemporalDenoiseOperation : public NodeOperation {
             const float base_temporal_weight = 1.0f / (1.0f + float(i) * 0.5f);
             float motion_factor = 1.0f;
             if (i > 0 && motion_threshold > 0.0f) {
-              const float t = math::min(math::length(motion) / motion_threshold, 4.0f);
+              const float t = math::min((math::length(motion) / motion_threshold) * motion_factor_strength,
+                                        4.0f);
               motion_factor = 1.0f / (1.0f + t * t);
             }
 
@@ -405,6 +422,7 @@ class TemporalDenoiseOperation : public NodeOperation {
               continue;
             }
             accumulated_luma += hist_luma * luma_weight;
+            accumulated_luma_sq += hist_luma * hist_luma * luma_weight;
             accumulated_chroma += hist_chroma * chroma_weight;
             total_luma_weight += luma_weight;
             total_chroma_weight += chroma_weight;
@@ -412,15 +430,21 @@ class TemporalDenoiseOperation : public NodeOperation {
         }
       }
 
-      /* Track which path was used for this pixel */
       if (used_motion_comp) {
-        pixels_with_motion_comp++;
       }
       else if (use_history && prev_head >= 0) {
-        pixels_direct_average++;
       }
 
-      accumulated_luma /= total_luma_weight;
+      const float mean_luma = accumulated_luma / total_luma_weight;
+      const float mean_luma_sq = accumulated_luma_sq / total_luma_weight;
+      const float var_luma = math::max(mean_luma_sq - mean_luma * mean_luma, 0.0f);
+      const bool is_auto_temporal = (preset_mode == 3);
+      const float noise_low = is_auto_temporal ? 0.00015f : 0.0002f;
+      const float noise_high = is_auto_temporal ? 0.0035f : 0.005f;
+      const float noise_t = math::clamp((var_luma - noise_low) / (noise_high - noise_low), 0.0f, 1.0f);
+      const float luma_strength_var = math::interpolate(0.5f * luma_strength, luma_strength, noise_t);
+      const float luma_strength_local = is_auto_temporal ? luma_strength : luma_strength_var;
+      accumulated_luma = mean_luma;
       accumulated_chroma /= total_chroma_weight;
 
       if (use_history && prev_head >= 0) {
@@ -430,9 +454,9 @@ class TemporalDenoiseOperation : public NodeOperation {
         const int cy = texel.y;
         float local_min_luma = current_luma;
         float local_max_luma = current_luma;
-        for (int oy = -1; oy <= 1; oy++) {
+        for (int oy = -clamp_radius; oy <= clamp_radius; oy++) {
           const int ny = math::clamp(cy + oy, 0, h - 1);
-          for (int ox = -1; ox <= 1; ox++) {
+          for (int ox = -clamp_radius; ox <= clamp_radius; ox++) {
             const int nx = math::clamp(cx + ox, 0, w - 1);
             const float4 n_rgba = input_cpu.load_pixel<float4>(int2(nx, ny));
             const float3 n_rgb = float3(n_rgba.x, n_rgba.y, n_rgba.z);
@@ -441,14 +465,14 @@ class TemporalDenoiseOperation : public NodeOperation {
             local_max_luma = math::max(local_max_luma, n_luma);
           }
         }
-        const float pad = 0.02f;
+        const float pad = clamp_pad;
         const float min_l = local_min_luma - pad;
         const float max_l = local_max_luma + pad;
         accumulated_luma = math::clamp(accumulated_luma, min_l, max_l);
       }
 
       /* Apply denoising strength separately to luma and chroma */
-      const float final_luma = math::interpolate(current_luma, accumulated_luma, luma_strength);
+      const float final_luma = math::interpolate(current_luma, accumulated_luma, luma_strength_local);
       const float3 final_chroma = math::interpolate(
           current_chroma, accumulated_chroma, chroma_strength);
 
@@ -472,23 +496,6 @@ class TemporalDenoiseOperation : public NodeOperation {
       entry.head = write_frame_index;
       entry.stored_frames = math::min(prev_stored + 1, history_frames);
     }
-
-    /* ===== DEBUG OUTPUT - COMPLETION ===== */
-    printf("========== PROCESSING COMPLETE ==========\n");
-    printf("  Updated History Head: %d\n", entry.head);
-    printf("  Updated Stored Frames: %d / %d\n", entry.stored_frames, history_frames);
-    printf("  Next frame will have %d history frames available\n", entry.stored_frames);
-    printf("--- Processing Statistics ---\n");
-    printf("  Total Pixels: %lld\n", pixel_count);
-    printf("  Pixels with Motion Compensation: %lld (%.1f%%)\n", 
-           pixels_with_motion_comp.load(),
-           100.0f * pixels_with_motion_comp.load() / pixel_count);
-    printf("  Pixels with Direct Averaging: %lld (%.1f%%)\n",
-           pixels_direct_average.load(),
-           100.0f * pixels_direct_average.load() / pixel_count);
-    printf("  Samples Excluded (Out of Bounds): %lld\n", samples_excluded_bounds.load());
-    printf("  Samples Excluded (Motion Threshold): %lld\n", samples_excluded_threshold.load());
-    printf("==========================================\n\n");
 
     if (context().use_gpu()) {
       Result output_gpu = output.upload_to_gpu(true);
