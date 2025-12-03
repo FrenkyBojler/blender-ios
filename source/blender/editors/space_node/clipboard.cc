@@ -163,7 +163,9 @@ static wmOperatorStatus node_clipboard_copy_exec(bContext *C, wmOperator *op)
                             {(PartialWriteContext::IDAddOperations::SET_FAKE_USER |
                               PartialWriteContext::IDAddOperations::SET_CLIPBOARD_MARK)}));
 
-  // todo(habib): copy node interface to avoid losing links
+  /* Copy node interface to avoid losing links to Group Input and Group Output nodes. */
+  copy_tree->tree_interface.copy_data(node_tree->tree_interface, LIB_ID_COPY_DEFAULT);
+
   // todo(habib): set using ntree_set_typeinfo(ntree, node_tree_type_find(idname));
   bNodeTree *dummy_ntree = blender::bke::node_tree_add_tree(
       bmain, "DummyForTypeinfo", node_tree->typeinfo->idname);
