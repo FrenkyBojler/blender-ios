@@ -63,7 +63,7 @@ static void cmp_node_temporal_denoise_declare(NodeDeclarationBuilder &b)
       .description("Manual uses all sliders. Auto presets override most settings and use their own tuned values");
 
   b.add_input<decl::Int>("Frames")
-      .default_value(3)
+      .default_value(5)
       .min(1)
       .max(5)
       .description("Number of frames to blend (1-5). In Auto modes this is clamped per preset and acts as an upper limit");
