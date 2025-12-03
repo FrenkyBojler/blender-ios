@@ -141,8 +141,7 @@ bool transform_seqbase_shuffle_ex(ListBase *seqbasep,
 
     strip_channel_set(test, orig_channel);
 
-    new_frame = new_frame +
-                (test->start - test->left_handle()); /* adjust by the startdisp */
+    new_frame = new_frame + (test->start - test->left_handle()); /* adjust by the startdisp */
     transform_translate_strip(evil_scene, test, new_frame - test->start);
     return false;
   }
@@ -163,8 +162,7 @@ static bool shuffle_strip_test_overlap(const Scene *scene,
   BLI_assert(strip1 != strip2);
   return (strip1->channel == strip2->channel &&
           ((strip1->right_handle(scene) + offset <= strip2->left_handle()) ||
-           (strip1->left_handle() + offset >= strip2->right_handle(scene))) ==
-              0);
+           (strip1->left_handle() + offset >= strip2->right_handle(scene))) == 0);
 }
 
 static int shuffle_strip_time_offset_get(const Scene *scene,
@@ -192,12 +190,10 @@ static int shuffle_strip_time_offset_get(const Scene *scene,
         all_conflicts_resolved = false;
 
         if (dir == 'L') {
-          offset = min_ii(
-              offset, strip_other->left_handle() - strip->right_handle(scene));
+          offset = min_ii(offset, strip_other->left_handle() - strip->right_handle(scene));
         }
         else {
-          offset = max_ii(
-              offset, strip_other->right_handle(scene) - strip->left_handle());
+          offset = max_ii(offset, strip_other->right_handle(scene) - strip->left_handle());
         }
       }
     }
@@ -397,14 +393,8 @@ static void strip_transform_handle_overwrite_split(Scene *scene,
    * pass nullptr here. */
   Main *bmain = nullptr;
   const char *error_msg = nullptr;
-  Strip *split_strip = edit_strip_split(bmain,
-                                        scene,
-                                        seqbasep,
-                                        target,
-                                        transformed->left_handle(),
-                                        SPLIT_SOFT,
-                                        true,
-                                        &error_msg);
+  Strip *split_strip = edit_strip_split(
+      bmain, scene, seqbasep, target, transformed->left_handle(), SPLIT_SOFT, true, &error_msg);
   if (split_strip == nullptr) {
     return;
   }

@@ -550,8 +550,7 @@ void proxy_rebuild(IndexBuildContext *context, wmJobWorkerStatus *worker_status)
 
   SeqRenderState state;
 
-  for (int timeline_frame = strip->left_handle();
-       timeline_frame < strip->right_handle(scene);
+  for (int timeline_frame = strip->left_handle(); timeline_frame < strip->right_handle(scene);
        timeline_frame++)
   {
     intra_frame_cache_set_cur_frame(render_context.scene,
@@ -574,8 +573,7 @@ void proxy_rebuild(IndexBuildContext *context, wmJobWorkerStatus *worker_status)
     }
 
     worker_status->progress = float(timeline_frame - strip->left_handle()) /
-                              (strip->right_handle(scene) -
-                               strip->left_handle());
+                              (strip->right_handle(scene) - strip->left_handle());
     worker_status->do_update = true;
 
     if (worker_status->stop || G.is_break) {

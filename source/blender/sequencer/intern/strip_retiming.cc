@@ -765,8 +765,7 @@ int retiming_key_timeline_frame_get(const Scene *scene,
   const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
   const int sound_offset = strip->rounded_sound_offset(scene_fps);
   return round_fl_to_int(strip->content_start() + sound_offset +
-                         key->strip_frame_index /
-                             strip->media_playback_rate_factor(scene_fps));
+                         key->strip_frame_index / strip->media_playback_rate_factor(scene_fps));
 }
 
 void retiming_key_timeline_frame_set(

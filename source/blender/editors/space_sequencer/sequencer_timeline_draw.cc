@@ -93,9 +93,7 @@ Vector<Strip *> sequencer_visible_strips_get(const Scene *scene, const View2D *v
     if (min_ii(strip->left_handle(), strip->content_start()) > v2d->cur.xmax) {
       continue;
     }
-    if (max_ii(strip->right_handle(scene), strip->content_end(scene)) <
-        v2d->cur.xmin)
-    {
+    if (max_ii(strip->right_handle(scene), strip->content_end(scene)) < v2d->cur.xmin) {
       continue;
     }
     if (strip->channel + 1.0f < v2d->cur.ymin) {
@@ -749,9 +747,7 @@ float strip_handle_draw_size_get(const Scene *scene, const Strip *strip, const f
   const float handle_size = pixelx * (5.0f * U.pixelsize);
 
   /* Ensure that the handle is not wider than a quarter of the strip. */
-  return min_ff(
-      handle_size,
-      (float(strip->right_handle(scene) - strip->left_handle()) / 4.0f));
+  return min_ff(handle_size, (float(strip->right_handle(scene) - strip->left_handle()) / 4.0f));
 }
 
 static const char *draw_seq_text_get_name(const Strip *strip)
@@ -1658,11 +1654,8 @@ static void draw_cache_stripe(const Scene *scene,
                               const float stripe_ht,
                               const uchar color[4])
 {
-  quads.add_quad(strip->left_handle(),
-                 stripe_bot,
-                 strip->right_handle(scene),
-                 stripe_bot + stripe_ht,
-                 color);
+  quads.add_quad(
+      strip->left_handle(), stripe_bot, strip->right_handle(scene), stripe_bot + stripe_ht, color);
 }
 
 static void draw_cache_background(const bContext *C, const CacheDrawData *draw_data)

@@ -292,8 +292,7 @@ static void append_sequencer_strip_snap_target(blender::Span<Strip *> strips,
   float best_distance = FLT_MAX;
 
   for (Strip *strip : strips) {
-    seq_frame_snap_update_best(
-        strip->left_handle(), timeline_frame, &best_frame, &best_distance);
+    seq_frame_snap_update_best(strip->left_handle(), timeline_frame, &best_frame, &best_distance);
     seq_frame_snap_update_best(
         strip->right_handle(scene), timeline_frame, &best_frame, &best_distance);
   }

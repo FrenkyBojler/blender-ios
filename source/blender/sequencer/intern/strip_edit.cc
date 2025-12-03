@@ -319,8 +319,7 @@ static bool seq_edit_split_intersect_check(const Scene *scene,
                                            const Strip *strip,
                                            const int timeline_frame)
 {
-  return timeline_frame > strip->left_handle() &&
-         timeline_frame < strip->right_handle(scene);
+  return timeline_frame > strip->left_handle() && timeline_frame < strip->right_handle(scene);
 }
 
 static void seq_edit_split_handle_strip_offsets(Main *bmain,

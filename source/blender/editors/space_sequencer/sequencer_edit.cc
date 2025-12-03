@@ -949,8 +949,7 @@ static float slip_apply_clamp(const Scene *scene, const SlipData *data, float *r
   if (data->can_clamp) {
     for (Strip *strip : data->strips) {
       const float unclamped_start = strip->content_start() + strip->sound_offset + offset_delta;
-      const float unclamped_end = strip->content_end(scene) + strip->sound_offset +
-                                  offset_delta;
+      const float unclamped_end = strip->content_end(scene) + strip->sound_offset + offset_delta;
 
       const float left_handle = strip->left_handle();
       const float right_handle = strip->right_handle(scene);
@@ -2716,8 +2715,7 @@ static void swap_strips(Scene *scene, Strip *strip_a, Strip *strip_b)
   seq::transform_translate_strip(scene, strip_b, strip_b_start - strip_b->start);
   seq::relations_invalidate_cache(scene, strip_b);
 
-  strip_a_start = (strip_a->start - strip_a->left_handle()) +
-                  strip_b->right_handle(scene) + gap;
+  strip_a_start = (strip_a->start - strip_a->left_handle()) + strip_b->right_handle(scene) + gap;
   seq::transform_translate_strip(scene, strip_a, strip_a_start - strip_a->start);
   seq::relations_invalidate_cache(scene, strip_a);
 }

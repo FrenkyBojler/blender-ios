@@ -383,9 +383,7 @@ enum SeqInputSide {
 static Strip *effect_input_get(Strip *effect, SeqInputSide side)
 {
   Strip *input = effect->input1;
-  if (effect->input2 &&
-      (effect->input2->left_handle() - effect->input1->left_handle()) * side >
-          0)
+  if (effect->input2 && (effect->input2->left_handle() - effect->input1->left_handle()) * side > 0)
   {
     input = effect->input2;
   }
@@ -511,8 +509,7 @@ static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
 
     /* If both handles are selected, there must be enough underlying content to clamp holds. */
     bool can_clamp_holds = !(left_sel && right_sel) ||
-                           (strip->len >=
-                            strip->right_handle(scene) - strip->left_handle());
+                           (strip->len >= strip->right_handle(scene) - strip->left_handle());
     can_clamp_holds &= !seq::transform_single_image_check(strip);
 
     /* A handle is selected. Update x-axis clamping data. */

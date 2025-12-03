@@ -27,7 +27,6 @@
 
 #include "ED_sequencer.hh"
 
-
 #include "MEM_guardedalloc.h"
 
 namespace blender::ed::transform {

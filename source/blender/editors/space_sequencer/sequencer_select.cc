@@ -612,10 +612,8 @@ static void sequencer_select_linked_handle(const bContext *C,
         case seq::SIDE_LEFT:
           if ((strip->flag & SEQ_LEFTSEL) && (neighbor->flag & SEQ_RIGHTSEL)) {
             strip->flag |= SEQ_SELECT;
-            select_active_side(ed->current_strips(),
-                               seq::SIDE_LEFT,
-                               strip->channel,
-                               strip->left_handle());
+            select_active_side(
+                ed->current_strips(), seq::SIDE_LEFT, strip->channel, strip->left_handle());
           }
           else {
             strip->flag |= SEQ_SELECT;
@@ -628,10 +626,8 @@ static void sequencer_select_linked_handle(const bContext *C,
         case seq::SIDE_RIGHT:
           if ((strip->flag & SEQ_RIGHTSEL) && (neighbor->flag & SEQ_LEFTSEL)) {
             strip->flag |= SEQ_SELECT;
-            select_active_side(ed->current_strips(),
-                               seq::SIDE_RIGHT,
-                               strip->channel,
-                               strip->left_handle());
+            select_active_side(
+                ed->current_strips(), seq::SIDE_RIGHT, strip->channel, strip->left_handle());
           }
           else {
             strip->flag |= SEQ_SELECT;
@@ -645,8 +641,7 @@ static void sequencer_select_linked_handle(const bContext *C,
     }
     else {
 
-      select_active_side(
-          ed->current_strips(), sel_side, strip->channel, strip->left_handle());
+      select_active_side(ed->current_strips(), sel_side, strip->channel, strip->left_handle());
     }
   }
 }

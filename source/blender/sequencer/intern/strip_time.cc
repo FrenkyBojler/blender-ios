@@ -42,8 +42,7 @@ float give_frame_index(const Scene *scene, const Strip *strip, float timeline_fr
 {
   float frame_index;
   float sta = strip->content_start();
-  float end = strip->is_effect() ? strip->right_handle(scene) :
-                                   strip->content_end(scene) - 1;
+  float end = strip->is_effect() ? strip->right_handle(scene) : strip->content_end(scene) - 1;
 
   if (end < sta) {
     return -1;
@@ -183,8 +182,7 @@ void strip_time_effect_range_set(const Scene *scene, Strip *strip)
   }
 
   if (strip->input1 && strip->input2) { /* 2 - input effect. */
-    strip->startdisp = max_ii(strip->input1->left_handle(),
-                              strip->input2->left_handle());
+    strip->startdisp = max_ii(strip->input1->left_handle(), strip->input2->left_handle());
     strip->enddisp = min_ii(strip->input1->right_handle(scene),
                             strip->input2->right_handle(scene));
   }
@@ -603,6 +601,5 @@ void Strip::handles_frame_set(const Scene *scene,
 
 bool Strip::intersects_frame(const Scene *scene, const int timeline_frame) const
 {
-  return (this->left_handle() <= timeline_frame) &&
-         (this->right_handle(scene) > timeline_frame);
+  return (this->left_handle() <= timeline_frame) && (this->right_handle(scene) > timeline_frame);
 }

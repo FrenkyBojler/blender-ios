@@ -67,8 +67,7 @@ static FCurve *strip_effect_speed_speed_factor_curve_get(Scene *scene, Strip *st
 
 void strip_effect_speed_rebuild_map(Scene *scene, Strip *strip)
 {
-  const int effect_strip_length = strip->right_handle(scene) -
-                                  strip->left_handle();
+  const int effect_strip_length = strip->right_handle(scene) - strip->left_handle();
 
   if ((strip->input1 == nullptr) || (effect_strip_length < 1)) {
     return; /* Make COVERITY happy and check for (CID 598) input strip. */
