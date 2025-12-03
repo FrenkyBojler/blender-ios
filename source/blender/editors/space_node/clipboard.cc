@@ -173,7 +173,7 @@ static wmOperatorStatus node_clipboard_copy_exec(bContext *C, wmOperator *op)
   strcpy(copy_tree->idname, dummy_ntree->typeinfo->idname.c_str());
   // BKE_id_delete(bmain, &dummy_ntree->id);
 
-  if (!node_copy_local(*bmain, *node_tree, *copy_tree, true, float2{0, 0}, op->reports)) {
+  if (!node_copy_local(*bmain, *node_tree, *copy_tree, true, float2(0), op->reports)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -189,6 +189,7 @@ static wmOperatorStatus node_clipboard_copy_exec(bContext *C, wmOperator *op)
     ID *id_dst = nullptr;
     const ID_Type id_type = GS((id_src)->name);
 
+    // todo(habib): doc
     if (ELEM(id_type, ID_SCE, ID_NT, ID_IM, ID_MC, ID_MSK) ||
         (cb_data->cb_flag & IDWALK_CB_NEVER_NULL))
     {
