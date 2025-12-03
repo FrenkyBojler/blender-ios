@@ -100,7 +100,7 @@ class NodeSocketViewItem : public BasicTreeViewItem {
     });
   }
 
-  void build_row(blender::ui::Layout &row) override
+  void build_row(Layout &row) override
   {
     if (ID_IS_LINKED(&nodetree_)) {
       row.enabled_set(false);
@@ -120,7 +120,7 @@ class NodeSocketViewItem : public BasicTreeViewItem {
 
     this->add_label(row, IFACE_(label_.c_str()));
 
-    blender::ui::Layout &output_socket_layout = row.row(true);
+    Layout &output_socket_layout = row.row(true);
     if (socket_.flag & NODE_INTERFACE_SOCKET_OUTPUT) {
       /* Context is not used by the template function. */
       uiTemplateNodeSocket(&output_socket_layout, /*C*/ nullptr, socket_.socket_color());

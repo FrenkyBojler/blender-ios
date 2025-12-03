@@ -69,7 +69,7 @@ static void draw_node_input(bContext *C, Layout &layout, PointerRNA *node_ptr, b
       node_ptr->owner_id, &RNA_NodeSocket, &socket);
   const StringRef text = CTX_IFACE_(bke::node_socket_translation_context(socket),
                                     bke::node_socket_label(socket));
-  blender::ui::Layout &row = layout.row(true);
+  Layout &row = layout.row(true);
   socket.typeinfo->draw(C, &row, &socket_ptr, node_ptr, text);
 }
 
