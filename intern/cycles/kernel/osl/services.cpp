@@ -38,6 +38,7 @@
 
 #include "kernel/svm/ao.h"
 #include "kernel/svm/bevel.h"
+#include "kernel/svm/raycast.h"
 
 #include "kernel/util/ies.h"
 #include "kernel/util/texture_3d.h"
@@ -1136,6 +1137,21 @@ bool OSLRenderServices::texture(OSLUStringHash filename,
           flags |= NODE_AO_GLOBAL_RADIUS;
         }
         result[0] = svm_ao(kernel_globals, state, sd, N, radius, num_samples, flags);
+        status = true;
+      }
+#endif
+      break;
+    }
+    case OSLTextureHandle::RAYCAST: {
+#ifdef __SHADER_RAYTRACE__
+      /* AO shader hack. */
+      if (state != nullptr) {
+        const float3 position = make_float3(s, t, dsdx);
+        const float3 direction = make_float3(dtdx, dsdy, dtdy);
+        const float max_distance = options.sblur;
+        const bool local_only = (int)options.tblur;
+        result[0] = svm_raycast(
+            kernel_globals, state, sd, position, direction, max_distance, local_only);
         status = true;
       }
 #endif

@@ -1127,7 +1127,10 @@ static ShaderNode *add_node(Scene *scene,
     node = aov;
   }
   else if (b_node.is_a(&RNA_ShaderNodeRaycast)) {
-    node = graph->create_node<RaycastNode>();
+    BL::ShaderNodeRaycast b_raycast_node(b_node);
+    RaycastNode *raycast = graph->create_node<RaycastNode>();
+    raycast->set_only_local(b_raycast_node.only_local());
+    node = raycast;
   }
 
   if (node) {

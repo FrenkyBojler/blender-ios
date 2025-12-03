@@ -6,6 +6,9 @@
 
 #include "BLI_math_vector.h"
 
+#include "UI_interface_layout.hh"
+#include "UI_resources.hh"
+
 namespace blender::nodes::node_shader_raycast_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
@@ -18,11 +21,21 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Float>("Hit Distance");
 }
 
-static int node_shader_gpu_raycast(GPUMaterial *mat,
-                                   bNode *node,
-                                   bNodeExecData * /*execdata*/,
-                                   GPUNodeStack *in,
-                                   GPUNodeStack *out)
+static void node_shader_init(bNodeTree * /*ntree*/, bNode *node)
+{
+  node->custom1 = 0; /* Only Local */
+}
+
+static void node_shader_buts(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
+{
+  layout.prop(ptr, "only_local", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+}
+
+static int node_shader_gpu(GPUMaterial *mat,
+                           bNode *node,
+                           bNodeExecData * /*execdata*/,
+                           GPUNodeStack *in,
+                           GPUNodeStack *out)
 {
   if (!in[0].link) {
     GPU_link(mat, "world_position_get", &in[0].link);
@@ -58,8 +71,9 @@ void register_node_type_sh_raycast()
   ntype.enum_name_legacy = "RAYCAST";
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.add_ui_poll = object_shader_nodes_poll;
+  ntype.draw_buttons = file_ns::node_shader_buts;
   ntype.declare = file_ns::node_declare;
-  ntype.gpu_fn = file_ns::node_shader_gpu_raycast;
+  ntype.gpu_fn = file_ns::node_shader_gpu;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
   blender::bke::node_register_type(ntype);

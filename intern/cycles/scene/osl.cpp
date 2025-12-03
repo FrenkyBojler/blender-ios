@@ -138,6 +138,8 @@ void OSLManager::device_update_pre(Device *device, Scene *scene)
       services->textures.insert(OSLUStringHash("@ao"), OSLTextureHandle(OSLTextureHandle::AO));
       services->textures.insert(OSLUStringHash("@bevel"),
                                 OSLTextureHandle(OSLTextureHandle::BEVEL));
+      services->textures.insert(OSLUStringHash("@raycast"),
+                                OSLTextureHandle(OSLTextureHandle::RAYCAST));
     });
 
     if (device->info.type == DEVICE_CPU) {

@@ -28,7 +28,8 @@ ccl_device float svm_raycast(
     ccl_private ShaderData *sd,
     float3 position,
     float3 direction,
-    float distance)
+    float distance,
+    bool only_local)
 {
   /* Early out if no sampling needed. */
   if (distance <= 0.0f || sd->object == OBJECT_NONE) {
@@ -56,13 +57,22 @@ ccl_device float svm_raycast(
   ray.dP = differential_zero_compact();
   ray.dD = differential_zero_compact();
 
-  Intersection isect;
-  /* Ray-trace, leaving out shadow opaque to avoid early exit. */
-  const uint visibility = PATH_RAY_ALL_VISIBILITY - PATH_RAY_SHADOW_OPAQUE;
-  if (!scene_intersect_material_raycast(kg, &ray, visibility, &isect)) {
-    return -1.0f;
+  if (only_local) {
+    LocalIntersection isect;
+    if (!scene_intersect_local(kg, &ray, &isect, sd->object, nullptr, 1)) {
+      return -1.0f;
+    }
+    return isect.hits[0].t;
   }
-  return isect.t;
+  else {
+    Intersection isect;
+    /* Ray-trace, leaving out shadow opaque to avoid early exit. */
+    const uint visibility = PATH_RAY_ALL_VISIBILITY - PATH_RAY_SHADOW_OPAQUE;
+    if (!scene_intersect_material_raycast(kg, &ray, visibility, &isect)) {
+      return -1.0f;
+    }
+    return isect.t;
+  }
 }
 
 template<uint node_feature_mask, typename ConstIntegratorGenericState>
@@ -87,7 +97,8 @@ ccl_device_noinline
 
   uint hit_position_offset;
   uint hit_distance_offset;
-  svm_unpack_node_uchar2(node.z, &hit_position_offset, &hit_distance_offset);
+  uint only_local;
+  svm_unpack_node_uchar3(node.z, &hit_position_offset, &hit_distance_offset, &only_local);
 
   float distance = stack_load_float_default(stack, distance_offset, 0.0f);
 
@@ -100,9 +111,10 @@ ccl_device_noinline
     float3 position = stack_load_float3_default(stack, position_offset, sd->P);
     float3 direction = stack_load_float3_default(stack, direction_offset, sd->N);
 #  ifdef __KERNEL_OPTIX__
-    float result = optixDirectCall<float>(2, kg, state, sd, position, direction, distance);
+    float result = optixDirectCall<float>(
+        2, kg, state, sd, position, direction, distance, only_local);
 #  else
-    float result = svm_raycast(kg, state, sd, position, direction, distance);
+    float result = svm_raycast(kg, state, sd, position, direction, distance, only_local);
 #  endif
 
     if (result >= 0.0f) {

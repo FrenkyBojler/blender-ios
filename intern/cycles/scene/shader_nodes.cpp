@@ -8021,6 +8021,8 @@ NODE_DEFINE(RaycastNode)
   SOCKET_OUT_POINT(hit_position, "Hit Position");
   SOCKET_OUT_FLOAT(hit_distance, "Hit Distance");
 
+  SOCKET_BOOLEAN(only_local, "Only Local", false);
+
   return type;
 }
 
@@ -8041,11 +8043,13 @@ void RaycastNode::compile(SVMCompiler &compiler)
                                            compiler.stack_assign(length_in),
                                            compiler.stack_assign(is_hit_out)),
                     compiler.encode_uchar4(compiler.stack_assign(hit_position_out),
-                                           compiler.stack_assign(hit_distance_out)));
+                                           compiler.stack_assign(hit_distance_out),
+                                           only_local));
 }
 
 void RaycastNode::compile(OSLCompiler &compiler)
 {
+  compiler.parameter(this, "only_local");
   compiler.add(this, "node_raycast");
 }
 

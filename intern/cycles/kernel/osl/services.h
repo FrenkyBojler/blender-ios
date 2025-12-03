@@ -45,7 +45,7 @@ struct ThreadKernelGlobalsCPU;
  * stored as follows: x:tile_a, y:svm_slot_a, z:tile_b, w:svm_slot_b etc. */
 
 struct OSLTextureHandle {
-  enum Type { OIIO, SVM, IES, BEVEL, AO };
+  enum Type { OIIO, SVM, IES, BEVEL, AO, RAYCAST };
 
   OSLTextureHandle(Type type, const vector<int4> &svm_slots) : type(type), svm_slots(svm_slots) {}
 
