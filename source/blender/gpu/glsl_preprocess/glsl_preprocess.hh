@@ -1232,15 +1232,15 @@ class Preprocessor {
       bool error = false;
       /* Checks if `continue` exists, even in switch statement inside the unrolled loop. */
       body.foreach_token(Continue, [&](const Token token) {
-        if (token.first_containing_scope_of_type(ScopeType::LoopBody) == body) {
+        if (token.scope().first_scope_of_type(ScopeType::LoopBody) == body) {
           report_error(ERROR_TOK(token), "Unrolled loop cannot contain \"continue\" statement.");
           error = true;
         }
       });
       /* Checks if `break` exists directly the unrolled loop scope. Switch statements are ok. */
       body.foreach_token(Break, [&](const Token token) {
-        if (token.first_containing_scope_of_type(ScopeType::LoopBody) == body) {
-          const Scope switch_scope = token.first_containing_scope_of_type(ScopeType::SwitchBody);
+        if (token.scope().first_scope_of_type(ScopeType::LoopBody) == body) {
+          const Scope switch_scope = token.scope().first_scope_of_type(ScopeType::SwitchBody);
           if (switch_scope.is_invalid() || !body.contains(switch_scope)) {
             report_error(ERROR_TOK(token), "Unrolled loop cannot contain \"break\" statement.");
             error = true;

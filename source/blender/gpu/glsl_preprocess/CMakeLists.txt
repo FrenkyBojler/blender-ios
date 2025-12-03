@@ -7,9 +7,13 @@
 # Build `glsl_preprocess` executable.
 set(SRC
   glsl_preprocess.cc
+  parser.cc
 
   glsl_preprocess.hh
   shader_parser.hh
+  parser.hh
+  scope.hh
+  token.hh
 )
 
 if(WITH_GPU_SHADER_ASSERT)
