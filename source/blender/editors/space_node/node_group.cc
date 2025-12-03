@@ -231,7 +231,7 @@ static wmOperatorStatus node_group_enter_exit_invoke(bContext *C,
   SpaceNode &snode = *CTX_wm_space_node(C);
   ARegion &region = *CTX_wm_region(C);
 
-  /* Don't interfer when the mouse is interacting with some button. See #147282. */
+  /* Don't interfere when the mouse is interacting with some button. See #147282. */
   if (ISMOUSE_BUTTON(event->type) && UI_but_find_mouse_over(&region, event)) {
     return OPERATOR_PASS_THROUGH | OPERATOR_CANCELLED;
   }
@@ -732,7 +732,7 @@ static wmOperatorStatus node_group_separate_invoke(bContext *C,
 {
   uiPopupMenu *pup = UI_popup_menu_begin(
       C, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Separate"), ICON_NONE);
-  uiLayout *layout = UI_popup_menu_layout(pup);
+  ui::Layout *layout = UI_popup_menu_layout(pup);
 
   layout->operator_context_set(wm::OpCallContext::ExecDefault);
   PointerRNA op_ptr = layout->op("NODE_OT_group_separate", IFACE_("Copy"), ICON_NONE);
@@ -1516,8 +1516,11 @@ static bNode *node_group_make_from_node_declaration(bContext &C,
     }
   }
 
-  /* Remove the old node because it has been replaced. */
-  bke::node_remove_node(&bmain, ntree, src_node, true);
+  /* Remove the old node because it has been replaced. Use the name of the removed node for the new
+   * group node. This also keeps animation data working. */
+  std::string old_node_name = src_node.name;
+  bke::node_remove_node(&bmain, ntree, src_node, true, false);
+  STRNCPY(gnode->name, old_node_name.c_str());
 
   BKE_ntree_update_tag_node_property(&ntree, gnode);
   BKE_main_ensure_invariants(bmain);

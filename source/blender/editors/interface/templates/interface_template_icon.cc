@@ -50,7 +50,6 @@ static uiBlock *ui_icon_view_menu_cb(bContext *C, ARegion *region, void *arg_lit
     if (args.show_labels) {
       but = uiDefIconTextButR_prop(block,
                                    ButType::Row,
-                                   0,
                                    icon,
                                    item[a].name,
                                    x,
@@ -65,20 +64,8 @@ static uiBlock *ui_icon_view_menu_cb(bContext *C, ARegion *region, void *arg_lit
                                    std::nullopt);
     }
     else {
-      but = uiDefIconButR_prop(block,
-                               ButType::Row,
-                               0,
-                               icon,
-                               x,
-                               y,
-                               w,
-                               h,
-                               &args.ptr,
-                               args.prop,
-                               -1,
-                               0,
-                               value,
-                               std::nullopt);
+      but = uiDefIconButR_prop(
+          block, ButType::Row, icon, x, y, w, h, &args.ptr, args.prop, -1, 0, value, std::nullopt);
     }
     ui_def_but_icon(but, icon, UI_HAS_ICON | UI_BUT_ICON_PREVIEW);
   }
@@ -93,12 +80,11 @@ static uiBlock *ui_icon_view_menu_cb(bContext *C, ARegion *region, void *arg_lit
   return block;
 }
 
-void uiTemplateIcon(uiLayout *layout, int icon_value, float icon_scale)
+void uiTemplateIcon(blender::ui::Layout *layout, int icon_value, float icon_scale)
 {
   uiBlock *block = layout->absolute_block();
   uiBut *but = uiDefIconBut(block,
                             ButType::Label,
-                            0,
                             ICON_X,
                             0,
                             0,
@@ -111,7 +97,7 @@ void uiTemplateIcon(uiLayout *layout, int icon_value, float icon_scale)
   ui_def_but_icon(but, icon_value, UI_HAS_ICON | UI_BUT_ICON_PREVIEW);
 }
 
-void uiTemplateIconView(uiLayout *layout,
+void uiTemplateIconView(blender::ui::Layout *layout,
                         PointerRNA *ptr,
                         const StringRefNull propname,
                         bool show_labels,
@@ -161,7 +147,6 @@ void uiTemplateIconView(uiLayout *layout,
   else {
     but = uiDefIconBut(block,
                        ButType::Label,
-                       0,
                        ICON_X,
                        0,
                        0,

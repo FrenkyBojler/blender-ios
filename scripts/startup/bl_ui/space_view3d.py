@@ -1493,6 +1493,13 @@ class VIEW3D_MT_view(Menu):
             text="Render Playblast",
             icon='RENDER_ANIMATION',
         ).animation = True
+        props = layout.operator(
+            "render.opengl",
+            text="Render Playblast on Keyframes",
+            icon='RENDER_ANIMATION',
+        )
+        props.animation = True
+        props.render_keyed_only = True
 
         layout.separator()
 
@@ -6640,11 +6647,9 @@ class VIEW3D_PT_shading_lighting(Panel):
                 split = layout.split(factor=0.95)
                 col = split.column()
 
-                engine = context.scene.render.engine
-                row = col.row()
-                if engine == 'BLENDER_WORKBENCH':
-                    row.prop(shading, "use_studiolight_view_rotation", text="", icon='WORLD', toggle=True)
-                    row = row.row()
+                row = col.row(align=True)
+                row.prop(shading, "use_studiolight_view_rotation", text="", icon='WORLD', toggle=True)
+                row = row.row(align=True)
                 row.prop(shading, "studiolight_rotate_z", text="Rotation")
 
                 col.prop(shading, "studiolight_intensity")
@@ -7018,19 +7023,38 @@ class VIEW3D_PT_overlay_guides(Panel):
 
         split = col.split()
         sub = split.column()
-        sub.prop(overlay, "show_text", text="Text Info")
-        sub.prop(overlay, "show_stats", text="Statistics")
+        row = sub.row()
+        row.prop(overlay, "show_cursor", text="3D Cursor")
+        row.prop(overlay, "show_annotation", text="Annotations")
+
         if view.region_3d.view_perspective == 'CAMERA':
             sub.prop(overlay, "show_camera_guides", text="Camera Guides")
-
-        sub = split.column()
-        sub.prop(overlay, "show_cursor", text="3D Cursor")
-        sub.prop(overlay, "show_annotation", text="Annotations")
 
         if shading.type == 'MATERIAL':
             row = col.row()
             row.active = shading.render_pass == 'COMBINED'
             row.prop(overlay, "show_look_dev")
+
+
+class VIEW3D_PT_overlay_text(Panel):
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'HEADER'
+    bl_parent_id = "VIEW3D_PT_overlay"
+    bl_label = "Text"
+
+    def draw(self, context):
+        layout = self.layout
+
+        view = context.space_data
+        overlay = view.overlay
+
+        split = layout.split()
+        sub = split.column(align=True)
+        sub.prop(overlay, "show_text", text="General Info")
+        sub.prop(overlay, "show_stats", text="Statistics")
+
+        sub = split.column(align=True)
+        sub.prop(overlay, "show_performance", text="Performance")
 
 
 class VIEW3D_PT_overlay_object(Panel):
@@ -8379,7 +8403,7 @@ class VIEW3D_MT_greasepencil_edit_context_menu(Menu):
 
             col.separator()
             col.operator_menu_enum("grease_pencil.convert_curve_type", text="Convert Type", property="type")
-            layout.operator("grease_pencil.set_curve_resolution", text="Convert Type")
+            col.operator("grease_pencil.set_curve_resolution", text="Set Curve Resolution")
         else:
             col = row.column(align=True)
             col.label(text="Point", icon='GP_SELECT_POINTS')
@@ -8726,11 +8750,14 @@ class VIEW3D_PT_paint_weight_context_menu(Panel):
         layout = self.layout
 
         brush = context.tool_settings.weight_paint.brush
+
+        # Use unified_paint_settings_override to allow 'brush-like' tools (e.g. Gradient).
         UnifiedPaintPanel.prop_unified(
             layout,
             context,
             brush,
             "weight",
+            unified_paint_settings_override=context.tool_settings.weight_paint.unified_paint_settings,
             unified_name="use_unified_weight",
             slider=True,
         )
@@ -8739,6 +8766,7 @@ class VIEW3D_PT_paint_weight_context_menu(Panel):
             context,
             brush,
             "size",
+            unified_paint_settings_override=context.tool_settings.weight_paint.unified_paint_settings,
             unified_name="use_unified_size",
             pressure_name="use_pressure_size",
             slider=True,
@@ -8748,6 +8776,7 @@ class VIEW3D_PT_paint_weight_context_menu(Panel):
             context,
             brush,
             "strength",
+            unified_paint_settings_override=context.tool_settings.weight_paint.unified_paint_settings,
             unified_name="use_unified_strength",
             pressure_name="use_pressure_strength",
             slider=True,
@@ -9352,6 +9381,7 @@ classes = (
     VIEW3D_PT_gizmo_display,
     VIEW3D_PT_overlay,
     VIEW3D_PT_overlay_guides,
+    VIEW3D_PT_overlay_text,
     VIEW3D_PT_overlay_object,
     VIEW3D_PT_overlay_geometry,
     VIEW3D_PT_overlay_viewer_node,

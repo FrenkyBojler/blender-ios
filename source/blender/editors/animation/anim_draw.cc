@@ -27,7 +27,7 @@
 #include "BKE_curve.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_global.hh"
-#include "BKE_mask.h"
+#include "BKE_mask.hh"
 #include "BKE_nla.hh"
 
 #include "ED_anim_api.hh"
@@ -45,6 +45,8 @@
 #include "GPU_state.hh"
 
 #include "SEQ_time.hh"
+
+#include <utility>
 
 /* *************************************************** */
 /* CURRENT FRAME DRAWING */
@@ -145,12 +147,16 @@ void ANIM_draw_scene_strip_range(const bContext *C, View2D *v2d)
    * (right_handle-1), hence the -1 when computing the end_frame. */
   const float left_handle = seq::time_left_handle_frame_get(sequencer_scene, scene_strip);
   const float right_handle = seq::time_right_handle_frame_get(sequencer_scene, scene_strip);
-  const float start_frame = seq::give_frame_index(sequencer_scene, scene_strip, left_handle) +
-                            scene_strip->scene->r.sfra;
-  const float end_frame = seq::give_frame_index(sequencer_scene, scene_strip, right_handle - 1) +
-                          scene_strip->scene->r.sfra;
+  float start_frame = seq::give_frame_index(sequencer_scene, scene_strip, left_handle) +
+                      scene_strip->scene->r.sfra;
+  float end_frame = seq::give_frame_index(sequencer_scene, scene_strip, right_handle - 1) +
+                    scene_strip->scene->r.sfra;
 
-  BLI_assert(start_frame < end_frame);
+  /* This can happen when the strip time is reversed. */
+  if (start_frame > end_frame) {
+    std::swap(start_frame, end_frame);
+  }
+
   immRectf(pos, v2d->cur.xmin, v2d->cur.ymin, start_frame, v2d->cur.ymax);
   immRectf(pos, end_frame, v2d->cur.ymin, v2d->cur.xmax, v2d->cur.ymax);
 
@@ -602,7 +608,7 @@ static float normalization_factor_get(Scene *scene, FCurve *fcu, short flag, flo
   else {
     /* Skip normalization. */
     factor = 1.0f;
-    offset = -min_coord;
+    offset = 0.0f;
   }
 
   BLI_assert(factor != 0.0f);
@@ -761,8 +767,13 @@ static bool find_prev_next_keyframes(bContext *C, int *r_nextfra, int *r_prevfra
 
 void ANIM_center_frame(bContext *C, int smooth_viewtx)
 {
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
+  if (!scene) {
+    return;
+  }
+
   ARegion *region = CTX_wm_region(C);
-  Scene *scene = CTX_data_scene(C);
   float w = BLI_rctf_size_x(&region->v2d.cur);
   rctf newrct;
   int nextfra, prevfra;

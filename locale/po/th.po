@@ -1,30 +1,70 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Beta (b'702691150287')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'dba3692987cb')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-10-13 16:12+0000\n"
-"PO-Revision-Date: 2025-07-23 15:06+0000\n"
-"Last-Translator: Anonymous <noreply@weblate.org>\n"
+"POT-Creation-Date: 2025-12-02 11:29+0000\n"
+"PO-Revision-Date: 2025-12-02 09:58+0000\n"
+"Last-Translator: Tan <nazapizzaemail.com@gmail.com>\n"
 "Language-Team: Thai <https://translate.blender.org/projects/blender-ui/ui/th/>\n"
 "Language: th\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=1; plural=0;\n"
-"X-Generator: Weblate 5.12.1"
+"X-Generator: Weblate 5.14.3"
+
+
+msgid "Shader AOV"
+msgstr "เชดเดอร์ AOV"
+
+
+msgid "Valid"
+msgstr "พร้อมใช้งาน"
+
+
+msgid "Is the name of the AOV conflicting"
+msgstr "ชื่อของ AOV ขัดแย้งกันหรือไม่?"
 
 
 msgid "Name"
 msgstr "ชื่อ"
 
 
+msgid "Name of the AOV"
+msgstr "ชื่อของเอโอวี"
+
+
 msgid "Type"
 msgstr "ชนิด"
 
 
+msgid "Data type of the AOV"
+msgstr "ชนิดข้อมูลของเอโอวี"
+
+
 msgid "Color"
 msgstr "สี"
+
+
+msgid "Value"
+msgstr "ค่า"
+
+
+msgid "List of AOVs"
+msgstr "รายการเอโอวี"
+
+
+msgid "Collection of AOVs"
+msgstr "ชุดสะสมเอโอวี"
+
+
+msgid "Animation Channel Bag"
+msgstr "ถุงช่องภาพเคลื่อนไหว"
+
+
+msgid "Collection of animation channels, typically associated with an action slot"
+msgstr "ชุดสะสมของช่องภาพเคลื่อนไหว ตามแบบอย่างแล้วเกี่ยวข้องกับช่องรูการกระทำ"
 
 
 msgid "Action Group"
@@ -478,8 +518,48 @@ msgid "ID Name"
 msgstr "ชื่อ ID"
 
 
+msgid "Cameras"
+msgstr "กล้อง"
+
+
+msgid "Fonts"
+msgstr "ฟอนต์"
+
+
+msgid "Lights"
+msgstr "แสง"
+
+
+msgid "Materials"
+msgstr "วัสดุ"
+
+
+msgid "Sounds"
+msgstr "เสียง"
+
+
+msgid "Texts"
+msgstr "ข้อความ"
+
+
+msgid "Textures"
+msgstr "พื้นผิว"
+
+
+msgid "Workspaces"
+msgstr "พื้นที่ใช้งาน"
+
+
+msgid "Worlds"
+msgstr "โลก"
+
+
 msgid "Data Type"
 msgstr "ชนิดข้อมูล"
+
+
+msgid "Quaternion"
+msgstr "ควอเทอร์เนียน"
 
 
 msgid "Point"
@@ -554,10 +634,6 @@ msgid "Weight"
 msgstr "น้ำหนัก"
 
 
-msgid "Cameras"
-msgstr "กล้อง"
-
-
 msgid "Filename"
 msgstr "ชื่อไฟล์"
 
@@ -572,34 +648,6 @@ msgstr "ไฟล์มีการเปลี่ยนแปลงที่ย
 
 msgid "File is Saved"
 msgstr "ไฟล์ถูกบันทึกแล้ว"
-
-
-msgid "Lights"
-msgstr "แสง"
-
-
-msgid "Materials"
-msgstr "วัสดุ"
-
-
-msgid "Sounds"
-msgstr "เสียง"
-
-
-msgid "Texts"
-msgstr "ข้อความ"
-
-
-msgid "Textures"
-msgstr "พื้นผิว"
-
-
-msgid "Workspaces"
-msgstr "พื้นที่ใช้งาน"
-
-
-msgid "Worlds"
-msgstr "โลก"
 
 
 msgid "Main Cameras"
@@ -839,10 +887,6 @@ msgid "Invert Z"
 msgstr "กลับค่า Z"
 
 
-msgid "Camera"
-msgstr "กล้อง"
-
-
 msgctxt "MovieClip"
 msgid "Track"
 msgstr "แทร็ค"
@@ -1071,10 +1115,6 @@ msgid "2D"
 msgstr "สองมิติ"
 
 
-msgid "Fonts"
-msgstr "ฟอนต์"
-
-
 msgid "Save"
 msgstr "บันทึก"
 
@@ -1214,6 +1254,10 @@ msgstr "แดง"
 msgctxt "ID"
 msgid "Type"
 msgstr "ชนิด"
+
+
+msgid "Library Override"
+msgstr "ควบคุมคลังโปรแกรมด้วยมือ"
 
 
 msgid "Users"
@@ -1493,7 +1537,11 @@ msgstr "แก้ไข"
 
 
 msgid "Sculpt"
-msgstr "แกะสลัก"
+msgstr "สลัก"
+
+
+msgid "Tool"
+msgstr "เครื่องมือ"
 
 
 msgid "Mesh"
@@ -1714,6 +1762,10 @@ msgid "Animation"
 msgstr "แอนิเมชัน"
 
 
+msgid "Simulation"
+msgstr "การจำลอง"
+
+
 msgid "Video"
 msgstr "วิดีโอ"
 
@@ -1853,18 +1905,6 @@ msgid "Mask"
 msgstr "หน้ากาก"
 
 
-msgid "Metaball"
-msgstr "เมตาบอล"
-
-
-msgid "Light"
-msgstr "แสง"
-
-
-msgid "Add Image"
-msgstr "เพิ่มภาพ"
-
-
 msgid "Apply"
 msgstr "นำไปใช้"
 
@@ -1877,32 +1917,36 @@ msgid "Hooks"
 msgstr "ตะขอ"
 
 
-msgid "Layout"
-msgstr "เค้าโครง"
-
-
 msgid "Names"
 msgstr "ชื่อ"
 
 
-msgid "Keying"
-msgstr "คีย์"
+msgid "Layout"
+msgstr "เค้าโครง"
 
 
 msgid "Face Data"
 msgstr "ข้อมูลด้าน"
 
 
-msgid "Math"
-msgstr "คณิตศาสตร์"
-
-
 msgid "Merge"
 msgstr "ผสาน"
 
 
+msgid "Keying"
+msgstr "คีย์"
+
+
+msgid "Math"
+msgstr "คณิตศาสตร์"
+
+
 msgid "Text"
 msgstr "ช้อความ"
+
+
+msgid "Metaball"
+msgstr "เมตาบอล"
 
 
 msgid "Pivot Point"
@@ -1923,10 +1967,6 @@ msgstr "การแก้ไขหน้ากาก"
 
 msgid "Mirror"
 msgstr "กระจกสะท้อน"
-
-
-msgid "Import"
-msgstr "นำเข้า"
 
 
 msgid "Local View"
@@ -1953,8 +1993,20 @@ msgid "View Regions"
 msgstr "ขอบเขตมุมมอง"
 
 
+msgid "Import"
+msgstr "นำเข้า"
+
+
 msgid "UV"
 msgstr "UV"
+
+
+msgid "Light"
+msgstr "แสง"
+
+
+msgid "Add Image"
+msgstr "เพิ่มภาพ"
 
 
 msgid "Zoom"
@@ -1975,7 +2027,7 @@ msgstr "กระจกสะท้อน"
 
 
 msgid "Node"
-msgstr "โนด"
+msgstr "โหนด"
 
 
 msgid "Add Modifier"
@@ -2425,6 +2477,10 @@ msgstr "เข้าสู่โหมดแก้ไข"
 msgctxt "Operator"
 msgid "Add Circle"
 msgstr "เพิ่มวงกลม"
+
+
+msgid "Handles"
+msgstr "จัดกระทำ"
 
 
 msgid "Duplicate"
@@ -3445,6 +3501,10 @@ msgid "Resolution Scale"
 msgstr "ขนาดความละเอียด"
 
 
+msgid "Antialiasing"
+msgstr "การเกลี่ยเลือนขอบหยัก"
+
+
 msgid "Text Color"
 msgstr "สีข้อความ"
 
@@ -4085,10 +4145,6 @@ msgid "Face"
 msgstr "แผ่นผิว"
 
 
-msgid "Image*"
-msgstr "ภาพ*"
-
-
 msgid "Repeat Image"
 msgstr "วนภาพ"
 
@@ -4136,11 +4192,6 @@ msgstr "พอดี"
 msgctxt "Operator"
 msgid "Show"
 msgstr "แสดง"
-
-
-msgctxt "Operator"
-msgid "Movie"
-msgstr "ภาพยนตร์"
 
 
 msgctxt "Operator"
@@ -4725,6 +4776,10 @@ msgstr "บันทึก \"%s\" แล้ว"
 
 msgid "Scene Collection"
 msgstr "คอลเลกชันฉาก"
+
+
+msgid "ShapeKey"
+msgstr "เชพคีย์"
 
 
 msgctxt "Brush"
