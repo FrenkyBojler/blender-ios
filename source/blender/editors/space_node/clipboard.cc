@@ -80,7 +80,6 @@ static bool node_copy_local(Main &bmain,
       new_node->location[1] += offset.y;
     }
     else {
-      // todo(habib): test this branch
       if (disabled_hint) {
         BKE_reportf(reports,
                     RPT_ERROR,
@@ -118,7 +117,6 @@ static bool node_copy_local(Main &bmain,
   /* Copy links between selected nodes. */
   LISTBASE_FOREACH (bNodeLink *, link, &from_tree.links) {
     if (link->tonode->flag & NODE_SELECT && link->fromnode->flag & NODE_SELECT) {
-      // todo(habib): verify assert is correct assumption.
       BLI_assert(node_map.contains(link->tonode) && node_map.contains(link->fromnode));
       bNode *from_node = node_map.lookup(link->fromnode);
       bNode *to_node = node_map.lookup(link->tonode);

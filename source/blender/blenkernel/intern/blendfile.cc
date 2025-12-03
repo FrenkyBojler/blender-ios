@@ -2006,7 +2006,7 @@ ID *PartialWriteContext::id_add(
    * parameter otherwise). */
   blender::Vector<std::pair<ID *, PartialWriteContext::IDAddOperations>> post_process_ids_todo;
 
-  ctx_root_id = id_add_copy(id, false);  // todo(habib): revert!
+  ctx_root_id = id_add_copy(id, false);
   printf("Copying id %s...\n", id->name);
   printf("\tid->session_uid: %u\n", id->session_uid);
   printf("\tctx_root_id->session_uid: %u\n", ctx_root_id->session_uid);
