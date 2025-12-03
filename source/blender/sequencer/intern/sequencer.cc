@@ -431,8 +431,8 @@ static MetaStack *seq_meta_stack_alloc(const Scene *scene, Strip *strip_meta)
   /* Reference to previously displayed timeline data. */
   ms->old_strip = lookup_meta_by_strip(ed, strip_meta);
 
-  ms->disp_range[0] = ms->parent_strip->left_handle_frame_get();
-  ms->disp_range[1] = ms->parent_strip->right_handle_frame_get(scene);
+  ms->disp_range[0] = ms->parent_strip->left_handle_frame();
+  ms->disp_range[1] = ms->parent_strip->right_handle_frame(scene);
   return ms;
 }
 

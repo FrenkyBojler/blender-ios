@@ -347,7 +347,7 @@ static int sequencer_generic_invoke_xy_guess_channel(bContext *C, int type)
   }
 
   LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
-    const int strip_end = strip->right_handle_frame_get(scene);
+    const int strip_end = strip->right_handle_frame(scene);
     if (ELEM(type, -1, strip->type) && (strip_end <= timeline_frame) &&
         (timeline_frame - strip_end < proximity))
     {
@@ -1221,8 +1221,8 @@ static void sequencer_add_movie_sync_sound_strip(
 
   /* Ensure that length matches the movie strip even if the underlying sound data
    * doesn't match up (e.g. it is longer). */
-  strip_sound->right_handle_frame_set(scene, strip_movie->right_handle_frame_get(scene));
-  strip_sound->left_handle_frame_set(scene, strip_movie->left_handle_frame_get());
+  strip_sound->right_handle_frame_set(scene, strip_movie->right_handle_frame(scene));
+  strip_sound->left_handle_frame_set(scene, strip_movie->left_handle_frame());
 }
 
 static void sequencer_add_movie_multiple_strips(bContext *C,
@@ -1268,8 +1268,8 @@ static void sequencer_add_movie_multiple_strips(bContext *C,
         }
       }
 
-      load_data->start_frame += strip_movie->right_handle_frame_get(scene) -
-                                strip_movie->left_handle_frame_get();
+      load_data->start_frame += strip_movie->right_handle_frame(scene) -
+                                strip_movie->left_handle_frame();
       if (overlap_shuffle_override) {
         has_seq_overlap |= seq_load_apply_generic_options_only_test_overlap(C, op, strip_sound);
         has_seq_overlap |= seq_load_apply_generic_options_only_test_overlap(C, op, strip_movie);
@@ -1539,8 +1539,8 @@ static void sequencer_add_sound_multiple_strips(bContext *C,
     }
     else {
       seq_load_apply_generic_options(C, op, strip);
-      load_data->start_frame += strip->right_handle_frame_get(scene) -
-                                strip->left_handle_frame_get();
+      load_data->start_frame += strip->right_handle_frame(scene) -
+                                strip->left_handle_frame();
     }
   }
   RNA_END;

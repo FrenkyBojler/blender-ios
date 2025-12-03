@@ -277,7 +277,7 @@ typedef struct Strip {
   /**
    * Get timeline frame where strip content starts.
    */
-  float start_frame_get() const;
+  float start_frame() const;
   /**
    * Set frame where strip content starts.
    * This function will also move strip handles.
@@ -286,26 +286,26 @@ typedef struct Strip {
   /**
    * Get timeline frame where strip content ends.
    */
-  float content_end_frame_get(const Scene *scene) const;
+  float content_end_frame(const Scene *scene) const;
   /**
    * Get number of frames (in timeline) that can be rendered.
    * This can change depending on scene FPS or strip speed factor.
    */
-  int length_get(const Scene *scene) const;
+  int length(const Scene *scene) const;
   /**
    * Get the sound offset (if any) and round it to the nearest integer.
    * This is mostly used in places where subframe data is not allowed (like re-timing key
    * positions). Returns zero if strip is not a sound strip or if there is no offset.
    */
-  int rounded_sound_offset_get(float scene_fps) const;
+  int rounded_sound_offset(float scene_fps) const;
   /**
    * Get timeline frame where strip boundary starts.
    */
-  int left_handle_frame_get() const;
+  int left_handle_frame() const;
   /**
    * Get timeline frame where strip boundary ends.
    */
-  int right_handle_frame_get(const Scene *scene) const;
+  int right_handle_frame(const Scene *scene) const;
   /**
    * Set frame where strip boundary starts. This function moves only handle, content is not moved.
    */
@@ -337,12 +337,12 @@ typedef struct Strip {
    * Get difference between scene and movie strip frame-rate.
    * Returns 1.0f for all other strip types.
    */
-  float media_playback_rate_factor_get(float scene_fps) const;
+  float media_playback_rate_factor(float scene_fps) const;
   /**
    * Get FPS rate of source media. Movie, scene and movie-clip strips are supported.
    * Returns 0 for unsupported strip or if media can't be loaded.
    */
-  float media_fps_get(Scene *scene);
+  float media_fps(Scene *scene);
 
 #endif
 } Strip;

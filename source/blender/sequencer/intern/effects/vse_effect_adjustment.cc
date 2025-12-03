@@ -44,8 +44,8 @@ static ImBuf *do_adjustment_impl(const RenderData *context,
    * frame is static after end of strip). This is how most strips behave. This way transition
    * effects that doesn't overlap or speed effect can't fail rendering outside of strip range. */
   timeline_frame = clamp_i(timeline_frame,
-                           strip->left_handle_frame_get(),
-                           strip->right_handle_frame_get(context->scene) - 1);
+                           strip->left_handle_frame(),
+                           strip->right_handle_frame(context->scene) - 1);
 
   if (strip->channel > 1) {
     i = seq_render_give_ibuf_seqbase(

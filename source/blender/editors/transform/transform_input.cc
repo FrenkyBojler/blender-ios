@@ -316,7 +316,7 @@ static int transform_seq_slide_cursor_get(TransInfo *t)
     Strip *strip1 = strips[0];
     Strip *strip2 = strips[1];
 
-    if (strip1->left_handle_frame_get() > strip2->left_handle_frame_get()) {
+    if (strip1->left_handle_frame() > strip2->left_handle_frame()) {
       SWAP(Strip *, strip1, strip2);
     }
 
@@ -324,7 +324,7 @@ static int transform_seq_slide_cursor_get(TransInfo *t)
       return WM_CURSOR_NSEW_SCROLL;
     }
 
-    if (strip1->right_handle_frame_get(scene) != strip2->left_handle_frame_get()) {
+    if (strip1->right_handle_frame(scene) != strip2->left_handle_frame()) {
       return WM_CURSOR_NSEW_SCROLL;
     }
 

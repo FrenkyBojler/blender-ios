@@ -49,13 +49,13 @@ class StripInfoOperation : public NodeOperation {
     Result &start_frame_result = this->get_result("Start Frame");
     if (start_frame_result.should_compute()) {
       start_frame_result.allocate_single_value();
-      start_frame_result.set_single_value(strip->left_handle_frame_get());
+      start_frame_result.set_single_value(strip->left_handle_frame());
     }
 
     Result &end_frame_result = this->get_result("End Frame");
     if (end_frame_result.should_compute()) {
       end_frame_result.allocate_single_value();
-      end_frame_result.set_single_value(strip->right_handle_frame_get(&context().get_scene()));
+      end_frame_result.set_single_value(strip->right_handle_frame(&context().get_scene()));
     }
 
     Result &location_result = this->get_result("Location");

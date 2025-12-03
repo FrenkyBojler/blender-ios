@@ -183,7 +183,7 @@ ListBase *get_seqbase_from_strip(Strip *strip, ListBase **r_channels, int *r_off
     case STRIP_TYPE_META: {
       seqbase = &strip->seqbase;
       *r_channels = &strip->channels;
-      *r_offset = strip->start_frame_get();
+      *r_offset = strip->start_frame();
       break;
     }
     case STRIP_TYPE_SCENE: {

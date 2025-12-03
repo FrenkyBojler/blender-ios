@@ -840,8 +840,8 @@ void *BKE_sound_scene_add_scene_sound_defaults(Scene *scene, Strip *strip)
 {
   return BKE_sound_scene_add_scene_sound(scene,
                                          strip,
-                                         strip->left_handle_frame_get(),
-                                         strip->right_handle_frame_get(scene),
+                                         strip->left_handle_frame(),
+                                         strip->right_handle_frame(scene),
                                          strip->startofs + strip->anim_startofs);
 }
 
@@ -874,8 +874,8 @@ void *BKE_sound_add_scene_sound_defaults(Scene *scene, Strip *strip)
 {
   return BKE_sound_add_scene_sound(scene,
                                    strip,
-                                   strip->left_handle_frame_get(),
-                                   strip->right_handle_frame_get(scene),
+                                   strip->left_handle_frame(),
+                                   strip->right_handle_frame(scene),
                                    strip->startofs + strip->anim_startofs);
 }
 
@@ -917,8 +917,8 @@ void BKE_sound_move_scene_sound_defaults(Scene *scene, Strip *strip)
     }
     BKE_sound_move_scene_sound(scene,
                                strip->runtime->scene_sound,
-                               strip->left_handle_frame_get(),
-                               strip->right_handle_frame_get(scene),
+                               strip->left_handle_frame(),
+                               strip->right_handle_frame(scene),
                                strip->startofs + strip->anim_startofs,
                                offset_time);
   }

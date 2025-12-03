@@ -90,10 +90,10 @@ Vector<Strip *> sequencer_visible_strips_get(const Scene *scene, const View2D *v
   Vector<Strip *> strips;
 
   LISTBASE_FOREACH (Strip *, strip, ed->current_strips()) {
-    if (min_ii(strip->left_handle_frame_get(), strip->start_frame_get()) > v2d->cur.xmax) {
+    if (min_ii(strip->left_handle_frame(), strip->start_frame()) > v2d->cur.xmax) {
       continue;
     }
-    if (max_ii(strip->right_handle_frame_get(scene), strip->content_end_frame_get(scene)) <
+    if (max_ii(strip->right_handle_frame(scene), strip->content_end_frame(scene)) <
         v2d->cur.xmin)
     {
       continue;
@@ -211,10 +211,10 @@ static StripDrawContext strip_draw_context_get(const TimelineDrawContext &ctx, S
   strip_ctx.strip = strip;
   strip_ctx.bottom = strip->channel + STRIP_OFSBOTTOM;
   strip_ctx.top = strip->channel + STRIP_OFSTOP;
-  strip_ctx.left_handle = strip->left_handle_frame_get();
-  strip_ctx.right_handle = strip->right_handle_frame_get(scene);
-  strip_ctx.content_start = strip->start_frame_get();
-  strip_ctx.content_end = strip->content_end_frame_get(scene);
+  strip_ctx.left_handle = strip->left_handle_frame();
+  strip_ctx.right_handle = strip->right_handle_frame(scene);
+  strip_ctx.content_start = strip->start_frame();
+  strip_ctx.content_end = strip->content_end_frame(scene);
 
   if (strip->type == STRIP_TYPE_SOUND_RAM && strip->sound != nullptr) {
     /* Visualize sub-frame sound offsets. */
@@ -662,8 +662,8 @@ static void drawmeta_contents(const TimelineDrawContext &ctx,
 
   /* Draw only immediate children (1 level depth). */
   LISTBASE_FOREACH (Strip *, strip, meta_seqbase) {
-    float x1_chan = strip->left_handle_frame_get() + offset;
-    float x2_chan = strip->right_handle_frame_get(scene) + offset;
+    float x1_chan = strip->left_handle_frame() + offset;
+    float x2_chan = strip->right_handle_frame(scene) + offset;
     if (x1_chan <= meta_x2 && x2_chan >= meta_x1) {
       float y_chan = (strip->channel - chan_min) / float(chan_range) * draw_range;
 
@@ -751,7 +751,7 @@ float strip_handle_draw_size_get(const Scene *scene, const Strip *strip, const f
   /* Ensure that the handle is not wider than a quarter of the strip. */
   return min_ff(
       handle_size,
-      (float(strip->right_handle_frame_get(scene) - strip->left_handle_frame_get()) / 4.0f));
+      (float(strip->right_handle_frame(scene) - strip->left_handle_frame()) / 4.0f));
 }
 
 static const char *draw_seq_text_get_name(const Strip *strip)
@@ -1658,9 +1658,9 @@ static void draw_cache_stripe(const Scene *scene,
                               const float stripe_ht,
                               const uchar color[4])
 {
-  quads.add_quad(strip->left_handle_frame_get(),
+  quads.add_quad(strip->left_handle_frame(),
                  stripe_bot,
-                 strip->right_handle_frame_get(scene),
+                 strip->right_handle_frame(scene),
                  stripe_bot + stripe_ht,
                  color);
 }

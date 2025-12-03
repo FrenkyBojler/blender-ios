@@ -180,13 +180,13 @@ static void select_active_side(ListBase *seqbase, int sel_side, int channel, int
     if (channel == strip->channel) {
       switch (sel_side) {
         case seq::SIDE_LEFT:
-          if (frame > strip->left_handle_frame_get()) {
+          if (frame > strip->left_handle_frame()) {
             strip->flag &= ~(SEQ_RIGHTSEL | SEQ_LEFTSEL);
             strip->flag |= SEQ_SELECT;
           }
           break;
         case seq::SIDE_RIGHT:
-          if (frame < strip->left_handle_frame_get()) {
+          if (frame < strip->left_handle_frame()) {
             strip->flag &= ~(SEQ_RIGHTSEL | SEQ_LEFTSEL);
             strip->flag |= SEQ_SELECT;
           }
@@ -214,13 +214,13 @@ static void select_active_side_range(ListBase *seqbase,
       }
       switch (sel_side) {
         case seq::SIDE_LEFT:
-          if (frame > strip->left_handle_frame_get()) {
+          if (frame > strip->left_handle_frame()) {
             strip->flag &= ~(SEQ_RIGHTSEL | SEQ_LEFTSEL);
             strip->flag |= SEQ_SELECT;
           }
           break;
         case seq::SIDE_RIGHT:
-          if (frame < strip->left_handle_frame_get()) {
+          if (frame < strip->left_handle_frame()) {
             strip->flag &= ~(SEQ_RIGHTSEL | SEQ_LEFTSEL);
             strip->flag |= SEQ_SELECT;
           }
@@ -240,13 +240,13 @@ static void select_linked_time_strip(const Scene *scene,
                                      const eStripHandle handle_clicked)
 {
   ListBase *seqbase = seq::active_seqbase_get(scene->ed);
-  int source_left = strip_source->left_handle_frame_get();
-  int source_right = strip_source->right_handle_frame_get(scene);
+  int source_left = strip_source->left_handle_frame();
+  int source_right = strip_source->right_handle_frame(scene);
 
   LISTBASE_FOREACH (Strip *, strip_dest, seqbase) {
     if (strip_source->channel != strip_dest->channel) {
-      const bool left_match = (strip_dest->left_handle_frame_get() == source_left);
-      const bool right_match = (strip_dest->right_handle_frame_get(scene) == source_right);
+      const bool left_match = (strip_dest->left_handle_frame() == source_left);
+      const bool right_match = (strip_dest->right_handle_frame(scene) == source_right);
 
       if (left_match && right_match) {
         /* Direct match, copy all selection settings. */
@@ -295,8 +295,8 @@ void select_strip_single(Scene *scene, Strip *strip, bool deselect_all)
 
 void strip_rectf(const Scene *scene, const Strip *strip, rctf *r_rect)
 {
-  r_rect->xmin = strip->left_handle_frame_get();
-  r_rect->xmax = strip->right_handle_frame_get(scene);
+  r_rect->xmin = strip->left_handle_frame();
+  r_rect->xmax = strip->right_handle_frame(scene);
   r_rect->ymin = strip->channel + STRIP_OFSBOTTOM;
   r_rect->ymax = strip->channel + STRIP_OFSTOP;
 }
@@ -320,12 +320,12 @@ Strip *find_neighboring_strip(const Scene *scene, const Strip *test, const int l
     {
       switch (lr) {
         case seq::SIDE_LEFT:
-          if (test->left_handle_frame_get() == strip->right_handle_frame_get(scene)) {
+          if (test->left_handle_frame() == strip->right_handle_frame(scene)) {
             return strip;
           }
           break;
         case seq::SIDE_RIGHT:
-          if (test->right_handle_frame_get(scene) == strip->left_handle_frame_get()) {
+          if (test->right_handle_frame(scene) == strip->left_handle_frame()) {
             return strip;
           }
           break;
@@ -554,8 +554,8 @@ static void sequencer_select_side_of_frame(const bContext *C,
 
   const float x = UI_view2d_region_to_view_x(v2d, mval[0]);
   LISTBASE_FOREACH (Strip *, strip_iter, seq::active_seqbase_get(ed)) {
-    if (((x < scene->r.cfra) && (strip_iter->right_handle_frame_get(scene) <= scene->r.cfra)) ||
-        ((x >= scene->r.cfra) && (strip_iter->left_handle_frame_get() >= scene->r.cfra)))
+    if (((x < scene->r.cfra) && (strip_iter->right_handle_frame(scene) <= scene->r.cfra)) ||
+        ((x >= scene->r.cfra) && (strip_iter->left_handle_frame() >= scene->r.cfra)))
     {
       /* Select left or right. */
       strip_iter->flag |= SEQ_SELECT;
@@ -615,7 +615,7 @@ static void sequencer_select_linked_handle(const bContext *C,
             select_active_side(ed->current_strips(),
                                seq::SIDE_LEFT,
                                strip->channel,
-                               strip->left_handle_frame_get());
+                               strip->left_handle_frame());
           }
           else {
             strip->flag |= SEQ_SELECT;
@@ -631,7 +631,7 @@ static void sequencer_select_linked_handle(const bContext *C,
             select_active_side(ed->current_strips(),
                                seq::SIDE_RIGHT,
                                strip->channel,
-                               strip->left_handle_frame_get());
+                               strip->left_handle_frame());
           }
           else {
             strip->flag |= SEQ_SELECT;
@@ -646,7 +646,7 @@ static void sequencer_select_linked_handle(const bContext *C,
     else {
 
       select_active_side(
-          ed->current_strips(), sel_side, strip->channel, strip->left_handle_frame_get());
+          ed->current_strips(), sel_side, strip->channel, strip->left_handle_frame());
     }
   }
 }
@@ -968,7 +968,7 @@ static float inner_clickable_handle_size_get(const Scene *scene,
                                              const View2D *v2d)
 {
   const float pixelx = 1 / UI_view2d_scale_get_x(v2d);
-  const float strip_len = strip->right_handle_frame_get(scene) - strip->left_handle_frame_get();
+  const float strip_len = strip->right_handle_frame(scene) - strip->left_handle_frame();
   return min_ff(15.0f * pixelx * U.pixelsize, strip_len / 4);
 }
 
@@ -990,7 +990,7 @@ bool can_select_handle(const Scene *scene, const Strip *strip, const View2D *v2d
   int min_len = 25 * U.pixelsize;
 
   const float pixelx = 1 / UI_view2d_scale_get_x(v2d);
-  const int strip_len = strip->right_handle_frame_get(scene) - strip->left_handle_frame_get();
+  const int strip_len = strip->right_handle_frame(scene) - strip->left_handle_frame();
   if (strip_len / pixelx < min_len) {
     return false;
   }
@@ -1060,10 +1060,10 @@ static Vector<Strip *> padded_strips_under_mouse_get(const Scene *scene,
     if (strip->channel != int(mouse_co[1])) {
       continue;
     }
-    if (strip->left_handle_frame_get() > v2d->cur.xmax) {
+    if (strip->left_handle_frame() > v2d->cur.xmax) {
       continue;
     }
-    if (strip->right_handle_frame_get(scene) < v2d->cur.xmin) {
+    if (strip->right_handle_frame(scene) < v2d->cur.xmin) {
       continue;
     }
     const rctf body = strip_clickable_area_get(scene, v2d, strip);
@@ -1083,10 +1083,10 @@ static Vector<Strip *> padded_strips_under_mouse_get(const Scene *scene,
 
 static bool strips_are_adjacent(const Scene *scene, const Strip *strip1, const Strip *strip2)
 {
-  const int s1_left = strip1->left_handle_frame_get();
-  const int s1_right = strip1->right_handle_frame_get(scene);
-  const int s2_left = strip2->left_handle_frame_get();
-  const int s2_right = strip2->right_handle_frame_get(scene);
+  const int s1_left = strip1->left_handle_frame();
+  const int s1_right = strip1->right_handle_frame(scene);
+  const int s2_left = strip2->left_handle_frame();
+  const int s2_right = strip2->right_handle_frame(scene);
 
   return s1_right == s2_left || s1_left == s2_right;
 }
@@ -1940,10 +1940,10 @@ static wmOperatorStatus sequencer_select_side_of_frame_exec(bContext *C, wmOpera
     bool test = false;
     switch (side) {
       case -1:
-        test = (timeline_frame >= strip->right_handle_frame_get(scene));
+        test = (timeline_frame >= strip->right_handle_frame(scene));
         break;
       case 1:
-        test = (timeline_frame <= strip->left_handle_frame_get());
+        test = (timeline_frame <= strip->left_handle_frame());
         break;
       case 2:
         test = strip->intersects_frame(scene, timeline_frame);
@@ -2017,10 +2017,10 @@ static wmOperatorStatus sequencer_select_side_exec(bContext *C, wmOperator *op)
     if (strip->flag & SEQ_SELECT) {
       selected = true;
       if (sel_side == seq::SIDE_LEFT) {
-        *frame_limit_p = max_ii(*frame_limit_p, strip->left_handle_frame_get());
+        *frame_limit_p = max_ii(*frame_limit_p, strip->left_handle_frame());
       }
       else {
-        *frame_limit_p = min_ii(*frame_limit_p, strip->left_handle_frame_get());
+        *frame_limit_p = min_ii(*frame_limit_p, strip->left_handle_frame());
       }
     }
   }
@@ -2166,7 +2166,7 @@ static wmOperatorStatus sequencer_box_select_exec(bContext *C, wmOperator *op)
         float handsize = inner_clickable_handle_size_get(scene, strip, v2d) * 4;
 
         /* Right handle. */
-        if (rectf.xmax > (strip->right_handle_frame_get(scene) - handsize)) {
+        if (rectf.xmax > (strip->right_handle_frame(scene) - handsize)) {
           if (select) {
             strip->flag |= SEQ_SELECT | SEQ_RIGHTSEL;
           }
@@ -2181,7 +2181,7 @@ static wmOperatorStatus sequencer_box_select_exec(bContext *C, wmOperator *op)
           changed = true;
         }
         /* Left handle. */
-        if (rectf.xmin < (strip->left_handle_frame_get() + handsize)) {
+        if (rectf.xmin < (strip->left_handle_frame() + handsize)) {
           if (select) {
             strip->flag |= SEQ_SELECT | SEQ_LEFTSEL;
           }
@@ -2831,8 +2831,8 @@ static bool select_grouped_time_overlap(const Scene *scene,
   bool changed = false;
 
   for (Strip *strip : strips) {
-    if (strip->left_handle_frame_get() < act_strip->right_handle_frame_get(scene) &&
-        strip->right_handle_frame_get(scene) > act_strip->left_handle_frame_get())
+    if (strip->left_handle_frame() < act_strip->right_handle_frame(scene) &&
+        strip->right_handle_frame(scene) > act_strip->left_handle_frame())
     {
       strip->flag |= SEQ_SELECT;
       changed = true;
@@ -2852,8 +2852,8 @@ static void query_lower_channel_strips(const Scene *scene,
     if (strip_test->channel > strip_reference->channel) {
       continue; /* Not lower channel. */
     }
-    if (strip_test->right_handle_frame_get(scene) <= strip_reference->left_handle_frame_get() ||
-        strip_test->left_handle_frame_get() >= strip_reference->right_handle_frame_get(scene))
+    if (strip_test->right_handle_frame(scene) <= strip_reference->left_handle_frame() ||
+        strip_test->left_handle_frame() >= strip_reference->right_handle_frame(scene))
     {
       continue; /* Not intersecting in time. */
     }
