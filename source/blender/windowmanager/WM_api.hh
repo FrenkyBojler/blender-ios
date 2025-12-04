@@ -81,6 +81,10 @@ namespace blender::asset_system {
 class AssetRepresentation;
 }
 
+namespace blender::ui {
+enum class AlertIcon : int8_t;
+}
+
 /* General API. */
 
 /**
@@ -896,10 +900,10 @@ wmOperatorStatus WM_operator_confirm_or_exec(bContext *C, wmOperator *op, const 
  */
 wmOperatorStatus WM_operator_confirm_ex(bContext *C,
                                         wmOperator *op,
-                                        const char *title = nullptr,
-                                        const char *message = nullptr,
-                                        const char *confirm_text = nullptr,
-                                        int icon = 0, /* ALERT_ICON_WARNING. */
+                                        const char *title,
+                                        const char *message,
+                                        const char *confirm_text,
+                                        blender::ui::AlertIcon icon,
                                         bool cancel_default = false);
 
 /**
@@ -2030,7 +2034,7 @@ void WM_window_status_area_tag_redraw(wmWindow *win);
  * use here since the area is stored in the window manager.
  */
 ScrArea *WM_window_status_area_find(wmWindow *win, bScreen *screen);
-bool WM_window_modal_keymap_status_draw(bContext *C, wmWindow *win, blender::ui::Layout *layout);
+bool WM_window_modal_keymap_status_draw(bContext *C, wmWindow *win, blender::ui::Layout &layout);
 
 /* `wm_event_query.cc` */
 
