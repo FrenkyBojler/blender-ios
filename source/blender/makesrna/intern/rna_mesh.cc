@@ -2944,6 +2944,8 @@ static void rna_def_mesh(BlenderRNA *brna)
   RNA_def_property_override_flag(prop, PROPOVERRIDE_IGNORE);
   RNA_def_property_ui_text(
       prop, "Clone UV Loop Layer", "UV loop layer to be used as cloning source");
+  RNA_def_property_deprecated(
+      prop, "Moved to scene.tool_settings.image_paint.clone_uv_map_name", 510, 600);
 
   prop = RNA_def_property(srna, "uv_layer_clone_index", PROP_INT, PROP_UNSIGNED);
   RNA_def_property_int_funcs(prop,
@@ -2952,6 +2954,8 @@ static void rna_def_mesh(BlenderRNA *brna)
                              "rna_Mesh_uv_layer_index_range");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Clone UV Loop Layer Index", "Clone UV loop layer index");
+  RNA_def_property_deprecated(
+      prop, "Moved to scene.tool_settings.image_paint.clone_uv_map_name", 510, 600);
 
   prop = RNA_def_property(srna, "uv_layer_stencil", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "MeshUVLoopLayer");
@@ -2960,6 +2964,8 @@ static void rna_def_mesh(BlenderRNA *brna)
   RNA_def_property_flag(prop, PROP_EDITABLE);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_IGNORE);
   RNA_def_property_ui_text(prop, "Mask UV Loop Layer", "UV loop layer to mask the painted area");
+  RNA_def_property_deprecated(
+      prop, "Moved to scene.tool_settings.image_paint.stencil_uv_map_name", 510, 600);
 
   prop = RNA_def_property(srna, "uv_layer_stencil_index", PROP_INT, PROP_UNSIGNED);
   RNA_def_property_int_funcs(prop,
@@ -2969,6 +2975,8 @@ static void rna_def_mesh(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Mask UV Loop Layer Index", "Mask UV loop layer index");
   RNA_def_property_update(prop, 0, "rna_Mesh_update_data_legacy_deg_tag_all");
+  RNA_def_property_deprecated(
+      prop, "Moved to scene.tool_settings.image_paint.stencil_uv_map_name", 510, 600);
 
   /* Vertex colors */
 
