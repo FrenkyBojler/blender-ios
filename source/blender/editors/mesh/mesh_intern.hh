@@ -40,6 +40,7 @@ struct ViewLayer;
  * the BMEditMesh structure. */
 
 /** Calls a bmesh op, reporting errors to the user, etc. */
+bool EDBM_op_callf(BMEditMesh *em, wmOperator *op, const char *fmt, ...);
 bool EDBM_op_call_and_selectf(BMEditMesh *em,
                               wmOperator *op,
                               const char *select_slot_out,

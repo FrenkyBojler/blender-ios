@@ -133,20 +133,7 @@ static wmOperatorStatus geometry_extract_apply(bContext *C,
         BM_elem_flag_set(v, BM_ELEM_TAG, !BM_vert_is_boundary(v));
       }
       for (int i = 0; i < 3; i++) {
-        if (!EDBM_op_callf(em,
-                           op,
-                           "smooth_vert verts=%hv factor=%f mirror_clip_x=%b mirror_clip_y=%b "
-                           "mirror_clip_z=%b "
-                           "clip_dist=%f use_axis_x=%b use_axis_y=%b use_axis_z=%b",
-                           BM_ELEM_TAG,
-                           1.0,
-                           false,
-                           false,
-                           false,
-                           0.1,
-                           true,
-                           true,
-                           true))
+        if (!EDBM_smooth_vert(em, op))
         {
           continue;
         }
@@ -157,20 +144,7 @@ static wmOperatorStatus geometry_extract_apply(bContext *C,
         BM_elem_flag_set(v, BM_ELEM_TAG, BM_vert_is_boundary(v));
       }
       for (int i = 0; i < 1; i++) {
-        if (!EDBM_op_callf(em,
-                           op,
-                           "smooth_vert verts=%hv factor=%f mirror_clip_x=%b mirror_clip_y=%b "
-                           "mirror_clip_z=%b "
-                           "clip_dist=%f use_axis_x=%b use_axis_y=%b use_axis_z=%b",
-                           BM_ELEM_TAG,
-                           0.5,
-                           false,
-                           false,
-                           false,
-                           0.1,
-                           true,
-                           true,
-                           true))
+        if (!EDBM_smooth_vert(em, op))
         {
           continue;
         }
