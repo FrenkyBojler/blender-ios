@@ -71,7 +71,7 @@ static void pose_do_bone_select(bPoseChannel *pchan, const int select_mode)
       pchan->flag &= ~POSE_SELECTED_ALL;
       break;
     case SEL_INVERT:
-      if (pchan->flag & POSE_SELECTED_ALL) {
+      if (pchan->flag & POSE_SELECTED) {
         pchan->flag &= ~POSE_SELECTED_ALL;
       }
       else if (!(pchan->bone->flag & BONE_UNSELECTABLE)) {
