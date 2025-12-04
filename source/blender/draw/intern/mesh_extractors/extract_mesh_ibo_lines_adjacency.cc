@@ -21,6 +21,8 @@
 namespace blender::draw {
 
 #define NO_EDGE INT_MAX
+#define NO_EDGE_HANDLED (INT_MAX - 1)
+#define NO_EDGE_INDEX_CHECK(i) ((i) >= NO_EDGE_HANDLED)
 
 static void create_lines_for_remaining_edges(MutableSpan<int> vert_to_corner,
                                              Map<OrderedEdge, int> &edge_hash,
@@ -29,7 +31,7 @@ static void create_lines_for_remaining_edges(MutableSpan<int> vert_to_corner,
 {
   for (const auto item : edge_hash.items()) {
     int v_data = item.value;
-    if (v_data == NO_EDGE) {
+    if (NO_EDGE_INDEX_CHECK(v_data)) {
       continue;
     }
 
@@ -87,9 +89,22 @@ inline void lines_adjacency_triangle(uint3 vert_tri,
             vert_to_corner[vert_tri[1]] = corner_tri[1];
             vert_to_corner[vert_tri[2]] = corner_tri[2];
           }
+          else if (UNLIKELY(v_data == NO_EDGE_HANDLED)) {
+            /* Ignore additional faces once this has been handled
+             * as this may exceed the pre-sized index buffer: see #150841.
+             *
+             * NOTE: this isn't ideal as the `inv_opposite` may be set - or not depending
+             * on the order triangles are handled.
+             * Typically we try to avoid differencing behavior based on the order of data
+             * however enforcing exactly matching behavior seems fairly involved without
+             * much benefit, so accept this shortcoming. */
+
+            /* When there are 3+ users of an edge the mesh is not manifold (by definition). */
+            is_manifold = false;
+          }
           else {
             /* HACK Tag as not used. Prevent overhead of BLI_edgehash_remove. */
-            *value = NO_EDGE;
+            *value = NO_EDGE_HANDLED;
             bool inv_opposite = (v_data < 0);
             const int corner_opposite = abs(v_data) - 1;
             /* TODO: Make this part thread-safe. */
