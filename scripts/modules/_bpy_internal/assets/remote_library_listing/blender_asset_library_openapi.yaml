@@ -283,6 +283,7 @@ components:
       additionalProperties:
         $ref: "#/components/schemas/CustomPropertyV1"
 
+
     CustomPropertyV1:
       type: object
       description: >
@@ -294,13 +295,13 @@ components:
         "type": { $ref: "#/components/schemas/CustomPropertyTypeV1" }
         "itemtype": { $ref: "#/components/schemas/CustomPropertyTypeV1" }
         "value":
-          oneOf:
-            - { $ref: "#/components/schemas/CustomPropertiesV1" }
-            - { type: array }
-            - { type: number }
-            - { type: integer }
-            - { type: string }
-            - { type: boolean }
+            oneOf:
+                - { $ref: "#/components/schemas/CustomPropertiesV1" }
+                - { type: array }
+                - { type: number }
+                - { type: integer }
+                - { type: string }
+                - { type: boolean }
       required: [type, value]
 
     CustomPropertyTypeV1:
@@ -308,7 +309,7 @@ components:
       description: >
         Type of IDProperty without the `IDP_` prefix, see `eIDPropertyType` in `DNA_ID_enumms.h`.
         For now, type `ID` and `IDPARRAY` are not supported.
-      enum: [STRING, INT, FLOAT, ARRAY, GROUP, DOUBLE, BOOLEAN]
+      enum: [ STRING, INT, FLOAT, ARRAY, GROUP, DOUBLE, BOOLEAN ]
 
     CatalogV1:
       type: object
