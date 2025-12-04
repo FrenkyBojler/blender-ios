@@ -41,7 +41,7 @@ void VKDescriptorSetTracker::update_descriptor_set(VKContext &context,
   VkDescriptorSetLayout vk_descriptor_set_layout = shader.vk_descriptor_set_layout_get();
   descriptor_sets.allocate_new_descriptor_set(
       device, context, shader, vk_descriptor_set_layout, r_pipeline_data);
-  descriptor_sets.bind_shader_resources(device, state_manager, shader, access_info);
+  descriptor_sets.bind_shader_resources(device, state_manager, shader);
 }
 
 /* -------------------------------------------------------------------- */
