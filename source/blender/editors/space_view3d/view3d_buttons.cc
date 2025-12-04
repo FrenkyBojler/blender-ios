@@ -2428,13 +2428,13 @@ static void view3d_panel_curve_data(const bContext *C, Panel *panel)
   modified = current;
 
   panel->layout->use_property_split_set(true);
-  blender::ui::Layout &bcol = panel->layout->column(false);
+  ui::Layout &bcol = panel->layout->column(false);
 
   auto add_labeled_field =
       [&](const StringRef label, const bool active, FunctionRef<uiBut *()> add_button) {
-        blender::ui::Layout &row = bcol.row(true);
-        blender::ui::Layout &split = row.split(0.4, true);
-        blender::ui::Layout &col = split.column(true);
+        ui::Layout &row = bcol.row(true);
+        ui::Layout &split = row.split(0.4, true);
+        ui::Layout &col = split.column(true);
         col.alignment_set(ui::LayoutAlign::Right);
         col.label(label, ICON_NONE);
         split.column(false);

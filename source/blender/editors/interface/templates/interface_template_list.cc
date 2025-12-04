@@ -998,7 +998,7 @@ static void ui_template_list_layout_draw(const bContext *C,
 
     row = &glob->row(true);
     uiBlock *subblock = row->block();
-    UI_block_emboss_set(subblock, blender::ui::EmbossType::None);
+    UI_block_emboss_set(subblock, ui::EmbossType::None);
 
     if (ui_list->filter_flag & UILST_FLT_SHOW) {
       but = uiDefIconButBitI(subblock,
@@ -1030,7 +1030,7 @@ static void ui_template_list_layout_draw(const bContext *C,
         UI_but_func_set(but, [ui_list](bContext &C) { uilist_resize_update(&C, ui_list); });
       }
 
-      UI_block_emboss_set(subblock, blender::ui::EmbossType::Emboss);
+      UI_block_emboss_set(subblock, ui::EmbossType::Emboss);
 
       col = &glob->column(false);
       subblock = col->block();
@@ -1069,7 +1069,7 @@ static void ui_template_list_layout_draw(const bContext *C,
         UI_but_func_set(but, [ui_list](bContext &C) { uilist_resize_update(&C, ui_list); });
       }
 
-      UI_block_emboss_set(subblock, blender::ui::EmbossType::Emboss);
+      UI_block_emboss_set(subblock, ui::EmbossType::Emboss);
     }
   }
 }

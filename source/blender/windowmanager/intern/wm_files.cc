@@ -4720,8 +4720,7 @@ static uiBlock *block_create__close_file_dialog(bContext *C, ARegion *region, vo
   wmGenericCallback *post_action = (wmGenericCallback *)arg1;
   Main *bmain = CTX_data_main(C);
 
-  uiBlock *block = UI_block_begin(
-      C, region, close_file_dialog_name, blender::ui::EmbossType::Emboss);
+  uiBlock *block = UI_block_begin(C, region, close_file_dialog_name, ui::EmbossType::Emboss);
   UI_block_flag_enable(
       block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_LOOP | UI_BLOCK_NO_WIN_CLIP | UI_BLOCK_NUMSELECT);
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
