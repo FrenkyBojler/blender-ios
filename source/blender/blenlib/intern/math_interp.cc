@@ -1085,7 +1085,7 @@ static void read_callback(void *userdata, int u, int v, float result[4])
 static float4 sample_anisotropic(const SamplerSource &source, const float2 &uv, const float2 &dPdx, const float2 &dPdy)
 {
   float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
-  float2 scale = 1.0f / float2(source.width, source.height);
+  float2 scale = 1.0f / float2(float(source.width), float(source.height));
   BLI_ewa_filter(source.width, source.height,
                  false,
                  true,
@@ -1102,7 +1102,7 @@ static float4 sample_anisotropic(const SamplerSource &source, const float2 &uv, 
 static float4 sample_anisotropic_clip(const SamplerSource &source, const float2 &uv, const float2 &dPdx, const float2 &dPdy)
 {
   float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
-  float2 scale = 1.0f / float2(source.width, source.height);
+  float2 scale = 1.0f / float2(float(source.width), float(source.height));
   BLI_ewa_filter(source.width, source.height,
                  false,
                  true,
