@@ -168,7 +168,14 @@ class AssetRepresentation : NonCopyable, NonMovable {
    *
    * Will return an empty value if this is not an online asset.
    */
-  std::optional<URLWithHash> online_asset_preview_url() const;
+  std::optional<StringRefNull> online_asset_preview_url() const;
+  /**
+   * For online assets (see #is_online()), the hash of the asset's preview.
+   *
+   * Will return an empty value if this is not an online asset.
+   */
+  std::optional<StringRefNull> online_asset_preview_hash() const;
+
   /**
    * If the asset is marked as online, removes the online data and marking, turning it into a
    * regular on-disk asset.

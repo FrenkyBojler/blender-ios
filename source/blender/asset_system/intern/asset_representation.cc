@@ -185,7 +185,8 @@ std::string AssetRepresentation::full_library_path() const
   return blend_path;
 }
 
-// TODO: prevent copying the URLWithHash here.
+/* This makes a copy of the URLWithHash, but since it's only used when
+ * downloading the asset, it's not performance-sensitive. */
 std::optional<URLWithHash> AssetRepresentation::online_asset_url() const
 {
   if (!this->is_online()) {
@@ -202,13 +203,30 @@ std::optional<StringRefNull> AssetRepresentation::download_dst_filepath() const
   return std::get<ExternalAsset>(asset_).online_info_->download_dst_filepath_;
 }
 
-// TODO: prevent copying the URLWithHash here.
-std::optional<URLWithHash> AssetRepresentation::online_asset_preview_url() const
+std::optional<StringRefNull> AssetRepresentation::online_asset_preview_url() const
 {
   if (!this->is_online()) {
     return {};
   }
-  return std::get<ExternalAsset>(asset_).online_info_->preview_url_;
+  std::optional<URLWithHash> &url_with_hash =
+      std::get<ExternalAsset>(asset_).online_info_->preview_url_;
+  if (!url_with_hash) {
+    return {};
+  }
+  return url_with_hash->url;
+}
+
+std::optional<StringRefNull> AssetRepresentation::online_asset_preview_hash() const
+{
+  if (!this->is_online()) {
+    return {};
+  }
+  std::optional<URLWithHash> &url_with_hash =
+      std::get<ExternalAsset>(asset_).online_info_->preview_url_;
+  if (!url_with_hash) {
+    return {};
+  }
+  return url_with_hash->hash;
 }
 
 void AssetRepresentation::online_asset_mark_downloaded()
