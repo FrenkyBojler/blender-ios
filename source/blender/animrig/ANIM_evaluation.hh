@@ -12,10 +12,6 @@
 #include "BLI_map.hh"
 #include "BLI_string_ref.hh"
 
-#include "DNA_anim_types.h"
-
-#include "RNA_access.hh"
-
 #include "ANIM_action.hh"
 
 namespace blender::animrig {
@@ -93,10 +89,7 @@ class EvaluationResult {
 
  public:
   EvaluationResult() = default;
-  EvaluationResult(const EvaluationResult &other) = default;
-  ~EvaluationResult() = default;
 
- public:
   operator bool() const
   {
     return !this->is_empty();
@@ -105,6 +98,15 @@ class EvaluationResult {
   {
     return result_.is_empty();
   }
+
+  /**
+   * When the expected count of entries is known, reserving with size instead of growing on demand
+   * is more performant.
+   */
+  void reserve(const int64_t size)
+  {
+    result_.reserve(size);
+  };
 
   void store(const StringRefNull rna_path,
              const int array_index,

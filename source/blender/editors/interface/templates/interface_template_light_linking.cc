@@ -6,12 +6,12 @@
  * \ingroup edinterface
  */
 
-#include "UI_interface.hh"
-
 #include <cstdio>
 #include <memory>
 
 #include <fmt/format.h>
+
+#include "BLI_listbase.h"
 
 #include "BLT_translation.hh"
 
@@ -25,12 +25,15 @@
 #include "RNA_prototypes.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 #include "UI_tree_view.hh"
 
 #include "WM_api.hh"
 
 #include "ED_undo.hh"
+
+using blender::StringRefNull;
 
 namespace blender::ui::light_linking {
 
@@ -139,9 +142,9 @@ class ReorderCollectionDropTarget : public TreeViewItemDropTarget {
       case DropLocation::Into:
         return "Add to linking collection";
       case DropLocation::Before:
-        return fmt::format(TIP_("Add to linking collection before {}"), drop_name);
+        return fmt::format(fmt::runtime(TIP_("Add to linking collection before {}")), drop_name);
       case DropLocation::After:
-        return fmt::format(TIP_("Add to linking collection after {}"), drop_name);
+        return fmt::format(fmt::runtime(TIP_("Add to linking collection after {}")), drop_name);
     }
 
     return "";
@@ -198,7 +201,7 @@ class ItemDragController : public AbstractViewItemDragController {
   {
   }
 
-  eWM_DragDataType get_drag_type() const override
+  std::optional<eWM_DragDataType> get_drag_type() const override
   {
     return WM_DRAG_ID;
   }
@@ -210,14 +213,14 @@ class ItemDragController : public AbstractViewItemDragController {
 };
 
 class CollectionViewItem : public BasicTreeViewItem {
-  uiLayout &context_layout_;
+  Layout &context_layout_;
   Collection &collection_;
 
   ID &id_;
   CollectionLightLinking &collection_light_linking_;
 
  public:
-  CollectionViewItem(uiLayout &context_layout,
+  CollectionViewItem(Layout &context_layout,
                      Collection &collection,
                      ID &id,
                      CollectionLightLinking &collection_light_linking,
@@ -230,22 +233,22 @@ class CollectionViewItem : public BasicTreeViewItem {
   {
   }
 
-  void build_row(uiLayout &row) override
+  void build_row(Layout &row) override
   {
     if (is_active()) {
       PointerRNA id_ptr = RNA_id_pointer_create(&id_);
       PointerRNA collection_ptr = RNA_id_pointer_create(&collection_.id);
 
-      uiLayoutSetContextPointer(&context_layout_, "id", &id_ptr);
-      uiLayoutSetContextPointer(&context_layout_, "collection", &collection_ptr);
+      context_layout_.context_ptr_set("id", &id_ptr);
+      context_layout_.context_ptr_set("collection", &collection_ptr);
     }
 
     add_label(row);
 
-    uiLayout *sub = uiLayoutRow(&row, true);
-    uiLayoutSetPropDecorate(sub, false);
+    Layout &sub = row.row(true);
+    sub.use_property_decorate_set(false);
 
-    build_state_button(*sub);
+    build_state_button(sub);
   }
 
   std::unique_ptr<AbstractViewItemDragController> create_drag_controller() const override
@@ -285,17 +288,16 @@ class CollectionViewItem : public BasicTreeViewItem {
     BLI_assert_unreachable();
   }
 
-  void build_state_button(uiLayout &row)
+  void build_state_button(Layout &row)
   {
-    uiBlock *block = uiLayoutGetBlock(&row);
+    uiBlock *block = row.block();
     const int icon = get_state_icon();
 
-    PointerRNA collection_light_linking_ptr = RNA_pointer_create(
+    PointerRNA collection_light_linking_ptr = RNA_pointer_create_discrete(
         &collection_.id, &RNA_CollectionLightLinking, &collection_light_linking_);
 
     uiBut *button = uiDefIconButR(block,
-                                  UI_BTYPE_BUT,
-                                  0,
+                                  ButType::But,
                                   icon,
                                   0,
                                   0,
@@ -306,7 +308,7 @@ class CollectionViewItem : public BasicTreeViewItem {
                                   0,
                                   0.0f,
                                   0.0f,
-                                  nullptr);
+                                  std::nullopt);
 
     UI_but_func_set(button, [&collection_light_linking = collection_light_linking_](bContext &) {
       link_state_toggle(collection_light_linking);
@@ -315,11 +317,11 @@ class CollectionViewItem : public BasicTreeViewItem {
 };
 
 class CollectionView : public AbstractTreeView {
-  uiLayout &context_layout_;
+  Layout &context_layout_;
   Collection &collection_;
 
  public:
-  CollectionView(uiLayout &context_layout, Collection &collection)
+  CollectionView(Layout &context_layout, Collection &collection)
       : context_layout_(context_layout), collection_(collection)
   {
   }
@@ -355,19 +357,22 @@ class CollectionView : public AbstractTreeView {
 
 }  // namespace blender::ui::light_linking
 
-void uiTemplateLightLinkingCollection(uiLayout *layout,
-                                      uiLayout *context_layout,
+void uiTemplateLightLinkingCollection(blender::ui::Layout *layout,
+                                      bContext *C,
+                                      blender::ui::Layout *context_layout,
                                       PointerRNA *ptr,
-                                      const char *propname)
+                                      const StringRefNull propname)
 {
   if (!ptr->data) {
     return;
   }
 
-  PropertyRNA *prop = RNA_struct_find_property(ptr, propname);
+  PropertyRNA *prop = RNA_struct_find_property(ptr, propname.c_str());
   if (!prop) {
-    printf(
-        "%s: property not found: %s.%s\n", __func__, RNA_struct_identifier(ptr->type), propname);
+    printf("%s: property not found: %s.%s\n",
+           __func__,
+           RNA_struct_identifier(ptr->type),
+           propname.c_str());
     return;
   }
 
@@ -375,7 +380,7 @@ void uiTemplateLightLinkingCollection(uiLayout *layout,
     printf("%s: expected pointer property for %s.%s\n",
            __func__,
            RNA_struct_identifier(ptr->type),
-           propname);
+           propname.c_str());
     return;
   }
 
@@ -387,20 +392,20 @@ void uiTemplateLightLinkingCollection(uiLayout *layout,
     printf("%s: expected collection pointer property for %s.%s\n",
            __func__,
            RNA_struct_identifier(ptr->type),
-           propname);
+           propname.c_str());
     return;
   }
 
   Collection *collection = static_cast<Collection *>(collection_ptr.data);
 
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
 
   blender::ui::AbstractTreeView *tree_view = UI_block_add_view(
       *block,
       "Light Linking Collection Tree View",
       std::make_unique<blender::ui::light_linking::CollectionView>(*context_layout, *collection));
   tree_view->set_context_menu_title("Light Linking");
-  tree_view->set_min_rows(3);
+  tree_view->set_default_rows(5);
 
-  blender::ui::TreeViewBuilder::build_tree_view(*tree_view, *layout);
+  blender::ui::TreeViewBuilder::build_tree_view(*C, *tree_view, *layout);
 }

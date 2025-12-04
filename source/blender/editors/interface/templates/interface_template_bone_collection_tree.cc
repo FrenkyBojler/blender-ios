@@ -81,9 +81,9 @@ class BoneCollectionDragController : public AbstractViewItemDragController {
                                bArmature &armature,
                                const int bcoll_index);
 
-  eWM_DragDataType get_drag_type() const override;
+  std::optional<eWM_DragDataType> get_drag_type() const override;
   void *create_drag_data() const override;
-  void on_drag_start() override;
+  void on_drag_start(bContext &C) override;
 };
 
 class BoneCollectionDropTarget : public TreeViewItemDropTarget {
@@ -141,11 +141,11 @@ class BoneCollectionDropTarget : public TreeViewItemDropTarget {
 
     switch (drag_info.drop_location) {
       case DropLocation::Into:
-        return fmt::format(TIP_("Move {} into {}"), drag_name, drop_name);
+        return fmt::format(fmt::runtime(TIP_("Move {} into {}")), drag_name, drop_name);
       case DropLocation::Before:
-        return fmt::format(TIP_("Move {} above {}"), drag_name, drop_name);
+        return fmt::format(fmt::runtime(TIP_("Move {} above {}")), drag_name, drop_name);
       case DropLocation::After:
-        return fmt::format(TIP_("Move {} below {}"), drag_name, drop_name);
+        return fmt::format(fmt::runtime(TIP_("Move {} below {}")), drag_name, drop_name);
     }
 
     return "";
@@ -215,11 +215,11 @@ class BoneCollectionItem : public AbstractTreeViewItem {
     this->label_ = bone_collection_.name;
   }
 
-  void build_row(uiLayout &row) override
+  void build_row(Layout &row) override
   {
-    uiLayout *sub = uiLayoutRow(&row, true);
+    Layout &sub = row.row(true);
 
-    uiBut *name_label = uiItemL_ex(sub, bone_collection_.name, ICON_NONE, false, false);
+    uiBut *name_label = uiItemL_ex(&sub, bone_collection_.name, ICON_NONE, false, false);
     if (!ANIM_armature_bonecoll_is_editable(&armature_, &bone_collection_)) {
       UI_but_flag_enable(name_label, UI_BUT_INACTIVE);
     }
@@ -238,30 +238,29 @@ class BoneCollectionItem : public AbstractTreeViewItem {
       else {
         icon = ICON_BLANK1;
       }
-      uiItemL(sub, "", icon);
+      sub.label("", icon);
     }
 
     /* Visibility eye icon. */
     {
       const bool is_solo_active = armature_.flag & ARM_BCOLL_SOLO_ACTIVE;
-      uiLayout *visibility_sub = uiLayoutRow(sub, true);
-      uiLayoutSetActive(visibility_sub,
-                        !is_solo_active && bone_collection_.is_visible_ancestors());
+      Layout &visibility_sub = sub.row(true);
+      visibility_sub.active_set(!is_solo_active && bone_collection_.is_visible_ancestors());
 
       const int icon = bone_collection_.is_visible() ? ICON_HIDE_OFF : ICON_HIDE_ON;
       PointerRNA bcoll_ptr = rna_pointer();
-      uiItemR(visibility_sub, &bcoll_ptr, "is_visible", UI_ITEM_R_ICON_ONLY, "", icon);
+      visibility_sub.prop(&bcoll_ptr, "is_visible", UI_ITEM_R_ICON_ONLY, "", icon);
     }
 
     /* Solo icon. */
     {
       const int icon = bone_collection_.is_solo() ? ICON_SOLO_ON : ICON_SOLO_OFF;
       PointerRNA bcoll_ptr = rna_pointer();
-      uiItemR(sub, &bcoll_ptr, "is_solo", UI_ITEM_R_ICON_ONLY, "", icon);
+      sub.prop(&bcoll_ptr, "is_solo", UI_ITEM_R_ICON_ONLY, "", icon);
     }
   }
 
-  void build_context_menu(bContext &C, uiLayout &column) const override
+  void build_context_menu(bContext &C, Layout &column) const override
   {
     MenuType *mt = WM_menutype_find("ARMATURE_MT_collection_tree_context_menu", true);
     if (!mt) {
@@ -279,13 +278,14 @@ class BoneCollectionItem : public AbstractTreeViewItem {
   {
     /* Let RNA handle the property change. This makes sure all the notifiers and DEG
      * update calls are properly called. */
-    PointerRNA bcolls_ptr = RNA_pointer_create(&armature_.id, &RNA_BoneCollections, &armature_);
+    PointerRNA bcolls_ptr = RNA_pointer_create_discrete(
+        &armature_.id, &RNA_BoneCollections, &armature_);
     PropertyRNA *prop = RNA_struct_find_property(&bcolls_ptr, "active_index");
 
     RNA_property_int_set(&bcolls_ptr, prop, bcoll_index_);
-    RNA_property_update(&const_cast<bContext &>(C), &bcolls_ptr, prop);
+    RNA_property_update(&C, &bcolls_ptr, prop);
 
-    ED_undo_push(&const_cast<bContext &>(C), "Change Armature's Active Bone Collection");
+    ED_undo_push(&C, "Change Armature's Active Bone Collection");
   }
 
   std::optional<bool> should_be_collapsed() const override
@@ -311,7 +311,7 @@ class BoneCollectionItem : public AbstractTreeViewItem {
 
     /* Let RNA handle the property change. This makes sure all the notifiers and DEG
      * update calls are properly called. */
-    PointerRNA bcoll_ptr = RNA_pointer_create(
+    PointerRNA bcoll_ptr = RNA_pointer_create_discrete(
         &armature_.id, &RNA_BoneCollection, &bone_collection_);
     PropertyRNA *prop = RNA_struct_find_property(&bcoll_ptr, "is_expanded");
 
@@ -343,6 +343,11 @@ class BoneCollectionItem : public AbstractTreeViewItem {
     return bone_collection_.name;
   }
 
+  void delete_item(bContext *C) override
+  {
+    ANIM_armature_bonecoll_remove(&armature_, &bone_collection_);
+    ED_undo_push(C, "Delete Bone Collection");
+  }
   std::unique_ptr<AbstractViewItemDragController> create_drag_controller() const override
   {
     /* Reject dragging linked (or otherwise uneditable) bone collections. */
@@ -367,7 +372,7 @@ class BoneCollectionItem : public AbstractTreeViewItem {
   /** RNA pointer to the BoneCollection. */
   PointerRNA rna_pointer()
   {
-    return RNA_pointer_create(&armature_.id, &RNA_BoneCollection, &bone_collection_);
+    return RNA_pointer_create_discrete(&armature_.id, &RNA_BoneCollection, &bone_collection_);
   }
 };
 
@@ -438,26 +443,26 @@ BoneCollectionDragController::BoneCollectionDragController(BoneCollectionTreeVie
 {
 }
 
-eWM_DragDataType BoneCollectionDragController::get_drag_type() const
+std::optional<eWM_DragDataType> BoneCollectionDragController::get_drag_type() const
 {
   return WM_DRAG_BONE_COLLECTION;
 }
 
 void *BoneCollectionDragController::create_drag_data() const
 {
-  ArmatureBoneCollection *drag_data = MEM_cnew<ArmatureBoneCollection>(__func__);
+  ArmatureBoneCollection *drag_data = MEM_callocN<ArmatureBoneCollection>(__func__);
   *drag_data = drag_arm_bcoll_;
   return drag_data;
 }
 
-void BoneCollectionDragController::on_drag_start()
+void BoneCollectionDragController::on_drag_start(bContext & /*C*/)
 {
   ANIM_armature_bonecoll_active_index_set(drag_arm_bcoll_.armature, drag_arm_bcoll_.bcoll_index);
 }
 
 }  // namespace blender::ui::bonecollections
 
-void uiTemplateBoneCollectionTree(uiLayout *layout, bContext *C)
+void uiTemplateBoneCollectionTree(blender::ui::Layout *layout, bContext *C)
 {
   using namespace blender;
 
@@ -467,14 +472,14 @@ void uiTemplateBoneCollectionTree(uiLayout *layout, bContext *C)
   }
   BLI_assert(GS(armature->id.name) == ID_AR);
 
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
 
   ui::AbstractTreeView *tree_view = UI_block_add_view(
       *block,
       "Bone Collection Tree View",
       std::make_unique<blender::ui::bonecollections::BoneCollectionTreeView>(*armature));
   tree_view->set_context_menu_title("Bone Collection");
-  tree_view->set_min_rows(3);
+  tree_view->set_default_rows(5);
 
-  ui::TreeViewBuilder::build_tree_view(*tree_view, *layout);
+  ui::TreeViewBuilder::build_tree_view(*C, *tree_view, *layout);
 }

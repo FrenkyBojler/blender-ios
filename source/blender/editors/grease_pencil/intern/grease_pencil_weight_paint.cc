@@ -17,9 +17,11 @@
 #include "BKE_paint.hh"
 #include "BKE_report.hh"
 
+#include "BLI_listbase.h"
+#include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
-#include "BLI_string.h"
 
+#include "DNA_brush_types.h"
 #include "DNA_meshdata_types.h"
 
 #include "RNA_access.hh"
@@ -50,16 +52,17 @@ Set<std::string> get_bone_deformed_vertex_group_names(const Object &object)
   ModifierData *md = BKE_modifiers_get_virtual_modifierlist(&object, &virtual_modifier_data);
   for (; md; md = md->next) {
     if (!(md->mode & (eModifierMode_Realtime | eModifierMode_Virtual)) ||
-        md->type != eModifierType_Armature)
+        md->type != eModifierType_GreasePencilArmature)
     {
       continue;
     }
-    ArmatureModifierData *amd = reinterpret_cast<ArmatureModifierData *>(md);
-    if (!amd->object || !amd->object->pose) {
+    GreasePencilArmatureModifierData *gamd = reinterpret_cast<GreasePencilArmatureModifierData *>(
+        md);
+    if (!gamd->object || !gamd->object->pose) {
       continue;
     }
 
-    bPose *pose = amd->object->pose;
+    bPose *pose = gamd->object->pose;
     LISTBASE_FOREACH (bPoseChannel *, channel, &pose->chanbase) {
       if (channel->bone->flag & BONE_NO_DEFORM) {
         continue;
@@ -251,6 +254,63 @@ bool add_armature_vertex_groups(Object &object, const Object &ob_armature)
   return added_vertex_groups > 0;
 }
 
+static bool get_skinnable_bones_and_deform_group_names(const bArmature &armature,
+                                                       Object &object,
+                                                       Vector<const Bone *> &r_skinnable_bones,
+                                                       Vector<std::string> &r_deform_group_names)
+{
+  const int added_vertex_groups = foreach_bone_in_armature(
+      object, armature, [&](Object &object, const Bone *bone) {
+        if ((bone->flag & BONE_NO_DEFORM) == 0) {
+          /* Check if the name of the bone matches a vertex group name. */
+          bDeformGroup *dg = BKE_object_defgroup_find_name(&object, bone->name);
+          if (dg == nullptr) {
+            /* Add a new vertex group with the name of the bone. */
+            dg = BKE_object_defgroup_add_name(&object, bone->name);
+          }
+          r_deform_group_names.append(dg->name);
+          r_skinnable_bones.append(bone);
+          return true;
+        }
+        return false;
+      });
+
+  if (added_vertex_groups <= 0) {
+    return false;
+  }
+  return true;
+}
+
+static void get_root_and_tips_of_bones(Span<const Bone *> bones,
+                                       const float4x4 &transform,
+                                       MutableSpan<float3> roots,
+                                       MutableSpan<float3> tips)
+{
+  threading::parallel_for(bones.index_range(), 4096, [&](const IndexRange range) {
+    for (const int i : range) {
+      const Bone *bone = bones[i];
+      roots[i] = math::transform_point(transform, float3(bone->arm_head));
+      tips[i] = math::transform_point(transform, float3(bone->arm_tail));
+    }
+  });
+}
+
+static int lookup_or_add_deform_group_index(CurvesGeometry &curves, const StringRef name)
+{
+  int def_nr = BKE_defgroup_name_index(&curves.vertex_group_names, name);
+
+  /* Lazily add the vertex group. */
+  if (def_nr == -1) {
+    bDeformGroup *defgroup = MEM_callocN<bDeformGroup>(__func__);
+    name.copy_utf8_truncated(defgroup->name);
+    BLI_addtail(&curves.vertex_group_names, defgroup);
+    def_nr = BLI_listbase_count(&curves.vertex_group_names) - 1;
+    BLI_assert(def_nr >= 0);
+  }
+
+  return def_nr;
+}
+
 void add_armature_envelope_weights(Scene &scene, Object &object, const Object &ob_armature)
 {
   using namespace bke;
@@ -261,36 +321,17 @@ void add_armature_envelope_weights(Scene &scene, Object &object, const Object &o
 
   Vector<const Bone *> skinnable_bones;
   Vector<std::string> deform_group_names;
-  const int added_vertex_groups = foreach_bone_in_armature(
-      object, armature, [&](Object &object, const Bone *bone) {
-        if ((bone->flag & BONE_NO_DEFORM) == 0) {
-          /* Check if the name of the bone matches a vertex group name. */
-          bDeformGroup *dg = BKE_object_defgroup_find_name(&object, bone->name);
-          if (dg == nullptr) {
-            /* Add a new vertex group with the name of the bone. */
-            dg = BKE_object_defgroup_add_name(&object, bone->name);
-          }
-          deform_group_names.append(dg->name);
-          skinnable_bones.append(bone);
-          return true;
-        }
-        return false;
-      });
-
-  if (added_vertex_groups <= 0) {
+  if (!get_skinnable_bones_and_deform_group_names(
+          armature, object, skinnable_bones, deform_group_names))
+  {
     return;
   }
 
   /* Get the roots and tips of the bones in world space. */
   Array<float3> roots(skinnable_bones.size());
   Array<float3> tips(skinnable_bones.size());
-  threading::parallel_for(skinnable_bones.index_range(), 4096, [&](const IndexRange range) {
-    for (const int i : range) {
-      const Bone *bone = skinnable_bones[i];
-      roots[i] = math::transform_point(armature_to_world, float3(bone->arm_head));
-      tips[i] = math::transform_point(armature_to_world, float3(bone->arm_tail));
-    }
-  });
+  get_root_and_tips_of_bones(
+      skinnable_bones, armature_to_world, roots.as_mutable_span(), tips.as_mutable_span());
 
   Span<const bke::greasepencil::Layer *> layers = grease_pencil.layers();
   Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene, grease_pencil);
@@ -299,14 +340,10 @@ void add_armature_envelope_weights(Scene &scene, Object &object, const Object &o
     const float4x4 layer_to_world = layer.to_world_space(object);
 
     CurvesGeometry &curves = info.drawing.strokes_for_write();
-    const Span<float3> src_positions = curves.positions();
+
     /* Get all the positions in world space. */
     Array<float3> positions(curves.points_num());
-    threading::parallel_for(positions.index_range(), 4096, [&](const IndexRange range) {
-      for (const int i : range) {
-        positions[i] = math::transform_point(layer_to_world, src_positions[i]);
-      }
-    });
+    math::transform_points(curves.positions(), layer_to_world, positions);
 
     for (const int bone_i : skinnable_bones.index_range()) {
       const Bone *bone = skinnable_bones[bone_i];
@@ -314,17 +351,7 @@ void add_armature_envelope_weights(Scene &scene, Object &object, const Object &o
       const float3 bone_root = roots[bone_i];
       const float3 bone_tip = tips[bone_i];
 
-      int def_nr = BLI_findstringindex(
-          &curves.vertex_group_names, deform_group_name, offsetof(bDeformGroup, name));
-
-      /* Lazily add the vertex group. */
-      if (def_nr == -1) {
-        bDeformGroup *defgroup = MEM_cnew<bDeformGroup>(__func__);
-        STRNCPY(defgroup->name, deform_group_name);
-        BLI_addtail(&curves.vertex_group_names, defgroup);
-        def_nr = BLI_listbase_count(&curves.vertex_group_names) - 1;
-        BLI_assert(def_nr >= 0);
-      }
+      const int def_nr = lookup_or_add_deform_group_index(curves, deform_group_name);
 
       MutableSpan<MDeformVert> dverts = curves.deform_verts_for_write();
       VMutableArray<float> weights = bke::varray_for_mutable_deform_verts(dverts, def_nr);
@@ -343,13 +370,84 @@ void add_armature_envelope_weights(Scene &scene, Object &object, const Object &o
   });
 }
 
+void add_armature_automatic_weights(Scene &scene, Object &object, const Object &ob_armature)
+{
+  using namespace bke;
+  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
+  const bArmature &armature = *static_cast<const bArmature *>(ob_armature.data);
+  const float4x4 armature_to_world = ob_armature.object_to_world();
+  /* Note: These constant values are taken from the legacy grease pencil code. */
+  const float default_ratio = 0.1f;
+  const float default_decay = 0.8f;
+
+  Vector<const Bone *> skinnable_bones;
+  Vector<std::string> deform_group_names;
+  if (!get_skinnable_bones_and_deform_group_names(
+          armature, object, skinnable_bones, deform_group_names))
+  {
+    return;
+  }
+
+  /* Get the roots and tips of the bones in world space. */
+  Array<float3> roots(skinnable_bones.size());
+  Array<float3> tips(skinnable_bones.size());
+  get_root_and_tips_of_bones(
+      skinnable_bones, armature_to_world, roots.as_mutable_span(), tips.as_mutable_span());
+
+  /* Note: This is taken from the legacy grease pencil code. */
+  const auto get_weight = [](const float dist, const float decay_rad, const float diff_rad) {
+    return (dist < decay_rad) ? 1.0f :
+                                math::interpolate(0.9f, 0.0f, (dist - decay_rad) / diff_rad);
+  };
+
+  Span<const bke::greasepencil::Layer *> layers = grease_pencil.layers();
+  Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene, grease_pencil);
+  threading::parallel_for_each(drawings, [&](MutableDrawingInfo info) {
+    const bke::greasepencil::Layer &layer = *layers[info.layer_index];
+    const float4x4 layer_to_world = layer.to_world_space(object);
+
+    CurvesGeometry &curves = info.drawing.strokes_for_write();
+
+    /* Get all the positions in world space. */
+    Array<float3> positions(curves.points_num());
+    math::transform_points(curves.positions(), layer_to_world, positions);
+
+    for (const int bone_i : skinnable_bones.index_range()) {
+      const char *deform_group_name = deform_group_names[bone_i].c_str();
+      const float3 bone_root = roots[bone_i];
+      const float3 bone_tip = tips[bone_i];
+
+      const float radius_squared = math::distance_squared(bone_root, bone_tip) * default_ratio;
+      const float decay_rad = radius_squared - (radius_squared * default_decay);
+      const float diff_rad = radius_squared - decay_rad;
+
+      const int def_nr = lookup_or_add_deform_group_index(curves, deform_group_name);
+
+      MutableSpan<MDeformVert> dverts = curves.deform_verts_for_write();
+      VMutableArray<float> weights = bke::varray_for_mutable_deform_verts(dverts, def_nr);
+      for (const int point_i : curves.points_range()) {
+        const float3 position = positions[point_i];
+        const float dist_to_bone = dist_squared_to_line_segment_v3(position, bone_root, bone_tip);
+        const float weight = (dist_to_bone > radius_squared) ?
+                                 0.0f :
+                                 get_weight(dist_to_bone, decay_rad, diff_rad);
+        if (weight != 0.0f) {
+          weights.set(point_i, weight);
+        }
+      }
+    }
+  });
+}
+
 struct ClosestGreasePencilDrawing {
   const bke::greasepencil::Drawing *drawing = nullptr;
-  int active_defgroup_index;
-  ed::curves::FindClosestData elem = {};
+  int active_defgroup_index = -1;
+  ed::curves::FindClosestData elem;
 };
 
-static int weight_sample_invoke(bContext *C, wmOperator * /*op*/, const wmEvent *event)
+static wmOperatorStatus weight_sample_invoke(bContext *C,
+                                             wmOperator * /*op*/,
+                                             const wmEvent *event)
 {
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
@@ -363,7 +461,7 @@ static int weight_sample_invoke(bContext *C, wmOperator * /*op*/, const wmEvent 
       BLI_findlink(BKE_object_defgroup_list(vc.obact), object_defgroup_nr));
 
   /* Collect visible drawings. */
-  const Object *ob_eval = DEG_get_evaluated_object(vc.depsgraph, const_cast<Object *>(vc.obact));
+  const Object *ob_eval = DEG_get_evaluated(vc.depsgraph, vc.obact);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(vc.obact->data);
   const Vector<DrawingInfo> drawings = retrieve_visible_drawings(*vc.scene, grease_pencil, false);
 
@@ -376,13 +474,11 @@ static int weight_sample_invoke(bContext *C, wmOperator * /*op*/, const wmEvent 
         ClosestGreasePencilDrawing new_closest = init;
         for (const int i : range) {
           DrawingInfo info = drawings[i];
-          const bke::greasepencil::Layer &layer = *grease_pencil.layer(info.layer_index);
+          const bke::greasepencil::Layer &layer = grease_pencil.layer(info.layer_index);
 
           /* Skip drawing when it doesn't use the active vertex group. */
-          const int drawing_defgroup_nr = BLI_findstringindex(
-              &info.drawing.strokes().vertex_group_names,
-              object_defgroup->name,
-              offsetof(bDeformGroup, name));
+          const int drawing_defgroup_nr = BKE_defgroup_name_index(
+              &info.drawing.strokes().vertex_group_names, object_defgroup->name);
           if (drawing_defgroup_nr == -1) {
             continue;
           }
@@ -390,7 +486,7 @@ static int weight_sample_invoke(bContext *C, wmOperator * /*op*/, const wmEvent 
           /* Get deformation by modifiers. */
           bke::crazyspace::GeometryDeformation deformation =
               bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(
-                  ob_eval, *vc.obact, info.layer_index, info.frame_number);
+                  ob_eval, *vc.obact, info.drawing);
 
           IndexMaskMemory memory;
           const IndexMask points = retrieve_visible_points(*vc.obact, info.drawing, memory);
@@ -420,7 +516,7 @@ static int weight_sample_invoke(bContext *C, wmOperator * /*op*/, const wmEvent 
         return new_closest;
       },
       [](const ClosestGreasePencilDrawing &a, const ClosestGreasePencilDrawing &b) {
-        return (a.elem.distance < b.elem.distance) ? a : b;
+        return (a.elem.distance_sq < b.elem.distance_sq) ? a : b;
       });
 
   if (!closest.drawing) {
@@ -434,8 +530,8 @@ static int weight_sample_invoke(bContext *C, wmOperator * /*op*/, const wmEvent 
 
   /* Set the new brush weight. */
   const ToolSettings *ts = vc.scene->toolsettings;
-  Brush *brush = BKE_paint_brush(&ts->wpaint->paint);
-  BKE_brush_weight_set(vc.scene, brush, new_weight);
+  Brush *brush = BKE_paint_brush(&ts->gp_weightpaint->paint);
+  BKE_brush_weight_set(&ts->gp_weightpaint->paint, brush, new_weight);
 
   /* Update brush settings in UI. */
   WM_main_add_notifier(NC_BRUSH | NA_EDITED, nullptr);
@@ -459,7 +555,7 @@ static void GREASE_PENCIL_OT_weight_sample(wmOperatorType *ot)
   ot->flag = OPTYPE_UNDO | OPTYPE_DEPENDS_ON_CURSOR;
 }
 
-static int toggle_weight_tool_direction(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus toggle_weight_tool_direction_exec(bContext *C, wmOperator * /*op*/)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *brush = BKE_paint_brush(paint);
@@ -467,6 +563,7 @@ static int toggle_weight_tool_direction(bContext *C, wmOperator * /*op*/)
   /* Toggle direction flag. */
   brush->flag ^= BRUSH_DIR_IN;
 
+  BKE_brush_tag_unsaved_changes(brush);
   /* Update brush settings in UI. */
   WM_main_add_notifier(NC_BRUSH | NA_EDITED, nullptr);
 
@@ -499,13 +596,13 @@ static void GREASE_PENCIL_OT_weight_toggle_direction(wmOperatorType *ot)
 
   /* Callbacks. */
   ot->poll = toggle_weight_tool_direction_poll;
-  ot->exec = toggle_weight_tool_direction;
+  ot->exec = toggle_weight_tool_direction_exec;
 
   /* Flags. */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static int grease_pencil_weight_invert_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus grease_pencil_weight_invert_exec(bContext *C, wmOperator *op)
 {
   const Scene &scene = *CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
@@ -530,8 +627,8 @@ static int grease_pencil_weight_invert_exec(bContext *C, wmOperator *op)
   threading::parallel_for_each(drawings, [&](MutableDrawingInfo info) {
     bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
     /* Active vgroup index of drawing. */
-    const int drawing_vgroup_index = BLI_findstringindex(
-        &curves.vertex_group_names, active_defgroup->name, offsetof(bDeformGroup, name));
+    const int drawing_vgroup_index = BKE_defgroup_name_index(&curves.vertex_group_names,
+                                                             active_defgroup->name);
     if (drawing_vgroup_index == -1) {
       return;
     }
@@ -574,7 +671,7 @@ static void GREASE_PENCIL_OT_weight_invert(wmOperatorType *ot)
   ot->idname = "GREASE_PENCIL_OT_weight_invert";
   ot->description = "Invert the weight of active vertex group";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = grease_pencil_weight_invert_exec;
   ot->poll = grease_pencil_vertex_group_weight_poll;
 
@@ -582,7 +679,7 @@ static void GREASE_PENCIL_OT_weight_invert(wmOperatorType *ot)
   ot->flag = OPTYPE_UNDO | OPTYPE_REGISTER;
 }
 
-static int vertex_group_smooth_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus vertex_group_smooth_exec(bContext *C, wmOperator *op)
 {
   /* Get the active vertex group in the Grease Pencil object. */
   Object *object = CTX_data_active_object(C);
@@ -619,7 +716,7 @@ static int vertex_group_smooth_exec(bContext *C, wmOperator *op)
           object_defgroup->name);
       geometry::smooth_curve_attribute(curves.curves_range(),
                                        curves.points_by_curve(),
-                                       VArray<bool>::ForSingle(true, curves.points_num()),
+                                       VArray<bool>::from_single(true, curves.points_num()),
                                        curves.cyclic(),
                                        repeat,
                                        smooth_factor,
@@ -655,7 +752,7 @@ static void GREASE_PENCIL_OT_vertex_group_smooth(wmOperatorType *ot)
   RNA_def_int(ot->srna, "repeat", 1, 1, 10000, "Iterations", "", 1, 200);
 }
 
-static int vertex_group_normalize_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus vertex_group_normalize_exec(bContext *C, wmOperator *op)
 {
   /* Get the active vertex group in the Grease Pencil object. */
   Object *object = CTX_data_active_object(C);
@@ -770,7 +867,7 @@ static void GREASE_PENCIL_OT_vertex_group_normalize(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static int vertex_group_normalize_all_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus vertex_group_normalize_all_exec(bContext *C, wmOperator *op)
 {
   /* Get the active vertex group in the Grease Pencil object. */
   Object *object = CTX_data_active_object(C);
@@ -801,8 +898,8 @@ static int vertex_group_normalize_all_exec(bContext *C, wmOperator *op)
       /* Get the active vertex group in the drawing when it needs to be locked. */
       int active_vertex_group = -1;
       if (object_defgroup && lock_active_group) {
-        active_vertex_group = BLI_findstringindex(
-            &curves.vertex_group_names, object_defgroup->name, offsetof(bDeformGroup, name));
+        active_vertex_group = BKE_defgroup_name_index(&curves.vertex_group_names,
+                                                      object_defgroup->name);
       }
 
       /* Put the lock state of every vertex group in a boolean array. */
@@ -810,7 +907,7 @@ static int vertex_group_normalize_all_exec(bContext *C, wmOperator *op)
       Vector<bool> vertex_group_is_included;
       LISTBASE_FOREACH (bDeformGroup *, dg, &curves.vertex_group_names) {
         vertex_group_is_locked.append(object_locked_defgroups.contains(dg->name));
-        /* Dummy, needed for the #normalize_vertex_weights() call.*/
+        /* Dummy, needed for the #normalize_vertex_weights() call. */
         vertex_group_is_included.append(true);
       }
 

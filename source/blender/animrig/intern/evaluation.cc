@@ -4,14 +4,18 @@
 
 #include "ANIM_evaluation.hh"
 
-#include "RNA_access.hh"
-
 #include "BKE_animsys.h"
 #include "BKE_fcurve.hh"
 
 #include "BLI_map.hh"
+#include "BLI_math_base.hh"
+#include "BLI_task.hh"
+
+#include "CLG_log.h"
 
 #include "evaluation_internal.hh"
+
+static CLG_LogRef LOG = {"anim.evaluation"};
 
 namespace blender::animrig {
 
@@ -49,7 +53,7 @@ EvaluationResult evaluate_action(PointerRNA &animated_id_ptr,
       continue;
     }
 
-    auto layer_result = evaluate_layer(
+    EvaluationResult layer_result = evaluate_layer(
         animated_id_ptr, action, *layer, slot_handle, anim_eval_context);
     if (!layer_result) {
       continue;
@@ -59,7 +63,7 @@ EvaluationResult evaluate_action(PointerRNA &animated_id_ptr,
       /* Simple case: no results so far, so just use this layer as-is. There is
        * nothing to blend/combine with, so ignore the influence and combination
        * options. */
-      last_result = layer_result;
+      last_result = std::move(layer_result);
       continue;
     }
 
@@ -88,7 +92,14 @@ void evaluate_and_apply_action(PointerRNA &animated_id_ptr,
 /* Copy of the same-named function in anim_sys.cc, with the check on action groups removed. */
 static bool is_fcurve_evaluatable(const FCurve *fcu)
 {
-  if (fcu->flag & (FCURVE_MUTED | FCURVE_DISABLED)) {
+  if (fcu->rna_path == nullptr) {
+    return false;
+  }
+
+  /* Not checking for FCURVE_DISABLED here, because those FCurves may still be evaluatable for
+   * other users of the same slot. See #135666. This is safe to do since this function isn't called
+   * for drivers. */
+  if (fcu->flag & FCURVE_MUTED) {
     return false;
   }
   if (BKE_fcurve_is_empty(fcu)) {
@@ -136,32 +147,49 @@ static EvaluationResult evaluate_keyframe_data(PointerRNA &animated_id_ptr,
                                                const slot_handle_t slot_handle,
                                                const AnimationEvalContext &offset_eval_context)
 {
-  ChannelBag *channelbag_for_slot = strip_data.channelbag_for_slot(slot_handle);
+  Channelbag *channelbag_for_slot = strip_data.channelbag_for_slot(slot_handle);
   if (!channelbag_for_slot) {
     return {};
   }
 
+  Span<FCurve *> fcurves = channelbag_for_slot->fcurves();
+  /* Stores true for FCurves that have been evaluated. Not using BitVector because writing to it
+   * from threads will introduce race conditions.*/
+  Array<bool> valid(fcurves.size(), false);
+  Array<float> results(fcurves.size());
+  Array<PathResolvedRNA> resolved_rna(fcurves.size());
+
+  threading::parallel_for(fcurves.index_range(), 512, [&](const IndexRange range) {
+    for (const int i : range) {
+      FCurve *fcu = fcurves[i];
+      if (!is_fcurve_evaluatable(fcu)) {
+        continue;
+      }
+      /* Resolve the RNA path to skip unresolvable properties. It's faster to do that in a thread
+       * and store the result for later. */
+      PathResolvedRNA &anim_rna = resolved_rna[i];
+      if (!BKE_animsys_rna_path_resolve(
+              &animated_id_ptr, fcu->rna_path, fcu->array_index, &anim_rna))
+      {
+        continue;
+      }
+      BLI_assert(fcu->driver == nullptr);
+      /* Not using calculate_fcurve because FCurves of channelbags are not drivers. */
+      results[i] = evaluate_fcurve(fcu, offset_eval_context.eval_time);
+      valid[i] = true;
+    }
+  });
+
   EvaluationResult evaluation_result;
-  for (FCurve *fcu : channelbag_for_slot->fcurves()) {
-    /* Blatant copy of animsys_evaluate_fcurves(). */
-
-    if (!is_fcurve_evaluatable(fcu)) {
+  evaluation_result.reserve(fcurves.size());
+  for (const int i : fcurves.index_range()) {
+    if (!valid[i]) {
       continue;
     }
-
-    PathResolvedRNA anim_rna;
-    if (!BKE_animsys_rna_path_resolve(
-            &animated_id_ptr, fcu->rna_path, fcu->array_index, &anim_rna))
-    {
-      printf("Cannot resolve RNA path %s[%d] on ID %s\n",
-             fcu->rna_path,
-             fcu->array_index,
-             animated_id_ptr.owner_id->name);
-      continue;
-    }
-
-    const float curval = calculate_fcurve(&anim_rna, fcu, &offset_eval_context);
-    evaluation_result.store(fcu->rna_path, fcu->array_index, curval, anim_rna);
+    FCurve *fcu = fcurves[i];
+    PathResolvedRNA &anim_rna = resolved_rna[i];
+    /* This part is not threadsafe. */
+    evaluation_result.store(fcu->rna_path, fcu->array_index, results[i], anim_rna);
   }
 
   return evaluation_result;
@@ -182,10 +210,8 @@ void apply_evaluation_result(const EvaluationResult &evaluation_result,
     if (flush_to_original) {
       /* Convert the StringRef to a `const char *`, as the rest of the RNA path handling code in
        * BKE still uses `char *` instead of `StringRef`. */
-      animsys_write_orig_anim_rna(&animated_id_ptr,
-                                  StringRefNull(prop_ident.rna_path).c_str(),
-                                  prop_ident.array_index,
-                                  animated_value);
+      animsys_write_orig_anim_rna(
+          &animated_id_ptr, prop_ident.rna_path.c_str(), prop_ident.array_index, animated_value);
     }
   }
 }
@@ -280,7 +306,8 @@ EvaluationResult evaluate_layer(PointerRNA &animated_id_ptr,
       continue;
     }
 
-    const EvaluationResult strip_result = evaluate_strip(
+    /* Cannot use const here because the std::move would not work otherwise. */
+    EvaluationResult strip_result = evaluate_strip(
         animated_id_ptr, owning_action, *strip, slot_handle, anim_eval_context);
     if (!strip_result) {
       continue;
@@ -289,7 +316,7 @@ EvaluationResult evaluate_layer(PointerRNA &animated_id_ptr,
     const bool is_weak_result = strip->is_last_frame(anim_eval_context.eval_time);
     if (is_weak_result) {
       /* Keep going until a strong result is found. */
-      last_weak_result = strip_result;
+      last_weak_result = std::move(strip_result);
       continue;
     }
 

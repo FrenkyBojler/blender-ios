@@ -6,13 +6,17 @@
  * \ingroup edgreasepencil
  */
 
+#include "DNA_brush_types.h"
+
 #include "BKE_context.hh"
+#include "BKE_material.hh"
 #include "BKE_paint.hh"
 
 #include "DNA_brush_enums.h"
 #include "DNA_object_enums.h"
 #include "DNA_scene_types.h"
 
+#include "ED_curves.hh"
 #include "ED_grease_pencil.hh"
 #include "ED_screen.hh"
 
@@ -24,6 +28,15 @@
 
 namespace blender::ed::greasepencil {
 
+bool grease_pencil_context_poll(bContext *C)
+{
+  GreasePencil *grease_pencil = blender::ed::greasepencil::from_context(*C);
+  if (!grease_pencil || ID_IS_LINKED(grease_pencil)) {
+    return false;
+  }
+  return true;
+}
+
 bool active_grease_pencil_poll(bContext *C)
 {
   Object *object = CTX_data_active_object(C);
@@ -31,6 +44,16 @@ bool active_grease_pencil_poll(bContext *C)
     return false;
   }
   return true;
+}
+
+bool active_grease_pencil_material_poll(bContext *C)
+{
+  Object *object = CTX_data_active_object(C);
+  if (object == nullptr || object->type != OB_GREASE_PENCIL) {
+    return false;
+  }
+  short *totcolp = BKE_object_material_len_p(object);
+  return *totcolp > 0;
 }
 
 bool editable_grease_pencil_poll(bContext *C)
@@ -42,20 +65,36 @@ bool editable_grease_pencil_poll(bContext *C)
   if (!ED_operator_object_active_editable_ex(C, object)) {
     return false;
   }
-  if ((object->mode & OB_MODE_EDIT) == 0) {
+
+  const GreasePencil *grease_pencil = static_cast<GreasePencil *>(object->data);
+  if (ID_IS_LINKED(grease_pencil)) {
     return false;
   }
+
   return true;
+}
+
+bool editable_grease_pencil_with_region_view3d_poll(bContext *C)
+{
+  return ED_operator_region_view3d_active(C) && editable_grease_pencil_poll(C);
 }
 
 bool active_grease_pencil_layer_poll(bContext *C)
 {
-  Object *object = CTX_data_active_object(C);
-  if (object == nullptr || object->type != OB_GREASE_PENCIL) {
+  if (!grease_pencil_context_poll(C)) {
     return false;
   }
-  const GreasePencil *grease_pencil = static_cast<GreasePencil *>(object->data);
-  return grease_pencil->has_active_layer();
+  const GreasePencil *grease_pencil = blender::ed::greasepencil::from_context(*C);
+  return grease_pencil && grease_pencil->has_active_layer();
+}
+
+bool active_grease_pencil_layer_group_poll(bContext *C)
+{
+  if (!grease_pencil_context_poll(C)) {
+    return false;
+  }
+  const GreasePencil *grease_pencil = blender::ed::greasepencil::from_context(*C);
+  return grease_pencil && grease_pencil->has_active_group();
 }
 
 bool editable_grease_pencil_point_selection_poll(bContext *C)
@@ -69,17 +108,45 @@ bool editable_grease_pencil_point_selection_poll(bContext *C)
   return (ts->gpencil_selectmode_edit != GP_SELECTMODE_STROKE);
 }
 
+bool grease_pencil_selection_poll(bContext *C)
+{
+  if (!active_grease_pencil_poll(C)) {
+    return false;
+  }
+  Object *object = CTX_data_active_object(C);
+  /* Selection operators are available in multiple modes, e.g. for masking in sculpt and vertex
+   * paint mode. */
+  if (!ELEM(
+          object->mode, OB_MODE_EDIT, OB_MODE_SCULPT_GREASE_PENCIL, OB_MODE_VERTEX_GREASE_PENCIL))
+  {
+    return false;
+  }
+  return true;
+}
+
 bool grease_pencil_painting_poll(bContext *C)
 {
   if (!active_grease_pencil_poll(C)) {
     return false;
   }
   Object *object = CTX_data_active_object(C);
-  if ((object->mode & OB_MODE_PAINT_GPENCIL_LEGACY) == 0) {
+  if ((object->mode & OB_MODE_PAINT_GREASE_PENCIL) == 0) {
     return false;
   }
   ToolSettings *ts = CTX_data_tool_settings(C);
   if (!ts || !ts->gp_paint) {
+    return false;
+  }
+  return true;
+}
+
+bool grease_pencil_edit_poll(bContext *C)
+{
+  if (!active_grease_pencil_poll(C)) {
+    return false;
+  }
+  Object *object = CTX_data_active_object(C);
+  if ((object->mode & OB_MODE_EDIT) == 0) {
     return false;
   }
   return true;
@@ -91,7 +158,7 @@ bool grease_pencil_sculpting_poll(bContext *C)
     return false;
   }
   Object *object = CTX_data_active_object(C);
-  if ((object->mode & OB_MODE_SCULPT_GPENCIL_LEGACY) == 0) {
+  if ((object->mode & OB_MODE_SCULPT_GREASE_PENCIL) == 0) {
     return false;
   }
   ToolSettings *ts = CTX_data_tool_settings(C);
@@ -107,7 +174,7 @@ bool grease_pencil_weight_painting_poll(bContext *C)
     return false;
   }
   Object *object = CTX_data_active_object(C);
-  if ((object->mode & OB_MODE_WEIGHT_GPENCIL_LEGACY) == 0) {
+  if ((object->mode & OB_MODE_WEIGHT_GREASE_PENCIL) == 0) {
     return false;
   }
   ToolSettings *ts = CTX_data_tool_settings(C);
@@ -123,7 +190,7 @@ bool grease_pencil_vertex_painting_poll(bContext *C)
     return false;
   }
   Object *object = CTX_data_active_object(C);
-  if ((object->mode & OB_MODE_VERTEX_GPENCIL_LEGACY) == 0) {
+  if ((object->mode & OB_MODE_VERTEX_GREASE_PENCIL) == 0) {
     return false;
   }
   ToolSettings *ts = CTX_data_tool_settings(C);
@@ -133,11 +200,18 @@ bool grease_pencil_vertex_painting_poll(bContext *C)
   return true;
 }
 
+static void keymap_grease_pencil_selection(wmKeyConfig *keyconf)
+{
+  wmKeyMap *keymap = WM_keymap_ensure(
+      keyconf, "Grease Pencil Selection", SPACE_EMPTY, RGN_TYPE_WINDOW);
+  keymap->poll = grease_pencil_selection_poll;
+}
+
 static void keymap_grease_pencil_edit_mode(wmKeyConfig *keyconf)
 {
   wmKeyMap *keymap = WM_keymap_ensure(
       keyconf, "Grease Pencil Edit Mode", SPACE_EMPTY, RGN_TYPE_WINDOW);
-  keymap->poll = editable_grease_pencil_poll;
+  keymap->poll = grease_pencil_edit_poll;
 }
 
 static void keymap_grease_pencil_paint_mode(wmKeyConfig *keyconf)
@@ -237,13 +311,17 @@ void ED_operatortypes_grease_pencil()
   ED_operatortypes_grease_pencil_layers();
   ED_operatortypes_grease_pencil_select();
   ED_operatortypes_grease_pencil_edit();
+  ED_operatortypes_grease_pencil_join();
   ED_operatortypes_grease_pencil_material();
+  ED_operatortypes_grease_pencil_modes();
   ED_operatortypes_grease_pencil_primitives();
   ED_operatortypes_grease_pencil_weight_paint();
   ED_operatortypes_grease_pencil_vertex_paint();
   ED_operatortypes_grease_pencil_interpolate();
   ED_operatortypes_grease_pencil_lineart();
   ED_operatortypes_grease_pencil_trace();
+  ED_operatortypes_grease_pencil_bake_animation();
+  ED_operatortypes_grease_pencil_pen();
 }
 
 void ED_operatormacros_grease_pencil()
@@ -284,6 +362,7 @@ void ED_operatormacros_grease_pencil()
 void ED_keymap_grease_pencil(wmKeyConfig *keyconf)
 {
   using namespace blender::ed::greasepencil;
+  keymap_grease_pencil_selection(keyconf);
   keymap_grease_pencil_edit_mode(keyconf);
   keymap_grease_pencil_paint_mode(keyconf);
   keymap_grease_pencil_sculpt_mode(keyconf);
@@ -291,7 +370,9 @@ void ED_keymap_grease_pencil(wmKeyConfig *keyconf)
   keymap_grease_pencil_vertex_paint_mode(keyconf);
   keymap_grease_pencil_brush_stroke(keyconf);
   keymap_grease_pencil_fill_tool(keyconf);
+
   ED_primitivetool_modal_keymap(keyconf);
   ED_filltool_modal_keymap(keyconf);
   ED_interpolatetool_modal_keymap(keyconf);
+  ED_grease_pencil_pentool_modal_keymap(keyconf);
 }

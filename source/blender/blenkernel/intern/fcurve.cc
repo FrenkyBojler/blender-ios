@@ -15,21 +15,21 @@
 #include "MEM_guardedalloc.h"
 
 #include "ANIM_action.hh"
-#include "ANIM_animdata.hh"
 
 #include "DNA_action_types.h"
 #include "DNA_anim_types.h"
-#include "DNA_object_types.h"
-#include "DNA_text_types.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_easing.h"
 #include "BLI_ghash.h"
+#include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
+#include "BLI_rect.h"
 #include "BLI_sort_utils.h"
+#include "BLI_string.h"
 #include "BLI_string_utils.hh"
 #include "BLI_task.hh"
+#include "BLI_vector_set.hh"
 
 #include "BLT_translation.hh"
 
@@ -43,7 +43,6 @@
 #include "BKE_idprop.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_nla.hh"
-#include "BKE_scene.hh"
 
 #include "BLO_read_write.hh"
 
@@ -55,7 +54,7 @@
 #define SMALL -1.0e-10
 #define SELECT 1
 
-static CLG_LogRef LOG = {"bke.fcurve"};
+static CLG_LogRef LOG = {"anim.fcurve"};
 
 /* -------------------------------------------------------------------- */
 /** \name F-Curve Data Create
@@ -63,7 +62,7 @@ static CLG_LogRef LOG = {"bke.fcurve"};
 
 FCurve *BKE_fcurve_create()
 {
-  FCurve *fcu = static_cast<FCurve *>(MEM_callocN(sizeof(FCurve), __func__));
+  FCurve *fcu = MEM_callocN<FCurve>(__func__);
   return fcu;
 }
 
@@ -101,10 +100,8 @@ void BKE_fcurves_free(ListBase *list)
     return;
   }
 
-  /* Free data - no need to call remlink before freeing each curve,
-   * as we store reference to next, and freeing only touches the curve
-   * it's given.
-   */
+  /* Free data, no need to call #BLI_remlink before freeing each curve,
+   * as we store reference to next, and freeing only touches the curve it's given. */
   FCurve *fcn = nullptr;
   for (FCurve *fcu = static_cast<FCurve *>(list->first); fcu; fcu = fcn) {
     fcn = fcu->next;
@@ -226,7 +223,7 @@ FCurve *id_data_find_fcurve(
     return nullptr;
   }
 
-  PointerRNA ptr = RNA_pointer_create(id, type, data);
+  PointerRNA ptr = RNA_pointer_create_discrete(id, type, data);
   prop = RNA_struct_find_property(&ptr, prop_name);
   if (prop == nullptr) {
     return nullptr;
@@ -297,77 +294,6 @@ FCurve *BKE_fcurve_iter_step(FCurve *fcu_iter, const char rna_path[])
   return nullptr;
 }
 
-int BKE_fcurves_filter(ListBase *dst, ListBase *src, const char *dataPrefix, const char *dataName)
-{
-  int matches = 0;
-
-  /* Sanity checks. */
-  if (ELEM(nullptr, dst, src, dataPrefix, dataName)) {
-    return 0;
-  }
-  if ((dataPrefix[0] == 0) || (dataName[0] == 0)) {
-    return 0;
-  }
-
-  const size_t quotedName_size = strlen(dataName) + 1;
-  char *quotedName = static_cast<char *>(alloca(quotedName_size));
-
-  /* Search each F-Curve one by one. */
-  LISTBASE_FOREACH (FCurve *, fcu, src) {
-    /* Check if quoted string matches the path. */
-    if (fcu->rna_path == nullptr) {
-      continue;
-    }
-    /* Skipping names longer than `quotedName_size` is OK since we're after an exact match. */
-    if (!BLI_str_quoted_substr(fcu->rna_path, dataPrefix, quotedName, quotedName_size)) {
-      continue;
-    }
-    if (!STREQ(quotedName, dataName)) {
-      continue;
-    }
-
-    /* Check if the quoted name matches the required name. */
-    LinkData *ld = static_cast<LinkData *>(MEM_callocN(sizeof(LinkData), __func__));
-
-    ld->data = fcu;
-    BLI_addtail(dst, ld);
-
-    matches++;
-  }
-  /* Return the number of matches. */
-  return matches;
-}
-
-static std::optional<std::pair<FCurve *, bAction *>> animdata_fcurve_find_by_rna_path(
-    AnimData &adt, const char *rna_path, const int rna_index)
-{
-  if (!adt.action) {
-    return std::nullopt;
-  }
-
-  blender::animrig::Action &action = adt.action->wrap();
-  if (action.is_empty()) {
-    return std::nullopt;
-  }
-
-  FCurve *fcu = nullptr;
-  if (action.is_action_layered()) {
-    const FCurve *const_fcurve = blender::animrig::fcurve_find_by_rna_path(
-        adt, rna_path, rna_index);
-    /* The new layered Action code is stricter with const-ness than older code, hence the
-     * const_cast. */
-    fcu = const_cast<FCurve *>(const_fcurve);
-  }
-  else {
-    fcu = BKE_fcurve_find(&action.curves, rna_path, rna_index);
-  }
-
-  if (!fcu) {
-    return std::nullopt;
-  }
-  return std::make_pair(fcu, &action);
-}
-
 FCurve *BKE_animadata_fcurve_find_by_rna_path(
     AnimData *animdata, const char *rna_path, int rna_index, bAction **r_action, bool *r_driven)
 {
@@ -378,14 +304,14 @@ FCurve *BKE_animadata_fcurve_find_by_rna_path(
     *r_action = nullptr;
   }
 
-  std::optional<std::pair<FCurve *, bAction *>> found = animdata_fcurve_find_by_rna_path(
-      *animdata, rna_path, rna_index);
-  if (found) {
+  FCurve *fcurve = blender::animrig::fcurve_find_in_action_slot(
+      animdata->action, animdata->slot_handle, {rna_path, rna_index});
+  if (fcurve) {
     /* Action takes priority over drivers. */
     if (r_action) {
-      *r_action = found->second;
+      *r_action = animdata->action;
     }
-    return found->first;
+    return fcurve;
   }
 
   /* If not animated, check if driven. */
@@ -506,7 +432,6 @@ static int BKE_fcurve_bezt_binarysearch_index_ex(const BezTriple array[],
                                                  bool *r_replace)
 {
   int start = 0, end = arraylen;
-  int loopbreaker = 0, maxloop = arraylen * 2;
 
   /* Initialize replace-flag first. */
   *r_replace = false;
@@ -541,10 +466,7 @@ static int BKE_fcurve_bezt_binarysearch_index_ex(const BezTriple array[],
     return arraylen;
   }
 
-  /* Most of the time, this loop is just to find where to put it
-   * 'loopbreaker' is just here to prevent infinite loops.
-   */
-  for (loopbreaker = 0; (start <= end) && (loopbreaker < maxloop); loopbreaker++) {
+  while (start <= end) {
     /* Compute and get midpoint. */
 
     /* We calculate the midpoint this way to avoid int overflows... */
@@ -562,22 +484,9 @@ static int BKE_fcurve_bezt_binarysearch_index_ex(const BezTriple array[],
     if (frame > midfra) {
       start = mid + 1;
     }
-    else if (frame < midfra) {
+    else {
       end = mid - 1;
     }
-  }
-
-  /* Print error if loop-limit exceeded. */
-  if (loopbreaker == (maxloop - 1)) {
-    CLOG_ERROR(&LOG, "search taking too long");
-
-    /* Include debug info. */
-    CLOG_ERROR(&LOG,
-               "\tround = %d: start = %d, end = %d, arraylen = %d",
-               loopbreaker,
-               start,
-               end,
-               arraylen);
   }
 
   /* Not found, so return where to place it. */
@@ -842,27 +751,24 @@ float *BKE_fcurves_calc_keyed_frames_ex(FCurve **fcurve_array,
   /* Use `1e-3f` as the smallest possible value since these are converted to integers
    * and we can be sure `MAXFRAME / 1e-3f < INT_MAX` as it's around half the size. */
   const double interval_db = max_ff(interval, 1e-3f);
-  GSet *frames_unique = BLI_gset_int_new(__func__);
+  blender::VectorSet<int> frames_unique;
   for (int fcurve_index = 0; fcurve_index < fcurve_array_len; fcurve_index++) {
     const FCurve *fcu = fcurve_array[fcurve_index];
     for (int i = 0; i < fcu->totvert; i++) {
       const BezTriple *bezt = &fcu->bezt[i];
       const double value = round(double(bezt->vec[1][0]) / interval_db);
       BLI_assert(value > INT_MIN && value < INT_MAX);
-      BLI_gset_add(frames_unique, POINTER_FROM_INT(int(value)));
+      frames_unique.add(int(value));
     }
   }
 
-  const size_t frames_len = BLI_gset_len(frames_unique);
-  float *frames = static_cast<float *>(MEM_mallocN(sizeof(*frames) * frames_len, __func__));
+  const size_t frames_len = frames_unique.size();
+  float *frames = MEM_malloc_arrayN<float>(frames_len, __func__);
 
-  GSetIterator gs_iter;
-  int i = 0;
-  GSET_ITER_INDEX (gs_iter, frames_unique, i) {
-    const int value = POINTER_AS_INT(BLI_gsetIterator_getKey(&gs_iter));
+  for (const int i : frames_unique.index_range()) {
+    const int value = frames_unique[i];
     frames[i] = double(value) * interval_db;
   }
-  BLI_gset_free(frames_unique, nullptr);
 
   qsort(frames, frames_len, sizeof(*frames), BLI_sortutil_cmp_float);
   *r_frames_len = frames_len;
@@ -1075,8 +981,8 @@ void fcurve_store_samples(FCurve *fcu, void *data, int start, int end, FcuSample
 
   /* Set up sample data. */
   FPoint *new_fpt;
-  FPoint *fpt = new_fpt = static_cast<FPoint *>(
-      MEM_callocN(sizeof(FPoint) * (end - start + 1), "FPoint Samples"));
+  FPoint *fpt = new_fpt = MEM_calloc_arrayN<FPoint>(size_t(end) - size_t(start) + 1,
+                                                    "FPoint Samples");
 
   /* Use the sampling callback at 1-frame intervals from start to end frames. */
   for (int cfra = start; cfra <= end; cfra++, fpt++) {
@@ -1136,8 +1042,7 @@ void fcurve_samples_to_keyframes(FCurve *fcu, const int start, const int end)
   int keyframes_to_insert = end - start;
   int sample_points = fcu->totvert;
 
-  BezTriple *bezt = fcu->bezt = static_cast<BezTriple *>(
-      MEM_callocN(sizeof(*fcu->bezt) * size_t(keyframes_to_insert), __func__));
+  BezTriple *bezt = fcu->bezt = MEM_calloc_arrayN<BezTriple>(keyframes_to_insert, __func__);
   fcu->totvert = keyframes_to_insert;
 
   /* Get first sample point to 'copy' as keyframe. */
@@ -1282,9 +1187,14 @@ void BKE_fcurve_handles_recalc_ex(FCurve *fcu, eBezTriple_Flag handle_sel_flag)
         next = cycle_offset_triple(cycle, &tmp, &fcu->bezt[1], first, last);
       }
 
-      /* Clamp timing of handles to be on either side of beztriple. */
-      CLAMP_MAX(bezt->vec[0][0], bezt->vec[1][0]);
-      CLAMP_MIN(bezt->vec[2][0], bezt->vec[1][0]);
+      /* Clamp timing of handles to be on either side of beztriple. The threshold with
+       * increment/decrement ulp ensures that the handle length doesn't reach 0 at which point
+       * there would be no way to ensure that handles stay aligned. This adds an issue where if a
+       * handle is scaled to 0, the other side is set to be horizontal.
+       * See #141029 for more info. */
+      const float threshold = 0.001;
+      CLAMP_MAX(bezt->vec[0][0], decrement_ulp(bezt->vec[1][0] - threshold));
+      CLAMP_MIN(bezt->vec[2][0], increment_ulp(bezt->vec[1][0] + threshold));
 
       /* Calculate auto-handles. */
       BKE_nurb_handle_calc_ex(bezt, prev, next, handle_sel_flag, true, fcu->auto_smoothing);
@@ -1683,10 +1593,9 @@ bool BKE_fcurve_bezt_subdivide_handles(BezTriple *bezt,
   return true;
 }
 
-void BKE_fcurve_bezt_shrink(FCurve *fcu, const int new_totvert)
+void BKE_fcurve_bezt_resize(FCurve *fcu, const int new_totvert)
 {
   BLI_assert(new_totvert >= 0);
-  BLI_assert(new_totvert <= fcu->totvert);
 
   /* No early return when new_totvert == fcu->totvert. There is no way to know the intention of the
    * caller, nor the history of the FCurve so far, so `fcu->bezt` may actually have allocated space
@@ -1699,6 +1608,14 @@ void BKE_fcurve_bezt_shrink(FCurve *fcu, const int new_totvert)
 
   fcu->bezt = static_cast<BezTriple *>(
       MEM_reallocN(fcu->bezt, new_totvert * sizeof(*(fcu->bezt))));
+
+  /* Zero out all the newly-allocated beztriples. This is necessary, as it is likely that only some
+   * of the fields will actually be updated by the caller. */
+  const int old_totvert = fcu->totvert;
+  if (new_totvert > old_totvert) {
+    memset(&fcu->bezt[old_totvert], 0, sizeof(fcu->bezt[0]) * (new_totvert - old_totvert));
+  }
+
   fcu->totvert = new_totvert;
 }
 
@@ -1752,8 +1669,7 @@ void BKE_fcurve_delete_keys(FCurve *fcu, blender::uint2 index_range)
 BezTriple *BKE_bezier_array_merge(
     const BezTriple *a, const int size_a, const BezTriple *b, const int size_b, int *r_merged_size)
 {
-  BezTriple *large_array = static_cast<BezTriple *>(
-      MEM_callocN((size_a + size_b) * sizeof(BezTriple), "beztriple"));
+  BezTriple *large_array = MEM_calloc_arrayN<BezTriple>(size_t(size_a + size_b), "beztriple");
 
   int iterator_a = 0;
   int iterator_b = 0;
@@ -1889,8 +1805,7 @@ void BKE_fcurve_merge_duplicate_keys(FCurve *fcu, const int sel_flag, const bool
 
       /* If nothing found yet, create a new one */
       if (found == false) {
-        tRetainedKeyframe *rk = static_cast<tRetainedKeyframe *>(
-            MEM_callocN(sizeof(tRetainedKeyframe), "tRetainedKeyframe"));
+        tRetainedKeyframe *rk = MEM_callocN<tRetainedKeyframe>("tRetainedKeyframe");
 
         rk->frame = bezt->vec[1][0];
         rk->val = bezt->vec[1][1];
@@ -2015,7 +1930,7 @@ void BKE_fcurve_deduplicate_keys(FCurve *fcu)
     }
   }
 
-  BKE_fcurve_bezt_shrink(fcu, prev_bezt_index + 1);
+  BKE_fcurve_bezt_resize(fcu, prev_bezt_index + 1);
 }
 
 /** \} */
@@ -2583,7 +2498,13 @@ void BKE_fmodifiers_blend_read_data(BlendDataReader *reader, ListBase *fmodifier
       fcm->data = BLO_read_struct_by_name_array(reader, fmi->struct_name, 1, fcm->data);
     }
     else {
-      BLI_assert_unreachable();
+      /* This can happen when the blend file has data for a modifier that doesn't exist in this
+       * Blender version (when the blend file is newer). */
+      BLO_reportf_wrap(BLO_read_data_reports(reader),
+                       RPT_WARNING,
+                       RPT_("F-Curve modifier lost on '%s[%d]' because it has an unknown type"),
+                       curve->rna_path,
+                       curve->array_index);
       fcm->data = nullptr;
     }
     fcm->curve = curve;

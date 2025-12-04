@@ -12,10 +12,6 @@
 #include "../BPy_IntegrationType.h"
 #include "../BPy_Interface1D.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -31,8 +27,7 @@ int UnaryFunction1DFloat_Init(PyObject *module)
   if (PyType_Ready(&UnaryFunction1DFloat_Type) < 0) {
     return -1;
   }
-  Py_INCREF(&UnaryFunction1DFloat_Type);
-  PyModule_AddObject(module, "UnaryFunction1DFloat", (PyObject *)&UnaryFunction1DFloat_Type);
+  PyModule_AddObjectRef(module, "UnaryFunction1DFloat", (PyObject *)&UnaryFunction1DFloat_Type);
 
   return 0;
 }
@@ -55,7 +50,6 @@ PyDoc_STRVAR(
     "\n"
     "   :arg integration_type: An integration method.\n"
     "   :type integration_type: :class:`IntegrationType`\n");
-
 static int UnaryFunction1DFloat___init__(BPy_UnaryFunction1DFloat *self,
                                          PyObject *args,
                                          PyObject *kwds)
@@ -124,8 +118,7 @@ PyDoc_STRVAR(
     integration_type_doc,
     "The integration method.\n"
     "\n"
-    ":type: :class:`IntegrationType`");
-
+    ":type: :class:`IntegrationType`\n");
 static PyObject *integration_type_get(BPy_UnaryFunction1DFloat *self, void * /*closure*/)
 {
   return BPy_IntegrationType_from_IntegrationType(self->uf1D_float->getIntegrationType());
@@ -196,7 +189,3 @@ PyTypeObject UnaryFunction1DFloat_Type = {
 };
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

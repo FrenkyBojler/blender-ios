@@ -18,7 +18,7 @@
 #include "BKE_context.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_global.hh"
-#include "BKE_image.h"
+#include "BKE_image.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
@@ -456,6 +456,11 @@ bool ED_space_image_show_paint(const SpaceImage *sima)
   }
 
   return (sima->mode == SI_MODE_PAINT);
+}
+
+bool ED_space_image_show_mask(const SpaceImage *sima)
+{
+  return (sima->mode == SI_MODE_MASK);
 }
 
 bool ED_space_image_show_uvedit(const SpaceImage *sima, Object *obedit)

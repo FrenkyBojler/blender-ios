@@ -9,6 +9,7 @@
 #include <fmt/format.h>
 
 #include "BKE_context.hh"
+#include "BKE_library.hh"
 
 #include "BLT_translation.hh"
 
@@ -40,12 +41,12 @@ static bool ui_view_drop_poll(bContext *C, wmDrag *drag, const wmEvent *event)
     return false;
   }
 
-  if (drag->drop_state.free_disabled_info) {
-    MEM_SAFE_FREE(drag->drop_state.disabled_info);
-  }
-  drag->drop_state.free_disabled_info = false;
+  const char *disabled_info = "";
+  const bool can_drop = drop_target->can_drop(*drag, &disabled_info);
 
-  return drop_target->can_drop(*drag, &drag->drop_state.disabled_info);
+  drag->drop_state.disabled_info = disabled_info;
+
+  return can_drop;
 }
 
 static std::string ui_view_drop_tooltip(bContext *C,
@@ -72,13 +73,15 @@ static std::string ui_view_drop_tooltip(bContext *C,
 
 static bool ui_drop_name_poll(bContext *C, wmDrag *drag, const wmEvent * /*event*/)
 {
-  return UI_but_active_drop_name(C) && (drag->type == WM_DRAG_ID);
+  return UI_but_active_drop_name(C) && ELEM(drag->type, WM_DRAG_ID, WM_DRAG_ASSET);
 }
 
-static void ui_drop_name_copy(bContext * /*C*/, wmDrag *drag, wmDropBox *drop)
+static void ui_drop_name_copy(bContext *C, wmDrag *drag, wmDropBox *drop)
 {
-  const ID *id = WM_drag_get_local_ID(drag, 0);
-  RNA_string_set(drop->ptr, "string", id->name + 2);
+  const ID *id = WM_drag_get_local_ID_or_import_from_asset(C, drag, 0);
+  if (id) {
+    RNA_string_set(drop->ptr, "string", id->name + 2);
+  }
 }
 
 /** \} */
@@ -90,13 +93,26 @@ static void ui_drop_name_copy(bContext * /*C*/, wmDrag *drag, wmDropBox *drop)
 static bool ui_drop_material_poll(bContext *C, wmDrag *drag, const wmEvent * /*event*/)
 {
   PointerRNA mat_slot = CTX_data_pointer_get_type(C, "material_slot", &RNA_MaterialSlot);
-  return WM_drag_is_ID_type(drag, ID_MA) && !RNA_pointer_is_null(&mat_slot);
+  if (RNA_pointer_is_null(&mat_slot)) {
+    return false;
+  }
+  PointerRNA ob_ptr = CTX_data_pointer_get_type(C, "object", &RNA_Object);
+  if (RNA_pointer_is_null(&ob_ptr)) {
+    return false;
+  }
+
+  Object *ob = static_cast<Object *>(ob_ptr.data);
+
+  return WM_drag_is_ID_type(drag, ID_MA) && ID_IS_EDITABLE(&ob->id) &&
+         !ID_IS_OVERRIDE_LIBRARY(&ob->id);
 }
 
 static void ui_drop_material_copy(bContext *C, wmDrag *drag, wmDropBox *drop)
 {
   const ID *id = WM_drag_get_local_ID_or_import_from_asset(C, drag, ID_MA);
-  RNA_int_set(drop->ptr, "session_uid", int(id->session_uid));
+  if (id) {
+    RNA_int_set(drop->ptr, "session_uid", int(id->session_uid));
+  }
 }
 
 static std::string ui_drop_material_tooltip(bContext *C,
@@ -118,20 +134,22 @@ static std::string ui_drop_material_tooltip(bContext *C,
   const char *dragged_material_name = WM_drag_get_item_name(drag);
 
   if (prev_mat_in_slot) {
-    return fmt::format(TIP_("Drop {} on slot {} (replacing {}) of {}"),
+    return fmt::format(fmt::runtime(TIP_("Drop {} on slot {} (replacing {}) of {}")),
                        dragged_material_name,
                        target_slot,
                        prev_mat_in_slot->id.name + 2,
                        ob->id.name + 2);
   }
   if (target_slot == ob->actcol) {
-    return fmt::format(TIP_("Drop {} on slot {} (active slot) of {}"),
+    return fmt::format(fmt::runtime(TIP_("Drop {} on slot {} (active slot) of {}")),
                        dragged_material_name,
                        target_slot,
                        ob->id.name + 2);
   }
-  return fmt::format(
-      TIP_("Drop {} on slot {} of {}"), dragged_material_name, target_slot, ob->id.name + 2);
+  return fmt::format(fmt::runtime(TIP_("Drop {} on slot {} of {}")),
+                     dragged_material_name,
+                     target_slot,
+                     ob->id.name + 2);
 }
 
 /** \} */

@@ -6,8 +6,6 @@
  * \ingroup edsculpt
  */
 
-#include "MEM_guardedalloc.h"
-
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
@@ -24,7 +22,7 @@
 #include "BKE_colortools.hh"
 #include "BKE_mesh.hh"
 #include "BKE_paint.hh"
-#include "BKE_pbvh_api.hh"
+#include "BKE_paint_bvh.hh"
 
 #include "mesh_brush_common.hh"
 #include "paint_intern.hh"
@@ -40,7 +38,6 @@
 #include "bmesh.hh"
 
 #include <cmath>
-#include <cstdlib>
 
 namespace blender::ed::sculpt_paint::pose {
 
@@ -158,6 +155,7 @@ BLI_NOINLINE static void add_arrays(const MutableSpan<float3> a, const Span<floa
 static void calc_mesh(const Depsgraph &depsgraph,
                       const Sculpt &sd,
                       const Brush &brush,
+                      const MeshAttributeData &attribute_data,
                       const bke::pbvh::MeshNode &node,
                       Object &object,
                       BrushLocalData &tls,
@@ -165,7 +163,6 @@ static void calc_mesh(const Depsgraph &depsgraph,
 {
   SculptSession &ss = *object.sculpt;
   const StrokeCache &cache = *ss.cache;
-  const Mesh &mesh = *static_cast<Mesh *>(object.data);
 
   const Span<int> verts = node.verts();
   const Span<float3> positions = gather_data_mesh(position_data.eval, verts, tls.positions);
@@ -173,7 +170,7 @@ static void calc_mesh(const Depsgraph &depsgraph,
 
   tls.factors.resize(verts.size());
   const MutableSpan<float> factors = tls.factors;
-  fill_factor_from_hide_and_mask(mesh, verts, factors);
+  fill_factor_from_hide_and_mask(attribute_data.hide_vert, attribute_data.mask, verts, factors);
   auto_mask::calc_vert_factors(depsgraph, object, cache.automasking.get(), node, verts, factors);
 
   tls.translations.resize(verts.size());
@@ -326,18 +323,30 @@ struct PoseGrowFactorData {
 
 struct GrowFactorLocalData {
   Vector<int> vert_indices;
-  Vector<Vector<int>> vert_neighbors;
+  Vector<int> neighbor_offsets;
+  Vector<int> neighbor_data;
+  Vector<int> neighbor_data_with_fake;
 };
 
 BLI_NOINLINE static void add_fake_neighbors(const Span<int> fake_neighbors,
                                             const Span<int> verts,
-                                            const MutableSpan<Vector<int>> neighbors)
+                                            const Span<int> orig_neighbor_data,
+                                            MutableSpan<int> neighbor_offsets,
+                                            Vector<int> &neighbor_data_with_fake)
 {
+  const OffsetIndices<int> offsets(neighbor_offsets);
   for (const int i : verts.index_range()) {
-    if (fake_neighbors[verts[i]] != FAKE_NEIGHBOR_NONE) {
-      neighbors[i].append(fake_neighbors[verts[i]]);
+    const Span<int> orig_neighbors = orig_neighbor_data.slice(offsets[i]);
+
+    /* Modify the offsets in-place after using them to slice the current neighbor data. */
+    neighbor_offsets[i] = neighbor_data_with_fake.size();
+    neighbor_data_with_fake.extend(orig_neighbors);
+    const int neighbor = fake_neighbors[verts[i]];
+    if (neighbor != FAKE_NEIGHBOR_NONE) {
+      neighbor_data_with_fake.append(neighbor);
     }
   }
+  neighbor_offsets.last() = neighbor_data_with_fake.size();
 }
 
 static void grow_factors_mesh(const ePaintSymmetryFlags symm,
@@ -357,13 +366,24 @@ static void grow_factors_mesh(const ePaintSymmetryFlags symm,
 {
   const Span<int> verts = hide::node_visible_verts(node, hide_vert, tls.vert_indices);
 
-  tls.vert_neighbors.resize(verts.size());
-  const MutableSpan<Vector<int>> neighbors = tls.vert_neighbors;
-  calc_vert_neighbors(faces, corner_verts, vert_to_face_map, hide_poly, verts, neighbors);
-
+  calc_vert_neighbors(faces,
+                      corner_verts,
+                      vert_to_face_map,
+                      hide_poly,
+                      verts,
+                      tls.neighbor_offsets,
+                      tls.neighbor_data);
   if (!fake_neighbors.is_empty()) {
-    add_fake_neighbors(fake_neighbors, verts, neighbors);
+    add_fake_neighbors(fake_neighbors,
+                       verts,
+                       tls.neighbor_data,
+                       tls.neighbor_offsets,
+                       tls.neighbor_data_with_fake);
   }
+  const GroupedSpan<int> neighbors(tls.neighbor_offsets.as_span(),
+                                   fake_neighbors.is_empty() ?
+                                       tls.neighbor_data.as_span() :
+                                       tls.neighbor_data_with_fake.as_span());
 
   for (const int i : verts.index_range()) {
     const int vert = verts[i];
@@ -446,7 +466,7 @@ static void grow_factors_bmesh(const ePaintSymmetryFlags symm,
 {
   const Set<BMVert *, 0> &verts = BKE_pbvh_bmesh_node_unique_verts(&node);
 
-  Vector<BMVert *, 64> neighbors;
+  BMeshNeighborVerts neighbors;
 
   for (BMVert *bm_vert : verts) {
     const int vert = BM_elem_index_get(bm_vert);
@@ -462,7 +482,7 @@ static void grow_factors_bmesh(const ePaintSymmetryFlags symm,
     }
 
     if (max > prev_mask[vert]) {
-      const float3 &position = bm_vert->co;
+      const float3 position = bm_vert->co;
       pose_factor[vert] = max;
       if (SCULPT_check_vertex_pivot_symmetry(position, pose_initial_position, symm)) {
         gftd.pos_avg += position;
@@ -627,7 +647,7 @@ static bool vert_inside_brush_radius(const float3 &vertex,
                                      char symm)
 {
   for (char i = 0; i <= symm; ++i) {
-    if (SCULPT_is_symmetry_iteration_valid(i, symm)) {
+    if (is_symmetry_iteration_valid(i, symm)) {
       const float3 location = symmetry_flip(br_co, ePaintSymmetryFlags(i));
       if (math::distance(location, vertex) < radius) {
         return true;
@@ -654,12 +674,10 @@ static void calc_pose_origin_and_factor_mesh(const Depsgraph &depsgraph,
   const Mesh &mesh = *static_cast<const Mesh *>(object.data);
   const GroupedSpan<int> vert_to_face_map = mesh.vert_to_face_map();
   const Span<float3> positions_eval = bke::pbvh::vert_positions_eval(depsgraph, object);
-  const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
 
   /* Calculate the pose rotation point based on the boundaries of the brush factor. */
-  flood_fill::FillDataMesh flood(positions_eval.size());
-  flood.add_initial_with_symmetry(
-      depsgraph, object, pbvh, std::get<int>(ss.active_vert()), radius);
+  flood_fill::FillDataMesh flood(positions_eval.size(), ss.fake_neighbors.fake_neighbor_index);
+  flood.add_initial(find_symm_verts_mesh(depsgraph, object, ss.active_vert_index(), radius));
 
   const int symm = SCULPT_mesh_symmetry_xyz_get(object);
 
@@ -706,14 +724,12 @@ static void calc_pose_origin_and_factor_grids(Object &object,
   BLI_assert(!r_pose_factor.is_empty());
 
   const SubdivCCG &subdiv_ccg = *ss.subdiv_ccg;
-  const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
 
   const Span<float3> positions = subdiv_ccg.positions;
   const CCGKey key = BKE_subdiv_ccg_key_top_level(subdiv_ccg);
   /* Calculate the pose rotation point based on the boundaries of the brush factor. */
-  flood_fill::FillDataGrids flood(positions.size());
-  flood.add_initial_with_symmetry(
-      object, pbvh, subdiv_ccg, std::get<SubdivCCGCoord>(ss.active_vert()), radius);
+  flood_fill::FillDataGrids flood(positions.size(), ss.fake_neighbors.fake_neighbor_index);
+  flood.add_initial(key, find_symm_verts_grids(object, ss.active_vert_index(), radius));
 
   const int symm = SCULPT_mesh_symmetry_xyz_get(object);
 
@@ -763,13 +779,12 @@ static void calc_pose_origin_and_factor_bmesh(Object &object,
                                               MutableSpan<float> r_pose_factor)
 {
   BLI_assert(!r_pose_factor.is_empty());
-  SCULPT_vertex_random_access_ensure(object);
-
-  const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
+  vert_random_access_ensure(object);
 
   /* Calculate the pose rotation point based on the boundaries of the brush factor. */
-  flood_fill::FillDataBMesh flood(BM_mesh_elem_count(ss.bm, BM_VERT));
-  flood.add_initial_with_symmetry(object, pbvh, std::get<BMVert *>(ss.active_vert()), radius);
+  flood_fill::FillDataBMesh flood(BM_mesh_elem_count(ss.bm, BM_VERT),
+                                  ss.fake_neighbors.fake_neighbor_index);
+  flood.add_initial(*ss.bm, find_symm_verts_bmesh(object, ss.active_vert_index(), radius));
 
   const int symm = SCULPT_mesh_symmetry_xyz_get(object);
 
@@ -886,7 +901,7 @@ static int brush_num_effective_segments(const Brush &brush)
    * changes in the segment's length. It will also required a better weight distribution to avoid
    * artifacts in the areas affected by multiple segments. */
   if (ELEM(brush.pose_deform_type,
-           BRUSH_POSE_DEFORM_SCALE_TRASLATE,
+           BRUSH_POSE_DEFORM_SCALE_TRANSLATE,
            BRUSH_POSE_DEFORM_SQUASH_STRETCH))
   {
     return 1;
@@ -1033,15 +1048,14 @@ static std::unique_ptr<IKChain> ik_chain_init_face_sets_mesh(const Depsgraph &de
 
   SegmentData current_data = {std::get<int>(ss.active_vert()), SCULPT_FACE_SET_NONE};
 
-  const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const int symm = SCULPT_mesh_symmetry_xyz_get(object);
   Vector<int> neighbors;
   for (const int i : ik_chain->segments.index_range()) {
     const bool is_first_iteration = i == 0;
 
-    flood_fill::FillDataMesh flood_fill(vert_positions.size());
-    flood_fill.add_initial_with_symmetry(
-        depsgraph, object, pbvh, current_data.vert, std::numeric_limits<float>::max());
+    flood_fill::FillDataMesh flood_fill(vert_positions.size(),
+                                        ss.fake_neighbors.fake_neighbor_index);
+    flood_fill.add_initial(find_symm_verts_mesh(depsgraph, object, current_data.vert, radius));
 
     visited_face_sets.add(current_data.face_set);
 
@@ -1170,10 +1184,9 @@ static std::unique_ptr<IKChain> ik_chain_init_face_sets_grids(Object &object,
                                                               const float radius)
 {
   struct SegmentData {
-    SubdivCCGCoord vert;
+    int vert;
     int face_set;
   };
-  const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
 
   const Mesh &mesh = *static_cast<const Mesh *>(object.data);
   const OffsetIndices<int> faces = mesh.faces();
@@ -1194,16 +1207,15 @@ static std::unique_ptr<IKChain> ik_chain_init_face_sets_grids(Object &object,
   BitVector<> is_weighted(grids_num);
   Set<int> visited_face_sets;
 
-  SegmentData current_data = {std::get<SubdivCCGCoord>(ss.active_vert()), SCULPT_FACE_SET_NONE};
+  SegmentData current_data = {ss.active_vert_index(), SCULPT_FACE_SET_NONE};
 
   const int symm = SCULPT_mesh_symmetry_xyz_get(object);
   SubdivCCGNeighbors neighbors;
   for (const int i : ik_chain->segments.index_range()) {
     const bool is_first_iteration = i == 0;
 
-    flood_fill::FillDataGrids flood_fill(grids_num);
-    flood_fill.add_initial_with_symmetry(
-        object, pbvh, subdiv_ccg, current_data.vert, std::numeric_limits<float>::max());
+    flood_fill::FillDataGrids flood_fill(grids_num, ss.fake_neighbors.fake_neighbor_index);
+    flood_fill.add_initial(key, find_symm_verts_grids(object, current_data.vert, radius));
 
     visited_face_sets.add(current_data.face_set);
 
@@ -1216,7 +1228,7 @@ static std::unique_ptr<IKChain> ik_chain_init_face_sets_grids(Object &object,
     float3 fallback_accum(0);
     int fallback_count = 0;
 
-    const float3 &pose_initial_co = positions[current_data.vert.to_index(key)];
+    const float3 &pose_initial_co = positions[current_data.vert];
     flood_fill.execute(
         object,
         subdiv_ccg,
@@ -1303,7 +1315,7 @@ static std::unique_ptr<IKChain> ik_chain_init_face_sets_grids(Object &object,
                 !visited_face_sets.contains(next_face_set_candidate))
             {
               if (!next_segment_data) {
-                next_segment_data = {neighbor, next_face_set_candidate};
+                next_segment_data = {neighbor.to_index(key), next_face_set_candidate};
               }
               count_as_boundary = true;
             }
@@ -1330,8 +1342,7 @@ static std::unique_ptr<IKChain> ik_chain_init_face_sets_grids(Object &object,
     current_data = *next_segment_data;
   }
 
-  ik_chain_origin_heads_init(*ik_chain,
-                             positions[std::get<SubdivCCGCoord>(ss.active_vert()).to_index(key)]);
+  ik_chain_origin_heads_init(*ik_chain, positions[ss.active_vert_index()]);
 
   return ik_chain;
 }
@@ -1357,15 +1368,14 @@ static std::unique_ptr<IKChain> ik_chain_init_face_sets_bmesh(Object &object,
 
   SegmentData current_data = {std::get<BMVert *>(ss.active_vert()), SCULPT_FACE_SET_NONE};
 
-  const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const int symm = SCULPT_mesh_symmetry_xyz_get(object);
-  Vector<BMVert *, 64> neighbors;
+  BMeshNeighborVerts neighbors;
   for (const int i : ik_chain->segments.index_range()) {
     const bool is_first_iteration = i == 0;
 
-    flood_fill::FillDataBMesh flood_fill(verts_num);
-    flood_fill.add_initial_with_symmetry(
-        object, pbvh, current_data.vert, std::numeric_limits<float>::max());
+    flood_fill::FillDataBMesh flood_fill(verts_num, ss.fake_neighbors.fake_neighbor_index);
+    flood_fill.add_initial(
+        *ss.bm, find_symm_verts_bmesh(object, BM_elem_index_get(current_data.vert), radius));
 
     visited_face_sets.add(current_data.face_set);
 
@@ -1557,7 +1567,7 @@ static std::optional<float3> calc_average_face_set_center(const Depsgraph &depsg
       break;
     }
     case bke::pbvh::Type::BMesh: {
-      SCULPT_vertex_random_access_ensure(object);
+      vert_random_access_ensure(object);
       BMesh &bm = *object.sculpt->bm;
       const int face_set_offset = CustomData_get_offset_named(
           &bm.pdata, CD_PROP_INT32, ".sculpt_face_set");
@@ -1598,7 +1608,6 @@ static std::unique_ptr<IKChain> ik_chain_init_face_sets_fk_mesh(const Depsgraph 
   std::unique_ptr<IKChain> ik_chain = ik_chain_new(1, mesh.verts_num);
 
   const int active_vert = std::get<int>(ss.active_vert());
-  const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
 
   const int active_face_set = face_set::active_face_set_get(object);
 
@@ -1609,7 +1618,7 @@ static std::unique_ptr<IKChain> ik_chain_init_face_sets_fk_mesh(const Depsgraph 
   int masked_face_set = SCULPT_FACE_SET_NONE;
   int target_face_set = SCULPT_FACE_SET_NONE;
   int masked_face_set_it = 0;
-  flood_fill::FillDataMesh step_floodfill(mesh.verts_num);
+  flood_fill::FillDataMesh step_floodfill(mesh.verts_num, ss.fake_neighbors.fake_neighbor_index);
   step_floodfill.add_initial(active_vert);
   step_floodfill.execute(object, vert_to_face_map, [&](int from_v, int to_v) {
     floodfill_step[to_v] = floodfill_step[from_v] + 1;
@@ -1650,8 +1659,8 @@ static std::unique_ptr<IKChain> ik_chain_init_face_sets_fk_mesh(const Depsgraph 
   ik_chain->segments[0].head = head.value_or(initial_location);
   ik_chain->grab_delta_offset = ik_chain->segments[0].head - initial_location;
 
-  flood_fill::FillDataMesh weight_floodfill(mesh.verts_num);
-  weight_floodfill.add_initial_with_symmetry(depsgraph, object, pbvh, active_vert, radius);
+  flood_fill::FillDataMesh weight_floodfill(mesh.verts_num, ss.fake_neighbors.fake_neighbor_index);
+  weight_floodfill.add_initial(find_symm_verts_mesh(depsgraph, object, active_vert, radius));
   MutableSpan<float> fk_weights = ik_chain->segments[0].weights;
   weight_floodfill.execute(object, vert_to_face_map, [&](int /*from_v*/, int to_v) {
     fk_weights[to_v] = 1.0f;
@@ -1683,8 +1692,6 @@ static std::unique_ptr<IKChain> ik_chain_init_face_sets_fk_grids(const Depsgraph
 
   std::unique_ptr<IKChain> ik_chain = ik_chain_new(1, grids_num);
 
-  const SubdivCCGCoord active_vert = std::get<SubdivCCGCoord>(ss.active_vert());
-  const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const int active_vert_index = ss.active_vert_index();
 
   const int active_face_set = face_set::active_face_set_get(object);
@@ -1696,8 +1703,8 @@ static std::unique_ptr<IKChain> ik_chain_init_face_sets_fk_grids(const Depsgraph
   int masked_face_set = SCULPT_FACE_SET_NONE;
   int target_face_set = SCULPT_FACE_SET_NONE;
   int masked_face_set_it = 0;
-  flood_fill::FillDataGrids step_floodfill(grids_num);
-  step_floodfill.add_initial(active_vert);
+  flood_fill::FillDataGrids step_floodfill(grids_num, ss.fake_neighbors.fake_neighbor_index);
+  step_floodfill.add_initial(SubdivCCGCoord::from_index(key, active_vert_index));
   step_floodfill.execute(
       object, subdiv_ccg, [&](SubdivCCGCoord from_v, SubdivCCGCoord to_v, bool is_duplicate) {
         const int from_v_i = from_v.to_index(key);
@@ -1749,8 +1756,8 @@ static std::unique_ptr<IKChain> ik_chain_init_face_sets_fk_grids(const Depsgraph
   ik_chain->segments[0].head = head.value_or(initial_location);
   ik_chain->grab_delta_offset = ik_chain->segments[0].head - initial_location;
 
-  flood_fill::FillDataGrids weight_floodfill(grids_num);
-  weight_floodfill.add_initial_with_symmetry(object, pbvh, subdiv_ccg, active_vert, radius);
+  flood_fill::FillDataGrids weight_floodfill(grids_num, ss.fake_neighbors.fake_neighbor_index);
+  weight_floodfill.add_initial(key, find_symm_verts_grids(object, active_vert_index, radius));
   MutableSpan<float> fk_weights = ik_chain->segments[0].weights;
   weight_floodfill.execute(
       object,
@@ -1773,7 +1780,7 @@ static std::unique_ptr<IKChain> ik_chain_init_face_sets_fk_bmesh(const Depsgraph
                                                                  const float radius,
                                                                  const float3 &initial_location)
 {
-  SCULPT_vertex_random_access_ensure(object);
+  vert_random_access_ensure(object);
 
   BMesh &bm = *ss.bm;
   const int face_set_offset = CustomData_get_offset_named(
@@ -1783,7 +1790,6 @@ static std::unique_ptr<IKChain> ik_chain_init_face_sets_fk_bmesh(const Depsgraph
   std::unique_ptr<IKChain> ik_chain = ik_chain_new(1, verts_num);
 
   BMVert *active_vert = std::get<BMVert *>(ss.active_vert());
-  const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
   const int active_vert_index = BM_elem_index_get(active_vert);
 
   const int active_face_set = face_set::active_face_set_get(object);
@@ -1795,7 +1801,7 @@ static std::unique_ptr<IKChain> ik_chain_init_face_sets_fk_bmesh(const Depsgraph
   int masked_face_set = SCULPT_FACE_SET_NONE;
   int target_face_set = SCULPT_FACE_SET_NONE;
   int masked_face_set_it = 0;
-  flood_fill::FillDataBMesh step_floodfill(verts_num);
+  flood_fill::FillDataBMesh step_floodfill(verts_num, ss.fake_neighbors.fake_neighbor_index);
   step_floodfill.add_initial(active_vert);
   step_floodfill.execute(object, [&](BMVert *from_v, BMVert *to_v) {
     const int from_v_i = BM_elem_index_get(from_v);
@@ -1839,8 +1845,9 @@ static std::unique_ptr<IKChain> ik_chain_init_face_sets_fk_bmesh(const Depsgraph
   ik_chain->segments[0].head = head.value_or(initial_location);
   ik_chain->grab_delta_offset = ik_chain->segments[0].head - initial_location;
 
-  flood_fill::FillDataBMesh weight_floodfill(verts_num);
-  weight_floodfill.add_initial_with_symmetry(object, pbvh, active_vert, radius);
+  flood_fill::FillDataBMesh weight_floodfill(verts_num, ss.fake_neighbors.fake_neighbor_index);
+  weight_floodfill.add_initial(
+      *ss.bm, find_symm_verts_bmesh(object, BM_elem_index_get(active_vert), radius));
   MutableSpan<float> fk_weights = ik_chain->segments[0].weights;
   weight_floodfill.execute(object, [&](BMVert * /*from_v*/, BMVert *to_v) {
     int to_v_i = BM_elem_index_get(to_v);
@@ -1884,7 +1891,9 @@ static std::unique_ptr<IKChain> ik_chain_init(const Depsgraph &depsgraph,
 
   if (use_fake_neighbors) {
     SCULPT_fake_neighbors_ensure(depsgraph, ob, brush.disconnected_distance_max);
-    SCULPT_fake_neighbors_enable(ob);
+  }
+  else {
+    SCULPT_fake_neighbors_free(ob);
   }
 
   switch (brush.pose_origin_type) {
@@ -1899,14 +1908,13 @@ static std::unique_ptr<IKChain> ik_chain_init(const Depsgraph &depsgraph,
       break;
   }
 
-  if (use_fake_neighbors) {
-    SCULPT_fake_neighbors_disable(ob);
-  }
-
   return ik_chain;
 }
 
-void pose_brush_init(const Depsgraph &depsgraph, Object &ob, SculptSession &ss, const Brush &brush)
+static void pose_brush_init(const Depsgraph &depsgraph,
+                            Object &ob,
+                            SculptSession &ss,
+                            const Brush &brush)
 {
   /* Init the IK chain that is going to be used to deform the vertices. */
   ss.cache->pose_ik_chain = ik_chain_init(
@@ -1941,7 +1949,7 @@ std::unique_ptr<SculptPoseIKChainPreview> preview_ik_chain_init(const Depsgraph 
 static void sculpt_pose_do_translate_deform(SculptSession &ss, const Brush &brush)
 {
   IKChain &ik_chain = *ss.cache->pose_ik_chain;
-  BKE_curvemapping_init(brush.curve);
+  BKE_curvemapping_init(brush.curve_distance_falloff);
   solve_translate_chain(ik_chain, ss.cache->grab_delta);
 }
 
@@ -1980,7 +1988,7 @@ static void calc_twist_deform(SculptSession &ss, const Brush &brush)
 
   /* Calculate the maximum roll. 0.02 radians per pixel works fine. */
   float roll = (ss.cache->initial_mouse[0] - ss.cache->mouse[0]) * ss.cache->bstrength * 0.02f;
-  BKE_curvemapping_init(brush.curve);
+  BKE_curvemapping_init(brush.curve_distance_falloff);
   solve_roll_chain(ik_chain, brush, roll);
 }
 
@@ -2022,8 +2030,18 @@ static void calc_squash_stretch_deform(SculptSession &ss, const Brush & /*brush*
   float3 ik_target = ss.cache->location + ss.cache->grab_delta;
 
   float3 scale;
-  scale[2] = calc_scale_from_grab_delta(ss, ik_target);
-  scale[0] = scale[1] = sqrtf(1.0f / scale[2]);
+  scale.z = calc_scale_from_grab_delta(ss, ik_target);
+  if (math::abs(scale.z) < 1e-5f) {
+    scale = float3(0.0f);
+  }
+  else {
+    const float signed_scale = math::sqrt(1.0f / math::abs(scale.z)) * math::sign(scale.z);
+
+    scale.x = signed_scale;
+    scale.y = signed_scale;
+  }
+
+  BLI_assert(std::isfinite(scale.x) && std::isfinite(scale.y) && std::isfinite(scale.z));
 
   /* Write the scale into the segments. */
   solve_scale_chain(ik_chain, scale);
@@ -2056,6 +2074,10 @@ void do_pose_brush(const Depsgraph &depsgraph,
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
   const ePaintSymmetryFlags symm = SCULPT_mesh_symmetry_xyz_get(ob);
 
+  if (!ss.cache->pose_ik_chain) {
+    pose_brush_init(depsgraph, ob, ss, brush);
+  }
+
   /* The pose brush applies all enabled symmetry axis in a single iteration, so the rest can be
    * ignored. */
   if (ss.cache->mirror_symmetry_pass != 0) {
@@ -2068,7 +2090,7 @@ void do_pose_brush(const Depsgraph &depsgraph,
     case BRUSH_POSE_DEFORM_ROTATE_TWIST:
       calc_rotate_twist_deform(ss, brush);
       break;
-    case BRUSH_POSE_DEFORM_SCALE_TRASLATE:
+    case BRUSH_POSE_DEFORM_SCALE_TRANSLATE:
       calc_scale_translate_deform(ss, brush);
       break;
     case BRUSH_POSE_DEFORM_SQUASH_STRETCH:
@@ -2134,14 +2156,14 @@ void do_pose_brush(const Depsgraph &depsgraph,
   threading::EnumerableThreadSpecific<BrushLocalData> all_tls;
   switch (pbvh.type()) {
     case bke::pbvh::Type::Mesh: {
+      Mesh &mesh = *static_cast<Mesh *>(ob.data);
+      const MeshAttributeData attribute_data(mesh);
       MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
       const PositionDeformData position_data(depsgraph, ob);
-      threading::parallel_for(node_mask.index_range(), 1, [&](const IndexRange range) {
+      node_mask.foreach_index(GrainSize(1), [&](const int i) {
         BrushLocalData &tls = all_tls.local();
-        node_mask.slice(range).foreach_index([&](const int i) {
-          calc_mesh(depsgraph, sd, brush, nodes[i], ob, tls, position_data);
-          bke::pbvh::update_node_bounds_mesh(position_data.eval, nodes[i]);
-        });
+        calc_mesh(depsgraph, sd, brush, attribute_data, nodes[i], ob, tls, position_data);
+        bke::pbvh::update_node_bounds_mesh(position_data.eval, nodes[i]);
       });
       break;
     }
@@ -2149,29 +2171,25 @@ void do_pose_brush(const Depsgraph &depsgraph,
       SubdivCCG &subdiv_ccg = *ob.sculpt->subdiv_ccg;
       MutableSpan<float3> positions = subdiv_ccg.positions;
       MutableSpan<bke::pbvh::GridsNode> nodes = pbvh.nodes<bke::pbvh::GridsNode>();
-      threading::parallel_for(node_mask.index_range(), 1, [&](const IndexRange range) {
+      node_mask.foreach_index(GrainSize(1), [&](const int i) {
         BrushLocalData &tls = all_tls.local();
-        node_mask.slice(range).foreach_index([&](const int i) {
-          calc_grids(depsgraph, sd, brush, nodes[i], ob, tls);
-          bke::pbvh::update_node_bounds_grids(subdiv_ccg.grid_area, positions, nodes[i]);
-        });
+        calc_grids(depsgraph, sd, brush, nodes[i], ob, tls);
+        bke::pbvh::update_node_bounds_grids(subdiv_ccg.grid_area, positions, nodes[i]);
       });
       break;
     }
     case bke::pbvh::Type::BMesh: {
       MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
-      threading::parallel_for(node_mask.index_range(), 1, [&](const IndexRange range) {
+      node_mask.foreach_index(GrainSize(1), [&](const int i) {
         BrushLocalData &tls = all_tls.local();
-        node_mask.slice(range).foreach_index([&](const int i) {
-          calc_bmesh(depsgraph, sd, brush, nodes[i], ob, tls);
-          bke::pbvh::update_node_bounds_bmesh(nodes[i]);
-        });
+        calc_bmesh(depsgraph, sd, brush, nodes[i], ob, tls);
+        bke::pbvh::update_node_bounds_bmesh(nodes[i]);
       });
       break;
     }
   }
   pbvh.tag_positions_changed(node_mask);
-  bke::pbvh::flush_bounds_to_parents(pbvh);
+  pbvh.flush_bounds_to_parents();
 }
 
 }  // namespace blender::ed::sculpt_paint::pose

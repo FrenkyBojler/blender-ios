@@ -2,8 +2,16 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-# avoid noisy warnings
-if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang")
+# Suppress noisy warnings.
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  remove_cc_flag(
+    "-Warray-bounds=[^ ]+"
+    "-Wunused-[^ ]+"
+    "-Wunused"
+    "-Wextra"
+    "-Wall"
+  )
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   remove_cc_flag(
     "-Wall"
   )
@@ -406,7 +414,7 @@ set(LIB
 )
 
 if(CMAKE_COMPILER_IS_GNUCXX)
-  # needed for gcc 4.6+
+  # Needed for GCC 4.6+.
   string(APPEND CMAKE_CXX_FLAGS " -fpermissive")
 endif()
 

@@ -12,7 +12,8 @@
 #include <optional>
 #include <stdexcept>
 
-#include "BKE_icons.h"
+#include "BKE_context.hh"
+#include "BKE_icons.hh"
 
 #include "BLI_index_range.hh"
 
@@ -20,7 +21,7 @@
 
 #include "RNA_access.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_view2d.hh"
 #include "interface_intern.hh"
 
@@ -45,9 +46,10 @@ AbstractGridViewItem &AbstractGridView::add_item(std::unique_ptr<AbstractGridVie
   return added_item;
 }
 
-/* Implementation for the base class virtual function. More specialized iterators below. */
 void AbstractGridView::foreach_view_item(FunctionRef<void(AbstractViewItem &)> iter_fn) const
 {
+  /* Implementation for the base class virtual function. More specialized iterators below. */
+
   for (const auto &item_ptr : items_) {
     iter_fn(*item_ptr);
   }
@@ -135,33 +137,13 @@ bool AbstractGridViewItem::matches(const AbstractViewItem &other) const
   return identifier_ == other_grid_item.identifier_;
 }
 
-void AbstractGridViewItem::grid_tile_click_fn(bContext *C, void *but_arg1, void * /*arg2*/)
-{
-  uiButViewItem *view_item_but = (uiButViewItem *)but_arg1;
-  AbstractGridViewItem &grid_item = reinterpret_cast<AbstractGridViewItem &>(
-      *view_item_but->view_item);
-
-  grid_item.activate(*C);
-}
-
 void AbstractGridViewItem::add_grid_tile_button(uiBlock &block)
 {
   const GridViewStyle &style = this->get_view().get_style();
-  view_item_but_ = (uiButViewItem *)uiDefBut(&block,
-                                             UI_BTYPE_VIEW_ITEM,
-                                             0,
-                                             "",
-                                             0,
-                                             0,
-                                             style.tile_width,
-                                             style.tile_height,
-                                             nullptr,
-                                             0,
-                                             0,
-                                             "");
+  view_item_but_ = (uiButViewItem *)uiDefBut(
+      &block, ButType::ViewItem, "", 0, 0, style.tile_width, style.tile_height, nullptr, 0, 0, "");
 
   view_item_but_->view_item = this;
-  UI_but_func_set(view_item_but_, grid_tile_click_fn, view_item_but_, nullptr);
 }
 
 std::optional<std::string> AbstractGridViewItem::debug_name() const
@@ -241,7 +223,7 @@ BuildOnlyVisibleButtonsHelper::BuildOnlyVisibleButtonsHelper(
     const AbstractGridViewItem *force_visible_item)
     : grid_view_(grid_view), style_(grid_view.get_style()), cols_per_row_(cols_per_row)
 {
-  if ((v2d.flag & V2D_IS_INIT) && grid_view.get_item_count_filtered()) {
+  if (v2d.flag & V2D_IS_INIT && grid_view.get_item_count_filtered()) {
     visible_items_range_ = this->get_visible_range(v2d, force_visible_item);
   }
 }
@@ -342,8 +324,7 @@ void BuildOnlyVisibleButtonsHelper::add_spacer_button(uiBlock &block, const int 
         std::numeric_limits<short>::max() / style_.tile_height, remaining_rows);
 
     uiDefBut(&block,
-             UI_BTYPE_LABEL,
-             0,
+             ButType::Label,
              "",
              0,
              0,
@@ -365,44 +346,46 @@ class GridViewLayoutBuilder {
   friend class GridViewBuilder;
 
  public:
-  GridViewLayoutBuilder(uiLayout &layout);
+  GridViewLayoutBuilder(Layout &layout);
 
-  void build_from_view(const AbstractGridView &grid_view, const View2D &v2d) const;
+  void build_from_view(const bContext &C,
+                       const AbstractGridView &grid_view,
+                       const View2D &v2d) const;
 
  private:
-  void build_grid_tile(uiLayout &grid_layout, AbstractGridViewItem &item) const;
+  void build_grid_tile(const bContext &C, Layout &grid_layout, AbstractGridViewItem &item) const;
 
-  uiLayout *current_layout() const;
+  Layout &current_layout() const;
 };
 
-GridViewLayoutBuilder::GridViewLayoutBuilder(uiLayout &layout) : block_(*uiLayoutGetBlock(&layout))
-{
-}
+GridViewLayoutBuilder::GridViewLayoutBuilder(Layout &layout) : block_(*layout.block()) {}
 
-void GridViewLayoutBuilder::build_grid_tile(uiLayout &grid_layout,
+void GridViewLayoutBuilder::build_grid_tile(const bContext &C,
+                                            Layout &grid_layout,
                                             AbstractGridViewItem &item) const
 {
-  uiLayout *overlap = uiLayoutOverlap(&grid_layout);
-  uiLayoutSetFixedSize(overlap, true);
+  Layout &overlap = grid_layout.overlap();
+  overlap.fixed_size_set(true);
 
   item.add_grid_tile_button(block_);
-  item.build_grid_tile(*uiLayoutRow(overlap, false));
+  item.build_grid_tile(C, overlap.row(false));
 }
 
-void GridViewLayoutBuilder::build_from_view(const AbstractGridView &grid_view,
+void GridViewLayoutBuilder::build_from_view(const bContext &C,
+                                            const AbstractGridView &grid_view,
                                             const View2D &v2d) const
 {
-  uiLayout *parent_layout = this->current_layout();
+  Layout &parent_layout = this->current_layout();
 
-  uiLayout &layout = *uiLayoutColumn(parent_layout, true);
+  Layout &layout = parent_layout.column(true);
   const GridViewStyle &style = grid_view.get_style();
 
   /* We might not actually know the width available for the grid view. Let's just assume that
    * either there is a fixed width defined via #uiLayoutSetUnitsX() or that the layout is close to
    * the root level and inherits its width. Might need a more reliable method. */
-  const int guessed_layout_width = (uiLayoutGetUnitsX(parent_layout) > 0) ?
-                                       uiLayoutGetUnitsX(parent_layout) * UI_UNIT_X :
-                                       uiLayoutGetWidth(parent_layout);
+  const int guessed_layout_width = (parent_layout.ui_units_x() > 0) ?
+                                       parent_layout.ui_units_x() * UI_UNIT_X :
+                                       parent_layout.width();
   const int cols_per_row = std::max(guessed_layout_width / style.tile_width, 1);
 
   const AbstractGridViewItem *search_highlight_item = dynamic_cast<const AbstractGridViewItem *>(
@@ -414,7 +397,7 @@ void GridViewLayoutBuilder::build_from_view(const AbstractGridView &grid_view,
   build_visible_helper.fill_layout_before_visible(block_);
 
   int item_idx = 0;
-  uiLayout *row = nullptr;
+  Layout *row = nullptr;
   grid_view.foreach_filtered_item([&](AbstractGridViewItem &item) {
     /* Skip if item isn't visible. */
     if (!build_visible_helper.is_item_visible(item_idx)) {
@@ -424,33 +407,36 @@ void GridViewLayoutBuilder::build_from_view(const AbstractGridView &grid_view,
 
     /* Start a new row for every first item in the row. */
     if ((item_idx % cols_per_row) == 0) {
-      row = uiLayoutRow(&layout, true);
+      row = &layout.row(true);
     }
 
-    this->build_grid_tile(*row, item);
+    this->build_grid_tile(C, *row, item);
     item_idx++;
   });
 
-  UI_block_layout_set_current(&block_, parent_layout);
+  block_layout_set_current(&block_, &parent_layout);
 
   build_visible_helper.fill_layout_after_visible(block_);
 }
 
-uiLayout *GridViewLayoutBuilder::current_layout() const
+Layout &GridViewLayoutBuilder::current_layout() const
 {
-  return block_.curlayout;
+  return *block_.curlayout;
 }
 
 /* ---------------------------------------------------------------------- */
 
 GridViewBuilder::GridViewBuilder(uiBlock & /*block*/) {}
 
-void GridViewBuilder::build_grid_view(AbstractGridView &grid_view,
-                                      const View2D &v2d,
-                                      uiLayout &layout,
+void GridViewBuilder::build_grid_view(const bContext &C,
+                                      AbstractGridView &grid_view,
+                                      Layout &layout,
                                       std::optional<StringRef> search_string)
 {
-  uiBlock &block = *uiLayoutGetBlock(&layout);
+  uiBlock &block = *layout.block();
+
+  const ARegion *region = CTX_wm_region_popup(&C) ? CTX_wm_region_popup(&C) : CTX_wm_region(&C);
+  ui_block_view_persistent_state_restore(*region, block, grid_view);
 
   grid_view.build_items();
   grid_view.update_from_old(block);
@@ -458,10 +444,10 @@ void GridViewBuilder::build_grid_view(AbstractGridView &grid_view,
   grid_view.filter(search_string);
 
   /* Ensure the given layout is actually active. */
-  UI_block_layout_set_current(&block, &layout);
+  block_layout_set_current(&block, &layout);
 
   GridViewLayoutBuilder builder(layout);
-  builder.build_from_view(grid_view, v2d);
+  builder.build_from_view(C, grid_view, region->v2d);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -471,17 +457,17 @@ PreviewGridItem::PreviewGridItem(StringRef identifier, StringRef label, int prev
 {
 }
 
-void PreviewGridItem::build_grid_tile_button(uiLayout &layout) const
+void PreviewGridItem::build_grid_tile_button(Layout &layout,
+                                             BIFIconID override_preview_icon_id) const
 {
   const GridViewStyle &style = this->get_view().get_style();
-  uiBlock *block = uiLayoutGetBlock(&layout);
+  uiBlock *block = layout.block();
 
-  UI_but_func_tooltip_label_set(this->view_item_button(),
+  UI_but_func_quick_tooltip_set(this->view_item_button(),
                                 [this](const uiBut * /*but*/) { return label; });
 
   uiBut *but = uiDefBut(block,
-                        UI_BTYPE_PREVIEW_TILE,
-                        0,
+                        ButType::PreviewTile,
                         hide_label_ ? "" : label,
                         0,
                         0,
@@ -492,20 +478,16 @@ void PreviewGridItem::build_grid_tile_button(uiLayout &layout) const
                         0,
                         "");
 
-  /* Draw icons that are not previews or images as normal icons with a fixed icon size. Otherwise
-   * they will be upscaled to the button size. Should probably be done by the widget code. */
-  const int is_preview_flag = (BKE_icon_is_preview(preview_icon_id) ||
-                               BKE_icon_is_image(preview_icon_id)) ?
-                                  int(UI_BUT_ICON_PREVIEW) :
-                                  0;
+  const BIFIconID icon_id = override_preview_icon_id ? override_preview_icon_id : preview_icon_id;
+
   ui_def_but_icon(but,
-                  preview_icon_id,
+                  icon_id,
                   /* NOLINTNEXTLINE: bugprone-suspicious-enum-usage */
-                  UI_HAS_ICON | is_preview_flag);
-  but->emboss = UI_EMBOSS_NONE;
+                  UI_HAS_ICON | UI_BUT_ICON_PREVIEW);
+  but->emboss = EmbossType::None;
 }
 
-void PreviewGridItem::build_grid_tile(uiLayout &layout) const
+void PreviewGridItem::build_grid_tile(const bContext & /*C*/, Layout &layout) const
 {
   this->build_grid_tile_button(layout);
 }

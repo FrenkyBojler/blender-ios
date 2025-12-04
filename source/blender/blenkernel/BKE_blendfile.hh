@@ -9,6 +9,7 @@
 
 #include "BKE_main.hh"
 
+#include "BLI_enum_flags.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_map.hh"
 #include "BLI_utility_mixins.hh"
@@ -209,7 +210,7 @@ class PartialWriteContext : NonCopyable, NonMovable {
   /* Passing a reference root filepath is mandatory, for remapping of relative paths to work as
    * expected. */
   PartialWriteContext() = delete;
-  PartialWriteContext(StringRefNull reference_root_filepath);
+  PartialWriteContext(Main &reference_main);
   ~PartialWriteContext();
 
   /**
@@ -236,6 +237,11 @@ class PartialWriteContext : NonCopyable, NonMovable {
      *
      * \warning By default, when #ADD_DEPENDENCIES is defined, this will also apply to all
      * dependencies as well.
+     *
+     * \note Often required when only a small subset of the ID dependencies are also added to the
+     * context (i.e. many of the added data's ID pointers are set to `nullptr`). Otherwise, some
+     * areas not expecting nullptr (like LibOverride data) may assert or error on load of the
+     * partial written blendfile.
      */
     MAKE_LOCAL = 1 << 0,
     /**
@@ -423,5 +429,7 @@ class PartialWriteContext : NonCopyable, NonMovable {
    */
   Library *ensure_library(StringRefNull library_absolute_path);
 };
+
+ENUM_OPERATORS(PartialWriteContext::IDAddOperations);
 
 }  // namespace blender::bke::blendfile

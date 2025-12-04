@@ -16,8 +16,8 @@
 #include "GPU_framebuffer.hh"
 #include "GPU_state.hh"
 
-#include "../generic/py_capi_utils.h"
-#include "../generic/python_utildefines.h"
+#include "../generic/py_capi_utils.hh"
+#include "../generic/python_utildefines.hh"
 
 #include "gpu_py.hh"
 #include "gpu_py_framebuffer.hh"
@@ -77,6 +77,7 @@ PyDoc_STRVAR(
     "   Defines the fixed pipeline blending equation.\n"
     "\n"
     "   :arg mode: The type of blend mode.\n"
+    "\n"
     "      * ``NONE`` No blending.\n"
     "      * ``ALPHA`` The original color channels are interpolated according to the alpha "
     "value.\n"
@@ -100,7 +101,7 @@ static PyObject *pygpu_state_blend_set(PyObject * /*self*/, PyObject *value)
   if (!PyC_ParseStringEnum(value, &pygpu_blend)) {
     return nullptr;
   }
-  GPU_blend(eGPUBlend(pygpu_blend.value_found));
+  GPU_blend(GPUBlend(pygpu_blend.value_found));
   Py_RETURN_NONE;
 }
 
@@ -115,7 +116,7 @@ static PyObject *pygpu_state_blend_get(PyObject * /*self*/)
 {
   BPYGPU_IS_INIT_OR_ERROR_OBJ;
 
-  eGPUBlend blend = GPU_blend_get();
+  GPUBlend blend = GPU_blend_get();
   return PyUnicode_FromString(PyC_StringEnum_FindIDFromValue(pygpu_state_blend_items, blend));
 }
 
@@ -124,7 +125,7 @@ PyDoc_STRVAR(
     pygpu_state_clip_distances_set_doc,
     ".. function:: clip_distances_set(distances_enabled)\n"
     "\n"
-    "   Sets the number of `gl_ClipDistance` planes used for clip geometry.\n"
+    "   Sets the number of ``gl_ClipDistance`` planes used for clip geometry.\n"
     "\n"
     "   :arg distances_enabled: Number of clip distances enabled.\n"
     "   :type distances_enabled: int\n");
@@ -153,8 +154,8 @@ PyDoc_STRVAR(
     "   Defines the depth_test equation.\n"
     "\n"
     "   :arg mode: The depth test equation name.\n"
-    "      Possible values are `NONE`, `ALWAYS`, `LESS`, `LESS_EQUAL`, `EQUAL`, "
-    "`GREATER` and `GREATER_EQUAL`.\n"
+    "      Possible values are ``NONE``, ``ALWAYS``, ``LESS``, ``LESS_EQUAL``, ``EQUAL``, "
+    "``GREATER`` and ``GREATER_EQUAL``.\n"
     "   :type mode: str\n");
 static PyObject *pygpu_state_depth_test_set(PyObject * /*self*/, PyObject *value)
 {
@@ -164,7 +165,7 @@ static PyObject *pygpu_state_depth_test_set(PyObject * /*self*/, PyObject *value
   if (!PyC_ParseStringEnum(value, &pygpu_depth_test)) {
     return nullptr;
   }
-  GPU_depth_test(eGPUDepthTest(pygpu_depth_test.value_found));
+  GPU_depth_test(GPUDepthTest(pygpu_depth_test.value_found));
   Py_RETURN_NONE;
 }
 
@@ -179,7 +180,7 @@ static PyObject *pygpu_state_depth_test_get(PyObject * /*self*/)
 {
   BPYGPU_IS_INIT_OR_ERROR_OBJ;
 
-  eGPUDepthTest test = GPU_depth_test_get();
+  GPUDepthTest test = GPU_depth_test_get();
   return PyUnicode_FromString(PyC_StringEnum_FindIDFromValue(pygpu_state_depthtest_items, test));
 }
 
@@ -301,7 +302,7 @@ PyDoc_STRVAR(
     "        (x, y, xsize, ysize).\n"
     "        x, y: lower left corner of the scissor rectangle, in pixels.\n"
     "        xsize, ysize: width and height of the scissor rectangle.\n"
-    "   :rtype: tuple(int, int, int, int)\n");
+    "   :rtype: tuple[int, int, int, int]\n");
 static PyObject *pygpu_state_scissor_get(PyObject * /*self*/, PyObject * /*args*/)
 {
   BPYGPU_IS_INIT_OR_ERROR_OBJ;
@@ -429,7 +430,7 @@ PyDoc_STRVAR(
     "\n"
     "   Specify whether none, front-facing or back-facing facets can be culled.\n"
     "\n"
-    "   :arg mode: `NONE`, `FRONT` or `BACK`.\n"
+    "   :arg mode: ``NONE``, ``FRONT`` or ``BACK``.\n"
     "   :type mode: str\n");
 static PyObject *pygpu_state_face_culling_set(PyObject * /*self*/, PyObject *value)
 {
@@ -440,7 +441,7 @@ static PyObject *pygpu_state_face_culling_set(PyObject * /*self*/, PyObject *val
     return nullptr;
   }
 
-  GPU_face_culling(eGPUFaceCullTest(pygpu_faceculling.value_found));
+  GPU_face_culling(GPUFaceCullTest(pygpu_faceculling.value_found));
   Py_RETURN_NONE;
 }
 
@@ -499,7 +500,7 @@ static PyObject *pygpu_state_active_framebuffer_get(PyObject * /*self*/)
 {
   BPYGPU_IS_INIT_OR_ERROR_OBJ;
 
-  GPUFrameBuffer *fb = GPU_framebuffer_active_get();
+  blender::gpu::FrameBuffer *fb = GPU_framebuffer_active_get();
   return BPyGPUFrameBuffer_CreatePyObject(fb, true);
 }
 
@@ -509,9 +510,14 @@ static PyObject *pygpu_state_active_framebuffer_get(PyObject * /*self*/)
 /** \name Module
  * \{ */
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 static PyMethodDef pygpu_state__tp_methods[] = {
@@ -593,8 +599,12 @@ static PyMethodDef pygpu_state__tp_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 PyDoc_STRVAR(

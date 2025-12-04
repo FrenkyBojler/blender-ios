@@ -8,15 +8,16 @@
 
 #pragma once
 
+#include <cstdint>
+
 #include "BLI_index_mask_fwd.hh"
-#include "BLI_math_vector.hh"
+#include "BLI_span.hh"
+#include "BLI_vector.hh"
 
-#include "DNA_customdata_types.h"
-
-struct BMLogEntry;
 struct Depsgraph;
 struct Mesh;
 struct Object;
+struct Scene;
 struct wmOperator;
 namespace blender::bke::pbvh {
 class Node;
@@ -32,7 +33,6 @@ enum class Type : int8_t {
   Mask,
   DyntopoBegin,
   DyntopoEnd,
-  DyntopoSymmetrize,
   Geometry,
   FaceSet,
   Color,
@@ -60,18 +60,43 @@ void push_nodes(const Depsgraph &depsgraph,
  * redo panels to work; operators that do not support that may use
  * #push_begin_ex instead if so desired.
  */
-void push_begin(Object &ob, const wmOperator *op);
+void push_begin(const Scene &scene, Object &ob, const wmOperator *op);
+
+/**
+ * Pushes an undo step when entering Sculpt mode.
+ *
+ * Similar to geometry_push, this undo type does not need the PBVH to be constructed.
+ */
+void push_enter_sculpt_mode(const Scene &scene, Object &ob, const wmOperator *op);
 
 /**
  * NOTE: #push_begin is preferred since `name`
  * must match operator name for redo panels to work.
  */
-void push_begin_ex(Object &ob, const char *name);
+void push_begin_ex(const Scene &scene, Object &ob, const char *name);
 void push_end(Object &ob);
 void push_end_ex(Object &ob, bool use_nested_undo);
 
 void restore_from_bmesh_enter_geometry(const StepData &step_data, Mesh &mesh);
-BMLogEntry *get_bmesh_log_entry();
+bool has_bmesh_log_entry();
 
 void restore_position_from_undo_step(const Depsgraph &depsgraph, Object &object);
+
+namespace compression {
+
+/**
+ * Compress a span with ZSTD, using a prefiltering step that can improve compression speed and
+ * ratios for certain data.
+ */
+template<typename T>
+void filter_compress(const Span<T> src,
+                     Vector<std::byte> &filter_buffer,
+                     Vector<std::byte> &compress_buffer);
+
+/** Decompress data compressed with #filter_compress. */
+template<typename T>
+void filter_decompress(const Span<std::byte> src, Vector<std::byte> &buffer, Vector<T> &dst);
+
+}  // namespace compression
+
 }  // namespace blender::ed::sculpt_paint::undo

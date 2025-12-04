@@ -6,14 +6,14 @@
  * \ingroup spuserpref
  */
 
-#include <cstdio>
 #include <cstring>
 
 #include "MEM_guardedalloc.h"
 
 #include "BLI_bitmap.h"
-#include "BLI_blenlib.h"
-#include "BLI_utildefines.h"
+#include "BLI_listbase.h"
+#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BKE_context.hh"
 #include "BKE_screen.hh"
@@ -40,11 +40,11 @@ static SpaceLink *userpref_create(const ScrArea *area, const Scene * /*scene*/)
   ARegion *region;
   SpaceUserPref *spref;
 
-  spref = static_cast<SpaceUserPref *>(MEM_callocN(sizeof(SpaceUserPref), "inituserpref"));
+  spref = MEM_callocN<SpaceUserPref>("inituserpref");
   spref->spacetype = SPACE_USERPREF;
 
   /* header */
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "header for userpref"));
+  region = BKE_area_region_new();
 
   BLI_addtail(&spref->regionbase, region);
   region->regiontype = RGN_TYPE_HEADER;
@@ -52,11 +52,12 @@ static SpaceLink *userpref_create(const ScrArea *area, const Scene * /*scene*/)
   region->alignment = RGN_ALIGN_BOTTOM;
 
   /* navigation region */
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "navigation region for userpref"));
+  region = BKE_area_region_new();
 
   BLI_addtail(&spref->regionbase, region);
-  region->regiontype = RGN_TYPE_NAV_BAR;
+  region->regiontype = RGN_TYPE_UI;
   region->alignment = RGN_ALIGN_LEFT;
+  region->flag &= ~RGN_FLAG_HIDDEN;
 
   /* Use smaller size when opened in area like properties editor. */
   if (area->winx && area->winx < 3.0f * UI_NAVIGATION_REGION_WIDTH * UI_SCALE_FAC) {
@@ -64,7 +65,7 @@ static SpaceLink *userpref_create(const ScrArea *area, const Scene * /*scene*/)
   }
 
   /* execution region */
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "execution region for userpref"));
+  region = BKE_area_region_new();
 
   BLI_addtail(&spref->regionbase, region);
   region->regiontype = RGN_TYPE_EXECUTE;
@@ -72,7 +73,7 @@ static SpaceLink *userpref_create(const ScrArea *area, const Scene * /*scene*/)
   region->flag |= RGN_FLAG_DYNAMIC_SIZE | RGN_FLAG_NO_USER_RESIZE;
 
   /* main region */
-  region = static_cast<ARegion *>(MEM_callocN(sizeof(ARegion), "main region for userpref"));
+  region = BKE_area_region_new();
 
   BLI_addtail(&spref->regionbase, region);
   region->regiontype = RGN_TYPE_WINDOW;
@@ -94,7 +95,6 @@ static void userpref_free(SpaceLink *sl)
 static void userpref_init(wmWindowManager * /*wm*/, ScrArea *area)
 {
   SpaceUserPref *spref = (SpaceUserPref *)area->spacedata.first;
-
   if (spref->runtime == nullptr) {
     spref->runtime = static_cast<SpaceUserPref_Runtime *>(
         MEM_mallocN(sizeof(SpaceUserPref_Runtime), __func__));
@@ -186,9 +186,9 @@ static bool property_search_for_context(const bContext *C, ARegion *region, shor
   RNA_enum_id_from_value(rna_enum_preference_section_items, section, &name);
   STRNCPY(lower, name);
   BLI_str_tolower_ascii(lower, strlen(lower));
-
   const char *contexts[2] = {lower, nullptr};
-  return ED_region_property_search(C, region, &region->type->paneltypes, contexts, nullptr);
+  return ED_region_property_search(
+      C, region, &region->runtime->type->paneltypes, contexts, nullptr);
 }
 
 static void userpref_search_move_to_next_tab_with_results(
@@ -201,7 +201,6 @@ static void userpref_search_move_to_next_tab_with_results(
       break;
     }
   }
-
   /* Try the tabs after the current tab. */
   for (int i = current_tab_index + 1; i < context_tabs_array.size(); i++) {
     if (BLI_BITMAP_TEST(sbuts->runtime->tab_search_results, i)) {
@@ -209,7 +208,6 @@ static void userpref_search_move_to_next_tab_with_results(
       return;
     }
   }
-
   /* Try the tabs before the current tab. */
   for (int i = 0; i < current_tab_index; i++) {
     if (BLI_BITMAP_TEST(sbuts->runtime->tab_search_results, i)) {
@@ -231,39 +229,32 @@ static void userpref_search_all_tabs(const bContext *C,
   ARegion *region_copy = BKE_area_region_copy(area_copy.type, region_original);
   /* Set the region visible field. Otherwise some layout code thinks we're drawing in a popup.
    * This likely isn't necessary, but it's nice to emulate a "real" region where possible. */
-  region_copy->visible = true;
+  region_copy->runtime->visible = true;
   CTX_wm_area_set((bContext *)C, &area_copy);
   CTX_wm_region_set((bContext *)C, region_copy);
-
   SpaceUserPref sprefs_copy = blender::dna::shallow_copy(*sprefs);
   sprefs_copy.runtime = static_cast<SpaceUserPref_Runtime *>(MEM_dupallocN(sprefs->runtime));
   sprefs_copy.runtime->tab_search_results = nullptr;
   BLI_listbase_clear(&area_copy.spacedata);
   BLI_addtail(&area_copy.spacedata, &sprefs_copy);
-
   /* Loop through the tabs. */
   for (const int i : context_tabs_array.index_range()) {
     /* -1 corresponds to a spacer. */
     if (context_tabs_array[i] == -1) {
       continue;
     }
-
     /* Handle search for the current tab in the normal layout pass. */
     if (context_tabs_array[i] == U.space_data.section_active) {
       continue;
     }
-
     /* Actually do the search and store the result in the bitmap. */
     const bool found = property_search_for_context(C, region_copy, context_tabs_array[i]);
     BLI_BITMAP_SET(sprefs->runtime->tab_search_results, i, found);
-
     UI_blocklist_free(C, region_copy);
   }
-
   BKE_area_region_free(area_copy.type, region_copy);
   MEM_freeN(region_copy);
   userpref_free((SpaceLink *)&sprefs_copy);
-
   CTX_wm_area_set((bContext *)C, area_original);
   CTX_wm_region_set((bContext *)C, region_original);
 }
@@ -278,9 +269,7 @@ static void userpref_main_region_property_search(const bContext *C,
 {
   blender::Vector<int> tabs = ED_userpref_tabs_list(sprefs);
   BLI_bitmap_set_all(sprefs->runtime->tab_search_results, false, tabs.size());
-
   userpref_search_all_tabs(C, sprefs, region, tabs);
-
   /* Check whether the current tab has a search match. */
   bool current_tab_has_search_match = false;
   LISTBASE_FOREACH (Panel *, panel, &region->panels) {
@@ -288,7 +277,6 @@ static void userpref_main_region_property_search(const bContext *C,
       current_tab_has_search_match = true;
     }
   }
-
   /* Find which index in the list the current tab corresponds to. */
   int current_tab_index = -1;
   for (const int i : tabs.index_range()) {
@@ -297,11 +285,9 @@ static void userpref_main_region_property_search(const bContext *C,
     }
   }
   BLI_assert(current_tab_index != -1);
-
   /* Update the tab search match flag for the current tab. */
   BLI_BITMAP_SET(
       sprefs->runtime->tab_search_results, current_tab_index, current_tab_has_search_match);
-
   /* Move to the next tab with a result */
   if (!current_tab_has_search_match) {
     if (region->flag & RGN_FLAG_SEARCH_FILTER_UPDATE) {
@@ -321,6 +307,8 @@ static void userpref_main_region_layout(const bContext *C, ARegion *region)
   const char *contexts[2] = {id_lower, nullptr};
   SpaceUserPref *spref = CTX_wm_space_userpref(C);
 
+  region->flag |= RGN_FLAG_INDICATE_OVERFLOW;
+
   /* Avoid duplicating identifiers, use existing RNA enum. */
   {
     const EnumPropertyItem *items = rna_enum_preference_section_items;
@@ -331,12 +319,16 @@ static void userpref_main_region_layout(const bContext *C, ARegion *region)
     }
     const char *id = items[i].identifier;
     BLI_assert(strlen(id) < sizeof(id_lower));
-    STRNCPY(id_lower, id);
+    STRNCPY_UTF8(id_lower, id);
     BLI_str_tolower_ascii(id_lower, strlen(id_lower));
   }
 
-  ED_region_panels_layout_ex(
-      C, region, &region->type->paneltypes, WM_OP_INVOKE_REGION_WIN, contexts, nullptr);
+  ED_region_panels_layout_ex(C,
+                             region,
+                             &region->runtime->type->paneltypes,
+                             blender::wm::OpCallContext::InvokeRegionWin,
+                             contexts,
+                             nullptr);
 
   if (region->flag & RGN_FLAG_SEARCH_FILTER_ACTIVE) {
     userpref_main_region_property_search(C, spref, region);
@@ -362,6 +354,7 @@ static void userpref_header_region_draw(const bContext *C, ARegion *region)
 static void userpref_navigation_region_init(wmWindowManager *wm, ARegion *region)
 {
   region->v2d.scroll = V2D_SCROLL_RIGHT | V2D_SCROLL_VERTICAL_HIDE;
+  region->flag |= RGN_FLAG_INDICATE_OVERFLOW;
 
   ED_region_panels_init(wm, region);
 }
@@ -374,7 +367,7 @@ static void userpref_navigation_region_draw(const bContext *C, ARegion *region)
 static bool userpref_execute_region_poll(const RegionPollParams *params)
 {
   const ARegion *region_header = BKE_area_find_region_type(params->area, RGN_TYPE_HEADER);
-  return !region_header->visible;
+  return !region_header->runtime->visible;
 }
 
 /* add handlers, stuff you only do once or on area/region changes */
@@ -403,7 +396,7 @@ void ED_spacetype_userpref()
   ARegionType *art;
 
   st->spaceid = SPACE_USERPREF;
-  STRNCPY(st->name, "Userpref");
+  STRNCPY_UTF8(st->name, "Userpref");
 
   st->create = userpref_create;
   st->free = userpref_free;
@@ -414,7 +407,7 @@ void ED_spacetype_userpref()
   st->blend_write = userpref_space_blend_write;
 
   /* regions: main window */
-  art = static_cast<ARegionType *>(MEM_callocN(sizeof(ARegionType), "spacetype userpref region"));
+  art = MEM_callocN<ARegionType>("spacetype userpref region");
   art->regionid = RGN_TYPE_WINDOW;
   art->init = userpref_main_region_init;
   art->layout = userpref_main_region_layout;
@@ -425,7 +418,7 @@ void ED_spacetype_userpref()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: header */
-  art = static_cast<ARegionType *>(MEM_callocN(sizeof(ARegionType), "spacetype userpref region"));
+  art = MEM_callocN<ARegionType>("spacetype userpref region");
   art->regionid = RGN_TYPE_HEADER;
   art->prefsizey = HEADERY;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_HEADER;
@@ -436,8 +429,8 @@ void ED_spacetype_userpref()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: navigation window */
-  art = static_cast<ARegionType *>(MEM_callocN(sizeof(ARegionType), "spacetype userpref region"));
-  art->regionid = RGN_TYPE_NAV_BAR;
+  art = MEM_callocN<ARegionType>("spacetype userpref region");
+  art->regionid = RGN_TYPE_UI;
   art->prefsizex = UI_NAVIGATION_REGION_WIDTH;
   art->init = userpref_navigation_region_init;
   art->draw = userpref_navigation_region_draw;
@@ -447,7 +440,7 @@ void ED_spacetype_userpref()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: execution window */
-  art = static_cast<ARegionType *>(MEM_callocN(sizeof(ARegionType), "spacetype userpref region"));
+  art = MEM_callocN<ARegionType>("spacetype userpref region");
   art->regionid = RGN_TYPE_EXECUTE;
   art->prefsizey = HEADERY;
   art->poll = userpref_execute_region_poll;

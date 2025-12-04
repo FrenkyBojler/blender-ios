@@ -7,7 +7,7 @@
 #include "testing/testing.h"
 
 #include "BLI_fileops.hh"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_system.h"
 #include "BLI_tempfile.h"
@@ -155,6 +155,24 @@ TEST_F(FileOpsTest, rename)
   ASSERT_NE(0, BLI_rename_overwrite(test_dirpath_src.c_str(), test_dirpath_dst.c_str()));
   ASSERT_TRUE(BLI_exists(test_dirpath_src.c_str()));
   ASSERT_TRUE(BLI_exists(test_dirpath_dst.c_str()));
+}
+
+TEST_F(FileOpsTest, dir_create_recursive)
+{
+  const std::string dir_path = this->temp_dir + SEP_STR + "dir-to-create";
+  const std::string subdir_path = dir_path + SEP_STR + "subdir";
+
+  ASSERT_FALSE(BLI_exists(dir_path.c_str()));
+  ASSERT_TRUE(BLI_dir_create_recursive(subdir_path.c_str()));
+  ASSERT_TRUE(BLI_exists(subdir_path.c_str()));
+
+  ASSERT_TRUE(BLI_dir_create_recursive(subdir_path.c_str()))
+      << "Creating an already-existing directory should be fine";
+
+  const std::string subfile_path = dir_path + SEP_STR + "some_file.txt";
+  ASSERT_TRUE(BLI_file_touch(subfile_path.c_str()));
+  ASSERT_FALSE(BLI_dir_create_recursive(subfile_path.c_str()))
+      << "Creating a directory that already exists as file should return an error status";
 }
 
 /*
