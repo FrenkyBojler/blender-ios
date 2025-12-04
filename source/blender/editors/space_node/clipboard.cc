@@ -48,19 +48,15 @@ static void node_copybuffer_filepath_get(char filepath[FILE_MAX], size_t filepat
   BLI_path_join(filepath, filepath_maxncpy, BKE_tempdir_base(), "copybuffer_nodes.blend");
 }
 
-static bool node_copy_local(Main &bmain,
-                            bNodeTree &from_tree,
+static bool node_copy_local(bNodeTree &from_tree,
                             bNodeTree &to_tree,
                             const bool allow_duplicate_names,
                             const float2 offset,
                             ReportList *reports)
 {
-  // todo(habib): needed?
-  // ED_preview_kill_jobs(CTX_wm_manager(C), bmain);
-
   node_select_paired(from_tree);
 
-  Map<bNode *, bNode *> node_map;
+  Map<const bNode *, bNode *> node_map;
   Map<const bNodeSocket *, bNodeSocket *> socket_map;
   const char *disabled_hint = nullptr;
 
@@ -114,6 +110,8 @@ static bool node_copy_local(Main &bmain,
     }
   }
 
+  remap_node_pairing(to_tree, node_map);
+
   /* Copy links between selected nodes. */
   LISTBASE_FOREACH (bNodeLink *, link, &from_tree.links) {
     if (link->tonode->flag & NODE_SELECT && link->fromnode->flag & NODE_SELECT) {
@@ -163,19 +161,25 @@ static wmOperatorStatus node_clipboard_copy_exec(bContext *C, wmOperator *op)
                             {(PartialWriteContext::IDAddOperations::SET_FAKE_USER |
                               PartialWriteContext::IDAddOperations::SET_CLIPBOARD_MARK)}));
 
-  /* Copy node interface to avoid losing links to Group Input and Group Output nodes. */
+  /* Copy node interface to avoid losing links to Group Input and Group Output nodes.
+   * Note: this doesn't create new interface items if they don't exist. */
+  /* #bNodeTreeInterface::copy_data() allocates runtime memory, so we need to free it to avoid
+   * memory leak. */
+  copy_tree->tree_interface.free_data();
   copy_tree->tree_interface.copy_data(node_tree->tree_interface, LIB_ID_COPY_DEFAULT);
 
   // todo(habib): set using ntree_set_typeinfo(ntree, node_tree_type_find(idname));
   bNodeTree *dummy_ntree = blender::bke::node_tree_add_tree(
       bmain, "DummyForTypeinfo", node_tree->typeinfo->idname);
+  // dummy_ntree->tree_interface.copy_data(node_tree->tree_interface, LIB_ID_COPY_DEFAULT);
+  node_copy_local(*node_tree, *dummy_ntree, true, float2(0), op->reports);
 
   copy_tree->typeinfo = dummy_ntree->typeinfo;
   copy_tree->type = dummy_ntree->typeinfo->type;
   strcpy(copy_tree->idname, dummy_ntree->typeinfo->idname.c_str());
-  // BKE_id_delete(bmain, &dummy_ntree->id);
+  BKE_id_delete(bmain, &dummy_ntree->id);  // todo(habib): for debug only
 
-  if (!node_copy_local(*bmain, *node_tree, *copy_tree, true, float2(0), op->reports)) {
+  if (!node_copy_local(*node_tree, *copy_tree, true, float2(0), op->reports)) {
     return OPERATOR_CANCELLED;
   }
 
@@ -192,6 +196,7 @@ static wmOperatorStatus node_clipboard_copy_exec(bContext *C, wmOperator *op)
     const ID_Type id_type = GS((id_src)->name);
 
     // todo(habib): doc
+    // todo(habib): verify all necessary IDs. Maybe invert the condition and consider Scene only?
     if (ELEM(id_type, ID_SCE, ID_NT, ID_IM, ID_MC, ID_MSK) ||
         (cb_data->cb_flag & IDWALK_CB_NEVER_NULL))
     {
@@ -253,6 +258,8 @@ static wmOperatorStatus node_clipboard_paste_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
+  ED_preview_kill_jobs(CTX_wm_manager(C), CTX_data_main(C));
+
   Main *bmain_src = bfd->main;
   bfd->main = nullptr;
   BLO_blendfiledata_free(bfd);
@@ -271,6 +278,9 @@ static wmOperatorStatus node_clipboard_paste_exec(bContext *C, wmOperator *op)
   }
   FOREACH_NODETREE_END;
   BLI_assert(from_tree != nullptr);
+
+  bNodeTree *to_tree = snode->edittree;
+  node_deselect_all(*to_tree);
 
   float2 offset(0);
   PropertyRNA *offset_prop = RNA_struct_find_property(op->ptr, "offset");
@@ -293,7 +303,7 @@ static wmOperatorStatus node_clipboard_paste_exec(bContext *C, wmOperator *op)
     offset = mouse_location / UI_SCALE_FAC - center;
   }
 
-  if (!node_copy_local(*bmain_dst, *from_tree, *snode->edittree, false, offset, op->reports)) {
+  if (!node_copy_local(*from_tree, *snode->edittree, false, offset, op->reports)) {
     return OPERATOR_CANCELLED;
   };
   BKE_id_delete(bmain_dst, &from_tree->id);
