@@ -64,7 +64,7 @@ using blender::Vector;
 static const char *value_rna_name[NUM_VALUE_KINDS] = {
     "offset", "offset_pct", "profile", "segments"};
 static const float value_snap_increments[NUM_VALUE_KINDS] = {0.1f, 5.0f, 0.0f, 0.0f};
-static const float value_snap_increments_precision[NUM_VALUE_KINDS] = {0.01f, 1.0f, 0.0f, 0.0f};
+static const float increments_precision[NUM_VALUE_KINDS] = {0.1f, 0.2f, 0.0f, 0.0f};
 static const float value_clamp_min[NUM_VALUE_KINDS] = {0.0f, 0.0f, PROFILE_HARD_MIN, 1.0f};
 static const float value_clamp_max[NUM_VALUE_KINDS] = {1e6, 100.0f, 1.0f, SEGMENTS_HARD_MAX};
 static const float value_start[NUM_VALUE_KINDS] = {0.0f, 0.0f, 0.5f, 1.0f};
@@ -579,12 +579,15 @@ static void edbm_bevel_mouse_set_value(wmOperator *op, const wmEvent *event)
     opdata->shift_value[vmode] = -1.0f;
   }
 
-  if (event->modifier & KM_CTRL && (event->modifier & KM_SHIFT) == 0 && vmode != SEGMENTS_VALUE) {
-    value = roundf(value / value_snap_increments[vmode]) * value_snap_increments[vmode];
-  }
-  else if (event->modifier & KM_CTRL && event->modifier & KM_SHIFT && vmode != SEGMENTS_VALUE) {
-    value = roundf(value / value_snap_increments_precision[vmode]) *
-            value_snap_increments_precision[vmode];
+  bool is_snapping = (event->modifier & KM_CTRL) != 0;
+  bool use_precision = (event->modifier & KM_SHIFT) != 0;
+
+  const float increment_factor = (use_precision) ?
+                                     value_snap_increments[vmode] * increments_precision[vmode] :
+                                     value_snap_increments[vmode];
+
+  if (is_snapping && increment_factor != 0.0f){
+    value = increment_factor * roundf(value / increment_factor);
   }
 
   /* Clamp according to value mode, and store value back. */
