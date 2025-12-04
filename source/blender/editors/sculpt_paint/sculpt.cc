@@ -5608,7 +5608,7 @@ static void brush_exit_tex(Sculpt &sd)
   }
 }
 
-static void stroke_done(const bContext *C, PaintStroke * /*stroke*/, bool is_cancelled)
+static void stroke_done(const bContext *C, PaintStroke * /*stroke*/, bool is_cancel)
 {
   Object &ob = *CTX_data_active_object(C);
   SculptSession &ss = *ob.sculpt;
@@ -5637,7 +5637,7 @@ static void stroke_done(const bContext *C, PaintStroke * /*stroke*/, bool is_can
   MEM_delete(ss.cache);
   ss.cache = nullptr;
 
-  if (!is_cancelled) {
+  if (!is_cancel) {
     stroke_undo_end(C, brush);
   }
 

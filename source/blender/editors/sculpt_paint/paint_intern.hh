@@ -107,10 +107,10 @@ using StrokeTestCancel = bool (*)(const bContext *C, PaintStroke *stroke);
 /**
  * Callback function for cleaning up and finalizing data after a stroke has finished.
  *
- * \param is_cancelled: Some paint modes support cancelling a stroke and returning to the initial
+ * \param is_cancel: Some paint modes support cancelling a stroke and returning to the initial
  * state. This parameter indicates this case so that appropriate cleanup actions can be taken.
  */
-using StrokeDone = void (*)(const bContext *C, PaintStroke *stroke, bool is_cancelled);
+using StrokeDone = void (*)(const bContext *C, PaintStroke *stroke, bool is_cancel);
 
 PaintStroke *paint_stroke_new(bContext *C,
                               wmOperator *op,

@@ -211,7 +211,7 @@ static void stroke_redraw(const bContext *C, PaintStroke * /*stroke*/, bool /*fi
   ED_region_tag_redraw(CTX_wm_region(C));
 }
 
-static void stroke_done(const bContext *C, PaintStroke *stroke, bool /*is_cancelled*/)
+static void stroke_done(const bContext *C, PaintStroke *stroke, bool /*is_cancel*/)
 {
   GreasePencilStrokeOperation *operation = static_cast<GreasePencilStrokeOperation *>(
       paint_stroke_mode_data(stroke));

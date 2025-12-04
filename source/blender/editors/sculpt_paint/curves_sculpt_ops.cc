@@ -209,9 +209,9 @@ static void stroke_update_step(bContext *C,
   }
 }
 
-static void stroke_done(const bContext *C, PaintStroke *stroke, bool is_cancelled)
+static void stroke_done(const bContext *C, PaintStroke *stroke, const bool is_cancel)
 {
-  UNUSED_VARS(C, stroke, is_cancelled);
+  UNUSED_VARS(C, stroke, is_cancel);
 }
 
 static wmOperatorStatus sculpt_curves_stroke_invoke(bContext *C,

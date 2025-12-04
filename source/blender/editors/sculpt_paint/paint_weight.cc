@@ -1861,7 +1861,7 @@ static void wpaint_stroke_update_step(bContext *C,
   ED_region_tag_redraw(vc->region);
 }
 
-static void wpaint_stroke_done(const bContext *C, PaintStroke * /*stroke*/, bool /*is_cancelled*/)
+static void wpaint_stroke_done(const bContext *C, PaintStroke * /*stroke*/, bool /*is_cancel*/)
 {
   Object &ob = *CTX_data_active_object(C);
 

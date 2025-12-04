@@ -2089,7 +2089,7 @@ static void vpaint_stroke_update_step(bContext *C,
   DEG_id_tag_update((ID *)ob.data, ID_RECALC_GEOMETRY);
 }
 
-static void vpaint_stroke_done(const bContext *C, PaintStroke *stroke, bool /*is_cancelled*/)
+static void vpaint_stroke_done(const bContext *C, PaintStroke *stroke, bool /*is_cancel*/)
 {
   VPaintData *vpd = static_cast<VPaintData *>(paint_stroke_mode_data(stroke));
   Object &ob = *vpd->vc.obact;

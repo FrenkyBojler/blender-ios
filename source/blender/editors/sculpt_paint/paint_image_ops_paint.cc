@@ -391,7 +391,7 @@ static void paint_stroke_redraw(const bContext *C, PaintStroke *stroke, bool fin
   pop->mode->paint_stroke_redraw(C, pop->stroke_handle, final);
 }
 
-static void paint_stroke_done(const bContext *C, PaintStroke *stroke, const bool is_cancelled)
+static void paint_stroke_done(const bContext *C, PaintStroke *stroke, const bool is_cancel)
 {
   Scene *scene = CTX_data_scene(C);
   ToolSettings *toolsettings = scene->toolsettings;
@@ -414,7 +414,7 @@ static void paint_stroke_done(const bContext *C, PaintStroke *stroke, const bool
   pop->mode->paint_stroke_done(pop->stroke_handle);
   pop->stroke_handle = nullptr;
 
-  if (!is_cancelled) {
+  if (!is_cancel) {
     ED_image_undo_push_end();
   }
 
