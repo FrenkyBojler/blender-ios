@@ -807,10 +807,10 @@ static void bone_collection_select(bContext *C,
       }
 
       if (select) {
-        pose_bone->flag |= POSE_SELECTED_ALL;
+        blender::animrig::select_bone(pose_bone);
       }
       else {
-        pose_bone->flag &= ~POSE_SELECTED_ALL;
+        blender::animrig::deselect_bone(pose_bone);
       }
     }
     DEG_id_tag_update(&active_object->id, ID_RECALC_SELECT);

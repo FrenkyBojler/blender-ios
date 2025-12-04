@@ -67,6 +67,21 @@ inline bool bone_is_selectable(const bArmature *armature, const Bone *bone)
 }
 
 /**
+ * Selection and deselection happens with the POSE_SELECTED_ALL flag which includes body tip and
+ * root. While tip and root are not individually selectable in pose mode, these flags carry over to
+ * edit mode.
+ */
+inline bool select_bone(bPoseChannel *pchan)
+{
+  pchan->flag |= POSE_SELECTED_ALL;
+}
+
+inline bool deselect_bone(bPoseChannel *pchan)
+{
+  pchan->flag &= ~POSE_SELECTED_ALL;
+}
+
+/**
  * Iterates all descendents of the given pose bone including the bone itself. Iterates breadth
  * first.
  */
