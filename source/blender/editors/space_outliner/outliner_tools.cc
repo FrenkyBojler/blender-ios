@@ -88,6 +88,7 @@
 #include "RNA_enum_types.hh"
 
 #include "ANIM_action_legacy.hh"
+#include "ANIM_armature.hh"
 
 #include "SEQ_relations.hh"
 #include "SEQ_sequencer.hh"
@@ -2106,14 +2107,14 @@ static void pchan_fn(int event, TreeElement *te, TreeStoreElem * /*tselem*/, voi
   bPoseChannel *pchan = (bPoseChannel *)te->directdata;
 
   if (event == OL_DOP_SELECT) {
-    pchan->flag |= POSE_SELECTED_ALL;
+    blender::animrig::select_bone(pchan);
   }
   else if (event == OL_DOP_DESELECT) {
-    pchan->flag &= ~POSE_SELECTED_ALL;
+    blender::animrig::deselect_bone(pchan);
   }
   else if (event == OL_DOP_HIDE) {
     pchan->drawflag |= PCHAN_DRAW_HIDDEN;
-    pchan->flag &= ~POSE_SELECTED_ALL;
+    blender::animrig::deselect_bone(pchan);
   }
   else if (event == OL_DOP_UNHIDE) {
     pchan->drawflag &= ~PCHAN_DRAW_HIDDEN;

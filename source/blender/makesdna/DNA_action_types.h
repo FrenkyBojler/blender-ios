@@ -500,7 +500,8 @@ typedef enum ePchan_Flag {
   POSE_SELECTED_TIP = (1 << 8),
   /**
    * When setting pose bone selection, all flags have to be set/cleared. However checking of
-   * selection state should only be against `POSE_SELECTED`.
+   * selection state should only be against `POSE_SELECTED`. Do not set directly, use
+   * blender::animrig::select_bone and blender::animrig::deselect_bone instead.
    */
   POSE_SELECTED_ALL = (POSE_SELECTED | POSE_SELECTED_ROOT | POSE_SELECTED_TIP),
 
