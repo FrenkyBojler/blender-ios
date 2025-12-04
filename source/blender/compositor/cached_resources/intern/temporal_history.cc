@@ -8,8 +8,6 @@
 
 namespace blender::compositor {
 
-static Map<TemporalHistoryKey, std::unique_ptr<TemporalHistory>> g_temporal_history_map;
-
 uint64_t TemporalHistoryKey::hash() const
 {
   return get_default_hash(scene, tree, node);
@@ -23,11 +21,11 @@ bool operator==(const TemporalHistoryKey &a, const TemporalHistoryKey &b)
 void TemporalHistoryContainer::reset()
 {
   /* First, delete all resources that are no longer needed. */
-  g_temporal_history_map.remove_if([](auto item) { return !item.value->needed; });
+  map_.remove_if([](auto item) { return !item.value->needed; });
 
   /* Second, reset the needed status of the remaining resources to false to ready them to track
    * their needed status for the next evaluation. */
-  for (auto &value : g_temporal_history_map.values()) {
+  for (auto &value : map_.values()) {
     value->needed = false;
   }
 }
@@ -46,7 +44,7 @@ HistoryEntry &TemporalHistoryContainer::get(Context & /*context*/,
   key.tree = &tree;
   key.node = &bnode;
 
-  auto &history_ptr = g_temporal_history_map.lookup_or_add_cb(
+  auto &history_ptr = map_.lookup_or_add_cb(
       key, []() { return std::make_unique<TemporalHistory>(); });
 
   TemporalHistory &history = *history_ptr;
