@@ -586,12 +586,14 @@ struct GHOST_InstanceVK {
     vulkan_12_features.timelineSemaphore = VK_TRUE;
     feature_struct_ptr.push_back(&vulkan_12_features);
 
+#ifndef __APPLE__
     /* Enable provoking vertex. */
     VkPhysicalDeviceProvokingVertexFeaturesEXT provoking_vertex_features = {};
     provoking_vertex_features.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROVOKING_VERTEX_FEATURES_EXT;
     provoking_vertex_features.provokingVertexLast = VK_TRUE;
     feature_struct_ptr.push_back(&provoking_vertex_features);
+#endif
 
     /* Enable dynamic rendering. */
     VkPhysicalDeviceDynamicRenderingFeatures dynamic_rendering = {};
@@ -672,6 +674,22 @@ struct GHOST_InstanceVK {
         VK_TRUE};
     if (device.extensions.is_enabled(VK_EXT_GRAPHICS_PIPELINE_LIBRARY_EXTENSION_NAME)) {
       feature_struct_ptr.push_back(&graphics_pipeline_library);
+    }
+
+    /* VK_EXT_line_rasterization */
+    VkPhysicalDeviceLineRasterizationFeaturesKHR line_rasterization_features = {};
+    line_rasterization_features.sType =
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_LINE_RASTERIZATION_FEATURES_EXT;
+    line_rasterization_features.bresenhamLines = VK_TRUE;
+    if (device.extensions.is_enabled(VK_EXT_LINE_RASTERIZATION_EXTENSION_NAME)) {
+      feature_struct_ptr.push_back(&line_rasterization_features);
+    }
+
+    /* VK_EXT_extended_dynamic_state */
+    VkPhysicalDeviceExtendedDynamicStateFeaturesEXT extended_dynamic_state = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_FEATURES_EXT, nullptr, VK_TRUE};
+    if (device.extensions.is_enabled(VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME)) {
+      feature_struct_ptr.push_back(&extended_dynamic_state);
     }
 
     /* Link all registered feature structs. */
@@ -1614,6 +1632,11 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
     optional_device_extensions.append(VK_EXT_PAGEABLE_DEVICE_LOCAL_MEMORY_EXTENSION_NAME);
     optional_device_extensions.append(VK_KHR_PIPELINE_LIBRARY_EXTENSION_NAME);
     optional_device_extensions.append(VK_EXT_GRAPHICS_PIPELINE_LIBRARY_EXTENSION_NAME);
+    optional_device_extensions.append(VK_EXT_LINE_RASTERIZATION_EXTENSION_NAME);
+    /* Disabled as the extension is available, but without any features set. */
+#ifndef __APPLE__
+    optional_device_extensions.append(VK_EXT_EXTENDED_DYNAMIC_STATE_EXTENSION_NAME);
+#endif
 
     if (!instance_vk.select_physical_device(preferred_device_, required_device_extensions)) {
       return GHOST_kFailure;

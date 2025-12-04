@@ -140,9 +140,8 @@ static VkPipeline create_graphics_pipeline_no_libs(const VKGraphicsInfo &graphic
                                                    StringRefNull name)
 {
   VKDevice &device = VKBackend::get().device;
-  const VKExtensions &extensions = device.extensions_get();
   VKGraphicsPipelineCreateInfoBuilder builder;
-  builder.build_full(graphics_info, extensions, vk_pipeline_base);
+  builder.build_full(device, graphics_info, vk_pipeline_base);
 
   /* Build pipeline. */
   VkPipeline pipeline = VK_NULL_HANDLE;
@@ -262,7 +261,7 @@ VkPipeline VKPipelineMap<VKGraphicsInfo::VertexIn>::create(
 {
   VKDevice &device = VKBackend::get().device;
   VKGraphicsPipelineCreateInfoBuilder builder;
-  builder.build_vertex_input_lib(vertex_input_info, vk_pipeline_base);
+  builder.build_vertex_input_lib(device, vertex_input_info, vk_pipeline_base);
 
   /* Build pipeline. */
   VkPipeline pipeline = VK_NULL_HANDLE;
@@ -300,8 +299,9 @@ VkPipeline VKPipelineMap<VKGraphicsInfo::Shaders>::create(
     StringRefNull name)
 {
   VKDevice &device = VKBackend::get().device;
+  const VKExtensions &extensions = device.extensions_get();
   VKGraphicsPipelineCreateInfoBuilder builder;
-  builder.build_shaders_lib(shaders_info, vk_pipeline_base);
+  builder.build_shaders_lib(shaders_info, extensions, vk_pipeline_base);
 
   /* Build pipeline. */
   VkPipeline pipeline = VK_NULL_HANDLE;
@@ -366,7 +366,7 @@ void VKPipelinePool::discard(VKDiscardPool &discard_pool, VkPipelineLayout vk_pi
   graphics_.discard(discard_pool, vk_pipeline_layout);
   compute_.discard(discard_pool, vk_pipeline_layout);
   shaders_libs_.discard(discard_pool, vk_pipeline_layout);
-  /* vertex_input_libs_ and fragment_output_libs_ are NOT dependend on vk_pipeline_layout. */
+  /* vertex_input_libs_ and fragment_output_libs_ are NOT dependent on vk_pipeline_layout. */
 }
 
 void VKPipelinePool::free_data()

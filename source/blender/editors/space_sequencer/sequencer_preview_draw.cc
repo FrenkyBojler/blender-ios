@@ -100,7 +100,7 @@ void special_preview_set(bContext *C, const int mval[2])
 
   ARegion *region = CTX_wm_region(C);
   Strip *strip = strip_under_mouse_get(scene, &region->v2d, mval);
-  if (strip != nullptr && strip->type != STRIP_TYPE_SOUND_RAM) {
+  if (strip != nullptr && strip->type != STRIP_TYPE_SOUND) {
     sequencer_special_update_set(strip);
   }
 }
@@ -750,7 +750,6 @@ static void sequencer_draw_scopes(Scene *scene,
       immBindBuiltinProgram(GPU_SHADER_SEQUENCER_ZEBRA);
       immUniform1i("img_premultiplied", premultiplied ? 1 : 0);
       immUniform1f("zebra_limit", space_sequencer.zebra / 100.0f);
-      immUniformColor3f(1.0f, 1.0f, 1.0f);
 
       GPU_texture_bind(input_texture, 0);
       rctf uv;

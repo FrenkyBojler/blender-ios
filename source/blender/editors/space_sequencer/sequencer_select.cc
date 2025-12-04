@@ -995,7 +995,7 @@ bool can_select_handle(const Scene *scene, const Strip *strip, const View2D *v2d
   }
 
   Editing *ed = seq::editing_get(scene);
-  ListBase *channels = seq::channels_displayed_get(ed);
+  const ListBase *channels = seq::channels_displayed_get(ed);
   if (seq::transform_is_locked(channels, strip)) {
     return false;
   }
@@ -1618,8 +1618,8 @@ static bool select_more_less_impl(Scene *scene, bool select_more)
   }
 
   Set<Strip *> neighbors;
-  const int neighbor_selection_filter = select_more ? 0 : SEQ_SELECT;
-  const int selection_filter = select_more ? SEQ_SELECT : 0;
+  const int neighbor_selection_filter = select_more ? 0 : 1;
+  const eStripFlag selection_filter = select_more ? SEQ_SELECT : eStripFlag(0);
 
   LISTBASE_FOREACH (Strip *, strip, seq::active_seqbase_get(ed)) {
     if ((strip->flag & SEQ_SELECT) != selection_filter) {
@@ -2685,7 +2685,7 @@ static const EnumPropertyItem sequencer_prop_select_grouped_types[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-#define STRIP_IS_SOUND(_strip) (_strip->type == STRIP_TYPE_SOUND_RAM)
+#define STRIP_IS_SOUND(_strip) (_strip->type == STRIP_TYPE_SOUND)
 
 #define STRIP_USE_DATA(_strip) \
   (ELEM(_strip->type, STRIP_TYPE_SCENE, STRIP_TYPE_MOVIECLIP, STRIP_TYPE_MASK) || \
