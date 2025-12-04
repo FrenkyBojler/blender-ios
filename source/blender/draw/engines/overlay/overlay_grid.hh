@@ -77,7 +77,7 @@ class Grid : Overlay {
       sub.state_set(ps_draw_state | DRW_STATE_DEPTH_LESS_EQUAL | DRW_STATE_WRITE_DEPTH |
                     DRW_STATE_BLEND_ADD);
       sub.bind_ubo("grid_buf", &grid_ubo_);
-      
+
       for (int grid_iter = 0; grid_iter < grid_ubo_.num_iters; grid_iter++) {
         sub.push_constant("grid_iter", grid_iter);
         if (axis_flag_) {
@@ -125,16 +125,15 @@ class Grid : Overlay {
     if (state.hide_overlays) {
       return false;
     }
-    else if (state.is_space_v3d()) {
+
+    if (state.is_space_v3d()) {
       return init_v3d(state);
     }
-    else if (state.is_space_image()) {
+    if (state.is_space_image()) {
       return init_space_image(state);
     }
-    else {
-      /* Grid is currently unsupported in SPACE_NODE and such. */
-      return false;
-    }
+    /* Grid is currently unsupported in SPACE_NODE and such. */
+    return false;
   }
 
   bool init_space_image(const State &state)
@@ -160,7 +159,7 @@ class Grid : Overlay {
     /* Query grid step/level scalings; these can differ per axis. */
     std::array<float, SI_GRID_STEPS_LEN> steps_x, steps_y;
     ED_space_image_grid_steps(sima, steps_x.data(), steps_y.data(), SI_GRID_STEPS_LEN);
-    for (int i : IndexRange(0, SI_GRID_STEPS_LEN)) {
+    for (int i : IndexRange(SI_GRID_STEPS_LEN)) {
       grid_ubo_.steps[i].x = grid_ubo_.steps[i].z = steps_x[i] * 2.0f;
       grid_ubo_.steps[i].y = steps_y[i] * 2.0f;
     }
@@ -170,7 +169,7 @@ class Grid : Overlay {
 
     /* Query grid image zoom level. Then find the lowest relevant grid level + fractional. */
     float dist = ED_space_image_zoom_level(v2d, SI_GRID_STEPS_LEN) * 4.0f;
-    for (int i : IndexRange(0, SI_GRID_STEPS_LEN + 1)) {
+    for (int i : IndexRange(SI_GRID_STEPS_LEN + 1)) {
       float prev = (i > 0) ? std::min(grid_ubo_.steps[i - 1].x, grid_ubo_.steps[i - 1].y) : 0.0f;
       float curr = (i < OVERLAY_GRID_STEPS_LEN) ?
                        std::min(grid_ubo_.steps[i].x, grid_ubo_.steps[i].y) :
@@ -251,7 +250,7 @@ class Grid : Overlay {
     /* Query grid scales from unit/scaling; this range suffices for user-visible levels. */
     Array<float, SI_GRID_STEPS_LEN> steps(SI_GRID_STEPS_LEN);
     ED_view3d_grid_steps(state.scene, v3d, rv3d, steps.data());
-    for (int i : IndexRange(0, SI_GRID_STEPS_LEN)) {
+    for (int i : IndexRange(SI_GRID_STEPS_LEN)) {
       grid_ubo_.steps[i] = float4(steps[i]);
     }
 
@@ -289,7 +288,7 @@ class Grid : Overlay {
     }
 
     /* Find the lowest relevant grid level + fractional. */
-    for (int i : IndexRange(0, SI_GRID_STEPS_LEN - 1)) {
+    for (int i : IndexRange(SI_GRID_STEPS_LEN - 1)) {
       float curr = std::min(grid_ubo_.steps[i].x, grid_ubo_.steps[i].y);
       float next = (i < OVERLAY_GRID_STEPS_LEN - 1) ?
                        std::min(grid_ubo_.steps[i + 1].x, grid_ubo_.steps[i + 1].y) :

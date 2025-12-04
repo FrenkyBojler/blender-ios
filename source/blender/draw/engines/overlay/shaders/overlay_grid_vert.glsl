@@ -207,10 +207,11 @@ void main()
      * making it "fade" through geometry over a distance.  */
     constexpr float z_fade_dist = 1e-4f;
     float z_ratio_iter = 1.0f - float(grid_iter) / float(OVERLAY_GRID_ITER_LEN);
-    float z_ratio_level = (1.0f / float(OVERLAY_GRID_ITER_LEN))
-                        * (1.0f - float(line.level) / float(OVERLAY_GRID_STEPS_DRAW));
+    float z_ratio_level = (1.0f / float(OVERLAY_GRID_ITER_LEN)) *
+                          (1.0f - float(line.level) / float(OVERLAY_GRID_STEPS_DRAW));
     gl_Position.z += 2e-4f * (z_ratio_iter + z_ratio_level);
-  } else { /* orthographic */
+  }
+  else { /* orthographic */
     /* Set z to far plane in orthographic, so it is behind all things. */
     if (!flag_test(grid_flag, GRID_SIMA)) {
       gl_Position.z = 1.0f;
