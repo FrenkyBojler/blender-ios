@@ -124,6 +124,11 @@ CompositorRuntime::~CompositorRuntime()
   if (preview_depsgraph) {
     DEG_graph_free(preview_depsgraph);
   }
+
+  if (temporal_state && temporal_state_free_fn) {
+    temporal_state_free_fn(temporal_state);
+    temporal_state = nullptr;
+  }
 }
 
 SequencerRuntime::~SequencerRuntime()

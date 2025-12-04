@@ -6,9 +6,49 @@
 
 #include "COM_context.hh"
 
-#include <stdio.h>
+#include "BLI_assert.h"
+
+#include "BKE_scene_runtime.hh"
+
+#include "MEM_guardedalloc.h"
 
 namespace blender::compositor {
+
+struct TemporalHistoryStore {
+  Map<TemporalHistoryKey, std::unique_ptr<TemporalHistory>> map;
+};
+
+static const Scene &get_orig_scene(const Scene &scene)
+{
+  if (scene.id.orig_id != nullptr) {
+    return *reinterpret_cast<const Scene *>(scene.id.orig_id);
+  }
+  return scene;
+}
+
+static TemporalHistoryStore &get_store_for_scene(const Scene &scene)
+{
+  using namespace blender::bke;
+
+  const Scene &orig_scene = get_orig_scene(scene);
+
+  SceneRuntime *runtime = orig_scene.runtime;
+  BLI_assert(runtime != nullptr);
+
+  CompositorRuntime &comp_runtime = runtime->compositor;
+
+  if (!comp_runtime.temporal_state) {
+    auto *store = MEM_new<TemporalHistoryStore>(__func__);
+    comp_runtime.temporal_state = store;
+    comp_runtime.temporal_state_free_fn = [](void *state) {
+      MEM_delete(static_cast<TemporalHistoryStore *>(state));
+    };
+  }
+
+  TemporalHistoryStore &store = *static_cast<TemporalHistoryStore *>(comp_runtime.temporal_state);
+
+  return store;
+}
 
 uint64_t TemporalHistoryKey::hash() const
 {
@@ -22,17 +62,11 @@ bool operator==(const TemporalHistoryKey &a, const TemporalHistoryKey &b)
 
 void TemporalHistoryContainer::reset()
 {
-  printf("TD_TEMPORAL_HISTORY_RESET: container=%p size_before=%lld\n",
-         (void *)this,
-         (long long)map_.size());
-  /* First, delete all resources that are no longer needed. */
-  map_.remove_if([](auto item) { return !item.value->needed; });
-
-  /* Second, reset the needed status of the remaining resources to false to ready them to track
-   * their needed status for the next evaluation. */
-  for (auto &value : map_.values()) {
-    value->needed = false;
-  }
+  /* Intentionally left empty.
+   *
+   * Temporal history is stored per scene in SceneRuntime::CompositorRuntime::temporal_state and is
+   * designed to persist across compositor evaluations (similar to a simulation zone). It is not
+   * cleared by the per-evaluation cache reset. */
 }
 
 HistoryEntry &TemporalHistoryContainer::get(Context & /*context*/,
@@ -44,35 +78,22 @@ HistoryEntry &TemporalHistoryContainer::get(Context & /*context*/,
                                             int history_frames,
                                             bool &r_has_history)
 {
+  const Scene &orig_scene = get_orig_scene(scene);
+
   TemporalHistoryKey key;
-  key.scene = &scene;
+  key.scene = &orig_scene;
   key.tree = &tree;
   key.node = &bnode;
 
-  auto &history_ptr = map_.lookup_or_add_cb(key, [&]() {
-    printf("TD_TEMPORAL_HISTORY_ALLOC: container=%p map_size_before=%lld\n",
-           (void *)this,
-           (long long)map_.size());
+  TemporalHistoryStore &store = get_store_for_scene(orig_scene);
+  auto &map = store.map;
+
+  auto &history_ptr = map.lookup_or_add_cb(key, [&]() {
     return std::make_unique<TemporalHistory>();
   });
 
-  printf("TD_TEMPORAL_HISTORY_MAP_AFTER: container=%p map_size_after=%lld\n",
-         (void *)this,
-         (long long)map_.size());
-
   TemporalHistory &history = *history_ptr;
   HistoryEntry &entry = history.entry;
-
-  printf("TD_TEMPORAL_HISTORY_KEY: scene=%p tree=%p node=%p history=%p size_before=(%d,%d) cap_before=%d stored_before=%d last_before=%d\n",
-         (const void *)key.scene,
-         (const void *)key.tree,
-         (const void *)key.node,
-         (const void *)&history,
-         entry.size.x,
-         entry.size.y,
-         entry.capacity_frames,
-         entry.stored_frames,
-         entry.last_frame);
 
   const bool size_changed = (entry.size != size);
   const bool frame_jump = (entry.last_frame != 0 &&
@@ -81,18 +102,6 @@ HistoryEntry &TemporalHistoryContainer::get(Context & /*context*/,
   const bool capacity_changed = (entry.capacity_frames != history_frames);
 
   r_has_history = (!size_changed && !frame_jump && !capacity_changed && entry.stored_frames > 0);
-
-  printf("TD_TEMPORAL_HISTORY: size=(%d,%d) frame=%d history_frames=%d size_changed=%d frame_jump=%d capacity_changed=%d stored=%d last=%d has_history=%d\n",
-         size.x,
-         size.y,
-         current_frame,
-         history_frames,
-         int(size_changed),
-         int(frame_jump),
-         int(capacity_changed),
-         entry.stored_frames,
-         entry.last_frame,
-         int(r_has_history));
 
   if (size_changed || capacity_changed) {
     entry.size = size;

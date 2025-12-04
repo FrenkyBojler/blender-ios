@@ -32,6 +32,13 @@ class CompositorRuntime {
    * the dependency graph every time it executes. */
   Depsgraph *preview_depsgraph = nullptr;
 
+  /* Opaque pointer to temporal compositor state (e.g. temporal denoise history) owned by the
+   * compositor module. The compositor is responsible for allocating and freeing this state and
+   * setting the destructor callback. This indirection avoids introducing compositor-specific
+   * types into BKE. */
+  void *temporal_state = nullptr;
+  void (*temporal_state_free_fn)(void *state) = nullptr;
+
   ~CompositorRuntime();
 };
 

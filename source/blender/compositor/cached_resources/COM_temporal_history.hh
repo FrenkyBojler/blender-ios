@@ -47,9 +47,6 @@ class TemporalHistory : public CachedResource {
 };
 
 class TemporalHistoryContainer : public CachedResourceContainer {
- private:
-  Map<TemporalHistoryKey, std::unique_ptr<TemporalHistory>> map_;
-
  public:
   void reset() override;
 
