@@ -10,7 +10,7 @@ set(SRC
   parser.cc
 
   glsl_preprocess.hh
-  shader_parser.hh
+  intermediate.hh
   parser.hh
   scope.hh
   token.hh

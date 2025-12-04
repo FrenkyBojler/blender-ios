@@ -8,9 +8,11 @@
  */
 
 #include "parser.hh"
+#include "intermediate.hh"
 #include "scope.hh"
 #include "token.hh"
 
+#include <algorithm>
 #include <stack>
 
 namespace blender::gpu::shader::parser {
@@ -24,7 +26,7 @@ Scope Token::scope() const
 }
 
 /* If keep_whitespace is false, whitespaces are merged with the previous token. */
-void ParserData::tokenize(const bool keep_whitespace)
+void Parser::tokenize(const bool keep_whitespace)
 {
   if (str.empty()) {
     *this = {};
@@ -258,7 +260,7 @@ void ParserData::tokenize(const bool keep_whitespace)
   }
 }
 
-void ParserData::parse_scopes(report_callback &report_error)
+void Parser::parse_scopes(report_callback &report_error)
 {
   {
     /* Scope detection. */
@@ -507,7 +509,7 @@ void ParserData::parse_scopes(report_callback &report_error)
 }
 
 /* Return true if any mutation was applied. */
-bool Parser::only_apply_mutations()
+bool IntermediateForm::only_apply_mutations()
 {
   if (mutations_.empty()) {
     return false;

@@ -50,10 +50,10 @@ struct Scope {
   std::string_view token_view;
   std::string_view str_view;
 
-  const ParserData *data;
+  const Parser *data;
   int64_t index;
 
-  static Scope from_position(const ParserData *data, int64_t index)
+  static Scope from_position(const Parser *data, int64_t index)
   {
     IndexRange index_range = data->scope_ranges[index];
     int str_start = data->token_offsets[index_range.start].start;

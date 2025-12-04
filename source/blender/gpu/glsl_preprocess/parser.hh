@@ -13,7 +13,7 @@
 
 namespace blender::gpu::shader::parser {
 
-struct ParserData {
+struct Parser {
   /* The parser's input string. */
   std::string str;
 

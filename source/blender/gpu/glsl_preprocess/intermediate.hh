@@ -38,16 +38,16 @@
 #include "token.hh"
 #include "utils.hh"
 
-#include <algorithm>
 #include <cassert>
-#include <chrono>
 #include <iostream>
 
 namespace blender::gpu::shader::parser {
 
-struct Parser {
+/* Structure holding an intermediate form of the source code.
+ * It is made for fast traversal and mutation of source code. */
+struct IntermediateForm {
  private:
-  ParserData data_;
+  Parser data_;
 
   /* If false, the whitespaces are fused with the tokens. Otherwise they are kept as separate space
    * and newline tokens. */
@@ -76,60 +76,18 @@ struct Parser {
   report_callback &report_error;
 
  public:
-  Parser(const std::string &input, report_callback &report_error, bool keep_whitespace = false)
+  IntermediateForm(const std::string &input,
+                   report_callback &report_error,
+                   bool keep_whitespace = false)
       : keep_whitespace_(keep_whitespace), report_error(report_error)
   {
     data_.str = input;
     parse(report_error);
   }
 
-  /* Run a callback for all existing scopes of a given type. */
-  void foreach_scope(ScopeType type, std::function<void(Scope)> callback) const
+  Scope operator()() const
   {
-    size_t pos = 0;
-    while ((pos = data_.scope_types.find(char(type), pos)) != std::string::npos) {
-      callback(Scope::from_position(&data_, pos));
-      pos += 1;
-    }
-  }
-
-  void foreach_match(const std::string &pattern,
-                     std::function<void(const std::vector<Token>)> callback) const
-  {
-    foreach_scope(ScopeType::Global,
-                  [&](const Scope scope) { scope.foreach_match(pattern, callback); });
-  }
-
-  void foreach_token(const TokenType token_type, std::function<void(const Token)> callback) const
-  {
-    const char str[2] = {token_type, '\0'};
-    foreach_match(str, [&](const std::vector<Token> &tokens) { callback(tokens[0]); });
-  }
-
-  /* Run a callback for all existing function scopes. */
-  void foreach_function(
-      std::function<void(
-          bool is_static, Token type, Token name, Scope args, bool is_const, Scope body)> callback)
-  {
-    Scope::from_position(&data_, 0).foreach_function(callback);
-  }
-
-  /* Run a callback for all existing struct scopes. */
-  void foreach_struct(std::function<void(Token struct_tok, Token name, Scope body)> callback)
-  {
-    Scope::from_position(&data_, 0).foreach_struct(callback);
-  }
-
-  /* Run a callback for all existing variable declaration (without assignment). */
-  void foreach_declaration(std::function<void(Scope attributes,
-                                              Token const_tok,
-                                              Token type,
-                                              Scope template_scope,
-                                              Token name,
-                                              Scope array,
-                                              Token decl_end)> callback)
-  {
-    Scope::from_position(&data_, 0).foreach_declaration(callback);
+    return Scope::from_position(&data_, 0);
   }
 
   std::string substr_range_inclusive(size_t start, size_t end)
@@ -279,34 +237,7 @@ struct Parser {
   }
 
   /* Return true if any mutation was applied. */
-  bool only_apply_mutations()
-  {
-    if (mutations_.empty()) {
-      return false;
-    }
-
-    /* Order mutations so that they can be applied in one pass. */
-    std::stable_sort(mutations_.begin(), mutations_.end());
-
-    /* Make sure to pad the input string in case of insertion after the last char. */
-    bool added_trailing_new_line = false;
-    if (data_.str.back() != '\n') {
-      data_.str += '\n';
-      added_trailing_new_line = true;
-    }
-
-    int64_t offset = 0;
-    for (const Mutation &mut : mutations_) {
-      data_.str.replace(mut.src_range.start + offset, mut.src_range.size, mut.replacement);
-      offset += mut.replacement.size() - mut.src_range.size;
-    }
-    mutations_.clear();
-
-    if (added_trailing_new_line) {
-      data_.str.pop_back();
-    }
-    return true;
-  }
+  bool only_apply_mutations();
 
   bool apply_mutations()
   {
@@ -324,8 +255,13 @@ struct Parser {
     return data_.str;
   }
 
+  const Parser &data_get()
+  {
+    return data_;
+  }
+
   /* For testing. */
-  const ParserData &data_get()
+  const Parser &data_get()
   {
     return data_;
   }
