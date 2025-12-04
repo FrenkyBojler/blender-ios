@@ -21,6 +21,7 @@
 
 #include "BLT_translation.hh"
 
+#include "BLI_fileops.h"
 #include "BLI_listbase.h"
 #include "BLI_math_color.h"
 #include "BLI_path_utils.hh"
@@ -60,6 +61,7 @@
 
 #include "WM_api.hh"
 #include "WM_types.hh"
+#include "wm.hh"
 #include "wm_event_system.hh"
 #include "wm_window.hh"
 
@@ -427,9 +429,6 @@ void WM_drag_free(wmDrag *drag)
     WM_drag_data_free(drag->type, drag->poin);
   }
   drag->drop_state.ui_context.reset();
-  if (drag->drop_state.free_disabled_info) {
-    MEM_SAFE_FREE(drag->drop_state.disabled_info);
-  }
   BLI_freelistN(&drag->ids);
   LISTBASE_FOREACH_MUTABLE (wmDragAssetListItem *, asset_item, &drag->asset_items) {
     if (asset_item->is_external) {
@@ -463,11 +462,6 @@ static wmDropBox *dropbox_active(bContext *C,
                                  wmDrag *drag,
                                  const wmEvent *event)
 {
-  if (drag->drop_state.free_disabled_info) {
-    MEM_SAFE_FREE(drag->drop_state.disabled_info);
-  }
-  drag->drop_state.disabled_info = nullptr;
-
   LISTBASE_FOREACH (wmEventHandler *, handler_base, handlers) {
     if (handler_base->type == WM_HANDLER_TYPE_DROPBOX) {
       wmEventHandler_Dropbox *handler = (wmEventHandler_Dropbox *)handler_base;
@@ -498,7 +492,9 @@ static wmDropBox *dropbox_active(bContext *C,
           const char *disabled_hint = CTX_wm_operator_poll_msg_get(C, &free_disabled_info);
           if (disabled_hint) {
             drag->drop_state.disabled_info = disabled_hint;
-            drag->drop_state.free_disabled_info = free_disabled_info;
+            if (free_disabled_info) {
+              MEM_SAFE_FREE(disabled_hint);
+            }
           }
         }
       }
@@ -511,10 +507,18 @@ static wmDropBox *dropbox_active(bContext *C,
 /* Return active operator tooltip/name when mouse is in box. */
 static wmDropBox *wm_dropbox_active(bContext *C, wmDrag *drag, const wmEvent *event)
 {
+  /* Always do this check for asset dragging (as if it was in every poll). */
+  if (!wm_drag_asset_path_exists(drag).value_or(true)) {
+    drag->drop_state.disabled_info = RPT_("Asset not found");
+    return nullptr;
+  }
+
   wmWindow *win = CTX_wm_window(C);
   bScreen *screen = WM_window_get_active_screen(win);
   ScrArea *area = BKE_screen_find_area_xy(screen, SPACE_TYPE_ANY, event->xy);
   wmDropBox *drop = nullptr;
+
+  drag->drop_state.disabled_info = std::nullopt;
 
   if (area) {
     ARegion *region = BKE_area_find_region_xy(area, RGN_TYPE_ANY, event->xy);
@@ -855,6 +859,28 @@ const ListBase *WM_drag_asset_list_get(const wmDrag *drag)
   return &drag->asset_items;
 }
 
+std::optional<bool> wm_drag_asset_path_exists(const wmDrag *drag)
+{
+  if (!ELEM(drag->type, WM_DRAG_ASSET, WM_DRAG_ASSET_LIST)) {
+    return {};
+  }
+
+  if (const wmDragAsset *asset_drag = WM_drag_get_asset_data(drag, 0)) {
+    return BLI_is_file(asset_drag->asset->full_library_path().c_str());
+  }
+
+  if (const ListBase *asset_drags = WM_drag_asset_list_get(drag)) {
+    LISTBASE_FOREACH (wmDragAssetListItem *, asset_item, asset_drags) {
+      if (!asset_item->is_external ||
+          BLI_is_file(asset_item->asset_data.external_info->asset->full_library_path().c_str()))
+      {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 wmDragPath *WM_drag_create_path_data(blender::Span<const char *> paths)
 {
   BLI_assert(!paths.is_empty());
@@ -1121,7 +1147,7 @@ static void wm_drag_draw_tooltip(bContext *C, wmWindow *win, wmDrag *drag, const
   int padding = 4 * UI_SCALE_FAC;
   blender::StringRef tooltip = drag->drop_state.tooltip;
   const bool has_disabled_info = drag->drop_state.disabled_info &&
-                                 drag->drop_state.disabled_info[0];
+                                 drag->drop_state.disabled_info.value()[0];
   if (tooltip.is_empty() && !has_disabled_info) {
     return;
   }
@@ -1178,7 +1204,7 @@ static void wm_drag_draw_tooltip(bContext *C, wmWindow *win, wmDrag *drag, const
     wm_drop_operator_draw(tooltip, x, y);
   }
   else if (has_disabled_info) {
-    wm_drop_redalert_draw(drag->drop_state.disabled_info, x, y);
+    wm_drop_redalert_draw(*drag->drop_state.disabled_info, x, y);
   }
 }
 
