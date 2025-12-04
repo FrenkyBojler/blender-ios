@@ -1651,7 +1651,7 @@ struct ns_VertInTfloat {
 };
 #line 17
 #line 19
-                         void ns_vertex_function(
+           void ns_vertex_function(
 #line 22
                                                                  )
 { Resources srt;
@@ -1660,7 +1660,7 @@ struct ns_VertInTfloat {
 #line 24
 }
 
-                           void ns_fragment_function(
+             void ns_fragment_function(
 #line 29
                                                                           )
 { Resources srt;

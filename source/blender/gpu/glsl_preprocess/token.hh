@@ -14,7 +14,6 @@
 namespace blender::gpu::shader::parser {
 
 struct Scope;
-struct Parser;
 
 enum TokenType : char {
   Invalid = 0,

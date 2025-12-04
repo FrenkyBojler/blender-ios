@@ -2793,13 +2793,13 @@ class Preprocessor {
           parser.erase(attribute.scope());
 
           string condition = "defined(";
-          if (attr == "gpu::vertex_function") {
+          if (attr == "gpu::vertex_function" || attr == "vertex") {
             condition += "GPU_VERTEX_SHADER";
           }
-          else if (attr == "gpu::fragment_function") {
+          else if (attr == "gpu::fragment_function" || attr == "fragment") {
             condition += "GPU_FRAGMENT_SHADER";
           }
-          else if (attr == "gpu::compute_function") {
+          else if (attr == "gpu::compute_function" || attr == "compute") {
             condition += "GPU_COMPUTE_SHADER";
           }
           else {
@@ -3325,15 +3325,12 @@ class Preprocessor {
 
               if (attribute == "[vertex]") {
                 is_vertex_func = true;
-                parser.replace(attributes, "[gpu::vertex_function]");
               }
               else if (attribute == "[fragment]") {
                 is_fragment_func = true;
-                parser.replace(attributes, "[gpu::fragment_function]");
               }
               else if (attribute == "[compute]") {
                 is_compute_func = true;
-                parser.replace(attributes, "[gpu::compute_function]");
               }
               is_entry_point = true;
             }
