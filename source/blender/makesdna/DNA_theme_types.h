@@ -267,13 +267,13 @@ typedef struct ThemeUI {
   unsigned char icon_folder[4];
   /** Auto Keying indicator. */
   unsigned char icon_autokey[4];
-  char _pad3[4];
   /** Intensity of the border icons. >0 will render an border around themed
    * icons. */
   float icon_border_intensity;
   /* Panels. */
   float panel_roundness;
   unsigned char panel_header[4];
+  unsigned char panel_header_search_match[4];
   unsigned char panel_back[4];
   unsigned char panel_sub_back[4];
   unsigned char panel_outline[4];

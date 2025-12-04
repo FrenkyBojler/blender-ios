@@ -235,13 +235,14 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     copy_v4_v4_uchar(btheme->tui.wcol_tooltip.outline_sel,
                      U_theme_default.tui.wcol_tooltip.outline);
   }
-
+  if (!USER_VERSION_ATLEAST(501, 9)) {
+    FROM_DEFAULT_V4_UCHAR(tui.panel_header_search_match);
+  }
   if (!USER_VERSION_ATLEAST(500, 9)) {
     FROM_DEFAULT_V4_UCHAR(tui.panel_header);
     FROM_DEFAULT_V4_UCHAR(tui.panel_back);
     FROM_DEFAULT_V4_UCHAR(tui.panel_sub_back);
   }
-
   if (!USER_VERSION_ATLEAST(500, 12)) {
     FROM_DEFAULT_V4_UCHAR(space_node.syntaxs);
     FROM_DEFAULT_V4_UCHAR(space_node.syntaxb);

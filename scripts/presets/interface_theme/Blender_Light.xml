@@ -13,6 +13,7 @@
         widget_text_cursor="#3399e6"
         panel_roundness="0.4"
         panel_header="#ccccccff"
+        panel_header_search_match="#5680c2"
         panel_title="#1a1a1aff"
         panel_text="#1a1a1aff"
         panel_back="#ccccccff"
@@ -728,7 +729,6 @@
     </sequence_editor>
     <properties>
       <ThemeProperties
-        match="#5680c2"
         active_modifier="#5680c2ff"
         >
         <space>

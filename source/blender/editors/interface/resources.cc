@@ -274,6 +274,9 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
         case TH_PANEL_HEADER:
           cp = btheme->tui.panel_header;
           break;
+        case TH_PANEL_HEADER_SEARCH_MATCH:
+          cp = btheme->tui.panel_header_search_match;
+          break;
         case TH_PANEL_BACK:
           cp = btheme->tui.panel_back;
           break;

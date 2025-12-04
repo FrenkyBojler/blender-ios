@@ -1295,6 +1295,12 @@ static float rna_ThemeUI_roundness_get(PointerRNA *ptr)
   return tui->roundness * 2.0f;
 }
 
+static void rna_ThemeProperties_match_set(PointerRNA * /* ptr */, const float * /* values */) {}
+static void rna_ThemeProperties_match_get(PointerRNA * /* ptr */, float *values)
+{
+  values[0] = values[1] = values[2] = values[3] = 0.0f;
+}
+
 static void rna_ThemeUI_roundness_set(PointerRNA *ptr, float value)
 {
   uiWidgetColors *tui = (uiWidgetColors *)ptr->data;
@@ -2057,6 +2063,10 @@ static void rna_def_userdef_theme_ui(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "panel_header", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_ui_text(prop, "Panel Header", "");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
+  prop = RNA_def_property(srna, "panel_header_search_match", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_ui_text(prop, "Panel Header Search Match", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   prop = RNA_def_property(srna, "panel_title", PROP_FLOAT, PROP_COLOR_GAMMA);
@@ -3631,9 +3641,17 @@ static void rna_def_userdef_theme_space_buts(BlenderRNA *brna)
   RNA_def_struct_ui_text(srna, "Theme Properties", "Theme settings for the Properties");
 
   prop = RNA_def_property(srna, "match", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_float_funcs(
+      prop, "rna_ThemeProperties_match_get", "rna_ThemeProperties_match_set", nullptr);
+  RNA_def_property_deprecated(
+      prop,
+      "Unused but kept for compatibility reasons. Setting the property has no effect, and getting "
+      "it always returns a black color. This theme preference has been moved to "
+      "#ThemeUserInterface.panel_header_search_match.",
+      501,
+      600);
   RNA_def_property_array(prop, 3);
   RNA_def_property_ui_text(prop, "Search Match", "");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   rna_def_userdef_theme_spaces_main(srna);
 }

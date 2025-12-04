@@ -1144,7 +1144,9 @@ class USERPREF_PT_theme_interface_panel(ThemePanel, CenterAlignMixIn, Panel):
         flow = layout.grid_flow(row_major=False, columns=2, even_columns=True, even_rows=False, align=False)
 
         col = flow.column()
-        col.prop(ui, "panel_header", text="Header")
+        sub = col.column(align=True)
+        sub.prop(ui, "panel_header", text="Header")
+        sub.prop(ui, "panel_header_search_match", text="Search Match")
 
         col = col.column(align=True)
         col.prop(ui, "panel_back", text="Background")

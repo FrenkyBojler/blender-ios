@@ -280,6 +280,7 @@ const bTheme U_theme_default = {
     .icon_autokey = RGBA(0xab3c48ff),
     .panel_roundness = 0.4f,
     .panel_header = RGBA(0x3d3d3dff),
+    .panel_header_search_match = RGBA(0x4772b3ff),
     .panel_back = RGBA(0x3d3d3dff),
     .panel_sub_back = RGBA(0x0000001f),
     .panel_outline = RGBA(0xffffff11),
