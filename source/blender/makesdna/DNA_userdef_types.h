@@ -233,6 +233,7 @@ typedef struct UserDef_Experimental {
   char use_recompute_usercount_on_save_debug;
   char write_legacy_blend_file_format;
   char no_data_block_packing;
+  char use_paint_debug;
   char SANITIZE_AFTER_HERE;
   /* The following options are automatically sanitized (set to 0)
    * when the release cycle is not alpha. */
@@ -241,7 +242,7 @@ typedef struct UserDef_Experimental {
   char use_sculpt_texture_paint;
   char use_shader_node_previews;
   char use_geometry_nodes_lists;
-  char _pad[6];
+  char _pad[5];
 } UserDef_Experimental;
 
 #define USER_EXPERIMENTAL_TEST(userdef, member) (((userdef)->experimental).member)
