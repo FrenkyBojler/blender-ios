@@ -1553,6 +1553,7 @@ static wmOperatorStatus asset_edit_metadata_exec(bContext *C, wmOperator *op)
   }
 
   asset::catalogs_save_from_asset_reference(library, asset_reference);
+  asset_id->asset_data->runtime_flag &= ~ASSET_METADATA_UNSAVED_CHANGED;
 
   asset::refresh_asset_library_from_asset(C, *asset);
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_EDITED, nullptr);

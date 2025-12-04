@@ -218,6 +218,9 @@ static void rna_AssetMetaData_author_set(PointerRNA *ptr, const char *value)
   else {
     asset_data->author = nullptr;
   }
+  if (asset_data->runtime_flag & ASSET_METADATA_FLAG_EDITABLE) {
+    asset_data->runtime_flag |= ASSET_METADATA_UNSAVED_CHANGED;
+  }
 }
 
 static void rna_AssetMetaData_description_get(PointerRNA *ptr, char *value)
@@ -251,6 +254,9 @@ static void rna_AssetMetaData_description_set(PointerRNA *ptr, const char *value
   }
   else {
     asset_data->description = nullptr;
+  }
+  if (asset_data->runtime_flag & ASSET_METADATA_FLAG_EDITABLE) {
+    asset_data->runtime_flag |= ASSET_METADATA_UNSAVED_CHANGED;
   }
 }
 
@@ -286,6 +292,9 @@ static void rna_AssetMetaData_copyright_set(PointerRNA *ptr, const char *value)
   else {
     asset_data->copyright = nullptr;
   }
+  if (asset_data->runtime_flag & ASSET_METADATA_FLAG_EDITABLE) {
+    asset_data->runtime_flag |= ASSET_METADATA_UNSAVED_CHANGED;
+  }
 }
 
 static void rna_AssetMetaData_license_get(PointerRNA *ptr, char *value)
@@ -319,6 +328,9 @@ static void rna_AssetMetaData_license_set(PointerRNA *ptr, const char *value)
   }
   else {
     asset_data->license = nullptr;
+  }
+  if (asset_data->runtime_flag & ASSET_METADATA_FLAG_EDITABLE) {
+    asset_data->runtime_flag |= ASSET_METADATA_UNSAVED_CHANGED;
   }
 }
 
@@ -618,6 +630,15 @@ static void rna_def_asset_data(BlenderRNA *brna)
                            "Catalog Simple Name",
                            "Simple name of the asset's catalog, for debugging and "
                            "data recovery purposes");
+
+  prop = RNA_def_property(srna, "has_unsaved_changes", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "runtime_flag", ASSET_METADATA_UNSAVED_CHANGED);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(
+      prop,
+      "Has unsaved changes",
+      "Indicates that there are any changes to the metadata since the asset has "
+      "been imported or read from the file");
 }
 
 static void rna_def_asset_representation(BlenderRNA *brna)
