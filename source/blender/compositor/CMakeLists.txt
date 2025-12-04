@@ -116,6 +116,7 @@ set(SRC
   cached_resources/intern/keying_screen.cc
   cached_resources/intern/morphological_distance_feather_weights.cc
   cached_resources/intern/ocio_color_space_conversion_shader.cc
+  cached_resources/intern/temporal_history.cc
   cached_resources/intern/smaa_precomputed_textures.cc
   cached_resources/intern/symmetric_blur_weights.cc
   cached_resources/intern/symmetric_separable_blur_weights.cc
@@ -136,6 +137,7 @@ set(SRC
   cached_resources/COM_smaa_precomputed_textures.hh
   cached_resources/COM_symmetric_blur_weights.hh
   cached_resources/COM_symmetric_separable_blur_weights.hh
+  cached_resources/COM_temporal_history.hh
   cached_resources/COM_van_vliet_gaussian_coefficients.hh
 
   derived_resources/intern/denoised_auxiliary_pass.cc

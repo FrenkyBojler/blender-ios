@@ -7,13 +7,12 @@
  */
 
 #include "BLI_array.hh"
-#include "BLI_hash.hh"
-#include "BLI_map.hh"
 #include "BLI_math_vector_types.hh"
 
 #include "UI_interface.hh"
 
 #include "COM_node_operation.hh"
+#include "COM_temporal_history.hh"
 #include "COM_utilities.hh"
 
 #include "node_composite_util.hh"
@@ -110,72 +109,6 @@ static void cmp_node_temporal_denoise_declare(NodeDeclarationBuilder &b)
 }
 
 using namespace blender::compositor;
-
-/* Simple history buffer */
-struct HistoryKey {
-  const Scene *scene;
-  const bNodeTree *tree;
-  const bNode *node;
-
-  uint64_t hash() const
-  {
-    return blender::get_default_hash(scene, tree, node);
-  }
-
-  friend bool operator==(const HistoryKey &a, const HistoryKey &b)
-  {
-    return a.scene == b.scene && a.tree == b.tree && a.node == b.node;
-  }
-};
-
-struct HistoryEntry {
-  int last_frame = 0;
-  int stored_frames = 0;
-  int capacity_frames = 0;
-  int2 size = int2(0);
-  blender::Array<float4> buffer;        /* RGB history */
-  blender::Array<float4> motion_buffer; /* Motion vectors */
-  int head = -1;
-};
-
-static blender::Map<HistoryKey, HistoryEntry> history_map;
-
-static HistoryEntry &ensure_history_entry(Context &context,
-                                          const bNode &bnode,
-                                          const int2 &size,
-                                          const int current_frame,
-                                          const int history_frames,
-                                          bool &r_has_history)
-{
-  HistoryKey key{&context.get_scene(), &context.get_node_tree(), &bnode};
-  HistoryEntry &entry = history_map.lookup_or_add_default(key);
-
-  const bool size_changed = (entry.size != size);
-  const bool frame_jump = (entry.last_frame != 0 &&
-                           (current_frame < entry.last_frame ||
-                            current_frame > entry.last_frame + 1));
-  const bool capacity_changed = (entry.capacity_frames != history_frames);
-
-  r_has_history = (!size_changed && !frame_jump && !capacity_changed && entry.stored_frames > 0);
-
-  if (size_changed || capacity_changed) {
-    entry.size = size;
-    entry.capacity_frames = history_frames;
-    const int64_t pixel_count = int64_t(size.x) * size.y;
-    const int64_t buffer_size = pixel_count * history_frames;
-    entry.buffer.reinitialize(buffer_size);
-    entry.motion_buffer.reinitialize(buffer_size);
-    entry.stored_frames = 0;
-    entry.head = -1;
-  }
-  if (frame_jump) {
-    entry.stored_frames = 0;
-    entry.head = -1;
-  }
-
-  entry.last_frame = current_frame;
-  return entry;
-}
 
 /* RGB to Luma (Rec. 709) */
 static inline float rgb_to_luma(const float3 &rgb)
@@ -289,8 +222,8 @@ class TemporalDenoiseOperation : public NodeOperation {
     const int current_frame = context().get_frame_number();
 
     bool has_history = false;
-    HistoryEntry &entry = ensure_history_entry(
-        context(), this->bnode(), size, current_frame, history_frames, has_history);
+    HistoryEntry &entry = context().cache_manager().temporal_history.get(
+        context(), context().get_scene(), context().get_node_tree(), this->bnode(), size, current_frame, history_frames, has_history);
 
     const int64_t pixel_count = int64_t(size.x) * size.y;
     const int prev_head = entry.head;

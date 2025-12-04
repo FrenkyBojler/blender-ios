@@ -18,6 +18,7 @@
 #include "COM_smaa_precomputed_textures.hh"
 #include "COM_symmetric_blur_weights.hh"
 #include "COM_symmetric_separable_blur_weights.hh"
+#include "COM_temporal_history.hh"
 #include "COM_van_vliet_gaussian_coefficients.hh"
 
 namespace blender::compositor {
@@ -64,6 +65,7 @@ class StaticCacheManager {
   VanVlietGaussianCoefficientsContainer van_vliet_gaussian_coefficients;
   FogGlowKernelContainer fog_glow_kernels;
   ImageCoordinatesContainer image_coordinates;
+  TemporalHistoryContainer temporal_history;
 
  private:
   /* The cache manager should skip the next reset. See the skip_next_reset() method for more
