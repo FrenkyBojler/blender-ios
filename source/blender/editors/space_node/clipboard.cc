@@ -161,23 +161,15 @@ static wmOperatorStatus node_clipboard_copy_exec(bContext *C, wmOperator *op)
                             {(PartialWriteContext::IDAddOperations::SET_FAKE_USER |
                               PartialWriteContext::IDAddOperations::SET_CLIPBOARD_MARK)}));
 
+  strcpy(copy_tree->idname, node_tree->typeinfo->idname.c_str());
+  bke::node_tree_set_type(*copy_tree);
+
   /* Copy node interface to avoid losing links to Group Input and Group Output nodes.
    * Note: this doesn't create new interface items if they don't exist. */
   /* #bNodeTreeInterface::copy_data() allocates runtime memory, so we need to free it to avoid
    * memory leak. */
   copy_tree->tree_interface.free_data();
   copy_tree->tree_interface.copy_data(node_tree->tree_interface, LIB_ID_COPY_DEFAULT);
-
-  // todo(habib): set using ntree_set_typeinfo(ntree, node_tree_type_find(idname));
-  bNodeTree *dummy_ntree = blender::bke::node_tree_add_tree(
-      bmain, "DummyForTypeinfo", node_tree->typeinfo->idname);
-  // dummy_ntree->tree_interface.copy_data(node_tree->tree_interface, LIB_ID_COPY_DEFAULT);
-  node_copy_local(*node_tree, *dummy_ntree, true, float2(0), op->reports);
-
-  copy_tree->typeinfo = dummy_ntree->typeinfo;
-  copy_tree->type = dummy_ntree->typeinfo->type;
-  strcpy(copy_tree->idname, dummy_ntree->typeinfo->idname.c_str());
-  BKE_id_delete(bmain, &dummy_ntree->id);  // todo(habib): for debug only
 
   if (!node_copy_local(*node_tree, *copy_tree, true, float2(0), op->reports)) {
     return OPERATOR_CANCELLED;
@@ -195,21 +187,16 @@ static wmOperatorStatus node_clipboard_copy_exec(bContext *C, wmOperator *op)
     ID *id_dst = nullptr;
     const ID_Type id_type = GS((id_src)->name);
 
-    // todo(habib): doc
-    // todo(habib): verify all necessary IDs. Maybe invert the condition and consider Scene only?
-    if (ELEM(id_type, ID_SCE, ID_NT, ID_IM, ID_MC, ID_MSK) ||
-        (cb_data->cb_flag & IDWALK_CB_NEVER_NULL))
-    {
-      /* A scene may contain a compositing node trees which references the scene itself. Don't
+    const bool is_root_compositing_node_group = (id_type == ID_NT && id_src == &copy_tree->id);
+    if (is_root_compositing_node_group) {
+      /* A scene may contain a compositing node tree which references the scene itself. Don't
        * add compositing node trees in this case to avoid circular dependencies. */
-      const bool is_root_compositing_node_group = id_type == ID_NT && id_src == &copy_tree->id;
-      if (is_root_compositing_node_group) {
-        return IDWALK_RET_NOP;
-      }
-
-      id_dst = copy_buffer.id_add(
-          id_src, {PartialWriteContext::IDAddOperations::CLEAR_DEPENDENCIES}, nullptr);
+      return IDWALK_RET_NOP;
     }
+
+    id_dst = copy_buffer.id_add(
+        id_src, {PartialWriteContext::IDAddOperations::CLEAR_DEPENDENCIES}, nullptr);
+
     *cb_data->id_pointer = id_dst;
     return IDWALK_RET_NOP;
   };
