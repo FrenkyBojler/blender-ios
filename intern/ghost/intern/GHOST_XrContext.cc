@@ -115,7 +115,8 @@ void GHOST_XrContext::createOpenXRInstance(
 #endif
 
   getAPILayersToEnable(enabled_layers_);
-  getExtensionsToEnable(graphics_binding_types, enabled_extensions_);
+  getExtensionsToEnable(
+      graphics_binding_types, enabled_extensions_, create_info.applicationInfo.apiVersion);
   create_info.enabledApiLayerCount = enabled_layers_.size();
   create_info.enabledApiLayerNames = enabled_layers_.data();
   create_info.enabledExtensionCount = enabled_extensions_.size();
@@ -452,7 +453,8 @@ static const char *openxr_ext_name_from_wm_gpu_binding(GHOST_TXrGraphicsBinding 
  */
 void GHOST_XrContext::getExtensionsToEnable(
     const std::vector<GHOST_TXrGraphicsBinding> &graphics_binding_types,
-    std::vector<const char *> &r_ext_names)
+    std::vector<const char *> &r_ext_names,
+    XrVersion api_version)
 {
   std::vector<std::string_view> try_ext;
 
@@ -493,6 +495,11 @@ void GHOST_XrContext::getExtensionsToEnable(
 
   /* Meta/Facebook passthrough extension. */
   try_ext.push_back(XR_FB_PASSTHROUGH_EXTENSION_NAME);
+
+  /* Multi-vendor local floor extension (only include in OpenXR 1.0 as promoted in 1.1+). */
+  if (api_version < XR_MAKE_VERSION(1, 1, 0)) {
+    try_ext.push_back(XR_EXT_LOCAL_FLOOR_EXTENSION_NAME);
+  }
 
   r_ext_names.reserve(try_ext.size() + graphics_binding_types.size());
 
@@ -587,7 +594,7 @@ void GHOST_XrContext::startSession(const GHOST_XrSessionBeginInfo *begin_info)
   if (session_ == nullptr) {
     session_ = std::make_unique<GHOST_XrSession>(*this);
   }
-  session_->start(begin_info);
+  session_->start();
 }
 
 void GHOST_XrContext::endSession()
