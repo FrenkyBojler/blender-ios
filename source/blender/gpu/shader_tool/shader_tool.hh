@@ -425,12 +425,10 @@ struct Source {
  */
 class Preprocessor {
   using uint64_t = std::uint64_t;
-  using report_callback = std::function<void(
-      int error_line, int error_char, std::string error_line_string, const char *error_str)>;
+  using report_callback = parser::report_callback;
+  using Parser = shader::parser::IntermediateForm;
 
   metadata::Source metadata;
-
-  using Parser = shader::parser::IntermediateForm;
 
  public:
   enum SourceLanguage {
@@ -575,36 +573,7 @@ class Preprocessor {
   }
 
  private:
-  using regex_callback = std::function<void(const std::smatch &)>;
-  using regex_callback_with_line_count = std::function<void(const std::smatch &, int64_t)>;
-
-  /* Helper to make the code more readable in parsing functions. */
-  void regex_global_search(const std::string &str,
-                           const std::regex &regex,
-                           regex_callback callback)
-  {
-    using namespace std;
-    string::const_iterator it = str.begin();
-    for (smatch match; regex_search(it, str.end(), match, regex); it = match.suffix().first) {
-      callback(match);
-    }
-  }
-
-  void regex_global_search(const std::string &str,
-                           const std::regex &regex,
-                           regex_callback_with_line_count callback)
-  {
-    using namespace std;
-    int64_t line = 1;
-    regex_global_search(str, regex, [&line, &callback](const std::smatch &match) {
-      line += line_count(match.prefix().str());
-      callback(match, line);
-      line += line_count(match[0].str());
-    });
-  }
-
-  template<typename ReportErrorF>
-  std::string remove_comments(const std::string &str, const ReportErrorF &report_error)
+  std::string remove_comments(const std::string &str, const report_callback &report_error)
   {
     std::string out_str = str;
     {
@@ -1993,31 +1962,6 @@ class Preprocessor {
     return hash_32;
   }
 
-  void static_strings_parsing(const std::string &str)
-  {
-    using namespace metadata;
-    /* Matches any character inside a pair of un-escaped quote. */
-    std::regex regex(R"("(?:[^"])*")");
-    regex_global_search(str, regex, [&](const std::smatch &match) {
-      std::string format = match[0].str();
-      metadata.printf_formats.emplace_back(metadata::PrintfFormat{hash_string(format), format});
-    });
-  }
-
-  std::string static_strings_mutation(std::string str)
-  {
-    /* Replaces all matches by the respective string hash. */
-    for (const metadata::PrintfFormat &format : metadata.printf_formats) {
-      const std::string &str_var = format.format;
-      std::regex escape_regex(R"([\\\.\^\$\+\(\)\[\]\{\}\|\?\*])");
-      std::string str_regex = std::regex_replace(str_var, escape_regex, "\\$&");
-
-      std::regex regex(str_regex);
-      str = std::regex_replace(str, regex, std::to_string(hash_string(str_var)) + 'u');
-    }
-    return str;
-  }
-
   /* Move all method definition outside of struct definition blocks. */
   void resource_table_parsing(Parser &parser, report_callback report_error)
   {
@@ -2920,18 +2864,6 @@ class Preprocessor {
     parser.insert_after(scope.start().line_end() + 1, guard_start + line_start);
     parser.insert_before(scope.end().line_start(), guard_else + guard_end + line_end);
   };
-
-  std::string guarded_scope_mutation(std::string content, int64_t line_start, std::string check)
-  {
-    int64_t line_end = line_start + line_count(content);
-    std::string guarded_cope;
-    guarded_cope += "#if " + check + "\n";
-    guarded_cope += "#line " + std::to_string(line_start) + "\n";
-    guarded_cope += content;
-    guarded_cope += "#endif\n";
-    guarded_cope += "#line " + std::to_string(line_end) + "\n";
-    return guarded_cope;
-  }
 
   void enum_macro_injection(Parser &parser, bool is_shared_file, report_callback report_error)
   {
