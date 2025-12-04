@@ -24,6 +24,7 @@
 #include "BKE_geometry_set.hh"
 #include "BKE_grease_pencil.h"
 #include "BKE_grease_pencil.hh"
+#include "BKE_grease_pencil_shapes.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
@@ -463,99 +464,9 @@ static void ensure_shape_map_and_offset_cache(const Drawing &drawing)
   drawing.runtime->shape_cache.ensure([&](std::optional<ShapeCache> &r_shape_cache) {
     const CurvesGeometry &curves = drawing.strokes();
     const bke::AttributeAccessor attributes = curves.attributes();
+
     const VArray<int> shape_ids = *attributes.lookup<int>("shape_id", bke::AttrDomain::Curve);
-
-    if (!shape_ids) {
-      r_shape_cache = std::nullopt;
-      return;
-    }
-
-    IndexMaskMemory memory;
-    /* Zero is a special value, every zero gets it's own shape. */
-    const IndexMask isolated_shape_ids = IndexMask::from_predicate(
-        curves.curves_range(), GrainSize(4096), memory, [&](const int64_t curve_i) {
-          return shape_ids[curve_i] == 0;
-        });
-
-    /* If every shape is isolated, skip storing the data. */
-    if (isolated_shape_ids.size() == curves.curves_num()) {
-      r_shape_cache = std::nullopt;
-      return;
-    }
-
-    const IndexMask non_isolated_shape_ids = isolated_shape_ids.complement(curves.curves_range(),
-                                                                           memory);
-
-    Vector<Vector<int>> indices_by_shape;
-    Map<int, int> shape_indexing;
-
-    /* Create shapes from indices. */
-    non_isolated_shape_ids.foreach_index(GrainSize(256), [&](const int64_t curve_i) {
-      const int shape_id = shape_ids[curve_i];
-
-      if (shape_indexing.add(shape_id, indices_by_shape.size())) {
-        indices_by_shape.append(Vector<int>({curve_i}));
-      }
-      else {
-        indices_by_shape[shape_indexing.lookup(shape_id)].append(curve_i);
-      }
-    });
-
-    Vector<int> r_shape_offsets(indices_by_shape.size() + isolated_shape_ids.size() + 1);
-    Vector<int> r_shape_map(curves.curves_num());
-
-    const Vector<IndexRange> ranges = isolated_shape_ids.to_ranges();
-
-    int curve_i = 0;
-    int shape_index = 0;
-    int isolated_range_index = 0;
-    int non_isolated_index = 0;
-
-    /* Create the shape data by combining the isolated and non-isolated data.*/
-    while (curve_i < curves.curves_num()) {
-      if (isolated_range_index < ranges.size()) {
-        const IndexRange &range = ranges[isolated_range_index];
-        const bool isolated = curve_i >= range.first();
-
-        if (isolated) {
-          array_utils::fill_index_range<int>(
-              r_shape_map.as_mutable_span().slice(IndexRange(curve_i, range.size())),
-              range.first());
-          r_shape_offsets.as_mutable_span().slice(IndexRange(shape_index, range.size())).fill(1);
-
-          curve_i += range.size();
-          shape_index += range.size();
-          isolated_range_index++;
-          continue;
-        }
-      }
-
-      const Span<int> shape_indices = indices_by_shape[non_isolated_index];
-
-      r_shape_map.as_mutable_span()
-          .slice(IndexRange(curve_i, shape_indices.size()))
-          .copy_from(shape_indices);
-      r_shape_offsets[shape_index] = shape_indices.size();
-      curve_i += shape_indices.size();
-      shape_index++;
-      non_isolated_index++;
-    }
-
-    OffsetIndices<int> shape_offsets = offset_indices::accumulate_counts_to_offsets(
-        r_shape_offsets);
-
-    /* If every shape is just a curve, skip storing the data. */
-    if (shape_offsets.size() == curves.curves_num()) {
-      r_shape_cache = std::nullopt;
-      return;
-    }
-
-    ShapeCache shape_cache;
-
-    shape_cache.shape_map = std::move(r_shape_map);
-    shape_cache.shape_offsets = std::move(r_shape_offsets);
-
-    r_shape_cache = std::make_optional(shape_cache);
+    r_shape_cache = shape_cache_from_shape_ids(curves.curves_num(), shape_ids);
   });
 }
 
