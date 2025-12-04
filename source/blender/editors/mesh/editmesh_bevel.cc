@@ -579,15 +579,18 @@ static void edbm_bevel_mouse_set_value(wmOperator *op, const wmEvent *event)
     opdata->shift_value[vmode] = -1.0f;
   }
 
-  bool is_snapping = (event->modifier & KM_CTRL) != 0;
-  bool use_precision = (event->modifier & KM_SHIFT) != 0;
+  const bool is_snapping = (event->modifier & KM_CTRL) != 0;
+  
+  if (is_snapping) {
 
-  const float increment_factor = (use_precision) ?
-                                     value_snap_increments[vmode] * increments_precision_factors[vmode] :
-                                     value_snap_increments[vmode];
+    const bool use_precision = (event->modifier & KM_SHIFT) != 0;
 
-  if (is_snapping && increment_factor != 0.0f){
-    value = increment_factor * roundf(value / increment_factor);
+    const float increment_factor = (use_precision) ? value_snap_increments[vmode] *
+                                                         increments_precision_factors[vmode] :
+                                                     value_snap_increments[vmode];
+    if (increment_factor != 0.0f) {
+      value = increment_factor * roundf(value / increment_factor);
+    }
   }
 
   /* Clamp according to value mode, and store value back. */
