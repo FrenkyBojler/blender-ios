@@ -573,7 +573,7 @@ static void image_view_zoom_exit(bContext *C, wmOperator *op, bool cancel)
   if (cancel) {
     sima->zoom = vpd->zoom;
     ED_region_tag_redraw(CTX_wm_region(C));
-    WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
+    WM_event_add_notifier(C, NC_IMAGE | NA_RESIZED, nullptr);
   }
 
   ED_area_status_text(vpd->area, nullptr);
@@ -597,7 +597,7 @@ static wmOperatorStatus image_view_zoom_exec(bContext *C, wmOperator *op)
   sima_zoom_set_factor(sima, region, RNA_float_get(op->ptr, "factor"), nullptr, false);
 
   ED_region_tag_redraw(region);
-  WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_IMAGE | NA_RESIZED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -633,7 +633,7 @@ static wmOperatorStatus image_view_zoom_invoke(bContext *C, wmOperator *op, cons
                   location,
                   (use_cursor_init && (U.uiflag & USER_ZOOM_TO_MOUSEPOS)));
     ED_region_tag_redraw(region);
-    WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
+    WM_event_add_notifier(C, NC_IMAGE | NA_RESIZED, nullptr);
 
     return OPERATOR_FINISHED;
   }
@@ -825,7 +825,7 @@ static wmOperatorStatus image_view_ndof_invoke(bContext *C,
   sima->yof += pan_vec[1];
 
   ED_region_tag_redraw(region);
-  WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_IMAGE | NA_RESIZED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -869,7 +869,7 @@ static wmOperatorStatus image_view_all_exec(bContext *C, wmOperator *op)
   image_view_all(sima, region, op);
 
   ED_region_tag_redraw(region);
-  WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_IMAGE | NA_RESIZED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1188,7 +1188,7 @@ static wmOperatorStatus image_view_zoom_ratio_exec(bContext *C, wmOperator *op)
   sima->yof = int(sima->yof);
 
   ED_region_tag_redraw(region);
-  WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_IMAGE | NA_RESIZED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1255,7 +1255,7 @@ static wmOperatorStatus image_view_zoom_border_exec(bContext *C, wmOperator *op)
   }
 
   ED_region_tag_redraw(region);
-  WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
+  WM_event_add_notifier(C, NC_IMAGE | NA_RESIZED, nullptr);
 
   return OPERATOR_FINISHED;
 }
