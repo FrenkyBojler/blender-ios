@@ -118,6 +118,18 @@ class AssetRepresentation : NonCopyable, NonMovable {
   ID *local_id() const;
   /** Returns if this asset is stored inside this current file, and as such fully editable. */
   bool is_local_id() const;
+  /**
+   * The asset is stored in a probably-editable .asset.blend file.
+   *
+   * NOTE: This is suitable for poll functions (which should not open other files). The actual
+   * operator should still check that `G_FILE_ASSET_EDIT_FILE` / `Main::is_asset_edit_file` is set
+   * on the `.asset.blend` file (no utility function for this exists yet).
+   *
+   * If the asset is already imported, this check can be done via
+   * `bke::asset_edit_id_is_editable(asset_id)` and `bke::asset_edit_id_is_writable(asset_id)`.
+   */
+  bool is_potentially_editable_asset_blend() const;
+
   AssetLibrary &owner_asset_library() const;
 };
 
