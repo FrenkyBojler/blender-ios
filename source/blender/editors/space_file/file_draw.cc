@@ -781,6 +781,9 @@ static void file_draw_special_image(const FileDirEntry *file,
   else if (file_type_icon == ICON_NETWORK_DRIVE) {
     icon_large = ICON_NETWORK_DRIVE_LARGE;
   }
+  else if (file_type_icon == ICON_USB_DRIVE) {
+    icon_large = ICON_USB_DRIVE_LARGE;
+  }
   else if (file_type_icon == ICON_DISC) {
     icon_large = ICON_DISC_LARGE;
   }
@@ -832,6 +835,7 @@ static void file_draw_special_image(const FileDirEntry *file,
             ICON_DISK_DRIVE,
             ICON_EXTERNAL_DRIVE,
             ICON_NETWORK_DRIVE,
+            ICON_USB_DRIVE,
             ICON_DISC))
   {
     /* Small icon in the middle of large image, scaled to fit container and UI scale */
