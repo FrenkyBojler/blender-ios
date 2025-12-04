@@ -119,12 +119,12 @@ static void sima_zoom_set(
   float comp_screen = std::max(BLI_rcti_size_x(&region->winrct), BLI_rcti_size_y(&region->winrct));
   /* Stop when image size is less than minzoom ratio compared to screen size. */
   if (comp_image * sima->zoom < comp_screen * sima_minzoom_image_over_screen &&
-      sima->zoom < oldzoom) { 
+      sima->zoom < oldzoom)
+  {
     sima->zoom = oldzoom;
   }
   /* Stop when max relative screen bounds is smaller than apparent pixel size. */
-  else if (comp_screen * sima_maxzoom_pixel_over_screen <= sima->zoom &&
-      sima->zoom > oldzoom) {
+  else if (comp_screen * sima_maxzoom_pixel_over_screen <= sima->zoom && sima->zoom > oldzoom) {
     sima->zoom = oldzoom;
   }
 
