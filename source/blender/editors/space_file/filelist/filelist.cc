@@ -2153,9 +2153,9 @@ static int filelist_add_userfonts_regpath(HKEY hKeyParent, LPCSTR subkeyName, Li
   DWORD index = 0;
   /* Value name and data buffers (ANSI). */
   TCHAR KeyName[255];
-  DWORD KeyNameLen = 255;
+  DWORD KeyNameLen = sizeof(KeyName);
   TCHAR KeyValue[FILE_MAX];
-  DWORD KeyValueLen = FILE_MAX;
+  DWORD KeyValueLen = sizeof(KeyValue);
   DWORD valueType;
 
   /* Enumerate values. */
