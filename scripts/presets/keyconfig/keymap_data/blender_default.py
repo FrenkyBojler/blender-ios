@@ -1011,7 +1011,7 @@ def km_view2d_buttons_list(_params):
     return keymap
 
 
-def km_user_interface(_params):
+def km_user_interface(params):
     items = []
     keymap = (
         "User Interface",
@@ -1056,6 +1056,7 @@ def km_user_interface(_params):
          {"properties": [("extend", True)]}),
         ("ui.view_item_select", {"type": 'LEFTMOUSE', "value": 'PRESS', "shift": True},
          {"properties": [("range_select", True)]}),
+        *_template_items_select_actions(params, "ui.view_item_select_all"),
         ("ui.view_item_rename", {"type": 'F2', "value": 'PRESS'}, None),
         ("ui.view_item_delete", {"type": 'X', "value": 'PRESS'}, None),
         ("ui.view_item_delete", {"type": 'DEL', "value": 'PRESS'}, None),

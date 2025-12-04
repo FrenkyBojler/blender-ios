@@ -67,6 +67,7 @@
 #include "ED_object.hh"
 #include "ED_outliner.hh"
 #include "ED_paint.hh"
+#include "ED_select_utils.hh"
 #include "ED_undo.hh"
 
 /* for Copy As Driver */
@@ -2914,6 +2915,65 @@ static void UI_OT_view_item_delete(wmOperatorType *ot)
 
   ot->flag = OPTYPE_INTERNAL;
 }
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name (De)select All Operator
+ * \{ */
+
+static wmOperatorStatus ui_view_item_select_all_exec(bContext *C, wmOperator *op)
+{
+  ARegion &region = *CTX_wm_region(C);
+  AbstractView *view = get_view_focused(C);
+
+  if (view == nullptr || !view->is_multiselect_supported()) {
+    return OPERATOR_CANCELLED;
+  }
+
+  int action = RNA_enum_get(op->ptr, "action");
+  if (action == SEL_TOGGLE) {
+    bool any_selected = false;
+    view->foreach_view_item([&](AbstractViewItem &item) {
+      if (item.is_selected()) {
+        any_selected = true;
+      }
+    });
+    action = any_selected ? SEL_DESELECT : SEL_SELECT;
+  }
+
+  view->foreach_view_item([&](AbstractViewItem &item) {
+    switch (action) {
+      case SEL_SELECT:
+        item.set_selected(true);
+        break;
+      case SEL_DESELECT:
+        item.set_selected(false);
+        break;
+      case SEL_INVERT:
+        item.set_selected(!item.is_selected());
+        break;
+    }
+  });
+
+  ED_region_tag_redraw(&region);
+  return OPERATOR_FINISHED;
+}
+
+static void UI_OT_view_item_select_all(wmOperatorType *ot)
+{
+  ot->name = "(De)select All";
+  ot->idname = "UI_OT_view_item_select_all";
+  ot->description = "Change selection of all items";
+
+  ot->exec = ui_view_item_select_all_exec;
+  ot->poll = ui_view_focused_poll;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  WM_operator_properties_select_all(ot);
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -3019,6 +3079,7 @@ void ED_operatortypes_ui()
   WM_operatortype_append(UI_OT_view_item_rename);
   WM_operatortype_append(UI_OT_view_item_select);
   WM_operatortype_append(UI_OT_view_item_delete);
+  WM_operatortype_append(UI_OT_view_item_select_all);
 
   WM_operatortype_append(UI_OT_override_add_button);
   WM_operatortype_append(UI_OT_override_remove_button);
