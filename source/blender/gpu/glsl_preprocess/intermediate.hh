@@ -85,15 +85,18 @@ struct IntermediateForm {
     parse(report_error);
   }
 
+  /* Main access operator. Returns the root scope (aka global scope). */
   Scope operator()() const
   {
     return Scope::from_position(&data_, 0);
   }
 
+  /* Access internal string without applying pending mutations. */
   std::string substr_range_inclusive(size_t start, size_t end)
   {
     return data_.str.substr(start, end - start + 1);
   }
+  /* Access internal string without applying pending mutations. */
   std::string substr_range_inclusive(Token start, Token end)
   {
     return substr_range_inclusive(start.str_index_start(), end.str_index_last());
@@ -196,6 +199,16 @@ struct IntermediateForm {
     erase(scope.start(), scope.end());
   }
 
+  void insert_before(size_t at, const std::string &content)
+  {
+    IndexRange range = IndexRange(at, 0);
+    mutations_.emplace_back(range, content);
+  }
+  void insert_before(Token at, const std::string &content)
+  {
+    insert_before(at.str_index_start(), content);
+  }
+
   void insert_after(size_t at, const std::string &content)
   {
     IndexRange range = IndexRange(at + 1, 0);
@@ -215,6 +228,8 @@ struct IntermediateForm {
     insert_line_number(at.str_index_last(), line);
   }
 
+  /* Insert a preprocessor directive after the given token.
+   * This also insert a line directive to keep correct error reporting. */
   void insert_directive(Token at, const std::string directive)
   {
     insert_after(at, "\n" + directive + "\n");
@@ -226,19 +241,11 @@ struct IntermediateForm {
     insert_after(at, std::string(spaces, ' '));
   }
 
-  void insert_before(size_t at, const std::string &content)
-  {
-    IndexRange range = IndexRange(at, 0);
-    mutations_.emplace_back(range, content);
-  }
-  void insert_before(Token at, const std::string &content)
-  {
-    insert_before(at.str_index_start(), content);
-  }
-
   /* Return true if any mutation was applied. */
   bool only_apply_mutations();
 
+  /* Apply pending mutation and parse the resulting string.
+   * Return true if any mutation was applied. */
   bool apply_mutations()
   {
     bool applied = only_apply_mutations();
