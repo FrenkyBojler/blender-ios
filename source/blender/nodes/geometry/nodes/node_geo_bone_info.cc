@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_math_matrix.hh"
+
 #include "BKE_action.hh"
 #include "BKE_armature.hh"
 
@@ -19,9 +21,13 @@ static void node_declare(NodeDeclarationBuilder &b)
       .description("Name of the bone to retrieve");
 
   b.add_output<decl::Matrix>("Pose").description(
-      "Evaluated transformation of the bone on armature space");
+      "Evaluated final transform of the bone in armature space");
+  b.add_output<decl::Matrix>("Local Pose")
+      .description("Difference between the pose and rest pose relative to the parent bone");
+  b.add_output<decl::Matrix>("Transform Pose")
+      .description("Matrix representing the bone's location, rotation, and scale properties");
   b.add_output<decl::Matrix>("Rest Pose")
-      .description("Original transformation of the bone as set in edit mode in armature space");
+      .description("Original transform of the bone in armature space, defined in edit mode");
   b.add_output<decl::Float>("Rest Length").description("Original length of the bone");
 }
 
@@ -54,9 +60,25 @@ static void node_geo_exec(GeoNodeExecParams params)
     params.error_message_add(NodeWarningType::Error, TIP_("Bone not found"));
     return;
   }
+  bPoseChannel *parent_pchan = BKE_pose_channel_find_name(object->pose, bone_name.c_str());
   Bone *bone = pchan->bone;
-  params.set_output("Pose", float4x4(pchan->pose_mat));
-  params.set_output("Rest Pose", float4x4(bone->arm_mat));
+  const float4x4 pose = float4x4(pchan->pose_mat);
+  const float4x4 rest_pose = float4x4(bone->arm_mat);
+
+  const float4x4 parent_pose = pchan->parent ? float4x4(pchan->parent->pose_mat) :
+                                               float4x4::identity();
+  const float4x4 parent_rest_pose = bone->parent ? float4x4(bone->parent->arm_mat) :
+                                                   float4x4::identity();
+  const float4x4 local_pose = math::invert(rest_pose) * parent_rest_pose *
+                              math::invert(parent_pose) * pose;
+
+  float4x4 transform_pose;
+  BKE_pchan_to_mat4(pchan, transform_pose.ptr());
+
+  params.set_output("Pose", pose);
+  params.set_output("Local Pose", local_pose);
+  params.set_output("Transform Pose", transform_pose);
+  params.set_output("Rest Pose", rest_pose);
   params.set_output("Rest Length", bone->length);
 }
 
