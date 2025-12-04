@@ -460,7 +460,7 @@ class Preprocessor {
   /* Takes a whole source file and output processed source. */
   std::string process(SourceLanguage language,
                       std::string str,
-                      const std::string &filename,
+                      const std::string &filepath,
                       bool do_parse_function,
                       bool do_small_type_linting,
                       report_callback report_error,
@@ -470,6 +470,9 @@ class Preprocessor {
       report_error(0, 0, "", "Unknown file type");
       return "";
     }
+
+    const std::string filename = std::regex_replace(filepath, std::regex(R"((?:.*)\/(.*))"), "$1");
+
     str = remove_comments(str, report_error);
     if (language == BLENDER_GLSL || language == CPP) {
       str = disabled_code_mutation(str, report_error);
@@ -559,8 +562,9 @@ class Preprocessor {
 #endif
     str = argument_decorator_macro_injection(str);
     str = array_constructor_macro_injection(str);
+    str = line_directive_prefix(filename) + str;
     r_metadata = metadata;
-    return line_directive_prefix(filename) + str;
+    return str;
   }
 
   /* Variant use for python shaders. */
@@ -1871,11 +1875,10 @@ class Preprocessor {
 
   void parse_builtins(const std::string &str, const std::string &filename)
   {
-    const bool skip_drw_debug = filename.find("draw_debug_draw_lib.glsl") != std::string::npos ||
-                                filename.find("draw_debug_infos.hh") != std::string::npos ||
-                                filename.find("draw_debug_draw_display_vert.glsl") !=
-                                    std::string::npos ||
-                                filename.find("draw_shader_shared.hh") != std::string::npos;
+    const bool skip_drw_debug = filename == "draw_debug_draw_lib.glsl" ||
+                                filename == "draw_debug_infos.hh" ||
+                                filename == "draw_debug_draw_display_vert.glsl" ||
+                                filename == "draw_shader_shared.hh";
     using namespace metadata;
     /* TODO: This can trigger false positive caused by disabled #if blocks. */
     std::string tokens[] = {"gl_FragCoord",
@@ -1936,10 +1939,8 @@ class Preprocessor {
     parser.apply_mutations();
   }
 
-  void assert_processing(Parser &parser, const std::string &filepath, report_callback report_error)
+  void assert_processing(Parser &parser, const std::string &filename, report_callback report_error)
   {
-    std::string filename = std::regex_replace(filepath, std::regex(R"((?:.*)\/(.*))"), "$1");
-
     using namespace std;
     using namespace shader::parser;
 
@@ -2693,14 +2694,12 @@ class Preprocessor {
   }
 
   void pipeline_parse_and_remove(Parser &parser,
-                                 const std::string &filepath,
+                                 const std::string &filename,
                                  report_callback /*report_error*/)
   {
     using namespace std;
     using namespace shader::parser;
     using namespace metadata;
-
-    const std::string filename = std::regex_replace(filepath, std::regex(R"((?:.*)\/(.*))"), "$1");
 
     auto process_compilation_constants = [&](Token tok) {
       string create_info_decl;
@@ -3637,15 +3636,11 @@ class Preprocessor {
     });
   }
 
-  std::string line_directive_prefix(const std::string &filepath)
+  std::string line_directive_prefix(const std::string &filename)
   {
-    std::string filename = std::regex_replace(filepath, std::regex(R"((?:.*)\/(.*))"), "$1");
-
-    std::stringstream suffix;
     /* NOTE: This is not supported by GLSL. All line directives are muted at runtime and the
      * sources are scanned after error reporting for the locating the muted line. */
-    suffix << "#line 1 \"" << filename << "\"\n";
-    return suffix.str();
+    return "#line 1 \"" + filename + "\"\n";
   }
 
   /* Made public for unit testing purpose. */
