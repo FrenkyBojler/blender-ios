@@ -2186,14 +2186,18 @@ void SEQUENCER_OT_box_blade(wmOperatorType *ot)
                   "ignore_selection",
                   true,
                   "Ignore Selection",
-                  "Make cut even if strip is not selected preserving selection state after cut");
+                  "In box blade mode, make cuts to all strips, even if they are not selected");
   RNA_def_boolean(ot->srna,
                   "ignore_connections",
                   false,
                   "Ignore Connections",
                   "Don't propagate split to connected strips");
-  RNA_def_boolean(
-      ot->srna, "remove_gaps", true, "Remove Gaps", "Close gaps between cutted strips");
+  RNA_def_boolean(ot->srna,
+                  "remove_gaps",
+                  true,
+                  "Remove Gaps",
+                  "In box blade mode, close gaps between cut strips, rippling later strips on the "
+                  "same channel");
 }
 
 /** \} */
