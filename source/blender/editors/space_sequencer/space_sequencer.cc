@@ -683,22 +683,26 @@ static void sequencer_main_cursor(wmWindow *win, ScrArea *area, ARegion *region)
   UI_view2d_region_to_view(
       &region->v2d, mouse_co_region[0], mouse_co_region[1], &mouse_co_view[0], &mouse_co_view[1]);
 
-  if (STREQ(tref->idname, "builtin.blade")) {
-    wmcursor = WM_CURSOR_BLADE;
-    WM_cursor_set(win, wmcursor);
-    return;
-  }
-  if (STREQ(tref->idname, "builtin.slip")) {
+  if (STREQ(tref->idname, "builtin.blade") || STREQ(tref->idname, "builtin.slip")) {
     int mval[2] = {int(mouse_co_region[0]), int(mouse_co_region[1])};
     Strip *strip = strip_under_mouse_get(scene, v2d, mval);
     if (strip != nullptr) {
       ListBase *channels = seq::channels_displayed_get(ed);
       const bool locked = seq::transform_is_locked(channels, strip);
-      if (STREQ(tref->idname, "builtin.slip")) {
+      if (STREQ(tref->idname, "builtin.blade")) {
+        wmcursor = locked ? WM_CURSOR_STOP : WM_CURSOR_BLADE;
+      }
+      else {
         wmcursor = (locked || seq::transform_single_image_check(strip)) ? WM_CURSOR_STOP :
                                                                           WM_CURSOR_SLIP;
       }
     }
+    else if (STREQ(tref->idname, "builtin.blade")) {
+      /* For blade tool, show blade cursor even when `strip_under_mouse_get` returns `nullptr`.
+       * This is because the drag starting position for box blade can be in empty space. */
+      wmcursor = WM_CURSOR_BLADE;
+    }
+
     WM_cursor_set(win, wmcursor);
     return;
   }
