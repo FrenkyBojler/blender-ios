@@ -9,3 +9,4 @@ Referenced by issue #81190, Strange edge marks after Merge by Distance
 Referenced by issue #81060, Vertex Slide and Loop Cut and Slide tools breaks the UVs and Vertex Colors after topology changes [new or deleted] (if CustomSplitNormals are present)
 Referenced by issue #78766, Blender crashes after deleting vertices with Custom Normals
 Referenced by issue #68892,  Custom normals polishing
+Referenced by pull request #151125, Fix #151083: Separate by Material breaks custom normals
