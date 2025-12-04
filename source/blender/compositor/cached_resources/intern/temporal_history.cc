@@ -6,6 +6,8 @@
 
 #include "COM_context.hh"
 
+#include <stdio.h>
+
 namespace blender::compositor {
 
 uint64_t TemporalHistoryKey::hash() const
@@ -20,6 +22,9 @@ bool operator==(const TemporalHistoryKey &a, const TemporalHistoryKey &b)
 
 void TemporalHistoryContainer::reset()
 {
+  printf("TD_TEMPORAL_HISTORY_RESET: container=%p size_before=%lld\n",
+         (void *)this,
+         (long long)map_.size());
   /* First, delete all resources that are no longer needed. */
   map_.remove_if([](auto item) { return !item.value->needed; });
 
@@ -44,11 +49,30 @@ HistoryEntry &TemporalHistoryContainer::get(Context & /*context*/,
   key.tree = &tree;
   key.node = &bnode;
 
-  auto &history_ptr = map_.lookup_or_add_cb(
-      key, []() { return std::make_unique<TemporalHistory>(); });
+  auto &history_ptr = map_.lookup_or_add_cb(key, [&]() {
+    printf("TD_TEMPORAL_HISTORY_ALLOC: container=%p map_size_before=%lld\n",
+           (void *)this,
+           (long long)map_.size());
+    return std::make_unique<TemporalHistory>();
+  });
+
+  printf("TD_TEMPORAL_HISTORY_MAP_AFTER: container=%p map_size_after=%lld\n",
+         (void *)this,
+         (long long)map_.size());
 
   TemporalHistory &history = *history_ptr;
   HistoryEntry &entry = history.entry;
+
+  printf("TD_TEMPORAL_HISTORY_KEY: scene=%p tree=%p node=%p history=%p size_before=(%d,%d) cap_before=%d stored_before=%d last_before=%d\n",
+         (const void *)key.scene,
+         (const void *)key.tree,
+         (const void *)key.node,
+         (const void *)&history,
+         entry.size.x,
+         entry.size.y,
+         entry.capacity_frames,
+         entry.stored_frames,
+         entry.last_frame);
 
   const bool size_changed = (entry.size != size);
   const bool frame_jump = (entry.last_frame != 0 &&
@@ -57,6 +81,18 @@ HistoryEntry &TemporalHistoryContainer::get(Context & /*context*/,
   const bool capacity_changed = (entry.capacity_frames != history_frames);
 
   r_has_history = (!size_changed && !frame_jump && !capacity_changed && entry.stored_frames > 0);
+
+  printf("TD_TEMPORAL_HISTORY: size=(%d,%d) frame=%d history_frames=%d size_changed=%d frame_jump=%d capacity_changed=%d stored=%d last=%d has_history=%d\n",
+         size.x,
+         size.y,
+         current_frame,
+         history_frames,
+         int(size_changed),
+         int(frame_jump),
+         int(capacity_changed),
+         entry.stored_frames,
+         entry.last_frame,
+         int(r_has_history));
 
   if (size_changed || capacity_changed) {
     entry.size = size;

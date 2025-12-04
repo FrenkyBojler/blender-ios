@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <memory>
+
 #include "BLI_array.hh"
 #include "BLI_hash.hh"
 #include "BLI_map.hh"
@@ -45,6 +47,9 @@ class TemporalHistory : public CachedResource {
 };
 
 class TemporalHistoryContainer : public CachedResourceContainer {
+ private:
+  Map<TemporalHistoryKey, std::unique_ptr<TemporalHistory>> map_;
+
  public:
   void reset() override;
 
