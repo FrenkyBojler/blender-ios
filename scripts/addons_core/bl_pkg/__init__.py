@@ -508,12 +508,7 @@ def _remote_asset_libraries_sync_done(downloader: _RemoteAssetListingDownloader)
             case DownloadStatus.FAILED:
                 wm.asset_library_status_failed_loading(downloader.remote_url, message=downloader.error_message)
     finally:
-        # print("\033[38;5;214mSync complete, press ENTER to unlock the mutex\033[0m")
-        # input(">")
-
         sync_mutex.mutex_unlock(downloader.local_path)
-
-        # print("\033[92mMutex released!\033[0m")
 
 
 def _remote_asset_libraries_sync_update(downloader: _RemoteAssetListingDownloader) -> None:
@@ -541,7 +536,6 @@ def _remote_asset_libraries_sync_all_periodic():
         return
 
     for asset_lib in bpy.context.preferences.filepaths.asset_libraries:
-        # TODO: check when the listing was last downloaded.
         remote_asset_libraries_sync(asset_lib, only_if_older_than_sec=REMOTE_ASSET_LIBS_AUTOSYNC_PERIOD_SEC)
 
 
