@@ -46,6 +46,10 @@ else:
     _RemoteAssetListingDownloader: TypeAlias = object
 
 
+# Auto-refresh remote asset libraries once every 7 days.
+REMOTE_ASSET_LIBS_AUTOSYNC_PERIOD_SEC = 3600 * 24 * 7
+
+
 # -----------------------------------------------------------------------------
 # Local Module Reload
 
@@ -536,12 +540,9 @@ def _remote_asset_libraries_sync_all_periodic():
     if not bpy.app.online_access:
         return
 
-    # Refresh once every 7 days.
-    max_age = 3600 * 24 * 7
-
     for asset_lib in bpy.context.preferences.filepaths.asset_libraries:
         # TODO: check when the listing was last downloaded.
-        remote_asset_libraries_sync(asset_lib, only_if_older_than_sec=max_age)
+        remote_asset_libraries_sync(asset_lib, only_if_older_than_sec=REMOTE_ASSET_LIBS_AUTOSYNC_PERIOD_SEC)
 
 
 @bpy.app.handlers.persistent
