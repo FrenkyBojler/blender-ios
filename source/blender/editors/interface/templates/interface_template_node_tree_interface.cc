@@ -461,7 +461,7 @@ bool is_dragging_parent_panel(const wmDrag &drag, const bNodeTreeInterfaceItem &
     return false;
   }
   bNodeTreeInterfaceItemReference *drag_data = get_drag_node_tree_declaration(drag);
-  if (!drag_data || !drag_data->items_count == 0) {
+  if (!drag_data || drag_data->items_count == 0) {
     return false;
   }
 
