@@ -12,7 +12,10 @@ __all__ = (
 )
 
 
-# Dictionary of local library path to a tuple (lock file handle, path of the lock file, unlock function).
+# Dictionary of local library path to a tuple with:
+# - lock file handle
+# - path of the lock file
+# - unlock function
 _mutex_locks: dict[Path, tuple[io.IOBase, Path, Callable[[io.IOBase], None]]] = {}
 
 
@@ -62,13 +65,13 @@ def mutex_lock(local_library_path: Path) -> bool:
     # of the file and locking it. So, better to make the existence of the file
     # meaningless, and only communicate the lock state with an actual filesystem
     # lock.
-    #
-    # Binary mode (`wb`) is required on Windows.
-    #
-    # TODO: handle failure on Windows when this file is already open by another
-    # process. That's enough to indicate there is a Blender process running that
-    # owns this lock.
-    lockfile = lockfile_path.open('wb')
+    try:
+        # Binary mode (`wb`) is required on Windows, for the locking.
+        lockfile = lockfile_path.open('wb')
+    except OSError:
+        # on Windows, opening a file for writing, while another process already has it open, can fail.
+        # That just means somebody else has ownership of it.
+        return False
     try:
         _obtain_lock(lockfile)
     except OSError:
