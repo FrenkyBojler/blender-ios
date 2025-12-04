@@ -280,6 +280,9 @@ struct Scope {
   /* Will iterate over all the scopes that are direct children. */
   void foreach_scope(ScopeType type, std::function<void(Scope)> callback) const
   {
+    /* Makes no sense to iterate on global scope since it is the top level. */
+    assert(type != ScopeType::Global);
+
     if (this->is_invalid()) {
       return;
     }
