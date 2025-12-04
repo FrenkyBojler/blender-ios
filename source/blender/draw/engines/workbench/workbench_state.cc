@@ -324,6 +324,23 @@ ObjectState::ObjectState(const DRWContext *draw_ctx,
       color_type = ED_paint_shading_color_override(
           C, &scene_state.scene->toolsettings->paint_mode, *ob, color_type);
     }
+
+    if (color_type == V3D_SHADING_TEXTURE_COLOR &&
+        ED_image_paint_brush_type_use_canvas(C, nullptr) && has_uv())
+    {
+      show_missing_texture = true;
+      const PaintModeSettings *paint_mode = &scene_state.scene->toolsettings->paint_mode;
+      if (paint_mode->canvas_source == PAINT_CANVAS_SOURCE_IMAGE) {
+        if (paint_mode->canvas_image) {
+          image_paint_override = MaterialTexture(paint_mode->canvas_image);
+          image_paint_override.sampler_state.extend_x = GPU_SAMPLER_EXTEND_MODE_REPEAT;
+          image_paint_override.sampler_state.extend_yz = GPU_SAMPLER_EXTEND_MODE_REPEAT;
+        }
+        else {
+          image_paint_override = resources.missing_texture;
+        }
+      }
+    }
   }
   else if (ob->type == OB_MESH && !draw_ctx->is_scene_render()) {
     /* Force texture or vertex mode if object is in paint mode. */
