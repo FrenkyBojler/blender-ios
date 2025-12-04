@@ -5620,8 +5620,8 @@ static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend)
   BVHTree *probe_tree = BLI_bvhtree_new(1, 0.0f, 4, 6);
 
   /* Initializing the first node so we have valid memory to update later. */
-  float dummy_co[3] = {0.0f};
-  BLI_bvhtree_insert(probe_tree, 0, dummy_co, 3);
+  float dummy_co[3][3] = {{0.0f}};
+  BLI_bvhtree_insert(probe_tree, 0, dummy_co[0], 3);
   BLI_bvhtree_balance(probe_tree);
 
   UVOverlapQueryData query_data = {};
@@ -5692,6 +5692,7 @@ static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend)
     }
 
     BLI_bvhtree_update_node(probe_tree, 0, &tri_3d[0][0], nullptr, 3);
+    BLI_bvhtree_update_tree(probe_tree);
     query_data.src_index = i;
     query_data.found_overlap = false;
 
