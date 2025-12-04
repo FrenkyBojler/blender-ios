@@ -1909,10 +1909,11 @@ class Preprocessor {
       }
 
       int arg_count = 0;
-      tokens[1].scope().foreach_scope(ScopeType::FunctionArg, [&](const Scope &) { arg_count++; });
+      tokens[1].scope().foreach_scope(ScopeType::FunctionParam,
+                                      [&](const Scope &) { arg_count++; });
 
       string unrolled;
-      tokens[1].scope().foreach_scope(ScopeType::FunctionArg, [&](const Scope &attribute) {
+      tokens[1].scope().foreach_scope(ScopeType::FunctionParam, [&](const Scope &attribute) {
         if (unrolled.empty()) {
           unrolled = "print_header(" + to_string(arg_count) + ", " + attribute.str() + ")";
         }
