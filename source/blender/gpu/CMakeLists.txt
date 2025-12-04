@@ -106,7 +106,7 @@ set(SRC
   intern/gpu_viewport.cc
   intern/gpu_worker.cc
 
-  glsl_preprocess/parser.cc
+  shader_tool/parser.cc
 
   GPU_attribute_convert.hh
   GPU_batch.hh

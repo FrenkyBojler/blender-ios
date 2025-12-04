@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
- * \ingroup glsl_preprocess
+ * \ingroup shader_tool
  *
  * Very simple parsing of our shader file that are a subset of C++. It allows to traverse the
  * semantic using tokens and scopes instead of trying to match string patterns throughout the whole

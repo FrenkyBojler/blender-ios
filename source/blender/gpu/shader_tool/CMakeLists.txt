@@ -4,12 +4,12 @@
 
 
 # -----------------------------------------------------------------------------
-# Build `glsl_preprocess` executable.
+# Build `shader_tool` executable.
 set(SRC
-  glsl_preprocess.cc
+  shader_tool.cc
   parser.cc
 
-  glsl_preprocess.hh
+  shader_tool.hh
   intermediate.hh
   parser.hh
   scope.hh
@@ -21,5 +21,5 @@ if(WITH_GPU_SHADER_ASSERT)
 endif()
 
 # `SRC_DNA_INC` is defined in the parent directory.
-add_executable(glsl_preprocess ${SRC})
-optimize_debug_target(glsl_preprocess)
+add_executable(shader_tool ${SRC})
+optimize_debug_target(shader_tool)
