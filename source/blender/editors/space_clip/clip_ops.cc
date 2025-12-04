@@ -150,7 +150,7 @@ static void sclip_zoom_set_factor_exec(bContext *C, const wmEvent *event, float 
   sclip_zoom_set_factor(C, factor, mpos, mpos ? (U.uiflag & USER_ZOOM_TO_MOUSEPOS) : false);
 
   ED_region_tag_redraw(region);
-  ED_area_tag_redraw_regiontype(CTX_wm_area(C), RGN_TYPE_HEADER);
+  WM_event_add_notifier(C, NC_IMAGE | NA_RESIZED, nullptr);
 }
 
 /** \} */
@@ -595,7 +595,7 @@ static void view_zoom_exit(bContext *C, wmOperator *op, bool cancel)
   if (cancel) {
     sc->zoom = vpd->zoom;
     ED_region_tag_redraw(CTX_wm_region(C));
-    ED_area_tag_redraw_regiontype(CTX_wm_area(C), RGN_TYPE_HEADER);
+    WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
   }
 
   if (vpd->timer) {
@@ -613,7 +613,7 @@ static wmOperatorStatus view_zoom_exec(bContext *C, wmOperator *op)
   sclip_zoom_set_factor(C, RNA_float_get(op->ptr, "factor"), nullptr, false);
 
   ED_region_tag_redraw(CTX_wm_region(C));
-  ED_area_tag_redraw_regiontype(CTX_wm_area(C), RGN_TYPE_HEADER);
+  WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -683,7 +683,7 @@ static void view_zoom_apply(
   RNA_float_set(op->ptr, "factor", factor);
   sclip_zoom_set(C, vpd->zoom * factor, vpd->location, zoom_to_pos);
   ED_region_tag_redraw(CTX_wm_region(C));
-  ED_area_tag_redraw_regiontype(CTX_wm_area(C), RGN_TYPE_HEADER);
+  WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
 }
 
 static wmOperatorStatus view_zoom_modal(bContext *C, wmOperator *op, const wmEvent *event)
@@ -765,7 +765,7 @@ static wmOperatorStatus view_zoom_in_exec(bContext *C, wmOperator *op)
   sclip_zoom_set_factor(C, powf(2.0f, 1.0f / 3.0f), location, U.uiflag & USER_ZOOM_TO_MOUSEPOS);
 
   ED_region_tag_redraw(CTX_wm_region(C));
-  ED_area_tag_redraw_regiontype(CTX_wm_area(C), RGN_TYPE_HEADER);
+  WM_event_add_notifier(C, NC_IMAGE | NA_RESIZED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -823,7 +823,7 @@ static wmOperatorStatus view_zoom_out_exec(bContext *C, wmOperator *op)
   sclip_zoom_set_factor(C, powf(0.5f, 1.0f / 3.0f), location, U.uiflag & USER_ZOOM_TO_MOUSEPOS);
 
   ED_region_tag_redraw(CTX_wm_region(C));
-  ED_area_tag_redraw_regiontype(CTX_wm_area(C), RGN_TYPE_HEADER);
+  WM_event_add_notifier(C, NC_IMAGE | NA_RESIZED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -889,7 +889,7 @@ static wmOperatorStatus view_zoom_ratio_exec(bContext *C, wmOperator *op)
   sc->yof = int(sc->yof);
 
   ED_region_tag_redraw(CTX_wm_region(C));
-  ED_area_tag_redraw_regiontype(CTX_wm_area(C), RGN_TYPE_HEADER);
+  WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -973,7 +973,7 @@ static wmOperatorStatus view_all_exec(bContext *C, wmOperator *op)
   sc->xof = sc->yof = 0.0f;
 
   ED_region_tag_redraw(region);
-  ED_area_tag_redraw_regiontype(CTX_wm_area(C), RGN_TYPE_HEADER);
+  WM_event_add_notifier(C, NC_IMAGE | NA_RESIZED, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1045,7 +1045,7 @@ static wmOperatorStatus view_selected_exec(bContext *C, wmOperator * /*op*/)
 
   ED_clip_view_selection(C, region, true);
   ED_region_tag_redraw(region);
-  ED_area_tag_redraw_regiontype(CTX_wm_area(C), RGN_TYPE_HEADER);
+  WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;
 }

@@ -270,6 +270,7 @@ static wmOperatorStatus sequencer_view_all_preview_exec(bContext *C, wmOperator 
   sseq->flag |= SEQ_ZOOM_TO_FIT;
 
   ED_area_tag_redraw(CTX_wm_area(C));
+  WM_event_add_notifier(C, NC_IMAGE | NA_RESIZED, nullptr);
   return OPERATOR_FINISHED;
 }
 

@@ -860,7 +860,7 @@ static void view_zoomstep_apply_ex(bContext *C,
 
   /* request updates to be done... */
   ED_region_tag_redraw_no_rebuild(vzd->region);
-  ED_area_tag_redraw_regiontype(CTX_wm_area(C), RGN_TYPE_HEADER);
+  WM_event_add_notifier(C, NC_IMAGE | NA_RESIZED, nullptr);
   UI_view2d_sync(CTX_wm_screen(C), CTX_wm_area(C), v2d, V2D_LOCK_COPY);
 }
 

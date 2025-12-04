@@ -1089,6 +1089,11 @@ static void image_header_region_listener(const wmRegionListenerParams *params)
         ED_region_tag_redraw(region);
       }
       break;
+    case NC_IMAGE:
+      if (wmn->action == NA_RESIZED) {
+        ED_region_tag_redraw(region);
+      }
+      break;
   }
 }
 

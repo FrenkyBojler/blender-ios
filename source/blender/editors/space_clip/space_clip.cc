@@ -1055,6 +1055,11 @@ static void clip_header_region_listener(const wmRegionListenerParams *params)
           }
       }
       break;
+    case NC_IMAGE:
+      if (wmn->action == NA_RESIZED) {
+        ED_region_tag_redraw(region);
+      }
+      break;
   }
 }
 

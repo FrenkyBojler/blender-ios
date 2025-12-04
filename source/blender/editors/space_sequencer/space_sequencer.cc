@@ -583,6 +583,11 @@ static void sequencer_main_region_listener(const wmRegionListenerParams *params)
         WM_gizmomap_tag_refresh(region->runtime->gizmo_map);
       }
       break;
+    case NC_IMAGE:
+      if (wmn->action == NA_RESIZED) {
+        ED_region_tag_redraw(region);
+      }
+      break;
   }
 }
 
