@@ -133,8 +133,7 @@ static wmOperatorStatus geometry_extract_apply(bContext *C,
         BM_elem_flag_set(v, BM_ELEM_TAG, !BM_vert_is_boundary(v));
       }
       for (int i = 0; i < 3; i++) {
-        if (!EDBM_smooth_vert(em, op))
-        {
+        if (!EDBM_smooth_vert(em, op)) {
           continue;
         }
       }
@@ -144,8 +143,7 @@ static wmOperatorStatus geometry_extract_apply(bContext *C,
         BM_elem_flag_set(v, BM_ELEM_TAG, BM_vert_is_boundary(v));
       }
       for (int i = 0; i < 1; i++) {
-        if (!EDBM_smooth_vert(em, op))
-        {
+        if (!EDBM_smooth_vert(em, op)) {
           continue;
         }
       }
