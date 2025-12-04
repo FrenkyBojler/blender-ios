@@ -862,9 +862,8 @@ typedef enum eUserpref_TableAPI {
  * #UserDef.tablet_flag
  */
 typedef enum eUserPref_Tablet_Flags {
- USER_TABLET_SHOW_DEBUG_VALUES = (1 << 0),
+  USER_TABLET_SHOW_DEBUG_VALUES = (1 << 0),
 } eUserPref_Tablet_Flags;
-
 
 /** #UserDef.app_flag */
 typedef enum eUserpref_APP_Flag {

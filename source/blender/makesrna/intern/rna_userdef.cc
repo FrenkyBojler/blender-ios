@@ -6582,12 +6582,9 @@ static void rna_def_userdef_input(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_userdef_input_devices");
 
   prop = RNA_def_property(srna, "show_tablet_debug_values", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(
-      prop, nullptr, "tablet_flag", USER_TABLET_SHOW_DEBUG_VALUES);
+  RNA_def_property_boolean_sdna(prop, nullptr, "tablet_flag", USER_TABLET_SHOW_DEBUG_VALUES);
   RNA_def_property_ui_text(
-      prop,
-      "Show Tablet Debug Values",
-      "Show pressure values when using a paint operator");
+      prop, "Show Tablet Debug Values", "Show pressure values when using a paint operator");
 
   prop = RNA_def_property(srna, "xr_navigation", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, nullptr, "xr_navigation");
@@ -7489,7 +7486,8 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "use_paint_debug", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "use_paint_debug", 1);
-  RNA_def_property_ui_text(prop, "Paint Debug", "Enable paint & sculpt debugging options for developers");
+  RNA_def_property_ui_text(
+      prop, "Paint Debug", "Enable paint & sculpt debugging options for developers");
   RNA_def_property_update(prop, 0, "rna_userdef_update");
 }
 

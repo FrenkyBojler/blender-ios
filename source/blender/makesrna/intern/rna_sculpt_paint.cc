@@ -731,9 +731,7 @@ static void rna_def_paint(BlenderRNA *brna)
   prop = RNA_def_property(srna, "show_bvh_nodes", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "debug_flags", PAINT_DEBUG_SHOW_BVH_NODES);
   RNA_def_property_ui_text(
-      prop,
-      "Show BVH Nodes",
-      "Show the underlying BVH nodes as differently colored faces");
+      prop, "Show BVH Nodes", "Show the underlying BVH nodes as differently colored faces");
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, "rna_Paint_update");
 
