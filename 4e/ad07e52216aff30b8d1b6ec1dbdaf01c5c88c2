@@ -1,1 +1,2 @@
 Referenced by commit 4919f331f903093bfa4725dcccfa9167bf1f3770, Fix: Shader C++ compilation build error
+Referenced by issue #151039, Material preview matcap doesn't rotate
