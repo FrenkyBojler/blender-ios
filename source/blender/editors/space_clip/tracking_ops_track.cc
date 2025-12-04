@@ -9,6 +9,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
+#include "BLI_math_base.h"
 #include "BLI_time.h"
 
 #include "BLT_translation.hh"
@@ -16,8 +17,8 @@
 #include "BKE_context.hh"
 #include "BKE_global.hh"
 #include "BKE_main.hh"
-#include "BKE_movieclip.h"
-#include "BKE_tracking.h"
+#include "BKE_movieclip.hh"
+#include "BKE_tracking.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"

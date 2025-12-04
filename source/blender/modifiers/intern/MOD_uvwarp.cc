@@ -83,7 +83,7 @@ static void matrix_from_obj_pchan(float mat[4][4], Object *ob, const char *bonen
 struct UVWarpData {
   blender::OffsetIndices<int> faces;
   blender::Span<int> corner_verts;
-  blender::MutableSpan<blender::float2> mloopuv;
+  blender::MutableSpan<blender::float2> uv_map;
 
   const MDeformVert *dvert;
   int defgrp_index;
@@ -100,12 +100,12 @@ static void uv_warp_compute(void *__restrict userdata,
   const blender::IndexRange face = data->faces[i];
   const blender::Span<int> face_verts = data->corner_verts.slice(face);
 
-  blender::float2 *mluv = &data->mloopuv[face.start()];
+  blender::float2 *mluv = &data->uv_map[face.start()];
 
   const MDeformVert *dvert = data->dvert;
   const int defgrp_index = data->defgrp_index;
 
-  float(*warp_mat)[4] = data->warp_mat;
+  float (*warp_mat)[4] = data->warp_mat;
 
   int l;
 
@@ -133,14 +133,13 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   UVWarpModifierData *umd = (UVWarpModifierData *)md;
   const MDeformVert *dvert;
   int defgrp_index;
-  char uvname[MAX_CUSTOMDATA_LAYER_NAME];
   float warp_mat[4][4];
   const int axis_u = umd->axis_u;
   const int axis_v = umd->axis_v;
   const bool invert_vgroup = (umd->flag & MOD_UVWARP_INVERT_VGROUP) != 0;
 
   /* make sure there are UV Maps available */
-  if (!CustomData_has_layer(&mesh->corner_data, CD_PROP_FLOAT2)) {
+  if (mesh->uv_map_names().is_empty()) {
     return mesh;
   }
 
@@ -191,13 +190,15 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   translate_m4(warp_mat, -umd->center[0], -umd->center[1], 0.0f);
 
   /* make sure we're using an existing layer */
-  CustomData_validate_layer_name(&mesh->corner_data, CD_PROP_FLOAT2, umd->uvlayer_name, uvname);
+  const blender::StringRef uvname = mesh->uv_map_names().contains(umd->uvlayer_name) ?
+                                        umd->uvlayer_name :
+                                        mesh->active_uv_map_name();
 
   const blender::OffsetIndices faces = mesh->faces();
   const blender::Span<int> corner_verts = mesh->corner_verts();
 
   blender::bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
-  blender::bke::SpanAttributeWriter mloopuv =
+  blender::bke::SpanAttributeWriter uv_map =
       attributes.lookup_or_add_for_write_span<blender::float2>(uvname,
                                                                blender::bke::AttrDomain::Corner);
   MOD_get_vgroup(ctx->object, mesh, umd->vgroup_name, &dvert, &defgrp_index);
@@ -205,7 +206,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   UVWarpData data{};
   data.faces = faces;
   data.corner_verts = corner_verts;
-  data.mloopuv = mloopuv.span;
+  data.uv_map = uv_map.span;
   data.dvert = dvert;
   data.defgrp_index = defgrp_index;
   data.warp_mat = warp_mat;
@@ -218,7 +219,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
 
   mesh->runtime->is_original_bmesh = false;
 
-  mloopuv.finish();
+  uv_map.finish();
 
   return mesh;
 }
@@ -245,8 +246,7 @@ static void update_depsgraph(ModifierData *md, const ModifierUpdateDepsgraphCont
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *col;
-  uiLayout *layout = panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
@@ -254,18 +254,18 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   PointerRNA warp_obj_ptr;
   PointerRNA obj_data_ptr = RNA_pointer_get(&ob_ptr, "data");
 
-  layout->use_property_split_set(true);
+  layout.use_property_split_set(true);
 
-  layout->prop_search(ptr, "uv_layer", &obj_data_ptr, "uv_layers", std::nullopt, ICON_GROUP_UVS);
+  layout.prop_search(ptr, "uv_layer", &obj_data_ptr, "uv_layers", std::nullopt, ICON_GROUP_UVS);
 
-  col = &layout->column(false);
+  blender::ui::Layout *col = &layout.column(false);
   col->prop(ptr, "center", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  col = &layout->column(false);
+  col = &layout.column(false);
   col->prop(ptr, "axis_u", UI_ITEM_NONE, IFACE_("Axis U"), ICON_NONE);
   col->prop(ptr, "axis_v", UI_ITEM_NONE, IFACE_("V"), ICON_NONE);
 
-  col = &layout->column(false);
+  col = &layout.column(false);
   col->prop(ptr, "object_from", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   warp_obj_ptr = RNA_pointer_get(ptr, "object_from");
   if (!RNA_pointer_is_null(&warp_obj_ptr) && RNA_enum_get(&warp_obj_ptr, "type") == OB_ARMATURE) {
@@ -287,15 +287,15 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
 static void transform_panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *layout = panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  layout->use_property_split_set(true);
+  layout.use_property_split_set(true);
 
-  layout->prop(ptr, "offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(ptr, "scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(ptr, "rotation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "rotation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void panel_register(ARegionType *region_type)
@@ -339,4 +339,5 @@ ModifierTypeInfo modifierType_UVWarp = {
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
     /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

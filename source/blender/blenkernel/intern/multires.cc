@@ -48,13 +48,6 @@ static const int multires_grid_tot[] = {
 static const int multires_side_tot[] = {
     0, 2, 3, 5, 9, 17, 33, 65, 129, 257, 513, 1025, 2049, 4097};
 
-/* See multiresModifier_disp_run for description of each operation */
-enum DispOp {
-  APPLY_DISPLACEMENTS,
-  CALC_DISPLACEMENTS,
-  ADD_DISPLACEMENTS,
-};
-
 /** Custom-data. */
 
 void multires_customdata_delete(Mesh *mesh)
@@ -496,11 +489,11 @@ static void multires_del_higher(MultiresModifierData *mmd, Object *ob, const int
           MDisps *mdisp = &mdisps[corner];
           const int totdisp = multires_grid_tot[lvl];
 
-          float(*disps)[3] = MEM_calloc_arrayN<float[3]>(totdisp, "multires disps");
+          float (*disps)[3] = MEM_calloc_arrayN<float[3]>(totdisp, "multires disps");
 
           if (mdisp->disps != nullptr) {
-            float(*ndisps)[3] = disps;
-            float(*hdisps)[3] = mdisp->disps;
+            float (*ndisps)[3] = disps;
+            float (*hdisps)[3] = mdisp->disps;
 
             multires_copy_grid(ndisps, hdisps, nsize, hsize);
             if (mdisp->hidden) {

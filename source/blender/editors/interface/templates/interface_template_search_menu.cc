@@ -624,10 +624,7 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
           SPACE_MENU_MAP(SPACE_INFO, "INFO_MT_editor_menus");
           SPACE_MENU_MAP(SPACE_SEQ, "SEQUENCER_MT_editor_menus");
           SPACE_MENU_MAP(SPACE_TEXT, "TEXT_MT_editor_menus");
-          SPACE_MENU_MAP(SPACE_ACTION,
-                         (((const SpaceAction *)sl)->mode == SACTCONT_TIMELINE) ?
-                             "TIME_MT_editor_menus" :
-                             "DOPESHEET_MT_editor_menus");
+          SPACE_MENU_MAP(SPACE_ACTION, "DOPESHEET_MT_editor_menus");
           SPACE_MENU_MAP(SPACE_NLA, "NLA_MT_editor_menus");
           SPACE_MENU_MAP(SPACE_NODE, "NODE_MT_editor_menus");
           SPACE_MENU_MAP(SPACE_CONSOLE, "CONSOLE_MT_editor_menus");
@@ -666,15 +663,16 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
       }
 
       uiBlock *block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
-      uiLayout &layout = blender::ui::block_layout(block,
-                                                   blender::ui::LayoutDirection::Vertical,
-                                                   blender::ui::LayoutType::Menu,
-                                                   0,
-                                                   0,
-                                                   200,
-                                                   0,
-                                                   UI_MENU_PADDING,
-                                                   style);
+      blender::ui::Layout &layout = blender::ui::block_layout(
+          block,
+          blender::ui::LayoutDirection::Vertical,
+          blender::ui::LayoutType::Menu,
+          0,
+          0,
+          200,
+          0,
+          UI_MENU_PADDING,
+          style);
 
       UI_block_flag_enable(block, UI_BLOCK_SHOW_SHORTCUT_ALWAYS);
 
@@ -710,7 +708,7 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
         }
         else if ((mt_from_but = UI_but_menutype_get(but.get()))) {
           const bool uses_context = but->context &&
-                                    bool(mt_from_but->flag & MenuTypeFlag::ContextDependent);
+                                    flag_is_set(mt_from_but->flag, MenuTypeFlag::ContextDependent);
           const bool tagged_first_time = menu_tagged.add(mt_from_but);
           const bool scan_submenu = tagged_first_time || uses_context;
 
@@ -773,15 +771,16 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
           /* +1 to avoid overlap with the current 'block'. */
           uiBlock *sub_block = UI_block_begin(
               C, region, __func__ + 1, blender::ui::EmbossType::Emboss);
-          uiLayout &sub_layout = blender::ui::block_layout(sub_block,
-                                                           blender::ui::LayoutDirection::Vertical,
-                                                           blender::ui::LayoutType::Menu,
-                                                           0,
-                                                           0,
-                                                           200,
-                                                           0,
-                                                           UI_MENU_PADDING,
-                                                           style);
+          blender::ui::Layout &sub_layout = blender::ui::block_layout(
+              sub_block,
+              blender::ui::LayoutDirection::Vertical,
+              blender::ui::LayoutType::Menu,
+              0,
+              0,
+              200,
+              0,
+              UI_MENU_PADDING,
+              style);
 
           UI_block_flag_enable(sub_block, UI_BLOCK_SHOW_SHORTCUT_ALWAYS);
 
@@ -1145,7 +1144,7 @@ void UI_but_func_menu_search(uiBut *but, const char *single_menu_idname)
   UI_but_func_search_set_sep_string(but, UI_MENU_ARROW_SEP);
 }
 
-void uiTemplateMenuSearch(uiLayout *layout)
+void uiTemplateMenuSearch(blender::ui::Layout *layout)
 {
   uiBlock *block;
   uiBut *but;
@@ -1155,7 +1154,7 @@ void uiTemplateMenuSearch(uiLayout *layout)
   blender::ui::block_layout_set_current(block, layout);
 
   but = uiDefSearchBut(
-      block, search, 0, ICON_VIEWZOOM, sizeof(search), 0, 0, UI_UNIT_X * 6, UI_UNIT_Y, "");
+      block, search, ICON_VIEWZOOM, sizeof(search), 0, 0, UI_UNIT_X * 6, UI_UNIT_Y, "");
   UI_but_func_menu_search(but);
 }
 

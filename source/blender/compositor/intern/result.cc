@@ -313,16 +313,16 @@ const CPPType &Result::cpp_type(const ResultType type)
   switch (type) {
     case ResultType::Float:
       return CPPType::get<float>();
-    case ResultType::Int:
-      return CPPType::get<int32_t>();
-    case ResultType::Color:
-      return CPPType::get<float4>();
-    case ResultType::Float4:
-      return CPPType::get<float4>();
     case ResultType::Float2:
       return CPPType::get<float2>();
     case ResultType::Float3:
       return CPPType::get<float3>();
+    case ResultType::Float4:
+      return CPPType::get<float4>();
+    case ResultType::Color:
+      return CPPType::get<Color>();
+    case ResultType::Int:
+      return CPPType::get<int32_t>();
     case ResultType::Int2:
       return CPPType::get<int2>();
     case ResultType::Bool:
@@ -350,10 +350,10 @@ const char *Result::type_name(const ResultType type)
       return "float4";
     case ResultType::Color:
       return "color";
-    case ResultType::Int2:
-      return "int2";
     case ResultType::Int:
       return "int";
+    case ResultType::Int2:
+      return "int2";
     case ResultType::Bool:
       return "bool";
     case ResultType::Menu:
@@ -395,7 +395,7 @@ void Result::allocate_texture(const Domain domain,
   BLI_assert(!Result::is_single_value_only_type(this->type()));
 
   is_single_value_ = false;
-  this->allocate_data(domain.size, from_pool, storage_type);
+  this->allocate_data(domain.data_size, from_pool, storage_type);
   domain_ = domain;
 }
 
@@ -424,17 +424,17 @@ void Result::allocate_single_value()
     case ResultType::Float:
       this->set_single_value(0.0f);
       break;
-    case ResultType::Color:
-      this->set_single_value(float4(0.0f));
-      break;
-    case ResultType::Float4:
-      this->set_single_value(float4(0.0f));
-      break;
     case ResultType::Float2:
       this->set_single_value(float2(0.0f));
       break;
     case ResultType::Float3:
       this->set_single_value(float3(0.0f));
+      break;
+    case ResultType::Float4:
+      this->set_single_value(float4(0.0f));
+      break;
+    case ResultType::Color:
+      this->set_single_value(Color(0.0f));
       break;
     case ResultType::Int:
       this->set_single_value(0);
@@ -459,15 +459,28 @@ void Result::allocate_invalid()
   this->allocate_single_value();
 }
 
-Result Result::upload_to_gpu(const bool from_pool)
+Result Result::upload_to_gpu(const bool from_pool) const
 {
   BLI_assert(storage_type_ == ResultStorageType::CPU);
   BLI_assert(this->is_allocated());
 
   Result result = Result(*context_, this->type(), this->precision());
-  result.allocate_texture(this->domain().size, from_pool, ResultStorageType::GPU);
+  result.allocate_texture(this->domain().data_size, from_pool, ResultStorageType::GPU);
 
   GPU_texture_update(result, this->get_gpu_data_format(), this->cpu_data().data());
+  return result;
+}
+
+Result Result::download_to_cpu() const
+{
+  BLI_assert(storage_type_ == ResultStorageType::GPU);
+  BLI_assert(this->is_allocated());
+
+  Result result = Result(*context_, this->type(), this->precision());
+  GPU_memory_barrier(GPU_BARRIER_TEXTURE_UPDATE);
+  void *data = GPU_texture_read(*this, this->get_gpu_data_format(), 0);
+  result.steal_data(data, this->domain().data_size);
+
   return result;
 }
 
@@ -536,6 +549,17 @@ void Result::steal_data(Result &source)
   reference_count_ = reference_count;
 
   source = Result(*context_, type_, precision_);
+}
+
+void Result::steal_data(void *data, int2 size)
+{
+  BLI_assert(!this->is_allocated());
+
+  const int64_t array_size = int64_t(size.x) * int64_t(size.y);
+  cpu_data_ = GMutableSpan(this->get_cpp_type(), data, array_size);
+  storage_type_ = ResultStorageType::CPU;
+  domain_ = Domain(size);
+  data_reference_count_ = new int(1);
 }
 
 /* Returns true if the given GPU texture is compatible with the type and precision of the given
@@ -751,6 +775,16 @@ bool Result::is_allocated() const
 int Result::reference_count() const
 {
   return reference_count_;
+}
+
+int64_t Result::size_in_bytes() const
+{
+  const int64_t pixel_size = this->get_cpp_type().size;
+  if (this->is_single_value()) {
+    return pixel_size;
+  }
+  const int2 image_size = this->domain().data_size;
+  return pixel_size * image_size.x * image_size.y;
 }
 
 GPointer Result::single_value() const

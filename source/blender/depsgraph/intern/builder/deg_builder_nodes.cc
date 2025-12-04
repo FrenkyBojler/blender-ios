@@ -58,12 +58,10 @@
 #include "BKE_collection.hh"
 #include "BKE_constraint.h"
 #include "BKE_curve.hh"
-#include "BKE_effect.h"
 #include "BKE_fcurve_driver.h"
 #include "BKE_gpencil_modifier_legacy.h"
 #include "BKE_grease_pencil.hh"
 #include "BKE_idprop.hh"
-#include "BKE_idtype.hh"
 #include "BKE_image.hh"
 #include "BKE_key.hh"
 #include "BKE_lattice.hh"
@@ -71,12 +69,11 @@
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_light.h"
-#include "BKE_mask.h"
+#include "BKE_mask.hh"
 #include "BKE_material.hh"
-#include "BKE_mball.hh"
 #include "BKE_mesh.hh"
 #include "BKE_modifier.hh"
-#include "BKE_movieclip.h"
+#include "BKE_movieclip.hh"
 #include "BKE_nla.hh"
 #include "BKE_node.hh"
 #include "BKE_node_runtime.hh"
@@ -85,9 +82,8 @@
 #include "BKE_pointcache.h"
 #include "BKE_rigidbody.h"
 #include "BKE_scene.hh"
-#include "BKE_shader_fx.h"
-#include "BKE_sound.h"
-#include "BKE_tracking.h"
+#include "BKE_shader_fx.hh"
+#include "BKE_sound.hh"
 #include "BKE_volume.hh"
 #include "BKE_world.h"
 
@@ -659,7 +655,6 @@ void DepsgraphNodeBuilder::build_id(ID *id, const bool force_be_visible)
       break;
 
     case ID_LI:
-    case ID_IP:
     case ID_SCR:
     case ID_VF:
     case ID_BR:
@@ -2323,6 +2318,18 @@ static bool strip_node_build_cb(Strip *strip, void *user_data)
     ViewLayer *sequence_view_layer = BKE_view_layer_default_render(strip->scene);
     nb->build_scene_speakers(strip->scene, sequence_view_layer);
   }
+  LISTBASE_FOREACH (StripModifierData *, modifier, &strip->modifiers) {
+    if (modifier->type != eSeqModifierType_Compositor) {
+      continue;
+    }
+
+    const SequencerCompositorModifierData *modifier_data =
+        reinterpret_cast<SequencerCompositorModifierData *>(modifier);
+    if (!modifier_data->node_group) {
+      continue;
+    }
+    nb->build_nodetree(modifier_data->node_group);
+  }
   /* TODO(sergey): Movie clip, scene, camera, mask. */
   return true;
 }
@@ -2344,7 +2351,7 @@ void DepsgraphNodeBuilder::build_scene_sequencer(Scene *scene)
                        seq::eval_strips(depsgraph, scene_cow, &scene_cow->ed->seqbase);
                      });
   /* Make sure data for sequences is in the graph. */
-  seq::for_each_callback(&scene->ed->seqbase, strip_node_build_cb, this);
+  seq::foreach_strip(&scene->ed->seqbase, strip_node_build_cb, this);
 }
 
 void DepsgraphNodeBuilder::build_scene_audio(Scene *scene)

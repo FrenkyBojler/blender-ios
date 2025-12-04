@@ -7,10 +7,11 @@
  */
 
 #include "BLI_listbase.h"
+#include "BLI_math_base.h"
 #include "BLI_rect.h"
 
 #include "BKE_context.hh"
-#include "BKE_tracking.h"
+#include "BKE_tracking.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"

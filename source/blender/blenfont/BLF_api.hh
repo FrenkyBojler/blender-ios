@@ -30,6 +30,7 @@
 struct ListBase;
 struct ResultBLF;
 struct rcti;
+struct rctf;
 
 namespace blender::ocio {
 class ColorSpace;
@@ -174,6 +175,10 @@ void BLF_batch_draw_begin();
 void BLF_batch_draw_flush();
 void BLF_batch_draw_end();
 
+/* Discard any batching in process and restart.
+ * Only used as a workaround for glitchy driver sync. */
+void BLF_batch_discard();
+
 /**
  * Draw the string using the current font.
  */
@@ -292,6 +297,17 @@ int BLF_height_max(int fontid) ATTR_WARN_UNUSED_RESULT;
 int BLF_width_max(int fontid) ATTR_WARN_UNUSED_RESULT;
 int BLF_descender(int fontid) ATTR_WARN_UNUSED_RESULT;
 int BLF_ascender(int fontid) ATTR_WARN_UNUSED_RESULT;
+
+/**
+ * Returns the minimum bounding box that can enclose all glyphs in the font at
+ * the current size. Expect negative values as Y=0 is the baseline, X=0 is normal
+ * advance position (glyphs can have negative bearing and positioning). There
+ * should be little use for this as it is best to measure the bounds of the actual
+ * text to be drawn. These values (unscaled) are set in the font file, not calculated
+ * from the actual glyphs at load time. This should be considered correct but it is
+ * possible, although very unlikely, for a defective font to contain incorrect values.
+ */
+bool BLF_bounds_max(int fontid, rctf *r_bounds) ATTR_NONNULL(2);
 
 /**
  * The following function return the width and height of the string, but

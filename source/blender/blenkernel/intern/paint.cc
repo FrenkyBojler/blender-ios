@@ -6,6 +6,9 @@
  * \ingroup bke
  */
 
+/* ALlow using deprecated color for sync legacy. */
+#define DNA_DEPRECATED_ALLOW
+
 #include <cstdlib>
 #include <cstring>
 #include <optional>
@@ -41,6 +44,7 @@
 
 #include "BKE_asset.hh"
 #include "BKE_asset_edit.hh"
+#include "BKE_attribute.h"
 #include "BKE_attribute.hh"
 #include "BKE_brush.hh"
 #include "BKE_ccg.hh"
@@ -72,6 +76,8 @@
 #include "RNA_enum_types.hh"
 
 #include "BLO_read_write.hh"
+
+#include "IMB_colormanagement.hh"
 
 #include "bmesh.hh"
 
@@ -108,6 +114,17 @@ static void palette_free_data(ID *id)
   Palette *palette = (Palette *)id;
 
   BLI_freelistN(&palette->colors);
+}
+
+static void palette_foreach_working_space_color(ID *id,
+                                                const IDTypeForeachColorFunctionCallback &fn)
+{
+  Palette *palette = (Palette *)id;
+
+  LISTBASE_FOREACH (PaletteColor *, color, &palette->colors) {
+    fn.single(color->color);
+    BKE_palette_color_sync_legacy(color);
+  }
 }
 
 static void palette_blend_write(BlendWriter *writer, ID *id, const void *id_address)
@@ -156,6 +173,7 @@ IDTypeInfo IDType_ID_PAL = {
     /*foreach_id*/ nullptr,
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
+    /*foreach_working_space_color*/ palette_foreach_working_space_color,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ palette_blend_write,
@@ -225,6 +243,7 @@ IDTypeInfo IDType_ID_PC = {
     /*foreach_id*/ nullptr,
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ paint_curve_blend_write,
@@ -235,14 +254,6 @@ IDTypeInfo IDType_ID_PC = {
 
     /*lib_override_apply_post*/ nullptr,
 };
-
-const uchar PAINT_CURSOR_SCULPT[3] = {255, 100, 100};
-const uchar PAINT_CURSOR_VERTEX_PAINT[3] = {255, 255, 255};
-const uchar PAINT_CURSOR_WEIGHT_PAINT[3] = {200, 200, 255};
-const uchar PAINT_CURSOR_TEXTURE_PAINT[3] = {255, 255, 255};
-const uchar PAINT_CURSOR_SCULPT_CURVES[3] = {255, 100, 100};
-const uchar PAINT_CURSOR_PAINT_GREASE_PENCIL[3] = {255, 100, 100};
-const uchar PAINT_CURSOR_SCULPT_GREASE_PENCIL[3] = {255, 100, 100};
 
 static ePaintOverlayControlFlags overlay_flags = (ePaintOverlayControlFlags)0;
 
@@ -274,7 +285,7 @@ void BKE_paint_invalidate_cursor_overlay(Scene *scene, ViewLayer *view_layer, Cu
   }
 
   Brush *br = BKE_paint_brush(paint);
-  if (br && br->curve == curve) {
+  if (br && br->curve_distance_falloff == curve) {
     overlay_flags |= PAINT_OVERLAY_INVALID_CURVE;
   }
 }
@@ -711,6 +722,8 @@ bool BKE_paint_brush_set(Paint *paint, Brush *brush)
     paint->brush_asset_reference = asset_reference_create_from_brush(brush);
   }
 
+  BKE_paint_invalidate_overlay_all();
+
   return true;
 }
 
@@ -1035,7 +1048,7 @@ static void paint_brush_set_default_reference(Paint *paint,
                                               const bool do_regular = true,
                                               const bool do_eraser = true)
 {
-  if (!paint->runtime->initialized) {
+  if (!paint->runtime || !paint->runtime->initialized) {
     /* Can happen when loading old file where toolsettings are created in versioning, without
      * calling #paint_runtime_init(). Will be done later when necessary. */
     return;
@@ -1401,6 +1414,17 @@ void BKE_palette_clear(Palette *palette)
   palette->active_color = 0;
 }
 
+void BKE_palette_color_set(PaletteColor *color, const float rgb[3])
+{
+  copy_v3_v3(color->color, rgb);
+  BKE_palette_color_sync_legacy(color);
+}
+
+void BKE_palette_color_sync_legacy(PaletteColor *color)
+{
+  linearrgb_to_srgb_v3_v3(color->rgb, color->color);
+}
+
 Palette *BKE_palette_add(Main *bmain, const char *name)
 {
   Palette *palette = BKE_id_new<Palette>(bmain, name);
@@ -1554,7 +1578,7 @@ void BKE_palette_sort_luminance(tPaletteColorHSV *color_array, const int totcol)
   qsort(color_array, totcol, sizeof(tPaletteColorHSV), palettecolor_compare_luminance);
 }
 
-bool BKE_palette_from_hash(Main *bmain, GHash *color_table, const char *name, const bool linear)
+bool BKE_palette_from_hash(Main *bmain, GHash *color_table, const char *name)
 {
   tPaletteColorHSV *color_array = nullptr;
   tPaletteColorHSV *col_elm = nullptr;
@@ -1596,10 +1620,8 @@ bool BKE_palette_from_hash(Main *bmain, GHash *color_table, const char *name, co
         col_elm = &color_array[i];
         PaletteColor *palcol = BKE_palette_color_add(palette);
         if (palcol) {
-          copy_v3_v3(palcol->rgb, col_elm->rgb);
-          if (linear) {
-            linearrgb_to_srgb_v3_v3(palcol->rgb, palcol->rgb);
-          }
+          /* Hex was stored as sRGB. */
+          IMB_colormanagement_srgb_to_scene_linear_v3(palcol->color, col_elm->rgb);
         }
       }
       done = true;
@@ -1666,7 +1688,7 @@ void BKE_paint_cavity_curve_preset(Paint *paint, int preset)
   cumap->preset = preset;
 
   cuma = cumap->cm;
-  BKE_curvemap_reset(cuma, &cumap->clipr, cumap->preset, CURVEMAP_SLOPE_POSITIVE);
+  BKE_curvemap_reset(cuma, &cumap->clipr, cumap->preset, CurveMapSlopeType::Positive);
   BKE_curvemapping_changed(cumap, false);
 }
 
@@ -1697,7 +1719,7 @@ static void paint_init_data(Paint &paint)
   const UnifiedPaintSettings &default_ups = *DNA_struct_default_get(UnifiedPaintSettings);
   paint.unified_paint_settings.size = default_ups.size;
   paint.unified_paint_settings.input_samples = default_ups.input_samples;
-  paint.unified_paint_settings.unprojected_radius = default_ups.unprojected_radius;
+  paint.unified_paint_settings.unprojected_size = default_ups.unprojected_size;
   paint.unified_paint_settings.alpha = default_ups.alpha;
   paint.unified_paint_settings.weight = default_ups.weight;
   paint.unified_paint_settings.flag = default_ups.flag;
@@ -1710,8 +1732,8 @@ static void paint_init_data(Paint &paint)
   if (!paint.unified_paint_settings.curve_rand_value) {
     paint.unified_paint_settings.curve_rand_value = BKE_paint_default_curve();
   }
-  copy_v3_v3(paint.unified_paint_settings.rgb, default_ups.rgb);
-  copy_v3_v3(paint.unified_paint_settings.secondary_rgb, default_ups.secondary_rgb);
+  copy_v3_v3(paint.unified_paint_settings.color, default_ups.color);
+  copy_v3_v3(paint.unified_paint_settings.secondary_color, default_ups.secondary_color);
 }
 
 bool BKE_paint_ensure(ToolSettings *ts, Paint **r_paint)
@@ -1737,10 +1759,10 @@ bool BKE_paint_ensure(ToolSettings *ts, Paint **r_paint)
                       (Paint *)ts->curves_sculpt,
                       (Paint *)&ts->imapaint));
 #ifndef NDEBUG
-      Paint paint_test = **r_paint;
+      Paint paint_test = blender::dna::shallow_copy(**r_paint);
       paint_runtime_init(ts, *r_paint);
       /* Swap so debug doesn't hide errors when release fails. */
-      std::swap(**r_paint, paint_test);
+      blender::dna::shallow_swap(**r_paint, paint_test);
       BLI_assert(paint_test.runtime->ob_mode == (*r_paint)->runtime->ob_mode);
 #endif
     }
@@ -1755,7 +1777,7 @@ bool BKE_paint_ensure(ToolSettings *ts, Paint **r_paint)
   else if ((Sculpt **)r_paint == &ts->sculpt) {
     Sculpt *data = MEM_callocN<Sculpt>(__func__);
 
-    *data = *DNA_struct_default_get(Sculpt);
+    *data = blender::dna::shallow_copy(*DNA_struct_default_get(Sculpt));
 
     paint = &data->paint;
     paint_init_data(*paint);
@@ -1816,8 +1838,7 @@ void BKE_paint_brushes_ensure(Main *bmain, Paint *paint)
   }
 }
 
-void BKE_paint_init(
-    Main *bmain, Scene *sce, PaintMode mode, const uchar col[3], const bool ensure_brushes)
+void BKE_paint_init(Main *bmain, Scene *sce, PaintMode mode, const bool ensure_brushes)
 {
 
   BKE_paint_ensure_from_paintmode(sce, mode);
@@ -1827,8 +1848,6 @@ void BKE_paint_init(
     BKE_paint_brushes_ensure(bmain, paint);
   }
 
-  copy_v3_v3_uchar(paint->paint_cursor_col, col);
-  paint->paint_cursor_col[3] = 128;
   if (!paint->cavity_curve) {
     BKE_paint_cavity_curve_preset(paint, CURVE_PRESET_LINE);
   }
@@ -1895,6 +1914,40 @@ void BKE_paint_copy(const Paint *src, Paint *dst, const int flag)
   }
 
   dst->runtime = MEM_new<blender::bke::PaintRuntime>(__func__);
+  if (src->runtime) {
+    dst->runtime->paint_mode = src->runtime->paint_mode;
+    dst->runtime->ob_mode = src->runtime->ob_mode;
+    dst->runtime->initialized = true;
+  }
+}
+
+void BKE_paint_settings_foreach_mode(ToolSettings *ts, blender::FunctionRef<void(Paint *paint)> fn)
+{
+  if (ts->vpaint) {
+    fn(reinterpret_cast<Paint *>(ts->vpaint));
+  }
+  if (ts->wpaint) {
+    fn(reinterpret_cast<Paint *>(ts->wpaint));
+  }
+  if (ts->sculpt) {
+    fn(reinterpret_cast<Paint *>(ts->sculpt));
+  }
+  if (ts->gp_paint) {
+    fn(reinterpret_cast<Paint *>(ts->gp_paint));
+  }
+  if (ts->gp_vertexpaint) {
+    fn(reinterpret_cast<Paint *>(ts->gp_vertexpaint));
+  }
+  if (ts->gp_sculptpaint) {
+    fn(reinterpret_cast<Paint *>(ts->gp_sculptpaint));
+  }
+  if (ts->gp_weightpaint) {
+    fn(reinterpret_cast<Paint *>(ts->gp_weightpaint));
+  }
+  if (ts->curves_sculpt) {
+    fn(reinterpret_cast<Paint *>(ts->curves_sculpt));
+  }
+  fn(reinterpret_cast<Paint *>(&ts->imapaint));
 }
 
 void BKE_paint_stroke_get_average(const Paint *paint, const Object *ob, float stroke[3])
@@ -1933,15 +1986,15 @@ blender::float3 BKE_paint_randomize_color(const BrushColorJitterSettings &color_
                                    distance * noise_scale, initial_hsv_jitter[2] * 100));
 
   float hue_jitter_scale = color_jitter.hue;
-  if ((color_jitter.flag & BRUSH_COLOR_JITTER_USE_HUE_RAND_PRESS)) {
+  if (color_jitter.flag & BRUSH_COLOR_JITTER_USE_HUE_RAND_PRESS) {
     hue_jitter_scale *= BKE_curvemapping_evaluateF(color_jitter.curve_hue_jitter, 0, pressure);
   }
   float sat_jitter_scale = color_jitter.saturation;
-  if ((color_jitter.flag & BRUSH_COLOR_JITTER_USE_SAT_RAND_PRESS)) {
+  if (color_jitter.flag & BRUSH_COLOR_JITTER_USE_SAT_RAND_PRESS) {
     sat_jitter_scale *= BKE_curvemapping_evaluateF(color_jitter.curve_sat_jitter, 0, pressure);
   }
   float val_jitter_scale = color_jitter.value;
-  if ((color_jitter.flag & BRUSH_COLOR_JITTER_USE_VAL_RAND_PRESS)) {
+  if (color_jitter.flag & BRUSH_COLOR_JITTER_USE_VAL_RAND_PRESS) {
     val_jitter_scale *= BKE_curvemapping_evaluateF(color_jitter.curve_val_jitter, 0, pressure);
   }
 
@@ -2068,8 +2121,6 @@ void BKE_paint_blend_read_data(BlendDataReader *reader, const Scene *scene, Pain
     BKE_curvemapping_blend_read(reader, ups->curve_rand_value);
     BKE_curvemapping_init(ups->curve_rand_value);
   }
-
-  paint->paint_cursor = nullptr;
 
   paint->runtime = MEM_new<blender::bke::PaintRuntime>(__func__);
 
@@ -2250,7 +2301,7 @@ void BKE_sculptsession_free_pbvh(Object &object)
 
   ss->preview_verts = {};
 
-  ss->vertex_info.boundary.clear_and_shrink();
+  ss->boundary_info_cache.reset();
   ss->fake_neighbors.fake_neighbor_index = {};
   ss->topology_island_cache.reset();
 
@@ -2463,6 +2514,22 @@ static MultiresModifierData *sculpt_multires_modifier_get(const Scene *scene,
 MultiresModifierData *BKE_sculpt_multires_active(const Scene *scene, Object *ob)
 {
   return sculpt_multires_modifier_get(scene, ob, false);
+}
+
+int BKE_sculpt_get_grid_num_verts(const Object &object)
+{
+  const SculptSession &ss = *object.sculpt;
+  BLI_assert(blender::bke::object::pbvh_get(object)->type() == blender::bke::pbvh::Type::Grids);
+  const CCGKey key = BKE_subdiv_ccg_key_top_level(*ss.subdiv_ccg);
+  return ss.subdiv_ccg->grids_num * key.grid_area;
+}
+
+int BKE_sculpt_get_grid_num_faces(const Object &object)
+{
+  const SculptSession &ss = *object.sculpt;
+  BLI_assert(blender::bke::object::pbvh_get(object)->type() == blender::bke::pbvh::Type::Grids);
+  const CCGKey key = BKE_subdiv_ccg_key_top_level(*ss.subdiv_ccg);
+  return ss.subdiv_ccg->grids_num * square_i(key.grid_size - 1);
 }
 
 /* Checks if there are any supported deformation modifiers active */
@@ -2726,7 +2793,7 @@ void BKE_sculpt_color_layer_create_if_needed(Object *object)
   using namespace blender::bke;
   Mesh *orig_me = BKE_object_get_original_mesh(object);
 
-  if (BKE_color_attribute_supported(*orig_me, orig_me->active_color_attribute)) {
+  if (BKE_id_attributes_color_find(&orig_me->id, orig_me->active_color_attribute)) {
     return;
   }
 
@@ -3037,7 +3104,7 @@ bool BKE_sculptsession_use_pbvh_draw(const Object *ob, const RegionView3D *rv3d)
   return true;
 }
 
-/* Returns the Face Set random color for rendering in the overlay given its ID and a color seed. */
+/* Returns the face set random color for rendering in the overlay given its ID and a color seed. */
 #define GOLDEN_RATIO_CONJUGATE 0.618033988749895f
 void BKE_paint_face_set_overlay_color_get(const int face_set, const int seed, uchar r_color[4])
 {

@@ -36,7 +36,7 @@ static void deform_verts(ModifierData * /*md*/,
                scene,
                ctx->object,
                DEG_get_ctime(ctx->depsgraph),
-               reinterpret_cast<float(*)[3]>(positions.data()),
+               reinterpret_cast<float (*)[3]>(positions.data()),
                positions.size());
 }
 
@@ -64,11 +64,11 @@ static void update_depsgraph(ModifierData * /*md*/, const ModifierUpdateDepsgrap
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *layout = panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  layout->label(RPT_("Settings are inside the Physics tab"), ICON_NONE);
+  layout.label(RPT_("Settings are inside the Physics tab"), ICON_NONE);
 
   modifier_error_message_draw(layout, ptr);
 }
@@ -113,4 +113,5 @@ ModifierTypeInfo modifierType_Softbody = {
     /*blend_write*/ nullptr,
     /*blend_read*/ nullptr,
     /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

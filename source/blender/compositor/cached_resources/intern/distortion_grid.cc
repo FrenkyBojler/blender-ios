@@ -12,8 +12,8 @@
 #include "DNA_movieclip_types.h"
 #include "DNA_tracking_types.h"
 
-#include "BKE_movieclip.h"
-#include "BKE_tracking.h"
+#include "BKE_movieclip.hh"
+#include "BKE_tracking.hh"
 
 #include "COM_context.hh"
 #include "COM_distortion_grid.hh"
@@ -52,7 +52,7 @@ bool operator==(const DistortionGridKey &a, const DistortionGridKey &b)
 
 DistortionGrid::DistortionGrid(
     Context &context, MovieClip *movie_clip, int2 size, DistortionType type, int2 calibration_size)
-    : result(context.create_result(ResultType::Float2))
+    : result(context.create_result(ResultType::Float2, ResultPrecision::Full))
 {
   MovieDistortion *distortion = BKE_tracking_distortion_new(
       &movie_clip->tracking, calibration_size.x, calibration_size.y);

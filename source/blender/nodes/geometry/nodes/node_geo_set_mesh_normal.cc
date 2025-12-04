@@ -36,26 +36,26 @@ static void node_declare(NodeDeclarationBuilder &b)
     switch (Mode(node->custom1)) {
       case Mode::Sharpness:
         b.add_input<decl::Bool>("Remove Custom").default_value(true);
-        b.add_input<decl::Bool>("Edge Sharpness").supports_field();
-        b.add_input<decl::Bool>("Face Sharpness").supports_field();
+        b.add_input<decl::Bool>("Edge Sharpness").field_on_all();
+        b.add_input<decl::Bool>("Face Sharpness").field_on_all();
         break;
       case Mode::Free:
       case Mode::CornerFanSpace:
         b.add_input<decl::Vector>("Custom Normal")
             .subtype(PROP_XYZ)
-            .implicit_field(NODE_DEFAULT_INPUT_NORMAL_FIELD)
+            .implicit_field_on_all(NODE_DEFAULT_INPUT_NORMAL_FIELD)
             .hide_value();
         break;
     }
   }
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
   const bNode &node = *static_cast<const bNode *>(ptr->data);
-  layout->prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
   if (Mode(node.custom1) == Mode::Free) {
-    layout->prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
+    layout.prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
   }
 }
 

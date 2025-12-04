@@ -901,7 +901,7 @@ static int brush_num_effective_segments(const Brush &brush)
    * changes in the segment's length. It will also required a better weight distribution to avoid
    * artifacts in the areas affected by multiple segments. */
   if (ELEM(brush.pose_deform_type,
-           BRUSH_POSE_DEFORM_SCALE_TRASLATE,
+           BRUSH_POSE_DEFORM_SCALE_TRANSLATE,
            BRUSH_POSE_DEFORM_SQUASH_STRETCH))
   {
     return 1;
@@ -1949,7 +1949,7 @@ std::unique_ptr<SculptPoseIKChainPreview> preview_ik_chain_init(const Depsgraph 
 static void sculpt_pose_do_translate_deform(SculptSession &ss, const Brush &brush)
 {
   IKChain &ik_chain = *ss.cache->pose_ik_chain;
-  BKE_curvemapping_init(brush.curve);
+  BKE_curvemapping_init(brush.curve_distance_falloff);
   solve_translate_chain(ik_chain, ss.cache->grab_delta);
 }
 
@@ -1988,7 +1988,7 @@ static void calc_twist_deform(SculptSession &ss, const Brush &brush)
 
   /* Calculate the maximum roll. 0.02 radians per pixel works fine. */
   float roll = (ss.cache->initial_mouse[0] - ss.cache->mouse[0]) * ss.cache->bstrength * 0.02f;
-  BKE_curvemapping_init(brush.curve);
+  BKE_curvemapping_init(brush.curve_distance_falloff);
   solve_roll_chain(ik_chain, brush, roll);
 }
 
@@ -2030,8 +2030,18 @@ static void calc_squash_stretch_deform(SculptSession &ss, const Brush & /*brush*
   float3 ik_target = ss.cache->location + ss.cache->grab_delta;
 
   float3 scale;
-  scale[2] = calc_scale_from_grab_delta(ss, ik_target);
-  scale[0] = scale[1] = sqrtf(1.0f / scale[2]);
+  scale.z = calc_scale_from_grab_delta(ss, ik_target);
+  if (math::abs(scale.z) < 1e-5f) {
+    scale = float3(0.0f);
+  }
+  else {
+    const float signed_scale = math::sqrt(1.0f / math::abs(scale.z)) * math::sign(scale.z);
+
+    scale.x = signed_scale;
+    scale.y = signed_scale;
+  }
+
+  BLI_assert(std::isfinite(scale.x) && std::isfinite(scale.y) && std::isfinite(scale.z));
 
   /* Write the scale into the segments. */
   solve_scale_chain(ik_chain, scale);
@@ -2080,7 +2090,7 @@ void do_pose_brush(const Depsgraph &depsgraph,
     case BRUSH_POSE_DEFORM_ROTATE_TWIST:
       calc_rotate_twist_deform(ss, brush);
       break;
-    case BRUSH_POSE_DEFORM_SCALE_TRASLATE:
+    case BRUSH_POSE_DEFORM_SCALE_TRANSLATE:
       calc_scale_translate_deform(ss, brush);
       break;
     case BRUSH_POSE_DEFORM_SQUASH_STRETCH:

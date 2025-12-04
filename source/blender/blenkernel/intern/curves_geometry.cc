@@ -548,23 +548,31 @@ IndexMask CurvesGeometry::nurbs_custom_knot_curves(IndexMaskMemory &memory) cons
 OffsetIndices<int> CurvesGeometry::nurbs_custom_knots_by_curve() const
 {
   const CurvesGeometryRuntime &runtime = *this->runtime;
-  if (this->is_empty()) {
+  if (!this->has_curve_with_type(CURVE_TYPE_NURBS)) {
     return {};
   }
   runtime.custom_knot_offsets_cache.ensure([&](Vector<int> &r_data) {
-    r_data.resize(this->curve_num + 1, 0);
+    r_data.resize(this->curve_num + 1);
 
-    const OffsetIndices points_by_curve = this->points_by_curve();
+    const OffsetIndices<int> points_by_curve = this->points_by_curve();
+    const VArray<int8_t> curve_types = this->curve_types();
     const VArray<int8_t> knot_modes = this->nurbs_knots_modes();
     const VArray<int8_t> orders = this->nurbs_orders();
 
-    int knot_count = 0;
-    for (const int curve : this->curves_range()) {
-      knot_count += knot_modes[curve] == NURBS_KNOT_MODE_CUSTOM ?
-                        points_by_curve[curve].size() + orders[curve] :
-                        0;
-      r_data[curve + 1] = knot_count;
-    }
+    threading::parallel_for(this->curves_range(), 1024, [&](const IndexRange range) {
+      for (const int curve : range) {
+        if (curve_types[curve] != CURVE_TYPE_NURBS) {
+          r_data[curve] = 0;
+          continue;
+        }
+        if (knot_modes[curve] != NURBS_KNOT_MODE_CUSTOM) {
+          r_data[curve] = 0;
+          continue;
+        }
+        r_data[curve] = points_by_curve[curve].size() + orders[curve];
+      }
+    });
+    offset_indices::accumulate_counts_to_offsets(r_data.as_mutable_span());
   });
   return OffsetIndices<int>(runtime.custom_knot_offsets_cache.data());
 }
@@ -778,7 +786,9 @@ void CurvesGeometry::ensure_nurbs_basis_cache() const
         const bool is_cyclic = cyclic[curve_index];
         const KnotsMode mode = KnotsMode(knots_modes[curve_index]);
 
-        if (!curves::nurbs::check_valid_num_and_order(points.size(), order, is_cyclic, mode)) {
+        if (!curves::nurbs::check_valid_eval_params(
+                points.size(), order, is_cyclic, mode, resolution))
+        {
           r_data[curve_index].invalid = true;
           continue;
         }
@@ -797,6 +807,7 @@ void CurvesGeometry::ensure_nurbs_basis_cache() const
                                              order,
                                              resolution,
                                              is_cyclic,
+                                             mode,
                                              knots,
                                              r_data[curve_index]);
       }
@@ -1249,15 +1260,6 @@ static void translate_positions(MutableSpan<float3> positions, const float3 &tra
   });
 }
 
-static void transform_positions(MutableSpan<float3> positions, const float4x4 &matrix)
-{
-  threading::parallel_for(positions.index_range(), 1024, [&](const IndexRange range) {
-    for (float3 &position : positions.slice(range)) {
-      position = math::transform_point(matrix, position);
-    }
-  });
-}
-
 void CurvesGeometry::calculate_bezier_auto_handles()
 {
   if (!this->has_curve_with_type(CURVE_TYPE_BEZIER)) {
@@ -1290,6 +1292,32 @@ void CurvesGeometry::calculate_bezier_auto_handles()
   });
 }
 
+void CurvesGeometry::calculate_bezier_aligned_handles()
+{
+  if (!this->has_curve_with_type(CURVE_TYPE_BEZIER)) {
+    return;
+  }
+  if (!this->handle_positions_left() || !this->handle_positions_right()) {
+    return;
+  }
+  const VArraySpan<int8_t> types_left = this->handle_types_left();
+  const VArraySpan<int8_t> types_right = this->handle_types_right();
+  const Span<float3> positions = this->positions();
+  MutableSpan<float3> positions_left = this->handle_positions_left_for_write();
+  MutableSpan<float3> positions_right = this->handle_positions_right_for_write();
+
+  IndexMaskMemory memory;
+  const IndexMask bezier_points = bke::curves::curve_type_point_selection(
+      *this, CURVE_TYPE_BEZIER, memory);
+  const IndexMask selection = IndexMask::from_predicate(
+      bezier_points, GrainSize(4096), memory, [&](const int64_t i) {
+        return types_left[i] == BEZIER_HANDLE_ALIGN && types_right[i] == BEZIER_HANDLE_ALIGN;
+      });
+
+  curves::bezier::calculate_aligned_handles(
+      selection, positions, positions_left, positions_right, positions_left, positions_right);
+}
+
 void CurvesGeometry::translate(const float3 &translation)
 {
   if (math::is_zero(translation)) {
@@ -1319,12 +1347,12 @@ void CurvesGeometry::translate(const float3 &translation)
 
 void CurvesGeometry::transform(const float4x4 &matrix)
 {
-  transform_positions(this->positions_for_write(), matrix);
+  math::transform_points(matrix, this->positions_for_write());
   if (this->handle_positions_left()) {
-    transform_positions(this->handle_positions_left_for_write(), matrix);
+    math::transform_points(matrix, this->handle_positions_left_for_write());
   }
   if (this->handle_positions_right()) {
-    transform_positions(this->handle_positions_right_for_write(), matrix);
+    math::transform_points(matrix, this->handle_positions_right_for_write());
   }
   MutableAttributeAccessor attributes = this->attributes_for_write();
   transform_custom_normal_attribute(matrix, attributes);

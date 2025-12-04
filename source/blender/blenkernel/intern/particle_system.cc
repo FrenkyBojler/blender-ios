@@ -28,7 +28,7 @@
 #include "DNA_texture_types.h"
 
 #include "BLI_kdopbvh.hh"
-#include "BLI_kdtree.h"
+#include "BLI_kdtree.hh"
 #include "BLI_linklist.h"
 #include "BLI_listbase.h"
 #include "BLI_math_base_safe.h"
@@ -528,7 +528,7 @@ void psys_thread_context_free(ParticleThreadContext *ctx)
     MEM_freeN(ctx->seams);
   }
   // if (ctx->vertpart) MEM_freeN(ctx->vertpart);
-  BLI_kdtree_3d_free(ctx->tree);
+  blender::BLI_kdtree_3d_free(ctx->tree);
 
   if (ctx->clumpcurve != nullptr) {
     BKE_curvemapping_free(ctx->clumpcurve);
@@ -1368,17 +1368,17 @@ void psys_update_particle_tree(ParticleSystem *psys, float cfra)
         }
       }
 
-      BLI_kdtree_3d_free(psys->tree);
-      psys->tree = BLI_kdtree_3d_new(totpart);
+      blender::BLI_kdtree_3d_free(psys->tree);
+      psys->tree = blender::BLI_kdtree_3d_new(totpart);
 
       LOOP_SHOWN_PARTICLES
       {
         if (pa->alive == PARS_ALIVE) {
           const float *co = (pa->state.time == cfra) ? pa->prev_state.co : pa->state.co;
-          BLI_kdtree_3d_insert(psys->tree, p, co);
+          blender::BLI_kdtree_3d_insert(psys->tree, p, co);
         }
       }
-      BLI_kdtree_3d_balance(psys->tree);
+      blender::BLI_kdtree_3d_balance(psys->tree);
 
       psys->tree_frame = cfra;
     }
@@ -1404,10 +1404,7 @@ static void integrate_particle(
 {
 #define ZERO_F43 \
   { \
-    {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}, \
-    { \
-      0.0f, 0.0f, 0.0f \
-    } \
+    {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f} \
   }
 
   ParticleKey states[5];
@@ -2442,7 +2439,7 @@ static float nr_distance_to_vert(float *p,
   return len_v3v3(p, pce->x0) - radius;
 }
 /**
- * \param t: is the current time for newton rhapson.
+ * \param t: is the current time for newton raphson.
  * \param fac: is the starting factor for current collision iteration.
  * \param col: The particle collision, `col->fac's` are factors for the
  * particle sub-frame step start and end during collision modifier step.
@@ -2784,8 +2781,8 @@ void BKE_psys_collision_neartest_cb(void *userdata,
   ParticleCollision *col = (ParticleCollision *)userdata;
   ParticleCollisionElement pce;
   const blender::int3 vert_tri = &col->md->vert_tris[index];
-  float(*x)[3] = col->md->x;
-  float(*v)[3] = col->md->current_v;
+  float (*x)[3] = col->md->x;
+  float (*v)[3] = col->md->current_v;
   float t = hit->dist / col->original_ray_length;
   int collision = 0;
 
@@ -3508,7 +3505,7 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
       sim->scene,
       sim->ob,
       psys->hair_in_mesh,
-      reinterpret_cast<float(*)[3]>(psys->hair_out_mesh->vert_positions_for_write().data()));
+      reinterpret_cast<float (*)[3]>(psys->hair_out_mesh->vert_positions_for_write().data()));
   psys->hair_out_mesh->tag_positions_changed();
 
   /* restore cloth effector weights */

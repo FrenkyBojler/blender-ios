@@ -1088,10 +1088,7 @@ GHOST_TSuccess GHOST_WindowWin32::setWindowCustomCursorShape(const uint8_t *bitm
       cols++;
     }
 
-    if (custom_cursor_) {
-      DestroyCursor(custom_cursor_);
-      custom_cursor_ = nullptr;
-    }
+    HCURSOR previous_cursor = custom_cursor_;
 
     memset(&andData, 0xFF, sizeof(andData));
     memset(&xorData, 0, sizeof(xorData));
@@ -1118,6 +1115,10 @@ GHOST_TSuccess GHOST_WindowWin32::setWindowCustomCursorShape(const uint8_t *bitm
 
     if (::GetForegroundWindow() == h_wnd_) {
       loadCursor(getCursorVisibility(), GHOST_kStandardCursorCustom);
+    }
+
+    if (previous_cursor) {
+      DestroyCursor(previous_cursor);
     }
 
     return GHOST_kSuccess;
@@ -1168,6 +1169,8 @@ GHOST_TSuccess GHOST_WindowWin32::setWindowCustomCursorShape(const uint8_t *bitm
   icon_info.hbmMask = empty_mask;
   icon_info.hbmColor = bmp;
 
+  HCURSOR previous_cursor = custom_cursor_;
+
   custom_cursor_ = CreateIconIndirect(&icon_info);
   DeleteObject(bmp);
   DeleteObject(empty_mask);
@@ -1178,6 +1181,10 @@ GHOST_TSuccess GHOST_WindowWin32::setWindowCustomCursorShape(const uint8_t *bitm
 
   if (::GetForegroundWindow() == h_wnd_) {
     loadCursor(getCursorVisibility(), GHOST_kStandardCursorCustom);
+  }
+
+  if (previous_cursor) {
+    DestroyCursor(previous_cursor);
   }
 
   return GHOST_kSuccess;
@@ -1326,7 +1333,11 @@ void GHOST_WindowWin32::updateHDRInfo()
     color_info.header.id = path.targetInfo.id;
 
     if (::DisplayConfigGetDeviceInfo(&color_info.header) == ERROR_SUCCESS) {
-      info.hdr_enabled = color_info.advancedColorSupported && color_info.advancedColorEnabled;
+      /* This particular combination indicates HDR mode is enabled. This is undocumented but
+       * used by WinRT. When wideColorEnforced is true we are in SDR mode with advanced color. */
+      info.wide_gamut_enabled = color_info.advancedColorSupported &&
+                                color_info.advancedColorEnabled;
+      info.hdr_enabled = info.wide_gamut_enabled && !color_info.wideColorEnforced;
     }
 
     if (info.hdr_enabled) {

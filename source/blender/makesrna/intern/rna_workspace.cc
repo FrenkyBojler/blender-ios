@@ -220,7 +220,7 @@ const EnumPropertyItem *rna_WorkSpaceTool_brush_type_itemf(bContext *C,
   int totitem = 0;
 
   EnumPropertyItem unset_item = {
-      -1, "ANY", 0, "Any", "Donnot limit this tool to a specific brush type"};
+      -1, "ANY", 0, "Any", "Do not limit this tool to a specific brush type"};
   RNA_enum_item_add(&items, &totitem, &unset_item);
 
   if (paint_mode != PaintMode::Invalid) {
@@ -500,7 +500,7 @@ static void rna_def_workspace(BlenderRNA *brna)
   prop = RNA_def_property(srna, "use_scene_time_sync", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flags", WORKSPACE_SYNC_SCENE_TIME);
   RNA_def_property_ui_text(
-      prop, "Sync Active Scene", "Set the active scene and time based on the current scene strip");
+      prop, "Sync Scene Time", "Set the active scene and time based on the current scene strip");
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_update(prop, NC_WINDOW, "rna_workspace_sync_scene_time_update");
 

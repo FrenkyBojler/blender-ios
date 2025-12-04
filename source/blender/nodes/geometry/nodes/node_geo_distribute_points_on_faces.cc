@@ -2,7 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BLI_kdtree.h"
+#include "BLI_kdtree.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_quaternion.hh"
 #include "BLI_math_rotation.h"
@@ -85,14 +85,14 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "distribute_method", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "distribute_method", UI_ITEM_NONE, "", ICON_NONE);
 }
 
-static void node_layout_ex(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout_ex(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "use_legacy_normal", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "use_legacy_normal", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 /**
@@ -290,7 +290,7 @@ BLI_NOINLINE static void interpolate_attribute(const Mesh &mesh,
 
 BLI_NOINLINE static void propagate_existing_attributes(
     const Mesh &mesh,
-    const Map<StringRef, AttributeDomainAndType> &attributes,
+    const GeometrySet::GatheredAttributes &attributes,
     PointCloud &points,
     const Span<float3> bary_coords,
     const Span<int> tri_indices)
@@ -298,9 +298,12 @@ BLI_NOINLINE static void propagate_existing_attributes(
   const AttributeAccessor mesh_attributes = mesh.attributes();
   MutableAttributeAccessor point_attributes = points.attributes_for_write();
 
-  for (MapItem<StringRef, AttributeDomainAndType> entry : attributes.items()) {
-    const StringRef attribute_id = entry.key;
-    const bke::AttrType output_data_type = entry.value.data_type;
+  for (const int i : attributes.names.index_range()) {
+    const StringRef attribute_id = attributes.names[i];
+    const bke::AttrType output_data_type = attributes.kinds[i].data_type;
+    if (attribute_id == "position") {
+      continue;
+    }
 
     GAttributeReader src = mesh_attributes.lookup(attribute_id);
     if (!src) {
@@ -559,15 +562,12 @@ static void point_distribution_calculate(GeometrySet &geometry_set,
 
   geometry_set.replace_pointcloud(pointcloud);
 
-  Map<StringRef, AttributeDomainAndType> attributes;
+  GeometrySet::GatheredAttributes attributes;
   geometry_set.gather_attributes_for_propagation({GeometryComponent::Type::Mesh},
                                                  GeometryComponent::Type::PointCloud,
                                                  false,
                                                  params.get_attribute_filter("Points"),
                                                  attributes);
-
-  /* Position is set separately. */
-  attributes.remove("position");
 
   propagate_existing_attributes(mesh, attributes, *pointcloud, bary_coords, tri_indices);
 

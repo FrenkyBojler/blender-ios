@@ -24,12 +24,12 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Vector>("Rotation").subtype(PROP_EULER);
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "axis", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
-  layout->prop(ptr, "pivot_axis", UI_ITEM_NONE, IFACE_("Pivot"), ICON_NONE);
+  layout.prop(ptr, "axis", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
+  layout.prop(ptr, "pivot_axis", UI_ITEM_NONE, IFACE_("Pivot"), ICON_NONE);
 }
 
 static void align_rotations_auto_pivot(const IndexMask &mask,
@@ -261,6 +261,7 @@ static void node_register()
 
   fn_node_type_base(&ntype, "FunctionNodeAlignEulerToVector", FN_NODE_ALIGN_EULER_TO_VECTOR);
   ntype.ui_name = "Align Euler to Vector";
+  ntype.ui_description = "Orient an Euler rotation along the given direction";
   ntype.enum_name_legacy = "ALIGN_EULER_TO_VECTOR";
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.declare = node_declare;

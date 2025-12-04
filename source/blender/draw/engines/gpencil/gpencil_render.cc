@@ -84,8 +84,9 @@ static void render_init_buffers(const DRWContext *draw_ctx,
   float *pix_col = (rpass_col_src) ? rpass_col_src->ibuf->float_buffer.data : nullptr;
 
   if (!pix_z || !pix_col) {
-    RE_engine_set_error_message(
-        engine, "Warning: To render Grease Pencil, enable Combined and Depth passes.");
+    RE_engine_set_error_message(engine,
+                                "Warning: To correctly render occluded Grease Pencil objects, "
+                                "enable Combined and Depth passes.");
   }
 
   if (pix_z) {
@@ -94,9 +95,8 @@ static void render_init_buffers(const DRWContext *draw_ctx,
     remap_depth(view, {pix_z, rpass_z_src->rectx * rpass_z_src->recty});
   }
 
-  const bool do_region = (!use_separated_pass) &&
-                         (!(rect->xmin == 0 && rect->ymin == 0 && rect->xmax == size.x &&
-                            rect->ymax == size.y));
+  const bool do_region = (!use_separated_pass) && !(rect->xmin == 0 && rect->ymin == 0 &&
+                                                    rect->xmax == size.x && rect->ymax == size.y);
   const bool do_clear_z = !pix_z || do_region;
   const bool do_clear_col = use_separated_pass || (!pix_col) || do_region;
 

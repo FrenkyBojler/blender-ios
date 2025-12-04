@@ -80,7 +80,7 @@ static VectorSet<Strip *> query_snap_sources_preview(const Scene *scene)
 
   snap_sources = seq::query_rendered_strips(
       scene, channels, ed->current_strips(), scene->r.cfra, 0);
-  snap_sources.remove_if([&](Strip *strip) { return (strip->flag & SELECT) == 0; });
+  snap_sources.remove_if([&](Strip *strip) { return (strip->flag & SEQ_SELECT) == 0; });
 
   return snap_sources;
 }
@@ -214,18 +214,18 @@ static VectorSet<Strip *> query_snap_targets_timeline(Scene *scene,
   VectorSet effects_of_snap_sources = snap_sources;
   seq::iterator_set_expand(scene, seqbase, effects_of_snap_sources, query_strip_effects_fn);
   effects_of_snap_sources.remove_if([&](Strip *strip) {
-    return (strip->type & STRIP_TYPE_EFFECT) != 0 && seq::effect_get_num_inputs(strip->type) == 0;
+    return strip->is_effect() && seq::effect_get_num_inputs(strip->type) == 0;
   });
 
   VectorSet<Strip *> snap_targets;
   LISTBASE_FOREACH (Strip *, strip, seqbase) {
-    if (exclude_selected && strip->flag & SELECT) {
+    if (exclude_selected && strip->flag & SEQ_SELECT) {
       continue; /* Selected are being transformed if there is no drag and drop. */
     }
     if (seq::render_is_muted(channels, strip) && (snap_flag & SEQ_SNAP_IGNORE_MUTED)) {
       continue;
     }
-    if (strip->type == STRIP_TYPE_SOUND_RAM && (snap_flag & SEQ_SNAP_IGNORE_SOUND)) {
+    if (strip->type == STRIP_TYPE_SOUND && (snap_flag & SEQ_SNAP_IGNORE_SOUND)) {
       continue;
     }
     if (effects_of_snap_sources.contains(strip)) {
@@ -258,7 +258,7 @@ static VectorSet<Strip *> query_snap_targets_preview(const TransInfo *t)
 
   /* Selected strips are only valid targets when snapping the cursor or origin. */
   if ((t->data_type == &TransConvertType_SequencerImage) && (t->flag & T_ORIGIN) == 0) {
-    snap_targets.remove_if([&](Strip *strip) { return (strip->flag & SELECT) != 0; });
+    snap_targets.remove_if([&](Strip *strip) { return (strip->flag & SEQ_SELECT) != 0; });
   }
 
   return snap_targets;
@@ -310,7 +310,7 @@ static void points_build_targets_timeline(const Scene *scene,
       int content_end = seq::time_content_end_frame_get(scene, strip);
 
       /* Effects and single image strips produce incorrect content length. Skip these strips. */
-      if ((strip->type & STRIP_TYPE_EFFECT) != 0 || strip->len == 1) {
+      if (strip->is_effect() || strip->len == 1) {
         content_start = seq::time_left_handle_frame_get(scene, strip);
         content_end = seq::time_right_handle_frame_get(scene, strip);
       }

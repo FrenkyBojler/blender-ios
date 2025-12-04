@@ -25,8 +25,8 @@
 
 #include "BKE_context.hh"
 #include "BKE_image.hh"
-#include "BKE_movieclip.h"
-#include "BKE_tracking.h"
+#include "BKE_movieclip.hh"
+#include "BKE_tracking.hh"
 
 #include "ED_clip.hh"
 #include "ED_gpencil_legacy.hh"
@@ -1733,7 +1733,7 @@ static void draw_distortion(SpaceClip *sc,
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
   /* grid */
-  if (sc->flag & SC_SHOW_GRID) {
+  if (sc->overlay.flag & SC_SHOW_OVERLAYS && sc->flag & SC_SHOW_GRID) {
     float val[4][2], idx[4][2];
     float min[2], max[2];
 
@@ -1966,7 +1966,8 @@ void clip_draw_main(const bContext *C, SpaceClip *sc, ARegion *region)
 
   if (width && height) {
     draw_stabilization_border(sc, region, width, height, zoomx, zoomy);
-    draw_tracking_tracks(sc, scene, region, clip, width, height, zoomx, zoomy);
+    if (sc->overlay.flag & SC_SHOW_OVERLAYS)
+      draw_tracking_tracks(sc, scene, region, clip, width, height, zoomx, zoomy);
     draw_distortion(sc, region, clip, width, height, zoomx, zoomy);
   }
 }

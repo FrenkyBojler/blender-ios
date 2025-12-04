@@ -22,6 +22,8 @@
 
 #include "rna_internal.hh"
 
+#include "UI_interface_layout.hh"
+
 #include "WM_api.hh"
 #include "WM_keymap.hh"
 #include "WM_types.hh"
@@ -456,6 +458,7 @@ const EnumPropertyItem rna_enum_event_type_items[] = {
     /* Action Zones. */
     {EVT_ACTIONZONE_AREA, "ACTIONZONE_AREA", 0, "ActionZone Area", "AZone Area"},
     {EVT_ACTIONZONE_REGION, "ACTIONZONE_REGION", 0, "ActionZone Region", "AZone Region"},
+    {EVT_ACTIONZONE_REGION_QUAD, "ACTIONZONE_REGION_QUAD", 0, "ActionZone Quad", "AZone Quad"},
     {EVT_ACTIONZONE_FULLSCREEN,
      "ACTIONZONE_FULLSCREEN",
      0,
@@ -883,7 +886,7 @@ static PointerRNA rna_Event_xr_get(PointerRNA *ptr)
 static PointerRNA rna_PopupMenu_layout_get(PointerRNA *ptr)
 {
   uiPopupMenu *pup = static_cast<uiPopupMenu *>(ptr->data);
-  uiLayout *layout = UI_popup_menu_layout(pup);
+  blender::ui::Layout *layout = UI_popup_menu_layout(pup);
 
   PointerRNA rptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_UILayout, layout);
   return rptr;
@@ -892,7 +895,7 @@ static PointerRNA rna_PopupMenu_layout_get(PointerRNA *ptr)
 static PointerRNA rna_PopoverMenu_layout_get(PointerRNA *ptr)
 {
   uiPopover *pup = static_cast<uiPopover *>(ptr->data);
-  uiLayout *layout = UI_popover_layout(pup);
+  blender::ui::Layout *layout = UI_popover_layout(pup);
 
   PointerRNA rptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_UILayout, layout);
   return rptr;
@@ -901,7 +904,7 @@ static PointerRNA rna_PopoverMenu_layout_get(PointerRNA *ptr)
 static PointerRNA rna_PieMenu_layout_get(PointerRNA *ptr)
 {
   uiPieMenu *pie = static_cast<uiPieMenu *>(ptr->data);
-  uiLayout *layout = UI_pie_menu_layout(pie);
+  blender::ui::Layout *layout = UI_pie_menu_layout(pie);
 
   PointerRNA rptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_UILayout, layout);
   return rptr;
@@ -1047,6 +1050,12 @@ static void rna_Window_view_layer_set(PointerRNA *ptr, PointerRNA value, ReportL
   ViewLayer *view_layer = static_cast<ViewLayer *>(value.data);
 
   WM_window_set_active_view_layer(win, view_layer);
+}
+
+static bool rna_Window_support_hdr_color_get(PointerRNA *ptr)
+{
+  wmWindow *win = static_cast<wmWindow *>(ptr->data);
+  return WM_window_support_hdr_color(win);
 }
 
 static bool rna_Window_modal_handler_skip(CollectionPropertyIterator * /*iter*/, void *data)
@@ -2781,6 +2790,14 @@ static void rna_def_window(BlenderRNA *brna)
   RNA_def_property_flag(prop, PROP_NEVER_NULL);
   RNA_def_property_struct_type(prop, "Stereo3dDisplay");
   RNA_def_property_ui_text(prop, "Stereo 3D Display", "Settings for stereo 3D display");
+
+  prop = RNA_def_property(srna, "support_hdr_color", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
+  RNA_def_property_ui_text(prop,
+                           "Support HDR Color",
+                           "The window has a HDR graphics buffer that wide gamut and high dynamic "
+                           "range colors can be written to, in extended sRGB color space.");
+  RNA_def_property_boolean_funcs(prop, "rna_Window_support_hdr_color_get", nullptr);
 
   prop = RNA_def_property(srna, "modal_operators", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_struct_type(prop, "Operator");
