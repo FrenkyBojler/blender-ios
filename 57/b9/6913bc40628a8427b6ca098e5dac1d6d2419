@@ -1,1 +1,1 @@
-Referenced by issue #151017, Blender 5.0 segfaults when switch to HIP
+Referenced by issue #151017, Blender 5.0 segfaults when switching to HIP while HIP runtime 5.X is installed
