@@ -90,7 +90,7 @@ static std::optional<RemoteListingAssetEntry> listing_entry_from_asset_dictionar
   }
 
   /* 'thumbnail': URL and hash of the preview image. */
-  listing_entry.thumbnail = ed::asset::index::parse_url_with_hash_dict(
+  listing_entry.thumbnail_url = ed::asset::index::parse_url_with_hash_dict(
       dictionary.lookup_dict("thumbnail"));
 
   /* 'metadata': optional dictionary. If all the metadata fields are empty, this can be left out of
@@ -132,13 +132,10 @@ static std::optional<RemoteListingFileEntry> listing_file_from_asset_dictionary(
     return {};
   }
 
-  /* URL is optional, and defaults to the local path. */
-  if (const std::optional<StringRefNull> url = dictionary.lookup_str("url")) {
-    file_entry.download_url.url = *url;
-  }
-  if (file_entry.download_url.url.empty()) {
-    file_entry.download_url.url = file_entry.local_path;
-  }
+  /* URL is optional, and defaults to the local path. That's handled in Python
+   * (see `download_asset()` in `asset_downloader.py`) so here we can just use
+   * an empty string to indicate "no URL". */
+  file_entry.download_url.url = dictionary.lookup_str("url").value_or("");
 
   return file_entry;
 }

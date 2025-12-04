@@ -40,7 +40,7 @@ RemoteListingAssetEntry::RemoteListingAssetEntry(RemoteListingAssetEntry &&other
 
   this->file_path = std::move(other.file_path);
   this->download_url = std::move(other.download_url);
-  this->thumbnail = std::move(other.thumbnail);
+  this->thumbnail_url = std::move(other.thumbnail_url);
 }
 
 RemoteListingAssetEntry &RemoteListingAssetEntry::operator=(RemoteListingAssetEntry &&other)

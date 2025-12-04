@@ -52,7 +52,7 @@ struct RemoteListingAssetEntry {
   std::string file_path;
   /** The URL the asset should be downloaded from. */
   asset_system::URLWithHash download_url;
-  std::optional<asset_system::URLWithHash> thumbnail;
+  std::optional<asset_system::URLWithHash> thumbnail_url;
 
   RemoteListingAssetEntry() = default;
   RemoteListingAssetEntry(const RemoteListingAssetEntry &) = delete;

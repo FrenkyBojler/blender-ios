@@ -2465,7 +2465,7 @@ static void filelist_readjob_list_lib_add_datablock(
         datablock_info->free_asset_data = false;
 
         BLI_assert_msg(!is_online_asset || asset_download_url.has_value(),
-                       "An online asset has to have a URL to download it from");
+                       "An online asset must have a URLWithHash");
 
         entry->asset = is_online_asset ?
                            job_params->load_asset_library->add_external_online_asset(
@@ -3280,7 +3280,7 @@ static void filelist_readjob_remote_asset_library_index_read(
                                             group_name,
                                             entry.file_path,
                                             entry.download_url,
-                                            entry.thumbnail);
+                                            entry.thumbnail_url);
 
     int entries_num = 0;
     LISTBASE_FOREACH (FileListInternEntry *, entry, &entries) {

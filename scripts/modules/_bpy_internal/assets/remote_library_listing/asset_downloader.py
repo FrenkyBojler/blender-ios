@@ -48,7 +48,9 @@ def download_asset(
         resolve relative `save_to` paths, but also to find the HTTP metadata
         cache for this asset library (for conditional downloads).
 
-    :param asset_url: the URL to download. Can be absolute or relative.
+    :param asset_url: the URL to download. Can be absolute or relative to the
+        asset library URL. If it is an empty string, the `save_to` path is used
+        as the URL.
     :param asset_hash: the hash of the asset file, will be appended to the URL.
 
     :param save_to: the path on disk where to download to. While the download is
@@ -68,6 +70,14 @@ def download_asset(
         )
         downloader.start()
         _asset_downloaders[asset_library_url] = downloader
+
+    # Construct the URL if not given explicitly.
+    if not asset_url:
+        if save_to.is_absolute():
+            relative_path = save_to.relative_to(asset_library_local_path)
+        else:
+            relative_path = save_to
+        asset_url = urllib.parse.quote(relative_path.as_posix())
 
     # Include the hash in the URL, and download the asset.
     download_url = hashing.url((asset_url, asset_hash))
