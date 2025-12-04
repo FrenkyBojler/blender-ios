@@ -483,11 +483,11 @@ class Preprocessor {
     str = threadgroup_variables_parse_and_remove(str, report_error);
     parse_builtins(str, filename);
     if (language == BLENDER_GLSL || language == CPP) {
-      if (do_parse_function) {
-        parse_library_functions(str);
-      }
       {
         Parser parser(str, report_error);
+        if (do_parse_function) {
+          parse_library_functions(parser, report_error);
+        }
         if (language == BLENDER_GLSL) {
           pragma_runtime_generated_parsing(parser);
           pragma_once_linting(parser, filename, report_error);
@@ -1848,27 +1848,40 @@ class Preprocessor {
     return parser.result_get();
   }
 
-  void parse_library_functions(const std::string &str)
+  void parse_library_functions(Parser &parser, report_callback report_error)
   {
+    using namespace std;
+    using namespace shader::parser;
     using namespace metadata;
-    std::regex regex_func(R"(void\s+(\w+)\s*\(([^)]+\))\s*\{)");
-    regex_global_search(str, regex_func, [&](const std::smatch &match) {
-      std::string name = match[1].str();
-      std::string args = match[2].str();
 
+    parser().foreach_function([&](bool, Token fn_type, Token fn_name, Scope fn_args, bool, Scope) {
+      /* Only match void function with parameters. */
+      if (fn_type.str() != "void" || fn_args.token_count() <= 3) {
+        return;
+      }
+      /* Reject main function. */
+      if (fn_name.str() == "main") {
+        return;
+      }
       FunctionFormat fn;
-      fn.name = name;
+      fn.name = fn_name.str();
 
-      std::regex regex_arg(R"((?:(const|in|out|inout)\s)?(\w+)\s([\w\[\]]+)(?:,|\)))");
-      regex_global_search(args, regex_arg, [&](const std::smatch &arg) {
-        std::string qualifier = arg[1].str();
-        std::string type = arg[2].str();
-        if (qualifier.empty() || qualifier == "const") {
+      fn_args.foreach_scope(ScopeType::FunctionArg, [&](Scope arg) {
+        /* Note: There is no array support. */
+        const Token name = arg.end();
+        const Token type = name.prev();
+        std::string qualifier = type.prev().str();
+        if (qualifier != "out" && qualifier != "inout" && qualifier != "in") {
+          if (qualifier != "const" && qualifier != "(" && qualifier != ",") {
+            report_error(ERROR_TOK(type.prev()),
+                         "Unrecognized qualifier, expecting 'const', 'in', 'out' or 'inout'.");
+          }
           qualifier = "in";
         }
-        fn.arguments.emplace_back(
-            ArgumentFormat{metadata::Qualifier(hash(qualifier)), metadata::Type(hash(type))});
+        fn.arguments.emplace_back(ArgumentFormat{metadata::Qualifier(hash(qualifier)),
+                                                 metadata::Type(hash(type.str()))});
       });
+
       metadata.functions.emplace_back(fn);
     });
   }
