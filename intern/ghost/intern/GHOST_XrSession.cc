@@ -180,8 +180,8 @@ static void create_reference_spaces(OpenXRSessionData &oxr, bool isDebugMode)
           "Warning: Stage reference space unavailable, falling back to local floor reference "
           "space.\n");
     }
-    /* Using XR_REFERENCE_SPACE_TYPE_LOCAL_FLOOR_EXT for the 1.0 XR_EXT_LOCAL_FLOOR_EXTENSION
-     * extension, on 1.1+ this is equivalent to XR_REFERENCE_SPACE_TYPE_LOCAL_FLOOR. */
+    /* Using XR_REFERENCE_SPACE_TYPE_LOCAL_FLOOR_EXT for the 1.0 XR_EXT_LOCAL_FLOOR extension.
+     * On 1.1+ this is equivalent to XR_REFERENCE_SPACE_TYPE_LOCAL_FLOOR. */
     create_info.referenceSpaceType = XR_REFERENCE_SPACE_TYPE_LOCAL_FLOOR_EXT;
     CHECK_XR(xrCreateReferenceSpace(oxr.session, &create_info, &oxr.reference_space),
              "Failed to create local floor reference space.");
