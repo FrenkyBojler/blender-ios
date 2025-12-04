@@ -2292,6 +2292,11 @@ void BLO_write_shared_tag(BlendWriter *writer, const void *data)
   if (!BLO_write_is_undo(writer)) {
     return;
   }
+  if (writer->wd->use_memfile) {
+    if (writer->wd->stable_address_ids.pointer_map.contains(data)) {
+      return;
+    }
+  }
   const uint64_t address_id = get_address_id_for_implicit_sharing_data(data);
   /* Check that the pointer has not been written before it was tagged as being shared. */
   BLI_assert(writer->wd->stable_address_ids.pointer_map.lookup_default(data, address_id) ==
