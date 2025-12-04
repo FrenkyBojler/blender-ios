@@ -837,7 +837,7 @@ static uint64_t get_address_id_int(WriteData &wd, const void *address)
    * However, in very rare cases, it could be from another, implicitly-shared data (i.e. have the
    * `implicit_sharing_address_id_flag` flag set).
    *
-   * This is hanlded properly by both `BLO_write_shared_tag` and `prepare_stable_data_block_ids`,
+   * This is handled properly by both #BLO_write_shared_tag and #prepare_stable_data_block_ids,
    * but doing so here would add a significant overhead to a very often used function. Further
    * more, there is no .
    */
@@ -1697,6 +1697,7 @@ static void prepare_stable_data_block_ids(WriteData &wd, Main &bmain)
     if (wd.use_memfile) {
       /* In undo case, the stable address data is re-used from the previously written undo step.
        * This means that the ID address may already be in the map.
+       *
        * However, in very rare cases, it could be from another, implicitly-shared data, in which
        * case the ID address 'stable value' needs to be re-generated and re-inserted. */
       uint64_t address_id = wd.stable_address_ids.pointer_map.lookup_default(id, 0);
