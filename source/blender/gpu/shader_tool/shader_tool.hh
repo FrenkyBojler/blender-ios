@@ -525,6 +525,7 @@ class Preprocessor {
           quote_linting(parser, report_error);
         }
 
+        array_mutation(parser, report_error);
         default_argument_mutation(parser, report_error);
         global_scope_constant_linting(parser, report_error);
         if (do_small_type_linting) {
@@ -2963,6 +2964,57 @@ class Preprocessor {
                    tokens[0].line_str(),
                    "invalid enum declaration");
     });
+  }
+
+  void array_mutation(Parser &parser, report_callback report_error)
+  {
+    using namespace std;
+    using namespace shader::parser;
+
+    parser().foreach_match("ww[..]={..};", [&](vector<Token> toks) {
+      const Token type_tok = toks[0];
+      const Token name_tok = toks[1];
+      const Scope array_scope = toks[2].scope();
+      const Scope list_scope = toks[7].scope();
+
+      /* Auto array size. */
+      int array_scope_tok_len = array_scope.token_count();
+      if (array_scope_tok_len == 2) {
+        int comma_count = 0;
+        list_scope.foreach_token(Comma, [&](Token t) {
+          if (t.scope() == list_scope) {
+            comma_count++;
+          }
+        });
+        const int list_len = (comma_count > 0) ? comma_count + 1 : 0;
+        if (list_len == 0) {
+          report_error(ERROR_TOK(name_tok), "Array size must be greater than zero.");
+        }
+        parser.insert_after(array_scope[0], to_string(list_len));
+      }
+      else if (array_scope_tok_len == 3 && array_scope[1] == Number) {
+        if (stol(array_scope[1].str()) == 0) {
+          report_error(ERROR_TOK(name_tok), "Array size must be greater than zero.");
+        }
+      }
+
+      /* Lint nested initializer list. */
+      list_scope.foreach_token(BracketOpen, [&](Token tok) {
+        if (tok != list_scope.start()) {
+          report_error(ERROR_TOK(name_tok), "Nested initializer list is not supported.");
+        }
+      });
+
+      /* Mutation to compatible syntax. */
+      parser.insert_before(list_scope.start(), "ARRAY_T(" + type_tok.str() + ") ARRAY_V(");
+      parser.insert_after(list_scope.end(), ")");
+      parser.erase(list_scope.start());
+      parser.erase(list_scope.end());
+      if (list_scope.end().prev() == ',') {
+        parser.erase(list_scope.end().prev());
+      }
+    });
+    parser.apply_mutations();
   }
 
   std::string strip_whitespace(const std::string &str) const
