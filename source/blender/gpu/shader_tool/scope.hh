@@ -116,6 +116,23 @@ struct Scope {
   /* Returns the scope that contains this scope. */
   Scope scope() const
   {
+    if (is_invalid()) {
+      return Scope::invalid();
+    }
+    const size_t scope_start = this->start().str_index_start();
+    Scope scope = *this;
+    while ((scope = scope.prev()).is_valid()) {
+      if (scope.end().str_index_last() > scope_start) {
+        return scope;
+      }
+    }
+    return scope;
+  }
+
+  /* Returns the previous scope before this scope. Can be either the container scope or the
+   * previous scope inside the same container. */
+  Scope prev() const
+  {
     return is_invalid() ? Scope::invalid() : start().prev().scope();
   }
 
@@ -274,7 +291,8 @@ struct Scope {
         break;
       }
       /* Make sure found scope is direct child of this scope. */
-      if (scope.start().scope().scope().index == this->index) {
+      Scope parent_scope = scope.scope();
+      if (parent_scope.index == this->index) {
         callback(scope);
       }
       pos += 1;
