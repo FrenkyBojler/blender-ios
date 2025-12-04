@@ -486,6 +486,11 @@ void GHOST_XrControllerModelEXT::load(XrSession session)
   CHECK_XR(g_xrEnumerateInteractionRenderModelIdsEXT(session, nullptr, 0, &num_models, nullptr),
            "Failed to obtain interaction render model count.");
 
+  if (num_models == 0) {
+    /* No render model to load. */
+    return;
+  }
+
   std::vector<XrRenderModelIdEXT> interaction_model_ids{XR_NULL_PATH, num_models};
   CHECK_XR(g_xrEnumerateInteractionRenderModelIdsEXT(
                session, nullptr, num_models, &num_models, interaction_model_ids.data()),
@@ -641,8 +646,7 @@ void GHOST_XrControllerModelEXT::updateComponents(XrSession /*session*/, XrTime 
   }
 }
 
-void GHOST_XrControllerModelEXT::getData(GHOST_XrControllerModelData &r_data) {
-}
+void GHOST_XrControllerModelEXT::getData(GHOST_XrControllerModelData &r_data) {}
 
 /** \} */
 

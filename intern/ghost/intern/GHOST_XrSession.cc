@@ -960,8 +960,8 @@ void GHOST_XrSession::getActionCustomdataArray(const char *action_set_name,
 
 bool GHOST_XrSession::loadControllerModel(const char *subaction_path)
 {
-  if (!context_->isExtensionEnabled(XR_MSFT_CONTROLLER_MODEL_EXTENSION_NAME) ||
-      !context_->isExtensionEnabled(XR_EXT_INTERACTION_RENDER_MODEL_EXTENSION_NAME))
+  if (!(context_->isExtensionEnabled(XR_MSFT_CONTROLLER_MODEL_EXTENSION_NAME) ||
+        context_->isExtensionEnabled(XR_EXT_INTERACTION_RENDER_MODEL_EXTENSION_NAME)))
   {
     return false;
   }
