@@ -482,7 +482,7 @@ static const EnumPropertyItem prop_asset_overwrite_modes[] = {
  * Get the selected asset from the given `bContext`. If the asset is an Action, returns a pointer
  * to that action, else returns a nullptr.
  *
- * Note that this may load another .blend file to obtain the Action, which means it should not be
+ * Note that this may open another .blend file and import the Action, which means it should not be
  * used in poll functions.
  *
  * \see #pose_asset_potentially_editable_poll() for use in poll functions.
