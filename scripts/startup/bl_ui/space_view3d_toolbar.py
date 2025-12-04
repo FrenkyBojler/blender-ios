@@ -1399,6 +1399,7 @@ class VIEW3D_PT_imagepaint_options(View3DPaintPanel):
 
 class VIEW3D_MT_tools_projectpaint_stencil(Menu):
     bl_label = "Mask Layer"
+    bl_description = "UV map used to project the stencil image onto the surface"
 
     def draw(self, context):
         layout = self.layout

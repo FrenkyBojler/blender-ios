@@ -767,6 +767,7 @@ class DisplayPanel(BrushPanel):
 
 class VIEW3D_MT_tools_projectpaint_clone(Menu):
     bl_label = "Clone Layer"
+    bl_description = "UV map used to sample the cloned image"
 
     def draw(self, context):
         layout = self.layout
