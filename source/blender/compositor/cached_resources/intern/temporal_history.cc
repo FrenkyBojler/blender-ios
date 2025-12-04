@@ -41,7 +41,7 @@ HistoryEntry &TemporalHistoryContainer::get(Context & /*context*/,
   key.tree = &tree;
   key.node = &bnode;
 
-  auto &history_ptr = *map_.lookup_or_add_cb(key, [&]() {
+  auto &history_ptr = map_.lookup_or_add_cb(key, [&]() {
     return std::make_unique<TemporalHistory>();
   });
 
