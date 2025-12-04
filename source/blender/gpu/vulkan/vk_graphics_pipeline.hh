@@ -93,8 +93,7 @@ struct VKGraphicsPipelineCreateInfoBuilder {
     const VKExtensions &extensions = device.extensions_get();
     build_dynamic_state_for_vertex_input(extensions);
 
-    const bool use_dynamic_vertex_input = extensions.vertex_input_dynamic_state;
-    if (!use_dynamic_vertex_input) {
+    if (!extensions.vertex_input_dynamic_state) {
       build_vertex_input_state(device, vertex_input_info);
     }
   }

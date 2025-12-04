@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "vk_common.hh"
+#include "vk_vertex_input_description.hh"
 
 namespace blender::gpu::render_graph {
 class VKCommandBufferInterface;
@@ -85,8 +85,7 @@ struct VKViewportData {
 struct VKPipelineDataGraphics {
   VKPipelineData pipeline_data;
   VKViewportData viewport;
-  /* Is a VKVertexInputDescriptionPool::Key */
-  std::optional<int64_t> vertex_input_description;
+  std::optional<VKVertexInputDescriptionPool::Key> vertex_input_description;
   std::optional<float> line_width;
   std::optional<StencilState> stencil_state;
   std::optional<VkFrontFace> front_face;
@@ -147,8 +146,7 @@ struct VKBoundPipelines {
     std::optional<float> line_width;
     std::optional<StencilState> stencil_state;
     std::optional<VkFrontFace> front_face;
-    /* Is a VKVertexInputDescriptionPool::Key */
-    std::optional<int64_t> vertex_input_description;
+    std::optional<VKVertexInputDescriptionPool::Key> vertex_input_description;
   } graphics;
 };
 

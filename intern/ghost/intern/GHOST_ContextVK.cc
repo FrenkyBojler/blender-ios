@@ -531,6 +531,8 @@ struct GHOST_InstanceVK {
      * This seems to affect the pro drivers more than the adrenalin ones. But as both share the
      * same codebase it is better to disable them until it is clear what causes the crashes and
      * when these were fixed.
+     * 
+     * Ref #151103
      */
     const bool is_amd_driver = device.properties_12.driverID == VK_DRIVER_ID_AMD_PROPRIETARY ||
                                device.properties_12.driverID == VK_DRIVER_ID_AMD_OPEN_SOURCE;
