@@ -339,6 +339,17 @@ enum_denoising_quality = (
      3),
 )
 
+enum_denoising_upscale = (
+    ('NONE',
+     "1x",
+     "No upscaling",
+     0),
+    ('2X',
+     "2x",
+     "2x upscaling",
+     1),
+)
+
 enum_direct_light_sampling_type = (
     ('MULTIPLE_IMPORTANCE_SAMPLING',
      "Multiple Importance Sampling",
@@ -474,6 +485,12 @@ class CyclesRenderSettings(bpy.types.PropertyGroup):
         name="Denoise Preview on GPU",
         description="Perform denoising on GPU devices configured in the system tab in the user preferences. This is significantly faster than on CPU, but requires additional GPU memory. When large scenes need more GPU memory, this option can be disabled",
         default=True,
+    )
+    preview_denoising_upscale: EnumProperty(
+        name="Viewport Denoising Upscale",
+        description="Upscaling factor to apply during denoising when using OptiX denoiser",
+        items=enum_denoising_upscale,
+        default=0,
     )
 
     samples: IntProperty(

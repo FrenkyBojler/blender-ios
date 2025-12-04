@@ -23,11 +23,6 @@ class OIDNDenoiserGPU : public DenoiserGPU {
   OIDNDenoiserGPU(Device *denoiser_device, const DenoiseParams &params);
   ~OIDNDenoiserGPU() override;
 
-  bool denoise_buffer(const BufferParams &buffer_params,
-                      RenderBuffers *render_buffers,
-                      const int num_samples,
-                      bool allow_inplace_modification) override;
-
   static bool is_device_supported(const DeviceInfo &device);
 
  protected:

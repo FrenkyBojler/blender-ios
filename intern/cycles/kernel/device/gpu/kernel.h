@@ -1147,7 +1147,9 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
                              const int pass_denoised,
                              const int pass_sample_count,
                              const int num_components,
-                             const int use_compositing)
+                             const int use_compositing,
+                             const float upscale,
+                             const int input_stride)
 {
   const int work_index = ccl_gpu_global_id_x();
   const int y = work_index / width;
@@ -1178,10 +1180,14 @@ ccl_gpu_kernel(GPU_KERNEL_BLOCK_NUM_THREADS, GPU_KERNEL_MAX_REGISTERS)
     /* Pass without alpha channel. */
   }
   else if (!use_compositing) {
+    const uint64_t input_render_pixel_index = offset + (int)((x + full_x) / upscale) +
+                                              (int)((y + full_y) / upscale) * input_stride;
+    ccl_global float *input_buffer = render_buffer + input_render_pixel_index * pass_stride;
+
     /* Currently compositing passes are either 3-component (derived by dividing light passes)
      * or do not have transparency (shadow catcher). Implicitly rely on this logic, as it
      * simplifies logic and avoids extra memory allocation. */
-    const ccl_global float *noisy_pixel = buffer + pass_noisy;
+    const ccl_global float *noisy_pixel = input_buffer + pass_noisy;
     denoised_pixel[3] = noisy_pixel[3];
   }
   else {

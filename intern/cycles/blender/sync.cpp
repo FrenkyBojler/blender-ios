@@ -540,6 +540,7 @@ void BlenderSync::sync_integrator(BL::ViewLayer &b_view_layer,
     integrator->set_use_denoise_pass_normal(denoise_params.use_pass_normal);
     integrator->set_denoiser_prefilter(denoise_params.prefilter);
     integrator->set_denoiser_quality(denoise_params.quality);
+    integrator->set_denoiser_upscale(denoise_params.upscale);
   }
 
   /* UPDATE_NONE as we don't want to tag the integrator as modified (this was done by the
@@ -1076,6 +1077,10 @@ DenoiseParams BlenderSync::get_denoise_params(BL::Scene &b_scene,
       if (denoising.type == DENOISER_NONE) {
         denoising.use = false;
       }
+    }
+
+    if (denoising.type == DENOISER_OPTIX && get_enum(cscene, "preview_denoising_upscale", 2, 0)) {
+      denoising.upscale = 2.0f;
     }
   }
 

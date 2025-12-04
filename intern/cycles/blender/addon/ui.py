@@ -277,6 +277,9 @@ class CYCLES_RENDER_PT_sampling_viewport_denoise(CyclesButtonsPanel, Panel):
             col.prop(cscene, "preview_denoising_prefilter", text="Prefilter")
             col.prop(cscene, "preview_denoising_quality", text="Quality")
 
+        if effective_preview_denoiser == 'OPTIX':
+            col.prop(cscene, "preview_denoising_upscale", text="Upscale")
+
         col.prop(cscene, "preview_denoising_start_sample", text="Start Sample")
 
         if effective_preview_denoiser == 'OPENIMAGEDENOISE':
@@ -344,11 +347,11 @@ class CYCLES_RENDER_PT_sampling_render_denoise(CyclesButtonsPanel, Panel):
         sub.prop(cscene, "denoiser", text="Denoiser")
 
         col.prop(cscene, "denoising_input_passes", text="Passes")
+
         if cscene.denoiser == 'OPENIMAGEDENOISE':
             col.prop(cscene, "denoising_prefilter", text="Prefilter")
             col.prop(cscene, "denoising_quality", text="Quality")
 
-        if cscene.denoiser == 'OPENIMAGEDENOISE':
             row = col.row()
             row.active = has_oidn_gpu_devices(context)
             row.prop(cscene, "denoising_use_gpu", text="Use GPU")

@@ -166,15 +166,6 @@ OIDNDenoiserGPU::~OIDNDenoiserGPU()
   release_all_resources();
 }
 
-bool OIDNDenoiserGPU::denoise_buffer(const BufferParams &buffer_params,
-                                     RenderBuffers *render_buffers,
-                                     const int num_samples,
-                                     bool allow_inplace_modification)
-{
-  return DenoiserGPU::denoise_buffer(
-      buffer_params, render_buffers, num_samples, allow_inplace_modification);
-}
-
 uint OIDNDenoiserGPU::get_device_type_mask() const
 {
   uint device_mask = 0;

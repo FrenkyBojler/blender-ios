@@ -610,6 +610,7 @@ static void copy_render_buffers_to_device(unique_ptr<DeviceQueue> &queue,
 #endif
 
 bool OIDNDenoiser::denoise_buffer(const BufferParams &buffer_params,
+                                  const BufferParams &,
                                   RenderBuffers *render_buffers,
                                   const int num_samples,
                                   bool allow_inplace_modification)

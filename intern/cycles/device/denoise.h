@@ -74,6 +74,7 @@ class DenoiseParams : public Node {
 
   DenoiserPrefilter prefilter = DENOISER_PREFILTER_FAST;
   DenoiserQuality quality = DENOISER_QUALITY_HIGH;
+  float upscale = 1.0f;
 
   static const NodeEnum *get_type_enum();
   static const NodeEnum *get_prefilter_enum();
