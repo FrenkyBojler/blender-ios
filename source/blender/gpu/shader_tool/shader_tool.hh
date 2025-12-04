@@ -8,7 +8,6 @@
 
 #pragma once
 
-#include <algorithm>
 #include <cctype>
 #include <cstdint>
 #include <functional>
@@ -441,6 +440,9 @@ class Preprocessor {
     BLENDER_GLSL,
   };
 
+  /* Cannot use `__` because of some compilers complaining about reserved symbols. */
+  static constexpr const char *namespace_separator = "_";
+
   static SourceLanguage language_from_filename(const std::string &filename)
   {
     if (filename.find(".msl") != std::string::npos) {
@@ -504,6 +506,7 @@ class Preprocessor {
           template_struct_mutation(parser, report_error);
           template_definition_mutation(parser, report_error);
           template_call_mutation(parser, report_error);
+          namespace_separator_mutation(parser, report_error);
           entry_point_parsing_and_mutation(parser, report_error);
           stage_function_mutation(parser, report_error);
           pipeline_parse_and_remove(parser, filename, report_error);
@@ -532,13 +535,7 @@ class Preprocessor {
         argument_reference_mutation(parser, report_error);
         remove_whitespace(parser, report_error);
         variable_reference_mutation(parser, report_error);
-        str = parser.result_get();
-      }
-      if (language == BLENDER_GLSL) {
-        str = namespace_separator_mutation(str);
-      }
-      {
-        Parser parser(str, report_error);
+        namespace_separator_mutation(parser, report_error);
         /* Do another whitespace pass to remove the one introduced by mutations. */
         remove_whitespace(parser, report_error);
         cleanup_empty_lines(parser, report_error);
@@ -1531,8 +1528,8 @@ class Preprocessor {
         report_error(ERROR_TOK(tokens[0]), "Nested namespaces are unsupported.");
       });
 
-      string namespace_prefix = namespace_separator_mutation(
-          scope.start().prev().full_symbol_name() + "::");
+      string prefix = scope.start().prev().full_symbol_name();
+
       auto process_symbol = [&](const Token &symbol) {
         if (symbol.next() == '<') {
           /* Template instantiation or specialization. */
@@ -1551,7 +1548,7 @@ class Preprocessor {
           if (token.prev() == '.') {
             return;
           }
-          parser.replace(token, namespace_prefix + token.str(), true);
+          parser.replace(token, prefix + namespace_separator + token.str(), true);
         });
       };
 
@@ -1635,8 +1632,6 @@ class Preprocessor {
         }
       }
 
-      to = namespace_separator_mutation(to);
-
       /* Assignments do not allow to alias functions symbols. */
       const bool use_alias = from.str() != to_end.str();
       const bool replace_fn = !use_alias;
@@ -1684,16 +1679,25 @@ class Preprocessor {
     });
   }
 
-  std::string namespace_separator_mutation(const std::string &str)
+  void namespace_separator_mutation(Parser &parser, report_callback /*report_error*/)
   {
-    std::string out = str;
+    using namespace std;
+    using namespace shader::parser;
 
-    /* Global namespace reference. */
-    replace_all(out, " ::", "   ");
-    /* Specific namespace reference.
-     * Cannot use `__` because of some compilers complaining about reserved symbols. */
-    replace_all(out, "::", "_");
-    return out;
+    parser().foreach_match("::", [&](const std::vector<Token> &tokens) {
+      if (tokens[0].scope().type() == ScopeType::Attribute) {
+        return;
+      }
+      if (tokens[0].prev() != Word) {
+        /* Global namespace reference. */
+        parser.erase(tokens.front(), tokens.back());
+      }
+      else {
+        /* Specific namespace reference. */
+        parser.replace(tokens.front(), tokens.back(), namespace_separator);
+      }
+    });
+    parser.apply_mutations();
   }
 
   std::string disabled_code_mutation(const std::string &str, report_callback &report_error)
@@ -2538,8 +2542,7 @@ class Preprocessor {
             const Token const_tok = is_const ? fn_args.end().next() : Token::invalid();
 
             if (is_static) {
-              parser.replace(
-                  fn_name, namespace_separator_mutation(struct_name.str() + "::" + fn_name.str()));
+              parser.replace(fn_name, struct_name.str() + namespace_separator + fn_name.str());
               /* WORKAROUND: Erase the static keyword as it conflicts with the wrapper class
                * member accesses MSL. */
               parser.erase(static_tok);
@@ -3586,39 +3589,6 @@ class Preprocessor {
     /* NOTE: This is not supported by GLSL. All line directives are muted at runtime and the
      * sources are scanned after error reporting for the locating the muted line. */
     return "#line 1 \"" + filename + "\"\n";
-  }
-
-  /* Made public for unit testing purpose. */
- public:
-  static void replace_all(std::string &str, const std::string &from, const std::string &to)
-  {
-    if (from.empty()) {
-      return;
-    }
-    size_t start_pos = 0;
-    while ((start_pos = str.find(from, start_pos)) != std::string::npos) {
-      str.replace(start_pos, from.length(), to);
-      start_pos += to.length();
-    }
-  }
-
-  static void replace_all(std::string &str, const char from, const char to)
-  {
-    for (char &string_char : str) {
-      if (string_char == from) {
-        string_char = to;
-      }
-    }
-  }
-
-  static int64_t char_count(const std::string &str, char c)
-  {
-    return std::count(str.begin(), str.end(), c);
-  }
-
-  static int64_t line_count(const std::string &str)
-  {
-    return char_count(str, '\n');
   }
 };
 
