@@ -2187,8 +2187,8 @@ static int filelist_add_userfonts_regpath(HKEY hKeyParent, LPCSTR subkeyName, Li
       font_num++;
     }
 
-    KeyNameLen = 255;
-    KeyValueLen = FILE_MAX;
+    KeyNameLen = sizeof(KeyName);
+    KeyValueLen = sizeof(KeyValue);
     index++;
   }
 
@@ -2198,7 +2198,7 @@ static int filelist_add_userfonts_regpath(HKEY hKeyParent, LPCSTR subkeyName, Li
          ERROR_SUCCESS)
   {
     font_num += filelist_add_userfonts_regpath(key, KeyName, entries);
-    KeyNameLen = 255;
+    KeyNameLen = sizeof(KeyName);
     index++;
   }
 
