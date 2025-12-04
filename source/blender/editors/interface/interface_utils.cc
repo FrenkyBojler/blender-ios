@@ -286,7 +286,7 @@ void uiDefAutoButsArrayR(uiBlock *block,
   UI_block_align_end(block);
 }
 
-eAutoPropButsReturn uiDefAutoButsRNA(uiLayout *layout,
+eAutoPropButsReturn uiDefAutoButsRNA(blender::ui::Layout *layout,
                                      PointerRNA *ptr,
                                      bool (*check_prop)(PointerRNA *ptr,
                                                         PropertyRNA *prop,
@@ -297,7 +297,7 @@ eAutoPropButsReturn uiDefAutoButsRNA(uiLayout *layout,
                                      const bool compact)
 {
   eAutoPropButsReturn return_info = UI_PROP_BUTS_NONE_ADDED;
-  uiLayout *col;
+  blender::ui::Layout *col;
   std::optional<StringRefNull> name;
 
   RNA_STRUCT_BEGIN (ptr, prop) {
@@ -329,7 +329,7 @@ eAutoPropButsReturn uiDefAutoButsRNA(uiLayout *layout,
         else {
           BLI_assert(label_align == UI_BUT_LABEL_ALIGN_SPLIT_COLUMN);
           col = &layout->column(true);
-          /* Let uiLayout::prop() create the split layout. */
+          /* Let blender::ui::Layout::prop() create the split layout. */
           col->use_property_split_set(true);
         }
 
