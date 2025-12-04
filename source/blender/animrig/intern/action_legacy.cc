@@ -261,7 +261,6 @@ bool action_fcurves_remove(bAction &action,
     return false;
   }
 
-  Action &action_wrapped = action.wrap();
   Channelbag *bag = channelbag_for_action_slot(action.wrap(), slot_handle);
   if (!bag) {
     return false;

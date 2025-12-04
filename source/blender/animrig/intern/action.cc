@@ -1503,7 +1503,7 @@ ActionSlotAssignmentResult generic_assign_action_slot_handle(slot_handle_t slot_
       slot, animated_id, action_ptr_ref, slot_handle_ref, slot_identifier);
 }
 
-bool is_action_assignable_to(const bAction *dna_action, const ID_Type id_code)
+bool is_action_assignable_to(const bAction *dna_action, const ID_Type /* id_code */)
 {
   if (!dna_action) {
     /* Clearing the Action is always possible. */
@@ -1515,8 +1515,6 @@ bool is_action_assignable_to(const bAction *dna_action, const ID_Type id_code)
      * any case, it can be assigned to any ID. */
     return true;
   }
-
-  const animrig::Action &action = dna_action->wrap();
 
   return true;
 }
@@ -2673,7 +2671,7 @@ Vector<FCurve *> fcurves_in_listbase_filtered(ListBase /* FCurve * */ fcurves,
 
 FCurve *action_fcurve_ensure_ex(Main *bmain,
                                 bAction *act,
-                                const char group[],
+                                const char /* group */[],
                                 PointerRNA *ptr,
                                 const FCurveDescriptor &fcurve_descriptor)
 {

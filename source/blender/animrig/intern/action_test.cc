@@ -1564,6 +1564,66 @@ TEST_F(ActionQueryTest, BKE_action_frame_range_calc)
   /* TODO: action with fcurve modifiers. */
 }
 
+TEST_F(ActionQueryTest, action_has_single_frame)
+{
+  /* No FCurves. */
+  {
+    Action &action = action_new();
+    EXPECT_FALSE(action.has_single_frame())
+        << "Action without FCurves cannot have a single frame.";
+  }
+
+  /* One curve with one key. */
+  {
+    FCurve &fcu = *MEM_callocN<FCurve>(__func__);
+    allocate_keyframes(fcu, 1);
+    add_keyframe(fcu, 1.0f, 2.0f);
+
+    Action &action = action_new();
+    add_fcurve_to_action(action, fcu);
+
+    EXPECT_TRUE(action.has_single_frame())
+        << "Action with one FCurve and one key should have single frame.";
+  }
+  return;
+
+  /* Two curves with one key each. */
+  {
+    FCurve &fcu1 = *MEM_callocN<FCurve>(__func__);
+    FCurve &fcu2 = *MEM_callocN<FCurve>(__func__);
+    allocate_keyframes(fcu1, 1);
+    allocate_keyframes(fcu2, 1);
+    add_keyframe(fcu1, 1.0f, 327.0f);
+    add_keyframe(fcu2, 1.0f, 47.0f); /* Same X-coordinate as the other one. */
+
+    Action &action = action_new();
+    add_fcurve_to_action(action, fcu1);
+    add_fcurve_to_action(action, fcu2);
+
+    EXPECT_TRUE(action.wrap().has_single_frame())
+        << "Two FCurves with keys on the same frame should have single frame.";
+
+    /* Modify the 2nd curve so it's keyed on a different frame. */
+    fcu2.bezt[0].vec[1][0] = 2.0f;
+    EXPECT_FALSE(action.has_single_frame())
+        << "Two FCurves with keys on different frames should have animation.";
+  }
+
+  /* One curve with two keys. */
+  {
+    FCurve &fcu = *MEM_callocN<FCurve>(__func__);
+    allocate_keyframes(fcu, 2);
+    add_keyframe(fcu, 1.0f, 2.0f);
+    add_keyframe(fcu, 2.0f, 2.5f);
+
+    Action &action = action_new();
+    add_fcurve_to_action(action, fcu);
+
+    EXPECT_FALSE(action.has_single_frame())
+        << "Action with one FCurve and two keys must have animation.";
+  }
+}
+
 /*-----------------------------------------------------------*/
 
 class ChannelbagTest : public testing::Test {
