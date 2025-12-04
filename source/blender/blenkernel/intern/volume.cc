@@ -1174,6 +1174,10 @@ bool BKE_volume_grid_add_new(Volume *volume, const char *grid_name, VolumeGridTy
     return false;
   }
 
+  if (grid_type == VOLUME_GRID_UNKNOWN) {
+    return false;
+  }
+
   openvdb::GridBase::Ptr new_grid = BKE_volume_grid_type_operation(grid_type, CreateGridOp{});
 
   if (!new_grid) {
