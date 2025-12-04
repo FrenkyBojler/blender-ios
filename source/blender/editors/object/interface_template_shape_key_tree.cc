@@ -213,7 +213,8 @@ class ShapeKeyItem : public ui::AbstractTreeViewItem {
 
     if (shape_key_.key->type == KEY_NORMAL) {
       sub.prop(&shapekey_ptr, "frame", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
-    } else {
+    }
+    else {
       if (shape_key_.index > 0) {
         sub.prop(&shapekey_ptr, "value", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
       }
