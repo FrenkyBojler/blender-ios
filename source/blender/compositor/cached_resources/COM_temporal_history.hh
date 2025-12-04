@@ -45,9 +45,6 @@ class TemporalHistory : public CachedResource {
 };
 
 class TemporalHistoryContainer : public CachedResourceContainer {
- private:
-  Map<TemporalHistoryKey, std::unique_ptr<TemporalHistory>> map_;
-
  public:
   void reset() override;
 
@@ -62,3 +59,12 @@ class TemporalHistoryContainer : public CachedResourceContainer {
 };
 
 }  // namespace blender::compositor
+
+namespace blender {
+
+inline uint64_t get_default_hash(const compositor::TemporalHistoryKey &key)
+{
+  return key.hash();
+}
+
+}  // namespace blender
