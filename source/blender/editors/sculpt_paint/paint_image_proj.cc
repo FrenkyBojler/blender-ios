@@ -4661,7 +4661,7 @@ static void project_paint_end(ProjPaintState *ps)
     ProjPaintImage *projIma;
     for (a = 0, projIma = ps->projImages; a < ps->image_tot; a++, projIma++) {
       BKE_image_release_ibuf(projIma->ima, projIma->ibuf, nullptr);
-      DEG_id_tag_update(&projIma->ima->id, 0);
+      DEG_id_tag_update(&projIma->ima->id, ID_RECALC_SHADING);
     }
   }
 
@@ -6884,7 +6884,7 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
       WM_main_add_notifier(NC_GEOM | ND_DATA, ob->data);
     }
 
-    DEG_id_tag_update(&ntree->id, 0);
+    DEG_id_tag_update(&ntree->id, ID_RECALC_SHADING);
     DEG_id_tag_update(&ma->id, ID_RECALC_SHADING);
     DEG_relations_tag_update(bmain);
     ED_area_tag_redraw(CTX_wm_area(C));
@@ -7084,7 +7084,7 @@ static wmOperatorStatus add_simple_uvs_exec(bContext *C, wmOperator * /*op*/)
 
   ED_paint_proj_mesh_data_check(*scene, *ob, nullptr, nullptr, nullptr, nullptr);
 
-  DEG_id_tag_update(static_cast<ID *>(ob->data), 0);
+  DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
   WM_event_add_notifier(C, NC_SCENE | ND_TOOLSETTINGS, scene);
   return OPERATOR_FINISHED;
