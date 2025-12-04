@@ -64,7 +64,7 @@ using blender::Vector;
 static const char *value_rna_name[NUM_VALUE_KINDS] = {
     "offset", "offset_pct", "profile", "segments"};
 static const float value_snap_increments[NUM_VALUE_KINDS] = {0.1f, 5.0f, 0.0f, 0.0f};
-static const float increments_precision[NUM_VALUE_KINDS] = {0.1f, 0.2f, 0.0f, 0.0f};
+static const float increments_precision_factors[NUM_VALUE_KINDS] = {0.1f, 0.2f, 0.0f, 0.0f};
 static const float value_clamp_min[NUM_VALUE_KINDS] = {0.0f, 0.0f, PROFILE_HARD_MIN, 1.0f};
 static const float value_clamp_max[NUM_VALUE_KINDS] = {1e6, 100.0f, 1.0f, SEGMENTS_HARD_MAX};
 static const float value_start[NUM_VALUE_KINDS] = {0.0f, 0.0f, 0.5f, 1.0f};
