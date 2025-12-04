@@ -255,9 +255,10 @@ struct IntermediateForm {
     return data_.str;
   }
 
-  const Parser &data_get()
+  /* Get internal string. Does not apply pending mutation. */
+  const std::string &str()
   {
-    return data_;
+    return data_.str;
   }
 
   /* For testing. */

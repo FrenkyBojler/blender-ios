@@ -655,7 +655,7 @@ class Preprocessor {
     using namespace std;
     using namespace shader::parser;
 
-    const string &str = parser.data_get().str;
+    const string &str = parser.str();
 
     size_t last_whitespace = -1;
     while ((last_whitespace = str.find(" \n", last_whitespace + 1)) != string::npos) {
@@ -812,7 +812,7 @@ class Preprocessor {
 
   void template_definition_mutation(Parser &parser, report_callback &report_error)
   {
-    if (parser.data_get().str.find("template") == std::string::npos) {
+    if (parser.str().find("template") == std::string::npos) {
       return;
     }
 
@@ -966,19 +966,18 @@ class Preprocessor {
     parser.apply_mutations();
 
     {
-      const string &out_str = parser.data_get().str;
       /* Check if there is no remaining declaration and instantiation that were not processed. */
       size_t error_pos;
-      if ((error_pos = out_str.find("template<")) != std::string::npos) {
-        report_error(line_number(out_str, error_pos),
-                     char_number(out_str, error_pos),
-                     line_str(out_str, error_pos),
+      if ((error_pos = parser.str().find("template<")) != std::string::npos) {
+        report_error(line_number(parser.str(), error_pos),
+                     char_number(parser.str(), error_pos),
+                     line_str(parser.str(), error_pos),
                      "Template declaration unsupported syntax");
       }
-      if ((error_pos = out_str.find("template ")) != std::string::npos) {
-        report_error(line_number(out_str, error_pos),
-                     char_number(out_str, error_pos),
-                     line_str(out_str, error_pos),
+      if ((error_pos = parser.str().find("template ")) != std::string::npos) {
+        report_error(line_number(parser.str(), error_pos),
+                     char_number(parser.str(), error_pos),
+                     line_str(parser.str(), error_pos),
                      "Template instantiation unsupported syntax");
       }
     }
@@ -1072,7 +1071,7 @@ class Preprocessor {
 
         const size_t start_end = tokens.back().str_index_last();
         const string end_tok = "GPU_SHADER_CREATE_END()";
-        const size_t end_pos = parser.data_get().str.find(end_tok, start_end);
+        const size_t end_pos = parser.str().find(end_tok, start_end);
         if (end_pos == string::npos) {
           report_error(ERROR_TOK(tokens[0]), "Missing create info end.");
           return;
@@ -1090,13 +1089,13 @@ class Preprocessor {
       if (tokens[0].str() == "GPU_SHADER_NAMED_INTERFACE_INFO") {
         const size_t start_end = tokens.back().str_index_last();
         const string end_str = "GPU_SHADER_NAMED_INTERFACE_END(";
-        size_t end_pos = parser.data_get().str.find(end_str, start_end);
+        size_t end_pos = parser.str().find(end_str, start_end);
         if (end_pos == string::npos) {
           report_error(ERROR_TOK(tokens[0]), "Missing create info end.");
           return;
         }
 
-        end_pos = parser.data_get().str.find(')', end_pos);
+        end_pos = parser.str().find(')', end_pos);
         if (end_pos == string::npos) {
           report_error(ERROR_TOK(tokens[0]), "Missing parenthesis at info end.");
           return;
@@ -1112,7 +1111,7 @@ class Preprocessor {
       if (tokens[0].str() == "GPU_SHADER_INTERFACE_INFO") {
         const size_t start_end = tokens.back().str_index_last();
         const string end_str = "GPU_SHADER_INTERFACE_END()";
-        size_t end_pos = parser.data_get().str.find(end_str, start_end);
+        size_t end_pos = parser.str().find(end_str, start_end);
         if (end_pos == string::npos) {
           report_error(ERROR_TOK(tokens[0]), "Missing create info end.");
           return;
@@ -1175,7 +1174,7 @@ class Preprocessor {
 
   void pragma_runtime_generated_parsing(Parser &parser)
   {
-    if (parser.data_get().str.find("\n#pragma runtime_generated") != std::string::npos) {
+    if (parser.str().find("\n#pragma runtime_generated") != std::string::npos) {
       metadata.builtins.emplace_back(metadata::Builtin::runtime_generated);
     }
   }
@@ -1187,7 +1186,7 @@ class Preprocessor {
     if (filename.find("_lib.") == std::string::npos && filename.find(".hh") == std::string::npos) {
       return;
     }
-    if (parser.data_get().str.find("\n#pragma once") == std::string::npos) {
+    if (parser.str().find("\n#pragma once") == std::string::npos) {
       report_error(0, 0, "", "Header files must contain #pragma once directive.");
     }
   }
@@ -1735,14 +1734,14 @@ class Preprocessor {
     auto process_disabled_scope = [&](Token start_tok) {
       /* Search for endif with the same indentation. Assume formatted input. */
       string end_str = start_tok.str_with_whitespace() + "endif";
-      size_t scope_end = parser.data_get().str.find(end_str, start_tok.str_index_start());
+      size_t scope_end = parser.str().find(end_str, start_tok.str_index_start());
       if (scope_end == string::npos) {
         report_error(ERROR_TOK(start_tok), "Couldn't find end of disabled scope.");
         return;
       }
       /* Search for else/elif with the same indentation. Assume formatted input. */
       string else_str = start_tok.str_with_whitespace() + "el";
-      size_t scope_else = parser.data_get().str.find(else_str, start_tok.str_index_start());
+      size_t scope_else = parser.str().find(else_str, start_tok.str_index_start());
       if (scope_else != string::npos && scope_else < scope_end) {
         /* Only erase the content and keep the preprocessor directives. */
         parser.erase(start_tok.line_end() + 1, scope_else - 1);
@@ -3124,7 +3123,7 @@ class Preprocessor {
     using namespace std;
     using namespace shader::parser;
 
-    const string &str = parser.data_get().str;
+    const string &str = parser.str();
 
     {
       size_t sequence_start = 0;
