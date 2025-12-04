@@ -1980,7 +1980,10 @@ class USERPREF_PT_input_tablet(InputPanel, CenterAlignMixIn, Panel):
         col = layout.column()
         col.prop(inputs, "pressure_threshold_max")
         col.prop(inputs, "pressure_softness")
-        # TODO: Add paint pressure here
+        use_debug = prefs.experimental.use_paint_debug and prefs.view.show_developer_ui
+
+        if use_debug:
+            col.prop(inputs, "show_tablet_debug_values")
 
 
 class USERPREF_PT_input_ndof(InputPanel, CenterAlignMixIn, Panel):
