@@ -11,6 +11,7 @@
 #include "BLO_core_blend_header.hh"
 #include "DNA_ID_enums.h"
 #include "DNA_genfile.h"
+#include "DNA_print.hh"
 #include "DNA_sdna_types.h"
 
 namespace blender::blend_textconv {
@@ -107,8 +108,9 @@ class BlenderTextConv {
       return 1;
     }
 
-    Vector<BHeadWithData> bheads;
-    std::optional<int> dna_bhead_index;
+    Vector<BHeadWithData> blocks;
+    std::optional<int> dna_block_i;
+    Vector<int> non_data_blocks_indices;
 
     int block_index = 0;
     while (true) {
@@ -127,23 +129,26 @@ class BlenderTextConv {
         fmt::println(stderr, "Failed to read block data");
         return 1;
       }
-      const int bhead_index = bheads.append_and_get_index(
+      const int bhead_index = blocks.append_and_get_index(
           {*bhead, {static_cast<const char *>(data), bhead->len}});
       if (bhead->code == BLO_CODE_DNA1) {
-        if (dna_bhead_index.has_value()) {
+        if (dna_block_i.has_value()) {
           fmt::println(stderr, "More than one DNA block");
           return 1;
         }
-        dna_bhead_index = bhead_index;
+        dna_block_i = bhead_index;
+      }
+      if (bhead->code != BLO_CODE_DATA) {
+        non_data_blocks_indices.append(bhead_index);
       }
     }
 
-    if (!dna_bhead_index) {
+    if (!dna_block_i) {
       fmt::println(stderr, "No DNA block found");
       return 1;
     }
     {
-      const BHeadWithData &sdna_block = bheads[*dna_bhead_index];
+      const BHeadWithData &sdna_block = blocks[*dna_block_i];
       const char *error_message = nullptr;
       // TODO: Make sure #DNA_sdna_from_data is safe against maliscious data.
       sdna_ = DNA_sdna_from_data(
@@ -154,17 +159,21 @@ class BlenderTextConv {
       }
     }
 
-    for (const int bhead_i : bheads.index_range()) {
-      const BHeadWithData &block = bheads[bhead_i];
+    for (const int bhead_i : blocks.index_range()) {
+      const BHeadWithData &block = blocks[bhead_i];
       switch (block.bhead.code) {
         case BLO_CODE_DATA: {
           if (block.bhead.SDNAnr < 0 || block.bhead.SDNAnr >= sdna_->types_num) {
             fmt::println("BLO_CODE_DATA: SDNAnr out of range");
             return 1;
           }
-          const SDNA_Struct &sdna_struct = *sdna_->structs[block.bhead.SDNAnr];
-          const char *type_name = sdna_->types[sdna_struct.type_index];
-          fmt::println("Type name: {}", type_name);
+
+          dna::print_structs_at_address(*sdna_,
+                                        block.bhead.SDNAnr,
+                                        block.data.data(),
+                                        block.bhead.old,
+                                        block.bhead.nr,
+                                        std::cout);
           break;
         }
       }
