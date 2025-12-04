@@ -855,6 +855,9 @@ static void paint_brush_default_essentials_name_get(
           case SCULPT_BRUSH_TYPE_DISPLACEMENT_SMEAR:
             name = "Smear Multires Displacement";
             break;
+          case SCULPT_BRUSH_TYPE_PAINT_SMOOTH:
+            name = "Color Smooth";
+            break;
           default:
             break;
         }

@@ -3903,7 +3903,6 @@ static void smooth_brush_toggle_on(const bContext *C, Paint *paint, StrokeCache 
   if (ELEM(cur_brush->sculpt_brush_type,
            SCULPT_BRUSH_TYPE_SLIDE_RELAX,
            SCULPT_BRUSH_TYPE_DRAW_FACE_SETS,
-           SCULPT_BRUSH_TYPE_PAINT,
            SCULPT_BRUSH_TYPE_SMEAR))
   {
     /* Do nothing, this brush has its own smooth mode. */
@@ -3911,7 +3910,12 @@ static void smooth_brush_toggle_on(const bContext *C, Paint *paint, StrokeCache 
   }
 
   /* Switch to the smooth brush if possible. */
-  BKE_paint_brush_set_essentials(bmain, paint, "Smooth");
+  if (cur_brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_PAINT) {
+    BKE_paint_brush_set_essentials(bmain, paint, "Color Smooth");
+  }
+  else {
+    BKE_paint_brush_set_essentials(bmain, paint, "Smooth");
+  }
   Brush *smooth_brush = BKE_paint_brush(paint);
 
   if (!smooth_brush) {
@@ -3942,7 +3946,6 @@ static void smooth_brush_toggle_off(Paint *paint, StrokeCache *cache)
   if (ELEM(brush.sculpt_brush_type,
            SCULPT_BRUSH_TYPE_SLIDE_RELAX,
            SCULPT_BRUSH_TYPE_DRAW_FACE_SETS,
-           SCULPT_BRUSH_TYPE_PAINT,
            SCULPT_BRUSH_TYPE_SMEAR))
   {
     /* Do nothing. */
