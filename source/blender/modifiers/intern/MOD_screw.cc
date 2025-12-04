@@ -27,6 +27,7 @@
 #include "DNA_screen_types.h"
 
 #include "BKE_attribute.hh"
+#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_customdata.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
@@ -420,7 +421,12 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   int *origindex = static_cast<int *>(
       CustomData_get_layer_for_write(&result->face_data, CD_ORIGINDEX, result->faces_num));
 
-  CustomData_copy_data(&mesh->vert_data, &result->vert_data, 0, 0, int(totvert));
+  bke::LegacyMeshInterpolator vert_interp(*mesh, *result, bke::AttrDomain::Point);
+  bke::LegacyMeshInterpolator edge_interp(*mesh, *result, bke::AttrDomain::Edge);
+  bke::LegacyMeshInterpolator face_interp(*mesh, *result, bke::AttrDomain::Face);
+  bke::LegacyMeshInterpolator corner_interp(*mesh, *result, bke::AttrDomain::Corner);
+
+  vert_interp.copy(0, 0, int(totvert));
 
   if (!uv_map_names.is_empty()) {
     const float zero_co[3] = {0};
@@ -773,8 +779,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
     }
 
     /* copy a slice */
-    CustomData_copy_data(
-        &mesh->vert_data, &result->vert_data, 0, int(varray_stride), int(totvert));
+    vert_interp.copy(0, int(varray_stride), int(totvert));
 
     /* set location */
     for (j = 0; j < totvert; j++) {
@@ -873,8 +878,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
 
       /* Polygon */
       if (has_mpoly_orig) {
-        CustomData_copy_data(
-            &mesh->face_data, &result->face_data, int(face_index_orig), face_index, 1);
+        face_interp.copy(int(face_index_orig), face_index, 1);
         origindex[face_index] = int(face_index_orig);
       }
       else {
@@ -887,26 +891,10 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
       /* Loop-Custom-Data */
       if (has_mloop_orig) {
 
-        CustomData_copy_data(&mesh->corner_data,
-                             &result->corner_data,
-                             int(mloop_index_orig[0]),
-                             new_loop_index + 0,
-                             1);
-        CustomData_copy_data(&mesh->corner_data,
-                             &result->corner_data,
-                             int(mloop_index_orig[1]),
-                             new_loop_index + 1,
-                             1);
-        CustomData_copy_data(&mesh->corner_data,
-                             &result->corner_data,
-                             int(mloop_index_orig[1]),
-                             new_loop_index + 2,
-                             1);
-        CustomData_copy_data(&mesh->corner_data,
-                             &result->corner_data,
-                             int(mloop_index_orig[0]),
-                             new_loop_index + 3,
-                             1);
+        corner_interp.copy(int(mloop_index_orig[0]), new_loop_index + 0, 1);
+        corner_interp.copy(int(mloop_index_orig[1]), new_loop_index + 1, 1);
+        corner_interp.copy(int(mloop_index_orig[1]), new_loop_index + 2, 1);
+        corner_interp.copy(int(mloop_index_orig[0]), new_loop_index + 3, 1);
 
         if (!uv_map_names.is_empty()) {
           const float uv_u_offset_a = float(step) * uv_u_scale;
@@ -1056,17 +1044,17 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *sub, *row, *col;
-  uiLayout *layout = panel->layout;
+  ui::Layout *sub, *row, *col;
+  ui::Layout &layout = *panel->layout;
   const eUI_Item_Flag toggles_flag = UI_ITEM_R_TOGGLE | UI_ITEM_R_FORCE_BLANK_DECORATE;
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
   PointerRNA screw_obj_ptr = RNA_pointer_get(ptr, "object");
 
-  layout->use_property_split_set(true);
+  layout.use_property_split_set(true);
 
-  col = &layout->column(false);
+  col = &layout.column(false);
   col->prop(ptr, "angle", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   row = &col->row(false);
   row->active_set(RNA_pointer_is_null(&screw_obj_ptr) ||
@@ -1074,8 +1062,8 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   row->prop(ptr, "screw_offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   col->prop(ptr, "iterations", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  layout->separator();
-  col = &layout->column(false);
+  layout.separator();
+  col = &layout.column(false);
   row = &col->row(false);
   row->prop(ptr, "axis", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
   col->prop(ptr, "object", UI_ITEM_NONE, IFACE_("Axis Object"), ICON_NONE);
@@ -1083,23 +1071,23 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   sub->active_set(!RNA_pointer_is_null(&screw_obj_ptr));
   sub->prop(ptr, "use_object_screw_offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  layout->separator();
+  layout.separator();
 
-  col = &layout->column(true);
+  col = &layout.column(true);
   col->prop(ptr, "steps", UI_ITEM_NONE, IFACE_("Steps Viewport"), ICON_NONE);
   col->prop(ptr, "render_steps", UI_ITEM_NONE, IFACE_("Render"), ICON_NONE);
 
-  layout->separator();
+  layout.separator();
 
-  row = &layout->row(true, IFACE_("Merge"));
+  row = &layout.row(true, IFACE_("Merge"));
   row->prop(ptr, "use_merge_vertices", UI_ITEM_NONE, "", ICON_NONE);
   sub = &row->row(true);
   sub->active_set(RNA_boolean_get(ptr, "use_merge_vertices"));
   sub->prop(ptr, "merge_threshold", UI_ITEM_NONE, "", ICON_NONE);
 
-  layout->separator();
+  layout.separator();
 
-  row = &layout->row(true, IFACE_("Stretch UVs"));
+  row = &layout.row(true, IFACE_("Stretch UVs"));
   row->prop(ptr, "use_stretch_u", toggles_flag, IFACE_("U"), ICON_NONE);
   row->prop(ptr, "use_stretch_v", toggles_flag, IFACE_("V"), ICON_NONE);
 
@@ -1108,17 +1096,16 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
 static void normals_panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *col;
-  uiLayout *layout = panel->layout;
+  ui::Layout &layout = *panel->layout;
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  layout->use_property_split_set(true);
+  layout.use_property_split_set(true);
 
-  col = &layout->column(false);
-  col->prop(ptr, "use_smooth_shade", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col->prop(ptr, "use_normal_calculate", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col->prop(ptr, "use_normal_flip", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  ui::Layout &col = layout.column(false);
+  col.prop(ptr, "use_smooth_shade", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(ptr, "use_normal_calculate", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(ptr, "use_normal_flip", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void panel_register(ARegionType *region_type)

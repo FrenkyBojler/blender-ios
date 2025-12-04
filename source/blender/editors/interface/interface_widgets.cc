@@ -1176,11 +1176,11 @@ static void widgetbase_draw(uiWidgetBase *wtb, const uiWidgetColors *wcol)
     outline_col[1] = wcol->outline[1];
     outline_col[2] = wcol->outline[2];
     outline_col[3] = wcol->outline[3];
+  }
 
-    /* Emboss shadow if enabled, and inner and outline colors are not fully transparent. */
-    if ((wtb->draw_emboss) && (wcol->inner[3] != 0.0f || wcol->outline[3] != 0.0f)) {
-      UI_GetThemeColor4ubv(TH_WIDGET_EMBOSS, emboss_col);
-    }
+  /* Draw emboss only if the outline is not fully transparent, it looks like a gap otherwise. */
+  if (wtb->draw_emboss && wcol->outline[3] != 0.0f) {
+    UI_GetThemeColor4ubv(TH_WIDGET_EMBOSS, emboss_col);
   }
 
   if (wtb->tria1.type != ROUNDBOX_TRIA_NONE) {
@@ -2151,6 +2151,7 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
 
   int scissor[4];
   GPU_scissor_get(scissor);
+  /* Textbox text isn't clipped on draw, apply scissors to avoid text overflowing the scrollbar. */
   GPU_scissor(rect->xmin - caret_width,
               rect->ymin,
               std::max<int>(BLI_rcti_size_x(rect) + caret_width, 0),
@@ -2311,7 +2312,7 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
     }
 #endif
   }
-
+  /* Draw text. */
   uiFontStyleDraw_Params params{};
   params.align = align;
   params.word_clip = false;
@@ -2334,6 +2335,7 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
   if (lines.size() <= visible_lines) {
     return;
   }
+  /* Draw scrollbar. */
   bTheme *btheme = UI_GetTheme();
 
   rcti scroll_rect = src_rect;

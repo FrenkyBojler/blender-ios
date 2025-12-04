@@ -44,6 +44,7 @@ const EnumPropertyItem rna_enum_icon_items[] = {
 #  include "WM_api.hh"
 
 using blender::StringRefNull;
+using blender::ui::Layout;
 
 std::optional<StringRefNull> rna_translate_ui_text(
     const char *text, const char *text_ctxt, StructRNA *type, PropertyRNA *prop, bool translate)
@@ -84,16 +85,16 @@ std::optional<StringRefNull> rna_translate_ui_text(
   return BLT_pgettext(BLT_I18NCONTEXT_DEFAULT, text);
 }
 
-static void rna_uiItemTextBox(uiLayout *layout,
+static void rna_uiItemTextBox(Layout *layout,
                               PointerRNA *ptr,
                               const char *propname,
                               PointerRNA *visible_lines_ptr,
                               const char *visible_lines_propname)
 {
   layout->prop_textbox(ptr, propname, visible_lines_ptr, visible_lines_propname);
-};
+}
 
-static void rna_uiItemR(uiLayout *layout,
+static void rna_uiItemR(Layout *layout,
                         PointerRNA *ptr,
                         const char *propname,
                         const char *name,
@@ -163,7 +164,7 @@ static void rna_uiItemR(uiLayout *layout,
   layout->prop(ptr, prop, index, 0, flag, text, icon, placeholder_str);
 }
 
-static void rna_uiItemR_with_popover(uiLayout *layout,
+static void rna_uiItemR_with_popover(Layout *layout,
                                      PointerRNA *ptr,
                                      const char *propname,
                                      const char *name,
@@ -197,7 +198,7 @@ static void rna_uiItemR_with_popover(uiLayout *layout,
   layout->prop_with_popover(ptr, prop, -1, 0, flag, text, icon, panel_type);
 }
 
-static void rna_uiItemR_with_menu(uiLayout *layout,
+static void rna_uiItemR_with_menu(Layout *layout,
                                   PointerRNA *ptr,
                                   const char *propname,
                                   const char *name,
@@ -228,7 +229,7 @@ static void rna_uiItemR_with_menu(uiLayout *layout,
   layout->prop_with_menu(ptr, prop, -1, 0, flag, text, icon, menu_type);
 }
 
-static void rna_uiItemMenuEnumR(uiLayout *layout,
+static void rna_uiItemMenuEnumR(Layout *layout,
                                 PointerRNA *ptr,
                                 const char *propname,
                                 const char *name,
@@ -249,7 +250,7 @@ static void rna_uiItemMenuEnumR(uiLayout *layout,
   layout->prop_menu_enum(ptr, prop, text, icon);
 }
 
-static void rna_uiItemTabsEnumR(uiLayout *layout,
+static void rna_uiItemTabsEnumR(Layout *layout,
                                 bContext *C,
                                 PointerRNA *ptr,
                                 const char *propname,
@@ -295,7 +296,7 @@ static void rna_uiItemTabsEnumR(uiLayout *layout,
   layout->prop_tabs_enum(C, ptr, prop, ptr_highlight, prop_highlight, icon_only);
 }
 
-static void rna_uiItemEnumR_string(uiLayout *layout,
+static void rna_uiItemEnumR_string(Layout *layout,
                                    PointerRNA *ptr,
                                    const char *propname,
                                    const char *value,
@@ -318,12 +319,12 @@ static void rna_uiItemEnumR_string(uiLayout *layout,
   layout->prop_enum(ptr, prop, value, text, icon);
 }
 
-static void rna_uiItemsEnumR(uiLayout *layout, PointerRNA *ptr, const char *propname)
+static void rna_uiItemsEnumR(Layout *layout, PointerRNA *ptr, const char *propname)
 {
   layout->props_enum(ptr, propname);
 }
 
-static void rna_uiItemPointerR(uiLayout *layout,
+static void rna_uiItemPointerR(Layout *layout,
                                PointerRNA *ptr,
                                const char *propname,
                                PointerRNA *searchptr,
@@ -366,12 +367,12 @@ static void rna_uiItemPointerR(uiLayout *layout,
       ptr, prop, searchptr, searchprop, item_searchprop, text, icon, results_are_suggestions);
 }
 
-void rna_uiLayoutDecorator(uiLayout *layout, PointerRNA *ptr, const char *propname, int index)
+void rna_uiLayoutDecorator(Layout *layout, PointerRNA *ptr, const char *propname, int index)
 {
   layout->decorator(ptr, propname, index);
 }
 
-static PointerRNA rna_uiItemO(uiLayout *layout,
+static PointerRNA rna_uiItemO(Layout *layout,
                               const char *opname,
                               const char *name,
                               const char *text_ctxt,
@@ -414,7 +415,7 @@ static PointerRNA rna_uiItemO(uiLayout *layout,
   return opptr;
 }
 
-static PointerRNA rna_uiItemOMenuHold(uiLayout *layout,
+static PointerRNA rna_uiItemOMenuHold(Layout *layout,
                                       const char *opname,
                                       const char *name,
                                       const char *text_ctxt,
@@ -448,7 +449,7 @@ static PointerRNA rna_uiItemOMenuHold(uiLayout *layout,
   return layout->op_menu_hold(ot, text, icon, layout->operator_context(), flag, menu);
 }
 
-static void rna_uiItemsEnumO(uiLayout *layout,
+static void rna_uiItemsEnumO(Layout *layout,
                              const char *opname,
                              const char *propname,
                              const bool icon_only)
@@ -457,7 +458,7 @@ static void rna_uiItemsEnumO(uiLayout *layout,
   layout->op_enum(opname, propname, nullptr, layout->operator_context(), flag);
 }
 
-static PointerRNA rna_uiItemMenuEnumO(uiLayout *layout,
+static PointerRNA rna_uiItemMenuEnumO(Layout *layout,
                                       bContext *C,
                                       const char *opname,
                                       const char *propname,
@@ -480,7 +481,7 @@ static PointerRNA rna_uiItemMenuEnumO(uiLayout *layout,
   return layout->op_menu_enum(C, ot, propname, text, icon);
 }
 
-static void rna_uiItemL(uiLayout *layout,
+static void rna_uiItemL(Layout *layout,
                         const char *name,
                         const char *text_ctxt,
                         bool translate,
@@ -498,7 +499,7 @@ static void rna_uiItemL(uiLayout *layout,
   layout->label(text.value_or(""), icon);
 }
 
-static void rna_uiItemM(uiLayout *layout,
+static void rna_uiItemM(Layout *layout,
                         const char *menuname,
                         const char *name,
                         const char *text_ctxt,
@@ -517,12 +518,12 @@ static void rna_uiItemM(uiLayout *layout,
   layout->menu(menuname, text, icon);
 }
 
-static void rna_uiItemM_contents(uiLayout *layout, const char *menuname)
+static void rna_uiItemM_contents(Layout *layout, const char *menuname)
 {
   layout->menu_contents(menuname);
 }
 
-static void rna_uiItemPopoverPanel(uiLayout *layout,
+static void rna_uiItemPopoverPanel(Layout *layout,
                                    bContext *C,
                                    const char *panel_type,
                                    const char *name,
@@ -542,7 +543,7 @@ static void rna_uiItemPopoverPanel(uiLayout *layout,
   layout->popover(C, panel_type, text, icon);
 }
 
-static void rna_uiItemPopoverPanelFromGroup(uiLayout *layout,
+static void rna_uiItemPopoverPanelFromGroup(Layout *layout,
                                             bContext *C,
                                             int space_id,
                                             int region_id,
@@ -552,7 +553,7 @@ static void rna_uiItemPopoverPanelFromGroup(uiLayout *layout,
   layout->popover_group(C, space_id, region_id, context, category);
 }
 
-static void rna_uiItemProgress(uiLayout *layout,
+static void rna_uiItemProgress(Layout *layout,
                                const char *text,
                                const char *text_ctxt,
                                bool translate,
@@ -566,27 +567,27 @@ static void rna_uiItemProgress(uiLayout *layout,
   layout->progress_indicator(text, factor, blender::ui::ButProgressType(progress_type));
 }
 
-static void rna_uiItemSeparator(uiLayout *layout, float factor, int type)
+static void rna_uiItemSeparator(Layout *layout, float factor, int type)
 {
   layout->separator(factor, LayoutSeparatorType(type));
 }
 
-static void rna_uiLayoutContextPointerSet(uiLayout *layout, const char *name, PointerRNA *ptr)
+static void rna_uiLayoutContextPointerSet(Layout *layout, const char *name, PointerRNA *ptr)
 {
   layout->context_ptr_set(name, ptr);
 }
 
-static void rna_uiLayoutContextStringSet(uiLayout *layout, const char *name, const char *value)
+static void rna_uiLayoutContextStringSet(Layout *layout, const char *name, const char *value)
 {
   layout->context_string_set(name, value);
 }
 
-static void rna_uiLayoutSeparatorSpacer(uiLayout *layout)
+static void rna_uiLayoutSeparatorSpacer(Layout *layout)
 {
   layout->separator_spacer();
 }
 
-static void rna_uiTemplateID(uiLayout *layout,
+static void rna_uiTemplateID(Layout *layout,
                              bContext *C,
                              PointerRNA *ptr,
                              const char *propname,
@@ -613,7 +614,7 @@ static void rna_uiTemplateID(uiLayout *layout,
   uiTemplateID(layout, C, ptr, propname, newop, openop, unlinkop, filter, live_icon, text);
 }
 
-static void rna_uiTemplateAnyID(uiLayout *layout,
+static void rna_uiTemplateAnyID(Layout *layout,
                                 PointerRNA *ptr,
                                 const char *propname,
                                 const char *proptypename,
@@ -636,7 +637,7 @@ static void rna_uiTemplateAnyID(uiLayout *layout,
   uiTemplateAnyID(layout, ptr, propname, proptypename, text);
 }
 
-static void rna_uiTemplateAction(uiLayout *layout,
+static void rna_uiTemplateAction(Layout *layout,
                                  bContext *C,
                                  ID *id,
                                  const char *newop,
@@ -650,7 +651,7 @@ static void rna_uiTemplateAction(uiLayout *layout,
   uiTemplateAction(layout, C, id, newop, unlinkop, text);
 }
 
-static void rna_uiTemplateSearch(uiLayout *layout,
+static void rna_uiTemplateSearch(Layout *layout,
                                  const bContext *C,
                                  PointerRNA *ptr,
                                  const char *propname,
@@ -676,7 +677,7 @@ static void rna_uiTemplateSearch(uiLayout *layout,
   uiTemplateSearch(layout, C, ptr, propname, searchptr, searchpropname, newop, unlinkop, text);
 }
 
-static void rna_uiTemplateSearchPreview(uiLayout *layout,
+static void rna_uiTemplateSearchPreview(Layout *layout,
                                         bContext *C,
                                         PointerRNA *ptr,
                                         const char *propname,
@@ -705,7 +706,7 @@ static void rna_uiTemplateSearchPreview(uiLayout *layout,
       layout, C, ptr, propname, searchptr, searchpropname, newop, unlinkop, rows, cols, text);
 }
 
-void rna_uiTemplateList(uiLayout *layout,
+void rna_uiTemplateList(Layout *layout,
                         bContext *C,
                         const char *listtype_name,
                         const char *list_id,
@@ -745,7 +746,7 @@ void rna_uiTemplateList(uiLayout *layout,
                  flags);
 }
 
-static void rna_uiTemplateCacheFile(uiLayout *layout,
+static void rna_uiTemplateCacheFile(Layout *layout,
                                     bContext *C,
                                     PointerRNA *ptr,
                                     const char *propname)
@@ -760,9 +761,7 @@ static void rna_uiTemplateCacheFile(uiLayout *layout,
   uiTemplateCacheFile(layout, C, ptr, propname);
 }
 
-static void rna_uiTemplateCacheFileVelocity(uiLayout *layout,
-                                            PointerRNA *ptr,
-                                            const char *propname)
+static void rna_uiTemplateCacheFileVelocity(Layout *layout, PointerRNA *ptr, const char *propname)
 {
   PointerRNA fileptr;
   if (!uiTemplateCacheFilePointer(ptr, propname, &fileptr)) {
@@ -772,7 +771,7 @@ static void rna_uiTemplateCacheFileVelocity(uiLayout *layout,
   uiTemplateCacheFileVelocity(layout, &fileptr);
 }
 
-static void rna_uiTemplateCacheFileTimeSettings(uiLayout *layout,
+static void rna_uiTemplateCacheFileTimeSettings(Layout *layout,
                                                 PointerRNA *ptr,
                                                 const char *propname)
 {
@@ -784,7 +783,7 @@ static void rna_uiTemplateCacheFileTimeSettings(uiLayout *layout,
   uiTemplateCacheFileTimeSettings(layout, &fileptr);
 }
 
-static void rna_uiTemplateCacheFileLayers(uiLayout *layout,
+static void rna_uiTemplateCacheFileLayers(Layout *layout,
                                           bContext *C,
                                           PointerRNA *ptr,
                                           const char *propname)
@@ -797,7 +796,7 @@ static void rna_uiTemplateCacheFileLayers(uiLayout *layout,
   uiTemplateCacheFileLayers(layout, C, &fileptr);
 }
 
-static void rna_uiTemplatePathBuilder(uiLayout *layout,
+static void rna_uiTemplatePathBuilder(Layout *layout,
                                       PointerRNA *ptr,
                                       const char *propname,
                                       PointerRNA *root_ptr,
@@ -821,7 +820,7 @@ static void rna_uiTemplatePathBuilder(uiLayout *layout,
 }
 
 static void rna_uiTemplateEventFromKeymapItem(
-    uiLayout *layout, wmKeyMapItem *kmi, const char *name, const char *text_ctxt, bool translate)
+    Layout *layout, wmKeyMapItem *kmi, const char *name, const char *text_ctxt, bool translate)
 {
   /* Get translated name (label). */
   std::optional<StringRefNull> text = rna_translate_ui_text(
@@ -829,18 +828,18 @@ static void rna_uiTemplateEventFromKeymapItem(
   uiTemplateEventFromKeymapItem(layout, text.value_or(""), kmi, true);
 }
 
-static uiLayout *rna_uiLayoutBox(uiLayout *layout)
+static Layout *rna_uiLayoutBox(Layout *layout)
 {
   return &layout->box();
 }
 
-static uiLayout *rna_uiLayoutSplit(uiLayout *layout, float factor, bool align)
+static Layout *rna_uiLayoutSplit(Layout *layout, float factor, bool align)
 {
   return &layout->split(factor, align);
 }
 
-static uiLayout *rna_uiLayoutRowWithHeading(
-    uiLayout *layout, bool align, const char *heading, const char *heading_ctxt, bool translate)
+static Layout *rna_uiLayoutRowWithHeading(
+    Layout *layout, bool align, const char *heading, const char *heading_ctxt, bool translate)
 {
   /* Get translated heading. */
   std::optional<StringRefNull> text = rna_translate_ui_text(
@@ -848,8 +847,8 @@ static uiLayout *rna_uiLayoutRowWithHeading(
   return &layout->row(align, text.value_or(""));
 }
 
-static uiLayout *rna_uiLayoutColumnWithHeading(
-    uiLayout *layout, bool align, const char *heading, const char *heading_ctxt, bool translate)
+static Layout *rna_uiLayoutColumnWithHeading(
+    Layout *layout, bool align, const char *heading, const char *heading_ctxt, bool translate)
 {
   /* Get translated heading. */
   std::optional<StringRefNull> text = rna_translate_ui_text(
@@ -857,33 +856,29 @@ static uiLayout *rna_uiLayoutColumnWithHeading(
   return &layout->column(align, text.value_or(""));
 }
 
-static uiLayout *rna_uiLayoutColumnFlow(uiLayout *layout, int number, bool align)
+static Layout *rna_uiLayoutColumnFlow(Layout *layout, int number, bool align)
 {
   return &layout->column_flow(number, align);
 }
 
-static uiLayout *rna_uiLayoutGridFlow(uiLayout *layout,
-                                      bool row_major,
-                                      int columns_len,
-                                      bool even_columns,
-                                      bool even_rows,
-                                      bool align)
+static Layout *rna_uiLayoutGridFlow(
+    Layout *layout, bool row_major, int columns_len, bool even_columns, bool even_rows, bool align)
 {
   return &layout->grid_flow(row_major, columns_len, even_columns, even_rows, align);
 }
 
-static uiLayout *rna_uiLayoutMenuPie(uiLayout *layout)
+static Layout *rna_uiLayoutMenuPie(Layout *layout)
 {
   return &layout->menu_pie();
 }
 
-void rna_uiLayoutPanelProp(uiLayout *layout,
+void rna_uiLayoutPanelProp(Layout *layout,
                            bContext *C,
                            ReportList *reports,
                            PointerRNA *data,
                            const char *property,
-                           uiLayout **r_layout_header,
-                           uiLayout **r_layout_body)
+                           Layout **r_layout_header,
+                           Layout **r_layout_body)
 {
   Panel *panel = layout->root_panel();
   if (panel == nullptr) {
@@ -898,13 +893,13 @@ void rna_uiLayoutPanelProp(uiLayout *layout,
   *r_layout_body = panel_layout.body;
 }
 
-void rna_uiLayoutPanel(uiLayout *layout,
+void rna_uiLayoutPanel(Layout *layout,
                        bContext *C,
                        ReportList *reports,
                        const char *idname,
                        const bool default_closed,
-                       uiLayout **r_layout_header,
-                       uiLayout **r_layout_body)
+                       Layout **r_layout_header,
+                       Layout **r_layout_body)
 {
   Panel *panel = layout->root_panel();
   if (panel == nullptr) {
@@ -918,7 +913,7 @@ void rna_uiLayoutPanel(uiLayout *layout,
   *r_layout_body = panel_layout.body;
 }
 
-static void rna_uiLayout_template_node_asset_menu_items(uiLayout *layout,
+static void rna_uiLayout_template_node_asset_menu_items(Layout *layout,
                                                         bContext *C,
                                                         const char *catalog_path,
                                                         const int operator_type)
@@ -928,7 +923,7 @@ static void rna_uiLayout_template_node_asset_menu_items(uiLayout *layout,
       *layout, *C, StringRef(catalog_path), NodeAssetMenuOperatorType(operator_type));
 }
 
-static void rna_uiLayout_template_node_operator_asset_menu_items(uiLayout *layout,
+static void rna_uiLayout_template_node_operator_asset_menu_items(Layout *layout,
                                                                  bContext *C,
                                                                  const char *catalog_path)
 {
@@ -936,7 +931,7 @@ static void rna_uiLayout_template_node_operator_asset_menu_items(uiLayout *layou
   ed::geometry::ui_template_node_operator_asset_menu_items(*layout, *C, StringRef(catalog_path));
 }
 
-static void rna_uiLayout_template_modifier_asset_menu_items(uiLayout *layout,
+static void rna_uiLayout_template_modifier_asset_menu_items(Layout *layout,
                                                             const char *catalog_path,
                                                             const bool skip_essentials)
 {
@@ -945,7 +940,7 @@ static void rna_uiLayout_template_modifier_asset_menu_items(uiLayout *layout,
       *layout, StringRef(catalog_path), skip_essentials);
 }
 
-static void rna_uiLayout_template_node_operator_root_items(uiLayout *layout, bContext *C)
+static void rna_uiLayout_template_node_operator_root_items(Layout *layout, bContext *C)
 {
   blender::ed::geometry::ui_template_node_operator_asset_root_items(*layout, *C);
 }
@@ -1051,7 +1046,7 @@ static int rna_ui_get_enum_icon(bContext *C,
   return icon;
 }
 
-void rna_uiTemplateAssetShelfPopover(uiLayout *layout,
+void rna_uiTemplateAssetShelfPopover(Layout *layout,
                                      bContext *C,
                                      const char *asset_shelf_id,
                                      const char *name,
@@ -1065,7 +1060,7 @@ void rna_uiTemplateAssetShelfPopover(uiLayout *layout,
   blender::ui::template_asset_shelf_popover(*layout, *C, asset_shelf_id, name ? name : "", icon);
 }
 
-PointerRNA rna_uiTemplatePopupConfirm(uiLayout *layout,
+PointerRNA rna_uiTemplatePopupConfirm(Layout *layout,
                                       ReportList *reports,
                                       const char *opname,
                                       const char *text,

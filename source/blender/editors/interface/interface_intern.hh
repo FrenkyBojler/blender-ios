@@ -353,12 +353,6 @@ struct uiBut {
   virtual ~uiBut() = default;
 };
 
-/** Derived struct for #ButType::Grip */
-struct uiButGrip : public uiBut {
-  /** Mouse movement required to increase/decrease in one unit (rows or columns) Grip value. */
-  int step_distance = 1;
-};
-
 /** Derived struct for #ButType::TextBox */
 struct uiButTextBox : public uiBut {
   int line_scroll = 0;
@@ -378,6 +372,15 @@ struct uiButTextBox : public uiBut {
 
 /** Wraps input text into lines, this may overwrite draw string if there is IME data available. */
 blender::Vector<blender::StringRef> ui_but_textbox_wrap_lines(uiButTextBox *but, int width);
+
+/** Derived struct for #ButType::Grip */
+struct uiButGrip : public uiBut {
+  /**
+   * Mouse movement (in block space) required to increase/decrease in one unit (rows or columns)
+   * Grip value.
+   */
+  int step_distance = 1;
+};
 
 /** Derived struct for #ButType::Num */
 struct uiButNumber : public uiBut {

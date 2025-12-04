@@ -26,43 +26,45 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Color>("Color").no_muted_links();
 }
 
-static void node_shader_buts_tex_sky(uiLayout *layout, bContext *C, PointerRNA *ptr)
+static void node_shader_buts_tex_sky(ui::Layout &layout, bContext *C, PointerRNA *ptr)
 {
-  layout->prop(ptr, "sky_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout.prop(ptr, "sky_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 
   if (RNA_enum_get(ptr, "sky_type") == SHD_SKY_PREETHAM) {
-    layout->prop(ptr, "sun_direction", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-    layout->prop(ptr, "turbidity", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+    layout.prop(ptr, "sun_direction", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+    layout.prop(ptr, "turbidity", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
   }
   else if (RNA_enum_get(ptr, "sky_type") == SHD_SKY_HOSEK) {
-    layout->prop(ptr, "sun_direction", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-    layout->prop(ptr, "turbidity", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-    layout->prop(ptr, "ground_albedo", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+    layout.prop(ptr, "sun_direction", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+    layout.prop(ptr, "turbidity", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+    layout.prop(ptr, "ground_albedo", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
   }
   else {
     Scene *scene = CTX_data_scene(C);
     if (BKE_scene_uses_blender_eevee(scene)) {
-      layout->label(RPT_("Sun disc not available in EEVEE"), ICON_ERROR);
+      layout.label(RPT_("Sun disc not available in EEVEE"), ICON_ERROR);
     }
-    layout->prop(ptr, "sun_disc", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+    layout.prop(ptr, "sun_disc", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 
-    uiLayout *col;
     if (RNA_boolean_get(ptr, "sun_disc")) {
-      col = &layout->column(true);
-      col->prop(ptr, "sun_size", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-      col->prop(ptr, "sun_intensity", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+      ui::Layout &col = layout.column(true);
+      col.prop(ptr, "sun_size", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+      col.prop(ptr, "sun_intensity", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
     }
 
-    col = &layout->column(true);
-    col->prop(ptr, "sun_elevation", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-    col->prop(ptr, "sun_rotation", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+    {
+      ui::Layout &col = layout.column(true);
+      col.prop(ptr, "sun_elevation", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+      col.prop(ptr, "sun_rotation", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+    }
+    layout.prop(ptr, "altitude", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 
-    layout->prop(ptr, "altitude", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-
-    col = &layout->column(true);
-    col->prop(ptr, "air_density", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-    col->prop(ptr, "aerosol_density", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-    col->prop(ptr, "ozone_density", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+    {
+      ui::Layout &col = layout.column(true);
+      col.prop(ptr, "air_density", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+      col.prop(ptr, "aerosol_density", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+      col.prop(ptr, "ozone_density", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+    }
   }
 }
 
@@ -148,6 +150,38 @@ static void sky_precompute_old(SkyModelPreetham *sunsky, const float sun_angles[
   sunsky->radiance[2] /= sky_perez_function(sunsky->config_y, 0, theta);
 }
 
+static void sky_simplify_multiscatter_elevation_rotation(float &sun_elevation, float &sun_rotation)
+{
+  /* Patch Sun position so users are able to animate the daylight cycle while keeping the shading
+   * code simple. */
+  float new_sun_elevation = sun_elevation;
+  float new_sun_rotation = sun_rotation;
+
+  /* Wrap `new_sun_elevation` into [-2PI..2PI] range. */
+  new_sun_elevation = fmodf(new_sun_elevation, 2.0f * M_PI);
+  /* Wrap `new_sun_elevation` into [-PI..PI] range. */
+  if (fabsf(new_sun_elevation) >= M_PI) {
+    new_sun_elevation -= copysignf(2.0f, new_sun_elevation) * M_PI;
+  }
+  /* Wrap `new_sun_elevation` into [-PI/2..PI/2] range while keeping the same absolute position.
+   */
+  if (new_sun_elevation >= M_PI / 2.0f || new_sun_elevation <= -M_PI / 2.0f) {
+    new_sun_elevation = copysignf(M_PI, new_sun_elevation) - new_sun_elevation;
+    new_sun_rotation += M_PI;
+  }
+
+  /* Wrap `new_sun_rotation` into [-2PI..2PI] range. */
+  new_sun_rotation = fmodf(new_sun_rotation, 2.0f * M_PI);
+  /* Wrap `new_sun_rotation` into [0..2PI] range. */
+  if (new_sun_rotation < 0.0f) {
+    new_sun_rotation += 2.0f * M_PI;
+  }
+  new_sun_rotation = 2.0f * M_PI - new_sun_rotation;
+
+  sun_elevation = new_sun_elevation;
+  sun_rotation = new_sun_rotation;
+}
+
 static int node_shader_gpu_tex_sky(GPUMaterial *mat,
                                    bNode *node,
                                    bNodeExecData * /*execdata*/,
@@ -229,6 +263,7 @@ static int node_shader_gpu_tex_sky(GPUMaterial *mat,
   /* Nishita */
   Array<float> pixels(4 * GPU_SKY_WIDTH * GPU_SKY_HEIGHT);
 
+  float sun_rotation = tex->sun_rotation;
   if (tex->sky_model == SHD_SKY_SINGLE_SCATTERING) {
     SKY_single_scattering_precompute_texture(pixels.data(),
                                              4,
@@ -239,24 +274,28 @@ static int node_shader_gpu_tex_sky(GPUMaterial *mat,
                                              tex->air_density,
                                              tex->aerosol_density,
                                              tex->ozone_density);
+
+    /* The multi-scatter case takes care of rotation wrapping in the
+     * sky_simplify_multiscatter_elevation_rotation(). */
+    sun_rotation = fmodf(sun_rotation, 2.0f * M_PI);
+    if (sun_rotation < 0.0f) {
+      sun_rotation += 2.0f * M_PI;
+    }
+    sun_rotation = 2.0f * M_PI - sun_rotation;
   }
   else {
+    float sun_elevation = tex->sun_elevation;
+    sky_simplify_multiscatter_elevation_rotation(sun_elevation, sun_rotation);
     SKY_multiple_scattering_precompute_texture(pixels.data(),
                                                4,
                                                GPU_SKY_WIDTH,
                                                GPU_SKY_HEIGHT,
-                                               tex->sun_elevation,
+                                               sun_elevation,
                                                tex->altitude,
                                                tex->air_density,
                                                tex->aerosol_density,
                                                tex->ozone_density);
   }
-
-  float sun_rotation = fmodf(tex->sun_rotation, 2.0f * M_PI);
-  if (sun_rotation < 0.0f) {
-    sun_rotation += 2.0f * M_PI;
-  }
-  sun_rotation = 2.0f * M_PI - sun_rotation;
 
   XYZ_to_RGB xyz_to_rgb;
   get_XYZ_to_RGB_for_gpu(&xyz_to_rgb);

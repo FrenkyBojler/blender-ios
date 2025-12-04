@@ -23,6 +23,7 @@
 #include "DNA_meshdata_types.h"
 #include "DNA_screen_types.h"
 
+#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_customdata.hh"
 #include "BKE_lib_query.hh"
 #include "BKE_mesh.hh"
@@ -326,6 +327,12 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   bke::SpanAttributeWriter mloopcols_value =
       attributes.lookup_or_add_for_write_span<ColorGeometry4b>(pimd->value_layer_name,
                                                                bke::AttrDomain::Corner);
+
+  bke::LegacyMeshInterpolator vert_interp(*mesh, *result, bke::AttrDomain::Point);
+  bke::LegacyMeshInterpolator edge_interp(*mesh, *result, bke::AttrDomain::Edge);
+  bke::LegacyMeshInterpolator face_interp(*mesh, *result, bke::AttrDomain::Face);
+  bke::LegacyMeshInterpolator corner_interp(*mesh, *result, bke::AttrDomain::Corner);
+
   int *vert_part_index = nullptr;
   float *vert_part_value = nullptr;
   if (mloopcols_index) {
@@ -350,7 +357,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
       ParticleKey state;
       int vindex = p_skip * totvert + k;
 
-      CustomData_copy_data(&mesh->vert_data, &result->vert_data, k, vindex, 1);
+      vert_interp.copy(k, vindex, 1);
 
       if (vert_part_index != nullptr) {
         vert_part_index[vindex] = p;
@@ -469,7 +476,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
     }
 
     /* Create edges and adjust edge vertex indices. */
-    CustomData_copy_data(&mesh->edge_data, &result->edge_data, 0, p_skip * totedge, totedge);
+    edge_interp.copy(0, p_skip * totedge, totedge);
     blender::int2 *edge = &edges[p_skip * totedge];
     for (k = 0; k < totedge; k++, edge++) {
       (*edge)[0] += p_skip * totvert;
@@ -480,7 +487,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
     for (k = 0; k < faces_num; k++) {
       const blender::IndexRange in_face = orig_faces[k];
 
-      CustomData_copy_data(&mesh->face_data, &result->face_data, k, p_skip * faces_num + k, 1);
+      face_interp.copy(k, p_skip * faces_num + k, 1);
       const int dst_face_start = in_face.start() + p_skip * totloop;
       face_offsets[p_skip * faces_num + k] = dst_face_start;
 
@@ -489,8 +496,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
         int dst_corner_i = dst_face_start;
         int j = in_face.size();
 
-        CustomData_copy_data(
-            &mesh->corner_data, &result->corner_data, in_face.start(), dst_face_start, j);
+        corner_interp.copy(in_face.start(), dst_face_start, j);
         for (; j; j--, orig_corner_i++, dst_corner_i++) {
           corner_verts[dst_corner_i] = orig_corner_verts[orig_corner_i] + (p_skip * totvert);
           corner_edges[dst_corner_i] = orig_corner_edges[orig_corner_i] + (p_skip * totedge);
@@ -527,8 +533,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *row;
-  uiLayout *layout = panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
   const eUI_Item_Flag toggles_flag = UI_ITEM_R_TOGGLE | UI_ITEM_R_FORCE_BLANK_DECORATE;
 
   PointerRNA ob_ptr;
@@ -536,44 +541,44 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   PointerRNA particle_obj_ptr = RNA_pointer_get(ptr, "object");
 
-  layout->use_property_split_set(true);
+  layout.use_property_split_set(true);
 
-  layout->prop(ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   if (!RNA_pointer_is_null(&particle_obj_ptr)) {
-    layout->prop_search(ptr,
-                        "particle_system",
-                        &particle_obj_ptr,
-                        "particle_systems",
-                        IFACE_("Particle System"),
-                        ICON_NONE);
+    layout.prop_search(ptr,
+                       "particle_system",
+                       &particle_obj_ptr,
+                       "particle_systems",
+                       IFACE_("Particle System"),
+                       ICON_NONE);
   }
   else {
-    layout->prop(ptr, "particle_system_index", UI_ITEM_NONE, IFACE_("Particle System"), ICON_NONE);
+    layout.prop(ptr, "particle_system_index", UI_ITEM_NONE, IFACE_("Particle System"), ICON_NONE);
   }
 
-  layout->separator();
+  layout.separator();
 
-  row = &layout->row(true, IFACE_("Create Instances"));
+  blender::ui::Layout *row = &layout.row(true, IFACE_("Create Instances"));
   row->prop(ptr, "use_normal", toggles_flag, std::nullopt, ICON_NONE);
   row->prop(ptr, "use_children", toggles_flag, std::nullopt, ICON_NONE);
   row->prop(ptr, "use_size", toggles_flag, std::nullopt, ICON_NONE);
 
-  row = &layout->row(true, IFACE_("Show"));
+  row = &layout.row(true, IFACE_("Show"));
   row->prop(ptr, "show_alive", toggles_flag, std::nullopt, ICON_NONE);
   row->prop(ptr, "show_dead", toggles_flag, std::nullopt, ICON_NONE);
   row->prop(ptr, "show_unborn", toggles_flag, std::nullopt, ICON_NONE);
 
-  layout->prop(ptr,
-               "particle_amount",
-               UI_ITEM_NONE,
-               CTX_IFACE_(BLT_I18NCONTEXT_COUNTABLE, "Amount"),
-               ICON_NONE);
-  layout->prop(ptr, "particle_offset", UI_ITEM_NONE, IFACE_("Offset"), ICON_NONE);
+  layout.prop(ptr,
+              "particle_amount",
+              UI_ITEM_NONE,
+              CTX_IFACE_(BLT_I18NCONTEXT_COUNTABLE, "Amount"),
+              ICON_NONE);
+  layout.prop(ptr, "particle_offset", UI_ITEM_NONE, IFACE_("Offset"), ICON_NONE);
 
-  layout->separator();
+  layout.separator();
 
-  layout->prop(ptr, "space", UI_ITEM_NONE, IFACE_("Coordinate Space"), ICON_NONE);
-  row = &layout->row(true);
+  layout.prop(ptr, "space", UI_ITEM_NONE, IFACE_("Coordinate Space"), ICON_NONE);
+  row = &layout.row(true);
   row->prop(ptr, "axis", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
   modifier_error_message_draw(layout, ptr);
@@ -581,51 +586,49 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
 static void path_panel_draw_header(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *layout = panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  layout->prop(ptr, "use_path", UI_ITEM_NONE, IFACE_("Create Along Paths"), ICON_NONE);
+  layout.prop(ptr, "use_path", UI_ITEM_NONE, IFACE_("Create Along Paths"), ICON_NONE);
 }
 
 static void path_panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *col;
-  uiLayout *layout = panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
-  layout->use_property_split_set(true);
+  layout.use_property_split_set(true);
 
-  layout->active_set(RNA_boolean_get(ptr, "use_path"));
+  layout.active_set(RNA_boolean_get(ptr, "use_path"));
 
-  col = &layout->column(true);
+  blender::ui::Layout *col = &layout.column(true);
   col->prop(ptr, "position", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
   col->prop(ptr, "random_position", UI_ITEM_R_SLIDER, IFACE_("Random"), ICON_NONE);
-  col = &layout->column(true);
+  col = &layout.column(true);
   col->prop(ptr, "rotation", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
   col->prop(ptr, "random_rotation", UI_ITEM_R_SLIDER, IFACE_("Random"), ICON_NONE);
 
-  layout->prop(ptr, "use_preserve_shape", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "use_preserve_shape", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void layers_panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *col;
-  uiLayout *layout = panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
   PointerRNA obj_data_ptr = RNA_pointer_get(&ob_ptr, "data");
 
-  layout->use_property_split_set(true);
+  layout.use_property_split_set(true);
 
-  col = &layout->column(false);
-  col->prop_search(
+  blender::ui::Layout &col = layout.column(false);
+  col.prop_search(
       ptr, "index_layer_name", &obj_data_ptr, "vertex_colors", IFACE_("Index"), ICON_NONE);
-  col->prop_search(
+  col.prop_search(
       ptr, "value_layer_name", &obj_data_ptr, "vertex_colors", IFACE_("Value"), ICON_NONE);
 }
 
