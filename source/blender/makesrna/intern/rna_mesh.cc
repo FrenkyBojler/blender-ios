@@ -735,18 +735,6 @@ static void rna_MeshVertex_undeformed_co_get(PointerRNA *ptr, float values[3])
   }
 }
 
-static int rna_CustomDataLayer_clone_get(PointerRNA * /*ptr*/, CustomData * /*data*/, int /*type*/)
-{
-  return 0;
-}
-
-static void rna_CustomDataLayer_clone_set(PointerRNA * /*ptr*/,
-                                          CustomData * /*data*/,
-                                          int /*value*/,
-                                          int /*type*/)
-{
-}
-
 /* uv_layers */
 
 static void rna_Mesh_uv_layers_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
@@ -949,9 +937,9 @@ static bool rna_MeshUVLoopLayer_active_get(PointerRNA *ptr)
   return rna_Attribute_name_get(*ptr) == rna_mesh(ptr)->active_uv_map_name();
 }
 
-static bool rna_MeshUVLoopLayer_clone_get(PointerRNA *ptr)
+static bool rna_MeshUVLoopLayer_clone_get(PointerRNA * /*ptr*/)
 {
-  return rna_CustomDataLayer_clone_get(ptr, rna_mesh_ldata(ptr), CD_PROP_FLOAT2);
+  return false;
 }
 
 static void rna_MeshUVLoopLayer_active_render_set(PointerRNA *ptr, bool value)
@@ -970,10 +958,7 @@ static void rna_MeshUVLoopLayer_active_set(PointerRNA *ptr, bool value)
   }
 }
 
-static void rna_MeshUVLoopLayer_clone_set(PointerRNA *ptr, bool value)
-{
-  rna_CustomDataLayer_clone_set(ptr, rna_mesh_ldata(ptr), value, CD_PROP_FLOAT2);
-}
+static void rna_MeshUVLoopLayer_clone_set(PointerRNA * /*ptr*/, bool /*value*/) {}
 
 static void rna_Mesh_vertex_colors_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
