@@ -1,2 +1,3 @@
 Referenced by issue #150961, Grease Pencil: Setting Curve Handles to 'Align' not working as expected
 Referenced by pull request #151003, Fix #150961: Grease Pencil Right handle aligned problem
+Referenced by commit 54f380d1dabe582622513c8a9031a3518fbc6262, Fix #150961: Grease Pencil: Right handle align problem
