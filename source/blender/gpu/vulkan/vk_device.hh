@@ -26,6 +26,7 @@
 #include "vk_pipeline_pool.hh"
 #include "vk_resource_pool.hh"
 #include "vk_samplers.hh"
+#include "vk_vertex_attribute_object.hh"
 
 namespace blender::gpu {
 class VKBackend;
@@ -80,6 +81,21 @@ struct VKExtensions {
    */
   bool pageable_device_local_memory = false;
 
+  /**
+   * Does the device support VK_EXT_graphics_pipeline_library
+   */
+  bool graphics_pipeline_library = false;
+
+  /**
+   * Does the device support VK_EXT_line_rasterization
+   */
+  bool line_rasterization = false;
+
+  /**
+   * Does the device support VK_EXT_extended_dynamic_state
+   */
+  bool extended_dynamic_state = false;
+
   /** Log enabled features and extensions. */
   void log() const;
 };
@@ -102,6 +118,9 @@ struct VKWorkarounds {
      */
     bool r8g8b8 = false;
   } vertex_formats;
+
+  /** Log enabled workarounds. */
+  void log() const;
 };
 
 /**
@@ -185,6 +204,9 @@ class VKDevice : public NonCopyable {
   VkPhysicalDeviceMemoryProperties vk_physical_device_memory_properties_ = {};
   VkPhysicalDeviceMaintenance4Properties vk_physical_device_maintenance4_properties_ = {
       VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_PROPERTIES};
+  VkPhysicalDeviceGraphicsPipelineLibraryPropertiesEXT
+      vk_physical_device_graphics_pipeline_library_properties_ = {
+          VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_GRAPHICS_PIPELINE_LIBRARY_PROPERTIES_EXT};
   /** Features support. */
   VkPhysicalDeviceFeatures vk_physical_device_features_ = {};
   VkPhysicalDeviceVulkan11Features vk_physical_device_vulkan_11_features_ = {};
@@ -212,6 +234,8 @@ class VKDevice : public NonCopyable {
   /** Discard pool for resources that could still be used during rendering. */
   VKDiscardPool orphaned_data_render;
   VKPipelinePool pipelines;
+  VKVertexInputDescriptionPool vertex_input_descriptions;
+
   /** Buffer to bind to unbound resource locations. */
   VKBuffer dummy_buffer;
 
@@ -229,6 +253,9 @@ class VKDevice : public NonCopyable {
     PFN_vkSetDebugUtilsObjectNameEXT vkSetDebugUtilsObjectName = nullptr;
     PFN_vkCreateDebugUtilsMessengerEXT vkCreateDebugUtilsMessenger = nullptr;
     PFN_vkDestroyDebugUtilsMessengerEXT vkDestroyDebugUtilsMessenger = nullptr;
+
+    /* Extension: VK_EXT_extended_dynamic_state */
+    PFN_vkCmdSetFrontFace vkCmdSetFrontFace = nullptr;
 
     /* Extension: VK_KHR_external_memory_fd */
     PFN_vkGetMemoryFdKHR vkGetMemoryFd = nullptr;
@@ -266,6 +293,12 @@ class VKDevice : public NonCopyable {
   const VkPhysicalDeviceIDProperties &physical_device_id_properties_get() const
   {
     return vk_physical_device_id_properties_;
+  }
+
+  inline const VkPhysicalDeviceGraphicsPipelineLibraryPropertiesEXT &
+  physical_device_graphics_pipeline_properties_get()
+  {
+    return vk_physical_device_graphics_pipeline_library_properties_;
   }
 
   const VkPhysicalDeviceFeatures &physical_device_features_get() const

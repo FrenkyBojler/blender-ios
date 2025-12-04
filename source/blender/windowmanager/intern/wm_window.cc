@@ -1683,7 +1683,7 @@ static void ghost_event_proc_timestamp_warning(GHOST_EventHandle ghost_event)
 
   CLOG_INFO_NOCHECK(WM_LOG_EVENTS,
                     "GHOST: suspicious time-stamp from far in the %s: %.2f %s, "
-                    "absolute value is %" PRIu64 ", current time is %" PRIu64 ", for type %d\n",
+                    "absolute value is %" PRIu64 ", current time is %" PRIu64 ", for type %d",
                     time_delta < 0.0f ? "past" : "future",
                     std::abs(time_delta),
                     time_unit,
@@ -2315,7 +2315,7 @@ void wm_test_gpu_backend_fallback(bContext *C)
     UI_alert(C,
              RPT_("Failed to load using Vulkan, using OpenGL instead."),
              message,
-             ALERT_ICON_ERROR,
+             blender::ui::AlertIcon::Error,
              false);
     CTX_wm_window_set(C, prevwin);
   }
