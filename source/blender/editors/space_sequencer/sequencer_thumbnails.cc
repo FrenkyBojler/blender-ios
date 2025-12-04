@@ -113,8 +113,95 @@ static void strip_get_thumb_image_dimensions(const Strip *strip,
   *r_image_height = image_height;
 }
 
+static void get_seq_strip_ends_thumbnails(const View2D *v2d,
+                                          const bContext *C,
+                                          const StripDrawContext &strip,
+                                          Scene *scene,
+                                          float pixelx,
+                                          float pixely,
+                                          float thumb_height,
+                                          float thumb_width,
+                                          float image_width,
+                                          float image_height,
+                                          float crop_x_multiplier,
+                                          bool is_muted,
+                                          Vector<SeqThumbInfo> &r_thumbs)
+{
+  Vector<float> timeline_frames;
+
+  if (strip.left_handle + thumb_width > strip.content_start &&
+      strip.left_handle < strip.content_end)
+  {
+    timeline_frames.append(strip.left_handle);
+  }
+
+  float right_end_thumb_timeline_frame = max_ff(strip.right_handle - thumb_width,
+                                                strip.left_handle + thumb_width);
+
+  if (right_end_thumb_timeline_frame < strip.content_end &&
+      right_end_thumb_timeline_frame + thumb_width > strip.content_start)
+  {
+    timeline_frames.append(right_end_thumb_timeline_frame);
+  }
+
+  for (float timeline_frame : timeline_frames) {
+    float thumb_x_end = timeline_frame + thumb_width;
+    bool clipped = false;
+
+    /* Reached end of view, no more thumbnails needed. */
+    if (timeline_frame > v2d->cur.xmax) {
+      break;
+    }
+
+    /* Set the clipping bound to show the left handle moving over thumbs and not shift thumbs. */
+    float cut_off = 0.0f;
+    if (strip.left_handle > timeline_frame && strip.left_handle < thumb_x_end) {
+      cut_off = strip.left_handle - timeline_frame;
+      clipped = true;
+    }
+
+    /* Clip if full thumbnail cannot be displayed. */
+    if (thumb_x_end > strip.right_handle) {
+      thumb_x_end = strip.right_handle;
+      clipped = true;
+    }
+
+    float cropx_min = cut_off * crop_x_multiplier;
+    float cropx_max = (thumb_x_end - timeline_frame) * crop_x_multiplier;
+    if (cropx_max < 1.0f) {
+      break;
+    }
+
+    /* Get the thumbnail image. */
+    ImBuf *ibuf = seq::thumbnail_cache_get(C, scene, strip.strip, timeline_frame);
+    if (ibuf == nullptr) {
+      break;
+    }
+
+    SeqThumbInfo thumb = {};
+    thumb.ibuf = ibuf;
+    thumb.cropx_min = 0;
+    thumb.cropx_max = ibuf->x - 1;
+    if (clipped) {
+      thumb.cropx_min = clamp_f(cropx_min, 0, ibuf->x - 1);
+      thumb.cropx_max = clamp_f(cropx_max - 1 * 0, 0, ibuf->x - 1);
+    }
+    thumb.left_handle = strip.left_handle;
+    thumb.right_handle = strip.right_handle;
+    thumb.is_muted = is_muted;
+    thumb.bottom = strip.bottom;
+    thumb.top = strip.top;
+    thumb.x1 = timeline_frame + cut_off;
+    thumb.x2 = thumb_x_end;
+    thumb.y1 = strip.bottom;
+    thumb.y2 = strip.strip_content_top;
+    r_thumbs.append(thumb);
+  }
+}
+
 static void get_seq_strip_thumbnails(const View2D *v2d,
                                      const bContext *C,
+                                     const SpaceSeq *sseq,
                                      Scene *scene,
                                      const StripDrawContext &strip,
                                      float pixelx,
@@ -141,6 +228,23 @@ static void get_seq_strip_thumbnails(const View2D *v2d,
   float upper_thumb_bound = min_ff(strip.right_handle, strip.content_end);
   if (strip.strip->type == STRIP_TYPE_IMAGE) {
     upper_thumb_bound = strip.right_handle;
+  }
+
+  if ((sseq->timeline_overlay.flag & SEQ_TIMELINE_CONTINUOUS_THUMBNAILS) == 0) {
+    get_seq_strip_ends_thumbnails(v2d,
+                                  C,
+                                  strip,
+                                  scene,
+                                  pixelx,
+                                  pixely,
+                                  thumb_height,
+                                  thumb_width,
+                                  image_width,
+                                  image_height,
+                                  crop_x_multiplier,
+                                  is_muted,
+                                  r_thumbs);
+    return;
   }
 
   float timeline_frame = thumb_calc_first_timeline_frame(
@@ -287,7 +391,7 @@ void draw_strip_thumbnails(const TimelineDrawContext &ctx,
 {
   /* Nothing to do if we're not showing thumbnails overall. */
   if ((ctx.sseq->flag & SEQ_SHOW_OVERLAY) == 0 ||
-      (ctx.sseq->timeline_overlay.flag & SEQ_TIMELINE_SHOW_THUMBNAILS) == 0)
+      (ctx.sseq->timeline_overlay.flag & SEQ_TIMELINE_NO_THUMBNAILS))
   {
     return;
   }
@@ -295,8 +399,15 @@ void draw_strip_thumbnails(const TimelineDrawContext &ctx,
   /* Gather information for all thumbnails. */
   Vector<SeqThumbInfo> thumbs;
   for (const StripDrawContext &strip : strips) {
-    get_seq_strip_thumbnails(
-        ctx.v2d, ctx.C, ctx.scene, strip, ctx.pixelx, ctx.pixely, strip.is_muted, thumbs);
+    get_seq_strip_thumbnails(ctx.v2d,
+                             ctx.C,
+                             ctx.sseq,
+                             ctx.scene,
+                             strip,
+                             ctx.pixelx,
+                             ctx.pixely,
+                             strip.is_muted,
+                             thumbs);
   }
   if (thumbs.is_empty()) {
     return;
