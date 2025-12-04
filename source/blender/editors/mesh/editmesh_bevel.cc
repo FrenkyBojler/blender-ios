@@ -583,7 +583,7 @@ static void edbm_bevel_mouse_set_value(wmOperator *op, const wmEvent *event)
   bool use_precision = (event->modifier & KM_SHIFT) != 0;
 
   const float increment_factor = (use_precision) ?
-                                     value_snap_increments[vmode] * increments_precision[vmode] :
+                                     value_snap_increments[vmode] * increments_precision_factors[vmode] :
                                      value_snap_increments[vmode];
 
   if (is_snapping && increment_factor != 0.0f){
