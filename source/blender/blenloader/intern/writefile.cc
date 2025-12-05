@@ -839,7 +839,9 @@ static uint64_t get_address_id_int(WriteData &wd, const void *address)
    *
    * This is handled properly by both #BLO_write_shared_tag and #prepare_stable_data_block_ids,
    * but doing so here would add a significant overhead to a very often used function. Further
-   * more, there is no .
+   * more, there is no expected actual issue currently if such 'wrongly categorized' stable address
+   * values are used. The only really critical thing is that all written stable addresses remain
+   * unique, which should remain true even if this ever happens.
    */
   return wd.stable_address_ids.pointer_map.lookup_or_add_cb(address, [&]() {
     return get_next_stable_address_id(wd, wd.stable_address_ids.next_id_hint);
