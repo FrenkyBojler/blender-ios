@@ -496,8 +496,6 @@ struct ButtonExtraOpIcon {
   bool disabled;
 };
 
-}  // namespace blender::ui
-
 struct ColorPicker {
   ColorPicker *next, *prev;
 

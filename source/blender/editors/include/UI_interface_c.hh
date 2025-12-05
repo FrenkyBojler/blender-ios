@@ -30,7 +30,6 @@
 /* Struct Declarations */
 
 struct ARegion;
-struct AutoComplete;
 struct Depsgraph;
 struct EnumPropertyItem;
 struct FileSelectParams;
@@ -464,7 +463,7 @@ enum class ButType : int8_t {
   /** An item a view (see #ui::AbstractViewItem). */
   ViewItem,
 };
-namespace ui {
+
 inline char but_pointer_bit_max_index(ButPointerType pointer_type)
 {
   switch (pointer_type) {
@@ -479,7 +478,6 @@ inline char but_pointer_bit_max_index(ButPointerType pointer_type)
   }
   return 0;
 }
-}  // namespace ui
 
 struct uiButTypeWithPointerType {
   ButType but_type = ButType::But;

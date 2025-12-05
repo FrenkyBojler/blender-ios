@@ -171,7 +171,7 @@ static void file_panel_execution_buttons_draw(const bContext *C, Panel *panel)
                                            TIP_("File name"));
   UI_but_retval_set(but, -1);
 
-  BLI_assert(!UI_but_flag_is_set(but, UI_BUT_UNDO));
+  BLI_assert(!UI_but_flag_is_set(but, blender::ui::UI_BUT_UNDO));
   BLI_assert(!UI_but_is_utf8(but));
 
   UI_but_func_complete_set(but, autocomplete_file, nullptr);
