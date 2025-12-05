@@ -25,13 +25,14 @@
 #include "gpu_material_library.hh"
 #include "gpu_shader_create_info.hh"
 #include "gpu_shader_dependency_private.hh"
+#include "gpu_shader_metadata_private.hh"
 
 #ifdef WITH_OPENSUBDIV
 #  include "opensubdiv_capi_type.hh"
 #  include "opensubdiv_evaluator_capi.hh"
 #endif
 
-#include "../glsl_preprocess/glsl_preprocess.hh"
+#include "../shader_tool/shader_tool.hh"
 
 extern "C" {
 #define SHADER_SOURCE(filename_underscore, filename, filepath) \
@@ -47,6 +48,65 @@ extern "C" {
 }
 
 static CLG_LogRef LOG = {"shader.dependencies"};
+
+namespace blender::gpu::shader {
+
+shader::BuiltinBits convert_builtin_bit(shader::metadata::Builtin builtin)
+{
+  using namespace blender::gpu::shader;
+  using namespace blender::gpu::shader::metadata;
+  switch (builtin) {
+    case Builtin::FragCoord:
+      return BuiltinBits::FRAG_COORD;
+    case Builtin::FragStencilRef:
+      return BuiltinBits::STENCIL_REF;
+    case Builtin::FrontFacing:
+      return BuiltinBits::FRONT_FACING;
+    case Builtin::GlobalInvocationID:
+      return BuiltinBits::GLOBAL_INVOCATION_ID;
+    case Builtin::InstanceIndex:
+    case Builtin::BaseInstance:
+    case Builtin::InstanceID:
+      return BuiltinBits::INSTANCE_ID;
+    case Builtin::LocalInvocationID:
+      return BuiltinBits::LOCAL_INVOCATION_ID;
+    case Builtin::LocalInvocationIndex:
+      return BuiltinBits::LOCAL_INVOCATION_INDEX;
+    case Builtin::NumWorkGroup:
+      return BuiltinBits::NUM_WORK_GROUP;
+    case Builtin::PointCoord:
+      return BuiltinBits::POINT_COORD;
+    case Builtin::PointSize:
+      return BuiltinBits::POINT_SIZE;
+    case Builtin::PrimitiveID:
+      return BuiltinBits::PRIMITIVE_ID;
+    case Builtin::VertexID:
+      return BuiltinBits::VERTEX_ID;
+    case Builtin::WorkGroupID:
+      return BuiltinBits::WORK_GROUP_ID;
+    case Builtin::WorkGroupSize:
+      return BuiltinBits::WORK_GROUP_SIZE;
+    case Builtin::drw_debug:
+#ifndef NDEBUG
+      return BuiltinBits::USE_DEBUG_DRAW;
+#else
+      return BuiltinBits::NONE;
+#endif
+    case Builtin::assert:
+    case Builtin::printf:
+#if GPU_SHADER_PRINTF_ENABLE
+      return BuiltinBits::USE_PRINTF;
+#else
+      return BuiltinBits::NONE;
+#endif
+    case Builtin::runtime_generated:
+      return BuiltinBits::RUNTIME_GENERATED;
+  }
+  BLI_assert_unreachable();
+  return BuiltinBits::NONE;
+}
+
+}  // namespace blender::gpu::shader
 
 namespace blender::gpu {
 
@@ -71,61 +131,6 @@ struct GPUSource {
   /* NOTE: The next few functions are needed to keep isolation of the preprocessor.
    * Eventually, this should be revisited and the preprocessor should output
    * GPU structures. */
-
-  shader::BuiltinBits convert_builtin_bit(shader::metadata::Builtin builtin)
-  {
-    using namespace blender::gpu::shader;
-    using namespace blender::gpu::shader::metadata;
-    switch (builtin) {
-      case Builtin::FragCoord:
-        return BuiltinBits::FRAG_COORD;
-      case Builtin::FragStencilRef:
-        return BuiltinBits::STENCIL_REF;
-      case Builtin::FrontFacing:
-        return BuiltinBits::FRONT_FACING;
-      case Builtin::GlobalInvocationID:
-        return BuiltinBits::GLOBAL_INVOCATION_ID;
-      case Builtin::InstanceIndex:
-      case Builtin::BaseInstance:
-      case Builtin::InstanceID:
-        return BuiltinBits::INSTANCE_ID;
-      case Builtin::LocalInvocationID:
-        return BuiltinBits::LOCAL_INVOCATION_ID;
-      case Builtin::LocalInvocationIndex:
-        return BuiltinBits::LOCAL_INVOCATION_INDEX;
-      case Builtin::NumWorkGroup:
-        return BuiltinBits::NUM_WORK_GROUP;
-      case Builtin::PointCoord:
-        return BuiltinBits::POINT_COORD;
-      case Builtin::PointSize:
-        return BuiltinBits::POINT_SIZE;
-      case Builtin::PrimitiveID:
-        return BuiltinBits::PRIMITIVE_ID;
-      case Builtin::VertexID:
-        return BuiltinBits::VERTEX_ID;
-      case Builtin::WorkGroupID:
-        return BuiltinBits::WORK_GROUP_ID;
-      case Builtin::WorkGroupSize:
-        return BuiltinBits::WORK_GROUP_SIZE;
-      case Builtin::drw_debug:
-#ifndef NDEBUG
-        return BuiltinBits::USE_DEBUG_DRAW;
-#else
-        return BuiltinBits::NONE;
-#endif
-      case Builtin::assert:
-      case Builtin::printf:
-#if GPU_SHADER_PRINTF_ENABLE
-        return BuiltinBits::USE_PRINTF;
-#else
-        return BuiltinBits::NONE;
-#endif
-      case Builtin::runtime_generated:
-        return BuiltinBits::RUNTIME_GENERATED;
-    }
-    BLI_assert_unreachable();
-    return BuiltinBits::NONE;
-  }
 
   GPUFunctionQual convert_qualifier(shader::metadata::Qualifier qualifier)
   {
@@ -187,7 +192,7 @@ struct GPUSource {
 
   void add_builtin(shader::metadata::Builtin builtin)
   {
-    builtins |= convert_builtin_bit(builtin);
+    builtins |= shader::convert_builtin_bit(builtin);
   }
 
   void add_dependency(StringRef line)
@@ -504,6 +509,10 @@ void gpu_shader_dependency_init()
 #undef SHADER_SOURCE
 #ifdef WITH_OPENSUBDIV
   const blender::StringRefNull patch_basis_source = openSubdiv_getGLSLPatchBasisSource();
+  auto source_ptr_opt = g_sources->pop_try("osd_patch_basis.glsl");
+  if (source_ptr_opt) {
+    delete source_ptr_opt.value();
+  }
   g_sources->add_new(
       "osd_patch_basis.glsl",
       new GPUSource("osd_patch_basis.glsl",

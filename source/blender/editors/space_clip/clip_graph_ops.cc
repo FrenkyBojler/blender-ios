@@ -18,7 +18,7 @@
 #include "BLT_translation.hh"
 
 #include "BKE_context.hh"
-#include "BKE_tracking.h"
+#include "BKE_tracking.hh"
 
 #include "DEG_depsgraph.hh"
 
@@ -372,7 +372,7 @@ static void box_select_cb(void *userdata,
   }
 
   if (BLI_rctf_isect_pt(&data->rect, scene_framenr, val)) {
-    int flag = 0;
+    TrackingMarkerFlag flag = TrackingMarkerFlag(0);
 
     if (value_source == CLIP_VALUE_SOURCE_SPEED_X) {
       flag = MARKER_GRAPH_SEL_X;
@@ -540,7 +540,7 @@ static wmOperatorStatus delete_curve_invoke(bContext *C, wmOperator *op, const w
                                   IFACE_("Delete track corresponding to the selected curve?"),
                                   nullptr,
                                   IFACE_("Delete"),
-                                  ALERT_ICON_NONE,
+                                  blender::ui::AlertIcon::None,
                                   false);
   }
   return delete_curve_exec(C, op);

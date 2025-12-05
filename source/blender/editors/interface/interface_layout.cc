@@ -741,7 +741,7 @@ static void ui_item_array(Layout *layout,
     for (int a = 0; a < len; a++) {
       /* We are going over flat array indices (the way matrices are stored internally [also check
        * logic in #pyrna_py_from_array_index()]) -- and they are not ordered "row first" -- , so
-       * map these to rows/colums. */
+       * map these to rows/columns. */
       col = a % dim_size[1];
       row = a / dim_size[1];
 
@@ -5001,14 +5001,6 @@ Layout &Layout::absolute(bool align)
   return *litem;
 }
 
-uiBlock *Layout::absolute_block()
-{
-  uiBlock *block = this->block();
-  absolute(false);
-
-  return block;
-}
-
 Layout &Layout::overlap()
 {
   Layout *litem = MEM_new<LayoutOverlap>(__func__);
@@ -6084,7 +6076,7 @@ const char *UI_layout_introspect(Layout *layout)
 Layout *uiItemsAlertBox(uiBlock *block,
                         const uiStyle *style,
                         const int dialog_width,
-                        const eAlertIcon icon,
+                        const blender::ui::AlertIcon icon,
                         const int icon_size)
 {
   /* By default, the space between icon and text/buttons will be equal to the 'columnspace',
@@ -6105,16 +6097,16 @@ Layout *uiItemsAlertBox(uiBlock *block,
                                                    0,
                                                    style);
 
-  if (icon == ALERT_ICON_INFO) {
+  if (icon == blender::ui::AlertIcon::Info) {
     block->alert_level = uiBlockAlertLevel::Info;
   }
-  else if (icon == ALERT_ICON_WARNING) {
+  else if (icon == blender::ui::AlertIcon::Warning) {
     block->alert_level = uiBlockAlertLevel::Warning;
   }
-  else if (icon == ALERT_ICON_QUESTION) {
+  else if (icon == blender::ui::AlertIcon::Question) {
     block->alert_level = uiBlockAlertLevel::Warning;
   }
-  else if (icon == ALERT_ICON_ERROR) {
+  else if (icon == blender::ui::AlertIcon::Error) {
     block->alert_level = uiBlockAlertLevel::Error;
   }
   else {
@@ -6136,7 +6128,7 @@ Layout *uiItemsAlertBox(uiBlock *block,
   return layout;
 }
 
-Layout *uiItemsAlertBox(uiBlock *block, const int size, const eAlertIcon icon)
+Layout *uiItemsAlertBox(uiBlock *block, const int size, const blender::ui::AlertIcon icon)
 {
   const uiStyle *style = UI_style_get_dpi();
   const short icon_size = 40 * UI_SCALE_FAC;

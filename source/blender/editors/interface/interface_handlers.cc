@@ -41,13 +41,13 @@
 #include "BKE_colortools.hh"
 #include "BKE_context.hh"
 #include "BKE_curveprofile.h"
-#include "BKE_movieclip.h"
+#include "BKE_movieclip.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_types.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
-#include "BKE_tracking.h"
+#include "BKE_tracking.hh"
 #include "BKE_unit.hh"
 
 #include "BLT_translation.hh"
@@ -5662,17 +5662,20 @@ static void ui_numedit_set_active(uiBut *but)
     }
   }
 
-  /* Don't change the cursor once pressed. */
-  if ((but->flag & UI_SELECT) == 0) {
+  /* Don't change the cursor once pressed or if a modal operator is running.
+   * If a modal operator is running, the number edit input will be ignored,
+   * so do not try to change the cursor if this is the case.
+   */
+  if ((but->flag & UI_SELECT) == 0 && WM_cursor_modal_is_set_ok(data->window)) {
     if ((but->drawflag & UI_BUT_HOVER_LEFT) || (but->drawflag & UI_BUT_HOVER_RIGHT)) {
       if (data->changed_cursor) {
-        WM_cursor_modal_restore(data->window);
+        WM_cursor_set(data->window, WM_CURSOR_DEFAULT);
         data->changed_cursor = false;
       }
     }
     else {
       if (data->changed_cursor == false) {
-        WM_cursor_modal_set(data->window, WM_CURSOR_X_MOVE);
+        WM_cursor_set(data->window, WM_CURSOR_X_MOVE);
         data->changed_cursor = true;
       }
     }
@@ -9126,7 +9129,7 @@ static void button_activate_exit(
 #endif
 
   if (data->changed_cursor) {
-    WM_cursor_modal_restore(win);
+    WM_cursor_set(win, WM_CURSOR_DEFAULT);
   }
 
   /* redraw and refresh (for popups) */
@@ -9719,7 +9722,8 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
                 /* Cancel because this `but` handles all events and we don't want
                  * the parent button's update function to do anything.
                  *
-                 * Causes issues with buttons defined by #uiLayout::prop_with_popover. */
+                 * Causes issues with buttons defined by #blender::ui::Layout::prop_with_popover.
+                 */
                 block->handle->menuretval = UI_RETURN_CANCEL;
               }
               else if (ui_but_is_editable_as_text(but)) {
