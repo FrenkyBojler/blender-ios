@@ -45,6 +45,23 @@ struct RotateMatrixCache {
   float mat[3][3];
 };
 
+/* Eliminate floating point noise at 90-degree increments. */
+static void sanitize_rotation_matrix(float mat[3][3], const float angle)
+{
+  const float quarter = float(M_PI_2);
+  const float snapped = roundf(angle / quarter) * quarter;
+
+  if (fabsf(angle - snapped) < 1e-4f) {
+    for (int i = 0; i < 3; i++) {
+      for (int j = 0; j < 3; j++) {
+        if (fabsf(mat[i][j]) < 1e-6f) {
+          mat[i][j] = 0.0f;
+        }
+      }
+    }
+  }
+}
+
 static void rmat_cache_init(RotateMatrixCache *rmc, const float angle, const float axis[3])
 {
   axis_angle_normalized_to_mat3(rmc->mat, axis, angle);
@@ -60,6 +77,7 @@ static void rmat_cache_update(RotateMatrixCache *rmc, const float axis[3], const
 {
   if (rmc->do_update_matrix > 0) {
     axis_angle_normalized_to_mat3(rmc->mat, axis, angle);
+    sanitize_rotation_matrix(rmc->mat, angle);
     rmc->do_update_matrix--;
   }
 }
