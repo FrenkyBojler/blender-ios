@@ -56,13 +56,13 @@ static void context_path_add_object_data(Vector<ui::ContextPathItem> &path, Obje
   }
 }
 
-static std::function<void(bContext &)> tree_path_handle_func(int i)
+static std::function<void(bContext &)> tree_path_navigate(int path_index)
 {
-  return [i](bContext &C) {
+  return [path_index](bContext &C) {
     PointerRNA op_props;
     wmOperatorType *ot = WM_operatortype_find("NODE_OT_tree_path_parent", false);
     WM_operator_properties_create_ptr(&op_props, ot);
-    RNA_int_set(&op_props, "parent_tree_index", i);
+    RNA_int_set(&op_props, "parent_tree_index", path_index);
     WM_operator_name_call_ptr(
         &C, ot, blender::wm::OpCallContext::InvokeDefault, &op_props, nullptr);
     WM_operator_properties_free(&op_props);
@@ -75,7 +75,7 @@ static void context_path_add_top_level_shader_node_tree(const SpaceNode &snode,
                                                         void *ptr)
 {
   if (snode.nodetree != snode.edittree) {
-    ui::context_path_add_generic(path, rna_type, ptr, ICON_NONE, tree_path_handle_func(0));
+    ui::context_path_add_generic(path, rna_type, ptr, ICON_NONE, tree_path_navigate(0));
   }
   else {
     ui::context_path_add_generic(path, rna_type, ptr);
@@ -109,7 +109,7 @@ static void context_path_add_node_tree_and_node_groups(const SpaceNode &snode,
     if (path_item != snode.treepath.last) {
       /* We don't need to add handle function to last node-tree. */
       ui::context_path_add_generic(
-          path, RNA_NodeTree, path_item->nodetree, icon, tree_path_handle_func(i));
+          path, RNA_NodeTree, path_item->nodetree, icon, tree_path_navigate(i));
     }
     else {
       ui::context_path_add_generic(path, RNA_NodeTree, path_item->nodetree, icon);
