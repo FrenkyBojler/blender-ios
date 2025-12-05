@@ -457,10 +457,6 @@ Drawing::~Drawing()
 
 static void ensure_shape_map_and_offset_cache(const Drawing &drawing)
 {
-  if (drawing.runtime->shape_cache.is_cached()) {
-    return;
-  }
-
   drawing.runtime->shape_cache.ensure([&](std::optional<ShapeCache> &r_shape_cache) {
     const CurvesGeometry &curves = drawing.strokes();
     const bke::AttributeAccessor attributes = curves.attributes();
@@ -733,10 +729,6 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
 
 static void ensure_triangle_and_offset_cache(const Drawing &drawing)
 {
-  if (drawing.runtime->triangle_cache.is_cached()) {
-    return;
-  }
-
   drawing.runtime->triangle_cache.ensure([&](TriangleCache &r_triangle_cache) {
     const CurvesGeometry &curves = drawing.strokes();
     const std::optional<GroupedSpan<int>> shapes = drawing.shapes();
