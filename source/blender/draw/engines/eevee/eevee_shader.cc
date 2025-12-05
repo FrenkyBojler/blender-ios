@@ -1700,12 +1700,8 @@ void ShaderModule::material_create_info_pipelines_amend(eMaterialGeometry geomet
       break;
     }
 
-    default: {
-      std::cout << "EEVEE: No pipeline state defined for geometry_type=" << int(geometry_type)
-                << " pipeline_type=" << int(pipeline_type) << std::endl;
-
+    default:
       break;
-    }
   }
 }
 
