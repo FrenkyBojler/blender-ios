@@ -39,6 +39,8 @@ class StructMember {
   };
   Category category;
   const Type *type;
+
+  bool is_char_array() const;
 };
 
 struct StructMemberIdentifierGetter {
@@ -52,6 +54,14 @@ class Struct {
  public:
   const Type *type;
   CustomIDVectorSet<const StructMember *, StructMemberIdentifierGetter> members;
+
+  std::optional<int64_t> offset_of(const StringRef name) const
+  {
+    if (const StructMember *member = this->members.lookup_key_default_as(name, nullptr)) {
+      return member->offset_in_struct;
+    }
+    return std::nullopt;
+  }
 };
 
 class Type {
@@ -148,6 +158,7 @@ class RichSDNA {
         sdna_member.parent = &sdna_struct;
         sdna_struct.members.add(&sdna_member);
       }
+      this->structs.add(&sdna_struct);
     }
     for (const Struct *sdna_struct_const : this->structs) {
       Struct &sdna_struct = const_cast<Struct &>(*sdna_struct_const);
@@ -180,7 +191,34 @@ class RichSDNA {
       type.print(stream, verbose);
     }
   }
+
+  const Struct *try_find_struct(const int struct_nr) const
+  {
+    if (struct_nr < 0 || struct_nr >= this->structs.size()) {
+      return nullptr;
+    }
+    return this->structs[struct_nr];
+  }
+
+  const Struct *try_find_struct(const StringRef name) const
+  {
+    return this->structs.lookup_key_default_as(name, nullptr);
+  }
 };
+
+bool StructMember::is_char_array() const
+{
+  if (this->category != Category::Primitive) {
+    return false;
+  }
+  if (this->type->name != "char") {
+    return false;
+  }
+  if (this->elem_num <= 1) {
+    return false;
+  }
+  return true;
+}
 
 }  // namespace blender::rich_sdna
 
@@ -328,6 +366,139 @@ struct BlendData {
   int64_t global_block_index = -1;
 };
 
+struct BlendIdData {
+  std::string name;
+  const BlendBlock *id_block = nullptr;
+  Span<BlendBlock> blocks;
+};
+
+static bool is_specific_id_struct(const Struct &sdna_struct)
+{
+  if (sdna_struct.members.is_empty()) {
+    return false;
+  }
+  const StructMember &first_member = *sdna_struct.members[0];
+  if (first_member.identifier != "id") {
+    return false;
+  }
+  if (first_member.type->name != "ID") {
+    return false;
+  }
+  return true;
+}
+
+static bool is_id_block(const BlendBlock &block, const RichSDNA &sdna)
+{
+  switch (block.bhead.code) {
+    case BLO_CODE_DATA:
+    case BLO_CODE_GLOB:
+    case BLO_CODE_DNA1:
+    case BLO_CODE_TEST:
+    case BLO_CODE_REND:
+    case BLO_CODE_USER:
+    case BLO_CODE_ENDB: {
+      return false;
+    }
+    default: {
+      const Struct *sdna_struct = sdna.try_find_struct(block.bhead.SDNAnr);
+      if (!sdna_struct) {
+        return false;
+      }
+      if (!is_specific_id_struct(*sdna_struct)) {
+        return false;
+      }
+      return true;
+    }
+  }
+}
+
+static bool sdna_fullfills_core_assumptions(const RichSDNA &sdna)
+{
+  const Struct *id_struct = sdna.try_find_struct("ID");
+  if (!id_struct) {
+    return false;
+  }
+  const StructMember *name_member = id_struct->members.lookup_key_default_as("name", nullptr);
+  if (!name_member) {
+    return false;
+  }
+  if (!name_member->is_char_array()) {
+    return false;
+  }
+  return true;
+}
+
+static bool block_sizes_match_sdna(const BlendData &blend_data, const RichSDNA &sdna)
+{
+  for (const BlendBlock &block : blend_data.blocks) {
+    switch (block.bhead.code) {
+      case BLO_CODE_DATA: {
+        if (block.bhead.SDNAnr == SDNA_RAW_DATA_STRUCT_INDEX) {
+          continue;
+        }
+        const Struct *sdna_struct = sdna.try_find_struct(block.bhead.SDNAnr);
+        if (!sdna_struct) {
+          return false;
+        }
+        const int64_t expected_size = sdna_struct->type->size_in_bytes * block.bhead.nr;
+        const int64_t actual_size = block.bhead.len;
+        if (expected_size != actual_size) {
+          return false;
+        }
+        break;
+      }
+    }
+  }
+  return true;
+}
+
+static std::optional<StringRefNull> get_id_name(const BlendBlock &block, const RichSDNA &sdna)
+{
+  BLI_assert(is_id_block(block, sdna));
+  const Struct *id_struct = sdna.try_find_struct("ID");
+  const int64_t name_offset = *id_struct->offset_of("name");
+  const char *name_data = reinterpret_cast<const char *>(block.data) + name_offset;
+  // TODO: Check null termination.
+  return StringRefNull(name_data);
+}
+
+static std::optional<Vector<BlendIdData>> find_blend_id_blocks(const BlendData &blend_data,
+                                                               const RichSDNA &sdna)
+{
+  Vector<BlendIdData> result;
+
+  int64_t i = 0;
+  while (i < blend_data.blocks.size()) {
+    const BlendBlock &block = blend_data.blocks[i];
+    if (!is_id_block(block, sdna)) {
+      i++;
+      continue;
+    }
+    const std::optional<StringRefNull> name = get_id_name(block, sdna);
+    if (!name) {
+      return std::nullopt;
+    }
+
+    BlendIdData id_data;
+    id_data.name = *name;
+    id_data.id_block = &block;
+    i++;
+    const int first_data_index = i;
+    while (i < blend_data.blocks.size()) {
+      const BlendBlock &next_block = blend_data.blocks[i];
+      if (next_block.bhead.code != BLO_CODE_DATA) {
+        break;
+      }
+      i++;
+    }
+    id_data.blocks = blend_data.blocks.as_span().slice(
+        IndexRange::from_begin_end(first_data_index, i));
+    result.append(std::move(id_data));
+  }
+
+  return result;
+}
+
 static SDNA *parse_raw_sdna(const BlendBlock &block)
 {
   BLI_assert(block.bhead.code == BLO_CODE_DNA1);
@@ -426,11 +597,50 @@ static int main_do(const int argc, char *argv[])
   const RichSDNA sdna_old{*raw_sdna_old};
   const RichSDNA sdna_new{*raw_sdna_new};
 
+  if (!sdna_fullfills_core_assumptions(sdna_old)) {
+    fmt::println(stderr, "SDNA does not fullfill core assumptions");
+    return 1;
+  }
+  if (!sdna_fullfills_core_assumptions(sdna_new)) {
+    fmt::println(stderr, "SDNA does not fullfill core assumptions");
+    return 1;
+  }
+
+  if (!block_sizes_match_sdna(*blend_data_old, sdna_old)) {
+    fmt::println(stderr, "Block sizes do not match SDNA");
+    return 1;
+  }
+  if (!block_sizes_match_sdna(*blend_data_new, sdna_new)) {
+    fmt::println(stderr, "Block sizes do not match SDNA");
+    return 1;
+  }
+
+  const std::optional<Vector<BlendIdData>> id_blocks_old = find_blend_id_blocks(*blend_data_old,
+                                                                                sdna_old);
+  const std::optional<Vector<BlendIdData>> id_blocks_new = find_blend_id_blocks(*blend_data_new,
+                                                                                sdna_new);
+
+  if (!id_blocks_old) {
+    fmt::println(stderr, "Unable to find ID blocks in old SDNA");
+    return 1;
+  }
+  if (!id_blocks_new) {
+    fmt::println(stderr, "Unable to find ID blocks in new SDNA");
+    return 1;
+  }
+
+  for (const BlendIdData &id_data : *id_blocks_old) {
+    fmt::println(stderr, "Old ID: {}", id_data.name);
+  }
+  for (const BlendIdData &id_data : *id_blocks_new) {
+    fmt::println(stderr, "New ID: {}", id_data.name);
+  }
+
   // sdna_old.types.lookup_key_as("ArrayModifierData")->print(std::cout);
   // sdna_new.print(std::cout);
 
   DiffWriter writer(relative_path);
-  write_diff_sdna(writer, sdna_old, sdna_new);
+  // write_diff_sdna(writer, sdna_old, sdna_new);
   // writer.writeln_removed("Hello");
   // writer.writeln_added("Hella");
   // writer.writeln_unchanged("ID: Hello");
