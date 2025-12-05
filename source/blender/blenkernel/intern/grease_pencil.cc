@@ -497,7 +497,19 @@ static void update_triangle_and_offsets_cache_isolated(const Span<float3> positi
     }
   };
 
-  Array<Vector<int3>> triangle_results(curve_mask.size());
+  curve_mask.foreach_index([&](const int64_t curve_i, const int64_t pos) {
+    const IndexRange points = points_by_curve[curve_i];
+    if (points.size() < 3) {
+      r_triangle_offsets[pos] = 0;
+      return;
+    }
+    r_triangle_offsets[pos] = points.size() - 2;
+  });
+
+  const OffsetIndices<int> triangle_offsets = offset_indices::accumulate_counts_to_offsets(
+      r_triangle_offsets);
+
+  r_triangles.resize(triangle_offsets.total_size());
 
   threading::EnumerableThreadSpecific<LocalMemArena> all_local_mem_arenas;
   curve_mask.foreach_segment(
@@ -523,8 +535,7 @@ static void update_triangle_and_offsets_cache_isolated(const Span<float3> positi
             mul_v2_m3v3(projverts[i], axis_mat.ptr(), positions[curve_p]);
           }
 
-          triangle_results[pos].resize(points.size() - 2);
-          MutableSpan<int3> r_tris = triangle_results[pos];
+          MutableSpan<int3> r_tris = r_triangles.as_mutable_span().slice(triangle_offsets[pos]);
 
           BLI_polyfill_calc_arena(projverts,
                                   points.size(),
@@ -535,25 +546,6 @@ static void update_triangle_and_offsets_cache_isolated(const Span<float3> positi
           BLI_memarena_clear(pf_arena);
         }
       });
-
-  threading::parallel_for(triangle_results.index_range(), 512, [&](const IndexRange range) {
-    for (const int i : range) {
-      r_triangle_offsets[i] = triangle_results[i].size();
-    }
-  });
-
-  offset_indices::accumulate_counts_to_offsets(r_triangle_offsets);
-
-  r_triangles.resize(r_triangle_offsets.last());
-
-  threading::parallel_for(curve_mask.index_range(), 512, [&](const IndexRange range) {
-    for (const int pos : range) {
-      const IndexRange range = IndexRange::from_begin_end(r_triangle_offsets[pos],
-                                                          r_triangle_offsets[pos + 1]);
-      MutableSpan<int3> r_tris = r_triangles.as_mutable_span().slice(range);
-      array_utils::copy(triangle_results[pos].as_span(), r_tris);
-    }
-  });
 }
 
 static void update_triangle_and_offsets_cache(const Span<float3> positions,
