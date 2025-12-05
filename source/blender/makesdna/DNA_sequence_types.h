@@ -449,8 +449,8 @@ typedef struct TextVars {
   float shadow_blur;
   float outline_width;
   char outline_position; /* eEffectTextOutlinePosition */
-  char flag;  /* eEffectTextFlags */
-  char align; /* eEffectTextAlignX */
+  char flag;             /* eEffectTextFlags */
+  char align;            /* eEffectTextAlignX */
   char _pad[1];
 
   /** Offsets in characters (unicode code-points) for #TextVars::text_ptr. */

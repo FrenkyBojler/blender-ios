@@ -654,13 +654,14 @@ static rcti draw_text_outline(const RenderData *context,
     step_size /= 2;
   }
 
-  // the final result of the first flooding 
+  // the final result of the first flooding
   Array<JFACoord> jfa_result_outside = *result_to_flood;
 
   // jfa pass for inside case
   Array<JFACoord> jfa_result_inside(pixel_count, invalid_coord);
   if (data->outline_position == SEQ_TEXT_OUTLINE_INSIDE ||
-      data->outline_position == SEQ_TEXT_OUTLINE_CENTER) {
+      data->outline_position == SEQ_TEXT_OUTLINE_CENTER)
+  {
     Array<JFACoord> boundary_transparent(pixel_count, NoInitialization());
     threading::parallel_for(IndexRange(size.y), 16, [&](const IndexRange y_range) {
       for (const int y : y_range) {
@@ -701,8 +702,6 @@ static rcti draw_text_outline(const RenderData *context,
   color.y *= color.w;
   color.z *= color.w;
 
-  // const float text_color_alpha = data->color[3];
-
   /* We have distances to the closest edges. Composite the outline into the output image. */
   threading::parallel_for(rect_y_range, 8, [&](const IndexRange y_range) {
     for (const int y : y_range) {
@@ -719,21 +718,20 @@ static rcti draw_text_outline(const RenderData *context,
         float alpha = 0.0f;
 
         float text_alpha = tmp_buf[index].w * (1.0f / 255.0f);
-        switch (data->outline_position)
-        {
-        case SEQ_TEXT_OUTLINE_OUTSIDE:{
+        switch (data->outline_position) {
+          case SEQ_TEXT_OUTLINE_OUTSIDE: {
             const JFACoord closest_texel = jfa_result_outside[index];
             if (closest_texel.x == JFA_INVALID) {
               break;
             }
-            const float distance = math::distance(
-                float2(x, y), float2(closest_texel.x, closest_texel.y));
+            const float distance = math::distance(float2(x, y),
+                                                  float2(closest_texel.x, closest_texel.y));
             /* Create a soft outer edge. */
             alpha = math::clamp(outline_width - distance + 4.0f, 0.0f, 1.0f);
             break;
-        }
-        case SEQ_TEXT_OUTLINE_CENTER:{
-           float distance;
+          }
+          case SEQ_TEXT_OUTLINE_CENTER: {
+            float distance;
             if (text_alpha > 0.5f) {
               /* We are inside the text, use the inside-out distance field. */
               const JFACoord closest_texel = jfa_result_inside[index];
@@ -751,28 +749,27 @@ static rcti draw_text_outline(const RenderData *context,
               distance = math::distance(float2(x, y), float2(closest_texel.x, closest_texel.y));
             }
 
-            /* Centered on the edge, so half the width on each side. */
             const float half_width = outline_width / 2.0f;
             alpha = math::clamp(half_width - distance + 1.0f, 0.0f, 1.0f);
             break;
-        }
-        case SEQ_TEXT_OUTLINE_INSIDE:{
-          /* Only draw inside the original text shape. */
+          }
+          case SEQ_TEXT_OUTLINE_INSIDE: {
             if (text_alpha > 0) {
               const JFACoord closest_texel = jfa_result_inside[index];
               if (closest_texel.x == JFA_INVALID) {
                 break;
               }
-              const float distance = math::distance(float2(x, y), float2(closest_texel.x, closest_texel.y));
+              const float distance = math::distance(float2(x, y),
+                                                    float2(closest_texel.x, closest_texel.y));
               alpha = math::clamp(outline_width - distance, 0.0f, 1.0f);
               /* Modulate by the text's own alpha for smooth edges. */
               alpha *= text_alpha;
             }
             break;
-        }
+          }
         }
 
-        if(alpha <= 0.0f){
+        if (alpha <= 0.0f) {
           continue;
         }
 

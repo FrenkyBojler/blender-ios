@@ -3536,11 +3536,7 @@ static void rna_def_text(StructRNA *srna)
 
   static const EnumPropertyItem text_outline_position_items[] = {
       {SEQ_TEXT_OUTLINE_CENTER, "CENTER", 0, "Center", "Draw outline centered on the text edge"},
-      {SEQ_TEXT_OUTLINE_OUTSIDE,
-       "OUTSIDE",
-       0,
-       "Outside",
-       "Draw outline outside the text edge"},
+      {SEQ_TEXT_OUTLINE_OUTSIDE, "OUTSIDE", 0, "Outside", "Draw outline outside the text edge"},
       {SEQ_TEXT_OUTLINE_INSIDE, "INSIDE", 0, "Inside", "Draw outline inside the text edge"},
       {0, nullptr, 0, nullptr, nullptr},
   };
