@@ -2084,20 +2084,17 @@ class Preprocessor {
         };
 
     auto parse_fragment_output =
-        [&](Token struct_name, Scope attributes, Token type, Token name, Scope) {
+        [&](Token struct_name, Scope attributes, Token tok_type, Token name, Scope) {
           metadata::ParsedFragOuput frag_out{
-              type.line_number(), type.str(), struct_name.str() + "_" + name.str()};
+              tok_type.line_number(), tok_type.str(), struct_name.str() + "_" + name.str()};
 
           attributes.foreach_scope(ScopeType::Attribute, [&](const Scope &attribute) {
             std::string type = attribute[0].str();
-            if (type == "color") {
+            if (type == "frag_color") {
               frag_out.slot = attribute[2].str();
             }
             else if (type == "raster_order_group") {
               frag_out.raster_order_group = attribute[2].str();
-            }
-            else if (type == "color") {
-              frag_out.slot = attribute[2].str();
             }
             else if (type == "index") {
               frag_out.dual_source = attribute[2].str();
@@ -2125,7 +2122,7 @@ class Preprocessor {
     };
     auto is_fragment_output_attribute = [](Token attr) {
       string type = attr.str();
-      return (type == "color" || type == "depth" || type == "stencil");
+      return (type == "frag_color" || type == "frag_depth" || type == "frag_stencil_ref");
     };
 
     parser().foreach_struct([&](Token struct_tok, Token struct_name, Scope body) {
@@ -3173,6 +3170,13 @@ class Preprocessor {
     using namespace shader::parser;
     using namespace metadata;
 
+    auto to_uppercase = [](std::string str) {
+      for (char &c : str) {
+        c = toupper(c);
+      }
+      return str;
+    };
+
     parser().foreach_function(
         [&](bool, Token type, Token fn_name, Scope args, bool, Scope fn_body) {
           bool is_entry_point = false;
@@ -3310,6 +3314,30 @@ class Preprocessor {
                 parser.insert_after(fn_body.start().str_index_start(),
                                     " " + srt_type + " " + srt_var + ";");
                 create_info_decl += "ADDITIONAL_INFO(" + srt_type + ")\n";
+              }
+            }
+            else if (srt_attr == "frag_depth") {
+              if (srt_type != "float") {
+                report_error(ERROR_TOK(type), "[[frag_depth]] needs to be declared as float");
+              }
+              const string mode = attributes[3].str();
+
+              if (mode != "any" && mode != "greater" && mode != "less") {
+                report_error(ERROR_TOK(attributes[3]),
+                             "unrecognized mode, expecting 'any', 'greater' or 'less'");
+              }
+              else {
+                create_info_decl += "DEPTH_WRITE(" + to_uppercase(mode) + ")\n";
+                replace_word(srt_var, "gl_FragDepth");
+              }
+            }
+            else if (srt_attr == "frag_stencil_ref") {
+              if (srt_type != "int") {
+                report_error(ERROR_TOK(type), "[[frag_stencil_ref]] needs to be declared as int");
+              }
+              else {
+                create_info_decl += "BUILTINS(BuiltinBits::STENCIL_REF)\n";
+                replace_word(srt_var, "gl_FragStencilRefARB");
               }
             }
             else {

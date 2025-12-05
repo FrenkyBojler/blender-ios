@@ -1637,7 +1637,8 @@ struct VertOut {
 };
 
 struct FragOut {
-  [[color(0)]] float4 color;
+  [[frag_color(0)]] float3 color;
+  [[frag_color(1), index(2)]] uint test;
 };
 
 template<typename T>
@@ -1648,17 +1649,21 @@ template struct VertIn<float>;
 
 
 [[vertex]] void vertex_function([[resource_table]] Resources &srt,
-                                [[stage_in]] const VertIn<float> &v_in,
-                                [[stage_out, condition(cond)]] VertOut &v_out,
+                                [[in]] const VertIn<float> &v_in,
+                                [[out, condition(cond)]] VertOut &v_out,
                                 [[position]] float4 &out_position)
 {
 }
 
 [[fragment]] void fragment_function([[resource_table]] Resources &srt,
-                                    [[stage_in, condition(cond)]] const VertOut &v_out,
-                                    [[stage_out]] FragOut &frag_out,
+                                    [[in, condition(cond)]] const VertOut &v_out,
+                                    [[out]] FragOut &frag_out,
+                                    [[frag_depth(greater)]] float depth;
+                                    [[frag_stencil_ref]] int stencil;
                                     [[position]] const float4 out_position)
 {
+  depth;
+  stencil;
 }
 
 }
@@ -1670,31 +1675,34 @@ struct ns_VertOut {
 };
 
 struct ns_FragOut {
-               float4 color;
+                    float3 color;
+                              uint test;
 };
-#line 16
-#line 13
+#line 17
+#line 14
 struct ns_VertInTfloat {
                    float pos;
 };
-#line 17
-#line 19
+#line 18
+#line 20
            void ns_vertex_function(
-#line 22
+#line 23
                                                                  )
 { Resources srt;
 #if defined(GPU_VERTEX_SHADER)
 #endif
-#line 24
+#line 25
 }
 
              void ns_fragment_function(
-#line 29
+#line 32
                                                                           )
 { Resources srt;
 #if defined(GPU_FRAGMENT_SHADER)
+#line 33
+  gl_FragDepth;
+  gl_FragStencilRefARB;
 #endif
-#line 31
 }
 
 
@@ -1708,7 +1716,8 @@ GPU_SHADER_CREATE_END()
 
 
 GPU_SHADER_CREATE_INFO(ns_FragOut)
-FRAGMENT_OUT(0, float4, ns_FragOut_color)
+FRAGMENT_OUT(0, float3, ns_FragOut_color)
+FRAGMENT_OUT_DUAL(1, uint, ns_FragOut_test, 2)
 GPU_SHADER_CREATE_END()
 
 
@@ -1726,6 +1735,8 @@ VERTEX_OUT(ns_VertOut)
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(ns_fragment_function_infos_)
+DEPTH_WRITE(GREATER)
+BUILTINS(BuiltinBits::STENCIL_REF)
 ADDITIONAL_INFO(Resources)
 ADDITIONAL_INFO(ns_FragOut)
 GPU_SHADER_CREATE_END()
@@ -1832,6 +1843,16 @@ static void test_preprocess_parser()
     string expect = R"(
 0;0;0;0;0;0;0;0;0;0;0+0;)";
     EXPECT_EQ(IntermediateForm(input, no_err_report).data_get().token_types, expect);
+  }
+  {
+    string input = R"(
+[[a(0,1,b), c, d(t)]]
+)";
+    string expect = R"(
+[[w(0,0,w),w,w(w)]])";
+    string scopes = R"(GABbcmmmbbcm)";
+    EXPECT_EQ(IntermediateForm(input, no_err_report).data_get().token_types, expect);
+    EXPECT_EQ(IntermediateForm(input, no_err_report).data_get().scope_types, scopes);
   }
   {
     string input = R"(
