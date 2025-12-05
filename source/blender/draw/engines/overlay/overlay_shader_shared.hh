@@ -42,9 +42,9 @@ enum OVERLAY_GridBits : uint32_t {
   PLANE_XZ = (1u << 6u),
   PLANE_YZ = (1u << 7u),
 
-  GRID_SIMA = (1u << 8u),   /* Grid is in SpaceImage view. */
-  GRID_OVER = (1u << 9u),   /* Grid is shown over SpaceImage, not under. */
-  GRID_CAMERA = (1u << 10u) /* Grid is shown in selected camera. */
+  GRID_SIMA = (1u << 8u),     /* Grid is in SpaceImage view. */
+  GRID_IN_FRONT = (1u << 9u), /* Grid is shown in front of SpaceImage, not behind. */
+  GRID_CAMERA = (1u << 10u)   /* Grid is shown in selected camera. */
 };
 #ifndef GPU_SHADER
 ENUM_OPERATORS(OVERLAY_GridBits)

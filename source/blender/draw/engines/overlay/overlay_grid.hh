@@ -41,12 +41,13 @@ class Grid : Overlay {
  public:
   void begin_sync(Resources &res, const State &state) final
   {
-    if (enabled_ = init(state); !enabled_) {
+    enabled_ = init(state);
+    if (!enabled_) {
       grid_ps_.init();
       return;
     }
 
-    auto ps_draw_state = DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA;
+    DRWState ps_draw_state = DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA;
 
     grid_ps_.init();
     grid_ps_.bind_ubo(OVERLAY_GLOBALS_SLOT, &res.globals_buf);
@@ -144,7 +145,7 @@ class Grid : Overlay {
     /* Query different options from SpaceImage state. */
     const bool show_grid = sima->mode == SI_MODE_UV &&
                            (sima->overlay.flag & SI_OVERLAY_SHOW_GRID_BACKGROUND);
-    const bool show_over = sima->flag & SI_GRID_OVER_IMAGE;
+    const bool show_in_front = sima->flag & SI_GRID_OVER_IMAGE;
 
     if (!show_grid) {
       return false;
@@ -152,8 +153,8 @@ class Grid : Overlay {
 
     /* Configure grid flags s.t. GRID_OVER_IMAGE is taken into account. */
     grid_flag_ = SHOW_GRID | GRID_SIMA;
-    if (show_over) {
-      grid_flag_ |= GRID_OVER;
+    if (show_in_front) {
+      grid_flag_ |= GRID_IN_FRONT;
     }
 
     /* Query grid step/level scalings; these can differ per axis. */

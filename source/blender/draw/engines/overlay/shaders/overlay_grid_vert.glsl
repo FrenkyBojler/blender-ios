@@ -70,7 +70,7 @@ bool2 is_zero(float2 v, float epsilon)
 }
 
 /* Test if the current line falls under an active axis line which occludes it. */
-bool test_axis_occlude(float3 vertex_pos_global)
+bool is_occluded_by_axis(float3 vertex_pos_global)
 {
   if (flag_test(grid_flag, SHOW_GRID)) {
     return (flag_test(grid_flag, AXIS_X) && all(is_zero(vertex_pos_global.yz, 1e-4f))) ||
@@ -81,7 +81,7 @@ bool test_axis_occlude(float3 vertex_pos_global)
 }
 
 /* Test if the current line falls under another line on a higher level, which occludes it. */
-bool test_level_occlude(LineData line, uint level)
+bool is_occluded_by_higher_level(LineData line, uint level)
 {
   if (flag_test(grid_flag, SHOW_GRID) && !flag_test(grid_flag, GRID_SIMA)) {
     if (line.level < OVERLAY_GRID_STEPS_DRAW - 1 && level < OVERLAY_GRID_STEPS_LEN - 1) {
@@ -176,9 +176,9 @@ void main()
       vertex_out.pos.yz = line.P;
     }
     else { /* GRID_SIMA */
-      /* Set z to place the grid over/under image, and always under the UV mesh.
+      /* Set z to place the grid in front of/behind image, and always behind the UV mesh.
        * See `overlay_edit_uv_edges_vert.glsl` for the full z-sorder. */
-      float z = flag_test(grid_flag, GRID_OVER) ? 0.74f : 0.76f;
+      float z = flag_test(grid_flag, GRID_IN_FRONT) ? 0.74f : 0.76f;
       vertex_out.pos = float3(line.P * 0.5f + 0.5f, z);
     }
   }
@@ -192,7 +192,7 @@ void main()
   }
 
   /* Additional culling steps to discard occluded lines. */
-  if (test_axis_occlude(vertex_out.pos) || test_level_occlude(line, level)) {
+  if (is_occluded_by_axis(vertex_out.pos) || is_occluded_by_higher_level(line, level)) {
     return;
   }
 
