@@ -216,8 +216,9 @@ string string_to_lower(const string &s)
 
 string string_remove_gpu_from_cpu_name(const string &s)
 {
-  if (s.find("AMD") == std::string::npos)
+  if (s.find("AMD") == std::string::npos) {
     return s;
+  }
 
   size_t pos = s.find("w/");
   if (pos == std::string::npos) {
