@@ -999,11 +999,10 @@ static void strip_draw_image_origin_and_outline(const bContext *C,
                                                 Strip *strip,
                                                 bool is_active_seq)
 {
-  
+
   if ((strip->flag & SEQ_SELECT) == 0) {
     return;
   }
-  
 
   const float2 origin = seq::image_transform_origin_offset_pixelspace_get(
       CTX_data_sequencer_scene(C), strip);
@@ -1370,9 +1369,7 @@ static void preview_draw_all_image_overlays(const bContext *C,
   for (Strip *strip : strips) {
     strip_draw_image_origin_and_outline(C, strip, strip == active_seq);
   }
-  /* needs to only be called ones since only runs for active text strip */
   text_edit_draw(C);
-
 }
 
 static bool is_cursor_visible(const SpaceSeq &sseq)
