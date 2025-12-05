@@ -238,6 +238,9 @@ struct GPUSource {
         /* Format type of the next block. */
         /* TODO(fclem): This doesn't support advance formats like `%3.2f`. */
         switch (format[end + 1]) {
+          case 's':
+            type = shader::PrintfFormat::Block::ArgumentType::STRING;
+            break;
           case 'x':
           case 'u':
             type = shader::PrintfFormat::Block::ArgumentType::UINT;
