@@ -711,11 +711,17 @@ void VolumeGridDataSource::foreach_default_column_ids(
     return;
   }
 
-  for (const char *name :
-       {"Data Type", "Class", "Extent", "Voxels", "Leaf Voxels", "Tiles", "Size"})
-  {
-    SpreadsheetColumnID column_id{(char *)name};
-    fn(column_id, false);
+  switch (volume_grid_data_) {
+    case SPREADSHEET_VOLUME_SUMMARY:
+      for (const char *name :
+           {"Data Type", "Class", "Extent", "Voxels", "Leaf Voxels", "Tiles", "Size"})
+      {
+        SpreadsheetColumnID column_id{(char *)name};
+        fn(column_id, false);
+      }
+      break;
+    case SPREADSHEET_VOLUME_VOXEL_DATA:
+      break;
   }
 }
 
@@ -723,48 +729,62 @@ std::unique_ptr<ColumnValues> VolumeGridDataSource::get_column_values(
     const SpreadsheetColumnID &column_id) const
 {
   const bke::VolumeGridData &grid = grid_->get();
-  if (STREQ(column_id.name, "Data Type")) {
-    const VolumeGridType type = grid.grid_type();
-    const char *name = nullptr;
-    RNA_enum_name_from_value(rna_enum_volume_grid_data_type_items, type, &name);
-    return std::make_unique<ColumnValues>(IFACE_("Data Type"),
-                                          VArray<std::string>::from_single(name, 1));
-  }
-  if (STREQ(column_id.name, "Class")) {
-    const StringRef name = grid_class_name(grid_->get());
-    return std::make_unique<ColumnValues>(IFACE_("Class"),
-                                          VArray<std::string>::from_single(name, 1));
-  }
-  if (STREQ(column_id.name, "Voxels")) {
-    const int64_t active_voxels = grid.active_voxels();
-    return std::make_unique<ColumnValues>(IFACE_("Voxels"),
-                                          VArray<int64_t>::from_single(active_voxels, 1));
-  }
-  if (STREQ(column_id.name, "Leaf Voxels")) {
-    const int64_t active_leaf_voxels = grid.active_leaf_voxels();
-    return std::make_unique<ColumnValues>(IFACE_("Leaf Voxels"),
-                                          VArray<int64_t>::from_single(active_leaf_voxels, 1));
-  }
-  if (STREQ(column_id.name, "Tiles")) {
-    const int64_t active_tiles = grid.active_tiles();
-    return std::make_unique<ColumnValues>(IFACE_("Tiles"),
-                                          VArray<int64_t>::from_single(active_tiles, 1));
-  }
-  if (STREQ(column_id.name, "Size")) {
-    const int64_t size = grid.size_in_bytes();
-    return std::make_unique<ColumnValues>(
-        IFACE_("Size"), VArray<int64_t>::from_single(size, 1), ColumnValueDisplayHint::Bytes);
-  }
-  if (STREQ(column_id.name, "Extent")) {
-    const int3 extent = int3(grid.active_bounds().dim().asPointer());
-    return std::make_unique<ColumnValues>(IFACE_("Extent"), VArray<int3>::from_single(extent, 1));
+
+  switch (volume_grid_data_) {
+    case SPREADSHEET_VOLUME_SUMMARY:
+      if (STREQ(column_id.name, "Data Type")) {
+        const VolumeGridType type = grid.grid_type();
+        const char *name = nullptr;
+        RNA_enum_name_from_value(rna_enum_volume_grid_data_type_items, type, &name);
+        return std::make_unique<ColumnValues>(IFACE_("Data Type"),
+                                              VArray<std::string>::from_single(name, 1));
+      }
+      if (STREQ(column_id.name, "Class")) {
+        const StringRef name = grid_class_name(grid_->get());
+        return std::make_unique<ColumnValues>(IFACE_("Class"),
+                                              VArray<std::string>::from_single(name, 1));
+      }
+      if (STREQ(column_id.name, "Voxels")) {
+        const int64_t active_voxels = grid.active_voxels();
+        return std::make_unique<ColumnValues>(IFACE_("Voxels"),
+                                              VArray<int64_t>::from_single(active_voxels, 1));
+      }
+      if (STREQ(column_id.name, "Leaf Voxels")) {
+        const int64_t active_leaf_voxels = grid.active_leaf_voxels();
+        return std::make_unique<ColumnValues>(IFACE_("Leaf Voxels"),
+                                              VArray<int64_t>::from_single(active_leaf_voxels, 1));
+      }
+      if (STREQ(column_id.name, "Tiles")) {
+        const int64_t active_tiles = grid.active_tiles();
+        return std::make_unique<ColumnValues>(IFACE_("Tiles"),
+                                              VArray<int64_t>::from_single(active_tiles, 1));
+      }
+      if (STREQ(column_id.name, "Size")) {
+        const int64_t size = grid.size_in_bytes();
+        return std::make_unique<ColumnValues>(
+            IFACE_("Size"), VArray<int64_t>::from_single(size, 1), ColumnValueDisplayHint::Bytes);
+      }
+      if (STREQ(column_id.name, "Extent")) {
+        const int3 extent = int3(grid.active_bounds().dim().asPointer());
+        return std::make_unique<ColumnValues>(IFACE_("Extent"),
+                                              VArray<int3>::from_single(extent, 1));
+      }
+    case SPREADSHEET_VOLUME_VOXEL_DATA:
+      break;
   }
   return {};
 }
 
 int VolumeGridDataSource::tot_rows() const
 {
-  return 1;
+  switch (volume_grid_data_) {
+    case SPREADSHEET_VOLUME_SUMMARY:
+      return 1;
+    case SPREADSHEET_VOLUME_VOXEL_DATA:
+      return 0;
+  }
+  BLI_assert_unreachable();
+  return 0;
 }
 
 #endif
