@@ -384,6 +384,18 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 8)) {
+    LISTBASE_FOREACH (Object *, obj, &bmain->objects) {
+      if (!obj->pose) {
+        continue;
+      }
+      LISTBASE_FOREACH (bPoseChannel *, pose_bone, &obj->pose->chanbase) {
+        /* Those flags were previously unused, so to be safe we clear them. */
+        pose_bone->flag &= ~(POSE_SELECTED_ROOT | POSE_SELECTED_TIP);
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 9)) {
     init_node_tool_operator_idnames(*bmain);
   }
 

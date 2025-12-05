@@ -941,10 +941,10 @@ static bool override_idtemplate_menu_poll(const bContext *C_const, MenuType * /*
 
 static void override_idtemplate_menu_draw(const bContext * /*C*/, Menu *menu)
 {
-  uiLayout *layout = menu->layout;
-  layout->op("UI_OT_override_idtemplate_make", IFACE_("Make"), ICON_NONE);
-  layout->op("UI_OT_override_idtemplate_reset", IFACE_("Reset"), ICON_NONE);
-  layout->op("UI_OT_override_idtemplate_clear", IFACE_("Clear"), ICON_NONE);
+  Layout &layout = *menu->layout;
+  layout.op("UI_OT_override_idtemplate_make", IFACE_("Make"), ICON_NONE);
+  layout.op("UI_OT_override_idtemplate_reset", IFACE_("Reset"), ICON_NONE);
+  layout.op("UI_OT_override_idtemplate_clear", IFACE_("Clear"), ICON_NONE);
 }
 
 static void override_idtemplate_menu()
@@ -1944,8 +1944,9 @@ static bool jump_to_target_button(bContext *C, bool poll)
     }
     /* For string properties with prop_search, look up the search collection item. */
     if (type == PROP_STRING) {
-      const uiButSearch *search_but = (but->type == ButType::SearchMenu) ? (uiButSearch *)but :
-                                                                           nullptr;
+      const blender::ui::ButtonSearch *search_but = (but->type == ButType::SearchMenu) ?
+                                                        (blender::ui::ButtonSearch *)but :
+                                                        nullptr;
 
       if (search_but && search_but->items_update_fn == ui_rna_collection_search_update_fn) {
         uiRNACollectionSearch *coll_search = static_cast<uiRNACollectionSearch *>(search_but->arg);

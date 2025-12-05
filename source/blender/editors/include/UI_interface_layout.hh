@@ -20,7 +20,6 @@ struct bContextStore;
 struct EnumPropertyItem;
 struct IDProperty;
 struct uiBlock;
-struct uiBut;
 struct uiLayoutRoot;
 struct uiList;
 struct uiStyle;
@@ -241,8 +240,7 @@ struct Layout : public uiItem, NonCopyable, NonMovable {
 
   /** Sub-layout items. */
 
-  Layout &absolute(bool align);
-  uiBlock *absolute_block();
+  Layout &absolute(bool align = false);
 
   /**
    * Add a new box sub-layout, items placed in this sub-layout are added vertically one under
@@ -893,7 +891,6 @@ enum eUI_Item_Flag : uint16_t {
 ENUM_OPERATORS(eUI_Item_Flag)
 #define UI_ITEM_NONE eUI_Item_Flag(0)
 
-using uiLayout = blender::ui::Layout;
 /**
  * Apply property search behavior, setting panel flags and deactivating buttons that don't match.
  *

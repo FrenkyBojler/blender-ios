@@ -70,7 +70,7 @@ static void set_global_break(bContext &C)
   WM_jobs_stop_all_from_owner(CTX_wm_manager(&C), CTX_data_scene(&C));
 }
 
-void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
+void uiTemplateRunningJobs(blender::ui::Layout *layout, bContext *C)
 {
   Main *bmain = CTX_data_main(C);
   wmWindowManager *wm = CTX_wm_manager(C);
@@ -217,7 +217,7 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
     const uiFontStyle *fstyle = UI_FSTYLE_WIDGET;
     const bool active = !(G.is_break || WM_jobs_is_stopped(wm, owner));
 
-    uiLayout *row = &layout->row(false);
+    blender::ui::Layout *row = &layout->row(false);
     block = row->block();
 
     /* get percentage done and set it as the UI text */
@@ -264,16 +264,17 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
           MEM_mallocN(sizeof(*tip_arg), __func__));
       tip_arg->wm = wm;
       tip_arg->owner = owner;
-      uiButProgress *but_progress = (uiButProgress *)uiDefIconTextBut(block,
-                                                                      ButType::Progress,
-                                                                      ICON_NONE,
-                                                                      text,
-                                                                      UI_UNIT_X,
-                                                                      0,
-                                                                      UI_UNIT_X * 6.0f,
-                                                                      UI_UNIT_Y,
-                                                                      nullptr,
-                                                                      nullptr);
+      blender::ui::ButtonProgress *but_progress = (blender::ui::ButtonProgress *)uiDefIconTextBut(
+          block,
+          ButType::Progress,
+          ICON_NONE,
+          text,
+          UI_UNIT_X,
+          0,
+          UI_UNIT_X * 6.0f,
+          UI_UNIT_Y,
+          nullptr,
+          nullptr);
 
       but_progress->progress_factor = progress;
       UI_but_func_tooltip_set(but_progress, progress_tooltip_func, tip_arg, MEM_freeN);
