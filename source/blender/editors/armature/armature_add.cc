@@ -1876,6 +1876,18 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
   mul_v3_fl(tail_vector, length);
   add_v3_v3v3(bone->tail, bone->head, tail_vector);
 
+  if (align == 2) {  /* 3D Cursor alignment */
+    /* Bone Y axis = cursor Y axis...but maybe this should be the Z??*/
+    copy_v3_v3(tail_vector, base_mat[1]);  // cursor Y axis
+    normalize_v3(tail_vector);
+    mul_v3_fl(tail_vector, length);          // scale by bone length
+    add_v3_v3v3(bone->tail, bone->head, tail_vector);
+
+    /* Compute bone roll so its local Z aligns with cursor Z axis */
+    float cursor_up[3];
+    copy_v3_v3(cursor_up, base_mat[2]);    // cursor Z axis
+    bone->roll = ED_armature_ebone_roll_to_vector(bone, cursor_up, false);
+  }
 
   /* Disable Deform if applicable*/
   bool deform = RNA_boolean_get(op->ptr, "deform");
