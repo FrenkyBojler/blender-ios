@@ -176,6 +176,10 @@ bool AssetRepresentation::is_local_id() const
 
 bool AssetRepresentation::is_potentially_editable_asset_blend() const
 {
+  if (this->owner_asset_library_.library_type() == ASSET_LIBRARY_ESSENTIALS) {
+    return false;
+  }
+
   std::string lib_path = this->full_library_path();
   return StringRef(lib_path).endswith(BLENDER_ASSET_FILE_SUFFIX);
 }
