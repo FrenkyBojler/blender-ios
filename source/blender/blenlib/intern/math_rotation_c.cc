@@ -1121,6 +1121,49 @@ void eulO_to_axis_angle(float axis[3], float *angle, const float eul[3], const s
   quat_to_axis_angle(axis, angle, q);
 }
 
+/* Return exact sin/cos values for angles near 90 degree increments to avoid floating
+ * point errors. */
+static void sincosf_exact_quarter_turn(float angle, float *r_sin, float *r_cos)
+{
+  const float quarter = float(M_PI_2);
+  float turns = angle / quarter;
+  float snapped_turns = roundf(turns);
+
+  if (fabsf(turns - snapped_turns) < 1e-4f) {
+    /* Rotation repeats every four quarter turns. k is the index of the quarter rotation.
+     * For 90 degrees, snapped_turns will be 1, and 1 % 4 = 1, so a k=1 corresponds to a 90
+     * degree rotation. For 180 degrees, snapped_turns is 2, 2 % 4 = 2 so a k=2 gives the 180
+     * degree case and so on. Negative angles produce negative remainders so 4 is added to wrap
+     * back into the postive range. */
+    int k = int(snapped_turns) % 4;
+    if (k < 0) {
+      k += 4;
+    }
+    switch (k) {
+      case 0:
+        *r_cos = 1.0f;
+        *r_sin = 0.0f;
+        break;
+      case 1:
+        *r_cos = 0.0f;
+        *r_sin = 1.0f;
+        break;
+      case 2:
+        *r_cos = -1.0f;
+        *r_sin = 0.0f;
+        break;
+      case 3:
+        *r_cos = 0.0f;
+        *r_sin = -1.0f;
+        break;
+    }
+  }
+  else {
+    *r_cos = cosf(angle);
+    *r_sin = sinf(angle);
+  }
+}
+
 void axis_angle_normalized_to_mat3_ex(float mat[3][3],
                                       const float axis[3],
                                       const float angle_sin,
@@ -1158,7 +1201,9 @@ void axis_angle_normalized_to_mat3_ex(float mat[3][3],
 
 void axis_angle_normalized_to_mat3(float R[3][3], const float axis[3], const float angle)
 {
-  axis_angle_normalized_to_mat3_ex(R, axis, sinf(angle), cosf(angle));
+  float s, c;
+  sincosf_exact_quarter_turn(angle, &s, &c);
+  axis_angle_normalized_to_mat3_ex(R, axis, s, c);
 }
 
 void axis_angle_to_mat3(float R[3][3], const float axis[3], const float angle)
