@@ -171,11 +171,11 @@ class RichSDNA {
     }
   }
 
-  void print(std::ostream &stream) const
+  void print(std::ostream &stream, const bool verbose = false) const
   {
     for (const int type_i : this->types.index_range()) {
       const Type &type = *this->types[type_i];
-      type.print(stream);
+      type.print(stream, verbose);
     }
   }
 };
@@ -183,6 +183,50 @@ class RichSDNA {
 }  // namespace blender::rich_sdna
 
 namespace blender::blend_diff {
+
+class DiffWriter {
+ private:
+  fmt::memory_buffer mem_buf_;
+  fmt::appender dst_{mem_buf_};
+
+ public:
+  DiffWriter(StringRef path)
+  {
+    if (path.startswith("/")) {
+      path = path.drop_prefix(1);
+    }
+    fmt::format_to(dst_, "diff --git a/{} b/{}\n", path, path);
+    fmt::format_to(dst_, "--- a/{}\n", path);
+    fmt::format_to(dst_, "+++ b/{}\n", path);
+    fmt::format_to(dst_, "@@ -1 +100000 @@\n");
+  }
+
+  void writeln_unchanged(const StringRef line)
+  {
+    fmt::format_to(dst_, " {}\n", line);
+  }
+
+  void writeln_changed(const StringRef old_line, const StringRef new_line)
+  {
+    this->writeln_removed(old_line);
+    this->writeln_added(new_line);
+  }
+
+  void writeln_added(const StringRef line)
+  {
+    fmt::format_to(dst_, "+{}\n", line);
+  }
+
+  void writeln_removed(const StringRef line)
+  {
+    fmt::format_to(dst_, "-{}\n", line);
+  }
+
+  std::string to_string() const
+  {
+    return fmt::to_string(mem_buf_);
+  }
+};
 
 struct BlendBlock {
   BHead bhead;
@@ -250,8 +294,9 @@ static int main_do(const int argc, char *argv[])
     fmt::println(stderr, "Usage: blend_diff <file_old> <file_new>");
     return 1;
   }
-  const StringRefNull file_old = argv[1];
-  const StringRefNull file_new = argv[2];
+  const StringRefNull relative_path = argv[1];
+  const StringRefNull file_old = argv[2];
+  const StringRefNull file_new = argv[5];
 
   FileReader *file_reader_old = BLO_file_reader_uncompressed_from_path(file_old.c_str());
   FileReader *file_reader_new = BLO_file_reader_uncompressed_from_path(file_new.c_str());
@@ -291,32 +336,46 @@ static int main_do(const int argc, char *argv[])
   BLI_SCOPED_DEFER([&]() { DNA_sdna_free(raw_sdna_new); });
 
   using namespace rich_sdna;
-  RichSDNA sdna_old{*raw_sdna_old};
-  RichSDNA sdna_new{*raw_sdna_new};
+  const RichSDNA sdna_old{*raw_sdna_old};
+  const RichSDNA sdna_new{*raw_sdna_new};
 
-  sdna_old.types.lookup_key_as("ArrayModifierData")->print(std::cout);
+  // sdna_old.types.lookup_key_as("ArrayModifierData")->print(std::cout);
+  // sdna_new.print(std::cout);
 
-  return 0;
-
-  std::fstream myfile("/home/jacques/Downloads/test.txt", std::ios::out);
-  for (const int i : blender::IndexRange(argc)) {
-    myfile << argv[i] << '\n';
-    // fmt::println("Arg {}: {}", i, argv[i]);
+  DiffWriter writer(relative_path);
+  writer.writeln_removed("Hello");
+  writer.writeln_added("Hella");
+  writer.writeln_unchanged("ID: Hello");
+  writer.writeln_removed("sdfsa");
+  for (const int i : IndexRange(1000)) {
+    writer.writeln_added(fmt::format("Hello {}", i));
   }
 
-  fmt::println(
+  std::fstream myfile("/home/jacques/Downloads/test.txt", std::ios::out);
+  // for (const int i : blender::IndexRange(argc)) {
+  // myfile << argv[i] << '\n';
+  // fmt::println("Arg {}: {}", i, argv[i]);
+  // }
+  myfile << writer.to_string();
+
+  std::cout << writer.to_string();
+  return 0;
+
+  const std::string dummy_patch = fmt::format(
       R"(diff --git a/{} b/{}
 --- a/{}
 +++ b/{}
 @@ -1 +100000 @@
 -Hello
--sdfsa
 +Hella
-+sdfsd)",
-      file_old,
-      file_old,
-      file_old,
-      file_old);
+)",
+      relative_path,
+      relative_path,
+      relative_path,
+      relative_path);
+
+  // myfile << dummy_patch;
+  // std::cout << dummy_patch;
   return 0;
 }
 
