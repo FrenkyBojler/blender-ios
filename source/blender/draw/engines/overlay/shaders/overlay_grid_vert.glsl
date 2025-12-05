@@ -126,12 +126,12 @@ void main()
 
   /* Output vertex position in [-1,1], which we use to fade level boundaries. */
   vertex_out.coord = line.P / max(float(grid_buf.num_lines >> 1), 1.0f);
-  /* Output level fade in [0, 1], which we use to smoothly transition grid levels. */
-  vertex_out_flat.alpha = (line.level + 1.0f - fract(grid_buf.level)) /
-                          float(OVERLAY_GRID_STEPS_DRAW - 1);
-  vertex_out_flat.alpha = saturate(vertex_out_flat.alpha);
+  /* Output an interpolant between `grid` and `grid_emphasis` for the second grid level. */
+  vertex_out_flat.emphasis = saturate(float(line.level) - fract(grid_buf.level));
+  /* Output alpha that smoothly transitions the lowest grid level in/out. */
+  vertex_out_flat.alpha = saturate(line.level + 1.0f - fract(grid_buf.level));
   if (!drw_view_is_perspective()) {
-    /* Fade by pixel size for orthographic, as we lack proper line dfdx/dfdy. */
+    /* Also fade by pixel size for orthographic, as we lack proper line dfdx/dfdy. */
     vertex_out_flat.alpha *= smoothstep(
         step_size * 0.25f, step_size * pow3f(0.25f), uniform_buf.pixel_fac);
   }
@@ -205,7 +205,7 @@ void main()
     float z_ratio_iter = 1.0f - float(grid_iter) / float(OVERLAY_GRID_ITER_LEN);
     float z_ratio_level = (1.0f / float(OVERLAY_GRID_ITER_LEN)) *
                           (1.0f - float(line.level) / float(OVERLAY_GRID_STEPS_DRAW));
-    gl_Position.z += 2e-4f * (z_ratio_iter + z_ratio_level);
+    gl_Position.z += 1e-5f + 2e-4f * (z_ratio_iter + z_ratio_level);
   }
   else { /* orthographic */
     /* Set z to far plane in orthographic, so it is behind all things. */

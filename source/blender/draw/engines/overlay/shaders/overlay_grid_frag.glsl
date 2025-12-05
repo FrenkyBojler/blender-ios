@@ -21,10 +21,8 @@ void main()
 {
   /* Fragment color. */
   if (flag_test(grid_flag, SHOW_GRID)) {
-    /* Color is a mix of [grid, emphasis] by vertex alpha, which incorporates level
-     * and subpixel fades only. */
-    out_color = mix(theme.colors.grid, theme.colors.grid_emphasis, vertex_out_flat.alpha);
-    out_color.a *= vertex_out_flat.alpha;
+    /* Color is a mix of [grid, grid_emphasis], dependent on the level. */
+    out_color = mix(theme.colors.grid, theme.colors.grid_emphasis, vertex_out_flat.emphasis);
   }
   else if (flag_test(grid_flag, SHOW_AXES)) {
     /* Color is fixed by theme. */
@@ -40,10 +38,11 @@ void main()
   }
 
   /* Fragment alpha. */
+  out_color.a *= vertex_out_flat.alpha;
   if (drw_view_is_perspective()) {
     /* Fade at edge of grid level. */
     float length_fade = 1.0f - min(1.0f, length(vertex_out.coord));
-    out_color.a *= pow2f(length_fade);
+    out_color.a *= length_fade;
 
     /* Compute normalized view vector. */
     float3 V = drw_view_position() - vertex_out.pos;
