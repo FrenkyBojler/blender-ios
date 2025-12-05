@@ -194,7 +194,7 @@ ScrArea *render_view_open(bContext *C, int mx, int my, ReportList *reports)
     /* If the active screen is already in maximized mode, skip this and
      * unset the area, so that the maximized area is just changed later. */
     const bScreen *ctx_screen = CTX_wm_screen(C);
-    if (ctx_screen->state == SCREENMAXIMIZED) {
+    if (BKE_screen_is_fullscreen_area(ctx_screen)) {
       area = nullptr;
     }
     else {
