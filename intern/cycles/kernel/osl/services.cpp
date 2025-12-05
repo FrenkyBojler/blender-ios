@@ -1042,10 +1042,13 @@ OSL::TextureSystem::TextureHandle *OSLRenderServices::get_texture_handle(
                                                                      it->second.svm_slots[0].y);
       case OSLTextureHandle::AO:
         return reinterpret_cast<OSL::TextureSystem::TextureHandle *>(
-            OSL_TEXTURE_HANDLE_TYPE_AO_OR_BEVEL | 1);
+            OSL_TEXTURE_HANDLE_TYPE_AO_BEVEL_OR_RAYCAST | 1);
       case OSLTextureHandle::BEVEL:
         return reinterpret_cast<OSL::TextureSystem::TextureHandle *>(
-            OSL_TEXTURE_HANDLE_TYPE_AO_OR_BEVEL | 2);
+            OSL_TEXTURE_HANDLE_TYPE_AO_BEVEL_OR_RAYCAST | 2);
+      case OSLTextureHandle::RAYCAST:
+        return reinterpret_cast<OSL::TextureSystem::TextureHandle *>(
+            OSL_TEXTURE_HANDLE_TYPE_AO_BEVEL_OR_RAYCAST | 3);
     }
   }
 
@@ -1144,7 +1147,7 @@ bool OSLRenderServices::texture(OSLUStringHash filename,
     }
     case OSLTextureHandle::RAYCAST: {
 #ifdef __SHADER_RAYTRACE__
-      /* AO shader hack. */
+      /* Raycast shader hack. */
       if (state != nullptr) {
         const float3 position = make_float3(s, t, dsdx);
         const float3 direction = make_float3(dtdx, dsdy, dtdy);
@@ -1366,7 +1369,8 @@ bool OSLRenderServices::texture3d(OSLUStringHash filename,
     }
     case OSLTextureHandle::IES:
     case OSLTextureHandle::AO:
-    case OSLTextureHandle::BEVEL: {
+    case OSLTextureHandle::BEVEL:
+    case OSLTextureHandle::RAYCAST: {
       status = false;
       break;
     }
