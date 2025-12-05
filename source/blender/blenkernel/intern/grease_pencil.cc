@@ -530,10 +530,12 @@ static void update_triangle_and_offsets_cache_isolated(const Span<float3> positi
           float (*projverts)[2] = static_cast<float (*)[2]>(
               BLI_memarena_alloc(pf_arena, sizeof(*projverts) * size_t(points.size())));
 
-          for (const int i : points.index_range()) {
-            const int curve_p = points[i];
-            mul_v2_m3v3(projverts[i], axis_mat.ptr(), positions[curve_p]);
-          }
+          threading::parallel_for(points.index_range(), 512, [&](const IndexRange range) {
+            for (const int i : range) {
+              const int curve_p = points[i];
+              mul_v2_m3v3(projverts[i], axis_mat.ptr(), positions[curve_p]);
+            }
+          });
 
           MutableSpan<int3> r_tris = r_triangles.as_mutable_span().slice(triangle_offsets[pos]);
 
@@ -604,7 +606,7 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
           const MutableSpan<int> shape_points_by_curve_data_span = MutableSpan(
               reinterpret_cast<int *>(shape_points_by_curve_data), shape.size() + 1);
 
-          shape.foreach_index([&](const int64_t curve_i, const int64_t pos) {
+          shape.foreach_index(GrainSize(256), [&](const int64_t curve_i, const int64_t pos) {
             shape_points_by_curve_data[pos] = points_by_curve[curve_i].size();
           });
 
