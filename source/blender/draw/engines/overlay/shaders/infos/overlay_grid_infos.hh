@@ -16,10 +16,12 @@
 GPU_SHADER_NAMED_INTERFACE_INFO(overlay_grid_iface, vertex_out)
 SMOOTH(float3, pos)
 SMOOTH(float2, coord)
-GPU_SHADER_NAMED_INTERFACE_END()
+GPU_SHADER_NAMED_INTERFACE_END(vertex_out)
+
 GPU_SHADER_NAMED_INTERFACE_INFO(overlay_grid_iface_flat, vertex_out_flat)
 FLAT(float, alpha)
-GPU_SHADER_NAMED_INTERFACE_END()
+GPU_SHADER_NAMED_INTERFACE_END(vertex_out_flat)
+
 GPU_SHADER_INTERFACE_INFO(overlay_grid_iface_misc)
 FLAT(float2, edge_start)
 NO_PERSPECTIVE(float2, edge_pos)
