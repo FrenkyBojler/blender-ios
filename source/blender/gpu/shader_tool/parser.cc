@@ -17,11 +17,11 @@
 
 namespace blender::gpu::shader::parser {
 
-size_t line_number(const std::string &prefix_string)
+size_t line_number(const std::string &str, size_t pos)
 {
   std::string directive = "#line ";
   /* String to count the number of line. */
-  std::string sub_str = prefix_string;
+  std::string sub_str = str.substr(0, pos);
   size_t nearest_line_directive = sub_str.rfind(directive);
   size_t line_count = 1;
   if (nearest_line_directive != std::string::npos) {
@@ -29,6 +29,23 @@ size_t line_number(const std::string &prefix_string)
     line_count = std::stoll(sub_str) - 1;
   }
   return line_count + std::count(sub_str.begin(), sub_str.end(), '\n');
+}
+
+size_t char_number(const std::string &str, size_t pos)
+{
+  std::string sub_str = str.substr(0, pos);
+  size_t nearest_line_directive = sub_str.rfind('\n');
+  return (nearest_line_directive == std::string::npos) ?
+             (sub_str.size()) :
+             (sub_str.size() - nearest_line_directive - 1);
+}
+
+std::string line_str(const std::string &str, size_t pos)
+{
+  size_t start = str.rfind('\n', pos);
+  size_t end = str.find('\n', pos);
+  start = (start != std::string::npos) ? start + 1 : 0;
+  return str.substr(start, end - start);
 }
 
 Scope Token::scope() const
@@ -39,7 +56,7 @@ Scope Token::scope() const
   return Scope::from_position(data, data->token_scope[index]);
 }
 
-/* If keep_whitespace is false, whitespaces are merged with the previous token. */
+/** If `keep_whitespace` is false, white-spaces are merged with the previous token. */
 void Parser::tokenize(const bool keep_whitespace)
 {
   if (str.empty()) {
@@ -55,7 +72,7 @@ void Parser::tokenize(const bool keep_whitespace)
     token_types += char(to_type(str[0]));
     token_offsets.offsets.emplace_back(0);
 
-    /* When doing whitespace merging, keep knowledge about whether previous char was whitespace.
+    /* When doing white-space merging, keep knowledge about whether previous char was white-space.
      * This allows to still split words on spaces. */
     bool prev_was_whitespace = (token_types[0] == NewLine || token_types[0] == Space);
     bool inside_preprocessor_directive = token_types[0] == Hash;
@@ -179,7 +196,7 @@ void Parser::tokenize(const bool keep_whitespace)
       if (type != Word && type != NewLine && type != Space && type != Number) {
         prev = Word;
       }
-      /* Split words on whitespaces even when merging. */
+      /* Split words on white-spaces even when merging. */
       if (!keep_whitespace && type == Word && prev_was_whitespace) {
         prev = Space;
         prev_was_whitespace = false;
