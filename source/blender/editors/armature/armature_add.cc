@@ -1781,11 +1781,29 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
   float base_mat[3][3];  /* initial bone orientation matrix */
 
   switch (align) {
+      case 2: /* 3D CURSOR */
+      {
+          Scene *scene = CTX_data_scene(C);
+          const View3DCursor *cursor = &scene->cursor;
+
+          float cursor_mat[3][3];
+
+          /* Convert cursor rotation to a 3×3 matrix */
+          if (cursor->rotation_mode == ROT_MODE_QUAT) {
+              quat_to_mat3(cursor_mat, cursor->rotation_quaternion);
+          }
+          else {
+              eul_to_mat3(cursor_mat, cursor->rotation_euler);
+          }
+
+          copy_m3_m3(base_mat, cursor_mat);
+          break;
+      }
       case 1: /* Z up*/
       {
-          base_mat[0][0] = 1.0f; base_mat[0][1] = 0.0f; base_mat[0][2] = 0.0f; // X
-          base_mat[1][0] = 0.0f; base_mat[1][1] = 0.0f; base_mat[1][2] = -1.0f; // Y
-          base_mat[2][0] = 0.0f; base_mat[2][1] = 1.0f; base_mat[2][2] = 0.0f; // Z
+          base_mat[0][0] = 1.0f; base_mat[0][1] = 0.0f; base_mat[0][2] = 0.0f; 
+          base_mat[1][0] = 0.0f; base_mat[1][1] = 0.0f; base_mat[1][2] = -1.0f;
+          base_mat[2][0] = 0.0f; base_mat[2][1] = 1.0f; base_mat[2][2] = 0.0f;
           break;
       }
       case 0: /* DEFAULT Y up*/
@@ -1799,6 +1817,7 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
   if (length <= 0.0f) {
       length = 1.0f;  /* fallback */
   }
+
 
   RNA_string_get(op->ptr, "name", name);
 
@@ -1852,13 +1871,17 @@ static wmOperatorStatus armature_bone_primitive_add_exec(bContext *C, wmOperator
   /* Bone head to cursor position */
   copy_v3_v3(bone->head, curs); 
 
-  float tail_vector[3];
-  copy_v3_v3(tail_vector, imat[2]);
-  
-  normalize_v3(tail_vector);
-  mul_v3_fl(tail_vector, length);  /* Apply length */
-  mul_m3_v3(base_mat, tail_vector);   /* Apply alignment */
+  float tail_vector[3] = {0.0f, 0.0f, 1.0f};
+  mul_m3_v3(base_mat, tail_vector);
+  mul_v3_fl(tail_vector, length);
   add_v3_v3v3(bone->tail, bone->head, tail_vector);
+
+
+  /* Disable Deform if applicable*/
+  bool deform = RNA_boolean_get(op->ptr, "deform");
+  if (!deform) {
+      bone->flag |= BONE_NO_DEFORM;
+  }
 
   /* NOTE: notifier might evolve. */
   WM_event_add_notifier(C, NC_OBJECT | ND_BONE_SELECT, obedit);
@@ -1890,13 +1913,14 @@ void ARMATURE_OT_bone_primitive_add(wmOperatorType *ot)
                  "Name of the newly created bone");
   
   static const EnumPropertyItem align_items[] = {
-    {0, "DEFAULT", 0, "Y Up", "Align new bone so the Z-axis is up"},
+    {0, "DEFAULT", 0, "Y Up", "Align new bone so the Y-axis is up"},
     {1, "WORLD",   0, "Z Up",   "Align new bone so the Z-axis is up"},
+    {2, "3D_CURSOR",   0, "3D Cursor",   "Align new bone to the 3D cursor"},
     {0, nullptr, 0, nullptr, nullptr}
     };
   RNA_def_enum(ot->srna, "align", align_items, 0, "Align", "Initial orientation of the new bone");
-
   RNA_def_float(ot->srna, "length", 1.0f, 0.001f, FLT_MAX, "Length", "Length of the new bone", 0.01f, 100.0f);
+  RNA_def_boolean(ot->srna, "deform", true, "Enable Deform", "Enable bone to deform geometry");
 }
 
 /* ********************** Subdivide *******************************/
