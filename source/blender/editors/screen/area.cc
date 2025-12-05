@@ -4075,13 +4075,13 @@ ScrArea *ED_screen_areas_iter_next(const bScreen *screen, const ScrArea *area)
   return static_cast<ScrArea *>(screen->areabase.first);
 }
 
-ScrArea *ED_screen_find_maximized_area(const bScreen *screen)
+ScrArea *ED_screen_find_full_area(const bScreen *screen)
 {
-  if (screen->state != SCREENMAXIMIZED) {
+  if (!BKE_screen_is_fullscreen_area(screen)) {
     return nullptr;
   }
 
-  /* To find the currently maximized area, manually itereate the screen area list since it may
+  /* To find the currently fullscreen area, manually itereate the screen area list since it may
    * not always be the current context area (e.g. when opening a new space from the topbar). */
   LISTBASE_FOREACH (ScrArea *, screen_area, &screen->areabase) {
     if (screen_area->full) {

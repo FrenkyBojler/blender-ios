@@ -1919,27 +1919,27 @@ ScrArea *ED_screen_temp_space_open(
     case USER_TEMP_SPACE_DISPLAY_FULLSCREEN: {
       bScreen *ctx_screen = CTX_wm_screen(C);
 
-      if (ctx_screen->state == SCREENMAXIMIZED) {
-        ScrArea *maximized_area = ED_screen_find_maximized_area(ctx_screen);
+      if (BKE_screen_is_fullscreen_area(ctx_screen)) {
+        ScrArea *full_area = ED_screen_find_full_area(ctx_screen);
 
-        /* Check if the current maximized area has the same type as the one we're opening. */
-        if (maximized_area->spacetype == space_type) {
+        /* Check if the current fullscreen area has the same type as the one we're opening. */
+        if (full_area->spacetype == space_type) {
           /* Return the existing area instead of recreating an area on top, which would make
-           * the "Back to Previous" button seem ineffective. */
-          return maximized_area;
+           * the "Back to Previous" button seem ineffective for maximized area. */
+          return full_area;
         }
 
-        /* The current area is already maximized, stack the new area on top of it. */
-        ED_area_newspace(C, maximized_area, space_type, true);
-        maximized_area->flag |= AREA_FLAG_STACKED_FULLSCREEN;
-        ((SpaceLink *)maximized_area->spacedata.first)->link_flag |= SPACE_FLAG_TYPE_TEMPORARY;
+        /* The current area is already fullscreen, stack the new area on top of it. */
+        ED_area_newspace(C, full_area, space_type, true);
+        full_area->flag |= AREA_FLAG_STACKED_FULLSCREEN;
+        ((SpaceLink *)full_area->spacedata.first)->link_flag |= SPACE_FLAG_TYPE_TEMPORARY;
 
-        return maximized_area;
+        return full_area;
       }
 
       ScrArea *ctx_area = CTX_wm_area(C);
 
-      /* Create a new maximized area. */
+      /* Create a new fullscreen area. */
       ScrArea *area = ED_screen_full_newspace(C, ctx_area, int(space_type));
       static_cast<SpaceLink *>(area->spacedata.first)->link_flag |= SPACE_FLAG_TYPE_TEMPORARY;
       return area;

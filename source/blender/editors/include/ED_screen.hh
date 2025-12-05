@@ -292,7 +292,7 @@ ScrArea *ED_area_find_under_cursor(const bContext *C, int spacetype, const int e
 ScrArea *ED_screen_areas_iter_first(const wmWindow *win, const bScreen *screen);
 ScrArea *ED_screen_areas_iter_next(const bScreen *screen, const ScrArea *area);
 
-ScrArea *ED_screen_find_maximized_area(const bScreen *screen);
+ScrArea *ED_screen_find_full_area(const bScreen *screen);
 /**
  * Iterate over all areas visible in the screen (screen as in everything
  * visible in the window, not just bScreen).
