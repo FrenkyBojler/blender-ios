@@ -4,7 +4,7 @@
 
 /** \file
  * \ingroup DNA
- * \brief DNA fiulw which is used for the makesdna_test
+ * \brief DNA file which is used for the makesdna_test
  */
 
 #pragma once
@@ -33,5 +33,10 @@ struct TestStruct {
   char name[/*MAX_ID_NAME*/ 258];
 
   short flag;
+  int _pad1;
+
+  ListBase some_list;
   int tag;
+
+  int _pad2;
 };

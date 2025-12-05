@@ -102,19 +102,14 @@ TEST_F(SDNATest, struct_size)
 
 TEST_F(SDNATest, struct_member_size)
 {
-  struct MemberInfo {
-    constexpr MemberInfo(const char *name, const int size64) : name(name), size64(size64) {}
-
-    const char *name;
-    int size64;
-  };
-
   ASSERT_NE(sdna, nullptr);
 
   EXPECT_EQ(get_struct_member_size(sdna, "TestStruct", "*next"), sizeof(TestStruct::next));
   EXPECT_EQ(get_struct_member_size(sdna, "TestStruct", "*prev"), sizeof(TestStruct::prev));
   EXPECT_EQ(get_struct_member_size(sdna, "TestStruct", "name[258]"), sizeof(TestStruct::name));
   EXPECT_EQ(get_struct_member_size(sdna, "TestStruct", "flag"), sizeof(TestStruct::flag));
+  EXPECT_EQ(get_struct_member_size(sdna, "TestStruct", "some_list"),
+            sizeof(TestStruct::some_list));
   EXPECT_EQ(get_struct_member_size(sdna, "TestStruct", "tag"), sizeof(TestStruct::tag));
 }
 
@@ -130,6 +125,8 @@ TEST_F(SDNATest, struct_member_offset_by_name_without_alias)
             offsetof(TestStruct, name));
   EXPECT_EQ(DNA_struct_member_offset_by_name_without_alias(sdna, "TestStruct", "short", "flag"),
             offsetof(TestStruct, flag));
+  EXPECT_EQ(DNA_struct_member_offset_by_name_without_alias(sdna, "TestStruct", "ListBase", "some_list"),
+            offsetof(TestStruct, some_list));
   EXPECT_EQ(DNA_struct_member_offset_by_name_without_alias(sdna, "TestStruct", "int", "tag"),
             offsetof(TestStruct, tag));
 }
