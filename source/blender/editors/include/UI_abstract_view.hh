@@ -36,13 +36,12 @@
 #include "WM_types.hh"
 
 struct bContext;
-struct uiBlock;
-struct uiButViewItem;
-struct ViewLink;
 struct wmNotifier;
 
 namespace blender::ui {
 
+struct ViewLink;
+struct ButtonViewItem;
 class AbstractViewItem;
 class AbstractViewItemDragController;
 
@@ -55,7 +54,7 @@ struct Layout;
 
 class AbstractView {
   friend class AbstractViewItem;
-  friend struct ::ViewLink;
+  friend struct ViewLink;
 
   bool is_reconstructed_ = false;
   /**
@@ -199,7 +198,7 @@ class AbstractViewItem {
    */
   AbstractView *view_ = nullptr;
   /** See #view_item_button() */
-  uiButViewItem *view_item_but_ = nullptr;
+  blender::ui::ButtonViewItem *view_item_but_ = nullptr;
   bool is_activatable_ = true;
   bool is_interactive_ = true;
   bool is_active_ = false;
@@ -308,7 +307,7 @@ class AbstractViewItem {
    * visible item gets one during the layout building. Items that are not visible may not have one,
    * so null is a valid return value.
    */
-  uiButViewItem *view_item_button() const;
+  blender::ui::ButtonViewItem *view_item_button() const;
 
   /** Disable the interacting with this item, meaning the buttons drawn will be disabled and there
    * will be no mouse hover feedback for the view row. */

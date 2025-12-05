@@ -41,13 +41,13 @@
 #include "BKE_colortools.hh"
 #include "BKE_context.hh"
 #include "BKE_curveprofile.h"
-#include "BKE_movieclip.h"
+#include "BKE_movieclip.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_types.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
-#include "BKE_tracking.h"
+#include "BKE_tracking.hh"
 #include "BKE_unit.hh"
 
 #include "BLT_translation.hh"
@@ -81,7 +81,7 @@
 #  include "wm_window.hh"
 #endif
 
-using blender::StringRef;
+namespace blender::ui {
 
 static CLG_LogRef LOG = {"ui.handler"};
 
@@ -193,7 +193,7 @@ static bool ui_mouse_motion_keynav_test(uiKeyNavLock *keynav, const wmEvent *eve
 static void with_but_active_as_semi_modal(bContext *C,
                                           ARegion *region,
                                           uiBut *but,
-                                          blender::FunctionRef<void()> fn);
+                                          FunctionRef<void()> fn);
 static int ui_handle_region_semi_modal_buttons(bContext *C, const wmEvent *event, ARegion *region);
 
 /** \} */
@@ -273,7 +273,7 @@ struct uiSelectContextElem {
 };
 
 struct uiSelectContextStore {
-  blender::Vector<uiSelectContextElem> elems;
+  Vector<uiSelectContextElem> elems;
   bool do_free = false;
   bool is_enabled = false;
   /* When set, simply copy values (don't apply difference).
@@ -396,7 +396,7 @@ struct uiTextEdit {
   uiUndoStack_Text *undo_stack_text = nullptr;
 };
 
-struct uiHandleButtonData {
+struct HandleButtonData {
   wmWindowManager *wm = nullptr;
   wmWindow *window = nullptr;
   ScrArea *area = nullptr;
@@ -525,7 +525,7 @@ struct uiAfterFunc {
 
   wmOperator *popup_op;
   wmOperatorType *optype;
-  blender::wm::OpCallContext opcontext;
+  wm::OpCallContext opcontext;
   PointerRNA *opptr;
 
   PointerRNA rnapoin;
@@ -706,7 +706,7 @@ static bool ui_multibut_drag_wait(const uiHandleButtonMulti &multi_data)
  */
 static bool ui_but_dragedit_update_mval(uiHandleButtonData *data,
                                         int mx,
-                                        blender::FunctionRef<int()> drag_threshold_fn)
+                                        FunctionRef<int()> drag_threshold_fn)
 {
   if (data->draglock) {
     const int threshold = drag_threshold_fn();
@@ -866,7 +866,7 @@ static uiAfterFunc *ui_afterfunc_new()
  */
 static void ui_handle_afterfunc_add_operator_ex(wmOperatorType *ot,
                                                 PointerRNA **properties,
-                                                blender::wm::OpCallContext opcontext,
+                                                wm::OpCallContext opcontext,
                                                 const uiBut *context_but)
 {
   uiAfterFunc *after = ui_afterfunc_new();
@@ -887,7 +887,7 @@ static void ui_handle_afterfunc_add_operator_ex(wmOperatorType *ot,
   }
 }
 
-void ui_handle_afterfunc_add_operator(wmOperatorType *ot, blender::wm::OpCallContext opcontext)
+void ui_handle_afterfunc_add_operator(wmOperatorType *ot, wm::OpCallContext opcontext)
 {
   ui_handle_afterfunc_add_operator_ex(ot, nullptr, opcontext, nullptr);
 }
@@ -963,7 +963,7 @@ static void ui_apply_but_func(bContext *C, uiBut *but)
     after->opptr = but->opptr;
 
     but->optype = nullptr;
-    but->opcontext = blender::wm::OpCallContext(0);
+    but->opcontext = wm::OpCallContext(0);
     but->opptr = nullptr;
   }
 
@@ -971,7 +971,7 @@ static void ui_apply_but_func(bContext *C, uiBut *but)
   after->rnaprop = but->rnaprop;
 
   if (but->type == ButType::SearchMenu) {
-    uiButSearch *search_but = (uiButSearch *)but;
+    ButtonSearch *search_but = (ButtonSearch *)but;
     after->search_arg_free_fn = search_but->arg_free_fn;
     after->search_arg = search_but->arg;
     search_but->arg_free_fn = nullptr;
@@ -1322,10 +1322,10 @@ static void ui_apply_but_TEX(bContext *C, uiBut *but, uiHandleButtonData *data)
 
   /* If arg2 isn't in use already, pass the active search item through it. */
   if ((but->func_arg2 == nullptr) && (but->type == ButType::SearchMenu)) {
-    uiButSearch *search_but = (uiButSearch *)but;
+    ButtonSearch *search_but = (ButtonSearch *)but;
     but->func_arg2 = search_but->item_active;
     if ((U.flag & USER_FLAG_RECENT_SEARCHES_DISABLE) == 0) {
-      blender::ui::string_search::add_recent_search(search_but->item_active_str);
+      string_search::add_recent_search(search_but->item_active_str);
     }
   }
 
@@ -1681,7 +1681,7 @@ static bool ui_drag_toggle_but_is_supported(const uiBut *but)
     return true;
   }
   if (UI_but_is_decorator(but)) {
-    const uiButDecorator *but_decorate = static_cast<const uiButDecorator *>(but);
+    const auto *but_decorate = static_cast<const ButtonDecorator *>(but);
     return but_decorate->toggle_keyframe_on_click;
   }
   return false;
@@ -1892,7 +1892,7 @@ static bool ui_selectcontext_begin(bContext *C, uiBut *but, uiSelectContextStore
   PropertyRNA *lprop;
   bool success = false;
 
-  blender::Vector<PointerRNA> lb;
+  Vector<PointerRNA> lb;
 
   PointerRNA ptr = but->rnapoin;
   PropertyRNA *prop = but->rnaprop;
@@ -2239,7 +2239,7 @@ static bool ui_but_drag_init(bContext *C,
       }
     }
     else if (but->type == ButType::ViewItem) {
-      const uiButViewItem *view_item_but = (uiButViewItem *)but;
+      const auto *view_item_but = (ButtonViewItem *)but;
       if (view_item_but->view_item) {
         return UI_view_item_drag_start(*C, *view_item_but->view_item);
       }
@@ -2358,30 +2358,30 @@ static void ui_apply_but(
   CurveMapping *editcumap;
   CurveProfile *editprofile;
   if (but_type == ButType::ColorBand) {
-    uiButColorBand *but_coba = (uiButColorBand *)but;
+    ButtonColorBand *but_coba = (ButtonColorBand *)but;
     editcoba = but_coba->edit_coba;
   }
   else if (but_type == ButType::Curve) {
-    uiButCurveMapping *but_cumap = (uiButCurveMapping *)but;
+    ButtonCurveMapping *but_cumap = (ButtonCurveMapping *)but;
     editcumap = but_cumap->edit_cumap;
   }
   else if (but_type == ButType::CurveProfile) {
-    uiButCurveProfile *but_profile = (uiButCurveProfile *)but;
+    ButtonCurveProfile *but_profile = (ButtonCurveProfile *)but;
     editprofile = but_profile->edit_profile;
   }
   but->editstr = nullptr;
   but->editval = nullptr;
   but->editvec = nullptr;
   if (but_type == ButType::ColorBand) {
-    uiButColorBand *but_coba = (uiButColorBand *)but;
+    ButtonColorBand *but_coba = (ButtonColorBand *)but;
     but_coba->edit_coba = nullptr;
   }
   else if (but_type == ButType::Curve) {
-    uiButCurveMapping *but_cumap = (uiButCurveMapping *)but;
+    ButtonCurveMapping *but_cumap = (ButtonCurveMapping *)but;
     but_cumap->edit_cumap = nullptr;
   }
   else if (but_type == ButType::CurveProfile) {
-    uiButCurveProfile *but_profile = (uiButCurveProfile *)but;
+    ButtonCurveProfile *but_profile = (ButtonCurveProfile *)but;
     but_profile->edit_profile = nullptr;
   }
 
@@ -2499,15 +2499,15 @@ static void ui_apply_but(
   but->editval = editval;
   but->editvec = editvec;
   if (but_type == ButType::ColorBand) {
-    uiButColorBand *but_coba = (uiButColorBand *)but;
+    ButtonColorBand *but_coba = (ButtonColorBand *)but;
     but_coba->edit_coba = editcoba;
   }
   else if (but_type == ButType::Curve) {
-    uiButCurveMapping *but_cumap = (uiButCurveMapping *)but;
+    ButtonCurveMapping *but_cumap = (ButtonCurveMapping *)but;
     but_cumap->edit_cumap = editcumap;
   }
   else if (but_type == ButType::CurveProfile) {
-    uiButCurveProfile *but_profile = (uiButCurveProfile *)but;
+    ButtonCurveProfile *but_profile = (ButtonCurveProfile *)but;
     but_profile->edit_profile = editprofile;
   }
 
@@ -2582,7 +2582,7 @@ static void float_array_to_string(const float *values,
 static void ui_but_copy_numeric_array(uiBut *but, char *output, int output_maxncpy)
 {
   const int values_len = get_but_property_array_length(but);
-  blender::Array<float, 16> values(values_len);
+  Array<float, 16> values(values_len);
   RNA_property_float_get_array(&but->rnapoin, but->rnaprop, values.data());
   float_array_to_string(values.data(), values_len, output, output_maxncpy);
 }
@@ -2614,7 +2614,7 @@ static void ui_but_paste_numeric_array(bContext *C,
     return;
   }
 
-  blender::Array<float, 16> values(values_len);
+  Array<float, 16> values(values_len);
 
   if (parse_float_array(buf_paste, values.data(), values_len)) {
     ui_but_set_float_array(C, but, data, values.data(), values_len);
@@ -3592,7 +3592,7 @@ static void ui_textedit_begin(bContext *C, uiBut *but, uiHandleButtonData *data)
 
   /* optional searchbox */
   if (but->type == ButType::SearchMenu) {
-    uiButSearch *search_but = (uiButSearch *)but;
+    ButtonSearch *search_but = (ButtonSearch *)but;
 
     data->searchbox = search_but->popup_create_fn(C, data->region, search_but);
     ui_searchbox_update(C, data->searchbox, but, true); /* true = reset */
@@ -3607,7 +3607,7 @@ static void ui_textedit_begin(bContext *C, uiBut *but, uiHandleButtonData *data)
   if (data->searchbox) {
     /* Popup blocks don't support moving after creation, so don't change the view for them. */
   }
-  else if (blender::ui::block_layout_needs_resolving(but->block)) {
+  else if (block_layout_needs_resolving(but->block)) {
     /* Layout isn't resolved yet (may happen when activating while drawing through
      * #UI_but_active_only()), so can't move it into view yet. This causes
      * #ui_but_update_view_for_active() to run after the layout is resolved. */
@@ -3654,7 +3654,7 @@ static void ui_textedit_end(bContext *C, uiBut *but, uiHandleButtonData *data)
     if (data->searchbox) {
       if (data->cancel == false) {
         BLI_assert(but->type == ButType::SearchMenu);
-        uiButSearch *but_search = (uiButSearch *)but;
+        ButtonSearch *but_search = (ButtonSearch *)but;
 
         if ((ui_searchbox_apply(but, data->searchbox) == false) &&
             (ui_searchbox_find_index(data->searchbox, but->editstr) == -1) &&
@@ -4246,15 +4246,15 @@ static void ui_numedit_begin_set_values(uiBut *but, uiHandleButtonData *data)
 static void ui_numedit_begin(uiBut *but, uiHandleButtonData *data)
 {
   if (but->type == ButType::Curve) {
-    uiButCurveMapping *but_cumap = (uiButCurveMapping *)but;
+    ButtonCurveMapping *but_cumap = (ButtonCurveMapping *)but;
     but_cumap->edit_cumap = (CurveMapping *)but->poin;
   }
   else if (but->type == ButType::CurveProfile) {
-    uiButCurveProfile *but_profile = (uiButCurveProfile *)but;
+    ButtonCurveProfile *but_profile = (ButtonCurveProfile *)but;
     but_profile->edit_profile = (CurveProfile *)but->poin;
   }
   else if (but->type == ButType::ColorBand) {
-    uiButColorBand *but_coba = (uiButColorBand *)but;
+    ButtonColorBand *but_coba = (ButtonColorBand *)but;
     data->coba = (ColorBand *)but->poin;
     but_coba->edit_coba = data->coba;
   }
@@ -4276,7 +4276,7 @@ static void ui_numedit_begin(uiBut *but, uiHandleButtonData *data)
     float log_min = (scale_type == PROP_SCALE_LOG) ? max_ff(softmin, UI_PROP_SCALE_LOG_MIN) : 0.0f;
 
     if ((but->type == ButType::Num) && (ui_but_is_cursor_warp(but) == false)) {
-      uiButNumber *number_but = (uiButNumber *)but;
+      ButtonNumber *number_but = (ButtonNumber *)but;
 
       if (scale_type == PROP_SCALE_LOG) {
         log_min = max_ff(log_min, powf(10, -number_but->precision) * 0.5f);
@@ -4369,15 +4369,15 @@ static void ui_numedit_end(uiBut *but, uiHandleButtonData *data)
   but->editval = nullptr;
   but->editvec = nullptr;
   if (but->type == ButType::ColorBand) {
-    uiButColorBand *but_coba = (uiButColorBand *)but;
+    ButtonColorBand *but_coba = (ButtonColorBand *)but;
     but_coba->edit_coba = nullptr;
   }
   else if (but->type == ButType::Curve) {
-    uiButCurveMapping *but_cumap = (uiButCurveMapping *)but;
+    ButtonCurveMapping *but_cumap = (ButtonCurveMapping *)but;
     but_cumap->edit_cumap = nullptr;
   }
   else if (but->type == ButType::CurveProfile) {
-    uiButCurveProfile *but_profile = (uiButCurveProfile *)but;
+    ButtonCurveProfile *but_profile = (ButtonCurveProfile *)but;
     but_profile->edit_profile = nullptr;
   }
   data->dragstartx = 0;
@@ -4399,7 +4399,7 @@ static void ui_numedit_apply(bContext *C, uiBlock *block, uiBut *but, uiHandleBu
   ED_region_tag_redraw(data->region);
 }
 
-static void ui_but_extra_operator_icon_apply(bContext *C, uiBut *but, uiButExtraOpIcon *op_icon)
+static void ui_but_extra_operator_icon_apply(bContext *C, uiBut *but, ButtonExtraOpIcon *op_icon)
 {
   but->active->apply_through_extra_icon = true;
 
@@ -4601,9 +4601,9 @@ static uiBut *ui_but_list_row_text_activate(bContext *C,
 /** \name Events for Various Button Types
  * \{ */
 
-static uiButExtraOpIcon *ui_but_extra_operator_icon_mouse_over_get(uiBut *but,
-                                                                   ARegion *region,
-                                                                   const wmEvent *event)
+static ButtonExtraOpIcon *ui_but_extra_operator_icon_mouse_over_get(uiBut *but,
+                                                                    ARegion *region,
+                                                                    const wmEvent *event)
 {
   if (BLI_listbase_is_empty(&but->extra_op_icons)) {
     return nullptr;
@@ -4622,11 +4622,11 @@ static uiButExtraOpIcon *ui_but_extra_operator_icon_mouse_over_get(uiBut *but,
 
   /* Handle the padding space from the right edge as the last button. */
   if (x > xmax) {
-    return static_cast<uiButExtraOpIcon *>(but->extra_op_icons.last);
+    return static_cast<ButtonExtraOpIcon *>(but->extra_op_icons.last);
   }
 
   /* Inverse order, from right to left. */
-  LISTBASE_FOREACH_BACKWARD (uiButExtraOpIcon *, op_icon, &but->extra_op_icons) {
+  LISTBASE_FOREACH_BACKWARD (ButtonExtraOpIcon *, op_icon, &but->extra_op_icons) {
     if ((x > (xmax - icon_size)) && x <= xmax) {
       return op_icon;
     }
@@ -4641,7 +4641,7 @@ static bool ui_do_but_extra_operator_icon(bContext *C,
                                           uiHandleButtonData *data,
                                           const wmEvent *event)
 {
-  uiButExtraOpIcon *op_icon = ui_but_extra_operator_icon_mouse_over_get(but, data->region, event);
+  ButtonExtraOpIcon *op_icon = ui_but_extra_operator_icon_mouse_over_get(but, data->region, event);
 
   if (!op_icon) {
     return false;
@@ -4666,17 +4666,17 @@ static void ui_do_but_extra_operator_icons_mousemove(uiBut *but,
                                                      uiHandleButtonData *data,
                                                      const wmEvent *event)
 {
-  uiButExtraOpIcon *old_highlighted = nullptr;
+  ButtonExtraOpIcon *old_highlighted = nullptr;
 
   /* Unset highlighting of all first. */
-  LISTBASE_FOREACH (uiButExtraOpIcon *, op_icon, &but->extra_op_icons) {
+  LISTBASE_FOREACH (ButtonExtraOpIcon *, op_icon, &but->extra_op_icons) {
     if (op_icon->highlighted) {
       old_highlighted = op_icon;
     }
     op_icon->highlighted = false;
   }
 
-  uiButExtraOpIcon *hovered = ui_but_extra_operator_icon_mouse_over_get(but, data->region, event);
+  ButtonExtraOpIcon *hovered = ui_but_extra_operator_icon_mouse_over_get(but, data->region, event);
 
   if (hovered) {
     hovered->highlighted = true;
@@ -4760,7 +4760,7 @@ static int ui_do_but_HOTKEYEVT(bContext *C,
                                uiHandleButtonData *data,
                                const wmEvent *event)
 {
-  uiButHotkeyEvent *hotkey_but = (uiButHotkeyEvent *)but;
+  ButtonHotkeyEvent *hotkey_but = (ButtonHotkeyEvent *)but;
   BLI_assert(but->type == ButType::HotkeyEvent);
 
   if (data->state == BUTTON_STATE_HIGHLIGHT) {
@@ -4981,9 +4981,7 @@ static int ui_do_but_TEX(
       if (ELEM(event->type, EVT_PADENTER, EVT_RETKEY) && !UI_but_is_utf8(but)) {
         /* Pass, allow file-selector, enter to execute. */
       }
-      else if (ELEM(but->emboss,
-                    blender::ui::EmbossType::None,
-                    blender::ui::EmbossType::NoneOrStatus) &&
+      else if (ELEM(but->emboss, EmbossType::None, EmbossType::NoneOrStatus) &&
                (event->modifier != KM_CTRL))
       {
         /* Pass. */
@@ -4997,7 +4995,7 @@ static int ui_do_but_TEX(
     }
     else if (ELEM(event->type, WHEELUPMOUSE, WHEELDOWNMOUSE) && (event->modifier & KM_CTRL)) {
       if ((but->type == ButType::SearchMenu) && but->func_argN &&
-          (static_cast<uiButSearch *>(but)->arg == but->func_argN))
+          (static_cast<ButtonSearch *>(but)->arg == but->func_argN))
       {
         /* Disable value cycling for search buttons with an allocated search data argument. This
          * causes issues because the search data is moved to the "afterfuncs", but search updating
@@ -5136,7 +5134,7 @@ static int ui_do_but_TOG(bContext *C, uiBut *but, uiHandleButtonData *data, cons
  */
 static void force_activate_view_item_but(bContext *C,
                                          ARegion *region,
-                                         uiButViewItem *but,
+                                         ButtonViewItem *but,
                                          const bool close_popup = true)
 {
 
@@ -5161,7 +5159,7 @@ static int ui_do_but_VIEW_ITEM(bContext *C,
                                uiHandleButtonData *data,
                                const wmEvent *event)
 {
-  uiButViewItem *view_item_but = (uiButViewItem *)but;
+  ButtonViewItem *view_item_but = (ButtonViewItem *)but;
   BLI_assert(view_item_but->type == ButType::ViewItem);
 
   if (data->state == BUTTON_STATE_HIGHLIGHT) {
@@ -5375,10 +5373,10 @@ static float ui_numedit_apply_snap(int temp,
   return temp;
 }
 
-static bool ui_numedit_but_NUM(uiButNumber *but,
+static bool ui_numedit_but_NUM(ButtonNumber *but,
                                uiHandleButtonData *data,
                                int mx,
-                               blender::FunctionRef<int()> drag_threshold_fn,
+                               FunctionRef<int()> drag_threshold_fn,
                                const bool is_motion,
                                const enum eSnapType snap,
                                float fac)
@@ -5689,7 +5687,7 @@ static void ui_numedit_set_active(uiBut *but)
 static int ui_do_but_NUM(
     bContext *C, uiBlock *block, uiBut *but, uiHandleButtonData *data, const wmEvent *event)
 {
-  uiButNumber *number_but = (uiButNumber *)but;
+  ButtonNumber *number_but = (ButtonNumber *)but;
   int click = 0;
   int retval = WM_UI_HANDLER_CONTINUE;
 
@@ -5908,7 +5906,7 @@ static int ui_do_but_NUM(
 static bool ui_numedit_but_SLI(uiBut *but,
                                uiHandleButtonData *data,
                                int mx,
-                               blender::FunctionRef<int()> drag_threshold_fn,
+                               FunctionRef<int()> drag_threshold_fn,
                                const bool is_horizontal,
                                const bool is_motion,
                                const bool snap,
@@ -5942,7 +5940,7 @@ static bool ui_numedit_but_SLI(uiBut *but,
     cursor_x_range = BLI_rctf_size_x(&but->rect);
   }
   else if (but->type == ButType::Scroll) {
-    uiButScrollBar *scroll_but = reinterpret_cast<uiButScrollBar *>(but);
+    auto *scroll_but = reinterpret_cast<ButtonScrollBar *>(but);
     const float size = (is_horizontal) ? BLI_rctf_size_x(&but->rect) :
                                          -BLI_rctf_size_y(&but->rect);
     cursor_x_range = size * (but->softmax - but->softmin) /
@@ -6600,7 +6598,7 @@ static bool ui_numedit_but_UNITVEC(
   return changed;
 }
 
-static void ui_palette_set_active(uiButColor *color_but)
+static void ui_palette_set_active(ButtonColor *color_but)
 {
   if (color_but->is_pallete_color) {
     Palette *palette = (Palette *)color_but->rnapoin.owner_id;
@@ -6612,7 +6610,7 @@ static void ui_palette_set_active(uiButColor *color_but)
 static int ui_do_but_COLOR(bContext *C, uiBut *but, uiHandleButtonData *data, const wmEvent *event)
 {
   BLI_assert(but->type == ButType::Color);
-  uiButColor *color_but = (uiButColor *)but;
+  ButtonColor *color_but = (ButtonColor *)but;
 
   if (data->state == BUTTON_STATE_HIGHLIGHT) {
     /* First handle click on icon-drag type button. */
@@ -6826,7 +6824,7 @@ static void clamp_axis_max_v3(float v[3], const float max)
   }
 }
 
-static void ui_rgb_to_color_picker_HSVCUBE_compat_v(const uiButHSVCube *hsv_but,
+static void ui_rgb_to_color_picker_HSVCUBE_compat_v(const ButtonHSVCube *hsv_but,
                                                     const float rgb[3],
                                                     float hsv[3])
 {
@@ -6838,7 +6836,7 @@ static void ui_rgb_to_color_picker_HSVCUBE_compat_v(const uiButHSVCube *hsv_but,
   }
 }
 
-static void ui_rgb_to_color_picker_HSVCUBE_v(const uiButHSVCube *hsv_but,
+static void ui_rgb_to_color_picker_HSVCUBE_v(const ButtonHSVCube *hsv_but,
                                              const float rgb[3],
                                              float hsv[3])
 {
@@ -6850,7 +6848,7 @@ static void ui_rgb_to_color_picker_HSVCUBE_v(const uiButHSVCube *hsv_but,
   }
 }
 
-static void ui_color_picker_to_rgb_HSVCUBE_v(const uiButHSVCube *hsv_but,
+static void ui_color_picker_to_rgb_HSVCUBE_v(const ButtonHSVCube *hsv_but,
                                              const float hsv[3],
                                              float rgb[3])
 {
@@ -6869,7 +6867,7 @@ static bool ui_numedit_but_HSVCUBE(uiBut *but,
                                    const enum eSnapType snap,
                                    const bool shift)
 {
-  const uiButHSVCube *hsv_but = (uiButHSVCube *)but;
+  const ButtonHSVCube *hsv_but = (ButtonHSVCube *)but;
   ColorPicker *cpicker = static_cast<ColorPicker *>(but->custom_data);
   float *hsv = cpicker->hsv_perceptual;
   float rgb[3];
@@ -6982,7 +6980,7 @@ static bool ui_numedit_but_HSVCUBE(uiBut *but,
 }
 
 #ifdef WITH_INPUT_NDOF
-static void ui_ndofedit_but_HSVCUBE(uiButHSVCube *hsv_but,
+static void ui_ndofedit_but_HSVCUBE(ButtonHSVCube *hsv_but,
                                     uiHandleButtonData *data,
                                     const wmNDOFMotionData &ndof,
                                     const enum eSnapType snap,
@@ -7054,7 +7052,7 @@ static void ui_ndofedit_but_HSVCUBE(uiButHSVCube *hsv_but,
 static int ui_do_but_HSVCUBE(
     bContext *C, uiBlock *block, uiBut *but, uiHandleButtonData *data, const wmEvent *event)
 {
-  uiButHSVCube *hsv_but = (uiButHSVCube *)but;
+  ButtonHSVCube *hsv_but = (ButtonHSVCube *)but;
   int mx = event->xy[0];
   int my = event->xy[1];
   ui_window_to_block(data->region, block, &mx, &my);
@@ -8366,6 +8364,15 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, const wmEvent *
       }
     }
 
+    /* When clicking on a disabled button on top of a list row, activate the list row below it.
+     * See #150341. */
+    if (is_disabled && (event->type == LEFTMOUSE) && (event->val == KM_PRESS)) {
+      if (uiBut *listrow = ui_list_row_find_mouse_over(data->region, event->xy)) {
+        UI_but_execute(C, data->region, listrow);
+        return WM_UI_HANDLER_BREAK;
+      }
+    }
+
     /* do copy first, because it is the only allowed operator when disabled */
     if (do_copy) {
       if (ui_but_copy(C, but, event->modifier & KM_ALT)) {
@@ -8380,7 +8387,7 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, const wmEvent *
        * right-clicking to spawn the context menu should also activate the item. This makes it
        * clear which item will be operated on. Apply the button immediately, so context menu
        * polls get the right active item. */
-      uiButViewItem *clicked_view_item_but = static_cast<uiButViewItem *>(
+      auto *clicked_view_item_but = static_cast<ButtonViewItem *>(
           but->type == ButType::ViewItem ? but :
                                            ui_view_item_find_mouse_over(data->region, event->xy));
       if (clicked_view_item_but) {
@@ -8674,7 +8681,7 @@ static ARegion *ui_but_tooltip_init(
   *r_exit_on_event = false;
   if (but) {
     const wmWindow *win = CTX_wm_window(C);
-    uiButExtraOpIcon *extra_icon = ui_but_extra_operator_icon_mouse_over_get(
+    ButtonExtraOpIcon *extra_icon = ui_but_extra_operator_icon_mouse_over_get(
         but, but->active ? but->active->region : region, win->eventstate);
 
     return UI_tooltip_create_from_button_or_extra_icon(C, region, but, extra_icon, is_quick_tip);
@@ -9403,7 +9410,7 @@ void UI_context_update_anim_flag(const bContext *C)
         ui_but_anim_flag(but.get(), &anim_eval_context);
         ui_but_override_flag(CTX_data_main(C), but.get());
         if (UI_but_is_decorator(but)) {
-          ui_but_anim_decorate_update_from_flag((uiButDecorator *)but.get());
+          ui_but_anim_decorate_update_from_flag((ButtonDecorator *)but.get());
         }
 
         ED_region_tag_redraw(region);
@@ -9605,7 +9612,7 @@ static bool ui_handle_button_activate_by_type(bContext *C, ARegion *region, uiBu
 static void with_but_active_as_semi_modal(bContext *C,
                                           ARegion *region,
                                           uiBut *but,
-                                          blender::FunctionRef<void()> fn)
+                                          FunctionRef<void()> fn)
 {
   BLI_assert(but->active == nullptr);
 
@@ -9640,7 +9647,7 @@ static void with_but_active_as_semi_modal(bContext *C,
  */
 static void foreach_semi_modal_but_as_active(bContext *C,
                                              ARegion *region,
-                                             blender::FunctionRef<void(uiBut *semi_modal_but)> fn)
+                                             FunctionRef<void(uiBut *semi_modal_but)> fn)
 {
   /* Might want to have some way to define which order these should be handled in - if there's
    * every actually a use-case for multiple semi-active buttons at the same time. */
@@ -9722,7 +9729,8 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
                 /* Cancel because this `but` handles all events and we don't want
                  * the parent button's update function to do anything.
                  *
-                 * Causes issues with buttons defined by #uiLayout::prop_with_popover. */
+                 * Causes issues with buttons defined by #Layout::prop_with_popover.
+                 */
                 block->handle->menuretval = UI_RETURN_CANCEL;
               }
               else if (ui_but_is_editable_as_text(but)) {
@@ -10216,7 +10224,7 @@ static int ui_handle_view_item_event(bContext *C,
       if (event->modifier == 0) {
         /* Only bother finding the active view item button if the active button isn't already a
          * view item. */
-        uiButViewItem *view_but = static_cast<uiButViewItem *>(
+        auto *view_but = static_cast<ButtonViewItem *>(
             (active_but && active_but->type == ButType::ViewItem) ?
                 active_but :
                 ui_view_item_find_mouse_over(region, event->xy));
@@ -10241,7 +10249,7 @@ static int ui_handle_view_item_event(bContext *C,
     case EVT_RETKEY:
     case EVT_PADENTER:
       if (event->val == KM_PRESS) {
-        if (uiButViewItem *search_highlight_but = static_cast<uiButViewItem *>(
+        if (auto *search_highlight_but = static_cast<ButtonViewItem *>(
                 ui_view_item_find_search_highlight(region)))
         {
           force_activate_view_item_but(C, region, search_highlight_but);
@@ -10709,7 +10717,7 @@ static int ui_handle_menu_letter_press_search(uiPopupBlockHandle *menu, const wm
     uiAfterFunc *after = ui_afterfunc_new();
     wmOperatorType *ot = WM_operatortype_find("WM_OT_search_single_menu", false);
     after->optype = ot;
-    after->opcontext = blender::wm::OpCallContext::InvokeDefault;
+    after->opcontext = wm::OpCallContext::InvokeDefault;
     after->opptr = MEM_new<PointerRNA>(__func__);
     WM_operator_properties_create_ptr(after->opptr, ot);
     RNA_string_set(after->opptr, "menu_idname", menu->menu_idname);
@@ -10792,7 +10800,7 @@ static int ui_handle_menu_event(bContext *C,
     else {
       if (event->type == MOUSEMOVE) {
         WM_cursor_set(win, PopupTitleDragCursor);
-        blender::int2 mdiff = blender::int2(event->xy) - blender::int2(menu->grab_xy_prev);
+        int2 mdiff = int2(event->xy) - int2(menu->grab_xy_prev);
 
         copy_v2_v2_int(menu->grab_xy_prev, event->xy);
 
@@ -12620,3 +12628,5 @@ static void ui_block_interaction_begin_ensure(bContext *C,
 }
 
 /** \} */
+
+}  // namespace blender::ui

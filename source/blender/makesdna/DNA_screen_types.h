@@ -25,7 +25,6 @@ struct PointerRNA;
 struct Scene;
 struct SpaceLink;
 struct SpaceType;
-struct uiBlock;
 struct uiList;
 struct uiListType;
 struct wmDrawBuffer;
@@ -488,6 +487,8 @@ typedef struct ScrArea {
 
   /** Non-NULL if this area is global. */
   ScrGlobalAreaData *global;
+
+  float quadview_ratio[2];
 
   /**
    * #SpaceLink.

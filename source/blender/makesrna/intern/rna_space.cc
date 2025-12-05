@@ -15,7 +15,7 @@
 
 #include "BKE_context.hh"
 #include "BKE_geometry_set.hh"
-#include "BKE_movieclip.h"
+#include "BKE_movieclip.hh"
 
 #include "ED_asset.hh"
 #include "ED_buttons.hh"
@@ -847,7 +847,7 @@ static void rna_Space_bool_from_region_flag_update_by_type(bContext *C,
         ED_region_toggle_hidden(C, region);
 
         if ((region->flag & RGN_FLAG_HIDDEN_BY_USER) == 0) {
-          ED_area_type_hud_ensure(C, area);
+          blender::ui::ED_area_type_hud_ensure(C, area);
         }
       }
     }
@@ -1060,7 +1060,7 @@ static void rna_Space_view2d_sync_set(PointerRNA *ptr, bool value)
     return;
   }
 
-  if (!UI_view2d_area_supports_sync(area)) {
+  if (!blender::ui::UI_view2d_area_supports_sync(area)) {
     BKE_reportf(nullptr,
                 RPT_ERROR,
                 "'show_locked_time' is not supported for the '%s' editor",
@@ -1106,7 +1106,7 @@ static void rna_Space_view2d_sync_update(Main * /*bmain*/, Scene * /*scene*/, Po
     bScreen *screen = (bScreen *)ptr->owner_id;
     View2D *v2d = &region->v2d;
 
-    UI_view2d_sync(screen, area, v2d, V2D_LOCK_SET);
+    blender::ui::UI_view2d_sync(screen, area, v2d, V2D_LOCK_SET);
   }
 }
 
@@ -2890,7 +2890,8 @@ static void rna_SpaceNodeEditor_cursor_location_from_region(SpaceNode *snode,
 
   float cursor_location[2];
 
-  UI_view2d_region_to_view(&region->v2d, x, y, &cursor_location[0], &cursor_location[1]);
+  blender::ui::UI_view2d_region_to_view(
+      &region->v2d, x, y, &cursor_location[0], &cursor_location[1]);
   cursor_location[0] /= UI_SCALE_FAC;
   cursor_location[1] /= UI_SCALE_FAC;
 
@@ -8569,25 +8570,29 @@ static void rna_def_space_clip(BlenderRNA *brna)
 
   /* show_red_channel */
   prop = RNA_def_property(srna, "show_red_channel", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_negative_sdna(prop, nullptr, "postproc_flag", MOVIECLIP_DISABLE_RED);
+  RNA_def_property_boolean_negative_sdna(
+      prop, nullptr, "postproc_flag", int(MovieClipPostprocFlag::DisableRed));
   RNA_def_property_ui_text(prop, "Show Red Channel", "Show red channel in the frame");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_CLIP, nullptr);
 
   /* show_green_channel */
   prop = RNA_def_property(srna, "show_green_channel", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_negative_sdna(prop, nullptr, "postproc_flag", MOVIECLIP_DISABLE_GREEN);
+  RNA_def_property_boolean_negative_sdna(
+      prop, nullptr, "postproc_flag", int(MovieClipPostprocFlag::DisableGreen));
   RNA_def_property_ui_text(prop, "Show Green Channel", "Show green channel in the frame");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_CLIP, nullptr);
 
   /* show_blue_channel */
   prop = RNA_def_property(srna, "show_blue_channel", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_negative_sdna(prop, nullptr, "postproc_flag", MOVIECLIP_DISABLE_BLUE);
+  RNA_def_property_boolean_negative_sdna(
+      prop, nullptr, "postproc_flag", int(MovieClipPostprocFlag::DisableBlue));
   RNA_def_property_ui_text(prop, "Show Blue Channel", "Show blue channel in the frame");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_CLIP, nullptr);
 
   /* preview_grayscale */
   prop = RNA_def_property(srna, "use_grayscale_preview", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "postproc_flag", MOVIECLIP_PREVIEW_GRAYSCALE);
+  RNA_def_property_boolean_sdna(
+      prop, nullptr, "postproc_flag", int(MovieClipPostprocFlag::PreviewGray));
   RNA_def_property_ui_text(prop, "Grayscale", "Display frame in grayscale mode");
   RNA_def_property_update(prop, NC_MOVIECLIP | ND_DISPLAY, nullptr);
 

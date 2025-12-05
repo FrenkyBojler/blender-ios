@@ -114,7 +114,7 @@ static int bonedropper_init(bContext *C, wmOperator *op)
   }
 
   BoneDropper *bone_dropper = MEM_new<BoneDropper>(__func__);
-  uiButSearch *search_button = (uiButSearch *)button;
+  ButtonSearch *search_button = (ButtonSearch *)button;
   bone_dropper->ptr = button_ptr;
   bone_dropper->prop = button_prop;
   bone_dropper->search_ptr = search_button->rnasearchpoin;
@@ -542,7 +542,7 @@ static bool bonedropper_poll(bContext *C)
     return false;
   }
 
-  uiButSearch *search_but = (uiButSearch *)but;
+  ButtonSearch *search_but = (ButtonSearch *)but;
 
   if (!ELEM(RNA_property_type(prop), PROP_STRING, PROP_POINTER)) {
     return false;

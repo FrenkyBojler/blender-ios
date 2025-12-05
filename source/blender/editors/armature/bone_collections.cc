@@ -807,10 +807,10 @@ static void bone_collection_select(bContext *C,
       }
 
       if (select) {
-        pose_bone->flag |= POSE_SELECTED;
+        pose_bone->flag |= POSE_SELECTED_ALL;
       }
       else {
-        pose_bone->flag &= ~POSE_SELECTED;
+        pose_bone->flag &= ~POSE_SELECTED_ALL;
       }
     }
     DEG_id_tag_update(&active_object->id, ID_RECALC_SELECT);
@@ -1177,7 +1177,7 @@ static void move_to_collection_menu_create(bContext *C,
 static wmOperatorStatus move_to_collection_regular_invoke(bContext *C, wmOperator *op)
 {
   const char *title = CTX_IFACE_(op->type->translation_context, op->type->name);
-  uiPopupMenu *pup = UI_popup_menu_begin(C, title, ICON_NONE);
+  blender::ui::PopupMenu *pup = blender::ui::UI_popup_menu_begin(C, title, ICON_NONE);
   blender::ui::Layout *layout = UI_popup_menu_layout(pup);
 
   const bool is_move_operation = STREQ(op->type->idname, "ARMATURE_OT_move_to_collection");

@@ -807,14 +807,17 @@ bool parent_set(ReportList *reports,
                                    vert_par);
 }
 
-static void parent_set_vert_find(KDTree_3d *tree, Object *child, int vert_par[3], bool is_tri)
+static void parent_set_vert_find(blender::KDTree_3d *tree,
+                                 Object *child,
+                                 int vert_par[3],
+                                 bool is_tri)
 {
   const float *co_find = child->object_to_world().location();
   if (is_tri) {
-    KDTreeNearest_3d nearest[3];
+    blender::KDTreeNearest_3d nearest[3];
     int tot;
 
-    tot = BLI_kdtree_3d_find_nearest_n(tree, co_find, nearest, 3);
+    tot = blender::BLI_kdtree_3d_find_nearest_n(tree, co_find, nearest, 3);
     BLI_assert(tot == 3);
     UNUSED_VARS(tot);
 
@@ -825,7 +828,7 @@ static void parent_set_vert_find(KDTree_3d *tree, Object *child, int vert_par[3]
     BLI_assert(min_iii(UNPACK3(vert_par)) >= 0);
   }
   else {
-    vert_par[0] = BLI_kdtree_3d_find_nearest(tree, co_find, nullptr);
+    vert_par[0] = blender::BLI_kdtree_3d_find_nearest(tree, co_find, nullptr);
     BLI_assert(vert_par[0] >= 0);
     vert_par[1] = 0;
     vert_par[2] = 0;
@@ -876,7 +879,7 @@ static bool parent_set_nonvertex_parent(bContext *C, ParentingContext *parenting
 
 static bool parent_set_vertex_parent_with_kdtree(bContext *C,
                                                  ParentingContext *parenting_context,
-                                                 KDTree_3d *tree)
+                                                 blender::KDTree_3d *tree)
 {
   int vert_par[3] = {0, 0, 0};
 
@@ -907,7 +910,7 @@ static bool parent_set_vertex_parent_with_kdtree(bContext *C,
 
 static bool parent_set_vertex_parent(bContext *C, ParentingContext *parenting_context)
 {
-  KDTree_3d *tree = nullptr;
+  blender::KDTree_3d *tree = nullptr;
   int tree_tot;
 
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
@@ -918,12 +921,12 @@ static bool parent_set_vertex_parent(bContext *C, ParentingContext *parenting_co
 
   if (tree_tot < (parenting_context->is_vertex_tri ? 3 : 1)) {
     BKE_report(parenting_context->reports, RPT_ERROR, "Not enough vertices for vertex-parent");
-    BLI_kdtree_3d_free(tree);
+    blender::BLI_kdtree_3d_free(tree);
     return false;
   }
 
   const bool ok = parent_set_vertex_parent_with_kdtree(C, parenting_context, tree);
-  BLI_kdtree_3d_free(tree);
+  blender::BLI_kdtree_3d_free(tree);
   return ok;
 }
 
@@ -961,7 +964,7 @@ static wmOperatorStatus parent_set_exec(bContext *C, wmOperator *op)
 static wmOperatorStatus parent_set_invoke_menu(bContext *C, wmOperatorType *ot)
 {
   Object *parent = context_active_object(C);
-  uiPopupMenu *pup = UI_popup_menu_begin(C, IFACE_("Set Parent To"), ICON_NONE);
+  ui::PopupMenu *pup = ui::UI_popup_menu_begin(C, IFACE_("Set Parent To"), ICON_NONE);
   ui::Layout &layout = *UI_popup_menu_layout(pup);
 
   PointerRNA opptr = layout.op(
@@ -3182,7 +3185,7 @@ static wmOperatorStatus object_unlink_data_exec(bContext *C, wmOperator *op)
   ID *id;
   PropertyPointerRNA pprop;
 
-  UI_context_active_but_prop_get_templateID(C, &pprop.ptr, &pprop.prop);
+  ui::UI_context_active_but_prop_get_templateID(C, &pprop.ptr, &pprop.prop);
 
   if (pprop.prop == nullptr) {
     BKE_report(op->reports, RPT_ERROR, "Incorrect context for running object data unlink");

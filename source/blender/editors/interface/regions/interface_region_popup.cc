@@ -35,7 +35,7 @@
 #include "interface_intern.hh"
 #include "interface_regions_intern.hh"
 
-using blender::StringRef;
+namespace blender::ui {
 
 /* -------------------------------------------------------------------- */
 /** \name Utility Functions
@@ -148,10 +148,10 @@ static void ui_popup_block_position(wmWindow *window,
   const int center_x = (block->direction & UI_DIR_CENTER_X) ? size_x / 2 : 0;
   const int center_y = (block->direction & UI_DIR_CENTER_Y) ? size_y / 2 : 0;
 
-  const blender::int2 win_size = WM_window_native_pixel_size(window);
+  const int2 win_size = WM_window_native_pixel_size(window);
 
   /* Take into account maximum size so we don't have to flip on refresh. */
-  const blender::float2 max_size = {
+  const float2 max_size = {
       max_ff(size_x, handle->max_size_x),
       max_ff(size_y, handle->max_size_y),
   };
@@ -485,7 +485,7 @@ static void ui_popup_block_clip(wmWindow *window, uiBlock *block)
     return;
   }
 
-  const blender::int2 win_size = WM_window_native_pixel_size(window);
+  const int2 win_size = WM_window_native_pixel_size(window);
 
   /* shift to left if outside of view */
   if (block->rect.xmax > win_size[0] - margin) {
@@ -732,7 +732,7 @@ uiBlock *ui_popup_block_refresh(bContext *C,
   if (block->flag & UI_BLOCK_PIE_MENU) {
     const int win_width = UI_SCREEN_MARGIN;
 
-    const blender::int2 win_size = WM_window_native_pixel_size(window);
+    const int2 win_size = WM_window_native_pixel_size(window);
 
     copy_v2_v2(block->pie_data.pie_center_init, block->pie_data.pie_center_spawned);
 
@@ -1005,7 +1005,7 @@ void ui_popup_block_free(bContext *C, uiPopupBlockHandle *handle)
 }
 
 struct uiAlertData {
-  blender::ui::AlertIcon icon;
+  AlertIcon icon;
   std::string title;
   std::string message;
   bool compact;
@@ -1044,10 +1044,10 @@ static uiBlock *ui_alert_create(bContext *C, ARegion *region, void *user_data)
   const int max_width = int((data->compact ? 250.0f : 350.0f) * UI_SCALE_FAC);
   const int min_width = int(120.0f * UI_SCALE_FAC);
 
-  uiBlock *block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
+  uiBlock *block = UI_block_begin(C, region, __func__, EmbossType::Emboss);
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
   UI_block_flag_disable(block, UI_BLOCK_LOOP);
-  UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
+  UI_block_emboss_set(block, EmbossType::Emboss);
   UI_popup_dummy_panel_set(region, block);
 
   UI_block_flag_enable(block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_NUMSELECT);
@@ -1061,7 +1061,7 @@ static uiBlock *ui_alert_create(bContext *C, ARegion *region, void *user_data)
   /* Width based on the text lengths. */
   int text_width = BLF_width(style->widget.uifont_id, data->title.c_str(), data->title.size());
 
-  blender::Vector<blender::StringRef> messages = BLF_string_wrap(
+  Vector<StringRef> messages = BLF_string_wrap(
       fstyle->uifont_id, data->message, max_width, BLFWrapMode::Typographical);
 
   for (auto &st_ref : messages) {
@@ -1072,37 +1072,36 @@ static uiBlock *ui_alert_create(bContext *C, ARegion *region, void *user_data)
 
   int dialog_width = std::max(text_width + int(style->columnspace * 2.5), min_width);
 
-  uiLayout *layout;
-  layout = uiItemsAlertBox(block, style, dialog_width + icon_size, data->icon, icon_size);
+  Layout &layout = *uiItemsAlertBox(block, style, dialog_width + icon_size, data->icon, icon_size);
 
-  uiLayout *content = &layout->column(false);
-  content->scale_y_set(0.75f);
+  Layout &content = layout.column(false);
+  content.scale_y_set(0.75f);
 
   /* Title. */
-  uiItemL_ex(content, data->title, ICON_NONE, true, false);
+  uiItemL_ex(&content, data->title, ICON_NONE, true, false);
 
-  content->separator(1.0f);
+  content.separator(1.0f);
 
   /* Message lines. */
   for (auto &st : messages) {
-    content->label(st, ICON_NONE);
+    content.label(st, ICON_NONE);
   }
 
   if (data->okay_button) {
 
-    layout->separator(2.0f);
+    layout.separator(2.0f);
 
     /* Clear so the OK button is left alone. */
     UI_block_func_set(block, nullptr, nullptr, nullptr);
 
     const float pad = std::max((1.0f - ((200.0f * UI_SCALE_FAC) / float(text_width))) / 2.0f,
                                0.01f);
-    uiLayout *split = &layout->split(pad, true);
-    split->column(true);
-    uiLayout *buttons = &split->split(1.0f - (pad * 2.0f), true);
-    buttons->scale_y_set(1.2f);
+    Layout &split = layout.split(pad, true);
+    split.column(true);
+    Layout &buttons = split.split(1.0f - (pad * 2.0f), true);
+    buttons.scale_y_set(1.2f);
 
-    uiBlock *buttons_block = layout->block();
+    uiBlock *buttons_block = layout.block();
     uiBut *okay_but = uiDefBut(
         buttons_block, ButType::But, "OK", 0, 0, 0, UI_UNIT_Y, nullptr, 0, 0, "");
     UI_but_func_set(okay_but, ui_alert_ok_cb, user_data, block);
@@ -1114,7 +1113,7 @@ static uiBlock *ui_alert_create(bContext *C, ARegion *region, void *user_data)
   if (data->mouse_move_quit) {
     const float button_center_x = -0.5f;
     const float button_center_y = data->okay_button ? 4.0f : 2.0f;
-    const int bounds_offset[2] = {int(button_center_x * layout->width()),
+    const int bounds_offset[2] = {int(button_center_x * layout.width()),
                                   int(button_center_y * UI_UNIT_X)};
     UI_block_bounds_set_popup(block, padding, bounds_offset);
   }
@@ -1128,7 +1127,7 @@ static uiBlock *ui_alert_create(bContext *C, ARegion *region, void *user_data)
 void UI_alert(bContext *C,
               const StringRef title,
               const StringRef message,
-              const blender::ui::AlertIcon icon,
+              const AlertIcon icon,
               const bool compact)
 {
   uiAlertData *data = MEM_new<uiAlertData>(__func__);
@@ -1143,3 +1142,5 @@ void UI_alert(bContext *C,
 }
 
 /** \} */
+
+}  // namespace blender::ui

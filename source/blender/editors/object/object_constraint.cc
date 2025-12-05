@@ -27,7 +27,6 @@
 #include "DNA_curve_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_text_types.h"
 
 #include "BIK_api.h"
 #include "BKE_action.hh"
@@ -40,7 +39,7 @@
 #include "BKE_main.hh"
 #include "BKE_object.hh"
 #include "BKE_report.hh"
-#include "BKE_tracking.h"
+#include "BKE_tracking.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
@@ -669,7 +668,7 @@ static bool edit_constraint_invoke_properties(bContext *C,
 
   /* Check the custom data of panels under the mouse for a modifier. */
   if (event != nullptr) {
-    PointerRNA *panel_ptr = UI_region_panel_custom_data_under_cursor(C, event);
+    PointerRNA *panel_ptr = ui::UI_region_panel_custom_data_under_cursor(C, event);
 
     if (!(panel_ptr == nullptr || RNA_pointer_is_null(panel_ptr))) {
       if (RNA_struct_is_a(panel_ptr->type, &RNA_Constraint)) {
@@ -2641,7 +2640,7 @@ static wmOperatorStatus pose_ik_add_invoke(bContext *C, wmOperator *op, const wm
   }
 
   /* prepare popup menu to choose targeting options */
-  uiPopupMenu *pup = UI_popup_menu_begin(C, IFACE_("Add IK"), ICON_NONE);
+  ui::PopupMenu *pup = ui::UI_popup_menu_begin(C, IFACE_("Add IK"), ICON_NONE);
   ui::Layout &layout = *UI_popup_menu_layout(pup);
 
   /* the type of targets we'll set determines the menu entries to show... */

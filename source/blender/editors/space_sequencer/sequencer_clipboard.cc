@@ -410,9 +410,9 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
   BlendFileData *bfd = BKE_blendfile_read(filepath, &params, &bf_reports);
   const int mval[2] = {RNA_int_get(op->ptr, "x"), RNA_int_get(op->ptr, "y")};
   float2 view_mval;
-  View2D *v2d = UI_view2d_fromcontext(C);
+  View2D *v2d = ui::UI_view2d_fromcontext(C);
   Scene *scene = CTX_data_sequencer_scene(C);
-  UI_view2d_region_to_view(v2d, mval[0], mval[1], &view_mval[0], &view_mval[1]);
+  ui::UI_view2d_region_to_view(v2d, mval[0], mval[1], &view_mval[0], &view_mval[1]);
 
   /* For checking if region type is Preview. */
   ARegion *region = CTX_wm_region(C);
@@ -524,7 +524,7 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
      * adding strips to seqbase, for lookup cache to work correctly. */
     seq::ensure_unique_name(istrip, scene_dst);
 
-    if (region->regiontype == RGN_TYPE_PREVIEW && istrip->type != STRIP_TYPE_SOUND_RAM &&
+    if (region->regiontype == RGN_TYPE_PREVIEW && istrip->type != STRIP_TYPE_SOUND &&
         seq::must_render_strip(seq::query_all_strips(&nseqbase), istrip))
     {
       strip_mean_pos += static_cast<int2>(
@@ -540,7 +540,7 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
   LISTBASE_FOREACH (Strip *, istrip, &nseqbase) {
     /* Place strips that generate an image at the mouse cursor. */
     if (region->regiontype == RGN_TYPE_PREVIEW && !RNA_boolean_get(op->ptr, "keep_offset") &&
-        istrip->type != STRIP_TYPE_SOUND_RAM &&
+        istrip->type != STRIP_TYPE_SOUND &&
         seq::must_render_strip(seq::query_all_strips(&nseqbase), istrip))
     {
       StripTransform *transform = istrip->data->transform;
