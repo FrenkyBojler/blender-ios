@@ -1577,11 +1577,11 @@ static void node_find_exec_fn(bContext *C, void * /*arg1*/, void *arg2)
   }
 }
 
-static uiBlock *node_find_menu(bContext *C, ARegion *region, void *arg_optype)
+static ui::Block *node_find_menu(bContext *C, ARegion *region, void *arg_optype)
 {
   static char search[256] = "";
-  uiBlock *block;
-  uiBut *but;
+  ui::Block *block;
+  ui::Button *but;
   wmOperatorType *optype = (wmOperatorType *)arg_optype;
 
   block = block_begin(C, region, "_popup", ui::EmbossType::Emboss);

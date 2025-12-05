@@ -220,7 +220,7 @@ class BoneCollectionItem : public AbstractTreeViewItem {
   {
     Layout &sub = row.row(true);
 
-    uiBut *name_label = uiItemL_ex(&sub, bone_collection_.name, ICON_NONE, false, false);
+    Button *name_label = uiItemL_ex(&sub, bone_collection_.name, ICON_NONE, false, false);
     if (!ANIM_armature_bonecoll_is_editable(&armature_, &bone_collection_)) {
       button_flag_enable(name_label, BUT_INACTIVE);
     }
@@ -471,7 +471,7 @@ void template_bone_collection_tree(Layout *layout, bContext *C)
   }
   BLI_assert(GS(armature->id.name) == ID_AR);
 
-  uiBlock *block = layout->block();
+  Block *block = layout->block();
 
   AbstractTreeView *tree_view = block_add_view(
       *block,

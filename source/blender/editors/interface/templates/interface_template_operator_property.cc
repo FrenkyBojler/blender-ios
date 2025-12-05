@@ -68,7 +68,7 @@ static eAutoPropButsReturn template_operator_property_buts_draw_single(
     const eButLabelAlign label_align,
     int layout_flags)
 {
-  uiBlock *block = layout.block();
+  Block *block = layout.block();
   eAutoPropButsReturn return_info = eAutoPropButsReturn(0);
 
   if (!op->properties) {
@@ -150,7 +150,7 @@ static eAutoPropButsReturn template_operator_property_buts_draw_single(
    * but this is not so important if this button is drawn in those cases
    * (which isn't all that likely anyway) - campbell */
   if (op->properties->len) {
-    uiBut *but;
+    Button *but;
 
     /* Needed to avoid alignment errors with previous buttons */
     Layout &col = layout.column(false);
@@ -175,7 +175,7 @@ static eAutoPropButsReturn template_operator_property_buts_draw_single(
 
   const bool is_popup = (block->flag & BLOCK_KEEP_OPEN) != 0;
 
-  for (const std::unique_ptr<uiBut> &but : block->buttons) {
+  for (const std::unique_ptr<Button> &but : block->buttons) {
     /* no undo for buttons for operator redo panels */
     if (!(layout_flags & TEMPLATE_OP_PROPS_ALLOW_UNDO_PUSH)) {
       button_flag_disable(but.get(), BUT_UNDO);
@@ -285,7 +285,7 @@ void uiTemplateOperatorPropertyButs(
 void template_operator_redo_properties(Layout *layout, const bContext *C)
 {
   wmOperator *op = WM_operator_last_redo(C);
-  uiBlock *block = layout->block();
+  Block *block = layout->block();
 
   if (op == nullptr) {
     return;
@@ -475,7 +475,7 @@ void template_collection_exporters(Layout *layout, bContext *C)
     return;
   }
 
-  /* Assign temporary operator to uiBlock, which takes ownership. */
+  /* Assign temporary operator to Block, which takes ownership. */
   PointerRNA properties = RNA_pointer_create_discrete(
       &collection->id, ot->srna, data->export_properties);
   wmOperator *op = minimal_operator_create(ot, &properties);

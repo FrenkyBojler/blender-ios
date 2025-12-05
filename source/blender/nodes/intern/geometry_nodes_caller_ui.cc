@@ -245,19 +245,19 @@ static void add_layer_name_search_button(DrawGroupInputsContext &ctx,
   name_row.label(socket.name ? IFACE_(socket.name) : "", ICON_NONE);
   ui::Layout &prop_row = split.row(true);
 
-  uiBlock *block = prop_row.block();
-  uiBut *but = uiDefIconTextButR(block,
-                                 ui::ButType::SearchMenu,
-                                 ICON_OUTLINER_DATA_GP_LAYER,
-                                 "",
-                                 0,
-                                 0,
-                                 10 * UI_UNIT_X, /* Dummy value, replaced by layout system. */
-                                 UI_UNIT_Y,
-                                 socket_props_ptr,
-                                 "layer_name",
-                                 0,
-                                 StringRef(socket.description));
+  ui::Block *block = prop_row.block();
+  ui::Button *but = uiDefIconTextButR(block,
+                                      ui::ButType::SearchMenu,
+                                      ICON_OUTLINER_DATA_GP_LAYER,
+                                      "",
+                                      0,
+                                      0,
+                                      10 * UI_UNIT_X, /* Dummy value, replaced by layout system. */
+                                      UI_UNIT_Y,
+                                      socket_props_ptr,
+                                      "layer_name",
+                                      0,
+                                      StringRef(socket.description));
   button_placeholder_set(but, IFACE_("Layer"));
   layout.label("", ICON_BLANK1);
 
@@ -358,19 +358,19 @@ static void add_attribute_search_button(DrawGroupInputsContext &ctx,
     return;
   }
 
-  uiBlock *block = layout.block();
-  uiBut *but = uiDefIconTextButR(block,
-                                 ui::ButType::SearchMenu,
-                                 ICON_NONE,
-                                 "",
-                                 0,
-                                 0,
-                                 10 * UI_UNIT_X, /* Dummy value, replaced by layout system. */
-                                 UI_UNIT_Y,
-                                 socket_props_ptr,
-                                 "attribute_name",
-                                 0,
-                                 StringRef(socket.description));
+  ui::Block *block = layout.block();
+  ui::Button *but = uiDefIconTextButR(block,
+                                      ui::ButType::SearchMenu,
+                                      ICON_NONE,
+                                      "",
+                                      0,
+                                      0,
+                                      10 * UI_UNIT_X, /* Dummy value, replaced by layout system. */
+                                      UI_UNIT_Y,
+                                      socket_props_ptr,
+                                      "attribute_name",
+                                      0,
+                                      StringRef(socket.description));
 
   const Object *object = ed::object::context_object(&ctx.C);
   BLI_assert(object != nullptr);
@@ -773,11 +773,11 @@ static void draw_warnings(const bContext *C,
   });
 
   ui::Layout &col = panel.body->column(false);
-  uiBlock *block = col.block();
+  ui::Block *block = col.block();
   for (const NodeWarning *warning : warnings) {
     const int icon = node_warning_type_icon(warning->type);
     const StringRef message = RPT_(warning->message);
-    uiBut *but = uiDefIconTextBut(
+    ui::Button *but = uiDefIconTextBut(
         block, ui::ButType::Label, icon, message, 0, 0, 1, UI_UNIT_Y, nullptr, std::nullopt);
     /* Add tooltip containing the same message. This is helpful if the message is very long so that
      * it doesn't fit in the panel. */
@@ -1022,10 +1022,8 @@ void draw_geometry_nodes_operator_redo_ui(const bContext &C,
     properties_idprops = bke::idprop::create_group("properties", IDP_FLAG_STATIC_TYPE).release();
     IDP_AddToGroup(op.properties, properties_idprops);
   }
-  PointerRNA properties_ptr = RNA_pointer_create_discrete(
-      op.ptr->owner_id, tree.runtime->geometry_nodes_operator_srna, properties_idprops);
 
-  DrawGroupInputsContext ctx{C, &tree, tree_log, &properties_ptr, &bmain_ptr};
+  DrawGroupInputsContext ctx{C, &tree, tree_log, op.ptr, &bmain_ptr};
   ctx.socket_search_data_fn = [&](const bNodeTreeInterfaceSocket &io_socket) -> SocketSearchData {
     SocketSearchData data{};
     OperatorSearchData &operator_search_data = data.search_data.emplace<OperatorSearchData>();
@@ -1038,9 +1036,9 @@ void draw_geometry_nodes_operator_redo_ui(const bContext &C,
   };
   ctx.draw_attribute_toggle_fn =
       [&](ui::Layout &layout, const int icon, const bNodeTreeInterfaceSocket &io_socket) {
-        PointerRNA inputs_ptr = RNA_pointer_get(&properties_ptr, "inputs");
+        PointerRNA inputs_ptr = RNA_pointer_get(op.ptr, "inputs");
         PointerRNA socket_props_ptr = RNA_pointer_get(&inputs_ptr, io_socket.identifier);
-        layout.prop(&socket_props_ptr, "type", UI_ITEM_R_ICON_ONLY, "", icon);
+        layout.prop(&socket_props_ptr, "type", ui::ITEM_R_ICON_ONLY, "", icon);
       };
   ctx.use_name_for_ids = true;
 
@@ -1054,7 +1052,7 @@ void draw_geometry_nodes_operator_redo_ui(const bContext &C,
   ctx.output_usages.reinitialize(tree.interface_outputs().size());
   nodes::socket_usage_inference::infer_group_interface_inputs_usage(
       tree, *ctx.properties_ptr, ctx.input_usages, ctx.output_usages);
-  draw_interface_panel_content(ctx, &layout, tree.tree_interface.root_panel);
+  draw_interface_panel_content(ctx, layout, tree.tree_interface.root_panel);
 }
 
 }  // namespace blender::nodes

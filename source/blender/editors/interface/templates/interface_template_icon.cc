@@ -23,7 +23,7 @@ struct IconViewMenuArgs {
 };
 
 /* ID Search browse menu, open */
-static uiBlock *ui_icon_view_menu_cb(bContext *C, ARegion *region, void *arg_litem)
+static Block *ui_icon_view_menu_cb(bContext *C, ARegion *region, void *arg_litem)
 {
   static IconViewMenuArgs args;
 
@@ -32,7 +32,7 @@ static uiBlock *ui_icon_view_menu_cb(bContext *C, ARegion *region, void *arg_lit
   const int w = UI_UNIT_X * (args.icon_scale);
   const int h = UI_UNIT_X * (args.icon_scale + args.show_labels);
 
-  uiBlock *block = block_begin(C, region, "_popup", EmbossType::Pulldown);
+  Block *block = block_begin(C, region, "_popup", EmbossType::Pulldown);
   block_flag_enable(block, BLOCK_LOOP);
   block_theme_style_set(block, BLOCK_THEME_STYLE_POPUP);
 
@@ -46,7 +46,7 @@ static uiBlock *ui_icon_view_menu_cb(bContext *C, ARegion *region, void *arg_lit
 
     const int icon = item[a].icon;
     const int value = item[a].value;
-    uiBut *but;
+    Button *but;
     if (args.show_labels) {
       but = uiDefIconTextButR_prop(block,
                                    ButType::Row,
@@ -82,18 +82,18 @@ static uiBlock *ui_icon_view_menu_cb(bContext *C, ARegion *region, void *arg_lit
 
 void template_icon(Layout *layout, int icon_value, float icon_scale)
 {
-  uiBlock *block = layout->absolute().block();
-  uiBut *but = uiDefIconBut(block,
-                            ButType::Label,
-                            ICON_X,
-                            0,
-                            0,
-                            UI_UNIT_X * icon_scale,
-                            UI_UNIT_Y * icon_scale,
-                            nullptr,
-                            0.0,
-                            0.0,
-                            "");
+  Block *block = layout->absolute().block();
+  Button *but = uiDefIconBut(block,
+                             ButType::Label,
+                             ICON_X,
+                             0,
+                             0,
+                             UI_UNIT_X * icon_scale,
+                             UI_UNIT_Y * icon_scale,
+                             nullptr,
+                             0.0,
+                             0.0,
+                             "");
   ui_def_but_icon(but, icon_value, UI_HAS_ICON | BUT_ICON_PREVIEW);
 }
 
@@ -113,7 +113,7 @@ void template_icon_view(Layout *layout,
     return;
   }
 
-  uiBlock *block = layout->absolute().block();
+  Block *block = layout->absolute().block();
 
   int tot_items;
   bool free_items;
@@ -124,7 +124,7 @@ void template_icon_view(Layout *layout,
   int icon = ICON_NONE;
   RNA_enum_icon_from_value(items, value, &icon);
 
-  uiBut *but;
+  Button *but;
   if (RNA_property_editable(ptr, prop)) {
     IconViewMenuArgs *cb_args = MEM_new<IconViewMenuArgs>(__func__);
     cb_args->ptr = *ptr;

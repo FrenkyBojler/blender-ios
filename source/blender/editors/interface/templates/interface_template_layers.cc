@@ -20,7 +20,7 @@ namespace blender::ui {
 
 static void handle_layer_buttons(bContext *C, void *arg1, void *arg2)
 {
-  uiBut *but = static_cast<uiBut *>(arg1);
+  Button *but = static_cast<Button *>(arg1);
   const int cur = POINTER_AS_INT(arg2);
   wmWindow *win = CTX_wm_window(C);
   const bool shift = win->eventstate->modifier & KM_SHIFT;
@@ -89,7 +89,7 @@ void template_layers(Layout *layout,
 
     for (int row = 0; row < 2; row++) {
       Layout &uRow = uCol.row(true);
-      uiBlock *block = uRow.block();
+      Block *block = uRow.block();
       int layer = groups * cols_per_group * row + cols_per_group * group;
 
       /* add layers as toggle buts */
@@ -104,7 +104,7 @@ void template_layers(Layout *layout,
           icon = ICON_LAYER_USED;
         }
 
-        uiBut *but = uiDefAutoButR(
+        Button *but = uiDefAutoButR(
             block, ptr, prop, layer, "", icon, 0, 0, UI_UNIT_X / 2, UI_UNIT_Y / 2);
         button_func_set(but, handle_layer_buttons, but, POINTER_FROM_INT(layer));
         but->type = ButType::Toggle;

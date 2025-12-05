@@ -1111,7 +1111,7 @@ static bool outliner_restrict_properties_collection_set(Scene *scene,
   return true;
 }
 
-static void outliner_draw_restrictbuts(uiBlock *block,
+static void outliner_draw_restrictbuts(ui::Block *block,
                                        Scene *scene,
                                        ViewLayer *view_layer,
                                        ARegion *region,
@@ -1190,7 +1190,7 @@ static void outliner_draw_restrictbuts(uiBlock *block,
              outliner_right_columns_width(space_outliner));
 
   /* Create buttons. */
-  uiBut *bt;
+  ui::Button *bt;
 
   LISTBASE_FOREACH (TreeElement *, te, lb) {
     TreeStoreElem *tselem = TREESTORE(te);
@@ -1789,7 +1789,7 @@ static void outliner_draw_restrictbuts(uiBlock *block,
   }
 }
 
-static void outliner_draw_userbuts(uiBlock *block,
+static void outliner_draw_userbuts(ui::Block *block,
                                    const ARegion *region,
                                    const SpaceOutliner *space_outliner)
 {
@@ -1805,7 +1805,7 @@ static void outliner_draw_userbuts(uiBlock *block,
       return;
     }
 
-    uiBut *bt;
+    ui::Button *bt;
     std::optional<StringRef> tip;
     const int real_users = id->us - ID_FAKE_USERS(id);
     const bool has_fake_user = id->flag & ID_FLAG_FAKEUSER;
@@ -1878,7 +1878,7 @@ static void outliner_draw_userbuts(uiBlock *block,
   });
 }
 
-static void outliner_draw_overrides_rna_buts(uiBlock *block,
+static void outliner_draw_overrides_rna_buts(ui::Block *block,
                                              const ARegion *region,
                                              const SpaceOutliner *space_outliner,
                                              const ListBase *lb,
@@ -1905,17 +1905,17 @@ static void outliner_draw_overrides_rna_buts(uiBlock *block,
     }
 
     if (!override_elem->is_rna_path_valid) {
-      uiBut *but = uiDefBut(block,
-                            ui::ButType::Label,
-                            override_elem->rna_path,
-                            x + pad_x,
-                            te->ys + pad_y,
-                            item_max_width,
-                            item_height,
-                            nullptr,
-                            0.0f,
-                            0.0f,
-                            "");
+      ui::Button *but = uiDefBut(block,
+                                 ui::ButType::Label,
+                                 override_elem->rna_path,
+                                 x + pad_x,
+                                 te->ys + pad_y,
+                                 item_max_width,
+                                 item_height,
+                                 nullptr,
+                                 0.0f,
+                                 0.0f,
+                                 "");
       button_flag_enable(but, ui::BUT_REDALERT);
       continue;
     }
@@ -1944,16 +1944,17 @@ static void outliner_draw_overrides_rna_buts(uiBlock *block,
     PropertyRNA *prop = &override_elem->override_rna_prop;
     const PropertyType prop_type = RNA_property_type(prop);
 
-    uiBut *auto_but = uiDefAutoButR(block,
-                                    ptr,
-                                    prop,
-                                    -1,
-                                    (prop_type == PROP_ENUM) ? std::nullopt : std::optional(""),
-                                    ICON_NONE,
-                                    x + pad_x,
-                                    te->ys + pad_y,
-                                    item_max_width,
-                                    item_height);
+    ui::Button *auto_but = uiDefAutoButR(block,
+                                         ptr,
+                                         prop,
+                                         -1,
+                                         (prop_type == PROP_ENUM) ? std::nullopt :
+                                                                    std::optional(""),
+                                         ICON_NONE,
+                                         x + pad_x,
+                                         te->ys + pad_y,
+                                         item_max_width,
+                                         item_height);
     /* Added the button successfully, nothing else to do. Otherwise, cases for multiple buttons
      * need to be handled. */
     if (auto_but) {
@@ -1969,7 +1970,7 @@ static void outliner_draw_overrides_rna_buts(uiBlock *block,
   }
 }
 
-static bool outliner_but_identity_cmp_context_id_fn(const uiBut *a, const uiBut *b)
+static bool outliner_but_identity_cmp_context_id_fn(const ui::Button *a, const ui::Button *b)
 {
   const std::optional<int64_t> session_uid_a = button_context_int_get(a, "session_uid");
   const std::optional<int64_t> session_uid_b = button_context_int_get(b, "session_uid");
@@ -1981,7 +1982,7 @@ static bool outliner_but_identity_cmp_context_id_fn(const uiBut *a, const uiBut 
 }
 
 static void outliner_draw_overrides_restrictbuts(Main *bmain,
-                                                 uiBlock *block,
+                                                 ui::Block *block,
                                                  const ARegion *region,
                                                  const SpaceOutliner *space_outliner,
                                                  const ListBase *lb,
@@ -2014,16 +2015,16 @@ static void outliner_draw_overrides_restrictbuts(Main *bmain,
     const bool is_system_override = BKE_lib_override_library_is_system_defined(bmain, &id);
     const BIFIconID icon = is_system_override ? ICON_LIBRARY_DATA_OVERRIDE_NONEDITABLE :
                                                 ICON_LIBRARY_DATA_OVERRIDE;
-    uiBut *but = uiDefIconButO(block,
-                               ui::ButType::But,
-                               "ED_OT_lib_id_override_editable_toggle",
-                               wm::OpCallContext::ExecDefault,
-                               icon,
-                               x,
-                               te->ys,
-                               UI_UNIT_X,
-                               UI_UNIT_Y,
-                               "");
+    ui::Button *but = uiDefIconButO(block,
+                                    ui::ButType::But,
+                                    "ED_OT_lib_id_override_editable_toggle",
+                                    wm::OpCallContext::ExecDefault,
+                                    icon,
+                                    x,
+                                    te->ys,
+                                    UI_UNIT_X,
+                                    UI_UNIT_Y,
+                                    "");
     /* "id" is used by the operator #ED_OT_lib_id_override_editable_toggle. */
     PointerRNA idptr = RNA_id_pointer_create(&id);
     button_context_ptr_set(block, but, "id", &idptr);
@@ -2057,7 +2058,7 @@ static void outliner_draw_separator(ARegion *region, const int x)
   immUnbindProgram();
 }
 
-static void outliner_draw_rnabuts(uiBlock *block,
+static void outliner_draw_rnabuts(ui::Block *block,
                                   ARegion *region,
                                   SpaceOutliner *space_outliner,
                                   int sizex)
@@ -2078,16 +2079,16 @@ static void outliner_draw_rnabuts(uiBlock *block,
 
       if (!TSELEM_OPEN(tselem, space_outliner)) {
         if (RNA_property_type(prop) == PROP_POINTER) {
-          uiBut *but = uiDefAutoButR(block,
-                                     &ptr,
-                                     prop,
-                                     -1,
-                                     "",
-                                     ICON_NONE,
-                                     sizex,
-                                     te->ys,
-                                     OL_RNA_COL_SIZEX,
-                                     UI_UNIT_Y - 1);
+          ui::Button *but = uiDefAutoButR(block,
+                                          &ptr,
+                                          prop,
+                                          -1,
+                                          "",
+                                          ICON_NONE,
+                                          sizex,
+                                          te->ys,
+                                          OL_RNA_COL_SIZEX,
+                                          UI_UNIT_Y - 1);
           button_flag_enable(but, ui::BUT_DISABLED);
         }
         else if (RNA_property_type(prop) == PROP_ENUM) {
@@ -2137,12 +2138,12 @@ static void outliner_draw_rnabuts(uiBlock *block,
 }
 
 static void outliner_buttons(const bContext *C,
-                             uiBlock *block,
+                             ui::Block *block,
                              ARegion *region,
                              const float restrict_column_width,
                              TreeElement *te)
 {
-  uiBut *bt;
+  ui::Button *bt;
   TreeStoreElem *tselem;
   int spx, dx, len;
 
@@ -2218,7 +2219,7 @@ static void outliner_mode_toggle_fn(bContext *C, void *tselem_poin, void * /*arg
 }
 
 /* Draw icons for adding and removing objects from the current interaction mode. */
-static void outliner_draw_mode_column_toggle(uiBlock *block,
+static void outliner_draw_mode_column_toggle(ui::Block *block,
                                              const TreeViewContext &tvc,
                                              TreeElement *te,
                                              const bool lock_object_modes)
@@ -2244,17 +2245,17 @@ static void outliner_draw_mode_column_toggle(uiBlock *block,
 
   if (ob->mode == OB_MODE_OBJECT && BKE_object_is_in_editmode(ob)) {
     /* Another object has our (shared) data in edit mode, so nothing we can change. */
-    uiBut *but = uiDefIconBut(block,
-                              ui::ButType::But,
-                              ui::icon_from_object_mode(ob_active->mode),
-                              x_pad,
-                              te->ys,
-                              UI_UNIT_X,
-                              UI_UNIT_Y,
-                              nullptr,
-                              0.0,
-                              0.0,
-                              TIP_("Another object has this shared data in edit mode"));
+    ui::Button *but = uiDefIconBut(block,
+                                   ui::ButType::But,
+                                   ui::icon_from_object_mode(ob_active->mode),
+                                   x_pad,
+                                   te->ys,
+                                   UI_UNIT_X,
+                                   UI_UNIT_Y,
+                                   nullptr,
+                                   0.0,
+                                   0.0,
+                                   TIP_("Another object has this shared data in edit mode"));
     button_flag_enable(but, ui::BUT_DISABLED);
     return;
   }
@@ -2286,17 +2287,17 @@ static void outliner_draw_mode_column_toggle(uiBlock *block,
         " \u2022 Ctrl to add to the current mode");
   }
   block_emboss_set(block, ui::EmbossType::NoneOrStatus);
-  uiBut *but = uiDefIconBut(block,
-                            ui::ButType::IconToggle,
-                            icon,
-                            x_pad,
-                            te->ys,
-                            UI_UNIT_X,
-                            UI_UNIT_Y,
-                            nullptr,
-                            0.0,
-                            0.0,
-                            tip);
+  ui::Button *but = uiDefIconBut(block,
+                                 ui::ButType::IconToggle,
+                                 icon,
+                                 x_pad,
+                                 te->ys,
+                                 UI_UNIT_X,
+                                 UI_UNIT_Y,
+                                 nullptr,
+                                 0.0,
+                                 0.0,
+                                 tip);
   button_func_set(but, outliner_mode_toggle_fn, tselem, nullptr);
   button_flag_enable(but, ui::BUT_DRAG_LOCK);
   /* Mode toggling handles its own undo state because undo steps need to be grouped. */
@@ -2310,7 +2311,7 @@ static void outliner_draw_mode_column_toggle(uiBlock *block,
   }
 }
 
-static void outliner_draw_mode_column(uiBlock *block,
+static void outliner_draw_mode_column(ui::Block *block,
                                       TreeViewContext &tvc,
                                       SpaceOutliner *space_outliner)
 {
@@ -2361,7 +2362,7 @@ static StringRefNull outliner_draw_get_warning_tree_element(const SpaceOutliner 
   return "";
 }
 
-static void outliner_draw_warning_tree_element(uiBlock *block,
+static void outliner_draw_warning_tree_element(ui::Block *block,
                                                const SpaceOutliner *space_outliner,
                                                const StringRef warning_msg,
                                                const bool use_mode_column,
@@ -2373,22 +2374,22 @@ static void outliner_draw_warning_tree_element(uiBlock *block,
                                        0;
 
   block_emboss_set(block, ui::EmbossType::NoneOrStatus);
-  uiBut *but = uiDefIconBut(block,
-                            ui::ButType::IconToggle,
-                            ICON_ERROR,
-                            mode_column_offset,
-                            te_ys,
-                            UI_UNIT_X,
-                            UI_UNIT_Y,
-                            nullptr,
-                            0.0,
-                            0.0,
-                            warning_msg);
+  ui::Button *but = uiDefIconBut(block,
+                                 ui::ButType::IconToggle,
+                                 ICON_ERROR,
+                                 mode_column_offset,
+                                 te_ys,
+                                 UI_UNIT_X,
+                                 UI_UNIT_Y,
+                                 nullptr,
+                                 0.0,
+                                 0.0,
+                                 warning_msg);
   /* No need for undo here, this is a pure info widget. */
   button_flag_disable(but, ui::BUT_UNDO);
 }
 
-static void outliner_draw_warning_column(uiBlock *block,
+static void outliner_draw_warning_column(ui::Block *block,
                                          const SpaceOutliner *space_outliner,
                                          const bool use_mode_column)
 {
@@ -2882,7 +2883,7 @@ TreeElementIcon tree_element_get_icon(TreeStoreElem *tselem, TreeElement *te)
 /**
  * \return true if the element has an icon that was drawn, false if it doesn't have an icon.
  */
-static bool tselem_draw_icon(uiBlock *block,
+static bool tselem_draw_icon(ui::Block *block,
                              int xmax,
                              float x,
                              float y,
@@ -2946,7 +2947,7 @@ static bool tselem_draw_icon(uiBlock *block,
     }
   }
   else {
-    uiBut *but = uiDefIconBut(
+    ui::Button *but = uiDefIconBut(
         block,
         ui::ButType::Label,
         data.icon,
@@ -2994,7 +2995,7 @@ static void outliner_draw_active_indicator(const float minx,
   GPU_blend(GPU_BLEND_ALPHA); /* Round-box disables. */
 }
 
-static void outliner_draw_iconrow_doit(uiBlock *block,
+static void outliner_draw_iconrow_doit(ui::Block *block,
                                        TreeElement *te,
                                        int xmax,
                                        int *offsx,
@@ -3073,7 +3074,7 @@ struct MergedIconRow {
   TreeElement *tree_element[INDEX_ID_MAX + OB_TYPE_MAX];
 };
 
-static void outliner_draw_iconrow(uiBlock *block,
+static void outliner_draw_iconrow(ui::Block *block,
                                   const uiFontStyle *fstyle,
                                   const TreeViewContext &tvc,
                                   SpaceOutliner *space_outliner,
@@ -3277,7 +3278,7 @@ static bool element_should_draw_faded(const TreeViewContext &tvc,
   return false;
 }
 
-static void outliner_draw_tree_element(uiBlock *block,
+static void outliner_draw_tree_element(ui::Block *block,
                                        const uiFontStyle *fstyle,
                                        const TreeViewContext &tvc,
                                        ARegion *region,
@@ -3792,7 +3793,7 @@ static void outliner_draw_highlights(ARegion *region,
   GPU_blend(GPU_BLEND_NONE);
 }
 
-static void outliner_draw_tree(uiBlock *block,
+static void outliner_draw_tree(ui::Block *block,
                                const TreeViewContext &tvc,
                                ARegion *region,
                                SpaceOutliner *space_outliner,
@@ -3958,7 +3959,7 @@ void draw_outliner(const bContext *C, bool do_rebuild)
   ARegion *region = CTX_wm_region(C);
   View2D *v2d = &region->v2d;
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
-  uiBlock *block;
+  ui::Block *block;
   TreeElement *te_edit = nullptr;
 
   TreeViewContext tvc;

@@ -371,7 +371,7 @@ void clip_draw_dopesheet_channels(const bContext *C, ARegion *region)
   }
 
   /* third pass: widgets */
-  uiBlock *block = block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
+  blender::ui::Block *block = block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
   y = (CHANNEL_FIRST);
 
   /* get RNA properties (once) */
@@ -392,19 +392,19 @@ void clip_draw_dopesheet_channels(const bContext *C, ARegion *region)
       PointerRNA ptr = RNA_pointer_create_discrete(&clip->id, &RNA_MovieTrackingTrack, track);
 
       block_emboss_set(block, blender::ui::EmbossType::None);
-      uiBut *but = uiDefIconButR_prop(block,
-                                      blender::ui::ButType::IconToggle,
-                                      icon,
-                                      v2d->cur.xmax - UI_UNIT_X - CHANNEL_PAD,
-                                      y - UI_UNIT_Y / 2.0f,
-                                      UI_UNIT_X,
-                                      UI_UNIT_Y,
-                                      &ptr,
-                                      chan_prop_lock,
-                                      0,
-                                      0,
-                                      0,
-                                      std::nullopt);
+      blender::ui::Button *but = uiDefIconButR_prop(block,
+                                                    blender::ui::ButType::IconToggle,
+                                                    icon,
+                                                    v2d->cur.xmax - UI_UNIT_X - CHANNEL_PAD,
+                                                    y - UI_UNIT_Y / 2.0f,
+                                                    UI_UNIT_X,
+                                                    UI_UNIT_Y,
+                                                    &ptr,
+                                                    chan_prop_lock,
+                                                    0,
+                                                    0,
+                                                    0,
+                                                    std::nullopt);
       button_retval_set(but, 1);
       block_emboss_set(block, blender::ui::EmbossType::Emboss);
     }

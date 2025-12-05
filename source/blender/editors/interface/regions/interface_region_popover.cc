@@ -52,9 +52,9 @@ namespace blender::ui {
  * \{ */
 
 struct uiPopover {
-  uiBlock *block;
+  Block *block;
   Layout *layout;
-  uiBut *but;
+  Button *but;
   ARegion *butregion;
 
   /* Needed for keymap removal. */
@@ -107,7 +107,7 @@ static void ui_popover_create_block(bContext *C,
   }
 }
 
-static uiBlock *ui_block_func_POPOVER(bContext *C, uiPopupBlockHandle *handle, void *arg_pup)
+static Block *ui_block_func_POPOVER(bContext *C, PopupBlockHandle *handle, void *arg_pup)
 {
   uiPopover *pup = static_cast<uiPopover *>(arg_pup);
 
@@ -125,7 +125,7 @@ static uiBlock *ui_block_func_POPOVER(bContext *C, uiPopupBlockHandle *handle, v
   }
 
   /* Setup and resolve UI layout for block. */
-  uiBlock *block = pup->block;
+  Block *block = pup->block;
 
   /* in some cases we create the block before the region,
    * so we set it delayed here if necessary */
@@ -208,9 +208,9 @@ static uiBlock *ui_block_func_POPOVER(bContext *C, uiPopupBlockHandle *handle, v
     block->minbounds = UI_MENU_WIDTH_MIN;
 
     if (!handle->refresh) {
-      uiBut *but = nullptr;
-      uiBut *but_first = nullptr;
-      for (const std::unique_ptr<uiBut> &but_iter : block->buttons) {
+      Button *but = nullptr;
+      Button *but_first = nullptr;
+      for (const std::unique_ptr<Button> &but_iter : block->buttons) {
         if ((but_first == nullptr) && ui_but_is_editable(but_iter.get())) {
           but_first = but_iter.get();
         }
@@ -250,11 +250,11 @@ static void ui_block_free_func_POPOVER(void *arg_pup)
   MEM_delete(pup);
 }
 
-uiPopupBlockHandle *ui_popover_panel_create(bContext *C,
-                                            ARegion *butregion,
-                                            uiBut *but,
-                                            uiPopoverCreateFunc popover_func,
-                                            const PanelType *panel_type)
+PopupBlockHandle *ui_popover_panel_create(bContext *C,
+                                          ARegion *butregion,
+                                          Button *but,
+                                          uiPopoverCreateFunc popover_func,
+                                          const PanelType *panel_type)
 {
   wmWindow *window = CTX_wm_window(C);
   const uiStyle *style = style_get_dpi();
@@ -283,7 +283,7 @@ uiPopupBlockHandle *ui_popover_panel_create(bContext *C,
 #endif
 
   /* Create popup block. */
-  uiPopupBlockHandle *handle = ui_popup_block_create(
+  PopupBlockHandle *handle = ui_popup_block_create(
       C, butregion, but, nullptr, ui_block_func_POPOVER, pup, ui_block_free_func_POPOVER, true);
 
   /* Add handlers. If attached to a button, the button will already
@@ -320,9 +320,9 @@ wmOperatorStatus popover_panel_invoke(bContext *C,
     return (OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH);
   }
 
-  uiBlock *block = nullptr;
+  Block *block = nullptr;
   if (keep_open) {
-    uiPopupBlockHandle *handle = ui_popover_panel_create(
+    PopupBlockHandle *handle = ui_popover_panel_create(
         C, nullptr, nullptr, ui_item_paneltype_func, pt);
     uiPopover *pup = static_cast<uiPopover *>(handle->popup_create_vars.arg);
     block = pup->block;
@@ -336,7 +336,7 @@ wmOperatorStatus popover_panel_invoke(bContext *C,
   }
 
   if (block) {
-    uiPopupBlockHandle *handle = block->handle;
+    PopupBlockHandle *handle = block->handle;
     block_active_only_flagged_buttons(C, handle->region, block);
   }
   return OPERATOR_INTERFACE;
@@ -357,7 +357,7 @@ uiPopover *popover_begin(bContext *C, int ui_menu_width, bool from_active_button
   pup->ui_size_x = ui_menu_width;
 
   ARegion *butregion = nullptr;
-  uiBut *but = nullptr;
+  Button *but = nullptr;
 
   if (from_active_button) {
     butregion = CTX_wm_region(C);
@@ -373,9 +373,9 @@ uiPopover *popover_begin(bContext *C, int ui_menu_width, bool from_active_button
   /* Operator context default same as menus, change if needed. */
   ui_popover_create_block(C, nullptr, pup, wm::OpCallContext::ExecRegionWin);
 
-  /* Create in advance so we can let buttons point to #uiPopupBlockHandle::retvalue
+  /* Create in advance so we can let buttons point to #PopupBlockHandle::retvalue
    * (and other return values) already. */
-  pup->block->handle = MEM_new<uiPopupBlockHandle>(__func__);
+  pup->block->handle = MEM_new<PopupBlockHandle>(__func__);
 
   return pup;
 }
@@ -400,14 +400,14 @@ void popover_end(bContext *C, uiPopover *pup, wmKeyMap *keymap)
 
   /* Create popup block. No refresh support since the buttons were created
    * between begin/end and we have no callback to recreate them. */
-  uiPopupBlockHandle *handle = ui_popup_block_create(C,
-                                                     pup->butregion,
-                                                     pup->but,
-                                                     nullptr,
-                                                     ui_block_func_POPOVER,
-                                                     pup,
-                                                     ui_block_free_func_POPOVER,
-                                                     false);
+  PopupBlockHandle *handle = ui_popup_block_create(C,
+                                                   pup->butregion,
+                                                   pup->but,
+                                                   nullptr,
+                                                   ui_block_func_POPOVER,
+                                                   pup,
+                                                   ui_block_free_func_POPOVER,
+                                                   false);
 
   /* Add handlers. */
   popup_handlers_add(C, &window->modalhandlers, handle, 0);

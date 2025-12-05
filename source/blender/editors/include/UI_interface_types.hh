@@ -17,10 +17,6 @@ struct Layout;
 struct TooltipData;
 }  // namespace blender::ui
 
-using uiBut = blender::ui::Button;
-using uiBlock = blender::ui::Block;
-using uiTooltipData = blender::ui::TooltipData;
-
 /* names */
 #define UI_MAX_DRAW_STR 550
 #define UI_MAX_NAME_STR 256
@@ -34,7 +30,7 @@ using uiMenuHandleFunc = void (*)(bContext *C, void *arg, int event);
 /**
  * Used for cycling menu values without opening the menu (Ctrl-Wheel).
  * \param direction: forward or backwards [1 / -1].
- * \param arg1: `uiBut.poin` (as with #uiMenuCreateFunc).
+ * \param arg1: `blender::ui::Button.poin` (as with #uiMenuCreateFunc).
  * \return true when the button was changed.
  */
 using uiMenuStepFunc = bool (*)(bContext *C, int direction, void *arg1);
@@ -51,7 +47,10 @@ using uiButToolTipFunc = std::string (*)(bContext *C, void *argN, blender::Strin
  *   is shared across multiple buttons but there still needs to be some customization per button.
  *   Mostly useful when using #uiLayoutSetTooltipCustomFunc.
  */
-using uiButToolTipCustomFunc = void (*)(bContext &C, uiTooltipData &data, uiBut *but, void *argN);
+using uiButToolTipCustomFunc = void (*)(bContext &C,
+                                        blender::ui::TooltipData &data,
+                                        blender::ui::Button *but,
+                                        void *argN);
 
 namespace blender::ocio {
 class Display;

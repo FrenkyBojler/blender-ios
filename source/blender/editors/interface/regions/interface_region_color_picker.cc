@@ -106,7 +106,7 @@ void ui_color_picker_hsv_to_rgb(const float r_cp[3], float rgb[3])
   }
 }
 
-bool ui_but_is_color_gamma(uiBut *but)
+bool ui_but_is_color_gamma(Button *but)
 {
   if (but->rnaprop) {
     if (RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA) {
@@ -117,7 +117,7 @@ bool ui_but_is_color_gamma(uiBut *but)
   return but->block->is_color_gamma_picker;
 }
 
-bool ui_but_color_has_alpha(uiBut *but)
+bool ui_but_color_has_alpha(Button *but)
 {
   if (but->rnaprop) {
     const PropertySubType prop_subtype = RNA_property_subtype(but->rnaprop);
@@ -151,12 +151,12 @@ static void ui_perceptual_to_scene_linear_space(const bool is_gamma, float rgb[3
   }
 }
 
-void ui_scene_linear_to_perceptual_space(uiBut *but, float rgb[3])
+void ui_scene_linear_to_perceptual_space(Button *but, float rgb[3])
 {
   ui_scene_linear_to_perceptual_space(ui_but_is_color_gamma(but), rgb);
 }
 
-void ui_perceptual_to_scene_linear_space(uiBut *but, float rgb[3])
+void ui_perceptual_to_scene_linear_space(Button *but, float rgb[3])
 {
   ui_perceptual_to_scene_linear_space(ui_but_is_color_gamma(but), rgb);
 }
@@ -226,7 +226,7 @@ static void ui_color_picker_update_from_rgb_linear(ColorPicker *cpicker,
   cpicker->is_init = true;
 }
 
-void ui_but_hsv_set(uiBut *but)
+void ui_but_hsv_set(Button *but)
 {
   float rgb_perceptual_slider[3];
   ColorPicker *cpicker = static_cast<ColorPicker *>(but->custom_data);
@@ -238,7 +238,7 @@ void ui_but_hsv_set(uiBut *but)
 }
 
 /* Updates all buttons who share the same color picker as the one passed. */
-static void ui_update_color_picker_buts_rgba(uiBlock *block,
+static void ui_update_color_picker_buts_rgba(Block *block,
                                              ColorPicker *cpicker,
                                              const bool is_editing_sliders,
                                              const float rgba_scene_linear[4])
@@ -246,7 +246,7 @@ static void ui_update_color_picker_buts_rgba(uiBlock *block,
   ui_color_picker_update_from_rgb_linear(
       cpicker, block->is_color_gamma_picker, is_editing_sliders, rgba_scene_linear);
 
-  for (const std::unique_ptr<uiBut> &bt : block->buttons) {
+  for (const std::unique_ptr<Button> &bt : block->buttons) {
     if (bt->custom_data != cpicker) {
       continue;
     }
@@ -289,12 +289,12 @@ static void ui_update_color_picker_buts_rgba(uiBlock *block,
 
 static void ui_colorpicker_rgba_update_cb(bContext * /*C*/, void *picker_bt1, void *prop_bt1)
 {
-  uiBut *picker_but = static_cast<uiBut *>(picker_bt1);
-  uiBlock *block = picker_but->block;
-  uiPopupBlockHandle *popup = block->handle;
+  Button *picker_but = static_cast<Button *>(picker_bt1);
+  Block *block = picker_but->block;
+  PopupBlockHandle *popup = block->handle;
   ColorPicker *cpicker = static_cast<ColorPicker *>(picker_but->custom_data);
 
-  uiBut *prop_but = static_cast<uiBut *>(prop_bt1);
+  Button *prop_but = static_cast<Button *>(prop_bt1);
   PointerRNA ptr = prop_but->rnapoin;
   PropertyRNA *prop = prop_but->rnaprop;
 
@@ -314,13 +314,13 @@ static void ui_colorpicker_rgba_update_cb(bContext * /*C*/, void *picker_bt1, vo
 
 static void ui_colorpicker_hsv_perceptual_slider_update_cb(bContext * /*C*/, void *bt1, void *bt2)
 {
-  uiBut *but = static_cast<uiBut *>(bt1);
-  uiPopupBlockHandle *popup = but->block->handle;
+  Button *but = static_cast<Button *>(bt1);
+  PopupBlockHandle *popup = but->block->handle;
   ColorPicker *cpicker = static_cast<ColorPicker *>(but->custom_data);
 
   /* Get RNA ptr/prop from the original color datablock button (bt2) since the HSV buttons (bt1)
    * do not directly point to it. */
-  uiBut *prop_but = static_cast<uiBut *>(bt2);
+  Button *prop_but = static_cast<Button *>(bt2);
   PointerRNA ptr = prop_but->rnapoin;
   PropertyRNA *prop = prop_but->rnaprop;
   float rgba_scene_linear[4];
@@ -344,13 +344,13 @@ static void ui_colorpicker_hsv_perceptual_slider_update_cb(bContext * /*C*/, voi
 
 static void ui_colorpicker_hsv_linear_slider_update_cb(bContext * /*C*/, void *bt1, void *bt2)
 {
-  uiBut *but = static_cast<uiBut *>(bt1);
-  uiPopupBlockHandle *popup = but->block->handle;
+  Button *but = static_cast<Button *>(bt1);
+  PopupBlockHandle *popup = but->block->handle;
   ColorPicker *cpicker = static_cast<ColorPicker *>(but->custom_data);
 
   /* Get RNA ptr/prop from the original color datablock button (bt2) since the HSV buttons (bt1)
    * do not directly point to it. */
-  uiBut *prop_but = static_cast<uiBut *>(bt2);
+  Button *prop_but = static_cast<Button *>(bt2);
   PointerRNA ptr = prop_but->rnapoin;
   PropertyRNA *prop = prop_but->rnaprop;
   float rgba_scene_linear[4];
@@ -372,13 +372,13 @@ static void ui_colorpicker_hsv_linear_slider_update_cb(bContext * /*C*/, void *b
 
 static void ui_colorpicker_rgb_perceptual_slider_update_cb(bContext * /*C*/, void *bt1, void *bt2)
 {
-  uiBut *but = static_cast<uiBut *>(bt1);
-  uiPopupBlockHandle *popup = but->block->handle;
+  Button *but = static_cast<Button *>(bt1);
+  PopupBlockHandle *popup = but->block->handle;
   ColorPicker *cpicker = static_cast<ColorPicker *>(but->custom_data);
 
   /* Get RNA ptr/prop from the original color datablock button (bt2) since the HSV buttons (bt1)
    * do not directly point to it. */
-  uiBut *prop_but = static_cast<uiBut *>(bt2);
+  Button *prop_but = static_cast<Button *>(bt2);
   PointerRNA ptr = prop_but->rnapoin;
   PropertyRNA *prop = prop_but->rnaprop;
   float rgba_scene_linear[4];
@@ -402,8 +402,8 @@ static void ui_colorpicker_rgb_perceptual_slider_update_cb(bContext * /*C*/, voi
 
 static void ui_colorpicker_hex_rna_cb(bContext * /*C*/, void *bt1, void *bt2)
 {
-  uiBut *but = static_cast<uiBut *>(bt1);
-  uiPopupBlockHandle *popup = but->block->handle;
+  Button *but = static_cast<Button *>(bt1);
+  PopupBlockHandle *popup = but->block->handle;
   ColorPicker *cpicker = static_cast<ColorPicker *>(but->custom_data);
   char hexcol[128];
   ui_but_string_get(but, hexcol, ARRAY_SIZE(hexcol));
@@ -412,7 +412,7 @@ static void ui_colorpicker_hex_rna_cb(bContext * /*C*/, void *bt1, void *bt2)
    * current color to preserve the Alpha component.
    * Like #ui_colorpicker_hsv_perceptual_slider_update_cb, the original color datablock button
    * (bt2) is used since Hex Text Field button (bt1) doesn't directly point to it. */
-  uiBut *prop_but = static_cast<uiBut *>(bt2);
+  Button *prop_but = static_cast<Button *>(bt2);
   PointerRNA ptr = prop_but->rnapoin;
   PropertyRNA *prop = prop_but->rnaprop;
 
@@ -440,8 +440,8 @@ static void ui_colorpicker_hex_rna_cb(bContext * /*C*/, void *bt1, void *bt2)
 
 static void ui_popup_close_cb(bContext * /*C*/, void *bt1, void * /*arg*/)
 {
-  uiBut *but = (uiBut *)bt1;
-  uiPopupBlockHandle *popup = but->block->handle;
+  Button *but = (Button *)bt1;
+  PopupBlockHandle *popup = but->block->handle;
 
   if (popup) {
     ColorPicker *cpicker = static_cast<ColorPicker *>(but->custom_data);
@@ -452,7 +452,7 @@ static void ui_popup_close_cb(bContext * /*C*/, void *bt1, void * /*arg*/)
   }
 }
 
-static void ui_colorpicker_hide_reveal(uiBlock *block)
+static void ui_colorpicker_hide_reveal(Block *block)
 {
   const ePickerType type = ePickerType(g_color_picker_type);
   const ePickerSpace space = (block->is_color_gamma_picker) ? (type == PICKER_TYPE_RGB) ?
@@ -461,7 +461,7 @@ static void ui_colorpicker_hide_reveal(uiBlock *block)
                                                               ePickerSpace(g_color_picker_space);
 
   /* tag buttons */
-  for (const std::unique_ptr<uiBut> &bt : block->buttons) {
+  for (const std::unique_ptr<Button> &bt : block->buttons) {
     if ((bt->func == ui_colorpicker_rgba_update_cb) && (bt->type == ButType::NumSlider) &&
         (bt->rnaindex != 3))
     {
@@ -489,11 +489,11 @@ static void ui_colorpicker_hide_reveal(uiBlock *block)
 
 static void ui_colorpicker_update_type_space_cb(bContext * /*C*/, void *picker_bt1, void *prop_bt1)
 {
-  uiBut *picker_but = static_cast<uiBut *>(picker_bt1);
-  uiBlock *block = picker_but->block;
+  Button *picker_but = static_cast<Button *>(picker_bt1);
+  Block *block = picker_but->block;
   ColorPicker *cpicker = static_cast<ColorPicker *>(picker_but->custom_data);
 
-  uiBut *prop_but = static_cast<uiBut *>(prop_bt1);
+  Button *prop_but = static_cast<Button *>(prop_bt1);
   PointerRNA ptr = prop_but->rnapoin;
   PropertyRNA *prop = prop_but->rnaprop;
 
@@ -513,12 +513,12 @@ static void ui_colorpicker_update_type_space_cb(bContext * /*C*/, void *picker_b
 #define PICKER_W (PICKER_TOTAL_W - PICKER_BAR - PICKER_SPACE)
 #define PICKER_H PICKER_W
 
-static void ui_colorpicker_circle(uiBlock *block,
+static void ui_colorpicker_circle(Block *block,
                                   PointerRNA *ptr,
                                   PropertyRNA *prop,
                                   ColorPicker *cpicker)
 {
-  uiBut *bt;
+  Button *bt;
   ButtonHSVCube *hsv_but;
 
   /* HS circle */
@@ -576,11 +576,8 @@ static void ui_colorpicker_circle(uiBlock *block,
   hsv_but->custom_data = cpicker;
 }
 
-static void ui_colorpicker_square(uiBlock *block,
-                                  PointerRNA *ptr,
-                                  PropertyRNA *prop,
-                                  eButGradientType type,
-                                  ColorPicker *cpicker)
+static void ui_colorpicker_square(
+    Block *block, PointerRNA *ptr, PropertyRNA *prop, eButGradientType type, ColorPicker *cpicker)
 {
   ButtonHSVCube *hsv_but;
 
@@ -625,13 +622,13 @@ static void ui_colorpicker_square(uiBlock *block,
 
 /* a HS circle, V slider, rgb/hsv/hex sliders */
 static void ui_block_colorpicker(const bContext * /*C*/,
-                                 uiBlock *block,
-                                 uiBut *from_but,
+                                 Block *block,
+                                 Button *from_but,
                                  float rgba_scene_linear[4],
                                  bool show_picker)
 {
   /* ePickerType */
-  uiBut *bt;
+  Button *bt;
   int picker_width;
   float softmin, softmax, hardmin, hardmax, step, precision;
   ColorPicker *cpicker = ui_block_colorpicker_create(block);
@@ -677,7 +674,7 @@ static void ui_block_colorpicker(const bContext * /*C*/,
   int yco = -0.5f * UI_UNIT_Y;
 
   if (!block->is_color_gamma_picker) {
-    auto colorspace_tip_func = [](bContext & /*C*/, uiTooltipData &tip, uiBut *but, void *space) {
+    auto colorspace_tip_func = [](bContext & /*C*/, TooltipData &tip, Button *but, void *space) {
       UI_tooltip_text_field_add(tip, but->tip, {}, TIP_STYLE_HEADER, TIP_LC_NORMAL, false);
       UI_tooltip_text_field_add(tip,
                                 IFACE_("Color Space: ") +
@@ -981,8 +978,8 @@ static void ui_block_colorpicker(const bContext * /*C*/,
                 cpicker->has_alpha ? 10 : 8,
                 std::nullopt);
   const auto bt_tooltip_func = [](bContext & /*C*/,
-                                  uiTooltipData &tip,
-                                  uiBut * /*but*/,
+                                  TooltipData &tip,
+                                  Button * /*but*/,
                                   void *has_alpha_ptr) {
     const bool *has_alpha = static_cast<bool *>(has_alpha_ptr);
     if (*has_alpha) {
@@ -1025,9 +1022,9 @@ static void ui_block_colorpicker(const bContext * /*C*/,
   ui_colorpicker_hide_reveal(block);
 }
 
-static int ui_colorpicker_wheel_cb(const bContext * /*C*/, uiBlock *block, const wmEvent *event)
+static int ui_colorpicker_wheel_cb(const bContext * /*C*/, Block *block, const wmEvent *event)
 {
-  uiPopupBlockHandle *popup = block->handle;
+  PopupBlockHandle *popup = block->handle;
   bool mouse_in_region = popup && BLI_rcti_isect_pt(&popup->region->winrct,
                                                     float(event->xy[0]),
                                                     float(event->xy[1]));
@@ -1056,7 +1053,7 @@ static int ui_colorpicker_wheel_cb(const bContext * /*C*/, uiBlock *block, const
   }
 
   if (add != 0.0f) {
-    for (const std::unique_ptr<uiBut> &but : block->buttons) {
+    for (const std::unique_ptr<Button> &but : block->buttons) {
       if (but->type == ButType::HsvCube && but->active == nullptr) {
         ColorPicker *cpicker = static_cast<ColorPicker *>(but->custom_data);
         float *hsv_perceptual = cpicker->hsv_perceptual;
@@ -1092,10 +1089,10 @@ static int ui_colorpicker_wheel_cb(const bContext * /*C*/, uiBlock *block, const
   return 0;
 }
 
-uiBlock *ui_block_func_COLOR(bContext *C, uiPopupBlockHandle *handle, void *arg_but)
+Block *ui_block_func_COLOR(bContext *C, PopupBlockHandle *handle, void *arg_but)
 {
-  uiBut *but = static_cast<uiBut *>(arg_but);
-  uiBlock *block;
+  Button *but = static_cast<Button *>(arg_but);
+  Block *block;
 
   block = block_begin(C, handle->region, __func__, EmbossType::Emboss);
 
@@ -1117,7 +1114,7 @@ uiBlock *ui_block_func_COLOR(bContext *C, uiPopupBlockHandle *handle, void *arg_
   return block;
 }
 
-ColorPicker *ui_block_colorpicker_create(uiBlock *block)
+ColorPicker *ui_block_colorpicker_create(Block *block)
 {
   ColorPicker *cpicker = MEM_callocN<ColorPicker>(__func__);
   BLI_addhead(&block->color_pickers.list, cpicker);
