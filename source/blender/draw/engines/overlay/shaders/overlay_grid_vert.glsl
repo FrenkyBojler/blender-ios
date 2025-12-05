@@ -17,7 +17,7 @@ struct LineData {
 };
 
 /* Helper; gl_VertexID implicitly encodes a grid line. */
-LineData decode_grid_data(in uint vertex_id)
+LineData decode_grid_data(uint vertex_id)
 {
   LineData line;
 
@@ -46,7 +46,7 @@ LineData decode_grid_data(in uint vertex_id)
 }
 
 /* Helper; gl_VertexID implicitly encodes one of three axis lines. */
-LineData decode_axis_data(in uint vertex_id)
+LineData decode_axis_data(uint vertex_id)
 {
   LineData line;
 
@@ -64,13 +64,13 @@ LineData decode_axis_data(in uint vertex_id)
 }
 
 /* Returns true if components of `v` fall within `epsilon` of 0. */
-bool2 is_zero(in float2 v, in float epsilon)
+bool2 is_zero(float2 v, float epsilon)
 {
   return lessThanEqual(abs(v), float2(epsilon));
 }
 
 /* Test if the current line falls under an active axis line which occludes it. */
-bool test_axis_occlude(in float3 vertex_pos_global)
+bool test_axis_occlude(float3 vertex_pos_global)
 {
   if (flag_test(grid_flag, SHOW_GRID)) {
     return (flag_test(grid_flag, AXIS_X) && all(is_zero(vertex_pos_global.yz, 1e-4f))) ||
@@ -81,7 +81,7 @@ bool test_axis_occlude(in float3 vertex_pos_global)
 }
 
 /* Test if the current line falls under another line on a higher level, which occludes it. */
-bool test_level_occlude(in LineData line, in uint level)
+bool test_level_occlude(LineData line, uint level)
 {
   if (flag_test(grid_flag, SHOW_GRID) && !flag_test(grid_flag, GRID_SIMA)) {
     if (line.level < OVERLAY_GRID_STEPS_DRAW - 1 && level < OVERLAY_GRID_STEPS_LEN - 1) {
