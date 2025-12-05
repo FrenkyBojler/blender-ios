@@ -9,10 +9,9 @@ set(SRC
   cpu_check.cc
 )
 
-# Clear any compile flags to strip any cpu specific optimzations.
-# Without this we might add SSE4.1 instructions in to the cpu check,
-# preventing it from running on cpus without this instruction set.
-set(CMAKE_CXX_FLAGS "")
+if(COMPILER_SSE42_FLAG)
+  remove_cc_flag("${COMPILER_SSE42_FLAG}")
+endif()
 add_library(blender_cpu_check SHARED ${SRC})
 
 target_link_libraries(blender_cpu_check PRIVATE ${PLATFORM_LINKLIBS})

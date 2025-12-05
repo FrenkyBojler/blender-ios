@@ -1331,6 +1331,10 @@ if(NOT WITH_BLENDER AND NOT WITH_CYCLES_STANDALONE AND NOT WITH_CYCLES_HYDRA_REN
   )
 endif()
 
+# Doesn't make too much sense to check if the CPU supports our default SIMD options if they are
+# turned off.
+set_and_warn_dependency(WITH_COMPILER_ADD_SIMD WITH_CPU_CHECK OFF)
+
 set_and_warn_dependency(WITH_AUDASPACE WITH_OPENAL OFF)
 set_and_warn_dependency(WITH_AUDASPACE WITH_COREAUDIO OFF)
 set_and_warn_dependency(WITH_AUDASPACE WITH_JACK OFF)
@@ -1593,7 +1597,6 @@ if(WITH_COMPILER_ADD_SIMD)
   get_sse_flags(COMPILER_SSE42_FLAG)
   string(APPEND CMAKE_CXX_FLAGS " ${COMPILER_SSE42_FLAG}")
   string(APPEND CMAKE_C_FLAGS " ${COMPILER_SSE42_FLAG}")
-  unset(COMPILER_SSE42_FLAG)
 endif()
 
 # Enable SSE2NEON SIMD support if found.
