@@ -125,8 +125,9 @@ TEST_F(SDNATest, struct_member_offset_by_name_without_alias)
             offsetof(TestStruct, name));
   EXPECT_EQ(DNA_struct_member_offset_by_name_without_alias(sdna, "TestStruct", "short", "flag"),
             offsetof(TestStruct, flag));
-  EXPECT_EQ(DNA_struct_member_offset_by_name_without_alias(sdna, "TestStruct", "ListBase", "some_list"),
-            offsetof(TestStruct, some_list));
+  EXPECT_EQ(
+      DNA_struct_member_offset_by_name_without_alias(sdna, "TestStruct", "ListBase", "some_list"),
+      offsetof(TestStruct, some_list));
   EXPECT_EQ(DNA_struct_member_offset_by_name_without_alias(sdna, "TestStruct", "int", "tag"),
             offsetof(TestStruct, tag));
 }
