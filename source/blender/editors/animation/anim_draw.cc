@@ -27,7 +27,7 @@
 #include "BKE_curve.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_global.hh"
-#include "BKE_mask.h"
+#include "BKE_mask.hh"
 #include "BKE_nla.hh"
 
 #include "ED_anim_api.hh"
@@ -231,7 +231,7 @@ void ANIM_draw_action_framerange(
   immBindBuiltinProgram(GPU_SHADER_2D_DIAG_STRIPES);
 
   float color[4];
-  UI_GetThemeColorShadeAlpha4fv(TH_BACK, -40, -50, color);
+  blender::ui::GetThemeColorShadeAlpha4fv(TH_BACK, -40, -50, color);
 
   immUniform4f("color1", color[0], color[1], color[2], color[3]);
   immUniform4f("color2", 0.0f, 0.0f, 0.0f, 0.0f);
@@ -608,7 +608,7 @@ static float normalization_factor_get(Scene *scene, FCurve *fcu, short flag, flo
   else {
     /* Skip normalization. */
     factor = 1.0f;
-    offset = -min_coord;
+    offset = 0.0f;
   }
 
   BLI_assert(factor != 0.0f);
@@ -767,8 +767,13 @@ static bool find_prev_next_keyframes(bContext *C, int *r_nextfra, int *r_prevfra
 
 void ANIM_center_frame(bContext *C, int smooth_viewtx)
 {
+  const bool is_sequencer = CTX_wm_space_seq(C) != nullptr;
+  Scene *scene = is_sequencer ? CTX_data_sequencer_scene(C) : CTX_data_scene(C);
+  if (!scene) {
+    return;
+  }
+
   ARegion *region = CTX_wm_region(C);
-  Scene *scene = CTX_data_scene(C);
   float w = BLI_rctf_size_x(&region->v2d.cur);
   rctf newrct;
   int nextfra, prevfra;
@@ -804,7 +809,7 @@ void ANIM_center_frame(bContext *C, int smooth_viewtx)
       break;
   }
 
-  UI_view2d_smooth_view(C, region, &newrct, smooth_viewtx);
+  blender::ui::view2d_smooth_view(C, region, &newrct, smooth_viewtx);
 }
 /* *************************************************** */
 
@@ -814,12 +819,12 @@ rctf ANIM_frame_range_view2d_add_xmargin(const View2D &view_2d, const rctf view_
   const float keyframe_size = 10 * UI_SCALE_FAC;
   const float margin_in_px = 4 * keyframe_size;
 
-  /* This cannot use UI_view2d_scale_get_x(view_2d) because that would use the
+  /* This cannot use view2d_scale_get_x(view_2d) because that would use the
    * current scale of the view, and not the one we'd get once `view_rect` is
    * applied. And this function should not assume that view_2d.cur == view_rect.
    *
    * As an added bonus, the division is inverted (compared to
-   * UI_view2d_scale_get_x()) so that we can multiply with the result instead of
+   * view2d_scale_get_x()) so that we can multiply with the result instead of
    * doing yet another division. */
   const float target_scale = BLI_rctf_size_x(&view_rect) / BLI_rcti_size_x(&view_2d.mask);
   const float margin_in_frames = margin_in_px * target_scale;

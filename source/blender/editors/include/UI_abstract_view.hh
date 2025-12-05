@@ -36,14 +36,12 @@
 #include "WM_types.hh"
 
 struct bContext;
-struct uiBlock;
-struct uiButViewItem;
-struct uiLayout;
-struct ViewLink;
 struct wmNotifier;
 
 namespace blender::ui {
 
+struct ViewLink;
+struct ButtonViewItem;
 class AbstractViewItem;
 class AbstractViewItemDragController;
 
@@ -52,9 +50,11 @@ enum class ViewScrollDirection {
   DOWN,
 };
 
+struct Layout;
+
 class AbstractView {
   friend class AbstractViewItem;
-  friend struct ::ViewLink;
+  friend struct ViewLink;
 
   bool is_reconstructed_ = false;
   /**
@@ -141,7 +141,7 @@ class AbstractView {
   MutableSpan<char> get_rename_buffer();
   /**
    * Get the rectangle containing all the view items that are in the layout, in button space.
-   * Updated as part of #UI_block_end(), before that it's unset.
+   * Updated as part of #block_end(), before that it's unset.
    */
   std::optional<rcti> get_bounds() const;
 
@@ -198,10 +198,11 @@ class AbstractViewItem {
    */
   AbstractView *view_ = nullptr;
   /** See #view_item_button() */
-  uiButViewItem *view_item_but_ = nullptr;
+  blender::ui::ButtonViewItem *view_item_but_ = nullptr;
   bool is_activatable_ = true;
   bool is_interactive_ = true;
   bool is_active_ = false;
+  /** Only change using #set_selected() so overrides can sync changes to data. */
   bool is_selected_ = false;
   bool is_renaming_ = false;
   /** See #is_search_highlight(). */
@@ -226,7 +227,7 @@ class AbstractViewItem {
  public:
   virtual ~AbstractViewItem() = default;
 
-  virtual void build_context_menu(bContext &C, uiLayout &column) const;
+  virtual void build_context_menu(bContext &C, Layout &column) const;
 
   /**
    * Like #activate() but does not call #on_activate(). Use it to reflect changes in the active
@@ -306,7 +307,7 @@ class AbstractViewItem {
    * visible item gets one during the layout building. Items that are not visible may not have one,
    * so null is a valid return value.
    */
-  uiButViewItem *view_item_button() const;
+  blender::ui::ButtonViewItem *view_item_button() const;
 
   /** Disable the interacting with this item, meaning the buttons drawn will be disabled and there
    * will be no mouse hover feedback for the view row. */
@@ -364,6 +365,7 @@ class AbstractViewItem {
   void rename_apply(const bContext &C);
 
   virtual void delete_item(bContext *C);
+  virtual void on_filter();
 
  protected:
   AbstractViewItem() = default;

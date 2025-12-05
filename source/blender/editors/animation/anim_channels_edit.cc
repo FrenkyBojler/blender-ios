@@ -40,12 +40,11 @@
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_library.hh"
-#include "BKE_mask.h"
+#include "BKE_mask.hh"
 #include "BKE_nla.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
-#include "BKE_workspace.hh"
 
 #include "ANIM_action.hh"
 #include "ANIM_action_legacy.hh"
@@ -3707,7 +3706,7 @@ static wmOperatorStatus animchannels_select_filter_modal(bContext *C,
   }
 
   ARegion *region = CTX_wm_region(C);
-  if (UI_textbutton_activate_rna(C, region, ac.ads, "filter_text")) {
+  if (blender::ui::textbutton_activate_rna(C, region, ac.ads, "filter_text")) {
     /* Redraw to make sure it shows the cursor after activating */
     WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
   }
@@ -3805,8 +3804,8 @@ static void box_select_anim_channels(bAnimContext *ac, const rcti &rect, short s
   rctf rectf;
 
   /* convert border-region to view coordinates */
-  UI_view2d_region_to_view(v2d, rect.xmin, rect.ymin + 2, &rectf.xmin, &rectf.ymin);
-  UI_view2d_region_to_view(v2d, rect.xmax, rect.ymax - 2, &rectf.xmax, &rectf.ymax);
+  blender::ui::view2d_region_to_view(v2d, rect.xmin, rect.ymin + 2, &rectf.xmin, &rectf.ymin);
+  blender::ui::view2d_region_to_view(v2d, rect.xmax, rect.ymax - 2, &rectf.xmax, &rectf.ymax);
 
   /* filter data */
   filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_LIST_CHANNELS);
@@ -4084,28 +4083,28 @@ static int animchannels_channel_get(bAnimContext *ac, const int mval[2])
   v2d = &region->v2d;
 
   /* Figure out which channel user clicked in. */
-  UI_view2d_region_to_view(v2d, mval[0], mval[1], &x, &y);
+  blender::ui::view2d_region_to_view(v2d, mval[0], mval[1], &x, &y);
 
   if (ac->datatype == ANIMCONT_NLA) {
     SpaceNla *snla = reinterpret_cast<SpaceNla *>(ac->sl);
-    UI_view2d_listview_view_to_cell(NLATRACK_NAMEWIDTH,
-                                    NLATRACK_STEP(snla),
-                                    0,
-                                    NLATRACK_FIRST_TOP(ac),
-                                    x,
-                                    y,
-                                    nullptr,
-                                    &channel_index);
+    blender::ui::view2d_listview_view_to_cell(NLATRACK_NAMEWIDTH,
+                                              NLATRACK_STEP(snla),
+                                              0,
+                                              NLATRACK_FIRST_TOP(ac),
+                                              x,
+                                              y,
+                                              nullptr,
+                                              &channel_index);
   }
   else {
-    UI_view2d_listview_view_to_cell(ANIM_UI_get_channel_name_width(),
-                                    ANIM_UI_get_channel_step(),
-                                    0,
-                                    ANIM_UI_get_first_channel_top(v2d),
-                                    x,
-                                    y,
-                                    nullptr,
-                                    &channel_index);
+    blender::ui::view2d_listview_view_to_cell(ANIM_UI_get_channel_name_width(),
+                                              ANIM_UI_get_channel_step(),
+                                              0,
+                                              ANIM_UI_get_first_channel_top(v2d),
+                                              x,
+                                              y,
+                                              nullptr,
+                                              &channel_index);
   }
 
   return channel_index;
@@ -4863,15 +4862,15 @@ static wmOperatorStatus animchannels_mouseclick_invoke(bContext *C,
   }
 
   /* figure out which channel user clicked in */
-  UI_view2d_region_to_view(v2d, event->mval[0], event->mval[1], &x, &y);
-  UI_view2d_listview_view_to_cell(ANIM_UI_get_channel_name_width(),
-                                  ANIM_UI_get_channel_step(),
-                                  0,
-                                  ANIM_UI_get_first_channel_top(v2d),
-                                  x,
-                                  y,
-                                  nullptr,
-                                  &channel_index);
+  blender::ui::view2d_region_to_view(v2d, event->mval[0], event->mval[1], &x, &y);
+  blender::ui::view2d_listview_view_to_cell(ANIM_UI_get_channel_name_width(),
+                                            ANIM_UI_get_channel_step(),
+                                            0,
+                                            ANIM_UI_get_first_channel_top(v2d),
+                                            x,
+                                            y,
+                                            nullptr,
+                                            &channel_index);
 
   /* handle mouse-click in the relevant channel then */
   notifierFlags = mouse_anim_channels(C, &ac, channel_index, selectmode);
@@ -5113,7 +5112,7 @@ static wmOperatorStatus graphkeys_view_selected_channels_exec(bContext *C, wmOpe
   }
 
   const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
-  UI_view2d_smooth_view(C, window_region, &bounds, smooth_viewtx);
+  blender::ui::view2d_smooth_view(C, window_region, &bounds, smooth_viewtx);
 
   ANIM_animdata_freelist(&anim_data);
 
@@ -5204,7 +5203,7 @@ static wmOperatorStatus graphkeys_channel_view_pick_invoke(bContext *C,
   }
 
   const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
-  UI_view2d_smooth_view(C, window_region, &bounds, smooth_viewtx);
+  blender::ui::view2d_smooth_view(C, window_region, &bounds, smooth_viewtx);
 
   ANIM_animdata_freelist(&anim_data);
 
@@ -5267,22 +5266,27 @@ static wmOperatorStatus channels_bake_exec(bContext *C, wmOperator *op)
 
   Scene *scene = CTX_data_scene(C);
 
-  /* The range will default to the scene or preview range, but only if it hasn't been set before.
-   * If a range is set here, the redo panel wouldn't work properly because the range would
-   * constantly be overridden. */
   blender::int2 frame_range;
-  RNA_int_get_array(op->ptr, "range", frame_range);
-  frame_range[1] = std::max(frame_range[1], frame_range[0]);
-  const float step = RNA_float_get(op->ptr, "step");
-  if (frame_range[0] == 0 && frame_range[1] == 0) {
-    if (scene->r.flag & SCER_PRV_RANGE) {
-      frame_range = {scene->r.psfra, scene->r.pefra};
-    }
-    else {
-      frame_range = {scene->r.sfra, scene->r.efra};
-    }
+  if (scene->r.flag & SCER_PRV_RANGE) {
+    frame_range = {scene->r.psfra, scene->r.pefra};
+  }
+  else {
+    frame_range = {scene->r.sfra, scene->r.efra};
+  }
+
+  /* The range property will default to the scene or preview range, but only if it hasn't been set
+   * before. */
+  blender::int2 rna_range;
+  RNA_int_get_array(op->ptr, "range", rna_range);
+  if (rna_range[0] == 0 && rna_range[1] == 0) {
     RNA_int_set_array(op->ptr, "range", frame_range);
   }
+
+  if (!RNA_boolean_get(op->ptr, "use_scene_range")) {
+    frame_range = rna_range;
+  }
+
+  frame_range[1] = std::max(frame_range[1], frame_range[0]);
 
   const bool remove_outside_range = RNA_boolean_get(op->ptr, "remove_outside_range");
   const BakeCurveRemove remove_existing = remove_outside_range ? BakeCurveRemove::ALL :
@@ -5317,6 +5321,7 @@ static wmOperatorStatus channels_bake_exec(bContext *C, wmOperator *op)
      * changed. */
     const char segment_end_interpolation = fcu->bezt[min_ii(last_index, fcu->totvert - 1)].ipo;
 
+    const float step = RNA_float_get(op->ptr, "step");
     bake_fcurve(fcu, nla_mapped_range, step, remove_existing);
 
     if (bake_modifiers) {
@@ -5349,6 +5354,17 @@ static wmOperatorStatus channels_bake_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
+static bool channels_bake_poll_property(const bContext * /* C */,
+                                        wmOperator *op,
+                                        const PropertyRNA *prop)
+{
+  const char *prop_id = RNA_property_identifier(prop);
+  if (STREQ(prop_id, "range")) {
+    return !RNA_boolean_get(op->ptr, "use_scene_range");
+  }
+  return true;
+}
+
 static void ANIM_OT_channels_bake(wmOperatorType *ot)
 {
   /* Identifiers */
@@ -5360,18 +5376,27 @@ static void ANIM_OT_channels_bake(wmOperatorType *ot)
   /* API callbacks */
   ot->exec = channels_bake_exec;
   ot->poll = channel_view_poll;
+  ot->poll_property = channels_bake_poll_property;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
-  RNA_def_int_array(ot->srna,
-                    "range",
-                    2,
-                    nullptr,
-                    INT_MIN,
-                    INT_MAX,
-                    "Frame Range",
-                    "The range in which to create new keys",
-                    0,
-                    INT_MAX);
+  RNA_def_boolean(
+      ot->srna,
+      "use_scene_range",
+      true,
+      "Use Scene Range",
+      "If enabled, the scene start and end frame will be used to determine the bake range");
+
+  RNA_def_int_array(
+      ot->srna,
+      "range",
+      2,
+      nullptr,
+      INT_MIN,
+      INT_MAX,
+      "Frame Range",
+      "The custom range in which to create new keys. Only used when not using the scene range",
+      0,
+      INT_MAX);
 
   RNA_def_float(ot->srna,
                 "step",
@@ -5774,7 +5799,7 @@ static wmOperatorStatus view_curve_in_graph_editor_exec(bContext *C, wmOperator 
   uiBut *but;
   int index;
 
-  if (!(but = UI_context_active_but_prop_get(C, &button_ptr, &button_prop, &index))) {
+  if (!(but = blender::ui::context_active_but_prop_get(C, &button_ptr, &button_prop, &index))) {
     /* Pass event on if no active button found. */
     return (OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH);
   }
@@ -5791,7 +5816,7 @@ static wmOperatorStatus view_curve_in_graph_editor_exec(bContext *C, wmOperator 
 
   bool path_from_id;
   std::optional<std::string> id_to_prop_path;
-  const bool selected_list_success = UI_context_copy_to_selected_list(
+  const bool selected_list_success = blender::ui::context_copy_to_selected_list(
       C, &button_ptr, button_prop, &selection, &path_from_id, &id_to_prop_path);
 
   if (!context_find_graph_editor(
@@ -5867,7 +5892,7 @@ static wmOperatorStatus view_curve_in_graph_editor_exec(bContext *C, wmOperator 
         add_region_padding(C, region, &bounds);
 
         const int smooth_viewtx = WM_operator_smooth_viewtx_get(op);
-        UI_view2d_smooth_view(C, region, &bounds, smooth_viewtx);
+        blender::ui::view2d_smooth_view(C, region, &bounds, smooth_viewtx);
 
         /* This ensures the channel list updates. */
         ED_area_tag_redraw(area);

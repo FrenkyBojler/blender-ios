@@ -9,9 +9,17 @@
 #include "BLI_string_ref.hh"
 
 struct bContext;
-struct uiLayout;
-struct uiBut;
-struct uiTooltipData;
+
+namespace blender::ui {
+struct Block;
+struct Button;
+struct Layout;
+struct TooltipData;
+}  // namespace blender::ui
+
+using uiBut = blender::ui::Button;
+using uiBlock = blender::ui::Block;
+using uiTooltipData = blender::ui::TooltipData;
 
 /* names */
 #define UI_MAX_DRAW_STR 550
@@ -20,7 +28,7 @@ struct uiTooltipData;
 
 /* Menu Callbacks */
 
-using uiMenuCreateFunc = void (*)(bContext *C, uiLayout *layout, void *arg1);
+using uiMenuCreateFunc = void (*)(bContext *C, blender::ui::Layout *layout, void *arg1);
 using uiMenuHandleFunc = void (*)(bContext *C, void *arg, int event);
 
 /**

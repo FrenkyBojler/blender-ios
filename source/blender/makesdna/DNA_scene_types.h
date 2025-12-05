@@ -27,6 +27,10 @@
 #include "DNA_vec_types.h"
 #include "DNA_view3d_types.h"
 
+#ifdef __cplusplus
+#  include "BLI_map.hh"
+#endif
+
 struct AnimData;
 struct Brush;
 struct Collection;
@@ -41,6 +45,7 @@ struct Scene;
 struct World;
 struct bGPdata;
 struct bNodeTree;
+struct Depsgraph;
 
 /** Workaround to forward-declare C++ type in C header. */
 #ifdef __cplusplus
@@ -56,10 +61,12 @@ class ColorSpace;
 using PaintRuntimeHandle = blender::bke::PaintRuntime;
 using SceneRuntimeHandle = blender::bke::SceneRuntime;
 using ColorSpaceHandle = blender::ocio::ColorSpace;
+using SceneDepsgraphsMap = blender::Map<struct DepsgraphKey, Depsgraph *, 4>;
 #else   // __cplusplus
 typedef struct PaintRuntimeHandle PaintRuntimeHandle;
 typedef struct SceneRuntimeHandle SceneRuntimeHandle;
 typedef struct ColorSpaceHandle ColorSpaceHandle;
+typedef struct SceneDepsgraphsMap SceneDepsgraphsMap;
 #endif  // __cplusplus
 
 /* -------------------------------------------------------------------- */
@@ -912,11 +919,9 @@ typedef struct RenderData {
 
   /** Sequencer options. */
   char seq_prev_type;
-  /** UNUSED. */
-  char seq_rend_type;
   /** Flag use for sequence render/draw. */
   char seq_flag;
-  char _pad5[3];
+  char _pad5[4];
 
   /* Render simplify. */
   short simplify_subsurf;
@@ -1195,6 +1200,8 @@ typedef struct Paint {
 
   /** Enum #ePaintFlags. */
   int flags;
+  /** Enum #ePaintDebugFlags. */
+  int debug_flags;
 
   /**
    * Paint stroke can use up to #PAINT_MAX_INPUT_SAMPLES inputs to smooth the stroke.
@@ -1209,7 +1216,6 @@ typedef struct Paint {
    * See #PaintCurveVisibilityFlags
    */
   int curve_visibility_flags;
-  char _pad[4];
 
   float tile_offset[3];
   struct UnifiedPaintSettings unified_paint_settings;
@@ -2174,16 +2180,11 @@ typedef struct Scene {
   /** First is the [scene, translate, rotate, scale]. */
   TransformOrientationSlot orientation_slots[4];
 
-  void *sound_scene;
-  void *playback_handle;
-  void *sound_scrub_handle;
-  void *speaker_handles;
-
   /** (runtime) info/cache used for presenting playback frame-rate info to the user. */
   void *fps_info;
 
   /** None of the dependency graph vars is mean to be saved. */
-  struct GHash *depsgraph_hash;
+  SceneDepsgraphsMap *depsgraph_hash;
   char _pad7[4];
 
   /* User-Defined KeyingSets. */
@@ -2397,8 +2398,6 @@ enum {
   R_LINE_THICKNESS_ABSOLUTE = 1,
   R_LINE_THICKNESS_RELATIVE = 2,
 };
-
-/* Sequencer seq_prev_type seq_rend_type. */
 
 /** #RenderData::engine (scene.cc) */
 extern const char *RE_engine_id_BLENDER_EEVEE;
@@ -2700,6 +2699,11 @@ typedef enum ePaintFlags {
   PAINT_USE_CAVITY_MASK = (1 << 3),
   PAINT_SCULPT_DELAY_UPDATES = (1 << 4),
 } ePaintFlags;
+
+/** #Paint::debug_flags */
+typedef enum ePaintDebugFlags {
+  PAINT_DEBUG_SHOW_BVH_NODES = (1 << 0),
+} ePaintDebugFlags;
 
 /**
  * #Sculpt::flags

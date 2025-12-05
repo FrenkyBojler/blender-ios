@@ -410,9 +410,9 @@ class IMAGE_MT_uvs_unwrap(Menu):
         layout.separator()
 
         layout.operator_context = 'INVOKE_DEFAULT'
-        layout.operator("uv.smart_project")
-        layout.operator("uv.lightmap_pack")
-        layout.operator("uv.follow_active_quads")
+        layout.operator("uv.smart_project", text="Smart UV Project...")
+        layout.operator("uv.lightmap_pack", text="Lightmap Pack...")
+        layout.operator("uv.follow_active_quads", text="Follow Active Quads...")
 
         layout.separator()
 
@@ -976,7 +976,8 @@ class IMAGE_MT_editor_menus(Menu):
             layout.menu("MASK_MT_select")
 
         if ima and ima.is_dirty:
-            layout.menu("IMAGE_MT_image", text="Image*")
+            # Show "*" to the left for consistency with unsaved files in the title bar.
+            layout.menu("IMAGE_MT_image", text="* Image")
         else:
             layout.menu("IMAGE_MT_image", text="Image")
 
@@ -1794,7 +1795,7 @@ class IMAGE_PT_overlay_mask(MASK_PT_display, Panel):
     def poll(cls, context):
         si = context.space_data
 
-        return si.ui_mode == 'MASK'
+        return si.mode == 'MASK'
 
 
 # Grease Pencil properties

@@ -71,12 +71,12 @@ static void sh_node_tex_noise_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Color>("Color").no_muted_links();
 }
 
-static void node_shader_buts_tex_noise(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_shader_buts_tex_noise(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "noise_dimensions", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-  layout->prop(ptr, "noise_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout.prop(ptr, "noise_dimensions", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout.prop(ptr, "noise_type", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
   if (ELEM(RNA_enum_get(ptr, "noise_type"), SHD_NOISE_FBM)) {
-    layout->prop(ptr, "normalize", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+    layout.prop(ptr, "normalize", ui::ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
   }
 }
 
@@ -439,16 +439,16 @@ NODE_SHADER_MATERIALX_BEGIN
   NodeItem scale = get_input_value("Scale", NodeItem::Type::Float);
   NodeItem detail = get_input_default("Detail", NodeItem::Type::Float);
   NodeItem lacunarity = get_input_value("Lacunarity", NodeItem::Type::Float);
+  /* Empirically, higher octaves lead to NaNs on e.g. Metal and NVIDIA. */
+  const int octaves = int(math::clamp(detail.value->asA<float>(), 1.0f, 13.0f));
 
   NodeItem position = create_node("position", NodeItem::Type::Vector3);
   position = position * scale;
 
-  return create_node("fractal3d",
-                     STREQ(socket_out_->identifier, "Fac") ? NodeItem::Type::Float :
-                                                             NodeItem::Type::Color3,
-                     {{"position", position},
-                      {"octaves", val(int(detail.value->asA<float>()))},
-                      {"lacunarity", lacunarity}});
+  return create_node(
+      "fractal3d",
+      STREQ(socket_out_->identifier, "Fac") ? NodeItem::Type::Float : NodeItem::Type::Color3,
+      {{"position", position}, {"octaves", val(octaves)}, {"lacunarity", lacunarity}});
 }
 #endif
 NODE_SHADER_MATERIALX_END

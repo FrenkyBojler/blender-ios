@@ -109,25 +109,15 @@ FCurve *alloc_driver_fcurve(const char rna_path[],
     /* add some new driver data */
     fcu->driver = MEM_callocN<ChannelDriver>("ChannelDriver");
 
-    /* F-Modifier or Keyframes? */
-    if (creation_mode == DRIVER_FCURVE_GENERATOR) {
-      /* Python API Backwards compatibility hack:
-       * Create FModifier so that old scripts won't break
-       * for now before 2.7 series -- (September 4, 2013)
-       */
-      add_fmodifier(&fcu->modifiers, FMODIFIER_TYPE_GENERATOR, fcu);
-    }
-    else {
-      /* add 2 keyframes so that user has something to work with
-       * - These are configured to 0,0 and 1,1 to give a 1-1 mapping
-       *   which can be easily tweaked from there.
-       */
-      const KeyframeSettings settings = get_keyframe_settings(false);
-      insert_vert_fcurve(fcu, {0.0f, 0.0f}, settings, INSERTKEY_FAST);
-      insert_vert_fcurve(fcu, {1.0f, 1.0f}, settings, INSERTKEY_FAST);
-      fcu->extend = FCURVE_EXTRAPOLATE_LINEAR;
-      BKE_fcurve_handles_recalc(fcu);
-    }
+    /* Add 2 keyframes so that user has something to work with
+     * - These are configured to 0,0 and 1,1 to give a 1-1 mapping
+     *   which can be easily tweaked from there.
+     */
+    const KeyframeSettings settings = get_keyframe_settings(false);
+    insert_vert_fcurve(fcu, {0.0f, 0.0f}, settings, INSERTKEY_FAST);
+    insert_vert_fcurve(fcu, {1.0f, 1.0f}, settings, INSERTKEY_FAST);
+    fcu->extend = FCURVE_EXTRAPOLATE_LINEAR;
+    BKE_fcurve_handles_recalc(fcu);
   }
 
   return fcu;
@@ -148,16 +138,13 @@ static int add_driver_with_target(ReportList * /*reports*/,
                                   PropertyRNA *dst_prop,
                                   PointerRNA *src_ptr,
                                   PropertyRNA *src_prop,
-                                  short flag,
                                   int driver_type)
 {
   FCurve *fcu;
-  short add_mode = (flag & CREATEDRIVER_WITH_FMODIFIER) ? DRIVER_FCURVE_GENERATOR :
-                                                          DRIVER_FCURVE_KEYFRAMES;
   const char *prop_name = RNA_property_identifier(src_prop);
 
   /* Create F-Curve with Driver */
-  fcu = verify_driver_fcurve(dst_id, dst_path, dst_index, eDriverFCurveCreationMode(add_mode));
+  fcu = verify_driver_fcurve(dst_id, dst_path, dst_index, DRIVER_FCURVE_KEYFRAMES);
 
   if (fcu && fcu->driver) {
     ChannelDriver *driver = fcu->driver;
@@ -343,7 +330,6 @@ int ANIM_add_driver_with_target(ReportList *reports,
                                            prop,
                                            &ptr2,
                                            prop2,
-                                           flag,
                                            driver_type);
       }
       break;
@@ -365,7 +351,6 @@ int ANIM_add_driver_with_target(ReportList *reports,
                                            prop,
                                            &ptr2,
                                            prop2,
-                                           flag,
                                            driver_type);
       }
       break;
@@ -384,7 +369,6 @@ int ANIM_add_driver_with_target(ReportList *reports,
                                         prop,
                                         &ptr2,
                                         prop2,
-                                        flag,
                                         driver_type);
       break;
     }
@@ -433,10 +417,8 @@ int ANIM_add_driver(
 
   /* will only loop once unless the array index was -1 */
   for (; array_index < array_index_max; array_index++) {
-    short add_mode = (flag & CREATEDRIVER_WITH_FMODIFIER) ? 2 : 1;
-
     /* create F-Curve with Driver */
-    fcu = verify_driver_fcurve(id, rna_path, array_index, eDriverFCurveCreationMode(add_mode));
+    fcu = verify_driver_fcurve(id, rna_path, array_index, DRIVER_FCURVE_KEYFRAMES);
 
     if (fcu && fcu->driver) {
       ChannelDriver *driver = fcu->driver;
@@ -876,7 +858,7 @@ static const EnumPropertyItem *driver_mapping_type_itemf(bContext *C,
     return prop_driver_create_mapping_types;
   }
 
-  UI_context_active_but_prop_get(C, &ptr, &prop, &index);
+  blender::ui::context_active_but_prop_get(C, &ptr, &prop, &index);
 
   if (ptr.owner_id && ptr.data && prop && RNA_property_driver_editable(&ptr, prop)) {
     const bool is_array = RNA_property_array_check(prop);
@@ -909,7 +891,7 @@ static bool add_driver_button_poll(bContext *C)
   bool driven, special;
 
   /* this operator can only run if there's a property button active, and it can be animated */
-  UI_context_active_but_prop_get(C, &ptr, &prop, &index);
+  blender::ui::context_active_but_prop_get(C, &ptr, &prop, &index);
 
   if (!(ptr.owner_id && ptr.data && prop)) {
     return false;
@@ -933,7 +915,7 @@ static wmOperatorStatus add_driver_button_none(bContext *C, wmOperator *op, shor
   int index;
   int success = 0;
 
-  UI_context_active_but_prop_get(C, &ptr, &prop, &index);
+  blender::ui::context_active_but_prop_get(C, &ptr, &prop, &index);
 
   if (mapping_type == CREATEDRIVER_MAPPING_NONE_ALL) {
     index = -1;
@@ -950,7 +932,7 @@ static wmOperatorStatus add_driver_button_none(bContext *C, wmOperator *op, shor
 
   if (success) {
     /* send updates */
-    UI_context_update_anim_flag(C);
+    blender::ui::context_update_anim_flag(C);
     DEG_relations_tag_update(CTX_data_main(C));
     WM_event_add_notifier(C, NC_ANIMATION | ND_FCURVES_ORDER, nullptr); /* XXX */
 
@@ -1032,7 +1014,7 @@ static wmOperatorStatus add_driver_button_invoke(bContext *C,
   PropertyRNA *prop = nullptr;
   int index;
 
-  UI_context_active_but_prop_get(C, &ptr, &prop, &index);
+  blender::ui::context_active_but_prop_get(C, &ptr, &prop, &index);
 
   if (ptr.owner_id && ptr.data && prop && RNA_property_driver_editable(&ptr, prop)) {
     /* 1) Create a new "empty" driver for this property */
@@ -1047,7 +1029,7 @@ static wmOperatorStatus add_driver_button_invoke(bContext *C,
 
     if (changed) {
       /* send updates */
-      UI_context_update_anim_flag(C);
+      blender::ui::context_update_anim_flag(C);
       DEG_id_tag_update(ptr.owner_id, ID_RECALC_SYNC_TO_EVAL);
       DEG_relations_tag_update(CTX_data_main(C));
       WM_event_add_notifier(C, NC_ANIMATION | ND_FCURVES_ORDER, nullptr);
@@ -1055,7 +1037,7 @@ static wmOperatorStatus add_driver_button_invoke(bContext *C,
 
     /* 2) Show editing panel for setting up this driver */
     /* TODO: Use a different one from the editing popover, so we can have the single/all toggle? */
-    UI_popover_panel_invoke(C, "GRAPH_PT_drivers_popover", true, op->reports);
+    blender::ui::popover_panel_invoke(C, "GRAPH_PT_drivers_popover", true, op->reports);
   }
 
   return OPERATOR_INTERFACE;
@@ -1087,7 +1069,7 @@ static wmOperatorStatus remove_driver_button_exec(bContext *C, wmOperator *op)
   int index;
   const bool all = RNA_boolean_get(op->ptr, "all");
 
-  UI_context_active_but_prop_get(C, &ptr, &prop, &index);
+  blender::ui::context_active_but_prop_get(C, &ptr, &prop, &index);
 
   if (all) {
     index = -1;
@@ -1101,7 +1083,7 @@ static wmOperatorStatus remove_driver_button_exec(bContext *C, wmOperator *op)
 
   if (changed) {
     /* send updates */
-    UI_context_update_anim_flag(C);
+    blender::ui::context_update_anim_flag(C);
     DEG_relations_tag_update(CTX_data_main(C));
     DEG_id_tag_update(ptr.owner_id, ID_RECALC_ANIMATION);
     WM_event_add_notifier(C, NC_ANIMATION | ND_FCURVES_ORDER, nullptr); /* XXX */
@@ -1137,10 +1119,10 @@ static wmOperatorStatus edit_driver_button_exec(bContext *C, wmOperator *op)
   PropertyRNA *prop = nullptr;
   int index;
 
-  UI_context_active_but_prop_get(C, &ptr, &prop, &index);
+  blender::ui::context_active_but_prop_get(C, &ptr, &prop, &index);
 
   if (ptr.owner_id && ptr.data && prop) {
-    UI_popover_panel_invoke(C, "GRAPH_PT_drivers_popover", true, op->reports);
+    blender::ui::popover_panel_invoke(C, "GRAPH_PT_drivers_popover", true, op->reports);
   }
 
   return OPERATOR_INTERFACE;
@@ -1171,14 +1153,14 @@ static wmOperatorStatus copy_driver_button_exec(bContext *C, wmOperator *op)
   bool changed = false;
   int index;
 
-  UI_context_active_but_prop_get(C, &ptr, &prop, &index);
+  blender::ui::context_active_but_prop_get(C, &ptr, &prop, &index);
 
   if (ptr.owner_id && ptr.data && prop && RNA_property_driver_editable(&ptr, prop)) {
     if (const std::optional<std::string> path = RNA_path_from_ID_to_property(&ptr, prop)) {
       /* only copy the driver for the button that this was involved for */
       changed = ANIM_copy_driver(op->reports, ptr.owner_id, path->c_str(), index, 0);
 
-      UI_context_update_anim_flag(C);
+      blender::ui::context_update_anim_flag(C);
     }
   }
 
@@ -1210,14 +1192,14 @@ static wmOperatorStatus paste_driver_button_exec(bContext *C, wmOperator *op)
   bool changed = false;
   int index;
 
-  UI_context_active_but_prop_get(C, &ptr, &prop, &index);
+  blender::ui::context_active_but_prop_get(C, &ptr, &prop, &index);
 
   if (ptr.owner_id && ptr.data && prop && RNA_property_driver_editable(&ptr, prop)) {
     if (const std::optional<std::string> path = RNA_path_from_ID_to_property(&ptr, prop)) {
       /* only copy the driver for the button that this was involved for */
       changed = ANIM_paste_driver(op->reports, ptr.owner_id, path->c_str(), index, 0);
 
-      UI_context_update_anim_flag(C);
+      blender::ui::context_update_anim_flag(C);
 
       DEG_relations_tag_update(CTX_data_main(C));
 

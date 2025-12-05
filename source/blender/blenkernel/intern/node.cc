@@ -234,6 +234,8 @@ static void ntree_copy_data(Main * /*bmain*/,
   if (ntree_src->geometry_node_asset_traits) {
     ntree_dst->geometry_node_asset_traits = MEM_dupallocN<GeometryNodeAssetTraits>(
         __func__, *ntree_src->geometry_node_asset_traits);
+    ntree_dst->geometry_node_asset_traits->node_tool_idname = BLI_strdup_null(
+        ntree_src->geometry_node_asset_traits->node_tool_idname);
   }
 
   if (ntree_src->nested_node_refs) {
@@ -291,6 +293,7 @@ static void ntree_free_data(ID *id)
   }
 
   if (ntree->geometry_node_asset_traits) {
+    MEM_SAFE_FREE(ntree->geometry_node_asset_traits->node_tool_idname);
     MEM_freeN(ntree->geometry_node_asset_traits);
   }
 
@@ -400,7 +403,7 @@ static void node_foreach_id(ID *id, LibraryForeachIDData *data)
 
   if (ntree->runtime->geometry_nodes_eval_dependencies) {
     for (ID *&id_ref : ntree->runtime->geometry_nodes_eval_dependencies->ids.values()) {
-      BKE_LIB_FOREACHID_PROCESS_ID(data, id_ref, IDWALK_CB_NOP);
+      BKE_LIB_FOREACHID_PROCESS_ID(data, id_ref, IDWALK_CB_HASH_IGNORE);
     }
   }
 }
@@ -496,8 +499,10 @@ static void node_foreach_working_space_color(ID *id, const IDTypeForeachColorFun
       else if (socket->type == SOCK_VECTOR && socket->default_value &&
                (STREQ(socket->name, "Subsurface Radius") ||
                 STREQ(socket->name, "Subsurface Radius Scale") ||
-                (node->type_legacy == SH_NODE_SUBSURFACE_SCATTERING &&
-                 STREQ(socket->name, "Radius"))))
+                (STREQ(node->idname, "ShaderNodeSubsurfaceScattering") &&
+                 STREQ(socket->name, "Radius")) ||
+                (STREQ(node->idname, "ShaderNodeBsdfMetallic") &&
+                 (STREQ(socket->name, "IOR") || STREQ(socket->name, "Extinction")))))
       {
         bNodeSocketValueVector *vec = static_cast<bNodeSocketValueVector *>(socket->default_value);
         float length;
@@ -1078,7 +1083,7 @@ static void node_blend_write_storage(BlendWriter *writer, bNodeTree *ntree, bNod
     }
   }
   else if (node->type_legacy == GEO_NODE_VIEWER) {
-    /* Forward compatibility for older Blender versionins where the viewer node only had a geometry
+    /* Forward compatibility for older Blender versions where the viewer node only had a geometry
      * and field input. */
     auto &storage = *static_cast<NodeGeometryViewer *>(node->storage);
     for (const NodeGeometryViewerItem &item : Span{storage.items, storage.items_num}) {
@@ -1196,6 +1201,9 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
   ntree->tree_interface.write(writer);
 
   BLO_write_struct(writer, GeometryNodeAssetTraits, ntree->geometry_node_asset_traits);
+  if (ntree->geometry_node_asset_traits) {
+    BLO_write_string(writer, ntree->geometry_node_asset_traits->node_tool_idname);
+  }
 
   BLO_write_struct_array(
       writer, bNestedNodeRef, ntree->nested_node_refs_num, ntree->nested_node_refs);
@@ -1918,6 +1926,10 @@ void node_tree_blend_read_data(BlendDataReader *reader, ID *owner_id, bNodeTree 
   remove_unsupported_sockets(&ntree->outputs_legacy, nullptr);
 
   BLO_read_struct(reader, GeometryNodeAssetTraits, &ntree->geometry_node_asset_traits);
+  if (ntree->geometry_node_asset_traits) {
+    BLO_read_string(reader, &ntree->geometry_node_asset_traits->node_tool_idname);
+  }
+
   BLO_read_struct_array(
       reader, bNestedNodeRef, ntree->nested_node_refs_num, &ntree->nested_node_refs);
 
@@ -1985,6 +1997,12 @@ void node_update_asset_metadata(bNodeTree &node_tree)
     auto property = idprop::create("geometry_node_asset_traits_flag",
                                    node_tree.geometry_node_asset_traits->flag);
     BKE_asset_metadata_idprop_ensure(asset_data, property.release());
+    if (node_tree.geometry_node_asset_traits->node_tool_idname) {
+      auto property = idprop::create(
+          "node_tool_idname",
+          StringRefNull(node_tree.geometry_node_asset_traits->node_tool_idname));
+      BKE_asset_metadata_idprop_ensure(asset_data, property.release());
+    }
   }
 }
 
@@ -3493,12 +3511,10 @@ bNode *node_add_node(const bContext *C,
     node_unique_id(ntree, *node);
   }
   node->ui_order = ntree.all_nodes().size();
-
   idname.copy_utf8_truncated(node->idname);
-  node_set_typeinfo(C, &ntree, node, node_type_find(idname));
 
   BKE_ntree_update_tag_node_new(&ntree, node);
-
+  node_set_typeinfo(C, &ntree, node, node_type_find(idname));
   return node;
 }
 
@@ -3650,7 +3666,7 @@ bNode *node_copy_with_mapping(bNodeTree *dst_tree,
 
 /**
  * Type of value storage related with socket is the same.
- * \param socket: Node can have multiple sockets & storages pairs.
+ * \param socket: Node can have multiple sockets & storage pairs.
  */
 static void *node_static_value_storage_for(bNode &node, const bNodeSocket &socket)
 {
@@ -4388,7 +4404,8 @@ void node_tree_free_local_node(bNodeTree &ntree, bNode &node)
   node_rebuild_id_vector(ntree);
 }
 
-void node_remove_node(Main *bmain, bNodeTree &ntree, bNode &node, const bool do_id_user)
+void node_remove_node(
+    Main *bmain, bNodeTree &ntree, bNode &node, const bool do_id_user, const bool remove_animation)
 {
   /* This function is not for localized node trees, we do not want
    * do to ID user reference-counting and removal of animation data then. */
@@ -4415,16 +4432,17 @@ void node_remove_node(Main *bmain, bNodeTree &ntree, bNode &node, const bool do_
     }
   }
 
-  /* Remove animation data. */
-  char propname_esc[MAX_IDPROP_NAME * 2];
-  char prefix[MAX_IDPROP_NAME * 2];
+  if (remove_animation) {
+    char propname_esc[MAX_IDPROP_NAME * 2];
+    char prefix[MAX_IDPROP_NAME * 2];
 
-  BLI_str_escape(propname_esc, node.name, sizeof(propname_esc));
-  SNPRINTF_UTF8(prefix, "nodes[\"%s\"]", propname_esc);
+    BLI_str_escape(propname_esc, node.name, sizeof(propname_esc));
+    SNPRINTF_UTF8(prefix, "nodes[\"%s\"]", propname_esc);
 
-  if (BKE_animdata_fix_paths_remove(&ntree.id, prefix)) {
-    if (bmain != nullptr) {
-      DEG_relations_tag_update(bmain);
+    if (BKE_animdata_fix_paths_remove(&ntree.id, prefix)) {
+      if (bmain != nullptr) {
+        DEG_relations_tag_update(bmain);
+      }
     }
   }
 
@@ -4998,7 +5016,14 @@ std::optional<StringRefNull> node_socket_short_label(const bNodeSocket &sock)
 
 StringRefNull node_socket_label(const bNodeSocket &sock)
 {
-  return (sock.label[0] != '\0') ? sock.label : sock.name;
+  /* The node is not explicitly defined. */
+  if (sock.runtime->declaration == nullptr) {
+    return (sock.label[0] != '\0') ? sock.label : sock.name;
+  }
+  if (sock.runtime->declaration->label_fn) {
+    return (*sock.runtime->declaration->label_fn)(sock.owner_node());
+  }
+  return sock.name;
 }
 
 const char *node_socket_translation_context(const bNodeSocket &sock)

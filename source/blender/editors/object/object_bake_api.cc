@@ -498,7 +498,7 @@ static bool bake_object_check(const Scene *scene,
   }
 
   if (target == R_BAKE_TARGET_VERTEX_COLORS) {
-    if (!BKE_color_attribute_supported(*mesh, mesh->active_color_attribute)) {
+    if (!BKE_id_attributes_color_find(&mesh->id, mesh->active_color_attribute)) {
       BKE_reportf(reports,
                   RPT_ERROR,
                   "Mesh does not have an active color attribute \"%s\"",
@@ -507,7 +507,7 @@ static bool bake_object_check(const Scene *scene,
     }
   }
   else if (target == R_BAKE_TARGET_IMAGE_TEXTURES) {
-    if (CustomData_get_active_layer_index(&mesh->corner_data, CD_PROP_FLOAT2) == -1) {
+    if (!mesh->uv_map_names().contains(mesh->active_uv_map_name())) {
       BKE_reportf(
           reports, RPT_ERROR, "No active UV layer found in the object \"%s\"", ob->id.name + 2);
       return false;
@@ -1017,7 +1017,7 @@ static bool bake_targets_init_vertex_colors(Main *bmain,
   }
 
   Mesh *mesh = static_cast<Mesh *>(ob->data);
-  if (!BKE_color_attribute_supported(*mesh, mesh->active_color_attribute)) {
+  if (!BKE_id_attributes_color_find(&mesh->id, mesh->active_color_attribute)) {
     BKE_report(reports, RPT_ERROR, "No active color attribute to bake to");
     return false;
   }
@@ -1492,16 +1492,11 @@ static wmOperatorStatus bake(const BakeAPIRender *bkr,
       }
       else {
         ob_cage_eval = DEG_get_evaluated(depsgraph, ob_cage);
-        if (ob_cage_eval->id.orig_id != &ob_cage->id) {
-          BKE_reportf(reports,
-                      RPT_ERROR,
-                      "Cage object \"%s\" not found in evaluated scene, it may be hidden",
-                      ob_cage->id.name + 2);
-          goto cleanup;
+        if (ob_cage_eval) {
+          ob_cage_eval->visibility_flag |= OB_HIDE_RENDER;
+          ob_cage_eval->base_flag &= ~(BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT |
+                                       BASE_ENABLED_RENDER);
         }
-        ob_cage_eval->visibility_flag |= OB_HIDE_RENDER;
-        ob_cage_eval->base_flag &= ~(BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT |
-                                     BASE_ENABLED_RENDER);
       }
     }
   }
@@ -1524,6 +1519,15 @@ static wmOperatorStatus bake(const BakeAPIRender *bkr,
   /* get the mesh as it arrives in the renderer */
   me_low_eval = bake_mesh_new_from_object(depsgraph, ob_low_eval, preserve_origindex);
 
+  /* Ensure cage object was evaluated by the depsgraph. */
+  if (ob_cage && (ob_cage_eval == nullptr || (ob_cage_eval->id.orig_id != &ob_cage->id))) {
+    BKE_reportf(reports,
+                RPT_ERROR,
+                "Cage object \"%s\" not found in evaluated scene, it may be hidden",
+                ob_cage->id.name + 2);
+    goto cleanup;
+  }
+
   /* Initialize bake targets. */
   if (!bake_targets_init(bkr, &targets, ob_low, ob_low_eval, reports)) {
     goto cleanup;
@@ -1533,7 +1537,7 @@ static wmOperatorStatus bake(const BakeAPIRender *bkr,
    * it is populated later with the cage mesh (smoothed version of the mesh). */
   pixel_array_low = MEM_malloc_arrayN<BakePixel>(targets.pixels_num, "bake pixels low poly");
   if ((bkr->is_selected_to_active && (ob_cage == nullptr) && bkr->is_cage) == false) {
-    if (check_valid_uv_map && !CustomData_has_layer(&me_low_eval->corner_data, CD_PROP_FLOAT2)) {
+    if (check_valid_uv_map && me_low_eval->uv_map_names().is_empty()) {
       BKE_reportf(reports,
                   RPT_ERROR,
                   "No UV map found in the evaluated object \"%s\"",
@@ -1593,8 +1597,7 @@ static wmOperatorStatus bake(const BakeAPIRender *bkr,
 
       me_cage_eval = BKE_mesh_new_from_object(
           nullptr, ob_low_eval, false, preserve_origindex, true);
-      if (check_valid_uv_map && !CustomData_has_layer(&me_cage_eval->corner_data, CD_PROP_FLOAT2))
-      {
+      if (check_valid_uv_map && me_cage_eval->uv_map_names().is_empty()) {
         BKE_reportf(reports,
                     RPT_ERROR,
                     "No UV map found in the evaluated object \"%s\"",
@@ -1781,9 +1784,7 @@ static wmOperatorStatus bake(const BakeAPIRender *bkr,
 
             /* Evaluate modifiers again. */
             me_nores = BKE_mesh_new_from_object(nullptr, ob_low_eval, false, false, true);
-            if (check_valid_uv_map &&
-                !CustomData_has_layer(&me_nores->corner_data, CD_PROP_FLOAT2))
-            {
+            if (check_valid_uv_map && me_nores->uv_map_names().is_empty()) {
               BKE_reportf(reports,
                           RPT_ERROR,
                           "No UV map found in the evaluated object \"%s\"",

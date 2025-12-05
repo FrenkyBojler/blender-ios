@@ -58,6 +58,10 @@ if(WITH_GPU_SHADER_ASSERT)
   add_definitions(-DWITH_GPU_SHADER_ASSERT)
 endif()
 
+if(WITH_XR_OPENXR)
+  add_definitions(-DWITH_XR_OPENXR)
+endif()
+
 set(INC_SYS
 )
 
@@ -101,6 +105,8 @@ set(SRC
   intern/gpu_vertex_format_normals.cc
   intern/gpu_viewport.cc
   intern/gpu_worker.cc
+
+  shader_tool/parser.cc
 
   GPU_attribute_convert.hh
   GPU_batch.hh
@@ -155,9 +161,11 @@ set(SRC
   intern/gpu_query.hh
   intern/gpu_select_private.hh
   intern/gpu_shader_create_info.hh
+  intern/gpu_shader_create_info_pipeline.hh
   intern/gpu_shader_create_info_private.hh
   intern/gpu_shader_dependency_private.hh
   intern/gpu_shader_interface.hh
+  intern/gpu_shader_metadata_private.hh
   intern/gpu_shader_private.hh
   intern/gpu_state_private.hh
   intern/gpu_storage_buffer_private.hh
@@ -279,6 +287,7 @@ set(VULKAN_SRC
   vulkan/vk_fence.hh
   vulkan/vk_framebuffer.hh
   vulkan/vk_ghost_api.hh
+  vulkan/vk_graphics_pipeline.hh
   vulkan/vk_image_view.hh
   vulkan/vk_immediate.hh
   vulkan/vk_index_buffer.hh
@@ -339,6 +348,7 @@ set(VULKAN_SRC
   vulkan/vk_uniform_buffer.hh
   vulkan/vk_vertex_attribute_object.hh
   vulkan/vk_vertex_buffer.hh
+  vulkan/vk_vertex_input_description.hh
 )
 
 set(METAL_SRC
@@ -351,9 +361,10 @@ set(METAL_SRC
   metal/mtl_immediate.mm
   metal/mtl_index_buffer.mm
   metal/mtl_memory.mm
+  metal/mtl_push_constant.cc
   metal/mtl_query.mm
   metal/mtl_shader.mm
-  metal/mtl_shader_generator.mm
+  metal/mtl_shader_generate.cc
   metal/mtl_shader_interface.mm
   metal/mtl_shader_log.mm
   metal/mtl_state.mm
@@ -366,6 +377,7 @@ set(METAL_SRC
   metal/mtl_backend.hh
   metal/mtl_batch.hh
   metal/mtl_capabilities.hh
+  metal/mtl_command_buffer.hh
   metal/mtl_common.hh
   metal/mtl_context.hh
   metal/mtl_debug.hh
@@ -375,9 +387,10 @@ set(METAL_SRC
   metal/mtl_memory.hh
   metal/mtl_primitive.hh
   metal/mtl_pso_descriptor_state.hh
+  metal/mtl_push_constant.hh
   metal/mtl_query.hh
   metal/mtl_shader.hh
-  metal/mtl_shader_generator.hh
+  metal/mtl_shader_generate.hh
   metal/mtl_shader_interface.hh
   metal/mtl_shader_interface_type.hh
   metal/mtl_shader_log.hh
@@ -556,6 +569,11 @@ set(GLSL_SRC
 
   shaders/gpu_shader_codegen_lib.glsl
 
+  shaders/gpu_shader_python_comp.glsl
+  shaders/gpu_shader_python_frag.glsl
+  shaders/gpu_shader_python_typedef_lib.glsl
+  shaders/gpu_shader_python_vert.glsl
+
   shaders/common/gpu_shader_attribute_load_lib.glsl
   shaders/common/gpu_shader_bicubic_sampler_lib.glsl
   shaders/common/gpu_shader_common_color_ramp.glsl
@@ -567,6 +585,7 @@ set(GLSL_SRC
   shaders/common/gpu_shader_common_mix_rgb.glsl
   shaders/common/gpu_shader_debug_gradients_lib.glsl
   shaders/common/gpu_shader_fullscreen_vert.glsl
+  shaders/common/gpu_shader_fullscreen_lib.glsl
   shaders/common/gpu_shader_index_load_lib.glsl
   shaders/common/gpu_shader_index_range_lib.glsl
   shaders/common/gpu_shader_math_angle_lib.glsl
@@ -728,6 +747,8 @@ set(GLSL_SRC_TEST
   tests/shaders/gpu_framebuffer_layer_viewport_test.glsl
   tests/shaders/gpu_framebuffer_subpass_input_test.glsl
   tests/shaders/gpu_push_constants_test.glsl
+  tests/shaders/gpu_texture_test.glsl
+  tests/shaders/gpu_texture_atomic_test.glsl
 )
 
 set(MTL_BACKEND_GLSL_SRC
@@ -748,8 +769,11 @@ set(MTL_BACKEND_GLSL_SRC
   shaders/gpu_shader_msl_matrix_legacy.msl
   shaders/gpu_shader_msl_matrix.msl
   shaders/gpu_shader_msl_sampler.msl
+  shaders/gpu_shader_msl_string.msl
+  shaders/gpu_shader_msl_types.msl
   shaders/gpu_shader_msl_types_legacy.msl
   shaders/gpu_shader_msl_defines.msl
+  shaders/gpu_shader_msl_wrapper.msl
   shaders/gpu_shader_compat_msl.msl
 )
 
@@ -914,14 +938,6 @@ if(WITH_GTESTS)
       vulkan/render_graph/tests/vk_render_graph_test_transfer.cc
 
       vulkan/render_graph/tests/vk_render_graph_test_types.hh
-    )
-  endif()
-
-  # Enable shader validation on build-bot for Metal
-  if(WITH_METAL_BACKEND AND NOT WITH_GPU_DRAW_TESTS AND
-     NOT (WITH_GTESTS AND WITH_GPU_BACKEND_TESTS)) # Avoid duplicate source file
-    list(APPEND TEST_SRC
-      tests/shader_create_info_test.cc
     )
   endif()
 

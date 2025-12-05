@@ -27,7 +27,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_vfont_types.h"
 
-#include "BLI_kdtree.h"
+#include "BLI_kdtree.hh"
 #include "BLI_linklist.h"
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
@@ -372,6 +372,15 @@ static void object_remove_parent_deform_modifiers(Object *ob, const Object *par)
   }
 }
 
+static void parent_clear_data(Object *ob)
+{
+  ob->parent = nullptr;
+  /* Set parent type to default PAROBJECT and reset enum explicitly, to prevent rna enum errors
+   * later. */
+  ob->partype = PAROBJECT;
+  ob->parsubstr[0] = '\0';
+}
+
 void parent_clear(Object *ob, const int type)
 {
   if (ob->parent == nullptr) {
@@ -385,15 +394,13 @@ void parent_clear(Object *ob, const int type)
       object_remove_parent_deform_modifiers(ob, ob->parent);
 
       /* clear parenting relationship completely */
-      ob->parent = nullptr;
-      ob->partype = PAROBJECT;
-      ob->parsubstr[0] = 0;
+      parent_clear_data(ob);
       break;
     }
     case CLEAR_PARENT_KEEP_TRANSFORM: {
       /* remove parent, and apply the parented transform
        * result as object's local transforms */
-      ob->parent = nullptr;
+      parent_clear_data(ob);
       BKE_object_apply_mat4(ob, ob->object_to_world().ptr(), true, false);
       /* Don't recalculate the animation because it would change the transform
        * instead of keeping it. */
@@ -462,9 +469,7 @@ void parent_set(Object *ob, Object *par, const int type, const char *substr)
   unit_m4(ob->parentinv);
 
   if (!par || BKE_object_parent_loop_check(par, ob)) {
-    ob->parent = nullptr;
-    ob->partype = PAROBJECT;
-    ob->parsubstr[0] = 0;
+    parent_clear_data(ob);
     return;
   }
 
@@ -643,9 +648,18 @@ static bool parent_set_with_depsgraph(ReportList *reports,
             break;
           case PAR_LATTICE: /* lattice deform */
             if (BKE_modifiers_is_deformed_by_lattice(ob) != par) {
-              md = modifier_add(reports, bmain, scene, ob, nullptr, eModifierType_Lattice);
+              const bool is_grease_pencil = ob->type == OB_GREASE_PENCIL;
+              const ModifierType lattice_modifier_type = is_grease_pencil ?
+                                                             eModifierType_GreasePencilLattice :
+                                                             eModifierType_Lattice;
+              md = modifier_add(reports, bmain, scene, ob, nullptr, lattice_modifier_type);
               if (md) {
-                ((LatticeModifierData *)md)->object = par;
+                if (is_grease_pencil) {
+                  reinterpret_cast<GreasePencilLatticeModifierData *>(md)->object = par;
+                }
+                else {
+                  reinterpret_cast<LatticeModifierData *>(md)->object = par;
+                }
               }
             }
             break;
@@ -793,14 +807,17 @@ bool parent_set(ReportList *reports,
                                    vert_par);
 }
 
-static void parent_set_vert_find(KDTree_3d *tree, Object *child, int vert_par[3], bool is_tri)
+static void parent_set_vert_find(blender::KDTree_3d *tree,
+                                 Object *child,
+                                 int vert_par[3],
+                                 bool is_tri)
 {
   const float *co_find = child->object_to_world().location();
   if (is_tri) {
-    KDTreeNearest_3d nearest[3];
+    blender::KDTreeNearest_3d nearest[3];
     int tot;
 
-    tot = BLI_kdtree_3d_find_nearest_n(tree, co_find, nearest, 3);
+    tot = blender::BLI_kdtree_3d_find_nearest_n(tree, co_find, nearest, 3);
     BLI_assert(tot == 3);
     UNUSED_VARS(tot);
 
@@ -811,7 +828,7 @@ static void parent_set_vert_find(KDTree_3d *tree, Object *child, int vert_par[3]
     BLI_assert(min_iii(UNPACK3(vert_par)) >= 0);
   }
   else {
-    vert_par[0] = BLI_kdtree_3d_find_nearest(tree, co_find, nullptr);
+    vert_par[0] = blender::BLI_kdtree_3d_find_nearest(tree, co_find, nullptr);
     BLI_assert(vert_par[0] >= 0);
     vert_par[1] = 0;
     vert_par[2] = 0;
@@ -862,7 +879,7 @@ static bool parent_set_nonvertex_parent(bContext *C, ParentingContext *parenting
 
 static bool parent_set_vertex_parent_with_kdtree(bContext *C,
                                                  ParentingContext *parenting_context,
-                                                 KDTree_3d *tree)
+                                                 blender::KDTree_3d *tree)
 {
   int vert_par[3] = {0, 0, 0};
 
@@ -893,7 +910,7 @@ static bool parent_set_vertex_parent_with_kdtree(bContext *C,
 
 static bool parent_set_vertex_parent(bContext *C, ParentingContext *parenting_context)
 {
-  KDTree_3d *tree = nullptr;
+  blender::KDTree_3d *tree = nullptr;
   int tree_tot;
 
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
@@ -904,12 +921,12 @@ static bool parent_set_vertex_parent(bContext *C, ParentingContext *parenting_co
 
   if (tree_tot < (parenting_context->is_vertex_tri ? 3 : 1)) {
     BKE_report(parenting_context->reports, RPT_ERROR, "Not enough vertices for vertex-parent");
-    BLI_kdtree_3d_free(tree);
+    blender::BLI_kdtree_3d_free(tree);
     return false;
   }
 
   const bool ok = parent_set_vertex_parent_with_kdtree(C, parenting_context, tree);
-  BLI_kdtree_3d_free(tree);
+  blender::BLI_kdtree_3d_free(tree);
   return ok;
 }
 
@@ -947,29 +964,29 @@ static wmOperatorStatus parent_set_exec(bContext *C, wmOperator *op)
 static wmOperatorStatus parent_set_invoke_menu(bContext *C, wmOperatorType *ot)
 {
   Object *parent = context_active_object(C);
-  uiPopupMenu *pup = UI_popup_menu_begin(C, IFACE_("Set Parent To"), ICON_NONE);
-  uiLayout *layout = UI_popup_menu_layout(pup);
+  ui::PopupMenu *pup = ui::popup_menu_begin(C, IFACE_("Set Parent To"), ICON_NONE);
+  ui::Layout &layout = *popup_menu_layout(pup);
 
-  PointerRNA opptr = layout->op(
+  PointerRNA opptr = layout.op(
       ot, IFACE_("Object"), ICON_NONE, wm::OpCallContext::ExecDefault, UI_ITEM_NONE);
   RNA_enum_set(&opptr, "type", PAR_OBJECT);
   RNA_boolean_set(&opptr, "keep_transform", false);
 
-  opptr = layout->op(ot,
-                     IFACE_("Object (Keep Transform)"),
-                     ICON_NONE,
-                     wm::OpCallContext::ExecDefault,
-                     UI_ITEM_NONE);
+  opptr = layout.op(ot,
+                    IFACE_("Object (Keep Transform)"),
+                    ICON_NONE,
+                    wm::OpCallContext::ExecDefault,
+                    UI_ITEM_NONE);
   RNA_enum_set(&opptr, "type", PAR_OBJECT);
   RNA_boolean_set(&opptr, "keep_transform", true);
 
-  PointerRNA op_ptr = layout->op(
+  PointerRNA op_ptr = layout.op(
       "OBJECT_OT_parent_no_inverse_set", IFACE_("Object (Without Inverse)"), ICON_NONE);
   RNA_boolean_set(&op_ptr, "keep_transform", false);
 
-  op_ptr = layout->op("OBJECT_OT_parent_no_inverse_set",
-                      IFACE_("Object (Keep Transform Without Inverse)"),
-                      ICON_NONE);
+  op_ptr = layout.op("OBJECT_OT_parent_no_inverse_set",
+                     IFACE_("Object (Keep Transform Without Inverse)"),
+                     ICON_NONE);
   RNA_boolean_set(&op_ptr, "keep_transform", true);
 
   struct {
@@ -1006,53 +1023,53 @@ static wmOperatorStatus parent_set_invoke_menu(bContext *C, wmOperatorType *ot)
   if (parent->type == OB_ARMATURE) {
 
     if (can_support.armature_deform) {
-      op_ptr = layout->op(ot, IFACE_("Armature Deform"), ICON_NONE);
+      op_ptr = layout.op(ot, IFACE_("Armature Deform"), ICON_NONE);
       RNA_enum_set(&op_ptr, "type", PAR_ARMATURE);
     }
     if (can_support.empty_groups) {
-      op_ptr = layout->op(ot, IFACE_("   With Empty Groups"), ICON_NONE);
+      op_ptr = layout.op(ot, IFACE_("   With Empty Groups"), ICON_NONE);
       RNA_enum_set(&op_ptr, "type", PAR_ARMATURE_NAME);
     }
     if (can_support.envelope_weights) {
-      op_ptr = layout->op(ot, IFACE_("   With Envelope Weights"), ICON_NONE);
+      op_ptr = layout.op(ot, IFACE_("   With Envelope Weights"), ICON_NONE);
       RNA_enum_set(&op_ptr, "type", PAR_ARMATURE_ENVELOPE);
     }
     if (can_support.automatic_weights) {
-      op_ptr = layout->op(ot, IFACE_("   With Automatic Weights"), ICON_NONE);
+      op_ptr = layout.op(ot, IFACE_("   With Automatic Weights"), ICON_NONE);
       RNA_enum_set(&op_ptr, "type", PAR_ARMATURE_AUTO);
     }
-    op_ptr = layout->op(ot, IFACE_("Bone"), ICON_NONE);
+    op_ptr = layout.op(ot, IFACE_("Bone"), ICON_NONE);
     RNA_enum_set(&op_ptr, "type", PAR_BONE);
-    op_ptr = layout->op(ot, IFACE_("Bone Relative"), ICON_NONE);
+    op_ptr = layout.op(ot, IFACE_("Bone Relative"), ICON_NONE);
     RNA_enum_set(&op_ptr, "type", PAR_BONE_RELATIVE);
   }
   else if (parent->type == OB_CURVES_LEGACY) {
-    op_ptr = layout->op(ot, IFACE_("Curve Deform"), ICON_NONE);
+    op_ptr = layout.op(ot, IFACE_("Curve Deform"), ICON_NONE);
     RNA_enum_set(&op_ptr, "type", PAR_CURVE);
-    op_ptr = layout->op(ot, IFACE_("Follow Path"), ICON_NONE);
+    op_ptr = layout.op(ot, IFACE_("Follow Path"), ICON_NONE);
     RNA_enum_set(&op_ptr, "type", PAR_FOLLOW);
-    op_ptr = layout->op(ot, IFACE_("Path Constraint"), ICON_NONE);
+    op_ptr = layout.op(ot, IFACE_("Path Constraint"), ICON_NONE);
     RNA_enum_set(&op_ptr, "type", PAR_PATH_CONST);
   }
   else if (parent->type == OB_LATTICE) {
-    op_ptr = layout->op(ot, IFACE_("Lattice Deform"), ICON_NONE);
+    op_ptr = layout.op(ot, IFACE_("Lattice Deform"), ICON_NONE);
     RNA_enum_set(&op_ptr, "type", PAR_LATTICE);
   }
   else if (parent->type == OB_MESH) {
     if (can_support.attach_surface) {
-      layout->op("CURVES_OT_surface_set", IFACE_("Object (Attach Curves to Surface)"), ICON_NONE);
+      layout.op("CURVES_OT_surface_set", IFACE_("Object (Attach Curves to Surface)"), ICON_NONE);
     }
   }
 
   /* vertex parenting */
   if (OB_TYPE_SUPPORT_PARVERT(parent->type)) {
-    op_ptr = layout->op(ot, IFACE_("Vertex"), ICON_NONE);
+    op_ptr = layout.op(ot, IFACE_("Vertex"), ICON_NONE);
     RNA_enum_set(&op_ptr, "type", PAR_VERTEX);
-    op_ptr = layout->op(ot, IFACE_("Vertex (Triangle)"), ICON_NONE);
+    op_ptr = layout.op(ot, IFACE_("Vertex (Triangle)"), ICON_NONE);
     RNA_enum_set(&op_ptr, "type", PAR_VERTEX_TRI);
   }
 
-  UI_popup_menu_end(C, pup);
+  popup_menu_end(C, pup);
 
   return OPERATOR_INTERFACE;
 }
@@ -2447,10 +2464,8 @@ static wmOperatorStatus make_override_library_exec(bContext *C, wmOperator *op)
   /** Currently there is no 'all editable' option from the 3DView. */
   const bool do_fully_editable = false;
 
-  GSet *user_overrides_objects_uids = do_fully_editable ? nullptr :
-                                                          BLI_gset_new(BLI_ghashutil_inthash_p,
-                                                                       BLI_ghashutil_intcmp,
-                                                                       __func__);
+  std::unique_ptr<blender::Set<uint32_t>> user_overrides_objects_uids =
+      do_fully_editable ? nullptr : std::make_unique<blender::Set<uint32_t>>();
 
   if (do_fully_editable) {
     /* Pass. */
@@ -2458,7 +2473,7 @@ static wmOperatorStatus make_override_library_exec(bContext *C, wmOperator *op)
   else if (user_overrides_from_selected_objects) {
     /* Only selected objects can be 'user overrides'. */
     FOREACH_SELECTED_OBJECT_BEGIN (view_layer, CTX_wm_view3d(C), ob_iter) {
-      BLI_gset_add(user_overrides_objects_uids, POINTER_FROM_UINT(ob_iter->id.session_uid));
+      user_overrides_objects_uids->add(ob_iter->id.session_uid);
     }
     FOREACH_SELECTED_OBJECT_END;
   }
@@ -2466,7 +2481,7 @@ static wmOperatorStatus make_override_library_exec(bContext *C, wmOperator *op)
     /* Only armatures inside the root collection (and their children) can be 'user overrides'. */
     FOREACH_COLLECTION_OBJECT_RECURSIVE_BEGIN ((Collection *)id_root, ob_iter) {
       if (ob_iter->type == OB_ARMATURE) {
-        BLI_gset_add(user_overrides_objects_uids, POINTER_FROM_UINT(ob_iter->id.session_uid));
+        user_overrides_objects_uids->add(ob_iter->id.session_uid);
       }
     }
     FOREACH_COLLECTION_OBJECT_RECURSIVE_END;
@@ -2483,9 +2498,7 @@ static wmOperatorStatus make_override_library_exec(bContext *C, wmOperator *op)
         continue;
       }
       LISTBASE_FOREACH (CollectionObject *, coll_ob_iter, &coll_iter->gobject) {
-        if (BLI_gset_haskey(user_overrides_objects_uids,
-                            POINTER_FROM_UINT(coll_ob_iter->ob->id.session_uid)))
-        {
+        if (user_overrides_objects_uids->contains(coll_ob_iter->ob->id.session_uid)) {
           /* Tag for remapping when creating overrides. */
           coll_iter->id.tag |= ID_TAG_DOIT;
           break;
@@ -2518,15 +2531,12 @@ static wmOperatorStatus make_override_library_exec(bContext *C, wmOperator *op)
       {
         continue;
       }
-      if (BLI_gset_haskey(user_overrides_objects_uids,
-                          POINTER_FROM_UINT(id_iter->override_library->reference->session_uid)))
+      if (user_overrides_objects_uids->contains(id_iter->override_library->reference->session_uid))
       {
         id_iter->override_library->flag &= ~LIBOVERRIDE_FLAG_SYSTEM_DEFINED;
       }
     }
     FOREACH_MAIN_ID_END;
-
-    BLI_gset_free(user_overrides_objects_uids, nullptr);
   }
 
   if (success) {
@@ -3006,7 +3016,15 @@ static wmOperatorStatus drop_named_material_invoke(bContext *C,
     return OPERATOR_CANCELLED;
   }
 
-  BKE_object_material_assign(CTX_data_main(C), ob, ma, mat_slot, BKE_MAT_ASSIGN_USERPREF);
+  int assign_type = BKE_MAT_ASSIGN_USERPREF;
+  /* When trying to assign to non-editable object data, assign to the object instead. */
+  if (BKE_id_is_editable(bmain, &ob->id) && ob->data &&
+      !BKE_id_is_editable(bmain, static_cast<ID *>(ob->data)))
+  {
+    assign_type = BKE_MAT_ASSIGN_OBJECT;
+  }
+
+  BKE_object_material_assign(CTX_data_main(C), ob, ma, mat_slot, assign_type);
 
   DEG_id_tag_update(&ob->id, ID_RECALC_TRANSFORM);
 
@@ -3167,7 +3185,7 @@ static wmOperatorStatus object_unlink_data_exec(bContext *C, wmOperator *op)
   ID *id;
   PropertyPointerRNA pprop;
 
-  UI_context_active_but_prop_get_templateID(C, &pprop.ptr, &pprop.prop);
+  ui::context_active_but_prop_get_templateID(C, &pprop.ptr, &pprop.prop);
 
   if (pprop.prop == nullptr) {
     BKE_report(op->reports, RPT_ERROR, "Incorrect context for running object data unlink");

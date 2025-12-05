@@ -159,10 +159,9 @@ static void uvedit_vertex_buttons(const bContext *C, uiBlock *block)
     uiBut *but;
 
     int y = 0;
-    UI_block_align_begin(block);
+    block_align_begin(block);
     but = uiDefButF(block,
-                    ButType::Num,
-                    B_UVEDIT_VERTEX,
+                    blender::ui::ButType::Num,
                     IFACE_("X:"),
                     0,
                     y -= UI_UNIT_Y,
@@ -171,11 +170,11 @@ static void uvedit_vertex_buttons(const bContext *C, uiBlock *block)
                     &uvedit_old_center[0],
                     UNPACK2(range_xy[0]),
                     "");
-    UI_but_number_step_size_set(but, step);
-    UI_but_number_precision_set(but, digits);
+    button_retval_set(but, B_UVEDIT_VERTEX);
+    button_number_step_size_set(but, step);
+    button_number_precision_set(but, digits);
     but = uiDefButF(block,
-                    ButType::Num,
-                    B_UVEDIT_VERTEX,
+                    blender::ui::ButType::Num,
                     IFACE_("Y:"),
                     0,
                     y -= UI_UNIT_Y,
@@ -184,9 +183,10 @@ static void uvedit_vertex_buttons(const bContext *C, uiBlock *block)
                     &uvedit_old_center[1],
                     UNPACK2(range_xy[1]),
                     "");
-    UI_but_number_step_size_set(but, step);
-    UI_but_number_precision_set(but, digits);
-    UI_block_align_end(block);
+    button_retval_set(but, B_UVEDIT_VERTEX);
+    button_number_step_size_set(but, step);
+    button_number_precision_set(but, digits);
+    block_align_end(block);
   }
 }
 
@@ -240,8 +240,8 @@ static void image_panel_uv(const bContext *C, Panel *panel)
 {
   uiBlock *block;
 
-  block = panel->layout->absolute_block();
-  UI_block_func_handle_set(block, do_uvedit_vertex, nullptr);
+  block = panel->layout->absolute().block();
+  block_func_handle_set(block, do_uvedit_vertex, nullptr);
 
   uvedit_vertex_buttons(C, block);
 }

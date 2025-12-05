@@ -408,6 +408,8 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
       style->tooltip.shadowalpha = 0.5f;
       style->tooltip.shadowcolor = 0.0f;
     }
+
+    FROM_DEFAULT_V4_UCHAR(space_node.node_outline);
   }
 
   if (!USER_VERSION_ATLEAST(501, 3)) {
@@ -1728,6 +1730,15 @@ void blo_do_versions_userdef(UserDef *userdef)
     /* The Copy Global Transform add-on was moved into Blender itself, and thus
      * is no longer an add-on. */
     BKE_addon_remove_safe(&userdef->addons, "copy_global_transform");
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 116)) {
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "NODE_AST_compositor", "Camera & Lens Effects");
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "NODE_AST_compositor", "Creative");
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "NODE_AST_compositor", "Utilities");
   }
 
   /**

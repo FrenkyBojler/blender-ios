@@ -32,7 +32,6 @@
 
 #include "ED_screen.hh"
 
-/* Own include. */
 #include "sequencer_intern.hh"
 
 namespace blender::ed::vse {
@@ -686,23 +685,22 @@ static void cursor_set_by_mouse_position(const bContext *C, const wmEvent *event
   const Scene *scene = CTX_data_sequencer_scene(C);
   const Strip *strip = seq::select_active_get(scene);
   TextVars *data = static_cast<TextVars *>(strip->effectdata);
-  const View2D *v2d = UI_view2d_fromcontext(C);
+  const View2D *v2d = ui::view2d_fromcontext(C);
 
   int2 mval_region;
   WM_event_drag_start_mval(event, CTX_wm_region(C), mval_region);
   float2 mouse_loc;
-  UI_view2d_region_to_view(v2d, mval_region.x, mval_region.y, &mouse_loc.x, &mouse_loc.y);
+  ui::view2d_region_to_view(v2d, mval_region.x, mval_region.y, &mouse_loc.x, &mouse_loc.y);
 
   /* Convert cursor coordinates to domain of CharInfo::position. */
-  const blender::float2 view_offs{-scene->r.xsch / 2.0f, -scene->r.ysch / 2.0f};
+  const float2 view_offs{-scene->r.xsch / 2.0f, -scene->r.ysch / 2.0f};
   const float view_aspect = scene->r.xasp / scene->r.yasp;
-  blender::float3x3 transform_mat = seq::image_transform_matrix_get(CTX_data_sequencer_scene(C),
-                                                                    strip);
+  float3x3 transform_mat = seq::image_transform_matrix_get(CTX_data_sequencer_scene(C), strip);
   // MSVC 2019 can't decide here for some reason, pick the template for it.
   transform_mat = blender::math::invert<float, 3>(transform_mat);
 
   mouse_loc.x /= view_aspect;
-  mouse_loc = blender::math::transform_point(transform_mat, mouse_loc);
+  mouse_loc = math::transform_point(transform_mat, mouse_loc);
   mouse_loc -= view_offs;
   data->cursor_offset = find_closest_cursor_offset(data, float2(mouse_loc));
 }
@@ -753,12 +751,12 @@ static wmOperatorStatus sequencer_text_cursor_set_invoke(bContext *C,
   const Scene *scene = CTX_data_sequencer_scene(C);
   Strip *strip = seq::select_active_get(scene);
   TextVars *data = static_cast<TextVars *>(strip->effectdata);
-  const View2D *v2d = UI_view2d_fromcontext(C);
+  const View2D *v2d = ui::view2d_fromcontext(C);
 
   int2 mval_region;
   WM_event_drag_start_mval(event, CTX_wm_region(C), mval_region);
   float2 mouse_loc;
-  UI_view2d_region_to_view(v2d, mval_region.x, mval_region.y, &mouse_loc.x, &mouse_loc.y);
+  ui::view2d_region_to_view(v2d, mval_region.x, mval_region.y, &mouse_loc.x, &mouse_loc.y);
 
   if (!strip_point_image_isect(scene, strip, mouse_loc)) {
     strip->flag &= ~SEQ_FLAG_TEXT_EDITING_ACTIVE;
