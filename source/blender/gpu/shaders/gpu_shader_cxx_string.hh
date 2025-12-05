@@ -19,7 +19,7 @@
  * It is merely a hash of the actual string and it immutable.
  */
 struct string {
-  string(const char *) {}
+  string(const char * /*str*/) {}
 };
 
 bool equal(string, string)
