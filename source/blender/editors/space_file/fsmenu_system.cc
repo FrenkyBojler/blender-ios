@@ -364,17 +364,22 @@ void fsmenu_read_system(FSMenu *fsmenu, int read_bookmarks)
             icon = ICON_DISC;
             break;
           case DRIVE_FIXED:
-          case DRIVE_RAMDISK:
-            icon = ICON_DISK_DRIVE;
+          case DRIVE_RAMDISK: {
+            DWORD fileSystemFlags;
+            const bool is_cloud =
+                (GetVolumeInformation(
+                     tmps, nullptr, 0, nullptr, nullptr, &fileSystemFlags, nullptr, 0) &&
+                 (fileSystemFlags & FILE_SUPPORTS_REMOTE_STORAGE));
+            icon = is_cloud ? ICON_INTERNET : ICON_DISK_DRIVE;
             break;
+          }
           case DRIVE_REMOTE: {
-            bool is_cloud = false;
             char lpLocalName[] = {'A' + i, ':', 0};
             char lpRemoteName[MAX_PATH];
             DWORD lpnLength = sizeof(lpRemoteName);
-            if (WNetGetConnection(lpLocalName, lpRemoteName, &lpnLength) == NO_ERROR) {
-              is_cloud = STRPREFIX(lpRemoteName, "https:");
-            }
+            const bool is_cloud = (WNetGetConnection(lpLocalName, lpRemoteName, &lpnLength) ==
+                                       NO_ERROR &&
+                                   STRPREFIX(lpRemoteName, "https:"));
             icon = is_cloud ? ICON_INTERNET : ICON_NETWORK_DRIVE;
             break;
           }
