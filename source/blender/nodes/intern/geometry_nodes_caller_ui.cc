@@ -156,13 +156,13 @@ SearchInfo SocketSearchData::info(const bContext &C) const
     return {tree_log, nmd.node_group, socket_props_ptr};
   }
   if (const auto *operator_search_data = std::get_if<OperatorSearchData>(&this->search_data)) {
-    PointerRNA properties_ptr = RNA_pointer_create_discrete(
-        nullptr,
-        operator_search_data->tree->runtime->geometry_nodes_operator_srna,
-        operator_search_data->properties);
-    PointerRNA inputs_ptr = RNA_pointer_get(&properties_ptr, "inputs");
-    PointerRNA socket_props_ptr = RNA_pointer_get(&inputs_ptr, this->socket_identifier);
-    return {operator_search_data->tree_log, operator_search_data->tree, socket_props_ptr};
+    // PointerRNA properties_ptr = RNA_pointer_create_discrete(
+    //     nullptr,
+    //     operator_search_data->tree->runtime->geometry_nodes_operator_srna,
+    //     operator_search_data->properties);
+    // PointerRNA inputs_ptr = RNA_pointer_get(&properties_ptr, "inputs");
+    // PointerRNA socket_props_ptr = RNA_pointer_get(&inputs_ptr, this->socket_identifier);
+    // return {operator_search_data->tree_log, operator_search_data->tree, socket_props_ptr};
   }
   return {};
 }

@@ -207,24 +207,4 @@ StructRNA *get_geometry_nodes_interface_srna_for_modifier(const bNodeTree &tree,
   return srna;
 }
 
-StructRNA *get_geometry_nodes_interface_srna_for_operator(const bNodeTree &tree,
-                                                          GeneratedTreeSrnaData &r_generated)
-{
-  tree.ensure_interface_cache();
-  StructRNA *srna = RNA_def_struct_ptr(
-      &BLENDER_RNA, "GeometryNodesOperatorInterface", &RNA_PropertyGroup);
-  BLI_assert(!RNA_struct_in_public_namespace(srna));
-  r_generated.structs.append(srna);
-
-  StructRNA *inputs_srna = create_inputs_srna(tree, r_generated);
-  StructRNA *outputs_srna = create_outputs_srna(tree, r_generated);
-  StructRNA *panels_srna = create_panels_srna(tree, r_generated);
-
-  RNA_def_pointer_runtime(srna, "inputs", inputs_srna, "Inputs", "Settings for input sockets");
-  RNA_def_pointer_runtime(srna, "outputs", outputs_srna, "Outputs", "Settings for output sockets");
-  RNA_def_pointer_runtime(srna, "panels", panels_srna, "Panels", "Settings for panels");
-
-  return srna;
-}
-
 }  // namespace blender::nodes

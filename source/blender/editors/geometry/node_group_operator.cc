@@ -58,6 +58,7 @@
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
+#include "RNA_enum_types.hh"
 
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
@@ -120,6 +121,8 @@ struct OperatorTypeData : public wmOperatorType::TypeData {
   StringRefNull custom_idname;
   std::string description;
   GeometryNodeAssetTraitFlag flag;
+
+  std::unique_ptr<IDProperty, bke::idprop::IDPropertyDeleter> input_asset_meta_data_props;
 
   struct LocalRef {
     uint32_t session_uid;
@@ -238,10 +241,17 @@ std::optional<OperatorTypeData> OperatorTypeData::from_asset(
   }
   type_data.flag = GeometryNodeAssetTraitFlag(IDP_int_get(traits_flag));
   type_data.group_ref = asset.make_weak_reference();
+
+  const IDProperty *inputs = BKE_asset_metadata_idprop_find(&metadata, "inputs");
+  if (!inputs || inputs->type != IDP_GROUP) {
+    return std::nullopt;
+  }
+  type_data.input_asset_meta_data_props =
+      std::unique_ptr<IDProperty, bke::idprop::IDPropertyDeleter>(IDP_CopyProperty(inputs));
+
   type_data.ensure_hash();
   return type_data;
 }
-
 static std::optional<StringRefNull> custom_idname_for_group(const bNodeTree &group)
 {
   const char *idname = group.geometry_node_asset_traits->node_tool_idname;
@@ -278,6 +288,11 @@ std::optional<OperatorTypeData> OperatorTypeData::from_group(const bNodeTree &gr
   type_data.description = group.description ? group.description : "";
   type_data.flag = GeometryNodeAssetTraitFlag(group.geometry_node_asset_traits->flag);
   type_data.group_ref = OperatorTypeData::LocalRef{group.id.session_uid};
+
+  type_data.input_asset_meta_data_props =
+      std::unique_ptr<IDProperty, bke::idprop::IDPropertyDeleter>(
+          bke::node_create_inputs_asset_metadata(group));
+
   type_data.ensure_hash();
   return type_data;
 }
@@ -985,11 +1000,9 @@ static wmOperatorStatus run_node_group_exec(bContext *C, wmOperator *op)
       properties_idprops = bke::idprop::create_group("properties", IDP_FLAG_STATIC_TYPE).release();
       IDP_AddToGroup(op->properties, properties_idprops);
     }
-    PointerRNA properties_ptr = RNA_pointer_create_discrete(
-        op->ptr->owner_id, node_tree->runtime->geometry_nodes_operator_srna, properties_idprops);
 
     bke::GeometrySet new_geometry = nodes::execute_geometry_nodes_on_geometry(
-        *node_tree, properties_ptr, compute_context, call_data, std::move(geometry_orig));
+        *node_tree, *op->ptr, compute_context, call_data, std::move(geometry_orig));
 
     store_result_geometry(
         *C, *op, *depsgraph_active, *bmain, *scene, *object, rv3d, std::move(new_geometry));
@@ -1116,6 +1129,86 @@ static bool run_node_group_poll(bContext *C, wmOperatorType *ot)
   return true;
 }
 
+static std::optional<StringRefNull> try_get_string(const IDProperty *group, const StringRef name)
+{
+  const IDProperty *prop = IDP_GetPropertyFromGroup(group, name);
+  if (!prop || prop->type != IDP_STRING) {
+    return std::nullopt;
+  }
+  return IDP_string_get(prop);
+}
+
+static std::optional<float> try_get_float(const IDProperty *group, const StringRef name)
+{
+  const IDProperty *prop = IDP_GetPropertyFromGroup(group, name);
+  if (!prop || prop->type != IDP_FLOAT) {
+    return std::nullopt;
+  }
+  return IDP_float_get(prop);
+}
+
+static std::optional<bool> try_get_bool(const IDProperty *group, const StringRef name)
+{
+  const IDProperty *prop = IDP_GetPropertyFromGroup(group, name);
+  if (!prop || prop->type != IDP_BOOLEAN) {
+    return std::nullopt;
+  }
+  return IDP_bool_get(prop);
+}
+
+static std::optional<Span<float>> try_get_float_array(const IDProperty *group,
+                                                      const StringRef name,
+                                                      const int required_size)
+{
+  const IDProperty *prop = IDP_GetPropertyFromGroup(group, name);
+  if (!prop || prop->type != IDP_FLOAT) {
+    return std::nullopt;
+  }
+  if (prop->len != required_size) {
+    return std::nullopt;
+  }
+  return Span(IDP_array_float_get(prop), prop->len);
+}
+
+static std::optional<int> try_get_int(const IDProperty *group, const StringRef name)
+{
+  const IDProperty *prop = IDP_GetPropertyFromGroup(group, name);
+  if (!prop || prop->type != IDP_INT) {
+    return std::nullopt;
+  }
+  return IDP_int_get(prop);
+}
+
+static const EnumPropertyItem *enum_input_items_fn(bContext * /*C*/,
+                                                   PointerRNA *ptr,
+                                                   PropertyRNA *prop,
+                                                   bool *r_free)
+{
+  const wmOperator *op = ptr->data_as<wmOperator>();
+  const OperatorTypeData &type_data = *static_cast<const OperatorTypeData *>(op->customdata);
+  const IDProperty &input_idprop = *IDP_GetPropertyFromGroup(
+      type_data.input_asset_meta_data_props.get(), RNA_property_identifier(prop));
+
+  const IDProperty *items_idprop = IDP_GetPropertyFromGroup(&input_idprop, "items");
+  if (!items_idprop || items_idprop->type != IDP_GROUP) {
+    return rna_enum_dummy_NULL_items;
+  }
+
+  int totitem = 0;
+  EnumPropertyItem *items = nullptr;
+  LISTBASE_FOREACH (IDProperty *, item_idprop, &items_idprop->data.group) {
+    EnumPropertyItem item;
+    item.identifier = item_idprop->name;
+    item.name = try_get_string(item_idprop, "name").value_or("").c_str();
+    item.description = try_get_string(item_idprop, "description").value_or("").c_str();
+    item.value = std::stoi(item_idprop->name);
+    RNA_enum_item_add(&items, &totitem, &item);
+  }
+
+  *r_free = true;
+  return items;
+}
+
 static void register_node_tool(wmOperatorType *ot,
                                std::unique_ptr<OperatorTypeData> &type_data_ptr)
 {
@@ -1138,14 +1231,142 @@ static void register_node_tool(wmOperatorType *ot,
     ot->flag |= OPTYPE_DEPENDS_ON_CURSOR;
   }
 
-  // prop = RNA_def_property(ot->srna, "properties", PROP_POINTER, PROP_NONE);
-  // RNA_def_property_ui_text(prop, "Properties", "");
-  // RNA_def_property_pointer_funcs_runtime(
-  //     prop, nullptr, nullptr, [](PointerRNA *ptr) -> StructRNA * {
-  //       bNodeTree *group = reinterpret_cast<bNodeTree *>(
-  //           WM_operator_properties_id_lookup_from_name_or_session_uid(G_MAIN, ptr, ID_NT));
-  //       return group->runtime->geometry_nodes_modifier_srna;
-  //     });
+  LISTBASE_FOREACH (IDProperty *, input_idprop, &type_data.input_asset_meta_data_props->data.group)
+  {
+    if (input_idprop->type != IDP_GROUP) {
+      continue;
+    }
+    const IDProperty *type_idprop = IDP_GetPropertyFromGroup(input_idprop, "type");
+    if (!type_idprop || type_idprop->type != IDP_INT) {
+      continue;
+    }
+    const StringRefNull identifier = type_idprop->name;
+    const StringRefNull name = try_get_string(input_idprop, "name").value_or(identifier);
+    if (name.is_empty()) {
+      continue;
+    }
+    const StringRefNull description = try_get_string(input_idprop, "description").value_or("");
+
+    switch (eNodeSocketDatatype(IDP_int_get(type_idprop))) {
+      case SOCK_FLOAT: {
+        prop = RNA_def_float(ot->srna,
+                             identifier.c_str(),
+                             try_get_float(input_idprop, "default_value").value_or(0.0f),
+                             -FLT_MAX,
+                             FLT_MAX,
+                             name.c_str(),
+                             description.c_str(),
+                             try_get_float(input_idprop, "min").value_or(-FLT_MAX),
+                             try_get_float(input_idprop, "max").value_or(FLT_MAX));
+        break;
+      }
+      case SOCK_VECTOR: {
+        const int dimensions = try_get_int(input_idprop, "dimensions").value_or(3);
+        std::optional<Span<float>> defaults = try_get_float_array(
+            input_idprop, "default_value", dimensions);
+        prop = RNA_def_float_array(ot->srna,
+                                   identifier.c_str(),
+                                   dimensions,
+                                   defaults ? defaults->data() : nullptr,
+                                   -FLT_MAX,
+                                   FLT_MAX,
+                                   name.c_str(),
+                                   description.c_str(),
+                                   try_get_float(input_idprop, "min").value_or(-FLT_MAX),
+                                   try_get_float(input_idprop, "max").value_or(FLT_MAX));
+        break;
+      }
+      case SOCK_RGBA: {
+        std::optional<Span<float>> defaults = try_get_float_array(
+            input_idprop, "default_value", 4);
+        prop = RNA_def_float_array(ot->srna,
+                                   identifier.c_str(),
+                                   4,
+                                   defaults ? defaults->data() : nullptr,
+                                   -FLT_MAX,
+                                   FLT_MAX,
+                                   name.c_str(),
+                                   description.c_str(),
+                                   0.0f,
+                                   1.0f);
+        RNA_def_property_subtype(prop, PROP_COLOR);
+        break;
+      }
+      case SOCK_BOOLEAN: {
+        prop = RNA_def_boolean(ot->srna,
+                               identifier.c_str(),
+                               try_get_bool(input_idprop, "default_value").value_or(false),
+                               name.c_str(),
+                               description.c_str());
+        break;
+      }
+      case SOCK_INT: {
+        prop = RNA_def_int(ot->srna,
+                           identifier.c_str(),
+                           try_get_int(input_idprop, "default_value").value_or(0),
+                           INT_MIN,
+                           INT_MAX,
+                           name.c_str(),
+                           description.c_str(),
+                           try_get_int(input_idprop, "min").value_or(INT_MIN),
+                           try_get_int(input_idprop, "max").value_or(INT_MIN));
+        break;
+      }
+      case SOCK_STRING: {
+        prop = RNA_def_string(ot->srna,
+                              identifier.c_str(),
+                              try_get_string(input_idprop, "default_value").value_or("").c_str(),
+                              0,
+                              name.c_str(),
+                              description.c_str());
+        break;
+      }
+      case SOCK_IMAGE:
+      case SOCK_COLLECTION:
+      case SOCK_MATERIAL:
+      case SOCK_OBJECT: {
+        prop = RNA_def_string(
+            ot->srna, identifier.c_str(), nullptr, 0, name.c_str(), description.c_str());
+        break;
+      }
+      case SOCK_ROTATION: {
+        std::optional<Span<float>> defaults = try_get_float_array(
+            input_idprop, "default_value", 3);
+        prop = RNA_def_float_array(ot->srna,
+                                   identifier.c_str(),
+                                   3,
+                                   defaults ? defaults->data() : nullptr,
+                                   -FLT_MAX,
+                                   FLT_MAX,
+                                   name.c_str(),
+                                   description.c_str(),
+                                   -FLT_MAX,
+                                   FLT_MAX);
+        RNA_def_property_subtype(prop, PROP_EULER);
+        break;
+      }
+      case SOCK_MENU: {
+        prop = RNA_def_enum(ot->srna,
+                            identifier.c_str(),
+                            rna_enum_dummy_NULL_items,
+                            0,
+                            name.c_str(),
+                            description.c_str());
+        RNA_def_enum_funcs(prop, enum_input_items_fn);
+        break;
+      }
+      default:
+        prop = nullptr;
+        break;
+    }
+    if (prop) {
+      if (RNA_property_subtype(prop) == PROP_NONE) {
+        if (const std::optional<int> subtype = try_get_int(input_idprop, "subtype")) {
+          RNA_def_property_subtype(prop, PropertySubType(*subtype));
+        }
+      }
+    }
+  }
 
   /* See comment for #store_input_node_values_rna_props. */
   prop = RNA_def_int_array(ot->srna,
