@@ -723,6 +723,7 @@ static void write_diff_id(DiffWriter &writer,
                           const RichSDNA &sdna_old,
                           const RichSDNA &sdna_new)
 {
+  // TODO: Handle ID pointers.
   AddressMap old_address_map = build_address_map(old_id_data);
   AddressMap new_address_map = build_address_map(new_id_data);
   BlockMatchMap matches;
