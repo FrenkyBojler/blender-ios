@@ -496,7 +496,8 @@ ID *WM_file_link_datablock(Main *bmain,
                            const char *filepath,
                            short id_code,
                            const char *id_name,
-                           int flag);
+                           int flag,
+                           ReportList *reports = nullptr);
 /**
  * \note `scene` (and related `view_layer` and `v3d`) pointers may be NULL,
  * in which case no instantiation of appended objects, collections etc. will be performed.
@@ -508,7 +509,8 @@ ID *WM_file_append_datablock(Main *bmain,
                              const char *filepath,
                              short id_code,
                              const char *id_name,
-                             int flag);
+                             int flag,
+                             ReportList *reports = nullptr);
 void WM_lib_reload(Library *lib, bContext *C, ReportList *reports);
 
 /* Mouse cursors. */
@@ -1664,6 +1666,9 @@ ListBase *WM_dropboxmap_find(const char *idname, int spaceid, int regionid);
 /* ID drag and drop. */
 
 /**
+ * \note This can return null! Importing can fail if the asset was deleted or moved since the asset
+ * library was loaded.
+ *
  * \param flag_extra: Additional linking flags (from #eFileSel_Params_Flag).
  */
 ID *WM_drag_asset_id_import(const bContext *C, wmDragAsset *asset_drag, int flag_extra);
