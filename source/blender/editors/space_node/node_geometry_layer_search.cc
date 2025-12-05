@@ -123,7 +123,7 @@ static Vector<const std::string *> get_layer_names_from_context(const bContext &
 }
 
 static void layer_search_update_fn(
-    const bContext *C, void *arg, const char *str, uiSearchItems *items, const bool is_first)
+    const bContext *C, void *arg, const char *str, ui::SearchItems *items, const bool is_first)
 {
   if (ED_screen_animation_playing(CTX_wm_manager(C))) {
     return;
@@ -184,7 +184,7 @@ void node_geometry_add_layer_search_button(const bContext & /*C*/,
 {
   uiBlock *block = layout.block();
   uiBut *but = uiDefIconTextButR(block,
-                                 ButType::SearchMenu,
+                                 ui::ButType::SearchMenu,
                                  ICON_OUTLINER_DATA_GP_LAYER,
                                  "",
                                  0,
@@ -195,16 +195,16 @@ void node_geometry_add_layer_search_button(const bContext & /*C*/,
                                  "default_value",
                                  0,
                                  "");
-  UI_but_placeholder_set(but, placeholder);
+  button_placeholder_set(but, placeholder);
 
   const bNodeSocket &socket = *static_cast<const bNodeSocket *>(socket_ptr.data);
   LayerSearchData *data = MEM_callocN<LayerSearchData>(__func__);
   data->node_id = node.identifier;
   STRNCPY_UTF8(data->socket_identifier, socket.identifier);
 
-  UI_but_func_search_set_results_are_suggestions(but, true);
-  UI_but_func_search_set_sep_string(but, UI_MENU_ARROW_SEP);
-  UI_but_func_search_set(but,
+  button_func_search_set_results_are_suggestions(but, true);
+  button_func_search_set_sep_string(but, UI_MENU_ARROW_SEP);
+  button_func_search_set(but,
                          nullptr,
                          layer_search_update_fn,
                          static_cast<void *>(data),

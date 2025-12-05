@@ -250,7 +250,7 @@ static void userpref_search_all_tabs(const bContext *C,
     /* Actually do the search and store the result in the bitmap. */
     const bool found = property_search_for_context(C, region_copy, context_tabs_array[i]);
     BLI_BITMAP_SET(sprefs->runtime->tab_search_results, i, found);
-    UI_blocklist_free(C, region_copy);
+    blender::ui::blocklist_free(C, region_copy);
   }
   BKE_area_region_free(area_copy.type, region_copy);
   MEM_freeN(region_copy);
@@ -273,7 +273,7 @@ static void userpref_main_region_property_search(const bContext *C,
   /* Check whether the current tab has a search match. */
   bool current_tab_has_search_match = false;
   LISTBASE_FOREACH (Panel *, panel, &region->panels) {
-    if (UI_panel_is_active(panel) && UI_panel_matches_search_filter(panel)) {
+    if (blender::ui::panel_is_active(panel) && blender::ui::panel_matches_search_filter(panel)) {
       current_tab_has_search_match = true;
     }
   }

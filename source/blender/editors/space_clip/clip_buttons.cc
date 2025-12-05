@@ -124,13 +124,23 @@ void uiTemplateMovieClip(blender::ui::Layout *layout,
   layout->context_ptr_set("edit_movieclip", &clipptr);
 
   if (!compact) {
-    uiTemplateID(layout, C, ptr, propname, nullptr, "CLIP_OT_open", nullptr);
+    template_id(layout, C, ptr, propname, nullptr, "CLIP_OT_open", nullptr);
   }
 
   if (clip) {
     blender::ui::Layout &row = layout->row(false);
     uiBlock *block = row.block();
-    uiDefBut(block, ButType::Label, IFACE_("File Path:"), 0, 19, 145, 19, nullptr, 0, 0, "");
+    uiDefBut(block,
+             blender::ui::ButType::Label,
+             IFACE_("File Path:"),
+             0,
+             19,
+             145,
+             19,
+             nullptr,
+             0,
+             0,
+             "");
 
     blender::ui::Layout &file_row = layout->row(true);
     file_row.prop(&clipptr, "filepath", UI_ITEM_NONE, "", ICON_NONE);
@@ -141,7 +151,7 @@ void uiTemplateMovieClip(blender::ui::Layout *layout,
     col.prop(&clipptr, "frame_start", UI_ITEM_NONE, IFACE_("Start Frame"), ICON_NONE);
     col.prop(&clipptr, "frame_offset", UI_ITEM_NONE, IFACE_("Frame Offset"), ICON_NONE);
     col.separator();
-    uiTemplateColorspaceSettings(&col, &clipptr, "colorspace_settings");
+    template_colorspace_settings(&col, &clipptr, "colorspace_settings");
   }
 }
 
@@ -184,7 +194,7 @@ void uiTemplateTrack(blender::ui::Layout *layout, PointerRNA *ptr, const StringR
   uiBlock *block = col.block();
 
   uiDefBut(block,
-           ButType::TrackPreview,
+           blender::ui::ButType::TrackPreview,
            "",
            0,
            0,
@@ -197,7 +207,7 @@ void uiTemplateTrack(blender::ui::Layout *layout, PointerRNA *ptr, const StringR
 
   /* Resize grip. */
   uiDefIconButI(block,
-                ButType::Grip,
+                blender::ui::ButType::Grip,
                 ICON_GRIP,
                 0,
                 0,
@@ -431,7 +441,7 @@ void uiTemplateMarker(blender::ui::Layout *layout,
     }
 
     uiBut *bt = uiDefIconButBitI(block,
-                                 ButType::ToggleN,
+                                 blender::ui::ButType::ToggleN,
                                  MARKER_DISABLED,
                                  ICON_HIDE_OFF,
                                  0,
@@ -442,8 +452,8 @@ void uiTemplateMarker(blender::ui::Layout *layout,
                                  0,
                                  0,
                                  tip);
-    UI_but_funcN_set(bt, marker_update_cb, cb, nullptr);
-    UI_but_drawflag_enable(bt, UI_BUT_ICON_REVERSE);
+    button_funcN_set(bt, marker_update_cb, cb, nullptr);
+    button_drawflag_enable(bt, blender::ui::BUT_ICON_REVERSE);
   }
   else {
     int width, height;
@@ -454,7 +464,7 @@ void uiTemplateMarker(blender::ui::Layout *layout,
       layout->active_set(false);
       uiBlock *block = layout->absolute().block();
       uiDefBut(block,
-               ButType::Label,
+               blender::ui::ButType::Label,
                IFACE_("Track is locked"),
                0,
                0,
@@ -488,8 +498,8 @@ void uiTemplateMarker(blender::ui::Layout *layout,
     cb->marker_flag = marker->flag;
 
     uiBlock *block = layout->absolute().block();
-    UI_block_func_handle_set(block, marker_block_handler, cb);
-    UI_block_funcN_set(block, marker_update_cb, cb, nullptr);
+    block_func_handle_set(block, marker_block_handler, cb);
+    block_funcN_set(block, marker_update_cb, cb, nullptr);
 
     blender::StringRef tip;
     int step = 100;
@@ -503,7 +513,7 @@ void uiTemplateMarker(blender::ui::Layout *layout,
     }
 
     uiBut *but = uiDefButBitI(block,
-                              ButType::CheckboxN,
+                              blender::ui::ButType::CheckboxN,
                               MARKER_DISABLED,
                               IFACE_("Enabled"),
                               0.5 * UI_UNIT_X,
@@ -514,16 +524,16 @@ void uiTemplateMarker(blender::ui::Layout *layout,
                               0,
                               0,
                               tip);
-    UI_but_retval_set(but, B_MARKER_FLAG);
+    button_retval_set(but, B_MARKER_FLAG);
 
     blender::ui::Layout &col = layout->column(true);
     col.active_set((cb->marker_flag & MARKER_DISABLED) == 0);
 
     block = col.absolute().block();
-    UI_block_align_begin(block);
+    block_align_begin(block);
 
     uiDefBut(block,
-             ButType::Label,
+             blender::ui::ButType::Label,
              IFACE_("Position:"),
              0,
              10 * UI_UNIT_Y,
@@ -534,7 +544,7 @@ void uiTemplateMarker(blender::ui::Layout *layout,
              0,
              "");
     uiBut *bt = uiDefButF(block,
-                          ButType::Num,
+                          blender::ui::ButType::Num,
                           IFACE_("X:"),
                           0.5 * UI_UNIT_X,
                           9 * UI_UNIT_Y,
@@ -544,11 +554,11 @@ void uiTemplateMarker(blender::ui::Layout *layout,
                           -10 * width,
                           10.0 * width,
                           TIP_("X-position of marker at frame in screen coordinates"));
-    UI_but_retval_set(bt, B_MARKER_POS);
-    UI_but_number_step_size_set(bt, step);
-    UI_but_number_precision_set(bt, digits);
+    button_retval_set(bt, B_MARKER_POS);
+    button_number_step_size_set(bt, step);
+    button_number_precision_set(bt, digits);
     bt = uiDefButF(block,
-                   ButType::Num,
+                   blender::ui::ButType::Num,
                    IFACE_("Y:"),
                    8.25 * UI_UNIT_X,
                    9 * UI_UNIT_Y,
@@ -558,12 +568,12 @@ void uiTemplateMarker(blender::ui::Layout *layout,
                    -10 * height,
                    10.0 * height,
                    TIP_("Y-position of marker at frame in screen coordinates"));
-    UI_but_retval_set(bt, B_MARKER_POS);
-    UI_but_number_step_size_set(bt, step);
-    UI_but_number_precision_set(bt, digits);
+    button_retval_set(bt, B_MARKER_POS);
+    button_number_step_size_set(bt, step);
+    button_number_precision_set(bt, digits);
 
     uiDefBut(block,
-             ButType::Label,
+             blender::ui::ButType::Label,
              IFACE_("Offset:"),
              0,
              8 * UI_UNIT_Y,
@@ -574,7 +584,7 @@ void uiTemplateMarker(blender::ui::Layout *layout,
              0,
              "");
     bt = uiDefButF(block,
-                   ButType::Num,
+                   blender::ui::ButType::Num,
                    IFACE_("X:"),
                    0.5 * UI_UNIT_X,
                    7 * UI_UNIT_Y,
@@ -584,11 +594,11 @@ void uiTemplateMarker(blender::ui::Layout *layout,
                    -10 * width,
                    10.0 * width,
                    TIP_("X-offset to parenting point"));
-    UI_but_retval_set(bt, B_MARKER_OFFSET);
-    UI_but_number_step_size_set(bt, step);
-    UI_but_number_precision_set(bt, digits);
+    button_retval_set(bt, B_MARKER_OFFSET);
+    button_number_step_size_set(bt, step);
+    button_number_precision_set(bt, digits);
     bt = uiDefButF(block,
-                   ButType::Num,
+                   blender::ui::ButType::Num,
                    IFACE_("Y:"),
                    8.25 * UI_UNIT_X,
                    7 * UI_UNIT_Y,
@@ -598,12 +608,12 @@ void uiTemplateMarker(blender::ui::Layout *layout,
                    -10 * height,
                    10.0 * height,
                    TIP_("Y-offset to parenting point"));
-    UI_but_retval_set(bt, B_MARKER_OFFSET);
-    UI_but_number_step_size_set(bt, step);
-    UI_but_number_precision_set(bt, digits);
+    button_retval_set(bt, B_MARKER_OFFSET);
+    button_number_step_size_set(bt, step);
+    button_number_precision_set(bt, digits);
 
     uiDefBut(block,
-             ButType::Label,
+             blender::ui::ButType::Label,
              IFACE_("Pattern Area:"),
              0,
              6 * UI_UNIT_Y,
@@ -614,7 +624,7 @@ void uiTemplateMarker(blender::ui::Layout *layout,
              0,
              "");
     bt = uiDefButF(block,
-                   ButType::Num,
+                   blender::ui::ButType::Num,
                    IFACE_("Width:"),
                    0.5 * UI_UNIT_X,
                    5 * UI_UNIT_Y,
@@ -624,11 +634,11 @@ void uiTemplateMarker(blender::ui::Layout *layout,
                    3.0f,
                    10.0 * width,
                    TIP_("Width of marker's pattern in screen coordinates"));
-    UI_but_retval_set(bt, B_MARKER_PAT_DIM);
-    UI_but_number_step_size_set(bt, step);
-    UI_but_number_precision_set(bt, digits);
+    button_retval_set(bt, B_MARKER_PAT_DIM);
+    button_number_step_size_set(bt, step);
+    button_number_precision_set(bt, digits);
     bt = uiDefButF(block,
-                   ButType::Num,
+                   blender::ui::ButType::Num,
                    IFACE_("Height:"),
                    0.5 * UI_UNIT_X,
                    4 * UI_UNIT_Y,
@@ -638,12 +648,12 @@ void uiTemplateMarker(blender::ui::Layout *layout,
                    3.0f,
                    10.0 * height,
                    TIP_("Height of marker's pattern in screen coordinates"));
-    UI_but_retval_set(bt, B_MARKER_PAT_DIM);
-    UI_but_number_step_size_set(bt, step);
-    UI_but_number_precision_set(bt, digits);
+    button_retval_set(bt, B_MARKER_PAT_DIM);
+    button_number_step_size_set(bt, step);
+    button_number_precision_set(bt, digits);
 
     uiDefBut(block,
-             ButType::Label,
+             blender::ui::ButType::Label,
              IFACE_("Search Area:"),
              0,
              3 * UI_UNIT_Y,
@@ -654,7 +664,7 @@ void uiTemplateMarker(blender::ui::Layout *layout,
              0,
              "");
     bt = uiDefButF(block,
-                   ButType::Num,
+                   blender::ui::ButType::Num,
                    IFACE_("X:"),
                    0.5 * UI_UNIT_X,
                    2 * UI_UNIT_Y,
@@ -664,11 +674,11 @@ void uiTemplateMarker(blender::ui::Layout *layout,
                    -width,
                    width,
                    TIP_("X-position of search at frame relative to marker's position"));
-    UI_but_retval_set(bt, B_MARKER_SEARCH_POS);
-    UI_but_number_step_size_set(bt, step);
-    UI_but_number_precision_set(bt, digits);
+    button_retval_set(bt, B_MARKER_SEARCH_POS);
+    button_number_step_size_set(bt, step);
+    button_number_precision_set(bt, digits);
     bt = uiDefButF(block,
-                   ButType::Num,
+                   blender::ui::ButType::Num,
                    IFACE_("Y:"),
                    8.25 * UI_UNIT_X,
                    2 * UI_UNIT_Y,
@@ -678,11 +688,11 @@ void uiTemplateMarker(blender::ui::Layout *layout,
                    -height,
                    height,
                    TIP_("Y-position of search at frame relative to marker's position"));
-    UI_but_retval_set(bt, B_MARKER_SEARCH_POS);
-    UI_but_number_step_size_set(bt, step);
-    UI_but_number_precision_set(bt, digits);
+    button_retval_set(bt, B_MARKER_SEARCH_POS);
+    button_number_step_size_set(bt, step);
+    button_number_precision_set(bt, digits);
     bt = uiDefButF(block,
-                   ButType::Num,
+                   blender::ui::ButType::Num,
                    IFACE_("Width:"),
                    0.5 * UI_UNIT_X,
                    1 * UI_UNIT_Y,
@@ -692,11 +702,11 @@ void uiTemplateMarker(blender::ui::Layout *layout,
                    3.0f,
                    10.0 * width,
                    TIP_("Width of marker's search in screen coordinates"));
-    UI_but_retval_set(bt, B_MARKER_SEARCH_DIM);
-    UI_but_number_step_size_set(bt, step);
-    UI_but_number_precision_set(bt, digits);
+    button_retval_set(bt, B_MARKER_SEARCH_DIM);
+    button_number_step_size_set(bt, step);
+    button_number_precision_set(bt, digits);
     bt = uiDefButF(block,
-                   ButType::Num,
+                   blender::ui::ButType::Num,
                    IFACE_("Height:"),
                    0.5 * UI_UNIT_X,
                    0 * UI_UNIT_Y,
@@ -706,11 +716,11 @@ void uiTemplateMarker(blender::ui::Layout *layout,
                    3.0f,
                    10.0 * height,
                    TIP_("Height of marker's search in screen coordinates"));
-    UI_but_retval_set(bt, B_MARKER_SEARCH_DIM);
-    UI_but_number_step_size_set(bt, step);
-    UI_but_number_precision_set(bt, digits);
+    button_retval_set(bt, B_MARKER_SEARCH_DIM);
+    button_number_step_size_set(bt, step);
+    button_number_precision_set(bt, digits);
 
-    UI_block_align_end(block);
+    block_align_end(block);
   }
 }
 

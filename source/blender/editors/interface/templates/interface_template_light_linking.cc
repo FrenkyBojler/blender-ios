@@ -33,9 +33,8 @@
 
 #include "ED_undo.hh"
 
-using blender::StringRefNull;
-
-namespace blender::ui::light_linking {
+namespace blender::ui {
+namespace light_linking {
 
 namespace {
 
@@ -310,7 +309,7 @@ class CollectionViewItem : public BasicTreeViewItem {
                                   0.0f,
                                   std::nullopt);
 
-    UI_but_func_set(button, [&collection_light_linking = collection_light_linking_](bContext &) {
+    button_func_set(button, [&collection_light_linking = collection_light_linking_](bContext &) {
       link_state_toggle(collection_light_linking);
     });
   }
@@ -354,14 +353,13 @@ class CollectionView : public AbstractTreeView {
 };
 
 }  // namespace
+}  // namespace light_linking
 
-}  // namespace blender::ui::light_linking
-
-void uiTemplateLightLinkingCollection(blender::ui::Layout *layout,
-                                      bContext *C,
-                                      blender::ui::Layout *context_layout,
-                                      PointerRNA *ptr,
-                                      const StringRefNull propname)
+void template_light_linking_collection(Layout *layout,
+                                       bContext *C,
+                                       Layout *context_layout,
+                                       PointerRNA *ptr,
+                                       const StringRefNull propname)
 {
   if (!ptr->data) {
     return;
@@ -400,12 +398,14 @@ void uiTemplateLightLinkingCollection(blender::ui::Layout *layout,
 
   uiBlock *block = layout->block();
 
-  blender::ui::AbstractTreeView *tree_view = UI_block_add_view(
+  AbstractTreeView *tree_view = block_add_view(
       *block,
       "Light Linking Collection Tree View",
-      std::make_unique<blender::ui::light_linking::CollectionView>(*context_layout, *collection));
+      std::make_unique<light_linking::CollectionView>(*context_layout, *collection));
   tree_view->set_context_menu_title("Light Linking");
   tree_view->set_default_rows(5);
 
-  blender::ui::TreeViewBuilder::build_tree_view(*C, *tree_view, *layout);
+  TreeViewBuilder::build_tree_view(*C, *tree_view, *layout);
 }
+
+}  // namespace blender::ui

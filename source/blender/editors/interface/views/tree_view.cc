@@ -42,7 +42,7 @@ static int unpadded_item_height()
 }
 static int padded_item_height()
 {
-  const uiStyle *style = UI_style_get_dpi();
+  const uiStyle *style = style_get_dpi();
   return unpadded_item_height() + style->buttonspacey;
 }
 
@@ -93,7 +93,7 @@ void TreeViewItemContainer::foreach_item_recursive(ItemIterFn iter_fn, IterOptio
 
 void TreeViewItemContainer::foreach_parent(ItemIterFn iter_fn) const
 {
-  for (ui::AbstractTreeViewItem *item = parent_; item; item = item->parent_) {
+  for (AbstractTreeViewItem *item = parent_; item; item = item->parent_) {
     iter_fn(*item);
   }
 }
@@ -262,13 +262,13 @@ void AbstractTreeView::get_hierarchy_lines(const ARegion &region,
   }
 }
 
-static uiButViewItem *find_first_view_item_but(const uiBlock &block, const AbstractTreeView &view)
+static ButtonViewItem *find_first_view_item_but(const uiBlock &block, const AbstractTreeView &view)
 {
   for (const std::unique_ptr<uiBut> &but : block.buttons) {
     if (but->type != ButType::ViewItem) {
       continue;
     }
-    uiButViewItem *view_item_but = static_cast<uiButViewItem *>(but.get());
+    auto *view_item_but = static_cast<ButtonViewItem *>(but.get());
     if (&view_item_but->view_item->get_view() == &view) {
       return view_item_but;
     }
@@ -283,7 +283,7 @@ void AbstractTreeView::draw_hierarchy_lines(const ARegion &region, const uiBlock
                                (BLI_rcti_size_y(&region.v2d.mask) + 1) :
                            1.0f;
 
-  uiButViewItem *first_item_but = find_first_view_item_but(block, *this);
+  ButtonViewItem *first_item_but = find_first_view_item_but(block, *this);
   if (!first_item_but) {
     return;
   }
@@ -296,7 +296,7 @@ void AbstractTreeView::draw_hierarchy_lines(const ARegion &region, const uiBlock
   }
 
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+  uint pos = GPU_vertformat_attr_add(format, "pos", gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   immUniformThemeColorAlpha(TH_TEXT, 0.2f);
 
@@ -490,17 +490,17 @@ std::optional<DropLocation> TreeViewItemDropTarget::choose_drop_location(
 void AbstractTreeViewItem::add_treerow_button(uiBlock &block)
 {
   /* For some reason a width > (UI_UNIT_X * 2) make the layout system use all available width. */
-  view_item_but_ = reinterpret_cast<uiButViewItem *>(uiDefBut(&block,
-                                                              ButType::ViewItem,
-                                                              "",
-                                                              0,
-                                                              0,
-                                                              UI_UNIT_X * 10,
-                                                              padded_item_height(),
-                                                              nullptr,
-                                                              0,
-                                                              0,
-                                                              ""));
+  view_item_but_ = reinterpret_cast<ButtonViewItem *>(uiDefBut(&block,
+                                                               ButType::ViewItem,
+                                                               "",
+                                                               0,
+                                                               0,
+                                                               UI_UNIT_X * 10,
+                                                               padded_item_height(),
+                                                               nullptr,
+                                                               0,
+                                                               0,
+                                                               ""));
 
   view_item_but_->view_item = this;
   view_item_but_->draw_height = unpadded_item_height();
@@ -540,8 +540,8 @@ void AbstractTreeViewItem::collapse_chevron_click_fn(bContext *C,
 
   const wmWindow *win = CTX_wm_window(C);
   const ARegion *region = CTX_wm_region_popup(C) ? CTX_wm_region_popup(C) : CTX_wm_region(C);
-  AbstractViewItem *hovered_abstract_item = UI_region_views_find_item_at(*region,
-                                                                         win->eventstate->xy);
+  AbstractViewItem *hovered_abstract_item = region_views_find_item_at(*region,
+                                                                      win->eventstate->xy);
 
   auto *hovered_item = reinterpret_cast<AbstractTreeViewItem *>(hovered_abstract_item);
   BLI_assert(hovered_item != nullptr);
@@ -563,22 +563,22 @@ void AbstractTreeViewItem::add_collapse_chevron(uiBlock &block) const
   const BIFIconID icon = this->is_collapsed() ? ICON_RIGHTARROW : ICON_DOWNARROW_HLT;
   uiBut *but = uiDefIconBut(
       &block, ButType::ButToggle, icon, 0, 0, UI_TREEVIEW_INDENT, UI_UNIT_Y, nullptr, 0, 0, "");
-  UI_but_func_set(but, collapse_chevron_click_fn, nullptr, nullptr);
-  UI_but_flag_disable(but, UI_BUT_UNDO);
+  button_func_set(but, collapse_chevron_click_fn, nullptr, nullptr);
+  button_flag_disable(but, BUT_UNDO);
 }
 
 void AbstractTreeViewItem::add_rename_button(Layout &row)
 {
   uiBlock *block = row.block();
-  EmbossType previous_emboss = UI_block_emboss_get(block);
+  EmbossType previous_emboss = block_emboss_get(block);
 
   row.row(false);
   /* Enable emboss for the text button. */
-  UI_block_emboss_set(block, EmbossType::Emboss);
+  block_emboss_set(block, EmbossType::Emboss);
 
   AbstractViewItem::add_rename_button(*block);
 
-  UI_block_emboss_set(block, previous_emboss);
+  block_emboss_set(block, previous_emboss);
   block_layout_set_current(block, &row);
 }
 
@@ -647,7 +647,7 @@ AbstractTreeView &AbstractTreeViewItem::get_tree_view() const
 
 std::optional<rctf> AbstractTreeViewItem::get_win_rect(const ARegion &region) const
 {
-  uiButViewItem *item_but = view_item_button();
+  ButtonViewItem *item_but = view_item_button();
   if (!item_but) {
     return std::nullopt;
   }
@@ -687,7 +687,7 @@ bool AbstractTreeViewItem::is_hovered() const
 
   /* The new layout hasn't finished construction yet, so the final state of the button is unknown.
    * Get the matching button from the previous redraw instead. */
-  uiButViewItem *old_item_but = ui_block_view_find_matching_view_item_but_in_old_block(
+  ButtonViewItem *old_item_but = ui_block_view_find_matching_view_item_but_in_old_block(
       *view_item_but_->block, *this);
   return old_item_but && (old_item_but->flag & UI_HOVER);
 }
@@ -908,7 +908,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
                              0,
                              tot_items - *visible_row_count,
                              "");
-      uiButScrollBar *but_scroll = reinterpret_cast<uiButScrollBar *>(but);
+      auto *but_scroll = reinterpret_cast<ButtonScrollBar *>(but);
       but_scroll->visual_height = *visible_row_count;
     }
 
@@ -916,7 +916,7 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
 
     /* Bottom */
     Layout &bottom = col.row(false);
-    UI_block_emboss_set(block, ui::EmbossType::None);
+    block_emboss_set(block, EmbossType::None);
     uiBut *but = uiDefIconButBitC(block,
                                   ButType::IconToggleN,
                                   1,
@@ -929,8 +929,8 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
                                   0,
                                   0,
                                   TIP_(""));
-    UI_but_flag_disable(but, UI_BUT_UNDO);
-    UI_block_emboss_set(block, ui::EmbossType::Emboss);
+    button_flag_disable(but, BUT_UNDO);
+    block_emboss_set(block, EmbossType::Emboss);
     bottom.column(false);
 
     uiDefIconButI(block,
@@ -958,11 +958,11 @@ void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
                             0,
                             UI_MAX_NAME_STR,
                             "");
-      UI_but_retval_set(but, 1);
-      UI_but_flag_enable(but, UI_BUT_TEXTEDIT_UPDATE | UI_BUT_VALUE_CLEAR);
-      UI_but_flag_disable(but, UI_BUT_UNDO);
+      button_retval_set(but, 1);
+      button_flag_enable(but, BUT_TEXTEDIT_UPDATE | BUT_VALUE_CLEAR);
+      button_flag_disable(but, BUT_UNDO);
       ui_def_but_icon(but, ICON_VIEWZOOM, UI_HAS_ICON);
-      UI_but_placeholder_set(but, IFACE_("Search"));
+      button_placeholder_set(but, IFACE_("Search"));
     }
   }
 
@@ -980,7 +980,7 @@ void TreeViewLayoutBuilder::build_row(AbstractTreeViewItem &item) const
     return;
   }
 
-  EmbossType previous_emboss = UI_block_emboss_get(&block_);
+  EmbossType previous_emboss = block_emboss_get(&block_);
 
   Layout &overlap = prev_layout.overlap();
 
@@ -995,7 +995,7 @@ void TreeViewLayoutBuilder::build_row(AbstractTreeViewItem &item) const
   item.add_treerow_button(block_);
 
   /* After adding tree-row button (would disable hover highlighting). */
-  UI_block_emboss_set(&block_, EmbossType::NoneOrStatus);
+  block_emboss_set(&block_, EmbossType::NoneOrStatus);
 
   /* Add little margin to align actual contents vertically. */
   Layout &content_col = overlap.column(true);
@@ -1021,7 +1021,7 @@ void TreeViewLayoutBuilder::build_row(AbstractTreeViewItem &item) const
 
   uiLayoutListItemAddPadding(row);
 
-  UI_block_emboss_set(&block_, previous_emboss);
+  block_emboss_set(&block_, previous_emboss);
   block_layout_set_current(&block_, &prev_layout);
 }
 
@@ -1087,9 +1087,9 @@ void TreeViewBuilder::build_tree_view(const bContext &C,
 
   TreeViewLayoutBuilder builder(layout);
   builder.add_box_ = add_box;
-  UI_block_flag_enable(&block, UI_BLOCK_LIST_ITEM);
+  block_flag_enable(&block, BLOCK_LIST_ITEM);
   builder.build_from_tree(tree_view);
-  UI_block_flag_disable(&block, UI_BLOCK_LIST_ITEM);
+  block_flag_disable(&block, BLOCK_LIST_ITEM);
 }
 
 /* ---------------------------------------------------------------------- */

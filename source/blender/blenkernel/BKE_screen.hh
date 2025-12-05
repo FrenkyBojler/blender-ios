@@ -33,6 +33,7 @@ class AssetRepresentation;
 
 namespace blender::ui {
 struct Layout;
+struct Block;
 }  // namespace blender::ui
 
 struct ARegion;
@@ -58,7 +59,6 @@ struct View3DShading;
 struct WorkSpace;
 struct bContext;
 struct bScreen;
-struct uiBlock;
 struct uiList;
 struct wmDrawBuffer;
 struct wmGizmoMap;
@@ -304,7 +304,7 @@ struct ARegionType {
    * Set as bitflag value in #ARegionDrawLockFlags.
    */
   short do_lock, lock;
-  /** Don't handle gizmos events behind #uiBlock's with #UI_BLOCK_CLIP_EVENTS flag set. */
+  /** Don't handle gizmos events behind #uiBlock's with #BLOCK_CLIP_EVENTS flag set. */
   bool clip_gizmo_events_by_ui;
   /** Call cursor function on each move event. */
   short event_cursor;
@@ -448,7 +448,7 @@ struct Panel_Runtime {
    * Pointer to the panel's block. Useful when changes to panel #uiBlocks
    * need some context from traversal of the panel "tree".
    */
-  uiBlock *block = nullptr;
+  blender::ui::Block *block = nullptr;
 
   /** Non-owning pointer. The context is stored in the block. */
   bContextStore *context = nullptr;
@@ -485,7 +485,7 @@ struct ARegionRuntime {
   const char *category = nullptr;
 
   /** Maps #uiBlock::name to uiBlock for faster lookups. */
-  Map<std::string, uiBlock *> block_name_map;
+  Map<std::string, blender::ui::Block *> block_name_map;
   /** #uiBlock. */
   ListBase uiblocks = {};
 
