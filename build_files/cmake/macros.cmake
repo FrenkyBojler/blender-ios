@@ -925,26 +925,6 @@ macro(blender_project_hack_pre)
   else()
     set(_reset_standard_cxxflags_rel ON)
   endif()
-  # ------------------
-  # CPU SIMD HACK START
-  # This will set the default compile flags to our recommended ones
-  # if they have not been set already.
-  if(FIRST_RUN)
-    if(DEFINED CMAKE_C_FLAGS OR DEFINED ENV{CFLAGS})
-      set(_cmake_c_flags_initialized ON CACHE INTERNAL "Default C flags")
-    endif()
-    if(DEFINED CMAKE_CXX_FLAGS OR DEFINED ENV{CXXFLAGS})
-      set(_cmake_cxx_flags_initialized ON CACHE INTERNAL "Default CXX flags")
-    endif()
-  else()
-    # Handle if the user removed the flags to reset them
-    if(NOT DEFINED CMAKE_C_FLAGS AND NOT DEFINED ENV{CFLAGS})
-      unset(_cmake_c_flags_initialized CACHE)
-    endif()
-    if(NOT DEFINED CMAKE_CXX_FLAGS AND NOT DEFINED ENV{CXXFLAGS})
-      unset(_cmake_cxx_flags_initialized CACHE)
-    endif()
-  endif()
 endmacro()
 
 
@@ -965,22 +945,6 @@ macro(blender_project_hack_post)
 
   unset(_reset_standard_cflags_rel)
   unset(_reset_standard_cxxflags_rel)
-
-  # ----------------
-  # CPU SIMD HACK END
-  if(NOT DEFINED _cmake_c_flags_initialized OR NOT DEFINED _cmake_cxx_flags_initialized)
-    set(COMPILER_SSE42_FLAG)
-    get_sse_flags(COMPILER_SSE42_FLAG)
-    if(NOT DEFINED _cmake_c_flags_initialized)
-      set(CMAKE_C_FLAGS "${COMPILER_SSE42_FLAG}" CACHE STRING "" FORCE)
-      set(_cmake_c_flags_initialized ON CACHE INTERNAL "Default C flags")
-    endif()
-    if(NOT DEFINED _cmake_cxx_flags_initialized)
-      set(CMAKE_CXX_FLAGS "${COMPILER_SSE42_FLAG}" CACHE STRING "" FORCE)
-      set(_cmake_cxx_flags_initialized ON CACHE INTERNAL "Default CXX flags")
-    endif()
-    unset(COMPILER_SSE42_FLAG)
-  endif()
 endmacro()
 
 # pair of macros to allow libraries to be specify files to install, but to

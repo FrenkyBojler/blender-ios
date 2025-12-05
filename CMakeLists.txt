@@ -637,6 +637,9 @@ Path to python site-packages or dist-packages containing 'zstandard' module"
   mark_as_advanced(PYTHON_ZSTANDARD_PATH)
 endif()
 
+option(WITH_COMPILER_ADD_SIMD "Add the recommended Blender default SIMD flags to the compilers C_FLAGS/CXX_FLAGS" ON)
+mark_as_advanced(WITH_COMPILER_ADD_SIMD)
+
 # Cycles
 option(WITH_CYCLES "Enable Cycles Render Engine" ON)
 option(WITH_CYCLES_OSL "Build Cycles with OpenShadingLanguage support" ON)
@@ -1582,6 +1585,16 @@ endif()
 
 # -----------------------------------------------------------------------------
 # Common Checks for Compatible Options
+
+# Add the default compiler SIMD flags if enabled
+#
+if(WITH_COMPILER_ADD_SIMD)
+  set(COMPILER_SSE42_FLAG)
+  get_sse_flags(COMPILER_SSE42_FLAG)
+  string(APPEND CMAKE_CXX_FLAGS " ${COMPILER_SSE42_FLAG}")
+  string(APPEND CMAKE_C_FLAGS " ${COMPILER_SSE42_FLAG}")
+  unset(COMPILER_SSE42_FLAG)
+endif()
 
 # Enable SSE2NEON SIMD support if found.
 #
