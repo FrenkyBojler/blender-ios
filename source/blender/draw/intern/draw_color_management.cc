@@ -147,6 +147,16 @@ static void viewport_settings_apply(GPUViewport &viewport,
     }
   }
 
+  /* When auto-exposure is enabled we always want the viewport to honor the
+   * exposure value stored in the scene view settings, even for modes that
+   * normally only copy the view transform and look. Otherwise the draw
+   * manager would keep using exposure=0 from a freshly initialized
+   * ColorManagedViewSettings, making the image stop reacting to
+   * BKE_color_auto_exposure_update over time. */
+  if ((scene.view_settings.flag & COLORMANAGE_VIEW_USE_AUTO_EXPOSURE) != 0) {
+    view_settings.exposure = scene.view_settings.exposure;
+  }
+
   const float dither = dither_get(color_management_type, scene);
   GPU_viewport_colorspace_set(&viewport, &view_settings, display_settings, dither);
 }

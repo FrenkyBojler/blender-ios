@@ -207,6 +207,10 @@ typedef struct ColorManagedViewSettings {
   /** Pre-display RGB curves transform. */
   struct CurveMapping *curve_mapping;
   void *_pad2;
+  float auto_exposure_min;
+  float auto_exposure_max;
+  float auto_exposure_speed;
+  char _pad3[4];
 } ColorManagedViewSettings;
 
 typedef struct ColorManagedDisplaySettings {
@@ -232,5 +236,6 @@ enum {
   COLORMANAGE_VIEW_USE_WHITE_BALANCE = (1 << 2),
   /* Only work as pure view transform and look, no other settings.
    * Not user editable, but fixed depending on where settings are stored. */
-  COLORMANAGE_VIEW_ONLY_VIEW_LOOK = (1 << 3)
+  COLORMANAGE_VIEW_ONLY_VIEW_LOOK = (1 << 3),
+  COLORMANAGE_VIEW_USE_AUTO_EXPOSURE = (1 << 4),
 };

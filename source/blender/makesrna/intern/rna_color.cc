@@ -1462,6 +1462,46 @@ static void rna_def_colormanage(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_WINDOW, "rna_ColorManagement_update");
   RNA_def_property_editable_func(prop, "rna_ViewSettings_only_view_look_editable");
 
+  prop = RNA_def_property(srna, "use_auto_exposure", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", COLORMANAGE_VIEW_USE_AUTO_EXPOSURE);
+  RNA_def_property_ui_text(
+      prop, "Use Auto Exposure", "Automatically adjust exposure from image luminance");
+  RNA_def_property_update(prop, NC_WINDOW, "rna_ColorManagement_update");
+  RNA_def_property_editable_func(prop, "rna_ViewSettings_only_view_look_editable");
+
+  prop = RNA_def_property(srna, "auto_exposure_min", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_float_sdna(prop, nullptr, "auto_exposure_min");
+  RNA_def_property_range(prop, -32.0f, 32.0f);
+  RNA_def_property_ui_range(prop, -10.0f, 10.0f, 1, 3);
+  RNA_def_property_ui_text(
+      prop,
+      "Auto Exposure Min",
+      "Lower clamp for exposure value computed by auto exposure");
+  RNA_def_property_update(prop, NC_WINDOW, "rna_ColorManagement_update");
+  RNA_def_property_editable_func(prop, "rna_ViewSettings_only_view_look_editable");
+
+  prop = RNA_def_property(srna, "auto_exposure_max", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_float_sdna(prop, nullptr, "auto_exposure_max");
+  RNA_def_property_range(prop, -32.0f, 32.0f);
+  RNA_def_property_ui_range(prop, -10.0f, 10.0f, 1, 3);
+  RNA_def_property_ui_text(
+      prop,
+      "Auto Exposure Max",
+      "Upper clamp for exposure value computed by auto exposure");
+  RNA_def_property_update(prop, NC_WINDOW, "rna_ColorManagement_update");
+  RNA_def_property_editable_func(prop, "rna_ViewSettings_only_view_look_editable");
+
+  prop = RNA_def_property(srna, "auto_exposure_speed", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_float_sdna(prop, nullptr, "auto_exposure_speed");
+  RNA_def_property_range(prop, 0.0f, 10.0f);
+  RNA_def_property_ui_range(prop, 0.0f, 5.0f, 0.1f, 3);
+  RNA_def_property_ui_text(
+      prop,
+      "Auto Exposure Speed",
+      "Response speed of exposure adaptation over time");
+  RNA_def_property_update(prop, NC_WINDOW, "rna_ColorManagement_update");
+  RNA_def_property_editable_func(prop, "rna_ViewSettings_only_view_look_editable");
+
   prop = RNA_def_property(srna, "gamma", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_float_sdna(prop, nullptr, "gamma");
   RNA_def_property_float_default(prop, 1.0f);

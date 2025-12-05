@@ -86,6 +86,15 @@ class RENDER_PT_color_management(RenderButtonsPanel, Panel):
         col.prop(view, "exposure")
         col.prop(view, "gamma")
 
+        col.separator()
+
+        col.prop(view, "use_auto_exposure")
+        sub = col.column(align=True)
+        sub.active = view.use_auto_exposure
+        sub.prop(view, "auto_exposure_min")
+        sub.prop(view, "auto_exposure_max")
+        sub.prop(view, "auto_exposure_speed")
+
 
 class RENDER_PT_color_management_working_space(RenderButtonsPanel, Panel):
     bl_label = "Working Space"

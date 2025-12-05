@@ -23,6 +23,7 @@
 
 #include "BKE_armature.hh"
 #include "BKE_camera.h"
+#include "BKE_colortools.hh"
 #include "BKE_collection.hh"
 #include "BKE_context.hh"
 #include "BKE_customdata.hh"
@@ -70,6 +71,7 @@
 #include "GPU_immediate_util.hh"
 #include "GPU_matrix.hh"
 #include "GPU_state.hh"
+#include "GPU_texture.hh"
 #include "GPU_viewport.hh"
 
 #include "MEM_guardedalloc.h"
@@ -81,6 +83,7 @@
 
 #include "WM_api.hh"
 #include "WM_types.hh"
+#include "wm_draw.hh"
 
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
@@ -1767,6 +1770,149 @@ void view3d_main_region_draw(const bContext *C, ARegion *region)
 
   view3d_update_viewer_path(C);
   view3d_draw_view(C, region);
+
+  /* Update auto-exposure from the current 3D viewport contents when enabled.
+   * NOTE: The texture from wm_draw_region_texture contains pixels that have
+   * been processed by EEVEE's film shader (which applies exposure_scale).
+   * The colortools.cc algorithm must compensate for this. */
+  Scene *scene = CTX_data_scene(C);
+  if (scene && (scene->view_settings.flag & COLORMANAGE_VIEW_USE_AUTO_EXPOSURE)) {
+    printf("VIEW3D_DRAW: Auto-exposure is ENABLED\n");
+    printf("VIEW3D_DRAW: Current exposure = %.3f, min = %.1f, max = %.1f, speed = %.1f\n",
+           scene->view_settings.exposure,
+           scene->view_settings.auto_exposure_min,
+           scene->view_settings.auto_exposure_max,
+           scene->view_settings.auto_exposure_speed);
+
+    /* Get the viewport to access the actual EEVEE color output. */
+    GPUViewport *viewport = WM_draw_region_get_viewport(region);
+    if (viewport == nullptr) {
+      printf("VIEW3D_DRAW: ERROR - viewport is nullptr!\n");
+      return;
+    }
+    
+    /* Get the color texture from the viewport (this is the actual EEVEE output). */
+    blender::gpu::Texture *color_tx = GPU_viewport_color_texture(viewport, 0);
+
+    if (color_tx != nullptr) {
+      printf("VIEW3D_DRAW: Got color texture\n");
+      const int tex_w = GPU_texture_width(color_tx);
+      const int tex_h = GPU_texture_height(color_tx);
+      printf("VIEW3D_DRAW: Texture size: %dx%d\n", tex_w, tex_h);
+
+      if (tex_w > 0 && tex_h > 0) {
+        /* Limit read-back to a central region to reduce bandwidth. */
+        const int max_sample = 512;
+        const int sample_w = (tex_w < max_sample) ? tex_w : max_sample;
+        const int sample_h = (tex_h < max_sample) ? tex_h : max_sample;
+        printf("VIEW3D_DRAW: Sample region: %dx%d\n", sample_w, sample_h);
+
+        rcti rect;
+        rect.xmin = (tex_w - sample_w) / 2;
+        rect.ymin = (tex_h - sample_h) / 2;
+        rect.xmax = rect.xmin + sample_w;
+        rect.ymax = rect.ymin + sample_h;
+
+        /* Read the entire texture using GPU_texture_read, then we'll sample from it. */
+        printf("VIEW3D_DRAW: Reading texture directly with GPU_texture_read...\n");
+        GPU_finish();
+        printf("VIEW3D_DRAW: GPU_finish() completed\n");
+        
+        float *full_pixels = static_cast<float *>(GPU_texture_read(color_tx, GPU_DATA_FLOAT, 0));
+        
+        if (full_pixels != nullptr) {
+          /* Allocate smaller buffer for sampled region */
+          float *pixels = MEM_malloc_arrayN<float>(
+              size_t(sample_w) * size_t(sample_h) * 4, "view3d_auto_exposure_pixels");
+              
+          if (pixels != nullptr) {
+            /* Copy the sampled region from full texture */
+            for (int y = 0; y < sample_h; y++) {
+              for (int x = 0; x < sample_w; x++) {
+                int src_y = rect.ymin + y;
+                int src_x = rect.xmin + x;
+                int src_idx = (src_y * tex_w + src_x) * 4;
+                int dst_idx = (y * sample_w + x) * 4;
+                
+                pixels[dst_idx + 0] = full_pixels[src_idx + 0];
+                pixels[dst_idx + 1] = full_pixels[src_idx + 1];
+                pixels[dst_idx + 2] = full_pixels[src_idx + 2];
+                pixels[dst_idx + 3] = full_pixels[src_idx + 3];
+              }
+            }
+
+          printf("VIEW3D_DRAW: First pixel RGB = (%.3f, %.3f, %.3f)\n",
+                 pixels[0],
+                 pixels[1],
+                 pixels[2]);
+
+          ImBuf ibuf{};
+          ibuf.x = sample_w;
+          ibuf.y = sample_h;
+          ibuf.channels = 4;
+          ibuf.float_buffer.data = pixels;
+
+          static double prev_time = 0.0;
+          const double now = BLI_time_now_seconds();
+          float dt = 0.0f;
+          if (prev_time != 0.0) {
+            dt = float(now - prev_time);
+            if (dt < 0.0f) {
+              dt = 0.0f;
+            }
+            else if (dt > 1.0f) {
+              dt = 1.0f;
+            }
+          }
+          prev_time = now;
+
+          printf("VIEW3D_DRAW: Calling BKE_color_auto_exposure_update with dt=%.3f\n", dt);
+          float old_exposure = scene->view_settings.exposure;
+          
+          BKE_color_auto_exposure_update(
+              &ibuf, &scene->display_settings, &scene->view_settings, dt);
+          
+          float new_exposure = scene->view_settings.exposure;
+          printf("VIEW3D_DRAW: After update, exposure = %.3f\n", new_exposure);
+
+          /* Force scene update and viewport redraw.
+           * DEG_id_tag_update marks the scene as modified in the dependency graph,
+           * which properly propagates the exposure change through Blender's systems. */
+          if (fabsf(new_exposure - old_exposure) > 0.0001f) {
+            DEG_id_tag_update(&scene->id, ID_RECALC_PARAMETERS);
+            WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, scene);
+            ED_region_tag_redraw(region);
+          }
+
+          MEM_freeN(pixels);
+        }
+        else {
+          printf("VIEW3D_DRAW: ERROR - Failed to allocate pixel buffer\n");
+        }
+        
+        /* Free the full texture buffer */
+        MEM_freeN(full_pixels);
+      }
+      else {
+        printf("VIEW3D_DRAW: ERROR - Failed to read texture\n");
+      }
+    }
+    else {
+      printf("VIEW3D_DRAW: ERROR - Invalid texture size\n");
+    }
+  }
+  else {
+    printf("VIEW3D_DRAW: ERROR - Failed to get color texture\n");
+  }
+}
+else {
+  if (!scene) {
+    printf("VIEW3D_DRAW: No scene\n");
+  }
+  else {
+    printf("VIEW3D_DRAW: Auto-exposure is DISABLED\n");
+  }
+}
 
   DRW_cache_free_old_subdiv();
   DRW_cache_free_old_batches(bmain);

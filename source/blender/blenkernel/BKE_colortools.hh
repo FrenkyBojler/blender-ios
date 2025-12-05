@@ -209,6 +209,11 @@ void BKE_color_managed_view_settings_copy_keep_curve_mapping(
 
 void BKE_color_managed_view_settings_free(ColorManagedViewSettings *settings);
 
+void BKE_color_auto_exposure_update(const ImBuf *ibuf,
+                                    const ColorManagedDisplaySettings *display_settings,
+                                    ColorManagedViewSettings *view_settings,
+                                    float delta_time);
+
 void BKE_color_managed_view_settings_blend_write(BlendWriter *writer,
                                                  const ColorManagedViewSettings *settings);
 void BKE_color_managed_view_settings_blend_read_data(BlendDataReader *reader,

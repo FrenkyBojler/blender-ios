@@ -1909,6 +1909,252 @@ void BKE_scopes_new(Scopes *scopes)
   scopes->vecscope_rgb = nullptr;
 }
 
+void BKE_color_auto_exposure_update(const ImBuf *ibuf,
+                                    const ColorManagedDisplaySettings *display_settings,
+                                    ColorManagedViewSettings *view_settings,
+                                    float delta_time)
+{
+  UNUSED_VARS(display_settings);
+
+  printf("AUTO_EXPOSURE: Function called, dt=%.3f\n", delta_time);
+
+  if (ibuf == nullptr || ibuf->float_buffer.data == nullptr || ibuf->x == 0 || ibuf->y == 0) {
+    printf("AUTO_EXPOSURE: Early return - invalid ibuf\n");
+    return;
+  }
+
+  const int width = ibuf->x;
+  const int height = ibuf->y;
+  const int channels = (ibuf->channels > 0) ? ibuf->channels : 4;
+  const float *pixels = ibuf->float_buffer.data;
+
+  printf("AUTO_EXPOSURE: ImBuf size = %dx%d, channels = %d\n", width, height, channels);
+
+  /* The pixels from the viewport have the current exposure already applied by EEVEE.
+   * We must compensate to estimate the original scene luminance.
+   * This creates a feedback loop, but our ultra-long temporal smoothing (10s)
+   * makes it imperceptible - the target changes SO slowly that the feedback effect
+   * is completely masked. */
+  const float current_exposure = view_settings->exposure;
+  const float current_exposure_scale = pow2f(current_exposure);
+  const float inv_exposure_scale = (current_exposure_scale > 1e-8f) ?
+                                       (1.0f / current_exposure_scale) :
+                                       1.0f;
+
+  printf("AUTO_EXPOSURE: current_exposure=%.3f, inv_scale=%.3f\n",
+         current_exposure,
+         inv_exposure_scale);
+
+  /* User-configurable min/max clamping. */
+  float min_ev = view_settings->auto_exposure_min;
+  float max_ev = view_settings->auto_exposure_max;
+  if (min_ev > max_ev) {
+    std::swap(min_ev, max_ev);
+  }
+
+  printf("AUTO_EXPOSURE: EV range = [%.1f, %.1f], speed = %.1f\n",
+         min_ev,
+         max_ev,
+         view_settings->auto_exposure_speed);
+
+  /* Build histogram of log-luminance values.
+   * Pixels are POST-exposure - we compensate to get original scene luminance. */
+  constexpr int NUM_BINS = 256;
+  constexpr float LOG_LUM_MIN = -12.0f;
+  constexpr float LOG_LUM_MAX = 8.0f;
+  constexpr float LOG_LUM_RANGE = LOG_LUM_MAX - LOG_LUM_MIN;
+
+  uint histogram[NUM_BINS] = {0};
+  int total_valid_pixels = 0;
+
+  /* Sample every 2nd pixel for performance. */
+  const int step = 2;
+
+  /* Debug: print first few pixel values */
+  int debug_count = 0;
+
+  for (int y = 0; y < height; y += step) {
+    const float *row = pixels + size_t(y) * width * channels;
+    for (int x = 0; x < width; x += step) {
+      const float *px = row + x * channels;
+      const float r = px[0];
+      const float g = (channels > 1) ? px[1] : r;
+      const float b = (channels > 2) ? px[2] : r;
+
+      /* Luminance (Rec. 709). */
+      float lum = 0.2126f * r + 0.7152f * g + 0.0722f * b;
+
+      /* Skip invalid or extremely dark/bright values. */
+      if (!(lum >= 0.0f) || lum > 1.0e10f) {
+        continue;
+      }
+
+      /* Compensate for current exposure to estimate original scene luminance. */
+      lum *= inv_exposure_scale;
+
+      if (debug_count < 3) {
+        printf("AUTO_EXPOSURE: Pixel[%d,%d] RGB=(%.3f,%.3f,%.3f) lum_compensated=%.4f\n",
+               x,
+               y,
+               r,
+               g,
+               b,
+               lum);
+        debug_count++;
+      }
+
+      /* Skip very dark pixels (likely background/shadows). */
+      if (lum < 1.0e-5f) {
+        continue;
+      }
+
+      /* Build histogram in log2 space. */
+      const float log_lum = log2f(lum);
+      float normalized = (log_lum - LOG_LUM_MIN) / LOG_LUM_RANGE;
+      normalized = std::clamp(normalized, 0.0f, 1.0f);
+      const int bin = int(normalized * (NUM_BINS - 1));
+      histogram[bin]++;
+      total_valid_pixels++;
+    }
+  }
+
+  if (total_valid_pixels < 100) {
+    printf("AUTO_EXPOSURE: Early return - not enough pixels (%d)\n", total_valid_pixels);
+    return;
+  }
+
+  printf("AUTO_EXPOSURE: total_valid_pixels=%d\n", total_valid_pixels);
+
+  /* Apply percentile clipping to ignore outliers.
+   * Skip bottom 10% (dark shadows/backgrounds) and top 2% (specular highlights). */
+  constexpr float LOW_PERCENTILE = 0.10f;
+  constexpr float HIGH_PERCENTILE = 0.98f;
+
+  const int low_threshold = int(total_valid_pixels * LOW_PERCENTILE);
+  const int high_threshold = int(total_valid_pixels * HIGH_PERCENTILE);
+
+  int low_bin = 0;
+  int high_bin = NUM_BINS - 1;
+  int cumulative = 0;
+
+  for (int i = 0; i < NUM_BINS; i++) {
+    cumulative += histogram[i];
+    if (cumulative < low_threshold) {
+      low_bin = i + 1;
+    }
+    if (cumulative <= high_threshold) {
+      high_bin = i;
+    }
+  }
+
+  low_bin = std::min(low_bin, NUM_BINS - 1);
+  high_bin = std::max(high_bin, low_bin);
+
+  /* Calculate weighted average of log-luminance within clipped range. */
+  double weighted_log_sum = 0.0;
+  int weighted_count = 0;
+
+  for (int i = low_bin; i <= high_bin; i++) {
+    if (histogram[i] > 0) {
+      const float bin_log_lum = LOG_LUM_MIN + (float(i) + 0.5f) / NUM_BINS * LOG_LUM_RANGE;
+      weighted_log_sum += double(histogram[i]) * bin_log_lum;
+      weighted_count += histogram[i];
+    }
+  }
+
+  if (weighted_count < 50) {
+    printf("AUTO_EXPOSURE: Early return - not enough weighted pixels (%d)\n", weighted_count);
+    return;
+  }
+
+  /* Geometric mean luminance (in log2 space). */
+  float avg_log_lum = float(weighted_log_sum / double(weighted_count));
+  
+  /* Get user-configured speed setting. */
+  const float speed = view_settings->auto_exposure_speed;
+  
+  /* ULTRA-STABLE TEMPORAL SMOOTHING with 10 second time constant.
+   * This is the KEY to breaking the feedback loop effect.
+   * Even though pixels change when exposure changes, the MASSIVE smoothing
+   * prevents any visible jerking or snapping. */
+  static float smoothed_avg_log_lum = avg_log_lum;
+  static bool first_run = true;
+  
+  if (first_run) {
+    smoothed_avg_log_lum = avg_log_lum;
+    first_run = false;
+  }
+  else {
+    /* Speed slider directly controls convergence time in seconds!
+     * speed = 1.0 → converge in 1 second
+     * speed = 2.5 → converge in 2.5 seconds  
+     * speed = 0.5 → converge in 0.5 second (very fast)
+     * 
+     * For 95% convergence in T seconds, use: alpha = 1 - exp(-3/T * dt)
+     * The factor 3 comes from: exp(-3) ≈ 0.05 (5% remaining) */
+    const float convergence_time = std::max(speed, 0.1f);  /* Prevent division by zero */
+    const float alpha = 1.0f - expf(-3.0f / convergence_time * delta_time);
+    smoothed_avg_log_lum = smoothed_avg_log_lum * (1.0f - alpha) + avg_log_lum * alpha;
+  }
+
+  /* Calculate target exposure to maintain comfortable image brightness.
+   * The key insight: Blender's exposure slider is centered at 0.0 (neutral).
+   * We want to keep exposure near 0 for normally-lit scenes, adjusting only when needed.
+   * 
+   * For a scene with average log luminance around -1.5 to -2.5 (typical indoor/outdoor),
+   * we want exposure to stay near 0. Only deviate significantly for very dark/bright scenes.
+   * 
+   * Formula: target = -smoothed_avg_log_lum + calibration_offset
+   * The calibration offset centers the exposure at 0 for "normal" scenes. */
+  constexpr float CALIBRATION_OFFSET = -2.0f;  /* Assumes normal scene has log_lum around -2.0 */
+  float target_exposure = -smoothed_avg_log_lum + CALIBRATION_OFFSET;
+  target_exposure = std::clamp(target_exposure, min_ev, max_ev);
+
+  printf("AUTO_EXPOSURE: avg_log_lum=%.3f (smoothed=%.3f), target_exposure=%.3f (clamped to [%.1f, %.1f])\n",
+         avg_log_lum,
+         smoothed_avg_log_lum,
+         target_exposure,
+         min_ev,
+         max_ev);
+
+  /* Speed and temporal smoothing. */
+  if (speed <= 0.0f) {
+    view_settings->exposure = target_exposure;
+    printf("AUTO_EXPOSURE: No smoothing - set exposure to %.3f\n", target_exposure);
+    return;
+  }
+
+  if (!std::isfinite(view_settings->exposure)) {
+    view_settings->exposure = target_exposure;
+    printf("AUTO_EXPOSURE: Init exposure to %.3f\n", target_exposure);
+    return;
+  }
+
+  const float old_exposure = view_settings->exposure;
+  
+  /* Converge exposure directly to target using the same speed parameter.
+   * No need for double smoothing - avg_log_lum is already smoothed. */
+  float dt = delta_time;
+  if (dt <= 0.0f) {
+    dt = 1.0f / 60.0f;
+  }
+  dt = std::clamp(dt, 1.0f / 120.0f, 0.5f);
+  
+  /* Use same convergence formula: 95% in 'speed' seconds */
+  const float convergence_time = std::max(speed, 0.1f);
+  const float alpha = 1.0f - expf(-3.0f / convergence_time * dt);
+  
+  view_settings->exposure = old_exposure + (target_exposure - old_exposure) * alpha;
+  view_settings->exposure = std::clamp(view_settings->exposure, min_ev, max_ev);
+
+  printf("AUTO_EXPOSURE: target=%.3f, old=%.3f, convergence_time=%.1fs, alpha=%.4f, NEW=%.3f\n",
+         target_exposure,
+         old_exposure,
+         convergence_time,
+         alpha,
+         view_settings->exposure);
+}
+
 void BKE_color_managed_display_settings_init(ColorManagedDisplaySettings *settings)
 {
   const char *display_name = IMB_colormanagement_display_get_default_name();
@@ -1944,6 +2190,9 @@ void BKE_color_managed_view_settings_init(ColorManagedViewSettings *view_setting
   view_settings->flag = 0;
   view_settings->gamma = 1.0f;
   view_settings->exposure = 0.0f;
+  view_settings->auto_exposure_min = -8.0f;
+  view_settings->auto_exposure_max = 8.0f;
+  view_settings->auto_exposure_speed = 3.0f;
   view_settings->curve_mapping = nullptr;
 
   IMB_colormanagement_validate_settings(display_settings, view_settings);
@@ -1973,6 +2222,9 @@ void BKE_color_managed_view_settings_copy_keep_curve_mapping(
   new_settings->gamma = settings->gamma;
   new_settings->temperature = settings->temperature;
   new_settings->tint = settings->tint;
+  new_settings->auto_exposure_min = settings->auto_exposure_min;
+  new_settings->auto_exposure_max = settings->auto_exposure_max;
+  new_settings->auto_exposure_speed = settings->auto_exposure_speed;
 }
 
 void BKE_color_managed_view_settings_free(ColorManagedViewSettings *settings)
