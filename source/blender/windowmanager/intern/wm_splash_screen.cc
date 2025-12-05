@@ -69,9 +69,9 @@ static void wm_block_splash_add_label(uiBlock *block, const char *label, int x, 
   UI_block_emboss_set(block, blender::ui::EmbossType::None);
 
   uiBut *but = uiDefBut(
-      block, ButType::Label, label, 0, y, x, UI_UNIT_Y, nullptr, 0, 0, std::nullopt);
-  UI_but_drawflag_disable(but, UI_BUT_TEXT_LEFT);
-  UI_but_drawflag_enable(but, UI_BUT_TEXT_RIGHT);
+      block, blender::ui::ButType::Label, label, 0, y, x, UI_UNIT_Y, nullptr, 0, 0, std::nullopt);
+  UI_but_drawflag_disable(but, blender::ui::UI_BUT_TEXT_LEFT);
+  UI_but_drawflag_enable(but, blender::ui::UI_BUT_TEXT_RIGHT);
 
   /* Regardless of theme, this text should always be bright white. */
   uchar color[4] = {255, 255, 255, 255};
@@ -88,7 +88,7 @@ static void wm_block_splash_image_roundcorners_add(ImBuf *ibuf)
     return;
   }
 
-  bTheme *btheme = UI_GetTheme();
+  bTheme *btheme = blender::ui::UI_GetTheme();
   const float roundness = btheme->tui.wcol_menu_back.roundness * UI_SCALE_FAC;
   const int size = roundness * 20;
 
@@ -287,15 +287,17 @@ static int is_using_macos_rosetta()
 
 static uiBlock *wm_block_splash_create(bContext *C, ARegion *region, void * /*arg*/)
 {
-  const uiStyle *style = UI_style_get_dpi();
+  const uiStyle *style = blender::ui::UI_style_get_dpi();
 
   uiBlock *block = UI_block_begin(C, region, "splash", blender::ui::EmbossType::Emboss);
 
   /* Note on #UI_BLOCK_NO_WIN_CLIP, the window size is not always synchronized
    * with the OS when the splash shows, window clipping in this case gives
    * ugly results and clipping the splash isn't useful anyway, just disable it #32938. */
-  UI_block_flag_enable(block, UI_BLOCK_LOOP | UI_BLOCK_KEEP_OPEN | UI_BLOCK_NO_WIN_CLIP);
-  UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
+  UI_block_flag_enable(block,
+                       blender::ui::UI_BLOCK_LOOP | blender::ui::UI_BLOCK_KEEP_OPEN |
+                           blender::ui::UI_BLOCK_NO_WIN_CLIP);
+  UI_block_theme_style_set(block, blender::ui::UI_BLOCK_THEME_STYLE_POPUP);
 
   int splash_width = style->widget.points * 45 * UI_SCALE_FAC;
   CLAMP_MAX(splash_width, WM_window_native_pixel_x(CTX_wm_window(C)) * 0.7f);
@@ -332,15 +334,15 @@ static uiBlock *wm_block_splash_create(bContext *C, ARegion *region, void * /*ar
   }
 
   const int layout_margin_x = UI_SCALE_FAC * 26;
-  uiLayout &layout = blender::ui::block_layout(block,
-                                               blender::ui::LayoutDirection::Vertical,
-                                               blender::ui::LayoutType::Panel,
-                                               layout_margin_x,
-                                               0,
-                                               splash_width - (layout_margin_x * 2),
-                                               UI_SCALE_FAC * 110,
-                                               0,
-                                               style);
+  blender::ui::Layout &layout = blender::ui::block_layout(block,
+                                                          blender::ui::LayoutDirection::Vertical,
+                                                          blender::ui::LayoutType::Panel,
+                                                          layout_margin_x,
+                                                          0,
+                                                          splash_width - (layout_margin_x * 2),
+                                                          UI_SCALE_FAC * 110,
+                                                          0,
+                                                          style);
 
   MenuType *mt;
 
@@ -350,7 +352,7 @@ static uiBlock *wm_block_splash_create(bContext *C, ARegion *region, void * /*ar
 
     /* The #UI_BLOCK_QUICK_SETUP flag prevents the button text from being left-aligned,
      * as it is for all menus due to the #UI_BLOCK_LOOP flag, see in #ui_def_but. */
-    UI_block_flag_enable(block, UI_BLOCK_QUICK_SETUP);
+    UI_block_flag_enable(block, blender::ui::UI_BLOCK_QUICK_SETUP);
   }
   else {
     mt = WM_menutype_find("WM_MT_splash", true);
@@ -359,7 +361,7 @@ static uiBlock *wm_block_splash_create(bContext *C, ARegion *region, void * /*ar
   UI_block_func_set(block, wm_block_splash_close_on_fileselect, block, nullptr);
 
   if (mt) {
-    UI_menutype_draw(C, mt, &layout);
+    blender::ui::UI_menutype_draw(C, mt, &layout);
   }
 
 /* Displays a warning if blender is being emulated via Rosetta (macOS) or XTA (Windows) */
@@ -371,19 +373,19 @@ static uiBlock *wm_block_splash_create(bContext *C, ARegion *region, void * /*ar
   if (proc_id && strncmp(proc_id, "ARM", 3) == 0)
 #  endif
   {
-    layout.separator(2.0f, LayoutSeparatorType::Line);
+    layout.separator(2.0f, blender::ui::LayoutSeparatorType::Line);
 
-    uiLayout *split = &layout.split(0.725, true);
-    uiLayout *row1 = &split->row(true);
-    uiLayout *row2 = &split->row(true);
+    blender::ui::Layout &split = layout.split(0.725, true);
+    blender::ui::Layout &row1 = split.row(true);
+    blender::ui::Layout &row2 = split.row(true);
 
-    row1->label(RPT_("Intel binary detected. Expect reduced performance."), ICON_ERROR);
+    row1.label(RPT_("Intel binary detected. Expect reduced performance."), ICON_ERROR);
 
-    PointerRNA op_ptr = row2->op("WM_OT_url_open",
-                                 CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Learn More"),
-                                 ICON_URL,
-                                 blender::wm::OpCallContext::InvokeDefault,
-                                 UI_ITEM_NONE);
+    PointerRNA op_ptr = row2.op("WM_OT_url_open",
+                                CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Learn More"),
+                                ICON_URL,
+                                blender::wm::OpCallContext::InvokeDefault,
+                                UI_ITEM_NONE);
 #  if defined(__APPLE__)
     RNA_string_set(
         &op_ptr,
@@ -409,7 +411,7 @@ static wmOperatorStatus wm_splash_invoke(bContext *C,
                                          wmOperator * /*op*/,
                                          const wmEvent * /*event*/)
 {
-  UI_popup_block_invoke(C, wm_block_splash_create, nullptr, nullptr);
+  blender::ui::UI_popup_block_invoke(C, wm_block_splash_create, nullptr, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -432,57 +434,56 @@ void WM_OT_splash(wmOperatorType *ot)
 
 static uiBlock *wm_block_about_create(bContext *C, ARegion *region, void * /*arg*/)
 {
-  const uiStyle *style = UI_style_get_dpi();
+  const uiStyle *style = blender::ui::UI_style_get_dpi();
   const int dialog_width = style->widget.points * 42 * UI_SCALE_FAC;
 
   uiBlock *block = UI_block_begin(C, region, "about", blender::ui::EmbossType::Emboss);
 
-  UI_block_flag_enable(block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_LOOP | UI_BLOCK_NO_WIN_CLIP);
-  UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
+  UI_block_flag_enable(block,
+                       blender::ui::UI_BLOCK_KEEP_OPEN | blender::ui::UI_BLOCK_LOOP |
+                           blender::ui::UI_BLOCK_NO_WIN_CLIP);
+  UI_block_theme_style_set(block, blender::ui::UI_BLOCK_THEME_STYLE_POPUP);
 
-  uiLayout &layout = blender::ui::block_layout(block,
-                                               blender::ui::LayoutDirection::Vertical,
-                                               blender::ui::LayoutType::Panel,
-                                               0,
-                                               0,
-                                               dialog_width,
-                                               0,
-                                               0,
-                                               style);
+  blender::ui::Layout &layout = blender::ui::block_layout(block,
+                                                          blender::ui::LayoutDirection::Vertical,
+                                                          blender::ui::LayoutType::Panel,
+                                                          0,
+                                                          0,
+                                                          dialog_width,
+                                                          0,
+                                                          0,
+                                                          style);
 
 /* Blender logo. */
 #ifndef WITH_HEADLESS
   constexpr bool show_color = false;
   const float size = 0.2f * dialog_width;
 
-  ImBuf *ibuf = UI_svg_icon_bitmap(ICON_BLENDER_LOGO_LARGE, size, show_color);
+  ImBuf *ibuf = blender::ui::UI_svg_icon_bitmap(ICON_BLENDER_LOGO_LARGE, size, show_color);
 
   if (ibuf) {
-    bTheme *btheme = UI_GetTheme();
+    bTheme *btheme = blender::ui::UI_GetTheme();
     const uchar *color = btheme->tui.wcol_menu_back.text_sel;
 
     /* The top margin. */
-    uiLayout *row = &layout.row(false);
-    row->separator(0.2f);
+    layout.row(false).separator(0.2f);
 
     /* The logo image. */
-    row = &layout.row(false);
-    row->alignment_set(blender::ui::LayoutAlign::Left);
+    layout.row(false).alignment_set(blender::ui::LayoutAlign::Left);
     uiDefButImage(block, ibuf, 0, U.widget_unit, ibuf->x, ibuf->y, show_color ? nullptr : color);
 
     /* Padding below the logo. */
-    row = &layout.row(false);
-    row->separator(2.7f);
+    layout.row(false).separator(2.7f);
   }
 #endif /* !WITH_HEADLESS */
 
-  uiLayout *col = &layout.column(true);
+  blender::ui::Layout &col = layout.column(true);
 
-  uiItemL_ex(col, IFACE_("Blender"), ICON_NONE, true, false);
+  uiItemL_ex(&col, IFACE_("Blender"), ICON_NONE, true, false);
 
   MenuType *mt = WM_menutype_find("WM_MT_splash_about", true);
   if (mt) {
-    UI_menutype_draw(C, mt, col);
+    blender::ui::UI_menutype_draw(C, mt, &col);
   }
 
   UI_block_bounds_set_centered(block, 22 * UI_SCALE_FAC);
@@ -494,7 +495,7 @@ static wmOperatorStatus wm_splash_about_invoke(bContext *C,
                                                wmOperator * /*op*/,
                                                const wmEvent * /*event*/)
 {
-  UI_popup_block_invoke(C, wm_block_about_create, nullptr, nullptr);
+  blender::ui::UI_popup_block_invoke(C, wm_block_about_create, nullptr, nullptr);
 
   return OPERATOR_FINISHED;
 }

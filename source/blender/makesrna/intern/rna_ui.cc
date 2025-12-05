@@ -73,6 +73,8 @@ const EnumPropertyItem rna_enum_uilist_layout_type_items[] = {
 
 #  include "WM_api.hh"
 
+using blender::ui::Layout;
+
 static ARegionType *region_type_find(ReportList *reports, int space_type, int region_type)
 {
   SpaceType *st;
@@ -226,7 +228,7 @@ static bool rna_Panel_unregister(Main *bmain, StructRNA *type)
           }
           /* The unregistered panel might have had a template that added instanced panels,
            * so remove them just in case. They can be re-added on redraw anyway. */
-          UI_panels_free_instanced(nullptr, region);
+          blender::ui::UI_panels_free_instanced(nullptr, region);
         }
       }
     }
@@ -451,7 +453,7 @@ static StructRNA *rna_Panel_custom_data_typef(PointerRNA *ptr)
 {
   Panel *panel = (Panel *)ptr->data;
 
-  return UI_panel_custom_data_get(panel)->type;
+  return blender::ui::UI_panel_custom_data_get(panel)->type;
 }
 
 static PointerRNA rna_Panel_custom_data_get(PointerRNA *ptr)
@@ -459,7 +461,7 @@ static PointerRNA rna_Panel_custom_data_get(PointerRNA *ptr)
   Panel *panel = (Panel *)ptr->data;
 
   /* Because the panel custom data is general we can't refine the pointer type here. */
-  return *UI_panel_custom_data_get(panel);
+  return *blender::ui::UI_panel_custom_data_get(panel);
 }
 
 /* UIList */
@@ -502,7 +504,7 @@ static int rna_UIList_list_id_length(PointerRNA *ptr)
 
 static void uilist_draw_item(uiList *ui_list,
                              const bContext *C,
-                             uiLayout *layout,
+                             Layout &layout,
                              PointerRNA *dataptr,
                              PointerRNA *itemptr,
                              int icon,
@@ -522,7 +524,8 @@ static void uilist_draw_item(uiList *ui_list,
 
   RNA_parameter_list_create(&list, &ul_ptr, func);
   RNA_parameter_set_lookup(&list, "context", &C);
-  RNA_parameter_set_lookup(&list, "layout", &layout);
+  Layout *layout_ptr = &layout;
+  RNA_parameter_set_lookup(&list, "layout", &layout_ptr);
   RNA_parameter_set_lookup(&list, "data", dataptr);
   RNA_parameter_set_lookup(&list, "item", itemptr);
   RNA_parameter_set_lookup(&list, "icon", &icon);
@@ -535,7 +538,7 @@ static void uilist_draw_item(uiList *ui_list,
   RNA_parameter_list_free(&list);
 }
 
-static void uilist_draw_filter(uiList *ui_list, const bContext *C, uiLayout *layout)
+static void uilist_draw_filter(uiList *ui_list, const bContext *C, Layout &layout)
 {
   extern FunctionRNA rna_UIList_draw_filter_func;
 
@@ -548,7 +551,8 @@ static void uilist_draw_filter(uiList *ui_list, const bContext *C, uiLayout *lay
 
   RNA_parameter_list_create(&list, &ul_ptr, func);
   RNA_parameter_set_lookup(&list, "context", &C);
-  RNA_parameter_set_lookup(&list, "layout", &layout);
+  Layout *layout_ptr = &layout;
+  RNA_parameter_set_lookup(&list, "layout", &layout_ptr);
   ui_list->type->rna_ext.call((bContext *)C, &ul_ptr, func, &list);
 
   RNA_parameter_list_free(&list);
@@ -629,7 +633,7 @@ static void uilist_filter_items(uiList *ui_list,
         int t_idx, t_ni, prev_ni;
         flt_data->items_shown = 0;
         for (i = 0, shown_idx = 0; i < len; i++) {
-          if (UI_list_item_index_is_filtered_visible(ui_list, i)) {
+          if (blender::ui::UI_list_item_index_is_filtered_visible(ui_list, i)) {
             filter_neworder[shown_idx++] = filter_neworder[i];
           }
         }
@@ -656,7 +660,7 @@ static void uilist_filter_items(uiList *ui_list,
         /* we still have to set flt_data->items_shown... */
         flt_data->items_shown = 0;
         for (i = 0; i < len; i++) {
-          if (UI_list_item_index_is_filtered_visible(ui_list, i)) {
+          if (blender::ui::UI_list_item_index_is_filtered_visible(ui_list, i)) {
             flt_data->items_shown++;
           }
         }
@@ -1176,7 +1180,7 @@ static const AssetWeakReference *asset_shelf_get_active_asset(const AssetShelfTy
 static void asset_shelf_draw_context_menu(const bContext *C,
                                           const AssetShelfType *shelf_type,
                                           const AssetRepresentationHandle *asset,
-                                          uiLayout *layout)
+                                          Layout &layout)
 {
   extern FunctionRNA rna_AssetShelf_draw_context_menu_func;
 
@@ -1190,7 +1194,8 @@ static void asset_shelf_draw_context_menu(const bContext *C,
   RNA_parameter_list_create(&list, &ptr, func);
   RNA_parameter_set_lookup(&list, "context", &C);
   RNA_parameter_set_lookup(&list, "asset", &asset);
-  RNA_parameter_set_lookup(&list, "layout", &layout);
+  Layout *layout_ptr = &layout;
+  RNA_parameter_set_lookup(&list, "layout", &layout_ptr);
   shelf_type->rna_ext.call((bContext *)C, &ptr, func, &list);
 
   RNA_parameter_list_free(&list);
@@ -1385,159 +1390,159 @@ static void rna_Menu_bl_description_set(PointerRNA *ptr, const char *value)
 
 static bool rna_UILayout_active_get(PointerRNA *ptr)
 {
-  return static_cast<uiLayout *>(ptr->data)->active();
+  return ptr->data_as<const Layout>()->active();
 }
 
 static void rna_UILayout_active_set(PointerRNA *ptr, bool value)
 {
-  static_cast<uiLayout *>(ptr->data)->active_set(value);
+  ptr->data_as<Layout>()->active_set(value);
 }
 
 static bool rna_UILayout_active_default_get(PointerRNA *ptr)
 {
-  return static_cast<uiLayout *>(ptr->data)->active_default();
+  return ptr->data_as<const Layout>()->active_default();
 }
 
 static void rna_UILayout_active_default_set(PointerRNA *ptr, bool value)
 {
-  static_cast<uiLayout *>(ptr->data)->active_default_set(value);
+  ptr->data_as<Layout>()->active_default_set(value);
 }
 
 static bool rna_UILayout_activate_init_get(PointerRNA *ptr)
 {
-  return static_cast<uiLayout *>(ptr->data)->activate_init();
+  return ptr->data_as<const Layout>()->activate_init();
 }
 
 static void rna_UILayout_activate_init_set(PointerRNA *ptr, bool value)
 {
-  static_cast<uiLayout *>(ptr->data)->activate_init_set(value);
+  ptr->data_as<Layout>()->activate_init_set(value);
 }
 
 static bool rna_UILayout_alert_get(PointerRNA *ptr)
 {
-  return static_cast<uiLayout *>(ptr->data)->red_alert();
+  return ptr->data_as<const Layout>()->red_alert();
 }
 
 static void rna_UILayout_alert_set(PointerRNA *ptr, bool value)
 {
-  static_cast<uiLayout *>(ptr->data)->red_alert_set(value);
+  ptr->data_as<Layout>()->red_alert_set(value);
 }
 
 static void rna_UILayout_op_context_set(PointerRNA *ptr, int value)
 {
-  static_cast<uiLayout *>(ptr->data)->operator_context_set(blender::wm::OpCallContext(value));
+  ptr->data_as<Layout>()->operator_context_set(blender::wm::OpCallContext(value));
 }
 
 static int rna_UILayout_op_context_get(PointerRNA *ptr)
 {
-  return int(static_cast<uiLayout *>(ptr->data)->operator_context());
+  return int(ptr->data_as<const Layout>()->operator_context());
 }
 
 static bool rna_UILayout_enabled_get(PointerRNA *ptr)
 {
-  return static_cast<uiLayout *>(ptr->data)->enabled();
+  return ptr->data_as<const Layout>()->enabled();
 }
 
 static void rna_UILayout_enabled_set(PointerRNA *ptr, bool value)
 {
-  static_cast<uiLayout *>(ptr->data)->enabled_set(value);
+  ptr->data_as<Layout>()->enabled_set(value);
 }
 
 #  if 0
 static int rna_UILayout_red_alert_get(PointerRNA *ptr)
 {
-  return static_cast<uiLayout *>(ptr->data)->red_alert();
+  return ptr->data_as<const Layout>()->red_alert();
 }
 
 static void rna_UILayout_red_alert_set(PointerRNA *ptr, bool value)
 {
-  static_cast<uiLayout *>(ptr->data)->red_alert_set(value);
+  ptr->data_as<Layout>()->red_alert_set(value);
 }
 #  endif
 
 static int rna_UILayout_alignment_get(PointerRNA *ptr)
 {
-  return int(static_cast<uiLayout *>(ptr->data)->alignment());
+  return int(ptr->data_as<const Layout>()->alignment());
 }
 
 static void rna_UILayout_alignment_set(PointerRNA *ptr, int value)
 {
-  static_cast<uiLayout *>(ptr->data)->alignment_set(blender::ui::LayoutAlign(value));
+  ptr->data_as<Layout>()->alignment_set(blender::ui::LayoutAlign(value));
 }
 
 static int rna_UILayout_direction_get(PointerRNA *ptr)
 {
-  return int(ptr->data_as<uiLayout>()->local_direction());
+  return int(ptr->data_as<const Layout>()->local_direction());
 }
 
 static float rna_UILayout_scale_x_get(PointerRNA *ptr)
 {
-  return static_cast<uiLayout *>(ptr->data)->scale_x();
+  return ptr->data_as<const Layout>()->scale_x();
 }
 
 static void rna_UILayout_scale_x_set(PointerRNA *ptr, float value)
 {
-  static_cast<uiLayout *>(ptr->data)->scale_x_set(value);
+  ptr->data_as<Layout>()->scale_x_set(value);
 }
 
 static float rna_UILayout_scale_y_get(PointerRNA *ptr)
 {
-  return static_cast<uiLayout *>(ptr->data)->scale_y();
+  return ptr->data_as<const Layout>()->scale_y();
 }
 
 static void rna_UILayout_scale_y_set(PointerRNA *ptr, float value)
 {
-  static_cast<uiLayout *>(ptr->data)->scale_y_set(value);
+  ptr->data_as<Layout>()->scale_y_set(value);
 }
 
 static float rna_UILayout_units_x_get(PointerRNA *ptr)
 {
-  return static_cast<uiLayout *>(ptr->data)->ui_units_x();
+  return ptr->data_as<const Layout>()->ui_units_x();
 }
 
 static void rna_UILayout_units_x_set(PointerRNA *ptr, float value)
 {
-  static_cast<uiLayout *>(ptr->data)->ui_units_x_set(value);
+  ptr->data_as<Layout>()->ui_units_x_set(value);
 }
 
 static float rna_UILayout_units_y_get(PointerRNA *ptr)
 {
-  return static_cast<uiLayout *>(ptr->data)->ui_units_y();
+  return ptr->data_as<const Layout>()->ui_units_y();
 }
 
 static void rna_UILayout_units_y_set(PointerRNA *ptr, float value)
 {
-  static_cast<uiLayout *>(ptr->data)->ui_units_y_set(value);
+  ptr->data_as<Layout>()->ui_units_y_set(value);
 }
 
 static int rna_UILayout_emboss_get(PointerRNA *ptr)
 {
-  return int(static_cast<uiLayout *>(ptr->data)->emboss());
+  return int(ptr->data_as<const Layout>()->emboss());
 }
 
 static void rna_UILayout_emboss_set(PointerRNA *ptr, int value)
 {
-  static_cast<uiLayout *>(ptr->data)->emboss_set(blender::ui::EmbossType(value));
+  ptr->data_as<Layout>()->emboss_set(blender::ui::EmbossType(value));
 }
 
 static bool rna_UILayout_property_split_get(PointerRNA *ptr)
 {
-  return static_cast<const uiLayout *>(ptr->data)->use_property_split();
+  return ptr->data_as<const Layout>()->use_property_split();
 }
 
 static void rna_UILayout_property_split_set(PointerRNA *ptr, bool value)
 {
-  static_cast<uiLayout *>(ptr->data)->use_property_split_set(value);
+  ptr->data_as<Layout>()->use_property_split_set(value);
 }
 
 static bool rna_UILayout_property_decorate_get(PointerRNA *ptr)
 {
-  return static_cast<const uiLayout *>(ptr->data)->use_property_decorate();
+  return ptr->data_as<const Layout>()->use_property_decorate();
 }
 
 static void rna_UILayout_property_decorate_set(PointerRNA *ptr, bool value)
 {
-  static_cast<uiLayout *>(ptr->data)->use_property_decorate_set(value);
+  ptr->data_as<Layout>()->use_property_decorate_set(value);
 }
 
 /* File Handler */
@@ -2405,6 +2410,16 @@ static void rna_def_asset_shelf(BlenderRNA *brna)
   RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
   RNA_def_property_ui_text(
       prop, "Default Preview Size", "Default size of the asset preview thumbnails in pixels");
+
+  for (uint i = 0; rna_enum_id_type_filter_items[i].identifier; i++) {
+    const IDFilterEnumPropertyItem *item = &rna_enum_id_type_filter_items[i];
+
+    PropertyRNA *prop = RNA_def_property(srna, item->identifier, PROP_BOOLEAN, PROP_NONE);
+    RNA_def_property_boolean_sdna(prop, nullptr, "type->id_types_prefilter", item->flag);
+    RNA_def_property_ui_text(prop, item->name, item->description);
+    RNA_def_property_ui_icon(prop, item->icon, 0);
+    RNA_def_property_flag(prop, PROP_REGISTER_OPTIONAL);
+  }
 
   PropertyRNA *parm;
   FunctionRNA *func;

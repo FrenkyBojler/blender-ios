@@ -79,7 +79,7 @@ struct bNodeLinkDrag {
   bool swap_links = false;
 
   /* Data for edge panning */
-  View2DEdgePanData pan_data;
+  ui::View2DEdgePanData pan_data;
 };
 
 struct SpaceNode_Runtime {
@@ -311,6 +311,7 @@ void NODE_OT_swap_group_asset(wmOperatorType *ot);
 void NODE_OT_new_node_tree(wmOperatorType *ot);
 void NODE_OT_new_compositing_node_group(wmOperatorType *ot);
 void NODE_OT_duplicate_compositing_node_group(wmOperatorType *ot);
+void NODE_OT_duplicate_compositing_modifier_node_group(wmOperatorType *ot);
 void NODE_OT_new_compositor_sequencer_node_group(wmOperatorType *operator_type);
 void NODE_OT_add_group_input_node(wmOperatorType *ot);
 

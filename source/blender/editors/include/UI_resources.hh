@@ -237,6 +237,7 @@ enum ThemeColorID {
   TH_HANDLE_VERTEX_SELECT,
   TH_HANDLE_VERTEX_SIZE,
 
+  TH_GP_WIRE_EDIT,
   TH_GP_VERTEX,
   TH_GP_VERTEX_SELECT,
   TH_GP_VERTEX_SIZE,
@@ -369,6 +370,8 @@ enum ThemeColorID {
   TH_SHARP,
   TH_FREESTYLE,
 };
+
+namespace blender::ui {
 
 /* Specific defines per space should have higher define values. */
 
@@ -527,3 +530,5 @@ int UI_ThemeMenuShadowWidth();
 const unsigned char *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid);
 
 void UI_make_axis_color(const unsigned char col[3], char axis, unsigned char r_col[3]);
+
+}  // namespace blender::ui

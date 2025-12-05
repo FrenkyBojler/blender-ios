@@ -533,7 +533,7 @@ static wmOperatorStatus insert_key_menu_invoke(bContext *C,
    * to assign shortcuts to arbitrarily named keying sets. See #89560.
    * These menu items perform the key-frame insertion (not this operator)
    * hence the #OPERATOR_INTERFACE return. */
-  uiPopupMenu *pup = UI_popup_menu_begin(
+  blender::ui::PopupMenu *pup = blender::ui::UI_popup_menu_begin(
       C, WM_operatortype_name(op->type, op->ptr).c_str(), ICON_NONE);
   blender::ui::Layout &layout = *UI_popup_menu_layout(pup);
 
@@ -822,7 +822,7 @@ static wmOperatorStatus clear_anim_v3d_invoke(bContext *C,
                                   IFACE_("Remove animation from selected objects?"),
                                   nullptr,
                                   CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Remove"),
-                                  ALERT_ICON_NONE,
+                                  blender::ui::AlertIcon::None,
                                   false);
   }
   return clear_anim_v3d_exec(C, op);
@@ -939,7 +939,7 @@ static wmOperatorStatus clear_anim_vse_invoke(bContext *C,
                                   IFACE_("Remove animation from selected strips?"),
                                   nullptr,
                                   CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Remove"),
-                                  ALERT_ICON_NONE,
+                                  blender::ui::AlertIcon::None,
                                   false);
   }
   return clear_anim_vse_exec(C, op);
@@ -1128,7 +1128,7 @@ static wmOperatorStatus delete_key_vse_invoke(bContext *C,
                                   IFACE_("Delete keyframes from selected strips?"),
                                   nullptr,
                                   IFACE_("Delete"),
-                                  ALERT_ICON_NONE,
+                                  blender::ui::AlertIcon::None,
                                   false);
   }
   return delete_key_vse_exec(C, op);
@@ -1269,7 +1269,7 @@ static wmOperatorStatus delete_key_v3d_invoke(bContext *C,
                                   IFACE_("Delete keyframes from selected objects?"),
                                   nullptr,
                                   IFACE_("Delete"),
-                                  ALERT_ICON_NONE,
+                                  blender::ui::AlertIcon::None,
                                   false);
   }
   return delete_key_v3d_exec(C, op);
@@ -1317,7 +1317,7 @@ static wmOperatorStatus insert_key_button_exec(bContext *C, wmOperator *op)
 
   flag = get_keyframing_flags(scene);
 
-  if (!(but = UI_context_active_but_prop_get(C, &ptr, &prop, &index))) {
+  if (!(but = blender::ui::UI_context_active_but_prop_get(C, &ptr, &prop, &index))) {
     /* pass event on if no active button found */
     return (OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH);
   }
@@ -1347,7 +1347,7 @@ static wmOperatorStatus insert_key_button_exec(bContext *C, wmOperator *op)
                    "This property cannot be animated as it will not get updated correctly");
       }
     }
-    else if (UI_but_flag_is_set(but, UI_BUT_DRIVEN)) {
+    else if (UI_but_flag_is_set(but, blender::ui::UI_BUT_DRIVEN)) {
       /* Driven property - Find driver */
       FCurve *fcu;
       bool driven, special;
@@ -1428,7 +1428,7 @@ static wmOperatorStatus insert_key_button_exec(bContext *C, wmOperator *op)
     DEG_id_tag_update(id, ID_RECALC_ANIMATION_NO_FLUSH);
 
     /* send updates */
-    UI_context_update_anim_flag(C);
+    blender::ui::UI_context_update_anim_flag(C);
 
     /* send notifiers that keyframes have been changed */
     WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_ADDED, nullptr);
@@ -1472,7 +1472,7 @@ static wmOperatorStatus delete_key_button_exec(bContext *C, wmOperator *op)
   int index;
   const bool all = RNA_boolean_get(op->ptr, "all");
 
-  if (!UI_context_active_but_prop_get(C, &ptr, &prop, &index)) {
+  if (!blender::ui::UI_context_active_but_prop_get(C, &ptr, &prop, &index)) {
     /* pass event on if no active button found */
     return (OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH);
   }
@@ -1539,7 +1539,7 @@ static wmOperatorStatus delete_key_button_exec(bContext *C, wmOperator *op)
 
   if (changed) {
     /* send updates */
-    UI_context_update_anim_flag(C);
+    blender::ui::UI_context_update_anim_flag(C);
 
     /* send notifiers that keyframes have been changed */
     WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_REMOVED, nullptr);
@@ -1577,7 +1577,7 @@ static wmOperatorStatus clear_key_button_exec(bContext *C, wmOperator *op)
   int index;
   const bool all = RNA_boolean_get(op->ptr, "all");
 
-  if (!UI_context_active_but_prop_get(C, &ptr, &prop, &index)) {
+  if (!blender::ui::UI_context_active_but_prop_get(C, &ptr, &prop, &index)) {
     /* pass event on if no active button found */
     return (OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH);
   }
@@ -1603,7 +1603,7 @@ static wmOperatorStatus clear_key_button_exec(bContext *C, wmOperator *op)
 
   if (changed) {
     /* send updates */
-    UI_context_update_anim_flag(C);
+    blender::ui::UI_context_update_anim_flag(C);
 
     /* send notifiers that keyframes have been changed */
     WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_REMOVED, nullptr);

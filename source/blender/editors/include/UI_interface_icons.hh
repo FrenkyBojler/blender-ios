@@ -22,6 +22,8 @@ struct PreviewImage;
 struct Scene;
 struct bContext;
 
+namespace blender::ui {
+
 struct IconTextOverlay {
   char text[5];
   uchar color[4] = {0};
@@ -41,16 +43,16 @@ struct IconTextOverlay {
 
 #define PREVIEW_DRAG_DRAW_SIZE 96.0f
 
-enum eAlertIcon {
-  ALERT_ICON_NONE = -1,
-  ALERT_ICON_WARNING = 0,
-  ALERT_ICON_QUESTION = 1,
-  ALERT_ICON_ERROR = 2,
-  ALERT_ICON_INFO = 3,
-  ALERT_ICON_MAX,
+enum class AlertIcon : int8_t {
+  None = -1,
+  Warning = 0,
+  Question = 1,
+  Error = 2,
+  Info = 3,
+  Max,
 };
 
-ImBuf *UI_icon_alert_imbuf_get(eAlertIcon icon, float size);
+ImBuf *UI_icon_alert_imbuf_get(AlertIcon icon, float size);
 
 /**
  * Resizable Icons for Blender
@@ -116,3 +118,4 @@ int UI_icon_color_from_collection(const Collection *collection);
 
 void UI_icon_text_overlay_init_from_count(IconTextOverlay *text_overlay,
                                           const int icon_indicator_number);
+}  // namespace blender::ui

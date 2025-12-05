@@ -33,6 +33,7 @@ class AssetRepresentation;
 
 namespace blender::ui {
 struct Layout;
+struct Block;
 }  // namespace blender::ui
 
 struct ARegion;
@@ -58,7 +59,6 @@ struct View3DShading;
 struct WorkSpace;
 struct bContext;
 struct bScreen;
-struct uiBlock;
 struct uiList;
 struct wmDrawBuffer;
 struct wmGizmoMap;
@@ -448,7 +448,7 @@ struct Panel_Runtime {
    * Pointer to the panel's block. Useful when changes to panel #uiBlocks
    * need some context from traversal of the panel "tree".
    */
-  uiBlock *block = nullptr;
+  blender::ui::Block *block = nullptr;
 
   /** Non-owning pointer. The context is stored in the block. */
   bContextStore *context = nullptr;
@@ -485,7 +485,7 @@ struct ARegionRuntime {
   const char *category = nullptr;
 
   /** Maps #uiBlock::name to uiBlock for faster lookups. */
-  Map<std::string, uiBlock *> block_name_map;
+  Map<std::string, blender::ui::Block *> block_name_map;
   /** #uiBlock. */
   ListBase uiblocks = {};
 
@@ -526,7 +526,7 @@ struct ARegionRuntime {
 /** Draw an item in the `ui_list`. */
 using uiListDrawItemFunc = void (*)(uiList *ui_list,
                                     const bContext *C,
-                                    blender::ui::Layout *layout,
+                                    blender::ui::Layout &layout,
                                     PointerRNA *dataptr,
                                     PointerRNA *itemptr,
                                     int icon,
@@ -538,7 +538,7 @@ using uiListDrawItemFunc = void (*)(uiList *ui_list,
 /** Draw the filtering part of an uiList. */
 using uiListDrawFilterFunc = void (*)(uiList *ui_list,
                                       const bContext *C,
-                                      blender::ui::Layout *layout);
+                                      blender::ui::Layout &layout);
 
 /** Filter items of an uiList. */
 using uiListFilterItemsFunc = void (*)(uiList *ui_list,
@@ -664,6 +664,17 @@ struct AssetShelfType {
 
   int space_type;
 
+  /**
+   * `FILTER_ID_` bit-flags to pre-filter ID types to include in the asset shelf, as if
+   * #asset_poll() returned false for non-matching IDs. If this isn't set (== 0), no pre-filtering
+   * will be done.
+   *
+   * For bigger asset libraries, many assets can usually be excluded cheaply this way. Calling
+   * #asset_poll() on many assets isn't cheap, so doing the ID type check only in there can cause
+   * performance issues.
+   */
+  uint64_t id_types_prefilter; /* rna_enum_id_type_filter_items */
+
   /** Operator to call when activating a grid view item. */
   std::string activate_operator;
   /** Operator to call when dragging a grid view item. */
@@ -677,8 +688,9 @@ struct AssetShelfType {
   bool (*poll)(const bContext *C, const AssetShelfType *shelf_type);
 
   /**
-   * Determine if an individual asset should be visible or not. May be a temporary design,
-   * visibility should first and foremost be controlled by asset traits.
+   * Determine if an individual asset should be visible or not.
+   * Don't use directly, use #blender::ed::asset::shelf::type_asset_poll() (does additional
+   * pre-filtering based on the ID-type).
    */
   bool (*asset_poll)(const AssetShelfType *shelf_type,
                      const blender::asset_system::AssetRepresentation *asset);
@@ -687,7 +699,7 @@ struct AssetShelfType {
   void (*draw_context_menu)(const bContext *C,
                             const AssetShelfType *shelf_type,
                             const blender::asset_system::AssetRepresentation *asset,
-                            blender::ui::Layout *layout);
+                            blender::ui::Layout &layout);
 
   const AssetWeakReference *(*get_active_asset)(const AssetShelfType *shelf_type);
 

@@ -53,11 +53,11 @@
 #include "BKE_addon.h"
 #include "BKE_appdir.hh"
 #include "BKE_blender_cli_command.hh"
-#include "BKE_mask.h"      /* Free mask clipboard. */
+#include "BKE_mask.hh"     /* Free mask clipboard. */
 #include "BKE_material.hh" /* #BKE_material_copybuf_clear. */
 #include "BKE_studiolight.h"
 #include "BKE_subdiv.hh"
-#include "BKE_tracking.h" /* Free tracking clipboard. */
+#include "BKE_tracking.hh" /* Free tracking clipboard. */
 
 #include "RE_engine.h"
 #include "RE_pipeline.h" /* `RE_` free stuff. */
@@ -304,7 +304,7 @@ void WM_init(bContext *C, int argc, const char **argv)
     }
 
     GPU_context_begin_frame(GPU_context_active_get());
-    UI_init();
+    blender::ui::UI_init();
     GPU_context_end_frame(GPU_context_active_get());
     GPU_render_end();
   }
@@ -646,14 +646,14 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
    * is also deleted with the context active. */
   if (gpu_is_init) {
     DRW_gpu_context_enable_ex(false);
-    UI_exit();
+    blender::ui::UI_exit();
     GPU_shader_cache_dir_clear_old();
     GPU_exit();
     DRW_gpu_context_disable_ex(false);
     DRW_gpu_context_destroy();
   }
   else {
-    UI_exit();
+    blender::ui::UI_exit();
   }
 
   BKE_blender_userdef_data_free(&U, false);
@@ -702,7 +702,7 @@ void WM_exit(bContext *C, const int exit_code)
 
 void WM_script_tag_reload()
 {
-  UI_interface_tag_script_reload();
+  blender::ui::UI_interface_tag_script_reload();
 
   /* Any operators referenced by gizmos may now be a dangling pointer.
    *

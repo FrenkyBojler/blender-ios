@@ -35,6 +35,8 @@
 #include "GPU_framebuffer.hh"
 #include "interface_intern.hh"
 
+namespace blender::ui {
+
 /* be sure to keep 'bThemeState' in sync */
 static bThemeState g_theme_state = {
     nullptr,
@@ -779,6 +781,9 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           cp = &btheme->common.curves.handle_vertex_size;
           break;
 
+        case TH_GP_WIRE_EDIT:
+          cp = ts->gp_wire_edit;
+          break;
         case TH_GP_VERTEX:
           cp = ts->gp_vertex;
           break;
@@ -1594,3 +1599,5 @@ void UI_make_axis_color(const uchar col[3], const char axis, uchar r_col[3])
 }
 
 /** \} */
+
+}  // namespace blender::ui

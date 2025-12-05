@@ -418,13 +418,13 @@ static wmOperatorStatus actkeys_viewall(bContext *C, const bool only_sel)
       float ymid = (ymax - ymin) / 2.0f + ymin;
       float x_center;
 
-      UI_view2d_center_get(v2d, &x_center, nullptr);
-      UI_view2d_center_set(v2d, x_center, ymid);
+      blender::ui::UI_view2d_center_get(v2d, &x_center, nullptr);
+      blender::ui::UI_view2d_center_set(v2d, x_center, ymid);
     }
   }
 
   /* do View2D syncing */
-  UI_view2d_sync(CTX_wm_screen(C), CTX_wm_area(C), v2d, V2D_LOCK_COPY);
+  blender::ui::UI_view2d_sync(CTX_wm_screen(C), CTX_wm_area(C), v2d, V2D_LOCK_COPY);
 
   /* just redraw this view */
   ED_area_tag_redraw(CTX_wm_area(C));
@@ -1197,7 +1197,7 @@ static wmOperatorStatus actkeys_delete_invoke(bContext *C,
                                   IFACE_("Delete selected keyframes?"),
                                   nullptr,
                                   IFACE_("Delete"),
-                                  ALERT_ICON_NONE,
+                                  blender::ui::AlertIcon::None,
                                   false);
   }
   return actkeys_delete_exec(C, op);

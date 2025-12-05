@@ -16,7 +16,7 @@
 #include "UI_interface_layout.hh"
 #include "interface_intern.hh"
 
-using blender::StringRefNull;
+namespace blender::ui {
 
 static void handle_layer_buttons(bContext *C, void *arg1, void *arg2)
 {
@@ -41,7 +41,7 @@ static void handle_layer_buttons(bContext *C, void *arg1, void *arg2)
   /* see `view3d_header.cc` */
 }
 
-void uiTemplateLayers(uiLayout *layout,
+void uiTemplateLayers(Layout *layout,
                       PointerRNA *ptr,
                       const StringRefNull propname,
                       PointerRNA *used_ptr,
@@ -85,11 +85,11 @@ void uiTemplateLayers(uiLayout *layout,
   /* layers are laid out going across rows, with the columns being divided into groups */
 
   for (int group = 0; group < groups; group++) {
-    uiLayout *uCol = &layout->column(true);
+    Layout &uCol = layout->column(true);
 
     for (int row = 0; row < 2; row++) {
-      uiLayout *uRow = &uCol->row(true);
-      uiBlock *block = uRow->block();
+      Layout &uRow = uCol.row(true);
+      uiBlock *block = uRow.block();
       int layer = groups * cols_per_group * row + cols_per_group * group;
 
       /* add layers as toggle buts */
@@ -112,3 +112,5 @@ void uiTemplateLayers(uiLayout *layout,
     }
   }
 }
+
+}  // namespace blender::ui

@@ -481,7 +481,7 @@ static void template_texture_select(bContext *C, void *user_p, void * /*arg*/)
   ct->index = user->index;
 }
 
-static void template_texture_user_menu(bContext *C, uiLayout *layout, void * /*arg*/)
+static void template_texture_user_menu(bContext *C, blender::ui::Layout *layout, void * /*arg*/)
 {
   /* callback when opening texture user selection menu, to create buttons. */
   SpaceProperties *sbuts = CTX_wm_space_properties(C);
@@ -497,7 +497,7 @@ static void template_texture_user_menu(bContext *C, uiLayout *layout, void * /*a
     if (!last_category || !STREQ(last_category, user->category)) {
       layout->label(IFACE_(user->category), ICON_NONE);
       but = block->buttons.last().get();
-      but->drawflag = UI_BUT_TEXT_LEFT;
+      but->drawflag = blender::ui::UI_BUT_TEXT_LEFT;
     }
 
     /* create button */
@@ -516,20 +516,28 @@ static void template_texture_user_menu(bContext *C, uiLayout *layout, void * /*a
       SNPRINTF_UTF8(name, "  %s", user->name);
     }
 
-    but = uiDefIconTextBut(
-        block, ButType::But, user->icon, name, 0, 0, UI_UNIT_X * 4, UI_UNIT_Y, nullptr, "");
+    but = uiDefIconTextBut(block,
+                           blender::ui::ButType::But,
+                           user->icon,
+                           name,
+                           0,
+                           0,
+                           UI_UNIT_X * 4,
+                           UI_UNIT_Y,
+                           nullptr,
+                           "");
     UI_but_funcN_set(but,
                      template_texture_select,
                      MEM_new<ButsTextureUser>("ButsTextureUser", *user),
                      nullptr,
-                     but_func_argN_free<ButsTextureUser>,
-                     but_func_argN_copy<ButsTextureUser>);
+                     blender::ui::but_func_argN_free<ButsTextureUser>,
+                     blender::ui::but_func_argN_copy<ButsTextureUser>);
 
     last_category = user->category;
   }
 }
 
-void uiTemplateTextureUser(uiLayout *layout, bContext *C)
+void uiTemplateTextureUser(blender::ui::Layout *layout, bContext *C)
 {
   /* Texture user selection drop-down menu. the available users have been
    * gathered before drawing in #ButsContextTexture, we merely need to
@@ -576,7 +584,7 @@ void uiTemplateTextureUser(uiLayout *layout, bContext *C)
   /* some cosmetic tweaks */
   UI_but_type_set_menu_from_pulldown(but);
 
-  but->flag &= ~UI_BUT_ICON_SUBMENU;
+  but->flag &= ~blender::ui::UI_BUT_ICON_SUBMENU;
 }
 
 /************************* Texture Show **************************/
@@ -648,7 +656,10 @@ static void template_texture_show(bContext *C, void *data_p, void *prop_p)
   }
 }
 
-void uiTemplateTextureShow(uiLayout *layout, const bContext *C, PointerRNA *ptr, PropertyRNA *prop)
+void uiTemplateTextureShow(blender::ui::Layout *layout,
+                           const bContext *C,
+                           PointerRNA *ptr,
+                           PropertyRNA *prop)
 {
   /* Only show the button if there is actually a texture assigned. */
   Tex *texture = static_cast<Tex *>(RNA_property_pointer_get(ptr, prop).data);
@@ -681,7 +692,7 @@ void uiTemplateTextureShow(uiLayout *layout, const bContext *C, PointerRNA *ptr,
   uiBlock *block = layout->block();
   uiBut *but;
   but = uiDefIconBut(block,
-                     ButType::But,
+                     blender::ui::ButType::But,
                      ICON_PROPERTIES,
                      0,
                      0,

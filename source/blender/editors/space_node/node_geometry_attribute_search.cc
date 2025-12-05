@@ -126,7 +126,7 @@ static Vector<const GeometryAttributeInfo *> get_attribute_info_from_context(
 }
 
 static void attribute_search_update_fn(
-    const bContext *C, void *arg, const char *str, uiSearchItems *items, const bool is_first)
+    const bContext *C, void *arg, const char *str, ui::SearchItems *items, const bool is_first)
 {
   if (ED_screen_animation_playing(CTX_wm_manager(C))) {
     return;
@@ -228,12 +228,12 @@ static void attribute_search_exec_fn(bContext *C, void *data_v, void *item_v)
 void node_geometry_add_attribute_search_button(const bContext & /*C*/,
                                                const bNode &node,
                                                PointerRNA &socket_ptr,
-                                               uiLayout &layout,
+                                               ui::Layout &layout,
                                                const StringRef placeholder)
 {
   uiBlock *block = layout.block();
   uiBut *but = uiDefIconTextButR(block,
-                                 ButType::SearchMenu,
+                                 ui::ButType::SearchMenu,
                                  ICON_NONE,
                                  "",
                                  0,

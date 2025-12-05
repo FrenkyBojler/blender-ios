@@ -518,13 +518,13 @@ static wmOperatorStatus nlaedit_viewall(bContext *C, const bool only_sel)
       float ymid = (ymax - ymin) / 2.0f + ymin;
       float x_center;
 
-      UI_view2d_center_get(v2d, &x_center, nullptr);
-      UI_view2d_center_set(v2d, x_center, ymid);
+      blender::ui::UI_view2d_center_get(v2d, &x_center, nullptr);
+      blender::ui::UI_view2d_center_set(v2d, x_center, ymid);
     }
   }
 
   /* do View2D syncing */
-  UI_view2d_sync(CTX_wm_screen(C), CTX_wm_area(C), v2d, V2D_LOCK_COPY);
+  blender::ui::UI_view2d_sync(CTX_wm_screen(C), CTX_wm_area(C), v2d, V2D_LOCK_COPY);
 
   /* just redraw this view */
   ED_area_tag_redraw(CTX_wm_area(C));
@@ -2128,7 +2128,7 @@ static wmOperatorStatus nlaedit_make_single_user_invoke(bContext *C,
         IFACE_("Make Selected Strips Single-User"),
         IFACE_("Linked actions will be duplicated for each selected strip."),
         IFACE_("Make Single"),
-        ALERT_ICON_WARNING,
+        blender::ui::AlertIcon::Warning,
         false);
   }
   return nlaedit_make_single_user_exec(C, op);

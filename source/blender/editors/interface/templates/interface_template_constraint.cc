@@ -31,23 +31,24 @@
 #include "interface_intern.hh"
 #include "interface_templates_intern.hh"
 
+namespace blender::ui {
+
 static void constraint_active_func(bContext * /*C*/, void *ob_v, void *con_v)
 {
   blender::ed::object::constraint_active_set(static_cast<Object *>(ob_v),
                                              static_cast<bConstraint *>(con_v));
 }
 
-static void constraint_ops_extra_draw(bContext *C, uiLayout *layout, void *con_v)
+static void constraint_ops_extra_draw(bContext *C, Layout *layout, void *con_v)
 {
   PointerRNA op_ptr;
-  uiLayout *row;
   bConstraint *con = (bConstraint *)con_v;
 
   Object *ob = blender::ed::object::context_active_object(C);
 
   PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, &RNA_Constraint, con);
   layout->context_ptr_set("constraint", &ptr);
-  layout->operator_context_set(blender::wm::OpCallContext::InvokeDefault);
+  layout->operator_context_set(wm::OpCallContext::InvokeDefault);
 
   layout->ui_units_x_set(4.0f);
 
@@ -68,11 +69,11 @@ static void constraint_ops_extra_draw(bContext *C, uiLayout *layout, void *con_v
   layout->separator();
 
   /* Move to first. */
-  row = &layout->column(false);
+  Layout *row = &layout->column(false);
   op_ptr = row->op("CONSTRAINT_OT_move_to_index",
                    IFACE_("Move to First"),
                    ICON_TRIA_UP,
-                   blender::wm::OpCallContext::InvokeDefault,
+                   wm::OpCallContext::InvokeDefault,
                    UI_ITEM_NONE);
   RNA_int_set(&op_ptr, "index", 0);
   if (!con->prev) {
@@ -84,7 +85,7 @@ static void constraint_ops_extra_draw(bContext *C, uiLayout *layout, void *con_v
   op_ptr = row->op("CONSTRAINT_OT_move_to_index",
                    IFACE_("Move to Last"),
                    ICON_TRIA_DOWN,
-                   blender::wm::OpCallContext::InvokeDefault,
+                   wm::OpCallContext::InvokeDefault,
                    UI_ITEM_NONE);
   ListBase *constraint_list = blender::ed::object::constraint_list_from_constraint(
       ob, con, nullptr);
@@ -98,10 +99,10 @@ static void constraint_ops_extra_draw(bContext *C, uiLayout *layout, void *con_v
 /** \name Constraint Header Template
  * \{ */
 
-static void draw_constraint_header(uiLayout *layout, Object *ob, bConstraint *con)
+static void draw_constraint_header(Layout &layout, Object *ob, bConstraint *con)
 {
   /* unless button has its own callback, it adds this callback to button */
-  uiBlock *block = layout->block();
+  uiBlock *block = layout.block();
   UI_block_func_set(block, constraint_active_func, ob, con);
 
   PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, &RNA_Constraint, con);
@@ -110,18 +111,18 @@ static void draw_constraint_header(uiLayout *layout, Object *ob, bConstraint *co
     UI_panel_context_pointer_set(block->panel, "constraint", &ptr);
   }
   else {
-    layout->context_ptr_set("constraint", &ptr);
+    layout.context_ptr_set("constraint", &ptr);
   }
 
   /* Constraint type icon. */
-  uiLayout *sub = &layout->row(false);
-  sub->emboss_set(blender::ui::EmbossType::Emboss);
-  sub->red_alert_set(con->flag & CONSTRAINT_DISABLE);
-  sub->label("", RNA_struct_ui_icon(ptr.type));
+  Layout *row = &layout.row(false);
+  row->emboss_set(EmbossType::Emboss);
+  row->red_alert_set(con->flag & CONSTRAINT_DISABLE);
+  row->label("", RNA_struct_ui_icon(ptr.type));
 
-  UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
+  UI_block_emboss_set(block, EmbossType::Emboss);
 
-  uiLayout *row = &layout->row(true);
+  row = &layout.row(true);
 
   row->prop(&ptr, "name", UI_ITEM_NONE, "", ICON_NONE);
 
@@ -132,19 +133,19 @@ static void draw_constraint_header(uiLayout *layout, Object *ob, bConstraint *co
   row->menu_fn("", ICON_DOWNARROW_HLT, constraint_ops_extra_draw, con);
 
   /* Close 'button' - emboss calls here disable drawing of 'button' behind X */
-  sub = &row->row(false);
-  sub->emboss_set(blender::ui::EmbossType::None);
-  sub->operator_context_set(blender::wm::OpCallContext::InvokeDefault);
-  sub->op("CONSTRAINT_OT_delete", "", ICON_X);
+  Layout &sub = row->row(false);
+  sub.emboss_set(EmbossType::None);
+  sub.operator_context_set(wm::OpCallContext::InvokeDefault);
+  sub.op("CONSTRAINT_OT_delete", "", ICON_X);
 
   /* Some extra padding at the end, so the 'x' icon isn't too close to drag button. */
-  layout->separator();
+  layout.separator();
 
   /* clear any locks set up for proxies/lib-linking */
   UI_block_lock_clear(block);
 }
 
-void uiTemplateConstraintHeader(uiLayout *layout, PointerRNA *ptr)
+void uiTemplateConstraintHeader(Layout *layout, PointerRNA *ptr)
 {
   /* verify we have valid data */
   if (!RNA_struct_is_a(ptr->type, &RNA_Constraint)) {
@@ -162,7 +163,7 @@ void uiTemplateConstraintHeader(uiLayout *layout, PointerRNA *ptr)
 
   UI_block_lock_set(layout->block(), (ob && !ID_IS_EDITABLE(ob)), ERROR_LIBDATA_MESSAGE);
 
-  draw_constraint_header(layout, ob, con);
+  draw_constraint_header(*layout, ob, con);
 }
 
 /** \} */
@@ -203,7 +204,7 @@ static void constraint_reorder(bContext *C, Panel *panel, int new_index)
   RNA_int_set(&props_ptr, "index", new_index);
   /* Set owner to #EDIT_CONSTRAINT_OWNER_OBJECT or #EDIT_CONSTRAINT_OWNER_BONE. */
   RNA_enum_set(&props_ptr, "owner", constraint_from_bone ? 1 : 0);
-  WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::InvokeDefault, &props_ptr, nullptr);
+  WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &props_ptr, nullptr);
   WM_operator_properties_free(&props_ptr);
 }
 
@@ -258,7 +259,7 @@ static void bone_constraint_panel_id(void *md_link, char *r_idname)
   BLI_string_join(r_idname, BKE_ST_MAXNAME, CONSTRAINT_BONE_TYPE_PANEL_PREFIX, cti->struct_name);
 }
 
-void uiTemplateConstraints(uiLayout * /*layout*/, bContext *C, bool use_bone_constraints)
+void uiTemplateConstraints(Layout * /*layout*/, bContext *C, bool use_bone_constraints)
 {
   ARegion *region = CTX_wm_region(C);
 
@@ -348,3 +349,5 @@ void uiTemplateConstraints(uiLayout * /*layout*/, bContext *C, bool use_bone_con
 #undef CONSTRAINT_BONE_TYPE_PANEL_PREFIX
 
 /** \} */
+
+}  // namespace blender::ui
