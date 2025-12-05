@@ -8,7 +8,6 @@ FRAGMENT_SHADER_CREATE_INFO(overlay_grid_next)
 
 #include "draw_view_lib.glsl"
 #include "gpu_shader_math_base_lib.glsl"
-#include "gpu_shader_math_vector_reduce_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
 #include "overlay_common_lib.glsl"
 

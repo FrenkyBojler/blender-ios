@@ -8,7 +8,6 @@ VERTEX_SHADER_CREATE_INFO(overlay_grid_next)
 
 #include "draw_view_lib.glsl"
 #include "gpu_shader_math_base_lib.glsl"
-#include "gpu_shader_math_safe_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
 
 struct LineData {
@@ -161,9 +160,7 @@ void main()
   if (line_outside_rect) {
     return; /* Discard line. */
   }
-  else {
-    line.P = clamp(line.P, clip_min, clip_max);
-  }
+  line.P = clamp(line.P, clip_min, clip_max);
 
   /* Output world-space position. */
   vertex_out.pos = float3(0.0f);
@@ -205,7 +202,6 @@ void main()
   if (drw_view_is_perspective()) {
     /* To minimize z-fighting, the grid is drawn N times with progressive alpha and z-bias,
      * making it "fade" through geometry over a distance.  */
-    constexpr float z_fade_dist = 1e-4f;
     float z_ratio_iter = 1.0f - float(grid_iter) / float(OVERLAY_GRID_ITER_LEN);
     float z_ratio_level = (1.0f / float(OVERLAY_GRID_ITER_LEN)) *
                           (1.0f - float(line.level) / float(OVERLAY_GRID_STEPS_DRAW));
