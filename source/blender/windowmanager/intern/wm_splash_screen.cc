@@ -373,7 +373,7 @@ static uiBlock *wm_block_splash_create(bContext *C, ARegion *region, void * /*ar
   if (proc_id && strncmp(proc_id, "ARM", 3) == 0)
 #  endif
   {
-    layout.separator(2.0f, LayoutSeparatorType::Line);
+    layout.separator(2.0f, blender::ui::LayoutSeparatorType::Line);
 
     blender::ui::Layout &split = layout.split(0.725, true);
     blender::ui::Layout &row1 = split.row(true);

@@ -105,7 +105,7 @@ void ED_file_path_button(bScreen *screen,
                   TIP_("File path"));
   UI_but_retval_set(but, -1);
 
-  BLI_assert(!UI_but_flag_is_set(but, UI_BUT_UNDO));
+  BLI_assert(!UI_but_flag_is_set(but, blender::ui::UI_BUT_UNDO));
   BLI_assert(!UI_but_is_utf8(but));
 
   UI_but_func_complete_set(but, autocomplete_directory, nullptr);
@@ -298,7 +298,7 @@ static void file_draw_tooltip_custom_func(bContext & /*C*/,
       float color[4];
       bTheme *btheme = blender::ui::UI_GetTheme();
       rgba_uchar_to_float(color, btheme->tui.wcol_tooltip.text);
-      thumb = IMB_font_preview(full_path,
+      thumb = IMB_font_preview(file->redirection_path ? file->redirection_path : full_path,
                                512 * UI_SCALE_FAC,
                                color,
                                TIP_("The five boxing wizards jump quickly! 0123456789"));
