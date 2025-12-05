@@ -5025,7 +5025,7 @@ static void brush_stroke_init(bContext *C)
   BKE_sculpt_update_object_for_edit(
       depsgraph, &ob, blender::ed::sculpt_paint::brush_type_is_paint(brush->sculpt_brush_type));
 
-  ED_image_paint_brush_type_update_sticky_shading_color(C, &ob);
+  ED_paint_brush_type_update_sticky_shading_color(C, &ob);
 }
 
 static void restore_from_undo_step_if_necessary(const Depsgraph &depsgraph,
@@ -5791,6 +5791,7 @@ static void sculpt_brush_stroke_cancel(bContext *C, wmOperator *op)
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
 
   BLI_assert(!dyntopo::stroke_is_dyntopo(ob, brush));
+  UNUSED_VARS_NDEBUG(brush);
 
   undo::restore_from_undo_step(depsgraph, sd, ob);
   paint_stroke_cancel(C, op, static_cast<PaintStroke *>(op->customdata));

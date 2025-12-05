@@ -567,6 +567,9 @@ static wmOperatorStatus node_swap_group_asset_invoke(bContext *C,
   }
   bNodeTree *node_group = reinterpret_cast<bNodeTree *>(
       asset::asset_local_id_ensure_imported(bmain, *asset));
+  if (!node_group) {
+    return OPERATOR_CANCELLED;
+  }
 
   /* Convert mouse coordinates to v2d space. */
   UI_view2d_region_to_view(&region.v2d,
@@ -1908,7 +1911,7 @@ static wmOperatorStatus new_compositor_sequencer_node_group_exec(bContext *C, wm
   Strip *strip = seq::select_active_get(scene);
 
   /* Add modifier and assign node tree when the strip has no active compositor modifier. */
-  if (strip != nullptr && strip->type != STRIP_TYPE_SOUND_RAM) {
+  if (strip != nullptr && strip->type != STRIP_TYPE_SOUND) {
     StripModifierData *active_smd = seq::modifier_get_active(strip);
     if (!active_smd || active_smd->type != eSeqModifierType_Compositor) {
       StripModifierData *smd = seq::modifier_new(strip, nullptr, eSeqModifierType_Compositor);

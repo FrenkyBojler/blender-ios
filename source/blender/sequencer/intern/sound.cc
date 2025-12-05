@@ -25,16 +25,13 @@
 #include "BKE_colortools.hh"
 #include "BKE_sound.hh"
 
-#ifdef WITH_CONVOLUTION
-#  include "AUD_Sound.h"
-#endif
-
 #include "SEQ_sequencer.hh"
 #include "SEQ_sound.hh"
 
 #include "strip_time.hh"
 
 #ifdef WITH_AUDASPACE
+#  include "AUD_Sound.h"
 #  include "AUD_Types.h"
 #endif
 
@@ -59,7 +56,7 @@ static bool sequencer_refresh_sound_length_recursive(Main *bmain, Scene *scene, 
         changed = true;
       }
     }
-    else if (strip->type == STRIP_TYPE_SOUND_RAM && strip->sound) {
+    else if (strip->type == STRIP_TYPE_SOUND && strip->sound) {
       SoundInfo info;
       if (!BKE_sound_info_get(bmain, strip->sound, &info)) {
         continue;
@@ -104,7 +101,7 @@ void sound_update_bounds_all(Scene *scene)
       if (strip->type == STRIP_TYPE_META) {
         strip_update_sound_bounds_recursive(scene, strip);
       }
-      else if (ELEM(strip->type, STRIP_TYPE_SOUND_RAM, STRIP_TYPE_SCENE)) {
+      else if (ELEM(strip->type, STRIP_TYPE_SOUND, STRIP_TYPE_SCENE)) {
         sound_update_bounds(scene, strip);
       }
     }
@@ -138,7 +135,7 @@ static void strip_update_sound_recursive(Scene *scene, ListBase *seqbasep, bSoun
     if (strip->type == STRIP_TYPE_META) {
       strip_update_sound_recursive(scene, &strip->seqbase, sound);
     }
-    else if (strip->type == STRIP_TYPE_SOUND_RAM) {
+    else if (strip->type == STRIP_TYPE_SOUND) {
       if (strip->runtime->scene_sound && sound == strip->sound) {
         BKE_sound_update_scene_sound(strip->runtime->scene_sound, sound);
       }
