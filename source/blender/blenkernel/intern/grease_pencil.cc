@@ -1239,6 +1239,11 @@ void Drawing::tag_positions_changed(const IndexMask &changed_curves)
 
   this->tag_texture_matrices_changed();
 
+  const Array<int> src_triangles_offsets = Array<int>(this->triangles().offsets.data());
+  const Array<int3> src_triangles_data = Array<int3>(this->triangles().data);
+  const GroupedSpan<int3> src_triangles(src_triangles_offsets.as_span(),
+                                        src_triangles_data.as_span());
+
   this->runtime->triangle_cache.update([&](TriangleCache &r_triangle_cache) {
     const std::optional<GroupedSpan<int>> shapes = this->shapes();
     const int num_shapes = shapes.has_value() ? (*shapes).size() : this->strokes().curves_num();
@@ -1251,7 +1256,7 @@ void Drawing::tag_positions_changed(const IndexMask &changed_curves)
                                         this->strokes().evaluated_points_by_curve(),
                                         changed_curves,
                                         shapes,
-                                        this->triangles(),
+                                        src_triangles,
                                         r_triangle_cache.triangles,
                                         r_triangle_cache.triangle_offsets);
   });
@@ -1298,6 +1303,11 @@ void Drawing::tag_topology_changed(const IndexMask &changed_curves)
 
   /* Make sure the number of shapes has not changed. */
   if (num_shapes == this->triangles().size()) {
+    const Array<int> src_triangles_offsets = Array<int>(this->triangles().offsets.data());
+    const Array<int3> src_triangles_data = Array<int3>(this->triangles().data);
+    const GroupedSpan<int3> src_triangles(src_triangles_offsets.as_span(),
+                                          src_triangles_data.as_span());
+
     this->runtime->triangle_cache.update([&](TriangleCache &r_triangle_cache) {
       const std::optional<GroupedSpan<int>> shapes = this->shapes();
       const int num_shapes = shapes.has_value() ? (*shapes).size() : this->strokes().curves_num();
@@ -1310,7 +1320,7 @@ void Drawing::tag_topology_changed(const IndexMask &changed_curves)
                                           this->strokes().evaluated_points_by_curve(),
                                           changed_curves,
                                           shapes,
-                                          this->triangles(),
+                                          src_triangles,
                                           r_triangle_cache.triangles,
                                           r_triangle_cache.triangle_offsets);
     });
