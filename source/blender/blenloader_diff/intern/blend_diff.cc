@@ -30,6 +30,7 @@ class StructMember {
   int64_t elem_size;
   int64_t elem_num;
   int64_t size_in_bytes;
+  Struct *parent;
 
   enum class Category {
     Struct,
@@ -43,7 +44,7 @@ class StructMember {
 struct StructMemberIdentifierGetter {
   StringRef operator()(const StructMember *member) const
   {
-    return member->name_with_array;
+    return member->identifier;
   }
 };
 
@@ -144,6 +145,7 @@ class RichSDNA {
           sdna_member.identifier = allocator.copy_string(
               sdna_member.name_with_array.substr(0, array_start));
         }
+        sdna_member.parent = &sdna_struct;
         sdna_struct.members.add(&sdna_member);
       }
     }
@@ -183,6 +185,11 @@ class RichSDNA {
 }  // namespace blender::rich_sdna
 
 namespace blender::blend_diff {
+
+using rich_sdna::RichSDNA;
+using rich_sdna::Struct;
+using rich_sdna::StructMember;
+using rich_sdna::Type;
 
 class DiffWriter {
  private:
@@ -227,6 +234,86 @@ class DiffWriter {
     return fmt::to_string(mem_buf_);
   }
 };
+
+static void write_diff_struct_member(DiffWriter &writer,
+                                     const StructMember &old_member,
+                                     const StructMember &new_member)
+{
+  const std::string old_member_str = fmt::format("{} {}::{}",
+                                                 old_member.type->name,
+                                                 old_member.parent->type->name,
+                                                 old_member.name_with_array);
+  const std::string new_member_str = fmt::format("{} {}::{}",
+                                                 new_member.type->name,
+                                                 new_member.parent->type->name,
+                                                 new_member.name_with_array);
+  if (old_member_str == new_member_str) {
+    return;
+  }
+  writer.writeln_changed(old_member_str, new_member_str);
+}
+
+static void write_diff_type(DiffWriter &writer, const Type &old_type, const Type &new_type)
+{
+  const StringRef name = old_type.name;
+  if (old_type.opt_struct && !new_type.opt_struct) {
+    writer.writeln_changed(fmt::format("Type `{}` has struct", name),
+                           fmt::format("Type `{}` has no struct", name));
+    return;
+  }
+  if (!old_type.opt_struct && new_type.opt_struct) {
+    writer.writeln_changed(fmt::format("Type `{}` has no struct", name),
+                           fmt::format("Type `{}` has struct", name));
+    return;
+  }
+  if (!old_type.opt_struct) {
+    if (old_type.size_in_bytes != new_type.size_in_bytes) {
+      writer.writeln_changed(fmt::format("Type `{}` has size {}", name, old_type.size_in_bytes),
+                             fmt::format("Type `{}` has size {}", name, new_type.size_in_bytes));
+    }
+    return;
+  }
+  for (const StructMember *old_member : old_type.opt_struct->members) {
+    if (const StructMember *new_member = new_type.opt_struct->members.lookup_key_default_as(
+            old_member->identifier, nullptr))
+    {
+      write_diff_struct_member(writer, *old_member, *new_member);
+    }
+    else {
+      writer.writeln_removed(
+          fmt::format("{} {}::{}", old_member->type->name, name, old_member->name_with_array));
+    }
+  }
+  for (const StructMember *new_member : new_type.opt_struct->members) {
+    const StructMember *old_member = old_type.opt_struct->members.lookup_key_default_as(
+        new_member->identifier, nullptr);
+    if (old_member) {
+      continue;
+    }
+    writer.writeln_added(
+        fmt::format("{} {}::{}", new_member->type->name, name, new_member->name_with_array));
+  }
+}
+
+static void write_diff_sdna(DiffWriter &writer, const RichSDNA &old_sdna, const RichSDNA &new_sdna)
+{
+  writer.writeln_unchanged("SDNA Changes:");
+  for (const Type *old_type : old_sdna.types) {
+    if (const Type *new_type = new_sdna.types.lookup_key_default_as(old_type->name, nullptr)) {
+      write_diff_type(writer, *old_type, *new_type);
+    }
+    else {
+      writer.writeln_removed(fmt::format("Type: {}", old_type->name));
+    }
+  }
+  for (const Type *new_type : new_sdna.types) {
+    const Type *old_type = old_sdna.types.lookup_key_default_as(new_type->name, nullptr);
+    if (old_type) {
+      continue;
+    }
+    writer.writeln_added(fmt::format("Type: {}", new_type->name));
+  }
+}
 
 struct BlendBlock {
   BHead bhead;
@@ -343,13 +430,14 @@ static int main_do(const int argc, char *argv[])
   // sdna_new.print(std::cout);
 
   DiffWriter writer(relative_path);
-  writer.writeln_removed("Hello");
-  writer.writeln_added("Hella");
-  writer.writeln_unchanged("ID: Hello");
-  writer.writeln_removed("sdfsa");
-  for (const int i : IndexRange(1000)) {
-    writer.writeln_added(fmt::format("Hello {}", i));
-  }
+  write_diff_sdna(writer, sdna_old, sdna_new);
+  // writer.writeln_removed("Hello");
+  // writer.writeln_added("Hella");
+  // writer.writeln_unchanged("ID: Hello");
+  // writer.writeln_removed("sdfsa");
+  // for (const int i : IndexRange(1000)) {
+  //   writer.writeln_added(fmt::format("Hello {}", i));
+  // }
 
   std::fstream myfile("/home/jacques/Downloads/test.txt", std::ios::out);
   // for (const int i : blender::IndexRange(argc)) {
