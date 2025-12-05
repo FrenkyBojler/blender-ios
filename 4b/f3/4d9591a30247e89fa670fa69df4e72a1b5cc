@@ -6,3 +6,4 @@ Referenced by issue #139114, Regression: Auto-offset Not working in a case where
 Referenced by pull request #139306, Fix #139114: Node insert auto offset broken with frames
 Referenced by commit 8fdf37cd50841061bd0a8ec7fa416a3828a4dfd0, Fix #139114: Node insert auto offset broken with frames
 Referenced by issue #139330, Geometry Nodes: Frame layout causes big offset inside new node group
+Referenced by issue #151152, Regression: Node insert now shifts separate nodes inside frame instead shifting whole frame
