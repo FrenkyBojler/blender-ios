@@ -620,9 +620,10 @@ static rcti draw_text_outline(const RenderData *context,
   const IndexRange rect_y_range(outline_rect.ymin, outline_rect.ymax - outline_rect.ymin + 1);
 
   /* Do jump flooding calculations. */
-  JFACoord invalid_coord{JFA_INVALID, JFA_INVALID};
-  Array<JFACoord> jfa_result_outside(pixel_count, invalid_coord);
-  Array<JFACoord> jfa_result_inside(pixel_count, invalid_coord);
+  const JFACoord invalid_coord{JFA_INVALID, JFA_INVALID};
+
+  std::unique_ptr<Array<JFACoord>> jfa_result_outside;
+  std::unique_ptr<Array<JFACoord>> jfa_result_inside;
 
   const bool needs_outside_jfa = (data->outline_position == SEQ_TEXT_OUTLINE_OUTSIDE ||
                                   data->outline_position == SEQ_TEXT_OUTLINE_CENTER);
@@ -631,8 +632,8 @@ static rcti draw_text_outline(const RenderData *context,
 
   if (needs_outside_jfa) {
     /* JFA Pass 1: Flood from opaque pixels outwards to find distance to solid edges. */
-    Array<JFACoord> boundary_opaque(pixel_count, NoInitialization());
-    threading::parallel_for(rect_y_range, 16, [&](const IndexRange y_range) {
+    auto boundary_opaque = std::make_unique<Array<JFACoord>>(pixel_count, invalid_coord);
+    threading::parallel_for(IndexRange(size.y), 16, [&](const IndexRange y_range) {
       for (const int y : y_range) {
         size_t index = size_t(y) * size.x + rect_x_range.start();
         for (int x = rect_x_range.start(); x < rect_x_range.one_after_last(); x++, index++) {
@@ -640,27 +641,33 @@ static rcti draw_text_outline(const RenderData *context,
           JFACoord coord;
           coord.x = is_opaque ? x : JFA_INVALID;
           coord.y = is_opaque ? y : JFA_INVALID;
-          boundary_opaque[index] = coord;
+          (*boundary_opaque)[index] = coord;
         }
       }
     });
 
-    Array<JFACoord> temp_buffer(pixel_count, invalid_coord);
-    Array<JFACoord> *read_buffer = &boundary_opaque;
-    Array<JFACoord> *write_buffer = &temp_buffer;
+    auto temp_buffer = std::make_unique<Array<JFACoord>>(pixel_count, invalid_coord);
+    Array<JFACoord> *read_buffer = boundary_opaque.get();
+    Array<JFACoord> *write_buffer = temp_buffer.get();
+
     int step_size = power_of_2_max_i(outline_width);
     while (step_size != 0) {
       jump_flooding_pass(*read_buffer, *write_buffer, size, rect_x_range, rect_y_range, step_size);
       std::swap(read_buffer, write_buffer);
       step_size /= 2;
     }
-    jfa_result_outside = *read_buffer;
+    if (read_buffer == boundary_opaque.get()) {
+      jfa_result_outside = std::move(boundary_opaque);
+    }
+    else {
+      jfa_result_outside = std::move(temp_buffer);
+    }
   }
 
   if (needs_inside_jfa) {
     /* JFA Pass 2: Flood from transparent pixels inwards to find distance to empty edges. */
-    Array<JFACoord> boundary_transparent(pixel_count, NoInitialization());
-    threading::parallel_for(rect_y_range, 16, [&](const IndexRange y_range) {
+    auto boundary_transparent = std::make_unique<Array<JFACoord>>(pixel_count, invalid_coord);
+    threading::parallel_for(IndexRange(size.y), 16, [&](const IndexRange y_range) {
       for (const int y : y_range) {
         size_t index = size_t(y) * size.x + rect_x_range.start();
         for (int x = rect_x_range.start(); x < rect_x_range.one_after_last(); x++, index++) {
@@ -668,14 +675,14 @@ static rcti draw_text_outline(const RenderData *context,
           JFACoord coord;
           coord.x = is_transparent ? x : JFA_INVALID;
           coord.y = is_transparent ? y : JFA_INVALID;
-          boundary_transparent[index] = coord;
+          (*boundary_transparent)[index] = coord;
         }
       }
     });
 
-    Array<JFACoord> temp_buffer(pixel_count, invalid_coord);
-    Array<JFACoord> *read_buffer = &boundary_transparent;
-    Array<JFACoord> *write_buffer = &temp_buffer;
+    auto temp_buffer = std::make_unique<Array<JFACoord>>(pixel_count, invalid_coord);
+    Array<JFACoord> *read_buffer = boundary_transparent.get();
+    Array<JFACoord> *write_buffer = temp_buffer.get();
 
     int step_size = power_of_2_max_i(outline_width);
     while (step_size != 0) {
@@ -683,7 +690,12 @@ static rcti draw_text_outline(const RenderData *context,
       std::swap(read_buffer, write_buffer);
       step_size /= 2;
     }
-    jfa_result_inside = *read_buffer;
+    if (read_buffer == boundary_transparent.get()) {
+      jfa_result_inside = std::move(boundary_transparent);
+    }
+    else {
+      jfa_result_inside = std::move(temp_buffer);
+    }
   }
 
   /* Premultiplied outline color. */
@@ -705,7 +717,7 @@ static rcti draw_text_outline(const RenderData *context,
 
         switch (data->outline_position) {
           case SEQ_TEXT_OUTLINE_OUTSIDE: {
-            const JFACoord closest_texel = jfa_result_outside[index];
+            const JFACoord closest_texel = (*jfa_result_outside)[index];
             if (closest_texel.x == JFA_INVALID) {
               break;
             }
@@ -719,7 +731,7 @@ static rcti draw_text_outline(const RenderData *context,
             float distance;
             if (text_alpha > 0.5f) {
               /* We are inside the text, use the inside-out distance field. */
-              const JFACoord closest_texel = jfa_result_inside[index];
+              const JFACoord closest_texel = (*jfa_result_inside)[index];
               if (closest_texel.x == JFA_INVALID) {
                 break;
               }
@@ -727,7 +739,7 @@ static rcti draw_text_outline(const RenderData *context,
             }
             else {
               /* We are outside the text, use the outside-in distance field. */
-              const JFACoord closest_texel = jfa_result_outside[index];
+              const JFACoord closest_texel = (*jfa_result_outside)[index];
               if (closest_texel.x == JFA_INVALID) {
                 break;
               }
@@ -740,7 +752,7 @@ static rcti draw_text_outline(const RenderData *context,
           }
           case SEQ_TEXT_OUTLINE_INSIDE: {
             if (text_alpha > 0) {
-              const JFACoord closest_texel = jfa_result_inside[index];
+              const JFACoord closest_texel = (*jfa_result_inside)[index];
               if (closest_texel.x == JFA_INVALID) {
                 break;
               }
