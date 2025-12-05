@@ -37,6 +37,7 @@
 #  include <comutil.h>
 #  include <shlobj.h>
 #  include <shlwapi.h>
+#  include <winnetwk.h>
 #  include <wrl.h>
 #endif
 
@@ -366,9 +367,19 @@ void fsmenu_read_system(FSMenu *fsmenu, int read_bookmarks)
           case DRIVE_RAMDISK:
             icon = ICON_DISK_DRIVE;
             break;
-          case DRIVE_REMOTE:
-            icon = ICON_NETWORK_DRIVE;
+          case DRIVE_REMOTE: {
+            bool is_cloud = false;
+            char lpLocalName[] = {'A' + i, ':', 0};
+            char lpRemoteName[MAX_PATH];
+            DWORD lpnLength = sizeof(lpRemoteName);
+            if (WNetGetConnection(lpLocalName, lpRemoteName, &lpnLength) == NO_ERROR) {
+              if (STRPREFIX(lpRemoteName, "https:")) {
+                is_cloud = true;
+              }
+            }
+            icon = is_cloud ? ICON_INTERNET : ICON_NETWORK_DRIVE;
             break;
+          }
         }
 
         fsmenu_insert_entry(
