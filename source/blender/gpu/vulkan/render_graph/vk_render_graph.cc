@@ -32,6 +32,8 @@ void VKRenderGraph::reset()
   debug_.used_groups.clear();
   debug_.group_stack.clear();
   debug_.groups.clear();
+
+  timelines.request = timelines.running = timelines.submission = 0;
 }
 
 void VKRenderGraph::memstats() const

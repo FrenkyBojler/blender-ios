@@ -130,6 +130,13 @@ class VKRenderGraph : public NonCopyable {
    */
   VKRenderGraph(VKResourceStateTracker &resources);
 
+  struct {
+    uint64_t creation;
+    uint64_t request;
+    uint64_t submission;
+    uint64_t running;
+  } timelines;
+
  private:
   /**
    * Add a node to the render graph.
