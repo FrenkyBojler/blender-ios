@@ -661,9 +661,7 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
             const IndexRange points = points_by_curve[curve_i];
             faces[pos].resize(points.size());
 
-            for (const int i : points.index_range()) {
-              faces[pos][i] = shape_points[i];
-            }
+            array_utils::fill_index_range<int>(faces[pos].as_mutable_span(), shape_points.first());
 
             const Span<float2> projpoints = projverts_span.slice(shape_points);
 
