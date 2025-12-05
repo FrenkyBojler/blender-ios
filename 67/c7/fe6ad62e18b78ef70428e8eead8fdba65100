@@ -1,2 +1,3 @@
 Referenced by issue #80165, separate by loose parts breaks custom normals
 Referenced by pull request #151125, Fix #151083: Separate by Material breaks custom normals
+Referenced by commit 43d1685bc318ba851c200b2cc9c064fb6396db5a, Fix #151083: Separate by Material breaks custom normals
