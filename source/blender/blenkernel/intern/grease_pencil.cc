@@ -638,12 +638,14 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
             continue;
           }
 
-          Array<double2> verts(num_points);
-          Array<Vector<int>> faces(shape.size());
+          meshintersect::CDT_input<double> input;
+          input.vert.reinitialize(num_points);
+          input.face.reinitialize(shape.size());
+          input.need_ids = true;
 
           threading::parallel_for(IndexRange(num_points), 512, [&](const IndexRange range) {
             for (const int i : range) {
-              verts[i] = double2(projverts[i]);
+              input.vert[i] = double2(projverts[i]);
             }
           });
 
@@ -653,24 +655,19 @@ static void update_triangle_and_offsets_cache(const Span<float3> positions,
           shape.foreach_index(GrainSize(256), [&](const int64_t curve_i, const int64_t pos) {
             const IndexRange shape_points = shape_points_by_curve[pos];
             const IndexRange points = points_by_curve[curve_i];
-            faces[pos].resize(points.size());
+            input.face[pos].resize(points.size());
+            MutableSpan<int> face = input.face[pos].as_mutable_span();
 
-            array_utils::fill_index_range<int>(faces[pos].as_mutable_span(), shape_points.first());
-
+            array_utils::fill_index_range<int>(face, shape_points.first());
             const Span<float2> projpoints = projverts_span.slice(shape_points);
 
             /* Curve have to be in a counterclockwise order, so check if a flip is need.*/
             if (cross_poly_v2(reinterpret_cast<const float (*)[2]>(projpoints.data()),
                               projpoints.size()) < 0.0)
             {
-              faces[pos].as_mutable_span().reverse();
+              face.reverse();
             }
           });
-
-          meshintersect::CDT_input<double> input;
-          input.vert = verts;
-          input.face = faces;
-          input.need_ids = true;
 
           meshintersect::CDT_result<double> result = delaunay_2d_calc(input,
                                                                       CDT_INSIDE_WITH_HOLES);
