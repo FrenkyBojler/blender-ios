@@ -16,7 +16,6 @@
 
 #include "DNA_world_types.h"
 
-#include "GPU_vertex_format.hh"
 #include "gpu_shader_create_info.hh"
 
 #include "eevee_shader.hh"
