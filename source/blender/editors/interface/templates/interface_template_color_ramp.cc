@@ -66,7 +66,7 @@ static void colorband_distribute(bContext *C, ColorBand *coba, bool evenly)
   }
 }
 
-static uiBlock *colorband_tools_fn(bContext *C, ARegion *region, void *cb_v)
+static Block *colorband_tools_fn(bContext *C, ARegion *region, void *cb_v)
 {
   RNAUpdateCb &cb = *static_cast<RNAUpdateCb *>(cb_v);
   const uiStyle *style = style_get_dpi();
@@ -75,7 +75,7 @@ static uiBlock *colorband_tools_fn(bContext *C, ARegion *region, void *cb_v)
   short yco = 0;
   const short menuwidth = 10 * UI_UNIT_X;
 
-  uiBlock *block = block_begin(C, region, __func__, EmbossType::Pulldown);
+  Block *block = block_begin(C, region, __func__, EmbossType::Pulldown);
 
   Layout &layout = block_layout(block,
                                 LayoutDirection::Vertical,
@@ -94,16 +94,16 @@ static uiBlock *colorband_tools_fn(bContext *C, ARegion *region, void *cb_v)
   /* We could move these to operators,
    * although this isn't important unless we want to assign key shortcuts to them. */
   {
-    uiBut *but = uiDefIconTextBut(block,
-                                  ButType::ButMenu,
-                                  ICON_ARROW_LEFTRIGHT,
-                                  IFACE_("Flip Color Ramp"),
-                                  0,
-                                  yco -= UI_UNIT_Y,
-                                  menuwidth,
-                                  UI_UNIT_Y,
-                                  nullptr,
-                                  "");
+    Button *but = uiDefIconTextBut(block,
+                                   ButType::ButMenu,
+                                   ICON_ARROW_LEFTRIGHT,
+                                   IFACE_("Flip Color Ramp"),
+                                   0,
+                                   yco -= UI_UNIT_Y,
+                                   menuwidth,
+                                   UI_UNIT_Y,
+                                   nullptr,
+                                   "");
     button_retval_set(but, 1);
     button_func_set(but, [coba, cb](bContext &C) {
       colorband_flip(&C, coba);
@@ -112,16 +112,16 @@ static uiBlock *colorband_tools_fn(bContext *C, ARegion *region, void *cb_v)
     });
   }
   {
-    uiBut *but = uiDefIconTextBut(block,
-                                  ButType::ButMenu,
-                                  ICON_BLANK1,
-                                  IFACE_("Distribute Stops from Left"),
-                                  0,
-                                  yco -= UI_UNIT_Y,
-                                  menuwidth,
-                                  UI_UNIT_Y,
-                                  nullptr,
-                                  "");
+    Button *but = uiDefIconTextBut(block,
+                                   ButType::ButMenu,
+                                   ICON_BLANK1,
+                                   IFACE_("Distribute Stops from Left"),
+                                   0,
+                                   yco -= UI_UNIT_Y,
+                                   menuwidth,
+                                   UI_UNIT_Y,
+                                   nullptr,
+                                   "");
     button_retval_set(but, 1);
     button_func_set(but, [coba, cb](bContext &C) {
       colorband_distribute(&C, coba, false);
@@ -130,16 +130,16 @@ static uiBlock *colorband_tools_fn(bContext *C, ARegion *region, void *cb_v)
     });
   }
   {
-    uiBut *but = uiDefIconTextBut(block,
-                                  ButType::ButMenu,
-                                  ICON_BLANK1,
-                                  IFACE_("Distribute Stops Evenly"),
-                                  0,
-                                  yco -= UI_UNIT_Y,
-                                  menuwidth,
-                                  UI_UNIT_Y,
-                                  nullptr,
-                                  "");
+    Button *but = uiDefIconTextBut(block,
+                                   ButType::ButMenu,
+                                   ICON_BLANK1,
+                                   IFACE_("Distribute Stops Evenly"),
+                                   0,
+                                   yco -= UI_UNIT_Y,
+                                   menuwidth,
+                                   UI_UNIT_Y,
+                                   nullptr,
+                                   "");
     button_retval_set(but, 1);
     button_func_set(but, [coba, cb](bContext &C) {
       colorband_distribute(&C, coba, true);
@@ -155,16 +155,16 @@ static uiBlock *colorband_tools_fn(bContext *C, ARegion *region, void *cb_v)
   layout.separator();
 
   {
-    uiBut *but = uiDefIconTextBut(block,
-                                  ButType::ButMenu,
-                                  ICON_LOOP_BACK,
-                                  IFACE_("Reset Color Ramp"),
-                                  0,
-                                  yco -= UI_UNIT_Y,
-                                  menuwidth,
-                                  UI_UNIT_Y,
-                                  nullptr,
-                                  "");
+    Button *but = uiDefIconTextBut(block,
+                                   ButType::ButMenu,
+                                   ICON_LOOP_BACK,
+                                   IFACE_("Reset Color Ramp"),
+                                   0,
+                                   yco -= UI_UNIT_Y,
+                                   menuwidth,
+                                   UI_UNIT_Y,
+                                   nullptr,
+                                   "");
     button_retval_set(but, 1);
     button_func_set(but, [coba, cb](bContext &C) {
       BKE_colorband_init(coba, true);
@@ -201,7 +201,7 @@ static void colorband_add(bContext &C, const RNAUpdateCb &cb, ColorBand &coba)
 
 static void colorband_update_cb(bContext * /*C*/, void *bt_v, void *coba_v)
 {
-  uiBut *bt = static_cast<uiBut *>(bt_v);
+  Button *bt = static_cast<Button *>(bt_v);
   ColorBand *coba = static_cast<ColorBand *>(coba_v);
 
   /* Sneaky update here, we need to sort the color-band points to be in order,
@@ -211,13 +211,13 @@ static void colorband_update_cb(bContext * /*C*/, void *bt_v, void *coba_v)
 }
 
 static void colorband_buttons_layout(Layout &layout,
-                                     uiBlock *block,
+                                     Block *block,
                                      ColorBand *coba,
                                      const rctf *butr,
                                      const RNAUpdateCb &cb,
                                      int expand)
 {
-  uiBut *bt;
+  Button *bt;
   const float unit = BLI_rctf_size_x(butr) / 14.0f;
   const float xs = butr->xmin;
   const float ys = butr->ymin;
@@ -358,7 +358,7 @@ static void colorband_buttons_layout(Layout &layout,
 
     /* Some special (rather awkward) treatment to update UI state on certain property changes. */
     for (int i = block->buttons.size() - 1; i >= 0; i--) {
-      uiBut *but = block->buttons[i].get();
+      Button *but = block->buttons[i].get();
       if (but->rnapoin.data != ptr.data) {
         continue;
       }
@@ -400,7 +400,7 @@ void template_color_ramp(Layout *layout,
   rect.ymin = 0;
   rect.ymax = 19.5f * UI_UNIT_X;
 
-  uiBlock *block = layout->absolute().block();
+  Block *block = layout->absolute().block();
 
   ID *id = cptr.owner_id;
   block_lock_set(block, (id && !ID_IS_EDITABLE(id)), ERROR_LIBDATA_MESSAGE);

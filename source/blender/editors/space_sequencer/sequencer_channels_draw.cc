@@ -96,7 +96,7 @@ static std::string draw_channel_widget_tooltip(bContext * /*C*/,
 }
 
 static float draw_channel_widget_mute(const SeqChannelDrawContext *context,
-                                      uiBlock *block,
+                                      ui::Block *block,
                                       const int channel_index,
                                       const float offset)
 {
@@ -111,19 +111,19 @@ static float draw_channel_widget_mute(const SeqChannelDrawContext *context,
   PropertyRNA *hide_prop = RNA_struct_type_find_property(&RNA_SequenceTimelineChannel, "mute");
 
   block_emboss_set(block, ui::EmbossType::None);
-  uiBut *but = uiDefIconButR_prop(block,
-                                  ui::ButType::Toggle,
-                                  icon,
-                                  context->v2d->cur.xmax / context->scale - offset,
-                                  y,
-                                  width,
-                                  width,
-                                  &ptr,
-                                  hide_prop,
-                                  0,
-                                  0,
-                                  0,
-                                  std::nullopt);
+  ui::Button *but = uiDefIconButR_prop(block,
+                                       ui::ButType::Toggle,
+                                       icon,
+                                       context->v2d->cur.xmax / context->scale - offset,
+                                       y,
+                                       width,
+                                       width,
+                                       &ptr,
+                                       hide_prop,
+                                       0,
+                                       0,
+                                       0,
+                                       std::nullopt);
   button_retval_set(but, 1);
 
   char *tooltip = BLI_sprintfN(
@@ -134,7 +134,7 @@ static float draw_channel_widget_mute(const SeqChannelDrawContext *context,
 }
 
 static float draw_channel_widget_lock(const SeqChannelDrawContext *context,
-                                      uiBlock *block,
+                                      ui::Block *block,
                                       const int channel_index,
                                       const float offset)
 {
@@ -150,19 +150,19 @@ static float draw_channel_widget_lock(const SeqChannelDrawContext *context,
   PropertyRNA *hide_prop = RNA_struct_type_find_property(&RNA_SequenceTimelineChannel, "lock");
 
   block_emboss_set(block, ui::EmbossType::None);
-  uiBut *but = uiDefIconButR_prop(block,
-                                  ui::ButType::Toggle,
-                                  icon,
-                                  context->v2d->cur.xmax / context->scale - offset,
-                                  y,
-                                  width,
-                                  width,
-                                  &ptr,
-                                  hide_prop,
-                                  0,
-                                  0,
-                                  0,
-                                  "");
+  ui::Button *but = uiDefIconButR_prop(block,
+                                       ui::ButType::Toggle,
+                                       icon,
+                                       context->v2d->cur.xmax / context->scale - offset,
+                                       y,
+                                       width,
+                                       width,
+                                       &ptr,
+                                       hide_prop,
+                                       0,
+                                       0,
+                                       0,
+                                       "");
   button_retval_set(but, 1);
 
   char *tooltip = BLI_sprintfN(
@@ -209,7 +209,7 @@ static rctf label_rect_init(const SeqChannelDrawContext *context,
 }
 
 static void draw_channel_labels(const SeqChannelDrawContext *context,
-                                uiBlock *block,
+                                ui::Block *block,
                                 const int channel_index,
                                 const float used_width)
 {
@@ -227,19 +227,19 @@ static void draw_channel_labels(const SeqChannelDrawContext *context,
     PropertyRNA *prop = RNA_struct_name_property(ptr.type);
 
     block_emboss_set(block, ui::EmbossType::Emboss);
-    uiBut *but = uiDefButR(block,
-                           ui::ButType::Text,
-                           "",
-                           rect.xmin,
-                           rect.ymin,
-                           BLI_rctf_size_x(&rect),
-                           BLI_rctf_size_y(&rect),
-                           &ptr,
-                           RNA_property_identifier(prop),
-                           -1,
-                           0,
-                           0,
-                           std::nullopt);
+    ui::Button *but = uiDefButR(block,
+                                ui::ButType::Text,
+                                "",
+                                rect.xmin,
+                                rect.ymin,
+                                BLI_rctf_size_x(&rect),
+                                BLI_rctf_size_y(&rect),
+                                &ptr,
+                                RNA_property_identifier(prop),
+                                -1,
+                                0,
+                                0,
+                                std::nullopt);
     button_retval_set(but, 1);
     block_emboss_set(block, ui::EmbossType::None);
 
@@ -270,7 +270,7 @@ static void draw_channel_headers(const SeqChannelDrawContext *context)
   GPU_matrix_push();
   wmOrtho2_pixelspace(context->region->winx / context->scale,
                       context->region->winy / context->scale);
-  uiBlock *block = block_begin(context->C, context->region, __func__, ui::EmbossType::Emboss);
+  ui::Block *block = block_begin(context->C, context->region, __func__, ui::EmbossType::Emboss);
 
   int channel_range[2];
   displayed_channel_range_get(context, channel_range);

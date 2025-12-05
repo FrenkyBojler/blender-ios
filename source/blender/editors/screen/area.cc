@@ -112,7 +112,7 @@ void ED_region_do_listen(wmRegionListenerParams *params)
     region->runtime->type->listener(params);
   }
 
-  LISTBASE_FOREACH (uiBlock *, block, &region->runtime->uiblocks) {
+  LISTBASE_FOREACH (blender::ui::Block *, block, &region->runtime->uiblocks) {
     block_listen(block, params);
   }
 
@@ -2927,7 +2927,7 @@ void ED_area_prevspace(bContext *C, ScrArea *area)
   WM_event_add_notifier(C, NC_SPACE | ND_SPACE_CHANGED, area);
 }
 
-int ED_area_header_switchbutton(const bContext *C, uiBlock *block, int yco)
+int ED_area_header_switchbutton(const bContext *C, blender::ui::Block *block, int yco)
 {
   ScrArea *area = CTX_wm_area(C);
   bScreen *screen = CTX_wm_screen(C);
@@ -3005,9 +3005,9 @@ BLI_INLINE bool streq_array_any(const char *s, const char *arr[])
  *
  * \param panel: The panel to draw. Can be null,
  * in which case a panel with the type of \a pt will be created.
- * \param unique_panel_str: A unique identifier for the name of the \a uiBlock associated with the
- * panel. Used when the panel is an instanced panel so a unique identifier is needed to find the
- * correct old \a uiBlock, and nullptr otherwise.
+ * \param unique_panel_str: A unique identifier for the name of the \a blender::ui::Block
+ * associated with the panel. Used when the panel is an instanced panel so a unique identifier is
+ * needed to find the correct old \a blender::ui::Block, and nullptr otherwise.
  */
 static void ed_panel_draw(const bContext *C,
                           ARegion *region,
@@ -3031,7 +3031,7 @@ static void ed_panel_draw(const bContext *C,
   else {
     STRNCPY_UTF8(block_name, pt->idname);
   }
-  uiBlock *block = block_begin(C, region, block_name, blender::ui::EmbossType::Emboss);
+  blender::ui::Block *block = block_begin(C, region, block_name, blender::ui::EmbossType::Emboss);
 
   bool open;
   panel = panel_begin(region, lb, block, pt, panel, &open);
@@ -3686,7 +3686,8 @@ static bool panel_property_search(const bContext *C,
                                   PanelType *panel_type,
                                   const char *search_filter)
 {
-  uiBlock *block = block_begin(C, region, panel_type->idname, blender::ui::EmbossType::Emboss);
+  blender::ui::Block *block = block_begin(
+      C, region, panel_type->idname, blender::ui::EmbossType::Emboss);
   block_set_search_only(block, true);
 
   /* Skip panels that give meaningless search results. */
@@ -3864,7 +3865,8 @@ void ED_region_header_layout(const bContext *C, ARegion *region)
       continue;
     }
 
-    uiBlock *block = block_begin(C, region, ht->idname, blender::ui::EmbossType::Emboss);
+    blender::ui::Block *block = block_begin(
+        C, region, ht->idname, blender::ui::EmbossType::Emboss);
     blender::ui::Layout &layout = blender::ui::block_layout(
         block,
         blender::ui::LayoutDirection::Horizontal,

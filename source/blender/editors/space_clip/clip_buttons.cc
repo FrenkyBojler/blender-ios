@@ -129,7 +129,7 @@ void uiTemplateMovieClip(blender::ui::Layout *layout,
 
   if (clip) {
     blender::ui::Layout &row = layout->row(false);
-    uiBlock *block = row.block();
+    blender::ui::Block *block = row.block();
     uiDefBut(block,
              blender::ui::ButType::Label,
              IFACE_("File Path:"),
@@ -191,7 +191,7 @@ void uiTemplateTrack(blender::ui::Layout *layout, PointerRNA *ptr, const StringR
   }
 
   blender::ui::Layout &col = layout->column(true);
-  uiBlock *block = col.block();
+  blender::ui::Block *block = col.block();
 
   uiDefBut(block,
            blender::ui::ButType::TrackPreview,
@@ -430,7 +430,7 @@ void uiTemplateMarker(blender::ui::Layout *layout,
   cb->framenr = user->framenr;
 
   if (compact) {
-    uiBlock *block = layout->block();
+    blender::ui::Block *block = layout->block();
 
     blender::StringRef tip;
     if (cb->marker_flag & MARKER_DISABLED) {
@@ -440,18 +440,18 @@ void uiTemplateMarker(blender::ui::Layout *layout,
       tip = TIP_("Marker is enabled at current frame");
     }
 
-    uiBut *bt = uiDefIconButBitI(block,
-                                 blender::ui::ButType::ToggleN,
-                                 MARKER_DISABLED,
-                                 ICON_HIDE_OFF,
-                                 0,
-                                 0,
-                                 UI_UNIT_X,
-                                 UI_UNIT_Y,
-                                 &cb->marker_flag,
-                                 0,
-                                 0,
-                                 tip);
+    blender::ui::Button *bt = uiDefIconButBitI(block,
+                                               blender::ui::ButType::ToggleN,
+                                               MARKER_DISABLED,
+                                               ICON_HIDE_OFF,
+                                               0,
+                                               0,
+                                               UI_UNIT_X,
+                                               UI_UNIT_Y,
+                                               &cb->marker_flag,
+                                               0,
+                                               0,
+                                               tip);
     button_funcN_set(bt, marker_update_cb, cb, nullptr);
     button_drawflag_enable(bt, blender::ui::BUT_ICON_REVERSE);
   }
@@ -462,7 +462,7 @@ void uiTemplateMarker(blender::ui::Layout *layout,
 
     if (track->flag & TRACK_LOCKED) {
       layout->active_set(false);
-      uiBlock *block = layout->absolute().block();
+      blender::ui::Block *block = layout->absolute().block();
       uiDefBut(block,
                blender::ui::ButType::Label,
                IFACE_("Track is locked"),
@@ -497,7 +497,7 @@ void uiTemplateMarker(blender::ui::Layout *layout,
 
     cb->marker_flag = marker->flag;
 
-    uiBlock *block = layout->absolute().block();
+    blender::ui::Block *block = layout->absolute().block();
     block_func_handle_set(block, marker_block_handler, cb);
     block_funcN_set(block, marker_update_cb, cb, nullptr);
 
@@ -512,18 +512,18 @@ void uiTemplateMarker(blender::ui::Layout *layout,
       tip = TIP_("Marker is enabled at current frame");
     }
 
-    uiBut *but = uiDefButBitI(block,
-                              blender::ui::ButType::CheckboxN,
-                              MARKER_DISABLED,
-                              IFACE_("Enabled"),
-                              0.5 * UI_UNIT_X,
-                              9.5 * UI_UNIT_Y,
-                              7.25 * UI_UNIT_X,
-                              UI_UNIT_Y,
-                              &cb->marker_flag,
-                              0,
-                              0,
-                              tip);
+    blender::ui::Button *but = uiDefButBitI(block,
+                                            blender::ui::ButType::CheckboxN,
+                                            MARKER_DISABLED,
+                                            IFACE_("Enabled"),
+                                            0.5 * UI_UNIT_X,
+                                            9.5 * UI_UNIT_Y,
+                                            7.25 * UI_UNIT_X,
+                                            UI_UNIT_Y,
+                                            &cb->marker_flag,
+                                            0,
+                                            0,
+                                            tip);
     button_retval_set(but, B_MARKER_FLAG);
 
     blender::ui::Layout &col = layout->column(true);
@@ -543,17 +543,18 @@ void uiTemplateMarker(blender::ui::Layout *layout,
              0,
              0,
              "");
-    uiBut *bt = uiDefButF(block,
-                          blender::ui::ButType::Num,
-                          IFACE_("X:"),
-                          0.5 * UI_UNIT_X,
-                          9 * UI_UNIT_Y,
-                          7.25 * UI_UNIT_X,
-                          UI_UNIT_Y,
-                          &cb->marker_pos[0],
-                          -10 * width,
-                          10.0 * width,
-                          TIP_("X-position of marker at frame in screen coordinates"));
+    blender::ui::Button *bt = uiDefButF(
+        block,
+        blender::ui::ButType::Num,
+        IFACE_("X:"),
+        0.5 * UI_UNIT_X,
+        9 * UI_UNIT_Y,
+        7.25 * UI_UNIT_X,
+        UI_UNIT_Y,
+        &cb->marker_pos[0],
+        -10 * width,
+        10.0 * width,
+        TIP_("X-position of marker at frame in screen coordinates"));
     button_retval_set(bt, B_MARKER_POS);
     button_number_step_size_set(bt, step);
     button_number_precision_set(bt, digits);

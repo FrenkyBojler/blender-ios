@@ -114,7 +114,7 @@ PointerRNA *modifier_panel_get_property_pointers(Panel *panel, PointerRNA *r_ob_
     *r_ob_ptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_Object, ptr->owner_id);
   }
 
-  uiBlock *block = panel->layout->block();
+  blender::ui::Block *block = panel->layout->block();
   block_lock_set(block, !ID_IS_EDITABLE((Object *)ptr->owner_id), ERROR_LIBDATA_MESSAGE);
 
   blender::ui::panel_context_pointer_set(panel, "modifier", ptr);
@@ -355,20 +355,20 @@ static void modifier_panel_header(const bContext *C, Panel *panel)
     if (md->type == eModifierType_Smooth) {
       /* Add button (appearing to be OFF) and add tip why this can't be changed. */
       sub = &row.row(true);
-      uiBlock *block = sub->block();
+      blender::ui::Block *block = sub->block();
       static int apply_on_spline_always_off_hack = 0;
-      uiBut *but = uiDefIconButBitI(block,
-                                    blender::ui::ButType::Toggle,
-                                    eModifierMode_ApplyOnSpline,
-                                    ICON_SURFACE_DATA,
-                                    0,
-                                    0,
-                                    UI_UNIT_X - 2,
-                                    UI_UNIT_Y,
-                                    &apply_on_spline_always_off_hack,
-                                    0.0,
-                                    0.0,
-                                    RPT_("Apply on Spline"));
+      blender::ui::Button *but = uiDefIconButBitI(block,
+                                                  blender::ui::ButType::Toggle,
+                                                  eModifierMode_ApplyOnSpline,
+                                                  ICON_SURFACE_DATA,
+                                                  0,
+                                                  0,
+                                                  UI_UNIT_X - 2,
+                                                  UI_UNIT_Y,
+                                                  &apply_on_spline_always_off_hack,
+                                                  0.0,
+                                                  0.0,
+                                                  RPT_("Apply on Spline"));
       button_disable(but,
                      "This modifier can only deform filled curve/surface, not the control points");
       buttons_number++;
@@ -378,20 +378,20 @@ static void modifier_panel_header(const bContext *C, Panel *panel)
     {
       /* Add button (appearing to be ON) and add tip why this can't be changed. */
       sub = &row.row(true);
-      uiBlock *block = sub->block();
+      blender::ui::Block *block = sub->block();
       static int apply_on_spline_always_on_hack = eModifierMode_ApplyOnSpline;
-      uiBut *but = uiDefIconButBitI(block,
-                                    blender::ui::ButType::Toggle,
-                                    eModifierMode_ApplyOnSpline,
-                                    ICON_SURFACE_DATA,
-                                    0,
-                                    0,
-                                    UI_UNIT_X - 2,
-                                    UI_UNIT_Y,
-                                    &apply_on_spline_always_on_hack,
-                                    0.0,
-                                    0.0,
-                                    RPT_("Apply on Spline"));
+      blender::ui::Button *but = uiDefIconButBitI(block,
+                                                  blender::ui::ButType::Toggle,
+                                                  eModifierMode_ApplyOnSpline,
+                                                  ICON_SURFACE_DATA,
+                                                  0,
+                                                  0,
+                                                  UI_UNIT_X - 2,
+                                                  UI_UNIT_Y,
+                                                  &apply_on_spline_always_on_hack,
+                                                  0.0,
+                                                  0.0,
+                                                  RPT_("Apply on Spline"));
       button_disable(but,
                      "This modifier can only deform control points, not the filled curve/surface");
       buttons_number++;

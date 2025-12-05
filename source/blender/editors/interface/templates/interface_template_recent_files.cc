@@ -34,8 +34,8 @@
 namespace blender::ui {
 
 static void template_recent_files_tooltip_func(bContext & /*C*/,
-                                               uiTooltipData &tip,
-                                               uiBut * /*but*/,
+                                               TooltipData &tip,
+                                               Button * /*but*/,
                                                void *argN)
 {
   char *path = (char *)argN;
@@ -151,8 +151,8 @@ int template_recent_files(Layout *layout, int rows)
     RNA_string_set(&ptr, "filepath", recent->filepath);
     RNA_boolean_set(&ptr, "display_file_selector", false);
 
-    uiBlock *block = layout->block();
-    uiBut *but = ui_but_last(block);
+    Block *block = layout->block();
+    Button *but = ui_but_last(block);
     button_func_tooltip_custom_set(
         but, template_recent_files_tooltip_func, BLI_strdup(recent->filepath), MEM_freeN);
   }

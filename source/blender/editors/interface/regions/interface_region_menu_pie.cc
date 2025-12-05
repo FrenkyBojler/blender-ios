@@ -45,12 +45,12 @@ namespace blender::ui {
  * \{ */
 
 struct uiPieMenu {
-  uiBlock *pie_block; /* radial block of the pie menu (more could be added later) */
+  Block *pie_block; /* radial block of the pie menu (more could be added later) */
   Layout *layout;
   int mx, my;
 };
 
-static uiBlock *ui_block_func_PIE(bContext * /*C*/, uiPopupBlockHandle *handle, void *arg_pie)
+static Block *ui_block_func_PIE(bContext * /*C*/, PopupBlockHandle *handle, void *arg_pie)
 {
   Block *block;
   uiPieMenu *pie = static_cast<uiPieMenu *>(arg_pie);
@@ -139,7 +139,7 @@ uiPieMenu *pie_menu_begin(bContext *C, const char *title, int icon, const wmEven
 
   /* create title button */
   if (title[0]) {
-    uiBut *but;
+    Button *but;
     char titlestr[256];
     int w;
     if (icon) {
@@ -166,7 +166,7 @@ void pie_menu_end(bContext *C, uiPieMenu *pie)
 {
   wmWindow *window = CTX_wm_window(C);
 
-  uiPopupBlockHandle *menu = ui_popup_block_create(
+  PopupBlockHandle *menu = ui_popup_block_create(
       C, nullptr, nullptr, nullptr, ui_block_func_PIE, pie, nullptr, false);
   menu->popup = true;
   menu->towardstime = BLI_time_now_seconds();
@@ -267,7 +267,7 @@ static void ui_pie_menu_level_invoke(bContext *C, void *argN, void *arg2)
   pie_menu_end(C, pie);
 }
 
-void ui_pie_menu_level_create(uiBlock *block,
+void ui_pie_menu_level_create(Block *block,
                               wmOperatorType *ot,
                               const StringRefNull propname,
                               IDProperty *properties,
@@ -298,16 +298,16 @@ void ui_pie_menu_level_create(uiBlock *block,
   lvl.flag = flag;
 
   /* add a 'more' menu entry */
-  uiBut *but = uiDefIconTextBut(block,
-                                ButType::But,
-                                ICON_PLUS,
-                                "More",
-                                0,
-                                0,
-                                UI_UNIT_X * 3,
-                                UI_UNIT_Y,
-                                nullptr,
-                                "Show more items of this menu");
+  Button *but = uiDefIconTextBut(block,
+                                 ButType::But,
+                                 ICON_PLUS,
+                                 "More",
+                                 0,
+                                 0,
+                                 UI_UNIT_X * 3,
+                                 UI_UNIT_Y,
+                                 nullptr,
+                                 "Show more items of this menu");
   button_funcN_set(but, ui_pie_menu_level_invoke, remaining, &lvl);
 }
 

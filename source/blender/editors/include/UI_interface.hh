@@ -40,8 +40,8 @@ struct SearchItems;
 
 namespace blender::ui {
 
-void button_func_set(uiBut *but, std::function<void(bContext &)> func);
-void button_func_pushed_state_set(uiBut *but, std::function<bool(const uiBut &)> func);
+void button_func_set(Button *but, std::function<void(bContext &)> func);
+void button_func_pushed_state_set(Button *but, std::function<bool(const Button &)> func);
 
 /**
  * Template generating a freeing callback matching the #uiButArgNFree signature, for data created
@@ -279,10 +279,10 @@ void list_filter_and_sort_items(uiList *ui_list,
  * \param idname: Used for restoring persistent state of this view, potentially written to files.
  * Must not be longer than #BKE_ST_MAXNAME (including 0 terminator).
  */
-AbstractGridView *block_add_view(uiBlock &block,
+AbstractGridView *block_add_view(Block &block,
                                  StringRef idname,
                                  std::unique_ptr<AbstractGridView> grid_view);
-AbstractTreeView *block_add_view(uiBlock &block,
+AbstractTreeView *block_add_view(Block &block,
                                  StringRef idname,
                                  std::unique_ptr<AbstractTreeView> tree_view);
 

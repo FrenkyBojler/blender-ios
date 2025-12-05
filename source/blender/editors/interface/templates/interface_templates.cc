@@ -56,7 +56,7 @@ int template_search_textbut_height()
 
 void template_add_button_search_menu(const bContext *C,
                                      Layout &layout,
-                                     uiBlock *block,
+                                     Block *block,
                                      PointerRNA *ptr,
                                      PropertyRNA *prop,
                                      uiBlockCreateFunc block_func,
@@ -74,7 +74,7 @@ void template_add_button_search_menu(const bContext *C,
                nullptr;
   const ID *idfrom = ptr->owner_id;
   const StructRNA *type = active_ptr.type ? active_ptr.type : RNA_property_pointer_type(ptr, prop);
-  uiBut *but;
+  Button *but;
 
   if (use_previews) {
     ARegion *region = CTX_wm_region(C);
@@ -152,25 +152,25 @@ void template_add_button_search_menu(const bContext *C,
   }
 }
 
-uiBlock *template_common_search_menu(const bContext *C,
-                                     ARegion *region,
-                                     uiButSearchUpdateFn search_update_fn,
-                                     void *search_arg,
-                                     uiButHandleFunc search_exec_fn,
-                                     void *active_item,
-                                     uiButSearchTooltipFn item_tooltip_fn,
-                                     const int preview_rows,
-                                     const int preview_cols,
-                                     float scale)
+Block *template_common_search_menu(const bContext *C,
+                                   ARegion *region,
+                                   uiButSearchUpdateFn search_update_fn,
+                                   void *search_arg,
+                                   uiButHandleFunc search_exec_fn,
+                                   void *active_item,
+                                   uiButSearchTooltipFn item_tooltip_fn,
+                                   const int preview_rows,
+                                   const int preview_cols,
+                                   float scale)
 {
   static char search[256];
   wmWindow *win = CTX_wm_window(C);
-  uiBut *but;
+  Button *but;
 
   /* clear initial search string, then all items show */
   search[0] = 0;
 
-  uiBlock *block = block_begin(C, region, "_popup", EmbossType::Emboss);
+  Block *block = block_begin(C, region, "_popup", EmbossType::Emboss);
   block_flag_enable(block, BLOCK_LOOP | BLOCK_SEARCH_MENU);
   block_theme_style_set(block, BLOCK_THEME_STYLE_POPUP);
 
@@ -243,7 +243,7 @@ uiBlock *template_common_search_menu(const bContext *C,
 
 void template_header(Layout *layout, bContext *C)
 {
-  uiBlock *block = layout->absolute().block();
+  Block *block = layout->absolute().block();
   ED_area_header_switchbutton(C, block, 0);
 }
 
@@ -285,13 +285,13 @@ void template_path_builder(Layout *layout,
 
 void template_node_socket(Layout *layout, bContext * /*C*/, const float color[4])
 {
-  uiBlock *block = layout->block();
+  Block *block = layout->block();
   block_align_begin(block);
 
   /* XXX using explicit socket colors is not quite ideal.
    * Eventually it should be possible to use theme colors for this purpose,
    * but this requires a better design for extendable color palettes in user preferences. */
-  uiBut *but = uiDefBut(
+  Button *but = uiDefBut(
       block, ButType::NodeSocket, "", 0, 0, UI_UNIT_X, UI_UNIT_Y, nullptr, 0, 0, "");
   rgba_float_to_uchar(but->col, color);
 
