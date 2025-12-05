@@ -1976,7 +1976,7 @@ void SEQUENCER_OT_split(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Box Cut Strips Operator
+/** \name Box Blade Operator
  * \{ */
 
 static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
@@ -1984,6 +1984,7 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
+  ListBase *channels = seq::channels_displayed_get(ed);
 
   scene->ed->runtime.flag &= ~SEQ_SHOW_TRANSFORM_PREVIEW;
 
@@ -1997,128 +1998,144 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
   const bool ignore_connections = RNA_boolean_get(op->ptr, "ignore_connections");
   const seq::eSplitMethod method = seq::eSplitMethod(RNA_enum_get(op->ptr, "type"));
   const int2 rect_frames = {round_fl_to_int(box_rect.xmin), round_fl_to_int(box_rect.xmax)};
-  ListBase *channels = seq::channels_displayed_get(ed);
 
-  bool changed = false;
-  int2 gap_removal_boundary = {INT_MAX, INT_MAX};
-  bool box_cuts_left = false;
-  bool box_cuts_right = false;
+  int2 gap_removal_boundary = {INT_MAX, INT_MIN};
+  VectorSet<Strip *> to_remove;
 
   Vector<Strip *> strips = ignore_selection ? all_strips_from_context(C).extract_vector() :
                                               selected_strips_from_context(C).extract_vector();
-  /* Use vector and itterate using `i` to be able to also access the newly created strips. */
+  strips.remove_if([&](Strip *strip) { return seq::transform_is_locked(channels, strip); });
+
+  seq::prefetch_stop(scene);
+
+  /* Use `Vector` and iterate with `i` to access newly created strips from splits;
+   * note that this means strips.size() can increase during the loops.  */
   for (int i = 0; i < strips.size(); i++) {
-    if (seq::transform_is_locked(channels, strips[i])) {
-      continue;
-    }
+    Strip *strip = strips[i];
     rctf strip_rect;
-    strip_rectf(scene, strips[i], &strip_rect);
+    strip_rectf(scene, strip, &strip_rect);
     if (BLI_rctf_isect(&strip_rect, &box_rect, nullptr)) {
       gap_removal_boundary[0] = math::min(gap_removal_boundary[0],
-                                          seq::time_left_handle_frame_get(scene, strips[i]));
-      gap_removal_boundary[1] = math::min(gap_removal_boundary[1],
-                                          seq::time_right_handle_frame_get(scene, strips[i]));
-      if (seq::time_left_handle_frame_get(scene, strips[i]) <= rect_frames[0]) {
-        box_cuts_left = true;
-      }
-      if (seq::time_right_handle_frame_get(scene, strips[i]) >= rect_frames[1]) {
-        box_cuts_right = true;
+                                          seq::time_left_handle_frame_get(scene, strip));
+      gap_removal_boundary[1] = math::max(gap_removal_boundary[1],
+                                          seq::time_right_handle_frame_get(scene, strip));
+
+      if (seq::time_left_handle_frame_get(scene, strip) >= rect_frames[0] &&
+          seq::time_right_handle_frame_get(scene, strip) <= rect_frames[1])
+      {
+        /* The box rect completely covers the strip rect, so just delete it. */
+        to_remove.add(strip);
+        continue;
       }
 
-      for (int frame : {rect_frames[0], rect_frames[1]}) {
-        const char *error_msg = nullptr;
+      /* Whether there is a valid split for this strip at the left/right side of the box rect. */
+      const bool box_left_splits = (seq::time_left_handle_frame_get(scene, strip) <
+                                    rect_frames[0]) &&
+                                   (seq::time_right_handle_frame_get(scene, strip) >
+                                    rect_frames[0]);
+
+      const bool box_right_splits = (seq::time_left_handle_frame_get(scene, strip) <
+                                     rect_frames[1]) &&
+                                    (seq::time_right_handle_frame_get(scene, strip) >
+                                     rect_frames[1]);
+
+      const char *error_msg = nullptr;
+      if (box_left_splits) {
         Strip *new_strip = seq::edit_strip_split(bmain,
                                                  scene,
                                                  ed->current_strips(),
-                                                 strips[i],
-                                                 frame,
+                                                 strip,
+                                                 rect_frames[0],
                                                  method,
                                                  ignore_connections,
                                                  &error_msg);
-        if (error_msg != nullptr) {
-          BKE_report(op->reports, RPT_ERROR, error_msg);
+        if (new_strip == nullptr) {
+          continue;
         }
-        if (new_strip != nullptr) {
+
+        if (!box_right_splits) {
+          /* The new strip can be deleted since there is no way it could be split further. */
+          to_remove.add(new_strip);
+        }
+        else {
+          /* In a future iteration of this `for` loop we will split the `new_strip` once more. */
           strips.append(new_strip);
-          changed = true;
         }
+      }
+      /* Note that after a left split, the original strip can no longer be split on the right,
+       * since a new strip occupies that position. */
+      else if (box_right_splits) {
+        seq::edit_strip_split(bmain,
+                              scene,
+                              ed->current_strips(),
+                              strip,
+                              rect_frames[1],
+                              method,
+                              ignore_connections,
+                              &error_msg);
+        /* If splitting on the right, we can always delete the old strip. */
+        to_remove.add(strip);
       }
     }
   }
-  seq::prefetch_stop(scene);
-  /* Remove strips that are in the cut area. */
-  for (Strip *strip : strips) {
-    if (seq::transform_is_locked(channels, strip)) {
-      continue;
-    }
-    const float left_handle = seq::time_left_handle_frame_get(scene, strip);
-    const float right_handle = seq::time_right_handle_frame_get(scene, strip);
 
-    /* Check if strip is in the rect. */
-    if (left_handle >= rect_frames[0] && left_handle <= rect_frames[1] &&
-        right_handle >= rect_frames[0] && right_handle <= rect_frames[1] &&
-        strip->channel <= int(box_rect.ymax) && strip->channel >= int(box_rect.ymin))
-    {
-      seq::edit_flag_for_removal(scene, ed->current_strips(), strip);
-      /* Propagate removal to connected strips. */
-      if (!ignore_connections) {
-        blender::VectorSet<Strip *> connected_strips = seq::connected_strips_get(strip);
-        for (Strip *c_strip : connected_strips) {
-          seq::edit_flag_for_removal(scene, ed->current_strips(), c_strip);
-        }
+  /* Edge case early return where box rect is too thin to cut gaps.
+   * In this case, the operator should have only split strips with none marked for deletion. */
+  if (rect_frames[0] == rect_frames[1]) {
+    BLI_assert(to_remove.size() == 0);
+    return OPERATOR_FINISHED;
+  }
+
+  if (to_remove.size() == 0) {
+    return OPERATOR_CANCELLED;
+  }
+
+  for (Strip *strip : to_remove) {
+    seq::edit_flag_for_removal(scene, ed->current_strips(), strip);
+    /* Propagate removal to connected strips. */
+    if (!ignore_connections) {
+      blender::VectorSet<Strip *> connections = seq::connected_strips_get(strip);
+      for (Strip *connection : connections) {
+        seq::edit_flag_for_removal(scene, ed->current_strips(), connection);
       }
-      changed = true;
     }
   }
 
   seq::edit_remove_flagged_strips(scene, ed->current_strips());
 
-  if (!changed) {
-    return OPERATOR_CANCELLED;
-  }
-
-  /* Close gaps. */
-  VectorSet<Strip *> offset_strips;
+  /* Close gaps, rippling strips. */
   if (remove_gaps) {
-    int offset = rect_frames[0] - rect_frames[1];
-    /* Cap offset. */
-    offset = box_cuts_right ? math::max(offset, (gap_removal_boundary[0] - rect_frames[1])) :
-                              math::max(offset, (rect_frames[0] - gap_removal_boundary[1]));
+    gap_removal_boundary[0] = math::max(gap_removal_boundary[0], rect_frames[0]);
+    gap_removal_boundary[1] = math::min(gap_removal_boundary[1], rect_frames[1]);
+
+    int offset = gap_removal_boundary[0] - gap_removal_boundary[1];
+
+    /* Offset should always be negative, since ripple always moves right to left. */
+    BLI_assert(offset < 0);
 
     const VectorSet<Strip *> strips = ignore_selection ? all_strips_from_context(C) :
                                                          selected_strips_from_context(C);
+    VectorSet<Strip *> to_offset;
     for (Strip *strip : strips) {
       if (seq::transform_is_locked(channels, strip)) {
         continue;
       }
 
-      /* Close gap when start and end of box cut strips. */
-      if (box_cuts_left && box_cuts_right) {
-        if ((seq::time_left_handle_frame_get(scene, strip) > rect_frames[0]) &&
-            strip->channel <= int(box_rect.ymax) && strip->channel >= int(box_rect.ymin))
-        {
-          /* Offset connected strips. Also get effect strips to later run the overlap handeling
-           * on them. */
-          seq::query_strip_connected_and_effect_chain(scene, strip, &ed->seqbase, offset_strips);
-        }
-      }
-      /* Ripple strips right of the left box frame. */
-      else {
-        if (seq::time_right_handle_frame_get(scene, strip) > rect_frames[0] &&
-            strip->channel <= int(box_rect.ymax) && strip->channel >= int(box_rect.ymin))
-        {
-          seq::query_strip_connected_and_effect_chain(scene, strip, &ed->seqbase, offset_strips);
-        }
+      /* Ripple strips for all channels that the blade box extends to, so that the user can
+       * optionally affect other channels than those with strips to cut. */
+      if (strip->channel <= int(box_rect.ymax) && strip->channel >= int(box_rect.ymin) &&
+          (seq::time_left_handle_frame_get(scene, strip) > rect_frames[0]))
+      {
+        seq::query_strip_connected_and_effect_chain(scene, strip, &ed->seqbase, to_offset);
       }
     }
 
-    for (Strip *strip : offset_strips) {
+    for (Strip *strip : to_offset) {
       seq::relations_invalidate_cache(scene, strip);
-      /* This can lead strips to overlap when a strip is in front of the connected strip. */
       seq::transform_translate_strip(scene, strip, offset);
     }
-    /* Handle overlap by moving strip up. */
-    for (Strip *strip : offset_strips) {
+
+    for (Strip *strip : to_offset) {
       if (seq::transform_test_overlap(scene, ed->current_strips(), strip)) {
         seq::transform_seqbase_shuffle(ed->current_strips(), strip, scene);
       }
