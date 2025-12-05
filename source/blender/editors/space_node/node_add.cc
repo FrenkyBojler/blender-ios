@@ -568,6 +568,9 @@ static wmOperatorStatus node_swap_group_asset_invoke(bContext *C,
   }
   bNodeTree *node_group = reinterpret_cast<bNodeTree *>(
       asset::asset_local_id_ensure_imported(bmain, *asset));
+  if (!node_group) {
+    return OPERATOR_CANCELLED;
+  }
 
   /* Convert mouse coordinates to v2d space. */
   ui::UI_view2d_region_to_view(&region.v2d,
