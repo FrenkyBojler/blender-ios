@@ -516,6 +516,11 @@ static Vector<const BlendBlock *> gather_linked_list_pointees(const uint64_t fir
   return pointees;
 }
 
+static bool ignore_member_for_diff(const StructMember &member)
+{
+  return ELEM(member.identifier, "session_uid", "ui_order", "locx", "locy", "typemap");
+}
+
 static void handle_block_pair_recursive(DiffWriter &writer,
                                         const BlendBlock &old_block,
                                         const BlendBlock &new_block,
@@ -598,6 +603,9 @@ static void handle_block_pair_recursive(DiffWriter &writer,
           continue;
         }
         if (old_member->elem_num != new_member->elem_num) {
+          continue;
+        }
+        if (ignore_member_for_diff(*old_member)) {
           continue;
         }
         const eSDNA_Type primitive_type = *old_member->type->opt_primitive_type;
