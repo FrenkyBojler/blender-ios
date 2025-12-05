@@ -63,8 +63,8 @@ static FT_Library ft_lib = nullptr;
 static FTC_Manager ftc_manager = nullptr;
 static FTC_CMapCache ftc_charmap_cache = nullptr;
 
-/* Lock for FreeType library, used around face creation and deletion. */
-static blender::Mutex ft_lib_mutex;
+/* Mutex around face creation and deletion. */
+static blender::Mutex ft_face_load_mutex;
 
 /* May be set to #UI_widgetbase_draw_cache_flush. */
 static void (*blf_draw_cache_flush)() = nullptr;
@@ -102,7 +102,7 @@ static FT_Error blf_cache_face_requester(FTC_FaceID faceID,
   FontBLF *font = (FontBLF *)faceID;
   int err = FT_Err_Cannot_Open_Resource;
 
-  std::scoped_lock lock(ft_lib_mutex);
+  std::scoped_lock lock(ft_face_load_mutex);
   if (font->filepath) {
     err = FT_New_Face(lib, font->filepath, 0, face);
   }
@@ -147,12 +147,7 @@ static void blf_size_finalizer(void *object)
 
 uint blf_get_char_index(FontBLF *font, const uint charcode)
 {
-  if (font->flags & BLF_CACHED) {
-    /* Use char-map cache for much faster lookup. */
-    return FTC_CMapCache_Lookup(ftc_charmap_cache, font, -1, charcode);
-  }
-  /* Fonts that are not cached need to use the regular lookup function. */
-  return blf_ensure_face(font) ? FT_Get_Char_Index(font->face, charcode) : 0;
+  return FTC_CMapCache_Lookup(ftc_charmap_cache, font, -1, charcode);
 }
 
 /* Convert a FreeType 26.6 value representing an unscaled design size to fractional pixels. */
@@ -1902,27 +1897,7 @@ bool blf_ensure_face(FontBLF *font)
     return false;
   }
 
-  FT_Error err;
-
-  if (font->flags & BLF_CACHED) {
-    err = FTC_Manager_LookupFace(ftc_manager, font, &font->face);
-  }
-  else {
-    std::scoped_lock lock(ft_lib_mutex);
-    if (font->filepath) {
-      err = FT_New_Face(font->ft_lib, font->filepath, 0, &font->face);
-    }
-    if (font->mem) {
-      err = FT_New_Memory_Face(font->ft_lib,
-                               static_cast<const FT_Byte *>(font->mem),
-                               (FT_Long)font->mem_size,
-                               0,
-                               &font->face);
-    }
-    if (!err) {
-      font->face->generic.data = font;
-    }
-  }
+  FT_Error err = FTC_Manager_LookupFace(ftc_manager, font, &font->face);
 
   if (err) {
     if (ELEM(err, FT_Err_Unknown_File_Format, FT_Err_Unimplemented_Feature)) {
@@ -1965,11 +1940,6 @@ bool blf_ensure_face(FontBLF *font)
       }
       MEM_freeN(mfile);
     }
-  }
-
-  if (!(font->flags & BLF_CACHED)) {
-    /* Not cached so point at the face's size for convenience. */
-    font->ft_size = font->face->size;
   }
 
   /* Setup Font details that require having a Face. */
@@ -2022,14 +1992,11 @@ static const FaceDetails static_face_details[] = {
 
 /**
  * Create a new font from filename OR memory pointer.
- * For normal operation pass nullptr as FT_Library object. Pass a custom FT_Library if you
- * want to use the font without its lifetime being managed by the FreeType cache subsystem.
  */
 static FontBLF *blf_font_new_impl(const char *filepath,
                                   const char *mem_name,
                                   const uchar *mem,
-                                  const size_t mem_size,
-                                  void *ft_library)
+                                  const size_t mem_size)
 {
   FontBLF *font = MEM_new<FontBLF>(__func__);
 
@@ -2040,15 +2007,7 @@ static FontBLF *blf_font_new_impl(const char *filepath,
     font->mem_size = mem_size;
   }
   blf_font_fill(font);
-
-  if (ft_library && ((FT_Library)ft_library != ft_lib)) {
-    /* Pass. */
-  }
-  else {
-    font->flags |= BLF_CACHED;
-  }
-
-  font->ft_lib = ft_library ? (FT_Library)ft_library : ft_lib;
+  font->ft_lib = ft_lib;
 
   /* If we have static details about this font file, we don't have to load the Face yet. */
   bool face_needed = true;
@@ -2096,12 +2055,12 @@ static FontBLF *blf_font_new_impl(const char *filepath,
 
 FontBLF *blf_font_new_from_filepath(const char *filepath)
 {
-  return blf_font_new_impl(filepath, nullptr, nullptr, 0, nullptr);
+  return blf_font_new_impl(filepath, nullptr, nullptr, 0);
 }
 
 FontBLF *blf_font_new_from_mem(const char *mem_name, const uchar *mem, const size_t mem_size)
 {
-  return blf_font_new_impl(nullptr, mem_name, mem, mem_size, nullptr);
+  return blf_font_new_impl(nullptr, mem_name, mem, mem_size);
 }
 
 void blf_font_attach_from_mem(FontBLF *font, const uchar *mem, const size_t mem_size)
@@ -2129,13 +2088,8 @@ void blf_font_free(FontBLF *font)
   }
 
   if (font->face) {
-    std::scoped_lock lock(ft_lib_mutex);
-    if (font->flags & BLF_CACHED) {
-      FTC_Manager_RemoveFaceID(ftc_manager, font);
-    }
-    else {
-      FT_Done_Face(font->face);
-    }
+    std::scoped_lock lock(ft_face_load_mutex);
+    FTC_Manager_RemoveFaceID(ftc_manager, font);
     font->face = nullptr;
   }
   if (font->filepath) {
@@ -2156,7 +2110,7 @@ void blf_font_free(FontBLF *font)
 
 void blf_ensure_size(FontBLF *font)
 {
-  if (font->ft_size || !(font->flags & BLF_CACHED)) {
+  if (font->ft_size) {
     return;
   }
 
@@ -2188,26 +2142,18 @@ bool blf_font_size(FontBLF *font, float size)
   size = float(ft_size) / 64.0f;
 
   if (font->size != size) {
-    if (font->flags & BLF_CACHED) {
-      FTC_ScalerRec scaler = {nullptr};
-      scaler.face_id = font;
-      scaler.width = 0;
-      scaler.height = ft_size;
-      scaler.pixel = 0;
-      scaler.x_res = BLF_DPI;
-      scaler.y_res = BLF_DPI;
-      if (FTC_Manager_LookupSize(ftc_manager, &scaler, &font->ft_size) != FT_Err_Ok) {
-        return false;
-      }
-      font->ft_size->generic.data = (void *)font;
-      font->ft_size->generic.finalizer = blf_size_finalizer;
+    FTC_ScalerRec scaler = {nullptr};
+    scaler.face_id = font;
+    scaler.width = 0;
+    scaler.height = ft_size;
+    scaler.pixel = 0;
+    scaler.x_res = BLF_DPI;
+    scaler.y_res = BLF_DPI;
+    if (FTC_Manager_LookupSize(ftc_manager, &scaler, &font->ft_size) != FT_Err_Ok) {
+      return false;
     }
-    else {
-      if (FT_Set_Char_Size(font->face, 0, ft_size, BLF_DPI, BLF_DPI) != FT_Err_Ok) {
-        return false;
-      }
-      font->ft_size = font->face->size;
-    }
+    font->ft_size->generic.data = (void *)font;
+    font->ft_size->generic.finalizer = blf_size_finalizer;
   }
 
   font->size = size;
