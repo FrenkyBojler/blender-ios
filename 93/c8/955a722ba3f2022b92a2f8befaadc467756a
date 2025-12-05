@@ -10,3 +10,4 @@ Referenced by issue #81060, Vertex Slide and Loop Cut and Slide tools breaks the
 Referenced by issue #78766, Blender crashes after deleting vertices with Custom Normals
 Referenced by issue #68892,  Custom normals polishing
 Referenced by pull request #151125, Fix #151083: Separate by Material breaks custom normals
+Referenced by commit 43d1685bc318ba851c200b2cc9c064fb6396db5a, Fix #151083: Separate by Material breaks custom normals
