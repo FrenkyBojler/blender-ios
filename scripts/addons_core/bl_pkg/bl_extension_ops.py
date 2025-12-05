@@ -224,7 +224,7 @@ class OperatorNonBlockingSyncHelper:
         self.started = True
 
         from .bl_extension_notify import (
-            update_region_register,
+            update_ui_region_register,
             update_non_blocking,
         )
 
@@ -238,7 +238,7 @@ class OperatorNonBlockingSyncHelper:
             self.completed = True
             return
 
-        update_region_register(region)
+        update_ui_region_register(region)
 
         update_non_blocking(repos_fn=lambda: [(repo, True) for repo in repos_notify], immediate=True)
 
@@ -251,7 +251,7 @@ class OperatorNonBlockingSyncHelper:
         from .bl_extension_notify import (
             update_ui_text,
             update_in_progress,
-            update_region_unregister,
+            update_ui_region_unregister,
         )
         if not self.started:
             self.begin(region)
@@ -259,7 +259,7 @@ class OperatorNonBlockingSyncHelper:
 
         if not update_in_progress():
             # No updates in progress, show the actual UI.
-            update_region_unregister(region)
+            update_ui_region_unregister(region)
             region.tag_redraw()
             region.tag_refresh_ui()
             self.completed = True

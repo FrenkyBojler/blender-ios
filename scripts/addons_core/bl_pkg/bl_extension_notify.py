@@ -9,8 +9,8 @@ __all__ = (
     "update_non_blocking",
     "update_in_progress",
     "update_ui_text",
-    "update_region_register",
-    "update_region_unregister",
+    "update_ui_region_register",
+    "update_ui_region_unregister",
 )
 
 import sys
@@ -618,11 +618,11 @@ def update_ui_text():
     return text, icon
 
 
-def update_region_register(region):
+def update_ui_region_register(region):
     # Avoid accumulating stale regions.
     _region_list_ensure_valid()
     _notify_regions.add(region)
 
 
-def update_region_unregister(region):
+def update_ui_region_unregister(region):
     _notify_regions.discard(region)
