@@ -25,6 +25,7 @@
 #include "BKE_object_types.hh"
 #include "BKE_volume.hh"
 #include "BKE_volume_grid.hh"
+#include "BKE_volume_grid_process.hh"
 
 #include "DNA_pointcloud_types.h"
 #include "DNA_space_types.h"
@@ -698,9 +699,171 @@ int VolumeDataSource::tot_rows() const
 
 #ifdef WITH_OPENVDB
 
+/* TODO implement threaded loops, not so trivial. */
+
+template<typename TreeT> struct NodeOffsets {
+  using TreeType = TreeT;
+  using RootNodeType = typename TreeT::RootNodeType;
+};
+
+template<typename LeafNodeT> static int compute_leaf_node_offsets(const LeafNodeT &node)
+{
+  return node.onVoxelCount();
+}
+
+template<typename InternalNodeT>
+static int compute_internal_node_offsets(const InternalNodeT &node)
+{
+  using ChildNodeT = typename InternalNodeT::ChildNodeType;
+  using LeafNodeT = typename InternalNodeT::LeafNodeType;
+  using NodeMaskT = typename InternalNodeT::NodeMaskType;
+  using UnionT = typename InternalNodeT::UnionType;
+
+  /* Tile count. */
+  const NodeMaskT &value_mask = node.getValueMask();
+  int count = value_mask.countOn();
+
+  /* Gather the active sub-nodes first, to be able to parallelize over them more easily. */
+  const NodeMaskT &child_mask = node.getChildMask();
+  const UnionT *table = node.getTable();
+  // Vector<int, 512> child_indices;
+  for (auto child_mask_iter = child_mask.beginOn(); child_mask_iter.test(); ++child_mask_iter) {
+    // child_indices.append(child_mask_iter.pos());
+  }
+
+  // count += threading::parallel_reduce_aligned<int>(
+  //     child_indices.index_range(),
+  //     8,
+  //     0,
+  //     [&](const IndexRange range) {
+  //       for (const int child_index : child_indices.as_span().slice(range)) {
+  //         const ChildNodeT &child = *table[child_index].getChild();
+  //         if constexpr (std::is_same_v<ChildNodeT, LeafNodeT>) {
+  //           compute_leaf_node_offsets(child);
+  //         }
+  //         else {
+  //           /* Recurse into lower-level internal nodes. */
+  //           compute_internal_node_offsets(child);
+  //         }
+  //       }
+  //     },
+  //     [](int a, int b) { return a + b; });
+
+  return count;
+}
+
+template<typename TreeT> static void compute_tree_offsets(const TreeT &tree)
+{
+  int count = 0;
+  for (auto root_child_iter = tree.cbeginRootChildren(); root_child_iter.test(); ++root_child_iter)
+  {
+    const auto &internal_node = *root_child_iter;
+    count += compute_internal_node_offsets(internal_node);
+  }
+}
+
+/* Compute offset indices for the voxels in each intermediate node of a grid. These are stored in
+ * the transient data values of the grid. Using the offsets we can iterate over the correct range
+ * of nodes and leaf buffers for a given index slice efficiently, finding the iterator start/end in
+ * logarithmic time. */
+static void compute_grid_voxel_offsets(const bke::GVolumeGrid &volume_grid)
+{
+  if (!volume_grid) {
+    return;
+  }
+  bke::VolumeTreeAccessToken tree_token;
+  const openvdb::GridBase &grid = volume_grid->grid(tree_token);
+
+  bke::volume_grid::to_typed_grid(grid,
+                                  [&](const auto &grid) { compute_tree_offsets(grid.tree()); });
+
+  // bke::volume_grid::parallel_grid_topology_tasks(
+  //     mask_tree,
+  //     [&](const bke::volume_grid::LeafNodeMask &leaf_node_mask,
+  //         const openvdb::CoordBBox &leaf_bbox,
+  //         const bke::volume_grid::GetVoxelsFn get_voxels_fn) {
+  //       // process_leaf_node(
+  //       //     fields, transform, leaf_node_mask, leaf_bbox, get_voxels_fn, output_grids);
+  //     },
+  //     [&](const Span<openvdb::Coord> voxels) {
+  //       // process_voxels(fields, transform, voxels, output_grids);
+  //     },
+  //     [&](const Span<openvdb::CoordBBox> tiles) {
+  //       // process_tiles(fields, transform, tiles, output_grids);
+  //     });
+}
+
+template<typename T>
+using ForeachValueFn =
+    FunctionRef<void(const openvdb::Coord &coord, const bool active, const T &value)>;
+
+template<typename InternalNodeT, typename TreeT>
+static void foreach_internal_node_value_in_range(const InternalNodeT &node,
+                                                 const NodeOffsets<TreeT> &offsets,
+                                                 const IndexRange range,
+                                                 ForeachValueFn<typename TreeT::ValueType> fn)
+{
+  using ChildNodeT = typename InternalNodeT::ChildNodeType;
+  using LeafNodeT = typename InternalNodeT::LeafNodeType;
+  using NodeMaskT = typename InternalNodeT::NodeMaskType;
+  using UnionT = typename InternalNodeT::UnionType;
+
+  /* Tile count. */
+  const NodeMaskT &value_mask = node.getValueMask();
+  for (NodeMaskT::OnIterator value_iter = value_mask.beginOn(); value_iter.test();
+       value_iter = value_iter.next())
+  {
+    fn()
+  }
+
+  /* Gather the active sub-nodes first, to be able to parallelize over them more easily. */
+  const NodeMaskT &child_mask = node.getChildMask();
+  const UnionT *table = node.getTable();
+  // Vector<int, 512> child_indices;
+  for (auto child_mask_iter = child_mask.beginOn(); child_mask_iter.test(); ++child_mask_iter) {
+    // child_indices.append(child_mask_iter.pos());
+  }
+}
+
+template<typename TreeT>
+static void foreach_value_in_range(const TreeT tree,
+                                   const NodeOffsets<TreeT> &offsets,
+                                   const IndexRange range,
+                                   ForeachValueFn<typename TreeT::ValueType> fn)
+{
+  if (value_range.is_empty()) {
+    return;
+  }
+
+  auto root_child_iter = tree.cbeginRootChildren();
+  /* TODO use binary instead of linear search. */
+  for (root_child_iter.test(); ++root_child_iter) {
+    const auto &internal_node = *root_child_iter;
+    const IndexRange node_range = offsets.get_node_range(internal_node);
+    if (node_range.contains(range)) {
+      /* Found start node. */
+      break;
+    }
+  }
+  for (root_child_iter.test(); ++root_child_iter) {
+    const auto &internal_node = *root_child_iter;
+    const IndexRange node_range = offsets.get_node_range(internal_node);
+    if (!node_range.contains(range)) {
+      /* Found end node. */
+      break;
+    }
+
+    /* Handle values in range. */
+    foreach_internal_node_value_in_range(internal_node, offsets, range, fn);
+  }
+}
+
 VolumeGridDataSource::VolumeGridDataSource(const bke::GVolumeGrid &grid,
-                                           SpreadsheetVolumeGridData volume_grid_data)
-    : grid_(std::make_unique<bke::GVolumeGrid>(grid)), volume_grid_data_(volume_grid_data)
+                                           SpreadsheetVolumeGridData volume_grid_data,
+                                           bool show_active_state)
+    : grid_(std::make_unique<bke::GVolumeGrid>(grid)),
+      volume_grid_data_(volume_grid_data),
+      show_active_state_(show_active_state)
 {
 }
 
@@ -721,6 +884,11 @@ void VolumeGridDataSource::foreach_default_column_ids(
       }
       break;
     case SPREADSHEET_VOLUME_VOXEL_DATA:
+      fn(SpreadsheetColumnID{(char *)"Coordinate"}, false);
+      if (show_active_state_) {
+        fn(SpreadsheetColumnID{(char *)"Active"}, false);
+      }
+      fn(SpreadsheetColumnID{(char *)"Value"}, false);
       break;
   }
 }
@@ -770,6 +938,20 @@ std::unique_ptr<ColumnValues> VolumeGridDataSource::get_column_values(
                                               VArray<int3>::from_single(extent, 1));
       }
     case SPREADSHEET_VOLUME_VOXEL_DATA:
+      // if (STREQ(column_id.name, "Coordinate")) {
+      //   return std::make_unique<ColumnValues>(IFACE_("Coordinate"),
+      //                                         VArray<std::string>::from_single(name, 1));
+      // }
+      // if (STREQ(column_id.name, "Active")) {
+      //   const StringRef name = grid_class_name(grid_->get());
+      //   return std::make_unique<ColumnValues>(IFACE_("Active"),
+      //                                         VArray<std::string>::from_single(name, 1));
+      // }
+      // if (STREQ(column_id.name, "Value")) {
+      //   const StringRef name = grid_class_name(grid_->get());
+      //   return std::make_unique<ColumnValues>(IFACE_("Value"),
+      //                                         VArray<std::string>::from_single(name, 1));
+      // }
       break;
   }
   return {};
