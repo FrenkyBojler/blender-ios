@@ -351,10 +351,15 @@ static void stats_object_edit(Object *obedit, SceneStats *stats)
     using namespace blender;
     const Curves &curves_id = *static_cast<Curves *>(obedit->data);
     const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
-    const VArray<bool> selection = *curves.attributes().lookup_or_default<bool>(
+    const VArray<bool> selected_points = *curves.attributes().lookup_or_default<bool>(
         ".selection", bke::AttrDomain::Point, true);
-    stats->totvertsel += array_utils::count_booleans(selection);
+    const VArray<bool> selected_curves = *curves.attributes().lookup_or_default<bool>(
+        ".selection", bke::AttrDomain::Curve, true);
+
     stats->totpoints += curves.points_num();
+    stats->totcurves += curves.curves_num();
+    stats->totpointsel += array_utils::count_booleans(selected_points);
+    stats->totcurvesel += array_utils::count_booleans(selected_curves);
   }
   else if (obedit->type == OB_POINTCLOUD) {
     using namespace blender;
@@ -926,13 +931,10 @@ void ED_info_draw_stats(
       stats_row(col1, labels[JOINTS], col2, stats_fmt.totvertsel, stats_fmt.totvert, y, height);
       stats_row(col1, labels[BONES], col2, stats_fmt.totbonesel, stats_fmt.totbone, y, height);
     }
-    else if (ob->type == OB_CURVES) {
-      stats_row(col1, labels[VERTS], col2, stats_fmt.totvertsel, stats_fmt.totpoints, y, height);
-    }
     else if (ob->type == OB_POINTCLOUD) {
       stats_row(col1, labels[POINTS], col2, stats_fmt.totvertsel, stats_fmt.totpoints, y, height);
     }
-    else if (ELEM(ob->type, OB_CURVES_LEGACY, OB_SURF)) {
+    else if (ELEM(ob->type, OB_CURVES_LEGACY, OB_SURF, OB_CURVES)) {
       stats_row(col1, labels[POINTS], col2, stats_fmt.totpointsel, stats_fmt.totpoints, y, height);
       stats_row(col1, labels[CURVES], col2, stats_fmt.totcurvesel, stats_fmt.totcurves, y, height);
     }
