@@ -16,5 +16,6 @@ struct FileReader;
  * \return null if the file is detected to not be a blend file.
  */
 FileReader *BLO_file_reader_uncompressed(FileReader *rawfile);
+FileReader *BLO_file_reader_uncompressed_from_path(const char *filepath);
 FileReader *BLO_file_reader_uncompressed_from_descriptor(int filedes);
 FileReader *BLO_file_reader_uncompressed_from_memory(const void *mem, const int memsize);

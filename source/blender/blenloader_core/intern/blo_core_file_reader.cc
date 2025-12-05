@@ -3,11 +3,21 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include <cstring>
+#include <fcntl.h>
 
 #include "BLI_fileops.h"
 #include "BLI_filereader.h"
 
 #include "BLO_core_file_reader.hh"
+
+FileReader *BLO_file_reader_uncompressed_from_path(const char *filepath)
+{
+  const int filedes = BLI_open(filepath, O_BINARY | O_RDONLY, 0);
+  if (filedes == -1) {
+    return nullptr;
+  }
+  return BLO_file_reader_uncompressed_from_descriptor(filedes);
+}
 
 FileReader *BLO_file_reader_uncompressed_from_descriptor(int filedes)
 {
