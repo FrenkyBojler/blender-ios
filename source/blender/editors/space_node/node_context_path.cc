@@ -56,26 +56,26 @@ static void context_path_add_object_data(Vector<ui::ContextPathItem> &path, Obje
   }
 }
 
-static std::function<void(bContext &)> tree_path_handle_func(int i)
+static std::function<void(bContext &)> tree_path_navigate(int path_index)
 {
-  return [i](bContext &C) {
+  return [path_index](bContext &C) {
     PointerRNA op_props;
     wmOperatorType *ot = WM_operatortype_find("NODE_OT_tree_path_parent", false);
     WM_operator_properties_create_ptr(&op_props, ot);
-    RNA_int_set(&op_props, "parent_tree_index", i);
+    RNA_int_set(&op_props, "parent_tree_index", path_index);
     WM_operator_name_call_ptr(
         &C, ot, blender::wm::OpCallContext::InvokeDefault, &op_props, nullptr);
     WM_operator_properties_free(&op_props);
   };
 }
 
-static void context_path_add_top_level_shader_node_tree(const SpaceNode &snode,
-                                                        Vector<ui::ContextPathItem> &path,
-                                                        StructRNA &rna_type,
-                                                        void *ptr)
+static void context_path_add_root_tree(const SpaceNode &snode,
+                                       Vector<ui::ContextPathItem> &path,
+                                       StructRNA &rna_type,
+                                       void *ptr)
 {
   if (snode.nodetree != snode.edittree) {
-    ui::context_path_add_generic(path, rna_type, ptr, ICON_NONE, tree_path_handle_func(0));
+    ui::context_path_add_generic(path, rna_type, ptr, ICON_NONE, tree_path_navigate(0));
   }
   else {
     ui::context_path_add_generic(path, rna_type, ptr);
@@ -109,7 +109,7 @@ static void context_path_add_node_tree_and_node_groups(const SpaceNode &snode,
     if (path_item != snode.treepath.last) {
       /* We don't need to add handle function to last node-tree. */
       ui::context_path_add_generic(
-          path, RNA_NodeTree, path_item->nodetree, icon, tree_path_handle_func(i));
+          path, RNA_NodeTree, path_item->nodetree, icon, tree_path_navigate(i));
     }
     else {
       ui::context_path_add_generic(path, RNA_NodeTree, path_item->nodetree, icon);
@@ -126,7 +126,7 @@ static void get_context_path_node_shader(const bContext &C,
       Scene *scene = CTX_data_scene(&C);
       ui::context_path_add_generic(path, RNA_Scene, scene);
       if (scene != nullptr) {
-        context_path_add_top_level_shader_node_tree(snode, path, RNA_World, scene->world);
+        context_path_add_root_tree(snode, path, RNA_World, scene->world);
       }
       /* Skip the base node tree here, because the world contains a node tree already. */
       context_path_add_node_tree_and_node_groups(snode, path, true);
@@ -143,13 +143,13 @@ static void get_context_path_node_shader(const bContext &C,
         context_path_add_object_data(path, *object);
       }
       Material *material = BKE_object_material_get(object, object->actcol);
-      context_path_add_top_level_shader_node_tree(snode, path, RNA_Material, material);
+      context_path_add_root_tree(snode, path, RNA_Material, material);
     }
     else if (snode.shaderfrom == SNODE_SHADER_WORLD) {
       Scene *scene = CTX_data_scene(&C);
       ui::context_path_add_generic(path, RNA_Scene, scene);
       if (scene != nullptr) {
-        context_path_add_top_level_shader_node_tree(snode, path, RNA_World, scene->world);
+        context_path_add_root_tree(snode, path, RNA_World, scene->world);
       }
     }
 #ifdef WITH_FREESTYLE
@@ -206,7 +206,7 @@ static void get_context_path_node_compositor(const bContext &C,
         context_path_add_node_tree_and_node_groups(snode, path);
         return;
       }
-      ui::context_path_add_generic(path, RNA_NodeTree, scmd->node_group);
+      context_path_add_root_tree(snode, path, RNA_NodeTree, scmd->node_group);
       context_path_add_node_tree_and_node_groups(snode, path, true);
     }
     else {
