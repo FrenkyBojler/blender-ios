@@ -87,6 +87,8 @@
   class_name(t1 m1##_, t2 m2##_, t3 m3##_, t4 m4##_, t5 m5##_, t6 m6##_, t7 m7##_) \
       : m1(m1##_), m2(m2##_), m3(m3##_), m4(m4##_), m5(m5##_), m6(m6##_), m7(m7##_){};
 
+#define ATTR_FALLTHROUGH
+
 #define in
 #define out thread
 #define inout thread
@@ -101,6 +103,12 @@
 #define _shared_sta (&
 #define _shared_end )
 
+float4 texelFetchExtend(sampler2D samp, int2 texel, int lvl)
+{
+  texel = clamp(texel, int2(0), textureSize(samp, lvl).xy - 1);
+  return texelFetch(samp, texel, lvl);
+}
+
 /* Resource accessor. */
 #define specialization_constant_get(create_info, _res) _res
 #define shared_variable_get(create_info, _res) _res
@@ -110,6 +118,7 @@
 #define buffer_get(create_info, _res) _res
 #define sampler_get(create_info, _res) _res
 #define image_get(create_info, _res) _res
+#define srt_access(create_info, _res) access_##create_info##_##_res()
 
 /* Stage agnostic builtin function.
  * MSL allow mixing shader stages inside the same source file.

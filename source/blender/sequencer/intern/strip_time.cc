@@ -16,7 +16,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_base.h"
 
-#include "BKE_movieclip.h"
+#include "BKE_movieclip.hh"
 #include "BKE_sound.hh"
 
 #include "DNA_sound_types.h"
@@ -117,8 +117,8 @@ static void strip_update_sound_bounds_recursive_impl(const Scene *scene,
                                                max_ii(start, metastrip_start_get(strip)),
                                                min_ii(end, metastrip_end_get(strip)));
     }
-    else if (ELEM(strip->type, STRIP_TYPE_SOUND_RAM, STRIP_TYPE_SCENE)) {
-      if (strip->scene_sound) {
+    else if (ELEM(strip->type, STRIP_TYPE_SOUND, STRIP_TYPE_SCENE)) {
+      if (strip->runtime->scene_sound) {
         int startofs = strip->startofs;
         int endofs = strip->endofs;
         if (strip->startofs + strip->start < start) {
@@ -135,7 +135,7 @@ static void strip_update_sound_bounds_recursive_impl(const Scene *scene,
         }
 
         BKE_sound_move_scene_sound(scene,
-                                   strip->scene_sound,
+                                   strip->runtime->scene_sound,
                                    strip->start + startofs,
                                    strip->start + strip->len - endofs,
                                    startofs + strip->anim_startofs,
@@ -262,7 +262,7 @@ int time_find_next_prev_edit(Scene *scene,
       continue;
     }
 
-    if (do_unselected && (strip->flag & SELECT)) {
+    if (do_unselected && (strip->flag & SEQ_SELECT)) {
       continue;
     }
 
@@ -315,14 +315,11 @@ float time_strip_fps_get(Scene *scene, Strip *strip)
   switch (strip->type) {
     case STRIP_TYPE_MOVIE: {
       strip_open_anim_file(scene, strip, true);
-      if (BLI_listbase_is_empty(&strip->anims)) {
+      const MovieReader *anim = strip->runtime->movie_reader_get();
+      if (anim == nullptr) {
         return 0.0f;
       }
-      StripAnim *strip_anim = static_cast<StripAnim *>(strip->anims.first);
-      if (strip_anim->anim == nullptr) {
-        return 0.0f;
-      }
-      return MOV_get_fps(strip_anim->anim);
+      return MOV_get_fps(anim);
     }
     case STRIP_TYPE_MOVIECLIP:
       if (strip->clip != nullptr) {
@@ -565,7 +562,7 @@ static void strip_time_slip_strip_ex(const Scene *scene,
                                      bool slip_keyframes,
                                      bool recursed)
 {
-  if (strip->type == STRIP_TYPE_SOUND_RAM && subframe_delta != 0.0f) {
+  if (strip->type == STRIP_TYPE_SOUND && subframe_delta != 0.0f) {
     strip->sound_offset += subframe_delta / scene->frames_per_second();
   }
 
@@ -602,7 +599,7 @@ static void strip_time_slip_strip_ex(const Scene *scene,
 
   if (slip_keyframes) {
     float anim_offset = delta;
-    if (strip->type == STRIP_TYPE_SOUND_RAM) {
+    if (strip->type == STRIP_TYPE_SOUND) {
       anim_offset += subframe_delta;
     }
     offset_animdata(scene, strip, anim_offset);
@@ -629,7 +626,7 @@ void time_slip_strip(
 
 int time_get_rounded_sound_offset(const Strip *strip, const float frames_per_second)
 {
-  if (strip->type == STRIP_TYPE_SOUND_RAM && strip->sound != nullptr) {
+  if (strip->type == STRIP_TYPE_SOUND && strip->sound != nullptr) {
     return round_fl_to_int((strip->sound->offset_time + strip->sound_offset) * frames_per_second);
   }
   return 0;

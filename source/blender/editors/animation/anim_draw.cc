@@ -27,7 +27,7 @@
 #include "BKE_curve.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_global.hh"
-#include "BKE_mask.h"
+#include "BKE_mask.hh"
 #include "BKE_nla.hh"
 
 #include "ED_anim_api.hh"
@@ -608,7 +608,7 @@ static float normalization_factor_get(Scene *scene, FCurve *fcu, short flag, flo
   else {
     /* Skip normalization. */
     factor = 1.0f;
-    offset = -min_coord;
+    offset = 0.0f;
   }
 
   BLI_assert(factor != 0.0f);

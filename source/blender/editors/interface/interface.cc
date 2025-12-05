@@ -82,9 +82,9 @@ using blender::Vector;
 static CLG_LogRef LOG = {"ui"};
 
 /* prototypes. */
-static void ui_def_but_rna__menu(bContext *C, uiLayout *layout, void *but_p);
-static void ui_def_but_rna__panel_type(bContext * /*C*/, uiLayout *layout, void *arg);
-static void ui_def_but_rna__menu_type(bContext * /*C*/, uiLayout *layout, void *but_p);
+static void ui_def_but_rna__menu(bContext *C, blender::ui::Layout *layout, void *but_p);
+static void ui_def_but_rna__panel_type(bContext * /*C*/, blender::ui::Layout *layout, void *arg);
+static void ui_def_but_rna__menu_type(bContext * /*C*/, blender::ui::Layout *layout, void *but_p);
 
 /* avoid unneeded calls to ui_but_value_get */
 #define UI_BUT_VALUE_UNSET DBL_MAX
@@ -1865,7 +1865,7 @@ static bool ui_but_icon_extra_is_visible_bone_eyedropper(uiBut *but)
   }
   const StructRNA *type = RNA_property_pointer_type(&search_but->rnasearchpoin,
                                                     search_but->rnasearchprop);
-  return type == &RNA_Bone || type == &RNA_EditBone;
+  return type == &RNA_Bone || type == &RNA_EditBone || type == &RNA_PoseBone;
 }
 
 static PredefinedExtraOpIconType ui_but_icon_extra_get(uiBut *but)
@@ -4490,7 +4490,7 @@ void ui_def_but_icon_clear(uiBut *but)
   but->drawflag &= ~UI_BUT_ICON_LEFT;
 }
 
-static void ui_def_but_rna__menu(bContext *C, uiLayout *layout, void *but_p)
+static void ui_def_but_rna__menu(bContext *C, blender::ui::Layout *layout, void *but_p)
 {
   uiBlock *block = layout->block();
   uiPopupBlockHandle *handle = block->handle;
@@ -4614,12 +4614,12 @@ static void ui_def_but_rna__menu(bContext *C, uiLayout *layout, void *but_p)
   /* NOTE: `item_array[...]` is reversed on access. */
 
   /* create items */
-  uiLayout *split = &layout->split(0.0f, false);
+  blender::ui::Layout &split = layout->split(0.0f, false);
 
   bool new_column;
 
   int column_end = 0;
-  uiLayout *column = nullptr;
+  blender::ui::Layout *column = nullptr;
   for (int a = 0; a < totitems; a++) {
     new_column = (a == column_end);
     if (new_column) {
@@ -4637,7 +4637,7 @@ static void ui_def_but_rna__menu(bContext *C, uiLayout *layout, void *but_p)
         }
       }
 
-      column = &split->column(false);
+      column = &split.column(false);
     }
 
     const EnumPropertyItem *item = &item_array[a];
@@ -4653,7 +4653,7 @@ static void ui_def_but_rna__menu(bContext *C, uiLayout *layout, void *but_p)
           column->label(item->name, item->icon);
         }
         else if (item->name) {
-          /* Do not use uiLayout::label here, as our root layout is a menu one,
+          /* Do not use blender::ui::Layout::label here, as our root layout is a menu one,
            * it will add a fake blank icon! */
           uiDefBut(block,
                    ButType::Label,
@@ -4740,7 +4740,7 @@ static void ui_def_but_rna__menu(bContext *C, uiLayout *layout, void *but_p)
   }
 }
 
-static void ui_def_but_rna__panel_type(bContext *C, uiLayout *layout, void *arg)
+static void ui_def_but_rna__panel_type(bContext *C, blender::ui::Layout *layout, void *arg)
 {
   PanelType *panel_type = static_cast<PanelType *>(arg);
   if (panel_type) {
@@ -4767,7 +4767,7 @@ bool ui_but_menu_draw_as_popover(const uiBut *but)
   return (but->menu_create_func == ui_def_but_rna__panel_type);
 }
 
-static void ui_def_but_rna__menu_type(bContext *C, uiLayout *layout, void *but_p)
+static void ui_def_but_rna__menu_type(bContext *C, blender::ui::Layout *layout, void *but_p)
 {
   uiBut *but = static_cast<uiBut *>(but_p);
   const char *menu_type = static_cast<const char *>(but->func_argN);
@@ -4888,7 +4888,7 @@ static uiBut *ui_def_but_rna(uiBlock *block,
   }
 
   if (!tip && proptype != PROP_ENUM) {
-    tip = RNA_property_ui_description(prop);
+    tip = RNA_property_ui_description(prop, ptr);
   }
 
   float step = -1.0f;
@@ -5097,11 +5097,12 @@ uiBut *uiDefButImage(
   return but;
 }
 
-uiBut *uiDefButAlert(uiBlock *block, int icon, int x, int y, short width, short /*height*/)
+uiBut *uiDefButAlert(
+    uiBlock *block, blender::ui::AlertIcon icon, int x, int y, short width, short /*height*/)
 {
-  ImBuf *ibuf = UI_icon_alert_imbuf_get((eAlertIcon)icon, float(width));
+  ImBuf *ibuf = UI_icon_alert_imbuf_get(icon, float(width));
   if (ibuf) {
-    if (icon == ALERT_ICON_ERROR) {
+    if (icon == blender::ui::AlertIcon::Error) {
       uchar color[4];
       UI_GetThemeColor4ubv(TH_ERROR, color);
       return uiDefButImage(block, ibuf, x, y, ibuf->x, ibuf->y, color);
@@ -6825,7 +6826,7 @@ std::string UI_but_string_get_tooltip_label(const uiBut &but)
 std::string UI_but_string_get_rna_label(uiBut &but)
 {
   if (but.rnaprop) {
-    return RNA_property_ui_name(but.rnaprop);
+    return RNA_property_ui_name(but.rnaprop, &but.rnapoin);
   }
   if (but.optype) {
     PointerRNA *opptr = UI_but_operator_ptr_ensure(&but);
@@ -6877,7 +6878,7 @@ std::string UI_but_string_get_tooltip(bContext &C, uiBut &but)
 std::string UI_but_string_get_rna_tooltip(bContext &C, uiBut &but)
 {
   if (but.rnaprop) {
-    const char *t = RNA_property_ui_description(but.rnaprop);
+    const char *t = RNA_property_ui_description(but.rnaprop, &but.rnapoin);
     if (t && t[0]) {
       return t;
     }

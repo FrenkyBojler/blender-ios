@@ -277,8 +277,12 @@ class MTLTexture : public Texture {
              id<MTLTexture> metal_texture);
   ~MTLTexture() override;
 
-  void update_sub(
-      int mip, int offset[3], int extent[3], eGPUDataFormat type, const void *data) override;
+  void update_sub(int mip,
+                  int offset[3],
+                  int extent[3],
+                  eGPUDataFormat type,
+                  const void *data,
+                  const uint unpack_row_length) override;
   void update_sub(int offset[3],
                   int extent[3],
                   eGPUDataFormat format,
@@ -422,9 +426,9 @@ class MTLTexture : public Texture {
    */
   struct TextureUpdateParams {
     int mip_index;
-    int extent[3];          /* Width, Height, Slice on 2D Array tex. */
-    int offset[3];          /* Width, Height, Slice on 2D Array tex. */
-    uint unpack_row_length; /* Number of pixels between bytes in input data. */
+    int extent[3];         /* Width, Height, Slice on 2D Array tex. */
+    int offset[3];         /* Width, Height, Slice on 2D Array tex. */
+    int unpack_row_length; /* Number of pixels between bytes in input data. */
   };
 
   id<MTLComputePipelineState> texture_update_1d_get_kernel(

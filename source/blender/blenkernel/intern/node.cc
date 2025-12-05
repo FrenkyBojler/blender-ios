@@ -493,8 +493,10 @@ static void node_foreach_working_space_color(ID *id, const IDTypeForeachColorFun
       else if (socket->type == SOCK_VECTOR && socket->default_value &&
                (STREQ(socket->name, "Subsurface Radius") ||
                 STREQ(socket->name, "Subsurface Radius Scale") ||
-                (node->type_legacy == SH_NODE_SUBSURFACE_SCATTERING &&
-                 STREQ(socket->name, "Radius"))))
+                (STREQ(node->idname, "ShaderNodeSubsurfaceScattering") &&
+                 STREQ(socket->name, "Radius")) ||
+                (STREQ(node->idname, "ShaderNodeBsdfMetallic") &&
+                 (STREQ(socket->name, "IOR") || STREQ(socket->name, "Extinction")))))
       {
         bNodeSocketValueVector *vec = static_cast<bNodeSocketValueVector *>(socket->default_value);
         float length;
@@ -1075,7 +1077,7 @@ static void node_blend_write_storage(BlendWriter *writer, bNodeTree *ntree, bNod
     }
   }
   else if (node->type_legacy == GEO_NODE_VIEWER) {
-    /* Forward compatibility for older Blender versionins where the viewer node only had a geometry
+    /* Forward compatibility for older Blender versions where the viewer node only had a geometry
      * and field input. */
     auto &storage = *static_cast<NodeGeometryViewer *>(node->storage);
     for (const NodeGeometryViewerItem &item : Span{storage.items, storage.items_num}) {
@@ -3645,7 +3647,7 @@ bNode *node_copy_with_mapping(bNodeTree *dst_tree,
 
 /**
  * Type of value storage related with socket is the same.
- * \param socket: Node can have multiple sockets & storages pairs.
+ * \param socket: Node can have multiple sockets & storage pairs.
  */
 static void *node_static_value_storage_for(bNode &node, const bNodeSocket &socket)
 {

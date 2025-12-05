@@ -13,7 +13,6 @@
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector.hh"
 
-#include "UI_interface_icons.hh" /* `eAlertIcon` */
 #include "UI_interface_types.hh"
 
 struct bContext;
@@ -50,6 +49,7 @@ enum class EmbossType : uint8_t;
 enum class LayoutAlign : int8_t;
 enum class ButProgressType : int8_t;
 enum class LayoutDirection : int8_t;
+enum class AlertIcon : int8_t;
 
 struct ItemInternal;
 struct LayoutInternal;
@@ -241,8 +241,7 @@ struct Layout : public uiItem, NonCopyable, NonMovable {
 
   /** Sub-layout items. */
 
-  Layout &absolute(bool align);
-  uiBlock *absolute_block();
+  Layout &absolute(bool align = false);
 
   /**
    * Add a new box sub-layout, items placed in this sub-layout are added vertically one under
@@ -893,7 +892,6 @@ enum eUI_Item_Flag : uint16_t {
 ENUM_OPERATORS(eUI_Item_Flag)
 #define UI_ITEM_NONE eUI_Item_Flag(0)
 
-using uiLayout = blender::ui::Layout;
 /**
  * Apply property search behavior, setting panel flags and deactivating buttons that don't match.
  *
@@ -993,6 +991,8 @@ const char *UI_layout_introspect(blender::ui::Layout *layout);
 blender::ui::Layout *uiItemsAlertBox(uiBlock *block,
                                      const uiStyle *style,
                                      const int dialog_width,
-                                     const eAlertIcon icon,
+                                     const blender::ui::AlertIcon icon,
                                      const int icon_size);
-blender::ui::Layout *uiItemsAlertBox(uiBlock *block, const int size, const eAlertIcon icon);
+blender::ui::Layout *uiItemsAlertBox(uiBlock *block,
+                                     const int size,
+                                     const blender::ui::AlertIcon icon);
