@@ -1536,6 +1536,22 @@ void main()
     EXPECT_EQ(output, expect);
     EXPECT_EQ(error, "");
   }
+  {
+    string input = R"(
+class S {
+  int xzwy() const
+  {
+  }
+};
+)";
+    string expect = R"(
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error,
+              "Method name matching swizzles and vector component "
+              "accessor are forbidden.");
+  }
 }
 GPU_TEST(preprocess_struct_methods);
 
