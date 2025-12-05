@@ -698,8 +698,9 @@ int VolumeDataSource::tot_rows() const
 
 #ifdef WITH_OPENVDB
 
-VolumeGridDataSource::VolumeGridDataSource(const bke::GVolumeGrid &grid)
-    : grid_(std::make_unique<bke::GVolumeGrid>(grid))
+VolumeGridDataSource::VolumeGridDataSource(const bke::GVolumeGrid &grid,
+                                           SpreadsheetVolumeGridData volume_grid_data)
+    : grid_(std::make_unique<bke::GVolumeGrid>(grid)), volume_grid_data_(volume_grid_data)
 {
 }
 
@@ -1198,7 +1199,10 @@ std::unique_ptr<DataSource> data_source_from_geometry(const bContext *C, Object 
   }
   if (display_data.is_volume_grid()) {
 #ifdef WITH_OPENVDB
-    return std::make_unique<VolumeGridDataSource>(display_data.get<bke::GVolumeGrid>());
+    const SpreadsheetVolumeGridData volume_grid_data = SpreadsheetVolumeGridData(
+        sspreadsheet->geometry_id.volume_grid_data);
+    return std::make_unique<VolumeGridDataSource>(display_data.get<bke::GVolumeGrid>(),
+                                                  volume_grid_data);
 #else
     return {};
 #endif

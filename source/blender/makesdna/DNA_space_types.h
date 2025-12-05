@@ -1158,6 +1158,11 @@ typedef enum SpreadsheetClosureInputOutput {
   SPREADSHEET_CLOSURE_OUTPUT = 2,
 } SpreadsheetClosureInputOutput;
 
+typedef enum SpreadsheetVolumeGridData {
+  SPREADSHEET_VOLUME_SUMMARY = 0,
+  SPREADSHEET_VOLUME_VOXEL_DATA = 1,
+} SpreadsheetVolumeGridData;
+
 typedef struct SpreadsheetTableIDGeometry {
   SpreadsheetTableID base;
   char _pad0[4];
@@ -1175,8 +1180,10 @@ typedef struct SpreadsheetTableIDGeometry {
 
   /** #SpreadsheetClosureInputOutput. */
   int8_t closure_input_output;
+  /** #SpreadsheetVolumeGridData. */
+  int8_t volume_grid_data;
 
-  char _pad3[7];
+  char _pad3[6];
 
   /**
    * The "path" to the currently active instance reference. This is needed when viewing nested

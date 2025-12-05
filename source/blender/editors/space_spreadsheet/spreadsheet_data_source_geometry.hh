@@ -99,9 +99,11 @@ class VolumeDataSource : public DataSource {
 class VolumeGridDataSource : public DataSource {
   /** Using #unique_ptr so that `BKE_volume_grid_fwd.hh` can be used. */
   std::unique_ptr<bke::GVolumeGrid> grid_;
+  SpreadsheetVolumeGridData volume_grid_data_;
 
  public:
-  VolumeGridDataSource(const bke::GVolumeGrid &grid);
+  VolumeGridDataSource(const bke::GVolumeGrid &grid,
+                       const SpreadsheetVolumeGridData volume_grid_data);
 
   void foreach_default_column_ids(
       FunctionRef<void(const SpreadsheetColumnID &, bool is_extra)> fn) const override;

@@ -170,6 +170,7 @@ void activate_geometry_node(Main &bmain,
           MEM_SAFE_FREE(table_id.bundle_path);
           table_id.bundle_path_num = 0;
           table_id.closure_input_output = SPREADSHEET_CLOSURE_NONE;
+          table_id.volume_grid_data = SPREADSHEET_VOLUME_SUMMARY;
         }
       }
       else if (sl->spacetype == SPACE_VIEW3D) {
