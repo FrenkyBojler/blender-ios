@@ -363,8 +363,10 @@ void fsmenu_read_system(FSMenu *fsmenu, int read_bookmarks)
           case DRIVE_CDROM:
             icon = ICON_DISC;
             break;
-          case DRIVE_FIXED:
-          case DRIVE_RAMDISK: {
+          case DRIVE_RAMDISK:
+            icon = ICON_DISK_DRIVE;
+            break;
+          case DRIVE_FIXED: {
             DWORD fileSystemFlags;
             const bool is_cloud =
                 (GetVolumeInformation(
