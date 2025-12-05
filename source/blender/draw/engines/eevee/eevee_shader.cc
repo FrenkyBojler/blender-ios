@@ -19,9 +19,6 @@
 #include "GPU_vertex_format.hh"
 #include "gpu_shader_create_info.hh"
 
-/* XXX: UGLY!*/
-#include "gpu_node_graph.hh"
-
 #include "eevee_shader.hh"
 
 #include "eevee_shadow.hh"
