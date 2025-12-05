@@ -28,9 +28,11 @@ using PrimitiveValue =
 
 class StructMember {
  public:
+  /** For consistency with core Blender, this may still contain e.g. the `*` if it is a pointer. */
   StringRefNull identifier;
-  /** This contains a bit more than just the name, e.g. for pointers it contains the `*`. */
+  /** Same as the identifier but may additionally have an array suffix (e.g. `[3]`). */
   StringRefNull name_with_array;
+  StringRefNull name_only;
   int64_t offset_in_struct;
   int64_t elem_size;
   int64_t elem_num;
@@ -125,6 +127,17 @@ static bool name_is_pointer(const StringRefNull name)
   return name[0] == '*' || (name[0] == '(' && name[1] == '*');
 }
 
+static std::string strip_name(const StringRefNull identifier)
+{
+  std::string result;
+  for (const char c : identifier) {
+    if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_') {
+      result.push_back(c);
+    }
+  }
+  return result;
+}
+
 class RichSDNA {
  public:
   ResourceScope scope_;
@@ -204,6 +217,7 @@ class RichSDNA {
           sdna_member.identifier = allocator.copy_string(
               sdna_member.name_with_array.substr(0, array_start));
         }
+        sdna_member.name_only = allocator.copy_string(strip_name(sdna_member.identifier));
         sdna_member.parent = &sdna_struct;
         sdna_struct.members.add(&sdna_member);
       }
@@ -434,6 +448,7 @@ struct AddressMap {
 struct BlockMatch {
   const BlendBlock *old_block = nullptr;
   const BlendBlock *new_block = nullptr;
+  std::string context;
 };
 
 struct BlockMatchMap {
@@ -532,6 +547,7 @@ static void handle_block_pair_recursive(DiffWriter &writer,
                                         const Struct &new_struct,
                                         const AddressMap &address_map_old,
                                         const AddressMap &address_map_new,
+                                        const StringRef context,
                                         BlockMatchMap &matches,
                                         Stack<BlockMatch> &matches_to_check)
 {
@@ -554,7 +570,7 @@ static void handle_block_pair_recursive(DiffWriter &writer,
       const BlendBlock &old_pointee = *old_pointees[i];
       const BlendBlock &new_pointee = *new_pointees[i];
       if (matches.add(&old_pointee, &new_pointee)) {
-        matches_to_check.push({&old_pointee, &new_pointee});
+        matches_to_check.push({&old_pointee, &new_pointee, context});
       }
     }
     return;
@@ -590,6 +606,9 @@ static void handle_block_pair_recursive(DiffWriter &writer,
               *new_member->type->opt_struct,
               address_map_old,
               address_map_new,
+              old_member->elem_num == 1 ?
+                  fmt::format("{}.{}", context, old_member->name_only) :
+                  fmt::format("{}.{}[{}]", context, old_member->name_only, i),
               matches,
               matches_to_check);
         }
@@ -624,11 +643,12 @@ static void handle_block_pair_recursive(DiffWriter &writer,
           if (!old_value) {
             continue;
           }
+          const std::string path = old_member->elem_num == 1 ?
+                                       fmt::format("{}.{}", context, old_member->name_only) :
+                                       fmt::format("{}.{}[{}]", context, old_member->name_only, i);
           writer.writeln_changed(
-              fmt::format(
-                  "{} = {}", old_member->to_decl_string(), primitive_value_to_string(*old_value)),
-              fmt::format(
-                  "{} = {}", new_member->to_decl_string(), primitive_value_to_string(*new_value)));
+              fmt::format("{} = {}", path, primitive_value_to_string(*old_value)),
+              fmt::format("{} = {}", path, primitive_value_to_string(*new_value)));
         }
         break;
       }
@@ -660,18 +680,19 @@ static void handle_block_pair_recursive(DiffWriter &writer,
           if (!old_pointee && !new_pointee) {
             continue;
           }
+          const std::string path = old_member->elem_num == 1 ?
+                                       fmt::format("{}.{}", context, old_member->name_only) :
+                                       fmt::format("{}.{}[{}]", context, old_member->name_only, i);
           if (!old_pointee && new_pointee) {
-            writer.writeln_changed(fmt::format("{} = nullptr", old_member->to_decl_string()),
-                                   fmt::format("{} = *", new_member->to_decl_string()));
+            writer.writeln_changed(fmt::format("{} = nullptr", path), fmt::format("{} = *", path));
             continue;
           }
           if (old_pointee && !new_pointee) {
-            writer.writeln_changed(fmt::format("{} = *", old_member->to_decl_string()),
-                                   fmt::format("{} = nullptr", new_member->to_decl_string()));
+            writer.writeln_changed(fmt::format("{} = *", path), fmt::format("{} = nullptr", path));
             continue;
           }
           if (matches.add(old_pointee, new_pointee)) {
-            matches_to_check.push({old_pointee, new_pointee});
+            matches_to_check.push({old_pointee, new_pointee, path});
           }
         }
         break;
@@ -687,10 +708,11 @@ static void write_diff_blocks(DiffWriter &writer,
                               const RichSDNA &sdna_new,
                               const AddressMap &address_map_old,
                               const AddressMap &address_map_new,
+                              const StringRef root_context,
                               BlockMatchMap &matches)
 {
   Stack<BlockMatch> matches_to_check;
-  matches_to_check.push({&old_root, &new_root});
+  matches_to_check.push({&old_root, &new_root, root_context});
 
   while (!matches_to_check.is_empty()) {
     const BlockMatch match = matches_to_check.pop();
@@ -712,6 +734,7 @@ static void write_diff_blocks(DiffWriter &writer,
                                 *new_parent_struct,
                                 address_map_old,
                                 address_map_new,
+                                match.context,
                                 matches,
                                 matches_to_check);
   }
@@ -726,6 +749,10 @@ static void write_diff_id(DiffWriter &writer,
   // TODO: Handle ID pointers.
   AddressMap old_address_map = build_address_map(old_id_data);
   AddressMap new_address_map = build_address_map(new_id_data);
+
+  const Struct *new_id_struct = sdna_new.try_find_struct(new_id_data.id_block->bhead.SDNAnr);
+  BLI_assert(new_id_struct);
+
   BlockMatchMap matches;
   matches.add(old_id_data.id_block, new_id_data.id_block);
   write_diff_blocks(writer,
@@ -735,6 +762,7 @@ static void write_diff_id(DiffWriter &writer,
                     sdna_new,
                     old_address_map,
                     new_address_map,
+                    fmt::format("{}[\"{}\"]", new_id_struct->type->name, new_id_data.name),
                     matches);
 }
 
