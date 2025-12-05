@@ -1705,9 +1705,8 @@ wmOperatorStatus grease_pencil_draw_operator_invoke(bContext *C,
   if (inserted_keyframe) {
     for (bke::greasepencil::Layer *layer : grease_pencil.layers_for_write()) {
       for (auto [frame_number, frame] : layer->frames_for_write().items()) {
-          bool select_keyframe = (frame_number == scene->r.cfra) && (layer == &active_layer);
-          SET_FLAG_FROM_TEST(frame.flag, select_keyframe, GP_FRAME_SELECTED)
-        }
+        const bool select_keyframe = (frame_number == scene->r.cfra) && (layer == &active_layer);
+        SET_FLAG_FROM_TEST(frame.flag, select_keyframe, GP_FRAME_SELECTED);
       }
     }
     WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
