@@ -16,6 +16,9 @@
 
 #include <atomic>
 #include <cstring>
+#include <iostream>
+#include <sstream>
+#include <system_error>
 
 #ifndef WIN32
 #  include <csignal>
@@ -72,6 +75,12 @@ static blender::Vector<BLI_mmap_file *> &open_mmaps_vector()
  * any global locks it was holding won't be unlocked when entering the handler.
  * Using the normal printing routines could then cause a deadlock. */
 static void print_error(const char *message);
+
+/* Gets and formats the most recent system error and prints it with the provided message.
+ * On Windows, force_errno formats errno instead, on POSIX plastforms this does not make a
+ * difference.
+ * Note: This uses allocations and standard IO, and as such is not async-signal-safe. */
+static void print_last_error(const char *msg, bool force_errno = false);
 
 /* Tries to replace the mapping with zeroes.
  * Returns true on success. */
@@ -337,6 +346,7 @@ static bool ensure_mmap_initialized()
     newact.sa_flags = SA_SIGINFO;
 
     if (sigaction(SIGBUS, &newact, &oldact)) {
+      print_last_error("Failed to set SIGBUS signal handler");
       return false;
     }
 
@@ -364,6 +374,24 @@ static void error_handler_remove(BLI_mmap_file *file)
   open_mmaps_vector().remove_first_occurrence_and_reorder(file);
 }
 
+static void print_last_error(const char *msg, bool force_errno)
+{
+  int error_code =
+#ifdef WIN32
+      force_errno ? errno : GetLastError();
+#else
+      errno;
+#endif
+  /* Windows uses errno for some things as well, so format those with `generic_category`. On POSIX
+   * platforms both category are practically the same. */
+  const std::error_category &category = force_errno ? std::generic_category() :
+                                                      std::system_category();
+  std::stringstream ss;
+  ss << "BLI_mmap: Error: " << msg << ": " << category.message(error_code) << " (" << std::hex
+     << std::showbase << error_code << ")" << "\n";
+  std::cerr << ss.str() << std::flush;
+}
+
 BLI_mmap_file *BLI_mmap_open(int fd)
 {
   static std::atomic_size_t id_counter = 0;
@@ -371,11 +399,13 @@ BLI_mmap_file *BLI_mmap_open(int fd)
   void *memory, *handle = nullptr;
   const size_t length = BLI_lseek(fd, 0, SEEK_END);
   if (UNLIKELY(length == size_t(-1))) {
+    print_last_error("BLI_lseek failed", true);
     return nullptr;
   }
 
   /* Ensures that the error handler is set up and ready. */
   if (!ensure_mmap_initialized()) {
+    /* ensure_mmap_initialized prints any errors it encounters. */
     return nullptr;
   }
 
@@ -383,11 +413,16 @@ BLI_mmap_file *BLI_mmap_open(int fd)
   /* Map the given file to memory. */
   memory = mmap(nullptr, length, PROT_READ, MAP_PRIVATE, fd, 0);
   if (memory == MAP_FAILED) {
+    print_last_error("mmap failed");
     return nullptr;
   }
 #else  /* WIN32 */
   /* Convert the POSIX-style file descriptor to a Windows handle. */
   void *file_handle = (void *)_get_osfhandle(fd);
+  if (file_handle == INVALID_HANDLE_VALUE) {
+    print_last_error("_get_osfhandle failed", true);
+    return nullptr;
+  }
 
   /* Memory mapping on Windows is a multi-step process - first we create a placeholder
    * allocation. Then we create a mapping, and after that we create a view into that mapping
@@ -403,11 +438,13 @@ BLI_mmap_file *BLI_mmap_open(int fd)
                                 nullptr,
                                 0);
     if (memory == nullptr) {
+      print_last_error("Failed to allocate placeholder");
       return nullptr;
     }
 
     handle = CreateFileMapping(file_handle, nullptr, PAGE_READONLY, 0, 0, nullptr);
     if (handle == nullptr) {
+      print_last_error("Failed to create file mapping handle");
       VirtualFree(memory, 0, MEM_RELEASE);
       return nullptr;
     }
@@ -422,6 +459,7 @@ BLI_mmap_file *BLI_mmap_open(int fd)
                             nullptr,
                             0) == nullptr)
     {
+      print_last_error("Failed to replace placeholder with view of file");
       VirtualFree(memory, 0, MEM_RELEASE);
       CloseHandle(handle);
       return nullptr;
@@ -432,11 +470,13 @@ BLI_mmap_file *BLI_mmap_open(int fd)
      * available. */
     handle = CreateFileMapping(file_handle, nullptr, PAGE_READONLY, 0, 0, nullptr);
     if (handle == nullptr) {
+      print_last_error("Failed to create file mapping handle");
       return nullptr;
     }
 
     memory = MapViewOfFile(handle, FILE_MAP_READ, 0, 0, 0);
     if (memory == nullptr) {
+      print_last_error("Failed to map view of file");
       CloseHandle(handle);
       return nullptr;
     }
