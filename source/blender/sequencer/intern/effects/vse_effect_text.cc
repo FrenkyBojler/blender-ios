@@ -619,54 +619,51 @@ static rcti draw_text_outline(const RenderData *context,
   const IndexRange rect_x_range(outline_rect.xmin, outline_rect.xmax - outline_rect.xmin + 1);
   const IndexRange rect_y_range(outline_rect.ymin, outline_rect.ymax - outline_rect.ymin + 1);
 
-  /* Initialize JFA: invalid values for empty regions, pixel coordinates
-   * for opaque regions. */
-  Array<JFACoord> boundary_opaque(pixel_count, NoInitialization());
-
-  threading::parallel_for(IndexRange(size.y), 16, [&](const IndexRange y_range) {
-    for (const int y : y_range) {
-      size_t index = size_t(y) * size.x;
-      for (int x = 0; x < size.x; x++, index++) {
-        bool is_opaque = tmp_buf[index].w >= 128;
-        JFACoord coord;
-        coord.x = is_opaque ? x : JFA_INVALID;
-        coord.y = is_opaque ? y : JFA_INVALID;
-        boundary_opaque[index] = coord;
-      }
-    }
-  });
-
   /* Do jump flooding calculations. */
   JFACoord invalid_coord{JFA_INVALID, JFA_INVALID};
-  Array<JFACoord> initial_flooded_result(pixel_count, invalid_coord);
-  jump_flooding_pass(boundary_opaque, initial_flooded_result, size, rect_x_range, rect_y_range, 1);
+  Array<JFACoord> jfa_result_outside(pixel_count, invalid_coord);
+  Array<JFACoord> jfa_result_inside(pixel_count, invalid_coord);
 
-  Array<JFACoord> *result_to_flood = &initial_flooded_result;
-  Array<JFACoord> intermediate_result(pixel_count, invalid_coord);
-  Array<JFACoord> *result_after_flooding = &intermediate_result;
+  const bool needs_outside_jfa = (data->outline_position == SEQ_TEXT_OUTLINE_OUTSIDE ||
+                                  data->outline_position == SEQ_TEXT_OUTLINE_CENTER);
+  const bool needs_inside_jfa = (data->outline_position == SEQ_TEXT_OUTLINE_INSIDE ||
+                                 data->outline_position == SEQ_TEXT_OUTLINE_CENTER);
 
-  int step_size = power_of_2_max_i(outline_width) / 2;
+  if (needs_outside_jfa) {
+    /* JFA Pass 1: Flood from opaque pixels outwards to find distance to solid edges. */
+    Array<JFACoord> boundary_opaque(pixel_count, NoInitialization());
+    threading::parallel_for(rect_y_range, 16, [&](const IndexRange y_range) {
+      for (const int y : y_range) {
+        size_t index = size_t(y) * size.x + rect_x_range.start();
+        for (int x = rect_x_range.start(); x < rect_x_range.one_after_last(); x++, index++) {
+          bool is_opaque = tmp_buf[index].w >= 128;
+          JFACoord coord;
+          coord.x = is_opaque ? x : JFA_INVALID;
+          coord.y = is_opaque ? y : JFA_INVALID;
+          boundary_opaque[index] = coord;
+        }
+      }
+    });
 
-  while (step_size != 0) {
-    jump_flooding_pass(
-        *result_to_flood, *result_after_flooding, size, rect_x_range, rect_y_range, step_size);
-    std::swap(result_to_flood, result_after_flooding);
-    step_size /= 2;
+    Array<JFACoord> temp_buffer(pixel_count, invalid_coord);
+    Array<JFACoord> *read_buffer = &boundary_opaque;
+    Array<JFACoord> *write_buffer = &temp_buffer;
+    int step_size = power_of_2_max_i(outline_width);
+    while (step_size != 0) {
+      jump_flooding_pass(*read_buffer, *write_buffer, size, rect_x_range, rect_y_range, step_size);
+      std::swap(read_buffer, write_buffer);
+      step_size /= 2;
+    }
+    jfa_result_outside = *read_buffer;
   }
 
-  // the final result of the first flooding
-  Array<JFACoord> jfa_result_outside = *result_to_flood;
-
-  // jfa pass for inside case
-  Array<JFACoord> jfa_result_inside(pixel_count, invalid_coord);
-  if (data->outline_position == SEQ_TEXT_OUTLINE_INSIDE ||
-      data->outline_position == SEQ_TEXT_OUTLINE_CENTER)
-  {
+  if (needs_inside_jfa) {
+    /* JFA Pass 2: Flood from transparent pixels inwards to find distance to empty edges. */
     Array<JFACoord> boundary_transparent(pixel_count, NoInitialization());
-    threading::parallel_for(IndexRange(size.y), 16, [&](const IndexRange y_range) {
+    threading::parallel_for(rect_y_range, 16, [&](const IndexRange y_range) {
       for (const int y : y_range) {
-        size_t index = size_t(y) * size.x;
-        for (int x = 0; x < size.x; x++, index++) {
+        size_t index = size_t(y) * size.x + rect_x_range.start();
+        for (int x = rect_x_range.start(); x < rect_x_range.one_after_last(); x++, index++) {
           bool is_transparent = tmp_buf[index].w < 128;
           JFACoord coord;
           coord.x = is_transparent ? x : JFA_INVALID;
@@ -676,24 +673,17 @@ static rcti draw_text_outline(const RenderData *context,
       }
     });
 
-    /* We can reuse the same intermediate buffers for the second pass. */
-    initial_flooded_result.fill(invalid_coord);
-    jump_flooding_pass(
-        boundary_transparent, initial_flooded_result, size, rect_x_range, rect_y_range, 1);
+    Array<JFACoord> temp_buffer(pixel_count, invalid_coord);
+    Array<JFACoord> *read_buffer = &boundary_transparent;
+    Array<JFACoord> *write_buffer = &temp_buffer;
 
-    intermediate_result.fill(invalid_coord);
-    result_to_flood = &initial_flooded_result;
-    result_after_flooding = &intermediate_result;
-
-    step_size = power_of_2_max_i(outline_width) / 2;
+    int step_size = power_of_2_max_i(outline_width);
     while (step_size != 0) {
-      jump_flooding_pass(
-          *result_to_flood, *result_after_flooding, size, rect_x_range, rect_y_range, step_size);
-      std::swap(result_to_flood, result_after_flooding);
+      jump_flooding_pass(*read_buffer, *write_buffer, size, rect_x_range, rect_y_range, step_size);
+      std::swap(read_buffer, write_buffer);
       step_size /= 2;
     }
-    // the final result of the second flooding
-    jfa_result_inside = *result_to_flood;
+    jfa_result_inside = *read_buffer;
   }
 
   /* Premultiplied outline color. */
@@ -709,15 +699,10 @@ static rcti draw_text_outline(const RenderData *context,
       uchar *dst = out->byte_buffer.data + index * 4;
       for (int x = rect_x_range.start(); x < rect_x_range.one_after_last(); x++, index++, dst += 4)
       {
-        JFACoord closest_texel = (*result_to_flood)[index];
-        if (closest_texel.x == JFA_INVALID) {
-          /* Outside of outline, leave output pixel as is. */
-          continue;
-        }
 
         float alpha = 0.0f;
-
         float text_alpha = tmp_buf[index].w * (1.0f / 255.0f);
+
         switch (data->outline_position) {
           case SEQ_TEXT_OUTLINE_OUTSIDE: {
             const JFACoord closest_texel = jfa_result_outside[index];
@@ -1157,10 +1142,6 @@ static ImBuf *do_text_effect(const RenderData *context,
   data->runtime = runtime;
 
   rcti outline_rect;
-  /* For Inside and Center modes, the main text must be drawn first,
-   * so the outline can be composited on top of it. For Outside mode,
-   * the outline must be drawn first, so the text can be drawn into the
-   * "hole" left for it, ensuring a clean seam. */
   if (data->outline_position == SEQ_TEXT_OUTLINE_INSIDE ||
       data->outline_position == SEQ_TEXT_OUTLINE_CENTER)
   {
