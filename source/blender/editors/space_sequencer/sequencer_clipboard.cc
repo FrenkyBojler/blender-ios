@@ -5,7 +5,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /** \file
- * \ingroup bke
+ * \ingroup spseq
  */
 
 #include <algorithm>
@@ -14,7 +14,6 @@
 
 #include "BLI_math_vector_types.hh"
 #include "BLO_readfile.hh"
-#include "BLO_writefile.hh"
 #include "MEM_guardedalloc.h"
 
 #include "ED_outliner.hh"
@@ -31,13 +30,11 @@
 
 #include "BKE_anim_data.hh"
 #include "BKE_appdir.hh"
-#include "BKE_blender_copybuffer.hh"
 #include "BKE_blendfile.hh"
 #include "BKE_context.hh"
 #include "BKE_fcurve.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
-#include "BKE_lib_remap.hh"
 #include "BKE_main.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
@@ -62,11 +59,6 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#ifdef WITH_AUDASPACE
-#  include <AUD_Special.h>
-#endif
-
-/* Own include. */
 #include "sequencer_intern.hh"
 
 namespace blender::ed::vse {
@@ -319,21 +311,21 @@ wmOperatorStatus sequencer_clipboard_copy_exec(bContext *C, wmOperator *op)
   Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
 
-  blender::VectorSet<Strip *> selected = seq::query_selected_strips(ed->current_strips());
+  VectorSet<Strip *> selected = seq::query_selected_strips(ed->current_strips());
 
   if (selected.is_empty()) {
     return OPERATOR_CANCELLED;
   }
 
-  blender::VectorSet<Strip *> effect_chain;
+  VectorSet<Strip *> effect_chain;
   effect_chain.add_multiple(selected);
   seq::iterator_set_expand(
       scene, ed->current_strips(), effect_chain, seq::query_strip_effect_chain);
 
-  blender::VectorSet<Strip *> expanded;
+  VectorSet<Strip *> expanded;
   for (Strip *strip : effect_chain) {
-    if (!(strip->flag & SELECT)) {
-      strip->flag |= SELECT;
+    if (!(strip->flag & SEQ_SELECT)) {
+      strip->flag |= SEQ_SELECT;
       expanded.add(strip);
     }
   }
@@ -344,7 +336,7 @@ wmOperatorStatus sequencer_clipboard_copy_exec(bContext *C, wmOperator *op)
   if (!success) {
     BKE_report(op->reports, RPT_ERROR, "Could not create the copy paste file!");
     for (Strip *strip : expanded) {
-      strip->flag &= ~SELECT;
+      strip->flag &= ~SEQ_SELECT;
     }
     return OPERATOR_CANCELLED;
   }
@@ -532,7 +524,7 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
      * adding strips to seqbase, for lookup cache to work correctly. */
     seq::ensure_unique_name(istrip, scene_dst);
 
-    if (region->regiontype == RGN_TYPE_PREVIEW && istrip->type != STRIP_TYPE_SOUND_RAM &&
+    if (region->regiontype == RGN_TYPE_PREVIEW && istrip->type != STRIP_TYPE_SOUND &&
         seq::must_render_strip(seq::query_all_strips(&nseqbase), istrip))
     {
       strip_mean_pos += static_cast<int2>(
@@ -548,7 +540,7 @@ wmOperatorStatus sequencer_clipboard_paste_exec(bContext *C, wmOperator *op)
   LISTBASE_FOREACH (Strip *, istrip, &nseqbase) {
     /* Place strips that generate an image at the mouse cursor. */
     if (region->regiontype == RGN_TYPE_PREVIEW && !RNA_boolean_get(op->ptr, "keep_offset") &&
-        istrip->type != STRIP_TYPE_SOUND_RAM &&
+        istrip->type != STRIP_TYPE_SOUND &&
         seq::must_render_strip(seq::query_all_strips(&nseqbase), istrip))
     {
       StripTransform *transform = istrip->data->transform;

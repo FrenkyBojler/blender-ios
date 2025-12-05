@@ -32,6 +32,7 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
+#include "BKE_attribute.h"
 #include "BKE_attribute.hh"
 #include "BKE_brush.hh"
 #include "BKE_colortools.hh"
@@ -616,7 +617,7 @@ bool vertex_paint_mode_poll(bContext *C)
     return false;
   }
 
-  if (!BKE_color_attribute_supported(*mesh, mesh->active_color_attribute)) {
+  if (!BKE_id_attributes_color_find(&mesh->id, mesh->active_color_attribute)) {
     return false;
   }
 
@@ -1068,7 +1069,7 @@ static bool vpaint_stroke_test_start(bContext *C, wmOperator *op, const float mo
 
   const std::optional<bke::AttributeMetaData> meta_data = mesh->attributes().lookup_meta_data(
       mesh->active_color_attribute);
-  if (!BKE_color_attribute_supported(*mesh, mesh->active_color_attribute)) {
+  if (!BKE_id_attributes_color_find(&mesh->id, mesh->active_color_attribute)) {
     return false;
   }
 
@@ -1076,6 +1077,10 @@ static bool vpaint_stroke_test_start(bContext *C, wmOperator *op, const float mo
       C, op, scene, depsgraph, vp, ob, *mesh, meta_data->domain, meta_data->data_type, brush);
 
   paint_stroke_set_mode_data(stroke, std::move(vpd));
+
+  BKE_curvemapping_init(brush.curve_rand_hue);
+  BKE_curvemapping_init(brush.curve_rand_saturation);
+  BKE_curvemapping_init(brush.curve_rand_value);
 
   /* If not previously created, create vertex/weight paint mode session data */
   vertex_paint_init_stroke(depsgraph, ob);
@@ -2088,7 +2093,7 @@ static void vpaint_stroke_update_step(bContext *C,
   DEG_id_tag_update((ID *)ob.data, ID_RECALC_GEOMETRY);
 }
 
-static void vpaint_stroke_done(const bContext *C, PaintStroke *stroke)
+static void vpaint_stroke_done(const bContext *C, PaintStroke *stroke, bool /*is_cancel*/)
 {
   VPaintData *vpd = static_cast<VPaintData *>(paint_stroke_mode_data(stroke));
   Object &ob = *vpd->vc.obact;
@@ -2114,6 +2119,7 @@ static wmOperatorStatus vpaint_invoke(bContext *C, wmOperator *op, const wmEvent
                                     stroke_get_location_bvh,
                                     vpaint_stroke_test_start,
                                     vpaint_stroke_update_step,
+                                    nullptr,
                                     nullptr,
                                     vpaint_stroke_done,
                                     event->type);
@@ -2141,21 +2147,13 @@ static wmOperatorStatus vpaint_exec(bContext *C, wmOperator *op)
                                     vpaint_stroke_test_start,
                                     vpaint_stroke_update_step,
                                     nullptr,
+                                    nullptr,
                                     vpaint_stroke_done,
                                     0);
 
   paint_stroke_exec(C, op, (PaintStroke *)op->customdata);
 
   return OPERATOR_FINISHED;
-}
-
-static void vpaint_cancel(bContext *C, wmOperator *op)
-{
-  Object &ob = *CTX_data_active_object(C);
-  MEM_delete(ob.sculpt->cache);
-  ob.sculpt->cache = nullptr;
-
-  paint_stroke_cancel(C, op, (PaintStroke *)op->customdata);
 }
 
 static wmOperatorStatus vpaint_modal(bContext *C, wmOperator *op, const wmEvent *event)
@@ -2173,7 +2171,6 @@ void PAINT_OT_vertex_paint(wmOperatorType *ot)
   ot->modal = vpaint_modal;
   ot->exec = vpaint_exec;
   ot->poll = vertex_paint_poll;
-  ot->cancel = vpaint_cancel;
 
   ot->flag = OPTYPE_UNDO | OPTYPE_BLOCKING;
 
@@ -2266,28 +2263,25 @@ static void fill_mesh_face_or_corner_attribute(Mesh &mesh,
 
 static void fill_mesh_color(Mesh &mesh,
                             const ColorPaint4f &color,
-                            const StringRef attribute_name,
+                            const StringRef name,
                             const bool use_vert_sel,
                             const bool use_face_sel,
                             const bool affect_alpha)
 {
   if (BMEditMesh *em = mesh.runtime->edit_mesh.get()) {
     BMesh *bm = em->bm;
-    const CustomDataLayer *layer = BKE_id_attributes_color_find(&mesh.id, attribute_name);
-    AttributeOwner owner = AttributeOwner::from_id(&mesh.id);
-    const AttrDomain domain = BKE_attribute_domain(owner, layer);
-    if (layer->type == CD_PROP_COLOR) {
+    const BMDataLayerLookup attr = BM_data_layer_lookup(*mesh.runtime->edit_mesh->bm, name);
+    if (attr.type == bke::AttrType::ColorFloat) {
       fill_bm_face_or_corner_attribute<ColorPaint4f>(
-          *bm, color, domain, layer->offset, use_vert_sel);
+          *bm, color, attr.domain, attr.offset, use_vert_sel);
     }
-    else if (layer->type == CD_PROP_BYTE_COLOR) {
+    else if (attr.type == bke::AttrType::ColorByte) {
       fill_bm_face_or_corner_attribute<ColorPaint4b>(
-          *bm, blender::color::encode(color), domain, layer->offset, use_vert_sel);
+          *bm, blender::color::encode(color), attr.domain, attr.offset, use_vert_sel);
     }
   }
   else {
-    bke::GSpanAttributeWriter attribute = mesh.attributes_for_write().lookup_for_write_span(
-        attribute_name);
+    bke::GSpanAttributeWriter attribute = mesh.attributes_for_write().lookup_for_write_span(name);
     if (attribute.span.type().is<ColorGeometry4f>()) {
       fill_mesh_face_or_corner_attribute<ColorPaint4f>(
           mesh,

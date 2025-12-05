@@ -20,7 +20,9 @@ using blender::StringRefNull;
 /** \name Histogram Template
  * \{ */
 
-void uiTemplateHistogram(uiLayout *layout, PointerRNA *ptr, const StringRefNull propname)
+void uiTemplateHistogram(blender::ui::Layout *layout,
+                         PointerRNA *ptr,
+                         const StringRefNull propname)
 {
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname.c_str());
 
@@ -41,15 +43,14 @@ void uiTemplateHistogram(uiLayout *layout, PointerRNA *ptr, const StringRefNull 
     hist->height = UI_UNIT_Y * 20;
   }
 
-  uiLayout *col = &layout->column(true);
-  uiBlock *block = col->block();
+  blender::ui::Layout &col = layout->column(true);
+  uiBlock *block = col.block();
 
-  uiDefBut(block, ButType::Histogram, 0, "", 0, 0, UI_UNIT_X * 10, hist->height, hist, 0, 0, "");
+  uiDefBut(block, ButType::Histogram, "", 0, 0, UI_UNIT_X * 10, hist->height, hist, 0, 0, "");
 
   /* Resize grip. */
   uiDefIconButI(block,
                 ButType::Grip,
-                0,
                 ICON_GRIP,
                 0,
                 0,
@@ -67,7 +68,7 @@ void uiTemplateHistogram(uiLayout *layout, PointerRNA *ptr, const StringRefNull 
 /** \name Waveform Template
  * \{ */
 
-void uiTemplateWaveform(uiLayout *layout, PointerRNA *ptr, const StringRefNull propname)
+void uiTemplateWaveform(blender::ui::Layout *layout, PointerRNA *ptr, const StringRefNull propname)
 {
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname.c_str());
 
@@ -81,8 +82,8 @@ void uiTemplateWaveform(uiLayout *layout, PointerRNA *ptr, const StringRefNull p
   }
   Scopes *scopes = (Scopes *)cptr.data;
 
-  uiLayout *col = &layout->column(true);
-  uiBlock *block = col->block();
+  blender::ui::Layout &col = layout->column(true);
+  uiBlock *block = col.block();
 
   if (scopes->wavefrm_height < UI_UNIT_Y) {
     scopes->wavefrm_height = UI_UNIT_Y;
@@ -93,7 +94,6 @@ void uiTemplateWaveform(uiLayout *layout, PointerRNA *ptr, const StringRefNull p
 
   uiDefBut(block,
            ButType::Waveform,
-           0,
            "",
            0,
            0,
@@ -107,7 +107,6 @@ void uiTemplateWaveform(uiLayout *layout, PointerRNA *ptr, const StringRefNull p
   /* Resize grip. */
   uiDefIconButI(block,
                 ButType::Grip,
-                0,
                 ICON_GRIP,
                 0,
                 0,
@@ -125,7 +124,9 @@ void uiTemplateWaveform(uiLayout *layout, PointerRNA *ptr, const StringRefNull p
 /** \name Vector-Scope Template
  * \{ */
 
-void uiTemplateVectorscope(uiLayout *layout, PointerRNA *ptr, const StringRefNull propname)
+void uiTemplateVectorscope(blender::ui::Layout *layout,
+                           PointerRNA *ptr,
+                           const StringRefNull propname)
 {
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname.c_str());
 
@@ -146,12 +147,11 @@ void uiTemplateVectorscope(uiLayout *layout, PointerRNA *ptr, const StringRefNul
     scopes->vecscope_height = UI_UNIT_Y * 20;
   }
 
-  uiLayout *col = &layout->column(true);
-  uiBlock *block = col->block();
+  blender::ui::Layout &col = layout->column(true);
+  uiBlock *block = col.block();
 
   uiDefBut(block,
            ButType::Vectorscope,
-           0,
            "",
            0,
            0,
@@ -165,7 +165,6 @@ void uiTemplateVectorscope(uiLayout *layout, PointerRNA *ptr, const StringRefNul
   /* Resize grip. */
   uiDefIconButI(block,
                 ButType::Grip,
-                0,
                 ICON_GRIP,
                 0,
                 0,

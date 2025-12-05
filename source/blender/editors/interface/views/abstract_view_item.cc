@@ -228,7 +228,6 @@ void AbstractViewItem::add_rename_button(uiBlock &block)
   AbstractView &view = this->get_view();
   uiBut *rename_but = uiDefBut(&block,
                                ButType::Text,
-                               1,
                                "",
                                0,
                                0,
@@ -238,6 +237,7 @@ void AbstractViewItem::add_rename_button(uiBlock &block)
                                1.0f,
                                view.get_rename_buffer().size(),
                                "");
+  UI_but_retval_set(rename_but, 1);
 
   /* Gotta be careful with what's passed to the `arg1` here. Any view data will be freed once the
    * callback is executed. */
@@ -258,7 +258,7 @@ void AbstractViewItem::delete_item(bContext * /*C*/)
   /* No deletion by default. Needs type specific implementation. */
 }
 
-void AbstractViewItem::on_filter_change()
+void AbstractViewItem::on_filter()
 {
   /* No action by default. Needs type specific implementation. */
 }
@@ -269,7 +269,7 @@ void AbstractViewItem::on_filter_change()
 /** \name Context Menu
  * \{ */
 
-void AbstractViewItem::build_context_menu(bContext & /*C*/, uiLayout & /*column*/) const
+void AbstractViewItem::build_context_menu(bContext & /*C*/, Layout & /*column*/) const
 {
   /* No context menu by default. */
 }

@@ -223,13 +223,12 @@ static void grid_search_exec_fn(bContext *C, void *data_v, void *item_v)
 void node_geometry_add_volume_grid_search_button(const bContext & /*C*/,
                                                  const bNode &node,
                                                  PointerRNA &socket_ptr,
-                                                 uiLayout &layout,
+                                                 ui::Layout &layout,
                                                  const StringRef placeholder)
 {
   uiBlock *block = layout.block();
   uiBut *but = uiDefIconTextButR(block,
                                  ButType::SearchMenu,
-                                 0,
                                  ICON_NONE,
                                  "",
                                  0,

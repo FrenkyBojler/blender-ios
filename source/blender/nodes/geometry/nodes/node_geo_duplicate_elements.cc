@@ -58,9 +58,9 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
   node->storage = data;
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 struct IndexAttributes {
@@ -182,7 +182,7 @@ static void copy_curve_attributes_without_id(const bke::CurvesGeometry &src_curv
   for (auto &attribute : bke::retrieve_attributes_for_transfer(
            src_curves.attributes(),
            dst_curves.attributes_for_write(),
-           ATTR_DOMAIN_MASK_ALL,
+           {bke::AttrDomain::Point, bke::AttrDomain::Curve},
            bke::attribute_filter_with_skip_ref(attribute_filter, {"id"})))
   {
     switch (attribute.meta_data.domain) {
@@ -251,7 +251,8 @@ static void copy_stable_id_curves(const bke::CurvesGeometry &src_curves,
       GrainSize(512), [&](const int64_t i_src_curve, const int64_t i_selection) {
         const Span<int> curve_src = src.slice(src_points_by_curve[i_src_curve]);
         const IndexRange duplicates_range = offsets[i_selection];
-        for (const int i_duplicate : IndexRange(offsets[i_selection].size()).drop_front(1)) {
+        dst.slice(dst_points_by_curve[duplicates_range.first()]).copy_from(curve_src);
+        for (const int i_duplicate : duplicates_range.index_range().drop_front(1)) {
           const int i_dst_curve = duplicates_range[i_duplicate];
           copy_hashed_ids(curve_src, i_duplicate, dst.slice(dst_points_by_curve[i_dst_curve]));
         }
@@ -399,7 +400,10 @@ static void copy_face_attributes_without_id(const Span<int> edge_mapping,
   for (auto &attribute : bke::retrieve_attributes_for_transfer(
            src_attributes,
            dst_attributes,
-           ATTR_DOMAIN_MASK_ALL,
+           {bke::AttrDomain::Point,
+            bke::AttrDomain::Edge,
+            bke::AttrDomain::Face,
+            bke::AttrDomain::Corner},
            bke::attribute_filter_with_skip_ref(
                attribute_filter, {"id", ".corner_vert", ".corner_edge", ".edge_verts"})))
   {
@@ -607,7 +611,7 @@ static void copy_edge_attributes_without_id(const Span<int> point_mapping,
   for (auto &attribute : bke::retrieve_attributes_for_transfer(
            src_attributes,
            dst_attributes,
-           ATTR_DOMAIN_MASK_POINT | ATTR_DOMAIN_MASK_EDGE,
+           {bke::AttrDomain::Point, bke::AttrDomain::Edge},
            bke::attribute_filter_with_skip_ref(attribute_filter, {"id", ".edge_verts"})))
   {
     switch (attribute.meta_data.domain) {
@@ -796,7 +800,7 @@ static bke::CurvesGeometry duplicate_points_CurvesGeometry(
   for (auto &attribute : bke::retrieve_attributes_for_transfer(
            src_curves.attributes(),
            new_curves.attributes_for_write(),
-           ATTR_DOMAIN_MASK_CURVE,
+           {bke::AttrDomain::Curve},
            bke::attribute_filter_with_skip_ref(attribute_filter, {"id"})))
   {
     bke::attribute_math::convert_to_static_type(attribute.src.type(), [&](auto dummy) {

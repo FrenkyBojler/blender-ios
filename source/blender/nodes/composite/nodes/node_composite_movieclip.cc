@@ -13,8 +13,8 @@
 
 #include "BKE_context.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_movieclip.h"
-#include "BKE_tracking.h"
+#include "BKE_movieclip.hh"
+#include "BKE_tracking.hh"
 
 #include "DNA_defaults.h"
 
@@ -54,25 +54,16 @@ static void init(const bContext *C, PointerRNA *ptr)
   user->framenr = 1;
 }
 
-static void node_composit_buts_movieclip(uiLayout *layout, bContext *C, PointerRNA *ptr)
+static void node_composit_buts_movieclip(ui::Layout &layout, bContext *C, PointerRNA *ptr)
 {
-  uiTemplateID(layout, C, ptr, "clip", nullptr, "CLIP_OT_open", nullptr);
+  uiTemplateID(&layout, C, ptr, "clip", nullptr, "CLIP_OT_open", nullptr);
 }
 
-static void node_composit_buts_movieclip_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
+static void node_composit_buts_movieclip_ex(ui::Layout &layout, bContext *C, PointerRNA *ptr)
 {
-  bNode *node = (bNode *)ptr->data;
-  PointerRNA clipptr;
-
-  uiTemplateID(layout, C, ptr, "clip", nullptr, "CLIP_OT_open", nullptr);
-
-  if (!node->id) {
-    return;
-  }
-
-  clipptr = RNA_pointer_get(ptr, "clip");
-
-  uiTemplateColorspaceSettings(layout, &clipptr, "colorspace_settings");
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
+  uiTemplateMovieClip(&layout, C, ptr, "clip", false);
 }
 
 using namespace blender::compositor;
@@ -113,7 +104,7 @@ class MovieClipOperation : public NodeOperation {
     else {
       parallel_for(size, [&](const int2 texel) {
         int64_t pixel_index = (int64_t(texel.y) * size.x + texel.x) * 4;
-        result.store_pixel(texel, float4(movie_clip_buffer->float_buffer.data + pixel_index));
+        result.store_pixel(texel, Color(movie_clip_buffer->float_buffer.data + pixel_index));
       });
     }
   }

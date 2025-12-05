@@ -46,7 +46,6 @@
 #include "BKE_curve.hh"
 #include "BKE_curves.hh"
 #include "BKE_editmesh.hh"
-#include "BKE_global.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_layer.hh"
 #include "BKE_main.hh"
@@ -54,8 +53,7 @@
 #include "BKE_mesh.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
-#include "BKE_scene.hh"
-#include "BKE_tracking.h"
+#include "BKE_tracking.hh"
 #include "BKE_workspace.hh"
 
 #include "WM_api.hh"
@@ -69,7 +67,6 @@
 #include "ED_armature.hh"
 #include "ED_curve.hh"
 #include "ED_curves.hh"
-#include "ED_gpencil_legacy.hh"
 #include "ED_grease_pencil.hh"
 #include "ED_lattice.hh"
 #include "ED_mball.hh"
@@ -79,7 +76,6 @@
 #include "ED_particle.hh"
 #include "ED_pointcloud.hh"
 #include "ED_screen.hh"
-#include "ED_sculpt.hh"
 #include "ED_select_utils.hh"
 #include "ED_uvedit.hh"
 
@@ -92,11 +88,9 @@
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 
-#include "DRW_engine.hh"
 #include "DRW_select_buffer.hh"
 
 #include "ANIM_armature.hh"
-#include "ANIM_bone_collections.hh"
 
 #include "view3d_intern.hh" /* own include */
 
@@ -1961,7 +1955,7 @@ static bool bone_mouse_select_menu(bContext *C,
   };
   ListBase bone_ref_list = {nullptr, nullptr};
 
-  GSet *added_bones = BLI_gset_ptr_new("Bone mouse select menu");
+  blender::Set<void *> added_bones;
 
   /* Select logic taken from #ed_armature_pick_bone_from_selectbuffer_impl
    * in `armature_select.cc`. */
@@ -2014,7 +2008,7 @@ static bool bone_mouse_select_menu(bContext *C,
     }
     /* We can hit a bone multiple times, so make sure we are not adding an already included bone
      * to the list. */
-    const bool is_duplicate_bone = BLI_gset_haskey(added_bones, bone_ptr);
+    const bool is_duplicate_bone = added_bones.contains(bone_ptr);
 
     if (!is_duplicate_bone) {
       bone_count++;
@@ -2024,11 +2018,9 @@ static bool bone_mouse_select_menu(bContext *C,
       bone_ref->depth_id = hit_result.depth;
       BLI_addtail(&bone_ref_list, (void *)bone_ref);
 
-      BLI_gset_insert(added_bones, bone_ptr);
+      added_bones.add(bone_ptr);
     }
   }
-
-  BLI_gset_free(added_bones, nullptr);
 
   if (bone_count == 0) {
     return false;
@@ -5124,10 +5116,10 @@ static bool pchan_circle_doSelectJoint(void *user_data,
 
   if (len_squared_v2v2(data->mval_fl, screen_co) <= data->radius_squared) {
     if (data->select) {
-      pchan->flag |= POSE_SELECTED;
+      pchan->flag |= POSE_SELECTED_ALL;
     }
     else {
-      pchan->flag &= ~POSE_SELECTED;
+      pchan->flag &= ~POSE_SELECTED_ALL;
     }
     return true;
   }
@@ -5174,10 +5166,10 @@ static void do_circle_select_pose__doSelectBone(void *user_data,
       edge_inside_circle(data->mval_fl, data->radius, screen_co_a, screen_co_b))
   {
     if (data->select) {
-      pchan->flag |= POSE_SELECTED;
+      pchan->flag |= POSE_SELECTED_ALL;
     }
     else {
-      pchan->flag &= ~POSE_SELECTED;
+      pchan->flag &= ~POSE_SELECTED_ALL;
     }
     data->is_changed = true;
   }

@@ -1005,7 +1005,7 @@ void ui_popup_block_free(bContext *C, uiPopupBlockHandle *handle)
 }
 
 struct uiAlertData {
-  eAlertIcon icon;
+  blender::ui::AlertIcon icon;
   std::string title;
   std::string message;
   bool compact;
@@ -1072,39 +1072,39 @@ static uiBlock *ui_alert_create(bContext *C, ARegion *region, void *user_data)
 
   int dialog_width = std::max(text_width + int(style->columnspace * 2.5), min_width);
 
-  uiLayout *layout;
-  layout = uiItemsAlertBox(block, style, dialog_width + icon_size, data->icon, icon_size);
+  blender::ui::Layout &layout = *uiItemsAlertBox(
+      block, style, dialog_width + icon_size, data->icon, icon_size);
 
-  uiLayout *content = &layout->column(false);
-  content->scale_y_set(0.75f);
+  blender::ui::Layout &content = layout.column(false);
+  content.scale_y_set(0.75f);
 
   /* Title. */
-  uiItemL_ex(content, data->title, ICON_NONE, true, false);
+  uiItemL_ex(&content, data->title, ICON_NONE, true, false);
 
-  content->separator(1.0f);
+  content.separator(1.0f);
 
   /* Message lines. */
   for (auto &st : messages) {
-    content->label(st, ICON_NONE);
+    content.label(st, ICON_NONE);
   }
 
   if (data->okay_button) {
 
-    layout->separator(2.0f);
+    layout.separator(2.0f);
 
     /* Clear so the OK button is left alone. */
     UI_block_func_set(block, nullptr, nullptr, nullptr);
 
     const float pad = std::max((1.0f - ((200.0f * UI_SCALE_FAC) / float(text_width))) / 2.0f,
                                0.01f);
-    uiLayout *split = &layout->split(pad, true);
-    split->column(true);
-    uiLayout *buttons = &split->split(1.0f - (pad * 2.0f), true);
-    buttons->scale_y_set(1.2f);
+    blender::ui::Layout &split = layout.split(pad, true);
+    split.column(true);
+    blender::ui::Layout &buttons = split.split(1.0f - (pad * 2.0f), true);
+    buttons.scale_y_set(1.2f);
 
-    uiBlock *buttons_block = layout->block();
+    uiBlock *buttons_block = layout.block();
     uiBut *okay_but = uiDefBut(
-        buttons_block, ButType::But, 0, "OK", 0, 0, 0, UI_UNIT_Y, nullptr, 0, 0, "");
+        buttons_block, ButType::But, "OK", 0, 0, 0, UI_UNIT_Y, nullptr, 0, 0, "");
     UI_but_func_set(okay_but, ui_alert_ok_cb, user_data, block);
     UI_but_flag_enable(okay_but, UI_BUT_ACTIVE_DEFAULT);
   }
@@ -1114,7 +1114,7 @@ static uiBlock *ui_alert_create(bContext *C, ARegion *region, void *user_data)
   if (data->mouse_move_quit) {
     const float button_center_x = -0.5f;
     const float button_center_y = data->okay_button ? 4.0f : 2.0f;
-    const int bounds_offset[2] = {int(button_center_x * layout->width()),
+    const int bounds_offset[2] = {int(button_center_x * layout.width()),
                                   int(button_center_y * UI_UNIT_X)};
     UI_block_bounds_set_popup(block, padding, bounds_offset);
   }
@@ -1128,7 +1128,7 @@ static uiBlock *ui_alert_create(bContext *C, ARegion *region, void *user_data)
 void UI_alert(bContext *C,
               const StringRef title,
               const StringRef message,
-              const eAlertIcon icon,
+              const blender::ui::AlertIcon icon,
               const bool compact)
 {
   uiAlertData *data = MEM_new<uiAlertData>(__func__);

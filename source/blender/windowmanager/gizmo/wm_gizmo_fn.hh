@@ -68,6 +68,14 @@ using wmGizmoPropertyFnRangeGet = void (*)(const wmGizmo *,
                                            wmGizmoProperty *,
                                            /* Typically `float[2]`. */
                                            void *range);
+/**
+ * To inspect the RNA properties gizmos are manipulating (can be multiple).
+ * Used e.g. for auto-keying.
+ */
+using wmGizmoPropertyFnForeachRNAProp = void (*)(
+    wmGizmoProperty *,
+    const blender::FunctionRef<void(PointerRNA &ptr, PropertyRNA *prop, int index)> callback);
+
 using wmGizmoPropertyFnFree = void (*)(const wmGizmo *, wmGizmoProperty *);
 
 struct wmGizmoPropertyFnParams {
@@ -75,5 +83,6 @@ struct wmGizmoPropertyFnParams {
   wmGizmoPropertyFnSet value_set_fn;
   wmGizmoPropertyFnRangeGet range_get_fn;
   wmGizmoPropertyFnFree free_fn;
+  wmGizmoPropertyFnForeachRNAProp foreach_rna_prop_fn;
   void *user_data;
 };

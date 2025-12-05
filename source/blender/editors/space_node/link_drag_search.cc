@@ -203,10 +203,12 @@ static void search_link_ops_for_asset_metadata(const bNodeTree &node_tree,
          [&asset, socket_property, in_out](nodes::LinkSearchOpParams &params) {
            Main &bmain = *CTX_data_main(&params.C);
 
-           bNode &node = params.add_node(params.node_tree.typeinfo->group_idname);
-
            bNodeTree *group = reinterpret_cast<bNodeTree *>(
                asset::asset_local_id_ensure_imported(bmain, asset));
+           if (!group) {
+             return;
+           }
+           bNode &node = params.add_node(params.node_tree.typeinfo->group_idname);
            node.id = &group->id;
            id_us_plus(node.id);
            BKE_ntree_update_tag_node_property(&params.node_tree, &node);
@@ -435,7 +437,6 @@ static uiBlock *create_search_popup_block(bContext *C, ARegion *region, void *ar
 
   uiBut *but = uiDefSearchBut(block,
                               storage.search,
-                              0,
                               ICON_VIEWZOOM,
                               sizeof(storage.search),
                               storage.in_out() == SOCK_OUT ? 10 : 10 - UI_searchbox_size_x(),
@@ -458,7 +459,6 @@ static uiBlock *create_search_popup_block(bContext *C, ARegion *region, void *ar
   /* Fake button to hold space for the search items. */
   uiDefBut(block,
            ButType::Label,
-           0,
            "",
            storage.in_out() == SOCK_OUT ? 10 : 10 - UI_searchbox_size_x(),
            10 - UI_searchbox_size_y(),
