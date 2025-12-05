@@ -182,8 +182,6 @@ static wmOperatorStatus node_clipboard_copy_exec(bContext *C, wmOperator *op)
       return IDWALK_RET_NOP;
     }
 
-    printf("id_src->name: %s\n", id_src->name);
-
     ID *id_dst = nullptr;
     const ID_Type id_type = GS((id_src)->name);
 
