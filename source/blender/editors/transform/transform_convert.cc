@@ -14,7 +14,7 @@
 
 #include "BLI_array_utils.hh"
 #include "BLI_function_ref.hh"
-#include "BLI_kdtree.h"
+#include "BLI_kdtree.hh"
 #include "BLI_linklist_stack.h"
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
@@ -179,32 +179,32 @@ static float3 prop_dist_loc_get(const TransDataContainer *tc,
                                 const bool use_island,
                                 const float proj_vec[3])
 {
-  float3 r_vec;
+  float3 vec;
 
   if (use_island) {
     if (tc->use_local_mat) {
-      mul_v3_m4v3(r_vec, tc->mat, td->iloc);
+      mul_v3_m4v3(vec, tc->mat, td->iloc);
     }
     else {
-      mul_v3_m3v3(r_vec, td->mtx, td->iloc);
+      mul_v3_m3v3(vec, td->mtx, td->iloc);
     }
   }
   else {
     if (tc->use_local_mat) {
-      mul_v3_m4v3(r_vec, tc->mat, td->center);
+      mul_v3_m4v3(vec, tc->mat, td->center);
     }
     else {
-      mul_v3_m3v3(r_vec, td->mtx, td->center);
+      mul_v3_m3v3(vec, td->mtx, td->center);
     }
   }
 
   if (proj_vec) {
     float vec_p[3];
-    project_v3_v3v3(vec_p, r_vec, proj_vec);
-    sub_v3_v3(r_vec, vec_p);
+    project_v3_v3v3(vec_p, vec, proj_vec);
+    sub_v3_v3(vec, vec_p);
   }
 
-  return r_vec;
+  return vec;
 }
 
 /**
@@ -241,7 +241,7 @@ static void set_prop_dist(TransInfo *t, const bool with_dist)
       MEM_mallocN(sizeof(*td_table) * td_table_len, __func__));
 
   /* Create and fill KD-tree of selected's positions - in global or proj_vec space. */
-  KDTree_3d *td_tree = BLI_kdtree_3d_new(td_table_len);
+  blender::KDTree_3d *td_tree = blender::BLI_kdtree_3d_new(td_table_len);
 
   int td_table_index = 0;
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
@@ -252,13 +252,13 @@ static void set_prop_dist(TransInfo *t, const bool with_dist)
 
       const float3 vec = prop_dist_loc_get(tc, td, use_island, proj_vec);
 
-      BLI_kdtree_3d_insert(td_tree, td_table_index, vec);
+      blender::BLI_kdtree_3d_insert(td_tree, td_table_index, vec);
       td_table[td_table_index++] = td;
     });
   }
   BLI_assert(td_table_index == td_table_len);
 
-  BLI_kdtree_3d_balance(td_tree);
+  blender::BLI_kdtree_3d_balance(td_tree);
 
   /* For each non-selected vertex, find distance to the nearest selected vertex. */
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
@@ -270,8 +270,8 @@ static void set_prop_dist(TransInfo *t, const bool with_dist)
 
       const float3 vec = prop_dist_loc_get(tc, td, use_island, proj_vec);
 
-      KDTreeNearest_3d nearest;
-      const int td_index = BLI_kdtree_3d_find_nearest(td_tree, vec, &nearest);
+      blender::KDTreeNearest_3d nearest;
+      const int td_index = blender::BLI_kdtree_3d_find_nearest(td_tree, vec, &nearest);
 
       td->rdist = -1.0f;
       if (td_index != -1) {
@@ -290,7 +290,7 @@ static void set_prop_dist(TransInfo *t, const bool with_dist)
     });
   }
 
-  BLI_kdtree_3d_free(td_tree);
+  blender::BLI_kdtree_3d_free(td_tree);
   MEM_freeN(td_table);
 }
 
@@ -495,24 +495,24 @@ void clipUVData(TransInfo *t)
 
 char transform_convert_frame_side_dir_get(TransInfo *t, float cframe)
 {
-  char r_dir;
+  char dir;
   float center[2];
   if (t->flag & T_MODAL) {
     UI_view2d_region_to_view(
         (View2D *)t->view, t->mouse.imval[0], t->mouse.imval[1], &center[0], &center[1]);
-    r_dir = (center[0] > cframe) ? 'R' : 'L';
+    dir = (center[0] > cframe) ? 'R' : 'L';
     {
       /* XXX: This saves the direction in the "mirror" property to be used for redo! */
-      if (r_dir == 'R') {
+      if (dir == 'R') {
         t->flag |= T_NO_MIRROR;
       }
     }
   }
   else {
-    r_dir = (t->flag & T_NO_MIRROR) ? 'R' : 'L';
+    dir = (t->flag & T_NO_MIRROR) ? 'R' : 'L';
   }
 
-  return r_dir;
+  return dir;
 }
 
 bool FrameOnMouseSide(char side, float frame, float cframe)

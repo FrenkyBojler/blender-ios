@@ -990,8 +990,6 @@ void ED_operatortypes_paint()
 
   /* brush */
   WM_operatortype_append(BRUSH_OT_scale_size);
-  WM_operatortype_append(BRUSH_OT_curve_preset);
-  WM_operatortype_append(BRUSH_OT_sculpt_curves_falloff_preset);
   WM_operatortype_append(BRUSH_OT_stencil_control);
   WM_operatortype_append(BRUSH_OT_stencil_fit_image_aspect);
   WM_operatortype_append(BRUSH_OT_stencil_reset_transform);
@@ -1115,6 +1113,9 @@ void ED_keymap_paint(wmKeyConfig *keyconf)
   /* paint stroke */
   keymap = paint_stroke_modal_keymap(keyconf);
   WM_modalkeymap_assign(keymap, "SCULPT_OT_brush_stroke");
+  WM_modalkeymap_assign(keymap, "PAINT_OT_vertex_paint");
+  WM_modalkeymap_assign(keymap, "PAINT_OT_weight_paint");
+  WM_modalkeymap_assign(keymap, "PAINT_OT_image_paint");
 
   /* Curves Sculpt mode. */
   keymap = WM_keymap_ensure(keyconf, "Sculpt Curves", SPACE_EMPTY, RGN_TYPE_WINDOW);

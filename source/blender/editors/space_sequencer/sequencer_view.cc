@@ -20,7 +20,6 @@
 #include "BKE_screen.hh"
 
 #include "BLT_translation.hh"
-#include "GHOST_C-api.h"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -36,15 +35,12 @@
 #include "SEQ_time.hh"
 #include "SEQ_transform.hh"
 
-/* For menu, popup, icons, etc. */
 #include "ED_anim_api.hh"
 #include "ED_markers.hh"
 #include "ED_screen.hh"
 #include "ED_sequencer.hh"
-#include "ED_time_scrub_ui.hh"
 #include "ED_util_imbuf.hh"
 
-/* Own include. */
 #include "sequencer_intern.hh"
 
 namespace blender::ed::vse {
@@ -70,8 +66,7 @@ void SEQUENCER_OT_sample(wmOperatorType *ot)
   ot->flag = OPTYPE_BLOCKING;
 
   /* Not implemented. */
-  PropertyRNA *prop;
-  prop = RNA_def_int(ot->srna, "size", 1, 1, 128, "Sample Size", "", 1, 64);
+  PropertyRNA *prop = RNA_def_int(ot->srna, "size", 1, 1, 128, "Sample Size", "", 1, 64);
   RNA_def_property_subtype(prop, PROP_PIXEL);
   RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN);
 }
@@ -195,7 +190,7 @@ static bool view_frame_preview_scope(bContext *C, wmOperator *op, ARegion *regio
 
   if (sseq->mainb == SEQ_DRAW_IMG_HISTOGRAM) {
     /* For histogram scope, use extents of the histogram. */
-    const vse::ScopeHistogram &hist = sseq->runtime->scopes.histogram;
+    const ScopeHistogram &hist = sseq->runtime->scopes.histogram;
     if (hist.data.is_empty()) {
       return false;
     }
@@ -335,22 +330,13 @@ static wmOperatorStatus sequencer_fullscreen_preview_exec(bContext *C, wmOperato
     bScreen *screen = CTX_wm_screen(C);
     screen->state = SCREENFULL;
     LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
-      if (ELEM(region->regiontype,
-               RGN_TYPE_UI,
-               RGN_TYPE_HEADER,
-               RGN_TYPE_TOOL_HEADER,
-               RGN_TYPE_FOOTER,
-               RGN_TYPE_TOOLS,
-               RGN_TYPE_NAV_BAR,
-               RGN_TYPE_EXECUTE,
-               RGN_TYPE_ASSET_SHELF,
-               RGN_TYPE_ASSET_SHELF_HEADER))
-      {
+      if (region->regiontype != RGN_TYPE_PREVIEW) {
         region->flag |= RGN_FLAG_HIDDEN;
       }
     }
-    GHOST_SetWindowState(static_cast<GHOST_WindowHandle>(CTX_wm_window(C)->ghostwin),
-                         GHOST_kWindowStateFullScreen);
+
+    wmOperatorType *ot = WM_operatortype_find("WM_OT_window_fullscreen_toggle", true);
+    WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::InvokeDefault, op->ptr, nullptr);
     return OPERATOR_FINISHED;
   }
   BKE_report(op->reports, RPT_ERROR, "Failed to open window!");
@@ -433,7 +419,7 @@ static void sequencer_fullscreen_preview_menu_draw(const bContext *C_const, Menu
 {
   bContext *C = (bContext *)C_const;
   SpaceSeq *sseq = CTX_wm_space_seq(C);
-  uiLayout *layout = menu->layout;
+  blender::ui::Layout *layout = menu->layout;
   wmWindow *win = CTX_wm_window(C);
   PointerRNA ptr;
 
@@ -547,11 +533,9 @@ void SEQUENCER_OT_view_zoom_ratio(wmOperatorType *ot)
 /** \name Frame Selected Operator
  * \{ */
 
-static void seq_view_collection_rect_preview(Scene *scene,
-                                             blender::Span<Strip *> strips,
-                                             rctf *rect)
+static void seq_view_collection_rect_preview(Scene *scene, Span<Strip *> strips, rctf *rect)
 {
-  const blender::Bounds<blender::float2> box = seq::image_transform_bounding_box_from_collection(
+  const Bounds<float2> box = seq::image_transform_bounding_box_from_collection(
       scene, strips, true);
 
   rect->xmin = box.min[0];
@@ -570,9 +554,7 @@ static void seq_view_collection_rect_preview(Scene *scene,
   BLI_rctf_scale(rect, 1.1f);
 }
 
-static void seq_view_collection_rect_timeline(const bContext *C,
-                                              blender::Span<Strip *> strips,
-                                              rctf *rect)
+static void seq_view_collection_rect_timeline(const bContext *C, Span<Strip *> strips, rctf *rect)
 {
   const Scene *scene = CTX_data_sequencer_scene(C);
   int xmin = MAXFRAME * 2;
@@ -650,7 +632,7 @@ static wmOperatorStatus sequencer_view_selected_exec(bContext *C, wmOperator *op
     return OPERATOR_FINISHED;
   }
 
-  blender::VectorSet strips = selected_strips_from_context(C);
+  VectorSet strips = selected_strips_from_context(C);
   if (strips.is_empty()) {
     return OPERATOR_CANCELLED;
   }

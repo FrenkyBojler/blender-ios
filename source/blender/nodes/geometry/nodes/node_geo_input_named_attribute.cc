@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BKE_attribute_legacy_convert.hh"
+
 #include "NOD_rna_define.hh"
 
 #include "UI_interface_layout.hh"
@@ -21,7 +23,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   const bNode *node = b.node_or_null();
 
-  b.add_input<decl::String>("Name").is_attribute_name().hide_label();
+  b.add_input<decl::String>("Name").is_attribute_name().optional_label();
 
   if (node != nullptr) {
     const NodeGeometryInputNamedAttribute &storage = node_storage(*node);
@@ -31,9 +33,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Bool>("Exists").field_source();
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)

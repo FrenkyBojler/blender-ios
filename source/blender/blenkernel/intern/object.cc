@@ -49,7 +49,7 @@
 #include "DNA_view3d_types.h"
 
 #include "BLI_bounds.hh"
-#include "BLI_kdtree.h"
+#include "BLI_kdtree.hh"
 #include "BLI_linklist.h"
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
@@ -101,6 +101,7 @@
 #include "BKE_lib_remap.hh"
 #include "BKE_library.hh"
 #include "BKE_light.h"
+#include "BKE_light_linking.h"
 #include "BKE_lightprobe.h"
 #include "BKE_linestyle.h"
 #include "BKE_main.hh"
@@ -121,9 +122,9 @@
 #include "BKE_preview_image.hh"
 #include "BKE_rigidbody.h"
 #include "BKE_scene.hh"
-#include "BKE_shader_fx.h"
+#include "BKE_shader_fx.hh"
 #include "BKE_softbody.h"
-#include "BKE_speaker.h"
+#include "BKE_speaker.hh"
 #include "BKE_subdiv_ccg.hh"
 #include "BKE_vfont.hh"
 #include "BKE_volume.hh"
@@ -266,9 +267,7 @@ static void object_copy_data(Main *bmain,
   if (ob_src->lightgroup) {
     ob_dst->lightgroup = (LightgroupMembership *)MEM_dupallocN(ob_src->lightgroup);
   }
-  if (ob_src->light_linking) {
-    ob_dst->light_linking = (LightLinking *)MEM_dupallocN(ob_src->light_linking);
-  }
+  BKE_light_linking_copy(ob_dst, ob_src, flag_subdata);
 
   if ((flag & LIB_ID_COPY_SET_COPIED_ON_WRITE) != 0) {
     if (ob_src->lightprobe_cache) {
@@ -332,7 +331,7 @@ static void object_free_data(ID *id)
   BKE_previewimg_free(&ob->preview);
 
   MEM_SAFE_FREE(ob->lightgroup);
-  MEM_SAFE_FREE(ob->light_linking);
+  BKE_light_linking_delete(ob, LIB_ID_CREATE_NO_USER_REFCOUNT);
 
   BKE_lightprobe_cache_free(ob);
 
@@ -486,15 +485,7 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
   }
 
   if (flag & IDWALK_DO_DEPRECATED_POINTERS) {
-    BKE_LIB_FOREACHID_PROCESS_ID_NOCHECK(data, object->ipo, IDWALK_CB_USER);
-    BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, object->action, IDWALK_CB_USER);
-
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, object->poselib, IDWALK_CB_USER);
-
-    LISTBASE_FOREACH (bConstraintChannel *, chan, &object->constraintChannels) {
-      BKE_LIB_FOREACHID_PROCESS_ID_NOCHECK(data, chan->ipo, IDWALK_CB_USER);
-    }
-
     /* Note: This is technically _not_ needed currently, because readcode (see
      * #object_blend_read_data) directly converts and removes these deprecated ObHook data.
      * However, for sake of consistency, better have this ID pointer handled here nonetheless. */
@@ -503,15 +494,6 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
        * executed. */
       BLI_assert_unreachable();
       BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, hook->parent, IDWALK_CB_NOP);
-    }
-
-    LISTBASE_FOREACH (bActionStrip *, strip, &object->nlastrips) {
-      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, strip->object, IDWALK_CB_NOP);
-      BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, strip->act, IDWALK_CB_USER);
-      BKE_LIB_FOREACHID_PROCESS_ID_NOCHECK(data, strip->ipo, IDWALK_CB_USER);
-      LISTBASE_FOREACH (bActionModifier *, amod, &strip->modifiers) {
-        BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, amod->ob, IDWALK_CB_NOP);
-      }
     }
 
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, object->gpd, IDWALK_CB_USER);
@@ -524,12 +506,6 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
     PartEff *paf = BKE_object_do_version_give_parteff_245(object);
     if (paf && paf->group) {
       BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, paf->group, IDWALK_CB_USER);
-    }
-
-    FluidsimModifierData *fluidmd = reinterpret_cast<FluidsimModifierData *>(
-        BKE_modifiers_findby_type(object, eModifierType_Fluidsim));
-    if (fluidmd && fluidmd->fss) {
-      BKE_LIB_FOREACHID_PROCESS_ID_NOCHECK(data, fluidmd->fss->ipo, IDWALK_CB_USER);
     }
   }
 }
@@ -661,13 +637,9 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   BLO_write_pointer_array(writer, ob->totcol, ob->mat);
   BLO_write_char_array(writer, ob->totcol, ob->matbits);
 
-  bArmature *arm = nullptr;
-  if (ob->type == OB_ARMATURE) {
-    arm = (bArmature *)ob->data;
-  }
-
   if (ob->pose) {
-    BKE_pose_blend_write(writer, ob->pose, arm);
+    BLI_assert(ob->type == OB_ARMATURE);
+    BKE_pose_blend_write(writer, ob->pose);
   }
   BKE_constraint_blend_write(writer, &ob->constraints);
   animviz_motionpath_blend_write(writer, ob->mpath);
@@ -716,16 +688,6 @@ static void object_blend_write(BlendWriter *writer, ID *id, const void *id_addre
   }
 }
 
-/* XXX deprecated - old animation system */
-static void direct_link_nlastrips(BlendDataReader *reader, ListBase *strips)
-{
-  BLO_read_struct_list(reader, bActionStrip, strips);
-
-  LISTBASE_FOREACH (bActionStrip *, strip, strips) {
-    BLO_read_struct_list(reader, bActionModifier, &strip->modifiers);
-  }
-}
-
 static void object_blend_read_data(BlendDataReader *reader, ID *id)
 {
   Object *ob = (Object *)id;
@@ -762,11 +724,6 @@ static void object_blend_read_data(BlendDataReader *reader, ID *id)
   /* Only for versioning, vertex group names are now stored on object data. */
   BLO_read_struct_list(reader, bDeformGroup, &ob->defbase);
   BLO_read_struct_list(reader, bFaceMap, &ob->fmaps);
-
-  /* XXX deprecated - old animation system <<< */
-  direct_link_nlastrips(reader, &ob->nlastrips);
-  BLO_read_struct_list(reader, bConstraintChannel, &ob->constraintChannels);
-  /* >>> XXX deprecated - old animation system */
 
   BLO_read_pointer_array(reader, ob->totcol, (void **)&ob->mat);
   BLO_read_char_array(reader, ob->totcol, &ob->matbits);
@@ -1472,16 +1429,7 @@ bool BKE_object_copy_modifier(Main *bmain,
         break;
     }
 
-    ModifierData *next_md = nullptr;
-    LISTBASE_FOREACH_BACKWARD (ModifierData *, md, &ob_dst->modifiers) {
-      if (md->flag & eModifierFlag_PinLast) {
-        next_md = md;
-      }
-      else {
-        break;
-      }
-    }
-    BLI_insertlinkbefore(&ob_dst->modifiers, next_md, md_dst);
+    BKE_modifiers_add_at_end_if_possible(ob_dst, md_dst);
     BKE_modifier_unique_name(&ob_dst->modifiers, md_dst);
     BKE_modifiers_persistent_uid_init(*ob_dst, *md_dst);
   }
@@ -1538,24 +1486,21 @@ void BKE_object_link_modifiers(Object *ob_dst, const Object *ob_src)
 /**
  * Copy CCG related data. Used to sync copy of mesh with reshaped original mesh.
  */
-static void copy_ccg_data(Mesh *mesh_destination,
-                          Mesh *mesh_source,
-                          const eCustomDataType layer_type)
+static void copy_ccg_data(Mesh *mesh_dst, Mesh *mesh_src, const eCustomDataType layer_type)
 {
-  BLI_assert(mesh_destination->corners_num == mesh_source->corners_num);
-  CustomData *data_destination = &mesh_destination->corner_data;
-  CustomData *data_source = &mesh_source->corner_data;
-  const int num_elements = mesh_source->corners_num;
-  if (!CustomData_has_layer(data_source, layer_type)) {
+  BLI_assert(mesh_dst->corners_num == mesh_src->corners_num);
+  CustomData *data_dst = &mesh_dst->corner_data;
+  CustomData *data_src = &mesh_src->corner_data;
+  const int num_elements = mesh_src->corners_num;
+  if (!CustomData_has_layer(data_src, layer_type)) {
     return;
   }
-  const int layer_index = CustomData_get_layer_index(data_destination, layer_type);
-  CustomData_free_layer(data_destination, layer_type, layer_index);
-  BLI_assert(!CustomData_has_layer(data_destination, layer_type));
-  CustomData_add_layer(
-      data_destination, eCustomDataType(layer_type), CD_SET_DEFAULT, num_elements);
-  BLI_assert(CustomData_has_layer(data_destination, layer_type));
-  CustomData_copy_layer_type_data(data_source, data_destination, layer_type, 0, 0, num_elements);
+  const int layer_index = CustomData_get_layer_index(data_dst, layer_type);
+  CustomData_free_layer(data_dst, layer_type, layer_index);
+  BLI_assert(!CustomData_has_layer(data_dst, layer_type));
+  CustomData_add_layer(data_dst, eCustomDataType(layer_type), CD_SET_DEFAULT, num_elements);
+  BLI_assert(CustomData_has_layer(data_dst, layer_type));
+  CustomData_copy_layer_type_data(data_src, data_dst, layer_type, 0, 0, num_elements);
 }
 
 static void object_update_from_subsurf_ccg(Object *object)
@@ -2774,7 +2719,7 @@ void BKE_object_obdata_size_init(Object *ob, const float size)
       unit_m4(mat);
       scale_m4_fl(mat, size);
 
-      BKE_lattice_transform(lt, (float(*)[4])mat, false);
+      BKE_lattice_transform(lt, (float (*)[4])mat, false);
       break;
     }
   }
@@ -3199,7 +3144,7 @@ static void give_parvert(const Object *par, int nr, float vec[3], const bool use
     DispList *dl = par->runtime->curve_cache ?
                        BKE_displist_find(&par->runtime->curve_cache->disp, DL_VERTS) :
                        nullptr;
-    float(*co)[3] = dl ? (float(*)[3])dl->verts : nullptr;
+    float (*co)[3] = dl ? (float (*)[3])dl->verts : nullptr;
     int tot;
 
     if (latt->editlatt) {
@@ -5098,9 +5043,9 @@ void BKE_object_groups_clear(Main *bmain, Scene *scene, Object *ob)
 /** \name Object KD-Tree
  * \{ */
 
-KDTree_3d *BKE_object_as_kdtree(Object *ob, int *r_tot)
+blender::KDTree_3d *BKE_object_as_kdtree(Object *ob, int *r_tot)
 {
-  KDTree_3d *tree = nullptr;
+  blender::KDTree_3d *tree = nullptr;
   uint tot = 0;
 
   switch (ob->type) {
@@ -5120,14 +5065,14 @@ KDTree_3d *BKE_object_as_kdtree(Object *ob, int *r_tot)
 
         /* Tree over-allocates in case where some verts have #ORIGINDEX_NONE. */
         tot = 0;
-        tree = BLI_kdtree_3d_new(positions.size());
+        tree = blender::BLI_kdtree_3d_new(positions.size());
 
         /* We don't how many verts from the DM we can use. */
         for (i = 0; i < positions.size(); i++) {
           if (index[i] != ORIGINDEX_NONE) {
             float co[3];
             mul_v3_m4v3(co, ob->object_to_world().ptr(), positions[i]);
-            BLI_kdtree_3d_insert(tree, index[i], co);
+            blender::BLI_kdtree_3d_insert(tree, index[i], co);
             tot++;
           }
         }
@@ -5136,16 +5081,16 @@ KDTree_3d *BKE_object_as_kdtree(Object *ob, int *r_tot)
         const Span<float3> positions = mesh->vert_positions();
 
         tot = positions.size();
-        tree = BLI_kdtree_3d_new(tot);
+        tree = blender::BLI_kdtree_3d_new(tot);
 
         for (i = 0; i < tot; i++) {
           float co[3];
           mul_v3_m4v3(co, ob->object_to_world().ptr(), positions[i]);
-          BLI_kdtree_3d_insert(tree, i, co);
+          blender::BLI_kdtree_3d_insert(tree, i, co);
         }
       }
 
-      BLI_kdtree_3d_balance(tree);
+      blender::BLI_kdtree_3d_balance(tree);
       break;
     }
     case OB_CURVES_LEGACY:
@@ -5157,7 +5102,7 @@ KDTree_3d *BKE_object_as_kdtree(Object *ob, int *r_tot)
       Nurb *nu;
 
       tot = BKE_nurbList_verts_count_without_handles(&cu->nurb);
-      tree = BLI_kdtree_3d_new(tot);
+      tree = blender::BLI_kdtree_3d_new(tot);
       i = 0;
 
       nu = (Nurb *)cu->nurb.first;
@@ -5170,7 +5115,7 @@ KDTree_3d *BKE_object_as_kdtree(Object *ob, int *r_tot)
           while (a--) {
             float co[3];
             mul_v3_m4v3(co, ob->object_to_world().ptr(), bezt->vec[1]);
-            BLI_kdtree_3d_insert(tree, i++, co);
+            blender::BLI_kdtree_3d_insert(tree, i++, co);
             bezt++;
           }
         }
@@ -5182,14 +5127,14 @@ KDTree_3d *BKE_object_as_kdtree(Object *ob, int *r_tot)
           while (a--) {
             float co[3];
             mul_v3_m4v3(co, ob->object_to_world().ptr(), bp->vec);
-            BLI_kdtree_3d_insert(tree, i++, co);
+            blender::BLI_kdtree_3d_insert(tree, i++, co);
             bp++;
           }
         }
         nu = nu->next;
       }
 
-      BLI_kdtree_3d_balance(tree);
+      blender::BLI_kdtree_3d_balance(tree);
       break;
     }
     case OB_LATTICE: {
@@ -5199,16 +5144,16 @@ KDTree_3d *BKE_object_as_kdtree(Object *ob, int *r_tot)
       uint i;
 
       tot = lt->pntsu * lt->pntsv * lt->pntsw;
-      tree = BLI_kdtree_3d_new(tot);
+      tree = blender::BLI_kdtree_3d_new(tot);
       i = 0;
 
       for (bp = lt->def; i < tot; bp++) {
         float co[3];
         mul_v3_m4v3(co, ob->object_to_world().ptr(), bp->vec);
-        BLI_kdtree_3d_insert(tree, i++, co);
+        blender::BLI_kdtree_3d_insert(tree, i++, co);
       }
 
-      BLI_kdtree_3d_balance(tree);
+      blender::BLI_kdtree_3d_balance(tree);
       break;
     }
   }

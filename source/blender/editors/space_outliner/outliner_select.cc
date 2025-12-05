@@ -34,7 +34,7 @@
 #include "BKE_object.hh"
 #include "BKE_particle.h"
 #include "BKE_report.hh"
-#include "BKE_shader_fx.h"
+#include "BKE_shader_fx.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
@@ -259,7 +259,7 @@ static void do_outliner_object_select_recursive(const Scene *scene,
 static void do_outliner_bone_select_recursive(bArmature *arm, Bone *bone_parent, bool select)
 {
   LISTBASE_FOREACH (Bone *, bone, &bone_parent->childbase) {
-    if (select && PBONE_SELECTABLE(arm, bone)) {
+    if (select && blender::animrig::bone_is_selectable(arm, bone)) {
       bone->flag |= BONE_SELECTED;
     }
     else {
@@ -564,7 +564,7 @@ static void tree_element_posechannel_activate(bContext *C,
       }
 
       LISTBASE_FOREACH (bPoseChannel *, pchannel, &ob_iter->pose->chanbase) {
-        pchannel->bone->flag &= ~(BONE_TIPSEL | BONE_SELECTED | BONE_ROOTSEL);
+        pchannel->flag &= ~POSE_SELECTED_ALL;
       }
 
       if (ob != ob_iter) {
@@ -573,19 +573,19 @@ static void tree_element_posechannel_activate(bContext *C,
     }
   }
 
-  if ((set == OL_SETSEL_EXTEND) && (pchan->bone->flag & BONE_SELECTED)) {
-    pchan->bone->flag &= ~BONE_SELECTED;
+  if ((set == OL_SETSEL_EXTEND) && (pchan->flag & POSE_SELECTED)) {
+    pchan->flag &= ~POSE_SELECTED_ALL;
   }
   else {
     if (blender::animrig::bone_is_visible(arm, pchan)) {
-      pchan->bone->flag |= BONE_SELECTED;
+      pchan->flag |= POSE_SELECTED_ALL;
     }
     arm->act_bone = pchan->bone;
   }
 
   if (recursive) {
     /* Recursive select/deselect */
-    do_outliner_bone_select_recursive(arm, pchan->bone, (pchan->bone->flag & BONE_SELECTED) != 0);
+    do_outliner_bone_select_recursive(arm, pchan->bone, (pchan->flag & POSE_SELECTED) != 0);
   }
 
   WM_event_add_notifier(C, NC_OBJECT | ND_BONE_ACTIVE, ob);
@@ -748,11 +748,11 @@ static void tree_element_strip_activate(bContext *C,
     }
     vse::deselect_all_strips(sequencer_scene);
 
-    if ((set == OL_SETSEL_EXTEND) && strip->flag & SELECT) {
-      strip->flag &= ~SELECT;
+    if ((set == OL_SETSEL_EXTEND) && strip->flag & SEQ_SELECT) {
+      strip->flag &= ~SEQ_SELECT;
     }
     else {
-      strip->flag |= SELECT;
+      strip->flag |= SEQ_SELECT;
       seq::select_active_set(sequencer_scene, strip);
     }
   }
@@ -992,7 +992,7 @@ static eOLDrawState tree_element_posechannel_state_get(const Object *ob_pose,
   const Object *ob = (const Object *)tselem->id;
   const bPoseChannel *pchan = static_cast<bPoseChannel *>(te->directdata);
   if (ob == ob_pose && ob->pose) {
-    if (pchan->bone->flag & BONE_SELECTED) {
+    if (pchan->flag & POSE_SELECTED) {
       return OL_DRAWSEL_NORMAL;
     }
   }
@@ -1032,7 +1032,7 @@ static eOLDrawState tree_element_strip_state_get(const WorkSpace *workspace, con
   const Strip *strip = &te_strip->get_strip();
   const Editing *ed = seq::editing_get(sequencer_scene);
 
-  if (ed && ed->act_strip == strip && strip->flag & SELECT) {
+  if (ed && ed->act_strip == strip && strip->flag & SEQ_SELECT) {
     return OL_DRAWSEL_NORMAL;
   }
   return OL_DRAWSEL_NONE;
@@ -1042,7 +1042,7 @@ static eOLDrawState tree_element_strip_dup_state_get(const TreeElement *te)
 {
   const TreeElementStripDuplicate *te_dup = tree_element_cast<TreeElementStripDuplicate>(te);
   const Strip *strip = &te_dup->get_strip();
-  if (strip->flag & SELECT) {
+  if (strip->flag & SEQ_SELECT) {
     return OL_DRAWSEL_NORMAL;
   }
   return OL_DRAWSEL_NONE;

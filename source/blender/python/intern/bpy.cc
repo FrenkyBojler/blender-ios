@@ -37,6 +37,7 @@
 #include "bpy_cli_command.hh"
 #include "bpy_driver.hh"
 #include "bpy_geometry_set.hh"
+#include "bpy_inline_shader_nodes.hh"
 #include "bpy_library.hh"
 #include "bpy_operator.hh"
 #include "bpy_props.hh"
@@ -381,7 +382,7 @@ static PyObject *bpy_driver_secure_code_test(PyObject * /*self*/, PyObject *args
 {
   PyObject *py_code;
   PyObject *py_namespace = nullptr;
-  const bool verbose = false;
+  bool verbose = false;
   static const char *_keywords[] = {"code", "namespace", "verbose", nullptr};
   static _PyArg_Parser _parser = {
       PY_ARG_PARSER_HEAD_COMPAT()
@@ -748,6 +749,7 @@ void BPy_init_modules(bContext *C)
   /* Needs to be first so `_bpy_types` can run. */
   PyObject *bpy_types = BPY_rna_types();
   PyModule_AddObject(bpy_types, "GeometrySet", BPyInit_geometry_set_type());
+  PyModule_AddObject(bpy_types, "InlineShaderNodes", BPyInit_inline_shader_nodes_type());
   PyModule_AddObject(mod, "types", bpy_types);
 
   /* Needs to be first so `_bpy_types` can run. */

@@ -144,7 +144,6 @@ static void curve_free_data(ID *id)
 static void curve_foreach_id(ID *id, LibraryForeachIDData *data)
 {
   Curve *curve = reinterpret_cast<Curve *>(id);
-  const int flag = BKE_lib_query_foreachid_process_flags_get(data);
 
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, curve->bevobj, IDWALK_CB_NOP);
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, curve->taperobj, IDWALK_CB_NOP);
@@ -157,10 +156,6 @@ static void curve_foreach_id(ID *id, LibraryForeachIDData *data)
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, curve->vfontb, IDWALK_CB_USER);
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, curve->vfonti, IDWALK_CB_USER);
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, curve->vfontbi, IDWALK_CB_USER);
-
-  if (flag & IDWALK_DO_DEPRECATED_POINTERS) {
-    BKE_LIB_FOREACHID_PROCESS_ID_NOCHECK(data, curve->ipo, IDWALK_CB_USER);
-  }
 }
 
 static void curve_blend_write(BlendWriter *writer, ID *id, const void *id_address)
@@ -338,25 +333,29 @@ void BKE_curve_editfont_free(Curve *cu)
   }
 }
 
-static void curve_editNurb_keyIndex_cv_free_cb(void *val)
+static void curve_editNurb_keyIndex_cv_free_cb(CVKeyIndex *index)
 {
-  CVKeyIndex *index = (CVKeyIndex *)val;
   MEM_freeN(index->orig_cv);
-  MEM_freeN(val);
+  MEM_freeN(index);
 }
 
-void BKE_curve_editNurb_keyIndex_delCV(GHash *keyindex, const void *cv)
+void BKE_curve_editNurb_keyIndex_delCV(CVKeyIndexMap *keyindex, const void *cv)
 {
   BLI_assert(keyindex != nullptr);
-  BLI_ghash_remove(keyindex, cv, nullptr, curve_editNurb_keyIndex_cv_free_cb);
+  if (CVKeyIndex *index = keyindex->pop_default(cv, nullptr)) {
+    curve_editNurb_keyIndex_cv_free_cb(index);
+  }
 }
 
-void BKE_curve_editNurb_keyIndex_free(GHash **keyindex)
+void BKE_curve_editNurb_keyIndex_free(CVKeyIndexMap **keyindex)
 {
   if (!(*keyindex)) {
     return;
   }
-  BLI_ghash_free(*keyindex, nullptr, curve_editNurb_keyIndex_cv_free_cb);
+  for (CVKeyIndex *index : (*keyindex)->values()) {
+    curve_editNurb_keyIndex_cv_free_cb(index);
+  }
+  MEM_delete(*keyindex);
   *keyindex = nullptr;
 }
 
@@ -3073,7 +3072,7 @@ static void calchandleNurb_intern(BezTriple *bezt,
                                   char fcurve_smoothing)
 {
   /* defines to avoid confusion */
-#define p2_h1 ((p2)-3)
+#define p2_h1 ((p2) - 3)
 #define p2_h2 ((p2) + 3)
 
   const float *p1, *p3;

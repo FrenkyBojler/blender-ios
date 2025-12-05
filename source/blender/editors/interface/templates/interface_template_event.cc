@@ -40,7 +40,8 @@ static bool keymap_item_can_collapse(const wmKeyMapItem *kmi_a, const wmKeyMapIt
           kmi_a->oskey == kmi_b->oskey && kmi_a->hyper == kmi_b->hyper);
 }
 
-int uiTemplateStatusBarModalItem(uiLayout *layout,
+int uiTemplateStatusBarModalItem(blender::ui::Layout *layout,
+                                 wmOperator *op,
                                  const wmKeyMap *keymap,
                                  const EnumPropertyItem *item)
 {
@@ -106,12 +107,18 @@ int uiTemplateStatusBarModalItem(uiLayout *layout,
       layout->label("", icon);
       layout->separator(ui_event_icon_offset(icon));
 
+      if ((keymap->poll_modal_item == nullptr) ||
+          (keymap->poll_modal_item(op, item_z->value) != false))
+      {
+        /* Z item is included. */
 #ifndef WITH_HEADLESS
-      icon = UI_icon_from_keymap_item(kmi_z, icon_mod);
+        icon = UI_icon_from_keymap_item(kmi_z, icon_mod);
 #endif
-      layout->label("", icon);
-      layout->separator(ui_event_icon_offset(icon));
-      layout->separator(0.2f);
+        layout->label("", icon);
+        layout->separator(ui_event_icon_offset(icon));
+        layout->separator(0.2f);
+      }
+
       layout->label(xyz_label, ICON_NONE);
       layout->separator(0.6f);
       return 3;
@@ -161,7 +168,7 @@ int uiTemplateStatusBarModalItem(uiLayout *layout,
   return uiTemplateEventFromKeymapItem(layout, item->name, kmi, false) ? 1 : 0;
 }
 
-bool uiTemplateEventFromKeymapItem(uiLayout *layout,
+bool uiTemplateEventFromKeymapItem(blender::ui::Layout *layout,
                                    const StringRefNull text,
                                    const wmKeyMapItem *kmi,
                                    bool text_fallback)

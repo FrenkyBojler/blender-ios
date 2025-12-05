@@ -51,7 +51,7 @@
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_texture.h"
-#include "BKE_tracking.h"
+#include "BKE_tracking.hh"
 
 #include "SEQ_iterator.hh"
 #include "SEQ_retiming.hh"
@@ -152,8 +152,8 @@ static void version_bonelayers_to_bonecollections(Main *bmain)
          * for managing bone layers and giving them names. */
         SNPRINTF_UTF8(custom_prop_name, "layer_name_%u", layer);
         IDProperty *prop = IDP_GetPropertyFromGroup(arm_idprops, custom_prop_name);
-        if (prop != nullptr && prop->type == IDP_STRING && IDP_String(prop)[0] != '\0') {
-          SNPRINTF_UTF8(bcoll_name, "Layer %u - %s", layer + 1, IDP_String(prop));
+        if (prop != nullptr && prop->type == IDP_STRING && IDP_string_get(prop)[0] != '\0') {
+          SNPRINTF_UTF8(bcoll_name, "Layer %u - %s", layer + 1, IDP_string_get(prop));
         }
       }
       if (bcoll_name[0] == '\0') {
@@ -301,7 +301,7 @@ static bool versioning_convert_strip_speed_factor(Strip *strip, void *user_data)
 
   last_key->strip_frame_index = (strip->len) / speed_factor;
 
-  if (strip->type == STRIP_TYPE_SOUND_RAM) {
+  if (strip->type == STRIP_TYPE_SOUND) {
     const int prev_length = strip->len - strip->startofs - strip->endofs;
     const float left_handle = blender::seq::time_left_handle_frame_get(scene, strip);
     blender::seq::time_right_handle_frame_set(scene, strip, left_handle + prev_length);
@@ -394,8 +394,7 @@ void do_versions_after_linking_400(FileData *fd, Main *bmain)
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       Editing *ed = blender::seq::editing_get(scene);
       if (ed != nullptr) {
-        blender::seq::for_each_callback(
-            &ed->seqbase, versioning_convert_strip_speed_factor, scene);
+        blender::seq::foreach_strip(&ed->seqbase, versioning_convert_strip_speed_factor, scene);
       }
     }
   }
@@ -535,7 +534,7 @@ static void version_mesh_crease_generic(Main &bmain)
       if (IDProperty *settings = reinterpret_cast<NodesModifierData *>(md)->settings.properties) {
         LISTBASE_FOREACH (IDProperty *, prop, &settings->data.group) {
           if (blender::StringRef(prop->name).endswith("_attribute_name")) {
-            if (STREQ(IDP_String(prop), "crease")) {
+            if (STREQ(IDP_string_get(prop), "crease")) {
               IDP_AssignString(prop, "crease_edge");
             }
           }

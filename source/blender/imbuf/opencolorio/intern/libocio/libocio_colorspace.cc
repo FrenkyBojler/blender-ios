@@ -12,10 +12,13 @@
 
 #  include "BLI_math_color.h"
 
+#  include "CLG_log.h"
+
 #  include "../description.hh"
-#  include "error_handling.hh"
 #  include "libocio_cpu_processor.hh"
 #  include "libocio_processor.hh"
+
+static CLG_LogRef LOG = {"color_management"};
 
 namespace blender::ocio {
 
@@ -147,7 +150,7 @@ LibOCIOColorSpace::LibOCIOColorSpace(const int index,
       interop_id_ = "srgb_p3d65_display";
     }
     else if (alias == "displayp3_hdr_display") {
-      interop_id_ = "srgbx_p3d65_display";
+      interop_id_ = "srgbe_p3d65_display";
     }
     else if (alias == "p3d65_display") {
       interop_id_ = "g26_p3d65_display";
@@ -164,13 +167,13 @@ LibOCIOColorSpace::LibOCIOColorSpace(const int index,
     else if (alias == "st2084_p3d65_display") {
       interop_id_ = "pq_p3d65_display";
     }
-    else if (alias == "lin_rec709_srgb" || alias == "lin_rec709") {
+    else if (ELEM(alias, "lin_rec709_srgb", "lin_rec709")) {
       interop_id_ = "lin_rec709_scene";
     }
     else if (alias == "lin_rec2020") {
       interop_id_ = "lin_rec2020_scene";
     }
-    else if (alias == "lin_p3d65" || alias == "lin_displayp3") {
+    else if (ELEM(alias, "lin_p3d65", "lin_displayp3")) {
       interop_id_ = "lin_p3d65_scene";
     }
     else if ((alias.startswith("lin_") || alias.startswith("srgb_") || alias.startswith("g18_") ||
@@ -185,6 +188,19 @@ LibOCIOColorSpace::LibOCIOColorSpace(const int index,
       break;
     }
   }
+
+  /* Special case that we can not handle as an alias, because it's a role too. */
+  if (interop_id_.is_empty()) {
+    const char *data_name = ocio_config->getRoleColorSpace(OCIO_NAMESPACE::ROLE_DATA);
+    if (data_name && STREQ(ocio_color_space->getName(), data_name)) {
+      interop_id_ = "data";
+    }
+  }
+
+  CLOG_TRACE(&LOG,
+             "Add colorspace: %s (interop ID: %s)",
+             name().c_str(),
+             interop_id_.is_empty() ? "<none>" : interop_id_.c_str());
 }
 
 bool LibOCIOColorSpace::is_scene_linear() const

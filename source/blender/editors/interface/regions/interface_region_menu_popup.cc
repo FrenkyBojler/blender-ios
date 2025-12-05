@@ -161,7 +161,7 @@ void ui_popup_menu_memory_set(uiBlock *block, uiBut *but)
 
 struct uiPopupMenu {
   uiBlock *block;
-  uiLayout *layout;
+  blender::ui::Layout *layout;
   uiBut *but;
   ARegion *butregion;
 
@@ -171,7 +171,7 @@ struct uiPopupMenu {
   int mx, my;
   bool popup, slideout;
 
-  std::function<void(bContext *C, uiLayout *layout)> menu_func;
+  std::function<void(bContext *C, blender::ui::Layout *layout)> menu_func;
 };
 
 /**
@@ -398,7 +398,7 @@ static uiPopupBlockHandle *ui_popup_menu_create_impl(
     ARegion *butregion,
     uiBut *but,
     const char *title,
-    std::function<void(bContext *, uiLayout *)> menu_func,
+    std::function<void(bContext *, blender::ui::Layout *)> menu_func,
     const bool can_refresh)
 {
   wmWindow *window = CTX_wm_window(C);
@@ -444,7 +444,7 @@ uiPopupBlockHandle *ui_popup_menu_create(
       butregion,
       but,
       nullptr,
-      [menu_func, arg](bContext *C, uiLayout *layout) { menu_func(C, layout, arg); },
+      [menu_func, arg](bContext *C, blender::ui::Layout *layout) { menu_func(C, layout, arg); },
       false);
 }
 
@@ -454,22 +454,22 @@ uiPopupBlockHandle *ui_popup_menu_create(
 /** \name Popup Menu API with begin & end
  * \{ */
 
-static void create_title_button(uiLayout *layout, const char *title, int icon)
+static void create_title_button(blender::ui::Layout &layout, const char *title, int icon)
 {
-  uiBlock *block = layout->block();
+  uiBlock *block = layout.block();
   char titlestr[256];
 
   if (icon) {
     SNPRINTF_UTF8(titlestr, " %s", title);
-    uiDefIconTextBut(block, ButType::Label, 0, icon, titlestr, 0, 0, 200, UI_UNIT_Y, nullptr, "");
+    uiDefIconTextBut(block, ButType::Label, icon, titlestr, 0, 0, 200, UI_UNIT_Y, nullptr, "");
   }
   else {
     uiBut *but = uiDefBut(
-        block, ButType::Label, 0, title, 0, 0, 200, UI_UNIT_Y, nullptr, 0.0, 0.0, "");
+        block, ButType::Label, title, 0, 0, 200, UI_UNIT_Y, nullptr, 0.0, 0.0, "");
     but->drawflag = UI_BUT_TEXT_LEFT;
   }
 
-  layout->separator();
+  layout.separator();
 }
 
 uiPopupMenu *UI_popup_menu_begin_ex(bContext *C,
@@ -487,7 +487,7 @@ uiPopupMenu *UI_popup_menu_begin_ex(bContext *C,
   pup->block->handle = MEM_new<uiPopupBlockHandle>(__func__);
 
   if (title[0]) {
-    create_title_button(pup->layout, title, icon);
+    create_title_button(*pup->layout, title, icon);
   }
 
   return pup;
@@ -542,7 +542,7 @@ bool UI_popup_menu_end_or_cancel(bContext *C, uiPopupMenu *pup)
   return false;
 }
 
-uiLayout *UI_popup_menu_layout(uiPopupMenu *pup)
+blender::ui::Layout *UI_popup_menu_layout(uiPopupMenu *pup)
 {
   return pup->layout;
 }
@@ -556,7 +556,7 @@ uiLayout *UI_popup_menu_layout(uiPopupMenu *pup)
 void UI_popup_menu_reports(bContext *C, ReportList *reports)
 {
   uiPopupMenu *pup = nullptr;
-  uiLayout *layout;
+  blender::ui::Layout *layout;
 
   if (!CTX_wm_window(C)) {
     return;
@@ -616,9 +616,9 @@ static void ui_popup_menu_create_from_menutype(bContext *C,
       nullptr,
       nullptr,
       title,
-      [mt, title, icon](bContext *C, uiLayout *layout) -> void {
+      [mt, title, icon](bContext *C, blender::ui::Layout *layout) -> void {
         if (title && title[0]) {
-          create_title_button(layout, title, icon);
+          create_title_button(*layout, title, icon);
         }
         ui_item_menutype_func(C, layout, mt);
       },
@@ -627,7 +627,7 @@ static void ui_popup_menu_create_from_menutype(bContext *C,
   STRNCPY_UTF8(handle->menu_idname, mt->idname);
 
   WorkspaceStatus status(C);
-  if (bool(mt->flag & MenuTypeFlag::SearchOnKeyPress)) {
+  if (flag_is_set(mt->flag, MenuTypeFlag::SearchOnKeyPress)) {
     status.range(IFACE_("Search"), ICON_EVENT_A, ICON_EVENT_Z);
   }
   else if (mt->idname[0]) {
@@ -659,7 +659,7 @@ wmOperatorStatus UI_popup_menu_invoke(bContext *C, const char *idname, ReportLis
   else {
     /* If no refresh is needed, create the block directly. */
     uiPopupMenu *pup = UI_popup_menu_begin(C, title, ICON_NONE);
-    uiLayout *layout = UI_popup_menu_layout(pup);
+    blender::ui::Layout *layout = UI_popup_menu_layout(pup);
     UI_menutype_draw(C, mt, layout);
     UI_popup_menu_end(C, pup);
   }
@@ -790,7 +790,7 @@ void UI_popup_block_template_confirm(uiBlock *block,
   }
 }
 
-void UI_popup_block_template_confirm_op(uiLayout *layout,
+void UI_popup_block_template_confirm_op(blender::ui::Layout *layout,
                                         wmOperatorType *ot,
                                         const std::optional<StringRef> confirm_text_opt,
                                         const std::optional<StringRef> cancel_text_opt,
@@ -806,7 +806,7 @@ void UI_popup_block_template_confirm_op(uiLayout *layout,
   /* Use a split so both buttons are the same size. */
   const bool show_confirm = !confirm_text.is_empty();
   const bool show_cancel = !cancel_text.is_empty();
-  uiLayout *row = (show_confirm && show_cancel) ? &layout->split(0.5f, false) : layout;
+  blender::ui::Layout &row = (show_confirm && show_cancel) ? layout->split(0.5f, false) : *layout;
 
   /* When only one button is shown, make it default. */
   if (!show_confirm) {
@@ -817,9 +817,9 @@ void UI_popup_block_template_confirm_op(uiLayout *layout,
     if (!show_confirm) {
       return nullptr;
     }
-    uiBlock *block = row->block();
+    uiBlock *block = row.block();
     const uiBut *but_ref = block->last_but();
-    *r_ptr = row->op(ot, confirm_text, icon, row->operator_context(), UI_ITEM_NONE);
+    *r_ptr = row.op(ot, confirm_text, icon, row.operator_context(), UI_ITEM_NONE);
 
     if (block->buttons.is_empty() || but_ref == block->buttons.last().get()) {
       return nullptr;
@@ -831,10 +831,9 @@ void UI_popup_block_template_confirm_op(uiLayout *layout,
     if (!show_cancel) {
       return nullptr;
     }
-    uiBlock *block = row->block();
+    uiBlock *block = row.block();
     uiBut *but = uiDefIconTextBut(block,
                                   ButType::But,
-                                  1,
                                   ICON_NONE,
                                   cancel_text,
                                   0,
@@ -843,6 +842,7 @@ void UI_popup_block_template_confirm_op(uiLayout *layout,
                                   UI_UNIT_Y,
                                   nullptr,
                                   "");
+    UI_but_retval_set(but, 1);
 
     return but;
   };

@@ -26,10 +26,12 @@
 
 #include "WM_api.hh"
 
+#include "fmt/core.h"
+
 namespace blender::nodes::node_geo_foreach_geometry_element_cc {
 
 /** Shared between zone input and output node. */
-static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_node_ptr)
+static void node_layout_ex(ui::Layout &layout, bContext *C, PointerRNA *current_node_ptr)
 {
   bNodeTree &ntree = *reinterpret_cast<bNodeTree *>(current_node_ptr->owner_id);
   bNode *current_node = static_cast<bNode *>(current_node_ptr->data);
@@ -53,7 +55,7 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
   auto &storage = *static_cast<NodeGeometryForeachGeometryElementOutput *>(output_node.storage);
 
   if (is_zone_input_node) {
-    if (uiLayout *panel = layout->panel(C, "input", false, IFACE_("Input Fields"))) {
+    if (ui::Layout *panel = layout.panel(C, "input", false, IFACE_("Input Fields"))) {
       socket_items::ui::draw_items_list_with_operators<ForeachGeometryElementInputItemsAccessor>(
           C, panel, ntree, output_node);
       socket_items::ui::draw_active_item_props<ForeachGeometryElementInputItemsAccessor>(
@@ -65,7 +67,7 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
     }
   }
   else {
-    if (uiLayout *panel = layout->panel(C, "main_items", false, IFACE_("Main Geometry"))) {
+    if (ui::Layout *panel = layout.panel(C, "main_items", false, IFACE_("Main Geometry"))) {
       socket_items::ui::draw_items_list_with_operators<ForeachGeometryElementMainItemsAccessor>(
           C, panel, ntree, output_node);
       socket_items::ui::draw_active_item_props<ForeachGeometryElementMainItemsAccessor>(
@@ -75,7 +77,7 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
             panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
           });
     }
-    if (uiLayout *panel = layout->panel(
+    if (ui::Layout *panel = layout.panel(
             C, "generation_items", false, IFACE_("Generated Geometry")))
     {
       socket_items::ui::draw_items_list_with_operators<
@@ -94,7 +96,7 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
     }
   }
 
-  layout->prop(&output_node_ptr, "inspection_index", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(&output_node_ptr, "inspection_index", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 namespace input_node {
@@ -164,7 +166,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .align_with_previous();
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
   bNodeTree &tree = *reinterpret_cast<bNodeTree *>(ptr->owner_id);
   bNode &node = *static_cast<bNode *>(ptr->data);
@@ -172,7 +174,7 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
   bNode *output_node = tree.node_by_id(storage.output_node_id);
 
   PointerRNA output_node_ptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_Node, output_node);
-  layout->prop(&output_node_ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(&output_node_ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -407,22 +409,24 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   }
   else {
     params.add_item_full_name(
-        IFACE_("For Each Element " UI_MENU_ARROW_SEP " Main"), [](LinkSearchOpParams &params) {
+        fmt::format(fmt::runtime(IFACE_("For Each Element {} Main")), UI_MENU_ARROW_SEP),
+        [](LinkSearchOpParams &params) {
           const auto [input_node, output_node] = add_foreach_zone(params);
           socket_items::clear<ForeachGeometryElementGenerationItemsAccessor>(*output_node);
           params.update_and_connect_available_socket(*output_node, "Geometry");
         });
 
-    params.add_item_full_name(IFACE_("For Each Element " UI_MENU_ARROW_SEP " Generated"),
-                              [](LinkSearchOpParams &params) {
-                                const auto [input_node, output_node] = add_foreach_zone(params);
-                                params.node_tree.ensure_topology_cache();
-                                bke::node_add_link(params.node_tree,
-                                                   *output_node,
-                                                   output_node->output_socket(2),
-                                                   params.node,
-                                                   params.socket);
-                              });
+    params.add_item_full_name(
+        fmt::format(fmt::runtime(IFACE_("For Each Element {} Generated")), UI_MENU_ARROW_SEP),
+        [](LinkSearchOpParams &params) {
+          const auto [input_node, output_node] = add_foreach_zone(params);
+          params.node_tree.ensure_topology_cache();
+          bke::node_add_link(params.node_tree,
+                             *output_node,
+                             output_node->output_socket(2),
+                             params.node,
+                             params.socket);
+        });
   }
 }
 

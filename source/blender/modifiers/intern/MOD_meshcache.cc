@@ -79,11 +79,11 @@ static void meshcache_do(MeshCacheModifierData *mcmd,
   const MDeformVert *dvert;
   MOD_get_vgroup(ob, mesh, mcmd->defgrp_name, &dvert, &influence_group_index);
 
-  float(*vertexCos_Store)[3] = (use_factor || influence_group_index != -1 ||
-                                (mcmd->deform_mode == MOD_MESHCACHE_DEFORM_INTEGRATE)) ?
-                                   MEM_malloc_arrayN<float[3]>(size_t(verts_num), __func__) :
-                                   nullptr;
-  float(*vertexCos)[3] = vertexCos_Store ? vertexCos_Store : vertexCos_Real;
+  float (*vertexCos_Store)[3] = (use_factor || influence_group_index != -1 ||
+                                 (mcmd->deform_mode == MOD_MESHCACHE_DEFORM_INTEGRATE)) ?
+                                    MEM_malloc_arrayN<float[3]>(size_t(verts_num), __func__) :
+                                    nullptr;
+  float (*vertexCos)[3] = vertexCos_Store ? vertexCos_Store : vertexCos_Real;
 
   const float fps = scene->frames_per_second();
 
@@ -172,7 +172,7 @@ static void meshcache_do(MeshCacheModifierData *mcmd,
       BKE_modifier_set_error(ob, &mcmd->modifier, "'Integrate' requires faces");
     }
     else {
-      float(*vertexCos_New)[3] = MEM_malloc_arrayN<float[3]>(size_t(verts_num), __func__);
+      float (*vertexCos_New)[3] = MEM_malloc_arrayN<float[3]>(size_t(verts_num), __func__);
 
       BKE_mesh_calc_relative_deform(
           mesh->face_offsets().data(),
@@ -180,11 +180,11 @@ static void meshcache_do(MeshCacheModifierData *mcmd,
           mesh->corner_verts().data(),
           mesh->verts_num,
           /* From the original Mesh. */
-          reinterpret_cast<const float(*)[3]>(mesh->vert_positions().data()),
+          reinterpret_cast<const float (*)[3]>(mesh->vert_positions().data()),
           /* the input we've been given (shape keys!) */
-          const_cast<const float(*)[3]>(vertexCos_Real),
+          const_cast<const float (*)[3]>(vertexCos_Real),
           /* The result of this modifier. */
-          const_cast<const float(*)[3]>(vertexCos),
+          const_cast<const float (*)[3]>(vertexCos),
           /* The result of this function. */
           vertexCos_New);
 
@@ -282,25 +282,25 @@ static void deform_verts(ModifierData *md,
                scene,
                ctx->object,
                mesh,
-               reinterpret_cast<float(*)[3]>(positions.data()),
+               reinterpret_cast<float (*)[3]>(positions.data()),
                positions.size());
 }
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *layout = panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
 
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
-  layout->use_property_split_set(true);
+  layout.use_property_split_set(true);
 
-  layout->prop(ptr, "cache_format", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(ptr, "filepath", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "cache_format", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "filepath", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
-  layout->prop(ptr, "factor", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
-  layout->prop(ptr, "deform_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(ptr, "interpolation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "factor", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "deform_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "interpolation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   modifier_vgroup_ui(layout, ptr, &ob_ptr, "vertex_group", "invert_vertex_group", std::nullopt);
 
   modifier_error_message_draw(layout, ptr);
@@ -308,54 +308,53 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
 static void time_remapping_panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *layout = panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  layout->prop(ptr, "time_mode", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "time_mode", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
-  layout->use_property_split_set(true);
+  layout.use_property_split_set(true);
 
-  layout->prop(ptr, "play_mode", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  layout.prop(ptr, "play_mode", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
   if (RNA_enum_get(ptr, "play_mode") == MOD_MESHCACHE_PLAY_CFEA) {
-    layout->prop(ptr, "frame_start", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    layout->prop(ptr, "frame_scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout.prop(ptr, "frame_start", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout.prop(ptr, "frame_scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   else { /* play_mode == MOD_MESHCACHE_PLAY_EVAL */
     int time_mode = RNA_enum_get(ptr, "time_mode");
     if (time_mode == MOD_MESHCACHE_TIME_FRAME) {
-      layout->prop(ptr, "eval_frame", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout.prop(ptr, "eval_frame", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     }
     else if (time_mode == MOD_MESHCACHE_TIME_SECONDS) {
-      layout->prop(ptr, "eval_time", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout.prop(ptr, "eval_time", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     }
     else { /* time_mode == MOD_MESHCACHE_TIME_FACTOR */
-      layout->prop(ptr, "eval_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      layout.prop(ptr, "eval_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     }
   }
 }
 
 static void axis_mapping_panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *col;
-  uiLayout *layout = panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  layout->use_property_split_set(true);
+  layout.use_property_split_set(true);
 
-  col = &layout->column(true);
-  col->red_alert_set(RNA_enum_get(ptr, "forward_axis") == RNA_enum_get(ptr, "up_axis"));
-  col->prop(ptr, "forward_axis", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col->prop(ptr, "up_axis", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  blender::ui::Layout &col = layout.column(true);
+  col.red_alert_set(RNA_enum_get(ptr, "forward_axis") == RNA_enum_get(ptr, "up_axis"));
+  col.prop(ptr, "forward_axis", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.prop(ptr, "up_axis", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   const eUI_Item_Flag toggles_flag = UI_ITEM_R_TOGGLE | UI_ITEM_R_FORCE_BLANK_DECORATE;
   PropertyRNA *prop = RNA_struct_find_property(ptr, "flip_axis");
-  uiLayout *row = &col->row(true, IFACE_("Flip Axis"));
-  row->prop(ptr, prop, 0, 0, toggles_flag, IFACE_("X"), ICON_NONE);
-  row->prop(ptr, prop, 1, 0, toggles_flag, IFACE_("Y"), ICON_NONE);
-  row->prop(ptr, prop, 2, 0, toggles_flag, IFACE_("Z"), ICON_NONE);
+  blender::ui::Layout &row = col.row(true, IFACE_("Flip Axis"));
+  row.prop(ptr, prop, 0, 0, toggles_flag, IFACE_("X"), ICON_NONE);
+  row.prop(ptr, prop, 1, 0, toggles_flag, IFACE_("Y"), ICON_NONE);
+  row.prop(ptr, prop, 2, 0, toggles_flag, IFACE_("Z"), ICON_NONE);
 }
 
 static void panel_register(ARegionType *region_type)

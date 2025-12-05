@@ -29,7 +29,7 @@ NODE_STORAGE_FUNCS(NodeGeometryStringToCurves)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::String>("String").hide_label();
+  b.add_input<decl::String>("String").optional_label();
   b.add_input<decl::Float>("Size").default_value(1.0f).min(0.0f).subtype(PROP_DISTANCE);
   b.add_input<decl::Float>("Character Spacing").default_value(1.0f).min(0.0f);
   b.add_input<decl::Float>("Word Spacing").default_value(1.0f).min(0.0f);
@@ -60,15 +60,15 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
 }
 
-static void node_layout(uiLayout *layout, bContext *C, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext *C, PointerRNA *ptr)
 {
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
-  uiTemplateID(layout, C, ptr, "font", nullptr, "FONT_OT_open", "FONT_OT_unlink");
-  layout->prop(ptr, "overflow", UI_ITEM_NONE, "", ICON_NONE);
-  layout->prop(ptr, "align_x", UI_ITEM_NONE, "", ICON_NONE);
-  layout->prop(ptr, "align_y", UI_ITEM_NONE, "", ICON_NONE);
-  layout->prop(ptr, "pivot_mode", UI_ITEM_NONE, IFACE_("Pivot Point"), ICON_NONE);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
+  uiTemplateID(&layout, C, ptr, "font", nullptr, "FONT_OT_open", "FONT_OT_unlink");
+  layout.prop(ptr, "overflow", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "align_x", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "align_y", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "pivot_mode", UI_ITEM_NONE, IFACE_("Pivot Point"), ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)

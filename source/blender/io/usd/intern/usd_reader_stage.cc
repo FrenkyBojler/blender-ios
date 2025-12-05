@@ -70,10 +70,6 @@ namespace blender::io::usd {
 
 static void decref(USDPrimReader *reader)
 {
-  if (!reader) {
-    return;
-  }
-
   reader->decref();
 
   if (reader->refcount() == 0) {
@@ -645,8 +641,7 @@ void USDStageReader::import_all_materials(Main *bmain)
     Material *new_mtl = mtl_reader.add_material(usd_mtl, !have_import_hook);
     BLI_assert_msg(new_mtl, "Failed to create material");
 
-    const std::string mtl_name = make_safe_name(new_mtl->id.name + 2, true);
-    settings_.mat_name_to_mat.add_new(mtl_name, new_mtl);
+    settings_.mat_name_to_mat.add_new(new_mtl->id.name + 2, new_mtl);
 
     if (params_.mtl_name_collision_mode == USD_MTL_NAME_COLLISION_MAKE_UNIQUE) {
       /* Record the Blender material we created for the USD material with the given path.
@@ -749,9 +744,7 @@ void USDStageReader::sort_readers()
 {
   blender::parallel_sort(
       readers_.begin(), readers_.end(), [](const USDPrimReader *a, const USDPrimReader *b) {
-        const char *na = a ? a->name().c_str() : "";
-        const char *nb = b ? b->name().c_str() : "";
-        return BLI_strcasecmp(na, nb) < 0;
+        return BLI_strcasecmp(a->name().c_str(), b->name().c_str()) < 0;
       });
 }
 
