@@ -3534,6 +3534,17 @@ static void rna_def_text(StructRNA *srna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
+  static const EnumPropertyItem text_outline_position_items[] = {
+      {SEQ_TEXT_OUTLINE_CENTER, "CENTER", 0, "Center", "Draw outline centered on the text edge"},
+      {SEQ_TEXT_OUTLINE_OUTSIDE,
+       "OUTSIDE",
+       0,
+       "Outside",
+       "Draw outline outside the text edge"},
+      {SEQ_TEXT_OUTLINE_INSIDE, "INSIDE", 0, "Inside", "Draw outline inside the text edge"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
   PropertyRNA *prop;
 
   RNA_def_struct_sdna_from(srna, "TextVars", "effectdata");
@@ -3598,6 +3609,12 @@ static void rna_def_text(StructRNA *srna)
   RNA_def_property_float_default(prop, 0.05f);
   RNA_def_property_range(prop, 0.0f, 1.0f);
   RNA_def_property_ui_range(prop, 0.0f, 1.0f, 1.0f, 2);
+  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
+
+  prop = RNA_def_property(srna, "outline_position", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "outline_position");
+  RNA_def_property_enum_items(prop, text_outline_position_items);
+  RNA_def_property_ui_text(prop, "Position", "Position of the outline relative to the text");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
 
   prop = RNA_def_property(srna, "box_color", PROP_FLOAT, PROP_COLOR_GAMMA);

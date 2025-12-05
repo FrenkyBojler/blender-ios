@@ -344,6 +344,7 @@ class STRIP_PT_effect_text_outline(StripButtonsPanel, Panel):
         col = layout.column()
         col.prop(strip, "outline_color", text="Color")
         col.prop(strip, "outline_width", text="Width")
+        col.prop(strip, "outline_position", text="Position")
         col.active = strip.use_outline and (not strip.mute)
 
 

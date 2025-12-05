@@ -198,6 +198,7 @@ static void init_text_effect(Strip *strip)
   data->box_roundness = 0.0f;
   data->outline_color[3] = 0.7f;
   data->outline_width = 0.05f;
+  data->outline_position = SEQ_TEXT_OUTLINE_OUTSIDE;
 
   data->text_ptr = BLI_strdup("Text");
   data->text_len_bytes = strlen(data->text_ptr);
@@ -620,7 +621,8 @@ static rcti draw_text_outline(const RenderData *context,
 
   /* Initialize JFA: invalid values for empty regions, pixel coordinates
    * for opaque regions. */
-  Array<JFACoord> boundary(pixel_count, NoInitialization());
+  Array<JFACoord> boundary_opaque(pixel_count, NoInitialization());
+
   threading::parallel_for(IndexRange(size.y), 16, [&](const IndexRange y_range) {
     for (const int y : y_range) {
       size_t index = size_t(y) * size.x;
@@ -629,7 +631,7 @@ static rcti draw_text_outline(const RenderData *context,
         JFACoord coord;
         coord.x = is_opaque ? x : JFA_INVALID;
         coord.y = is_opaque ? y : JFA_INVALID;
-        boundary[index] = coord;
+        boundary_opaque[index] = coord;
       }
     }
   });
@@ -637,7 +639,7 @@ static rcti draw_text_outline(const RenderData *context,
   /* Do jump flooding calculations. */
   JFACoord invalid_coord{JFA_INVALID, JFA_INVALID};
   Array<JFACoord> initial_flooded_result(pixel_count, invalid_coord);
-  jump_flooding_pass(boundary, initial_flooded_result, size, rect_x_range, rect_y_range, 1);
+  jump_flooding_pass(boundary_opaque, initial_flooded_result, size, rect_x_range, rect_y_range, 1);
 
   Array<JFACoord> *result_to_flood = &initial_flooded_result;
   Array<JFACoord> intermediate_result(pixel_count, invalid_coord);
@@ -652,17 +654,56 @@ static rcti draw_text_outline(const RenderData *context,
     step_size /= 2;
   }
 
+  // the final result of the first flooding 
+  Array<JFACoord> jfa_result_outside = *result_to_flood;
+
+  // jfa pass for inside case
+  Array<JFACoord> jfa_result_inside(pixel_count, invalid_coord);
+  if (data->outline_position == SEQ_TEXT_OUTLINE_INSIDE ||
+      data->outline_position == SEQ_TEXT_OUTLINE_CENTER) {
+    Array<JFACoord> boundary_transparent(pixel_count, NoInitialization());
+    threading::parallel_for(IndexRange(size.y), 16, [&](const IndexRange y_range) {
+      for (const int y : y_range) {
+        size_t index = size_t(y) * size.x;
+        for (int x = 0; x < size.x; x++, index++) {
+          bool is_transparent = tmp_buf[index].w < 128;
+          JFACoord coord;
+          coord.x = is_transparent ? x : JFA_INVALID;
+          coord.y = is_transparent ? y : JFA_INVALID;
+          boundary_transparent[index] = coord;
+        }
+      }
+    });
+
+    /* We can reuse the same intermediate buffers for the second pass. */
+    initial_flooded_result.fill(invalid_coord);
+    jump_flooding_pass(
+        boundary_transparent, initial_flooded_result, size, rect_x_range, rect_y_range, 1);
+
+    intermediate_result.fill(invalid_coord);
+    result_to_flood = &initial_flooded_result;
+    result_after_flooding = &intermediate_result;
+
+    step_size = power_of_2_max_i(outline_width) / 2;
+    while (step_size != 0) {
+      jump_flooding_pass(
+          *result_to_flood, *result_after_flooding, size, rect_x_range, rect_y_range, step_size);
+      std::swap(result_to_flood, result_after_flooding);
+      step_size /= 2;
+    }
+    // the final result of the second flooding
+    jfa_result_inside = *result_to_flood;
+  }
+
   /* Premultiplied outline color. */
   float4 color = data->outline_color;
   color.x *= color.w;
   color.y *= color.w;
   color.z *= color.w;
 
-  const float text_color_alpha = data->color[3];
+  // const float text_color_alpha = data->color[3];
 
-  /* We have distances to the closest opaque parts of the image now. Composite the
-   * outline into the output image. */
-
+  /* We have distances to the closest edges. Composite the outline into the output image. */
   threading::parallel_for(rect_y_range, 8, [&](const IndexRange y_range) {
     for (const int y : y_range) {
       size_t index = size_t(y) * size.x + rect_x_range.start();
@@ -675,24 +716,65 @@ static rcti draw_text_outline(const RenderData *context,
           continue;
         }
 
-        /* Fade out / anti-alias the outline over one pixel towards outline distance. */
-        float distance = math::distance(float2(x, y), float2(closest_texel.x, closest_texel.y));
-        float alpha = math::clamp(outline_width - distance + 1.0f, 0.0f, 1.0f);
+        float alpha = 0.0f;
 
-        /* Do not put outline inside the text shape:
-         * - When overall text color is fully opaque, we want to make
-         *   outline fully transparent only where text is fully opaque.
-         *   This ensures that combined anti-aliased pixels at text boundary
-         *   are properly fully opaque.
-         * - However when text color is fully transparent, we want to
-         *   Use opposite alpha of text, to anti-alias the inner edge of
-         *   the outline.
-         * In between those two, interpolate the alpha modulation factor. */
         float text_alpha = tmp_buf[index].w * (1.0f / 255.0f);
-        float mul_opaque_text = text_alpha >= 1.0f ? 0.0f : 1.0f;
-        float mul_transparent_text = 1.0f - text_alpha;
-        float mul = math::interpolate(mul_transparent_text, mul_opaque_text, text_color_alpha);
-        alpha *= mul;
+        switch (data->outline_position)
+        {
+        case SEQ_TEXT_OUTLINE_OUTSIDE:{
+            const JFACoord closest_texel = jfa_result_outside[index];
+            if (closest_texel.x == JFA_INVALID) {
+              break;
+            }
+            const float distance = math::distance(
+                float2(x, y), float2(closest_texel.x, closest_texel.y));
+            /* Create a soft outer edge. */
+            alpha = math::clamp(outline_width - distance + 4.0f, 0.0f, 1.0f);
+            break;
+        }
+        case SEQ_TEXT_OUTLINE_CENTER:{
+           float distance;
+            if (text_alpha > 0.5f) {
+              /* We are inside the text, use the inside-out distance field. */
+              const JFACoord closest_texel = jfa_result_inside[index];
+              if (closest_texel.x == JFA_INVALID) {
+                break;
+              }
+              distance = math::distance(float2(x, y), float2(closest_texel.x, closest_texel.y));
+            }
+            else {
+              /* We are outside the text, use the outside-in distance field. */
+              const JFACoord closest_texel = jfa_result_outside[index];
+              if (closest_texel.x == JFA_INVALID) {
+                break;
+              }
+              distance = math::distance(float2(x, y), float2(closest_texel.x, closest_texel.y));
+            }
+
+            /* Centered on the edge, so half the width on each side. */
+            const float half_width = outline_width / 2.0f;
+            alpha = math::clamp(half_width - distance + 1.0f, 0.0f, 1.0f);
+            break;
+        }
+        case SEQ_TEXT_OUTLINE_INSIDE:{
+          /* Only draw inside the original text shape. */
+            if (text_alpha > 0) {
+              const JFACoord closest_texel = jfa_result_inside[index];
+              if (closest_texel.x == JFA_INVALID) {
+                break;
+              }
+              const float distance = math::distance(float2(x, y), float2(closest_texel.x, closest_texel.y));
+              alpha = math::clamp(outline_width - distance, 0.0f, 1.0f);
+              /* Modulate by the text's own alpha for smooth edges. */
+              alpha *= text_alpha;
+            }
+            break;
+        }
+        }
+
+        if(alpha <= 0.0f){
+          continue;
+        }
 
         float4 col1 = color;
         col1 *= alpha;
@@ -1077,9 +1159,24 @@ static ImBuf *do_text_effect(const RenderData *context,
   TextVarsRuntime *runtime = text_effect_calc_runtime(strip, font, {out->x, out->y});
   data->runtime = runtime;
 
-  rcti outline_rect = draw_text_outline(context, data, runtime, out);
-  BLF_buffer(font, nullptr, out->byte_buffer.data, out->x, out->y, out->byte_buffer.colorspace);
-  text_draw(data->text_ptr, runtime, data->color);
+  rcti outline_rect;
+  /* For Inside and Center modes, the main text must be drawn first,
+   * so the outline can be composited on top of it. For Outside mode,
+   * the outline must be drawn first, so the text can be drawn into the
+   * "hole" left for it, ensuring a clean seam. */
+  if (data->outline_position == SEQ_TEXT_OUTLINE_INSIDE ||
+      data->outline_position == SEQ_TEXT_OUTLINE_CENTER)
+  {
+    BLF_buffer(font, nullptr, out->byte_buffer.data, out->x, out->y, out->byte_buffer.colorspace);
+    text_draw(data->text_ptr, runtime, data->color);
+    outline_rect = draw_text_outline(context, data, runtime, out);
+  }
+  else {
+    outline_rect = draw_text_outline(context, data, runtime, out);
+    BLF_buffer(font, nullptr, out->byte_buffer.data, out->x, out->y, out->byte_buffer.colorspace);
+    text_draw(data->text_ptr, runtime, data->color);
+  }
+
   BLF_buffer(font, nullptr, nullptr, 0, 0, nullptr);
   BLF_disable(font, font_flags);
 

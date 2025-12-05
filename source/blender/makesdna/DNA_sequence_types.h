@@ -448,9 +448,10 @@ typedef struct TextVars {
   float shadow_offset;
   float shadow_blur;
   float outline_width;
+  char outline_position; /* eEffectTextOutlinePosition */
   char flag;  /* eEffectTextFlags */
   char align; /* eEffectTextAlignX */
-  char _pad[2];
+  char _pad[1];
 
   /** Offsets in characters (unicode code-points) for #TextVars::text_ptr. */
   int cursor_offset;
@@ -469,6 +470,13 @@ typedef struct TextVars {
    * #TextVars::text_ptr and #TextVars::text_len_bytes are used for full text. */
   char text_legacy[512];
 } TextVars;
+
+/** #TextVars.outline_position */
+typedef enum eEffectTextOutlinePosition {
+  SEQ_TEXT_OUTLINE_CENTER = 0,
+  SEQ_TEXT_OUTLINE_OUTSIDE = 1,
+  SEQ_TEXT_OUTLINE_INSIDE = 2,
+} eEffectTextOutlinePosition;
 
 /** #TextVars.flag */
 typedef enum eEffectTextFlags {
