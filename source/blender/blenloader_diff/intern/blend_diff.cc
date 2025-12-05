@@ -307,6 +307,13 @@ class DiffWriter {
     fmt::format_to(dst_, " {}\n", line);
   }
 
+  void writeln_if_changed(const StringRef old_line, const StringRef new_line)
+  {
+    if (old_line != new_line) {
+      this->writeln_changed(old_line, new_line);
+    }
+  }
+
   void writeln_changed(const StringRef old_line, const StringRef new_line)
   {
     this->writeln_removed(old_line);
@@ -488,6 +495,27 @@ static std::string primitive_value_to_string(const PrimitiveValue &value)
   return std::visit([](const auto &v) { return std::to_string(v); }, value);
 }
 
+static Vector<const BlendBlock *> gather_linked_list_pointees(const uint64_t first_address,
+                                                              const AddressMap &address_map,
+                                                              const RichSDNA &sdna)
+{
+  Vector<const BlendBlock *> pointees;
+  uint64_t next_address = first_address;
+  while (const BlendBlock *block = address_map.map.lookup_default(next_address, nullptr)) {
+    pointees.append(block);
+    const Struct *sdna_struct = sdna.try_find_struct(block->bhead.SDNAnr);
+    if (!sdna_struct) {
+      break;
+    }
+    // TODO: Actually check that the first (nested) member is a pointer.
+    if (sdna_struct->type->size_in_bytes < 8) {
+      break;
+    }
+    next_address = *reinterpret_cast<const uint64_t *>(block->data);
+  }
+  return pointees;
+}
+
 static void handle_block_pair_recursive(DiffWriter &writer,
                                         const BlendBlock &old_block,
                                         const BlendBlock &new_block,
@@ -502,6 +530,31 @@ static void handle_block_pair_recursive(DiffWriter &writer,
                                         BlockMatchMap &matches,
                                         Stack<BlockMatch> &matches_to_check)
 {
+  if (old_struct.type->name != new_struct.type->name) {
+    return;
+  }
+  if (old_struct.type->name == "ListBase") {
+    const Vector<const BlendBlock *> old_pointees = gather_linked_list_pointees(
+        *reinterpret_cast<const uint64_t *>(old_block.data + old_start),
+        address_map_old,
+        sdna_old);
+    const Vector<const BlendBlock *> new_pointees = gather_linked_list_pointees(
+        *reinterpret_cast<const uint64_t *>(new_block.data + new_start),
+        address_map_new,
+        sdna_new);
+    if (old_pointees.size() != new_pointees.size()) {
+      return;
+    }
+    for (const int i : old_pointees.index_range()) {
+      const BlendBlock &old_pointee = *old_pointees[i];
+      const BlendBlock &new_pointee = *new_pointees[i];
+      if (matches.add(&old_pointee, &new_pointee)) {
+        matches_to_check.push({&old_pointee, &new_pointee});
+      }
+    }
+    return;
+  }
+
   for (const StructMember *old_member : old_struct.members) {
     const StructMember *new_member = new_struct.members.lookup_key_default_as(
         old_member->identifier, nullptr);
@@ -637,8 +690,9 @@ static void write_diff_blocks(DiffWriter &writer,
     const Struct *old_parent_struct = sdna_old.try_find_struct(match.old_block->bhead.SDNAnr);
     const Struct *new_parent_struct = sdna_new.try_find_struct(match.new_block->bhead.SDNAnr);
     if (!old_parent_struct || !new_parent_struct) {
-      return;
+      continue;
     }
+
     handle_block_pair_recursive(writer,
                                 *match.old_block,
                                 *match.new_block,
