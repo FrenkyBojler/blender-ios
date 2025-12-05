@@ -728,8 +728,7 @@ static bool paint_draw_tex_overlay(Paint *paint,
 
 /* Draw an overlay that shows what effect the brush's texture will
  * have on brush strength. */
-static bool paint_draw_cursor_overlay(
-    Paint *paint, Brush *brush, ViewContext *vc, int x, int y, float zoom)
+static bool paint_draw_cursor_overlay(Paint *paint, Brush *brush, int x, int y, float zoom)
 {
   rctf quad;
   /* Check for overlay mode. */
@@ -845,7 +844,7 @@ static bool paint_draw_alpha_overlay(
           paint, brush, vc, x, y, zoom, mode, false, false);
     }
     if (!(flags & PAINT_OVERLAY_OVERRIDE_CURSOR)) {
-      alpha_overlay_active = paint_draw_cursor_overlay(paint, brush, vc, x, y, zoom);
+      alpha_overlay_active = paint_draw_cursor_overlay(paint, brush, x, y, zoom);
     }
   }
   else {
@@ -854,7 +853,7 @@ static bool paint_draw_alpha_overlay(
           paint, brush, vc, x, y, zoom, mode, false, true);
     }
     if (!(flags & PAINT_OVERLAY_OVERRIDE_CURSOR)) {
-      alpha_overlay_active = paint_draw_cursor_overlay(paint, brush, vc, x, y, zoom);
+      alpha_overlay_active = paint_draw_cursor_overlay(paint, brush, x, y, zoom);
     }
   }
 

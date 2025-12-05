@@ -37,6 +37,7 @@ struct PointerRNA;
 struct RegionView3D;
 struct ReportList;
 struct Scene;
+struct ScrArea;
 struct SculptSession;
 struct SpaceImage;
 struct ToolSettings;
