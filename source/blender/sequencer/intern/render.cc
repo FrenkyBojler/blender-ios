@@ -365,6 +365,11 @@ static bool sequencer_use_transform(const Strip *strip)
 {
   const StripTransform *transform = strip->data->transform;
 
+  /* Text X/Y position is applied by text rendering. */
+  if (strip->type == STRIP_TYPE_TEXT) {
+    return transform->scale_x != 1 || transform->scale_y != 1 || transform->rotation != 0;
+  }
+
   if (transform->xofs != 0 || transform->yofs != 0 || transform->scale_x != 1 ||
       transform->scale_y != 1 || transform->rotation != 0)
   {
@@ -456,8 +461,14 @@ static float3x3 calc_strip_transform_matrix(const Scene *scene,
    * interpolated. Interpolation with 0 user defined translation is unwanted behavior. */
   const int3 image_center_offs((out_x - in_x) / 2, (out_y - in_y) / 2, 0);
 
-  const float2 translation(transform->xofs * preview_scale_factor,
-                           transform->yofs * preview_scale_factor);
+  float2 translation(transform->xofs * preview_scale_factor,
+                     transform->yofs * preview_scale_factor);
+
+  /* Optimization for effect strip drawing. */
+  if (strip->type == STRIP_TYPE_TEXT) {
+    translation = {0.0f, 0.0f};
+  }
+
   const float rotation = transform->rotation;
   const float2 scale(transform->scale_x * image_scale_factor,
                      transform->scale_y * image_scale_factor);

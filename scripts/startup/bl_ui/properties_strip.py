@@ -289,7 +289,6 @@ class STRIP_PT_effect_text_layout(StripButtonsPanel, Panel):
         layout = self.layout
         layout.use_property_split = True
         col = layout.column()
-        col.prop(strip, "location", text="Location")
         col.prop(strip, "alignment_x", text="Alignment X")
         col.prop(strip, "anchor_x", text="Anchor X")
         col.prop(strip, "anchor_y", text="Y")

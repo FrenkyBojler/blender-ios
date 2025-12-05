@@ -440,7 +440,7 @@ typedef struct TextVars {
   int text_blf_id;
   float text_size;
   float color[4], shadow_color[4], box_color[4], outline_color[4];
-  float loc[2];
+  float loc[2] DNA_DEPRECATED;
   float wrap_width;
   float box_margin;
   float box_roundness;

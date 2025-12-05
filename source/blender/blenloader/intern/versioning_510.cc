@@ -279,6 +279,30 @@ static void version_clear_unused_strip_flags(Main &bmain)
   }
 }
 
+/* Convert text X/Y location to strip transform data. */
+static void version_seq_convert_text_offset(Main *bmain)
+{
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    if (scene->ed != nullptr) {
+      blender::float2 scene_render_size(scene->r.xsch, scene->r.ysch);
+      blender::seq::foreach_strip(&scene->ed->seqbase, [&](Strip *strip) -> bool {
+        if (strip->type == STRIP_TYPE_TEXT && strip->effectdata != nullptr) {
+          TextVars *data = static_cast<TextVars *>(strip->effectdata);
+          StripTransform *transform = strip->data->transform;
+          const blender::float2 relative_offset(data->loc[0] - 0.5f, data->loc[1] - 0.5f);
+          if (data->loc[0] != 0.5f) {
+            transform->xofs += relative_offset.x * scene_render_size.x;
+          }
+          if (data->loc[1] != 0.5f) {
+            transform->yofs += relative_offset.y * scene_render_size.y;
+          }
+        }
+        return true;
+      });
+    }
+  }
+}
+
 void do_versions_after_linking_510(FileData * /*fd*/, Main *bmain)
 {
   /* Some blend files were saved with an invalid active viewer key, possibly due to a bug that was
@@ -354,6 +378,10 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         pose_bone->flag &= ~(POSE_SELECTED_ROOT | POSE_SELECTED_TIP);
       }
     }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 9)) {
+    version_seq_convert_text_offset(bmain);
   }
 
   /**

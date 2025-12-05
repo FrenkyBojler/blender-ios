@@ -202,8 +202,6 @@ static void init_text_effect(Strip *strip)
   data->text_ptr = BLI_strdup("Text");
   data->text_len_bytes = strlen(data->text_ptr);
 
-  data->loc[0] = 0.5f;
-  data->loc[1] = 0.5f;
   data->anchor_x = SEQ_TEXT_ALIGN_X_CENTER;
   data->anchor_y = SEQ_TEXT_ALIGN_Y_CENTER;
   data->align = SEQ_TEXT_ALIGN_X_CENTER;
@@ -787,6 +785,16 @@ static void fill_rect_alpha_under(
   });
 }
 
+static float preview_size_compensation_factor_get(const RenderData *context)
+{
+  /* Compensate text size for preview render size. */
+  double proxy_size_comp = context->scene->r.size / 100.0;
+  if (context->preview_render_size != SEQ_RENDER_SIZE_SCENE) {
+    proxy_size_comp = rendersize_to_scale_factor(context->preview_render_size);
+  }
+  return proxy_size_comp;
+}
+
 static int text_effect_line_size_get(const RenderData *context, const Strip *strip)
 {
   TextVars *data = static_cast<TextVars *>(strip->effectdata);
@@ -796,9 +804,7 @@ static int text_effect_line_size_get(const RenderData *context, const Strip *str
     return data->text_size;
   }
 
-  /* Compensate for preview render size. */
-  const float size_scale = seq::get_render_scale_factor(*context);
-  return size_scale * data->text_size;
+  return preview_size_compensation_factor_get(context) * data->text_size;
 }
 
 int text_effect_font_init(const RenderData *context, const Strip *strip, FontFlags font_flags)
@@ -955,37 +961,53 @@ static float2 horizontal_alignment_offset_get(const TextVars *data,
   return {0.0f, 0.0f};
 }
 
-static float2 anchor_offset_get(const TextVars *data, int width_max, int text_height)
+static float2 text_center_get(const RenderData *context,
+                              const Strip *strip,
+                              const int2 image_size,
+                              int width_max,
+                              int text_height)
+{
+  StripTransform *transform = strip->data->transform;
+  const float compensation_fac = preview_size_compensation_factor_get(context);
+  const float2 strip_offset(transform->xofs * compensation_fac,
+                            transform->yofs * compensation_fac);
+  const float2 text_center(-width_max * 0.5f, text_height * 0.5f);
+  const float2 image_center(image_size.x * 0.5f, image_size.y * 0.5f);
+  return image_center + strip_offset + text_center;
+}
+
+float2 text_anchor_offset_get(const TextVars *data, int width_max, int text_height)
 {
   float2 anchor_offset;
-
   switch (data->anchor_x) {
     case SEQ_TEXT_ALIGN_X_LEFT:
-      anchor_offset.x = 0;
+      anchor_offset.x = width_max / 2.0f;
       break;
     case SEQ_TEXT_ALIGN_X_CENTER:
-      anchor_offset.x = -width_max / 2.0f;
+      anchor_offset.x = 0.0f;
       break;
     case SEQ_TEXT_ALIGN_X_RIGHT:
-      anchor_offset.x = -width_max;
+      anchor_offset.x = -width_max / 2.0f;
       break;
   }
   switch (data->anchor_y) {
     case SEQ_TEXT_ALIGN_Y_TOP:
-      anchor_offset.y = 0;
+      anchor_offset.y = -text_height / 2.0f;
       break;
     case SEQ_TEXT_ALIGN_Y_CENTER:
-      anchor_offset.y = text_height / 2.0f;
+      anchor_offset.y = 0.0f;
       break;
     case SEQ_TEXT_ALIGN_Y_BOTTOM:
-      anchor_offset.y = text_height;
+      anchor_offset.y = text_height / 2.0f;
       break;
   }
-
   return anchor_offset;
 }
 
-static void calc_boundbox(const TextVars *data, TextVarsRuntime *runtime, const int2 image_size)
+static void calc_boundbox(const RenderData *context,
+                          const Strip *strip,
+                          TextVarsRuntime *runtime,
+                          const int2 image_size)
 {
   /* `BLF_bounds_max()` is used, because some fonts have glyphs overlapping with lines above. */
   rctf glyph_bounds_max;
@@ -1000,8 +1022,9 @@ static void calc_boundbox(const TextVars *data, TextVarsRuntime *runtime, const 
     width_max = text_height * 2;
   }
 
-  const float2 image_center{data->loc[0] * image_size.x, data->loc[1] * image_size.y};
-  const float2 anchor = anchor_offset_get(data, width_max, text_height);
+  TextVars *data = static_cast<TextVars *>(strip->effectdata);
+  const float2 image_center = text_center_get(context, strip, image_size, width_max, text_height);
+  const float2 anchor = text_anchor_offset_get(data, width_max, text_height);
 
   runtime->text_boundbox.xmin = anchor.x + image_center.x;
   runtime->text_boundbox.xmax = anchor.x + image_center.x + width_max;
@@ -1009,17 +1032,19 @@ static void calc_boundbox(const TextVars *data, TextVarsRuntime *runtime, const 
   runtime->text_boundbox.ymax = runtime->text_boundbox.ymin + text_height;
 }
 
-static void apply_text_alignment(const TextVars *data,
+static void apply_text_alignment(const RenderData *context,
+                                 const Strip *strip,
                                  TextVarsRuntime *runtime,
                                  const int2 image_size)
 {
   const int width_max = text_box_width_get(runtime->lines);
   const int text_height = runtime->lines.size() * runtime->line_height;
 
-  const float2 image_center{data->loc[0] * image_size.x, data->loc[1] * image_size.y};
+  TextVars *data = static_cast<TextVars *>(strip->effectdata);
+  const float2 image_center = text_center_get(context, strip, image_size, width_max, text_height);
   const float2 line_height_offset{0.0f,
                                   float(-runtime->line_height - BLF_descender(runtime->font))};
-  const float2 anchor = anchor_offset_get(data, width_max, text_height);
+  const float2 anchor = text_anchor_offset_get(data, width_max, text_height);
 
   for (LineInfo &line : runtime->lines) {
     const float2 alignment_x = horizontal_alignment_offset_get(data, line.width, width_max);
@@ -1031,7 +1056,10 @@ static void apply_text_alignment(const TextVars *data,
   }
 }
 
-TextVarsRuntime *text_effect_calc_runtime(const Strip *strip, int font, const int2 image_size)
+TextVarsRuntime *text_effect_calc_runtime(const RenderData *context,
+                                          const Strip *strip,
+                                          int font,
+                                          const int2 image_size)
 {
   TextVars *data = static_cast<TextVars *>(strip->effectdata);
   TextVarsRuntime *runtime = MEM_new<TextVarsRuntime>(__func__);
@@ -1043,8 +1071,8 @@ TextVarsRuntime *text_effect_calc_runtime(const Strip *strip, int font, const in
 
   Vector<CharInfo> characters_temp = build_character_info(data, font);
   apply_word_wrapping(data, runtime, image_size, characters_temp);
-  apply_text_alignment(data, runtime, image_size);
-  calc_boundbox(data, runtime, image_size);
+  apply_text_alignment(context, strip, runtime, image_size);
+  calc_boundbox(context, strip, runtime, image_size);
   return runtime;
 }
 
@@ -1074,7 +1102,7 @@ static ImBuf *do_text_effect(const RenderData *context,
     MEM_delete(data->runtime);
   }
 
-  TextVarsRuntime *runtime = text_effect_calc_runtime(strip, font, {out->x, out->y});
+  TextVarsRuntime *runtime = text_effect_calc_runtime(context, strip, font, {out->x, out->y});
   data->runtime = runtime;
 
   rcti outline_rect = draw_text_outline(context, data, runtime, out);

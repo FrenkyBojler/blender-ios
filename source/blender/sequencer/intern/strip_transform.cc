@@ -10,6 +10,7 @@
 
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
+#include "DNA_space_enums.h"
 
 #include "BLI_bounds.hh"
 #include "BLI_listbase.h"
@@ -27,6 +28,7 @@
 #include "SEQ_effects.hh"
 #include "SEQ_iterator.hh"
 #include "SEQ_relations.hh"
+#include "SEQ_render.hh"
 #include "SEQ_sequencer.hh"
 #include "SEQ_time.hh"
 #include "SEQ_transform.hh"
@@ -608,6 +610,22 @@ float2 image_transform_mirror_factor_get(const Strip *strip)
   return mirror;
 }
 
+static TextVarsRuntime *temp_text_runtime_get(const Scene *scene, const Strip *strip)
+{
+  float2 scene_render_size(scene->r.xsch, scene->r.ysch);
+  const TextVars *data = static_cast<TextVars *>(strip->effectdata);
+  const FontFlags font_flags = ((data->flag & SEQ_TEXT_BOLD) ? BLF_BOLD : BLF_NONE) |
+                               ((data->flag & SEQ_TEXT_ITALIC) ? BLF_ITALIC : BLF_NONE);
+  const int font = text_effect_font_init(nullptr, strip, font_flags);
+  /* It's easier to create RenderData than overloaded `text_effect_calc_runtime` function. */
+  RenderData render_data;
+  render_data.scene = const_cast<Scene *>(scene);
+  render_data.rectx = scene_render_size.x;
+  render_data.recty = scene_render_size.y;
+  render_data.preview_render_size = SEQ_RENDER_SIZE_PROXY_100;
+  return text_effect_calc_runtime(&render_data, strip, font, int2(scene_render_size));
+}
+
 float2 transform_image_raw_size_get(const Scene *scene, const Strip *strip)
 {
   float2 scene_render_size(scene->r.xsch, scene->r.ysch);
@@ -625,19 +643,14 @@ float2 transform_image_raw_size_get(const Scene *scene, const Strip *strip)
   }
 
   if (strip->type == STRIP_TYPE_TEXT) {
-    const TextVars *data = static_cast<TextVars *>(strip->effectdata);
-    const FontFlags font_flags = ((data->flag & SEQ_TEXT_BOLD) ? BLF_BOLD : BLF_NONE) |
-                                 ((data->flag & SEQ_TEXT_ITALIC) ? BLF_ITALIC : BLF_NONE);
 
     std::unique_lock<Mutex> lock = text_runtime_scoped_lock_get();
-    const int font = text_effect_font_init(nullptr, strip, font_flags);
-    const TextVarsRuntime *runtime = text_effect_calc_runtime(
-        strip, font, int2(scene_render_size));
-    BLF_disable(font, font_flags);
+    const TextVarsRuntime *temp_text_runtime = temp_text_runtime_get(scene, strip);
+    // BLF_disable(font, font_flags); //XXXXXXX
 
-    const float2 text_size(float(BLI_rcti_size_x(&runtime->text_boundbox)),
-                           float(BLI_rcti_size_y(&runtime->text_boundbox)));
-    MEM_delete(runtime);
+    const float2 text_size(float(BLI_rcti_size_x(&temp_text_runtime->text_boundbox)),
+                           float(BLI_rcti_size_y(&temp_text_runtime->text_boundbox)));
+    MEM_delete(temp_text_runtime);
     return text_size;
   }
 
@@ -646,23 +659,29 @@ float2 transform_image_raw_size_get(const Scene *scene, const Strip *strip)
 
 float2 image_transform_origin_get(const Scene *scene, const Strip *strip)
 {
-
   const StripTransform *transform = strip->data->transform;
   if (strip->type != STRIP_TYPE_TEXT) {
     return {transform->origin[0], transform->origin[1]};
   }
 
-  /* Text image size is different from true image size, so the origin position must be
-   * calculated. */
+  /* Text image size is different from true image size (`scene_render_size`). Normally, 0-1 range
+ represents boundary of the image. In case of all effect strips, this is `scene_render_size`. But
+ to the user, the range is presented as boundary of text boundbox, therefore it needs to be
+ remapped. This means, that the origin position will change when text is edited. */
   float2 scene_render_size(scene->r.xsch, scene->r.ysch);
   const float2 text_image_size = transform_image_raw_size_get(scene, strip);
   const float2 scale = text_image_size / scene_render_size;
   const float2 origin_rel(transform->origin[0], transform->origin[1]);
   const float2 origin_center(0.5f, 0.5f);
   const float2 origin_diff = origin_rel - origin_center;
-
   const float2 true_origin_relative = origin_center + origin_diff * scale;
-  return true_origin_relative;
+
+  /* Translation is applied to text rendering instead of doing matrix transformation as with other
+   * strips. This means, that the pivot must be offset by the same amount, otherwise it would seem,
+   * that it is fixed to particular point on screen. */
+  const float2 translation_offset(transform->xofs / scene->r.xsch,
+                                  transform->yofs / scene->r.ysch);
+  return true_origin_relative + translation_offset;
 }
 
 float2 image_transform_origin_offset_pixelspace_get(const Scene *scene, const Strip *strip)
@@ -713,6 +732,18 @@ static Array<float2> strip_image_transform_quad_get_ex(const Scene *scene,
       {(-image_size[0] / 2) + crop->left, (-image_size[1] / 2) + crop->bottom},
       {(-image_size[0] / 2) + crop->left, (image_size[1] / 2) - crop->top},
   };
+
+  /* Offset text boundbox when anchor is set. */
+  if (strip->type == STRIP_TYPE_TEXT) {
+    TextVars *data = static_cast<TextVars *>(strip->effectdata);
+    TextVarsRuntime *temp_text_runtime = temp_text_runtime_get(scene, strip);
+    for (int i = 0; i < 4; i++) {
+      quad[i] += text_anchor_offset_get(data,
+                                        BLI_rcti_size_x(&temp_text_runtime->text_boundbox),
+                                        BLI_rcti_size_y(&temp_text_runtime->text_boundbox));
+    }
+    MEM_delete(temp_text_runtime);
+  }
 
   const float3x3 matrix = seq_image_transform_matrix_get_ex(scene, strip, apply_rotation);
   const float2 viewport_pixel_aspect(scene->r.xasp / scene->r.yasp, 1.0f);

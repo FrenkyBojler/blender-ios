@@ -661,15 +661,21 @@ void SEQUENCER_OT_text_edit_mode_toggle(wmOperatorType *ot)
   ot->flag = OPTYPE_UNDO;
 }
 
-static int find_closest_cursor_offset(const TextVars *data, float2 mouse_loc)
+static int find_closest_cursor_offset(const Strip *strip, float2 mouse_loc)
 {
+  TextVars *data = static_cast<TextVars *>(strip->effectdata);
   const TextVarsRuntime *text = data->runtime;
   int best_cursor_offset = 0;
   float best_distance = std::numeric_limits<float>::max();
 
+  StripTransform *transform = strip->data->transform;
+  const float2 translation(transform->xofs, transform->yofs);
+
   for (const seq::LineInfo &line : text->lines) {
     for (const seq::CharInfo &character : line.characters) {
-      const float distance = math::distance(mouse_loc, character.position);
+      /* Character position already has translation applied, but cursor position was transformed
+       * effectively doubling this translation. */
+      const float distance = math::distance(mouse_loc, character.position - translation);
       if (distance < best_distance) {
         best_distance = distance;
         best_cursor_offset = character.index;
@@ -702,7 +708,7 @@ static void cursor_set_by_mouse_position(const bContext *C, const wmEvent *event
   mouse_loc.x /= view_aspect;
   mouse_loc = math::transform_point(transform_mat, mouse_loc);
   mouse_loc -= view_offs;
-  data->cursor_offset = find_closest_cursor_offset(data, float2(mouse_loc));
+  data->cursor_offset = find_closest_cursor_offset(strip, float2(mouse_loc));
 }
 
 static wmOperatorStatus sequencer_text_cursor_set_modal(bContext *C,

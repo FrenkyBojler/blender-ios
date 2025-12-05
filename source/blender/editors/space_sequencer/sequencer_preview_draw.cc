@@ -1079,11 +1079,17 @@ static void text_selection_draw(const bContext *C, const Strip *strip, uint pos)
     return;
   }
 
+  StripTransform *transform = strip->data->transform;
+  const float2 translation(transform->xofs, transform->yofs);
+  const float2 view_offs{-scene->r.xsch / 2.0f, -scene->r.ysch / 2.0f};
+  const float view_aspect = scene->r.xasp / scene->r.yasp;
   const IndexRange sel_range = strip_text_selection_range_get(data);
   const int2 selection_start = strip_text_cursor_offset_to_position(text, sel_range.first());
   const int2 selection_end = strip_text_cursor_offset_to_position(text, sel_range.last());
   const int line_start = selection_start.y;
   const int line_end = selection_end.y;
+
+  float3x3 transform_mat = seq::image_transform_matrix_get(scene, strip);
 
   for (int line_index = line_start; line_index <= line_end; line_index++) {
     const seq::LineInfo line = text->lines[line_index];
@@ -1097,16 +1103,17 @@ static void text_selection_draw(const bContext *C, const Strip *strip, uint pos)
       character_end = line.characters[selection_end.x];
     }
 
-    const float line_y = character_start.position.y + text->font_descender;
+    /* Character position already has translation applied. However the `transform_mat` would apply
+     * translation again. Therefore it must be subtracted here. */
+    const float2 character_start_coords = character_start.position - translation;
+    const float2 character_end_coords = character_end.position - translation;
+    const float line_y = character_start_coords.y + text->font_descender;
 
-    const float2 view_offs{-scene->r.xsch / 2.0f, -scene->r.ysch / 2.0f};
-    const float view_aspect = scene->r.xasp / scene->r.yasp;
-    float3x3 transform_mat = seq::image_transform_matrix_get(scene, strip);
     float2 selection_quad[4] = {
-        {character_start.position.x, line_y},
-        {character_start.position.x, line_y + text->line_height},
-        {character_end.position.x + character_end.advance_x, line_y + text->line_height},
-        {character_end.position.x + character_end.advance_x, line_y},
+        {character_start_coords.x, line_y},
+        {character_start_coords.x, line_y + text->line_height},
+        {character_end_coords.x + character_end.advance_x, line_y + text->line_height},
+        {character_end_coords.x + character_end.advance_x, line_y},
     };
 
     immBegin(GPU_PRIM_TRIS, 6);
@@ -1147,16 +1154,23 @@ static void text_edit_draw_cursor(const bContext *C, const Strip *strip, uint po
   const float view_aspect = scene->r.xasp / scene->r.yasp;
   float3x3 transform_mat = seq::image_transform_matrix_get(scene, strip);
   const int2 cursor_position = strip_text_cursor_offset_to_position(text, data->cursor_offset);
+
+  StripTransform *transform = strip->data->transform;
+  const float2 translation(transform->xofs, transform->yofs);
+
   const float cursor_width = 10;
-  float2 cursor_coords = text->lines[cursor_position.y].characters[cursor_position.x].position;
+  /* Character position already has translation applied. Howevr the `transform_mat` would apply
+   * translation again. Therefore it must be subtracted here. */
+  float2 cursor_coords = text->lines[cursor_position.y].characters[cursor_position.x].position -
+                         translation;
   /* Clamp cursor coords to be inside of text boundbox. Compensate for cursor width, but also line
    * width hardcoded in shader. */
-  const float bound_left = float(text->text_boundbox.xmin) + U.pixelsize;
-  const float bound_right = float(text->text_boundbox.xmax) - (cursor_width + U.pixelsize);
+  const float bound_left = float(text->text_boundbox.xmin) - translation.x + U.pixelsize;
+  const float bound_right = float(text->text_boundbox.xmax) - translation.x +
+                            (cursor_width + U.pixelsize);
   /* Note: do not use std::clamp since due to math above left can become larger than right. */
   cursor_coords.x = std::max(cursor_coords.x, bound_left);
   cursor_coords.x = std::min(cursor_coords.x, bound_right);
-
   cursor_coords = coords_region_view_align(UI_view2d_fromcontext(C), cursor_coords);
 
   float2 cursor_quad[4] = {

@@ -759,6 +759,14 @@ static void rna_StripTransform_update(Main * /*bmain*/, Scene * /*scene*/, Point
   Editing *ed = blender::seq::editing_get(scene);
   Strip *strip = strip_get_by_transform(ed, static_cast<StripTransform *>(ptr->data));
 
+  /* Text effect raw image changes, because translation is directly applied to text rendering. */
+  if (strip->type == STRIP_TYPE_TEXT) {
+    blender::seq::relations_invalidate_cache_raw(scene, strip);
+  }
+  else {
+    blender::seq::relations_invalidate_cache(scene, strip);
+  }
+
   blender::seq::relations_invalidate_cache(scene, strip);
 }
 
@@ -3603,13 +3611,6 @@ static void rna_def_text(StructRNA *srna)
   prop = RNA_def_property(srna, "box_color", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_float_sdna(prop, nullptr, "box_color");
   RNA_def_property_ui_text(prop, "Box Color", "");
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
-
-  prop = RNA_def_property(srna, "location", PROP_FLOAT, PROP_XYZ);
-  RNA_def_property_float_sdna(prop, nullptr, "loc");
-  RNA_def_property_ui_text(prop, "Location", "Location of the text");
-  RNA_def_property_range(prop, -FLT_MAX, FLT_MAX);
-  RNA_def_property_ui_range(prop, -10.0, 10.0, 1, -1);
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
 
   prop = RNA_def_property(srna, "wrap_width", PROP_FLOAT, PROP_NONE);
