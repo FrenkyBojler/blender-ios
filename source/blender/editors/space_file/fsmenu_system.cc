@@ -373,9 +373,7 @@ void fsmenu_read_system(FSMenu *fsmenu, int read_bookmarks)
             char lpRemoteName[MAX_PATH];
             DWORD lpnLength = sizeof(lpRemoteName);
             if (WNetGetConnection(lpLocalName, lpRemoteName, &lpnLength) == NO_ERROR) {
-              if (STRPREFIX(lpRemoteName, "https:")) {
-                is_cloud = true;
-              }
+              is_cloud = STRPREFIX(lpRemoteName, "https:");
             }
             icon = is_cloud ? ICON_INTERNET : ICON_NETWORK_DRIVE;
             break;
