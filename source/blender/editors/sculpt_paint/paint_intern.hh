@@ -11,11 +11,15 @@
 #include "BLI_index_mask_fwd.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_span.hh"
+#include "BLI_rand.hh"
 
 #include "DNA_object_enums.h"
 #include "DNA_scene_enums.h"
+#include "DNA_scene_types.h"
 #include "DNA_vec_types.h"
 #include "DNA_windowmanager_enums.h"
+
+#include "ED_view3d.hh"
 
 #include <optional>
 
@@ -55,7 +59,9 @@ class Node;
 }
 
 namespace ed::sculpt_paint {
+class PaintModeData;
 struct PaintStroke;
+struct PaintSample;
 struct StrokeCache;
 }  // namespace ed::sculpt_paint
 
@@ -74,7 +80,7 @@ namespace blender::ed::sculpt_paint {
  * \param location: resulting object space coordinates
  * \returns whether or not a value was actually found & the value in location is usable
  */
-using StrokeGetLocation = bool (*)(bContext *C,
+using StrokeGetLocation = bool (*)(PaintStroke *paint_stroke,
                                    float location[3],
                                    const float mouse[2],
                                    bool force_original);
@@ -83,26 +89,25 @@ using StrokeGetLocation = bool (*)(bContext *C,
  *
  * In many cases, this is a check to whether the stroke is over the active mesh.
  */
-using StrokeTestStart = bool (*)(bContext *C, wmOperator *op, const float mouse[2]);
+using StrokeTestStart = bool (*)(wmOperator *op, PaintStroke *paint_stroke, const float mouse[2]);
 
 /**
  * Callback function for performing a paint stroke for a new step.
  */
-using StrokeUpdateStep = void (*)(bContext *C,
-                                  wmOperator *op,
+using StrokeUpdateStep = void (*)(wmOperator *op,
                                   PaintStroke *stroke,
                                   PointerRNA *itemptr);
 
 /**
  * Callback function for performing necessary redraw functions based on the stroke.
  */
-using StrokeRedraw = void (*)(const bContext *C, PaintStroke *stroke, bool final);
+using StrokeRedraw = void (*)(PaintStroke *stroke, bool final);
 
 /**
  * Callback function for dynamically determining if a stroke can be cancelled. If not present,
  * cancelling is dependent on whether the operator has a `cancel` callback defined.
  */
-using StrokeTestCancel = bool (*)(const bContext *C, PaintStroke *stroke);
+using StrokeTestCancel = bool (*)(PaintStroke *stroke);
 
 /**
  * Callback function for cleaning up and finalizing data after a stroke has finished.
@@ -110,7 +115,105 @@ using StrokeTestCancel = bool (*)(const bContext *C, PaintStroke *stroke);
  * \param is_cancel: Some paint modes support cancelling a stroke and returning to the initial
  * state. This parameter indicates this case so that appropriate cleanup actions can be taken.
  */
-using StrokeDone = void (*)(const bContext *C, PaintStroke *stroke, bool is_cancel);
+using StrokeDone = void (*)(PaintStroke *stroke, bool is_cancel);
+
+struct PaintSample {
+  float2 mouse;
+  float pressure;
+};
+
+/**
+ * Common structure for various paint operators (e.g. Sculpt, Grease Pencil, Curves Sculpt)
+ *
+ * Callback functions defined and stored on this struct (e.g. `StrokeGetLocation`) allow each of
+ * these modes to customize specific behavior while still sharing other common handing.
+ *
+ * See #paint_stroke_modal for the majority of the paint operator logic.
+ */
+struct PaintStroke {
+  /* TODO: Temporary, used to assist removing usage of bContext in PaintStroke callbacks.
+   * See #149378 */
+  bContext *evil_C;
+
+  /* Cached values */
+  ViewContext vc;
+  Paint *paint;
+  Brush *brush;
+  UnifiedPaintSettings *ups;
+
+  wmOperatorStatus modal(bContext *C, wmOperator *op, const wmEvent *event);
+  wmOperatorStatus exec(bContext *C, wmOperator *op);
+
+  void free(bContext *C, wmOperator *op);
+  void cancel(bContext *C, wmOperator *op);
+
+ protected:
+  PaintStroke() = delete;
+  PaintStroke(bContext *C, wmOperator *op, int event_type);
+  virtual bool get_location(float location[3], const float mouse[2], bool force_original) = 0;
+  virtual bool test_start(const float mouse[2]) = 0;
+  virtual void update_step(wmOperator *op, PointerRNA *itemptr) = 0;
+  virtual void redraw(bool final) = 0;
+  virtual bool test_cancel() = 0;
+  virtual void done(bool is_cancel) = 0;
+
+private:
+  std::unique_ptr<PaintModeData> mode_data;
+  void *stroke_cursor;
+  wmTimer *timer;
+  std::optional<RandomNumberGenerator> rng;
+
+  /* Paint stroke can use up to PAINT_MAX_INPUT_SAMPLES prior inputs
+   * to smooth the stroke */
+  PaintSample samples[PAINT_MAX_INPUT_SAMPLES];
+  int num_samples;
+  int cur_sample;
+  int tot_samples;
+
+  float2 last_mouse_position;
+  float3 last_world_space_position;
+  float3 last_scene_spacing_delta;
+
+  bool stroke_over_mesh;
+  /* space distance covered so far */
+  float stroke_distance;
+
+  /* Set whether any stroke step has yet occurred
+   * e.g. in sculpt mode, stroke doesn't start until cursor
+   * passes over the mesh */
+  bool stroke_started;
+  /* Set when enough motion was found for rake rotation */
+  bool rake_started;
+  /* event that started stroke, for modal() return */
+  int event_type;
+  /* check if stroke variables have been initialized */
+  bool stroke_init;
+  /* check if input variables have been initialized (e.g. cursor position & pressure)*/
+  bool input_init;
+  float2 initial_mouse;
+  float cached_size_pressure;
+  /* last pressure will store last pressure value for use in interpolation for space strokes */
+  float last_pressure;
+  int stroke_mode;
+
+  float last_tablet_event_pressure;
+
+  float zoom_2d;
+  bool pen_flip;
+
+  /* Tilt, as read from the event. */
+  float2 tilt;
+
+  /* line constraint */
+  bool constrain_line;
+  float2 constrained_pos;
+
+
+  bool original; /* Ray-cast original mesh at start of stroke. */
+
+  void stroke_done(bContext *C, wmOperator *op, bool is_cancel);
+};
+
 
 PaintStroke *paint_stroke_new(bContext *C,
                               wmOperator *op,

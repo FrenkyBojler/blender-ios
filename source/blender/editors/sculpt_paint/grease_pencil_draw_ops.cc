@@ -78,7 +78,7 @@ namespace blender::ed::sculpt_paint {
 /** \name Common Paint Operator Functions
  * \{ */
 
-static bool stroke_get_location(bContext * /*C*/,
+static bool stroke_get_location(PaintStroke * /*stroke*/,
                                 float out[3],
                                 const float mouse[2],
                                 bool /*force_original*/)
@@ -177,16 +177,14 @@ static std::unique_ptr<GreasePencilStrokeOperation> get_stroke_operation(bContex
   return nullptr;
 }
 
-static bool stroke_test_start(bContext *C, wmOperator *op, const float mouse[2])
+static bool stroke_test_start(wmOperator * /*op*/,
+                              PaintStroke * /*stroke*/,
+                              const float /*mouse*/[2])
 {
-  UNUSED_VARS(C, op, mouse);
   return true;
 }
 
-static void stroke_update_step(bContext *C,
-                               wmOperator *op,
-                               PaintStroke *stroke,
-                               PointerRNA *stroke_element)
+static void stroke_update_step(wmOperator *op, PaintStroke *stroke, PointerRNA *stroke_element)
 {
   GreasePencilStrokeOperation *operation = static_cast<GreasePencilStrokeOperation *>(
       paint_stroke_mode_data(stroke));
@@ -196,27 +194,27 @@ static void stroke_update_step(bContext *C,
   sample.pressure = RNA_float_get(stroke_element, "pressure");
 
   if (!operation) {
-    std::unique_ptr<GreasePencilStrokeOperation> new_operation = get_stroke_operation(*C, op);
+    std::unique_ptr<GreasePencilStrokeOperation> new_operation = get_stroke_operation(*stroke->evil_C, op);
     BLI_assert(new_operation != nullptr);
-    new_operation->on_stroke_begin(*C, sample);
+    new_operation->on_stroke_begin(*stroke->evil_C, sample);
     paint_stroke_set_mode_data(stroke, std::move(new_operation));
   }
   else {
-    operation->on_stroke_extended(*C, sample);
+    operation->on_stroke_extended(*stroke->evil_C, sample);
   }
 }
 
-static void stroke_redraw(const bContext *C, PaintStroke * /*stroke*/, bool /*final*/)
+static void stroke_redraw(PaintStroke *stroke, bool /*final*/)
 {
-  ED_region_tag_redraw(CTX_wm_region(C));
+  ED_region_tag_redraw(CTX_wm_region(stroke->evil_C));
 }
 
-static void stroke_done(const bContext *C, PaintStroke *stroke, bool /*is_cancel*/)
+static void stroke_done(PaintStroke *stroke, bool /*is_cancel*/)
 {
   GreasePencilStrokeOperation *operation = static_cast<GreasePencilStrokeOperation *>(
       paint_stroke_mode_data(stroke));
   if (operation != nullptr) {
-    operation->on_stroke_done(*C);
+    operation->on_stroke_done(*stroke->evil_C);
   }
 }
 
@@ -1864,7 +1862,7 @@ static inline bool is_point_inside_bounds(const Bounds<int2> bounds, const int2 
 static inline bool is_point_inside_lasso(const Array<int2> lasso, const int2 point)
 {
   return isect_point_poly_v2_int(
-      point, reinterpret_cast<const int (*)[2]>(lasso.data()), uint(lasso.size()));
+      point, reinterpret_cast<const int(*)[2]>(lasso.data()), uint(lasso.size()));
 }
 
 static wmOperatorStatus grease_pencil_erase_lasso_exec(bContext *C, wmOperator *op)

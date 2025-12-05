@@ -59,86 +59,6 @@
 
 namespace blender::ed::sculpt_paint {
 
-struct PaintSample {
-  float2 mouse;
-  float pressure;
-};
-
-/**
- * Common structure for various paint operators (e.g. Sculpt, Grease Pencil, Curves Sculpt)
- *
- * Callback functions defined and stored on this struct (e.g. `StrokeGetLocation`) allow each of
- * these modes to customize specific behavior while still sharing other common handing.
- *
- * See #paint_stroke_modal for the majority of the paint operator logic.
- */
-struct PaintStroke {
-  std::unique_ptr<PaintModeData> mode_data;
-  void *stroke_cursor;
-  wmTimer *timer;
-  std::optional<RandomNumberGenerator> rng;
-
-  /* Cached values */
-  ViewContext vc;
-  Paint *paint;
-  Brush *brush;
-  UnifiedPaintSettings *ups;
-
-  /* Paint stroke can use up to PAINT_MAX_INPUT_SAMPLES prior inputs
-   * to smooth the stroke */
-  PaintSample samples[PAINT_MAX_INPUT_SAMPLES];
-  int num_samples;
-  int cur_sample;
-  int tot_samples;
-
-  float2 last_mouse_position;
-  float3 last_world_space_position;
-  float3 last_scene_spacing_delta;
-
-  bool stroke_over_mesh;
-  /* space distance covered so far */
-  float stroke_distance;
-
-  /* Set whether any stroke step has yet occurred
-   * e.g. in sculpt mode, stroke doesn't start until cursor
-   * passes over the mesh */
-  bool stroke_started;
-  /* Set when enough motion was found for rake rotation */
-  bool rake_started;
-  /* event that started stroke, for modal() return */
-  int event_type;
-  /* check if stroke variables have been initialized */
-  bool stroke_init;
-  /* check if input variables have been initialized (e.g. cursor position & pressure)*/
-  bool input_init;
-  float2 initial_mouse;
-  float cached_size_pressure;
-  /* last pressure will store last pressure value for use in interpolation for space strokes */
-  float last_pressure;
-  int stroke_mode;
-
-  float last_tablet_event_pressure;
-
-  float zoom_2d;
-  bool pen_flip;
-
-  /* Tilt, as read from the event. */
-  float2 tilt;
-
-  /* line constraint */
-  bool constrain_line;
-  float2 constrained_pos;
-
-  StrokeGetLocation get_location;
-  StrokeTestStart test_start;
-  StrokeUpdateStep update_step;
-  StrokeRedraw redraw;
-  StrokeTestCancel test_cancel;
-  StrokeDone done;
-
-  bool original; /* Ray-cast original mesh at start of stroke. */
-};
-
 /*** Cursors ***/
 static void paint_draw_smooth_cursor(bContext *C,
                                      const blender::int2 &xy,
@@ -913,6 +833,74 @@ static bool print_pressure_status_enabled()
 
 /**** Public API ****/
 
+PaintStroke::PaintStroke(bContext* C, wmOperator* op, int event_type) : event_type(event_type)
+{
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  paint = BKE_paint_get_active_from_context(C);
+  ups = &paint->unified_paint_settings;
+  bke::PaintRuntime *paint_runtime = paint->runtime;
+  brush = BKE_paint_brush(paint);
+  RegionView3D *rv3d = CTX_wm_region_view3d(C);
+
+  vc = ED_view3d_viewcontext_init(C, depsgraph);
+
+  stroke_mode = RNA_enum_get(op->ptr, "mode");
+
+  original = paint_brush_type_raycast_original(*brush, BKE_paintmode_get_active_from_context(C));
+
+  float zoomx;
+  float zoomy;
+  get_imapaint_zoom(C, &zoomx, &zoomy);
+  zoom_2d = std::max(zoomx, zoomy);
+
+  /* Check here if color sampling the main brush should do color conversion. This is done here
+   * to avoid locking up to get the image buffer during sampling. */
+  paint_runtime->do_linear_conversion = false;
+  paint_runtime->colorspace = nullptr;
+
+  if (brush->mtex.tex && brush->mtex.tex->type == TEX_IMAGE && brush->mtex.tex->ima) {
+    ImBuf *tex_ibuf = BKE_image_pool_acquire_ibuf(
+        brush->mtex.tex->ima, &brush->mtex.tex->iuser, nullptr);
+    if (tex_ibuf && tex_ibuf->float_buffer.data == nullptr) {
+      paint_runtime->do_linear_conversion = true;
+      paint_runtime->colorspace = tex_ibuf->byte_buffer.colorspace;
+    }
+    BKE_image_pool_release_ibuf(brush->mtex.tex->ima, tex_ibuf, nullptr);
+  }
+
+  if (stroke_mode == BRUSH_STROKE_INVERT) {
+    if (brush->flag & BRUSH_CURVE) {
+      RNA_enum_set(op->ptr, "mode", BRUSH_STROKE_NORMAL);
+    }
+  }
+  /* initialize here */
+  paint_runtime->overlap_factor = 1.0;
+  paint_runtime->stroke_active = true;
+
+  if (rv3d) {
+    rv3d->rflag |= RV3D_PAINTING;
+  }
+
+  /* Preserve location from last stroke while applying and resetting
+   * ups->average_stroke_counter to 1.
+   */
+  if (paint_runtime->average_stroke_counter) {
+    mul_v3_fl(paint_runtime->average_stroke_accum,
+              1.0f / float(paint_runtime->average_stroke_counter));
+    paint_runtime->average_stroke_counter = 1;
+  }
+
+  /* initialize here to avoid initialization conflict with threaded strokes */
+  BKE_curvemapping_init(brush->curve_distance_falloff);
+  if (paint->flags & PAINT_USE_CAVITY_MASK) {
+    BKE_curvemapping_init(paint->cavity_curve);
+  }
+
+  BKE_paint_set_overlay_override(eOverlayFlags(brush->overlay_flags));
+
+  paint_runtime->start_pixel_radius = BKE_brush_radius_get(paint, brush);
+}
+
 PaintStroke *paint_stroke_new(bContext *C,
                               wmOperator *op,
                               const StrokeGetLocation get_location,
@@ -940,6 +928,7 @@ PaintStroke *paint_stroke_new(bContext *C,
   stroke->redraw = redraw;
   stroke->test_cancel = test_cancel;
   stroke->done = done;
+
   stroke->event_type = event_type; /* for modal, return event */
   stroke->ups = ups;
   stroke->stroke_mode = RNA_enum_get(op->ptr, "mode");
@@ -1002,62 +991,60 @@ PaintStroke *paint_stroke_new(bContext *C,
   return stroke;
 }
 
-void paint_stroke_free(bContext *C, wmOperator * /*op*/, PaintStroke *stroke)
+void PaintStroke::free(bContext *C, wmOperator * /*op*/)
 {
   if (RegionView3D *rv3d = CTX_wm_region_view3d(C)) {
     rv3d->rflag &= ~RV3D_PAINTING;
   }
 
+  /* TODO: null check removed ? */
+
   BKE_paint_set_overlay_override(eOverlayFlags(0));
 
-  if (stroke == nullptr) {
-    return;
-  }
-
-  bke::PaintRuntime *paint_runtime = stroke->paint->runtime;
+  bke::PaintRuntime *paint_runtime = paint->runtime;
   paint_runtime->draw_anchored = false;
   paint_runtime->stroke_active = false;
 
-  if (stroke->timer) {
-    WM_event_timer_remove(CTX_wm_manager(C), CTX_wm_window(C), stroke->timer);
+  if (timer) {
+    WM_event_timer_remove(CTX_wm_manager(C), CTX_wm_window(C), timer);
   }
 
-  if (stroke->stroke_cursor) {
-    WM_paint_cursor_end(static_cast<wmPaintCursor *>(stroke->stroke_cursor));
+  if (stroke_cursor) {
+    WM_paint_cursor_end(static_cast<wmPaintCursor *>(stroke_cursor));
   }
 
-  MEM_delete(stroke);
+  /* TODO: Doesn't free self */
 }
 
-static void stroke_done(bContext *C, wmOperator *op, PaintStroke *stroke, const bool is_cancel)
+void PaintStroke::stroke_done(bContext *C, wmOperator *op, const bool is_cancel)
 {
   if (print_pressure_status_enabled()) {
     ED_workspace_status_text(C, nullptr);
   }
-  bke::PaintRuntime *paint_runtime = stroke->paint->runtime;
+  bke::PaintRuntime *paint_runtime = paint->runtime;
 
   /* reset rotation here to avoid doing so in cursor display */
-  if (stroke->brush) {
-    if (!(stroke->brush->mtex.brush_angle_mode & MTEX_ANGLE_RAKE)) {
+  if (brush) {
+    if (!(brush->mtex.brush_angle_mode & MTEX_ANGLE_RAKE)) {
       paint_runtime->brush_rotation = 0.0f;
     }
 
-    if (!(stroke->brush->mask_mtex.brush_angle_mode & MTEX_ANGLE_RAKE)) {
+    if (!(brush->mask_mtex.brush_angle_mode & MTEX_ANGLE_RAKE)) {
       paint_runtime->brush_rotation_sec = 0.0f;
     }
   }
 
-  if (stroke->stroke_started) {
-    if (stroke->redraw) {
-      stroke->redraw(C, stroke, true);
+  if (stroke_started) {
+    if (redraw) {
+      redraw(true);
     }
 
-    if (stroke->done) {
-      stroke->done(C, stroke, is_cancel);
+    if (done) {
+      done(is_cancel);
     }
   }
 
-  paint_stroke_free(C, op, stroke);
+  free(C, op);
 }
 
 static bool curves_sculpt_brush_uses_spacing(const eBrushCurvesSculptType tool)
@@ -1489,14 +1476,12 @@ static void paint_stroke_line_constrain(PaintStroke *stroke, float2 &mouse)
   }
 }
 
-wmOperatorStatus paint_stroke_modal(bContext *C,
+wmOperatorStatus PaintStroke::modal(bContext *C,
                                     wmOperator *op,
-                                    const wmEvent *event,
-                                    PaintStroke **stroke_p)
+                                    const wmEvent *event)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
-  PaintStroke *stroke = *stroke_p;
-  const Brush *br = stroke->brush = BKE_paint_brush(paint);
+  const Brush *br = brush = BKE_paint_brush(paint);
   if (paint == nullptr || br == nullptr) {
     /* In some circumstances, the context may change during modal execution. In this case,
      * we need to cancel the operator. See #147544 and related issues for further information. */
@@ -1796,9 +1781,9 @@ wmOperatorStatus paint_stroke_exec(bContext *C, wmOperator *op, PaintStroke *str
   return ok ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
-void paint_stroke_cancel(bContext *C, wmOperator *op, PaintStroke *stroke)
+void PaintStroke::cancel(bContext *C, wmOperator *op)
 {
-  stroke_done(C, op, stroke, true);
+  stroke_done(C, op, true);
 }
 
 ViewContext *paint_stroke_view_context(PaintStroke *stroke)
