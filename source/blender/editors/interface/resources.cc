@@ -37,12 +37,16 @@
 
 namespace blender::ui {
 
+namespace theme {
+
 /* be sure to keep 'bThemeState' in sync */
 static bThemeState g_theme_state = {
     nullptr,
     SPACE_VIEW3D,
     RGN_TYPE_WINDOW,
 };
+
+}  // namespace theme
 
 /* -------------------------------------------------------------------- */
 /** \name Init/Exit
@@ -59,6 +63,15 @@ void ui_resources_free()
 }
 
 /** \} */
+
+void style_init_default()
+{
+  BLI_freelistN(&U.uistyles);
+  /* gets automatically re-allocated */
+  uiStyleInit();
+}
+
+namespace theme {
 
 /* -------------------------------------------------------------------- */
 /** \name Themes
@@ -1105,7 +1118,7 @@ const uchar *get_color_ptr(bTheme *btheme, int spacetype, int colorid)
   return (const uchar *)cp;
 }
 
-void theme_init_default()
+void init_default()
 {
   /* We search for the theme with the default name. */
   bTheme *btheme = static_cast<bTheme *>(
@@ -1124,13 +1137,6 @@ void theme_init_default()
   const int active_theme_area = btheme->active_theme_area;
   MEMCPY_STRUCT_AFTER(btheme, &U_theme_default, name);
   btheme->active_theme_area = active_theme_area;
-}
-
-void style_init_default()
-{
-  BLI_freelistN(&U.uistyles);
-  /* gets automatically re-allocated */
-  uiStyleInit();
 }
 
 void theme_set(int spacetype, int regionid)
@@ -1598,5 +1604,7 @@ void make_axis_color(const uchar col[3], const char axis, uchar r_col[3])
 }
 
 /** \} */
+
+}  // namespace theme
 
 }  // namespace blender::ui

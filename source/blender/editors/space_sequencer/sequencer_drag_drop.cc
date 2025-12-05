@@ -391,7 +391,7 @@ static void draw_strip_in_view(bContext *C, wmWindow * /*win*/, wmDrag *drag, co
 
   /* Sometimes the active theme is not the sequencer theme, e.g. when an operator invokes the
    * file browser. This makes sure we get the right color values for the theme. */
-  blender::ui::bThemeState theme_state;
+  blender::ui::theme::bThemeState theme_state;
   blender::ui::theme::theme_store(&theme_state);
   blender::ui::theme::theme_set(SPACE_SEQ, RGN_TYPE_WINDOW);
 
@@ -510,7 +510,7 @@ static void draw_strip_in_view(bContext *C, wmWindow * /*win*/, wmDrag *drag, co
   batch.flush_batch();
 
   /* Clean after drawing up. */
-  theme::theme_restore(&theme_state);
+  blender::ui::theme::theme_restore(&theme_state);
   GPU_matrix_pop();
   GPU_blend(GPU_BLEND_NONE);
 

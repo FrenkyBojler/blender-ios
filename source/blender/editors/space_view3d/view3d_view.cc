@@ -554,7 +554,7 @@ int view3d_gpu_select_ex(const ViewContext *vc,
                          eV3DSelectObjectFilter select_filter,
                          const bool do_material_slot_selection)
 {
-  blender::ui::bThemeState theme_state;
+  blender::ui::theme::bThemeState theme_state;
   const wmWindowManager *wm = CTX_wm_manager(vc->C);
   Depsgraph *depsgraph = vc->depsgraph;
   Scene *scene = vc->scene;
@@ -731,7 +731,7 @@ int view3d_gpu_select_ex(const ViewContext *vc,
 
   DRW_gpu_context_disable();
 
-  theme::theme_restore(&theme_state);
+  blender::ui::theme::theme_restore(&theme_state);
 
   return hits;
 }

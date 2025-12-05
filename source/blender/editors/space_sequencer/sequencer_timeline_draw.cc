@@ -311,7 +311,7 @@ static void color3ubv_from_seq(const Scene *curscene,
 
   /* Sometimes the active theme is not the sequencer theme, e.g. when an operator invokes the file
    * browser. This makes sure we get the right color values for the theme. */
-  ui::bThemeState theme_state;
+  ui::theme::bThemeState theme_state;
   ui::theme::theme_store(&theme_state);
   ui::theme::theme_set(SPACE_SEQ, RGN_TYPE_WINDOW);
 
@@ -432,7 +432,7 @@ static void color3ubv_from_seq(const Scene *curscene,
       break;
   }
 
-  theme::theme_restore(&theme_state);
+  blender::ui::theme::theme_restore(&theme_state);
 }
 
 static void waveform_job_start_if_needed(const bContext *C, const Strip *strip)

@@ -1159,14 +1159,14 @@ static void quadview_azone_init(ScrArea *area, ARegion *region)
 static bool region_background_is_transparent(const ScrArea *area, const ARegion *region)
 {
   /* Ensure the right theme is active, may not be the case on startup, for example. */
-  blender::ui::bThemeState theme_state;
+  blender::ui::theme::bThemeState theme_state;
   blender::ui::theme::theme_store(&theme_state);
   blender::ui::theme::theme_set(area->spacetype, region->regiontype);
 
   uchar back[4];
   blender::ui::theme::get_color_4ubv(TH_BACK, back);
 
-  theme::theme_restore(&theme_state);
+  blender::ui::theme::theme_restore(&theme_state);
 
   return back[3] < 50;
 }

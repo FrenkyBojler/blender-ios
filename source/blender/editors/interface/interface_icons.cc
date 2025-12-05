@@ -269,7 +269,7 @@ static void vicon_keytype_draw_wrapper(const float x,
 {
   /* Initialize dummy theme state for Action Editor - where these colors are defined
    * (since we're doing this off-screen, free from any particular space_id). */
-  bThemeState theme_state;
+  theme::bThemeState theme_state;
 
   theme::theme_store(&theme_state);
   theme::theme_set(SPACE_ACTION, RGN_TYPE_WINDOW);
