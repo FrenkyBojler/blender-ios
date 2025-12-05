@@ -637,8 +637,8 @@ Path to python site-packages or dist-packages containing 'zstandard' module"
   mark_as_advanced(PYTHON_ZSTANDARD_PATH)
 endif()
 
-option(WITH_COMPILER_ADD_SIMD "Add the recommended Blender default SIMD flags to the compilers C_FLAGS/CXX_FLAGS" ON)
-mark_as_advanced(WITH_COMPILER_ADD_SIMD)
+option(WITH_COMPILER_SIMD "Add the recommended Blender default SIMD flags to the compiler's C_FLAGS/CXX_FLAGS" ON)
+mark_as_advanced(WITH_COMPILER_SIMD)
 
 # Cycles
 option(WITH_CYCLES "Enable Cycles Render Engine" ON)
@@ -1333,7 +1333,7 @@ endif()
 
 # Doesn't make too much sense to check if the CPU supports our default SIMD options if they are
 # turned off.
-set_and_warn_dependency(WITH_COMPILER_ADD_SIMD WITH_CPU_CHECK OFF)
+set_and_warn_dependency(WITH_COMPILER_SIMD WITH_CPU_CHECK OFF)
 
 set_and_warn_dependency(WITH_AUDASPACE WITH_OPENAL OFF)
 set_and_warn_dependency(WITH_AUDASPACE WITH_COREAUDIO OFF)
@@ -1592,7 +1592,7 @@ endif()
 
 # Add the default compiler SIMD flags if enabled
 #
-if(WITH_COMPILER_ADD_SIMD)
+if(WITH_COMPILER_SIMD)
   set(COMPILER_SSE42_FLAG)
   get_sse_flags(COMPILER_SSE42_FLAG)
   string(APPEND CMAKE_CXX_FLAGS " ${COMPILER_SSE42_FLAG}")
