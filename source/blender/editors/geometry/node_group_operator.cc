@@ -1672,7 +1672,7 @@ static Set<std::string> get_builtin_menus(const ObjectType object_type, const eO
   return menus;
 }
 
-static void missing_tool_idname_error(uiLayout &layout, const StringRef name)
+static void missing_tool_idname_error(ui::Layout &layout, const StringRef name)
 {
   layout.label(fmt::format(fmt::runtime(TIP_("Missing node tool identifier ({})")), name),
                ICON_NONE);
@@ -1783,7 +1783,7 @@ static void catalog_assets_draw_unassigned(const bContext *C, Menu *menu)
   if (!tree) {
     return;
   }
-  uiLayout &layout = *menu->layout;
+  ui::Layout &layout = *menu->layout;
   for (const asset_system::AssetRepresentation *asset : tree->unassigned_assets) {
     const std::optional<std::string> operator_idname = operator_idname_for_asset(*asset);
     if (!operator_idname) {
