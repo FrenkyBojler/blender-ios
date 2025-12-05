@@ -172,9 +172,6 @@ const EnumPropertyItem rna_enum_pitch_quality_items[] = {
 #  include "SEQ_relations.hh"
 #  include "SEQ_retiming.hh"
 #  include "SEQ_select.hh"
-#  include "SEQ_sequencer.hh"
-#  include "SEQ_sound.hh"
-#  include "SEQ_thumbnail_cache.hh"
 #  include "SEQ_transform.hh"
 #  include "SEQ_utils.hh"
 
