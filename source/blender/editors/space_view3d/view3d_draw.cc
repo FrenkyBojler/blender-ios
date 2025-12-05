@@ -1777,7 +1777,18 @@ void view3d_main_region_draw(const bContext *C, ARegion *region)
    * The colortools.cc algorithm must compensate for this. */
   Scene *scene = CTX_data_scene(C);
   if (scene && (scene->view_settings.flag & COLORMANAGE_VIEW_USE_AUTO_EXPOSURE)) {
-    printf("VIEW3D_DRAW: Auto-exposure is ENABLED\n");
+    /* Only run auto-exposure for EEVEE render engine, not Workbench or Cycles.
+     * Check if viewport is using material preview/rendered mode which uses EEVEE. */
+    const View3DShading *shading = &v3d->shading;
+    const bool is_material_or_rendered = (shading->type == OB_MATERIAL || 
+                                         shading->type == OB_RENDER);
+    
+    if (!is_material_or_rendered) {
+      /* Skip auto-exposure for solid/wireframe modes (Workbench) */
+      return;
+    }
+    
+    printf("VIEW3D_DRAW: Auto-exposure is ENABLED (EEVEE)\n");
     printf("VIEW3D_DRAW: Current exposure = %.3f, min = %.1f, max = %.1f, speed = %.1f\n",
            scene->view_settings.exposure,
            scene->view_settings.auto_exposure_min,
