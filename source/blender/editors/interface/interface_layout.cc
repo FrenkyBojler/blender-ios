@@ -1025,11 +1025,20 @@ static void ui_item_enum_expand_tabs(Layout *layout,
                                      PropertyRNA *prop_highlight,
                                      const std::optional<StringRef> uiname,
                                      const int h,
-                                     const bool icon_only)
+                                     const bool icon_only,
+                                     blender::ui::EnumTabExpand expand_as)
 {
   const int start_size = block->buttons.size();
 
-  ui_item_enum_expand_exec(layout, block, ptr, prop, uiname, h, ButType::Tab, icon_only);
+  ui_item_enum_expand_exec(layout,
+                           block,
+                           ptr,
+                           prop,
+                           uiname,
+                           h,
+                           expand_as == blender::ui::EnumTabExpand::Default ? ButType::Tab :
+                                                                              ButType::Row,
+                           icon_only);
 
   if (block->buttons.is_empty()) {
     return;
@@ -1037,11 +1046,14 @@ static void ui_item_enum_expand_tabs(Layout *layout,
 
   BLI_assert(start_size != block->buttons.size());
 
-  for (int i = start_size; i < block->buttons.size(); i++) {
-    Button *tab = block->buttons[i].get();
-    button_drawflag_enable(tab, ui_but_align_opposite_to_area_align_get(CTX_wm_region(C)));
-    if (icon_only) {
-      button_drawflag_enable(tab, BUT_HAS_QUICK_TOOLTIP);
+  if (expand_as == blender::ui::EnumTabExpand::Default) {
+    for (int i = start_size; i < block->buttons.size(); i++) {
+      blender::ui::Button *tab = block->buttons[i].get();
+      blender::ui::button_drawflag_enable(
+          tab, ui_but_align_opposite_to_area_align_get(CTX_wm_region(C)));
+      if (icon_only) {
+        blender::ui::button_drawflag_enable(tab, BUT_HAS_QUICK_TOOLTIP);
+      }
     }
   }
 
@@ -3510,7 +3522,8 @@ void Layout::prop_tabs_enum(bContext *C,
                             PropertyRNA *prop,
                             PointerRNA *ptr_highlight,
                             PropertyRNA *prop_highlight,
-                            bool icon_only)
+                            bool icon_only,
+                            EnumTabExpand expand_as)
 {
   Block *block = this->block();
 
@@ -3524,7 +3537,8 @@ void Layout::prop_tabs_enum(bContext *C,
                            prop_highlight,
                            std::nullopt,
                            UI_UNIT_Y,
-                           icon_only);
+                           icon_only,
+                           expand_as);
 }
 
 /** \} */

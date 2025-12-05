@@ -247,7 +247,8 @@ static void rna_uiItemTabsEnumR(Layout *layout,
                                 const char *propname,
                                 PointerRNA *ptr_highlight,
                                 const char *propname_highlight,
-                                bool icon_only)
+                                bool icon_only,
+                                int expand_as)
 {
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname);
 
@@ -284,7 +285,13 @@ static void rna_uiItemTabsEnumR(Layout *layout,
     }
   }
 
-  layout->prop_tabs_enum(C, ptr, prop, ptr_highlight, prop_highlight, icon_only);
+  layout->prop_tabs_enum(C,
+                         ptr,
+                         prop,
+                         ptr_highlight,
+                         prop_highlight,
+                         icon_only,
+                         blender::ui::EnumTabExpand(expand_as));
 }
 
 static void rna_uiItemEnumR_string(Layout *layout,
@@ -1485,6 +1492,18 @@ void RNA_api_ui_layout(StructRNA *srna)
   parm = RNA_def_string(
       func, "property_highlight", nullptr, 0, "", "Identifier of highlight property in data");
   RNA_def_boolean(func, "icon_only", false, "", "Draw only icons in tabs, no text");
+
+  static const EnumPropertyItem rna_enum_prop_tabs_enum_expand_as[] = {
+      {int(blender::ui::EnumTabExpand::Default), "DEFAULT", 0, "", ""},
+      {int(blender::ui::EnumTabExpand::Row), "ROW", 0, "", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+  parm = RNA_def_enum(func,
+                      "expand_as",
+                      rna_enum_prop_tabs_enum_expand_as,
+                      int(blender::ui::EnumTabExpand::Default),
+                      "",
+                      "");
 
   func = RNA_def_function(srna, "prop_enum", "rna_uiItemEnumR_string");
   api_ui_item_rna_common(func);

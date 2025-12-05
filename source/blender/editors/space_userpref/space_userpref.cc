@@ -99,7 +99,8 @@ static void userpref_init(wmWindowManager * /*wm*/, ScrArea *area)
     spref->runtime = static_cast<SpaceUserPref_Runtime *>(
         MEM_mallocN(sizeof(SpaceUserPref_Runtime), __func__));
     spref->runtime->search_string[0] = '\0';
-    spref->runtime->tab_search_results = BLI_BITMAP_NEW(BCONTEXT_TOT * 2, __func__);
+    spref->runtime->tab_search_results = BLI_BITMAP_NEW(USER_SECTION_DEVELOPER_TOOLS * 2,
+                                                        __func__);
   }
 }
 
@@ -111,7 +112,8 @@ static SpaceLink *userpref_duplicate(SpaceLink *sl)
   if (sprefn_old->runtime != nullptr) {
     sprefn->runtime = static_cast<SpaceUserPref_Runtime *>(MEM_dupallocN(sprefn_old->runtime));
     sprefn->runtime->search_string[0] = '\0';
-    sprefn->runtime->tab_search_results = BLI_BITMAP_NEW(BCONTEXT_TOT, __func__);
+    sprefn->runtime->tab_search_results = BLI_BITMAP_NEW(USER_SECTION_DEVELOPER_TOOLS * 2,
+                                                         __func__);
   }
 
   /* clear or remove stuff from old */
@@ -268,7 +270,7 @@ static void userpref_main_region_property_search(const bContext *C,
                                                  ARegion *region)
 {
   blender::Vector<int> tabs = ED_userpref_tabs_list(sprefs);
-  BLI_bitmap_set_all(sprefs->runtime->tab_search_results, false, tabs.size());
+  // BLI_bitmap_set_all(sprefs->runtime->tab_search_results, false, tabs.size());
   userpref_search_all_tabs(C, sprefs, region, tabs);
   /* Check whether the current tab has a search match. */
   bool current_tab_has_search_match = false;
@@ -292,9 +294,6 @@ static void userpref_main_region_property_search(const bContext *C,
   if (!current_tab_has_search_match) {
     if (region->flag & RGN_FLAG_SEARCH_FILTER_UPDATE) {
       userpref_search_move_to_next_tab_with_results(sprefs, tabs);
-    }
-    else {
-      U.space_data.section_active = 0;
     }
   }
 }
@@ -333,6 +332,7 @@ static void userpref_main_region_layout(const bContext *C, ARegion *region)
   if (region->flag & RGN_FLAG_SEARCH_FILTER_ACTIVE) {
     userpref_main_region_property_search(C, spref, region);
   }
+  region->flag &= ~RGN_FLAG_SEARCH_FILTER_UPDATE;
 }
 
 static void userpref_operatortypes() {}

@@ -99,6 +99,11 @@ enum class NodeAssetMenuOperatorType : int8_t {
   Swap,
 };
 
+enum class EnumTabExpand {
+  Default = 0,
+  Row,
+};
+
 struct Layout : public uiItem, NonCopyable, NonMovable {
  protected:
   uiLayoutRoot *root_ = nullptr;
@@ -604,7 +609,8 @@ struct Layout : public uiItem, NonCopyable, NonMovable {
                       PropertyRNA *prop,
                       PointerRNA *ptr_highlight,
                       PropertyRNA *prop_highlight,
-                      bool icon_only);
+                      bool icon_only,
+                      EnumTabExpand expand_as = EnumTabExpand::Default);
 
   /** Expands enum property value items as radio buttons. */
   void props_enum(PointerRNA *ptr, StringRefNull propname);
