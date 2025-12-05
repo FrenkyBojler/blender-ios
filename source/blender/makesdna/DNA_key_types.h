@@ -18,7 +18,7 @@
 struct AnimData;
 
 typedef enum KeyBlockGroupflag {
-  Key_GROUP_EXPANDED = 1,
+  KEY_GROUP_EXPANDED = 1,
 } KeyBlockGroupflag;
 
 typedef struct KeyBlockGroup {

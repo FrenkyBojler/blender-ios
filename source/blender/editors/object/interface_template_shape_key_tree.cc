@@ -375,7 +375,7 @@ class ShapeKeyGroupItem : public ui::AbstractTreeViewItem {
 
   std::optional<bool> should_be_collapsed() const override
   {
-    return (group_->flag & Key_GROUP_EXPANDED) == 0;
+    return (group_->flag & KEY_GROUP_EXPANDED) == 0;
   }
 
   bool set_collapsed(const bool collapsed) override
@@ -383,7 +383,7 @@ class ShapeKeyGroupItem : public ui::AbstractTreeViewItem {
     if (!AbstractTreeViewItem::set_collapsed(collapsed)) {
       return false;
     }
-    SET_FLAG_FROM_TEST(group_->flag, !collapsed, Key_GROUP_EXPANDED);
+    SET_FLAG_FROM_TEST(group_->flag, !collapsed, KEY_GROUP_EXPANDED);
     return true;
   }
   
