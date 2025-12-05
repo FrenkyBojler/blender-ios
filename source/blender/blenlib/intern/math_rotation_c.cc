@@ -1126,8 +1126,8 @@ void eulO_to_axis_angle(float axis[3], float *angle, const float eul[3], const s
 static void sincosf_exact_quarter_turn(float angle, float *r_sin, float *r_cos)
 {
   const float quarter = float(M_PI_2);
-  float turns = angle / quarter;
-  float snapped_turns = roundf(turns);
+  const float turns = angle / quarter;
+  const float snapped_turns = roundf(turns);
 
   if (fabsf(turns - snapped_turns) < 1e-4f) {
     /* Rotation repeats every four quarter turns. k is the index of the quarter rotation.
