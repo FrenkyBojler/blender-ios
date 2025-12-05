@@ -51,12 +51,15 @@ TimelineValue VKDevice::render_graph_submit(render_graph::VKRenderGraph *render_
                                             VkSemaphore signal_semaphore,
                                             VkFence signal_fence)
 {
+#if 0
   if (render_graph->is_empty()) {
     render_graph->reset();
     BLI_thread_queue_push(
         unused_render_graphs_, render_graph, BLI_THREAD_QUEUE_WORK_PRIORITY_NORMAL);
     return timeline_value_;
   }
+#endif
+  render_graph->timelines.submission = timelines.submission.fetch_add(1);
 
   VKRenderGraphSubmitTask *submit_task = MEM_new<VKRenderGraphSubmitTask>(__func__);
   submit_task->render_graph = render_graph;
@@ -117,12 +120,15 @@ render_graph::VKRenderGraph *VKDevice::render_graph_new()
   render_graph::VKRenderGraph *render_graph = static_cast<render_graph::VKRenderGraph *>(
       BLI_thread_queue_pop_timeout(unused_render_graphs_, 0));
   if (render_graph) {
+    render_graph->timelines.request = timelines.request.fetch_add(1);
     return render_graph;
   }
 
   std::scoped_lock lock(resources.mutex);
   render_graph = MEM_new<render_graph::VKRenderGraph>(__func__, resources);
   render_graphs_.append(render_graph);
+  render_graph->timelines.creation = timelines.creation.fetch_add(1);
+  render_graph->timelines.request = timelines.request.fetch_add(1);
   return render_graph;
 }
 
@@ -203,6 +209,7 @@ void VKDevice::submission_runner(TaskPool *__restrict pool, void *task_data)
     BLI_assert(vk_command_buffer != VK_NULL_HANDLE);
 
     render_graph::VKRenderGraph &render_graph = *submit_task->render_graph;
+    render_graph.timelines.running = device->timelines.running.fetch_add(1);
     Span<render_graph::NodeHandle> node_handles = scheduler.select_nodes(render_graph);
     {
       std::scoped_lock lock_resources(device->resources.mutex);
@@ -275,6 +282,14 @@ void VKDevice::submission_runner(TaskPool *__restrict pool, void *task_data)
       command_buffer.reset();
     }
 
+    CLOG_TRACE(&LOG,
+               "RenderGraph timelines: creation=%lu, request=%lu, submission=%lu, running=%lu, "
+               "commands=%li",
+               render_graph.timelines.creation,
+               render_graph.timelines.request,
+               render_graph.timelines.submission,
+               render_graph.timelines.running,
+               render_graph.next_node_handle());
     render_graph.reset();
     BLI_thread_queue_push(device->unused_render_graphs_,
                           std::move(submit_task->render_graph),

@@ -153,6 +153,13 @@ class VKDevice : public NonCopyable {
 
   bool is_initialized_ = false;
 
+  struct {
+    std::atomic<uint64_t> creation = 0;
+    std::atomic<uint64_t> request = 0;
+    std::atomic<uint64_t> submission = 0;
+    std::atomic<uint64_t> running = 0;
+  } timelines;
+
   /**
    * Task pool for render graph submission.
    *
