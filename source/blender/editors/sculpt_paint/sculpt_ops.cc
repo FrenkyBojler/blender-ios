@@ -409,7 +409,6 @@ void object_sculpt_mode_enter(Main &bmain,
   }
 
   Paint *paint = BKE_paint_get_active_from_paintmode(&scene, PaintMode::Sculpt);
-  bke::PaintRuntime *paint_runtime = paint->runtime;
   BKE_paint_init(&bmain, &scene, PaintMode::Sculpt);
 
   ED_paint_cursor_start(paint, SCULPT_brush_cursor_poll);
@@ -465,7 +464,7 @@ void object_sculpt_mode_enter(Main &bmain,
 
   /* If Orbit Around Selection is enabled, force the pivot to update. */
   if ((U.uiflag & USER_ORBIT_SELECTION) != 0) {
-    paint_runtime->last_stroke_valid = false;
+    paint->runtime->last_stroke_valid = false;
   }
 
   ensure_valid_pivot(ob, *paint);
