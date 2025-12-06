@@ -724,7 +724,9 @@ class IdDiffer {
     if (const BlendBlock *const *block_ptr = std::get_if<const BlendBlock *>(&*pointee)) {
       const BlendBlock &block = **block_ptr;
       if (const Struct *sdna_struct = blend_data.sdna.try_find_struct(block.bhead.SDNAnr)) {
-        return fmt::format("{}(...)", sdna_struct->type->name);
+        const std::string count_str = block.bhead.nr <= 1 ? "" :
+                                                            fmt::format("{}x ", block.bhead.nr);
+        return fmt::format("{}{}(...)", count_str, sdna_struct->type->name);
       }
       return fmt::format("*");
     }
