@@ -349,6 +349,12 @@ void mode_enter_generic(
   }
 
   BLI_assert(paint != nullptr);
+
+  /* If Orbit Around Selection is enabled, force the pivot to update. */
+  if ((U.uiflag & USER_ORBIT_SELECTION)) {
+    paint->runtime->last_stroke_valid = false;
+  }
+
   vwpaint::init_session(bmain, depsgraph, scene, *paint, ob, mode_flag);
 
   /* Flush object mode. */
