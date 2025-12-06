@@ -82,6 +82,7 @@ class Type {
   int64_t size_in_bytes;
   const Struct *opt_struct = nullptr;
   std::optional<eSDNA_Type> opt_primitive_type = std::nullopt;
+  int64_t index;
 
   void print(std::ostream &stream, const bool verbose = false) const
   {
@@ -156,48 +157,48 @@ class RichSDNA {
       Type &sdna_type = scope_.construct<Type>();
       sdna_type.name = type_name;
       sdna_type.size_in_bytes = raw_sdna.types_size[type_i];
-      switch (type_i) {
-        case SDNA_TYPE_UCHAR:
-        case SDNA_TYPE_CHAR:
-        case SDNA_TYPE_INT8: {
-          if (sdna_type.size_in_bytes != 1) {
-            throw std::runtime_error("Invalid type size");
-          }
-          sdna_type.opt_primitive_type = eSDNA_Type(type_i);
-          break;
-        }
-        case SDNA_TYPE_SHORT:
-        case SDNA_TYPE_USHORT: {
-          if (sdna_type.size_in_bytes != 2) {
-            throw std::runtime_error("Invalid type size");
-          }
-          sdna_type.opt_primitive_type = eSDNA_Type(type_i);
-          break;
-        }
-        case SDNA_TYPE_INT:
-        case SDNA_TYPE_FLOAT: {
-          if (sdna_type.size_in_bytes != 4) {
-            throw std::runtime_error("Invalid type size");
-          }
-          sdna_type.opt_primitive_type = eSDNA_Type(type_i);
-          break;
-        }
-        case SDNA_TYPE_DOUBLE:
-        case SDNA_TYPE_INT64:
-        case SDNA_TYPE_UINT64: {
-          if (type_name == "void") {
-            break;
-          }
-          if (sdna_type.size_in_bytes != 8) {
-            throw std::runtime_error("Invalid type size");
-          }
-          sdna_type.opt_primitive_type = eSDNA_Type(type_i);
-          break;
-        }
-        default: {
-          break;
-        }
+      sdna_type.index = type_i;
+      if (type_name == "char") {
+        sdna_type.opt_primitive_type = SDNA_TYPE_CHAR;
+        BLI_assert(sdna_type.size_in_bytes == 1);
       }
+      else if (type_name == "uchar") {
+        sdna_type.opt_primitive_type = SDNA_TYPE_UCHAR;
+        BLI_assert(sdna_type.size_in_bytes == 1);
+      }
+      else if (type_name == "short") {
+        sdna_type.opt_primitive_type = SDNA_TYPE_SHORT;
+        BLI_assert(sdna_type.size_in_bytes == 2);
+      }
+      else if (type_name == "ushort") {
+        sdna_type.opt_primitive_type = SDNA_TYPE_USHORT;
+        BLI_assert(sdna_type.size_in_bytes == 2);
+      }
+      else if (type_name == "int") {
+        sdna_type.opt_primitive_type = SDNA_TYPE_INT;
+        BLI_assert(sdna_type.size_in_bytes == 4);
+      }
+      else if (type_name == "float") {
+        sdna_type.opt_primitive_type = SDNA_TYPE_FLOAT;
+        BLI_assert(sdna_type.size_in_bytes == 4);
+      }
+      else if (type_name == "double") {
+        sdna_type.opt_primitive_type = SDNA_TYPE_DOUBLE;
+        BLI_assert(sdna_type.size_in_bytes == 8);
+      }
+      else if (type_name == "int64_t") {
+        sdna_type.opt_primitive_type = SDNA_TYPE_INT64;
+        BLI_assert(sdna_type.size_in_bytes == 8);
+      }
+      else if (type_name == "uint64_t") {
+        sdna_type.opt_primitive_type = SDNA_TYPE_UINT64;
+        BLI_assert(sdna_type.size_in_bytes == 8);
+      }
+      else if (type_name == "int8_t") {
+        sdna_type.opt_primitive_type = SDNA_TYPE_INT8;
+        BLI_assert(sdna_type.size_in_bytes == 1);
+      }
+
       this->types.add(&sdna_type);
     }
     for (const int struct_i : IndexRange(raw_sdna.structs_num)) {
@@ -605,7 +606,9 @@ class IdDiffer {
     old_.addresses = build_address_map(old_.id_data);
     new_.addresses = build_address_map(new_.id_data);
 
-    matches_to_process_.push({old_.id_data.id_block, new_.id_data.id_block, ""});
+    const std::string root_context = fmt::format(
+        "{}[\"{}\"]", new_.id_data.type_name, new_.id_data.name.c_str() + 2);
+    matches_to_process_.push({old_.id_data.id_block, new_.id_data.id_block, root_context});
 
     while (!matches_to_process_.is_empty()) {
       const BlockMatch match = matches_to_process_.pop();
@@ -630,8 +633,8 @@ class IdDiffer {
   {
     const StringRef type_name = old_struct.type->name;
     if (type_name != new_struct.type->name) {
-      writer_.writeln_changed(fmt::format("typeof({}) = {}", context, old_struct.type->name),
-                              fmt::format("typeof({}) = {}", context, new_struct.type->name));
+      writer_.writeln_changed(fmt::format("{} <type> = {}", context, old_struct.type->name),
+                              fmt::format("{} <type> = {}", context, new_struct.type->name));
       return;
     }
     if (type_name == "ListBase") {
@@ -765,8 +768,8 @@ class IdDiffer {
         new_first_address, new_);
 
     if (old_pointees.size() != new_pointees.size()) {
-      writer_.writeln_changed(fmt::format("len({}) = {}", context, old_pointees.size()),
-                              fmt::format("len({}) = {}", context, new_pointees.size()));
+      writer_.writeln_changed(fmt::format("{} <length> = {}", context, old_pointees.size()),
+                              fmt::format("{} <length> = {}", context, new_pointees.size()));
     }
 
     auto get_block_identifier = [&](const BlendBlock &block,
@@ -891,10 +894,12 @@ class IdDiffer {
     if (const BlendBlock *const *block_ptr = std::get_if<const BlendBlock *>(&*pointee)) {
       const BlendBlock &block = **block_ptr;
       if (const Struct *sdna_struct = blend_data.sdna.try_find_struct(block.bhead.SDNAnr)) {
-        const std::string count_str = block.bhead.nr <= 1 ? "" :
-                                                            fmt::format("{}x ", block.bhead.nr);
-        const std::optional<std::string> user_identifier = this->get_block_user_identifier(
-            block, *sdna_struct);
+        const bool is_single = block.bhead.nr == 1;
+        const std::string count_str = is_single ? "" : fmt::format("{}x ", block.bhead.nr);
+        const std::optional<std::string> user_identifier = is_single ?
+                                                               this->get_block_user_identifier(
+                                                                   block, *sdna_struct) :
+                                                               std::nullopt;
         return fmt::format(
             "{}{}({})", count_str, sdna_struct->type->name, user_identifier.value_or("..."));
       }
@@ -1136,20 +1141,12 @@ static bool block_sizes_match_sdna(const BlendData &blend_data, const RichSDNA &
   return true;
 }
 
-static std::optional<StringRefNull> get_id_name(const BlendBlock &block, const RichSDNA &sdna)
-{
-  BLI_assert(is_id_block(block, sdna));
-  const Struct *id_struct = sdna.try_find_struct("ID");
-  const int64_t name_offset = *id_struct->offset_of("name");
-  const char *name_data = reinterpret_cast<const char *>(block.data) + name_offset;
-  // TODO: Check null termination.
-  return StringRefNull(name_data);
-}
-
 static std::optional<Vector<BlendIdData>> find_blend_id_blocks(const BlendData &blend_data,
                                                                const RichSDNA &sdna)
 {
   Vector<BlendIdData> result;
+
+  const Struct &id_sdna_struct = *sdna.try_find_struct("ID");
 
   int64_t i = 0;
   while (i < blend_data.blocks.size()) {
@@ -1158,8 +1155,12 @@ static std::optional<Vector<BlendIdData>> find_blend_id_blocks(const BlendData &
       i++;
       continue;
     }
-    const std::optional<StringRefNull> name = get_id_name(block, sdna);
+    const std::optional<std::string> name = try_read_inline_string_member(
+        block.data, id_sdna_struct, "name");
     if (!name) {
+      return std::nullopt;
+    }
+    if (name->size() <= 2) {
       return std::nullopt;
     }
     const Struct *id_struct = sdna.try_find_struct(block.bhead.SDNAnr);
