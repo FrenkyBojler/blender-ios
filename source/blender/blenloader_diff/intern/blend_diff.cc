@@ -1107,6 +1107,27 @@ class IdDiffer {
     if (!sdna_struct) {
       return std::nullopt;
     }
+    if (!sdna_struct->members.is_empty()) {
+      const StructMember &first_member = *sdna_struct->members[0];
+      if (first_member.category == StructMember::Category::Struct) {
+        if (first_member.type->name == "ModifierData") {
+          if (ui_identifier) {
+            if (std::optional<std::string> name = try_read_inline_string_member(
+                    block.data, *first_member.type->opt_struct, "name"))
+            {
+              return name;
+            }
+          }
+          else {
+            if (const std::optional<int> identifier = try_read_inline_int_member(
+                    block.data, *first_member.type->opt_struct, "persistent_uid"))
+            {
+              return fmt::format("id:{}", *identifier);
+            }
+          }
+        }
+      }
+    }
     if (sdna_struct->type->name == "bNode") {
       if (!ui_identifier) {
         if (const std::optional<int> identifier = try_read_inline_int_member(
@@ -1547,6 +1568,7 @@ static int main_do(const int argc, char *argv[])
   options.add_members_to_ignore("ID", {"session_uid", "recalc_up_to_undo_push"});
   options.add_members_to_ignore("CustomData", {"typemap"});
   options.add_members_to_ignore("bNodeTreeInterface", {"active_index"});
+  options.add_members_to_ignore("IDProperty", {"totallen"});
   options.add_members_to_ignore("CurveProfile", {"changed_timestamp"});
   options.add_next_prev_ignore_types({"bNode", "bNodeLink"});
   options.add_ignored_flags("bNode", "flag", NODE_SELECT | NODE_OPTIONS | NODE_ACTIVE);
