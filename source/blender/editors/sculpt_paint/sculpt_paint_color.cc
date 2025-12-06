@@ -596,7 +596,7 @@ void do_paint_brush(const Depsgraph &depsgraph,
     return;
   }
 
-  if (ss.cache->alt_smooth) {
+  if (ss.cache->alt_smooth || brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_PAINT_SMOOTH) {
     threading::EnumerableThreadSpecific<ColorPaintLocalData> all_tls;
     node_mask.foreach_index(GrainSize(1), [&](const int i) {
       ColorPaintLocalData &tls = all_tls.local();

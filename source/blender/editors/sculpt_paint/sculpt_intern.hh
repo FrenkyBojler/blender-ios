@@ -847,7 +847,8 @@ std::optional<Span<float>> orig_mask_data_lookup_grids(const Object &object,
 
 inline bool brush_type_is_paint(const int tool)
 {
-  return ELEM(tool, SCULPT_BRUSH_TYPE_PAINT, SCULPT_BRUSH_TYPE_SMEAR);
+  return ELEM(
+      tool, SCULPT_BRUSH_TYPE_PAINT, SCULPT_BRUSH_TYPE_SMEAR, SCULPT_BRUSH_TYPE_PAINT_SMOOTH);
 }
 
 inline bool brush_type_is_mask(const int tool)
