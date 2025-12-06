@@ -23,7 +23,6 @@
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
-#include "BLI_vector_set.hh"
 
 #include "BLT_translation.hh"
 

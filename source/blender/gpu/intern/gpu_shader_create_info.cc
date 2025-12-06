@@ -668,10 +668,10 @@ bool gpu_shader_create_info_compile_all(const char *name_starts_with_filter)
         /* TODO(fclem): Limit this to OpenGL backend. */
         const ShaderInterface *interface = shader->interface;
 
-                 Vector<ShaderCreateInfo::Resource> all_resources = info->resources_get_all_();
+        Vector<ShaderCreateInfo::Resource> all_resources = info->resources_get_all_();
 
         for (ShaderCreateInfo::Resource &res : all_resources) {
-                   StringRefNull name = "";
+          StringRefNull name = "";
           const ShaderInput *input = nullptr;
 
           switch (res.bind_type) {

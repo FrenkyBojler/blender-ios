@@ -193,7 +193,8 @@ struct KnifeUndoFrame {
 
 struct KnifeBVH {
   BVHTree *tree; /* Knife Custom BVH Tree. */
-                 /* Used by #knife_bvh_raycast_cb to store the intersecting triangles. */
+
+  /* Used by #knife_bvh_raycast_cb to store the intersecting triangles. */
   Span<std::array<BMLoop *, 3>> looptris;
   int ob_index;
 
