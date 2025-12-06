@@ -682,6 +682,10 @@ wmKeyMap *bevel_modal_keymap(wmKeyConfig *keyconf)
        0,
        "Change Intersection Method",
        "Cycle through intersection methods"},
+      {BEV_MODAL_SNAP_ON, "SNAP_ON", 0, "Snap", ""},
+      {BEV_MODAL_SNAP_OFF, "SNAP_OFF", 0, "Snap (OFF)", ""},
+      {BEV_MODAL_PRECISION_ON, "PRECISION_ON", 0, "Precision", ""},
+      {BEV_MODAL_PRECISION_OFF, "PRECISION_OFF", 0, "Precision (OFF)", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
