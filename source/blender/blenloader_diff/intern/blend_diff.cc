@@ -937,9 +937,13 @@ class IdDiffer {
           options.include_identifier = true;
           options.allow_string = type_name == "char";
           const std::string old_line = fmt::format(
-              "{} = {}", sub_context, this->pointee_to_string(old_, old_pointee, options));
+              "{} = {}",
+              sub_context,
+              this->pointee_to_string(old_, old_pointee, options, &old_member));
           const std::string new_line = fmt::format(
-              "{} = {}", sub_context, this->pointee_to_string(new_, new_pointee, options));
+              "{} = {}",
+              sub_context,
+              this->pointee_to_string(new_, new_pointee, options, &new_member));
           if (old_line != new_line) {
             writer_.writeln_changed(old_line, new_line);
           }
@@ -1335,7 +1339,8 @@ class IdDiffer {
 
   std::string pointee_to_string(const PerBlendData &blend_data,
                                 const Pointee &pointee,
-                                const PointeeToStringOptions &options) const
+                                const PointeeToStringOptions &options,
+                                const StructMember *pointer_member = nullptr) const
   {
     if (!pointee) {
       return "nullptr";
@@ -1347,6 +1352,15 @@ class IdDiffer {
         if (options.allow_string && bytes.size() <= 128) {
           if (std::optional<std::string> str = try_convert_char_array_to_readable_string(bytes)) {
             return fmt::format("\"{}\"", *str);
+          }
+        }
+        if (pointer_member) {
+          const Type &expected_base_type = *pointer_member->type;
+          if (pointer_member->name_with_array.startswith("**")) {
+            if (block.bhead.len % sizeof(void *) == 0) {
+              const int64_t pointer_num = block.bhead.len / sizeof(void *);
+              return fmt::format("{}x {} *", pointer_num, expected_base_type.name);
+            }
           }
         }
         const uint64_t hash = XXH3_64bits(bytes.data(), bytes.size());
