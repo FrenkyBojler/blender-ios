@@ -1,7 +1,6 @@
 #include <fmt/format.h>
 #include <fstream>
 #include <iostream>
-#include <thread>
 #include <xxhash.h>
 
 #include "BLI_filereader.h"
@@ -1402,6 +1401,11 @@ class IdDiffer {
       return;
     }
     if (new_by_old_.contains(&old_block)) {
+      return;
+    }
+    const bool old_is_raw = old_block.bhead.SDNAnr == SDNA_RAW_DATA_STRUCT_INDEX;
+    const bool new_is_raw = new_block.bhead.SDNAnr == SDNA_RAW_DATA_STRUCT_INDEX;
+    if (old_is_raw != new_is_raw) {
       return;
     }
     /* Blocks with different identifiers cannot be matched. */
