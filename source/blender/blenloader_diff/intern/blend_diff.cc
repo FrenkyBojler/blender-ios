@@ -86,6 +86,7 @@ class Type {
   const Struct *opt_struct = nullptr;
   std::optional<eSDNA_Type> opt_primitive_type = std::nullopt;
   int64_t index;
+  const RichSDNA *owner;
 
   void print(std::ostream &stream, const bool verbose = false) const
   {
@@ -158,6 +159,7 @@ class RichSDNA {
     for (const int type_i : IndexRange(raw_sdna.types_num)) {
       const StringRefNull type_name = allocator.copy_string(raw_sdna.types[type_i]);
       Type &sdna_type = scope_.construct<Type>();
+      sdna_type.owner = this;
       sdna_type.name = type_name;
       sdna_type.size_in_bytes = raw_sdna.types_size[type_i];
       sdna_type.index = type_i;
@@ -400,6 +402,21 @@ struct DiffOptions {
     return this->ignored_flags.lookup_default(member, 0);
   }
 };
+
+static bool is_specific_id_struct(const Struct &sdna_struct)
+{
+  if (sdna_struct.members.is_empty()) {
+    return false;
+  }
+  const StructMember &first_member = *sdna_struct.members[0];
+  if (first_member.identifier != "id") {
+    return false;
+  }
+  if (first_member.type->name != "ID") {
+    return false;
+  }
+  return true;
+}
 
 class DiffWriter {
  private:
@@ -1628,6 +1645,10 @@ class IdDiffer {
                                                    const Struct &sdna_struct,
                                                    const bool ui_identifier = false) const
   {
+    if (is_specific_id_struct(sdna_struct)) {
+      const Struct &id_sdna_struct = *sdna_struct.type->owner->try_find_struct("ID");
+      return try_read_inline_string_member(data, id_sdna_struct, "name");
+    }
     if (!sdna_struct.members.is_empty()) {
       const StructMember &first_member = *sdna_struct.members[0];
       if (first_member.category == StructMember::Category::Struct) {
@@ -1800,21 +1821,6 @@ static void write_diff_ids(DiffWriter &writer,
                        sdna_new);
     id_differ.run();
   }
-}
-
-static bool is_specific_id_struct(const Struct &sdna_struct)
-{
-  if (sdna_struct.members.is_empty()) {
-    return false;
-  }
-  const StructMember &first_member = *sdna_struct.members[0];
-  if (first_member.identifier != "id") {
-    return false;
-  }
-  if (first_member.type->name != "ID") {
-    return false;
-  }
-  return true;
 }
 
 static bool is_id_block(const BlendBlock &block, const RichSDNA &sdna)
