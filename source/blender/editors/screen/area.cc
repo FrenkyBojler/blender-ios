@@ -2939,9 +2939,6 @@ int ED_area_header_switchbutton(const bContext *C, blender::ui::Block *block, in
 
   block_emboss_set(block, blender::ui::EmbossType::None);
 
-  const SpaceLink &current_space = *static_cast<const SpaceLink *>(area->spacedata.first);
-  const bool main_is_tab = current_space.is_tab;
-
   LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
     if (sl->is_tab) {
       xco += 1.1 * U.widget_unit;
@@ -2969,10 +2966,6 @@ int ED_area_header_switchbutton(const bContext *C, blender::ui::Block *block, in
       button_color_set(add_but, color);
       button_func_set(add_but, change_tab_cb, area, POINTER_FROM_INT(space_type));
     }
-  }
-
-  if (main_is_tab) {
-    // UI_but_disable(add_but, "Area is already a tab");
   }
 
   block_emboss_set(block, blender::ui::EmbossType::Emboss);
