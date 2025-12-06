@@ -76,6 +76,7 @@
 #include "NOD_geometry_nodes_dependencies.hh"
 #include "NOD_geometry_nodes_execute.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
+#include "NOD_geometry_nodes_srna.hh"
 
 #include "AS_asset_catalog.hh"
 #include "AS_asset_catalog_path.hh"
@@ -1200,8 +1201,8 @@ static const EnumPropertyItem *enum_input_items_fn(bContext * /*C*/,
   LISTBASE_FOREACH (IDProperty *, item_idprop, &items_idprop->data.group) {
     EnumPropertyItem item;
     item.identifier = item_idprop->name;
-    item.name = try_get_string(item_idprop, "name").value_or("").c_str();
-    item.description = try_get_string(item_idprop, "description").value_or("").c_str();
+    item.name = try_get_string(*item_idprop, "name").value_or("").c_str();
+    item.description = try_get_string(*item_idprop, "description").value_or("").c_str();
     item.value = std::stoi(item_idprop->name);
     RNA_enum_item_add(&items, &totitem, &item);
   }
@@ -1211,7 +1212,7 @@ static const EnumPropertyItem *enum_input_items_fn(bContext * /*C*/,
 }
 
 static StructRNA *get_input_socket_struct_rna(IDProperty &input_idprop,
-                                              GeneratedTreeSrnaData &r_generated)
+                                              nodes::GeneratedTreeSrnaData &r_generated)
 {
 
   const StringRefNull identifier = input_idprop.name;
@@ -1348,6 +1349,32 @@ static StructRNA *get_input_socket_struct_rna(IDProperty &input_idprop,
   return srna;
 }
 
+static StructRNA *create_inputs_srna(const IDProperty &input_props,
+                                     nodes::GeneratedTreeSrnaData &r_generated)
+{
+  StructRNA *srna = RNA_def_struct_ptr(
+      &BLENDER_RNA, "GeometryNodesInterfaceInputs", &RNA_PropertyGroup);
+  BLI_assert(!RNA_struct_in_public_namespace(srna));
+  r_generated.structs.append(srna);
+
+  LISTBASE_FOREACH (IDProperty *, input_idprop, &input_props.data.group) {
+    if (input_idprop->type != IDP_GROUP) {
+      continue;
+    }
+    StructRNA *input_srna = get_input_socket_struct_rna(*input_idprop, r_generated);
+    if (!input_srna) {
+      continue;
+    }
+    BLI_assert(!RNA_struct_in_public_namespace(srna));
+    RNA_def_pointer_runtime(srna,
+                            input_idprop->name,
+                            input_srna,
+                            RNA_struct_ui_name(input_srna),
+                            RNA_struct_ui_description(input_srna));
+  }
+  return srna;
+}
+
 static void register_node_tool(wmOperatorType *ot,
                                std::unique_ptr<OperatorTypeData> &type_data_ptr)
 {
@@ -1370,22 +1397,8 @@ static void register_node_tool(wmOperatorType *ot,
     ot->flag |= OPTYPE_DEPENDS_ON_CURSOR;
   }
 
-  LISTBASE_FOREACH (IDProperty *, input_idprop, &type_data.input_asset_meta_data_props->data.group)
-  {
-    if (input_idprop->type != IDP_GROUP) {
-      continue;
-    }
-    StructRNA *input_srna = get_input_socket_struct_rna(*input_idprop, r_generated);
-    if (!input_srna) {
-      continue;
-    }
-    BLI_assert(!RNA_struct_in_public_namespace(srna));
-    RNA_def_pointer_runtime(ot->srna,
-                            input_idprop->name,
-                            input_srna,
-                            RNA_struct_ui_name(input_srna),
-                            RNA_struct_ui_description(input_srna));
-  }
+  StructRNA *inputs_srna = create_inputs_srna(*type_data.input_asset_meta_data_props, r_generated);
+  RNA_def_pointer_runtime(ot->srna, "inputs", inputs_srna, "Inputs", "Settings for input sockets");
 
   /* See comment for #store_input_node_values_rna_props. */
   prop = RNA_def_int_array(ot->srna,
