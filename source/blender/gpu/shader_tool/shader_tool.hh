@@ -3271,6 +3271,82 @@ class Preprocessor {
               replace_word(srt_var, "gl_InstanceID");
               metadata.builtins.emplace_back(Builtin(hash("gl_InstanceID")));
             }
+            else if (srt_attr == "base_instance" && is_entry_point) {
+              if (!is_vertex_func) {
+                report_error(ERROR_TOK(attributes[1]),
+                             "[[base_instance]] is only supported in vertex functions.");
+              }
+              else if (!is_const || srt_type != "int") {
+                report_error(ERROR_TOK(type),
+                             "[[base_instance]] must be declared as "
+                             "`const int`.");
+              }
+              replace_word(srt_var, "gl_BaseInstance");
+              metadata.builtins.emplace_back(Builtin(hash("gl_BaseInstance")));
+            }
+            else if (srt_attr == "point_size" && is_entry_point) {
+              if (!is_vertex_func) {
+                report_error(ERROR_TOK(attributes[1]),
+                             "[[point_size]] is only supported in vertex functions.");
+              }
+              else if (is_const || srt_type != "float") {
+                report_error(
+                    ERROR_TOK(type),
+                    "[[point_size]] must be declared as non-const reference (aka `float &`).");
+              }
+              replace_word(srt_var, "gl_PointSize");
+              create_info_decl += "BUILTINS(BuiltinBits::POINT_SIZE)\n";
+            }
+            else if (srt_attr == "clip_distance" && is_entry_point) {
+              if (!is_vertex_func) {
+                report_error(ERROR_TOK(attributes[1]),
+                             "[[clip_distance]] is only supported in vertex functions.");
+              }
+              else if (is_const || srt_type != "float") {
+                report_error(ERROR_TOK(type),
+                             "[[clip_distance]] must be declared as non-const reference "
+                             "(aka `float (&)[]`).");
+              }
+              replace_word(srt_var, "gl_ClipDistance");
+              create_info_decl += "BUILTINS(BuiltinBits::CLIP_DISTANCES)\n";
+            }
+            else if (srt_attr == "layer" && is_entry_point) {
+              if (is_compute_func) {
+                report_error(ERROR_TOK(attributes[1]),
+                             "[[layer]] is only supported in vertex and fragment functions.");
+              }
+              else if (is_vertex_func && (is_const || srt_type != "int")) {
+                report_error(ERROR_TOK(type),
+                             "[[layer]] must be declared as non-const reference "
+                             "(aka `int &`).");
+              }
+              else if (is_fragment_func && (!is_const || srt_type != "int")) {
+                report_error(ERROR_TOK(type),
+                             "[[layer]] must be declared as const reference "
+                             "(aka `const int &`).");
+              }
+              replace_word(srt_var, "gl_Layer");
+              create_info_decl += "BUILTINS(BuiltinBits::LAYER)\n";
+            }
+            else if (srt_attr == "viewport_index" && is_entry_point) {
+              if (is_compute_func) {
+                report_error(ERROR_TOK(attributes[1]),
+                             "[[viewport_index]] is only supported in vertex and "
+                             "fragment functions.");
+              }
+              else if (is_vertex_func && (is_const || srt_type != "int")) {
+                report_error(ERROR_TOK(type),
+                             "[[viewport_index]] must be declared as non-const reference "
+                             "(aka `int &`).");
+              }
+              else if (is_fragment_func && (!is_const || srt_type != "int")) {
+                report_error(ERROR_TOK(type),
+                             "[[viewport_index]] must be declared as const reference "
+                             "(aka `const int &`).");
+              }
+              replace_word(srt_var, "gl_ViewportIndex");
+              create_info_decl += "BUILTINS(BuiltinBits::VIEWPORT_INDEX)\n";
+            }
             else if (srt_attr == "position" && is_entry_point) {
               if (!is_vertex_func) {
                 report_error(ERROR_TOK(attributes[1]),
@@ -3403,6 +3479,10 @@ class Preprocessor {
           });
           args.foreach_match("[[..]]c?w&w", [&](const vector<Token> toks) {
             process_argument(toks[8], toks[10], toks[1].scope());
+          });
+
+          args.foreach_match("[[..]]c?w(&w)", [&](const vector<Token> toks) {
+            process_argument(toks[8], toks[11], toks[1].scope());
           });
 
           create_info_decl += "GPU_SHADER_CREATE_END()\n";

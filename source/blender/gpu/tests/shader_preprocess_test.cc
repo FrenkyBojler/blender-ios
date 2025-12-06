@@ -1665,20 +1665,34 @@ template struct VertIn<float>;
 [[vertex]] void vertex_function([[resource_table]] Resources &srt,
                                 [[in]] const VertIn<float> &v_in,
                                 [[out, condition(cond)]] VertOut &v_out,
+                                [[base_instance]] const int &base_instance,
+                                [[point_size]] float &point_size,
+                                [[clip_distance]] float (&clip_distance)[6],
+                                [[layer]] int &layer,
+                                [[viewport_index]] int &viewport_index,
                                 [[position]] float4 &out_position)
 {
+  base_instance;
+  point_size;
+  clip_distance;
+  layer;
+  viewport_index;
   out_position;
 }
 
 [[fragment]] void fragment_function([[resource_table]] Resources &srt,
                                     [[in, condition(cond)]] const VertOut &v_out,
                                     [[out]] FragOut &frag_out,
-                                    [[frag_depth(greater)]] float depth;
-                                    [[frag_stencil_ref]] int stencil;
-                                    [[point_coord]] const float2 pt_co;
-                                    [[front_facing]] const bool facing;
+                                    [[frag_depth(greater)]] float depth,
+                                    [[frag_stencil_ref]] int stencil,
+                                    [[layer]] const int &layer,
+                                    [[viewport_index]] const int &viewport_index,
+                                    [[point_coord]] const float2 pt_co,
+                                    [[front_facing]] const bool facing,
                                     [[frag_coord]] const float4 in_position)
 {
+  layer;
+  viewport_index;
   depth;
   stencil;
   in_position;
@@ -1704,25 +1718,32 @@ struct ns_VertInTfloat {
 };
 #line 20
            void ns_vertex_function(
-#line 23
+#line 28
                                                                  )
 {
 #if defined(GPU_VERTEX_SHADER)
-#line 24
+#line 29
   Resources srt;
+  gl_BaseInstance;
+  gl_PointSize;
+  gl_ClipDistance;
+  gl_Layer;
+  gl_ViewportIndex;
   gl_Position;
 
 #endif
-#line 26
+#line 36
 }
 
              void ns_fragment_function(
-#line 35
+#line 47
                                                                            )
 {
 #if defined(GPU_FRAGMENT_SHADER)
-#line 36
+#line 48
   Resources srt;
+  gl_Layer;
+  gl_ViewportIndex;
   gl_FragDepth;
   gl_FragStencilRefARB;
   gl_FragCoord;
@@ -1730,7 +1751,7 @@ struct ns_VertInTfloat {
   gl_FrontFacing;
 
 #endif
-#line 42
+#line 56
 }
 
 
@@ -1760,6 +1781,10 @@ GPU_SHADER_CREATE_INFO(ns_vertex_function_infos_)
 ADDITIONAL_INFO(Resources)
 ADDITIONAL_INFO(ns_VertInTfloat)
 VERTEX_OUT(ns_VertOut)
+BUILTINS(BuiltinBits::POINT_SIZE)
+BUILTINS(BuiltinBits::LAYER)
+BUILTINS(BuiltinBits::VIEWPORT_INDEX)
+BUILTINS(BuiltinBits::CLIP_DISTANCES)
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(ns_fragment_function_infos_)
@@ -1770,6 +1795,8 @@ BUILTINS(BuiltinBits::FRONT_FACING)
 BUILTINS(BuiltinBits::FRAG_COORD)
 ADDITIONAL_INFO(Resources)
 ADDITIONAL_INFO(ns_FragOut)
+BUILTINS(BuiltinBits::LAYER)
+BUILTINS(BuiltinBits::VIEWPORT_INDEX)
 GPU_SHADER_CREATE_END()
 
 )";
