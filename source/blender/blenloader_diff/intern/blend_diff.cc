@@ -1540,7 +1540,9 @@ class IdDiffer {
         }
       }
       const uint64_t hash = XXH3_64bits(bytes.data(), bytes.size());
-      return fmt::format("hashed -> 0x{:x}", hash);
+      char size_buf[BLI_STR_FORMAT_INT64_BYTE_UNIT_SIZE];
+      BLI_str_format_byte_unit(size_buf, bytes.size(), true);
+      return fmt::format("hash({}) -> 0x{:x}", size_buf, hash);
     }
     if (const Struct *sdna_struct = blend_data.sdna.try_find_struct(block.bhead.SDNAnr)) {
       const bool is_single = block.bhead.nr == 1;
@@ -2127,6 +2129,7 @@ static int main_do(const int argc, char *argv[])
   options.add_members_to_ignore("CustomData", {"typemap"});
   options.add_members_to_ignore("bNodeTreeInterface", {"active_index"});
   options.add_members_to_ignore("IDProperty", {"totallen"});
+  options.add_members_to_ignore("PreviewImage", {"changed_timestamp"});
   options.add_members_to_ignore("CurveProfile", {"changed_timestamp"});
   options.add_members_to_ignore("bNodeLink", {"*fromnode", "*tonode", "*fromsock", "*tosock"});
   options.add_next_prev_ignore_types(
