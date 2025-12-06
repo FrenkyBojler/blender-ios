@@ -3824,6 +3824,8 @@ static const char *sculpt_brush_type_name(const Sculpt &sd)
       return "Paint Brush";
     case SCULPT_BRUSH_TYPE_SMEAR:
       return "Smear Brush";
+    case SCULPT_BRUSH_TYPE_PAINT_SMOOTH:
+      return "Color Smooth Brush";
     case SCULPT_BRUSH_TYPE_PLANE:
       return "Plane Brush";
   }

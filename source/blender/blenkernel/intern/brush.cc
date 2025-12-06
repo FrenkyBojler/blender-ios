@@ -1744,7 +1744,8 @@ bool supports_dyntopo(const Brush &brush)
                SCULPT_BRUSH_TYPE_LAYER,
                SCULPT_BRUSH_TYPE_DISPLACEMENT_ERASER,
                SCULPT_BRUSH_TYPE_DRAW_SHARP,
-               SCULPT_BRUSH_TYPE_SLIDE_RELAX,
+               SCULPT_BRUSH_TYPE_SLIDE_RELAX) &&
+         !ELEM(brush.sculpt_brush_type,
                SCULPT_BRUSH_TYPE_ELASTIC_DEFORM,
                SCULPT_BRUSH_TYPE_BOUNDARY,
                SCULPT_BRUSH_TYPE_POSE,
