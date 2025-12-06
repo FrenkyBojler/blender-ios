@@ -484,7 +484,7 @@ static void nla_panel_actclip(const bContext *C, Panel *panel)
 
     animrig::Action &action = strip->act->wrap();
     ID &animated_id = *strip_ptr.owner_id;
-    if (!animrig::legacy::action_treat_as_legacy(action)) {
+    if (!blender::animrig::legacy::action_treat_as_legacy(action)) {
       PointerRNA animated_id_ptr = RNA_id_pointer_create(&animated_id);
       action_col.context_ptr_set("animated_id", &animated_id_ptr);
       action_col.context_ptr_set("nla_strip", &strip_ptr);

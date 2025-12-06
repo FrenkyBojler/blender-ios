@@ -190,9 +190,6 @@ ItemType Item::type() const
 
 Layout::Layout(ItemType type, LayoutRoot *root) : Item(type), root_{root} {};
 
-using ItemType = ItemType;
-using ItemInternalFlag = ItemInternalFlag;
-
 struct ButtonItem : public Item {
   Button *but = nullptr;
   ButtonItem() : Item(ItemType::Button) {}
