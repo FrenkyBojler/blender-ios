@@ -8,16 +8,19 @@
 
 #include "AS_asset_representation.hh"
 
+#include "BKE_idtype.hh"
 #include "BLI_fnmatch.h"
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
-
-#include "BKE_idtype.hh"
+#include <algorithm>
+#include <cctype>
+#include <string>
 
 #include "../file_intern.hh"
 #include "../filelist.hh"
+#include "BLI_string_search.hh"
 #include "filelist_intern.hh"
 
 using namespace blender;
@@ -174,6 +177,45 @@ void prepare_filter_asset_library(const FileList *filelist, FileListFilter *filt
 }
 
 /**
+ * Helper to normalize string for fuzzy comparison (lowercase).
+ */
+static std::string str_tolower(std::string s)
+{
+  std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::tolower(c); });
+  return s;
+}
+
+/**
+ * Checks if the candidate matches the query using Substring, Fuzzy Subsequence, or Levenshtein
+ * Distance.
+ */
+static bool is_fuzzy_match(const char *query_c, const char *candidate_c)
+{
+  if (BLI_strcasestr(candidate_c, query_c)) {
+    return true;
+  }
+
+  std::string query = str_tolower(query_c);
+  std::string candidate = str_tolower(candidate_c);
+
+  if (blender::string_search::get_fuzzy_match_errors(query, candidate) != -1) {
+    return true;
+  }
+  int dist = blender::string_search::damerau_levenshtein_distance(query, candidate);
+
+  int threshold = 2;
+  if (query.length() <= 2) {
+    return false;
+  }
+
+  if (dist <= threshold) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
  * Return whether at least one tag matches the search filter.
  * Tags are searched as "entire words", so instead of searching for "tag" in the
  * filter string, this function searches for " tag ". Assumes the search filter
@@ -188,7 +230,7 @@ void prepare_filter_asset_library(const FileList *filelist, FileListFilter *filt
 static bool asset_tag_matches_filter(const char *filter_search, const AssetMetaData *asset_data)
 {
   LISTBASE_FOREACH (const AssetTag *, asset_tag, &asset_data->tags) {
-    if (BLI_strcasestr(asset_tag->name, filter_search) != nullptr) {
+    if (is_fuzzy_match(filter_search, asset_tag->name)) {
       return true;
     }
   }
@@ -217,10 +259,15 @@ bool is_filtered_asset(FileListInternEntry *file, FileListFilter *filter)
 
   /* When doing a name comparison, get rid of the leading/trailing asterisks. */
   filter_search[string_length - 1] = '\0';
-  if (BLI_strcasestr(file->name, filter_search + 1) != nullptr) {
+
+  /* Skip the leading asterisk. */
+  const char *query = filter_search + 1;
+
+  /* Fuzzy check name and tags for a match. */
+  if (is_fuzzy_match(query, file->name)) {
     return true;
   }
-  return asset_tag_matches_filter(filter_search + 1, asset_data);
+  return asset_tag_matches_filter(query, asset_data);
 }
 
 static bool is_filtered_lib_type(FileListInternEntry *file,
