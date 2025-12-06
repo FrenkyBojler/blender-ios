@@ -64,10 +64,16 @@ class PROPERTIES_PT_object_transforms_presets(PresetPanel, bpy.types.Panel):
 
 
 # Function that will append presets panel to existing layout.
+"""NOTE:
+If presets are registered on custom panels that add-on creates, this function can be included
+inside the panel class as a method. Removing the text from `layout.popover`, and also removing
+emboss with `layout.emboss = 'NONE' before it's declared will give the same exact look as
+Blender's built-in presets in panel headers.
+"""
 def draw_header_preset(self, context):
     layout = self.layout
-    layout.emboss = 'NONE'
-    layout.popover("PROPERTIES_PT_object_transforms_presets", text="", icon='PRESET')
+    layout.popover("PROPERTIES_PT_object_transforms_presets",
+                   text="Object Transforms Presets", icon='PRESET')
 
 
 # Register classes.
@@ -80,4 +86,5 @@ for cls in classes:
     bpy.utils.register_class(cls)
 
 # Append layout function to existing UI.
+# If function is included inside a custom UI this is not needed anymore.
 bpy.types.OBJECT_PT_transform.prepend(draw_header_preset)
