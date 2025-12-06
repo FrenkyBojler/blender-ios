@@ -1928,8 +1928,8 @@ void ARMATURE_OT_bone_primitive_add(wmOperatorType *ot)
                  "Name of the newly created bone");
   
   static const EnumPropertyItem align_items[] = {
-    {0, "DEFAULT", 0, "Y Up", "Align new bone so the Y-axis is up"},
-    {1, "WORLD",   0, "Z Up",   "Align new bone so the Z-axis is up"},
+    {0, "DEFAULT", 0, "Default", "Align new bone so the Y-axis is up and Z-axis is forward (object space)"},
+    {1, "WORLD",   0, "Object",   "Align new bone so the bone axes match the object axes"},
     {2, "3D_CURSOR",   0, "3D Cursor",   "Align new bone to the 3D cursor"},
     {0, nullptr, 0, nullptr, nullptr}
     };
