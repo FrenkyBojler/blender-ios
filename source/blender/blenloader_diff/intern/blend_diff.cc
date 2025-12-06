@@ -1001,17 +1001,17 @@ class IdDiffer {
                         const Span<DataWithStruct> new_structs,
                         const StringRef context)
   {
-    if (old_structs.size() != new_structs.size()) {
-      writer_.writeln_changed(fmt::format("{} <length> = {}", context, old_structs.size()),
-                              fmt::format("{} <length> = {}", context, new_structs.size()));
-    }
+    struct Item {
+      DataWithStruct data_with_struct;
+      int64_t index;
+    };
 
-    Map<std::string, DataWithStruct> old_struct_map;
+    Map<std::string, Item> old_struct_map;
     for (const int64_t i : old_structs.index_range()) {
       const DataWithStruct &old_struct = old_structs[i];
       const std::string identifier = this->get_struct_identifier_with_index_fallback(
           old_, old_struct.data, *old_struct.sdna_struct, i);
-      if (!old_struct_map.add(identifier, old_struct)) {
+      if (!old_struct_map.add(identifier, {old_struct, i})) {
         const std::string user_identifier = this->get_struct_identifier_with_index_fallback(
             old_, old_struct.data, *old_struct.sdna_struct, i, true);
         writer_.writeln_unchanged(
@@ -1019,28 +1019,33 @@ class IdDiffer {
       }
     }
 
-    Map<std::string, DataWithStruct> new_struct_map;
+    bool order_changed = false;
+
+    Map<std::string, Item> new_struct_map;
     for (const int64_t i : new_structs.index_range()) {
       const DataWithStruct &new_struct = new_structs[i];
       const std::string identifier = this->get_struct_identifier_with_index_fallback(
           new_, new_struct.data, *new_struct.sdna_struct, i);
       const std::string user_identifier = this->get_struct_identifier_with_index_fallback(
           new_, new_struct.data, *new_struct.sdna_struct, i, true);
-      if (!new_struct_map.add(identifier, new_struct)) {
+      if (!new_struct_map.add(identifier, {new_struct, i})) {
         writer_.writeln_unchanged(
             fmt::format("Duplicate in List: {}: {} ({})", context, identifier, user_identifier));
       }
-      if (const DataWithStruct *old_struct = old_struct_map.lookup_ptr(identifier)) {
+      if (const Item *old_item = old_struct_map.lookup_ptr(identifier)) {
+        const DataWithStruct &old_struct = old_item->data_with_struct;
         this->diff_struct(old_block,
                           new_block,
-                          intptr_t(old_struct->data) - intptr_t(old_block.data),
+                          intptr_t(old_struct.data) - intptr_t(old_block.data),
                           intptr_t(new_struct.data) - intptr_t(new_block.data),
-                          *old_struct->sdna_struct,
+                          *old_struct.sdna_struct,
                           *new_struct.sdna_struct,
                           fmt::format("{}[{}]", context, user_identifier));
+        if (i != old_item->index) {
+          order_changed = true;
+        }
       }
       else {
-        // TODO: deduplicate writing part after =.
         writer_.writeln_added(fmt::format(
             "{}[{}] = {}", context, user_identifier, new_struct.sdna_struct->type->name));
       }
@@ -1055,9 +1060,16 @@ class IdDiffer {
       }
       const std::string user_identifier = this->get_struct_identifier_with_index_fallback(
           old_, old_struct.data, *old_struct.sdna_struct, i, true);
-      // TODO: deduplicate writing part after =.
       writer_.writeln_removed(fmt::format(
           "{}[{}] = {}", context, user_identifier, old_struct.sdna_struct->type->name));
+    }
+
+    if (old_structs.size() != new_structs.size() || order_changed) {
+      writer_.writeln_changed(fmt::format("{} <length> = {}", context, old_structs.size()),
+                              fmt::format("{} <length> = {}{}",
+                                          context,
+                                          new_structs.size(),
+                                          order_changed ? " (order changed)" : ""));
     }
   }
 
@@ -1065,18 +1077,18 @@ class IdDiffer {
                        const Span<const BlendBlock *> new_pointees,
                        const StringRef context)
   {
-    if (old_pointees.size() != new_pointees.size()) {
-      writer_.writeln_changed(fmt::format("{} <length> = {}", context, old_pointees.size()),
-                              fmt::format("{} <length> = {}", context, new_pointees.size()));
-    }
+    struct Item {
+      const BlendBlock *block;
+      int64_t index;
+    };
 
-    Map<std::string, const BlendBlock *> old_pointee_map;
+    Map<std::string, Item> old_pointee_map;
     for (const int64_t i : old_pointees.index_range()) {
       const BlendBlock &old_pointee = *old_pointees[i];
       const Struct &old_struct = *old_.sdna.try_find_struct(old_pointee.bhead.SDNAnr);
       const std::string identifier = this->get_struct_identifier_with_index_fallback(
           old_, old_pointee.data, old_struct, i);
-      if (!old_pointee_map.add(identifier, &old_pointee)) {
+      if (!old_pointee_map.add(identifier, {&old_pointee, i})) {
         const std::string user_identifier = this->get_struct_identifier_with_index_fallback(
             old_, old_pointee.data, old_struct, i, true);
         writer_.writeln_unchanged(
@@ -1088,7 +1100,8 @@ class IdDiffer {
     pointee_to_string_options.include_identifier = false;
     pointee_to_string_options.allow_string = false;
 
-    Map<std::string, const BlendBlock *> new_pointee_map;
+    bool order_changed = false;
+    Map<std::string, Item> new_pointee_map;
     for (const int64_t i : new_pointees.index_range()) {
       const BlendBlock &new_pointee = *new_pointees[i];
       const Struct &new_struct = *new_.sdna.try_find_struct(new_pointee.bhead.SDNAnr);
@@ -1096,13 +1109,17 @@ class IdDiffer {
           new_, new_pointee.data, new_struct, i);
       const std::string user_identifier = this->get_struct_identifier_with_index_fallback(
           new_, new_pointee.data, new_struct, i, true);
-      if (!new_pointee_map.add(identifier, &new_pointee)) {
+      if (!new_pointee_map.add(identifier, {&new_pointee, i})) {
         writer_.writeln_unchanged(
             fmt::format("Duplicate in List: {}: {} ({})", context, identifier, user_identifier));
       }
-      if (const BlendBlock *old_pointee = old_pointee_map.lookup_default(identifier, nullptr)) {
+      if (const Item *old_item = old_pointee_map.lookup_ptr(identifier)) {
+        const BlendBlock &old_pointee = *old_item->block;
         this->tag_potentially_corresponding_blocks(
-            *old_pointee, new_pointee, fmt::format("{}[{}]", context, user_identifier));
+            old_pointee, new_pointee, fmt::format("{}[{}]", context, user_identifier));
+        if (i != old_item->index) {
+          order_changed = true;
+        }
       }
       else {
         writer_.writeln_added(
@@ -1128,6 +1145,14 @@ class IdDiffer {
                       context,
                       user_identifier,
                       this->pointee_to_string(old_, &old_pointee, pointee_to_string_options)));
+    }
+
+    if (old_pointees.size() != new_pointees.size() || order_changed) {
+      writer_.writeln_changed(fmt::format("{} <length> = {}", context, old_pointees.size()),
+                              fmt::format("{} <length> = {}{}",
+                                          context,
+                                          new_pointees.size(),
+                                          order_changed ? " (order changed)" : ""));
     }
   }
 
