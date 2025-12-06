@@ -126,7 +126,7 @@ static void add_thumbnail_at_frame(float timeline_frame,
                                    Vector<SeqThumbInfo> &r_thumbs)
 {
   /* Frame at which the thumb at `timeline_frame` will be drawn */
-  float display_frame = timeline_frame + display_offset;
+  const float display_frame = timeline_frame + display_offset;
 
   float thumb_x_end = display_frame + thumb_width;
   bool clipped = false;
@@ -201,11 +201,11 @@ static void get_seq_strip_ends_thumbnails(const View2D *v2d,
                                           bool is_muted,
                                           Vector<SeqThumbInfo> &r_thumbs)
 {
-  float upper_thumb_bound = strip.right_handle;
-  float strip_width = (strip.right_handle - strip.left_handle);
-  bool overlap = (2.0f * thumb_width > strip_width);
-  bool only_right_handle_selected = ((strip.strip->flag & SEQ_RIGHTSEL) &&
-                                     !(strip.strip->flag & SEQ_LEFTSEL));
+  const float upper_thumb_bound = strip.right_handle;
+  const float strip_width = (strip.right_handle - strip.left_handle);
+  const bool overlap = (2.0f * thumb_width > strip_width);
+  const bool only_right_handle_selected = ((strip.strip->flag & SEQ_RIGHTSEL) &&
+                                           !(strip.strip->flag & SEQ_LEFTSEL));
 
   bool show_left_thumb = false;
   bool show_right_thumb = false;
@@ -240,7 +240,7 @@ static void get_seq_strip_ends_thumbnails(const View2D *v2d,
   }
 
   /* Offset the start of thumbnail */
-  float display_offset = -thumb_width;
+  const float display_offset = -thumb_width;
 
   if (show_right_thumb && is_thumbnail_in_view(strip.right_handle + display_offset,
                                                thumb_width,
