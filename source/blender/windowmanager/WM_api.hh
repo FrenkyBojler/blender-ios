@@ -25,6 +25,7 @@
 #include "BLI_enum_flags.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_math_vector_types.hh"
+#include "BLI_set.hh"
 #include "BLI_sys_types.h"
 
 #include "WM_keymap.hh"
@@ -496,7 +497,8 @@ ID *WM_file_link_datablock(Main *bmain,
                            const char *filepath,
                            short id_code,
                            const char *id_name,
-                           int flag);
+                           int flag,
+                           ReportList *reports = nullptr);
 /**
  * \note `scene` (and related `view_layer` and `v3d`) pointers may be NULL,
  * in which case no instantiation of appended objects, collections etc. will be performed.
@@ -508,7 +510,8 @@ ID *WM_file_append_datablock(Main *bmain,
                              const char *filepath,
                              short id_code,
                              const char *id_name,
-                             int flag);
+                             int flag,
+                             ReportList *reports = nullptr);
 void WM_lib_reload(Library *lib, bContext *C, ReportList *reports);
 
 /* Mouse cursors. */
@@ -978,11 +981,13 @@ void WM_operator_free_all_after(wmWindowManager *wm, wmOperator *op);
  */
 void WM_operator_type_set(wmOperator *op, wmOperatorType *ot);
 void WM_operator_stack_clear(wmWindowManager *wm);
+void WM_operator_stack_clear(wmWindowManager *wm, const blender::Set<wmOperatorType *> &types);
 /**
  * This function is needed in the case when an addon id disabled
  * while a modal operator it defined is running.
  */
 void WM_operator_handlers_clear(wmWindowManager *wm, wmOperatorType *ot);
+void WM_operator_handlers_clear(wmWindowManager *wm, const blender::Set<wmOperatorType *> &types);
 
 bool WM_operator_poll(bContext *C, wmOperatorType *ot);
 bool WM_operator_poll_context(bContext *C, wmOperatorType *ot, blender::wm::OpCallContext context);
@@ -1332,6 +1337,7 @@ size_t WM_operator_py_idname(char *dst, const char *src) ATTR_NONNULL(1, 2);
 bool WM_operator_py_idname_ok_or_report(ReportList *reports,
                                         const char *classname,
                                         const char *idname);
+bool WM_operator_idname_ok_or_report(ReportList *reports, const char *idname);
 /**
  * Return true when an operators name follows the `SOME_OT_op` naming convention.
  */
