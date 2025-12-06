@@ -13,8 +13,8 @@
 #include "DNA_node_types.h"
 
 #include "BKE_context.hh"
-#include "BKE_main.hh"
 #include "BKE_material.hh"
+#include "BKE_node_runtime.hh"
 #include "BKE_object.hh"
 
 #include "RNA_access.hh"
@@ -251,26 +251,24 @@ static std::function<void(bContext &)> tree_path_navigate_history(Span<bNodeTree
 
     ED_preview_kill_jobs(CTX_wm_manager(&C), CTX_data_main(&C));
 
-    for (bNodeTree *target_tree : history_path) {
+    for (bNodeTree *history_tree : history_path) {
       if (!snode->edittree) {
         break;
       }
-
       bNode *group_node = nullptr;
       for (bNode *node : snode->edittree->all_nodes()) {
-        if (node->id == (ID *)target_tree) {
+        if (node->id == reinterpret_cast<ID *>(history_tree)) {
           group_node = node;
           break;
         }
       }
       if (group_node == nullptr) {
-        // 删掉后续历史记录
         break;
       }
       bke::node_set_active(*snode->edittree, *group_node);
       bke::node_set_selected(*group_node, true);
 
-      ED_node_tree_push(region, snode, target_tree, group_node);
+      ED_node_tree_push(region, snode, history_tree, group_node);
     }
 
     WM_event_add_notifier(&C, NC_SCENE | ND_NODES, nullptr);
@@ -326,19 +324,22 @@ Vector<ui::ContextPathItem> context_path_for_space_node(const bContext &C)
     Span<bNodeTree *> history_tail_path = history_path_trees.as_span().drop_front(
         active_path_trees.size());
 
+    bNodeTree *parent_tree = active_path_trees.last();
     for (const int i : history_tail_path.index_range()) {
       bNodeTree *history_tree = history_tail_path[i];
-      bool is_valid = false;
-      LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
-        if (ntree == history_tree) {
-          is_valid = true;
+      bool group_node_exist = false;
+      for (bNode *node : parent_tree->all_nodes()) {
+        if (node->id == reinterpret_cast<ID *>(history_tree)) {
+          group_node_exist = true;
           break;
         }
       }
-      if (!is_valid) {
+
+      if (!group_node_exist) {
         history_path_trees.resize(active_path_trees.size() + i);
         break;
       }
+      parent_tree = history_tree;
 
       ui::context_path_add_generic(context_path,
                                    RNA_NodeTree,
