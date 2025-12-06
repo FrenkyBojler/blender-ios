@@ -933,10 +933,13 @@ class IdDiffer {
           const std::string sub_context = is_array ?
                                               fmt::format("{}.{}[{}]", context, name_only, i) :
                                               fmt::format("{}.{}", context, name_only);
+          PointeeToStringOptions options;
+          options.include_identifier = true;
+          options.allow_string = type_name == "char";
           const std::string old_line = fmt::format(
-              "{} = {}", sub_context, this->pointee_to_string(old_, old_pointee));
+              "{} = {}", sub_context, this->pointee_to_string(old_, old_pointee, options));
           const std::string new_line = fmt::format(
-              "{} = {}", sub_context, this->pointee_to_string(new_, new_pointee));
+              "{} = {}", sub_context, this->pointee_to_string(new_, new_pointee, options));
           if (old_line != new_line) {
             writer_.writeln_changed(old_line, new_line);
           }
@@ -1081,6 +1084,10 @@ class IdDiffer {
       }
     }
 
+    PointeeToStringOptions pointee_to_string_options;
+    pointee_to_string_options.include_identifier = false;
+    pointee_to_string_options.allow_string = false;
+
     Map<std::string, const BlendBlock *> new_pointee_map;
     for (const int64_t i : new_pointees.index_range()) {
       const BlendBlock &new_pointee = *new_pointees[i];
@@ -1098,10 +1105,11 @@ class IdDiffer {
             *old_pointee, new_pointee, fmt::format("{}[{}]", context, user_identifier));
       }
       else {
-        writer_.writeln_added(fmt::format("{}[{}] = {}",
-                                          context,
-                                          user_identifier,
-                                          this->pointee_to_string(new_, &new_pointee, false)));
+        writer_.writeln_added(
+            fmt::format("{}[{}] = {}",
+                        context,
+                        user_identifier,
+                        this->pointee_to_string(new_, &new_pointee, pointee_to_string_options)));
       }
     }
 
@@ -1115,10 +1123,11 @@ class IdDiffer {
       }
       const std::string user_identifier = this->get_struct_identifier_with_index_fallback(
           old_, old_pointee.data, old_struct, i, true);
-      writer_.writeln_removed(fmt::format("{}[{}] = {}",
-                                          context,
-                                          user_identifier,
-                                          this->pointee_to_string(old_, &old_pointee, false)));
+      writer_.writeln_removed(
+          fmt::format("{}[{}] = {}",
+                      context,
+                      user_identifier,
+                      this->pointee_to_string(old_, &old_pointee, pointee_to_string_options)));
     }
   }
 
@@ -1294,9 +1303,14 @@ class IdDiffer {
     return blend_data.addresses.map.lookup_default(address, nullptr);
   }
 
+  struct PointeeToStringOptions {
+    bool include_identifier = true;
+    bool allow_string = false;
+  };
+
   std::string pointee_to_string(const PerBlendData &blend_data,
                                 const Pointee &pointee,
-                                const bool include_identifier = true) const
+                                const PointeeToStringOptions &options) const
   {
     if (!pointee) {
       return "nullptr";
@@ -1305,7 +1319,7 @@ class IdDiffer {
       const BlendBlock &block = **block_ptr;
       if (block.bhead.SDNAnr == SDNA_RAW_DATA_STRUCT_INDEX) {
         const Span<char> bytes{block.data, block.bhead.len};
-        if (bytes.size() <= 128) {
+        if (options.allow_string && bytes.size() <= 128) {
           if (std::optional<std::string> str = try_convert_char_array_to_readable_string(bytes)) {
             return fmt::format("\"{}\"", *str);
           }
@@ -1317,7 +1331,7 @@ class IdDiffer {
         const bool is_single = block.bhead.nr == 1;
         const std::string count_str = is_single ? "" : fmt::format("{}x ", block.bhead.nr);
         const std::optional<std::string> user_identifier =
-            is_single && include_identifier ?
+            is_single && options.include_identifier ?
                 this->get_struct_identifier(blend_data, block.data, *sdna_struct, true) :
                 std::nullopt;
         return fmt::format(
