@@ -68,7 +68,7 @@ class WeightPaintOperation : public GreasePencilStrokeOperation {
   };
 
   struct PointsTouchedByBrush {
-    blender::KDTree_2d *kdtree;
+    KDTree_2d *kdtree;
     Array<float> weights;
   };
 
@@ -334,7 +334,7 @@ class WeightPaintOperation : public GreasePencilStrokeOperation {
     }
 
     /* Create KDTree of stroke points touched by the brush. */
-    blender::KDTree_2d *touched_points = kdtree_2d_new(point_num);
+    KDTree_2d *touched_points = kdtree_2d_new(point_num);
     Array<float> touched_points_weights(point_num);
     int kdtree_index = 0;
     for (const DrawingWeightData &drawing_weight : drawing_weights) {

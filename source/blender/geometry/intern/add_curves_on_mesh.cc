@@ -58,7 +58,7 @@ static void calc_straight_curve_positions(const float3 &a,
 }
 
 static Array<NeighborCurves> find_curve_neighbors(const Span<float3> root_positions,
-                                                  const blender::KDTree_3d &old_roots_kdtree)
+                                                  const KDTree_3d &old_roots_kdtree)
 {
   const int tot_added_curves = root_positions.size();
   Array<NeighborCurves> neighbors_per_curve(tot_added_curves);

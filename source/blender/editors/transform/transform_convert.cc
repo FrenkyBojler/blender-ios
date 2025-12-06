@@ -241,7 +241,7 @@ static void set_prop_dist(TransInfo *t, const bool with_dist)
       MEM_mallocN(sizeof(*td_table) * td_table_len, __func__));
 
   /* Create and fill KD-tree of selected's positions - in global or proj_vec space. */
-  blender::KDTree_3d *td_tree = kdtree_3d_new(td_table_len);
+  KDTree_3d *td_tree = kdtree_3d_new(td_table_len);
 
   int td_table_index = 0;
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {

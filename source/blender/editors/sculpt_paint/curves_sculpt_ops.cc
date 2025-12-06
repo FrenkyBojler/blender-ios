@@ -654,7 +654,7 @@ static void select_grow_invoke_per_curve(const Curves &curves_id,
       1024 < curve_op_data.selected_points.size() + curve_op_data.unselected_points.size(),
       [&]() {
         /* Build KD-tree for the selected points. */
-        blender::KDTree_3d *kdtree = kdtree_3d_new(curve_op_data.selected_points.size());
+        KDTree_3d *kdtree = kdtree_3d_new(curve_op_data.selected_points.size());
         BLI_SCOPED_DEFER([&]() { kdtree_3d_free(kdtree); });
         curve_op_data.selected_points.foreach_index([&](const int point_i) {
           const float3 &position = positions[point_i];
@@ -677,7 +677,7 @@ static void select_grow_invoke_per_curve(const Curves &curves_id,
       },
       [&]() {
         /* Build KD-tree for the unselected points. */
-        blender::KDTree_3d *kdtree = kdtree_3d_new(curve_op_data.unselected_points.size());
+        KDTree_3d *kdtree = kdtree_3d_new(curve_op_data.unselected_points.size());
         BLI_SCOPED_DEFER([&]() { kdtree_3d_free(kdtree); });
         curve_op_data.unselected_points.foreach_index([&](const int point_i) {
           const float3 &position = positions[point_i];

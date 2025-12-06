@@ -896,7 +896,7 @@ static void grease_pencil_fill_extension_lines_from_circles(
   Array<float2> view_centers(max_kd_entries);
   Array<float> view_radii(max_kd_entries);
 
-  blender::KDTree_2d *kdtree = kdtree_2d_new(max_kd_entries);
+  KDTree_2d *kdtree = kdtree_2d_new(max_kd_entries);
 
   /* Insert points for overlap tests. */
   for (const int point_i : circles_range.index_range()) {

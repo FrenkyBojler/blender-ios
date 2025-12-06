@@ -1799,7 +1799,7 @@ std::optional<Mesh *> mesh_merge_by_distance_all(const Mesh &mesh,
 {
   Array<int> vert_dest_map(mesh.verts_num, OUT_OF_CONTEXT);
 
-  blender::KDTree_3d *tree = kdtree_3d_new(selection.size());
+  KDTree_3d *tree = kdtree_3d_new(selection.size());
 
   const Span<float3> positions = mesh.vert_positions();
   selection.foreach_index([&](const int64_t i) { kdtree_3d_insert(tree, i, positions[i]); });

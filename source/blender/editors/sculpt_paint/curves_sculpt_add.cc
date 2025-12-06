@@ -57,7 +57,7 @@ using bke::CurvesGeometry;
 class AddOperation : public CurvesSculptStrokeOperation {
  private:
   /** Used when some data should be interpolated from existing curves. */
-  blender::KDTree_3d *curve_roots_kdtree_ = nullptr;
+  KDTree_3d *curve_roots_kdtree_ = nullptr;
 
   friend struct AddOperationExecutor;
 

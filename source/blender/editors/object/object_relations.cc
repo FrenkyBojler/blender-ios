@@ -807,10 +807,7 @@ bool parent_set(ReportList *reports,
                                    vert_par);
 }
 
-static void parent_set_vert_find(blender::KDTree_3d *tree,
-                                 Object *child,
-                                 int vert_par[3],
-                                 bool is_tri)
+static void parent_set_vert_find(KDTree_3d *tree, Object *child, int vert_par[3], bool is_tri)
 {
   const float *co_find = child->object_to_world().location();
   if (is_tri) {
@@ -879,7 +876,7 @@ static bool parent_set_nonvertex_parent(bContext *C, ParentingContext *parenting
 
 static bool parent_set_vertex_parent_with_kdtree(bContext *C,
                                                  ParentingContext *parenting_context,
-                                                 blender::KDTree_3d *tree)
+                                                 KDTree_3d *tree)
 {
   int vert_par[3] = {0, 0, 0};
 
@@ -910,7 +907,7 @@ static bool parent_set_vertex_parent_with_kdtree(bContext *C,
 
 static bool parent_set_vertex_parent(bContext *C, ParentingContext *parenting_context)
 {
-  blender::KDTree_3d *tree = nullptr;
+  KDTree_3d *tree = nullptr;
   int tree_tot;
 
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);

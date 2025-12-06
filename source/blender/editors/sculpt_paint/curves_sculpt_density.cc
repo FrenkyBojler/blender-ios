@@ -42,9 +42,9 @@ namespace blender::ed::sculpt_paint {
 class DensityAddOperation : public CurvesSculptStrokeOperation {
  private:
   /** Used when some data should be interpolated from existing curves. */
-  blender::KDTree_3d *original_curve_roots_kdtree_ = nullptr;
+  KDTree_3d *original_curve_roots_kdtree_ = nullptr;
   /** Contains curve roots of all curves that existed before the brush started. */
-  blender::KDTree_3d *deformed_curve_roots_kdtree_ = nullptr;
+  KDTree_3d *deformed_curve_roots_kdtree_ = nullptr;
   /** Root positions of curves that have been added in the current brush stroke. */
   Vector<float3> new_deformed_root_positions_;
   int original_curve_num_ = 0;
@@ -180,8 +180,7 @@ struct DensityAddOperationExecutor {
     }
 
     const int already_added_curves = self_->new_deformed_root_positions_.size();
-    blender::KDTree_3d *new_roots_kdtree = kdtree_3d_new(already_added_curves +
-                                                         new_positions_cu.size());
+    KDTree_3d *new_roots_kdtree = kdtree_3d_new(already_added_curves + new_positions_cu.size());
     BLI_SCOPED_DEFER([&]() { kdtree_3d_free(new_roots_kdtree); });
 
     /* Used to tag all curves that are too close to existing curves or too close to other new
@@ -313,7 +312,7 @@ struct DensityAddOperationExecutor {
     BLI_assert(original_positions.size() == deformed_positions.size());
 
     auto roots_kdtree_from_positions = [&](const Span<float3> positions) {
-      blender::KDTree_3d *kdtree = kdtree_3d_new(curves_orig_->curves_num());
+      KDTree_3d *kdtree = kdtree_3d_new(curves_orig_->curves_num());
       for (const int curve_i : curves_orig_->curves_range()) {
         const int root_point_i = curve_offsets[curve_i];
         kdtree_3d_insert(kdtree, curve_i, positions[root_point_i]);
@@ -525,7 +524,7 @@ struct DensitySubtractOperationExecutor {
 
   CurvesSurfaceTransforms transforms_;
 
-  blender::KDTree_3d *root_points_kdtree_;
+  KDTree_3d *root_points_kdtree_;
 
   DensitySubtractOperationExecutor(const bContext &C) : ctx_(C) {}
 

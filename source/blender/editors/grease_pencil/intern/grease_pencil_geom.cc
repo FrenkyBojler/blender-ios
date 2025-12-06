@@ -182,7 +182,7 @@ int curve_merge_by_distance(const IndexRange points,
                             MutableSpan<int> r_merge_indices)
 {
   /* We use a KDTree_1d here, because we can only merge neighboring points in the curves. */
-  blender::KDTree_1d *tree = kdtree_1d_new(selection.size());
+  KDTree_1d *tree = kdtree_1d_new(selection.size());
   /* The selection is an IndexMask of the points just in this curve. */
   selection.foreach_index_optimized<int64_t>([&](const int64_t i, const int64_t pos) {
     kdtree_1d_insert(tree, pos, &distances[i - points.first()]);
@@ -364,7 +364,7 @@ bke::CurvesGeometry curves_merge_endpoints_by_distance(
   const VArray<bool> cyclic = *src_curves.attributes().lookup_or_default<bool>(
       "cyclic", bke::AttrDomain::Curve, false);
   /* For comparing screen space positions use a 2D KDTree. Each curve adds 2 points. */
-  blender::KDTree_2d *tree = kdtree_2d_new(2 * src_curves.curves_num());
+  KDTree_2d *tree = kdtree_2d_new(2 * src_curves.curves_num());
 
   threading::parallel_for(src_curves.curves_range(), 1024, [&](const IndexRange range) {
     for (const int src_i : range) {
