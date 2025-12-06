@@ -954,7 +954,7 @@ class IdDiffer {
     if (const BlendIdData *id_data = blend_data.id_addresses.map.lookup_default_as(address,
                                                                                    nullptr))
     {
-      return id_data->id_block;
+      return id_data;
     }
     return std::nullopt;
   }
