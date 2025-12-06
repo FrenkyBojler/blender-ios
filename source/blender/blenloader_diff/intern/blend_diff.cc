@@ -426,6 +426,52 @@ static bool is_specific_id_struct(const Struct &sdna_struct)
   return true;
 }
 
+class DiffLines {
+ private:
+  std::unique_ptr<fmt::memory_buffer> mem_buf_;
+  bool is_empty_ = true;
+
+ public:
+  DiffLines()
+  {
+    mem_buf_ = std::make_unique<fmt::memory_buffer>();
+  }
+
+  void change(const StringRef old_line, const StringRef new_line)
+  {
+    this->remove(old_line);
+    this->add(new_line);
+  }
+
+  void add(const StringRef line)
+  {
+    fmt::format_to(fmt::appender(*mem_buf_), "+{}\n", line);
+    is_empty_ = false;
+  }
+
+  void remove(const StringRef line)
+  {
+    fmt::format_to(fmt::appender(*mem_buf_), "-{}\n", line);
+    is_empty_ = false;
+  }
+
+  void info(const StringRef line)
+  {
+    fmt::format_to(fmt::appender(*mem_buf_), " {}\n", line);
+    is_empty_ = false;
+  }
+
+  bool is_empty() const
+  {
+    return is_empty_;
+  }
+
+  std::string to_string() const
+  {
+    return fmt::to_string(*mem_buf_);
+  }
+};
+
 class DiffWriter {
  private:
   fmt::memory_buffer mem_buf_;
@@ -453,27 +499,25 @@ class DiffWriter {
     fmt::format_to(dst_, " {}\n", line);
   }
 
-  void writeln_if_changed(const StringRef old_line, const StringRef new_line)
+  void change(const StringRef old_line, const StringRef new_line)
   {
-    if (old_line != new_line) {
-      this->writeln_changed(old_line, new_line);
-    }
+    this->remove(old_line);
+    this->add(new_line);
   }
 
-  void writeln_changed(const StringRef old_line, const StringRef new_line)
-  {
-    this->writeln_removed(old_line);
-    this->writeln_added(new_line);
-  }
-
-  void writeln_added(const StringRef line)
+  void add(const StringRef line)
   {
     fmt::format_to(dst_, "+{}\n", line);
   }
 
-  void writeln_removed(const StringRef line)
+  void remove(const StringRef line)
   {
     fmt::format_to(dst_, "-{}\n", line);
+  }
+
+  void merge(const DiffLines &lines)
+  {
+    fmt::format_to(dst_, lines.to_string());
   }
 
   std::string to_string() const
@@ -482,7 +526,7 @@ class DiffWriter {
   }
 };
 
-static void write_diff_struct_member(DiffWriter &writer,
+static void write_diff_struct_member(DiffLines &diff,
                                      const StructMember &old_member,
                                      const StructMember &new_member)
 {
@@ -491,29 +535,29 @@ static void write_diff_struct_member(DiffWriter &writer,
   if (old_member_str == new_member_str) {
     return;
   }
-  writer.writeln_changed(old_member_str, new_member_str);
+  diff.change(old_member_str, new_member_str);
 }
 
-static void write_diff_type(DiffWriter &writer,
+static void write_diff_type(DiffLines &diff,
                             const DiffOptions &options,
                             const Type &old_type,
                             const Type &new_type)
 {
   const StringRef name = old_type.name;
   if (old_type.opt_struct && !new_type.opt_struct) {
-    writer.writeln_changed(fmt::format("Type `{}` has struct", name),
-                           fmt::format("Type `{}` has no struct", name));
+    diff.change(fmt::format("Type `{}` has struct", name),
+                fmt::format("Type `{}` has no struct", name));
     return;
   }
   if (!old_type.opt_struct && new_type.opt_struct) {
-    writer.writeln_changed(fmt::format("Type `{}` has no struct", name),
-                           fmt::format("Type `{}` has struct", name));
+    diff.change(fmt::format("Type `{}` has no struct", name),
+                fmt::format("Type `{}` has struct", name));
     return;
   }
   if (!old_type.opt_struct) {
     if (old_type.size_in_bytes != new_type.size_in_bytes) {
-      writer.writeln_changed(fmt::format("Type `{}` has size {}", name, old_type.size_in_bytes),
-                             fmt::format("Type `{}` has size {}", name, new_type.size_in_bytes));
+      diff.change(fmt::format("Type `{}` has size {}", name, old_type.size_in_bytes),
+                  fmt::format("Type `{}` has size {}", name, new_type.size_in_bytes));
     }
     return;
   }
@@ -524,10 +568,10 @@ static void write_diff_type(DiffWriter &writer,
     if (const StructMember *new_member = new_type.opt_struct->members.lookup_key_default_as(
             old_member->identifier, nullptr))
     {
-      write_diff_struct_member(writer, *old_member, *new_member);
+      write_diff_struct_member(diff, *old_member, *new_member);
     }
     else {
-      writer.writeln_removed(old_member->to_decl_string());
+      diff.remove(old_member->to_decl_string());
     }
   }
   for (const StructMember *new_member : new_type.opt_struct->members) {
@@ -539,22 +583,21 @@ static void write_diff_type(DiffWriter &writer,
     if (old_member) {
       continue;
     }
-    writer.writeln_added(new_member->to_decl_string());
+    diff.add(new_member->to_decl_string());
   }
 }
 
-static void write_diff_sdna(DiffWriter &writer,
-                            const DiffOptions &options,
-                            const RichSDNA &old_sdna,
-                            const RichSDNA &new_sdna)
+static DiffLines write_diff_sdna(const DiffOptions &options,
+                                 const RichSDNA &old_sdna,
+                                 const RichSDNA &new_sdna)
 {
-  writer.write_section("SDNA Changes");
+  DiffLines diff;
   for (const Type *old_type : old_sdna.types) {
     if (const Type *new_type = new_sdna.types.lookup_key_default_as(old_type->name, nullptr)) {
-      write_diff_type(writer, options, *old_type, *new_type);
+      write_diff_type(diff, options, *old_type, *new_type);
     }
     else {
-      writer.writeln_removed(fmt::format("Type: {}", old_type->name));
+      diff.remove(fmt::format("Type: {}", old_type->name));
     }
   }
   for (const Type *new_type : new_sdna.types) {
@@ -562,8 +605,9 @@ static void write_diff_sdna(DiffWriter &writer,
     if (old_type) {
       continue;
     }
-    writer.writeln_added(fmt::format("Type: {}", new_type->name));
+    diff.add(fmt::format("Type: {}", new_type->name));
   }
+  return diff;
 }
 
 struct BlendBlock {
@@ -802,7 +846,7 @@ struct RawBufferType {
 
 class IdDiffer {
  private:
-  DiffWriter &writer_;
+  DiffLines &diff_;
   const DiffOptions &options_;
 
   struct PerBlendData {
@@ -841,7 +885,7 @@ class IdDiffer {
   };
 
  public:
-  IdDiffer(DiffWriter &writer,
+  IdDiffer(DiffLines &diff,
            const DiffOptions &options,
            const BlendIdData &old_id_data,
            const BlendIdData &new_id_data,
@@ -849,7 +893,7 @@ class IdDiffer {
            const IdAddressMap &new_ids,
            const RichSDNA &old_sdna,
            const RichSDNA &new_sdna)
-      : writer_(writer),
+      : diff_(diff),
         options_(options),
         old_{old_ids, old_id_data, old_sdna},
         new_{new_ids, new_id_data, new_sdna}
@@ -1157,8 +1201,8 @@ class IdDiffer {
   {
     const StringRef type_name = old_struct.type->name;
     if (type_name != new_struct.type->name) {
-      writer_.writeln_changed(fmt::format("{} <type> = {}", context, old_struct.type->name),
-                              fmt::format("{} <type> = {}", context, new_struct.type->name));
+      diff_.change(fmt::format("{} <type> = {}", context, old_struct.type->name),
+                   fmt::format("{} <type> = {}", context, new_struct.type->name));
       return;
     }
     if (type_name == "ListBase") {
@@ -1250,8 +1294,8 @@ class IdDiffer {
             if (old_str == new_str) {
               break;
             }
-            writer_.writeln_changed(fmt::format("{}.{} = {}", context, name_only, *old_str),
-                                    fmt::format("{}.{} = {}", context, name_only, *new_str));
+            diff_.change(fmt::format("{}.{} = {}", context, name_only, *old_str),
+                         fmt::format("{}.{} = {}", context, name_only, *new_str));
             break;
           }
         }
@@ -1278,9 +1322,8 @@ class IdDiffer {
           const std::string sub_context = is_array ?
                                               fmt::format("{}.{}[{}]", context, name_only, i) :
                                               fmt::format("{}.{}", context, name_only);
-          writer_.writeln_changed(
-              fmt::format("{} = {}", sub_context, primitive_value_to_string(old_value)),
-              fmt::format("{} = {}", sub_context, primitive_value_to_string(new_value)));
+          diff_.change(fmt::format("{} = {}", sub_context, primitive_value_to_string(old_value)),
+                       fmt::format("{} = {}", sub_context, primitive_value_to_string(new_value)));
         }
         break;
       }
@@ -1305,7 +1348,7 @@ class IdDiffer {
           const std::string new_line = fmt::format(
               "{} = {}", sub_context, this->pointee_to_string(new_, new_pointee, options));
           if (old_line != new_line) {
-            writer_.writeln_changed(old_line, new_line);
+            diff_.change(old_line, new_line);
           }
           if (old_pointee.id_data || new_pointee.id_data) {
             continue;
@@ -1379,7 +1422,7 @@ class IdDiffer {
       if (!old_struct_map.add(identifier, {old_struct, i})) {
         const std::string user_identifier = this->get_struct_identifier_with_index_fallback(
             old_, old_struct.data, *old_struct.sdna_struct, i, true);
-        writer_.writeln_unchanged(
+        diff_.info(
             fmt::format("Duplicate in List: {}: {} ({})", context, identifier, user_identifier));
       }
     }
@@ -1394,7 +1437,7 @@ class IdDiffer {
       const std::string user_identifier = this->get_struct_identifier_with_index_fallback(
           new_, new_struct.data, *new_struct.sdna_struct, i, true);
       if (!new_struct_map.add(identifier, {new_struct, i})) {
-        writer_.writeln_unchanged(
+        diff_.info(
             fmt::format("Duplicate in List: {}: {} ({})", context, identifier, user_identifier));
       }
       if (const Item *old_item = old_struct_map.lookup_ptr(identifier)) {
@@ -1411,7 +1454,7 @@ class IdDiffer {
         }
       }
       else {
-        writer_.writeln_added(fmt::format(
+        diff_.add(fmt::format(
             "{}[{}] = {}(...)", context, user_identifier, new_struct.sdna_struct->type->name));
       }
     }
@@ -1425,16 +1468,16 @@ class IdDiffer {
       }
       const std::string user_identifier = this->get_struct_identifier_with_index_fallback(
           old_, old_struct.data, *old_struct.sdna_struct, i, true);
-      writer_.writeln_removed(fmt::format(
+      diff_.remove(fmt::format(
           "{}[{}] = {}(...)", context, user_identifier, old_struct.sdna_struct->type->name));
     }
 
     if (old_structs.size() != new_structs.size() || order_changed) {
-      writer_.writeln_changed(fmt::format("{} <length> = {}", context, old_structs.size()),
-                              fmt::format("{} <length> = {}{}",
-                                          context,
-                                          new_structs.size(),
-                                          order_changed ? " (order changed)" : ""));
+      diff_.change(fmt::format("{} <length> = {}", context, old_structs.size()),
+                   fmt::format("{} <length> = {}{}",
+                               context,
+                               new_structs.size(),
+                               order_changed ? " (order changed)" : ""));
     }
   }
 
@@ -1459,7 +1502,7 @@ class IdDiffer {
       if (!old_pointee_map.add(identifier, {old_pointee, i})) {
         const std::string user_identifier = this->get_struct_identifier_with_index_fallback(
             old_, old_pointee.block->data, old_struct, i, true);
-        writer_.writeln_unchanged(
+        diff_.info(
             fmt::format("Duplicate in List: {}: {} ({})", context, identifier, user_identifier));
       }
     }
@@ -1483,7 +1526,7 @@ class IdDiffer {
       const std::string user_identifier = this->get_struct_identifier_with_index_fallback(
           new_, new_pointee.block->data, new_struct, i, true);
       if (!new_pointee_map.add(identifier, {new_pointee, i})) {
-        writer_.writeln_unchanged(
+        diff_.info(
             fmt::format("Duplicate in List: {}: {} ({})", context, identifier, user_identifier));
       }
       if (const Item *old_item = old_pointee_map.lookup_ptr(identifier)) {
@@ -1497,7 +1540,7 @@ class IdDiffer {
         }
       }
       else {
-        writer_.writeln_added(
+        diff_.add(
             fmt::format("{}[{}] = {}",
                         context,
                         user_identifier,
@@ -1518,7 +1561,7 @@ class IdDiffer {
       }
       const std::string user_identifier = this->get_struct_identifier_with_index_fallback(
           old_, old_pointee.block->data, old_struct, i, true);
-      writer_.writeln_removed(
+      diff_.remove(
           fmt::format("{}[{}] = {}",
                       context,
                       user_identifier,
@@ -1526,19 +1569,19 @@ class IdDiffer {
     }
 
     if (old_pointees.size() != new_pointees.size() || order_changed) {
-      writer_.writeln_changed(fmt::format("{} <length> = {}", context, old_pointees.size()),
-                              fmt::format("{} <length> = {}{}",
-                                          context,
-                                          new_pointees.size(),
-                                          order_changed ? " (order changed)" : ""));
+      diff_.change(fmt::format("{} <length> = {}", context, old_pointees.size()),
+                   fmt::format("{} <length> = {}{}",
+                               context,
+                               new_pointees.size(),
+                               order_changed ? " (order changed)" : ""));
     }
   }
 
   void diff_GSpan(const GSpan old_span, const GSpan new_span, const StringRef context)
   {
     if (old_span.size() != new_span.size()) {
-      writer_.writeln_changed(fmt::format("{} <length> = {}", context, old_span.size()),
-                              fmt::format("{} <length> = {}", context, new_span.size()));
+      diff_.change(fmt::format("{} <length> = {}", context, old_span.size()),
+                   fmt::format("{} <length> = {}", context, new_span.size()));
       return;
     }
     const CPPType &type = old_span.type();
@@ -1555,20 +1598,19 @@ class IdDiffer {
       }
     }
     if (changed_indices.size() > options_.max_array_changes) {
-      writer_.writeln_changed(
-          fmt::format("{} <length> = {}x {}", context, old_span.size(), type.name()),
-          fmt::format("{} <length> = {}x {} ({} indices changed)",
-                      context,
-                      new_span.size(),
-                      type.name(),
-                      changed_indices.size()));
+      diff_.change(fmt::format("{} <length> = {}x {}", context, old_span.size(), type.name()),
+                   fmt::format("{} <length> = {}x {} ({} indices changed)",
+                               context,
+                               new_span.size(),
+                               type.name(),
+                               changed_indices.size()));
       return;
     }
     for (const int64_t i : changed_indices) {
       const void *old_value = old_span[i];
       const void *new_value = new_span[i];
-      writer_.writeln_changed(fmt::format("{}[{}] = {}", context, i, type.to_string(old_value)),
-                              fmt::format("{}[{}] = {}", context, i, type.to_string(new_value)));
+      diff_.change(fmt::format("{}[{}] = {}", context, i, type.to_string(old_value)),
+                   fmt::format("{}[{}] = {}", context, i, type.to_string(new_value)));
     }
   }
 
@@ -1638,7 +1680,7 @@ class IdDiffer {
     if (old_value == new_value) {
       return;
     }
-    writer_.writeln_changed(
+    diff_.change(
         fmt::format("{}.decoded_value = {}", context, primitive_value_to_string(old_value)),
         fmt::format("{}.decoded_value = {}", context, primitive_value_to_string(new_value)));
   }
@@ -1993,19 +2035,26 @@ class IdDiffer {
   }
 };
 
-static void write_diff_ids(DiffWriter &writer,
-                           const DiffOptions &options,
-                           const Span<BlendIdData> id_blocks_old,
-                           const Span<BlendIdData> id_blocks_new,
-                           const RichSDNA &sdna_old,
-                           const RichSDNA &sdna_new)
-{
+struct AllIdDiffLines {
+  DiffLines removed_ids;
+  DiffLines added_ids;
+  DiffLines ignored_ids;
+  Vector<std::pair<std::string, DiffLines>> changed_ids;
+};
 
+static AllIdDiffLines write_diff_ids(const DiffOptions &options,
+                                     const Span<BlendIdData> id_blocks_old,
+                                     const Span<BlendIdData> id_blocks_new,
+                                     const RichSDNA &sdna_old,
+                                     const RichSDNA &sdna_new)
+{
   Map<StringRef, const BlendIdData *> old_id_names;
   Map<StringRef, const BlendIdData *> new_id_names;
 
   IdAddressMap id_address_map_old;
   IdAddressMap id_address_map_new;
+
+  AllIdDiffLines all_diffs;
 
   for (const BlendIdData &id_data : id_blocks_old) {
     old_id_names.add(id_data.name, &id_data);
@@ -2016,32 +2065,30 @@ static void write_diff_ids(DiffWriter &writer,
     id_address_map_new.map.add(uint64_t(id_data.id_block->bhead.old), &id_data);
   }
   Vector<std::pair<const BlendIdData *, const BlendIdData *>> id_pairs;
-  writer.write_section("Removed Data-Blocks");
   for (const BlendIdData &old_id_data : id_blocks_old) {
     if (const BlendIdData *new_id_data = new_id_names.lookup_default_as(old_id_data.name, nullptr))
     {
       id_pairs.append({&old_id_data, new_id_data});
     }
     else {
-      writer.writeln_removed(fmt::format("Data-block: {}", old_id_data.name));
+      all_diffs.removed_ids.remove(fmt::format("Data-block: {}", old_id_data.name));
     }
   }
-  writer.write_section("Added Data-Blocks");
   for (const BlendIdData &new_id_data : id_blocks_new) {
     if (old_id_names.contains(new_id_data.name)) {
       continue;
     }
-    writer.writeln_added(fmt::format("Data-block: {}", new_id_data.name));
+    all_diffs.added_ids.add(fmt::format("Data-block: {}", new_id_data.name));
   }
   for (const std::pair<const BlendIdData *, const BlendIdData *> &id_pair : id_pairs) {
     const BlendIdData &old_id_data = *id_pair.first;
     const BlendIdData &new_id_data = *id_pair.second;
     if (options.ignore_id_type(new_id_data.type_name)) {
-      writer.write_section(fmt::format("Data Block \"{}\" ignored", new_id_data.name));
+      all_diffs.ignored_ids.info(fmt::format("Data Block ignored: \"{}\"", new_id_data.name));
       continue;
     }
-    writer.write_section(fmt::format("Diffing Data Block \"{}\"", new_id_data.name));
-    IdDiffer id_differ(writer,
+    DiffLines id_diff;
+    IdDiffer id_differ(id_diff,
                        options,
                        old_id_data,
                        new_id_data,
@@ -2050,7 +2097,9 @@ static void write_diff_ids(DiffWriter &writer,
                        sdna_old,
                        sdna_new);
     id_differ.run();
+    all_diffs.changed_ids.append({new_id_data.name, std::move(id_diff)});
   }
+  return all_diffs;
 }
 
 static bool is_id_block(const BlendBlock &block, const RichSDNA &sdna)
@@ -2378,9 +2427,27 @@ static int main_do(const int argc, char *argv[])
   /* These have special handling. */
   options.add_members_to_ignore("IDPropertyData", {"val", "val2"});
 
+  const DiffLines sdna_diff = write_diff_sdna(options, sdna_old, sdna_new);
+  const AllIdDiffLines id_diffs = write_diff_ids(
+      options, *id_blocks_old, *id_blocks_new, sdna_old, sdna_new);
+
   DiffWriter writer(relative_path);
-  write_diff_sdna(writer, options, sdna_old, sdna_new);
-  write_diff_ids(writer, options, *id_blocks_old, *id_blocks_new, sdna_old, sdna_new);
+  for (const std::pair<std::string, DiffLines> &changed_id : id_diffs.changed_ids) {
+    if (!changed_id.second.is_empty()) {
+      writer.merge(changed_id.second);
+    }
+  }
+  DiffLines unmodified_diff;
+  for (const std::pair<std::string, DiffLines> &changed_id : id_diffs.changed_ids) {
+    if (changed_id.second.is_empty()) {
+      unmodified_diff.info(fmt::format("Data-block not modified: \"{}\"", changed_id.first));
+    }
+  }
+  writer.merge(unmodified_diff);
+  writer.merge(id_diffs.added_ids);
+  writer.merge(id_diffs.removed_ids);
+  writer.merge(id_diffs.ignored_ids);
+  writer.merge(sdna_diff);
 
   std::cout << writer.to_string();
   return 0;
