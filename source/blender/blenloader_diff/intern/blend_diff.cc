@@ -7,7 +7,9 @@
 #include "BLI_index_range.hh"
 #include "BLI_linear_allocator.hh"
 #include "BLI_resource_scope.hh"
+#include "BLI_set.hh"
 #include "BLI_stack.hh"
+#include "BLI_string.h"
 #include "BLI_string_ref.hh"
 #include "BLI_struct_equality_utils.hh"
 #include "BLI_vector.hh"
@@ -522,6 +524,44 @@ static uint64_t read_address_at_address(const void *data)
   return *reinterpret_cast<const uint64_t *>(data);
 }
 
+static std::optional<std::string> try_read_inline_string_member(const void *struct_data,
+                                                                const Struct &sdna_struct,
+                                                                const StringRef member_name)
+{
+  const StructMember *member = sdna_struct.members.lookup_key_default_as(member_name, nullptr);
+  if (!member) {
+    return std::nullopt;
+  }
+  if (member->category != StructMember::Category::Primitive) {
+    return std::nullopt;
+  }
+  if (member->type->opt_primitive_type != SDNA_TYPE_CHAR) {
+    return std::nullopt;
+  }
+  const char *str_data = reinterpret_cast<const char *>(struct_data) + member->offset_in_struct;
+  const int64_t len = BLI_strnlen(str_data, member->elem_num);
+  return std::string(str_data, len);
+}
+
+static std::optional<int> try_read_inline_int_member(const void *struct_data,
+                                                     const Struct &sdna_struct,
+                                                     const StringRef member_name)
+{
+  const StructMember *member = sdna_struct.members.lookup_key_default_as(member_name, nullptr);
+  if (!member) {
+    return std::nullopt;
+  }
+  if (member->category != StructMember::Category::Primitive) {
+    return std::nullopt;
+  }
+  if (member->type->opt_primitive_type != SDNA_TYPE_INT) {
+    return std::nullopt;
+  }
+  const int value = *reinterpret_cast<const int *>(static_cast<const char *>(struct_data) +
+                                                   member->offset_in_struct);
+  return value;
+}
+
 static std::string primitive_value_to_string(const PrimitiveValue &value)
 {
   return std::visit([](const auto &v) { return std::to_string(v); }, value);
@@ -853,7 +893,10 @@ class IdDiffer {
       if (const Struct *sdna_struct = blend_data.sdna.try_find_struct(block.bhead.SDNAnr)) {
         const std::string count_str = block.bhead.nr <= 1 ? "" :
                                                             fmt::format("{}x ", block.bhead.nr);
-        return fmt::format("{}{}(...)", count_str, sdna_struct->type->name);
+        const std::optional<std::string> user_identifier = this->get_block_user_identifier(
+            block, *sdna_struct);
+        return fmt::format(
+            "{}{}({})", count_str, sdna_struct->type->name, user_identifier.value_or("..."));
       }
       return fmt::format("*");
     }
@@ -915,42 +958,25 @@ class IdDiffer {
   }
 
   std::optional<std::string> get_persistent_block_identifier(const BlendBlock &block,
-                                                             const Struct &sdna_struct)
+                                                             const Struct &sdna_struct) const
   {
-    if (sdna_struct.type->name == "bNode") {
-      const StructMember *identifier_member = sdna_struct.members.lookup_key_default_as(
-          "identifier", nullptr);
-      if (!identifier_member) {
-        return std::nullopt;
+    if (ELEM(sdna_struct.type->name, "bNode")) {
+      if (const std::optional<int> identifier = try_read_inline_int_member(
+              block.data, sdna_struct, "identifier"))
+      {
+        return fmt::format("id:{}", *identifier);
       }
-      if (identifier_member->type->opt_primitive_type != SDNA_TYPE_INT) {
-        return std::nullopt;
-      }
-      const int identifier = *reinterpret_cast<const int *>(block.data +
-                                                            identifier_member->offset_in_struct);
-      return fmt::format("id:{}", identifier);
     }
     return std::nullopt;
   }
 
   std::optional<std::string> get_block_user_identifier(const BlendBlock &block,
-                                                       const Struct &sdna_struct)
+                                                       const Struct &sdna_struct) const
   {
-    if (sdna_struct.type->name == "bNode") {
-      const StructMember *name_member = sdna_struct.members.lookup_key_default_as("name", nullptr);
-      if (!name_member) {
-        return std::nullopt;
-      }
-      if (name_member->category != StructMember::Category::Primitive) {
-        return std::nullopt;
-      }
-      if (name_member->type->opt_primitive_type != SDNA_TYPE_CHAR) {
-        return std::nullopt;
-      }
-      // TODO: Handle null termination safely.
-      std::string name = reinterpret_cast<const char *>(block.data +
-                                                        name_member->offset_in_struct);
-      return fmt::format("\"{}\"", name);
+    if (std::optional<std::string> name = try_read_inline_string_member(
+            block.data, sdna_struct, "name"))
+    {
+      return fmt::format("\"{}\"", *name);
     }
     return this->get_persistent_block_identifier(block, sdna_struct);
   }
