@@ -78,6 +78,7 @@ set(SRC_GLSL_COMP
   compositor_kuwahara_classic.glsl
   compositor_map_uv_anisotropic.glsl
   compositor_map_uv.glsl
+  compositor_masked_maximum.glsl
   compositor_morphological_blur.glsl
   compositor_morphological_distance_feather.glsl
   compositor_morphological_distance_threshold.glsl
