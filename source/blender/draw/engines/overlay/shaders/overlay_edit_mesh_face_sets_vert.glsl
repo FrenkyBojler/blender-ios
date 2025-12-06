@@ -91,13 +91,26 @@ void main()
   gl_Position.z += get_homogenous_z_offset(
       drw_view().winmat, view_pos.z, gl_Position.w, retopology_offset);
 
-  /* Compute face set color from id; default uses theme face_retopology. */
-  float3 rgb = (face_set_id == face_set_default) ?
-                   theme.colors.face_retopology.rgb :
-                   face_set_color_from_id(face_set_id, face_set_seed);
+  /* Compute face set color from id. Default is transparent unless retopology is enabled,
+   * where we reuse the retopology theme color to keep parity with sculpt retopo view. */
+  float3 rgb;
+  float alpha;
+  if (face_set_id == face_set_default) {
+    if (retopology_enabled) {
+      rgb = theme.colors.face_retopology.rgb;
+      alpha = face_sets_opacity;
+    }
+    else {
+      rgb = float3(0.0);
+      alpha = 0.0;
+    }
+  }
+  else {
+    rgb = face_set_color_from_id(face_set_id, face_set_seed);
+    alpha = face_sets_opacity;
+  }
 
   /* Premultiplied color for alpha blend. */
-  float alpha = face_sets_opacity;
   face_set_color = float4(rgb * alpha, alpha);
 
   color_fac = 1.0f;
