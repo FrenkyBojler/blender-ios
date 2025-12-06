@@ -400,7 +400,7 @@ bke::CurvesGeometry curves_merge_endpoints_by_distance(
     const int end_index = src_i * 2 + 1;
 
     KDTreeNearest_2d nearest_start, nearest_end;
-    const bool is_start_ok = (blender::kdtree_find_nearest_cb_cpp<2>(
+    const bool is_start_ok = (kdtree_find_nearest_cb_cpp<2>(
                                   tree,
                                   start_co,
                                   &nearest_start,
