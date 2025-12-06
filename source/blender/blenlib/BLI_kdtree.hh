@@ -38,8 +38,7 @@ namespace detail {
 /** \name Local Math API
  * \{ */
 
-template<int DimsNum>
-static void copy_vn_vn(float v0[DimsNum], const float v1[DimsNum])
+template<int DimsNum> static void copy_vn_vn(float v0[DimsNum], const float v1[DimsNum])
 {
   for (uint j = 0; j < DimsNum; j++) {
     v0[j] = v1[j];
@@ -72,8 +71,7 @@ static float len_squared_vnvn_cb(const float co_kdtree[DimsNum],
  * Creates or free a kdtree
  * \param nodes_len_capacity: The maximum length this KD-tree may hold.
  */
-template<int DimsNum>
-inline KDTree<DimsNum> *kdtree_new(uint nodes_len_capacity)
+template<int DimsNum> inline KDTree<DimsNum> *kdtree_new(uint nodes_len_capacity)
 {
   KDTree<DimsNum> *tree;
 
@@ -91,8 +89,7 @@ inline KDTree<DimsNum> *kdtree_new(uint nodes_len_capacity)
   return tree;
 }
 
-template<int DimsNum>
-inline void kdtree_free(KDTree<DimsNum> *tree)
+template<int DimsNum> inline void kdtree_free(KDTree<DimsNum> *tree)
 {
   if (tree) {
     MEM_freeN(tree->nodes);
@@ -104,7 +101,8 @@ inline void kdtree_free(KDTree<DimsNum> *tree)
  * Construction: first insert points, then call balance. Normal is optional.
  */
 template<int DimsNum>
-inline void kdtree_insert(KDTree<DimsNum> *tree, int index, const float co[DimsNum]) ATTR_NONNULL(1, 3)
+inline void kdtree_insert(KDTree<DimsNum> *tree, int index, const float co[DimsNum])
+    ATTR_NONNULL(1, 3)
 {
   KDTreeNode<DimsNum> *node = &tree->nodes[tree->nodes_len++];
 
@@ -162,10 +160,14 @@ static uint kdtree_balance(KDTreeNode<DimsNum> *nodes, uint nodes_len, uint axis
         break;
       }
 
-      SWAP(KDTreeNode_head<DimsNum>, *(KDTreeNode_head<DimsNum> *)&nodes[i], *(KDTreeNode_head<DimsNum> *)&nodes[j]);
+      SWAP(KDTreeNode_head<DimsNum>,
+           *(KDTreeNode_head<DimsNum> *)&nodes[i],
+           *(KDTreeNode_head<DimsNum> *)&nodes[j]);
     }
 
-    SWAP(KDTreeNode_head<DimsNum>, *(KDTreeNode_head<DimsNum> *)&nodes[i], *(KDTreeNode_head<DimsNum> *)&nodes[right]);
+    SWAP(KDTreeNode_head<DimsNum>,
+         *(KDTreeNode_head<DimsNum> *)&nodes[i],
+         *(KDTreeNode_head<DimsNum> *)&nodes[right]);
     if (i >= median) {
       right = i - 1;
     }
@@ -187,8 +189,7 @@ static uint kdtree_balance(KDTreeNode<DimsNum> *nodes, uint nodes_len, uint axis
 
 }  // namespace detail
 
-template<int DimsNum>
-inline void kdtree_balance(KDTree<DimsNum> *tree) ATTR_NONNULL(1)
+template<int DimsNum> inline void kdtree_balance(KDTree<DimsNum> *tree) ATTR_NONNULL(1)
 {
   if (tree->root != KD_NODE_ROOT_IS_INIT) {
     for (uint i = 0; i < tree->nodes_len; i++) {
@@ -226,7 +227,9 @@ static uint *realloc_nodes(uint *stack, uint *stack_len_capacity, const bool is_
  * Find nearest returns index, and -1 if no node is found.
  */
 template<int DimsNum>
-inline int kdtree_find_nearest(const KDTree<DimsNum> *tree, const float co[DimsNum], KDTreeNearest<DimsNum> *r_nearest) ATTR_NONNULL(1, 2)
+inline int kdtree_find_nearest(const KDTree<DimsNum> *tree,
+                               const float co[DimsNum],
+                               KDTreeNearest<DimsNum> *r_nearest) ATTR_NONNULL(1, 2)
 {
   const KDTreeNode<DimsNum> *nodes = tree->nodes;
   const KDTreeNode<DimsNum> *root, *min_node;
@@ -436,7 +439,7 @@ finally:
 }
 
 namespace detail {
-  
+
 template<int DimsNum>
 static void nearest_ordered_insert(KDTreeNearest<DimsNum> *nearest,
                                    uint *nearest_len,
@@ -587,18 +590,17 @@ inline int kdtree_find_nearest_n_with_len_squared_cb(
 
 template<int DimsNum>
 inline int kdtree_find_nearest_n(const KDTree<DimsNum> *tree,
-                               const float co[DimsNum],
-                               KDTreeNearest<DimsNum> r_nearest[],
-                               uint nearest_len_capacity) ATTR_NONNULL(1, 2, 3)
+                                 const float co[DimsNum],
+                                 KDTreeNearest<DimsNum> r_nearest[],
+                                 uint nearest_len_capacity) ATTR_NONNULL(1, 2, 3)
 {
   return kdtree_find_nearest_n_with_len_squared_cb<DimsNum>(
       tree, co, r_nearest, nearest_len_capacity, nullptr, nullptr);
 }
 
 namespace detail {
-  
-template<int DimsNum>
-static int nearest_cmp_dist(const void *a, const void *b)
+
+template<int DimsNum> static int nearest_cmp_dist(const void *a, const void *b)
 {
   const KDTreeNearest<DimsNum> *kda = static_cast<const KDTreeNearest<DimsNum> *>(a);
   const KDTreeNearest<DimsNum> *kdb = static_cast<const KDTreeNearest<DimsNum> *>(b);
@@ -624,7 +626,9 @@ static void nearest_add_in_range(KDTreeNearest<DimsNum> **r_nearest,
 
   if (UNLIKELY(nearest_index >= *nearest_len_capacity)) {
     *r_nearest = static_cast<KDTreeNearest<DimsNum> *>(MEM_reallocN_id(
-        *r_nearest, (*nearest_len_capacity += KD_FOUND_ALLOC_INC) * sizeof(KDTreeNode<DimsNum>), __func__));
+        *r_nearest,
+        (*nearest_len_capacity += KD_FOUND_ALLOC_INC) * sizeof(KDTreeNode<DimsNum>),
+        __func__));
   }
 
   to = (*r_nearest) + nearest_index;
@@ -642,14 +646,15 @@ static void nearest_add_in_range(KDTreeNearest<DimsNum> **r_nearest,
  * \param r_nearest: Allocated array of nearest nearest_len (caller is responsible for freeing).
  */
 template<int DimsNum>
-inline int kdtree_range_search_with_len_squared_cb(const KDTree<DimsNum> *tree,
-                                                 const float co[DimsNum],
-                                                 KDTreeNearest<DimsNum> **r_nearest,
-                                                 const float range,
-                                                 float (*len_sq_fn)(const float co_search[DimsNum],
-                                                                    const float co_test[DimsNum],
-                                                                    const void *user_data),
-                                                 const void *user_data) ATTR_NONNULL(1, 2) ATTR_WARN_UNUSED_RESULT
+inline int kdtree_range_search_with_len_squared_cb(
+    const KDTree<DimsNum> *tree,
+    const float co[DimsNum],
+    KDTreeNearest<DimsNum> **r_nearest,
+    const float range,
+    float (*len_sq_fn)(const float co_search[DimsNum],
+                       const float co_test[DimsNum],
+                       const void *user_data),
+    const void *user_data) ATTR_NONNULL(1, 2) ATTR_WARN_UNUSED_RESULT
 {
   const KDTreeNode<DimsNum> *nodes = tree->nodes;
   uint *stack, stack_default[KD_STACK_INIT];
@@ -725,9 +730,9 @@ inline int kdtree_range_search_with_len_squared_cb(const KDTree<DimsNum> *tree,
 
 template<int DimsNum>
 inline int kdtree_range_search(const KDTree<DimsNum> *tree,
-                             const float co[DimsNum],
-                             KDTreeNearest<DimsNum> **r_nearest,
-                             float range) ATTR_WARN_UNUSED_RESULT
+                               const float co[DimsNum],
+                               KDTreeNearest<DimsNum> **r_nearest,
+                               float range) ATTR_WARN_UNUSED_RESULT
 {
   return kdtree_range_search_with_len_squared_cb<DimsNum>(
       tree, co, r_nearest, range, nullptr, nullptr);
@@ -810,13 +815,12 @@ finally:
 }
 
 namespace detail {
-  
+
 /**
  * Use when we want to loop over nodes ordered by index.
  * Requires indices to be aligned with nodes.
  */
-template<int DimsNum>
-static blender::Vector<int> kdtree_order(const KDTree<DimsNum> *tree)
+template<int DimsNum> static blender::Vector<int> kdtree_order(const KDTree<DimsNum> *tree)
 {
   const KDTreeNode<DimsNum> *nodes = tree->nodes;
   blender::Vector<int> order(tree->max_node_index + 1, -1);
@@ -830,8 +834,7 @@ static blender::Vector<int> kdtree_order(const KDTree<DimsNum> *tree)
 /** \name kdtree_3d_calc_duplicates_fast
  * \{ */
 
-template<int DimsNum>
-struct DeDuplicateParams {
+template<int DimsNum> struct DeDuplicateParams {
   /* Static */
   const KDTreeNode<DimsNum> *nodes;
   float range;
@@ -896,9 +899,9 @@ static void deduplicate_recursive(const DeDuplicateParams<DimsNum> *p, uint i)
  */
 template<int DimsNum>
 inline int kdtree_calc_duplicates_fast(const KDTree<DimsNum> *tree,
-                                     const float range,
-                                     const bool use_index_order,
-                                     int *duplicates)
+                                       const float range,
+                                       const bool use_index_order,
+                                       int *duplicates)
 {
   int found = 0;
 
@@ -952,9 +955,9 @@ inline int kdtree_calc_duplicates_fast(const KDTree<DimsNum> *tree,
 
 template<int DimsNum, typename Fn>
 inline void kdtree_range_search_cb_cpp(const KDTree<DimsNum> *tree,
-                                            const float co[DimsNum],
-                                            const float distance,
-                                            const Fn &fn)
+                                       const float co[DimsNum],
+                                       const float distance,
+                                       const Fn &fn)
 {
   kdtree_range_search_cb<DimsNum>(
       tree,
@@ -991,13 +994,13 @@ inline void kdtree_range_search_cb_cpp(const KDTree<DimsNum> *tree,
  */
 template<int DimsNum>
 inline int kdtree_calc_duplicates_cb(const KDTree<DimsNum> *tree,
-                                   const float range,
-                                   int *duplicates,
-                                   const bool has_self_index,
-                                   int (*duplicates_cb)(void *user_data,
-                                                        const int *cluster,
-                                                        int cluster_num),
-                                   void *user_data)
+                                     const float range,
+                                     int *duplicates,
+                                     const bool has_self_index,
+                                     int (*duplicates_cb)(void *user_data,
+                                                          const int *cluster,
+                                                          int cluster_num),
+                                     void *user_data)
 {
   BLI_assert(tree->is_balanced);
   if (UNLIKELY(tree->root == KD_NODE_UNSET)) {
@@ -1094,9 +1097,9 @@ inline int kdtree_calc_duplicates_cb(const KDTree<DimsNum> *tree,
 
 template<int DimsNum, typename Fn>
 inline int kdtree_find_nearest_cb_cpp(const KDTree<DimsNum> *tree,
-                                           const float co[DimsNum],
-                                           KDTreeNearest<DimsNum> *r_nearest,
-                                           Fn &&fn)
+                                      const float co[DimsNum],
+                                      KDTreeNearest<DimsNum> *r_nearest,
+                                      Fn &&fn)
 {
   return kdtree_find_nearest_cb<DimsNum>(
       tree,
@@ -1111,10 +1114,10 @@ inline int kdtree_find_nearest_cb_cpp(const KDTree<DimsNum> *tree,
 
 template<int DimsNum, typename Fn>
 inline int kdtree_calc_duplicates_cb_cpp(const KDTree<DimsNum> *tree,
-                                              const float distance,
-                                              int *duplicates,
-                                              const bool has_self_index,
-                                              const Fn &fn)
+                                         const float distance,
+                                         int *duplicates,
+                                         const bool has_self_index,
+                                         const Fn &fn)
 {
   return kdtree_calc_duplicates_cb<DimsNum>(
       tree,
@@ -1134,8 +1137,7 @@ inline int kdtree_calc_duplicates_cb_cpp(const KDTree<DimsNum> *tree,
 
 namespace detail {
 
-template<int DimsNum>
-static int kdtree_cmp_bool(const bool a, const bool b)
+template<int DimsNum> static int kdtree_cmp_bool(const bool a, const bool b)
 {
   if (a == b) {
     return 0;
@@ -1143,8 +1145,7 @@ static int kdtree_cmp_bool(const bool a, const bool b)
   return b ? -1 : 1;
 }
 
-template<int DimsNum>
-static int kdtree_node_cmp_deduplicate(const void *n0_p, const void *n1_p)
+template<int DimsNum> static int kdtree_node_cmp_deduplicate(const void *n0_p, const void *n1_p)
 {
   const KDTreeNode<DimsNum> *n0 = static_cast<const KDTreeNode<DimsNum> *>(n0_p);
   const KDTreeNode<DimsNum> *n1 = static_cast<const KDTreeNode<DimsNum> *>(n1_p);
@@ -1175,13 +1176,15 @@ static int kdtree_node_cmp_deduplicate(const void *n0_p, const void *n1_p)
  *
  * Keep the first element added when duplicates are found.
  */
-template<int DimsNum>
-inline int kdtree_deduplicate(KDTree<DimsNum> *tree)
+template<int DimsNum> inline int kdtree_deduplicate(KDTree<DimsNum> *tree)
 {
 #ifndef NDEBUG
   tree->is_balanced = false;
 #endif
-  qsort(tree->nodes, (size_t)tree->nodes_len, sizeof(*tree->nodes), detail::kdtree_node_cmp_deduplicate<DimsNum>);
+  qsort(tree->nodes,
+        (size_t)tree->nodes_len,
+        sizeof(*tree->nodes),
+        detail::kdtree_node_cmp_deduplicate<DimsNum>);
   uint j = 0;
   for (uint i = 0; i < tree->nodes_len; i++) {
     if (tree->nodes[i].d != DimsNum) {
@@ -1203,79 +1206,86 @@ inline int kdtree_deduplicate(KDTree<DimsNum> *tree)
 #undef KD_NODE_UNSET
 #undef KD_NODE_ROOT_IS_INIT
 
-
 }  //  namespace blender
 
 namespace blender {
 
-const inline auto kdtree_1d_new = kdtree_new<1>;
-const inline auto kdtree_2d_new = kdtree_new<2>;
-const inline auto kdtree_3d_new = kdtree_new<3>;
-const inline auto kdtree_4d_new = kdtree_new<4>;
+constexpr inline auto kdtree_1d_new = kdtree_new<1>;
+constexpr inline auto kdtree_2d_new = kdtree_new<2>;
+constexpr inline auto kdtree_3d_new = kdtree_new<3>;
+constexpr inline auto kdtree_4d_new = kdtree_new<4>;
 
-const inline auto kdtree_1d_free = kdtree_free<1>;
-const inline auto kdtree_2d_free = kdtree_free<2>;
-const inline auto kdtree_3d_free = kdtree_free<3>;
-const inline auto kdtree_4d_free = kdtree_free<4>;
+constexpr inline auto kdtree_1d_free = kdtree_free<1>;
+constexpr inline auto kdtree_2d_free = kdtree_free<2>;
+constexpr inline auto kdtree_3d_free = kdtree_free<3>;
+constexpr inline auto kdtree_4d_free = kdtree_free<4>;
 
-const inline auto kdtree_1d_balance = kdtree_balance<1>;
-const inline auto kdtree_2d_balance = kdtree_balance<2>;
-const inline auto kdtree_3d_balance = kdtree_balance<3>;
-const inline auto kdtree_4d_balance = kdtree_balance<4>;
+constexpr inline auto kdtree_1d_balance = kdtree_balance<1>;
+constexpr inline auto kdtree_2d_balance = kdtree_balance<2>;
+constexpr inline auto kdtree_3d_balance = kdtree_balance<3>;
+constexpr inline auto kdtree_4d_balance = kdtree_balance<4>;
 
-const inline auto kdtree_1d_insert = kdtree_insert<1>;
-const inline auto kdtree_2d_insert = kdtree_insert<2>;
-const inline auto kdtree_3d_insert = kdtree_insert<3>;
-const inline auto kdtree_4d_insert = kdtree_insert<4>;
+constexpr inline auto kdtree_1d_insert = kdtree_insert<1>;
+constexpr inline auto kdtree_2d_insert = kdtree_insert<2>;
+constexpr inline auto kdtree_3d_insert = kdtree_insert<3>;
+constexpr inline auto kdtree_4d_insert = kdtree_insert<4>;
 
-const inline auto kdtree_1d_find_nearest = kdtree_find_nearest<1>;
-const inline auto kdtree_2d_find_nearest = kdtree_find_nearest<2>;
-const inline auto kdtree_3d_find_nearest = kdtree_find_nearest<3>;
-const inline auto kdtree_4d_find_nearest = kdtree_find_nearest<4>;
+constexpr inline auto kdtree_1d_find_nearest = kdtree_find_nearest<1>;
+constexpr inline auto kdtree_2d_find_nearest = kdtree_find_nearest<2>;
+constexpr inline auto kdtree_3d_find_nearest = kdtree_find_nearest<3>;
+constexpr inline auto kdtree_4d_find_nearest = kdtree_find_nearest<4>;
 
-const inline auto kdtree_1d_find_nearest_n = kdtree_find_nearest_n<1>;
-const inline auto kdtree_2d_find_nearest_n = kdtree_find_nearest_n<2>;
-const inline auto kdtree_3d_find_nearest_n = kdtree_find_nearest_n<3>;
-const inline auto kdtree_4d_find_nearest_n = kdtree_find_nearest_n<4>;
+constexpr inline auto kdtree_1d_find_nearest_n = kdtree_find_nearest_n<1>;
+constexpr inline auto kdtree_2d_find_nearest_n = kdtree_find_nearest_n<2>;
+constexpr inline auto kdtree_3d_find_nearest_n = kdtree_find_nearest_n<3>;
+constexpr inline auto kdtree_4d_find_nearest_n = kdtree_find_nearest_n<4>;
 
-const inline auto kdtree_1d_range_search = kdtree_range_search<1>;
-const inline auto kdtree_2d_range_search = kdtree_range_search<2>;
-const inline auto kdtree_3d_range_search = kdtree_range_search<3>;
-const inline auto kdtree_4d_range_search = kdtree_range_search<4>;
+constexpr inline auto kdtree_1d_range_search = kdtree_range_search<1>;
+constexpr inline auto kdtree_2d_range_search = kdtree_range_search<2>;
+constexpr inline auto kdtree_3d_range_search = kdtree_range_search<3>;
+constexpr inline auto kdtree_4d_range_search = kdtree_range_search<4>;
 
-const inline auto kdtree_1d_find_nearest_cb = kdtree_find_nearest_cb<1>;
-const inline auto kdtree_2d_find_nearest_cb = kdtree_find_nearest_cb<2>;
-const inline auto kdtree_3d_find_nearest_cb = kdtree_find_nearest_cb<3>;
-const inline auto kdtree_4d_find_nearest_cb = kdtree_find_nearest_cb<4>;
+constexpr inline auto kdtree_1d_find_nearest_cb = kdtree_find_nearest_cb<1>;
+constexpr inline auto kdtree_2d_find_nearest_cb = kdtree_find_nearest_cb<2>;
+constexpr inline auto kdtree_3d_find_nearest_cb = kdtree_find_nearest_cb<3>;
+constexpr inline auto kdtree_4d_find_nearest_cb = kdtree_find_nearest_cb<4>;
 
-const inline auto kdtree_1d_range_search_cb = kdtree_range_search_cb<1>;
-const inline auto kdtree_2d_range_search_cb = kdtree_range_search_cb<2>;
-const inline auto kdtree_3d_range_search_cb = kdtree_range_search_cb<3>;
-const inline auto kdtree_4d_range_search_cb = kdtree_range_search_cb<4>;
+constexpr inline auto kdtree_1d_range_search_cb = kdtree_range_search_cb<1>;
+constexpr inline auto kdtree_2d_range_search_cb = kdtree_range_search_cb<2>;
+constexpr inline auto kdtree_3d_range_search_cb = kdtree_range_search_cb<3>;
+constexpr inline auto kdtree_4d_range_search_cb = kdtree_range_search_cb<4>;
 
-const inline auto kdtree_1d_calc_duplicates_fast = kdtree_calc_duplicates_fast<1>;
-const inline auto kdtree_2d_calc_duplicates_fast = kdtree_calc_duplicates_fast<2>;
-const inline auto kdtree_3d_calc_duplicates_fast = kdtree_calc_duplicates_fast<3>;
-const inline auto kdtree_4d_calc_duplicates_fast = kdtree_calc_duplicates_fast<4>;
+constexpr inline auto kdtree_1d_calc_duplicates_fast = kdtree_calc_duplicates_fast<1>;
+constexpr inline auto kdtree_2d_calc_duplicates_fast = kdtree_calc_duplicates_fast<2>;
+constexpr inline auto kdtree_3d_calc_duplicates_fast = kdtree_calc_duplicates_fast<3>;
+constexpr inline auto kdtree_4d_calc_duplicates_fast = kdtree_calc_duplicates_fast<4>;
 
-const inline auto kdtree_1d_calc_duplicates_cb = kdtree_calc_duplicates_cb<1>;
-const inline auto kdtree_2d_calc_duplicates_cb = kdtree_calc_duplicates_cb<2>;
-const inline auto kdtree_3d_calc_duplicates_cb = kdtree_calc_duplicates_cb<3>;
-const inline auto kdtree_4d_calc_duplicates_cb = kdtree_calc_duplicates_cb<4>;
+constexpr inline auto kdtree_1d_calc_duplicates_cb = kdtree_calc_duplicates_cb<1>;
+constexpr inline auto kdtree_2d_calc_duplicates_cb = kdtree_calc_duplicates_cb<2>;
+constexpr inline auto kdtree_3d_calc_duplicates_cb = kdtree_calc_duplicates_cb<3>;
+constexpr inline auto kdtree_4d_calc_duplicates_cb = kdtree_calc_duplicates_cb<4>;
 
-const inline auto kdtree_1d_deduplicate = kdtree_deduplicate<1>;
-const inline auto kdtree_2d_deduplicate = kdtree_deduplicate<2>;
-const inline auto kdtree_3d_deduplicate = kdtree_deduplicate<3>;
-const inline auto kdtree_4d_deduplicate = kdtree_deduplicate<4>;
+constexpr inline auto kdtree_1d_deduplicate = kdtree_deduplicate<1>;
+constexpr inline auto kdtree_2d_deduplicate = kdtree_deduplicate<2>;
+constexpr inline auto kdtree_3d_deduplicate = kdtree_deduplicate<3>;
+constexpr inline auto kdtree_4d_deduplicate = kdtree_deduplicate<4>;
 
-const inline auto kdtree_1d_find_nearest_n_with_len_squared_cb = kdtree_find_nearest_n_with_len_squared_cb<1>;
-const inline auto kdtree_2d_find_nearest_n_with_len_squared_cb = kdtree_find_nearest_n_with_len_squared_cb<2>;
-const inline auto kdtree_3d_find_nearest_n_with_len_squared_cb = kdtree_find_nearest_n_with_len_squared_cb<3>;
-const inline auto kdtree_4d_find_nearest_n_with_len_squared_cb = kdtree_find_nearest_n_with_len_squared_cb<4>;
+constexpr inline auto kdtree_1d_find_nearest_n_with_len_squared_cb =
+    kdtree_find_nearest_n_with_len_squared_cb<1>;
+constexpr inline auto kdtree_2d_find_nearest_n_with_len_squared_cb =
+    kdtree_find_nearest_n_with_len_squared_cb<2>;
+constexpr inline auto kdtree_3d_find_nearest_n_with_len_squared_cb =
+    kdtree_find_nearest_n_with_len_squared_cb<3>;
+constexpr inline auto kdtree_4d_find_nearest_n_with_len_squared_cb =
+    kdtree_find_nearest_n_with_len_squared_cb<4>;
 
-const inline auto kdtree_1d_range_search_with_len_squared_cb = kdtree_range_search_with_len_squared_cb<1>;
-const inline auto kdtree_2d_range_search_with_len_squared_cb = kdtree_range_search_with_len_squared_cb<2>;
-const inline auto kdtree_3d_range_search_with_len_squared_cb = kdtree_range_search_with_len_squared_cb<3>;
-const inline auto kdtree_4d_range_search_with_len_squared_cb = kdtree_range_search_with_len_squared_cb<4>;
+constexpr inline auto kdtree_1d_range_search_with_len_squared_cb =
+    kdtree_range_search_with_len_squared_cb<1>;
+constexpr inline auto kdtree_2d_range_search_with_len_squared_cb =
+    kdtree_range_search_with_len_squared_cb<2>;
+constexpr inline auto kdtree_3d_range_search_with_len_squared_cb =
+    kdtree_range_search_with_len_squared_cb<3>;
+constexpr inline auto kdtree_4d_range_search_with_len_squared_cb =
+    kdtree_range_search_with_len_squared_cb<4>;
 
 }  // namespace blender
