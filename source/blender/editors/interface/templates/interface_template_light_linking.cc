@@ -289,25 +289,25 @@ class CollectionViewItem : public BasicTreeViewItem {
 
   void build_state_button(Layout &row)
   {
-    uiBlock *block = row.block();
+    Block *block = row.block();
     const int icon = get_state_icon();
 
     PointerRNA collection_light_linking_ptr = RNA_pointer_create_discrete(
         &collection_.id, &RNA_CollectionLightLinking, &collection_light_linking_);
 
-    uiBut *button = uiDefIconButR(block,
-                                  ButType::But,
-                                  icon,
-                                  0,
-                                  0,
-                                  UI_UNIT_X,
-                                  UI_UNIT_Y,
-                                  &collection_light_linking_ptr,
-                                  "link_state",
-                                  0,
-                                  0.0f,
-                                  0.0f,
-                                  std::nullopt);
+    Button *button = uiDefIconButR(block,
+                                   ButtonType::But,
+                                   icon,
+                                   0,
+                                   0,
+                                   UI_UNIT_X,
+                                   UI_UNIT_Y,
+                                   &collection_light_linking_ptr,
+                                   "link_state",
+                                   0,
+                                   0.0f,
+                                   0.0f,
+                                   std::nullopt);
 
     button_func_set(button, [&collection_light_linking = collection_light_linking_](bContext &) {
       link_state_toggle(collection_light_linking);
@@ -396,7 +396,7 @@ void template_light_linking_collection(Layout *layout,
 
   Collection *collection = static_cast<Collection *>(collection_ptr.data);
 
-  uiBlock *block = layout->block();
+  Block *block = layout->block();
 
   AbstractTreeView *tree_view = block_add_view(
       *block,

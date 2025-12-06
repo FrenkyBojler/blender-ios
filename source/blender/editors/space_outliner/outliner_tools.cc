@@ -803,7 +803,7 @@ static void merged_element_search_fn_recursive(
         iconid = tree_element_get_icon(tselem, te).icon;
 
         /* Don't allow duplicate named items */
-        if (UI_search_items_find_index(items, name) == -1) {
+        if (search_items_find_index(items, name) == -1) {
           if (!search_item_add(items, name, te, iconid, 0, 0)) {
             break;
           }
@@ -846,11 +846,11 @@ static void merged_element_search_exec_fn(bContext *C, void * /*arg1*/, void *el
  * Merged element search menu
  * Created on activation of a merged or aggregated icon-row icon.
  */
-static uiBlock *merged_element_search_menu(bContext *C, ARegion *region, void *data)
+static ui::Block *merged_element_search_menu(bContext *C, ARegion *region, void *data)
 {
   static char search[64] = "";
-  uiBlock *block;
-  uiBut *but;
+  ui::Block *block;
+  ui::Button *but;
 
   /* Clear search on each menu creation */
   *search = '\0';
@@ -874,8 +874,17 @@ static uiBlock *merged_element_search_menu(bContext *C, ARegion *region, void *d
 
   /* Fake button to hold space for search items */
   const int height = ui::searchbox_size_y() - UI_SEARCHBOX_BOUNDS;
-  uiDefBut(
-      block, ui::ButType::Label, "", 0, -height, menu_width, height, nullptr, 0, 0, std::nullopt);
+  uiDefBut(block,
+           ui::ButtonType::Label,
+           "",
+           0,
+           -height,
+           menu_width,
+           height,
+           nullptr,
+           0,
+           0,
+           std::nullopt);
 
   /* Center the menu on the cursor */
   const int offset[2] = {-(menu_width / 2), 0};
@@ -3737,7 +3746,7 @@ static wmOperatorStatus outliner_operation_invoke(bContext *C,
 {
   ARegion *region = CTX_wm_region(C);
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
-  uiBut *but = ui::context_active_but_get(C);
+  ui::Button *but = ui::context_active_but_get(C);
   float view_mval[2];
 
   if (but) {

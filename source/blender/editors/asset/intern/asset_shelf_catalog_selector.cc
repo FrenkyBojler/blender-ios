@@ -139,7 +139,7 @@ class AssetCatalogSelectorTree : public ui::AbstractTreeView {
     void build_row(ui::Layout &row) override
     {
       AssetCatalogSelectorTree &tree = dynamic_cast<AssetCatalogSelectorTree &>(get_tree_view());
-      uiBlock *block = row.block();
+      ui::Block *block = row.block();
 
       row.emboss_set(ui::EmbossType::Emboss);
 
@@ -148,17 +148,17 @@ class AssetCatalogSelectorTree : public ui::AbstractTreeView {
       subrow.label(catalog_item_.get_name(), ICON_NONE);
       ui::block_layout_set_current(block, &row);
 
-      uiBut *toggle_but = uiDefButC(block,
-                                    blender::ui::ButType::Checkbox,
-                                    "",
-                                    0,
-                                    0,
-                                    UI_UNIT_X,
-                                    UI_UNIT_Y,
-                                    &catalog_path_enabled_,
-                                    0,
-                                    0,
-                                    TIP_("Toggle catalog visibility in the asset shelf"));
+      ui::Button *toggle_but = uiDefButC(block,
+                                         blender::ui::ButtonType::Checkbox,
+                                         "",
+                                         0,
+                                         0,
+                                         UI_UNIT_X,
+                                         UI_UNIT_Y,
+                                         &catalog_path_enabled_,
+                                         0,
+                                         0,
+                                         TIP_("Toggle catalog visibility in the asset shelf"));
       button_func_set(toggle_but, [&tree](bContext &C) {
         tree.update_shelf_settings_from_enabled_catalogs();
         send_redraw_notifier(C);
@@ -213,7 +213,7 @@ static void catalog_selector_panel_draw(const bContext *C, Panel *panel)
     return;
   }
 
-  uiBlock *block = layout.block();
+  ui::Block *block = layout.block();
   ui::AbstractTreeView *tree_view = block_add_view(
       *block,
       "asset catalog tree view",

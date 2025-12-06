@@ -121,12 +121,13 @@ void template_preview(Layout *layout,
   }
 
   /* layout */
-  uiBlock *block = layout->block();
+  Block *block = layout->block();
   Layout *row = &layout->row(false);
   Layout *col = &row->column(false);
 
   /* add preview */
-  uiDefBut(block, ButType::Extra, "", 0, 0, UI_UNIT_X * 10, ui_preview->height, pid, 0.0, 0.0, "");
+  uiDefBut(
+      block, ButtonType::Extra, "", 0, 0, UI_UNIT_X * 10, ui_preview->height, pid, 0.0, 0.0, "");
   button_func_drawextra_set(block,
                             [pid, pparent, slot, ui_preview](const bContext *C, rcti *rect) {
                               ED_preview_draw(C, pid, pparent, slot, ui_preview, rect);
@@ -134,7 +135,7 @@ void template_preview(Layout *layout,
   block_func_handle_set(block, do_preview_buttons, nullptr);
 
   uiDefIconButS(block,
-                ButType::Grip,
+                ButtonType::Grip,
                 ICON_GRIP,
                 0,
                 0,
@@ -175,21 +176,21 @@ void template_preview(Layout *layout,
       PointerRNA texture_ptr = RNA_id_pointer_create(id);
 
       layout->row(true);
-      uiBut *but = uiDefButS(block,
-                             ButType::Row,
-                             IFACE_("Texture"),
-                             0,
-                             0,
-                             UI_UNIT_X * 10,
-                             UI_UNIT_Y,
-                             pr_texture,
-                             10,
-                             TEX_PR_TEXTURE,
-                             "");
+      Button *but = uiDefButS(block,
+                              ButtonType::Row,
+                              IFACE_("Texture"),
+                              0,
+                              0,
+                              UI_UNIT_X * 10,
+                              UI_UNIT_Y,
+                              pr_texture,
+                              10,
+                              TEX_PR_TEXTURE,
+                              "");
       button_retval_set(but, B_MATPRV);
       if (GS(parent->name) == ID_MA) {
         but = uiDefButS(block,
-                        ButType::Row,
+                        ButtonType::Row,
                         IFACE_("Material"),
                         0,
                         0,
@@ -203,7 +204,7 @@ void template_preview(Layout *layout,
       }
       else if (GS(parent->name) == ID_LA) {
         but = uiDefButS(block,
-                        ButType::Row,
+                        ButtonType::Row,
                         CTX_IFACE_(BLT_I18NCONTEXT_ID_LIGHT, "Light"),
                         0,
                         0,
@@ -217,7 +218,7 @@ void template_preview(Layout *layout,
       }
       else if (GS(parent->name) == ID_WO) {
         but = uiDefButS(block,
-                        ButType::Row,
+                        ButtonType::Row,
                         CTX_IFACE_(BLT_I18NCONTEXT_ID_WORLD, "World"),
                         0,
                         0,
@@ -231,7 +232,7 @@ void template_preview(Layout *layout,
       }
       else if (GS(parent->name) == ID_LS) {
         but = uiDefButS(block,
-                        ButType::Row,
+                        ButtonType::Row,
                         IFACE_("Line Style"),
                         0,
                         0,
@@ -244,7 +245,7 @@ void template_preview(Layout *layout,
         button_retval_set(but, B_MATPRV);
       }
       but = uiDefButS(block,
-                      ButType::Row,
+                      ButtonType::Row,
                       IFACE_("Both"),
                       0,
                       0,

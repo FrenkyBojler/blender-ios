@@ -96,18 +96,18 @@ static void curvemap_buttons_zoom_out(bContext *C, CurveMapping *cumap)
 }
 
 /* NOTE: this is a block-menu, needs 0 events, otherwise the menu closes */
-static uiBlock *curvemap_clipping_func(bContext *C, ARegion *region, void *cumap_v)
+static Block *curvemap_clipping_func(bContext *C, ARegion *region, void *cumap_v)
 {
   CurveMapping *cumap = static_cast<CurveMapping *>(cumap_v);
-  uiBut *bt;
+  Button *bt;
   const float width = 8 * UI_UNIT_X;
 
-  uiBlock *block = block_begin(C, region, __func__, EmbossType::Emboss);
+  Block *block = block_begin(C, region, __func__, EmbossType::Emboss);
   block_flag_enable(block, BLOCK_KEEP_OPEN | BLOCK_MOVEMOUSE_QUIT);
   block_theme_style_set(block, BLOCK_THEME_STYLE_POPUP);
 
   bt = uiDefButBitI(block,
-                    ButType::Checkbox,
+                    ButtonType::Checkbox,
                     CUMA_DO_CLIP,
                     IFACE_("Clipping"),
                     0,
@@ -123,7 +123,7 @@ static uiBlock *curvemap_clipping_func(bContext *C, ARegion *region, void *cumap
 
   block_align_begin(block);
   bt = uiDefButF(block,
-                 ButType::Num,
+                 ButtonType::Num,
                  IFACE_("Min X:"),
                  0,
                  4 * UI_UNIT_Y,
@@ -136,7 +136,7 @@ static uiBlock *curvemap_clipping_func(bContext *C, ARegion *region, void *cumap
   button_number_step_size_set(bt, 10);
   button_number_precision_set(bt, 2);
   bt = uiDefButF(block,
-                 ButType::Num,
+                 ButtonType::Num,
                  IFACE_("Min Y:"),
                  0,
                  3 * UI_UNIT_Y,
@@ -149,7 +149,7 @@ static uiBlock *curvemap_clipping_func(bContext *C, ARegion *region, void *cumap
   button_number_step_size_set(bt, 10);
   button_number_precision_set(bt, 2);
   bt = uiDefButF(block,
-                 ButType::Num,
+                 ButtonType::Num,
                  IFACE_("Max X:"),
                  0,
                  2 * UI_UNIT_Y,
@@ -162,7 +162,7 @@ static uiBlock *curvemap_clipping_func(bContext *C, ARegion *region, void *cumap
   button_number_step_size_set(bt, 10);
   button_number_precision_set(bt, 2);
   bt = uiDefButF(block,
-                 ButType::Num,
+                 ButtonType::Num,
                  IFACE_("Max Y:"),
                  0,
                  UI_UNIT_Y,
@@ -181,7 +181,7 @@ static uiBlock *curvemap_clipping_func(bContext *C, ARegion *region, void *cumap
   return block;
 }
 
-static uiBlock *curvemap_tools_func(
+static Block *curvemap_tools_func(
     bContext *C, ARegion *region, RNAUpdateCb &cb, bool show_extend, CurveMapSlopeType reset_mode)
 {
   PointerRNA cumap_ptr = RNA_property_pointer_get(&cb.ptr, cb.prop);
@@ -190,19 +190,19 @@ static uiBlock *curvemap_tools_func(
   short yco = 0;
   const short menuwidth = 10 * UI_UNIT_X;
 
-  uiBlock *block = block_begin(C, region, __func__, EmbossType::Emboss);
+  Block *block = block_begin(C, region, __func__, EmbossType::Emboss);
 
   {
-    uiBut *but = uiDefIconTextBut(block,
-                                  ButType::ButMenu,
-                                  ICON_BLANK1,
-                                  IFACE_("Reset View"),
-                                  0,
-                                  yco -= UI_UNIT_Y,
-                                  menuwidth,
-                                  UI_UNIT_Y,
-                                  nullptr,
-                                  "");
+    Button *but = uiDefIconTextBut(block,
+                                   ButtonType::ButMenu,
+                                   ICON_BLANK1,
+                                   IFACE_("Reset View"),
+                                   0,
+                                   yco -= UI_UNIT_Y,
+                                   menuwidth,
+                                   UI_UNIT_Y,
+                                   nullptr,
+                                   "");
     button_retval_set(but, 1);
     button_func_set(but, [cumap](bContext &C) {
       BKE_curvemapping_reset_view(cumap);
@@ -212,16 +212,16 @@ static uiBlock *curvemap_tools_func(
 
   if (show_extend && !(cumap->flag & CUMA_USE_WRAPPING)) {
     {
-      uiBut *but = uiDefIconTextBut(block,
-                                    ButType::ButMenu,
-                                    ICON_BLANK1,
-                                    IFACE_("Extend Horizontal"),
-                                    0,
-                                    yco -= UI_UNIT_Y,
-                                    menuwidth,
-                                    UI_UNIT_Y,
-                                    nullptr,
-                                    "");
+      Button *but = uiDefIconTextBut(block,
+                                     ButtonType::ButMenu,
+                                     ICON_BLANK1,
+                                     IFACE_("Extend Horizontal"),
+                                     0,
+                                     yco -= UI_UNIT_Y,
+                                     menuwidth,
+                                     UI_UNIT_Y,
+                                     nullptr,
+                                     "");
       button_retval_set(but, 1);
       button_func_set(but, [cumap, cb](bContext &C) {
         cumap->flag &= ~CUMA_EXTEND_EXTRAPOLATE;
@@ -232,16 +232,16 @@ static uiBlock *curvemap_tools_func(
       });
     }
     {
-      uiBut *but = uiDefIconTextBut(block,
-                                    ButType::ButMenu,
-                                    ICON_BLANK1,
-                                    IFACE_("Extend Extrapolated"),
-                                    0,
-                                    yco -= UI_UNIT_Y,
-                                    menuwidth,
-                                    UI_UNIT_Y,
-                                    nullptr,
-                                    "");
+      Button *but = uiDefIconTextBut(block,
+                                     ButtonType::ButMenu,
+                                     ICON_BLANK1,
+                                     IFACE_("Extend Extrapolated"),
+                                     0,
+                                     yco -= UI_UNIT_Y,
+                                     menuwidth,
+                                     UI_UNIT_Y,
+                                     nullptr,
+                                     "");
       button_retval_set(but, 1);
       button_func_set(but, [cumap, cb](bContext &C) {
         cumap->flag |= CUMA_EXTEND_EXTRAPOLATE;
@@ -254,16 +254,16 @@ static uiBlock *curvemap_tools_func(
   }
 
   {
-    uiBut *but = uiDefIconTextBut(block,
-                                  ButType::ButMenu,
-                                  ICON_BLANK1,
-                                  IFACE_("Reset Curve"),
-                                  0,
-                                  yco -= UI_UNIT_Y,
-                                  menuwidth,
-                                  UI_UNIT_Y,
-                                  nullptr,
-                                  "");
+    Button *but = uiDefIconTextBut(block,
+                                   ButtonType::ButMenu,
+                                   ICON_BLANK1,
+                                   IFACE_("Reset Curve"),
+                                   0,
+                                   yco -= UI_UNIT_Y,
+                                   menuwidth,
+                                   UI_UNIT_Y,
+                                   nullptr,
+                                   "");
     button_retval_set(but, 1);
     button_func_set(but, [cumap, cb, reset_mode](bContext &C) {
       CurveMap *cuma = cumap->cm + cumap->cur;
@@ -281,25 +281,25 @@ static uiBlock *curvemap_tools_func(
   return block;
 }
 
-static uiBlock *curvemap_tools_posslope_func(bContext *C, ARegion *region, void *cb_v)
+static Block *curvemap_tools_posslope_func(bContext *C, ARegion *region, void *cb_v)
 {
   return curvemap_tools_func(
       C, region, *static_cast<RNAUpdateCb *>(cb_v), true, CurveMapSlopeType::Positive);
 }
 
-static uiBlock *curvemap_tools_negslope_func(bContext *C, ARegion *region, void *cb_v)
+static Block *curvemap_tools_negslope_func(bContext *C, ARegion *region, void *cb_v)
 {
   return curvemap_tools_func(
       C, region, *static_cast<RNAUpdateCb *>(cb_v), true, CurveMapSlopeType::Negative);
 }
 
-static uiBlock *curvemap_brush_tools_func(bContext *C, ARegion *region, void *cb_v)
+static Block *curvemap_brush_tools_func(bContext *C, ARegion *region, void *cb_v)
 {
   return curvemap_tools_func(
       C, region, *static_cast<RNAUpdateCb *>(cb_v), false, CurveMapSlopeType::Positive);
 }
 
-static uiBlock *curvemap_brush_tools_negslope_func(bContext *C, ARegion *region, void *cb_v)
+static Block *curvemap_brush_tools_negslope_func(bContext *C, ARegion *region, void *cb_v)
 {
   return curvemap_tools_func(
       C, region, *static_cast<RNAUpdateCb *>(cb_v), false, CurveMapSlopeType::Negative);
@@ -310,7 +310,7 @@ static void curvemap_buttons_redraw(bContext &C)
   ED_region_tag_redraw(CTX_wm_region(&C));
 }
 
-static void add_preset_button(uiBlock *block,
+static void add_preset_button(Block *block,
                               const float dx,
                               const int icon,
                               std::optional<StringRef> tip,
@@ -319,7 +319,8 @@ static void add_preset_button(uiBlock *block,
                               const int preset,
                               const RNAUpdateCb &cb)
 {
-  uiBut *bt = uiDefIconBut(block, ButType::Row, icon, 0, 0, dx, dx, &cumap->cur, 0.0, 3.0, tip);
+  Button *bt = uiDefIconBut(
+      block, ButtonType::Row, icon, 0, 0, dx, dx, &cumap->cur, 0.0, 3.0, tip);
   button_func_set(bt, [&, cumap, neg_slope, preset, cb](bContext &C) {
     const CurveMapSlopeType slope = neg_slope ? CurveMapSlopeType::Negative :
                                                 CurveMapSlopeType::Positive;
@@ -348,11 +349,11 @@ static void curvemap_buttons_layout(Layout *layout,
 {
   CurveMapping *cumap = static_cast<CurveMapping *>(ptr->data);
   CurveMap *cm = &cumap->cm[cumap->cur];
-  uiBut *bt;
+  Button *bt;
   const float dx = UI_UNIT_X;
-  eButGradientType bg = UI_GRAD_NONE;
+  eButGradientType bg = GRAD_NONE;
 
-  uiBlock *block = layout->block();
+  Block *block = layout->block();
 
   block_emboss_set(block, EmbossType::Emboss);
 
@@ -370,15 +371,15 @@ static void curvemap_buttons_layout(Layout *layout,
     sub.alignment_set(LayoutAlign::Left);
 
     if (cumap->cm[0].curve) {
-      bt = uiDefButI(block, ButType::Row, "X", 0, 0, dx, dx, &cumap->cur, 0.0, 0.0, "");
+      bt = uiDefButI(block, ButtonType::Row, "X", 0, 0, dx, dx, &cumap->cur, 0.0, 0.0, "");
       button_func_set(bt, curvemap_buttons_redraw);
     }
     if (cumap->cm[1].curve) {
-      bt = uiDefButI(block, ButType::Row, "Y", 0, 0, dx, dx, &cumap->cur, 0.0, 1.0, "");
+      bt = uiDefButI(block, ButtonType::Row, "Y", 0, 0, dx, dx, &cumap->cur, 0.0, 1.0, "");
       button_func_set(bt, curvemap_buttons_redraw);
     }
     if (cumap->cm[2].curve) {
-      bt = uiDefButI(block, ButType::Row, "Z", 0, 0, dx, dx, &cumap->cur, 0.0, 2.0, "");
+      bt = uiDefButI(block, ButtonType::Row, "Z", 0, 0, dx, dx, &cumap->cur, 0.0, 2.0, "");
       button_func_set(bt, curvemap_buttons_redraw);
     }
   }
@@ -389,7 +390,7 @@ static void curvemap_buttons_layout(Layout *layout,
 
     if (cumap->cm[3].curve) {
       bt = uiDefButI(block,
-                     ButType::Row,
+                     ButtonType::Row,
                      CTX_IFACE_(BLT_I18NCONTEXT_COLOR, "C"),
                      0,
                      0,
@@ -403,7 +404,7 @@ static void curvemap_buttons_layout(Layout *layout,
     }
     if (cumap->cm[0].curve) {
       bt = uiDefButI(block,
-                     ButType::Row,
+                     ButtonType::Row,
                      CTX_IFACE_(BLT_I18NCONTEXT_COLOR, "R"),
                      0,
                      0,
@@ -417,7 +418,7 @@ static void curvemap_buttons_layout(Layout *layout,
     }
     if (cumap->cm[1].curve) {
       bt = uiDefButI(block,
-                     ButType::Row,
+                     ButtonType::Row,
                      CTX_IFACE_(BLT_I18NCONTEXT_COLOR, "G"),
                      0,
                      0,
@@ -431,7 +432,7 @@ static void curvemap_buttons_layout(Layout *layout,
     }
     if (cumap->cm[2].curve) {
       bt = uiDefButI(block,
-                     ButType::Row,
+                     ButtonType::Row,
                      CTX_IFACE_(BLT_I18NCONTEXT_COLOR, "B"),
                      0,
                      0,
@@ -451,7 +452,7 @@ static void curvemap_buttons_layout(Layout *layout,
 
     if (cumap->cm[0].curve) {
       bt = uiDefButI(block,
-                     ButType::Row,
+                     ButtonType::Row,
                      IFACE_("H"),
                      0,
                      0,
@@ -465,7 +466,7 @@ static void curvemap_buttons_layout(Layout *layout,
     }
     if (cumap->cm[1].curve) {
       bt = uiDefButI(block,
-                     ButType::Row,
+                     ButtonType::Row,
                      IFACE_("S"),
                      0,
                      0,
@@ -479,7 +480,7 @@ static void curvemap_buttons_layout(Layout *layout,
     }
     if (cumap->cm[2].curve) {
       bt = uiDefButI(block,
-                     ButType::Row,
+                     ButtonType::Row,
                      IFACE_("V"),
                      0,
                      0,
@@ -497,7 +498,7 @@ static void curvemap_buttons_layout(Layout *layout,
   }
 
   if (labeltype == 'h') {
-    bg = UI_GRAD_H;
+    bg = GRAD_H;
   }
 
   /* operation buttons */
@@ -508,7 +509,7 @@ static void curvemap_buttons_layout(Layout *layout,
   if (!(cumap->flag & CUMA_USE_WRAPPING)) {
     /* Zoom in */
     bt = uiDefIconBut(
-        block, ButType::But, ICON_ZOOM_IN, 0, 0, dx, dx, nullptr, 0.0, 0.0, TIP_("Zoom in"));
+        block, ButtonType::But, ICON_ZOOM_IN, 0, 0, dx, dx, nullptr, 0.0, 0.0, TIP_("Zoom in"));
     button_func_set(bt, [cumap](bContext &C) { curvemap_buttons_zoom_in(&C, cumap); });
     if (!curvemap_can_zoom_in(cumap)) {
       button_disable(bt, "");
@@ -516,7 +517,7 @@ static void curvemap_buttons_layout(Layout *layout,
 
     /* Zoom out */
     bt = uiDefIconBut(
-        block, ButType::But, ICON_ZOOM_OUT, 0, 0, dx, dx, nullptr, 0.0, 0.0, TIP_("Zoom out"));
+        block, ButtonType::But, ICON_ZOOM_OUT, 0, 0, dx, dx, nullptr, 0.0, 0.0, TIP_("Zoom out"));
     button_func_set(bt, [cumap](bContext &C) { curvemap_buttons_zoom_out(&C, cumap); });
     if (!curvemap_can_zoom_out(cumap)) {
       button_disable(bt, "");
@@ -574,7 +575,7 @@ static void curvemap_buttons_layout(Layout *layout,
   const int size = max_ii(layout->width(), UI_UNIT_X);
   row = &layout->row(false);
   ButtonCurveMapping *curve_but = (ButtonCurveMapping *)uiDefBut(block,
-                                                                 ButType::Curve,
+                                                                 ButtonType::Curve,
                                                                  IFACE_("Edit Curve Map"),
                                                                  0,
                                                                  0,
@@ -619,7 +620,7 @@ static void curvemap_buttons_layout(Layout *layout,
 
     /* Curve handle buttons. */
     bt = uiDefIconBut(block,
-                      ButType::But,
+                      ButtonType::But,
                       ICON_HANDLE_AUTO,
                       0,
                       UI_UNIT_Y,
@@ -643,7 +644,7 @@ static void curvemap_buttons_layout(Layout *layout,
     }
 
     bt = uiDefIconBut(block,
-                      ButType::But,
+                      ButtonType::But,
                       ICON_HANDLE_VECTOR,
                       0,
                       UI_UNIT_Y,
@@ -665,7 +666,7 @@ static void curvemap_buttons_layout(Layout *layout,
     }
 
     bt = uiDefIconBut(block,
-                      ButType::But,
+                      ButtonType::But,
                       ICON_HANDLE_AUTOCLAMPED,
                       0,
                       UI_UNIT_Y,
@@ -688,7 +689,7 @@ static void curvemap_buttons_layout(Layout *layout,
 
     /* Curve handle position */
     bt = uiDefButF(block,
-                   ButType::Num,
+                   ButtonType::Num,
                    "X:",
                    0,
                    2 * UI_UNIT_Y,
@@ -706,7 +707,7 @@ static void curvemap_buttons_layout(Layout *layout,
     });
 
     bt = uiDefButF(block,
-                   ButType::Num,
+                   ButtonType::Num,
                    "Y:",
                    0,
                    1 * UI_UNIT_Y,
@@ -725,7 +726,7 @@ static void curvemap_buttons_layout(Layout *layout,
 
     /* Curve handle delete point */
     bt = uiDefIconBut(
-        block, ButType::But, ICON_X, 0, 0, dx, dx, nullptr, 0.0, 0.0, TIP_("Delete points"));
+        block, ButtonType::But, ICON_X, 0, 0, dx, dx, nullptr, 0.0, 0.0, TIP_("Delete points"));
     button_func_set(bt, [cumap, cb](bContext &C) {
       BKE_curvemap_remove(cumap->cm + cumap->cur, SELECT);
       BKE_curvemapping_changed(cumap, false);
@@ -744,7 +745,7 @@ static void curvemap_buttons_layout(Layout *layout,
 
     layout->row(false);
     bt = uiDefBut(block,
-                  ButType::But,
+                  ButtonType::But,
                   IFACE_("Reset"),
                   0,
                   0,
@@ -819,7 +820,7 @@ void template_curve_mapping(Layout *layout,
                             bool presets)
 {
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname.c_str());
-  uiBlock *block = layout->block();
+  Block *block = layout->block();
 
   if (!prop) {
     RNA_warning(

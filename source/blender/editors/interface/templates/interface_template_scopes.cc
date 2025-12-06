@@ -42,13 +42,13 @@ void template_histogram(Layout *layout, PointerRNA *ptr, const StringRefNull pro
   }
 
   Layout &col = layout->column(true);
-  uiBlock *block = col.block();
+  Block *block = col.block();
 
-  uiDefBut(block, ButType::Histogram, "", 0, 0, UI_UNIT_X * 10, hist->height, hist, 0, 0, "");
+  uiDefBut(block, ButtonType::Histogram, "", 0, 0, UI_UNIT_X * 10, hist->height, hist, 0, 0, "");
 
   /* Resize grip. */
   uiDefIconButI(block,
-                ButType::Grip,
+                ButtonType::Grip,
                 ICON_GRIP,
                 0,
                 0,
@@ -81,7 +81,7 @@ void template_waveform(Layout *layout, PointerRNA *ptr, const StringRefNull prop
   Scopes *scopes = (Scopes *)cptr.data;
 
   Layout &col = layout->column(true);
-  uiBlock *block = col.block();
+  Block *block = col.block();
 
   if (scopes->wavefrm_height < UI_UNIT_Y) {
     scopes->wavefrm_height = UI_UNIT_Y;
@@ -91,7 +91,7 @@ void template_waveform(Layout *layout, PointerRNA *ptr, const StringRefNull prop
   }
 
   uiDefBut(block,
-           ButType::Waveform,
+           ButtonType::Waveform,
            "",
            0,
            0,
@@ -104,7 +104,7 @@ void template_waveform(Layout *layout, PointerRNA *ptr, const StringRefNull prop
 
   /* Resize grip. */
   uiDefIconButI(block,
-                ButType::Grip,
+                ButtonType::Grip,
                 ICON_GRIP,
                 0,
                 0,
@@ -144,10 +144,10 @@ void template_vectorscope(Layout *layout, PointerRNA *ptr, const StringRefNull p
   }
 
   Layout &col = layout->column(true);
-  uiBlock *block = col.block();
+  Block *block = col.block();
 
   uiDefBut(block,
-           ButType::Vectorscope,
+           ButtonType::Vectorscope,
            "",
            0,
            0,
@@ -160,7 +160,7 @@ void template_vectorscope(Layout *layout, PointerRNA *ptr, const StringRefNull p
 
   /* Resize grip. */
   uiDefIconButI(block,
-                ButType::Grip,
+                ButtonType::Grip,
                 ICON_GRIP,
                 0,
                 0,

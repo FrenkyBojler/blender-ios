@@ -125,8 +125,8 @@ struct MenuSearch_Data {
 
   /** Use for context menu, to fake a button to create a context menu. */
   struct {
-    uiBut but;
-    uiBlock block;
+    Button but;
+    Block block;
   } context_menu_data;
 };
 
@@ -139,7 +139,7 @@ static bool menu_item_sort_by_drawstr_full(const MenuSearch_Item &menu_item_a,
 static bool menu_items_from_ui_create_item_from_button(MenuSearch_Data *data,
                                                        ResourceScope &scope,
                                                        MenuType *mt,
-                                                       uiBut *but,
+                                                       Button *but,
                                                        MenuSearch_Context *wm_context,
                                                        MenuSearch_Parent *menu_parent)
 {
@@ -229,7 +229,7 @@ static bool menu_items_from_ui_create_item_from_button(MenuSearch_Data *data,
       item->drawstr = scope.allocator().copy_string(but->drawstr);
     }
 
-    item->icon = ui_but_icon(but);
+    item->icon = button_icon(but);
     item->state = (but->flag & (BUT_DISABLED | BUT_INACTIVE | BUT_REDALERT | BUT_HAS_SEP_CHAR));
     item->mt = mt;
 
@@ -246,7 +246,7 @@ static bool menu_items_from_ui_create_item_from_button(MenuSearch_Data *data,
 /**
  * Populate a fake button from a menu item (use for context menu).
  */
-static bool menu_items_to_ui_button(MenuSearch_Item *item, uiBut *but)
+static bool menu_items_to_ui_button(MenuSearch_Item *item, Button *but)
 {
   bool changed = false;
   if (auto *op_data = std::get_if<MenuSearch_Item::OperatorData>(&item->data)) {
@@ -658,7 +658,7 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
         continue;
       }
 
-      uiBlock *block = block_begin(C, region, __func__, EmbossType::Emboss);
+      Block *block = block_begin(C, region, __func__, EmbossType::Emboss);
       Layout &layout = block_layout(block,
                                     LayoutDirection::Vertical,
                                     LayoutType::Menu,
@@ -680,15 +680,15 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
       block_end(C, block);
 
       for (const int i : block->buttons.index_range()) {
-        const std::unique_ptr<uiBut> &but = block->buttons[i];
+        const std::unique_ptr<Button> &but = block->buttons[i];
         MenuType *mt_from_but = nullptr;
         /* Support menu titles with dynamic from initial labels
          * (used by edit-mesh context menu). */
-        if (but->type == ButType::Label) {
+        if (but->type == ButtonType::Label) {
 
           /* Check if the label is the title. */
-          const std::unique_ptr<uiBut> *but_test = block->buttons.begin() + i - 1;
-          while (but_test >= block->buttons.begin() && (*but_test)->type == ButType::Sepr) {
+          const std::unique_ptr<Button> *but_test = block->buttons.begin() + i - 1;
+          while (but_test >= block->buttons.begin() && (*but_test)->type == ButtonType::Sepr) {
             but_test--;
           }
 
@@ -764,7 +764,7 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
           /* A non 'MenuType' menu button. */
 
           /* +1 to avoid overlap with the current 'block'. */
-          uiBlock *sub_block = block_begin(C, region, __func__ + 1, EmbossType::Emboss);
+          Block *sub_block = block_begin(C, region, __func__ + 1, EmbossType::Emboss);
           Layout &sub_layout = block_layout(sub_block,
                                             LayoutDirection::Vertical,
                                             LayoutType::Menu,
@@ -803,7 +803,7 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
             menu_parent->drawstr = scope.allocator().copy_string(but->drawstr);
             menu_parent->parent = current_menu.self_as_parent;
 
-            for (const std::unique_ptr<uiBut> &sub_but : sub_block->buttons) {
+            for (const std::unique_ptr<Button> &sub_but : sub_block->buttons) {
               menu_items_from_ui_create_item_from_button(
                   data, scope, mt, sub_but.get(), wm_context, menu_parent);
             }
@@ -1022,10 +1022,10 @@ static bool ui_search_menu_create_context_menu(bContext *C,
   MenuSearch_Item *item = (MenuSearch_Item *)active;
   bool has_menu = false;
 
-  new (&data->context_menu_data.but) uiBut();
-  new (&data->context_menu_data.block) uiBlock();
-  uiBut *but = &data->context_menu_data.but;
-  uiBlock *block = &data->context_menu_data.block;
+  new (&data->context_menu_data.but) Button();
+  new (&data->context_menu_data.block) Block();
+  Button *but = &data->context_menu_data.but;
+  Block *block = &data->context_menu_data.block;
 
   but->block = block;
 
@@ -1038,7 +1038,7 @@ static bool ui_search_menu_create_context_menu(bContext *C,
       CTX_wm_region_set(C, item->wm_context->region);
     }
 
-    if (ui_popup_context_menu_for_button(C, but, event)) {
+    if (popup_context_menu_for_button(C, but, event)) {
       has_menu = true;
     }
 
@@ -1063,10 +1063,10 @@ static ARegion *ui_search_menu_create_tooltip(
   MenuSearch_Data *data = (MenuSearch_Data *)arg;
   MenuSearch_Item *item = (MenuSearch_Item *)active;
 
-  new (&data->context_menu_data.but) uiBut();
-  new (&data->context_menu_data.block) uiBlock();
-  uiBut *but = &data->context_menu_data.but;
-  uiBlock *block = &data->context_menu_data.block;
+  new (&data->context_menu_data.but) Button();
+  new (&data->context_menu_data.block) Block();
+  Button *but = &data->context_menu_data.but;
+  Block *block = &data->context_menu_data.block;
   unit_m4(block->winmat);
   block->aspect = 1;
 
@@ -1077,7 +1077,7 @@ static ARegion *ui_search_menu_create_tooltip(
   const wmEvent *event = CTX_wm_window(C)->eventstate;
   tip_init[0] = event->xy[0];
   tip_init[1] = event->xy[1] - (UI_UNIT_Y / 2);
-  ui_window_to_block_fl(region, block, &tip_init[0], &tip_init[1]);
+  window_to_block_fl(region, block, &tip_init[0], &tip_init[1]);
 
   but->rect.xmin = tip_init[0];
   but->rect.xmax = tip_init[0];
@@ -1111,7 +1111,7 @@ static ARegion *ui_search_menu_create_tooltip(
 /** \name Menu Search Template Public API
  * \{ */
 
-void button_func_menu_search(uiBut *but, const char *single_menu_idname)
+void button_func_menu_search(Button *but, const char *single_menu_idname)
 {
   bContext *C = (bContext *)but->block->evil_C;
   wmWindow *win = CTX_wm_window(C);
@@ -1124,7 +1124,7 @@ void button_func_menu_search(uiBut *but, const char *single_menu_idname)
       C, win, area, region, include_all_areas, single_menu_idname);
   button_func_search_set(but,
                          /* Generic callback. */
-                         ui_searchbox_create_menu,
+                         searchbox_create_menu,
                          menu_search_update_fn,
                          data,
                          false,
@@ -1139,8 +1139,8 @@ void button_func_menu_search(uiBut *but, const char *single_menu_idname)
 
 void uiTemplateMenuSearch(Layout *layout)
 {
-  uiBlock *block;
-  uiBut *but;
+  Block *block;
+  Button *but;
   static char search[256] = "";
 
   block = layout->block();

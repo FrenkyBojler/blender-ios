@@ -61,15 +61,15 @@ static bool ui_layout_operator_buts_poll_property(PointerRNA * /*ptr*/,
   return params->op->type->poll_property(params->C, params->op, prop);
 }
 
-static eAutoPropButsReturn template_operator_property_buts_draw_single(
+static AutoPropButsReturn template_operator_property_buts_draw_single(
     const bContext *C,
     wmOperator *op,
     Layout &layout,
     const eButLabelAlign label_align,
     int layout_flags)
 {
-  uiBlock *block = layout.block();
-  eAutoPropButsReturn return_info = eAutoPropButsReturn(0);
+  Block *block = layout.block();
+  AutoPropButsReturn return_info = AutoPropButsReturn(0);
 
   if (!op->properties) {
     op->properties = bke::idprop::create_group("wmOperatorProperties").release();
@@ -140,7 +140,7 @@ static eAutoPropButsReturn template_operator_property_buts_draw_single(
         label_align,
         (layout_flags & TEMPLATE_OP_PROPS_COMPACT));
 
-    if ((return_info & UI_PROP_BUTS_NONE_ADDED) && (layout_flags & TEMPLATE_OP_PROPS_SHOW_EMPTY)) {
+    if ((return_info & PROP_BUTS_NONE_ADDED) && (layout_flags & TEMPLATE_OP_PROPS_SHOW_EMPTY)) {
       layout.label(IFACE_("No Properties"), ICON_NONE);
     }
   }
@@ -150,13 +150,13 @@ static eAutoPropButsReturn template_operator_property_buts_draw_single(
    * but this is not so important if this button is drawn in those cases
    * (which isn't all that likely anyway) - campbell */
   if (op->properties->len) {
-    uiBut *but;
+    Button *but;
 
     /* Needed to avoid alignment errors with previous buttons */
     Layout &col = layout.column(false);
     block = col.block();
     but = uiDefIconTextBut(block,
-                           ButType::But,
+                           ButtonType::But,
                            ICON_FILE_REFRESH,
                            IFACE_("Reset"),
                            0,
@@ -175,7 +175,7 @@ static eAutoPropButsReturn template_operator_property_buts_draw_single(
 
   const bool is_popup = (block->flag & BLOCK_KEEP_OPEN) != 0;
 
-  for (const std::unique_ptr<uiBut> &but : block->buttons) {
+  for (const std::unique_ptr<Button> &but : block->buttons) {
     /* no undo for buttons for operator redo panels */
     if (!(layout_flags & TEMPLATE_OP_PROPS_ALLOW_UNDO_PUSH)) {
       button_flag_disable(but.get(), BUT_UNDO);
@@ -189,7 +189,8 @@ static eAutoPropButsReturn template_operator_property_buts_draw_single(
        * - this is used for allowing operators with popups to rename stuff with fewer clicks
        */
       if (is_popup) {
-        if ((but->rnaprop == op->type->prop) && ELEM(but->type, ButType::Text, ButType::Num)) {
+        if ((but->rnaprop == op->type->prop) && ELEM(but->type, ButtonType::Text, ButtonType::Num))
+        {
           button_focus_on_enter_event(CTX_wm_window(C), but.get());
         }
       }
@@ -214,9 +215,9 @@ static void template_operator_property_buts_draw_recursive(const bContext *C,
   }
   else {
     /* Might want to make label_align adjustable somehow. */
-    eAutoPropButsReturn return_info = template_operator_property_buts_draw_single(
+    AutoPropButsReturn return_info = template_operator_property_buts_draw_single(
         C, op, layout, label_align, layout_flags);
-    if (return_info & UI_PROP_BUTS_ANY_FAILED_CHECK) {
+    if (return_info & PROP_BUTS_ANY_FAILED_CHECK) {
       if (r_has_advanced) {
         *r_has_advanced = true;
       }
@@ -285,7 +286,7 @@ void uiTemplateOperatorPropertyButs(
 void template_operator_redo_properties(Layout *layout, const bContext *C)
 {
   wmOperator *op = WM_operator_last_redo(C);
-  uiBlock *block = layout->block();
+  Block *block = layout->block();
 
   if (op == nullptr) {
     return;
@@ -475,7 +476,7 @@ void template_collection_exporters(Layout *layout, bContext *C)
     return;
   }
 
-  /* Assign temporary operator to uiBlock, which takes ownership. */
+  /* Assign temporary operator to Block, which takes ownership. */
   PointerRNA properties = RNA_pointer_create_discrete(
       &collection->id, ot->srna, data->export_properties);
   wmOperator *op = minimal_operator_create(ot, &properties);

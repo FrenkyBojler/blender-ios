@@ -49,18 +49,18 @@ namespace blender::ui {
 /** \name Utility Functions
  * \{ */
 
-bool ui_but_menu_step_poll(const uiBut *but)
+bool button_menu_step_poll(const Button *but)
 {
-  BLI_assert(but->type == ButType::Menu);
+  BLI_assert(but->type == ButtonType::Menu);
 
   /* currently only RNA buttons */
   return ((but->menu_step_func != nullptr) ||
           (but->rnaprop && RNA_property_type(but->rnaprop) == PROP_ENUM));
 }
 
-int ui_but_menu_step(uiBut *but, int direction)
+int button_menu_step(Button *but, int direction)
 {
-  if (ui_but_menu_step_poll(but)) {
+  if (button_menu_step_poll(but)) {
     if (but->menu_step_func) {
       return but->menu_step_func(
           static_cast<bContext *>(but->block->evil_C), direction, but->poin);
@@ -105,7 +105,7 @@ uint ui_popup_menu_hash(const StringRef str)
 }
 
 /* but == nullptr read, otherwise set */
-static uiBut *ui_popup_menu_memory__internal(uiBlock *block, uiBut *but)
+static Button *ui_popup_menu_memory__internal(Block *block, Button *but)
 {
   static uint mem[256];
   static bool first = true;
@@ -126,11 +126,11 @@ static uiBut *ui_popup_menu_memory__internal(uiBlock *block, uiBut *but)
   }
 
   /* get */
-  for (const std::unique_ptr<uiBut> &but_iter : block->buttons) {
+  for (const std::unique_ptr<Button> &but_iter : block->buttons) {
     /* Prevent labels (typically headings), from being returned in the case the text
      * happens to matches one of the menu items.
      * Skip separators too as checking them is redundant. */
-    if (ELEM(but_iter->type, ButType::Label, ButType::Sepr, ButType::SeprLine)) {
+    if (ELEM(but_iter->type, ButtonType::Label, ButtonType::Sepr, ButtonType::SeprLine)) {
       continue;
     }
     if (mem[hash_mod] == ui_popup_string_hash(but_iter->str, but_iter->flag & BUT_HAS_SEP_CHAR)) {
@@ -141,12 +141,12 @@ static uiBut *ui_popup_menu_memory__internal(uiBlock *block, uiBut *but)
   return nullptr;
 }
 
-uiBut *ui_popup_menu_memory_get(uiBlock *block)
+Button *popup_menu_memory_get(Block *block)
 {
   return ui_popup_menu_memory__internal(block, nullptr);
 }
 
-void ui_popup_menu_memory_set(uiBlock *block, uiBut *but)
+void popup_menu_memory_set(Block *block, Button *but)
 {
   ui_popup_menu_memory__internal(block, but);
 }
@@ -158,9 +158,9 @@ void ui_popup_menu_memory_set(uiBlock *block, uiBut *but)
  * \{ */
 
 struct PopupMenu {
-  uiBlock *block;
+  Block *block;
   Layout *layout;
-  uiBut *but;
+  Button *but;
   ARegion *butregion;
 
   /* Menu hash is created from this, to keep a memory of recently opened menus. */
@@ -187,7 +187,7 @@ static void ui_popup_menu_create_block(bContext *C,
 
   /* A title is only provided when a Menu has a label, this is not always the case, see e.g.
    * `VIEW3D_MT_edit_mesh_context_menu` -- this specifies its own label inside the draw function
-   * depending on vertex/edge/face mode. We still want to flag the uiBlock (but only insert into
+   * depending on vertex/edge/face mode. We still want to flag the Block (but only insert into
    * the `puphash` if we have a title provided). Choosing an entry in a menu will still handle
    * `puphash` later (see `button_activate_exit`) though multiple menus without a label might fight
    * for the same storage of the menu memory. Using `idname` instead (or in combination with the
@@ -223,7 +223,7 @@ static void ui_popup_menu_create_block(bContext *C,
   }
 }
 
-static uiBlock *ui_block_func_POPUP(bContext *C, uiPopupBlockHandle *handle, void *arg_pup)
+static Block *block_func_POPUP(bContext *C, PopupBlockHandle *handle, void *arg_pup)
 {
   PopupMenu *pup = static_cast<PopupMenu *>(arg_pup);
 
@@ -281,7 +281,7 @@ static uiBlock *ui_block_func_POPUP(bContext *C, uiPopupBlockHandle *handle, voi
 
   bool flip = (direction == UI_DIR_DOWN);
 
-  uiBlock *block = pup->block;
+  Block *block = pup->block;
 
   /* in some cases we create the block before the region,
    * so we set it delayed here if necessary */
@@ -298,15 +298,15 @@ static uiBlock *ui_block_func_POPUP(bContext *C, uiPopupBlockHandle *handle, voi
   if (pup->popup) {
     int offset[2] = {0, 0};
 
-    uiBut *but_activate = nullptr;
+    Button *but_activate = nullptr;
     block_flag_enable(block, BLOCK_LOOP);
     block_theme_style_set(block, BLOCK_THEME_STYLE_POPUP);
     block_direction_set(block, direction);
 
     /* offset the mouse position, possibly based on earlier selection */
     if (!handle->refresh) {
-      uiBut *bt;
-      if ((block->flag & BLOCK_POPUP_MEMORY) && (bt = ui_popup_menu_memory_get(block))) {
+      Button *bt;
+      if ((block->flag & BLOCK_POPUP_MEMORY) && (bt = popup_menu_memory_get(block))) {
         /* position mouse on last clicked item, at 0.8*width of the
          * button, so it doesn't overlap the text too much, also note
          * the offset is negative because we are inverse moving the
@@ -314,7 +314,7 @@ static uiBlock *ui_block_func_POPUP(bContext *C, uiPopupBlockHandle *handle, voi
         offset[0] = -(bt->rect.xmin + 0.8f * BLI_rctf_size_x(&bt->rect));
         offset[1] = -(bt->rect.ymin + 0.5f * UI_UNIT_Y);
 
-        if (ui_but_is_editable(bt)) {
+        if (button_is_editable(bt)) {
           but_activate = bt;
         }
       }
@@ -322,15 +322,15 @@ static uiBlock *ui_block_func_POPUP(bContext *C, uiPopupBlockHandle *handle, voi
         /* position mouse at 0.8*width of the button and below the tile
          * on the first item */
         offset[0] = 0;
-        for (const std::unique_ptr<uiBut> &but_iter : block->buttons) {
+        for (const std::unique_ptr<Button> &but_iter : block->buttons) {
           offset[0] = min_ii(offset[0],
                              -(but_iter->rect.xmin + 0.8f * BLI_rctf_size_x(&but_iter->rect)));
         }
 
         offset[1] = 2.1 * UI_UNIT_Y;
 
-        for (const std::unique_ptr<uiBut> &but_iter : block->buttons) {
-          if (ui_but_is_editable(but_iter.get())) {
+        for (const std::unique_ptr<Button> &but_iter : block->buttons) {
+          if (button_is_editable(but_iter.get())) {
             but_activate = but_iter.get();
             break;
           }
@@ -353,7 +353,7 @@ static uiBlock *ui_block_func_POPUP(bContext *C, uiPopupBlockHandle *handle, voi
         /* In Toolbars, highlight the button with select color. */
         but_activate->flag |= UI_SELECT_DRAW;
       }
-      ui_but_activate_over(C, handle->region, but_activate);
+      button_activate_over(C, handle->region, but_activate);
     }
 
     block->minbounds = minwidth;
@@ -384,16 +384,16 @@ static uiBlock *ui_block_func_POPUP(bContext *C, uiPopupBlockHandle *handle, voi
   return pup->block;
 }
 
-static void ui_block_free_func_POPUP(void *arg_pup)
+static void block_free_func_POPUP(void *arg_pup)
 {
   PopupMenu *pup = static_cast<PopupMenu *>(arg_pup);
   MEM_delete(pup);
 }
 
-static uiPopupBlockHandle *ui_popup_menu_create_impl(
+static PopupBlockHandle *ui_popup_menu_create_impl(
     bContext *C,
     ARegion *butregion,
-    uiBut *but,
+    Button *but,
     const char *title,
     std::function<void(bContext *, Layout *)> menu_func,
     const bool can_refresh)
@@ -405,10 +405,10 @@ static uiPopupBlockHandle *ui_popup_menu_create_impl(
   /* menu is created from a callback */
   pup->menu_func = menu_func;
   if (but) {
-    pup->slideout = ui_block_is_menu(but->block);
+    pup->slideout = block_is_menu(but->block);
     pup->but = but;
 
-    if (but->type == ButType::Pulldown) {
+    if (but->type == ButtonType::Pulldown) {
       WorkspaceStatus status(C);
       status.item(IFACE_("Search"), ICON_EVENT_SPACEKEY);
     }
@@ -420,8 +420,8 @@ static uiPopupBlockHandle *ui_popup_menu_create_impl(
     pup->my = window->eventstate->xy[1];
     pup->popup = true;
   }
-  uiPopupBlockHandle *handle = ui_popup_block_create(
-      C, butregion, but, nullptr, ui_block_func_POPUP, pup, ui_block_free_func_POPUP, can_refresh);
+  PopupBlockHandle *handle = popup_block_create(
+      C, butregion, but, nullptr, block_func_POPUP, pup, block_free_func_POPUP, can_refresh);
 
   if (!but) {
     handle->popup = true;
@@ -433,8 +433,8 @@ static uiPopupBlockHandle *ui_popup_menu_create_impl(
   return handle;
 }
 
-uiPopupBlockHandle *ui_popup_menu_create(
-    bContext *C, ARegion *butregion, uiBut *but, uiMenuCreateFunc menu_func, void *arg)
+PopupBlockHandle *popup_menu_create(
+    bContext *C, ARegion *butregion, Button *but, MenuCreateFunc menu_func, void *arg)
 {
   return ui_popup_menu_create_impl(
       C,
@@ -453,16 +453,16 @@ uiPopupBlockHandle *ui_popup_menu_create(
 
 static void create_title_button(Layout &layout, const char *title, int icon)
 {
-  uiBlock *block = layout.block();
+  Block *block = layout.block();
   char titlestr[256];
 
   if (icon) {
     SNPRINTF_UTF8(titlestr, " %s", title);
-    uiDefIconTextBut(block, ButType::Label, icon, titlestr, 0, 0, 200, UI_UNIT_Y, nullptr, "");
+    uiDefIconTextBut(block, ButtonType::Label, icon, titlestr, 0, 0, 200, UI_UNIT_Y, nullptr, "");
   }
   else {
-    uiBut *but = uiDefBut(
-        block, ButType::Label, title, 0, 0, 200, UI_UNIT_Y, nullptr, 0.0, 0.0, "");
+    Button *but = uiDefBut(
+        block, ButtonType::Label, title, 0, 0, 200, UI_UNIT_Y, nullptr, 0.0, 0.0, "");
     but->drawflag = BUT_TEXT_LEFT;
   }
 
@@ -478,7 +478,7 @@ PopupMenu *popup_menu_begin_ex(bContext *C, const char *title, const char *block
   ui_popup_menu_create_block(C, pup, title, block_name);
 
   /* create in advance so we can let buttons point to retval already */
-  pup->block->handle = MEM_new<uiPopupBlockHandle>(__func__);
+  pup->block->handle = MEM_new<PopupBlockHandle>(__func__);
 
   if (title[0]) {
     create_title_button(*pup->layout, title, icon);
@@ -492,7 +492,7 @@ PopupMenu *popup_menu_begin(bContext *C, const char *title, int icon)
   return popup_menu_begin_ex(C, title, __func__, icon);
 }
 
-void popup_menu_but_set(PopupMenu *pup, ARegion *butregion, uiBut *but)
+void popup_menu_but_set(PopupMenu *pup, ARegion *butregion, Button *but)
 {
   pup->but = but;
   pup->butregion = butregion;
@@ -506,15 +506,15 @@ void popup_menu_end(bContext *C, PopupMenu *pup)
   pup->mx = window->eventstate->xy[0];
   pup->my = window->eventstate->xy[1];
 
-  uiBut *but = nullptr;
+  Button *but = nullptr;
   ARegion *butregion = nullptr;
   if (pup->but) {
     but = pup->but;
     butregion = pup->butregion;
   }
 
-  uiPopupBlockHandle *menu = ui_popup_block_create(
-      C, butregion, but, nullptr, ui_block_func_POPUP, pup, nullptr, false);
+  PopupBlockHandle *menu = popup_block_create(
+      C, butregion, but, nullptr, block_func_POPUP, pup, nullptr, false);
   menu->popup = true;
 
   popup_handlers_add(C, &window->modalhandlers, menu, 0);
@@ -605,7 +605,7 @@ static void ui_popup_menu_create_from_menutype(bContext *C,
                                                const char *title,
                                                const int icon)
 {
-  uiPopupBlockHandle *handle = ui_popup_menu_create_impl(
+  PopupBlockHandle *handle = ui_popup_menu_create_impl(
       C,
       nullptr,
       nullptr,
@@ -614,7 +614,7 @@ static void ui_popup_menu_create_from_menutype(bContext *C,
         if (title && title[0]) {
           create_title_button(*layout, title, icon);
         }
-        ui_item_menutype_func(C, layout, mt);
+        item_menutype_func(C, layout, mt);
       },
       true);
 
@@ -668,11 +668,11 @@ wmOperatorStatus popup_menu_invoke(bContext *C, const char *idname, ReportList *
  * \{ */
 
 void popup_block_invoke_ex(
-    bContext *C, uiBlockCreateFunc func, void *arg, uiFreeArgFunc arg_free, const bool can_refresh)
+    bContext *C, BlockCreateFunc func, void *arg, FreeArgFunc arg_free, const bool can_refresh)
 {
   wmWindow *window = CTX_wm_window(C);
 
-  uiPopupBlockHandle *handle = ui_popup_block_create(
+  PopupBlockHandle *handle = popup_block_create(
       C, nullptr, nullptr, func, nullptr, arg, arg_free, can_refresh);
   handle->popup = true;
 
@@ -682,25 +682,25 @@ void popup_block_invoke_ex(
 
   popup_handlers_add(C, &window->modalhandlers, handle, 0);
   block_active_only_flagged_buttons(
-      C, handle->region, static_cast<uiBlock *>(handle->region->runtime->uiblocks.first));
+      C, handle->region, static_cast<Block *>(handle->region->runtime->uiblocks.first));
   WM_event_add_mousemove(window);
 }
 
-void popup_block_invoke(bContext *C, uiBlockCreateFunc func, void *arg, uiFreeArgFunc arg_free)
+void popup_block_invoke(bContext *C, BlockCreateFunc func, void *arg, FreeArgFunc arg_free)
 {
   popup_block_invoke_ex(C, func, arg, arg_free, true);
 }
 
 void popup_block_ex(bContext *C,
-                    uiBlockCreateFunc func,
-                    uiBlockHandleFunc popup_func,
-                    uiBlockCancelFunc cancel_func,
+                    BlockCreateFunc func,
+                    BlockHandleFunc popup_func,
+                    BlockCancelFunc cancel_func,
                     void *arg,
                     wmOperator *op)
 {
   wmWindow *window = CTX_wm_window(C);
 
-  uiPopupBlockHandle *handle = ui_popup_block_create(
+  PopupBlockHandle *handle = popup_block_create(
       C, nullptr, nullptr, func, nullptr, arg, nullptr, true);
   handle->popup = true;
   handle->retvalue = 1;
@@ -717,22 +717,22 @@ void popup_block_ex(bContext *C,
 
   popup_handlers_add(C, &window->modalhandlers, handle, 0);
   block_active_only_flagged_buttons(
-      C, handle->region, static_cast<uiBlock *>(handle->region->runtime->uiblocks.first));
+      C, handle->region, static_cast<Block *>(handle->region->runtime->uiblocks.first));
   WM_event_add_mousemove(window);
 }
 
 static void popup_block_template_close_cb(bContext *C, void *arg1, void * /*arg2*/)
 {
-  uiBlock *block = (uiBlock *)arg1;
+  Block *block = (Block *)arg1;
 
-  uiPopupBlockHandle *handle = block->handle;
+  PopupBlockHandle *handle = block->handle;
   if (handle == nullptr) {
     printf("Error: used outside of a popup!\n");
     return;
   }
 
   wmWindow *win = CTX_wm_window(C);
-  popup_menu_retval_set(block, UI_RETURN_CANCEL, true);
+  popup_menu_retval_set(block, RETURN_CANCEL, true);
 
   if (handle->cancel_func) {
     handle->cancel_func(C, handle->popup_arg);
@@ -741,7 +741,7 @@ static void popup_block_template_close_cb(bContext *C, void *arg1, void * /*arg2
   popup_block_close(C, win, block);
 }
 
-bool popup_block_template_confirm_is_supported(const uiBlock *block)
+bool popup_block_template_confirm_is_supported(const Block *block)
 {
   if (block->flag & (BLOCK_KEEP_OPEN | BLOCK_POPOVER)) {
     return true;
@@ -749,17 +749,17 @@ bool popup_block_template_confirm_is_supported(const uiBlock *block)
   return false;
 }
 
-void popup_block_template_confirm(uiBlock *block,
+void popup_block_template_confirm(Block *block,
                                   const bool cancel_default,
-                                  FunctionRef<uiBut *()> confirm_fn,
-                                  FunctionRef<uiBut *()> cancel_fn)
+                                  FunctionRef<Button *()> confirm_fn,
+                                  FunctionRef<Button *()> cancel_fn)
 {
 #ifdef _WIN32
   const bool windows_layout = true;
 #else
   const bool windows_layout = false;
 #endif
-  FunctionRef<uiBut *()> *button_functions[2];
+  FunctionRef<Button *()> *button_functions[2];
   if (windows_layout) {
     ARRAY_SET_ITEMS(button_functions, &confirm_fn, &cancel_fn);
   }
@@ -768,8 +768,8 @@ void popup_block_template_confirm(uiBlock *block,
   }
 
   for (int i = 0; i < ARRAY_SIZE(button_functions); i++) {
-    FunctionRef<uiBut *()> *but_fn = button_functions[i];
-    if (uiBut *but = (*but_fn)()) {
+    FunctionRef<Button *()> *but_fn = button_functions[i];
+    if (Button *but = (*but_fn)()) {
       const bool is_cancel = (but_fn == &cancel_fn);
       if ((block->flag & BLOCK_LOOP) == 0) {
         button_func_set(but, popup_block_template_close_cb, block, nullptr);
@@ -792,7 +792,7 @@ void popup_block_template_confirm_op(Layout *layout,
                                      bool cancel_default,
                                      PointerRNA *r_ptr)
 {
-  uiBlock *block = layout->block();
+  Block *block = layout->block();
 
   const StringRef confirm_text = confirm_text_opt.value_or(IFACE_("OK"));
   const StringRef cancel_text = cancel_text_opt.value_or(IFACE_("Cancel"));
@@ -807,12 +807,12 @@ void popup_block_template_confirm_op(Layout *layout,
     cancel_default = true;
   }
 
-  auto confirm_fn = [&row, &ot, &confirm_text, &icon, &r_ptr, &show_confirm]() -> uiBut * {
+  auto confirm_fn = [&row, &ot, &confirm_text, &icon, &r_ptr, &show_confirm]() -> Button * {
     if (!show_confirm) {
       return nullptr;
     }
-    uiBlock *block = row.block();
-    const uiBut *but_ref = block->last_but();
+    Block *block = row.block();
+    const Button *but_ref = block->last_but();
     *r_ptr = row.op(ot, confirm_text, icon, row.operator_context(), UI_ITEM_NONE);
 
     if (block->buttons.is_empty() || but_ref == block->buttons.last().get()) {
@@ -821,21 +821,21 @@ void popup_block_template_confirm_op(Layout *layout,
     return block->buttons.last().get();
   };
 
-  auto cancel_fn = [&row, &cancel_text, &show_cancel]() -> uiBut * {
+  auto cancel_fn = [&row, &cancel_text, &show_cancel]() -> Button * {
     if (!show_cancel) {
       return nullptr;
     }
-    uiBlock *block = row.block();
-    uiBut *but = uiDefIconTextBut(block,
-                                  ButType::But,
-                                  ICON_NONE,
-                                  cancel_text,
-                                  0,
-                                  0,
-                                  UI_UNIT_X, /* Ignored, as a split is used. */
-                                  UI_UNIT_Y,
-                                  nullptr,
-                                  "");
+    Block *block = row.block();
+    Button *but = uiDefIconTextBut(block,
+                                   ButtonType::But,
+                                   ICON_NONE,
+                                   cancel_text,
+                                   0,
+                                   0,
+                                   UI_UNIT_X, /* Ignored, as a split is used. */
+                                   UI_UNIT_Y,
+                                   nullptr,
+                                   "");
     button_retval_set(but, 1);
 
     return but;
@@ -852,7 +852,7 @@ void uiPupBlockOperator(bContext *C,
 {
   wmWindow *window = CTX_wm_window(C);
 
-  uiPopupBlockHandle *handle = ui_popup_block_create(C, nullptr, nullptr, func, nullptr, op, nullptr, true);
+  PopupBlockHandle *handle = ui_popup_block_create(C, nullptr, nullptr, func, nullptr, op, nullptr, true);
   handle->popup = 1;
   handle->retvalue = 1;
 
@@ -866,7 +866,7 @@ void uiPupBlockOperator(bContext *C,
 }
 #endif
 
-void popup_block_close(bContext *C, wmWindow *win, uiBlock *block)
+void popup_block_close(bContext *C, wmWindow *win, Block *block)
 {
   /* if loading new .blend while popup is open, window will be nullptr */
   if (block->handle) {
@@ -874,7 +874,7 @@ void popup_block_close(bContext *C, wmWindow *win, uiBlock *block)
       const bScreen *screen = WM_window_get_active_screen(win);
 
       popup_handlers_remove(&win->modalhandlers, block->handle);
-      ui_popup_block_free(C, block->handle);
+      popup_block_free(C, block->handle);
 
       /* In the case we have nested popups,
        * closing one may need to redraw another, see: #48874 */
@@ -890,7 +890,7 @@ void popup_block_close(bContext *C, wmWindow *win, uiBlock *block)
 bool popup_block_name_exists(const bScreen *screen, const StringRef name)
 {
   LISTBASE_FOREACH (const ARegion *, region, &screen->regionbase) {
-    LISTBASE_FOREACH (const uiBlock *, block, &region->runtime->uiblocks) {
+    LISTBASE_FOREACH (const Block *, block, &region->runtime->uiblocks) {
       if (block->name == name) {
         return true;
       }
@@ -899,12 +899,12 @@ bool popup_block_name_exists(const bScreen *screen, const StringRef name)
   return false;
 }
 
-void popup_menu_close(const uiBlock *block, const bool is_cancel)
+void popup_menu_close(const Block *block, const bool is_cancel)
 {
-  popup_menu_retval_set(block, is_cancel ? UI_RETURN_CANCEL : UI_RETURN_OK, true);
+  popup_menu_retval_set(block, is_cancel ? RETURN_CANCEL : RETURN_OK, true);
 }
 
-void popup_menu_close_from_but(const uiBut *but, const bool is_cancel)
+void popup_menu_close_from_but(const Button *but, const bool is_cancel)
 {
   popup_menu_close(but->block, is_cancel);
 }

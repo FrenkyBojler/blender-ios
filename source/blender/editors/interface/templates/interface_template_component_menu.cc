@@ -21,11 +21,11 @@ struct ComponentMenuArgs {
   char propname[64]; /* XXX arbitrary */
 };
 /* NOTE: this is a block-menu, needs 0 events, otherwise the menu closes */
-static uiBlock *component_menu(bContext *C, ARegion *region, void *args_v)
+static Block *component_menu(bContext *C, ARegion *region, void *args_v)
 {
   ComponentMenuArgs *args = (ComponentMenuArgs *)args_v;
 
-  uiBlock *block = block_begin(C, region, __func__, EmbossType::Emboss);
+  Block *block = block_begin(C, region, __func__, EmbossType::Emboss);
   block_flag_enable(block, BLOCK_KEEP_OPEN);
 
   Layout &layout = block_layout(block,
@@ -56,20 +56,20 @@ void template_component_menu(Layout *layout,
   args->ptr = *ptr;
   STRNCPY(args->propname, propname.c_str());
 
-  uiBlock *block = layout->block();
+  Block *block = layout->block();
   block_align_begin(block);
 
-  uiBut *but = uiDefBlockButN(block,
-                              component_menu,
-                              args,
-                              name,
-                              0,
-                              0,
-                              UI_UNIT_X * 6,
-                              UI_UNIT_Y,
-                              "",
-                              but_func_argN_free<ComponentMenuArgs>,
-                              but_func_argN_copy<ComponentMenuArgs>);
+  Button *but = uiDefBlockButN(block,
+                               component_menu,
+                               args,
+                               name,
+                               0,
+                               0,
+                               UI_UNIT_X * 6,
+                               UI_UNIT_Y,
+                               "",
+                               but_func_argN_free<ComponentMenuArgs>,
+                               but_func_argN_copy<ComponentMenuArgs>);
   /* set rna directly, uiDefBlockButN doesn't do this */
   but->rnapoin = *ptr;
   but->rnaprop = RNA_struct_find_property(ptr, propname.c_str());

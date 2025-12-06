@@ -114,7 +114,7 @@ static void uvedit_translate(Scene *scene, const Span<Object *> objects, const f
 
 static float uvedit_old_center[2];
 
-static void uvedit_vertex_buttons(const bContext *C, uiBlock *block)
+static void uvedit_vertex_buttons(const bContext *C, blender::ui::Block *block)
 {
   SpaceImage *sima = CTX_wm_space_image(C);
   Scene *scene = CTX_data_scene(C);
@@ -156,12 +156,12 @@ static void uvedit_vertex_buttons(const bContext *C, uiBlock *block)
       digits = 2;
     }
 
-    uiBut *but;
+    blender::ui::Button *but;
 
     int y = 0;
     block_align_begin(block);
     but = uiDefButF(block,
-                    blender::ui::ButType::Num,
+                    blender::ui::ButtonType::Num,
                     IFACE_("X:"),
                     0,
                     y -= UI_UNIT_Y,
@@ -174,7 +174,7 @@ static void uvedit_vertex_buttons(const bContext *C, uiBlock *block)
     button_number_step_size_set(but, step);
     button_number_precision_set(but, digits);
     but = uiDefButF(block,
-                    blender::ui::ButType::Num,
+                    blender::ui::ButtonType::Num,
                     IFACE_("Y:"),
                     0,
                     y -= UI_UNIT_Y,
@@ -238,9 +238,7 @@ static bool image_panel_uv_poll(const bContext *C, PanelType * /*pt*/)
 
 static void image_panel_uv(const bContext *C, Panel *panel)
 {
-  uiBlock *block;
-
-  block = panel->layout->absolute().block();
+  blender::ui::Block *block = panel->layout->absolute().block();
   block_func_handle_set(block, do_uvedit_vertex, nullptr);
 
   uvedit_vertex_buttons(C, block);

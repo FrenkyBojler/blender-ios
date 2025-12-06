@@ -57,7 +57,7 @@ namespace blender::ui {
 /** \name Button Context Menu
  * \{ */
 
-static IDProperty *shortcut_property_from_rna(bContext *C, uiBut *but)
+static IDProperty *shortcut_property_from_rna(bContext *C, Button *but)
 {
   /* Compute data path from context to property. */
 
@@ -75,7 +75,7 @@ static IDProperty *shortcut_property_from_rna(bContext *C, uiBut *but)
   return prop;
 }
 
-static const char *shortcut_get_operator_property(bContext *C, uiBut *but, IDProperty **r_prop)
+static const char *shortcut_get_operator_property(bContext *C, Button *but, IDProperty **r_prop)
 {
   if (but->optype) {
     /* Operator */
@@ -140,7 +140,7 @@ static void shortcut_free_operator_property(IDProperty *prop)
 
 static void but_shortcut_name_func(bContext *C, void *arg1, int /*event*/)
 {
-  uiBut *but = (uiBut *)arg1;
+  Button *but = (Button *)arg1;
 
   IDProperty *prop;
   const char *idname = shortcut_get_operator_property(C, but, &prop);
@@ -152,20 +152,20 @@ static void but_shortcut_name_func(bContext *C, void *arg1, int /*event*/)
   if (std::optional<std::string> shortcut_str = WM_key_event_operator_string(
           C, idname, but->opcontext, prop, true))
   {
-    ui_but_add_shortcut(but, shortcut_str->c_str(), true);
+    button_add_shortcut(but, shortcut_str->c_str(), true);
   }
   else {
     /* simply strip the shortcut */
-    ui_but_add_shortcut(but, nullptr, true);
+    button_add_shortcut(but, nullptr, true);
   }
 
   shortcut_free_operator_property(prop);
 }
 
-static uiBlock *menu_change_shortcut(bContext *C, ARegion *region, void *arg)
+static Block *menu_change_shortcut(bContext *C, ARegion *region, void *arg)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
-  uiBut *but = (uiBut *)arg;
+  Button *but = (Button *)arg;
   const uiStyle *style = style_get_dpi();
   IDProperty *prop;
   const char *idname = shortcut_get_operator_property(C, but, &prop);
@@ -184,7 +184,7 @@ static uiBlock *menu_change_shortcut(bContext *C, ARegion *region, void *arg)
 
   PointerRNA ptr = RNA_pointer_create_discrete(&wm->id, &RNA_KeyMapItem, kmi);
 
-  uiBlock *block = block_begin(C, region, "_popup", EmbossType::Emboss);
+  Block *block = block_begin(C, region, "_popup", EmbossType::Emboss);
   block_func_handle_set(block, but_shortcut_name_func, but);
   block_flag_enable(block, BLOCK_MOVEMOUSE_QUIT);
   block_direction_set(block, UI_DIR_CENTER_Y);
@@ -214,10 +214,10 @@ static uiBlock *menu_change_shortcut(bContext *C, ARegion *region, void *arg)
 static int g_kmi_id_hack;
 #endif
 
-static uiBlock *menu_add_shortcut(bContext *C, ARegion *region, void *arg)
+static Block *menu_add_shortcut(bContext *C, ARegion *region, void *arg)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
-  uiBut *but = (uiBut *)arg;
+  Button *but = (Button *)arg;
   const uiStyle *style = style_get_dpi();
   IDProperty *prop;
   const char *idname = shortcut_get_operator_property(C, but, &prop);
@@ -245,7 +245,7 @@ static uiBlock *menu_add_shortcut(bContext *C, ARegion *region, void *arg)
 
   PointerRNA ptr = RNA_pointer_create_discrete(&wm->id, &RNA_KeyMapItem, kmi);
 
-  uiBlock *block = block_begin(C, region, "_popup", EmbossType::Emboss);
+  Block *block = block_begin(C, region, "_popup", EmbossType::Emboss);
   block_func_handle_set(block, but_shortcut_name_func, but);
   block_direction_set(block, UI_DIR_CENTER_Y);
 
@@ -274,7 +274,7 @@ static uiBlock *menu_add_shortcut(bContext *C, ARegion *region, void *arg)
 
 static void menu_add_shortcut_cancel(bContext *C, void *arg1)
 {
-  uiBut *but = (uiBut *)arg1;
+  Button *but = (Button *)arg1;
 
   IDProperty *prop;
   const char *idname = shortcut_get_operator_property(C, but, &prop);
@@ -293,7 +293,7 @@ static void menu_add_shortcut_cancel(bContext *C, void *arg1)
   WM_keymap_remove_item(km, kmi);
 }
 
-static void remove_shortcut_func(bContext *C, uiBut *but)
+static void remove_shortcut_func(bContext *C, Button *but)
 {
   IDProperty *prop;
   const char *idname = shortcut_get_operator_property(C, but, &prop);
@@ -315,7 +315,7 @@ static void remove_shortcut_func(bContext *C, uiBut *but)
   but_shortcut_name_func(C, but, 0);
 }
 
-static bool ui_but_is_user_menu_compatible(bContext *C, uiBut *but)
+static bool ui_but_is_user_menu_compatible(bContext *C, Button *but)
 {
   bool result = false;
   if (but->optype) {
@@ -339,7 +339,7 @@ static bool ui_but_is_user_menu_compatible(bContext *C, uiBut *but)
   return result;
 }
 
-static bUserMenuItem *ui_but_user_menu_find(bContext *C, uiBut *but, bUserMenu *um)
+static bUserMenuItem *ui_but_user_menu_find(bContext *C, Button *but, bUserMenu *um)
 {
   if (but->optype) {
     IDProperty *prop = (but->opptr) ? static_cast<IDProperty *>(but->opptr->data) : nullptr;
@@ -380,11 +380,11 @@ static bUserMenuItem *ui_but_user_menu_find(bContext *C, uiBut *but, bUserMenu *
   return nullptr;
 }
 
-static void ui_but_user_menu_add(bContext *C, uiBut *but, bUserMenu *um)
+static void ui_but_user_menu_add(bContext *C, Button *but, bUserMenu *um)
 {
   BLI_assert(ui_but_is_user_menu_compatible(C, but));
 
-  std::string drawstr = ui_but_drawstr_without_sep_char(but);
+  std::string drawstr = button_drawstr_without_sep_char(but);
 
   /* Used for USER_MENU_TYPE_MENU. */
   MenuType *mt = nullptr;
@@ -509,7 +509,7 @@ static bool ui_but_menu_add_path_operators(Layout &layout, PointerRNA *ptr, Prop
   return true;
 }
 
-static void set_layout_context_from_button(bContext *C, Layout &layout, uiBut *but)
+static void set_layout_context_from_button(bContext *C, Layout &layout, Button *but)
 {
   if (!but->context) {
     return;
@@ -518,11 +518,11 @@ static void set_layout_context_from_button(bContext *C, Layout &layout, uiBut *b
   CTX_store_set(C, layout.context_store());
 }
 
-bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *event)
+bool popup_context_menu_for_button(bContext *C, Button *but, const wmEvent *event)
 {
   /* ui_but_is_interactive() may let some buttons through that should not get a context menu - it
    * doesn't make sense for them. */
-  if (ELEM(but->type, ButType::Label, ButType::Image)) {
+  if (ELEM(but->type, ButtonType::Label, ButtonType::Image)) {
     return false;
   }
 
@@ -539,7 +539,7 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
   if (is_disabled) {
     /* Suppress editing commands. */
   }
-  else if (but->type == ButType::Tab) {
+  else if (but->type == ButtonType::Tab) {
     ButtonTab *tab = (ButtonTab *)but;
     if (tab->menu) {
       menutype_draw(C, tab->menu, &layout);
@@ -968,12 +968,12 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
 
   {
     const ARegion *region = CTX_wm_region_popup(C) ? CTX_wm_region_popup(C) : CTX_wm_region(C);
-    ButtonViewItem *view_item_but = (but->type == ButType::ViewItem) ?
+    ButtonViewItem *view_item_but = (but->type == ButtonType::ViewItem) ?
                                         static_cast<ButtonViewItem *>(but) :
                                         static_cast<ButtonViewItem *>(
-                                            ui_view_item_find_mouse_over(region, event->xy));
+                                            view_item_find_mouse_over(region, event->xy));
     if (view_item_but) {
-      BLI_assert(view_item_but->type == ButType::ViewItem);
+      BLI_assert(view_item_but->type == ButtonType::ViewItem);
 
       const bContextStore *prev_ctx = CTX_store_get(C);
       /* Sub-layout for context override. */
@@ -1026,9 +1026,9 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
   if (but->rnapoin.data && but->rnaprop) {
     const PropertyType prop_type = RNA_property_type(but->rnaprop);
     if (((prop_type == PROP_POINTER) ||
-         (prop_type == PROP_STRING && but->type == ButType::SearchMenu &&
-          ((ButtonSearch *)but)->items_update_fn == ui_rna_collection_search_update_fn)) &&
-        ui_jump_to_target_button_poll(C))
+         (prop_type == PROP_STRING && but->type == ButtonType::SearchMenu &&
+          ((ButtonSearch *)but)->items_update_fn == rna_collection_search_update_fn)) &&
+        jump_to_target_button_poll(C))
     {
       layout.op("UI_OT_jump_to_target_button",
                 CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Jump to Target"),
@@ -1039,7 +1039,7 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
 
   /* Favorites Menu */
   if (ui_but_is_user_menu_compatible(C, but)) {
-    uiBlock *block = layout.block();
+    Block *block = layout.block();
     const int w = layout.width();
     bool item_found = false;
 
@@ -1052,9 +1052,9 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
       }
       bUserMenuItem *umi = ui_but_user_menu_find(C, but, um);
       if (umi != nullptr) {
-        uiBut *but2 = uiDefIconTextBut(
+        Button *but2 = uiDefIconTextBut(
             block,
-            ButType::But,
+            ButtonType::But,
             ICON_MENU_PANEL,
             CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Remove from Quick Favorites"),
             0,
@@ -1075,9 +1075,9 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
     }
 
     if (!item_found) {
-      uiBut *but2 = uiDefIconTextBut(
+      Button *but2 = uiDefIconTextBut(
           block,
-          ButType::But,
+          ButtonType::But,
           ICON_MENU_PANEL,
           CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Add to Quick Favorites"),
           0,
@@ -1100,7 +1100,7 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
   IDProperty *prop;
   const char *idname = shortcut_get_operator_property(C, but, &prop);
   if (idname != nullptr) {
-    uiBlock *block = layout.block();
+    Block *block = layout.block();
     const int w = layout.width();
 
     /* We want to know if this op has a shortcut, be it hotkey or not. */
@@ -1123,9 +1123,9 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
                       "");
 #endif
 
-        uiBut *but2 = uiDefIconTextBut(
+        Button *but2 = uiDefIconTextBut(
             block,
-            ButType::But,
+            ButtonType::But,
             ICON_HAND,
             CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Change Shortcut..."),
             0,
@@ -1139,23 +1139,23 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
         });
       }
       else {
-        uiBut *but2 = uiDefIconTextBut(block,
-                                       ButType::But,
-                                       ICON_HAND,
-                                       IFACE_("Non-Keyboard Shortcut"),
-                                       0,
-                                       0,
-                                       w,
-                                       UI_UNIT_Y,
-                                       nullptr,
-                                       TIP_("Only keyboard shortcuts can be edited that way, "
-                                            "please use User Preferences otherwise"));
+        Button *but2 = uiDefIconTextBut(block,
+                                        ButtonType::But,
+                                        ICON_HAND,
+                                        IFACE_("Non-Keyboard Shortcut"),
+                                        0,
+                                        0,
+                                        w,
+                                        UI_UNIT_Y,
+                                        nullptr,
+                                        TIP_("Only keyboard shortcuts can be edited that way, "
+                                             "please use User Preferences otherwise"));
         button_flag_enable(but2, BUT_DISABLED);
       }
 
-      uiBut *but2 = uiDefIconTextBut(
+      Button *but2 = uiDefIconTextBut(
           block,
-          ButType::But,
+          ButtonType::But,
           ICON_BLANK1,
           CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Remove Shortcut"),
           0,
@@ -1168,9 +1168,9 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
     }
     /* only show 'assign' if there's a suitable key map for it to go in */
     else if (WM_keymap_guess_opname(C, idname)) {
-      uiBut *but2 = uiDefIconTextBut(
+      Button *but2 = uiDefIconTextBut(
           block,
-          ButType::But,
+          ButtonType::But,
           ICON_HAND,
           CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Assign Shortcut..."),
           0,
@@ -1217,7 +1217,7 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
 
   /* perhaps we should move this into (G.debug & G_DEBUG) - campbell */
   if (U.flag & USER_DEVELOPER_UI) {
-    if (ui_block_is_menu(but->block) == false) {
+    if (block_is_menu(but->block) == false) {
       layout.op("UI_OT_editsource",
                 std::nullopt,
                 ICON_NONE,
@@ -1227,7 +1227,7 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
   }
 
   /* Show header tools for header buttons. */
-  if (ui_block_is_popup_any(but->block) == false) {
+  if (block_is_popup_any(but->block) == false) {
     const ARegion *region = CTX_wm_region(C);
 
     if (!region) {
@@ -1252,7 +1252,7 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
   const ARegion *region = CTX_wm_region_popup(C) ? CTX_wm_region_popup(C) : CTX_wm_region(C);
   const bool is_inside_listbox = ui_list_find_mouse_over(region, event) != nullptr;
   const bool is_inside_listrow = is_inside_listbox ?
-                                     ui_list_row_find_mouse_over(region, event->xy) != nullptr :
+                                     list_row_find_mouse_over(region, event->xy) != nullptr :
                                      false;
   if (is_inside_listrow) {
     MenuType *mt = WM_menutype_find("UI_MT_list_item_context_menu", true);
@@ -1279,7 +1279,7 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
 /** \name Panel Context Menu
  * \{ */
 
-void ui_popup_context_menu_for_panel(bContext *C, ARegion *region, Panel *panel)
+void popup_context_menu_for_panel(bContext *C, ARegion *region, Panel *panel)
 {
   bScreen *screen = CTX_wm_screen(C);
   const bool has_panel_category = panel_category_is_visible(region);
@@ -1307,8 +1307,8 @@ void ui_popup_context_menu_for_panel(bContext *C, ARegion *region, Panel *panel)
 
     /* evil, force shortcut flag */
     {
-      uiBlock *block = layout.block();
-      uiBut *but = block->buttons.last().get();
+      Block *block = layout.block();
+      Button *but = block->buttons.last().get();
       but->flag |= BUT_HAS_SEP_CHAR;
     }
   }

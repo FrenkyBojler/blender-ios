@@ -48,7 +48,7 @@ void uiTemplateReportsBanner(Layout *layout, bContext *C)
   Report *report = BKE_reports_last_displayable(reports);
   const uiStyle *style = style_get();
 
-  uiBut *but;
+  Button *but;
 
   /* if the report display has timed out, don't show */
   if (!reports->reporttimer) {
@@ -62,7 +62,7 @@ void uiTemplateReportsBanner(Layout *layout, bContext *C)
   }
 
   Layout &ui_abs = layout->absolute(false);
-  uiBlock *block = ui_abs.block();
+  Block *block = ui_abs.block();
   EmbossType previous_emboss = block_emboss_get(block);
 
   uchar report_icon_color[4];
@@ -90,7 +90,7 @@ void uiTemplateReportsBanner(Layout *layout, bContext *C)
 
   /* Background for icon. */
   but = uiDefBut(block,
-                 ButType::Roundbox,
+                 ButtonType::Roundbox,
                  "",
                  0,
                  0,
@@ -100,12 +100,12 @@ void uiTemplateReportsBanner(Layout *layout, bContext *C)
                  0.0f,
                  0.0f,
                  "");
-  /* #ButType::Roundbox's background color is set in `but->col`. */
+  /* #ButtonType::Roundbox's background color is set in `but->col`. */
   copy_v4_v4_uchar(but->col, report_icon_color);
 
   /* Background for the rest of the message. */
   but = uiDefBut(block,
-                 ButType::Roundbox,
+                 ButtonType::Roundbox,
                  "",
                  UI_UNIT_X + (6 * UI_SCALE_FAC),
                  0,
@@ -124,7 +124,7 @@ void uiTemplateReportsBanner(Layout *layout, bContext *C)
 
   /* The report icon itself. */
   but = uiDefIconButO(block,
-                      ButType::But,
+                      ButtonType::But,
                       "SCREEN_OT_info_log_show",
                       blender::wm::OpCallContext::InvokeRegionWin,
                       icon_from_report_type(report->type),
@@ -137,7 +137,7 @@ void uiTemplateReportsBanner(Layout *layout, bContext *C)
 
   /* The report message. */
   but = uiDefButO(block,
-                  ButType::But,
+                  ButtonType::But,
                   "SCREEN_OT_info_log_show",
                   blender::wm::OpCallContext::InvokeRegionWin,
                   report->message,
@@ -164,7 +164,7 @@ static bool uiTemplateInputStatusAzone(Layout *layout, const AZone *az, const AR
     layout->label(IFACE_("Duplicate into Window"), ICON_NONE);
     layout->separator(0.6f);
     layout->label("", ICON_EVENT_CTRL);
-    layout->separator(ui_event_icon_offset(ICON_EVENT_CTRL));
+    layout->separator(event_icon_offset(ICON_EVENT_CTRL));
     layout->label(nullptr, ICON_MOUSE_LMB_DRAG);
     layout->separator(-0.2f);
     layout->label(IFACE_("Swap Areas"), ICON_NONE);
@@ -277,11 +277,11 @@ void uiTemplateInputStatus(Layout *layout, bContext *C)
         row.separator(item.space_factor);
       }
       else {
-        uiBut *but = uiItemL_ex(&row, item.text, item.icon, false, false);
+        Button *but = uiItemL_ex(&row, item.text, item.icon, false, false);
         if (item.inverted) {
           but->drawflag |= BUT_ICON_INVERT;
         }
-        const float offset = ui_event_icon_offset(item.icon);
+        const float offset = event_icon_offset(item.icon);
         if (offset != 0.0f) {
           row.separator(offset);
         }
@@ -437,7 +437,7 @@ void uiTemplateStatusInfo(Layout *layout, bContext *C)
       row.emboss_set(EmbossType::None);
       /* This operator also works fine for blocked extensions. */
       row.op("EXTENSIONS_OT_userpref_show_for_update", "", ICON_ERROR);
-      uiBut *but = layout->block()->buttons.last().get();
+      Button *but = layout->block()->buttons.last().get();
       uchar color[4];
       GetThemeColor4ubv(TH_TEXT, color);
       copy_v4_v4_uchar(but->col, color);
@@ -462,7 +462,7 @@ void uiTemplateStatusInfo(Layout *layout, bContext *C)
       else {
         row.emboss_set(EmbossType::None);
         row.op("EXTENSIONS_OT_userpref_show_online", "", ICON_INTERNET_OFFLINE);
-        uiBut *but = layout->block()->buttons.last().get();
+        Button *but = layout->block()->buttons.last().get();
         uchar color[4];
         GetThemeColor4ubv(TH_TEXT, color);
         copy_v4_v4_uchar(but->col, color);
@@ -486,7 +486,7 @@ void uiTemplateStatusInfo(Layout *layout, bContext *C)
       }
       row.emboss_set(EmbossType::None);
       row.op("EXTENSIONS_OT_userpref_show_for_update", "", icon);
-      uiBut *but = layout->block()->buttons.last().get();
+      Button *but = layout->block()->buttons.last().get();
       uchar color[4];
       GetThemeColor4ubv(TH_TEXT, color);
       copy_v4_v4_uchar(but->col, color);
@@ -541,7 +541,7 @@ void uiTemplateStatusInfo(Layout *layout, bContext *C)
 
   const uiStyle *style = style_get();
   Layout &ui_abs = layout->absolute(false);
-  uiBlock *block = ui_abs.block();
+  Block *block = ui_abs.block();
   EmbossType previous_emboss = block_emboss_get(block);
 
   fontstyle_set(&style->widget);
@@ -552,24 +552,24 @@ void uiTemplateStatusInfo(Layout *layout, bContext *C)
   block_align_begin(block);
 
   /* Background for icon. */
-  uiBut *but = uiDefBut(block,
-                        ButType::Roundbox,
-                        "",
-                        0,
-                        0,
-                        UI_UNIT_X + (6 * UI_SCALE_FAC),
-                        UI_UNIT_Y,
-                        nullptr,
-                        0.0f,
-                        0.0f,
-                        "");
-  /*# ButType::Roundbox's background color is set in `but->col`. */
+  Button *but = uiDefBut(block,
+                         ButtonType::Roundbox,
+                         "",
+                         0,
+                         0,
+                         UI_UNIT_X + (6 * UI_SCALE_FAC),
+                         UI_UNIT_Y,
+                         nullptr,
+                         0.0f,
+                         0.0f,
+                         "");
+  /*# ButtonType::Roundbox's background color is set in `but->col`. */
   GetThemeColor4ubv(TH_WARNING, but->col);
 
   if (!warning_message.empty()) {
     /* Background for the rest of the message. */
     but = uiDefBut(block,
-                   ButType::Roundbox,
+                   ButtonType::Roundbox,
                    "",
                    UI_UNIT_X + (6 * UI_SCALE_FAC),
                    0,
@@ -590,7 +590,7 @@ void uiTemplateStatusInfo(Layout *layout, bContext *C)
 
   /* The warning icon itself. */
   but = uiDefIconBut(block,
-                     ButType::But,
+                     ButtonType::But,
                      ICON_ERROR,
                      int(3 * UI_SCALE_FAC),
                      0,
@@ -607,7 +607,7 @@ void uiTemplateStatusInfo(Layout *layout, bContext *C)
   /* The warning message, if any. */
   if (!warning_message.empty()) {
     but = uiDefBut(block,
-                   ButType::But,
+                   ButtonType::But,
                    warning_message.c_str(),
                    UI_UNIT_X,
                    0,

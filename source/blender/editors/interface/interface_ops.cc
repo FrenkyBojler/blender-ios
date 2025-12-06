@@ -94,7 +94,7 @@ namespace blender::ui {
  *
  * \{ */
 
-static void ui_region_redraw_immediately(bContext *C, ARegion *region)
+static void region_redraw_immediately(bContext *C, ARegion *region)
 {
   ED_region_do_layout(C, region);
   WM_draw_region_viewport_bind(region);
@@ -269,7 +269,7 @@ static void UI_OT_copy_as_driver_button(wmOperatorType *ot)
 
 static bool copy_python_command_button_poll(bContext *C)
 {
-  uiBut *but = context_active_but_get(C);
+  Button *but = context_active_but_get(C);
 
   if (but && (but->optype != nullptr)) {
     return true;
@@ -280,7 +280,7 @@ static bool copy_python_command_button_poll(bContext *C)
 
 static wmOperatorStatus copy_python_command_button_exec(bContext *C, wmOperator * /*op*/)
 {
-  uiBut *but = context_active_but_get(C);
+  Button *but = context_active_but_get(C);
 
   if (but && (but->optype != nullptr)) {
     /* allocated when needed, the button owns it */
@@ -750,7 +750,7 @@ static wmOperatorStatus override_idtemplate_make_exec(bContext *C, wmOperator * 
     return OPERATOR_CANCELLED;
   }
 
-  ID *id_override = ui_template_id_liboverride_hierarchy_make(
+  ID *id_override = template_id_liboverride_hierarchy_make(
       C, CTX_data_main(C), owner_id, id, nullptr);
 
   if (id_override == nullptr) {
@@ -1930,7 +1930,7 @@ static bool jump_to_target_button(bContext *C, bool poll)
   PropertyRNA *prop;
   int index;
 
-  const uiBut *but = context_active_but_prop_get(C, &ptr, &prop, &index);
+  const Button *but = context_active_but_prop_get(C, &ptr, &prop, &index);
 
   /* If there is a valid property... */
   if (ptr.data && prop) {
@@ -1944,11 +1944,12 @@ static bool jump_to_target_button(bContext *C, bool poll)
     }
     /* For string properties with prop_search, look up the search collection item. */
     if (type == PROP_STRING) {
-      const ButtonSearch *search_but = (but->type == ButType::SearchMenu) ? (ButtonSearch *)but :
-                                                                            nullptr;
+      const ButtonSearch *search_but = (but->type == ButtonType::SearchMenu) ?
+                                           (ButtonSearch *)but :
+                                           nullptr;
 
-      if (search_but && search_but->items_update_fn == ui_rna_collection_search_update_fn) {
-        uiRNACollectionSearch *coll_search = static_cast<uiRNACollectionSearch *>(search_but->arg);
+      if (search_but && search_but->items_update_fn == rna_collection_search_update_fn) {
+        RNACollectionSearch *coll_search = static_cast<RNACollectionSearch *>(search_but->arg);
 
         char str_buf[MAXBONENAME];
         char *str_ptr = RNA_property_string_get_alloc(
@@ -1976,7 +1977,7 @@ static bool jump_to_target_button(bContext *C, bool poll)
   return false;
 }
 
-bool ui_jump_to_target_button_poll(bContext *C)
+bool jump_to_target_button_poll(bContext *C)
 {
   return jump_to_target_button(C, true);
 }
@@ -1996,7 +1997,7 @@ static void UI_OT_jump_to_target_button(wmOperatorType *ot)
   ot->description = "Switch to the target object or bone";
 
   /* callbacks */
-  ot->poll = ui_jump_to_target_button_poll;
+  ot->poll = jump_to_target_button_poll;
   ot->exec = jump_to_target_button_exec;
 
   /* flags */
@@ -2015,29 +2016,29 @@ static void UI_OT_jump_to_target_button(wmOperatorType *ot)
 /* EditSource Utility functions and operator,
  * NOTE: this includes utility functions and button matching checks. */
 
-struct uiEditSourceButStore {
+struct EditSourceButStore {
   char py_dbg_fn[FILE_MAX] = {};
   int py_dbg_line_number = 0;
 };
 
-struct uiEditSourceStore {
-  uiBut but_orig;
-  Map<const uiBut *, std::unique_ptr<uiEditSourceButStore>> hash;
+struct EditSourceStore {
+  Button but_orig;
+  Map<const Button *, std::unique_ptr<EditSourceButStore>> hash;
 };
 
 /* should only ever be set while the edit source operator is running */
-static uiEditSourceStore *ui_editsource_info = nullptr;
+static EditSourceStore *ui_editsource_info = nullptr;
 
 bool editsource_enable_check()
 {
   return (ui_editsource_info != nullptr);
 }
 
-static void ui_editsource_active_but_set(uiBut *but)
+static void ui_editsource_active_but_set(Button *but)
 {
   BLI_assert(ui_editsource_info == nullptr);
 
-  ui_editsource_info = MEM_new<uiEditSourceStore>(__func__);
+  ui_editsource_info = MEM_new<EditSourceStore>(__func__);
   ui_editsource_info->but_orig = *but;
 }
 
@@ -2047,7 +2048,7 @@ static void ui_editsource_active_but_clear()
   ui_editsource_info = nullptr;
 }
 
-static bool ui_editsource_uibut_match(const uiBut *but_a, const uiBut *but_b)
+static bool ui_editsource_uibut_match(const Button *but_a, const Button *but_b)
 {
 #  if 0
   printf("matching buttons: '%s' == '%s'\n", but_a->drawstr, but_b->drawstr);
@@ -2065,9 +2066,9 @@ static bool ui_editsource_uibut_match(const uiBut *but_a, const uiBut *but_b)
   return false;
 }
 
-void editsource_active_but_test(uiBut *but)
+void editsource_active_but_test(Button *but)
 {
-  auto but_store = std::make_unique<uiEditSourceButStore>();
+  auto but_store = std::make_unique<EditSourceButStore>();
 
   const char *fn;
   int line_number = -1;
@@ -2090,10 +2091,10 @@ void editsource_active_but_test(uiBut *but)
   ui_editsource_info->hash.add(but, std::move(but_store));
 }
 
-void editsource_but_replace(const uiBut *old_but, uiBut *new_but)
+void editsource_but_replace(const Button *old_but, Button *new_but)
 {
-  std::unique_ptr<uiEditSourceButStore> but_store = ui_editsource_info->hash.pop_default(old_but,
-                                                                                         nullptr);
+  std::unique_ptr<EditSourceButStore> but_store = ui_editsource_info->hash.pop_default(old_but,
+                                                                                       nullptr);
   if (but_store) {
     ui_editsource_info->hash.add(new_but, std::move(but_store));
   }
@@ -2120,7 +2121,7 @@ static wmOperatorStatus editsource_text_edit(bContext *C,
 
 static wmOperatorStatus editsource_exec(bContext *C, wmOperator *op)
 {
-  uiBut *but = context_active_but_get(C);
+  Button *but = context_active_but_get(C);
 
   if (but) {
     ARegion *region = CTX_wm_region(C);
@@ -2135,24 +2136,24 @@ static wmOperatorStatus editsource_exec(bContext *C, wmOperator *op)
     ui_editsource_active_but_set(but);
 
     /* redraw and get active button python info */
-    ui_region_redraw_immediately(C, region);
+    region_redraw_immediately(C, region);
 
     /* It's possible the key button referenced in `ui_editsource_info` has been freed.
      * This typically happens with popovers but could happen in other situations, see: #140439. */
-    Set<const uiBut *> valid_buttons_in_region;
-    LISTBASE_FOREACH (uiBlock *, block_base, &region->runtime->uiblocks) {
-      uiBlock *block_pair[2] = {block_base, block_base->oldblock};
-      for (uiBlock *block : Span(block_pair, block_pair[1] ? 2 : 1)) {
+    Set<const Button *> valid_buttons_in_region;
+    LISTBASE_FOREACH (Block *, block_base, &region->runtime->uiblocks) {
+      Block *block_pair[2] = {block_base, block_base->oldblock};
+      for (Block *block : Span(block_pair, block_pair[1] ? 2 : 1)) {
         for (int i = 0; i < block->buttons.size(); i++) {
-          const uiBut *but = block->buttons[i].get();
+          const Button *but = block->buttons[i].get();
           valid_buttons_in_region.add(but);
         }
       }
     }
 
-    uiEditSourceButStore *but_store = nullptr;
+    EditSourceButStore *but_store = nullptr;
     for (const auto &item : ui_editsource_info->hash.items()) {
-      const uiBut *but_key = item.key;
+      const Button *but_key = item.key;
       if (but_key == nullptr) {
         continue;
       }
@@ -2254,7 +2255,7 @@ static wmOperatorStatus ui_button_press_invoke(bContext *C, wmOperator *op, cons
   }
 
   CTX_wm_region_set(C, region);
-  uiBut *but = context_active_but_get(C);
+  Button *but = context_active_but_get(C);
   CTX_wm_region_set(C, region_prev);
 
   if (but == nullptr) {
@@ -2297,10 +2298,10 @@ static void UI_OT_button_execute(wmOperatorType *ot)
 
 static wmOperatorStatus button_string_clear_exec(bContext *C, wmOperator * /*op*/)
 {
-  uiBut *but = context_active_but_get_respect_popup(C);
+  Button *but = context_active_but_get_respect_popup(C);
 
   if (but) {
-    ui_but_active_string_clear_and_exit(C, but);
+    button_active_string_clear_and_exit(C, but);
   }
 
   return OPERATOR_FINISHED;
@@ -2347,7 +2348,7 @@ bool drop_color_poll(bContext *C, wmDrag *drag, const wmEvent * /*event*/)
 
 void drop_color_copy(bContext * /*C*/, wmDrag *drag, wmDropBox *drop)
 {
-  uiDragColorHandle *drag_info = static_cast<uiDragColorHandle *>(drag->poin);
+  DragColorHandle *drag_info = static_cast<DragColorHandle *>(drag->poin);
 
   RNA_float_set_array(drop->ptr, "color", drag_info->color);
   RNA_boolean_set(drop->ptr, "gamma", drag_info->gamma_corrected);
@@ -2357,7 +2358,7 @@ void drop_color_copy(bContext * /*C*/, wmDrag *drag, wmDropBox *drop)
 static wmOperatorStatus drop_color_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   ARegion *region = CTX_wm_region(C);
-  uiBut *but = nullptr;
+  Button *but = nullptr;
 
   float color[4];
   RNA_float_get_array(op->ptr, "color", color);
@@ -2367,9 +2368,9 @@ static wmOperatorStatus drop_color_invoke(bContext *C, wmOperator *op, const wmE
 
   /* find button under mouse, check if it has RNA color property and
    * if it does copy the data */
-  but = ui_region_find_active_but(region);
+  but = region_find_active_but(region);
 
-  if (but && but->type == ButType::Color && but->rnaprop) {
+  if (but && but->type == ButtonType::Color && but->rnaprop) {
     if (!has_alpha) {
       color[3] = 1.0f;
     }
@@ -2437,7 +2438,7 @@ static bool drop_name_poll(bContext *C)
     return false;
   }
 
-  const uiBut *but = button_active_drop_name_button(C);
+  const Button *but = button_active_drop_name_button(C);
   if (!but) {
     return false;
   }
@@ -2451,10 +2452,10 @@ static bool drop_name_poll(bContext *C)
 
 static wmOperatorStatus drop_name_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
-  uiBut *but = button_active_drop_name_button(C);
+  Button *but = button_active_drop_name_button(C);
   std::string str = RNA_string_get(op->ptr, "string");
 
-  ui_but_set_string_interactive(C, but, str.c_str());
+  button_set_string_interactive(C, but, str.c_str());
 
   return OPERATOR_FINISHED;
 }
@@ -2516,7 +2517,7 @@ static wmOperatorStatus ui_list_start_filter_invoke(bContext *C,
   BLI_assert(list != nullptr);
 
   if (ui_list_unhide_filter_options(list)) {
-    ui_region_redraw_immediately(C, region);
+    region_redraw_immediately(C, region);
   }
 
   if (!textbutton_activate_rna(C, region, list, "filter_name")) {
@@ -2665,7 +2666,7 @@ static wmOperatorStatus ui_view_scroll_invoke(bContext *C,
 
   if (type == MOUSEPAN) {
     int dummy_val;
-    ui_pan_to_scroll(event, &type, &dummy_val);
+    pan_to_scroll(event, &type, &dummy_val);
 
     /* 'ui_pan_to_scroll' gives the absolute direction. */
     if (event->flag & WM_EVENT_SCROLL_INVERT) {
@@ -2815,7 +2816,7 @@ static std::pair<AbstractView *, AbstractViewItem *> select_operator_view_and_it
     int region_xy[2];
     region_xy[0] = RNA_int_get(op.ptr, "mouse_x");
     region_xy[1] = RNA_int_get(op.ptr, "mouse_y");
-    ui_region_to_window(&region, region_xy[0], region_xy[1], &window_xy[0], &window_xy[1]);
+    region_to_window(&region, region_xy[0], region_xy[1], &window_xy[0], &window_xy[1]);
   }
 
   AbstractView *view = region_view_find_at(&region, window_xy, 0);

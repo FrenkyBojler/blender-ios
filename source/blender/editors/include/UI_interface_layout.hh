@@ -51,7 +51,7 @@ enum class AlertIcon : int8_t;
 struct ItemInternal;
 struct LayoutInternal;
 struct Layout;
-struct uiLayoutRoot;
+struct LayoutRoot;
 }  // namespace blender::ui
 
 namespace blender::wm {
@@ -65,11 +65,11 @@ struct PanelLayout {
   Layout *body;
 };
 
-struct uiItem {
+struct Item {
 
-  uiItem(ItemType type);
-  uiItem(const uiItem &) = default;
-  virtual ~uiItem() = default;
+  Item(ItemType type);
+  Item(const Item &) = default;
+  virtual ~Item() = default;
 
   [[nodiscard]] bool fixed_size() const;
   void fixed_size_set(bool fixed_size);
@@ -99,14 +99,14 @@ enum class NodeAssetMenuOperatorType : int8_t {
   Swap,
 };
 
-struct Layout : public uiItem, NonCopyable, NonMovable {
+struct Layout : public Item, NonCopyable, NonMovable {
  protected:
-  uiLayoutRoot *root_ = nullptr;
+  LayoutRoot *root_ = nullptr;
   bContextStore *context_ = nullptr;
   Layout *parent_ = nullptr;
   std::string heading_;
 
-  Vector<uiItem *> items_;
+  Vector<Item *> items_;
 
   /** Sub layout to add child items, if not the layout itself. */
   Layout *child_items_layout_ = nullptr;
@@ -132,7 +132,7 @@ struct Layout : public uiItem, NonCopyable, NonMovable {
   float search_weight_ = 0.0f;
 
  public:
-  Layout(ItemType type, uiLayoutRoot *root);
+  Layout(ItemType type, LayoutRoot *root);
 
   [[nodiscard]] bool active() const;
   /**
@@ -160,7 +160,7 @@ struct Layout : public uiItem, NonCopyable, NonMovable {
   [[nodiscard]] LayoutAlign alignment() const;
   void alignment_set(LayoutAlign alignment);
 
-  [[nodiscard]] uiBlock *block() const;
+  [[nodiscard]] Block *block() const;
 
   void context_copy(const bContextStore *context);
 
@@ -175,7 +175,7 @@ struct Layout : public uiItem, NonCopyable, NonMovable {
   void context_int_set(StringRef name, int64_t value);
 
   /** Only for convenience. */
-  void context_set_from_but(const uiBut *but);
+  void context_set_from_but(const Button *but);
 
   [[nodiscard]] bContextStore *context_store() const;
 
@@ -411,7 +411,7 @@ struct Layout : public uiItem, NonCopyable, NonMovable {
    * \param func: Function that generates the menu layout.
    * \param arg: Pointer to data used as last argument in \a func.
    */
-  void menu_fn(StringRefNull name, int icon, uiMenuCreateFunc func, void *arg);
+  void menu_fn(StringRefNull name, int icon, MenuCreateFunc func, void *arg);
   /**
    * Adds a menu item, which is a button that when active will display a menu.
    * \param name: Label to show in the menu button.
@@ -419,7 +419,7 @@ struct Layout : public uiItem, NonCopyable, NonMovable {
    * \param argN: Pointer to data used as last argument in \a func, it will be
    * freed with the menu button.
    */
-  void menu_fn_argN_free(StringRefNull name, int icon, uiMenuCreateFunc func, void *argN);
+  void menu_fn_argN_free(StringRefNull name, int icon, MenuCreateFunc func, void *argN);
   /**
    * Adds a operator item, places a button in the layout to call the operator.
    * \param ot: Operator to add.
@@ -662,10 +662,10 @@ struct Layout : public uiItem, NonCopyable, NonMovable {
                       const char *menu_type);
 
   /** Simple button executing \a func on click. */
-  uiBut *button(StringRef name,
-                int icon,
-                std::function<void(bContext &)> func,
-                std::optional<StringRef> tooltip = std::nullopt);
+  Button *button(StringRef name,
+                 int icon,
+                 std::function<void(bContext &)> func,
+                 std::optional<StringRef> tooltip = std::nullopt);
 
   /** Adds a separator item, that adds empty space between items. */
   void separator(float factor = 1.0f, LayoutSeparatorType type = LayoutSeparatorType::Auto);
@@ -675,12 +675,12 @@ struct Layout : public uiItem, NonCopyable, NonMovable {
 
   friend struct LayoutInternal;
 
-  [[nodiscard]] uiLayoutRoot *root() const;
+  [[nodiscard]] LayoutRoot *root() const;
   [[nodiscard]] const bContextStore *context() const;
   [[nodiscard]] Layout *parent() const;
   [[nodiscard]] StringRef heading() const;
   void heading_reset();
-  [[nodiscard]] Span<uiItem *> items() const;
+  [[nodiscard]] Span<Item *> items() const;
   [[nodiscard]] bool align() const;
   [[nodiscard]] bool variable_size() const;
   [[nodiscard]] EmbossType emboss_or_undefined() const;
@@ -829,7 +829,7 @@ enum class ButProgressType : int8_t {
   Ring = 1,
 };
 
-Layout &block_layout(uiBlock *block,
+Layout &block_layout(Block *block,
                      LayoutDirection direction,
                      LayoutType type,
                      int x,
@@ -838,16 +838,16 @@ Layout &block_layout(uiBlock *block,
                      int em,
                      int padding,
                      const uiStyle *style);
-int2 block_layout_resolve(uiBlock *block);
+int2 block_layout_resolve(Block *block);
 
-void block_layout_set_current(uiBlock *block, Layout *layout);
-bool block_layout_needs_resolving(const uiBlock *block);
+void block_layout_set_current(Block *block, Layout *layout);
+bool block_layout_needs_resolving(const Block *block);
 /**
  * Used for property search when the layout process needs to be cancelled in order to avoid
  * computing the locations for buttons, but the layout items created while adding the buttons
  * must still be freed.
  */
-void block_layout_free(uiBlock *block);
+void block_layout_free(Block *block);
 
 enum eUI_Item_Flag : uint16_t {
   /* ITEM_O_RETURN_PROPS = 1 << 0, */ /* UNUSED */
@@ -893,9 +893,9 @@ ENUM_OPERATORS(eUI_Item_Flag)
  *
  * \note Must not be run after #block_layout_resolve.
  */
-bool block_apply_search_filter(uiBlock *block, const char *search_filter);
+bool block_apply_search_filter(Block *block, const char *search_filter);
 
-void uiLayoutSetFunc(Layout *layout, uiMenuHandleFunc handlefunc, void *argv);
+void uiLayoutSetFunc(Layout *layout, MenuHandleFunc handlefunc, void *argv);
 
 /**
  * Set tooltip function for all buttons in the layout.
@@ -908,21 +908,18 @@ void uiLayoutSetFunc(Layout *layout, uiMenuHandleFunc handlefunc, void *argv);
  * is being called on multiple buttons (can be set to e.g. MEM_dupallocN). If set to NULL, arg will
  * be passed as-is to all buttons.
  */
-void uiLayoutSetTooltipFunc(Layout *layout,
-                            uiButToolTipFunc func,
-                            void *arg,
-                            uiCopyArgFunc copy_arg,
-                            uiFreeArgFunc free_arg);
+void uiLayoutSetTooltipFunc(
+    Layout *layout, ButtonToolTipFunc func, void *arg, CopyArgFunc copy_arg, FreeArgFunc free_arg);
 
 /**
  * Same as above but should be used when building a fully custom tooltip instead of just
  * generating a description.
  */
 void uiLayoutSetTooltipCustomFunc(Layout *layout,
-                                  uiButToolTipCustomFunc func,
+                                  ButtonToolTipCustomFunc func,
                                   void *arg,
-                                  uiCopyArgFunc copy_arg,
-                                  uiFreeArgFunc free_arg);
+                                  CopyArgFunc copy_arg,
+                                  FreeArgFunc free_arg);
 
 void menutype_draw(bContext *C, MenuType *mt, Layout *layout);
 
@@ -938,7 +935,7 @@ void uiLayoutListItemAddPadding(Layout *layout);
 
 bool uiLayoutEndsWithPanelHeader(const Layout &layout);
 
-struct uiPropertySplitWrapper {
+struct PropertySplitWrapper {
   Layout *label_column;
   Layout *property_row;
   /**
@@ -955,9 +952,9 @@ struct uiPropertySplitWrapper {
  * The returned #uiPropertySplitWrapper.decorator_column may be null when decorators are disabled
  * (#uiLayoutGetPropDecorate() returns false).
  */
-uiPropertySplitWrapper uiItemPropertySplitWrapperCreate(Layout *parent_layout);
+PropertySplitWrapper uiItemPropertySplitWrapperCreate(Layout *parent_layout);
 
-uiBut *uiItemL_ex(
+Button *uiItemL_ex(
     Layout *layout, blender::StringRef name, int icon, bool highlight, bool redalert);
 /**
  * Helper to add a label using a property split layout if needed. After calling this the
@@ -982,11 +979,11 @@ const char *UI_layout_introspect(Layout *layout);
  * Helpers to add a big icon and create a split layout for alert popups.
  * Returns the layout to place further items into the alert box.
  */
-Layout *uiItemsAlertBox(uiBlock *block,
+Layout *uiItemsAlertBox(Block *block,
                         const uiStyle *style,
                         const int dialog_width,
                         const AlertIcon icon,
                         const int icon_size);
-Layout *uiItemsAlertBox(uiBlock *block, const int size, const AlertIcon icon);
+Layout *uiItemsAlertBox(Block *block, const int size, const AlertIcon icon);
 
 }  // namespace blender::ui

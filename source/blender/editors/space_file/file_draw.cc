@@ -77,9 +77,9 @@
 void ED_file_path_button(bScreen *screen,
                          const SpaceFile *sfile,
                          FileSelectParams *params,
-                         uiBlock *block)
+                         blender::ui::Block *block)
 {
-  uiBut *but;
+  blender::ui::Button *but;
 
   BLI_assert_msg(params != nullptr,
                  "File select parameters not set. The caller is expected to check this.");
@@ -91,7 +91,7 @@ void ED_file_path_button(bScreen *screen,
   block_func_set(block, file_draw_check_cb, nullptr, nullptr);
 
   but = uiDefButR(block,
-                  blender::ui::ButType::Text,
+                  blender::ui::ButtonType::Text,
                   "",
                   0,
                   0,
@@ -135,8 +135,8 @@ static FileTooltipData *file_tooltip_data_create(const SpaceFile *sfile, const F
 }
 
 static void file_draw_tooltip_custom_func(bContext & /*C*/,
-                                          uiTooltipData &tip,
-                                          uiBut * /*but*/,
+                                          blender::ui::TooltipData &tip,
+                                          blender::ui::Button * /*but*/,
                                           void *argN)
 {
   FileTooltipData *file_data = static_cast<FileTooltipData *>(argN);
@@ -153,10 +153,9 @@ static void file_draw_tooltip_custom_func(bContext & /*C*/,
   /* Only free if it is loaded later. */
   bool free_imbuf = (thumb == nullptr);
 
-  UI_tooltip_text_field_add(
+  tooltip_text_field_add(
       tip, file->name, {}, blender::ui::TIP_STYLE_HEADER, blender::ui::TIP_LC_MAIN);
-  UI_tooltip_text_field_add(
-      tip, {}, {}, blender::ui::TIP_STYLE_SPACER, blender::ui::TIP_LC_NORMAL);
+  tooltip_text_field_add(tip, {}, {}, blender::ui::TIP_STYLE_SPACER, blender::ui::TIP_LC_NORMAL);
 
   if (!(file->typeflag & FILE_TYPE_BLENDERLIB)) {
 
@@ -166,37 +165,37 @@ static void file_draw_tooltip_custom_func(bContext & /*C*/,
     if (params->recursion_level > 0) {
       char root[FILE_MAX];
       BLI_path_split_dir_part(full_path, root, FILE_MAX);
-      UI_tooltip_text_field_add(
+      tooltip_text_field_add(
           tip, root, {}, blender::ui::TIP_STYLE_NORMAL, blender::ui::TIP_LC_NORMAL);
     }
 
     if (file->redirection_path) {
-      UI_tooltip_text_field_add(tip,
-                                fmt::format("{}: {}", N_("Link target"), file->redirection_path),
-                                {},
-                                blender::ui::TIP_STYLE_NORMAL,
-                                blender::ui::TIP_LC_NORMAL);
+      tooltip_text_field_add(tip,
+                             fmt::format("{}: {}", N_("Link target"), file->redirection_path),
+                             {},
+                             blender::ui::TIP_STYLE_NORMAL,
+                             blender::ui::TIP_LC_NORMAL);
     }
     if (file->attributes & FILE_ATTR_OFFLINE) {
-      UI_tooltip_text_field_add(tip,
-                                N_("This file is offline"),
-                                {},
-                                blender::ui::TIP_STYLE_NORMAL,
-                                blender::ui::TIP_LC_ALERT);
+      tooltip_text_field_add(tip,
+                             N_("This file is offline"),
+                             {},
+                             blender::ui::TIP_STYLE_NORMAL,
+                             blender::ui::TIP_LC_ALERT);
     }
     if (file->attributes & FILE_ATTR_READONLY) {
-      UI_tooltip_text_field_add(tip,
-                                N_("This file is read-only"),
-                                {},
-                                blender::ui::TIP_STYLE_NORMAL,
-                                blender::ui::TIP_LC_ALERT);
+      tooltip_text_field_add(tip,
+                             N_("This file is read-only"),
+                             {},
+                             blender::ui::TIP_STYLE_NORMAL,
+                             blender::ui::TIP_LC_ALERT);
     }
     if (file->attributes & (FILE_ATTR_SYSTEM | FILE_ATTR_RESTRICTED)) {
-      UI_tooltip_text_field_add(tip,
-                                N_("This is a restricted system file"),
-                                {},
-                                blender::ui::TIP_STYLE_NORMAL,
-                                blender::ui::TIP_LC_ALERT);
+      tooltip_text_field_add(tip,
+                             N_("This is a restricted system file"),
+                             {},
+                             blender::ui::TIP_STYLE_NORMAL,
+                             blender::ui::TIP_LC_ALERT);
     }
 
     if (file->typeflag & (FILE_TYPE_BLENDER | FILE_TYPE_BLENDER_BACKUP)) {
@@ -220,12 +219,12 @@ static void file_draw_tooltip_custom_func(bContext & /*C*/,
       }
 
       if (version_str[0]) {
-        UI_tooltip_text_field_add(tip,
-                                  fmt::format("Blender {}", version_str),
-                                  {},
-                                  blender::ui::TIP_STYLE_NORMAL,
-                                  blender::ui::TIP_LC_NORMAL);
-        UI_tooltip_text_field_add(
+        tooltip_text_field_add(tip,
+                               fmt::format("Blender {}", version_str),
+                               {},
+                               blender::ui::TIP_STYLE_NORMAL,
+                               blender::ui::TIP_LC_NORMAL);
+        tooltip_text_field_add(
             tip, {}, {}, blender::ui::TIP_STYLE_SPACER, blender::ui::TIP_LC_NORMAL);
       }
     }
@@ -242,12 +241,12 @@ static void file_draw_tooltip_custom_func(bContext & /*C*/,
             IMB_metadata_get_field(
                 thumb->metadata, "Thumb::Image::Height", value2, sizeof(value2)))
         {
-          UI_tooltip_text_field_add(tip,
-                                    fmt::format("{} \u00D7 {}", value1, value2),
-                                    {},
-                                    blender::ui::TIP_STYLE_NORMAL,
-                                    blender::ui::TIP_LC_NORMAL);
-          UI_tooltip_text_field_add(
+          tooltip_text_field_add(tip,
+                                 fmt::format("{} \u00D7 {}", value1, value2),
+                                 {},
+                                 blender::ui::TIP_STYLE_NORMAL,
+                                 blender::ui::TIP_LC_NORMAL);
+          tooltip_text_field_add(
               tip, {}, {}, blender::ui::TIP_STYLE_SPACER, blender::ui::TIP_LC_NORMAL);
         }
       }
@@ -266,11 +265,11 @@ static void file_draw_tooltip_custom_func(bContext & /*C*/,
             IMB_metadata_get_field(
                 thumb->metadata, "Thumb::Video::Height", value2, sizeof(value2)))
         {
-          UI_tooltip_text_field_add(tip,
-                                    fmt::format("{} \u00D7 {}", value1, value2),
-                                    {},
-                                    blender::ui::TIP_STYLE_NORMAL,
-                                    blender::ui::TIP_LC_NORMAL);
+          tooltip_text_field_add(tip,
+                                 fmt::format("{} \u00D7 {}", value1, value2),
+                                 {},
+                                 blender::ui::TIP_STYLE_NORMAL,
+                                 blender::ui::TIP_LC_NORMAL);
         }
         if (IMB_metadata_get_field(
                 thumb->metadata, "Thumb::Video::Frames", value1, sizeof(value1)) &&
@@ -278,18 +277,18 @@ static void file_draw_tooltip_custom_func(bContext & /*C*/,
             IMB_metadata_get_field(
                 thumb->metadata, "Thumb::Video::Duration", value3, sizeof(value3)))
         {
-          UI_tooltip_text_field_add(
+          tooltip_text_field_add(
               tip,
               fmt::format("{} {} @ {} {}", value1, N_("Frames"), value2, N_("FPS")),
               {},
               blender::ui::TIP_STYLE_NORMAL,
               blender::ui::TIP_LC_NORMAL);
-          UI_tooltip_text_field_add(tip,
-                                    fmt::format("{} {}", value3, N_("seconds")),
-                                    {},
-                                    blender::ui::TIP_STYLE_NORMAL,
-                                    blender::ui::TIP_LC_NORMAL);
-          UI_tooltip_text_field_add(
+          tooltip_text_field_add(tip,
+                                 fmt::format("{} {}", value3, N_("seconds")),
+                                 {},
+                                 blender::ui::TIP_STYLE_NORMAL,
+                                 blender::ui::TIP_LC_NORMAL);
+          tooltip_text_field_add(
               tip, {}, {}, blender::ui::TIP_STYLE_SPACER, blender::ui::TIP_LC_NORMAL);
         }
       }
@@ -313,15 +312,15 @@ static void file_draw_tooltip_custom_func(bContext & /*C*/,
     if (is_today || is_yesterday) {
       day_string = (is_today ? N_("Today") : N_("Yesterday")) + std::string(" ");
     }
-    UI_tooltip_text_field_add(tip,
-                              fmt::format("{}: {}{}{}",
-                                          N_("Modified"),
-                                          day_string,
-                                          (is_today || is_yesterday) ? "" : date_str,
-                                          (is_today || is_yesterday) ? time_str : ""),
-                              {},
-                              blender::ui::TIP_STYLE_NORMAL,
-                              blender::ui::TIP_LC_NORMAL);
+    tooltip_text_field_add(tip,
+                           fmt::format("{}: {}{}{}",
+                                       N_("Modified"),
+                                       day_string,
+                                       (is_today || is_yesterday) ? "" : date_str,
+                                       (is_today || is_yesterday) ? time_str : ""),
+                           {},
+                           blender::ui::TIP_STYLE_NORMAL,
+                           blender::ui::TIP_LC_NORMAL);
 
     if (!(file->typeflag & FILE_TYPE_DIR) && file->size > 0) {
       char size[16];
@@ -329,7 +328,7 @@ static void file_draw_tooltip_custom_func(bContext & /*C*/,
       if (file->size < 10000) {
         char size_full[BLI_STR_FORMAT_UINT64_GROUPED_SIZE];
         BLI_str_format_uint64_grouped(size_full, file->size);
-        UI_tooltip_text_field_add(
+        tooltip_text_field_add(
             tip,
             fmt::format("{}: {} ({} {})", N_("Size"), size, size_full, N_("bytes")),
             {},
@@ -337,44 +336,41 @@ static void file_draw_tooltip_custom_func(bContext & /*C*/,
             blender::ui::TIP_LC_NORMAL);
       }
       else {
-        UI_tooltip_text_field_add(tip,
-                                  fmt::format("{}: {}", N_("Size"), size),
-                                  {},
-                                  blender::ui::TIP_STYLE_NORMAL,
-                                  blender::ui::TIP_LC_NORMAL);
+        tooltip_text_field_add(tip,
+                               fmt::format("{}: {}", N_("Size"), size),
+                               {},
+                               blender::ui::TIP_STYLE_NORMAL,
+                               blender::ui::TIP_LC_NORMAL);
       }
     }
   }
 
   if (thumb && file->typeflag & FILE_TYPE_FTFONT) {
     const float scale = (512.0f * UI_SCALE_FAC) / float(std::max(thumb->x, thumb->y));
-    blender::ui::uiTooltipImage image_data;
+    blender::ui::TooltipImage image_data;
     image_data.ibuf = thumb;
     image_data.width = short(float(thumb->x) * scale);
     image_data.height = short(float(thumb->y) * scale);
-    image_data.background = blender::ui::uiTooltipImageBackground::None;
+    image_data.background = blender::ui::TooltipImageBackground::None;
     image_data.premultiplied = false;
     image_data.text_color = true;
     image_data.border = false;
-    UI_tooltip_text_field_add(
-        tip, {}, {}, blender::ui::TIP_STYLE_SPACER, blender::ui::TIP_LC_NORMAL);
-    UI_tooltip_image_field_add(tip, image_data);
+    tooltip_text_field_add(tip, {}, {}, blender::ui::TIP_STYLE_SPACER, blender::ui::TIP_LC_NORMAL);
+    tooltip_image_field_add(tip, image_data);
   }
   else if (thumb && params->display != FILE_IMGDISPLAY) {
-    UI_tooltip_text_field_add(
-        tip, {}, {}, blender::ui::TIP_STYLE_SPACER, blender::ui::TIP_LC_NORMAL);
-    UI_tooltip_text_field_add(
-        tip, {}, {}, blender::ui::TIP_STYLE_SPACER, blender::ui::TIP_LC_NORMAL);
+    tooltip_text_field_add(tip, {}, {}, blender::ui::TIP_STYLE_SPACER, blender::ui::TIP_LC_NORMAL);
+    tooltip_text_field_add(tip, {}, {}, blender::ui::TIP_STYLE_SPACER, blender::ui::TIP_LC_NORMAL);
 
-    blender::ui::uiTooltipImage image_data;
+    blender::ui::TooltipImage image_data;
     float scale = (96.0f * UI_SCALE_FAC) / float(std::max(thumb->x, thumb->y));
     image_data.ibuf = thumb;
     image_data.width = short(float(thumb->x) * scale);
     image_data.height = short(float(thumb->y) * scale);
     image_data.border = true;
-    image_data.background = blender::ui::uiTooltipImageBackground::Checkerboard_Themed;
+    image_data.background = blender::ui::TooltipImageBackground::Checkerboard_Themed;
     image_data.premultiplied = true;
-    UI_tooltip_image_field_add(tip, image_data);
+    tooltip_image_field_add(tip, image_data);
   }
 
   if (thumb && free_imbuf) {
@@ -383,8 +379,8 @@ static void file_draw_tooltip_custom_func(bContext & /*C*/,
 }
 
 static void file_draw_asset_tooltip_custom_func(bContext & /*C*/,
-                                                uiTooltipData &tip,
-                                                uiBut * /*but*/,
+                                                blender::ui::TooltipData &tip,
+                                                blender::ui::Button * /*but*/,
                                                 void *argN)
 {
   const auto *asset = static_cast<blender::asset_system::AssetRepresentation *>(argN);
@@ -402,7 +398,7 @@ static void draw_tile_background(const rcti *draw_rect, int colorid, int shade)
   blender::ui::draw_roundbox_aa(&draw_rect_fl, true, 5.0f, color);
 }
 
-static void file_but_enable_drag(uiBut *but,
+static void file_but_enable_drag(blender::ui::Button *but,
                                  const SpaceFile *sfile,
                                  const FileDirEntry *file,
                                  const char *path,
@@ -444,7 +440,9 @@ static void file_but_enable_drag(uiBut *but,
   }
 }
 
-static void file_but_tooltip_func_set(const SpaceFile *sfile, const FileDirEntry *file, uiBut *but)
+static void file_but_tooltip_func_set(const SpaceFile *sfile,
+                                      const FileDirEntry *file,
+                                      blender::ui::Button *but)
 {
   if (file->asset) {
     button_func_tooltip_custom_set(but, file_draw_asset_tooltip_custom_func, file->asset, nullptr);
@@ -455,18 +453,18 @@ static void file_but_tooltip_func_set(const SpaceFile *sfile, const FileDirEntry
   }
 }
 
-static uiBut *file_add_icon_but(const SpaceFile *sfile,
-                                uiBlock *block,
-                                const char * /*path*/,
-                                const FileDirEntry *file,
-                                const rcti *tile_draw_rect,
-                                int icon,
-                                int width,
-                                int height,
-                                int padx,
-                                bool dimmed)
+static blender::ui::Button *file_add_icon_but(const SpaceFile *sfile,
+                                              blender::ui::Block *block,
+                                              const char * /*path*/,
+                                              const FileDirEntry *file,
+                                              const rcti *tile_draw_rect,
+                                              int icon,
+                                              int width,
+                                              int height,
+                                              int padx,
+                                              bool dimmed)
 {
-  uiBut *but;
+  blender::ui::Button *but;
 
   const int x = tile_draw_rect->xmin + padx;
   const int y = tile_draw_rect->ymin +
@@ -475,7 +473,7 @@ static uiBut *file_add_icon_but(const SpaceFile *sfile,
   if (icon < BIFICONID_LAST_STATIC) {
     /* Small built-in icon. Draw centered in given width. */
     but = uiDefIconBut(block,
-                       blender::ui::ButType::Label,
+                       blender::ui::ButtonType::Label,
                        icon,
                        x,
                        y,
@@ -491,7 +489,7 @@ static uiBut *file_add_icon_but(const SpaceFile *sfile,
   else {
     /* Larger preview icon. Fills available width/height. */
     but = uiDefIconPreviewBut(block,
-                              blender::ui::ButType::Label,
+                              blender::ui::ButtonType::Label,
                               icon,
                               x,
                               y,
@@ -508,19 +506,22 @@ static uiBut *file_add_icon_but(const SpaceFile *sfile,
   return but;
 }
 
-static uiBut *file_add_overlay_icon_but(uiBlock *block, int pos_x, int pos_y, int icon)
+static blender::ui::Button *file_add_overlay_icon_but(blender::ui::Block *block,
+                                                      int pos_x,
+                                                      int pos_y,
+                                                      int icon)
 {
-  uiBut *but = uiDefIconBut(block,
-                            blender::ui::ButType::Label,
-                            icon,
-                            pos_x,
-                            pos_y,
-                            ICON_DEFAULT_WIDTH_SCALE,
-                            ICON_DEFAULT_HEIGHT_SCALE,
-                            nullptr,
-                            0.0f,
-                            0.0f,
-                            std::nullopt);
+  blender::ui::Button *but = uiDefIconBut(block,
+                                          blender::ui::ButtonType::Label,
+                                          icon,
+                                          pos_x,
+                                          pos_y,
+                                          ICON_DEFAULT_WIDTH_SCALE,
+                                          ICON_DEFAULT_HEIGHT_SCALE,
+                                          nullptr,
+                                          0.0f,
+                                          0.0f,
+                                          std::nullopt);
   /* Otherwise a left hand padding will be added. */
   button_drawflag_disable(but, blender::ui::BUT_ICON_LEFT);
   button_label_alpha_factor_set(but, 0.6f);
@@ -535,7 +536,7 @@ static void file_draw_string(int sx,
                              const char *string,
                              float width,
                              int height,
-                             blender::ui::eFontStyle_Align align,
+                             blender::ui::FontStyleAlign align,
                              const uchar col[4])
 {
   uiFontStyle fs;
@@ -559,7 +560,7 @@ static void file_draw_string(int sx,
   rect.ymin = sy - height;
   rect.ymax = sy;
 
-  blender::ui::uiFontStyleDraw_Params font_style_params{};
+  blender::ui::FontStyleDrawParams font_style_params{};
   font_style_params.align = align;
 
   fontstyle_draw(&fs, &rect, filename, sizeof(filename), col, &font_style_params);
@@ -570,7 +571,7 @@ static void file_draw_string(int sx,
  */
 static void file_draw_string_mulitline_clipped(const rcti *rect,
                                                const char *string,
-                                               blender::ui::eFontStyle_Align align,
+                                               blender::ui::FontStyleAlign align,
                                                const uchar col[4])
 {
   if (string[0] == '\0' || BLI_rcti_size_x(rect) < 1) {
@@ -622,7 +623,7 @@ static void file_draw_string_multiline(int sx,
   rect.ymin = sy - BLI_rcti_size_y(&textbox) - line_height;
   rect.ymax = sy;
 
-  blender::ui::uiFontStyleDraw_Params font_style_params{};
+  blender::ui::FontStyleDrawParams font_style_params{};
   font_style_params.align = blender::ui::UI_STYLE_TEXT_LEFT;
   font_style_params.word_wrap = true;
 
@@ -679,7 +680,7 @@ static std::tuple<int, int, float> preview_image_scaled_dimensions_get(const int
 }
 
 static void file_add_preview_drag_but(const SpaceFile *sfile,
-                                      uiBlock *block,
+                                      blender::ui::Block *block,
                                       FileLayout *layout,
                                       const FileDirEntry *file,
                                       const char *path,
@@ -693,17 +694,17 @@ static void file_add_preview_drag_but(const SpaceFile *sfile,
    * for box select. */
   BLI_rcti_pad(&drag_rect, -layout->tile_border_x, -layout->tile_border_y);
 
-  uiBut *but = uiDefBut(block,
-                        blender::ui::ButType::Label,
-                        "",
-                        drag_rect.xmin,
-                        drag_rect.ymin,
-                        BLI_rcti_size_x(&drag_rect),
-                        BLI_rcti_size_y(&drag_rect),
-                        nullptr,
-                        0.0,
-                        0.0,
-                        std::nullopt);
+  blender::ui::Button *but = uiDefBut(block,
+                                      blender::ui::ButtonType::Label,
+                                      "",
+                                      drag_rect.xmin,
+                                      drag_rect.ymin,
+                                      BLI_rcti_size_x(&drag_rect),
+                                      BLI_rcti_size_y(&drag_rect),
+                                      nullptr,
+                                      0.0,
+                                      0.0,
+                                      std::nullopt);
 
   const ImBuf *drag_image = preview_image ? preview_image :
                                             /* Larger directory or document icon. */
@@ -1270,7 +1271,7 @@ static void draw_details_columns(const FileSelectParams *params,
                        IFACE_(str),
                        column->width - 2 * ATTRIBUTE_COLUMN_PADDING,
                        layout->tile_h,
-                       blender::ui::eFontStyle_Align(column->text_align),
+                       blender::ui::FontStyleAlign(column->text_align),
                        text_col);
     }
 
@@ -1329,12 +1330,12 @@ void file_draw_list(const bContext *C, ARegion *region)
   View2D *v2d = &region->v2d;
   FileList *files = sfile->files;
   FileDirEntry *file;
-  uiBlock *block = block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
+  blender::ui::Block *block = block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
   int numfiles;
   int numfiles_layout;
   int offset;
   int i;
-  blender::ui::eFontStyle_Align align;
+  blender::ui::FontStyleAlign align;
   bool do_drag;
   uchar text_col[4];
   const bool draw_columnheader = (params->display == FILE_VERTICALDISPLAY);
@@ -1488,17 +1489,17 @@ void file_draw_list(const bContext *C, ARegion *region)
         if (drag_width > 0) {
           /* Uses full row height (tile height plus 2 * tile border padding) so there's no space
            * between rows. */
-          uiBut *drag_but = uiDefBut(block,
-                                     blender::ui::ButType::Label,
-                                     "",
-                                     tile_draw_rect.xmin,
-                                     tile_draw_rect.ymin - layout->tile_border_y,
-                                     drag_width,
-                                     layout->tile_h + layout->tile_border_y * 2,
-                                     nullptr,
-                                     0,
-                                     0,
-                                     std::nullopt);
+          blender::ui::Button *drag_but = uiDefBut(block,
+                                                   blender::ui::ButtonType::Label,
+                                                   "",
+                                                   tile_draw_rect.xmin,
+                                                   tile_draw_rect.ymin - layout->tile_border_y,
+                                                   drag_width,
+                                                   layout->tile_h + layout->tile_border_y * 2,
+                                                   nullptr,
+                                                   0,
+                                                   0,
+                                                   std::nullopt);
           button_dragflag_enable(drag_but, blender::ui::BUT_DRAG_FULL_BUT);
           file_but_enable_drag(drag_but, sfile, file, path, nullptr, icon, UI_SCALE_FAC);
           file_but_tooltip_func_set(sfile, file, drag_but);
@@ -1506,16 +1507,16 @@ void file_draw_list(const bContext *C, ARegion *region)
       }
 
       /* Add this after the fake draggable button, so the icon button tooltip is displayed. */
-      uiBut *icon_but = file_add_icon_but(sfile,
-                                          block,
-                                          path,
-                                          file,
-                                          &tile_draw_rect,
-                                          icon,
-                                          layout->prv_w,
-                                          layout->prv_h,
-                                          padx,
-                                          is_hidden);
+      blender::ui::Button *icon_but = file_add_icon_but(sfile,
+                                                        block,
+                                                        path,
+                                                        file,
+                                                        &tile_draw_rect,
+                                                        icon,
+                                                        layout->prv_w,
+                                                        layout->prv_h,
+                                                        padx,
+                                                        is_hidden);
       if (do_drag) {
         /* For some reason the dragging is unreliable for the icon button if we don't explicitly
          * enable dragging, even though the dummy drag button above covers the same area. */
@@ -1542,18 +1543,19 @@ void file_draw_list(const bContext *C, ARegion *region)
               layout->text_line_height * 1.4f :
               /* Just a little smaller than the tile height, clamped to #UI_UNIT_Y as maximum. */
               std::min(short(BLI_rcti_size_y(&text_rect) - 1.0f * UI_SCALE_FAC), UI_UNIT_Y);
-      uiBut *but = uiDefBut(block,
-                            blender::ui::ButType::Text,
-                            "",
-                            text_rect.xmin,
-                            /* First line only, when name is displayed in multiple lines. */
-                            text_rect.ymax - but_height,
-                            BLI_rcti_size_x(&text_rect),
-                            but_height,
-                            params->renamefile,
-                            1.0f,
-                            float(sizeof(params->renamefile)),
-                            "");
+      blender::ui::Button *but = uiDefBut(
+          block,
+          blender::ui::ButtonType::Text,
+          "",
+          text_rect.xmin,
+          /* First line only, when name is displayed in multiple lines. */
+          text_rect.ymax - but_height,
+          BLI_rcti_size_x(&text_rect),
+          but_height,
+          params->renamefile,
+          1.0f,
+          float(sizeof(params->renamefile)),
+          "");
       button_retval_set(but, 1);
       button_func_rename_set(but, renamebutton_cb, file);
       button_flag_enable(but, blender::ui::BUT_NO_UTF8); /* Allow non UTF8 names. */
@@ -1682,19 +1684,19 @@ static void file_draw_invalid_asset_library_hint(const bContext *C,
     file_draw_string_multiline(
         sx + UI_UNIT_X, sy, suggestion, width - UI_UNIT_X, line_height, text_col, nullptr, &sy);
 
-    uiBlock *block = block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
+    blender::ui::Block *block = block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
     wmOperatorType *ot = WM_operatortype_find("SCREEN_OT_userpref_show", false);
-    uiBut *but = uiDefIconTextButO_ptr(block,
-                                       blender::ui::ButType::But,
-                                       ot,
-                                       blender::wm::OpCallContext::InvokeDefault,
-                                       ICON_PREFERENCES,
-                                       WM_operatortype_name(ot, nullptr),
-                                       sx + UI_UNIT_X,
-                                       sy - line_height - UI_UNIT_Y * 1.2f,
-                                       UI_UNIT_X * 8,
-                                       UI_UNIT_Y,
-                                       std::nullopt);
+    blender::ui::Button *but = uiDefIconTextButO_ptr(block,
+                                                     blender::ui::ButtonType::But,
+                                                     ot,
+                                                     blender::wm::OpCallContext::InvokeDefault,
+                                                     ICON_PREFERENCES,
+                                                     WM_operatortype_name(ot, nullptr),
+                                                     sx + UI_UNIT_X,
+                                                     sy - line_height - UI_UNIT_Y * 1.2f,
+                                                     UI_UNIT_X * 8,
+                                                     UI_UNIT_Y,
+                                                     std::nullopt);
     PointerRNA *but_opptr = button_operator_ptr_ensure(but);
     RNA_enum_set(but_opptr, "section", USER_SECTION_FILE_PATHS);
 

@@ -57,10 +57,10 @@
 static void wm_block_splash_close(bContext *C, void *arg_block, void * /*arg*/)
 {
   wmWindow *win = CTX_wm_window(C);
-  popup_block_close(C, win, static_cast<uiBlock *>(arg_block));
+  popup_block_close(C, win, static_cast<blender::ui::Block *>(arg_block));
 }
 
-static void wm_block_splash_add_label(uiBlock *block, const char *label, int x, int y)
+static void wm_block_splash_add_label(blender::ui::Block *block, const char *label, int x, int y)
 {
   if (!(label && label[0])) {
     return;
@@ -68,8 +68,17 @@ static void wm_block_splash_add_label(uiBlock *block, const char *label, int x, 
 
   block_emboss_set(block, blender::ui::EmbossType::None);
 
-  uiBut *but = uiDefBut(
-      block, blender::ui::ButType::Label, label, 0, y, x, UI_UNIT_Y, nullptr, 0, 0, std::nullopt);
+  blender::ui::Button *but = uiDefBut(block,
+                                      blender::ui::ButtonType::Label,
+                                      label,
+                                      0,
+                                      y,
+                                      x,
+                                      UI_UNIT_Y,
+                                      nullptr,
+                                      0,
+                                      0,
+                                      std::nullopt);
   button_drawflag_disable(but, blender::ui::BUT_TEXT_LEFT);
   button_drawflag_enable(but, blender::ui::BUT_TEXT_RIGHT);
 
@@ -285,11 +294,11 @@ static int is_using_macos_rosetta()
 }
 #endif /* __APPLE__ */
 
-static uiBlock *wm_block_splash_create(bContext *C, ARegion *region, void * /*arg*/)
+static blender::ui::Block *wm_block_splash_create(bContext *C, ARegion *region, void * /*arg*/)
 {
   const uiStyle *style = blender::ui::style_get_dpi();
 
-  uiBlock *block = block_begin(C, region, "splash", blender::ui::EmbossType::Emboss);
+  blender::ui::Block *block = block_begin(C, region, "splash", blender::ui::EmbossType::Emboss);
 
   /* Note on #BLOCK_NO_WIN_CLIP, the window size is not always synchronized
    * with the OS when the splash shows, window clipping in this case gives
@@ -308,7 +317,7 @@ static uiBlock *wm_block_splash_create(bContext *C, ARegion *region, void * /*ar
   ImBuf *ibuf = wm_block_splash_image(splash_width, &splash_height);
   /* This should never happen, if it does - don't crash. */
   if (LIKELY(ibuf)) {
-    uiBut *but = uiDefButImage(
+    blender::ui::Button *but = uiDefButImage(
         block, ibuf, 0, 0.5f * U.widget_unit, splash_width, splash_height, nullptr);
 
     button_func_set(but, wm_block_splash_close, block, nullptr);
@@ -327,7 +336,7 @@ static uiBlock *wm_block_splash_create(bContext *C, ARegion *region, void * /*ar
   ImBuf *bannerbuf = wm_block_splash_banner_image(
       &banner_width, &banner_height, splash_width, splash_height);
   if (bannerbuf) {
-    uiBut *banner_but = uiDefButImage(
+    blender::ui::Button *banner_but = uiDefButImage(
         block, bannerbuf, 0, 0.5f * U.widget_unit, banner_width, banner_height, nullptr);
 
     button_func_set(banner_but, wm_block_splash_close, block, nullptr);
@@ -432,12 +441,12 @@ void WM_OT_splash(wmOperatorType *ot)
 /** \name Splash Screen: About
  * \{ */
 
-static uiBlock *wm_block_about_create(bContext *C, ARegion *region, void * /*arg*/)
+static blender::ui::Block *wm_block_about_create(bContext *C, ARegion *region, void * /*arg*/)
 {
   const uiStyle *style = blender::ui::style_get_dpi();
   const int dialog_width = style->widget.points * 42 * UI_SCALE_FAC;
 
-  uiBlock *block = block_begin(C, region, "about", blender::ui::EmbossType::Emboss);
+  blender::ui::Block *block = block_begin(C, region, "about", blender::ui::EmbossType::Emboss);
 
   block_flag_enable(block,
                     blender::ui::BLOCK_KEEP_OPEN | blender::ui::BLOCK_LOOP |
@@ -459,7 +468,7 @@ static uiBlock *wm_block_about_create(bContext *C, ARegion *region, void * /*arg
   constexpr bool show_color = false;
   const float size = 0.2f * dialog_width;
 
-  ImBuf *ibuf = blender::ui::UI_svg_icon_bitmap(ICON_BLENDER_LOGO_LARGE, size, show_color);
+  ImBuf *ibuf = blender::ui::svg_icon_bitmap(ICON_BLENDER_LOGO_LARGE, size, show_color);
 
   if (ibuf) {
     bTheme *btheme = blender::ui::GetTheme();

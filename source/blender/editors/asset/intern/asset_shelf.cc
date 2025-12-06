@@ -542,7 +542,7 @@ void region_layout(const bContext *C, ARegion *region)
     return;
   }
 
-  uiBlock *block = block_begin(C, region, __func__, ui::EmbossType::Emboss);
+  ui::Block *block = block_begin(C, region, __func__, ui::EmbossType::Emboss);
 
   const uiStyle *style = ui::style_get_dpi();
   const int padding_y = main_region_padding_y();
@@ -651,7 +651,7 @@ void header_region_init(wmWindowManager * /*wm*/, ARegion *region)
 
 void header_region(const bContext *C, ARegion *region)
 {
-  ED_region_header_with_button_sections(C, region, ui::uiButtonSectionsAlign::Bottom);
+  ED_region_header_with_button_sections(C, region, ui::ButtonSectionsAlign::Bottom);
 }
 
 int header_region_size()
@@ -752,7 +752,7 @@ int context(const bContext *C, const char *member, bContextDataResult *result)
 
   if (CTX_data_equals(member, "asset")) {
     const ARegion *region = CTX_wm_region(C);
-    const uiBut *but = ui::region_views_find_active_item_but(region);
+    const ui::Button *but = ui::region_views_find_active_item_but(region);
     if (!but) {
       return CTX_RESULT_NO_DATA;
     }
@@ -792,16 +792,16 @@ AssetShelf *active_shelf_from_context(const bContext *C)
 /** \name Catalog toggle buttons
  * \{ */
 
-static uiBut *add_tab_button(uiBlock &block, StringRefNull name)
+static ui::Button *add_tab_button(ui::Block &block, StringRefNull name)
 {
   const uiStyle *style = ui::style_get_dpi();
   const int string_width = ui::fontstyle_string_width(&style->widget, name.c_str());
   const int pad_x = UI_UNIT_X * 0.3f;
   const int but_width = std::min(string_width + 2 * pad_x, UI_UNIT_X * 8);
 
-  uiBut *but = uiDefBut(
+  ui::Button *but = uiDefBut(
       &block,
-      ui::ButType::Tab,
+      ui::ButtonType::Tab,
       name,
       0,
       0,
@@ -820,17 +820,17 @@ static uiBut *add_tab_button(uiBlock &block, StringRefNull name)
 
 static void add_catalog_tabs(AssetShelf &shelf, ui::Layout &layout)
 {
-  uiBlock *block = layout.block();
+  ui::Block *block = layout.block();
   AssetShelfSettings &shelf_settings = shelf.settings;
 
   /* "All" tab. */
   {
-    uiBut *but = add_tab_button(*block, IFACE_("All"));
+    ui::Button *but = add_tab_button(*block, IFACE_("All"));
     button_func_set(but, [&shelf_settings](bContext &C) {
       settings_set_all_catalog_active(shelf_settings);
       send_redraw_notifier(C);
     });
-    button_func_pushed_state_set(but, [&shelf_settings](const uiBut &) -> bool {
+    button_func_pushed_state_set(but, [&shelf_settings](const ui::Button &) -> bool {
       return settings_is_all_catalog_active(shelf_settings);
     });
   }
@@ -839,13 +839,13 @@ static void add_catalog_tabs(AssetShelf &shelf, ui::Layout &layout)
 
   /* Regular catalog tabs. */
   settings_foreach_enabled_catalog_path(shelf, [&](const asset_system::AssetCatalogPath &path) {
-    uiBut *but = add_tab_button(*block, path.name());
+    ui::Button *but = add_tab_button(*block, path.name());
 
     button_func_set(but, [&shelf_settings, path](bContext &C) {
       settings_set_active_catalog(shelf_settings, path);
       send_redraw_notifier(C);
     });
-    button_func_pushed_state_set(but, [&shelf_settings, path](const uiBut &) -> bool {
+    button_func_pushed_state_set(but, [&shelf_settings, path](const ui::Button &) -> bool {
       return settings_is_active_catalog(shelf_settings, path);
     });
   });
@@ -862,7 +862,7 @@ static void add_catalog_tabs(AssetShelf &shelf, ui::Layout &layout)
 static void asset_shelf_header_draw(const bContext *C, Header *header)
 {
   ui::Layout &layout = *header->layout;
-  uiBlock *block = layout.block();
+  ui::Block *block = layout.block();
   const AssetLibraryReference *library_ref = CTX_wm_asset_library_ref(C);
 
   list::storage_fetch(library_ref, C);

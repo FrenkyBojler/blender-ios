@@ -37,7 +37,7 @@ static void template_keymap_item_properties(Layout &layout, const char *title, P
 
   RNA_STRUCT_BEGIN_SKIP_RNA_TYPE (ptr, prop) {
     const bool is_set = RNA_property_is_set(ptr, prop);
-    uiBut *but;
+    Button *but;
 
     /* recurse for nested properties */
     if (RNA_property_type(prop) == PROP_POINTER) {
@@ -59,10 +59,10 @@ static void template_keymap_item_properties(Layout &layout, const char *title, P
 
     if (is_set) {
       /* unset operator */
-      uiBlock *block = row.block();
+      Block *block = row.block();
       block_emboss_set(block, EmbossType::None);
       but = uiDefIconButO(block,
-                          ButType::But,
+                          ButtonType::But,
                           "UI_OT_unset_property_button",
                           wm::OpCallContext::ExecDefault,
                           ICON_X,
@@ -84,7 +84,7 @@ void uiTemplateKeymapItemProperties(Layout *layout, PointerRNA *ptr)
   PointerRNA propptr = RNA_pointer_get(ptr, "properties");
 
   if (propptr.data) {
-    uiBlock *block = layout->block();
+    Block *block = layout->block();
     int i = layout->block()->buttons.size() - 1;
 
     WM_operator_properties_sanitize(&propptr, false);
@@ -95,7 +95,7 @@ void uiTemplateKeymapItemProperties(Layout *layout, PointerRNA *ptr)
     /* attach callbacks to compensate for missing properties update,
      * we don't know which keymap (item) is being modified there */
     for (; i < block->buttons.size(); i++) {
-      uiBut *but = block->buttons[i].get();
+      Button *but = block->buttons[i].get();
       /* operator buttons may store props for use (file selector, #36492) */
       if (but->rnaprop) {
         button_func_set(but, keymap_item_modified, ptr->data, nullptr);

@@ -107,9 +107,9 @@ static int bonedropper_init(bContext *C, wmOperator *op)
   int index_dummy;
   PointerRNA button_ptr;
   PropertyRNA *button_prop;
-  uiBut *button = context_active_but_prop_get(C, &button_ptr, &button_prop, &index_dummy);
+  Button *button = context_active_but_prop_get(C, &button_ptr, &button_prop, &index_dummy);
 
-  if (!button || button->type != ButType::SearchMenu) {
+  if (!button || button->type != ButtonType::SearchMenu) {
     return false;
   }
 
@@ -532,13 +532,13 @@ static bool bonedropper_poll(bContext *C)
     return false;
   }
 
-  uiBut *but = context_active_but_prop_get(C, &ptr, &prop, &index_dummy);
+  Button *but = context_active_but_prop_get(C, &ptr, &prop, &index_dummy);
 
   if (!but) {
     return false;
   }
 
-  if (but->type != ButType::SearchMenu || !(but->flag & BUT_VALUE_CLEAR)) {
+  if (but->type != ButtonType::SearchMenu || !(but->flag & BUT_VALUE_CLEAR)) {
     return false;
   }
 

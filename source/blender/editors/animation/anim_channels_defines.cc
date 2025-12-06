@@ -5494,7 +5494,7 @@ static void achannel_setting_widget_cb(bContext *C, void *ale_npoin, void *setti
   }
 
   /* When the button in the UI changes the setting, it does NOT call `ANIM_channel_setting_set()`,
-   * but actually manipulates the data directly via a pointer (see `ui_but_value_set()` in
+   * but actually manipulates the data directly via a pointer (see `button_value_set()` in
    * `source/blender/editors/interface/interface.cc`).
    *
    * As a result, `setting_post_update()` was not called yet and we need to call it here. */
@@ -5756,7 +5756,7 @@ static void achannel_setting_slider_nla_curve_cb(bContext *C, void * /*id_poin*/
 static void draw_setting_widget(bAnimContext *ac,
                                 bAnimListElem *ale,
                                 const bAnimChannelType *acf,
-                                uiBlock *block,
+                                blender::ui::Block *block,
                                 const int xpos,
                                 const int ypos,
                                 const eAnimChannel_Settings setting)
@@ -5875,26 +5875,26 @@ static void draw_setting_widget(bAnimContext *ac,
   }
 
   /* type of button */
-  blender::ui::ButType butType;
+  blender::ui::ButtonType butType;
   if (usetoggle) {
     if (negflag) {
-      butType = blender::ui::ButType::IconToggleN;
+      butType = blender::ui::ButtonType::IconToggleN;
     }
     else {
-      butType = blender::ui::ButType::IconToggle;
+      butType = blender::ui::ButtonType::IconToggle;
     }
   }
   else {
     if (negflag) {
-      butType = blender::ui::ButType::ToggleN;
+      butType = blender::ui::ButtonType::ToggleN;
     }
     else {
-      butType = blender::ui::ButType::Toggle;
+      butType = blender::ui::ButtonType::Toggle;
     }
   }
 
   /* draw button for setting */
-  uiBut *but = nullptr;
+  blender::ui::Button *but = nullptr;
   switch (ptrsize) {
     case sizeof(int): /* integer pointer for setting */
       but = uiDefIconButBitI(block,
@@ -5947,7 +5947,7 @@ static void draw_setting_widget(bAnimContext *ac,
 
   /* Set callback to send relevant notifiers and/or perform type-specific updates */
   {
-    blender::ui::uiButHandleNFunc button_callback;
+    blender::ui::ButtonHandleNFunc button_callback;
     switch (setting) {
       /* Settings needing flushing up/down hierarchy. */
       case ACHANNEL_SETTING_VISIBLE: /* Graph Editor - "visibility" toggles. */
@@ -6001,7 +6001,7 @@ static void draw_setting_widget(bAnimContext *ac,
 }
 
 static void draw_grease_pencil_layer_widgets(bAnimListElem *ale,
-                                             uiBlock *block,
+                                             blender::ui::Block *block,
                                              const rctf *rect,
                                              short &offset,
                                              const short channel_height,
@@ -6087,7 +6087,7 @@ static void draw_grease_pencil_layer_widgets(bAnimListElem *ale,
 void ANIM_channel_draw_widgets(const bContext *C,
                                bAnimContext *ac,
                                bAnimListElem *ale,
-                               uiBlock *block,
+                               blender::ui::Block *block,
                                const rctf *rect,
                                size_t channel_index)
 {
@@ -6169,12 +6169,12 @@ void ANIM_channel_draw_widgets(const bContext *C,
     if (acf->name_prop(ale, &ptr, &prop)) {
       const short margin_x = 3 * round_fl_to_int(UI_SCALE_FAC);
       const short width = ac->region->winx - offset - (margin_x * 2);
-      uiBut *but;
+      blender::ui::Button *but;
 
       block_emboss_set(block, blender::ui::EmbossType::Emboss);
 
       but = uiDefButR(block,
-                      blender::ui::ButType::Text,
+                      blender::ui::ButtonType::Text,
                       "",
                       offset + margin_x,
                       rect->ymin,
@@ -6318,14 +6318,14 @@ void ANIM_channel_draw_widgets(const bContext *C,
       if ((ale->type == ANIMTYPE_NLAACTION) && (ale->adt && ale->adt->action) &&
           !(ale->adt->flag & ADT_NLA_EDIT_ON))
       {
-        uiBut *but;
+        blender::ui::Button *but;
         PointerRNA *opptr_b;
 
         block_emboss_set(block, blender::ui::EmbossType::Emboss);
 
         offset -= UI_UNIT_X;
         but = uiDefIconButO(block,
-                            blender::ui::ButType::But,
+                            blender::ui::ButtonType::But,
                             "NLA_OT_action_pushdown",
                             blender::wm::OpCallContext::InvokeDefault,
                             ICON_NLA_PUSHDOWN,
@@ -6389,7 +6389,7 @@ void ANIM_channel_draw_widgets(const bContext *C,
 
           /* create property slider */
           if (prop) {
-            uiBut *but;
+            blender::ui::Button *but;
 
             /* Create the slider button,
              * and assign relevant callback to ensure keyframes are inserted. */
@@ -6497,7 +6497,7 @@ void ANIM_channel_draw_widgets(const bContext *C,
 
           /* try to resolve the path */
           if (RNA_path_resolve_property(&id_ptr, rna_path->c_str(), &ptr, &prop)) {
-            uiBut *but;
+            blender::ui::Button *but;
 
             /* Create the slider button,
              * and assign relevant callback to ensure keyframes are inserted. */

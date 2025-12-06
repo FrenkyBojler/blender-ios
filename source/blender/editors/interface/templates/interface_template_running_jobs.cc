@@ -82,7 +82,7 @@ void template_running_jobs(Layout *layout, bContext *C)
   const char *op_name = nullptr;
   const char *op_description = nullptr;
 
-  uiBlock *block = layout->block();
+  Block *block = layout->block();
   block_layout_set_current(block, layout);
 
   /* another scene can be rendering too, for example via compositor */
@@ -230,7 +230,7 @@ void template_running_jobs(Layout *layout, bContext *C)
     /* job icon as a button */
     if (op_name) {
       uiDefIconButO(block,
-                    ButType::But,
+                    ButtonType::But,
                     op_name,
                     wm::OpCallContext::InvokeDefault,
                     icon,
@@ -244,7 +244,7 @@ void template_running_jobs(Layout *layout, bContext *C)
     /* job name and icon if not previously set */
     const int textwidth = fontstyle_string_width(fstyle, name);
     uiDefIconTextBut(block,
-                     ButType::Label,
+                     ButtonType::Label,
                      op_name ? 0 : icon,
                      name,
                      0,
@@ -265,7 +265,7 @@ void template_running_jobs(Layout *layout, bContext *C)
       tip_arg->wm = wm;
       tip_arg->owner = owner;
       ButtonProgress *but_progress = (ButtonProgress *)uiDefIconTextBut(block,
-                                                                        ButType::Progress,
+                                                                        ButtonType::Progress,
                                                                         ICON_NONE,
                                                                         text,
                                                                         UI_UNIT_X,
@@ -280,31 +280,31 @@ void template_running_jobs(Layout *layout, bContext *C)
     }
 
     if (cancel_fn && !wm->runtime->is_interface_locked) {
-      uiBut *but = uiDefIconTextBut(block,
-                                    ButType::But,
-                                    ICON_PANEL_CLOSE,
-                                    "",
-                                    0,
-                                    0,
-                                    UI_UNIT_X,
-                                    UI_UNIT_Y,
-                                    nullptr,
-                                    TIP_("Stop this job"));
+      Button *but = uiDefIconTextBut(block,
+                                     ButtonType::But,
+                                     ICON_PANEL_CLOSE,
+                                     "",
+                                     0,
+                                     0,
+                                     UI_UNIT_X,
+                                     UI_UNIT_Y,
+                                     nullptr,
+                                     TIP_("Stop this job"));
       button_func_set(but, std::move(cancel_fn));
     }
   }
 
   if (ED_screen_animation_no_scrub(wm)) {
-    uiBut *but = uiDefIconTextBut(block,
-                                  ButType::But,
-                                  ICON_CANCEL,
-                                  IFACE_("Anim Player"),
-                                  0,
-                                  0,
-                                  UI_UNIT_X * 5.0f,
-                                  UI_UNIT_Y,
-                                  nullptr,
-                                  TIP_("Stop animation playback"));
+    Button *but = uiDefIconTextBut(block,
+                                   ButtonType::But,
+                                   ICON_CANCEL,
+                                   IFACE_("Anim Player"),
+                                   0,
+                                   0,
+                                   UI_UNIT_X * 5.0f,
+                                   UI_UNIT_Y,
+                                   nullptr,
+                                   TIP_("Stop animation playback"));
     button_func_set(but, [](bContext &C) {
       WM_operator_name_call(
           &C, "SCREEN_OT_animation_play", wm::OpCallContext::InvokeScreen, nullptr, nullptr);

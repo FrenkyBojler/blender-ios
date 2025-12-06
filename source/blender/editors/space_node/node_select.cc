@@ -1577,11 +1577,11 @@ static void node_find_exec_fn(bContext *C, void * /*arg1*/, void *arg2)
   }
 }
 
-static uiBlock *node_find_menu(bContext *C, ARegion *region, void *arg_optype)
+static ui::Block *node_find_menu(bContext *C, ARegion *region, void *arg_optype)
 {
   static char search[256] = "";
-  uiBlock *block;
-  uiBut *but;
+  ui::Block *block;
+  ui::Button *but;
   wmOperatorType *optype = (wmOperatorType *)arg_optype;
 
   block = block_begin(C, region, "_popup", ui::EmbossType::Emboss);
@@ -1598,8 +1598,17 @@ static uiBlock *node_find_menu(bContext *C, ARegion *region, void *arg_optype)
 
   /* Fake button holds space for search items. */
   const int height = ui::searchbox_size_y() - UI_SEARCHBOX_BOUNDS;
-  uiDefBut(
-      block, ui::ButType::Label, "", 0, -height, box_width, height, nullptr, 0, 0, std::nullopt);
+  uiDefBut(block,
+           ui::ButtonType::Label,
+           "",
+           0,
+           -height,
+           box_width,
+           height,
+           nullptr,
+           0,
+           0,
+           std::nullopt);
 
   /* Move it downwards, mouse over button. */
   std::array<int, 2> bounds_offset = {0, -UI_UNIT_Y};
