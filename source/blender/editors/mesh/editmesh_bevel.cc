@@ -84,7 +84,8 @@ struct BevelData {
   float shift_value[NUM_VALUE_KINDS];
   float max_obj_scale;
   bool is_modal;
-
+  bool is_snapping;
+  bool is_precision;
   Vector<BevelObjectStore> ob_store;
 
   /* modal only */
