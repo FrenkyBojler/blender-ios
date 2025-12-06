@@ -572,7 +572,7 @@ static void edbm_bevel_mouse_set_value(wmOperator *op, const wmEvent *event)
   value = value_start[vmode] + value * opdata->scale[vmode];
 
   /* Fake shift-transform... */
-  if (event->modifier & KM_SHIFT) {
+  if (opdata->is_precision) {
     if (opdata->shift_value[vmode] < 0.0f) {
       opdata->shift_value[vmode] = (vmode == SEGMENTS_VALUE) ?
                                        opdata->segments :
@@ -583,16 +583,12 @@ static void edbm_bevel_mouse_set_value(wmOperator *op, const wmEvent *event)
   else if (opdata->shift_value[vmode] >= 0.0f) {
     opdata->shift_value[vmode] = -1.0f;
   }
-
-  const bool is_snapping = (event->modifier & KM_CTRL) != 0;
   
-  if (is_snapping) {
-
-    const bool use_precision = (event->modifier & KM_SHIFT) != 0;
-
-    const float increment_factor = (use_precision) ? value_snap_increments[vmode] *
+  if (opdata->is_snapping) {
+    const float increment_factor = (opdata->is_precision) ? value_snap_increments[vmode] *
                                                          increments_precision_factors[vmode] :
                                                      value_snap_increments[vmode];
+
     if (increment_factor != 0.0f) {
       value = increment_factor * roundf(value / increment_factor);
     }
