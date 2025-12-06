@@ -18,6 +18,7 @@
 #include "BLI_math_vector_types.hh"
 #include "BLI_sys_types.h"
 #include "BLI_vector.hh"
+#include "BLI_kdtree_types.hh"
 
 #include "DNA_object_enums.h"
 #include "DNA_userdef_enums.h"
@@ -45,10 +46,6 @@ struct Scene;
 struct SubsurfModifierData;
 struct View3D;
 struct ViewLayer;
-
-namespace blender {
-struct KDTree_3d;
-}  // namespace blender
 
 void BKE_object_workob_clear(Object *workob);
 /**

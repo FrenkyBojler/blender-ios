@@ -931,7 +931,7 @@ static void grease_pencil_fill_extension_lines_from_circles(
     const float radius = view_radii[kd_index];
 
     bool found = false;
-    blender::kdtree_2d_range_search_cb_cpp(
+    blender::kdtree_range_search_cb_cpp<2>(
         kdtree,
         center,
         radius,

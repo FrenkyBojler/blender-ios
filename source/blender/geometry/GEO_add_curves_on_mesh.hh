@@ -6,15 +6,13 @@
 
 #include "BLI_math_vector_types.hh"
 #include "BLI_span.hh"
+#include "BLI_kdtree_types.hh"
 
 #include "BKE_curves.hh"
 
 #include "GEO_reverse_uv_sampler.hh"
 
 struct Mesh;
-namespace blender {
-struct KDTree_3d;
-}  // namespace blender
 
 namespace blender::geometry {
 

@@ -11,13 +11,10 @@
 #include <string>
 
 #include "BLI_compiler_attrs.h"
+#include "BLI_kdtree_types.hh"
 
 struct PointerRNA;
 struct wmOperatorType;
-
-namespace blender {
-struct KDTree_1d;
-}  // namespace blender
 
 enum {
   SEL_TOGGLE = 0,

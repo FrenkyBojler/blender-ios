@@ -225,7 +225,7 @@ struct DensityAddOperationExecutor {
         continue;
       }
       const float3 &root_pos_cu = new_positions_cu[new_i];
-      blender::kdtree_3d_range_search_cb_cpp(
+      blender::kdtree_range_search_cb_cpp<3>(
           new_roots_kdtree,
           root_pos_cu,
           brush_settings_->minimum_distance,
@@ -681,7 +681,7 @@ struct DensitySubtractOperationExecutor {
         if (dist_to_brush_sq_re > brush_radius_sq_re) {
           continue;
         }
-        blender::kdtree_3d_range_search_cb_cpp(
+        blender::kdtree_range_search_cb_cpp<3>(
             root_points_kdtree_,
             orig_pos_cu,
             minimum_distance_,
@@ -768,7 +768,7 @@ struct DensitySubtractOperationExecutor {
           continue;
         }
 
-        blender::kdtree_3d_range_search_cb_cpp(
+        blender::kdtree_range_search_cb_cpp<3>(
             root_points_kdtree_,
             pos_cu,
             minimum_distance_,
