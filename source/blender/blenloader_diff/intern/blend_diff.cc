@@ -489,32 +489,6 @@ class DiffWriter {
     fmt::format_to(dst_, "@@ -1 +100000 @@\n");
   }
 
-  void write_section(const StringRef section)
-  {
-    fmt::format_to(dst_, " \n # {}\n", section);
-  }
-
-  void writeln_unchanged(const StringRef line)
-  {
-    fmt::format_to(dst_, " {}\n", line);
-  }
-
-  void change(const StringRef old_line, const StringRef new_line)
-  {
-    this->remove(old_line);
-    this->add(new_line);
-  }
-
-  void add(const StringRef line)
-  {
-    fmt::format_to(dst_, "+{}\n", line);
-  }
-
-  void remove(const StringRef line)
-  {
-    fmt::format_to(dst_, "-{}\n", line);
-  }
-
   void merge(const DiffLines &lines)
   {
     fmt::format_to(dst_, lines.to_string());
