@@ -349,10 +349,11 @@ void mode_enter_generic(
   }
 
   BLI_assert(paint != nullptr);
+  bke::PaintRuntime *paint_runtime = paint->runtime;
 
   /* If Orbit Around Selection is enabled, force the pivot to update. */
   if ((U.uiflag & USER_ORBIT_SELECTION)) {
-    paint->runtime->last_stroke_valid = false;
+    paint_runtime->last_stroke_valid = false;
   }
 
   vwpaint::init_session(bmain, depsgraph, scene, *paint, ob, mode_flag);
