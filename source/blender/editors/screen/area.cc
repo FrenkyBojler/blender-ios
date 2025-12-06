@@ -29,6 +29,7 @@
 #include "BKE_workspace.hh"
 
 #include "RNA_access.hh"
+#include "RNA_enum_types.hh"
 
 #include "WM_api.hh"
 #include "WM_message.hh"
@@ -2921,14 +2922,64 @@ void ED_area_prevspace(bContext *C, ScrArea *area)
   WM_event_add_notifier(C, NC_SPACE | ND_SPACE_CHANGED, area);
 }
 
+static void change_tab_cb(bContext *C, void *arg1, void *arg2)
+{
+  ScrArea *area = static_cast<ScrArea *>(arg1);
+  const int spacetype = int(arg2);
+  ED_area_newspace(C, area, spacetype, false);
+}
+
 int ED_area_header_switchbutton(const bContext *C, blender::ui::Block *block, int yco)
 {
   ScrArea *area = CTX_wm_area(C);
   bScreen *screen = CTX_wm_screen(C);
   int xco = 0.4 * U.widget_unit;
 
-  PointerRNA areaptr = RNA_pointer_create_discrete(&(screen->id), &RNA_Area, area);
+  xco += 1.6 * U.widget_unit;
 
+  block_emboss_set(block, blender::ui::EmbossType::None);
+
+  const SpaceLink &current_space = *static_cast<const SpaceLink *>(area->spacedata.first);
+  const bool main_is_tab = current_space.is_tab;
+
+  LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+    if (sl->is_tab) {
+      xco += 1.1 * U.widget_unit;
+
+      int space_type = sl->spacetype;
+      const int index = RNA_enum_from_value(rna_enum_space_type_items, space_type);
+      const EnumPropertyItem item = rna_enum_space_type_items[index];
+      const char *name = item.name;
+      int icon = item.icon;
+
+      blender::ui::Button *add_but = uiDefIconBut(block,
+                                                  blender::ui::ButType::But,
+                                                  icon,
+                                                  xco,
+                                                  yco,
+                                                  UI_UNIT_Y,
+                                                  UI_UNIT_Y,
+                                                  nullptr,
+                                                  0,
+                                                  0,
+                                                  name);
+      uchar color[4];
+      blender::ui::GetThemeColor4ubv(TH_TEXT, color);
+      color[3] = 160;
+      button_color_set(add_but, color);
+      button_func_set(add_but, change_tab_cb, area, (void *)space_type);
+    }
+  }
+
+  if (main_is_tab) {
+    // UI_but_disable(add_but, "Area is already a tab");
+  }
+
+  block_emboss_set(block, blender::ui::EmbossType::Emboss);
+
+  xco += 1.0f * U.widget_unit;
+
+  PointerRNA areaptr = RNA_pointer_create_discrete(&(screen->id), &RNA_Area, area);
   uiDefButR(block,
             blender::ui::ButType::Menu,
             "",
@@ -2943,7 +2994,7 @@ int ED_area_header_switchbutton(const bContext *C, blender::ui::Block *block, in
             0.0f,
             "");
 
-  return xco + 1.7 * U.widget_unit;
+  return xco;
 }
 
 /************************ standard UI regions ************************/

@@ -108,7 +108,8 @@ typedef struct SpaceLink {
   ListBase regionbase;
   char spacetype;
   char link_flag;
-  char _pad0[6];
+  char is_tab;
+  char _pad0[5];
 } SpaceLink;
 
 /** \} */

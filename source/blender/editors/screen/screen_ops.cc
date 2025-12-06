@@ -4782,12 +4782,61 @@ static void screen_area_touch_menu_create(bContext *C, ScrArea *area)
   blender::ui::PopupMenu *pup = blender::ui::popup_menu_begin(C, "Area Options", ICON_NONE);
   blender::ui::Layout &layout = *blender::ui::popup_menu_layout(pup);
   layout.operator_context_set(blender::wm::OpCallContext::InvokeDefault);
+  const SpaceLink &current_sl = *static_cast<const SpaceLink *>(area->spacedata.first);
+  PointerRNA ptr;
 
-  PointerRNA ptr = layout.op("SCREEN_OT_area_split",
-                             IFACE_("Horizontal Split"),
-                             ICON_SPLIT_HORIZONTAL,
-                             blender::wm::OpCallContext::ExecDefault,
-                             UI_ITEM_NONE);
+  struct editor {
+    SpaceLink *sl;
+    std::string name;
+  };
+
+  blender::Vector<editor> editors;
+  LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+    const int index = RNA_enum_from_value(rna_enum_space_type_items, sl->spacetype);
+    const EnumPropertyItem item = rna_enum_space_type_items[index];
+    editors.append({sl, IFACE_(item.name)});
+  }
+
+  std::sort(editors.begin(), editors.end(), [](const editor &a, const editor &b) {
+    return a.name < b.name;
+  });
+
+  for (editor ed : editors) {
+    ptr = layout.op("SCREEN_OT_space_type_set_or_cycle",
+                    ed.name,
+                    current_sl.spacetype == ed.sl->spacetype ? ICON_DOT : ICON_NONE);
+    RNA_enum_set(&ptr, "space_type", ed.sl->spacetype);
+  }
+
+  LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+    int space_type = sl->spacetype;
+    const int index = RNA_enum_from_value(rna_enum_space_type_items, space_type);
+    const EnumPropertyItem item = rna_enum_space_type_items[index];
+  }
+
+  layout.separator();
+
+  layout.op("SCREEN_OT_area_tab_toggle",
+            IFACE_("Favorite"),
+            current_sl.is_tab ? ICON_SOLO_ON : ICON_SOLO_OFF);
+  layout.op("SCREEN_OT_area_tab_add_all", IFACE_("Favorite All"), ICON_NONE);
+  layout.op("SCREEN_OT_area_tab_remove_all", IFACE_("Clear All Favorites"), ICON_NONE);
+
+  layout.separator();
+
+  ptr = layout.op("SCREEN_OT_area_space_cycle", IFACE_("Back"), ICON_PLAY_REVERSE);
+  RNA_enum_set(&ptr, "direction", 0);
+
+  ptr = layout.op("SCREEN_OT_area_space_cycle", IFACE_("Forward"), ICON_PLAY);
+  RNA_enum_set(&ptr, "direction", 1);
+
+  layout.separator();
+
+  ptr = layout.op("SCREEN_OT_area_split",
+                  IFACE_("Horizontal Split"),
+                  ICON_SPLIT_HORIZONTAL,
+                  blender::wm::OpCallContext::ExecDefault,
+                  UI_ITEM_NONE);
   RNA_enum_set(&ptr, "direction", SCREEN_AXIS_H);
   RNA_float_set(&ptr, "factor", 0.49999f);
   blender::int2 pos = {area->totrct.xmin + area->winx / 2, area->totrct.ymin + area->winy / 2};
@@ -4801,8 +4850,6 @@ static void screen_area_touch_menu_create(bContext *C, ScrArea *area)
   RNA_enum_set(&ptr, "direction", SCREEN_AXIS_V);
   RNA_float_set(&ptr, "factor", 0.49999f);
   RNA_int_set_array(&ptr, "cursor", pos);
-
-  layout.separator();
 
   layout.op("SCREEN_OT_area_join", IFACE_("Move/Join/Dock Area"), ICON_AREA_DOCK);
 
@@ -7045,6 +7092,158 @@ static void SCREEN_OT_space_type_set_or_cycle(wmOperatorType *ot)
 }
 
 /** \} */
+/* -------------------------------------------------------------------- */
+/** \name Area Space Cycle
+ * \{ */
+
+static const EnumPropertyItem area_space_cycle_direction[] = {
+    {0, "BACK", 0, "Back", ""},
+    {1, "FORWARD", 0, "Forward", ""},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
+static bool area_space_cycle_poll(bContext *C)
+{
+  ScrArea *area = CTX_wm_area(C);
+  return (area && !ELEM(area->spacetype, SPACE_TOPBAR, SPACE_STATUSBAR) &&
+          BLI_listbase_count_at_most(&area->spacedata, 2) > 1);
+}
+
+static wmOperatorStatus area_space_cycle_exec(bContext *C, wmOperator *op)
+{
+  const eScreenCycle direction = eScreenCycle(RNA_enum_get(op->ptr, "direction"));
+  ScrArea *area = CTX_wm_area(C);
+  wmWindow *win = CTX_wm_window(C);
+  SpaceLink *slold = static_cast<SpaceLink *>(area->spacedata.first);
+  SpaceLink *slnew;
+  /* XXX: No attempt to deal with header alignment. */
+  bool skip_region_exit = true;
+  void (*area_exit)(wmWindowManager *, ScrArea *) = area->type ? area->type->exit : nullptr;
+  if (skip_region_exit && area->type) {
+    area->type->exit = nullptr;
+  }
+  ED_area_exit(C, area);
+  if (skip_region_exit && area->type) {
+    area->type->exit = area_exit;
+  }
+  if (direction == SPACE_CONTEXT_CYCLE_PREV) {
+    BLI_remlink(&area->spacedata, slold);
+    BLI_addtail(&area->spacedata, slold);
+    slnew = static_cast<SpaceLink *>(area->spacedata.first);
+  }
+  else {
+    slnew = static_cast<SpaceLink *>(area->spacedata.last);
+    BLI_remlink(&area->spacedata, slnew);
+    BLI_addhead(&area->spacedata, slnew);
+  }
+  area->spacetype = slnew->spacetype;
+  /* swap regions */
+  slold->regionbase = area->regionbase;
+  area->regionbase = slnew->regionbase;
+  BLI_listbase_clear(&slnew->regionbase);
+  /* SPACE_FLAG_TYPE_WAS_ACTIVE is only used to go back to a previously active space that is
+   * overlapped by temporary ones. It's now properly activated, so the flag should be cleared
+   * at this point. */
+  slnew->link_flag &= ~SPACE_FLAG_TYPE_WAS_ACTIVE;
+  ED_area_init(C, win, area);
+  /* tell WM to refresh, cursor types etc */
+  WM_event_add_mousemove(win);
+  /* send space change notifier */
+  WM_event_add_notifier(C, NC_SPACE | ND_SPACE_CHANGED, area);
+  ED_area_tag_refresh(area);
+  ED_area_tag_redraw(area);
+  return OPERATOR_FINISHED;
+}
+
+static void SCREEN_OT_area_space_cycle(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Cycle Area Editors";
+  ot->description = "Cycle through an area's editors";
+  ot->idname = "SCREEN_OT_area_space_cycle";
+  /* api callbacks */
+  ot->exec = area_space_cycle_exec;
+  ot->poll = area_space_cycle_poll;
+  ot->flag = 0;
+  RNA_def_enum(ot->srna,
+               "direction",
+               area_space_cycle_direction,
+               0,
+               "Direction",
+               "Direction to cycle through");
+}
+
+/** \} */
+/* -------------------------------------------------------------------- */
+/** \name Area Tabs
+ * \{ */
+
+static wmOperatorStatus area_tab_toggle_exec(bContext *C, wmOperator *op)
+{
+  ScrArea *area = CTX_wm_area(C);
+  SpaceLink *sl = static_cast<SpaceLink *>(area->spacedata.first);
+  sl->is_tab = ~sl->is_tab;
+  ED_area_tag_refresh(area);
+  ED_area_tag_redraw(area);
+  return OPERATOR_FINISHED;
+}
+
+static void SCREEN_OT_area_tab_toggle(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Toggle Area Tab";
+  ot->description = "Toggle a tab in the area";
+  ot->idname = "SCREEN_OT_area_tab_toggle";
+  /* api callbacks */
+  ot->exec = area_tab_toggle_exec;
+  ot->flag = 0;
+}
+
+static wmOperatorStatus area_tab_add_all_exec(bContext *C, wmOperator *op)
+{
+  ScrArea *area = CTX_wm_area(C);
+  LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+    sl->is_tab = 1;
+  }
+  ED_area_tag_refresh(area);
+  ED_area_tag_redraw(area);
+  return OPERATOR_FINISHED;
+}
+
+static void SCREEN_OT_area_tab_add_all(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Add All Tabs";
+  ot->description = "Create tabs from all area editors";
+  ot->idname = "SCREEN_OT_area_tab_add_all";
+  /* api callbacks */
+  ot->exec = area_tab_add_all_exec;
+  ot->flag = 0;
+}
+
+static wmOperatorStatus area_tab_remove_all_exec(bContext *C, wmOperator *op)
+{
+  ScrArea *area = CTX_wm_area(C);
+  LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+    sl->is_tab = 0;
+  }
+  ED_area_tag_refresh(area);
+  ED_area_tag_redraw(area);
+  return OPERATOR_FINISHED;
+}
+
+static void SCREEN_OT_area_tab_remove_all(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Remove All Tabs";
+  ot->description = "Remove all tabs from this area";
+  ot->idname = "SCREEN_OT_area_tab_remove_all";
+  /* api callbacks */
+  ot->exec = area_tab_remove_all_exec;
+  ot->flag = 0;
+}
+
+/** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Space Context Cycle Operator
@@ -7239,6 +7438,10 @@ void ED_operatortypes_screen()
   WM_operatortype_append(SCREEN_OT_space_type_set_or_cycle);
   WM_operatortype_append(SCREEN_OT_space_context_cycle);
   WM_operatortype_append(SCREEN_OT_workspace_cycle);
+  WM_operatortype_append(SCREEN_OT_area_space_cycle);
+  WM_operatortype_append(SCREEN_OT_area_tab_toggle);
+  WM_operatortype_append(SCREEN_OT_area_tab_add_all);
+  WM_operatortype_append(SCREEN_OT_area_tab_remove_all);
 
   /* Frame changes. */
   WM_operatortype_append(SCREEN_OT_frame_offset);
