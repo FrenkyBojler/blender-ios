@@ -2,12 +2,12 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#pragma once
+
 /** \file
  * \ingroup bli
  * \brief A KD-tree for nearest neighbor search.
  */
-
-#pragma once
 
 #include "MEM_guardedalloc.h"
 

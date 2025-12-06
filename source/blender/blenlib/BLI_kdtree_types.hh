@@ -1,47 +1,43 @@
-/* SPDX-FileCopyrightText: 2023 Blender Authors
+/* SPDX-FileCopyrightText: 2025 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
+
+#pragma once
 
 /** \file
  * \ingroup bli
  * \brief A KD-tree for nearest neighbor search.
  */
 
-#pragma once
-
 #include <cstdint>
 
 namespace blender {
 
-template<int DimsNum>
-struct KDTreeNode_head {
+template<int DimsNum> struct KDTreeNode_head {
   uint32_t left, right;
   float co[DimsNum];
   int index;
 };
 
-template<int DimsNum>
-struct KDTreeNode {
+template<int DimsNum> struct KDTreeNode {
   uint32_t left, right;
   float co[DimsNum];
   int index;
   uint d; /* range is only (0..DimsNum - 1) */
 };
 
-template<int DimsNum>
-struct KDTree {
+template<int DimsNum> struct KDTree {
   KDTreeNode<DimsNum> *nodes;
   uint32_t nodes_len;
   uint32_t root;
   int max_node_index;
 #ifndef NDEBUG
-  bool is_balanced;        /* ensure we call balance first */
+  bool is_balanced;            /* ensure we call balance first */
   uint32_t nodes_len_capacity; /* max size of the tree */
 #endif
 };
 
-template<int DimsNum>
-struct KDTreeNearest {
+template<int DimsNum> struct KDTreeNearest {
   int index;
   float dist;
   float co[DimsNum];
