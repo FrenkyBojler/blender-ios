@@ -11,6 +11,9 @@
 
 FileReader *BLO_file_reader_uncompressed_from_descriptor(int filedes)
 {
+  if (FileReader *mmap_reader = BLI_filereader_new_mmap(filedes)) {
+    return BLO_file_reader_uncompressed(mmap_reader);
+  }
   return BLO_file_reader_uncompressed(BLI_filereader_new_file(filedes));
 }
 
