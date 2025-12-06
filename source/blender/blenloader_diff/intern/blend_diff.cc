@@ -16,7 +16,9 @@
 #include "BLI_vector_set.hh"
 #include "BLO_core_blend_header.hh"
 #include "BLO_core_file_reader.hh"
+
 #include "DNA_genfile.h"
+#include "DNA_node_types.h"
 #include "DNA_sdna_types.h"
 
 namespace blender::rich_sdna {
@@ -312,8 +314,32 @@ using rich_sdna::Type;
 struct DiffOptions {
   ResourceScope scope_;
   bool ignore_pad = true;
-  Set<std::pair<StringRef, StringRef>> members_to_ignore_set;
+
+  struct MemberName {
+    StringRef type_name;
+    StringRef member_identifier;
+
+    MemberName(const StringRef type_name, const StringRef member_name)
+        : type_name(type_name), member_identifier(member_name)
+    {
+    }
+
+    MemberName(const StructMember &member)
+        : type_name(member.parent->type->name), member_identifier(member.identifier)
+    {
+    }
+
+    uint64_t hash() const
+    {
+      return get_default_hash(this->type_name, this->member_identifier);
+    }
+
+    BLI_STRUCT_EQUALITY_OPERATORS_2(MemberName, type_name, member_identifier)
+  };
+
+  Set<MemberName> members_to_ignore_set;
   Set<std::string> id_types_to_ignore;
+  Map<MemberName, uint64_t> ignored_flags;
 
   void add_member_to_ignore(const StringRef type_name, const StringRef member_name)
   {
@@ -332,7 +358,7 @@ struct DiffOptions {
   void add_next_prev_ignore_types(const Span<StringRef> type_names)
   {
     for (const StringRef type_name : type_names) {
-      this->add_members_to_ignore(type_name, {"next", "prev"});
+      this->add_members_to_ignore(type_name, {"*next", "*prev"});
     }
   }
 
@@ -343,6 +369,13 @@ struct DiffOptions {
     }
   }
 
+  void add_ignored_flags(const StringRef type_name,
+                         const StringRef member_name,
+                         const uint64_t flag)
+  {
+    this->ignored_flags.add({type_name, member_name}, flag);
+  }
+
   bool ignore_member(const StructMember &member) const
   {
     if (this->ignore_pad) {
@@ -350,7 +383,7 @@ struct DiffOptions {
         return true;
       }
     }
-    if (this->members_to_ignore_set.contains({member.parent->type->name, member.name_only})) {
+    if (this->members_to_ignore_set.contains(member)) {
       return true;
     }
     return false;
@@ -359,6 +392,11 @@ struct DiffOptions {
   bool ignore_id_type(const StringRef type_name) const
   {
     return this->id_types_to_ignore.contains(type_name);
+  }
+
+  uint64_t lookup_ignored_flags(const StructMember &member) const
+  {
+    return this->ignored_flags.lookup_default(member, 0);
   }
 };
 
@@ -779,6 +817,18 @@ class IdDiffer {
               primitive_type, old_block.data + old_member_offset + i * old_member.elem_size);
           const PrimitiveValue new_value = read_primitive_value_at_address(
               primitive_type, new_block.data + new_member_offset + i * new_member.elem_size);
+
+          const uint64_t ignored_flags = options_.lookup_ignored_flags(new_member);
+          if (ignored_flags != 0) {
+            const uint64_t old_flags = std::visit([](const auto &v) { return uint64_t(v); },
+                                                  old_value);
+            const uint64_t new_flags = std::visit([](const auto &v) { return uint64_t(v); },
+                                                  new_value);
+            if ((old_flags & ~ignored_flags) == (new_flags & ~ignored_flags)) {
+              continue;
+            }
+          }
+
           if (old_value == new_value) {
             continue;
           }
@@ -892,7 +942,7 @@ class IdDiffer {
     for (const int64_t i : old_pointees.index_range()) {
       const BlendBlock &old_pointee = *old_pointees[i];
       const std::string identifier = get_block_identifier(old_, old_pointee, i);
-      if (old_pointee_map.contains(identifier)) {
+      if (new_pointee_map.contains(identifier)) {
         continue;
       }
       const std::string user_identifier = get_block_identifier(old_, old_pointee, i, true);
@@ -1493,10 +1543,15 @@ static int main_do(const int argc, char *argv[])
   options.add_members_to_ignore(
       "bNode", {"locx", "locy", "width", "height", "ui_order", "location", "type"});
   options.add_members_to_ignore("bNodeTree", {"view_center"});
-  options.add_members_to_ignore("bNodeSocket", {"link"});
+  options.add_members_to_ignore("bNodeSocket", {"*link"});
   options.add_members_to_ignore("ID", {"session_uid", "recalc_up_to_undo_push"});
   options.add_members_to_ignore("CustomData", {"typemap"});
+  options.add_members_to_ignore("bNodeTreeInterface", {"active_index"});
+  options.add_members_to_ignore("CurveProfile", {"changed_timestamp"});
   options.add_next_prev_ignore_types({"bNode", "bNodeLink"});
+  options.add_ignored_flags("bNode", "flag", NODE_SELECT | NODE_OPTIONS | NODE_ACTIVE);
+  options.add_ignored_flags(
+      "bNodeSocket", "flag", SELECT | SOCK_HIDDEN | SOCK_IS_LINKED | SOCK_COLLAPSED);
   options.add_id_types_to_ignore({"wmWindowManager", "Screen", "WorkSpace"});
 
   DiffWriter writer(relative_path);
