@@ -720,12 +720,81 @@ static bool do_lasso_select_pose(const ViewContext *vc,
   return changed_multi;
 }
 
+/** \name Mesh Select: Off-screen Element Handling for SEL_OP_AND
+ *
+ * In X-ray mode, mesh_foreachScreen* only visits on-screen elements.
+ * For SEL_OP_AND (intersect), off-screen selected elements must be deselected.
+ * These helpers tag selected elements before iteration and deselect any
+ * still-tagged (off-screen) elements afterward.
+ * \{ */
+
+static void mesh_select_tag_for_deselect_outside(BMesh *bm, const ToolSettings *ts)
+{
+  BMIter iter;
+  if (ts->selectmode & SCE_SELECT_VERTEX) {
+    BMVert *v;
+    BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
+      BM_elem_flag_set(v, BM_ELEM_TAG, BM_elem_flag_test(v, BM_ELEM_SELECT) != 0);
+    }
+  }
+  if (ts->selectmode & SCE_SELECT_EDGE) {
+    BMEdge *e;
+    BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
+      BM_elem_flag_set(e, BM_ELEM_TAG, BM_elem_flag_test(e, BM_ELEM_SELECT) != 0);
+    }
+  }
+  if (ts->selectmode & SCE_SELECT_FACE) {
+    BMFace *f;
+    BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
+      BM_elem_flag_set(f, BM_ELEM_TAG, BM_elem_flag_test(f, BM_ELEM_SELECT) != 0);
+    }
+  }
+}
+
+static bool mesh_select_deselect_tagged_outside(BMesh *bm, const ToolSettings *ts)
+{
+  bool changed = false;
+  BMIter iter;
+  if (ts->selectmode & SCE_SELECT_VERTEX) {
+    BMVert *v;
+    BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
+      if (BM_elem_flag_test(v, BM_ELEM_TAG) && BM_elem_flag_test(v, BM_ELEM_SELECT)) {
+        BM_vert_select_set(bm, v, false);
+        changed = true;
+      }
+    }
+  }
+  if (ts->selectmode & SCE_SELECT_EDGE) {
+    BMEdge *e;
+    BM_ITER_MESH (e, &iter, bm, BM_EDGES_OF_MESH) {
+      if (BM_elem_flag_test(e, BM_ELEM_TAG) && BM_elem_flag_test(e, BM_ELEM_SELECT)) {
+        BM_edge_select_set(bm, e, false);
+        changed = true;
+      }
+    }
+  }
+  if (ts->selectmode & SCE_SELECT_FACE) {
+    BMFace *f;
+    BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
+      if (BM_elem_flag_test(f, BM_ELEM_TAG) && BM_elem_flag_test(f, BM_ELEM_SELECT)) {
+        BM_face_select_set(bm, f, false);
+        changed = true;
+      }
+    }
+  }
+  return changed;
+}
+
+/** \} */
+
 static void do_lasso_select_mesh__doSelectVert(void *user_data,
                                                BMVert *eve,
                                                const float screen_co[2],
                                                int /*index*/)
 {
   LassoSelectUserData *data = static_cast<LassoSelectUserData *>(user_data);
+  /* Clear tag to mark this element as visited (for off-screen handling). */
+  BM_elem_flag_disable(eve, BM_ELEM_TAG);
   const bool is_select = BM_elem_flag_test(eve, BM_ELEM_SELECT);
   const bool is_inside = (BLI_rctf_isect_pt_v(data->rect_fl, screen_co) &&
                           BLI_lasso_is_point_inside(
@@ -754,6 +823,8 @@ static void do_lasso_select_mesh__doSelectEdge_pass0(void *user_data,
   LassoSelectUserData_ForMeshEdge *data_for_edge = static_cast<LassoSelectUserData_ForMeshEdge *>(
       user_data);
   LassoSelectUserData *data = data_for_edge->data;
+  /* Clear tag to mark this element as visited (for off-screen handling). */
+  BM_elem_flag_disable(eed, BM_ELEM_TAG);
   bool is_visible = true;
   if (data_for_edge->backbuf_offset) {
     uint bitmap_inedx = data_for_edge->backbuf_offset + index - 1;
@@ -785,6 +856,8 @@ static void do_lasso_select_mesh__doSelectEdge_pass1(void *user_data,
   LassoSelectUserData_ForMeshEdge *data_for_edge = static_cast<LassoSelectUserData_ForMeshEdge *>(
       user_data);
   LassoSelectUserData *data = data_for_edge->data;
+  /* Clear tag to mark this element as visited (for off-screen handling). */
+  BM_elem_flag_disable(eed, BM_ELEM_TAG);
   bool is_visible = true;
   if (data_for_edge->backbuf_offset) {
     uint bitmap_inedx = data_for_edge->backbuf_offset + index - 1;
@@ -813,6 +886,8 @@ static void do_lasso_select_mesh__doSelectFace(void *user_data,
                                                int /*index*/)
 {
   LassoSelectUserData *data = static_cast<LassoSelectUserData *>(user_data);
+  /* Clear tag to mark this element as visited (for off-screen handling). */
+  BM_elem_flag_disable(efa, BM_ELEM_TAG);
   const bool is_select = BM_elem_flag_test(efa, BM_ELEM_SELECT);
   const bool is_inside = (BLI_rctf_isect_pt_v(data->rect_fl, screen_co) &&
                           BLI_lasso_is_point_inside(
@@ -871,6 +946,12 @@ static bool do_lasso_select_mesh(const ViewContext *vc,
     }
   }
 
+  /* For SEL_OP_AND in X-ray mode, tag selected elements to track off-screen ones. */
+  const bool use_outside = !use_zbuf && SEL_OP_USE_OUTSIDE(sel_op);
+  if (use_outside) {
+    mesh_select_tag_for_deselect_outside(vc->em->bm, ts);
+  }
+
   if (ts->selectmode & SCE_SELECT_VERTEX) {
     if (use_zbuf) {
       data.is_changed |= edbm_backbuf_check_and_select_verts(
@@ -914,6 +995,11 @@ static bool do_lasso_select_mesh(const ViewContext *vc,
       mesh_foreachScreenFace(
           vc, do_lasso_select_mesh__doSelectFace, &data, V3D_PROJ_TEST_CLIP_DEFAULT);
     }
+  }
+
+  /* For SEL_OP_AND: deselect off-screen elements (those still tagged). */
+  if (use_outside) {
+    data.is_changed |= mesh_select_deselect_tagged_outside(vc->em->bm, ts);
   }
 
   if (data.is_changed) {
@@ -3986,6 +4072,8 @@ static void do_mesh_box_select__doSelectVert(void *user_data,
                                              int /*index*/)
 {
   BoxSelectUserData *data = static_cast<BoxSelectUserData *>(user_data);
+  /* Clear tag to mark this element as visited (for off-screen handling). */
+  BM_elem_flag_disable(eve, BM_ELEM_TAG);
   const bool is_select = BM_elem_flag_test(eve, BM_ELEM_SELECT);
   const bool is_inside = BLI_rctf_isect_pt_v(data->rect_fl, screen_co);
   const int sel_op_result = ED_select_op_action_deselected(data->sel_op, is_select, is_inside);
@@ -4015,6 +4103,8 @@ static void do_mesh_box_select__doSelectEdge_pass0(void *user_data,
   BoxSelectUserData_ForMeshEdge *data_for_edge = static_cast<BoxSelectUserData_ForMeshEdge *>(
       user_data);
   BoxSelectUserData *data = data_for_edge->data;
+  /* Clear tag to mark this element as visited (for off-screen handling). */
+  BM_elem_flag_disable(eed, BM_ELEM_TAG);
   bool is_visible = true;
   if (data_for_edge->backbuf_offset) {
     uint bitmap_inedx = data_for_edge->backbuf_offset + index - 1;
@@ -4047,6 +4137,8 @@ static void do_mesh_box_select__doSelectEdge_pass1(void *user_data,
   BoxSelectUserData_ForMeshEdge *data_for_edge = static_cast<BoxSelectUserData_ForMeshEdge *>(
       user_data);
   BoxSelectUserData *data = data_for_edge->data;
+  /* Clear tag to mark this element as visited (for off-screen handling). */
+  BM_elem_flag_disable(eed, BM_ELEM_TAG);
   bool is_visible = true;
   if (data_for_edge->backbuf_offset) {
     uint bitmap_inedx = data_for_edge->backbuf_offset + index - 1;
@@ -4071,6 +4163,8 @@ static void do_mesh_box_select__doSelectFace(void *user_data,
                                              int /*index*/)
 {
   BoxSelectUserData *data = static_cast<BoxSelectUserData *>(user_data);
+  /* Clear tag to mark this element as visited (for off-screen handling). */
+  BM_elem_flag_disable(efa, BM_ELEM_TAG);
   const bool is_select = BM_elem_flag_test(efa, BM_ELEM_SELECT);
   const bool is_inside = BLI_rctf_isect_pt_v(data->rect_fl, screen_co);
   const int sel_op_result = ED_select_op_action_deselected(data->sel_op, is_select, is_inside);
@@ -4121,6 +4215,12 @@ static bool do_mesh_box_select(const ViewContext *vc,
     }
   }
 
+  /* For SEL_OP_AND in X-ray mode, tag selected elements to track off-screen ones. */
+  const bool use_outside = !use_zbuf && SEL_OP_USE_OUTSIDE(sel_op);
+  if (use_outside) {
+    mesh_select_tag_for_deselect_outside(vc->em->bm, ts);
+  }
+
   if (ts->selectmode & SCE_SELECT_VERTEX) {
     if (use_zbuf) {
       data.is_changed |= edbm_backbuf_check_and_select_verts(
@@ -4164,6 +4264,11 @@ static bool do_mesh_box_select(const ViewContext *vc,
       mesh_foreachScreenFace(
           vc, do_mesh_box_select__doSelectFace, &data, V3D_PROJ_TEST_CLIP_DEFAULT);
     }
+  }
+
+  /* For SEL_OP_AND: deselect off-screen elements (those still tagged). */
+  if (use_outside) {
+    data.is_changed |= mesh_select_deselect_tagged_outside(vc->em->bm, ts);
   }
 
   if (data.is_changed) {
