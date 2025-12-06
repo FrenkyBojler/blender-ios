@@ -49,6 +49,7 @@ class StructMember {
   const Type *type;
 
   bool is_char_array() const;
+  bool is_single_pointer() const;
   std::string to_decl_string() const;
 };
 
@@ -282,6 +283,11 @@ bool StructMember::is_char_array() const
     return false;
   }
   return true;
+}
+
+bool StructMember::is_single_pointer() const
+{
+  return this->category == StructMember::Category::Pointer && this->elem_num == 1;
 }
 
 std::string StructMember::to_decl_string() const
@@ -588,10 +594,10 @@ class IdDiffer {
                               fmt::format("typeof({}) = {}", context, new_struct.type->name));
       return;
     }
-    // if (type_name == "ListBase") {
-    //   this->diff_listbase();
-    //   return;
-    // }
+    if (type_name == "ListBase") {
+      this->diff_listbase(old_block, new_block, old_struct_offset, new_struct_offset, context);
+      return;
+    }
 
     for (const StructMember *old_member : old_struct.members) {
       const StructMember *new_member = new_struct.members.lookup_key_default_as(
@@ -702,7 +708,127 @@ class IdDiffer {
     }
   }
 
-  void diff_listbase() {}
+  void diff_listbase(const BlendBlock &old_block,
+                     const BlendBlock &new_block,
+                     const int old_struct_offset,
+                     const int new_struct_offset,
+                     const StringRef context)
+  {
+    const uint64_t old_first_address = *reinterpret_cast<const uint64_t *>(old_block.data +
+                                                                           old_struct_offset);
+    const uint64_t new_first_address = *reinterpret_cast<const uint64_t *>(new_block.data +
+                                                                           new_struct_offset);
+
+    const Vector<const BlendBlock *> old_pointees = this->gather_linked_list_pointees(
+        old_first_address, old_);
+    const Vector<const BlendBlock *> new_pointees = this->gather_linked_list_pointees(
+        new_first_address, new_);
+
+    if (old_pointees.size() != new_pointees.size()) {
+      writer_.writeln_changed(fmt::format("len({}) = {}", context, old_pointees.size()),
+                              fmt::format("len({}) = {}", context, new_pointees.size()));
+    }
+
+    auto get_block_identifier = [&](const BlendBlock &block,
+                                    const Struct &sdna_struct,
+                                    const int64_t index) -> std::string {
+      std::optional<std::string> identifier = this->get_block_user_identifier(block, sdna_struct);
+      if (identifier) {
+        return std::move(*identifier);
+      }
+      return fmt::format("idx:{}", index);
+    };
+
+    auto get_block_user_identifier = [&](const BlendBlock &block,
+                                         const Struct &sdna_struct,
+                                         const int64_t index) -> std::string {
+      return this->get_persistent_block_identifier(block, sdna_struct)
+          .value_or(std::to_string(index));
+    };
+
+    Map<std::string, const BlendBlock *> old_pointee_map;
+    for (const int64_t i : old_pointees.index_range()) {
+      const BlendBlock &old_pointee = *old_pointees[i];
+      const Struct &old_sdna_struct = *old_.sdna.try_find_struct(old_pointee.bhead.SDNAnr);
+      const std::string identifier = get_block_identifier(old_pointee, old_sdna_struct, i);
+      if (!old_pointee_map.add(identifier, &old_pointee)) {
+        const std::string user_identifier = get_block_user_identifier(
+            old_pointee, old_sdna_struct, i);
+        writer_.writeln_unchanged(fmt::format(
+            "Duplicate in ListBase: {}: {} ({})", context, identifier, user_identifier));
+      }
+    }
+
+    Map<std::string, const BlendBlock *> new_pointee_map;
+    for (const int64_t i : new_pointees.index_range()) {
+      const BlendBlock &new_pointee = *new_pointees[i];
+      const Struct &new_sdna_struct = *new_.sdna.try_find_struct(new_pointee.bhead.SDNAnr);
+      const std::string identifier = get_block_identifier(new_pointee, new_sdna_struct, i);
+      const std::string user_identifier = get_block_user_identifier(
+          new_pointee, new_sdna_struct, i);
+      if (!new_pointee_map.add(identifier, &new_pointee)) {
+        writer_.writeln_unchanged(fmt::format(
+            "Duplicate in ListBase: {}: {} ({})", context, identifier, user_identifier));
+      }
+      if (const BlendBlock *old_pointee = old_pointee_map.lookup_default(identifier, nullptr)) {
+        this->tag_potentially_corresponding_blocks(
+            *old_pointee, new_pointee, fmt::format("{}[{}]", context, user_identifier));
+      }
+      else {
+        writer_.writeln_added(fmt::format(
+            "{}[{}] = {}", context, user_identifier, this->pointee_to_string(new_, &new_pointee)));
+      }
+    }
+
+    for (const int64_t i : old_pointees.index_range()) {
+      const BlendBlock &old_pointee = *old_pointees[i];
+      const Struct &old_sdna_struct = *old_.sdna.try_find_struct(old_pointee.bhead.SDNAnr);
+      const std::string identifier = get_block_identifier(old_pointee, old_sdna_struct, i);
+      if (old_pointee_map.contains(identifier)) {
+        continue;
+      }
+      const std::string user_identifier = get_block_user_identifier(
+          old_pointee, *old_.sdna.try_find_struct(old_pointee.bhead.SDNAnr), i);
+      writer_.writeln_removed(fmt::format(
+          "{}[{}] = {}", context, user_identifier, this->pointee_to_string(old_, &old_pointee)));
+    }
+  }
+
+  Vector<const BlendBlock *> gather_linked_list_pointees(const uint64_t first_address,
+                                                         const PerBlendData &blend_data)
+  {
+    Vector<const BlendBlock *> pointees;
+    uint64_t next_address = first_address;
+    while (
+        const BlendBlock *block = blend_data.addresses.map.lookup_default(next_address, nullptr))
+    {
+      const Struct *sdna_struct = blend_data.sdna.try_find_struct(block->bhead.SDNAnr);
+      if (!sdna_struct) {
+        return {};
+      }
+      if (!this->struct_starts_with_pointer(*sdna_struct)) {
+        return {};
+      }
+      pointees.append(block);
+      next_address = *reinterpret_cast<const uint64_t *>(block->data);
+    }
+    return pointees;
+  }
+
+  bool struct_starts_with_pointer(const Struct &sdna_struct) const
+  {
+    if (sdna_struct.members.is_empty()) {
+      return false;
+    }
+    const StructMember &first_member = *sdna_struct.members[0];
+    if (first_member.category == StructMember::Category::Pointer) {
+      return true;
+    }
+    if (first_member.category == StructMember::Category::Struct) {
+      return this->struct_starts_with_pointer(*first_member.type->opt_struct);
+    }
+    return false;
+  }
 
   Pointee lookup_pointee(const PerBlendData &blend_data, const uint64_t address) const
   {
@@ -775,55 +901,44 @@ class IdDiffer {
     if (!old_struct || !new_struct) {
       return std::nullopt;
     }
-    if (old_struct->type->name == "bNode" && new_struct->type->name == "bNode") {
-      return this->get_bNode_identifier(old_block, old_.sdna) ==
-             this->get_bNode_identifier(new_block, new_.sdna);
+    const std::optional<std::string> old_identifier = this->get_persistent_block_identifier(
+        old_block, *old_struct);
+    const std::optional<std::string> new_identifier = this->get_persistent_block_identifier(
+        new_block, *new_struct);
+    if (old_identifier && new_identifier) {
+      return *old_identifier == *new_identifier;
     }
-
+    if (old_identifier.has_value() != new_identifier.has_value()) {
+      return false;
+    }
     return std::nullopt;
   }
 
-  std::optional<int> get_bNode_identifier(const BlendBlock &block, const RichSDNA &sdna)
+  std::optional<std::string> get_persistent_block_identifier(const BlendBlock &block,
+                                                             const Struct &sdna_struct)
   {
-    const Struct *sdna_struct = sdna.try_find_struct(block.bhead.SDNAnr);
-    if (!sdna_struct) {
-      return std::nullopt;
+    if (sdna_struct.type->name == "bNode") {
+      const StructMember *identifier_member = sdna_struct.members.lookup_key_default_as(
+          "identifier", nullptr);
+      if (!identifier_member) {
+        return std::nullopt;
+      }
+      if (identifier_member->type->opt_primitive_type != SDNA_TYPE_INT) {
+        return std::nullopt;
+      }
+      const int identifier = *reinterpret_cast<const int *>(block.data +
+                                                            identifier_member->offset_in_struct);
+      return fmt::format("id:{}", identifier);
     }
-    if (sdna_struct->type->name != "bNode") {
-      return std::nullopt;
-    }
-    const StructMember *identifier_member = sdna_struct->members.lookup_key_default_as(
-        "identifier", nullptr);
-    if (!identifier_member) {
-      return std::nullopt;
-    }
-    if (identifier_member->type->opt_primitive_type != SDNA_TYPE_INT) {
-      return std::nullopt;
-    }
-    return *reinterpret_cast<const int *>(block.data + identifier_member->offset_in_struct);
+    return std::nullopt;
+  }
+
+  std::optional<std::string> get_block_user_identifier(const BlendBlock &block,
+                                                       const Struct &sdna_struct)
+  {
+    return this->get_persistent_block_identifier(block, sdna_struct);
   }
 };
-
-static Vector<const BlendBlock *> gather_linked_list_pointees(const uint64_t first_address,
-                                                              const AddressMap &address_map,
-                                                              const RichSDNA &sdna)
-{
-  Vector<const BlendBlock *> pointees;
-  uint64_t next_address = first_address;
-  while (const BlendBlock *block = address_map.map.lookup_default(next_address, nullptr)) {
-    pointees.append(block);
-    const Struct *sdna_struct = sdna.try_find_struct(block->bhead.SDNAnr);
-    if (!sdna_struct) {
-      break;
-    }
-    // TODO: Actually check that the first (nested) member is a pointer.
-    if (sdna_struct->type->size_in_bytes < 8) {
-      break;
-    }
-    next_address = *reinterpret_cast<const uint64_t *>(block->data);
-  }
-  return pointees;
-}
 
 static void write_diff_ids(DiffWriter &writer,
                            const Span<BlendIdData> id_blocks_old,
@@ -922,11 +1037,34 @@ static bool sdna_fullfills_core_assumptions(const RichSDNA &sdna)
   if (!id_struct) {
     return false;
   }
-  const StructMember *name_member = id_struct->members.lookup_key_default_as("name", nullptr);
-  if (!name_member) {
+  const StructMember *id_name_member = id_struct->members.lookup_key_default_as("name", nullptr);
+  if (!id_name_member) {
     return false;
   }
-  if (!name_member->is_char_array()) {
+  if (!id_name_member->is_char_array()) {
+    return false;
+  }
+  for (const Struct *sdna_struct : sdna.structs) {
+    for (const StructMember *sdna_member : sdna_struct->members) {
+      if (sdna_member->size_in_bytes <= 0) {
+        return false;
+      }
+      if (sdna_member->elem_num <= 0) {
+        return false;
+      }
+    }
+  }
+  const Struct *listbase_struct = sdna.try_find_struct("ListBase");
+  if (!listbase_struct) {
+    return false;
+  }
+  if (listbase_struct->members.size() != 2) {
+    return false;
+  }
+  if (!listbase_struct->members[0]->is_single_pointer()) {
+    return false;
+  }
+  if (!listbase_struct->members[1]->is_single_pointer()) {
     return false;
   }
   return true;
