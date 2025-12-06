@@ -4808,12 +4808,6 @@ static void screen_area_touch_menu_create(bContext *C, ScrArea *area)
     RNA_enum_set(&ptr, "space_type", ed.sl->spacetype);
   }
 
-  LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
-    int space_type = sl->spacetype;
-    const int index = RNA_enum_from_value(rna_enum_space_type_items, space_type);
-    const EnumPropertyItem item = rna_enum_space_type_items[index];
-  }
-
   layout.separator();
 
   layout.op("SCREEN_OT_area_tab_toggle",
@@ -7178,7 +7172,7 @@ static void SCREEN_OT_area_space_cycle(wmOperatorType *ot)
 /** \name Area Tabs
  * \{ */
 
-static wmOperatorStatus area_tab_toggle_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus area_tab_toggle_exec(bContext *C, wmOperator * /*op*/)
 {
   ScrArea *area = CTX_wm_area(C);
   SpaceLink *sl = static_cast<SpaceLink *>(area->spacedata.first);
@@ -7199,7 +7193,7 @@ static void SCREEN_OT_area_tab_toggle(wmOperatorType *ot)
   ot->flag = 0;
 }
 
-static wmOperatorStatus area_tab_add_all_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus area_tab_add_all_exec(bContext *C, wmOperator * /*op*/)
 {
   ScrArea *area = CTX_wm_area(C);
   LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
@@ -7221,7 +7215,7 @@ static void SCREEN_OT_area_tab_add_all(wmOperatorType *ot)
   ot->flag = 0;
 }
 
-static wmOperatorStatus area_tab_remove_all_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus area_tab_remove_all_exec(bContext *C, wmOperator * /*op*/)
 {
   ScrArea *area = CTX_wm_area(C);
   LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {

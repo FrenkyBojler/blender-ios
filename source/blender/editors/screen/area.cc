@@ -2925,7 +2925,7 @@ void ED_area_prevspace(bContext *C, ScrArea *area)
 static void change_tab_cb(bContext *C, void *arg1, void *arg2)
 {
   ScrArea *area = static_cast<ScrArea *>(arg1);
-  const int spacetype = int(arg2);
+  const int spacetype = POINTER_AS_INT(arg2);
   ED_area_newspace(C, area, spacetype, false);
 }
 
@@ -2967,7 +2967,7 @@ int ED_area_header_switchbutton(const bContext *C, blender::ui::Block *block, in
       blender::ui::GetThemeColor4ubv(TH_TEXT, color);
       color[3] = 160;
       button_color_set(add_but, color);
-      button_func_set(add_but, change_tab_cb, area, (void *)space_type);
+      button_func_set(add_but, change_tab_cb, area, POINTER_FROM_INT(space_type));
     }
   }
 
