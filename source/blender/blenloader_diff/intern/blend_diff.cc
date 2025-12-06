@@ -310,7 +310,38 @@ using rich_sdna::StructMember;
 using rich_sdna::Type;
 
 struct DiffOptions {
+  ResourceScope scope_;
   bool ignore_pad = true;
+  Set<std::pair<StringRef, StringRef>> members_to_ignore_set;
+  Set<std::string> id_types_to_ignore;
+
+  void add_member_to_ignore(const StringRef type_name, const StringRef member_name)
+  {
+    this->add_members_to_ignore(type_name, {member_name});
+  }
+
+  void add_members_to_ignore(const StringRef type_name, const Span<StringRef> member_names)
+  {
+    LinearAllocator<> &allocator = scope_.allocator();
+    for (const StringRef member_name : member_names) {
+      members_to_ignore_set.add(
+          {allocator.copy_string(type_name), allocator.copy_string(member_name)});
+    }
+  }
+
+  void add_next_prev_ignore_types(const Span<StringRef> type_names)
+  {
+    for (const StringRef type_name : type_names) {
+      this->add_members_to_ignore(type_name, {"next", "prev"});
+    }
+  }
+
+  void add_id_types_to_ignore(const Span<StringRef> type_names)
+  {
+    for (const StringRef type_name : type_names) {
+      this->id_types_to_ignore.add(type_name);
+    }
+  }
 
   bool ignore_member(const StructMember &member) const
   {
@@ -319,7 +350,15 @@ struct DiffOptions {
         return true;
       }
     }
+    if (this->members_to_ignore_set.contains({member.parent->type->name, member.name_only})) {
+      return true;
+    }
     return false;
+  }
+
+  bool ignore_id_type(const StringRef type_name) const
+  {
+    return this->id_types_to_ignore.contains(type_name);
   }
 };
 
@@ -698,7 +737,6 @@ class IdDiffer {
                           const StructMember &new_member,
                           const StringRef context)
   {
-    const StringRef member_name_only = old_member.name_only;
     const StringRef type_name = old_member.type->name;
     const StructMember::Category category = old_member.category;
     const int64_t elem_num = old_member.elem_num;
@@ -1063,6 +1101,9 @@ static void write_diff_ids(DiffWriter &writer,
   for (const std::pair<const BlendIdData *, const BlendIdData *> &id_pair : id_pairs) {
     const BlendIdData &old_id_data = *id_pair.first;
     const BlendIdData &new_id_data = *id_pair.second;
+    if (options.ignore_id_type(new_id_data.type_name)) {
+      continue;
+    }
     IdDiffer id_differ(writer,
                        options,
                        old_id_data,
@@ -1394,6 +1435,13 @@ static int main_do(const int argc, char *argv[])
 
   DiffOptions options;
   options.ignore_pad = true;
+  options.add_members_to_ignore(
+      "bNode", {"locx", "locy", "width", "height", "ui_order", "location", "type"});
+  options.add_members_to_ignore("bNodeTree", {"view_center"});
+  options.add_members_to_ignore("ID", {"session_uid", "recalc_up_to_undo_push"});
+  options.add_members_to_ignore("CustomData", {"typemap"});
+  options.add_next_prev_ignore_types({"bNode"});
+  options.add_id_types_to_ignore({"wmWindowManager", "Screen", "WorkSpace"});
 
   DiffWriter writer(relative_path);
   write_diff_sdna(writer, options, sdna_old, sdna_new);
