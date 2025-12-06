@@ -14,8 +14,10 @@
 #include "BLI_string_ref.hh"
 #include "BLI_string_utf8.h"
 #include "BLI_struct_equality_utils.hh"
+#include "BLI_task.hh"
 #include "BLI_vector.hh"
 #include "BLI_vector_set.hh"
+
 #include "BLO_core_blend_header.hh"
 #include "BLO_core_file_reader.hh"
 
@@ -2048,7 +2050,12 @@ static AllIdDiffLines write_diff_ids(const DiffOptions &options,
   for (const BlendIdData &old_id_data : id_blocks_old) {
     if (const BlendIdData *new_id_data = new_id_names.lookup_default_as(old_id_data.name, nullptr))
     {
-      id_pairs.append({&old_id_data, new_id_data});
+      if (options.ignore_id_type(new_id_data->type_name)) {
+        all_diffs.ignored_ids.info(fmt::format("Data Block ignored: \"{}\"", new_id_data->name));
+      }
+      else {
+        id_pairs.append({&old_id_data, new_id_data});
+      }
     }
     else {
       all_diffs.removed_ids.remove(fmt::format("Data-block: {}", old_id_data.name));
@@ -2060,25 +2067,25 @@ static AllIdDiffLines write_diff_ids(const DiffOptions &options,
     }
     all_diffs.added_ids.add(fmt::format("Data-block: {}", new_id_data.name));
   }
-  for (const std::pair<const BlendIdData *, const BlendIdData *> &id_pair : id_pairs) {
-    const BlendIdData &old_id_data = *id_pair.first;
-    const BlendIdData &new_id_data = *id_pair.second;
-    if (options.ignore_id_type(new_id_data.type_name)) {
-      all_diffs.ignored_ids.info(fmt::format("Data Block ignored: \"{}\"", new_id_data.name));
-      continue;
+  all_diffs.changed_ids.resize(id_pairs.size());
+  threading::parallel_for(id_pairs.index_range(), 1, [&](const IndexRange range) {
+    for (const int64_t i : range) {
+      const BlendIdData &old_id_data = *id_pairs[i].first;
+      const BlendIdData &new_id_data = *id_pairs[i].second;
+      DiffLines id_diff;
+      IdDiffer id_differ(id_diff,
+                         options,
+                         old_id_data,
+                         new_id_data,
+                         id_address_map_old,
+                         id_address_map_new,
+                         sdna_old,
+                         sdna_new);
+      id_differ.run();
+      all_diffs.changed_ids[i].first = new_id_data.name;
+      all_diffs.changed_ids[i].second = std::move(id_diff);
     }
-    DiffLines id_diff;
-    IdDiffer id_differ(id_diff,
-                       options,
-                       old_id_data,
-                       new_id_data,
-                       id_address_map_old,
-                       id_address_map_new,
-                       sdna_old,
-                       sdna_new);
-    id_differ.run();
-    all_diffs.changed_ids.append({new_id_data.name, std::move(id_diff)});
-  }
+  });
   return all_diffs;
 }
 
