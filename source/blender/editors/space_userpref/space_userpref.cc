@@ -245,11 +245,7 @@ static void userpref_search_all_tabs(const bContext *C,
     if (context_tabs_array[i] == -1) {
       continue;
     }
-    if (ELEM(context_tabs_array[i],
-             USER_SECTION_THEME,
-             USER_SECTION_EXTENSIONS,
-             USER_SECTION_ADDONS))
-    {
+    if (ELEM(context_tabs_array[i], USER_SECTION_EXTENSIONS, USER_SECTION_ADDONS)) {
       continue;
     }
     /* Handle search for the current tab in the normal layout pass. */
