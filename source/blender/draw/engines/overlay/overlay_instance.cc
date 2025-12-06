@@ -280,7 +280,6 @@ void Resources::update_theme_settings(const DRWContext *ctx, const State &state)
   ui::theme::get_color_4fv(TH_FACE_SELECT, gb.colors.face_select);
   ui::theme::get_color_4fv(TH_FACE_MODE_SELECT, gb.colors.face_mode_select);
   ui::theme::get_color_4fv(TH_FACE_RETOPOLOGY, gb.colors.face_retopology);
-  ui::theme::get_color_4fv(TH_FACE_SETS_DEFAULT, gb.colors.face_sets_default);
   ui::theme::get_color_4fv(TH_FACE_BACK, gb.colors.face_back);
   ui::theme::get_color_4fv(TH_FACE_FRONT, gb.colors.face_front);
   ui::theme::get_color_4fv(TH_NORMAL, gb.colors.normal);

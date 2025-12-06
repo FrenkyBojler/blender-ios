@@ -24,8 +24,8 @@ void main()
   /* Extract face set color from fset_color */
   /* Check if this is default face set marker (alpha=0, RGB=1.0) - use theme color directly */
   if (fset_color.a == 0.0 && all(equal(fset_color.rgb, float3(1.0)))) {
-    /* Use theme color for default face set - this updates immediately when theme changes */
-    face_set_color = theme.colors.face_sets_default;
+    /* If retopology view is enabled, reuse its color; otherwise stay transparent. */
+    face_set_color = retopology_enabled ? theme.colors.face_retopology : float4(0.0);
   }
   else {
     face_set_color = fset_color;

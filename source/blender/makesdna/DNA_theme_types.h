@@ -329,8 +329,6 @@ typedef struct ThemeSpace {
   unsigned char edge[4], edge_select[4], edge_mode_select[4];
   /** Solid faces. */
   unsigned char face[4], face_select[4], face_mode_select[4], face_retopology[4];
-  /** Face Set default color. */
-  unsigned char face_sets_default[4];
   unsigned char face_back[4], face_front[4];
   /** Selected color. */
   unsigned char extra_edge_len[4], extra_edge_angle[4], extra_face_angle[4], extra_face_area[4];
@@ -468,7 +466,6 @@ typedef struct ThemeSpace {
 
   unsigned char metadatabg[4];
   unsigned char metadatatext[4];
-  char _pad_12[4];
 } ThemeSpace;
 
 /* Viewport Background Gradient Types. */
