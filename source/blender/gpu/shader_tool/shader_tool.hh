@@ -3215,10 +3215,11 @@ class Preprocessor {
           bool is_vertex_func = false;
           bool is_fragment_func = false;
           bool use_early_frag_test = false;
+          string local_size;
 
           if (type.prev() == ']') {
             Scope attributes = type.prev().prev().scope();
-            attributes.foreach_attribute([&](Token attr, Scope) {
+            attributes.foreach_attribute([&](Token attr, Scope attr_scope) {
               const string attr_str = attr.str();
               if (attr_str == "vertex") {
                 is_vertex_func = true;
@@ -3234,6 +3235,9 @@ class Preprocessor {
               }
               else if (attr_str == "early_fragment_tests") {
                 use_early_frag_test = true;
+              }
+              else if (attr_str == "local_size") {
+                local_size = attr_scope.str();
               }
             });
           }
@@ -3266,6 +3270,16 @@ class Preprocessor {
           /* For now, just emit good old create info macros. */
           string create_info_decl;
           create_info_decl += "GPU_SHADER_CREATE_INFO(" + fn_name.str() + "_infos_)\n";
+
+          if (!local_size.empty()) {
+            if (!is_compute_func) {
+              report_error(ERROR_TOK(type),
+                           "Only compute entry point function can use [[local_size(x,y,z)]].");
+            }
+            else {
+              create_info_decl += "LOCAL_GROUP_SIZE" + local_size + "\n";
+            }
+          }
 
           if (use_early_frag_test) {
             if (!is_fragment_func) {
