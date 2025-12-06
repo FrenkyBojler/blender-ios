@@ -65,12 +65,12 @@ static Array<NeighborCurves> find_curve_neighbors(const Span<float3> root_positi
   threading::parallel_for(IndexRange(tot_added_curves), 128, [&](const IndexRange range) {
     for (const int i : range) {
       const float3 root = root_positions[i];
-      std::array<blender::KDTreeNearest_3d, max_neighbors> nearest_n;
-      const int found_neighbors = blender::kdtree_3d_find_nearest_n(
+      std::array<KDTreeNearest_3d, max_neighbors> nearest_n;
+      const int found_neighbors = kdtree_3d_find_nearest_n(
           &old_roots_kdtree, root, nearest_n.data(), max_neighbors);
       float tot_weight = 0.0f;
       for (const int neighbor_i : IndexRange(found_neighbors)) {
-        blender::KDTreeNearest_3d &nearest = nearest_n[neighbor_i];
+        KDTreeNearest_3d &nearest = nearest_n[neighbor_i];
         const float weight = 1.0f / std::max(nearest.dist, 0.00001f);
         tot_weight += weight;
         neighbors_per_curve[i].append({nearest.index, weight});

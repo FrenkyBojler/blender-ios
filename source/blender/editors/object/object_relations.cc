@@ -814,10 +814,10 @@ static void parent_set_vert_find(blender::KDTree_3d *tree,
 {
   const float *co_find = child->object_to_world().location();
   if (is_tri) {
-    blender::KDTreeNearest_3d nearest[3];
+    KDTreeNearest_3d nearest[3];
     int tot;
 
-    tot = blender::kdtree_3d_find_nearest_n(tree, co_find, nearest, 3);
+    tot = kdtree_3d_find_nearest_n(tree, co_find, nearest, 3);
     BLI_assert(tot == 3);
     UNUSED_VARS(tot);
 
@@ -828,7 +828,7 @@ static void parent_set_vert_find(blender::KDTree_3d *tree,
     BLI_assert(min_iii(UNPACK3(vert_par)) >= 0);
   }
   else {
-    vert_par[0] = blender::kdtree_3d_find_nearest(tree, co_find, nullptr);
+    vert_par[0] = kdtree_3d_find_nearest(tree, co_find, nullptr);
     BLI_assert(vert_par[0] >= 0);
     vert_par[1] = 0;
     vert_par[2] = 0;
@@ -921,12 +921,12 @@ static bool parent_set_vertex_parent(bContext *C, ParentingContext *parenting_co
 
   if (tree_tot < (parenting_context->is_vertex_tri ? 3 : 1)) {
     BKE_report(parenting_context->reports, RPT_ERROR, "Not enough vertices for vertex-parent");
-    blender::kdtree_3d_free(tree);
+    kdtree_3d_free(tree);
     return false;
   }
 
   const bool ok = parent_set_vertex_parent_with_kdtree(C, parenting_context, tree);
-  blender::kdtree_3d_free(tree);
+  kdtree_3d_free(tree);
   return ok;
 }
 

@@ -65,7 +65,7 @@ class AddOperation : public CurvesSculptStrokeOperation {
   ~AddOperation() override
   {
     if (curve_roots_kdtree_ != nullptr) {
-      blender::kdtree_3d_free(curve_roots_kdtree_);
+      kdtree_3d_free(curve_roots_kdtree_);
     }
   }
 
@@ -502,10 +502,9 @@ struct AddOperationExecutor {
       const Span<int> offsets = curves_orig_->offsets();
       const Span<float3> positions = curves_orig_->positions();
       for (const int curve_i : curves_orig_->curves_range()) {
-        blender::kdtree_3d_insert(
-            self_->curve_roots_kdtree_, curve_i, positions[offsets[curve_i]]);
+        kdtree_3d_insert(self_->curve_roots_kdtree_, curve_i, positions[offsets[curve_i]]);
       }
-      blender::kdtree_3d_balance(self_->curve_roots_kdtree_);
+      kdtree_3d_balance(self_->curve_roots_kdtree_);
     }
   }
 };
