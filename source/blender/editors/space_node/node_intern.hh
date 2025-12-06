@@ -126,6 +126,12 @@ struct SpaceNode_Runtime {
    * is reset when something changes that may affect what nodes need to be synced.
    */
   Map<int, bool> node_can_sync_states;
+
+  /**
+   * Stores the breadcrumb history to allow navigating "up" the hierarchy
+   * while keeping future paths visible (Ghost Items).
+   */
+  Vector<bNodeTree *> navigate_path_history;
 };
 
 enum NodeResizeDirection {

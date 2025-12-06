@@ -23,7 +23,8 @@ void context_path_add_generic(Vector<ContextPathItem> &path,
                               StructRNA &rna_type,
                               void *ptr,
                               const BIFIconID icon_override,
-                              std::function<void(bContext &)> handle_func)
+                              std::function<void(bContext &)> handle_func,
+                              const bool is_history)
 {
   /* Add the null check here to make calling functions less verbose. */
   if (!ptr) {
@@ -40,10 +41,10 @@ void context_path_add_generic(Vector<ContextPathItem> &path,
 
   if (&rna_type == &RNA_NodeTree) {
     ID *id = (ID *)ptr;
-    path.append({name, icon, ID_REAL_USERS(id), handle_func});
+    path.append({name, icon, ID_REAL_USERS(id), handle_func, is_history});
   }
   else {
-    path.append({name, icon, 1, handle_func});
+    path.append({name, icon, 1, handle_func, is_history});
   }
   if (name != name_buf) {
     MEM_freeN(name);
@@ -76,6 +77,9 @@ void template_breadcrumbs(Layout &layout, Span<ContextPathItem> context_path)
       but = uiItemL_ex(&sub_row, name.c_str(), icon, false, false);
     }
     UI_but_icon_indicator_number_set(but, context_path[i].icon_indicator_number);
+    if (context_path[i].is_history) {
+      UI_but_flag_enable(but, UI_BUT_INACTIVE);
+    }
   }
 }
 

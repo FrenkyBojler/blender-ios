@@ -13,6 +13,7 @@
 #include "DNA_node_types.h"
 
 #include "BKE_context.hh"
+#include "BKE_main.hh"
 #include "BKE_material.hh"
 #include "BKE_object.hh"
 
@@ -20,6 +21,7 @@
 #include "RNA_prototypes.hh"
 
 #include "ED_node_c.hh"
+#include "ED_render.hh"
 #include "ED_screen.hh"
 
 #include "SEQ_modifier.hh"
@@ -241,10 +243,45 @@ static void get_context_path_node_geometry(const bContext &C,
   }
 }
 
+static std::function<void(bContext &)> tree_path_navigate_history(Span<bNodeTree *> history_path)
+{
+  return [history_path](bContext &C) {
+    SpaceNode *snode = CTX_wm_space_node(&C);
+    ARegion *region = CTX_wm_region(&C);
+
+    ED_preview_kill_jobs(CTX_wm_manager(&C), CTX_data_main(&C));
+
+    for (bNodeTree *target_tree : history_path) {
+      if (!snode->edittree) {
+        break;
+      }
+
+      bNode *group_node = nullptr;
+      for (bNode *node : snode->edittree->all_nodes()) {
+        if (node->id == (ID *)target_tree) {
+          group_node = node;
+          break;
+        }
+      }
+      if (group_node == nullptr) {
+        // 删掉后续历史记录
+        break;
+      }
+      bke::node_set_active(*snode->edittree, *group_node);
+      bke::node_set_selected(*group_node, true);
+
+      ED_node_tree_push(region, snode, target_tree, group_node);
+    }
+
+    WM_event_add_notifier(&C, NC_SCENE | ND_NODES, nullptr);
+    WM_event_add_notifier(&C, NC_NODE | ND_NODE_GIZMO, nullptr);
+  };
+}
+
 Vector<ui::ContextPathItem> context_path_for_space_node(const bContext &C)
 {
   SpaceNode *snode = CTX_wm_space_node(&C);
-  if (snode == nullptr) {
+  if (snode == nullptr || snode->runtime == nullptr) {
     return {};
   }
 
@@ -258,6 +295,61 @@ Vector<ui::ContextPathItem> context_path_for_space_node(const bContext &C)
   }
   else if (ED_node_is_compositor(snode)) {
     get_context_path_node_compositor(C, *snode, context_path);
+  }
+
+  Vector<bNodeTree *> active_path_trees;
+  LISTBASE_FOREACH (const bNodeTreePath *, path_item, &snode->treepath) {
+    if (path_item->nodetree) {
+      active_path_trees.append(path_item->nodetree);
+    }
+  }
+  Vector<bNodeTree *> &history_path_trees = snode->runtime->navigate_path_history;
+  if (active_path_trees.is_empty()) {
+    history_path_trees.clear();
+    return context_path;
+  }
+
+  bool valid_history = false;
+  if (active_path_trees.size() < history_path_trees.size()) {
+    valid_history = true;
+    for (const int i : active_path_trees.index_range()) {
+      if (active_path_trees[i] != history_path_trees[i]) {
+        valid_history = false;
+        history_path_trees.clear();
+        break;
+      }
+    }
+  }
+
+  if (valid_history) {
+    Main *bmain = CTX_data_main(&C);
+    Span<bNodeTree *> history_tail_path = history_path_trees.as_span().drop_front(
+        active_path_trees.size());
+
+    for (const int i : history_tail_path.index_range()) {
+      bNodeTree *history_tree = history_tail_path[i];
+      bool is_valid = false;
+      LISTBASE_FOREACH (bNodeTree *, ntree, &bmain->nodetrees) {
+        if (ntree == history_tree) {
+          is_valid = true;
+          break;
+        }
+      }
+      if (!is_valid) {
+        history_path_trees.resize(active_path_trees.size() + i);
+        break;
+      }
+
+      ui::context_path_add_generic(context_path,
+                                   RNA_NodeTree,
+                                   history_tree,
+                                   ICON_NODETREE,
+                                   tree_path_navigate_history(history_tail_path.take_front(i + 1)),
+                                   true);
+    }
+  }
+  else {
+    history_path_trees = active_path_trees;
   }
 
   return context_path;
