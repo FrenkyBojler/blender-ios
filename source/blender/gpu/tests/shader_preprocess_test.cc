@@ -1237,36 +1237,6 @@ static void test_preprocess_matrix_constructors()
 GPU_TEST(preprocess_matrix_constructors);
 #endif
 
-static void test_preprocess_stage_attribute()
-{
-  using namespace shader;
-  using namespace std;
-
-  {
-    string input = R"(
-[[gpu::vertex_function]] void my_func() {
-  return;
-}
-)";
-    string expect = R"(
-                         void my_func() {
-
-#if defined(GPU_VERTEX_SHADER)
-#line 3
-  return;
-
-#endif
-#line 4
-}
-)";
-    string error;
-    string output = process_test_string(input, error);
-    EXPECT_EQ(output, expect);
-    EXPECT_EQ(error, "");
-  }
-}
-GPU_TEST(preprocess_stage_attribute);
-
 static void test_preprocess_resource_guard()
 {
   using namespace shader;

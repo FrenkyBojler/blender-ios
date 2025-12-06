@@ -510,13 +510,14 @@ class Preprocessor {
           template_call_mutation(parser, report_error);
           namespace_separator_mutation(parser, report_error);
           entry_point_parsing_and_mutation(parser, report_error);
-          stage_function_mutation(parser, report_error);
           pipeline_parse_and_remove(parser, filename, report_error);
           resource_table_parsing(parser, report_error);
           resource_guard_mutation(parser, report_error);
           struct_method_mutation(parser, report_error);
           method_call_mutation(parser, report_error);
           srt_member_access_mutation(parser, report_error);
+          empty_entry_point_mutation(parser, report_error);
+          stage_function_mutation(parser, report_error);
           static_branch_mutation(parser, report_error);
           empty_struct_mutation(parser, report_error);
           loop_unroll(parser, report_error);
@@ -2615,13 +2616,13 @@ class Preprocessor {
           string condition;
           attributes.foreach_attribute([&](Token attr_tok, Scope) {
             const string attr = attr_tok.str();
-            if (attr == "gpu::vertex_function" || attr == "vertex") {
+            if (attr == "vertex") {
               condition += "GPU_VERTEX_SHADER";
             }
-            else if (attr == "gpu::fragment_function" || attr == "fragment") {
+            else if (attr == "fragment") {
               condition += "GPU_FRAGMENT_SHADER";
             }
-            else if (attr == "gpu::compute_function" || attr == "compute") {
+            else if (attr == "compute") {
               condition += "GPU_COMPUTE_SHADER";
             }
           });
@@ -2921,13 +2922,6 @@ class Preprocessor {
               invalid = true;
             }
             /* Placement already checked. */
-            return;
-          }
-
-          if (second_part == "vertex_function" || second_part == "fragment_function" ||
-              second_part == "compute_function")
-          {
-            /* TODO(fclem): Check placement. But this attribute should become obsolete. */
             return;
           }
 
@@ -3374,10 +3368,6 @@ class Preprocessor {
             return;
           }
 
-          if (is_entry_point && args.str() != "()") {
-            parser.erase(args.start().next(), args.end().prev());
-          }
-
           auto replace_word = [&](const string &replaced, const string &replacement) {
             fn_body.foreach_token(Word, [&](const Token tok) {
               if (tok.str() == replaced) {
@@ -3736,6 +3726,35 @@ class Preprocessor {
 
           metadata.create_infos_declarations.emplace_back(create_info_decl);
         });
+
+    parser.apply_mutations();
+  }
+
+  /* Removes entry point arguments to make it compatible with the legacy code.
+   * Has to run after mutation related to function arguments. */
+  void empty_entry_point_mutation(Parser &parser, report_callback /*report_error*/)
+  {
+    using namespace std;
+    using namespace shader::parser;
+    using namespace metadata;
+
+    parser().foreach_function([&](bool, Token type, Token, Scope args, bool, Scope) {
+      bool is_entry_point = false;
+
+      if (type.prev() == ']') {
+        Scope attributes = type.prev().prev().scope();
+        attributes.foreach_attribute([&](Token attr, Scope) {
+          const string attr_str = attr.str();
+          if (attr_str == "vertex" || attr_str == "fragment" || attr_str == "compute") {
+            is_entry_point = true;
+          }
+        });
+      }
+
+      if (is_entry_point && args.str() != "()") {
+        parser.erase(args.start().next(), args.end().prev());
+      }
+    });
 
     parser.apply_mutations();
   }
