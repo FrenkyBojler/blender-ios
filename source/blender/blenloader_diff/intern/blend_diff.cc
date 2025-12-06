@@ -708,6 +708,13 @@ static std::optional<std::string> try_convert_char_array_to_readable_string(cons
   return std::string(chars.data(), len);
 }
 
+struct RawBufferType {
+  const Type *base_type;
+  int pointer_level = 0;
+
+  BLI_STRUCT_EQUALITY_OPERATORS_2(RawBufferType, base_type, pointer_level)
+};
+
 class IdDiffer {
  private:
   DiffWriter &writer_;
@@ -718,6 +725,7 @@ class IdDiffer {
     const BlendIdData &id_data;
     const RichSDNA &sdna;
     AddressMap addresses;
+    Map<const BlendBlock *, RawBufferType> raw_buffer_types;
   };
 
   PerBlendData old_;
@@ -755,6 +763,9 @@ class IdDiffer {
         "{}[\"{}\"]", new_.id_data.type_name, new_.id_data.name.c_str() + 2);
     matches_to_process_.push({old_.id_data.id_block, new_.id_data.id_block, root_context});
 
+    this->gather_raw_buffer_types__blend(old_);
+    this->gather_raw_buffer_types__blend(new_);
+
     while (!matches_to_process_.is_empty()) {
       const BlockMatch match = matches_to_process_.pop();
 
@@ -779,6 +790,78 @@ class IdDiffer {
                                 match.context);
       }
     }
+  }
+
+  void gather_raw_buffer_types__blend(PerBlendData &blend_data)
+  {
+    const Struct &id_struct = *blend_data.sdna.try_find_struct(blend_data.id_data.type_name);
+    this->gather_raw_buffer_types__struct(blend_data, *blend_data.id_data.id_block, 0, id_struct);
+    for (const BlendBlock &block : blend_data.id_data.blocks) {
+      const Struct *sdna_struct = blend_data.sdna.try_find_struct(block.bhead.SDNAnr);
+      if (!sdna_struct) {
+        continue;
+      }
+      for (const int64_t i : IndexRange(block.bhead.nr)) {
+        this->gather_raw_buffer_types__struct(
+            blend_data, block, i * sdna_struct->type->size_in_bytes, *sdna_struct);
+      }
+    }
+  }
+
+  void gather_raw_buffer_types__struct(PerBlendData &blend_data,
+                                       const BlendBlock &block,
+                                       const int64_t struct_offset,
+                                       const Struct &sdna_struct)
+  {
+    for (const StructMember *member : sdna_struct.members) {
+      this->gather_raw_buffer_types__struct_member(
+          blend_data, block, struct_offset + member->offset_in_struct, *member);
+    }
+  }
+
+  void gather_raw_buffer_types__struct_member(PerBlendData &blend_data,
+                                              const BlendBlock &block,
+                                              const int64_t member_offset,
+                                              const StructMember &sdna_member)
+  {
+    switch (sdna_member.category) {
+      case rich_sdna::StructMember::Category::Struct: {
+        for (const int64_t i : IndexRange(sdna_member.elem_num)) {
+          const int64_t struct_offset = member_offset + i * sdna_member.elem_size;
+          this->gather_raw_buffer_types__struct(
+              blend_data, block, struct_offset, *sdna_member.type->opt_struct);
+        }
+        break;
+      }
+      case rich_sdna::StructMember::Category::Primitive: {
+        /* Nothing to do because primitive types don't contain pointers. */
+        break;
+      }
+      case rich_sdna::StructMember::Category::Pointer: {
+        const int pointer_level = this->pointer_level_from_name(sdna_member.name_with_array);
+        for (const int64_t i : IndexRange(sdna_member.elem_num)) {
+          const int64_t offset = member_offset + i * sdna_member.elem_size;
+          const uint64_t address = read_address_at_address(block.data + offset);
+          if (const BlendBlock *other_block = blend_data.addresses.map.lookup_default(address,
+                                                                                      nullptr))
+          {
+            if (other_block->bhead.SDNAnr != SDNA_RAW_DATA_STRUCT_INDEX) {
+              continue;
+            }
+            RawBufferType raw_buffer_type;
+            raw_buffer_type.base_type = sdna_member.type;
+            raw_buffer_type.pointer_level = pointer_level;
+            blend_data.raw_buffer_types.add(other_block, raw_buffer_type);
+          }
+        }
+        break;
+      }
+    }
+  }
+
+  int pointer_level_from_name(const StringRef name) const
+  {
+    return name.find_first_not_of('*');
   }
 
   void diff_struct(const BlendBlock &old_block,
@@ -934,15 +1017,10 @@ class IdDiffer {
                                               fmt::format("{}.{}", context, name_only);
           PointeeToStringOptions options;
           options.include_identifier = true;
-          options.allow_string = type_name == "char";
           const std::string old_line = fmt::format(
-              "{} = {}",
-              sub_context,
-              this->pointee_to_string(old_, old_pointee, options, &old_member));
+              "{} = {}", sub_context, this->pointee_to_string(old_, old_pointee, options));
           const std::string new_line = fmt::format(
-              "{} = {}",
-              sub_context,
-              this->pointee_to_string(new_, new_pointee, options, &new_member));
+              "{} = {}", sub_context, this->pointee_to_string(new_, new_pointee, options));
           if (old_line != new_line) {
             writer_.writeln_changed(old_line, new_line);
           }
@@ -1101,7 +1179,6 @@ class IdDiffer {
 
     PointeeToStringOptions pointee_to_string_options;
     pointee_to_string_options.include_identifier = false;
-    pointee_to_string_options.allow_string = false;
 
     bool order_changed = false;
     Map<std::string, Item> new_pointee_map;
@@ -1333,13 +1410,11 @@ class IdDiffer {
 
   struct PointeeToStringOptions {
     bool include_identifier = true;
-    bool allow_string = false;
   };
 
   std::string pointee_to_string(const PerBlendData &blend_data,
                                 const Pointee &pointee,
-                                const PointeeToStringOptions &options,
-                                const StructMember *pointer_member = nullptr) const
+                                const PointeeToStringOptions &options) const
   {
     if (!pointee) {
       return "nullptr";
@@ -1348,18 +1423,22 @@ class IdDiffer {
       const BlendBlock &block = **block_ptr;
       if (block.bhead.SDNAnr == SDNA_RAW_DATA_STRUCT_INDEX) {
         const Span<char> bytes{block.data, block.bhead.len};
-        if (options.allow_string && bytes.size() <= 128) {
-          if (std::optional<std::string> str = try_convert_char_array_to_readable_string(bytes)) {
-            return fmt::format("\"{}\"", *str);
-          }
-        }
-        if (pointer_member) {
-          const Type &expected_base_type = *pointer_member->type;
-          if (pointer_member->name_with_array.startswith("**")) {
-            if (block.bhead.len % sizeof(void *) == 0) {
-              const int64_t pointer_num = block.bhead.len / sizeof(void *);
-              return fmt::format("{}x {} *", pointer_num, expected_base_type.name);
+        if (const RawBufferType *buffer_type = blend_data.raw_buffer_types.lookup_ptr(&block)) {
+          if (buffer_type->pointer_level == 0 && buffer_type->base_type->name == "char" &&
+              bytes.size() <= 128)
+          {
+            if (std::optional<std::string> str = try_convert_char_array_to_readable_string(bytes))
+            {
+              return fmt::format("\"{}\"", *str);
             }
+          }
+          if (buffer_type->pointer_level == 1) {
+            return fmt::format(
+                "{}x {}", block.bhead.len / sizeof(void *), buffer_type->base_type->name);
+          }
+          if (buffer_type->pointer_level == 2) {
+            return fmt::format(
+                "{}x {} *", block.bhead.len / sizeof(void *), buffer_type->base_type->name);
           }
         }
         const uint64_t hash = XXH3_64bits(bytes.data(), bytes.size());
@@ -1939,7 +2018,8 @@ static int main_do(const int argc, char *argv[])
   options.add_members_to_ignore("bNodeTreeInterface", {"active_index"});
   options.add_members_to_ignore("IDProperty", {"totallen"});
   options.add_members_to_ignore("CurveProfile", {"changed_timestamp"});
-  options.add_next_prev_ignore_types({"bNode", "bNodeLink", "IDProperty", "ModifierData"});
+  options.add_next_prev_ignore_types(
+      {"bNode", "bNodeSocket", "bNodeLink", "IDProperty", "ModifierData"});
   options.add_ignored_flags("bNode", "flag", NODE_SELECT | NODE_OPTIONS | NODE_ACTIVE);
   options.add_ignored_flags(
       "bNodeSocket", "flag", SELECT | SOCK_HIDDEN | SOCK_IS_LINKED | SOCK_COLLAPSED);
