@@ -476,8 +476,6 @@ class ShaderModule {
   StaticShader mesh_analysis = shader_clippable("overlay_edit_mesh_analysis");
   StaticShader mesh_edit_depth = shader_clippable("overlay_edit_mesh_depth");
   StaticShader mesh_edit_face_sets = shader_clippable("overlay_edit_mesh_face_sets");
-  StaticShader mesh_edit_face_sets_fake_shading = shader_clippable(
-      "overlay_edit_mesh_face_sets_fake_shading");
   StaticShader mesh_edit_edge = shader_clippable("overlay_edit_mesh_edge");
   StaticShader mesh_edit_face = shader_clippable("overlay_edit_mesh_face");
   StaticShader mesh_edit_facedot = shader_clippable("overlay_edit_mesh_facedot");
@@ -739,7 +737,6 @@ struct Resources : public select::SelectMap {
     shaders->mesh_analysis.ensure_compile_async();
     shaders->mesh_edit_depth.ensure_compile_async();
     shaders->mesh_edit_face_sets.ensure_compile_async();
-    shaders->mesh_edit_face_sets_fake_shading.ensure_compile_async();
     shaders->mesh_edit_edge.ensure_compile_async();
     shaders->mesh_edit_face.ensure_compile_async();
     shaders->mesh_edit_facedot.ensure_compile_async();

@@ -220,8 +220,6 @@ struct EditLoopData {
    * bits, while the vertex crease is stored in the upper 4 bits. */
   uchar crease;
   uchar bweight;
-  uchar4 face_set_color; /* RGB color from face set + unused alpha */
-  float3 nor;            /* Normal for shading */
 };
 
 void mesh_render_data_face_flag(const MeshRenderData &mr,
@@ -305,6 +303,9 @@ gpu::IndexBufPtr extract_points_subdiv(const MeshRenderData &mr,
 gpu::VertBufPtr extract_edit_data(const MeshRenderData &mr);
 gpu::VertBufPtr extract_edit_data_subdiv(const MeshRenderData &mr,
                                          const DRWSubdivCache &subdiv_cache);
+gpu::VertBufPtr extract_edit_face_set(const MeshRenderData &mr);
+gpu::VertBufPtr extract_edit_face_set_subdiv(const MeshRenderData &mr,
+                                             const DRWSubdivCache &subdiv_cache);
 
 gpu::VertBufPtr extract_tangents(const MeshRenderData &mr,
                                  const MeshBatchCache &cache,

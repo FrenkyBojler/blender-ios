@@ -1765,7 +1765,6 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
       versioning_node_group_sort_sockets_recursive(ntree.tree_interface.root_panel);
     }
   }
-
 }
 
 }  // namespace blender

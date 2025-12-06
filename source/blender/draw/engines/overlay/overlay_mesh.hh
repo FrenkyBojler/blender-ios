@@ -128,7 +128,6 @@ class Meshes : Overlay {
 
     const bool do_smooth_wire = (U.gpu_flag & USER_GPU_FLAG_NO_EDIT_MODE_SMOOTH_WIRE) == 0;
     const bool is_wire_shading_mode = (state.v3d->shading.type == OB_WIRE);
-    const bool is_lit_shading_mode = (state.v3d->shading.type == OB_SOLID);
 
     uint4 data_mask = data_mask_get(edit_flag);
 
@@ -136,6 +135,10 @@ class Meshes : Overlay {
     float face_alpha = (show_face_overlay_) ? 1.0f : 0.0f;
     float retopology_offset = state.is_depth_only_drawing ? 0.0f : RETOPOLOGY_OFFSET(state.v3d);
     float face_sets_opacity = state.v3d->overlay.face_sets_opacity;
+    /* In retopology mode make face sets more transparent for better visibility of base mesh. */
+    if (show_retopology_ && show_face_sets_) {
+      face_sets_opacity *= 0.5f;
+    }
     /* Cull back-faces for retopology face pass. This makes it so back-faces are not drawn.
      * Doing so lets us distinguish back-faces from front-faces. */
     DRWState face_culling = (show_retopology_ || show_face_sets_) ? DRW_STATE_CULL_BACK :
@@ -160,17 +163,8 @@ class Meshes : Overlay {
       pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_LESS_EQUAL |
                          DRW_STATE_BLEND_ALPHA_PREMUL | face_culling,
                      state.clipping_plane_count);
-
-      /* Use appropriate shader based on shading mode */
-      if (is_lit_shading_mode) {
-        pass.shader_set(res.shaders->mesh_edit_face_sets_fake_shading.get());
-        /* Set light direction for fake shading */
-        float3 light_dir = normalize(float3(0.5f, 0.5f, 1.0f));
-        pass.push_constant("light_dir", light_dir);
-      }
-      else {
-        pass.shader_set(res.shaders->mesh_edit_face_sets.get());
-      }
+      pass.shader_set(res.shaders->mesh_edit_face_sets.get());
+      pass.bind_texture("color_render_tx", &res.color_render_tx);
 
       pass.push_constant("retopology_offset", retopology_offset);
       pass.push_constant("retopology_enabled", show_retopology_);
@@ -354,6 +348,8 @@ class Meshes : Overlay {
     }
     if (show_face_sets_) {
       gpu::Batch *geom = DRW_mesh_batch_cache_get_edit_triangles(mesh);
+      edit_mesh_face_sets_ps_.push_constant("face_set_seed", mesh.face_sets_color_seed);
+      edit_mesh_face_sets_ps_.push_constant("face_set_default", mesh.face_sets_color_default);
       edit_mesh_face_sets_ps_.draw(geom, res_handle);
     }
     if (draw_as_solid && !state.is_render_depth_available) {
