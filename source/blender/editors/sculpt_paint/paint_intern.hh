@@ -141,6 +141,10 @@ struct PaintStroke {
   Brush *brush;
   UnifiedPaintSettings *ups;
 
+  /* TODO: These are only public so that cursor drawing code can use them. Find a better place.*/
+  float2 last_mouse_position;
+  float2 constrained_pos;
+
   wmOperatorStatus modal(bContext *C, wmOperator *op, const wmEvent *event);
   wmOperatorStatus exec(bContext *C, wmOperator *op);
 
@@ -159,7 +163,9 @@ struct PaintStroke {
 
 private:
   std::unique_ptr<PaintModeData> mode_data;
+
   void *stroke_cursor;
+
   wmTimer *timer;
   std::optional<RandomNumberGenerator> rng;
 
@@ -170,7 +176,6 @@ private:
   int cur_sample;
   int tot_samples;
 
-  float2 last_mouse_position;
   float3 last_world_space_position;
   float3 last_scene_spacing_delta;
 
@@ -206,12 +211,38 @@ private:
 
   /* line constraint */
   bool constrain_line;
-  float2 constrained_pos;
 
 
   bool original; /* Ray-cast original mesh at start of stroke. */
 
+  bool update(bContext *C,
+              const Brush &brush,
+              PaintMode mode,
+              const float mouse_init[2],
+              float mouse[2],
+              float pressure,
+              float r_location[3],
+              bool *r_location_is_set);
+
   void stroke_done(bContext *C, wmOperator *op, bool is_cancel);
+  void add_step(bContext *C, wmOperator *op, PaintStroke *stroke, float2 mval, float pressure);
+
+  void add_sample(int input_samples, float x, float y, float pressure);
+  void calc_average_sample(PaintSample *average);
+
+  void lines_spacing(bContext *C,
+                     wmOperator *op,
+                     float spacing,
+                     float *length_residue,
+                     float2 old_pos,
+                     float2 new_pos);
+  int space_stroke(bContext *C,
+                         wmOperator *op,
+                         float2 final_mouse,
+                         float final_pressure);
+
+  void line_end(bContext *C, wmOperator *op, float2 mouse);
+  bool curve_end(bContext *C, wmOperator *op);
 };
 
 
