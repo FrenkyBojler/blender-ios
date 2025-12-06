@@ -9,7 +9,7 @@ from bl_ui.utils import PresetPanel
 my_presets_subdir = "object/transforms"
 
 
-# Creating a menu that will display presets as items.
+# Creating a menu that will display presets as menu items.
 class PROPERTIES_MT_object_transforms_presets(bpy.types.Menu):
     bl_label = "Object Transform Presets"
     preset_operator = "script.execute_preset"
@@ -18,7 +18,7 @@ class PROPERTIES_MT_object_transforms_presets(bpy.types.Menu):
     draw = bpy.types.Menu.draw_preset
 
 
-# Operator for adding and removing presets
+# Operator for adding and removing presets.
 class PROPERTIES_OT_object_transforms_presets_add(bpy.types.Operator, AddPresetBase):
     bl_idname = "object.transform_presets_add"
     bl_label = "Add Object Transform Presets"
@@ -49,7 +49,7 @@ class PROPERTIES_OT_object_transforms_presets_add(bpy.types.Operator, AddPresetB
 
 
 # Panel that will hold prests menu and operators for adding/removing presets.
-class PROPERTIES_PT_object_transforms_presets(PresetPanel, bpy.types.Panel):
+class PROPERTIES_PT_object_transforms_presets(bpy.types.Panel, PresetPanel):
     bl_label = "Object Transform Presets"
     preset_subdir = my_presets_subdir
     preset_operator = "script.execute_preset"
