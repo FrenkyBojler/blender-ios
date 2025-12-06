@@ -1701,7 +1701,7 @@ static int main_do(const int argc, char *argv[])
   options.add_members_to_ignore("bNodeTreeInterface", {"active_index"});
   options.add_members_to_ignore("IDProperty", {"totallen"});
   options.add_members_to_ignore("CurveProfile", {"changed_timestamp"});
-  options.add_next_prev_ignore_types({"bNode", "bNodeLink"});
+  options.add_next_prev_ignore_types({"bNode", "bNodeLink", "IDProperty"});
   options.add_ignored_flags("bNode", "flag", NODE_SELECT | NODE_OPTIONS | NODE_ACTIVE);
   options.add_ignored_flags(
       "bNodeSocket", "flag", SELECT | SOCK_HIDDEN | SOCK_IS_LINKED | SOCK_COLLAPSED);
