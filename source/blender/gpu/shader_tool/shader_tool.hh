@@ -2605,28 +2605,30 @@ class Preprocessor {
           if (attr_tok.is_invalid() || attr_tok != ']' || attr_tok.prev() != ']') {
             return;
           }
-          Scope attribute = attr_tok.prev().scope();
-          if (attribute.type() != ScopeType::Attributes) {
+          Scope attributes = attr_tok.prev().scope();
+          if (attributes.type() != ScopeType::Attributes) {
             return;
           }
 
-          const string attr = attribute.str_exclusive();
-          parser.erase(attribute.scope());
+          parser.erase(attributes.scope());
 
-          string condition = "defined(";
-          if (attr == "gpu::vertex_function" || attr == "vertex") {
-            condition += "GPU_VERTEX_SHADER";
-          }
-          else if (attr == "gpu::fragment_function" || attr == "fragment") {
-            condition += "GPU_FRAGMENT_SHADER";
-          }
-          else if (attr == "gpu::compute_function" || attr == "compute") {
-            condition += "GPU_COMPUTE_SHADER";
-          }
-          else {
+          string condition;
+          attributes.foreach_attribute([&](Token attr_tok, Scope) {
+            const string attr = attr_tok.str();
+            if (attr == "gpu::vertex_function" || attr == "vertex") {
+              condition += "GPU_VERTEX_SHADER";
+            }
+            else if (attr == "gpu::fragment_function" || attr == "fragment") {
+              condition += "GPU_FRAGMENT_SHADER";
+            }
+            else if (attr == "gpu::compute_function" || attr == "compute") {
+              condition += "GPU_COMPUTE_SHADER";
+            }
+          });
+          if (condition.empty()) {
             return;
           }
-          condition += ")";
+          condition = "defined(" + condition + ")";
 
           guarded_scope_mutation(parser, fn_body, condition);
         });
@@ -3212,23 +3214,28 @@ class Preprocessor {
           bool is_compute_func = false;
           bool is_vertex_func = false;
           bool is_fragment_func = false;
+          bool use_early_frag_test = false;
 
           if (type.prev() == ']') {
             Scope attributes = type.prev().prev().scope();
-            if (attributes.type() == ScopeType::Attributes) {
-              string attribute = attributes.str_with_whitespace();
-
-              if (attribute == "[vertex]") {
+            attributes.foreach_attribute([&](Token attr, Scope) {
+              const string attr_str = attr.str();
+              if (attr_str == "vertex") {
                 is_vertex_func = true;
+                is_entry_point = true;
               }
-              else if (attribute == "[fragment]") {
+              else if (attr_str == "fragment") {
                 is_fragment_func = true;
+                is_entry_point = true;
               }
-              else if (attribute == "[compute]") {
+              else if (attr_str == "compute") {
                 is_compute_func = true;
+                is_entry_point = true;
               }
-              is_entry_point = true;
-            }
+              else if (attr_str == "early_fragment_tests") {
+                use_early_frag_test = true;
+              }
+            });
           }
 
           if (is_entry_point && type.str() != "void") {
@@ -3259,6 +3266,16 @@ class Preprocessor {
           /* For now, just emit good old create info macros. */
           string create_info_decl;
           create_info_decl += "GPU_SHADER_CREATE_INFO(" + fn_name.str() + "_infos_)\n";
+
+          if (use_early_frag_test) {
+            if (!is_fragment_func) {
+              report_error(ERROR_TOK(type),
+                           "Only fragment entry point function can use [[use_early_frag_test]].");
+            }
+            else {
+              create_info_decl += "EARLY_FRAGMENT_TEST(true)\n";
+            }
+          }
 
           auto process_argument = [&](Token type, Token var, Scope attributes) {
             const bool is_const = type.prev() == Const;
