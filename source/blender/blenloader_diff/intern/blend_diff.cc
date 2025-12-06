@@ -732,7 +732,8 @@ class IdDiffer {
     auto get_block_identifier = [&](const BlendBlock &block,
                                     const Struct &sdna_struct,
                                     const int64_t index) -> std::string {
-      std::optional<std::string> identifier = this->get_block_user_identifier(block, sdna_struct);
+      std::optional<std::string> identifier = this->get_persistent_block_identifier(block,
+                                                                                    sdna_struct);
       if (identifier) {
         return std::move(*identifier);
       }
@@ -742,8 +743,7 @@ class IdDiffer {
     auto get_block_user_identifier = [&](const BlendBlock &block,
                                          const Struct &sdna_struct,
                                          const int64_t index) -> std::string {
-      return this->get_persistent_block_identifier(block, sdna_struct)
-          .value_or(std::to_string(index));
+      return this->get_block_user_identifier(block, sdna_struct).value_or(std::to_string(index));
     };
 
     Map<std::string, const BlendBlock *> old_pointee_map;
@@ -936,6 +936,22 @@ class IdDiffer {
   std::optional<std::string> get_block_user_identifier(const BlendBlock &block,
                                                        const Struct &sdna_struct)
   {
+    if (sdna_struct.type->name == "bNode") {
+      const StructMember *name_member = sdna_struct.members.lookup_key_default_as("name", nullptr);
+      if (!name_member) {
+        return std::nullopt;
+      }
+      if (name_member->category != StructMember::Category::Primitive) {
+        return std::nullopt;
+      }
+      if (name_member->type->opt_primitive_type != SDNA_TYPE_CHAR) {
+        return std::nullopt;
+      }
+      // TODO: Handle null termination safely.
+      std::string name = reinterpret_cast<const char *>(block.data +
+                                                        name_member->offset_in_struct);
+      return fmt::format("\"{}\"", name);
+    }
     return this->get_persistent_block_identifier(block, sdna_struct);
   }
 };
