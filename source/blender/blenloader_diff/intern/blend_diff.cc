@@ -309,6 +309,20 @@ using rich_sdna::Struct;
 using rich_sdna::StructMember;
 using rich_sdna::Type;
 
+struct DiffOptions {
+  bool ignore_pad = true;
+
+  bool ignore_member(const StructMember &member) const
+  {
+    if (this->ignore_pad) {
+      if (member.name_only.startswith("_pad")) {
+        return true;
+      }
+    }
+    return false;
+  }
+};
+
 class DiffWriter {
  private:
   fmt::memory_buffer mem_buf_;
@@ -372,7 +386,10 @@ static void write_diff_struct_member(DiffWriter &writer,
   writer.writeln_changed(old_member_str, new_member_str);
 }
 
-static void write_diff_type(DiffWriter &writer, const Type &old_type, const Type &new_type)
+static void write_diff_type(DiffWriter &writer,
+                            const DiffOptions &options,
+                            const Type &old_type,
+                            const Type &new_type)
 {
   const StringRef name = old_type.name;
   if (old_type.opt_struct && !new_type.opt_struct) {
@@ -393,6 +410,9 @@ static void write_diff_type(DiffWriter &writer, const Type &old_type, const Type
     return;
   }
   for (const StructMember *old_member : old_type.opt_struct->members) {
+    if (options.ignore_member(*old_member)) {
+      continue;
+    }
     if (const StructMember *new_member = new_type.opt_struct->members.lookup_key_default_as(
             old_member->identifier, nullptr))
     {
@@ -403,6 +423,9 @@ static void write_diff_type(DiffWriter &writer, const Type &old_type, const Type
     }
   }
   for (const StructMember *new_member : new_type.opt_struct->members) {
+    if (options.ignore_member(*new_member)) {
+      continue;
+    }
     const StructMember *old_member = old_type.opt_struct->members.lookup_key_default_as(
         new_member->identifier, nullptr);
     if (old_member) {
@@ -412,12 +435,15 @@ static void write_diff_type(DiffWriter &writer, const Type &old_type, const Type
   }
 }
 
-static void write_diff_sdna(DiffWriter &writer, const RichSDNA &old_sdna, const RichSDNA &new_sdna)
+static void write_diff_sdna(DiffWriter &writer,
+                            const DiffOptions &options,
+                            const RichSDNA &old_sdna,
+                            const RichSDNA &new_sdna)
 {
   writer.writeln_unchanged("SDNA Changes:");
   for (const Type *old_type : old_sdna.types) {
     if (const Type *new_type = new_sdna.types.lookup_key_default_as(old_type->name, nullptr)) {
-      write_diff_type(writer, *old_type, *new_type);
+      write_diff_type(writer, options, *old_type, *new_type);
     }
     else {
       writer.writeln_removed(fmt::format("Type: {}", old_type->name));
@@ -571,6 +597,7 @@ static std::string primitive_value_to_string(const PrimitiveValue &value)
 class IdDiffer {
  private:
   DiffWriter &writer_;
+  const DiffOptions &options_;
 
   struct PerBlendData {
     const IdAddressMap &id_addresses;
@@ -591,13 +618,17 @@ class IdDiffer {
 
  public:
   IdDiffer(DiffWriter &writer,
+           const DiffOptions &options,
            const BlendIdData &old_id_data,
            const BlendIdData &new_id_data,
            const IdAddressMap &old_ids,
            const IdAddressMap &new_ids,
            const RichSDNA &old_sdna,
            const RichSDNA &new_sdna)
-      : writer_(writer), old_{old_ids, old_id_data, old_sdna}, new_{new_ids, new_id_data, new_sdna}
+      : writer_(writer),
+        options_(options),
+        old_{old_ids, old_id_data, old_sdna},
+        new_{new_ids, new_id_data, new_sdna}
   {
   }
 
@@ -667,6 +698,7 @@ class IdDiffer {
                           const StructMember &new_member,
                           const StringRef context)
   {
+    const StringRef member_name_only = old_member.name_only;
     const StringRef type_name = old_member.type->name;
     const StructMember::Category category = old_member.category;
     const int64_t elem_num = old_member.elem_num;
@@ -677,6 +709,9 @@ class IdDiffer {
         new_member.type->opt_primitive_type != opt_primitive_type)
     {
       /* This is in the diff as part of SDNA changes, no need to mention it for every block. */
+      return;
+    }
+    if (options_.ignore_member(new_member)) {
       return;
     }
     const bool is_array = elem_num > 1;
@@ -988,6 +1023,7 @@ class IdDiffer {
 };
 
 static void write_diff_ids(DiffWriter &writer,
+                           const DiffOptions &options,
                            const Span<BlendIdData> id_blocks_old,
                            const Span<BlendIdData> id_blocks_new,
                            const RichSDNA &sdna_old,
@@ -1028,6 +1064,7 @@ static void write_diff_ids(DiffWriter &writer,
     const BlendIdData &old_id_data = *id_pair.first;
     const BlendIdData &new_id_data = *id_pair.second;
     IdDiffer id_differ(writer,
+                       options,
                        old_id_data,
                        new_id_data,
                        id_address_map_old,
@@ -1355,9 +1392,12 @@ static int main_do(const int argc, char *argv[])
     return 1;
   }
 
+  DiffOptions options;
+  options.ignore_pad = true;
+
   DiffWriter writer(relative_path);
-  write_diff_sdna(writer, sdna_old, sdna_new);
-  write_diff_ids(writer, *id_blocks_old, *id_blocks_new, sdna_old, sdna_new);
+  write_diff_sdna(writer, options, sdna_old, sdna_new);
+  write_diff_ids(writer, options, *id_blocks_old, *id_blocks_new, sdna_old, sdna_new);
 
   std::cout << writer.to_string();
   return 0;
