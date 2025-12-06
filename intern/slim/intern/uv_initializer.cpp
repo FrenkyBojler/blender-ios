@@ -8,8 +8,8 @@
 
 #include "uv_initializer.h"
 
-#include <cassert>
 #include <Eigen/SparseLU>
+#include <cassert>
 
 namespace slim {
 
