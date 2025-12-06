@@ -1077,12 +1077,12 @@ static void handle_invalid_blend_file_error(const StringRef path)
 
 static int main_do(const int argc, char *argv[])
 {
-  std::fstream myfile("/home/jacques/Downloads/test.txt", std::ios::out);
-  for (const int i : blender::IndexRange(argc)) {
-    myfile << argv[i] << '\n';
-  }
-  myfile.close();
-  std::this_thread::sleep_for(std::chrono::seconds(10));
+  // std::fstream myfile("/home/jacques/Downloads/test.txt", std::ios::out);
+  // for (const int i : blender::IndexRange(argc)) {
+  //   myfile << argv[i] << '\n';
+  // }
+  // myfile.close();
+  // std::this_thread::sleep_for(std::chrono::seconds(10));
   if (argc < 3) {
     fmt::println(stderr, "Incorrect usage");
     return 1;
