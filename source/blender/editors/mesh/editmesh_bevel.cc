@@ -922,6 +922,30 @@ static wmOperatorStatus edbm_bevel_modal(bContext *C, wmOperator *op, const wmEv
         handled = true;
         break;
       }
+      case BEV_MODAL_PRECISION_ON: {
+        opdata->is_precision = true;
+        edbm_bevel_calc_initial_length(op, event, true);
+        handled = true;
+        break;
+      }
+      case BEV_MODAL_PRECISION_OFF: {
+        opdata->is_precision = false;
+        edbm_bevel_calc_initial_length(op, event, true);
+        handled = true;
+        break;
+      }
+      case BEV_MODAL_SNAP_ON: {
+        opdata->is_snapping = true;
+        edbm_bevel_calc_initial_length(op, event, true);
+        handled = true;
+        break;
+      }
+      case BEV_MODAL_SNAP_OFF: {
+        opdata->is_snapping = false;
+        edbm_bevel_calc_initial_length(op, event, true);
+        handled = true;
+        break;
+      }
     }
   }
 
