@@ -10,8 +10,8 @@
 
 #include "BLI_index_mask_fwd.hh"
 #include "BLI_math_vector_types.hh"
-#include "BLI_span.hh"
 #include "BLI_rand.hh"
+#include "BLI_span.hh"
 
 #include "DNA_object_enums.h"
 #include "DNA_scene_enums.h"
@@ -94,9 +94,7 @@ using StrokeTestStart = bool (*)(wmOperator *op, PaintStroke *paint_stroke, cons
 /**
  * Callback function for performing a paint stroke for a new step.
  */
-using StrokeUpdateStep = void (*)(wmOperator *op,
-                                  PaintStroke *stroke,
-                                  PointerRNA *itemptr);
+using StrokeUpdateStep = void (*)(wmOperator *op, PaintStroke *stroke, PointerRNA *itemptr);
 
 /**
  * Callback function for performing necessary redraw functions based on the stroke.
@@ -116,6 +114,14 @@ using StrokeTestCancel = bool (*)(PaintStroke *stroke);
  * state. This parameter indicates this case so that appropriate cleanup actions can be taken.
  */
 using StrokeDone = void (*)(PaintStroke *stroke, bool is_cancel);
+
+/* stroke operator */
+enum BrushStrokeMode {
+  BRUSH_STROKE_NORMAL,
+  BRUSH_STROKE_INVERT,
+  BRUSH_STROKE_SMOOTH,
+  BRUSH_STROKE_ERASE,
+};
 
 struct PaintSample {
   float2 mouse;
@@ -143,10 +149,41 @@ struct PaintStroke {
 
   /* TODO: These are only public so that cursor drawing code can use them. Find a better place.*/
   float2 last_mouse_position;
+  bool constrain_line;
   float2 constrained_pos;
 
   wmOperatorStatus modal(bContext *C, wmOperator *op, const wmEvent *event);
   wmOperatorStatus exec(bContext *C, wmOperator *op);
+
+  void *mode_data()
+  {
+    return mode_data_.get();
+  }
+
+  void set_mode_data(std::unique_ptr<PaintModeData> mode_data)
+  {
+    this->mode_data_ = std::move(mode_data);
+  }
+
+  bool stroke_flipped()
+  {
+    return pen_flip;
+  }
+
+  bool stroke_inverted()
+  {
+    return stroke_mode == BRUSH_STROKE_INVERT;
+  }
+
+  float stroke_distance()
+  {
+    return stroke_distance_;
+  }
+
+  bool stroke_started()
+  {
+    return stroke_started_;
+  }
 
   void free(bContext *C, wmOperator *op);
   void cancel(bContext *C, wmOperator *op);
@@ -161,8 +198,8 @@ struct PaintStroke {
   virtual bool test_cancel() = 0;
   virtual void done(bool is_cancel) = 0;
 
-private:
-  std::unique_ptr<PaintModeData> mode_data;
+ private:
+  std::unique_ptr<PaintModeData> mode_data_;
 
   void *stroke_cursor;
 
@@ -181,12 +218,12 @@ private:
 
   bool stroke_over_mesh;
   /* space distance covered so far */
-  float stroke_distance;
+  float stroke_distance_;
 
   /* Set whether any stroke step has yet occurred
    * e.g. in sculpt mode, stroke doesn't start until cursor
    * passes over the mesh */
-  bool stroke_started;
+  bool stroke_started_;
   /* Set when enough motion was found for rake rotation */
   bool rake_started;
   /* event that started stroke, for modal() return */
@@ -209,10 +246,6 @@ private:
   /* Tilt, as read from the event. */
   float2 tilt;
 
-  /* line constraint */
-  bool constrain_line;
-
-
   bool original; /* Ray-cast original mesh at start of stroke. */
 
   bool update(bContext *C,
@@ -225,7 +258,7 @@ private:
               bool *r_location_is_set);
 
   void stroke_done(bContext *C, wmOperator *op, bool is_cancel);
-  void add_step(bContext *C, wmOperator *op, PaintStroke *stroke, float2 mval, float pressure);
+  void add_step(bContext *C, wmOperator *op, float2 mval, float pressure);
 
   void add_sample(int input_samples, float x, float y, float pressure);
   void calc_average_sample(PaintSample *average);
@@ -236,15 +269,11 @@ private:
                      float *length_residue,
                      float2 old_pos,
                      float2 new_pos);
-  int space_stroke(bContext *C,
-                         wmOperator *op,
-                         float2 final_mouse,
-                         float final_pressure);
+  int space_stroke(bContext *C, wmOperator *op, float2 final_mouse, float final_pressure);
 
   void line_end(bContext *C, wmOperator *op, float2 mouse);
   bool curve_end(bContext *C, wmOperator *op);
 };
-
 
 PaintStroke *paint_stroke_new(bContext *C,
                               wmOperator *op,
@@ -269,6 +298,7 @@ bool paint_supports_dynamic_size(const Brush &br, PaintMode mode);
  * Return true if the brush size can change during paint (normally used for pressure).
  */
 bool paint_supports_dynamic_tex_coords(const Brush &br, PaintMode mode);
+bool paint_supports_smooth_stroke(const Brush &brush, PaintMode mode, int stroke_mode);
 bool paint_supports_smooth_stroke(PaintStroke *stroke, const Brush &br, PaintMode mode);
 bool paint_supports_texture(PaintMode mode);
 
@@ -655,13 +685,6 @@ inline float3 symmetry_flip(const float3 &src, const ePaintSymmetryFlags symm)
 
 }  // namespace blender::ed::sculpt_paint
 
-/* stroke operator */
-enum BrushStrokeMode {
-  BRUSH_STROKE_NORMAL,
-  BRUSH_STROKE_INVERT,
-  BRUSH_STROKE_SMOOTH,
-  BRUSH_STROKE_ERASE,
-};
 
 /* `paint_curve.cc` */
 

@@ -358,12 +358,12 @@ bool PaintStroke::update(bContext *C,
       copy_v2_v2(mouse, halfway);
       paint_runtime.anchored_size /= 2.0f;
       paint_runtime.pixel_radius /= 2.0f;
-      stroke_distance = paint_runtime.pixel_radius;
+      stroke_distance_ = paint_runtime.pixel_radius;
     }
     else {
       copy_v2_v2(paint_runtime.anchored_initial_mouse, initial_mouse);
       copy_v2_v2(mouse, initial_mouse);
-      stroke_distance = paint_runtime.pixel_radius;
+      stroke_distance_ = paint_runtime.pixel_radius;
     }
     paint_runtime.pixel_radius /= zoom_2d;
     paint_runtime.draw_anchored = true;
@@ -475,24 +475,12 @@ static void paint_stroke_jitter_pos(Paint *paint,
   }
 }
 
-void paint_stroke_jitter_pos(const PaintStroke &stroke,
-                             const PaintMode mode,
-                             const Brush &brush,
-                             const float pressure,
-                             const float mval[2],
-                             float r_mouse_out[2])
-{
-  paint_stroke_jitter_pos(
-      stroke.paint, mode, brush, pressure, stroke.stroke_mode, stroke.zoom_2d, mval, r_mouse_out);
-}
-
 /* Put the location of the next stroke dot into the stroke RNA and apply it to the mesh */
 void PaintStroke::add_step(bContext *C, wmOperator *op, const float2 mval, float pressure)
 {
-  const Paint &paint = *BKE_paint_get_active_from_context(C);
   const PaintMode mode = BKE_paintmode_get_active_from_context(C);
-  const Brush &brush = *BKE_paint_brush_for_read(&paint);
-  bke::PaintRuntime *paint_runtime = paint.runtime;
+  const Brush &brush = *BKE_paint_brush_for_read(paint);
+  bke::PaintRuntime *paint_runtime = paint->runtime;
 
 /* the following code is adapted from texture paint. It may not be needed but leaving here
  * just in case for reference (code in texpaint removed as part of refactoring).
@@ -540,12 +528,12 @@ void PaintStroke::add_step(bContext *C, wmOperator *op, const float2 mval, float
 
   float2 mouse_out;
   /* Get jitter position (same as mval if no jitter is used). */
-  paint_stroke_jitter_pos(&paint, mode, brush, pressure, stroke_mode, zoom_2d, mval, mouse_out);
+  paint_stroke_jitter_pos(paint, mode, brush, pressure, stroke_mode, zoom_2d, mval, mouse_out);
 
   float3 location;
   bool is_location_is_set;
-  paint_runtime->last_hit = paint_brush_update(
-      C, brush, mode, stroke, mval, mouse_out, pressure, location, &is_location_is_set);
+  paint_runtime->last_hit = update(
+      C, brush, mode, mval, mouse_out, pressure, location, &is_location_is_set);
   if (is_location_is_set) {
     copy_v3_v3(paint_runtime->last_location, location);
   }
@@ -556,7 +544,7 @@ void PaintStroke::add_step(bContext *C, wmOperator *op, const float2 mval, float
   /* Dash */
   bool add_step = true;
   if (paint_stroke_use_dash(brush)) {
-    const int dash_samples = stroke->tot_samples % brush.dash_samples;
+    const int dash_samples = tot_samples % brush.dash_samples;
     const float dash = float(dash_samples) / float(brush.dash_samples);
     if (dash > brush.dash_ratio) {
       add_step = false;
@@ -574,38 +562,42 @@ void PaintStroke::add_step(bContext *C, wmOperator *op, const float2 mval, float
     /* Original mouse coordinates. */
     RNA_float_set_array(&itemptr, "mouse_event", mval);
     RNA_float_set(&itemptr, "pressure", pressure);
-    RNA_float_set(&itemptr, "x_tilt", stroke->tilt.x);
-    RNA_float_set(&itemptr, "y_tilt", stroke->tilt.y);
+    RNA_float_set(&itemptr, "x_tilt", tilt.x);
+    RNA_float_set(&itemptr, "y_tilt", tilt.y);
 
-    stroke->update_step(C, op, stroke, &itemptr);
+    update_step(op, &itemptr);
 
     /* don't record this for now, it takes up a lot of memory when doing long
      * strokes with small brush size, and operators have register disabled */
     RNA_collection_clear(op->ptr, "stroke");
   }
 
-  stroke->tot_samples++;
+  tot_samples++;
 }
 
 /* Returns zero if no sculpt changes should be made, non-zero otherwise */
-static bool paint_smooth_stroke(PaintStroke *stroke,
+static bool paint_smooth_stroke(const Brush &brush,
                                 const PaintSample *sample,
                                 const PaintMode mode,
+                                const int stroke_mode,
+                                float zoom_2d,
+                                float2 last_mouse_position,
+                                float last_pressure,
                                 float2 &r_mouse,
                                 float &r_pressure)
 {
-  if (paint_supports_smooth_stroke(stroke, *stroke->brush, mode)) {
-    const float radius = stroke->brush->smooth_stroke_radius * stroke->zoom_2d;
-    const float u = stroke->brush->smooth_stroke_factor;
+  if (paint_supports_smooth_stroke(brush, mode, stroke_mode)) {
+    const float radius = brush.smooth_stroke_radius * zoom_2d;
+    const float u = brush.smooth_stroke_factor;
 
     /* If the mouse is moving within the radius of the last move,
      * don't update the mouse position. This allows sharp turns. */
-    if (math::distance_squared(stroke->last_mouse_position, sample->mouse) < square_f(radius)) {
+    if (math::distance_squared(last_mouse_position, sample->mouse) < square_f(radius)) {
       return false;
     }
 
-    r_mouse = math::interpolate(sample->mouse, stroke->last_mouse_position, u);
-    r_pressure = math::interpolate(sample->pressure, stroke->last_pressure, u);
+    r_mouse = math::interpolate(sample->mouse, last_mouse_position, u);
+    r_pressure = math::interpolate(sample->pressure, last_pressure, u);
   }
   else {
     r_mouse = sample->mouse;
@@ -663,62 +655,6 @@ static float paint_space_stroke_spacing(const ViewContext &vc,
     return max_ff(FLT_EPSILON, size_clamp * spacing / 50.0f);
   }
   return max_ff(zoom_2d, size_clamp * spacing / 50.0f);
-}
-
-static float paint_space_stroke_spacing(const bContext *C,
-                                        PaintStroke *stroke,
-                                        const float size_factor,
-                                        const float pressure)
-{
-  const Paint *paint = BKE_paint_get_active_from_context(C);
-  const PaintMode mode = BKE_paintmode_get_active_from_context(C);
-  const Brush &brush = *BKE_paint_brush_for_read(paint);
-
-  float size_clamp = 0.0f;
-  if (paint_stroke_use_scene_spacing(brush, mode)) {
-    const float3 last_object_space_position = math::transform_point(
-        stroke->vc.obact->world_to_object(), stroke->last_world_space_position);
-    size_clamp = object_space_radius_get(
-        stroke->vc, *paint, brush, last_object_space_position, size_factor);
-  }
-  else {
-    /* brushes can have a minimum size of 1.0 but with pressure it can be smaller than a pixel
-     * causing very high step sizes, hanging blender #32381. */
-    size_clamp = max_ff(1.0f, BKE_brush_radius_get(stroke->paint, stroke->brush) * size_factor);
-  }
-
-  float spacing = stroke->brush->spacing;
-
-  /* apply spacing pressure */
-  if (stroke->brush->flag & BRUSH_SPACE && stroke->brush->flag & BRUSH_SPACING_PRESSURE) {
-    spacing = spacing * (1.5f - pressure);
-  }
-
-  if (cloth::is_cloth_deform_brush(brush)) {
-    /* The spacing in tools that use the cloth solver should not be affected by the brush radius to
-     * avoid affecting the simulation update rate when changing the radius of the brush.
-     * With a value of 100 and the brush default of 10 for spacing, a simulation step runs every 2
-     * pixels movement of the cursor. */
-    size_clamp = 100.0f;
-  }
-
-  /* stroke system is used for 2d paint too, so we need to account for
-   * the fact that brush can be scaled there. */
-  spacing *= stroke->zoom_2d;
-
-  if (paint_stroke_use_scene_spacing(brush, mode)) {
-    /* Low pressure on size (with tablets) can cause infinite recursion in paint_space_stroke(),
-     * see #129853. */
-    return max_ff(FLT_EPSILON, size_clamp * spacing / 50.0f);
-  }
-  return max_ff(stroke->zoom_2d, size_clamp * spacing / 50.0f);
-}
-
-static float paint_space_stroke_spacing_no_pressure(const bContext *C, PaintStroke *stroke)
-{
-  /* Unlike many paint pressure curves, spacing assumes that a stroke without pressure (e.g. with
-   * the mouse, or with the setting turned off) represents an input of 0.5, not 1.0. */
-  return paint_space_stroke_spacing(C, stroke, 1.0f, 0.5f);
 }
 
 static float paint_space_stroke_spacing_no_pressure(const ViewContext &vc,
@@ -815,7 +751,7 @@ static float paint_space_stroke_spacing_variable(ViewContext &vc,
 
   /* no size pressure */
   return paint_space_stroke_spacing(
-      vc, paint, brush, last_world_space_position, zoom_2d 1.0f, pressure);
+      vc, paint, brush, last_world_space_position, zoom_2d, 1.0f, pressure);
 }
 
 /* For brushes with stroke spacing enabled, moves mouse in steps
@@ -842,7 +778,7 @@ int PaintStroke::space_stroke(bContext *C,
     world_space_position = math::transform_point(vc.obact->object_to_world(),
                                                  world_space_position);
     if (hit && stroke_over_mesh) {
-      world_space_position_delta = world_space_position - stroke->last_world_space_position;
+      world_space_position_delta = world_space_position - last_world_space_position;
       length = math::length(world_space_position_delta);
       stroke_over_mesh = true;
     }
@@ -892,7 +828,7 @@ int PaintStroke::space_stroke(bContext *C,
       paint_runtime->overlap_factor = paint_stroke_integrate_overlap(
           brush, spacing / no_pressure_spacing);
 
-      stroke_distance += spacing / zoom_2d;
+      stroke_distance_ += spacing / zoom_2d;
       add_step(C, op, mouse, pressure);
 
       length -= spacing;
@@ -984,96 +920,6 @@ PaintStroke::PaintStroke(bContext *C, wmOperator *op, int event_type) : event_ty
   paint_runtime->start_pixel_radius = BKE_brush_radius_get(paint, brush);
 }
 
-PaintStroke *paint_stroke_new(bContext *C,
-                              wmOperator *op,
-                              const StrokeGetLocation get_location,
-                              const StrokeTestStart test_start,
-                              const StrokeUpdateStep update_step,
-                              const StrokeRedraw redraw,
-                              const StrokeTestCancel test_cancel,
-                              const StrokeDone done,
-                              const int event_type)
-{
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  PaintStroke *stroke = MEM_new<PaintStroke>(__func__);
-  Paint *paint = BKE_paint_get_active_from_context(C);
-  stroke->paint = paint;
-  UnifiedPaintSettings *ups = &paint->unified_paint_settings;
-  bke::PaintRuntime *paint_runtime = paint->runtime;
-  Brush *br = stroke->brush = BKE_paint_brush(paint);
-  RegionView3D *rv3d = CTX_wm_region_view3d(C);
-
-  stroke->vc = ED_view3d_viewcontext_init(C, depsgraph);
-
-  stroke->get_location = get_location;
-  stroke->test_start = test_start;
-  stroke->update_step = update_step;
-  stroke->redraw = redraw;
-  stroke->test_cancel = test_cancel;
-  stroke->done = done;
-
-  stroke->event_type = event_type; /* for modal, return event */
-  stroke->ups = ups;
-  stroke->stroke_mode = RNA_enum_get(op->ptr, "mode");
-
-  stroke->original = paint_brush_type_raycast_original(*br,
-                                                       BKE_paintmode_get_active_from_context(C));
-
-  float zoomx;
-  float zoomy;
-  get_imapaint_zoom(C, &zoomx, &zoomy);
-  stroke->zoom_2d = std::max(zoomx, zoomy);
-
-  /* Check here if color sampling the main brush should do color conversion. This is done here
-   * to avoid locking up to get the image buffer during sampling. */
-  paint_runtime->do_linear_conversion = false;
-  paint_runtime->colorspace = nullptr;
-
-  if (br->mtex.tex && br->mtex.tex->type == TEX_IMAGE && br->mtex.tex->ima) {
-    ImBuf *tex_ibuf = BKE_image_pool_acquire_ibuf(
-        br->mtex.tex->ima, &br->mtex.tex->iuser, nullptr);
-    if (tex_ibuf && tex_ibuf->float_buffer.data == nullptr) {
-      paint_runtime->do_linear_conversion = true;
-      paint_runtime->colorspace = tex_ibuf->byte_buffer.colorspace;
-    }
-    BKE_image_pool_release_ibuf(br->mtex.tex->ima, tex_ibuf, nullptr);
-  }
-
-  if (stroke->stroke_mode == BRUSH_STROKE_INVERT) {
-    if (br->flag & BRUSH_CURVE) {
-      RNA_enum_set(op->ptr, "mode", BRUSH_STROKE_NORMAL);
-    }
-  }
-  /* initialize here */
-  paint_runtime->overlap_factor = 1.0;
-  paint_runtime->stroke_active = true;
-
-  if (rv3d) {
-    rv3d->rflag |= RV3D_PAINTING;
-  }
-
-  /* Preserve location from last stroke while applying and resetting
-   * ups->average_stroke_counter to 1.
-   */
-  if (paint_runtime->average_stroke_counter) {
-    mul_v3_fl(paint_runtime->average_stroke_accum,
-              1.0f / float(paint_runtime->average_stroke_counter));
-    paint_runtime->average_stroke_counter = 1;
-  }
-
-  /* initialize here to avoid initialization conflict with threaded strokes */
-  BKE_curvemapping_init(br->curve_distance_falloff);
-  if (paint->flags & PAINT_USE_CAVITY_MASK) {
-    BKE_curvemapping_init(paint->cavity_curve);
-  }
-
-  BKE_paint_set_overlay_override(eOverlayFlags(br->overlay_flags));
-
-  paint_runtime->start_pixel_radius = BKE_brush_radius_get(stroke->paint, br);
-
-  return stroke;
-}
-
 void PaintStroke::free(bContext *C, wmOperator * /*op*/)
 {
   if (RegionView3D *rv3d = CTX_wm_region_view3d(C)) {
@@ -1117,7 +963,7 @@ void PaintStroke::stroke_done(bContext *C, wmOperator *op, const bool is_cancel)
     }
   }
 
-  if (stroke_started) {
+  if (stroke_started_) {
     if (redraw) {
       redraw(true);
     }
@@ -1395,7 +1241,7 @@ void PaintStroke::lines_spacing(bContext *C,
 
       paint_runtime->overlap_factor = paint_stroke_integrate_overlap(brush, 1.0);
 
-      stroke_distance += spacing / zoom_2d;
+      stroke_distance_ += spacing / zoom_2d;
       add_step(C, op, mouse, 1.0);
 
       length -= spacing;
@@ -1413,7 +1259,7 @@ void PaintStroke::line_end(bContext *C, wmOperator *op, const float2 mouse)
 {
   Brush *br = brush;
   bke::PaintRuntime *paint_runtime = paint->runtime;
-  if (stroke_started && (br->flag & BRUSH_LINE)) {
+  if (stroke_started_ && (br->flag & BRUSH_LINE)) {
     paint_runtime->overlap_factor = paint_stroke_integrate_overlap(*br, 1.0);
 
     add_step(C, op, last_mouse_position, 1.0);
@@ -1483,7 +1329,7 @@ bool PaintStroke::curve_end(bContext *C, wmOperator *op)
         paint_update_brush_rake_rotation(*paint, br, rotation);
       }
 
-      if (!stroke_started) {
+      if (!stroke_started_) {
         last_pressure = 1.0;
         copy_v2_v2(last_mouse_position, data + 2 * j);
 
@@ -1493,9 +1339,9 @@ bool PaintStroke::curve_end(bContext *C, wmOperator *op)
           mul_m4_v3(vc.obact->object_to_world().ptr(), last_world_space_position);
         }
 
-        stroke_started = test_start(last_mouse_position);
+        stroke_started_ = test_start(last_mouse_position);
 
-        if (stroke_started) {
+        if (stroke_started_) {
           add_step(C, op, data + 2 * j, 1.0);
           lines_spacing(
               C, op, no_pressure_spacing, &length_residue, data + 2 * j, data + 2 * (j + 1));
@@ -1557,7 +1403,7 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
   bke::PaintRuntime &paint_runtime = *paint->runtime;
   bool first_dab = false;
   bool first_modal = false;
-  bool redraw = false;
+  bool needs_redraw = false;
 
   if (event->type == INBETWEEN_MOUSEMOVE &&
       !paint_brush_type_require_inbetween_mouse_events(*br, mode))
@@ -1616,7 +1462,7 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
   }
 
   /* one time stroke initialization */
-  if (!stroke_started) {
+  if (!stroke_started_) {
     RNA_boolean_set(op->ptr, "pen_flip", pen_flip);
 
     last_pressure = sample_average.pressure;
@@ -1627,9 +1473,9 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
       last_world_space_position = math::transform_point(vc.obact->object_to_world(),
                                                         last_world_space_position);
     }
-    stroke_started = test_start(sample_average.mouse);
+    stroke_started_ = test_start(sample_average.mouse);
 
-    if (stroke_started) {
+    if (stroke_started_) {
       /* StrokeTestStart often updates the currently active brush so we need to re-retrieve it
        * here. */
       br = BKE_paint_brush(paint);
@@ -1714,7 +1560,7 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
     mouse = {float(event->mval[0]), float(event->mval[1])};
     paint_stroke_line_constrain(last_mouse_position, constrained_pos, mouse);
 
-    if (stroke_started && (first_modal || ISMOUSE_MOTION(event->type))) {
+    if (stroke_started_ && (first_modal || ISMOUSE_MOTION(event->type))) {
       if ((br->mtex.brush_angle_mode & MTEX_ANGLE_RAKE) ||
           (br->mask_mtex.brush_angle_mode & MTEX_ANGLE_RAKE))
       {
@@ -1730,18 +1576,27 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
            ((br->flag & BRUSH_AIRBRUSH) && event->type == TIMER &&
             event->customdata == timer))
   {
-    if (paint_smooth_stroke(stroke, &sample_average, mode, mouse, pressure)) {
-      if (stroke->stroke_started) {
+    if (paint_smooth_stroke(*brush,
+                            &sample_average,
+                            mode,
+                            stroke_mode,
+                            zoom_2d,
+                            last_mouse_position,
+                            last_pressure,
+                            mouse,
+                            pressure))
+    {
+      if (stroke_started_) {
         if (paint_space_stroke_enabled(*br, mode)) {
-          if (paint_space_stroke(C, op, stroke, mouse, pressure)) {
-            redraw = true;
+          if (space_stroke(C, op, mouse, pressure)) {
+            needs_redraw = true;
           }
         }
         else {
-          const float2 mouse_delta = mouse - stroke->last_mouse_position;
-          stroke->stroke_distance += math::length(mouse_delta);
-          paint_brush_stroke_add_step(C, op, stroke, mouse, pressure);
-          redraw = true;
+          const float2 mouse_delta = mouse - last_mouse_position;
+          stroke_distance_ += math::length(mouse_delta);
+          add_step(C, op, mouse, pressure);
+          needs_redraw = true;
         }
       }
     }
@@ -1751,8 +1606,8 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
    * instead of waiting till we have moved the space distance */
   if (first_dab && paint_space_stroke_enabled(*br, mode) && !(br->flag & BRUSH_SMOOTH_STROKE)) {
     paint_runtime.overlap_factor = paint_stroke_integrate_overlap(*br, 1.0);
-    paint_brush_stroke_add_step(C, op, stroke, sample_average.mouse, sample_average.pressure);
-    redraw = true;
+    add_step(C, op, sample_average.mouse, sample_average.pressure);
+    needs_redraw = true;
   }
 
   /* Don't update the paint cursor in #INBETWEEN_MOUSEMOVE events. */
@@ -1768,32 +1623,32 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
   /* Draw for all events (even in between) otherwise updating the brush
    * display is noticeably delayed.
    */
-  if (redraw && stroke->redraw) {
-    stroke->redraw(C, stroke, false);
+  if (needs_redraw && redraw) {
+    redraw(false);
   }
 
   return OPERATOR_RUNNING_MODAL;
 }
 
-wmOperatorStatus paint_stroke_exec(bContext *C, wmOperator *op, PaintStroke *stroke)
+wmOperatorStatus PaintStroke::exec(bContext *C, wmOperator *op)
 {
   /* only when executed for the first time */
-  if (!stroke->stroke_started) {
+  if (!stroke_started_) {
     PointerRNA firstpoint;
     PropertyRNA *strokeprop = RNA_struct_find_property(op->ptr, "stroke");
 
     if (RNA_property_collection_lookup_int(op->ptr, strokeprop, 0, &firstpoint)) {
       float2 mouse;
       RNA_float_get_array(&firstpoint, "mouse", mouse);
-      stroke->stroke_started = stroke->test_start(C, op, mouse);
+      stroke_started_ = test_start(mouse);
     }
   }
 
   const PaintMode mode = BKE_paintmode_get_active_from_context(C);
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "override_location");
   const bool override_location = prop && RNA_property_boolean_get(op->ptr, prop) &&
-                                 stroke->get_location;
-  if (stroke->stroke_started) {
+                                 get_location;
+  if (stroke_started_) {
     RNA_BEGIN (op->ptr, itemptr, "stroke") {
       float2 mval;
       RNA_float_get_array(&itemptr, "mouse_event", mval);
@@ -1805,33 +1660,25 @@ wmOperatorStatus paint_stroke_exec(bContext *C, wmOperator *op, PaintStroke *str
       float3 dummy_location;
       bool dummy_is_set;
 
-      paint_brush_update(C,
-                         *stroke->brush,
-                         mode,
-                         stroke,
-                         mval,
-                         dummy_mouse,
-                         pressure,
-                         dummy_location,
-                         &dummy_is_set);
+      update(C, *brush, mode, mval, dummy_mouse, pressure, dummy_location, &dummy_is_set);
 
       if (override_location) {
         float3 location;
-        if (stroke->get_location(C, location, mval, false)) {
+        if (get_location(location, mval, false)) {
           RNA_float_set_array(&itemptr, "location", location);
-          stroke->update_step(C, op, stroke, &itemptr);
+          update_step(op, &itemptr);
         }
       }
       else {
-        stroke->update_step(C, op, stroke, &itemptr);
+        update_step(op, &itemptr);
       }
     }
     RNA_END;
   }
 
-  const bool ok = stroke->stroke_started;
+  const bool ok = stroke_started_;
 
-  stroke_done(C, op, stroke, !ok);
+  stroke_done(C, op, !ok);
 
   return ok ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
@@ -1841,40 +1688,6 @@ void PaintStroke::cancel(bContext *C, wmOperator *op)
   stroke_done(C, op, true);
 }
 
-ViewContext *paint_stroke_view_context(PaintStroke *stroke)
-{
-  return &stroke->vc;
-}
-
-void *paint_stroke_mode_data(PaintStroke *stroke)
-{
-  return stroke->mode_data.get();
-}
-
-bool paint_stroke_flipped(PaintStroke *stroke)
-{
-  return stroke->pen_flip;
-}
-
-bool paint_stroke_inverted(PaintStroke *stroke)
-{
-  return stroke->stroke_mode == BRUSH_STROKE_INVERT;
-}
-
-float paint_stroke_distance_get(PaintStroke *stroke)
-{
-  return stroke->stroke_distance;
-}
-
-void paint_stroke_set_mode_data(PaintStroke *stroke, std::unique_ptr<PaintModeData> mode_data)
-{
-  stroke->mode_data = std::move(mode_data);
-}
-
-bool paint_stroke_started(PaintStroke *stroke)
-{
-  return stroke->stroke_started;
-}
 
 static const bToolRef *brush_tool_get(const bContext *C)
 {
