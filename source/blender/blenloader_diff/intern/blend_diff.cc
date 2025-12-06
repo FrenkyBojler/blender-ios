@@ -666,6 +666,24 @@ static std::optional<int> try_read_inline_int_member(const void *struct_data,
   return value;
 }
 
+static std::optional<char> try_read_inline_char_member(const void *struct_data,
+                                                       const Struct &sdna_struct,
+                                                       const StringRef member_name)
+{
+  const StructMember *member = sdna_struct.members.lookup_key_default_as(member_name, nullptr);
+  if (!member) {
+    return std::nullopt;
+  }
+  if (member->category != StructMember::Category::Primitive) {
+    return std::nullopt;
+  }
+  if (member->type->opt_primitive_type != SDNA_TYPE_CHAR) {
+    return std::nullopt;
+  }
+  const char value = *(static_cast<const char *>(struct_data) + member->offset_in_struct);
+  return value;
+}
+
 static std::string primitive_value_to_string(const PrimitiveValue &value)
 {
   return std::visit([](const auto &v) { return std::to_string(v); }, value);
@@ -746,8 +764,19 @@ class IdDiffer {
       return;
     }
     if (type_name == "ListBase") {
-      this->diff_listbase(old_block, new_block, old_struct_offset, new_struct_offset, context);
+      this->diff_ListBase(old_block, new_block, old_struct_offset, new_struct_offset, context);
       return;
+    }
+    if (type_name == "IDProperty") {
+      /* IDProperty has some special handling because of how IDPropertyData.val/val2 also encode
+       * float/double values. */
+      this->diff_IDProperty(old_block,
+                            new_block,
+                            old_struct_offset,
+                            new_struct_offset,
+                            old_struct,
+                            new_struct,
+                            context);
     }
 
     for (const StructMember *old_member : old_struct.members) {
@@ -874,7 +903,7 @@ class IdDiffer {
     }
   }
 
-  void diff_listbase(const BlendBlock &old_block,
+  void diff_ListBase(const BlendBlock &old_block,
                      const BlendBlock &new_block,
                      const int old_struct_offset,
                      const int new_struct_offset,
@@ -950,6 +979,108 @@ class IdDiffer {
                                           context,
                                           user_identifier,
                                           this->pointee_to_string(old_, &old_pointee, false)));
+    }
+  }
+
+  void diff_IDProperty(const BlendBlock &old_block,
+                       const BlendBlock &new_block,
+                       const int old_struct_offset,
+                       const int new_struct_offset,
+                       const Struct &old_IDProperty,
+                       const Struct &new_IDProperty,
+                       const StringRef context)
+  {
+    const std::optional<char> old_type = try_read_inline_char_member(
+        old_block.data + old_struct_offset, old_IDProperty, "type");
+    const std::optional<char> new_type = try_read_inline_char_member(
+        new_block.data + new_struct_offset, new_IDProperty, "type");
+    if (!old_type || !new_type) {
+      return;
+    }
+    if (!ELEM(old_type, IDP_INT, IDP_FLOAT, IDP_DOUBLE, IDP_BOOLEAN)) {
+      return;
+    }
+    if (!ELEM(new_type, IDP_INT, IDP_FLOAT, IDP_DOUBLE, IDP_BOOLEAN)) {
+      return;
+    }
+    const StructMember *old_data_member = old_IDProperty.members.lookup_key_default_as("data",
+                                                                                       nullptr);
+    const StructMember *new_data_member = new_IDProperty.members.lookup_key_default_as("data",
+                                                                                       nullptr);
+    if (!old_data_member || !new_data_member) {
+      return;
+    }
+    if (old_data_member->type->name != "IDPropertyData" ||
+        new_data_member->type->name != "IDPropertyData")
+    {
+      return;
+    }
+    if (old_data_member->category != StructMember::Category::Struct ||
+        new_data_member->category != StructMember::Category::Struct)
+    {
+      return;
+    }
+    const Struct &old_IDPropertyData = *old_data_member->type->opt_struct;
+    const Struct &new_IDPropertyData = *new_data_member->type->opt_struct;
+    const std::optional<int> old_val = try_read_inline_int_member(
+        old_block.data + old_struct_offset + old_data_member->offset_in_struct,
+        old_IDPropertyData,
+        "val");
+    const std::optional<int> old_val2 = try_read_inline_int_member(
+        old_block.data + old_struct_offset + old_data_member->offset_in_struct,
+        old_IDPropertyData,
+        "val2");
+    const std::optional<int> new_val = try_read_inline_int_member(
+        new_block.data + new_struct_offset + new_data_member->offset_in_struct,
+        new_IDPropertyData,
+        "val");
+    const std::optional<int> new_val2 = try_read_inline_int_member(
+        new_block.data + new_struct_offset + new_data_member->offset_in_struct,
+        new_IDPropertyData,
+        "val2");
+    if (!old_val || !old_val2 || !new_val || !new_val2) {
+      return;
+    }
+    const PrimitiveValue old_value = this->decode_id_property_value(
+        eIDPropertyType(*old_type), *old_val, *old_val2);
+    const PrimitiveValue new_value = this->decode_id_property_value(
+        eIDPropertyType(*new_type), *new_val, *new_val2);
+    if (old_value == new_value) {
+      return;
+    }
+    writer_.writeln_changed(
+        fmt::format("{}.decoded_value = {}", context, primitive_value_to_string(old_value)),
+        fmt::format("{}.decoded_value = {}", context, primitive_value_to_string(new_value)));
+  }
+
+  PrimitiveValue decode_id_property_value(const eIDPropertyType type,
+                                          const int val,
+                                          const int val2)
+  {
+    union {
+      struct {
+        int val;
+        int val2;
+      } encoded;
+      int int_value;
+      float float_value;
+      double double_value;
+    } encoded;
+    encoded.encoded.val = val;
+    encoded.encoded.val2 = val2;
+    switch (type) {
+      case IDP_INT:
+        return encoded.int_value;
+      case IDP_FLOAT:
+        return encoded.float_value;
+      case IDP_DOUBLE:
+        return encoded.double_value;
+      case IDP_BOOLEAN:
+        return encoded.int_value != 0;
+      default: {
+        BLI_assert_unreachable();
+        return {};
+      }
     }
   }
 
@@ -1575,6 +1706,8 @@ static int main_do(const int argc, char *argv[])
   options.add_ignored_flags(
       "bNodeSocket", "flag", SELECT | SOCK_HIDDEN | SOCK_IS_LINKED | SOCK_COLLAPSED);
   options.add_id_types_to_ignore({"wmWindowManager", "Screen", "WorkSpace"});
+  /* These have special handling. */
+  options.add_members_to_ignore("IDPropertyData", {"val", "val2"});
 
   DiffWriter writer(relative_path);
   write_diff_sdna(writer, options, sdna_old, sdna_new);
