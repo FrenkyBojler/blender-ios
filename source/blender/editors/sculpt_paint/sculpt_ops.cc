@@ -462,6 +462,13 @@ void object_sculpt_mode_enter(Main &bmain,
     }
   }
 
+  /* If Orbit Around Selection is enabled, force the pivot to update to the
+   * current object. Otherwise, it will retain the pivot from the previous
+   * scupted object. */
+  if ((U.uiflag & USER_ORBIT_SELECTION) != 0) {
+    paint->runtime->last_stroke_valid = false;
+  }
+
   ensure_valid_pivot(ob, *paint);
 
   /* Flush object mode. */
