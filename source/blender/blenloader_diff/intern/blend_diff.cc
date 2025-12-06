@@ -2,6 +2,7 @@
 #include <fstream>
 #include <iostream>
 #include <thread>
+#include <xxhash.h>
 
 #include "BLI_filereader.h"
 #include "BLI_index_range.hh"
@@ -11,6 +12,7 @@
 #include "BLI_stack.hh"
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
+#include "BLI_string_utf8.h"
 #include "BLI_struct_equality_utils.hh"
 #include "BLI_vector.hh"
 #include "BLI_vector_set.hh"
@@ -689,6 +691,19 @@ static std::string primitive_value_to_string(const PrimitiveValue &value)
   return std::visit([](const auto &v) { return std::to_string(v); }, value);
 }
 
+static std::optional<std::string> try_convert_char_array_to_readable_string(const Span<char> chars)
+{
+  const int64_t len = chars.first_index_try('\0');
+  if (len == -1) {
+    return std::nullopt;
+  }
+  const int64_t invalid_index = BLI_str_utf8_invalid_byte(chars.data(), len);
+  if (invalid_index != -1) {
+    return std::nullopt;
+  }
+  return std::string(chars.data(), len);
+}
+
 class IdDiffer {
  private:
   DiffWriter &writer_;
@@ -841,6 +856,22 @@ class IdDiffer {
       case rich_sdna::StructMember::Category::Primitive: {
         BLI_assert(opt_primitive_type.has_value());
         const eSDNA_Type primitive_type = *opt_primitive_type;
+        if (primitive_type == SDNA_TYPE_CHAR) {
+          const Span<char> old_values{old_block.data + old_member_offset, elem_num};
+          const Span<char> new_values{new_block.data + new_member_offset, elem_num};
+          const std::optional<std::string> old_str = try_convert_char_array_to_readable_string(
+              old_values);
+          const std::optional<std::string> new_str = try_convert_char_array_to_readable_string(
+              new_values);
+          if (old_str && new_str) {
+            if (old_str == new_str) {
+              break;
+            }
+            writer_.writeln_changed(fmt::format("{}.{} = {}", context, name_only, *old_str),
+                                    fmt::format("{}.{} = {}", context, name_only, *new_str));
+            break;
+          }
+        }
         for (const int i : IndexRange(elem_num)) {
           const PrimitiveValue old_value = read_primitive_value_at_address(
               primitive_type, old_block.data + old_member_offset + i * old_member.elem_size);
@@ -876,6 +907,9 @@ class IdDiffer {
                                                                i * old_member.elem_size);
           const uint64_t new_address = read_address_at_address(new_block.data + new_member_offset +
                                                                i * new_member.elem_size);
+          if (name_only == "pointer" && old_address != 0) {
+            int a = 0;
+          }
           const Pointee old_pointee = this->lookup_pointee(old_, old_address);
           const Pointee new_pointee = this->lookup_pointee(new_, new_address);
           if (!old_pointee && !new_pointee) {
@@ -1163,6 +1197,16 @@ class IdDiffer {
     }
     if (const BlendBlock *const *block_ptr = std::get_if<const BlendBlock *>(&*pointee)) {
       const BlendBlock &block = **block_ptr;
+      if (block.bhead.SDNAnr == SDNA_RAW_DATA_STRUCT_INDEX) {
+        const Span<char> bytes{block.data, block.bhead.len};
+        if (bytes.size() <= 128) {
+          if (std::optional<std::string> str = try_convert_char_array_to_readable_string(bytes)) {
+            return fmt::format("\"{}\"", *str);
+          }
+        }
+        const uint64_t hash = XXH3_64bits(bytes.data(), bytes.size());
+        return fmt::format("hashed -> 0x{:x}", hash);
+      }
       if (const Struct *sdna_struct = blend_data.sdna.try_find_struct(block.bhead.SDNAnr)) {
         const bool is_single = block.bhead.nr == 1;
         const std::string count_str = is_single ? "" : fmt::format("{}x ", block.bhead.nr);
