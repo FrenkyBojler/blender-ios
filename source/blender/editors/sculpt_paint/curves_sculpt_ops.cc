@@ -168,6 +168,8 @@ struct SculptCurvesBrushStroke : public PaintStroke {
 
   bool get_location(float out[3], const float mouse[2], bool force_original) override;
   bool test_start(const float mouse[2]) override;
+  void redraw(bool final) override;
+  bool test_cancel() override;
   void update_step(wmOperator *op, PointerRNA *itemptr) override;
   void done(bool is_cancel) override;
 
@@ -206,6 +208,15 @@ void SculptCurvesBrushStroke::update_step(wmOperator *op, PointerRNA *stroke_ele
   if (operation) {
     operation->on_stroke_extended(*evil_C, stroke_extension);
   }
+}
+
+void SculptCurvesBrushStroke::redraw(bool /*final*/)
+{
+
+}
+bool SculptCurvesBrushStroke::test_cancel()
+{
+  return false;
 }
 
 
