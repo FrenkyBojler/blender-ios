@@ -4375,6 +4375,22 @@ void blo_do_versions_500(FileData *fd, Library * /*lib*/, Main *bmain)
     }
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 118)) {
+    /* Add default face sets overlay opacity for files missing the field. */
+    if (!DNA_struct_member_exists(fd->filesdna, "View3DOverlay", "float", "face_sets_opacity")) {
+      LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+        LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+          LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+            if (sl->spacetype == SPACE_VIEW3D) {
+              View3D *v3d = (View3D *)sl;
+              v3d->overlay.face_sets_opacity = 0.4f;
+            }
+          }
+        }
+      }
+    }
+  }
+
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 112)) {
     /* The ownership of these pointers was moved to #CustomData in #customdata_version_242 and they
      * became deprecated in 05952aa94d33ee when we started using implicit-sharing. However, they
