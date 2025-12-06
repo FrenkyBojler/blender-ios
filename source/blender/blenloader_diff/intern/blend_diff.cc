@@ -437,12 +437,17 @@ struct BlendData {
 
 struct BlendIdData {
   std::string name;
+  std::string type_name;
   const BlendBlock *id_block = nullptr;
   Span<BlendBlock> blocks;
 };
 
 struct AddressMap {
   Map<uint64_t, const BlendBlock *> map;
+};
+
+struct IdAddressMap {
+  Map<uint64_t, const BlendIdData *> map;
 };
 
 struct BlockMatch {
@@ -475,8 +480,7 @@ static AddressMap build_address_map(const BlendIdData &id_data)
   return address_map;
 }
 
-static std::optional<PrimitiveValue> read_primitive_value_at_address(const eSDNA_Type type,
-                                                                     const void *data)
+static PrimitiveValue read_primitive_value_at_address(const eSDNA_Type type, const void *data)
 {
   switch (type) {
     case SDNA_TYPE_CHAR:
@@ -500,15 +504,302 @@ static std::optional<PrimitiveValue> read_primitive_value_at_address(const eSDNA
     case SDNA_TYPE_INT8:
       return *reinterpret_cast<const int8_t *>(data);
     case SDNA_TYPE_RAW_DATA:
-      return std::nullopt;
+      break;
   }
-  return std::nullopt;
+  BLI_assert_unreachable();
+  return 0;
+}
+
+static uint64_t read_address_at_address(const void *data)
+{
+  return *reinterpret_cast<const uint64_t *>(data);
 }
 
 static std::string primitive_value_to_string(const PrimitiveValue &value)
 {
   return std::visit([](const auto &v) { return std::to_string(v); }, value);
 }
+
+class IdDiffer {
+ private:
+  DiffWriter &writer_;
+
+  struct PerBlendData {
+    const IdAddressMap &id_addresses;
+    const BlendIdData &id_data;
+    const RichSDNA &sdna;
+    AddressMap addresses;
+  };
+
+  PerBlendData old_;
+  PerBlendData new_;
+
+  Map<const BlendBlock *, const BlendBlock *> old_by_new_;
+  Map<const BlendBlock *, const BlendBlock *> new_by_old_;
+
+  Stack<BlockMatch> matches_to_process_;
+
+  using Pointee = std::optional<std::variant<const BlendBlock *, const BlendIdData *>>;
+
+ public:
+  IdDiffer(DiffWriter &writer,
+           const BlendIdData &old_id_data,
+           const BlendIdData &new_id_data,
+           const IdAddressMap &old_ids,
+           const IdAddressMap &new_ids,
+           const RichSDNA &old_sdna,
+           const RichSDNA &new_sdna)
+      : writer_(writer), old_{old_ids, old_id_data, old_sdna}, new_{new_ids, new_id_data, new_sdna}
+  {
+  }
+
+  void run()
+  {
+    old_.addresses = build_address_map(old_.id_data);
+    new_.addresses = build_address_map(new_.id_data);
+
+    matches_to_process_.push({old_.id_data.id_block, new_.id_data.id_block, ""});
+
+    while (!matches_to_process_.is_empty()) {
+      const BlockMatch match = matches_to_process_.pop();
+
+      const Struct *old_struct = old_.sdna.try_find_struct(match.old_block->bhead.SDNAnr);
+      const Struct *new_struct = new_.sdna.try_find_struct(match.new_block->bhead.SDNAnr);
+      if (!old_struct || !new_struct) {
+        continue;
+      }
+      this->diff_struct(
+          *match.old_block, *match.new_block, 0, 0, *old_struct, *new_struct, match.context);
+    }
+  }
+
+  void diff_struct(const BlendBlock &old_block,
+                   const BlendBlock &new_block,
+                   const int64_t old_struct_offset,
+                   const int64_t new_struct_offset,
+                   const Struct &old_struct,
+                   const Struct &new_struct,
+                   const StringRef context)
+  {
+    const StringRef type_name = old_struct.type->name;
+    if (type_name != new_struct.type->name) {
+      writer_.writeln_changed(fmt::format("typeof({}) = {}", context, old_struct.type->name),
+                              fmt::format("typeof({}) = {}", context, new_struct.type->name));
+      return;
+    }
+    if (type_name == "ListBase") {
+      this->diff_listbase();
+      return;
+    }
+
+    for (const StructMember *old_member : old_struct.members) {
+      const StructMember *new_member = new_struct.members.lookup_key_default_as(
+          old_member->identifier, nullptr);
+      if (!new_member) {
+        /* This is in the diff as part of SDNA changes, no need to mention it for every block. */
+        continue;
+      }
+      this->diff_struct_member(old_block,
+                               new_block,
+                               old_struct_offset + old_member->offset_in_struct,
+                               new_struct_offset + new_member->offset_in_struct,
+                               *old_member,
+                               *new_member,
+                               context);
+    }
+  }
+
+  void diff_struct_member(const BlendBlock &old_block,
+                          const BlendBlock &new_block,
+                          const int64_t old_member_offset,
+                          const int64_t new_member_offset,
+                          const StructMember &old_member,
+                          const StructMember &new_member,
+                          const StringRef context)
+  {
+    const StringRef type_name = old_member.type->name;
+    const StructMember::Category category = old_member.category;
+    const int64_t elem_num = old_member.elem_num;
+    const StringRef name_only = old_member.name_only;
+    const std::optional<eSDNA_Type> opt_primitive_type = old_member.type->opt_primitive_type;
+    if (new_member.type->name != type_name || new_member.category != category ||
+        new_member.elem_num != elem_num || new_member.name_only != name_only ||
+        new_member.type->opt_primitive_type != opt_primitive_type)
+    {
+      /* This is in the diff as part of SDNA changes, no need to mention it for every block. */
+      return;
+    }
+    const bool is_array = elem_num > 1;
+    switch (category) {
+      case rich_sdna::StructMember::Category::Struct: {
+        const Struct &old_substruct = *old_member.type->opt_struct;
+        const Struct &new_substruct = *new_member.type->opt_struct;
+        for (const int i : IndexRange(elem_num)) {
+          const std::string sub_context = is_array ?
+                                              fmt::format("{}.{}[{}]", context, name_only, i) :
+                                              fmt::format("{}.{}", context, name_only);
+          this->diff_struct(old_block,
+                            new_block,
+                            old_member_offset + i * old_member.elem_size,
+                            new_member_offset + i * new_member.elem_size,
+                            old_substruct,
+                            new_substruct,
+                            sub_context);
+        }
+        break;
+      }
+      case rich_sdna::StructMember::Category::Primitive: {
+        BLI_assert(opt_primitive_type.has_value());
+        const eSDNA_Type primitive_type = *opt_primitive_type;
+        for (const int i : IndexRange(elem_num)) {
+          const PrimitiveValue old_value = read_primitive_value_at_address(
+              primitive_type, old_block.data + old_member_offset + i * old_member.elem_size);
+          const PrimitiveValue new_value = read_primitive_value_at_address(
+              primitive_type, new_block.data + new_member_offset + i * new_member.elem_size);
+          if (old_value == new_value) {
+            continue;
+          }
+          const std::string sub_context = is_array ?
+                                              fmt::format("{}.{}[{}]", context, name_only, i) :
+                                              fmt::format("{}.{}", context, name_only);
+          writer_.writeln_changed(
+              fmt::format("{} = {}", sub_context, primitive_value_to_string(old_value)),
+              fmt::format("{} = {}", sub_context, primitive_value_to_string(new_value)));
+        }
+        break;
+      }
+      case rich_sdna::StructMember::Category::Pointer: {
+        for (const int i : IndexRange(elem_num)) {
+          const uint64_t old_address = read_address_at_address(old_block.data + old_member_offset +
+                                                               i * old_member.elem_size);
+          const uint64_t new_address = read_address_at_address(new_block.data + new_member_offset +
+                                                               i * new_member.elem_size);
+          const Pointee old_pointee = this->lookup_pointee(old_, old_address);
+          const Pointee new_pointee = this->lookup_pointee(new_, new_address);
+          if (!old_pointee && !new_pointee) {
+            continue;
+          }
+          const std::string sub_context = is_array ?
+                                              fmt::format("{}.{}[{}]", context, name_only, i) :
+                                              fmt::format("{}.{}", context, name_only);
+          const std::string old_line = fmt::format(
+              "{} = {}", sub_context, this->pointee_to_string(old_, old_pointee));
+          const std::string new_line = fmt::format(
+              "{} = {}", sub_context, this->pointee_to_string(new_, new_pointee));
+          if (old_line != new_line) {
+            writer_.writeln_changed(old_line, new_line);
+          }
+          const BlendBlock *old_data_block = this->data_block_from_pointee(old_pointee);
+          const BlendBlock *new_data_block = this->data_block_from_pointee(new_pointee);
+          if (old_data_block && new_data_block) {
+            this->tag_potentially_corresponding_blocks(
+                *old_data_block, *new_data_block, sub_context);
+          }
+        }
+        break;
+      }
+    }
+  }
+
+  void diff_listbase() {}
+
+  Pointee lookup_pointee(const PerBlendData &blend_data, const uint64_t address) const
+  {
+    if (const BlendBlock *block = blend_data.addresses.map.lookup_default(address, nullptr)) {
+      return block;
+    }
+    if (const BlendIdData *id_data = blend_data.id_addresses.map.lookup_default_as(address,
+                                                                                   nullptr))
+    {
+      return id_data->id_block;
+    }
+    return std::nullopt;
+  }
+
+  std::string pointee_to_string(const PerBlendData &blend_data, const Pointee &pointee) const
+  {
+    if (!pointee) {
+      return "nullptr";
+    }
+    if (const BlendBlock *const *block_ptr = std::get_if<const BlendBlock *>(&*pointee)) {
+      const BlendBlock &block = **block_ptr;
+      if (const Struct *sdna_struct = blend_data.sdna.try_find_struct(block.bhead.SDNAnr)) {
+        return fmt::format("{}(...)", sdna_struct->type->name);
+      }
+      return fmt::format("*");
+    }
+    const BlendIdData &id_data = *std::get<const BlendIdData *>(*pointee);
+    return fmt::format("{}[\"{}\"]", id_data.type_name, id_data.name);
+  }
+
+  const BlendBlock *data_block_from_pointee(const Pointee &pointee) const
+  {
+    if (!pointee) {
+      return nullptr;
+    }
+    if (const BlendBlock *const *block_ptr = std::get_if<const BlendBlock *>(&*pointee)) {
+      return *block_ptr;
+    }
+    return nullptr;
+  }
+
+  void tag_potentially_corresponding_blocks(const BlendBlock &old_block,
+                                            const BlendBlock &new_block,
+                                            const StringRef context)
+  {
+    /* A block can only be matched at most once. */
+    if (old_by_new_.contains(&new_block)) {
+      return;
+    }
+    if (new_by_old_.contains(&old_block)) {
+      return;
+    }
+    /* Blocks with different identifiers cannot be matched. */
+    if (this->data_blocks_have_consistent_identifier(old_block, new_block).value_or(true) == false)
+    {
+      return;
+    }
+    old_by_new_.add_new(&new_block, &old_block);
+    new_by_old_.add_new(&old_block, &new_block);
+    matches_to_process_.push({&old_block, &new_block, context});
+  }
+
+  std::optional<bool> data_blocks_have_consistent_identifier(const BlendBlock &old_block,
+                                                             const BlendBlock &new_block)
+  {
+    const Struct *old_struct = old_.sdna.try_find_struct(old_block.bhead.SDNAnr);
+    const Struct *new_struct = new_.sdna.try_find_struct(new_block.bhead.SDNAnr);
+    if (!old_struct || !new_struct) {
+      return std::nullopt;
+    }
+    if (old_struct->type->name == "bNode" && new_struct->type->name == "bNode") {
+      return this->get_bNode_identifier(old_block, old_.sdna) ==
+             this->get_bNode_identifier(new_block, new_.sdna);
+    }
+
+    return std::nullopt;
+  }
+
+  std::optional<int> get_bNode_identifier(const BlendBlock &block, const RichSDNA &sdna)
+  {
+    const Struct *sdna_struct = sdna.try_find_struct(block.bhead.SDNAnr);
+    if (!sdna_struct) {
+      return std::nullopt;
+    }
+    if (sdna_struct->type->name != "bNode") {
+      return std::nullopt;
+    }
+    const StructMember *identifier_member = sdna_struct->members.lookup_key_default_as(
+        "identifier", nullptr);
+    if (!identifier_member) {
+      return std::nullopt;
+    }
+    if (identifier_member->type->opt_primitive_type != SDNA_TYPE_INT) {
+      return std::nullopt;
+    }
+    return *reinterpret_cast<const int *>(block.data + identifier_member->offset_in_struct);
+  }
+};
 
 static Vector<const BlendBlock *> gather_linked_list_pointees(const uint64_t first_address,
                                                               const AddressMap &address_map,
@@ -774,11 +1065,17 @@ static void write_diff_ids(DiffWriter &writer,
 {
   Map<StringRef, const BlendIdData *> old_id_names;
   Map<StringRef, const BlendIdData *> new_id_names;
+
+  IdAddressMap id_address_map_old;
+  IdAddressMap id_address_map_new;
+
   for (const BlendIdData &id_data : id_blocks_old) {
     old_id_names.add(id_data.name, &id_data);
+    id_address_map_old.map.add(uint64_t(id_data.id_block->bhead.old), &id_data);
   }
   for (const BlendIdData &id_data : id_blocks_new) {
     new_id_names.add(id_data.name, &id_data);
+    id_address_map_new.map.add(uint64_t(id_data.id_block->bhead.old), &id_data);
   }
   Vector<std::pair<const BlendIdData *, const BlendIdData *>> id_pairs;
   for (const BlendIdData &old_id_data : id_blocks_old) {
@@ -799,7 +1096,14 @@ static void write_diff_ids(DiffWriter &writer,
   for (const std::pair<const BlendIdData *, const BlendIdData *> &id_pair : id_pairs) {
     const BlendIdData &old_id_data = *id_pair.first;
     const BlendIdData &new_id_data = *id_pair.second;
-    write_diff_id(writer, old_id_data, new_id_data, sdna_old, sdna_new);
+    IdDiffer id_differ(writer,
+                       old_id_data,
+                       new_id_data,
+                       id_address_map_old,
+                       id_address_map_new,
+                       sdna_old,
+                       sdna_new);
+    id_differ.run();
   }
 }
 
@@ -909,10 +1213,15 @@ static std::optional<Vector<BlendIdData>> find_blend_id_blocks(const BlendData &
     if (!name) {
       return std::nullopt;
     }
+    const Struct *id_struct = sdna.try_find_struct(block.bhead.SDNAnr);
+    if (!id_struct) {
+      return std::nullopt;
+    }
 
     BlendIdData id_data;
     id_data.name = *name;
     id_data.id_block = &block;
+    id_data.type_name = id_struct->type->name;
     i++;
     const int first_data_index = i;
     while (i < blend_data.blocks.size()) {
@@ -981,7 +1290,7 @@ static std::optional<BlendData> read_blend_file_data(FileReader &file)
 static int main_do(const int argc, char *argv[])
 {
   if (argc < 3) {
-    fmt::println(stderr, "Usage: blend_diff <file_old> <file_new>");
+    fmt::println(stderr, "Incorrect usage");
     return 1;
   }
   const StringRefNull relative_path = argv[1];
