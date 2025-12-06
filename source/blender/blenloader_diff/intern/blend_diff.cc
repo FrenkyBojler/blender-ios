@@ -812,8 +812,8 @@ class IdDiffer {
           if (old_line != new_line) {
             writer_.writeln_changed(old_line, new_line);
           }
-          const BlendBlock *old_data_block = this->data_block_from_pointee(old_pointee);
-          const BlendBlock *new_data_block = this->data_block_from_pointee(new_pointee);
+          const BlendBlock *old_data_block = this->local_data_block_from_pointee(old_pointee);
+          const BlendBlock *new_data_block = this->local_data_block_from_pointee(new_pointee);
           if (old_data_block && new_data_block) {
             this->tag_potentially_corresponding_blocks(
                 *old_data_block, *new_data_block, sub_context);
@@ -982,7 +982,7 @@ class IdDiffer {
     return fmt::format("{}[\"{}\"]", id_data.type_name, id_data.name);
   }
 
-  const BlendBlock *data_block_from_pointee(const Pointee &pointee) const
+  const BlendBlock *local_data_block_from_pointee(const Pointee &pointee) const
   {
     if (!pointee) {
       return nullptr;
