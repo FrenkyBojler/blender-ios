@@ -139,6 +139,10 @@ class Meshes : Overlay {
     if (show_retopology_ && show_face_sets_) {
       face_sets_opacity *= 0.5f;
     }
+    /* Respect X-Ray opacity so overlays do not ignore viewport transparency. */
+    if (state.xray_enabled) {
+      face_sets_opacity *= state.xray_opacity;
+    }
     /* Cull back-faces for retopology face pass. This makes it so back-faces are not drawn.
      * Doing so lets us distinguish back-faces from front-faces. */
     DRWState face_culling = (show_retopology_ || show_face_sets_) ? DRW_STATE_CULL_BACK :
