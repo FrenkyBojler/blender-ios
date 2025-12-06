@@ -1250,9 +1250,11 @@ static void test_preprocess_stage_attribute()
 )";
     string expect = R"(
                          void my_func() {
+
 #if defined(GPU_VERTEX_SHADER)
 #line 3
   return;
+
 #endif
 #line 4
 }
@@ -1278,9 +1280,11 @@ void my_func() {
 )";
     string expect = R"(
 void my_func() {
+
 #if defined(CREATE_INFO_draw_resource_id_varying)
 #line 3
   interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_index;
+
 #endif
 #line 4
 }
@@ -1300,11 +1304,13 @@ uint my_func() {
 )";
     string expect = R"(
 uint my_func() {
+
 #if defined(CREATE_INFO_draw_resource_id_varying)
 #line 3
   uint i = 0;
   i += interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_index;
   return i;
+
 #else
 #line 3
   return uint(0);
@@ -1331,9 +1337,11 @@ uint my_func() {
 uint my_func() {
   uint i = 0;
   {
+
 #if defined(CREATE_INFO_draw_resource_id_varying)
 #line 5
     i += interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_index;
+
 #endif
 #line 6
   }
@@ -1360,13 +1368,17 @@ uint my_func() {
 uint my_func() {
   uint i = 0;
   {
+
 #if defined(CREATE_INFO_draw_resource_id_varying)
 #line 5
+
 #if defined(CREATE_INFO_draw_resource_id)
 #line 5
     i += interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_index;
     i += buffer_get(draw_resource_id, resource_id_buf)[0];
+
 #endif
+
 #endif
 #line 7
   }
@@ -1387,9 +1399,11 @@ template<> uint my_func<uint>(uint i) {
 )";
     string expect = R"(
            uint my_funcTuint(uint i) {
+
 #if defined(CREATE_INFO_draw_resource_id)
 #line 3
   return buffer_get(draw_resource_id, resource_id_buf)[i];
+
 #else
 #line 3
   return uint(0);
@@ -1684,35 +1698,39 @@ struct ns_FragOut {
                     float3 color;
                               uint test;
 };
-#line 17
 #line 14
 struct ns_VertInTfloat {
                    float pos;
 };
-#line 18
 #line 20
            void ns_vertex_function(
 #line 23
                                                                  )
-{ Resources srt;
+{
 #if defined(GPU_VERTEX_SHADER)
 #line 24
+  Resources srt;
   gl_Position;
+
 #endif
+#line 26
 }
 
              void ns_fragment_function(
 #line 35
                                                                            )
-{ Resources srt;
+{
 #if defined(GPU_FRAGMENT_SHADER)
 #line 36
+  Resources srt;
   gl_FragDepth;
   gl_FragStencilRefARB;
   gl_FragCoord;
   gl_PointCoord;
   gl_FrontFacing;
+
 #endif
+#line 42
 }
 
 

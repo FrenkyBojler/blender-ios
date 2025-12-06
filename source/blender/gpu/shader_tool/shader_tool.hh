@@ -2705,7 +2705,7 @@ class Preprocessor {
     string line_start = "#line " + std::to_string(scope.start().next().line_number()) + "\n";
     string line_end = "#line " + std::to_string(scope.end().line_number()) + "\n";
 
-    string guard_start = "#if " + condition + "\n";
+    string guard_start = "#if " + condition;
     string guard_else;
     if (fn_type.is_valid() && fn_type.str() != "void") {
       string type = fn_type.str();
@@ -2728,10 +2728,10 @@ class Preprocessor {
       guard_else += line_start;
       guard_else += "  return " + type + (is_trivial ? "(0)" : "::zero()") + ";\n";
     }
-    string guard_end = "#endif\n";
+    string guard_end = "#endif";
 
-    parser.insert_after(scope.start().line_end() + 1, guard_start + line_start);
-    parser.insert_before(scope.end().line_start(), guard_else + guard_end + line_end);
+    parser.insert_directive(scope.start(), guard_start);
+    parser.insert_directive(scope.end().prev(), guard_else + guard_end);
   };
 
   void enum_macro_injection(Parser &parser, bool is_shared_file, report_callback report_error)
@@ -2957,13 +2957,25 @@ class Preprocessor {
     using namespace std;
     using namespace shader::parser;
 
-    parser().foreach_match("#w0\n#w0\n", [&](vector<Token> toks) {
-      parser.replace(toks[0].line_start(), toks[0].line_end() + 1, "");
+    parser().foreach_match("#w0\n", [&](vector<Token> toks) {
+      /* Workaround the foreach_match not matching overlapping patterns. */
+      if (toks.back().next() == '#' && toks.back().next().next() == 'w' &&
+          toks.back().next().next().next() == '0' &&
+          toks.back().next().next().next().next() == '\n')
+      {
+        parser.replace(toks[0].line_start(), toks[0].line_end() + 1, "");
+      }
     });
     parser.apply_mutations();
 
-    parser().foreach_match("#w0\n#w\n#w0\n", [&](vector<Token> toks) {
-      parser.replace(toks[0].line_start(), toks[0].line_end() + 1, "");
+    parser().foreach_match("#w0\n#w\n", [&](vector<Token> toks) {
+      /* Workaround the foreach_match not matching overlapping patterns. */
+      if (toks.back().next() == '#' && toks.back().next().next() == 'w' &&
+          toks.back().next().next().next() == '0' &&
+          toks.back().next().next().next().next() == '\n')
+      {
+        parser.replace(toks[0].line_start(), toks[0].line_end() + 1, "");
+      }
     });
     parser.apply_mutations();
 
