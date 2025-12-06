@@ -223,5 +223,7 @@ rctf PieMenuData::scroll_handle_rect() const
   handle_rect.ymin = handle_rect.ymax - UI_UNIT_Y;
   return handle_rect;
 }
-}  // namespace blender::ui
+
 /** \} */
+
+}  // namespace blender::ui
