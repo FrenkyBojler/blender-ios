@@ -1,6 +1,7 @@
 #include <fmt/format.h>
 #include <fstream>
 #include <iostream>
+#include <thread>
 
 #include "BLI_filereader.h"
 #include "BLI_index_range.hh"
@@ -587,10 +588,10 @@ class IdDiffer {
                               fmt::format("typeof({}) = {}", context, new_struct.type->name));
       return;
     }
-    if (type_name == "ListBase") {
-      this->diff_listbase();
-      return;
-    }
+    // if (type_name == "ListBase") {
+    //   this->diff_listbase();
+    //   return;
+    // }
 
     for (const StructMember *old_member : old_struct.members) {
       const StructMember *new_member = new_struct.members.lookup_key_default_as(
@@ -830,6 +831,7 @@ static void write_diff_ids(DiffWriter &writer,
                            const RichSDNA &sdna_old,
                            const RichSDNA &sdna_new)
 {
+  writer.writeln_unchanged("Data Changes:");
   Map<StringRef, const BlendIdData *> old_id_names;
   Map<StringRef, const BlendIdData *> new_id_names;
 
@@ -1054,8 +1056,33 @@ static std::optional<BlendData> read_blend_file_data(FileReader &file)
   return blend_file_data;
 }
 
+static void handle_invalid_blend_file_error(const StringRef path)
+{
+  std::fstream f(path, std::ios::in | std::ios::binary);
+  if (!f.is_open()) {
+    fmt::println(stderr, "Unable to open file: {}", path);
+    return;
+  }
+  char first_bytes[50] = {};
+  if (f.read(first_bytes, sizeof(first_bytes) - 1)) {
+    const char *lfs_magic = "version https://git-lfs";
+    if (memcmp(first_bytes, lfs_magic, strlen(lfs_magic)) == 0) {
+      fmt::println(stderr, "File is a git lfs file: {}", path);
+      return;
+    }
+  }
+
+  fmt::println(stderr, "Unable to read .blend file: {}", path);
+}
+
 static int main_do(const int argc, char *argv[])
 {
+  std::fstream myfile("/home/jacques/Downloads/test.txt", std::ios::out);
+  for (const int i : blender::IndexRange(argc)) {
+    myfile << argv[i] << '\n';
+  }
+  myfile.close();
+  std::this_thread::sleep_for(std::chrono::seconds(10));
   if (argc < 3) {
     fmt::println(stderr, "Incorrect usage");
     return 1;
@@ -1066,19 +1093,25 @@ static int main_do(const int argc, char *argv[])
 
   FileReader *file_reader_old = BLO_file_reader_uncompressed_from_path(file_old.c_str());
   FileReader *file_reader_new = BLO_file_reader_uncompressed_from_path(file_new.c_str());
+  BLI_SCOPED_DEFER([&]() {
+    if (file_reader_old) {
+      file_reader_old->close(file_reader_old);
+    }
+    if (file_reader_new) {
+      file_reader_new->close(file_reader_new);
+    }
+  });
   if (!file_reader_old) {
-    fmt::println(stderr, "Unable to open .blend file: {}", file_old);
+    handle_invalid_blend_file_error(file_old);
     return 1;
   }
   if (!file_reader_new) {
-    fmt::println(stderr, "Unable to open .blend file: {}", file_new);
+    handle_invalid_blend_file_error(file_new);
     return 1;
   }
 
   const std::optional<BlendData> blend_data_old = read_blend_file_data(*file_reader_old);
   const std::optional<BlendData> blend_data_new = read_blend_file_data(*file_reader_new);
-  file_reader_old->close(file_reader_old);
-  file_reader_new->close(file_reader_new);
   if (!blend_data_old) {
     fmt::println(stderr, "Unable to read .blend file: {}", file_old);
     return 1;
@@ -1145,31 +1178,7 @@ static int main_do(const int argc, char *argv[])
   write_diff_sdna(writer, sdna_old, sdna_new);
   write_diff_ids(writer, *id_blocks_old, *id_blocks_new, sdna_old, sdna_new);
 
-  std::fstream myfile("/home/jacques/Downloads/test.txt", std::ios::out);
-  // for (const int i : blender::IndexRange(argc)) {
-  // myfile << argv[i] << '\n';
-  // fmt::println("Arg {}: {}", i, argv[i]);
-  // }
-  myfile << writer.to_string();
-
   std::cout << writer.to_string();
-  return 0;
-
-  const std::string dummy_patch = fmt::format(
-      R"(diff --git a/{} b/{}
---- a/{}
-+++ b/{}
-@@ -1 +100000 @@
--Hello
-+Hella
-)",
-      relative_path,
-      relative_path,
-      relative_path,
-      relative_path);
-
-  // myfile << dummy_patch;
-  // std::cout << dummy_patch;
   return 0;
 }
 
@@ -1177,5 +1186,11 @@ static int main_do(const int argc, char *argv[])
 
 int main(int argc, char *argv[])
 {
-  return blender::blend_diff::main_do(argc, argv);
+  try {
+    return blender::blend_diff::main_do(argc, argv);
+  }
+  catch (const std::exception &e) {
+    fmt::println(stderr, "Exception: {}", e.what());
+    return 1;
+  }
 }
