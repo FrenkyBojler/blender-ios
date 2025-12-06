@@ -1653,6 +1653,7 @@ template struct VertIn<float>;
                                 [[out, condition(cond)]] VertOut &v_out,
                                 [[position]] float4 &out_position)
 {
+  out_position;
 }
 
 [[fragment]] void fragment_function([[resource_table]] Resources &srt,
@@ -1660,10 +1661,15 @@ template struct VertIn<float>;
                                     [[out]] FragOut &frag_out,
                                     [[frag_depth(greater)]] float depth;
                                     [[frag_stencil_ref]] int stencil;
-                                    [[position]] const float4 out_position)
+                                    [[point_coord]] const float2 pt_co;
+                                    [[front_facing]] const bool facing;
+                                    [[frag_coord]] const float4 in_position)
 {
   depth;
   stencil;
+  in_position;
+  pt_co;
+  facing;
 }
 
 }
@@ -1690,18 +1696,22 @@ struct ns_VertInTfloat {
                                                                  )
 { Resources srt;
 #if defined(GPU_VERTEX_SHADER)
+#line 24
+  gl_Position;
 #endif
-#line 25
 }
 
              void ns_fragment_function(
-#line 32
-                                                                          )
+#line 35
+                                                                           )
 { Resources srt;
 #if defined(GPU_FRAGMENT_SHADER)
-#line 33
+#line 36
   gl_FragDepth;
   gl_FragStencilRefARB;
+  gl_FragCoord;
+  gl_PointCoord;
+  gl_FrontFacing;
 #endif
 }
 
@@ -1737,6 +1747,9 @@ GPU_SHADER_CREATE_END()
 GPU_SHADER_CREATE_INFO(ns_fragment_function_infos_)
 DEPTH_WRITE(GREATER)
 BUILTINS(BuiltinBits::STENCIL_REF)
+BUILTINS(BuiltinBits::POINT_COORD)
+BUILTINS(BuiltinBits::FRONT_FACING)
+BUILTINS(BuiltinBits::FRAG_COORD)
 ADDITIONAL_INFO(Resources)
 ADDITIONAL_INFO(ns_FragOut)
 GPU_SHADER_CREATE_END()

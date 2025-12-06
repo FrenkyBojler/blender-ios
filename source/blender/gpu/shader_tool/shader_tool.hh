@@ -3260,19 +3260,60 @@ class Preprocessor {
               metadata.builtins.emplace_back(Builtin(hash("gl_InstanceID")));
             }
             else if (srt_attr == "position" && is_entry_point) {
-              if (is_compute_func) {
+              if (!is_vertex_func) {
                 report_error(ERROR_TOK(attributes[1]),
-                             "[[position]] is only supported in vertex or fragment functions.");
+                             "[[position]] is only supported in vertex functions.");
               }
-              else if (is_vertex_func && (is_const || srt_type != "float4")) {
+              else if (is_const || srt_type != "float4") {
                 report_error(
                     ERROR_TOK(type),
                     "[[position]] must be declared as non-const reference (aka `float4 &`).");
               }
-              else if (is_fragment_func && (!is_const || srt_type != "float4")) {
-                report_error(ERROR_TOK(type), "[[position]] must be declared as `const float4`.");
+              else {
+                replace_word(srt_var, "gl_Position");
               }
-              replace_word(srt_var, "gl_Position");
+            }
+            else if (srt_attr == "frag_coord" && is_entry_point) {
+              if (!is_fragment_func) {
+                report_error(ERROR_TOK(attributes[1]),
+                             "[[frag_coord]] is only supported in fragment functions.");
+              }
+              else if (!is_const || srt_type != "float4") {
+                report_error(ERROR_TOK(type),
+                             "[[frag_coord]] must be declared as `const float4`.");
+              }
+              else {
+                create_info_decl += "BUILTINS(BuiltinBits::FRAG_COORD)\n";
+                replace_word(srt_var, "gl_FragCoord");
+              }
+            }
+            else if (srt_attr == "point_coord" && is_entry_point) {
+              if (!is_fragment_func) {
+                report_error(ERROR_TOK(attributes[1]),
+                             "[[point_coord]] is only supported in fragment functions.");
+              }
+              else if (!is_const || srt_type != "float2") {
+                report_error(ERROR_TOK(type),
+                             "[[point_coord]] must be declared as `const float2`.");
+              }
+              else {
+                create_info_decl += "BUILTINS(BuiltinBits::POINT_COORD)\n";
+                replace_word(srt_var, "gl_PointCoord");
+              }
+            }
+            else if (srt_attr == "front_facing" && is_entry_point) {
+              if (!is_fragment_func) {
+                report_error(ERROR_TOK(attributes[1]),
+                             "[[front_facing]] is only supported in fragment functions.");
+              }
+              else if (!is_const || srt_type != "bool") {
+                report_error(ERROR_TOK(type),
+                             "[[front_facing]] must be declared as `const bool`.");
+              }
+              else {
+                create_info_decl += "BUILTINS(BuiltinBits::FRONT_FACING)\n";
+                replace_word(srt_var, "gl_FrontFacing");
+              }
             }
             else if (srt_attr == "in") {
               if (is_compute_func) {
