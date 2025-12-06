@@ -1700,6 +1700,20 @@ template struct VertIn<float>;
   facing;
 }
 
+[[compute]] void compute_function([[resource_table]] Resources &srt,
+                                  [[global_invocation_id]] const uint3 &global_invocation_id,
+                                  [[local_invocation_id]] const uint3 &local_invocation_id,
+                                  [[local_invocation_index]] const uint &local_invocation_index,
+                                  [[work_group_id]] const uint3 &workgroup_id,
+                                  [[num_work_groups]] const uint3 &num_work_groups)
+{
+  global_invocation_id;
+  local_invocation_id;
+  local_invocation_index;
+  workgroup_id;
+  num_work_groups;
+}
+
 }
 )";
     string expect = R"(
@@ -1754,6 +1768,23 @@ struct ns_VertInTfloat {
 #line 56
 }
 
+            void ns_compute_function(
+#line 63
+                                                                                  )
+{
+#if defined(GPU_COMPUTE_SHADER)
+#line 64
+  Resources srt;
+  gl_GlobalInvocationID;
+  gl_LocalInvocationID;
+  gl_LocalInvocationIndex;
+  gl_WorkGroupID;
+  gl_NumWorkGroups;
+
+#endif
+#line 70
+}
+
 
 )";
     string expect_infos = R"(#pragma once
@@ -1797,6 +1828,15 @@ ADDITIONAL_INFO(Resources)
 ADDITIONAL_INFO(ns_FragOut)
 BUILTINS(BuiltinBits::LAYER)
 BUILTINS(BuiltinBits::VIEWPORT_INDEX)
+GPU_SHADER_CREATE_END()
+
+GPU_SHADER_CREATE_INFO(ns_compute_function_infos_)
+ADDITIONAL_INFO(Resources)
+BUILTINS(BuiltinBits::GLOBAL_INVOCATION_ID)
+BUILTINS(BuiltinBits::LOCAL_INVOCATION_ID)
+BUILTINS(BuiltinBits::LOCAL_INVOCATION_INDEX)
+BUILTINS(BuiltinBits::WORK_GROUP_ID)
+BUILTINS(BuiltinBits::NUM_WORK_GROUP)
 GPU_SHADER_CREATE_END()
 
 )";

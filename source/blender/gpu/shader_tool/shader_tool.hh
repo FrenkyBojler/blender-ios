@@ -3403,6 +3403,78 @@ class Preprocessor {
                 replace_word(srt_var, "gl_FrontFacing");
               }
             }
+            else if (srt_attr == "global_invocation_id" && is_entry_point) {
+              if (!is_compute_func) {
+                report_error(ERROR_TOK(attributes[1]),
+                             "[[global_invocation_id]] is only supported in compute functions.");
+              }
+              else if (!is_const || srt_type != "uint3") {
+                report_error(ERROR_TOK(type),
+                             "[[global_invocation_id]] must be declared as `const uint3`.");
+              }
+              else {
+                create_info_decl += "BUILTINS(BuiltinBits::GLOBAL_INVOCATION_ID)\n";
+                replace_word(srt_var, "gl_GlobalInvocationID");
+              }
+            }
+            else if (srt_attr == "local_invocation_id" && is_entry_point) {
+              if (!is_compute_func) {
+                report_error(ERROR_TOK(attributes[1]),
+                             "[[local_invocation_id]] is only supported in compute functions.");
+              }
+              else if (!is_const || srt_type != "uint3") {
+                report_error(ERROR_TOK(type),
+                             "[[local_invocation_id]] must be declared as `const uint3`.");
+              }
+              else {
+                create_info_decl += "BUILTINS(BuiltinBits::LOCAL_INVOCATION_ID)\n";
+                replace_word(srt_var, "gl_LocalInvocationID");
+              }
+            }
+            else if (srt_attr == "local_invocation_index" && is_entry_point) {
+              if (!is_compute_func) {
+                report_error(ERROR_TOK(attributes[1]),
+                             "[[local_invocation_index]] is only supported in compute functions.");
+              }
+              else if (!is_const || srt_type != "uint") {
+                report_error(ERROR_TOK(type),
+                             "[[local_invocation_index]] must be declared as `const uint`.");
+              }
+              else {
+                create_info_decl += "BUILTINS(BuiltinBits::LOCAL_INVOCATION_INDEX)\n";
+                replace_word(srt_var, "gl_LocalInvocationIndex");
+              }
+            }
+            else if (srt_attr == "work_group_id" && is_entry_point) {
+              if (!is_compute_func) {
+                report_error(ERROR_TOK(attributes[1]),
+                             "[[work_group_id]] is only supported in compute functions.");
+              }
+              else if (!is_const || srt_type != "uint3") {
+                report_error(ERROR_TOK(type),
+                             "[[work_group_id]] must be declared as "
+                             "`const uint3`.");
+              }
+              else {
+                create_info_decl += "BUILTINS(BuiltinBits::WORK_GROUP_ID)\n";
+                replace_word(srt_var, "gl_WorkGroupID");
+              }
+            }
+            else if (srt_attr == "num_work_groups" && is_entry_point) {
+              if (!is_compute_func) {
+                report_error(ERROR_TOK(attributes[1]),
+                             "[[num_work_groups]] is only supported in compute functions.");
+              }
+              else if (!is_const || srt_type != "uint3") {
+                report_error(ERROR_TOK(type),
+                             "[[num_work_groups]] must be declared as "
+                             "`const uint3`.");
+              }
+              else {
+                create_info_decl += "BUILTINS(BuiltinBits::NUM_WORK_GROUP)\n";
+                replace_word(srt_var, "gl_NumWorkGroups");
+              }
+            }
             else if (srt_attr == "in") {
               if (is_compute_func) {
                 report_error(ERROR_TOK(attributes[1]),
