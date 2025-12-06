@@ -369,8 +369,25 @@ class GreasePencil : Overlay {
 
         const int num_stroke_triangles = triangles[shape_index].size();
 
+        int num_stroke_vertices = 0;
+
+        if (!shapes) {
+          const int curve_i = shape_index;
+          const IndexRange points = points_by_curve[curve_i];
+          num_stroke_vertices += (points.size() + int(cyclic[curve_i] && (points.size() >= 3)));
+        }
+        else {
+          const Span<int> shape = (*shapes)[shape_index];
+          for (const int pos : shape.index_range()) {
+            const int curve_i = shape[pos];
+            const IndexRange points = points_by_curve[curve_i];
+            num_stroke_vertices += (points.size() + int(cyclic[curve_i] && (points.size() >= 3)));
+          }
+        }
+
         if (hide_material || hide_onion) {
           t_offset += num_stroke_triangles;
+          t_offset += num_stroke_vertices * 2;
           return;
         }
 
@@ -388,35 +405,12 @@ class GreasePencil : Overlay {
 
         t_offset += num_stroke_triangles;
 
-        auto add_curve = [&](const int curve_i) {
-          const IndexRange points = points_by_curve[curve_i];
-
-          const int num_stroke_vertices = (points.size() +
-                                           int(cyclic[curve_i] && (points.size() >= 3)));
-
-          if (hide_material || hide_onion) {
-            t_offset += num_stroke_vertices * 2;
-            return;
-          }
-
-          if (show_stroke) {
-            const int v_first = t_offset * 3;
-            const int v_count = num_stroke_vertices * 2 * 3;
-            pass.draw(geom, 1, v_count, v_first, res_handle, select_id.get());
-          }
-          t_offset += num_stroke_vertices * 2;
-        };
-
-        if (!shapes) {
-          add_curve(first_curve);
+        if (show_stroke) {
+          const int v_first = t_offset * 3;
+          const int v_count = num_stroke_vertices * 2 * 3;
+          pass.draw(geom, 1, v_count, v_first, res_handle, select_id.get());
         }
-        else {
-          const Span<int> shape = (*shapes)[shape_index];
-          for (const int pos : shape.index_range()) {
-            const int curve_i = shape[pos];
-            add_curve(curve_i);
-          }
-        }
+        t_offset += num_stroke_vertices * 2;
       });
     }
   }
