@@ -1276,8 +1276,8 @@ class IdDiffer {
             if (old_str == new_str) {
               break;
             }
-            diff_.change(fmt::format("{}.{} = {}", context, name_only, *old_str),
-                         fmt::format("{}.{} = {}", context, name_only, *new_str));
+            diff_.change(fmt::format("{}.{} = \"{}\"", context, name_only, *old_str),
+                         fmt::format("{}.{} = \"{}\"", context, name_only, *new_str));
             break;
           }
         }
@@ -1837,6 +1837,13 @@ class IdDiffer {
     if (old_is_raw != new_is_raw) {
       return;
     }
+    const Struct *old_struct = old_.sdna.try_find_struct(old_block.bhead.SDNAnr);
+    const Struct *new_struct = new_.sdna.try_find_struct(new_block.bhead.SDNAnr);
+    if (old_struct && new_struct) {
+      if (old_struct->type->name != new_struct->type->name) {
+        return;
+      }
+    }
     /* Blocks with different identifiers cannot be matched. */
     if (this->data_blocks_have_consistent_identifier(old_block, new_block).value_or(true) == false)
     {
@@ -2395,8 +2402,8 @@ static int main_do(const int argc, char *argv[])
   options.ignore_pad = true;
   options.add_members_to_ignore(
       "bNode", {"locx", "locy", "width", "height", "ui_order", "location", "type"});
-  options.add_members_to_ignore("bNodeTree", {"view_center"});
-  options.add_members_to_ignore("bNodeSocket", {"*link"});
+  options.add_members_to_ignore("bNodeTree", {"view_center", "*owner_id"});
+  options.add_members_to_ignore("bNodeSocket", {"*link", "type"});
   options.add_members_to_ignore(
       "ID", {"session_uid", "recalc_up_to_undo_push", "recalc_after_undo_push", "recalc"});
   options.add_members_to_ignore("CustomData", {"typemap"});
@@ -2406,8 +2413,10 @@ static int main_do(const int argc, char *argv[])
   options.add_members_to_ignore("CurveProfile", {"changed_timestamp"});
   options.add_members_to_ignore("Scene", {"customdata_mask, customdata_mask_modal"});
   options.add_members_to_ignore("bNodeLink", {"*fromnode", "*tonode", "*fromsock", "*tosock"});
+  options.add_members_to_ignore("Group", {"*owner_id"});
+  options.add_members_to_ignore("Bone", {"*parent"});
   options.add_next_prev_ignore_types(
-      {"bNode", "bNodeSocket", "bNodeLink", "IDProperty", "ModifierData"});
+      {"bNode", "bNodeSocket", "bNodeLink", "IDProperty", "ModifierData", "Bone"});
   options.add_ignored_flags("bNode", "flag", NODE_SELECT | NODE_OPTIONS | NODE_ACTIVE);
   options.add_ignored_flags("bNodeSocket",
                             "flag",
