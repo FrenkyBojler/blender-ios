@@ -463,7 +463,7 @@ void object_sculpt_mode_enter(Main &bmain,
   }
 
   /* If Orbit Around Selection is enabled, force the pivot to update. */
-  if ((U.uiflag & USER_ORBIT_SELECTION) != 0) {
+  if ((U.uiflag & USER_ORBIT_SELECTION)) {
     paint->runtime->last_stroke_valid = false;
   }
 
