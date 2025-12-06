@@ -1072,7 +1072,13 @@ class IdDiffer {
 
   int pointer_level_from_name(const StringRef name) const
   {
-    return name.find_first_not_of('*');
+    int64_t level = 0;
+    for (const char c : name) {
+      if (c == '*') {
+        level++;
+      }
+    }
+    return level;
   }
 
   void diff_raw_buffer(const BlendBlock &old_block,
@@ -2391,12 +2397,15 @@ static int main_do(const int argc, char *argv[])
   options.add_members_to_ignore("IDProperty", {"totallen"});
   options.add_members_to_ignore("PreviewImage", {"changed_timestamp"});
   options.add_members_to_ignore("CurveProfile", {"changed_timestamp"});
+  options.add_members_to_ignore("Scene", {"customdata_mask, customdata_mask_modal"});
   options.add_members_to_ignore("bNodeLink", {"*fromnode", "*tonode", "*fromsock", "*tosock"});
   options.add_next_prev_ignore_types(
       {"bNode", "bNodeSocket", "bNodeLink", "IDProperty", "ModifierData"});
   options.add_ignored_flags("bNode", "flag", NODE_SELECT | NODE_OPTIONS | NODE_ACTIVE);
-  options.add_ignored_flags(
-      "bNodeSocket", "flag", SELECT | SOCK_HIDDEN | SOCK_IS_LINKED | SOCK_COLLAPSED);
+  options.add_ignored_flags("bNodeSocket",
+                            "flag",
+                            SELECT | SOCK_HIDDEN | SOCK_IS_LINKED | SOCK_COLLAPSED |
+                                SOCK_PANEL_COLLAPSED);
   options.add_id_types_to_ignore({"wmWindowManager", "Screen", "WorkSpace"});
   /* These have special handling. */
   options.add_members_to_ignore("IDPropertyData", {"val", "val2"});
