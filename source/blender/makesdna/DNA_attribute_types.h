@@ -13,6 +13,31 @@
 namespace blender::bke {
 class AttributeStorage;
 class AttributeStorageRuntime;
+
+/** Some storage types are only relevant for certain attribute types. */
+enum class AttrStorageType : int8_t {
+  /** #AttributeDataArray. */
+  Array,
+  /** A single value for the whole attribute. */
+  Single,
+};
+
+enum class AttrType : int16_t {
+  Bool,
+  Int8,
+  Int16_2D,
+  Int32,
+  Int32_2D,
+  Float,
+  Float2,
+  Float3,
+  Float4x4,
+  ColorByte,
+  ColorFloat,
+  Quaternion,
+  String,
+};
+
 }  // namespace blender::bke
 
 using AttributeStorageRuntimeHandle = blender::bke::AttributeStorageRuntime;

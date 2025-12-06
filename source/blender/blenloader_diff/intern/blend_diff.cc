@@ -4,6 +4,7 @@
 #include <xxhash.h>
 
 #include "BLI_filereader.h"
+#include "BLI_generic_span.hh"
 #include "BLI_index_range.hh"
 #include "BLI_linear_allocator.hh"
 #include "BLI_resource_scope.hh"
@@ -18,6 +19,7 @@
 #include "BLO_core_blend_header.hh"
 #include "BLO_core_file_reader.hh"
 
+#include "DNA_attribute_types.h"
 #include "DNA_genfile.h"
 #include "DNA_node_types.h"
 #include "DNA_sdna_types.h"
@@ -277,6 +279,11 @@ class RichSDNA {
   {
     return this->structs.lookup_key_default_as(name, nullptr);
   }
+
+  const Type *try_find_type(const StringRef name) const
+  {
+    return this->types.lookup_key_default_as(name, nullptr);
+  }
 };
 
 bool StructMember::is_char_array() const
@@ -317,6 +324,7 @@ using rich_sdna::Type;
 struct DiffOptions {
   ResourceScope scope_;
   bool ignore_pad = true;
+  int64_t max_array_changes = 16;
 
   struct MemberName {
     StringRef type_name;
@@ -689,6 +697,44 @@ static std::optional<int> try_read_inline_int_member(const void *struct_data,
   return value;
 }
 
+static std::optional<int8_t> try_read_inline_int8_member(const void *struct_data,
+                                                         const Struct &sdna_struct,
+                                                         const StringRef member_name)
+{
+  const StructMember *member = sdna_struct.members.lookup_key_default_as(member_name, nullptr);
+  if (!member) {
+    return std::nullopt;
+  }
+  if (member->category != StructMember::Category::Primitive) {
+    return std::nullopt;
+  }
+  if (member->type->opt_primitive_type != SDNA_TYPE_INT8) {
+    return std::nullopt;
+  }
+  const int8_t value = *reinterpret_cast<const int8_t *>(static_cast<const char *>(struct_data) +
+                                                         member->offset_in_struct);
+  return value;
+}
+
+static std::optional<int16_t> try_read_inline_int16_member(const void *struct_data,
+                                                           const Struct &sdna_struct,
+                                                           const StringRef member_name)
+{
+  const StructMember *member = sdna_struct.members.lookup_key_default_as(member_name, nullptr);
+  if (!member) {
+    return std::nullopt;
+  }
+  if (member->category != StructMember::Category::Primitive) {
+    return std::nullopt;
+  }
+  if (member->type->opt_primitive_type != SDNA_TYPE_SHORT) {
+    return std::nullopt;
+  }
+  const int16_t value = *reinterpret_cast<const int16_t *>(static_cast<const char *>(struct_data) +
+                                                           member->offset_in_struct);
+  return value;
+}
+
 static std::optional<char> try_read_inline_char_member(const void *struct_data,
                                                        const Struct &sdna_struct,
                                                        const StringRef member_name)
@@ -705,6 +751,22 @@ static std::optional<char> try_read_inline_char_member(const void *struct_data,
   }
   const char value = *(static_cast<const char *>(struct_data) + member->offset_in_struct);
   return value;
+}
+
+static std::optional<uint64_t> try_read_inline_pointer_member(const void *struct_data,
+                                                              const Struct &sdna_struct,
+                                                              const StringRef member_name)
+{
+  const StructMember *member = sdna_struct.members.lookup_key_default_as(member_name, nullptr);
+  if (!member) {
+    return std::nullopt;
+  }
+  if (member->category != StructMember::Category::Pointer) {
+    return std::nullopt;
+  }
+  const uint64_t address = read_address_at_address(static_cast<const char *>(struct_data) +
+                                                   member->offset_in_struct);
+  return address;
 }
 
 static std::string primitive_value_to_string(const PrimitiveValue &value)
@@ -726,10 +788,11 @@ static std::optional<std::string> try_convert_char_array_to_readable_string(cons
 }
 
 struct RawBufferType {
-  const Type *base_type;
+  const Type *sdna_base_type = nullptr;
+  const CPPType *cpp_base_type = nullptr;
   int pointer_level = 0;
 
-  BLI_STRUCT_EQUALITY_OPERATORS_2(RawBufferType, base_type, pointer_level)
+  BLI_STRUCT_EQUALITY_OPERATORS_3(RawBufferType, sdna_base_type, cpp_base_type, pointer_level)
 };
 
 class IdDiffer {
@@ -854,6 +917,9 @@ class IdDiffer {
                                        const int64_t struct_offset,
                                        const Struct &sdna_struct)
   {
+    if (sdna_struct.type->name == "Attribute") {
+      this->gather_raw_buffer_types__attribute(blend_data, block, struct_offset, sdna_struct);
+    }
     for (const StructMember *member : sdna_struct.members) {
       this->gather_raw_buffer_types__struct_member(
           blend_data, block, struct_offset + member->offset_in_struct, *member);
@@ -891,13 +957,93 @@ class IdDiffer {
               continue;
             }
             RawBufferType raw_buffer_type;
-            raw_buffer_type.base_type = sdna_member.type;
+            raw_buffer_type.sdna_base_type = sdna_member.type;
             raw_buffer_type.pointer_level = pointer_level - 1;
             blend_data.raw_buffer_types.add(other_block, raw_buffer_type);
           }
         }
         break;
       }
+    }
+  }
+
+  void gather_raw_buffer_types__attribute(PerBlendData &blend_data,
+                                          const BlendBlock &block,
+                                          const int64_t struct_offset,
+                                          const Struct &sdna_Attribute)
+  {
+    const std::optional<int16_t> data_type = try_read_inline_int16_member(
+        block.data + struct_offset, sdna_Attribute, "data_type");
+    const std::optional<int8_t> storage_type = try_read_inline_int8_member(
+        block.data + struct_offset, sdna_Attribute, "storage_type");
+    const std::optional<uint64_t> storage_address = try_read_inline_pointer_member(
+        block.data + struct_offset, sdna_Attribute, "*data");
+    if (!data_type || !storage_type || !storage_address) {
+      return;
+    }
+    const BlendBlock *storage_block = blend_data.addresses.map.lookup_default(*storage_address,
+                                                                              nullptr);
+    if (!storage_block) {
+      return;
+    }
+    /* Only support array storage for now. */
+    if (storage_type != int(bke::AttrStorageType::Array)) {
+      return;
+    }
+    const Struct *sdna_AttributeArray = blend_data.sdna.try_find_struct(
+        storage_block->bhead.SDNAnr);
+    if (!sdna_AttributeArray || sdna_AttributeArray->type->name != "AttributeArray") {
+      return;
+    }
+    const std::optional<uint64_t> array_address = try_read_inline_pointer_member(
+        storage_block->data, *sdna_AttributeArray, "*data");
+    if (!array_address) {
+      return;
+    }
+    const BlendBlock *array_block = blend_data.addresses.map.lookup_default(*array_address,
+                                                                            nullptr);
+    if (!array_block) {
+      return;
+    }
+    if (array_block->bhead.SDNAnr != SDNA_RAW_DATA_STRUCT_INDEX) {
+      return;
+    }
+    const CPPType *cpp_type = this->cpp_type_from_attribute_type(*data_type);
+    RawBufferType raw_buffer_type;
+    raw_buffer_type.pointer_level = 0;
+    raw_buffer_type.cpp_base_type = cpp_type;
+    blend_data.raw_buffer_types.add(array_block, raw_buffer_type);
+  }
+
+  const CPPType *cpp_type_from_attribute_type(const int data_type)
+  {
+    switch (data_type) {
+      case int(bke::AttrType::Bool):
+        return &CPPType::get<bool>();
+      case int(bke::AttrType::Int8):
+        return &CPPType::get<int8_t>();
+      case int(bke::AttrType::Int16_2D):
+        return &CPPType::get<short2>();
+      case int(bke::AttrType::Int32):
+        return &CPPType::get<int>();
+      case int(bke::AttrType::Int32_2D):
+        return &CPPType::get<int2>();
+      case int(bke::AttrType::Float):
+        return &CPPType::get<float>();
+      case int(bke::AttrType::Float2):
+        return &CPPType::get<float2>();
+      case int(bke::AttrType::Float3):
+        return &CPPType::get<float3>();
+      case int(bke::AttrType::Float4x4):
+        return &CPPType::get<float4x4>();
+      case int(bke::AttrType::ColorByte):
+        return &CPPType::get<blender::ColorGeometry4b>();
+      case int(bke::AttrType::ColorFloat):
+        return &CPPType::get<blender::ColorGeometry4f>();
+      case int(bke::AttrType::Quaternion):
+        return &CPPType::get<math::Quaternion>();
+      default:
+        return nullptr;
     }
   }
 
@@ -919,24 +1065,55 @@ class IdDiffer {
     if (pointer_level != new_raw_type->pointer_level) {
       return;
     }
-    const Type &old_sdna_type = *old_raw_type->base_type;
-    const Type &new_sdna_type = *new_raw_type->base_type;
-    if (old_sdna_type.name != new_sdna_type.name) {
-      return;
-    }
     if (pointer_level == 0) {
-      if (ELEM(0, old_sdna_type.size_in_bytes, new_sdna_type.size_in_bytes)) {
-        return;
+      if (old_raw_type->sdna_base_type && new_raw_type->sdna_base_type) {
+        const Type &old_sdna_type = *old_raw_type->sdna_base_type;
+        const Type &new_sdna_type = *new_raw_type->sdna_base_type;
+        if (old_sdna_type.name != new_sdna_type.name) {
+          return;
+        }
+        if (ELEM(0, old_sdna_type.size_in_bytes, new_sdna_type.size_in_bytes)) {
+          return;
+        }
+        if (old_block.bhead.len % old_sdna_type.size_in_bytes != 0) {
+          return;
+        }
+        if (new_block.bhead.len % new_sdna_type.size_in_bytes != 0) {
+          return;
+        }
+        const int64_t old_num = old_block.bhead.len / old_sdna_type.size_in_bytes;
+        const int64_t new_num = new_block.bhead.len / new_sdna_type.size_in_bytes;
+        if (old_sdna_type.opt_struct && new_sdna_type.opt_struct) {
+          this->diff_struct_array(old_block,
+                                  new_block,
+                                  0,
+                                  0,
+                                  *old_sdna_type.opt_struct,
+                                  *new_sdna_type.opt_struct,
+                                  old_num,
+                                  new_num,
+                                  context);
+        }
       }
-      if (old_block.bhead.len % old_sdna_type.size_in_bytes != 0) {
-        return;
+      if (old_raw_type->cpp_base_type && new_raw_type->cpp_base_type) {
+        const CPPType &old_cpp_type = *old_raw_type->cpp_base_type;
+        const CPPType &new_cpp_type = *new_raw_type->cpp_base_type;
+        if (old_cpp_type != new_cpp_type) {
+          return;
+        }
+        const CPPType &cpp_type = old_cpp_type;
+        if (old_block.bhead.len % cpp_type.size != 0) {
+          return;
+        }
+        if (new_block.bhead.len % cpp_type.size != 0) {
+          return;
+        }
+        const int64_t old_num = old_block.bhead.len / cpp_type.size;
+        const int64_t new_num = new_block.bhead.len / cpp_type.size;
+        this->diff_GSpan(GSpan{cpp_type, old_block.data, old_num},
+                         GSpan{cpp_type, new_block.data, new_num},
+                         context);
       }
-      if (new_block.bhead.len % new_sdna_type.size_in_bytes != 0) {
-        return;
-      }
-      const int64_t old_size = old_block.bhead.len / old_sdna_type.size_in_bytes;
-      const int64_t new_size = new_block.bhead.len / new_sdna_type.size_in_bytes;
-      // TODO: handle float buffers etc
       return;
     }
     if (pointer_level == 1) {
@@ -1352,6 +1529,44 @@ class IdDiffer {
     }
   }
 
+  void diff_GSpan(const GSpan old_span, const GSpan new_span, const StringRef context)
+  {
+    if (old_span.size() != new_span.size()) {
+      writer_.writeln_changed(fmt::format("{} <length> = {}", context, old_span.size()),
+                              fmt::format("{} <length> = {}", context, new_span.size()));
+      return;
+    }
+    const CPPType &type = old_span.type();
+    if (!type.is_equality_comparable()) {
+      return;
+    }
+    const int64_t elem_num = old_span.size();
+    Vector<int64_t> changed_indices;
+    for (const int64_t i : IndexRange(elem_num)) {
+      const void *old_value = old_span[i];
+      const void *new_value = new_span[i];
+      if (!type.is_equal(old_value, new_value)) {
+        changed_indices.append(i);
+      }
+    }
+    if (changed_indices.size() > options_.max_array_changes) {
+      writer_.writeln_changed(
+          fmt::format("{} <length> = {}x {}", context, old_span.size(), type.name()),
+          fmt::format("{} <length> = {}x {} ({} indices changed)",
+                      context,
+                      new_span.size(),
+                      type.name(),
+                      changed_indices.size()));
+      return;
+    }
+    for (const int64_t i : changed_indices) {
+      const void *old_value = old_span[i];
+      const void *new_value = new_span[i];
+      writer_.writeln_changed(fmt::format("{}[{}] = {}", context, i, type.to_string(old_value)),
+                              fmt::format("{}[{}] = {}", context, i, type.to_string(new_value)));
+    }
+  }
+
   void diff_IDProperty(const BlendBlock &old_block,
                        const BlendBlock &new_block,
                        const int old_struct_offset,
@@ -1540,20 +1755,23 @@ class IdDiffer {
     if (block.bhead.SDNAnr == SDNA_RAW_DATA_STRUCT_INDEX) {
       const Span<char> bytes{block.data, block.bhead.len};
       if (const RawBufferType *buffer_type = blend_data.raw_buffer_types.lookup_ptr(&block)) {
-        if (buffer_type->pointer_level == 0 && buffer_type->base_type->name == "char" &&
-            bytes.size() <= 128)
-        {
-          if (std::optional<std::string> str = try_convert_char_array_to_readable_string(bytes)) {
-            return fmt::format("\"{}\"", *str);
+        if (buffer_type->sdna_base_type) {
+          if (buffer_type->pointer_level == 0 && buffer_type->sdna_base_type->name == "char" &&
+              bytes.size() <= 128)
+          {
+            if (std::optional<std::string> str = try_convert_char_array_to_readable_string(bytes))
+            {
+              return fmt::format("\"{}\"", *str);
+            }
           }
-        }
-        if (buffer_type->pointer_level == 1) {
-          return fmt::format(
-              "{}x {}", block.bhead.len / sizeof(void *), buffer_type->base_type->name);
-        }
-        if (buffer_type->pointer_level == 2) {
-          return fmt::format(
-              "{}x {} *", block.bhead.len / sizeof(void *), buffer_type->base_type->name);
+          if (buffer_type->pointer_level == 1) {
+            return fmt::format(
+                "{}x {}", block.bhead.len / sizeof(void *), buffer_type->sdna_base_type->name);
+          }
+          if (buffer_type->pointer_level == 2) {
+            return fmt::format(
+                "{}x {} *", block.bhead.len / sizeof(void *), buffer_type->sdna_base_type->name);
+          }
         }
       }
       const uint64_t hash = XXH3_64bits(bytes.data(), bytes.size());
@@ -2131,7 +2349,8 @@ static int main_do(const int argc, char *argv[])
       "bNode", {"locx", "locy", "width", "height", "ui_order", "location", "type"});
   options.add_members_to_ignore("bNodeTree", {"view_center"});
   options.add_members_to_ignore("bNodeSocket", {"*link"});
-  options.add_members_to_ignore("ID", {"session_uid", "recalc_up_to_undo_push"});
+  options.add_members_to_ignore(
+      "ID", {"session_uid", "recalc_up_to_undo_push", "recalc_after_undo_push", "recalc"});
   options.add_members_to_ignore("CustomData", {"typemap"});
   options.add_members_to_ignore("bNodeTreeInterface", {"active_index"});
   options.add_members_to_ignore("IDProperty", {"totallen"});
