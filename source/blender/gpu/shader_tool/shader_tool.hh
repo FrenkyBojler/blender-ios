@@ -498,6 +498,7 @@ class Preprocessor {
         pragmas_mutation(parser, report_error);
         swizzle_function_mutation(parser, report_error);
         enum_macro_injection(parser, language == CPP, report_error);
+        merge_attributes_mutation(parser, report_error);
 
         if (language == BLENDER_GLSL) {
           srt_template_linter_and_mutation(parser, report_error);
@@ -2829,6 +2830,22 @@ class Preprocessor {
                    tokens[0].line_str(),
                    "invalid enum declaration");
     });
+  }
+
+  /* Merge attribute scopes. They are equivalent in the C++ standard.
+   * This allow to simplify parsing later on.
+   * `[[a]] [[b]]` > `[[a, b]]` */
+  void merge_attributes_mutation(Parser &parser, report_callback /*report_error*/)
+  {
+    using namespace std;
+    using namespace shader::parser;
+
+    do {
+      parser().foreach_match("[[..]][[..]]", [&](vector<Token> toks) {
+        parser.insert_before(toks[4], ",");
+        parser.erase(toks[4], toks[7]);
+      });
+    } while (parser.apply_mutations());
   }
 
   void array_mutation(Parser &parser, report_callback report_error)

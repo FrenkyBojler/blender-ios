@@ -316,6 +316,16 @@ struct Scope {
     }
   }
 
+  /* Will iterate over all the attribute if this scope is an ScopeType::Attributes. */
+  void foreach_attribute(
+      std::function<void(Token attribute_name, Scope attribute_props)> callback) const
+  {
+    assert(this->type() == ScopeType::Attributes);
+    this->foreach_scope(ScopeType::Attribute, [&](Scope attr) {
+      callback(attr[0], attr[1] == '(' ? attr[1].scope() : Scope::invalid());
+    });
+  }
+
   void foreach_token(const TokenType token_type, std::function<void(const Token)> callback) const
   {
     const char str[2] = {token_type, '\0'};
