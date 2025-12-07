@@ -1144,6 +1144,35 @@ class IdDiffer {
     }
   }
 
+  const CPPType *cpp_type_from_sdna_type(const eSDNA_Type &type) const
+  {
+    switch (type) {
+      case SDNA_TYPE_CHAR:
+        break;
+      case SDNA_TYPE_UCHAR:
+        return &CPPType::get<uchar>();
+      case SDNA_TYPE_SHORT:
+        return &CPPType::get<short>();
+      case SDNA_TYPE_USHORT:
+        return &CPPType::get<ushort>();
+      case SDNA_TYPE_INT:
+        return &CPPType::get<int>();
+      case SDNA_TYPE_FLOAT:
+        return &CPPType::get<float>();
+      case SDNA_TYPE_DOUBLE:
+        break;
+      case SDNA_TYPE_INT64:
+        return &CPPType::get<int64_t>();
+      case SDNA_TYPE_UINT64:
+        return &CPPType::get<uint64_t>();
+      case SDNA_TYPE_INT8:
+        return &CPPType::get<int8_t>();
+      case SDNA_TYPE_RAW_DATA:
+        break;
+    }
+    return nullptr;
+  }
+
   int pointer_level_from_name(const StringRef name) const
   {
     int64_t level = 0;
@@ -1354,12 +1383,15 @@ class IdDiffer {
           }
         }
         if (elem_num > 1) {
-          // TODO: Other types.
-          if (primitive_type == SDNA_TYPE_FLOAT) {
-            const Span<float> old_values{
-                reinterpret_cast<const float *>(old_block.data + old_member_offset), elem_num};
-            const Span<float> new_values{
-                reinterpret_cast<const float *>(new_block.data + new_member_offset), elem_num};
+          if (const CPPType *cpp_type = this->cpp_type_from_sdna_type(primitive_type)) {
+            const GSpan old_values{
+                *cpp_type,
+                reinterpret_cast<const float *>(old_block.data + old_member_offset),
+                elem_num};
+            const GSpan new_values{
+                *cpp_type,
+                reinterpret_cast<const float *>(new_block.data + new_member_offset),
+                elem_num};
             this->diff_GSpan(old_values, new_values, fmt::format("{}.{}", context, name_only));
             break;
           }
