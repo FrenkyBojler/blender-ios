@@ -12,6 +12,11 @@
 
 /* internal exports only */
 
+/* `userpref_ops.cc` */
+
+void PREFERENCES_OT_start_filter(wmOperatorType *ot);
+void PREFERENCES_OT_clear_filter(wmOperatorType *ot);
+
 struct SpaceUserPref_Runtime {
   /** For filtering properties displayed in the space. */
   char search_string[128];
