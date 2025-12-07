@@ -1512,7 +1512,7 @@ class IdDiffer {
     for (const int64_t i : old_structs.index_range()) {
       const DataWithStruct &old_struct = old_structs[i];
       std::optional<std::string> identifier = this->get_struct_identifier(
-          old_, old_struct.data, *old_struct.sdna_struct, i);
+          old_, old_struct.data, *old_struct.sdna_struct, false);
       if (identifier) {
         old_has_any_non_index_identifier = true;
       }
