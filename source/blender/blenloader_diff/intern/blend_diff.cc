@@ -1417,8 +1417,7 @@ class IdDiffer {
               continue;
             }
           }
-
-          if (old_value == new_value) {
+          if (this->consider_primitive_values_equal(old_value, new_value)) {
             continue;
           }
           const std::string sub_context = is_array ?
@@ -1463,6 +1462,21 @@ class IdDiffer {
         break;
       }
     }
+  }
+
+  bool consider_primitive_values_equal(const PrimitiveValue value_a, const PrimitiveValue value_b)
+  {
+    BLI_assert(value_a.index() == value_b.index());
+    return std::visit(
+        [&](const auto &a) {
+          using T = std::decay_t<decltype(a)>;
+          const auto &b = std::get<T>(value_b);
+          if constexpr (is_same_any_v<T, float, double>) {
+            return std::abs(a - b) < 0.000001f;
+          }
+          return a == b;
+        },
+        value_a);
   }
 
   void diff_ListBase(const BlendBlock &old_block,
