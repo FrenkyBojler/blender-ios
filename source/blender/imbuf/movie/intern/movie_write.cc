@@ -25,6 +25,7 @@
 
 #  include "BLI_fileops.h"
 #  include "BLI_math_base.h"
+#  include "BLI_math_base.hh"
 #  include "BLI_math_color.h"
 #  include "BLI_path_utils.hh"
 #  include "BLI_string.h"
@@ -1205,6 +1206,10 @@ static bool start_ffmpeg_impl(MovieWriter *context,
   context->ffmpeg_gop_size = rd->ffcodecdata.gop_size;
   context->ffmpeg_autosplit = (rd->ffcodecdata.flags & FFMPEG_AUTOSPLIT_OUTPUT) != 0;
   context->ffmpeg_crf = rd->ffcodecdata.constant_rate_factor;
+  if (context->ffmpeg_crf == FFM_CRF_CUSTOM) {
+    context->ffmpeg_crf = int(blender::math::round(
+        blender::math::interpolate(51.0f, 0.0f, rd->ffcodecdata.custom_constant_rate_factor)));
+  }
   context->ffmpeg_preset = rd->ffcodecdata.ffmpeg_preset;
   context->ffmpeg_profile = 0;
 
