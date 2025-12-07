@@ -66,7 +66,7 @@ static int screenshot_data_create(bContext *C, wmOperator *op, ScrArea *area)
   uint8_t *dumprect = WM_window_pixels_read(C, win, dumprect_size);
 
   if (dumprect) {
-    ScreenshotData *scd = MEM_callocN<ScreenshotData>("screenshot");
+    ScreenshotData *scd = MEM_new_for_free<ScreenshotData>("screenshot");
 
     scd->dumpsx = dumprect_size[0];
     scd->dumpsy = dumprect_size[1];

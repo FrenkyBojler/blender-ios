@@ -459,7 +459,8 @@ bool proxy_rebuild_context(Main *bmain,
 
     strip_free_movie_readers(strip);
 
-    IndexBuildContext *context = MEM_callocN<IndexBuildContext>("strip proxy rebuild context");
+    IndexBuildContext *context = MEM_new_for_free<IndexBuildContext>(
+        "strip proxy rebuild context");
 
     Strip *strip_new = strip_duplicate_recursive(
         bmain, scene, scene, nullptr, strip, StripDuplicate::Selected);

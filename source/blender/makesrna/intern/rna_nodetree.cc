@@ -2189,7 +2189,7 @@ static void rna_GeometryNodeTree_node_tool_idname_set(PointerRNA *ptr, const cha
 {
   bNodeTree *ntree = ptr->data_as<bNodeTree>();
   if (!ntree->geometry_node_asset_traits) {
-    ntree->geometry_node_asset_traits = MEM_callocN<GeometryNodeAssetTraits>(__func__);
+    ntree->geometry_node_asset_traits = MEM_new_for_free<GeometryNodeAssetTraits>(__func__);
   }
   if (ntree->geometry_node_asset_traits->node_tool_idname) {
     MEM_freeN(ntree->geometry_node_asset_traits->node_tool_idname);
@@ -2208,7 +2208,7 @@ static void geometry_node_asset_trait_flag_set(PointerRNA *ptr,
 {
   bNodeTree *ntree = ptr->data_as<bNodeTree>();
   if (!ntree->geometry_node_asset_traits) {
-    ntree->geometry_node_asset_traits = MEM_callocN<GeometryNodeAssetTraits>(__func__);
+    ntree->geometry_node_asset_traits = MEM_new_for_free<GeometryNodeAssetTraits>(__func__);
   }
   SET_FLAG_FROM_TEST(ntree->geometry_node_asset_traits->flag, value, flag);
 }

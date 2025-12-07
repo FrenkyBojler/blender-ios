@@ -25,6 +25,7 @@
 #include "BLI_sys_types.h"
 
 #include "DNA_action_types.h"
+#include "DNA_layer_types.h"
 #include "DNA_mask_types.h"
 #include "DNA_object_types.h"
 #include "DNA_space_types.h"
