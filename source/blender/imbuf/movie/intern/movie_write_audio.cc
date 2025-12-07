@@ -323,9 +323,6 @@ AVStream *alloc_audio_stream(MovieWriter *context,
                    "bitrate Vorbis supports.");
       }
       break;
-    default:
-      BLI_assert(false);
-      break;
   }
 
   context->audio_codec = avcodec_alloc_context3(codec);
