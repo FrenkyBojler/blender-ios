@@ -354,6 +354,7 @@ struct DiffOptions {
   Set<MemberName> members_to_ignore_set;
   Set<std::string> id_types_to_ignore;
   Map<MemberName, uint64_t> ignored_flags;
+  Set<MemberName> dont_follow_members;
 
   void add_member_to_ignore(const StringRef type_name, const StringRef member_name)
   {
@@ -1452,6 +1453,9 @@ class IdDiffer {
             diff_.change(old_line, new_line);
           }
           if (old_pointee.id_data || new_pointee.id_data) {
+            continue;
+          }
+          if (options_.dont_follow_members.contains(new_member)) {
             continue;
           }
           if (old_pointee.block && new_pointee.block) {
@@ -2582,6 +2586,7 @@ static int main_do(const int argc, char *argv[])
                             SELECT | SOCK_HIDDEN | SOCK_IS_LINKED | SOCK_COLLAPSED |
                                 SOCK_PANEL_COLLAPSED);
   options.add_id_types_to_ignore({"wmWindowManager", "Screen", "WorkSpace"});
+  options.dont_follow_members.add({"bArmature", "*act_bone"});
   /* These have special handling. */
   options.add_members_to_ignore("IDPropertyData", {"val", "val2"});
 
