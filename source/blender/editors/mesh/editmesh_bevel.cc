@@ -187,6 +187,8 @@ static void edbm_bevel_update_status_text(bContext *C, wmOperator *op)
   WorkspaceStatus status(C);
   status.opmodal(IFACE_("Confirm"), op->type, BEV_MODAL_CONFIRM);
   status.opmodal(IFACE_("Cancel"), op->type, BEV_MODAL_CANCEL);
+  status.opmodal(IFACE_("Precision mode"), op->type, BEV_MODAL_PRECISION_ON, opdata->is_precision);
+  status.opmodal(IFACE_("Snap"), op->type, BEV_MODAL_SNAP_ON, opdata->is_snapping);
   status.opmodal(IFACE_("Width Type"), op->type, BEV_MODAL_OFFSET_MODE_CHANGE);
 
   status.opmodal(
@@ -921,24 +923,28 @@ static wmOperatorStatus edbm_bevel_modal(bContext *C, wmOperator *op, const wmEv
       case BEV_MODAL_PRECISION_ON: {
         opdata->is_precision = true;
         edbm_bevel_calc_initial_length(op, event, true);
+        edbm_bevel_update_status_text(C, op);
         handled = true;
         break;
       }
       case BEV_MODAL_PRECISION_OFF: {
         opdata->is_precision = false;
         edbm_bevel_calc_initial_length(op, event, true);
+        edbm_bevel_update_status_text(C, op);
         handled = true;
         break;
       }
       case BEV_MODAL_SNAP_ON: {
         opdata->is_snapping = true;
         edbm_bevel_calc_initial_length(op, event, true);
+        edbm_bevel_update_status_text(C, op);
         handled = true;
         break;
       }
       case BEV_MODAL_SNAP_OFF: {
         opdata->is_snapping = false;
         edbm_bevel_calc_initial_length(op, event, true);
+        edbm_bevel_update_status_text(C, op);
         handled = true;
         break;
       }
