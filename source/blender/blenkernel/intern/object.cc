@@ -5424,6 +5424,21 @@ SubsurfModifierData *BKE_object_get_last_subsurf_modifier(const Object *ob)
   return (SubsurfModifierData *)(md);
 }
 
+ArmatureModifierData *BKE_object_get_last_armature_modifier(const Object *ob)
+{
+  ModifierData *md = (ModifierData *)(ob->modifiers.last);
+
+  while (md) {
+    if (md->type == eModifierType_Armature) {
+      break;
+    }
+
+    md = md->prev;
+  }
+
+  return (ArmatureModifierData *)(md);
+}
+
 void BKE_object_replace_data_on_shallow_copy(Object *ob, ID *new_data)
 {
   ob->type = BKE_object_obdata_to_type(new_data);

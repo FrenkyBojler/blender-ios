@@ -24,46 +24,67 @@ class VertBuf;
 }  // namespace blender::gpu
 
 struct GPUVertFormat;
-
-namespace blender::draw {
-
 struct MeshBatchCache;
 struct MeshBufferCache;
 
+namespace blender::draw {
+
 struct DRWSkinningCache {
+  /* Bone Dual Quaternion extraction buffer */
+  GPUDualQuat *bonedata_dq;
 
-  gpu::Shader *compute_shader;
-
+  /* input buffer rest position mesh index influences */
   gpu::VertBuf *in_indices_buf;
+  /* input buffer rest position mesh weight influences */
   gpu::VertBuf *in_weights_buf;
+  /* input buffer of armature bone matrices */
   gpu::VertBuf *in_bonemat_buf;
+  /* input buffer rest position mesh position */
   gpu::VertBuf *in_vertpos_buf;
+  /* input buffer rest position mesh normals */
   gpu::VertBuf *in_vertnor_buf;
+  /* input buffer rest position mesh tangents */
   gpu::VertBuf *in_verttan_buf;
 
+  /* Deformation shader this can either be LBS or DQS*/
+  gpu::Shader *skin_shader;
+
+  /* Bone Dual Quaternion buffer for preserve volume mode*/
   gpu::StorageBuf *in_bonedq_buf;
 
+  /* AABB or boundingbox shader for GPU Deformation */
+  gpu::Shader *bounds_shader;
+
+  gpu::StorageBuf *bounds_result_buf;
+  gpu::StorageBuf *original_bounds_buf;
+
+  /* Bone extraction buffers */
+  float *bonedata_mat;
+
+  /* Mesh extraction buffers */
   float *meshdata_pos;
   float *meshdata_nor;
   float *meshdata_tan;
 
-  float *bonedata_mat;
-  GPUDualQuat *bonedata_dq;
-
-  uint32_t *meshdata_idx;
   uint32_t *meshdata_wgt;
+  uint32_t *meshdata_idx;
 
-  int corner_nums;
-  int bone_count;
-  bool buffers_valid;
-
-  bool vertex_data_packed;
+  /* ArmatureMod deform flag getter*/
   short cached_deform_flag;
+  /* Mesh corner count getter for workgroup dispatch*/
+  int corner_nums;
+  /* bone listbase count getter*/
+  int bone_count;
+  /* Returns true for if all shader buffers were created */
+  bool buffers_valid;
+  /* Returns true if mesh extraction succeded*/
+  bool vertex_data_packed;
 };
 
 bool draw_skinning_is_available(const Object *ob);
 
 void draw_skinning_cache_free(DRWSkinningCache &cache);
+void draw_free_skinning_runtime_cache(Object &ob);
 
 void DRW_create_skinning(Object &evaluated_object,
                          Mesh &mesh,
@@ -87,7 +108,5 @@ void draw_skinning_extract_pos_nor_tan(gpu::VertBuf *vbo_pos,
 void draw_skinning_compute_bounds(Mesh *mesh,
                                   const DRWSkinningCache &cache,
                                   gpu::VertBuf *skinned_positions_vbo);
-
-void draw_skinning_bounds_cleanup();
 
 }  // namespace blender::draw

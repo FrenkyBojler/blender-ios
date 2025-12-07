@@ -285,8 +285,6 @@ struct MeshBatchCache {
   Array<gpu::Batch *> surface_per_mat;
 
   DRWSubdivCache *subdiv_cache;
-  DRWSkinningCache *skinning_cache;
-
   DRWBatchFlag batch_requested;
   DRWBatchFlag batch_ready;
 

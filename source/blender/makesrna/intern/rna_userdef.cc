@@ -922,6 +922,21 @@ static void rna_UserDef_subdivision_update(Main *bmain, Scene *scene, PointerRNA
   rna_userdef_update(bmain, scene, ptr);
 }
 
+static void rna_UserDef_deformation_update(Main *bmain, Scene *scene, PointerRNA *ptr)
+{
+  Object *ob;
+
+  for (ob = static_cast<Object *>(bmain->objects.first); ob;
+       ob = static_cast<Object *>(ob->id.next))
+  {
+    if (BKE_object_get_last_armature_modifier(ob) != nullptr) {
+      DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+    }
+  }
+
+  rna_userdef_update(bmain, scene, ptr);
+}
+
 static void rna_UserDef_audio_update(bContext *C, PointerRNA * /*ptr*/)
 {
   ED_reset_audio_device(C);
@@ -6168,7 +6183,7 @@ static void rna_def_userdef_system(BlenderRNA *brna)
                            "GPU Deformation",
                            "Enable hardware acceleration armature deformation. NOTE: Won't "
                            "produce exactly same results as disabled");
-  RNA_def_property_update(prop, 0, "rna_userdef_update");
+  RNA_def_property_update(prop, 0, "rna_UserDef_deformation_update");
 
   prop = RNA_def_property(srna, "gpuskin_influences", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, nullptr, "gpuskin_influences");

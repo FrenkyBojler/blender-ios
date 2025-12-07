@@ -44,6 +44,7 @@ struct RegionView3D;
 struct RigidBodyWorld;
 struct Scene;
 struct SubsurfModifierData;
+struct ArmatureModifierData;
 struct View3D;
 struct ViewLayer;
 
@@ -726,6 +727,8 @@ void BKE_object_check_uids_unique_and_report(const Object *object);
  * is enabled for its evaluation mode.
  */
 SubsurfModifierData *BKE_object_get_last_subsurf_modifier(const Object *ob);
+
+ArmatureModifierData *BKE_object_get_last_armature_modifier(const Object *ob);
 
 void BKE_object_replace_data_on_shallow_copy(Object *ob, ID *new_data);
 

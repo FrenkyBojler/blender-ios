@@ -62,6 +62,25 @@ static void copy_data(const ModifierData *md, ModifierData *target, const int fl
   tamd->vert_coords_prev = nullptr;
 }
 
+static void free_runtime_data(void *runtime_data_v)
+{
+  if (runtime_data_v == nullptr) {
+    return;
+  }
+  blender::draw::DRWSkinningCache *skin_cache = static_cast<blender::draw::DRWSkinningCache *>(runtime_data_v);
+  if (skin_cache != nullptr) {
+    blender::draw::draw_skinning_cache_free(*skin_cache);
+  }
+  MEM_freeN(skin_cache);
+}
+
+static void free_data(ModifierData *md)
+{
+  ArmatureModifierData *amd = (ArmatureModifierData *)md;
+
+  free_runtime_data(amd->modifier.runtime);
+}
+
 static void required_data_mask(ModifierData * /*md*/, CustomData_MeshMasks *r_cddata_masks)
 {
   /* Ask for vertex-groups. */
@@ -132,17 +151,17 @@ static void deform_verts(ModifierData *md,
   }
 
   Object *ob = ctx->object;
+  const bool use_gpudeform = (U.gpu_flag & USER_GPU_FLAG_DEFORMATION_EVALUATION) != 0;
 
-  if ((U.gpu_flag & USER_GPU_FLAG_SUBDIVISION_EVALUATION) == 1) {
+  if (use_gpudeform == 1) {
     if (!blender::draw::draw_skinning_is_available(ob) /*&& CHECK IF THERE is no gpu */) {
-      // WM_report(RPT_ERROR, "GPU skinning failed, falling back to CPU");
-      printf("GPU skinning failed, falling back to CPU");
+      // WM_report(RPT_ERROR, "GPU skinning failed");
     }
   }
 
   /* if next modifier needs original vertices */
   MOD_previous_vcos_store(md, reinterpret_cast<float(*)[3]>(positions.data()));
-  if ((U.gpu_flag & USER_GPU_FLAG_SUBDIVISION_EVALUATION) == 0) {
+  if (use_gpudeform == 0) {
     BKE_armature_deform_coords_with_mesh(*amd->object,
                                          *ctx->object,
                                          positions,
@@ -214,17 +233,16 @@ static void deform_matrices(ModifierData *md,
                             blender::MutableSpan<blender::float3> positions,
                             blender::MutableSpan<blender::float3x3> matrices)
 {
-  ArmatureModifierData *amd = (ArmatureModifierData *)md;
   Object *ob = ctx->object;
+  const bool use_gpudeform = (U.gpu_flag & USER_GPU_FLAG_DEFORMATION_EVALUATION) != 0;
 
-  if ((U.gpu_flag & USER_GPU_FLAG_SUBDIVISION_EVALUATION) == 1) {
+  if (use_gpudeform == 1) {
     if (!blender::draw::draw_skinning_is_available(ob) /*&& CHECK IF THERE is no gpu */) {
-      // WM_report(RPT_ERROR, "GPU skinning failed, falling back to CPU");
-      printf("GPU skinning failed, falling back to CPU");
+      // WM_report(RPT_ERROR, "GPU skinning failed");
     }
   }
 
-  if ((U.gpu_flag & USER_GPU_FLAG_SUBDIVISION_EVALUATION) == 0) {
+  if (use_gpudeform == 0) {
     ArmatureModifierData *amd = (ArmatureModifierData *)md;
     BKE_armature_deform_coords_with_mesh(*amd->object,
                                          *ctx->object,
@@ -304,6 +322,7 @@ static void blend_read(BlendDataReader * /*reader*/, ModifierData *md)
   ArmatureModifierData *amd = (ArmatureModifierData *)md;
 
   amd->vert_coords_prev = nullptr;
+  md->runtime = nullptr; /* Runtime data not stored in files */
 }
 
 ModifierTypeInfo modifierType_Armature = {
@@ -328,14 +347,14 @@ ModifierTypeInfo modifierType_Armature = {
 
     /*init_data*/ init_data,
     /*required_data_mask*/ required_data_mask,
-    /*free_data*/ nullptr,
+    /*free_data*/ free_data,
     /*is_disabled*/ is_disabled,
     /*update_depsgraph*/ update_depsgraph,
     /*depends_on_time*/ nullptr,
     /*depends_on_normals*/ nullptr,
     /*foreach_ID_link*/ foreach_ID_link,
     /*foreach_tex_link*/ nullptr,
-    /*free_runtime_data*/ nullptr,
+    /*free_runtime_data*/ free_runtime_data,
     /*panel_register*/ panel_register,
     /*blend_write*/ nullptr,
     /*blend_read*/ blend_read,

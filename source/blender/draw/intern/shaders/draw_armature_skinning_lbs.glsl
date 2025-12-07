@@ -98,16 +98,18 @@ void main()
 
     if (w > 0.0f && bi != 0xFFFFu) {
       mat4 bm = bonemat_buf[bi];
+      mat3 bm3 = mat3(bm);
+      mat3 bm3_inv_transpose = transpose(inverse(bm3));
 
       float3 P_trans = (bm * P_rest_f).xyz;
       float3 P_eval = P_trans - P_rest;
       co_accum += P_eval * w;
 
-      float3 transformed_nor = mat3(bm) * N_rest;
+      float3 transformed_nor = bm3_inv_transpose * N_rest;
       float3 N_eval = transformed_nor - N_rest;
       N_accum += N_eval * w;
 
-      float3 transformed_tan = mat3(bm) * T_rest.xyz;
+      float3 transformed_tan = bm3_inv_transpose * T_rest.xyz;
       float3 T_eval = transformed_tan - T_rest.xyz;
       T_accum += T_eval * w;
 

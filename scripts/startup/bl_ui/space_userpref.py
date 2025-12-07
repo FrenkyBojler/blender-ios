@@ -959,7 +959,7 @@ class USERPREF_PT_viewport_deform(ViewportPanel, CenterAlignMixIn, Panel):
 
         layout.prop(system, "use_gpu_deform")
         layout.prop(system, "gpuskin_influences")
-        # add gpuskin precision
+        # add gpuskin precision toggle
 
 
 # -----------------------------------------------------------------------------
@@ -3018,6 +3018,7 @@ classes = (
     USERPREF_PT_viewport_quality,
     USERPREF_PT_viewport_textures,
     USERPREF_PT_viewport_subdivision,
+    USERPREF_PT_viewport_deform,
 
     USERPREF_PT_edit_objects,
     USERPREF_PT_edit_objects_new,
