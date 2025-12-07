@@ -32,6 +32,7 @@ def run(args):
     print(f"diff --git a/{p} b/{p}")
     print(f"--- a/{p}")
     print(f"+++ b/{p}")
+    # Adding these large line numbers prevents gitea from showing garbage data currently.
     print("@@ -1 +100000 @@")
     sys.stdout.flush()
     blend_diff_path = Path(__file__).parent / "blend_diff"
