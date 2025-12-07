@@ -749,7 +749,9 @@ template<typename... Types, typename Fn> inline void CPPType::to_static_type(con
     return true;
   };
 
-  (((items_map(Types()))) || ...);
+  if (!(((items_map(Types()))) || ...)) {
+    fn();
+  }
 }
 
 }  // namespace blender
