@@ -609,20 +609,6 @@ struct BlockMatch {
   std::string context;
 };
 
-struct BlockMatchMap {
-  Map<const BlendBlock *, const BlendBlock *> old_by_new;
-  Map<const BlendBlock *, const BlendBlock *> new_by_old;
-
-  bool add(const BlendBlock *old_block, const BlendBlock *new_block)
-  {
-    const bool newly_added_1 = this->old_by_new.add(new_block, old_block);
-    const bool newly_added_2 = this->new_by_old.add(old_block, new_block);
-    // TODO
-    // BLI_assert(newly_added_1 == newly_added_2);
-    return newly_added_1 && newly_added_2;
-  }
-};
-
 static AddressMap build_address_map(const BlendIdData &id_data)
 {
   AddressMap address_map;
