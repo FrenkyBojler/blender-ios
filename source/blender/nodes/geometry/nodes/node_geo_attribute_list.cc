@@ -11,24 +11,12 @@
 #include "UI_resources.hh"
 #include "node_geometry_util.hh"
 
-//TODO: Output string list when available
-
 namespace blender::nodes::node_geo_attribute_list_cc {
-
-template<typename T> ListPtr array_to_list(const Array<T> &array)
-{
-  const CPPType &cpp_type = CPPType::get<T>();
-  const int count = array.size();
-
-  List::ArrayData array_data = List::ArrayData::ForUninitialized(cpp_type, count);
-  cpp_type.copy_construct_n(array.data(), array_data.data, count);
-  return List::create(cpp_type, std::move(array_data), count);
-}
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Geometry>("Geometry");
-  b.add_output<decl::Int>("Name Hash").structure_type(StructureType::List);
+  b.add_output<decl::String>("Names").structure_type(StructureType::List);
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
@@ -73,7 +61,6 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   const AttributeAccessor attributes = *component->attributes();
   int attribute_count = 0;
-  std::string attribute_name;
   std::vector<AttributeIter> sort_attributes;
 
   attributes.foreach_attribute([&](const AttributeIter &iter) {
@@ -92,13 +79,18 @@ static void node_geo_exec(GeoNodeExecParams params)
                   [](const AttributeIter &a, const AttributeIter &b) { return a.name < b.name; });
   }
 
-  Array<int> nhash_array(sort_attributes.size());
+  auto *names = new ImplicitSharedValue<Vector<std::string>>();
 
   for (int i = 0; i < sort_attributes.size(); i++) {
-    nhash_array[i] = int(std::hash<std::string>{}(sort_attributes[i].name));
+    names->data.append(sort_attributes[i].name);
   }
 
-  params.set_output("Name Hash", array_to_list(nhash_array));
+  List::ArrayData names_array_data = {names->data.data(), ImplicitSharingPtr<>(names)};
+
+  params.set_output("Names",
+                    List::create(CPPType::get<std::string>(),
+                                 std::move(names_array_data),
+                                 names->data.size()));
 }
 
 static void node_rna(StructRNA *srna)
