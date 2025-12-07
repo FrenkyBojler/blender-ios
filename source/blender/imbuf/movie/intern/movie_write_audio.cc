@@ -229,6 +229,13 @@ AVStream *alloc_audio_stream(MovieWriter *context,
   }
   st->id = 1;
 
+  codec = avcodec_find_encoder(codec_id);
+  if (!codec) {
+    CLOG_ERROR(&LOG, "Couldn't find valid audio codec");
+    context->audio_codec = nullptr;
+    return nullptr;
+  }
+
   int channel_layout_mask = 0;
   int channel_count = 0;
   switch (audio_channels) {
@@ -319,13 +326,6 @@ AVStream *alloc_audio_stream(MovieWriter *context,
     default:
       BLI_assert(false);
       break;
-  }
-
-  codec = avcodec_find_encoder(codec_id);
-  if (!codec) {
-    CLOG_ERROR(&LOG, "Couldn't find valid audio codec");
-    context->audio_codec = nullptr;
-    return nullptr;
   }
 
   context->audio_codec = avcodec_alloc_context3(codec);
