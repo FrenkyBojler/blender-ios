@@ -366,6 +366,8 @@ typedef enum eSpaceSeq_SequencerPreviewOverlay_Flag {
 /** #SequencerTimelineOverlay.flag */
 typedef enum eSpaceSeq_SequencerTimelineOverlay_Flag {
   SEQ_TIMELINE_SHOW_STRIP_OFFSETS = (1 << 1),
+  /** Show thumbnails only at ends of a strip */
+  SEQ_TIMELINE_STRIP_END_THUMBNAILS = (1 << 2),
   /** Use #Strip::color_tag */
   SEQ_TIMELINE_SHOW_STRIP_COLOR_TAG = (1 << 3),
   SEQ_TIMELINE_SHOW_STRIP_RETIMING = (1 << 4),
@@ -376,14 +378,12 @@ typedef enum eSpaceSeq_SequencerTimelineOverlay_Flag {
   SEQ_TIMELINE_NO_WAVEFORMS = (1 << 8),
   /** Draw only upper part of the waveform, showing absolute signal value. */
   SEQ_TIMELINE_WAVEFORMS_HALF = (1 << 9),
-  /** Show thumbnails only at ends of a strip */
-  SEQ_TIMELINE_STRIP_END_THUMBNAILS = (1 << 11),
-  /** Show continuous sequence of thumbnails */
-  SEQ_TIMELINE_CONTINUOUS_THUMBNAILS = (1 << 12),
   SEQ_TIMELINE_SHOW_STRIP_NAME = (1 << 14),
   SEQ_TIMELINE_SHOW_STRIP_SOURCE = (1 << 15),
   SEQ_TIMELINE_SHOW_STRIP_DURATION = (1 << 16),
   SEQ_TIMELINE_SHOW_GRID = (1 << 18),
+  /** Show continuous sequence of thumbnails */
+  SEQ_TIMELINE_CONTINUOUS_THUMBNAILS = (1 << 19),
 } eSpaceSeq_SequencerTimelineOverlay_Flag;
 
 /** #SequencerCacheOverlay.flag */
