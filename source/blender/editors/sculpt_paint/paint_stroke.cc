@@ -442,14 +442,14 @@ static bool paint_stroke_use_jitter(const PaintMode mode, const Brush &brush, co
   return use_jitter;
 }
 
-static void paint_stroke_jitter_pos(Paint *paint,
-                                    PaintMode mode,
-                                    const Brush &brush,
-                                    float pressure,
-                                    int stroke_mode,
-                                    float zoom_2d,
-                                    const float mval[2],
-                                    float r_mouse_out[2])
+void paint_stroke_jitter_pos(Paint *paint,
+                             PaintMode mode,
+                             const Brush &brush,
+                             float pressure,
+                             int stroke_mode,
+                             float zoom_2d,
+                             const float mval[2],
+                             float r_mouse_out[2])
 {
   if (paint_stroke_use_jitter(mode, brush, stroke_mode == BRUSH_STROKE_INVERT)) {
     float factor = zoom_2d;
@@ -1339,7 +1339,7 @@ bool PaintStroke::curve_end(bContext *C, wmOperator *op)
           mul_m4_v3(vc.obact->object_to_world().ptr(), last_world_space_position);
         }
 
-        stroke_started_ = test_start(last_mouse_position);
+        stroke_started_ = test_start(op, last_mouse_position);
 
         if (stroke_started_) {
           add_step(C, op, data + 2 * j, 1.0);
@@ -1473,7 +1473,7 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
       last_world_space_position = math::transform_point(vc.obact->object_to_world(),
                                                         last_world_space_position);
     }
-    stroke_started_ = test_start(sample_average.mouse);
+    stroke_started_ = test_start(op, sample_average.mouse);
 
     if (stroke_started_) {
       /* StrokeTestStart often updates the currently active brush so we need to re-retrieve it
@@ -1640,7 +1640,7 @@ wmOperatorStatus PaintStroke::exec(bContext *C, wmOperator *op)
     if (RNA_property_collection_lookup_int(op->ptr, strokeprop, 0, &firstpoint)) {
       float2 mouse;
       RNA_float_get_array(&firstpoint, "mouse", mouse);
-      stroke_started_ = test_start(mouse);
+      stroke_started_ = test_start(op, mouse);
     }
   }
 

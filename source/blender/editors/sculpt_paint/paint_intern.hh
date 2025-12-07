@@ -184,7 +184,7 @@ struct PaintStroke {
  *
  * In many cases, this is a check to whether the stroke is over the active mesh.
  */
-  virtual bool test_start(const float mouse[2]) = 0;
+  virtual bool test_start(wmOperator *op, const float mouse[2]) = 0;
 
   /**
    * Callback function for performing a paint stroke for a new step.
@@ -209,6 +209,15 @@ struct PaintStroke {
    */
   virtual void done(bool is_cancel) = 0;
 
+  /* TODO: This can probably be private, but `paint_image_ops_paint` depends on this */
+  bool update(bContext *C,
+              const Brush &brush,
+              PaintMode mode,
+              const float mouse_init[2],
+              float mouse[2],
+              float pressure,
+              float r_location[3],
+              bool *r_location_is_set);
  private:
   std::unique_ptr<PaintModeData> mode_data_;
 
@@ -259,14 +268,6 @@ struct PaintStroke {
 
   bool original; /* Ray-cast original mesh at start of stroke. */
 
-  bool update(bContext *C,
-              const Brush &brush,
-              PaintMode mode,
-              const float mouse_init[2],
-              float mouse[2],
-              float pressure,
-              float r_location[3],
-              bool *r_location_is_set);
   void stroke_done(bContext *C, wmOperator *op, bool is_cancel);
 
   void add_step(bContext *C, wmOperator *op, float2 mval, float pressure);
@@ -285,6 +286,15 @@ struct PaintStroke {
   void line_end(bContext *C, wmOperator *op, float2 mouse);
   bool curve_end(bContext *C, wmOperator *op);
 };
+
+void paint_stroke_jitter_pos(Paint *paint,
+                             PaintMode mode,
+                             const Brush &brush,
+                             float pressure,
+                             int stroke_mode,
+                             float zoom_2d,
+                             const float mval[2],
+                             float r_mouse_out[2]);
 
 /**
  * Returns zero if the stroke dots should not be spaced, non-zero otherwise.

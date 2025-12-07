@@ -167,7 +167,7 @@ struct SculptCurvesBrushStroke : public PaintStroke {
   }
 
   bool get_location(float out[3], const float mouse[2], bool force_original) override;
-  bool test_start(const float mouse[2]) override;
+  bool test_start(wmOperator *op, const float mouse[2]) override;
   void redraw(bool final) override;
   bool test_cancel() override;
   void update_step(wmOperator *op, PointerRNA *itemptr) override;
@@ -185,7 +185,7 @@ bool SculptCurvesBrushStroke::get_location(float out[3], const float mouse[2], b
   return true;
 }
 
-bool SculptCurvesBrushStroke::test_start(const float /*mouse*/[2])
+bool SculptCurvesBrushStroke::test_start(wmOperator */*op*/, const float /*mouse*/[2])
 {
   return true;
 }

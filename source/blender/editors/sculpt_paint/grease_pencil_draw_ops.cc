@@ -85,7 +85,7 @@ struct GreasePencilPaintStroke : public PaintStroke {
   }
 
   bool get_location(float location[3], const float mouse[2], bool force_original) override;
-  bool test_start(const float mouse[2]) override;
+  bool test_start(wmOperator *op, const float mouse[2]) override;
   void update_step(wmOperator *op, PointerRNA *itemptr) override;
   void redraw(bool final) override;
   bool test_cancel() override;
@@ -190,7 +190,7 @@ static std::unique_ptr<GreasePencilStrokeOperation> get_stroke_operation(bContex
   return nullptr;
 }
 
-bool GreasePencilPaintStroke::test_start(const float /*mouse*/[2])
+bool GreasePencilPaintStroke::test_start(wmOperator */*op*/, const float /*mouse*/[2])
 {
   return true;
 }
