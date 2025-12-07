@@ -500,6 +500,7 @@ class Preprocessor {
         enum_macro_injection(parser, language == CPP, report_error);
         merge_attributes_mutation(parser, report_error);
         attributes_linting(parser, report_error);
+        inline_mutation(parser, report_error);
 
         if (language == BLENDER_GLSL) {
           srt_template_linter_and_mutation(parser, report_error);
@@ -2969,6 +2970,24 @@ class Preprocessor {
       }
     });
     parser.apply_mutations();
+  }
+
+  void inline_mutation(Parser &parser, report_callback /*report_error*/)
+  {
+    using namespace std;
+    using namespace shader::parser;
+
+    parser().foreach_token(Word, [&](Token tok) {
+      if (tok.str() == "inline") {
+        /* inline has no equivalent in GLSL and is making parsing more complicated. */
+        parser.erase(tok);
+      }
+      else if (tok.scope().type() != ScopeType::Struct && tok.str() == "static") {
+        /* static have no meaning for the shading language when not inside a struct.
+         * Removing to make parsing easier. */
+        parser.erase(tok);
+      }
+    });
   }
 
   void array_mutation(Parser &parser, report_callback report_error)
