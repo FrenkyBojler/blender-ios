@@ -11,6 +11,7 @@
  */
 
 #include "BLI_generic_pointer.hh"
+#include "BLI_map.hh"
 
 #include "FN_lazy_function.hh"
 

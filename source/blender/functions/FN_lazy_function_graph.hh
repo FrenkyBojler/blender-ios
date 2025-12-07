@@ -17,6 +17,8 @@
  *   arbitrary number of sockets.
  */
 
+#include <optional>
+
 #include "BLI_linear_allocator.hh"
 
 #include "FN_lazy_function.hh"

@@ -75,7 +75,6 @@
 #include "BLI_enum_flags.hh"
 #include "BLI_hash.hh"
 #include "BLI_index_mask_fwd.hh"
-#include "BLI_map.hh"
 #include "BLI_parameter_pack_utils.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_utility_mixins.hh"
@@ -741,7 +740,7 @@ template<typename... T> inline bool CPPType::is_any() const
 template<typename... Types, typename Fn> inline void CPPType::to_static_type(const Fn &fn) const
 {
   const auto items_map = [&](auto type_tag) -> bool {
-    using T = decltype(type_tag);
+    using T = typename decltype(type_tag)::type;
     if (&CPPType::get<T>() != this) {
       return false;
     }
@@ -749,7 +748,7 @@ template<typename... Types, typename Fn> inline void CPPType::to_static_type(con
     return true;
   };
 
-  if (!(((items_map(Types()))) || ...)) {
+  if (!(((items_map(TypeTag<Types>{}))) || ...)) {
     fn();
   }
 }

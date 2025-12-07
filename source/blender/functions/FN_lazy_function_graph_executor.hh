@@ -11,6 +11,7 @@
  * another #Graph again).
  */
 
+#include "BLI_array.hh"
 #include "BLI_generic_pointer.hh"
 #include "BLI_vector.hh"
 

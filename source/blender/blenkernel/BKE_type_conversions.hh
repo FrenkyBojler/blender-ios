@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include "BLI_map.hh"
+
 #include "FN_field.hh"
 #include "FN_multi_function.hh"
 
