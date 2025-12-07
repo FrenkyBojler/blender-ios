@@ -740,30 +740,16 @@ template<typename... T> inline bool CPPType::is_any() const
 
 template<typename... Types, typename Fn> inline void CPPType::to_static_type(const Fn &fn) const
 {
-  using Callback = void (*)(const Fn &fn);
+  const auto items_map = [&](auto type_tag) -> bool {
+    using T = decltype(type_tag);
+    if (&CPPType::get<T>() != this) {
+      return false;
+    }
+    fn.template operator()<T>();
+    return true;
+  };
 
-  /* Build a lookup table to avoid having to compare the current #CPPType with every type in
-   * #Types one after another. */
-  static const Map<const CPPType *, Callback> callback_map = []() {
-    Map<const CPPType *, Callback> callback_map;
-    /* This adds an entry in the map for every type in #Types. */
-    (callback_map.add_new(&CPPType::get<Types>(),
-                          [](const Fn &fn) {
-                            /* Call the templated `operator()` of the given function object. */
-                            fn.template operator()<Types>();
-                          }),
-     ...);
-    return callback_map;
-  }();
-
-  const Callback callback = callback_map.lookup_default(this, nullptr);
-  if (callback != nullptr) {
-    callback(fn);
-  }
-  else {
-    /* Call the non-templated `operator()` of the given function object. */
-    fn();
-  }
+  (((items_map(Types()))) || ...);
 }
 
 }  // namespace blender
