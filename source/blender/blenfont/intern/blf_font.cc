@@ -72,7 +72,7 @@ static blender::Mutex ft_lib_mutex;
  * is full! */
 static blender::Mutex ft_cache_size_mutex;
 
-/* May be set to #UI_widgetbase_draw_cache_flush. */
+/* May be set to #widgetbase_draw_cache_flush. */
 static void (*blf_draw_cache_flush)() = nullptr;
 
 static ft_pix blf_font_height_max_ft_pix(FontBLF *font);
