@@ -818,6 +818,72 @@ static std::optional<std::string> try_convert_char_array_to_readable_string(cons
   return std::string(chars.data(), len);
 }
 
+[[maybe_unused]] static std::pair<std::string, std::string> format_string_elements_left_align(
+    const Span<std::string> values_a, const Span<std::string> values_b)
+{
+  BLI_assert(values_a.size() == values_b.size());
+  std::string result_a;
+  std::string result_b;
+  for (const int64_t i : values_a.index_range()) {
+    const StringRef next_a = values_a[i];
+    const StringRef next_b = values_b[i];
+    result_a += next_a;
+    result_b += next_b;
+    const int64_t end_length = std::max(result_a.size(), result_b.size()) + (i == 0 ? 0 : 1);
+    result_a.append(end_length - result_a.size(), ' ');
+    result_b.append(end_length - result_b.size(), ' ');
+  }
+  return {result_a, result_b};
+}
+
+static std::pair<std::string, std::string> format_string_elements_right_align(
+    const Span<std::string> &values_a, const Span<std::string> &values_b)
+{
+  std::string result_a;
+  std::string result_b;
+  for (size_t i = 0; i < values_a.size(); i++) {
+    const StringRef next_a = values_a[i];
+    const StringRef next_b = values_b[i];
+    const int64_t end_length = std::max(result_a.size() + next_a.size(),
+                                        result_b.size() + next_b.size()) +
+                               (i == 0 ? 0 : 1);
+    result_a.append(end_length - result_a.size() - next_a.size(), ' ');
+    result_b.append(end_length - result_b.size() - next_b.size(), ' ');
+    result_a += next_a;
+    result_b += next_b;
+  }
+  return {result_a, result_b};
+}
+
+static std::pair<std::string, std::string> format_string_elements_char_align(
+    const Span<std::string> &values_a,
+    const Span<std::string> &values_b,
+    const char align_char = '.')
+{
+  std::string result_a;
+  std::string result_b;
+  for (size_t i = 0; i < values_a.size(); i++) {
+    const StringRef next_a = values_a[i];
+    const StringRef next_b = values_b[i];
+    int64_t align_i_a = next_a.find(align_char);
+    if (align_i_a == -1) {
+      align_i_a = next_a.size();
+    }
+    int64_t align_i_b = next_b.find(align_char);
+    if (align_i_b == -1) {
+      align_i_b = next_b.size();
+    }
+    const int64_t align_length = std::max(result_a.size() + align_i_a,
+                                          result_b.size() + align_i_b) +
+                                 (i == 0 ? 0 : 1);
+    result_a.append(align_length - result_a.size() - align_i_a, ' ');
+    result_b.append(align_length - result_b.size() - align_i_b, ' ');
+    result_a += next_a;
+    result_b += next_b;
+  }
+  return {result_a, result_b};
+}
+
 struct RawBufferType {
   const Type *sdna_base_type = nullptr;
   const CPPType *cpp_base_type = nullptr;
@@ -1287,6 +1353,17 @@ class IdDiffer {
             break;
           }
         }
+        if (elem_num > 1) {
+          // TODO: Other types.
+          if (primitive_type == SDNA_TYPE_FLOAT) {
+            const Span<float> old_values{
+                reinterpret_cast<const float *>(old_block.data + old_member_offset), elem_num};
+            const Span<float> new_values{
+                reinterpret_cast<const float *>(new_block.data + new_member_offset), elem_num};
+            this->diff_GSpan(old_values, new_values, fmt::format("{}.{}", context, name_only));
+            break;
+          }
+        }
         for (const int i : IndexRange(elem_num)) {
           const PrimitiveValue old_value = read_primitive_value_at_address(
               primitive_type, old_block.data + old_member_offset + i * old_member.elem_size);
@@ -1584,6 +1661,24 @@ class IdDiffer {
       if (!type.is_equal(old_value, new_value)) {
         changed_indices.append(i);
       }
+    }
+    if (changed_indices.is_empty()) {
+      return;
+    }
+    if (elem_num <= 16) {
+      Vector<std::string> old_value_strings;
+      Vector<std::string> new_value_strings;
+      for (const int64_t i : IndexRange(elem_num)) {
+        old_value_strings.append(type.to_string(old_span[i]));
+        new_value_strings.append(type.to_string(new_span[i]));
+      }
+      const std::pair<std::string, std::string> value_strings =
+          type.is_any<float>() ?
+              format_string_elements_char_align(old_value_strings, new_value_strings) :
+              format_string_elements_right_align(old_value_strings, new_value_strings);
+      diff_.change(fmt::format("{} = [{}]", context, value_strings.first),
+                   fmt::format("{} = [{}]", context, value_strings.second));
+      return;
     }
     if (changed_indices.size() > options_.max_array_changes) {
       diff_.change(fmt::format("{} <length> = {}x {}", context, old_span.size(), type.name()),
