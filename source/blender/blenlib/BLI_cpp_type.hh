@@ -749,6 +749,7 @@ template<typename... Types, typename Fn> inline void CPPType::to_static_type(con
   };
 
   if (!(((items_map(TypeTag<Types>{}))) || ...)) {
+    /* Call the non-templated `operator()` of the given function object. */
     fn();
   }
 }
