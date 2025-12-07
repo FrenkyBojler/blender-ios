@@ -364,6 +364,12 @@ if(TEST_SRC_DIR_EXISTS)
     --python ${CMAKE_CURRENT_LIST_DIR}/bl_blendfile_header.py --
     --testdir "${TEST_SRC_DIR}/io_tests/blend_parsing"
   )
+
+  add_blender_test(
+    blendfile_diff
+    --python ${CMAKE_CURRENT_LIST_DIR}/bl_blendfile_diff.py --
+    --testdir "${TEST_SRC_DIR}/diff"
+  )
 endif()
 
 # ------------------------------------------------------------------------------
