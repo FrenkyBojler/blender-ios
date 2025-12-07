@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 /**
- * Shared code between host and client codebases.
+ * Shared code between host and client code-bases.
  */
 
 #pragma once
@@ -59,7 +59,7 @@ struct CameraData {
 
 #ifdef __cplusplus
   /* Small constructor to allow detecting new buffers. */
-  CameraData() : initialized(false){};
+  CameraData() : initialized(false) {};
 #endif
 };
 BLI_STATIC_ASSERT_ALIGN(CameraData, 16)

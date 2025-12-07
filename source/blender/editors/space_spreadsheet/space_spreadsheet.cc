@@ -54,6 +54,7 @@ namespace blender::ed::spreadsheet {
 static SpaceLink *spreadsheet_create(const ScrArea * /*area*/, const Scene * /*scene*/)
 {
   SpaceSpreadsheet *spreadsheet_space = MEM_callocN<SpaceSpreadsheet>("spreadsheet space");
+  spreadsheet_space->runtime = MEM_new<SpaceSpreadsheet_Runtime>(__func__);
   spreadsheet_space->spacetype = SPACE_SPREADSHEET;
 
   spreadsheet_space->geometry_id.base.type = SPREADSHEET_TABLE_ID_TYPE_GEOMETRY;
@@ -118,25 +119,14 @@ static void spreadsheet_free(SpaceLink *sl)
   spreadsheet_table_id_free_content(&sspreadsheet->geometry_id.base);
 }
 
-static void spreadsheet_init(wmWindowManager * /*wm*/, ScrArea *area)
-{
-  SpaceSpreadsheet *sspreadsheet = (SpaceSpreadsheet *)area->spacedata.first;
-  if (sspreadsheet->runtime == nullptr) {
-    sspreadsheet->runtime = MEM_new<SpaceSpreadsheet_Runtime>(__func__);
-  }
-}
+static void spreadsheet_init(wmWindowManager * /*wm*/, ScrArea * /*area*/) {}
 
 static SpaceLink *spreadsheet_duplicate(SpaceLink *sl)
 {
   const SpaceSpreadsheet *sspreadsheet_old = (SpaceSpreadsheet *)sl;
   SpaceSpreadsheet *sspreadsheet_new = (SpaceSpreadsheet *)MEM_dupallocN(sspreadsheet_old);
-  if (sspreadsheet_old->runtime) {
-    sspreadsheet_new->runtime = MEM_new<SpaceSpreadsheet_Runtime>(__func__,
-                                                                  *sspreadsheet_old->runtime);
-  }
-  else {
-    sspreadsheet_new->runtime = MEM_new<SpaceSpreadsheet_Runtime>(__func__);
-  }
+  sspreadsheet_new->runtime = MEM_new<SpaceSpreadsheet_Runtime>(__func__,
+                                                                *sspreadsheet_old->runtime);
 
   BLI_listbase_clear(&sspreadsheet_new->row_filters);
   LISTBASE_FOREACH (const SpreadsheetRowFilter *, src_filter, &sspreadsheet_old->row_filters) {
@@ -490,7 +480,9 @@ static void spreadsheet_main_region_draw(const bContext *C, ARegion *region)
     const ColumnValues *values = scope.add(std::move(values_ptr));
     const eSpreadsheetColumnValueType column_type = values->type();
 
-    if (column->width <= 0.0f || column_type != column->data_type) {
+    if (column->width <= 0.0f ||
+        !ELEM(column_type, column->data_type, SPREADSHEET_VALUE_TYPE_UNKNOWN))
+    {
       column->width = values->fit_column_width_px(100) / SPREADSHEET_WIDTH_UNIT;
     }
     const int width_in_pixels = column->width * SPREADSHEET_WIDTH_UNIT;
@@ -726,7 +718,7 @@ static void spreadsheet_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
 {
   SpaceSpreadsheet *sspreadsheet = (SpaceSpreadsheet *)sl;
 
-  sspreadsheet->runtime = nullptr;
+  sspreadsheet->runtime = MEM_new<SpaceSpreadsheet_Runtime>(__func__);
   BLO_read_struct_list(reader, SpreadsheetRowFilter, &sspreadsheet->row_filters);
   LISTBASE_FOREACH (SpreadsheetRowFilter *, row_filter, &sspreadsheet->row_filters) {
     BLO_read_string(reader, &row_filter->value_string);

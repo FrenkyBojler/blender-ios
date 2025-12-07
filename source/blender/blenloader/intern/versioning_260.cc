@@ -347,7 +347,7 @@ static bNodeSocket *ntreeCompositOutputFileAddSocket(bNodeTree *ntree,
     }
   }
   else {
-    BKE_image_format_init(&sockdata->format, false);
+    BKE_image_format_init(&sockdata->format);
   }
   BKE_image_format_update_color_space_for_type(&sockdata->format);
 
@@ -441,7 +441,7 @@ static void do_versions_nodetree_multi_file_output_format_2_62_1(Scene *sce, bNo
     else if (node->type_legacy == CMP_NODE_OUTPUT_MULTI_FILE__DEPRECATED) {
       NodeCompositorFileOutput *nimf = static_cast<NodeCompositorFileOutput *>(node->storage);
 
-      /* CMP_NODE_OUTPUT_MULTI_FILE has been re-declared as CMP_NODE_OUTPUT_FILE */
+      /* #CMP_NODE_OUTPUT_MULTI_FILE has been re-declared as #CMP_NODE_OUTPUT_FILE. */
       node->type_legacy = CMP_NODE_OUTPUT_FILE;
 
       /* initialize the node-wide image format from render data, if available */
@@ -1988,8 +1988,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 263, 18)) {
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       if (scene->ed) {
-        blender::seq::for_each_callback(
-            &scene->ed->seqbase, strip_colorbalance_update_cb, nullptr);
+        blender::seq::foreach_strip(&scene->ed->seqbase, strip_colorbalance_update_cb, nullptr);
       }
     }
   }
@@ -2228,7 +2227,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 265, 5)) {
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       if (scene->ed) {
-        blender::seq::for_each_callback(&scene->ed->seqbase, strip_set_alpha_mode_cb, nullptr);
+        blender::seq::foreach_strip(&scene->ed->seqbase, strip_set_alpha_mode_cb, nullptr);
       }
     }
 
@@ -2902,7 +2901,7 @@ void blo_do_versions_260(FileData *fd, Library * /*lib*/, Main *bmain)
 
       LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
         if (scene->ed) {
-          blender::seq::for_each_callback(&scene->ed->seqbase, strip_set_wipe_angle_cb, nullptr);
+          blender::seq::foreach_strip(&scene->ed->seqbase, strip_set_wipe_angle_cb, nullptr);
         }
       }
 

@@ -103,7 +103,7 @@ namespace blender::ed::sculpt_paint::undo {
  * Node type used for undo depends on specific operation and active sculpt mode ("regular" or
  * dynamic topology).
  *
- * Regular sculpt brushes will use Position, HideVert, HideFace, Mask, Face Set * nodes. These
+ * Regular sculpt brushes will use Position, HideVert, HideFace, Mask, FaceSet nodes. These
  * nodes are created for every BVH node which is affected by the brush. The undo push for the node
  * happens BEFORE modifications. This makes the operation undo to work in the following way: for
  * every node in the undo step swap happens between node in the undo stack and the corresponding
@@ -421,7 +421,9 @@ struct PositionUndoStorage : NonMovable {
         CompressLocalData &local_data = all_tls.local();
         for (const int i : range) {
           const Span<int> indices = data->multires_undo ? nodes[i]->grids : nodes[i]->vert_indices;
-          const Span<float3> positions = nodes[i]->position;
+          const Span<float3> positions = !nodes[i]->orig_position.is_empty() ?
+                                             nodes[i]->orig_position :
+                                             nodes[i]->position;
           compression::filter_compress(indices, local_data.filtered, local_data.compressed);
           new (&compressed_indices[i]) Array<std::byte>(local_data.compressed.as_span());
           compression::filter_compress(positions, local_data.filtered, local_data.compressed);
@@ -1058,7 +1060,7 @@ static void restore_list(bContext *C, Depsgraph *depsgraph, StepData &step_data)
     return;
   }
   SculptSession &ss = *object.sculpt;
-  bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(object);
+  bke::pbvh::Tree &pbvh = bke::object::pbvh_ensure(*depsgraph, object);
 
   /* Restore pivot. */
   ss.pivot_pos = step_data.pivot_pos;
@@ -1899,12 +1901,7 @@ static void save_active_attribute(Object &object, SculptAttrRef *attr)
   const char *name = mesh->active_color_attribute;
   const bke::AttributeAccessor attributes = mesh->attributes();
   const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(name);
-  if (!meta_data) {
-    return;
-  }
-  if (!(ATTR_DOMAIN_AS_MASK(meta_data->domain) & ATTR_DOMAIN_MASK_COLOR) ||
-      !ELEM(meta_data->data_type, bke::AttrType::ColorFloat, bke::AttrType::ColorByte))
-  {
+  if (!bke::mesh::is_color_attribute(meta_data)) {
     return;
   }
   attr->domain = meta_data->domain;
@@ -2086,9 +2083,9 @@ void push_end(Object &ob)
 /** \name Implements ED Undo System
  * \{ */
 
-static void set_active_layer(bContext *C, const SculptAttrRef *attr)
+static void set_active_layer(bContext *C, const SculptAttrRef *attr_ref)
 {
-  if (attr->domain == bke::AttrDomain::Auto) {
+  if (attr_ref->domain == bke::AttrDomain::Auto) {
     return;
   }
 
@@ -2098,8 +2095,7 @@ static void set_active_layer(bContext *C, const SculptAttrRef *attr)
   SculptAttrRef existing;
   save_active_attribute(*ob, &existing);
 
-  AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
-  CustomDataLayer *layer = BKE_attribute_find(owner, attr->name, attr->type, attr->domain);
+  bke::MutableAttributeAccessor attributes = mesh->attributes_for_write();
 
   /* Temporary fix for #97408. This is a fundamental
    * bug in the undo stack; the operator code needs to push
@@ -2109,34 +2105,33 @@ static void set_active_layer(bContext *C, const SculptAttrRef *attr)
    * For now, detect if the layer does exist but with a different
    * domain and just unconvert it.
    */
-  if (!layer) {
-    layer = BKE_attribute_search_for_write(
-        owner, attr->name, CD_MASK_PROP_ALL, ATTR_DOMAIN_MASK_ALL);
-    if (layer) {
+  if (const bke::GAttributeReader attr = attributes.lookup(attr_ref->name)) {
+    if (attr.domain != attr_ref->domain ||
+        bke::cpp_type_to_custom_data_type(attr.varray.type()) != attr_ref->type)
+    {
+      AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
       if (ed::geometry::convert_attribute(owner,
                                           mesh->attributes_for_write(),
-                                          attr->name,
-                                          attr->domain,
-                                          *bke::custom_data_type_to_attr_type(attr->type),
+                                          attr_ref->name,
+                                          attr_ref->domain,
+                                          *bke::custom_data_type_to_attr_type(attr_ref->type),
                                           nullptr))
       {
-        layer = BKE_attribute_find(owner, attr->name, attr->type, attr->domain);
       }
     }
   }
 
-  if (!layer) {
+  if (!attributes.contains(attr_ref->name)) {
     /* Memfile undo killed the layer; re-create it. */
-    mesh->attributes_for_write().add(attr->name,
-                                     attr->domain,
-                                     *bke::custom_data_type_to_attr_type(attr->type),
+    mesh->attributes_for_write().add(attr_ref->name,
+                                     attr_ref->domain,
+                                     *bke::custom_data_type_to_attr_type(attr_ref->type),
                                      bke::AttributeInitDefaultValue());
-    layer = BKE_attribute_find(owner, attr->name, attr->type, attr->domain);
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   }
 
-  if (layer) {
-    BKE_id_attributes_active_color_set(&mesh->id, layer->name);
+  if (attributes.contains(attr_ref->name)) {
+    BKE_id_attributes_active_color_set(&mesh->id, attr_ref->name);
   }
 }
 
@@ -2251,7 +2246,7 @@ static void step_decode(
     BKE_view_layer_synced_ensure(scene, view_layer);
     Object *ob = BKE_view_layer_active_object_get(view_layer);
     if (ob && (ob->type == OB_MESH)) {
-      if (ob->mode & (OB_MODE_SCULPT | OB_MODE_VERTEX_PAINT)) {
+      if (ob->mode & (OB_MODE_SCULPT)) {
         /* Pass. */
       }
       else {

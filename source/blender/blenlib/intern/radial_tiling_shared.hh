@@ -104,7 +104,7 @@
 /* Naming convention for the Radial Tiling node code:
  * Let x and y be 2D vectors.
  * The length of X is expressed as l_x, which is an abbreviation of length_x.
- * The counterclockwise unsinged angle in [0.0, M_TAU] from X to Y is expressed as x_A_y, which
+ * The counterclockwise unsigned angle in [0.0, M_TAU] from X to Y is expressed as x_A_y, which
  * is an abbreviation of x_Angle_y. The singed angle in [-M_PI, M_PI] from x to y is expressed
  * as x_SA_y, which is an abbreviation of x_SingedAngle_y. Counterclockwise angles are positive,
  * clockwise angles are negative. A signed angle from x to y of which the output is mirrored along
@@ -114,7 +114,7 @@
  * The ratio z/w is expressed as z_R_w, which is an abbreviation of z_Ratio_y. */
 
 #ifdef ADAPT_TO_GEOMETRY_NODES
-ccl_device float4
+static ccl_device float4
 calculate_out_variables_full_roundness_irregular_circular(bool calculate_r_gon_parameter_field,
                                                           bool normalize_r_gon_parameter,
                                                           float r_gon_sides,
@@ -317,13 +317,14 @@ calculate_out_variables_full_roundness_irregular_circular(bool calculate_r_gon_p
 }
 #endif
 
-ccl_device float4 calculate_out_variables_irregular_circular(bool calculate_r_gon_parameter_field,
-                                                             bool calculate_max_unit_parameter,
-                                                             bool normalize_r_gon_parameter,
-                                                             float r_gon_sides,
-                                                             float r_gon_roundness,
-                                                             float2 coord,
-                                                             float l_coord)
+static ccl_device float4
+calculate_out_variables_irregular_circular(bool calculate_r_gon_parameter_field,
+                                           bool calculate_max_unit_parameter,
+                                           bool normalize_r_gon_parameter,
+                                           float r_gon_sides,
+                                           float r_gon_roundness,
+                                           float2 coord,
+                                           float l_coord)
 {
 #ifdef ADAPT_TO_SVM
   /* Silence compiler warnings. */

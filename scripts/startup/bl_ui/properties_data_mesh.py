@@ -64,7 +64,9 @@ class MESH_MT_shape_key_context_menu(Menu):
         layout.operator("object.shape_key_transfer", text="Copy from Objects")
         layout.separator()
         layout.operator("object.join_shapes", text="New from Objects")
+        layout.operator("object.join_shapes", text="New from Objects Flipped").use_mirror = True
         layout.operator("object.update_shapes", icon='FILE_REFRESH')
+        layout.operator("object.update_shapes", text="Update from Objects Flipped").use_mirror = True
         layout.separator()
         layout.operator("object.shape_key_mirror", icon='ARROW_LEFTRIGHT', text="Flip").use_topology = False
         layout.operator("object.shape_key_mirror", text="Flip (Topology)").use_topology = True
@@ -292,9 +294,6 @@ def draw_shape_key_properties(context, layout):
         row.active = enable_edit_value
         row.prop(key, "eval_time")
 
-    if ob.type == 'MESH':
-        layout.prop(ob, "add_rest_position_attribute")
-
 
 class DATA_PT_shape_keys(MeshButtonsPanel, Panel):
     bl_label = "Shape Keys"
@@ -335,6 +334,12 @@ class DATA_PT_shape_keys(MeshButtonsPanel, Panel):
         col.separator()
 
         col.menu("MESH_MT_shape_key_context_menu", icon='DOWNARROW_HLT', text="")
+
+        if ob.type == 'MESH':
+            row = layout.row(align=True)
+            row.use_property_split = False
+            row.alignment = 'LEFT'
+            row.prop(ob, "add_rest_position_attribute")
 
         if kb:
             col.separator()

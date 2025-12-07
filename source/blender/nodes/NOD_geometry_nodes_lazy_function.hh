@@ -345,11 +345,12 @@ struct GeometryNodeLazyFunctionGraphMapping {
   MultiValueMap<const lf::Socket *, const bNodeSocket *> bsockets_by_lf_socket_map;
   /**
    * Mappings for some special node types. Generally, this mapping does not exist for all node
-   * types, so better have more specialized mappings for now.
+   * types, so better have more specialized mappings for now. The key is the identifier if a node.
    */
-  Map<const bNode *, const lf::FunctionNode *> group_node_map;
-  Map<const bNode *, const lf::FunctionNode *> possible_side_effect_node_map;
-  Map<const bke::bNodeTreeZone *, const lf::FunctionNode *> zone_node_map;
+  Map<int, const lf::FunctionNode *> group_node_map;
+  Map<int, const lf::FunctionNode *> possible_side_effect_node_map;
+  /** Key is the identifier of the zone output node. */
+  Map<int, const lf::FunctionNode *> zone_node_map;
 
   /* Indexed by #bNodeSocket::index_in_all_outputs. */
   Array<int> lf_input_index_for_output_bsocket_usage;
@@ -445,6 +446,8 @@ std::unique_ptr<LazyFunction> get_menu_switch_node_lazy_function(
     const bNode &node, GeometryNodesLazyFunctionGraphInfo &lf_graph_info);
 std::unique_ptr<LazyFunction> get_menu_switch_node_socket_usage_lazy_function(const bNode &node);
 std::unique_ptr<LazyFunction> get_warning_node_lazy_function(const bNode &node);
+std::unique_ptr<LazyFunction> get_enable_output_node_lazy_function(
+    const bNode &node, GeometryNodesLazyFunctionGraphInfo &own_lf_graph_info);
 
 /**
  * Outputs the default value of each output socket that has not been output yet. This needs the

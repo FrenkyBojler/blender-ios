@@ -42,6 +42,12 @@ struct VKExtensions {
   bool fragment_shader_barycentric = false;
 
   /**
+   * Does the device support wide line rendering
+   * VkPhysicalDeviceFeatures::wideLines
+   */
+  bool wide_lines = false;
+
+  /**
    * Does the device support VK_KHR_dynamic_rendering_local_read enabled.
    */
   bool dynamic_rendering_local_read = false;
@@ -60,11 +66,6 @@ struct VKExtensions {
   bool maintenance4 = false;
 
   /**
-   * Does the device support VK_EXT_descriptor_buffer.
-   */
-  bool descriptor_buffer = false;
-
-  /**
    * Does the device support logic ops.
    */
   bool logic_ops = false;
@@ -78,6 +79,21 @@ struct VKExtensions {
    * Does the device support VK_EXT_pageable_device_local_memory
    */
   bool pageable_device_local_memory = false;
+
+  /**
+   * Does the device support VK_EXT_graphics_pipeline_library
+   */
+  bool graphics_pipeline_library = false;
+
+  /**
+   * Does the device support VK_EXT_line_rasterization
+   */
+  bool line_rasterization = false;
+
+  /**
+   * Does the device support VK_EXT_extended_dynamic_state
+   */
+  bool extended_dynamic_state = false;
 
   /** Log enabled features and extensions. */
   void log() const;
@@ -101,6 +117,9 @@ struct VKWorkarounds {
      */
     bool r8g8b8 = false;
   } vertex_formats;
+
+  /** Log enabled workarounds. */
+  void log() const;
 };
 
 /**
@@ -184,8 +203,9 @@ class VKDevice : public NonCopyable {
   VkPhysicalDeviceMemoryProperties vk_physical_device_memory_properties_ = {};
   VkPhysicalDeviceMaintenance4Properties vk_physical_device_maintenance4_properties_ = {
       VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_PROPERTIES};
-  VkPhysicalDeviceDescriptorBufferPropertiesEXT vk_physical_device_descriptor_buffer_properties_ =
-      {};
+  VkPhysicalDeviceGraphicsPipelineLibraryPropertiesEXT
+      vk_physical_device_graphics_pipeline_library_properties_ = {
+          VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_GRAPHICS_PIPELINE_LIBRARY_PROPERTIES_EXT};
   /** Features support. */
   VkPhysicalDeviceFeatures vk_physical_device_features_ = {};
   VkPhysicalDeviceVulkan11Features vk_physical_device_vulkan_11_features_ = {};
@@ -231,6 +251,9 @@ class VKDevice : public NonCopyable {
     PFN_vkCreateDebugUtilsMessengerEXT vkCreateDebugUtilsMessenger = nullptr;
     PFN_vkDestroyDebugUtilsMessengerEXT vkDestroyDebugUtilsMessenger = nullptr;
 
+    /* Extension: VK_EXT_extended_dynamic_state */
+    PFN_vkCmdSetFrontFace vkCmdSetFrontFace = nullptr;
+
     /* Extension: VK_KHR_external_memory_fd */
     PFN_vkGetMemoryFdKHR vkGetMemoryFd = nullptr;
 
@@ -238,13 +261,6 @@ class VKDevice : public NonCopyable {
     /* Extension: VK_KHR_external_memory_win32 */
     PFN_vkGetMemoryWin32HandleKHR vkGetMemoryWin32Handle = nullptr;
 #endif
-
-    /* Extension: VK_EXT_descriptor_buffer */
-    PFN_vkGetDescriptorSetLayoutSizeEXT vkGetDescriptorSetLayoutSize = nullptr;
-    PFN_vkGetDescriptorSetLayoutBindingOffsetEXT vkGetDescriptorSetLayoutBindingOffset = nullptr;
-    PFN_vkGetDescriptorEXT vkGetDescriptor = nullptr;
-    PFN_vkCmdBindDescriptorBuffersEXT vkCmdBindDescriptorBuffers = nullptr;
-    PFN_vkCmdSetDescriptorBufferOffsetsEXT vkCmdSetDescriptorBufferOffsets = nullptr;
 
   } functions;
 
@@ -276,10 +292,10 @@ class VKDevice : public NonCopyable {
     return vk_physical_device_id_properties_;
   }
 
-  inline const VkPhysicalDeviceDescriptorBufferPropertiesEXT &
-  physical_device_descriptor_buffer_properties_get() const
+  inline const VkPhysicalDeviceGraphicsPipelineLibraryPropertiesEXT &
+  physical_device_graphics_pipeline_properties_get()
   {
-    return vk_physical_device_descriptor_buffer_properties_;
+    return vk_physical_device_graphics_pipeline_library_properties_;
   }
 
   const VkPhysicalDeviceFeatures &physical_device_features_get() const
@@ -421,24 +437,6 @@ class VKDevice : public NonCopyable {
    */
   VKThreadData &current_thread_data();
 
-#if 0
-  /**
-   * Get the discard pool for the current thread.
-   *
-   * When the active thread has a context a discard pool associated to the thread is returned.
-   * When there is no context the orphan discard pool is returned.
-   *
-   * A thread with a context can have multiple discard pools. One for each swap-chain image.
-   * A thread without a context is most likely a discarded resource triggered during dependency
-   * graph update. A dependency graph update from the viewport during playback or editing;
-   * or a dependency graph update when rendering.
-   * These can happen from a different thread which will don't have a context at all.
-   * \param thread_safe: Caller thread already owns the resources mutex and is safe to run this
-   * function without trying to reacquire resources mutex making a deadlock.
-   */
-  VKDiscardPool &discard_pool_for_current_thread(bool thread_safe = false);
-#endif
-
   void context_register(VKContext &context);
   void context_unregister(VKContext &context);
   Span<std::reference_wrapper<VKContext>> contexts_get() const;
@@ -452,7 +450,8 @@ class VKDevice : public NonCopyable {
   Shader *vk_backbuffer_blit_sh_get()
   {
     if (vk_backbuffer_blit_sh_ == nullptr) {
-/* See display_as_extended_srgb in libocio_display_processor.cc for details on this choice. */
+      /* See #system_extended_srgb_transfer_function in libocio_display_processor.cc for
+       * details on this choice. */
 #if defined(_WIN32) || defined(__APPLE__)
       vk_backbuffer_blit_sh_ = GPU_shader_create_from_info_name("vk_backbuffer_blit");
 #else
@@ -468,7 +467,6 @@ class VKDevice : public NonCopyable {
   void init_physical_device_features();
   void init_physical_device_extensions();
   void init_debug_callbacks();
-  void init_memory_allocator();
   void init_submission_pool();
   void deinit_submission_pool();
   /**
