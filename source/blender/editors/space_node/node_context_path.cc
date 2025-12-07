@@ -71,17 +71,71 @@ static std::function<void(bContext &)> tree_path_handle_func(int i)
   };
 }
 
+static bool node_tree_has_group_node(const bNodeTree *ntree)
+{
+  if (ntree == nullptr) {
+    return false;
+  }
+
+  for (const bNode *node : ntree->all_nodes()) {
+    if (node->is_group() && node->id != nullptr) {
+      return true;
+    }
+  }
+  return false;
+}
+
+static void navigate_menu_draw_fn(bContext *C, ui::Layout *layout, void *arg)
+{
+  bNodeTree *ntree = static_cast<bNodeTree *>(arg);
+  if (!ntree) {
+    return;
+  }
+  /* 遍历节点树中的所有节点 */
+  for (bNode *node : ntree->all_nodes()) {
+    /* 只关心节点组 (Group Node) */
+    if (node->type_legacy == NODE_GROUP && node->id) {
+      bNodeTree *sub_group = (bNodeTree *)node->id;
+
+      /* 定义点击菜单项后的行为：进入该节点组 */
+      auto enter_group_func = [ntree, node, sub_group](bContext &C) {
+        SpaceNode *snode = CTX_wm_space_node(&C);
+        ARegion *region = CTX_wm_region(&C);
+
+        /* 确保我们是在正确的树上操作 */
+        if (snode->edittree != ntree) {
+          /* 这一步比较复杂，如果用户在面包屑中间点击，*/
+        }
+
+        ED_node_tree_push(region, snode, sub_group, node);
+
+        /* 刷新界面 */
+        WM_event_add_notifier(&C, NC_SCENE | ND_NODES, nullptr);
+      };
+
+      /* 添加菜单项 */
+      /* 使用 node->label (如果有) 或者 node->name */
+      std::string label = sub_group->id.name + 2;
+      // todo 去重
+      layout->button(label, ICON_NODETREE, enter_group_func);
+    }
+  }
+}
+
 static void context_path_add_top_level_shader_node_tree(const SpaceNode &snode,
                                                         Vector<ui::ContextPathItem> &path,
                                                         StructRNA &rna_type,
                                                         void *ptr)
 {
-  if (snode.nodetree != snode.edittree) {
-    ui::context_path_add_generic(path, rna_type, ptr, ICON_NONE, tree_path_handle_func(0));
-  }
-  else {
-    ui::context_path_add_generic(path, rna_type, ptr);
-  }
+  const bool in_root_tree = (snode.nodetree != snode.edittree);
+  const bool has_group = node_tree_has_group_node(snode.edittree);
+  ui::context_path_add_generic(
+      path,
+      rna_type,
+      ptr,
+      ICON_NONE,
+      in_root_tree ? tree_path_handle_func(0) : nullptr,
+      has_group ? navigate_menu_draw_fn : nullptr);
 }
 
 static void context_path_add_node_tree_and_node_groups(const SpaceNode &snode,
@@ -108,14 +162,15 @@ static void context_path_add_node_tree_and_node_groups(const SpaceNode &snode,
       icon = ICON_ASSET_MANAGER;
     }
 
-    if (path_item != snode.treepath.last) {
-      /* We don't need to add handle function to last node-tree. */
-      ui::context_path_add_generic(
-          path, RNA_NodeTree, path_item->nodetree, icon, tree_path_handle_func(i));
-    }
-    else {
-      ui::context_path_add_generic(path, RNA_NodeTree, path_item->nodetree, icon);
-    }
+    /* We don't need to add handle function to last node-tree. */
+    const bool is_last_item = (path_item == snode.treepath.last);
+    const bool has_group = node_tree_has_group_node(path_item->nodetree);
+    ui::context_path_add_generic(path,
+                                 RNA_NodeTree,
+                                 path_item->nodetree,
+                                 icon,
+                                 is_last_item ? nullptr : tree_path_handle_func(i),
+                                 has_group ? navigate_menu_draw_fn : nullptr);
   }
 }
 
@@ -341,11 +396,13 @@ Vector<ui::ContextPathItem> context_path_for_space_node(const bContext &C)
       }
       parent_tree = history_tree;
 
+      const bool has_group = node_tree_has_group_node(history_tree);
       ui::context_path_add_generic(context_path,
                                    RNA_NodeTree,
                                    history_tree,
                                    ICON_NODETREE,
                                    tree_path_navigate_history(history_tail_path.take_front(i + 1)),
+                                   has_group ? navigate_menu_draw_fn : nullptr,
                                    true);
     }
   }
