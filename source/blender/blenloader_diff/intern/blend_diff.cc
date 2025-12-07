@@ -1506,16 +1506,24 @@ class IdDiffer {
       int64_t index;
     };
 
+    bool old_has_any_non_index_identifier = false;
+
     Map<std::string, Item> old_struct_map;
     for (const int64_t i : old_structs.index_range()) {
       const DataWithStruct &old_struct = old_structs[i];
-      const std::string identifier = this->get_struct_identifier_with_index_fallback(
+      std::optional<std::string> identifier = this->get_struct_identifier(
           old_, old_struct.data, *old_struct.sdna_struct, i);
-      if (!old_struct_map.add(identifier, {old_struct, i})) {
+      if (identifier) {
+        old_has_any_non_index_identifier = true;
+      }
+      else {
+        identifier = this->get_index_fallback_identifier(i);
+      }
+      if (!old_struct_map.add(*identifier, {old_struct, i})) {
         const std::string user_identifier = this->get_struct_identifier_with_index_fallback(
             old_, old_struct.data, *old_struct.sdna_struct, i, true);
         diff_.info(
-            fmt::format("Duplicate in List: {}: {} ({})", context, identifier, user_identifier));
+            fmt::format("Duplicate in List: {}: {} ({})", context, *identifier, user_identifier));
       }
     }
 
@@ -1551,17 +1559,19 @@ class IdDiffer {
       }
     }
 
-    for (const int64_t i : old_structs.index_range()) {
-      const DataWithStruct &old_struct = old_structs[i];
-      const std::string identifier = this->get_struct_identifier_with_index_fallback(
-          old_, old_struct.data, *old_struct.sdna_struct, i);
-      if (new_struct_map.contains(identifier)) {
-        continue;
+    if (old_has_any_non_index_identifier) {
+      for (const int64_t i : old_structs.index_range()) {
+        const DataWithStruct &old_struct = old_structs[i];
+        const std::string identifier = this->get_struct_identifier_with_index_fallback(
+            old_, old_struct.data, *old_struct.sdna_struct, i);
+        if (new_struct_map.contains(identifier)) {
+          continue;
+        }
+        const std::string user_identifier = this->get_struct_identifier_with_index_fallback(
+            old_, old_struct.data, *old_struct.sdna_struct, i, true);
+        diff_.remove(fmt::format(
+            "{}[{}] = {}(...)", context, user_identifier, old_struct.sdna_struct->type->name));
       }
-      const std::string user_identifier = this->get_struct_identifier_with_index_fallback(
-          old_, old_struct.data, *old_struct.sdna_struct, i, true);
-      diff_.remove(fmt::format(
-          "{}[{}] = {}(...)", context, user_identifier, old_struct.sdna_struct->type->name));
     }
 
     if (old_structs.size() != new_structs.size() || order_changed) {
