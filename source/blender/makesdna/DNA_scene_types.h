@@ -125,6 +125,18 @@ typedef enum eFFMpegAudioChannels {
   FFM_CHANNELS_SURROUND71 = 8,
 } eFFMpegAudioChannels;
 
+/**
+ * The format of a sample.
+ * The last 4 bit save the byte count of the format.
+ */
+typedef enum eFFMpegSampleFormat {
+  FFM_FORMAT_U8 = 0x01,  /* 1 byte unsigned byte. */
+  FFM_FORMAT_S16 = 0x12, /* 2 byte signed integer. */
+  FFM_FORMAT_S32 = 0x14, /* 4 byte signed integer. */
+  FFM_FORMAT_FLT = 0x24, /* 4 byte float. */
+  FFM_FORMAT_DBL = 0x28  /* 8 byte float. */
+} eFFMpegSampleFormat;
+
 typedef enum eFFMpegProresProfile {
   FFM_PRORES_PROFILE_422_PROXY = 0, /* FF_PROFILE_PRORES_PROXY */
   FFM_PRORES_PROFILE_422_LT = 1,    /* FF_PROFILE_PRORES_LT */
@@ -172,6 +184,7 @@ typedef struct FFMpegCodecData {
   int audio_bitrate;
   int audio_mixrate;
   int audio_channels;
+  int sample_format;
   float audio_volume;
   int gop_size;
   /** Only used if FFMPEG_USE_MAX_B_FRAMES flag is set. */
@@ -187,7 +200,6 @@ typedef struct FFMpegCodecData {
   int rc_buffer_size;
   int mux_packet_size;
   int mux_rate;
-  int _pad;
 
 #ifdef __cplusplus
   IMB_Ffmpeg_Codec_ID codec_id_get() const

@@ -95,6 +95,7 @@ void movie_audio_close(MovieWriter *context, bool is_autosplit);
 AVStream *alloc_audio_stream(MovieWriter *context,
                              int audio_mixrate,
                              int audio_channels,
+                             int sample_format,
                              AVCodecID codec_id,
                              AVFormatContext *of,
                              char *error,

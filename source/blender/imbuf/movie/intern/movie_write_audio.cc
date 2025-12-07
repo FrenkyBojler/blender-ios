@@ -212,6 +212,7 @@ void movie_audio_close(MovieWriter *context, bool is_autosplit)
 AVStream *alloc_audio_stream(MovieWriter *context,
                              int audio_mixrate,
                              int audio_channels,
+                             int sample_format,
                              AVCodecID codec_id,
                              AVFormatContext *of,
                              char *error,
@@ -323,9 +324,6 @@ AVStream *alloc_audio_stream(MovieWriter *context,
                    "bitrate Vorbis supports.");
       }
       break;
-    default:
-      BLI_assert(false);
-      break;
   }
 
   context->audio_codec = avcodec_alloc_context3(codec);
@@ -348,6 +346,34 @@ AVStream *alloc_audio_stream(MovieWriter *context,
     /* mainly for AAC codec which is experimental */
     c->strict_std_compliance = FF_COMPLIANCE_EXPERIMENTAL;
     c->sample_fmt = AV_SAMPLE_FMT_FLT;
+  }
+
+  if (codec_id == AV_CODEC_ID_PCM_S16LE) {
+    switch (sample_format) {
+      case FFM_FORMAT_U8:
+        codec_id = AV_CODEC_ID_PCM_U8;
+        c->sample_fmt = AV_SAMPLE_FMT_U8;
+        break;
+      case FFM_FORMAT_S16:
+        codec_id = AV_CODEC_ID_PCM_S16LE;
+        c->sample_fmt = AV_SAMPLE_FMT_S16;
+        break;
+      case FFM_FORMAT_S32:
+        codec_id = AV_CODEC_ID_PCM_S32LE;
+        c->sample_fmt = AV_SAMPLE_FMT_S32;
+        break;
+      case FFM_FORMAT_FLT:
+        codec_id = AV_CODEC_ID_PCM_F32LE;
+        c->sample_fmt = AV_SAMPLE_FMT_FLT;
+        break;
+      case FFM_FORMAT_DBL:
+        codec_id = AV_CODEC_ID_PCM_F64LE;
+        c->sample_fmt = AV_SAMPLE_FMT_DBL;
+        break;
+      default:
+        BLI_assert(false);
+        break;
+    }
   }
 
   const enum AVSampleFormat *sample_fmts = ffmpeg_get_sample_fmts(c, codec);

@@ -6664,6 +6664,27 @@ static void rna_def_scene_ffmpeg_settings(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
+  static const EnumPropertyItem sample_format_items[] = {
+      {FFM_FORMAT_U8,
+       "U8",
+       0,
+       "8-bit Unsigned",
+       "Set audio sample format to 8-bit unsigned integer"},
+      {FFM_FORMAT_S16,
+       "S16",
+       0,
+       "16-bit Signed",
+       "Set audio sample format to 16-bit signed integer"},
+      {FFM_FORMAT_S32,
+       "S32",
+       0,
+       "32-bit Signed",
+       "Set audio sample format to 32-bit signed integer"},
+      {FFM_FORMAT_FLT, "FLT", 0, "32-bit Float", "Set audio sample format to 32-bit float"},
+      {FFM_FORMAT_DBL, "DBL", 0, "64-bit Float", "Set audio sample format to 64-bit float"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
   srna = RNA_def_struct(brna, "FFmpegSettings", nullptr);
   RNA_def_struct_sdna(srna, "FFMpegCodecData");
   RNA_def_struct_path_func(srna, "rna_FFmpegSettings_path");
@@ -6829,6 +6850,15 @@ static void rna_def_scene_ffmpeg_settings(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_enum_items(prop, audio_channel_items);
   RNA_def_property_ui_text(prop, "Audio Channels", "Audio channel count");
+
+  prop = RNA_def_property(srna, "sample_format", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_bitflag_sdna(prop, nullptr, "sample_format");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_enum_items(prop, sample_format_items);
+  RNA_def_property_enum_default(prop, FFM_FORMAT_S16);
+  RNA_def_property_ui_text(
+      prop, "Sample Format", "Format with which the audio samples are stored");
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 }
 
 static void rna_def_scene_render_data(BlenderRNA *brna)
