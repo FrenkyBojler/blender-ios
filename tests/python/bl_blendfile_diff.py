@@ -85,6 +85,9 @@ class TestCase:
 test_cases = (
     TestCase("start_5_0.blend", "start_5_0_moved_camera.blend"),
     TestCase("start_5_0.blend", "start_5_0_moved_vertex.blend"),
+    TestCase("start_5_0.blend", "start_5_0_add_geo_nodes.blend"),
+    TestCase("start_5_0_add_geo_nodes.blend", "start_5_0_add_geo_nodes_add_node.blend"),
+    TestCase("start_5_0_add_geo_nodes_add_node.blend", "start_5_0_add_geo_nodes_add_node_change_value.blend"),
 )
 
 

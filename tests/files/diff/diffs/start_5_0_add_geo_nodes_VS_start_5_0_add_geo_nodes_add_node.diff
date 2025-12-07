@@ -1,0 +1,44 @@
++bNodeTree["Geometry Nodes"].nodes[Set Position] = bNode(...)
+-bNodeTree["Geometry Nodes"].nodes <length> = 2
++bNodeTree["Geometry Nodes"].nodes <length> = 3
++bNodeTree["Geometry Nodes"].links[Set Position/Geometry -> Group Output/Geometry] = bNodeLink(...)
++bNodeTree["Geometry Nodes"].links[Group Input/Geometry -> Set Position/Geometry] = bNodeLink(...)
+-bNodeTree["Geometry Nodes"].links[Group Input/Geometry -> Group Output/Geometry] = bNodeLink(...)
+-bNodeTree["Geometry Nodes"].links <length> = 1
++bNodeTree["Geometry Nodes"].links <length> = 2
+ Data-block not modified: "SCScene"
+ Data-block not modified: "PLPalette"
+ Data-block not modified: "GRCollection"
+ Data-block not modified: "OBCamera"
+ Data-block not modified: "OBCube"
+ Data-block not modified: "OBLight"
+ Data-block not modified: "CACamera"
+ Data-block not modified: "LALight"
+ Data-block not modified: "MECube"
+ Data-block not modified: "WOWorld"
+ Data-block not modified: "LSLineStyle"
+ Data-block not modified: "MAMaterial"
+ Data-block not modified: "IMRender Result"
+ Data Block ignored: "WMWinMan"
+ Data Block ignored: "WSAnimation"
+ Data Block ignored: "WSCompositing"
+ Data Block ignored: "WSGeometry Nodes"
+ Data Block ignored: "WSLayout"
+ Data Block ignored: "WSModeling"
+ Data Block ignored: "WSRendering"
+ Data Block ignored: "WSScripting"
+ Data Block ignored: "WSSculpting"
+ Data Block ignored: "WSShading"
+ Data Block ignored: "WSTexture Paint"
+ Data Block ignored: "WSUV Editing"
+ Data Block ignored: "SRAnimation"
+ Data Block ignored: "SRCompositing"
+ Data Block ignored: "SRGeometry Nodes"
+ Data Block ignored: "SRLayout"
+ Data Block ignored: "SRModeling"
+ Data Block ignored: "SRRendering"
+ Data Block ignored: "SRScripting"
+ Data Block ignored: "SRSculpting"
+ Data Block ignored: "SRShading"
+ Data Block ignored: "SRTexture Paint"
+ Data Block ignored: "SRUV Editing"
