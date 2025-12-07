@@ -122,22 +122,14 @@ static int rna_CurveProfilePoint_handle_location_1_editable(const PointerRNA *pt
 {
   CurveProfilePoint *p = (CurveProfilePoint *) ptr->data;
   char handle_type = p->h1;
-  if (handle_type == HD_FREE || handle_type == HD_ALIGN) 
-  {
-    return PROP_EDITABLE;
-  } 
-  return PropertyFlag(0);
+  return ELEM(handle_type, HD_FREE, HD_ALIGN) ? PROP_EDITABLE : PropertyFlag(0);
 }
 
 static int rna_CurveProfilePoint_handle_location_2_editable(const PointerRNA *ptr, const char ** /*r_info*/)
 {
   CurveProfilePoint *p = (CurveProfilePoint *) ptr->data;
   char handle_type = p->h2;
-  if (handle_type == HD_FREE || handle_type == HD_ALIGN)
-  {
-    return PROP_EDITABLE;
-  }
-  return PropertyFlag(0);
+  return ELEM(handle_type, HD_FREE, HD_ALIGN) ? PROP_EDITABLE : PropertyFlag(0);
 }
 
 static void rna_CurveProfilePoint_handle_location_1_get(PointerRNA *ptr, float *values)
