@@ -6358,8 +6358,8 @@ static void rna_def_space_sequencer_timeline_overlay(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, nullptr);
 
   static const EnumPropertyItem thumbnail_style_items[] = {
-      {SEQ_TIMELINE_NO_THUMBNAILS, "NO_THUMBNAILS", 0, "None", "Do not show strip thumbnails"},
-      {0,
+      {0, "NO_THUMBNAILS", 0, "None", "Do not show strip thumbnails"},
+      {SEQ_TIMELINE_STRIP_END_THUMBNAILS,
        "STRIP_ENDS",
        0,
        "Strip Ends",

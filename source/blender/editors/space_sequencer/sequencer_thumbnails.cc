@@ -401,18 +401,20 @@ void draw_strip_thumbnails(const TimelineDrawContext &ctx,
                            StripsDrawBatch &strips_batch,
                            const Vector<StripDrawContext> &strips)
 {
+  const bool show_thumbnails = (ctx.sseq->timeline_overlay.flag &
+                                SEQ_TIMELINE_STRIP_END_THUMBNAILS) ||
+                               (ctx.sseq->timeline_overlay.flag &
+                                SEQ_TIMELINE_CONTINUOUS_THUMBNAILS);
   /* Nothing to do if we're not showing thumbnails overall. */
-  if ((ctx.sseq->flag & SEQ_SHOW_OVERLAY) == 0 ||
-      (ctx.sseq->timeline_overlay.flag & SEQ_TIMELINE_NO_THUMBNAILS))
-  {
+  if ((ctx.sseq->flag & SEQ_SHOW_OVERLAY) == 0 || !show_thumbnails) {
     return;
   }
 
   /* Gather information for all thumbnails. */
   Vector<SeqThumbInfo> thumbs;
   /* Thumbnail display mode (Strip ends / Continuous)*/
-  bool show_only_at_strip_ends = !(ctx.sseq->timeline_overlay.flag &
-                                   SEQ_TIMELINE_CONTINUOUS_THUMBNAILS);
+  const bool show_only_at_strip_ends = (ctx.sseq->timeline_overlay.flag &
+                                        SEQ_TIMELINE_STRIP_END_THUMBNAILS);
 
   for (const StripDrawContext &strip : strips) {
     get_seq_strip_thumbnails(ctx.v2d,
