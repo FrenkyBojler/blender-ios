@@ -138,6 +138,9 @@ struct ParsedResource {
     if (res_type == "legacy_info") {
       ss << "ADDITIONAL_INFO(" << var_name << ")";
     }
+    else if (res_type == "resource_table") {
+      ss << "ADDITIONAL_INFO(" << var_type << ")";
+    }
     else if (res_type == "sampler") {
       if (res_frequency.empty()) {
         ss << "SAMPLER(" << res_slot << ", " << var_type << ", " << var_name << ")";
@@ -992,27 +995,28 @@ class Preprocessor {
     });
   }
 
+  std::string get_create_info_placeholder(const std::string &name)
+  {
+    std::string placeholder;
+    placeholder += "#ifdef CREATE_INFO_RES_PASS_" + name + "\n";
+    placeholder += "CREATE_INFO_RES_PASS_" + name + "\n";
+    placeholder += "#endif\n";
+    placeholder += "#ifdef CREATE_INFO_RES_BATCH_" + name + "\n";
+    placeholder += "CREATE_INFO_RES_BATCH_" + name + "\n";
+    placeholder += "#endif\n";
+    placeholder += "#ifdef CREATE_INFO_RES_GEOMETRY_" + name + "\n";
+    placeholder += "CREATE_INFO_RES_GEOMETRY_" + name + "\n";
+    placeholder += "#endif\n";
+    placeholder += "#ifdef CREATE_INFO_RES_SHARED_VARS_" + name + "\n";
+    placeholder += "CREATE_INFO_RES_SHARED_VARS_" + name + "\n";
+    placeholder += "#endif\n";
+    return placeholder;
+  };
+
   void create_info_parse_and_remove(Parser &parser, report_callback report_error)
   {
     using namespace std;
     using namespace shader::parser;
-
-    auto get_placeholder = [](const string &name) {
-      string placeholder;
-      placeholder += "#ifdef CREATE_INFO_RES_PASS_" + name + "\n";
-      placeholder += "CREATE_INFO_RES_PASS_" + name + "\n";
-      placeholder += "#endif\n";
-      placeholder += "#ifdef CREATE_INFO_RES_BATCH_" + name + "\n";
-      placeholder += "CREATE_INFO_RES_BATCH_" + name + "\n";
-      placeholder += "#endif\n";
-      placeholder += "#ifdef CREATE_INFO_RES_GEOMETRY_" + name + "\n";
-      placeholder += "CREATE_INFO_RES_GEOMETRY_" + name + "\n";
-      placeholder += "#endif\n";
-      placeholder += "#ifdef CREATE_INFO_RES_SHARED_VARS_" + name + "\n";
-      placeholder += "CREATE_INFO_RES_SHARED_VARS_" + name + "\n";
-      placeholder += "#endif\n";
-      return placeholder;
-    };
 
     parser().foreach_scope(ScopeType::Attributes, [&](const Scope attrs) {
       if (attrs.str_with_whitespace() != "[resource_table]") {
@@ -1023,7 +1027,7 @@ class Preprocessor {
       if (type != Word || struct_keyword != Struct) {
         return;
       }
-      parser.insert_before(struct_keyword, get_placeholder(type.str()));
+      parser.insert_before(struct_keyword, get_create_info_placeholder(type.str()));
       parser.insert_line_number(struct_keyword.str_index_start() - 1,
                                 struct_keyword.line_number());
     });
@@ -1036,7 +1040,7 @@ class Preprocessor {
         const string variant_decl = parser.substr_range_inclusive(tokens.front(), tokens.back());
         metadata.create_infos_declarations.emplace_back(variant_decl);
 
-        parser.replace(tokens.front(), tokens.back(), get_placeholder(variant_name));
+        parser.replace(tokens.front(), tokens.back(), get_create_info_placeholder(variant_name));
         return;
       }
       if (tokens[0].str() == "GPU_SHADER_CREATE_INFO") {
@@ -1057,7 +1061,7 @@ class Preprocessor {
 
         parser.replace(tokens.front().str_index_start(),
                        end_pos + end_tok.size(),
-                       get_placeholder(variant_name));
+                       get_create_info_placeholder(variant_name));
         return;
       }
       if (tokens[0].str() == "GPU_SHADER_NAMED_INTERFACE_INFO") {
@@ -2025,7 +2029,7 @@ class Preprocessor {
           resource.res_type = type;
         }
         else if (type == "legacy_info") {
-          /* Name is already stored. */
+          resource.res_type = type;
         }
         else {
           report_error(ERROR_TOK(attribute[0]), "Invalid attribute in resource table");
@@ -2303,6 +2307,9 @@ class Preprocessor {
         }
         parser.insert_after(end_of_srt.next().line_end() + 1, access_macros);
 
+        parser.insert_after(end_of_srt.next().line_end() + 1,
+                            get_create_info_placeholder(srt.name));
+
         parser.insert_line_number(end_of_srt.next().line_end() + 1,
                                   end_of_srt.next().line_number() + 2);
 
@@ -2564,6 +2571,7 @@ class Preprocessor {
       create_info_decl += "ADDITIONAL_INFO(" + vertex_fn.str() + "_infos_)\n";
       create_info_decl += "ADDITIONAL_INFO(" + fragment_fn.str() + "_infos_)\n";
       create_info_decl += process_compilation_constants(params[4]);
+      create_info_decl += "DO_STATIC_COMPILATION()\n";
       create_info_decl += "GPU_SHADER_CREATE_END()\n";
 
       metadata.create_infos_declarations.emplace_back(create_info_decl);
@@ -2578,6 +2586,7 @@ class Preprocessor {
       create_info_decl += "COMPUTE_FUNCTION(\"" + compute_fn.str() + "\")\n";
       create_info_decl += "ADDITIONAL_INFO(" + compute_fn.str() + "_infos_)\n";
       create_info_decl += process_compilation_constants(params[2]);
+      create_info_decl += "DO_STATIC_COMPILATION()\n";
       create_info_decl += "GPU_SHADER_CREATE_END()\n";
 
       metadata.create_infos_declarations.emplace_back(create_info_decl);
@@ -3686,7 +3695,7 @@ class Preprocessor {
               }
               else if (is_vertex_func) {
                 replace_word_and_accessor(srt_var, srt_type + "_");
-                create_info_decl += "VERTEX_OUT(" + srt_type + ")\n";
+                create_info_decl += "VERTEX_OUT(" + srt_type + "_t)\n";
               }
               else if (is_fragment_func) {
                 replace_word_and_accessor(srt_var, srt_type + "_");
@@ -3743,7 +3752,9 @@ class Preprocessor {
 
           create_info_decl += "GPU_SHADER_CREATE_END()\n";
 
-          metadata.create_infos_declarations.emplace_back(create_info_decl);
+          if (is_entry_point) {
+            metadata.create_infos_declarations.emplace_back(create_info_decl);
+          }
         });
 
     parser.apply_mutations();

@@ -661,6 +661,19 @@ struct SRT {
 }
 #line 5
 #define access_SRT_a() T_new_()
+#ifdef CREATE_INFO_RES_PASS_SRT
+CREATE_INFO_RES_PASS_SRT
+#endif
+#ifdef CREATE_INFO_RES_BATCH_SRT
+CREATE_INFO_RES_BATCH_SRT
+#endif
+#ifdef CREATE_INFO_RES_GEOMETRY_SRT
+CREATE_INFO_RES_GEOMETRY_SRT
+#endif
+#ifdef CREATE_INFO_RES_SHARED_VARS_SRT
+CREATE_INFO_RES_SHARED_VARS_SRT
+#endif
+#line 6
 )";
     string error;
     string output = process_test_string(input, error);
@@ -743,6 +756,19 @@ struct SRT {
 }
 #line 9
 #define access_SRT_a() T_new_()
+#ifdef CREATE_INFO_RES_PASS_SRT
+CREATE_INFO_RES_PASS_SRT
+#endif
+#ifdef CREATE_INFO_RES_BATCH_SRT
+CREATE_INFO_RES_BATCH_SRT
+#endif
+#ifdef CREATE_INFO_RES_GEOMETRY_SRT
+CREATE_INFO_RES_GEOMETRY_SRT
+#endif
+#ifdef CREATE_INFO_RES_SHARED_VARS_SRT
+CREATE_INFO_RES_SHARED_VARS_SRT
+#endif
+#line 10
 )";
     string error;
     string output = process_test_string(input, error);
@@ -1798,7 +1824,7 @@ GPU_SHADER_INTERFACE_END()
 GPU_SHADER_CREATE_INFO(ns_vertex_function_infos_)
 ADDITIONAL_INFO(Resources)
 ADDITIONAL_INFO(ns_VertInTfloat)
-VERTEX_OUT(ns_VertOut)
+VERTEX_OUT(ns_VertOut_t)
 BUILTINS(BuiltinBits::POINT_SIZE)
 BUILTINS(BuiltinBits::LAYER)
 BUILTINS(BuiltinBits::VIEWPORT_INDEX)
@@ -1880,6 +1906,7 @@ ADDITIONAL_INFO(fragment_func_infos_)
 COMPILATION_CONSTANT(bool, a, true)
 COMPILATION_CONSTANT(int, b, 9)
 COMPILATION_CONSTANT(uint, c, 3u)
+DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(ns_compute_pipe)
@@ -1889,6 +1916,7 @@ ADDITIONAL_INFO(compute_func_infos_)
 COMPILATION_CONSTANT(bool, a, true)
 COMPILATION_CONSTANT(int, b, 8)
 COMPILATION_CONSTANT(uint, c, 7u)
+DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 
 )";
