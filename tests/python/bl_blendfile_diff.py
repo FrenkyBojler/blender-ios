@@ -8,6 +8,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 blend_diff_bin = Path(bpy.app.binary_path).parent / "blend_diff"
+if sys.platform == "win32":
+    blend_diff_bin = blend_diff_bin.with_suffix(".exe")
 
 
 def main():
