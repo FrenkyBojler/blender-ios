@@ -113,7 +113,7 @@ static void strip_get_thumb_image_dimensions(const Strip *strip,
   *r_image_height = image_height;
 }
 
-static void add_thumbnail_at_frame(float timeline_frame,
+static bool add_thumbnail_at_frame(float timeline_frame,
                                    const bContext *C,
                                    const View2D *v2d,
                                    const StripDrawContext &strip,
@@ -133,7 +133,7 @@ static void add_thumbnail_at_frame(float timeline_frame,
 
   /* Reached end of view, no more thumbnails needed. */
   if (display_frame > v2d->cur.xmax) {
-    return;
+    return false;
   }
 
   /* Set the clipping bound to show the left handle moving over thumbs and not shift thumbs. */
@@ -152,13 +152,14 @@ static void add_thumbnail_at_frame(float timeline_frame,
   float cropx_min = cut_off * crop_x_multiplier;
   float cropx_max = (thumb_x_end - display_frame) * crop_x_multiplier;
   if (cropx_max < 1.0f) {
-    return;
+    return false;
   }
 
   /* Get the thumbnail image. */
   ImBuf *ibuf = seq::thumbnail_cache_get(C, scene, strip.strip, timeline_frame);
   if (ibuf == nullptr) {
-    return;
+    /* Thumbnail is not in cache but still other frames have to request for thumbnails */
+    return true;
   }
 
   SeqThumbInfo thumb = {};
@@ -179,6 +180,8 @@ static void add_thumbnail_at_frame(float timeline_frame,
   thumb.y1 = strip.bottom;
   thumb.y2 = strip.strip_content_top;
   r_thumbs.append(thumb);
+
+  return true;
 };
 
 static bool is_thumbnail_in_view(float timeline_frame,
@@ -304,17 +307,21 @@ static void get_seq_strip_thumbnails(const View2D *v2d,
   /* Start going over the strip length. */
   while (timeline_frame < upper_thumb_bound) {
 
-    add_thumbnail_at_frame(timeline_frame,
-                           C,
-                           v2d,
-                           strip,
-                           scene,
-                           thumb_width,
-                           crop_x_multiplier,
-                           upper_thumb_bound,
-                           0.0f,
-                           is_muted,
-                           r_thumbs);
+    const bool should_add_next_thumbnail = add_thumbnail_at_frame(timeline_frame,
+                                                                  C,
+                                                                  v2d,
+                                                                  strip,
+                                                                  scene,
+                                                                  thumb_width,
+                                                                  crop_x_multiplier,
+                                                                  upper_thumb_bound,
+                                                                  0.0f,
+                                                                  is_muted,
+                                                                  r_thumbs);
+
+    if (!should_add_next_thumbnail) {
+      break;
+    }
 
     timeline_frame = thumb_calc_next_timeline_frame(
         strip.strip, strip.left_handle, timeline_frame, thumb_width);
