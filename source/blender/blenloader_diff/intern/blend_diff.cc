@@ -326,6 +326,7 @@ using rich_sdna::Type;
 struct DiffOptions {
   ResourceScope scope_;
   bool ignore_pad = true;
+  bool ignore_runtime = true;
   int64_t max_array_changes = 16;
 
   struct MemberName {
@@ -393,6 +394,11 @@ struct DiffOptions {
   {
     if (this->ignore_pad) {
       if (member.name_only.startswith("_pad")) {
+        return true;
+      }
+    }
+    if (this->ignore_runtime) {
+      if (member.name_only.find("runtime") != StringRef::not_found) {
         return true;
       }
     }
