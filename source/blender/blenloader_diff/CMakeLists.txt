@@ -19,6 +19,7 @@ set(LIB
 
 add_executable(blend_diff ${SRC})
 setup_platform_linker_flags(blend_diff)
+setup_platform_linker_libs(blend_diff)
 blender_target_include_dirs(blend_diff ${INC})
 target_link_libraries(blend_diff ${LIB})
 
