@@ -31,7 +31,7 @@ def run(args):
 
     failed_tests = []
 
-    for case in diff_list:
+    for case in test_cases:
         blend_old_path = blends_dir / case.old_name
         blend_new_path = blends_dir / case.new_name
         diff_name = case.name + ".diff"
@@ -66,7 +66,10 @@ def run(args):
             Path(diff_path).write_text(actual_diff)
 
     if len(failed_tests) > 0:
+        print(f"{len(failed_tests)} / {len(test_cases)} tests failed")
+        print("Failing tests have been updated")
         sys.exit(1)
+    print("All tests ok.")
 
 
 @dataclass
@@ -79,8 +82,9 @@ class TestCase:
         return self.old_name.removesuffix(".blend") + "_VS_" + self.new_name.removesuffix(".blend")
 
 
-diff_list = (
+test_cases = (
     TestCase("start_5_0.blend", "start_5_0_moved_camera.blend"),
+    TestCase("start_5_0.blend", "start_5_0_moved_vertex.blend"),
 )
 
 
