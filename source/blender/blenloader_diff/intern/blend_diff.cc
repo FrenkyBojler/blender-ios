@@ -486,34 +486,6 @@ class DiffLines {
   }
 };
 
-class DiffWriter {
- private:
-  fmt::memory_buffer mem_buf_;
-  fmt::appender dst_{mem_buf_};
-
- public:
-  DiffWriter(StringRef path)
-  {
-    if (path.startswith("/")) {
-      path = path.drop_prefix(1);
-    }
-    fmt::format_to(dst_, "diff --git a/{} b/{}\n", path, path);
-    fmt::format_to(dst_, "--- a/{}\n", path);
-    fmt::format_to(dst_, "+++ b/{}\n", path);
-    fmt::format_to(dst_, "@@ -1 +100000 @@\n");
-  }
-
-  void merge(const DiffLines &lines)
-  {
-    fmt::format_to(dst_, lines.to_string());
-  }
-
-  std::string to_string() const
-  {
-    return fmt::to_string(mem_buf_);
-  }
-};
-
 static void write_diff_struct_member(DiffLines &diff,
                                      const StructMember &old_member,
                                      const StructMember &new_member)
@@ -2457,19 +2429,12 @@ static void handle_invalid_blend_file_error(const StringRef path)
 
 static int main_do(const int argc, char *argv[])
 {
-  // std::fstream myfile("/home/jacques/Downloads/test.txt", std::ios::out);
-  // for (const int i : blender::IndexRange(argc)) {
-  //   myfile << argv[i] << '\n';
-  // }
-  // myfile.close();
-  // std::this_thread::sleep_for(std::chrono::seconds(10));
   if (argc < 3) {
-    fmt::println(stderr, "Incorrect usage");
+    fmt::println(stderr, "Usage: blend_diff <file_old> <file_new>");
     return 1;
   }
-  const StringRefNull relative_path = argv[1];
-  const StringRefNull file_old = argv[2];
-  const StringRefNull file_new = argv[5];
+  const StringRefNull file_old = argv[1];
+  const StringRefNull file_new = argv[2];
 
   FileReader *file_reader_old = BLO_file_reader_uncompressed_from_path(file_old.c_str());
   FileReader *file_reader_new = BLO_file_reader_uncompressed_from_path(file_new.c_str());
@@ -2594,10 +2559,11 @@ static int main_do(const int argc, char *argv[])
   const AllIdDiffLines id_diffs = write_diff_ids(
       options, *id_blocks_old, *id_blocks_new, sdna_old, sdna_new);
 
-  DiffWriter writer(relative_path);
+  auto write_output = [&](const DiffLines &diff) { std::cout << diff.to_string(); };
+
   for (const std::pair<std::string, DiffLines> &changed_id : id_diffs.changed_ids) {
     if (!changed_id.second.is_empty()) {
-      writer.merge(changed_id.second);
+      write_output(changed_id.second);
     }
   }
   DiffLines unmodified_diff;
@@ -2606,13 +2572,11 @@ static int main_do(const int argc, char *argv[])
       unmodified_diff.info(fmt::format("Data-block not modified: \"{}\"", changed_id.first));
     }
   }
-  writer.merge(unmodified_diff);
-  writer.merge(id_diffs.added_ids);
-  writer.merge(id_diffs.removed_ids);
-  writer.merge(id_diffs.ignored_ids);
-  writer.merge(sdna_diff);
-
-  std::cout << writer.to_string();
+  write_output(unmodified_diff);
+  write_output(id_diffs.added_ids);
+  write_output(id_diffs.removed_ids);
+  write_output(id_diffs.ignored_ids);
+  write_output(sdna_diff);
   return 0;
 }
 

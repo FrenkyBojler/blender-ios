@@ -9,7 +9,6 @@
 #include "BLI_memory_utils.hh"
 
 #include "BLO_core_blend_header.hh"
-#include "DNA_ID_enums.h"
 #include "DNA_genfile.h"
 #include "DNA_print.hh"
 #include "DNA_sdna_types.h"
@@ -26,7 +25,6 @@ class BlenderTextConv {
   int argc_;
   char **argv_;
   std::string blend_path_;
-  BLI_stat_t stat_;
   LinearAllocator<> allocator_;
   SDNA *sdna_ = nullptr;
 

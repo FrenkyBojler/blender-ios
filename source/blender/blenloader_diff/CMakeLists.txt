@@ -41,3 +41,7 @@ add_executable(blend_diff ${BLEND_DIFF_SRC})
 setup_platform_linker_flags(blend_diff)
 blender_target_include_dirs(blend_diff ${BLEND_DIFF_INC})
 target_link_libraries(blend_diff ${BLEND_DIFF_LIB})
+
+install(
+  PROGRAMS intern/blend_diff_git_driver.py DESTINATION "."
+)
