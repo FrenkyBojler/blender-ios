@@ -25,5 +25,10 @@ blender_target_include_dirs(blend_diff ${INC})
 target_link_libraries(blend_diff ${LIB})
 
 install(
-  PROGRAMS intern/blend_diff_git_driver.py DESTINATION "."
+  TARGETS blend_diff
+  DESTINATION "."
+)
+install(
+  PROGRAMS intern/blend_diff_git_driver.py
+  DESTINATION "."
 )
