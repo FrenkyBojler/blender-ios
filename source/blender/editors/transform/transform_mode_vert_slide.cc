@@ -200,6 +200,14 @@ static VertSlideData *createVertSlideVerts(TransInfo *t, TransDataContainer *tc)
     return nullptr;
   }
 
+  /* If a vertex has no valid slide targets, fall back to using the object origin. */
+  for (TransDataVertSlideVert &sv_item : sld->sv) {
+    if (sv_item.co_link_orig_3d.is_empty()) {
+      sld->targets_buffer.append(float3(0.0f));
+      sv_item.co_link_orig_3d = Span<float3>(&sld->targets_buffer.last(), 1);
+    }
+  }
+
   sld->curr_sv_index = 0;
   sld->update_proj_mat(t, tc);
   return sld;
