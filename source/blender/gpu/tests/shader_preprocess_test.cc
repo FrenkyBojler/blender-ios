@@ -134,6 +134,23 @@ static void test_preprocess_unroll()
 
   {
     string input = R"(
+[[gpu::unroll]] for (int i = 2; i < 4; i++) { content += i; })";
+    string expect = R"(
+
+{
+#line 2
+                                            { content += 2; }
+#line 2
+                                            { content += 3; }
+#line 2
+                                                            })";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+  {
+    string input = R"(
 [[gpu::unroll]] for (int i = 2; i < 4; i++, y++) { content += i; })";
     string expect = R"(
                     {int i = 2;
