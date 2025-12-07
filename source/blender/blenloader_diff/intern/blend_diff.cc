@@ -445,8 +445,13 @@ class DiffLines {
     mem_buf_ = std::make_unique<fmt::memory_buffer>();
   }
 
-  void change(const StringRef old_line, const StringRef new_line)
+  void change(const StringRef old_line, const StringRef new_line, bool skip_if_same = true)
   {
+    if (skip_if_same) {
+      if (old_line == new_line) {
+        return;
+      }
+    }
     this->remove(old_line);
     this->add(new_line);
   }
