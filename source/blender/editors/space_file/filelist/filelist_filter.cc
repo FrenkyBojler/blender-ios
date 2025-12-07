@@ -13,10 +13,9 @@
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_string_ref.hh"
 #include "BLI_string_utf8.h"
-#include <algorithm>
-#include <cctype>
-#include <string>
+#include <cstdint>
 
 #include "../file_intern.hh"
 #include "../filelist.hh"
@@ -177,36 +176,37 @@ void prepare_filter_asset_library(const FileList *filelist, FileListFilter *filt
 }
 
 /**
- * Helper to normalize string for fuzzy comparison (lowercase).
- */
-static std::string str_tolower(std::string s)
-{
-  std::transform(s.begin(), s.end(), s.begin(), [](unsigned char c) { return std::tolower(c); });
-  return s;
-}
-
-/**
  * Checks if the candidate matches the query using Substring, Fuzzy Subsequence, or Levenshtein
  * Distance.
  */
-static bool is_fuzzy_match(const char *query_c, const char *candidate_c)
+static bool is_fuzzy_match(const char *query_lower, const char *candidate)
 {
-  if (BLI_strcasestr(candidate_c, query_c)) {
+  if (BLI_strcasestr(candidate, query_lower)) {
     return true;
   }
 
-  std::string query = str_tolower(query_c);
-  std::string candidate = str_tolower(candidate_c);
+  blender::StringRef query_ref(query_lower);
 
-  if (blender::string_search::get_fuzzy_match_errors(query, candidate) != -1) {
-    return true;
-  }
-  int dist = blender::string_search::damerau_levenshtein_distance(query, candidate);
-
-  int threshold = 2;
-  if (query.length() <= 2) {
+  /* Skip fuzzy matching for short queries like "a" or "an" to avoid too many results. */
+  int64_t query_len = query_ref.size();
+  if (query_len <= 2) {
     return false;
   }
+
+  /* Prepare a lower-cased candidate on stack to avoid allocations. */
+  char candidate_lower[FILE_MAX] = {};
+  BLI_strncpy(candidate_lower, candidate, sizeof(candidate_lower));
+  BLI_str_tolower_ascii(candidate_lower, sizeof(candidate_lower));
+
+  blender::StringRef candidate_ref(candidate_lower);
+
+  if (blender::string_search::get_fuzzy_match_errors(query_ref, candidate_ref) != -1) {
+    return true;
+  }
+  int dist = blender::string_search::damerau_levenshtein_distance(query_ref, candidate_ref);
+
+  /* Allow more distance for longer queries. */
+  int threshold = (query_len < 4) ? 1 : 2;
 
   if (dist <= threshold) {
     return true;
@@ -227,10 +227,10 @@ static bool is_fuzzy_match(const char *query_c, const char *candidate_c)
  * `asset_tag_matches_filter(" some tags ", {"som", "tag"})` -> false
  * `asset_tag_matches_filter(" some tags ", {})` -> false
  */
-static bool asset_tag_matches_filter(const char *filter_search, const AssetMetaData *asset_data)
+static bool asset_tag_matches_filter(const char *query_lower, const AssetMetaData *asset_data)
 {
   LISTBASE_FOREACH (const AssetTag *, asset_tag, &asset_data->tags) {
-    if (is_fuzzy_match(filter_search, asset_tag->name)) {
+    if (is_fuzzy_match(query_lower, asset_tag->name)) {
       return true;
     }
   }
@@ -259,15 +259,17 @@ bool is_filtered_asset(FileListInternEntry *file, FileListFilter *filter)
 
   /* When doing a name comparison, get rid of the leading/trailing asterisks. */
   filter_search[string_length - 1] = '\0';
+  const char *raw_query = filter_search + 1;
 
-  /* Skip the leading asterisk. */
-  const char *query = filter_search + 1;
+  /* Prepare a lower-cased query on stack to avoid repeated allocations. */
+  char query_lower[sizeof(FileListFilter::filter_search)];
+  BLI_strncpy(query_lower, raw_query, sizeof(query_lower));
+  BLI_str_tolower_ascii(query_lower, sizeof(query_lower));
 
-  /* Fuzzy check name and tags for a match. */
-  if (is_fuzzy_match(query, file->name)) {
+  if (is_fuzzy_match(query_lower, file->name)) {
     return true;
   }
-  return asset_tag_matches_filter(query, asset_data);
+  return asset_tag_matches_filter(query_lower, asset_data);
 }
 
 static bool is_filtered_lib_type(FileListInternEntry *file,
