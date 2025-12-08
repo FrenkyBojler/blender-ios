@@ -17,7 +17,10 @@ namespace blender::gpu {
 
 TexturePool::~TexturePool()
 {
-  for (gpu::Texture *tex : acquired_) {
+  for (gpu::Texture *tex : acquired_transient_) {
+    GPU_texture_free(tex);
+  }
+  for (gpu::Texture *tex : acquired_persistent_) {
     GPU_texture_free(tex);
   }
   for (TextureHandle &tex : pool_) {
@@ -31,6 +34,7 @@ gpu::Texture *TexturePool::acquire_texture(int width,
                                            eGPUTextureUsage usage)
 {
   int64_t match_index = -1;
+
   /* Search released texture first. */
   for (auto i : pool_.index_range()) {
     gpu::Texture *tex = pool_[i].texture;
@@ -46,7 +50,13 @@ gpu::Texture *TexturePool::acquire_texture(int width,
   if (match_index != -1) {
     gpu::Texture *tex = pool_[match_index].texture;
     pool_.remove_and_reorder(match_index);
-    acquired_.append(tex);
+
+    if (lifetime == TEXTURE_LIFETIME_TRANSIENT) {
+      acquired_transient_.append(tex);
+    } else { /* TEXTURE_LIFETIME_PERSISTENT */
+      acquired_persistent_.append(tex);
+    }
+
     return tex;
   }
 
@@ -57,32 +67,51 @@ gpu::Texture *TexturePool::acquire_texture(int width,
     int texture_id = pool_.size();
     SNPRINTF(name, "TexFromPool_%d", texture_id);
   }
-  gpu::Texture *tex = GPU_texture_create_2d(name, width, height, 1, format, usage, nullptr);
-  acquired_.append(tex);
+  gpu::Texture *tex = GPU_texture_create_2d(
+      name, width, height, 1, format, usage, nullptr);
+
+  if (lifetime == TEXTURE_LIFETIME_TRANSIENT) {
+    acquired_transient_.append(tex);
+  } else { /* TEXTURE_LIFETIME_PERSISTENT */
+    acquired_persistent_.append(tex);
+  }
+
   return tex;
 }
 
 void TexturePool::release_texture(gpu::Texture *tex)
 {
-  acquired_.remove_first_occurrence_and_reorder(tex);
+  if (int idx = acquired_transient_.first_index_of_try(tex) != -1) {
+    acquired_transient_.remove_and_reorder(idx);
+  } else if (int idx = acquired_persistent_.first_index_of_try(tex) != -1) {
+    acquired_persistent_.remove_and_reorder(idx);
+  } else {
+    BLI_assert_msg(false,
+                   "Unacquired texture release in TexturePool.release_texture().");
+  }
   pool_.append({tex, 0});
 }
 
 void TexturePool::take_texture_ownership(gpu::Texture *tex)
 {
-  acquired_.remove_first_occurrence_and_reorder(tex);
+  acquired_transient_.remove_first_occurrence_and_reorder(tex);
 }
 
 void TexturePool::give_texture_ownership(gpu::Texture *tex)
 {
-  acquired_.append(tex);
+  acquired_transient_.append(tex);
 }
 
 void TexturePool::reset(bool force_free)
 {
-  BLI_assert_msg(acquired_.is_empty(),
-                 "Missing texture release. Either TextureFromPool.release() or "
+  BLI_assert_msg(acquired_transient_.is_empty(),
+                 "Missing transient texture release. Either TextureFromPool.release() or "
                  "TexturePool.release_texture()");
+  if (force_free) {
+    BLI_assert_msg(acquired_persistent_.is_empty(),
+                   "Missing persistent texture release. Either TextureFromPool.release() or "
+                   "TexturePool.release_texture()");
+  }
 
   /* Reverse iteration to make sure we only reorder with known good handles. */
   for (int i = pool_.size() - 1; i >= 0; i--) {
