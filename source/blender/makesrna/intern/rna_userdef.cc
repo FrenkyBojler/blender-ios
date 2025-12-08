@@ -5656,6 +5656,7 @@ static void rna_def_userdef_edit(BlenderRNA *brna)
   RNA_def_property_ui_text(prop,
                            "Allow Negative Frames",
                            "Current frame number can be manually set to a negative value");
+  RNA_def_property_boolean_default(prop, false);
 
   /* fcurve opacity */
   prop = RNA_def_property(srna, "fcurve_unselected_alpha", PROP_FLOAT, PROP_FACTOR);
