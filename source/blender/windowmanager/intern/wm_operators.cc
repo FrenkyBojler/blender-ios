@@ -2964,7 +2964,7 @@ static void radial_control_paint_cursor(bContext * /*C*/,
   immUnbindProgram();
 
   BLF_size(fontid, 1.75f * fstyle_points * UI_SCALE_FAC);
-  blender::ui::GetThemeColor4fv(TH_TEXT_HI, text_color);
+  blender::ui::theme::get_color_4fv(TH_TEXT_HI, text_color);
   BLF_color4fv(fontid, text_color);
 
   /* Draw value. */
@@ -4421,6 +4421,7 @@ static void gesture_box_modal_keymap(wmKeyConfig *keyconf)
   WM_modalkeymap_assign(keymap, "SCREEN_OT_box_select");
 #endif
   WM_modalkeymap_assign(keymap, "SEQUENCER_OT_select_box");
+  WM_modalkeymap_assign(keymap, "SEQUENCER_OT_box_blade");
   WM_modalkeymap_assign(keymap, "SEQUENCER_OT_view_ghost_border");
   WM_modalkeymap_assign(keymap, "UV_OT_select_box");
   WM_modalkeymap_assign(keymap, "UV_OT_custom_region_set");
