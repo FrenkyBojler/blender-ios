@@ -64,6 +64,12 @@ void main()
       float length_fade = 1.0f - min(1.0f, dot(vertex_out.coord, vertex_out.coord));
       out_color.a *= pow2f(length_fade);
     }
+
+    /* Add fade at steep angles for contents of the floor plane. */
+    if (flag_test(grid_flag, PLANE_XY)) {
+      float3 V = -drw_view_forward();
+      out_color.a *= 1.0f - pow3f(1.0f - abs(V.z));
+    }
   }
 
   /* Viewport antialiasing output. */

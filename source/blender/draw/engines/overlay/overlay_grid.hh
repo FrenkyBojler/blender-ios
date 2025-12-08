@@ -282,9 +282,12 @@ class Grid : Overlay {
     else if (ELEM(rv3d->view, RV3D_VIEW_FRONT, RV3D_VIEW_BACK)) {
       grid_ubo_.offset = float2(drw_view_position.x, drw_view_position.z);
     }
-    else { /* Perspective view, Image/UV view. */
+    else if (rv3d->is_persp) {
       float3 camera_offs = drw_view_position - dist * drw_view_forward;
       grid_ubo_.offset = camera_offs.xy();
+    }
+    else { /* Orthographic, Image/UV view. */
+      grid_ubo_.offset = drw_view_position.xy();
     }
 
     /* Find the lowest relevant grid level + fractional. */
