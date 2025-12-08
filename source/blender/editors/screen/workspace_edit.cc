@@ -584,6 +584,16 @@ static void workspace_add_menu(bContext * /*C*/, blender::ui::Layout *layout, vo
 
 static void workspace_add_menu_draw(blender::ui::Layout &layout)
 {
+  {
+    PointerRNA props = layout.op("WM_OT_search_single_menu",
+                                 "Search...",
+                                 ICON_VIEWZOOM,
+                                 blender::wm::OpCallContext::InvokeDefault,
+                                 UI_ITEM_NONE);
+    RNA_string_set(&props, "menu_idname", "WORKSPACE_MT_add");
+  }
+  layout.separator();
+
   layout.menu_fn(IFACE_("General"), ICON_NONE, workspace_add_menu, nullptr);
 
   ListBase templates;
