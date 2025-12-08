@@ -904,7 +904,7 @@ PopupBlockHandle *popup_block_create(bContext *C,
   handle->popup_create_vars.arg_free = arg_free;
   handle->popup_create_vars.but = but;
   handle->popup_create_vars.butregion = but ? butregion : nullptr;
-  copy_v2_v2_int(handle->popup_create_vars.event_xy, window->eventstate->xy);
+  copy_v2_v2_int(handle->popup_create_vars.event_xy, window->runtime->eventstate->xy);
 
   /* create area region */
   ARegion *region = region_temp_add(CTX_wm_screen(C));
