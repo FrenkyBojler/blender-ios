@@ -2048,7 +2048,6 @@ static void rna_def_xr_session_settings(BlenderRNA *brna)
                            "VR view. When possible, prefer modifying the scene scale instead");
   RNA_def_property_range(prop, 1e-6f, FLT_MAX);
   RNA_def_property_ui_range(prop, 0.001f, 100.0f, 0.1f, 4);
-  RNA_def_property_float_default(prop, 1.0f);
   RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
 
   prop = RNA_def_property(srna, "use_positional_tracking", PROP_BOOLEAN, PROP_NONE);
