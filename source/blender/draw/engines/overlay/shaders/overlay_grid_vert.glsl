@@ -177,8 +177,8 @@ void main()
     }
     else { /* GRID_SIMA */
       /* Set z to place the grid in front of/behind image, and always behind the UV mesh.
-       * See `overlay_edit_uv_edges_vert.glsl` for the full z-sorder. */
-      float z = flag_test(grid_flag, GRID_IN_FRONT) ? 0.74f : 0.76f;
+       * See `overlay_edit_uv_edges_vert.glsl` for the full z-order. */
+      float z = flag_test(grid_flag, GRID_OVER_IMAGE) ? 0.74f : 0.76f;
       vertex_out.pos = float3(line.P * 0.5f + 0.5f, z);
     }
   }

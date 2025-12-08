@@ -143,19 +143,17 @@ class Grid : Overlay {
     const View2D *v2d = &state.region->v2d;
     SpaceImage *sima = (SpaceImage *)state.space_data;
 
-    /* Query different options from SpaceImage state. */
+    /* Grid is currently visible in UV edit, if enabled. */
     const bool show_grid = sima->mode == SI_MODE_UV &&
                            (sima->overlay.flag & SI_OVERLAY_SHOW_GRID_BACKGROUND);
-    const bool show_in_front = sima->flag & SI_GRID_OVER_IMAGE;
-
     if (!show_grid) {
       return false;
     }
 
     /* Configure grid flags s.t. GRID_OVER_IMAGE is taken into account. */
     grid_flag_ = SHOW_GRID | GRID_SIMA;
-    if (show_in_front) {
-      grid_flag_ |= GRID_IN_FRONT;
+    if (sima->flag & SI_GRID_OVER_IMAGE) {
+      grid_flag_ |= GRID_OVER_IMAGE;
     }
 
     /* Query grid step/level scalings; these can differ per axis. */
