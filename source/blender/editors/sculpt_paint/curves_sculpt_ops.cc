@@ -160,7 +160,7 @@ static std::unique_ptr<CurvesSculptStrokeOperation> start_brush_operation(
   return {};
 }
 
-struct SculptCurvesBrushStroke : public PaintStroke {
+struct SculptCurvesBrushStroke final : public PaintStroke {
   SculptCurvesBrushStroke(bContext *C, wmOperator *op, const int event_type)
       : PaintStroke(C, op, event_type)
   {
@@ -177,7 +177,7 @@ private:
   std::unique_ptr<CurvesSculptStrokeOperation> operation;
 };
 
-bool SculptCurvesBrushStroke::get_location(float out[3], const float mouse[2], bool force_original)
+bool SculptCurvesBrushStroke::get_location(float out[3], const float mouse[2], bool /*force_original*/)
 {
   out[0] = mouse[0];
   out[1] = mouse[1];

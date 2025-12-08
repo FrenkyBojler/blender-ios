@@ -5012,7 +5012,7 @@ bool stroke_get_location_bvh(bContext *C,
   return stroke_get_location_bvh(*depsgraph, vc, sd, brush, out, mval, force_original);
 }
 
-struct SculptPaintStroke : public PaintStroke {
+struct SculptPaintStroke final : public PaintStroke {
   SculptPaintStroke(bContext *C, wmOperator *op, const int event_type)
       : PaintStroke(C, op, event_type)
   {
@@ -5787,6 +5787,7 @@ static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
   ignore_background_click = RNA_boolean_get(op->ptr, "ignore_background_click");
   const float mval[2] = {float(event->mval[0]), float(event->mval[1])};
   if (ignore_background_click && !over_mesh(C, op, mval)) {
+    MEM_delete(stroke);
     stroke->free(C, op);
     return OPERATOR_PASS_THROUGH;
   }
@@ -5795,6 +5796,7 @@ static wmOperatorStatus sculpt_brush_stroke_invoke(bContext *C,
   OPERATOR_RETVAL_CHECK(retval);
 
   if (ELEM(retval, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
+    MEM_delete(stroke);
     stroke->free(C, op);
     return retval;
   }
@@ -5813,7 +5815,7 @@ static wmOperatorStatus sculpt_brush_stroke_exec(bContext *C, wmOperator *op)
   SculptPaintStroke *stroke = MEM_new<SculptPaintStroke>(__func__, C, op, 0);
   op->customdata = stroke;
 
-  /* Frees op->customdata. */
+  MEM_delete(stroke);
   stroke->free(C, op);
 
   return OPERATOR_FINISHED;

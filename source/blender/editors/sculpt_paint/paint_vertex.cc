@@ -1049,7 +1049,7 @@ static std::unique_ptr<VPaintData> vpaint_init_vpaint(bContext *C,
   return vpd;
 }
 
-struct VertexPaintStroke : public PaintStroke {
+struct VertexPaintStroke final : public PaintStroke {
   VertexPaintStroke(bContext *C, wmOperator *op, const int event_type)
       : PaintStroke(C, op, event_type)
   {
@@ -2143,6 +2143,7 @@ static wmOperatorStatus vpaint_invoke(bContext *C, wmOperator *op, const wmEvent
 
   if (retval == OPERATOR_FINISHED) {
     stroke->free(C, op);
+    MEM_delete(stroke);
     return OPERATOR_FINISHED;
   }
 
@@ -2159,6 +2160,7 @@ static wmOperatorStatus vpaint_exec(bContext *C, wmOperator *op)
 
   stroke->exec(C, op);
 
+  MEM_delete(stroke);
   return OPERATOR_FINISHED;
 }
 

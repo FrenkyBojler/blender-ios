@@ -78,7 +78,7 @@ namespace blender::ed::sculpt_paint {
 /** \name Common Paint Operator Functions
  * \{ */
 
-struct GreasePencilPaintStroke : public PaintStroke {
+struct GreasePencilPaintStroke final : public PaintStroke {
   GreasePencilPaintStroke(bContext *C, wmOperator *op, const int event_type)
       : PaintStroke(C, op, event_type)
   {
@@ -289,12 +289,14 @@ static wmOperatorStatus grease_pencil_brush_stroke_invoke(bContext *C,
     return retval;
   }
 
-  op->customdata = MEM_new<GreasePencilPaintStroke>(__func__, C, op, event->type);
+  GreasePencilPaintStroke* stroke = MEM_new<GreasePencilPaintStroke>(__func__, C, op, event->type);
+  op->customdata = stroke;
 
   retval = op->type->modal(C, op, event);
   OPERATOR_RETVAL_CHECK(retval);
 
   if (retval == OPERATOR_FINISHED) {
+    MEM_delete(stroke);
     return OPERATOR_FINISHED;
   }
 
@@ -390,12 +392,14 @@ static wmOperatorStatus grease_pencil_sculpt_paint_invoke(bContext *C,
   }
   WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
 
-  op->customdata = MEM_new<GreasePencilPaintStroke>(__func__, C, op, event->type);
+  GreasePencilPaintStroke* stroke = MEM_new<GreasePencilPaintStroke>(__func__, C, op, event->type);
+  op->customdata = stroke;
 
   const wmOperatorStatus retval = op->type->modal(C, op, event);
   OPERATOR_RETVAL_CHECK(retval);
 
   if (retval == OPERATOR_FINISHED) {
+    MEM_delete(stroke);
     return OPERATOR_FINISHED;
   }
 
@@ -480,12 +484,14 @@ static wmOperatorStatus grease_pencil_weight_brush_stroke_invoke(bContext *C,
     return OPERATOR_CANCELLED;
   }
 
-  op->customdata = MEM_new<GreasePencilPaintStroke>(__func__, C, op, event->type);
+  GreasePencilPaintStroke* stroke = MEM_new<GreasePencilPaintStroke>(__func__, C, op, event->type);
+  op->customdata = stroke;
 
   const wmOperatorStatus retval = op->type->modal(C, op, event);
   OPERATOR_RETVAL_CHECK(retval);
 
   if (retval == OPERATOR_FINISHED) {
+    MEM_delete(stroke);
     return OPERATOR_FINISHED;
   }
 
@@ -581,12 +587,14 @@ static wmOperatorStatus grease_pencil_vertex_brush_stroke_invoke(bContext *C,
   }
   WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
 
-  op->customdata = MEM_new<GreasePencilPaintStroke>(__func__, C, op, event->type);
+  GreasePencilPaintStroke* stroke = MEM_new<GreasePencilPaintStroke>(__func__, C, op, event->type);
+  op->customdata = stroke;
 
   const wmOperatorStatus retval = op->type->modal(C, op, event);
   OPERATOR_RETVAL_CHECK(retval);
 
   if (retval == OPERATOR_FINISHED) {
+    MEM_delete(stroke);
     return OPERATOR_FINISHED;
   }
 

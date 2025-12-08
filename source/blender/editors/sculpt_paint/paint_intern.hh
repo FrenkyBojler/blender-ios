@@ -87,8 +87,8 @@ using StrokeDone = void (*)(PaintStroke *stroke, bool is_cancel);
 /* stroke operator */
 
 struct PaintSample {
-  float2 mouse;
-  float pressure;
+  float2 mouse = float2(0.0f, 0.0f);
+  float pressure = 0.0f;
 };
 
 /**
@@ -102,18 +102,18 @@ struct PaintSample {
 struct PaintStroke {
   /* TODO: Temporary, used to assist removing usage of bContext in PaintStroke callbacks.
    * See #149378 */
-  bContext *evil_C;
+  bContext *evil_C = nullptr;
 
   /* Cached values */
-  ViewContext vc;
-  Paint *paint;
-  Brush *brush;
-  UnifiedPaintSettings *ups;
+  ViewContext vc = {};
+  Paint *paint = nullptr;
+  Brush *brush = nullptr;
+  UnifiedPaintSettings *ups = nullptr;
 
   /* TODO: These are only public so that cursor drawing code can use them. Find a better place.*/
-  float2 last_mouse_position;
-  bool constrain_line;
-  float2 constrained_pos;
+  float2 last_mouse_position = float2(0.0f, 0.0f);
+  bool constrain_line = false;
+  float2 constrained_pos = float2(0.0f, 0.0f);
 
   PaintStroke() = delete;
 
@@ -135,6 +135,10 @@ struct PaintStroke {
   wmOperatorStatus exec(bContext *C, wmOperator *op);
   /** Cancel a stroke and return to the initial state. */
   void cancel(bContext *C, wmOperator *op);
+  /**
+   * Free internal stroke data, not a destructor due to needed parameters.
+   * TODO: This might not need to be exposed, all internal code paths should end up calling this.
+   */
   void free(bContext *C, wmOperator *op);
 
   void *mode_data()
@@ -218,54 +222,54 @@ struct PaintStroke {
               float r_location[3],
               bool *r_location_is_set);
  private:
-  std::unique_ptr<PaintModeData> mode_data_;
+  std::unique_ptr<PaintModeData> mode_data_ = nullptr;
 
-  void *stroke_cursor;
+  void *stroke_cursor = nullptr;
 
-  wmTimer *timer;
-  std::optional<RandomNumberGenerator> rng;
+  wmTimer *timer = nullptr;
+  std::optional<RandomNumberGenerator> rng = std::nullopt;
 
   /* Paint stroke can use up to PAINT_MAX_INPUT_SAMPLES prior inputs
    * to smooth the stroke */
   PaintSample samples[PAINT_MAX_INPUT_SAMPLES];
-  int num_samples;
-  int cur_sample;
-  int tot_samples;
+  int num_samples = 0;
+  int cur_sample = 0;
+  int tot_samples = 0;
 
-  float3 last_world_space_position;
-  float3 last_scene_spacing_delta;
+  float3 last_world_space_position = float3(0.0f, 0.0f, 0.0f);
+  float3 last_scene_spacing_delta = float3(0.0f, 0.0f, 0.0f);
 
-  bool stroke_over_mesh;
+  bool stroke_over_mesh = false;
   /* space distance covered so far */
-  float stroke_distance_;
+  float stroke_distance_ = 0.0f;
 
   /* Set whether any stroke step has yet occurred
    * e.g. in sculpt mode, stroke doesn't start until cursor
    * passes over the mesh */
-  bool stroke_started_;
+  bool stroke_started_ = false;
   /* Set when enough motion was found for rake rotation */
-  bool rake_started;
+  bool rake_started = false;
   /* event that started stroke, for modal() return */
-  int event_type;
+  int event_type = 0;
   /* check if stroke variables have been initialized */
-  bool stroke_init;
+  bool stroke_init = false;
   /* check if input variables have been initialized (e.g. cursor position & pressure)*/
-  bool input_init;
-  float2 initial_mouse;
-  float cached_size_pressure;
+  bool input_init = false;
+  float2 initial_mouse = float2(0.0f, 0.0f);
+  float cached_size_pressure = 0.0f;
   /* last pressure will store last pressure value for use in interpolation for space strokes */
-  float last_pressure;
-  int stroke_mode;
+  float last_pressure = 0.0f;
+  int stroke_mode = 0;
 
-  float last_tablet_event_pressure;
+  float last_tablet_event_pressure = 0.0f;
 
-  float zoom_2d;
-  bool pen_flip;
+  float zoom_2d = 0.0f;
+  bool pen_flip = false;
 
   /* Tilt, as read from the event. */
-  float2 tilt;
+  float2 tilt = float2(0.0f, 0.0f);
 
-  bool original; /* Ray-cast original mesh at start of stroke. */
+  bool original = false; /* Ray-cast original mesh at start of stroke. */
 
   void stroke_done(bContext *C, wmOperator *op, bool is_cancel);
 

@@ -856,7 +856,7 @@ static void do_weight_paint_vertex(const VPaint &wp,
   }
 }
 
-struct WeightPaintStroke : public PaintStroke {
+struct WeightPaintStroke final : public PaintStroke {
   WeightPaintStroke(bContext *C, wmOperator *op, const int event_type)
       : PaintStroke(C, op, event_type)
   {
@@ -1922,6 +1922,7 @@ static wmOperatorStatus wpaint_invoke(bContext *C, wmOperator *op, const wmEvent
 
   if (retval == OPERATOR_FINISHED) {
     stroke->free(C, op);
+    MEM_delete(stroke);
     return OPERATOR_FINISHED;
   }
   WM_event_add_modal_handler(C, op);
@@ -1938,6 +1939,7 @@ static wmOperatorStatus wpaint_exec(bContext *C, wmOperator *op)
 
   stroke->exec(C, op);
 
+  MEM_delete(stroke);
   return OPERATOR_FINISHED;
 }
 

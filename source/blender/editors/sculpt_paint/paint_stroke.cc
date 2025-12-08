@@ -928,8 +928,6 @@ void PaintStroke::free(bContext *C, wmOperator * /*op*/)
     rv3d->rflag &= ~RV3D_PAINTING;
   }
 
-  /* TODO: null check removed ? */
-
   BKE_paint_set_overlay_override(eOverlayFlags(0));
 
   bke::PaintRuntime *paint_runtime = paint->runtime;
@@ -943,8 +941,6 @@ void PaintStroke::free(bContext *C, wmOperator * /*op*/)
   if (stroke_cursor) {
     WM_paint_cursor_end(static_cast<wmPaintCursor *>(stroke_cursor));
   }
-
-  /* TODO: Doesn't free self */
 }
 
 void PaintStroke::stroke_done(bContext *C, wmOperator *op, const bool is_cancel)

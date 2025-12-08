@@ -335,7 +335,7 @@ static std::unique_ptr<PaintOperation> texture_paint_init(bContext *C,
   return pop;
 }
 
-struct ImagePaintStroke : public PaintStroke {
+struct ImagePaintStroke final : public PaintStroke {
   ImagePaintStroke(bContext *C, wmOperator *op, const int event_type)
       : PaintStroke(C, op, event_type)
   {
@@ -488,14 +488,15 @@ bool ImagePaintStroke::test_start(wmOperator *op, const float mouse[2])
 
 static wmOperatorStatus paint_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  ImagePaintStroke *paint_stroke = MEM_new<ImagePaintStroke>(__func__, C, op, event->type);
-  op->customdata = paint_stroke;
+  ImagePaintStroke *stroke = MEM_new<ImagePaintStroke>(__func__, C, op, event->type);
+  op->customdata = stroke;
 
   const wmOperatorStatus retval = op->type->modal(C, op, event);
   OPERATOR_RETVAL_CHECK(retval);
 
   if (retval == OPERATOR_FINISHED) {
-    paint_stroke->free(C, op);
+    stroke->free(C, op);
+    MEM_delete(stroke);
     return OPERATOR_FINISHED;
   }
   /* add modal handler */
@@ -554,9 +555,11 @@ static wmOperatorStatus paint_exec(bContext *C, wmOperator *op)
   paint_stroke_jitter_pos(&paint, mode, brush, pressure, stroke_mode, zoom_2d, mouse, mouse_out);
 
   stroke->update_for_exec(C, brush, mode, mouse, mouse_out, pressure, dummy_location, &dummy);
+  wmOperatorStatus ret_val = stroke->exec(C, op);
 
-  /* frees op->customdata */
-  return stroke->exec(C, op);
+  MEM_delete(stroke);
+
+  return ret_val;
 }
 
 static wmOperatorStatus paint_modal(bContext *C, wmOperator *op, const wmEvent *event)
