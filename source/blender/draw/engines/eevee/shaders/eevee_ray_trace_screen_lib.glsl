@@ -295,6 +295,7 @@ float raytrace_screen_2(float3 vs_origin,
 
   float max_t = max(steps - 1, 1);
   float previous_step_z = start.z;
+  bool forward = end.z > start.z;
 
   /* Skip the first step to avoid self-occlusion. But iterate at least once. */
   for (int i = 1; i < steps || i == 1; i++) {
@@ -318,12 +319,12 @@ float raytrace_screen_2(float3 vs_origin,
     float hit_min_z = min(hit_depth_point, hit_depth_linear);
     float hit_max_z = max(hit_depth_point, hit_depth_linear);
 
-    /* Take thickness into account, but ensure it's not lower than the step delta. */
-    /* TODO: Take previous z into account again. */
-    float max_thickness = max(abs(step.z - previous_step_z), thickness);
+    /* Ensure the allowed depth range is not lower than the step delta. */
+    float min_z = forward ? min(step.w, previous_step_z) : step.w;
+    float max_z = forward ? step.z : max(step.z, previous_step_z);
     previous_step_z = step.z;
 
-    if (step.z >= hit_max_z && step.w <= hit_min_z) {
+    if (max_z >= hit_max_z && min_z <= hit_min_z) {
       /* We have a hit. Compute the distance. */
       float3 vs_hit_point = drw_point_screen_to_view(float3(step.xy, hit_depth_point));
       /* Hit point projection along the ray. */
