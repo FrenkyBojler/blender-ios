@@ -25,7 +25,7 @@
 #include "BKE_object_types.hh"
 #include "BKE_volume.hh"
 #include "BKE_volume_grid.hh"
-#include "BKE_volume_grid_process.hh"
+#include "BKE_volume_grid_type_traits.hh"
 
 #include "DNA_pointcloud_types.h"
 #include "DNA_space_types.h"
@@ -711,11 +711,19 @@ template<typename LeafNodeT> static int compute_leaf_node_offsets(const LeafNode
   return node.onVoxelCount();
 }
 
+/* TODOs for grid data:
+ * 1. use binary instead of linear search when iterating over child nodes, where appropriate.
+ * 2. implement a threaded version that can execute the callback in parallel (distinguished by
+ *    GrainSize argument).
+ * 3. Finish implementation of IndexMaskSegment variants to avoid using
+ *    IndexMaskSegment::to_ranges.
+ */
+
 template<typename InternalNodeT>
 static int compute_internal_node_offsets(const InternalNodeT &node)
 {
-  using ChildNodeT = typename InternalNodeT::ChildNodeType;
-  using LeafNodeT = typename InternalNodeT::LeafNodeType;
+  // using ChildNodeT = typename InternalNodeT::ChildNodeType;
+  // using LeafNodeT = typename InternalNodeT::LeafNodeType;
   using NodeMaskT = typename InternalNodeT::NodeMaskType;
   using UnionT = typename InternalNodeT::UnionType;
 
@@ -725,7 +733,7 @@ static int compute_internal_node_offsets(const InternalNodeT &node)
 
   /* Gather the active sub-nodes first, to be able to parallelize over them more easily. */
   const NodeMaskT &child_mask = node.getChildMask();
-  const UnionT *table = node.getTable();
+  // const UnionT *table = node.getTable();
   // Vector<int, 512> child_indices;
   for (auto child_mask_iter = child_mask.beginOn(); child_mask_iter.test(); ++child_mask_iter) {
     // child_indices.append(child_mask_iter.pos());
@@ -774,8 +782,8 @@ static void compute_grid_voxel_offsets(const bke::GVolumeGrid &volume_grid)
   bke::VolumeTreeAccessToken tree_token;
   const openvdb::GridBase &grid = volume_grid->grid(tree_token);
 
-  bke::volume_grid::to_typed_grid(grid,
-                                  [&](const auto &grid) { compute_tree_offsets(grid.tree()); });
+  // bke::volume_grid::to_typed_grid(grid,
+  //                                 [&](const auto &grid) { compute_tree_offsets(grid.tree()); });
 
   // bke::volume_grid::parallel_grid_topology_tasks(
   //     mask_tree,
@@ -794,13 +802,169 @@ static void compute_grid_voxel_offsets(const bke::GVolumeGrid &volume_grid)
 }
 
 template<typename T>
-using ForeachValueFn =
-    FunctionRef<void(const openvdb::Coord &coord, const bool active, const T &value)>;
+using ForeachValueFn = FunctionRef<void(const int index,
+                                        const int pos,
+                                        const openvdb::CoordBBox &coord_bbox,
+                                        const bool active,
+                                        const T &value)>;
+
+enum class ValueActiveFilter { On, Off, Dense };
+
+template<int32_t DIM, typename NodeT, typename ValueT, typename MaskIteratorT>
+static void foreach_value_in_mask_slice(const IndexRange range,
+                                        const NodeT &node,
+                                        const IndexRange node_range,
+                                        MaskIteratorT mask_iter,
+                                        ForeachValueFn<ValueT> fn)
+{
+  BLI_assert(!range.is_empty());
+  BLI_assert(!node_range.is_empty());
+
+  /* Overlap of the range with the node range. */
+  const IndexRange range_in_node = range.intersect(node_range);
+  if (range_in_node.is_empty()) {
+    return;
+  }
+
+  /* Number of values in the range that are not in the node range. */
+  const int unused_in_node_range = range_in_node.start() - node_range.start();
+  /* Offset of the node range relative to the index range. */
+  const int pos_start = range_in_node.start() - range.start();
+  /* Advance to the start of the range. */
+  for ([[maybe_unused]] const int mask_i : IndexRange(unused_in_node_range)) {
+    if (!mask_iter.test()) {
+      /* Mask range starts after node values (only contains child node values). */
+      return;
+    }
+    ++mask_iter;
+  }
+  /* Handle values in range. */
+  for (const int i : range_in_node.index_range()) {
+    if (!mask_iter.test()) {
+      /* Some values in range are child node values. */
+      return;
+    }
+    const openvdb::Index32 mask_pos = mask_iter.pos();
+    const openvdb::Coord origin = node.offsetToGlobalCoord(mask_pos);
+    const openvdb::CoordBBox bbox = openvdb::CoordBBox::createCube(origin, DIM);
+    const int pos = pos_start + i;
+    fn(range_in_node[pos], pos, bbox, node.isValueOn(mask_pos), node.getValue(mask_pos));
+    ++mask_iter;
+  }
+}
+
+/* Indices in mask_segment must be relative to the node range. */
+template<int32_t DIM, typename NodeT, typename ValueT, typename MaskIteratorT>
+static void foreach_value_in_mask_slice(const IndexMaskSegment &segment,
+                                        const NodeT &node,
+                                        const IndexRange node_range,
+                                        MaskIteratorT mask_iter,
+                                        ForeachValueFn<ValueT> fn)
+{
+  BLI_assert(!segment.is_empty());
+  BLI_assert(!node_range.is_empty());
+
+  /* Early exit to skip binary search if segment does not overlap the node index range. */
+  if (segment[0] >= node_range.last() || segment.last() < node_range.first()) {
+    return;
+  }
+  /* Overlap of the segment with the node range. */
+  const auto lower_it = std::lower_bound(segment.begin(), segment.end(), node_range.start());
+  const auto upper_it = std::upper_bound(segment.begin(), segment.end(), node_range.end());
+  const IndexMaskSegment segment_in_node = segment.slice(IndexRange::from_begin_end(
+      lower_it != segment.end() ? (lower_it - segment.begin()) : 0,
+      upper_it != segment.end() ? (upper_it - segment.begin()) : segment.size()));
+  if (segment_in_node.is_empty()) {
+    return;
+  }
+
+  /* Number of values in the segment that are not in the node range. */
+  const int unused_in_node_range = segment_in_node[0] - node_range.start();
+  /* Offset of the node range relative to the segment. */
+  const int pos_start = segment_in_node[0] - segment[0];
+  /* Advance to the start of the segment. */
+  for ([[maybe_unused]] const int mask_i : IndexRange(segment_in_node[0] - node_range.start())) {
+    if (!mask_iter.test()) {
+      /* Mask range starts after node values (only contains child node values). */
+      return;
+    }
+    ++mask_iter;
+  }
+  /* Handle values in range. */
+  int mask_index = segment_in_node[0];
+  for (const int index : segment_in_node) {
+    /* Move up to the desired index. */
+    while (mask_index < index) {
+      if (!mask_iter.test()) {
+        /* Some values in range are child node values. */
+        return;
+      }
+      ++mask_index;
+      ++mask_iter;
+    }
+
+    if (!mask_iter.test()) {
+      /* Some values in range are child node values. */
+      return;
+    }
+    const openvdb::Index32 mask_pos = mask_iter.pos();
+    const openvdb::Coord origin = node.offsetToGlobalCoord(mask_pos);
+    const openvdb::CoordBBox bbox = openvdb::CoordBBox::createCube(origin, DIM);
+    fn(bbox, node.isValueOn(mask_pos), node.getValue(mask_pos));
+    ++mask_index;
+    ++mask_iter;
+  }
+}
+
+template<typename LeafNodeT, typename TreeT>
+static void foreach_leaf_node_value_in_range(const LeafNodeT &node,
+                                             const IndexRange range_in_node,
+                                             const ValueActiveFilter active_filter,
+                                             ForeachValueFn<typename TreeT::ValueType> fn)
+{
+  using NodeMaskT = typename LeafNodeT::NodeMaskType;
+
+  const NodeMaskT &value_mask = node.getValueMask();
+  switch (active_filter) {
+    case ValueActiveFilter::On:
+      foreach_value_in_mask_slice<1>(node, value_mask.beginOn(), range_in_node, fn);
+      break;
+    case ValueActiveFilter::Off:
+      foreach_value_in_mask_slice<1>(node, value_mask.beginOff(), range_in_node, fn);
+      break;
+    case ValueActiveFilter::Dense:
+      foreach_value_in_mask_slice<1>(node, value_mask.beginDense(), range_in_node, fn);
+      break;
+  }
+}
+
+template<typename LeafNodeT, typename TreeT>
+static void foreach_leaf_node_value_in_range(const LeafNodeT &node,
+                                             const IndexMaskSegment &segment_in_node,
+                                             const ValueActiveFilter active_filter,
+                                             ForeachValueFn<typename TreeT::ValueType> fn)
+{
+  using NodeMaskT = typename LeafNodeT::NodeMaskType;
+
+  const NodeMaskT &value_mask = node.getValueMask();
+  switch (active_filter) {
+    case ValueActiveFilter::On:
+      foreach_value_in_mask_slice<1>(node, value_mask.beginOn(), segment_in_node, fn);
+      break;
+    case ValueActiveFilter::Off:
+      foreach_value_in_mask_slice<1>(node, value_mask.beginOff(), segment_in_node, fn);
+      break;
+    case ValueActiveFilter::Dense:
+      foreach_value_in_mask_slice<1>(node, value_mask.beginDense(), segment_in_node, fn);
+      break;
+  }
+}
 
 template<typename InternalNodeT, typename TreeT>
 static void foreach_internal_node_value_in_range(const InternalNodeT &node,
                                                  const NodeOffsets<TreeT> &offsets,
                                                  const IndexRange range,
+                                                 const ValueActiveFilter active_filter,
                                                  ForeachValueFn<typename TreeT::ValueType> fn)
 {
   using ChildNodeT = typename InternalNodeT::ChildNodeType;
@@ -808,36 +972,130 @@ static void foreach_internal_node_value_in_range(const InternalNodeT &node,
   using NodeMaskT = typename InternalNodeT::NodeMaskType;
   using UnionT = typename InternalNodeT::UnionType;
 
-  /* Tile count. */
+  /* Tiles. */
+  const IndexRange node_range = offsets.get_node_range(node);
+  IndexRange range_in_node = range.slice(node_range).shift(-node_range.start());
   const NodeMaskT &value_mask = node.getValueMask();
-  for (NodeMaskT::OnIterator value_iter = value_mask.beginOn(); value_iter.test();
-       value_iter = value_iter.next())
-  {
-    fn()
+  switch (active_filter) {
+    case ValueActiveFilter::On:
+      foreach_value_in_mask_slice<ChildNodeT::DIM>(node, value_mask.beginOn(), range_in_node, fn);
+      break;
+    case ValueActiveFilter::Off:
+      foreach_value_in_mask_slice<ChildNodeT::DIM>(node, value_mask.beginOff(), range_in_node, fn);
+      break;
+    case ValueActiveFilter::Dense:
+      foreach_value_in_mask_slice<ChildNodeT::DIM>(
+          node, value_mask.beginDense(), range_in_node, fn);
+      break;
   }
 
-  /* Gather the active sub-nodes first, to be able to parallelize over them more easily. */
+  /* TODO [1.] */
   const NodeMaskT &child_mask = node.getChildMask();
   const UnionT *table = node.getTable();
-  // Vector<int, 512> child_indices;
-  for (auto child_mask_iter = child_mask.beginOn(); child_mask_iter.test(); ++child_mask_iter) {
-    // child_indices.append(child_mask_iter.pos());
+  auto child_mask_iter = child_mask.beginOn();
+  for (; child_mask_iter.test(); ++child_mask_iter) {
+    const ChildNodeT &child_node = *table[child_mask_iter.pos()].getChild();
+    const IndexRange child_node_range = offsets.get_node_range(child_node);
+    if (child_node_range.contains(range)) {
+      /* Found start node. */
+      break;
+    }
+  }
+  for (; child_mask_iter.test(); ++child_mask_iter) {
+    const ChildNodeT &child_node = *table[child_mask_iter.pos()].getChild();
+    const IndexRange child_node_range = offsets.get_node_range(child_node);
+    if (!child_node_range.contains(range)) {
+      /* Found end node. */
+      break;
+    }
+
+    if constexpr (std::is_same_v<ChildNodeT, LeafNodeT>) {
+      const IndexRange range_in_child_node =
+          range.slice(child_node_range).shift(-child_node_range.start());
+      foreach_leaf_node_value_in_range(child_node, range_in_child_node, active_filter, fn);
+    }
+    else {
+      /* Recurse into lower-level internal nodes. */
+      foreach_internal_node_value_in_range(child_node, offsets, range, active_filter, fn);
+    }
   }
 }
+
+// template<typename InternalNodeT, typename TreeT, typename IndexMaskSegmentOrRange>
+// static void foreach_internal_node_value_in_range(const InternalNodeT &node,
+//                                                  const NodeOffsets<TreeT> &offsets,
+//                                                  const IndexMaskSegment &segment,
+//                                                  const ValueActiveFilter active_filter,
+//                                                  ForeachValueFn<typename TreeT::ValueType> fn)
+// {
+//   using ChildNodeT = typename InternalNodeT::ChildNodeType;
+//   using LeafNodeT = typename InternalNodeT::LeafNodeType;
+//   using NodeMaskT = typename InternalNodeT::NodeMaskType;
+//   using UnionT = typename InternalNodeT::UnionType;
+
+//   /* Tiles. */
+//   const IndexRange node_range = offsets.get_node_range(node);
+//   const auto;
+//   IndexMaskSegment segment_in_node = range.slice(node_range).shift(-node_range.start());
+//   const NodeMaskT &value_mask = node.getValueMask();
+//   switch (active_filter) {
+//     case ValueActiveFilter::On:
+//       foreach_value_in_mask_slice<ChildNodeT::DIM>(node, value_mask.beginOn(), segment_in_node,
+//       fn); break;
+//     case ValueActiveFilter::Off:
+//       foreach_value_in_mask_slice<ChildNodeT::DIM>(node, value_mask.beginOff(), segment_in_node,
+//       fn); break;
+//     case ValueActiveFilter::Dense:
+//       foreach_value_in_mask_slice<ChildNodeT::DIM>(
+//           node, value_mask.beginDense(), segment_in_node, fn);
+//       break;
+//   }
+
+//   const NodeMaskT &child_mask = node.getChildMask();
+//   const UnionT *table = node.getTable();
+//   auto child_mask_iter = child_mask.beginOn();
+//   for (; child_mask_iter.test(); ++child_mask_iter) {
+//     const ChildNodeT &child_node = *table[child_mask_iter.pos()].getChild();
+//     const IndexRange child_node_range = offsets.get_node_range(child_node);
+//     if (child_node_range.contains(range)) {
+//       /* Found start node. */
+//       break;
+//     }
+//   }
+//   for (; child_mask_iter.test(); ++child_mask_iter) {
+//     const ChildNodeT &child_node = *table[child_mask_iter.pos()].getChild();
+//     const IndexRange child_node_range = offsets.get_node_range(child_node);
+//     if (!child_node_range.contains(range)) {
+//       /* Found end node. */
+//       break;
+//     }
+
+//     if constexpr (std::is_same_v<ChildNodeT, LeafNodeT>) {
+//       const IndexRange range_in_child_node =
+//           range.slice(child_node_range).shift(-child_node_range.start());
+//       foreach_leaf_node_value_in_range(child_node, range_in_child_node, active_filter, fn);
+//     }
+//     else {
+//       /* Recurse into lower-level internal nodes. */
+//       foreach_internal_node_value_in_range(child_node, offsets, range, active_filter, fn);
+//     }
+//   }
+// }
 
 template<typename TreeT>
 static void foreach_value_in_range(const TreeT tree,
                                    const NodeOffsets<TreeT> &offsets,
                                    const IndexRange range,
+                                   const ValueActiveFilter active_filter,
                                    ForeachValueFn<typename TreeT::ValueType> fn)
 {
-  if (value_range.is_empty()) {
+  if (range.is_empty()) {
     return;
   }
 
+  /* TODO [1.] */
   auto root_child_iter = tree.cbeginRootChildren();
-  /* TODO use binary instead of linear search. */
-  for (root_child_iter.test(); ++root_child_iter) {
+  for (; root_child_iter.test(); ++root_child_iter) {
     const auto &internal_node = *root_child_iter;
     const IndexRange node_range = offsets.get_node_range(internal_node);
     if (node_range.contains(range)) {
@@ -845,7 +1103,7 @@ static void foreach_value_in_range(const TreeT tree,
       break;
     }
   }
-  for (root_child_iter.test(); ++root_child_iter) {
+  for (; root_child_iter.test(); ++root_child_iter) {
     const auto &internal_node = *root_child_iter;
     const IndexRange node_range = offsets.get_node_range(internal_node);
     if (!node_range.contains(range)) {
@@ -854,9 +1112,104 @@ static void foreach_value_in_range(const TreeT tree,
     }
 
     /* Handle values in range. */
-    foreach_internal_node_value_in_range(internal_node, offsets, range, fn);
+    const IndexRange range_in_node = range.slice(node_range).shift(-node_range.start());
+    foreach_internal_node_value_in_range(internal_node, offsets, range_in_node, active_filter, fn);
   }
 }
+
+template<typename TreeT>
+static void foreach_value_in_mask(const TreeT tree,
+                                  const NodeOffsets<TreeT> &offsets,
+                                  const IndexMask &index_mask,
+                                  const ValueActiveFilter active_filter,
+                                  ForeachValueFn<typename TreeT::ValueType> fn)
+{
+  index_mask.foreach_segment_optimized([&](const auto segment) {
+    if constexpr (std::is_same_v<std::decay_t<decltype(segment)>, IndexRange>) {
+      const IndexRange range = segment;
+      foreach_value_in_range(tree, offsets, range, active_filter, fn);
+    }
+    else {
+      const IndexMaskSegment indices = segment;
+      /* TODO [3.] */
+      for (const int64_t i : indices) {
+        foreach_value_in_range(tree, offsets, IndexRange(i, 1), active_filter, fn);
+      }
+    }
+  });
+}
+
+template<typename T, typename TreeT, typename Fn>
+class VArrayImpl_For_GridValues final : public VArrayImpl<T> {
+ private:
+  using TreeType = TreeT;
+  using ValueType = typename TreeT::ValueType;
+
+  std::shared_ptr<TreeType> tree_;
+  std::shared_ptr<NodeOffsets<TreeType>> node_offsets_;
+  ValueActiveFilter value_active_filter_;
+  Fn fn_;
+
+ public:
+  VArrayImpl_For_GridValues(std::shared_ptr<TreeType> tree,
+                            std::shared_ptr<NodeOffsets<TreeType>> node_offsets,
+                            const ValueActiveFilter value_active_filter,
+                            Fn fn)
+      : VMutableArrayImpl<T>(),
+        tree_(std::move(tree)),
+        node_offsets_(std::move(node_offsets)),
+        value_active_filter_(value_active_filter),
+        fn_(fn)
+  {
+  }
+
+  T get(const int64_t index) const override
+  {
+    T result;
+    foreach_value_in_range(
+        *tree_,
+        *node_offsets_,
+        IndexRange(index, 1),
+        value_active_filter_,
+        [&](const int /*index*/,
+            const openvdb::CoordBBox &coord_bbox,
+            const bool active,
+            const ValueType &value) { result = fn_(coord_bbox, active, value); });
+    return result;
+  }
+
+  void materialize(const IndexMask &mask, T *dst, const bool dst_is_uninitialized) const override
+  {
+    foreach_value_in_mask(
+        *tree_,
+        *node_offsets_,
+        mask,
+        value_active_filter_,
+        [&](const int index,
+            const openvdb::CoordBBox &coord_bbox,
+            const bool active,
+            const ValueType &value) { dst[index] = fn_(coord_bbox, active, value); });
+  }
+
+  void materialize_compressed(const IndexMask &mask,
+                              T *dst,
+                              const bool dst_is_uninitialized) const override
+  {
+    // if constexpr (std::is_trivially_copyable_v<T>) {
+    //   mask.foreach_index([&](const int64_t i, const int64_t pos) { dst[pos] = this->get(i); });
+    // }
+    // else {
+    //   if (dst_is_uninitialized) {
+    //     mask.foreach_index(
+    //         [&](const int64_t i, const int64_t pos) { new (dst + pos) T(this->get(i)); });
+    //   }
+    //   else {
+    //     mask.foreach_index([&](const int64_t i, const int64_t pos) { dst[pos] = this->get(i);
+    //     });
+    //   }
+    // }
+  }
+};
 
 VolumeGridDataSource::VolumeGridDataSource(const bke::GVolumeGrid &grid,
                                            SpreadsheetVolumeGridData volume_grid_data,
@@ -885,10 +1238,12 @@ void VolumeGridDataSource::foreach_default_column_ids(
       break;
     case SPREADSHEET_VOLUME_VOXEL_DATA:
       fn(SpreadsheetColumnID{(char *)"Coordinate"}, false);
+      fn(SpreadsheetColumnID{(char *)"Size"}, false);
       if (show_active_state_) {
         fn(SpreadsheetColumnID{(char *)"Active"}, false);
       }
       fn(SpreadsheetColumnID{(char *)"Value"}, false);
+      fn(SpreadsheetColumnID{(char *)"Level"}, false);
       break;
   }
 }
@@ -938,8 +1293,14 @@ std::unique_ptr<ColumnValues> VolumeGridDataSource::get_column_values(
                                               VArray<int3>::from_single(extent, 1));
       }
     case SPREADSHEET_VOLUME_VOXEL_DATA:
-      // if (STREQ(column_id.name, "Coordinate")) {
-      //   return std::make_unique<ColumnValues>(IFACE_("Coordinate"),
+      if (STREQ(column_id.name, "Coordinate")) {
+        // VArrayImpl_For_VertexWeights
+        return std::make_unique<ColumnValues>(
+            IFACE_("Coordinate"), VArray<int3>::from<VArrayImpl_For_GridValues<int3>>());
+      }
+      // if (STREQ(column_id.name, "Size")) {
+      //   const StringRef name = grid_class_name(grid_->get());
+      //   return std::make_unique<ColumnValues>(IFACE_("Active"),
       //                                         VArray<std::string>::from_single(name, 1));
       // }
       // if (STREQ(column_id.name, "Active")) {
@@ -950,6 +1311,11 @@ std::unique_ptr<ColumnValues> VolumeGridDataSource::get_column_values(
       // if (STREQ(column_id.name, "Value")) {
       //   const StringRef name = grid_class_name(grid_->get());
       //   return std::make_unique<ColumnValues>(IFACE_("Value"),
+      //                                         VArray<std::string>::from_single(name, 1));
+      // }
+      // if (STREQ(column_id.name, "Level")) {
+      //   const StringRef name = grid_class_name(grid_->get());
+      //   return std::make_unique<ColumnValues>(IFACE_("Active"),
       //                                         VArray<std::string>::from_single(name, 1));
       // }
       break;
@@ -1403,8 +1769,9 @@ std::unique_ptr<DataSource> data_source_from_geometry(const bContext *C, Object 
 #ifdef WITH_OPENVDB
     const SpreadsheetVolumeGridData volume_grid_data = SpreadsheetVolumeGridData(
         sspreadsheet->geometry_id.volume_grid_data);
-    return std::make_unique<VolumeGridDataSource>(display_data.get<bke::GVolumeGrid>(),
-                                                  volume_grid_data);
+    const bool show_active_state = true;
+    return std::make_unique<VolumeGridDataSource>(
+        display_data.get<bke::GVolumeGrid>(), volume_grid_data, show_active_state);
 #else
     return {};
 #endif
