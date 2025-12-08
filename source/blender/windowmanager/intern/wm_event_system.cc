@@ -4000,15 +4000,15 @@ static void wm_event_handle_xrevent(bContext *C,
   CTX_wm_area_set(C, area);
   CTX_wm_region_set(C, region);
 
-  ListBase *handlers = &win->modalhandlers;
+  ListBase *modalhandlers = &win->modalhandlers;
 
   /* Only process XR operator handlers to prevent interferences with main window handlers. */
   eHandlerActionFlag action = WM_HANDLER_CONTINUE;
-  LISTBASE_FOREACH (wmEventHandler *, handler_base, handlers) {
+  LISTBASE_FOREACH (wmEventHandler *, handler_base, modalhandlers) {
     if (handler_base->type == WM_HANDLER_TYPE_OP) {
       wmEventHandler_Op *op_handler = (wmEventHandler_Op *)handler_base;
       if (op_handler->is_xr) {
-        action = wm_handler_operator_call(C, handlers, handler_base, event, nullptr, nullptr);
+        action = wm_handler_operator_call(C, modalhandlers, handler_base, event, nullptr, nullptr);
         break;
       }
     }
