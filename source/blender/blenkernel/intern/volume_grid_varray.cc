@@ -14,6 +14,22 @@
 
 namespace blender::bke::volume_grid {
 
+int GridNodeIndexMapping::size() const
+{
+  return node_offsets_.is_empty() ? 0 : node_offsets_.as_span().last().index_offset;
+}
+
+IndexRange GridNodeIndexMapping::index_range() const
+{
+  return IndexRange(this->size());
+}
+
+template<typename NodeT> IndexRange GridNodeIndexMapping::get_node_range(const NodeT &node) const
+{
+  const NodeOffset key = {NodeT::LEVEL, node.origin(), 0};
+  node_offsets_.index_of(); const NodeOffset &key)lookup_key(key)
+}
+
 template<typename LeafNodeT> static int compute_leaf_node_offsets(const LeafNodeT &node)
 {
   return node.onVoxelCount();
