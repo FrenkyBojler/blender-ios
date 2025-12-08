@@ -60,7 +60,6 @@ static void node_geo_exec(GeoNodeExecParams params)
     params.error_message_add(NodeWarningType::Error, TIP_("Bone not found"));
     return;
   }
-  bPoseChannel *parent_pchan = BKE_pose_channel_find_name(object->pose, bone_name.c_str());
   Bone *bone = pchan->bone;
   const float4x4 pose = float4x4(pchan->pose_mat);
   const float4x4 rest_pose = float4x4(bone->arm_mat);
