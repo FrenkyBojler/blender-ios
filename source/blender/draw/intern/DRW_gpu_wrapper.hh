@@ -1076,7 +1076,7 @@ class TextureFromPool : public Texture, NonMovable {
   {
     BLI_assert(this->tx_ == nullptr);
 
-    this->tx_ = gpu::TexturePool::get().acquire_texture(UNPACK2(extent), format, usage);
+    this->tx_ = gpu::TexturePool::get().acquire_texture(UNPACK2(extent), format, usage, TEXTURE_LIFETIME_TRANSIENT);
 
     if (G.debug & G_DEBUG_GPU) {
       debug_clear();

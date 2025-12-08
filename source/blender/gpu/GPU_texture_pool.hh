@@ -15,6 +15,13 @@
 
 #include "GPU_texture.hh"
 
+/* Explicit lifetime hints for texture pool resources. Transient textures must be handed back in 
+ * the same cycle, while persistent textures must be handed back before a full reset. */
+enum eTextureLifetime {
+  TEXTURE_LIFETIME_TRANSIENT,
+  TEXTURE_LIFETIME_PERSISTENT
+};
+
 namespace blender::gpu {
 
 class TexturePool {
@@ -50,6 +57,7 @@ class TexturePool {
   /* Release the texture so that its memory can be reused at some other point. */
   void release_texture(gpu::Texture *tmp_tex);
 
+  /* TODO(not_mark): marked for removal */
   /* Transfer ownership of a texture from the pool to the caller. */
   void take_texture_ownership(gpu::Texture *tex);
   /* Transfer back ownership to the pool. The texture will become part of the pool. */
