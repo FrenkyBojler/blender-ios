@@ -5028,7 +5028,7 @@ struct SculptPaintStroke final : public PaintStroke {
 
 bool SculptPaintStroke::get_location(float out[3], const float mouse[2], bool force_original)
 {
-  return stroke_get_location_bvh(evil_C, out, mouse, force_original);
+  return stroke_get_location_bvh(this->evil_C, out, mouse, force_original);
 }
 
 }  // namespace blender::ed::sculpt_paint
@@ -5571,27 +5571,27 @@ bool SculptPaintStroke::test_start(wmOperator *op, const float mval[2])
    * NOTE: `mval` will only be null when re-executing the saved stroke.
    * We have exception for 'exec' strokes since they may not set `mval`,
    * only 'location', see: #52195. */
-  if (((op->flag & OP_IS_INVOKE) == 0) || (mval == nullptr) || over_mesh(evil_C, op, mval)) {
-    Object &ob = *CTX_data_active_object(evil_C);
+  if (((op->flag & OP_IS_INVOKE) == 0) || (mval == nullptr) || over_mesh(this->evil_C, op, mval)) {
+    Object &ob = *CTX_data_active_object(this->evil_C);
     SculptSession &ss = *ob.sculpt;
-    Sculpt &sd = *CTX_data_tool_settings(evil_C)->sculpt;
+    Sculpt &sd = *CTX_data_tool_settings(this->evil_C)->sculpt;
     Brush *brush = BKE_paint_brush(&sd.paint);
-    ToolSettings *tool_settings = CTX_data_tool_settings(evil_C);
+    ToolSettings *tool_settings = CTX_data_tool_settings(this->evil_C);
 
     /* NOTE: This should be removed when paint mode is available. Paint mode can force based on the
      * canvas it is painting on. (ref. use_sculpt_texture_paint). */
     if (brush && brush_type_is_paint(brush->sculpt_brush_type) &&
         !SCULPT_use_image_paint_brush(tool_settings->paint_mode, ob))
     {
-      View3D *v3d = CTX_wm_view3d(evil_C);
+      View3D *v3d = CTX_wm_view3d(this->evil_C);
       if (v3d->shading.type == OB_SOLID) {
         v3d->shading.color_type = V3D_SHADING_VERTEX_COLOR;
       }
     }
 
-    ED_view3d_init_mats_rv3d(&ob, CTX_wm_region_view3d(evil_C));
+    ED_view3d_init_mats_rv3d(&ob, CTX_wm_region_view3d(this->evil_C));
 
-    sculpt_update_cache_invariants(evil_C, sd, ss, *op, mval);
+    sculpt_update_cache_invariants(this->evil_C, sd, ss, *op, mval);
     if (brush && brush_type_is_paint(brush->sculpt_brush_type)) {
       BKE_curvemapping_init(brush->curve_rand_hue);
       BKE_curvemapping_init(brush->curve_rand_saturation);
@@ -5599,9 +5599,9 @@ bool SculptPaintStroke::test_start(wmOperator *op, const float mval[2])
     }
 
     CursorGeometryInfo cgi;
-    cursor_geometry_info_update(evil_C, &cgi, mval, false);
+    cursor_geometry_info_update(this->evil_C, &cgi, mval, false);
 
-    stroke_undo_begin(evil_C, op);
+    stroke_undo_begin(this->evil_C, op);
 
     return true;
   }
@@ -5610,18 +5610,18 @@ bool SculptPaintStroke::test_start(wmOperator *op, const float mval[2])
 
 void SculptPaintStroke::update_step(wmOperator * /*op*/, PointerRNA *itemptr)
 {
-  const Scene &scene = *CTX_data_scene(evil_C);
-  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(evil_C);
-  Sculpt &sd = *CTX_data_tool_settings(evil_C)->sculpt;
-  Object &ob = *CTX_data_active_object(evil_C);
+  const Scene &scene = *CTX_data_scene(this->evil_C);
+  const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(this->evil_C);
+  Sculpt &sd = *CTX_data_tool_settings(this->evil_C)->sculpt;
+  Object &ob = *CTX_data_active_object(this->evil_C);
   SculptSession &ss = *ob.sculpt;
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
-  ToolSettings &tool_settings = *CTX_data_tool_settings(evil_C);
+  ToolSettings &tool_settings = *CTX_data_tool_settings(this->evil_C);
   StrokeCache *cache = ss.cache;
-  cache->stroke_distance = stroke_distance();
+  cache->stroke_distance = this->stroke_distance();
 
-  SCULPT_stroke_modifiers_check(evil_C, ob, &brush);
-  sculpt_update_cache_variants(evil_C, sd, ob, itemptr);
+  SCULPT_stroke_modifiers_check(this->evil_C, ob, &brush);
+  sculpt_update_cache_variants(this->evil_C, sd, ob, itemptr);
   restore_from_undo_step_if_necessary(depsgraph, sd, ob);
 
   if (dyntopo::stroke_is_dyntopo(ob, brush)) {
@@ -5640,18 +5640,18 @@ void SculptPaintStroke::update_step(wmOperator * /*op*/, PointerRNA *itemptr)
 
   /* Cleanup. */
   if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_MASK) {
-    flush_update_step(evil_C, UpdateType::Mask);
+    flush_update_step(this->evil_C, UpdateType::Mask);
   }
   else if (brush_type_is_paint(brush.sculpt_brush_type)) {
     if (SCULPT_use_image_paint_brush(tool_settings.paint_mode, ob)) {
-      flush_update_step(evil_C, UpdateType::Image);
+      flush_update_step(this->evil_C, UpdateType::Image);
     }
     else {
-      flush_update_step(evil_C, UpdateType::Color);
+      flush_update_step(this->evil_C, UpdateType::Color);
     }
   }
   else {
-    flush_update_step(evil_C, UpdateType::Position);
+    flush_update_step(this->evil_C, UpdateType::Position);
   }
 }
 
@@ -5667,10 +5667,10 @@ static void brush_exit_tex(Sculpt &sd)
 
 void SculptPaintStroke::done(bool is_cancel)
 {
-  Object &ob = *CTX_data_active_object(evil_C);
+  Object &ob = *CTX_data_active_object(this->evil_C);
   SculptSession &ss = *ob.sculpt;
-  Sculpt &sd = *CTX_data_tool_settings(evil_C)->sculpt;
-  ToolSettings *tool_settings = CTX_data_tool_settings(evil_C);
+  Sculpt &sd = *CTX_data_tool_settings(this->evil_C)->sculpt;
+  ToolSettings *tool_settings = CTX_data_tool_settings(this->evil_C);
 
   /* Finished. */
   if (!ss.cache) {
@@ -5682,7 +5682,7 @@ void SculptPaintStroke::done(bool is_cancel)
   BLI_assert(brush == ss.cache->brush); /* const, so we shouldn't change. */
   paint_runtime->draw_inverted = false;
 
-  SCULPT_stroke_modifiers_check(evil_C, ob, brush);
+  SCULPT_stroke_modifiers_check(this->evil_C, ob, brush);
 
   /* Alt-Smooth. */
   if (ss.cache->alt_smooth) {
@@ -5695,25 +5695,25 @@ void SculptPaintStroke::done(bool is_cancel)
   ss.cache = nullptr;
 
   if (!is_cancel) {
-    stroke_undo_end(evil_C, brush);
+    stroke_undo_end(this->evil_C, brush);
   }
 
   if (brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_MASK) {
-    flush_update_done(evil_C, ob, UpdateType::Mask);
+    flush_update_done(this->evil_C, ob, UpdateType::Mask);
   }
   else if (brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_PAINT) {
     if (SCULPT_use_image_paint_brush(tool_settings->paint_mode, ob)) {
-      flush_update_done(evil_C, ob, UpdateType::Image);
+      flush_update_done(this->evil_C, ob, UpdateType::Image);
     }
     else {
-      flush_update_done(evil_C, ob, UpdateType::Color);
+      flush_update_done(this->evil_C, ob, UpdateType::Color);
     }
   }
   else {
-    flush_update_done(evil_C, ob, UpdateType::Position);
+    flush_update_done(this->evil_C, ob, UpdateType::Position);
   }
 
-  WM_event_add_notifier(evil_C, NC_OBJECT | ND_DRAW, &ob);
+  WM_event_add_notifier(this->evil_C, NC_OBJECT | ND_DRAW, &ob);
   brush_exit_tex(sd);
 }
 
@@ -5721,8 +5721,8 @@ void SculptPaintStroke::redraw(bool /*final*/) {}
 
 bool SculptPaintStroke::test_cancel()
 {
-  const Object &ob = *CTX_data_active_object(evil_C);
-  const Sculpt &sd = *CTX_data_tool_settings(evil_C)->sculpt;
+  const Object &ob = *CTX_data_active_object(this->evil_C);
+  const Sculpt &sd = *CTX_data_tool_settings(this->evil_C)->sculpt;
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
 
   /* XXX Canceling strokes that way does not work with dynamic topology,
@@ -5814,6 +5814,8 @@ static wmOperatorStatus sculpt_brush_stroke_exec(bContext *C, wmOperator *op)
 
   SculptPaintStroke *stroke = MEM_new<SculptPaintStroke>(__func__, C, op, 0);
   op->customdata = stroke;
+
+  stroke->exec(C, op);
 
   MEM_delete(stroke);
   stroke->free(C, op);

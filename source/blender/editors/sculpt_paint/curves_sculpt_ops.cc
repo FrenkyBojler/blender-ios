@@ -174,7 +174,7 @@ struct SculptCurvesBrushStroke final : public PaintStroke {
   void done(bool is_cancel) override;
 
 private:
-  std::unique_ptr<CurvesSculptStrokeOperation> operation;
+  std::unique_ptr<CurvesSculptStrokeOperation> operation_;
 };
 
 bool SculptCurvesBrushStroke::get_location(float out[3], const float mouse[2], bool /*force_original*/)
@@ -197,16 +197,16 @@ void SculptCurvesBrushStroke::update_step(wmOperator *op, PointerRNA *stroke_ele
   stroke_extension.pressure = RNA_float_get(stroke_element, "pressure");
   stroke_extension.reports = op->reports;
 
-  if (!operation) {
+  if (!operation_) {
     stroke_extension.is_first = true;
-    operation = start_brush_operation(*evil_C, *op, stroke_extension);
+    operation_ = start_brush_operation(*this->evil_C, *op, stroke_extension);
   }
   else {
     stroke_extension.is_first = false;
   }
 
-  if (operation) {
-    operation->on_stroke_extended(*evil_C, stroke_extension);
+  if (operation_) {
+    operation_->on_stroke_extended(*this->evil_C, stroke_extension);
   }
 }
 

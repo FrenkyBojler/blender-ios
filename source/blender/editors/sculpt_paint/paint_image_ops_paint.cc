@@ -360,8 +360,8 @@ struct ImagePaintStroke final : public PaintStroke {
 
 void ImagePaintStroke::update_step(wmOperator *op, PointerRNA *itemptr)
 {
-  PaintOperation *pop = static_cast<PaintOperation *>(mode_data());
-  Paint *paint = BKE_paint_get_active_from_context(evil_C);
+  PaintOperation *pop = static_cast<PaintOperation *>(mode_data_.get());
+  Paint *paint = BKE_paint_get_active_from_context(this->evil_C);
   bke::PaintRuntime *paint_runtime = paint->runtime;
   Brush *brush = BKE_paint_brush(paint);
 
@@ -373,7 +373,7 @@ void ImagePaintStroke::update_step(wmOperator *op, PointerRNA *itemptr)
   float mouse[2];
   float pressure;
   float size;
-  float distance = stroke_distance();
+  float distance = this->stroke_distance();
   int eraser;
 
   RNA_float_get_array(itemptr, "mouse", mouse);
@@ -396,12 +396,12 @@ void ImagePaintStroke::update_step(wmOperator *op, PointerRNA *itemptr)
   }
 
   if ((brush->flag & BRUSH_DRAG_DOT) || (brush->flag & BRUSH_ANCHORED)) {
-    UndoStack *ustack = CTX_wm_manager(evil_C)->runtime->undo_stack;
+    UndoStack *ustack = CTX_wm_manager(this->evil_C)->runtime->undo_stack;
     ED_image_undo_restore(ustack->step_init);
   }
 
   pop->mode->paint_stroke(
-      evil_C, pop->stroke_handle, pop->prevmouse, mouse, eraser, pressure, distance, size);
+      this->evil_C, pop->stroke_handle, pop->prevmouse, mouse, eraser, pressure, distance, size);
 
   copy_v2_v2(pop->prevmouse, mouse);
 
@@ -411,16 +411,16 @@ void ImagePaintStroke::update_step(wmOperator *op, PointerRNA *itemptr)
 
 void ImagePaintStroke::redraw(bool final)
 {
-  PaintOperation *pop = static_cast<PaintOperation *>(mode_data());
-  pop->mode->paint_stroke_redraw(evil_C, pop->stroke_handle, final);
+  PaintOperation *pop = static_cast<PaintOperation *>(mode_data_.get());
+  pop->mode->paint_stroke_redraw(this->evil_C, pop->stroke_handle, final);
 }
 
 void ImagePaintStroke::done(const bool is_cancel)
 {
-  Scene *scene = CTX_data_scene(evil_C);
+  Scene *scene = CTX_data_scene(this->evil_C);
   ToolSettings *toolsettings = scene->toolsettings;
-  PaintOperation *pop = static_cast<PaintOperation *>(mode_data());
-  const Paint *paint = BKE_paint_get_active_from_context(evil_C);
+  PaintOperation *pop = static_cast<PaintOperation *>(mode_data_.get());
+  const Paint *paint = BKE_paint_get_active_from_context(this->evil_C);
   Brush *brush = BKE_paint_brush(&toolsettings->imapaint.paint);
 
   toolsettings->imapaint.flag &= ~IMAGEPAINT_DRAWING;
@@ -428,11 +428,11 @@ void ImagePaintStroke::done(const bool is_cancel)
   if (brush->image_brush_type == IMAGE_PAINT_BRUSH_TYPE_FILL) {
     if (brush->flag & BRUSH_USE_GRADIENT) {
       pop->mode->paint_gradient_fill(
-          evil_C, paint, brush, this, pop->stroke_handle, pop->startmouse, pop->prevmouse);
+          this->evil_C, paint, brush, this, pop->stroke_handle, pop->startmouse, pop->prevmouse);
     }
     else {
       pop->mode->paint_bucket_fill(
-          evil_C, paint, brush, this, pop->stroke_handle, pop->startmouse, pop->prevmouse);
+          this->evil_C, paint, brush, this, pop->stroke_handle, pop->startmouse, pop->prevmouse);
     }
   }
   pop->mode->paint_stroke_done(pop->stroke_handle);
@@ -477,11 +477,11 @@ bool ImagePaintStroke::test_start(wmOperator *op, const float mouse[2])
   /* TODO: Should avoid putting this here. Instead, last position should be requested
    * from stroke system. */
 
-  if (!(pop = texture_paint_init(evil_C, op, mouse))) {
+  if (!(pop = texture_paint_init(this->evil_C, op, mouse))) {
     return false;
   }
 
-  set_mode_data(std::move(pop));
+  mode_data_ = std::move(pop);
 
   return true;
 }

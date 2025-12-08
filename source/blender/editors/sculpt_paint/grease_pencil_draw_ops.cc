@@ -198,26 +198,26 @@ bool GreasePencilPaintStroke::test_start(wmOperator */*op*/, const float /*mouse
 void GreasePencilPaintStroke::update_step(wmOperator *op, PointerRNA *stroke_element)
 {
   GreasePencilStrokeOperation *operation = static_cast<GreasePencilStrokeOperation *>(
-      mode_data());
+      mode_data_.get());
 
   InputSample sample;
   RNA_float_get_array(stroke_element, "mouse", sample.mouse_position);
   sample.pressure = RNA_float_get(stroke_element, "pressure");
 
   if (!operation) {
-    std::unique_ptr<GreasePencilStrokeOperation> new_operation = get_stroke_operation(*evil_C, op);
+    std::unique_ptr<GreasePencilStrokeOperation> new_operation = get_stroke_operation(*this->evil_C, op);
     BLI_assert(new_operation != nullptr);
-    new_operation->on_stroke_begin(*evil_C, sample);
-    set_mode_data(std::move(new_operation));
+    new_operation->on_stroke_begin(*this->evil_C, sample);
+    mode_data_ = std::move(new_operation);
   }
   else {
-    operation->on_stroke_extended(*evil_C, sample);
+    operation->on_stroke_extended(*this->evil_C, sample);
   }
 }
 
 void GreasePencilPaintStroke::redraw(bool /*final*/)
 {
-  ED_region_tag_redraw(CTX_wm_region(evil_C));
+  ED_region_tag_redraw(CTX_wm_region(this->evil_C));
 }
 
 bool GreasePencilPaintStroke::test_cancel()
@@ -228,9 +228,9 @@ bool GreasePencilPaintStroke::test_cancel()
 void GreasePencilPaintStroke::done(bool /*is_cancel*/)
 {
   GreasePencilStrokeOperation *operation = static_cast<GreasePencilStrokeOperation *>(
-      mode_data());
+      mode_data_.get());
   if (operation != nullptr) {
-    operation->on_stroke_done(*evil_C);
+    operation->on_stroke_done(*this->evil_C);
   }
 }
 

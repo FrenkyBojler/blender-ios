@@ -1065,18 +1065,18 @@ struct VertexPaintStroke final : public PaintStroke {
 
 bool VertexPaintStroke::get_location(float out[3], const float mouse[2], bool force_original)
 {
-  return stroke_get_location_bvh(evil_C, out, mouse, force_original);
+  return stroke_get_location_bvh(this->evil_C, out, mouse, force_original);
 }
 
 bool VertexPaintStroke::test_start(wmOperator *op, const float mouse[2])
 {
-  Scene &scene = *CTX_data_scene(evil_C);
+  Scene &scene = *CTX_data_scene(this->evil_C);
   ToolSettings &ts = *scene.toolsettings;
   VPaint &vp = *ts.vpaint;
   Brush &brush = *BKE_paint_brush(&vp.paint);
-  Object &ob = *CTX_data_active_object(evil_C);
+  Object &ob = *CTX_data_active_object(this->evil_C);
   SculptSession &ss = *ob.sculpt;
-  Depsgraph &depsgraph = *CTX_data_ensure_evaluated_depsgraph(evil_C);
+  Depsgraph &depsgraph = *CTX_data_ensure_evaluated_depsgraph(this->evil_C);
 
   /* context checks could be a poll() */
   Mesh *mesh = BKE_mesh_from_object(&ob);
@@ -1095,7 +1095,7 @@ bool VertexPaintStroke::test_start(wmOperator *op, const float mouse[2])
   std::unique_ptr<VPaintData> vpd = vpaint_init_vpaint(
       evil_C, op, scene, depsgraph, vp, ob, *mesh, meta_data->domain, meta_data->data_type, brush);
 
-  set_mode_data(std::move(vpd));
+  mode_data_ = std::move(vpd);
 
   BKE_curvemapping_init(brush.curve_rand_hue);
   BKE_curvemapping_init(brush.curve_rand_saturation);
@@ -1103,7 +1103,7 @@ bool VertexPaintStroke::test_start(wmOperator *op, const float mouse[2])
 
   /* If not previously created, create vertex/weight paint mode session data */
   vertex_paint_init_stroke(depsgraph, ob);
-  vwpaint::update_cache_invariants(evil_C, vp, ss, op, mouse);
+  vwpaint::update_cache_invariants(this->evil_C, vp, ss, op, mouse);
   vwpaint::init_session_data(ts, ob);
 
   return true;
@@ -2074,16 +2074,16 @@ static void vpaint_do_symmetrical_brush_actions(bContext *C,
 
 void VertexPaintStroke::update_step(wmOperator * /*op*/, PointerRNA *itemptr)
 {
-  ToolSettings *ts = CTX_data_tool_settings(evil_C);
-  VPaintData &vpd = *static_cast<VPaintData *>(mode_data());
+  ToolSettings *ts = CTX_data_tool_settings(this->evil_C);
+  VPaintData &vpd = *static_cast<VPaintData *>(mode_data_.get());
   VPaint &vp = *ts->vpaint;
   ViewContext &vc = vpd.vc;
   Object &ob = *vc.obact;
   SculptSession &ss = *ob.sculpt;
 
-  ss.cache->stroke_distance = stroke_distance();
+  ss.cache->stroke_distance = this->stroke_distance();
 
-  vwpaint::update_cache_variants(evil_C, vp, ob, itemptr);
+  vwpaint::update_cache_variants(this->evil_C, vp, ob, itemptr);
 
   float mat[4][4];
 
@@ -2093,7 +2093,7 @@ void VertexPaintStroke::update_step(wmOperator * /*op*/, PointerRNA *itemptr)
 
   swap_m4m4(vc.rv3d->persmat, mat);
 
-  vpaint_do_symmetrical_brush_actions(evil_C, vp, vpd, ob);
+  vpaint_do_symmetrical_brush_actions(this->evil_C, vp, vpd, ob);
 
   swap_m4m4(vc.rv3d->persmat, mat);
 
@@ -2117,18 +2117,18 @@ void VertexPaintStroke::update_step(wmOperator * /*op*/, PointerRNA *itemptr)
 
 void VertexPaintStroke::done(bool /*is_cancel*/)
 {
-  VPaintData *vpd = static_cast<VPaintData *>(mode_data());
+  VPaintData *vpd = static_cast<VPaintData *>(mode_data_.get());
   Object &ob = *vpd->vc.obact;
 
   SculptSession &ss = *ob.sculpt;
 
   if (ss.cache && ss.cache->alt_smooth) {
-    ToolSettings *ts = CTX_data_tool_settings(evil_C);
+    ToolSettings *ts = CTX_data_tool_settings(this->evil_C);
     VPaint &vp = *ts->vpaint;
     vwpaint::smooth_brush_toggle_off(&vp.paint, ss.cache);
   }
 
-  WM_event_add_notifier(evil_C, NC_OBJECT | ND_DRAW, &ob);
+  WM_event_add_notifier(this->evil_C, NC_OBJECT | ND_DRAW, &ob);
 
   MEM_delete(ob.sculpt->cache);
   ob.sculpt->cache = nullptr;

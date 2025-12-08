@@ -141,38 +141,24 @@ struct PaintStroke {
    */
   void free(bContext *C, wmOperator *op);
 
-  void *mode_data()
-  {
-    return mode_data_.get();
-  }
-
-  void set_mode_data(std::unique_ptr<PaintModeData> mode_data)
-  {
-    this->mode_data_ = std::move(mode_data);
-  }
-
   /* TODO: The following accessors should all be parameters passed into various callbacks */
-  bool stroke_flipped()
+  bool stroke_flipped() const
   {
-    return pen_flip;
+    return pen_flip_;
   }
 
-  bool stroke_inverted()
+  bool stroke_inverted() const
   {
-    return stroke_mode == BRUSH_STROKE_INVERT;
+    return stroke_mode_ == BRUSH_STROKE_INVERT;
   }
 
-  float stroke_distance()
+  float stroke_distance() const
   {
     return stroke_distance_;
   }
 
-  bool stroke_started()
-  {
-    return stroke_started_;
-  }
-
  protected:
+  ~PaintStroke() = default;
   PaintStroke(bContext *C, wmOperator *op, int event_type);
 
   /**
@@ -221,25 +207,26 @@ struct PaintStroke {
               float pressure,
               float r_location[3],
               bool *r_location_is_set);
- private:
+
   std::unique_ptr<PaintModeData> mode_data_ = nullptr;
 
-  void *stroke_cursor = nullptr;
+ private:
+  void *stroke_cursor_ = nullptr;
 
-  wmTimer *timer = nullptr;
-  std::optional<RandomNumberGenerator> rng = std::nullopt;
+  wmTimer *timer_ = nullptr;
+  std::optional<RandomNumberGenerator> rng_ = std::nullopt;
 
   /* Paint stroke can use up to PAINT_MAX_INPUT_SAMPLES prior inputs
    * to smooth the stroke */
-  PaintSample samples[PAINT_MAX_INPUT_SAMPLES];
-  int num_samples = 0;
-  int cur_sample = 0;
-  int tot_samples = 0;
+  PaintSample samples_[PAINT_MAX_INPUT_SAMPLES];
+  int num_samples_ = 0;
+  int cur_sample_ = 0;
+  int tot_samples_ = 0;
 
-  float3 last_world_space_position = float3(0.0f, 0.0f, 0.0f);
-  float3 last_scene_spacing_delta = float3(0.0f, 0.0f, 0.0f);
+  float3 last_world_space_position_ = float3(0.0f, 0.0f, 0.0f);
+  float3 last_scene_spacing_delta_ = float3(0.0f, 0.0f, 0.0f);
 
-  bool stroke_over_mesh = false;
+  bool stroke_over_mesh_ = false;
   /* space distance covered so far */
   float stroke_distance_ = 0.0f;
 
@@ -248,28 +235,28 @@ struct PaintStroke {
    * passes over the mesh */
   bool stroke_started_ = false;
   /* Set when enough motion was found for rake rotation */
-  bool rake_started = false;
+  bool rake_started_ = false;
   /* event that started stroke, for modal() return */
-  int event_type = 0;
+  int event_type_ = 0;
   /* check if stroke variables have been initialized */
-  bool stroke_init = false;
+  bool stroke_init_ = false;
   /* check if input variables have been initialized (e.g. cursor position & pressure)*/
-  bool input_init = false;
-  float2 initial_mouse = float2(0.0f, 0.0f);
-  float cached_size_pressure = 0.0f;
+  bool input_init_ = false;
+  float2 initial_mouse_ = float2(0.0f, 0.0f);
+  float cached_size_pressure_ = 0.0f;
   /* last pressure will store last pressure value for use in interpolation for space strokes */
-  float last_pressure = 0.0f;
-  int stroke_mode = 0;
+  float last_pressure_ = 0.0f;
+  int stroke_mode_ = 0;
 
-  float last_tablet_event_pressure = 0.0f;
+  float last_tablet_event_pressure_ = 0.0f;
 
-  float zoom_2d = 0.0f;
-  bool pen_flip = false;
+  float zoom_2d_ = 0.0f;
+  bool pen_flip_ = false;
 
   /* Tilt, as read from the event. */
-  float2 tilt = float2(0.0f, 0.0f);
+  float2 tilt_ = float2(0.0f, 0.0f);
 
-  bool original = false; /* Ray-cast original mesh at start of stroke. */
+  bool original_ = false; /* Ray-cast original mesh at start of stroke. */
 
   void stroke_done(bContext *C, wmOperator *op, bool is_cancel);
 
