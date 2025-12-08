@@ -25,7 +25,7 @@
 #include "BKE_brush.hh"
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
-#include "BKE_mask.h"
+#include "BKE_mask.hh"
 #include "BKE_modifier.hh"
 #include "BKE_paint.hh"
 #include "BKE_screen.hh"
@@ -597,7 +597,7 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
           }
           else if (object_mode == OB_MODE_OBJECT) {
             /* No active object means #TransConvertType_Object [see #convert_type_get()], so use
-             * toolsetting for *object*. */
+             * tool-setting for *object*. */
             use_prop_edit = ts->proportional_objects;
           }
           else {
@@ -994,8 +994,8 @@ void calculateCenterCursor2D(TransInfo *t, float r_center[2])
     }
     else if (t->options & CTX_PAINT_CURVE) {
       if (t->spacetype == SPACE_IMAGE) {
-        r_center[0] = UI_view2d_view_to_region_x(&t->region->v2d, cursor[0]);
-        r_center[1] = UI_view2d_view_to_region_y(&t->region->v2d, cursor[1]);
+        r_center[0] = ui::view2d_view_to_region_x(&t->region->v2d, cursor[0]);
+        r_center[1] = ui::view2d_view_to_region_y(&t->region->v2d, cursor[1]);
       }
     }
     else {
