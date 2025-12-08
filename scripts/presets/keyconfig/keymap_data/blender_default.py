@@ -8680,17 +8680,13 @@ def km_sequencer_tool_blade(_params):
                  ("ignore_selection", True),
                  ("ignore_connections", True),
              ]}),
-            ("sequencer.box_blade", {"type": 'LEFTMOUSE', "value": 'CLICK_DRAG'},
-             {"properties": [
-                 ("remove_gaps", True),
-             ]}),
+            ("sequencer.box_blade", {"type": 'LEFTMOUSE', "value": 'CLICK_DRAG'}, {"properties": []}),
             ("sequencer.box_blade", {"type": 'LEFTMOUSE', "value": 'CLICK_DRAG', "shift": True},
              {"properties": [
                  ("remove_gaps", False),
              ]}),
             ("sequencer.box_blade", {"type": 'LEFTMOUSE', "value": 'CLICK_DRAG', "alt": True},
              {"properties": [
-                 ("remove_gaps", True),
                  ("ignore_connections", True),
              ]}),
             ("sequencer.box_blade", {"type": 'LEFTMOUSE', "value": 'CLICK_DRAG', "shift": True, "alt": True},
