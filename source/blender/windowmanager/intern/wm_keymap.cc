@@ -70,7 +70,7 @@ static wmKeyMapItem *wm_keymap_item_copy(const wmKeyMapItem *kmi)
 
   if (kmin->properties) {
     kmin->ptr = MEM_new<PointerRNA>("UserKeyMapItemPtr");
-    WM_operator_properties_create(kmin->ptr, kmin->idname);
+    *kmin->ptr = WM_operator_properties_create(kmin->idname);
 
     /* Signal for no context, see #STRUCT_NO_CONTEXT_WITHOUT_OWNER_ID. */
     kmin->ptr->owner_id = nullptr;

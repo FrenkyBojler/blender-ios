@@ -310,7 +310,7 @@ static XrActionMapItem *wm_xr_actionmap_item_copy(XrActionMapItem *ami_src)
 
   if (ami_dst->op_properties) {
     ami_dst->op_properties_ptr = MEM_new<PointerRNA>("wmOpItemPtr");
-    WM_operator_properties_create(ami_dst->op_properties_ptr, ami_dst->op);
+    *ami_dst->op_properties_ptr = WM_operator_properties_create(ami_dst->op);
     ami_dst->op_properties = IDP_CopyProperty(ami_src->op_properties);
     ami_dst->op_properties_ptr->data = ami_dst->op_properties;
   }

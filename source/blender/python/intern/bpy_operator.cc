@@ -361,7 +361,7 @@ PyObject *pyop_as_string(PyObject * /*self*/, PyObject *args)
     return nullptr;
   }
 
-  // WM_operator_properties_create(&ptr, opname);
+  // ptr = WM_operator_properties_create(opname);
   /* Save another lookup */
   PointerRNA ptr = RNA_pointer_create_discrete(nullptr, ot->srna, nullptr);
 

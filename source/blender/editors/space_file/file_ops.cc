@@ -2531,7 +2531,6 @@ static wmOperatorStatus file_smoothscroll_invoke(bContext *C,
   CTX_wm_region_set(C, region);
 
   /* scroll one step in the desired direction */
-  PointerRNA op_ptr;
   int deltax = 0;
   int deltay = 0;
 
@@ -2567,7 +2566,7 @@ static wmOperatorStatus file_smoothscroll_invoke(bContext *C,
       deltay = -scroll_delta;
     }
   }
-  WM_operator_properties_create(&op_ptr, "VIEW2D_OT_pan");
+  PointerRNA op_ptr = WM_operator_properties_create("VIEW2D_OT_pan");
   RNA_int_set(&op_ptr, "deltax", deltax);
   RNA_int_set(&op_ptr, "deltay", deltay);
 
