@@ -1,2 +1,3 @@
 Referenced by issue #148717, Period before a node group's name doesn't hide it from add menu
 Referenced by pull request #151323, Fix: restore accidentally changed default for 'Allow Negative Frames' pref
+Referenced by pull request #151326, Fix: restore accidentally changed default for 'Allow Negative Frames' pref
