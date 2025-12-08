@@ -17,10 +17,10 @@ namespace blender::gpu {
 
 TexturePool::~TexturePool()
 {
-  for (gpu::Texture *tex : acquired_transient_) {
+  for (Texture *tex : acquired_transient_) {
     GPU_texture_free(tex);
   }
-  for (gpu::Texture *tex : acquired_persistent_) {
+  for (Texture *tex : acquired_persistent_) {
     GPU_texture_free(tex);
   }
   for (TextureHandle &tex : pool_) {
@@ -28,16 +28,17 @@ TexturePool::~TexturePool()
   }
 }
 
-gpu::Texture *TexturePool::acquire_texture(int width,
-                                           int height,
-                                           gpu::TextureFormat format,
-                                           eGPUTextureUsage usage)
+Texture *TexturePool::acquire_texture(int width,
+                                      int height,
+                                      TextureFormat format,
+                                      eGPUTextureUsage usage,
+                                      eTextureLifetime lifetime)
 {
   int64_t match_index = -1;
 
   /* Search released texture first. */
   for (auto i : pool_.index_range()) {
-    gpu::Texture *tex = pool_[i].texture;
+    Texture *tex = pool_[i].texture;
     /* TODO(@fclem): We could reuse texture using texture views if the formats are compatible. */
     if ((GPU_texture_format(tex) == format) && (GPU_texture_width(tex) == width) &&
         (GPU_texture_height(tex) == height) && (GPU_texture_usage(tex) == usage))
@@ -48,7 +49,7 @@ gpu::Texture *TexturePool::acquire_texture(int width,
   }
 
   if (match_index != -1) {
-    gpu::Texture *tex = pool_[match_index].texture;
+    Texture *tex = pool_[match_index].texture;
     pool_.remove_and_reorder(match_index);
 
     if (lifetime == TEXTURE_LIFETIME_TRANSIENT) {
@@ -67,8 +68,7 @@ gpu::Texture *TexturePool::acquire_texture(int width,
     int texture_id = pool_.size();
     SNPRINTF(name, "TexFromPool_%d", texture_id);
   }
-  gpu::Texture *tex = GPU_texture_create_2d(
-      name, width, height, 1, format, usage, nullptr);
+  Texture *tex = GPU_texture_create_2d(name, width, height, 1, format, usage, nullptr);
 
   if (lifetime == TEXTURE_LIFETIME_TRANSIENT) {
     acquired_transient_.append(tex);
@@ -79,11 +79,11 @@ gpu::Texture *TexturePool::acquire_texture(int width,
   return tex;
 }
 
-void TexturePool::release_texture(gpu::Texture *tex)
+void TexturePool::release_texture(Texture *tex)
 {
-  if (int idx = acquired_transient_.first_index_of_try(tex) != -1) {
+  if (int idx = acquired_transient_.first_index_of_try(tex); idx != -1) {
     acquired_transient_.remove_and_reorder(idx);
-  } else if (int idx = acquired_persistent_.first_index_of_try(tex) != -1) {
+  } else if (int idx = acquired_persistent_.first_index_of_try(tex); idx != -1) {
     acquired_persistent_.remove_and_reorder(idx);
   } else {
     BLI_assert_msg(false,
@@ -92,12 +92,12 @@ void TexturePool::release_texture(gpu::Texture *tex)
   pool_.append({tex, 0});
 }
 
-void TexturePool::take_texture_ownership(gpu::Texture *tex)
+void TexturePool::take_texture_ownership(Texture *tex)
 {
   acquired_transient_.remove_first_occurrence_and_reorder(tex);
 }
 
-void TexturePool::give_texture_ownership(gpu::Texture *tex)
+void TexturePool::give_texture_ownership(Texture *tex)
 {
   acquired_transient_.append(tex);
 }
@@ -129,7 +129,7 @@ void TexturePool::reset(bool force_free)
 TexturePool &TexturePool::get()
 {
   BLI_assert(GPU_context_active_get() != nullptr);
-  return *gpu::unwrap(GPU_context_active_get())->texture_pool;
+  return *unwrap(GPU_context_active_get())->texture_pool;
 }
 
 }  // namespace blender::gpu
