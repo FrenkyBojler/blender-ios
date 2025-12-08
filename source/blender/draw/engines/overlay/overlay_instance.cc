@@ -363,16 +363,29 @@ void Resources::update_theme_settings(const DRWContext *ctx, const State &state)
   /* Emphasize division lines lighter instead of darker, if background is darker than grid. */
   const bool is_bg_darker = reduce_add(gb.colors.grid.xyz()) + 0.12f >
                             reduce_add(gb.colors.background.xyz());
-  ui::theme::get_color_shade_4fv(TH_GRID, (is_bg_darker) ? 40 : -10, gb.colors.grid_emphasis);
+<<<<<<< HEAD
+  ui::theme::get_color_shade_4fv(TH_GRID, (is_bg_darker) ? 30 : -10, gb.colors.grid_emphasis);
   
   /* Grid Axis */
-  ui::theme::get_color_blend_shade_4fv(TH_GRID, TH_AXIS_X, 0.85f, -10, gb.colors.grid_axis_x);
-  ui::theme::get_color_blend_shade_4fv(TH_GRID, TH_AXIS_Y, 0.85f, -10, gb.colors.grid_axis_y);
-  ui::theme::get_color_blend_shade_4fv(TH_GRID, TH_AXIS_Z, 0.85f, -10, gb.colors.grid_axis_z);
+  ui::theme::get_color_blend_shade_4fv(TH_GRID, TH_AXIS_X, 0.85f, -20, gb.colors.grid_axis_x);
+  ui::theme::get_color_blend_shade_4fv(TH_GRID, TH_AXIS_Y, 0.85f, -20, gb.colors.grid_axis_y);
+  ui::theme::get_color_blend_shade_4fv(TH_GRID, TH_AXIS_Z, 0.85f, -20, gb.colors.grid_axis_z);
 
   ui::theme::get_color_shade_alpha_4fv(TH_TRANSFORM, 0, -80, gb.colors.deselect);
   ui::theme::get_color_shade_alpha_4fv(TH_WIRE, 0, -30, gb.colors.outline);
   ui::theme::get_color_shade_alpha_4fv(TH_LIGHT, 0, 255, gb.colors.light_no_alpha);
+=======
+
+  ui::GetThemeColorShade4fv(TH_GRID, (is_bg_darker) ? 20 : -10, gb.colors.grid_emphasis);
+  /* Grid Axis */
+  ui::GetThemeColorBlendShade4fv(TH_GRID, TH_AXIS_X, 0.85f, -20, gb.colors.grid_axis_x);
+  ui::GetThemeColorBlendShade4fv(TH_GRID, TH_AXIS_Y, 0.85f, -20, gb.colors.grid_axis_y);
+  ui::GetThemeColorBlendShade4fv(TH_GRID, TH_AXIS_Z, 0.85f, -20, gb.colors.grid_axis_z);
+
+  ui::GetThemeColorShadeAlpha4fv(TH_TRANSFORM, 0, -80, gb.colors.deselect);
+  ui::GetThemeColorShadeAlpha4fv(TH_WIRE, 0, -30, gb.colors.outline);
+  ui::GetThemeColorShadeAlpha4fv(TH_LIGHT, 0, 255, gb.colors.light_no_alpha);
+>>>>>>> 62d431e9eab (Rebase changes)
 
   /* UV colors */
   ui::theme::get_color_4fv(TH_UV_SHADOW, gb.colors.uv_shadow);
