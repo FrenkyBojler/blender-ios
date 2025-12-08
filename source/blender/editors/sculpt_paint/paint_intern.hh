@@ -99,7 +99,8 @@ struct PaintSample {
  *
  * See #paint_stroke_modal for the majority of the paint operator logic.
  */
-struct PaintStroke {
+struct PaintStroke : NonCopyable, NonMovable {
+ public:
   /* TODO: Temporary, used to assist removing usage of bContext in PaintStroke callbacks.
    * See #149378 */
   bContext *evil_C = nullptr;
@@ -115,6 +116,58 @@ struct PaintStroke {
   bool constrain_line = false;
   float2 constrained_pos = float2(0.0f, 0.0f);
 
+ protected:
+  std::unique_ptr<PaintModeData> mode_data_ = nullptr;
+
+ private:
+  void *stroke_cursor_ = nullptr;
+
+  wmTimer *timer_ = nullptr;
+  std::optional<RandomNumberGenerator> rng_ = std::nullopt;
+
+  /* Paint stroke can use up to PAINT_MAX_INPUT_SAMPLES prior inputs
+   * to smooth the stroke */
+  PaintSample samples_[PAINT_MAX_INPUT_SAMPLES];
+  int num_samples_ = 0;
+  int cur_sample_ = 0;
+  int tot_samples_ = 0;
+
+  float3 last_world_space_position_ = float3(0.0f, 0.0f, 0.0f);
+  float3 last_scene_spacing_delta_ = float3(0.0f, 0.0f, 0.0f);
+
+  bool stroke_over_mesh_ = false;
+  /* space distance covered so far */
+  float stroke_distance_ = 0.0f;
+
+  /* Set whether any stroke step has yet occurred
+   * e.g. in sculpt mode, stroke doesn't start until cursor
+   * passes over the mesh */
+  bool stroke_started_ = false;
+  /* Set when enough motion was found for rake rotation */
+  bool rake_started_ = false;
+  /* event that started stroke, for modal() return */
+  int event_type_ = 0;
+  /* check if stroke variables have been initialized */
+  bool stroke_init_ = false;
+  /* check if input variables have been initialized (e.g. cursor position & pressure)*/
+  bool input_init_ = false;
+  float2 initial_mouse_ = float2(0.0f, 0.0f);
+  float cached_size_pressure_ = 0.0f;
+  /* last pressure will store last pressure value for use in interpolation for space strokes */
+  float last_pressure_ = 0.0f;
+  int stroke_mode_ = 0;
+
+  float last_tablet_event_pressure_ = 0.0f;
+
+  float zoom_2d_ = 0.0f;
+  bool pen_flip_ = false;
+
+  /* Tilt, as read from the event. */
+  float2 tilt_ = float2(0.0f, 0.0f);
+
+  bool original_ = false; /* Ray-cast original mesh at start of stroke. */
+
+ public:
   PaintStroke() = delete;
 
   /**
@@ -208,56 +261,8 @@ struct PaintStroke {
               float r_location[3],
               bool *r_location_is_set);
 
-  std::unique_ptr<PaintModeData> mode_data_ = nullptr;
 
  private:
-  void *stroke_cursor_ = nullptr;
-
-  wmTimer *timer_ = nullptr;
-  std::optional<RandomNumberGenerator> rng_ = std::nullopt;
-
-  /* Paint stroke can use up to PAINT_MAX_INPUT_SAMPLES prior inputs
-   * to smooth the stroke */
-  PaintSample samples_[PAINT_MAX_INPUT_SAMPLES];
-  int num_samples_ = 0;
-  int cur_sample_ = 0;
-  int tot_samples_ = 0;
-
-  float3 last_world_space_position_ = float3(0.0f, 0.0f, 0.0f);
-  float3 last_scene_spacing_delta_ = float3(0.0f, 0.0f, 0.0f);
-
-  bool stroke_over_mesh_ = false;
-  /* space distance covered so far */
-  float stroke_distance_ = 0.0f;
-
-  /* Set whether any stroke step has yet occurred
-   * e.g. in sculpt mode, stroke doesn't start until cursor
-   * passes over the mesh */
-  bool stroke_started_ = false;
-  /* Set when enough motion was found for rake rotation */
-  bool rake_started_ = false;
-  /* event that started stroke, for modal() return */
-  int event_type_ = 0;
-  /* check if stroke variables have been initialized */
-  bool stroke_init_ = false;
-  /* check if input variables have been initialized (e.g. cursor position & pressure)*/
-  bool input_init_ = false;
-  float2 initial_mouse_ = float2(0.0f, 0.0f);
-  float cached_size_pressure_ = 0.0f;
-  /* last pressure will store last pressure value for use in interpolation for space strokes */
-  float last_pressure_ = 0.0f;
-  int stroke_mode_ = 0;
-
-  float last_tablet_event_pressure_ = 0.0f;
-
-  float zoom_2d_ = 0.0f;
-  bool pen_flip_ = false;
-
-  /* Tilt, as read from the event. */
-  float2 tilt_ = float2(0.0f, 0.0f);
-
-  bool original_ = false; /* Ray-cast original mesh at start of stroke. */
-
   void stroke_done(bContext *C, wmOperator *op, bool is_cancel);
 
   void add_step(bContext *C, wmOperator *op, float2 mval, float pressure);

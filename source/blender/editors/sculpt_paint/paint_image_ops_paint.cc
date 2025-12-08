@@ -516,7 +516,7 @@ void ImagePaintStroke::update_for_exec(bContext *C,
                                        float r_location[3],
                                        bool *r_location_is_set)
 {
-  update(C, brush, mode, mouse_init, mouse, pressure, r_location, r_location_is_set);
+  this->update(C, brush, mode, mouse_init, mouse, pressure, r_location, r_location_is_set);
 }
 
 static wmOperatorStatus paint_exec(bContext *C, wmOperator *op)
