@@ -145,6 +145,37 @@ static void node_rna(StructRNA *srna)
       });
 }
 
+/**
+ * Needed because #execute_multi_function_on_value_variant does not support types that can't be
+ * processed as fields.
+ */
+static bke::SocketValueVariant get_list_value_at_index(const ListPtr &list,
+                                                       const eNodeSocketDatatype socket_type,
+                                                       const int64_t index)
+{
+  const CPPType &list_type = list->cpp_type();
+  bke::SocketValueVariant value;
+  void *dst = value.allocate_single(socket_type);
+  if (const auto *data = std::get_if<List::ArrayData>(&list->data())) {
+    if (list->is_mutable() && data->sharing_info->is_mutable()) {
+      list_type.move_construct(POINTER_OFFSET(data->data, list_type.size * index), dst);
+    }
+    else {
+      list_type.copy_construct(POINTER_OFFSET(data->data, list_type.size * index), dst);
+    }
+  }
+  if (const auto *data = std::get_if<List::SingleData>(&list->data())) {
+    if (list->is_mutable() && data->sharing_info->is_mutable()) {
+      list_type.move_construct(data->value, dst);
+    }
+    else {
+      list_type.copy_construct(data->value, dst);
+    }
+  }
+  BLI_assert_unreachable();
+  return {};
+}
+
 static void node_geo_exec(GeoNodeExecParams params)
 {
   bke::SocketValueVariant index = params.extract_input<bke::SocketValueVariant>("Index");
@@ -153,19 +184,25 @@ static void node_geo_exec(GeoNodeExecParams params)
     params.set_default_remaining_outputs();
     return;
   }
-  if (list->cpp_type().is<bke::SocketValueVariant>()) {
+  const CPPType &list_type = list->cpp_type();
+  const std::optional<eNodeSocketDatatype> socket_type =
+      bke::geo_nodes_base_cpp_type_to_socket_type(list_type);
+  if (!socket_type) {
+    BLI_assert_unreachable();
+    params.set_default_remaining_outputs();
+    return;
+  }
+
+  if (!socket_type_supports_fields(*socket_type)) {
     if (!index.is_single()) {
+      params.error_message_add(NodeWarningType::Error,
+                               "Index must be a single value for list type");
       params.set_default_remaining_outputs();
       return;
     }
     index.convert_to_single();
     const int index_int = index.get<int>();
-    const VArray<bke::SocketValueVariant> varray = list->varray().typed<bke::SocketValueVariant>();
-    if (!varray.index_range().contains(index_int)) {
-      params.set_default_remaining_outputs();
-      return;
-    }
-    params.set_output("Value", varray[index_int]);
+    params.set_output("Value", get_list_value_at_index(list, *socket_type, index_int));
     return;
   }
 
