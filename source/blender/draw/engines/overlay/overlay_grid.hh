@@ -321,7 +321,7 @@ class Grid : Overlay {
     /* TODO (not_mark): make this view-dependent in orthographic to have full coverage */
     grid_ubo_.num_lines = rv3d->is_persp ? 151u : 301u;
     num_iters_ = rv3d->is_persp ? OVERLAY_GRID_ITER_LEN : 1u;
-    
+
     return true;
   }
 };
