@@ -202,9 +202,9 @@ void main()
   if (drw_view_is_perspective()) {
     /* To minimize z-fighting, the grid is drawn N times with progressive alpha and z-bias,
      * making it fade through geometry. The smaller the range below, the more it pops in. */
-    float z_mix = float(grid_iter * OVERLAY_GRID_STEPS_DRAW + line.level) /
-                  float(OVERLAY_GRID_ITER_LEN * OVERLAY_GRID_STEPS_DRAW);
-    gl_Position.z += mix(5e-4f, 1e-4f, z_mix);
+    float z_factor = float(grid_iter * OVERLAY_GRID_STEPS_DRAW + line.level) /
+                     float(OVERLAY_GRID_ITER_LEN * OVERLAY_GRID_STEPS_DRAW);
+    gl_Position.z += mix(5e-4f, 1e-4f, z_factor);
   }
   else { /* orthographic */
     /* Set z to far plane in orthographic, so it is behind all things. */
