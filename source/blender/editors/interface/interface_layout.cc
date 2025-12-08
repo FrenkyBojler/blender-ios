@@ -66,7 +66,7 @@ struct ButtonItem;
 #define UI_OPERATOR_ERROR_RET(_ot, _opname, caller_fn_name) \
   if (ot == nullptr) { \
     ui_item_disabled(this, _opname); \
-    _RNA_warning("%s: '%s' unknown operator", caller_fn_name, _opname); \
+    _RNA_warning("%s: '%s' unknown operator\n", caller_fn_name, _opname); \
     return PointerRNA_NULL; \
   } \
   (void)0
@@ -1496,7 +1496,7 @@ PointerRNA Layout::op(const StringRefNull opname,
                       const eUI_Item_Flag flag)
 {
   wmOperatorType *ot = WM_operatortype_find(opname.c_str(), false); /* print error next */
-  UI_OPERATOR_ERROR_RET(ot, opname.c_str(), "UILayout.op()");
+  UI_OPERATOR_ERROR_RET(ot, opname.c_str(), "UILayout.operator()");
   return this->op(ot, name, icon, context, flag);
 }
 
@@ -1519,7 +1519,7 @@ void Layout::op_enum_items(wmOperatorType *ot,
 {
   const StringRefNull propname = RNA_property_identifier(prop);
   if (RNA_property_type(prop) != PROP_ENUM) {
-    _RNA_warning("UILayout.op_enum_items(): %s.%s, not an enum type\n",
+    _RNA_warning("UILayout.operator_enum_items(): %s.%s, not an enum type\n",
                  RNA_struct_identifier(ptr.type),
                  propname.c_str());
     return;
@@ -1655,7 +1655,7 @@ void Layout::op_enum(const StringRefNull opname,
 
   if (!ot || !ot->srna) {
     ui_item_disabled(this, opname.c_str());
-    _RNA_warning("UILayout.op_enum(): %s '%s'\n",
+    _RNA_warning("UILayout.operator_enum(): %s '%s'\n",
                  ot ? "operator missing srna" : "unknown operator",
                  opname.c_str());
     return;
@@ -1706,14 +1706,15 @@ void Layout::op_enum(const StringRefNull opname,
     }
   }
   else if (prop && RNA_property_type(prop) != PROP_ENUM) {
-    _RNA_warning("UILayout.op_enum() %s.%s, not an enum type\n",
+    _RNA_warning("UILayout.operator_enum() %s.%s, not an enum type\n",
                  RNA_struct_identifier(ptr.type),
                  propname.c_str());
     return;
   }
   else {
-    _RNA_warning(
-        "UILayout.op_enum() %s.%s not found\n", RNA_struct_identifier(ptr.type), propname.c_str());
+    _RNA_warning("UILayout.operator_enum() %s.%s not found\n",
+                 RNA_struct_identifier(ptr.type),
+                 propname.c_str());
     return;
   }
 }
@@ -3493,11 +3494,11 @@ PointerRNA Layout::op_menu_enum(const bContext *C,
 {
   wmOperatorType *ot = WM_operatortype_find(opname.c_str(), false); /* print error next */
 
-  UI_OPERATOR_ERROR_RET(ot, opname.c_str(), "UILayout.op_menu_enum()");
+  UI_OPERATOR_ERROR_RET(ot, opname.c_str(), "UILayout.operator_menu_enum()");
 
   if (!ot->srna) {
     ui_item_disabled(this, opname.c_str());
-    _RNA_warning("UILayout.op_menu_enum(): operator missing srna '%s'\n", opname.c_str());
+    _RNA_warning("UILayout.operator_menu_enum(): operator missing srna '%s'\n", opname.c_str());
     return PointerRNA_NULL;
   }
 
