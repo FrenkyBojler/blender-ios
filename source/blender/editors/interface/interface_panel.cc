@@ -43,6 +43,7 @@
 
 #include "UI_interface_c.hh"
 #include "UI_interface_icons.hh"
+#include "UI_interface_panel.hh"
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
@@ -68,6 +69,7 @@ enum PanelRuntimeFlag {
   PANEL_WAS_ACTIVE = (1 << 3),
   PANEL_ANIM_ALIGN = (1 << 4),
   PANEL_NEW_ADDED = (1 << 5),
+  PANEL_HIDDEN_FROM_SEARCH = (1 << 6),
   PANEL_SEARCH_FILTER_MATCH = (1 << 7),
   /**
    * Use the status set by property search (#PANEL_SEARCH_FILTER_MATCH)
@@ -800,6 +802,16 @@ static float panel_region_offset_x_get(const ARegion *region)
   return 0.0f;
 }
 
+bool panel_is_hidden_from_search(const Panel *panel)
+{
+  return (panel->runtime_flag & PANEL_HIDDEN_FROM_SEARCH);
+}
+
+void panel_is_hidden_from_search_set(Panel *panel, bool value)
+{
+  SET_FLAG_FROM_TEST(panel->runtime_flag, value, PANEL_HIDDEN_FROM_SEARCH);
+}
+
 /**
  * Starting from the "block size" set in #panel_end, calculate the full size
  * of the panel including the sub-panel headers and buttons.
@@ -808,8 +820,14 @@ static void panel_calculate_size_recursive(ARegion *region, Panel *panel)
 {
   int width = panel->blocksizex;
   int height = panel->blocksizey;
-
+  if (panel_is_hidden_from_search(panel)) {
+    width = 0;
+    height = 0;
+  }
   LISTBASE_FOREACH (Panel *, child_panel, &panel->children) {
+    if (panel_is_hidden_from_search(child_panel)) {
+      continue;
+    }
     if (child_panel->runtime_flag & PANEL_ACTIVE) {
       panel_calculate_size_recursive(region, child_panel);
       width = max_ii(width, child_panel->sizex);
@@ -818,7 +836,11 @@ static void panel_calculate_size_recursive(ARegion *region, Panel *panel)
   }
 
   /* Update total panel size. */
-  if (panel->runtime_flag & PANEL_NEW_ADDED) {
+  if (panel_is_hidden_from_search(panel)) {
+    panel->sizex = 0;
+    panel->sizey = 0;
+  }
+  else if (panel->runtime_flag & PANEL_NEW_ADDED) {
     panel->runtime_flag &= ~PANEL_NEW_ADDED;
     panel->sizex = width;
     panel->sizey = height;
@@ -852,8 +874,14 @@ void panel_end(Panel *panel, int width, int height)
 {
   /* Store the size of the buttons layout in the panel. The actual panel size
    * (including sub-panels) is calculated in #panels_end. */
-  panel->blocksizex = width;
-  panel->blocksizey = height;
+  if (panel_is_hidden_from_search(panel)) {
+    panel->blocksizex = 0;
+    panel->blocksizey = 0;
+  }
+  else {
+    panel->blocksizex = width;
+    panel->blocksizey = height;
+  }
 }
 
 void panel_drawname_set(Panel *panel, StringRef name)
@@ -1018,6 +1046,9 @@ void panels_draw(const bContext *C, ARegion *region)
   /* Draw in reverse order, because #Blocks are added in reverse order
    * and we need child panels to draw on top. */
   LISTBASE_FOREACH_BACKWARD (Block *, block, &region->runtime->uiblocks) {
+    if (block->panel && panel_is_hidden_from_search(block->panel)) {
+      continue;
+    }
     if (block->active && block->panel && !panel_is_dragging(block->panel) &&
         !block_is_search_only(block))
     {
@@ -1029,6 +1060,9 @@ void panels_draw(const bContext *C, ARegion *region)
     if (block->active && block->panel && panel_is_dragging(block->panel) &&
         !block_is_search_only(block))
     {
+      if (block->panel && panel_is_hidden_from_search(block->panel)) {
+        continue;
+      }
       block_draw(C, block);
     }
   }
@@ -1317,8 +1351,7 @@ static void panel_draw_aligned_backdrop(const ARegion *region,
   /* Panel header backdrops for non sub-panels. */
   if (!is_subpanel && has_header) {
     float panel_headercolor[4];
-    GetThemeColor4fv(panel_matches_search_filter(panel) ? TH_MATCH : TH_PANEL_HEADER,
-                     panel_headercolor);
+    GetThemeColor4fv(TH_PANEL_HEADER, panel_headercolor);
     draw_roundbox_corner_set(is_open ? CNR_TOP_RIGHT | CNR_TOP_LEFT : CNR_ALL);
 
     /* Change the width a little bit to line up with the sides. */
@@ -1688,6 +1721,10 @@ static int ui_panel_category_show_active_tab(ARegion *region, const int mval[2])
 
 static int get_panel_size_y(const Panel *panel)
 {
+  if (panel_is_hidden_from_search(panel)) {
+    return 0;
+  }
+
   if (panel->type && (panel->type->flag & PANEL_TYPE_NO_HEADER)) {
     return panel->sizey;
   }
@@ -1697,6 +1734,10 @@ static int get_panel_size_y(const Panel *panel)
 
 static int get_panel_real_size_y(const Panel *panel)
 {
+  if (panel_is_hidden_from_search(panel)) {
+    return 0;
+  }
+
   const int sizey = panel_is_closed(panel) ? 0 : panel->sizey;
 
   if (panel->type && (panel->type->flag & PANEL_TYPE_NO_HEADER)) {
@@ -1708,6 +1749,10 @@ static int get_panel_real_size_y(const Panel *panel)
 
 int panel_size_y(const Panel *panel)
 {
+  if (panel_is_hidden_from_search(panel)) {
+    return 0;
+  }
+
   return get_panel_real_size_y(panel);
 }
 
@@ -1717,6 +1762,10 @@ int panel_size_y(const Panel *panel)
  */
 static int get_panel_real_ofsy(Panel *panel)
 {
+  if (panel_is_hidden_from_search(panel)) {
+    return 0;
+  }
+
   if (panel_is_closed(panel)) {
     return panel->ofsy + panel->sizey;
   }
@@ -1797,8 +1846,14 @@ static void align_sub_panels(Panel *panel)
 {
   /* Position sub panels. */
   int ofsy = panel->ofsy + panel->sizey - panel->blocksizey;
+  if (panel_is_hidden_from_search(panel)) {
+    ofsy = 0;
+  }
 
   LISTBASE_FOREACH (Panel *, pachild, &panel->children) {
+    if (panel_is_hidden_from_search(pachild)) {
+      continue;
+    }
     if (pachild->runtime_flag & PANEL_ACTIVE) {
       pachild->ofsx = panel->ofsx;
       pachild->ofsy = ofsy - get_panel_size_y(pachild);
@@ -1819,6 +1874,9 @@ static bool uiAlignPanelStep(ARegion *region, const float factor, const bool dra
   /* Count active panels. */
   int active_panels_len = 0;
   LISTBASE_FOREACH (Panel *, panel, &region->panels) {
+    if (panel_is_hidden_from_search(panel)) {
+      continue;
+    }
     if (panel->runtime_flag & PANEL_ACTIVE) {
       /* These panels should have types since they are currently displayed to the user. */
       BLI_assert(panel->type != nullptr);
@@ -1834,6 +1892,9 @@ static bool uiAlignPanelStep(ARegion *region, const float factor, const bool dra
   {
     PanelSort *ps = panel_sort;
     LISTBASE_FOREACH (Panel *, panel, &region->panels) {
+      if (panel_is_hidden_from_search(panel)) {
+        continue;
+      }
       if (panel->runtime_flag & PANEL_ACTIVE) {
         ps->panel = panel;
         ps++;
@@ -1884,6 +1945,9 @@ static bool uiAlignPanelStep(ARegion *region, const float factor, const bool dra
   bool changed = false;
   for (int i = 0; i < active_panels_len; i++) {
     PanelSort *ps = &panel_sort[i];
+    if (panel_is_hidden_from_search(ps->panel)) {
+      continue;
+    }
     if (ps->panel->flag & PNL_SELECT) {
       continue;
     }
@@ -1922,6 +1986,9 @@ static void ui_panels_size(ARegion *region, int *r_x, int *r_y)
 
   /* Compute size taken up by panels, for setting in view2d. */
   LISTBASE_FOREACH (Panel *, panel, &region->panels) {
+    if (panel_is_hidden_from_search(panel)) {
+      continue;
+    }
     if (panel->runtime_flag & PANEL_ACTIVE) {
       const int pa_sizex = panel->ofsx + panel->sizex;
       const int pa_sizey = get_panel_real_ofsy(panel);
@@ -2016,6 +2083,9 @@ void panels_end(const bContext *C, ARegion *region, int *r_x, int *r_y)
   }
 
   LISTBASE_FOREACH (Panel *, panel, &region->panels) {
+    if (panel_is_hidden_from_search(panel)) {
+      continue;
+    }
     if (panel->runtime_flag & PANEL_ACTIVE) {
       BLI_assert(panel->runtime->block != nullptr);
       panel_calculate_size_recursive(region, panel);
@@ -2024,6 +2094,9 @@ void panels_end(const bContext *C, ARegion *region, int *r_x, int *r_y)
 
   /* Offset contents. */
   LISTBASE_FOREACH (Block *, block, &region->runtime->uiblocks) {
+    if (block->panel && panel_is_hidden_from_search(block->panel)) {
+      continue;
+    }
     if (block->active && block->panel) {
       ui_offset_panel_block(block);
 

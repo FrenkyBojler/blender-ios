@@ -50,6 +50,7 @@
 #include "UI_interface.hh"
 #include "UI_interface_icons.hh"
 #include "UI_interface_layout.hh"
+#include "UI_interface_panel.hh"
 #include "UI_string_search.hh"
 #include "UI_view2d.hh"
 
@@ -2221,7 +2222,9 @@ void block_draw(const bContext *C, Block *block)
   if (!region) {
     region = CTX_wm_region(C);
   }
-
+  if (block->panel && panel_is_hidden_from_search(block->panel)) {
+    return;
+  }
   if (!block->endblock) {
     block_end(C, block);
   }

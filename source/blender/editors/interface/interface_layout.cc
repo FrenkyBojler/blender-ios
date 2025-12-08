@@ -179,6 +179,10 @@ struct LayoutInternal {
   static void layout_offset_size_set(Layout *layout, int x, int y, int w, int h);
   static void layout_move(Layout *layout, int delta_xmin, int delta_xmax);
   static void layout_space_set(Layout *layout, int space);
+  static void layout_remove_items(Layout *layout, blender::Set<Item *> &items)
+  {
+    layout->items_.remove_if([&](Item *item) { return items.contains(item); });
+  }
 };
 
 Item::Item(ItemType type) : type_{type} {}
@@ -5190,6 +5194,86 @@ static bool block_search_filter_tag_buttons(Block *block, const char *search_fil
   return has_result;
 }
 
+static bool layout_match_search_recursive(const Layout &layout)
+{
+  for (Item *item : layout.items()) {
+    if (item->type() == blender::ui::ItemType::Button) {
+      if (!bool(static_cast<const ButtonItem *>(item)->but->flag & UI_SEARCH_FILTER_NO_MATCH)) {
+        return true;
+      }
+    }
+    else {
+      if (layout_match_search_recursive(*static_cast<const Layout *>(item))) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+static void free_layout_items_set_hidden_buttons(Layout *layout)
+{
+  for (Item *item : layout->items()) {
+    if (item->type() == ItemType::Button) {
+      ButtonItem *bitem = static_cast<ButtonItem *>(item);
+      bitem->but->flag |= UI_HIDDEN | UI_SCROLLED;
+      MEM_delete(item);
+    }
+    else {
+      Layout *litem = static_cast<Layout *>(item);
+      free_layout_items_set_hidden_buttons(litem);
+    }
+  }
+  MEM_delete(layout);
+}
+
+static void layout_apply_search_filter(Layout &layout)
+{
+  blender::Set<Item *> un_matched;
+  if (layout.items().size() == 1 && layout.items()[0]->type() == blender::ui::ItemType::Button) {
+    return;
+  }
+  Item *prev = nullptr;
+  for (Item *item : layout.items()) {
+    if (item->type() == blender::ui::ItemType::Button) {
+      if (bool(static_cast<const ButtonItem *>(item)->but->flag & UI_SEARCH_FILTER_NO_MATCH)) {
+        un_matched.add(item);
+      }
+    }
+    else {
+      if (!layout_match_search_recursive(*static_cast<const Layout *>(item))) {
+        un_matched.add(item);
+      }
+    }
+    /** Keep both layout panel and header when any a match. */
+    if (item->type() == blender::ui::ItemType::LayoutPanelBody) {
+      BLI_assert(prev && prev->type() == blender::ui::ItemType::LayoutPanelHeader);
+      if (!un_matched.contains(item) && un_matched.contains(prev)) {
+        un_matched.remove(prev);
+      }
+      if (un_matched.contains(item) && !un_matched.contains(prev)) {
+        un_matched.remove(item);
+      }
+    }
+    prev = item;
+  }
+
+  LayoutInternal::layout_remove_items(&layout, un_matched);
+
+  for (Item *item : un_matched) {
+    if (item->type() == ItemType::Button) {
+      ButtonItem *bitem = static_cast<ButtonItem *>(item);
+
+      bitem->but->layout = nullptr;
+      MEM_delete(item);
+    }
+    else {
+      Layout *litem = static_cast<Layout *>(item);
+      free_layout_items_set_hidden_buttons(litem);
+    }
+  }
+}
+
 bool block_apply_search_filter(Block *block, const char *search_filter)
 {
   if (search_filter == nullptr || search_filter[0] == '\0') {
@@ -5211,6 +5295,10 @@ bool block_apply_search_filter(Block *block, const char *search_filter)
   const bool has_result = (panel_label_matches) ?
                               true :
                               block_search_filter_tag_buttons(block, search_filter);
+
+  LISTBASE_FOREACH (LayoutRoot *, root, &block->layouts) {
+    layout_apply_search_filter(*root->layout);
+  }
 
   if (panel != nullptr) {
     if (has_result) {

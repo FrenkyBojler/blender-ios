@@ -56,6 +56,7 @@
 #include "UI_interface.hh"
 #include "UI_interface_icons.hh"
 #include "UI_interface_layout.hh"
+#include "UI_interface_panel.hh"
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
@@ -3003,7 +3004,7 @@ BLI_INLINE bool streq_array_any(const char *s, const char *arr[])
  * associated with the panel. Used when the panel is an instanced panel so a unique identifier is
  * needed to find the correct old \a blender::ui::Block, and nullptr otherwise.
  */
-static void ed_panel_draw(const bContext *C,
+static bool ed_panel_draw(const bContext *C,
                           ARegion *region,
                           ListBase *lb,
                           PanelType *pt,
@@ -3012,7 +3013,8 @@ static void ed_panel_draw(const bContext *C,
                           int em,
                           char *unique_panel_str,
                           const char *search_filter,
-                          blender::wm::OpCallContext op_context)
+                          blender::wm::OpCallContext op_context,
+                          bool force_match)
 {
   const uiStyle *style = blender::ui::style_get_dpi();
 
@@ -3037,6 +3039,7 @@ static void ed_panel_draw(const bContext *C,
   blender::int2 co = {0, 0};
   int h = 0;
   int headerend = w - UI_UNIT_X;
+  bool matchs_search = !search_filter_active || force_match;
 
   blender::ui::panel_header_buttons_begin(panel);
   if (pt->draw_header_preset && !(pt->flag & PANEL_TYPE_NO_HEADER)) {
@@ -3055,7 +3058,7 @@ static void ed_panel_draw(const bContext *C,
 
     pt->draw_header_preset(C, panel);
 
-    block_apply_search_filter(block, search_filter);
+    matchs_search = block_apply_search_filter(block, search_filter) || matchs_search;
     co = blender::ui::block_layout_resolve(block);
     block_translate(block, headerend - co.x, 0);
     panel->layout = nullptr;
@@ -3096,7 +3099,7 @@ static void ed_panel_draw(const bContext *C,
 
     pt->draw_header(C, panel);
 
-    block_apply_search_filter(block, search_filter);
+    matchs_search = block_apply_search_filter(block, search_filter) || matchs_search;
     co = blender::ui::block_layout_resolve(block);
     panel->labelofs = co.x - labelx;
     panel->layout = nullptr;
@@ -3137,7 +3140,7 @@ static void ed_panel_draw(const bContext *C,
 
     const bool ends_with_layout_panel_header = uiLayoutEndsWithPanelHeader(*panel->layout);
 
-    block_apply_search_filter(block, search_filter);
+    matchs_search = block_apply_search_filter(block, search_filter) || matchs_search;
     co = blender::ui::block_layout_resolve(block);
     panel->layout = nullptr;
 
@@ -3155,26 +3158,32 @@ static void ed_panel_draw(const bContext *C,
 
   /* Draw child panels. */
   if (open || search_filter_active) {
+    bool matchs_search_in_any_child = false;
     LISTBASE_FOREACH (LinkData *, link, &pt->children) {
       PanelType *child_pt = static_cast<PanelType *>(link->data);
       Panel *child_panel = blender::ui::panel_find_by_type(&panel->children, child_pt);
 
       if (child_pt->draw && (!child_pt->poll || child_pt->poll(C, child_pt))) {
-        ed_panel_draw(C,
-                      region,
-                      &panel->children,
-                      child_pt,
-                      child_panel,
-                      w,
-                      em,
-                      unique_panel_str,
-                      search_filter,
-                      op_context);
+        matchs_search_in_any_child = ed_panel_draw(C,
+                                                   region,
+                                                   &panel->children,
+                                                   child_pt,
+                                                   child_panel,
+                                                   w,
+                                                   em,
+                                                   unique_panel_str,
+                                                   search_filter,
+                                                   op_context,
+                                                   matchs_search) ||
+                                     matchs_search_in_any_child;
       }
     }
+    matchs_search = matchs_search || matchs_search_in_any_child;
   }
 
+  blender::ui::panel_is_hidden_from_search_set(panel, !matchs_search);
   blender::ui::panel_end(panel, w, h);
+  return matchs_search;
 }
 
 /**
@@ -3349,8 +3358,20 @@ void ED_region_panels_layout_ex(const bContext *C,
       update_tot_size = false;
     }
 
-    ed_panel_draw(
-        C, region, &region->panels, pt, panel, width, em, nullptr, search_filter, op_context);
+    bool matchs_search = ed_panel_draw(C,
+                                       region,
+                                       &region->panels,
+                                       pt,
+                                       panel,
+                                       width,
+                                       em,
+                                       nullptr,
+                                       search_filter,
+                                       op_context,
+                                       false);
+    if (panel) {
+      blender::ui::panel_is_hidden_from_search_set(panel, !matchs_search);
+    }
   }
 
   /* Draw "poly-instantiated" panels that don't have a 1 to 1 correspondence with their types. */
@@ -3381,16 +3402,18 @@ void ED_region_panels_layout_ex(const bContext *C,
        * panel of the same type might be found. */
       char unique_panel_str[INSTANCED_PANEL_UNIQUE_STR_SIZE];
       blender::ui::list_panel_unique_str(panel, unique_panel_str);
-      ed_panel_draw(C,
-                    region,
-                    &region->panels,
-                    panel->type,
-                    panel,
-                    width,
-                    em,
-                    unique_panel_str,
-                    search_filter,
-                    op_context);
+      bool matchs_search = ed_panel_draw(C,
+                                         region,
+                                         &region->panels,
+                                         panel->type,
+                                         panel,
+                                         width,
+                                         em,
+                                         unique_panel_str,
+                                         search_filter,
+                                         op_context,
+                                         false);
+      blender::ui::panel_is_hidden_from_search_set(panel, !matchs_search);
     }
   }
 
@@ -3733,13 +3756,14 @@ static bool panel_property_search(const bContext *C,
     panel_type->draw(C, panel);
   }
 
-  blender::ui::block_layout_free(block);
-
   /* We could check after each layout to increase the likelihood of returning early,
    * but that probably wouldn't make much of a difference anyway. */
   if (block_apply_search_filter(block, search_filter)) {
+    blender::ui::block_layout_free(block);
+
     return true;
   }
+  blender::ui::block_layout_free(block);
 
   LISTBASE_FOREACH (LinkData *, link, &panel_type->children) {
     PanelType *panel_type_child = static_cast<PanelType *>(link->data);
