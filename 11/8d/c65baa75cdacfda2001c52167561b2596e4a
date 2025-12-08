@@ -1,1 +1,2 @@
 Referenced by issue #133464, Cryptomatte Node doesn't show cryptomatte layer when loading image sequence.
+Referenced by issue #150861, Compositor: Cryptomatte node causes extreme slowdown if `scene.frame_current != scene.frame_start`
