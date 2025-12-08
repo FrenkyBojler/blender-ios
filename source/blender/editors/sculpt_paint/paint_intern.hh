@@ -221,11 +221,11 @@ struct PaintStroke : NonCopyable, NonMovable {
    */
   virtual bool get_location(float location[3], const float mouse[2], bool force_original) = 0;
 
-/**
- * Callback function to determine whether a stroke has started, and performing initialization.
- *
- * In many cases, this is a check to whether the stroke is over the active mesh.
- */
+  /**
+   * Callback function to determine whether a stroke has started, and performing initialization.
+   *
+   * In many cases, this is a check to whether the stroke is over the active mesh.
+   */
   virtual bool test_start(wmOperator *op, const float mouse[2]) = 0;
 
   /**
@@ -260,7 +260,6 @@ struct PaintStroke : NonCopyable, NonMovable {
               float pressure,
               float r_location[3],
               bool *r_location_is_set);
-
 
  private:
   void stroke_done(bContext *C, wmOperator *op, bool is_cancel);
@@ -643,7 +642,6 @@ inline float3 symmetry_flip(const float3 &src, const ePaintSymmetryFlags symm)
 }
 
 }  // namespace blender::ed::sculpt_paint
-
 
 /* `paint_curve.cc` */
 

@@ -520,7 +520,7 @@ void PaintStroke::add_step(bContext *C, wmOperator *op, const float2 mval, float
 
     if (this->get_location(world_space_position, this->last_mouse_position, original_)) {
       last_world_space_position_ = math::transform_point(this->vc.obact->object_to_world(),
-                                                        world_space_position);
+                                                         world_space_position);
     }
     else {
       last_world_space_position_ += last_scene_spacing_delta_;
@@ -529,7 +529,8 @@ void PaintStroke::add_step(bContext *C, wmOperator *op, const float2 mval, float
 
   float2 mouse_out;
   /* Get jitter position (same as mval if no jitter is used). */
-  paint_stroke_jitter_pos(this->paint, mode, brush, pressure, stroke_mode_, zoom_2d_, mval, mouse_out);
+  paint_stroke_jitter_pos(
+      this->paint, mode, brush, pressure, stroke_mode_, zoom_2d_, mval, mouse_out);
 
   float3 location;
   bool is_location_is_set;
@@ -868,7 +869,8 @@ PaintStroke::PaintStroke(bContext *C, wmOperator *op, int event_type) : event_ty
 
   stroke_mode_ = RNA_enum_get(op->ptr, "mode");
 
-  original_ = paint_brush_type_raycast_original(*this->brush, BKE_paintmode_get_active_from_context(C));
+  original_ = paint_brush_type_raycast_original(*this->brush,
+                                                BKE_paintmode_get_active_from_context(C));
 
   float zoomx;
   float zoomy;
@@ -880,7 +882,9 @@ PaintStroke::PaintStroke(bContext *C, wmOperator *op, int event_type) : event_ty
   paint_runtime->do_linear_conversion = false;
   paint_runtime->colorspace = nullptr;
 
-  if (this->brush->mtex.tex && this->brush->mtex.tex->type == TEX_IMAGE && this->brush->mtex.tex->ima) {
+  if (this->brush->mtex.tex && this->brush->mtex.tex->type == TEX_IMAGE &&
+      this->brush->mtex.tex->ima)
+  {
     ImBuf *tex_ibuf = BKE_image_pool_acquire_ibuf(
         this->brush->mtex.tex->ima, &this->brush->mtex.tex->iuser, nullptr);
     if (tex_ibuf && tex_ibuf->float_buffer.data == nullptr) {
@@ -1332,7 +1336,8 @@ bool PaintStroke::curve_end(bContext *C, wmOperator *op)
 
         if (paint_stroke_use_scene_spacing(br, mode)) {
           BLI_assert(mode != PaintMode::Texture2D);
-          stroke_over_mesh_ = this->get_location(last_world_space_position_, data + 2 * j, original_);
+          stroke_over_mesh_ = this->get_location(
+              last_world_space_position_, data + 2 * j, original_);
           mul_m4_v3(this->vc.obact->object_to_world().ptr(), last_world_space_position_);
         }
 
@@ -1466,9 +1471,10 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
     this->last_mouse_position = sample_average.mouse;
     if (paint_stroke_use_scene_spacing(*br, mode)) {
       BLI_assert(mode != PaintMode::Texture2D);
-      stroke_over_mesh_ = this->get_location(last_world_space_position_, sample_average.mouse, original_);
+      stroke_over_mesh_ = this->get_location(
+          last_world_space_position_, sample_average.mouse, original_);
       last_world_space_position_ = math::transform_point(this->vc.obact->object_to_world(),
-                                                        last_world_space_position_);
+                                                         last_world_space_position_);
     }
     stroke_started_ = this->test_start(op, sample_average.mouse);
 
@@ -1570,8 +1576,7 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
            /* regular dabs */
            (!(br->flag & BRUSH_AIRBRUSH) && ISMOUSE_MOTION(event->type)) ||
            /* airbrush */
-           ((br->flag & BRUSH_AIRBRUSH) && event->type == TIMER &&
-            event->customdata == timer_))
+           ((br->flag & BRUSH_AIRBRUSH) && event->type == TIMER && event->customdata == timer_))
   {
     if (paint_smooth_stroke(*this->brush,
                             &sample_average,
@@ -1643,7 +1648,8 @@ wmOperatorStatus PaintStroke::exec(bContext *C, wmOperator *op)
 
   const PaintMode mode = BKE_paintmode_get_active_from_context(C);
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "override_location");
-  const bool override_location = prop && RNA_property_boolean_get(op->ptr, prop) && mode != PaintMode::Texture2D;
+  const bool override_location = prop && RNA_property_boolean_get(op->ptr, prop) &&
+                                 mode != PaintMode::Texture2D;
 
   if (stroke_started_) {
     RNA_BEGIN (op->ptr, itemptr, "stroke") {
@@ -1657,7 +1663,8 @@ wmOperatorStatus PaintStroke::exec(bContext *C, wmOperator *op)
       float3 dummy_location;
       bool dummy_is_set;
 
-      this->update(C, *this->brush, mode, mval, dummy_mouse, pressure, dummy_location, &dummy_is_set);
+      this->update(
+          C, *this->brush, mode, mval, dummy_mouse, pressure, dummy_location, &dummy_is_set);
 
       if (override_location) {
         float3 location;

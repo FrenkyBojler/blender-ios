@@ -190,7 +190,7 @@ static std::unique_ptr<GreasePencilStrokeOperation> get_stroke_operation(bContex
   return nullptr;
 }
 
-bool GreasePencilPaintStroke::test_start(wmOperator */*op*/, const float /*mouse*/[2])
+bool GreasePencilPaintStroke::test_start(wmOperator * /*op*/, const float /*mouse*/[2])
 {
   return true;
 }
@@ -205,7 +205,8 @@ void GreasePencilPaintStroke::update_step(wmOperator *op, PointerRNA *stroke_ele
   sample.pressure = RNA_float_get(stroke_element, "pressure");
 
   if (!operation) {
-    std::unique_ptr<GreasePencilStrokeOperation> new_operation = get_stroke_operation(*this->evil_C, op);
+    std::unique_ptr<GreasePencilStrokeOperation> new_operation = get_stroke_operation(
+        *this->evil_C, op);
     BLI_assert(new_operation != nullptr);
     new_operation->on_stroke_begin(*this->evil_C, sample);
     mode_data_ = std::move(new_operation);
@@ -289,7 +290,7 @@ static wmOperatorStatus grease_pencil_brush_stroke_invoke(bContext *C,
     return retval;
   }
 
-  GreasePencilPaintStroke* stroke = MEM_new<GreasePencilPaintStroke>(__func__, C, op, event->type);
+  GreasePencilPaintStroke *stroke = MEM_new<GreasePencilPaintStroke>(__func__, C, op, event->type);
   op->customdata = stroke;
 
   retval = op->type->modal(C, op, event);
@@ -398,7 +399,7 @@ static wmOperatorStatus grease_pencil_sculpt_paint_invoke(bContext *C,
   }
   WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
 
-  GreasePencilPaintStroke* stroke = MEM_new<GreasePencilPaintStroke>(__func__, C, op, event->type);
+  GreasePencilPaintStroke *stroke = MEM_new<GreasePencilPaintStroke>(__func__, C, op, event->type);
   op->customdata = stroke;
 
   const wmOperatorStatus retval = op->type->modal(C, op, event);
@@ -496,7 +497,7 @@ static wmOperatorStatus grease_pencil_weight_brush_stroke_invoke(bContext *C,
     return OPERATOR_CANCELLED;
   }
 
-  GreasePencilPaintStroke* stroke = MEM_new<GreasePencilPaintStroke>(__func__, C, op, event->type);
+  GreasePencilPaintStroke *stroke = MEM_new<GreasePencilPaintStroke>(__func__, C, op, event->type);
   op->customdata = stroke;
 
   const wmOperatorStatus retval = op->type->modal(C, op, event);
@@ -605,7 +606,7 @@ static wmOperatorStatus grease_pencil_vertex_brush_stroke_invoke(bContext *C,
   }
   WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, nullptr);
 
-  GreasePencilPaintStroke* stroke = MEM_new<GreasePencilPaintStroke>(__func__, C, op, event->type);
+  GreasePencilPaintStroke *stroke = MEM_new<GreasePencilPaintStroke>(__func__, C, op, event->type);
   op->customdata = stroke;
 
   const wmOperatorStatus retval = op->type->modal(C, op, event);
@@ -1886,7 +1887,7 @@ static inline bool is_point_inside_bounds(const Bounds<int2> bounds, const int2 
 static inline bool is_point_inside_lasso(const Array<int2> lasso, const int2 point)
 {
   return isect_point_poly_v2_int(
-      point, reinterpret_cast<const int(*)[2]>(lasso.data()), uint(lasso.size()));
+      point, reinterpret_cast<const int (*)[2]>(lasso.data()), uint(lasso.size()));
 }
 
 static wmOperatorStatus grease_pencil_erase_lasso_exec(bContext *C, wmOperator *op)

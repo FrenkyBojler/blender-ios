@@ -887,7 +887,9 @@ bool WeightPaintStroke::test_start(wmOperator *op, const float mouse[2])
   VPaint &vp = *CTX_data_tool_settings(this->evil_C)->wpaint;
   Depsgraph &depsgraph = *CTX_data_ensure_evaluated_depsgraph(this->evil_C);
 
-  if (ED_wpaint_ensure_data(this->evil_C, op->reports, WPAINT_ENSURE_MIRROR, &vgroup_index) == false) {
+  if (ED_wpaint_ensure_data(this->evil_C, op->reports, WPAINT_ENSURE_MIRROR, &vgroup_index) ==
+      false)
+  {
     return false;
   }
 
