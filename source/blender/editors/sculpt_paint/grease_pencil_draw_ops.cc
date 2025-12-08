@@ -309,7 +309,13 @@ static wmOperatorStatus grease_pencil_brush_stroke_modal(bContext *C,
                                                          const wmEvent *event)
 {
   GreasePencilPaintStroke *stroke = static_cast<GreasePencilPaintStroke *>(op->customdata);
-  return stroke->modal(C, op, event);
+  const wmOperatorStatus retval = stroke->modal(C, op, event);
+
+  if (ELEM(retval, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
+    MEM_delete(stroke);
+  }
+
+  return retval;
 }
 
 static void grease_pencil_brush_stroke_cancel(bContext *C, wmOperator *op)
@@ -412,7 +418,13 @@ static wmOperatorStatus grease_pencil_sculpt_paint_modal(bContext *C,
                                                          const wmEvent *event)
 {
   GreasePencilPaintStroke *stroke = static_cast<GreasePencilPaintStroke *>(op->customdata);
-  return stroke->modal(C, op, event);
+  const wmOperatorStatus retval = stroke->modal(C, op, event);
+
+  if (ELEM(retval, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
+    MEM_delete(stroke);
+  }
+
+  return retval;
 }
 
 static void grease_pencil_sculpt_paint_cancel(bContext *C, wmOperator *op)
@@ -504,7 +516,13 @@ static wmOperatorStatus grease_pencil_weight_brush_stroke_modal(bContext *C,
                                                                 const wmEvent *event)
 {
   GreasePencilPaintStroke *stroke = static_cast<GreasePencilPaintStroke *>(op->customdata);
-  return stroke->modal(C, op, event);
+  const wmOperatorStatus retval = stroke->modal(C, op, event);
+
+  if (ELEM(retval, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
+    MEM_delete(stroke);
+  }
+
+  return retval;
 }
 
 static void grease_pencil_weight_brush_stroke_cancel(bContext *C, wmOperator *op)
@@ -607,7 +625,13 @@ static wmOperatorStatus grease_pencil_vertex_brush_stroke_modal(bContext *C,
                                                                 const wmEvent *event)
 {
   GreasePencilPaintStroke *stroke = static_cast<GreasePencilPaintStroke *>(op->customdata);
-  return stroke->modal(C, op, event);
+  const wmOperatorStatus retval = stroke->modal(C, op, event);
+
+  if (ELEM(retval, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
+    MEM_delete(stroke);
+  }
+
+  return retval;
 }
 
 static void grease_pencil_vertex_brush_stroke_cancel(bContext *C, wmOperator *op)

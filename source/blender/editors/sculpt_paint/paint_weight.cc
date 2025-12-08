@@ -1946,7 +1946,13 @@ static wmOperatorStatus wpaint_exec(bContext *C, wmOperator *op)
 static wmOperatorStatus wpaint_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   WeightPaintStroke *stroke = static_cast<WeightPaintStroke *>(op->customdata);
-  return stroke->modal(C, op, event);
+  const wmOperatorStatus retval = stroke->modal(C, op, event);
+
+  if (ELEM(retval, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
+    MEM_delete(stroke);
+  }
+
+  return retval;
 }
 
 void PAINT_OT_weight_paint(wmOperatorType *ot)

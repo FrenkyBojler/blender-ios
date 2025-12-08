@@ -863,6 +863,7 @@ PaintStroke::PaintStroke(bContext *C, wmOperator *op, int event_type) : event_ty
   brush = BKE_paint_brush(paint);
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
 
+  evil_C = C;
   vc = ED_view3d_viewcontext_init(C, depsgraph);
 
   stroke_mode = RNA_enum_get(op->ptr, "mode");

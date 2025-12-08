@@ -565,7 +565,13 @@ static wmOperatorStatus paint_exec(bContext *C, wmOperator *op)
 static wmOperatorStatus paint_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   ImagePaintStroke *stroke = static_cast<ImagePaintStroke *>(op->customdata);
-  return stroke->modal(C, op, event);
+  const wmOperatorStatus retval = stroke->modal(C, op, event);
+
+  if (ELEM(retval, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
+    MEM_delete(stroke);
+  }
+
+  return retval;
 }
 
 static void paint_cancel(bContext *C, wmOperator *op)

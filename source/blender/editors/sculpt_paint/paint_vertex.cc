@@ -2137,6 +2137,7 @@ void VertexPaintStroke::done(bool /*is_cancel*/)
 static wmOperatorStatus vpaint_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   VertexPaintStroke *stroke = MEM_new<VertexPaintStroke>(__func__, C, op, event->type);
+  op->customdata = stroke;
 
   const wmOperatorStatus retval = op->type->modal(C, op, event);
   OPERATOR_RETVAL_CHECK(retval);
@@ -2157,6 +2158,7 @@ static wmOperatorStatus vpaint_invoke(bContext *C, wmOperator *op, const wmEvent
 static wmOperatorStatus vpaint_exec(bContext *C, wmOperator *op)
 {
   VertexPaintStroke *stroke = MEM_new<VertexPaintStroke>(__func__, C, op, 0);
+  op->customdata = stroke;
 
   stroke->exec(C, op);
 
@@ -2167,7 +2169,13 @@ static wmOperatorStatus vpaint_exec(bContext *C, wmOperator *op)
 static wmOperatorStatus vpaint_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   VertexPaintStroke *stroke = static_cast<VertexPaintStroke *>(op->customdata);
-  return stroke->modal(C, op, event);
+  const wmOperatorStatus retval = stroke->modal(C, op, event);
+
+  if (ELEM(retval, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
+    MEM_delete(stroke);
+  }
+
+  return retval;
 }
 
 void PAINT_OT_vertex_paint(wmOperatorType *ot)

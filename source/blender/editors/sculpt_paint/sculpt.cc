@@ -5841,7 +5841,13 @@ static void sculpt_brush_stroke_cancel(bContext *C, wmOperator *op)
 static wmOperatorStatus brush_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   SculptPaintStroke *stroke = static_cast<SculptPaintStroke *>(op->customdata);
-  return stroke->modal(C, op, event);
+  const wmOperatorStatus retval = stroke->modal(C, op, event);
+
+  if (ELEM(retval, OPERATOR_FINISHED, OPERATOR_CANCELLED)) {
+    MEM_delete(stroke);
+  }
+
+  return retval;
 }
 
 static void redo_empty_ui(bContext * /*C*/, wmOperator * /*op*/) {}
