@@ -76,15 +76,6 @@ void draw_skinning_cache_free(DRWSkinningCache &cache)
     cache.bounds_result_buf = nullptr;
   }
 
-  if (cache.in_bonedq_buf) {
-    GPU_storagebuf_free(cache.in_bonedq_buf);
-    cache.in_bonedq_buf = nullptr;
-  }
-  if (cache.bonedata_dq) {
-    MEM_freeN(cache.bonedata_dq);
-    cache.bonedata_dq = nullptr;
-  }
-
   cache.bone_count = 0;
   cache.corner_nums = 0;
   cache.cached_deform_flag = 0;
@@ -446,9 +437,7 @@ static int draw_get_bone_count(Object *armature_ob, int *bone_count)
 static void draw_skinning_pack_bone_matrices(Object *armature_ob,
                                              Object *target_ob,
                                              float **bonedata_mat,
-                                             GPUDualQuat **bonedata_dq,
-                                             int *bone_count,
-                                             const bool use_dual_quaternion)
+                                             int *bone_count)
 {
   if (!armature_ob || armature_ob->type != OB_ARMATURE || !armature_ob->pose) {
     return;
@@ -465,42 +454,12 @@ static void draw_skinning_pack_bone_matrices(Object *armature_ob,
     if (bone_index >= *bone_count)
       break;
 
-    if (use_dual_quaternion && bonedata_dq) {
-      const DualQuat &src_dq = pchan->runtime.deform_dual_quat;
+    float4x4 chan_mat = float4x4(pchan->chan_mat);
+    float4x4 final_mat = armature_to_target * chan_mat * target_to_armature;
 
-      DualQuat transformed_dq;
-
-      DualQuat armature_to_target_dq, target_to_armature_dq;
-      float4x4 identity = float4x4::identity();
-      mat4_to_dquat(&armature_to_target_dq, identity.ptr(), armature_to_target.ptr());
-      mat4_to_dquat(&target_to_armature_dq, identity.ptr(), target_to_armature.ptr());
-
-      float4x4 src_matrix;
-      dquat_to_mat4(src_matrix.ptr(), &src_dq);
-      float4x4 final_matrix = armature_to_target * src_matrix * target_to_armature;
-      mat4_to_dquat(&transformed_dq, identity.ptr(), final_matrix.ptr());
-
-      GPUDualQuat &dst_dq = (*bonedata_dq)[bone_index];
-
-      for (int i = 0; i < 4; i++) {
-        dst_dq.quat[i] = transformed_dq.quat[i];
-        dst_dq.trans[i] = transformed_dq.trans[i];
-      }
-      for (int i = 0; i < 4; i++) {
-        for (int j = 0; j < 4; j++) {
-          dst_dq.scale[i][j] = transformed_dq.scale[i][j];
-        }
-      }
-      dst_dq.scale_weight = transformed_dq.scale_weight;
-    }
-    else if (bonedata_mat) {
-      float4x4 chan_mat = float4x4(pchan->chan_mat);
-      float4x4 final_mat = armature_to_target * chan_mat * target_to_armature;
-
-      const float *mat_ptr = final_mat.base_ptr();
-      for (int i = 0; i < 16; i++) {
-        (*bonedata_mat)[bone_index * 16 + i] = mat_ptr[i];
-      }
+    const float *mat_ptr = final_mat.base_ptr();
+    for (int i = 0; i < 16; i++) {
+      (*bonedata_mat)[bone_index * 16 + i] = mat_ptr[i];
     }
 
     bone_index++;
@@ -566,31 +525,17 @@ static void draw_skinning_setup_buffers(Object *armature_ob,
   GPU_vertbuf_data_alloc(*cache->in_verttan_buf, cache->corner_nums);
 
   cache->cached_deform_flag = amd ? amd->deformflag : 0;
-  bool use_dual_quaternion = (cache->cached_deform_flag & ARM_DEF_QUATERNION) != 0;
 
-  if (use_dual_quaternion) {
-    cache->in_bonedq_buf = GPU_storagebuf_create(sizeof(DualQuat) * (cache->bone_count + 5));
-    cache->bonedata_dq = (GPUDualQuat *)MEM_mallocN_aligned(
-        sizeof(GPUDualQuat) * (cache->bone_count + 5), 16, "GPUDualQuat bone data");
-
-    cache->in_bonemat_buf = nullptr;
-    cache->bonedata_mat = nullptr;
+  cache->in_bonemat_buf = GPU_vertbuf_calloc();
+  static GPUVertFormat bone_mat_format = {0};
+  if (bone_mat_format.attr_len == 0) {
+    GPU_vertformat_attr_add_legacy(
+        &bone_mat_format, "inbone_mat", GPU_COMP_F32, 16, GPU_FETCH_FLOAT);
   }
-  else {
-    cache->in_bonemat_buf = GPU_vertbuf_calloc();
-    static GPUVertFormat bone_mat_format = {0};
-    if (bone_mat_format.attr_len == 0) {
-      GPU_vertformat_attr_add_legacy(
-          &bone_mat_format, "inbone_mat", GPU_COMP_F32, 16, GPU_FETCH_FLOAT);
-    }
-    GPU_vertbuf_init_with_format_ex(*cache->in_bonemat_buf, bone_mat_format, GPU_USAGE_DYNAMIC);
-    GPU_vertbuf_data_alloc(*cache->in_bonemat_buf, cache->bone_count + 1);
+  GPU_vertbuf_init_with_format_ex(*cache->in_bonemat_buf, bone_mat_format, GPU_USAGE_DYNAMIC);
+  GPU_vertbuf_data_alloc(*cache->in_bonemat_buf, cache->bone_count + 1);
 
-    cache->bonedata_mat = cache->in_bonemat_buf->data<float>().data();
-
-    cache->in_bonedq_buf = nullptr;
-    cache->bonedata_dq = nullptr;
-  }
+  cache->bonedata_mat = cache->in_bonemat_buf->data<float>().data();
 
   cache->meshdata_wgt = cache->in_weights_buf->data<uint32_t>().data();
   cache->meshdata_idx = cache->in_indices_buf->data<uint32_t>().data();
@@ -603,22 +548,14 @@ static void draw_skinning_setup_buffers(Object *armature_ob,
   GPU_vertbuf_tag_dirty(cache->in_vertpos_buf);
   GPU_vertbuf_tag_dirty(cache->in_vertnor_buf);
   GPU_vertbuf_tag_dirty(cache->in_verttan_buf);
+  GPU_vertbuf_tag_dirty(cache->in_bonemat_buf);
 
-  if (cache->in_bonemat_buf) {
-    GPU_vertbuf_tag_dirty(cache->in_bonemat_buf);
-  }
-
-  if (use_dual_quaternion) {
-    cache->skin_shader = DRW_shader_armature_skinning_dqs_get();
-  }
-  else {
-    cache->skin_shader = DRW_shader_armature_skinning_lbs_get();
-  }
+  cache->skin_shader = DRW_shader_armature_skinning_lbs_get();
 
   bool success = (cache->skin_shader != nullptr && cache->in_indices_buf != nullptr &&
                   cache->in_weights_buf != nullptr && cache->in_vertpos_buf != nullptr &&
                   cache->in_vertnor_buf != nullptr && cache->in_verttan_buf != nullptr &&
-                  (cache->in_bonemat_buf != nullptr || cache->in_bonedq_buf != nullptr));
+                  cache->in_bonemat_buf != nullptr);
 
   cache->buffers_valid = success;
 }
@@ -644,15 +581,8 @@ void draw_skinning_extract_pos_nor_tan(gpu::VertBuf *vbo_pos,
   GPU_vertbuf_bind_as_ssbo(cache.in_weights_buf,
                            GPU_shader_get_ssbo_binding(cache.skin_shader, "weights_buf"));
 
-  if (cache.in_bonedq_buf) {
-    GPU_storagebuf_bind(
-        cache.in_bonedq_buf,
-        GPU_shader_get_ssbo_binding(cache.skin_shader, "bonedq_buf")); /* Bone Dual Quat buffer */
-  }
-  else if (cache.in_bonemat_buf) {
-    GPU_vertbuf_bind_as_ssbo(cache.in_bonemat_buf,
-                             GPU_shader_get_ssbo_binding(cache.skin_shader, "bonemat_buf"));
-  }
+  GPU_vertbuf_bind_as_ssbo(cache.in_bonemat_buf,
+                            GPU_shader_get_ssbo_binding(cache.skin_shader, "bonemat_buf"));
 
   GPU_vertbuf_bind_as_ssbo(cache.in_vertpos_buf,
                            GPU_shader_get_ssbo_binding(cache.skin_shader, "pos_buf"));
@@ -806,12 +736,8 @@ static void draw_create_skinning(Object &ob,
 
         bool flag_changed = (skincache->cached_deform_flag != amd->deformflag);
 
-        const bool use_dual_quaternion = (skincache->cached_deform_flag & ARM_DEF_QUATERNION) != 0;
-        bool bone_buffers_exist = use_dual_quaternion ? (skincache->in_bonedq_buf != nullptr) :
-                                                        (skincache->in_bonemat_buf != nullptr);
-
         bool buffers_exist = (skincache->in_indices_buf != nullptr &&
-                              skincache->in_weights_buf != nullptr && bone_buffers_exist &&
+                              skincache->in_weights_buf != nullptr && skincache->in_bonemat_buf &&
                               skincache->in_vertpos_buf != nullptr &&
                               skincache->in_vertnor_buf != nullptr &&
                               skincache->skin_shader != nullptr);
@@ -841,25 +767,17 @@ static void draw_create_skinning(Object &ob,
 
         /* update bone matrices and re-upload buffers if cache is valid and prepared */
         if (skincache && skincache->buffers_valid && amd->object && amd->object->pose &&
-            (skincache->bonedata_mat || skincache->bonedata_dq))
+            skincache->bonedata_mat)
         {
           const bool use_dual_quaternion = (skincache->cached_deform_flag & ARM_DEF_QUATERNION) !=
                                            0;
           draw_skinning_pack_bone_matrices(amd->object,
                                            &ob,
                                            &skincache->bonedata_mat,
-                                           &skincache->bonedata_dq,
-                                           &skincache->bone_count,
-                                           use_dual_quaternion);
+                                           &skincache->bone_count);
 
-          if (skincache->in_bonemat_buf) {
-            GPU_vertbuf_tag_dirty(skincache->in_bonemat_buf);
-          }
-          if (skincache->in_bonedq_buf) {
-            GPU_storagebuf_update(skincache->in_bonedq_buf, skincache->bonedata_dq);
-          }
+          GPU_vertbuf_tag_dirty(skincache->in_bonemat_buf);
         }
-
         /* Only create skinning buffers if skinning is prepared and valid */
         if (skincache->buffers_valid) {
           mesh_buffer_cache_create_requested_skinning(

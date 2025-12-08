@@ -30,9 +30,6 @@ struct MeshBufferCache;
 namespace blender::draw {
 
 struct DRWSkinningCache {
-  /* Bone Dual Quaternion extraction buffer */
-  GPUDualQuat *bonedata_dq;
-
   /* input buffer rest position mesh index influences */
   gpu::VertBuf *in_indices_buf;
   /* input buffer rest position mesh weight influences */
@@ -46,11 +43,8 @@ struct DRWSkinningCache {
   /* input buffer rest position mesh tangents */
   gpu::VertBuf *in_verttan_buf;
 
-  /* Deformation shader this can either be LBS or DQS*/
+  /* Deformation shader */
   gpu::Shader *skin_shader;
-
-  /* Bone Dual Quaternion buffer for preserve volume mode*/
-  gpu::StorageBuf *in_bonedq_buf;
 
   /* AABB or boundingbox shader for GPU Deformation */
   gpu::Shader *bounds_shader;

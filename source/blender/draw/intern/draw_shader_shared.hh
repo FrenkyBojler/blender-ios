@@ -338,21 +338,6 @@ BLI_STATIC_ASSERT_ALIGN(DispatchCommand, 16)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Dual Quaternion GPUDeform
- * \{ */
-
-struct GPUDualQuat {
-  float quat[4];
-  float trans[4];
-  float scale[4][4];
-  float scale_weight;
-  float _pad[3];
-};
-BLI_STATIC_ASSERT_ALIGN(GPUDualQuat, 16)
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
 /** \name Debug draw shapes
  * \{ */
 

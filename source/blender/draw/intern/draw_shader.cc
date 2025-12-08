@@ -111,7 +111,6 @@ class ShaderCache {
   gpu::StaticShader draw_resource_finalize = {"draw_resource_finalize"};
   gpu::StaticShader draw_command_generate = {"draw_command_generate"};
   gpu::StaticShader draw_armature_skinning_lbs = {"draw_armature_skinning_lbs"};
-  gpu::StaticShader draw_armature_skinning_dqs = {"draw_armature_skinning_dqs"};
   gpu::StaticShader draw_armature_skinning_aabb = {"draw_armature_skinning_aabb_comp"};
 
   gpu::StaticShader subdiv_sh[SUBDIVISION_MAX_SHADERS];
@@ -211,11 +210,6 @@ blender::gpu::Shader *DRW_shader_draw_command_generate_get()
 blender::gpu::Shader *DRW_shader_armature_skinning_lbs_get()
 {
   return ShaderCache::get().draw_armature_skinning_lbs.get();
-}
-
-blender::gpu::Shader *DRW_shader_armature_skinning_dqs_get()
-{
-  return ShaderCache::get().draw_armature_skinning_dqs.get();
 }
 
 blender::gpu::Shader *DRW_shader_armature_skinning_aabb_get()
