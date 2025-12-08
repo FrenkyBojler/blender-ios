@@ -97,14 +97,30 @@ class MeshBrushTests(unittest.TestCase):
         self.assertEqual({'FINISHED'}, result)
 
     @staticmethod
-    def _get_attribute_data():
+    def _get_attribute_data(
+            attribute_name='position',
+            attribute_domain='POINT',
+            attribute_size=3,
+            attribute_type=np.float32,
+            is_color=False):
         mesh = bpy.context.object.data
-        position_attr = mesh.attributes['position']
-        num_vertices = mesh.attributes.domain_size('POINT')
-        position_data = np.zeros((num_vertices * 3), dtype=np.float32)
-        position_attr.data.foreach_get('vector', np.ravel(position_data))
 
-        return position_data
+        num_elements = mesh.attributes.domain_size(attribute_domain)
+        attribute_data = np.zeros((num_elements * attribute_size), dtype=attribute_type)
+
+        attribute = mesh.attributes.get(attribute_name)
+        if is_color:
+            meta_attribute = 'color'
+        else:
+            if attribute_size > 1:
+                meta_attribute = 'vector'
+            else:
+                meta_attribute = 'value'
+
+        if attribute:
+            attribute.data.foreach_get(meta_attribute, np.ravel(attribute_data))
+
+        return attribute_data
 
     def _check_stroke(self):
         # Ideally, we would use something like pytest and parameterized tests here, but this helper function is an
@@ -125,6 +141,83 @@ class MeshBrushTests(unittest.TestCase):
         any_different = any([orig != new for (orig, new) in zip(initial_data, new_data)])
         self.assertTrue(all_valid, "All position components should be rational values")
         self.assertTrue(any_different, "At least one position should be different from its original value")
+
+    def _check_mask_stroke(self):
+        initial_data = self._get_attribute_data(
+            attribute_name='.sculpt_mask',
+            attribute_domain='POINT',
+            attribute_size=1,
+            attribute_type=np.float32)
+
+        context_override = bpy.context.copy()
+        set_view3d_context_override(context_override)
+        with bpy.context.temp_override(**context_override):
+            bpy.ops.sculpt.brush_stroke(stroke=generate_stroke(context_override), override_location=True)
+
+        new_data = self._get_attribute_data(
+            attribute_name='.sculpt_mask',
+            attribute_domain='POINT',
+            attribute_size=1,
+            attribute_type=np.float32)
+
+        # Note, depending on if the tests are run with asserts enabled or not, the test may fail before this point
+        # inside blender itself.
+        all_valid = all([not math.isinf(mask) and not math.isnan(mask) for mask in new_data])
+        any_different = any([orig != new for (orig, new) in zip(initial_data, new_data)])
+        self.assertTrue(all_valid, "All mask values should be rational values")
+        self.assertTrue(any_different, "At least one mask should be different from its original value")
+
+    def _check_face_set_stroke(self):
+        initial_data = self._get_attribute_data(
+            attribute_name='.sculpt_face_set',
+            attribute_domain='FACE',
+            attribute_size=1,
+            attribute_type=np.int32)
+
+        context_override = bpy.context.copy()
+        set_view3d_context_override(context_override)
+        with bpy.context.temp_override(**context_override):
+            bpy.ops.sculpt.brush_stroke(stroke=generate_stroke(context_override), override_location=True)
+
+        new_data = self._get_attribute_data(
+            attribute_name='.sculpt_face_set',
+            attribute_domain='FACE',
+            attribute_size=1,
+            attribute_type=np.int32)
+
+        # Note, depending on if the tests are run with asserts enabled or not, the test may fail before this point
+        # inside blender itself.
+        all_valid = all([face_set_id == 1 or face_set_id == 2 for face_set_id in new_data])
+        any_different = any([orig != new for (orig, new) in zip(initial_data, new_data)])
+        self.assertTrue(all_valid, "All face set values should be 1 or 2 valued")
+        self.assertTrue(any_different, "At least one face set should be different from its original value")
+
+    def _check_paint_stroke(self):
+        initial_data = self._get_attribute_data(
+            attribute_name='Color',
+            attribute_domain='POINT',
+            attribute_size=4,
+            attribute_type=np.float32,
+            is_color=True)
+
+        context_override = bpy.context.copy()
+        set_view3d_context_override(context_override)
+        with bpy.context.temp_override(**context_override):
+            bpy.ops.sculpt.brush_stroke(stroke=generate_stroke(context_override), override_location=True)
+
+        new_data = self._get_attribute_data(
+            attribute_name='Color',
+            attribute_domain='POINT',
+            attribute_size=4,
+            attribute_type=np.float32,
+            is_color=True)
+
+        # Note, depending on if the tests are run with asserts enabled or not, the test may fail before this point
+        # inside blender itself.
+        all_valid = all([not math.isinf(channel) and not math.isnan(channel) for channel in new_data])
+        any_different = any([orig != new for (orig, new) in zip(initial_data, new_data)])
+        self.assertTrue(all_valid, "All color components should be rational values")
+        self.assertTrue(any_different, "At least one color component should be different from its original value")
 
     def test_blob_brush_creates_valid_data(self):
         self._activate_brush("Blob")
@@ -249,6 +342,68 @@ class MeshBrushTests(unittest.TestCase):
     def test_twist_brush_creates_valid_data(self):
         self._activate_brush("Twist")
         self._check_stroke()
+
+    def test_mask_brush_creates_valid_data(self):
+        self._activate_brush("Mask")
+        self._check_mask_stroke()
+
+    def test_face_set_brush_creates_valid_data(self):
+        self._activate_brush("Face Set Paint")
+        self._check_face_set_stroke()
+
+    def test_airbrush_brush_creates_valid_data(self):
+        self._activate_brush("Airbrush")
+        self._check_paint_stroke()
+
+    def test_blend_hard_brush_creates_valid_data(self):
+        self._activate_brush("Blend Hard")
+        self._check_paint_stroke()
+
+    def test_blend_soft_brush_creates_valid_data(self):
+        self._activate_brush("Blend Soft")
+        self._check_paint_stroke()
+
+    def test_blend_square_brush_creates_valid_data(self):
+        self._activate_brush("Blend Square")
+        self._check_paint_stroke()
+
+    def test_paint_blend_brush_creates_valid_data(self):
+        self._activate_brush("Paint Blend")
+        self._check_paint_stroke()
+
+    def test_paint_hard_brush_creates_valid_data(self):
+        self._activate_brush("Paint Hard")
+        self._check_paint_stroke()
+
+    def test_paint_hard_pressure_brush_creates_valid_data(self):
+        self._activate_brush("Paint Hard Pressure")
+        self._check_paint_stroke()
+
+    def test_paint_soft_brush_creates_valid_data(self):
+        self._activate_brush("Paint Soft")
+        self._check_paint_stroke()
+
+    def test_paint_soft_pressure_brush_creates_valid_data(self):
+        self._activate_brush("Paint Soft Pressure")
+        self._check_paint_stroke()
+
+    def test_paint_square_brush_creates_valid_data(self):
+        self._activate_brush("Paint Square")
+        self._check_paint_stroke()
+
+    def test_sharpen_brush_creates_valid_data(self):
+        self._activate_brush("Paint Hard")
+        self._check_paint_stroke()
+
+        self._activate_brush("Sharpen")
+        self._check_paint_stroke()
+
+    def test_smear_brush_creates_valid_data(self):
+        self._activate_brush("Paint Hard")
+        self._check_paint_stroke()
+
+        self._activate_brush("Smear")
+        self._check_paint_stroke()
 
 
 def main():
