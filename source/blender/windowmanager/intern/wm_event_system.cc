@@ -4014,6 +4014,8 @@ static void wm_event_handle_xrevent(bContext *C,
     }
   }
 
+  wm_event_handler_return_value_check(C, event, action);
+
   if ((action & WM_HANDLER_BREAK) == 0) {
     wmXrActionData *actiondata = static_cast<wmXrActionData *>(event->customdata);
     if (actiondata->ot->modal && event->val == KM_RELEASE) {
