@@ -1,2 +1,3 @@
 Referenced by issue #139829, cryptomatte not working and crashing with image sequence
 Referenced by issue #138533, Cryptomatte not loading correctly // New Report for 4.5 (similar to: #137644)
+Referenced by issue #150861, Compositor: Cryptomatte node causes extreme slowdown if `scene.frame_current != scene.frame_start`
