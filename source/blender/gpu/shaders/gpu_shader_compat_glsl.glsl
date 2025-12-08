@@ -174,7 +174,7 @@ RESHAPE(float3x3, mat3x3, mat3x4)
 #define buffer_get(create_info, _res) _res
 #define sampler_get(create_info, _res) _res
 #define image_get(create_info, _res) _res
-#define srt_access(create_info, _res) _res
+#define srt_access(create_info, _res) access_##create_info##_##_res()
 
 /* Incompatible keywords. */
 #define static
@@ -183,6 +183,32 @@ RESHAPE(float3x3, mat3x3, mat3x4)
 #define device
 #define thread
 #define threadgroup
+
+/**
+ * This string type is much like the OSL string.
+ * It is merely a hash of the actual string and it immutable.
+ */
+struct string {
+  uint hash;
+};
+
+#if 0 /* Causes NVidia compiler error on OpenGL. To be fixed. */
+bool equal(string a, string b)
+{
+  return a.hash == b.hash;
+}
+#endif
+
+uint as_uint(string str)
+{
+  return str.hash;
+}
+
+float4 texelFetchExtend(sampler2D samp, int2 texel, int lvl)
+{
+  texel = clamp(texel, int2(0), textureSize(samp, lvl).xy - 1);
+  return texelFetch(samp, texel, lvl);
+}
 
 /* Stage agnostic builtin function.
  * GLSL doesn't allow mixing shader stages inside the same source file.
