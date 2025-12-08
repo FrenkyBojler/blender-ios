@@ -1739,7 +1739,9 @@ void paint_2d_redraw(const bContext *C, void *ps, bool final)
      * code is unaware of the corresponding image tag. See #150957 for more details. */
     const Scene *scene = CTX_data_scene(C);
     Object *object = CTX_data_active_object(C);
-    if (object && object->type == OB_MESH && scene && scene->toolsettings->imapaint.mode == IMAGEPAINT_MODE_IMAGE) {
+    if (object && object->type == OB_MESH && scene &&
+        scene->toolsettings->imapaint.mode == IMAGEPAINT_MODE_IMAGE)
+    {
       DEG_id_tag_update(&object->id, ID_RECALC_SHADING);
     }
   }
