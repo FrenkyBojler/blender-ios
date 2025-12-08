@@ -201,9 +201,8 @@ void main()
   /* Adjust z-component */
   if (drw_view_is_perspective()) {
     /* To minimize z-fighting, the grid is drawn N times with progressive alpha and z-bias,
-     * making it "fade" through geometry over a distance. Iterations go back-to-front. */
-    uint step_idx = OVERLAY_GRID_STEPS_DRAW - 1 - line.level;
-    float z_mix = float(grid_iter * OVERLAY_GRID_STEPS_DRAW + step_idx) /
+     * making it fade through geometry. The smaller the range below, the more it pops in. */
+    float z_mix = float(grid_iter * OVERLAY_GRID_STEPS_DRAW + line.level) /
                   float(OVERLAY_GRID_ITER_LEN * OVERLAY_GRID_STEPS_DRAW);
     gl_Position.z += mix(5e-4f, 1e-4f, z_mix);
   }

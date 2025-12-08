@@ -376,7 +376,7 @@ void Resources::update_theme_settings(const DRWContext *ctx, const State &state)
   ui::theme::get_color_shade_alpha_4fv(TH_LIGHT, 0, 255, gb.colors.light_no_alpha);
 =======
 
-  ui::GetThemeColorShade4fv(TH_GRID, (is_bg_darker) ? 20 : -10, gb.colors.grid_emphasis);
+  ui::GetThemeColorShade4fv(TH_GRID, (is_bg_darker) ? 30 : -10, gb.colors.grid_emphasis);
   /* Grid Axis */
   ui::GetThemeColorBlendShade4fv(TH_GRID, TH_AXIS_X, 0.85f, -20, gb.colors.grid_axis_x);
   ui::GetThemeColorBlendShade4fv(TH_GRID, TH_AXIS_Y, 0.85f, -20, gb.colors.grid_axis_y);
