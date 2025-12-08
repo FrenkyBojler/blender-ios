@@ -184,7 +184,7 @@ void main()
   }
   else { /* SHOW_AXES */
     /* Test X/Y/Z axis flags per line */
-    const uint axis_flags[3] = {AXIS_X, AXIS_Y, AXIS_Z};
+    constexpr uint axis_flags[3] = {AXIS_X, AXIS_Y, AXIS_Z};
     if (!flag_test(grid_flag, axis_flags[line.axis])) {
       return; /* Discard line. */
     }
@@ -201,11 +201,12 @@ void main()
   /* Adjust z-component */
   if (drw_view_is_perspective()) {
     /* To minimize z-fighting, the grid is drawn N times with progressive alpha and z-bias,
-     * making it "fade" through geometry over a distance.  */
-    float z_ratio_iter = 1.0f - float(grid_iter) / float(OVERLAY_GRID_ITER_LEN);
-    float z_ratio_level = (1.0f / float(OVERLAY_GRID_ITER_LEN)) *
-                          (1.0f - float(line.level) / float(OVERLAY_GRID_STEPS_DRAW));
-    gl_Position.z += 1e-5f + 2e-4f * (z_ratio_iter + z_ratio_level);
+     * making it "fade" through geometry over a distance. Iterations go back-to-front. */
+    uint step_idx = OVERLAY_GRID_STEPS_DRAW - 1 - line.level;
+    float z_mix 
+      = float(grid_iter * OVERLAY_GRID_STEPS_DRAW + step_idx)
+      / float(OVERLAY_GRID_ITER_LEN * OVERLAY_GRID_STEPS_DRAW);
+    gl_Position.z += mix(5e-4f, 1e-4f, z_mix);
   }
   else { /* orthographic */
     /* Set z to far plane in orthographic, so it is behind all things. */

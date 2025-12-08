@@ -140,9 +140,7 @@ struct OVERLAY_GridData {
   float level;
   /* Per-level line count. */
   uint num_lines;
-  /* Number of grid draws. */
-  uint num_iters;
-  uint _pad0;
+  uint _pad0, _pad1;
 };
 BLI_STATIC_ASSERT_ALIGN(OVERLAY_GridData, 16)
 

@@ -83,6 +83,10 @@ void main()
     }
   }
 
-  /* Grid iteration additive alpha. */
-  out_color.a /= float(grid_buf.num_iters);
+  /* Grid iteration additive alpha in perspective view; lower iters
+   * are given stronger alpha to minimize pop-in of upper iters. */
+  if (drw_view_is_perspective()) {
+    constexpr float additive_alpha[4] = { 0.4f, 0.3f, 0.2f, 0.1f };
+    out_color.a *= additive_alpha[grid_iter];
+  }
 }
