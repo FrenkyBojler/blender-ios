@@ -273,6 +273,8 @@ void View::compute_visibility(ObjectBoundsBuf &bounds,
 
   GPU_debug_group_begin("View.compute_visibility");
 
+  const bool use_gpudeform = (U.gpu_flag & USER_GPU_FLAG_DEFORMATION_EVALUATION) != 0;
+
   /* TODO(fclem): Early out if visibility hasn't changed. */
 
   uint word_per_draw = this->visibility_word_per_draw();
@@ -286,7 +288,7 @@ void View::compute_visibility(ObjectBoundsBuf &bounds,
   const uint32_t data = 0xFFFFFFFFu;
   GPU_storagebuf_clear(visibility_buf_, data);
 
-  if (do_visibility_) {
+  if (do_visibility_ && use_gpudeform == 0) {
     gpu::Shader *shader = DRW_shader_draw_visibility_compute_get();
     GPU_shader_bind(shader);
     GPU_shader_uniform_1i(shader, "resource_len", resource_len);
