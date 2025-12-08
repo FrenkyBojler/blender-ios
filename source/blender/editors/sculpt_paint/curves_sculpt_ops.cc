@@ -209,9 +209,9 @@ static void stroke_update_step(bContext *C,
   }
 }
 
-static void stroke_done(const bContext *C, PaintStroke *stroke)
+static void stroke_done(const bContext *C, PaintStroke *stroke, const bool is_cancel)
 {
-  UNUSED_VARS(C, stroke);
+  UNUSED_VARS(C, stroke, is_cancel);
 }
 
 static wmOperatorStatus sculpt_curves_stroke_invoke(bContext *C,
@@ -231,6 +231,7 @@ static wmOperatorStatus sculpt_curves_stroke_invoke(bContext *C,
                                      stroke_get_location,
                                      stroke_test_start,
                                      stroke_update_step,
+                                     nullptr,
                                      nullptr,
                                      stroke_done,
                                      event->type);
@@ -478,10 +479,10 @@ static void select_random_ui(bContext * /*C*/, wmOperator *op)
   layout.prop(op->ptr, "partial", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   if (RNA_boolean_get(op->ptr, "partial")) {
-    layout.prop(op->ptr, "min", UI_ITEM_R_SLIDER, IFACE_("Min"), ICON_NONE);
+    layout.prop(op->ptr, "min", ui::ITEM_R_SLIDER, IFACE_("Min"), ICON_NONE);
   }
   else {
-    layout.prop(op->ptr, "probability", UI_ITEM_R_SLIDER, IFACE_("Probability"), ICON_NONE);
+    layout.prop(op->ptr, "probability", ui::ITEM_R_SLIDER, IFACE_("Probability"), ICON_NONE);
   }
 }
 
@@ -653,13 +654,13 @@ static void select_grow_invoke_per_curve(const Curves &curves_id,
       1024 < curve_op_data.selected_points.size() + curve_op_data.unselected_points.size(),
       [&]() {
         /* Build KD-tree for the selected points. */
-        KDTree_3d *kdtree = BLI_kdtree_3d_new(curve_op_data.selected_points.size());
-        BLI_SCOPED_DEFER([&]() { BLI_kdtree_3d_free(kdtree); });
+        KDTree_3d *kdtree = kdtree_3d_new(curve_op_data.selected_points.size());
+        BLI_SCOPED_DEFER([&]() { kdtree_3d_free(kdtree); });
         curve_op_data.selected_points.foreach_index([&](const int point_i) {
           const float3 &position = positions[point_i];
-          BLI_kdtree_3d_insert(kdtree, point_i, position);
+          kdtree_3d_insert(kdtree, point_i, position);
         });
-        BLI_kdtree_3d_balance(kdtree);
+        kdtree_3d_balance(kdtree);
 
         /* For each unselected point, compute the distance to the closest selected point. */
         curve_op_data.distances_to_selected.reinitialize(curve_op_data.unselected_points.size());
@@ -669,20 +670,20 @@ static void select_grow_invoke_per_curve(const Curves &curves_id,
                 const int point_i = curve_op_data.unselected_points[i];
                 const float3 &position = positions[point_i];
                 KDTreeNearest_3d nearest;
-                BLI_kdtree_3d_find_nearest(kdtree, position, &nearest);
+                kdtree_3d_find_nearest(kdtree, position, &nearest);
                 curve_op_data.distances_to_selected[i] = nearest.dist;
               }
             });
       },
       [&]() {
         /* Build KD-tree for the unselected points. */
-        KDTree_3d *kdtree = BLI_kdtree_3d_new(curve_op_data.unselected_points.size());
-        BLI_SCOPED_DEFER([&]() { BLI_kdtree_3d_free(kdtree); });
+        KDTree_3d *kdtree = kdtree_3d_new(curve_op_data.unselected_points.size());
+        BLI_SCOPED_DEFER([&]() { kdtree_3d_free(kdtree); });
         curve_op_data.unselected_points.foreach_index([&](const int point_i) {
           const float3 &position = positions[point_i];
-          BLI_kdtree_3d_insert(kdtree, point_i, position);
+          kdtree_3d_insert(kdtree, point_i, position);
         });
-        BLI_kdtree_3d_balance(kdtree);
+        kdtree_3d_balance(kdtree);
 
         /* For each selected point, compute the distance to the closest unselected point. */
         curve_op_data.distances_to_unselected.reinitialize(curve_op_data.selected_points.size());
@@ -692,7 +693,7 @@ static void select_grow_invoke_per_curve(const Curves &curves_id,
                 const int point_i = curve_op_data.selected_points[i];
                 const float3 &position = positions[point_i];
                 KDTreeNearest_3d nearest;
-                BLI_kdtree_3d_find_nearest(kdtree, position, &nearest);
+                kdtree_3d_find_nearest(kdtree, position, &nearest);
                 curve_op_data.distances_to_unselected[i] = nearest.dist;
               }
             });
