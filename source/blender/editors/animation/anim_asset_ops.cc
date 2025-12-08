@@ -805,7 +805,21 @@ static wmOperatorStatus pose_asset_delete_invoke(bContext *C,
                                                  wmOperator *op,
                                                  const wmEvent * /*event*/)
 {
+  /* Perform some checks that the 'exec' function also does, so that when things aren't editable,
+   * the user gets a message about this *before* having to confirm the deletion. */
   bAction *action = get_action_of_selected_asset(C);
+  if (!action) {
+    /* TODO: if this ever happens, figure out how that happened, and see if more
+     * useful information can be included in the report. After all, the poll
+     * function already checks that the active asset exists and is an Action. */
+    BKE_report(op->reports, RPT_ERROR, "Could not load Action for the active asset");
+    return OPERATOR_CANCELLED;
+  }
+
+  const blender::asset_system::AssetRepresentation *asset = CTX_wm_asset(C);
+  if (ID_IS_LINKED(action) && !is_pose_asset_blend_editable(*action, op->reports)) {
+    return OPERATOR_CANCELLED;
+  }
 
   return WM_operator_confirm_ex(
       C,
