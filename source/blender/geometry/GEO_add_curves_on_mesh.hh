@@ -11,11 +11,11 @@
 
 #include "GEO_reverse_uv_sampler.hh"
 
+struct Mesh;
 namespace blender {
 template<int DimsNum> struct KDTree;
 }  // namespace blender
 
-struct Mesh;
 
 namespace blender::geometry {
 
