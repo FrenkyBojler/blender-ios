@@ -59,7 +59,8 @@ ccl_device float svm_raycast(
 
   if (only_local) {
     LocalIntersection isect;
-    if (!scene_intersect_local(kg, &ray, &isect, sd->object, nullptr, 1)) {
+    scene_intersect_local(kg, &ray, &isect, sd->object, nullptr, 1);
+    if (isect.num_hits == 0) {
       return -1.0f;
     }
     return isect.hits[0].t;
