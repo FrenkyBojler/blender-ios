@@ -917,6 +917,8 @@ struct ShaderCreateInfo {
     ResourceString name;
   };
 
+  using ConditionFn = FunctionRef<bool(Span<CompilationConstant>)>;
+
   struct Resource {
     enum BindType {
       UNIFORM_BUFFER = 0,
@@ -929,6 +931,7 @@ struct ShaderCreateInfo {
     StringRefNull info_name;
     BindType bind_type;
     int slot;
+    ConditionFn condition;
     union {
       Sampler sampler;
       Image image;
@@ -936,8 +939,8 @@ struct ShaderCreateInfo {
       StorageBuf storagebuf;
     };
 
-    Resource(const ShaderCreateInfo &info, BindType type, int _slot)
-        : info_name(info.name_), bind_type(type), slot(_slot) {};
+    Resource(const ShaderCreateInfo &info, BindType type, int _slot, ConditionFn cond)
+        : info_name(info.name_), bind_type(type), slot(_slot), condition(cond) {};
 
     bool operator==(const Resource &b) const
     {
@@ -1264,9 +1267,10 @@ struct ShaderCreateInfo {
   Self &uniform_buf(int slot,
                     StringRefNull type_name,
                     StringRefNull name,
-                    Frequency freq = Frequency::PASS)
+                    Frequency freq = Frequency::PASS,
+                    ConditionFn cond = nullptr)
   {
-    Resource res(*this, Resource::BindType::UNIFORM_BUFFER, slot);
+    Resource res(*this, Resource::BindType::UNIFORM_BUFFER, slot, cond);
     res.uniformbuf.name = name;
     res.uniformbuf.type_name = type_name;
     resources_get_(freq).append(res);
@@ -1278,9 +1282,10 @@ struct ShaderCreateInfo {
                     Qualifier qualifiers,
                     StringRefNull type_name,
                     StringRefNull name,
-                    Frequency freq = Frequency::PASS)
+                    Frequency freq = Frequency::PASS,
+                    ConditionFn cond = nullptr)
   {
-    Resource res(*this, Resource::BindType::STORAGE_BUFFER, slot);
+    Resource res(*this, Resource::BindType::STORAGE_BUFFER, slot, cond);
     res.storagebuf.qualifiers = qualifiers;
     res.storagebuf.type_name = type_name;
     res.storagebuf.name = name;
@@ -1294,9 +1299,10 @@ struct ShaderCreateInfo {
               Qualifier qualifiers,
               ImageReadWriteType type,
               StringRefNull name,
-              Frequency freq = Frequency::PASS)
+              Frequency freq = Frequency::PASS,
+              ConditionFn cond = nullptr)
   {
-    Resource res(*this, Resource::BindType::IMAGE, slot);
+    Resource res(*this, Resource::BindType::IMAGE, slot, cond);
     res.image.format = format;
     res.image.qualifiers = qualifiers;
     res.image.type = ImageType(type);
@@ -1310,9 +1316,10 @@ struct ShaderCreateInfo {
                 ImageType type,
                 StringRefNull name,
                 Frequency freq = Frequency::PASS,
-                GPUSamplerState sampler = GPUSamplerState::internal_sampler())
+                GPUSamplerState sampler = GPUSamplerState::internal_sampler(),
+                ConditionFn cond = nullptr)
   {
-    Resource res(*this, Resource::BindType::SAMPLER, slot);
+    Resource res(*this, Resource::BindType::SAMPLER, slot, cond);
     res.sampler.type = type;
     res.sampler.name = name;
     /* Produces ASAN errors for the moment. */
