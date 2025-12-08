@@ -4002,7 +4002,9 @@ static void wm_event_handle_xrevent(bContext *C,
 
   ListBase *modalhandlers = &win->modalhandlers;
 
-  /* Only process XR operator handlers to prevent interferences with main window handlers. */
+  /* Only process XR operator handlers to prevent interferences with main window handlers.
+   * NOTE: This is a stripped-down XR specific version of #wm_handlers_do_intern. Changes made
+   *       in that function might also need to reproduced here. */
   eHandlerActionFlag action = WM_HANDLER_CONTINUE;
   LISTBASE_FOREACH (wmEventHandler *, handler_base, modalhandlers) {
     if (handler_base->type == WM_HANDLER_TYPE_OP) {
