@@ -25,6 +25,7 @@
 #include "BLI_enum_flags.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_math_vector_types.hh"
+#include "BLI_set.hh"
 #include "BLI_sys_types.h"
 
 #include "WM_keymap.hh"
@@ -496,7 +497,8 @@ ID *WM_file_link_datablock(Main *bmain,
                            const char *filepath,
                            short id_code,
                            const char *id_name,
-                           int flag);
+                           int flag,
+                           ReportList *reports = nullptr);
 /**
  * \note `scene` (and related `view_layer` and `v3d`) pointers may be NULL,
  * in which case no instantiation of appended objects, collections etc. will be performed.
@@ -508,7 +510,8 @@ ID *WM_file_append_datablock(Main *bmain,
                              const char *filepath,
                              short id_code,
                              const char *id_name,
-                             int flag);
+                             int flag,
+                             ReportList *reports = nullptr);
 void WM_lib_reload(Library *lib, bContext *C, ReportList *reports);
 
 /* Mouse cursors. */
@@ -720,7 +723,8 @@ void WM_event_free_ui_handler_all(bContext *C,
 /**
  * Add a modal handler to `win`, `area` and `region` may optionally be NULL.
  */
-wmEventHandler_Op *WM_event_add_modal_handler_ex(wmWindow *win,
+wmEventHandler_Op *WM_event_add_modal_handler_ex(wmWindowManager *wm,
+                                                 wmWindow *win,
                                                  ScrArea *area,
                                                  ARegion *region,
                                                  wmOperator *op) ATTR_NONNULL(1, 4);
@@ -978,11 +982,13 @@ void WM_operator_free_all_after(wmWindowManager *wm, wmOperator *op);
  */
 void WM_operator_type_set(wmOperator *op, wmOperatorType *ot);
 void WM_operator_stack_clear(wmWindowManager *wm);
+void WM_operator_stack_clear(wmWindowManager *wm, const blender::Set<wmOperatorType *> &types);
 /**
  * This function is needed in the case when an addon id disabled
  * while a modal operator it defined is running.
  */
 void WM_operator_handlers_clear(wmWindowManager *wm, wmOperatorType *ot);
+void WM_operator_handlers_clear(wmWindowManager *wm, const blender::Set<wmOperatorType *> &types);
 
 bool WM_operator_poll(bContext *C, wmOperatorType *ot);
 bool WM_operator_poll_context(bContext *C, wmOperatorType *ot, blender::wm::OpCallContext context);
@@ -1332,6 +1338,7 @@ size_t WM_operator_py_idname(char *dst, const char *src) ATTR_NONNULL(1, 2);
 bool WM_operator_py_idname_ok_or_report(ReportList *reports,
                                         const char *classname,
                                         const char *idname);
+bool WM_operator_idname_ok_or_report(ReportList *reports, const char *idname);
 /**
  * Return true when an operators name follows the `SOME_OT_op` naming convention.
  */
@@ -1664,6 +1671,9 @@ ListBase *WM_dropboxmap_find(const char *idname, int spaceid, int regionid);
 /* ID drag and drop. */
 
 /**
+ * \note This can return null! Importing can fail if the asset was deleted or moved since the asset
+ * library was loaded.
+ *
  * \param flag_extra: Additional linking flags (from #eFileSel_Params_Flag).
  */
 ID *WM_drag_asset_id_import(const bContext *C, wmDragAsset *asset_drag, int flag_extra);
@@ -2034,7 +2044,7 @@ void WM_window_status_area_tag_redraw(wmWindow *win);
  * use here since the area is stored in the window manager.
  */
 ScrArea *WM_window_status_area_find(wmWindow *win, bScreen *screen);
-bool WM_window_modal_keymap_status_draw(bContext *C, wmWindow *win, blender::ui::Layout *layout);
+bool WM_window_modal_keymap_status_draw(bContext *C, wmWindow *win, blender::ui::Layout &layout);
 
 /* `wm_event_query.cc` */
 

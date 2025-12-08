@@ -95,7 +95,7 @@ static TreeElement *outliner_drop_find(bContext *C, const wmEvent *event)
   ARegion *region = CTX_wm_region(C);
   SpaceOutliner *space_outliner = CTX_wm_space_outliner(C);
   float fmval[2];
-  UI_view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &fmval[0], &fmval[1]);
+  ui::view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &fmval[0], &fmval[1]);
 
   return outliner_dropzone_find(space_outliner, fmval, true);
 }
@@ -130,7 +130,7 @@ static TreeElement *outliner_drop_insert_find(bContext *C,
   mval[0] = xy[0] - region->winrct.xmin;
   mval[1] = xy[1] - region->winrct.ymin;
 
-  UI_view2d_region_to_view(&region->v2d, mval[0], mval[1], &view_mval[0], &view_mval[1]);
+  ui::view2d_region_to_view(&region->v2d, mval[0], mval[1], &view_mval[0], &view_mval[1]);
   te_hovered = outliner_find_item_at_y(space_outliner, &space_outliner->tree, view_mval[1]);
 
   if (te_hovered) {
@@ -1333,6 +1333,10 @@ static wmOperatorStatus collection_drop_invoke(bContext *C,
     TREESTORE(data.te)->flag &= ~TSE_CLOSED;
   }
 
+  if (relative_after) {
+    BLI_listbase_reverse(&drag->ids);
+  }
+
   LISTBASE_FOREACH (wmDragID *, drag_id, &drag->ids) {
     /* Ctrl enables linking, so we don't need a from collection then. */
     Collection *from = (event->modifier & KM_CTRL) ?
@@ -1408,7 +1412,7 @@ static TreeElement *outliner_item_drag_element_find(SpaceOutliner *space_outline
   int mval[2];
   WM_event_drag_start_mval(event, region, mval);
 
-  const float my = UI_view2d_region_to_view_y(&region->v2d, mval[1]);
+  const float my = ui::view2d_region_to_view_y(&region->v2d, mval[1]);
   return outliner_find_item_at_y(space_outliner, &space_outliner->tree, my);
 }
 
@@ -1434,7 +1438,7 @@ static wmOperatorStatus outliner_item_drag_drop_invoke(bContext *C,
   }
 
   float view_mval[2];
-  UI_view2d_region_to_view(&region->v2d, mval[0], mval[1], &view_mval[0], &view_mval[1]);
+  ui::view2d_region_to_view(&region->v2d, mval[0], mval[1], &view_mval[0], &view_mval[1]);
   if (outliner_item_is_co_within_close_toggle(te, view_mval[0])) {
     return (OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH);
   }

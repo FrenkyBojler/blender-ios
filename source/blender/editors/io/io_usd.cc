@@ -467,7 +467,7 @@ static void wm_usd_export_draw(bContext *C, wmOperator *op)
   }
 
   {
-    PanelLayout panel = layout.panel(C, "USD_export_materials", true);
+    blender::ui::PanelLayout panel = layout.panel(C, "USD_export_materials", true);
     panel.header->use_property_split_set(false);
     panel.header->prop(ptr, "export_materials", UI_ITEM_NONE, "", ICON_NONE);
     panel.header->label(IFACE_("Materials"), ICON_NONE);
@@ -1287,7 +1287,7 @@ void WM_OT_usd_import(wmOperatorType *ot)
 namespace blender::ed::io {
 void usd_file_handler_add()
 {
-  auto fh = std::make_unique<blender::bke::FileHandlerType>();
+  auto fh = std::make_unique<bke::FileHandlerType>();
   STRNCPY_UTF8(fh->idname, "IO_FH_usd");
   STRNCPY_UTF8(fh->import_operator, "WM_OT_usd_import");
   STRNCPY_UTF8(fh->export_operator, "WM_OT_usd_export");
