@@ -2134,8 +2134,10 @@ static void sequencer_box_blade_ui(bContext * /*C*/, wmOperator *op)
   layout.use_property_split_set(true);
   layout.use_property_decorate_set(false);
 
+  layout.prop(op->ptr, "type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   layout.prop(op->ptr, "remove_gaps", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   layout.prop(op->ptr, "ignore_selection", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "ignore_connections", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static wmOperatorStatus sequencer_box_blade_modal(bContext *C,
