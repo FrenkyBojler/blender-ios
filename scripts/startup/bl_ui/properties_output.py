@@ -579,7 +579,7 @@ class RENDER_PT_encoding_video(RenderOutputButtonsPanel, Panel):
         if use_crf:
             layout.prop(ffmpeg, "constant_rate_factor")
             if (ffmpeg.constant_rate_factor == 'CUSTOM'):
-                layout.prop(ffmpeg, "custom_constant_rate_factor", slider=True)
+                layout.prop(ffmpeg, "custom_constant_rate_factor")
 
         use_encoding_speed = needs_codec and ffmpeg.codec not in {'DNXHD', 'FFV1', 'HUFFYUV', 'PNG', 'PRORES', 'QTRLE'}
         use_bitrate = needs_codec and ffmpeg.codec not in {'FFV1', 'HUFFYUV', 'PNG', 'PRORES', 'QTRLE'}

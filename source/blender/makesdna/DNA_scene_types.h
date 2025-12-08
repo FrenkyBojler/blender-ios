@@ -180,7 +180,7 @@ typedef struct FFMpegCodecData {
   int flags;
   int constant_rate_factor;
   /** Only used if constant_rate_factor flag is set to FFM_CRF_CUSTOM. */
-  float custom_constant_rate_factor;
+  int custom_constant_rate_factor;
   /** See eFFMpegPreset. */
   int ffmpeg_preset;
   int ffmpeg_prores_profile;

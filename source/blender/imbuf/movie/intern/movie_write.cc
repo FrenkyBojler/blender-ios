@@ -1210,8 +1210,7 @@ static bool start_ffmpeg_impl(MovieWriter *context,
   context->ffmpeg_crf = rd->ffcodecdata.constant_rate_factor;
   context->custom_crf = rd->ffcodecdata.constant_rate_factor == FFM_CRF_CUSTOM;
   if (context->custom_crf) {
-    context->ffmpeg_crf = int(blender::math::round(
-        blender::math::interpolate(51.0f, 0.0f, rd->ffcodecdata.custom_constant_rate_factor)));
+    context->ffmpeg_crf = rd->ffcodecdata.custom_constant_rate_factor;
   }
   context->ffmpeg_preset = rd->ffcodecdata.ffmpeg_preset;
   context->ffmpeg_profile = 0;
@@ -1298,7 +1297,21 @@ static bool start_ffmpeg_impl(MovieWriter *context,
       break;
   }
 
-    /* Returns after this must 'goto fail;' */
+  if (context->custom_crf) {
+    if ((video_codec == AV_CODEC_ID_AV1) || (video_codec == AV_CODEC_ID_H264) ||
+        (video_codec == AV_CODEC_ID_H265))
+    {
+      context->ffmpeg_crf = blender::math::clamp(context->ffmpeg_crf, 0, 51);
+    }
+    else if ((video_codec == AV_CODEC_ID_VP9)) {
+      context->ffmpeg_crf = blender::math::clamp(context->ffmpeg_crf, 0, 63);
+    }
+    else if (video_codec == AV_CODEC_ID_MPEG4) {
+      context->ffmpeg_crf = blender::math::clamp(context->ffmpeg_crf, 1, 31);
+    }
+  }
+
+  /* Returns after this must 'goto fail;' */
 
 #  if LIBAVFORMAT_VERSION_MAJOR >= 59
   of->oformat = fmt;
