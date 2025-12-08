@@ -4008,6 +4008,8 @@ static void wm_event_handle_xrevent(bContext *C,
   eHandlerActionFlag action = WM_HANDLER_CONTINUE;
   LISTBASE_FOREACH (wmEventHandler *, handler_base, modalhandlers) {
     if (handler_base->type == WM_HANDLER_TYPE_OP) {
+      BLI_assert((handler_base->flag & WM_HANDLER_DO_FREE) == 0);
+
       if (handler_base->poll != nullptr && !handler_base->poll(win, area, region, event)) {
         continue;
       }
