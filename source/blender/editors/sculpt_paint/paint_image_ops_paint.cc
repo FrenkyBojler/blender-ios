@@ -458,6 +458,17 @@ void ImagePaintStroke::done(const bool is_cancel)
   }
 #endif
 }
+bool ImagePaintStroke::get_location(float /*location*/[3],
+                                    const float /*mouse*/[2],
+                                    bool /*force_original*/)
+{
+  return false;
+}
+
+bool ImagePaintStroke::test_cancel()
+{
+  return true;
+}
 
 bool ImagePaintStroke::test_start(wmOperator *op, const float mouse[2])
 {
