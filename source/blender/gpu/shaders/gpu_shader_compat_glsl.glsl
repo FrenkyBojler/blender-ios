@@ -178,7 +178,6 @@ RESHAPE(float3x3, mat3x3, mat3x4)
 
 /* Incompatible keywords. */
 #define static
-#define inline
 #define constant
 #define device
 #define thread
