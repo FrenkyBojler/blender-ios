@@ -133,6 +133,9 @@ struct PaintStroke {
    */
   wmOperatorStatus modal(bContext *C, wmOperator *op, const wmEvent *event);
   wmOperatorStatus exec(bContext *C, wmOperator *op);
+  /** Cancel a stroke and return to the initial state. */
+  void cancel(bContext *C, wmOperator *op);
+  void free(bContext *C, wmOperator *op);
 
   void *mode_data()
   {
@@ -144,6 +147,7 @@ struct PaintStroke {
     this->mode_data_ = std::move(mode_data);
   }
 
+  /* TODO: The following accessors should all be parameters passed into various callbacks */
   bool stroke_flipped()
   {
     return pen_flip;
@@ -163,11 +167,6 @@ struct PaintStroke {
   {
     return stroke_started_;
   }
-
-  void free(bContext *C, wmOperator *op);
-
-  /** Cancel a stroke and return to the initial state. */
-  void cancel(bContext *C, wmOperator *op);
 
  protected:
   PaintStroke(bContext *C, wmOperator *op, int event_type);
