@@ -172,7 +172,6 @@ const EnumPropertyItem rna_enum_pitch_quality_items[] = {
 #  include "SEQ_relations.hh"
 #  include "SEQ_retiming.hh"
 #  include "SEQ_select.hh"
-#  include "SEQ_time.hh"
 #  include "SEQ_transform.hh"
 #  include "SEQ_utils.hh"
 
@@ -457,7 +456,7 @@ static int rna_Strip_retiming_key_frame_get(PointerRNA *ptr)
     return 0;
   }
 
-  return blender::seq::time_start_frame_get(strip) + key->strip_frame_index;
+  return strip->content_start() + key->strip_frame_index;
 }
 
 static void rna_Strip_retiming_key_frame_set(PointerRNA *ptr, int value)
@@ -493,7 +492,7 @@ static void do_strip_frame_change_update(Scene *scene, Strip *strip)
     blender::seq::transform_seqbase_shuffle(seqbase, strip, scene);
   }
 
-  if (strip->type == STRIP_TYPE_SOUND_RAM) {
+  if (strip->type == STRIP_TYPE_SOUND) {
     DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS);
   }
 }
@@ -509,14 +508,13 @@ static void rna_Strip_frame_change_update(Main * /*bmain*/, Scene * /*scene*/, P
 
 static int rna_Strip_frame_final_start_get(PointerRNA *ptr)
 {
-  Scene *scene = (Scene *)ptr->owner_id;
-  return blender::seq::time_left_handle_frame_get(scene, (Strip *)ptr->data);
+  return ((Strip *)ptr->data)->left_handle();
 }
 
 static int rna_Strip_frame_final_end_get(PointerRNA *ptr)
 {
   Scene *scene = (Scene *)ptr->owner_id;
-  return blender::seq::time_right_handle_frame_get(scene, (Strip *)ptr->data);
+  return ((Strip *)ptr->data)->right_handle(scene);
 }
 
 static void rna_Strip_start_frame_final_set(PointerRNA *ptr, int value)
@@ -524,7 +522,7 @@ static void rna_Strip_start_frame_final_set(PointerRNA *ptr, int value)
   Strip *strip = (Strip *)ptr->data;
   Scene *scene = (Scene *)ptr->owner_id;
 
-  blender::seq::time_left_handle_frame_set(scene, strip, value);
+  strip->left_handle_set(scene, value);
   do_strip_frame_change_update(scene, strip);
   blender::seq::relations_invalidate_cache(scene, strip);
 }
@@ -534,7 +532,7 @@ static void rna_Strip_end_frame_final_set(PointerRNA *ptr, int value)
   Strip *strip = (Strip *)ptr->data;
   Scene *scene = (Scene *)ptr->owner_id;
 
-  blender::seq::time_right_handle_frame_set(scene, strip, value);
+  strip->right_handle_set(scene, value);
   do_strip_frame_change_update(scene, strip);
   blender::seq::relations_invalidate_cache(scene, strip);
 }
@@ -628,8 +626,7 @@ static void rna_Strip_frame_length_set(PointerRNA *ptr, int value)
   Strip *strip = (Strip *)ptr->data;
   Scene *scene = (Scene *)ptr->owner_id;
 
-  blender::seq::time_right_handle_frame_set(
-      scene, strip, blender::seq::time_left_handle_frame_get(scene, strip) + value);
+  strip->right_handle_set(scene, strip->left_handle() + value);
   do_strip_frame_change_update(scene, strip);
   blender::seq::relations_invalidate_cache(scene, strip);
 }
@@ -638,15 +635,14 @@ static int rna_Strip_frame_length_get(PointerRNA *ptr)
 {
   Strip *strip = (Strip *)ptr->data;
   Scene *scene = (Scene *)ptr->owner_id;
-  return blender::seq::time_right_handle_frame_get(scene, strip) -
-         blender::seq::time_left_handle_frame_get(scene, strip);
+  return strip->right_handle(scene) - strip->left_handle();
 }
 
 static int rna_Strip_frame_duration_get(PointerRNA *ptr)
 {
   Strip *strip = static_cast<Strip *>(ptr->data);
   Scene *scene = reinterpret_cast<Scene *>(ptr->owner_id);
-  return blender::seq::time_strip_length_get(scene, strip);
+  return strip->length(scene);
 }
 
 static int rna_Strip_frame_editable(const PointerRNA *ptr, const char ** /*r_info*/)
@@ -905,7 +901,7 @@ static StructRNA *rna_Strip_refine(PointerRNA *ptr)
       return &RNA_MovieClipStrip;
     case STRIP_TYPE_MASK:
       return &RNA_MaskStrip;
-    case STRIP_TYPE_SOUND_RAM:
+    case STRIP_TYPE_SOUND:
       return &RNA_SoundStrip;
     case STRIP_TYPE_CROSS:
       return &RNA_CrossStrip;
@@ -1547,7 +1543,7 @@ static void rna_StripModifier_update(Main *bmain, Scene * /*scene*/, PointerRNA 
   Editing *ed = blender::seq::editing_get(scene);
   Strip *strip = strip_get_by_modifier(ed, static_cast<StripModifierData *>(ptr->data));
 
-  if (ELEM(strip->type, STRIP_TYPE_SOUND_RAM, STRIP_TYPE_SOUND_HD)) {
+  if (ELEM(strip->type, STRIP_TYPE_SOUND, STRIP_TYPE_SOUND_HD)) {
     DEG_id_tag_update(&scene->id, ID_RECALC_SEQUENCER_STRIPS | ID_RECALC_AUDIO);
     DEG_relations_tag_update(bmain);
   }
@@ -1614,7 +1610,7 @@ static bool rna_StripModifier_otherStrip_poll(PointerRNA *ptr, PointerRNA value)
   Strip *strip = strip_get_by_modifier(ed, static_cast<StripModifierData *>(ptr->data));
   Strip *cur = (Strip *)value.data;
 
-  if ((strip == cur) || (cur->type == STRIP_TYPE_SOUND_RAM)) {
+  if ((strip == cur) || (cur->type == STRIP_TYPE_SOUND)) {
     return false;
   }
 
@@ -1694,7 +1690,7 @@ static float rna_Strip_fps_get(PointerRNA *ptr)
 {
   Scene *scene = (Scene *)ptr->owner_id;
   Strip *strip = (Strip *)(ptr->data);
-  return blender::seq::time_strip_fps_get(scene, strip);
+  return strip->media_fps(scene);
 }
 
 static void rna_Strip_separate(ID *id, Strip *strip_meta, Main *bmain)
@@ -2324,7 +2320,7 @@ static void rna_def_strip(BlenderRNA *brna)
       {STRIP_TYPE_MOVIE, "MOVIE", 0, "Movie", ""},
       {STRIP_TYPE_MOVIECLIP, "MOVIECLIP", 0, "Clip", ""},
       {STRIP_TYPE_MASK, "MASK", 0, "Mask", ""},
-      {STRIP_TYPE_SOUND_RAM, "SOUND", 0, "Sound", ""},
+      {STRIP_TYPE_SOUND, "SOUND", 0, "Sound", ""},
       {STRIP_TYPE_CROSS, "CROSS", 0, "Crossfade", ""},
       {STRIP_TYPE_ADD, "ADD", 0, "Add", ""},
       {STRIP_TYPE_SUB, "SUBTRACT", 0, "Subtract", ""},
