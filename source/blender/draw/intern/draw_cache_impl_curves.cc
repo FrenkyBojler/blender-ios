@@ -544,7 +544,7 @@ static gpu::VertBufPtr ensure_control_point_attribute(const bke::CurvesGeometry 
   if (!attribute) {
     /* Attribute doesn't exist or is of an incompatible type.
      * Replace it with a black curve domain attribute. */
-    /* TODO(fclem): Eventually, this should become unecessary if merge all attributes in one buffer
+    /* TODO(fclem): Eventually, this should become unnecessary if merge all attributes in one buffer
      * and use an indirection table. */
     GPU_vertbuf_data_alloc(*vbo, curves.curves_num());
     vbo->data<ColorGeometry4f>().fill({0.0f, 0.0f, 0.0f, 1.0f});
