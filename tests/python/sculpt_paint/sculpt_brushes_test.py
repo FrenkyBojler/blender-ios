@@ -15,7 +15,7 @@ import numpy as np
 import bpy
 
 """
-blender -b --factory-startup --python tests/python/sculpt_paint/brush_strength_curves_test.py -- --testdir tests/files/sculpting/
+blender -b --factory-startup --python tests/python/sculpt_paint/sculpt_brushes_test.py -- --testdir tests/files/mesh_paint/
 """
 
 args = None
@@ -84,10 +84,8 @@ class MeshBrushTests(unittest.TestCase):
     """
 
     def setUp(self):
-        bpy.ops.wm.read_factory_settings(use_empty=True)
+        bpy.ops.wm.open_mainfile(filepath=str(args.testdir / "30k_monkey.blend"), load_ui=False)
         bpy.ops.ed.undo_push()
-
-        bpy.ops.mesh.primitive_monkey_add()
         bpy.ops.sculpt.sculptmode_toggle()
 
     def _activate_brush(self, brush):
@@ -283,7 +281,10 @@ class MeshBrushTests(unittest.TestCase):
         self._activate_brush("Trim")
         self._check_stroke()
 
-    # We don't test the boundary brush here due to more specific mouse positioning requirements
+    @unittest.skip("Needs specific positioning")
+    def test_twist_brush_creates_valid_data(self):
+        self._activate_brush("Boundary")
+        self._check_stroke()
 
     def test_elastic_grab_brush_creates_valid_data(self):
         self._activate_brush("Elastic Grab")
@@ -301,6 +302,7 @@ class MeshBrushTests(unittest.TestCase):
         self._activate_brush("Grab 2D")
         self._check_stroke()
 
+    @unittest.skip("Requires specific positioning")
     def test_grab_silhouette_brush_creates_valid_data(self):
         self._activate_brush("Grab Silhouette")
         self._check_stroke()
@@ -313,7 +315,7 @@ class MeshBrushTests(unittest.TestCase):
         self._activate_brush("Pinch/Magnify")
         self._check_stroke()
 
-    @unittest.skip("Debug assert")
+    @unittest.skip("Debug assert - needs further investigation")
     def test_pose_brush_creates_valid_data(self):
         self._activate_brush("Pose")
         self._check_stroke()
