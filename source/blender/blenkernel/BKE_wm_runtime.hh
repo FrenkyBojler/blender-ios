@@ -13,9 +13,7 @@ struct wmMsgBus;
 struct wmKeyConfig;
 struct wmEvent;
 struct wmWindow;
-#ifdef WITH_INPUT_IME
 struct wmIMEData;
-#endif
 
 #include "BKE_report.hh"
 
@@ -113,14 +111,12 @@ struct WindowRuntime {
   /** All events #wmEvent (ghost level events were handled). */
   ListBase event_queue = {nullptr, nullptr};
 
-#ifdef WITH_INPUT_IME
   /**
    * Input Method Editor data - complex character input (especially for Asian character input)
    * Only used when `WITH_INPUT_IME` is defined.
    */
   wmIMEData *ime_data = nullptr;
   bool ime_data_is_composing = false;
-#endif
 
   /** Don't want to include ghost.h stuff. */
   void *ghostwin = nullptr;
