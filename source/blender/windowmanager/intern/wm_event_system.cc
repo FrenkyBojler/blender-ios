@@ -4008,6 +4008,10 @@ static void wm_event_handle_xrevent(bContext *C,
   eHandlerActionFlag action = WM_HANDLER_CONTINUE;
   LISTBASE_FOREACH (wmEventHandler *, handler_base, modalhandlers) {
     if (handler_base->type == WM_HANDLER_TYPE_OP) {
+      if (handler_base->poll != nullptr && !handler_base->poll(win, area, region, event)) {
+        continue;
+      }
+
       wmEventHandler_Op *op_handler = (wmEventHandler_Op *)handler_base;
       if (op_handler->is_xr) {
         action = wm_handler_operator_call(C, modalhandlers, handler_base, event, nullptr, nullptr);
