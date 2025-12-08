@@ -2531,7 +2531,9 @@ static int main_do(const int argc, char *argv[])
   options.add_members_to_ignore("Scene", {"customdata_mask", "customdata_mask_modal"});
   options.add_members_to_ignore("bNodeLink", {"*fromnode", "*tonode", "*fromsock", "*tosock"});
   options.add_members_to_ignore("Group", {"*owner_id"});
-  options.add_members_to_ignore("Bone", {"*parent"});
+  options.add_members_to_ignore("Bone", {"*parent", "constinv"});
+  options.add_members_to_ignore("Object", {"constinv"});
+  options.add_members_to_ignore("bPoseChannel", {"constinv"});
   options.add_next_prev_ignore_types({"bNode",
                                       "bNodeSocket",
                                       "bNodeLink",
