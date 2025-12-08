@@ -4,3 +4,4 @@ Referenced by pull request #143858, Fix #143738: Broken lines overlay in curve o
 Referenced by commit 0c41f53cf738427cc0f1d3a4a3c76a74ae8a04e4, Fix #143738: Broken lines overlay in curve overlay
 Referenced by issue #150556, Multires mesh with wireframe mode and hidden faces results in corrupt display
 Referenced by issue #151274, Artifacts on latice when it is subdivided
+Referenced by pull request #151295, Fix #151274: Lattice artifacts whith the "Outside" option enabled
