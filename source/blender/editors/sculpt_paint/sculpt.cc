@@ -5818,7 +5818,6 @@ static wmOperatorStatus sculpt_brush_stroke_exec(bContext *C, wmOperator *op)
   stroke->exec(C, op);
 
   MEM_delete(stroke);
-  stroke->free(C, op);
 
   return OPERATOR_FINISHED;
 }
