@@ -564,8 +564,6 @@ static void gpu_shader_lib_test(StringRefNull test_src_name, const char *additio
   GPU_batch_set_shader(batch, shader);
   GPU_batch_draw(batch);
 
-  GPU_batch_discard(batch);
-
   GPU_finish();
 
   TestOutput *test_data = (TestOutput *)GPU_texture_read(tex, GPU_DATA_UINT, 0);
@@ -585,6 +583,8 @@ static void gpu_shader_lib_test(StringRefNull test_src_name, const char *additio
       ADD_FAILURE() << "Unexpected test status " << test.status << ", test output:\n" << test;
     }
   }
+
+  GPU_batch_discard(batch);
 
   MEM_freeN(test_data);
 
