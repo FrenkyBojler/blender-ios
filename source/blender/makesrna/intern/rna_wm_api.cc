@@ -126,6 +126,7 @@ static int rna_Operator_ui_popup(bContext *C, wmOperator *op, int width)
 
 static bool rna_event_modal_handler_add(bContext *C, ReportList *reports, wmOperator *op)
 {
+  wmWindowManager *wm = CTX_wm_manager(C);
   wmWindow *win = CTX_wm_window(C);
   if (win == nullptr) {
     BKE_report(reports, RPT_ERROR, "No active window in context!");
@@ -133,7 +134,7 @@ static bool rna_event_modal_handler_add(bContext *C, ReportList *reports, wmOper
   }
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = CTX_wm_region(C);
-  return WM_event_add_modal_handler_ex(win, area, region, op) != nullptr;
+  return WM_event_add_modal_handler_ex(wm, win, area, region, op) != nullptr;
 }
 
 static wmTimer *rna_event_timer_add(wmWindowManager *wm, float time_step, wmWindow *win)
@@ -652,7 +653,7 @@ static PointerRNA rna_PopoverBegin(bContext *C,
 
 static void rna_PopoverEnd(bContext *C, PointerRNA *handle, wmKeyMap *keymap)
 {
-  blender::ui::popover_end(C, static_cast<blender::ui::uiPopover *>(handle->data), keymap);
+  blender::ui::popover_end(C, static_cast<blender::ui::Popover *>(handle->data), keymap);
 }
 
 /* pie menu wrapper */
@@ -672,7 +673,7 @@ static PointerRNA rna_PieMenuBegin(
 
 static void rna_PieMenuEnd(bContext *C, PointerRNA *handle)
 {
-  blender::ui::pie_menu_end(C, static_cast<blender::ui::uiPieMenu *>(handle->data));
+  blender::ui::pie_menu_end(C, static_cast<blender::ui::PieMenu *>(handle->data));
 }
 
 static void rna_WindowManager_print_undo_steps(wmWindowManager *wm)
@@ -1049,7 +1050,7 @@ void RNA_api_wm(StructRNA *srna)
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_RNAPTR | PARM_REQUIRED);
   RNA_def_pointer(func, "keymap", "KeyMap", "Key Map", "Active key map");
 
-  /* wrap blender::ui::uiPieMenuBegin */
+  /* wrap blender::ui::PieMenuBegin */
   func = RNA_def_function(srna, "piemenu_begin__internal", "rna_PieMenuBegin");
   RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_CONTEXT | FUNC_USE_REPORTS);
   parm = RNA_def_string(func, "title", nullptr, 0, "", "");
@@ -1063,7 +1064,7 @@ void RNA_api_wm(StructRNA *srna)
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_RNAPTR);
   RNA_def_function_return(func, parm);
 
-  /* wrap blender::ui::uiPieMenuEnd */
+  /* wrap blender::ui::PieMenuEnd */
   func = RNA_def_function(srna, "piemenu_end__internal", "rna_PieMenuEnd");
   RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_CONTEXT);
   parm = RNA_def_pointer(func, "menu", "UIPieMenu", "", "");

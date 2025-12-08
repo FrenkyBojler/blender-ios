@@ -52,14 +52,14 @@ static bThemeState g_theme_state = {
 /** \name Init/Exit
  * \{ */
 
-void ui_resources_init()
+void resources_init()
 {
-  UI_icons_init();
+  icons_init();
 }
 
-void ui_resources_free()
+void resources_free()
 {
-  UI_icons_free();
+  icons_free();
 }
 
 /** \} */
@@ -68,7 +68,7 @@ void style_init_default()
 {
   BLI_freelistN(&U.uistyles);
   /* gets automatically re-allocated */
-  uiStyleInit();
+  style_init();
 }
 
 namespace theme {
@@ -1137,6 +1137,13 @@ void init_default()
   const int active_theme_area = btheme->active_theme_area;
   MEMCPY_STRUCT_AFTER(btheme, &U_theme_default, name);
   btheme->active_theme_area = active_theme_area;
+}
+
+void style_init_default()
+{
+  BLI_freelistN(&U.uistyles);
+  /* gets automatically re-allocated */
+  style_init();
 }
 
 void theme_set(int spacetype, int regionid)
