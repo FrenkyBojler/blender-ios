@@ -14,7 +14,6 @@
 #include "BLI_bounds_types.hh"
 #include "BLI_compiler_attrs.h"
 #include "BLI_function_ref.hh"
-#include "BLI_kdtree_types.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_sys_types.h"
@@ -46,6 +45,10 @@ struct Scene;
 struct SubsurfModifierData;
 struct View3D;
 struct ViewLayer;
+
+namespace blender {
+template<int DimsNum> struct KDTree;
+}  // namespace blender
 
 void BKE_object_workob_clear(Object *workob);
 /**
@@ -641,7 +644,7 @@ LinkNode *BKE_object_groups(Main *bmain, Scene *scene, Object *ob);
 void BKE_object_groups_clear(Main *bmain, Scene *scene, Object *object);
 
 /**
- * Return a KDTree_3d from the deformed object (in world-space).
+ * Return a KDTree<3> from the deformed object (in world-space).
  *
  * \note Only mesh objects currently support deforming, others are TODO.
  *
@@ -649,7 +652,7 @@ void BKE_object_groups_clear(Main *bmain, Scene *scene, Object *object);
  * \param r_tot:
  * \return The KD-tree or nullptr if it can't be created.
  */
-blender::KDTree_3d *BKE_object_as_kdtree(Object *ob, int *r_tot);
+blender::KDTree<3> *BKE_object_as_kdtree(Object *ob, int *r_tot);
 
 /**
  * The number of times to recurse parents for evaluation.
