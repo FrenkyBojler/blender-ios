@@ -134,7 +134,6 @@ PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
 {
   wmOperatorType *ot;
   int error_val = 0;
-  PointerRNA ptr;
   wmOperatorStatus retval = OPERATOR_CANCELLED;
 
   const char *opname;
@@ -221,7 +220,7 @@ PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
     error_val = -1;
   }
   else {
-    WM_operator_properties_create_ptr(&ptr, ot);
+    PointerRNA ptr = WM_operator_properties_create_ptr(ot);
     WM_operator_properties_sanitize(&ptr, false);
 
     if (kw && PyDict_Size(kw)) {

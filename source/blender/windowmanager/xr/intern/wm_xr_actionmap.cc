@@ -223,7 +223,7 @@ void WM_xr_actionmap_item_properties_update_ot(XrActionMapItem *ami)
     if (ot) {
       if (ot->srna != ami->op_properties_ptr->type) {
         /* Matches wm_xr_actionmap_item_properties_set() but doesn't alloc new ptr. */
-        WM_operator_properties_create_ptr(ami->op_properties_ptr, ot);
+        *ami->op_properties_ptr = WM_operator_properties_create_ptr(ot);
         if (ami->op_properties) {
           ami->op_properties_ptr->data = ami->op_properties;
         }
