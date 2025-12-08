@@ -2104,7 +2104,12 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
       if (strip->channel <= int(box_rect.ymax) && strip->channel >= int(box_rect.ymin) &&
           (strip->left_handle() > rect_frames[0]))
       {
-        seq::query_strip_connected_and_effect_chain(scene, strip, &ed->seqbase, to_offset);
+        if (ignore_connections) {
+          seq::query_strip_effect_chain(scene, strip, &ed->seqbase, to_offset);
+        }
+        else {
+          seq::query_strip_connected_and_effect_chain(scene, strip, &ed->seqbase, to_offset);
+        }
       }
     }
 
