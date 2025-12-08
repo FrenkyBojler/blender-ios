@@ -3,3 +3,4 @@ Referenced by issue #150393, Slowdown/Lagging Armature Object/Data caused by hug
 Referenced by issue #151088, Debug builds assert leaving edit-mode after adding a hook
 Referenced by pull request #151108, Fix #151088: Undo: Assert in pointer stability code after recent change.
 Referenced by commit 019a9d51fc899b4dd4bf675af166caca6500f16d, Fix #151088: Undo: Assert in pointer stability code after recent change.
+Referenced by issue #151262, "Alt+Mouse Wheel Scroll" timeline navigation performance much worse for files created in older versions compared to 4.5LTS
