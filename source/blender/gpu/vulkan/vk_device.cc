@@ -194,8 +194,10 @@ void VKDevice::init_functions()
   }
 
   /* VK_EXT_host_image_copy */
-  functions.vkCopyMemoryToImage = LOAD_FUNCTION(vkCopyMemoryToImageEXT);
-  functions.vkTransitionImageLayout = LOAD_FUNCTION(vkTransitionImageLayoutEXT);
+  if (extensions_.host_image_copy) {
+    functions.vkCopyMemoryToImage = LOAD_FUNCTION(vkCopyMemoryToImageEXT);
+    functions.vkTransitionImageLayout = LOAD_FUNCTION(vkTransitionImageLayoutEXT);
+  }
 
   if (extensions_.external_memory) {
 #ifdef _WIN32
