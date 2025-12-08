@@ -18,13 +18,12 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_report.hh"
 
-// todo(habib): cleanup
-#include "BKE_blender_copybuffer.hh"
-#include "BKE_blendfile.hh"
-// for get copybuffer path. todo(habib(): verify is necessary
 #include "BKE_appdir.hh"
-#include "BLI_path_utils.hh"
+#include "BKE_blendfile.hh"
 #include "BLO_readfile.hh"
+
+#include "BLI_fileops.h"
+#include "BLI_path_utils.hh"
 
 #include "ED_node.hh"
 #include "ED_render.hh"
@@ -204,7 +203,11 @@ static wmOperatorStatus node_clipboard_copy_exec(bContext *C, wmOperator *op)
 
   char filepath[FILE_MAX];
   node_copybuffer_filepath_get(filepath, sizeof(filepath));
-  copy_buffer.write(filepath, *op->reports);
+  if (!copy_buffer.write(filepath, *op->reports)) {
+    BLI_assert_unreachable();
+    BKE_report(op->reports, RPT_ERROR, "Unable to write to copy buffer on disk.");
+    return OPERATOR_CANCELLED;
+  };
 
   return OPERATOR_FINISHED;
 }
@@ -289,6 +292,7 @@ static wmOperatorStatus node_clipboard_paste_exec(bContext *C, wmOperator *op)
   }
 
   if (!node_copy_local(*from_tree, *snode->edittree, false, offset, op->reports)) {
+    BKE_id_delete(bmain_dst, &from_tree->id);
     return OPERATOR_CANCELLED;
   };
   BKE_id_delete(bmain_dst, &from_tree->id);
