@@ -314,6 +314,7 @@ set(SRC
   intern/volume_grid.cc
   intern/volume_grid_fields.cc
   intern/volume_grid_file_cache.cc
+  intern/volume_grid_varray.cc
   intern/volume_render.cc
   intern/volume_to_mesh.cc
   intern/wm_runtime.cc
@@ -536,6 +537,7 @@ set(SRC
   BKE_volume_grid_fwd.hh
   BKE_volume_grid_process.hh
   BKE_volume_grid_type_traits.hh
+  BKE_volume_grid_varray.hh
   BKE_volume_openvdb.hh
   BKE_volume_render.hh
   BKE_volume_to_mesh.hh
