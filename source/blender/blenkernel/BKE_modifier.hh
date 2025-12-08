@@ -12,6 +12,7 @@
 #include "BLI_math_matrix_types.hh"
 #include "BLI_span.hh"
 
+#include "BKE_idtype.hh"    /* For LibraryForeachIDCallbackFlag. */
 #include "BKE_lib_query.hh" /* For LibraryForeachIDCallbackFlag. */
 
 #include "DNA_modifier_types.h" /* Needed for all enum type definitions. */
@@ -498,6 +499,9 @@ void BKE_modifier_set_warning(const Object *ob, ModifierData *md, const char *fo
 
 void BKE_modifiers_foreach_ID_link(Object *ob, IDWalkFunc walk, void *user_data);
 void BKE_modifiers_foreach_tex_link(Object *ob, TexWalkFunc walk, void *user_data);
+
+void BKE_modifiers_foreach_idproperty_container(
+    Object &ob, IDTypeForeachIDPropertyContainerCallback function_callback);
 
 ModifierData *BKE_modifiers_findby_type(const Object *ob, ModifierType type);
 ModifierData *BKE_modifiers_findby_name(const Object *ob, const char *name);

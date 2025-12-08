@@ -10,6 +10,8 @@
 
 #include <memory>
 
+#include "BKE_idtype.hh"
+
 #include "DNA_ID.h"
 #include "DNA_ID_enums.h"
 
@@ -26,6 +28,7 @@ struct ID;
 struct IDProperty;
 struct IDPropertyUIData;
 struct IDPropertyUIDataEnumItem;
+struct Main;
 namespace blender::io::serialize {
 class ArrayValue;
 class Value;
@@ -547,5 +550,17 @@ std::unique_ptr<IDProperty, IDPropertyDeleter> create(StringRef prop_name,
 
 std::unique_ptr<IDProperty, IDPropertyDeleter> create_group(StringRef prop_name,
                                                             eIDPropertyFlag flags = {});
+
+/**
+ * Utils to loop over all IDProperty containers (i.e. 'root' IDProperties) of the given `id`.
+ */
+void foreach_id_idproperty_container(ID &id,
+                                     IDTypeForeachIDPropertyContainerCallback function_callback);
+/**
+ * Utils to loop over all IDProperty containers (i.e. 'root' IDProperties) of all IDs in the given
+ * `bmain`.
+ */
+void foreach_main_idproperty_container(Main &bmain,
+                                       IDTypeForeachIDPropertyContainerCallback function_callback);
 
 }  // namespace blender::bke::idprop

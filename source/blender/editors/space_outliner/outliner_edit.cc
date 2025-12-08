@@ -2528,6 +2528,8 @@ static wmOperatorStatus outliner_orphans_purge_exec(bContext *C, wmOperator *op)
   data.do_linked_ids = RNA_boolean_get(op->ptr, "do_linked_ids");
   data.do_recursive = RNA_boolean_get(op->ptr, "do_recursive");
 
+  data.do_unknown_runtime_rna = true;  // RNA_boolean_get(op->ptr, "do_unknown_runtime_rna");
+
   /* Tag all IDs to delete. */
   BKE_lib_query_unused_ids_tag(bmain, ID_TAG_DOIT, data);
 

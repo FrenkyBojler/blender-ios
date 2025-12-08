@@ -270,6 +270,7 @@ IDTypeInfo IDType_ID_CA = {
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ camera_foreach_path,
     /*foreach_working_space_color*/ nullptr,
+    /*foreach_idproperty_container*/ nullptr,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ camera_blend_write,

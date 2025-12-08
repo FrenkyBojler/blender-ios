@@ -540,6 +540,7 @@ IDTypeInfo IDType_ID_BR = {
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
     /*foreach_working_space_color*/ brush_foreach_working_space_color,
+    /*foreach_idproperty_container*/ nullptr,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ brush_blend_write,

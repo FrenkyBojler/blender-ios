@@ -434,6 +434,26 @@ static void node_foreach_id(ID *id, LibraryForeachIDData *data)
   }
 }
 
+static void node_foreach_idproperty_container(
+    ID &id, IDTypeForeachIDPropertyContainerCallback function_callback)
+{
+  function_callback(&id.properties, eIDTypeInfoIDPropertyCallbackFlags::user_defined);
+  function_callback(&id.system_properties, eIDTypeInfoIDPropertyCallbackFlags::system_defined);
+
+  bNodeTree &ntree = reinterpret_cast<bNodeTree &>(id);
+
+  auto node_node_foreach_idproperty_container_func = [&function_callback](bNode *node) -> void {
+    function_callback(&node->prop, eIDTypeInfoIDPropertyCallbackFlags::user_defined);
+    function_callback(&node->system_properties,
+                      eIDTypeInfoIDPropertyCallbackFlags::system_defined);
+  };
+  for (bNode *node : ntree.all_nodes()) {
+    node_node_foreach_idproperty_container_func(node);
+  }
+
+  ntree.tree_interface.foreach_idproperty_container(function_callback);
+}
+
 static void node_foreach_cache(ID *id,
                                IDTypeForeachCacheFunctionCallback function_callback,
                                void *user_data)
@@ -2176,6 +2196,7 @@ IDTypeInfo IDType_ID_NT = {
     /*foreach_cache*/ blender::bke::node_foreach_cache,
     /*foreach_path*/ blender::bke::node_foreach_path,
     /*foreach_working_space_color*/ blender::bke::node_foreach_working_space_color,
+    /*foreach_idproperty_container*/ blender::bke::node_foreach_idproperty_container,
     /*owner_pointer_get*/ blender::bke::node_owner_pointer_get,
 
     /*blend_write*/ blender::bke::ntree_blend_write,

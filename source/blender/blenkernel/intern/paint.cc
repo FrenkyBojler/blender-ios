@@ -174,6 +174,7 @@ IDTypeInfo IDType_ID_PAL = {
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
     /*foreach_working_space_color*/ palette_foreach_working_space_color,
+    /*foreach_idproperty_container*/ nullptr,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ palette_blend_write,
@@ -244,6 +245,7 @@ IDTypeInfo IDType_ID_PC = {
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
     /*foreach_working_space_color*/ nullptr,
+    /*foreach_idproperty_container*/ nullptr,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ paint_curve_blend_write,

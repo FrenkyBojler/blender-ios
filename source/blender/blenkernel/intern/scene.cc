@@ -958,6 +958,43 @@ static void scene_foreach_id(ID *id, LibraryForeachIDData *data)
   }
 }
 
+static void scene_foreach_idproperty_container(
+    ID &id, IDTypeForeachIDPropertyContainerCallback function_callback)
+{
+  function_callback(&id.properties, eIDTypeInfoIDPropertyCallbackFlags::user_defined);
+  function_callback(&id.system_properties, eIDTypeInfoIDPropertyCallbackFlags::system_defined);
+
+  Scene &scene = blender::id_cast<Scene &>(id);
+  if (scene.nodetree) {
+    blender::bke::idprop::foreach_id_idproperty_container(scene.nodetree->id, function_callback);
+  }
+  if (scene.master_collection) {
+    blender::bke::idprop::foreach_id_idproperty_container(scene.master_collection->id,
+                                                          function_callback);
+  }
+
+  auto seq_strip_foreach_idproperty_container_func = [&function_callback](Strip *strip) -> bool {
+    function_callback(&strip->prop, eIDTypeInfoIDPropertyCallbackFlags::user_defined);
+    function_callback(&strip->system_properties,
+                      eIDTypeInfoIDPropertyCallbackFlags::system_defined);
+    return true;
+  };
+  if (scene.ed) {
+    blender::seq::foreach_strip(&scene.ed->seqbase, seq_strip_foreach_idproperty_container_func);
+  }
+
+  LISTBASE_FOREACH (ViewLayer *, view_layer, &scene.view_layers) {
+    function_callback(&view_layer->id_properties,
+                      eIDTypeInfoIDPropertyCallbackFlags::user_defined);
+    function_callback(&view_layer->system_properties,
+                      eIDTypeInfoIDPropertyCallbackFlags::system_defined);
+  }
+
+  LISTBASE_FOREACH (TimeMarker *, marker, &scene.markers) {
+    function_callback(&marker->prop, eIDTypeInfoIDPropertyCallbackFlags::system_defined);
+  }
+}
+
 static bool strip_foreach_path_callback(Strip *strip, void *user_data)
 {
   if (STRIP_HAS_PATH(strip)) {
@@ -1621,6 +1658,7 @@ constexpr IDTypeInfo get_type_info()
   info.foreach_cache = scene_foreach_cache;
   info.foreach_path = scene_foreach_path;
   info.foreach_working_space_color = scene_foreach_working_space_color;
+  info.foreach_idproperty_container = scene_foreach_idproperty_container;
   info.owner_pointer_get = nullptr;
 
   info.blend_write = scene_blend_write;

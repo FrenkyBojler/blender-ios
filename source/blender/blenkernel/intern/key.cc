@@ -189,6 +189,7 @@ IDTypeInfo IDType_ID_KE = {
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
     /*foreach_working_space_color*/ nullptr,
+    /*foreach_idproperty_container*/ nullptr,
     /* A bit weird, due to shape-keys not being strictly speaking embedded data... But they also
      * share a lot with those (non linkable, only ever used by one owner ID, etc.). */
     /*owner_pointer_get*/ shapekey_owner_pointer_get,

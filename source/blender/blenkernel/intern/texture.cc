@@ -40,6 +40,7 @@
 #include "BKE_colorband.hh"
 #include "BKE_colortools.hh"
 #include "BKE_icons.hh"
+#include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
 #include "BKE_image.hh"
 #include "BKE_lib_id.hh"
@@ -145,6 +146,18 @@ static void texture_foreach_id(ID *id, LibraryForeachIDData *data)
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, texture->ima, IDWALK_CB_USER);
 }
 
+static void texture_foreach_idproperty_container(
+    ID &id, IDTypeForeachIDPropertyContainerCallback function_callback)
+{
+  function_callback(&id.properties, eIDTypeInfoIDPropertyCallbackFlags::user_defined);
+  function_callback(&id.system_properties, eIDTypeInfoIDPropertyCallbackFlags::system_defined);
+
+  Tex &texture = blender::id_cast<Tex &>(id);
+  if (texture.nodetree) {
+    blender::bke::idprop::foreach_id_idproperty_container(texture.nodetree->id, function_callback);
+  }
+}
+
 static void texture_blend_write(BlendWriter *writer, ID *id, const void *id_address)
 {
   Tex *tex = (Tex *)id;
@@ -203,6 +216,7 @@ IDTypeInfo IDType_ID_TE = {
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
     /*foreach_working_space_color*/ nullptr,
+    /*foreach_idproperty_container*/ texture_foreach_idproperty_container,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ texture_blend_write,

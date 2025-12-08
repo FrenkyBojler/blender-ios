@@ -26,6 +26,9 @@ struct bNodeSocketType;
 }  // namespace blender::bke
 using bNodeTreeInterfaceRuntimeHandle = blender::bke::bNodeTreeInterfaceRuntime;
 using bNodeSocketTypeHandle = blender::bke::bNodeSocketType;
+enum class eIDTypeInfoIDPropertyCallbackFlags;
+using IDTypeForeachIDPropertyContainerCallback =
+    blender::FunctionRef<void(IDProperty **, const eIDTypeInfoIDPropertyCallbackFlags)>;
 #else
 typedef struct bNodeTreeInterfaceRuntimeHandle bNodeTreeInterfaceRuntimeHandle;
 typedef struct bNodeSocketTypeHandle bNodeSocketTypeHandle;
@@ -467,6 +470,9 @@ typedef struct bNodeTreeInterface {
 
   /** Callback for every ID pointer in the interface data. */
   void foreach_id(LibraryForeachIDData *cb);
+
+  /** Callback for every IDProperty container in the interface data. */
+  void foreach_idproperty_container(IDTypeForeachIDPropertyContainerCallback function_callback);
 
   /** True if the items cache is ready to use. */
   bool items_cache_is_available() const;

@@ -23,6 +23,7 @@
 
 #include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_main.hh"
 
 #include "CLG_log.h"
 
@@ -1970,6 +1971,35 @@ IDPropertyUIData *IDP_TryConvertUIData(IDPropertyUIData *src,
 }
 
 /** \} */
+
+namespace blender::bke::idprop {
+
+void foreach_id_idproperty_container(ID &id,
+                                     IDTypeForeachIDPropertyContainerCallback function_callback)
+{
+  const IDTypeInfo *idtype = BKE_idtype_get_info_from_id(&id);
+  BLI_assert(idtype);
+
+  if (idtype->foreach_idproperty_container) {
+    idtype->foreach_idproperty_container(id, function_callback);
+  }
+  else {
+    function_callback(&id.properties, eIDTypeInfoIDPropertyCallbackFlags::user_defined);
+    function_callback(&id.system_properties, eIDTypeInfoIDPropertyCallbackFlags::system_defined);
+  }
+}
+
+void foreach_main_idproperty_container(Main &bmain,
+                                       IDTypeForeachIDPropertyContainerCallback function_callback)
+{
+  ID *id_iter;
+  FOREACH_MAIN_ID_BEGIN (&bmain, id_iter) {
+    foreach_id_idproperty_container(*id_iter, function_callback);
+  }
+  FOREACH_MAIN_ID_END;
+}
+
+}  // namespace blender::bke::idprop
 
 /* -------------------------------------------------------------------- */
 /** \name Debugging

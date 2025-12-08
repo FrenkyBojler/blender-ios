@@ -287,6 +287,43 @@ static void armature_foreach_id(ID *id, LibraryForeachIDData *data)
   }
 }
 
+static void armature_foreach_idproperty_container_bone(
+    Bone &bone, IDTypeForeachIDPropertyContainerCallback function_callback)
+{
+  function_callback(&bone.prop, eIDTypeInfoIDPropertyCallbackFlags::user_defined);
+  function_callback(&bone.system_properties, eIDTypeInfoIDPropertyCallbackFlags::system_defined);
+
+  LISTBASE_FOREACH (Bone *, curbone, &bone.childbase) {
+    armature_foreach_idproperty_container_bone(*curbone, function_callback);
+  }
+}
+
+static void armature_foreach_idproperty_container(
+    ID &id, IDTypeForeachIDPropertyContainerCallback function_callback)
+{
+  function_callback(&id.properties, eIDTypeInfoIDPropertyCallbackFlags::user_defined);
+  function_callback(&id.system_properties, eIDTypeInfoIDPropertyCallbackFlags::system_defined);
+
+  bArmature &arm = id_cast<bArmature &>(id);
+  LISTBASE_FOREACH (Bone *, bone, &arm.bonebase) {
+    armature_foreach_idproperty_container_bone(*bone, function_callback);
+  }
+
+  if (arm.edbo != nullptr) {
+    LISTBASE_FOREACH (EditBone *, edit_bone, arm.edbo) {
+      function_callback(&edit_bone->prop, eIDTypeInfoIDPropertyCallbackFlags::user_defined);
+      function_callback(&edit_bone->system_properties,
+                        eIDTypeInfoIDPropertyCallbackFlags::system_defined);
+    }
+  }
+
+  for (BoneCollection *bcoll : arm.collections_span()) {
+    function_callback(&bcoll->prop, eIDTypeInfoIDPropertyCallbackFlags::user_defined);
+    function_callback(&bcoll->system_properties,
+                      eIDTypeInfoIDPropertyCallbackFlags::system_defined);
+  }
+}
+
 static void write_bone(BlendWriter *writer, Bone *bone)
 {
   /* PATCH for upward compatibility after 2.37+ armature recode */
@@ -521,6 +558,7 @@ IDTypeInfo IDType_ID_AR = {
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
     /*foreach_working_space_color*/ nullptr,
+    /*foreach_idproperty_container*/ armature_foreach_idproperty_container,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ armature_blend_write,

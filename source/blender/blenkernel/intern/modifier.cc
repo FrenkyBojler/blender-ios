@@ -292,6 +292,20 @@ void BKE_modifiers_foreach_ID_link(Object *ob, IDWalkFunc walk, void *user_data)
   }
 }
 
+void BKE_modifiers_foreach_idproperty_container(
+    Object &ob, IDTypeForeachIDPropertyContainerCallback function_callback)
+{
+  LISTBASE_FOREACH (ModifierData *, md, &ob.modifiers) {
+    /* NOTE: Node modifier is currently the only IDProperty container, if this changes in the
+     * future it will likely be best to add another callback to the #ModifierTypeInfo struct. */
+    if (md->type == eModifierType_Nodes) {
+      NodesModifierData *nmd = reinterpret_cast<NodesModifierData *>(md);
+      function_callback(&nmd->settings.properties,
+                        eIDTypeInfoIDPropertyCallbackFlags::user_defined);
+    }
+  }
+}
+
 void BKE_modifiers_foreach_tex_link(Object *ob, TexWalkFunc walk, void *user_data)
 {
   LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {

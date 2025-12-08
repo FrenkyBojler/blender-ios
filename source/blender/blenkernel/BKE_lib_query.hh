@@ -426,6 +426,12 @@ struct LibQueryUnusedIDsData {
   bool do_recursive = false;
 
   /**
+   * Also process system IDProperties that do not match any known RNA path (i.e. registered RNA
+   * struct/property), in local IDs data.
+   */
+  bool do_unknown_runtime_rna = false;
+
+  /**
    * Callback filter, if defined and it returns `true`, the given `id` may be considered as unused,
    * otherwise it will always be considered as used.
    *
@@ -455,6 +461,13 @@ struct LibQueryUnusedIDsData {
    * \note Return value, set by the executed function.
    */
   std::array<int, INDEX_ID_MAX> num_linked;
+
+  /**
+   * Amount of detected as unused system IDProperties in local IDs data.
+   *
+   * \note Return value, set by the executed function.
+   */
+  int num_unknown_runtime_rna = 0;
 };
 
 /**

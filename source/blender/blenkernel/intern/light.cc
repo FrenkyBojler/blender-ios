@@ -25,6 +25,7 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_icons.hh"
+#include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
@@ -123,6 +124,18 @@ static void light_foreach_id(ID *id, LibraryForeachIDData *data)
   }
 }
 
+static void light_foreach_idproperty_container(
+    ID &id, IDTypeForeachIDPropertyContainerCallback function_callback)
+{
+  function_callback(&id.properties, eIDTypeInfoIDPropertyCallbackFlags::user_defined);
+  function_callback(&id.system_properties, eIDTypeInfoIDPropertyCallbackFlags::system_defined);
+
+  Light &lamp = blender::id_cast<Light &>(id);
+  if (lamp.nodetree) {
+    blender::bke::idprop::foreach_id_idproperty_container(lamp.nodetree->id, function_callback);
+  }
+}
+
 static void light_foreach_working_space_color(ID *id, const IDTypeForeachColorFunctionCallback &fn)
 {
   Light *la = (Light *)id;
@@ -183,6 +196,7 @@ IDTypeInfo IDType_ID_LA = {
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
     /*foreach_working_space_color*/ light_foreach_working_space_color,
+    /*foreach_idproperty_container*/ light_foreach_idproperty_container,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ light_blend_write,

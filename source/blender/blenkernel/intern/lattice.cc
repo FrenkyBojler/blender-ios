@@ -181,6 +181,7 @@ IDTypeInfo IDType_ID_LT = {
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
     /*foreach_working_space_color*/ nullptr,
+    /*foreach_idproperty_container*/ nullptr,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ lattice_blend_write,

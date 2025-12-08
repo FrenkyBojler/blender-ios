@@ -34,6 +34,7 @@
 #include "BKE_colortools.hh"
 #include "BKE_context.hh"
 #include "BKE_freestyle.h"
+#include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
@@ -175,6 +176,19 @@ static void linestyle_foreach_id(ID *id, LibraryForeachIDData *data)
           (LineStyleThicknessModifier_DistanceFromObject *)lsm;
       BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, p->target, IDWALK_CB_NOP);
     }
+  }
+}
+
+static void linestyle_foreach_idproperty_container(
+    ID &id, IDTypeForeachIDPropertyContainerCallback function_callback)
+{
+  function_callback(&id.properties, eIDTypeInfoIDPropertyCallbackFlags::user_defined);
+  function_callback(&id.system_properties, eIDTypeInfoIDPropertyCallbackFlags::system_defined);
+
+  FreestyleLineStyle &linestyle = blender::id_cast<FreestyleLineStyle &>(id);
+  if (linestyle.nodetree) {
+    blender::bke::idprop::foreach_id_idproperty_container(linestyle.nodetree->id,
+                                                          function_callback);
   }
 }
 
@@ -675,6 +689,7 @@ IDTypeInfo IDType_ID_LS = {
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
     /*foreach_working_space_color*/ linestyle_foreach_working_space_color,
+    /*foreach_idproperty_container*/ linestyle_foreach_idproperty_container,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ linestyle_blend_write,

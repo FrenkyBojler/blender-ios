@@ -23,6 +23,7 @@ struct BlendDataReader;
 struct BlendLibReader;
 struct BlendWriter;
 struct ID;
+struct IDProperty;
 struct Library;
 struct LibraryForeachIDData;
 struct Main;
@@ -122,6 +123,17 @@ struct IDTypeForeachColorFunctionCallback {
       implicit_sharing_array;
 };
 using IDTypeForeachColorFunction = void (*)(ID *id, const IDTypeForeachColorFunctionCallback &cb);
+
+enum class eIDTypeInfoIDPropertyCallbackFlags {
+  /** A 'user-defined' (a.k.a. custom properties) IDProperty. */
+  user_defined,
+  /** A 'system-defined' (a.k.a. runtima RNA backend storage) IDProperty. */
+  system_defined,
+};
+using IDTypeForeachIDPropertyContainerCallback =
+    blender::FunctionRef<void(IDProperty **, const eIDTypeInfoIDPropertyCallbackFlags)>;
+using IDTypeForeachIDPropertyContainer =
+    void (*)(ID &id, IDTypeForeachIDPropertyContainerCallback function_callback);
 
 /**
  * Callback returning the address of the pointer to the owner ID,
@@ -239,6 +251,17 @@ struct IDTypeInfo {
    * Alpha should not be premultiplied in the RGB values.
    */
   IDTypeForeachColorFunction foreach_working_space_color;
+
+  /**
+   * Iterator over all IDProperty containers of given ID. This includes both user- and
+   * system-defined ones.
+   *
+   * \note In case the _only_ idprop containers for an ID type are the default ones in the ID
+   * struct itself, there is no need to define this callback. But if there is any other container
+   * (e.g. in an embeded ID, or some sub-struct), then _all_ containers must be processed by the
+   * callback, including the standard ones in the ID itself.
+   */
+  IDTypeForeachIDPropertyContainer foreach_idproperty_container;
 
   /**
    * For embedded IDs, return the address of the pointer to their owner ID.

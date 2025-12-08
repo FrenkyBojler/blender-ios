@@ -768,6 +768,25 @@ static void item_foreach_id(LibraryForeachIDData *data, bNodeTreeInterfaceItem &
   }
 }
 
+static void item_foreach_idproperty_container(
+    bNodeTreeInterfaceItem &item, IDTypeForeachIDPropertyContainerCallback function_callback)
+{
+  switch (NodeTreeInterfaceItemType(item.item_type)) {
+    case NODE_INTERFACE_SOCKET: {
+      bNodeTreeInterfaceSocket &socket = reinterpret_cast<bNodeTreeInterfaceSocket &>(item);
+      function_callback(&socket.properties, eIDTypeInfoIDPropertyCallbackFlags::system_defined);
+      break;
+    }
+    case NODE_INTERFACE_PANEL: {
+      bNodeTreeInterfacePanel &panel = reinterpret_cast<bNodeTreeInterfacePanel &>(item);
+      for (bNodeTreeInterfaceItem *item : panel.items()) {
+        item_foreach_idproperty_container(*item, function_callback);
+      }
+      break;
+    }
+  }
+}
+
 /* Move all child items to the new parent. */
 static Span<bNodeTreeInterfaceItem *> item_children(bNodeTreeInterfaceItem &item)
 {
@@ -1591,6 +1610,12 @@ bool bNodeTreeInterface::move_item_to_parent(bNodeTreeInterfaceItem &item,
 void bNodeTreeInterface::foreach_id(LibraryForeachIDData *cb)
 {
   item_types::item_foreach_id(cb, root_panel.item);
+}
+
+void bNodeTreeInterface::foreach_idproperty_container(
+    IDTypeForeachIDPropertyContainerCallback function_callback)
+{
+  item_types::item_foreach_idproperty_container(root_panel.item, function_callback);
 }
 
 bool bNodeTreeInterface::items_cache_is_available() const

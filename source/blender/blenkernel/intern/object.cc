@@ -510,6 +510,25 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
   }
 }
 
+static void object_foreach_idproperty_container(
+    ID &id, IDTypeForeachIDPropertyContainerCallback function_callback)
+{
+  function_callback(&id.properties, eIDTypeInfoIDPropertyCallbackFlags::user_defined);
+  function_callback(&id.system_properties, eIDTypeInfoIDPropertyCallbackFlags::system_defined);
+
+  Object &object = blender::id_cast<Object &>(id);
+
+  BKE_modifiers_foreach_idproperty_container(object, function_callback);
+
+  if (object.pose) {
+    LISTBASE_FOREACH (bPoseChannel *, pchan, &object.pose->chanbase) {
+      function_callback(&pchan->prop, eIDTypeInfoIDPropertyCallbackFlags::user_defined);
+      function_callback(&pchan->system_properties,
+                        eIDTypeInfoIDPropertyCallbackFlags::system_defined);
+    }
+  }
+}
+
 static void object_foreach_path_pointcache(ListBase *ptcache_list,
                                            BPathForeachPathData *bpath_data)
 {
@@ -1092,6 +1111,7 @@ IDTypeInfo IDType_ID_OB = {
     /*foreach_cache*/ object_foreach_cache,
     /*foreach_path*/ object_foreach_path,
     /*foreach_working_space_color*/ object_foreach_working_space_color,
+    /*foreach_idproperty_container*/ object_foreach_idproperty_container,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ object_blend_write,

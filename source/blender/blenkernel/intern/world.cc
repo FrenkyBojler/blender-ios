@@ -24,6 +24,7 @@
 #include "BLI_utildefines.h"
 
 #include "BKE_icons.hh"
+#include "BKE_idprop.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
@@ -133,6 +134,18 @@ static void world_foreach_id(ID *id, LibraryForeachIDData *data)
   }
 }
 
+static void world_foreach_idproperty_container(
+    ID &id, IDTypeForeachIDPropertyContainerCallback function_callback)
+{
+  function_callback(&id.properties, eIDTypeInfoIDPropertyCallbackFlags::user_defined);
+  function_callback(&id.system_properties, eIDTypeInfoIDPropertyCallbackFlags::system_defined);
+
+  World &world = blender::id_cast<World &>(id);
+  if (world.nodetree) {
+    blender::bke::idprop::foreach_id_idproperty_container(world.nodetree->id, function_callback);
+  }
+}
+
 static void world_foreach_working_space_color(ID *id, const IDTypeForeachColorFunctionCallback &fn)
 {
   World *world = reinterpret_cast<World *>(id);
@@ -202,6 +215,7 @@ IDTypeInfo IDType_ID_WO = {
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
     /*foreach_working_space_color*/ world_foreach_working_space_color,
+    /*foreach_idproperty_container*/ world_foreach_idproperty_container,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ world_blend_write,
