@@ -6,6 +6,8 @@
 
 #include "BLI_listbase.h"
 
+#include "BKE_appdir.hh"
+#include "BKE_blendfile.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
 #include "BKE_lib_id.hh"
@@ -18,11 +20,8 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_report.hh"
 
-#include "BKE_appdir.hh"
-#include "BKE_blendfile.hh"
 #include "BLO_readfile.hh"
 
-#include "BLI_fileops.h"
 #include "BLI_path_utils.hh"
 
 #include "ED_node.hh"
