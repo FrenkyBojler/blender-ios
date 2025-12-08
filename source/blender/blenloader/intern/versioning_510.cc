@@ -400,7 +400,7 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     init_node_tool_operator_idnames(*bmain);
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 8)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 10)) {
     LISTBASE_FOREACH (wmWindowManager *, wm, &bmain->wm) {
       wm->xr.session_settings.view_scale = 1.0f;
     }
