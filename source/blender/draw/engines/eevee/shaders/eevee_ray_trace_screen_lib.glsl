@@ -275,25 +275,15 @@ float raytrace_screen_2(float3 vs_origin,
                         int max_steps,
                         float jitter)
 {
+  /* Convert ray start and end into NDC for correct interpolation. */
+  float4 start, end;
+  start.xyz = drw_point_view_to_screen(vs_origin);
+  end.xyz = drw_point_view_to_screen(vs_end);
+  /* W stores Z - thickness (Note that view space forward is -Z). */
+  start.w = drw_depth_view_to_screen(vs_origin.z + thickness);
+  end.w = drw_depth_view_to_screen(vs_end.z + thickness);
 
   float2 extent = float2(uniform_buf.film.render_extent);
-  float2 half_extent = extent / 2.0f;
-
-  /* Convert ray start and end into interpolable coordinates. */
-  /* Convert to homogeneous/clip-space as a first step. */
-  float4 start = drw_point_view_to_homogenous(vs_origin);
-  float4 end = drw_point_view_to_homogenous(vs_end);
-  /* w component stores the clip-space w recriprocal. */
-  start.w = 1.0f / start.w;
-  end.w = 1.0f / end.w;
-  /* xy components are stored in NDC. */
-  start.xy *= start.w;
-  end.xy *= end.w;
-  /* z component stores the view-space z divided by clip-space w,
-   * for perspective correct interpolation. */
-  start.z = vs_origin.z * start.w;
-  end.z = vs_end.z * end.w;
-
   float2 total_pixel_delta = abs(start.xy - end.xy) * extent;
   /* Number of steps required to trace a fully contiguous line. */
   int steps = int(max(total_pixel_delta.x, total_pixel_delta.y)) + 1;
@@ -304,41 +294,38 @@ float raytrace_screen_2(float3 vs_origin,
   float4 delta = (end - start) / float(steps);
 
   float max_t = max(steps - 1, 1);
-  float previous_step_z = vs_origin.z;
+  float previous_step_z = start.z;
 
   /* Skip the first step to avoid self-occlusion. But iterate at least once. */
   for (int i = 1; i < steps || i == 1; i++) {
     /* Ensure we don't go past ray end. */
     float step_t = min(float(i) + jitter, max_t);
     float4 step = start + delta * step_t;
-    /* Convert z to camera space. */
-    step.z /= step.w;
 
     /* Trick to prevent depth aliasing,
      * from "Rendering Tiny Glades With Entirely Too Much Ray Marching":
      * - Fetch depth using both point and linear sampling.
      * - Use the furthest one for intersection check.
      * - Use the closest one for thickness check. */
-    float2 texel = step.xy * half_extent + half_extent;
+    float2 texel = step.xy * extent;
     float hit_depth_point = texelFetch(hiz_tx, int2(texel), 0).r;
-    float2 uv = (step.xy * 0.5f + 0.5f) * uniform_buf.hiz.uv_scale;
+    float2 uv = step.xy * uniform_buf.hiz.uv_scale;
     float4 depth4 = textureGather(hiz_tx, uv);
     float2 bilinear_coords = fract(texel - 0.5f);
     float hit_depth_linear = mix(mix(depth4.w, depth4.z, bilinear_coords.x),
                                  mix(depth4.x, depth4.y, bilinear_coords.x),
                                  bilinear_coords.y);
-    float hit_near_z = drw_depth_screen_to_view(min(hit_depth_point, hit_depth_linear));
-    float hit_far_z = drw_depth_screen_to_view(max(hit_depth_point, hit_depth_linear));
+    float hit_min_z = min(hit_depth_point, hit_depth_linear);
+    float hit_max_z = max(hit_depth_point, hit_depth_linear);
 
     /* Take thickness into account, but ensure it's not lower than the step delta. */
+    /* TODO: Take previous z into account again. */
     float max_thickness = max(abs(step.z - previous_step_z), thickness);
     previous_step_z = step.z;
 
-    /* Note that camera forward is -Z. */
-    if (step.z <= hit_far_z && step.z + max_thickness >= hit_near_z) {
+    if (step.z >= hit_max_z && step.w <= hit_min_z) {
       /* We have a hit. Compute the distance. */
-      float3 ndc_hit_point = float3(step.xy, hit_depth_point * 2.0f - 1.0f);
-      float3 vs_hit_point = drw_point_ndc_to_view(ndc_hit_point);
+      float3 vs_hit_point = drw_point_screen_to_view(float3(step.xy, hit_depth_point));
       /* Hit point projection along the ray. */
       return dot(vs_hit_point - vs_origin, vs_direction);
     }
