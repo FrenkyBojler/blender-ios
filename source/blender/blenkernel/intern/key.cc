@@ -67,21 +67,21 @@ static void shapekey_copy_data(Main * /*bmain*/,
                                const ID *id_src,
                                const int /*flag*/)
 {
-  Key *key_destination = (Key *)id_dst;
-  const Key *key_source = (const Key *)id_src;
-  BLI_duplicatelist(&key_destination->block, &key_source->block);
+  Key *key_dst = (Key *)id_dst;
+  const Key *key_src = (const Key *)id_src;
+  BLI_duplicatelist(&key_dst->block, &key_src->block);
 
   KeyBlock *kb_dst, *kb_src;
-  for (kb_src = static_cast<KeyBlock *>(key_source->block.first),
-      kb_dst = static_cast<KeyBlock *>(key_destination->block.first);
+  for (kb_src = static_cast<KeyBlock *>(key_src->block.first),
+      kb_dst = static_cast<KeyBlock *>(key_dst->block.first);
        kb_dst;
        kb_src = kb_src->next, kb_dst = kb_dst->next)
   {
     if (kb_dst->data) {
       kb_dst->data = MEM_dupallocN(kb_dst->data);
     }
-    if (kb_src == key_source->refkey) {
-      key_destination->refkey = kb_dst;
+    if (kb_src == key_src->refkey) {
+      key_dst->refkey = kb_dst;
     }
   }
 }
@@ -2179,9 +2179,9 @@ void BKE_keyblock_mesh_calc_normals(const KeyBlock *kb,
 
   blender::Array<blender::float3> positions(mesh->vert_positions());
   BKE_keyblock_convert_to_mesh(kb, positions);
-  const blender::OffsetIndices faces = mesh->faces();
-  const blender::Span<int> corner_verts = mesh->corner_verts();
-  const blender::Span<int> corner_edges = mesh->corner_edges();
+  const OffsetIndices faces = mesh->faces();
+  const Span<int> corner_verts = mesh->corner_verts();
+  const Span<int> corner_edges = mesh->corner_edges();
 
   const bool loop_normals_needed = r_loop_normals != nullptr;
   const bool vert_normals_needed = r_vert_normals != nullptr;
