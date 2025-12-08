@@ -769,8 +769,6 @@ static void draw_create_skinning(Object &ob,
         if (skincache && skincache->buffers_valid && amd->object && amd->object->pose &&
             skincache->bonedata_mat)
         {
-          const bool use_dual_quaternion = (skincache->cached_deform_flag & ARM_DEF_QUATERNION) !=
-                                           0;
           draw_skinning_pack_bone_matrices(amd->object,
                                            &ob,
                                            &skincache->bonedata_mat,
