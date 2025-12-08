@@ -1974,10 +1974,10 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
 
   scene->ed->runtime.flag &= ~SEQ_SHOW_TRANSFORM_PREVIEW;
 
-  View2D *v2d = UI_view2d_fromcontext(C);
+  View2D *v2d = ui::view2d_fromcontext(C);
   rctf box_rect;
   WM_operator_properties_border_to_rctf(op, &box_rect);
-  UI_view2d_region_to_view_rctf(v2d, &box_rect, &box_rect);
+  ui::view2d_region_to_view_rctf(v2d, &box_rect, &box_rect);
 
   const bool remove_gaps = RNA_boolean_get(op->ptr, "remove_gaps");
   const bool ignore_selection = RNA_boolean_get(op->ptr, "ignore_selection");
@@ -2001,29 +2001,21 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
     rctf strip_rect;
     strip_rectf(scene, strip, &strip_rect);
     if (BLI_rctf_isect(&strip_rect, &box_rect, nullptr)) {
-      gap_removal_boundary[0] = math::min(gap_removal_boundary[0],
-                                          seq::time_left_handle_frame_get(scene, strip));
-      gap_removal_boundary[1] = math::max(gap_removal_boundary[1],
-                                          seq::time_right_handle_frame_get(scene, strip));
+      gap_removal_boundary[0] = math::min(gap_removal_boundary[0], strip->left_handle());
+      gap_removal_boundary[1] = math::max(gap_removal_boundary[1], strip->right_handle(scene));
 
-      if (seq::time_left_handle_frame_get(scene, strip) >= rect_frames[0] &&
-          seq::time_right_handle_frame_get(scene, strip) <= rect_frames[1])
-      {
+      if (strip->left_handle() >= rect_frames[0] && strip->right_handle(scene) <= rect_frames[1]) {
         /* The box rect completely covers the strip rect, so just delete it. */
         to_remove.add(strip);
         continue;
       }
 
       /* Whether there is a valid split for this strip at the left/right side of the box rect. */
-      const bool box_left_splits = (seq::time_left_handle_frame_get(scene, strip) <
-                                    rect_frames[0]) &&
-                                   (seq::time_right_handle_frame_get(scene, strip) >
-                                    rect_frames[0]);
+      const bool box_left_splits = (strip->left_handle() < rect_frames[0]) &&
+                                   (strip->right_handle(scene) > rect_frames[0]);
 
-      const bool box_right_splits = (seq::time_left_handle_frame_get(scene, strip) <
-                                     rect_frames[1]) &&
-                                    (seq::time_right_handle_frame_get(scene, strip) >
-                                     rect_frames[1]);
+      const bool box_right_splits = (strip->left_handle() < rect_frames[1]) &&
+                                    (strip->right_handle(scene) > rect_frames[1]);
 
       const char *error_msg = nullptr;
       if (box_left_splits) {
@@ -2110,7 +2102,7 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
       /* Ripple strips for all channels that the blade box extends to, so that the user can
        * optionally affect other channels than those with strips to cut. */
       if (strip->channel <= int(box_rect.ymax) && strip->channel >= int(box_rect.ymin) &&
-          (seq::time_left_handle_frame_get(scene, strip) > rect_frames[0]))
+          (strip->left_handle() > rect_frames[0]))
       {
         seq::query_strip_connected_and_effect_chain(scene, strip, &ed->seqbase, to_offset);
       }
@@ -2133,12 +2125,12 @@ static wmOperatorStatus sequencer_box_blade_exec(bContext *C, wmOperator *op)
 
 static void sequencer_box_blade_ui(bContext * /*C*/, wmOperator *op)
 {
-  uiLayout *layout = op->layout;
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
+  ui::Layout &layout = *op->layout;
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
 
-  layout->prop(op->ptr, "remove_gaps", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  layout->prop(op->ptr, "ignore_selection", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "remove_gaps", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "ignore_selection", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static wmOperatorStatus sequencer_box_blade_modal(bContext *C,
@@ -2147,8 +2139,8 @@ static wmOperatorStatus sequencer_box_blade_modal(bContext *C,
 {
   Scene *scene = CTX_data_sequencer_scene(C);
 
-  View2D *v2d = UI_view2d_fromcontext(C);
-  int mouse_frame = UI_view2d_region_to_view_x(v2d, event->mval[0]);
+  View2D *v2d = ui::view2d_fromcontext(C);
+  int mouse_frame = ui::view2d_region_to_view_x(v2d, event->mval[0]);
   scene->ed->runtime.flag |= SEQ_SHOW_TRANSFORM_PREVIEW;
   scene->ed->runtime.transform_preview_frame = mouse_frame;
 
