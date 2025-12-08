@@ -5,3 +5,4 @@ Referenced by issue #150483, Joining objects doesn't propagate all of active mes
 Referenced by pull request #150530, Fix #150483: Joining mesh objects loses some data-block options
 Referenced by commit a909604a66f62121017fe7eee27c641c14d93a58, Fix #150483: Joining mesh objects loses some data-block options
 Referenced by issue #151267, Blender 5.0.0 crashed on CTR + J (join geometry)
+Referenced by pull request #151308, Fix #151267: Crash joining specific objects
