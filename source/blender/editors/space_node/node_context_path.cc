@@ -85,40 +85,84 @@ static bool node_tree_has_group_node(const bNodeTree *ntree)
   return false;
 }
 
-static void navigate_menu_draw_fn(bContext *C, ui::Layout *layout, void *arg)
+static void navigate_menu_draw_fn(bContext * /*C*/, ui::Layout *layout, void *arg)
 {
-  bNodeTree *ntree = static_cast<bNodeTree *>(arg);
-  if (!ntree) {
+  bNodeTree *clicked_tree = static_cast<bNodeTree *>(arg);
+  if (!clicked_tree) {
     return;
   }
-  /* 遍历节点树中的所有节点 */
-  for (bNode *node : ntree->all_nodes()) {
-    /* 只关心节点组 (Group Node) */
-    if (node->type_legacy == NODE_GROUP && node->id) {
-      bNodeTree *sub_group = (bNodeTree *)node->id;
 
-      /* 定义点击菜单项后的行为：进入该节点组 */
-      auto enter_group_func = [ntree, node, sub_group](bContext &C) {
-        SpaceNode *snode = CTX_wm_space_node(&C);
-        ARegion *region = CTX_wm_region(&C);
+  Set<bNodeTree *> added_groups;
 
-        /* 确保我们是在正确的树上操作 */
-        if (snode->edittree != ntree) {
-          /* 这一步比较复杂，如果用户在面包屑中间点击，*/
+  // ! 材质里顶层点击下拉菜单会崩
+  for (bNode *node : clicked_tree->all_nodes()) {
+    if (!node->is_group() || !node->id) {
+      continue;
+    }
+    bNodeTree *clicked_group = (bNodeTree *)node->id;
+    if (added_groups.contains(clicked_group)) {
+      continue;
+    }
+    added_groups.add(clicked_group);
+
+    auto enter_group_func = [clicked_tree, node, clicked_group](bContext &C) {
+      SpaceNode *snode = CTX_wm_space_node(&C);
+      ARegion *region = CTX_wm_region(&C);
+
+      int index;
+      if (snode->edittree != clicked_tree) {
+        // A. 尝试判断是否是父级 (需要 Pop)
+        bool is_parent = false;
+        LISTBASE_FOREACH_INDEX (bNodeTreePath *, path_item, &snode->treepath, index) {
+          if (path_item->nodetree == clicked_tree) {
+            is_parent = true;
+            break;
+          }
         }
 
-        ED_node_tree_push(region, snode, sub_group, node);
+        if (is_parent) {
+          while (snode->edittree != clicked_tree) {
+            ED_node_tree_pop(region, snode);
+          }
+        }
+        else {
+          Vector<bNodeTree *> &history_path_trees = snode->runtime->navigate_path_history;
+          if (history_path_trees.is_empty()){
+            return;
+          }
+          Span<bNodeTree *> history_tail_path = history_path_trees.as_span().drop_front(index);
+          for (bNodeTree *history_tree : history_tail_path) {
+            bNode *group_node = nullptr;
+            for (bNode *node : snode->edittree->all_nodes()) {
+              if (node->id == reinterpret_cast<ID *>(history_tree)) {
+                group_node = node;
+                break;
+              }
+            }
+            if (group_node == nullptr) {
+              break;
+            }
+            bke::node_set_active(*snode->edittree, *group_node);
+            bke::node_set_selected(*group_node, true);
 
-        /* 刷新界面 */
+            ED_node_tree_push(region, snode, history_tree, group_node);
+            if (snode->edittree == clicked_tree){
+              break;
+            }
+          }
+        }
+      }
+
+      if (snode->edittree == clicked_tree) {
+        bke::node_set_active(*clicked_tree, *node);
+        bke::node_set_selected(*node, true);
+        ED_node_tree_push(region, snode, clicked_group, node);
         WM_event_add_notifier(&C, NC_SCENE | ND_NODES, nullptr);
-      };
+        WM_event_add_notifier(&C, NC_NODE | ND_NODE_GIZMO, nullptr);
+      }
+    };
 
-      /* 添加菜单项 */
-      /* 使用 node->label (如果有) 或者 node->name */
-      std::string label = sub_group->id.name + 2;
-      // todo 去重
-      layout->button(label, ICON_NODETREE, enter_group_func);
-    }
+    layout->button(node->id->name + 2, ICON_NODETREE, enter_group_func);
   }
 }
 
@@ -375,7 +419,6 @@ Vector<ui::ContextPathItem> context_path_for_space_node(const bContext &C)
   }
 
   if (valid_history) {
-    Main *bmain = CTX_data_main(&C);
     Span<bNodeTree *> history_tail_path = history_path_trees.as_span().drop_front(
         active_path_trees.size());
 
