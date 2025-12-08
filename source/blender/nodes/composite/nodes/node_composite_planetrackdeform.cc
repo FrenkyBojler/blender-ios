@@ -17,8 +17,8 @@
 
 #include "BKE_context.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_movieclip.h"
-#include "BKE_tracking.h"
+#include "BKE_movieclip.hh"
+#include "BKE_tracking.hh"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
@@ -56,7 +56,7 @@ static void cmp_node_planetrackdeform_declare(NodeDeclarationBuilder &b)
   b.add_layout([](ui::Layout &layout, bContext *C, PointerRNA *ptr) {
     bNode *node = ptr->data_as<bNode>();
 
-    uiTemplateID(&layout, C, ptr, "clip", nullptr, "CLIP_OT_open", nullptr);
+    template_id(&layout, C, ptr, "clip", nullptr, "CLIP_OT_open", nullptr);
 
     if (node->id) {
       MovieClip *clip = reinterpret_cast<MovieClip *>(node->id);
