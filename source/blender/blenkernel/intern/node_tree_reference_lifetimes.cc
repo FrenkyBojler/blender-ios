@@ -993,12 +993,18 @@ static aal::RelationsInNode get_tree_relations(
   return tree_relations;
 }
 
-static void disable_unused_group_output_propagation(const Span<ReferenceSetInfo> reference_sets,
-                                                    const aal::RelationsInNode &tree_relations,
-                                                    BitGroupVector<> &required_data_by_socket)
+/**
+ * After creating detecting the final propagate-relations, we can detect some input geometry that
+ * looked like it was passed to the output actually is not. So we can update
+ * #required_data_by_socket to never use the corresponding #ReferenceSetInfo.
+ */
+static void disable_unused_group_output_propagation(
+    const Span<ReferenceSetInfo> reference_sets,
+    const Span<aal::PropagateRelation> &propagate_relations,
+    BitGroupVector<> &required_data_by_socket)
 {
   Vector<int> propagate_targets;
-  for (const auto relation : tree_relations.propagate_relations) {
+  for (const auto relation : propagate_relations) {
     propagate_targets.append(relation.to_geometry_output);
   }
   BitVector<> reference_sets_mask(reference_sets.size(), true);
@@ -1075,7 +1081,9 @@ static std::unique_ptr<ReferenceLifetimesInfo> make_reference_lifetimes_info(con
                                                                 potential_reference_by_socket,
                                                                 required_data_by_socket);
   disable_unused_group_output_propagation(
-      reference_sets, reference_lifetimes_info->tree_relations, required_data_by_socket);
+      reference_sets,
+      reference_lifetimes_info->tree_relations.propagate_relations,
+      required_data_by_socket);
 
 /* Only useful when debugging the reference lifetimes analysis. */
 #if 0
