@@ -1989,6 +1989,11 @@ IDProperty *node_create_inputs_asset_metadata(const bNodeTree &node_tree)
         IDP_AddToGroup(input.get(), idprop::create("min", value.min).release());
         IDP_AddToGroup(input.get(), idprop::create("max", value.max).release());
         IDP_AddToGroup(input.get(), idprop::create("default_value", value.value).release());
+        if (socket->default_attribute_name) {
+          IDP_AddToGroup(
+              input.get(),
+              idprop::create("default_attribute_name", socket->default_attribute_name).release());
+        }
         break;
       }
       case SOCK_VECTOR: {
@@ -1997,20 +2002,37 @@ IDProperty *node_create_inputs_asset_metadata(const bNodeTree &node_tree)
         IDP_AddToGroup(
             input.get(),
             idprop::create("default_value", Span(value.value, value.dimensions)).release());
-        IDP_AddToGroup(input.get(), idprop::create("dimensions", value.dimensions).release());
+        if (value.dimensions != 3) {
+          IDP_AddToGroup(input.get(), idprop::create("dimensions", value.dimensions).release());
+        }
         IDP_AddToGroup(input.get(), idprop::create("min", value.min).release());
         IDP_AddToGroup(input.get(), idprop::create("max", value.max).release());
+        if (socket->default_attribute_name) {
+          IDP_AddToGroup(
+              input.get(),
+              idprop::create("default_attribute_name", socket->default_attribute_name).release());
+        }
         break;
       }
       case SOCK_RGBA: {
         const auto &value = node_interface::get_socket_data_as<bNodeSocketValueRGBA>(*socket);
         IDP_AddToGroup(input.get(),
                        idprop::create("default_value", Span(value.value, 4)).release());
+        if (socket->default_attribute_name) {
+          IDP_AddToGroup(
+              input.get(),
+              idprop::create("default_attribute_name", socket->default_attribute_name).release());
+        }
         break;
       }
       case SOCK_BOOLEAN: {
         const auto &value = node_interface::get_socket_data_as<bNodeSocketValueBoolean>(*socket);
         IDP_AddToGroup(input.get(), idprop::create_bool("default_value", value.value).release());
+        if (socket->default_attribute_name) {
+          IDP_AddToGroup(
+              input.get(),
+              idprop::create("default_attribute_name", socket->default_attribute_name).release());
+        }
         break;
       }
       case SOCK_ROTATION: {
@@ -2018,6 +2040,11 @@ IDProperty *node_create_inputs_asset_metadata(const bNodeTree &node_tree)
         const float3 default_value = float3(math::EulerXYZ(float3(value.value_euler)));
         IDP_AddToGroup(input.get(),
                        idprop::create("default_value", Span(&default_value.x, 3)).release());
+        if (socket->default_attribute_name) {
+          IDP_AddToGroup(
+              input.get(),
+              idprop::create("default_attribute_name", socket->default_attribute_name).release());
+        }
         break;
       }
       case SOCK_INT: {
@@ -2026,6 +2053,11 @@ IDProperty *node_create_inputs_asset_metadata(const bNodeTree &node_tree)
         IDP_AddToGroup(input.get(), idprop::create("min", value.min).release());
         IDP_AddToGroup(input.get(), idprop::create("max", value.max).release());
         IDP_AddToGroup(input.get(), idprop::create("default_value", value.value).release());
+        if (socket->default_attribute_name) {
+          IDP_AddToGroup(
+              input.get(),
+              idprop::create("default_attribute_name", socket->default_attribute_name).release());
+        }
         break;
       }
       case SOCK_STRING: {
