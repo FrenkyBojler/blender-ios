@@ -23,6 +23,7 @@
 #include "BLO_read_write.hh"
 
 #include "BKE_node_socket_value.hh"
+#include "BKE_node_tree_reference_lifetimes.hh"
 
 #include "COM_node_operation.hh"
 #include "COM_result.hh"
@@ -125,33 +126,36 @@ static void node_declare(NodeDeclarationBuilder &b)
   if (supports_fields) {
     output.dependent_field().reference_pass_all();
   }
-  else if (data_type == SOCK_GEOMETRY) {
+  if (bke::node_tree_reference_lifetimes::can_contain_referenced_data(data_type)) {
     output.propagate_all();
+  }
+  if (bke::node_tree_reference_lifetimes::can_contain_reference(data_type)) {
+    output.reference_pass_all();
   }
   output.structure_type(value_structure_type);
 
   b.add_input<decl::Extend>("", "__extend__").custom_draw([](CustomSocketDrawParams &params) {
-    uiLayout &layout = params.layout;
+    ui::Layout &layout = params.layout;
     layout.emboss_set(ui::EmbossType::None);
     PointerRNA op_ptr = layout.op("node.index_switch_item_add", "", ICON_ADD);
     RNA_int_set(&op_ptr, "node_identifier", params.node.identifier);
   });
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
-static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
+static void node_layout_ex(ui::Layout &layout, bContext *C, PointerRNA *ptr)
 {
   bNode &node = *static_cast<bNode *>(ptr->data);
   NodeIndexSwitch &storage = node_storage(node);
-  if (uiLayout *panel = layout->panel(C, "index_switch_items", false, IFACE_("Items"))) {
+  if (ui::Layout *panel = layout.panel(C, "index_switch_items", false, IFACE_("Items"))) {
     panel->op("node.index_switch_item_add", IFACE_("Add Item"), ICON_ADD);
-    uiLayout *col = &panel->column(false);
+    ui::Layout *col = &panel->column(false);
     for (const int i : IndexRange(storage.items_num)) {
-      uiLayout *row = &col->row(false);
+      ui::Layout *row = &col->row(false);
       row->label(node.input_socket(i + 1).name, ICON_NONE);
       PointerRNA op_ptr = row->op("node.index_switch_item_remove", "", ICON_REMOVE);
       RNA_int_set(&op_ptr, "index", i);
@@ -161,7 +165,8 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
 
 static void NODE_OT_index_switch_item_add(wmOperatorType *ot)
 {
-  socket_items::ops::add_item<IndexSwitchItemsAccessor>(ot, "Add Item", __func__, "Add bake item");
+  socket_items::ops::add_item<IndexSwitchItemsAccessor>(
+      ot, "Add Item", __func__, "Add an item to the index switch");
 }
 
 static void NODE_OT_index_switch_item_remove(wmOperatorType *ot)
@@ -179,7 +184,7 @@ static void node_operators()
 static void node_init(bNodeTree *tree, bNode *node)
 {
   NodeIndexSwitch *data = MEM_callocN<NodeIndexSwitch>(__func__);
-  data->data_type = tree->type == NTREE_GEOMETRY ? SOCK_GEOMETRY : SOCK_RGBA;
+  data->data_type = tree->type == NTREE_GEOMETRY ? SOCK_FLOAT : SOCK_RGBA;
   data->next_identifier = 0;
 
   BLI_assert(data->items == nullptr);

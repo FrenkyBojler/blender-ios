@@ -286,7 +286,7 @@ float3 geometry_normal_unpack(uint data, float3 N)
 
 /**
  * The GBuffer is polymorphic and its content varies from pixel to pixel.
- * The header contains some common informations and the layout of the GBuffer content.
+ * The header contains some common information and layout of the GBuffer content.
  */
 struct Header {
 #define GBUFFER_NORMAL_BITS_SHIFT 12u
@@ -434,7 +434,7 @@ struct Header {
 
   uchar closure_len() const
   {
-    return reduce_add(int3(not(this->empty_bins())));
+    return uchar(reduce_add(int3(not(this->empty_bins()))));
   }
 
   uchar normal_len() const

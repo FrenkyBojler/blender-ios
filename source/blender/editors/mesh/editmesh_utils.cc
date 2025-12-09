@@ -13,7 +13,7 @@
 #include "DNA_object_types.h"
 
 #include "BLI_array.hh"
-#include "BLI_kdtree.h"
+#include "BLI_kdtree.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
@@ -917,7 +917,7 @@ static bool seam_connected_recursive(BMEdge *edge,
                                      const float luv_anchor[2],
                                      const float luv_fan[2],
                                      const BMLoop *needle,
-                                     GSet *visited,
+                                     blender::Set<const BMEdge *> &visited,
                                      const int cd_loop_uv_offset)
 {
   BMVert *anchor = needle->v;
@@ -927,7 +927,7 @@ static bool seam_connected_recursive(BMEdge *edge,
     return false; /* Edge is a seam, don't traverse. */
   }
 
-  if (!BLI_gset_add(visited, edge)) {
+  if (!visited.add(edge)) {
     return false; /* Already visited. */
   }
 
@@ -978,13 +978,16 @@ static bool seam_connected_recursive(BMEdge *edge,
  * \return true if there are edges that fan between them that are seam-free.
  * return false otherwise.
  */
-static bool seam_connected(BMLoop *loop_a, BMLoop *loop_b, GSet *visited, int cd_loop_uv_offset)
+static bool seam_connected(BMLoop *loop_a,
+                           BMLoop *loop_b,
+                           blender::Set<const BMEdge *> &visited,
+                           int cd_loop_uv_offset)
 {
   BLI_assert(loop_a && loop_b);
   BLI_assert(loop_a != loop_b);
   BLI_assert(loop_a->v == loop_b->v);
 
-  BLI_gset_clear(visited, nullptr);
+  visited.clear();
 
   const float *luv_anchor = BM_ELEM_CD_GET_FLOAT_P(loop_a, cd_loop_uv_offset);
   const float *luv_next_fan = BM_ELEM_CD_GET_FLOAT_P(loop_a->next, cd_loop_uv_offset);
@@ -1094,7 +1097,7 @@ UvElementMap *BM_uv_element_map_create(BMesh *bm,
     }
   }
 
-  GSet *seam_visited_gset = use_seams ? BLI_gset_ptr_new(__func__) : nullptr;
+  blender::Set<const BMEdge *> seam_visited_set;
 
   /* For each BMVert, sort associated linked list into unique uvs. */
   int ev_index;
@@ -1140,7 +1143,7 @@ UvElementMap *BM_uv_element_map_create(BMesh *bm,
         }
 
         if (connected && use_seams) {
-          connected = seam_connected(iterv->l, v->l, seam_visited_gset, offsets.uv);
+          connected = seam_connected(iterv->l, v->l, seam_visited_set, offsets.uv);
         }
 
         if (connected) {
@@ -1168,9 +1171,8 @@ UvElementMap *BM_uv_element_map_create(BMesh *bm,
     element_map->vertex[ev_index] = newvlist;
   }
 
-  if (seam_visited_gset) {
-    BLI_gset_free(seam_visited_gset, nullptr);
-    seam_visited_gset = nullptr;
+  if (!use_seams) {
+    BLI_assert(seam_visited_set.is_empty());
   }
   MEM_SAFE_FREE(winding);
 
@@ -1321,7 +1323,7 @@ void EDBM_verts_mirror_cache_begin_ex(BMEditMesh *em,
   const float maxdist_sq = square_f(maxdist);
 
   /* one or the other is used depending if topo is enabled */
-  KDTree_3d *tree = nullptr;
+  blender::KDTree_3d *tree = nullptr;
   MirrTopoStore_t mesh_topo_store = {nullptr, -1, -1, false};
 
   BM_mesh_elem_table_ensure(bm, BM_VERT);
@@ -1348,15 +1350,15 @@ void EDBM_verts_mirror_cache_begin_ex(BMEditMesh *em,
     ED_mesh_mirrtopo_init(em, nullptr, &mesh_topo_store, true);
   }
   else {
-    tree = BLI_kdtree_3d_new(bm->totvert);
+    tree = blender::kdtree_3d_new(bm->totvert);
     BM_ITER_MESH_INDEX (v, &iter, bm, BM_VERTS_OF_MESH, i) {
       if (respecthide && BM_elem_flag_test(v, BM_ELEM_HIDDEN)) {
         continue;
       }
 
-      BLI_kdtree_3d_insert(tree, i, v->co);
+      blender::kdtree_3d_insert(tree, i, v->co);
     }
-    BLI_kdtree_3d_balance(tree);
+    blender::kdtree_3d_balance(tree);
   }
 
 #define VERT_INTPTR(_v, _i) \
@@ -1390,7 +1392,7 @@ void EDBM_verts_mirror_cache_begin_ex(BMEditMesh *em,
       co[axis] *= -1.0f;
 
       v_mirr = nullptr;
-      i_mirr = BLI_kdtree_3d_find_nearest(tree, co, nullptr);
+      i_mirr = blender::kdtree_3d_find_nearest(tree, co, nullptr);
       if (i_mirr != -1) {
         BMVert *v_test = BM_vert_at_index(bm, i_mirr);
         if (len_squared_v3v3(co, v_test->co) < maxdist_sq) {
@@ -1416,7 +1418,7 @@ void EDBM_verts_mirror_cache_begin_ex(BMEditMesh *em,
     ED_mesh_mirrtopo_free(&mesh_topo_store);
   }
   else {
-    BLI_kdtree_3d_free(tree);
+    blender::kdtree_3d_free(tree);
   }
 }
 

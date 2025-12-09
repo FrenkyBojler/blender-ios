@@ -11,6 +11,8 @@
 
 #include "BLT_translation.hh"
 
+#include "BKE_tracking.hh"
+
 #include "RNA_define.hh"
 
 #include "rna_internal.hh"
@@ -30,15 +32,11 @@
 
 #  include "BKE_anim_data.hh"
 #  include "BKE_animsys.h"
-#  include "BKE_movieclip.h"
-#  include "BKE_node.hh"
+#  include "BKE_movieclip.hh"
 #  include "BKE_node_tree_update.hh"
 #  include "BKE_report.hh"
-#  include "BKE_tracking.h"
 
 #  include "DEG_depsgraph.hh"
-
-#  include "IMB_imbuf.hh"
 
 #  include "WM_api.hh"
 
@@ -917,9 +915,13 @@ static void rna_def_trackingSettings(BlenderRNA *brna)
   };
 
   static const EnumPropertyItem cleanup_items[] = {
-      {TRACKING_CLEAN_SELECT, "SELECT", 0, "Select", "Select unclean tracks"},
-      {TRACKING_CLEAN_DELETE_TRACK, "DELETE_TRACK", 0, "Delete Track", "Delete unclean tracks"},
-      {TRACKING_CLEAN_DELETE_SEGMENT,
+      {int(TrackingCleanAction::Select), "SELECT", 0, "Select", "Select unclean tracks"},
+      {int(TrackingCleanAction::DeleteTrack),
+       "DELETE_TRACK",
+       0,
+       "Delete Track",
+       "Delete unclean tracks"},
+      {int(TrackingCleanAction::DeleteSegment),
        "DELETE_SEGMENTS",
        0,
        "Delete Segments",
@@ -1291,6 +1293,18 @@ static void rna_def_trackingCamera(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_range(prop, -10, 10, 0.1, 3);
   RNA_def_property_ui_text(prop, "K2", "Second coefficient of second order Nuke distortion");
+  RNA_def_property_update(prop, NC_MOVIECLIP | NA_EDITED, "rna_tracking_flushUpdate");
+
+  prop = RNA_def_property(srna, "nuke_p1", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_range(prop, -10, 10, 0.1, 3);
+  RNA_def_property_ui_text(prop, "P1", "First coefficient of tangential Nuke distortion");
+  RNA_def_property_update(prop, NC_MOVIECLIP | NA_EDITED, "rna_tracking_flushUpdate");
+
+  prop = RNA_def_property(srna, "nuke_p2", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_ui_range(prop, -10, 10, 0.1, 3);
+  RNA_def_property_ui_text(prop, "P2", "Second coefficient of tangential Nuke distortion");
   RNA_def_property_update(prop, NC_MOVIECLIP | NA_EDITED, "rna_tracking_flushUpdate");
 
   /* Brown-Conrady distortion parameters */

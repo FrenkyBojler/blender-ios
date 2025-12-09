@@ -27,7 +27,6 @@
 #include "DNA_curve_types.h"
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_text_types.h"
 
 #include "BIK_api.h"
 #include "BKE_action.hh"
@@ -40,7 +39,7 @@
 #include "BKE_main.hh"
 #include "BKE_object.hh"
 #include "BKE_report.hh"
-#include "BKE_tracking.h"
+#include "BKE_tracking.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
@@ -669,7 +668,7 @@ static bool edit_constraint_invoke_properties(bContext *C,
 
   /* Check the custom data of panels under the mouse for a modifier. */
   if (event != nullptr) {
-    PointerRNA *panel_ptr = UI_region_panel_custom_data_under_cursor(C, event);
+    PointerRNA *panel_ptr = ui::region_panel_custom_data_under_cursor(C, event);
 
     if (!(panel_ptr == nullptr || RNA_pointer_is_null(panel_ptr))) {
       if (RNA_struct_is_a(panel_ptr->type, &RNA_Constraint)) {
@@ -2620,8 +2619,6 @@ static wmOperatorStatus pose_ik_add_invoke(bContext *C, wmOperator *op, const wm
   bPoseChannel *pchan = BKE_pose_channel_active_if_bonecoll_visible(ob);
   bConstraint *con = nullptr;
 
-  uiPopupMenu *pup;
-  uiLayout *layout;
   Object *tar_ob = nullptr;
   bPoseChannel *tar_pchan = nullptr;
 
@@ -2643,8 +2640,8 @@ static wmOperatorStatus pose_ik_add_invoke(bContext *C, wmOperator *op, const wm
   }
 
   /* prepare popup menu to choose targeting options */
-  pup = UI_popup_menu_begin(C, IFACE_("Add IK"), ICON_NONE);
-  layout = UI_popup_menu_layout(pup);
+  ui::PopupMenu *pup = ui::popup_menu_begin(C, IFACE_("Add IK"), ICON_NONE);
+  ui::Layout &layout = *popup_menu_layout(pup);
 
   /* the type of targets we'll set determines the menu entries to show... */
   if (get_new_constraint_target(C, CONSTRAINT_TYPE_KINEMATIC, &tar_ob, &tar_pchan, false)) {
@@ -2652,24 +2649,24 @@ static wmOperatorStatus pose_ik_add_invoke(bContext *C, wmOperator *op, const wm
      * - the only thing that matters is that we want a target...
      */
     if (tar_pchan) {
-      PointerRNA op_ptr = layout->op("POSE_OT_ik_add", IFACE_("To Active Bone"), ICON_NONE);
+      PointerRNA op_ptr = layout.op("POSE_OT_ik_add", IFACE_("Target Selected Bone"), ICON_NONE);
       RNA_boolean_set(&op_ptr, "with_targets", true);
     }
     else {
-      PointerRNA op_ptr = layout->op("POSE_OT_ik_add", IFACE_("To Active Object"), ICON_NONE);
+      PointerRNA op_ptr = layout.op("POSE_OT_ik_add", IFACE_("Target Selected Object"), ICON_NONE);
       RNA_boolean_set(&op_ptr, "with_targets", true);
     }
   }
   else {
     /* we have a choice of adding to a new empty, or not setting any target (targetless IK) */
-    PointerRNA op_ptr = layout->op("POSE_OT_ik_add", IFACE_("To New Empty Object"), ICON_NONE);
+    PointerRNA op_ptr = layout.op("POSE_OT_ik_add", IFACE_("Target New Empty Object"), ICON_NONE);
     RNA_boolean_set(&op_ptr, "with_targets", true);
-    op_ptr = layout->op("POSE_OT_ik_add", IFACE_("Without Targets"), ICON_NONE);
+    op_ptr = layout.op("POSE_OT_ik_add", IFACE_("Without Target"), ICON_NONE);
     RNA_boolean_set(&op_ptr, "with_targets", false);
   }
 
   /* finish building the menu, and process it (should result in calling self again) */
-  UI_popup_menu_end(C, pup);
+  popup_menu_end(C, pup);
 
   return OPERATOR_INTERFACE;
 }
@@ -2690,7 +2687,8 @@ void POSE_OT_ik_add(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Add IK to Bone";
-  ot->description = "Add IK Constraint to the active Bone";
+  ot->description =
+      "Add an IK Constraint to the active Bone. The target can be a selected bone or object";
   ot->idname = "POSE_OT_ik_add";
 
   /* API callbacks. */

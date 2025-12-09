@@ -24,13 +24,7 @@
 
 namespace blender::seq {
 
-static blender::Mutex presence_lock;
-
-static const char *strip_base_path_get(const Strip *strip)
-{
-  return strip->scene ? ID_BLEND_PATH_FROM_GLOBAL(&strip->scene->id) :
-                        BKE_main_blendfile_path_from_global();
-}
+static Mutex presence_lock;
 
 static bool check_sound_media_missing(const bSound *sound)
 {
@@ -44,7 +38,7 @@ static bool check_sound_media_missing(const bSound *sound)
   return !BLI_exists(filepath);
 }
 
-static bool check_media_missing(const Strip *strip)
+static bool check_media_missing(const Scene *scene, const Strip *strip)
 {
   if (strip == nullptr || strip->data == nullptr) {
     return false;
@@ -60,7 +54,7 @@ static bool check_media_missing(const Strip *strip)
         paths_count = int(MEM_allocN_len(elem) / sizeof(*elem));
       }
       char filepath[FILE_MAX];
-      const char *basepath = strip_base_path_get(strip);
+      const char *basepath = ID_BLEND_PATH_FROM_GLOBAL(&scene->id);
       for (int i = 0; i < paths_count; i++, elem++) {
         BLI_path_join(filepath, sizeof(filepath), strip->data->dirpath, elem->filename);
         BLI_path_abs(filepath, basepath);
@@ -74,7 +68,7 @@ static bool check_media_missing(const Strip *strip)
   /* Recurse into meta strips. */
   if (strip->type == STRIP_TYPE_META) {
     LISTBASE_FOREACH (Strip *, strip_n, &strip->seqbase) {
-      if (check_media_missing(strip_n)) {
+      if (check_media_missing(scene, strip_n)) {
         return true;
       }
     }
@@ -113,7 +107,7 @@ bool media_presence_is_missing(Scene *scene, const Strip *strip)
   /* Strips that reference another data block that has path to media
    * (e.g. sound strips) need to key the presence cache on that data
    * block. Since it can be used by multiple strips. */
-  if (strip->type == STRIP_TYPE_SOUND_RAM) {
+  if (strip->type == STRIP_TYPE_SOUND) {
     const bSound *sound = strip->sound;
     const bool *val = presence->map_sound.lookup_ptr(sound);
     if (val != nullptr) {
@@ -131,7 +125,7 @@ bool media_presence_is_missing(Scene *scene, const Strip *strip)
       missing = *val;
     }
     else {
-      missing = check_media_missing(strip);
+      missing = check_media_missing(scene, strip);
       presence->map_seq.add_new(strip, missing);
     }
   }
@@ -149,7 +143,7 @@ void media_presence_set_missing(Scene *scene, const Strip *strip, bool missing)
 
   MediaPresence *presence = get_media_presence_cache(scene);
 
-  if (strip->type == STRIP_TYPE_SOUND_RAM) {
+  if (strip->type == STRIP_TYPE_SOUND) {
     const bSound *sound = strip->sound;
     presence->map_sound.add_overwrite(sound, missing);
   }
