@@ -618,7 +618,7 @@ static void blf_font_draw_ex(FontBLF *font,
                              ResultBLF *r_info,
                              const ft_pix pen_y)
 {
-  if (str_len == 0 || !str[0]) {
+  if (str_len == 0) {
     /* Early exit, don't do any immediate-mode GPU operations. */
     return;
   }
@@ -1128,8 +1128,8 @@ void blf_font_width_and_height(FontBLF *font,
   else {
     blf_font_boundbox(font, str, str_len, &box, r_info);
   }
-  *r_width = (float(BLI_rcti_size_x(&box) + 1) * xa);
-  *r_height = (float(BLI_rcti_size_y(&box) + 1) * ya);
+  *r_width = (float(BLI_rcti_size_x(&box)) * xa);
+  *r_height = (float(BLI_rcti_size_y(&box)) * ya);
 }
 
 float blf_font_width(FontBLF *font, const char *str, const size_t str_len, ResultBLF *r_info)
@@ -1150,7 +1150,7 @@ float blf_font_width(FontBLF *font, const char *str, const size_t str_len, Resul
   else {
     blf_font_boundbox(font, str, str_len, &box, r_info);
   }
-  return float(BLI_rcti_size_x(&box) + 1) * xa;
+  return float(BLI_rcti_size_x(&box)) * xa;
 }
 
 float blf_font_height(FontBLF *font, const char *str, const size_t str_len, ResultBLF *r_info)
@@ -1171,7 +1171,7 @@ float blf_font_height(FontBLF *font, const char *str, const size_t str_len, Resu
   else {
     blf_font_boundbox(font, str, str_len, &box, r_info);
   }
-  return float(BLI_rcti_size_y(&box) + 1) * ya;
+  return float(BLI_rcti_size_y(&box)) * ya;
 }
 
 float blf_font_fixed_width(FontBLF *font)
