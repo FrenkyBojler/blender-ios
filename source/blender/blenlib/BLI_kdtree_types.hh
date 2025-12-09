@@ -43,20 +43,10 @@ template<int DimsNum> struct KDTreeNearest {
   float co[DimsNum];
 };
 
-template KDTree<1>;
-template KDTree<2>;
-template KDTree<3>;
-template KDTree<4>;
-
 using KDTree_1d = KDTree<1>;
 using KDTree_2d = KDTree<2>;
 using KDTree_3d = KDTree<3>;
 using KDTree_4d = KDTree<4>;
-
-template KDTreeNearest<1>;
-template KDTreeNearest<2>;
-template KDTreeNearest<3>;
-template KDTreeNearest<4>;
 
 using KDTreeNearest_1d = KDTreeNearest<1>;
 using KDTreeNearest_2d = KDTreeNearest<2>;

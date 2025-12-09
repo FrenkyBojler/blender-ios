@@ -102,7 +102,6 @@ template<int DimsNum> inline void kdtree_free(KDTree<DimsNum> *tree)
  */
 template<int DimsNum>
 inline void kdtree_insert(KDTree<DimsNum> *tree, int index, const float co[DimsNum])
-    ATTR_NONNULL(1, 3)
 {
   KDTreeNode<DimsNum> *node = &tree->nodes[tree->nodes_len++];
 
@@ -189,7 +188,7 @@ static uint kdtree_balance(KDTreeNode<DimsNum> *nodes, uint nodes_len, uint axis
 
 }  // namespace detail
 
-template<int DimsNum> inline void kdtree_balance(KDTree<DimsNum> *tree) ATTR_NONNULL(1)
+template<int DimsNum> inline void kdtree_balance(KDTree<DimsNum> *tree)
 {
   if (tree->root != KD_NODE_ROOT_IS_INIT) {
     for (uint i = 0; i < tree->nodes_len; i++) {
@@ -229,7 +228,7 @@ static uint *realloc_nodes(uint *stack, uint *stack_len_capacity, const bool is_
 template<int DimsNum>
 inline int kdtree_find_nearest(const KDTree<DimsNum> *tree,
                                const float co[DimsNum],
-                               KDTreeNearest<DimsNum> *r_nearest) ATTR_NONNULL(1, 2)
+                               KDTreeNearest<DimsNum> *r_nearest)
 {
   const KDTreeNode<DimsNum> *nodes = tree->nodes;
   const KDTreeNode<DimsNum> *root, *min_node;
@@ -482,7 +481,7 @@ inline int kdtree_find_nearest_n_with_len_squared_cb(
     float (*len_sq_fn)(const float co_search[DimsNum],
                        const float co_test[DimsNum],
                        const void *user_data),
-    const void *user_data) ATTR_NONNULL(1, 2, 3)
+    const void *user_data)
 {
   const KDTreeNode<DimsNum> *nodes = tree->nodes;
   const KDTreeNode<DimsNum> *root;
@@ -592,7 +591,7 @@ template<int DimsNum>
 inline int kdtree_find_nearest_n(const KDTree<DimsNum> *tree,
                                  const float co[DimsNum],
                                  KDTreeNearest<DimsNum> r_nearest[],
-                                 uint nearest_len_capacity) ATTR_NONNULL(1, 2, 3)
+                                 uint nearest_len_capacity)
 {
   return kdtree_find_nearest_n_with_len_squared_cb<DimsNum>(
       tree, co, r_nearest, nearest_len_capacity, nullptr, nullptr);
@@ -654,7 +653,7 @@ inline int kdtree_range_search_with_len_squared_cb(
     float (*len_sq_fn)(const float co_search[DimsNum],
                        const float co_test[DimsNum],
                        const void *user_data),
-    const void *user_data) ATTR_NONNULL(1, 2) ATTR_WARN_UNUSED_RESULT
+    const void *user_data)
 {
   const KDTreeNode<DimsNum> *nodes = tree->nodes;
   uint *stack, stack_default[KD_STACK_INIT];
@@ -732,7 +731,7 @@ template<int DimsNum>
 inline int kdtree_range_search(const KDTree<DimsNum> *tree,
                                const float co[DimsNum],
                                KDTreeNearest<DimsNum> **r_nearest,
-                               float range) ATTR_WARN_UNUSED_RESULT
+                               float range)
 {
   return kdtree_range_search_with_len_squared_cb<DimsNum>(
       tree, co, r_nearest, range, nullptr, nullptr);
