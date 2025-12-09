@@ -586,6 +586,13 @@ if(TEST_SRC_DIR_EXISTS)
   )
 
   add_blender_test(
+    bl_animation_shapekey
+    --python ${CMAKE_CURRENT_LIST_DIR}/bl_animation_shapekey.py
+    --
+    --testdir "${TEST_SRC_DIR}/animation"
+  )
+
+  add_blender_test(
     bl_animation_fcurves
     --python ${CMAKE_CURRENT_LIST_DIR}/bl_animation_fcurves.py
     --
@@ -978,6 +985,7 @@ if(TEST_SRC_DIR_EXISTS)
     texture
     utilities
     vector
+    group
 
     pixel_nodes
     multiple_node_setups
@@ -1014,6 +1022,7 @@ if(WITH_GPU_COMPOSITOR_TESTS AND TEST_SRC_DIR_EXISTS)
     texture
     utilities
     vector
+    group
 
     pixel_nodes
     multiple_node_setups

@@ -748,7 +748,7 @@ static char *rna_def_property_get_func(
     /* Check log scale sliders for negative range. */
     if (prop->type == PROP_FLOAT) {
       FloatPropertyRNA *fprop = (FloatPropertyRNA *)prop;
-      /* NOTE: ButType::NumSlider can't have a softmin of zero. */
+      /* NOTE: ButtonType::NumSlider can't have a softmin of zero. */
       if ((fprop->ui_scale_type == PROP_SCALE_LOG) && (fprop->hardmin < 0 || fprop->softmin < 0)) {
         CLOG_ERROR(
             &LOG, "\"%s.%s\", range for log scale < 0.", srna->identifier, prop->identifier);
@@ -758,7 +758,7 @@ static char *rna_def_property_get_func(
     }
     if (prop->type == PROP_INT) {
       IntPropertyRNA *iprop = (IntPropertyRNA *)prop;
-      /* Only ButType::NumSlider is implemented and that one can't have a softmin of zero. */
+      /* Only ButtonType::NumSlider is implemented and that one can't have a softmin of zero. */
       if ((iprop->ui_scale_type == PROP_SCALE_LOG) && (iprop->hardmin <= 0 || iprop->softmin <= 0))
       {
         CLOG_ERROR(
@@ -4382,7 +4382,7 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
           prop->arraylength[2],
           prop->totarraylength);
   fprintf(f,
-          "\t%s%s, %d, %s, %s, %s, %s, %s, %s,\n",
+          "\t%s%s, %d, %s, %s, %s, %s, %s, %s, %s,\n",
           /* NOTE: void cast is needed to quiet function cast warning in C++. */
           (prop->flag & PROP_CONTEXT_UPDATE) ? "(UpdateFunc)(void *)" : "",
           rna_function_string(prop->update),
@@ -4390,6 +4390,7 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
           rna_function_string(prop->editable),
           rna_function_string(prop->itemeditable),
           rna_function_string(prop->ui_name_func),
+          rna_function_string(prop->ui_description_func),
           rna_function_string(prop->override_diff),
           rna_function_string(prop->override_store),
           rna_function_string(prop->override_apply));
