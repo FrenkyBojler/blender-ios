@@ -296,8 +296,7 @@ static const char *rna_safe_id(const char *id)
 
 static int cmp_struct(const StructRNA *structa, const StructRNA *structb)
 {
-  BLI_assert(structa->identifier && structb->identifier);
-  return strcmp(structa->identifier, structb->identifier);
+  return strcmp(structa->identifier, structb->identifier) < 0;
 }
 
 static int cmp_property(const void *a, const void *b)
