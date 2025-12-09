@@ -5194,7 +5194,7 @@ static bool block_search_filter_tag_buttons(Block *block, const char *search_fil
 static bool layout_match_search_recursive(const Layout &layout)
 {
   for (Item *item : layout.items()) {
-    if (item->type() == blender::ui::ItemType::Button) {
+    if (item->type() == ItemType::Button) {
       if (!bool(static_cast<const ButtonItem *>(item)->but->flag & UI_SEARCH_FILTER_NO_MATCH)) {
         return true;
       }
@@ -5226,25 +5226,38 @@ static void free_layout_items_set_hidden_buttons(Layout *layout)
 
 static void layout_apply_search_filter(Layout &layout)
 {
-  blender::Set<Item *> un_matched;
-  if (layout.items().size() == 1 && layout.items()[0]->type() == blender::ui::ItemType::Button) {
+  Set<Item *> un_matched;
+  if (layout.items().size() == 1 && layout.items()[0]->type() == ItemType::Button) {
     return;
   }
   Item *prev = nullptr;
   for (Item *item : layout.items()) {
-    if (item->type() == blender::ui::ItemType::Button) {
+    if (item->type() == ItemType::Button) {
       if (bool(static_cast<const ButtonItem *>(item)->but->flag & UI_SEARCH_FILTER_NO_MATCH)) {
         un_matched.add(item);
       }
+      continue;
     }
-    else {
-      if (!layout_match_search_recursive(*static_cast<const Layout *>(item))) {
+    Layout &sub = *static_cast<Layout *>(item);
+    if (sub.type() == layout.type()) {
+      /* Recusively only for same layout types. */
+      layout_apply_search_filter(sub);
+      if (sub.items().is_empty() ||
+          std::all_of(sub.items().begin(), sub.items().end(), [](Item *item) {
+            return item->type() == ItemType::Button &&
+                   bool(static_cast<const ButtonItem *>(item)->but->flag &
+                        UI_SEARCH_FILTER_NO_MATCH);
+          }))
+      {
         un_matched.add(item);
       }
     }
+    else if (!layout_match_search_recursive(sub)) {
+      un_matched.add(item);
+    }
     /** Keep both layout panel and header when any a match. */
-    if (item->type() == blender::ui::ItemType::LayoutPanelBody) {
-      BLI_assert(prev && prev->type() == blender::ui::ItemType::LayoutPanelHeader);
+    if (sub.type() == ItemType::LayoutPanelBody) {
+      BLI_assert(prev && prev->type() == ItemType::LayoutPanelHeader);
       if (!un_matched.contains(item) && un_matched.contains(prev)) {
         un_matched.remove(prev);
       }
@@ -5271,7 +5284,7 @@ static void layout_apply_search_filter(Layout &layout)
   }
 }
 
-bool block_apply_search_filter(Block *block, const char *search_filter)
+bool block_apply_search_filter(Block *block, const char *search_filter, bool filter_elements)
 {
   if (search_filter == nullptr || search_filter[0] == '\0') {
     return false;
@@ -5293,8 +5306,10 @@ bool block_apply_search_filter(Block *block, const char *search_filter)
                               true :
                               block_search_filter_tag_buttons(block, search_filter);
 
-  LISTBASE_FOREACH (LayoutRoot *, root, &block->layouts) {
-    layout_apply_search_filter(*root->layout);
+  if (filter_elements) {
+    LISTBASE_FOREACH (LayoutRoot *, root, &block->layouts) {
+      layout_apply_search_filter(*root->layout);
+    }
   }
 
   if (panel != nullptr) {

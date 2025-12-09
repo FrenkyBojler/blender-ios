@@ -893,7 +893,7 @@ ENUM_OPERATORS(eUI_Item_Flag)
  *
  * \note Must not be run after #block_layout_resolve.
  */
-bool block_apply_search_filter(Block *block, const char *search_filter);
+bool block_apply_search_filter(Block *block, const char *search_filter, bool filter_elements);
 
 void uiLayoutSetFunc(Layout *layout, MenuHandleFunc handlefunc, void *argv);
 

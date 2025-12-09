@@ -3058,7 +3058,8 @@ static bool ed_panel_draw(const bContext *C,
 
     pt->draw_header_preset(C, panel);
 
-    matchs_search = block_apply_search_filter(block, search_filter) || matchs_search;
+    force_match = block_apply_search_filter(block, search_filter, !force_match) || force_match;
+    matchs_search = force_match || matchs_search;
     co = blender::ui::block_layout_resolve(block);
     block_translate(block, headerend - co.x, 0);
     panel->layout = nullptr;
@@ -3099,7 +3100,8 @@ static bool ed_panel_draw(const bContext *C,
 
     pt->draw_header(C, panel);
 
-    matchs_search = block_apply_search_filter(block, search_filter) || matchs_search;
+    force_match = block_apply_search_filter(block, search_filter, !force_match) || force_match;
+    matchs_search = force_match || matchs_search;
     co = blender::ui::block_layout_resolve(block);
     panel->labelofs = co.x - labelx;
     panel->layout = nullptr;
@@ -3140,7 +3142,7 @@ static bool ed_panel_draw(const bContext *C,
 
     const bool ends_with_layout_panel_header = uiLayoutEndsWithPanelHeader(*panel->layout);
 
-    matchs_search = block_apply_search_filter(block, search_filter) || matchs_search;
+    matchs_search = block_apply_search_filter(block, search_filter, !force_match) || matchs_search;
     co = blender::ui::block_layout_resolve(block);
     panel->layout = nullptr;
 
@@ -3758,7 +3760,7 @@ static bool panel_property_search(const bContext *C,
 
   /* We could check after each layout to increase the likelihood of returning early,
    * but that probably wouldn't make much of a difference anyway. */
-  if (block_apply_search_filter(block, search_filter)) {
+  if (block_apply_search_filter(block, search_filter, true)) {
     blender::ui::block_layout_free(block);
 
     return true;
