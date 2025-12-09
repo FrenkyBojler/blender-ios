@@ -592,7 +592,7 @@ static void ui_layer_but_cb(bContext *C, void *arg_but, void *arg_index)
   PointerRNA *ptr = &but->rnapoin;
   PropertyRNA *prop = but->rnaprop;
   const int index = POINTER_AS_INT(arg_index);
-  const bool shift = win->eventstate->modifier & KM_SHIFT;
+  const bool shift = win->runtime->eventstate->modifier & KM_SHIFT;
   const int len = RNA_property_array_length(ptr, prop);
 
   if (!shift) {
@@ -841,7 +841,7 @@ static void ui_item_enum_expand_handle(bContext *C, void *arg1, void *arg2)
 {
   wmWindow *win = CTX_wm_window(C);
 
-  if ((win->eventstate->modifier & KM_SHIFT) == 0) {
+  if ((win->runtime->eventstate->modifier & KM_SHIFT) == 0) {
     Button *but = (Button *)arg1;
     const int enum_value = POINTER_AS_INT(arg2);
 
@@ -1023,7 +1023,7 @@ static void ui_item_enum_expand_tabs(Layout *layout,
                                      const std::optional<StringRef> uiname,
                                      const int h,
                                      const bool icon_only,
-                                     blender::ui::EnumTabExpand expand_as)
+                                     EnumTabExpand expand_as)
 {
   const int start_size = block->buttons.size();
 
@@ -1033,8 +1033,7 @@ static void ui_item_enum_expand_tabs(Layout *layout,
                            prop,
                            uiname,
                            h,
-                           expand_as == blender::ui::EnumTabExpand::Default ? ButtonType::Tab :
-                                                                              ButtonType::Row,
+                           expand_as == EnumTabExpand::Default ? ButtonType::Tab : ButtonType::Row,
                            icon_only);
 
   if (block->buttons.is_empty()) {
@@ -1043,13 +1042,12 @@ static void ui_item_enum_expand_tabs(Layout *layout,
 
   BLI_assert(start_size != block->buttons.size());
 
-  if (expand_as == blender::ui::EnumTabExpand::Default) {
+  if (expand_as == EnumTabExpand::Default) {
     for (int i = start_size; i < block->buttons.size(); i++) {
-      blender::ui::Button *tab = block->buttons[i].get();
-      blender::ui::button_drawflag_enable(
-          tab, button_align_opposite_to_area_align_get(CTX_wm_region(C)));
+      Button *tab = block->buttons[i].get();
+      button_drawflag_enable(tab, button_align_opposite_to_area_align_get(CTX_wm_region(C)));
       if (icon_only) {
-        blender::ui::button_drawflag_enable(tab, BUT_HAS_QUICK_TOOLTIP);
+        button_drawflag_enable(tab, BUT_HAS_QUICK_TOOLTIP);
       }
     }
   }
@@ -1667,8 +1665,7 @@ void Layout::op_enum(const StringRefNull opname,
     return;
   }
 
-  PointerRNA ptr;
-  WM_operator_properties_create_ptr(&ptr, ot);
+  PointerRNA ptr = WM_operator_properties_create_ptr(ot);
   /* so the context is passed to itemf functions (some need it) */
   WM_operator_properties_sanitize(&ptr, false);
   PropertyRNA *prop = RNA_struct_find_property(&ptr, propname.c_str());
@@ -3379,11 +3376,10 @@ static int menu_item_enum_opname_menu_active(bContext *C, Button *but, MenuItemL
     return -1;
   }
 
-  PointerRNA ptr;
   const EnumPropertyItem *item_array = nullptr;
   bool free;
   int totitem;
-  WM_operator_properties_create_ptr(&ptr, ot);
+  PointerRNA ptr = WM_operator_properties_create_ptr(ot);
   /* so the context is passed to itemf functions (some need it) */
   WM_operator_properties_sanitize(&ptr, false);
   PropertyRNA *prop = RNA_struct_find_property(&ptr, lvl->propname);
@@ -3454,8 +3450,7 @@ PointerRNA Layout::op_menu_enum(const bContext *C,
                              but_func_argN_copy<MenuItemLevel>);
   /* Use the menu button as owner for the operator properties, which will then be passed to the
    * individual menu items. */
-  but->opptr = MEM_new<PointerRNA>("uiButOpPtr");
-  WM_operator_properties_create_ptr(but->opptr, ot);
+  but->opptr = MEM_new<PointerRNA>("uiButOpPtr", WM_operator_properties_create_ptr(ot));
   BLI_assert(but->opptr->data == nullptr);
   WM_operator_properties_alloc(&but->opptr, (IDProperty **)&but->opptr->data, ot->idname);
 
@@ -6078,7 +6073,7 @@ Layout *uiItemsAlertBox(Block *block,
   const float split_factor = (float(icon_size) + icon_padding) /
                              float(dialog_width - style->columnspace);
 
-  Layout &block_layout = blender::ui::block_layout(
+  Layout &block_layout = ui::block_layout(
       block, LayoutDirection::Vertical, LayoutType::Panel, 0, 0, dialog_width, 0, 0, style);
 
   if (icon == AlertIcon::Info) {

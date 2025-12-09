@@ -335,7 +335,6 @@ static void userpref_main_region_layout(const bContext *C, ARegion *region)
   if (region->flag & RGN_FLAG_SEARCH_FILTER_ACTIVE) {
     userpref_main_region_property_search(C, spref, region);
   }
-  region->flag &= ~RGN_FLAG_SEARCH_FILTER_UPDATE;
 }
 
 static void userpref_operatortypes() {}
