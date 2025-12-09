@@ -5843,8 +5843,12 @@ class VIEW3D_MT_edit_greasepencil_stroke(Menu):
 
         layout.separator()
 
-        layout.operator("grease_pencil.reset_uvs")
         layout.operator("grease_pencil.join_shapes")
+        layout.operator("grease_pencil.separate_shapes")
+
+        layout.separator()
+
+        layout.operator("grease_pencil.reset_uvs")
 
         layout.template_node_operator_asset_menu_items(catalog_path=self.bl_label)
 

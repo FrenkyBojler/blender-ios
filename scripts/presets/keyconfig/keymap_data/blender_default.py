@@ -4151,6 +4151,8 @@ def km_grease_pencil_edit_mode(params):
 
         # Join Shapes
         ("grease_pencil.join_shapes", {"type": 'J', "value": 'PRESS', "shift": True}, None),
+        # Separate Shapes
+        ("grease_pencil.separate_shapes", {"type": 'P', "value": 'PRESS', "alt": True}, None),
 
         op_tool_optional(
             ("grease_pencil.interpolate", {"type": 'E', "value": 'PRESS',
