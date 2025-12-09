@@ -458,6 +458,13 @@ void *sound_modifier_recreator(Strip *strip,
                                bool &needs_update)
 {
 
+  /* Check if the modifier is recently muted */
+  if ((smd->flag & STRIP_MODIFIER_FLAG_MUTE) == (bool)(smd->runtime.enabled)) {
+    /* Update the enabled state and flag it for update */
+    smd->runtime.enabled = !(smd->flag & STRIP_MODIFIER_FLAG_MUTE);
+    needs_update = true;
+  }
+
   if (!(smd->flag & STRIP_MODIFIER_FLAG_MUTE)) {
     const SoundModifierWorkerInfo *smwi = sound_modifier_worker_info_get(smd->type);
     return smwi->recreator(strip, smd, sound, needs_update);

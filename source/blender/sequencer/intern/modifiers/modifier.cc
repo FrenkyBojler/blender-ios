@@ -364,6 +364,7 @@ StripModifierData *modifier_new(Strip *strip, const char *name, int type)
   smd->type = type;
   smd->flag |= STRIP_MODIFIER_FLAG_EXPANDED;
   smd->ui_expand_flag |= UI_PANEL_DATA_EXPAND_ROOT;
+  smd->runtime.enabled = true;
 
   if (!name || !name[0]) {
     STRNCPY_UTF8(smd->name, CTX_DATA_(BLT_I18NCONTEXT_ID_SEQUENCE, smti->name));

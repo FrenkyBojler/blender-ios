@@ -1108,11 +1108,6 @@ static void strip_update_sound_modifiers(Strip *strip)
     sound_handle = sound_modifier_recreator(strip, smd, sound_handle, needs_update);
   }
 
-  /* Should update the runtime handle when the last unmuted modifier is muted but handle is not
-   * updated till now.
-   */
-  needs_update |= (sound_handle != strip->runtime->scene_sound);
-
   if (needs_update) {
     /* Assign modified sound back to `strip`. */
     BKE_sound_update_sequence_handle(strip->runtime->scene_sound, sound_handle);

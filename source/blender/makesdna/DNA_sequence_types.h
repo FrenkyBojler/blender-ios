@@ -517,6 +517,11 @@ typedef struct StripModifierDataRuntime {
   /* Reference sound handles (may be used by any sound modifier). */
   void *last_sound_in;
   void *last_sound_out;
+
+  /* Enabled state for comparing to the Mute flag of the modifier and updating the sound handle if
+   * mute state changed */
+  char enabled;
+  char _pad[7];
 } StripModifierDataRuntime;
 
 typedef struct StripModifierData {

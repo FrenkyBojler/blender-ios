@@ -35,6 +35,11 @@ class StripModifierDataBackup {
   void *sound_in;
   void *sound_out;
   float *last_buf;
+  char enabled;
+  /** Used for modifiers where the only data to backup is `char enabled`.
+   *  It is helpful for checking `isEmpty()`.
+   */
+  bool use_enable;
 };
 
 /* Backup of a single strip. */

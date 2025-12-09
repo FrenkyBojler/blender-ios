@@ -26,6 +26,7 @@ void StripModifierDataBackup::reset()
   sound_in = nullptr;
   sound_out = nullptr;
   last_buf = nullptr;
+  use_enable = false;
 }
 
 void StripModifierDataBackup::init_from_modifier(StripModifierData *smd)
@@ -39,6 +40,15 @@ void StripModifierDataBackup::init_from_modifier(StripModifierData *smd)
     smd->runtime.last_sound_out = nullptr;
     smd->runtime.last_buf = nullptr;
   }
+
+  switch (smd->type) {
+    case eSeqModifierType_SoundEqualizer:
+    case eSeqModifierType_Pitch:
+    case eSeqModifierType_Echo:
+      enabled = smd->runtime.enabled;
+      use_enable = true;
+      break;
+  }
 }
 
 void StripModifierDataBackup::restore_to_modifier(StripModifierData *smd)
@@ -48,12 +58,20 @@ void StripModifierDataBackup::restore_to_modifier(StripModifierData *smd)
     smd->runtime.last_sound_out = sound_out;
     smd->runtime.last_buf = last_buf;
   }
+
+  switch (smd->type) {
+    case eSeqModifierType_SoundEqualizer:
+    case eSeqModifierType_Pitch:
+    case eSeqModifierType_Echo:
+      smd->runtime.enabled = enabled;
+      break;
+  }
   reset();
 }
 
 bool StripModifierDataBackup::isEmpty() const
 {
-  return sound_in == nullptr && sound_out == nullptr && last_buf == nullptr;
+  return sound_in == nullptr && sound_out == nullptr && last_buf == nullptr && use_enable == false;
 }
 
 StripBackup::StripBackup(const Depsgraph * /*depsgraph*/)
