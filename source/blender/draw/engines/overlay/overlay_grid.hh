@@ -96,7 +96,7 @@ class Grid : Overlay {
     /* Outline draw in UV/Image editors. */
     if (state.is_space_image()) {
       float4 theme_color;
-      ui::GetThemeColorShade4fv(TH_BACK, 60, theme_color);
+      ui::theme::get_color_shade_4fv(TH_BACK, 60, theme_color);
       srgb_to_linearrgb_v4(theme_color, theme_color);
 
       auto &sub = grid_ps_.sub("wire_border");
