@@ -39,7 +39,7 @@ def get_cache_data(path: str,
                      if n.blender_type not in [VExportNode.BONE]]
 
     # For TRACK mode, we reset cache after each track export, so we don't need to keep others objects
-    if export_settings['gltf_animation_mode'] in "NLA_TRACKS":
+    if export_settings['gltf_animation_mode'] in ["NLA_TRACKS"]:
         # If object is not in vtree, this is a material or light for pointers
         obj_uuids = [blender_obj_uuid] if blender_obj_uuid in export_settings['vtree'].nodes.keys() else []
 
@@ -51,9 +51,7 @@ def get_cache_data(path: str,
         # - For this case, on first call, we will cache active action for all objects
         # - On next calls, we will cache only the action of current object, so we can disable viewport for others
 
-    need_to_enable_again = False
     if export_settings['gltf_optimize_disable_viewport'] is True and len(obj_uuids) == 1:
-        need_to_enable_again = True
         # Before baking, disabling from viewport all meshes
         for obj in [n.blender_object for n in export_settings['vtree'].nodes.values() if n.blender_type in
                     [VExportNode.OBJECT, VExportNode.ARMATURE, VExportNode.COLLECTION]]:
@@ -125,7 +123,10 @@ def material_caching(data, action_name, slot_identifier, frame, export_settings)
         if len(export_settings['KHR_animation_pointer']['materials'][mat]['paths']) == 0:
             continue
 
-        blender_material = [m for m in bpy.data.materials if id(m) == mat]
+        if export_settings['gltf_animation_mode'] == "NLA_TRACKS" and export_settings['gltf_apply'] is True:
+            blender_material = [export_settings['material_identifiers'][mat]]
+        else:
+            blender_material = [m for m in bpy.data.materials if id(m) == mat]
         if len(blender_material) == 0:
             # This is not a material from Blender (coming from Geometry Node for example, so no animation on it)
             continue
@@ -180,7 +181,10 @@ def material_nodetree_caching(data, action_name, slot_identifier, frame, export_
         if len(export_settings['KHR_animation_pointer']['materials'][mat]['paths']) == 0:
             continue
 
-        blender_material = [m for m in bpy.data.materials if id(m) == mat]
+        if export_settings['gltf_animation_mode'] == "NLA_TRACKS" and export_settings['gltf_apply'] is True:
+            blender_material = [export_settings['material_identifiers'][mat]]
+        else:
+            blender_material = [m for m in bpy.data.materials if id(m) == mat]
         if len(blender_material) == 0:
             # This is not a material from Blender (coming from Geometry Node for example, so no animation on it)
             continue
@@ -346,11 +350,20 @@ def material_nodetree_caching(data, action_name, slot_identifier, frame, export_
                         "/",
                         1)[0] and export_settings['KHR_animation_pointer']['materials'][mat]['paths'][i]['path'].rsplit(
                         "/",
-                        1)[1] == "specularColorFactor"][0]
-                val_colorfactor = blender_material.path_resolve(colorfactor_path)
+                        1)[1] == "specularColorFactor"]
+                if len(colorfactor_path) == 0:
+                    # No specularColorFactor, so using default value
+                    val_colorfactor = [1.0, 1.0, 1.0]
+                else:
+                    val_colorfactor = blender_material.path_resolve(colorfactor_path[0])
+                    colorfactor_path = colorfactor_path[0]
                 if fac > 1.0:
                     val_colorfactor = [i * fac for i in val_colorfactor]
-                data[key1][key2][key3][key4][colorfactor_path][frame] = val_colorfactor
+                    if len(colorfactor_path) == 0:
+                        export_settings['log'].warning(
+                            "SpecularFactor is greater than 1.0, but no specularColorFactor found. Using default value for specularColorFactor.")
+                if len(colorfactor_path) != 0:
+                    data[key1][key2][key3][key4][colorfactor_path][frame] = val_colorfactor
             elif export_settings['KHR_animation_pointer']['materials'][mat]['paths'][path]['path'] == "/materials/XXX/extensions/KHR_materials_specular/specularColorFactor":
                 # Already handled by specularFactor
                 continue
@@ -711,7 +724,7 @@ def camera_caching(data, action_name, slot_identifier, frame, export_settings):
             data[key1][key2][key3] = {}
             data[key1][key2][key3][key4] = {}
             for path in export_settings['KHR_animation_pointer']['cameras'][cam]['paths'].keys():
-                data[key1][key2][key3][ley4][path] = {}
+                data[key1][key2][key3][key4][path] = {}
 
         for path in export_settings['KHR_animation_pointer']['cameras'][cam]['paths'].keys():
             _render = bpy.context.scene.render

@@ -39,7 +39,7 @@
 /** \name Set Cursor
  *
  * The 'cursor' in the Graph Editor consists of two parts:
- * 1) Current Frame Indicator (as per ANIM_OT_change_frame)
+ * 1) Current Frame Indicator (as per #ANIM_OT_change_frame)
  * 2) Value Indicator (stored per Graph Editor instance)
  * \{ */
 
@@ -67,9 +67,9 @@ static void graphview_cursor_apply(bContext *C, wmOperator *op)
     sipo->cursorTime = frame;
   }
   else {
-    /* adjust the frame
-     * NOTE: sync this part of the code with ANIM_OT_change_frame
-     */
+    /* Adjust the frame.
+     * NOTE: sync this part of the code with #ANIM_OT_change_frame. */
+
     /* 1) frame is rounded to the nearest int, since frames are ints */
     scene->r.cfra = round_fl_to_int(frame);
 
@@ -119,7 +119,7 @@ static void graphview_cursor_setprops(bContext *C, wmOperator *op, const wmEvent
   }
 
   /* convert from region coordinates to View2D 'tot' space */
-  UI_view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &viewx, &viewy);
+  blender::ui::view2d_region_to_view(&region->v2d, event->mval[0], event->mval[1], &viewx, &viewy);
 
   /* store the values in the operator properties */
   /* NOTE: we don't clamp frame here, as it might be used for the drivers cursor */
@@ -184,6 +184,9 @@ static wmOperatorStatus graphview_cursor_modal(bContext *C, wmOperator *op, cons
         return OPERATOR_FINISHED;
       }
       break;
+    default: {
+      break;
+    }
   }
 
   return OPERATOR_RUNNING_MODAL;
@@ -196,7 +199,7 @@ static void GRAPH_OT_cursor_set(wmOperatorType *ot)
   ot->idname = "GRAPH_OT_cursor_set";
   ot->description = "Interactively set the current frame and value cursor";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = graphview_cursor_exec;
   ot->invoke = graphview_cursor_invoke;
   ot->modal = graphview_cursor_modal;
@@ -317,7 +320,7 @@ static void GRAPH_OT_hide(wmOperatorType *ot)
   ot->idname = "GRAPH_OT_hide";
   ot->description = "Hide selected curves from Graph Editor view";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = graphview_curves_hide_exec;
   ot->poll = ED_operator_graphedit_active;
 
@@ -401,7 +404,7 @@ static void GRAPH_OT_reveal(wmOperatorType *ot)
   ot->idname = "GRAPH_OT_reveal";
   ot->description = "Make previously hidden curves visible again in Graph Editor view";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = graphview_curves_reveal_exec;
   ot->poll = ED_operator_graphedit_active;
 

@@ -20,7 +20,7 @@ namespace blender::seq {
  * Cache must be freed before calling this function
  * since it leaves the #Editing::seqbase in an invalid state.
  */
-void seq_free_sequence_recurse(Scene *scene, Strip *strip, bool do_id_user);
+void seq_free_strip_recurse(Scene *scene, Strip *strip, bool do_id_user);
 StripProxy *seq_strip_proxy_alloc();
 /**
  * Find effect strips, that use strip `strip` as one of inputs.
@@ -31,6 +31,6 @@ StripProxy *seq_strip_proxy_alloc();
  *
  * \return collection of effect strips
  */
-blender::Span<Strip *> SEQ_lookup_effects_by_strip(Editing *ed, const Strip *key);
+Span<Strip *> SEQ_lookup_effects_by_strip(Editing *ed, const Strip *key);
 
 }  // namespace blender::seq

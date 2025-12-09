@@ -68,7 +68,7 @@ static VArray<int> construct_neighbor_count_varray(const Mesh &mesh, const AttrD
     }
   });
   return mesh.attributes().adapt_domain<int>(
-      VArray<int>::ForContainer(std::move(face_count)), AttrDomain::Face, domain);
+      VArray<int>::from_container(std::move(face_count)), AttrDomain::Face, domain);
 }
 
 class FaceNeighborCountFieldInput final : public bke::MeshFieldInput {
@@ -107,8 +107,8 @@ static VArray<int> construct_vertex_count_varray(const Mesh &mesh, const AttrDom
 {
   const OffsetIndices faces = mesh.faces();
   return mesh.attributes().adapt_domain<int>(
-      VArray<int>::ForFunc(faces.size(),
-                           [faces](const int i) -> float { return faces[i].size(); }),
+      VArray<int>::from_func(faces.size(),
+                             [faces](const int i) -> float { return faces[i].size(); }),
       AttrDomain::Face,
       domain);
 }
@@ -161,7 +161,6 @@ static void node_register()
   ntype.ui_description = "Retrieve topology information relating to each face of a mesh";
   ntype.enum_name_legacy = "MESH_FACE_NEIGHBORS";
   ntype.nclass = NODE_CLASS_INPUT;
-  blender::bke::node_type_size_preset(ntype, blender::bke::eNodeSizePreset::Middle);
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   blender::bke::node_register_type(ntype);

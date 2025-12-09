@@ -14,8 +14,11 @@
 
 #include "eevee_light.hh"
 
-#include "BLI_math_rotation.h"
 #include "DNA_defaults.h"
+#include "DNA_light_types.h"
+#include "DNA_sdna_type_ids.hh"
+
+#include "BKE_light.h"
 
 namespace blender::eevee {
 
@@ -66,7 +69,10 @@ void Light::sync(ShadowModule &shadows,
     shadow_discard_safe(shadows);
   }
 
-  this->color = float3(&la->r) * la->energy;
+  this->color = BKE_light_power(*la) * BKE_light_color(*la);
+  if (la->mode & LA_UNNORMALIZED) {
+    this->color *= BKE_light_area(*la, object_to_world);
+  }
 
   float3 scale;
   object_to_world.view<3, 3>() = normalize_and_get_size(object_to_world.view<3, 3>(), scale);
@@ -173,7 +179,8 @@ void Light::shape_parameters_set(const ::Light *la,
 
   /* Compute influence radius first. Can be amended by shape later. */
   if (is_local_light(this->type)) {
-    const float max_power = reduce_max(float3(&la->r)) * fabsf(la->energy / 100.0f);
+    const float max_power = reduce_max(BKE_light_color(*la)) *
+                            fabsf(BKE_light_power(*la) / 100.0f);
     const float surface_max_power = max(la->diff_fac, la->spec_fac) * max_power;
     const float volume_max_power = la->volume_fac * max_power;
 
@@ -322,11 +329,9 @@ float Light::point_radiance_get()
 
 void Light::debug_draw()
 {
-#ifndef NDEBUG
   drw_debug_sphere(transform_location(this->object_to_world),
                    local.influence_radius_max,
                    float4(0.8f, 0.3f, 0.0f, 1.0f));
-#endif
 }
 
 /** \} */
@@ -343,9 +348,42 @@ LightModule::~LightModule()
   }
 };
 
+void LightModule::add_world_sun_light(const ObjectKey &key, bool use_diffuse, bool use_glossy)
+{
+  /* Create a placeholder light to be fed by the GPU after sunlight extraction.
+   * Sunlight is disabled if power is zero. */
+  ::Light la = blender::dna::shallow_copy(
+      *(const ::Light *)DNA_default_table[dna::sdna_struct_id_get<::Light>()]);
+  la.type = LA_SUN;
+  /* Set on the GPU. */
+  la.r = la.g = la.b = -1.0f; /* Tag as world sun light. */
+  la.energy = 1.0f;
+  la.sun_angle = inst_.world.sun_angle();
+  la.shadow_filter_radius = inst_.world.sun_shadow_filter_radius();
+  la.shadow_jitter_overblur = inst_.world.sun_shadow_jitter_overblur();
+  la.shadow_maximum_resolution = inst_.world.sun_shadow_max_resolution();
+  SET_FLAG_FROM_TEST(la.mode, inst_.world.use_sun_shadow(), LA_SHADOW);
+  SET_FLAG_FROM_TEST(la.mode, inst_.world.use_sun_shadow_jitter(), LA_SHADOW_JITTER);
+  int visibility_flag = 0;
+  SET_FLAG_FROM_TEST(visibility_flag, !use_diffuse, OB_HIDE_DIFFUSE);
+  SET_FLAG_FROM_TEST(visibility_flag, !use_glossy, OB_HIDE_GLOSSY);
+
+  Light &light = light_map_.lookup_or_add_default(key);
+  light.used = true;
+  light.sync(inst_.shadows, float4x4::identity(), visibility_flag, &la, nullptr, light_threshold_);
+
+  sun_lights_len_ += 1;
+}
+
 void LightModule::begin_sync()
 {
-  use_scene_lights_ = inst_.use_scene_lights();
+  if (assign_if_different(use_scene_lights_, inst_.use_scene_lights())) {
+    if (inst_.is_viewport()) {
+      /* Catch lookdev viewport properties updates. */
+      inst_.sampling.reset();
+    }
+  }
+
   /* Disable sunlight if world has a volume shader as we consider the light cannot go through an
    * infinite opaque medium. */
   use_sun_lights_ = (inst_.world.has_volume_absorption() == false);
@@ -364,26 +402,13 @@ void LightModule::begin_sync()
   local_lights_len_ = 0;
 
   if (use_sun_lights_ && inst_.world.sun_threshold() > 0.0f) {
-    /* Create a placeholder light to be fed by the GPU after sunlight extraction.
-     * Sunlight is disabled if power is zero. */
-    ::Light la = blender::dna::shallow_copy(
-        *(const ::Light *)DNA_default_table[SDNA_TYPE_FROM_STRUCT(Light)]);
-    la.type = LA_SUN;
-    /* Set on the GPU. */
-    la.r = la.g = la.b = -1.0f; /* Tag as world sun light. */
-    la.energy = 1.0f;
-    la.sun_angle = inst_.world.sun_angle();
-    la.shadow_filter_radius = inst_.world.sun_shadow_filter_radius();
-    la.shadow_jitter_overblur = inst_.world.sun_shadow_jitter_overblur();
-    la.shadow_maximum_resolution = inst_.world.sun_shadow_max_resolution();
-    SET_FLAG_FROM_TEST(la.mode, inst_.world.use_sun_shadow(), LA_SHADOW);
-    SET_FLAG_FROM_TEST(la.mode, inst_.world.use_sun_shadow_jitter(), LA_SHADOW_JITTER);
-
-    Light &light = light_map_.lookup_or_add_default(world_sunlight_key);
-    light.used = true;
-    light.sync(inst_.shadows, float4x4::identity(), 0, &la, nullptr, light_threshold_);
-
-    sun_lights_len_ += 1;
+    if (inst_.pipelines.world.use_lightpath_node()) {
+      add_world_sun_light(world_sunlight_key_[WORLD_SUN_DIFFUSE], true, false);
+      add_world_sun_light(world_sunlight_key_[WORLD_SUN_GLOSSY], false, true);
+    }
+    else {
+      add_world_sun_light(world_sunlight_key_[WORLD_SUN_COMBINED], true, true);
+    }
   }
 }
 
@@ -417,6 +442,10 @@ void LightModule::sync_light(const Object *ob, ObjectHandle &handle)
 
 void LightModule::end_sync()
 {
+  /** IMPORTANT: We cannot add new lights here since the shadow module already executed its
+   * `end_sync`. Doing so ends up in very bad data access since the shadow data of the new light
+   * will not exists on the GPU. */
+
   /* NOTE: We resize this buffer before removing deleted lights. */
   int lights_allocated = ceil_to_multiple_u(max_ii(light_map_.size(), 1), LIGHT_CHUNK);
   light_buf_.resize(lights_allocated);
@@ -461,7 +490,6 @@ void LightModule::end_sync()
   culling_light_buf_.resize(lights_allocated);
 
   {
-
     int2 render_extent = inst_.film.render_extent_get();
     int2 probe_extent = int2(inst_.sphere_probes.probe_render_extent());
     int2 max_extent = math::max(render_extent, probe_extent);
@@ -607,7 +635,7 @@ void LightModule::set_view(View &view, const int2 extent)
   inst_.manager->submit(update_ps_, view);
 }
 
-void LightModule::debug_draw(View &view, GPUFrameBuffer *view_fb)
+void LightModule::debug_draw(View &view, gpu::FrameBuffer *view_fb)
 {
   if (inst_.debug_mode == eDebugMode::DEBUG_LIGHT_CULLING) {
     inst_.info_append("Debug Mode: Light Culling Validation");

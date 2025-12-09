@@ -17,21 +17,22 @@
 #include "DNA_lattice_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meta_types.h"
+#include "DNA_pointcloud_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_space_types.h"
-#include "DNA_userdef_types.h"
+#include "DNA_space_enums.h"
 #include "DNA_windowmanager_types.h"
 
 #include "BLF_api.hh"
 
 #include "BLI_array_utils.hh"
+#include "BLI_enum_flags.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
+#include "BLI_set.hh"
 #include "BLI_span.hh"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_timecode.h"
-#include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
 
@@ -41,7 +42,6 @@
 #include "BKE_curve.hh"
 #include "BKE_curves.hh"
 #include "BKE_editmesh.hh"
-#include "BKE_gpencil_legacy.h"
 #include "BKE_grease_pencil.hh"
 #include "BKE_key.hh"
 #include "BKE_layer.hh"
@@ -62,7 +62,7 @@
 
 #include "GPU_capabilities.hh"
 
-ENUM_OPERATORS(eUserpref_StatusBar_Flag, STATUSBAR_SHOW_VERSION)
+ENUM_OPERATORS(eUserpref_StatusBar_Flag)
 
 struct SceneStats {
   uint64_t totvert, totvertsel, totvertsculpt;
@@ -72,7 +72,8 @@ struct SceneStats {
   uint64_t totobj, totobjsel;
   uint64_t totlamp, totlampsel;
   uint64_t tottri, tottrisel;
-  uint64_t totgplayer, totgpframe, totgpstroke, totgppoint;
+  uint64_t totgplayer, totgpframe, totgpstroke;
+  uint64_t totpoints;
 };
 
 struct SceneStatsFmt {
@@ -88,8 +89,8 @@ struct SceneStatsFmt {
   char tottri[BLI_STR_FORMAT_UINT64_GROUPED_SIZE], tottrisel[BLI_STR_FORMAT_UINT64_GROUPED_SIZE];
   char totgplayer[BLI_STR_FORMAT_UINT64_GROUPED_SIZE],
       totgpframe[BLI_STR_FORMAT_UINT64_GROUPED_SIZE];
-  char totgpstroke[BLI_STR_FORMAT_UINT64_GROUPED_SIZE],
-      totgppoint[BLI_STR_FORMAT_UINT64_GROUPED_SIZE];
+  char totgpstroke[BLI_STR_FORMAT_UINT64_GROUPED_SIZE];
+  char totpoints[BLI_STR_FORMAT_UINT64_GROUPED_SIZE];
 };
 
 static bool stats_mesheval(const Mesh *mesh_eval, bool is_selected, SceneStats *stats)
@@ -100,22 +101,36 @@ static bool stats_mesheval(const Mesh *mesh_eval, bool is_selected, SceneStats *
 
   int totvert, totedge, totface, totloop;
 
-  const SubsurfRuntimeData *subsurf_runtime_data = mesh_eval->runtime->subsurf_runtime_data;
-
+  /* Get multires stats. */
   if (const std::unique_ptr<SubdivCCG> &subdiv_ccg = mesh_eval->runtime->subdiv_ccg) {
     BKE_subdiv_ccg_topology_counters(*subdiv_ccg, totvert, totedge, totface, totloop);
   }
-  else if (subsurf_runtime_data && subsurf_runtime_data->resolution != 0) {
-    totvert = subsurf_runtime_data->stats_totvert;
-    totedge = subsurf_runtime_data->stats_totedge;
-    totface = subsurf_runtime_data->stats_faces_num;
-    totloop = subsurf_runtime_data->stats_totloop;
-  }
   else {
-    totvert = mesh_eval->verts_num;
-    totedge = mesh_eval->edges_num;
-    totface = mesh_eval->faces_num;
-    totloop = mesh_eval->corners_num;
+    /* Get CPU subdivided mesh if it exists. */
+    const SubsurfRuntimeData *subsurf_runtime_data = nullptr;
+    if (mesh_eval->runtime->mesh_eval) {
+      mesh_eval = mesh_eval->runtime->mesh_eval;
+    }
+    else {
+      subsurf_runtime_data = mesh_eval->runtime->subsurf_runtime_data;
+    }
+
+    /* Get GPU subdivision stats if they exist. If there is no 3D viewport or the mesh is
+     * hidden it will not be subdivided, fall back to unsubdivided in that case. */
+    if (subsurf_runtime_data && subsurf_runtime_data->has_gpu_subdiv &&
+        subsurf_runtime_data->stats_totvert)
+    {
+      totvert = subsurf_runtime_data->stats_totvert;
+      totedge = subsurf_runtime_data->stats_totedge;
+      totface = subsurf_runtime_data->stats_faces_num;
+      totloop = subsurf_runtime_data->stats_totloop;
+    }
+    else {
+      totvert = mesh_eval->verts_num;
+      totedge = mesh_eval->edges_num;
+      totface = mesh_eval->faces_num;
+      totloop = mesh_eval->corners_num;
+    }
   }
 
   stats->totvert += totvert;
@@ -137,7 +152,7 @@ static bool stats_mesheval(const Mesh *mesh_eval, bool is_selected, SceneStats *
 static void stats_object(Object *ob,
                          const View3D *v3d_local,
                          SceneStats *stats,
-                         GSet *objects_gset)
+                         blender::Set<const Mesh *> &objects_gset)
 {
   if ((ob->base_flag & BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT) == 0) {
     return;
@@ -158,7 +173,7 @@ static void stats_object(Object *ob,
     case OB_MESH: {
       /* we assume evaluated mesh is already built, this strictly does stats now. */
       const Mesh *mesh_eval = BKE_object_get_evaluated_mesh_no_subsurf(ob);
-      if (!BLI_gset_add(objects_gset, (void *)mesh_eval)) {
+      if (!objects_gset.add(mesh_eval)) {
         break;
       }
       stats_mesheval(mesh_eval, is_selected, stats);
@@ -182,7 +197,7 @@ static void stats_object(Object *ob,
             drawing_base);
         const blender::bke::CurvesGeometry &curves = drawing->wrap().strokes();
 
-        stats->totgppoint += curves.points_num();
+        stats->totpoints += curves.points_num();
         stats->totgpstroke += curves.curves_num();
       }
 
@@ -193,7 +208,13 @@ static void stats_object(Object *ob,
       stats->totgplayer += grease_pencil->layers().size();
       break;
     }
-    case OB_CURVES:
+    case OB_CURVES: {
+      using namespace blender;
+      const Curves &curves_id = *static_cast<Curves *>(ob->data);
+      const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
+      stats->totpoints += curves.points_num();
+      break;
+    }
     case OB_POINTCLOUD:
     case OB_VOLUME: {
       break;
@@ -324,7 +345,15 @@ static void stats_object_edit(Object *obedit, SceneStats *stats)
     const VArray<bool> selection = *curves.attributes().lookup_or_default<bool>(
         ".selection", bke::AttrDomain::Point, true);
     stats->totvertsel += array_utils::count_booleans(selection);
-    stats->totvert += curves.points_num();
+    stats->totpoints += curves.points_num();
+  }
+  else if (obedit->type == OB_POINTCLOUD) {
+    using namespace blender;
+    PointCloud &pointcloud = *static_cast<PointCloud *>(obedit->data);
+    const VArray<bool> selection = *pointcloud.attributes().lookup_or_default<bool>(
+        ".selection", bke::AttrDomain::Point, true);
+    stats->totvertsel = array_utils::count_booleans(selection);
+    stats->totpoints = pointcloud.totpoint;
   }
 }
 
@@ -335,7 +364,7 @@ static void stats_object_pose(const Object *ob, SceneStats *stats)
 
     LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
       stats->totbone++;
-      if (pchan->bone && (pchan->bone->flag & BONE_SELECTED)) {
+      if ((pchan->flag & POSE_SELECTED)) {
         if (BKE_pose_is_bonecoll_visible(arm, pchan)) {
           stats->totbonesel++;
         }
@@ -372,8 +401,8 @@ static void stats_object_sculpt(const Object *ob, SceneStats *stats)
           stats->tottri = ob->sculpt->bm->totface;
           break;
         case blender::bke::pbvh::Type::Grids:
-          stats->totvertsculpt = BKE_pbvh_get_grid_num_verts(*ob);
-          stats->totfacesculpt = BKE_pbvh_get_grid_num_faces(*ob);
+          stats->totvertsculpt = BKE_sculpt_get_grid_num_verts(*ob);
+          stats->totfacesculpt = BKE_sculpt_get_grid_num_faces(*ob);
           break;
       }
       break;
@@ -447,7 +476,7 @@ static void stats_update(Depsgraph *depsgraph,
   }
   else {
     /* Objects. */
-    GSet *objects_gset = BLI_gset_new(BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, __func__);
+    blender::Set<const Mesh *> objects_gset;
     DEGObjectIterSettings deg_iter_settings{};
     deg_iter_settings.depsgraph = depsgraph;
     deg_iter_settings.flags = DEG_OBJECT_ITER_FOR_RENDER_ENGINE_FLAGS;
@@ -455,7 +484,6 @@ static void stats_update(Depsgraph *depsgraph,
       stats_object(ob_iter, v3d_local, stats, objects_gset);
     }
     DEG_OBJECT_ITER_END;
-    BLI_gset_free(objects_gset, nullptr);
   }
 }
 
@@ -497,7 +525,7 @@ static bool format_stats(
       return false;
     }
     Depsgraph *depsgraph = BKE_scene_ensure_depsgraph(bmain, scene, view_layer);
-    *stats_p = (SceneStats *)MEM_mallocN(sizeof(SceneStats), __func__);
+    *stats_p = MEM_mallocN<SceneStats>(__func__);
     stats_update(depsgraph, scene, view_layer, v3d_local, *stats_p);
   }
 
@@ -532,7 +560,8 @@ static bool format_stats(
   SCENE_STATS_FMT_INT(totgplayer);
   SCENE_STATS_FMT_INT(totgpframe);
   SCENE_STATS_FMT_INT(totgpstroke);
-  SCENE_STATS_FMT_INT(totgppoint);
+
+  SCENE_STATS_FMT_INT(totpoints);
 
 #undef SCENE_STATS_FMT_INT
   return true;
@@ -551,101 +580,122 @@ static void get_stats_string(char *info,
   LayerCollection *layer_collection = BKE_view_layer_active_collection_get(view_layer);
 
   if (object_mode == OB_MODE_OBJECT) {
-    *ofs += BLI_snprintf_rlen(info + *ofs,
-                              len - *ofs,
-                              "%s | ",
-                              BKE_collection_ui_name_get(layer_collection->collection));
+    *ofs += BLI_snprintf_utf8_rlen(info + *ofs,
+                                   len - *ofs,
+                                   "%s | ",
+                                   BKE_collection_ui_name_get(layer_collection->collection));
   }
 
   if (ob) {
-    *ofs += BLI_snprintf_rlen(info + *ofs, len - *ofs, "%s | ", ob->id.name + 2);
+    *ofs += BLI_snprintf_utf8_rlen(info + *ofs, len - *ofs, "%s | ", ob->id.name + 2);
+  }
+
+  if ((ob) && (ob->type == OB_GREASE_PENCIL)) {
+    *ofs += BLI_snprintf_utf8_rlen(info + *ofs,
+                                   len - *ofs,
+
+                                   IFACE_("Layers:%s | Frames:%s | Strokes:%s | Points:%s"),
+                                   stats_fmt->totgplayer,
+                                   stats_fmt->totgpframe,
+                                   stats_fmt->totgpstroke,
+                                   stats_fmt->totpoints);
+    return;
   }
 
   if (ob && ob->mode == OB_MODE_EDIT) {
     if (BKE_keyblock_from_object(ob)) {
-      *ofs += BLI_strncpy_rlen(info + *ofs, IFACE_("(Key) "), len - *ofs);
+      *ofs += BLI_strncpy_utf8_rlen(info + *ofs, IFACE_("(Key) "), len - *ofs);
     }
 
     if (ob->type == OB_MESH) {
-      *ofs += BLI_snprintf_rlen(info + *ofs,
-                                len - *ofs,
+      *ofs += BLI_snprintf_utf8_rlen(info + *ofs,
+                                     len - *ofs,
 
-                                IFACE_("Verts:%s/%s | Edges:%s/%s | Faces:%s/%s | Tris:%s"),
-                                stats_fmt->totvertsel,
-                                stats_fmt->totvert,
-                                stats_fmt->totedgesel,
-                                stats_fmt->totedge,
-                                stats_fmt->totfacesel,
-                                stats_fmt->totface,
-                                stats_fmt->tottri);
+                                     IFACE_("Verts:%s/%s | Edges:%s/%s | Faces:%s/%s | Tris:%s"),
+                                     stats_fmt->totvertsel,
+                                     stats_fmt->totvert,
+                                     stats_fmt->totedgesel,
+                                     stats_fmt->totedge,
+                                     stats_fmt->totfacesel,
+                                     stats_fmt->totface,
+                                     stats_fmt->tottri);
     }
     else if (ob->type == OB_ARMATURE) {
-      *ofs += BLI_snprintf_rlen(info + *ofs,
-                                len - *ofs,
+      *ofs += BLI_snprintf_utf8_rlen(info + *ofs,
+                                     len - *ofs,
 
-                                IFACE_("Joints:%s/%s | Bones:%s/%s"),
-                                stats_fmt->totvertsel,
-                                stats_fmt->totvert,
-                                stats_fmt->totbonesel,
-                                stats_fmt->totbone);
+                                     IFACE_("Joints:%s/%s | Bones:%s/%s"),
+                                     stats_fmt->totvertsel,
+                                     stats_fmt->totvert,
+                                     stats_fmt->totbonesel,
+                                     stats_fmt->totbone);
+    }
+    else if (ob->type == OB_CURVES) {
+      *ofs += BLI_snprintf_utf8_rlen(info + *ofs,
+                                     len - *ofs,
+                                     IFACE_("Points:%s/%s"),
+                                     stats_fmt->totvertsel,
+                                     stats_fmt->totpoints);
+    }
+    else if (ob->type == OB_POINTCLOUD) {
+      *ofs += BLI_snprintf_utf8_rlen(info + *ofs,
+                                     len - *ofs,
+                                     IFACE_("Points:%s/%s"),
+                                     stats_fmt->totvertsel,
+                                     stats_fmt->totpoints);
     }
     else {
-      *ofs += BLI_snprintf_rlen(info + *ofs,
-                                len - *ofs,
-                                IFACE_("Verts:%s/%s"),
-                                stats_fmt->totvertsel,
-                                stats_fmt->totvert);
+      *ofs += BLI_snprintf_utf8_rlen(info + *ofs,
+                                     len - *ofs,
+                                     IFACE_("Verts:%s/%s"),
+                                     stats_fmt->totvertsel,
+                                     stats_fmt->totvert);
     }
   }
   else if (ob && (object_mode & OB_MODE_POSE)) {
-    *ofs += BLI_snprintf_rlen(
+    *ofs += BLI_snprintf_utf8_rlen(
         info + *ofs, len - *ofs, IFACE_("Bones:%s/%s"), stats_fmt->totbonesel, stats_fmt->totbone);
   }
-  else if ((ob) && (ob->type == OB_GREASE_PENCIL)) {
-    *ofs += BLI_snprintf_rlen(info + *ofs,
-                              len - *ofs,
-
-                              IFACE_("Layers:%s | Frames:%s | Strokes:%s | Points:%s"),
-                              stats_fmt->totgplayer,
-                              stats_fmt->totgpframe,
-                              stats_fmt->totgpstroke,
-                              stats_fmt->totgppoint);
+  else if (ob && (ob->type == OB_CURVES)) {
+    const char *count = (object_mode == OB_MODE_SCULPT_CURVES) ? stats_fmt->totvertsculpt :
+                                                                 stats_fmt->totpoints;
+    *ofs += BLI_snprintf_utf8_rlen(info + *ofs, len - *ofs, IFACE_("Points:%s"), count);
   }
   else if (ob && (object_mode & OB_MODE_SCULPT)) {
     if (stats_is_object_dynamic_topology_sculpt(ob)) {
-      *ofs += BLI_snprintf_rlen(info + *ofs,
-                                len - *ofs,
+      *ofs += BLI_snprintf_utf8_rlen(info + *ofs,
+                                     len - *ofs,
 
-                                IFACE_("Verts:%s | Tris:%s"),
-                                stats_fmt->totvertsculpt,
-                                stats_fmt->tottri);
+                                     IFACE_("Verts:%s | Tris:%s"),
+                                     stats_fmt->totvertsculpt,
+                                     stats_fmt->tottri);
     }
     else {
-      *ofs += BLI_snprintf_rlen(info + *ofs,
-                                len - *ofs,
+      *ofs += BLI_snprintf_utf8_rlen(info + *ofs,
+                                     len - *ofs,
 
-                                IFACE_("Verts:%s | Faces:%s"),
-                                stats_fmt->totvertsculpt,
-                                stats_fmt->totfacesculpt);
+                                     IFACE_("Verts:%s | Faces:%s"),
+                                     stats_fmt->totvertsculpt,
+                                     stats_fmt->totfacesculpt);
     }
   }
   else {
-    *ofs += BLI_snprintf_rlen(info + *ofs,
-                              len - *ofs,
+    *ofs += BLI_snprintf_utf8_rlen(info + *ofs,
+                                   len - *ofs,
 
-                              IFACE_("Verts:%s | Faces:%s | Tris:%s"),
-                              stats_fmt->totvert,
-                              stats_fmt->totface,
-                              stats_fmt->tottri);
+                                   IFACE_("Verts:%s | Faces:%s | Tris:%s"),
+                                   stats_fmt->totvert,
+                                   stats_fmt->totface,
+                                   stats_fmt->tottri);
   }
 
   if (!STREQ(&stats_fmt->totobj[0], "0")) {
-    *ofs += BLI_snprintf_rlen(info + *ofs,
-                              len - *ofs,
+    *ofs += BLI_snprintf_utf8_rlen(info + *ofs,
+                                   len - *ofs,
 
-                              IFACE_(" | Objects:%s/%s"),
-                              stats_fmt->totobjsel,
-                              stats_fmt->totobj);
+                                   IFACE_(" | Objects:%s/%s"),
+                                   stats_fmt->totobjsel,
+                                   stats_fmt->totobj);
   }
 }
 
@@ -672,30 +722,34 @@ const char *ED_info_statusbar_string_ex(Main *bmain,
   /* Scene Duration. */
   if (statusbar_flag & STATUSBAR_SHOW_SCENE_DURATION) {
     if (info[0]) {
-      ofs += BLI_snprintf_rlen(info + ofs, len - ofs, " | ");
+      ofs += BLI_snprintf_utf8_rlen(info + ofs, len - ofs, " | ");
     }
     const int relative_current_frame = (scene->r.cfra - scene->r.sfra) + 1;
     const int frame_count = (scene->r.efra - scene->r.sfra) + 1;
     char timecode[32];
-    BLI_timecode_string_from_time(
-        timecode, sizeof(timecode), -2, FRA2TIME(frame_count), FPS, U.timecode_style);
-    ofs += BLI_snprintf_rlen(info + ofs,
-                             len - ofs,
+    BLI_timecode_string_from_time(timecode,
+                                  sizeof(timecode),
+                                  -2,
+                                  FRA2TIME(frame_count),
+                                  scene->frames_per_second(),
+                                  U.timecode_style);
+    ofs += BLI_snprintf_utf8_rlen(info + ofs,
+                                  len - ofs,
 
-                             IFACE_("Duration: %s (Frame %i/%i)"),
-                             timecode,
-                             relative_current_frame,
-                             frame_count);
+                                  IFACE_("Duration: %s (Frame %i/%i)"),
+                                  timecode,
+                                  relative_current_frame,
+                                  frame_count);
   }
 
   /* Memory status. */
   if (statusbar_flag & STATUSBAR_SHOW_MEMORY) {
     if (info[0]) {
-      ofs += BLI_snprintf_rlen(info + ofs, len - ofs, " | ");
+      ofs += BLI_snprintf_utf8_rlen(info + ofs, len - ofs, " | ");
     }
     uintptr_t mem_in_use = MEM_get_memory_in_use();
     BLI_str_format_byte_unit(formatted_mem, mem_in_use, false);
-    ofs += BLI_snprintf_rlen(info + ofs, len, IFACE_("Memory: %s"), formatted_mem);
+    ofs += BLI_snprintf_utf8_rlen(info + ofs, len, IFACE_("Memory: %s"), formatted_mem);
   }
 
   /* GPU VRAM status. */
@@ -705,28 +759,29 @@ const char *ED_info_statusbar_string_ex(Main *bmain,
     float gpu_total_gb = gpu_tot_mem_kb / 1048576.0f;
     float gpu_free_gb = gpu_free_mem_kb / 1048576.0f;
     if (info[0]) {
-      ofs += BLI_snprintf_rlen(info + ofs, len - ofs, " | ");
+      ofs += BLI_snprintf_utf8_rlen(info + ofs, len - ofs, " | ");
     }
     if (gpu_free_mem_kb && gpu_tot_mem_kb) {
-      ofs += BLI_snprintf_rlen(info + ofs,
-                               len - ofs,
+      ofs += BLI_snprintf_utf8_rlen(info + ofs,
+                                    len - ofs,
 
-                               IFACE_("VRAM: %.1f/%.1f GiB"),
-                               gpu_total_gb - gpu_free_gb,
-                               gpu_total_gb);
+                                    IFACE_("VRAM: %.1f/%.1f GiB"),
+                                    gpu_total_gb - gpu_free_gb,
+                                    gpu_total_gb);
     }
     else {
       /* Can only show amount of GPU VRAM available. */
-      ofs += BLI_snprintf_rlen(info + ofs, len - ofs, IFACE_("VRAM: %.1f GiB Free"), gpu_free_gb);
+      ofs += BLI_snprintf_utf8_rlen(
+          info + ofs, len - ofs, IFACE_("VRAM: %.1f GiB Free"), gpu_free_gb);
     }
   }
 
   /* Blender version. */
   if (statusbar_flag & STATUSBAR_SHOW_VERSION) {
     if (info[0]) {
-      ofs += BLI_snprintf_rlen(info + ofs, len - ofs, " | ");
+      ofs += BLI_snprintf_utf8_rlen(info + ofs, len - ofs, " | ");
     }
-    ofs += BLI_snprintf_rlen(
+    ofs += BLI_snprintf_utf8_rlen(
         info + ofs, len - ofs, IFACE_("%s"), BKE_blender_version_string_compact());
   }
 
@@ -759,7 +814,7 @@ static void stats_row(int col1,
   *y -= height;
   BLF_draw_default(col1, *y, 0.0f, key, 128);
   char values[128];
-  SNPRINTF(values, (value2) ? "%s / %s" : "%s", value1, value2);
+  SNPRINTF_UTF8(values, (value2) ? "%s / %s" : "%s", value1, value2);
   BLF_draw_default(col2, *y, 0.0f, values, sizeof(values));
 }
 
@@ -844,7 +899,7 @@ void ED_info_draw_stats(
     stats_row(col1, labels[LAYERS], col2, stats_fmt.totgplayer, nullptr, y, height);
     stats_row(col1, labels[FRAMES], col2, stats_fmt.totgpframe, nullptr, y, height);
     stats_row(col1, labels[STROKES], col2, stats_fmt.totgpstroke, nullptr, y, height);
-    stats_row(col1, labels[POINTS], col2, stats_fmt.totgppoint, nullptr, y, height);
+    stats_row(col1, labels[POINTS], col2, stats_fmt.totpoints, nullptr, y, height);
   }
   else if (ob && ob->mode == OB_MODE_EDIT) {
     if (ob->type == OB_MESH) {
@@ -856,6 +911,12 @@ void ED_info_draw_stats(
     else if (ob->type == OB_ARMATURE) {
       stats_row(col1, labels[JOINTS], col2, stats_fmt.totvertsel, stats_fmt.totvert, y, height);
       stats_row(col1, labels[BONES], col2, stats_fmt.totbonesel, stats_fmt.totbone, y, height);
+    }
+    else if (ob->type == OB_CURVES) {
+      stats_row(col1, labels[VERTS], col2, stats_fmt.totvertsel, stats_fmt.totpoints, y, height);
+    }
+    else if (ob->type == OB_POINTCLOUD) {
+      stats_row(col1, labels[POINTS], col2, stats_fmt.totvertsel, stats_fmt.totpoints, y, height);
     }
     else if (ob->type != OB_FONT) {
       stats_row(col1, labels[VERTS], col2, stats_fmt.totvertsel, stats_fmt.totvert, y, height);

@@ -21,12 +21,14 @@
 #include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
+#include "DNA_windowmanager_types.h"
 
 #include "BLI_fileops.h"
 #include "BLI_function_ref.hh"
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_system.h"
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
@@ -233,19 +235,25 @@ struct ReuseOldBMainData {
   Main *new_bmain;
   Main *old_bmain;
 
-  /** Data generated and used by calling WM code to handle keeping WM and UI IDs as best as
+  /**
+   * Data generated and used by calling WM code to handle keeping WM and UI IDs as best as
    * possible across file reading.
    *
-   * \note May be null in undo (memfile) case. */
+   * \note May be null in undo (memfile) case.
+   */
   BlendFileReadWMSetupData *wm_setup_data;
 
-  /** Storage for all remapping rules (old_id -> new_id) required by the preservation of old IDs
-   * into the new Main. */
+  /**
+   * Storage for all remapping rules (old_id -> new_id) required by the preservation of old IDs
+   * into the new Main.
+   */
   id::IDRemapper *remapper;
   bool is_libraries_remapped;
 
-  /** Used to find matching IDs by name/lib in new main, to remap ID usages of data ported over
-   * from old main. */
+  /**
+   * Used to find matching IDs by name/lib in new main, to remap ID usages of data ported over
+   * from old main.
+   */
   IDNameLib_Map *id_map;
 };
 
@@ -564,7 +572,7 @@ static void unpin_file_local_grease_pencil_brush_materials(const ReuseOldBMainDa
 }
 
 /**
- * Does a complete replacement of data in `new_bmain` by data from `old_bmain. Original new data
+ * Does a complete replacement of data in `new_bmain` by data from `old_bmain`. Original new data
  * are moved to the `old_bmain`, and will be freed together with it.
  *
  * WARNING: Currently only expects to work on local data, won't work properly if some of the IDs of
@@ -891,7 +899,7 @@ static void wm_data_consistency_ensure(wmWindowManager *curwm,
       win->scene = cur_scene;
     }
     if (BKE_view_layer_find(win->scene, win->view_layer_name) == nullptr) {
-      STRNCPY(win->view_layer_name, cur_view_layer->name);
+      STRNCPY_UTF8(win->view_layer_name, cur_view_layer->name);
     }
 
     view3d_data_consistency_ensure(win, win->scene, cur_view_layer);
@@ -974,6 +982,9 @@ static void setup_app_data(bContext *C,
   reuse_data.old_bmain = bmain;
   reuse_data.wm_setup_data = wm_setup_data;
 
+  const bool reuse_editable_assets = mode != LOAD_UNDO && !params->is_factory_settings &&
+                                     reuse_editable_asset_needed(&reuse_data);
+
   if (mode != LOAD_UNDO) {
     const short ui_id_codes[]{ID_WS, ID_SCR};
 
@@ -1000,7 +1011,7 @@ static void setup_app_data(bContext *C,
 
     BKE_main_idmap_destroy(reuse_data.id_map);
 
-    if (!params->is_factory_settings && reuse_editable_asset_needed(&reuse_data)) {
+    if (reuse_editable_assets) {
       unpin_file_local_grease_pencil_brush_materials(&reuse_data);
       /* Keep linked brush asset data, similar to UI data. Only does a known
        * subset know. Could do everything, but that risks dragging along more
@@ -1202,6 +1213,9 @@ static void setup_app_data(bContext *C,
     STRNCPY(bmain->filepath, bfd->filepath);
   }
 
+  /* Set the loaded .blend file path for crash recovery. */
+  STRNCPY(G.filepath_last_blend, bmain->filepath);
+
   /* Base-flags, groups, make depsgraph, etc. */
   /* first handle case if other windows have different scenes visible. */
   if (mode == LOAD_UI) {
@@ -1218,9 +1232,11 @@ static void setup_app_data(bContext *C,
   /* Setting scene might require having a dependency graph, with copy-on-eval
    * we need to make sure we ensure scene has correct color management before
    * constructing dependency graph. */
-  if (mode != LOAD_UNDO) {
-    IMB_colormanagement_check_file_config(bmain);
+  if (params->is_startup) {
+    IMB_colormanagement_working_space_init_startup(bmain);
   }
+  IMB_colormanagement_working_space_check(bmain, mode == LOAD_UNDO, reuse_editable_assets);
+  IMB_colormanagement_check_file_config(bmain);
 
   BKE_scene_set_background(bmain, curscene);
 
@@ -1240,6 +1256,7 @@ static void setup_app_data(bContext *C,
 
     BKE_lib_override_library_main_resync(
         bmain,
+        nullptr,
         curscene,
         bfd->cur_view_layer ? bfd->cur_view_layer : BKE_view_layer_default_view(curscene),
         reports);
@@ -1335,15 +1352,15 @@ void BKE_blendfile_read_setup_undo(bContext *C,
   BKE_blendfile_read_setup_readfile(C, bfd, params, nullptr, reports, false, nullptr);
 }
 
+static CLG_LogRef LOG_BLEND = {"blend"};
+
 BlendFileData *BKE_blendfile_read(const char *filepath,
                                   const BlendFileReadParams *params,
                                   BlendFileReadReport *reports)
 {
   /* Don't print startup file loading. */
   if (params->is_startup == false) {
-    if (!G.quiet) {
-      printf("Read blend: \"%s\"\n", filepath);
-    }
+    CLOG_INFO_NOCHECK(&LOG_BLEND, "Read blend: \"%s\"", filepath);
   }
 
   BlendFileData *bfd = BLO_read_from_file(filepath, eBLOReadSkip(params->skip_flags), reports);
@@ -1430,7 +1447,7 @@ void BKE_blendfile_read_make_empty(bContext *C)
  *
  *   The preferences are merged by using some from the app-template and other settings from the
  *   regular preferences (add-ons from the app-template for example are used),
- *   undo-memory uses the regular preferences (for e.g.).
+ *   undo-memory uses the regular preferences (for example).
  *
  * - Writing preferences is performed for both the app-template & regular preferences.
  *
@@ -1506,7 +1523,7 @@ UserDef *BKE_blendfile_userdef_from_defaults()
     };
     for (int i = 0; i < ARRAY_SIZE(addons); i++) {
       bAddon *addon = BKE_addon_new();
-      STRNCPY(addon->module, addons[i]);
+      STRNCPY_UTF8(addon->module, addons[i]);
       BLI_addtail(&userdef->addons, addon);
     }
   }
@@ -1557,6 +1574,24 @@ UserDef *BKE_blendfile_userdef_from_defaults()
         userdef, "VIEW3D_AST_brush_sculpt", "Brushes/Mesh Sculpt/Simulation");
 
     BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "IMAGE_AST_brush_paint", "Brushes/Mesh Texture Paint/Basic");
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "IMAGE_AST_brush_paint", "Brushes/Mesh Texture Paint/Erase");
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "IMAGE_AST_brush_paint", "Brushes/Mesh Texture Paint/Pixel Art");
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "IMAGE_AST_brush_paint", "Brushes/Mesh Texture Paint/Utilities");
+
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "VIEW3D_AST_brush_texture_paint", "Brushes/Mesh Texture Paint/Basic");
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "VIEW3D_AST_brush_texture_paint", "Brushes/Mesh Texture Paint/Erase");
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "VIEW3D_AST_brush_texture_paint", "Brushes/Mesh Texture Paint/Pixel Art");
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "VIEW3D_AST_brush_texture_paint", "Brushes/Mesh Texture Paint/Utilities");
+
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
         userdef, "VIEW3D_AST_brush_gpencil_paint", "Brushes/Grease Pencil Draw/Draw");
     BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
         userdef, "VIEW3D_AST_brush_gpencil_paint", "Brushes/Grease Pencil Draw/Erase");
@@ -1569,6 +1604,13 @@ UserDef *BKE_blendfile_userdef_from_defaults()
         userdef, "VIEW3D_AST_brush_gpencil_sculpt", "Brushes/Grease Pencil Sculpt/Transform");
     BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
         userdef, "VIEW3D_AST_brush_gpencil_sculpt", "Brushes/Grease Pencil Sculpt/Utilities");
+
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "NODE_AST_compositor", "Camera & Lens Effects");
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "NODE_AST_compositor", "Creative");
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "NODE_AST_compositor", "Utilities");
   }
 
   return userdef;
@@ -1576,7 +1618,7 @@ UserDef *BKE_blendfile_userdef_from_defaults()
 
 bool BKE_blendfile_userdef_write(const char *filepath, ReportList *reports)
 {
-  Main *mainb = MEM_callocN<Main>("empty main");
+  Main *mainb = MEM_new<Main>(__func__);
   bool ok = false;
 
   BlendFileWriteParams params{};
@@ -1586,7 +1628,7 @@ bool BKE_blendfile_userdef_write(const char *filepath, ReportList *reports)
     ok = true;
   }
 
-  MEM_freeN(mainb);
+  MEM_delete(mainb);
 
   return ok;
 }
@@ -1622,9 +1664,7 @@ bool BKE_blendfile_userdef_write_all(ReportList *reports)
   if (cfgdir) {
     bool ok_write;
     BLI_path_join(filepath, sizeof(filepath), cfgdir->c_str(), BLENDER_USERPREF_FILE);
-    if (!G.quiet) {
-      printf("Writing userprefs: \"%s\" ", filepath);
-    }
+    CLOG_INFO_NOCHECK(&LOG_BLEND, "Writing user preferences: \"%s\" ", filepath);
     if (use_template_userpref) {
       ok_write = BKE_blendfile_userdef_write_app_template(filepath, reports);
     }
@@ -1633,15 +1673,10 @@ bool BKE_blendfile_userdef_write_all(ReportList *reports)
     }
 
     if (ok_write) {
-      if (!G.quiet) {
-        printf("ok\n");
-      }
       BKE_report(reports, RPT_INFO, "Preferences saved");
     }
     else {
-      if (!G.quiet) {
-        printf("fail\n");
-      }
+      CLOG_WARN(&LOG_BLEND, "Failed to write user preferences");
       ok = false;
       BKE_report(reports, RPT_ERROR, "Saving preferences failed");
     }
@@ -1656,18 +1691,11 @@ bool BKE_blendfile_userdef_write_all(ReportList *reports)
       /* Also save app-template preferences. */
       BLI_path_join(filepath, sizeof(filepath), cfgdir->c_str(), BLENDER_USERPREF_FILE);
 
-      if (!G.quiet) {
-        printf("Writing userprefs app-template: \"%s\" ", filepath);
-      }
+      CLOG_INFO_NOCHECK(&LOG_BLEND, "Writing user preferences app-template: \"%s\" ", filepath);
       if (BKE_blendfile_userdef_write(filepath, reports) != 0) {
-        if (!G.quiet) {
-          printf("ok\n");
-        }
       }
       else {
-        if (!G.quiet) {
-          printf("fail\n");
-        }
+        CLOG_WARN(&LOG_BLEND, "Failed to write user preferences");
         ok = false;
       }
     }
@@ -1734,17 +1762,17 @@ void BKE_blendfile_workspace_config_data_free(WorkspaceConfigFileData *workspace
 /** \name Blend File Write (Partial)
  * \{ */
 
-static CLG_LogRef LOG_PARTIALWRITE = {"bke.blendfile.partial_write"};
+static CLG_LogRef LOG_PARTIALWRITE = {"blend.partial_write"};
 
 namespace blender::bke::blendfile {
 
-PartialWriteContext::PartialWriteContext(StringRefNull reference_root_filepath)
-    : reference_root_filepath_(reference_root_filepath)
+PartialWriteContext::PartialWriteContext(Main &reference_main)
+    : reference_root_filepath_(BKE_main_blendfile_path(&reference_main))
 {
-  BKE_main_init(this->bmain);
   if (!reference_root_filepath_.empty()) {
     STRNCPY(this->bmain.filepath, reference_root_filepath_.c_str());
   }
+  this->bmain.colorspace = reference_main.colorspace;
   /* Only for IDs matching existing data in current G_MAIN. */
   matching_uid_map_ = BKE_main_idmap_create(&this->bmain, false, nullptr, MAIN_IDMAP_TYPE_UID);
   /* For all IDs existing in the context. */
@@ -1755,9 +1783,6 @@ PartialWriteContext::PartialWriteContext(StringRefNull reference_root_filepath)
 PartialWriteContext::~PartialWriteContext()
 {
   BKE_main_idmap_destroy(matching_uid_map_);
-
-  BLI_assert(this->bmain.next == nullptr);
-  BKE_main_destroy(this->bmain);
 };
 
 void PartialWriteContext::preempt_session_uid(ID *ctx_id, uint session_uid)
@@ -1786,9 +1811,8 @@ void PartialWriteContext::preempt_session_uid(ID *ctx_id, uint session_uid)
   matching_ctx_id = BKE_main_idmap_lookup_uid(this->bmain.id_map, session_uid);
   BLI_assert(matching_ctx_id != ctx_id);
   if (matching_ctx_id) {
-    CLOG_INFO(&LOG_PARTIALWRITE,
-              3,
-              "Non-matching IDs sharing the same session UID in the partial write context.");
+    CLOG_DEBUG(&LOG_PARTIALWRITE,
+               "Non-matching IDs sharing the same session UID in the partial write context.");
     BKE_main_idmap_remove_id(this->bmain.id_map, matching_ctx_id);
     /* FIXME: Allow #BKE_lib_libblock_session_uid_renew to work with temp IDs? */
     matching_ctx_id->tag &= ~ID_TAG_TEMP_MAIN;
@@ -1824,11 +1848,18 @@ ID *PartialWriteContext::id_add_copy(const ID *id, const bool regenerate_session
 {
   ID *ctx_root_id = nullptr;
   BLI_assert(BKE_main_idmap_lookup_uid(matching_uid_map_, id->session_uid) == nullptr);
-  const int copy_flags = (LIB_ID_CREATE_NO_MAIN | LIB_ID_CREATE_NO_USER_REFCOUNT |
+  const int copy_flags = (LIB_ID_CREATE_LOCALIZE |
                           /* NOTE: Could make this an option if needed in the future */
                           LIB_ID_COPY_ASSET_METADATA);
   ctx_root_id = BKE_id_copy_in_lib(nullptr, id->lib, id, std::nullopt, nullptr, copy_flags);
+  if (!ctx_root_id) {
+    return ctx_root_id;
+  }
   ctx_root_id->tag |= ID_TAG_TEMP_MAIN;
+  /* It is critical to preserve the deep hash here, as the copy put in the partial write context is
+   * expected to be a perfect duplicate of the packed ID (including all of its dependencies). This
+   * will also be used on paste for deduplication. */
+  ctx_root_id->deep_hash = id->deep_hash;
   /* Ensure that the newly copied ID has a library in temp local bmain if it was linked.
    * While this could be optimized out in case the ID is made local in the context, this adds
    * complexity as default ID management code like 'make local' code will create invalid bmain
@@ -1879,16 +1910,44 @@ Library *PartialWriteContext::ensure_library(ID *ctx_id)
   if (!ID_IS_LINKED(ctx_id)) {
     return nullptr;
   }
-  blender::StringRefNull lib_path = ctx_id->lib->runtime->filepath_abs;
-  Library *ctx_lib = this->libraries_map_.lookup_default(lib_path, nullptr);
-  if (!ctx_lib) {
-    ctx_lib = reinterpret_cast<Library *>(id_add_copy(&ctx_id->lib->id, true));
-    this->libraries_map_.add(lib_path, ctx_lib);
+
+  Library *src_lib = ctx_id->lib;
+  const bool is_archive_lib = (src_lib->flag & LIBRARY_FLAG_IS_ARCHIVE) != 0;
+  Library *src_base_lib = is_archive_lib ? src_lib->archive_parent_library : src_lib;
+  BLI_assert(src_base_lib);
+  BLI_assert((is_archive_lib && src_lib != src_base_lib && !ctx_id->deep_hash.is_null()) ||
+             (!is_archive_lib && src_lib == src_base_lib && ctx_id->deep_hash.is_null()));
+
+  StringRefNull lib_path = src_base_lib->runtime->filepath_abs;
+  Library *ctx_base_lib = this->libraries_map_.lookup_default(lib_path, nullptr);
+  if (!ctx_base_lib) {
+    ctx_base_lib = reinterpret_cast<Library *>(id_add_copy(&src_base_lib->id, true));
+    BLI_assert(ctx_base_lib);
+    this->libraries_map_.add(lib_path, ctx_base_lib);
   }
+  /* The mapping should only contain real libraries, never packed ones. */
+  BLI_assert(!ctx_base_lib || (ctx_base_lib->flag & LIBRARY_FLAG_IS_ARCHIVE) == 0);
+
+  /* There is a valid context base library, now find or create a valid archived library if needed.
+   */
+  Library *ctx_lib = ctx_base_lib;
+  if (is_archive_lib) {
+    /* Leave the creation of a new archive library to the Library code, when needed, instead of
+     * using the write context's own `id_add_copy` util. Both are doing different and complex
+     * things, but for archive libraries the Library code should be mostly usable 'as-is'. */
+    bool is_new = false;
+    ctx_lib = blender::bke::library::ensure_archive_library(
+        this->bmain, *ctx_id, *ctx_lib, ctx_id->deep_hash, is_new);
+    if (is_new) {
+      ctx_lib->id.tag |= ID_TAG_TEMP_MAIN;
+      BKE_main_idmap_insert_id(this->bmain.id_map, &ctx_lib->id);
+    }
+  }
+
   ctx_id->lib = ctx_lib;
   return ctx_lib;
 }
-Library *PartialWriteContext::ensure_library(blender::StringRefNull library_absolute_path)
+Library *PartialWriteContext::ensure_library(StringRefNull library_absolute_path)
 {
   Library *ctx_lib = this->libraries_map_.lookup_default(library_absolute_path, nullptr);
   if (!ctx_lib) {
@@ -1905,8 +1964,8 @@ Library *PartialWriteContext::ensure_library(blender::StringRefNull library_abso
 ID *PartialWriteContext::id_add(
     const ID *id,
     PartialWriteContext::IDAddOptions options,
-    blender::FunctionRef<PartialWriteContext::IDAddOperations(
-        LibraryIDLinkCallbackData *cb_data, PartialWriteContext::IDAddOptions options)>
+    FunctionRef<PartialWriteContext::IDAddOperations(LibraryIDLinkCallbackData *cb_data,
+                                                     PartialWriteContext::IDAddOptions options)>
         dependencies_filter_cb)
 {
   constexpr int make_local_flags = (LIB_ID_MAKELOCAL_INDIRECT | LIB_ID_MAKELOCAL_FORCE_LOCAL |
@@ -1925,6 +1984,9 @@ ID *PartialWriteContext::id_add(
   }
 
   /* The given ID may have already been added (either explicitly or as a dependency) before. */
+  /* NOTE: This should not be needed currently (as this is only used as temporary partial copy of
+   * the current main data-base, so ID's runtime `session_uid` should be enough), but in the
+   * future it might also be good to lookup by ID deep hash for packed data? */
   ID *ctx_root_id = BKE_main_idmap_lookup_uid(matching_uid_map_, id->session_uid);
   if (ctx_root_id) {
     /* If the root orig ID is already in the context, assume all of its dependencies are as well.
@@ -1937,20 +1999,27 @@ ID *PartialWriteContext::id_add(
   /* Local mapping, such that even in case dependencies are duplicated for this specific added ID,
    * once a dependency has been duplicated, it can be re-used for other ID usages within the
    * dependencies of the added ID. */
-  blender::Map<const ID *, ID *> local_ctx_id_map;
+  Map<const ID *, ID *> local_ctx_id_map;
   /* A list of IDs to post-process. Only contains IDs that were actually added to the context (not
    * the ones that were already there and were re-used). The #IDAddOperations item of the pair
    * stores the returned value from the given #dependencies_filter_cb (or given global #options
    * parameter otherwise). */
-  blender::Vector<std::pair<ID *, PartialWriteContext::IDAddOperations>> post_process_ids_todo;
+  Vector<std::pair<ID *, PartialWriteContext::IDAddOperations>> post_process_ids_todo;
 
   ctx_root_id = id_add_copy(id, false);
+  if (!ctx_root_id) {
+    CLOG_ERROR(&LOG_PARTIALWRITE,
+               "Failed to copy ID '%s', could not add it to the partial write context",
+               id->name);
+    return ctx_root_id;
+  }
+
   BLI_assert(ctx_root_id->session_uid == id->session_uid);
   local_ctx_id_map.add(id, ctx_root_id);
   post_process_ids_todo.append({ctx_root_id, options.operations});
   this->process_added_id(ctx_root_id, options.operations);
 
-  blender::VectorSet<ID *> ids_to_process{ctx_root_id};
+  VectorSet<ID *> ids_to_process{ctx_root_id};
   auto dependencies_cb = [this,
                           options,
                           &local_ctx_id_map,
@@ -1979,6 +2048,14 @@ ID *PartialWriteContext::id_add(
           cb_data, options);
       operations_final = ((operations_per_id & MASK_PER_ID_USAGE) |
                           (operations_final & ~MASK_PER_ID_USAGE));
+      if (ID_IS_PACKED(orig_deps_id) && (operations_final & MAKE_LOCAL) == 0) {
+        /* To ensure that their deep hash still matches with their 'context' copy, packed IDs that
+         * are not made local (i.e. 'unpacked'):
+         *  - Must also include all of their dependencies.
+         *  - Should never duplicate or clear their dependencies. */
+        operations_final |= ADD_DEPENDENCIES;
+        operations_final &= ~(DUPLICATE_DEPENDENCIES | CLEAR_DEPENDENCIES);
+      }
     }
 
     const bool add_dependencies = (operations_final & ADD_DEPENDENCIES) != 0;
@@ -2028,6 +2105,15 @@ ID *PartialWriteContext::id_add(
       }
       ctx_deps_id = this->id_add_copy(orig_deps_id, duplicate_dependencies);
       local_ctx_id_map.add(orig_deps_id, ctx_deps_id);
+      if (!ctx_deps_id) {
+        CLOG_ERROR(&LOG_PARTIALWRITE,
+                   "Failed to copy ID '%s' (used by ID '%s'), could not add it to the partial "
+                   "write context",
+                   (*id_ptr)->name,
+                   cb_data->owner_id->name);
+        *id_ptr = nullptr;
+        return IDWALK_RET_NOP;
+      }
       ids_to_process.add(ctx_deps_id);
       post_process_ids_todo.append({ctx_deps_id, operations_final});
     }
@@ -2062,7 +2148,7 @@ ID *PartialWriteContext::id_add(
 }
 
 ID *PartialWriteContext::id_create(const short id_type,
-                                   const blender::StringRefNull id_name,
+                                   const StringRefNull id_name,
                                    Library *library,
                                    PartialWriteContext::IDAddOptions options)
 {
@@ -2104,10 +2190,9 @@ void PartialWriteContext::remove_unused(const bool clear_extra_user)
   }
   BKE_lib_query_unused_ids_tag(&this->bmain, ID_TAG_DOIT, parameters);
 
-  CLOG_INFO(&LOG_PARTIALWRITE,
-            3,
-            "Removing %d unused IDs from current partial write context",
-            parameters.num_total[INDEX_ID_NULL]);
+  CLOG_DEBUG(&LOG_PARTIALWRITE,
+             "Removing %d unused IDs from current partial write context",
+             parameters.num_total[INDEX_ID_NULL]);
   ID *id_iter;
   FOREACH_MAIN_ID_BEGIN (&this->bmain, id_iter) {
     if ((id_iter->tag & ID_TAG_DOIT) != 0) {
@@ -2126,8 +2211,8 @@ void PartialWriteContext::clear()
 
 bool PartialWriteContext::is_valid()
 {
-  blender::Set<ID *> ids_in_context;
-  blender::Set<uint> session_uids_in_context;
+  Set<ID *> ids_in_context;
+  Set<uint> session_uids_in_context;
   bool is_valid = true;
 
   ID *id_iter;
@@ -2196,7 +2281,7 @@ bool PartialWriteContext::write(const char *write_filepath,
 
   /* In case the write path is the same as one of the libraries used by this context, make this
    * library local, and delete it (and all of its potentially remaining linked data). */
-  blender::Vector<Library *> make_local_libs;
+  Vector<Library *> make_local_libs;
   LISTBASE_FOREACH (Library *, library, &this->bmain.libraries) {
     if (STREQ(write_filepath, library->runtime->filepath_abs)) {
       make_local_libs.append(library);

@@ -16,6 +16,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
@@ -125,13 +126,7 @@ static void lattice_free_data(ID *id)
 static void lattice_foreach_id(ID *id, LibraryForeachIDData *data)
 {
   Lattice *lattice = reinterpret_cast<Lattice *>(id);
-  const int flag = BKE_lib_query_foreachid_process_flags_get(data);
-
   BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, lattice->key, IDWALK_CB_USER);
-
-  if (flag & IDWALK_DO_DEPRECATED_POINTERS) {
-    BKE_LIB_FOREACHID_PROCESS_ID_NOCHECK(data, lattice->ipo, IDWALK_CB_USER);
-  }
 }
 
 static void lattice_blend_write(BlendWriter *writer, ID *id, const void *id_address)
@@ -167,7 +162,7 @@ static void lattice_blend_read_data(BlendDataReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_LT = {
-    /*id_code*/ ID_LT,
+    /*id_code*/ Lattice::id_type,
     /*id_filter*/ FILTER_ID_LT,
     /*dependencies_id_types*/ FILTER_ID_KE,
     /*main_listbase_index*/ INDEX_ID_LT,
@@ -185,6 +180,7 @@ IDTypeInfo IDType_ID_LT = {
     /*foreach_id*/ lattice_foreach_id,
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ lattice_blend_write,
@@ -393,9 +389,18 @@ Lattice *BKE_lattice_add(Main *bmain, const char *name)
 {
   Lattice *lt;
 
-  lt = static_cast<Lattice *>(BKE_id_new(bmain, ID_LT, name));
+  lt = BKE_id_new<Lattice>(bmain, name);
 
   return lt;
+}
+
+void BKE_lattice_params_copy(Lattice *lt_dst, const Lattice *lt_src)
+{
+  lt_dst->typeu = lt_src->typeu;
+  lt_dst->typev = lt_src->typev;
+  lt_dst->typew = lt_src->typew;
+  lt_dst->flag = lt_src->flag;
+  STRNCPY(lt_dst->vgroup, lt_src->vgroup);
 }
 
 static BPoint *latt_bp(Lattice *lt, int u, int v, int w)

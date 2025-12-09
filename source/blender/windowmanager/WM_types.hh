@@ -31,7 +31,7 @@
  *       Global screen level regions, e.g. popups, popovers, menus.
  *
  *   - #wmWindow.global_areas -> #ScrAreaMap <br>
- *     Global screen via 'areabase', e.g. top-bar & status-bar.
+ *     Global screen via `areabase`, e.g. top-bar & status-bar.
  *
  *
  * Window Layout
@@ -110,7 +110,7 @@ struct wmWindowManager;
 #include <string>
 
 #include "BLI_compiler_attrs.h"
-#include "BLI_utildefines.h"
+#include "BLI_enum_flags.hh"
 #include "BLI_vector.hh"
 
 #include "DNA_listBase.h"
@@ -219,6 +219,9 @@ enum {
 
   /** Handle events before modal operators without this flag. */
   OPTYPE_MODAL_PRIORITY = (1 << 12),
+
+  /** Operator is registered from a local node group or a node group asset. */
+  OPTYPE_NODE_TOOL = (1 << 13),
 };
 
 /** For #WM_cursor_grab_enable wrap axis. */
@@ -233,28 +236,31 @@ enum eWM_CursorWrapAxis {
  * Context to call operator in for #WM_operator_name_call.
  * rna_ui.cc contains EnumPropertyItem's of these, keep in sync.
  */
-enum wmOperatorCallContext {
+namespace blender::wm {
+enum class OpCallContext : int8_t {
   /* If there's invoke, call it, otherwise exec. */
-  WM_OP_INVOKE_DEFAULT,
-  WM_OP_INVOKE_REGION_WIN,
-  WM_OP_INVOKE_REGION_CHANNELS,
-  WM_OP_INVOKE_REGION_PREVIEW,
-  WM_OP_INVOKE_AREA,
-  WM_OP_INVOKE_SCREEN,
+  InvokeDefault,
+  InvokeRegionWin,
+  InvokeRegionChannels,
+  InvokeRegionPreview,
+  InvokeArea,
+  InvokeScreen,
   /* Only call exec. */
-  WM_OP_EXEC_DEFAULT,
-  WM_OP_EXEC_REGION_WIN,
-  WM_OP_EXEC_REGION_CHANNELS,
-  WM_OP_EXEC_REGION_PREVIEW,
-  WM_OP_EXEC_AREA,
-  WM_OP_EXEC_SCREEN,
+  ExecDefault,
+  ExecRegionWin,
+  ExecRegionChannels,
+  ExecRegionPreview,
+  ExecArea,
+  ExecScreen,
 };
+}
 
 #define WM_OP_CONTEXT_HAS_AREA(type) \
-  (CHECK_TYPE_INLINE(type, wmOperatorCallContext), \
-   !ELEM(type, WM_OP_INVOKE_SCREEN, WM_OP_EXEC_SCREEN))
+  (CHECK_TYPE_INLINE(type, blender::wm::OpCallContext), \
+   !ELEM(type, blender::wm::OpCallContext::InvokeScreen, blender::wm::OpCallContext::ExecScreen))
 #define WM_OP_CONTEXT_HAS_REGION(type) \
-  (WM_OP_CONTEXT_HAS_AREA(type) && !ELEM(type, WM_OP_INVOKE_AREA, WM_OP_EXEC_AREA))
+  (WM_OP_CONTEXT_HAS_AREA(type) && \
+   !ELEM(type, blender::wm::OpCallContext::InvokeArea, blender::wm::OpCallContext::ExecArea))
 
 /** Property tags for #RNA_OperatorProperties. */
 enum eOperatorPropTags {
@@ -271,7 +277,7 @@ enum eOperatorPropTags {
  * - #wmEvent.modifier.
  * - #WM_keymap_add_item & #WM_modalkeymap_add_item
  */
-enum {
+enum wmEventModifierFlag : uint8_t {
   KM_SHIFT = (1 << 0),
   KM_CTRL = (1 << 1),
   KM_ALT = (1 << 2),
@@ -288,13 +294,10 @@ enum {
    */
   KM_HYPER = (1 << 4),
 };
+ENUM_OPERATORS(wmEventModifierFlag);
 
 /** The number of modifiers #wmKeyMapItem & #wmEvent can use. */
 #define KM_MOD_NUM 5
-
-/* `KM_MOD_*` flags for #wmKeyMapItem and `wmEvent.alt/shift/oskey/ctrl`. */
-/* Note that #KM_ANY and #KM_NOTHING are used with these defines too. */
-#define KM_MOD_HELD 1
 
 /**
  * #wmKeyMapItem.type
@@ -316,13 +319,19 @@ enum {
    * \note The cursor location at the point dragging starts is set to #wmEvent.prev_press_xy
    * some operators such as box selection should use this location instead of #wmEvent.xy.
    */
-  KM_CLICK_DRAG = 5,
+  KM_PRESS_DRAG = 5,
 };
+/**
+ * Alternate define for #wmKeyMapItem::shift and other modifiers.
+ * While this matches the value of #KM_PRESS, modifiers should only be compared with:
+ * (#KM_ANY, #KM_NOTHING, #KM_MOD_HELD).
+ */
+#define KM_MOD_HELD 1
 
 /**
  * #wmKeyMapItem.direction
  *
- * Direction set for #KM_CLICK_DRAG key-map items. #KM_ANY (-1) to ignore direction.
+ * Direction set for #KM_PRESS_DRAG key-map items. #KM_ANY (-1) to ignore direction.
  */
 enum {
   KM_DIRECTION_N = 1,
@@ -542,9 +551,11 @@ struct wmNotifier {
 #define ND_ASSET_LIST (1 << 16)
 #define ND_ASSET_LIST_PREVIEW (2 << 16)
 #define ND_ASSET_LIST_READING (3 << 16)
-/* Catalog data changed, requiring a redraw of catalog UIs. Note that this doesn't denote a
- * reloading of asset libraries & their catalogs should happen. That only happens on explicit user
- * action. */
+/**
+ * Catalog data changed, requiring a redraw of catalog UIs. Note that this doesn't denote a
+ * reloading of asset libraries & their catalogs should happen.
+ * That only happens on explicit user action.
+ */
 #define ND_ASSET_CATALOGS (4 << 16)
 
 /* Subtype, 256 entries too. */
@@ -690,17 +701,18 @@ enum eWM_EventFlag {
    */
   WM_EVENT_FORCE_DRAG_THRESHOLD = (1 << 3),
 };
-ENUM_OPERATORS(eWM_EventFlag, WM_EVENT_FORCE_DRAG_THRESHOLD);
+ENUM_OPERATORS(eWM_EventFlag);
 
 struct wmTabletData {
   /** 0=EVT_TABLET_NONE, 1=EVT_TABLET_STYLUS, 2=EVT_TABLET_ERASER. */
   int active;
   /** Range 0.0 (not touching) to 1.0 (full pressure). */
   float pressure;
-  /** Range 0.0 (upright) to 1.0 (tilted fully against the tablet surface). */
-  float x_tilt;
-  /** As above. */
-  float y_tilt;
+  /**
+   * X axis range: -1.0 (left) to +1.0 (right).
+   * Y axis range: -1.0 (away from user) to +1.0 (toward user).
+   */
+  blender::float2 tilt;
   /** Interpret mouse motion as absolute as typical for tablets. */
   char is_motion_absolute;
 };
@@ -729,7 +741,7 @@ struct wmTabletData {
  * ============================
  *
  * Events hold information about the state when the last #KM_PRESS event was added.
- * This is used for generating #KM_CLICK, #KM_DBL_CLICK & #KM_CLICK_DRAG events.
+ * This is used for generating #KM_CLICK, #KM_DBL_CLICK & #KM_PRESS_DRAG events.
  * See #wm_handlers_do for the implementation.
  *
  * - Previous values are only set when a #KM_PRESS event is detected.
@@ -747,7 +759,7 @@ struct wmEvent {
   wmEvent *next, *prev;
 
   /** Event code itself (short, is also in key-map). */
-  short type;
+  wmEventType type;
   /** Press, release, scroll-value. */
   short val;
   /** Mouse pointer position, screen coord. */
@@ -764,16 +776,16 @@ struct wmEvent {
   char utf8_buf[6];
 
   /** Modifier states: #KM_SHIFT, #KM_CTRL, #KM_ALT, #KM_OSKEY & #KM_HYPER. */
-  uint8_t modifier;
+  wmEventModifierFlag modifier;
 
-  /** The direction (for #KM_CLICK_DRAG events only). */
+  /** The direction (for #KM_PRESS_DRAG events only). */
   int8_t direction;
 
   /**
    * Raw-key modifier (allow using any key as a modifier).
    * Compatible with values in `type`.
    */
-  short keymodifier;
+  wmEventType keymodifier;
 
   /** Tablet info, available for mouse move and button events. */
   wmTabletData tablet;
@@ -802,7 +814,7 @@ struct wmEvent {
   /* Previous State. */
 
   /** The previous value of `type`. */
-  short prev_type;
+  wmEventType prev_type;
   /** The previous value of `val`. */
   short prev_val;
   /**
@@ -815,16 +827,16 @@ struct wmEvent {
   /* Previous Press State (when `val == KM_PRESS`). */
 
   /** The `type` at the point of the press action. */
-  short prev_press_type;
+  wmEventType prev_press_type;
   /**
    * The location when the key is pressed.
    * used to enforce drag threshold & calculate the `direction`.
    */
   int prev_press_xy[2];
   /** The `modifier` at the point of the press action. */
-  uint8_t prev_press_modifier;
+  wmEventModifierFlag prev_press_modifier;
   /** The `keymodifier` at the point of the press action. */
-  short prev_press_keymodifier;
+  wmEventType prev_press_keymodifier;
 };
 
 /**
@@ -842,15 +854,22 @@ struct wmEvent {
  */
 enum wmProgress {
   P_NOT_STARTED = 0,
-  P_STARTING,    /* <-- */
-  P_IN_PROGRESS, /* <-- only these are sent for NDOF motion. */
-  P_FINISHING,   /* <-- */
+  /** Only sent for NDOF motion. */
+  P_STARTING,
+  /** Only sent for NDOF motion. */
+  P_IN_PROGRESS,
+  /** Only sent for NDOF motion. */
+  P_FINISHING,
   P_FINISHED,
 };
 
 #ifdef WITH_INPUT_NDOF
+/**
+ * NDOF (3D mouse) motion event data.
+ *
+ * Awfully similar to #GHOST_TEventNDOFMotionData.
+ */
 struct wmNDOFMotionData {
-  /* Awfully similar to #GHOST_TEventNDOFMotionData. */
   /**
    * Each component normally ranges from -1 to +1, but can exceed that.
    * These use blender standard view coordinates,
@@ -871,17 +890,17 @@ struct wmNDOFMotionData {
    * This is reset when motion begins: when progress changes from #P_NOT_STARTED to #P_STARTING.
    * In this case a dummy value is used, see #GHOST_NDOF_TIME_DELTA_STARTING.
    */
-  float dt;
+  float time_delta;
   /** Is this the first event, the last, or one of many in between? */
   wmProgress progress;
 };
 #endif /* WITH_INPUT_NDOF */
 
 #ifdef WITH_XR_OPENXR
-/* Similar to GHOST_XrPose. */
+/** Similar to #GHOST_XrPose. */
 struct wmXrPose {
   float position[3];
-  /* Blender convention (w, x, y, z). */
+  /** Blender convention (w, x, y, z). */
   float orientation_quat[4];
 };
 
@@ -936,11 +955,13 @@ enum wmTimerFlags {
   WM_TIMER_NO_FREE_CUSTOM_DATA = 1 << 0,
 
   /* Internal flags, should not be used outside of WM code. */
-  /** This timer has been tagged for removal and deletion, handled by WM code to ensure timers are
-   * deleted in a safe context. */
+  /**
+   * This timer has been tagged for removal and deletion, handled by WM code to ensure timers are
+   * deleted in a safe context.
+   */
   WM_TIMER_TAGGED_FOR_REMOVAL = 1 << 16,
 };
-ENUM_OPERATORS(wmTimerFlags, WM_TIMER_TAGGED_FOR_REMOVAL)
+ENUM_OPERATORS(wmTimerFlags)
 
 struct wmTimer {
   wmTimer *next, *prev;
@@ -951,7 +972,7 @@ struct wmTimer {
   /** Set by timer user. */
   double time_step;
   /** Set by timer user, goes to event system. */
-  int event_type;
+  wmEventType event_type;
   /** Various flags controlling timer options, see below. */
   wmTimerFlags flags;
   /** Set by timer user, to allow custom values. */
@@ -986,8 +1007,8 @@ enum wmPopupPosition {
  * Communication/status data owned by the wmJob, and passed to the worker code when calling
  * `startjob` callback.
  *
- * 'OUTPUT' members mean that they are defined by the worker thread, and read/used by the wmJob
- * management code from the main thread. And vice-versa for `INPUT' members.
+ * `OUTPUT` members mean that they are defined by the worker thread, and read/used by the wmJob
+ * management code from the main thread. And vice-versa for `INPUT` members.
  *
  * \warning There is currently no thread-safety or synchronization when accessing these values.
  * This is fine as long as:
@@ -1022,16 +1043,22 @@ struct wmJobWorkerStatus {
 };
 
 struct wmOperatorType {
+
+  /** Subclassed to store data for additional information for specific operator types. */
+  struct TypeData {
+    virtual ~TypeData() = default;
+  };
+
   /** Text for UI, undo (should not exceed #OP_MAX_TYPENAME). */
-  const char *name;
+  const char *name = nullptr;
   /** Unique identifier (must not exceed #OP_MAX_TYPENAME). */
-  const char *idname;
+  const char *idname = nullptr;
   /** Translation context (must not exceed #BKE_ST_MAXNAME). */
-  const char *translation_context;
+  const char *translation_context = nullptr;
   /** Use for tooltips and Python docs. */
-  const char *description;
+  const char *description = nullptr;
   /** Identifier to group operators together. */
-  const char *undo_group;
+  const char *undo_group = nullptr;
 
   /**
    * This callback executes the operator without any interactive input,
@@ -1039,7 +1066,7 @@ struct wmOperatorType {
    * any interface code or input device state.
    * See defines below for return values.
    */
-  wmOperatorStatus (*exec)(bContext *C, wmOperator *op) ATTR_WARN_UNUSED_RESULT;
+  wmOperatorStatus (*exec)(bContext *C, wmOperator *op) ATTR_WARN_UNUSED_RESULT = nullptr;
 
   /**
    * This callback executes on a running operator whenever as property
@@ -1047,7 +1074,7 @@ struct wmOperatorType {
    * invalid settings in exceptional cases.
    * Boolean return value, True denotes a change has been made and to redraw.
    */
-  bool (*check)(bContext *C, wmOperator *op);
+  bool (*check)(bContext *C, wmOperator *op) = nullptr;
 
   /**
    * For modal temporary operators, initially invoke is called, then
@@ -1057,13 +1084,13 @@ struct wmOperatorType {
    */
   wmOperatorStatus (*invoke)(bContext *C,
                              wmOperator *op,
-                             const wmEvent *event) ATTR_WARN_UNUSED_RESULT;
+                             const wmEvent *event) ATTR_WARN_UNUSED_RESULT = nullptr;
 
   /**
    * Called when a modal operator is canceled (not used often).
    * Internal cleanup can be done here if needed.
    */
-  void (*cancel)(bContext *C, wmOperator *op);
+  void (*cancel)(bContext *C, wmOperator *op) = nullptr;
 
   /**
    * Modal is used for operators which continuously run. Fly mode, knife tool, circle select are
@@ -1073,13 +1100,13 @@ struct wmOperatorType {
    */
   wmOperatorStatus (*modal)(bContext *C,
                             wmOperator *op,
-                            const wmEvent *event) ATTR_WARN_UNUSED_RESULT;
+                            const wmEvent *event) ATTR_WARN_UNUSED_RESULT = nullptr;
 
   /**
    * Verify if the operator can be executed in the current context. Note
    * that the operator may still fail to execute even if this returns true.
    */
-  bool (*poll)(bContext *C) ATTR_WARN_UNUSED_RESULT;
+  bool (*poll)(bContext *C) ATTR_WARN_UNUSED_RESULT = nullptr;
 
   /**
    * Used to check if properties should be displayed in auto-generated UI.
@@ -1087,15 +1114,15 @@ struct wmOperatorType {
    */
   bool (*poll_property)(const bContext *C,
                         wmOperator *op,
-                        const PropertyRNA *prop) ATTR_WARN_UNUSED_RESULT;
+                        const PropertyRNA *prop) ATTR_WARN_UNUSED_RESULT = nullptr;
 
   /** Optional panel for redo and repeat, auto-generated if not set. */
-  void (*ui)(bContext *C, wmOperator *op);
+  void (*ui)(bContext *C, wmOperator *op) = nullptr;
   /**
    * Optional check for whether the #ui callback should be called (usually to create the redo
    * panel interface).
    */
-  bool (*ui_poll)(wmOperatorType *ot, PointerRNA *ptr);
+  bool (*ui_poll)(wmOperatorType *ot, PointerRNA *ptr) = nullptr;
 
   /**
    * Return a different name to use in the user interface, based on property values.
@@ -1105,49 +1132,52 @@ struct wmOperatorType {
    * any definition of an operator button through the layout API will fail to execute it). See
    * #112253 for details.
    */
-  std::string (*get_name)(wmOperatorType *ot, PointerRNA *ptr);
+  std::string (*get_name)(wmOperatorType *ot, PointerRNA *ptr) = nullptr;
 
   /**
    * Return a different description to use in the user interface, based on property values.
    * The returned string is expected to be translated if needed.
    */
-  std::string (*get_description)(bContext *C, wmOperatorType *ot, PointerRNA *ptr);
+  std::string (*get_description)(bContext *C, wmOperatorType *ot, PointerRNA *ptr) = nullptr;
 
   /** A dynamic version of #OPTYPE_DEPENDS_ON_CURSOR which can depend on operator properties. */
-  bool (*depends_on_cursor)(bContext &C, wmOperatorType &ot, PointerRNA *ptr);
+  bool (*depends_on_cursor)(bContext &C, wmOperatorType &ot, PointerRNA *ptr) = nullptr;
 
   /** RNA for properties. */
-  StructRNA *srna;
+  StructRNA *srna = nullptr;
 
   /** Previous settings - for initializing on re-use. */
-  IDProperty *last_properties;
+  IDProperty *last_properties = nullptr;
 
   /**
    * Default rna property to use for generic invoke functions.
    * menus, enum search... etc. Example: Enum 'type' for a Delete menu.
    *
    * When assigned a string/number property,
-   * immediately edit the value when used in a popup. see: #UI_BUT_ACTIVATE_ON_INIT.
+   * immediately edit the value when used in a popup. see: #BUT_ACTIVATE_ON_INIT.
    */
-  PropertyRNA *prop;
+  PropertyRNA *prop = nullptr;
 
   /** #wmOperatorTypeMacro. */
-  ListBase macro;
+  ListBase macro = {};
 
   /** Pointer to modal keymap. Do not free! */
-  wmKeyMap *modalkeymap;
+  wmKeyMap *modalkeymap = nullptr;
 
   /** Python needs the operator type as well. */
-  bool (*pyop_poll)(bContext *C, wmOperatorType *ot) ATTR_WARN_UNUSED_RESULT;
+  bool (*pyop_poll)(bContext *C, wmOperatorType *ot) ATTR_WARN_UNUSED_RESULT = nullptr;
+
+  /** Extra information used statically for this operator type. */
+  std::unique_ptr<TypeData> custom_data;
 
   /** RNA integration. */
-  ExtensionRNA rna_ext;
+  ExtensionRNA rna_ext = {};
 
   /** Cursor to use when waiting for cursor input, see: #OPTYPE_DEPENDS_ON_CURSOR. */
-  int cursor_pending;
+  int cursor_pending = 0;
 
   /** Flag last for padding. */
-  short flag;
+  short flag = 0;
 };
 
 /**
@@ -1157,7 +1187,7 @@ struct wmOperatorType {
 struct wmOperatorCallParams {
   wmOperatorType *optype;
   PointerRNA *opptr;
-  wmOperatorCallContext opcontext;
+  blender::wm::OpCallContext opcontext;
 };
 
 #ifdef WITH_INPUT_IME
@@ -1167,12 +1197,10 @@ struct wmOperatorCallParams {
  * All members must remain aligned and the struct size match!
  */
 struct wmIMEData {
-  size_t result_len, composite_len;
-
   /** UTF8 encoding. */
-  char *str_result;
+  std::string result;
   /** UTF8 encoding. */
-  char *str_composite;
+  std::string composite;
 
   /** Cursor position in the IME composition. */
   int cursor_pos;
@@ -1185,11 +1213,14 @@ struct wmIMEData {
 
 /* **************** Paint Cursor ******************* */
 
-using wmPaintCursorDraw = void (*)(bContext *C, int, int, void *customdata);
+using wmPaintCursorDraw = void (*)(bContext *C,
+                                   const blender::int2 &xy,
+                                   const blender::float2 &tilt,
+                                   void *customdata);
 
 /* *************** Drag and drop *************** */
 
-enum eWM_DragDataType {
+enum eWM_DragDataType : int8_t {
   WM_DRAG_ID,
   WM_DRAG_ASSET,
   /** The user is dragging multiple assets. This is only supported in few specific cases, proper
@@ -1214,13 +1245,14 @@ enum eWM_DragDataType {
   WM_DRAG_GREASE_PENCIL_GROUP,
   WM_DRAG_NODE_TREE_INTERFACE,
   WM_DRAG_BONE_COLLECTION,
+  WM_DRAG_SHAPE_KEY,
 };
 
 enum eWM_DragFlags {
   WM_DRAG_NOP = 0,
   WM_DRAG_FREE_DATA = 1,
 };
-ENUM_OPERATORS(eWM_DragFlags, WM_DRAG_FREE_DATA)
+ENUM_OPERATORS(eWM_DragFlags)
 
 /* NOTE: structs need not exported? */
 
@@ -1260,9 +1292,9 @@ struct wmDragAssetListItem {
 
 struct wmDragPath {
   blender::Vector<std::string> paths;
-  /* File type of each path in #paths. */
+  /** File type of each path in #paths. */
   blender::Vector<int> file_types; /* #eFileSel_File_Types. */
-  /* Bit flag of file types in #paths. */
+  /** Bit flag of file types in #paths. */
   int file_types_bit_flag; /* #eFileSel_File_Types. */
   std::string tooltip;
 };
@@ -1309,8 +1341,7 @@ struct wmDragActiveDropState {
    * operator poll fails. Typically the message the operator set with
    * #CTX_wm_operator_poll_msg_set().
    */
-  const char *disabled_info;
-  bool free_disabled_info;
+  std::optional<std::string> disabled_info;
 
   std::string tooltip;
 };
@@ -1342,9 +1373,10 @@ struct wmDrag {
  * Drop-boxes are like key-maps, part of the screen/area/region definition.
  * Allocation and free is on startup and exit.
  *
- * The operator is polled and invoked with the current context (#WM_OP_INVOKE_DEFAULT), there is no
- * way to override that (by design, since drop-boxes should act on the exact mouse position).
- * So the drop-boxes are supposed to check the required area and region context in their poll.
+ * The operator is polled and invoked with the current context
+ * (#blender::wm::OpCallContext::InvokeDefault), there is no way to override that (by design, since
+ * drop-boxes should act on the exact mouse position). So the drop-boxes are supposed to check the
+ * required area and region context in their poll.
  */
 struct wmDropBox {
   wmDropBox *next, *prev;
@@ -1375,7 +1407,7 @@ struct wmDropBox {
 
   /**
    * Override the default cursor overlay drawing function.
-   * Can be used to draw text or thumbnails. IE a tooltip for drag and drop.
+   * Can be used to draw text or thumbnails. IE a tool-tip for drag and drop.
    * \param xy: Cursor location in window coordinates (#wmEvent.xy compatible).
    */
   void (*draw_droptip)(bContext *C, wmWindow *win, wmDrag *drag, const int xy[2]);
@@ -1383,7 +1415,7 @@ struct wmDropBox {
   /**
    * Called with the draw buffer (#GPUViewport) set up for drawing into the region's view.
    * \note Only setups the drawing buffer for drawing in view, not the GPU transform matrices.
-   * The callback has to do that itself, with for example #UI_view2d_view_ortho.
+   * The callback has to do that itself, with for example #view2d_view_ortho.
    * \param xy: Cursor location in window coordinates (#wmEvent.xy compatible).
    */
   void (*draw_in_view)(bContext *C, wmWindow *win, wmDrag *drag, const int xy[2]);
@@ -1391,7 +1423,7 @@ struct wmDropBox {
   /** Custom data for drawing. */
   void *draw_data;
 
-  /** Custom tooltip shown during dragging. */
+  /** Custom tool-tip shown during dragging. */
   WMDropboxTooltipFunc tooltip;
 
   /**
@@ -1404,7 +1436,7 @@ struct wmDropBox {
   /** #wmOperatorType::idname, needed for re-registration. */
   char opname[64];
 
-  /** Operator properties, assigned to ptr->data and can be written to a file. */
+  /** Operator properties, assigned to `ptr->data` and can be written to a file. */
   IDProperty *properties;
   /** RNA pointer to access properties. */
   PointerRNA *ptr;
@@ -1415,20 +1447,20 @@ struct wmDropBox {
  * Allows UI code to call #WM_tooltip_timer_init without each user having to handle the timer.
  */
 struct wmTooltipState {
-  /** Create tooltip on this event. */
+  /** Create tool-tip on this event. */
   wmTimer *timer;
-  /** The area the tooltip is created in. */
+  /** The area the tool-tip is created in. */
   ScrArea *area_from;
-  /** The region the tooltip is created in. */
+  /** The region the tool-tip is created in. */
   ARegion *region_from;
-  /** The tooltip region. */
+  /** The tool-tip region. */
   ARegion *region;
-  /** Create the tooltip region (assign to 'region'). */
+  /** Create the tool-tip region (assign to 'region'). */
   ARegion *(*init)(
       bContext *C, ARegion *region, int *pass, double *pass_delay, bool *r_exit_on_event);
   /** Exit on any event, not needed for buttons since their highlight state is used. */
   bool exit_on_event;
-  /** Cursor location at the point of tooltip creation. */
+  /** Cursor location at the point of tool-tip creation. */
   int event_xy[2];
   /** Pass, use when we want multiple tips, count down to zero. */
   int pass;
@@ -1446,9 +1478,7 @@ struct CLG_LogRef;
 /* `wm_init_exit.cc`. */
 
 extern CLG_LogRef *WM_LOG_OPERATORS;
-extern CLG_LogRef *WM_LOG_HANDLERS;
 extern CLG_LogRef *WM_LOG_EVENTS;
-extern CLG_LogRef *WM_LOG_KEYMAPS;
-extern CLG_LogRef *WM_LOG_TOOLS;
+extern CLG_LogRef *WM_LOG_TOOL_GIZMO;
 extern CLG_LogRef *WM_LOG_MSGBUS_PUB;
 extern CLG_LogRef *WM_LOG_MSGBUS_SUB;

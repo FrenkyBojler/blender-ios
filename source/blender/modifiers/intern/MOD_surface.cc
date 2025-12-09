@@ -14,6 +14,7 @@
 
 #include "DNA_defaults.h"
 #include "DNA_mesh_types.h"
+#include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 #include "DNA_screen_types.h"
 
@@ -21,7 +22,7 @@
 #include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_prototypes.hh"
@@ -49,7 +50,7 @@ static void copy_data(const ModifierData *md_src, ModifierData *md_dst, const in
 
   BKE_modifier_copydata_generic(md_src, md_dst, flag);
 
-  memset(&surmd_dst->runtime, 0, sizeof(surmd_dst->runtime));
+  surmd_dst->runtime = SurfaceModifierData_Runtime{};
 }
 
 static void free_data(ModifierData *md)
@@ -158,13 +159,13 @@ static void deform_verts(ModifierData *md,
 
 static void panel_draw(const bContext * /*C*/, Panel *panel)
 {
-  uiLayout *layout = panel->layout;
+  blender::ui::Layout &layout = *panel->layout;
 
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
 
-  uiItemL(layout, RPT_("Settings are inside the Physics tab"), ICON_NONE);
+  layout.label(RPT_("Settings are inside the Physics tab"), ICON_NONE);
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)
@@ -176,7 +177,7 @@ static void blend_read(BlendDataReader * /*reader*/, ModifierData *md)
 {
   SurfaceModifierData *surmd = (SurfaceModifierData *)md;
 
-  memset(&surmd->runtime, 0, sizeof(surmd->runtime));
+  surmd->runtime = SurfaceModifierData_Runtime{};
 }
 
 ModifierTypeInfo modifierType_Surface = {
@@ -213,4 +214,5 @@ ModifierTypeInfo modifierType_Surface = {
     /*blend_write*/ nullptr,
     /*blend_read*/ blend_read,
     /*foreach_cache*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
 };

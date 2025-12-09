@@ -461,6 +461,15 @@ bool BKE_nlatracks_have_animated_strips(ListBase *tracks);
 void BKE_nlastrip_validate_fcurves(NlaStrip *strip);
 
 /**
+ * Delete the NLA-Strip's control F-Curve.
+ *
+ * This also ensures that the strip's flags are correctly updated.
+ *
+ * \return Whether the F-Curve was actually removed.
+ */
+bool BKE_nlastrip_controlcurve_remove(NlaStrip *strip, FCurve *fcurve);
+
+/**
  * Check if the given RNA pointer + property combo should be handled by
  * NLA strip curves or not.
  */
@@ -597,7 +606,7 @@ namespace blender::bke::nla {
  * NLA or it has no strips, returns `true` because the loop ran until its
  * natural end and wasn't stopped by the callback.
  */
-bool foreach_strip(ID *id, blender::FunctionRef<bool(NlaStrip *)> callback);
+bool foreach_strip(ID *id, FunctionRef<bool(NlaStrip *)> callback);
 
 /**
  * Call the callback for every strip of this AnimData's NLA.
@@ -612,6 +621,6 @@ bool foreach_strip(ID *id, blender::FunctionRef<bool(NlaStrip *)> callback);
  * NLA or it has no strips, returns `true` because the loop ran until its
  * natural end and wasn't stopped by the callback.
  */
-bool foreach_strip_adt(const AnimData &adt, blender::FunctionRef<bool(NlaStrip *)> callback);
+bool foreach_strip_adt(const AnimData &adt, FunctionRef<bool(NlaStrip *)> callback);
 
 }  // namespace blender::bke::nla

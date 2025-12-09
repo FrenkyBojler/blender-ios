@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "gpu_glsl_cpp_stubs.hh"
+#include "gpu_shader_compat.hh"
 
 uint bitfield_mask(uint bit_width, uint bit_min)
 {
@@ -68,7 +68,7 @@ int culling_z_to_zbin(float scale, float bias, float z)
 
 #  define LIGHT_FOREACH_BEGIN_LOCAL(_culling, _zbins, _words, _pixel, _linearz, _item_index) \
     { \
-      uvec2 tile_co = uvec2(_pixel / _culling.tile_size); \
+      uint2 tile_co = uint2(_pixel / _culling.tile_size); \
       uint tile_word_offset = (tile_co.x + tile_co.y * _culling.tile_x_len) * \
                               _culling.tile_word_len; \
       int zbin_index = culling_z_to_zbin(_culling.zbin_scale, _culling.zbin_bias, _linearz); \
@@ -90,7 +90,7 @@ int culling_z_to_zbin(float scale, float bias, float z)
         int bit_index; \
         while ((bit_index = findLSB(word)) != -1) { \
           word &= ~1u << uint(bit_index); \
-          uint _item_index = word_idx * 32u + bit_index;
+          uint _item_index = word_idx * 32u + uint(bit_index);
 
 #endif
 

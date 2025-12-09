@@ -21,6 +21,7 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "BLT_translation.hh"
 
@@ -51,8 +52,10 @@
 #include "ED_screen.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
+#include "ANIM_armature.hh"
 #include "ANIM_bone_collections.hh"
 
 #include "armature_intern.hh"
@@ -88,7 +91,7 @@ static void joined_armature_fix_links_constraints(Main *bmain,
           }
           else if (STREQ(ct->subtarget, pchan->name)) {
             ct->tar = tarArm;
-            STRNCPY(ct->subtarget, curbone->name);
+            STRNCPY_UTF8(ct->subtarget, curbone->name);
             changed = true;
           }
         }
@@ -102,8 +105,15 @@ static void joined_armature_fix_links_constraints(Main *bmain,
       bActionConstraint *data = static_cast<bActionConstraint *>(con->data);
 
       if (data->act) {
-        BKE_action_fix_paths_rename(
-            &tarArm->id, data->act, "pose.bones[", pchan->name, curbone->name, 0, 0, false);
+        BKE_action_fix_paths_rename(&tarArm->id,
+                                    data->act,
+                                    data->action_slot_handle,
+                                    "pose.bones[",
+                                    pchan->name,
+                                    curbone->name,
+                                    0,
+                                    0,
+                                    false);
 
         DEG_id_tag_update_ex(bmain, &data->act->id, ID_RECALC_SYNC_TO_EVAL);
       }
@@ -190,7 +200,7 @@ static void joined_armature_fix_animdata_cb(
                 }
                 if (STREQ(dtar->pchan_name, old_name)) {
                   /* Change target bone name */
-                  STRNCPY(dtar->pchan_name, new_name);
+                  STRNCPY_UTF8(dtar->pchan_name, new_name);
                   break; /* no need to try any more names for bone subtarget */
                 }
               }
@@ -239,7 +249,7 @@ static void joined_armature_fix_links(
       if (ob->partype == PARBONE) {
         /* bone name in object */
         if (STREQ(ob->parsubstr, pchan->name)) {
-          STRNCPY(ob->parsubstr, curbone->name);
+          STRNCPY_UTF8(ob->parsubstr, curbone->name);
         }
       }
 
@@ -290,6 +300,9 @@ static BoneCollection *join_armature_remap_collection(
   if (bcoll->prop) {
     new_bcoll->prop = IDP_CopyProperty_ex(bcoll->prop, 0);
   }
+  if (bcoll->system_properties) {
+    new_bcoll->system_properties = IDP_CopyProperty_ex(bcoll->system_properties, 0);
+  }
 
   bone_collection_by_name.add(bcoll->name, new_bcoll);
   return new_bcoll;
@@ -327,6 +340,30 @@ wmOperatorStatus ED_armature_join_objects_exec(bContext *C, wmOperator *op)
   if (ok == false) {
     BKE_report(op->reports, RPT_WARNING, "Active object is not a selected armature");
     return OPERATOR_CANCELLED;
+  }
+
+  /* Check that there are no shared Armatures, as the code below assumes that
+   * each to-be-joined Armature is unique. */
+  {
+    blender::Set<const bArmature *> seen_armatures;
+    CTX_DATA_BEGIN (C, const Object *, ob_iter, selected_editable_objects) {
+      if (ob_iter->type != OB_ARMATURE) {
+        continue;
+      }
+
+      const bArmature *armature = static_cast<bArmature *>(ob_iter->data);
+      if (seen_armatures.add(armature)) {
+        /* Armature pointer was added to the set, which means it wasn't seen before. */
+        continue;
+      }
+
+      BKE_reportf(op->reports,
+                  RPT_ERROR,
+                  "Cannot join objects that share armature data: %s",
+                  armature->id.name + 2);
+      return OPERATOR_CANCELLED;
+    }
+    CTX_DATA_END;
   }
 
   /* Inverse transform for all selected armatures in this object,
@@ -421,7 +458,7 @@ wmOperatorStatus ED_armature_join_objects_exec(bContext *C, wmOperator *op)
         joined_armature_fix_links(bmain, ob_active, ob_iter, pchan, curbone);
 
         /* Rename pchan */
-        STRNCPY(pchan->name, curbone->name);
+        STRNCPY_UTF8(pchan->name, curbone->name);
 
         /* Jump Ship! */
         BLI_remlink(curarm->edbo, curbone);
@@ -621,7 +658,7 @@ static void separate_armature_bones(Main *bmain, Object *ob, const bool is_selec
     curbone = ED_armature_ebone_find_name(arm->edbo, pchan->name);
 
     /* check if bone needs to be removed */
-    if (is_select == (EBONE_VISIBLE(arm, curbone) && (curbone->flag & BONE_SELECTED))) {
+    if (is_select == blender::animrig::bone_is_selected(arm, curbone)) {
 
       /* Clear the bone->parent var of any bone that had this as its parent. */
       LISTBASE_FOREACH (EditBone *, ebo, arm->edbo) {
@@ -684,7 +721,7 @@ static wmOperatorStatus separate_armature_exec(bContext *C, wmOperator *op)
       bool has_selected_bone = false;
       bool has_selected_any = false;
       LISTBASE_FOREACH (EditBone *, ebone, arm_old->edbo) {
-        if (EBONE_VISIBLE(arm_old, ebone)) {
+        if (blender::animrig::bone_is_visible(arm_old, ebone)) {
           if (ebone->flag & BONE_SELECTED) {
             has_selected_bone = true;
             break;
@@ -978,21 +1015,21 @@ static wmOperatorStatus armature_parent_set_invoke(bContext *C,
     }
   }
 
-  uiPopupMenu *pup = UI_popup_menu_begin(
+  blender::ui::PopupMenu *pup = blender::ui::popup_menu_begin(
       C, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Make Parent"), ICON_NONE);
-  uiLayout *layout = UI_popup_menu_layout(pup);
+  blender::ui::Layout &layout = *popup_menu_layout(pup);
 
-  uiLayout *row_offset = uiLayoutRow(layout, false);
-  uiLayoutSetEnabled(row_offset, enable_offset);
-  uiItemEnumO(
-      row_offset, "ARMATURE_OT_parent_set", std::nullopt, ICON_NONE, "type", ARM_PAR_OFFSET);
+  blender::ui::Layout &row_offset = layout.row(false);
+  row_offset.enabled_set(enable_offset);
+  PointerRNA op_ptr = row_offset.op("ARMATURE_OT_parent_set", IFACE_("Keep Offset"), ICON_NONE);
+  RNA_enum_set(&op_ptr, "type", ARM_PAR_OFFSET);
 
-  uiLayout *row_connect = uiLayoutRow(layout, false);
-  uiLayoutSetEnabled(row_connect, enable_connect);
-  uiItemEnumO(
-      row_connect, "ARMATURE_OT_parent_set", std::nullopt, ICON_NONE, "type", ARM_PAR_CONNECT);
+  blender::ui::Layout &row_connect = layout.row(false);
+  row_connect.enabled_set(enable_connect);
+  op_ptr = row_connect.op("ARMATURE_OT_parent_set", IFACE_("Connected"), ICON_NONE);
+  RNA_enum_set(&op_ptr, "type", ARM_PAR_CONNECT);
 
-  UI_popup_menu_end(C, pup);
+  popup_menu_end(C, pup);
 
   return OPERATOR_INTERFACE;
 }
@@ -1004,7 +1041,7 @@ void ARMATURE_OT_parent_set(wmOperatorType *ot)
   ot->idname = "ARMATURE_OT_parent_set";
   ot->description = "Set the active bone as the parent of the selected bones";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = armature_parent_set_invoke;
   ot->exec = armature_parent_set_exec;
   ot->poll = ED_operator_editarmature;
@@ -1098,25 +1135,21 @@ static wmOperatorStatus armature_parent_clear_invoke(bContext *C,
     }
   }
 
-  uiPopupMenu *pup = UI_popup_menu_begin(
+  blender::ui::PopupMenu *pup = blender::ui::popup_menu_begin(
       C, CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Clear Parent"), ICON_NONE);
-  uiLayout *layout = UI_popup_menu_layout(pup);
+  blender::ui::Layout &layout = *popup_menu_layout(pup);
 
-  uiLayout *row_clear = uiLayoutRow(layout, false);
-  uiLayoutSetEnabled(row_clear, enable_clear);
-  uiItemEnumO(
-      row_clear, "ARMATURE_OT_parent_clear", std::nullopt, ICON_NONE, "type", ARM_PAR_CLEAR);
+  blender::ui::Layout &row_clear = layout.row(false);
+  row_clear.enabled_set(enable_clear);
+  PointerRNA op_ptr = row_clear.op("ARMATURE_OT_parent_clear", IFACE_("Clear Parent"), ICON_NONE);
+  RNA_enum_set(&op_ptr, "type", ARM_PAR_CLEAR);
 
-  uiLayout *row_disconnect = uiLayoutRow(layout, false);
-  uiLayoutSetEnabled(row_disconnect, enable_disconnect);
-  uiItemEnumO(row_disconnect,
-              "ARMATURE_OT_parent_clear",
-              std::nullopt,
-              ICON_NONE,
-              "type",
-              ARM_PAR_CLEAR_DISCONNECT);
+  blender::ui::Layout &row_disconnect = layout.row(false);
+  row_disconnect.enabled_set(enable_disconnect);
+  op_ptr = row_disconnect.op("ARMATURE_OT_parent_clear", IFACE_("Disconnect Bone"), ICON_NONE);
+  RNA_enum_set(&op_ptr, "type", ARM_PAR_CLEAR_DISCONNECT);
 
-  UI_popup_menu_end(C, pup);
+  popup_menu_end(C, pup);
 
   return OPERATOR_INTERFACE;
 }
@@ -1129,7 +1162,7 @@ void ARMATURE_OT_parent_clear(wmOperatorType *ot)
   ot->description =
       "Remove the parent-child relationship between selected bones and their parents";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = armature_parent_clear_invoke;
   ot->exec = armature_parent_clear_exec;
   ot->poll = ED_operator_editarmature;

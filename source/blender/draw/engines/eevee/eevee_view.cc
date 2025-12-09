@@ -71,6 +71,8 @@ void ShadingView::sync()
   }
 
   main_view_.sync(viewmat, winmat);
+
+  inst_.uniform_data.data.pipeline.is_main_view_inverted = main_view_.is_inverted();
 }
 
 void ShadingView::render()
@@ -98,12 +100,13 @@ void ShadingView::render()
 
   GBuffer &gbuf = inst_.gbuffer;
   gbuf.acquire(extent_,
+               inst_.pipelines.deferred.header_layer_count(),
                inst_.pipelines.deferred.closure_layer_count(),
                inst_.pipelines.deferred.normal_layer_count());
 
   gbuffer_fb_.ensure(GPU_ATTACHMENT_TEXTURE(rbufs.depth_tx),
                      GPU_ATTACHMENT_TEXTURE(rbufs.combined_tx),
-                     GPU_ATTACHMENT_TEXTURE(gbuf.header_tx),
+                     GPU_ATTACHMENT_TEXTURE_LAYER(gbuf.header_tx.layer_view(0), 0),
                      GPU_ATTACHMENT_TEXTURE_LAYER(gbuf.normal_tx.layer_view(0), 0),
                      GPU_ATTACHMENT_TEXTURE_LAYER(gbuf.closure_tx.layer_view(0), 0),
                      GPU_ATTACHMENT_TEXTURE_LAYER(gbuf.closure_tx.layer_view(1), 0));
@@ -117,7 +120,7 @@ void ShadingView::render()
   /* Alpha stores transmittance. So start at 1. */
   float4 clear_color = {0.0f, 0.0f, 0.0f, 1.0f};
   GPU_framebuffer_bind(combined_fb_);
-  GPU_framebuffer_clear_color_depth(combined_fb_, clear_color, 1.0f);
+  GPU_framebuffer_clear_color_depth(combined_fb_, clear_color, inst_.film.depth.clear_value);
   inst_.pipelines.background.clear(render_view_);
 
   /* TODO(fclem): Move it after the first prepass (and hiz update) once pipeline is stabilized. */
@@ -143,11 +146,12 @@ void ShadingView::render()
 
   inst_.volume.draw_compute(main_view_, extent_);
 
+  inst_.volume.draw_resolve(main_view_);
+
   inst_.ambient_occlusion.render_pass(render_view_);
 
-  inst_.pipelines.forward.render(render_view_, prepass_fb_, combined_fb_, extent_);
-
-  render_transparent_pass(rbufs);
+  inst_.pipelines.forward.render(
+      render_view_, rbufs.depth_tx, prepass_fb_, transparent_fb_, combined_fb_, extent_);
 
   inst_.lights.debug_draw(render_view_, combined_fb_);
   inst_.hiz_buffer.debug_draw(render_view_, combined_fb_);
@@ -156,7 +160,7 @@ void ShadingView::render()
   inst_.sphere_probes.viewport_draw(render_view_, combined_fb_);
   inst_.planar_probes.viewport_draw(render_view_, combined_fb_);
 
-  GPUTexture *combined_final_tx = render_postfx(rbufs.combined_tx);
+  gpu::Texture *combined_final_tx = render_postfx(rbufs.combined_tx);
   inst_.film.accumulate(jitter_view_, combined_final_tx);
 
   rbufs.release();
@@ -165,26 +169,12 @@ void ShadingView::render()
   GPU_debug_group_end();
 }
 
-void ShadingView::render_transparent_pass(RenderBuffers &rbufs)
-{
-  if (rbufs.data.transparent_id != -1) {
-    transparent_fb_.ensure(
-        GPU_ATTACHMENT_TEXTURE(rbufs.depth_tx),
-        GPU_ATTACHMENT_TEXTURE_LAYER(rbufs.rp_color_tx, rbufs.data.transparent_id));
-    /* Alpha stores transmittance. So start at 1. */
-    float4 clear_color = {0.0f, 0.0f, 0.0f, 1.0f};
-    GPU_framebuffer_bind(transparent_fb_);
-    GPU_framebuffer_clear_color(transparent_fb_, clear_color);
-    inst_.pipelines.forward.render(render_view_, prepass_fb_, transparent_fb_, rbufs.extent_get());
-  }
-}
-
-GPUTexture *ShadingView::render_postfx(GPUTexture *input_tx)
+gpu::Texture *ShadingView::render_postfx(gpu::Texture *input_tx)
 {
   if (!inst_.depth_of_field.postfx_enabled() && !inst_.motion_blur.postfx_enabled()) {
     return input_tx;
   }
-  postfx_tx_.acquire(extent_, GPU_RGBA16F);
+  postfx_tx_.acquire(extent_, gpu::TextureFormat::SFLOAT_16_16_16_16);
 
   /* Fix a sync bug on AMD + Mesa when volume + motion blur create artifacts
    * except if there is a clear event between them. */
@@ -195,7 +185,7 @@ GPUTexture *ShadingView::render_postfx(GPUTexture *input_tx)
     postfx_tx_.clear(float4(0.0f));
   }
 
-  GPUTexture *output_tx = postfx_tx_;
+  gpu::Texture *output_tx = postfx_tx_;
 
   /* Swapping is done internally. Actual output is set to the next input. */
   inst_.motion_blur.render(render_view_, &input_tx, &output_tx);
@@ -297,23 +287,50 @@ void CaptureView::render_world()
   GPU_debug_group_begin("World.Capture");
 
   if (update_info->do_render) {
-    for (int face : IndexRange(6)) {
-      float4x4 view_m4 = cubeface_mat(face);
-      float4x4 win_m4 = math::projection::perspective(-update_info->clipping_distances.x,
-                                                      update_info->clipping_distances.x,
-                                                      -update_info->clipping_distances.x,
-                                                      update_info->clipping_distances.x,
-                                                      update_info->clipping_distances.x,
-                                                      update_info->clipping_distances.y);
-      view.sync(view_m4, win_m4);
+    auto render_cubemap = [&](RayPipelineType ray_type) {
+      if (assign_if_different(inst_.pipelines.data.ray_type, ray_type)) {
+        inst_.uniform_data.push_update();
+      }
 
-      combined_fb_.ensure(GPU_ATTACHMENT_NONE,
-                          GPU_ATTACHMENT_TEXTURE_CUBEFACE(inst_.sphere_probes.cubemap_tx_, face));
-      GPU_framebuffer_bind(combined_fb_);
-      inst_.pipelines.world.render(view);
+      for (int face : IndexRange(6)) {
+        float4x4 view_m4 = cubeface_mat(face);
+        float4x4 win_m4 = math::projection::perspective(-update_info->clipping_distances.x,
+                                                        update_info->clipping_distances.x,
+                                                        -update_info->clipping_distances.x,
+                                                        update_info->clipping_distances.x,
+                                                        update_info->clipping_distances.x,
+                                                        update_info->clipping_distances.y);
+        view.sync(view_m4, win_m4);
+
+        combined_fb_.ensure(
+            GPU_ATTACHMENT_NONE,
+            GPU_ATTACHMENT_TEXTURE_CUBEFACE(inst_.sphere_probes.cubemap_tx_, face));
+        GPU_framebuffer_bind(combined_fb_);
+        inst_.pipelines.world.render(view);
+      }
+    };
+
+    if (inst_.pipelines.world.use_lightpath_node()) {
+      render_cubemap(RAY_TYPE_DIFFUSE);
+      inst_.sphere_probes.remap_to_octahedral_projection(
+          update_info->atlas_coord, false, true, WORLD_SUN_DIFFUSE);
+
+      render_cubemap(RAY_TYPE_GLOSSY);
+      inst_.sphere_probes.remap_to_octahedral_projection(
+          update_info->atlas_coord, true, false, WORLD_SUN_GLOSSY);
+    }
+    else {
+      render_cubemap(RAY_TYPE_GLOSSY);
+      inst_.sphere_probes.remap_to_octahedral_projection(
+          update_info->atlas_coord, true, true, WORLD_SUN_COMBINED);
     }
 
-    inst_.sphere_probes.remap_to_octahedral_projection(update_info->atlas_coord, true);
+    /* All volume probe that needs to composite the world probe need to be updated. */
+    inst_.volume_probes.update_world_irradiance();
+  }
+
+  if (assign_if_different(inst_.pipelines.data.ray_type, RAY_TYPE_CAMERA)) {
+    inst_.uniform_data.push_update();
   }
 
   GPU_debug_group_end();
@@ -326,8 +343,7 @@ void CaptureView::render_probes()
   while (const auto update_info = inst_.sphere_probes.probe_update_info_pop()) {
     GPU_debug_group_begin("Probe.Capture");
 
-    if (!inst_.pipelines.data.is_sphere_probe) {
-      inst_.pipelines.data.is_sphere_probe = true;
+    if (assign_if_different(inst_.pipelines.data.ray_type, RAY_TYPE_GLOSSY)) {
       inst_.uniform_data.push_update();
     }
 
@@ -339,6 +355,7 @@ void CaptureView::render_probes()
                       GPU_ATTACHMENT_TEXTURE(inst_.render_buffers.vector_tx));
 
     inst_.gbuffer.acquire(extent,
+                          inst_.pipelines.probe.header_layer_count(),
                           inst_.pipelines.probe.closure_layer_count(),
                           inst_.pipelines.probe.normal_layer_count());
 
@@ -358,24 +375,24 @@ void CaptureView::render_probes()
 
       gbuffer_fb_.ensure(GPU_ATTACHMENT_TEXTURE(inst_.render_buffers.depth_tx),
                          GPU_ATTACHMENT_TEXTURE_CUBEFACE(inst_.sphere_probes.cubemap_tx_, face),
-                         GPU_ATTACHMENT_TEXTURE(inst_.gbuffer.header_tx),
+                         GPU_ATTACHMENT_TEXTURE_LAYER(inst_.gbuffer.header_tx.layer_view(0), 0),
                          GPU_ATTACHMENT_TEXTURE_LAYER(inst_.gbuffer.normal_tx.layer_view(0), 0),
                          GPU_ATTACHMENT_TEXTURE_LAYER(inst_.gbuffer.closure_tx.layer_view(0), 0),
                          GPU_ATTACHMENT_TEXTURE_LAYER(inst_.gbuffer.closure_tx.layer_view(1), 0));
 
       GPU_framebuffer_bind(combined_fb_);
-      GPU_framebuffer_clear_color_depth(combined_fb_, float4(0.0f, 0.0f, 0.0f, 1.0f), 1.0f);
+      GPU_framebuffer_clear_color_depth(
+          combined_fb_, float4(0.0f, 0.0f, 0.0f, 1.0f), inst_.film.depth.clear_value);
       inst_.pipelines.probe.render(view, prepass_fb, combined_fb_, gbuffer_fb_, extent);
     }
 
     inst_.render_buffers.release();
     inst_.gbuffer.release();
     GPU_debug_group_end();
-    inst_.sphere_probes.remap_to_octahedral_projection(update_info->atlas_coord, false);
+    inst_.sphere_probes.remap_to_octahedral_projection(update_info->atlas_coord, true, false);
   }
 
-  if (inst_.pipelines.data.is_sphere_probe) {
-    inst_.pipelines.data.is_sphere_probe = false;
+  if (assign_if_different(inst_.pipelines.data.ray_type, RAY_TYPE_CAMERA)) {
     inst_.uniform_data.push_update();
   }
 }
@@ -388,7 +405,7 @@ void CaptureView::render_probes()
 
 void LookdevView::render()
 {
-  if (!inst_.lookdev.enabled_) {
+  if (!inst_.lookdev.use_reference_spheres_) {
     return;
   }
   GPU_debug_group_begin("Lookdev");

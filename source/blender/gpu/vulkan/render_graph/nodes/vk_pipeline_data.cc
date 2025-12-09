@@ -10,6 +10,8 @@
 #include "render_graph/vk_command_buffer_wrapper.hh"
 #include "render_graph/vk_render_graph_links.hh"
 
+#include "vk_backend.hh"
+
 namespace blender::gpu::render_graph {
 void vk_pipeline_data_copy(VKPipelineData &dst, const VKPipelineData &src)
 {
@@ -20,6 +22,44 @@ void vk_pipeline_data_copy(VKPipelineData &dst, const VKPipelineData &src)
     void *data = MEM_mallocN(src.push_constants_size, __func__);
     memcpy(data, src.push_constants_data, src.push_constants_size);
     dst.push_constants_data = data;
+  }
+}
+
+void vk_pipeline_dynamic_graphics_build_commands(VKCommandBufferInterface &command_buffer,
+                                                 const VKPipelineDataGraphics &graphics,
+                                                 VKBoundPipelines &r_bound_pipelines)
+{
+  if (assign_if_different(r_bound_pipelines.graphics.viewport_state, graphics.viewport)) {
+    command_buffer.set_viewport(graphics.viewport.viewports);
+    command_buffer.set_scissor(graphics.viewport.scissors);
+  }
+  if (assign_if_different(r_bound_pipelines.graphics.line_width, graphics.line_width)) {
+    if (graphics.line_width.has_value()) {
+      command_buffer.set_line_width(*graphics.line_width);
+    }
+  }
+  if (assign_if_different(r_bound_pipelines.graphics.stencil_state, graphics.stencil_state)) {
+    if (graphics.stencil_state.has_value()) {
+      const StencilState &stencil_state = *graphics.stencil_state;
+      command_buffer.set_stencil_compare_mask(stencil_state.compare_mask);
+      command_buffer.set_stencil_write_mask(stencil_state.write_mask);
+      command_buffer.set_stencil_reference(stencil_state.reference);
+    }
+  }
+  if (assign_if_different(r_bound_pipelines.graphics.front_face, graphics.front_face)) {
+    if (graphics.front_face.has_value()) {
+      command_buffer.set_front_face(*graphics.front_face);
+    }
+  }
+  if (assign_if_different(r_bound_pipelines.graphics.vertex_input_description,
+                          graphics.vertex_input_description))
+  {
+    if (graphics.vertex_input_description.has_value()) {
+      VKDevice &device = VKBackend::get().device;
+      const VKVertexInputDescription &description = device.vertex_input_descriptions.get(
+          *graphics.vertex_input_description);
+      command_buffer.set_vertex_input(description.bindings, description.attributes);
+    }
   }
 }
 
@@ -84,6 +124,7 @@ void vk_vertex_buffer_bindings_build_links(VKResourceStateTracker &resources,
                                            VKRenderGraphNodeLinks &node_links,
                                            const VKVertexBufferBindings &vertex_buffers)
 {
+  node_links.inputs.reserve(node_links.inputs.size() + vertex_buffers.buffer_count);
   for (const VkBuffer vk_buffer :
        Span<VkBuffer>(vertex_buffers.buffer, vertex_buffers.buffer_count))
   {

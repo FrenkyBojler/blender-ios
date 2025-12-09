@@ -18,6 +18,7 @@
 #include "DNA_scene_types.h"
 
 #include "BKE_mesh.hh"
+#include "BKE_object.hh"
 
 #include "bmesh.hh"
 
@@ -75,6 +76,9 @@ struct MeshRenderData {
   Span<float3> bm_vert_normals;
   Span<float3> bm_face_normals;
   Array<float3> bm_loop_normals;
+  int bm_free_normal_offset_vert = -1;
+  int bm_free_normal_offset_face = -1;
+  int bm_free_normal_offset_corner = -1;
 
   const int *orig_index_vert;
   const int *orig_index_edge;
@@ -117,10 +121,17 @@ struct MeshRenderData {
   const char *default_color_name;
 };
 
-const Mesh &editmesh_final_or_this(const Object &object, const Mesh &mesh);
-const CustomData &mesh_cd_vdata_get_from_mesh(const Mesh &mesh);
-const CustomData &mesh_cd_edata_get_from_mesh(const Mesh &mesh);
-const CustomData &mesh_cd_pdata_get_from_mesh(const Mesh &mesh);
+inline const Mesh &editmesh_final_or_this(const Object &object, const Mesh &mesh)
+{
+  if (mesh.runtime->edit_mesh != nullptr) {
+    if (const Mesh *editmesh_eval_final = BKE_object_get_editmesh_eval_final(&object)) {
+      return *editmesh_eval_final;
+    }
+  }
+
+  return mesh;
+}
+
 const CustomData &mesh_cd_ldata_get_from_mesh(const Mesh &mesh);
 
 BLI_INLINE BMFace *bm_original_face_get(const MeshRenderData &mr, int idx)
@@ -157,6 +168,9 @@ BLI_INLINE const float *bm_vert_co_get(const MeshRenderData &mr, const BMVert *e
 
 BLI_INLINE const float *bm_vert_no_get(const MeshRenderData &mr, const BMVert *eve)
 {
+  if (mr.bm_free_normal_offset_vert != -1) {
+    return BM_ELEM_CD_GET_FLOAT_P(eve, mr.bm_free_normal_offset_vert);
+  }
   if (!mr.bm_vert_normals.is_empty()) {
     return mr.bm_vert_normals[BM_elem_index_get(eve)];
   }
@@ -165,6 +179,9 @@ BLI_INLINE const float *bm_vert_no_get(const MeshRenderData &mr, const BMVert *e
 
 BLI_INLINE const float *bm_face_no_get(const MeshRenderData &mr, const BMFace *efa)
 {
+  if (mr.bm_free_normal_offset_face != -1) {
+    return BM_ELEM_CD_GET_FLOAT_P(efa, mr.bm_free_normal_offset_face);
+  }
   if (!mr.bm_face_normals.is_empty()) {
     return mr.bm_face_normals[BM_elem_index_get(efa)];
   }
@@ -254,13 +271,13 @@ void extract_face_dots_subdiv(const DRWSubdivCache &subdiv_cache,
 gpu::VertBufPtr extract_normals(const MeshRenderData &mr, bool use_hq);
 gpu::VertBufPtr extract_normals_subdiv(const MeshRenderData &mr,
                                        const DRWSubdivCache &subdiv_cache,
-                                       gpu::VertBuf &pos_nor);
+                                       gpu::VertBuf &pos);
 gpu::VertBufPtr extract_vert_normals(const MeshRenderData &mr);
 gpu::VertBufPtr extract_face_dot_normals(const MeshRenderData &mr, bool use_hq);
 gpu::VertBufPtr extract_edge_factor(const MeshRenderData &mr);
 gpu::VertBufPtr extract_edge_factor_subdiv(const DRWSubdivCache &subdiv_cache,
                                            const MeshRenderData &mr,
-                                           gpu::VertBuf &pos_nor);
+                                           gpu::VertBuf &pos);
 
 gpu::IndexBufPtr extract_tris(const MeshRenderData &mr, const SortedFaceData &face_sorted);
 void create_material_subranges(const SortedFaceData &face_sorted,
@@ -340,12 +357,20 @@ gpu::VertBufPtr extract_edituv_stretch_angle_subdiv(const MeshRenderData &mr,
 gpu::VertBufPtr extract_edituv_data(const MeshRenderData &mr);
 gpu::VertBufPtr extract_edituv_data_subdiv(const MeshRenderData &mr,
                                            const DRWSubdivCache &subdiv_cache);
-gpu::IndexBufPtr extract_edituv_tris(const MeshRenderData &mr);
+gpu::IndexBufPtr extract_edituv_tris(const MeshRenderData &mr, bool edit_uvs);
 gpu::IndexBufPtr extract_edituv_tris_subdiv(const MeshRenderData &mr,
                                             const DRWSubdivCache &subdiv_cache);
-gpu::IndexBufPtr extract_edituv_lines(const MeshRenderData &mr);
+
+enum class UvExtractionMode : int8_t {
+  Edit,
+  Selection,
+  All,
+};
+
+gpu::IndexBufPtr extract_edituv_lines(const MeshRenderData &mr, UvExtractionMode mode);
 gpu::IndexBufPtr extract_edituv_lines_subdiv(const MeshRenderData &mr,
-                                             const DRWSubdivCache &subdiv_cache);
+                                             const DRWSubdivCache &subdiv_cache,
+                                             UvExtractionMode mode);
 gpu::IndexBufPtr extract_edituv_points(const MeshRenderData &mr);
 gpu::IndexBufPtr extract_edituv_points_subdiv(const MeshRenderData &mr,
                                               const DRWSubdivCache &subdiv_cache);
@@ -361,10 +386,14 @@ gpu::VertBufPtr extract_sculpt_data_subdiv(const MeshRenderData &mr,
 
 gpu::VertBufPtr extract_orco(const MeshRenderData &mr);
 
-gpu::VertBufPtr extract_attribute(const MeshRenderData &mr, const DRW_AttributeRequest &request);
+gpu::VertBufPtr extract_attribute(const MeshRenderData &mr, StringRef name);
 gpu::VertBufPtr extract_attribute_subdiv(const MeshRenderData &mr,
                                          const DRWSubdivCache &subdiv_cache,
-                                         const DRW_AttributeRequest &request);
+                                         StringRef name);
 gpu::VertBufPtr extract_attr_viewer(const MeshRenderData &mr);
+
+gpu::VertBufPtr extract_paint_overlay_flags(const MeshRenderData &mr);
+gpu::VertBufPtr extract_paint_overlay_flags_subdiv(const MeshRenderData &mr,
+                                                   const DRWSubdivCache &subdiv_cache);
 
 }  // namespace blender::draw

@@ -72,7 +72,7 @@ void *node_initexec_curves(bNodeExecContext * /*context*/, bNode *node, bNodeIns
 
 void node_sock_label(bNodeSocket *sock, const char *name)
 {
-  STRNCPY(sock->label, name);
+  STRNCPY_UTF8(sock->label, name);
 }
 
 void node_sock_label_clear(bNodeSocket *sock)
@@ -84,7 +84,6 @@ void node_sock_label_clear(bNodeSocket *sock)
 
 void node_math_update(bNodeTree *ntree, bNode *node)
 {
-  bNodeSocket *sock1 = static_cast<bNodeSocket *>(BLI_findlink(&node->inputs, 0));
   bNodeSocket *sock2 = static_cast<bNodeSocket *>(BLI_findlink(&node->inputs, 1));
   bNodeSocket *sock3 = static_cast<bNodeSocket *>(BLI_findlink(&node->inputs, 2));
   blender::bke::node_set_socket_availability(*ntree,
@@ -120,51 +119,6 @@ void node_math_update(bNodeTree *ntree, bNode *node)
                                                   NODE_MATH_WRAP,
                                                   NODE_MATH_SMOOTH_MIN,
                                                   NODE_MATH_SMOOTH_MAX));
-
-  node_sock_label_clear(sock1);
-  node_sock_label_clear(sock2);
-  node_sock_label_clear(sock3);
-
-  switch (node->custom1) {
-    case NODE_MATH_WRAP:
-      node_sock_label(sock2, "Max");
-      node_sock_label(sock3, "Min");
-      break;
-    case NODE_MATH_MULTIPLY_ADD:
-      node_sock_label(sock2, "Multiplier");
-      node_sock_label(sock3, "Addend");
-      break;
-    case NODE_MATH_LESS_THAN:
-    case NODE_MATH_GREATER_THAN:
-      node_sock_label(sock2, "Threshold");
-      break;
-    case NODE_MATH_PINGPONG:
-      node_sock_label(sock2, "Scale");
-      break;
-    case NODE_MATH_SNAP:
-      node_sock_label(sock2, "Increment");
-      break;
-    case NODE_MATH_POWER:
-      node_sock_label(sock1, "Base");
-      node_sock_label(sock2, "Exponent");
-      break;
-    case NODE_MATH_LOGARITHM:
-      node_sock_label(sock2, "Base");
-      break;
-    case NODE_MATH_DEGREES:
-      node_sock_label(sock1, "Radians");
-      break;
-    case NODE_MATH_RADIANS:
-      node_sock_label(sock1, "Degrees");
-      break;
-    case NODE_MATH_COMPARE:
-      node_sock_label(sock3, "Epsilon");
-      break;
-    case NODE_MATH_SMOOTH_MAX:
-    case NODE_MATH_SMOOTH_MIN:
-      node_sock_label(sock3, "Distance");
-      break;
-  }
 }
 
 /** \} */
@@ -181,7 +135,7 @@ void node_blend_label(const bNodeTree * /*ntree*/,
   const char *name;
   bool enum_label = RNA_enum_name(rna_enum_ramp_blend_items, node->custom1, &name);
   if (!enum_label) {
-    name = IFACE_("Unknown");
+    name = N_("Unknown");
   }
   BLI_strncpy_utf8(label, IFACE_(name), label_maxncpy);
 }
@@ -191,9 +145,11 @@ void node_image_label(const bNodeTree * /*ntree*/,
                       char *label,
                       int label_maxncpy)
 {
-  /* If there is no loaded image, return an empty string,
-   * and let blender::bke::nodeLabel() fill in the proper type translation. */
-  BLI_strncpy(label, (node->id) ? node->id->name + 2 : "", label_maxncpy);
+  if (node->id == nullptr) {
+    BLI_strncpy(label, IFACE_(node->typeinfo->ui_name.c_str()), label_maxncpy);
+    return;
+  }
+  BLI_strncpy(label, node->id->name + 2, label_maxncpy);
 }
 
 void node_math_label(const bNodeTree * /*ntree*/,
@@ -204,7 +160,7 @@ void node_math_label(const bNodeTree * /*ntree*/,
   const char *name;
   bool enum_label = RNA_enum_name(rna_enum_node_math_items, node->custom1, &name);
   if (!enum_label) {
-    name = IFACE_("Unknown");
+    name = CTX_N_(BLT_I18NCONTEXT_ID_NODETREE, "Unknown");
   }
   BLI_strncpy_utf8(label, CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, name), label_maxncpy);
 }
@@ -217,22 +173,9 @@ void node_vector_math_label(const bNodeTree * /*ntree*/,
   const char *name;
   bool enum_label = RNA_enum_name(rna_enum_node_vec_math_items, node->custom1, &name);
   if (!enum_label) {
-    name = IFACE_("Unknown");
+    name = CTX_N_(BLT_I18NCONTEXT_ID_NODETREE, "Unknown");
   }
   BLI_strncpy_utf8(label, CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, name), label_maxncpy);
-}
-
-void node_filter_label(const bNodeTree * /*ntree*/,
-                       const bNode *node,
-                       char *label,
-                       int label_maxncpy)
-{
-  const char *name;
-  bool enum_label = RNA_enum_name(rna_enum_node_filter_items, node->custom1, &name);
-  if (!enum_label) {
-    name = IFACE_("Unknown");
-  }
-  BLI_strncpy_utf8(label, IFACE_(name), label_maxncpy);
 }
 
 void node_combsep_color_label(const ListBase *sockets, NodeCombSepColorMode mode)
@@ -274,9 +217,7 @@ void node_combsep_color_label(const ListBase *sockets, NodeCombSepColorMode mode
 /** \name Link Insertion
  * \{ */
 
-bool node_insert_link_default(bNodeTree * /*ntree*/,
-                              bNode * /*node*/,
-                              bNodeLink * /*inserted_link*/)
+bool node_insert_link_default(blender::bke::NodeInsertLinkParams & /*params*/)
 {
   return true;
 }
@@ -286,6 +227,30 @@ bool node_insert_link_default(bNodeTree * /*ntree*/,
 /* -------------------------------------------------------------------- */
 /** \name Default value RNA access
  * \{ */
+
+int node_socket_get_int(bNodeTree *ntree, bNode * /*node*/, bNodeSocket *sock)
+{
+  PointerRNA ptr = RNA_pointer_create_discrete((ID *)ntree, &RNA_NodeSocket, sock);
+  return RNA_int_get(&ptr, "default_value");
+}
+
+void node_socket_set_int(bNodeTree *ntree, bNode * /*node*/, bNodeSocket *sock, int value)
+{
+  PointerRNA ptr = RNA_pointer_create_discrete((ID *)ntree, &RNA_NodeSocket, sock);
+  RNA_int_set(&ptr, "default_value", value);
+}
+
+bool node_socket_get_bool(bNodeTree *ntree, bNode * /*node*/, bNodeSocket *sock)
+{
+  PointerRNA ptr = RNA_pointer_create_discrete((ID *)ntree, &RNA_NodeSocket, sock);
+  return RNA_boolean_get(&ptr, "default_value");
+}
+
+void node_socket_set_bool(bNodeTree *ntree, bNode * /*node*/, bNodeSocket *sock, bool value)
+{
+  PointerRNA ptr = RNA_pointer_create_discrete((ID *)ntree, &RNA_NodeSocket, sock);
+  RNA_boolean_set(&ptr, "default_value", value);
+}
 
 float node_socket_get_float(bNodeTree *ntree, bNode * /*node*/, bNodeSocket *sock)
 {

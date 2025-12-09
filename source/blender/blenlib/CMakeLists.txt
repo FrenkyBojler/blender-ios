@@ -15,7 +15,6 @@ set(INC_SYS
   ../../../extern/wcwidth
   ../../../extern/json/include
 
-  ${EIGEN3_INCLUDE_DIRS}
   ${ZLIB_INCLUDE_DIRS}
   ${ZSTD_INCLUDE_DIRS}
 )
@@ -23,6 +22,7 @@ set(INC_SYS
 set(SRC
   intern/BLI_assert.cc
   intern/BLI_color.cc
+  intern/BLI_colorspace.cc
   intern/BLI_dial_2d.cc
   intern/BLI_dynstr.cc
   intern/BLI_filelist.cc
@@ -41,6 +41,7 @@ set(SRC
   intern/BLI_subprocess.cc
   intern/BLI_timer.cc
   intern/array_store.cc
+  intern/array_store_rle.cc
   intern/array_store_utils.cc
   intern/array_utils.cc
   intern/array_utils_c.cc
@@ -52,8 +53,8 @@ set(SRC
   intern/bitmap.cc
   intern/bitmap_draw_2d.cc
   intern/boxpack_2d.cc
-  intern/buffer.cc
   intern/cache_mutex.cc
+  intern/compression.cc
   intern/compute_context.cc
   intern/convexhull_2d.cc
   intern/cpp_type.cc
@@ -117,6 +118,7 @@ set(SRC
   intern/math_vector.cc
   intern/math_vector_inline.cc
   intern/memory_cache.cc
+  intern/memory_cache_file_load.cc
   intern/memory_counter.cc
   intern/memory_utils.cc
   intern/mesh_boolean.cc
@@ -129,6 +131,7 @@ set(SRC
   intern/polyfill_2d.cc
   intern/polyfill_2d_beautify.cc
   intern/quadric.cc
+  intern/radial_tiling_wrapper.cc
   intern/rand.cc
   intern/rct.cc
   intern/resource_scope.cc
@@ -169,9 +172,9 @@ set(SRC
   intern/BLI_mempool_private.h
 
   # Header as source (included in C files above).
-  intern/kdtree_impl.h
+  intern/kdtree_impl.hh
   intern/list_sort_impl.h
-
+  intern/radial_tiling_shared.hh
 
   BLI_alloca.h
   BLI_allocator.hh
@@ -199,18 +202,19 @@ set(SRC
   BLI_bounds.hh
   BLI_bounds_types.hh
   BLI_boxpack_2d.h
-  BLI_buffer.h
   BLI_build_config.h
   BLI_cache_mutex.hh
   BLI_color.hh
   BLI_color_mix.hh
+  BLI_colorspace.hh
   BLI_compiler_attrs.h
   BLI_compiler_compat.h
   BLI_compiler_typecheck.h
+  BLI_compression.hh
   BLI_compute_context.hh
   BLI_concurrent_map.hh
   BLI_console.h
-  BLI_convexhull_2d.h
+  BLI_convexhull_2d.hh
   BLI_cpp_type.hh
   BLI_cpp_type_make.hh
   BLI_cpp_types.hh
@@ -227,6 +231,7 @@ set(SRC
   BLI_endian_defines.h
   BLI_endian_switch.h
   BLI_endian_switch_inline.h
+  BLI_enum_flags.hh
   BLI_enumerable_thread_specific.hh
   BLI_expr_pylike_eval.h
   BLI_fftw.hh
@@ -240,6 +245,7 @@ set(SRC
   BLI_function_ref.hh
   BLI_generic_array.hh
   BLI_generic_key.hh
+  BLI_generic_key_string.hh
   BLI_generic_pointer.hh
   BLI_generic_span.hh
   BLI_generic_value_map.hh
@@ -250,6 +256,7 @@ set(SRC
   BLI_gsqueue.h
   BLI_hash.h
   BLI_hash.hh
+  BLI_hash_fwd.hh
   BLI_hash_md5.hh
   BLI_hash_mm2a.hh
   BLI_hash_mm3.hh
@@ -269,8 +276,8 @@ set(SRC
   BLI_iterator.h
   BLI_jitter_2d.h
   BLI_kdopbvh.hh
-  BLI_kdtree.h
-  BLI_kdtree_impl.h
+  BLI_kdtree.hh
+  BLI_kdtree_impl.hh
   BLI_lasso_2d.hh
   BLI_lazy_threading.hh
   BLI_length_parameterize.hh
@@ -326,6 +333,7 @@ set(SRC
   BLI_memblock.h
   BLI_memiter.h
   BLI_memory_cache.hh
+  BLI_memory_cache_file_load.hh
   BLI_memory_counter.hh
   BLI_memory_counter_fwd.hh
   BLI_memory_utils.h
@@ -335,6 +343,7 @@ set(SRC
   BLI_mesh_intersect.hh
   BLI_mmap.h
   BLI_multi_value_map.hh
+  BLI_mutex.hh
   BLI_noise.h
   BLI_noise.hh
   BLI_offset_indices.hh
@@ -347,6 +356,7 @@ set(SRC
   BLI_pool.hh
   BLI_probing_strategies.hh
   BLI_quadric.h
+  BLI_radial_tiling.hh
   BLI_rand.h
   BLI_rand.hh
   BLI_random_access_iterator_mixin.hh
@@ -422,6 +432,7 @@ set(LIB
   PRIVATE bf::intern::atomic
   PRIVATE extern_fmtlib
   PUBLIC bf::dependencies::optional::tbb
+  PRIVATE bf::dependencies::eigen
   ${ZLIB_LIBRARIES}
   ${ZSTD_LIBRARIES}
 )
@@ -458,9 +469,6 @@ if(WITH_FFTW3)
     ${FFTW3_LIBRARIES}
   )
   add_definitions(-DWITH_FFTW3)
-  if(WITH_FFTW3_THREADS_F_SUPPORT)
-    add_definitions(-DWITH_FFTW3_THREADS_F_SUPPORT)
-  endif()
 endif()
 
 if(WIN32)
@@ -469,9 +477,11 @@ if(WIN32)
     add_definitions(-DWITH_BLENDER_THUMBNAILER)
   endif()
   list(APPEND INC
+    ../../../intern/uriconvert
     ../../../intern/utfconv
   )
   list(APPEND LIB
+    bf_intern_uriconvert
     bf_intern_utfconv
     dxgi
   )
@@ -525,6 +535,7 @@ if(WITH_GTESTS)
     tests/BLI_bounds_test.cc
     tests/BLI_build_config_test.cc
     tests/BLI_color_test.cc
+    tests/BLI_compression_test.cc
     tests/BLI_convexhull_2d_test.cc
     tests/BLI_cpp_type_test.cc
     tests/BLI_csv_parse_test.cc
@@ -600,6 +611,7 @@ if(WITH_GTESTS)
     tests/BLI_unique_sorted_indices_test.cc
     tests/BLI_utildefines_test.cc
     tests/BLI_uuid_test.cc
+    tests/BLI_vector_list_test.cc
     tests/BLI_vector_set_test.cc
     tests/BLI_vector_test.cc
     tests/BLI_virtual_array_test.cc

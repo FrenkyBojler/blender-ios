@@ -12,13 +12,14 @@
 #include "DNA_anim_types.h"
 #include "DNA_collection_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_space_types.h"
 
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
 #include "BLI_math_color.h"
 #include "BLI_math_vector.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_context.hh"
@@ -60,11 +61,11 @@ static SpaceLink *graph_create(const ScrArea * /*area*/, const Scene *scene)
   SpaceGraph *sipo;
 
   /* Graph Editor - general stuff */
-  sipo = static_cast<SpaceGraph *>(MEM_callocN(sizeof(SpaceGraph), "init graphedit"));
+  sipo = MEM_callocN<SpaceGraph>("init graphedit");
   sipo->spacetype = SPACE_GRAPH;
 
   /* allocate DopeSheet data for Graph Editor */
-  sipo->ads = static_cast<bDopeSheet *>(MEM_callocN(sizeof(bDopeSheet), "GraphEdit DopeSheet"));
+  sipo->ads = MEM_callocN<bDopeSheet>("GraphEdit DopeSheet");
   sipo->ads->source = (ID *)scene;
 
   /* settings for making it easier by default to just see what you're interested in tweaking */
@@ -77,6 +78,14 @@ static SpaceLink *graph_create(const ScrArea * /*area*/, const Scene *scene)
   BLI_addtail(&sipo->regionbase, region);
   region->regiontype = RGN_TYPE_HEADER;
   region->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_BOTTOM : RGN_ALIGN_TOP;
+
+  /* footer */
+  region = BKE_area_region_new();
+
+  BLI_addtail(&sipo->regionbase, region);
+  region->regiontype = RGN_TYPE_FOOTER;
+  region->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_TOP : RGN_ALIGN_BOTTOM;
+  region->flag = RGN_FLAG_HIDDEN;
 
   /* channels */
   region = BKE_area_region_new();
@@ -144,7 +153,7 @@ static void graph_init(wmWindowManager *wm, ScrArea *area)
   /* Init dope-sheet if non-existent (i.e. for old files). */
   if (sipo->ads == nullptr) {
     wmWindow *win = WM_window_find_by_area(wm, area);
-    sipo->ads = static_cast<bDopeSheet *>(MEM_callocN(sizeof(bDopeSheet), "GraphEdit DopeSheet"));
+    sipo->ads = MEM_callocN<bDopeSheet>("GraphEdit DopeSheet");
     sipo->ads->source = win ? (ID *)WM_window_get_active_scene(win) : nullptr;
   }
 
@@ -160,7 +169,7 @@ static SpaceLink *graph_duplicate(SpaceLink *sl)
 {
   SpaceGraph *sipon = static_cast<SpaceGraph *>(MEM_dupallocN(sl));
 
-  memset(&sipon->runtime, 0x0, sizeof(sipon->runtime));
+  sipon->runtime = SpaceGraph_Runtime{};
 
   /* clear or remove stuff from old */
   BLI_duplicatelist(&sipon->runtime.ghost_curves, &((SpaceGraph *)sl)->runtime.ghost_curves);
@@ -174,13 +183,16 @@ static void graph_main_region_init(wmWindowManager *wm, ARegion *region)
 {
   wmKeyMap *keymap;
 
-  UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_CUSTOM, region->winx, region->winy);
+  view2d_region_reinit(
+      &region->v2d, blender::ui::V2D_COMMONVIEW_CUSTOM, region->winx, region->winy);
 
   /* own keymap */
-  keymap = WM_keymap_ensure(wm->defaultconf, "Graph Editor", SPACE_GRAPH, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "Graph Editor", SPACE_GRAPH, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_poll(
       &region->runtime->handlers, keymap, WM_event_handler_region_v2d_mask_no_marker_poll);
-  keymap = WM_keymap_ensure(wm->defaultconf, "Graph Editor Generic", SPACE_GRAPH, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "Graph Editor Generic", SPACE_GRAPH, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 }
 
@@ -190,7 +202,8 @@ static void draw_normalization_borders(Scene *scene, View2D *v2d)
   GPU_blend(GPU_BLEND_ALPHA);
 
   GPUVertFormat *format = immVertexFormat();
-  const uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  const uint pos = GPU_vertformat_attr_add(
+      format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   immUniformThemeColorShadeAlpha(TH_BACK, -25, -180);
@@ -213,24 +226,33 @@ static void graph_main_region_draw(const bContext *C, ARegion *region)
   Scene *scene = CTX_data_scene(C);
   bAnimContext ac;
   View2D *v2d = &region->v2d;
-  const bool minimized = (region->winy <= HEADERY * UI_SCALE_FAC * 1.1f);
+
+  const int min_height = UI_ANIM_MINY;
 
   /* clear and setup matrix */
-  UI_ThemeClearColor(minimized ? TH_TIME_SCRUB_BACKGROUND : TH_BACK);
+  blender::ui::theme::frame_buffer_clear(TH_BACK);
 
-  UI_view2d_view_ortho(v2d);
+  blender::ui::view2d_view_ortho(v2d);
 
+  /* In driver mode, both X and Y axes are in the same units as the driven property, and so the
+   * grid size should be independent of the scene's frame rate. */
+  constexpr int driver_step = 10;
   /* grid */
   bool display_seconds = (sipo->mode == SIPO_MODE_ANIMATION) && (sipo->flag & SIPO_DRAWTIME);
-  if (!minimized) {
-    UI_view2d_draw_lines_x__frames_or_seconds(v2d, scene, display_seconds);
-    UI_view2d_draw_lines_y__values(v2d);
+  if (region->winy > min_height) {
+    if (sipo->mode == SIPO_MODE_DRIVERS) {
+      blender::ui::view2d_draw_lines_x__values(v2d, driver_step);
+    }
+    else {
+      blender::ui::view2d_draw_lines_x__frames_or_seconds(v2d, scene, display_seconds);
+    }
+    blender::ui::view2d_draw_lines_y__values(v2d, 10);
   }
 
   ED_region_draw_cb_draw(C, region, REGION_DRAW_PRE_VIEW);
 
   /* start and end frame (in F-Curve mode only) */
-  if (sipo->mode != SIPO_MODE_DRIVERS) {
+  if (sipo->mode != SIPO_MODE_DRIVERS && region->winy > min_height) {
     ANIM_draw_framerange(scene, v2d);
   }
 
@@ -249,7 +271,7 @@ static void graph_main_region_draw(const bContext *C, ARegion *region)
 
     /* XXX(ton): the slow way to set tot rect... but for nice sliders needed. */
     /* Excluding handles from the calculation to save performance. This cuts the time it takes for
-     * this function to run in half which is a major performance bottleneck on heavy scenes.  */
+     * this function to run in half which is a major performance bottleneck on heavy scenes. */
     get_graph_keyframe_extents(
         &ac, &v2d->tot.xmin, &v2d->tot.xmax, &v2d->tot.ymin, &v2d->tot.ymax, false, false);
     /* extra offset so that these items are visible */
@@ -258,7 +280,8 @@ static void graph_main_region_draw(const bContext *C, ARegion *region)
   }
 
   if ((sipo->flag & SIPO_NODRAWCURSOR) == 0) {
-    uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+    uint pos = GPU_vertformat_attr_add(
+        immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
@@ -301,35 +324,39 @@ static void graph_main_region_draw(const bContext *C, ARegion *region)
 
   /* markers */
   if (sipo->mode != SIPO_MODE_DRIVERS) {
-    UI_view2d_view_orthoSpecial(region, v2d, true);
+    blender::ui::view2d_view_orthoSpecial(region, v2d, true);
     int marker_draw_flag = DRAW_MARKERS_MARGIN;
-    if (sipo->flag & SIPO_SHOW_MARKERS) {
+    if (ED_markers_region_visible(CTX_wm_area(C), region)) {
       ED_markers_draw(C, marker_draw_flag);
     }
   }
 
   /* preview range */
   if (sipo->mode != SIPO_MODE_DRIVERS) {
-    UI_view2d_view_ortho(v2d);
-    ANIM_draw_previewrange(C, v2d, 0);
+    blender::ui::view2d_view_ortho(v2d);
+    ANIM_draw_previewrange(scene, v2d, 0);
   }
 
   /* callback */
-  UI_view2d_view_ortho(v2d);
+  blender::ui::view2d_view_ortho(v2d);
   ED_region_draw_cb_draw(C, region, REGION_DRAW_POST_VIEW);
 
   /* reset view matrix */
-  UI_view2d_view_restore(C);
+  blender::ui::view2d_view_restore(C);
 
   /* time-scrubbing */
-  ED_time_scrub_draw(region, scene, display_seconds, false);
+  int base = round_db_to_int(scene->frames_per_second());
+  if (sipo->mode == SIPO_MODE_DRIVERS) {
+    base = driver_step;
+  }
+  ED_time_scrub_draw(region, scene, display_seconds, false, base);
 }
 
 static void graph_main_region_draw_overlay(const bContext *C, ARegion *region)
 {
   /* draw entirely, view changes should be handled here */
   const SpaceGraph *sipo = CTX_wm_space_graph(C);
-  const bool minimized = (region->winy <= HEADERY * UI_SCALE_FAC * 1.1f);
+  const bool minimized = (region->winy < UI_ANIM_MINY);
 
   const Scene *scene = CTX_data_scene(C);
   View2D *v2d = &region->v2d;
@@ -345,14 +372,14 @@ static void graph_main_region_draw_overlay(const bContext *C, ARegion *region)
     const rcti scroller_mask = ED_time_scrub_clamp_scroller_mask(v2d->mask);
     /* FIXME: args for scrollers depend on the type of data being shown. */
     region->v2d.scroll |= V2D_SCROLL_BOTTOM;
-    UI_view2d_scrollers_draw(v2d, &scroller_mask);
+    blender::ui::view2d_scrollers_draw(v2d, &scroller_mask);
 
     /* scale numbers */
     {
       rcti rect;
       BLI_rcti_init(
           &rect, 0, 15 * UI_SCALE_FAC, 15 * UI_SCALE_FAC, region->winy - UI_TIME_SCRUB_MARGIN_Y);
-      UI_view2d_draw_scale_y__values(region, v2d, &rect, TH_SCROLL_TEXT);
+      blender::ui::view2d_draw_scale_y__values(region, v2d, &rect, TH_SCROLL_TEXT, 10);
     }
   }
   else {
@@ -373,12 +400,14 @@ static void graph_channel_region_init(wmWindowManager *wm, ARegion *region)
   region->v2d.scroll |= V2D_SCROLL_HORIZONTAL_HIDE;
   region->v2d.scroll |= V2D_SCROLL_VERTICAL_HIDE;
 
-  UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_LIST, region->winx, region->winy);
+  view2d_region_reinit(&region->v2d, blender::ui::V2D_COMMONVIEW_LIST, region->winx, region->winy);
 
   /* own keymap */
-  keymap = WM_keymap_ensure(wm->defaultconf, "Animation Channels", SPACE_EMPTY, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "Animation Channels", SPACE_EMPTY, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
-  keymap = WM_keymap_ensure(wm->defaultconf, "Graph Editor Generic", SPACE_GRAPH, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "Graph Editor Generic", SPACE_GRAPH, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 }
 
@@ -386,7 +415,7 @@ static void set_v2d_height(View2D *v2d, const size_t item_count)
 {
   const int height = ANIM_UI_get_channels_total_height(v2d, item_count);
   v2d->tot.ymin = -height;
-  UI_view2d_curRect_clamp_y(v2d);
+  blender::ui::view2d_curRect_clamp_y(v2d);
 }
 
 static void graph_channel_region_draw(const bContext *C, ARegion *region)
@@ -398,7 +427,7 @@ static void graph_channel_region_draw(const bContext *C, ARegion *region)
   View2D *v2d = &region->v2d;
 
   /* clear and setup matrix */
-  UI_ThemeClearColor(TH_BACK);
+  blender::ui::theme::frame_buffer_clear(TH_BACK);
 
   ListBase anim_data = {nullptr, nullptr};
   const eAnimFilter_Flags filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
@@ -406,7 +435,7 @@ static void graph_channel_region_draw(const bContext *C, ARegion *region)
   const size_t item_count = ANIM_animdata_filter(
       &ac, &anim_data, filter, ac.data, eAnimCont_Types(ac.datatype));
   set_v2d_height(v2d, item_count);
-  UI_view2d_view_ortho(v2d);
+  blender::ui::view2d_view_ortho(v2d);
 
   /* draw channels */
   graph_draw_channel_names((bContext *)C, &ac, region, anim_data);
@@ -415,10 +444,10 @@ static void graph_channel_region_draw(const bContext *C, ARegion *region)
   ED_time_scrub_channel_search_draw(C, region, ac.ads);
 
   /* reset view matrix */
-  UI_view2d_view_restore(C);
+  blender::ui::view2d_view_restore(C);
 
   /* scrollers */
-  UI_view2d_scrollers_draw(v2d, nullptr);
+  blender::ui::view2d_scrollers_draw(v2d, nullptr);
 
   ANIM_animdata_freelist(&anim_data);
 }
@@ -441,7 +470,8 @@ static void graph_buttons_region_init(wmWindowManager *wm, ARegion *region)
 
   ED_region_panels_init(wm, region);
 
-  keymap = WM_keymap_ensure(wm->defaultconf, "Graph Editor Generic", SPACE_GRAPH, RGN_TYPE_WINDOW);
+  keymap = WM_keymap_ensure(
+      wm->runtime->defaultconf, "Graph Editor Generic", SPACE_GRAPH, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler_v2d_mask(&region->runtime->handlers, keymap);
 }
 
@@ -672,7 +702,7 @@ static void graph_refresh_fcurve_colors(const bContext *C)
     return;
   }
 
-  UI_SetTheme(SPACE_GRAPH, RGN_TYPE_WINDOW);
+  blender::ui::theme::theme_set(SPACE_GRAPH, RGN_TYPE_WINDOW);
 
   /* build list of F-Curves which will be visible as channels in channel-region
    * - we don't include ANIMFILTER_CURVEVISIBLE filter, as that will result in a
@@ -706,13 +736,13 @@ static void graph_refresh_fcurve_colors(const bContext *C)
 
         switch (fcu->array_index) {
           case 0:
-            UI_GetThemeColor3fv(TH_AXIS_X, col);
+            blender::ui::theme::get_color_3fv(TH_AXIS_X, col);
             break;
           case 1:
-            UI_GetThemeColor3fv(TH_AXIS_Y, col);
+            blender::ui::theme::get_color_3fv(TH_AXIS_Y, col);
             break;
           case 2:
-            UI_GetThemeColor3fv(TH_AXIS_Z, col);
+            blender::ui::theme::get_color_3fv(TH_AXIS_Z, col);
             break;
           default:
             /* 'unknown' color - bluish so as to not conflict with handles */
@@ -729,33 +759,17 @@ static void graph_refresh_fcurve_colors(const bContext *C)
 
         switch (fcu->array_index) {
           case 1:
-            UI_GetThemeColor3fv(TH_AXIS_X, col);
+            blender::ui::theme::get_color_3fv(TH_AXIS_X, col);
             break;
           case 2:
-            UI_GetThemeColor3fv(TH_AXIS_Y, col);
+            blender::ui::theme::get_color_3fv(TH_AXIS_Y, col);
             break;
           case 3:
-            UI_GetThemeColor3fv(TH_AXIS_Z, col);
+            blender::ui::theme::get_color_3fv(TH_AXIS_Z, col);
             break;
 
           case 0: {
-            /* Special Case: "W" channel should be yellowish, so blend X and Y channel colors... */
-            float c1[3], c2[3];
-            float h1[3], h2[3];
-            float hresult[3];
-
-            /* - get colors (rgb) */
-            UI_GetThemeColor3fv(TH_AXIS_X, c1);
-            UI_GetThemeColor3fv(TH_AXIS_Y, c2);
-
-            /* - perform blending in HSV space (to keep brightness similar) */
-            rgb_to_hsv_v(c1, h1);
-            rgb_to_hsv_v(c2, h2);
-
-            interp_v3_v3v3(hresult, h1, h2, 0.5f);
-
-            /* - convert back to RGB for display */
-            hsv_to_rgb_v(hresult, col);
+            blender::ui::theme::get_color_3fv(TH_AXIS_W, col);
             break;
           }
 
@@ -902,7 +916,7 @@ static void graph_space_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
   SpaceGraph *sipo = (SpaceGraph *)sl;
 
   BLO_read_struct(reader, bDopeSheet, &sipo->ads);
-  memset(&sipo->runtime, 0x0, sizeof(sipo->runtime));
+  sipo->runtime = SpaceGraph_Runtime{};
 }
 
 static void graph_space_blend_write(BlendWriter *writer, SpaceLink *sl)
@@ -922,13 +936,20 @@ static void graph_space_blend_write(BlendWriter *writer, SpaceLink *sl)
   sipo->runtime.ghost_curves = tmpGhosts;
 }
 
+static bool action_region_poll_hide_in_driver_mode(const RegionPollParams *params)
+{
+  BLI_assert(params->area->spacetype == SPACE_GRAPH);
+  const SpaceGraph *sipo = static_cast<const SpaceGraph *>(params->area->spacedata.first);
+  return sipo->mode != SIPO_MODE_DRIVERS;
+}
+
 void ED_spacetype_ipo()
 {
   std::unique_ptr<SpaceType> st = std::make_unique<SpaceType>();
   ARegionType *art;
 
   st->spaceid = SPACE_GRAPH;
-  STRNCPY(st->name, "Graph");
+  STRNCPY_UTF8(st->name, "Graph");
 
   st->create = graph_create;
   st->free = graph_free;
@@ -950,7 +971,7 @@ void ED_spacetype_ipo()
   st->blend_write = graph_space_blend_write;
 
   /* regions: main window */
-  art = static_cast<ARegionType *>(MEM_callocN(sizeof(ARegionType), "spacetype graphedit region"));
+  art = MEM_callocN<ARegionType>("spacetype graphedit region");
   art->regionid = RGN_TYPE_WINDOW;
   art->init = graph_main_region_init;
   art->draw = graph_main_region_draw;
@@ -962,7 +983,7 @@ void ED_spacetype_ipo()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: header */
-  art = static_cast<ARegionType *>(MEM_callocN(sizeof(ARegionType), "spacetype graphedit region"));
+  art = MEM_callocN<ARegionType>("spacetype graphedit region");
   art->regionid = RGN_TYPE_HEADER;
   art->prefsizey = HEADERY;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FRAMES | ED_KEYMAP_HEADER;
@@ -972,8 +993,19 @@ void ED_spacetype_ipo()
 
   BLI_addhead(&st->regiontypes, art);
 
-  /* regions: channels */
+  /* regions: footer */
   art = static_cast<ARegionType *>(MEM_callocN(sizeof(ARegionType), "spacetype graphedit region"));
+  art->regionid = RGN_TYPE_FOOTER;
+  art->prefsizey = HEADERY;
+  art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FOOTER;
+  art->init = graph_header_region_init;
+  art->draw = graph_header_region_draw;
+  art->poll = action_region_poll_hide_in_driver_mode;
+
+  BLI_addhead(&st->regiontypes, art);
+
+  /* regions: channels */
+  art = MEM_callocN<ARegionType>("spacetype graphedit region");
   art->regionid = RGN_TYPE_CHANNELS;
   /* 200 is the 'standard', but due to scrollers, we want a bit more to fit the lock icons in */
   art->prefsizex = 200 + V2D_SCROLL_WIDTH;
@@ -986,7 +1018,7 @@ void ED_spacetype_ipo()
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: UI buttons */
-  art = static_cast<ARegionType *>(MEM_callocN(sizeof(ARegionType), "spacetype graphedit region"));
+  art = MEM_callocN<ARegionType>("spacetype graphedit region");
   art->regionid = RGN_TYPE_UI;
   art->prefsizex = UI_SIDEBAR_PANEL_WIDTH;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_FRAMES;
@@ -998,7 +1030,7 @@ void ED_spacetype_ipo()
 
   graph_buttons_register(art);
 
-  art = ED_area_type_hud(st->spaceid);
+  art = blender::ui::ED_area_type_hud(st->spaceid);
   BLI_addhead(&st->regiontypes, art);
 
   BKE_spacetype_register(std::move(st));

@@ -41,7 +41,7 @@ class ActionIteratorsTest : public testing::Test {
   void SetUp() override
   {
     bmain = BKE_main_new();
-    action = static_cast<Action *>(BKE_id_new(bmain, ID_AC, "ACLayeredAction"));
+    action = BKE_id_new<Action>(bmain, "ACLayeredAction");
   }
 
   void TearDown() override
@@ -57,7 +57,7 @@ TEST_F(ActionIteratorsTest, iterate_all_fcurves_of_slot)
   EXPECT_TRUE(action->is_action_layered());
 
   /* Try iterating an empty action. */
-  blender::Vector<FCurve *> no_fcurves;
+  Vector<FCurve *> no_fcurves;
   foreach_fcurve_in_action_slot(
       *action, cube_slot.handle, [&](FCurve &fcurve) { no_fcurves.append(&fcurve); });
 
@@ -82,7 +82,7 @@ TEST_F(ActionIteratorsTest, iterate_all_fcurves_of_slot)
   }
 
   /* Get all FCurves. */
-  blender::Vector<FCurve *> cube_fcurves;
+  Vector<FCurve *> cube_fcurves;
   foreach_fcurve_in_action_slot(
       *action, cube_slot.handle, [&](FCurve &fcurve) { cube_fcurves.append(&fcurve); });
 
@@ -92,7 +92,7 @@ TEST_F(ActionIteratorsTest, iterate_all_fcurves_of_slot)
   }
 
   /* Get only FCurves with index 0 which should be 1. */
-  blender::Vector<FCurve *> monkey_fcurves;
+  Vector<FCurve *> monkey_fcurves;
   foreach_fcurve_in_action_slot(*action, monkey_slot.handle, [&](FCurve &fcurve) {
     if (fcurve.array_index == 0) {
       monkey_fcurves.append(&fcurve);
@@ -104,7 +104,7 @@ TEST_F(ActionIteratorsTest, iterate_all_fcurves_of_slot)
 
   /* Slots handles are just numbers. Passing in a slot handle that doesn't exist should return
    * nothing. */
-  blender::Vector<FCurve *> invalid_slot_fcurves;
+  Vector<FCurve *> invalid_slot_fcurves;
   foreach_fcurve_in_action_slot(*action,
                                 monkey_slot.handle + cube_slot.handle,
                                 [&](FCurve &fcurve) { invalid_slot_fcurves.append(&fcurve); });
@@ -114,13 +114,12 @@ TEST_F(ActionIteratorsTest, iterate_all_fcurves_of_slot)
 TEST_F(ActionIteratorsTest, foreach_action_slot_use_with_references)
 {
   /* Create a cube and assign the Action + a slot. */
-  Object *cube = static_cast<Object *>(BKE_id_new(bmain, ID_OB, "OBCube"));
+  Object *cube = BKE_id_new<Object>(bmain, "OBCube");
   Slot *slot_cube = assign_action_ensure_slot_for_keying(*action, cube->id);
   ASSERT_NE(slot_cube, nullptr);
 
   /* Create another Action with slot to assign. */
-  Action &other_action =
-      static_cast<bAction *>(BKE_id_new(bmain, ID_AC, "ACAnotherAction"))->wrap();
+  Action &other_action = BKE_id_new<bAction>(bmain, "ACAnotherAction")->wrap();
   Slot &another_slot = other_action.slot_add();
 
   std::optional<ActionSlotAssignmentResult> slot_assignment_result;
@@ -162,7 +161,7 @@ TEST_F(ActionIteratorsTest, foreach_action_slot_use_with_references)
 TEST_F(ActionIteratorsTest, foreach_action_slot_use_with_rna)
 {
   /* Create a cube and assign the Action + a slot. */
-  Object *cube = static_cast<Object *>(BKE_id_new(bmain, ID_OB, "OBCube"));
+  Object *cube = BKE_id_new<Object>(bmain, "OBCube");
   Slot *slot_cube = assign_action_ensure_slot_for_keying(*action, cube->id);
   ASSERT_NE(slot_cube, nullptr);
   Slot &another_slot = action->slot_add();

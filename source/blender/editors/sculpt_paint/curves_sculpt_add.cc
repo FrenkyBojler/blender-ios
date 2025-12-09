@@ -7,7 +7,7 @@
 #include "curves_sculpt_intern.hh"
 
 #include "BLI_bounds.hh"
-#include "BLI_kdtree.h"
+#include "BLI_kdtree.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_rand.hh"
@@ -65,7 +65,7 @@ class AddOperation : public CurvesSculptStrokeOperation {
   ~AddOperation() override
   {
     if (curve_roots_kdtree_ != nullptr) {
-      BLI_kdtree_3d_free(curve_roots_kdtree_);
+      kdtree_3d_free(curve_roots_kdtree_);
     }
   }
 
@@ -92,7 +92,7 @@ struct AddOperationExecutor {
   VArraySpan<float2> surface_uv_map_eval_;
   bke::BVHTreeFromMesh surface_bvh_eval_;
 
-  const CurvesSculpt *curves_sculpt_ = nullptr;
+  CurvesSculpt *curves_sculpt_ = nullptr;
   const Brush *brush_ = nullptr;
   const BrushCurvesSculptSettings *brush_settings_ = nullptr;
   int add_amount_;
@@ -127,7 +127,7 @@ struct AddOperationExecutor {
       return;
     }
 
-    surface_ob_eval_ = DEG_get_evaluated_object(ctx_.depsgraph, &surface_ob_orig);
+    surface_ob_eval_ = DEG_get_evaluated(ctx_.depsgraph, &surface_ob_orig);
     if (surface_ob_eval_ == nullptr) {
       return;
     }
@@ -144,7 +144,7 @@ struct AddOperationExecutor {
     curves_sculpt_ = ctx_.scene->toolsettings->curves_sculpt;
     brush_ = BKE_paint_brush_for_read(&curves_sculpt_->paint);
     brush_settings_ = brush_->curves_sculpt_settings;
-    brush_radius_re_ = brush_radius_get(*ctx_.scene, *brush_, stroke_extension);
+    brush_radius_re_ = brush_radius_get(curves_sculpt_->paint, *brush_, stroke_extension);
     brush_pos_re_ = stroke_extension.mouse_position;
 
     use_front_face_ = brush_->flag & BRUSH_FRONTFACE;
@@ -241,7 +241,8 @@ struct AddOperationExecutor {
               curves_orig_->positions().slice(add_outputs.new_points_range)))
       {
         remember_stroke_position(
-            *ctx_.scene, math::transform_point(transforms_.curves_to_world, center_cu->center()));
+            *curves_sculpt_,
+            math::transform_point(transforms_.curves_to_world, center_cu->center()));
       }
     }
 
@@ -497,13 +498,13 @@ struct AddOperationExecutor {
   void ensure_curve_roots_kdtree()
   {
     if (self_->curve_roots_kdtree_ == nullptr) {
-      self_->curve_roots_kdtree_ = BLI_kdtree_3d_new(curves_orig_->curves_num());
+      self_->curve_roots_kdtree_ = kdtree_3d_new(curves_orig_->curves_num());
       const Span<int> offsets = curves_orig_->offsets();
       const Span<float3> positions = curves_orig_->positions();
       for (const int curve_i : curves_orig_->curves_range()) {
-        BLI_kdtree_3d_insert(self_->curve_roots_kdtree_, curve_i, positions[offsets[curve_i]]);
+        kdtree_3d_insert(self_->curve_roots_kdtree_, curve_i, positions[offsets[curve_i]]);
       }
-      BLI_kdtree_3d_balance(self_->curve_roots_kdtree_);
+      kdtree_3d_balance(self_->curve_roots_kdtree_);
     }
   }
 };

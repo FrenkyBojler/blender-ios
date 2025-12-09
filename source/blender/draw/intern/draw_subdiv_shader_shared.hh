@@ -10,9 +10,7 @@
 
 #include "draw_subdiv_defines.hh"
 
-#ifndef GPU_SHADER
-#  include "GPU_shader_shared_utils.hh"
-#endif
+#include "GPU_shader_shared_utils.hh"
 
 struct DRWSubdivUboStorage {
   /* Offsets in the buffers data where the source and destination data start. */
@@ -59,15 +57,6 @@ struct SculptData {
   float mask;
 };
 
-/* Duplicate of #PosNorLoop from the mesh extract CPU code.
- * We do not use a vec3 for the position as it will be padded to a vec4 which is incompatible with
- * the format. */
-struct PosNorLoop {
-  float x, y, z;
-  float nx, ny, nz;
-  float flag;
-};
-
 /* Mirror of #UVStretchAngle in the C++ code, but using floats until proper data compression
  * is implemented for all subdivision data. */
 struct UVStretchAngle {
@@ -76,12 +65,13 @@ struct UVStretchAngle {
   float uv_angle1;
 };
 
-struct LoopNormal {
-  float nx, ny, nz;
-  float flag;
+struct Position {
+  float x;
+  float y;
+  float z;
 };
 
-struct CustomNormal {
+struct Normal {
   float x;
   float y;
   float z;
@@ -94,12 +84,12 @@ struct BlenderPatchCoord {
 };
 
 /* Patch evaluation - F-dots. */
-/* vec3 is padded to vec4, but the format used for face-dots does not have any padding. */
+/* float3 is padded to float4, but the format used for face-dots does not have any padding. */
 struct FDotVert {
   float x, y, z;
 };
 
-/* Same here, do not use vec3. */
+/* Same here, do not use float3. */
 struct FDotNor {
   float x, y, z;
   float flag;
@@ -126,34 +116,3 @@ struct PatchCoord {
 struct QuadNode {
   uint4 child;
 };
-
-/* When not using OSD we need to defined the structs as they subdiv_info still refer to them. */
-#if !defined(USE_GPU_SHADER_CREATE_INFO) || \
-    (!defined(OSD_PATCH_BASIS_GLSL) && !defined(OSD_PATCH_BASIS_METAL))
-/* This structure is a carbon copy of OpenSubDiv's #Osd::PatchParam. */
-struct OsdPatchParam {
-  int field0;
-  int field1;
-  float sharpness;
-};
-
-/* This structure is a carbon copy of OpenSubDiv's #Osd::PatchArray. */
-struct OsdPatchArray {
-  int regDesc;
-  int desc;
-  int numPatches;
-  int indexBase;
-  int stride;
-  int primitiveIdBase;
-};
-
-/* This structure is a carbon copy of OpenSubDiv's #Osd::PatchCoord. */
-struct OsdPatchCoord {
-  int arrayIndex;
-  int patchIndex;
-  int vertIndex;
-  float s;
-  float t;
-};
-
-#endif

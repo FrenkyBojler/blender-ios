@@ -221,6 +221,7 @@ class DepsgraphNodeBuilder : public DepsgraphBuilder {
   virtual void build_animation_images(ID *id);
   virtual void build_action(bAction *action);
 
+  virtual void build_animdata_drivers(ID *id, AnimData *adt);
   /**
    * Build graph node(s) for Driver
    * \param id: ID-Block that driver is attached to
@@ -255,7 +256,7 @@ class DepsgraphNodeBuilder : public DepsgraphBuilder {
   virtual void build_rig(Object *object);
   virtual void build_armature(bArmature *armature);
   virtual void build_armature_bones(ListBase *bones);
-  virtual void build_armature_bone_collections(blender::Span<BoneCollection *> collections);
+  virtual void build_armature_bone_collections(Span<BoneCollection *> collections);
   /** Shape-keys. */
   virtual void build_shapekeys(Key *key);
   virtual void build_camera(Camera *camera);

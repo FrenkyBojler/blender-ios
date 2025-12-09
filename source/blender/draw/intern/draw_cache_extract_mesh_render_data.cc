@@ -24,6 +24,8 @@
 
 #include "ED_mesh.hh"
 
+#include "DRW_render.hh"
+
 #include "mesh_extractors/extract_mesh.hh"
 
 /* ---------------------------------------------------------------------- */
@@ -356,17 +358,6 @@ const SortedFaceData &mesh_render_data_faces_sorted_ensure(const MeshRenderData 
 /** \name Mesh/BMesh Interface (indirect, partially cached access to complex data).
  * \{ */
 
-const Mesh &editmesh_final_or_this(const Object &object, const Mesh &mesh)
-{
-  if (mesh.runtime->edit_mesh != nullptr) {
-    if (const Mesh *editmesh_eval_final = BKE_object_get_editmesh_eval_final(&object)) {
-      return *editmesh_eval_final;
-    }
-  }
-
-  return mesh;
-}
-
 const CustomData &mesh_cd_ldata_get_from_mesh(const Mesh &mesh)
 {
   switch (mesh.runtime->wrapper_type) {
@@ -381,54 +372,6 @@ const CustomData &mesh_cd_ldata_get_from_mesh(const Mesh &mesh)
 
   BLI_assert(0);
   return mesh.corner_data;
-}
-
-const CustomData &mesh_cd_pdata_get_from_mesh(const Mesh &mesh)
-{
-  switch (mesh.runtime->wrapper_type) {
-    case ME_WRAPPER_TYPE_SUBD:
-    case ME_WRAPPER_TYPE_MDATA:
-      return mesh.face_data;
-      break;
-    case ME_WRAPPER_TYPE_BMESH:
-      return mesh.runtime->edit_mesh->bm->pdata;
-      break;
-  }
-
-  BLI_assert(0);
-  return mesh.face_data;
-}
-
-const CustomData &mesh_cd_edata_get_from_mesh(const Mesh &mesh)
-{
-  switch (mesh.runtime->wrapper_type) {
-    case ME_WRAPPER_TYPE_SUBD:
-    case ME_WRAPPER_TYPE_MDATA:
-      return mesh.edge_data;
-      break;
-    case ME_WRAPPER_TYPE_BMESH:
-      return mesh.runtime->edit_mesh->bm->edata;
-      break;
-  }
-
-  BLI_assert(0);
-  return mesh.edge_data;
-}
-
-const CustomData &mesh_cd_vdata_get_from_mesh(const Mesh &mesh)
-{
-  switch (mesh.runtime->wrapper_type) {
-    case ME_WRAPPER_TYPE_SUBD:
-    case ME_WRAPPER_TYPE_MDATA:
-      return mesh.vert_data;
-      break;
-    case ME_WRAPPER_TYPE_BMESH:
-      return mesh.runtime->edit_mesh->bm->vdata;
-      break;
-  }
-
-  BLI_assert(0);
-  return mesh.vert_data;
 }
 
 static bool bm_edge_is_sharp(const BMEdge *const &edge)
@@ -451,21 +394,32 @@ static bke::MeshNormalDomain bmesh_normals_domain(BMesh *bm)
     return bke::MeshNormalDomain::Point;
   }
 
+  if (CustomData_has_layer_named(&bm->vdata, CD_PROP_FLOAT3, "custom_normal")) {
+    return bke::MeshNormalDomain::Point;
+  }
+  if (CustomData_has_layer_named(&bm->pdata, CD_PROP_FLOAT3, "custom_normal")) {
+    return bke::MeshNormalDomain::Face;
+  }
+  if (CustomData_has_layer_named(&bm->ldata, CD_PROP_FLOAT3, "custom_normal")) {
+    return bke::MeshNormalDomain::Corner;
+  }
   if (CustomData_has_layer_named(&bm->ldata, CD_PROP_INT16_2D, "custom_normal")) {
     return bke::MeshNormalDomain::Corner;
   }
 
   BM_mesh_elem_table_ensure(bm, BM_FACE);
-  const VArray<bool> sharp_faces = VArray<bool>::ForDerivedSpan<const BMFace *, bm_face_is_sharp>(
-      Span(bm->ftable, bm->totface));
+  const VArray<bool> sharp_faces =
+      VArray<bool>::from_derived_span<const BMFace *, bm_face_is_sharp>(
+          Span(bm->ftable, bm->totface));
   const array_utils::BooleanMix face_mix = array_utils::booleans_mix_calc(sharp_faces);
   if (face_mix == array_utils::BooleanMix::AllTrue) {
     return bke::MeshNormalDomain::Face;
   }
 
   BM_mesh_elem_table_ensure(bm, BM_EDGE);
-  const VArray<bool> sharp_edges = VArray<bool>::ForDerivedSpan<const BMEdge *, bm_edge_is_sharp>(
-      Span(bm->etable, bm->totedge));
+  const VArray<bool> sharp_edges =
+      VArray<bool>::from_derived_span<const BMEdge *, bm_edge_is_sharp>(
+          Span(bm->etable, bm->totedge));
   const array_utils::BooleanMix edge_mix = array_utils::booleans_mix_calc(sharp_edges);
   if (edge_mix == array_utils::BooleanMix::AllTrue) {
     return bke::MeshNormalDomain::Face;
@@ -486,6 +440,13 @@ void mesh_render_data_update_corner_normals(MeshRenderData &mr)
     mr.corner_normals = mr.mesh->corner_normals();
   }
   else {
+    if (mr.bm_free_normal_offset_vert != -1 || mr.bm_free_normal_offset_face != -1 ||
+        mr.bm_free_normal_offset_corner != -1)
+    {
+      /* If there are free custom normals they should be used directly. */
+      mr.bm_loop_normals = {};
+      return;
+    }
     mr.bm_loop_normals.reinitialize(mr.corners_num);
     const int clnors_offset = CustomData_get_offset_named(
         &mr.bm->ldata, CD_PROP_INT16_2D, "custom_normal");
@@ -538,8 +499,8 @@ MeshRenderData mesh_render_data_create(Object &object,
   mr.use_hide = use_hide;
 
   const Mesh *editmesh_orig = BKE_object_get_pre_modified_mesh(&object);
-  if (is_editmode && editmesh_orig) {
-    const Mesh *eval_cage = BKE_object_get_editmesh_eval_cage(&object);
+  if (editmesh_orig && editmesh_orig->runtime->edit_mesh) {
+    const Mesh *eval_cage = DRW_object_get_editmesh_cage_for_drawing(object);
 
     mr.bm = editmesh_orig->runtime->edit_mesh->bm;
     mr.edit_bmesh = editmesh_orig->runtime->edit_mesh.get();
@@ -549,11 +510,22 @@ MeshRenderData mesh_render_data_create(Object &object,
     /* If there is no distinct cage, hide unmapped edges that can't be selected. */
     mr.hide_unmapped_edges = !do_final || &mesh == eval_cage;
 
+    mr.bm_free_normal_offset_vert = CustomData_get_offset_named(
+        &mr.bm->vdata, CD_PROP_FLOAT3, "custom_normal");
+    mr.bm_free_normal_offset_face = CustomData_get_offset_named(
+        &mr.bm->pdata, CD_PROP_FLOAT3, "custom_normal");
+    mr.bm_free_normal_offset_corner = CustomData_get_offset_named(
+        &mr.bm->ldata, CD_PROP_FLOAT3, "custom_normal");
+
     if (bke::EditMeshData *emd = mr.edit_data) {
       if (!emd->vert_positions.is_empty()) {
         mr.bm_vert_coords = mr.edit_data->vert_positions;
-        mr.bm_vert_normals = BKE_editmesh_cache_ensure_vert_normals(*mr.edit_bmesh, *emd);
-        mr.bm_face_normals = BKE_editmesh_cache_ensure_face_normals(*mr.edit_bmesh, *emd);
+        if (mr.bm_free_normal_offset_vert == -1) {
+          mr.bm_vert_normals = BKE_editmesh_cache_ensure_vert_normals(*mr.edit_bmesh, *emd);
+        }
+        if (mr.bm_free_normal_offset_face == -1) {
+          mr.bm_face_normals = BKE_editmesh_cache_ensure_face_normals(*mr.edit_bmesh, *emd);
+        }
       }
     }
 
@@ -572,14 +544,16 @@ MeshRenderData mesh_render_data_create(Object &object,
     mr.bweight_ofs = CustomData_get_offset_named(
         &mr.bm->edata, CD_PROP_FLOAT, "bevel_weight_edge");
 #ifdef WITH_FREESTYLE
-    mr.freestyle_edge_ofs = CustomData_get_offset(&mr.bm->edata, CD_FREESTYLE_EDGE);
-    mr.freestyle_face_ofs = CustomData_get_offset(&mr.bm->pdata, CD_FREESTYLE_FACE);
+    mr.freestyle_edge_ofs = CustomData_get_offset_named(
+        &mr.bm->edata, CD_PROP_BOOL, "freestyle_edge");
+    mr.freestyle_face_ofs = CustomData_get_offset_named(
+        &mr.bm->pdata, CD_PROP_BOOL, "freestyle_face");
 #endif
 
-    /* Use bmesh directly when the object is in edit mode unchanged by any modifiers.
-     * For non-final UVs, always use original bmesh since the UV editor does not support
-     * using the cage mesh with deformed coordinates. */
-    if ((is_editmode && mr.mesh->runtime->is_original_bmesh &&
+    /* Use bmesh directly when the object is unchanged by any modifiers. For non-final UVs, always
+     * use original bmesh since the UV editor does not support using the cage mesh with deformed
+     * coordinates. */
+    if ((mr.mesh->runtime->is_original_bmesh &&
          mr.mesh->runtime->wrapper_type == ME_WRAPPER_TYPE_BMESH) ||
         (do_uvedit && !do_final))
     {

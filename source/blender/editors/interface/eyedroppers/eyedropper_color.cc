@@ -39,8 +39,6 @@
 #include "RNA_path.hh"
 #include "RNA_prototypes.hh"
 
-#include "UI_interface.hh"
-
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf_types.hh"
 
@@ -59,8 +57,10 @@
 
 #include "eyedropper_intern.hh"
 
+namespace blender::ui {
+
 struct Eyedropper {
-  ColorManagedDisplay *display = nullptr;
+  const ColorManagedDisplay *display = nullptr;
 
   PointerRNA ptr = {};
   PropertyRNA *prop = nullptr;
@@ -96,24 +96,23 @@ static bool eyedropper_init(bContext *C, wmOperator *op)
 
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "prop_data_path");
   if (prop && RNA_property_is_set(op->ptr, prop)) {
-    char *prop_data_path = RNA_string_get_alloc(op->ptr, "prop_data_path", nullptr, 0, nullptr);
-    BLI_SCOPED_DEFER([&] { MEM_SAFE_FREE(prop_data_path); });
-    if (!prop_data_path || prop_data_path[0] == '\0') {
+    std::string prop_data_path = RNA_string_get(op->ptr, "prop_data_path");
+    if (prop_data_path.empty()) {
       MEM_delete(eye);
       return false;
     }
     PointerRNA ctx_ptr = RNA_pointer_create_discrete(nullptr, &RNA_Context, C);
-    if (!RNA_path_resolve(&ctx_ptr, prop_data_path, &eye->ptr, &eye->prop)) {
-      BKE_reportf(op->reports, RPT_ERROR, "Could not resolve path '%s'", prop_data_path);
+    if (!RNA_path_resolve(&ctx_ptr, prop_data_path.c_str(), &eye->ptr, &eye->prop)) {
+      BKE_reportf(op->reports, RPT_ERROR, "Could not resolve path '%s'", prop_data_path.c_str());
       MEM_delete(eye);
       return false;
     }
     eye->is_undo = true;
   }
   else {
-    uiBut *but = UI_context_active_but_prop_get(C, &eye->ptr, &eye->prop, &eye->index);
+    Button *but = context_active_but_prop_get(C, &eye->ptr, &eye->prop, &eye->index);
     if (but != nullptr) {
-      eye->is_undo = UI_but_flag_is_set(but, UI_BUT_UNDO);
+      eye->is_undo = button_flag_is_set(but, BUT_UNDO);
     }
   }
 
@@ -198,10 +197,10 @@ static bool eyedropper_cryptomatte_sample_view3d_fl(bContext *C,
   }
 
   const ID *id = nullptr;
-  if (blender::StringRef(type_name).endswith(RE_PASSNAME_CRYPTOMATTE_OBJECT)) {
+  if (StringRef(type_name).endswith(RE_PASSNAME_CRYPTOMATTE_OBJECT)) {
     id = &object->id;
   }
-  else if (blender::StringRef(type_name).endswith(RE_PASSNAME_CRYPTOMATTE_MATERIAL)) {
+  else if (StringRef(type_name).endswith(RE_PASSNAME_CRYPTOMATTE_MATERIAL)) {
     Material *material = BKE_object_material_get(object, material_slot);
     if (!material) {
       return false;
@@ -229,7 +228,7 @@ static bool eyedropper_cryptomatte_sample_renderlayer_fl(RenderLayer *render_lay
     return false;
   }
 
-  const int render_layer_name_len = BLI_strnlen(render_layer->name, sizeof(render_layer->name));
+  const int render_layer_name_len = STRNLEN(render_layer->name);
   if (strncmp(prefix, render_layer->name, render_layer_name_len) != 0) {
     return false;
   }
@@ -293,7 +292,8 @@ static bool eyedropper_cryptomatte_sample_render_fl(const bNode *node,
   return success;
 }
 
-static bool eyedropper_cryptomatte_sample_image_fl(const bNode *node,
+static bool eyedropper_cryptomatte_sample_image_fl(bContext *C,
+                                                   const bNode *node,
                                                    NodeCryptomatte *crypto,
                                                    const char *prefix,
                                                    const float fpos[2],
@@ -302,10 +302,14 @@ static bool eyedropper_cryptomatte_sample_image_fl(const bNode *node,
   bool success = false;
   Image *image = (Image *)node->id;
   BLI_assert((image == nullptr) || (GS(image->id.name) == ID_IM));
-  ImageUser *iuser = &crypto->iuser;
+
+  /* Compute the effective frame number of the image if it was animated. */
+  Scene *scene = CTX_data_scene(C);
+  ImageUser image_user_for_frame = crypto->iuser;
+  BKE_image_user_frame_calc(image, &image_user_for_frame, scene->r.cfra);
 
   if (image && image->type == IMA_TYPE_MULTILAYER) {
-    ImBuf *ibuf = BKE_image_acquire_ibuf(image, iuser, nullptr);
+    ImBuf *ibuf = BKE_image_acquire_ibuf(image, &image_user_for_frame, nullptr);
     if (image->rr) {
       LISTBASE_FOREACH (RenderLayer *, render_layer, &image->rr->layers) {
         success = eyedropper_cryptomatte_sample_renderlayer_fl(render_layer, prefix, fpos, r_col);
@@ -427,7 +431,7 @@ static bool eyedropper_cryptomatte_sample_fl(bContext *C,
     return eyedropper_cryptomatte_sample_render_fl(node, prefix, fpos, r_col);
   }
   if (node->custom1 == CMP_NODE_CRYPTOMATTE_SOURCE_IMAGE) {
-    return eyedropper_cryptomatte_sample_image_fl(node, crypto, prefix, fpos, r_col);
+    return eyedropper_cryptomatte_sample_image_fl(C, node, crypto, prefix, fpos, r_col);
   }
   return false;
 }
@@ -493,7 +497,7 @@ bool eyedropper_color_sample_fl(bContext *C,
       WM_window_pixels_read_sample_from_offscreen(C, win, event_xy_win, r_col);
     }
     const char *display_device = CTX_data_scene(C)->display_settings.display_device;
-    ColorManagedDisplay *display = IMB_colormanagement_display_get_named(display_device);
+    const ColorManagedDisplay *display = IMB_colormanagement_display_get_named(display_device);
     IMB_colormanagement_display_to_scene_linear_v3(r_col, display);
     return true;
   }
@@ -656,7 +660,7 @@ static wmOperatorStatus eyedropper_invoke(bContext *C, wmOperator *op, const wmE
   if (eyedropper_init(C, op)) {
     wmWindow *win = CTX_wm_window(C);
     /* Workaround for de-activating the button clearing the cursor, see #76794 */
-    UI_context_active_but_clear(C, win, CTX_wm_region(C));
+    context_active_but_clear(C, win, CTX_wm_region(C));
     WM_cursor_modal_set(win, WM_CURSOR_EYEDROPPER);
 
     /* add temp handler */
@@ -697,7 +701,7 @@ void UI_OT_eyedropper_color(wmOperatorType *ot)
   ot->idname = "UI_OT_eyedropper_color";
   ot->description = "Sample a color from the Blender window to store in a property";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = eyedropper_invoke;
   ot->modal = eyedropper_modal;
   ot->cancel = eyedropper_cancel;
@@ -717,3 +721,5 @@ void UI_OT_eyedropper_color(wmOperatorType *ot)
                         "Path of property to be set with the depth");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
+
+}  // namespace blender::ui

@@ -94,8 +94,6 @@ void DRWViewData::clear(bool free_instance_data)
   if (free_instance_data) {
     foreach_engine([&](DrawEngine::Pointer &ptr) {
       if (ptr.instance) {
-        /* TODO Move where it belongs. */
-        DRW_text_cache_destroy(ptr.instance->text_draw_cache);
         ptr.free_instance();
       }
     });
@@ -126,8 +124,6 @@ void DRW_view_data_free_unused(DRWViewData *view_data)
 {
   view_data->foreach_engine([&](DrawEngine::Pointer &ptr) {
     if (ptr.instance && ptr.instance->used == false) {
-      /* TODO Move where it belongs. */
-      DRW_text_cache_destroy(ptr.instance->text_draw_cache);
       ptr.free_instance();
     }
   });
@@ -137,20 +133,4 @@ draw::Manager *DRW_manager_get()
 {
   BLI_assert(drw_get().view_data_active->manager);
   return drw_get().view_data_active->manager;
-}
-
-void DRW_manager_begin_sync()
-{
-  if (drw_get().view_data_active->manager == nullptr) {
-    return;
-  }
-  drw_get().view_data_active->manager->begin_sync();
-}
-
-void DRW_manager_end_sync()
-{
-  if (drw_get().view_data_active->manager == nullptr) {
-    return;
-  }
-  drw_get().view_data_active->manager->end_sync();
 }

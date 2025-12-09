@@ -17,7 +17,7 @@ set(INC_GLSL
   ../../../../gpu/shaders
   ../../../../gpu/shaders/common
   ../../../../gpu/shaders/infos
-  
+
   ../../gpencil
   ../../gpencil/shaders/infos
 
@@ -74,6 +74,7 @@ set(SRC_GLSL_VERT
   overlay_extra_vert.glsl
   overlay_extra_wire_vert.glsl
   overlay_facing_vert.glsl
+  overlay_fullscreen_vert.glsl
   overlay_grid_vert.glsl
   overlay_image_vert.glsl
   overlay_motion_path_line_vert.glsl

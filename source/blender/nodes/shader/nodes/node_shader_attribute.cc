@@ -6,7 +6,7 @@
 
 #include "node_util.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
@@ -17,22 +17,21 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_output<decl::Color>("Color");
   b.add_output<decl::Vector>("Vector");
-  b.add_output<decl::Float>("Fac");
+  b.add_output<decl::Float>("Factor", "Fac");
   b.add_output<decl::Float>("Alpha");
 }
 
-static void node_shader_buts_attribute(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_shader_buts_attribute(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "attribute_type", UI_ITEM_NONE, "", ICON_NONE);
-  uiItemFullR(layout,
-              ptr,
+  layout.prop(ptr, "attribute_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr,
               RNA_struct_find_property(ptr, "attribute_name"),
               -1,
               0,
               UI_ITEM_NONE,
               "",
               ICON_NONE,
-              "Name");
+              IFACE_("Name"));
 }
 
 static void node_shader_init_attribute(bNodeTree * /*ntree*/, bNode *node)
@@ -92,7 +91,7 @@ NODE_SHADER_MATERIALX_BEGIN
 {
   /* TODO: some outputs expected be implemented within the next iteration
    * (see node-definition `<geompropvalue>`). */
-  return get_output_default(socket_out_->name, NodeItem::Type::Any);
+  return get_output_default(socket_out_->identifier, NodeItem::Type::Any);
 }
 #endif
 NODE_SHADER_MATERIALX_END

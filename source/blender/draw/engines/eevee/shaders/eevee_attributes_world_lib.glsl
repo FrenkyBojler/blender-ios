@@ -4,9 +4,8 @@
 
 #pragma once
 
+#include "eevee_geom_types_lib.glsl"
 #include "gpu_shader_codegen_lib.glsl"
-#include "gpu_shader_math_matrix_lib.glsl"
-#include "gpu_shader_math_vector_lib.glsl"
 
 /* -------------------------------------------------------------------- */
 /** \name World
@@ -14,37 +13,37 @@
  * World has no attributes other than orco.
  * \{ */
 
-vec3 attr_load_orco(vec4 orco)
+float3 attr_load_orco(WorldPoint point, float4 orco, int index)
 {
   return -g_data.N;
 }
-vec4 attr_load_tangent(vec4 tangent)
+float4 attr_load_tangent(WorldPoint point, float4 tangent, int index)
 {
-  return vec4(0);
+  return float4(0);
 }
-vec4 attr_load_vec4(vec4 attr)
+float4 attr_load_float4(WorldPoint point, float4 attr, int index)
 {
-  return vec4(0);
+  return float4(0);
 }
-vec3 attr_load_vec3(vec3 attr)
+float3 attr_load_float3(WorldPoint point, float3 attr, int index)
 {
-  return vec3(0);
+  return float3(0);
 }
-vec2 attr_load_vec2(vec2 attr)
+float2 attr_load_float2(WorldPoint point, float2 attr, int index)
 {
-  return vec2(0);
+  return float2(0);
 }
-float attr_load_float(float attr)
+float attr_load_float(WorldPoint point, float attr, int index)
 {
-  return 0.0;
+  return 0.0f;
 }
-vec4 attr_load_color(vec4 attr)
+float4 attr_load_color(WorldPoint point, float4 attr, int index)
 {
-  return vec4(0);
+  return float4(0);
 }
-vec3 attr_load_uv(vec3 attr)
+float3 attr_load_uv(WorldPoint point, float3 attr, int index)
 {
-  return vec3(0);
+  return float3(0);
 }
 
 /** \} */

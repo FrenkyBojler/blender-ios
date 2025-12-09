@@ -6,7 +6,6 @@
  * \ingroup RNA
  */
 
-#include <climits>
 #include <cstdlib>
 
 #include "DNA_mask_types.h"
@@ -32,9 +31,9 @@
 
 #  include "BLI_math_vector.h"
 
-#  include "BKE_mask.h"
-#  include "BKE_movieclip.h"
-#  include "BKE_tracking.h"
+#  include "BKE_mask.hh"
+#  include "BKE_movieclip.hh"
+#  include "BKE_tracking.hh"
 
 #  include "DEG_depsgraph.hh"
 
@@ -100,14 +99,6 @@ static void rna_Mask_update_parent(Main *bmain, Scene *scene, PointerRNA *ptr)
   }
 
   rna_Mask_update_data(bmain, scene, ptr);
-}
-
-/* NOTE: this function exists only to avoid id reference-counting. */
-static void rna_MaskParent_id_set(PointerRNA *ptr, PointerRNA value, ReportList * /*reports*/)
-{
-  MaskParent *mpar = (MaskParent *)ptr->data;
-
-  mpar->id = static_cast<ID *>(value.data);
 }
 
 static StructRNA *rna_MaskParent_id_typef(PointerRNA *ptr)
@@ -434,7 +425,7 @@ static bool rna_MaskSplinePoint_handle_single_select_get(PointerRNA *ptr)
 {
   MaskSplinePoint *point = (MaskSplinePoint *)ptr->data;
 
-  return MASKPOINT_ISSEL_HANDLE(point, MASK_WHICH_HANDLE_STICK);
+  return BKE_mask_point_is_handle_selected(point, MASK_WHICH_HANDLE_STICK);
 }
 
 static MaskSpline *rna_MaskLayer_spline_new(ID *id, MaskLayer *mask_layer)
@@ -635,10 +626,9 @@ static void rna_def_maskParent(BlenderRNA *brna)
   prop = RNA_def_property(srna, "id", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "ID");
   RNA_def_property_flag(prop, PROP_EDITABLE);
+  RNA_def_property_clear_flag(prop, PROP_ID_REFCOUNT);
   // RNA_def_property_editable_func(prop, "rna_maskSpline_id_editable");
-  /* NOTE: custom set function is ONLY to avoid rna setting a user for this. */
-  RNA_def_property_pointer_funcs(
-      prop, nullptr, "rna_MaskParent_id_set", "rna_MaskParent_id_typef", nullptr);
+  RNA_def_property_pointer_funcs(prop, nullptr, nullptr, "rna_MaskParent_id_typef", nullptr);
   RNA_def_property_ui_text(
       prop, "ID", "ID-block to which masking element would be parented to or to its property");
   RNA_def_property_update(prop, 0, "rna_Mask_update_parent");

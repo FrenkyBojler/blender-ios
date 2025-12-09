@@ -12,7 +12,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
@@ -32,6 +32,7 @@
 
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
+#include "BKE_lib_id.hh"
 #include "BKE_linestyle.h"
 #include "BKE_modifier.hh"
 #include "BKE_node_legacy_types.hh"
@@ -42,7 +43,7 @@
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "ED_node.hh"
@@ -133,6 +134,18 @@ static void buttons_texture_user_node_add(ListBase *users,
   BLI_addtail(users, user);
 }
 
+static void buttons_texture_user_mtex_add(ListBase *users,
+                                          ID *id,
+                                          MTex *mtex,
+                                          const char *category)
+{
+  PointerRNA ptr = RNA_pointer_create_discrete(id, &RNA_TextureSlot, mtex);
+  PropertyRNA *prop = RNA_struct_find_property(&ptr, "texture");
+
+  buttons_texture_user_property_add(
+      users, id, ptr, prop, category, RNA_struct_ui_icon(ptr.type), BKE_id_name(mtex->tex->id));
+}
+
 static void buttons_texture_users_find_nodetree(ListBase *users,
                                                 ID *id,
                                                 bNodeTree *ntree,
@@ -140,13 +153,7 @@ static void buttons_texture_users_find_nodetree(ListBase *users,
 {
   if (ntree) {
     for (bNode *node : ntree->all_nodes()) {
-      if (node->type_legacy == CMP_NODE_TEXTURE) {
-        PointerRNA ptr = RNA_pointer_create_discrete(&ntree->id, &RNA_Node, node);
-        PropertyRNA *prop = RNA_struct_find_property(&ptr, "texture");
-        buttons_texture_user_node_add(
-            users, id, ntree, node, ptr, prop, category, RNA_struct_ui_icon(ptr.type), node->name);
-      }
-      else if (node->typeinfo->nclass == NODE_CLASS_TEXTURE) {
+      if (node->typeinfo->nclass == NODE_CLASS_TEXTURE) {
         PointerRNA ptr = RNA_pointer_create_discrete(&ntree->id, &RNA_Node, node);
         buttons_texture_user_node_add(users,
                                       id,
@@ -253,7 +260,7 @@ static void buttons_texture_users_from_context(ListBase *users,
       ob = (Object *)pinid;
     }
     else if (GS(pinid->name) == ID_BR) {
-      brush = (Brush *)pinid;
+      brush = reinterpret_cast<Brush *>(pinid);
     }
     else if (GS(pinid->name) == ID_LS) {
       linestyle = (FreestyleLineStyle *)pinid;
@@ -279,11 +286,17 @@ static void buttons_texture_users_from_context(ListBase *users,
   /* fill users */
   BLI_listbase_clear(users);
 
-  if (scene && scene->nodetree) {
-    buttons_texture_users_find_nodetree(users, &scene->id, scene->nodetree, N_("Compositor"));
+  if (scene && scene->compositing_node_group) {
+    buttons_texture_users_find_nodetree(
+        users, &scene->id, scene->compositing_node_group, N_("Compositor"));
   }
 
   if (linestyle && !limited_mode) {
+    for (int i = 0; i < MAX_MTEX; i++) {
+      if (linestyle->mtex[i] && linestyle->mtex[i]->tex) {
+        buttons_texture_user_mtex_add(users, &linestyle->id, linestyle->mtex[i], N_("Line Style"));
+      }
+    }
     buttons_texture_users_find_nodetree(
         users, &linestyle->id, linestyle->nodetree, N_("Line Style"));
   }
@@ -468,23 +481,23 @@ static void template_texture_select(bContext *C, void *user_p, void * /*arg*/)
   ct->index = user->index;
 }
 
-static void template_texture_user_menu(bContext *C, uiLayout *layout, void * /*arg*/)
+static void template_texture_user_menu(bContext *C, blender::ui::Layout *layout, void * /*arg*/)
 {
   /* callback when opening texture user selection menu, to create buttons. */
   SpaceProperties *sbuts = CTX_wm_space_properties(C);
   ButsContextTexture *ct = static_cast<ButsContextTexture *>(sbuts->texuser);
-  uiBlock *block = uiLayoutGetBlock(layout);
+  blender::ui::Block *block = layout->block();
   const char *last_category = nullptr;
 
   LISTBASE_FOREACH (ButsTextureUser *, user, &ct->users) {
-    uiBut *but;
+    blender::ui::Button *but;
     char name[UI_MAX_NAME_STR];
 
     /* add label per category */
     if (!last_category || !STREQ(last_category, user->category)) {
-      uiItemL(layout, IFACE_(user->category), ICON_NONE);
+      layout->label(IFACE_(user->category), ICON_NONE);
       but = block->buttons.last().get();
-      but->drawflag = UI_BUT_TEXT_LEFT;
+      but->drawflag = blender::ui::BUT_TEXT_LEFT;
     }
 
     /* create button */
@@ -493,19 +506,18 @@ static void template_texture_user_menu(bContext *C, uiLayout *layout, void * /*a
       Tex *tex = static_cast<Tex *>(texptr.data);
 
       if (tex) {
-        SNPRINTF(name, "  %s - %s", user->name, tex->id.name + 2);
+        SNPRINTF_UTF8(name, "  %s - %s", user->name, tex->id.name + 2);
       }
       else {
-        SNPRINTF(name, "  %s", user->name);
+        SNPRINTF_UTF8(name, "  %s", user->name);
       }
     }
     else {
-      SNPRINTF(name, "  %s", user->name);
+      SNPRINTF_UTF8(name, "  %s", user->name);
     }
 
     but = uiDefIconTextBut(block,
-                           UI_BTYPE_BUT,
-                           0,
+                           blender::ui::ButtonType::But,
                            user->icon,
                            name,
                            0,
@@ -513,29 +525,27 @@ static void template_texture_user_menu(bContext *C, uiLayout *layout, void * /*a
                            UI_UNIT_X * 4,
                            UI_UNIT_Y,
                            nullptr,
-                           0.0,
-                           0.0,
                            "");
-    UI_but_funcN_set(but,
+    button_funcN_set(but,
                      template_texture_select,
                      MEM_new<ButsTextureUser>("ButsTextureUser", *user),
                      nullptr,
-                     but_func_argN_free<ButsTextureUser>,
-                     but_func_argN_copy<ButsTextureUser>);
+                     blender::ui::but_func_argN_free<ButsTextureUser>,
+                     blender::ui::but_func_argN_copy<ButsTextureUser>);
 
     last_category = user->category;
   }
 }
 
-void uiTemplateTextureUser(uiLayout *layout, bContext *C)
+void uiTemplateTextureUser(blender::ui::Layout *layout, bContext *C)
 {
   /* Texture user selection drop-down menu. the available users have been
    * gathered before drawing in #ButsContextTexture, we merely need to
    * display the current item. */
   SpaceProperties *sbuts = CTX_wm_space_properties(C);
   ButsContextTexture *ct = (sbuts) ? static_cast<ButsContextTexture *>(sbuts->texuser) : nullptr;
-  uiBlock *block = uiLayoutGetBlock(layout);
-  uiBut *but;
+  blender::ui::Block *block = layout->block();
+  blender::ui::Button *but;
   ButsTextureUser *user;
   char name[UI_MAX_NAME_STR];
 
@@ -547,12 +557,12 @@ void uiTemplateTextureUser(uiLayout *layout, bContext *C)
   user = ct->user;
 
   if (!user) {
-    uiItemL(layout, TIP_("No textures in context"), ICON_NONE);
+    layout->label(TIP_("No textures in context"), ICON_NONE);
     return;
   }
 
   /* create button */
-  STRNCPY(name, user->name);
+  STRNCPY_UTF8(name, user->name);
 
   if (user->icon) {
     but = uiDefIconTextMenuBut(block,
@@ -572,9 +582,9 @@ void uiTemplateTextureUser(uiLayout *layout, bContext *C)
   }
 
   /* some cosmetic tweaks */
-  UI_but_type_set_menu_from_pulldown(but);
+  button_type_set_menu_from_pulldown(but);
 
-  but->flag &= ~UI_BUT_ICON_SUBMENU;
+  but->flag &= ~blender::ui::BUT_ICON_SUBMENU;
 }
 
 /************************* Texture Show **************************/
@@ -646,7 +656,10 @@ static void template_texture_show(bContext *C, void *data_p, void *prop_p)
   }
 }
 
-void uiTemplateTextureShow(uiLayout *layout, const bContext *C, PointerRNA *ptr, PropertyRNA *prop)
+void uiTemplateTextureShow(blender::ui::Layout *layout,
+                           const bContext *C,
+                           PointerRNA *ptr,
+                           PropertyRNA *prop)
 {
   /* Only show the button if there is actually a texture assigned. */
   Tex *texture = static_cast<Tex *>(RNA_property_pointer_get(ptr, prop).data);
@@ -676,11 +689,10 @@ void uiTemplateTextureShow(uiLayout *layout, const bContext *C, PointerRNA *ptr,
   }
 
   /* Draw button (disabled if we cannot find a Properties Editor to display this in). */
-  uiBlock *block = uiLayoutGetBlock(layout);
-  uiBut *but;
+  blender::ui::Block *block = layout->block();
+  blender::ui::Button *but;
   but = uiDefIconBut(block,
-                     UI_BTYPE_BUT,
-                     0,
+                     blender::ui::ButtonType::But,
                      ICON_PROPERTIES,
                      0,
                      0,
@@ -690,14 +702,14 @@ void uiTemplateTextureShow(uiLayout *layout, const bContext *C, PointerRNA *ptr,
                      0.0,
                      0.0,
                      TIP_("Show texture in texture tab"));
-  UI_but_func_set(but,
+  button_func_set(but,
                   template_texture_show,
                   user_found ? user->ptr.data : nullptr,
                   user_found ? user->prop : nullptr);
   if (ct == nullptr) {
-    UI_but_disable(but, "No (unpinned) Properties Editor found to display texture in");
+    button_disable(but, "No (unpinned) Properties Editor found to display texture in");
   }
   else if (!user_found) {
-    UI_but_disable(but, "No texture user found");
+    button_disable(but, "No texture user found");
   }
 }

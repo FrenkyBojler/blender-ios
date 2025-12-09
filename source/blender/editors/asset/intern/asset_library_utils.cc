@@ -29,18 +29,14 @@ namespace blender::ed::asset {
 static asset_system::AssetCatalog &library_ensure_catalog(
     asset_system::AssetLibrary &library, const asset_system::AssetCatalogPath &path)
 {
-  if (asset_system::AssetCatalog *catalog = library.catalog_service().find_catalog_by_path(path)) {
+  asset_system::AssetCatalogService &catalog_service = library.catalog_service();
+  if (asset_system::AssetCatalog *catalog = catalog_service.find_catalog_by_path(path)) {
     return *catalog;
   }
-  return *library.catalog_service().create_catalog(path);
+  asset_system::AssetCatalog *new_catalog = catalog_service.create_catalog(path);
+  catalog_service.tag_has_unsaved_changes(new_catalog);
+  return *new_catalog;
 }
-
-/* Suppress warning for GCC-14.2. This isn't a dangling reference
- * because the #asset_system::AssetLibrary owns the returned value. */
-#if defined(__GNUC__) && !defined(__clang__)
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wdangling-reference"
-#endif
 
 blender::asset_system::AssetCatalog &library_ensure_catalogs_in_path(
     asset_system::AssetLibrary &library, const blender::asset_system::AssetCatalogPath &path)
@@ -54,10 +50,6 @@ blender::asset_system::AssetCatalog &library_ensure_catalogs_in_path(
   });
   return *library.catalog_service().find_catalog_by_path(path);
 }
-
-#if defined(__GNUC__) && !defined(__clang__)
-#  pragma GCC diagnostic pop
-#endif
 
 AssetLibraryReference user_library_to_library_ref(const bUserAssetLibrary &user_library)
 {

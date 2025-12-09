@@ -127,8 +127,7 @@ static void add_eval_dependencies_from_node_data(const bNodeTree &tree,
   }
 }
 
-static bool has_enabled_nodes_of_type(const bNodeTree &tree,
-                                      const blender::StringRefNull type_idname)
+static bool has_enabled_nodes_of_type(const bNodeTree &tree, const StringRefNull type_idname)
 {
   for (const bNode *node : tree.nodes_by_type(type_idname)) {
     if (!node->is_muted()) {
@@ -173,7 +172,7 @@ static bool needs_scene_render_params(const bNodeTree &ntree)
     if (node->is_muted()) {
       continue;
     }
-    const bNodeSocket &projection_matrix_socket = node->output_by_identifier("Projection Matrix");
+    const bNodeSocket &projection_matrix_socket = *node->output_by_identifier("Projection Matrix");
     if (projection_matrix_socket.is_logically_linked()) {
       return true;
     }

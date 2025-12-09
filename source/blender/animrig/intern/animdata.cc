@@ -20,7 +20,7 @@
 #include "BLT_translation.hh"
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_build.hh"
@@ -182,7 +182,7 @@ static bAction *find_related_action(Main &bmain, ID &id)
 
   for (ID *related_id : related_ids) {
     Action *action = get_action(*related_id);
-    if (action && action->is_action_layered()) {
+    if (action && action->is_action_layered() && BKE_id_is_editable(&bmain, &action->id)) {
       /* Returning the first action found means highest priority has the action closest in the
        * relationship graph. */
       return action;
@@ -213,14 +213,14 @@ bAction *id_action_ensure(Main *bmain, ID *id)
         ID *owner_id = BKE_id_owner_get(id);
         /* If the ID is embedded it should have an owner. */
         BLI_assert(owner_id != nullptr);
-        SNPRINTF(actname, DATA_("%sAction"), owner_id->name + 2);
+        SNPRINTF_UTF8(actname, DATA_("%sAction"), owner_id->name + 2);
       }
       else if (GS(id->name) == ID_KE) {
         Key *key = reinterpret_cast<Key *>(id);
-        SNPRINTF(actname, DATA_("%sAction"), key->from->name + 2);
+        SNPRINTF_UTF8(actname, DATA_("%sAction"), key->from->name + 2);
       }
       else {
-        SNPRINTF(actname, DATA_("%sAction"), id->name + 2);
+        SNPRINTF_UTF8(actname, DATA_("%sAction"), id->name + 2);
       }
 
       /* create action */
@@ -312,7 +312,8 @@ bool animdata_remove_empty_action(AnimData *adt)
   if (adt->action != nullptr) {
     bAction *act = adt->action;
     DEG_id_tag_update(&act->id, ID_RECALC_ANIMATION_NO_FLUSH);
-    if (BLI_listbase_is_empty(&act->curves) && (adt->flag & ADT_NLA_EDIT_ON) == 0) {
+    Action &action = act->wrap();
+    if (action.is_empty() && (adt->flag & ADT_NLA_EDIT_ON) == 0) {
       id_us_min(&act->id);
       adt->action = nullptr;
       return true;

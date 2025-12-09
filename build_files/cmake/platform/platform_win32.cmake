@@ -21,56 +21,50 @@ if(CMAKE_C_COMPILER_ID MATCHES "Clang")
   if(DEFINED MSVC_REDIST_DIR)
     file(TO_CMAKE_PATH ${MSVC_REDIST_DIR} MSVC_REDIST_DIR)
   else()
-    message("Unable to detect the Visual Studio redist directory, copying of the runtime dlls will not work, try running from the visual studio developer prompt.")
-  endif()
-  # 1) CMake has issues detecting openmp support in clang-cl so we have to provide
-  #    the right switches here.
-  # 2) While the /openmp switch *should* work, it currently doesn't as for clang 9.0.0
-  # 3) Using the registry to locate llvmroot doesn't work on some installs. When this happens,
-  #    attempt to locate openmp in the lib directory of the parent of the clang-cl binary
-  if(WITH_OPENMP)
-    set(OPENMP_CUSTOM ON)
-    set(OPENMP_FOUND ON)
-    set(OpenMP_C_FLAGS "/clang:-fopenmp")
-    set(OpenMP_CXX_FLAGS "/clang:-fopenmp")
-    get_filename_component(LLVMBIN ${CMAKE_CXX_COMPILER} DIRECTORY)
-    get_filename_component(LLVMROOT ${LLVMBIN} DIRECTORY)
-    set(CLANG_OPENMP_DLL "${LLVMROOT}/bin/libomp.dll")
-    set(CLANG_OPENMP_LIB "${LLVMROOT}/lib/libomp.lib")
-    if(NOT EXISTS "${CLANG_OPENMP_DLL}")
-      message(FATAL_ERROR "Clang OpenMP library (${CLANG_OPENMP_DLL}) not found.")
-    endif()
-    set(OpenMP_LINKER_FLAGS "\"${CLANG_OPENMP_LIB}\"")
-  endif()
-  if(WITH_WINDOWS_STRIPPED_PDB)
-    message(WARNING "stripped pdb not supported with clang, disabling..")
-    set(WITH_WINDOWS_STRIPPED_PDB OFF)
+    message(WARNING
+      "Unable to detect the Visual Studio redist directory, "
+      "copying of the runtime dlls will not work, "
+      "try running from the visual studio developer prompt."
+    )
   endif()
 else()
   if(WITH_BLENDER)
     if(CMAKE_CXX_COMPILER_VERSION VERSION_LESS 19.28.29921) # MSVC 2019 16.9.16
-      message(FATAL_ERROR "Compiler is unsupported, MSVC 2019 16.9.16 or newer is required for building blender.")
+      message(FATAL_ERROR
+        "Compiler is unsupported, MSVC 2019 16.9.16 or newer is required for building blender."
+      )
     endif()
     if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 19.36.32532 AND # MSVC 2022 17.6.0 has a bad codegen
        CMAKE_CXX_COMPILER_VERSION VERSION_LESS 19.37.32705)             # But it is fixed in 2022 17.7 preview 1
-      message(FATAL_ERROR "Compiler is unsupported, MSVC 2022 17.6.x has codegen issues and cannot be used to build blender. Please upgrade to 17.7 or newer.")
+      message(FATAL_ERROR
+        "Compiler is unsupported, "
+        "MSVC 2022 17.6.x has codegen issues and cannot be used to build blender. "
+        "Please upgrade to 17.7 or newer."
+      )
     endif()
   endif()
 endif()
 
 set(WINDOWS_ARM64_MIN_VSCMD_VER 17.12.3)
 # We have a minimum version of VSCMD for ARM64 (ie, the version the libs were compiled against)
-# This checks for the version on initial run, and caches it, so users do not have to run the VS CMD window every time
+# This checks for the version on initial run, and caches it,
+# so users do not have to run the VS CMD window every time
 if(CMAKE_SYSTEM_PROCESSOR STREQUAL "ARM64")
   set(VC_VSCMD_VER $ENV{VSCMD_VER} CACHE STRING "Version of the VSCMD initially run from")
   mark_as_advanced(VC_VSCMD_VER)
   set(VSCMD_VER ${VC_VSCMD_VER})
   if(DEFINED VSCMD_VER)
     if(VSCMD_VER VERSION_LESS WINDOWS_ARM64_MIN_VSCMD_VER)
-      message(FATAL_ERROR "Windows ARM64 requires VS2022 version ${WINDOWS_ARM64_MIN_VSCMD_VER} or greater - please update your VS2022 install!")
+      message(FATAL_ERROR
+        "Windows ARM64 requires VS2022 version ${WINDOWS_ARM64_MIN_VSCMD_VER} or greater - "
+        "please update your VS2022 install!"
+      )
     endif()
   else()
-    message(FATAL_ERROR "Unable to detect the Visual Studio CMD version, try running from the visual studio developer prompt.")
+    message(FATAL_ERROR
+      "Unable to detect the Visual Studio CMD version, "
+      "try running from the visual studio developer prompt."
+    )
   endif()
 endif()
 
@@ -153,7 +147,6 @@ configure_file(
 # Always detect CRT paths, but only manually install with WITH_WINDOWS_BUNDLE_CRT.
 set(CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS_SKIP TRUE)
 set(CMAKE_INSTALL_UCRT_LIBRARIES TRUE)
-set(CMAKE_INSTALL_OPENMP_LIBRARIES ${WITH_OPENMP})
 include(InstallRequiredSystemLibraries)
 
 if(WITH_WINDOWS_BUNDLE_CRT)
@@ -194,8 +187,8 @@ remove_cc_flag(
 )
 
 if(MSVC_CLANG) # Clangs version of cl doesn't support all flags
-  string(APPEND CMAKE_CXX_FLAGS " ${CXX_WARN_FLAGS} /MP /nologo /J /Gd /showFilenames /EHsc -Wno-unused-command-line-argument -Wno-microsoft-enum-forward-reference /clang:-funsigned-char /clang:-fno-strict-aliasing /clang:-ffp-contract=off")
-  string(APPEND CMAKE_C_FLAGS   " /MP /nologo /J /Gd /showFilenames -Wno-unused-command-line-argument -Wno-microsoft-enum-forward-reference /clang:-funsigned-char /clang:-fno-strict-aliasing /clang:-ffp-contract=off")
+  string(APPEND CMAKE_CXX_FLAGS " ${CXX_WARN_FLAGS} /Gy /MP /nologo /J /Gd /showFilenames /EHsc -Wno-unused-command-line-argument -Wno-microsoft-enum-forward-reference /clang:-funsigned-char /clang:-fno-strict-aliasing /clang:-ffp-contract=off")
+  string(APPEND CMAKE_C_FLAGS   " /MP /nologo /J /Gy /Gd /showFilenames -Wno-unused-command-line-argument -Wno-microsoft-enum-forward-reference /clang:-funsigned-char /clang:-fno-strict-aliasing /clang:-ffp-contract=off")
 else()
   string(APPEND CMAKE_CXX_FLAGS " /nologo /J /Gd /MP /EHsc /bigobj")
   string(APPEND CMAKE_C_FLAGS   " /nologo /J /Gd /MP /bigobj")
@@ -211,12 +204,12 @@ if(WITH_COMPILER_ASAN AND MSVC AND NOT MSVC_CLANG)
     string(APPEND CMAKE_EXE_LINKER_FLAGS_DEBUG " /INCREMENTAL:NO")
     string(APPEND CMAKE_SHARED_LINKER_FLAGS_DEBUG " /INCREMENTAL:NO")
   else()
-    message("-- ASAN not supported on MSVC ${CMAKE_CXX_COMPILER_VERSION}")
+    message(WARNING "ASAN not supported on MSVC ${CMAKE_CXX_COMPILER_VERSION}")
   endif()
 endif()
 
 
-# C++ standards conformace
+# C++ standards conformance
 # /permissive-    : Available from MSVC 15.5 (1912) and up. Enables standards-confirming compiler
 #                   behavior. Required until the project is marked as c++20.
 # /Zc:__cplusplus : Available from MSVC 15.7 (1914) and up. Ensures correct value of the __cplusplus
@@ -229,7 +222,7 @@ if(NOT MSVC_CLANG)
   string(APPEND CMAKE_CXX_FLAGS " /permissive- /Zc:__cplusplus /Zc:inline")
   string(APPEND CMAKE_C_FLAGS   " /Zc:inline")
 
-  # For VS2022+ we can enable the the new preprocessor
+  # For VS2022+ we can enable the new preprocessor
   if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 19.30.30423)
     string(APPEND CMAKE_CXX_FLAGS " /Zc:preprocessor")
     string(APPEND CMAKE_C_FLAGS " /Zc:preprocessor")
@@ -298,8 +291,13 @@ endif()
 string(APPEND PLATFORM_LINKFLAGS " /SUBSYSTEM:CONSOLE /STACK:2097152")
 set(PLATFORM_LINKFLAGS_RELEASE "/NODEFAULTLIB:libcmt.lib /NODEFAULTLIB:libcmtd.lib /NODEFAULTLIB:msvcrtd.lib")
 
-if(NOT WITH_COMPILER_ASAN)
-  # Asan is incompatible with fastlink, it will appear to work, but will not resolve symbols which makes it somewhat useless
+if(
+    (NOT WITH_COMPILER_ASAN) AND
+    # ASAN is incompatible with `fastlink`, it will appear to work,
+    # but will not resolve symbols which makes it somewhat useless.
+    MSVC_VERSION LESS 1950
+    # /debug:fastlink is no longer supported in vs2026
+  )
   string(APPEND PLATFORM_LINKFLAGS_DEBUG "/debug:fastlink ")
 endif()
 string(APPEND PLATFORM_LINKFLAGS_DEBUG " /IGNORE:4099 /NODEFAULTLIB:libcmt.lib /NODEFAULTLIB:msvcrt.lib /NODEFAULTLIB:libcmtd.lib")
@@ -328,10 +326,19 @@ if(NOT DEFINED LIBDIR)
       set(LIBDIR_BASE "windows_x64")
     endif()
   else()
-    message(FATAL_ERROR "32 bit compiler detected, blender no longer provides pre-build libraries for 32 bit windows, please set the LIBDIR cmake variable to your own library folder")
+    message(FATAL_ERROR
+      "32 bit compiler detected, "
+      "blender no longer provides pre-build libraries for 32 bit windows, "
+      "please set the LIBDIR cmake variable to your own library folder"
+    )
   endif()
   if(MSVC_CLANG)
-    message(STATUS "Clang version ${CMAKE_CXX_COMPILER_VERSION} detected, masquerading as MSVC ${MSVC_VERSION}")
+    message(STATUS
+      "Clang version ${CMAKE_CXX_COMPILER_VERSION} detected, masquerading as MSVC ${MSVC_VERSION}"
+    )
+    set(LIBDIR ${CMAKE_SOURCE_DIR}/lib/${LIBDIR_BASE})
+  elseif(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 19.50.0)
+    message(STATUS "Visual Studio 2026 detected.")
     set(LIBDIR ${CMAKE_SOURCE_DIR}/lib/${LIBDIR_BASE})
   elseif(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 19.30.30423)
     message(STATUS "Visual Studio 2022 detected.")
@@ -346,7 +353,10 @@ else()
   endif()
 endif()
 if(NOT EXISTS "${LIBDIR}/.git")
-  message(FATAL_ERROR "\n\nWindows requires pre-compiled libs at: '${LIBDIR}'. Please run `make update` in the blender source folder to obtain them.")
+  message(FATAL_ERROR
+    "\n\nWindows requires pre-compiled libs at: '${LIBDIR}'. "
+    "Please run `make update` in the blender source folder to obtain them."
+  )
 endif()
 
 include(platform_old_libs_update)
@@ -396,7 +406,7 @@ set(ZLIB_INCLUDE_DIR ${LIBDIR}/zlib/include)
 set(ZLIB_LIBRARY ${LIBDIR}/zlib/lib/libz_st.lib)
 set(ZLIB_DIR ${LIBDIR}/zlib)
 
-windows_find_package(ZLIB) # we want to find before finding things that depend on it like png
+windows_find_package(ZLIB) # We want to find before finding things that depend on it like PNG.
 windows_find_package(PNG)
 if(NOT PNG_FOUND)
   warn_hardcoded_paths(libpng)
@@ -466,16 +476,9 @@ if(WITH_FFTW3)
   set(FFTW3_LIBRARIES
     ${FFTW3}/lib/fftw3.lib
     ${FFTW3}/lib/fftw3f.lib
+    ${FFTW3}/lib/fftw3_threads.lib
+    ${FFTW3}/lib/fftw3f_threads.lib
   )
-  if(EXISTS ${FFTW3}/lib/fftw3_threads.lib)
-    list(APPEND FFTW3_LIBRARIES
-      ${FFTW3}/lib/fftw3_threads.lib
-      ${FFTW3}/lib/fftw3f_threads.lib
-    )
-    set(WITH_FFTW3_THREADS_F_SUPPORT ON)
-  else()
-    set(WITH_FFTW3_THREADS_F_SUPPORT OFF)
-  endif()
   set(FFTW3_INCLUDE_DIRS ${FFTW3}/include)
   set(FFTW3_LIBPATH ${FFTW3}/lib)
 endif()
@@ -498,45 +501,6 @@ if(WITH_IMAGE_WEBP)
     )
   endif()
   set(WEBP_FOUND ON)
-endif()
-
-if(WITH_OPENCOLLADA)
-  set(OPENCOLLADA ${LIBDIR}/opencollada)
-
-  set(OPENCOLLADA_INCLUDE_DIRS
-    ${OPENCOLLADA}/include/opencollada/COLLADAStreamWriter
-    ${OPENCOLLADA}/include/opencollada/COLLADABaseUtils
-    ${OPENCOLLADA}/include/opencollada/COLLADAFramework
-    ${OPENCOLLADA}/include/opencollada/COLLADASaxFrameworkLoader
-    ${OPENCOLLADA}/include/opencollada/GeneratedSaxParser
-  )
-
-  set(OPENCOLLADA_LIBRARIES
-    optimized ${OPENCOLLADA}/lib/opencollada/OpenCOLLADASaxFrameworkLoader.lib
-    optimized ${OPENCOLLADA}/lib/opencollada/OpenCOLLADAFramework.lib
-    optimized ${OPENCOLLADA}/lib/opencollada/OpenCOLLADABaseUtils.lib
-    optimized ${OPENCOLLADA}/lib/opencollada/OpenCOLLADAStreamWriter.lib
-    optimized ${OPENCOLLADA}/lib/opencollada/MathMLSolver.lib
-    optimized ${OPENCOLLADA}/lib/opencollada/GeneratedSaxParser.lib
-    optimized ${OPENCOLLADA}/lib/opencollada/buffer.lib
-    optimized ${OPENCOLLADA}/lib/opencollada/ftoa.lib
-
-    debug ${OPENCOLLADA}/lib/opencollada/OpenCOLLADASaxFrameworkLoader_d.lib
-    debug ${OPENCOLLADA}/lib/opencollada/OpenCOLLADAFramework_d.lib
-    debug ${OPENCOLLADA}/lib/opencollada/OpenCOLLADABaseUtils_d.lib
-    debug ${OPENCOLLADA}/lib/opencollada/OpenCOLLADAStreamWriter_d.lib
-    debug ${OPENCOLLADA}/lib/opencollada/MathMLSolver_d.lib
-    debug ${OPENCOLLADA}/lib/opencollada/GeneratedSaxParser_d.lib
-    debug ${OPENCOLLADA}/lib/opencollada/buffer_d.lib
-    debug ${OPENCOLLADA}/lib/opencollada/ftoa_d.lib
-  )
-  if(EXISTS ${LIBDIR}/xml2/lib/libxml2s.lib) # 3.4 libraries
-    list(APPEND OPENCOLLADA_LIBRARIES ${LIBDIR}/xml2/lib/libxml2s.lib)
-  else()
-    list(APPEND OPENCOLLADA_LIBRARIES ${OPENCOLLADA}/lib/opencollada/xml.lib)
-  endif()
-
-  list(APPEND OPENCOLLADA_LIBRARIES ${OPENCOLLADA}/lib/opencollada/UTF.lib)
 endif()
 
 if(WITH_CODEC_FFMPEG)
@@ -638,7 +602,9 @@ if(FALSE)
     set(_PYTHON_VERSION "3.12")
     string(REPLACE "." "" _PYTHON_VERSION_NO_DOTS ${_PYTHON_VERSION})
     if(NOT EXISTS ${LIBDIR}/python/${_PYTHON_VERSION_NO_DOTS})
-      message(FATAL_ERROR "Missing python libraries! Neither 3.12 nor 3.11 are found in ${LIBDIR}/python")
+      message(FATAL_ERROR
+        "Missing python libraries! Neither 3.12 nor 3.11 are found in ${LIBDIR}/python"
+      )
     endif()
   endif()
 endif()
@@ -778,7 +744,9 @@ if(WITH_LLVM)
 
     set(LLVM_LIBRARY ${LLVM_LIBS})
   else()
-    message(WARNING "LLVM debug libs not present on this system. Using release libs for debug builds.")
+    message(WARNING
+      "LLVM debug libs not present on this system. Using release libs for debug builds."
+    )
     set(LLVM_LIBRARY ${LLVM_LIBRARY_OPTIMIZED})
   endif()
 
@@ -877,6 +845,23 @@ if(WITH_OPENIMAGEDENOISE)
   set(OPENIMAGEDENOISE_DEFINITIONS)
 endif()
 
+if(WITH_MANIFOLD)
+  set(MANIFOLD ${LIBDIR}/manifold)
+  if(EXISTS ${MANIFOLD})
+    set(MANIFOLD_INCLUDE_DIR ${MANIFOLD}/include)
+    set(MANIFOLD_INCLUDE_DIRS ${MANIFOLD_INCLUDE_DIR})
+    set(MANIFOLD_LIBDIR ${MANIFOLD}/lib)
+    set(MANIFOLD_LIBRARIES
+      optimized ${MANIFOLD_LIBDIR}/manifold.lib
+      debug ${MANIFOLD_LIBDIR}/manifold_d.lib
+    )
+    set(MANIFOLD_FOUND 1)
+  else()
+    set(WITH_MANIFOLD OFF)
+    message(STATUS "Manifold not found, disabling WITH_MANIFOLD")
+  endif()
+endif()
+
 if(WITH_ALEMBIC)
   set(ALEMBIC ${LIBDIR}/alembic)
   set(ALEMBIC_INCLUDE_DIR ${ALEMBIC}/include)
@@ -915,6 +900,15 @@ if(WITH_OPENSUBDIV)
   endif()
 endif()
 
+if(WITH_RUBBERBAND)
+  set(RUBBERBAND_FOUND TRUE)
+  set(RUBBERBAND_INCLUDE_DIRS ${LIBDIR}/rubberband/include)
+  set(RUBBERBAND_LIBRARIES
+    optimized ${LIBDIR}/rubberband/lib/rubberband-static.lib
+    debug ${LIBDIR}/rubberband/lib/rubberband-static_d.lib
+  )
+endif()
+
 if(WITH_SDL)
   set(SDL ${LIBDIR}/sdl)
   set(SDL_INCLUDE_DIR ${SDL}/include)
@@ -934,7 +928,15 @@ endif()
 
 if(WITH_TBB)
   windows_find_package(TBB)
-  if(NOT TBB_FOUND)
+  if(TBB_FOUND)
+    get_target_property(TBB_LIBRARIES_RELEASE TBB::tbb LOCATION_RELEASE)
+    get_target_property(TBB_LIBRARIES_DEBUG TBB::tbb LOCATION_DEBUG)
+    set(TBB_LIBRARIES
+      optimized ${TBB_LIBRARIES_RELEASE}
+      debug ${TBB_LIBRARIES_DEBUG}
+    )
+    get_target_property(TBB_INCLUDE_DIRS TBB::tbb INTERFACE_INCLUDE_DIRECTORIES)
+  else()
     if(EXISTS ${LIBDIR}/tbb/lib/tbb12.lib) # 4.4
       set(TBB_LIBRARIES
         optimized ${LIBDIR}/tbb/lib/tbb12.lib
@@ -961,7 +963,7 @@ endif()
 # used in many places so include globally, like OpenGL
 include_directories(SYSTEM "${PTHREADS_INCLUDE_DIRS}")
 
-set(WINTAB_INC ${LIBDIR}/wintab/include)
+set(WINTAB_INC ${CMAKE_SOURCE_DIR}/extern/wintab/include)
 
 if(WITH_OPENAL)
   set(OPENAL ${LIBDIR}/openal)
@@ -986,7 +988,8 @@ if(WITH_CODEC_SNDFILE)
   endif()
 endif()
 
-if(WITH_CPU_SIMD AND SUPPORT_NEON_BUILD)
+test_neon_support()
+if(SUPPORTS_NEON_BUILD)
   windows_find_package(sse2neon)
   if(NOT SSE2NEON_FOUND)
     set(SSE2NEON_ROOT_DIR ${LIBDIR}/sse2neon)
@@ -1179,7 +1182,9 @@ if(WINDOWS_PYTHON_DEBUG)
   # If the user scripts env var is set, include scripts from there otherwise
   # include user scripts in the profile folder.
   if(DEFINED ENV{BLENDER_USER_SCRIPTS})
-    message(STATUS "Including user scripts from environment BLENDER_USER_SCRIPTS=$ENV{BLENDER_USER_SCRIPTS}")
+    message(STATUS
+      "Including user scripts from environment BLENDER_USER_SCRIPTS=$ENV{BLENDER_USER_SCRIPTS}"
+    )
     set(USER_SCRIPTS_ROOT "$ENV{BLENDER_USER_SCRIPTS}")
   else()
     message(STATUS "Including user scripts from the profile folder")
@@ -1257,7 +1262,11 @@ if(WITH_HARU)
   set(HARU_FOUND ON)
   set(HARU_ROOT_DIR ${LIBDIR}/haru)
   set(HARU_INCLUDE_DIRS ${HARU_ROOT_DIR}/include)
-  set(HARU_LIBRARIES ${HARU_ROOT_DIR}/lib/libhpdfs.lib)
+  if(EXISTS ${HARU_ROOT_DIR}/lib/hpdf.lib) # blender 5.0+
+    set(HARU_LIBRARIES ${HARU_ROOT_DIR}/lib/hpdf.lib)
+  else()
+    set(HARU_LIBRARIES ${HARU_ROOT_DIR}/lib/libhpdfs.lib)
+  endif()
 endif()
 
 if(WITH_VULKAN_BACKEND)
@@ -1281,8 +1290,7 @@ if(WITH_VULKAN_BACKEND)
     set(SHADERC_INCLUDE_DIR ${SHADERC_ROOT_DIR}/include)
     set(SHADERC_INCLUDE_DIRS ${SHADERC_INCLUDE_DIR})
     set(SHADERC_LIBRARY
-      DEBUG ${SHADERC_ROOT_DIR}/lib/shaderc_shared_d.lib
-      OPTIMIZED ${SHADERC_ROOT_DIR}/lib/shaderc_shared.lib
+      ${SHADERC_ROOT_DIR}/lib/shaderc_shared.lib
     )
     set(SHADERC_LIBRARIES ${SHADERC_LIBRARY})
   else()
@@ -1345,8 +1353,8 @@ if(WITH_CYCLES AND (WITH_CYCLES_DEVICE_ONEAPI OR (WITH_CYCLES_EMBREE AND EMBREE_
   )
 endif()
 
-# Add the msvc directory to the path so when building with ASAN enabled tools such as
-# msgfmt which run before the install phase can find the asan shared libraries.
+# Add the MSVC directory to the path so when building with ASAN enabled tools such as
+# `msgfmt` which run before the install phase can find the asan shared libraries.
 get_filename_component(_msvc_path ${CMAKE_C_COMPILER} DIRECTORY)
 # Environment variables to run precompiled executables that needed libraries.
 list(JOIN PLATFORM_BUNDLED_LIBRARY_DIRS ";" _library_paths)
@@ -1354,6 +1362,8 @@ set(PLATFORM_ENV_BUILD_DIRS "${_msvc_path}\;${LIBDIR}/epoxy/bin\;${LIBDIR}/tbb/b
 set(PLATFORM_ENV_BUILD "PATH=${PLATFORM_ENV_BUILD_DIRS}")
 # Install needs the additional folders from PLATFORM_ENV_BUILD_DIRS as well, as tools like:
 # `idiff` and `abcls` use the release mode dlls.
-set(PLATFORM_ENV_INSTALL "PATH=${CMAKE_INSTALL_PREFIX_WITH_CONFIG}/blender.shared/\;${PLATFORM_ENV_BUILD_DIRS}\;$ENV{PATH}")
+# Escape semicolons, since in cmake they denote elements in a list if surrounded by square brackets
+string(REPLACE ";" "\\;" ESCAPED_PATH "$ENV{PATH}")
+set(PLATFORM_ENV_INSTALL "PATH=${CMAKE_INSTALL_PREFIX_WITH_CONFIG}/blender.shared/\;${PLATFORM_ENV_BUILD_DIRS}\;${ESCAPED_PATH}")
 unset(_library_paths)
 unset(_msvc_path)

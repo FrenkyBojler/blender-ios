@@ -9,10 +9,10 @@
 
 #include "usd.hh"
 #include "usd_hash_types.hh"
+#include "usd_reader_domelight.hh"
 #include "usd_reader_prim.hh"
 
 #include <pxr/usd/usdGeom/imageable.h>
-#include <pxr/usd/usdLux/domeLight.h>
 
 struct Collection;
 struct ImportSettings;
@@ -27,9 +27,9 @@ class USDPointInstancerReader;
  * Map a USD prototype prim path to the list of readers that convert
  * the prototype data.
  */
-using ProtoReaderMap = blender::Map<pxr::SdfPath, blender::Vector<USDPrimReader *>>;
+using ProtoReaderMap = Map<pxr::SdfPath, Vector<USDPrimReader *>>;
 
-using UsdPathSet = blender::Set<pxr::SdfPath>;
+using UsdPathSet = Set<pxr::SdfPath>;
 
 class USDStageReader {
 
@@ -38,15 +38,15 @@ class USDStageReader {
   USDImportParams params_;
   ImportSettings settings_;
 
-  blender::Vector<USDPrimReader *> readers_;
+  Vector<USDPrimReader *> readers_;
 
   /* USD dome lights are converted to a world material,
    * rather than light objects, so are handled differently */
-  blender::Vector<pxr::UsdLuxDomeLight> dome_lights_;
+  Vector<USDDomeLightReader *> dome_light_readers_;
 
   /* USD material prim paths encountered during stage
    * traversal, for importing unused materials. */
-  blender::Vector<pxr::SdfPath> material_paths_;
+  Vector<pxr::SdfPath> material_paths_;
 
   /* Readers for scene-graph instance prototypes. */
   ProtoReaderMap proto_readers_;
@@ -123,14 +123,14 @@ class USDStageReader {
   /** Clear all cached reader collections. */
   void clear_readers();
 
-  const blender::Vector<USDPrimReader *> &readers() const
+  const Vector<USDPrimReader *> &readers() const
   {
     return readers_;
   };
 
-  const blender::Vector<pxr::UsdLuxDomeLight> &dome_lights() const
+  const Vector<USDDomeLightReader *> &dome_light_readers() const
   {
-    return dome_lights_;
+    return dome_light_readers_;
   };
 
   void sort_readers();
@@ -161,7 +161,7 @@ class USDStageReader {
   USDPrimReader *collect_readers(const pxr::UsdPrim &prim,
                                  const UsdPathSet &pruned_prims,
                                  bool defined_prims_only,
-                                 blender::Vector<USDPrimReader *> &r_readers);
+                                 Vector<USDPrimReader *> &r_readers);
 
   /**
    * Returns true if the given prim should be included in the

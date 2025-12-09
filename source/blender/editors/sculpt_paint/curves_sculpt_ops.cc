@@ -4,7 +4,7 @@
 
 #include <algorithm>
 
-#include "BLI_kdtree.h"
+#include "BLI_kdtree.hh"
 #include "BLI_listbase.h"
 #include "BLI_rand.hh"
 #include "BLI_task.hh"
@@ -14,11 +14,13 @@
 #include "BKE_attribute.hh"
 #include "BKE_brush.hh"
 #include "BKE_bvhutils.hh"
+#include "BKE_colortools.hh"
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
+#include "BKE_paint_types.hh"
 
 #include "BLT_translation.hh"
 
@@ -50,6 +52,7 @@
 #include "paint_intern.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "GPU_immediate.hh"
@@ -89,31 +92,31 @@ bool curves_sculpt_poll_view3d(bContext *C)
 float brush_radius_factor(const Brush &brush, const StrokeExtension &stroke_extension)
 {
   if (BKE_brush_use_size_pressure(&brush)) {
-    return stroke_extension.pressure;
+    return BKE_curvemapping_evaluateF(brush.curve_size, 0, stroke_extension.pressure);
   }
   return 1.0f;
 }
 
-float brush_radius_get(const Scene &scene,
+float brush_radius_get(const Paint &paint,
                        const Brush &brush,
                        const StrokeExtension &stroke_extension)
 {
-  return BKE_brush_size_get(&scene, &brush) * brush_radius_factor(brush, stroke_extension);
+  return BKE_brush_radius_get(&paint, &brush) * brush_radius_factor(brush, stroke_extension);
 }
 
 float brush_strength_factor(const Brush &brush, const StrokeExtension &stroke_extension)
 {
   if (BKE_brush_use_alpha_pressure(&brush)) {
-    return stroke_extension.pressure;
+    return BKE_curvemapping_evaluateF(brush.curve_strength, 0, stroke_extension.pressure);
   }
   return 1.0f;
 }
 
-float brush_strength_get(const Scene &scene,
+float brush_strength_get(const Paint &paint,
                          const Brush &brush,
                          const StrokeExtension &stroke_extension)
 {
-  return BKE_brush_alpha_get(&scene, &brush) * brush_strength_factor(brush, stroke_extension);
+  return BKE_brush_alpha_get(&paint, &brush) * brush_strength_factor(brush, stroke_extension);
 }
 
 static std::unique_ptr<CurvesSculptStrokeOperation> start_brush_operation(
@@ -124,7 +127,12 @@ static std::unique_ptr<CurvesSculptStrokeOperation> start_brush_operation(
   const Scene &scene = *CTX_data_scene(&C);
   const CurvesSculpt &curves_sculpt = *scene.toolsettings->curves_sculpt;
   const Brush &brush = *BKE_paint_brush_for_read(&curves_sculpt.paint);
-  switch (brush.curves_sculpt_brush_type) {
+  const eBrushCurvesSculptType brush_type = (mode == BRUSH_STROKE_SMOOTH) ?
+                                                CURVES_SCULPT_BRUSH_TYPE_SMOOTH :
+                                                eBrushCurvesSculptType(
+                                                    brush.curves_sculpt_brush_type);
+
+  switch (brush_type) {
     case CURVES_SCULPT_BRUSH_TYPE_COMB:
       return new_comb_operation();
     case CURVES_SCULPT_BRUSH_TYPE_DELETE:
@@ -201,9 +209,9 @@ static void stroke_update_step(bContext *C,
   }
 }
 
-static void stroke_done(const bContext *C, PaintStroke *stroke)
+static void stroke_done(const bContext *C, PaintStroke *stroke, const bool is_cancel)
 {
-  UNUSED_VARS(C, stroke);
+  UNUSED_VARS(C, stroke, is_cancel);
 }
 
 static wmOperatorStatus sculpt_curves_stroke_invoke(bContext *C,
@@ -223,6 +231,7 @@ static wmOperatorStatus sculpt_curves_stroke_invoke(bContext *C,
                                      stroke_get_location,
                                      stroke_test_start,
                                      stroke_update_step,
+                                     nullptr,
                                      nullptr,
                                      stroke_done,
                                      event->type);
@@ -303,12 +312,8 @@ static void curves_sculptmode_enter(bContext *C)
 
   BKE_paint_brushes_ensure(CTX_data_main(C), paint);
 
-  /* Setup cursor color. BKE_paint_init() could be used, but creates an additional brush. */
-  copy_v3_v3_uchar(paint->paint_cursor_col, PAINT_CURSOR_SCULPT_CURVES);
-  paint->paint_cursor_col[3] = 128;
-
   ED_paint_cursor_start(&curves_sculpt->paint, curves_sculpt_poll_view3d);
-  paint_init_pivot(ob, scene);
+  paint_init_pivot(ob, scene, paint);
 
   /* Necessary to change the object mode on the evaluated object. */
   DEG_id_tag_update(&ob->id, ID_RECALC_SYNC_TO_EVAL);
@@ -467,17 +472,17 @@ static wmOperatorStatus select_random_exec(bContext *C, wmOperator *op)
 
 static void select_random_ui(bContext * /*C*/, wmOperator *op)
 {
-  uiLayout *layout = op->layout;
+  ui::Layout &layout = *op->layout;
 
-  uiItemR(layout, op->ptr, "seed", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(layout, op->ptr, "constant_per_curve", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(layout, op->ptr, "partial", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "seed", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "constant_per_curve", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout.prop(op->ptr, "partial", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   if (RNA_boolean_get(op->ptr, "partial")) {
-    uiItemR(layout, op->ptr, "min", UI_ITEM_R_SLIDER, IFACE_("Min"), ICON_NONE);
+    layout.prop(op->ptr, "min", ui::ITEM_R_SLIDER, IFACE_("Min"), ICON_NONE);
   }
   else {
-    uiItemR(layout, op->ptr, "probability", UI_ITEM_R_SLIDER, IFACE_("Probability"), ICON_NONE);
+    layout.prop(op->ptr, "probability", ui::ITEM_R_SLIDER, IFACE_("Probability"), ICON_NONE);
   }
 }
 
@@ -649,13 +654,13 @@ static void select_grow_invoke_per_curve(const Curves &curves_id,
       1024 < curve_op_data.selected_points.size() + curve_op_data.unselected_points.size(),
       [&]() {
         /* Build KD-tree for the selected points. */
-        KDTree_3d *kdtree = BLI_kdtree_3d_new(curve_op_data.selected_points.size());
-        BLI_SCOPED_DEFER([&]() { BLI_kdtree_3d_free(kdtree); });
+        KDTree_3d *kdtree = kdtree_3d_new(curve_op_data.selected_points.size());
+        BLI_SCOPED_DEFER([&]() { kdtree_3d_free(kdtree); });
         curve_op_data.selected_points.foreach_index([&](const int point_i) {
           const float3 &position = positions[point_i];
-          BLI_kdtree_3d_insert(kdtree, point_i, position);
+          kdtree_3d_insert(kdtree, point_i, position);
         });
-        BLI_kdtree_3d_balance(kdtree);
+        kdtree_3d_balance(kdtree);
 
         /* For each unselected point, compute the distance to the closest selected point. */
         curve_op_data.distances_to_selected.reinitialize(curve_op_data.unselected_points.size());
@@ -665,20 +670,20 @@ static void select_grow_invoke_per_curve(const Curves &curves_id,
                 const int point_i = curve_op_data.unselected_points[i];
                 const float3 &position = positions[point_i];
                 KDTreeNearest_3d nearest;
-                BLI_kdtree_3d_find_nearest(kdtree, position, &nearest);
+                kdtree_3d_find_nearest(kdtree, position, &nearest);
                 curve_op_data.distances_to_selected[i] = nearest.dist;
               }
             });
       },
       [&]() {
         /* Build KD-tree for the unselected points. */
-        KDTree_3d *kdtree = BLI_kdtree_3d_new(curve_op_data.unselected_points.size());
-        BLI_SCOPED_DEFER([&]() { BLI_kdtree_3d_free(kdtree); });
+        KDTree_3d *kdtree = kdtree_3d_new(curve_op_data.unselected_points.size());
+        BLI_SCOPED_DEFER([&]() { kdtree_3d_free(kdtree); });
         curve_op_data.unselected_points.foreach_index([&](const int point_i) {
           const float3 &position = positions[point_i];
-          BLI_kdtree_3d_insert(kdtree, point_i, position);
+          kdtree_3d_insert(kdtree, point_i, position);
         });
-        BLI_kdtree_3d_balance(kdtree);
+        kdtree_3d_balance(kdtree);
 
         /* For each selected point, compute the distance to the closest unselected point. */
         curve_op_data.distances_to_unselected.reinitialize(curve_op_data.selected_points.size());
@@ -688,7 +693,7 @@ static void select_grow_invoke_per_curve(const Curves &curves_id,
                 const int point_i = curve_op_data.selected_points[i];
                 const float3 &position = positions[point_i];
                 KDTreeNearest_3d nearest;
-                BLI_kdtree_3d_find_nearest(kdtree, position, &nearest);
+                kdtree_3d_find_nearest(kdtree, position, &nearest);
                 curve_op_data.distances_to_unselected[i] = nearest.dist;
               }
             });
@@ -783,8 +788,8 @@ static wmOperatorStatus select_grow_modal(bContext *C, wmOperator *op, const wmE
           attributes.add(
               ".selection",
               bke::AttrDomain(curves_id.selection_domain),
-              bke::cpp_type_to_custom_data_type(curve_op_data->original_selection.type()),
-              bke::AttributeInitVArray(GVArray::ForSpan(curve_op_data->original_selection)));
+              bke::cpp_type_to_attribute_type(curve_op_data->original_selection.type()),
+              bke::AttributeInitVArray(GVArray::from_span(curve_op_data->original_selection)));
         }
 
         /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a generic
@@ -794,6 +799,9 @@ static wmOperatorStatus select_grow_modal(bContext *C, wmOperator *op, const wmE
       }
       MEM_delete(&op_data);
       return OPERATOR_CANCELLED;
+    }
+    default: {
+      break;
     }
   }
   return OPERATOR_RUNNING_MODAL;
@@ -867,11 +875,11 @@ struct MinDistanceEditData {
 
 static int calculate_points_per_side(bContext *C, MinDistanceEditData &op_data)
 {
-  Scene *scene = CTX_data_scene(C);
+  Paint *paint = BKE_paint_get_active_from_context(C);
   ARegion *region = op_data.region;
 
   const float min_distance = op_data.brush->curves_sculpt_settings->minimum_distance;
-  const float brush_radius = BKE_brush_size_get(scene, op_data.brush);
+  const float brush_radius = BKE_brush_radius_get(paint, op_data.brush);
 
   float3 tangent_x_cu = math::cross(op_data.normal_cu, float3{0, 0, 1});
   if (math::is_zero(tangent_x_cu)) {
@@ -909,9 +917,12 @@ static int calculate_points_per_side(bContext *C, MinDistanceEditData &op_data)
   return std::min(300, needed_points);
 }
 
-static void min_distance_edit_draw(bContext *C, int /*x*/, int /*y*/, void *customdata)
+static void min_distance_edit_draw(bContext *C,
+                                   const blender::int2 & /*xy*/,
+                                   const blender::float2 & /*tilt*/,
+                                   void *customdata)
 {
-  Scene *scene = CTX_data_scene(C);
+  Paint *paint = BKE_paint_get_active_from_context(C);
   MinDistanceEditData &op_data = *static_cast<MinDistanceEditData *>(customdata);
 
   const float min_distance = op_data.brush->curves_sculpt_settings->minimum_distance;
@@ -941,7 +952,7 @@ static void min_distance_edit_draw(bContext *C, int /*x*/, int /*y*/, void *cust
 
   float4 circle_col = float4(op_data.brush->add_col);
   float circle_alpha = op_data.brush->cursor_overlay_alpha;
-  float brush_radius_re = BKE_brush_size_get(scene, op_data.brush);
+  float brush_radius_re = BKE_brush_radius_get(paint, op_data.brush);
 
   /* Draw the grid. */
   GPU_matrix_push();
@@ -959,9 +970,12 @@ static void min_distance_edit_draw(bContext *C, int /*x*/, int /*y*/, void *cust
 
   GPUVertFormat *format3d = immVertexFormat();
 
-  const uint pos3d = GPU_vertformat_attr_add(format3d, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
-  const uint col3d = GPU_vertformat_attr_add(format3d, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
-  const uint siz3d = GPU_vertformat_attr_add(format3d, "size", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
+  const uint pos3d = GPU_vertformat_attr_add(
+      format3d, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
+  const uint col3d = GPU_vertformat_attr_add(
+      format3d, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
+  const uint siz3d = GPU_vertformat_attr_add(
+      format3d, "size", blender::gpu::VertAttrType::SFLOAT_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_POINT_VARYING_SIZE_VARYING_COLOR);
   GPU_program_point_size(true);
@@ -1003,7 +1017,7 @@ static void min_distance_edit_draw(bContext *C, int /*x*/, int /*y*/, void *cust
   GPU_matrix_translate_2f(float(op_data.initial_mouse.x), float(op_data.initial_mouse.y));
 
   GPUVertFormat *format = immVertexFormat();
-  uint pos2d = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos2d = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
@@ -1024,7 +1038,7 @@ static wmOperatorStatus min_distance_edit_invoke(bContext *C, wmOperator *op, co
   Object &curves_ob_orig = *CTX_data_active_object(C);
   Curves &curves_id_orig = *static_cast<Curves *>(curves_ob_orig.data);
   Object &surface_ob_orig = *curves_id_orig.surface;
-  Object *surface_ob_eval = DEG_get_evaluated_object(depsgraph, &surface_ob_orig);
+  Object *surface_ob_eval = DEG_get_evaluated(depsgraph, &surface_ob_orig);
   if (surface_ob_eval == nullptr) {
     return OPERATOR_CANCELLED;
   }
@@ -1086,8 +1100,8 @@ static wmOperatorStatus min_distance_edit_invoke(bContext *C, wmOperator *op, co
 
   /* Temporarily disable other paint cursors. */
   wmWindowManager *wm = CTX_wm_manager(C);
-  op_data->orig_paintcursors = wm->paintcursors;
-  BLI_listbase_clear(&wm->paintcursors);
+  op_data->orig_paintcursors = wm->runtime->paintcursors;
+  BLI_listbase_clear(&wm->runtime->paintcursors);
 
   /* Add minimum distance paint cursor. */
   op_data->cursor = WM_paint_cursor_activate(
@@ -1112,7 +1126,7 @@ static wmOperatorStatus min_distance_edit_modal(bContext *C, wmOperator *op, con
     /* Remove cursor. */
     WM_paint_cursor_end(static_cast<wmPaintCursor *>(op_data.cursor));
     /* Restore original paint cursors. */
-    wm->paintcursors = op_data.orig_paintcursors;
+    wm->runtime->paintcursors = op_data.orig_paintcursors;
 
     ED_region_tag_redraw(region);
     MEM_delete(&op_data);
@@ -1146,6 +1160,9 @@ static wmOperatorStatus min_distance_edit_modal(bContext *C, wmOperator *op, con
       finish();
       WM_main_add_notifier(NC_SCENE | ND_TOOLSETTINGS, nullptr);
       return OPERATOR_CANCELLED;
+    }
+    default: {
+      break;
     }
   }
 

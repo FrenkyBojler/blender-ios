@@ -6,6 +6,13 @@
  * \ingroup imbuf
  */
 
+#ifdef _MSC_VER
+/* This needs to be included first to prevent ffmpegs headers adding defines for various math
+ * constants leading to duplicate definitions. */
+#  define _USE_MATH_DEFINES
+#  include <cmath>
+#endif
+
 #include "movie_util.hh"
 #include "movie_write.hh"
 
@@ -22,11 +29,14 @@
 #  include "DNA_scene_types.h"
 
 #  include "BLI_string.h"
-#  include "BLI_threads.h"
 #  include "BLI_utildefines.h"
 
 #  include "BKE_report.hh"
-#  include "BKE_sound.h"
+#  include "BKE_sound.hh"
+
+#  include "CLG_log.h"
+
+static CLG_LogRef LOG = {"video.write"};
 
 /* If any of these codecs, we prefer the float sample format (if supported) */
 static bool request_float_audio_buffer(int codec_id)
@@ -91,7 +101,7 @@ static int write_audio_frame(MovieWriter *context)
   if (ret < 0) {
     /* Can't send frame to encoder. This shouldn't happen. */
     av_make_error_string(error_str, AV_ERROR_MAX_STRING_SIZE, ret);
-    fprintf(stderr, "Can't send audio frame: %s\n", error_str);
+    CLOG_ERROR(&LOG, "Can't send audio frame: %s", error_str);
     success = -1;
   }
 
@@ -105,7 +115,7 @@ static int write_audio_frame(MovieWriter *context)
     }
     if (ret < 0) {
       av_make_error_string(error_str, AV_ERROR_MAX_STRING_SIZE, ret);
-      fprintf(stderr, "Error encoding audio frame: %s\n", error_str);
+      CLOG_ERROR(&LOG, "Error encoding audio frame: %s", error_str);
       success = -1;
     }
 
@@ -120,7 +130,7 @@ static int write_audio_frame(MovieWriter *context)
     int write_ret = av_interleaved_write_frame(context->outfile, pkt);
     if (write_ret != 0) {
       av_make_error_string(error_str, AV_ERROR_MAX_STRING_SIZE, ret);
-      fprintf(stderr, "Error writing audio packet: %s\n", error_str);
+      CLOG_ERROR(&LOG, "Error writing audio packet: %s", error_str);
       success = -1;
       break;
     }
@@ -180,7 +190,7 @@ bool movie_audio_open(MovieWriter *context,
     }
   }
 #  else
-  UNUSED_VARS(context, scene, start_frame, mixrate, volume);
+  UNUSED_VARS(context, scene, start_frame, mixrate, volume, reports);
 #  endif
   return success;
 }
@@ -205,7 +215,8 @@ AVStream *alloc_audio_stream(MovieWriter *context,
                              AVCodecID codec_id,
                              AVFormatContext *of,
                              char *error,
-                             int error_size)
+                             int error_size,
+                             ReportList *reports)
 {
   AVStream *st;
   const AVCodec *codec;
@@ -220,39 +231,111 @@ AVStream *alloc_audio_stream(MovieWriter *context,
 
   codec = avcodec_find_encoder(codec_id);
   if (!codec) {
-    fprintf(stderr, "Couldn't find valid audio codec\n");
+    CLOG_ERROR(&LOG, "Couldn't find valid audio codec");
     context->audio_codec = nullptr;
     return nullptr;
   }
 
+  int channel_layout_mask = 0;
+  int channel_count = 0;
+  switch (audio_channels) {
+    case FFM_CHANNELS_MONO:
+      channel_layout_mask = AV_CH_LAYOUT_MONO;
+      channel_count = 1;
+      break;
+    case FFM_CHANNELS_STEREO:
+      channel_layout_mask = AV_CH_LAYOUT_STEREO;
+      channel_count = 2;
+      break;
+    case FFM_CHANNELS_SURROUND4:
+      channel_layout_mask = AV_CH_LAYOUT_QUAD;
+      channel_count = 4;
+      break;
+    case FFM_CHANNELS_SURROUND51:
+      channel_layout_mask = AV_CH_LAYOUT_5POINT1_BACK;
+      channel_count = 6;
+      break;
+    case FFM_CHANNELS_SURROUND71:
+      channel_layout_mask = AV_CH_LAYOUT_7POINT1;
+      channel_count = 8;
+      break;
+    default:
+      BLI_assert(false);
+      break;
+  }
+
+  /* Clamp audio bitrate and report info if bitrate is set higher than the maximum bitrate of the
+   * codec. */
+  switch (codec_id) {
+    case AV_CODEC_ID_MP2:
+      if (context->ffmpeg_audio_bitrate > 384) {
+        context->ffmpeg_audio_bitrate = 384;
+        BKE_report(reports,
+                   RPT_INFO,
+                   "The audio is rendered with a bitrate of 384kbit/s, the maximum bitrate MP2 "
+                   "supports.");
+      }
+      break;
+    case AV_CODEC_ID_MP3:
+      if (context->ffmpeg_audio_bitrate > 320) {
+        context->ffmpeg_audio_bitrate = 320;
+        BKE_report(reports,
+                   RPT_INFO,
+                   "The audio is rendered with a bitrate of 320kbit/s, the maximum bitrate MP3 "
+                   "supports.");
+      }
+      break;
+    case AV_CODEC_ID_AAC:
+      if (context->ffmpeg_audio_bitrate > 250 * channel_count) {
+        /* AAC doesn't specify a maximum bitrate. Instead, the maximum bitrate is dependent on the
+         * encoder used. Clamping of the bitrate is therefore left to the encoder. */
+        BKE_report(
+            reports,
+            RPT_INFO,
+            "The audio is rendered with a bitrate of roughly 250kbit/s per channel, the maximum "
+            "bitrate AAC supports.");
+      }
+      break;
+    case AV_CODEC_ID_AC3:
+      if (context->ffmpeg_audio_bitrate > 640) {
+        context->ffmpeg_audio_bitrate = 640;
+        BKE_report(reports,
+                   RPT_INFO,
+                   "The audio is rendered with a bitrate of 640kbit/s, the maximum bitrate AC3 "
+                   "supports.");
+      }
+      break;
+    case AV_CODEC_ID_OPUS:
+      if (context->ffmpeg_audio_bitrate > 256 * channel_count) {
+        context->ffmpeg_audio_bitrate = 256 * channel_count;
+        BKE_report(reports,
+                   RPT_INFO,
+                   "The audio is rendered with a bitrate of 256kbit/s per channel, the maximum "
+                   "bitrate Opus supports.");
+      }
+      break;
+    case AV_CODEC_ID_VORBIS:
+      if (context->ffmpeg_audio_bitrate > 240 * channel_count) {
+        context->ffmpeg_audio_bitrate = 240 * channel_count;
+        BKE_report(reports,
+                   RPT_INFO,
+                   "The audio is rendered with a bitrate of 240kbit/s per channel, the maximum "
+                   "bitrate Vorbis supports.");
+      }
+      break;
+    default:
+      /* Default case for suppressing compiler warnings. */
+      break;
+  }
+
   context->audio_codec = avcodec_alloc_context3(codec);
   AVCodecContext *c = context->audio_codec;
-  c->thread_count = BLI_system_thread_count();
+  c->thread_count = MOV_thread_count();
   c->thread_type = FF_THREAD_SLICE;
 
   c->sample_rate = audio_mixrate;
   c->bit_rate = context->ffmpeg_audio_bitrate * 1000;
   c->sample_fmt = AV_SAMPLE_FMT_S16;
-
-  int channel_layout_mask = 0;
-  switch (audio_channels) {
-    case FFM_CHANNELS_MONO:
-      channel_layout_mask = AV_CH_LAYOUT_MONO;
-      break;
-    case FFM_CHANNELS_STEREO:
-      channel_layout_mask = AV_CH_LAYOUT_STEREO;
-      break;
-    case FFM_CHANNELS_SURROUND4:
-      channel_layout_mask = AV_CH_LAYOUT_QUAD;
-      break;
-    case FFM_CHANNELS_SURROUND51:
-      channel_layout_mask = AV_CH_LAYOUT_5POINT1_BACK;
-      break;
-    case FFM_CHANNELS_SURROUND71:
-      channel_layout_mask = AV_CH_LAYOUT_7POINT1;
-      break;
-  }
-  BLI_assert(channel_layout_mask != 0);
 
 #  ifdef FFMPEG_USE_OLD_CHANNEL_VARS
   c->channels = audio_channels;
@@ -267,13 +350,14 @@ AVStream *alloc_audio_stream(MovieWriter *context,
     c->sample_fmt = AV_SAMPLE_FMT_FLT;
   }
 
-  if (codec->sample_fmts) {
+  const enum AVSampleFormat *sample_fmts = ffmpeg_get_sample_fmts(c, codec);
+  if (sample_fmts) {
     /* Check if the preferred sample format for this codec is supported.
      * this is because, depending on the version of LIBAV,
      * and with the whole FFMPEG/LIBAV fork situation,
      * you have various implementations around.
      * Float samples in particular are not always supported. */
-    const enum AVSampleFormat *p = codec->sample_fmts;
+    const enum AVSampleFormat *p = sample_fmts;
     for (; *p != -1; p++) {
       if (*p == c->sample_fmt) {
         break;
@@ -281,12 +365,13 @@ AVStream *alloc_audio_stream(MovieWriter *context,
     }
     if (*p == -1) {
       /* sample format incompatible with codec. Defaulting to a format known to work */
-      c->sample_fmt = codec->sample_fmts[0];
+      c->sample_fmt = sample_fmts[0];
     }
   }
 
-  if (codec->supported_samplerates) {
-    const int *p = codec->supported_samplerates;
+  const int *supported_samplerates = ffmpeg_get_sample_rates(c, codec);
+  if (supported_samplerates) {
+    const int *p = supported_samplerates;
     int best = 0;
     int best_dist = INT_MAX;
     for (; *p; p++) {
@@ -309,7 +394,7 @@ AVStream *alloc_audio_stream(MovieWriter *context,
   if (ret < 0) {
     char error_str[AV_ERROR_MAX_STRING_SIZE];
     av_make_error_string(error_str, AV_ERROR_MAX_STRING_SIZE, ret);
-    fprintf(stderr, "Couldn't initialize audio codec: %s\n", error_str);
+    CLOG_ERROR(&LOG, "Couldn't initialize audio codec: %s", error_str);
     BLI_strncpy(error, ffmpeg_last_error(), error_size);
     avcodec_free_context(&c);
     context->audio_codec = nullptr;
@@ -321,12 +406,12 @@ AVStream *alloc_audio_stream(MovieWriter *context,
   c->time_base.num = 1;
   c->time_base.den = c->sample_rate;
 
-  if (c->frame_size == 0) {
-    /* Used to be if ((c->codec_id >= CODEC_ID_PCM_S16LE) && (c->codec_id <= CODEC_ID_PCM_DVD))
-     * not sure if that is needed anymore, so let's try out if there are any
-     * complaints regarding some FFMPEG versions users might have. */
-    context->audio_input_samples = AV_INPUT_BUFFER_MIN_SIZE * 8 / c->bits_per_coded_sample /
-                                   audio_channels;
+  if (c->codec->capabilities & AV_CODEC_CAP_VARIABLE_FRAME_SIZE) {
+    /* If the audio format has a variable frame size, default to 1024.
+     * This is because we won't try to encode any variable frame size.
+     * 1024 seems to be a good compromize between size and speed.
+     */
+    context->audio_input_samples = 1024;
   }
   else {
     context->audio_input_samples = c->frame_size;

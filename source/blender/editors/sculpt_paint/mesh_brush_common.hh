@@ -82,9 +82,6 @@ void translations_from_new_positions(Span<float3> new_positions,
                                      Span<float3> old_positions,
                                      MutableSpan<float3> translations);
 
-void transform_positions(Span<float3> src, const float4x4 &transform, MutableSpan<float3> dst);
-void transform_positions(const float4x4 &transform, MutableSpan<float3> positions);
-
 /** Gather data from an array aligned with all geometry vertices. */
 template<typename T> void gather_data_mesh(Span<T> src, Span<int> indices, MutableSpan<T> dst);
 template<typename T>
@@ -323,17 +320,10 @@ void filter_distances_with_radius(float radius, Span<float> distances, MutableSp
  * Calculate distances based on a "square" brush tip falloff and ignore vertices that are too far
  * away.
  */
+template<typename T>
 void calc_brush_cube_distances(const Brush &brush,
-                               const float4x4 &mat,
-                               Span<float3> positions,
-                               Span<int> verts,
-                               MutableSpan<float> r_distances,
-                               MutableSpan<float> factors);
-void calc_brush_cube_distances(const Brush &brush,
-                               const float4x4 &mat,
-                               Span<float3> positions,
-                               MutableSpan<float> r_distances,
-                               MutableSpan<float> factors);
+                               const Span<T> positions,
+                               const MutableSpan<float> r_distances);
 
 /**
  * Scale the distances based on the brush radius and the cached "hardness" setting, which increases
@@ -461,6 +451,7 @@ GroupedSpan<int> calc_vert_neighbors_interior(OffsetIndices<int> faces,
                                               Span<int> corner_verts,
                                               GroupedSpan<int> vert_to_face,
                                               BitSpan boundary_verts,
+                                              const Set<OrderedEdge> &boundary_edges,
                                               Span<bool> hide_poly,
                                               Span<int> verts,
                                               Vector<int> &r_offset_data,
@@ -469,6 +460,7 @@ GroupedSpan<int> calc_vert_neighbors_interior(OffsetIndices<int> faces,
                                               Span<int> corner_verts,
                                               GroupedSpan<int> vert_to_face,
                                               BitSpan boundary_verts,
+                                              const Set<OrderedEdge> &boundary_edges,
                                               Span<bool> hide_poly,
                                               Span<int> verts,
                                               Span<float> factors,
@@ -477,6 +469,7 @@ GroupedSpan<int> calc_vert_neighbors_interior(OffsetIndices<int> faces,
 void calc_vert_neighbors_interior(OffsetIndices<int> faces,
                                   Span<int> corner_verts,
                                   BitSpan boundary_verts,
+                                  const Set<OrderedEdge> &boundary_edges,
                                   const SubdivCCG &subdiv_ccg,
                                   Span<int> grids,
                                   MutableSpan<Vector<SubdivCCGCoord>> result);

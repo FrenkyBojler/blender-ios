@@ -25,6 +25,7 @@ extern "C" {
 #  include <libavutil/buffer.h>
 #  include <libavutil/channel_layout.h>
 #  include <libavutil/imgutils.h>
+#  include <libavutil/mastering_display_metadata.h>
 #  include <libavutil/opt.h>
 #  include <libavutil/rational.h>
 #  include <libavutil/samplefmt.h>
@@ -54,6 +55,7 @@ struct MovieWriter {
 
   int ffmpeg_crf = 0; /* set to 0 to not use CRF mode; we have another flag for lossless anyway. */
   int ffmpeg_preset = 0; /* see eFFMpegPreset */
+  int ffmpeg_profile = 0;
 
   AVFormatContext *outfile = nullptr;
   AVCodecContext *video_codec = nullptr;
@@ -96,7 +98,8 @@ AVStream *alloc_audio_stream(MovieWriter *context,
                              AVCodecID codec_id,
                              AVFormatContext *of,
                              char *error,
-                             int error_size);
+                             int error_size,
+                             ReportList *reports);
 void write_audio_frames(MovieWriter *context, double to_pts);
 
 #endif /* WITH_FFMPEG */

@@ -116,12 +116,12 @@ void ED_spacetypes_init()
   ED_operatortypes_io();
   ED_operatortypes_edutils();
 
-  ED_operatortypes_view2d();
-  ED_operatortypes_ui();
+  blender::ui::ED_operatortypes_view2d();
+  blender::ui::operatortypes_ui();
 
   ED_screen_user_menu_register();
 
-  ED_uilisttypes_ui();
+  blender::ui::uilisttypes_ui();
 
   /* Gizmo types. */
   ED_gizmotypes_button_2d();
@@ -172,7 +172,7 @@ void ED_spacemacros_init()
   ED_operatormacros_nla();
 
   /* Register dropboxes (can use macros). */
-  ED_dropboxes_ui();
+  blender::ui::dropboxes_ui();
   for (const std::unique_ptr<SpaceType> &type : BKE_spacetypes_list()) {
     if (type->dropboxes) {
       type->dropboxes();
@@ -203,8 +203,8 @@ void ED_spacetypes_keymap(wmKeyConfig *keyconf)
   ED_keymap_marker(keyconf);
   sculpt_paint::keymap_sculpt(keyconf);
 
-  ED_keymap_view2d(keyconf);
-  ED_keymap_ui(keyconf);
+  blender::ui::ED_keymap_view2d(keyconf);
+  blender::ui::keymap_ui(keyconf);
 
   transform::keymap_transform(keyconf);
 
@@ -263,9 +263,6 @@ static void ed_region_draw_cb_draw(const bContext *C, ARegion *region, ARegionTy
   LISTBASE_FOREACH_MUTABLE (RegionDrawCB *, rdc, &art->drawcalls) {
     if (rdc->type == type) {
       rdc->draw(C, region, rdc->customdata);
-
-      /* This is needed until we get rid of BGL which can change the states we are tracking. */
-      GPU_bgl_end();
     }
   }
 }

@@ -24,7 +24,6 @@
 #include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
-#include "BLI_endian_switch.h"
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
 #include "BLI_math_color.h"
@@ -69,13 +68,14 @@
 
 #include "ANIM_action.hh"
 #include "ANIM_action_legacy.hh"
+#include "ANIM_armature.hh"
 #include "ANIM_bone_collections.hh"
 #include "ANIM_bonecolor.hh"
 #include "ANIM_versioning.hh"
 
 #include "CLG_log.h"
 
-static CLG_LogRef LOG = {"bke.action"};
+static CLG_LogRef LOG = {"anim.action"};
 
 using namespace blender;
 
@@ -133,7 +133,7 @@ static void action_copy_data(Main * /*bmain*/,
 
   /* Duplicate the lists of groups and markers. */
   BLI_duplicatelist(&action_dst.groups, &action_src.groups);
-  BLI_duplicatelist(&action_dst.markers, &action_src.markers);
+  BKE_copy_time_markers(action_dst.markers, action_src.markers, flag);
 
   /* Copy F-Curves, fixing up the links as we go. */
   BLI_listbase_clear(&action_dst.curves);
@@ -256,7 +256,6 @@ static void action_foreach_id(ID *id, LibraryForeachIDData *data)
    * NOTE: early-returns by BKE_LIB_FOREACHID_PROCESS_... macros are forbidden in non-readonly
    * cases (see #IDWALK_RET_STOP_ITER documentation). */
 
-  const LibraryForeachIDFlag flag = BKE_lib_query_foreachid_process_flags_get(data);
   constexpr LibraryForeachIDCallbackFlag idwalk_flags = IDWALK_CB_NEVER_SELF | IDWALK_CB_LOOPBACK;
 
   /* Note that `bmain` can be `nullptr`. An example is in
@@ -291,6 +290,7 @@ static void action_foreach_id(ID *id, LibraryForeachIDData *data)
     }
 
 #ifndef NDEBUG
+    const LibraryForeachIDFlag flag = BKE_lib_query_foreachid_process_flags_get(data);
     const bool is_readonly = flag & IDWALK_READONLY;
     if (is_readonly) {
       BLI_assert_msg(!should_invalidate,
@@ -305,16 +305,6 @@ static void action_foreach_id(ID *id, LibraryForeachIDData *data)
 
   LISTBASE_FOREACH (TimeMarker *, marker, &action.markers) {
     BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, marker->camera, IDWALK_CB_NOP);
-  }
-
-  /* Legacy IPO curves. */
-  if (flag & IDWALK_DO_DEPRECATED_POINTERS) {
-    LISTBASE_FOREACH (bActionChannel *, chan, &action.chanbase) {
-      BKE_LIB_FOREACHID_PROCESS_ID_NOCHECK(data, chan->ipo, IDWALK_CB_USER);
-      LISTBASE_FOREACH (bConstraintChannel *, chan_constraint, &chan->constraintChannels) {
-        BKE_LIB_FOREACHID_PROCESS_ID_NOCHECK(data, chan_constraint->ipo, IDWALK_CB_USER);
-      }
-    }
   }
 }
 
@@ -572,9 +562,7 @@ static void action_blend_write(BlendWriter *writer, ID *id, const void *id_addre
     BLO_write_struct(writer, bActionGroup, grp);
   }
 
-  LISTBASE_FOREACH (TimeMarker *, marker, &action.markers) {
-    BLO_write_struct(writer, TimeMarker, marker);
-  }
+  BKE_time_markers_blend_write(writer, action.markers);
 
   BKE_previewimg_blend_write(writer, action.preview);
 }
@@ -672,12 +660,11 @@ static void read_slots(BlendDataReader *reader, animrig::Action &action)
   for (int i = 0; i < action.slot_array_num; i++) {
     BLO_read_struct(reader, ActionSlot, &action.slot_array[i]);
 
-    /* Undo generic endian switching, as the ID type values are not numerically the same between
-     * little and big endian machines. Due to the way they are defined, they are always in the same
-     * byte order, regardless of hardware/platform endianness. */
-    if (BLO_read_requires_endian_switch(reader)) {
-      BLI_endian_switch_int16(&action.slot_array[i]->idtype);
-    }
+    /* NOTE: this is endianness-sensitive. */
+    /* In case of required endian switching, this code would have to undo the generic endian
+     * switching, as the ID type values are not numerically the same between little and big endian
+     * machines. Due to the way they are defined, they are always in the same byte order,
+     * regardless of hardware/platform endianness. */
 
     action.slot_array[i]->wrap().blend_read_post();
   }
@@ -687,12 +674,10 @@ static void action_blend_read_data(BlendDataReader *reader, ID *id)
 {
   animrig::Action &action = reinterpret_cast<bAction *>(id)->wrap();
 
-  /* Undo generic endian switching (careful, only the two least significant bytes of the int32 must
-   * be swapped back here, since this value is actually an int16). */
-  if (BLO_read_requires_endian_switch(reader)) {
-    bAction *act = reinterpret_cast<bAction *>(id);
-    BLI_endian_switch_int16(reinterpret_cast<short *>(&act->idroot));
-  }
+  /* NOTE: this is endianness-sensitive. */
+  /* In case of required endianness switching, this code would need to undo the generic endian
+   * switching (careful, only the two least significant bytes of the int32 must be swapped back
+   * here, since this value is actually an int16). */
 
   read_strip_keyframe_data_array(reader, action);
   read_layers(reader, action);
@@ -703,10 +688,6 @@ static void action_blend_read_data(BlendDataReader *reader, ID *id)
     BLI_listbase_clear(&action.curves);
     BLI_listbase_clear(&action.groups);
 
-    /* Should never be stored as part of the forward-compatible data in a
-     * layered action, and thus should always be empty here. */
-    BLI_assert(BLI_listbase_is_empty(&action.chanbase));
-
     /* Layered actions should always have `idroot == 0`, but when writing an
      * action to a blend file `idroot` is typically set otherwise for forward
      * compatibility reasons (see `action_blend_write()`). So we set it to zero
@@ -715,14 +696,8 @@ static void action_blend_read_data(BlendDataReader *reader, ID *id)
   }
   else {
     /* Read legacy data. */
-    BLO_read_struct_list(reader, bActionChannel, &action.chanbase);
     BLO_read_struct_list(reader, FCurve, &action.curves);
     BLO_read_struct_list(reader, bActionGroup, &action.groups);
-
-    LISTBASE_FOREACH (bActionChannel *, achan, &action.chanbase) {
-      BLO_read_struct(reader, bActionGroup, &achan->grp);
-      BLO_read_struct_list(reader, bConstraintChannel, &achan->constraintChannels);
-    }
 
     BKE_fcurve_blend_read_data_listbase(reader, &action.curves);
 
@@ -732,7 +707,7 @@ static void action_blend_read_data(BlendDataReader *reader, ID *id)
     }
   }
 
-  BLO_read_struct_list(reader, TimeMarker, &action.markers);
+  BKE_time_markers_blend_read(reader, action.markers);
 
   /* End of reading legacy data. */
 
@@ -765,7 +740,7 @@ static AssetTypeInfo AssetType_AC = {
 }  // namespace blender::bke
 
 IDTypeInfo IDType_ID_AC = {
-    /*id_code*/ ID_AC,
+    /*id_code*/ bAction::id_type,
     /*id_filter*/ FILTER_ID_AC,
 
     /* This value will be set dynamically in `BKE_idtype_init()` to only include
@@ -787,6 +762,7 @@ IDTypeInfo IDType_ID_AC = {
     /*foreach_id*/ blender::bke::action_foreach_id,
     /*foreach_cache*/ nullptr,
     /*foreach_path*/ nullptr,
+    /*foreach_working_space_color*/ nullptr,
     /*owner_pointer_get*/ nullptr,
 
     /*blend_write*/ blender::bke::action_blend_write,
@@ -804,7 +780,7 @@ bAction *BKE_action_add(Main *bmain, const char name[])
 {
   bAction *act;
 
-  act = static_cast<bAction *>(BKE_id_new(bmain, ID_AC, name));
+  act = BKE_id_new<bAction>(bmain, name);
 
   return act;
 }
@@ -1146,7 +1122,7 @@ bPoseChannel *BKE_pose_channel_ensure(bPose *pose, const char *name)
 
   BKE_pose_channel_session_uid_generate(chan);
 
-  STRNCPY(chan->name, name);
+  STRNCPY_UTF8(chan->name, name);
 
   copy_v3_fl(chan->custom_scale_xyz, 1.0f);
   zero_v3(chan->custom_translation);
@@ -1232,13 +1208,13 @@ bPoseChannel *BKE_pose_channel_active_or_first_selected(Object *ob)
   }
 
   bPoseChannel *pchan = BKE_pose_channel_active_if_bonecoll_visible(ob);
-  if (pchan && (pchan->bone->flag & BONE_SELECTED) && PBONE_VISIBLE(arm, pchan->bone)) {
+  if (pchan && blender::animrig::bone_is_selected(arm, pchan)) {
     return pchan;
   }
 
   LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
     if (pchan->bone != nullptr) {
-      if ((pchan->bone->flag & BONE_SELECTED) && PBONE_VISIBLE(arm, pchan->bone)) {
+      if (blender::animrig::bone_is_selected(arm, pchan)) {
         return pchan;
       }
     }
@@ -1337,6 +1313,9 @@ void BKE_pose_copy_data_ex(bPose **dst,
     if (pchan->prop) {
       pchan->prop = IDP_CopyProperty_ex(pchan->prop, flag);
     }
+    if (pchan->system_properties) {
+      pchan->system_properties = IDP_CopyProperty_ex(pchan->system_properties, flag);
+    }
 
     pchan->draw_data = nullptr; /* Drawing cache, no need to copy. */
 
@@ -1417,6 +1396,46 @@ static bool pose_channel_in_IK_chain(Object *ob, bPoseChannel *pchan, int level)
 bool BKE_pose_channel_in_IK_chain(Object *ob, bPoseChannel *pchan)
 {
   return pose_channel_in_IK_chain(ob, pchan, 0);
+}
+
+static bool transform_follows_custom_tx(const bArmature *arm, const bPoseChannel *pchan)
+{
+  if (arm->flag & ARM_NO_CUSTOM) {
+    return false;
+  }
+
+  if (!pchan->custom || !pchan->custom_tx) {
+    return false;
+  }
+
+  return pchan->flag & POSE_TRANSFORM_AT_CUSTOM_TX;
+}
+
+void BKE_pose_channel_transform_orientation(const bArmature *arm,
+                                            const bPoseChannel *pose_bone,
+                                            float r_pose_orientation[3][3])
+{
+  if (!transform_follows_custom_tx(arm, pose_bone)) {
+    copy_m3_m4(r_pose_orientation, pose_bone->pose_mat);
+    return;
+  }
+
+  BLI_assert(pose_bone->custom_tx);
+
+  const bPoseChannel *custom_tx_bone = pose_bone->custom_tx;
+  copy_m3_m4(r_pose_orientation, custom_tx_bone->pose_mat);
+}
+
+void BKE_pose_channel_transform_location(const bArmature *arm,
+                                         const bPoseChannel *pose_bone,
+                                         float r_pose_space_pivot[3])
+{
+  if (!transform_follows_custom_tx(arm, pose_bone)) {
+    copy_v3_v3(r_pose_space_pivot, pose_bone->pose_mat[3]);
+    return;
+  }
+
+  copy_v3_v3(r_pose_space_pivot, pose_bone->custom_tx->pose_mat[3]);
 }
 
 void BKE_pose_channels_hash_ensure(bPose *pose)
@@ -1534,6 +1553,10 @@ void BKE_pose_channel_free_ex(bPoseChannel *pchan, bool do_id_user)
     IDP_FreeProperty_ex(pchan->prop, do_id_user);
     pchan->prop = nullptr;
   }
+  if (pchan->system_properties) {
+    IDP_FreeProperty_ex(pchan->system_properties, do_id_user);
+    pchan->system_properties = nullptr;
+  }
 
   /* Cached data, for new draw manager rendering code. */
   MEM_SAFE_FREE(pchan->draw_data);
@@ -1544,13 +1567,13 @@ void BKE_pose_channel_free_ex(bPoseChannel *pchan, bool do_id_user)
 
 void BKE_pose_channel_runtime_reset(bPoseChannel_Runtime *runtime)
 {
-  memset(runtime, 0, sizeof(*runtime));
+  *runtime = bPoseChannel_Runtime{};
 }
 
 void BKE_pose_channel_runtime_reset_on_copy(bPoseChannel_Runtime *runtime)
 {
   const SessionUID uid = runtime->session_uid;
-  memset(runtime, 0, sizeof(*runtime));
+  *runtime = bPoseChannel_Runtime{};
   runtime->session_uid = uid;
 }
 
@@ -1609,7 +1632,7 @@ void BKE_pose_free_data_ex(bPose *pose, bool do_id_user)
 
   /* free IK solver param */
   if (pose->ikparam) {
-    MEM_freeN(pose->ikparam);
+    MEM_freeN(static_cast<bItasc *>(pose->ikparam));
   }
 }
 
@@ -1661,12 +1684,20 @@ void BKE_pose_channel_copy_data(bPoseChannel *pchan, const bPoseChannel *pchan_f
 
   /* id-properties */
   if (pchan->prop) {
-    /* unlikely but possible it exists */
+    /* Unlikely, but possible that it exists. */
     IDP_FreeProperty(pchan->prop);
     pchan->prop = nullptr;
   }
   if (pchan_from->prop) {
     pchan->prop = IDP_CopyProperty(pchan_from->prop);
+  }
+  if (pchan->system_properties) {
+    /* Unlikely, but possible that it exists. */
+    IDP_FreeProperty(pchan->system_properties);
+    pchan->system_properties = nullptr;
+  }
+  if (pchan_from->system_properties) {
+    pchan->system_properties = IDP_CopyProperty(pchan_from->system_properties);
   }
 
   /* custom shape */
@@ -1779,7 +1810,7 @@ bActionGroup *BKE_pose_add_group(bPose *pose, const char *name)
   }
 
   grp = MEM_callocN<bActionGroup>("PoseGroup");
-  STRNCPY(grp->name, name);
+  STRNCPY_UTF8(grp->name, name);
   BLI_addtail(&pose->agroups, grp);
   BLI_uniquename(&pose->agroups, grp, name, '.', offsetof(bActionGroup, name), sizeof(grp->name));
 
@@ -1848,8 +1879,7 @@ void BKE_pose_rest(bPose *pose, bool selected_bones_only)
   memset(pose->cyclic_offset, 0, sizeof(pose->cyclic_offset));
 
   LISTBASE_FOREACH (bPoseChannel *, pchan, &pose->chanbase) {
-    if (selected_bones_only && pchan->bone != nullptr && (pchan->bone->flag & BONE_SELECTED) == 0)
-    {
+    if (selected_bones_only && pchan->bone != nullptr && (pchan->flag & POSE_SELECTED) == 0) {
       continue;
     }
     zero_v3(pchan->loc);
@@ -1995,10 +2025,10 @@ void what_does_obaction(Object *ob,
     }
   }
 
-  STRNCPY(workob->parsubstr, ob->parsubstr);
+  STRNCPY_UTF8(workob->parsubstr, ob->parsubstr);
 
   /* we don't use real object name, otherwise RNA screws with the real thing */
-  STRNCPY(workob->id.name, "OB<ConstrWorkOb>");
+  STRNCPY_UTF8(workob->id.name, "OB<ConstrWorkOb>");
 
   /* If we're given a group to use, it's likely to be more efficient
    * (though a bit more dangerous). */
@@ -2037,8 +2067,7 @@ void BKE_pose_check_uids_unique_and_report(const bPose *pose)
     return;
   }
 
-  GSet *used_uids = BLI_gset_new(
-      BLI_session_uid_ghash_hash, BLI_session_uid_ghash_compare, "sequencer used uids");
+  Set<SessionUID> used_uids;
 
   LISTBASE_FOREACH (bPoseChannel *, pchan, &pose->chanbase) {
     const SessionUID *session_uid = &pchan->runtime.session_uid;
@@ -2047,21 +2076,17 @@ void BKE_pose_check_uids_unique_and_report(const bPose *pose)
       continue;
     }
 
-    if (BLI_gset_lookup(used_uids, session_uid) != nullptr) {
+    if (!used_uids.add(*session_uid)) {
       printf("Pose channel %s has duplicate UID generated.\n", pchan->name);
       continue;
     }
-
-    BLI_gset_insert(used_uids, (void *)session_uid);
   }
-
-  BLI_gset_free(used_uids, nullptr);
 }
 
-void BKE_pose_blend_write(BlendWriter *writer, bPose *pose, bArmature *arm)
+void BKE_pose_blend_write(BlendWriter *writer, bPose *pose)
 {
 #ifndef __GNUC__
-  BLI_assert(pose != nullptr && arm != nullptr);
+  BLI_assert(pose != nullptr);
 #endif
 
   /* Write channels */
@@ -2071,21 +2096,13 @@ void BKE_pose_blend_write(BlendWriter *writer, bPose *pose, bArmature *arm)
     if (chan->prop) {
       IDP_BlendWrite(writer, chan->prop);
     }
+    if (chan->system_properties) {
+      IDP_BlendWrite(writer, chan->system_properties);
+    }
 
     BKE_constraint_blend_write(writer, &chan->constraints);
 
     animviz_motionpath_blend_write(writer, chan->mpath);
-
-    /* Prevent crashes with auto-save,
-     * when a bone duplicated in edit-mode has not yet been assigned to its pose-channel.
-     * Also needed with memundo, in some cases we can store a step before pose has been
-     * properly rebuilt from previous undo step. */
-    Bone *bone = (pose->flag & POSE_RECALC) ? BKE_armature_find_bone_name(arm, chan->name) :
-                                              chan->bone;
-    if (bone != nullptr) {
-      /* gets restored on read, for library armatures */
-      chan->selectflag = bone->flag & BONE_SELECTED;
-    }
 
     BLO_write_struct(writer, bPoseChannel, chan);
   }
@@ -2135,6 +2152,8 @@ void BKE_pose_blend_read_data(BlendDataReader *reader, ID *id_owner, bPose *pose
 
     BLO_read_struct(reader, IDProperty, &pchan->prop);
     IDP_BlendDataRead(reader, &pchan->prop);
+    BLO_read_struct(reader, IDProperty, &pchan->system_properties);
+    IDP_BlendDataRead(reader, &pchan->system_properties);
 
     BLO_read_struct(reader, bMotionPath, &pchan->mpath);
     if (pchan->mpath) {
@@ -2184,10 +2203,13 @@ void BKE_pose_blend_read_after_liblink(BlendLibReader *reader, Object *ob, bPose
     if (UNLIKELY(pchan->bone == nullptr)) {
       rebuild = true;
     }
-    else if (!ID_IS_LINKED(ob) && ID_IS_LINKED(arm)) {
-      /* local pose selection copied to armature, bit hackish */
-      pchan->bone->flag &= ~BONE_SELECTED;
-      pchan->bone->flag |= pchan->selectflag;
+
+    /* At some point in history, bones could have an armature object as custom shape, which caused
+     * all kinds of wonderful issues. This is now avoided in RNA, but through the magic of linking
+     * and editing the library file, the situation can still occur. Better to just reset the
+     * pointer in those cases. */
+    if (pchan->custom && pchan->custom->type == OB_ARMATURE) {
+      pchan->custom = nullptr;
     }
   }
 

@@ -18,10 +18,13 @@
 
 #pragma once
 
-#include "eevee_shader.hh"
-#include "eevee_shader_shared.hh"
+#include "draw_pass.hh"
+
+#include "eevee_subsurface_shared.hh"
 
 namespace blender::eevee {
+
+using namespace draw;
 
 /* -------------------------------------------------------------------- */
 /** \name Subsurface
@@ -30,14 +33,16 @@ namespace blender::eevee {
 
 class Instance;
 
+using SubsurfaceTileBuf = draw::StorageArrayBuffer<uint, 1024, true>;
+
 struct SubsurfaceModule {
  private:
   Instance &inst_;
   /** Contains samples locations. */
   SubsurfaceData &data_;
   /** Scene diffuse irradiance. Pointer binded at sync time, set at render time. */
-  GPUTexture *direct_light_tx_;
-  GPUTexture *indirect_light_tx_;
+  gpu::Texture *direct_light_tx_;
+  gpu::Texture *indirect_light_tx_;
   /** Input radiance packed with surface ID. */
   TextureFromPool radiance_tx_;
   TextureFromPool object_id_tx_;
@@ -57,14 +62,14 @@ struct SubsurfaceModule {
     data_.sample_len = -1;
   };
 
-  ~SubsurfaceModule(){};
+  ~SubsurfaceModule() {};
 
   void end_sync();
 
   /* Process the direct & indirect diffuse light buffers using screen space subsurface scattering.
    * Result is stored in the direct light texture. */
-  void render(GPUTexture *direct_diffuse_light_tx,
-              GPUTexture *indirect_diffuse_light_tx,
+  void render(gpu::Texture *direct_diffuse_light_tx,
+              gpu::Texture *indirect_diffuse_light_tx,
               eClosureBits active_closures,
               View &view);
 

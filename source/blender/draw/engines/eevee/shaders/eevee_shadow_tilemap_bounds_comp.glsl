@@ -10,13 +10,12 @@
  * their range changes.
  */
 
-#include "infos/eevee_shadow_info.hh"
+#include "infos/eevee_shadow_pipeline_infos.hh"
 
 COMPUTE_SHADER_CREATE_INFO(eevee_shadow_tilemap_bounds)
 
-#include "draw_intersect_lib.glsl"
+#include "draw_shape_lib.glsl"
 #include "eevee_light_iter_lib.glsl"
-#include "eevee_shadow_tilemap_lib.glsl"
 #include "gpu_shader_utildefines_lib.glsl"
 
 shared int global_min;
@@ -43,10 +42,10 @@ void main()
   }
   else {
     /* Create a dummy box so initialization happens even when there are no shadow casters. */
-    box = shape_box(vec3(-1.0),
-                    vec3(-1.0) + vec3(1.0, 0.0, 0.0),
-                    vec3(-1.0) + vec3(0.0, 1.0, 0.0),
-                    vec3(-1.0) + vec3(0.0, 0.0, 1.0));
+    box = shape_box(float3(-1.0f),
+                    float3(-1.0f) + float3(1.0f, 0.0f, 0.0f),
+                    float3(-1.0f) + float3(0.0f, 1.0f, 0.0f),
+                    float3(-1.0f) + float3(0.0f, 0.0f, 1.0f));
   }
 
   LIGHT_FOREACH_BEGIN_DIRECTIONAL (light_cull_buf, l_idx) {
@@ -72,8 +71,8 @@ void main()
     barrier();
 
     /* Quantization bias. */
-    local_min -= abs(local_min) * 0.01;
-    local_max += abs(local_max) * 0.01;
+    local_min -= abs(local_min) * 0.01f;
+    local_max += abs(local_max) * 0.01f;
 
     if (is_valid) {
       /* Intermediate result. Min/Max of a compute group. */

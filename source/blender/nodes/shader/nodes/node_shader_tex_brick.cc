@@ -14,7 +14,7 @@
 
 #include "NOD_multi_function.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 namespace blender::nodes::node_shader_tex_brick_cc {
@@ -23,7 +23,7 @@ static void sh_node_tex_brick_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
   b.add_input<decl::Vector>("Vector").min(-10000.0f).max(10000.0f).implicit_field(
-      implicit_field_inputs::position);
+      NODE_DEFAULT_INPUT_POSITION_FIELD);
   b.add_input<decl::Color>("Color1")
       .default_value({0.8f, 0.8f, 0.8f, 1.0f})
       .description("Color of the first reference brick");
@@ -73,27 +73,25 @@ static void sh_node_tex_brick_declare(NodeDeclarationBuilder &b)
       .no_muted_links()
       .description("Ratio of brick's row height relative to the texture scale");
   b.add_output<decl::Color>("Color");
-  b.add_output<decl::Float>("Fac");
+  b.add_output<decl::Float>("Factor", "Fac");
 }
 
-static void node_shader_buts_tex_brick(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_shader_buts_tex_brick(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiLayout *col;
-
-  col = uiLayoutColumn(layout, true);
-  uiItemR(col,
-          ptr,
-          "offset",
-          UI_ITEM_R_SPLIT_EMPTY_NAME | UI_ITEM_R_SLIDER,
-          IFACE_("Offset"),
-          ICON_NONE);
-  uiItemR(
-      col, ptr, "offset_frequency", UI_ITEM_R_SPLIT_EMPTY_NAME, IFACE_("Frequency"), ICON_NONE);
-
-  col = uiLayoutColumn(layout, true);
-  uiItemR(col, ptr, "squash", UI_ITEM_R_SPLIT_EMPTY_NAME, IFACE_("Squash"), ICON_NONE);
-  uiItemR(
-      col, ptr, "squash_frequency", UI_ITEM_R_SPLIT_EMPTY_NAME, IFACE_("Frequency"), ICON_NONE);
+  {
+    ui::Layout &col = layout.column(true);
+    col.prop(ptr,
+             "offset",
+             ui::ITEM_R_SPLIT_EMPTY_NAME | ui::ITEM_R_SLIDER,
+             IFACE_("Offset"),
+             ICON_NONE);
+    col.prop(ptr, "offset_frequency", ui::ITEM_R_SPLIT_EMPTY_NAME, IFACE_("Frequency"), ICON_NONE);
+  }
+  {
+    ui::Layout &col = layout.column(true);
+    col.prop(ptr, "squash", ui::ITEM_R_SPLIT_EMPTY_NAME, IFACE_("Squash"), ICON_NONE);
+    col.prop(ptr, "squash_frequency", ui::ITEM_R_SPLIT_EMPTY_NAME, IFACE_("Frequency"), ICON_NONE);
+  }
 }
 
 static void node_shader_init_tex_brick(bNodeTree * /*ntree*/, bNode *node)
@@ -314,6 +312,7 @@ void register_node_type_sh_tex_brick()
       ntype, "NodeTexBrick", node_free_standard_storage, node_copy_standard_storage);
   ntype.gpu_fn = file_ns::node_shader_gpu_tex_brick;
   ntype.build_multi_function = file_ns::sh_node_brick_build_multi_function;
+  blender::bke::node_type_size(ntype, 165, 140, NODE_DEFAULT_MAX_WIDTH);
 
   blender::bke::node_register_type(ntype);
 }

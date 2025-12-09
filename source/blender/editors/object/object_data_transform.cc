@@ -31,6 +31,7 @@
 
 #include "BKE_armature.hh"
 #include "BKE_curve.hh"
+#include "BKE_curves_utils.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_key.hh"
@@ -390,8 +391,7 @@ static std::unique_ptr<XFormObjectData> data_xform_create_ex(ID *id, bool is_edi
       Curve *cu = (Curve *)id;
       Key *key = cu->key;
 
-      const short ob_type = BKE_curve_type_get(cu);
-      if (ob_type == OB_FONT) {
+      if (cu->ob_type == OB_FONT) {
         /* We could support translation. */
         break;
       }
@@ -455,7 +455,12 @@ static std::unique_ptr<XFormObjectData> data_xform_create_ex(ID *id, bool is_edi
       const int elem_array_len = BKE_grease_pencil_stroke_point_count(*grease_pencil);
       auto xod = std::make_unique<XFormObjectData_GreasePencil>();
       xod->id = id;
-      xod->positions.reinitialize(elem_array_len);
+      if (!BKE_grease_pencil_has_curve_with_type(*grease_pencil, CURVE_TYPE_BEZIER)) {
+        xod->positions.reinitialize(elem_array_len);
+      }
+      else {
+        xod->positions.reinitialize(elem_array_len * 3);
+      }
       xod->radii.reinitialize(elem_array_len);
       BKE_grease_pencil_point_coords_get(*grease_pencil, xod->positions, xod->radii);
       return xod;
@@ -463,9 +468,17 @@ static std::unique_ptr<XFormObjectData> data_xform_create_ex(ID *id, bool is_edi
     case ID_CV: {
       Curves *curves_id = reinterpret_cast<Curves *>(id);
       const bke::CurvesGeometry &curves = curves_id->geometry.wrap();
-      auto xod = std::make_unique<XFormObjectData_GreasePencil>();
+      auto xod = std::make_unique<XFormObjectData_Curves>();
       xod->id = id;
-      xod->positions = curves.positions();
+
+      if (!curves.has_curve_with_type(CURVE_TYPE_BEZIER)) {
+        xod->positions = curves.positions();
+      }
+      else {
+        xod->positions = bke::curves::bezier::retrieve_all_positions(curves,
+                                                                     curves.curves_range());
+      }
+
       xod->radii.reinitialize(curves.points_num());
       curves.radius().materialize(xod->radii);
       return xod;
@@ -494,17 +507,6 @@ std::unique_ptr<XFormObjectData> data_xform_create(ID *id)
 std::unique_ptr<XFormObjectData> data_xform_create_from_edit_mode(ID *id)
 {
   return data_xform_create_ex(id, true);
-}
-
-static void copy_transformed_positions(const Span<float3> src,
-                                       const float4x4 &transform,
-                                       MutableSpan<float3> dst)
-{
-  threading::parallel_for(src.index_range(), 1024, [&](const IndexRange range) {
-    for (const int i : range) {
-      dst[i] = math::transform_point(transform, src[i]);
-    }
-  });
 }
 
 static void copy_transformed_radii(const Span<float> src,
@@ -536,7 +538,7 @@ void data_xform_by_mat4(XFormObjectData &xod_base, const float4x4 &transform)
         // key_index = bm->shapenr - 1;
       }
       else {
-        copy_transformed_positions(xod.positions, transform, mesh->vert_positions_for_write());
+        math::transform_points(xod.positions, transform, mesh->vert_positions_for_write());
         mesh->tag_positions_changed();
       }
 
@@ -626,14 +628,22 @@ void data_xform_by_mat4(XFormObjectData &xod_base, const float4x4 &transform)
       Curves *curves_id = reinterpret_cast<Curves *>(xod_base.id);
       bke::CurvesGeometry &curves = curves_id->geometry.wrap();
       const auto &xod = reinterpret_cast<const XFormObjectData_Curves &>(xod_base);
-      copy_transformed_positions(xod.positions, transform, curves.positions_for_write());
+      if (!curves.has_curve_with_type(CURVE_TYPE_BEZIER)) {
+        math::transform_points(xod.positions, transform, curves.positions_for_write());
+      }
+      else {
+        Array<float3> transformed_positions(xod.positions.size());
+        math::transform_points(xod.positions, transform, transformed_positions);
+        bke::curves::bezier::write_all_positions(
+            curves, curves.curves_range(), transformed_positions);
+      }
       copy_transformed_radii(xod.radii, transform, curves.radius_for_write());
       break;
     }
     case ID_PT: {
       PointCloud *pointcloud = reinterpret_cast<PointCloud *>(xod_base.id);
       const auto &xod = reinterpret_cast<const XFormObjectData_PointCloud &>(xod_base);
-      copy_transformed_positions(xod.positions, transform, pointcloud->positions_for_write());
+      math::transform_points(xod.positions, transform, pointcloud->positions_for_write());
       copy_transformed_radii(xod.radii, transform, pointcloud->radius_for_write());
       break;
     }
@@ -741,7 +751,12 @@ void data_xform_restore(XFormObjectData &xod_base)
       Curves *curves_id = reinterpret_cast<Curves *>(xod_base.id);
       bke::CurvesGeometry &curves = curves_id->geometry.wrap();
       const auto &xod = reinterpret_cast<const XFormObjectData_Curves &>(xod_base);
-      curves.positions_for_write().copy_from(xod.positions);
+      if (!curves.has_curve_with_type(CURVE_TYPE_BEZIER)) {
+        curves.positions_for_write().copy_from(xod.positions);
+      }
+      else {
+        bke::curves::bezier::write_all_positions(curves, curves.curves_range(), xod.positions);
+      }
       curves.radius_for_write().copy_from(xod.radii);
       break;
     }

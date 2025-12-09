@@ -27,6 +27,8 @@
 #include "BLI_math_vector.hh"
 #include "BLI_memblock.h"
 
+#include "IMB_colormanagement.hh"
+
 #include "gpencil_engine_private.hh"
 
 #include "DEG_depsgraph.hh"
@@ -146,6 +148,9 @@ static int gpencil_tobject_dist_sort(const void *a, const void *b)
 
 void gpencil_object_cache_sort(Instance *inst)
 {
+  if (inst->is_sorted) {
+    return;
+  }
   /* Sort object by distance to the camera. */
   if (inst->tobjects.first) {
     inst->tobjects.first = gpencil_tobject_sort_fn_r(inst->tobjects.first,
@@ -169,13 +174,16 @@ void gpencil_object_cache_sort(Instance *inst)
     if (inst->tobjects.last != nullptr) {
       inst->tobjects.last->next = inst->tobjects_infront.first;
       inst->tobjects.last = inst->tobjects_infront.last;
+      inst->tobjects_infront.first = inst->tobjects.last = nullptr;
     }
     else {
       /* Only in front objects. */
       inst->tobjects.first = inst->tobjects_infront.first;
       inst->tobjects.last = inst->tobjects_infront.last;
+      inst->tobjects_infront.first = inst->tobjects.last = nullptr;
     }
   }
+  inst->is_sorted = true;
 }
 
 /** \} */
@@ -227,8 +235,8 @@ static float4 grease_pencil_layer_final_tint_and_alpha_get(const Instance *inst,
       color_prev = float3(grease_pencil.onion_skinning_settings.color_before);
     }
     else {
-      UI_GetThemeColor3fv(TH_FRAME_AFTER, color_next);
-      UI_GetThemeColor3fv(TH_FRAME_BEFORE, color_prev);
+      ui::theme::get_color_3fv(TH_FRAME_AFTER, color_next);
+      ui::theme::get_color_3fv(TH_FRAME_BEFORE, color_prev);
     }
 
     const float4 onion_col_custom = use_next_col ? float4(color_next, 1.0f) :
@@ -268,6 +276,7 @@ static void grease_pencil_layer_random_color_get(const Object *ob,
   float hue = BLI_hash_int_01(ob_hash * gpl_hash);
   const float hsv[3] = {hue, hsv_saturation, hsv_value};
   hsv_to_rgb_v(hsv, r_color);
+  IMB_colormanagement_rec709_to_scene_linear(r_color, r_color);
 }
 
 tLayer *grease_pencil_layer_cache_get(tObject *tgp_ob, int layer_id, const bool skip_onion)
@@ -406,11 +415,11 @@ tLayer *grease_pencil_layer_cache_add(Instance *inst,
     pass.init();
     pass.state_set(state);
     pass.shader_set(ShaderCache::get().layer_blend.get());
-    pass.push_constant("blendMode", int(layer.blend_mode));
-    pass.push_constant("blendOpacity", layer_opacity);
-    pass.bind_texture("colorBuf", &inst->color_layer_tx);
-    pass.bind_texture("revealBuf", &inst->reveal_layer_tx);
-    pass.bind_texture("maskBuf", (is_masked) ? &inst->mask_tx : &inst->dummy_tx);
+    pass.push_constant("blend_mode", int(layer.blend_mode));
+    pass.push_constant("blend_opacity", layer_opacity);
+    pass.bind_texture("color_buf", &inst->color_layer_tx);
+    pass.bind_texture("reveal_buf", &inst->reveal_layer_tx);
+    pass.bind_texture("mask_buf", (is_masked) ? &inst->mask_tx : &inst->dummy_tx);
     pass.state_stencil(0xFF, 0xFF, 0xFF);
     pass.draw_procedural(GPU_PRIM_TRIS, 1, 3);
 
@@ -418,7 +427,7 @@ tLayer *grease_pencil_layer_cache_add(Instance *inst,
       /* We cannot do custom blending on Multi-Target frame-buffers.
        * Workaround by doing 2 passes. */
       pass.state_set((state & ~DRW_STATE_BLEND_MUL) | DRW_STATE_BLEND_ADD_FULL);
-      pass.push_constant("blendMode", 999);
+      pass.push_constant("blend_mode", 999);
       pass.draw_procedural(GPU_PRIM_TRIS, 1, 3);
     }
 
@@ -433,8 +442,8 @@ tLayer *grease_pencil_layer_cache_add(Instance *inst,
 
     PassSimple &pass = *tgp_layer->geom_ps;
 
-    GPUTexture **depth_tex = (is_in_front) ? &inst->dummy_depth : &inst->scene_depth_tx;
-    GPUTexture **mask_tex = (is_masked) ? &inst->mask_tx : &inst->dummy_tx;
+    gpu::Texture **depth_tex = (is_in_front) ? &inst->dummy_depth : &inst->scene_depth_tx;
+    gpu::Texture **mask_tex = (is_masked) ? &inst->mask_tx : &inst->dummy_tx;
 
     DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_BLEND_ALPHA_PREMUL;
     /* For 2D mode, we render all strokes with uniform depth (increasing with stroke id). */
@@ -444,14 +453,14 @@ tLayer *grease_pencil_layer_cache_add(Instance *inst,
 
     pass.state_set(state);
     pass.shader_set(ShaderCache::get().geometry.get());
-    pass.bind_texture("gpSceneDepthTexture", depth_tex);
-    pass.bind_texture("gpMaskTexture", mask_tex);
-    pass.push_constant("gpNormal", tgp_ob->plane_normal);
-    pass.push_constant("gpStrokeOrder3d", tgp_ob->is_drawmode3d);
-    pass.push_constant("gpVertexColorOpacity", vert_col_opacity);
+    pass.bind_texture("gp_scene_depth_tx", depth_tex);
+    pass.bind_texture("gp_mask_tx", mask_tex);
+    pass.push_constant("gp_normal", tgp_ob->plane_normal);
+    pass.push_constant("gp_stroke_order3d", tgp_ob->is_drawmode3d);
+    pass.push_constant("gp_vertex_color_opacity", vert_col_opacity);
 
-    pass.bind_texture("gpFillTexture", inst->dummy_tx);
-    pass.bind_texture("gpStrokeTexture", inst->dummy_tx);
+    pass.bind_texture("gp_fill_tx", inst->dummy_tx);
+    pass.bind_texture("gp_stroke_tx", inst->dummy_tx);
 
     /* If random color type, need color by layer. */
     float4 gpl_color;
@@ -460,9 +469,9 @@ tLayer *grease_pencil_layer_cache_add(Instance *inst,
       grease_pencil_layer_random_color_get(ob, layer, gpl_color);
       gpl_color[3] = 1.0f;
     }
-    pass.push_constant("gpLayerTint", gpl_color);
+    pass.push_constant("gp_layer_tint", gpl_color);
 
-    pass.push_constant("gpLayerOpacity", layer_alpha);
+    pass.push_constant("gp_layer_opacity", layer_alpha);
     pass.state_stencil(0xFF, 0xFF, 0xFF);
   }
 

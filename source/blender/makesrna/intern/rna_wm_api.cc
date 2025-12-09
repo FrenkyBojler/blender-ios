@@ -16,7 +16,8 @@
 #include "DNA_space_types.h"
 #include "DNA_windowmanager_types.h"
 
-#include "UI_interface.hh"
+#include "UI_interface_icons.hh"
+#include "UI_interface_types.hh"
 
 #include "wm_cursors.hh"
 #include "wm_event_types.hh"
@@ -125,6 +126,7 @@ static int rna_Operator_ui_popup(bContext *C, wmOperator *op, int width)
 
 static bool rna_event_modal_handler_add(bContext *C, ReportList *reports, wmOperator *op)
 {
+  wmWindowManager *wm = CTX_wm_manager(C);
   wmWindow *win = CTX_wm_window(C);
   if (win == nullptr) {
     BKE_report(reports, RPT_ERROR, "No active window in context!");
@@ -132,7 +134,7 @@ static bool rna_event_modal_handler_add(bContext *C, ReportList *reports, wmOper
   }
   ScrArea *area = CTX_wm_area(C);
   ARegion *region = CTX_wm_region(C);
-  return WM_event_add_modal_handler_ex(win, area, region, op) != nullptr;
+  return WM_event_add_modal_handler_ex(wm, win, area, region, op) != nullptr;
 }
 
 static wmTimer *rna_event_timer_add(wmWindowManager *wm, float time_step, wmWindow *win)
@@ -200,12 +202,12 @@ static void rna_progress_begin(wmWindowManager * /*wm*/, float min, float max)
 static void rna_progress_update(wmWindowManager *wm, float value)
 {
   if (wm_progress_state.is_valid) {
-    /* Map to cursor_time range [0,9999] */
-    wmWindow *win = wm->winactive;
+    /* Map to factor 0..1. */
+    wmWindow *win = wm->runtime->winactive;
     if (win) {
-      int val = int(10000 * (value - wm_progress_state.min) /
-                    (wm_progress_state.max - wm_progress_state.min));
-      WM_cursor_time(win, val);
+      const float progress_factor = (value - wm_progress_state.min) /
+                                    (wm_progress_state.max - wm_progress_state.min);
+      WM_cursor_progress(win, progress_factor);
     }
   }
 }
@@ -213,7 +215,7 @@ static void rna_progress_update(wmWindowManager *wm, float value)
 static void rna_progress_end(wmWindowManager *wm)
 {
   if (wm_progress_state.is_valid) {
-    wmWindow *win = wm->winactive;
+    wmWindow *win = wm->runtime->winactive;
     if (win) {
       WM_cursor_modal_restore(win);
       wm_progress_state.is_valid = false;
@@ -243,7 +245,7 @@ static int rna_Operator_confirm(bContext *C,
                                 title_str ? title_str->c_str() : nullptr,
                                 message_str ? message_str->c_str() : nullptr,
                                 confirm_text_str ? confirm_text_str->c_str() : nullptr,
-                                icon);
+                                blender::ui::AlertIcon(icon));
 }
 
 static int rna_Operator_props_popup(bContext *C, wmOperator *op, wmEvent *event)
@@ -489,7 +491,7 @@ static wmKeyMap *rna_KeyMaps_new(wmKeyConfig *keyconf,
      * Currently this is only useful for add-ons to override built-in modal keymaps
      * which is not the intended use for add-on keymaps. */
     wmWindowManager *wm = static_cast<wmWindowManager *>(G_MAIN->wm.first);
-    if (keyconf == wm->addonconf) {
+    if (keyconf == wm->runtime->addonconf) {
       BKE_reportf(reports, RPT_ERROR, "Modal key-maps not supported for add-on key-config");
       return nullptr;
     }
@@ -565,7 +567,7 @@ wmKeyConfig *rna_KeyConfig_new(wmWindowManager *wm, const char *idname)
 static void rna_KeyConfig_remove(wmWindowManager *wm, ReportList *reports, PointerRNA *keyconf_ptr)
 {
   wmKeyConfig *keyconf = static_cast<wmKeyConfig *>(keyconf_ptr->data);
-  if (UNLIKELY(BLI_findindex(&wm->keyconfigs, keyconf) == -1)) {
+  if (UNLIKELY(BLI_findindex(&wm->runtime->keyconfigs, keyconf) == -1)) {
     BKE_reportf(reports, RPT_ERROR, "KeyConfig '%s' cannot be removed", keyconf->idname);
     return;
   }
@@ -588,7 +590,7 @@ static PointerRNA rna_KeyConfig_find_item_from_operator(wmWindowManager *wm,
   wmKeyMap *km = nullptr;
   wmKeyMapItem *kmi = WM_key_event_operator(C,
                                             idname_bl,
-                                            wmOperatorCallContext(opcontext),
+                                            blender::wm::OpCallContext(opcontext),
                                             static_cast<IDProperty *>(properties->data),
                                             include_mask,
                                             exclude_mask,
@@ -623,14 +625,14 @@ static PointerRNA rna_PopMenuBegin(bContext *C,
     return PointerRNA_NULL;
   }
 
-  void *data = (void *)UI_popup_menu_begin(C, title, icon);
-  PointerRNA r_ptr = RNA_pointer_create_discrete(nullptr, &RNA_UIPopupMenu, data);
-  return r_ptr;
+  void *data = (void *)blender::ui::popup_menu_begin(C, title, icon);
+  PointerRNA ptr_result = RNA_pointer_create_discrete(nullptr, &RNA_UIPopupMenu, data);
+  return ptr_result;
 }
 
 static void rna_PopMenuEnd(bContext *C, PointerRNA *handle)
 {
-  UI_popup_menu_end(C, static_cast<uiPopupMenu *>(handle->data));
+  blender::ui::popup_menu_end(C, static_cast<blender::ui::PopupMenu *>(handle->data));
 }
 
 /* popover wrapper */
@@ -643,14 +645,15 @@ static PointerRNA rna_PopoverBegin(bContext *C,
     return PointerRNA_NULL;
   }
 
-  void *data = (void *)UI_popover_begin(C, U.widget_unit * ui_units_x, from_active_button);
-  PointerRNA r_ptr = RNA_pointer_create_discrete(nullptr, &RNA_UIPopover, data);
-  return r_ptr;
+  void *data = (void *)blender::ui::popover_begin(
+      C, U.widget_unit * ui_units_x, from_active_button);
+  PointerRNA ptr_result = RNA_pointer_create_discrete(nullptr, &RNA_UIPopover, data);
+  return ptr_result;
 }
 
 static void rna_PopoverEnd(bContext *C, PointerRNA *handle, wmKeyMap *keymap)
 {
-  UI_popover_end(C, static_cast<uiPopover *>(handle->data), keymap);
+  blender::ui::popover_end(C, static_cast<blender::ui::Popover *>(handle->data), keymap);
 }
 
 /* pie menu wrapper */
@@ -661,21 +664,21 @@ static PointerRNA rna_PieMenuBegin(
     return PointerRNA_NULL;
   }
 
-  void *data = (void *)UI_pie_menu_begin(
+  void *data = (void *)blender::ui::pie_menu_begin(
       C, title, icon, static_cast<const wmEvent *>(event->data));
 
-  PointerRNA r_ptr = RNA_pointer_create_discrete(nullptr, &RNA_UIPieMenu, data);
-  return r_ptr;
+  PointerRNA ptr_result = RNA_pointer_create_discrete(nullptr, &RNA_UIPieMenu, data);
+  return ptr_result;
 }
 
 static void rna_PieMenuEnd(bContext *C, PointerRNA *handle)
 {
-  UI_pie_menu_end(C, static_cast<uiPieMenu *>(handle->data));
+  blender::ui::pie_menu_end(C, static_cast<blender::ui::PieMenu *>(handle->data));
 }
 
 static void rna_WindowManager_print_undo_steps(wmWindowManager *wm)
 {
-  BKE_undosys_print(wm->undo_stack);
+  BKE_undosys_print(wm->runtime->undo_stack);
 }
 
 static void rna_WindowManager_tag_script_reload()
@@ -746,14 +749,14 @@ static wmEvent *rna_Window_event_add_simulate(wmWindow *win,
     }
   }
 
-  wmEvent e = *win->eventstate;
-  e.type = type;
+  wmEvent e = *win->runtime->eventstate;
+  e.type = wmEventType(type);
   e.val = value;
   e.flag = eWM_EventFlag(0);
   e.xy[0] = x;
   e.xy[1] = y;
 
-  e.modifier = 0;
+  e.modifier = wmEventModifierFlag(0);
   if (shift) {
     e.modifier |= KM_SHIFT;
   }
@@ -862,11 +865,11 @@ void RNA_api_window(StructRNA *srna)
 }
 
 const EnumPropertyItem rna_operator_popup_icon_items[] = {
-    {ALERT_ICON_NONE, "NONE", 0, "None", ""},
-    {ALERT_ICON_WARNING, "WARNING", 0, "Warning", ""},
-    {ALERT_ICON_QUESTION, "QUESTION", 0, "Question", ""},
-    {ALERT_ICON_ERROR, "ERROR", 0, "Error", ""},
-    {ALERT_ICON_INFO, "INFO", 0, "Info", ""},
+    {int(blender::ui::AlertIcon::None), "NONE", 0, "None", ""},
+    {int(blender::ui::AlertIcon::Warning), "WARNING", 0, "Warning", ""},
+    {int(blender::ui::AlertIcon::Question), "QUESTION", 0, "Question", ""},
+    {int(blender::ui::AlertIcon::Error), "ERROR", 0, "Error", ""},
+    {int(blender::ui::AlertIcon::Info), "INFO", 0, "Info", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -876,13 +879,9 @@ void RNA_api_wm(StructRNA *srna)
   PropertyRNA *parm;
 
   func = RNA_def_function(srna, "fileselect_add", "WM_event_add_fileselect");
-  RNA_def_function_ui_description(
-      func,
-      "Opens a file selector with an operator. "
-      "The string properties 'filepath', 'filename', 'directory' and a 'files' "
-      "collection are assigned when present in the operator. "
-      "If 'filter_glob' property is present in the operator and it's not empty, "
-      "it will be used as a file filter (example value: '*.zip;*.py;*.exe').");
+  /* Note that a full description is located at:
+   * `doc/python_api/examples/bpy.types.WindowManager.fileselect_add.py`. */
+  RNA_def_function_ui_description(func, "Opens a file selector with an operator.");
   rna_generic_op_invoke(func, 0);
 
   func = RNA_def_function(srna, "modal_handler_add", "rna_event_modal_handler_add");
@@ -1010,12 +1009,12 @@ void RNA_api_wm(StructRNA *srna)
 
   parm = RNA_def_property(func, "icon", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(parm, rna_operator_popup_icon_items);
-  RNA_def_property_enum_default(parm, ALERT_ICON_NONE);
+  RNA_def_property_enum_default(parm, int(blender::ui::AlertIcon::None));
   RNA_def_property_ui_text(parm, "Icon", "Optional icon displayed in the dialog");
 
   api_ui_item_common_translation(func);
 
-  /* wrap UI_popup_menu_begin */
+  /* wrap popup_menu_begin */
   func = RNA_def_function(srna, "popmenu_begin__internal", "rna_PopMenuBegin");
   RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_CONTEXT | FUNC_USE_REPORTS);
   parm = RNA_def_string(func, "title", nullptr, 0, "", "");
@@ -1027,13 +1026,13 @@ void RNA_api_wm(StructRNA *srna)
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_RNAPTR);
   RNA_def_function_return(func, parm);
 
-  /* wrap UI_popup_menu_end */
+  /* wrap popup_menu_end */
   func = RNA_def_function(srna, "popmenu_end__internal", "rna_PopMenuEnd");
   RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_CONTEXT);
   parm = RNA_def_pointer(func, "menu", "UIPopupMenu", "", "");
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_RNAPTR | PARM_REQUIRED);
 
-  /* wrap UI_popover_begin */
+  /* wrap popover_begin */
   func = RNA_def_function(srna, "popover_begin__internal", "rna_PopoverBegin");
   RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_CONTEXT | FUNC_USE_REPORTS);
   RNA_def_property(func, "ui_units_x", PROP_INT, PROP_UNSIGNED);
@@ -1044,14 +1043,14 @@ void RNA_api_wm(StructRNA *srna)
   RNA_def_boolean(
       func, "from_active_button", false, "Use Button", "Use the active button for positioning");
 
-  /* wrap UI_popover_end */
+  /* wrap popover_end */
   func = RNA_def_function(srna, "popover_end__internal", "rna_PopoverEnd");
   RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_CONTEXT);
   parm = RNA_def_pointer(func, "menu", "UIPopover", "", "");
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_RNAPTR | PARM_REQUIRED);
   RNA_def_pointer(func, "keymap", "KeyMap", "Key Map", "Active key map");
 
-  /* wrap uiPieMenuBegin */
+  /* wrap blender::ui::PieMenuBegin */
   func = RNA_def_function(srna, "piemenu_begin__internal", "rna_PieMenuBegin");
   RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_CONTEXT | FUNC_USE_REPORTS);
   parm = RNA_def_string(func, "title", nullptr, 0, "", "");
@@ -1065,7 +1064,7 @@ void RNA_api_wm(StructRNA *srna)
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_RNAPTR);
   RNA_def_function_return(func, parm);
 
-  /* wrap uiPieMenuEnd */
+  /* wrap blender::ui::PieMenuEnd */
   func = RNA_def_function(srna, "piemenu_end__internal", "rna_PieMenuEnd");
   RNA_def_function_flag(func, FUNC_NO_SELF | FUNC_USE_CONTEXT);
   parm = RNA_def_pointer(func, "menu", "UIPieMenu", "", "");
@@ -1095,9 +1094,9 @@ void RNA_api_wm(StructRNA *srna)
   RNA_def_property_ui_text(
       parm,
       "Is Interface Locked",
-      "If true, the interface is currently locked by a running job and data shouldn't be modified "
-      "from application timers. Otherwise, the running job might conflict with the handler "
-      "causing unexpected results or even crashes.");
+      "If true, the interface is currently locked by a running job and data should not be "
+      "modified from application timers. Otherwise, the running job might conflict with the "
+      "handler causing unexpected results or even crashes.");
   RNA_def_property_clear_flag(parm, PROP_EDITABLE);
 }
 

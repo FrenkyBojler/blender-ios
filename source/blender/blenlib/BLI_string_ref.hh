@@ -26,7 +26,7 @@
  *   this allows us to add convenience methods at any time. Especially, when doing a lot of string
  *   manipulation, this helps to keep the code clean. Furthermore, we need StringRefNull anyway,
  *   because there is a lot of C code that expects null-terminated strings. Conversion between
- *   StringRef and string_view is very cheap and can be done at api boundaries at essentially no
+ *   StringRef and string_view is very cheap and can be done at API boundaries at essentially no
  *   cost. Another benefit of using StringRef is that it uses signed integers, thus developers
  *   have to deal less with issues resulting from unsigned integers.
  */
@@ -53,7 +53,7 @@ class StringRefBase {
   constexpr StringRefBase(const char *data, int64_t size);
 
  public:
-  /* Similar to string_view::npos, but signed. */
+  /** Similar to #string_view::npos, but signed. */
   static constexpr int64_t not_found = -1;
 
   constexpr int64_t size() const;
@@ -71,11 +71,22 @@ class StringRefBase {
 
   /**
    * Copy the string into a char array. The copied string will be null-terminated. If it does not
-   * fit, it will be truncated while keeping it valid utf-8 (assuming the #StringRef itself is
-   * valid utf-8).
+   * fit, it will be truncated while keeping it valid UTF8 (assuming the #StringRef itself is
+   * valid UTF8).
    */
   void copy_utf8_truncated(char *dst, int64_t dst_size) const;
   template<size_t N> void copy_utf8_truncated(char (&dst)[N]) const;
+
+  /**
+   * Copy the string into a char array. The copied string will be null-terminated. If it does not
+   * fit, it will be truncated.
+   *
+   * \note #copy_utf8_truncated should be used UTF8 strings,
+   * this should be used for strings which are allowed to contain arbitrary
+   * byte sequences without a known encoding such as file-paths.
+   */
+  void copy_bytes_truncated(char *dst, int64_t dst_size) const;
+  template<size_t N> void copy_bytes_truncated(char (&dst)[N]) const;
 
   /**
    * Copy the string into a buffer. The buffer has to be one byte larger than the size of the
@@ -150,6 +161,7 @@ class StringRef : public StringRefBase {
   constexpr StringRef drop_prefix(int64_t n) const;
   constexpr StringRef drop_known_prefix(StringRef prefix) const;
   constexpr StringRef drop_suffix(int64_t n) const;
+  constexpr StringRef drop_known_suffix(StringRef suffix) const;
 
   constexpr char operator[](int64_t index) const;
 };
@@ -229,6 +241,11 @@ inline void StringRefBase::copy_unsafe(char *dst) const
 template<size_t N> inline void StringRefBase::copy_utf8_truncated(char (&dst)[N]) const
 {
   this->copy_utf8_truncated(dst, N);
+}
+
+template<size_t N> inline void StringRefBase::copy_bytes_truncated(char (&dst)[N]) const
+{
+  this->copy_bytes_truncated(dst, N);
 }
 
 /**
@@ -527,6 +544,16 @@ constexpr StringRef StringRef::drop_suffix(const int64_t n) const
 }
 
 /**
+ * Return a new StringRef with the given suffix being skipped. This invokes undefined behavior if
+ * the string does not begin with the given suffix.
+ */
+constexpr StringRef StringRef::drop_known_suffix(StringRef suffix) const
+{
+  BLI_assert(this->endswith(suffix));
+  return this->drop_suffix(suffix.size());
+}
+
+/**
  * Get the char at the given index.
  */
 constexpr char StringRef::operator[](int64_t index) const
@@ -580,13 +607,16 @@ inline std::string operator+(StringRef a, StringRef b)
   return std::string(a) + std::string(b);
 }
 
-/* This does not compare StringRef and std::string_view, because of ambiguous overloads. This is
- * not a problem when std::string_view is only used at api boundaries. To compare a StringRef and a
- * std::string_view, one should convert the std::string_view to StringRef (which is very cheap).
+/**
+ * This does not compare #StringRef and std::string_view, because of ambiguous overloads.
+ * This is not a problem when #std::string_view is only used at API boundaries.
+ * To compare a #StringRef and a #std::string_view, one should convert the #std::string_view
+ * to #StringRef (which is very cheap).
  * Ideally, we only use StringRef in our code to avoid this problem altogether.
  *
- * NOTE: these functions are also suitable for StringRefNull comparisons, as these are
- * implicitly converted to StringRef by the compiler. */
+ * NOTE: these functions are also suitable for #StringRefNull comparisons,
+ * as these are implicitly converted to StringRef by the compiler.
+ */
 constexpr bool operator==(StringRef a, StringRef b)
 {
   return std::string_view(a) == std::string_view(b);

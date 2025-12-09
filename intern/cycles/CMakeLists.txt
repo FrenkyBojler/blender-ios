@@ -13,7 +13,9 @@ else()
   if(NOT WINDOWS_PYTHON_DEBUG)
     set(CYCLES_INSTALL_PATH "scripts/addons_core/cycles")
   else()
-    set(CYCLES_INSTALL_PATH "$ENV{appdata}/blender foundation/blender/${BLENDER_VERSION}/scripts/addons_core/cycles")
+    set(CYCLES_INSTALL_PATH
+      "$ENV{appdata}/blender foundation/blender/${BLENDER_VERSION}/scripts/addons_core/cycles"
+    )
   endif()
 endif()
 
@@ -64,10 +66,9 @@ if(WITH_CYCLES_NATIVE_ONLY)
     endif()
     string(APPEND CMAKE_CXX_FLAGS " ${MSVC_NATIVE_ARCH_FLAGS}")
   endif()
-elseif(WIN32 AND MSVC AND SUPPORT_NEON_BUILD AND SSE2NEON_FOUND)
-  set(CXX_HAS_SSE42 FALSE)
-  set(CXX_HAS_AVX2 FALSE)
-elseif(NOT WITH_CPU_SIMD OR (SUPPORT_NEON_BUILD AND SSE2NEON_FOUND))
+elseif(SUPPORTS_NEON_BUILD AND SSE2NEON_FOUND)
+  # On ARM we use SSE2NEON to compile the cycles SSE kernels into native NEON instructions
+  # Disable the CXX_HAS_* flags so we don't add any SSE or AVX compiler flags.
   set(CXX_HAS_SSE42 FALSE)
   set(CXX_HAS_AVX2 FALSE)
 elseif(WIN32 AND MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -148,7 +149,9 @@ if(WIN32 AND MSVC AND NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   # such as in `svm.h`.
   # This flag is supported starting with MSVC 17.7 preview 3:
   # https://learn.microsoft.com/en-us/cpp/build/reference/jump-table-rdata
-  if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 19.37.32820)
+  # This is an x64 specific optimization.
+  if(CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 19.37.32820
+     AND CMAKE_SYSTEM_PROCESSOR STREQUAL "AMD64")
     string(APPEND CMAKE_CXX_FLAGS " /jumptablerdata")
   endif()
 elseif(CMAKE_COMPILER_IS_GNUCC OR (CMAKE_CXX_COMPILER_ID MATCHES "Clang"))
@@ -263,7 +266,7 @@ if(WITH_CYCLES_DEVICE_HIP)
 endif()
 
 if(WITH_CYCLES_DEVICE_OPTIX)
-  find_package(OptiX 7.3.0)
+  find_package(OptiX 8.0.0)
 
   if(OPTIX_FOUND)
     add_definitions(-DWITH_OPTIX)
@@ -299,7 +302,10 @@ if(WITH_CYCLES_EMBREE)
       add_compile_definitions("$<$<CONFIG:RelWithDebInfo>:WITH_EMBREE_GPU>")
       add_compile_definitions("$<$<CONFIG:MinSizeRel>:WITH_EMBREE_GPU>")
       if(CMAKE_BUILD_TYPE MATCHES "Debug" OR GENERATOR_IS_MULTI_CONFIG)
-        message(STATUS "The use of Embree GPU is disabled for the Debug configuration as embree${EMBREE_MAJOR_VERSION}_sycl_d.lib is not found.")
+        message(STATUS
+          "The use of Embree GPU is disabled for the Debug configuration "
+          "as embree${EMBREE_MAJOR_VERSION}_sycl_d.lib is not found."
+        )
       endif()
     else()
       add_definitions(-DWITH_EMBREE_GPU)
@@ -317,26 +323,6 @@ if(WITH_OPENIMAGEDENOISE)
   include_directories(
     SYSTEM
     ${OPENIMAGEDENOISE_INCLUDE_DIRS}
-  )
-endif()
-
-# Logging capabilities using GLog library.
-if(WITH_CYCLES_LOGGING)
-  add_definitions(-DWITH_CYCLES_LOGGING)
-  add_definitions(${GLOG_DEFINES})
-  add_definitions(-DCYCLES_GFLAGS_NAMESPACE=${GFLAGS_NAMESPACE})
-  include_directories(
-    SYSTEM
-    ${GLOG_INCLUDE_DIRS}
-    ${GFLAGS_INCLUDE_DIRS}
-  )
-endif()
-
-if(WITH_ALEMBIC)
-  add_definitions(-DWITH_ALEMBIC)
-  include_directories(
-    SYSTEM
-    ${ALEMBIC_INCLUDE_DIRS}
   )
 endif()
 
