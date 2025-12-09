@@ -783,11 +783,11 @@ std::unique_ptr<ColumnValues> VolumeGridDataSource::get_column_values(
       break;
     case SPREADSHEET_VOLUME_VOXEL_DATA:
       if (STREQ(column_id.name, "Coordinate")) {
-        std::shared_ptr<bke::volume_grid::GridNodeIndexMapping> index_mapping =
-            std::make_shared<bke::volume_grid::GridNodeIndexMapping>();
         const bke::volume_grid::GridValueOnOff grid_value_filter =
             this->show_active_state_ ? bke::volume_grid::GridValueOnOff::Dense :
                                        bke::volume_grid::GridValueOnOff::On;
+        std::shared_ptr<bke::volume_grid::GridNodeIndexMapping> index_mapping =
+            bke::volume_grid::GridNodeIndexMapping::from_grid(grid, grid_value_filter);
         return std::make_unique<ColumnValues>(IFACE_("Coordinate"),
                                               bke::volume_grid::varray_for_grid_min_coordinates(
                                                   grid, index_mapping, grid_value_filter));

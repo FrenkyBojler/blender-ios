@@ -16,113 +16,113 @@ namespace blender::bke::volume_grid {
 
 int GridNodeIndexMapping::size() const
 {
-  return node_offsets_.is_empty() ? 0 : node_offsets_.as_span().last().index_offset;
-}
-
-IndexRange GridNodeIndexMapping::index_range() const
-{
-  return IndexRange(this->size());
+  return size_;
 }
 
 template<typename NodeT> IndexRange GridNodeIndexMapping::get_node_range(const NodeT &node) const
 {
-  const NodeOffset key = {NodeT::LEVEL, node.origin(), 0};
-  node_offsets_.index_of(); const NodeOffset &key)lookup_key(key)
+  return node_ranges_.lookup({NodeT::LEVEL, node.origin()});
 }
 
-template<typename LeafNodeT> static int compute_leaf_node_offsets(const LeafNodeT &node)
+template<typename LeafNodeT>
+static int gather_index_mapping_from_leaf_node(const LeafNodeT &node,
+                                               const GridValueOnOff grid_value_filter,
+                                               const int start,
+                                               Map<GridNodeKey, IndexRange> &node_ranges)
 {
-  return node.onVoxelCount();
-}
-
-/* TODOs for grid data:
- * 1. use binary instead of linear search when iterating over child nodes, where appropriate.
- * 2. implement a threaded version that can execute the callback in parallel (distinguished by
- *    GrainSize argument).
- */
-
-template<typename InternalNodeT>
-static int compute_internal_node_offsets(const InternalNodeT &node)
-{
-  // using ChildNodeT = typename InternalNodeT::ChildNodeType;
-  // using LeafNodeT = typename InternalNodeT::LeafNodeType;
-  using NodeMaskT = typename InternalNodeT::NodeMaskType;
-  // using UnionT = typename InternalNodeT::UnionType;
-
-  /* Tile count. */
-  const NodeMaskT &value_mask = node.getValueMask();
-  int count = value_mask.countOn();
-
-  /* Gather the active sub-nodes first, to be able to parallelize over them more easily. */
-  const NodeMaskT &child_mask = node.getChildMask();
-  // const UnionT *table = node.getTable();
-  // Vector<int, 512> child_indices;
-  for (auto child_mask_iter = child_mask.beginOn(); child_mask_iter.test(); ++child_mask_iter) {
-    // child_indices.append(child_mask_iter.pos());
+  int count = 0;
+  switch (grid_value_filter) {
+    case GridValueOnOff::On:
+      count += node.getValueMask().countOn();
+      break;
+    case GridValueOnOff::Off:
+      count += node.getValueMask().countOff();
+      break;
+    case GridValueOnOff::Dense:
+      count += LeafNodeT::NUM_VALUES;
+      break;
   }
 
-  // count += threading::parallel_reduce_aligned<int>(
-  //     child_indices.index_range(),
-  //     8,
-  //     0,
-  //     [&](const IndexRange range) {
-  //       for (const int child_index : child_indices.as_span().slice(range)) {
-  //         const ChildNodeT &child = *table[child_index].getChild();
-  //         if constexpr (std::is_same_v<ChildNodeT, LeafNodeT>) {
-  //           compute_leaf_node_offsets(child);
-  //         }
-  //         else {
-  //           /* Recurse into lower-level internal nodes. */
-  //           compute_internal_node_offsets(child);
-  //         }
-  //       }
-  //     },
-  //     [](int a, int b) { return a + b; });
-
+  node_ranges.add_new({LeafNodeT::LEVEL, node.origin()}, IndexRange(start, count));
   return count;
 }
 
-template<typename TreeT> static void compute_tree_offsets(const TreeT &tree)
+template<typename InternalNodeT>
+static int gather_index_mapping_from_internal_node(const InternalNodeT &node,
+                                                   const GridValueOnOff grid_value_filter,
+                                                   const int start,
+                                                   Map<GridNodeKey, IndexRange> &node_ranges)
+{
+  using ChildNodeT = typename InternalNodeT::ChildNodeType;
+  using LeafNodeT = typename InternalNodeT::LeafNodeType;
+  using NodeMaskT = typename InternalNodeT::NodeMaskType;
+  using UnionT = typename InternalNodeT::UnionType;
+
+  int count = 0;
+  switch (grid_value_filter) {
+    case GridValueOnOff::On:
+      count += node.getValueMask().countOn();
+      break;
+    case GridValueOnOff::Off:
+      count += node.getValueMask().countOff();
+      break;
+    case GridValueOnOff::Dense:
+      count += InternalNodeT::NUM_VALUES;
+      break;
+  }
+
+  const UnionT *table = node.getTable();
+
+  const NodeMaskT &child_mask = node.getChildMask();
+  auto child_mask_iter = child_mask.beginOn();
+  for (; child_mask_iter.test(); ++child_mask_iter) {
+    const ChildNodeT &child_node = *table[child_mask_iter.pos()].getChild();
+    if constexpr (std::is_same_v<ChildNodeT, LeafNodeT>) {
+      gather_index_mapping_from_leaf_node(
+          child_node, grid_value_filter, start + count, node_ranges);
+    }
+    else {
+      /* Recurse into lower-level internal nodes. */
+      count += gather_index_mapping_from_internal_node(
+          child_node, grid_value_filter, start + count, node_ranges);
+    }
+  }
+
+  node_ranges.add_new({InternalNodeT::LEVEL, node.origin()}, IndexRange(start, count));
+  return count;
+}
+
+template<typename TreeT>
+static int gather_index_mapping_from_tree(const TreeT &tree,
+                                          const GridValueOnOff grid_value_filter,
+                                          const int start,
+                                          Map<GridNodeKey, IndexRange> &node_ranges)
 {
   int count = 0;
   for (auto root_child_iter = tree.cbeginRootChildren(); root_child_iter.test(); ++root_child_iter)
   {
     const auto &internal_node = *root_child_iter;
-    count += compute_internal_node_offsets(internal_node);
+    count += gather_index_mapping_from_internal_node(
+        internal_node, grid_value_filter, start + count, node_ranges);
   }
+  return count;
 }
 
-/* Compute offset indices for the voxels in each intermediate node of a grid. These are stored in
- * the transient data values of the grid. Using the offsets we can iterate over the correct range
- * of nodes and leaf buffers for a given index slice efficiently, finding the iterator start/end in
- * logarithmic time. */
-// static void compute_grid_voxel_offsets(const GVolumeGrid &volume_grid)
-// {
-//   if (!volume_grid) {
-//     return;
-//   }
-//   // VolumeTreeAccessToken tree_token;
-//   // const openvdb::GridBase &grid = volume_grid->grid(tree_token);
+std::shared_ptr<GridNodeIndexMapping> GridNodeIndexMapping::from_grid(
+    const VolumeGridData &grid, const GridValueOnOff grid_value_filter)
+{
+  std::shared_ptr<GridNodeIndexMapping> index_mapping = std::make_shared<GridNodeIndexMapping>();
 
-//   // to_typed_grid(grid,
-//   //                                 [&](const auto &grid) { compute_tree_offsets(grid.tree());
-//   });
+  VolumeTreeAccessToken access_token;
+  const openvdb::GridBase &grid_base = grid.grid(access_token);
 
-//   // parallel_grid_topology_tasks(
-//   //     mask_tree,
-//   //     [&](const LeafNodeMask &leaf_node_mask,
-//   //         const openvdb::CoordBBox &leaf_bbox,
-//   //         const GetVoxelsFn get_voxels_fn) {
-//   //       // process_leaf_node(
-//   //       //     fields, transform, leaf_node_mask, leaf_bbox, get_voxels_fn, output_grids);
-//   //     },
-//   //     [&](const Span<openvdb::Coord> voxels) {
-//   //       // process_voxels(fields, transform, voxels, output_grids);
-//   //     },
-//   //     [&](const Span<openvdb::CoordBBox> tiles) {
-//   //       // process_tiles(fields, transform, tiles, output_grids);
-//   //     });
-// }
+  to_typed_grid(grid_base, [&](const auto &grid) {
+    index_mapping->size_ = gather_index_mapping_from_tree(
+        grid.tree(), grid_value_filter, 0, index_mapping->node_ranges_);
+  });
+
+  return index_mapping;
+}
 
 inline IndexRange index_mask_segment_range(const IndexMaskSegment &segment)
 {
