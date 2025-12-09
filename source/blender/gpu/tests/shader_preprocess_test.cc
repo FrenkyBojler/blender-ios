@@ -828,7 +828,7 @@ void func(                   inout Resources _inout_sta srt _inout_end)
 
 #if constant_srt_access(Resources, use_color_band)== 1
 #line 8
-                                                               {
+                                                                   {
     test;
   }
 #else
