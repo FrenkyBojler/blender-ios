@@ -21,8 +21,8 @@
 
 #ifdef RNA_RUNTIME
 
+#  include "BLI_math_vector.h"
 #  include "RNA_access.hh"
-#include "BLI_math_vector.h"
 
 #  include "BKE_curveprofile.h"
 
@@ -118,29 +118,31 @@ static void rna_CurveProfile_update(CurveProfile *profile)
   BKE_curveprofile_update(profile, PROF_UPDATE_REMOVE_DOUBLES | PROF_UPDATE_CLIP);
 }
 
-static int rna_CurveProfilePoint_handle_location_1_editable(const PointerRNA *ptr, const char ** /*r_info*/)
+static int rna_CurveProfilePoint_handle_location_1_editable(const PointerRNA *ptr,
+                                                            const char ** /*r_info*/)
 {
-  CurveProfilePoint *p = (CurveProfilePoint *) ptr->data;
+  CurveProfilePoint *p = (CurveProfilePoint *)ptr->data;
   char handle_type = p->h1;
   return ELEM(handle_type, HD_FREE, HD_ALIGN) ? PROP_EDITABLE : PropertyFlag(0);
 }
 
-static int rna_CurveProfilePoint_handle_location_2_editable(const PointerRNA *ptr, const char ** /*r_info*/)
+static int rna_CurveProfilePoint_handle_location_2_editable(const PointerRNA *ptr,
+                                                            const char ** /*r_info*/)
 {
-  CurveProfilePoint *p = (CurveProfilePoint *) ptr->data;
+  CurveProfilePoint *p = (CurveProfilePoint *)ptr->data;
   char handle_type = p->h2;
   return ELEM(handle_type, HD_FREE, HD_ALIGN) ? PROP_EDITABLE : PropertyFlag(0);
 }
 
 static void rna_CurveProfilePoint_handle_location_1_get(PointerRNA *ptr, float *values)
 {
-  CurveProfilePoint *p = (CurveProfilePoint *)ptr->data;  
+  CurveProfilePoint *p = (CurveProfilePoint *)ptr->data;
   copy_v2_v2(values, p->h1_loc);
 }
 
 static void rna_CurveProfilePoint_handle_location_1_set(PointerRNA *ptr, const float *values)
 {
-  CurveProfilePoint *p = (CurveProfilePoint *)ptr->data;  
+  CurveProfilePoint *p = (CurveProfilePoint *)ptr->data;
   float delta[2];
   delta[0] = values[0] - p->h1_loc[0];
   delta[1] = values[1] - p->h1_loc[1];
@@ -149,13 +151,13 @@ static void rna_CurveProfilePoint_handle_location_1_set(PointerRNA *ptr, const f
 
 static void rna_CurveProfilePoint_handle_location_2_get(PointerRNA *ptr, float *values)
 {
-  CurveProfilePoint *p = (CurveProfilePoint *)ptr->data;  
+  CurveProfilePoint *p = (CurveProfilePoint *)ptr->data;
   copy_v2_v2(values, p->h2_loc);
 }
 
 static void rna_CurveProfilePoint_handle_location_2_set(PointerRNA *ptr, const float *values)
 {
-  CurveProfilePoint *p = (CurveProfilePoint *)ptr->data;  
+  CurveProfilePoint *p = (CurveProfilePoint *)ptr->data;
   float delta[2];
   delta[0] = values[0] - p->h2_loc[0];
   delta[1] = values[1] - p->h2_loc[1];
@@ -190,26 +192,29 @@ static void rna_def_curveprofilepoint(BlenderRNA *brna)
   RNA_def_property_enum_funcs(prop, nullptr, "rna_CurveProfilePoint_handle_type_set", nullptr);
   RNA_def_property_ui_text(prop, "First Handle Type", "Path interpolation at this point");
 
-  prop = RNA_def_property(srna, "handle_location_1", PROP_FLOAT, PROP_XYZ);  
+  prop = RNA_def_property(srna, "handle_location_1", PROP_FLOAT, PROP_XYZ);
   RNA_def_property_array(prop, 2);
   RNA_def_property_float_funcs(prop,
-                                "rna_CurveProfilePoint_handle_location_1_get",
-                                "rna_CurveProfilePoint_handle_location_1_set",
-                                nullptr);
+                               "rna_CurveProfilePoint_handle_location_1_get",
+                               "rna_CurveProfilePoint_handle_location_1_set",
+                               nullptr);
   RNA_def_property_ui_text(prop, "First Handle Location", "X/Y coordinates of the first handle");
   RNA_def_property_editable_func(prop, "rna_CurveProfilePoint_handle_location_1_editable");
 
-  prop = RNA_def_property(srna, "handle_type_2", PROP_ENUM, PROP_NONE);  
+  prop = RNA_def_property(srna, "handle_type_2", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_items(prop, prop_handle_type_items);
-  RNA_def_property_enum_funcs(prop, "rna_CurveProfilePoint_handle_type_2_get", "rna_CurveProfilePoint_handle_type_2_set", nullptr);
+  RNA_def_property_enum_funcs(prop,
+                              "rna_CurveProfilePoint_handle_type_2_get",
+                              "rna_CurveProfilePoint_handle_type_2_set",
+                              nullptr);
   RNA_def_property_ui_text(prop, "Second Handle Type", "Path interpolation at this point");
 
-  prop = RNA_def_property(srna, "handle_location_2", PROP_FLOAT, PROP_XYZ);  
+  prop = RNA_def_property(srna, "handle_location_2", PROP_FLOAT, PROP_XYZ);
   RNA_def_property_array(prop, 2);
   RNA_def_property_float_funcs(prop,
-                                "rna_CurveProfilePoint_handle_location_2_get",
-                                "rna_CurveProfilePoint_handle_location_2_set",
-                                nullptr);
+                               "rna_CurveProfilePoint_handle_location_2_get",
+                               "rna_CurveProfilePoint_handle_location_2_set",
+                               nullptr);
   RNA_def_property_ui_text(prop, "Second Handle Location", "X/Y coordinates of the second handle");
   RNA_def_property_editable_func(prop, "rna_CurveProfilePoint_handle_location_2_editable");
 
