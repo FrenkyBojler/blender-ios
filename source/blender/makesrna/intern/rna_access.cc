@@ -87,15 +87,10 @@ extern const PointerRNA PointerRNA_NULL = {};
 
 void RNA_init()
 {
-  StructRNA *srna;
-
-  BLENDER_RNA.structs_map = MEM_new<BlenderRNA::StructsMap>(__func__);
-  BLENDER_RNA.structs_map->reserve(2048);
+  BLENDER_RNA.structs_map.reserve(2048);
   BLENDER_RNA.structs_len = 0;
 
-  for (srna = static_cast<StructRNA *>(BLENDER_RNA.structs.first); srna;
-       srna = static_cast<StructRNA *>(srna->cont.next))
-  {
+  for (StructRNA *srna : BLENDER_RNA.structs) {
     if (!srna->cont.prop_lookup_set) {
       srna->cont.prop_lookup_set =
           MEM_new<blender::CustomIDVectorSet<PropertyRNA *, PropertyRNAIdentifierGetter>>(
@@ -108,7 +103,7 @@ void RNA_init()
       }
     }
     BLI_assert(srna->flag & STRUCT_PUBLIC_NAMESPACE);
-    BLENDER_RNA.structs_map->add(srna->identifier, srna);
+    BLENDER_RNA.structs_map.add(srna->identifier, srna);
     BLENDER_RNA.structs_len += 1;
   }
 }
@@ -116,11 +111,7 @@ void RNA_init()
 void RNA_bpy_exit()
 {
 #ifdef WITH_PYTHON
-  StructRNA *srna;
-
-  for (srna = static_cast<StructRNA *>(BLENDER_RNA.structs.first); srna;
-       srna = static_cast<StructRNA *>(srna->cont.next))
-  {
+  for (StructRNA *srna : BLENDER_RNA.structs) {
     /* NOTE(@ideasman42): each call locks the Python's GIL. Only locking/unlocking once
      * is possible but gives barely measurable speedup (< ~1millisecond) so leave as-is. */
     BPY_free_srna_pytype(srna);
@@ -130,11 +121,7 @@ void RNA_bpy_exit()
 
 void RNA_exit()
 {
-  StructRNA *srna;
-
-  for (srna = static_cast<StructRNA *>(BLENDER_RNA.structs.first); srna;
-       srna = static_cast<StructRNA *>(srna->cont.next))
-  {
+  for (StructRNA *srna : BLENDER_RNA.structs) {
     MEM_SAFE_DELETE(srna->cont.prop_lookup_set);
   }
 
@@ -704,7 +691,7 @@ static const char *rna_ensure_property_name(const PropertyRNA *prop)
 
 StructRNA *RNA_struct_find(const char *identifier)
 {
-  return BLENDER_RNA.structs_map->lookup_default(identifier, nullptr);
+  return BLENDER_RNA.structs_map.lookup_default(identifier, nullptr);
 }
 
 const char *RNA_struct_identifier(const StructRNA *type)
