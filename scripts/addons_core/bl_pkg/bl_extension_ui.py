@@ -857,14 +857,12 @@ class ExtensionUI_FilterParams:
         "addons_enabled",
         "active_theme_info",
         "repos_all",
-        
         # From the window manager.
         "repo_filter",
-        "extension_tag_repo_filter_enabled",
+        "extension_use_filter",
         "show_installed_enabled",
         "show_installed_disabled",
         "show_available",
-        
         # Write variables, use this to check if the panels should be shown (even when collapsed).
         "has_installed_enabled",
         "has_installed_disabled",
@@ -881,7 +879,7 @@ class ExtensionUI_FilterParams:
         active_theme_info,
         repos_all,
         repo_filter,
-        extension_tag_repo_filter_enabled,
+        extension_use_filter,
         show_installed_enabled,
         show_installed_disabled,
         show_available,
@@ -893,7 +891,7 @@ class ExtensionUI_FilterParams:
         self.active_theme_info = active_theme_info
         self.repos_all = repos_all
         self.repo_filter = repo_filter
-        self.extension_tag_repo_filter_enabled = extension_tag_repo_filter_enabled
+        self.extension_use_filter = extension_use_filter
         self.show_installed_enabled = show_installed_enabled
         self.show_installed_disabled = show_installed_disabled
         self.show_available = show_available
@@ -939,8 +937,7 @@ class ExtensionUI_FilterParams:
             active_theme_info=active_theme_info,
             repos_all=repos_all,
             repo_filter=wm.extension_repo_filter,
-            extension_tag_repo_filter_enabled=wm.extension_tag_repo_filter_enabled,
-            
+            extension_use_filter=wm.extension_use_filter,
             # Extensions don't different between these (add-ons do).
             show_installed_enabled=wm.extension_show_panel_installed,
             show_installed_disabled=wm.extension_show_panel_installed,
@@ -959,7 +956,7 @@ class ExtensionUI_FilterParams:
         )
 
         # Only check if filtering by tag/repository is enabled.
-        if self.extension_tag_repo_filter_enabled:
+        if self.extension_use_filter:
             # Early return if filtering by repository.
             if self.repo_filter != "_ALL_" and self.repo_filter != self.repos_all[repo_index].module:
                 return
@@ -980,7 +977,7 @@ class ExtensionUI_FilterParams:
                 continue
 
             # Only check if filtering by tag/repository is enabled.
-            if self.extension_tag_repo_filter_enabled:
+            if self.extension_use_filter:
                 if self.tags_exclude:
                     if tags_exclude_match(item.tags, self.tags_exclude):
                         continue
@@ -1799,7 +1796,7 @@ class USERPREF_PT_extensions_tag_repo_filter_settings(Panel):
     def draw(self, context):
         layout = self.layout
         wm = context.window_manager
-        layout.enabled = wm.extension_tag_repo_filter_enabled
+        layout.enabled = wm.extension_use_filter
         layout.prop(wm, "extension_repo_filter", text="")
         tags_panel_draw(layout, context, "extension_tags")
 
@@ -2040,7 +2037,7 @@ def extensions_panel_draw(panel, context):
     row_a.prop(wm, "extension_search", text="", icon='VIEWZOOM', placeholder="Search Extensions")
     row_b = row.row(align=True)
     row_b.prop(wm, "extension_type", text="")
-    row_b.prop(wm, "extension_tag_repo_filter_enabled", text="", icon="FILTER")
+    row_b.prop(wm, "extension_use_filter", text="", icon="FILTER")
     row_b.popover("USERPREF_PT_extensions_tag_repo_filter_settings", text="", icon='DOWNARROW_HLT')
 
     row_b.separator()
@@ -2244,8 +2241,7 @@ def tags_current(wm, tags_attr):
         active_theme_info=active_theme_info,
         repos_all=repos_all,
         repo_filter=wm.extension_repo_filter,
-        extension_tag_repo_filter_enabled=wm.extension_tag_repo_filter_enabled,
-        
+        extension_use_filter=wm.extension_use_filter,
         show_installed_enabled=show_installed_enabled,
         show_installed_disabled=show_installed_disabled,
         show_available=show_available,
