@@ -28,6 +28,7 @@
 /* Suppress unhelpful shader compiler warnings. */
 #pragma clang diagnostic ignored "-Wunused-variable"
 #pragma clang diagnostic ignored "-Wcomment"
+#pragma clang diagnostic ignored "-Wunused-const-variable"
 
 /* Array syntax compatibility. */
 /* clang-format off */

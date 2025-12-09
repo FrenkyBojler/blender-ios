@@ -106,15 +106,17 @@ ShaderCreateInfo::ShaderCreateInfo(const char *name) : name_(name)
   }
 }
 
-std::string ShaderCreateInfo::resource_guard_defines() const
+std::string ShaderCreateInfo::resource_guard_defines(Span<CompilationConstant> constants) const
 {
   std::string defines;
   defines += "#define CREATE_INFO_" + name_ + "\n";
-  for (const auto &info_name : additional_infos_) {
+  for (const auto &additional_info : additional_infos_) {
     const ShaderCreateInfo &info = *reinterpret_cast<const ShaderCreateInfo *>(
-        gpu_shader_create_info_get(info_name.c_str()));
+        gpu_shader_create_info_get(additional_info.name.c_str()));
 
-    defines += info.resource_guard_defines();
+    if (additional_info.conditions.evaluate(constants)) {
+      defines += info.resource_guard_defines(constants);
+    }
   }
   return defines;
 }
@@ -130,11 +132,11 @@ void ShaderCreateInfo::finalize(const bool recursive)
 
   validate_vertex_attributes();
 
-  for (auto &info_name : additional_infos_) {
+  for (const auto &additional_info : additional_infos_) {
 
     /* Fetch create info. */
     const ShaderCreateInfo &info = *reinterpret_cast<const ShaderCreateInfo *>(
-        gpu_shader_create_info_get(info_name.c_str()));
+        gpu_shader_create_info_get(additional_info.name.c_str()));
 
     if (recursive) {
       const_cast<ShaderCreateInfo &>(info).finalize(recursive);
@@ -164,10 +166,24 @@ void ShaderCreateInfo::finalize(const bool recursive)
     /* Insert with duplicate check. */
     push_constants_.extend_non_duplicates(info.push_constants_);
     defines_.extend_non_duplicates(info.defines_);
-    batch_resources_.extend_non_duplicates(info.batch_resources_);
-    pass_resources_.extend_non_duplicates(info.pass_resources_);
-    geometry_resources_.extend_non_duplicates(info.geometry_resources_);
     typedef_sources_.extend_non_duplicates(info.typedef_sources_);
+
+    auto extend_predicate = [&](Vector<Resource, 0> &resource_vector,
+                                ShaderCreateInfo::Resource res_copy,
+                                Span<ConditionFn> additional_conditions) {
+      res_copy.conditions.extend(additional_conditions);
+      /* TODO(fclem): Legacy create infos can have duplicated includes. */
+      resource_vector.append_non_duplicates(res_copy);
+    };
+    for (const auto &res : info.pass_resources_) {
+      extend_predicate(pass_resources_, res, additional_info.conditions);
+    }
+    for (const auto &res : info.batch_resources_) {
+      extend_predicate(batch_resources_, res, additional_info.conditions);
+    }
+    for (const auto &res : info.geometry_resources_) {
+      extend_predicate(geometry_resources_, res, additional_info.conditions);
+    }
 
     /* API-specific parameters.
      * We will only copy API-specific parameters if they are otherwise unassigned. */

@@ -137,7 +137,7 @@ struct ParsedResource {
     std::string res_condition_lambda;
 
     if (!res_condition.empty()) {
-      res_condition_lambda = ", [](blender::Span<CompilationConstant>) { ";
+      res_condition_lambda = ", [](blender::Span<CompilationConstant> constants) { ";
       res_condition_lambda += res_condition;
       res_condition_lambda += "}";
     }
@@ -147,7 +147,13 @@ struct ParsedResource {
       ss << "ADDITIONAL_INFO(" << var_name << ")";
     }
     else if (res_type == "resource_table") {
-      ss << "ADDITIONAL_INFO(" << var_type << ")";
+      if (!res_condition.empty()) {
+        ss << ".additional_info_with_condition(\"" << var_type << "\"" << res_condition_lambda
+           << ")";
+      }
+      else {
+        ss << ".additional_info(\"" << var_type << "\")";
+      }
     }
     else if (res_type == "sampler") {
       ss << ".sampler(" << res_slot;
@@ -2023,7 +2029,9 @@ class Preprocessor {
         }
         else if (type == "condition") {
           attribute[1].scope().foreach_token(Word, [&](const Token tok) {
-            resource.res_condition += "int " + tok.str() + " = 0; ";
+            resource.res_condition += "int " + tok.str() + " = ";
+            resource.res_condition += "ShaderCreateInfo::find_constant(constants, \"" + tok.str() +
+                                      "\"); ";
           });
           resource.res_condition += "return " + attribute[1].scope().str() + ";";
         }
