@@ -226,6 +226,10 @@ struct Scope {
                      std::function<void(const std::vector<Token>)> callback) const
   {
     assert(!pattern.empty());
+    if (this->is_invalid()) {
+      return;
+    }
+
     const std::string_view scope_tokens =
         std::string_view(data->token_types).substr(range().start, range().size);
 
