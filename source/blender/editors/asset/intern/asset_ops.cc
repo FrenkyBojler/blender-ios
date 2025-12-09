@@ -1274,7 +1274,7 @@ static void screenshot_preview_draw(const wmWindow *window, void *operator_data)
   ui::draw_roundbox_aa(&mask_rect_right, true, 0, mask_color);
 
   float4 color;
-  ui::GetThemeColor4fv(TH_EDITOR_BORDER, color);
+  ui::theme::get_color_4fv(TH_EDITOR_BORDER, color);
   ui::draw_roundbox_aa(&screenshot_rect, false, 0, color);
 }
 
@@ -1466,9 +1466,7 @@ static bool screenshot_preview_poll(bContext *C)
   if (asset_handle->is_local_id()) {
     return WM_operator_winactive(C);
   }
-
-  std::string lib_path = asset_handle->full_library_path();
-  if (StringRef(lib_path).endswith(BLENDER_ASSET_FILE_SUFFIX)) {
+  if (asset_handle->is_potentially_editable_asset_blend()) {
     return true;
   }
 
