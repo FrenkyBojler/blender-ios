@@ -4914,6 +4914,133 @@ static void GREASE_PENCIL_OT_set_corner_type(wmOperatorType *ot)
 
 /** \} */
 
+/* -------------------------------------------------------------------- */
+/** \name Join Shapes Operator
+ * \{ */
+
+static Array<int> get_gapless_indices(const IndexRange &universe, const IndexMask &selected)
+{
+  const int first_curve = selected.first();
+  Array<int> indices_data(universe.size());
+  MutableSpan<int> indices = indices_data.as_mutable_span();
+
+  /*
+   * Make the selected indices be in ascending order with the first indices staying at the same
+   * place.
+   *
+   * Here's a diagram:
+   *
+   *        Input
+   * 0 1 2 3 4 5 6 7 8 9
+   *       ^   ^ ^
+   *
+   * |-A-| |-B-| |--C--|
+   * 0 1 2 3 5 6 4 7 8 9
+   *       ^ ^ ^
+   *
+   * The `A` range gets filled with increasing indices starting at zero, ending at `first_curve`.
+   * The `B` range gets filled with the selected indices starting at `first_curve`.
+   * The `C` range gets filled with the unselected indices not including the `A` range.
+   */
+
+  IndexMaskMemory memory;
+  const IndexMask unselected = selected.complement(universe.drop_front(first_curve), memory);
+
+  /* Fill `A`. */
+  array_utils::fill_index_range<int>(indices.take_front(first_curve));
+  /* Fill `B`. */
+  selected.to_indices(indices.drop_front(first_curve).take_front(selected.size()));
+  /* Fill `C`. */
+  unselected.to_indices(indices.take_back(unselected.size()));
+
+  return indices_data;
+}
+
+static wmOperatorStatus grease_pencil_join_shapes_exec(bContext *C, wmOperator * /*op*/)
+{
+  const Scene *scene = CTX_data_scene(C);
+  Object *object = CTX_data_active_object(C);
+  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+
+  bool changed = false;
+  const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
+  threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
+    IndexMaskMemory memory;
+    const IndexMask strokes = ed::greasepencil::retrieve_editable_and_selected_strokes(
+        *object, info.drawing, info.layer_index, memory);
+    if (strokes.is_empty()) {
+      return;
+    }
+    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+    bke::SpanAttributeWriter<int> shape_ids = attributes.lookup_or_add_for_write_span<int>(
+        "shape_id", bke::AttrDomain::Curve);
+
+    /* Currently Grease Pencil does not have a active element, so instead just use the first. */
+    const int active_curve = strokes.first();
+
+    int shape_id_to_set = shape_ids.span[active_curve];
+    if (shape_id_to_set == 0) {
+      /* Get the first id that does not already exist. */
+      shape_id_to_set = *std::max_element(shape_ids.span.begin(), shape_ids.span.end()) + 1;
+
+      if (shape_id_to_set == 0) {
+        shape_id_to_set++;
+      }
+    }
+
+    index_mask::masked_fill(shape_ids.span, shape_id_to_set, strokes);
+    shape_ids.finish();
+
+    Set<StringRef> attributes_to_set{{"material_index",
+                                      "fill_color",
+                                      "fill_opacity",
+                                      "uv_rotation",
+                                      "uv_translation",
+                                      "uv_scale"}};
+    /* Copy curve attributes from the active to all other selected curves. */
+    attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
+      if (iter.domain != bke::AttrDomain::Curve) {
+        return;
+      }
+      if (!attributes_to_set.contains(iter.name)) {
+        return;
+      }
+      bke::GSpanAttributeWriter attribute = attributes.lookup_for_write_span(iter.name);
+      const CPPType &type = attribute.span.type();
+      type.fill_assign_indices(attribute.span[active_curve], attribute.span.data(), strokes);
+      attribute.finish();
+    });
+
+    Array<int> indices = get_gapless_indices(curves.curves_range(), strokes);
+    curves = geometry::reorder_curves_geometry(curves, indices, {});
+    info.drawing.tag_topology_changed();
+
+    changed = true;
+  });
+
+  if (changed) {
+    DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
+  }
+
+  return OPERATOR_FINISHED;
+}
+
+static void GREASE_PENCIL_OT_join_shapes(wmOperatorType *ot)
+{
+  ot->name = "Join Shapes";
+  ot->idname = "GREASE_PENCIL_OT_join_shapes";
+  ot->description = "Join selected strokes into one shape to create holes";
+
+  ot->exec = grease_pencil_join_shapes_exec;
+  ot->poll = editable_grease_pencil_poll;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+/** \} */
+
 }  // namespace blender::ed::greasepencil
 
 void ED_operatortypes_grease_pencil_edit()
@@ -4958,6 +5085,7 @@ void ED_operatortypes_grease_pencil_edit()
   WM_operatortype_append(GREASE_PENCIL_OT_outline);
   WM_operatortype_append(GREASE_PENCIL_OT_convert_curve_type);
   WM_operatortype_append(GREASE_PENCIL_OT_set_corner_type);
+  WM_operatortype_append(GREASE_PENCIL_OT_join_shapes);
 }
 
 /* -------------------------------------------------------------------- */
