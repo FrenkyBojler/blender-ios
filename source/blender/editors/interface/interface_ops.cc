@@ -2106,9 +2106,8 @@ static wmOperatorStatus editsource_text_edit(bContext *C,
                                              const int line)
 {
   wmOperatorType *ot = WM_operatortype_find("TEXT_OT_jump_to_file_at_point", true);
-  PointerRNA op_props;
 
-  WM_operator_properties_create_ptr(&op_props, ot);
+  PointerRNA op_props = WM_operator_properties_create_ptr(ot);
   RNA_string_set(&op_props, "filepath", filepath);
   RNA_int_set(&op_props, "line", line - 1);
   RNA_int_set(&op_props, "column", 0);
@@ -2487,7 +2486,7 @@ static bool ui_list_focused_poll(bContext *C)
     return false;
   }
   const wmWindow *win = CTX_wm_window(C);
-  const uiList *list = list_find_mouse_over(region, win->eventstate);
+  const uiList *list = list_find_mouse_over(region, win->runtime->eventstate);
 
   return list != nullptr;
 }
@@ -2546,7 +2545,7 @@ static void UI_OT_list_start_filter(wmOperatorType *ot)
 static AbstractView *get_view_focused(bContext *C)
 {
   const wmWindow *win = CTX_wm_window(C);
-  if (!(win && win->eventstate)) {
+  if (!(win && win->runtime->eventstate)) {
     return nullptr;
   }
 
@@ -2554,7 +2553,7 @@ static AbstractView *get_view_focused(bContext *C)
   if (!region) {
     return nullptr;
   }
-  return region_view_find_at(region, win->eventstate->xy, 0);
+  return region_view_find_at(region, win->runtime->eventstate->xy, 0);
 }
 
 static bool ui_view_focused_poll(bContext *C)
@@ -2598,14 +2597,14 @@ static void UI_OT_view_start_filter(wmOperatorType *ot)
 static bool ui_view_drop_poll(bContext *C)
 {
   const wmWindow *win = CTX_wm_window(C);
-  if (!(win && win->eventstate)) {
+  if (!(win && win->runtime->eventstate)) {
     return false;
   }
   const ARegion *region = CTX_wm_region(C);
   if (region == nullptr) {
     return false;
   }
-  return region_views_find_drop_target_at(region, win->eventstate->xy) != nullptr;
+  return region_views_find_drop_target_at(region, win->runtime->eventstate->xy) != nullptr;
 }
 
 static wmOperatorStatus ui_view_drop_invoke(bContext *C, wmOperator * /*op*/, const wmEvent *event)
