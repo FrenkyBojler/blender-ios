@@ -332,7 +332,7 @@ static wmOperatorStatus gizmo_arrow_modal(bContext *C,
 {
   GizmoInteraction *inter = static_cast<GizmoInteraction *>(gz->interaction_data);
 
-  /* Can happen if another (e.g. python-based) modal operator finishes. */
+  /* Can happen if another (e.g. Python-based) modal operator finishes, see #151241. */
   if (inter == nullptr) {
     return OPERATOR_CANCELLED;
   }
@@ -476,7 +476,7 @@ static void gizmo_arrow_exit(bContext *C, wmGizmo *gz, const bool cancel)
 
   if (cancel) {
     GizmoInteraction *inter = static_cast<GizmoInteraction *>(gz->interaction_data);
-    /* Can happen if another (e.g. python-based) modal operator finishes. */
+    /* Can happen if another (e.g. Python-based) modal operator finishes, see #151241. */
     if (inter == nullptr) {
       return;
     }
