@@ -42,7 +42,7 @@ def set_view3d_context_override(context_override):
                 context_override["region"] = region
 
 
-def generate_stroke(context, start_over_mesh = False):
+def generate_stroke(context, start_over_mesh=False):
     """
     Generate stroke for the bpy.ops.sculpt.brush_stroke operator
 
@@ -124,7 +124,7 @@ class MeshBrushTests(unittest.TestCase):
 
         return attribute_data
 
-    def _check_stroke(self, start_over_mesh = False):
+    def _check_stroke(self, start_over_mesh=False):
         # Ideally, we would use something like pytest and parameterized tests here, but this helper function is an
         # alright solution for now...
 
@@ -133,7 +133,11 @@ class MeshBrushTests(unittest.TestCase):
         context_override = bpy.context.copy()
         set_view3d_context_override(context_override)
         with bpy.context.temp_override(**context_override):
-            bpy.ops.sculpt.brush_stroke(stroke=generate_stroke(context_override, start_over_mesh), override_location=True)
+            bpy.ops.sculpt.brush_stroke(
+                stroke=generate_stroke(
+                    context_override,
+                    start_over_mesh),
+                override_location=True)
 
         new_data = self._get_attribute_data()
 
@@ -318,7 +322,7 @@ class MeshBrushTests(unittest.TestCase):
         self._activate_brush("Pinch/Magnify")
         self._check_stroke()
 
-    @unittest.skip("Brush requires 'active_vert_index'")
+    @unittest.skip("Brush requires raycast")
     def test_pose_brush_creates_valid_data(self):
         self._activate_brush("Pose")
         self._check_stroke(start_over_mesh=True)
@@ -408,6 +412,65 @@ class MeshBrushTests(unittest.TestCase):
 
         self._activate_brush("Smear")
         self._check_paint_stroke()
+
+    @unittest.skip("Brush requires raycast")
+    def test_bend_boundary_cloth_brush_creates_valid_data(self):
+        self._activate_brush("Bend Boundary Cloth")
+        self._check_stroke()
+
+    @unittest.skip("Brush requires raycast")
+    def test_bend_twist_cloth_brush_creates_valid_data(self):
+        self._activate_brush("Bend/Twist Cloth")
+        self._check_stroke(start_over_mesh=True)
+
+    def test_drag_cloth_brush_creates_valid_data(self):
+        self._activate_brush("Drag Cloth")
+        self._check_stroke(start_over_mesh=True)
+
+    def test_expand_contract_cloth_brush_creates_valid_data(self):
+        self._activate_brush("Expand/Contract Cloth")
+        self._check_stroke(start_over_mesh=True)
+
+    @unittest.skip("Brush requires raycast")
+    def test_grab_cloth_brush_creates_valid_data(self):
+        self._activate_brush("Grab Cloth")
+        self._check_stroke(start_over_mesh=True)
+
+    @unittest.skip("Brush has a typo currently in the name, 'Grab Planar Cloth '")
+    def test_grab_planar_cloth_brush_creates_valid_data(self):
+        self._activate_brush("Grab Planar Cloth")
+        self._check_stroke(start_over_mesh=True)
+
+    @unittest.skip("Brush requires raycast")
+    def test_grab_random_cloth_brush_creates_valid_data(self):
+        self._activate_brush("Grab Random Cloth")
+        self._check_stroke(start_over_mesh=True)
+
+    def test_inflate_cloth_brush_creates_valid_data(self):
+        self._activate_brush("Inflate Cloth")
+        self._check_stroke(start_over_mesh=True)
+
+    def test_pinch_folds_cloth_brush_creates_valid_data(self):
+        self._activate_brush("Pinch Folds Cloth")
+        self._check_stroke(start_over_mesh=True)
+
+    def test_pinch_point_cloth_brush_creates_valid_data(self):
+        self._activate_brush("Pinch Point Cloth")
+        self._check_stroke(start_over_mesh=True)
+
+    def test_push_cloth_brush_creates_valid_data(self):
+        self._activate_brush("Push Cloth")
+        self._check_stroke(start_over_mesh=True)
+
+    @unittest.skip("Brush requires raycast")
+    def test_stretch_move_cloth_brush_creates_valid_data(self):
+        self._activate_brush("Stretch/Move Cloth")
+        self._check_stroke(start_over_mesh=True)
+
+    @unittest.skip("Brush requires raycast")
+    def test_twist_boundary_cloth_brush_creates_valid_data(self):
+        self._activate_brush("Twist Boundary Cloth")
+        self._check_stroke()
 
 
 def main():
