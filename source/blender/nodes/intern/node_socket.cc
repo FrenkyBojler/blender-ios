@@ -1258,7 +1258,7 @@ static bke::bNodeSocketType *make_socket_type_vector(PropertySubType subtype, co
     const auto *data = static_cast<const bNodeSocketValueVector *>(socket.socket_data);
     prop = RNA_def_float_vector(&srna,
                                 "value",
-                                3,
+                                data->dimensions,
                                 data->value,
                                 -FLT_MAX,
                                 FLT_MAX,
@@ -1322,13 +1322,15 @@ static bke::bNodeSocketType *make_socket_type_string(PropertySubType subtype)
                                                 StructRNA &srna,
                                                 const bNodeTreeInterfaceSocket &socket,
                                                 nodes::GeneratedTreeSrnaData &r_generated) {
+    PropertyRNA *prop;
     const auto *data = static_cast<const bNodeSocketValueString *>(socket.socket_data);
-    RNA_def_string(&srna,
-                   "value",
-                   data->value[0] ? data->value : nullptr,
-                   0,
-                   socket.name,
-                   socket.description);
+    prop = RNA_def_string(&srna,
+                          "value",
+                          data->value[0] ? data->value : nullptr,
+                          0,
+                          socket.name,
+                          socket.description);
+    RNA_def_property_subtype(prop, PropertySubType(data->subtype));
     make_common_value_props(srna, socket, r_generated);
   };
   return socktype;
