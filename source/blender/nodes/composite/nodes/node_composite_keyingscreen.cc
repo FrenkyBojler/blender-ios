@@ -16,8 +16,8 @@
 
 #include "BKE_context.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_movieclip.h"
-#include "BKE_tracking.h"
+#include "BKE_movieclip.hh"
+#include "BKE_tracking.hh"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
@@ -74,7 +74,7 @@ static void node_composit_buts_keyingscreen(ui::Layout &layout, bContext *C, Poi
 {
   bNode *node = (bNode *)ptr->data;
 
-  uiTemplateID(&layout, C, ptr, "clip", nullptr, nullptr, nullptr);
+  template_id(&layout, C, ptr, "clip", nullptr, nullptr, nullptr);
 
   if (node->id) {
     MovieClip *clip = (MovieClip *)node->id;
