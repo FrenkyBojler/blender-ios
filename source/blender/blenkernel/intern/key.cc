@@ -20,6 +20,7 @@
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
+#include "BLI_timeit.hh"
 #include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
@@ -649,6 +650,27 @@ static bool key_pointer_size(
   return true;
 }
 
+/**
+ * Copy the shapekey data from `source` into the given target array.
+ */
+static void copy_key_float3_full(const int vertex_count,
+                                 Key *key,
+                                 KeyBlock *source,
+                                 float *r_target)
+{
+  char *free_keyblock_data;
+  float *keyblock_data = reinterpret_cast<float *>(
+      key_block_get_data(key, source, key->refkey, &free_keyblock_data));
+
+  memcpy(r_target, keyblock_data, vertex_count * 3);
+
+  if (free_keyblock_data) {
+    MEM_freeN(free_keyblock_data);
+  }
+}
+
+static void copy_key_range(const int start) {}
+
 static void cp_key(const int start,
                    int end,
                    const int tot,
@@ -861,16 +883,22 @@ static void key_evaluate_relative_float3(Key *key,
                                          const int mode,
                                          float *target_data)
 {
+  SCOPED_TIMER_AVERAGED("eval");
   /* Creates the basis values in target_data. */
-  cp_key(range.first(),
-         range.last() + 1,
-         vertex_count,
-         reinterpret_cast<char *>(target_data),
-         key,
-         active_keyblock,
-         key->refkey,
-         nullptr,
-         mode);
+  if (mode == KEY_MODE_DUMMY) {
+    copy_key_float3_full(vertex_count, key, key->refkey, target_data);
+  }
+  else {
+    cp_key(range.first(),
+           range.last() + 1,
+           vertex_count,
+           reinterpret_cast<char *>(target_data),
+           key,
+           active_keyblock,
+           key->refkey,
+           nullptr,
+           mode);
+  }
 
   int keyblock_index = 0;
   LISTBASE_FOREACH_INDEX (KeyBlock *, kb, &key->block, keyblock_index) {
