@@ -359,6 +359,10 @@ void LookdevModule::draw(View &view)
   inst_.volume_probes.set_view(view);
   inst_.sphere_probes.set_view(view);
 
+  if (assign_if_different(inst_.pipelines.data.use_monochromatic_transmittance, bool32_t(true))) {
+    inst_.uniform_data.push_update();
+  }
+
   for (Sphere &sphere : spheres_) {
     sphere.framebuffer.bind();
     inst_.manager->submit(sphere.pass, view);
@@ -500,7 +504,7 @@ void LookdevModule::rotate_world_probe_data(
 
   inst_.manager->submit(pass);
   /* Tag world to update the SH stored in the volume probe atlas.
-   * If any volume probe is visible, thi will reupload the baked data.
+   * If any volume probe is visible, this will reupload the baked data.
    * This is the costly part of this feature. */
   inst_.volume_probes.update_world_irradiance();
 }
