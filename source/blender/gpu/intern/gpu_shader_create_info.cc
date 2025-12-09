@@ -172,8 +172,8 @@ void ShaderCreateInfo::finalize(const bool recursive)
                                 ShaderCreateInfo::Resource res_copy,
                                 Span<ConditionFn> additional_conditions) {
       res_copy.conditions.extend(additional_conditions);
-      /* TODO(fclem): Legacy create infos can have duplicated includes. */
-      resource_vector.append_non_duplicates(res_copy);
+      /** IMPORTANT: We keep duplicates until we evaluate the conditions. */
+      resource_vector.append(res_copy);
     };
     for (const auto &res : info.pass_resources_) {
       extend_predicate(pass_resources_, res, additional_info.conditions);
@@ -206,7 +206,10 @@ void ShaderCreateInfo::finalize(const bool recursive)
     /* Inherit builtin bits from additional info. */
     builtins_ |= info.builtins_;
 
-    validate_merge(info);
+    /* TODO(fclem): We need to reintroduce this check before compiling.
+     * The issue is that the new SRT paradigm allows for conflicting resources if they are not
+     * defined at the same time (using compilation constants). */
+    // validate_merge(info);
 
     auto assert_no_overlap = [&](const bool test, const StringRefNull error) {
       if (!test) {

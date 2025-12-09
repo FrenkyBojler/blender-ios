@@ -787,16 +787,23 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info, bool 
 
   if (!specialized_info.compilation_constants_.is_empty()) {
     auto predicate = [&](const ShaderCreateInfo::Resource &res) {
-      bool pred = res.conditions.evaluate(specialized_info.compilation_constants_);
-      std::cout << res.uniformbuf.name << " condition evaluated to : " << (pred ? "true" : "false")
-                << std::endl;
       return !res.conditions.evaluate(specialized_info.compilation_constants_);
     };
     specialized_info.pass_resources_.remove_if(predicate);
     specialized_info.batch_resources_.remove_if(predicate);
     specialized_info.geometry_resources_.remove_if(predicate);
-    std::cout << specialized_info << std::endl;
   }
+
+  /* We merged infos keeping duplicates because of possible different condition per definitions.
+   * Deduplicate remaining ones to avoid errors. */
+  auto cleanup_duplicates = [&](Vector<ShaderCreateInfo::Resource, 0> &resources) {
+    Vector<ShaderCreateInfo::Resource, 0> tmp = resources;
+    resources.clear();
+    resources.extend_non_duplicates(tmp);
+  };
+  cleanup_duplicates(specialized_info.pass_resources_);
+  cleanup_duplicates(specialized_info.batch_resources_);
+  cleanup_duplicates(specialized_info.geometry_resources_);
 
   const std::string error = specialized_info.check_error();
   if (!error.empty()) {
@@ -820,6 +827,14 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &orig_info, bool 
   std::string resources = shader->resources_declare(info);
 
   defines += info.resource_guard_defines(info.compilation_constants_);
+
+  /* Compilation constants declaration for static branches evaluation.
+   * In the future, these can be compiled using function constants on metal to reduce compilation
+   * time. */
+  for (const auto &constant : info.compilation_constants_) {
+    defines += "#define SRT_CONSTANT_" + constant.name + " " + std::to_string(constant.value.i) +
+               "\n";
+  }
 
   defines += "#define USE_GPU_SHADER_CREATE_INFO\n";
 
