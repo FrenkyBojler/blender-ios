@@ -407,6 +407,16 @@ CurvesSculptCommonContext::CurvesSculptCommonContext(const bContext &C)
   this->rv3d = CTX_wm_region_view3d(&C);
 }
 
+CurvesSculptCommonContext::CurvesSculptCommonContext(const PaintStroke &stroke)
+{
+  this->depsgraph = stroke.vc.depsgraph;
+  this->scene = stroke.vc.scene;
+  this->region = stroke.vc.region;
+  this->v3d = stroke.vc.v3d;
+  this->rv3d = stroke.vc.rv3d;
+  this->object = stroke.object;
+}
+
 void report_empty_original_surface(ReportList *reports)
 {
   BKE_report(reports, RPT_WARNING, "Original surface mesh is empty");
