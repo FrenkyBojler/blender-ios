@@ -870,19 +870,19 @@ class ExtensionUI_FilterParams:
     )
 
     def __init__(
-        self,
-        *,
-        search_casefold,
-        tags_exclude,
-        filter_by_type,
-        addons_enabled,
-        active_theme_info,
-        repos_all,
-        repo_filter,
-        extension_use_filter,
-        show_installed_enabled,
-        show_installed_disabled,
-        show_available,
+            self,
+            *,
+            search_casefold,
+            tags_exclude,
+            filter_by_type,
+            addons_enabled,
+            active_theme_info,
+            repos_all,
+            repo_filter,
+            extension_use_filter,
+            show_installed_enabled,
+            show_installed_disabled,
+            show_available,
     ):
         self.search_casefold = search_casefold
         self.tags_exclude = tags_exclude
