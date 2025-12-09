@@ -1732,7 +1732,7 @@ class IMAGE_PT_overlay_uv_display(Panel):
         overlay = sima.overlay
 
         layout.active = overlay.show_overlays
-        
+
         col = layout.column()
         col.prop(uvedit, "show_uv")
 
