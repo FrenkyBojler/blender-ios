@@ -137,6 +137,24 @@ class ShadowPipeline {
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Prepass
+ *
+ * Helper class for handling prepasses in Forward and Deferred pipelines.
+ * \{ */
+
+class Prepass : public PassMain {
+  PassMain::Sub *prepass_subpasses[2 /*double sided*/][2 /*moving*/][2 /*write id*/] = {
+      {{nullptr}}};
+
+ public:
+  Prepass(const char *name) : PassMain(name) {};
+  void setup_subpasses(DRWState common_state);
+  PassMain::Sub *add(::Material *blender_mat, GPUMaterial *gpumat, bool has_motion);
+};
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Forward Pass
  *
  * Handles alpha blended surfaces and NPR materials (using Closure to RGBA).
@@ -146,11 +164,7 @@ class ForwardPipeline {
  private:
   Instance &inst_;
 
-  PassMain prepass_ps_ = {"Prepass"};
-  PassMain::Sub *prepass_single_sided_static_ps_ = nullptr;
-  PassMain::Sub *prepass_single_sided_moving_ps_ = nullptr;
-  PassMain::Sub *prepass_double_sided_static_ps_ = nullptr;
-  PassMain::Sub *prepass_double_sided_moving_ps_ = nullptr;
+  Prepass prepass_ps_ = {"Prepass"};
 
   PassMain opaque_ps_ = {"Shading"};
   PassMain::Sub *opaque_single_sided_ps_ = nullptr;
@@ -214,11 +228,7 @@ class ForwardPipeline {
  * \{ */
 
 struct DeferredLayerBase {
-  PassMain prepass_ps_ = {"Prepass"};
-  PassMain::Sub *prepass_single_sided_static_ps_ = nullptr;
-  PassMain::Sub *prepass_single_sided_moving_ps_ = nullptr;
-  PassMain::Sub *prepass_double_sided_static_ps_ = nullptr;
-  PassMain::Sub *prepass_double_sided_moving_ps_ = nullptr;
+  Prepass prepass_ps_ = {"Prepass"};
 
   PassMain gbuffer_ps_ = {"Shading"};
   /* Shaders that use the ClosureToRGBA node needs to be rendered first.

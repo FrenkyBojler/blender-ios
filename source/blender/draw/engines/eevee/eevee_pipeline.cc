@@ -275,6 +275,47 @@ void ShadowPipeline::render(View &view)
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Prepass
+ *
+ * Helper class for handling prepasses in Forward and Deferred pipelines.
+ * \{ */
+
+void Prepass::setup_subpasses(DRWState common_state)
+{
+  for (bool double_sided : {false, true}) {
+    std::string double_sided_name = double_sided ? "DoubleSided." : "SingleSided.";
+    DRWState double_sided_state = double_sided ? DRW_STATE_NO_DRAW : DRW_STATE_CULL_BACK;
+
+    for (bool moving : {false, true}) {
+      std::string moving_name = moving ? "Moving." : "Static.";
+      DRWState moving_state = moving ? DRW_STATE_WRITE_COLOR : DRW_STATE_NO_DRAW;
+
+      for (bool write_id : {false, true}) {
+        std::string write_id_name = write_id ? "ID" : "NoID";
+        DRWState write_id_state = write_id ? DRW_STATE_WRITE_COLOR : DRW_STATE_NO_DRAW;
+
+        PassMain::Sub *&subpass = prepass_subpasses[double_sided][moving][write_id];
+        subpass = &this->sub(double_sided_name + moving_name + write_id_name);
+        subpass->state_set(common_state | double_sided_state | moving_state | write_id_state);
+        subpass->subpass_transition(GPU_ATTACHMENT_WRITE,
+                                    {moving ? GPU_ATTACHMENT_WRITE : GPU_ATTACHMENT_IGNORE,
+                                     write_id ? GPU_ATTACHMENT_WRITE : GPU_ATTACHMENT_IGNORE});
+      }
+    }
+  }
+}
+
+PassMain::Sub *Prepass::add(::Material *blender_mat, GPUMaterial *gpumat, bool has_motion)
+{
+  bool double_sided = blender_mat->blend_flag & MA_BL_CULL_BACKFACE;
+  bool write_id = GPU_material_flag_get(gpumat, GPU_MATFLAG_RAYCAST);
+  PassMain::Sub *pass = prepass_subpasses[double_sided][has_motion][write_id];
+  return &pass->sub(GPU_material_get_name(gpumat));
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Forward Pass
  *
  * NPR materials (using Closure to RGBA) or material using ALPHA_BLEND.
@@ -288,9 +329,6 @@ void ForwardPipeline::sync()
   has_colored_transparency_ = false;
   has_holdout_ = false;
 
-  DRWState state_depth_only = DRW_STATE_WRITE_DEPTH | DRW_STATE_CLIP_CONTROL_UNIT_RANGE |
-                              inst_.film.depth.test_state;
-  DRWState state_depth_color = state_depth_only | DRW_STATE_WRITE_COLOR;
   {
     prepass_ps_.init();
 
@@ -303,17 +341,8 @@ void ForwardPipeline::sync()
       prepass_ps_.bind_texture(OBJECT_ID_TEX_SLOT, &inst_.render_buffers.object_id_tx);
     }
 
-    prepass_double_sided_static_ps_ = &prepass_ps_.sub("DoubleSided.Static");
-    prepass_double_sided_static_ps_->state_set(state_depth_only);
-
-    prepass_single_sided_static_ps_ = &prepass_ps_.sub("SingleSided.Static");
-    prepass_single_sided_static_ps_->state_set(state_depth_only | DRW_STATE_CULL_BACK);
-
-    prepass_double_sided_moving_ps_ = &prepass_ps_.sub("DoubleSided.Moving");
-    prepass_double_sided_moving_ps_->state_set(state_depth_color);
-
-    prepass_single_sided_moving_ps_ = &prepass_ps_.sub("SingleSided.Moving");
-    prepass_single_sided_moving_ps_->state_set(state_depth_color | DRW_STATE_CULL_BACK);
+    prepass_ps_.setup_subpasses(DRW_STATE_WRITE_DEPTH | DRW_STATE_CLIP_CONTROL_UNIT_RANGE |
+                                inst_.film.depth.test_state);
   }
   {
     opaque_ps_.init();
@@ -390,18 +419,13 @@ PassMain::Sub *ForwardPipeline::prepass_opaque_add(::Material *blender_mat,
   BLI_assert_msg(GPU_material_flag_get(gpumat, GPU_MATFLAG_TRANSPARENT) == false,
                  "Forward Transparent should be registered directly without calling "
                  "PipelineModule::material_add()");
-  PassMain::Sub *pass = (blender_mat->blend_flag & MA_BL_CULL_BACKFACE) ?
-                            (has_motion ? prepass_single_sided_moving_ps_ :
-                                          prepass_single_sided_static_ps_) :
-                            (has_motion ? prepass_double_sided_moving_ps_ :
-                                          prepass_double_sided_static_ps_);
 
   /* If material is fully additive or transparent, we can skip the opaque prepass. */
   /* TODO(fclem): To skip it, we need to know if the transparent BSDF is fully white AND if there
    * is no mix shader (could do better constant folding but that's expensive). */
 
   has_opaque_ = true;
-  return &pass->sub(GPU_material_get_name(gpumat));
+  return prepass_ps_.add(blender_mat, gpumat, has_motion);
 }
 
 PassMain::Sub *ForwardPipeline::material_opaque_add(::Material *blender_mat, GPUMaterial *gpumat)
@@ -658,22 +682,9 @@ void DeferredLayer::begin_sync()
     prepass_ps_.clear_stencil(0xFFu);
     prepass_ps_.state_stencil(0xFFu, 0u, 0xFFu);
 
-    DRWState state_depth_only = DRW_STATE_WRITE_STENCIL | DRW_STATE_STENCIL_ALWAYS |
+    prepass_ps_.setup_subpasses(DRW_STATE_WRITE_STENCIL | DRW_STATE_STENCIL_ALWAYS |
                                 DRW_STATE_WRITE_DEPTH | DRW_STATE_CLIP_CONTROL_UNIT_RANGE |
-                                inst_.film.depth.test_state;
-    DRWState state_depth_color = state_depth_only | DRW_STATE_WRITE_COLOR;
-
-    prepass_double_sided_static_ps_ = &prepass_ps_.sub("DoubleSided.Static");
-    prepass_double_sided_static_ps_->state_set(state_depth_only);
-
-    prepass_single_sided_static_ps_ = &prepass_ps_.sub("SingleSided.Static");
-    prepass_single_sided_static_ps_->state_set(state_depth_only | DRW_STATE_CULL_BACK);
-
-    prepass_double_sided_moving_ps_ = &prepass_ps_.sub("DoubleSided.Moving");
-    prepass_double_sided_moving_ps_->state_set(state_depth_color);
-
-    prepass_single_sided_moving_ps_ = &prepass_ps_.sub("SingleSided.Moving");
-    prepass_single_sided_moving_ps_->state_set(state_depth_color | DRW_STATE_CULL_BACK);
+                                inst_.film.depth.test_state);
   }
 
   this->gbuffer_pass_sync(inst_);
@@ -908,13 +919,7 @@ PassMain::Sub *DeferredLayer::prepass_add(::Material *blender_mat,
                                           GPUMaterial *gpumat,
                                           bool has_motion)
 {
-  PassMain::Sub *pass = (blender_mat->blend_flag & MA_BL_CULL_BACKFACE) ?
-                            (has_motion ? prepass_single_sided_moving_ps_ :
-                                          prepass_single_sided_static_ps_) :
-                            (has_motion ? prepass_double_sided_moving_ps_ :
-                                          prepass_double_sided_static_ps_);
-
-  return &pass->sub(GPU_material_get_name(gpumat));
+  return prepass_ps_.add(blender_mat, gpumat, has_motion);
 }
 
 PassMain::Sub *DeferredLayer::material_add(::Material *blender_mat, GPUMaterial *gpumat)
@@ -1391,7 +1396,7 @@ bool VolumePipeline::use_hit_list() const
 
 void DeferredProbePipeline::begin_sync()
 {
-  draw::PassMain &pass = opaque_layer_.prepass_ps_;
+  Prepass &pass = opaque_layer_.prepass_ps_;
   pass.init();
   {
     /* Common resources. */
@@ -1403,14 +1408,8 @@ void DeferredProbePipeline::begin_sync()
     pass.bind_resources(inst_.velocity);
     pass.bind_resources(inst_.sampling);
   }
-
-  DRWState state_depth_only = DRW_STATE_WRITE_DEPTH | DRW_STATE_CLIP_CONTROL_UNIT_RANGE |
-                              inst_.film.depth.test_state;
-  /* Only setting up static pass because we don't use motion vectors for light-probes. */
-  opaque_layer_.prepass_double_sided_static_ps_ = &pass.sub("DoubleSided");
-  opaque_layer_.prepass_double_sided_static_ps_->state_set(state_depth_only);
-  opaque_layer_.prepass_single_sided_static_ps_ = &pass.sub("SingleSided");
-  opaque_layer_.prepass_single_sided_static_ps_->state_set(state_depth_only | DRW_STATE_CULL_BACK);
+  pass.setup_subpasses(DRW_STATE_WRITE_DEPTH | DRW_STATE_CLIP_CONTROL_UNIT_RANGE |
+                       inst_.film.depth.test_state);
 
   opaque_layer_.gbuffer_pass_sync(inst_);
 }
@@ -1440,11 +1439,7 @@ void DeferredProbePipeline::end_sync()
 
 PassMain::Sub *DeferredProbePipeline::prepass_add(::Material *blender_mat, GPUMaterial *gpumat)
 {
-  PassMain::Sub *pass = (blender_mat->blend_flag & MA_BL_CULL_BACKFACE) ?
-                            opaque_layer_.prepass_single_sided_static_ps_ :
-                            opaque_layer_.prepass_double_sided_static_ps_;
-
-  return &pass->sub(GPU_material_get_name(gpumat));
+  return opaque_layer_.prepass_ps_.add(blender_mat, gpumat, false);
 }
 
 PassMain::Sub *DeferredProbePipeline::material_add(::Material *blender_mat, GPUMaterial *gpumat)
@@ -1519,15 +1514,8 @@ void PlanarProbePipeline::begin_sync()
     prepass_ps_.bind_ubo(CLIP_PLANE_BUF, inst_.planar_probes.world_clip_buf_);
     prepass_ps_.bind_resources(inst_.uniform_data);
     prepass_ps_.bind_resources(inst_.sampling);
-
-    DRWState state_depth_only = DRW_STATE_WRITE_DEPTH | DRW_STATE_CLIP_CONTROL_UNIT_RANGE |
-                                inst_.film.depth.test_state;
-
-    prepass_double_sided_static_ps_ = &prepass_ps_.sub("DoubleSided.Static");
-    prepass_double_sided_static_ps_->state_set(state_depth_only);
-
-    prepass_single_sided_static_ps_ = &prepass_ps_.sub("SingleSided.Static");
-    prepass_single_sided_static_ps_->state_set(state_depth_only | DRW_STATE_CULL_BACK);
+    prepass_ps_.setup_subpasses(DRW_STATE_WRITE_DEPTH | DRW_STATE_CLIP_CONTROL_UNIT_RANGE |
+                                inst_.film.depth.test_state);
   }
 
   this->gbuffer_pass_sync(inst_);
@@ -1559,10 +1547,7 @@ void PlanarProbePipeline::end_sync()
 
 PassMain::Sub *PlanarProbePipeline::prepass_add(::Material *blender_mat, GPUMaterial *gpumat)
 {
-  PassMain::Sub *pass = (blender_mat->blend_flag & MA_BL_CULL_BACKFACE) ?
-                            prepass_single_sided_static_ps_ :
-                            prepass_double_sided_static_ps_;
-  return &pass->sub(GPU_material_get_name(gpumat));
+  return prepass_ps_.add(blender_mat, gpumat, false);
 }
 
 PassMain::Sub *PlanarProbePipeline::material_add(::Material *blender_mat, GPUMaterial *gpumat)
