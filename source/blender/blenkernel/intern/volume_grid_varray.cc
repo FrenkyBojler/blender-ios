@@ -5,6 +5,10 @@
 #ifdef WITH_OPENVDB
 
 #  include "BLI_virtual_array.hh"
+// #  define DEBUG_TIME
+#  ifdef DEBUG_TIME
+#    include "BLI_timeit.hh"
+#  endif
 
 #  include "BKE_volume_grid.hh"
 #  include "BKE_volume_grid_process.hh"
@@ -98,6 +102,9 @@ static int gather_index_mapping_from_tree(const TreeT &tree,
                                           const int start,
                                           Map<GridNodeKey, IndexRange> &node_ranges)
 {
+#  ifdef DEBUG_TIME
+  timeit::ScopedTimer timer(__func__);
+#  endif
   int count = 0;
   for (auto root_child_iter = tree.cbeginRootChildren(); root_child_iter.test(); ++root_child_iter)
   {
@@ -546,6 +553,9 @@ static void foreach_value_in_tree(const IndexMask &index_mask,
                                   const GridValueOnOff active_filter,
                                   ForeachValueFn<typename TreeT::ValueType> fn)
 {
+#  ifdef DEBUG_TIME
+  SCOPED_TIMER(__func__);
+#  endif
   index_mask.foreach_segment_optimized([&](const auto segment) {
     if constexpr (std::is_same_v<std::decay_t<decltype(segment)>, IndexRange>) {
       const IndexRange range = segment;
@@ -583,6 +593,9 @@ template<typename T, typename TreeT> class VArrayImpl_For_GridValueBase : public
 
   template<typename Fn> T get_from_grid(const int64_t index, Fn fn) const
   {
+#  ifdef DEBUG_TIME
+    SCOPED_TIMER_AVERAGED(__func__);
+#  endif
     T result;
     foreach_value_in_tree(
         IndexRange(index, 1),
@@ -605,6 +618,9 @@ template<typename T, typename TreeT> class VArrayImpl_For_GridValueBase : public
                              const bool dst_is_uninitialized,
                              Fn fn) const
   {
+#  ifdef DEBUG_TIME
+    SCOPED_TIMER(__func__);
+#  endif
     const ForeachValueFn<TreeValueType> store_initialized = [&](const int index,
                                                                 const int /*pos*/,
                                                                 const openvdb::Coord &origin,
@@ -645,6 +661,9 @@ template<typename T, typename TreeT> class VArrayImpl_For_GridValueBase : public
                                         const bool dst_is_uninitialized,
                                         Fn fn) const
   {
+#  ifdef DEBUG_TIME
+    SCOPED_TIMER(__func__);
+#  endif
     const ForeachValueFn<TreeValueType> store_initialized = [&](const int /*index*/,
                                                                 const int pos,
                                                                 const openvdb::Coord &origin,
