@@ -1786,7 +1786,7 @@ class USERPREF_PT_addons_tags(Panel):
         tags_panel_draw(self.layout, context, "addon_tags")
 
 
-class USERPREF_PT_extensions_tag_repo_filter_settings(Panel):
+class USERPREF_PT_extensions_filter(Panel):
     bl_label = "Extensions Tags/Repository Filter Settings"
 
     bl_space_type = 'TOPBAR'  # dummy.
@@ -2039,7 +2039,7 @@ def extensions_panel_draw(panel, context):
     row_b.prop(wm, "extension_type", text="")
 
     row_b.prop(wm, "extension_use_filter", text="", icon="FILTER")
-    row_b.popover("USERPREF_PT_extensions_tag_repo_filter_settings", text="", icon='DOWNARROW_HLT')
+    row_b.popover("USERPREF_PT_extensions_filter", text="", icon='DOWNARROW_HLT')
 
     row_b.separator()
     row_b.popover("USERPREF_PT_extensions_repos", text="Repositories")
@@ -2376,7 +2376,7 @@ classes = (
     # Pop-overs.
     USERPREF_PT_addons_tags,
     USERPREF_MT_addons_settings,
-    USERPREF_PT_extensions_tag_repo_filter_settings,
+    USERPREF_PT_extensions_filter,
     USERPREF_MT_extensions_settings,
     USERPREF_MT_extensions_item,
     USERPREF_MT_extensions_active_repo_extra,
