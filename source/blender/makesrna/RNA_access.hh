@@ -917,7 +917,7 @@ StructRNA *ID_code_to_RNA_type(short idcode);
     !_MSVC_TRADITIONAL /* The "new preprocessor" is enabled via `/Zc:preprocessor`. */
 #  define RNA_warning(format, ...) _RNA_warning("%s: " format "\n", __FUNCTION__, ##__VA_ARGS__)
 #else
-#  define RNA_warning(format, ...) _RNA_warning(format "\n", __FUNCTION__, __VA_ARGS__)
+#  define RNA_warning(format, ...) _RNA_warning("%s: " format "\n", __FUNCTION__, __VA_ARGS__)
 #endif
 
 /** A formattable RNA warning, without the default `__func__` trace. */
