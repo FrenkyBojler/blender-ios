@@ -175,6 +175,9 @@ bool PDFExporter::create_document()
   return true;
 }
 
+constexpr double meter_to_inches_factor = 1000.0 / 25.4;
+constexpr double default_pdf_ppi = 72.0;
+
 bool PDFExporter::add_page(Scene &scene)
 {
   page_ = HPDF_AddPage(pdf_);
@@ -187,13 +190,10 @@ bool PDFExporter::add_page(Scene &scene)
   double2 ppm;
   BKE_scene_ppm_get(&scene.r, ppm);
 
-  /* Pixels per millimeter. */
-  double2 ppmm = ppm / 1000.0;
-  /* Pixels per inch. */
-  double2 ppi = ppmm * 25.4;
+  /* Covert pixels per meter to pixels per inch. */
+  double2 ppi = ppm / meter_to_inches_factor;
 
-  /* PDFs have a default ppi of 72 */
-  double2 scale_factor = 72.0 / ppi;
+  double2 scale_factor = default_pdf_ppi / ppi;
   HPDF_Page_Concat(page_, scale_factor.x, 0.0f, 0.0f, scale_factor.y, 0.0f, 0.0f);
 
   if (camera_persmat_) {
