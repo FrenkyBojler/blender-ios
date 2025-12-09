@@ -10,6 +10,7 @@
 
 #ifdef WITH_OPENVDB
 
+#  include "BLI_generic_virtual_array.hh"
 #  include "BLI_map.hh"
 #  include "BLI_math_vector_types.hh"
 #  include "BLI_struct_equality_utils.hh"
@@ -46,9 +47,21 @@ class GridNodeIndexMapping {
   template<typename NodeT> IndexRange get_node_range(const NodeT &node) const;
 };
 
-VArray<int3> varray_for_grid_min_coordinates(const VolumeGridData &grid,
-                                             std::shared_ptr<GridNodeIndexMapping> index_mapping,
-                                             const GridValueOnOff grid_value_filter);
+VArray<int3> varray_for_grid_origin(const VolumeGridData &grid,
+                                    std::shared_ptr<GridNodeIndexMapping> index_mapping,
+                                    const GridValueOnOff grid_value_filter);
+VArray<int> varray_for_grid_level(const VolumeGridData &grid,
+                                  std::shared_ptr<GridNodeIndexMapping> index_mapping,
+                                  const GridValueOnOff grid_value_filter);
+VArray<int> varray_for_grid_size(const VolumeGridData &grid,
+                                 std::shared_ptr<GridNodeIndexMapping> index_mapping,
+                                 const GridValueOnOff grid_value_filter);
+VArray<bool> varray_for_grid_active(const VolumeGridData &grid,
+                                    std::shared_ptr<GridNodeIndexMapping> index_mapping,
+                                    const GridValueOnOff grid_value_filter);
+GVArray varray_for_grid_value(const VolumeGridData &grid,
+                              std::shared_ptr<GridNodeIndexMapping> index_mapping,
+                              const GridValueOnOff grid_value_filter);
 
 }  // namespace blender::bke::volume_grid
 

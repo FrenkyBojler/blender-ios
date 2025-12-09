@@ -11,6 +11,7 @@
 #include "BKE_geometry_set.hh"
 #include "BKE_instances.hh"
 #include "BKE_volume_grid_fwd.hh"
+#include "BKE_volume_grid_varray.hh"
 
 #include "NOD_geometry_nodes_bundle_fwd.hh"
 #include "NOD_geometry_nodes_closure_fwd.hh"
@@ -100,12 +101,12 @@ class VolumeGridDataSource : public DataSource {
   /** Using #unique_ptr so that `BKE_volume_grid_fwd.hh` can be used. */
   std::unique_ptr<bke::GVolumeGrid> grid_;
   SpreadsheetVolumeGridData volume_grid_data_;
-  bool show_active_state_;
+  bke::volume_grid::GridValueOnOff grid_value_filter_;
 
  public:
   VolumeGridDataSource(const bke::GVolumeGrid &grid,
                        SpreadsheetVolumeGridData volume_grid_data,
-                       bool show_active_state);
+                       bke::volume_grid::GridValueOnOff grid_value_filter);
 
   void foreach_default_column_ids(
       FunctionRef<void(const SpreadsheetColumnID &, bool is_extra)> fn) const override;

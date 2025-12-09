@@ -78,7 +78,7 @@ static int gather_index_mapping_from_internal_node(const InternalNodeT &node,
   for (; child_mask_iter.test(); ++child_mask_iter) {
     const ChildNodeT &child_node = *table[child_mask_iter.pos()].getChild();
     if constexpr (std::is_same_v<ChildNodeT, LeafNodeT>) {
-      gather_index_mapping_from_leaf_node(
+      count += gather_index_mapping_from_leaf_node(
           child_node, grid_value_filter, start + count, node_ranges);
     }
     else {
@@ -133,10 +133,12 @@ inline IndexRange index_mask_segment_range(const IndexMaskSegment &segment)
 }
 
 template<typename T>
-using ForeachValueFn = FunctionRef<void(const int index,
-                                        const int pos,
-                                        const openvdb::CoordBBox &coord_bbox,
-                                        const bool active,
+using ForeachValueFn = FunctionRef<void(int index,
+                                        int pos,
+                                        const openvdb::Coord &origin,
+                                        openvdb::Index level,
+                                        openvdb::Index size,
+                                        bool active,
                                         const T &value)>;
 
 template<int32_t DIM, typename NodeT, typename MaskIteratorT, typename ValueBufferT>
@@ -177,15 +179,20 @@ static void foreach_value_in_mask(const IndexRange range,
     }
     const openvdb::Index mask_pos = mask_iter.pos();
     const openvdb::Coord origin = node.offsetToGlobalCoord(mask_pos);
-    const openvdb::CoordBBox bbox = openvdb::CoordBBox::createCube(origin, DIM);
     const int pos = pos_start + i;
     if constexpr (NodeT::LEVEL == 0) {
       /* Leaf node buffer. */
-      fn(index, pos, bbox, *mask_iter, value_buffer.getValue(mask_pos));
+      fn(index, pos, origin, NodeT::LEVEL, 1, *mask_iter, value_buffer.getValue(mask_pos));
     }
     else {
       /* Internal node value table. */
-      fn(index, pos, bbox, *mask_iter, value_buffer[mask_pos].getValue());
+      fn(index,
+         pos,
+         origin,
+         NodeT::LEVEL,
+         NodeT::ChildNodeType::DIM,
+         *mask_iter,
+         value_buffer[mask_pos].getValue());
     }
     ++mask_iter;
   }
@@ -256,15 +263,26 @@ static void foreach_value_in_mask(const IndexMaskSegment &segment,
     }
     const openvdb::Index mask_pos = mask_iter.pos();
     const openvdb::Coord origin = node.offsetToGlobalCoord(mask_pos);
-    const openvdb::CoordBBox bbox = openvdb::CoordBBox::createCube(origin, DIM);
     const int pos = pos_start + i;
     if constexpr (NodeT::LEVEL == 0) {
       /* Leaf node buffer. */
-      fn(index, pos, bbox, *mask_iter, value_buffer.getValue(mask_pos));
+      fn(index,
+         pos,
+         origin,
+         NodeT::LEVEL,
+         NodeT::DIM,
+         *mask_iter,
+         value_buffer.getValue(mask_pos));
     }
     else {
       /* Internal node value table. */
-      fn(index, pos, bbox, *mask_iter, value_buffer[mask_pos].getValue());
+      fn(index,
+         pos,
+         origin,
+         NodeT::LEVEL,
+         NodeT::DIM,
+         *mask_iter,
+         value_buffer[mask_pos].getValue());
     }
     ++mask_index;
     ++mask_iter;
@@ -358,7 +376,6 @@ static void foreach_value_in_internal_node(const IndexRange range,
       break;
   }
 
-  /* TODO [1.] */
   const NodeMaskT &child_mask = node.getChildMask();
   auto child_mask_iter = child_mask.beginOn();
   for (; child_mask_iter.test(); ++child_mask_iter) {
@@ -463,7 +480,6 @@ static void foreach_value_in_tree(const IndexRange range,
     return;
   }
 
-  /* TODO [1.] */
   auto root_child_iter = tree.cbeginRootChildren();
   for (; root_child_iter.test(); ++root_child_iter) {
     const auto &internal_node = *root_child_iter;
@@ -489,7 +505,7 @@ static void foreach_value_in_tree(const IndexRange range,
 
 template<typename TreeT>
 static void foreach_value_in_tree(const IndexMaskSegment &segment,
-                                  const TreeT tree,
+                                  const TreeT &tree,
                                   const GridNodeIndexMapping &index_mapping,
                                   const GridValueOnOff active_filter,
                                   ForeachValueFn<typename TreeT::ValueType> fn)
@@ -500,7 +516,6 @@ static void foreach_value_in_tree(const IndexMaskSegment &segment,
 
   const IndexRange segment_range = index_mask_segment_range(segment);
 
-  /* TODO [1.] */
   auto root_child_iter = tree.cbeginRootChildren();
   for (; root_child_iter.test(); ++root_child_iter) {
     const auto &internal_node = *root_child_iter;
@@ -526,7 +541,7 @@ static void foreach_value_in_tree(const IndexMaskSegment &segment,
 
 template<typename TreeT>
 static void foreach_value_in_tree(const IndexMask &index_mask,
-                                  const TreeT tree,
+                                  const TreeT &tree,
                                   const GridNodeIndexMapping &index_mapping,
                                   const GridValueOnOff active_filter,
                                   ForeachValueFn<typename TreeT::ValueType> fn)
@@ -543,35 +558,30 @@ static void foreach_value_in_tree(const IndexMask &index_mask,
   });
 }
 
-template<typename T, typename TreeT> class VArrayImpl_For_GridValues final : public VArrayImpl<T> {
+template<typename T, typename TreeT> class VArrayImpl_For_GridValueBase : public VArrayImpl<T> {
  private:
   using TreeType = TreeT;
-  using ValueType = typename TreeT::ValueType;
-  using ArrayValueFn = std::function<T(
-      const openvdb::CoordBBox &coord_bbox, bool active, const ValueType &grid_value)>;
+  using TreeValueType = typename TreeT::ValueType;
 
   VolumeTreeAccessToken access_token_;
-  std::shared_ptr<const TreeType> tree_;
+  std::shared_ptr<const TreeT> tree_;
   std::shared_ptr<const GridNodeIndexMapping> index_mapping_;
   GridValueOnOff grid_value_filter_;
-  ArrayValueFn fn_;
 
  public:
-  VArrayImpl_For_GridValues(VolumeTreeAccessToken &&access_token,
-                            std::shared_ptr<const TreeType> tree,
-                            std::shared_ptr<const GridNodeIndexMapping> index_mapping,
-                            const GridValueOnOff grid_value_filter,
-                            ArrayValueFn fn)
+  VArrayImpl_For_GridValueBase(VolumeTreeAccessToken &&access_token,
+                               std::shared_ptr<const TreeT> tree,
+                               std::shared_ptr<const GridNodeIndexMapping> index_mapping,
+                               const GridValueOnOff grid_value_filter)
       : VArrayImpl<T>(index_mapping->size()),
         access_token_(std::move(access_token)),
         tree_(std::move(tree)),
         index_mapping_(std::move(index_mapping)),
-        grid_value_filter_(grid_value_filter),
-        fn_(std::move(fn))
+        grid_value_filter_(grid_value_filter)
   {
   }
 
-  T get(const int64_t index) const override
+  template<typename Fn> T get_from_grid(const int64_t index, Fn fn) const
   {
     T result;
     foreach_value_in_tree(
@@ -579,29 +589,39 @@ template<typename T, typename TreeT> class VArrayImpl_For_GridValues final : pub
         *tree_,
         *index_mapping_,
         grid_value_filter_,
-        [&](const int /*index*/,
-            const int /*pos*/,
-            const openvdb::CoordBBox &coord_bbox,
-            const bool active,
-            const ValueType &value) { result = fn_(coord_bbox, active, value); });
+        [&](int /*index*/,
+            int /*pos*/,
+            const openvdb::Coord &origin,
+            openvdb::Index level,
+            openvdb::Index size,
+            bool active,
+            const TreeValueType &value) { result = fn(origin, level, size, active, value); });
     return result;
   }
 
-  void materialize(const IndexMask &mask, T *dst, const bool dst_is_uninitialized) const override
+  template<typename Fn>
+  void materialize_from_grid(const IndexMask &mask,
+                             T *dst,
+                             const bool dst_is_uninitialized,
+                             Fn fn) const
   {
-    const ForeachValueFn<ValueType> store_initialized = [&](const int index,
-                                                            const int /*pos*/,
-                                                            const openvdb::CoordBBox &coord_bbox,
-                                                            const bool active,
-                                                            const ValueType &value) {
-      dst[index] = fn_(coord_bbox, active, value);
+    const ForeachValueFn<TreeValueType> store_initialized = [&](const int index,
+                                                                const int /*pos*/,
+                                                                const openvdb::Coord &origin,
+                                                                const openvdb::Index level,
+                                                                const openvdb::Index size,
+                                                                const bool active,
+                                                                const TreeValueType &value) {
+      dst[index] = fn(origin, level, size, active, value);
     };
-    const ForeachValueFn<ValueType> store_uninitialized = [&](const int index,
-                                                              const int /*pos*/,
-                                                              const openvdb::CoordBBox &coord_bbox,
-                                                              const bool active,
-                                                              const ValueType &value) {
-      new (dst + index) T(fn_(coord_bbox, active, value));
+    const ForeachValueFn<TreeValueType> store_uninitialized = [&](const int index,
+                                                                  const int /*pos*/,
+                                                                  const openvdb::Coord &origin,
+                                                                  const openvdb::Index level,
+                                                                  const openvdb::Index size,
+                                                                  const bool active,
+                                                                  const TreeValueType &value) {
+      new (dst + index) T(fn(origin, level, size, active, value));
     };
 
     if constexpr (std::is_trivially_copyable_v<T>) {
@@ -619,23 +639,29 @@ template<typename T, typename TreeT> class VArrayImpl_For_GridValues final : pub
     }
   }
 
-  void materialize_compressed(const IndexMask &mask,
-                              T *dst,
-                              const bool dst_is_uninitialized) const override
+  template<typename Fn>
+  void materialize_compressed_from_grid(const IndexMask &mask,
+                                        T *dst,
+                                        const bool dst_is_uninitialized,
+                                        Fn fn) const
   {
-    const ForeachValueFn<ValueType> store_initialized = [&](const int /*index*/,
-                                                            const int pos,
-                                                            const openvdb::CoordBBox &coord_bbox,
-                                                            const bool active,
-                                                            const ValueType &value) {
-      dst[pos] = fn_(coord_bbox, active, value);
+    const ForeachValueFn<TreeValueType> store_initialized = [&](const int /*index*/,
+                                                                const int pos,
+                                                                const openvdb::Coord &origin,
+                                                                const openvdb::Index level,
+                                                                const openvdb::Index size,
+                                                                const bool active,
+                                                                const TreeValueType &value) {
+      dst[pos] = fn(origin, level, size, active, value);
     };
-    const ForeachValueFn<ValueType> store_uninitialized = [&](const int /*index*/,
-                                                              const int pos,
-                                                              const openvdb::CoordBBox &coord_bbox,
-                                                              const bool active,
-                                                              const ValueType &value) {
-      new (dst + pos) T(fn_(coord_bbox, active, value));
+    const ForeachValueFn<TreeValueType> store_uninitialized = [&](const int /*index*/,
+                                                                  const int pos,
+                                                                  const openvdb::Coord &origin,
+                                                                  const openvdb::Index level,
+                                                                  const openvdb::Index size,
+                                                                  const bool active,
+                                                                  const TreeValueType &value) {
+      new (dst + pos) T(fn(origin, level, size, active, value));
     };
 
     if constexpr (std::is_trivially_copyable_v<T>) {
@@ -654,28 +680,274 @@ template<typename T, typename TreeT> class VArrayImpl_For_GridValues final : pub
   }
 };
 
-VArray<int3> varray_for_grid_min_coordinates(const VolumeGridData &grid,
-                                             std::shared_ptr<GridNodeIndexMapping> index_mapping,
-                                             const GridValueOnOff grid_value_filter)
+template<typename TreeT>
+class VArrayImpl_For_GridValueOrigin final : public VArrayImpl_For_GridValueBase<int3, TreeT> {
+ public:
+  using TreeValueType = typename TreeT::ValueType;
+  using VArrayImpl_For_GridValueBase<int3, TreeT>::VArrayImpl_For_GridValueBase;
+
+  static int3 get_value(const openvdb::Coord &origin,
+                        openvdb::Index /*level*/,
+                        openvdb::Index /*size*/,
+                        bool /*active*/,
+                        const TreeValueType & /*value*/)
+  {
+    return int3(origin.asPointer());
+  }
+
+  int3 get(const int64_t index) const override
+  {
+    return this->get_from_grid(index, get_value);
+  }
+
+  void materialize(const IndexMask &mask,
+                   int3 *dst,
+                   const bool dst_is_uninitialized) const override
+  {
+    return this->materialize_from_grid(mask, dst, dst_is_uninitialized, get_value);
+  }
+
+  void materialize_compressed(const IndexMask &mask,
+                              int3 *dst,
+                              const bool dst_is_uninitialized) const override
+  {
+    return this->materialize_compressed_from_grid(mask, dst, dst_is_uninitialized, get_value);
+  }
+};
+
+template<typename TreeT>
+class VArrayImpl_For_GridValueLevel final : public VArrayImpl_For_GridValueBase<int, TreeT> {
+ public:
+  using TreeValueType = typename TreeT::ValueType;
+  using VArrayImpl_For_GridValueBase<int, TreeT>::VArrayImpl_For_GridValueBase;
+
+  static int get_value(const openvdb::Coord & /*origin*/,
+                       openvdb::Index level,
+                       openvdb::Index /*size*/,
+                       bool /*active*/,
+                       const TreeValueType & /*value*/)
+  {
+    return level;
+  }
+
+  int get(const int64_t index) const override
+  {
+    return this->get_from_grid(index, get_value);
+  }
+
+  void materialize(const IndexMask &mask, int *dst, const bool dst_is_uninitialized) const override
+  {
+    return this->materialize_from_grid(mask, dst, dst_is_uninitialized, get_value);
+  }
+
+  void materialize_compressed(const IndexMask &mask,
+                              int *dst,
+                              const bool dst_is_uninitialized) const override
+  {
+    return this->materialize_compressed_from_grid(mask, dst, dst_is_uninitialized, get_value);
+  }
+};
+
+template<typename TreeT>
+class VArrayImpl_For_GridValueSize final : public VArrayImpl_For_GridValueBase<int, TreeT> {
+ public:
+  using TreeValueType = typename TreeT::ValueType;
+  using VArrayImpl_For_GridValueBase<int, TreeT>::VArrayImpl_For_GridValueBase;
+
+  static int get_value(const openvdb::Coord & /*origin*/,
+                       openvdb::Index /*level*/,
+                       openvdb::Index size,
+                       bool /*active*/,
+                       const TreeValueType & /*value*/)
+  {
+    return size;
+  }
+
+  int get(const int64_t index) const override
+  {
+    return this->get_from_grid(index, get_value);
+  }
+
+  void materialize(const IndexMask &mask, int *dst, const bool dst_is_uninitialized) const override
+  {
+    return this->materialize_from_grid(mask, dst, dst_is_uninitialized, get_value);
+  }
+
+  void materialize_compressed(const IndexMask &mask,
+                              int *dst,
+                              const bool dst_is_uninitialized) const override
+  {
+    return this->materialize_compressed_from_grid(mask, dst, dst_is_uninitialized, get_value);
+  }
+};
+
+template<typename TreeT>
+class VArrayImpl_For_GridValueActive final : public VArrayImpl_For_GridValueBase<bool, TreeT> {
+ public:
+  using TreeValueType = typename TreeT::ValueType;
+  using VArrayImpl_For_GridValueBase<bool, TreeT>::VArrayImpl_For_GridValueBase;
+
+  static bool get_value(const openvdb::Coord & /*origin*/,
+                        openvdb::Index /*level*/,
+                        openvdb::Index /*size*/,
+                        bool active,
+                        const TreeValueType & /*value*/)
+  {
+    return active;
+  }
+
+  bool get(const int64_t index) const override
+  {
+    return this->get_from_grid(index, get_value);
+  }
+
+  void materialize(const IndexMask &mask,
+                   bool *dst,
+                   const bool dst_is_uninitialized) const override
+  {
+    return this->materialize_from_grid(mask, dst, dst_is_uninitialized, get_value);
+  }
+
+  void materialize_compressed(const IndexMask &mask,
+                              bool *dst,
+                              const bool dst_is_uninitialized) const override
+  {
+    return this->materialize_compressed_from_grid(mask, dst, dst_is_uninitialized, get_value);
+  }
+};
+
+template<typename T, typename TreeT>
+class VArrayImpl_For_GridValueValue final : public VArrayImpl_For_GridValueBase<T, TreeT> {
+ public:
+  using TreeValueType = typename TreeT::ValueType;
+  using VArrayImpl_For_GridValueBase<T, TreeT>::VArrayImpl_For_GridValueBase;
+
+  static T get_value(const openvdb::Coord & /*origin*/,
+                     openvdb::Index /*level*/,
+                     openvdb::Index /*size*/,
+                     bool /*active*/,
+                     const TreeValueType &value)
+  {
+    return VolumeGridTraits<T>::to_blender(value);
+  }
+
+  T get(const int64_t index) const override
+  {
+    return this->get_from_grid(index, get_value);
+  }
+
+  void materialize(const IndexMask &mask, T *dst, const bool dst_is_uninitialized) const override
+  {
+    return this->materialize_from_grid(mask, dst, dst_is_uninitialized, get_value);
+  }
+
+  void materialize_compressed(const IndexMask &mask,
+                              T *dst,
+                              const bool dst_is_uninitialized) const override
+  {
+    return this->materialize_compressed_from_grid(mask, dst, dst_is_uninitialized, get_value);
+  }
+};
+
+VArray<int3> varray_for_grid_origin(const VolumeGridData &grid,
+                                    std::shared_ptr<GridNodeIndexMapping> index_mapping,
+                                    const GridValueOnOff grid_value_filter)
 {
   VolumeTreeAccessToken access_token;
   const openvdb::GridBase &grid_base = grid.grid(access_token);
 
-  VArray<int3> result;
+  VArray<int3> varray;
   to_typed_grid(grid_base, [&](const auto &grid) {
-    using GridT = std::decay_t<decltype(grid)>;
-    using TreeT = typename GridT::TreeType;
-    using ValueT = typename TreeT::ValueType;
-    result = VArray<int3>::from<VArrayImpl_For_GridValues<int3, TreeT>>(
-        std::move(access_token),
-        grid.treePtr(),
-        std::move(index_mapping),
-        grid_value_filter,
-        [&](const openvdb::CoordBBox &coord_bbox, bool /*active*/, const ValueT & /*grid_value*/) {
-          return int3(coord_bbox.min().asPointer());
-        });
+    using GridType = std::decay_t<decltype(grid)>;
+    using TreeType = typename GridType::TreeType;
+    varray = VArray<int3>::from<VArrayImpl_For_GridValueOrigin<TreeType>>(
+        std::move(access_token), grid.treePtr(), index_mapping, grid_value_filter);
   });
-  return result;
+  return varray;
+}
+
+VArray<int> varray_for_grid_level(const VolumeGridData &grid,
+                                  std::shared_ptr<GridNodeIndexMapping> index_mapping,
+                                  const GridValueOnOff grid_value_filter)
+{
+  VolumeTreeAccessToken access_token;
+  const openvdb::GridBase &grid_base = grid.grid(access_token);
+
+  VArray<int> varray;
+  to_typed_grid(grid_base, [&](const auto &grid) {
+    using GridType = std::decay_t<decltype(grid)>;
+    using TreeType = typename GridType::TreeType;
+    varray = VArray<int>::from<VArrayImpl_For_GridValueLevel<TreeType>>(
+        std::move(access_token), grid.treePtr(), index_mapping, grid_value_filter);
+  });
+  return varray;
+}
+
+VArray<int> varray_for_grid_size(const VolumeGridData &grid,
+                                 std::shared_ptr<GridNodeIndexMapping> index_mapping,
+                                 const GridValueOnOff grid_value_filter)
+{
+  VolumeTreeAccessToken access_token;
+  const openvdb::GridBase &grid_base = grid.grid(access_token);
+
+  VArray<int> varray;
+  to_typed_grid(grid_base, [&](const auto &grid) {
+    using GridType = std::decay_t<decltype(grid)>;
+    using TreeType = typename GridType::TreeType;
+    varray = VArray<int>::from<VArrayImpl_For_GridValueSize<TreeType>>(
+        std::move(access_token), grid.treePtr(), index_mapping, grid_value_filter);
+  });
+  return varray;
+}
+
+VArray<bool> varray_for_grid_active(const VolumeGridData &grid,
+                                    std::shared_ptr<GridNodeIndexMapping> index_mapping,
+                                    const GridValueOnOff grid_value_filter)
+{
+  VolumeTreeAccessToken access_token;
+  const openvdb::GridBase &grid_base = grid.grid(access_token);
+
+  VArray<bool> varray;
+  to_typed_grid(grid_base, [&](const auto &grid) {
+    using GridType = std::decay_t<decltype(grid)>;
+    using TreeType = typename GridType::TreeType;
+    varray = VArray<bool>::from<VArrayImpl_For_GridValueActive<TreeType>>(
+        std::move(access_token), grid.treePtr(), index_mapping, grid_value_filter);
+  });
+  return varray;
+}
+
+GVArray varray_for_grid_value(const VolumeGridData &grid,
+                              std::shared_ptr<GridNodeIndexMapping> index_mapping,
+                              const GridValueOnOff grid_value_filter)
+{
+  VolumeTreeAccessToken access_token;
+  const openvdb::GridBase &grid_base = grid.grid(access_token);
+
+  GVArray varray;
+  to_typed_grid(grid_base, [&](const auto &grid) {
+    using GridType = std::decay_t<decltype(grid)>;
+    using TreeType = typename GridType::TreeType;
+    using TreeValueType = typename TreeType::ValueType;
+
+    if constexpr (std::is_same_v<TreeValueType, bool>) {
+      varray = VArray<bool>::from<VArrayImpl_For_GridValueValue<bool, TreeType>>(
+          std::move(access_token), grid.treePtr(), index_mapping, grid_value_filter);
+    }
+    if constexpr (std::is_same_v<TreeValueType, int>) {
+      varray = VArray<int>::from<VArrayImpl_For_GridValueValue<int, TreeType>>(
+          std::move(access_token), grid.treePtr(), index_mapping, grid_value_filter);
+    }
+    if constexpr (std::is_same_v<TreeValueType, float>) {
+      varray = VArray<float>::from<VArrayImpl_For_GridValueValue<float, TreeType>>(
+          std::move(access_token), grid.treePtr(), index_mapping, grid_value_filter);
+    }
+    if constexpr (std::is_same_v<TreeValueType, openvdb::Vec3f>) {
+      varray = VArray<float3>::from<VArrayImpl_For_GridValueValue<float3, TreeType>>(
+          std::move(access_token), grid.treePtr(), index_mapping, grid_value_filter);
+    }
+  });
+  return varray;
 }
 
 }  // namespace blender::bke::volume_grid
