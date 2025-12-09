@@ -243,7 +243,7 @@ typedef struct UserDef_Experimental {
   char use_shader_node_previews;
   char use_geometry_nodes_lists;
   char use_geometry_bundle;
-  char _pad[5];
+  char _pad[4];
 } UserDef_Experimental;
 
 #define USER_EXPERIMENTAL_TEST(userdef, member) (((userdef)->experimental).member)

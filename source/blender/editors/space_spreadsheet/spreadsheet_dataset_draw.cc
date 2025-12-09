@@ -559,7 +559,7 @@ class GeometryBundleViewItem : public DataSetViewItem {
     label_ = IFACE_("Bundle");
   }
 
-  void build_row(uiLayout &row) override
+  void build_row(ui::Layout &row) override
   {
     if (!has_bundle_items_) {
       row.active_set(false);
@@ -583,7 +583,7 @@ class GeometryBundleItemViewItem : public DataSetViewItem {
     label_ = key_;
   }
 
-  void build_row(uiLayout &row) override
+  void build_row(ui::Layout &row) override
   {
     row.label(label_, ICON_NONE);
   }
@@ -612,7 +612,7 @@ class GeometryBundleClosureInOutViewItem : public DataSetViewItem {
     label_ = in_out_ == SPREADSHEET_CLOSURE_INPUT ? IFACE_("Inputs") : IFACE_("Outputs");
   }
 
-  void build_row(uiLayout &row) override
+  void build_row(ui::Layout &row) override
   {
     row.label(label_, ICON_NONE);
   }
