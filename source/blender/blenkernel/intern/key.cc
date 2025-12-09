@@ -834,22 +834,22 @@ static void cp_cu_key(Curve *cu,
  * \param start_index points to the x value in the flat float array. Indices of +1 and +2 from this
  * are accessed.
  */
-static inline void lerp_relative_float3(
+static inline void add_weighted_vector(
     const int start_index, const float weight, const float *a, const float *b, float *r_target)
 {
-  r_target[start_index + 0] -= weight * (a[start_index + 0] - b[start_index + 0]);
-  r_target[start_index + 1] -= weight * (a[start_index + 1] - b[start_index + 1]);
-  r_target[start_index + 2] -= weight * (a[start_index + 2] - b[start_index + 2]);
+  r_target[start_index + 0] += weight * (b[start_index + 0] - a[start_index + 0]);
+  r_target[start_index + 1] += weight * (b[start_index + 1] - a[start_index + 1]);
+  r_target[start_index + 2] += weight * (b[start_index + 2] - a[start_index + 2]);
 }
 
 /**
  * Shapekey evaluation for data of 3 floats (Vector3).
  *
- * The caller has to supply a `start` and an `end` because the curve ID can store a mix of Nurbs
+ * The caller has to supply a `range` because the curve ID can store a mix of Nurbs
  * and Bezier curves, which need to be evaluated separately. The shapekey stores all that data in
- * a flat array though.
+ * a flat array though. All the data in the `range` is assumed to be of the same type.
  *
- * \param target_data is the float array into which the result of the evaluation is written into.
+ * \param target_data is the float array into which the result of the evaluation is written.
  * \param per_keyblock_weights is a 2d array which gives a per KeyBlock per Vertex weight. Can be a
  * nullptr.
  */
@@ -905,7 +905,7 @@ static void key_evaluate_relative_float3(Key *key,
       const float weight = weights ? (weights[i] * kb->curval) : kb->curval;
       /* Each vertex has 3 floats. */
       const int vector_index = i * 3;
-      lerp_relative_float3(vector_index, weight, reffrom, from, target_data);
+      add_weighted_vector(vector_index, weight, reffrom, from, target_data);
     }
 
     if (freefrom) {
