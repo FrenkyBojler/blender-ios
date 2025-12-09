@@ -671,15 +671,19 @@ static void copy_key_float3_full(const int vertex_count,
 
 static void copy_key_range(const int start) {}
 
-static void cp_key(const int start,
-                   int end,
-                   const int tot,
-                   char *poin,
-                   Key *key,
-                   KeyBlock *actkb,
-                   KeyBlock *kb,
-                   float *weights,
-                   const int mode)
+
+/**
+ * Copy the shapekey of `active_keyblock` into the output array of `r_target`.
+ */
+static void copy_key(const int start,
+                     int end,
+                     const int vertex_count,
+                     char *r_target,
+                     Key *key,
+                     KeyBlock *active_keyblock,
+                     KeyBlock *kb,
+                     float *weights,
+                     const int mode)
 {
   int ofs[32];
   /* Currently always 0, in future key_pointer_size may assign. */
@@ -691,17 +695,17 @@ static void cp_key(const int start,
     return;
   }
 
-  end = std::min(end, tot);
+  end = std::min(end, vertex_count);
 
   bool flagflo = false;
   /* I (christoph) don't know what those variables do but they are only used if
    * `flagflo` is set to true. */
   float ktot = 0.0, kd = 0.0;
-  if (tot != kb->totelem) {
+  if (vertex_count != kb->totelem) {
     ktot = 0.0;
     flagflo = true;
     if (kb->totelem) {
-      kd = kb->totelem / float(tot);
+      kd = kb->totelem / float(vertex_count);
     }
     else {
       return;
@@ -709,13 +713,13 @@ static void cp_key(const int start,
   }
 
   char *free_k1, *free_kref;
-  char *k1 = key_block_get_data(key, actkb, kb, &free_k1);
-  char *kref = key_block_get_data(key, actkb, key->refkey, &free_kref);
+  char *k1 = key_block_get_data(key, active_keyblock, kb, &free_k1);
+  char *kref = key_block_get_data(key, active_keyblock, key->refkey, &free_kref);
 
   /* This exception is needed curves with multiple splines. */
   if (start != 0) {
 
-    poin += pointer_size * start;
+    r_target += pointer_size * start;
 
     if (flagflo) {
       ktot += start * kd;
@@ -753,22 +757,25 @@ static void cp_key(const int start,
       switch (cp[1]) {
         case IPO_FLOAT:
           if (weights) {
-            memcpy(poin, kref, sizeof(float[KEYELEM_FLOAT_LEN_COORD]));
+            memcpy(r_target, kref, sizeof(float[KEYELEM_FLOAT_LEN_COORD]));
             if (*weights != 0.0f) {
-              rel_flerp(
-                  KEYELEM_FLOAT_LEN_COORD, (float *)poin, (float *)kref, (float *)k1, *weights);
+              rel_flerp(KEYELEM_FLOAT_LEN_COORD,
+                        (float *)r_target,
+                        (float *)kref,
+                        (float *)k1,
+                        *weights);
             }
             weights++;
           }
           else {
-            memcpy(poin, k1, sizeof(float[KEYELEM_FLOAT_LEN_COORD]));
+            memcpy(r_target, k1, sizeof(float[KEYELEM_FLOAT_LEN_COORD]));
           }
           break;
         case IPO_BPOINT:
-          memcpy(poin, k1, sizeof(float[KEYELEM_FLOAT_LEN_BPOINT]));
+          memcpy(r_target, k1, sizeof(float[KEYELEM_FLOAT_LEN_BPOINT]));
           break;
         case IPO_BEZTRIPLE:
-          memcpy(poin, k1, sizeof(float[KEYELEM_FLOAT_LEN_BEZTRIPLE]));
+          memcpy(r_target, k1, sizeof(float[KEYELEM_FLOAT_LEN_BEZTRIPLE]));
           break;
         default:
           BLI_assert_unreachable();
@@ -782,7 +789,7 @@ static void cp_key(const int start,
           return;
       }
 
-      poin += *ofsp;
+      r_target += *ofsp;
       cp += 2;
       ofsp++;
     }
@@ -830,7 +837,7 @@ static void cp_cu_key(Curve *cu,
       a2 = min_ii(a + step, end);
 
       if (a1 < a2) {
-        cp_key(a1, a2, tot, out, key, actkb, kb, nullptr, KEY_MODE_BPOINT);
+        copy_key(a1, a2, tot, out, key, actkb, kb, nullptr, KEY_MODE_BPOINT);
       }
     }
     else if (nu->bezt) {
@@ -841,7 +848,7 @@ static void cp_cu_key(Curve *cu,
       a2 = min_ii(a + step, end);
 
       if (a1 < a2) {
-        cp_key(a1, a2, tot, out, key, actkb, kb, nullptr, KEY_MODE_BEZTRIPLE);
+        copy_key(a1, a2, tot, out, key, actkb, kb, nullptr, KEY_MODE_BEZTRIPLE);
       }
     }
     else {
@@ -889,7 +896,7 @@ static void key_evaluate_relative_float3(Key *key,
     copy_key_float3_full(vertex_count, key, key->refkey, target_data);
   }
   else {
-    cp_key(range.first(),
+    copy_key(range.first(),
            range.last() + 1,
            vertex_count,
            reinterpret_cast<char *>(target_data),
@@ -1361,7 +1368,7 @@ static void do_mesh_key(Object *ob, Key *key, char *out, const int tot)
       do_key(0, tot, tot, out, key, actkb, k, t, KEY_MODE_DUMMY);
     }
     else {
-      cp_key(0, tot, tot, out, key, actkb, k[2], nullptr, KEY_MODE_DUMMY);
+      copy_key(0, tot, tot, out, key, actkb, k[2], nullptr, KEY_MODE_DUMMY);
     }
   }
 }
@@ -1461,7 +1468,7 @@ static void do_latt_key(Object *ob, Key *key, char *out, const int tot)
       do_key(0, tot, tot, out, key, actkb, k, t, KEY_MODE_DUMMY);
     }
     else {
-      cp_key(0, tot, tot, out, key, actkb, k[2], nullptr, KEY_MODE_DUMMY);
+      copy_key(0, tot, tot, out, key, actkb, k[2], nullptr, KEY_MODE_DUMMY);
     }
   }
 
@@ -1540,7 +1547,7 @@ float *BKE_key_evaluate_object_ex(
     if (OB_TYPE_SUPPORT_VGROUP(ob->type)) {
       float *weights = get_weights_array(ob, kb->vgroup, nullptr);
 
-      cp_key(0, tot, tot, out, key, actkb, kb, weights, 0);
+      copy_key(0, tot, tot, out, key, actkb, kb, weights, 0);
 
       if (weights) {
         MEM_freeN(weights);
