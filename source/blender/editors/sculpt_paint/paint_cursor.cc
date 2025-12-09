@@ -1508,7 +1508,10 @@ static void paint_update_mouse_cursor(PaintCursorContext &pcontext)
     WM_cursor_set(pcontext.win, WM_CURSOR_DOT);
   }
   else {
-    WM_cursor_set(pcontext.win, WM_CURSOR_PAINT);
+    /* Adjust the mouse cursor as the brush size decreases. */
+    const bool small = pcontext.ups->size < 26;
+    const bool tiny = pcontext.ups->size < 10;
+    WM_cursor_set(pcontext.win, small ? tiny ? WM_CURSOR_NONE : WM_CURSOR_DOT : WM_CURSOR_PAINT);
   }
 }
 
