@@ -2037,6 +2037,7 @@ def extensions_panel_draw(panel, context):
     row_a.prop(wm, "extension_search", text="", icon='VIEWZOOM', placeholder="Search Extensions")
     row_b = row.row(align=True)
     row_b.prop(wm, "extension_type", text="")
+
     row_b.prop(wm, "extension_use_filter", text="", icon="FILTER")
     row_b.popover("USERPREF_PT_extensions_tag_repo_filter_settings", text="", icon='DOWNARROW_HLT')
 
