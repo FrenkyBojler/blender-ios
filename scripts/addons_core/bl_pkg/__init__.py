@@ -700,7 +700,7 @@ def get_extension_repo_filter_items(self, context):
     for repo in repos:
         # Only append enabled repositories.
         if repo.enabled:
-            repo_enum.append((repo.module, repo.name, f"Only show extensions from '{repo.name}'"))
+            repo_enum.append((repo.module, repo.name, "Only show extensions from this repository"))
 
     return repo_enum
 
