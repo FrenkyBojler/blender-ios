@@ -834,7 +834,7 @@ static void cp_cu_key(Curve *cu,
  * \param start_index points to the x value in the flat float array. Indices of +1 and +2 from this
  * are accessed.
  */
-static inline void add_weighted_vector(
+static void add_weighted_vector(
     const int start_index, const float weight, const float *a, const float *b, float *r_target)
 {
   r_target[start_index + 0] += weight * (b[start_index + 0] - a[start_index + 0]);
