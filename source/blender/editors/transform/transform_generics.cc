@@ -1097,6 +1097,11 @@ bool calculateCenterActive(TransInfo *t, bool select_only, float r_center[3])
   if (t->spacetype != SPACE_VIEW3D) {
     return false;
   }
+  /* The cursor has no active object concept. Explictly fail here
+   * so we don't accidentally return the scene's active object. */
+  if (t->options & CTX_CURSOR) {
+    return false;
+  }
   if (tc->obedit) {
     if (object::calc_active_center_for_editmode(tc->obedit, select_only, r_center)) {
       mul_m4_v3(tc->obedit->object_to_world().ptr(), r_center);

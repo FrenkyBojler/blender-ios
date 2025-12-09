@@ -1441,7 +1441,7 @@ static void snap_source_active_fn(TransInfo *t)
 {
   /* Only need to calculate once. */
   if ((t->tsnap.status & SNAP_SOURCE_FOUND) == 0) {
-    if (!(t->options & CTX_CURSOR) && calculateCenterActive(t, true, t->tsnap.snap_source)) {
+    if (calculateCenterActive(t, true, t->tsnap.snap_source)) {
       t->tsnap.status |= SNAP_SOURCE_FOUND;
       t->tsnap.source_type = SCE_SNAP_TO_NONE;
     }
