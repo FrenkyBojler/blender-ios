@@ -32,6 +32,7 @@ namespace blender {
 
 namespace draw {
 class TextureFromPool;
+class PersistentTextureFromPool;
 class Manager;
 }  // namespace draw
 

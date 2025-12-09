@@ -608,8 +608,8 @@ void DepthOfField::render(View &view,
     }
     {
       stabilize_output_tx_.acquire(half_res, gpu::TextureFormat::SFLOAT_16_16_16_16);
-      stabilize_valid_history_ = !dof_buffer.stabilize_history_tx_.ensure_2d(
-          gpu::TextureFormat::SFLOAT_16_16_16_16, half_res);
+      stabilize_valid_history_ = !dof_buffer.stabilize_history_tx_.ensure_acquire(
+        half_res, gpu::TextureFormat::SFLOAT_16_16_16_16);
 
       if (stabilize_valid_history_ == false) {
         /* Avoid uninitialized memory that can contain NaNs. */

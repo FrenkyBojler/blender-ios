@@ -28,11 +28,8 @@ TexturePool::~TexturePool()
   }
 }
 
-Texture *TexturePool::acquire_texture(int width,
-                                      int height,
-                                      TextureFormat format,
-                                      eGPUTextureUsage usage,
-                                      eTextureLifetime lifetime)
+Texture *TexturePool::acquire_texture(
+    int width, int height, TextureFormat format, eGPUTextureUsage usage, eTextureLifetime lifetime)
 {
   int64_t match_index = -1;
 
@@ -54,7 +51,8 @@ Texture *TexturePool::acquire_texture(int width,
 
     if (lifetime == TEXTURE_LIFETIME_TRANSIENT) {
       acquired_transient_.append(tex);
-    } else { /* TEXTURE_LIFETIME_PERSISTENT */
+    }
+    else { /* TEXTURE_LIFETIME_PERSISTENT */
       acquired_persistent_.append(tex);
     }
 
@@ -72,7 +70,8 @@ Texture *TexturePool::acquire_texture(int width,
 
   if (lifetime == TEXTURE_LIFETIME_TRANSIENT) {
     acquired_transient_.append(tex);
-  } else { /* TEXTURE_LIFETIME_PERSISTENT */
+  }
+  else { /* TEXTURE_LIFETIME_PERSISTENT */
     acquired_persistent_.append(tex);
   }
 
@@ -83,23 +82,30 @@ void TexturePool::release_texture(Texture *tex)
 {
   if (int idx = acquired_transient_.first_index_of_try(tex); idx != -1) {
     acquired_transient_.remove_and_reorder(idx);
-  } else if (int idx = acquired_persistent_.first_index_of_try(tex); idx != -1) {
+  }
+  else if (int idx = acquired_persistent_.first_index_of_try(tex); idx != -1) {
     acquired_persistent_.remove_and_reorder(idx);
-  } else {
-    BLI_assert_msg(false,
-                   "Unacquired texture release in TexturePool.release_texture().");
+  }
+  else {
+    BLI_assert_msg(false, "Unacquired texture release in TexturePool.release_texture().");
   }
   pool_.append({tex, 0});
 }
 
-void TexturePool::take_texture_ownership(Texture *tex)
+void TexturePool::make_texture_transient(Texture *tex)
 {
-  acquired_transient_.remove_first_occurrence_and_reorder(tex);
+  int idx = acquired_persistent_.first_index_of_try(tex);
+  BLI_assert_msg(idx != -1, "Incorrect texture passed to TexturePool.make_texture_transient().");
+  acquired_persistent_.remove_and_reorder(idx);
+  acquired_transient_.append(tex);
 }
 
-void TexturePool::give_texture_ownership(Texture *tex)
+void TexturePool::make_texture_persistent(Texture *tex)
 {
-  acquired_transient_.append(tex);
+  int idx = acquired_transient_.first_index_of_try(tex);
+  BLI_assert_msg(idx != -1, "Incorrect texture passed to TexturePool.make_texture_persistent().");
+  acquired_transient_.remove_and_reorder(idx);
+  acquired_persistent_.append(tex);
 }
 
 void TexturePool::reset(bool force_free)

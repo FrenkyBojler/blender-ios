@@ -562,9 +562,9 @@ RayTraceResultTexture RayTraceModule::trace(
     /* Early out. Release persistent buffers. Still acquire one dummy resource for validation. */
     denoise_buf->denoised_spatial_tx.acquire(int2(1),
                                              gpu::TextureFormat::RAYTRACE_RADIANCE_FORMAT);
-    denoise_buf->radiance_history_tx.free();
-    denoise_buf->variance_history_tx.free();
-    denoise_buf->tilemask_history_tx.free();
+    denoise_buf->radiance_history_tx.release();
+    denoise_buf->variance_history_tx.release();
+    denoise_buf->tilemask_history_tx.release();
     return {denoise_buf->denoised_spatial_tx};
   }
 
@@ -661,8 +661,8 @@ RayTraceResultTexture RayTraceModule::trace(
                                                      tile_raytrace_denoise_tx_.size().z,
                                                      usage_rw);
 
-    if (denoise_buf->radiance_history_tx.ensure_2d(
-            gpu::TextureFormat::RAYTRACE_RADIANCE_FORMAT, extent, usage_rw) ||
+    if (denoise_buf->radiance_history_tx.ensure_acquire(extent, 
+      gpu::TextureFormat::RAYTRACE_RADIANCE_FORMAT, usage_rw) ||
         denoise_buf->valid_history == false)
     {
       /* If viewport resolution changes, do not try to use history. */
