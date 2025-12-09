@@ -22,13 +22,13 @@
 #include "gpu_shader_msl_string.msl"
 #include "gpu_shader_msl_types.msl"
 #include "gpu_shader_msl_types_legacy.msl"
-/* Wrapper needs to be last. */
-#include "gpu_shader_msl_wrapper.msl"
 
 /* Suppress unhelpful shader compiler warnings. */
 #pragma clang diagnostic ignored "-Wunused-variable"
 #pragma clang diagnostic ignored "-Wcomment"
-#pragma clang diagnostic ignored "-Wunused-const-variable"
+
+/* Wrapper needs to be last. */
+#include "gpu_shader_msl_wrapper.msl"
 
 /* Array syntax compatibility. */
 /* clang-format off */
