@@ -40,7 +40,7 @@ struct RayTraceBuffer {
     TextureFromPool radiance_history_tx = {"radiance_tx"};
     TextureFromPool variance_history_tx = {"variance_tx"};
     /* Map of tiles that were processed inside the history buffer. */
-    Texture tilemask_history_tx = {"tilemask_tx"};
+    PersistentTextureFromPool tilemask_history_tx = {"tilemask_tx"};
     /** Perspective matrix for which the history buffers were recorded. */
     float4x4 history_persmat;
     /** True if history buffer was used last frame and can be re-projected. */
