@@ -46,6 +46,17 @@ class TexturePool {
    * Only valid if a context is active. */
   static TexturePool &get();
 
+  /* TODO(not_mark): impl. overloads for at least 2D, 2D array. */
+  Texture *acquire_texture_2d(int2 extent,
+                              TextureFormat format,
+                              eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL,
+                              eTextureLifetime lifetime = TEXTURE_LIFETIME_TRANSIENT);
+  Texture *acquire_texture_2d_array(int2 extent,
+                                    int layers,
+                                    TextureFormat format,
+                                    eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL,
+                                    eTextureLifetime lifetime = TEXTURE_LIFETIME_TRANSIENT);
+
   /* Acquire a texture from the pool with the given characteristics. */
   Texture *acquire_texture(int width,
                            int height,
