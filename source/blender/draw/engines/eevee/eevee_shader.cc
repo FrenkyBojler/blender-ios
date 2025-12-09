@@ -844,10 +844,10 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
 
   if (GPU_material_flag_get(gpumat, GPU_MATFLAG_RAYCAST)) {
     if (ELEM(pipeline_type,
-             eMaterialPipeline::MAT_PIPE_PREPASS_DEFERRED,
-             eMaterialPipeline::MAT_PIPE_PREPASS_DEFERRED_VELOCITY,
-             eMaterialPipeline::MAT_PIPE_PREPASS_FORWARD,
-             eMaterialPipeline::MAT_PIPE_PREPASS_FORWARD_VELOCITY))
+             MAT_PIPE_PREPASS_DEFERRED,
+             MAT_PIPE_PREPASS_DEFERRED_VELOCITY,
+             MAT_PIPE_PREPASS_FORWARD,
+             MAT_PIPE_PREPASS_FORWARD_VELOCITY))
     {
       info.additional_info("eevee_object_id_out");
     }
@@ -1383,11 +1383,12 @@ static GPUPass *pass_replacement_cb(void *void_thunk, GPUMaterial *mat)
   bool has_transparency = GPU_material_flag_get(mat, GPU_MATFLAG_TRANSPARENT);
   bool has_shadow_transparency = has_transparency && transparent_shadows;
   bool has_raytraced_transmission = blender_mat && (blender_mat->blend_flag & MA_BL_SS_REFRACTION);
+  bool has_raycast = GPU_material_flag_get(mat, GPU_MATFLAG_RAYCAST);
 
   bool can_use_default = (is_shadow_pass &&
                           (!has_vertex_displacement && !has_shadow_transparency)) ||
                          (is_prepass && (!has_vertex_displacement && !has_transparency &&
-                                         !has_raytraced_transmission));
+                                         !has_raytraced_transmission && !has_raycast));
   if (can_use_default) {
     GPUMaterial *mat = thunk->shader_module->material_shader_get(thunk->default_mat,
                                                                  thunk->default_mat->nodetree,

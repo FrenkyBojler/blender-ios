@@ -8,6 +8,7 @@
 
 #include "infos/eevee_geom_infos.hh"
 #include "infos/eevee_nodetree_infos.hh"
+#include "infos/eevee_object_id_infos.hh"
 #include "infos/eevee_surf_depth_infos.hh"
 
 FRAGMENT_SHADER_CREATE_INFO(eevee_nodetree)
