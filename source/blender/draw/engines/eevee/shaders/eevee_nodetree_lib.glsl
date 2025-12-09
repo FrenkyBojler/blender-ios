@@ -5,15 +5,12 @@
 #pragma once
 
 #include "infos/eevee_common_infos.hh"
+#include "infos/eevee_object_id_infos.hh"
 #include "infos/eevee_uniform_infos.hh"
 
 SHADER_LIBRARY_CREATE_INFO(eevee_global_ubo)
 SHADER_LIBRARY_CREATE_INFO(eevee_utility_texture)
 SHADER_LIBRARY_CREATE_INFO(eevee_hiz_data)
-
-#ifdef OBJECT_ID_TEX
-SHADER_LIBRARY_CREATE_INFO(eevee_object_id)
-#endif
 
 #include "draw_model_lib.glsl"
 #include "draw_object_infos_lib.glsl"

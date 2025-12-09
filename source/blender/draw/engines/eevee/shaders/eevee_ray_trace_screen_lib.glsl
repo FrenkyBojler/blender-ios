@@ -274,7 +274,7 @@ float raytrace_screen_2(float3 vs_origin,
                         float thickness,
                         int max_steps,
                         float jitter,
-                        usampler2D object_id_tx,
+                        usampler2D ob_id_tx,
                         uint object_id)
 {
   /* Convert ray start and end into NDC for correct interpolation. */
@@ -306,7 +306,7 @@ float raytrace_screen_2(float3 vs_origin,
     float4 step = start + delta * step_t;
 
     float2 texel = step.xy * extent;
-    if (object_id != 0 && object_id != texelFetch(object_id_tx, int2(texel), 0).r) {
+    if (object_id != 0 && object_id != texelFetch(ob_id_tx, int2(texel), 0).r) {
       previous_step_z = step.z;
       continue;
     }
