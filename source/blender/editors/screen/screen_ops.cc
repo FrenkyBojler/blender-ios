@@ -2238,9 +2238,6 @@ static void area_move_exit(bContext *C, wmOperator *op)
   md->win = CTX_wm_window(C);
   md->draw_callback = WM_draw_cb_activate(md->win, area_move_out_draw_cb, md);
 
-  /* this makes sure aligned edges will result in aligned grabbing */
-  BKE_screen_remove_double_scrverts(CTX_wm_screen(C));
-  BKE_screen_remove_double_scredges(CTX_wm_screen(C));
   ED_workspace_status_text(C, nullptr);
 
   screen_modal_action_end();
@@ -2602,10 +2599,6 @@ static void area_split_exit(bContext *C, wmOperator *op)
   WM_cursor_modal_restore(CTX_wm_window(C));
   WM_event_add_notifier(C, NC_SCREEN | NA_EDITED, nullptr);
   ED_workspace_status_text(C, nullptr);
-
-  /* this makes sure aligned edges will result in aligned grabbing */
-  BKE_screen_remove_double_scrverts(CTX_wm_screen(C));
-  BKE_screen_remove_double_scredges(CTX_wm_screen(C));
 
   screen_modal_action_end();
 }

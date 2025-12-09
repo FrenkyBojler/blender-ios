@@ -185,13 +185,6 @@ ScrArea *area_split(const wmWindow *win,
     ED_area_data_copy(newa, area, true);
   }
 
-  /* remove double vertices en edges */
-  if (merge) {
-    BKE_screen_remove_double_scrverts(screen);
-  }
-  BKE_screen_remove_double_scredges(screen);
-  BKE_screen_remove_unused_scredges(screen);
-
   return newa;
 }
 
@@ -505,7 +498,6 @@ static bool screen_area_join_aligned(
   }
 
   screen_delarea(C, screen, sa2);
-  BKE_screen_remove_double_scrverts(screen);
   /* Update preview thumbnail */
   BKE_icon_changed(screen->id.icon_id);
 
