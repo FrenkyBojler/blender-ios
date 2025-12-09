@@ -174,6 +174,7 @@ void OperatorTypeData::ensure_hash()
         }
       },
       this->group_ref);
+  // TODO: Hash all of IDProperty junk
   static_assert(sizeof(this->hash) == sizeof(XXH128_hash_t));
   const XXH128_hash_t xxh3_hash = XXH3_128bits_digest(hash_state);
   this->hash[0] = xxh3_hash.low64;
