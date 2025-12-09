@@ -1509,8 +1509,9 @@ static void paint_update_mouse_cursor(PaintCursorContext &pcontext)
   }
   else {
     /* Adjust the mouse cursor as the brush size decreases. */
-    const bool small = pcontext.ups->size < 26;
-    const bool tiny = pcontext.ups->size < 10;
+    const int brush_size = BKE_brush_size_get(pcontext.paint, pcontext.brush);
+    const bool small = brush_size < 28;
+    const bool tiny = brush_size < 12;
     WM_cursor_set(pcontext.win, small ? tiny ? WM_CURSOR_NONE : WM_CURSOR_DOT : WM_CURSOR_PAINT);
   }
 }
