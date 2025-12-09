@@ -357,8 +357,9 @@ static void stats_object_edit(Object *obedit, SceneStats *stats)
     const OffsetIndices points_by_curve = curves.points_by_curve();
     for (const int curve_i : curves.curves_range()) {
       const IndexRange points = points_by_curve[curve_i];
-      stats->totcurvesel += std::all_of(
-      points.begin(), points.end(), [&](const int64_t i) { return selected_points[i] == true; });
+      stats->totcurvesel += std::all_of(points.begin(), points.end(), [&](const int64_t i) {
+        return selected_points[i] == true;
+      });
     }
 
     stats->totpoints += curves.points_num();
