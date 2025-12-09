@@ -837,7 +837,7 @@ static void cp_cu_key(Curve *cu,
 /**
  * Copy a subset of the given shapekey `source` into `r_target`.
  *
- * \param range is the range of vertices to copy. Each is considered to be a float3.
+ * \param range is the range of vertices to copy. Each index is considered to be a float3.
  */
 static void copy_key_float3_range(const blender::IndexRange range,
                                   Key *key,
