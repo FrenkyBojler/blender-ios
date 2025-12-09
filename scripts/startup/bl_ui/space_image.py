@@ -1732,9 +1732,14 @@ class IMAGE_PT_overlay_uv_display(Panel):
         overlay = sima.overlay
 
         layout.active = overlay.show_overlays
-        layout.prop(uvedit, "show_uv")
-        layout.prop(uvedit, "uv_face_opacity")
-        layout.prop(uvedit, "uv_edge_opacity")
+        
+        col = layout.column()
+        col.prop(uvedit, "show_uv")
+
+        row = col.row(align=True)
+        row.active = uvedit.show_uv
+        row.prop(uvedit, "uv_face_opacity", text="Face Opacity")
+        row.prop(uvedit, "uv_edge_opacity", text="Edge Opacity")
 
 
 class IMAGE_PT_overlay_image(Panel):
