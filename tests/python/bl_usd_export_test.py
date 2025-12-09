@@ -2060,6 +2060,7 @@ class USDExportTest(AbstractUSDTest):
         # Check that the accessibility information is pulled from the export args.
         verify_accessibility_api(root_prim, UsdUI.Tokens.default_, root_label, root_description)
 
+
 class USDHookBase:
     instructions = {}
     responses = {}
