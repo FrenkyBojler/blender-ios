@@ -204,8 +204,7 @@ static void shape_attributes_to_curves(bke::CurvesGeometry &curves,
     bke::SpanAttributeWriter<int> shape_ids = attributes.lookup_or_add_for_write_span<int>(
         "shape_id", bke::AttrDomain::Curve);
 
-    /* Add one to avoid zero. */
-    shape_ids.span.slice(curves_range).fill(shape_index + 1);
+    shape_ids.span.slice(curves_range).fill(shape_index);
     shape_ids.finish();
   }
 
@@ -340,7 +339,10 @@ bool SVGImporter::read(StringRefNull filepath)
   /* Loop all shapes. */
   std::string prv_id = "*";
   int prefix = 0;
-  int shape_index = 0;
+
+  /* The shape_id of 0 is used as the default and treats each curve as a separate shape,
+   * so start at 1 to avoid this. */
+  int shape_index = 1;
   for (NSVGshape *shape = svg_data->shapes; shape; shape = shape->next) {
     std::string layer_id = get_layer_id(*shape, prefix);
     if (prv_id != layer_id) {
