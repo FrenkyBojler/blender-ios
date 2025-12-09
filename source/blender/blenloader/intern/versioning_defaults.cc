@@ -412,6 +412,7 @@ static void blo_update_defaults_paint(Paint *paint)
 static void blo_update_defaults_windowmanager(wmWindowManager *wm)
 {
   wm->xr.session_settings.fly_speed = 3.0f;
+  wm->xr.session_settings.view_scale = 1.0f;
 }
 
 static void blo_update_defaults_scene(Main *bmain, Scene *scene)
@@ -783,6 +784,8 @@ void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)
           bNodeSocket *emission_strength = blender::bke::node_find_socket(
               *node, SOCK_IN, "Emission Strength");
           *version_cycles_node_socket_float_value(emission_strength) = 0.0f;
+          bNodeSocket *ior = blender::bke::node_find_socket(*node, SOCK_IN, "IOR");
+          *version_cycles_node_socket_float_value(ior) = 1.5f;
 
           node->custom1 = SHD_GLOSSY_MULTI_GGX;
           node->custom2 = SHD_SUBSURFACE_RANDOM_WALK;
