@@ -212,7 +212,7 @@ static void compo_initjob(void *cjv)
 
   cj->re = RE_NewInteractiveCompositorRender(scene);
   if (scene->r.compositor_device == SCE_COMPOSITOR_DEVICE_GPU) {
-    RE_system_gpu_context_ensure(cj->re);
+    RE_display_ensure_gpu_context(cj->re);
   }
 }
 
@@ -319,8 +319,9 @@ static bool is_compositing_possible(const bContext *C)
 }
 
 /* Returns the compositor outputs that need to be computed because their result is visible to the
- * user. */
-static blender::compositor::OutputTypes get_compositor_needed_outputs(const bContext *C)
+ * user or required by the render pipeline. */
+static blender::compositor::OutputTypes get_compositor_needed_outputs(const bContext *C,
+                                                                      Scene *scene_owner)
 {
   blender::compositor::OutputTypes needed_outputs = blender::compositor::OutputTypes::None;
 
@@ -347,10 +348,20 @@ static blender::compositor::OutputTypes get_compositor_needed_outputs(const bCon
         if (!image || image->source != IMA_SRC_VIEWER) {
           continue;
         }
-        if (image->type == IMA_TYPE_R_RESULT) {
+        /* Do not override the Render Result if compositing is disabled in the render pipeline or
+         * if the sequencer is enabled. */
+        if (image->type == IMA_TYPE_R_RESULT && scene_owner->r.scemode & R_DOCOMP &&
+            !RE_seq_render_active(scene_owner, &scene_owner->r))
+        {
           needed_outputs |= blender::compositor::OutputTypes::Composite;
         }
         else if (image->type == IMA_TYPE_COMPOSITE) {
+          needed_outputs |= blender::compositor::OutputTypes::Viewer;
+        }
+      }
+      else if (space_link->spacetype == SPACE_SEQ) {
+        const SpaceSeq *space_sequencer = reinterpret_cast<const SpaceSeq *>(space_link);
+        if (ELEM(space_sequencer->view, SEQ_VIEW_PREVIEW, SEQ_VIEW_SEQUENCE_PREVIEW)) {
           needed_outputs |= blender::compositor::OutputTypes::Viewer;
         }
       }
@@ -373,7 +384,7 @@ void ED_node_composite_job(const bContext *C, bNodeTree *nodetree, Scene *scene_
   /* None of the outputs are needed except maybe previews, so no need to execute the compositor.
    * Previews are not considered because they are a secondary output that needs another output to
    * be computed with. */
-  blender::compositor::OutputTypes needed_outputs = get_compositor_needed_outputs(C);
+  blender::compositor::OutputTypes needed_outputs = get_compositor_needed_outputs(C, scene_owner);
   if (ELEM(needed_outputs,
            blender::compositor::OutputTypes::None,
            blender::compositor::OutputTypes::Previews))
@@ -1021,7 +1032,7 @@ static wmOperatorStatus node_resize_modal(bContext *C, wmOperator *op, const wmE
       int2 mval;
       WM_event_drag_start_mval(event, region, mval);
       float mx, my;
-      UI_view2d_region_to_view(&region->v2d, mval.x, mval.y, &mx, &my);
+      ui::view2d_region_to_view(&region->v2d, mval.x, mval.y, &mx, &my);
       const float dx = (mx - nsw->mxstart) / UI_SCALE_FAC;
       const float dy = (my - nsw->mystart) / UI_SCALE_FAC;
 
@@ -1115,7 +1126,7 @@ static wmOperatorStatus node_resize_invoke(bContext *C, wmOperator *op, const wm
   float2 cursor;
   int2 mval;
   WM_event_drag_start_mval(event, region, mval);
-  UI_view2d_region_to_view(&region->v2d, mval.x, mval.y, &cursor.x, &cursor.y);
+  ui::view2d_region_to_view(&region->v2d, mval.x, mval.y, &cursor.x, &cursor.y);
   const NodeResizeDirection dir = node_get_resize_direction(*snode, node, cursor.x, cursor.y);
   if (dir == NODE_RESIZE_NONE) {
     return OPERATOR_CANCELLED | OPERATOR_PASS_THROUGH;
@@ -1238,7 +1249,7 @@ bNodeSocket *node_find_indicated_socket(SpaceNode &snode,
                                         const float2 &cursor,
                                         const eNodeSocketInOut in_out)
 {
-  const float view2d_scale = UI_view2d_scale_get_x(&region.v2d);
+  const float view2d_scale = ui::view2d_scale_get_x(&region.v2d);
   const float max_distance = NODE_SOCKSIZE + std::clamp(20.0f / view2d_scale, 5.0f, 30.0f);
   const float padded_socket_size = NODE_SOCKSIZE + 4;
 
@@ -1628,9 +1639,7 @@ wmOperatorStatus node_render_changed_exec(bContext *C, wmOperator * /*op*/)
     ViewLayer *view_layer = (ViewLayer *)BLI_findlink(&sce->view_layers, node->custom1);
 
     if (view_layer) {
-      PointerRNA op_ptr;
-
-      WM_operator_properties_create(&op_ptr, "RENDER_OT_render");
+      PointerRNA op_ptr = WM_operator_properties_create("RENDER_OT_render");
       RNA_string_set(&op_ptr, "layer", view_layer->name);
       RNA_string_set(&op_ptr, "scene", sce->id.name + 2);
 

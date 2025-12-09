@@ -145,10 +145,10 @@ static void node_rna(StructRNA *srna)
       true);
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_layout(ui::Layout &layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
-  layout->prop(ptr, "reference_dimension", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout.prop(ptr, "reference_dimension", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 using namespace blender::compositor;
@@ -209,7 +209,7 @@ class RelativeToPixelOperation : public NodeOperation {
 
     const Domain domain = RealizeOnDomainOperation::compute_realized_transformation_domain(
         this->context(), input_image.domain());
-    const float2 image_size = float2(domain.size);
+    const float2 image_size = float2(domain.display_size);
     switch (this->get_reference_dimension()) {
       case CMP_NODE_RELATIVE_TO_PIXEL_REFERENCE_DIMENSION_PER_DIMENSION:
         return image_size;

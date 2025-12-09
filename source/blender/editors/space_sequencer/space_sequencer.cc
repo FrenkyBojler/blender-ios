@@ -14,15 +14,10 @@
 #include "DNA_mask_types.h"
 #include "DNA_scene_types.h"
 
-#include "GPU_immediate.hh"
-#include "MEM_guardedalloc.h"
-
 #include "BLI_listbase.h"
 #include "BLI_math_base.h"
 #include "BLI_rect.h"
 #include "BLI_string_utf8.h"
-
-#include "BLF_api.hh"
 
 #include "BKE_global.hh"
 #include "BKE_layer.hh"
@@ -30,14 +25,12 @@
 #include "BKE_lib_remap.hh"
 #include "BKE_screen.hh"
 
-#include "IMB_colormanagement.hh"
-
 #include "ED_screen.hh"
 #include "ED_sequencer.hh"
 #include "ED_space_api.hh"
 #include "ED_transform.hh"
 #include "ED_util.hh"
-#include "ED_view3d_offscreen.hh" /* Only for sequencer view3d drawing callback. */
+#include "ED_view3d_offscreen.hh"
 
 #include "WM_api.hh"
 #include "WM_message.hh"
@@ -56,7 +49,6 @@
 
 #include "BLO_read_write.hh"
 
-/* Own include. */
 #include "sequencer_intern.hh"
 
 namespace blender::ed::vse {
@@ -346,7 +338,7 @@ static int /*eContextResult*/ sequencer_context(const bContext *C,
 
 static void SEQUENCER_GGT_navigate(wmGizmoGroupType *gzgt)
 {
-  VIEW2D_GGT_navigate_impl(gzgt, "SEQUENCER_GGT_navigate");
+  ui::VIEW2D_GGT_navigate_impl(gzgt, "SEQUENCER_GGT_navigate");
 }
 
 static void SEQUENCER_GGT_gizmo2d(wmGizmoGroupType *gzgt)
@@ -431,7 +423,7 @@ static void sequencer_main_region_init(wmWindowManager *wm, ARegion *region)
   wmKeyMap *keymap;
   ListBase *lb;
 
-  UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_CUSTOM, region->winx, region->winy);
+  view2d_region_reinit(&region->v2d, ui::V2D_COMMONVIEW_CUSTOM, region->winx, region->winy);
 
 #if 0
   keymap = WM_keymap_ensure(wm->runtime->defaultconf, "Mask Editing", SPACE_EMPTY, RGN_TYPE_WINDOW);
@@ -674,42 +666,43 @@ static void sequencer_main_cursor(wmWindow *win, ScrArea *area, ARegion *region)
 
   rcti scrub_rect = region->winrct;
   scrub_rect.ymin = scrub_rect.ymax - UI_TIME_SCRUB_MARGIN_Y;
-  if (BLI_rcti_isect_pt_v(&scrub_rect, win->eventstate->xy)) {
+  if (BLI_rcti_isect_pt_v(&scrub_rect, win->runtime->eventstate->xy)) {
     WM_cursor_set(win, wmcursor);
     return;
   }
 
   const View2D *v2d = &region->v2d;
-  if (UI_view2d_mouse_in_scrollers(region, v2d, win->eventstate->xy)) {
+  if (ui::view2d_mouse_in_scrollers(region, v2d, win->runtime->eventstate->xy)) {
     WM_cursor_set(win, wmcursor);
     return;
   }
 
-  float mouse_co_region[2] = {float(win->eventstate->xy[0] - region->winrct.xmin),
-                              float(win->eventstate->xy[1] - region->winrct.ymin)};
+  float mouse_co_region[2] = {float(win->runtime->eventstate->xy[0] - region->winrct.xmin),
+                              float(win->runtime->eventstate->xy[1] - region->winrct.ymin)};
   float mouse_co_view[2];
-  UI_view2d_region_to_view(
+  ui::view2d_region_to_view(
       &region->v2d, mouse_co_region[0], mouse_co_region[1], &mouse_co_view[0], &mouse_co_view[1]);
 
   if (STREQ(tref->idname, "builtin.blade") || STREQ(tref->idname, "builtin.slip")) {
     int mval[2] = {int(mouse_co_region[0]), int(mouse_co_region[1])};
     Strip *strip = strip_under_mouse_get(scene, v2d, mval);
     if (strip != nullptr) {
-      ListBase *channels = seq::channels_displayed_get(ed);
+      const ListBase *channels = seq::channels_displayed_get(ed);
       const bool locked = seq::transform_is_locked(channels, strip);
-      const int frame = round_fl_to_int(mouse_co_view[0]);
-      /* We cannot split the first and last frame, so blade cursor should not appear then. */
-      if (STREQ(tref->idname, "builtin.blade") &&
-          frame != seq::time_left_handle_frame_get(scene, strip) &&
-          frame != seq::time_right_handle_frame_get(scene, strip))
-      {
+      if (STREQ(tref->idname, "builtin.blade")) {
         wmcursor = locked ? WM_CURSOR_STOP : WM_CURSOR_BLADE;
       }
-      else if (STREQ(tref->idname, "builtin.slip")) {
+      else {
         wmcursor = (locked || seq::transform_single_image_check(strip)) ? WM_CURSOR_STOP :
                                                                           WM_CURSOR_SLIP;
       }
     }
+    else if (STREQ(tref->idname, "builtin.blade")) {
+      /* For blade tool, show blade cursor even when `strip_under_mouse_get` returns `nullptr`.
+       * This is because the drag starting position for box blade can be in empty space. */
+      wmcursor = WM_CURSOR_BLADE;
+    }
+
     WM_cursor_set(win, wmcursor);
     return;
   }
@@ -827,7 +820,7 @@ static void sequencer_preview_region_init(wmWindowManager *wm, ARegion *region)
 {
   wmKeyMap *keymap;
 
-  UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_CUSTOM, region->winx, region->winy);
+  view2d_region_reinit(&region->v2d, ui::V2D_COMMONVIEW_CUSTOM, region->winx, region->winy);
 
 #if 0
   keymap = WM_keymap_ensure(wm->runtime->defaultconf, "Mask Editing", SPACE_EMPTY, RGN_TYPE_WINDOW);
@@ -1093,7 +1086,7 @@ static void sequencer_channel_region_init(wmWindowManager *wm, ARegion *region)
 
   region->alignment = RGN_ALIGN_LEFT;
 
-  UI_view2d_region_reinit(&region->v2d, V2D_COMMONVIEW_LIST, region->winx, region->winy);
+  view2d_region_reinit(&region->v2d, ui::V2D_COMMONVIEW_LIST, region->winx, region->winy);
 
   keymap = WM_keymap_ensure(
       wm->runtime->defaultconf, "Sequencer Channels", SPACE_SEQ, RGN_TYPE_WINDOW);
@@ -1257,7 +1250,7 @@ void ED_spacetype_sequencer()
   BLI_addhead(&st->regiontypes, art);
 
   /* HUD. */
-  art = ED_area_type_hud(st->spaceid);
+  art = ui::ED_area_type_hud(st->spaceid);
   BLI_addhead(&st->regiontypes, art);
 
   WM_menutype_add(MEM_dupallocN<MenuType>(__func__, add_catalog_assets_menu_type()));
@@ -1268,7 +1261,7 @@ void ED_spacetype_sequencer()
 
   /* Set the sequencer callback when not in background mode. */
   if (G.background == 0) {
-    seq::view3d_fn = reinterpret_cast<seq::DrawViewFn>(ED_view3d_draw_offscreen_imbuf_simple);
+    seq::view3d_fn = ED_view3d_draw_offscreen_imbuf_simple;
   }
 }
 

@@ -126,13 +126,13 @@ static bool is_oidn_supported()
 #endif
 }
 
-static void node_composit_buts_denoise(uiLayout *layout, bContext * /*C*/, PointerRNA * /*ptr*/)
+static void node_composit_buts_denoise(ui::Layout &layout, bContext * /*C*/, PointerRNA * /*ptr*/)
 {
 #ifndef WITH_OPENIMAGEDENOISE
-  layout->label(RPT_("Disabled. Built without OpenImageDenoise"), ICON_ERROR);
+  layout.label(RPT_("Disabled. Built without OpenImageDenoise"), ICON_ERROR);
 #else
   if (!is_oidn_supported()) {
-    layout->label(RPT_("Disabled. Platform not supported"), ICON_ERROR);
+    layout.label(RPT_("Disabled. Platform not supported"), ICON_ERROR);
   }
 #endif
 }
@@ -171,8 +171,8 @@ class DenoiseOperation : public NodeOperation {
     device.set("setAffinity", false);
     device.commit();
 
-    const int width = input_image.domain().size.x;
-    const int height = input_image.domain().size.y;
+    const int width = input_image.domain().data_size.x;
+    const int height = input_image.domain().data_size.y;
     const int pixel_stride = sizeof(float) * 4;
     const eGPUDataFormat data_format = GPU_DATA_FLOAT;
 

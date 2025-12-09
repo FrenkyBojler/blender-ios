@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 5.0.0 Beta (b'6cf0458fdf00')\n"
+"Project-Id-Version: Blender 5.1.0 Alpha (b'7084f8328cd3')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-11-03 10:44+0000\n"
+"POT-Creation-Date: 2025-12-08 10:32+0000\n"
 "PO-Revision-Date: 2025-07-23 15:31+0000\n"
 "Last-Translator: Balázs Füvesi <fuvesib@gmail.com>\n"
 "Language-Team: Hungarian <https://translate.blender.org/projects/blender-ui/ui/hu/>\n"
@@ -652,6 +652,78 @@ msgid "Custom"
 msgstr "Egyéni"
 
 
+msgid "Actions"
+msgstr "Akciók"
+
+
+msgid "Armatures"
+msgstr "Csontvázak"
+
+
+msgid "Cache Files"
+msgstr "Gyorsítótár fájlok"
+
+
+msgid "Cameras"
+msgstr "Kamerák"
+
+
+msgid "Hair Curves"
+msgstr "Haj görbék"
+
+
+msgid "Fonts"
+msgstr "Betűkészletek"
+
+
+msgid "Grease Pencil"
+msgstr "Zsírkréta"
+
+
+msgid "Collections"
+msgstr "Kollekciók"
+
+
+msgid "Images"
+msgstr "Képek"
+
+
+msgid "Lattices"
+msgstr "Ketrecek"
+
+
+msgid "Meshes"
+msgstr "Térhálók"
+
+
+msgid "Metaballs"
+msgstr "Meta testek"
+
+
+msgid "Scenes"
+msgstr "Jelenetek"
+
+
+msgid "Sounds"
+msgstr "Hangok"
+
+
+msgid "Speakers"
+msgstr "Hangszórók"
+
+
+msgid "Texts"
+msgstr "Szövegek"
+
+
+msgid "Textures"
+msgstr "Textúrák"
+
+
+msgid "Worlds"
+msgstr "Világok"
+
+
 msgid "Show Names"
 msgstr "Nevek megjelenítése"
 
@@ -940,26 +1012,6 @@ msgid "Weight"
 msgstr "Súly"
 
 
-msgid "Actions"
-msgstr "Akciók"
-
-
-msgid "Armatures"
-msgstr "Csontvázak"
-
-
-msgid "Cache Files"
-msgstr "Gyorsítótár fájlok"
-
-
-msgid "Cameras"
-msgstr "Kamerák"
-
-
-msgid "Collections"
-msgstr "Kollekciók"
-
-
 msgid "Collection data-blocks"
 msgstr "Kollekció adatblokkok"
 
@@ -980,32 +1032,16 @@ msgid "Path to the .blend file"
 msgstr "Útvonal a .blend fájlhoz"
 
 
-msgid "Grease Pencil"
-msgstr "Zsírkréta"
-
-
 msgid "Grease Pencil data-blocks"
 msgstr "Zsírkréta adatblokkok"
-
-
-msgid "Hair Curves"
-msgstr "Haj görbék"
 
 
 msgid "Hair curve data-blocks"
 msgstr "Haj görbe adatblokkok"
 
 
-msgid "Images"
-msgstr "Képek"
-
-
 msgid "Image data-blocks"
 msgstr "Kép adatblokkok"
-
-
-msgid "Lattices"
-msgstr "Ketrecek"
 
 
 msgid "Light data-blocks"
@@ -1016,44 +1052,16 @@ msgid "Material data-blocks"
 msgstr "Anyag adatblokkok"
 
 
-msgid "Meshes"
-msgstr "Térhálók"
-
-
 msgid "Mesh data-blocks"
 msgstr "Térháló adatblokkok"
-
-
-msgid "Metaballs"
-msgstr "Meta testek"
 
 
 msgid "Particles"
 msgstr "Részecskék"
 
 
-msgid "Scenes"
-msgstr "Jelenetek"
-
-
 msgid "Shape Keys"
 msgstr "Formakulcsok"
-
-
-msgid "Sounds"
-msgstr "Hangok"
-
-
-msgid "Speakers"
-msgstr "Hangszórók"
-
-
-msgid "Texts"
-msgstr "Szövegek"
-
-
-msgid "Textures"
-msgstr "Textúrák"
 
 
 msgid "Version"
@@ -1066,10 +1074,6 @@ msgstr "Ablakkezelők"
 
 msgid "Window manager data-blocks"
 msgstr "Ablakkezelő adatblokkok"
-
-
-msgid "Worlds"
-msgstr "Világok"
 
 
 msgid "Main Grease Pencils"
@@ -3403,10 +3407,6 @@ msgstr "Mag"
 
 msgid "Size"
 msgstr "Méret"
-
-
-msgid "Fonts"
-msgstr "Betűkészletek"
 
 
 msgid "Save"
@@ -6625,16 +6625,16 @@ msgid "Import"
 msgstr "Importálás"
 
 
+msgid "UV"
+msgstr "UV"
+
+
 msgid "Mirror"
 msgstr "Tükrözés"
 
 
 msgid "Local View"
 msgstr "Helyi nézet"
-
-
-msgid "UV"
-msgstr "UV"
 
 
 msgid "Navigation"
@@ -10602,10 +10602,6 @@ msgstr "Az animáció visszajátszásának ciklikussá tétele"
 
 msgid "Scale FPS"
 msgstr "FPS skálázása"
-
-
-msgid "Scale the framerate from the BVH to the current scenes, otherwise each BVH frame maps directly to a Blender frame"
-msgstr "A BVH képkockasebességnek a skálázása az aktuális jelenethez, másként minden BVH képkocka közvetlenül egy Blender képkockákra képeződik le"
 
 
 msgid "Image Search"
@@ -15591,10 +15587,6 @@ msgid "Face"
 msgstr "Oldallap"
 
 
-msgid "Image*"
-msgstr "Kép*"
-
-
 msgctxt "Operator"
 msgid "Replace..."
 msgstr "Csere..."
@@ -15632,11 +15624,6 @@ msgstr "Gyermek objektumok"
 msgctxt "Operator"
 msgid "Make"
 msgstr "Létrehozás"
-
-
-msgctxt "Operator"
-msgid "Movie"
-msgstr "Videó"
 
 
 msgctxt "Operator"
