@@ -63,6 +63,10 @@ struct ButtonItem;
 /** \name Structs and Defines
  * \{ */
 
+/**
+ * \param caller_fn_name: A friendly function name of the caller for tracing layout item operator
+ * warnings, matching the RNA struct function name. For example `"UILayout.operator()"`
+ */
 #define UI_OPERATOR_ERROR_RET(_ot, _opname, caller_fn_name) \
   if (ot == nullptr) { \
     ui_item_disabled(this, _opname); \
@@ -1080,6 +1084,8 @@ static void ui_keymap_but_cb(bContext * /*C*/, void *but_v, void * /*key_v*/)
  *
  * \param w_hint: For varying width layout, this becomes the label width.
  *                Otherwise it's used to fit both items into it.
+ * \param caller_fn_name: A friendly function name of the caller for tracing keymap item warnings,
+ * matching the RNA struct function name. For example `"UILayout.prop()"`.
  */
 static Button *ui_item_with_label(Layout *layout,
                                   Block *block,
@@ -2946,7 +2952,7 @@ void Layout::menu_contents(const StringRef menuname)
 {
   MenuType *mt = WM_menutype_find(menuname, false);
   if (mt == nullptr) {
-    RNA_warning_bare("UILayout.menu(): not found %s", std::string(menuname).c_str());
+    RNA_warning_bare("UILayout.menu_contents(): not found %s", std::string(menuname).c_str());
     return;
   }
 
