@@ -125,7 +125,7 @@ struct OperatorTypeData : public wmOperatorType::TypeData {
   GeometryNodeAssetTraitFlag flag;
 
   std::unique_ptr<IDProperty, bke::idprop::IDPropertyDeleter> input_asset_meta_data_props;
-  Vector<StructRNA *> structs;
+  nodes::GeneratedTreeSrnaData generated_structs;
 
   struct LocalRef {
     uint32_t session_uid;
@@ -1212,95 +1212,165 @@ static const EnumPropertyItem *enum_input_items_fn(bContext * /*C*/,
   return items;
 }
 
+static void make_common_type_prop(StructRNA &srna,
+                                  const StringRefNull name,
+                                  const EnumPropertyItem *items,
+                                  const nodes::GeometryNodesInputType default_type,
+                                  nodes::GeneratedTreeSrnaData &r_generated)
+{
+  PropertyRNA *prop = RNA_def_enum(
+      &srna,
+      "type",
+      items,
+      int(default_type),
+      r_generated.scope.add_value(fmt::format("{} {}", TIP_("Type for"), name)).c_str(),
+      "");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+}
+
+static void make_common_attribute_name_prop(StructRNA &srna,
+                                            const StringRefNull name,
+                                            const StringRefNull description,
+                                            const IDProperty &input_idprop,
+                                            nodes::GeneratedTreeSrnaData &r_generated)
+{
+  RNA_def_string(
+      &srna,
+      "attribute_name",
+      try_get_string(input_idprop, "default_attribute_name").value_or("").c_str(),
+      0,
+      r_generated.scope.add_value(fmt::format("{} {}", TIP_("Attribute for"), name)).c_str(),
+      description.c_str());
+}
+
+static void make_common_value_and_attribute_props(StructRNA &srna,
+                                                  const StringRefNull name,
+                                                  const StringRefNull description,
+                                                  const IDProperty &input_idprop,
+                                                  nodes::GeneratedTreeSrnaData &r_generated)
+{
+  make_common_type_prop(srna,
+                        name,
+                        nodes::geometry_nodes_input_type_items_value_or_attribute,
+                        nodes::GeometryNodesInputType::Value,
+                        r_generated);
+  make_common_attribute_name_prop(srna, name, description, input_idprop, r_generated);
+}
+
+static void make_common_props(StructRNA &srna,
+                              const StringRefNull name,
+                              nodes::GeneratedTreeSrnaData &r_generated)
+{
+  make_common_type_prop(srna,
+                        name,
+                        nodes::geometry_nodes_input_type_items_value,
+                        nodes::GeometryNodesInputType::Value,
+                        r_generated);
+}
+
+static void make_common_fallback_props(StructRNA &srna,
+                                       const StringRefNull name,
+                                       nodes::GeneratedTreeSrnaData &r_generated)
+{
+  make_common_type_prop(srna,
+                        name,
+                        nodes::geometry_nodes_input_type_items_fallback,
+                        nodes::GeometryNodesInputType::Fallback,
+                        r_generated);
+}
+
 static StructRNA *get_input_socket_struct_rna(IDProperty &input_idprop,
-                                              Vector<StructRNA *> &r_generated)
+                                              nodes::GeneratedTreeSrnaData &r_generated)
 {
 
   const StringRefNull identifier = input_idprop.name;
   StructRNA *srna = RNA_def_struct_ptr(&BLENDER_RNA, identifier.c_str(), &RNA_PropertyGroup);
   BLI_assert(!RNA_struct_in_public_namespace(srna));
-  r_generated.append(srna);
+  r_generated.structs.append(srna);
   // RNA_def_struct_path_func_runtime(srna, rna_NodesModifierPropertyInput_path);
   const std::optional<int> type = try_get_int(input_idprop, "type");
   if (!type) {
     return nullptr;
   }
   const StringRefNull name = try_get_string(input_idprop, "name").value_or(identifier);
-  if (name.is_empty()) {
-    return nullptr;
-  }
   const StringRefNull description = try_get_string(input_idprop, "description").value_or("");
   RNA_def_struct_ui_text(srna, name.c_str(), description.c_str());
 
   StructRNA *input_srna = RNA_def_struct_ptr(&BLENDER_RNA, identifier.c_str(), &RNA_PropertyGroup);
 
-  PropertyRNA *value_prop = nullptr;
   switch (eNodeSocketDatatype(*type)) {
     case SOCK_FLOAT: {
-      value_prop = RNA_def_float(input_srna,
-                                 "value",
-                                 try_get_float(input_idprop, "default_value").value_or(0.0f),
-                                 -FLT_MAX,
-                                 FLT_MAX,
-                                 name.c_str(),
-                                 description.c_str(),
-                                 try_get_float(input_idprop, "min").value_or(-FLT_MAX),
-                                 try_get_float(input_idprop, "max").value_or(FLT_MAX));
+      PropertyRNA *prop = RNA_def_float(
+          input_srna,
+          "value",
+          try_get_float(input_idprop, "default_value").value_or(0.0f),
+          -FLT_MAX,
+          FLT_MAX,
+          name.c_str(),
+          description.c_str(),
+          try_get_float(input_idprop, "min").value_or(-FLT_MAX),
+          try_get_float(input_idprop, "max").value_or(FLT_MAX));
+      RNA_def_property_subtype(
+          prop, PropertySubType(try_get_int(input_idprop, "subtype").value_or(PROP_NONE)));
+      make_common_value_and_attribute_props(srna, name, description, r_generated);
+
       break;
     }
     case SOCK_VECTOR: {
       const int dimensions = try_get_int(input_idprop, "dimensions").value_or(3);
       std::optional<Span<float>> defaults = try_get_float_array(
           input_idprop, "default_value", dimensions);
-      value_prop = RNA_def_float_array(input_srna,
-                                       "value",
-                                       dimensions,
-                                       defaults ? defaults->data() : nullptr,
-                                       -FLT_MAX,
-                                       FLT_MAX,
-                                       name.c_str(),
-                                       description.c_str(),
-                                       try_get_float(input_idprop, "min").value_or(-FLT_MAX),
-                                       try_get_float(input_idprop, "max").value_or(FLT_MAX));
+      PropertyRNA *prop = RNA_def_float_array(
+          input_srna,
+          "value",
+          dimensions,
+          defaults ? defaults->data() : nullptr,
+          -FLT_MAX,
+          FLT_MAX,
+          name.c_str(),
+          description.c_str(),
+          try_get_float(input_idprop, "min").value_or(-FLT_MAX),
+          try_get_float(input_idprop, "max").value_or(FLT_MAX));
       break;
     }
     case SOCK_RGBA: {
       std::optional<Span<float>> defaults = try_get_float_array(input_idprop, "default_value", 4);
-      value_prop = RNA_def_float_array(input_srna,
-                                       "value",
-                                       4,
-                                       defaults ? defaults->data() : nullptr,
-                                       -FLT_MAX,
-                                       FLT_MAX,
-                                       name.c_str(),
-                                       description.c_str(),
-                                       0.0f,
-                                       1.0f);
-      RNA_def_property_subtype(value_prop, PROP_COLOR);
+      PropertyRNA *prop = RNA_def_float_array(input_srna,
+                                              "value",
+                                              4,
+                                              defaults ? defaults->data() : nullptr,
+                                              -FLT_MAX,
+                                              FLT_MAX,
+                                              name.c_str(),
+                                              description.c_str(),
+                                              0.0f,
+                                              1.0f);
+      RNA_def_property_subtype(prop, PROP_COLOR);
       break;
     }
     case SOCK_BOOLEAN: {
-      value_prop = RNA_def_boolean(input_srna,
-                                   "value",
-                                   try_get_bool(input_idprop, "default_value").value_or(false),
-                                   name.c_str(),
-                                   description.c_str());
+      PropertyRNA *prop = RNA_def_boolean(
+          input_srna,
+          "value",
+          try_get_bool(input_idprop, "default_value").value_or(false),
+          name.c_str(),
+          description.c_str());
       break;
     }
     case SOCK_INT: {
-      value_prop = RNA_def_int(input_srna,
-                               "value",
-                               try_get_int(input_idprop, "default_value").value_or(0),
-                               INT_MIN,
-                               INT_MAX,
-                               name.c_str(),
-                               description.c_str(),
-                               try_get_int(input_idprop, "min").value_or(INT_MIN),
-                               try_get_int(input_idprop, "max").value_or(INT_MIN));
+      PropertyRNA *prop = RNA_def_int(input_srna,
+                                      "value",
+                                      try_get_int(input_idprop, "default_value").value_or(0),
+                                      INT_MIN,
+                                      INT_MAX,
+                                      name.c_str(),
+                                      description.c_str(),
+                                      try_get_int(input_idprop, "min").value_or(INT_MIN),
+                                      try_get_int(input_idprop, "max").value_or(INT_MIN));
       break;
     }
     case SOCK_STRING: {
-      value_prop = RNA_def_string(
+      PropertyRNA *prop = RNA_def_string(
           input_srna,
           "value",
           try_get_string(input_idprop, "default_value").value_or("").c_str(),
@@ -1313,53 +1383,45 @@ static StructRNA *get_input_socket_struct_rna(IDProperty &input_idprop,
     case SOCK_COLLECTION:
     case SOCK_MATERIAL:
     case SOCK_OBJECT: {
-      value_prop = RNA_def_string(
+      PropertyRNA *prop = RNA_def_string(
           input_srna, "value", nullptr, 0, name.c_str(), description.c_str());
       break;
     }
     case SOCK_ROTATION: {
       std::optional<Span<float>> defaults = try_get_float_array(input_idprop, "default_value", 3);
-      value_prop = RNA_def_float_array(input_srna,
-                                       "value",
-                                       3,
-                                       defaults ? defaults->data() : nullptr,
-                                       -FLT_MAX,
-                                       FLT_MAX,
-                                       name.c_str(),
-                                       description.c_str(),
-                                       -FLT_MAX,
-                                       FLT_MAX);
-      RNA_def_property_subtype(value_prop, PROP_EULER);
+      PropertyRNA *prop = RNA_def_float_array(input_srna,
+                                              "value",
+                                              3,
+                                              defaults ? defaults->data() : nullptr,
+                                              -FLT_MAX,
+                                              FLT_MAX,
+                                              name.c_str(),
+                                              description.c_str(),
+                                              -FLT_MAX,
+                                              FLT_MAX);
+      RNA_def_property_subtype(prop, PROP_EULER);
       break;
     }
     case SOCK_MENU: {
-      value_prop = RNA_def_enum(
+      PropertyRNA *prop = RNA_def_enum(
           input_srna, "value", rna_enum_dummy_NULL_items, 0, name.c_str(), description.c_str());
-      RNA_def_enum_funcs(value_prop, enum_input_items_fn);
+      RNA_def_enum_funcs(prop, enum_input_items_fn);
       break;
     }
     default:
-      value_prop = nullptr;
       break;
-  }
-  if (value_prop) {
-    if (RNA_property_subtype(value_prop) == PROP_NONE) {
-      if (const std::optional<int> subtype = try_get_int(input_idprop, "subtype")) {
-        RNA_def_property_subtype(value_prop, PropertySubType(*subtype));
-      }
-    }
   }
 
   return srna;
 }
 
 static StructRNA *create_inputs_srna(const IDProperty &input_props,
-                                     Vector<StructRNA *> &r_generated)
+                                     nodes::GeneratedTreeSrnaData &r_generated)
 {
   StructRNA *srna = RNA_def_struct_ptr(
       &BLENDER_RNA, "GeometryNodesInterfaceInputs", &RNA_PropertyGroup);
   BLI_assert(!RNA_struct_in_public_namespace(srna));
-  r_generated.append(srna);
+  r_generated.structs.append(srna);
 
   LISTBASE_FOREACH (IDProperty *, input_idprop, &input_props.data.group) {
     if (input_idprop->type != IDP_GROUP) {
@@ -1402,7 +1464,7 @@ static void register_node_tool(wmOperatorType *ot,
   }
 
   StructRNA *inputs_srna = create_inputs_srna(*type_data.input_asset_meta_data_props,
-                                              type_data.structs);
+                                              type_data.generated_structs);
   RNA_def_pointer_runtime(ot->srna, "inputs", inputs_srna, "Inputs", "Settings for input sockets");
 
   /* See comment for #store_input_node_values_rna_props. */
