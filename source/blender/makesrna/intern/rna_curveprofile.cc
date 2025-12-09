@@ -27,12 +27,13 @@
 
 static int rna_CurveProfilePoint_handle_types_get(PointerRNA *ptr)
 {
-  CurveProfilePoint *point = (CurveProfilePoint *)ptr->data;
-  if (point->h1 == point->h2) {
-    return point->h1;
+  const CurveProfilePoint &point = *static_cast<const CurveProfilePoint *>(ptr->data);
+  if (point.h1 == point.h2) {
+    return point.h1;
   }
   return 0;
 }
+
 static void rna_CurveProfilePoint_handle_types_set(PointerRNA *ptr, int value)
 {
   CurveProfilePoint *point = static_cast<CurveProfilePoint *>(ptr->data);
@@ -53,17 +54,17 @@ static void rna_CurveProfilePoint_handle_types_set(PointerRNA *ptr, int value)
 
 static int rna_CurveProfilePoint_handle_type_1_get(PointerRNA *ptr)
 {
-  CurveProfilePoint *point = (CurveProfilePoint *)ptr->data;
-  return point->h1;
+  const CurveProfilePoint &point = *static_cast<const CurveProfilePoint *>(ptr->data);
+  return point.h1;
 }
 
 static void rna_CurveProfilePoint_handle_type_1_set(PointerRNA *ptr, int value)
 {
-  CurveProfilePoint *point = static_cast<CurveProfilePoint *>(ptr->data);
+  CurveProfilePoint &point = *static_cast<CurveProfilePoint *>(ptr->data);
 
-  point->h1 = value;
+  point.h1 = value;
 
-  CurveProfile *profile = point->profile;
+  CurveProfile *profile = point.profile;
   if (profile) {
     BKE_curveprofile_update(profile, PROF_UPDATE_NONE);
     WM_main_add_notifier(NC_GEOM | ND_DATA, nullptr);
@@ -72,16 +73,16 @@ static void rna_CurveProfilePoint_handle_type_1_set(PointerRNA *ptr, int value)
 
 static int rna_CurveProfilePoint_handle_type_2_get(PointerRNA *ptr)
 {
-  CurveProfilePoint *point = (CurveProfilePoint *)ptr->data;
-  return point->h2;
+  const CurveProfilePoint &point = *static_cast<const CurveProfilePoint *>(ptr->data);
+  return point.h2;
 }
 
 static void rna_CurveProfilePoint_handle_type_2_set(PointerRNA *ptr, int value)
 {
-  CurveProfilePoint *point = static_cast<CurveProfilePoint *>(ptr->data);
-  point->h2 = value;
+  CurveProfilePoint &point = *static_cast<CurveProfilePoint *>(ptr->data);
+  point.h2 = value;
 
-  CurveProfile *profile = point->profile;
+  CurveProfile *profile = point.profile;
   if (profile) {
     BKE_curveprofile_update(profile, PROF_UPDATE_NONE);
     WM_main_add_notifier(NC_GEOM | ND_DATA, nullptr);
