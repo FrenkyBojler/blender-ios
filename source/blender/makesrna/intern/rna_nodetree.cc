@@ -6470,6 +6470,18 @@ static void def_cmp_file_output(BlenderRNA *brna, StructRNA *srna)
   RNA_def_property_ui_text(
       prop, "Save as Render", "Apply render part of display transform when saving byte image");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, nullptr);
+
+  prop = RNA_def_property(srna, "separate_into_directories", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "separate_into_directories", 1);
+  RNA_def_property_ui_text(prop,
+                           "Separate Directories",
+                           "Save each image in its own separate directory with the same name");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, nullptr);
+
+  prop = RNA_def_property(srna, "add_file_extension", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "add_file_extension", 1);
+  RNA_def_property_ui_text(prop, "File Extension", "Add the image extension to the file name");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, nullptr);
 }
 
 static void def_cmp_convert_color_space(BlenderRNA * /*brna*/, StructRNA *srna)

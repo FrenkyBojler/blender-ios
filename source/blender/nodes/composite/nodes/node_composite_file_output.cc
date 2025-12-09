@@ -112,6 +112,8 @@ static void node_init(const bContext *C, PointerRNA *node_pointer)
   node->storage = data;
   data->save_as_render = true;
   data->file_name = BLI_strdup("file_name");
+  data->separate_into_directories = false;
+  data->add_file_extension = true;
 
   BKE_image_format_init(&data->format);
   BKE_image_format_media_type_set(
@@ -177,6 +179,9 @@ static Vector<path_templates::Error> compute_image_path(const StringRefNull dire
   STRNCPY(base_path, directory.c_str());
   const std::string full_file_name = file_name + file_name_suffix;
   BLI_path_append(base_path, FILE_MAX, full_file_name.c_str());
+  if (bool(node_storage(node).separate_into_directories)) {
+    BLI_path_append(base_path, FILE_MAX, full_file_name.c_str());
+  }
 
   path_templates::VariableMap template_variables;
   BKE_add_template_variables_general(template_variables, &node.owner_tree().id);
@@ -195,7 +200,7 @@ static Vector<path_templates::Error> compute_image_path(const StringRefNull dire
                                       &template_variables,
                                       frame_number,
                                       &format,
-                                      scene.r.scemode & R_EXTENSION,
+                                      bool(node_storage(node).add_file_extension),
                                       is_animation_render,
                                       BKE_scene_multiview_view_suffix_get(&scene.r, view));
 }
@@ -355,6 +360,18 @@ static void node_layout_ex(ui::Layout &layout, bContext *context, PointerRNA *no
   if (ui::Layout *panel = layout.panel(context, "output_paths", true, IFACE_("Output Paths"))) {
     const bNode &node = *node_pointer->data_as<bNode>();
     const ImageFormatData &node_format = *format_pointer.data_as<ImageFormatData>();
+
+    panel->prop(node_pointer,
+                "separate_into_directories",
+                ui::ITEM_R_SPLIT_EMPTY_NAME,
+                std::nullopt,
+                ICON_NONE);
+    panel->prop(
+        node_pointer, "add_file_extension", ui::ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+
+    if (is_multi_layer || node_storage(node).items_count > 0) {
+      panel->separator(1.0f, ui::LayoutSeparatorType::Line);
+    }
 
     if (is_multi_layer) {
       output_paths_layout(*panel, context, "", node, node_format);

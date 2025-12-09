@@ -1282,7 +1282,11 @@ typedef struct NodeCompositorFileOutput {
   int active_item_index;
   /* Apply the render part of the display transform when saving non-linear images. */
   char save_as_render;
-  char _pad[7];
+  /* Save each image in its own separate directory with the same name. */
+  char separate_into_directories;
+  /* Add the image extension to the file name. */
+  char add_file_extension;
+  char _pad[5];
 } NodeCompositorFileOutput;
 
 typedef struct NodeImageMultiFileSocket {
