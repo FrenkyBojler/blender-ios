@@ -109,7 +109,7 @@ static void acf_generic_root_color(bAnimContext * /*ac*/,
                                    float r_color[3])
 {
   /* darker blue for top-level widgets */
-  ui::GetThemeColor3fv(TH_DOPESHEET_CHANNELOB, r_color);
+  ui::theme::get_color_3fv(TH_DOPESHEET_CHANNELOB, r_color);
 }
 
 /* backdrop for top-level widgets (Scene and Object only) */
@@ -146,7 +146,7 @@ static void acf_generic_dataexpand_color(bAnimContext * /*ac*/,
                                          float r_color[3])
 {
   /* lighter color than top-level widget */
-  ui::GetThemeColor3fv(TH_DOPESHEET_CHANNELSUBOB, r_color);
+  ui::theme::get_color_3fv(TH_DOPESHEET_CHANNELSUBOB, r_color);
 }
 
 /* backdrop for data expanders under top-level Scene/Object */
@@ -190,7 +190,7 @@ static void acf_generic_channel_color(bAnimContext *ac, bAnimListElem *ale, floa
   /* FIXME: what happens when the indentation is 1 greater than what it should be
    * (due to grouping)? */
   const int colorOffset = 10 - 10 * indent;
-  ui::GetThemeColorShade3fv(TH_CHANNEL, colorOffset, r_color);
+  ui::theme::get_color_shade_3fv(TH_CHANNEL, colorOffset, r_color);
 }
 
 /* backdrop for generic channels */
@@ -426,7 +426,7 @@ static void acf_summary_color(bAnimContext *ac, bAnimListElem *ale, float r_colo
    * just one line, there is no need for any distinction between lines, and the red-ish
    * color is only going to be a distraction. */
   const bool is_expanded = ANIM_channel_setting_get(ac, ale, ACHANNEL_SETTING_EXPAND);
-  ui::GetThemeColor3fv(is_expanded ? TH_ANIM_ACTIVE : TH_HEADER, r_color);
+  ui::theme::get_color_3fv(is_expanded ? TH_ANIM_ACTIVE : TH_HEADER, r_color);
 }
 
 /* backdrop for summary widget */
@@ -828,10 +828,10 @@ static bAnimChannelType ACF_OBJECT = {
 static void acf_group_color(bAnimContext * /*ac*/, bAnimListElem *ale, float r_color[3])
 {
   if (ale->flag & AGRP_ACTIVE) {
-    ui::GetThemeColor3fv(TH_GROUP_ACTIVE, r_color);
+    ui::theme::get_color_3fv(TH_GROUP_ACTIVE, r_color);
   }
   else {
-    ui::GetThemeColor3fv(TH_GROUP, r_color);
+    ui::theme::get_color_3fv(TH_GROUP, r_color);
   }
 }
 
@@ -974,7 +974,7 @@ static bool get_actiongroup_color(const bActionGroup *agrp, uint8_t r_color[3])
     wire_color = &agrp->cs;
   }
   else {
-    const bTheme *btheme = blender::ui::GetTheme();
+    const bTheme *btheme = blender::ui::theme::theme_get();
     wire_color = &btheme->tarm[(color_index - 1)];
   }
 
@@ -1186,7 +1186,7 @@ static void acf_nla_controls_color(bAnimContext * /*ac*/,
                                    float r_color[3])
 {
   /* TODO: give this its own theme setting? */
-  ui::GetThemeColorShade3fv(TH_GROUP, 55, r_color);
+  ui::theme::get_color_shade_3fv(TH_GROUP, 55, r_color);
 }
 
 /* backdrop for nla controls expander widget */
@@ -3909,10 +3909,10 @@ static void *data_block_setting_ptr(bAnimListElem *ale,
 static void datablock_color(bAnimContext *ac, bAnimListElem * /*ale*/, float r_color[3])
 {
   if (ac->datatype == ANIMCONT_GPENCIL) {
-    ui::GetThemeColorShade3fv(TH_DOPESHEET_CHANNELSUBOB, 20, r_color);
+    ui::theme::get_color_shade_3fv(TH_DOPESHEET_CHANNELSUBOB, 20, r_color);
   }
   else {
-    ui::GetThemeColor3fv(TH_DOPESHEET_CHANNELSUBOB, r_color);
+    ui::theme::get_color_3fv(TH_DOPESHEET_CHANNELSUBOB, r_color);
   }
 }
 
@@ -4049,7 +4049,7 @@ static int layer_group_icon(bAnimListElem *ale)
 
 static void layer_group_color(bAnimContext * /*ac*/, bAnimListElem * /*ale*/, float r_color[3])
 {
-  ui::GetThemeColor3fv(TH_GROUP, r_color);
+  ui::theme::get_color_3fv(TH_GROUP, r_color);
 }
 
 /* Name for grease pencil layer entries */
@@ -4161,7 +4161,7 @@ static bAnimChannelType ACF_GPLGROUP = {
 static void acf_mask_color(bAnimContext * /*ac*/, bAnimListElem * /*ale*/, float r_color[3])
 {
   /* these are ID-blocks, but not exactly standalone... */
-  ui::GetThemeColorShade3fv(TH_DOPESHEET_CHANNELSUBOB, 20, r_color);
+  ui::theme::get_color_shade_3fv(TH_DOPESHEET_CHANNELSUBOB, 20, r_color);
 }
 
 /* TODO: just get this from RNA? */
@@ -4353,7 +4353,7 @@ static void acf_nlatrack_color(bAnimContext * /*ac*/, bAnimListElem *ale, float 
   }
 
   /* set color for nla track */
-  ui::GetThemeColorShade3fv(TH_NLA_TRACK, ((nonSolo == false) ? 20 : -20), r_color);
+  ui::theme::get_color_shade_3fv(TH_NLA_TRACK, ((nonSolo == false) ? 20 : -20), r_color);
 }
 
 /* name for nla track entries */
@@ -4785,7 +4785,7 @@ const bAnimChannelType *ANIM_channel_get_typeinfo(const bAnimListElem *ale)
 
 /* --------------------------- */
 
-static blender::StringRefNull setting_name(const eAnimChannel_Settings setting)
+static StringRefNull setting_name(const eAnimChannel_Settings setting)
 {
   switch (setting) {
     case ACHANNEL_SETTING_SELECT:
@@ -4843,7 +4843,7 @@ void ANIM_channel_debug_print_info(bAnimContext &ac, bAnimListElem *ale, short i
   printf("ChanType: <%-25s> Name: \"%s\"\n       ", acf->channel_type_name, name);
 
   /* Print settings. */
-  blender::Vector<eAnimChannel_Settings> settings = {
+  Vector<eAnimChannel_Settings> settings = {
       ACHANNEL_SETTING_SELECT,
       ACHANNEL_SETTING_PROTECT,
       ACHANNEL_SETTING_MUTE,
@@ -5136,7 +5136,7 @@ static bool achannel_is_broken(const bAnimListElem *ale)
 
 float ANIM_UI_get_keyframe_scale_factor()
 {
-  bTheme *btheme = blender::ui::GetTheme();
+  bTheme *btheme = blender::ui::theme::theme_get();
   const float yscale_fac = btheme->space_action.keyframe_scale_fac;
 
   /* clamp to avoid problems with uninitialized values... */
@@ -5305,10 +5305,10 @@ void ANIM_channel_draw(
     /* XXX: if active, highlight differently? */
 
     if (selected) {
-      ui::GetThemeColor4ubv(TH_TEXT_HI, col);
+      ui::theme::get_color_4ubv(TH_TEXT_HI, col);
     }
     else {
-      ui::GetThemeColor4ubv(TH_TEXT, col);
+      ui::theme::get_color_4ubv(TH_TEXT, col);
     }
 
     /* Gray out disconnected action slots and their children. */
@@ -5494,7 +5494,7 @@ static void achannel_setting_widget_cb(bContext *C, void *ale_npoin, void *setti
   }
 
   /* When the button in the UI changes the setting, it does NOT call `ANIM_channel_setting_set()`,
-   * but actually manipulates the data directly via a pointer (see `ui_but_value_set()` in
+   * but actually manipulates the data directly via a pointer (see `button_value_set()` in
    * `source/blender/editors/interface/interface.cc`).
    *
    * As a result, `setting_post_update()` was not called yet and we need to call it here. */
@@ -5875,21 +5875,21 @@ static void draw_setting_widget(bAnimContext *ac,
   }
 
   /* type of button */
-  blender::ui::ButType butType;
+  blender::ui::ButtonType butType;
   if (usetoggle) {
     if (negflag) {
-      butType = blender::ui::ButType::IconToggleN;
+      butType = blender::ui::ButtonType::IconToggleN;
     }
     else {
-      butType = blender::ui::ButType::IconToggle;
+      butType = blender::ui::ButtonType::IconToggle;
     }
   }
   else {
     if (negflag) {
-      butType = blender::ui::ButType::ToggleN;
+      butType = blender::ui::ButtonType::ToggleN;
     }
     else {
-      butType = blender::ui::ButType::Toggle;
+      butType = blender::ui::ButtonType::Toggle;
     }
   }
 
@@ -5947,7 +5947,7 @@ static void draw_setting_widget(bAnimContext *ac,
 
   /* Set callback to send relevant notifiers and/or perform type-specific updates */
   {
-    blender::ui::uiButHandleNFunc button_callback;
+    blender::ui::ButtonHandleNFunc button_callback;
     switch (setting) {
       /* Settings needing flushing up/down hierarchy. */
       case ACHANNEL_SETTING_VISIBLE: /* Graph Editor - "visibility" toggles. */
@@ -6174,7 +6174,7 @@ void ANIM_channel_draw_widgets(const bContext *C,
       block_emboss_set(block, blender::ui::EmbossType::Emboss);
 
       but = uiDefButR(block,
-                      blender::ui::ButType::Text,
+                      blender::ui::ButtonType::Text,
                       "",
                       offset + margin_x,
                       rect->ymin,
@@ -6325,7 +6325,7 @@ void ANIM_channel_draw_widgets(const bContext *C,
 
         offset -= UI_UNIT_X;
         but = uiDefIconButO(block,
-                            blender::ui::ButType::But,
+                            blender::ui::ButtonType::But,
                             "NLA_OT_action_pushdown",
                             blender::wm::OpCallContext::InvokeDefault,
                             ICON_NLA_PUSHDOWN,

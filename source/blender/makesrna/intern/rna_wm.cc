@@ -720,8 +720,7 @@ static PointerRNA rna_Operator_properties_get(PointerRNA *ptr)
 {
   wmOperator *op = (wmOperator *)ptr->data;
 
-  PointerRNA result;
-  WM_operator_properties_create_ptr(&result, op->type);
+  PointerRNA result = WM_operator_properties_create_ptr(op->type);
   result.owner_id = (ptr->owner_id) ? ptr->owner_id : result.owner_id;
   result.data = op->properties;
   return result;
@@ -732,8 +731,7 @@ static PointerRNA rna_OperatorMacro_properties_get(PointerRNA *ptr)
   wmOperatorTypeMacro *otmacro = (wmOperatorTypeMacro *)ptr->data;
   wmOperatorType *ot = WM_operatortype_find(otmacro->idname, true);
 
-  PointerRNA result;
-  WM_operator_properties_create_ptr(&result, ot);
+  PointerRNA result = WM_operator_properties_create_ptr(ot);
   result.owner_id = (ptr->owner_id) ? ptr->owner_id : result.owner_id;
   result.data = otmacro->properties;
   return result;
@@ -894,7 +892,7 @@ static PointerRNA rna_PopupMenu_layout_get(PointerRNA *ptr)
 
 static PointerRNA rna_PopoverMenu_layout_get(PointerRNA *ptr)
 {
-  blender::ui::uiPopover *pup = static_cast<blender::ui::uiPopover *>(ptr->data);
+  blender::ui::Popover *pup = static_cast<blender::ui::Popover *>(ptr->data);
   blender::ui::Layout *layout = blender::ui::popover_layout(pup);
 
   PointerRNA rptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_UILayout, layout);
@@ -903,7 +901,7 @@ static PointerRNA rna_PopoverMenu_layout_get(PointerRNA *ptr)
 
 static PointerRNA rna_PieMenu_layout_get(PointerRNA *ptr)
 {
-  blender::ui::uiPieMenu *pie = static_cast<blender::ui::uiPieMenu *>(ptr->data);
+  blender::ui::PieMenu *pie = static_cast<blender::ui::PieMenu *>(ptr->data);
   blender::ui::Layout *layout = blender::ui::pie_menu_layout(pie);
 
   PointerRNA rptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_UILayout, layout);
@@ -1067,7 +1065,8 @@ static bool rna_Window_modal_handler_skip(CollectionPropertyIterator * /*iter*/,
 static void rna_Window_modal_operators_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   wmWindow *window = static_cast<wmWindow *>(ptr->data);
-  rna_iterator_listbase_begin(iter, ptr, &window->modalhandlers, rna_Window_modal_handler_skip);
+  rna_iterator_listbase_begin(
+      iter, ptr, &window->runtime->modalhandlers, rna_Window_modal_handler_skip);
 }
 
 static PointerRNA rna_Window_modal_operators_get(CollectionPropertyIterator *iter)
@@ -2678,13 +2677,12 @@ static void rna_def_popupmenu(BlenderRNA *brna)
 static void rna_def_popovermenu(BlenderRNA *brna)
 {
   rna_def_popup_menu_wrapper(
-      brna, "UIPopover", "blender::ui::uiPopover", "rna_PopoverMenu_layout_get");
+      brna, "UIPopover", "blender::ui::Popover", "rna_PopoverMenu_layout_get");
 }
 
 static void rna_def_piemenu(BlenderRNA *brna)
 {
-  rna_def_popup_menu_wrapper(
-      brna, "UIPieMenu", "blender::ui::uiPieMenu", "rna_PieMenu_layout_get");
+  rna_def_popup_menu_wrapper(brna, "UIPieMenu", "blender::ui::PieMenu", "rna_PieMenu_layout_get");
 }
 
 static void rna_def_window_stereo3d(BlenderRNA *brna)

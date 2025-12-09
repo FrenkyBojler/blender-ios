@@ -1912,7 +1912,8 @@ static void rna_Node_draw_buttons_ext(blender::ui::Layout &layout, bContext *C, 
   ParameterList list;
   FunctionRNA *func;
 
-  func = &rna_Node_draw_buttons_ext_func; /* RNA_struct_find_function(&ptr, "draw_buttons_ext"); */
+  func = &rna_Node_draw_buttons_ext_func; /* RNA_struct_find_function(&ptr,
+                                                "draw_buttons_ext"); */
 
   RNA_parameter_list_create(&list, ptr, func);
   RNA_parameter_set_lookup(&list, "context", &C);
@@ -2163,6 +2164,7 @@ static void rna_GeometryNodeTree_node_tool_idname_get(PointerRNA *ptr, char *val
   bNodeTree *ntree = ptr->data_as<bNodeTree>();
   if (!ntree->geometry_node_asset_traits) {
     strcpy(value, "");
+    return;
   }
   const char *idname = ntree->geometry_node_asset_traits->node_tool_idname;
   strcpy(value, idname ? idname : "");
@@ -10141,6 +10143,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeAttributeStatistic");
   define("GeometryNode", "GeometryNodeBake", rna_def_geo_bake);
   define("GeometryNode", "GeometryNodeBlurAttribute");
+  define("GeometryNode", "GeometryNodeBoneInfo");
   define("GeometryNode", "GeometryNodeBoundBox");
   define("GeometryNode", "GeometryNodeCameraInfo");
   define("GeometryNode", "GeometryNodeCaptureAttribute", rna_def_geo_capture_attribute);

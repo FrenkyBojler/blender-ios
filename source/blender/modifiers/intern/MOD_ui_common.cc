@@ -60,9 +60,8 @@ static void modifier_reorder(bContext *C, Panel *panel, int new_index)
   PointerRNA *md_ptr = blender::ui::panel_custom_data_get(panel);
   ModifierData *md = (ModifierData *)md_ptr->data;
 
-  PointerRNA props_ptr;
   wmOperatorType *ot = WM_operatortype_find("OBJECT_OT_modifier_move_to_index", false);
-  WM_operator_properties_create_ptr(&props_ptr, ot);
+  PointerRNA props_ptr = WM_operator_properties_create_ptr(ot);
   RNA_string_set(&props_ptr, "modifier", md->name);
   RNA_int_set(&props_ptr, "index", new_index);
   WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::InvokeDefault, &props_ptr, nullptr);
@@ -358,7 +357,7 @@ static void modifier_panel_header(const bContext *C, Panel *panel)
       blender::ui::Block *block = sub->block();
       static int apply_on_spline_always_off_hack = 0;
       blender::ui::Button *but = uiDefIconButBitI(block,
-                                                  blender::ui::ButType::Toggle,
+                                                  blender::ui::ButtonType::Toggle,
                                                   eModifierMode_ApplyOnSpline,
                                                   ICON_SURFACE_DATA,
                                                   0,
@@ -381,7 +380,7 @@ static void modifier_panel_header(const bContext *C, Panel *panel)
       blender::ui::Block *block = sub->block();
       static int apply_on_spline_always_on_hack = eModifierMode_ApplyOnSpline;
       blender::ui::Button *but = uiDefIconButBitI(block,
-                                                  blender::ui::ButType::Toggle,
+                                                  blender::ui::ButtonType::Toggle,
                                                   eModifierMode_ApplyOnSpline,
                                                   ICON_SURFACE_DATA,
                                                   0,

@@ -240,7 +240,7 @@ static void add_layer_name_search_button(DrawGroupInputsContext &ctx,
 
   ui::Block *block = prop_row.block();
   ui::Button *but = uiDefIconTextButR(block,
-                                      ui::ButType::SearchMenu,
+                                      ui::ButtonType::SearchMenu,
                                       ICON_OUTLINER_DATA_GP_LAYER,
                                       "",
                                       0,
@@ -357,7 +357,7 @@ static void add_attribute_search_button(DrawGroupInputsContext &ctx,
 
   ui::Block *block = layout.block();
   ui::Button *but = uiDefIconTextButR(block,
-                                      ui::ButType::SearchMenu,
+                                      ui::ButtonType::SearchMenu,
                                       ICON_NONE,
                                       "",
                                       0,
@@ -814,12 +814,12 @@ static void draw_warnings(const bContext *C,
     const int icon = node_warning_type_icon(warning->type);
     const StringRef message = RPT_(warning->message);
     ui::Button *but = uiDefIconTextBut(
-        block, ui::ButType::Label, icon, message, 0, 0, 1, UI_UNIT_Y, nullptr, std::nullopt);
+        block, ui::ButtonType::Label, icon, message, 0, 0, 1, UI_UNIT_Y, nullptr, std::nullopt);
     /* Add tooltip containing the same message. This is helpful if the message is very long so that
      * it doesn't fit in the panel. */
     button_func_tooltip_set(
         but,
-        [](bContext * /*C*/, void *argN, blender::StringRef /*tip*/) -> std::string {
+        [](bContext * /*C*/, void *argN, StringRef /*tip*/) -> std::string {
           return *static_cast<std::string *>(argN);
         },
         MEM_new<std::string>(__func__, message),

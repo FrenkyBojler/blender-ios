@@ -197,9 +197,8 @@ static void constraint_reorder(bContext *C, Panel *panel, int new_index)
   PointerRNA *con_ptr = panel_custom_data_get(panel);
   bConstraint *con = (bConstraint *)con_ptr->data;
 
-  PointerRNA props_ptr;
   wmOperatorType *ot = WM_operatortype_find("CONSTRAINT_OT_move_to_index", false);
-  WM_operator_properties_create_ptr(&props_ptr, ot);
+  PointerRNA props_ptr = WM_operator_properties_create_ptr(ot);
   RNA_string_set(&props_ptr, "constraint", con->name);
   RNA_int_set(&props_ptr, "index", new_index);
   /* Set owner to #EDIT_CONSTRAINT_OWNER_OBJECT or #EDIT_CONSTRAINT_OWNER_BONE. */
@@ -273,8 +272,8 @@ void template_constraints(Layout * /*layout*/, bContext *C, bool use_bone_constr
   }
 
   /* Switch between the bone panel ID function and the object panel ID function. */
-  uiListPanelIDFromDataFunc panel_id_func = use_bone_constraints ? bone_constraint_panel_id :
-                                                                   object_constraint_panel_id;
+  ListPanelIDFromDataFunc panel_id_func = use_bone_constraints ? bone_constraint_panel_id :
+                                                                 object_constraint_panel_id;
 
   const bool panels_match = panel_list_matches_data(region, constraints, panel_id_func);
 

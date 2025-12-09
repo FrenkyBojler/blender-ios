@@ -416,7 +416,7 @@ static void view3d_main_region_init(wmWindowManager *wm, ARegion *region)
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 
   keymap = WM_keymap_ensure(
-      wm->runtime->defaultconf, "Grease Pencil Paint Mode", SPACE_EMPTY, RGN_TYPE_WINDOW);
+      wm->runtime->defaultconf, "Grease Pencil Draw Mode", SPACE_EMPTY, RGN_TYPE_WINDOW);
   WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 
   keymap = WM_keymap_ensure(
@@ -1410,8 +1410,8 @@ static void view3d_tools_header_region_draw(const bContext *C, ARegion *region)
       C,
       region,
       (RGN_ALIGN_ENUM_FROM_MASK(region->alignment) == RGN_ALIGN_TOP) ?
-          blender::ui::uiButtonSectionsAlign::Top :
-          blender::ui::uiButtonSectionsAlign::Bottom);
+          blender::ui::ButtonSectionsAlign::Top :
+          blender::ui::ButtonSectionsAlign::Bottom);
 }
 
 /* add handlers, stuff you only do once or on area/region changes */
