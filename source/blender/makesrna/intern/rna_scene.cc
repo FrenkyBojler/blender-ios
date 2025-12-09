@@ -6770,10 +6770,8 @@ static void rna_def_scene_ffmpeg_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop,
       "CRF",
-      "Constant Rate Factor (CRF). A smaller CRF results in better video quality but larger file "
-      "size. The range of possible CRF values is dependent on the codec. They are: 0-51 for AV1, "
-      "H.264 and H.265/HEVC; 0-63 for WebP/VP9 and 1-31 for MPEG-4/DivX. A CRF of 0 results in "
-      "lossless encoding.");
+      "A smaller Constant Rate Factor (CRF) results in better video quality but larger file size. "
+      "The range of allowed CRF values is dependent on the codec.");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
   prop = RNA_def_property(srna, "ffmpeg_preset", PROP_ENUM, PROP_NONE);
