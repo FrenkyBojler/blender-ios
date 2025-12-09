@@ -139,7 +139,6 @@ class CurvesSculptCommonContext {
   const View3D *v3d = nullptr;
   RegionView3D *rv3d = nullptr;
 
-  CurvesSculptCommonContext(const bContext &C);
   CurvesSculptCommonContext(const PaintStroke &stroke);
 };
 
