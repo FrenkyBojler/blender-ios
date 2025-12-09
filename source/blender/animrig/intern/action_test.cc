@@ -1079,29 +1079,6 @@ TEST_F(ActionLayersTest, KeyframeStrip__keyframe_insert)
   EXPECT_EQ(1, channels->fcurves()[1]->totvert);
 }
 
-TEST_F(ActionLayersTest, is_action_assignable_to)
-{
-  EXPECT_TRUE(is_action_assignable_to(nullptr, ID_OB))
-      << "nullptr Actions should be assignable to any type.";
-  EXPECT_TRUE(is_action_assignable_to(nullptr, ID_CA))
-      << "nullptr Actions should be assignable to any type.";
-
-  EXPECT_TRUE(is_action_assignable_to(action, ID_OB))
-      << "Empty Actions should be assignable to any type.";
-  EXPECT_TRUE(is_action_assignable_to(action, ID_CA))
-      << "Empty Actions should be assignable to any type.";
-
-  /* Make the Action a layered one. */
-  BLI_poptail(&action->curves);
-  action->layer_add("layer");
-  ASSERT_EQ(0, action->idroot) << "Adding a layer should clear the idroot.";
-
-  EXPECT_TRUE(is_action_assignable_to(action, ID_OB))
-      << "Layered Actions should be assignable to any type.";
-  EXPECT_TRUE(is_action_assignable_to(action, ID_CA))
-      << "Layered Actions should be assignable to any type.";
-}
-
 TEST_F(ActionLayersTest, action_slot_get_id_for_keying__empty_action)
 {
   EXPECT_TRUE(assign_action(action, cube->id));
@@ -1268,11 +1245,11 @@ TEST_F(ActionLayersTest, action_move_slot)
   PointerRNA cube_rna_pointer = RNA_id_pointer_create(&cube->id);
   PointerRNA suzanne_rna_pointer = RNA_id_pointer_create(&suzanne->id);
 
-  action_fcurve_ensure_ex(bmain, action, "Test", &cube_rna_pointer, {"location", 0});
-  action_fcurve_ensure_ex(bmain, action, "Test", &cube_rna_pointer, {"rotation_euler", 1});
+  action_fcurve_ensure_ex(bmain, action, &cube_rna_pointer, {"location", 0});
+  action_fcurve_ensure_ex(bmain, action, &cube_rna_pointer, {"rotation_euler", 1});
 
-  action_fcurve_ensure_ex(bmain, action_2, "Test_2", &suzanne_rna_pointer, {"location", 0});
-  action_fcurve_ensure_ex(bmain, action_2, "Test_2", &suzanne_rna_pointer, {"rotation_euler", 1});
+  action_fcurve_ensure_ex(bmain, action_2, &suzanne_rna_pointer, {"location", 0});
+  action_fcurve_ensure_ex(bmain, action_2, &suzanne_rna_pointer, {"rotation_euler", 1});
 
   ASSERT_EQ(action->layer_array_num, 1);
   ASSERT_EQ(action_2->layer_array_num, 1);
@@ -1322,8 +1299,8 @@ TEST_F(ActionLayersTest, action_move_slot_without_channelbag)
   PointerRNA cube_rna_pointer = RNA_id_pointer_create(&cube->id);
   PointerRNA suzanne_rna_pointer = RNA_id_pointer_create(&suzanne->id);
 
-  action_fcurve_ensure_ex(bmain, action, "Test", &cube_rna_pointer, {"location", 0});
-  action_fcurve_ensure_ex(bmain, action, "Test", &cube_rna_pointer, {"rotation_euler", 1});
+  action_fcurve_ensure_ex(bmain, action, &cube_rna_pointer, {"location", 0});
+  action_fcurve_ensure_ex(bmain, action, &cube_rna_pointer, {"rotation_euler", 1});
 
   /* Make sure action_2 has a keyframe strip, but without a channelbag. */
   action_2->layer_add("Bagless").strip_add(*action_2, Strip::Type::Keyframe);
@@ -1369,8 +1346,8 @@ TEST_F(ActionLayersTest, action_duplicate_slot)
 
   PointerRNA cube_rna_pointer = RNA_id_pointer_create(&cube->id);
 
-  action_fcurve_ensure_ex(bmain, action, "Test", &cube_rna_pointer, {"location", 0});
-  action_fcurve_ensure_ex(bmain, action, "Test", &cube_rna_pointer, {"rotation_euler", 1});
+  action_fcurve_ensure_ex(bmain, action, &cube_rna_pointer, {"location", 0});
+  action_fcurve_ensure_ex(bmain, action, &cube_rna_pointer, {"rotation_euler", 1});
 
   ASSERT_EQ(action->layer_array_num, 1);
   Layer *layer = action->layer(0);

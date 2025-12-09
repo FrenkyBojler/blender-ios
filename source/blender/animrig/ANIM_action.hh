@@ -1441,13 +1441,6 @@ enum class ActionSlotAssignmentResult : int8_t {
 };
 
 /**
- * Return whether the given Action can be assigned to the ID.
- *
- * This always returns `true` for layered Actions. Any use of this function should be removed.
- */
-[[nodiscard]] bool is_action_assignable_to(const bAction *dna_action, ID_Type id_code);
-
-/**
  * Assign the Action to the ID.
  *
  * This will make a best-effort guess as to which slot to use, in this
@@ -1699,7 +1692,6 @@ FCurve &action_fcurve_ensure(Main *bmain,
  */
 FCurve *action_fcurve_ensure_ex(Main *bmain,
                                 bAction *act,
-                                const char group[],
                                 PointerRNA *ptr,
                                 const FCurveDescriptor &fcurve_descriptor);
 

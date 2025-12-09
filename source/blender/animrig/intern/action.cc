@@ -803,10 +803,7 @@ float2 Action::get_frame_range_of_slot(const slot_handle_t slot_handle) const
     return {this->frame_start, this->frame_end};
   }
 
-  Vector<const FCurve *> legacy_fcurves;
-  Span<const FCurve *> fcurves_to_consider;
-
-  fcurves_to_consider = fcurves_for_action_slot(*this, slot_handle);
+  Span<const FCurve *> fcurves_to_consider = fcurves_for_action_slot(*this, slot_handle);
   return get_frame_range_of_fcurves(fcurves_to_consider, false);
 }
 
@@ -1497,22 +1494,6 @@ ActionSlotAssignmentResult generic_assign_action_slot_handle(slot_handle_t slot_
   Slot *slot = action_ptr_ref->wrap().slot_for_handle(slot_handle_to_assign);
   return generic_assign_action_slot(
       slot, animated_id, action_ptr_ref, slot_handle_ref, slot_identifier);
-}
-
-bool is_action_assignable_to(const bAction *dna_action, const ID_Type /* id_code */)
-{
-  if (!dna_action) {
-    /* Clearing the Action is always possible. */
-    return true;
-  }
-
-  if (dna_action->idroot == 0) {
-    /* This is either a never-assigned legacy action, or a layered action. In
-     * any case, it can be assigned to any ID. */
-    return true;
-  }
-
-  return true;
 }
 
 ActionSlotAssignmentResult assign_action_slot(Slot *slot_to_assign, ID &animated_id)
@@ -2667,7 +2648,6 @@ Vector<FCurve *> fcurves_in_listbase_filtered(ListBase /* FCurve * */ fcurves,
 
 FCurve *action_fcurve_ensure_ex(Main *bmain,
                                 bAction *act,
-                                const char /* group */[],
                                 PointerRNA *ptr,
                                 const FCurveDescriptor &fcurve_descriptor)
 {
