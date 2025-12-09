@@ -376,6 +376,10 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_END;
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 5)) {
+    version_realize_instances_to_curve_domain(*bmain);
+  }
+
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 7)) {
     version_mesh_uv_map_strings(*bmain);
   }
@@ -402,7 +406,7 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 11)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 12)) {
     FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
       if (node_tree->type == NTREE_COMPOSIT) {
         version_node_input_socket_name(node_tree, CMP_NODE_CRYPTOMATTE_LEGACY, "image", "Image");
