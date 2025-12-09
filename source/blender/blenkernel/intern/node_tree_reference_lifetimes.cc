@@ -1059,21 +1059,16 @@ static std::unique_ptr<ReferenceLifetimesInfo> make_reference_lifetimes_info(con
   for (const auto relation : reference_lifetimes_info->tree_relations.propagate_relations) {
     propagate_targets.append(relation.to_geometry_output);
   }
-  Vector<int> reference_sets_to_disable;
+  BitVector<> reference_sets_mask(reference_sets.size(), true);
   for (const int i : reference_sets.index_range()) {
     const ReferenceSetInfo &reference_set = reference_sets[i];
     if (reference_set.type == ReferenceSetType::GroupOutputData) {
       if (!propagate_targets.contains(reference_set.index)) {
-        reference_sets_to_disable.append(i);
+        reference_sets_mask[i].reset();
       }
     }
   }
-  for (const int i : required_data_by_socket.index_range()) {
-    MutableBoundedBitSpan required_data = required_data_by_socket[i];
-    for (const int reference_set_i : reference_sets_to_disable) {
-      required_data[reference_set_i].reset();
-    }
-  }
+  required_data_by_socket.foreach_and(reference_sets_mask);
 
 /* Only useful when debugging the reference lifetimes analysis. */
 #if 0
