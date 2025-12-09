@@ -338,7 +338,6 @@ void ForwardPipeline::sync()
       prepass_ps_.bind_resources(inst_.uniform_data);
       prepass_ps_.bind_resources(inst_.velocity);
       prepass_ps_.bind_resources(inst_.sampling);
-      prepass_ps_.bind_texture(OBJECT_ID_TEX_SLOT, &inst_.render_buffers.object_id_tx);
     }
 
     prepass_ps_.setup_subpasses(DRW_STATE_WRITE_DEPTH | DRW_STATE_CLIP_CONTROL_UNIT_RANGE |
@@ -351,6 +350,8 @@ void ForwardPipeline::sync()
       /* Common resources. */
       opaque_ps_.bind_texture(RBUFS_UTILITY_TEX_SLOT, inst_.pipelines.utility_tx);
       opaque_ps_.bind_texture(RADIANCE_PREVIOUS_LAYER_TEX_SLOT, &inst_.render_buffers.combined_tx);
+      opaque_ps_.bind_texture(OBJECT_ID_TEX_SLOT, &inst_.render_buffers.object_id_tx);
+
       opaque_ps_.bind_resources(inst_.uniform_data);
       opaque_ps_.bind_resources(inst_.lights);
       opaque_ps_.bind_resources(inst_.shadows);
@@ -380,6 +381,7 @@ void ForwardPipeline::sync()
     /* Textures. */
     sub.bind_texture(RBUFS_UTILITY_TEX_SLOT, inst_.pipelines.utility_tx);
     sub.bind_texture(RADIANCE_PREVIOUS_LAYER_TEX_SLOT, &inst_.render_buffers.combined_tx);
+    sub.bind_texture(OBJECT_ID_TEX_SLOT, &inst_.render_buffers.object_id_tx);
 
     sub.bind_resources(inst_.uniform_data);
     sub.bind_resources(inst_.lights);

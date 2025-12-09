@@ -78,9 +78,9 @@ void RenderBuffers::acquire(int2 extent)
                                                  GPU_TEXTURE_USAGE_SHADER_WRITE;
 
   /* TODO(fclem): Make vector pass allocation optional if no TAA or motion blur is needed. */
-  vector_tx.ensure_2d(extent, vector_tx_format(), usage_attachment_read_write);
+  vector_tx.acquire(extent, vector_tx_format(), usage_attachment_read_write);
   /* TODO: Make allocation optional if raycasts (or SSS?) are used. */
-  object_id_tx.ensure_2d(extent, object_id_format, usage_attachment_read);
+  object_id_tx.acquire(extent, object_id_format, usage_attachment_read);
 
   const bool do_motion_vectors_swizzle = vector_tx_format() == gpu::TextureFormat::SFLOAT_16_16;
   if (do_motion_vectors_swizzle) {
