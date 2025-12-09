@@ -905,8 +905,8 @@ static void node_cursor(wmWindow *win, ScrArea *area, ARegion *region)
 
   /* convert mouse coordinates to v2d space */
   ui::view2d_region_to_view(&region->v2d,
-                            win->eventstate->xy[0] - region->winrct.xmin,
-                            win->eventstate->xy[1] - region->winrct.ymin,
+                            win->runtime->eventstate->xy[0] - region->winrct.xmin,
+                            win->runtime->eventstate->xy[1] - region->winrct.ymin,
                             &snode->runtime->cursor[0],
                             &snode->runtime->cursor[1]);
 
@@ -1035,7 +1035,7 @@ static bool node_import_file_drop_poll(bContext *C, wmDrag *drag, const wmEvent 
   if (drag->type != WM_DRAG_PATH) {
     return false;
   }
-  const blender::Span<std::string> paths = WM_drag_get_paths(drag);
+  const Span<std::string> paths = WM_drag_get_paths(drag);
   for (const StringRef path : paths) {
     if (path.endswith(".csv") || path.endswith(".obj") || path.endswith(".ply") ||
         path.endswith(".stl") || path.endswith(".txt") || path.endswith(".vdb"))
@@ -1708,7 +1708,7 @@ static void node_space_subtype_item_extend(bContext *C, EnumPropertyItem **item,
   }
 }
 
-static blender::StringRefNull node_space_name_get(const ScrArea *area)
+static StringRefNull node_space_name_get(const ScrArea *area)
 {
   SpaceNode *snode = static_cast<SpaceNode *>(area->spacedata.first);
   bke::bNodeTreeType *tree_type = bke::node_tree_type_find(snode->tree_idname);

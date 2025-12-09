@@ -720,8 +720,7 @@ static PointerRNA rna_Operator_properties_get(PointerRNA *ptr)
 {
   wmOperator *op = (wmOperator *)ptr->data;
 
-  PointerRNA result;
-  WM_operator_properties_create_ptr(&result, op->type);
+  PointerRNA result = WM_operator_properties_create_ptr(op->type);
   result.owner_id = (ptr->owner_id) ? ptr->owner_id : result.owner_id;
   result.data = op->properties;
   return result;
@@ -732,8 +731,7 @@ static PointerRNA rna_OperatorMacro_properties_get(PointerRNA *ptr)
   wmOperatorTypeMacro *otmacro = (wmOperatorTypeMacro *)ptr->data;
   wmOperatorType *ot = WM_operatortype_find(otmacro->idname, true);
 
-  PointerRNA result;
-  WM_operator_properties_create_ptr(&result, ot);
+  PointerRNA result = WM_operator_properties_create_ptr(ot);
   result.owner_id = (ptr->owner_id) ? ptr->owner_id : result.owner_id;
   result.data = otmacro->properties;
   return result;
@@ -1067,7 +1065,8 @@ static bool rna_Window_modal_handler_skip(CollectionPropertyIterator * /*iter*/,
 static void rna_Window_modal_operators_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   wmWindow *window = static_cast<wmWindow *>(ptr->data);
-  rna_iterator_listbase_begin(iter, ptr, &window->modalhandlers, rna_Window_modal_handler_skip);
+  rna_iterator_listbase_begin(
+      iter, ptr, &window->runtime->modalhandlers, rna_Window_modal_handler_skip);
 }
 
 static PointerRNA rna_Window_modal_operators_get(CollectionPropertyIterator *iter)
