@@ -232,9 +232,7 @@ messenger_callback(VkDebugUtilsMessageSeverityFlagBitsEXT message_severity,
     level = CLG_LEVEL_ERROR;
   }
 
-  const bool is_validation_message = message_type ==
-                                     VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT;
-  if (is_validation_message) {
+  if (bool(message_type & VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT)) {
     const char *format = "{0x%x}%s\n %s";
     CLOG_AT_LEVEL(&LOG,
                   level,
