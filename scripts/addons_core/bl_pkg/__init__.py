@@ -760,7 +760,7 @@ def register():
     )
     WindowManager.extension_use_filter = BoolProperty(
         name="Filter Extensions",
-        description="Filtering extensions by repository and/or tags",
+        description="Filter Extensions by Tags & Repository",
         default=False,
     )
     WindowManager.extension_show_panel_installed = BoolProperty(
