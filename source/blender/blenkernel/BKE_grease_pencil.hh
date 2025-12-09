@@ -48,16 +48,40 @@ namespace greasepencil {
  * For compatibility, legacy thickness values have to be multiplied by this factor. */
 constexpr float LEGACY_RADIUS_CONVERSION_FACTOR = 1.0f / 2000.0f;
 
+struct TriangleCache {
+  /* Triangle offset cache for all the strokes in the drawing */
+  Vector<int> triangle_offsets;
+  /* Triangle cache for all the strokes in the drawing. */
+  Vector<int3> triangles;
+};
+
+struct ShapeCache {
+  /**
+   * The store which curves are in each shape.
+   *
+   * Here's a example:
+   *
+   * curve index:   0 1 2 3 4 5 6 7 8
+   * shape_id:      0 0 1 0 1 4 1 3 3
+   * shape_map:     0 1 2 4 6 3 5 7 8
+   * shape_offsets: 0 1 2     5 6 7   9
+   * shapes:        _ _ _____ _ _ ___
+   */
+  Vector<int> shape_map;
+  Vector<int> shape_offsets;
+};
+
 class DrawingRuntime {
  public:
   /**
-   * Triangle offset cache for all the strokes in the drawing.
-   */
-  mutable SharedCache<Vector<int>> triangle_offsets_cache;
-  /**
    * Triangle cache for all the strokes in the drawing.
    */
-  mutable SharedCache<Vector<int3>> triangles_cache;
+  mutable SharedCache<TriangleCache> triangle_cache;
+
+  /**
+   * Shape cache for the drawing. Will be `nullopt` when all curves are their own shapes.
+   */
+  mutable SharedCache<std::optional<ShapeCache>> shape_cache;
 
   /**
    * Normal vector cache for every stroke. Computed using Newell's method.
@@ -95,10 +119,15 @@ class Drawing : public ::GreasePencilDrawing {
 
   const bke::CurvesGeometry &strokes() const;
   bke::CurvesGeometry &strokes_for_write();
+
   /**
-   * The triangles for fill geometry. Grouped by each stroke.
+   * The curves in each shape. Will return nullopt when all shapes only have one curve.
    */
-  Span<int3> triangles() const;
+  std::optional<GroupedSpan<int>> shapes() const;
+  /**
+   * The triangles for fill geometry. Grouped by each shape. Index to curves in the shape.
+   */
+  GroupedSpan<int3> triangles() const;
   /**
    * Normal vectors for a plane that fits the stroke.
    */
@@ -180,12 +209,6 @@ class Drawing : public ::GreasePencilDrawing {
    * Return the number of users (keyframes) of this drawing.
    */
   int user_count() const;
-
- private:
-  /**
-   * The offset indices for each stroke in the flat triangle cache.
-   */
-  OffsetIndices<int> triangle_offsets() const;
 };
 static_assert(sizeof(Drawing) == sizeof(::GreasePencilDrawing));
 
