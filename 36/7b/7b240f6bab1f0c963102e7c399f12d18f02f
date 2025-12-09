@@ -1,1 +1,2 @@
 Referenced by issue #148664, Compositor: Grouping a node with animation data (and removing sockets) leaves values without animation
+Referenced by issue #151351, Grouping a keyframed single node results in removed animation
