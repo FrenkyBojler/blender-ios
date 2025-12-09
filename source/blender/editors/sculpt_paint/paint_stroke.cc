@@ -1145,8 +1145,6 @@ void PaintStroke::add_sample(const int input_samples,
 
 void PaintStroke::calc_average_sample(PaintSample *average)
 {
-  memset(average, 0, sizeof(*average));
-
   BLI_assert(num_samples_ > 0);
 
   for (int i = 0; i < num_samples_; i++) {
@@ -1393,6 +1391,9 @@ static void paint_stroke_line_constrain(float2 last_mouse_position,
 
 wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
+  /* TODO: Temporary, used to facilitate removing bContext usage in subclasses */
+  this->evil_C = C;
+
   Paint *paint = BKE_paint_get_active_from_context(C);
   const Brush *br = this->brush = BKE_paint_brush(paint);
   if (paint == nullptr || br == nullptr) {
@@ -1634,6 +1635,9 @@ wmOperatorStatus PaintStroke::modal(bContext *C, wmOperator *op, const wmEvent *
 
 wmOperatorStatus PaintStroke::exec(bContext *C, wmOperator *op)
 {
+  /* TODO: Temporary, used to facilitate removing bContext usage in subclasses */
+  this->evil_C = C;
+
   /* only when executed for the first time */
   if (!stroke_started_) {
     PointerRNA firstpoint;
