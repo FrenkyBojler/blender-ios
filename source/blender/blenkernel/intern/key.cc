@@ -863,7 +863,7 @@ static void key_evaluate_relative_float3(Key *key,
 {
   /* Creates the basis values in target_data. */
   cp_key(range.first(),
-         range.last(),
+         range.last() + 1,
          vertex_count,
          reinterpret_cast<char *>(target_data),
          key,
