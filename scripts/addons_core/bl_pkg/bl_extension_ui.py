@@ -1787,7 +1787,7 @@ class USERPREF_PT_addons_tags(Panel):
 
 
 class USERPREF_PT_extensions_filter(Panel):
-    bl_label = "Extensions Tags/Repository Filter Settings"
+    bl_label = "Extensions Tags & Repository Filter Settings"
 
     bl_space_type = 'TOPBAR'  # dummy.
     bl_region_type = 'HEADER'
