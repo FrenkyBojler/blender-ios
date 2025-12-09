@@ -233,6 +233,7 @@ typedef struct UserDef_Experimental {
   char use_recompute_usercount_on_save_debug;
   char write_legacy_blend_file_format;
   char no_data_block_packing;
+  char use_paint_debug;
   char SANITIZE_AFTER_HERE;
   /* The following options are automatically sanitized (set to 0)
    * when the release cycle is not alpha. */
@@ -528,6 +529,8 @@ typedef struct UserDef {
   float pressure_threshold_max;
   /** Curve non-linearity parameter. */
   float pressure_softness;
+  /** #eUserPref_Tablet_Flags */
+  int tablet_flag;
 
   /** 3D mouse: overall translation sensitivity. */
   float ndof_translation_sensitivity;
@@ -553,7 +556,7 @@ typedef struct UserDef {
   short keying_flag;
   /** Flags for which channels to insert keys at. */
   short key_insert_channels;  // eKeyInsertChannels
-  char _pad15[6];
+  char _pad15[2];
   /** Flags for animation. */
   short animation_flag;
 
@@ -855,6 +858,13 @@ typedef enum eUserpref_TableAPI {
   USER_TABLET_NATIVE = 1,
   USER_TABLET_WINTAB = 2,
 } eUserpref_TabletAPI;
+
+/**
+ * #UserDef.tablet_flag
+ */
+typedef enum eUserPref_Tablet_Flags {
+  USER_TABLET_SHOW_DEBUG_VALUES = (1 << 0),
+} eUserPref_Tablet_Flags;
 
 /** #UserDef.app_flag */
 typedef enum eUserpref_APP_Flag {

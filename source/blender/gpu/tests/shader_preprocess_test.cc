@@ -2,53 +2,11 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
-#include "glsl_preprocess/glsl_preprocess.hh"
+#include "shader_tool/shader_tool.hh"
 
 #include "gpu_testing.hh"
 
 namespace blender::gpu::tests {
-
-static void test_preprocess_utilities()
-{
-  using namespace shader;
-  using namespace std;
-
-  string input = "test (u, u(s,(s,s)), u) {t{{}},t,{};(,)} {u{}} end";
-  EXPECT_EQ(Preprocessor::get_content_between_balanced_pair(input, '{', '}'), "t{{}},t,{};(,)");
-  EXPECT_EQ(Preprocessor::get_content_between_balanced_pair(input, '{', '}', true), "u{}");
-
-  EXPECT_EQ(Preprocessor::replace_char_between_balanced_pair(input, '(', ')', ',', '!'),
-            "test (u! u(s!(s!s))! u) {t{{}},t,{};(!)} {u{}} end");
-
-  vector<string> split_expect{"test (u, u(s,(s,s", "", ", u", " {t{{}},t,{};(,", "} {u{}} end"};
-  vector<string> split_result = Preprocessor::split_string(input, ')');
-  EXPECT_EQ_VECTOR(split_expect, split_result);
-
-  string input2 = "u, u(s,(s,s)), u";
-  vector<string> split_expect2{"u", " u(s,(s,s))", " u"};
-  vector<string> split_result2 = Preprocessor::split_string_not_between_balanced_pair(
-      input2, ',', '(', ')');
-  EXPECT_EQ_VECTOR(split_expect2, split_result2);
-
-  string input_reference = "void func(int &a, int (&c)[2]) {{ int &b = a; }} int &b = a;";
-  int fn_ref_count = 0, arg_ref_count = 0, global_ref_count = 0;
-  Preprocessor::reference_search(
-      input_reference, [&](int parenthesis_depth, int bracket_depth, char & /*c*/) {
-        if ((parenthesis_depth == 1 || parenthesis_depth == 2) && bracket_depth == 0) {
-          arg_ref_count += 1;
-        }
-        else if (bracket_depth > 0) {
-          fn_ref_count += 1;
-        }
-        else if (bracket_depth == 0 && parenthesis_depth == 0) {
-          global_ref_count += 1;
-        }
-      });
-  EXPECT_EQ(arg_ref_count, 2);
-  EXPECT_EQ(fn_ref_count, 1);
-  EXPECT_EQ(global_ref_count, 1);
-}
-GPU_TEST(preprocess_utilities);
 
 static std::string process_test_string(std::string str,
                                        std::string &first_error,
@@ -63,7 +21,7 @@ static std::string process_test_string(std::string str,
       language,
       str,
       "test.glsl",
-      true,
+      false,
       true,
       [&](int /*err_line*/, int /*err_char*/, const std::string & /*line*/, const char *err_msg) {
         if (first_error.empty()) {
@@ -80,6 +38,60 @@ static std::string process_test_string(std::string str,
   size_t newline = result.find('\n');
   return result.substr(newline + 1);
 }
+
+static void test_preprocess_array()
+{
+  using namespace shader;
+  using namespace std;
+  {
+    string input = R"(
+float a[] = {0, 1};
+float b[2] = {
+    a[0],
+    a(0, 1),
+};
+float d[] = {a[0], a(0, 1)};
+)";
+    string expect =
+        R"(
+float a[2] = ARRAY_T(float) ARRAY_V( 0, 1 );
+float b[2] = ARRAY_T(float) ARRAY_V(
+    a[0],
+    a(0, 1)
+ );
+float d[2] = ARRAY_T(float) ARRAY_V( a[0], a(0, 1) );
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(expect, output);
+    EXPECT_EQ(error, "");
+  }
+  {
+    string input = R"(
+float c[] = {};
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error, "Array size must be greater than zero.");
+  }
+  {
+    string input = R"(
+float c[0] = {};
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error, "Array size must be greater than zero.");
+  }
+  {
+    string input = R"(
+float2 c[2] = {{0, 1}, {0, 1}};
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error, "Nested initializer list is not supported.");
+  }
+}
+GPU_TEST(preprocess_array);
 
 static void test_preprocess_include()
 {
@@ -120,6 +132,23 @@ static void test_preprocess_unroll()
   using namespace shader;
   using namespace std;
 
+  {
+    string input = R"(
+[[gpu::unroll]] for (int i = 2; i < 4; i++) { content += i; })";
+    string expect = R"(
+
+{
+#line 2
+                                            { content += 2; }
+#line 2
+                                            { content += 3; }
+#line 2
+                                                            })";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
   {
     string input = R"(
 [[gpu::unroll]] for (int i = 2; i < 4; i++, y++) { content += i; })";
@@ -430,7 +459,7 @@ static void test_preprocess_reference()
 
   {
     string input = R"(void func() { auto &a = b; a.a = 0; c = a(a); a_c_a = a; })";
-    string expect = R"(void func() { b.a = 0; c = a(b); a_c_a = b; })";
+    string expect = R"(void func() {              b.a = 0; c = a(b); a_c_a = b; })";
     string error;
     string output = process_test_string(input, error);
     EXPECT_EQ(output, expect);
@@ -438,7 +467,7 @@ static void test_preprocess_reference()
   }
   {
     string input = R"(void func() { const int &a = b; a.a = 0; c = a(a); })";
-    string expect = R"(void func() { b.a = 0; c = a(b); })";
+    string expect = R"(void func() {                   b.a = 0; c = a(b); })";
     string error;
     string output = process_test_string(input, error);
     EXPECT_EQ(output, expect);
@@ -446,7 +475,7 @@ static void test_preprocess_reference()
   }
   {
     string input = R"(void func() { const int i = 0; auto &a = b[i]; a.a = 0; })";
-    string expect = R"(void func() { const int i = 0; b[i].a = 0; })";
+    string expect = R"(void func() { const int i = 0;                 b[i].a = 0; })";
     string error;
     string output = process_test_string(input, error);
     EXPECT_EQ(output, expect);
@@ -605,6 +634,149 @@ void func()
   }
 }
 GPU_TEST(preprocess_default_arguments);
+
+static void test_preprocess_srt_template_wrapper()
+{
+  using namespace shader;
+  using namespace std;
+
+  {
+    string input = R"(
+struct SRT {
+  [[resource_table]] srt_t<T> a;
+};
+)";
+    string expect = R"(
+struct SRT {
+                           T  a;
+#line 12
+};
+#line 5
+       SRT SRT_new_()
+{
+  SRT result;
+  result.a = T_new_();
+  return result;
+#line 3
+}
+#line 5
+#define access_SRT_a() T_new_()
+#ifdef CREATE_INFO_RES_PASS_SRT
+CREATE_INFO_RES_PASS_SRT
+#endif
+#ifdef CREATE_INFO_RES_BATCH_SRT
+CREATE_INFO_RES_BATCH_SRT
+#endif
+#ifdef CREATE_INFO_RES_GEOMETRY_SRT
+CREATE_INFO_RES_GEOMETRY_SRT
+#endif
+#ifdef CREATE_INFO_RES_SHARED_VARS_SRT
+CREATE_INFO_RES_SHARED_VARS_SRT
+#endif
+#line 6
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+  {
+    string input = R"(
+struct SRT {
+  [[resource_table]] T a;
+};
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error,
+              "Members declared with the [[resource_table]] attribute must wrap their type "
+              "with the srt_t<T> template.");
+  }
+  {
+    string input = R"(
+struct SRT {
+  srt_t<T> a;
+};
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error,
+              "The srt_t<T> template is only to be used with members declared with the "
+              "[[resource_table]] attribute.");
+  }
+  {
+    string input = R"(
+struct SRT {
+  [[resource_table]] srt_t<T> a[4];
+};
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error, "[[resource_table]] members cannot be arrays.");
+  }
+}
+GPU_TEST(preprocess_srt_template_wrapper);
+
+static void test_preprocess_srt_method()
+{
+  using namespace shader;
+  using namespace std;
+
+  {
+    string input = R"(
+struct SRT {
+  [[resource_table]] srt_t<T> a;
+
+  void method(int t) {
+    this->a;
+  }
+};
+)";
+    string expect = R"(
+struct SRT {
+                           T  a;
+#line 16
+};
+#line 5
+
+#if defined(CREATE_INFO_SRT)
+#line 5
+  void method(                   inout SRT _inout_sta this_ _inout_end, int t) {
+    srt_access(SRT, a);
+  }
+
+#endif
+#line 9
+       SRT SRT_new_()
+{
+  SRT result;
+  result.a = T_new_();
+  return result;
+#line 7
+}
+#line 9
+#define access_SRT_a() T_new_()
+#ifdef CREATE_INFO_RES_PASS_SRT
+CREATE_INFO_RES_PASS_SRT
+#endif
+#ifdef CREATE_INFO_RES_BATCH_SRT
+CREATE_INFO_RES_BATCH_SRT
+#endif
+#ifdef CREATE_INFO_RES_GEOMETRY_SRT
+CREATE_INFO_RES_GEOMETRY_SRT
+#endif
+#ifdef CREATE_INFO_RES_SHARED_VARS_SRT
+CREATE_INFO_RES_SHARED_VARS_SRT
+#endif
+#line 10
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(error, "");
+  }
+}
+GPU_TEST(preprocess_srt_method);
 
 static void test_preprocess_static_branch()
 {
@@ -1009,6 +1181,7 @@ struct S {
     return S(0);
   }
   S other_method(int s) {
+    this->some_method();
     return S(0);
   }
 };
@@ -1018,16 +1191,17 @@ struct S {
     string expect = R"(
 
 struct NS_S {
-#line 10
+#line 11
 int _pad;};
 #line 4
          NS_S NS_S_static_method(NS_S s) {
     return NS_S(0);
   }
   NS_S other_method(inout NS_S _inout_sta this_ _inout_end, int s) {
+    some_method(this_);
     return NS_S(0);
   }
-#line 11
+#line 12
 
 )";
     string error;
@@ -1106,34 +1280,6 @@ static void test_preprocess_matrix_constructors()
 GPU_TEST(preprocess_matrix_constructors);
 #endif
 
-static void test_preprocess_stage_attribute()
-{
-  using namespace shader;
-  using namespace std;
-
-  {
-    string input = R"(
-[[gpu::vertex_function]] void my_func() {
-  return;
-}
-)";
-    string expect = R"(
-                         void my_func() {
-#if defined(GPU_VERTEX_SHADER)
-#line 3
-  return;
-#endif
-#line 4
-}
-)";
-    string error;
-    string output = process_test_string(input, error);
-    EXPECT_EQ(output, expect);
-    EXPECT_EQ(error, "");
-  }
-}
-GPU_TEST(preprocess_stage_attribute);
-
 static void test_preprocess_resource_guard()
 {
   using namespace shader;
@@ -1147,9 +1293,11 @@ void my_func() {
 )";
     string expect = R"(
 void my_func() {
+
 #if defined(CREATE_INFO_draw_resource_id_varying)
 #line 3
   interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_index;
+
 #endif
 #line 4
 }
@@ -1169,11 +1317,13 @@ uint my_func() {
 )";
     string expect = R"(
 uint my_func() {
+
 #if defined(CREATE_INFO_draw_resource_id_varying)
 #line 3
   uint i = 0;
   i += interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_index;
   return i;
+
 #else
 #line 3
   return uint(0);
@@ -1200,9 +1350,11 @@ uint my_func() {
 uint my_func() {
   uint i = 0;
   {
+
 #if defined(CREATE_INFO_draw_resource_id_varying)
 #line 5
     i += interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_index;
+
 #endif
 #line 6
   }
@@ -1229,13 +1381,17 @@ uint my_func() {
 uint my_func() {
   uint i = 0;
   {
+
 #if defined(CREATE_INFO_draw_resource_id_varying)
 #line 5
+
 #if defined(CREATE_INFO_draw_resource_id)
 #line 5
     i += interface_get(draw_resource_id_varying, drw_ResourceID_iface).resource_index;
     i += buffer_get(draw_resource_id, resource_id_buf)[0];
+
 #endif
+
 #endif
 #line 7
   }
@@ -1256,9 +1412,11 @@ template<> uint my_func<uint>(uint i) {
 )";
     string expect = R"(
            uint my_funcTuint(uint i) {
+
 #if defined(CREATE_INFO_draw_resource_id)
 #line 3
   return buffer_get(draw_resource_id, resource_id_buf)[i];
+
 #else
 #line 3
   return uint(0);
@@ -1405,6 +1563,22 @@ void main()
     EXPECT_EQ(output, expect);
     EXPECT_EQ(error, "");
   }
+  {
+    string input = R"(
+class S {
+  int xzwy() const
+  {
+  }
+};
+)";
+    string expect = R"(
+)";
+    string error;
+    string output = process_test_string(input, error);
+    EXPECT_EQ(error,
+              "Method name matching swizzles and vector component "
+              "accessor are forbidden.");
+  }
 }
 GPU_TEST(preprocess_struct_methods);
 
@@ -1413,7 +1587,7 @@ static void test_preprocess_srt_mutations()
   using namespace std;
   using namespace shader::parser;
 
-  ParserData::report_callback no_err_report = [](int, int, string, const char *) {};
+  report_callback no_err_report = [](int, int, string, const char *) {};
 
   {
     string input = R"(
@@ -1474,12 +1648,296 @@ float fn(                   inout SRT _inout_sta srt _inout_end) {
 }
 GPU_TEST(preprocess_srt_mutations);
 
+static void test_preprocess_entry_point_resources()
+{
+  using namespace std;
+  using namespace shader::parser;
+
+  report_callback no_err_report = [](int, int, string, const char *) {};
+
+  {
+    string input = R"(
+namespace ns {
+
+struct VertOut {
+  [[smooth]] float3 local_pos;
+};
+
+struct FragOut {
+  [[frag_color(0)]] float3 color;
+  [[frag_color(1), index(2)]] uint test;
+};
+
+template<typename T>
+struct VertIn {
+  [[attribute(0)]] T pos;
+};
+template struct VertIn<float>;
+
+
+[[vertex]] void vertex_function([[resource_table]] Resources &srt,
+                                [[in]] const VertIn<float> &v_in,
+                                [[out, condition(cond)]] VertOut &v_out,
+                                [[base_instance]] const int &base_instance,
+                                [[point_size]] float &point_size,
+                                [[clip_distance]] float (&clip_distance)[6],
+                                [[layer]] int &layer,
+                                [[viewport_index]] int &viewport_index,
+                                [[position]] float4 &out_position)
+{
+  base_instance;
+  point_size;
+  clip_distance;
+  layer;
+  viewport_index;
+  out_position;
+}
+
+[[fragment]] void fragment_function([[resource_table]] Resources &srt,
+                                    [[in, condition(cond)]] const VertOut &v_out,
+                                    [[out]] FragOut &frag_out,
+                                    [[frag_depth(greater)]] float depth,
+                                    [[frag_stencil_ref]] int stencil,
+                                    [[layer]] const int &layer,
+                                    [[viewport_index]] const int &viewport_index,
+                                    [[point_coord]] const float2 pt_co,
+                                    [[front_facing]] const bool facing,
+                                    [[frag_coord]] const float4 in_position)
+{
+  layer;
+  viewport_index;
+  depth;
+  stencil;
+  in_position;
+  pt_co;
+  facing;
+}
+
+[[compute]] void compute_function([[resource_table]] Resources &srt,
+                                  [[global_invocation_id]] const uint3 &global_invocation_id,
+                                  [[local_invocation_id]] const uint3 &local_invocation_id,
+                                  [[local_invocation_index]] const uint &local_invocation_index,
+                                  [[work_group_id]] const uint3 &workgroup_id,
+                                  [[num_work_groups]] const uint3 &num_work_groups)
+{
+  global_invocation_id;
+  local_invocation_id;
+  local_invocation_index;
+  workgroup_id;
+  num_work_groups;
+}
+
+}
+)";
+    string expect = R"(
+#line 4
+struct ns_VertOut {
+             float3 local_pos;
+};
+
+struct ns_FragOut {
+                    float3 color;
+                              uint test;
+};
+#line 14
+struct ns_VertInTfloat {
+                   float pos;
+};
+#line 20
+           void ns_vertex_function(
+#line 28
+                                                                 )
+{
+#if defined(GPU_VERTEX_SHADER)
+#line 29
+  Resources srt;
+  gl_BaseInstance;
+  gl_PointSize;
+  gl_ClipDistance;
+  gl_Layer;
+  gl_ViewportIndex;
+  gl_Position;
+
+#endif
+#line 36
+}
+
+             void ns_fragment_function(
+#line 47
+                                                                           )
+{
+#if defined(GPU_FRAGMENT_SHADER)
+#line 48
+  Resources srt;
+  gl_Layer;
+  gl_ViewportIndex;
+  gl_FragDepth;
+  gl_FragStencilRefARB;
+  gl_FragCoord;
+  gl_PointCoord;
+  gl_FrontFacing;
+
+#endif
+#line 56
+}
+
+            void ns_compute_function(
+#line 63
+                                                                                  )
+{
+#if defined(GPU_COMPUTE_SHADER)
+#line 64
+  Resources srt;
+  gl_GlobalInvocationID;
+  gl_LocalInvocationID;
+  gl_LocalInvocationIndex;
+  gl_WorkGroupID;
+  gl_NumWorkGroups;
+
+#endif
+#line 70
+}
+
+
+)";
+    string expect_infos = R"(#pragma once
+
+
+GPU_SHADER_CREATE_INFO(ns_VertInTfloat)
+VERTEX_IN(0, float, pos)
+GPU_SHADER_CREATE_END()
+
+
+GPU_SHADER_CREATE_INFO(ns_FragOut)
+FRAGMENT_OUT(0, float3, ns_FragOut_color)
+FRAGMENT_OUT_DUAL(1, uint, ns_FragOut_test, 2)
+GPU_SHADER_CREATE_END()
+
+
+GPU_SHADER_INTERFACE_INFO(ns_VertOut_t)
+SMOOTH(float3, ns_VertOut_local_pos)
+GPU_SHADER_INTERFACE_END()
+
+
+
+
+GPU_SHADER_CREATE_INFO(ns_vertex_function_infos_)
+ADDITIONAL_INFO(Resources)
+ADDITIONAL_INFO(ns_VertInTfloat)
+VERTEX_OUT(ns_VertOut_t)
+BUILTINS(BuiltinBits::POINT_SIZE)
+BUILTINS(BuiltinBits::LAYER)
+BUILTINS(BuiltinBits::VIEWPORT_INDEX)
+BUILTINS(BuiltinBits::CLIP_DISTANCES)
+GPU_SHADER_CREATE_END()
+
+GPU_SHADER_CREATE_INFO(ns_fragment_function_infos_)
+DEPTH_WRITE(GREATER)
+BUILTINS(BuiltinBits::STENCIL_REF)
+BUILTINS(BuiltinBits::POINT_COORD)
+BUILTINS(BuiltinBits::FRONT_FACING)
+BUILTINS(BuiltinBits::FRAG_COORD)
+ADDITIONAL_INFO(Resources)
+ADDITIONAL_INFO(ns_FragOut)
+BUILTINS(BuiltinBits::LAYER)
+BUILTINS(BuiltinBits::VIEWPORT_INDEX)
+GPU_SHADER_CREATE_END()
+
+GPU_SHADER_CREATE_INFO(ns_compute_function_infos_)
+ADDITIONAL_INFO(Resources)
+BUILTINS(BuiltinBits::GLOBAL_INVOCATION_ID)
+BUILTINS(BuiltinBits::LOCAL_INVOCATION_ID)
+BUILTINS(BuiltinBits::LOCAL_INVOCATION_INDEX)
+BUILTINS(BuiltinBits::WORK_GROUP_ID)
+BUILTINS(BuiltinBits::NUM_WORK_GROUP)
+GPU_SHADER_CREATE_END()
+
+)";
+    string error;
+    shader::metadata::Source metadata;
+    string output = process_test_string(input, error, &metadata);
+    string infos = metadata.serialize_infos();
+
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(infos, expect_infos);
+    EXPECT_EQ(error, "");
+  }
+}
+GPU_TEST(preprocess_entry_point_resources);
+
+static void test_preprocess_pipeline_description()
+{
+  using namespace std;
+  using namespace shader::parser;
+
+  report_callback no_err_report = [](int, int, string, const char *) {};
+
+  {
+    string input = R"(
+namespace ns {
+
+PipelineGraphic graphic_pipe(vertex_func, fragment_func, Type{.a = true, .b = 9, .c = 3u});
+PipelineCompute compute_pipe(compute_func, Type{.a = true, .b = 8, .c = 7u});
+
+}
+)";
+    string expect = R"(
+
+
+
+
+
+
+)";
+    string expect_infos = R"(#pragma once
+
+
+
+
+
+
+
+GPU_SHADER_CREATE_INFO(ns_graphic_pipe)
+GRAPHIC_SOURCE("test.glsl")
+VERTEX_FUNCTION("vertex_func")
+FRAGMENT_FUNCTION("fragment_func")
+ADDITIONAL_INFO(vertex_func_infos_)
+ADDITIONAL_INFO(fragment_func_infos_)
+COMPILATION_CONSTANT(bool, a, true)
+COMPILATION_CONSTANT(int, b, 9)
+COMPILATION_CONSTANT(uint, c, 3u)
+DO_STATIC_COMPILATION()
+GPU_SHADER_CREATE_END()
+
+GPU_SHADER_CREATE_INFO(ns_compute_pipe)
+COMPUTE_SOURCE("test.glsl")
+COMPUTE_FUNCTION("compute_func")
+ADDITIONAL_INFO(compute_func_infos_)
+COMPILATION_CONSTANT(bool, a, true)
+COMPILATION_CONSTANT(int, b, 8)
+COMPILATION_CONSTANT(uint, c, 7u)
+DO_STATIC_COMPILATION()
+GPU_SHADER_CREATE_END()
+
+)";
+    string error;
+    shader::metadata::Source metadata;
+    string output = process_test_string(input, error, &metadata);
+    string infos = metadata.serialize_infos();
+
+    EXPECT_EQ(output, expect);
+    EXPECT_EQ(infos, expect_infos);
+    EXPECT_EQ(error, "");
+  }
+}
+GPU_TEST(preprocess_pipeline_description);
+
 static void test_preprocess_parser()
 {
   using namespace std;
   using namespace shader::parser;
 
-  ParserData::report_callback no_err_report = [](int, int, string, const char *) {};
+  report_callback no_err_report = [](int, int, string, const char *) {};
 
   {
     string input = R"(
@@ -1493,10 +1951,21 @@ static void test_preprocess_parser()
 2.0e-1f;
 0xFF;
 0xFFu;
+0+8;
 )";
     string expect = R"(
-0;0;0;0;0;0;0;0;0;0;)";
-    EXPECT_EQ(Parser(input, no_err_report).data_get().token_types, expect);
+0;0;0;0;0;0;0;0;0;0;0+0;)";
+    EXPECT_EQ(IntermediateForm(input, no_err_report).data_get().token_types, expect);
+  }
+  {
+    string input = R"(
+[[a(0,1,b), c, d(t)]]
+)";
+    string expect = R"(
+[[w(0,0,w),w,w(w)]])";
+    string scopes = R"(GABbcmmmbbcm)";
+    EXPECT_EQ(IntermediateForm(input, no_err_report).data_get().token_types, expect);
+    EXPECT_EQ(IntermediateForm(input, no_err_report).data_get().scope_types, scopes);
   }
   {
     string input = R"(
@@ -1509,7 +1978,7 @@ class B {
 )";
     string expect = R"(
 sw{ww=0;};Sw{ww;};)";
-    EXPECT_EQ(Parser(input, no_err_report).data_get().token_types, expect);
+    EXPECT_EQ(IntermediateForm(input, no_err_report).data_get().token_types, expect);
   }
   {
     string input = R"(
@@ -1519,8 +1988,8 @@ namespace T::U::V {}
     string expect = R"(
 nw{}nw::w::w{})";
     string expect_scopes = R"(GNN)";
-    EXPECT_EQ(Parser(input, no_err_report).data_get().token_types, expect);
-    EXPECT_EQ(Parser(input, no_err_report).data_get().scope_types, expect_scopes);
+    EXPECT_EQ(IntermediateForm(input, no_err_report).data_get().token_types, expect);
+    EXPECT_EQ(IntermediateForm(input, no_err_report).data_get().scope_types, expect_scopes);
   }
   {
     string input = R"(
@@ -1536,10 +2005,10 @@ void f(int t = 0) {
 )";
     string expect = R"(
 ww(ww=0){ww=0,w=0,w={0};{w=w=w,wP;i(wEw){r;}}})";
-    EXPECT_EQ(Parser(input, no_err_report).data_get().token_types, expect);
+    EXPECT_EQ(IntermediateForm(input, no_err_report).data_get().token_types, expect);
   }
   {
-    Parser parser("float i;", no_err_report);
+    IntermediateForm parser("float i;", no_err_report);
     parser.insert_after(Token::from_position(&parser.data_get(), 0), "A ");
     parser.insert_after(Token::from_position(&parser.data_get(), 0), "B  ");
     EXPECT_EQ(parser.result_get(), "float A B  i;");
@@ -1550,7 +2019,7 @@ A
 #line 100
 B
 )";
-    Parser parser(input, no_err_report);
+    IntermediateForm parser(input, no_err_report);
     string expect = R"(
 w#w0
 w)";
@@ -1575,16 +2044,16 @@ match(, const, bool, , foo, , ;)
 match([a], , int, , bar, [0], ;)
 )";
 
-    Parser parser(input, no_err_report);
+    IntermediateForm parser(input, no_err_report);
 
     string result = "\n";
-    parser.foreach_declaration([&](Scope attributes,
-                                   Token const_tok,
-                                   Token type,
-                                   Scope template_scope,
-                                   Token name,
-                                   Scope array,
-                                   Token decl_end) {
+    parser().foreach_declaration([&](Scope attributes,
+                                     Token const_tok,
+                                     Token type,
+                                     Scope template_scope,
+                                     Token name,
+                                     Scope array,
+                                     Token decl_end) {
       result += "match(";
       result += attributes.str() + ", ";
       result += const_tok.str() + ", ";
