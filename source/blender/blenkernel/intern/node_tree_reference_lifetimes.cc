@@ -993,6 +993,26 @@ static aal::RelationsInNode get_tree_relations(
   return tree_relations;
 }
 
+static void disable_unused_group_output_propagation(const Span<ReferenceSetInfo> reference_sets,
+                                                    const aal::RelationsInNode &tree_relations,
+                                                    BitGroupVector<> &required_data_by_socket)
+{
+  Vector<int> propagate_targets;
+  for (const auto relation : tree_relations.propagate_relations) {
+    propagate_targets.append(relation.to_geometry_output);
+  }
+  BitVector<> reference_sets_mask(reference_sets.size(), true);
+  for (const int i : reference_sets.index_range()) {
+    const ReferenceSetInfo &reference_set = reference_sets[i];
+    if (reference_set.type == ReferenceSetType::GroupOutputData) {
+      if (!propagate_targets.contains(reference_set.index)) {
+        reference_sets_mask[i].reset();
+      }
+    }
+  }
+  required_data_by_socket.foreach_and(reference_sets_mask);
+}
+
 static std::unique_ptr<ReferenceLifetimesInfo> make_reference_lifetimes_info(const bNodeTree &tree)
 {
   tree.ensure_topology_cache();
@@ -1054,21 +1074,8 @@ static std::unique_ptr<ReferenceLifetimesInfo> make_reference_lifetimes_info(con
                                                                 potential_data_by_socket,
                                                                 potential_reference_by_socket,
                                                                 required_data_by_socket);
-
-  Vector<int> propagate_targets;
-  for (const auto relation : reference_lifetimes_info->tree_relations.propagate_relations) {
-    propagate_targets.append(relation.to_geometry_output);
-  }
-  BitVector<> reference_sets_mask(reference_sets.size(), true);
-  for (const int i : reference_sets.index_range()) {
-    const ReferenceSetInfo &reference_set = reference_sets[i];
-    if (reference_set.type == ReferenceSetType::GroupOutputData) {
-      if (!propagate_targets.contains(reference_set.index)) {
-        reference_sets_mask[i].reset();
-      }
-    }
-  }
-  required_data_by_socket.foreach_and(reference_sets_mask);
+  disable_unused_group_output_propagation(
+      reference_sets, reference_lifetimes_info->tree_relations, required_data_by_socket);
 
 /* Only useful when debugging the reference lifetimes analysis. */
 #if 0
