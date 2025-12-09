@@ -22,7 +22,6 @@
 #include "RNA_access.hh"
 
 #include "modifier.hh"
-#include "render.hh"
 
 namespace blender::seq {
 
@@ -281,19 +280,16 @@ static AreaLuminance tonemap_calc_input_luminance(const ImBuf *ibuf)
   return lum;
 }
 
-static void tonemapmodifier_apply(const RenderData * /*render_data*/,
-                                  const Strip * /*strip*/,
-                                  const float transform[3][3],
+static void tonemapmodifier_apply(ModifierApplyContext &context,
                                   StripModifierData *smd,
-                                  ImBuf *ibuf,
                                   ImBuf *mask)
 {
   const SequencerTonemapModifierData *tmmd = (const SequencerTonemapModifierData *)smd;
 
   TonemapApplyOp op;
   op.type = eModTonemapType(tmmd->type);
-  op.ibuf = ibuf;
-  op.lum = tonemap_calc_input_luminance(ibuf);
+  op.ibuf = context.image;
+  op.lum = tonemap_calc_input_luminance(context.image);
   if (op.lum.pixel_count == 0) {
     return; /* Strip is zero size or off-screen. */
   }
@@ -311,19 +307,19 @@ static void tonemapmodifier_apply(const RenderData * /*render_data*/,
   op.data.al = (al == 0.0f) ? 0.0f : (tmmd->key / al);
   op.data.igm = (tmmd->gamma == 0.0f) ? 1.0f : (1.0f / tmmd->gamma);
 
-  apply_modifier_op(op, ibuf, mask, float3x3(transform));
+  apply_modifier_op(op, context.image, mask, context.transform);
 }
 
 static void tonemapmodifier_panel_draw(const bContext *C, Panel *panel)
 {
-  uiLayout *layout = panel->layout;
-  PointerRNA *ptr = UI_panel_custom_data_get(panel);
+  ui::Layout &layout = *panel->layout;
+  PointerRNA *ptr = blender::ui::panel_custom_data_get(panel);
 
   const int tonemap_type = RNA_enum_get(ptr, "tonemap_type");
 
-  layout->use_property_split_set(true);
+  layout.use_property_split_set(true);
 
-  uiLayout &col = layout->column(false);
+  ui::Layout &col = layout.column(false);
   col.prop(ptr, "tonemap_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   if (tonemap_type == SEQ_TONEMAP_RD_PHOTORECEPTOR) {
     col.prop(ptr, "intensity", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -340,10 +336,10 @@ static void tonemapmodifier_panel_draw(const bContext *C, Panel *panel)
     BLI_assert_unreachable();
   }
 
-  if (uiLayout *mask_input_layout = layout->panel_prop(
+  if (ui::Layout *mask_input_layout = layout.panel_prop(
           C, ptr, "open_mask_input_panel", IFACE_("Mask Input")))
   {
-    draw_mask_input_type_settings(C, mask_input_layout, ptr);
+    draw_mask_input_type_settings(C, *mask_input_layout, ptr);
   }
 }
 

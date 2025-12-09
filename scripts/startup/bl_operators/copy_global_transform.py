@@ -267,12 +267,27 @@ class OBJECT_OT_paste_transform(Operator):
         if not context.active_pose_bone and not context.active_object:
             cls.poll_message_set("Select an object or pose bone")
             return False
-
-        clipboard = context.window_manager.clipboard.strip()
-        if not (clipboard.startswith("Matrix(") or clipboard.startswith("<Matrix 4x4")):
-            cls.poll_message_set("Clipboard does not contain a valid matrix")
-            return False
         return True
+
+    @classmethod
+    def string_to_matrix(cls, value: str) -> Matrix | None:
+        if value.startswith("Matrix"):
+            return cls.parse_matrix(value)
+        if value.startswith("<Matrix 4x4"):
+            return cls.parse_repr_m4(value[12:-1])
+        if value:
+            return cls.parse_print_m4(value)
+        return None
+
+    @staticmethod
+    def parse_matrix(value: str) -> Matrix | None:
+        import ast
+        try:
+            return Matrix(ast.literal_eval(value[6:]))
+        except Exception:
+            # ast.literal_eval() can raise a slew of exceptions, all of
+            # which means that it's not a matrix on the clipboard.
+            return None
 
     @staticmethod
     def parse_print_m4(value: str) -> Optional[Matrix]:
@@ -285,7 +300,11 @@ class OBJECT_OT_paste_transform(Operator):
         if len(lines) != 4:
             return None
 
-        floats = tuple(tuple(float(item) for item in line.split()) for line in lines)
+        try:
+            floats = tuple(tuple(float(item) for item in line.split()) for line in lines)
+        except ValueError:
+            # Apparently not the expected format.
+            return None
         return Matrix(floats)
 
     @staticmethod
@@ -296,22 +315,19 @@ class OBJECT_OT_paste_transform(Operator):
         if len(lines) != 4:
             return None
 
-        floats = tuple(tuple(float(item.strip()) for item in line.strip()[1:-1].split(',')) for line in lines)
+        try:
+            floats = tuple(tuple(float(item.strip()) for item in line.strip()[1:-1].split(',')) for line in lines)
+        except ValueError:
+            # Apparently not the expected format.
+            return None
         return Matrix(floats)
 
     def execute(self, context: Context) -> set[str]:
-        import ast
-
         clipboard = context.window_manager.clipboard.strip()
-        if clipboard.startswith("Matrix"):
-            mat = Matrix(ast.literal_eval(clipboard[6:]))
-        elif clipboard.startswith("<Matrix 4x4"):
-            mat = self.parse_repr_m4(clipboard[12:-1])
-        else:
-            mat = self.parse_print_m4(clipboard)
 
+        mat = self.string_to_matrix(clipboard)
         if mat is None:
-            self.report({'ERROR'}, "Clipboard does not contain a valid matrix")
+            self.report({'ERROR'}, "Clipboard does not contain a matrix")
             return {'CANCELLED'}
 
         try:
@@ -468,11 +484,11 @@ class Transformable(metaclass=abc.ABCMeta):
         pass
 
     def set_matrix_world(self, context: Context, matrix: Matrix) -> None:
-        """Set the world matrix, without autokeying."""
+        """Set the world matrix, without auto-keying."""
         self._set_matrix_world(context, matrix)
 
     def set_matrix_world_autokey(self, context: Context, matrix: Matrix) -> None:
-        """Set the world matrix, and autokey the resulting transform."""
+        """Set the world matrix, and auto-key the resulting transform."""
         self._set_matrix_world(context, matrix)
         self._autokey_matrix_world(context)
 
@@ -627,7 +643,7 @@ class FixToCameraCommon:
             case 'POSE':
                 transformables = self._transformable_pbones(context)
             case mode:
-                self.report({'ERROR'}, 'Unsupported mode: %r' % mode)
+                self.report({'ERROR'}, "Unsupported mode: {!r}".format(mode))
                 return {'CANCELLED'}
 
         restore_frame = context.scene.frame_current
@@ -681,6 +697,8 @@ class OBJECT_OT_fix_to_camera(FixToCameraCommon, Operator):
 
     def _execute(self, context: Context, transformables: list[Transformable]) -> None:
         from bpy_extras.anim_utils import AutoKeying
+        from bpy_extras.wm_utils import progress_report
+
         depsgraph = context.view_layer.depsgraph
         scene = context.scene
 
@@ -696,15 +714,22 @@ class OBJECT_OT_fix_to_camera(FixToCameraCommon, Operator):
             frame_start = scene.frame_start
             frame_end = scene.frame_end
 
-        with AutoKeying.options(
-            keytype=self.keytype,
-            use_loc=self.use_location,
-            use_rot=self.use_rotation,
-            use_scale=self.use_scale,
-            force_autokey=True,
+        with (
+            AutoKeying.options(
+                keytype=self.keytype,
+                use_loc=self.use_location,
+                use_rot=self.use_rotation,
+                use_scale=self.use_scale,
+                force_autokey=True,
+            ),
+            progress_report.ProgressReport(context.window_manager) as progress,
         ):
-            for frame in range(frame_start, frame_end + scene.frame_step, scene.frame_step):
+            frames_to_visit = range(frame_start, frame_end + scene.frame_step, scene.frame_step)
+            progress.enter_substeps(len(frames_to_visit))
+
+            for frame in frames_to_visit:
                 scene.frame_set(frame)
+                progress.step()
 
                 camera_eval = scene.camera.evaluated_get(depsgraph)
                 cam_matrix_world = camera_eval.matrix_world
@@ -747,7 +772,7 @@ class OBJECT_OT_delete_fix_to_camera_keys(Operator, FixToCameraCommon):
             t.remove_keys_of_type(self.keytype, frame_start=frame_start, frame_end=frame_end)
 
 
-# Messagebus subscription to monitor changes & refresh panels.
+# MessageBus subscription to monitor changes & refresh panels.
 _msgbus_owner = object()
 
 

@@ -1604,6 +1604,13 @@ UserDef *BKE_blendfile_userdef_from_defaults()
         userdef, "VIEW3D_AST_brush_gpencil_sculpt", "Brushes/Grease Pencil Sculpt/Transform");
     BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
         userdef, "VIEW3D_AST_brush_gpencil_sculpt", "Brushes/Grease Pencil Sculpt/Utilities");
+
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "NODE_AST_compositor", "Camera & Lens Effects");
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "NODE_AST_compositor", "Creative");
+    BKE_preferences_asset_shelf_settings_ensure_catalog_path_enabled(
+        userdef, "NODE_AST_compositor", "Utilities");
   }
 
   return userdef;
@@ -1841,10 +1848,13 @@ ID *PartialWriteContext::id_add_copy(const ID *id, const bool regenerate_session
 {
   ID *ctx_root_id = nullptr;
   BLI_assert(BKE_main_idmap_lookup_uid(matching_uid_map_, id->session_uid) == nullptr);
-  const int copy_flags = (LIB_ID_CREATE_NO_MAIN | LIB_ID_CREATE_NO_USER_REFCOUNT |
+  const int copy_flags = (LIB_ID_CREATE_LOCALIZE |
                           /* NOTE: Could make this an option if needed in the future */
                           LIB_ID_COPY_ASSET_METADATA);
   ctx_root_id = BKE_id_copy_in_lib(nullptr, id->lib, id, std::nullopt, nullptr, copy_flags);
+  if (!ctx_root_id) {
+    return ctx_root_id;
+  }
   ctx_root_id->tag |= ID_TAG_TEMP_MAIN;
   /* It is critical to preserve the deep hash here, as the copy put in the partial write context is
    * expected to be a perfect duplicate of the packed ID (including all of its dependencies). This
@@ -1908,10 +1918,11 @@ Library *PartialWriteContext::ensure_library(ID *ctx_id)
   BLI_assert((is_archive_lib && src_lib != src_base_lib && !ctx_id->deep_hash.is_null()) ||
              (!is_archive_lib && src_lib == src_base_lib && ctx_id->deep_hash.is_null()));
 
-  blender::StringRefNull lib_path = src_base_lib->runtime->filepath_abs;
+  StringRefNull lib_path = src_base_lib->runtime->filepath_abs;
   Library *ctx_base_lib = this->libraries_map_.lookup_default(lib_path, nullptr);
   if (!ctx_base_lib) {
     ctx_base_lib = reinterpret_cast<Library *>(id_add_copy(&src_base_lib->id, true));
+    BLI_assert(ctx_base_lib);
     this->libraries_map_.add(lib_path, ctx_base_lib);
   }
   /* The mapping should only contain real libraries, never packed ones. */
@@ -1936,7 +1947,7 @@ Library *PartialWriteContext::ensure_library(ID *ctx_id)
   ctx_id->lib = ctx_lib;
   return ctx_lib;
 }
-Library *PartialWriteContext::ensure_library(blender::StringRefNull library_absolute_path)
+Library *PartialWriteContext::ensure_library(StringRefNull library_absolute_path)
 {
   Library *ctx_lib = this->libraries_map_.lookup_default(library_absolute_path, nullptr);
   if (!ctx_lib) {
@@ -1953,8 +1964,8 @@ Library *PartialWriteContext::ensure_library(blender::StringRefNull library_abso
 ID *PartialWriteContext::id_add(
     const ID *id,
     PartialWriteContext::IDAddOptions options,
-    blender::FunctionRef<PartialWriteContext::IDAddOperations(
-        LibraryIDLinkCallbackData *cb_data, PartialWriteContext::IDAddOptions options)>
+    FunctionRef<PartialWriteContext::IDAddOperations(LibraryIDLinkCallbackData *cb_data,
+                                                     PartialWriteContext::IDAddOptions options)>
         dependencies_filter_cb)
 {
   constexpr int make_local_flags = (LIB_ID_MAKELOCAL_INDIRECT | LIB_ID_MAKELOCAL_FORCE_LOCAL |
@@ -1988,20 +1999,27 @@ ID *PartialWriteContext::id_add(
   /* Local mapping, such that even in case dependencies are duplicated for this specific added ID,
    * once a dependency has been duplicated, it can be re-used for other ID usages within the
    * dependencies of the added ID. */
-  blender::Map<const ID *, ID *> local_ctx_id_map;
+  Map<const ID *, ID *> local_ctx_id_map;
   /* A list of IDs to post-process. Only contains IDs that were actually added to the context (not
    * the ones that were already there and were re-used). The #IDAddOperations item of the pair
    * stores the returned value from the given #dependencies_filter_cb (or given global #options
    * parameter otherwise). */
-  blender::Vector<std::pair<ID *, PartialWriteContext::IDAddOperations>> post_process_ids_todo;
+  Vector<std::pair<ID *, PartialWriteContext::IDAddOperations>> post_process_ids_todo;
 
   ctx_root_id = id_add_copy(id, false);
+  if (!ctx_root_id) {
+    CLOG_ERROR(&LOG_PARTIALWRITE,
+               "Failed to copy ID '%s', could not add it to the partial write context",
+               id->name);
+    return ctx_root_id;
+  }
+
   BLI_assert(ctx_root_id->session_uid == id->session_uid);
   local_ctx_id_map.add(id, ctx_root_id);
   post_process_ids_todo.append({ctx_root_id, options.operations});
   this->process_added_id(ctx_root_id, options.operations);
 
-  blender::VectorSet<ID *> ids_to_process{ctx_root_id};
+  VectorSet<ID *> ids_to_process{ctx_root_id};
   auto dependencies_cb = [this,
                           options,
                           &local_ctx_id_map,
@@ -2087,6 +2105,15 @@ ID *PartialWriteContext::id_add(
       }
       ctx_deps_id = this->id_add_copy(orig_deps_id, duplicate_dependencies);
       local_ctx_id_map.add(orig_deps_id, ctx_deps_id);
+      if (!ctx_deps_id) {
+        CLOG_ERROR(&LOG_PARTIALWRITE,
+                   "Failed to copy ID '%s' (used by ID '%s'), could not add it to the partial "
+                   "write context",
+                   (*id_ptr)->name,
+                   cb_data->owner_id->name);
+        *id_ptr = nullptr;
+        return IDWALK_RET_NOP;
+      }
       ids_to_process.add(ctx_deps_id);
       post_process_ids_todo.append({ctx_deps_id, operations_final});
     }
@@ -2121,7 +2148,7 @@ ID *PartialWriteContext::id_add(
 }
 
 ID *PartialWriteContext::id_create(const short id_type,
-                                   const blender::StringRefNull id_name,
+                                   const StringRefNull id_name,
                                    Library *library,
                                    PartialWriteContext::IDAddOptions options)
 {
@@ -2184,8 +2211,8 @@ void PartialWriteContext::clear()
 
 bool PartialWriteContext::is_valid()
 {
-  blender::Set<ID *> ids_in_context;
-  blender::Set<uint> session_uids_in_context;
+  Set<ID *> ids_in_context;
+  Set<uint> session_uids_in_context;
   bool is_valid = true;
 
   ID *id_iter;
@@ -2254,7 +2281,7 @@ bool PartialWriteContext::write(const char *write_filepath,
 
   /* In case the write path is the same as one of the libraries used by this context, make this
    * library local, and delete it (and all of its potentially remaining linked data). */
-  blender::Vector<Library *> make_local_libs;
+  Vector<Library *> make_local_libs;
   LISTBASE_FOREACH (Library *, library, &this->bmain.libraries) {
     if (STREQ(write_filepath, library->runtime->filepath_abs)) {
       make_local_libs.append(library);

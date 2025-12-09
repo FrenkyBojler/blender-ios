@@ -6,6 +6,8 @@
  * \ingroup sequencer
  */
 
+#include "BKE_context.hh"
+
 #include "BLI_math_base.h"
 #include "BLI_rect.h"
 
@@ -24,6 +26,7 @@
 #include "SEQ_modifier.hh"
 #include "SEQ_modifiertypes.hh"
 #include "SEQ_render.hh"
+#include "SEQ_select.hh"
 #include "SEQ_transform.hh"
 
 #include "UI_interface.hh"
@@ -44,25 +47,33 @@ class CompositorContext : public compositor::Context {
   ImBuf *image_buffer_;
   ImBuf *mask_buffer_;
   float3x3 xform_;
+  float2 result_translation_ = float2(0, 0);
+  const Strip *strip_;
 
  public:
   CompositorContext(const RenderData &render_data,
                     const SequencerCompositorModifierData *modifier_data,
                     ImBuf *image_buffer,
                     ImBuf *mask_buffer,
-                    const Strip *strip)
+                    const Strip &strip)
       : compositor::Context(),
         render_data_(render_data),
         modifier_data_(modifier_data),
         image_buffer_(image_buffer),
         mask_buffer_(mask_buffer),
-        xform_(float3x3::identity())
+        xform_(float3x3::identity()),
+        strip_(&strip)
   {
     if (mask_buffer) {
       /* Note: do not use passed transform matrix since compositor coordinate
        * space is not from the image corner, but rather centered on the image. */
-      xform_ = math::invert(image_transform_matrix_get(render_data.scene, strip));
+      xform_ = math::invert(image_transform_matrix_get(render_data.scene, &strip));
     }
+  }
+
+  float2 get_result_translation() const
+  {
+    return result_translation_;
   }
 
   const Scene &get_scene() const override
@@ -78,7 +89,7 @@ class CompositorContext : public compositor::Context {
   compositor::OutputTypes needed_outputs() const override
   {
     compositor::OutputTypes needed_outputs = compositor::OutputTypes::Composite;
-    if (!render_data_.for_render) {
+    if (!render_data_.render) {
       needed_outputs |= compositor::OutputTypes::Viewer;
     }
     return needed_outputs;
@@ -94,43 +105,37 @@ class CompositorContext : public compositor::Context {
     return false;
   }
 
-  Bounds<int2> get_compositing_region() const override
+  compositor::Domain get_compositing_domain() const override
   {
-    return Bounds<int2>(int2(0), int2(image_buffer_->x, image_buffer_->y));
+    return compositor::Domain(int2(image_buffer_->x, image_buffer_->y));
   }
 
-  compositor::Result get_output(compositor::Domain domain) override
+  void write_output(const compositor::Result &result) override
   {
-    compositor::Result result = this->create_result(compositor::ResultType::Color);
-    if (domain.size.x != image_buffer_->x || domain.size.y != image_buffer_->y) {
+    if (result.is_single_value()) {
+      IMB_rectfill(image_buffer_, result.get_single_value<compositor::Color>());
+      return;
+    }
+
+    result_translation_ = result.domain().transformation.location();
+    const int2 size = result.domain().data_size;
+    if (size != int2(image_buffer_->x, image_buffer_->y)) {
       /* Output size is different (e.g. image is blurred with expanded bounds);
        * need to allocate appropriately sized buffer. */
       IMB_free_all_data(image_buffer_);
-      image_buffer_->x = domain.size.x;
-      image_buffer_->y = domain.size.y;
+      image_buffer_->x = size.x;
+      image_buffer_->y = size.y;
       IMB_alloc_float_pixels(image_buffer_, 4, false);
     }
-    result.wrap_external(image_buffer_->float_buffer.data,
-                         int2(image_buffer_->x, image_buffer_->y));
-    return result;
+    std::memcpy(image_buffer_->float_buffer.data,
+                result.cpu_data().data(),
+                sizeof(float) * 4 * size.x * size.y);
   }
 
-  compositor::Result get_viewer_output(compositor::Domain domain,
-                                       bool /*is_data*/,
-                                       compositor::ResultPrecision /*precision*/) override
+  void write_viewer(const compositor::Result &result) override
   {
-    compositor::Result result = this->create_result(compositor::ResultType::Color);
-    if (domain.size.x != image_buffer_->x || domain.size.y != image_buffer_->y) {
-      /* Output size is different (e.g. image is blurred with expanded bounds);
-       * need to allocate appropriately sized buffer. */
-      IMB_free_all_data(image_buffer_);
-      image_buffer_->x = domain.size.x;
-      image_buffer_->y = domain.size.y;
-      IMB_alloc_float_pixels(image_buffer_, 4, false);
-    }
-    result.wrap_external(image_buffer_->float_buffer.data,
-                         int2(image_buffer_->x, image_buffer_->y));
-    return result;
+    /* Within compositor modifier, output and viewer output function the same. */
+    this->write_output(result);
   }
 
   compositor::Result get_input(StringRef name) override
@@ -148,6 +153,11 @@ class CompositorContext : public compositor::Context {
     }
 
     return result;
+  }
+
+  const Strip *get_strip() const override
+  {
+    return strip_;
   }
 
   bool use_gpu() const override
@@ -199,11 +209,8 @@ static bool ensure_linear_float_buffer(ImBuf *ibuf)
   return false;
 }
 
-static void compositor_modifier_apply(const RenderData *render_data,
-                                      const Strip *strip,
-                                      const float /*transform*/[3][3],
+static void compositor_modifier_apply(ModifierApplyContext &context,
                                       StripModifierData *strip_modifier_data,
-                                      ImBuf *image_buffer,
                                       ImBuf *mask)
 {
   const SequencerCompositorModifierData *modifier_data =
@@ -218,12 +225,15 @@ static void compositor_modifier_apply(const RenderData *render_data,
     ensure_linear_float_buffer(linear_mask);
   }
 
-  const bool was_float_linear = ensure_linear_float_buffer(image_buffer);
-  const bool was_byte = image_buffer->float_buffer.data == nullptr;
+  const bool was_float_linear = ensure_linear_float_buffer(context.image);
+  const bool was_byte = context.image->float_buffer.data == nullptr;
 
-  CompositorContext context(*render_data, modifier_data, image_buffer, linear_mask, strip);
-  compositor::Evaluator evaluator(context);
+  CompositorContext com_context(
+      context.render_data, modifier_data, context.image, linear_mask, context.strip);
+  compositor::Evaluator evaluator(com_context);
   evaluator.evaluate();
+
+  context.result_translation += com_context.get_result_translation();
 
   if (mask != linear_mask) {
     IMB_freeImBuf(linear_mask);
@@ -234,33 +244,56 @@ static void compositor_modifier_apply(const RenderData *render_data,
   }
 
   if (was_byte) {
-    IMB_byte_from_float(image_buffer);
-    IMB_free_float_pixels(image_buffer);
+    IMB_byte_from_float(context.image);
+    IMB_free_float_pixels(context.image);
   }
   else {
-    seq_imbuf_to_sequencer_space(render_data->scene, image_buffer, true);
+    seq_imbuf_to_sequencer_space(context.render_data.scene, context.image, true);
   }
 }
 
 static void compositor_modifier_panel_draw(const bContext *C, Panel *panel)
 {
-  uiLayout *layout = panel->layout;
-  PointerRNA *ptr = UI_panel_custom_data_get(panel);
+  ui::Layout &layout = *panel->layout;
+  PointerRNA *ptr = blender::ui::panel_custom_data_get(panel);
 
-  layout->use_property_split_set(true);
+  layout.use_property_split_set(true);
 
-  uiTemplateID(layout,
-               C,
-               ptr,
-               "node_group",
-               "NODE_OT_new_compositor_sequencer_node_group",
-               nullptr,
-               nullptr);
+  Scene *scene = CTX_data_sequencer_scene(C);
+  Strip *strip = seq::select_active_get(scene);
+  bool has_existing_group = false;
+  if (strip != nullptr) {
+    StripModifierData *smd = seq::modifier_get_active(strip);
 
-  if (uiLayout *mask_input_layout = layout->panel_prop(
+    if (smd && smd->type == eSeqModifierType_Compositor) {
+      SequencerCompositorModifierData *nmd = (SequencerCompositorModifierData *)smd;
+      if (nmd->node_group != nullptr) {
+        template_id(&layout,
+                    C,
+                    ptr,
+                    "node_group",
+                    "NODE_OT_duplicate_compositing_modifier_node_group",
+                    nullptr,
+                    nullptr);
+        has_existing_group = true;
+      }
+    }
+  }
+
+  if (!has_existing_group) {
+    template_id(&layout,
+                C,
+                ptr,
+                "node_group",
+                "NODE_OT_new_compositor_sequencer_node_group",
+                nullptr,
+                nullptr);
+  }
+
+  if (ui::Layout *mask_input_layout = layout.panel_prop(
           C, ptr, "open_mask_input_panel", IFACE_("Mask Input")))
   {
-    draw_mask_input_type_settings(C, mask_input_layout, ptr);
+    draw_mask_input_type_settings(C, *mask_input_layout, ptr);
   }
 }
 

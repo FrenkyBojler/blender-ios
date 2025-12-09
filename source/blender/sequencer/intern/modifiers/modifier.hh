@@ -20,29 +20,53 @@ struct bContext;
 struct ARegionType;
 struct ImBuf;
 struct Strip;
-struct uiLayout;
 struct Panel;
 struct PanelType;
 struct PointerRNA;
+
+namespace blender::ui {
+struct Layout;
+}  // namespace blender::ui
 
 namespace blender::seq {
 
 struct RenderData;
 struct SeqRenderState;
 
-/* `transform` is transformation from strip image local pixel coordinates
- * to the full render area pixel coordinates. This is used to sample
- * modifier masks (since masks are in full render area space). */
-void modifier_apply_stack(const RenderData *context,
-                          SeqRenderState *state,
-                          const Strip *strip,
-                          const float3x3 &transform,
-                          ImBuf *ibuf,
-                          int timeline_frame);
+struct ModifierApplyContext {
+  ModifierApplyContext(const RenderData &render_data,
+                       SeqRenderState &render_state,
+                       const Strip &strip,
+                       const float3x3 &transform,
+                       ImBuf *image)
+      : render_data(render_data),
+        render_state(render_state),
+        strip(strip),
+        transform(transform),
+        image(image)
+  {
+  }
+  const RenderData &render_data;
+  SeqRenderState &render_state;
+  const Strip &strip;
+
+  /* Transformation from strip image local pixel coordinates to the
+   * full render area pixel coordinates.This is used to sample
+   * modifier masks (since masks are in full render area space). */
+  const float3x3 transform;
+  ImBuf *const image;
+
+  /* How much the resulting image should be translated, in pixels.
+   * Compositor modifier can have some nodes that translate the output
+   * image. */
+  float2 result_translation = float2(0, 0);
+};
+
+void modifier_apply_stack(ModifierApplyContext &context, int timeline_frame);
 
 bool modifier_persistent_uids_are_valid(const Strip &strip);
 
-void draw_mask_input_type_settings(const bContext *C, uiLayout *layout, PointerRNA *ptr);
+void draw_mask_input_type_settings(const bContext *C, ui::Layout &layout, PointerRNA *ptr);
 
 bool modifier_ui_poll(const bContext *C, PanelType *pt);
 

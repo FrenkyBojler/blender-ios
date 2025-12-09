@@ -66,7 +66,7 @@ static FTC_CMapCache ftc_charmap_cache = nullptr;
 /* Lock for FreeType library, used around face creation and deletion. */
 static blender::Mutex ft_lib_mutex;
 
-/* May be set to #UI_widgetbase_draw_cache_flush. */
+/* May be set to #widgetbase_draw_cache_flush. */
 static void (*blf_draw_cache_flush)() = nullptr;
 
 static ft_pix blf_font_height_max_ft_pix(FontBLF *font);
@@ -340,6 +340,15 @@ static void blf_batch_draw_end()
 {
   if (!g_batch.active) {
     blf_batch_draw();
+  }
+}
+
+void BLF_batch_discard()
+{
+  if (g_batch.glyph_buf) {
+    GPU_storagebuf_free(g_batch.glyph_buf);
+    g_batch.glyph_buf = GPU_storagebuf_create_ex(
+        sizeof(g_batch.glyph_data), nullptr, GPU_USAGE_STREAM, __func__);
   }
 }
 
@@ -1303,12 +1312,13 @@ static void blf_font_wrap_apply(FontBLF *font,
      * This is _only_ done when we know for sure the character is ASCII (newline or a space).
      */
     pen_x_next = pen_x + advance_x;
+    /* Ensure at least one character in the wrapped line. */
+    const bool overflows = pen_x_next >= wrap.wrap_width && pen_x != 0;
 
-    if (UNLIKELY((pen_x_next >= wrap.wrap_width) && (wrap.start != wrap.last[0]))) {
+    if (UNLIKELY(overflows && (wrap.start != wrap.last[0]))) {
       do_draw = true;
     }
-    else if (UNLIKELY((int(mode) & int(BLFWrapMode::HardLimit)) &&
-                      (pen_x_next >= wrap.wrap_width) && (advance_x != 0)))
+    else if (UNLIKELY((int(mode) & int(BLFWrapMode::HardLimit)) && overflows && (advance_x != 0)))
     {
       wrap.last[0] = i_curr;
       wrap.last[1] = i_curr;
@@ -1384,8 +1394,12 @@ static void blf_font_wrap_apply(FontBLF *font,
              &str[wrap.start]);
 #endif
 
-      callback(
-          font, gc, &str[wrap.start], (wrap.last[0] - wrap.start) - clip_bytes, pen_y, userdata);
+      callback(font,
+               gc,
+               &str[wrap.start],
+               std::min(wrap.last[0] - wrap.start - clip_bytes, str_len - wrap.start),
+               pen_y,
+               userdata);
       wrap.start = wrap.last[0];
       i = wrap.last[1];
       pen_x = 0;

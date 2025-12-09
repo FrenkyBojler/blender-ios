@@ -203,20 +203,23 @@ class ShapeKeyItem : public ui::AbstractTreeViewItem {
     shape_key_.index = index;
   };
 
-  void build_row(uiLayout &row) override
+  void build_row(ui::Layout &row) override
   {
     uiItemL_ex(&row, this->label_, ICON_SHAPEKEY_DATA, false, false);
-    uiLayout *sub = &row.row(true);
-    sub->use_property_decorate_set(false);
+    ui::Layout &sub = row.row(true);
+    sub.use_property_decorate_set(false);
     PointerRNA shapekey_ptr = RNA_pointer_create_discrete(
         &shape_key_.key->id, &RNA_ShapeKey, shape_key_.kb);
 
     if (shape_key_.index > 0) {
-      sub->prop(&shapekey_ptr, "value", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
+      sub.prop(&shapekey_ptr, "value", ui::ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
     }
 
-    sub->prop(&shapekey_ptr, "mute", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
-    sub->prop(&shapekey_ptr, "lock_shape", UI_ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
+    sub.prop(&shapekey_ptr, "mute", ui::ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
+    sub.prop(&shapekey_ptr, "lock_shape", ui::ITEM_R_ICON_ONLY, std::nullopt, ICON_NONE);
+    if (shape_key_.kb->flag & KEYBLOCK_MUTE) {
+      row.active_set(false);
+    }
   }
 
   std::optional<bool> should_be_active() const override
@@ -274,13 +277,13 @@ class ShapeKeyItem : public ui::AbstractTreeViewItem {
     ED_undo_grouped_push(C, "Delete Shape Key");
   }
 
-  void build_context_menu(bContext &C, uiLayout &layout) const override
+  void build_context_menu(bContext &C, ui::Layout &layout) const override
   {
     MenuType *mt = WM_menutype_find("MESH_MT_shape_key_tree_context_menu", true);
     if (!mt) {
       return;
     }
-    UI_menutype_draw(&C, mt, &layout);
+    ui::menutype_draw(&C, mt, &layout);
   }
 
   std::unique_ptr<ui::AbstractViewItemDragController> create_drag_controller() const override
@@ -308,16 +311,16 @@ void ShapeKeyTreeView::build_tree()
   }
 }
 
-void template_tree(uiLayout *layout, bContext *C)
+void template_tree(ui::Layout *layout, bContext *C)
 {
   Object *ob = CTX_data_active_object(C);
   if (ob == nullptr) {
     return;
   }
 
-  uiBlock *block = layout->block();
+  ui::Block *block = layout->block();
 
-  ui::AbstractTreeView *tree_view = UI_block_add_view(
+  ui::AbstractTreeView *tree_view = block_add_view(
       *block,
       "Shape Key Tree View",
       std::make_unique<ed::object::shapekey::ShapeKeyTreeView>(*ob));

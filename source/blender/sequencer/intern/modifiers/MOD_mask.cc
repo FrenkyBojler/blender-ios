@@ -15,7 +15,6 @@
 #include "DNA_sequence_types.h"
 
 #include "SEQ_modifier.hh"
-#include "SEQ_render.hh"
 #include "SEQ_transform.hh"
 
 #include "UI_interface.hh"
@@ -53,11 +52,8 @@ struct MaskApplyOp {
   }
 };
 
-static void maskmodifier_apply(const RenderData * /* render_data */,
-                               const Strip * /*strip*/,
-                               const float transform[3][3],
+static void maskmodifier_apply(ModifierApplyContext &context,
                                StripModifierData * /*smd*/,
-                               ImBuf *ibuf,
                                ImBuf *mask)
 {
   if (mask == nullptr || (mask->byte_buffer.data == nullptr && mask->float_buffer.data == nullptr))
@@ -66,16 +62,16 @@ static void maskmodifier_apply(const RenderData * /* render_data */,
   }
 
   MaskApplyOp op;
-  apply_modifier_op(op, ibuf, mask, float3x3(transform));
+  apply_modifier_op(op, context.image, mask, context.transform);
 
   /* Image has gained transparency. */
-  ibuf->planes = R_IMF_PLANES_RGBA;
+  context.image->planes = R_IMF_PLANES_RGBA;
 }
 
 static void maskmodifier_panel_draw(const bContext *C, Panel *panel)
 {
-  uiLayout *layout = panel->layout;
-  PointerRNA *ptr = UI_panel_custom_data_get(panel);
+  ui::Layout &layout = *panel->layout;
+  PointerRNA *ptr = blender::ui::panel_custom_data_get(panel);
 
   draw_mask_input_type_settings(C, layout, ptr);
 }

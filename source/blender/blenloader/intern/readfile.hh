@@ -16,6 +16,7 @@
 #  include "BLI_winstuff.h"
 #endif
 
+#include "BLI_enum_flags.hh"
 #include "BLI_fileops.h"
 #include "BLI_filereader.h"
 #include "BLI_map.hh"
@@ -62,7 +63,7 @@ enum eFileDataFlag {
    */
   FD_FLAGS_HAS_INVALID_ID_NAMES = 1 << 6,
 };
-ENUM_OPERATORS(eFileDataFlag, FD_FLAGS_IS_MEMFILE)
+ENUM_OPERATORS(eFileDataFlag)
 
 /* Disallow since it's 32bit on ms-windows. */
 #ifdef __GNUC__
@@ -169,8 +170,8 @@ struct FileData {
   /**
    * The main for the (local) data loaded from this filedata.
    *
-   * This is the same as #bmain when opening a blendfile, but not when reading/loading from
-   * libraries blendfiles.
+   * This is the same as #bmain when opening a blend-file, but not when reading/loading from
+   * libraries blend-files.
    */
   Main *fd_bmain = nullptr;
 
@@ -226,7 +227,7 @@ FileData *blo_filedata_from_memfile(MemFile *memfile,
                                     BlendFileReadReport *reports);
 
 /**
- * Build a #GSet of old main (we only care about local data here,
+ * Build a #IDNameLib_Map of old main (we only care about local data here,
  * so we can do that after #blo_split_main() call.
  */
 void blo_make_old_idmap_from_main(FileData *fd, Main *bmain) ATTR_NONNULL(1, 2);
@@ -340,6 +341,8 @@ void do_versions_after_setup(Main *new_bmain,
  */
 void *blo_read_get_new_globaldata_address(FileData *fd, const void *adr) ATTR_NONNULL(1);
 
-/* Mark the Main data as invalid (.blend file reading should be aborted ASAP, and the already read
- * data should be discarded). Also add an error report to `fd` including given `message`. */
+/**
+ * Mark the Main data as invalid (.blend file reading should be aborted ASAP, and the already read
+ * data should be discarded). Also add an error report to `fd` including given `message`.
+ */
 void blo_readfile_invalidate(FileData *fd, Main *bmain, const char *message) ATTR_NONNULL(1, 2, 3);

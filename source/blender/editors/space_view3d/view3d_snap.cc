@@ -31,7 +31,7 @@
 #include "BKE_object.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
-#include "BKE_tracking.h"
+#include "BKE_tracking.hh"
 
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
@@ -103,7 +103,8 @@ static wmOperatorStatus snap_sel_to_grid_exec(bContext *C, wmOperator *op)
       }
 
       if (ED_transverts_check_obedit(obedit)) {
-        ED_transverts_create_from_obedit(&tvs, obedit, 0);
+        const Object *obedit_eval = DEG_get_evaluated(depsgraph, obedit);
+        ED_transverts_create_from_obedit(&tvs, obedit_eval, 0);
       }
 
       if (tvs.transverts_tot != 0) {
@@ -320,6 +321,7 @@ static bool snap_selected_to_location_rotation(bContext *C,
                                                const bool use_toolsettings)
 {
   using namespace blender::ed;
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Scene *scene = CTX_data_scene(C);
   Object *obedit = CTX_data_edit_object(C);
   Object *obact = CTX_data_active_object(C);
@@ -368,7 +370,8 @@ static bool snap_selected_to_location_rotation(bContext *C,
       }
 
       if (ED_transverts_check_obedit(obedit)) {
-        ED_transverts_create_from_obedit(&tvs, obedit, 0);
+        const Object *ob_eval = DEG_get_evaluated(depsgraph, obedit);
+        ED_transverts_create_from_obedit(&tvs, ob_eval, 0);
       }
 
       if (tvs.transverts_tot != 0) {
@@ -570,8 +573,12 @@ static bool snap_selected_to_location_rotation(bContext *C,
     }
 
     for (Object *ob : objects) {
-      if (ob->parent && BKE_object_flag_test_recursive(ob->parent, OB_DONE)) {
-        continue;
+      /* With offset enabled, skip child objects whose parents are also transformed
+       * to avoid double transform. */
+      if (use_offset) {
+        if (ob->parent && BKE_object_flag_test_recursive(ob->parent, OB_DONE)) {
+          continue;
+        }
       }
 
       blender::float3 target_loc_local; /* parent-relative */
@@ -929,7 +936,8 @@ static bool snap_curs_to_sel_ex(bContext *C, const int pivot_point, float r_curs
       }
 
       if (ED_transverts_check_obedit(obedit)) {
-        ED_transverts_create_from_obedit(&tvs, obedit, TM_ALL_JOINTS | TM_SKIP_HANDLES);
+        const Object *obedit_eval = DEG_get_evaluated(depsgraph, obedit);
+        ED_transverts_create_from_obedit(&tvs, obedit_eval, TM_ALL_JOINTS | TM_SKIP_HANDLES);
       }
 
       count += tvs.transverts_tot;

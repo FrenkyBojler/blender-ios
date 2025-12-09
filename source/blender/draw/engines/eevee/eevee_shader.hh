@@ -13,6 +13,7 @@
 
 #include <array>
 
+#include "BLI_enum_flags.hh"
 #include "BLI_map.hh"
 #include "BLI_mutex.hh"
 
@@ -98,6 +99,7 @@ enum eShaderType {
   LIGHTPROBE_IRRADIANCE_LOAD,
   LIGHTPROBE_IRRADIANCE_WORLD,
 
+  LOOKDEV_COPY_WORLD,
   LOOKDEV_DISPLAY,
 
   MOTION_BLUR_GATHER,
@@ -156,6 +158,8 @@ enum eShaderType {
   SURFEL_LIST_SORT,
   SURFEL_RAY,
 
+  TRANSPARENCY_RESOLVE,
+
   VERTEX_COPY,
 
   VOLUME_INTEGRATION,
@@ -197,7 +201,7 @@ enum ShaderGroups : uint32_t {
   MATERIAL_SHADERS = 1 << 20,
   VOLUME_PROBE_SHADERS = 1 << 21,
 };
-ENUM_OPERATORS(ShaderGroups, VOLUME_PROBE_SHADERS)
+ENUM_OPERATORS(ShaderGroups)
 
 /**
  * Shader module. shared between instances.
@@ -241,7 +245,7 @@ class ShaderModule {
     }
   };
 
-  Map<SpecializationsKey, SpecializationBatchHandle> specialization_handles_;
+  Map<SpecializationsKey, Vector<AsyncSpecializationHandle>> specialization_handles_;
 
   static gpu::StaticShaderCache<ShaderModule> &get_static_cache()
   {
@@ -294,6 +298,9 @@ class ShaderModule {
  private:
   const char *static_shader_create_info_name_get(eShaderType shader_type);
   ShaderGroups static_shaders_load(ShaderGroups request_bits, bool block_until_ready);
+  void material_create_info_pipelines_amend(eMaterialGeometry geometry_type,
+                                            eMaterialPipeline pipeline_type,
+                                            gpu::shader::ShaderCreateInfo &r_info);
 };
 
 }  // namespace blender::eevee
