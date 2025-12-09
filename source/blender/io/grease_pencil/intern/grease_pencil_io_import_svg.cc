@@ -166,7 +166,8 @@ static void shape_attributes_to_curves(bke::CurvesGeometry &curves,
                                        const NSVGshape &shape,
                                        const IndexRange curves_range,
                                        const float4x4 &transform,
-                                       const int material_index)
+                                       const int material_index,
+                                       const int shape_index)
 {
   /* Path width is twice the radius. */
   const float path_width_scale = 0.5f * math::average(math::to_scale(transform));
@@ -198,6 +199,15 @@ static void shape_attributes_to_curves(bke::CurvesGeometry &curves,
                                                                bke::AttrDomain::Point);
   bke::SpanAttributeWriter<float> point_opacities = attributes.lookup_or_add_for_write_span<float>(
       "opacity", bke::AttrDomain::Point);
+
+  if (curves_range.size() != 1) {
+    bke::SpanAttributeWriter<int> shape_ids = attributes.lookup_or_add_for_write_span<int>(
+        "shape_id", bke::AttrDomain::Curve);
+
+    /* Add one to avoid zero. */
+    shape_ids.span.slice(curves_range).fill(shape_index + 1);
+    shape_ids.finish();
+  }
 
   materials.span.slice(curves_range).fill(material_index);
   const ColorGeometry4f shape_color = convert_svg_color(shape.fill);
@@ -330,6 +340,7 @@ bool SVGImporter::read(StringRefNull filepath)
   /* Loop all shapes. */
   std::string prv_id = "*";
   int prefix = 0;
+  int shape_index = 0;
   for (NSVGshape *shape = svg_data->shapes; shape; shape = shape->next) {
     std::string layer_id = get_layer_id(*shape, prefix);
     if (prv_id != layer_id) {
@@ -375,8 +386,10 @@ bool SVGImporter::read(StringRefNull filepath)
       continue;
     }
 
-    shape_attributes_to_curves(curves, *shape, new_curves_range, transform, material_index);
+    shape_attributes_to_curves(
+        curves, *shape, new_curves_range, transform, material_index, shape_index);
     drawing->strokes_for_write() = std::move(curves);
+    shape_index++;
   }
 
   /* Free SVG memory. */
