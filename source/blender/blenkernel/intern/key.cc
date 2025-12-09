@@ -836,15 +836,20 @@ static void cp_cu_key(Curve *cu,
 
 /**
  * Copy a subset of the given shapekey `source` into `r_target`.
+ *
+ * \param range is the range of vertices to copy. Each is considered to be a float3.
  */
-static void copy_key_float3_range(
-    const int start, const int count, Key *key, KeyBlock *source, float *r_target)
+static void copy_key_float3_range(const blender::IndexRange range,
+                                  Key *key,
+                                  KeyBlock *source,
+                                  float *r_target)
 {
   char *free_keyblock_data;
   float *keyblock_data = reinterpret_cast<float *>(
       key_block_get_data(key, source, key->refkey, &free_keyblock_data));
 
-  memcpy(&r_target[start], &keyblock_data[start], count * 3);
+  memcpy(
+      &r_target[range.start()], &keyblock_data[range.start()], range.size() * 3 * sizeof(float));
 
   if (free_keyblock_data) {
     MEM_freeN(free_keyblock_data);
@@ -884,7 +889,7 @@ static void key_evaluate_relative_float3(Key *key,
                                          float *target_data)
 {
   /* Creates the basis values of the reference key in target_data. */
-  copy_key_float3_range(range.first(), range.size(), key, key->refkey, target_data);
+  copy_key_float3_range(range, key, key->refkey, target_data);
 
   int keyblock_index = 0;
   LISTBASE_FOREACH_INDEX (KeyBlock *, kb, &key->block, keyblock_index) {
