@@ -1,3 +1,4 @@
 Referenced by issue #146945, 5.0 isnt creating the principal shader and output nodes on new material created via script
 Referenced by pull request #148757, Fix: Improper duplicate material handling in USD import
 Referenced by commit fab9993ca8fff35fe958d4058aed0ca762cc4e4d, Fix: Improper duplicate material handling in USD import
+Referenced by issue #151290, FBX and glTF export trgws error when linked material is missing
