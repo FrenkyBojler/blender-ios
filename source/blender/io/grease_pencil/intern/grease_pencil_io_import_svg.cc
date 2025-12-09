@@ -200,7 +200,7 @@ static void shape_attributes_to_curves(bke::CurvesGeometry &curves,
   bke::SpanAttributeWriter<float> point_opacities = attributes.lookup_or_add_for_write_span<float>(
       "opacity", bke::AttrDomain::Point);
 
-  if (curves_range.size() != 1) {
+  if (curves_range.size() > 1) {
     bke::SpanAttributeWriter<int> shape_ids = attributes.lookup_or_add_for_write_span<int>(
         "shape_id", bke::AttrDomain::Curve);
 
