@@ -54,6 +54,7 @@
 #include "ED_view3d.hh"
 
 /* For IMB_BlendMode only. */
+#include "BKE_global.hh"
 #include "IMB_imbuf.hh"
 
 #include "bmesh.hh"
@@ -1809,7 +1810,6 @@ static void wpaint_stroke_update_step(bContext *C,
   vc = &wpd->vc;
   ob = vc->obact;
 
-  view3d_operator_needs_gpu(C);
   ED_view3d_init_mats_rv3d(ob, vc->rv3d);
 
   mul_m4_m4m4(mat, vc->rv3d->persmat, ob->object_to_world().ptr());
@@ -1894,6 +1894,10 @@ static void wpaint_stroke_done(const bContext *C, PaintStroke * /*stroke*/, bool
 
 static wmOperatorStatus wpaint_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
+  if (!G.background) {
+    view3d_operator_needs_gpu(C);
+  }
+
   op->customdata = paint_stroke_new(C,
                                     op,
                                     stroke_get_location_bvh,

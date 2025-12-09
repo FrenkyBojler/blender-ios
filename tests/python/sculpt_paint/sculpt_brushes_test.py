@@ -82,6 +82,32 @@ def generate_stroke(context, start_over_mesh=False):
     return stroke
 
 
+def get_attribute_data(
+        attribute_name='position',
+        attribute_domain='POINT',
+        attribute_size=3,
+        attribute_type=np.float32,
+        is_color=False):
+    mesh = bpy.context.object.data
+
+    num_elements = mesh.attributes.domain_size(attribute_domain)
+    attribute_data = np.zeros((num_elements * attribute_size), dtype=attribute_type)
+
+    attribute = mesh.attributes.get(attribute_name)
+    if is_color:
+        meta_attribute = 'color'
+    else:
+        if attribute_size > 1:
+            meta_attribute = 'vector'
+        else:
+            meta_attribute = 'value'
+
+    if attribute:
+        attribute.data.foreach_get(meta_attribute, np.ravel(attribute_data))
+
+    return attribute_data
+
+
 class MeshBrushTests(unittest.TestCase):
     """
     Test that none of the included brushes create NaN or inf valued vertices
@@ -98,37 +124,11 @@ class MeshBrushTests(unittest.TestCase):
             relative_asset_identifier='brushes/essentials_brushes-mesh_sculpt.blend/Brush/{}'.format(brush))
         self.assertEqual({'FINISHED'}, result)
 
-    @staticmethod
-    def _get_attribute_data(
-            attribute_name='position',
-            attribute_domain='POINT',
-            attribute_size=3,
-            attribute_type=np.float32,
-            is_color=False):
-        mesh = bpy.context.object.data
-
-        num_elements = mesh.attributes.domain_size(attribute_domain)
-        attribute_data = np.zeros((num_elements * attribute_size), dtype=attribute_type)
-
-        attribute = mesh.attributes.get(attribute_name)
-        if is_color:
-            meta_attribute = 'color'
-        else:
-            if attribute_size > 1:
-                meta_attribute = 'vector'
-            else:
-                meta_attribute = 'value'
-
-        if attribute:
-            attribute.data.foreach_get(meta_attribute, np.ravel(attribute_data))
-
-        return attribute_data
-
     def _check_stroke(self, start_over_mesh=False):
         # Ideally, we would use something like pytest and parameterized tests here, but this helper function is an
         # alright solution for now...
 
-        initial_data = self._get_attribute_data()
+        initial_data = get_attribute_data()
 
         context_override = bpy.context.copy()
         set_view3d_context_override(context_override)
@@ -139,7 +139,7 @@ class MeshBrushTests(unittest.TestCase):
                     start_over_mesh),
                 override_location=True)
 
-        new_data = self._get_attribute_data()
+        new_data = get_attribute_data()
 
         # Note, depending on if the tests are run with asserts enabled or not, the test may fail before this point
         # inside blender itself.
@@ -149,7 +149,7 @@ class MeshBrushTests(unittest.TestCase):
         self.assertTrue(any_different, "At least one position should be different from its original value")
 
     def _check_mask_stroke(self):
-        initial_data = self._get_attribute_data(
+        initial_data = get_attribute_data(
             attribute_name='.sculpt_mask',
             attribute_domain='POINT',
             attribute_size=1,
@@ -160,7 +160,7 @@ class MeshBrushTests(unittest.TestCase):
         with bpy.context.temp_override(**context_override):
             bpy.ops.sculpt.brush_stroke(stroke=generate_stroke(context_override), override_location=True)
 
-        new_data = self._get_attribute_data(
+        new_data = get_attribute_data(
             attribute_name='.sculpt_mask',
             attribute_domain='POINT',
             attribute_size=1,
@@ -174,7 +174,7 @@ class MeshBrushTests(unittest.TestCase):
         self.assertTrue(any_different, "At least one mask should be different from its original value")
 
     def _check_face_set_stroke(self):
-        initial_data = self._get_attribute_data(
+        initial_data = get_attribute_data(
             attribute_name='.sculpt_face_set',
             attribute_domain='FACE',
             attribute_size=1,
@@ -185,7 +185,7 @@ class MeshBrushTests(unittest.TestCase):
         with bpy.context.temp_override(**context_override):
             bpy.ops.sculpt.brush_stroke(stroke=generate_stroke(context_override), override_location=True)
 
-        new_data = self._get_attribute_data(
+        new_data = get_attribute_data(
             attribute_name='.sculpt_face_set',
             attribute_domain='FACE',
             attribute_size=1,
@@ -199,7 +199,7 @@ class MeshBrushTests(unittest.TestCase):
         self.assertTrue(any_different, "At least one face set should be different from its original value")
 
     def _check_paint_stroke(self):
-        initial_data = self._get_attribute_data(
+        initial_data = get_attribute_data(
             attribute_name='Color',
             attribute_domain='POINT',
             attribute_size=4,
@@ -211,7 +211,7 @@ class MeshBrushTests(unittest.TestCase):
         with bpy.context.temp_override(**context_override):
             bpy.ops.sculpt.brush_stroke(stroke=generate_stroke(context_override), override_location=True)
 
-        new_data = self._get_attribute_data(
+        new_data = get_attribute_data(
             attribute_name='Color',
             attribute_domain='POINT',
             attribute_size=4,

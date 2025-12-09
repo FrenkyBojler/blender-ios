@@ -82,6 +82,25 @@ def generate_stroke(context, start_over_mesh=False):
     return stroke
 
 
+def get_attribute_data(
+        attribute_name='Attribute',
+        attribute_domain='CORNER',
+        attribute_size=4,
+        attribute_type=np.float32):
+    mesh = bpy.context.object.data
+
+    num_elements = mesh.attributes.domain_size(attribute_domain)
+    attribute_data = np.zeros((num_elements * attribute_size), dtype=attribute_type)
+
+    attribute = mesh.attributes.get(attribute_name)
+    meta_attribute = 'color'
+
+    if attribute:
+        attribute.data.foreach_get(meta_attribute, np.ravel(attribute_data))
+
+    return attribute_data
+
+
 class MeshBrushTests(unittest.TestCase):
     """
     Test that none of the included brushes create NaN or inf valued vertices
@@ -98,34 +117,15 @@ class MeshBrushTests(unittest.TestCase):
             relative_asset_identifier='brushes/essentials_brushes-mesh_vertex.blend/Brush/{}'.format(brush))
         self.assertEqual({'FINISHED'}, result)
 
-    @staticmethod
-    def _get_attribute_data(
-            attribute_name='Attribute',
-            attribute_domain='CORNER',
-            attribute_size=4,
-            attribute_type=np.float32):
-        mesh = bpy.context.object.data
-
-        num_elements = mesh.attributes.domain_size(attribute_domain)
-        attribute_data = np.zeros((num_elements * attribute_size), dtype=attribute_type)
-
-        attribute = mesh.attributes.get(attribute_name)
-        meta_attribute = 'color'
-
-        if attribute:
-            attribute.data.foreach_get(meta_attribute, np.ravel(attribute_data))
-
-        return attribute_data
-
     def _check_paint_stroke(self):
-        initial_data = self._get_attribute_data()
+        initial_data = get_attribute_data()
 
         context_override = bpy.context.copy()
         set_view3d_context_override(context_override)
         with bpy.context.temp_override(**context_override):
             bpy.ops.paint.vertex_paint(stroke=generate_stroke(context_override), override_location=True)
 
-        new_data = self._get_attribute_data()
+        new_data = get_attribute_data()
 
         # Note, depending on if the tests are run with asserts enabled or not, the test may fail before this point
         # inside blender itself.
