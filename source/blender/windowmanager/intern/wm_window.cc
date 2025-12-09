@@ -1836,7 +1836,7 @@ static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr C
 
       wm_window_make_drawable(wm, win);
 
-      /* When using CSD, the un-maxizmied state and maximized state has different padding.
+      /* When using CSD, the un-maximized state and maximized state has different padding.
        * We need to redraw the content of the window to make sure it fits with the new padding. */
       WM_event_add_notifier_ex(wm, win, NC_SCREEN | NA_EDITED, nullptr);
       WM_event_add_notifier_ex(wm, win, NC_WINDOW | NA_EDITED, nullptr);

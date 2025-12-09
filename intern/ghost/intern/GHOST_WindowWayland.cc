@@ -934,7 +934,7 @@ static void gwl_window_frame_update_from_pending_no_lock(GWL_Window *win)
         /* NOTE(@ideasman42) This is not technically correct because after the
          * re-configure the pointer could be over some other element of the window,
          * however the down side would be fairly unlikely to redo.
-         * An example would be: double click to maximize, with the the title-bar
+         * An example would be: double click to maximize, with the title-bar
          * already at the top of the output, then (without moving the pointer),
          * double click on the title-bar again. This would fail to un-maximize.
          * Given the issue is quite obscure and not actually part of a "reasonable" use case.

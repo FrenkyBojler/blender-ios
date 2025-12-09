@@ -395,7 +395,7 @@ if(UNIX AND NOT (APPLE OR HAIKU))
   mark_as_advanced(WITH_GHOST_WAYLAND)
 
   if(WITH_GHOST_WAYLAND)
-    option(WITH_GHOST_CSD "Enable cient side decorations with Wayland" ON)
+    option(WITH_GHOST_CSD "Enable client side decorations with Wayland" ON)
     mark_as_advanced(WITH_GHOST_CSD)
 
     option(WITH_GHOST_WAYLAND_DYNLOAD "Enable runtime dynamic WAYLAND libraries loading" ON)
