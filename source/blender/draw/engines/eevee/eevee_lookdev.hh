@@ -50,10 +50,12 @@ using blender::draw::View;
  * \{ */
 struct LookdevParameters {
   std::string hdri;
+  float rot_z = 0.0f;
   float background_opacity = 0.0f;
   float intensity = 1.0f;
   float blur = 0.0f;
   bool show_scene_world = true;
+  bool camera_space = true;
 
   LookdevParameters();
   LookdevParameters(const ::View3D *v3d);
@@ -73,6 +75,9 @@ class LookdevWorld {
  private:
   bNode *environment_node_ = nullptr;
   bNodeSocketValueFloat *intensity_socket_ = nullptr;
+  bNodeSocketValueFloat *angle_socket_ = nullptr;
+  /* Vector transform socket `convert_to`. */
+  int *xform_socket_ = nullptr;
   ::Image *image = nullptr;
   ::World *world = nullptr;
 
