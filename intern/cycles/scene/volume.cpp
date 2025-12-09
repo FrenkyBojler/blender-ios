@@ -1065,7 +1065,7 @@ void VolumeManager::flatten_octree(DeviceScene *dscene, const Scene *scene) cons
             << "Mb.";
 }
 
-/* Dump octree as python script, enabled by CYCLES_VOLUME_OCTREE_DUMP environment variable. */
+/* Dump octree as python script, enabled by `CYCLES_VOLUME_OCTREE_DUMP` environment variable. */
 std::string VolumeManager::visualize_octree(const char *filename) const
 {
   const std::string filename_full = path_join(OIIO::Filesystem::current_path(), filename);
