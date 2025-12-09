@@ -75,7 +75,13 @@ static FTC_CMapCache ftc_charmap_cache = nullptr;
 /* Lock for FreeType library, used around face creation and deletion. */
 static blender::Mutex ft_lib_mutex;
 
-/* May be set to #UI_widgetbase_draw_cache_flush. */
+/* Lock around places that query free type caching system, and use the
+ * calculated ft_size result. `FTC_Manager_LookupSize` can remove
+ * ft_size of a completely different font instance, when the cache
+ * is full! */
+static blender::Mutex ft_cache_size_mutex;
+
+/* May be set to #widgetbase_draw_cache_flush. */
 static void (*blf_draw_cache_flush)() = nullptr;
 
 static ft_pix blf_font_height_max_ft_pix(FontBLF *font);
@@ -471,7 +477,6 @@ bool ShapingData::next_segment()
       }
     }
   }
-
   /* End of string. */
   if (!this->visual_str[i]) {
     this->segment.current_script = this->segment.last_script;
@@ -513,16 +518,13 @@ bool ShapingData::process(FontBLF *font, GlyphCacheBLF *gc, ResultBLF *r_info)
   for (unsigned int i = 0; i < this->segment.glyph_count; i++) {
     this->segment.hb_glyph_info[i].cluster = (uint32_t)(this->segment.char_offset + i);
   }
-
   hb_buffer_guess_segment_properties(this->hb_buf);
   hb_segment_properties_t props;
   hb_buffer_get_segment_properties(this->hb_buf, &props);
-
   if (ELEM(props.script, HB_SCRIPT_HAN)) {
     const char *lang = BLT_lang_get();
     hb_buffer_set_language(this->hb_buf, hb_language_from_string(lang, -1));
   }
-
   hb_buffer_set_cluster_level(this->hb_buf, HB_BUFFER_CLUSTER_LEVEL_MONOTONE_CHARACTERS);
   /* Can the current font handle this script? */
   if (!ELEM(
@@ -535,14 +537,10 @@ bool ShapingData::process(FontBLF *font, GlyphCacheBLF *gc, ResultBLF *r_info)
     this->segment.font->hb_font = hb_ft_font_create_referenced(this->segment.font->face);
     hb_ot_font_set_funcs(this->segment.font->hb_font);
   }
-
   hb_font_set_scale(this->segment.font->hb_font, int(font->size * 64.0f), int(font->size * 64.0f));
-
   std::vector<hb_feature_t> features;
-
   /* Enable for all fonts when not monospacing. */
   blf_ot_feature(features, HB_TAG('k', 'e', 'r', 'n'), U.text_render & USER_TEXT_KERNING);
-
   /* Should be per-font. */
   blf_ot_feature(features, HB_TAG('z', 'e', 'r', 'o'), U.text_render & USER_TEXT_SLASHED_ZERO);
   blf_ot_feature(
@@ -550,14 +548,11 @@ bool ShapingData::process(FontBLF *font, GlyphCacheBLF *gc, ResultBLF *r_info)
   blf_ot_feature(
       features, HB_TAG('d', 'l', 'i', 'g'), U.text_render & USER_TEXT_DISCRETIONARY_LIGATURES);
   blf_ot_feature(features, HB_TAG('t', 'n', 'u', 'm'), U.text_render & USER_TEXT_TABULAR_NUMBERS);
-
   /* Specifically for Inter. */
   blf_ot_feature(features, HB_TAG('s', 's', '0', '1'), U.text_render & USER_TEXT_OPEN_DIGITS);
   blf_ot_feature(features, HB_TAG('s', 's', '0', '4'), U.text_render & USER_TEXT_DISAMBIGUATION);
-
   hb_shape_full(
       this->segment.font->hb_font, this->hb_buf, features.data(), uint(features.size()), nullptr);
-
   this->segment.hb_glyph_info = hb_buffer_get_glyph_infos(this->hb_buf,
                                                           &this->segment.glyph_count);
   this->segment.glyph_pos = hb_buffer_get_glyph_positions(this->hb_buf, nullptr);
@@ -576,7 +571,6 @@ bool ShapingData::process(FontBLF *font, GlyphCacheBLF *gc, ResultBLF *r_info)
   for (uint i = 0; i < this->segment.glyph_count; i++) {
     uint32_t glyph_id = this->segment.hb_glyph_info[i].codepoint;
     char32_t codepoint = this->visual_str[this->segment.hb_glyph_info[i].cluster];
-
     GlyphBLF *g = blf_glyph_ensure(this->segment.font, this->segment.gc, codepoint, glyph_id);
     this->segment.glyphs[i] = g;
     if (UNLIKELY(g == nullptr)) {
@@ -632,7 +626,9 @@ static void blf_font_draw_ex(FontBLF *font,
   ft_pix pen_x = 0;
 
   ShapingData text(str, str_len);
+
   blf_batch_draw_begin(font);
+
   while (text.process(font, gc, r_info)) {
     for (uint i = 0; i < text.segment.glyph_count; i++) {
       if (text.segment.glyphs[i]) {
@@ -645,12 +641,17 @@ static void blf_font_draw_ex(FontBLF *font,
       pen_x += text.segment.glyph_pos[i].x_advance;
     }
   }
+
   if (!g_batch.active) {
     blf_batch_draw();
   }
   blf_batch_draw_end();
-}
 
+  if (r_info) {
+    r_info->lines = 1;
+    r_info->width = ft_pix_to_int(pen_x);
+  }
+}
 void blf_font_draw(FontBLF *font, const char *str, const size_t str_len, ResultBLF *r_info)
 {
   GlyphCacheBLF *gc = blf_glyph_cache_acquire(font);
@@ -1077,6 +1078,7 @@ static void blf_font_boundbox_ex(FontBLF *font,
   if (!str[0] || !str_len) {
     return;
   }
+
   ShapingData text(str, str_len);
   r_box->xmin = 0;
   r_box->xmax = INT32_MIN;
@@ -1084,14 +1086,15 @@ static void blf_font_boundbox_ex(FontBLF *font,
   r_box->ymax = INT32_MIN;
   while (text.process(font, gc, nullptr)) {
   }
+
   r_box->xmax = std::max(r_box->xmax, text.width);
   r_box->ymax = std::max(r_box->ymax, text.height);
+
   if (r_info) {
     r_info->lines = 1;
     r_info->width = r_box->xmax;
   }
 }
-
 void blf_font_boundbox(
     FontBLF *font, const char *str, const size_t str_len, rcti *r_box, ResultBLF *r_info)
 {
@@ -1233,6 +1236,7 @@ void blf_font_boundbox_foreach_glyph(FontBLF *font,
       pen_x += text.segment.glyph_pos[i].x_advance;
     }
   }
+
   blf_glyph_cache_release(font);
 }
 
@@ -1678,6 +1682,7 @@ blender::Vector<blender::StringRef> blf_font_string_wrap(FontBLF *font,
 
 static ft_pix blf_font_height_max_ft_pix(FontBLF *font)
 {
+  std::lock_guard lock(ft_cache_size_mutex);
   blf_ensure_size(font);
   /* #Metrics::height is rounded to pixel. Force minimum of one pixel. */
   return std::max((ft_pix)font->ft_size->metrics.height, ft_pix_from_int(1));
@@ -1690,6 +1695,7 @@ int blf_font_height_max(FontBLF *font)
 
 static ft_pix blf_font_width_max_ft_pix(FontBLF *font)
 {
+  std::lock_guard lock(ft_cache_size_mutex);
   blf_ensure_size(font);
   /* #Metrics::max_advance is rounded to pixel. Force minimum of one pixel. */
   return std::max((ft_pix)font->ft_size->metrics.max_advance, ft_pix_from_int(1));
@@ -1702,12 +1708,14 @@ int blf_font_width_max(FontBLF *font)
 
 int blf_font_descender(FontBLF *font)
 {
+  std::lock_guard lock(ft_cache_size_mutex);
   blf_ensure_size(font);
   return ft_pix_to_int((ft_pix)font->ft_size->metrics.descender);
 }
 
 int blf_font_ascender(FontBLF *font)
 {
+  std::lock_guard lock(ft_cache_size_mutex);
   blf_ensure_size(font);
   return ft_pix_to_int((ft_pix)font->ft_size->metrics.ascender);
 }
@@ -2321,6 +2329,7 @@ bool blf_font_size(FontBLF *font, float size)
 
   if (font->size != size) {
     if (font->flags & BLF_CACHED) {
+      std::lock_guard lock(ft_cache_size_mutex);
       FTC_ScalerRec scaler = {nullptr};
       scaler.face_id = font;
       scaler.width = 0;
