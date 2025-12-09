@@ -273,7 +273,9 @@ float raytrace_screen_2(float3 vs_origin,
                         sampler2D hiz_tx,
                         float thickness,
                         int max_steps,
-                        float jitter)
+                        float jitter,
+                        usampler2D object_id_tx,
+                        uint object_id)
 {
   /* Convert ray start and end into NDC for correct interpolation. */
   float4 start, end;
@@ -303,12 +305,17 @@ float raytrace_screen_2(float3 vs_origin,
     float step_t = min(float(i) + jitter, max_t);
     float4 step = start + delta * step_t;
 
+    float2 texel = step.xy * extent;
+    if (object_id != 0 && object_id != texelFetch(object_id_tx, int2(texel), 0).r) {
+      previous_step_z = step.z;
+      continue;
+    }
+
     /* Trick to prevent depth aliasing,
      * from "Rendering Tiny Glades With Entirely Too Much Ray Marching":
      * - Fetch depth using both point and linear sampling.
      * - Use the furthest one for intersection check.
      * - Use the closest one for thickness check. */
-    float2 texel = step.xy * extent;
     float hit_depth_point = texelFetch(hiz_tx, int2(texel), 0).r;
     float2 uv = step.xy * uniform_buf.hiz.uv_scale;
     float4 depth4 = textureGather(hiz_tx, uv);

@@ -11,6 +11,10 @@ SHADER_LIBRARY_CREATE_INFO(eevee_global_ubo)
 SHADER_LIBRARY_CREATE_INFO(eevee_utility_texture)
 SHADER_LIBRARY_CREATE_INFO(eevee_hiz_data)
 
+#ifdef OBJECT_ID_TEX
+SHADER_LIBRARY_CREATE_INFO(eevee_object_id)
+#endif
+
 #include "draw_model_lib.glsl"
 #include "draw_object_infos_lib.glsl"
 #include "draw_view_lib.glsl"
@@ -294,6 +298,7 @@ float ambient_occlusion_eval(float3 normal,
 void raycast_eval(float3 position,
                   float3 direction,
                   float max_distance,
+                  bool self_only,
                   inout bool is_hit,
                   inout float3 hit_position,
                   inout float hit_distance)
@@ -304,7 +309,7 @@ void raycast_eval(float3 position,
 
   direction = normalize(direction);
 
-#if defined(GPU_FRAGMENT_SHADER) && (defined(MAT_DEFERRED) || defined(MAT_FORWARD))
+#if defined(GPU_FRAGMENT_SHADER) && defined(OBJECT_ID_TEX)
   float3 ws_start = position;
   float3 ws_end = position + direction * max_distance;
   if (!clip_ray(
@@ -326,7 +331,9 @@ void raycast_eval(float3 position,
                                    hiz_tx,
                                    thickness,
                                    64,
-                                   jitter);
+                                   jitter,
+                                   object_id_tx,
+                                   self_only ? drw_resource_id() & 0xFFFF : 0);
   if (result >= 0.0f) {
     is_hit = true;
     hit_position = ws_start + direction * result;

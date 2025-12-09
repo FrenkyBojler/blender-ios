@@ -37,6 +37,8 @@ static int node_shader_gpu(GPUMaterial *mat,
                            GPUNodeStack *in,
                            GPUNodeStack *out)
 {
+  GPU_material_flag_set(mat, GPU_MATFLAG_RAYCAST);
+
   if (!in[0].link) {
     GPU_link(mat, "world_position_get", &in[0].link);
   }
@@ -45,6 +47,9 @@ static int node_shader_gpu(GPUMaterial *mat,
     GPU_link(mat, "world_normals_get", &in[1].link);
   }
 
+  if (bool only_local = node->custom1) {
+    return GPU_stack_link(mat, node, "node_raycast_only_local", in, out);
+  }
   return GPU_stack_link(mat, node, "node_raycast", in, out);
 }
 

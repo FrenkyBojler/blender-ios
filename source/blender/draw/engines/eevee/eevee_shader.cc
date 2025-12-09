@@ -842,6 +842,20 @@ void ShaderModule::material_create_info_amend(GPUMaterial *gpumat, GPUCodegenOut
     }
   }
 
+  if (GPU_material_flag_get(gpumat, GPU_MATFLAG_RAYCAST)) {
+    if (ELEM(pipeline_type,
+             eMaterialPipeline::MAT_PIPE_PREPASS_DEFERRED,
+             eMaterialPipeline::MAT_PIPE_PREPASS_DEFERRED_VELOCITY,
+             eMaterialPipeline::MAT_PIPE_PREPASS_FORWARD,
+             eMaterialPipeline::MAT_PIPE_PREPASS_FORWARD_VELOCITY))
+    {
+      info.additional_info("eevee_object_id_out");
+    }
+    else if (ELEM(pipeline_type, MAT_PIPE_DEFERRED, MAT_PIPE_FORWARD)) {
+      info.additional_info("eevee_object_id");
+    }
+  }
+
   SlotAllocator slots = add_pipeline_create_info(
       info, pipeline_type, geometry_type, use_shader_to_rgba);
 

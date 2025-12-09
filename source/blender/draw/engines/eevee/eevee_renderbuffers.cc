@@ -63,10 +63,11 @@ void RenderBuffers::acquire(int2 extent)
     return (enabled_passes & pass_bit) ? extent : int2(1);
   };
 
-  eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT;
+  eGPUTextureUsage usage_attachment_read = GPU_TEXTURE_USAGE_SHADER_READ |
+                                           GPU_TEXTURE_USAGE_ATTACHMENT;
 
   /* Depth and combined are always needed. */
-  depth_tx.ensure_2d(gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8, extent, usage);
+  depth_tx.ensure_2d(gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8, extent, usage_attachment_read);
   /* TODO(fclem): depth_tx should ideally be a texture from pool but we need stencil_view
    * which is currently unsupported by pool textures. */
   // depth_tx.acquire(extent, gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8);
@@ -78,6 +79,8 @@ void RenderBuffers::acquire(int2 extent)
 
   /* TODO(fclem): Make vector pass allocation optional if no TAA or motion blur is needed. */
   vector_tx.acquire(extent, vector_tx_format(), usage_attachment_read_write);
+  /* TODO: Make allocation optional if raycasts (or SSS?) are used. */
+  object_id_tx.acquire(extent, object_id_format, usage_attachment_read);
 
   const bool do_motion_vectors_swizzle = vector_tx_format() == gpu::TextureFormat::SFLOAT_16_16;
   if (do_motion_vectors_swizzle) {
@@ -118,6 +121,7 @@ void RenderBuffers::release()
     GPU_texture_swizzle_set(vector_tx, "rgba");
   }
   vector_tx.release();
+  object_id_tx.release();
 
   cryptomatte_tx.release();
 }

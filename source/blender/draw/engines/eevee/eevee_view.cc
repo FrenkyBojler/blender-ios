@@ -96,7 +96,8 @@ void ShadingView::render()
   combined_fb_.ensure(GPU_ATTACHMENT_TEXTURE(rbufs.depth_tx),
                       GPU_ATTACHMENT_TEXTURE(rbufs.combined_tx));
   prepass_fb_.ensure(GPU_ATTACHMENT_TEXTURE(rbufs.depth_tx),
-                     GPU_ATTACHMENT_TEXTURE(rbufs.vector_tx));
+                     GPU_ATTACHMENT_TEXTURE(rbufs.vector_tx),
+                     GPU_ATTACHMENT_TEXTURE(rbufs.object_id_tx));
 
   GBuffer &gbuf = inst_.gbuffer;
   gbuf.acquire(extent_,
@@ -114,9 +115,10 @@ void ShadingView::render()
   /* If camera has any motion, compute motion vector in the film pass. Otherwise, we avoid float
    * precision issue by setting the motion of all static geometry to 0. */
   float4 clear_velocity = float4(inst_.velocity.camera_has_motion() ? VELOCITY_INVALID : 0.0f);
+  GPU_texture_clear(rbufs.vector_tx, GPU_DATA_FLOAT, &clear_velocity);
+  uint clear_id = 0;
+  GPU_texture_clear(rbufs.object_id_tx, GPU_DATA_UINT, &clear_id);
 
-  GPU_framebuffer_bind(prepass_fb_);
-  GPU_framebuffer_clear_color(prepass_fb_, clear_velocity);
   /* Alpha stores transmittance. So start at 1. */
   float4 clear_color = {0.0f, 0.0f, 0.0f, 1.0f};
   GPU_framebuffer_bind(combined_fb_);
@@ -352,7 +354,8 @@ void CaptureView::render_probes()
 
     inst_.render_buffers.vector_tx.clear(float4(0.0f));
     prepass_fb.ensure(GPU_ATTACHMENT_TEXTURE(inst_.render_buffers.depth_tx),
-                      GPU_ATTACHMENT_TEXTURE(inst_.render_buffers.vector_tx));
+                      GPU_ATTACHMENT_TEXTURE(inst_.render_buffers.vector_tx),
+                      GPU_ATTACHMENT_TEXTURE(inst_.render_buffers.object_id_tx));
 
     inst_.gbuffer.acquire(extent,
                           inst_.pipelines.probe.header_layer_count(),
