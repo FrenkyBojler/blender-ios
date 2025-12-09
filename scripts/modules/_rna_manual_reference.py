@@ -1530,6 +1530,7 @@ url_manual_mapping = (
     ("bpy.types.spaceuveditor.tile_grid_shape*", "editors/uv/overlays.html#bpy-types-spaceuveditor-tile-grid-shape"),
     ("bpy.types.spaceuveditor.use_live_unwrap*", "modeling/meshes/uv/editing.html#bpy-types-spaceuveditor-use-live-unwrap"),
     ("bpy.types.spaceuveditor.uv_face_opacity*", "editors/uv/overlays.html#bpy-types-spaceuveditor-uv-face-opacity"),
+    ("bpy.types.spaceuveditor.uv_edge_opacity*", "editors/uv/overlays.html#bpy-types-spaceuveditor-uv-edge-opacity"),
     ("bpy.types.spaceview3d.show_bundle_names*", "editors/3dview/display/overlays.html#bpy-types-spaceview3d-show-bundle-names"),
     ("bpy.types.spaceview3d.use_render_border*", "editors/3dview/sidebar.html#bpy-types-spaceview3d-use-render-border"),
     ("bpy.types.stripmodifier.input_mask_type*", "editors/video_sequencer/sequencer/sidebar/modifiers.html#bpy-types-stripmodifier-input-mask-type"),
