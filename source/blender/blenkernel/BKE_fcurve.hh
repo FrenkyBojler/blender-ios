@@ -600,7 +600,7 @@ void BKE_fcurve_correct_bezpart(const float v1[2], float v2[2], float v3[2], con
 /* -------- Evaluation -------- */
 
 /**
- * Evaluate a non-driver F-Curve
+ * Evaluate a non-driver F-Curve.
  */
 float evaluate_fcurve(const FCurve *fcu, float evaltime);
 /**

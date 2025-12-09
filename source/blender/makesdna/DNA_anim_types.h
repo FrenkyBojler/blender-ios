@@ -188,7 +188,7 @@ struct FMod_Stepped {
 typedef struct FMod_Smooth {
   /**
    * The shape of the Gaussian distribution in frames. Lower values will make it sharper.
-   * This can be any positive value.
+   * This can be any value > 0.
    */
   float sigma;
 
