@@ -33,6 +33,7 @@
 #include "BKE_context.hh"
 #include "BKE_customdata.hh"
 #include "BKE_editmesh.hh"
+#include "BKE_image.hh"
 #include "BKE_layer.hh"
 #include "BKE_main_invariants.hh"
 #include "BKE_material.hh"
@@ -1082,25 +1083,39 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
   UVTexelLock lock = (UVTexelLock)RNA_enum_get(op->ptr, "lock");
-  bool selected_faces = RNA_boolean_get(op->ptr, "use_selected_faces");
-  bool custom_density = RNA_boolean_get(op->ptr, "use_custom_density");
+  bool use_active_object = RNA_boolean_get(op->ptr, "use_active_object");
 
-  bool custom_resolution = RNA_boolean_get(op->ptr, "use_custom_resolution");
   Object *active_object = CTX_data_active_object(C);
   BMEditMesh *em = BKE_editmesh_from_object(active_object);
   BMesh *bm = em->bm;
   BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
-  int width, height;
   float density;
-  if (custom_resolution) {
-    width = RNA_int_get(op->ptr, "width");
-    height = RNA_int_get(op->ptr, "height");
+  int width = 1024;
+  int height = 1024;
+
+  if (sima && sima->image) {
+    ImageTile *tile = BKE_image_get_tile(sima->image, sima->iuser.tile);
+    if (tile) {
+      width = tile->gen_x;
+      height = tile->gen_y;
+    }
+  }
+
+  if (use_active_object) {
+    float uv_area = 0.0f;
+    float object_area = 0.0f;
+    BMFace *f;
+    BMIter iter;
+    BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
+      if (uvedit_face_visible_test(scene, f)) {
+        uv_area += BM_face_calc_area_uv(f, offsets.uv);
+        object_area += BM_face_calc_area(f);
+      }
+    }
+    density = sqrt((region->v2d.tot.xmax * region->v2d.tot.ymax * uv_area) / object_area) /
+              scene->unit.scale_length;
   }
   else {
-    width = region->v2d.tot.xmax;
-    height = region->v2d.tot.ymax;
-  }
-  if (custom_density) {
     density = RNA_float_get(op->ptr, "density");
     UVTexelUnit unit = (UVTexelUnit)RNA_enum_get(op->ptr, "unit");
     if (unit == UVTexelUnit::Inch) {
@@ -1113,30 +1128,16 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
       density /= 0.3048;
     }
   }
-  else {
-    float uv_area = 0.0f;
-    float object_area = 0.0f;
-    BMFace *f;
-    BMIter iter;
-    BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
-      if (!selected_faces || (f->head.hflag & BM_ELEM_SELECT)) {
-        uv_area += BM_face_calc_area_uv(f, offsets.uv);
-        object_area += BM_face_calc_area(f);
-      }
-    }
-    density = sqrt((region->v2d.tot.xmax * region->v2d.tot.ymax * uv_area) / object_area) /
-              scene->unit.scale_length;
-  }
 
   float cent[2], min[2], max[2];
   for (Object *obedit : objects) {
-    if (!custom_density && obedit == active_object) {
+    if (use_active_object && obedit == active_object) {
       continue; /* Skip active object */
     }
     em = BKE_editmesh_from_object(obedit);
     bm = em->bm;
     if (bm->totvertsel == 0) {
-      continue; /* No selected vertices, nothing to do. */
+      continue;
     }
 
     float changed = false;
@@ -1191,37 +1192,25 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
   }
   return OPERATOR_FINISHED;
 }
-static void uv_apply_texel_density_draw(bContext * /*C*/, wmOperator *op)
+static void uv_apply_texel_density_draw(bContext *C, wmOperator *op)
 {
-  uiLayout *layout = op->layout;
+  ui::Layout &layout = *op->layout;
 
-  layout->use_property_split_set(true);
-  layout->use_property_decorate_set(false);
+  layout.use_property_split_set(true);
+  layout.use_property_decorate_set(false);
 
-  /* Main draw call */
   PointerRNA ptr = RNA_pointer_create_discrete(nullptr, op->type->srna, op->properties);
-  uiLayout *col;
-
-  col = &layout->column(true);
-  col->prop(&ptr, "use_custom_density", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col->separator();
-  if (RNA_boolean_get(op->ptr, "use_custom_density")) {
-    col->prop(&ptr, "density", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    col->prop(&ptr, "unit", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  ui::Layout &col = layout.column(true);
+  col.prop(&ptr, "lock", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.separator();
+  col.prop(&ptr, "use_active_object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  col.separator();
+  if (!RNA_boolean_get(op->ptr, "use_active_object")) {
+    col.prop(&ptr, "density", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col.prop(&ptr, "unit", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
-  else {
-    col->prop(&ptr, "use_selected_faces", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  }
-  col->separator();
-  col->prop(&ptr, "use_custom_resolution", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  if (RNA_boolean_get(op->ptr, "use_custom_resolution")) {
-    col->prop(&ptr, "width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    col->separator();
-    col->prop(&ptr, "height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  }
-  col->separator();
-  col->prop(&ptr, "lock", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
+
 static void UV_OT_apply_texel_density(wmOperatorType *ot)
 {
   PropertyRNA *prop;
@@ -1255,12 +1244,14 @@ static void UV_OT_apply_texel_density(wmOperatorType *ot)
 
   ot->ui = uv_apply_texel_density_draw;
 
+  RNA_def_enum(
+      ot->srna, "lock", lock_items, int(UVTexelLock::None), "Lock Axis", "Lock axis scaling");
   RNA_def_boolean(
-      ot->srna, "use_custom_density", false, "Custom Density", "Set a custom texel density");
+      ot->srna, "use_active_object", false, "Active Object", "Set density based on active object");
 
   RNA_def_float(ot->srna,
                 "density",
-                10.0f,
+                1024.0f,
                 0.0f,
                 FLT_MAX,
                 "Texel Density",
@@ -1270,20 +1261,6 @@ static void UV_OT_apply_texel_density(wmOperatorType *ot)
 
   RNA_def_enum(
       ot->srna, "unit", unit_items, int(UVTexelUnit::Meter), "Unit", "Custom density unit");
-  RNA_def_boolean(ot->srna,
-                  "use_selected_faces",
-                  false,
-                  "Selected Faces",
-                  "Only use selected faces on the active object");
-
-  RNA_def_enum(
-      ot->srna, "lock", lock_items, int(UVTexelLock::None), "Lock Axis", "Lock axis scaling");
-  RNA_def_boolean(
-      ot->srna, "use_custom_resolution", false, "Custom Resolution", "Custom Texture Resolution");
-  prop = RNA_def_int(ot->srna, "width", 1024, 1, INT_MAX, "Width", "Image width", 1, 16384);
-  RNA_def_property_subtype(prop, PROP_PIXEL);
-  prop = RNA_def_int(ot->srna, "height", 1024, 1, INT_MAX, "Height", "Image height", 1, 16384);
-  RNA_def_property_subtype(prop, PROP_PIXEL);
 }
 
 /** \} */
