@@ -8,3 +8,4 @@ Referenced by issue #149870, View aligned rotation gizmo seems to be inverted
 Referenced by pull request #149892, Fix #149870: Corrects inverted view aligned rotation gizmo
 Referenced by commit 3adf68b591cd5d1d8fb5055f7933174492de6b7d, Fix #149870: Correct inverted view aligned rotation gizmo
 Referenced by pull request #151219, Fix #151206: Crash When Switching From Normal Rotate to Transform Rotate
+Referenced by commit c481ba422114b4da92afb1f32901a67e9a512e50, Fix #151206: Crash When Switching From Normal Rotate to Transform Rotate
