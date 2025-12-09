@@ -478,7 +478,7 @@ static void foreach_value_in_internal_node(const IndexMaskSegment &segment,
 
 template<typename TreeT>
 static void foreach_value_in_tree(const IndexRange range,
-                                  const TreeT tree,
+                                  const TreeT &tree,
                                   const GridNodeIndexMapping &index_mapping,
                                   const GridValueOnOff active_filter,
                                   ForeachValueFn<typename TreeT::ValueType> fn)
@@ -594,7 +594,7 @@ template<typename T, typename TreeT> class VArrayImpl_For_GridValueBase : public
   template<typename Fn> T get_from_grid(const int64_t index, Fn fn) const
   {
 #  ifdef DEBUG_TIME
-    SCOPED_TIMER_AVERAGED(__func__);
+    SCOPED_TIMER(__func__);
 #  endif
     T result;
     foreach_value_in_tree(
