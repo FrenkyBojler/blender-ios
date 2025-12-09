@@ -42,7 +42,7 @@ def set_view3d_context_override(context_override):
                 context_override["region"] = region
 
 
-def generate_stroke(context):
+def generate_stroke(context, start_over_mesh = False):
     """
     Generate stroke for the bpy.ops.sculpt.brush_stroke operator
 
@@ -65,7 +65,11 @@ def generate_stroke(context):
     }
 
     num_steps = 100
-    start = Vector((context['area'].width, context['area'].height))
+    if start_over_mesh:
+        start = Vector((context['area'].width // 2, context['area'].height // 2))
+    else:
+        start = Vector((context['area'].width, context['area'].height))
+
     end = Vector((0, 0))
     delta = (end - start) / (num_steps - 1)
 
@@ -120,7 +124,7 @@ class MeshBrushTests(unittest.TestCase):
 
         return attribute_data
 
-    def _check_stroke(self):
+    def _check_stroke(self, start_over_mesh = False):
         # Ideally, we would use something like pytest and parameterized tests here, but this helper function is an
         # alright solution for now...
 
@@ -129,7 +133,7 @@ class MeshBrushTests(unittest.TestCase):
         context_override = bpy.context.copy()
         set_view3d_context_override(context_override)
         with bpy.context.temp_override(**context_override):
-            bpy.ops.sculpt.brush_stroke(stroke=generate_stroke(context_override), override_location=True)
+            bpy.ops.sculpt.brush_stroke(stroke=generate_stroke(context_override, start_over_mesh), override_location=True)
 
         new_data = self._get_attribute_data()
 
@@ -281,7 +285,6 @@ class MeshBrushTests(unittest.TestCase):
         self._activate_brush("Trim")
         self._check_stroke()
 
-    @unittest.skip("Needs specific positioning")
     def test_twist_brush_creates_valid_data(self):
         self._activate_brush("Boundary")
         self._check_stroke()
@@ -302,10 +305,10 @@ class MeshBrushTests(unittest.TestCase):
         self._activate_brush("Grab 2D")
         self._check_stroke()
 
-    @unittest.skip("Requires specific positioning")
+    @unittest.skip("Requires raycast")
     def test_grab_silhouette_brush_creates_valid_data(self):
         self._activate_brush("Grab Silhouette")
-        self._check_stroke()
+        self._check_stroke(start_over_mesh=True)
 
     def test_nudge_brush_creates_valid_data(self):
         self._activate_brush("Nudge")
@@ -315,10 +318,10 @@ class MeshBrushTests(unittest.TestCase):
         self._activate_brush("Pinch/Magnify")
         self._check_stroke()
 
-    @unittest.skip("Debug assert - needs further investigation")
+    @unittest.skip("Brush requires 'active_vert_index'")
     def test_pose_brush_creates_valid_data(self):
         self._activate_brush("Pose")
-        self._check_stroke()
+        self._check_stroke(start_over_mesh=True)
 
     def test_pull_brush_creates_valid_data(self):
         self._activate_brush("Pull")
@@ -340,10 +343,9 @@ class MeshBrushTests(unittest.TestCase):
         self._activate_brush("Thumb")
         self._check_stroke()
 
-    @unittest.skip("Needs specific positioning")
     def test_twist_brush_creates_valid_data(self):
         self._activate_brush("Twist")
-        self._check_stroke()
+        self._check_stroke(start_over_mesh=True)
 
     def test_mask_brush_creates_valid_data(self):
         self._activate_brush("Mask")
