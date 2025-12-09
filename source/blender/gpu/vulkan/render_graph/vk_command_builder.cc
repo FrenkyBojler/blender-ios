@@ -707,7 +707,6 @@ void VKCommandBuilder::add_image_write_barriers(VKRenderGraph &render_graph,
                              link.vk_image_layout,
                              r_barrier);
       }
-
       continue;
     }
 
