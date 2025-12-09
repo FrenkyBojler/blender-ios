@@ -1644,7 +1644,7 @@ int main(int argc, char **argv)
     includefiles = cli_include_files.data();
   }
 
-  /* Check tbe number of non-optional positional arguments. */
+  /* Check the number of non-optional positional arguments. */
   const int num_arguments = argc - arg_index;
   if (!ELEM(num_arguments, 4, 5)) {
     print_usage(argv[0]);
