@@ -1734,12 +1734,12 @@ class IMAGE_PT_overlay_uv_display(Panel):
         layout.active = overlay.show_overlays
 
         col = layout.column()
-        col.prop(uvedit, "show_uv")
-
         row = col.row(align=True)
-        row.active = uvedit.show_uv
-        row.prop(uvedit, "uv_face_opacity", text="Face Opacity")
-        row.prop(uvedit, "uv_edge_opacity", text="Edge Opacity")
+        row.prop(uvedit, "show_uv", text="")
+        sub = row.row()
+        sub.active = uvedit.show_uv
+        sub.prop(uvedit, "uv_face_opacity", text="Faces")
+        sub.prop(uvedit, "uv_edge_opacity", text="Edges")
 
 
 class IMAGE_PT_overlay_image(Panel):
