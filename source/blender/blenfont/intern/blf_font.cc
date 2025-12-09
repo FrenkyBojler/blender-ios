@@ -625,10 +625,9 @@ static void blf_font_draw_ex(FontBLF *font,
 
   ft_pix pen_x = 0;
 
-  ShapingData text(str, str_len);
-
   blf_batch_draw_begin(font);
 
+  ShapingData text(str, str_len);
   while (text.process(font, gc, r_info)) {
     for (uint i = 0; i < text.segment.glyph_count; i++) {
       if (text.segment.glyphs[i]) {

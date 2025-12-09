@@ -555,9 +555,11 @@ typedef struct UserDef {
   short keying_flag;
   /** Flags for which channels to insert keys at. */
   short key_insert_channels;  // eKeyInsertChannels
-  char _pad15[2];
   /** Flags for animation. */
   short animation_flag;
+
+  /** Options for text rendering. */
+  short text_render;
 
   char _pad19[1];
   char navigation_mode;
@@ -618,9 +620,7 @@ typedef struct UserDef {
   char _pad18[7];
 
   short sequencer_proxy_setup; /* eUserpref_SeqProxySetup */
-
-  /** Options for text rendering. */
-  short text_render;
+  short _pad1;
 
   float collection_instance_empty_size;
   char text_flag;
