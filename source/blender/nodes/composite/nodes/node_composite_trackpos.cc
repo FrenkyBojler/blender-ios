@@ -16,8 +16,8 @@
 
 #include "BKE_context.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_movieclip.h"
-#include "BKE_tracking.h"
+#include "BKE_movieclip.hh"
+#include "BKE_tracking.hh"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
@@ -103,7 +103,7 @@ static void node_composit_buts_trackpos(ui::Layout &layout, bContext *C, Pointer
 {
   bNode *node = (bNode *)ptr->data;
 
-  uiTemplateID(&layout, C, ptr, "clip", nullptr, "CLIP_OT_open", nullptr);
+  template_id(&layout, C, ptr, "clip", nullptr, "CLIP_OT_open", nullptr);
 
   if (node->id) {
     MovieClip *clip = (MovieClip *)node->id;
@@ -123,7 +123,7 @@ static void node_composit_buts_trackpos(ui::Layout &layout, bContext *C, Pointer
       col.prop_search(ptr, "track_name", &object_ptr, "tracks", "", ICON_ANIM_DATA);
     }
     else {
-      layout.prop(ptr, "track_name", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_ANIM_DATA);
+      layout.prop(ptr, "track_name", ui::ITEM_R_SPLIT_EMPTY_NAME, "", ICON_ANIM_DATA);
     }
   }
 }
