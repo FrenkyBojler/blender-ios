@@ -413,7 +413,6 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       }
     }
     FOREACH_NODETREE_END;
-    version_realize_instances_to_curve_domain(*bmain);
   }
 
   /**
