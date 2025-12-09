@@ -353,13 +353,17 @@ static void stats_object_edit(Object *obedit, SceneStats *stats)
     const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
     const VArray<bool> selected_points = *curves.attributes().lookup_or_default<bool>(
         ".selection", bke::AttrDomain::Point, true);
-    const VArray<bool> selected_curves = *curves.attributes().lookup_or_default<bool>(
-        ".selection", bke::AttrDomain::Curve, true);
+
+    const OffsetIndices points_by_curve = curves.points_by_curve();
+    for (const int curve_i : curves.curves_range()) {
+      const IndexRange points = points_by_curve[curve_i];
+      stats->totcurvesel += std::all_of(
+      points.begin(), points.end(), [&](const int64_t i) { return selected_points[i] == true; });
+    }
 
     stats->totpoints += curves.points_num();
     stats->totcurves += curves.curves_num();
     stats->totpointsel += array_utils::count_booleans(selected_points);
-    stats->totcurvesel += array_utils::count_booleans(selected_curves);
   }
   else if (obedit->type == OB_POINTCLOUD) {
     using namespace blender;
