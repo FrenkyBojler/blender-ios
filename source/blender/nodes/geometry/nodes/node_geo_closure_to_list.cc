@@ -3,6 +3,8 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_compute_contexts.hh"
+#include "BKE_volume_grid.hh"
+
 #include "BLO_read_write.hh"
 
 #include "NOD_geo_closure_to_list.hh"
@@ -180,8 +182,24 @@ static void node_geo_exec(GeoNodeExecParams params)
       evaluate_closure_eagerly(*closure, closure_params);
 
       for (const int i : required_items.index_range()) {
-        if (cpp_types[i]->is<bke::SocketValueVariant>()) {
-          cpp_types[i]->move_construct(&closure_results[i], list_values[i][out_i]);
+        if (closure_results[i].is_volume_grid() && cpp_types[i]->is<bke::GVolumeGrid>()) {
+          /* Currently bke::SocketValueVariant lacks a function returning the pointer to the
+           * internal grid that we could move from. So implement that explicitly here. */
+          bke::GVolumeGrid grid = closure_results[i].get<bke::GVolumeGrid>();
+          list_values[i].typed<bke::GVolumeGrid>()[out_i] = std::move(grid);
+        }
+        else if (closure_results[i].is_context_dependent_field() && cpp_types[i]->is<fn::GField>())
+        {
+          /* Same situation with suboptimal bke::SocketValueVariant grid API. */
+          fn::GField field = closure_results[i].get<fn::GField>();
+          list_values[i].typed<fn::GField>()[out_i] = std::move(field);
+        }
+        else if (closure_results[i].is_list() && cpp_types[i]->is<ListPtr>()) {
+          /* Same situation with suboptimal bke::SocketValueVariant grid API. Lists of lists may
+           * have a different implementation in the future, but better to be complete here even
+           * still. */
+          ListPtr field = closure_results[i].get<ListPtr>();
+          list_values[i].typed<ListPtr>()[out_i] = std::move(field);
         }
         else if (closure_results[i].is_single()) {
           cpp_types[i]->move_construct(const_cast<void *>(closure_results[i].get_single_ptr_raw()),
