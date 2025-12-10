@@ -61,7 +61,8 @@ Button *uiDefAutoButR(Block *block,
                       int x,
                       int y,
                       int width,
-                      int height)
+                      int height,
+                      std::optional<ButtonType> type)
 {
   Button *but = nullptr;
 
@@ -159,8 +160,10 @@ Button *uiDefAutoButR(Block *block,
                              std::nullopt);
       }
       else {
+        BLI_assert(
+            ELEM(type.value_or(ButtonType::NumSlider), ButtonType::NumSlider, ButtonType::Num));
         but = uiDefButR_prop(block,
-                             ButtonType::Num,
+                             type.value_or(ButtonType::Num),
                              name,
                              x,
                              y,
@@ -227,10 +230,11 @@ Button *uiDefAutoButR(Block *block,
                              std::nullopt);
       }
       break;
-    case PROP_STRING:
+    case PROP_STRING: {
+      bool has_search_fn = RNA_property_string_search_flag(prop) != eStringPropertySearchFlag(0);
       if (icon && name && name->is_empty()) {
         but = uiDefIconButR_prop(block,
-                                 ButtonType::Text,
+                                 has_search_fn ? ButtonType::SearchMenu : ButtonType::Text,
                                  icon,
                                  x,
                                  y,
@@ -245,7 +249,7 @@ Button *uiDefAutoButR(Block *block,
       }
       else if (icon) {
         but = uiDefIconTextButR_prop(block,
-                                     ButtonType::Text,
+                                     has_search_fn ? ButtonType::SearchMenu : ButtonType::Text,
                                      icon,
                                      name,
                                      x,
@@ -261,7 +265,7 @@ Button *uiDefAutoButR(Block *block,
       }
       else {
         but = uiDefButR_prop(block,
-                             ButtonType::Text,
+                             has_search_fn ? ButtonType::SearchMenu : ButtonType::Text,
                              name,
                              x,
                              y,
@@ -281,6 +285,7 @@ Button *uiDefAutoButR(Block *block,
         button_flag_enable(but, BUT_TEXTEDIT_UPDATE | BUT_VALUE_CLEAR);
       }
       break;
+    }
     case PROP_POINTER: {
       if (icon == 0) {
         const PointerRNA pptr = RNA_property_pointer_get(ptr, prop);

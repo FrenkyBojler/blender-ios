@@ -770,15 +770,6 @@ void region_winrct_get_no_margin(const ARegion *region, rcti *r_rect);
 void block_add_dynamic_listener(Block *block,
                                 void (*listener_func)(const wmRegionListenerParams *params));
 
-/**
- * Reallocate the button (new address is returned) for a new button type.
- * This should generally be avoided and instead the correct type be created right away.
- *
- * \note Only the #Button data can be kept. If the old button used a derived type (e.g.
- * #ButtonTab), the data that is not inside #Button will be lost.
- */
-Button *button_change_type(Button *but, ButtonType new_type);
-
 double button_value_get(Button *but);
 void button_value_set(Button *but, double value);
 /**

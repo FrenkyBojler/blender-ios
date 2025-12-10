@@ -730,26 +730,19 @@ static void ui_item_array(Layout *layout,
        * map these to rows/columns. */
       col = a % dim_size[1];
       row = a / dim_size[1];
-
-      Button *but = uiDefAutoButR(block,
-                                  ptr,
-                                  prop,
-                                  a,
-                                  "",
-                                  ICON_NONE,
-                                  x + w * col,
-                                  y + (dim_size[0] * UI_UNIT_Y) - (row * UI_UNIT_Y),
-                                  w,
-                                  UI_UNIT_Y);
-      if (slider && but->type == ButtonType::Num) {
-        ButtonNumber *number_but = (ButtonNumber *)but;
-        const float step_size = number_but->step_size;
-        const float precision = number_but->precision;
-        but = button_change_type(but, ButtonType::NumSlider);
-        auto *slider_but = reinterpret_cast<ButtonNumberSlider *>(but);
-        slider_but->step_size = step_size;
-        slider_but->precision = precision;
-      }
+      std::optional<ButtonType> type = slider ? std::optional(ButtonType::NumSlider) :
+                                                std::nullopt;
+      uiDefAutoButR(block,
+                    ptr,
+                    prop,
+                    a,
+                    "",
+                    ICON_NONE,
+                    x + w * col,
+                    y + (dim_size[0] * UI_UNIT_Y) - (row * UI_UNIT_Y),
+                    w,
+                    UI_UNIT_Y,
+                    type);
     }
   }
   else if (subtype == PROP_DIRECTION && !expand) {
@@ -808,18 +801,10 @@ static void ui_item_array(Layout *layout,
         const int width_item = ((compact && type == PROP_BOOLEAN) ?
                                     min_ii(w, ui_text_icon_width(layout, str_buf, icon, false)) :
                                     w);
-
+        std::optional<ButtonType> type = slider ? std::optional(ButtonType::NumSlider) :
+                                                  std::nullopt;
         Button *but = uiDefAutoButR(
-            block, ptr, prop, a, str_buf, icon, 0, 0, width_item, UI_UNIT_Y);
-        if (slider && but->type == ButtonType::Num) {
-          ButtonNumber *number_but = (ButtonNumber *)but;
-          const float step_size = number_but->step_size;
-          const float precision = number_but->precision;
-          but = button_change_type(but, ButtonType::NumSlider);
-          auto *slider_but = reinterpret_cast<ButtonNumberSlider *>(but);
-          slider_but->step_size = step_size;
-          slider_but->precision = precision;
-        }
+            block, ptr, prop, a, str_buf, icon, 0, 0, width_item, UI_UNIT_Y, type);
         if ((toggle == 1) && but->type == ButtonType::Checkbox) {
           but->type = ButtonType::Toggle;
         }
@@ -2256,17 +2241,8 @@ void Layout::prop(PointerRNA *ptr,
   }
   /* single button */
   else {
-    but = uiDefAutoButR(block, ptr, prop, index, name, icon, 0, 0, w, h);
-
-    if (slider && but->type == ButtonType::Num) {
-      ButtonNumber *number_but = (ButtonNumber *)but;
-      const float step_size = number_but->step_size;
-      const float precision = number_but->precision;
-      but = button_change_type(but, ButtonType::NumSlider);
-      auto *slider_but = reinterpret_cast<ButtonNumberSlider *>(but);
-      slider_but->step_size = step_size;
-      slider_but->precision = precision;
-    }
+    std::optional<ButtonType> type = slider ? std::optional(ButtonType::NumSlider) : std::nullopt;
+    but = uiDefAutoButR(block, ptr, prop, index, name, icon, 0, 0, w, h, type);
 
     if (flag & ITEM_R_CHECKBOX_INVERT) {
       if (ELEM(but->type,
@@ -2642,7 +2618,7 @@ Button *but_add_search(Button *but,
     RNACollectionSearch *coll_search = MEM_new<RNACollectionSearch>(__func__);
     ButtonSearch *search_but;
 
-    but = button_change_type(but, ButtonType::SearchMenu);
+    BLI_assert(but->type == ButtonType::SearchMenu);
     search_but = (ButtonSearch *)but;
 
     if (searchptr) {

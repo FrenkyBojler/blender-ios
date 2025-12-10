@@ -2091,15 +2091,6 @@ void editsource_active_but_test(Button *but)
   ui_editsource_info->hash.add(but, std::move(but_store));
 }
 
-void editsource_but_replace(const Button *old_but, Button *new_but)
-{
-  std::unique_ptr<EditSourceButStore> but_store = ui_editsource_info->hash.pop_default(old_but,
-                                                                                       nullptr);
-  if (but_store) {
-    ui_editsource_info->hash.add(new_but, std::move(but_store));
-  }
-}
-
 static wmOperatorStatus editsource_text_edit(bContext *C,
                                              wmOperator * /*op*/,
                                              const char filepath[FILE_MAX],
