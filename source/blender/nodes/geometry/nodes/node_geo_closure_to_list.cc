@@ -182,13 +182,16 @@ static void node_geo_exec(GeoNodeExecParams params)
       evaluate_closure_eagerly(*closure, closure_params);
 
       for (const int i : required_items.index_range()) {
+#ifdef WITH_OPENVDB
         if (closure_results[i].is_volume_grid() && cpp_types[i]->is<bke::GVolumeGrid>()) {
           /* Currently bke::SocketValueVariant lacks a function returning the pointer to the
            * internal grid that we could move from. So implement that explicitly here. */
           bke::GVolumeGrid grid = closure_results[i].get<bke::GVolumeGrid>();
           list_values[i].typed<bke::GVolumeGrid>()[out_i] = std::move(grid);
         }
-        else if (closure_results[i].is_context_dependent_field() && cpp_types[i]->is<fn::GField>())
+        else
+#endif
+            if (closure_results[i].is_context_dependent_field() && cpp_types[i]->is<fn::GField>())
         {
           /* Same situation with suboptimal bke::SocketValueVariant grid API. */
           fn::GField field = closure_results[i].get<fn::GField>();
