@@ -46,7 +46,6 @@ static const EnumPropertyItem rna_enum_mesh_remesh_mode_items[] = {
 #  include "DNA_scene_types.h"
 #  include "DNA_world_types.h"
 
-#  include "BLI_color_types.hh"
 #  include "BLI_math_geom.h"
 #  include "BLI_math_vector.h"
 #  include "BLI_string.h"
@@ -1740,10 +1739,6 @@ static void rna_MeshUVLoop_pin_uv_set(PointerRNA *ptr, const bool value)
     pin_uv.varray.set(lookup->elem_index, value);
     pin_uv.finish();
   }
-  blender::bke::AttributeWriter<bool> pin_uv = ED_mesh_uv_map_pin_layer_ensure(
-      mesh, lookup->uv_map_index);
-  pin_uv.varray.set(lookup->corner, value);
-  pin_uv.finish();
 }
 
 static void rna_MeshUVLoop_uv_get(PointerRNA *ptr, float *value)
@@ -1764,47 +1759,7 @@ static std::optional<std::string> rna_MeshLoopColorLayer_path(const PointerRNA *
 
 static std::optional<std::string> rna_MeshColor_path(const PointerRNA *ptr)
 {
-  using namespace blender;
-  const Mesh *mesh = rna_mesh(ptr);
-  if (mesh->runtime->edit_mesh) {
-    return std::nullopt;
-  }
-
-  const ColorGeometry4b *value = ptr->data_as<ColorGeometry4b>();
-
-  struct SearchResult {
-    StringRefNull name;
-    int attr_index;
-    int corner;
-  };
-  std::optional<SearchResult> search_result;
-
-  int attr_index = 0;
-  mesh->attribute_storage.wrap().foreach_with_stop([&](const bke::Attribute &attr) {
-    if (attr.domain() != bke::AttrDomain::Corner) {
-      return true;
-    }
-    if (attr.data_type() != bke::AttrType::ColorByte) {
-      return true;
-    }
-    const auto *array_data = std::get_if<bke::Attribute::ArrayData>(&attr.data());
-    if (!array_data) {
-      return true;
-    }
-    attr_index++;
-    const ptrdiff_t index = value - static_cast<const ColorGeometry4b *>(array_data->data);
-    if (index >= 0 && index < mesh->corners_num) {
-      search_result = {attr.name(), attr_index, int(index)};
-      return false;
-    }
-    return true;
-  });
-
-  if (!search_result) {
-    return std::nullopt;
-  }
-
-  return fmt::format("vertex_colors[\"{}\"]", BLI_str_escape(search_result->name.c_str()));
+  return rna_LoopCustomData_data_path(ptr, "vertex_colors", CD_PROP_BYTE_COLOR);
 }
 
 /***************************************/
