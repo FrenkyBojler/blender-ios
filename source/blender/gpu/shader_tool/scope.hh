@@ -376,13 +376,7 @@ struct Scope {
     foreach_match("sw{..}", [&](const std::vector<Token> matches) {
       callback(matches[0], matches[1], matches[2].scope());
     });
-    foreach_match("Sw{..}", [&](const std::vector<Token> matches) {
-      callback(matches[0], matches[1], matches[2].scope());
-    });
     foreach_match("sw<..>{..}", [&](const std::vector<Token> matches) {
-      callback(matches[0], matches[1], matches[6].scope());
-    });
-    foreach_match("Sw<..>{..}", [&](const std::vector<Token> matches) {
       callback(matches[0], matches[1], matches[6].scope());
     });
   }
