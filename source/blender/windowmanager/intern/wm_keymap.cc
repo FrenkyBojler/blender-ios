@@ -1842,7 +1842,7 @@ void WM_keyconfig_update_postpone_end()
 
 static bool wm_keymap_test_and_clear_update(wmKeyMap *km)
 {
-  int update = (km->flag & KEYMAP_UPDATE);
+  bool update = (km->flag & KEYMAP_UPDATE);
   km->flag &= ~KEYMAP_UPDATE;
 
   LISTBASE_FOREACH (wmKeyMapItem *, kmi, &km->items) {
