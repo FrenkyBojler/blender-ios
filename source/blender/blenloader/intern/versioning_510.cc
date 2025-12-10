@@ -481,8 +481,8 @@ void blo_do_versions_510(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     }
     FOREACH_NODETREE_END;
   }
-  
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 13)) {
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 501, 13)) {
     LISTBASE_FOREACH (Light *, light, &bmain->lights) {
       do_version_light_remove_use_nodes(bmain, light);
     }
