@@ -151,6 +151,7 @@ class AbstractTreeView : public AbstractView, public TreeViewItemContainer {
 
   bool is_fully_visible() const override;
   void scroll(ViewScrollDirection direction) override;
+  int ui_handle_event(bContext *C, const wmEvent *event, ARegion *region) override;
 
   /**
    * \param xy: The mouse coordinates in window space.

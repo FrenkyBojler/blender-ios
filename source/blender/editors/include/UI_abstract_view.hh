@@ -127,6 +127,11 @@ class AbstractView {
   virtual void persistent_state_apply(const uiViewState &state);
 
   /**
+   * Handle view level UI events.
+   */
+  virtual int ui_handle_event(bContext *C, const wmEvent *event, ARegion *region);
+
+  /**
    * Makes \a item valid for display in this view. Behavior is undefined for items not registered
    * with this.
    */

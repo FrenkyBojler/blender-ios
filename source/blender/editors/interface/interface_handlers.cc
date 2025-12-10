@@ -11987,6 +11987,7 @@ static int region_handler(bContext *C, const wmEvent *event, void * /*userdata*/
   /* either handle events for already activated button or try to activate */
   Button *but = region_find_active_but(region);
   Button *listbox = ui_list_find_mouse_over(region, event);
+  AbstractView *view = region_view_find_at(region, event->xy, 0);
 
   retval = handler_panel_region(C, event, region, listbox ? listbox : but);
 
@@ -11994,6 +11995,17 @@ static int region_handler(bContext *C, const wmEvent *event, void * /*userdata*/
     retval = ui_handle_list_event(C, event, region, listbox);
 
     /* interactions with the listbox should disable tips */
+    if (retval == WM_UI_HANDLER_BREAK) {
+      if (but) {
+        button_tooltip_timer_remove(C, but);
+      }
+    }
+  }
+
+  if (retval == WM_UI_HANDLER_CONTINUE && view) {
+    retval = view->ui_handle_event(C, event, region);
+
+    /* navigation of the view items should disable any shown tips */
     if (retval == WM_UI_HANDLER_BREAK) {
       if (but) {
         button_tooltip_timer_remove(C, but);

@@ -18,6 +18,8 @@
 
 #include "interface_intern.hh"
 
+#include "ED_screen.hh"
+
 #include "UI_interface_layout.hh"
 #include "UI_view2d.hh"
 
@@ -430,6 +432,125 @@ void AbstractTreeView::scroll_active_into_view()
         AbstractTreeView::IterOptions::SkipCollapsed |
             AbstractTreeView::IterOptions::SkipFiltered);
   }
+}
+
+int AbstractTreeView::ui_handle_event(bContext *C, const wmEvent *event, ARegion *region)
+{
+  const int type = event->type, val = event->val;
+  int retval = WM_UI_HANDLER_CONTINUE;
+  bool redraw = false;
+
+  if (val == KM_PRESS) {
+    if ((ELEM(type, EVT_UPARROWKEY, EVT_DOWNARROWKEY, EVT_LEFTARROWKEY, EVT_RIGHTARROWKEY) &&
+         (event->modifier == 0 || event->modifier == KM_SHIFT)) ||
+        (ELEM(type, WHEELUPMOUSE, WHEELDOWNMOUSE) && (event->modifier == KM_CTRL)))
+    {
+      /* Handle keyboard navigation of tree items */
+      AbstractTreeViewItem *active_item = nullptr;
+      AbstractTreeViewItem *up_item = nullptr;
+      AbstractTreeViewItem *down_item = nullptr;
+      AbstractTreeViewItem *prev = nullptr;
+      int active_index = -1;
+      int index = 0;
+      this->foreach_item(
+          [&](AbstractTreeViewItem &item) {
+            if (!active_item && item.is_active()) {
+              active_item = &item;
+              active_index = index;
+              if (!up_item) {
+                up_item = prev;
+              }
+            }
+            else if (!down_item && active_item) {
+              down_item = &item;
+            }
+            prev = &item;
+            index++;
+          },
+          AbstractTreeView::IterOptions::SkipCollapsed |
+              AbstractTreeView::IterOptions::SkipFiltered);
+
+      /* Need an active item to navigate from */
+      if (!active_item) {
+        return retval;
+      }
+
+      const bool up_arrow = (type == EVT_UPARROWKEY && event->modifier == 0);
+      const bool shift_up_arrow = (type == EVT_UPARROWKEY && event->modifier == KM_SHIFT);
+      const bool down_arrow = (type == EVT_DOWNARROWKEY && event->modifier == 0);
+      const bool shift_down_arrow = (type == EVT_DOWNARROWKEY && event->modifier == KM_SHIFT);
+      const bool left_arrow = (type == EVT_LEFTARROWKEY && event->modifier == 0);
+      const bool shift_left_arrow = (type == EVT_LEFTARROWKEY && event->modifier == KM_SHIFT);
+      const bool right_arrow = (type == EVT_RIGHTARROWKEY && event->modifier == 0);
+      const bool shift_right_arrow = (type == EVT_RIGHTARROWKEY && event->modifier == KM_SHIFT);
+      const bool wheel_up = (type == WHEELUPMOUSE);
+      const bool wheel_down = (type == WHEELDOWNMOUSE);
+      const bool is_multiselect_supported = this->is_multiselect_supported();
+
+      if (active_item->is_collapsible() && ((left_arrow && !active_item->is_collapsed()) ||
+                                            (right_arrow && active_item->is_collapsed())))
+      {
+        active_item->toggle_collapsed();
+        active_item->on_collapse_change(*C, active_item->is_collapsed());
+        redraw = true;
+      }
+      else if (up_item && (up_arrow || left_arrow || wheel_down ||
+                           (is_multiselect_supported && (shift_up_arrow || shift_left_arrow))))
+      {
+        if (is_multiselect_supported && (up_arrow || left_arrow || wheel_down)) {
+          /* For multiselect items without shift pressed, clear selections */
+          this->foreach_view_item([](auto &item) { item.set_selected(false); });
+        }
+        up_item->activate(*C);
+        active_index -= 1;
+        redraw = true;
+      }
+      else if (down_item &&
+               (down_arrow || right_arrow || wheel_up ||
+                (is_multiselect_supported && (shift_down_arrow || shift_right_arrow))))
+      {
+        if (is_multiselect_supported && (down_arrow || right_arrow || wheel_up)) {
+          /* For multiselect items without shift pressed, clear selections */
+          this->foreach_view_item([](auto &item) { item.set_selected(false); });
+        }
+        down_item->activate(*C);
+        active_index += 1;
+        redraw = true;
+      }
+
+      if (redraw && active_index != -1) {
+        /* Scroll active item into view */
+        const std::optional<int> visible_row_count = this->tot_visible_row_count();
+        const int first_visible_index = this->scroll_value_ ? *this->scroll_value_ : 0;
+        const int max_visible_index = visible_row_count ?
+                                          first_visible_index + *visible_row_count - 1 :
+                                          std::numeric_limits<int>::max();
+        if ((active_index < first_visible_index) || (active_index > max_visible_index)) {
+          this->scroll_active_into_view_on_draw_ = true;
+          this->scroll_active_into_view();
+        }
+      }
+
+      retval = WM_UI_HANDLER_BREAK;
+    }
+    else if (ELEM(type, WHEELUPMOUSE, WHEELDOWNMOUSE) && (event->modifier & KM_SHIFT)) {
+      /* Resize the view similar to a listbox */
+      if (this->custom_height_) {
+        const std::optional<int> visible_row_count = this->tot_visible_row_count();
+        this->set_default_rows(
+            std::max(MIN_ROWS, *visible_row_count + ((type == WHEELUPMOUSE) ? -1 : 1)));
+        redraw = true;
+        retval = WM_UI_HANDLER_BREAK;
+      }
+    }
+  }
+
+  if (redraw) {
+    ED_region_tag_redraw(region);
+    ED_region_tag_refresh_ui(region);
+  }
+
+  return retval;
 }
 
 /* ---------------------------------------------------------------------- */

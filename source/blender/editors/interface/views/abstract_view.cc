@@ -146,6 +146,13 @@ std::optional<uiViewState> AbstractView::persistent_state() const
 
 void AbstractView::persistent_state_apply(const uiViewState & /*state*/) {}
 
+int AbstractView::ui_handle_event(bContext * /*C*/,
+                                  const wmEvent * /*event*/,
+                                  ARegion * /*region*/)
+{
+  return WM_UI_HANDLER_CONTINUE;
+}
+
 /** \} */
 
 /* ---------------------------------------------------------------------- */
