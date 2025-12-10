@@ -103,8 +103,6 @@ struct WindowManagerRuntime {
 
   wmMsgBus *message_bus = nullptr;
 
-  char save_images_on_file_close = true;
-
   WindowManagerRuntime();
   ~WindowManagerRuntime();
 };
