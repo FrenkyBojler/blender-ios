@@ -666,19 +666,19 @@ static void sequencer_main_cursor(wmWindow *win, ScrArea *area, ARegion *region)
 
   rcti scrub_rect = region->winrct;
   scrub_rect.ymin = scrub_rect.ymax - UI_TIME_SCRUB_MARGIN_Y;
-  if (BLI_rcti_isect_pt_v(&scrub_rect, win->eventstate->xy)) {
+  if (BLI_rcti_isect_pt_v(&scrub_rect, win->runtime->eventstate->xy)) {
     WM_cursor_set(win, wmcursor);
     return;
   }
 
   const View2D *v2d = &region->v2d;
-  if (ui::view2d_mouse_in_scrollers(region, v2d, win->eventstate->xy)) {
+  if (ui::view2d_mouse_in_scrollers(region, v2d, win->runtime->eventstate->xy)) {
     WM_cursor_set(win, wmcursor);
     return;
   }
 
-  float mouse_co_region[2] = {float(win->eventstate->xy[0] - region->winrct.xmin),
-                              float(win->eventstate->xy[1] - region->winrct.ymin)};
+  float mouse_co_region[2] = {float(win->runtime->eventstate->xy[0] - region->winrct.xmin),
+                              float(win->runtime->eventstate->xy[1] - region->winrct.ymin)};
   float mouse_co_view[2];
   ui::view2d_region_to_view(
       &region->v2d, mouse_co_region[0], mouse_co_region[1], &mouse_co_view[0], &mouse_co_view[1]);
@@ -689,18 +689,20 @@ static void sequencer_main_cursor(wmWindow *win, ScrArea *area, ARegion *region)
     if (strip != nullptr) {
       const ListBase *channels = seq::channels_displayed_get(ed);
       const bool locked = seq::transform_is_locked(channels, strip);
-      const int frame = round_fl_to_int(mouse_co_view[0]);
-      /* We cannot split the first and last frame, so blade cursor should not appear then. */
-      if (STREQ(tref->idname, "builtin.blade") && frame != strip->left_handle() &&
-          frame != strip->right_handle(scene))
-      {
+      if (STREQ(tref->idname, "builtin.blade")) {
         wmcursor = locked ? WM_CURSOR_STOP : WM_CURSOR_BLADE;
       }
-      else if (STREQ(tref->idname, "builtin.slip")) {
+      else {
         wmcursor = (locked || seq::transform_single_image_check(strip)) ? WM_CURSOR_STOP :
                                                                           WM_CURSOR_SLIP;
       }
     }
+    else if (STREQ(tref->idname, "builtin.blade")) {
+      /* For blade tool, show blade cursor even when `strip_under_mouse_get` returns `nullptr`.
+       * This is because the drag starting position for box blade can be in empty space. */
+      wmcursor = WM_CURSOR_BLADE;
+    }
+
     WM_cursor_set(win, wmcursor);
     return;
   }

@@ -162,7 +162,7 @@ static void wm_dropbox_item_update_ot(wmDropBox *drop)
   }
   else {
     if (ot->srna != drop->ptr->type) {
-      WM_operator_properties_create_ptr(drop->ptr, ot);
+      *drop->ptr = WM_operator_properties_create_ptr(ot);
       if (drop->properties) {
         drop->ptr->data = drop->properties;
       }
@@ -332,7 +332,8 @@ void wm_drags_exit(wmWindowManager *wm, wmWindow *win)
 
   /* Active area should always redraw, even if canceled. */
   int event_xy_target[2];
-  wmWindow *target_win = WM_window_find_under_cursor(win, win->eventstate->xy, event_xy_target);
+  wmWindow *target_win = WM_window_find_under_cursor(
+      win, win->runtime->eventstate->xy, event_xy_target);
   if (target_win) {
     const bScreen *screen = WM_window_get_active_screen(target_win);
     ED_region_tag_redraw_no_rebuild(screen->active_region);
@@ -531,7 +532,7 @@ static wmDropBox *wm_dropbox_active(bContext *C, wmDrag *drag, const wmEvent *ev
     }
   }
   if (!drop) {
-    drop = dropbox_active(C, &win->handlers, drag, event);
+    drop = dropbox_active(C, &win->runtime->handlers, drag, event);
   }
   return drop;
 }
@@ -994,7 +995,7 @@ static void wm_drop_operator_draw(const blender::StringRef name, int x, int y)
   const uiFontStyle *fstyle = UI_FSTYLE_WIDGET;
 
   /* Use the theme settings from tooltips. */
-  const bTheme *btheme = blender::ui::GetTheme();
+  const bTheme *btheme = blender::ui::theme::theme_get();
   const uiWidgetColors *wcol = &btheme->tui.wcol_tooltip;
 
   float col_fg[4], col_bg[4];
@@ -1007,11 +1008,11 @@ static void wm_drop_operator_draw(const blender::StringRef name, int x, int y)
 static void wm_drop_redalert_draw(const blender::StringRef redalert_str, int x, int y)
 {
   const uiFontStyle *fstyle = UI_FSTYLE_WIDGET;
-  const bTheme *btheme = blender::ui::GetTheme();
+  const bTheme *btheme = blender::ui::theme::theme_get();
   const uiWidgetColors *wcol = &btheme->tui.wcol_tooltip;
 
   float col_fg[4], col_bg[4];
-  blender::ui::GetThemeColor4fv(TH_REDALERT, col_fg);
+  blender::ui::theme::get_color_4fv(TH_REDALERT, col_fg);
   rgba_uchar_to_float(col_bg, wcol->inner);
 
   blender::ui::fontstyle_draw_simple_backdrop(fstyle, x, y, redalert_str, col_fg, col_bg);
@@ -1246,7 +1247,7 @@ void WM_drag_draw_default_fn(bContext *C, wmWindow *win, wmDrag *drag, const int
 
 void wm_drags_draw(bContext *C, wmWindow *win)
 {
-  const int *xy = win->eventstate->xy;
+  const int *xy = win->runtime->eventstate->xy;
 
   int xy_buf[2];
   if (ELEM(win->grabcursor, GHOST_kGrabWrap, GHOST_kGrabHide) &&
